@@ -64,6 +64,7 @@ static void sun4i_crtc_atomic_begin(struct drm_crtc *crtc,
 {
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
+	struct sunxi_engine *engine = scrtc->engine;
 	unsigned long flags;
 
 	if (crtc->state->event) {
@@ -73,7 +74,10 @@ static void sun4i_crtc_atomic_begin(struct drm_crtc *crtc,
 		scrtc->event = crtc->state->event;
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		crtc->state->event = NULL;
-	 }
+	}
+
+	if (engine->ops->atomic_begin)
+		engine->ops->atomic_begin(engine, old_state);
 }
 
 static void sun4i_crtc_atomic_flush(struct drm_crtc *crtc,
