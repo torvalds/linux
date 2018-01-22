@@ -7,6 +7,8 @@
  * Based on "omap4.dtsi"
  */
 
+#include <dt-bindings/bus/ti-sysc.h>
+#include <dt-bindings/clock/dra7.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/dra.h>
 #include <dt-bindings/clock/dra7.h>
@@ -1523,9 +1525,15 @@
 		target-module@4a0dd000 {
 			compatible = "ti,sysc-omap4-sr";
 			ti,hwmods = "smartreflex_core";
-			reg = <0x4a0dd000 0x4>,
-			      <0x4a0dd008 0x4>;
-			reg-names = "rev", "sysc";
+			reg = <0x4a0dd038 0x4>;
+			reg-names = "sysc";
+			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			clocks = <&coreaon_clkctrl DRA7_SMARTREFLEX_CORE_CLKCTRL 0>;
+			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x4a0dd000 0x001000>;
@@ -1536,9 +1544,15 @@
 		target-module@4a0d9000 {
 			compatible = "ti,sysc-omap4-sr";
 			ti,hwmods = "smartreflex_mpu";
-			reg = <0x4a0d9000 0x4>,
-			      <0x4a0d9008 0x4>;
-			reg-names = "rev", "sysc";
+			reg = <0x4a0d9038 0x4>;
+			reg-names = "sysc";
+			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			clocks = <&coreaon_clkctrl DRA7_SMARTREFLEX_MPU_CLKCTRL 0>;
+			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x4a0d9000 0x001000>;
