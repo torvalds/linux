@@ -116,6 +116,7 @@ struct cc_drvdata {
 	void *hash_handle;
 	void *aead_handle;
 	void *request_mgr_handle;
+	void *fips_handle;
 	void *ivgen_handle;
 	void *sram_mgr_handle;
 	void *debugfs;

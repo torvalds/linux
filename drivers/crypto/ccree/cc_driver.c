@@ -25,6 +25,7 @@
 #include "cc_ivgen.h"
 #include "cc_sram_mgr.h"
 #include "cc_pm.h"
+#include "cc_fips.h"
 
 bool cc_dump_desc;
 module_param_named(dump_desc, cc_dump_desc, bool, 0600);
@@ -78,7 +79,17 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 		irr &= ~CC_COMP_IRQ_MASK;
 		complete_request(drvdata);
 	}
-
+#ifdef CONFIG_CRYPTO_FIPS
+	/* TEE FIPS interrupt */
+	if (irr & CC_GPR0_IRQ_MASK) {
+		/* Mask interrupt - will be unmasked in Deferred service
+		 * handler
+		 */
+		cc_iowrite(drvdata, CC_REG(HOST_IMR), imr | CC_GPR0_IRQ_MASK);
+		irr &= ~CC_GPR0_IRQ_MASK;
+		fips_handler(drvdata);
+	}
+#endif
 	/* AXI error interrupt */
 	if (irr & CC_AXI_ERR_IRQ_MASK) {
 		u32 axi_err;
@@ -243,10 +254,15 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto post_regs_err;
 	}
 
+	rc = cc_fips_init(new_drvdata);
+	if (rc) {
+		dev_err(dev, "CC_FIPS_INIT failed 0x%x\n", rc);
+		goto post_debugfs_err;
+	}
 	rc = cc_sram_mgr_init(new_drvdata);
 	if (rc) {
 		dev_err(dev, "cc_sram_mgr_init failed\n");
-		goto post_debugfs_err;
+		goto post_fips_init_err;
 	}
 
 	new_drvdata->mlli_sram_addr =
@@ -301,6 +317,12 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto post_hash_err;
 	}
 
+	/* If we got here and FIPS mode is enabled
+	 * it means all FIPS test passed, so let TEE
+	 * know we're good.
+	 */
+	cc_set_ree_fips_status(new_drvdata, true);
+
 	return 0;
 
 post_hash_err:
@@ -317,6 +339,8 @@ post_req_mgr_err:
 	cc_req_mgr_fini(new_drvdata);
 post_sram_mgr_err:
 	cc_sram_mgr_fini(new_drvdata);
+post_fips_init_err:
+	cc_fips_fini(new_drvdata);
 post_debugfs_err:
 	cc_debugfs_fini(new_drvdata);
 post_regs_err:
@@ -345,6 +369,7 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	cc_buffer_mgr_fini(drvdata);
 	cc_req_mgr_fini(drvdata);
 	cc_sram_mgr_fini(drvdata);
+	cc_fips_fini(drvdata);
 	cc_debugfs_fini(drvdata);
 	fini_cc_regs(drvdata);
 	cc_clk_off(drvdata);
