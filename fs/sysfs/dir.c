@@ -10,6 +10,7 @@
  * Please see Documentation/filesystems/sysfs.txt for more information.
  */
 
+#define pr_fmt(fmt)	"sysfs: " fmt
 #undef DEBUG
 
 #include <linux/fs.h>
@@ -27,8 +28,8 @@ void sysfs_warn_dup(struct kernfs_node *parent, const char *name)
 	if (buf)
 		kernfs_path(parent, buf, PATH_MAX);
 
-	WARN(1, KERN_WARNING "sysfs: cannot create duplicate filename '%s/%s'\n",
-	     buf, name);
+	pr_warn("cannot create duplicate filename '%s/%s'\n", buf, name);
+	dump_stack();
 
 	kfree(buf);
 }
