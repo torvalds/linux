@@ -215,6 +215,18 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->ver = adev->gfx.rlc_fw_version;
 		fw_info->feature = adev->gfx.rlc_feature_version;
 		break;
+	case AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_CNTL:
+		fw_info->ver = adev->gfx.rlc_srlc_fw_version;
+		fw_info->feature = adev->gfx.rlc_srlc_feature_version;
+		break;
+	case AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_GPM_MEM:
+		fw_info->ver = adev->gfx.rlc_srlg_fw_version;
+		fw_info->feature = adev->gfx.rlc_srlg_feature_version;
+		break;
+	case AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_SRM_MEM:
+		fw_info->ver = adev->gfx.rlc_srls_fw_version;
+		fw_info->feature = adev->gfx.rlc_srls_feature_version;
+		break;
 	case AMDGPU_INFO_FW_GFX_MEC:
 		if (query_fw->index == 0) {
 			fw_info->ver = adev->gfx.mec_fw_version;
@@ -1147,6 +1159,30 @@ static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
 	if (ret)
 		return ret;
 	seq_printf(m, "RLC feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* RLC SAVE RESTORE LIST CNTL */
+	query_fw.fw_type = AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_CNTL;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "RLC SRLC feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* RLC SAVE RESTORE LIST GPM MEM */
+	query_fw.fw_type = AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_GPM_MEM;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "RLC SRLG feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* RLC SAVE RESTORE LIST SRM MEM */
+	query_fw.fw_type = AMDGPU_INFO_FW_GFX_RLC_RESTORE_LIST_SRM_MEM;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "RLC SRLS feature version: %u, firmware version: 0x%08x\n",
 		   fw_info.feature, fw_info.ver);
 
 	/* MEC */

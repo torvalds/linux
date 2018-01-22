@@ -774,9 +774,18 @@ struct amdgpu_rlc {
 	u32 starting_offsets_start;
 	u32 reg_list_format_size_bytes;
 	u32 reg_list_size_bytes;
+	u32 reg_list_format_direct_reg_list_length;
+	u32 save_restore_list_cntl_size_bytes;
+	u32 save_restore_list_gpm_size_bytes;
+	u32 save_restore_list_srm_size_bytes;
 
 	u32 *register_list_format;
 	u32 *register_restore;
+	u8 *save_restore_list_cntl;
+	u8 *save_restore_list_gpm;
+	u8 *save_restore_list_srm;
+
+	bool is_rlc_v2_1;
 };
 
 #define AMDGPU_MAX_COMPUTE_QUEUES KGD_MAX_QUEUES
@@ -943,6 +952,12 @@ struct amdgpu_gfx {
 	uint32_t			ce_feature_version;
 	uint32_t			pfp_feature_version;
 	uint32_t			rlc_feature_version;
+	uint32_t			rlc_srlc_fw_version;
+	uint32_t			rlc_srlc_feature_version;
+	uint32_t			rlc_srlg_fw_version;
+	uint32_t			rlc_srlg_feature_version;
+	uint32_t			rlc_srls_fw_version;
+	uint32_t			rlc_srls_feature_version;
 	uint32_t			mec_feature_version;
 	uint32_t			mec2_feature_version;
 	struct amdgpu_ring		gfx_ring[AMDGPU_MAX_GFX_RINGS];
