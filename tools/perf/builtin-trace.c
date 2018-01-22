@@ -821,7 +821,7 @@ static size_t fprintf_duration(unsigned long t, bool calculated, FILE *fp)
 	size_t printed = fprintf(fp, "(");
 
 	if (!calculated)
-		printed += fprintf(fp, "     ?   ");
+		printed += fprintf(fp, "         ");
 	else if (duration >= 1.0)
 		printed += color_fprintf(fp, PERF_COLOR_RED, "%6.3f ms", duration);
 	else if (duration >= 0.01)
@@ -1556,10 +1556,9 @@ static void thread__update_stats(struct thread_trace *ttrace,
 	update_stats(stats, duration);
 }
 
-static int trace__printf_interrupted_entry(struct trace *trace, struct perf_sample *sample)
+static int trace__printf_interrupted_entry(struct trace *trace)
 {
 	struct thread_trace *ttrace;
-	u64 duration;
 	size_t printed;
 
 	if (trace->current == NULL)
@@ -1570,9 +1569,7 @@ static int trace__printf_interrupted_entry(struct trace *trace, struct perf_samp
 	if (!ttrace->entry_pending)
 		return 0;
 
-	duration = sample->time - ttrace->entry_time;
-
-	printed  = trace__fprintf_entry_head(trace, trace->current, duration, true, ttrace->entry_time, trace->output);
+	printed  = trace__fprintf_entry_head(trace, trace->current, 0, false, ttrace->entry_time, trace->output);
 	printed += fprintf(trace->output, "%-70s) ...\n", ttrace->entry_str);
 	ttrace->entry_pending = false;
 
@@ -1627,7 +1624,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	}
 
 	if (!(trace->duration_filter || trace->summary_only || trace->min_stack))
-		trace__printf_interrupted_entry(trace, sample);
+		trace__printf_interrupted_entry(trace);
 
 	ttrace->entry_time = sample->time;
 	msg = ttrace->entry_str;
@@ -1941,7 +1938,7 @@ static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 		}
 	}
 
-	trace__printf_interrupted_entry(trace, sample);
+	trace__printf_interrupted_entry(trace);
 	trace__fprintf_tstamp(trace, sample->time, trace->output);
 
 	if (trace->trace_syscalls)
