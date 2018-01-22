@@ -114,6 +114,7 @@ struct cc_drvdata {
 	void *buff_mgr_handle;
 	void *cipher_handle;
 	void *hash_handle;
+	void *aead_handle;
 	void *request_mgr_handle;
 	void *ivgen_handle;
 	void *sram_mgr_handle;
@@ -130,6 +131,7 @@ struct cc_crypto_alg {
 	unsigned int data_unit;
 	struct cc_drvdata *drvdata;
 	struct skcipher_alg skcipher_alg;
+	struct aead_alg aead_alg;
 };
 
 struct cc_alg_template {

@@ -48,6 +48,10 @@ int cc_map_cipher_request(struct cc_drvdata *drvdata, void *ctx,
 void cc_unmap_cipher_request(struct device *dev, void *ctx, unsigned int ivsize,
 			     struct scatterlist *src, struct scatterlist *dst);
 
+int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req);
+
+void cc_unmap_aead_request(struct device *dev, struct aead_request *req);
+
 int cc_map_hash_request_final(struct cc_drvdata *drvdata, void *ctx,
 			      struct scatterlist *src, unsigned int nbytes,
 			      bool do_update, gfp_t flags);
