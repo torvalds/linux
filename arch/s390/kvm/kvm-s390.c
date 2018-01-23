@@ -2875,7 +2875,7 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 
 static bool ibs_enabled(struct kvm_vcpu *vcpu)
 {
-	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_IBS;
+	return kvm_s390_test_cpuflags(vcpu, CPUSTAT_IBS);
 }
 
 static int kvm_s390_handle_requests(struct kvm_vcpu *vcpu)

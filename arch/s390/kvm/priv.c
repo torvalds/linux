@@ -209,13 +209,13 @@ int kvm_s390_skey_check_enable(struct kvm_vcpu *vcpu)
 
 	trace_kvm_s390_skey_related_inst(vcpu);
 	if (!(sie_block->ictl & (ICTL_ISKE | ICTL_SSKE | ICTL_RRBE)) &&
-	    !(atomic_read(&sie_block->cpuflags) & CPUSTAT_KSS))
+	    !kvm_s390_test_cpuflags(vcpu, CPUSTAT_KSS))
 		return rc;
 
 	rc = s390_enable_skey();
 	VCPU_EVENT(vcpu, 3, "enabling storage keys for guest: %d", rc);
 	if (!rc) {
-		if (atomic_read(&sie_block->cpuflags) & CPUSTAT_KSS)
+		if (kvm_s390_test_cpuflags(vcpu, CPUSTAT_KSS))
 			kvm_s390_clear_cpuflags(vcpu, CPUSTAT_KSS);
 		else
 			sie_block->ictl &= ~(ICTL_ISKE | ICTL_SSKE |
