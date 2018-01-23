@@ -307,7 +307,7 @@ static int dt2811_ai_cmd(struct comedi_device *dev,
 static unsigned int dt2811_ns_to_timer(unsigned int *nanosec,
 				       unsigned int flags)
 {
-	unsigned long long ns = *nanosec;
+	unsigned long long ns;
 	unsigned int ns_lo = COMEDI_MIN_SPEED;
 	unsigned int ns_hi = 0;
 	unsigned int divisor_hi = 0;
