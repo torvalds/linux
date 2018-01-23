@@ -2237,6 +2237,10 @@ populate_lr_context(struct i915_gem_context *ctx,
 	if (!engine->default_state)
 		regs[CTX_CONTEXT_CONTROL + 1] |=
 			_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
+	if (ctx->hw_id == PREEMPT_ID)
+		regs[CTX_CONTEXT_CONTROL + 1] |=
+			_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
+					   CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT);
 
 	i915_gem_object_unpin_map(ctx_obj);
 
