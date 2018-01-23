@@ -123,17 +123,35 @@ int nsim_bpf_setup_tc_block_cb(enum tc_setup_type type,
 	struct netdevsim *ns = cb_priv;
 	struct bpf_prog *oldprog;
 
-	if (type != TC_SETUP_CLSBPF ||
-	    !tc_can_offload(ns->netdev) ||
-	    cls_bpf->common.protocol != htons(ETH_P_ALL) ||
-	    cls_bpf->common.chain_index)
+	if (type != TC_SETUP_CLSBPF) {
+		NSIM_EA(cls_bpf->common.extack,
+			"only offload of BPF classifiers supported");
+		return -EOPNOTSUPP;
+	}
+
+	if (!tc_can_offload_extack(ns->netdev, cls_bpf->common.extack))
 		return -EOPNOTSUPP;
 
-	if (!ns->bpf_tc_accept)
+	if (cls_bpf->common.protocol != htons(ETH_P_ALL)) {
+		NSIM_EA(cls_bpf->common.extack,
+			"only ETH_P_ALL supported as filter protocol");
 		return -EOPNOTSUPP;
+	}
+
+	if (cls_bpf->common.chain_index)
+		return -EOPNOTSUPP;
+
+	if (!ns->bpf_tc_accept) {
+		NSIM_EA(cls_bpf->common.extack,
+			"netdevsim configured to reject BPF TC offload");
+		return -EOPNOTSUPP;
+	}
 	/* Note: progs without skip_sw will probably not be dev bound */
-	if (prog && !prog->aux->offload && !ns->bpf_tc_non_bound_accept)
+	if (prog && !prog->aux->offload && !ns->bpf_tc_non_bound_accept) {
+		NSIM_EA(cls_bpf->common.extack,
+			"netdevsim configured to reject unbound programs");
 		return -EOPNOTSUPP;
+	}
 
 	if (cls_bpf->command != TC_CLSBPF_OFFLOAD)
 		return -EOPNOTSUPP;
@@ -145,8 +163,11 @@ int nsim_bpf_setup_tc_block_cb(enum tc_setup_type type,
 		oldprog = NULL;
 		if (!cls_bpf->prog)
 			return 0;
-		if (ns->bpf_offloaded)
+		if (ns->bpf_offloaded) {
+			NSIM_EA(cls_bpf->common.extack,
+				"driver and netdev offload states mismatch");
 			return -EBUSY;
+		}
 	}
 
 	return nsim_bpf_offload(ns, cls_bpf->prog, oldprog);
