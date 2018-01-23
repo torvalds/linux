@@ -614,6 +614,8 @@ void mt76x2_stop_hardware(struct mt76x2_dev *dev)
 
 void mt76x2_cleanup(struct mt76x2_dev *dev)
 {
+	tasklet_disable(&dev->dfs_pd.dfs_tasklet);
+	tasklet_disable(&dev->pre_tbtt_tasklet);
 	mt76x2_stop_hardware(dev);
 	mt76x2_dma_cleanup(dev);
 	mt76x2_mcu_cleanup(dev);
