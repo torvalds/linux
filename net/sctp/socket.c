@@ -4860,9 +4860,10 @@ int sctp_for_each_transport(int (*cb)(struct sctp_transport *, void *),
 			    struct net *net, int *pos, void *p) {
 	struct rhashtable_iter hti;
 	struct sctp_transport *tsp;
-	int ret = 0;
+	int ret;
 
 again:
+	ret = 0;
 	sctp_transport_walk_start(&hti);
 
 	tsp = sctp_transport_get_idx(net, &hti, *pos + 1);
