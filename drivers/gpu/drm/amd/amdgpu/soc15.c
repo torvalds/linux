@@ -417,12 +417,7 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 
 	pci_save_state(adev->pdev);
 
-	for (i = 0; i < AMDGPU_MAX_IP_NUM; i++) {
-		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_PSP){
-			adev->ip_blocks[i].version->funcs->soft_reset((void *)adev);
-			break;
-		}
-	}
+	psp_gpu_reset(adev);
 
 	pci_restore_state(adev->pdev);
 

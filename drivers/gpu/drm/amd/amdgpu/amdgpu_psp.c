@@ -493,19 +493,8 @@ failed:
 	return ret;
 }
 
-static bool psp_check_reset(void* handle)
+int psp_gpu_reset(struct amdgpu_device *adev)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	if (adev->flags & AMD_IS_APU)
-		return true;
-
-	return false;
-}
-
-static int psp_reset(void* handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	return psp_mode1_reset(&adev->psp);
 }
 
@@ -552,9 +541,9 @@ const struct amd_ip_funcs psp_ip_funcs = {
 	.suspend = psp_suspend,
 	.resume = psp_resume,
 	.is_idle = NULL,
-	.check_soft_reset = psp_check_reset,
+	.check_soft_reset = NULL,
 	.wait_for_idle = NULL,
-	.soft_reset = psp_reset,
+	.soft_reset = NULL,
 	.set_clockgating_state = psp_set_clockgating_state,
 	.set_powergating_state = psp_set_powergating_state,
 };
