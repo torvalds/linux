@@ -970,6 +970,16 @@
 		status = "disabled";
 	};
 
+	mipi_dphy_rx0: mipi-dphy-rx0@ff2f0000 {
+		compatible = "rockchip,rk3326-mipi-dphy";
+		reg = <0x0 0xff2f0000 0x0 0x4000>;
+		clocks = <&cru PCLK_MIPICSIPHY>;
+		clock-names = "dphy-ref";
+		power-domains = <&power PX30_PD_VI>;
+		rockchip,grf = <&grf>;
+		status = "disabled";
+	};
+
 	usb20_otg: usb@ff300000 {
 		compatible = "rockchip,px30-usb", "rockchip,rk3066-usb",
 			     "snps,dwc2";
@@ -1234,6 +1244,103 @@
 		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA_CORE>;
 		clock-names = "aclk_rga", "hclk_rga", "clk_rga";
 		power-domains = <&power PX30_PD_VO>;
+		status = "disabled";
+	};
+
+	cif: cif@ff490000 {
+		compatible = "rockchip,cif";
+		reg = <0x0 0xff490000 0x0 0x200>;
+		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_CIF>, <&cru HCLK_CIF>, <&cru PCLK_CIF>, <&cru SCLK_CIF_OUT>;
+		clock-names = "aclk_cif0", "hclk_cif0", "pclk_cif", "cif0_out";
+		resets = <&cru SRST_CIF_A>, <&cru SRST_CIF_H>, <&cru SRST_CIF_PCLKIN>;
+		reset-names = "rst_cif_a", "rst_cif_h", "rst_cif_pclkin";
+		power-domains = <&power PX30_PD_VI>;
+		pinctrl-names = "cif_pin_all";
+		pinctrl-0 = <&dvp_d2d9_m0>;
+		iommus = <&vip_mmu>;
+		status = "disabled";
+	};
+
+	cif_new: cif-new@ff490000 {
+		compatible = "rockchip,px30-cif";
+		reg = <0x0 0xff490000 0x0 0x200>;
+		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_CIF>, <&cru HCLK_CIF>, <&cru PCLK_CIF>, <&cru SCLK_CIF_OUT>;
+		clock-names = "aclk_cif", "hclk_cif", "pclk_cif", "cif_out";
+		resets = <&cru SRST_CIF_A>, <&cru SRST_CIF_H>, <&cru SRST_CIF_PCLKIN>;
+		reset-names = "rst_cif_a", "rst_cif_h", "rst_cif_pclkin";
+		power-domains = <&power PX30_PD_VI>;
+		iommus = <&vip_mmu>;
+		status = "disabled";
+	};
+
+	vip_mmu: iommu@ff490800{
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff490800 0x0 0x100>;
+		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vip_mmu";
+		clocks = <&cru ACLK_CIF>, <&cru HCLK_CIF>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power PX30_PD_VI>;
+		rk_iommu,disable_reset_quirk;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	rk_isp: rk_isp@ff4a0000 {
+		compatible = "rockchip,px30-isp", "rockchip,isp";
+		reg = <0x0 0xff4a0000 0x0 0x8000>;
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>, <&cru SCLK_ISP>, <&cru SCLK_ISP>,
+			 <&cru PCLK_ISP>, <&cru SCLK_CIF_OUT>, <&cru SCLK_CIF_OUT>, <&cru PCLK_MIPICSIPHY>;
+		clock-names = "aclk_isp", "hclk_isp", "clk_isp", "clk_isp_jpe",
+			      "pclkin_isp", "clk_cif_pll", "clk_cif_out", "pclk_dphyrx";
+		resets = <&cru SRST_ISP>, <&cru SRST_MIPICSIPHY_P>;
+		reset-names = "rst_isp", "rst_mipicsiphy";
+		power-domains = <&power PX30_PD_VI>;
+		pinctrl-names = "default", "isp_dvp8bit2", "isp_dvp10bit", "isp_dvp12bit";
+		pinctrl-0 = <&cif_clkout_m0>;
+		pinctrl-1 = <&dvp_d2d9_m0>;
+		pinctrl-2 = <&dvp_d2d9_m0 &dvp_d10d11_m0>;
+		pinctrl-3 = <&dvp_d0d1_m0 &dvp_d2d9_m0 &dvp_d10d11_m0>;
+		rockchip,isp,mipiphy = <1>;
+		rockchip,isp,csiphy,reg = <0xff2f0000 0x4000>;
+		rockchip,grf = <&grf>;
+		rockchip,cru = <&cru>;
+		rockchip,isp,iommu-enable = <1>;
+		iommus = <&isp_mmu>;
+		status = "disabled";
+	};
+
+	rkisp1: rkisp1@ff4a0000 {
+		compatible = "rockchip,rk3326-rkisp1";
+		reg = <0x0 0xff4a0000 0x0 0x8000>;
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "isp_irq", "mi_irq", "mipi_irq";
+		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>,
+			 <&cru SCLK_ISP>, <&cru PCLK_ISP>;
+		clock-names = "aclk_isp", "hclk_isp",
+			      "clk_isp", "pclk_isp";
+		devfreq = <&dmc>;
+		power-domains = <&power PX30_PD_VI>;
+		iommus = <&isp_mmu>;
+		rockchip,grf = <&grf>;
+		status = "disabled";
+	};
+
+	isp_mmu: iommu@ff4a8000 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff4a8000 0x0 0x100>;
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "isp_mmu";
+		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power PX30_PD_VI>;
+		rk_iommu,disable_reset_quirk;
+		#iommu-cells = <0>;
 		status = "disabled";
 	};
 
