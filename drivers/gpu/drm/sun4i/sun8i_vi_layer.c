@@ -239,7 +239,7 @@ static int sun8i_vi_layer_atomic_check(struct drm_plane *plane,
 	struct drm_crtc *crtc = state->crtc;
 	struct drm_crtc_state *crtc_state;
 	int min_scale, max_scale;
-	struct drm_rect clip;
+	struct drm_rect clip = {};
 
 	if (!crtc)
 		return 0;
@@ -248,10 +248,9 @@ static int sun8i_vi_layer_atomic_check(struct drm_plane *plane,
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	clip.x1 = 0;
-	clip.y1 = 0;
-	clip.x2 = crtc_state->adjusted_mode.hdisplay;
-	clip.y2 = crtc_state->adjusted_mode.vdisplay;
+	if (crtc_state->enable)
+		drm_mode_get_hv_timing(&crtc_state->mode,
+				       &clip.x2, &clip.y2);
 
 	min_scale = DRM_PLANE_HELPER_NO_SCALING;
 	max_scale = DRM_PLANE_HELPER_NO_SCALING;
