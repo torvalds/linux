@@ -8420,7 +8420,7 @@ enum skl_power_gate {
 #define  SKL_PW_TO_PG(pw)			((pw) - SKL_DISP_PW_1 + SKL_PG1)
 #define  SKL_FUSE_PG_DIST_STATUS(pg)		(1 << (27 - (pg)))
 
-#define _CNL_AUX_REG_IDX(pw)		((pw - 1) >> 4)
+#define _CNL_AUX_REG_IDX(pw)		((pw) - 9)
 #define _CNL_AUX_ANAOVRD1_B		0x162250
 #define _CNL_AUX_ANAOVRD1_C		0x162210
 #define _CNL_AUX_ANAOVRD1_D		0x1622D0
