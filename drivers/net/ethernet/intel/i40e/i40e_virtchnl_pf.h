@@ -128,6 +128,8 @@ struct i40e_vf {
 	bool adq_enabled; /* flag to enable adq */
 	u8 num_tc;
 	struct i40evf_channel ch[I40E_MAX_VF_VSI];
+	struct hlist_head cloud_filter_list;
+	u16 num_cloud_filters;
 
 	/* RDMA Client */
 	struct virtchnl_iwarp_qvlist_info *qvlist_info;
