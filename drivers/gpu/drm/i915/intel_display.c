@@ -9360,18 +9360,12 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 			      struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->base.fb;
-	struct drm_rect clip = {};
 	int src_x, src_y;
 	u32 offset;
 	int ret;
 
-	if (crtc_state->base.enable)
-		drm_mode_get_hv_timing(&crtc_state->base.mode,
-				       &clip.x2, &clip.y2);
-
 	ret = drm_atomic_helper_check_plane_state(&plane_state->base,
 						  &crtc_state->base,
-						  &clip,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  true, true);
@@ -12806,7 +12800,6 @@ intel_check_primary_plane(struct intel_plane *plane,
 	int min_scale = DRM_PLANE_HELPER_NO_SCALING;
 	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
 	bool can_position = false;
-	struct drm_rect clip = {};
 	int ret;
 
 	if (INTEL_GEN(dev_priv) >= 9) {
@@ -12818,13 +12811,8 @@ intel_check_primary_plane(struct intel_plane *plane,
 		can_position = true;
 	}
 
-	if (crtc_state->base.enable)
-		drm_mode_get_hv_timing(&crtc_state->base.mode,
-				       &clip.x2, &clip.y2);
-
 	ret = drm_atomic_helper_check_plane_state(&state->base,
 						  &crtc_state->base,
-						  &clip,
 						  min_scale, max_scale,
 						  can_position, true);
 	if (ret)

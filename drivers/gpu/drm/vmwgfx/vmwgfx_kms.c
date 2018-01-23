@@ -443,17 +443,12 @@ int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
 {
 	struct drm_crtc_state *crtc_state = NULL;
 	struct drm_framebuffer *new_fb = state->fb;
-	struct drm_rect clip = {};
 	int ret;
 
 	if (state->crtc)
 		crtc_state = drm_atomic_get_new_crtc_state(state->state, state->crtc);
 
-	if (crtc_state && crtc_state->enable)
-		drm_mode_get_hv_timing(&crtc_state->mode,
-				       &clip.x2, &clip.y2);
-
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  false, true);

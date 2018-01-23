@@ -141,18 +141,13 @@ static int malidp_se_check_scaling(struct malidp_plane *mp,
 	struct drm_crtc_state *crtc_state =
 		drm_atomic_get_existing_crtc_state(state->state, state->crtc);
 	struct malidp_crtc_state *mc;
-	struct drm_rect clip = { 0 };
 	u32 src_w, src_h;
 	int ret;
 
 	if (!crtc_state)
 		return -EINVAL;
 
-	if (crtc_state->enable)
-		drm_mode_get_hv_timing(&crtc_state->mode,
-				       &clip.x2, &clip.y2);
-
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
 						  0, INT_MAX, true, true);
 	if (ret)
 		return ret;

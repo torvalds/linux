@@ -208,19 +208,15 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct drm_crtc_state crtc_state = {
 		.crtc = crtc,
 		.enable = crtc->enabled,
+		.mode = crtc->mode,
 	};
-	struct drm_rect clip = {};
 	int ret;
 
 	trace_armada_ovl_plane_update(plane, crtc, fb,
 				 crtc_x, crtc_y, crtc_w, crtc_h,
 				 src_x, src_y, src_w, src_h);
 
-	if (crtc->enabled)
-		drm_mode_get_hv_timing(&crtc->mode,
-				       &clip.x2, &clip.y2);
-
-	ret = drm_atomic_helper_check_plane_state(&state, &crtc_state, &clip, 0,
+	ret = drm_atomic_helper_check_plane_state(&state, &crtc_state, 0,
 						  INT_MAX, true, false);
 	if (ret)
 		return ret;

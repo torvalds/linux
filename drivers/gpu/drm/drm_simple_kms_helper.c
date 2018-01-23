@@ -128,7 +128,6 @@ static const struct drm_crtc_funcs drm_simple_kms_crtc_funcs = {
 static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 					struct drm_plane_state *plane_state)
 {
-	struct drm_rect clip = { 0 };
 	struct drm_simple_display_pipe *pipe;
 	struct drm_crtc_state *crtc_state;
 	int ret;
@@ -138,7 +137,6 @@ static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 						   &pipe->crtc);
 
 	ret = drm_atomic_helper_check_plane_state(plane_state, crtc_state,
-						  &clip,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  false, true);
@@ -147,8 +145,6 @@ static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 
 	if (!plane_state->visible)
 		return 0;
-
-	drm_mode_get_hv_timing(&crtc_state->mode, &clip.x2, &clip.y2);
 
 	if (!pipe->funcs || !pipe->funcs->check)
 		return 0;
