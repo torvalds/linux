@@ -2409,6 +2409,9 @@ dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
 					     connector);
 	struct drm_display_mode *mode = NULL;
 	void *data = hdmi->plat_data->phy_data;
+	unsigned int in_bus_format = hdmi->hdmi_data.enc_in_bus_format;
+	unsigned int out_bus_format = hdmi->hdmi_data.enc_out_bus_format;
+
 
 	if (!hdmi->hpd_state || !conn_state->crtc)
 		return;
@@ -2439,7 +2442,11 @@ dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
 		hdmi->hdmi_data.video_mode.previous_pixelclock = mode->clock;
 		hdmi->hdmi_data.video_mode.previous_tmdsclock = mode->clock;
 		hdmi->phy.enabled = true;
-		return;
+		if (in_bus_format != hdmi->hdmi_data.enc_in_bus_format ||
+		    out_bus_format != hdmi->hdmi_data.enc_out_bus_format)
+			hdmi->hdmi_data.update = true;
+		else
+			return;
 	}
 
 	if (hdmi->hdmi_data.update) {
