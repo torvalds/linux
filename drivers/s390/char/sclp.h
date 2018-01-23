@@ -109,6 +109,8 @@ struct init_sccb {
 	 */
 } __attribute__((packed));
 
+#define SCLP_MASK_SIZE_COMPAT 4
+
 static inline sccb_mask_t sccb_get_mask(u8 *masks, size_t len, int i)
 {
 	sccb_mask_t res = 0;
@@ -262,6 +264,7 @@ extern int sclp_init_state;
 extern int sclp_console_pages;
 extern int sclp_console_drop;
 extern unsigned long sclp_console_full;
+extern bool sclp_mask_compat_mode;
 
 extern char sclp_early_sccb[PAGE_SIZE];
 

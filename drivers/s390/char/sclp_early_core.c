@@ -14,6 +14,11 @@
 
 char sclp_early_sccb[PAGE_SIZE] __aligned(PAGE_SIZE) __section(.data);
 int sclp_init_state __section(.data) = sclp_init_state_uninitialized;
+/*
+ * Used to keep track of the size of the event masks. Qemu until version 2.11
+ * only supports 4 and needs a workaround.
+ */
+bool sclp_mask_compat_mode;
 
 void sclp_early_wait_irq(void)
 {
@@ -145,13 +150,21 @@ int sclp_early_set_event_mask(struct init_sccb *sccb,
 			      sccb_mask_t receive_mask,
 			      sccb_mask_t send_mask)
 {
+retry:
 	memset(sccb, 0, sizeof(*sccb));
 	sccb->header.length = sizeof(*sccb);
-	sccb->mask_length = sizeof(sccb_mask_t);
+	if (sclp_mask_compat_mode)
+		sccb->mask_length = SCLP_MASK_SIZE_COMPAT;
+	else
+		sccb->mask_length = sizeof(sccb_mask_t);
 	sccb_set_recv_mask(sccb, receive_mask);
 	sccb_set_send_mask(sccb, send_mask);
 	if (sclp_early_cmd(SCLP_CMDW_WRITE_EVENT_MASK, sccb))
 		return -EIO;
+	if ((sccb->header.response_code == 0x74f0) && !sclp_mask_compat_mode) {
+		sclp_mask_compat_mode = true;
+		goto retry;
+	}
 	if (sccb->header.response_code != 0x20)
 		return -EIO;
 	return 0;

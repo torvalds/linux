@@ -765,7 +765,10 @@ __sclp_make_init_req(sccb_mask_t receive_mask, sccb_mask_t send_mask)
 	sclp_init_req.callback_data = NULL;
 	sclp_init_req.sccb = sccb;
 	sccb->header.length = sizeof(*sccb);
-	sccb->mask_length = sizeof(sccb_mask_t);
+	if (sclp_mask_compat_mode)
+		sccb->mask_length = SCLP_MASK_SIZE_COMPAT;
+	else
+		sccb->mask_length = sizeof(sccb_mask_t);
 	sccb_set_recv_mask(sccb, receive_mask);
 	sccb_set_send_mask(sccb, send_mask);
 	sccb_set_sclp_recv_mask(sccb, 0);
@@ -977,12 +980,18 @@ sclp_check_interface(void)
 		irq_subclass_unregister(IRQ_SUBCLASS_SERVICE_SIGNAL);
 		spin_lock_irqsave(&sclp_lock, flags);
 		del_timer(&sclp_request_timer);
-		if (sclp_init_req.status == SCLP_REQ_DONE &&
-		    sccb->header.response_code == 0x20) {
-			rc = 0;
-			break;
-		} else
-			rc = -EBUSY;
+		rc = -EBUSY;
+		if (sclp_init_req.status == SCLP_REQ_DONE) {
+			if (sccb->header.response_code == 0x20) {
+				rc = 0;
+				break;
+			} else if (sccb->header.response_code == 0x74f0) {
+				if (!sclp_mask_compat_mode) {
+					sclp_mask_compat_mode = true;
+					retry = 0;
+				}
+			}
+		}
 	}
 	unregister_external_irq(EXT_IRQ_SERVICE_SIG, sclp_check_handler);
 	spin_unlock_irqrestore(&sclp_lock, flags);
