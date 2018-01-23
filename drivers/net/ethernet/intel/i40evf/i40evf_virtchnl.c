@@ -161,7 +161,8 @@ int i40evf_send_vf_config_msg(struct i40evf_adapter *adapter)
 	       VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2 |
 	       VIRTCHNL_VF_OFFLOAD_ENCAP |
 	       VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM |
-	       VIRTCHNL_VF_OFFLOAD_REQ_QUEUES;
+	       VIRTCHNL_VF_OFFLOAD_REQ_QUEUES |
+	       VIRTCHNL_VF_OFFLOAD_ADQ;
 
 	adapter->current_op = VIRTCHNL_OP_GET_VF_RESOURCES;
 	adapter->aq_required &= ~I40EVF_FLAG_AQ_GET_CONFIG;
@@ -973,6 +974,70 @@ static void i40evf_print_link_message(struct i40evf_adapter *adapter)
 }
 
 /**
+ * i40evf_enable_channel
+ * @adapter: adapter structure
+ *
+ * Request that the PF enable channels as specified by
+ * the user via tc tool.
+ **/
+void i40evf_enable_channels(struct i40evf_adapter *adapter)
+{
+	struct virtchnl_tc_info *vti = NULL;
+	u16 len;
+	int i;
+
+	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot configure mqprio, command %d pending\n",
+			adapter->current_op);
+		return;
+	}
+
+	len = (adapter->num_tc * sizeof(struct virtchnl_channel_info)) +
+	       sizeof(struct virtchnl_tc_info);
+
+	vti = kzalloc(len, GFP_KERNEL);
+	if (!vti)
+		return;
+	vti->num_tc = adapter->num_tc;
+	for (i = 0; i < vti->num_tc; i++) {
+		vti->list[i].count = adapter->ch_config.ch_info[i].count;
+		vti->list[i].offset = adapter->ch_config.ch_info[i].offset;
+	}
+
+	adapter->ch_config.state = __I40EVF_TC_RUNNING;
+	adapter->flags |= I40EVF_FLAG_REINIT_ITR_NEEDED;
+	adapter->current_op = VIRTCHNL_OP_ENABLE_CHANNELS;
+	adapter->aq_required &= ~I40EVF_FLAG_AQ_ENABLE_CHANNELS;
+	i40evf_send_pf_msg(adapter, VIRTCHNL_OP_ENABLE_CHANNELS,
+			   (u8 *)vti, len);
+	kfree(vti);
+}
+
+/**
+ * i40evf_disable_channel
+ * @adapter: adapter structure
+ *
+ * Request that the PF disable channels that are configured
+ **/
+void i40evf_disable_channels(struct i40evf_adapter *adapter)
+{
+	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot configure mqprio, command %d pending\n",
+			adapter->current_op);
+		return;
+	}
+
+	adapter->ch_config.state = __I40EVF_TC_INVALID;
+	adapter->flags |= I40EVF_FLAG_REINIT_ITR_NEEDED;
+	adapter->current_op = VIRTCHNL_OP_DISABLE_CHANNELS;
+	adapter->aq_required &= ~I40EVF_FLAG_AQ_DISABLE_CHANNELS;
+	i40evf_send_pf_msg(adapter, VIRTCHNL_OP_DISABLE_CHANNELS,
+			   NULL, 0);
+}
+
+/**
  * i40evf_request_reset
  * @adapter: adapter structure
  *
@@ -1079,6 +1144,21 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		case VIRTCHNL_OP_DEL_ETH_ADDR:
 			dev_err(&adapter->pdev->dev, "Failed to delete MAC filter, error %s\n",
 				i40evf_stat_str(&adapter->hw, v_retval));
+			break;
+		case VIRTCHNL_OP_ENABLE_CHANNELS:
+			dev_err(&adapter->pdev->dev, "Failed to configure queue channels, error %s\n",
+				i40evf_stat_str(&adapter->hw, v_retval));
+			adapter->flags &= ~I40EVF_FLAG_REINIT_ITR_NEEDED;
+			adapter->ch_config.state = __I40EVF_TC_INVALID;
+			netdev_reset_tc(netdev);
+			netif_tx_start_all_queues(netdev);
+			break;
+		case VIRTCHNL_OP_DISABLE_CHANNELS:
+			dev_err(&adapter->pdev->dev, "Failed to disable queue channels, error %s\n",
+				i40evf_stat_str(&adapter->hw, v_retval));
+			adapter->flags &= ~I40EVF_FLAG_REINIT_ITR_NEEDED;
+			adapter->ch_config.state = __I40EVF_TC_RUNNING;
+			netif_tx_start_all_queues(netdev);
 			break;
 		default:
 			dev_err(&adapter->pdev->dev, "PF returned error %d (%s) to our request %d\n",

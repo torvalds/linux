@@ -1732,6 +1732,17 @@ static void i40evf_watchdog_task(struct work_struct *work)
 		i40evf_set_promiscuous(adapter, 0);
 		goto watchdog_done;
 	}
+
+	if (adapter->aq_required & I40EVF_FLAG_AQ_ENABLE_CHANNELS) {
+		i40evf_enable_channels(adapter);
+		goto watchdog_done;
+	}
+
+	if (adapter->aq_required & I40EVF_FLAG_AQ_DISABLE_CHANNELS) {
+		i40evf_disable_channels(adapter);
+		goto watchdog_done;
+	}
+
 	schedule_delayed_work(&adapter->client_task, msecs_to_jiffies(5));
 
 	if (adapter->state == __I40EVF_RUNNING)
@@ -2212,6 +2223,148 @@ void i40evf_free_all_rx_resources(struct i40evf_adapter *adapter)
 }
 
 /**
+ * i40evf_validate_channel_config - validate queue mapping info
+ * @adapter: board private structure
+ * @mqprio_qopt: queue parameters
+ *
+ * This function validates if the config provided by the user to
+ * configure queue channels is valid or not. Returns 0 on a valid
+ * config.
+ **/
+static int i40evf_validate_ch_config(struct i40evf_adapter *adapter,
+				     struct tc_mqprio_qopt_offload *mqprio_qopt)
+{
+	int i, num_qps = 0;
+
+	if (mqprio_qopt->qopt.num_tc > I40EVF_MAX_TRAFFIC_CLASS ||
+	    mqprio_qopt->qopt.num_tc < 1)
+		return -EINVAL;
+
+	for (i = 0; i <= mqprio_qopt->qopt.num_tc - 1; i++) {
+		if (!mqprio_qopt->qopt.count[i] ||
+		    mqprio_qopt->min_rate[i] ||
+		    mqprio_qopt->max_rate[i] ||
+		    mqprio_qopt->qopt.offset[i] != num_qps)
+			return -EINVAL;
+		num_qps += mqprio_qopt->qopt.count[i];
+	}
+	if (num_qps > MAX_QUEUES)
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
+ * __i40evf_setup_tc - configure multiple traffic classes
+ * @netdev: network interface device structure
+ * @type_date: tc offload data
+ *
+ * This function processes the config information provided by the
+ * user to configure traffic classes/queue channels and packages the
+ * information to request the PF to setup traffic classes.
+ *
+ * Returns 0 on success.
+ **/
+static int __i40evf_setup_tc(struct net_device *netdev, void *type_data)
+{
+	struct tc_mqprio_qopt_offload *mqprio_qopt = type_data;
+	struct i40evf_adapter *adapter = netdev_priv(netdev);
+	struct virtchnl_vf_resource *vfres = adapter->vf_res;
+	u8 num_tc = 0, total_qps = 0;
+	int ret = 0, netdev_tc = 0;
+	u16 mode;
+	int i;
+
+	num_tc = mqprio_qopt->qopt.num_tc;
+	mode = mqprio_qopt->mode;
+
+	/* delete queue_channel */
+	if (!mqprio_qopt->qopt.hw) {
+		if (adapter->ch_config.state == __I40EVF_TC_RUNNING) {
+			/* reset the tc configuration */
+			netdev_reset_tc(netdev);
+			adapter->num_tc = 0;
+			netif_tx_stop_all_queues(netdev);
+			netif_tx_disable(netdev);
+			adapter->aq_required = I40EVF_FLAG_AQ_DISABLE_CHANNELS;
+			goto exit;
+		} else {
+			return -EINVAL;
+		}
+	}
+
+	/* add queue channel */
+	if (mode == TC_MQPRIO_MODE_CHANNEL) {
+		if (!(vfres->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_ADQ)) {
+			dev_err(&adapter->pdev->dev, "ADq not supported\n");
+			return -EOPNOTSUPP;
+		}
+		if (adapter->ch_config.state != __I40EVF_TC_INVALID) {
+			dev_err(&adapter->pdev->dev, "TC configuration already exists\n");
+			return -EINVAL;
+		}
+
+		ret = i40evf_validate_ch_config(adapter, mqprio_qopt);
+		if (ret)
+			return ret;
+		/* Return if same TC config is requested */
+		if (adapter->num_tc == num_tc)
+			return 0;
+		adapter->num_tc = num_tc;
+
+		for (i = 0; i < I40EVF_MAX_TRAFFIC_CLASS; i++) {
+			if (i < num_tc) {
+				adapter->ch_config.ch_info[i].count =
+					mqprio_qopt->qopt.count[i];
+				adapter->ch_config.ch_info[i].offset =
+					mqprio_qopt->qopt.offset[i];
+				total_qps += mqprio_qopt->qopt.count[i];
+			} else {
+				adapter->ch_config.ch_info[i].count = 1;
+				adapter->ch_config.ch_info[i].offset = 0;
+			}
+		}
+		adapter->ch_config.total_qps = total_qps;
+		netif_tx_stop_all_queues(netdev);
+		netif_tx_disable(netdev);
+		adapter->aq_required |= I40EVF_FLAG_AQ_ENABLE_CHANNELS;
+		netdev_reset_tc(netdev);
+		/* Report the tc mapping up the stack */
+		netdev_set_num_tc(adapter->netdev, num_tc);
+		for (i = 0; i < I40EVF_MAX_TRAFFIC_CLASS; i++) {
+			u16 qcount = mqprio_qopt->qopt.count[i];
+			u16 qoffset = mqprio_qopt->qopt.offset[i];
+
+			if (i < num_tc)
+				netdev_set_tc_queue(netdev, netdev_tc++, qcount,
+						    qoffset);
+		}
+	}
+exit:
+	return ret;
+}
+
+/**
+ * i40evf_setup_tc - configure multiple traffic classes
+ * @netdev: network interface device structure
+ * @type: type of offload
+ * @type_date: tc offload data
+ *
+ * This function is the callback to ndo_setup_tc in the
+ * netdev_ops.
+ *
+ * Returns 0 on success
+ **/
+static int i40evf_setup_tc(struct net_device *netdev, enum tc_setup_type type,
+			   void *type_data)
+{
+	if (type != TC_SETUP_QDISC_MQPRIO)
+		return -EOPNOTSUPP;
+
+	return __i40evf_setup_tc(netdev, type_data);
+}
+
+/**
  * i40evf_open - Called when a network interface is made active
  * @netdev: network interface device structure
  *
@@ -2478,6 +2631,7 @@ static const struct net_device_ops i40evf_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= i40evf_netpoll,
 #endif
+	.ndo_setup_tc		= i40evf_setup_tc,
 };
 
 /**

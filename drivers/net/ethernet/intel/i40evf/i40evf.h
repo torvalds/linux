@@ -52,6 +52,7 @@
 #include <linux/socket.h>
 #include <linux/jiffies.h>
 #include <net/ip6_checksum.h>
+#include <net/pkt_cls.h>
 #include <net/udp.h>
 
 #include "i40e_type.h"
@@ -168,6 +169,20 @@ struct i40evf_vlan_filter {
 	bool add;		/* filter needs to be added */
 };
 
+#define I40EVF_MAX_TRAFFIC_CLASS	4
+/* State of traffic class creation */
+enum i40evf_tc_state_t {
+	__I40EVF_TC_INVALID, /* no traffic class, default state */
+	__I40EVF_TC_RUNNING, /* traffic classes have been created */
+};
+
+/* channel info */
+struct i40evf_channel_config {
+	struct virtchnl_channel_info ch_info[I40EVF_MAX_TRAFFIC_CLASS];
+	enum i40evf_tc_state_t state;
+	u8 total_qps;
+};
+
 /* Driver state. The order of these is important! */
 enum i40evf_state_t {
 	__I40EVF_STARTUP,		/* driver loaded, probe complete */
@@ -269,6 +284,8 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_AQ_RELEASE_ALLMULTI		BIT(18)
 #define I40EVF_FLAG_AQ_ENABLE_VLAN_STRIPPING	BIT(19)
 #define I40EVF_FLAG_AQ_DISABLE_VLAN_STRIPPING	BIT(20)
+#define I40EVF_FLAG_AQ_ENABLE_CHANNELS		BIT(21)
+#define I40EVF_FLAG_AQ_DISABLE_CHANNELS		BIT(22)
 
 	/* OS defined structs */
 	struct net_device *netdev;
@@ -314,6 +331,9 @@ struct i40evf_adapter {
 	u16 rss_lut_size;
 	u8 *rss_key;
 	u8 *rss_lut;
+	/* ADQ related members */
+	struct i40evf_channel_config ch_config;
+	u8 num_tc;
 };
 
 
@@ -380,4 +400,6 @@ void i40evf_notify_client_message(struct i40e_vsi *vsi, u8 *msg, u16 len);
 void i40evf_notify_client_l2_params(struct i40e_vsi *vsi);
 void i40evf_notify_client_open(struct i40e_vsi *vsi);
 void i40evf_notify_client_close(struct i40e_vsi *vsi, bool reset);
+void i40evf_enable_channels(struct i40evf_adapter *adapter);
+void i40evf_disable_channels(struct i40evf_adapter *adapter);
 #endif /* _I40EVF_H_ */
