@@ -1038,20 +1038,11 @@ static void sii8620_stop_video(struct sii8620 *ctx)
 
 static void sii8620_set_format(struct sii8620 *ctx)
 {
-	u8 out_fmt;
-
 	if (sii8620_is_mhl3(ctx)) {
 		sii8620_setbits(ctx, REG_M3_P0CTRL,
 				BIT_M3_P0CTRL_MHL3_P0_PIXEL_MODE_PACKED,
 				ctx->use_packed_pixel ? ~0 : 0);
 	} else {
-		if (ctx->use_packed_pixel)
-			sii8620_write_seq_static(ctx,
-				REG_VID_MODE, BIT_VID_MODE_M1080P,
-				REG_MHL_TOP_CTL, BIT_MHL_TOP_CTL_MHL_PP_SEL | 1,
-				REG_MHLTX_CTL6, 0x60
-			);
-		else
 			sii8620_write_seq_static(ctx,
 				REG_VID_MODE, 0,
 				REG_MHL_TOP_CTL, 1,
@@ -1059,15 +1050,9 @@ static void sii8620_set_format(struct sii8620 *ctx)
 			);
 	}
 
-	if (ctx->use_packed_pixel)
-		out_fmt = VAL_TPI_FORMAT(YCBCR422, FULL) |
-			BIT_TPI_OUTPUT_CSCMODE709;
-	else
-		out_fmt = VAL_TPI_FORMAT(RGB, FULL);
-
 	sii8620_write_seq(ctx,
 		REG_TPI_INPUT, VAL_TPI_FORMAT(RGB, FULL),
-		REG_TPI_OUTPUT, out_fmt,
+		REG_TPI_OUTPUT, VAL_TPI_FORMAT(RGB, FULL),
 	);
 }
 
