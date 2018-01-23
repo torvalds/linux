@@ -618,9 +618,12 @@ struct sclp_statechangebuf {
 	u16		_zeros : 12;
 	u16		mask_length;
 	u64		sclp_active_facility_mask;
-	sccb_mask_t	sclp_receive_mask;
-	sccb_mask_t	sclp_send_mask;
-	u32		read_data_function_mask;
+	u8		masks[2 * 1021 + 4];	/* variable length */
+	/*
+	 * u8		sclp_receive_mask[mask_length];
+	 * u8		sclp_send_mask[mask_length];
+	 * u32		read_data_function_mask;
+	 */
 } __attribute__((packed));
 
 
@@ -631,14 +634,14 @@ sclp_state_change_cb(struct evbuf_header *evbuf)
 	unsigned long flags;
 	struct sclp_statechangebuf *scbuf;
 
+	BUILD_BUG_ON(sizeof(struct sclp_statechangebuf) > PAGE_SIZE);
+
 	scbuf = (struct sclp_statechangebuf *) evbuf;
-	if (scbuf->mask_length != sizeof(sccb_mask_t))
-		return;
 	spin_lock_irqsave(&sclp_lock, flags);
 	if (scbuf->validity_sclp_receive_mask)
-		sclp_receive_mask = scbuf->sclp_receive_mask;
+		sclp_receive_mask = sccb_get_recv_mask(scbuf);
 	if (scbuf->validity_sclp_send_mask)
-		sclp_send_mask = scbuf->sclp_send_mask;
+		sclp_send_mask = sccb_get_send_mask(scbuf);
 	spin_unlock_irqrestore(&sclp_lock, flags);
 	if (scbuf->validity_sclp_active_facility_mask)
 		sclp.facilities = scbuf->sclp_active_facility_mask;
@@ -763,10 +766,10 @@ __sclp_make_init_req(sccb_mask_t receive_mask, sccb_mask_t send_mask)
 	sclp_init_req.sccb = sccb;
 	sccb->header.length = sizeof(*sccb);
 	sccb->mask_length = sizeof(sccb_mask_t);
-	sccb->receive_mask = receive_mask;
-	sccb->send_mask = send_mask;
-	sccb->sclp_receive_mask = 0;
-	sccb->sclp_send_mask = 0;
+	sccb_set_recv_mask(sccb, receive_mask);
+	sccb_set_send_mask(sccb, send_mask);
+	sccb_set_sclp_recv_mask(sccb, 0);
+	sccb_set_sclp_send_mask(sccb, 0);
 }
 
 /* Start init mask request. If calculate is non-zero, calculate the mask as
@@ -822,8 +825,8 @@ sclp_init_mask(int calculate)
 		    sccb->header.response_code == 0x20) {
 			/* Successful request */
 			if (calculate) {
-				sclp_receive_mask = sccb->sclp_receive_mask;
-				sclp_send_mask = sccb->sclp_send_mask;
+				sclp_receive_mask = sccb_get_sclp_recv_mask(sccb);
+				sclp_send_mask = sccb_get_sclp_send_mask(sccb);
 			} else {
 				sclp_receive_mask = 0;
 				sclp_send_mask = 0;

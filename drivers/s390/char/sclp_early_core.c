@@ -148,8 +148,8 @@ int sclp_early_set_event_mask(struct init_sccb *sccb,
 	memset(sccb, 0, sizeof(*sccb));
 	sccb->header.length = sizeof(*sccb);
 	sccb->mask_length = sizeof(sccb_mask_t);
-	sccb->receive_mask = receive_mask;
-	sccb->send_mask = send_mask;
+	sccb_set_recv_mask(sccb, receive_mask);
+	sccb_set_send_mask(sccb, send_mask);
 	if (sclp_early_cmd(SCLP_CMDW_WRITE_EVENT_MASK, sccb))
 		return -EIO;
 	if (sccb->header.response_code != 0x20)
@@ -159,11 +159,18 @@ int sclp_early_set_event_mask(struct init_sccb *sccb,
 
 unsigned int sclp_early_con_check_linemode(struct init_sccb *sccb)
 {
-	if (!(sccb->sclp_send_mask & EVTYP_OPCMD_MASK))
+	if (!(sccb_get_sclp_send_mask(sccb) & EVTYP_OPCMD_MASK))
 		return 0;
-	if (!(sccb->sclp_receive_mask & (EVTYP_MSG_MASK | EVTYP_PMSGCMD_MASK)))
+	if (!(sccb_get_sclp_recv_mask(sccb) & (EVTYP_MSG_MASK | EVTYP_PMSGCMD_MASK)))
 		return 0;
 	return 1;
+}
+
+unsigned int sclp_early_con_check_vt220(struct init_sccb *sccb)
+{
+	if (sccb_get_sclp_send_mask(sccb) & EVTYP_VT220MSG_MASK)
+		return 1;
+	return 0;
 }
 
 static int sclp_early_setup(int disable, int *have_linemode, int *have_vt220)
@@ -171,6 +178,8 @@ static int sclp_early_setup(int disable, int *have_linemode, int *have_vt220)
 	unsigned long receive_mask, send_mask;
 	struct init_sccb *sccb;
 	int rc;
+
+	BUILD_BUG_ON(sizeof(struct init_sccb) > PAGE_SIZE);
 
 	*have_linemode = *have_vt220 = 0;
 	sccb = (struct init_sccb *) &sclp_early_sccb;
@@ -180,7 +189,7 @@ static int sclp_early_setup(int disable, int *have_linemode, int *have_vt220)
 	if (rc)
 		return rc;
 	*have_linemode = sclp_early_con_check_linemode(sccb);
-	*have_vt220 = sccb->send_mask & EVTYP_VT220MSG_MASK;
+	*have_vt220 = !!(sccb_get_send_mask(sccb) & EVTYP_VT220MSG_MASK);
 	return rc;
 }
 

@@ -100,11 +100,50 @@ struct init_sccb {
 	struct sccb_header header;
 	u16 _reserved;
 	u16 mask_length;
-	sccb_mask_t receive_mask;
-	sccb_mask_t send_mask;
-	sccb_mask_t sclp_receive_mask;
-	sccb_mask_t sclp_send_mask;
+	u8 masks[4 * 1021];	/* variable length */
+	/*
+	 * u8 receive_mask[mask_length];
+	 * u8 send_mask[mask_length];
+	 * u8 sclp_receive_mask[mask_length];
+	 * u8 sclp_send_mask[mask_length];
+	 */
 } __attribute__((packed));
+
+static inline sccb_mask_t sccb_get_mask(u8 *masks, size_t len, int i)
+{
+	sccb_mask_t res = 0;
+
+	memcpy(&res, masks + i * len, min(sizeof(res), len));
+	return res;
+}
+
+static inline void sccb_set_mask(u8 *masks, size_t len, int i, sccb_mask_t val)
+{
+	memset(masks + i * len, 0, len);
+	memcpy(masks + i * len, &val, min(sizeof(val), len));
+}
+
+#define sccb_get_generic_mask(sccb, i)					\
+({									\
+	__typeof__(sccb) __sccb = sccb;					\
+									\
+	sccb_get_mask(__sccb->masks, __sccb->mask_length, i);		\
+})
+#define sccb_get_recv_mask(sccb)	sccb_get_generic_mask(sccb, 0)
+#define sccb_get_send_mask(sccb)	sccb_get_generic_mask(sccb, 1)
+#define sccb_get_sclp_recv_mask(sccb)	sccb_get_generic_mask(sccb, 2)
+#define sccb_get_sclp_send_mask(sccb)	sccb_get_generic_mask(sccb, 3)
+
+#define sccb_set_generic_mask(sccb, i, val)				\
+({									\
+	__typeof__(sccb) __sccb = sccb;					\
+									\
+	sccb_set_mask(__sccb->masks, __sccb->mask_length, i, val);	\
+})
+#define sccb_set_recv_mask(sccb, val)	    sccb_set_generic_mask(sccb, 0, val)
+#define sccb_set_send_mask(sccb, val)	    sccb_set_generic_mask(sccb, 1, val)
+#define sccb_set_sclp_recv_mask(sccb, val)  sccb_set_generic_mask(sccb, 2, val)
+#define sccb_set_sclp_send_mask(sccb, val)  sccb_set_generic_mask(sccb, 3, val)
 
 struct read_cpu_info_sccb {
 	struct	sccb_header header;
@@ -229,6 +268,7 @@ extern char sclp_early_sccb[PAGE_SIZE];
 void sclp_early_wait_irq(void);
 int sclp_early_cmd(sclp_cmdw_t cmd, void *sccb);
 unsigned int sclp_early_con_check_linemode(struct init_sccb *sccb);
+unsigned int sclp_early_con_check_vt220(struct init_sccb *sccb);
 int sclp_early_set_event_mask(struct init_sccb *sccb,
 			      sccb_mask_t receive_mask,
 			      sccb_mask_t send_mask);
