@@ -2206,6 +2206,38 @@ static int genpd_parse_state(struct genpd_power_state *genpd_state,
 	return 0;
 }
 
+static int genpd_iterate_idle_states(struct device_node *dn,
+				     struct genpd_power_state *states)
+{
+	int ret;
+	struct of_phandle_iterator it;
+	struct device_node *np;
+	int i = 0;
+
+	ret = of_count_phandle_with_args(dn, "domain-idle-states", NULL);
+	if (ret <= 0)
+		return ret;
+
+	/* Loop over the phandles until all the requested entry is found */
+	of_for_each_phandle(&it, ret, dn, "domain-idle-states", NULL, 0) {
+		np = it.node;
+		if (!of_match_node(idle_state_match, np))
+			continue;
+		if (states) {
+			ret = genpd_parse_state(&states[i], np);
+			if (ret) {
+				pr_err("Parsing idle state node %pOF failed with err %d\n",
+				       np, ret);
+				of_node_put(np);
+				return ret;
+			}
+		}
+		i++;
+	}
+
+	return i;
+}
+
 /**
  * of_genpd_parse_idle_states: Return array of idle states for the genpd.
  *
@@ -2215,49 +2247,31 @@ static int genpd_parse_state(struct genpd_power_state *genpd_state,
  *
  * Returns the device states parsed from the OF node. The memory for the states
  * is allocated by this function and is the responsibility of the caller to
- * free the memory after use.
+ * free the memory after use. If no domain idle states is found it returns
+ * -EINVAL and in case of errors, a negative error code.
  */
 int of_genpd_parse_idle_states(struct device_node *dn,
 			struct genpd_power_state **states, int *n)
 {
 	struct genpd_power_state *st;
-	struct device_node *np;
-	int i = 0;
-	int err, ret;
-	int count;
-	struct of_phandle_iterator it;
-	const struct of_device_id *match_id;
+	int ret;
 
-	count = of_count_phandle_with_args(dn, "domain-idle-states", NULL);
-	if (count <= 0)
-		return -EINVAL;
+	ret = genpd_iterate_idle_states(dn, NULL);
+	if (ret <= 0)
+		return ret < 0 ? ret : -EINVAL;
 
-	st = kcalloc(count, sizeof(*st), GFP_KERNEL);
+	st = kcalloc(ret, sizeof(*st), GFP_KERNEL);
 	if (!st)
 		return -ENOMEM;
 
-	/* Loop over the phandles until all the requested entry is found */
-	of_for_each_phandle(&it, err, dn, "domain-idle-states", NULL, 0) {
-		np = it.node;
-		match_id = of_match_node(idle_state_match, np);
-		if (!match_id)
-			continue;
-		ret = genpd_parse_state(&st[i++], np);
-		if (ret) {
-			pr_err
-			("Parsing idle state node %pOF failed with err %d\n",
-							np, ret);
-			of_node_put(np);
-			kfree(st);
-			return ret;
-		}
+	ret = genpd_iterate_idle_states(dn, st);
+	if (ret <= 0) {
+		kfree(st);
+		return ret < 0 ? ret : -EINVAL;
 	}
 
-	*n = i;
-	if (!i)
-		kfree(st);
-	else
-		*states = st;
+	*states = st;
+	*n = ret;
 
 	return 0;
 }
