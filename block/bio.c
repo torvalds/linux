@@ -1893,7 +1893,7 @@ struct bio *bio_split(struct bio *bio, int sectors,
 	bio_advance(bio, split->bi_iter.bi_size);
 
 	if (bio_flagged(bio, BIO_TRACE_COMPLETION))
-		bio_set_flag(bio, BIO_TRACE_COMPLETION);
+		bio_set_flag(split, BIO_TRACE_COMPLETION);
 
 	return split;
 }
