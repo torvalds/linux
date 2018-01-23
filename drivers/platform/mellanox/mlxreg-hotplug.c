@@ -98,6 +98,41 @@ struct mlxreg_hotplug_priv_data {
 	u8 fan_cache;
 };
 
+static int mlxreg_hotplug_device_create(struct device *dev,
+					struct mlxreg_hotplug_device *item)
+{
+	item->adapter = i2c_get_adapter(item->nr);
+	if (!item->adapter) {
+		dev_err(dev, "Failed to get adapter for bus %d\n",
+			item->nr);
+		return -EFAULT;
+	}
+
+	item->client = i2c_new_device(item->adapter, &item->brdinfo);
+	if (!item->client) {
+		dev_err(dev, "Failed to create client %s at bus %d at addr 0x%02x\n",
+			item->brdinfo.type, item->nr, item->brdinfo.addr);
+		i2c_put_adapter(item->adapter);
+		item->adapter = NULL;
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+static void mlxreg_hotplug_device_destroy(struct mlxreg_hotplug_device *item)
+{
+	if (item->client) {
+		i2c_unregister_device(item->client);
+		item->client = NULL;
+	}
+
+	if (item->adapter) {
+		i2c_put_adapter(item->adapter);
+		item->adapter = NULL;
+	}
+}
+
 static ssize_t mlxreg_hotplug_attr_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
@@ -181,41 +216,6 @@ static int mlxreg_hotplug_attr_init(struct mlxreg_hotplug_priv_data *priv)
 	priv->groups[1] = NULL;
 
 	return 0;
-}
-
-static int mlxreg_hotplug_device_create(struct device *dev,
-					struct mlxreg_hotplug_device *item)
-{
-	item->adapter = i2c_get_adapter(item->nr);
-	if (!item->adapter) {
-		dev_err(dev, "Failed to get adapter for bus %d\n",
-			item->nr);
-		return -EFAULT;
-	}
-
-	item->client = i2c_new_device(item->adapter, &item->brdinfo);
-	if (!item->client) {
-		dev_err(dev, "Failed to create client %s at bus %d at addr 0x%02x\n",
-			item->brdinfo.type, item->nr, item->brdinfo.addr);
-		i2c_put_adapter(item->adapter);
-		item->adapter = NULL;
-		return -EFAULT;
-	}
-
-	return 0;
-}
-
-static void mlxreg_hotplug_device_destroy(struct mlxreg_hotplug_device *item)
-{
-	if (item->client) {
-		i2c_unregister_device(item->client);
-		item->client = NULL;
-	}
-
-	if (item->adapter) {
-		i2c_put_adapter(item->adapter);
-		item->adapter = NULL;
-	}
 }
 
 static inline void
