@@ -828,7 +828,8 @@ static int perf_copy_chunk(struct perf_thread *pthr,
 	tx->callback_param = pthr;
 	dma_set_unmap(tx, unmap);
 
-	if (dma_submit_error(dmaengine_submit(tx))) {
+	ret = dma_submit_error(dmaengine_submit(tx));
+	if (ret) {
 		dmaengine_unmap_put(unmap);
 		goto err_free_resource;
 	}
