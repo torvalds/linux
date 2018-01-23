@@ -2598,6 +2598,9 @@ dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
 					     connector);
 	struct drm_display_mode *mode = NULL;
 	void *data = hdmi->plat_data->phy_data;
+	unsigned int in_bus_format = hdmi->hdmi_data.enc_in_bus_format;
+	unsigned int out_bus_format = hdmi->hdmi_data.enc_out_bus_format;
+
 
 	if (!hdmi->hpd_state || !conn_state->crtc)
 		return;
@@ -2629,7 +2632,11 @@ dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
 		hdmi->hdmi_data.video_mode.previous_tmdsclock = mode->clock;
 		hdmi->mc_clkdis = hdmi_readb(hdmi, HDMI_MC_CLKDIS);
 		hdmi->phy.enabled = true;
-		return;
+		if (in_bus_format != hdmi->hdmi_data.enc_in_bus_format ||
+		    out_bus_format != hdmi->hdmi_data.enc_out_bus_format)
+			hdmi->hdmi_data.update = true;
+		else
+			return;
 	}
 
 	if (hdmi->hdmi_data.update) {
@@ -3019,6 +3026,20 @@ static void dw_hdmi_attatch_properties(struct dw_hdmi *hdmi)
 			dev_err(hdmi->dev, "unexpected mapping: 0x%x\n",
 				video_mapping);
 		}
+
+		hdmi->hdmi_data.enc_in_bus_format = color;
+		hdmi->hdmi_data.enc_out_bus_format = color;
+		/*
+		 * input format will be set as yuv444 when output
+		 * format is yuv420
+		 */
+		if (color == MEDIA_BUS_FMT_UYVY10_1X20)
+			hdmi->hdmi_data.enc_in_bus_format =
+				MEDIA_BUS_FMT_YUV10_1X30;
+		else if (color == MEDIA_BUS_FMT_UYVY8_1X16)
+			hdmi->hdmi_data.enc_in_bus_format =
+				MEDIA_BUS_FMT_YUV8_1X24;
+
 	}
 
 	if (ops && ops->attatch_properties)
