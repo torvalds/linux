@@ -262,8 +262,10 @@ static inline unsigned int read_grf_reg(unsigned int addr)
 *	1. Only register cif driver here.
 *v0.5.1:
 *	1. fix fival_list alloc and free with API does't match.
+*v0.6.0:
+*   1. support px30.
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 5, 1)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 6, 0)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
@@ -511,6 +513,12 @@ static void rk_camera_diffchips(const char *rockchip_name)
 		ENANABLE_INVERT_PCLK_CIF0 = ((0x1 << 31) | (0x1 << 15));
 		DISABLE_INVERT_PCLK_CIF0  = ((0x1 << 31) | (0x0 << 15));
 		CHIP_NAME = 3228;
+	} else if (strstr(rockchip_name, "px30") ||
+		strstr(rockchip_name, "3326")) {
+		CRU_PCLK_REG30 = 0x0430;
+		ENANABLE_INVERT_PCLK_CIF0 = ((0x1 << 28) | (0x1 << 12));
+		DISABLE_INVERT_PCLK_CIF0  = ((0x1 << 28) | (0x0 << 12));
+		CHIP_NAME = 3326;
 	}
 }
 static inline void rk_cru_set_soft_reset(int idx)
@@ -1624,7 +1632,7 @@ static int rk_camera_mclk_ctrl(int cif_idx, int on, int clk_rate)
 	}
 
 	clk = &cif_clk[cif];
-	if (CHIP_NAME == 3228) {
+	if ((CHIP_NAME == 3228) || (CHIP_NAME == 3326)) {
 		if (!clk->aclk_cif || !clk->hclk_cif || !clk->cif_clk_out) {
 			RKCAMERA_TR("failed to get cif clock source\n");
 			err = -ENOENT;
@@ -1646,7 +1654,7 @@ static int rk_camera_mclk_ctrl(int cif_idx, int on, int clk_rate)
 
 		clk_prepare_enable(clk->aclk_cif);
 		clk_prepare_enable(clk->hclk_cif);
-		if (CHIP_NAME != 3228)
+		if ((CHIP_NAME != 3228) || (CHIP_NAME != 3326))
 			clk_prepare_enable(clk->cif_clk_in);
 
 		clk_prepare_enable(clk->cif_clk_out);
@@ -1658,7 +1666,7 @@ static int rk_camera_mclk_ctrl(int cif_idx, int on, int clk_rate)
 		clk_set_rate(clk->cif_clk_out,36000000);/*just for close clk which base on XIN24M */
 		clk_disable_unprepare(clk->aclk_cif);
 		clk_disable_unprepare(clk->hclk_cif);
-		if (CHIP_NAME != 3228)
+		if ((CHIP_NAME != 3228) || (CHIP_NAME != 3326))
 			clk_disable_unprepare(clk->cif_clk_in);
 		clk_disable_unprepare(clk->cif_clk_out);
 		if (CHIP_NAME == 3368)
@@ -1930,7 +1938,7 @@ static int rk_camera_set_bus_param(struct soc_camera_device *icd)
     
 	if (common_flags & V4L2_MBUS_PCLK_SAMPLE_FALLING) {
 		if (IS_CIF0()) {
-			if (CHIP_NAME == 3228)
+			if ((CHIP_NAME == 3228) || (CHIP_NAME == 3326))
 				write_grf_reg(CRU_PCLK_REG30,
 					      read_grf_reg(CRU_PCLK_REG30) | ENANABLE_INVERT_PCLK_CIF0);
 			else
@@ -1943,6 +1951,9 @@ static int rk_camera_set_bus_param(struct soc_camera_device *icd)
 			if (CHIP_NAME == 3228)
 				write_grf_reg(CRU_PCLK_REG30,
 					      (read_grf_reg(CRU_PCLK_REG30) & 0xFFFF7FFF) | DISABLE_INVERT_PCLK_CIF0);
+			else if (CHIP_NAME == 3326)
+				write_grf_reg(CRU_PCLK_REG30,
+					      (read_grf_reg(CRU_PCLK_REG30) & 0xFFFFEFFF) | DISABLE_INVERT_PCLK_CIF0);
 			else
 				clk_set_phase(cif_clk[0].pclk_cif, 0);
 		} else {
@@ -3544,12 +3555,12 @@ static int rk_camera_pltfrm_init(struct device *dev,
 	if (IS_CIF0()) {
 		debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$/is_cif0\n");
 		clk = &cif_clk[0];
-		if (CHIP_NAME == 3368)
+		if ((CHIP_NAME == 3368) || (CHIP_NAME == 3326))
 			clk->pclk_cif =
 				devm_clk_get(dev, "pclk_cif");
 		clk->aclk_cif = devm_clk_get(dev, "aclk_cif0");
 		clk->hclk_cif = devm_clk_get(dev, "hclk_cif0");
-		if (CHIP_NAME != 3228)
+		if ((CHIP_NAME != 3228) && (CHIP_NAME != 3326))
 			clk->cif_clk_in = devm_clk_get(dev, "cif0_in");
 		clk->cif_clk_out = devm_clk_get(dev, "cif0_out");
 		clk->cif_rst = devm_reset_control_get(dev, "rst_cif");
@@ -3565,7 +3576,7 @@ static int rk_camera_pltfrm_init(struct device *dev,
 
 		clk->aclk_cif = devm_clk_get(dev, "aclk_cif0");
 		clk->hclk_cif = devm_clk_get(dev, "hclk_cif0");
-		if (CHIP_NAME != 3228)
+		if ((CHIP_NAME != 3228) || (CHIP_NAME != 3326))
 			clk->cif_clk_in = devm_clk_get(dev, "cif0_in");
 		clk->cif_clk_out = devm_clk_get(dev, "cif0_out");
 		/* spin_lock_init(&cif_clk[1].lock); */
