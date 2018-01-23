@@ -391,12 +391,12 @@ xfs_scrub_iallocbt_xref_rmap_btreeblks(
 
 	/* Check that we saw as many inobt blocks as the rmap says. */
 	error = xfs_btree_count_blocks(sc->sa.ino_cur, &inobt_blocks);
-	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.ino_cur))
+	if (!xfs_scrub_process_error(sc, 0, 0, &error))
 		return;
 
 	if (sc->sa.fino_cur) {
 		error = xfs_btree_count_blocks(sc->sa.fino_cur, &finobt_blocks);
-		if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.fino_cur))
+		if (!xfs_scrub_process_error(sc, 0, 0, &error))
 			return;
 	}
 
