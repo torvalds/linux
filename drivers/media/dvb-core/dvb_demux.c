@@ -310,8 +310,9 @@ static int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed,
 
 	if (!ccok || dc_i) {
 #ifdef CONFIG_DVB_DEMUX_SECTION_LOSS_LOG
-		dprintk("dvb_demux.c discontinuity detected %d bytes lost\n",
-			count);
+		dprintk("discontinuity %s: %d bytes lost\n",
+			!ccok ? "detected" : "indicated",
+			count + 4);
 		/*
 		 * those bytes under sume circumstances will again be reported
 		 * in the following dvb_dmx_swfilter_section_new
@@ -320,6 +321,9 @@ static int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed,
 		/*
 		 * Discontinuity detected. Reset pusi_seen to
 		 * stop feeding of suspicious data until next PUSI=1 arrives
+		 *
+		 * FIXME: does it make sense if the MPEG-TS is the one
+		 *	reporting discontinuity?
 		 */
 		feed->pusi_seen = false;
 		dvb_dmx_swfilter_section_new(feed);
