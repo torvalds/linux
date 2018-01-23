@@ -1115,9 +1115,14 @@ static const u8 cnp_ddc_pin_map[] = {
 
 static u8 map_ddc_pin(struct drm_i915_private *dev_priv, u8 vbt_pin)
 {
-	if (HAS_PCH_CNP(dev_priv) &&
-	    vbt_pin > 0 && vbt_pin < ARRAY_SIZE(cnp_ddc_pin_map))
-		return cnp_ddc_pin_map[vbt_pin];
+	if (HAS_PCH_CNP(dev_priv)) {
+		if (vbt_pin > 0 && vbt_pin < ARRAY_SIZE(cnp_ddc_pin_map))
+			return cnp_ddc_pin_map[vbt_pin];
+		if (vbt_pin > GMBUS_PIN_4_CNP) {
+			DRM_DEBUG_KMS("Ignoring alternate pin: VBT claims DDC pin %d, which is not valid for this platform\n", vbt_pin);
+			return 0;
+		}
+	}
 
 	return vbt_pin;
 }
