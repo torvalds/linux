@@ -52,6 +52,11 @@ static inline void kvm_s390_set_cpuflags(struct kvm_vcpu *vcpu, u32 flags)
 	atomic_or(flags, &vcpu->arch.sie_block->cpuflags);
 }
 
+static inline void kvm_s390_clear_cpuflags(struct kvm_vcpu *vcpu, u32 flags)
+{
+	atomic_andnot(flags, &vcpu->arch.sie_block->cpuflags);
+}
+
 static inline int is_vcpu_stopped(struct kvm_vcpu *vcpu)
 {
 	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_STOPPED;

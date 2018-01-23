@@ -935,7 +935,7 @@ static void register_shadow_scb(struct kvm_vcpu *vcpu,
  */
 static void unregister_shadow_scb(struct kvm_vcpu *vcpu)
 {
-	atomic_andnot(CPUSTAT_WAIT, &vcpu->arch.sie_block->cpuflags);
+	kvm_s390_clear_cpuflags(vcpu, CPUSTAT_WAIT);
 	WRITE_ONCE(vcpu->arch.vsie_block, NULL);
 }
 

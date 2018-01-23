@@ -216,7 +216,7 @@ int kvm_s390_skey_check_enable(struct kvm_vcpu *vcpu)
 	VCPU_EVENT(vcpu, 3, "enabling storage keys for guest: %d", rc);
 	if (!rc) {
 		if (atomic_read(&sie_block->cpuflags) & CPUSTAT_KSS)
-			atomic_andnot(CPUSTAT_KSS, &sie_block->cpuflags);
+			kvm_s390_clear_cpuflags(vcpu, CPUSTAT_KSS);
 		else
 			sie_block->ictl &= ~(ICTL_ISKE | ICTL_SSKE |
 					     ICTL_RRBE);

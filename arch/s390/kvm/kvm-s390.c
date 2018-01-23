@@ -2340,7 +2340,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	vcpu->cpu = -1;
 	if (vcpu->arch.cputm_enabled && !is_vcpu_idle(vcpu))
 		__stop_cpu_timer_accounting(vcpu);
-	atomic_andnot(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
+	kvm_s390_clear_cpuflags(vcpu, CPUSTAT_RUNNING);
 	vcpu->arch.enabled_gmap = gmap_get_enabled();
 	gmap_disable(vcpu->arch.enabled_gmap);
 
@@ -2827,14 +2827,14 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 		if (dbg->control & KVM_GUESTDBG_USE_HW_BP)
 			rc = kvm_s390_import_bp_data(vcpu, dbg);
 	} else {
-		atomic_andnot(CPUSTAT_P, &vcpu->arch.sie_block->cpuflags);
+		kvm_s390_clear_cpuflags(vcpu, CPUSTAT_P);
 		vcpu->arch.guestdbg.last_bp = 0;
 	}
 
 	if (rc) {
 		vcpu->guest_debug = 0;
 		kvm_s390_clear_bp_data(vcpu);
-		atomic_andnot(CPUSTAT_P, &vcpu->arch.sie_block->cpuflags);
+		kvm_s390_clear_cpuflags(vcpu, CPUSTAT_P);
 	}
 
 	return rc;
@@ -2919,8 +2919,7 @@ retry:
 	if (kvm_check_request(KVM_REQ_DISABLE_IBS, vcpu)) {
 		if (ibs_enabled(vcpu)) {
 			trace_kvm_s390_enable_disable_ibs(vcpu->vcpu_id, 0);
-			atomic_andnot(CPUSTAT_IBS,
-					  &vcpu->arch.sie_block->cpuflags);
+			kvm_s390_clear_cpuflags(vcpu, CPUSTAT_IBS);
 		}
 		goto retry;
 	}
@@ -3564,7 +3563,7 @@ void kvm_s390_vcpu_start(struct kvm_vcpu *vcpu)
 		__disable_ibs_on_all_vcpus(vcpu->kvm);
 	}
 
-	atomic_andnot(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
+	kvm_s390_clear_cpuflags(vcpu, CPUSTAT_STOPPED);
 	/*
 	 * Another VCPU might have used IBS while we were offline.
 	 * Let's play safe and flush the VCPU at startup.

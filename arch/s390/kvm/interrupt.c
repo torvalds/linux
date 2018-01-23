@@ -111,7 +111,7 @@ static void sca_clear_ext_call(struct kvm_vcpu *vcpu)
 
 	if (!kvm_s390_use_sca_entries())
 		return;
-	atomic_andnot(CPUSTAT_ECALL_PEND, &vcpu->arch.sie_block->cpuflags);
+	kvm_s390_clear_cpuflags(vcpu, CPUSTAT_ECALL_PEND);
 	read_lock(&vcpu->kvm->arch.sca_lock);
 	if (vcpu->kvm->arch.use_esca) {
 		struct esca_block *sca = vcpu->kvm->arch.sca;
@@ -283,14 +283,14 @@ static void __set_cpu_idle(struct kvm_vcpu *vcpu)
 
 static void __unset_cpu_idle(struct kvm_vcpu *vcpu)
 {
-	atomic_andnot(CPUSTAT_WAIT, &vcpu->arch.sie_block->cpuflags);
+	kvm_s390_clear_cpuflags(vcpu, CPUSTAT_WAIT);
 	clear_bit(vcpu->vcpu_id, vcpu->kvm->arch.float_int.idle_mask);
 }
 
 static void __reset_intercept_indicators(struct kvm_vcpu *vcpu)
 {
-	atomic_andnot(CPUSTAT_IO_INT | CPUSTAT_EXT_INT | CPUSTAT_STOP_INT,
-		    &vcpu->arch.sie_block->cpuflags);
+	kvm_s390_clear_cpuflags(vcpu, CPUSTAT_IO_INT | CPUSTAT_EXT_INT |
+				      CPUSTAT_STOP_INT);
 	vcpu->arch.sie_block->lctl = 0x0000;
 	vcpu->arch.sie_block->ictl &= ~(ICTL_LPSW | ICTL_STCTL | ICTL_PINT);
 
