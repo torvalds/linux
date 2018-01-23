@@ -427,6 +427,7 @@ static void esw_destroy_offloads_fast_fdb_table(struct mlx5_eswitch *esw)
 }
 
 #define MAX_PF_SQ 256
+#define MAX_SQ_NVPORTS 32
 
 static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 {
@@ -456,7 +457,7 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 	if (err)
 		goto fast_fdb_err;
 
-	table_size = nvports + MAX_PF_SQ + 1;
+	table_size = nvports * MAX_SQ_NVPORTS + MAX_PF_SQ + 1;
 
 	ft_attr.max_fte = table_size;
 	ft_attr.prio = FDB_SLOW_PATH;
@@ -479,7 +480,7 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 	MLX5_SET_TO_ONES(fte_match_param, match_criteria, misc_parameters.source_sqn);
 	MLX5_SET_TO_ONES(fte_match_param, match_criteria, misc_parameters.source_port);
 
-	ix = nvports + MAX_PF_SQ;
+	ix = nvports * MAX_SQ_NVPORTS + MAX_PF_SQ;
 	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 0);
 	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, ix - 1);
 
