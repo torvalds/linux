@@ -1485,6 +1485,7 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->dll_default_on = false;
 	data->mclk_dpm0_activity_target = 0xa;
 	data->mclk_activity_target = SMU7_MCLK_TARGETACTIVITY_DFLT;
+	data->sclk_activity_target = SMU7_SCLK_TARGETACTIVITY_DFLT;
 	data->vddc_vddgfx_delta = 300;
 	data->static_screen_threshold = SMU7_STATICSCREENTHRESHOLD_DFLT;
 	data->static_screen_threshold_unit = SMU7_STATICSCREENTHRESHOLDUNIT_DFLT;

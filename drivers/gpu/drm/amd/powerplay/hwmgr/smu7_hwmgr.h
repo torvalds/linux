@@ -290,6 +290,7 @@ struct smu7_hwmgr {
 	bool                                      use_pcie_performance_levels;
 	bool                                      use_pcie_power_saving_levels;
 	uint32_t                                  mclk_activity_target;
+	uint16_t                                  sclk_activity_target;
 	uint32_t                                  mclk_dpm0_activity_target;
 	uint32_t                                  low_sclk_interrupt_threshold;
 	uint32_t                                  last_mclk_dpm_enable_mask;

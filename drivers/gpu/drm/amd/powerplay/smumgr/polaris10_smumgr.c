@@ -366,7 +366,6 @@ static bool polaris10_is_hw_avfs_present(struct pp_hwmgr *hwmgr)
 static int polaris10_smu_init(struct pp_hwmgr *hwmgr)
 {
 	struct polaris10_smumgr *smu_data;
-	int i;
 
 	smu_data = kzalloc(sizeof(struct polaris10_smumgr), GFP_KERNEL);
 	if (smu_data == NULL)
@@ -376,9 +375,6 @@ static int polaris10_smu_init(struct pp_hwmgr *hwmgr)
 
 	if (smu7_init(hwmgr))
 		return -EINVAL;
-
-	for (i = 0; i < SMU74_MAX_LEVELS_GRAPHICS; i++)
-		smu_data->activity_target[i] = PPPOLARIS10_TARGETACTIVITY_DFLT;
 
 	return 0;
 }
@@ -1037,7 +1033,7 @@ static int polaris10_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 
 		result = polaris10_populate_single_graphic_level(hwmgr,
 				dpm_table->sclk_table.dpm_levels[i].value,
-				(uint16_t)smu_data->activity_target[i],
+				hw_data->sclk_activity_target,
 				&(smu_data->smc_state_table.GraphicsLevel[i]));
 		if (result)
 			return result;
