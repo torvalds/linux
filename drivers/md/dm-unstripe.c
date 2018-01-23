@@ -44,7 +44,7 @@ static void cleanup_unstripe(struct unstripe_c *uc, struct dm_target *ti)
 static int unstripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct unstripe_c *uc;
-	sector_t width, tmp_len;
+	sector_t tmp_len;
 	unsigned long long start;
 	char dummy;
 
@@ -100,13 +100,7 @@ static int unstripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	uc->unstripe_width = (uc->stripes - 1) * uc->chunk_size;
 	uc->chunk_shift = fls(uc->chunk_size) - 1;
 
-	width = ti->len;
-	if (sector_div(width, uc->stripes)) {
-		ti->error = "Target length not divisible by number of stripes";
-		goto err;
-	}
-
-	tmp_len = width;
+	tmp_len = ti->len;
 	if (sector_div(tmp_len, uc->chunk_size)) {
 		ti->error = "Target length not divisible by chunk size";
 		goto err;
