@@ -624,7 +624,7 @@ static int trie_get_next_key(struct bpf_map *map, void *_key, void *_next_key)
 	}
 
 	node_stack = kmalloc(trie->max_prefixlen * sizeof(struct lpm_trie_node *),
-			     GFP_USER | __GFP_NOWARN);
+			     GFP_ATOMIC | __GFP_NOWARN);
 	if (!node_stack)
 		return -ENOMEM;
 
