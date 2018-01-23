@@ -178,8 +178,10 @@
 #define PCLK_GPIO1		348
 #define PCLK_GPIO2		349
 #define PCLK_GPIO3		350
+#define PCLK_ISP		351
+#define PCLK_CIF		352
 
-#define CLK_NR_CLKS		(PCLK_GPIO3 + 1)
+#define CLK_NR_CLKS		(PCLK_CIF + 1)
 
 /* pmu-clocks indices */
 

@@ -424,6 +424,10 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	COMPOSITE(SCLK_CIF_OUT, "clk_cif_out", mux_cif_out_p, 0,
 			PX30_CLKSEL_CON(13), 6, 2, MFLAGS, 0, 6, DFLAGS,
 			PX30_CLKGATE_CON(4), 11, GFLAGS),
+	GATE(PCLK_ISP, "pclkin_isp", "ext_pclkin", 0,
+			PX30_CLKGATE_CON(4), 13, GFLAGS),
+	GATE(PCLK_CIF, "pclkin_cif", "ext_pclkin", 0,
+			PX30_CLKGATE_CON(4), 14, GFLAGS),
 
 	/*
 	 * Clock-Architecture Diagram 6
