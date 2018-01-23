@@ -1646,6 +1646,7 @@ static int mmci_probe(struct amba_device *dev,
 		host->pinctrl = devm_pinctrl_get(&dev->dev);
 		if (IS_ERR(host->pinctrl)) {
 			dev_err(&dev->dev, "failed to get pinctrl");
+			ret = PTR_ERR(host->pinctrl);
 			goto host_free;
 		}
 
@@ -1653,6 +1654,7 @@ static int mmci_probe(struct amba_device *dev,
 							  PINCTRL_STATE_DEFAULT);
 		if (IS_ERR(host->pins_default)) {
 			dev_err(mmc_dev(mmc), "Can't select default pins\n");
+			ret = PTR_ERR(host->pins_default);
 			goto host_free;
 		}
 
@@ -1660,6 +1662,7 @@ static int mmci_probe(struct amba_device *dev,
 							    MMCI_PINCTRL_STATE_OPENDRAIN);
 		if (IS_ERR(host->pins_opendrain)) {
 			dev_err(mmc_dev(mmc), "Can't select opendrain pins\n");
+			ret = PTR_ERR(host->pins_opendrain);
 			goto host_free;
 		}
 	}
