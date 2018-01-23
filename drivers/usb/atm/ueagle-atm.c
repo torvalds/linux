@@ -2315,7 +2315,7 @@ out:
 
 static DEVICE_ATTR_RW(stat_status);
 
-static ssize_t read_human_status(struct device *dev,
+static ssize_t stat_human_status_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	int ret = -ENODEV;
@@ -2376,9 +2376,9 @@ out:
 	return ret;
 }
 
-static DEVICE_ATTR(stat_human_status, S_IRUGO, read_human_status, NULL);
+static DEVICE_ATTR_RO(stat_human_status);
 
-static ssize_t read_delin(struct device *dev, struct device_attribute *attr,
+static ssize_t stat_delin_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	int ret = -ENODEV;
@@ -2408,7 +2408,7 @@ out:
 	return ret;
 }
 
-static DEVICE_ATTR(stat_delin, S_IRUGO, read_delin, NULL);
+static DEVICE_ATTR_RO(stat_delin);
 
 #define UEA_ATTR(name, reset)					\
 								\

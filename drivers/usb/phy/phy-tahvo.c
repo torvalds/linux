@@ -59,13 +59,13 @@ static const unsigned int tahvo_cable[] = {
 	EXTCON_NONE,
 };
 
-static ssize_t vbus_state_show(struct device *device,
+static ssize_t vbus_show(struct device *device,
 			       struct device_attribute *attr, char *buf)
 {
 	struct tahvo_usb *tu = dev_get_drvdata(device);
 	return sprintf(buf, "%s\n", tu->vbus_state ? "on" : "off");
 }
-static DEVICE_ATTR(vbus, 0444, vbus_state_show, NULL);
+static DEVICE_ATTR_RO(vbus);
 
 static void check_vbus_state(struct tahvo_usb *tu)
 {
