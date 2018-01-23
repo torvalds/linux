@@ -1694,7 +1694,6 @@ EXPORT_SYMBOL(unregister_netdevice_notifier);
 /**
  *	call_netdevice_notifiers_info - call all network notifier blocks
  *	@val: value passed unmodified to notifier function
- *	@dev: net_device pointer passed unmodified to notifier function
  *	@info: notifier information data
  *
  *	Call all network notifier blocks.  Parameters and return value
