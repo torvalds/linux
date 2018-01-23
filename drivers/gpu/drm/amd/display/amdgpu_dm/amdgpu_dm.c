@@ -1619,8 +1619,6 @@ static int dm_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	adev->ddev->driver->driver_features |= DRIVER_ATOMIC;
-
 	switch (adev->asic_type) {
 	case CHIP_BONAIRE:
 	case CHIP_HAWAII:
