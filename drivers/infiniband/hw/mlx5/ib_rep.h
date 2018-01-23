@@ -13,6 +13,7 @@
 u8 mlx5_ib_eswitch_mode(struct mlx5_eswitch *esw);
 struct mlx5_ib_dev *mlx5_ib_get_rep_ibdev(struct mlx5_eswitch *esw,
 					  int vport_index);
+struct mlx5_ib_dev *mlx5_ib_get_uplink_ibdev(struct mlx5_eswitch *esw);
 struct mlx5_eswitch_rep *mlx5_ib_vport_rep(struct mlx5_eswitch *esw,
 					   int vport_index);
 void mlx5_ib_register_vport_reps(struct mlx5_ib_dev *dev);
@@ -30,6 +31,12 @@ static inline u8 mlx5_ib_eswitch_mode(struct mlx5_eswitch *esw)
 static inline
 struct mlx5_ib_dev *mlx5_ib_get_rep_ibdev(struct mlx5_eswitch *esw,
 					  int vport_index)
+{
+	return NULL;
+}
+
+static inline
+struct mlx5_ib_dev *mlx5_ib_get_uplink_ibdev(struct mlx5_eswitch *esw)
 {
 	return NULL;
 }

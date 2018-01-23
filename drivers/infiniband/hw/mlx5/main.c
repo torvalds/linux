@@ -4554,7 +4554,7 @@ static void mlx5_ib_cleanup_multiport_master(struct mlx5_ib_dev *dev)
 	mlx5_nic_vport_disable_roce(dev->mdev);
 }
 
-static void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev)
+void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev)
 {
 	mlx5_ib_cleanup_multiport_master(dev);
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
@@ -4563,7 +4563,7 @@ static void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev)
 	kfree(dev->port);
 }
 
-static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
+int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_core_dev *mdev = dev->mdev;
 	const char *name;
@@ -4647,12 +4647,26 @@ static int mlx5_ib_stage_flow_db_init(struct mlx5_ib_dev *dev)
 	return 0;
 }
 
+int mlx5_ib_stage_rep_flow_db_init(struct mlx5_ib_dev *dev)
+{
+	struct mlx5_ib_dev *nic_dev;
+
+	nic_dev = mlx5_ib_get_uplink_ibdev(dev->mdev->priv.eswitch);
+
+	if (!nic_dev)
+		return -EINVAL;
+
+	dev->flow_db = nic_dev->flow_db;
+
+	return 0;
+}
+
 static void mlx5_ib_stage_flow_db_cleanup(struct mlx5_ib_dev *dev)
 {
 	kfree(dev->flow_db);
 }
 
-static int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
+int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_core_dev *mdev = dev->mdev;
 	int err;
@@ -4793,7 +4807,7 @@ static int mlx5_ib_stage_non_default_cb(struct mlx5_ib_dev *dev)
 	return 0;
 }
 
-static int mlx5_ib_stage_rep_non_default_cb(struct mlx5_ib_dev *dev)
+int mlx5_ib_stage_rep_non_default_cb(struct mlx5_ib_dev *dev)
 {
 	dev->ib_dev.get_port_immutable  = mlx5_port_rep_immutable;
 	dev->ib_dev.query_port		= mlx5_ib_rep_query_port;
@@ -4905,12 +4919,12 @@ static void mlx5_ib_stage_roce_cleanup(struct mlx5_ib_dev *dev)
 	}
 }
 
-static int mlx5_ib_stage_dev_res_init(struct mlx5_ib_dev *dev)
+int mlx5_ib_stage_dev_res_init(struct mlx5_ib_dev *dev)
 {
 	return create_dev_resources(&dev->devr);
 }
 
-static void mlx5_ib_stage_dev_res_cleanup(struct mlx5_ib_dev *dev)
+void mlx5_ib_stage_dev_res_cleanup(struct mlx5_ib_dev *dev)
 {
 	destroy_dev_resources(&dev->devr);
 }
@@ -4922,7 +4936,7 @@ static int mlx5_ib_stage_odp_init(struct mlx5_ib_dev *dev)
 	return mlx5_ib_odp_init_one(dev);
 }
 
-static int mlx5_ib_stage_counters_init(struct mlx5_ib_dev *dev)
+int mlx5_ib_stage_counters_init(struct mlx5_ib_dev *dev)
 {
 	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt)) {
 		dev->ib_dev.get_hw_stats	= mlx5_ib_get_hw_stats;
@@ -4934,7 +4948,7 @@ static int mlx5_ib_stage_counters_init(struct mlx5_ib_dev *dev)
 	return 0;
 }
 
-static void mlx5_ib_stage_counters_cleanup(struct mlx5_ib_dev *dev)
+void mlx5_ib_stage_counters_cleanup(struct mlx5_ib_dev *dev)
 {
 	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt))
 		mlx5_ib_dealloc_counters(dev);
@@ -4965,7 +4979,7 @@ static void mlx5_ib_stage_uar_cleanup(struct mlx5_ib_dev *dev)
 	mlx5_put_uars_page(dev->mdev, dev->mdev->priv.uar);
 }
 
-static int mlx5_ib_stage_bfrag_init(struct mlx5_ib_dev *dev)
+int mlx5_ib_stage_bfrag_init(struct mlx5_ib_dev *dev)
 {
 	int err;
 
@@ -4980,28 +4994,28 @@ static int mlx5_ib_stage_bfrag_init(struct mlx5_ib_dev *dev)
 	return err;
 }
 
-static void mlx5_ib_stage_bfrag_cleanup(struct mlx5_ib_dev *dev)
+void mlx5_ib_stage_bfrag_cleanup(struct mlx5_ib_dev *dev)
 {
 	mlx5_free_bfreg(dev->mdev, &dev->fp_bfreg);
 	mlx5_free_bfreg(dev->mdev, &dev->bfreg);
 }
 
-static int mlx5_ib_stage_ib_reg_init(struct mlx5_ib_dev *dev)
+int mlx5_ib_stage_ib_reg_init(struct mlx5_ib_dev *dev)
 {
 	return ib_register_device(&dev->ib_dev, NULL);
 }
 
-static void mlx5_ib_stage_ib_reg_cleanup(struct mlx5_ib_dev *dev)
+void mlx5_ib_stage_ib_reg_cleanup(struct mlx5_ib_dev *dev)
 {
 	ib_unregister_device(&dev->ib_dev);
 }
 
-static int mlx5_ib_stage_umr_res_init(struct mlx5_ib_dev *dev)
+int mlx5_ib_stage_umr_res_init(struct mlx5_ib_dev *dev)
 {
 	return create_umr_res(dev);
 }
 
-static void mlx5_ib_stage_umr_res_cleanup(struct mlx5_ib_dev *dev)
+void mlx5_ib_stage_umr_res_cleanup(struct mlx5_ib_dev *dev)
 {
 	destroy_umrc_res(dev);
 }
@@ -5018,7 +5032,7 @@ static void mlx5_ib_stage_delay_drop_cleanup(struct mlx5_ib_dev *dev)
 	cancel_delay_drop(dev);
 }
 
-static int mlx5_ib_stage_class_attr_init(struct mlx5_ib_dev *dev)
+int mlx5_ib_stage_class_attr_init(struct mlx5_ib_dev *dev)
 {
 	int err;
 	int i;
@@ -5045,9 +5059,9 @@ static void mlx5_ib_stage_rep_reg_cleanup(struct mlx5_ib_dev *dev)
 	mlx5_ib_unregister_vport_reps(dev);
 }
 
-static void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
-			     const struct mlx5_ib_profile *profile,
-			     int stage)
+void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
+		      const struct mlx5_ib_profile *profile,
+		      int stage)
 {
 	/* Number of stages to cleanup */
 	while (stage) {
@@ -5061,22 +5075,13 @@ static void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
 
 static void *mlx5_ib_add_slave_port(struct mlx5_core_dev *mdev, u8 port_num);
 
-static void *__mlx5_ib_add(struct mlx5_core_dev *mdev,
-			   const struct mlx5_ib_profile *profile)
+void *__mlx5_ib_add(struct mlx5_ib_dev *dev,
+		    const struct mlx5_ib_profile *profile)
 {
-	struct mlx5_ib_dev *dev;
 	int err;
 	int i;
 
 	printk_once(KERN_INFO "%s", mlx5_version);
-
-	dev = (struct mlx5_ib_dev *)ib_alloc_device(sizeof(*dev));
-	if (!dev)
-		return NULL;
-
-	dev->mdev = mdev;
-	dev->num_ports = max(MLX5_CAP_GEN(mdev, num_ports),
-			     MLX5_CAP_GEN(mdev, num_vhca_ports));
 
 	for (i = 0; i < MLX5_IB_STAGE_MAX; i++) {
 		if (profile->stage[i].init) {
@@ -5145,6 +5150,48 @@ static const struct mlx5_ib_profile pf_profile = {
 		     NULL),
 };
 
+static const struct mlx5_ib_profile nic_rep_profile = {
+	STAGE_CREATE(MLX5_IB_STAGE_INIT,
+		     mlx5_ib_stage_init_init,
+		     mlx5_ib_stage_init_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_FLOW_DB,
+		     mlx5_ib_stage_flow_db_init,
+		     mlx5_ib_stage_flow_db_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_CAPS,
+		     mlx5_ib_stage_caps_init,
+		     NULL),
+	STAGE_CREATE(MLX5_IB_STAGE_NON_DEFAULT_CB,
+		     mlx5_ib_stage_rep_non_default_cb,
+		     NULL),
+	STAGE_CREATE(MLX5_IB_STAGE_ROCE,
+		     mlx5_ib_stage_rep_roce_init,
+		     mlx5_ib_stage_rep_roce_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_DEVICE_RESOURCES,
+		     mlx5_ib_stage_dev_res_init,
+		     mlx5_ib_stage_dev_res_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_COUNTERS,
+		     mlx5_ib_stage_counters_init,
+		     mlx5_ib_stage_counters_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_UAR,
+		     mlx5_ib_stage_uar_init,
+		     mlx5_ib_stage_uar_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_BFREG,
+		     mlx5_ib_stage_bfrag_init,
+		     mlx5_ib_stage_bfrag_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_IB_REG,
+		     mlx5_ib_stage_ib_reg_init,
+		     mlx5_ib_stage_ib_reg_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_UMR_RESOURCES,
+		     mlx5_ib_stage_umr_res_init,
+		     mlx5_ib_stage_umr_res_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_CLASS_ATTR,
+		     mlx5_ib_stage_class_attr_init,
+		     NULL),
+	STAGE_CREATE(MLX5_IB_STAGE_REP_REG,
+		     mlx5_ib_stage_rep_reg_init,
+		     mlx5_ib_stage_rep_reg_cleanup),
+};
+
 static void *mlx5_ib_add_slave_port(struct mlx5_core_dev *mdev, u8 port_num)
 {
 	struct mlx5_ib_multiport_info *mpi;
@@ -5190,7 +5237,10 @@ static void *mlx5_ib_add_slave_port(struct mlx5_core_dev *mdev, u8 port_num)
 static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 {
 	enum rdma_link_layer ll;
+	struct mlx5_ib_dev *dev;
 	int port_type_cap;
+
+	printk_once(KERN_INFO "%s", mlx5_version);
 
 	port_type_cap = MLX5_CAP_GEN(mdev, port_type);
 	ll = mlx5_port_type_cap_to_rdma_ll(port_type_cap);
@@ -5201,7 +5251,22 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 		return mlx5_ib_add_slave_port(mdev, port_num);
 	}
 
-	return __mlx5_ib_add(mdev, &pf_profile);
+	dev = (struct mlx5_ib_dev *)ib_alloc_device(sizeof(*dev));
+	if (!dev)
+		return NULL;
+
+	dev->mdev = mdev;
+	dev->num_ports = max(MLX5_CAP_GEN(mdev, num_ports),
+			     MLX5_CAP_GEN(mdev, num_vhca_ports));
+
+	if (MLX5_VPORT_MANAGER(mdev) &&
+	    mlx5_ib_eswitch_mode(mdev->priv.eswitch) == SRIOV_OFFLOADS) {
+		dev->rep = mlx5_ib_vport_rep(mdev->priv.eswitch, 0);
+
+		return __mlx5_ib_add(dev, &nic_rep_profile);
+	}
+
+	return __mlx5_ib_add(dev, &pf_profile);
 }
 
 static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)

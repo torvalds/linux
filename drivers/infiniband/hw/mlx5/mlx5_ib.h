@@ -1054,6 +1054,31 @@ static inline void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t offset,
 
 #endif /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
 
+/* Needed for rep profile */
+int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_rep_flow_db_init(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_rep_non_default_cb(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_rep_roce_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_rep_roce_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_dev_res_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_dev_res_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_counters_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_counters_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_bfrag_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_bfrag_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_ib_reg_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_ib_reg_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_umr_res_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_umr_res_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_class_attr_init(struct mlx5_ib_dev *dev);
+void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
+		      const struct mlx5_ib_profile *profile,
+		      int stage);
+void *__mlx5_ib_add(struct mlx5_ib_dev *dev,
+		    const struct mlx5_ib_profile *profile);
+
 int mlx5_ib_get_vf_config(struct ib_device *device, int vf,
 			  u8 port, struct ifla_vf_info *info);
 int mlx5_ib_set_vf_link_state(struct ib_device *device, int vf,
