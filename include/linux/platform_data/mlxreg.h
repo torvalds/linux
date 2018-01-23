@@ -34,8 +34,11 @@
 #ifndef __LINUX_PLATFORM_DATA_MLXREG_H
 #define __LINUX_PLATFORM_DATA_MLXREG_H
 
+#define MLXREG_CORE_LABEL_MAX_SIZE	32
+
 /**
  * struct mlxreg_hotplug_device - I2C device data:
+ *
  * @adapter: I2C device adapter;
  * @client: I2C device client;
  * @brdinfo: device board information;
@@ -47,52 +50,95 @@
 struct mlxreg_hotplug_device {
 	struct i2c_adapter *adapter;
 	struct i2c_client *client;
-	struct i2c_board_info brdinfo;
+	struct i2c_board_info *brdinfo;
 	int nr;
 };
 
 /**
- * struct mlxreg_hotplug_platform_data - device platform data:
- * @top_aggr_offset: offset of top aggregation interrupt register;
- * @top_aggr_mask: top aggregation interrupt common mask;
- * @top_aggr_psu_mask: top aggregation interrupt PSU mask;
- * @psu_reg_offset: offset of PSU interrupt register;
- * @psu_mask: PSU interrupt mask;
- * @psu_count: number of equipped replaceable PSUs;
- * @psu: pointer to PSU devices data array;
- * @top_aggr_pwr_mask: top aggregation interrupt power mask;
- * @pwr_reg_offset: offset of power interrupt register
- * @pwr_mask: power interrupt mask;
- * @pwr_count: number of power sources;
- * @pwr: pointer to power devices data array;
- * @top_aggr_fan_mask: top aggregation interrupt FAN mask;
- * @fan_reg_offset: offset of FAN interrupt register;
- * @fan_mask: FAN interrupt mask;
- * @fan_count: number of equipped replaceable FANs;
- * @fan: pointer to FAN devices data array;
+ * struct mlxreg_core_data - attributes control data:
  *
- * Structure represents board platform data, related to system hotplug events,
- * like FAN, PSU, power cable insertion and removing. This data provides the
- * number of hot-pluggable devices and hardware description for event handling.
+ * @label: attribute label;
+ * @label: attribute register offset;
+ * @reg: attribute register;
+ * @mask: attribute access mask;
+ * @mode: access mode;
+ * @bit: attribute effective bit;
+ * @np - pointer to node platform associated with attribute;
+ * @hpdev - hotplug device data;
+ * @health_cntr: dynamic device health indication counter;
+ * @attached: true if device has been attached after good health indication;
  */
-struct mlxreg_hotplug_platform_data {
-	u16 top_aggr_offset;
-	u8 top_aggr_mask;
-	u8 top_aggr_psu_mask;
-	u16 psu_reg_offset;
-	u8 psu_mask;
-	u8 psu_count;
-	struct mlxreg_hotplug_device *psu;
-	u8 top_aggr_pwr_mask;
-	u16 pwr_reg_offset;
-	u8 pwr_mask;
-	u8 pwr_count;
-	struct mlxreg_hotplug_device *pwr;
-	u8 top_aggr_fan_mask;
-	u16 fan_reg_offset;
-	u8 fan_mask;
-	u8 fan_count;
-	struct mlxreg_hotplug_device *fan;
+struct mlxreg_core_data {
+	char label[MLXREG_CORE_LABEL_MAX_SIZE];
+	u32 reg;
+	u32 mask;
+	u32 bit;
+	umode_t	mode;
+	struct device_node *np;
+	struct mlxreg_hotplug_device hpdev;
+	u8 health_cntr;
+	bool attached;
+};
+
+/**
+ * struct mlxreg_core_item - same type components controlled by the driver:
+ *
+ * @data: component data;
+ * @aggr_mask: group aggregation mask;
+ * @reg: group interrupt status register;
+ * @mask: group interrupt mask;
+ * @cache: last status value for elements fro the same group;
+ * @count: number of available elements in the group;
+ * @ind: element's index inside the group;
+ * @inversed: if 0: 0 for signal status is OK, if 1 - 1 is OK;
+ * @health: true if device has health indication, false in other case;
+ */
+struct mlxreg_core_item {
+	struct mlxreg_core_data *data;
+	u32 aggr_mask;
+	u32 reg;
+	u32 mask;
+	u32 cache;
+	u8 count;
+	u8 ind;
+	u8 inversed;
+	u8 health;
+};
+
+/**
+ * struct mlxreg_core_platform_data - platform data:
+ *
+ * @led_data: led private data;
+ * @regmap: register map of parent device;
+ * @counter: number of led instances;
+ */
+struct mlxreg_core_platform_data {
+	struct mlxreg_core_data *data;
+	void *regmap;
+	int counter;
+};
+
+/**
+ * struct mlxreg_core_hotplug_platform_data - hotplug platform data:
+ *
+ * @items: same type components with the hotplug capability;
+ * @irq: platform interrupt number;
+ * @regmap: register map of parent device;
+ * @counter: number of the components with the hotplug capability;
+ * @cell: location of top aggregation interrupt register;
+ * @mask: top aggregation interrupt common mask;
+ * @cell_low: location of low aggregation interrupt register;
+ * @mask_low: low aggregation interrupt common mask;
+ */
+struct mlxreg_core_hotplug_platform_data {
+	struct mlxreg_core_item *items;
+	int irq;
+	void *regmap;
+	int counter;
+	u32 cell;
+	u32 mask;
+	u32 cell_low;
+	u32 mask_low;
 };
 
 #endif /* __LINUX_PLATFORM_DATA_MLXREG_H */

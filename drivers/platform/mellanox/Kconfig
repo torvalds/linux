@@ -16,6 +16,7 @@ if MELLANOX_PLATFORM
 
 config MLXREG_HOTPLUG
 	tristate "Mellanox platform hotplug driver support"
+	depends on REGMAP
 	depends on HWMON
 	depends on I2C
 	---help---

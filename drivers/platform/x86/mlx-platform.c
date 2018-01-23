@@ -35,20 +35,22 @@
 #include <linux/dmi.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/i2c-mux-reg.h>
 #include <linux/platform_data/mlxreg.h>
+#include <linux/regmap.h>
 
 #define MLX_PLAT_DEVICE_NAME		"mlxplat"
 
 /* LPC bus IO offsets */
 #define MLXPLAT_CPLD_LPC_I2C_BASE_ADRR		0x2000
 #define MLXPLAT_CPLD_LPC_REG_BASE_ADRR		0x2500
-#define MLXPLAT_CPLD_LPC_REG_AGGR_ADRR		0x253a
-#define MLXPLAT_CPLD_LPC_REG_PSU_ADRR		0x2558
-#define MLXPLAT_CPLD_LPC_REG_PWR_ADRR		0x2564
-#define MLXPLAT_CPLD_LPC_REG_FAN_ADRR		0x2588
+#define MLXPLAT_CPLD_LPC_REG_AGGR_OFFSET	0x3a
+#define MLXPLAT_CPLD_LPC_REG_PSU_OFFSET		0x58
+#define MLXPLAT_CPLD_LPC_REG_PWR_OFFSET		0x64
+#define MLXPLAT_CPLD_LPC_REG_FAN_OFFSET		0x88
 #define MLXPLAT_CPLD_LPC_IO_RANGE		0x100
 #define MLXPLAT_CPLD_LPC_I2C_CH1_OFF		0xdb
 #define MLXPLAT_CPLD_LPC_I2C_CH2_OFF		0xda
@@ -138,78 +140,194 @@ static struct i2c_mux_reg_platform_data mlxplat_mux_data[] = {
 };
 
 /* Platform hotplug devices */
-static struct mlxreg_hotplug_device mlxplat_mlxcpld_psu[] = {
+static struct i2c_board_info mlxplat_mlxcpld_psu[] = {
 	{
-		.brdinfo = { I2C_BOARD_INFO("24c02", 0x51) },
-		.nr = 10,
+		I2C_BOARD_INFO("24c02", 0x51),
 	},
 	{
-		.brdinfo = { I2C_BOARD_INFO("24c02", 0x50) },
-		.nr = 10,
+		I2C_BOARD_INFO("24c02", 0x50),
 	},
 };
 
-static struct mlxreg_hotplug_device mlxplat_mlxcpld_pwr[] = {
+static struct i2c_board_info mlxplat_mlxcpld_pwr[] = {
 	{
-		.brdinfo = { I2C_BOARD_INFO("dps460", 0x59) },
-		.nr = 10,
+		I2C_BOARD_INFO("dps460", 0x59),
 	},
 	{
-		.brdinfo = { I2C_BOARD_INFO("dps460", 0x58) },
-		.nr = 10,
+		I2C_BOARD_INFO("dps460", 0x58),
 	},
 };
 
-static struct mlxreg_hotplug_device mlxplat_mlxcpld_fan[] = {
+static struct i2c_board_info mlxplat_mlxcpld_fan[] = {
 	{
-		.brdinfo = { I2C_BOARD_INFO("24c32", 0x50) },
-		.nr = 11,
+		I2C_BOARD_INFO("24c32", 0x50),
 	},
 	{
-		.brdinfo = { I2C_BOARD_INFO("24c32", 0x50) },
-		.nr = 12,
+		I2C_BOARD_INFO("24c32", 0x50),
 	},
 	{
-		.brdinfo = { I2C_BOARD_INFO("24c32", 0x50) },
-		.nr = 13,
+		I2C_BOARD_INFO("24c32", 0x50),
 	},
 	{
-		.brdinfo = { I2C_BOARD_INFO("24c32", 0x50) },
-		.nr = 14,
+		I2C_BOARD_INFO("24c32", 0x50),
 	},
 };
 
 /* Platform hotplug default data */
+static struct mlxreg_core_data mlxplat_mlxcpld_default_psu_items_data[] = {
+	{
+		.label = "psu1",
+		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
+		.mask = BIT(0),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_psu[0],
+		.hpdev.nr = 10,
+	},
+	{
+		.label = "psu2",
+		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
+		.mask = BIT(1),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_psu[1],
+		.hpdev.nr = 10,
+	},
+};
+
+static struct mlxreg_core_data mlxplat_mlxcpld_default_pwr_items_data[] = {
+	{
+		.label = "pwr1",
+		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFFSET,
+		.mask = BIT(0),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_pwr[0],
+		.hpdev.nr = 10,
+	},
+	{
+		.label = "pwr2",
+		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFFSET,
+		.mask = BIT(1),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_pwr[1],
+		.hpdev.nr = 10,
+	},
+};
+
+static struct mlxreg_core_data mlxplat_mlxcpld_default_fan_items_data[] = {
+	{
+		.label = "fan1",
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFFSET,
+		.mask = BIT(0),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_fan[0],
+		.hpdev.nr = 11,
+	},
+	{
+		.label = "fan2",
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFFSET,
+		.mask = BIT(1),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_fan[1],
+		.hpdev.nr = 12,
+	},
+	{
+		.label = "fan3",
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFFSET,
+		.mask = BIT(2),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_fan[2],
+		.hpdev.nr = 13,
+	},
+	{
+		.label = "fan4",
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFFSET,
+		.mask = BIT(3),
+		.hpdev.brdinfo = &mlxplat_mlxcpld_fan[3],
+		.hpdev.nr = 14,
+	},
+};
+
+static struct mlxreg_core_item mlxplat_mlxcpld_default_items[] = {
+	{
+		.data = mlxplat_mlxcpld_default_psu_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_PSU_MASK_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
+		.mask = MLXPLAT_CPLD_PSU_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_psu),
+		.inversed = 1,
+		.health = false,
+	},
+	{
+		.data = mlxplat_mlxcpld_default_pwr_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_PWR_MASK_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFFSET,
+		.mask = MLXPLAT_CPLD_PWR_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_pwr),
+		.inversed = 0,
+		.health = false,
+	},
+	{
+		.data = mlxplat_mlxcpld_default_fan_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_FAN_MASK_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFFSET,
+		.mask = MLXPLAT_CPLD_FAN_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_fan),
+		.inversed = 1,
+		.health = false,
+	},
+};
+
 static
-struct mlxreg_hotplug_platform_data mlxplat_mlxcpld_default_data = {
-	.top_aggr_offset = MLXPLAT_CPLD_LPC_REG_AGGR_ADRR,
-	.top_aggr_mask = MLXPLAT_CPLD_AGGR_MASK_DEF,
-	.top_aggr_psu_mask = MLXPLAT_CPLD_AGGR_PSU_MASK_DEF,
-	.psu_reg_offset = MLXPLAT_CPLD_LPC_REG_PSU_ADRR,
-	.psu_mask = MLXPLAT_CPLD_PSU_MASK,
-	.psu_count = ARRAY_SIZE(mlxplat_mlxcpld_psu),
-	.psu = mlxplat_mlxcpld_psu,
-	.top_aggr_pwr_mask = MLXPLAT_CPLD_AGGR_PWR_MASK_DEF,
-	.pwr_reg_offset = MLXPLAT_CPLD_LPC_REG_PWR_ADRR,
-	.pwr_mask = MLXPLAT_CPLD_PWR_MASK,
-	.pwr_count = ARRAY_SIZE(mlxplat_mlxcpld_pwr),
-	.pwr = mlxplat_mlxcpld_pwr,
-	.top_aggr_fan_mask = MLXPLAT_CPLD_AGGR_FAN_MASK_DEF,
-	.fan_reg_offset = MLXPLAT_CPLD_LPC_REG_FAN_ADRR,
-	.fan_mask = MLXPLAT_CPLD_FAN_MASK,
-	.fan_count = ARRAY_SIZE(mlxplat_mlxcpld_fan),
-	.fan = mlxplat_mlxcpld_fan,
+struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_default_data = {
+	.items = mlxplat_mlxcpld_default_items,
+	.counter = ARRAY_SIZE(mlxplat_mlxcpld_default_items),
+	.cell = MLXPLAT_CPLD_LPC_REG_AGGR_OFFSET,
+	.mask = MLXPLAT_CPLD_AGGR_MASK_DEF,
 };
 
 /* Platform hotplug MSN21xx system family data */
+static struct mlxreg_core_item mlxplat_mlxcpld_msn21xx_items[] = {
+	{
+		.data = mlxplat_mlxcpld_default_pwr_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_PWR_MASK_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFFSET,
+		.mask = MLXPLAT_CPLD_PWR_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_pwr),
+		.inversed = 0,
+		.health = false,
+	},
+};
+
 static
-struct mlxreg_hotplug_platform_data mlxplat_mlxcpld_msn21xx_data = {
-	.top_aggr_offset = MLXPLAT_CPLD_LPC_REG_AGGR_ADRR,
-	.top_aggr_mask = MLXPLAT_CPLD_AGGR_MASK_MSN21XX,
-	.top_aggr_pwr_mask = MLXPLAT_CPLD_AGGR_MASK_MSN21XX,
-	.pwr_reg_offset = MLXPLAT_CPLD_LPC_REG_PWR_ADRR,
-	.pwr_mask = MLXPLAT_CPLD_PWR_MASK,
-	.pwr_count = ARRAY_SIZE(mlxplat_mlxcpld_pwr),
+struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_msn21xx_data = {
+	.items = mlxplat_mlxcpld_msn21xx_items,
+	.counter = ARRAY_SIZE(mlxplat_mlxcpld_msn21xx_items),
+	.cell = MLXPLAT_CPLD_LPC_REG_AGGR_OFFSET,
+	.mask = MLXPLAT_CPLD_AGGR_MASK_DEF,
+};
+
+struct mlxplat_mlxcpld_regmap_context {
+	void __iomem *base;
+};
+
+static struct mlxplat_mlxcpld_regmap_context mlxplat_mlxcpld_regmap_ctx;
+
+static int
+mlxplat_mlxcpld_reg_read(void *context, unsigned int reg, unsigned int *val)
+{
+	struct mlxplat_mlxcpld_regmap_context *ctx = context;
+
+	*val = ioread8(ctx->base + reg);
+	return 0;
+}
+
+static int
+mlxplat_mlxcpld_reg_write(void *context, unsigned int reg, unsigned int val)
+{
+	struct mlxplat_mlxcpld_regmap_context *ctx = context;
+
+	iowrite8(val, ctx->base + reg);
+	return 0;
+}
+
+static const struct regmap_config mlxplat_mlxcpld_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = 255,
+	.reg_read = mlxplat_mlxcpld_reg_read,
+	.reg_write = mlxplat_mlxcpld_reg_write,
 };
 
 static struct resource mlxplat_mlxcpld_resources[] = {
@@ -217,7 +335,7 @@ static struct resource mlxplat_mlxcpld_resources[] = {
 };
 
 static struct platform_device *mlxplat_dev;
-static struct mlxreg_hotplug_platform_data *mlxplat_hotplug;
+static struct mlxreg_core_hotplug_platform_data *mlxplat_hotplug;
 
 static int __init mlxplat_dmi_default_matched(const struct dmi_system_id *dmi)
 {
@@ -326,6 +444,21 @@ static int __init mlxplat_init(void)
 			err = PTR_ERR(priv->pdev_mux[i]);
 			goto fail_platform_mux_register;
 		}
+	}
+
+	mlxplat_mlxcpld_regmap_ctx.base = devm_ioport_map(&mlxplat_dev->dev,
+			       mlxplat_lpc_resources[1].start, 1);
+	if (IS_ERR(mlxplat_mlxcpld_regmap_ctx.base)) {
+		err = PTR_ERR(mlxplat_mlxcpld_regmap_ctx.base);
+		goto fail_platform_mux_register;
+	}
+
+	mlxplat_hotplug->regmap = devm_regmap_init(&mlxplat_dev->dev, NULL,
+					&mlxplat_mlxcpld_regmap_ctx,
+					&mlxplat_mlxcpld_regmap_config);
+	if (IS_ERR(mlxplat_hotplug->regmap)) {
+		err = PTR_ERR(mlxplat_hotplug->regmap);
+		goto fail_platform_mux_register;
 	}
 
 	priv->pdev_hotplug = platform_device_register_resndata(
