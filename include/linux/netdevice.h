@@ -1469,8 +1469,6 @@ enum netdev_priv_flags {
  *	@base_addr:	Device I/O address
  *	@irq:		Device IRQ number
  *
- *	@carrier_changes:	Stats to monitor carrier on<->off transitions
- *
  *	@state:		Generic network queuing layer state, see netdev_state_t
  *	@dev_list:	The global list of network devices
  *	@napi_list:	List entry used for polling NAPI devices
@@ -1506,6 +1504,8 @@ enum netdev_priv_flags {
  *			do not use this in drivers
  *	@rx_nohandler:	nohandler dropped packets by core network on
  *			inactive devices, do not use this in drivers
+ *	@carrier_up_count:	Number of times the carrier has been up
+ *	@carrier_down_count:	Number of times the carrier has been down
  *
  *	@wireless_handlers:	List of functions to handle Wireless Extensions,
  *				instead of ioctl,

@@ -441,7 +441,7 @@ EXPORT_SYMBOL_GPL(sfp_upstream_stop);
 
 /**
  * sfp_register_upstream() - Register the neighbouring device
- * @np: device node for the SFP bus
+ * @fwnode: firmware node for the SFP bus
  * @ndev: network device associated with the interface
  * @upstream: the upstream private data
  * @ops: the upstream's &struct sfp_upstream_ops
