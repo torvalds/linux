@@ -79,6 +79,7 @@ struct i40evf_channel {
 	u16 vsi_idx; /* index in PF struct for all channel VSIs */
 	u16 vsi_id; /* VSI ID used by firmware */
 	u16 num_qps; /* number of queue pairs requested by user */
+	u64 max_tx_rate; /* bandwidth rate allocation for VSIs */
 };
 
 /* VF information structure */

@@ -711,6 +711,7 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, u8 idx)
 	struct i40e_mac_filter *f = NULL;
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_vsi *vsi;
+	u64 max_tx_rate = 0;
 	int ret = 0;
 
 	vsi = i40e_vsi_setup(pf, I40E_VSI_SRIOV, pf->vsi[pf->lan_vsi]->seid,
@@ -770,8 +771,15 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, u8 idx)
 
 	/* Set VF bandwidth if specified */
 	if (vf->tx_rate) {
+		max_tx_rate = vf->tx_rate;
+	} else if (vf->ch[idx].max_tx_rate) {
+		max_tx_rate = vf->ch[idx].max_tx_rate;
+	}
+
+	if (max_tx_rate) {
+		max_tx_rate = div_u64(max_tx_rate, I40E_BW_CREDIT_DIVISOR);
 		ret = i40e_aq_config_vsi_bw_limit(&pf->hw, vsi->seid,
-						  vf->tx_rate / 50, 0, NULL);
+						  max_tx_rate, 0, NULL);
 		if (ret)
 			dev_err(&pf->pdev->dev, "Unable to set tx rate, VF %d, error code %d.\n",
 				vf->vf_id, ret);
@@ -2918,7 +2926,8 @@ static int i40e_vc_add_qch_msg(struct i40e_vf *vf, u8 *msg)
 	struct virtchnl_tc_info *tci =
 		(struct virtchnl_tc_info *)msg;
 	struct i40e_pf *pf = vf->pf;
-	int i, adq_request_qps = 0;
+	struct i40e_link_status *ls = &pf->hw.phy.link_info;
+	int i, adq_request_qps = 0, speed = 0;
 	i40e_status aq_ret = 0;
 
 	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
@@ -2979,10 +2988,51 @@ static int i40e_vc_add_qch_msg(struct i40e_vf *vf, u8 *msg)
 		vf->num_queue_pairs = I40E_MAX_VF_QUEUES;
 	}
 
+	/* get link speed in MB to validate rate limit */
+	switch (ls->link_speed) {
+	case VIRTCHNL_LINK_SPEED_100MB:
+		speed = SPEED_100;
+		break;
+	case VIRTCHNL_LINK_SPEED_1GB:
+		speed = SPEED_1000;
+		break;
+	case VIRTCHNL_LINK_SPEED_10GB:
+		speed = SPEED_10000;
+		break;
+	case VIRTCHNL_LINK_SPEED_20GB:
+		speed = SPEED_20000;
+		break;
+	case VIRTCHNL_LINK_SPEED_25GB:
+		speed = SPEED_25000;
+		break;
+	case VIRTCHNL_LINK_SPEED_40GB:
+		speed = SPEED_40000;
+		break;
+	default:
+		dev_err(&pf->pdev->dev,
+			"Cannot detect link speed\n");
+		aq_ret = I40E_ERR_PARAM;
+		goto err;
+	}
+
 	/* parse data from the queue channel info */
 	vf->num_tc = tci->num_tc;
-	for (i = 0; i < vf->num_tc; i++)
+	for (i = 0; i < vf->num_tc; i++) {
+		if (tci->list[i].max_tx_rate) {
+			if (tci->list[i].max_tx_rate > speed) {
+				dev_err(&pf->pdev->dev,
+					"Invalid max tx rate %llu specified for VF %d.",
+					tci->list[i].max_tx_rate,
+					vf->vf_id);
+				aq_ret = I40E_ERR_PARAM;
+				goto err;
+			} else {
+				vf->ch[i].max_tx_rate =
+					tci->list[i].max_tx_rate;
+			}
+		}
 		vf->ch[i].num_qps = tci->list[i].count;
+	}
 
 	/* set this flag only after making sure all inputs are sane */
 	vf->adq_enabled = true;
