@@ -3486,21 +3486,23 @@ bool
 xfs_inode_verify_forks(
 	struct xfs_inode	*ip)
 {
+	struct xfs_ifork	*ifp;
 	xfs_failaddr_t		fa;
 
 	fa = xfs_ifork_verify_data(ip, &xfs_default_ifork_ops);
 	if (fa) {
-		xfs_alert(ip->i_mount,
-				"%s: bad inode %llu inline data fork at %pS",
-				__func__, ip->i_ino, fa);
+		ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
+		xfs_inode_verifier_error(ip, -EFSCORRUPTED, "data fork",
+				ifp->if_u1.if_data, ifp->if_bytes, fa);
 		return false;
 	}
 
 	fa = xfs_ifork_verify_attr(ip, &xfs_default_ifork_ops);
 	if (fa) {
-		xfs_alert(ip->i_mount,
-				"%s: bad inode %llu inline attr fork at %pS",
-				__func__, ip->i_ino, fa);
+		ifp = XFS_IFORK_PTR(ip, XFS_ATTR_FORK);
+		xfs_inode_verifier_error(ip, -EFSCORRUPTED, "attr fork",
+				ifp ? ifp->if_u1.if_data : NULL,
+				ifp ? ifp->if_bytes : 0, fa);
 		return false;
 	}
 	return true;

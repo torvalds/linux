@@ -24,6 +24,7 @@
 #include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_sysfs.h"
+#include "xfs_inode.h"
 
 #ifdef DEBUG
 
@@ -367,6 +368,42 @@ xfs_verifier_error(
 		xfs_alert(mp, "First %d bytes of corrupted metadata buffer:",
 				XFS_CORRUPTION_DUMP_LEN);
 		xfs_hex_dump(xfs_buf_offset(bp, 0), XFS_CORRUPTION_DUMP_LEN);
+	}
+
+	if (xfs_error_level >= XFS_ERRLEVEL_HIGH)
+		xfs_stack_trace();
+}
+
+/*
+ * Warnings for inode corruption problems.  Don't bother with the stack
+ * trace unless the error level is turned up high.
+ */
+void
+xfs_inode_verifier_error(
+	struct xfs_inode	*ip,
+	int			error,
+	const char		*name,
+	void			*buf,
+	size_t			bufsz,
+	xfs_failaddr_t		failaddr)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	xfs_failaddr_t		fa;
+	int			sz;
+
+	fa = failaddr ? failaddr : __return_address;
+
+	xfs_alert(mp, "Metadata %s detected at %pS, inode 0x%llx %s",
+		  error == -EFSBADCRC ? "CRC error" : "corruption",
+		  fa, ip->i_ino, name);
+
+	xfs_alert(mp, "Unmount and run xfs_repair");
+
+	if (buf && xfs_error_level >= XFS_ERRLEVEL_LOW) {
+		sz = min_t(size_t, XFS_CORRUPTION_DUMP_LEN, bufsz);
+		xfs_alert(mp, "First %d bytes of corrupted metadata buffer:",
+				sz);
+		xfs_hex_dump(buf, sz);
 	}
 
 	if (xfs_error_level >= XFS_ERRLEVEL_HIGH)
