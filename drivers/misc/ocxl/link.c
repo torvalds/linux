@@ -5,6 +5,7 @@
 #include <linux/mmu_context.h>
 #include <asm/copro.h>
 #include <asm/pnv-ocxl.h>
+#include <misc/ocxl.h>
 #include "ocxl_internal.h"
 
 
@@ -420,6 +421,7 @@ unlock:
 	mutex_unlock(&links_list_lock);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(ocxl_link_setup);
 
 static void release_xsl(struct kref *ref)
 {
@@ -439,6 +441,7 @@ void ocxl_link_release(struct pci_dev *dev, void *link_handle)
 	kref_put(&link->ref, release_xsl);
 	mutex_unlock(&links_list_lock);
 }
+EXPORT_SYMBOL_GPL(ocxl_link_release);
 
 static u64 calculate_cfg_state(bool kernel)
 {
@@ -533,6 +536,7 @@ unlock:
 	mutex_unlock(&spa->spa_lock);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(ocxl_link_add_pe);
 
 int ocxl_link_remove_pe(void *link_handle, int pasid)
 {
@@ -601,6 +605,7 @@ unlock:
 	mutex_unlock(&spa->spa_lock);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(ocxl_link_remove_pe);
 
 int ocxl_link_irq_alloc(void *link_handle, int *hw_irq, u64 *trigger_addr)
 {
@@ -621,6 +626,7 @@ int ocxl_link_irq_alloc(void *link_handle, int *hw_irq, u64 *trigger_addr)
 	*trigger_addr = addr;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ocxl_link_irq_alloc);
 
 void ocxl_link_free_irq(void *link_handle, int hw_irq)
 {
@@ -629,3 +635,4 @@ void ocxl_link_free_irq(void *link_handle, int hw_irq)
 	pnv_ocxl_free_xive_irq(hw_irq);
 	atomic_inc(&link->irq_available);
 }
+EXPORT_SYMBOL_GPL(ocxl_link_free_irq);

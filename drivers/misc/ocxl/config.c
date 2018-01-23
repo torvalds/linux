@@ -2,8 +2,8 @@
 // Copyright 2017 IBM Corp.
 #include <linux/pci.h>
 #include <asm/pnv-ocxl.h>
+#include <misc/ocxl.h>
 #include <misc/ocxl-config.h>
-#include "ocxl_internal.h"
 
 #define EXTRACT_BIT(val, bit) (!!(val & BIT(bit)))
 #define EXTRACT_BITS(val, s, e) ((val & GENMASK(e, s)) >> s)
@@ -243,6 +243,7 @@ int ocxl_config_read_function(struct pci_dev *dev, struct ocxl_fn_config *fn)
 	rc = validate_function(dev, fn);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(ocxl_config_read_function);
 
 static int read_afu_info(struct pci_dev *dev, struct ocxl_fn_config *fn,
 			int offset, u32 *data)
@@ -301,6 +302,7 @@ int ocxl_config_check_afu_index(struct pci_dev *dev,
 	}
 	return 1;
 }
+EXPORT_SYMBOL_GPL(ocxl_config_check_afu_index);
 
 static int read_afu_name(struct pci_dev *dev, struct ocxl_fn_config *fn,
 			struct ocxl_afu_config *afu)
@@ -498,6 +500,7 @@ int ocxl_config_read_afu(struct pci_dev *dev, struct ocxl_fn_config *fn,
 	rc = validate_afu(dev, afu);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(ocxl_config_read_afu);
 
 int ocxl_config_get_actag_info(struct pci_dev *dev, u16 *base, u16 *enabled,
 			u16 *supported)
@@ -516,6 +519,7 @@ int ocxl_config_get_actag_info(struct pci_dev *dev, u16 *base, u16 *enabled,
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ocxl_config_get_actag_info);
 
 void ocxl_config_set_afu_actag(struct pci_dev *dev, int pos, int actag_base,
 			int actag_count)
@@ -528,11 +532,13 @@ void ocxl_config_set_afu_actag(struct pci_dev *dev, int pos, int actag_base,
 	val = actag_base & OCXL_DVSEC_ACTAG_MASK;
 	pci_write_config_dword(dev, pos + OCXL_DVSEC_AFU_CTRL_ACTAG_BASE, val);
 }
+EXPORT_SYMBOL_GPL(ocxl_config_set_afu_actag);
 
 int ocxl_config_get_pasid_info(struct pci_dev *dev, int *count)
 {
 	return pnv_ocxl_get_pasid_count(dev, count);
 }
+EXPORT_SYMBOL_GPL(ocxl_config_get_pasid_info);
 
 void ocxl_config_set_afu_pasid(struct pci_dev *dev, int pos, int pasid_base,
 			u32 pasid_count_log)
@@ -550,6 +556,7 @@ void ocxl_config_set_afu_pasid(struct pci_dev *dev, int pos, int pasid_base,
 	pci_write_config_dword(dev, pos + OCXL_DVSEC_AFU_CTRL_PASID_BASE,
 			val32);
 }
+EXPORT_SYMBOL_GPL(ocxl_config_set_afu_pasid);
 
 void ocxl_config_set_afu_state(struct pci_dev *dev, int pos, int enable)
 {
@@ -562,6 +569,7 @@ void ocxl_config_set_afu_state(struct pci_dev *dev, int pos, int enable)
 		val &= 0xFE;
 	pci_write_config_byte(dev, pos + OCXL_DVSEC_AFU_CTRL_ENABLE, val);
 }
+EXPORT_SYMBOL_GPL(ocxl_config_set_afu_state);
 
 int ocxl_config_set_TL(struct pci_dev *dev, int tl_dvsec)
 {
@@ -660,6 +668,7 @@ out:
 	kfree(recv_rate);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(ocxl_config_set_TL);
 
 int ocxl_config_terminate_pasid(struct pci_dev *dev, int afu_control, int pasid)
 {
@@ -699,6 +708,7 @@ int ocxl_config_terminate_pasid(struct pci_dev *dev, int afu_control, int pasid)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ocxl_config_terminate_pasid);
 
 void ocxl_config_set_actag(struct pci_dev *dev, int func_dvsec, u32 tag_first,
 			u32 tag_count)
@@ -710,3 +720,4 @@ void ocxl_config_set_actag(struct pci_dev *dev, int func_dvsec, u32 tag_first,
 	pci_write_config_dword(dev, func_dvsec + OCXL_DVSEC_FUNC_OFF_ACTAG,
 			val);
 }
+EXPORT_SYMBOL_GPL(ocxl_config_set_actag);
