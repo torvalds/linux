@@ -42,7 +42,6 @@
 #include <linux/platform_data/mlxreg.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
-#include <linux/wait.h>
 #include <linux/workqueue.h>
 
 /* Offset of event and mask registers from status register */
