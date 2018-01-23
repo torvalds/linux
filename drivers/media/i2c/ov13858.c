@@ -1569,7 +1569,7 @@ static int __maybe_unused ov13858_resume(struct device *dev)
 
 error:
 	ov13858_stop_streaming(ov13858);
-	ov13858->streaming = 0;
+	ov13858->streaming = false;
 	return ret;
 }
 
