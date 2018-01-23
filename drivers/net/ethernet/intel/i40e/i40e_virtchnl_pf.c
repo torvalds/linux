@@ -258,6 +258,38 @@ static u16 i40e_vc_get_pf_queue_id(struct i40e_vf *vf, u16 vsi_id,
 }
 
 /**
+ * i40e_get_real_pf_qid
+ * @vf: pointer to the VF info
+ * @vsi_id: vsi id
+ * @queue_id: queue number
+ *
+ * wrapper function to get pf_queue_id handling ADq code as well
+ **/
+static u16 i40e_get_real_pf_qid(struct i40e_vf *vf, u16 vsi_id, u16 queue_id)
+{
+	int i;
+
+	if (vf->adq_enabled) {
+		/* Although VF considers all the queues(can be 1 to 16) as its
+		 * own but they may actually belong to different VSIs(up to 4).
+		 * We need to find which queues belongs to which VSI.
+		 */
+		for (i = 0; i < vf->num_tc; i++) {
+			if (queue_id < vf->ch[i].num_qps) {
+				vsi_id = vf->ch[i].vsi_id;
+				break;
+			}
+			/* find right queue id which is relative to a
+			 * given VSI.
+			 */
+			queue_id -= vf->ch[i].num_qps;
+			}
+		}
+
+	return i40e_vc_get_pf_queue_id(vf, vsi_id, queue_id);
+}
+
+/**
  * i40e_config_irq_link_list
  * @vf: pointer to the VF info
  * @vsi_id: id of VSI as given by the FW
@@ -310,7 +342,7 @@ static void i40e_config_irq_link_list(struct i40e_vf *vf, u16 vsi_id,
 
 	vsi_queue_id = next_q / I40E_VIRTCHNL_SUPPORTED_QTYPES;
 	qtype = next_q % I40E_VIRTCHNL_SUPPORTED_QTYPES;
-	pf_queue_id = i40e_vc_get_pf_queue_id(vf, vsi_id, vsi_queue_id);
+	pf_queue_id = i40e_get_real_pf_qid(vf, vsi_id, vsi_queue_id);
 	reg = ((qtype << I40E_VPINT_LNKLSTN_FIRSTQ_TYPE_SHIFT) | pf_queue_id);
 
 	wr32(hw, reg_idx, reg);
@@ -333,8 +365,9 @@ static void i40e_config_irq_link_list(struct i40e_vf *vf, u16 vsi_id,
 		if (next_q < size) {
 			vsi_queue_id = next_q / I40E_VIRTCHNL_SUPPORTED_QTYPES;
 			qtype = next_q % I40E_VIRTCHNL_SUPPORTED_QTYPES;
-			pf_queue_id = i40e_vc_get_pf_queue_id(vf, vsi_id,
-							      vsi_queue_id);
+			pf_queue_id = i40e_get_real_pf_qid(vf,
+							   vsi_id,
+							   vsi_queue_id);
 		} else {
 			pf_queue_id = I40E_QUEUE_END_OF_LIST;
 			qtype = 0;
@@ -669,18 +702,19 @@ error_param:
 /**
  * i40e_alloc_vsi_res
  * @vf: pointer to the VF info
- * @type: type of VSI to allocate
+ * @idx: VSI index, applies only for ADq mode, zero otherwise
  *
  * alloc VF vsi context & resources
  **/
-static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
+static int i40e_alloc_vsi_res(struct i40e_vf *vf, u8 idx)
 {
 	struct i40e_mac_filter *f = NULL;
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_vsi *vsi;
 	int ret = 0;
 
-	vsi = i40e_vsi_setup(pf, type, pf->vsi[pf->lan_vsi]->seid, vf->vf_id);
+	vsi = i40e_vsi_setup(pf, I40E_VSI_SRIOV, pf->vsi[pf->lan_vsi]->seid,
+			     vf->vf_id);
 
 	if (!vsi) {
 		dev_err(&pf->pdev->dev,
@@ -689,7 +723,8 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 		ret = -ENOENT;
 		goto error_alloc_vsi_res;
 	}
-	if (type == I40E_VSI_SRIOV) {
+
+	if (!idx) {
 		u64 hena = i40e_pf_get_default_rss_hena(pf);
 		u8 broadcast[ETH_ALEN];
 
@@ -721,12 +756,17 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 		spin_unlock_bh(&vsi->mac_filter_hash_lock);
 		wr32(&pf->hw, I40E_VFQF_HENA1(0, vf->vf_id), (u32)hena);
 		wr32(&pf->hw, I40E_VFQF_HENA1(1, vf->vf_id), (u32)(hena >> 32));
+		/* program mac filter only for VF VSI */
+		ret = i40e_sync_vsi_filters(vsi);
+		if (ret)
+			dev_err(&pf->pdev->dev, "Unable to program ucast filters\n");
 	}
 
-	/* program mac filter */
-	ret = i40e_sync_vsi_filters(vsi);
-	if (ret)
-		dev_err(&pf->pdev->dev, "Unable to program ucast filters\n");
+	/* storing VSI index and id for ADq and don't apply the mac filter */
+	if (vf->adq_enabled) {
+		vf->ch[idx].vsi_idx = vsi->idx;
+		vf->ch[idx].vsi_id = vsi->id;
+	}
 
 	/* Set VF bandwidth if specified */
 	if (vf->tx_rate) {
@@ -742,6 +782,92 @@ error_alloc_vsi_res:
 }
 
 /**
+ * i40e_map_pf_queues_to_vsi
+ * @vf: pointer to the VF info
+ *
+ * PF maps LQPs to a VF by programming VSILAN_QTABLE & VPLAN_QTABLE. This
+ * function takes care of first part VSILAN_QTABLE, mapping pf queues to VSI.
+ **/
+static void i40e_map_pf_queues_to_vsi(struct i40e_vf *vf)
+{
+	struct i40e_pf *pf = vf->pf;
+	struct i40e_hw *hw = &pf->hw;
+	u32 reg, num_tc = 1; /* VF has at least one traffic class */
+	u16 vsi_id, qps;
+	int i, j;
+
+	if (vf->adq_enabled)
+		num_tc = vf->num_tc;
+
+	for (i = 0; i < num_tc; i++) {
+		if (vf->adq_enabled) {
+			qps = vf->ch[i].num_qps;
+			vsi_id =  vf->ch[i].vsi_id;
+		} else {
+			qps = pf->vsi[vf->lan_vsi_idx]->alloc_queue_pairs;
+			vsi_id = vf->lan_vsi_id;
+		}
+
+		for (j = 0; j < 7; j++) {
+			if (j * 2 >= qps) {
+				/* end of list */
+				reg = 0x07FF07FF;
+			} else {
+				u16 qid = i40e_vc_get_pf_queue_id(vf,
+								  vsi_id,
+								  j * 2);
+				reg = qid;
+				qid = i40e_vc_get_pf_queue_id(vf, vsi_id,
+							      (j * 2) + 1);
+				reg |= qid << 16;
+			}
+			i40e_write_rx_ctl(hw,
+					  I40E_VSILAN_QTABLE(j, vsi_id),
+					  reg);
+		}
+	}
+}
+
+/**
+ * i40e_map_pf_to_vf_queues
+ * @vf: pointer to the VF info
+ *
+ * PF maps LQPs to a VF by programming VSILAN_QTABLE & VPLAN_QTABLE. This
+ * function takes care of the second part VPLAN_QTABLE & completes VF mappings.
+ **/
+static void i40e_map_pf_to_vf_queues(struct i40e_vf *vf)
+{
+	struct i40e_pf *pf = vf->pf;
+	struct i40e_hw *hw = &pf->hw;
+	u32 reg, total_qps = 0;
+	u32 qps, num_tc = 1; /* VF has at least one traffic class */
+	u16 vsi_id, qid;
+	int i, j;
+
+	if (vf->adq_enabled)
+		num_tc = vf->num_tc;
+
+	for (i = 0; i < num_tc; i++) {
+		if (vf->adq_enabled) {
+			qps = vf->ch[i].num_qps;
+			vsi_id =  vf->ch[i].vsi_id;
+		} else {
+			qps = pf->vsi[vf->lan_vsi_idx]->alloc_queue_pairs;
+			vsi_id = vf->lan_vsi_id;
+		}
+
+		for (j = 0; j < qps; j++) {
+			qid = i40e_vc_get_pf_queue_id(vf, vsi_id, j);
+
+			reg = (qid & I40E_VPLAN_QTABLE_QINDEX_MASK);
+			wr32(hw, I40E_VPLAN_QTABLE(total_qps, vf->vf_id),
+			     reg);
+			total_qps++;
+		}
+	}
+}
+
+/**
  * i40e_enable_vf_mappings
  * @vf: pointer to the VF info
  *
@@ -751,8 +877,7 @@ static void i40e_enable_vf_mappings(struct i40e_vf *vf)
 {
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_hw *hw = &pf->hw;
-	u32 reg, total_queue_pairs = 0;
-	int j;
+	u32 reg;
 
 	/* Tell the hardware we're using noncontiguous mapping. HW requires
 	 * that VF queues be mapped using this method, even when they are
@@ -765,30 +890,8 @@ static void i40e_enable_vf_mappings(struct i40e_vf *vf)
 	reg = I40E_VPLAN_MAPENA_TXRX_ENA_MASK;
 	wr32(hw, I40E_VPLAN_MAPENA(vf->vf_id), reg);
 
-	/* map PF queues to VF queues */
-	for (j = 0; j < pf->vsi[vf->lan_vsi_idx]->alloc_queue_pairs; j++) {
-		u16 qid = i40e_vc_get_pf_queue_id(vf, vf->lan_vsi_id, j);
-
-		reg = (qid & I40E_VPLAN_QTABLE_QINDEX_MASK);
-		wr32(hw, I40E_VPLAN_QTABLE(total_queue_pairs, vf->vf_id), reg);
-		total_queue_pairs++;
-	}
-
-	/* map PF queues to VSI */
-	for (j = 0; j < 7; j++) {
-		if (j * 2 >= pf->vsi[vf->lan_vsi_idx]->alloc_queue_pairs) {
-			reg = 0x07FF07FF;	/* unused */
-		} else {
-			u16 qid = i40e_vc_get_pf_queue_id(vf, vf->lan_vsi_id,
-							  j * 2);
-			reg = qid;
-			qid = i40e_vc_get_pf_queue_id(vf, vf->lan_vsi_id,
-						      (j * 2) + 1);
-			reg |= qid << 16;
-		}
-		i40e_write_rx_ctl(hw, I40E_VSILAN_QTABLE(j, vf->lan_vsi_id),
-				  reg);
-	}
+	i40e_map_pf_to_vf_queues(vf);
+	i40e_map_pf_queues_to_vsi(vf);
 
 	i40e_flush(hw);
 }
@@ -824,7 +927,7 @@ static void i40e_free_vf_res(struct i40e_vf *vf)
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_hw *hw = &pf->hw;
 	u32 reg_idx, reg;
-	int i, msix_vf;
+	int i, j, msix_vf;
 
 	/* Start by disabling VF's configuration API to prevent the OS from
 	 * accessing the VF's VSI after it's freed / invalidated.
@@ -845,6 +948,20 @@ static void i40e_free_vf_res(struct i40e_vf *vf)
 		vf->lan_vsi_idx = 0;
 		vf->lan_vsi_id = 0;
 		vf->num_mac = 0;
+	}
+
+	/* do the accounting and remove additional ADq VSI's */
+	if (vf->adq_enabled && vf->ch[0].vsi_idx) {
+		for (j = 0; j < vf->num_tc; j++) {
+			/* At this point VSI0 is already released so don't
+			 * release it again and only clear their values in
+			 * structure variables
+			 */
+			if (j)
+				i40e_vsi_release(pf->vsi[vf->ch[j].vsi_idx]);
+			vf->ch[j].vsi_idx = 0;
+			vf->ch[j].vsi_id = 0;
+		}
 	}
 	msix_vf = pf->hw.func_caps.num_msix_vectors_vf;
 
@@ -891,7 +1008,7 @@ static int i40e_alloc_vf_res(struct i40e_vf *vf)
 {
 	struct i40e_pf *pf = vf->pf;
 	int total_queue_pairs = 0;
-	int ret;
+	int ret, idx;
 
 	if (vf->num_req_queues &&
 	    vf->num_req_queues <= pf->queues_left + I40E_DEFAULT_QUEUES_PER_VF)
@@ -900,10 +1017,29 @@ static int i40e_alloc_vf_res(struct i40e_vf *vf)
 		pf->num_vf_qps = I40E_DEFAULT_QUEUES_PER_VF;
 
 	/* allocate hw vsi context & associated resources */
-	ret = i40e_alloc_vsi_res(vf, I40E_VSI_SRIOV);
+	ret = i40e_alloc_vsi_res(vf, 0);
 	if (ret)
 		goto error_alloc;
 	total_queue_pairs += pf->vsi[vf->lan_vsi_idx]->alloc_queue_pairs;
+
+	/* allocate additional VSIs based on tc information for ADq */
+	if (vf->adq_enabled) {
+		if (pf->queues_left >=
+		    (I40E_MAX_VF_QUEUES - I40E_DEFAULT_QUEUES_PER_VF)) {
+			/* TC 0 always belongs to VF VSI */
+			for (idx = 1; idx < vf->num_tc; idx++) {
+				ret = i40e_alloc_vsi_res(vf, idx);
+				if (ret)
+					goto error_alloc;
+			}
+			/* send correct number of queues */
+			total_queue_pairs = I40E_MAX_VF_QUEUES;
+		} else {
+			dev_info(&pf->pdev->dev, "VF %d: Not enough queues to allocate, disabling ADq\n",
+				 vf->vf_id);
+			vf->adq_enabled = false;
+		}
+	}
 
 	/* We account for each VF to get a default number of queue pairs.  If
 	 * the VF has now requested more, we need to account for that to make
@@ -1631,6 +1767,9 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 	if (vf->driver_caps & VIRTCHNL_VF_OFFLOAD_REQ_QUEUES)
 		vfres->vf_cap_flags |= VIRTCHNL_VF_OFFLOAD_REQ_QUEUES;
 
+	if (vf->driver_caps & VIRTCHNL_VF_OFFLOAD_ADQ)
+		vfres->vf_cap_flags |= VIRTCHNL_VF_OFFLOAD_ADQ;
+
 	vfres->num_vsis = num_vsis;
 	vfres->num_queue_pairs = vf->num_queue_pairs;
 	vfres->max_vectors = pf->hw.func_caps.num_msix_vectors_vf;
@@ -1855,27 +1994,37 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	    (struct virtchnl_vsi_queue_config_info *)msg;
 	struct virtchnl_queue_pair_info *qpi;
 	struct i40e_pf *pf = vf->pf;
-	u16 vsi_id, vsi_queue_id;
+	u16 vsi_id, vsi_queue_id = 0;
 	i40e_status aq_ret = 0;
-	int i;
+	int i, j = 0, idx = 0;
+
+	vsi_id = qci->vsi_id;
 
 	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
 
-	vsi_id = qci->vsi_id;
 	if (!i40e_vc_isvalid_vsi_id(vf, vsi_id)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
+
 	for (i = 0; i < qci->num_queue_pairs; i++) {
 		qpi = &qci->qpair[i];
-		vsi_queue_id = qpi->txq.queue_id;
-		if ((qpi->txq.vsi_id != vsi_id) ||
-		    (qpi->rxq.vsi_id != vsi_id) ||
-		    (qpi->rxq.queue_id != vsi_queue_id) ||
-		    !i40e_vc_isvalid_queue_id(vf, vsi_id, vsi_queue_id)) {
+
+		if (!vf->adq_enabled) {
+			vsi_queue_id = qpi->txq.queue_id;
+
+			if (qpi->txq.vsi_id != qci->vsi_id ||
+			    qpi->rxq.vsi_id != qci->vsi_id ||
+			    qpi->rxq.queue_id != vsi_queue_id) {
+				aq_ret = I40E_ERR_PARAM;
+				goto error_param;
+			}
+		}
+
+		if (!i40e_vc_isvalid_queue_id(vf, vsi_id, vsi_queue_id)) {
 			aq_ret = I40E_ERR_PARAM;
 			goto error_param;
 		}
@@ -1887,14 +2036,65 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 			aq_ret = I40E_ERR_PARAM;
 			goto error_param;
 		}
+
+		/* For ADq there can be up to 4 VSIs with max 4 queues each.
+		 * VF does not know about these additional VSIs and all
+		 * it cares is about its own queues. PF configures these queues
+		 * to its appropriate VSIs based on TC mapping
+		 **/
+		if (vf->adq_enabled) {
+			if (j == (vf->ch[idx].num_qps - 1)) {
+				idx++;
+				j = 0; /* resetting the queue count */
+				vsi_queue_id = 0;
+			} else {
+				j++;
+				vsi_queue_id++;
+			}
+			vsi_id = vf->ch[idx].vsi_id;
+		}
 	}
 	/* set vsi num_queue_pairs in use to num configured by VF */
-	pf->vsi[vf->lan_vsi_idx]->num_queue_pairs = qci->num_queue_pairs;
+	if (!vf->adq_enabled) {
+		pf->vsi[vf->lan_vsi_idx]->num_queue_pairs =
+			qci->num_queue_pairs;
+	} else {
+		for (i = 0; i < vf->num_tc; i++)
+			pf->vsi[vf->ch[i].vsi_idx]->num_queue_pairs =
+			       vf->ch[i].num_qps;
+	}
 
 error_param:
 	/* send the response to the VF */
 	return i40e_vc_send_resp_to_vf(vf, VIRTCHNL_OP_CONFIG_VSI_QUEUES,
 				       aq_ret);
+}
+
+/**
+ * i40e_validate_queue_map
+ * @vsi_id: vsi id
+ * @queuemap: Tx or Rx queue map
+ *
+ * check if Tx or Rx queue map is valid
+ **/
+static int i40e_validate_queue_map(struct i40e_vf *vf, u16 vsi_id,
+				   unsigned long queuemap)
+{
+	u16 vsi_queue_id, queue_id;
+
+	for_each_set_bit(vsi_queue_id, &queuemap, I40E_MAX_VSI_QP) {
+		if (vf->adq_enabled) {
+			vsi_id = vf->ch[vsi_queue_id / I40E_MAX_VF_VSI].vsi_id;
+			queue_id = (vsi_queue_id % I40E_DEFAULT_QUEUES_PER_VF);
+		} else {
+			queue_id = vsi_queue_id;
+		}
+
+		if (!i40e_vc_isvalid_queue_id(vf, vsi_id, queue_id))
+			return -EINVAL;
+	}
+
+	return 0;
 }
 
 /**
@@ -1911,9 +2111,8 @@ static int i40e_vc_config_irq_map_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	struct virtchnl_irq_map_info *irqmap_info =
 	    (struct virtchnl_irq_map_info *)msg;
 	struct virtchnl_vector_map *map;
-	u16 vsi_id, vsi_queue_id, vector_id;
+	u16 vsi_id, vector_id;
 	i40e_status aq_ret = 0;
-	unsigned long tempmap;
 	int i;
 
 	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
@@ -1923,7 +2122,6 @@ static int i40e_vc_config_irq_map_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 
 	for (i = 0; i < irqmap_info->num_vectors; i++) {
 		map = &irqmap_info->vecmap[i];
-
 		vector_id = map->vector_id;
 		vsi_id = map->vsi_id;
 		/* validate msg params */
@@ -1933,23 +2131,14 @@ static int i40e_vc_config_irq_map_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 			goto error_param;
 		}
 
-		/* lookout for the invalid queue index */
-		tempmap = map->rxq_map;
-		for_each_set_bit(vsi_queue_id, &tempmap, I40E_MAX_VSI_QP) {
-			if (!i40e_vc_isvalid_queue_id(vf, vsi_id,
-						      vsi_queue_id)) {
-				aq_ret = I40E_ERR_PARAM;
-				goto error_param;
-			}
+		if (i40e_validate_queue_map(vf, vsi_id, map->rxq_map)) {
+			aq_ret = I40E_ERR_PARAM;
+			goto error_param;
 		}
 
-		tempmap = map->txq_map;
-		for_each_set_bit(vsi_queue_id, &tempmap, I40E_MAX_VSI_QP) {
-			if (!i40e_vc_isvalid_queue_id(vf, vsi_id,
-						      vsi_queue_id)) {
-				aq_ret = I40E_ERR_PARAM;
-				goto error_param;
-			}
+		if (i40e_validate_queue_map(vf, vsi_id, map->txq_map)) {
+			aq_ret = I40E_ERR_PARAM;
+			goto error_param;
 		}
 
 		i40e_config_irq_link_list(vf, vsi_id, map);
@@ -1975,6 +2164,7 @@ static int i40e_vc_enable_queues_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	struct i40e_pf *pf = vf->pf;
 	u16 vsi_id = vqs->vsi_id;
 	i40e_status aq_ret = 0;
+	int i;
 
 	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
 		aq_ret = I40E_ERR_PARAM;
@@ -1993,6 +2183,16 @@ static int i40e_vc_enable_queues_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 
 	if (i40e_vsi_start_rings(pf->vsi[vf->lan_vsi_idx]))
 		aq_ret = I40E_ERR_TIMEOUT;
+
+	/* need to start the rings for additional ADq VSI's as well */
+	if (vf->adq_enabled) {
+		/* zero belongs to LAN VSI */
+		for (i = 1; i < vf->num_tc; i++) {
+			if (i40e_vsi_start_rings(pf->vsi[vf->ch[i].vsi_idx]))
+				aq_ret = I40E_ERR_TIMEOUT;
+		}
+	}
+
 error_param:
 	/* send the response to the VF */
 	return i40e_vc_send_resp_to_vf(vf, VIRTCHNL_OP_ENABLE_QUEUES,
@@ -2688,6 +2888,97 @@ err:
 }
 
 /**
+ * i40e_vc_add_qch_msg: Add queue channel and enable ADq
+ * @vf: pointer to the VF info
+ * @msg: pointer to the msg buffer
+ **/
+static int i40e_vc_add_qch_msg(struct i40e_vf *vf, u8 *msg)
+{
+	struct virtchnl_tc_info *tci =
+		(struct virtchnl_tc_info *)msg;
+	struct i40e_pf *pf = vf->pf;
+	int i, adq_request_qps = 0;
+	i40e_status aq_ret = 0;
+
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
+		aq_ret = I40E_ERR_PARAM;
+		goto err;
+	}
+
+	/* ADq cannot be applied if spoof check is ON */
+	if (vf->spoofchk) {
+		dev_err(&pf->pdev->dev,
+			"Spoof check is ON, turn it OFF to enable ADq\n");
+		aq_ret = I40E_ERR_PARAM;
+		goto err;
+	}
+
+	if (!(vf->driver_caps & VIRTCHNL_VF_OFFLOAD_ADQ)) {
+		dev_err(&pf->pdev->dev,
+			"VF %d attempting to enable ADq, but hasn't properly negotiated that capability\n",
+			vf->vf_id);
+		aq_ret = I40E_ERR_PARAM;
+		goto err;
+	}
+
+	/* max number of traffic classes for VF currently capped at 4 */
+	if (!tci->num_tc || tci->num_tc > I40E_MAX_VF_VSI) {
+		dev_err(&pf->pdev->dev,
+			"VF %d trying to set %u TCs, valid range 1-4 TCs per VF\n",
+			vf->vf_id, tci->num_tc);
+		aq_ret = I40E_ERR_PARAM;
+		goto err;
+	}
+
+	/* validate queues for each TC */
+	for (i = 0; i < tci->num_tc; i++)
+		if (!tci->list[i].count ||
+		    tci->list[i].count > I40E_DEFAULT_QUEUES_PER_VF) {
+			dev_err(&pf->pdev->dev,
+				"VF %d: TC %d trying to set %u queues, valid range 1-4 queues per TC\n",
+				vf->vf_id, i, tci->list[i].count);
+			aq_ret = I40E_ERR_PARAM;
+			goto err;
+		}
+
+	/* need Max VF queues but already have default number of queues */
+	adq_request_qps = I40E_MAX_VF_QUEUES - I40E_DEFAULT_QUEUES_PER_VF;
+
+	if (pf->queues_left < adq_request_qps) {
+		dev_err(&pf->pdev->dev,
+			"No queues left to allocate to VF %d\n",
+			vf->vf_id);
+		aq_ret = I40E_ERR_PARAM;
+		goto err;
+	} else {
+		/* we need to allocate max VF queues to enable ADq so as to
+		 * make sure ADq enabled VF always gets back queues when it
+		 * goes through a reset.
+		 */
+		vf->num_queue_pairs = I40E_MAX_VF_QUEUES;
+	}
+
+	/* parse data from the queue channel info */
+	vf->num_tc = tci->num_tc;
+	for (i = 0; i < vf->num_tc; i++)
+		vf->ch[i].num_qps = tci->list[i].count;
+
+	/* set this flag only after making sure all inputs are sane */
+	vf->adq_enabled = true;
+
+	/* reset the VF in order to allocate resources */
+	i40e_vc_notify_vf_reset(vf);
+	i40e_reset_vf(vf, false);
+
+	return I40E_SUCCESS;
+
+	/* send the response to the VF */
+err:
+	return i40e_vc_send_resp_to_vf(vf, VIRTCHNL_OP_ENABLE_CHANNELS,
+				       aq_ret);
+}
+
+/**
  * i40e_vc_process_vf_msg
  * @pf: pointer to the PF structure
  * @vf_id: source VF id
@@ -2816,7 +3107,9 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, s16 vf_id, u32 v_opcode,
 	case VIRTCHNL_OP_REQUEST_QUEUES:
 		ret = i40e_vc_request_queues_msg(vf, msg, msglen);
 		break;
-
+	case VIRTCHNL_OP_ENABLE_CHANNELS:
+		ret = i40e_vc_add_qch_msg(vf, msg);
+		break;
 	case VIRTCHNL_OP_UNKNOWN:
 	default:
 		dev_err(&pf->pdev->dev, "Unsupported opcode %d from VF %d\n",
