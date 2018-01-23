@@ -1246,6 +1246,9 @@ static int nvme_alloc_queue(struct nvme_dev *dev, int qid,
 {
 	struct nvme_queue *nvmeq = &dev->queues[qid];
 
+	if (dev->ctrl.queue_count > qid)
+		return 0;
+
 	nvmeq->cqes = dma_zalloc_coherent(dev->dev, CQ_SIZE(depth),
 					  &nvmeq->cq_dma_addr, GFP_KERNEL);
 	if (!nvmeq->cqes)
