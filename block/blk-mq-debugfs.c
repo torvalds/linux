@@ -704,7 +704,11 @@ static ssize_t blk_mq_debugfs_write(struct file *file, const char __user *buf,
 	const struct blk_mq_debugfs_attr *attr = m->private;
 	void *data = d_inode(file->f_path.dentry->d_parent)->i_private;
 
-	if (!attr->write)
+	/*
+	 * Attributes that only implement .seq_ops are read-only and 'attr' is
+	 * the same with 'data' in this case.
+	 */
+	if (attr == data || !attr->write)
 		return -EPERM;
 
 	return attr->write(data, buf, count, ppos);
