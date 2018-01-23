@@ -572,7 +572,7 @@ int __rcar_du_plane_atomic_check(struct drm_plane *plane,
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_crtc_state *crtc_state;
-	struct drm_rect clip;
+	struct drm_rect clip = {};
 	int ret;
 
 	if (!state->crtc) {
@@ -589,10 +589,9 @@ int __rcar_du_plane_atomic_check(struct drm_plane *plane,
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
-	clip.x1 = 0;
-	clip.y1 = 0;
-	clip.x2 = crtc_state->mode.hdisplay;
-	clip.y2 = crtc_state->mode.vdisplay;
+	if (crtc_state->enable)
+		drm_mode_get_hv_timing(&crtc_state->mode,
+				       &clip.x2, &clip.y2);
 
 	ret = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
 						  DRM_PLANE_HELPER_NO_SCALING,
