@@ -162,15 +162,15 @@ static int da8xx_usb_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(d_phy->regmap);
 	}
 
-	d_phy->usb11_clk = devm_clk_get(dev, "usb11_phy");
+	d_phy->usb11_clk = devm_clk_get(dev, "usb1_clk48");
 	if (IS_ERR(d_phy->usb11_clk)) {
-		dev_err(dev, "Failed to get usb11_phy clock\n");
+		dev_err(dev, "Failed to get usb1_clk48\n");
 		return PTR_ERR(d_phy->usb11_clk);
 	}
 
-	d_phy->usb20_clk = devm_clk_get(dev, "usb20_phy");
+	d_phy->usb20_clk = devm_clk_get(dev, "usb0_clk48");
 	if (IS_ERR(d_phy->usb20_clk)) {
-		dev_err(dev, "Failed to get usb20_phy clock\n");
+		dev_err(dev, "Failed to get usb0_clk48\n");
 		return PTR_ERR(d_phy->usb20_clk);
 	}
 
