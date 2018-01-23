@@ -116,10 +116,10 @@ static inline void dwc2_gadget_incr_frame_num(struct dwc2_hsotg_ep *hs_ep)
 {
 	hs_ep->target_frame += hs_ep->interval;
 	if (hs_ep->target_frame > DSTS_SOFFN_LIMIT) {
-		hs_ep->frame_overrun = 1;
+		hs_ep->frame_overrun = true;
 		hs_ep->target_frame &= DSTS_SOFFN_LIMIT;
 	} else {
-		hs_ep->frame_overrun = 0;
+		hs_ep->frame_overrun = false;
 	}
 }
 
