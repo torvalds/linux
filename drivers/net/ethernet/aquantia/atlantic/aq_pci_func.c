@@ -47,7 +47,7 @@ static const struct pci_device_id aq_pci_tbl[] = {
 	{}
 };
 
-const struct aq_board_revision_s hw_atl_boards[] = {
+static const struct aq_board_revision_s hw_atl_boards[] = {
 	{ AQ_DEVICE_ID_0001,	AQ_HWREV_1,	&hw_atl_ops_a0, &hw_atl_a0_caps_aqc107, },
 	{ AQ_DEVICE_ID_D100,	AQ_HWREV_1,	&hw_atl_ops_a0, &hw_atl_a0_caps_aqc100, },
 	{ AQ_DEVICE_ID_D107,	AQ_HWREV_1,	&hw_atl_ops_a0, &hw_atl_a0_caps_aqc107, },
