@@ -640,8 +640,8 @@ nfp_dump_single_rtsym(struct nfp_pf *pf, struct nfp_dumpspec_rtsym *spec,
 	struct nfp_dump_rtsym *dump_header = dump->p;
 	struct nfp_dumpspec_cpp_isl_id cpp_params;
 	struct nfp_rtsym_table *rtbl = pf->rtbl;
+	u32 header_size, total_size, sym_size;
 	const struct nfp_rtsym *sym;
-	u32 header_size, total_size;
 	u32 tl_len, key_len;
 	int bytes_read;
 	u32 cpp_id;
@@ -657,9 +657,14 @@ nfp_dump_single_rtsym(struct nfp_pf *pf, struct nfp_dumpspec_rtsym *spec,
 	if (!sym)
 		return nfp_dump_error_tlv(&spec->tl, -ENOENT, dump);
 
+	if (sym->type == NFP_RTSYM_TYPE_ABS)
+		sym_size = sizeof(sym->addr);
+	else
+		sym_size = sym->size;
+
 	header_size =
 		ALIGN8(offsetof(struct nfp_dump_rtsym, rtsym) + key_len + 1);
-	total_size = header_size + ALIGN8(sym->size);
+	total_size = header_size + ALIGN8(sym_size);
 	dest = dump->p + header_size;
 
 	err = nfp_add_tlv(be32_to_cpu(spec->tl.type), total_size, dump);
@@ -669,9 +674,9 @@ nfp_dump_single_rtsym(struct nfp_pf *pf, struct nfp_dumpspec_rtsym *spec,
 	dump_header->padded_name_length =
 		header_size - offsetof(struct nfp_dump_rtsym, rtsym);
 	memcpy(dump_header->rtsym, spec->rtsym, key_len + 1);
+	dump_header->cpp.dump_length = cpu_to_be32(sym_size);
 
 	if (sym->type == NFP_RTSYM_TYPE_ABS) {
-		dump_header->cpp.dump_length = cpu_to_be32(sizeof(sym->addr));
 		*(u64 *)dest = sym->addr;
 	} else {
 		cpp_params.target = sym->target;
@@ -681,10 +686,9 @@ nfp_dump_single_rtsym(struct nfp_pf *pf, struct nfp_dumpspec_rtsym *spec,
 		cpp_id = nfp_get_numeric_cpp_id(&cpp_params);
 		dump_header->cpp.cpp_id = cpp_params;
 		dump_header->cpp.offset = cpu_to_be32(sym->addr);
-		dump_header->cpp.dump_length = cpu_to_be32(sym->size);
 		bytes_read = nfp_cpp_read(pf->cpp, cpp_id, sym->addr, dest,
-					  sym->size);
-		if (bytes_read != sym->size) {
+					  sym_size);
+		if (bytes_read != sym_size) {
 			if (bytes_read >= 0)
 				bytes_read = -EIO;
 			dump_header->error = cpu_to_be32(bytes_read);
