@@ -54,7 +54,8 @@
 #define POWERNV_IOMMU_DEFAULT_LEVELS	1
 #define POWERNV_IOMMU_MAX_LEVELS	5
 
-static const char * const pnv_phb_names[] = { "IODA1", "IODA2", "NPU" };
+static const char * const pnv_phb_names[] = { "IODA1", "IODA2", "NPU_NVLINK",
+					      "NPU_OCAPI" };
 static void pnv_pci_ioda2_table_free_pages(struct iommu_table *tbl);
 
 void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
@@ -933,7 +934,7 @@ static int pnv_ioda_configure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 	 * Configure PELTV. NPUs don't have a PELTV table so skip
 	 * configuration on them.
 	 */
-	if (phb->type != PNV_PHB_NPU)
+	if (phb->type != PNV_PHB_NPU_NVLINK && phb->type != PNV_PHB_NPU_OCAPI)
 		pnv_ioda_set_peltv(phb, pe, true);
 
 	/* Setup reverse map */
@@ -1281,15 +1282,22 @@ static void pnv_pci_ioda_setup_PEs(void)
 {
 	struct pci_controller *hose, *tmp;
 	struct pnv_phb *phb;
+	struct pci_bus *bus;
+	struct pci_dev *pdev;
 
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
 		phb = hose->private_data;
-		if (phb->type == PNV_PHB_NPU) {
+		if (phb->type == PNV_PHB_NPU_NVLINK) {
 			/* PE#0 is needed for error reporting */
 			pnv_ioda_reserve_pe(phb, 0);
 			pnv_ioda_setup_npu_PEs(hose->bus);
 			if (phb->model == PNV_PHB_MODEL_NPU2)
 				pnv_npu2_init(phb);
+		}
+		if (phb->type == PNV_PHB_NPU_OCAPI) {
+			bus = hose->bus;
+			list_for_each_entry(pdev, &bus->devices, bus_list)
+				pnv_ioda_setup_dev_PE(pdev);
 		}
 	}
 }
@@ -2648,7 +2656,7 @@ static int gpe_table_group_to_npe_cb(struct device *dev, void *opaque)
 
 	hose = pci_bus_to_host(pdev->bus);
 	phb = hose->private_data;
-	if (phb->type != PNV_PHB_NPU)
+	if (phb->type != PNV_PHB_NPU_NVLINK)
 		return 0;
 
 	*ptmppe = &phb->ioda.pe_array[pdn->pe_number];
@@ -2732,7 +2740,7 @@ static void pnv_pci_ioda_setup_iommu_api(void)
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
 		phb = hose->private_data;
 
-		if (phb->type != PNV_PHB_NPU)
+		if (phb->type != PNV_PHB_NPU_NVLINK)
 			continue;
 
 		list_for_each_entry(pe, &phb->ioda.pe_list, list) {
@@ -3782,6 +3790,13 @@ static const struct pci_controller_ops pnv_npu_ioda_controller_ops = {
 	.shutdown		= pnv_pci_ioda_shutdown,
 };
 
+static const struct pci_controller_ops pnv_npu_ocapi_ioda_controller_ops = {
+	.enable_device_hook	= pnv_pci_enable_device_hook,
+	.window_alignment	= pnv_pci_window_alignment,
+	.reset_secondary_bus	= pnv_pci_reset_secondary_bus,
+	.shutdown		= pnv_pci_ioda_shutdown,
+};
+
 #ifdef CONFIG_CXL_BASE
 const struct pci_controller_ops pnv_cxl_cx4_ioda_controller_ops = {
 	.dma_dev_setup		= pnv_pci_dma_dev_setup,
@@ -4015,9 +4030,14 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	 */
 	ppc_md.pcibios_fixup = pnv_pci_ioda_fixup;
 
-	if (phb->type == PNV_PHB_NPU) {
+	switch (phb->type) {
+	case PNV_PHB_NPU_NVLINK:
 		hose->controller_ops = pnv_npu_ioda_controller_ops;
-	} else {
+		break;
+	case PNV_PHB_NPU_OCAPI:
+		hose->controller_ops = pnv_npu_ocapi_ioda_controller_ops;
+		break;
+	default:
 		phb->dma_dev_setup = pnv_pci_ioda_dma_dev_setup;
 		hose->controller_ops = pnv_pci_ioda_controller_ops;
 	}
@@ -4063,7 +4083,12 @@ void __init pnv_pci_init_ioda2_phb(struct device_node *np)
 
 void __init pnv_pci_init_npu_phb(struct device_node *np)
 {
-	pnv_pci_init_ioda_phb(np, 0, PNV_PHB_NPU);
+	pnv_pci_init_ioda_phb(np, 0, PNV_PHB_NPU_NVLINK);
+}
+
+void __init pnv_pci_init_npu2_opencapi_phb(struct device_node *np)
+{
+	pnv_pci_init_ioda_phb(np, 0, PNV_PHB_NPU_OCAPI);
 }
 
 void __init pnv_pci_init_ioda_hub(struct device_node *np)

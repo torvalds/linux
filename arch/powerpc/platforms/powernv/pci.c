@@ -1142,6 +1142,10 @@ void __init pnv_pci_init(void)
 	for_each_compatible_node(np, NULL, "ibm,ioda2-npu2-phb")
 		pnv_pci_init_npu_phb(np);
 
+	/* Look for NPU2 OpenCAPI PHBs */
+	for_each_compatible_node(np, NULL, "ibm,ioda2-npu2-opencapi-phb")
+		pnv_pci_init_npu2_opencapi_phb(np);
+
 	/* Configure IOMMU DMA hooks */
 	set_pci_dma_ops(&dma_iommu_ops);
 }
