@@ -87,7 +87,7 @@ enum sclp_pm_event {
 #define SCLP_PANIC_PRIO		1
 #define SCLP_PANIC_PRIO_CLIENT	0
 
-typedef u32 sccb_mask_t;	/* ATTENTION: assumes 32bit mask !!! */
+typedef u64 sccb_mask_t;
 
 struct sccb_header {
 	u16	length;
