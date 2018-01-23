@@ -843,7 +843,7 @@ create_event_attributes(struct drm_i915_private *i915)
 			*attr_iter++ = &i915_iter->attr.attr;
 			i915_iter =
 				add_i915_attr(i915_iter, str,
-					      __I915_PMU_ENGINE(engine->class,
+					      __I915_PMU_ENGINE(engine->uabi_class,
 								engine->instance,
 								engine_events[i].sample));
 
