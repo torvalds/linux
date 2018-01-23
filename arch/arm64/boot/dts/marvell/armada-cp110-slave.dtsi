@@ -63,8 +63,10 @@
 			cps_ethernet: ethernet@0 {
 				compatible = "marvell,armada-7k-pp22";
 				reg = <0x0 0x100000>, <0x129000 0xb000>;
-				clocks = <&cps_clk 1 3>, <&cps_clk 1 9>, <&cps_clk 1 5>;
-				clock-names = "pp_clk", "gop_clk", "mg_clk";
+				clocks = <&cps_clk 1 3>, <&cps_clk 1 9>,
+					 <&cps_clk 1 5>, <&cps_clk 1 18>;
+				clock-names = "pp_clk", "gop_clk",
+					      "mg_clk", "axi_clk";
 				marvell,system-controller = <&cps_syscon0>;
 				status = "disabled";
 				dma-coherent;
@@ -155,7 +157,8 @@
 				#size-cells = <0>;
 				compatible = "marvell,orion-mdio";
 				reg = <0x12a200 0x10>;
-				clocks = <&cps_clk 1 9>, <&cps_clk 1 5>;
+				clocks = <&cps_clk 1 9>, <&cps_clk 1 5>,
+					 <&cps_clk 1 6>, <&cps_clk 1 18>;
 				status = "disabled";
 			};
 

@@ -738,7 +738,7 @@ static unsigned long __init sme_pgtable_calc(unsigned long len)
 	return total;
 }
 
-void __init sme_encrypt_kernel(struct boot_params *bp)
+void __init __nostackprotector sme_encrypt_kernel(struct boot_params *bp)
 {
 	unsigned long workarea_start, workarea_end, workarea_len;
 	unsigned long execute_start, execute_end, execute_len;

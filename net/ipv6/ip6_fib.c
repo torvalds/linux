@@ -1226,8 +1226,14 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 		}
 
 		if (!rcu_access_pointer(fn->leaf)) {
-			atomic_inc(&rt->rt6i_ref);
-			rcu_assign_pointer(fn->leaf, rt);
+			if (fn->fn_flags & RTN_TL_ROOT) {
+				/* put back null_entry for root node */
+				rcu_assign_pointer(fn->leaf,
+					    info->nl_net->ipv6.ip6_null_entry);
+			} else {
+				atomic_inc(&rt->rt6i_ref);
+				rcu_assign_pointer(fn->leaf, rt);
+			}
 		}
 		fn = sn;
 	}
