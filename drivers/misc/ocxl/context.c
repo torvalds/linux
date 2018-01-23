@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 // Copyright 2017 IBM Corp.
 #include <linux/sched/mm.h>
+#include "trace.h"
 #include "ocxl_internal.h"
 
 struct ocxl_context *ocxl_context_alloc(void)
@@ -214,6 +215,7 @@ int ocxl_context_detach(struct ocxl_context *ctx)
 	mutex_lock(&ctx->afu->afu_control_lock);
 	rc = ocxl_config_terminate_pasid(dev, afu_control_pos, ctx->pasid);
 	mutex_unlock(&ctx->afu->afu_control_lock);
+	trace_ocxl_terminate_pasid(ctx->pasid, rc);
 	if (rc) {
 		/*
 		 * If we timeout waiting for the AFU to terminate the

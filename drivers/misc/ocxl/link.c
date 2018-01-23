@@ -7,6 +7,7 @@
 #include <asm/pnv-ocxl.h>
 #include <misc/ocxl.h>
 #include "ocxl_internal.h"
+#include "trace.h"
 
 
 #define SPA_PASID_BITS		15
@@ -116,8 +117,11 @@ static void ack_irq(struct spa *spa, enum xsl_response r)
 	else
 		WARN(1, "Invalid irq response %d\n", r);
 
-	if (reg)
+	if (reg) {
+		trace_ocxl_fault_ack(spa->spa_mem, spa->xsl_fault.pe,
+				spa->xsl_fault.dsisr, spa->xsl_fault.dar, reg);
 		out_be64(spa->reg_tfc, reg);
+	}
 }
 
 static void xsl_fault_handler_bh(struct work_struct *fault_work)
@@ -182,6 +186,7 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 	int lpid, pid, tid;
 
 	read_irq(spa, &dsisr, &dar, &pe_handle);
+	trace_ocxl_fault(spa->spa_mem, pe_handle, dsisr, dar, -1);
 
 	WARN_ON(pe_handle > SPA_PE_MASK);
 	pe = spa->spa_mem + pe_handle;
@@ -532,6 +537,7 @@ int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
 	 * the problem.
 	 */
 	mmgrab(mm);
+	trace_ocxl_context_add(current->pid, spa->spa_mem, pasid, pidr, tidr);
 unlock:
 	mutex_unlock(&spa->spa_lock);
 	return rc;
@@ -576,6 +582,9 @@ int ocxl_link_remove_pe(void *link_handle, int pasid)
 		rc = -EINVAL;
 		goto unlock;
 	}
+
+	trace_ocxl_context_remove(current->pid, spa->spa_mem, pasid,
+				be32_to_cpu(pe->pid), be32_to_cpu(pe->tid));
 
 	memset(pe, 0, sizeof(struct ocxl_process_element));
 	/*

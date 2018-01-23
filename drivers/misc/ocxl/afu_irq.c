@@ -4,6 +4,7 @@
 #include <linux/eventfd.h>
 #include <asm/pnv-ocxl.h>
 #include "ocxl_internal.h"
+#include "trace.h"
 
 struct afu_irq {
 	int id;
@@ -28,6 +29,7 @@ static irqreturn_t afu_irq_handler(int virq, void *data)
 {
 	struct afu_irq *irq = (struct afu_irq *) data;
 
+	trace_ocxl_afu_irq_receive(virq);
 	if (irq->ev_ctx)
 		eventfd_signal(irq->ev_ctx, 1);
 	return IRQ_HANDLED;
@@ -102,6 +104,8 @@ int ocxl_afu_irq_alloc(struct ocxl_context *ctx, u64 *irq_offset)
 
 	*irq_offset = irq_id_to_offset(ctx, irq->id);
 
+	trace_ocxl_afu_irq_alloc(ctx->pasid, irq->id, irq->virq, irq->hw_irq,
+				*irq_offset);
 	mutex_unlock(&ctx->irq_lock);
 	return 0;
 
@@ -117,6 +121,7 @@ err_unlock:
 
 static void afu_irq_free(struct afu_irq *irq, struct ocxl_context *ctx)
 {
+	trace_ocxl_afu_irq_free(ctx->pasid, irq->id);
 	if (ctx->mapping)
 		unmap_mapping_range(ctx->mapping,
 				irq_id_to_offset(ctx, irq->id),
