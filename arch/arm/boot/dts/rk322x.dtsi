@@ -763,6 +763,28 @@
 		status = "disabled";
 	};
 
+	iep: iep@20070000 {
+		compatible = "rockchip,iep";
+		iommu_enabled = <1>;
+		iommus = <&iep_mmu>;
+		reg = <0x20070000 0x800>;
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>;
+		clock-names = "aclk_iep", "hclk_iep";
+		version = <3>;
+		allocator = <1>;
+		status = "disabled";
+	};
+
+	iep_mmu: iommu@20070800 {
+		compatible = "rockchip,iommu";
+		reg = <0x20070800 0x40>;
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "iep_mmu";
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
 	display-subsystem {
 		compatible = "rockchip,display-subsystem";
 		ports = <&vop_out>;
