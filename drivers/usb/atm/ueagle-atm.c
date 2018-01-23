@@ -2412,7 +2412,7 @@ static DEVICE_ATTR_RO(stat_delin);
 
 #define UEA_ATTR(name, reset)					\
 								\
-static ssize_t read_##name(struct device *dev,			\
+static ssize_t stat_##name##_show(struct device *dev,		\
 		struct device_attribute *attr, char *buf)	\
 {								\
 	int ret = -ENODEV;					\
@@ -2430,7 +2430,7 @@ out:								\
 	return ret;						\
 }								\
 								\
-static DEVICE_ATTR(stat_##name, S_IRUGO, read_##name, NULL)
+static DEVICE_ATTR_RO(stat_##name)
 
 UEA_ATTR(mflags, 1);
 UEA_ATTR(vidcpe, 0);
