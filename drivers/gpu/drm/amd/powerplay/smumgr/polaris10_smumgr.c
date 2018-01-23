@@ -1133,7 +1133,7 @@ static int polaris10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	mem_level->UpHyst = 0;
 	mem_level->DownHyst = 100;
 	mem_level->VoltageDownHyst = 0;
-	mem_level->ActivityLevel = (uint16_t)data->mclk_activity_target;
+	mem_level->ActivityLevel = data->mclk_activity_target;
 	mem_level->StutterEnable = false;
 	mem_level->DisplayWatermark = PPSMC_DISPLAY_WATERMARK_LOW;
 
@@ -1314,7 +1314,7 @@ static int polaris10_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 	table->MemoryACPILevel.DownHyst = 100;
 	table->MemoryACPILevel.VoltageDownHyst = 0;
 	table->MemoryACPILevel.ActivityLevel =
-			PP_HOST_TO_SMC_US((uint16_t)data->mclk_activity_target);
+			PP_HOST_TO_SMC_US(data->mclk_activity_target);
 
 	CONVERT_FROM_HOST_TO_SMC_UL(table->MemoryACPILevel.MclkFrequency);
 	CONVERT_FROM_HOST_TO_SMC_UL(table->MemoryACPILevel.MinVoltage);

@@ -262,7 +262,6 @@ static int iceland_start_smu(struct pp_hwmgr *hwmgr)
 
 static int iceland_smu_init(struct pp_hwmgr *hwmgr)
 {
-	int i;
 	struct iceland_smumgr *iceland_priv = NULL;
 
 	iceland_priv = kzalloc(sizeof(struct iceland_smumgr), GFP_KERNEL);
@@ -274,9 +273,6 @@ static int iceland_smu_init(struct pp_hwmgr *hwmgr)
 
 	if (smu7_init(hwmgr))
 		return -EINVAL;
-
-	for (i = 0; i < SMU71_MAX_LEVELS_GRAPHICS; i++)
-		iceland_priv->activity_target[i] = 30;
 
 	return 0;
 }
@@ -989,7 +985,7 @@ static int iceland_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 	for (i = 0; i < dpm_table->sclk_table.count; i++) {
 		result = iceland_populate_single_graphic_level(hwmgr,
 					dpm_table->sclk_table.dpm_levels[i].value,
-					(uint16_t)smu_data->activity_target[i],
+					data->sclk_activity_target,
 					&(smu_data->smc_state_table.GraphicsLevel[i]));
 		if (result != 0)
 			return result;
@@ -1280,7 +1276,7 @@ static int iceland_populate_single_memory_level(
 	memory_level->VoltageDownHyst = 0;
 
 	/* Indicates maximum activity level for this performance level.*/
-	memory_level->ActivityLevel = (uint16_t)data->mclk_activity_target;
+	memory_level->ActivityLevel = data->mclk_activity_target;
 	memory_level->StutterEnable = 0;
 	memory_level->StrobeEnable = 0;
 	memory_level->EdcReadEnable = 0;
@@ -1561,7 +1557,7 @@ static int iceland_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 	table->MemoryACPILevel.DownHyst = 100;
 	table->MemoryACPILevel.VoltageDownHyst = 0;
 	/* Indicates maximum activity level for this performance level.*/
-	table->MemoryACPILevel.ActivityLevel = PP_HOST_TO_SMC_US((uint16_t)data->mclk_activity_target);
+	table->MemoryACPILevel.ActivityLevel = PP_HOST_TO_SMC_US(data->mclk_activity_target);
 
 	table->MemoryACPILevel.StutterEnable = 0;
 	table->MemoryACPILevel.StrobeEnable = 0;

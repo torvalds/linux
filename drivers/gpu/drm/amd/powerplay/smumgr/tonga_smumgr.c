@@ -222,7 +222,6 @@ static int tonga_start_smu(struct pp_hwmgr *hwmgr)
 static int tonga_smu_init(struct pp_hwmgr *hwmgr)
 {
 	struct tonga_smumgr *tonga_priv = NULL;
-	int  i;
 
 	tonga_priv = kzalloc(sizeof(struct tonga_smumgr), GFP_KERNEL);
 	if (tonga_priv == NULL)
@@ -232,9 +231,6 @@ static int tonga_smu_init(struct pp_hwmgr *hwmgr)
 
 	if (smu7_init(hwmgr))
 		return -EINVAL;
-
-	for (i = 0; i < SMU72_MAX_LEVELS_GRAPHICS; i++)
-		tonga_priv->activity_target[i] = 30;
 
 	return 0;
 }
@@ -708,7 +704,7 @@ static int tonga_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 	for (i = 0; i < dpm_table->sclk_table.count; i++) {
 		result = tonga_populate_single_graphic_level(hwmgr,
 					dpm_table->sclk_table.dpm_levels[i].value,
-					(uint16_t)smu_data->activity_target[i],
+					data->sclk_activity_target,
 					&(smu_data->smc_state_table.GraphicsLevel[i]));
 		if (result != 0)
 			return result;
@@ -1003,7 +999,7 @@ static int tonga_populate_single_memory_level(
 	memory_level->VoltageDownHyst = 0;
 
 	/* Indicates maximum activity level for this performance level.*/
-	memory_level->ActivityLevel = (uint16_t)data->mclk_activity_target;
+	memory_level->ActivityLevel = data->mclk_activity_target;
 	memory_level->StutterEnable = 0;
 	memory_level->StrobeEnable = 0;
 	memory_level->EdcReadEnable = 0;
@@ -1293,7 +1289,7 @@ static int tonga_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 	table->MemoryACPILevel.VoltageDownHyst = 0;
 	/* Indicates maximum activity level for this performance level.*/
 	table->MemoryACPILevel.ActivityLevel =
-			PP_HOST_TO_SMC_US((uint16_t)data->mclk_activity_target);
+			PP_HOST_TO_SMC_US(data->mclk_activity_target);
 
 	table->MemoryACPILevel.StutterEnable = 0;
 	table->MemoryACPILevel.StrobeEnable = 0;

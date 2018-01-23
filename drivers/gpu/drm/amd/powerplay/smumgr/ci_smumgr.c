@@ -492,7 +492,7 @@ static int ci_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 	for (i = 0; i < dpm_table->sclk_table.count; i++) {
 		result = ci_populate_single_graphic_level(hwmgr,
 				dpm_table->sclk_table.dpm_levels[i].value,
-				(uint16_t)smu_data->activity_target[i],
+				data->sclk_activity_target,
 				&levels[i]);
 		if (result)
 			return result;
@@ -1231,7 +1231,7 @@ static int ci_populate_single_memory_level(
 	memory_level->VoltageDownH = 0;
 
 	/* Indicates maximum activity level for this performance level.*/
-	memory_level->ActivityLevel = (uint16_t)data->mclk_activity_target;
+	memory_level->ActivityLevel = data->mclk_activity_target;
 	memory_level->StutterEnable = 0;
 	memory_level->StrobeEnable = 0;
 	memory_level->EdcReadEnable = 0;
@@ -1515,7 +1515,7 @@ static int ci_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 	table->MemoryACPILevel.DownH = 100;
 	table->MemoryACPILevel.VoltageDownH = 0;
 	/* Indicates maximum activity level for this performance level.*/
-	table->MemoryACPILevel.ActivityLevel = PP_HOST_TO_SMC_US((uint16_t)data->mclk_activity_target);
+	table->MemoryACPILevel.ActivityLevel = PP_HOST_TO_SMC_US(data->mclk_activity_target);
 
 	table->MemoryACPILevel.StutterEnable = 0;
 	table->MemoryACPILevel.StrobeEnable = 0;
@@ -2802,16 +2802,12 @@ static int ci_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
 
 static int ci_smu_init(struct pp_hwmgr *hwmgr)
 {
-	int i;
 	struct ci_smumgr *ci_priv = NULL;
 
 	ci_priv = kzalloc(sizeof(struct ci_smumgr), GFP_KERNEL);
 
 	if (ci_priv == NULL)
 		return -ENOMEM;
-
-	for (i = 0; i < SMU7_MAX_LEVELS_GRAPHICS; i++)
-		ci_priv->activity_target[i] = 30;
 
 	hwmgr->smu_backend = ci_priv;
 

@@ -173,15 +173,11 @@ static uint32_t cz_get_max_sclk_level(struct pp_hwmgr *hwmgr)
 static int cz_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
-	uint32_t i;
 	struct cgs_system_info sys_info = {0};
 	int result;
 
 	cz_hwmgr->gfx_ramp_step = 256*25/100;
 	cz_hwmgr->gfx_ramp_delay = 1; /* by default, we delay 1us */
-
-	for (i = 0; i < CZ_MAX_HARDWARE_POWERLEVELS; i++)
-		cz_hwmgr->activity_target[i] = CZ_AT_DFLT;
 
 	cz_hwmgr->mgcg_cgtt_local0 = 0x00000000;
 	cz_hwmgr->mgcg_cgtt_local1 = 0x00000000;
