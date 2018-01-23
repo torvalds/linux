@@ -2,7 +2,7 @@
 /*
  * hosting IBM Z kernel virtual machines (s390x)
  *
- * Copyright IBM Corp. 2008, 2017
+ * Copyright IBM Corp. 2008, 2018
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *               Christian Borntraeger <borntraeger@de.ibm.com>
@@ -87,19 +87,31 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "deliver_restart_signal", VCPU_STAT(deliver_restart_signal) },
 	{ "deliver_program_interruption", VCPU_STAT(deliver_program_int) },
 	{ "exit_wait_state", VCPU_STAT(exit_wait_state) },
+	{ "instruction_epsw", VCPU_STAT(instruction_epsw) },
+	{ "instruction_gs", VCPU_STAT(instruction_gs) },
+	{ "instruction_io_other", VCPU_STAT(instruction_io_other) },
+	{ "instruction_lpsw", VCPU_STAT(instruction_lpsw) },
+	{ "instruction_lpswe", VCPU_STAT(instruction_lpswe) },
 	{ "instruction_pfmf", VCPU_STAT(instruction_pfmf) },
+	{ "instruction_ptff", VCPU_STAT(instruction_ptff) },
 	{ "instruction_stidp", VCPU_STAT(instruction_stidp) },
+	{ "instruction_sck", VCPU_STAT(instruction_sck) },
+	{ "instruction_sckpf", VCPU_STAT(instruction_sckpf) },
 	{ "instruction_spx", VCPU_STAT(instruction_spx) },
 	{ "instruction_stpx", VCPU_STAT(instruction_stpx) },
 	{ "instruction_stap", VCPU_STAT(instruction_stap) },
-	{ "instruction_storage_key", VCPU_STAT(instruction_storage_key) },
+	{ "instruction_iske", VCPU_STAT(instruction_iske) },
+	{ "instruction_ri", VCPU_STAT(instruction_ri) },
+	{ "instruction_rrbe", VCPU_STAT(instruction_rrbe) },
+	{ "instruction_sske", VCPU_STAT(instruction_sske) },
 	{ "instruction_ipte_interlock", VCPU_STAT(instruction_ipte_interlock) },
-	{ "instruction_stsch", VCPU_STAT(instruction_stsch) },
-	{ "instruction_chsc", VCPU_STAT(instruction_chsc) },
 	{ "instruction_essa", VCPU_STAT(instruction_essa) },
 	{ "instruction_stsi", VCPU_STAT(instruction_stsi) },
 	{ "instruction_stfl", VCPU_STAT(instruction_stfl) },
+	{ "instruction_tb", VCPU_STAT(instruction_tb) },
+	{ "instruction_tpi", VCPU_STAT(instruction_tpi) },
 	{ "instruction_tprot", VCPU_STAT(instruction_tprot) },
+	{ "instruction_tsch", VCPU_STAT(instruction_tsch) },
 	{ "instruction_sthyi", VCPU_STAT(instruction_sthyi) },
 	{ "instruction_sie", VCPU_STAT(instruction_sie) },
 	{ "instruction_sigp_sense", VCPU_STAT(instruction_sigp_sense) },
@@ -124,6 +136,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "instruction_diag_258", VCPU_STAT(diagnose_258) },
 	{ "instruction_diag_308", VCPU_STAT(diagnose_308) },
 	{ "instruction_diag_500", VCPU_STAT(diagnose_500) },
+	{ "instruction_diag_other", VCPU_STAT(diagnose_other) },
 	{ NULL }
 };
 
