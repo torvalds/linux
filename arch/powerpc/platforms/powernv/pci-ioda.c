@@ -4091,6 +4091,19 @@ void __init pnv_pci_init_npu2_opencapi_phb(struct device_node *np)
 	pnv_pci_init_ioda_phb(np, 0, PNV_PHB_NPU_OCAPI);
 }
 
+static void pnv_npu2_opencapi_cfg_size_fixup(struct pci_dev *dev)
+{
+	struct pci_controller *hose = pci_bus_to_host(dev->bus);
+	struct pnv_phb *phb = hose->private_data;
+
+	if (!machine_is(powernv))
+		return;
+
+	if (phb->type == PNV_PHB_NPU_OCAPI)
+		dev->cfg_size = PCI_CFG_SPACE_EXP_SIZE;
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_ANY_ID, PCI_ANY_ID, pnv_npu2_opencapi_cfg_size_fixup);
+
 void __init pnv_pci_init_ioda_hub(struct device_node *np)
 {
 	struct device_node *phbn;
