@@ -1017,14 +1017,25 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 			if (adapter->link_up == link_up)
 				break;
 
-			/* If we get link up message and start queues before
-			 * our queues are configured it will trigger a TX hang.
-			 * In that case, just ignore the link status message,
-			 * we'll get another one after we enable queues and
-			 * actually prepared to send traffic.
-			 */
-			if (link_up && adapter->state != __I40EVF_RUNNING)
-				break;
+			if (link_up) {
+				/* If we get link up message and start queues
+				 * before our queues are configured it will
+				 * trigger a TX hang. In that case, just ignore
+				 * the link status message,we'll get another one
+				 * after we enable queues and actually prepared
+				 * to send traffic.
+				 */
+				if (adapter->state != __I40EVF_RUNNING)
+					break;
+
+				/* For ADq enabled VF, we reconfigure VSIs and
+				 * re-allocate queues. Hence wait till all
+				 * queues are enabled.
+				 */
+				if (adapter->flags &
+				    I40EVF_FLAG_QUEUES_DISABLED)
+					break;
+			}
 
 			adapter->link_up = link_up;
 			if (link_up) {
@@ -1108,6 +1119,7 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 	case VIRTCHNL_OP_ENABLE_QUEUES:
 		/* enable transmits */
 		i40evf_irq_enable(adapter, true);
+		adapter->flags &= ~I40EVF_FLAG_QUEUES_DISABLED;
 		break;
 	case VIRTCHNL_OP_DISABLE_QUEUES:
 		i40evf_free_all_tx_resources(adapter);

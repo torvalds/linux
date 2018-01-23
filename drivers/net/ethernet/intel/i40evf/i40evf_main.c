@@ -1913,6 +1913,7 @@ continue_reset:
 	i40evf_free_all_rx_resources(adapter);
 	i40evf_free_all_tx_resources(adapter);
 
+	adapter->flags |= I40EVF_FLAG_QUEUES_DISABLED;
 	/* kill and reinit the admin queue */
 	i40evf_shutdown_adminq(hw);
 	adapter->current_op = VIRTCHNL_OP_UNKNOWN;
