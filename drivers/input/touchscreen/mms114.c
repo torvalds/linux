@@ -462,14 +462,6 @@ static int mms114_probe(struct i2c_client *client,
 	input_dev->open = mms114_input_open;
 	input_dev->close = mms114_input_close;
 
-	__set_bit(EV_ABS, input_dev->evbit);
-	__set_bit(EV_KEY, input_dev->evbit);
-	__set_bit(BTN_TOUCH, input_dev->keybit);
-	input_set_abs_params(input_dev, ABS_X, 0, data->pdata->x_size, 0, 0);
-	input_set_abs_params(input_dev, ABS_Y, 0, data->pdata->y_size, 0, 0);
-
-	/* For multi touch */
-	input_mt_init_slots(input_dev, MMS114_MAX_TOUCH, 0);
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
 			     0, MMS114_MAX_AREA, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_X,
@@ -477,6 +469,11 @@ static int mms114_probe(struct i2c_client *client,
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
 			     0, data->pdata->y_size, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
+
+	error = input_mt_init_slots(input_dev, MMS114_MAX_TOUCH,
+				    INPUT_MT_DIRECT);
+	if (error)
+		return error;
 
 	input_set_drvdata(input_dev, data);
 	i2c_set_clientdata(client, data);
