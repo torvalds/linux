@@ -1,0 +1,23 @@
+Rockchip internal OTP (One Time Programmable) memory device tree bindings
+
+Required properties:
+  - compatible: Should be "rockchip,px30-otp"
+  - reg: Must contain an entry with the physical base address and length
+    for each entry in reg-names.
+  - address-cells: must be set to 1.
+  - size-cells: must be set to 1.
+  - clocks: Must contain an entry for each entry in clock-names.
+  - clock-names: Should be "clk_opt", "pclk_otp" and "pclk_otp_phy".
+
+See nvmem.txt for more information.
+
+Example:
+	otp: otp@ff290000 {
+		compatible = "rockchip,px30-otp";
+		reg = <0x0 0xff290000 0x0 0x4000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		clocks = <&cru SCLK_OTP_USR>, <&cru PCLK_OTP_NS>,
+			 <&cru PCLK_OTP_PHY>;
+		clock-names = "clk_opt", "pclk_otp", "pclk_otp_phy";
+	};
