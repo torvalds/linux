@@ -1200,13 +1200,17 @@ static int armada_drm_primary_update(struct drm_plane *plane,
 		.crtc_h = crtc_h,
 		.rotation = DRM_MODE_ROTATE_0,
 	};
+	struct drm_crtc_state crtc_state = {
+		.crtc = crtc,
+		.enable = crtc->enabled,
+	};
 	const struct drm_rect clip = {
 		.x2 = crtc->mode.hdisplay,
 		.y2 = crtc->mode.vdisplay,
 	};
 	int ret;
 
-	ret = drm_atomic_helper_check_plane_state(&state, crtc->state, &clip, 0,
+	ret = drm_atomic_helper_check_plane_state(&state, &crtc_state, &clip, 0,
 						  INT_MAX, true, false);
 	if (ret)
 		return ret;
