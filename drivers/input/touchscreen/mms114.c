@@ -12,8 +12,8 @@
 #include <linux/of.h>
 #include <linux/i2c.h>
 #include <linux/input/mt.h>
+#include <linux/input/touchscreen.h>
 #include <linux/interrupt.h>
-#include <linux/platform_data/mms114.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
@@ -55,7 +55,9 @@ struct mms114_data {
 	struct input_dev	*input_dev;
 	struct regulator	*core_reg;
 	struct regulator	*io_reg;
-	const struct mms114_platform_data	*pdata;
+	struct touchscreen_properties props;
+	unsigned int		contact_threshold;
+	unsigned int		moving_threshold;
 
 	/* Use cache data for mode control register(write only) */
 	u8			cache_mode_control;
@@ -143,7 +145,6 @@ static int mms114_write_reg(struct mms114_data *data, unsigned int reg,
 
 static void mms114_process_mt(struct mms114_data *data, struct mms114_touch *touch)
 {
-	const struct mms114_platform_data *pdata = data->pdata;
 	struct i2c_client *client = data->client;
 	struct input_dev *input_dev = data->input_dev;
 	unsigned int id;
@@ -163,16 +164,6 @@ static void mms114_process_mt(struct mms114_data *data, struct mms114_touch *tou
 	id = touch->id - 1;
 	x = touch->x_lo | touch->x_hi << 8;
 	y = touch->y_lo | touch->y_hi << 8;
-	if (x > pdata->x_size || y > pdata->y_size) {
-		dev_dbg(&client->dev,
-			"Wrong touch coordinates (%d, %d)\n", x, y);
-		return;
-	}
-
-	if (pdata->x_invert)
-		x = pdata->x_size - x;
-	if (pdata->y_invert)
-		y = pdata->y_size - y;
 
 	dev_dbg(&client->dev,
 		"id: %d, type: %d, pressed: %d, x: %d, y: %d, width: %d, strength: %d\n",
@@ -183,9 +174,8 @@ static void mms114_process_mt(struct mms114_data *data, struct mms114_touch *tou
 	input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, touch->pressed);
 
 	if (touch->pressed) {
+		touchscreen_report_pos(input_dev, &data->props, x, y, true);
 		input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, touch->width);
-		input_report_abs(input_dev, ABS_MT_POSITION_X, x);
-		input_report_abs(input_dev, ABS_MT_POSITION_Y, y);
 		input_report_abs(input_dev, ABS_MT_PRESSURE, touch->strength);
 	}
 }
@@ -263,7 +253,7 @@ static int mms114_get_version(struct mms114_data *data)
 
 static int mms114_setup_regs(struct mms114_data *data)
 {
-	const struct mms114_platform_data *pdata = data->pdata;
+	const struct touchscreen_properties *props = &data->props;
 	int val;
 	int error;
 
@@ -275,32 +265,32 @@ static int mms114_setup_regs(struct mms114_data *data)
 	if (error < 0)
 		return error;
 
-	val = (pdata->x_size >> 8) & 0xf;
-	val |= ((pdata->y_size >> 8) & 0xf) << 4;
+	val = (props->max_x >> 8) & 0xf;
+	val |= ((props->max_y >> 8) & 0xf) << 4;
 	error = mms114_write_reg(data, MMS114_XY_RESOLUTION_H, val);
 	if (error < 0)
 		return error;
 
-	val = pdata->x_size & 0xff;
+	val = props->max_x & 0xff;
 	error = mms114_write_reg(data, MMS114_X_RESOLUTION, val);
 	if (error < 0)
 		return error;
 
-	val = pdata->y_size & 0xff;
+	val = props->max_x & 0xff;
 	error = mms114_write_reg(data, MMS114_Y_RESOLUTION, val);
 	if (error < 0)
 		return error;
 
-	if (pdata->contact_threshold) {
+	if (data->contact_threshold) {
 		error = mms114_write_reg(data, MMS114_CONTACT_THRESHOLD,
-				pdata->contact_threshold);
+				data->contact_threshold);
 		if (error < 0)
 			return error;
 	}
 
-	if (pdata->moving_threshold) {
+	if (data->moving_threshold) {
 		error = mms114_write_reg(data, MMS114_MOVING_THRESHOLD,
-				pdata->moving_threshold);
+				data->moving_threshold);
 		if (error < 0)
 			return error;
 	}
@@ -335,9 +325,6 @@ static int mms114_start(struct mms114_data *data)
 		return error;
 	}
 
-	if (data->pdata->cfg_pin)
-		data->pdata->cfg_pin(true);
-
 	enable_irq(client->irq);
 
 	return 0;
@@ -349,9 +336,6 @@ static void mms114_stop(struct mms114_data *data)
 	int error;
 
 	disable_irq(client->irq);
-
-	if (data->pdata->cfg_pin)
-		data->pdata->cfg_pin(false);
 
 	error = regulator_disable(data->io_reg);
 	if (error)
@@ -376,66 +360,42 @@ static void mms114_input_close(struct input_dev *dev)
 	mms114_stop(data);
 }
 
-#ifdef CONFIG_OF
-static struct mms114_platform_data *mms114_parse_dt(struct device *dev)
+static int mms114_parse_legacy_bindings(struct mms114_data *data)
 {
-	struct mms114_platform_data *pdata;
-	struct device_node *np = dev->of_node;
+	struct device *dev = &data->client->dev;
+	struct touchscreen_properties *props = &data->props;
 
-	if (!np)
-		return NULL;
-
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		dev_err(dev, "failed to allocate platform data\n");
-		return NULL;
+	if (device_property_read_u32(dev, "x-size", &props->max_x)) {
+		dev_dbg(dev, "failed to get legacy x-size property\n");
+		return -EINVAL;
 	}
 
-	if (of_property_read_u32(np, "x-size", &pdata->x_size)) {
-		dev_err(dev, "failed to get x-size property\n");
-		return NULL;
+	if (device_property_read_u32(dev, "y-size", &props->max_y)) {
+		dev_dbg(dev, "failed to get legacy y-size property\n");
+		return -EINVAL;
 	}
 
-	if (of_property_read_u32(np, "y-size", &pdata->y_size)) {
-		dev_err(dev, "failed to get y-size property\n");
-		return NULL;
-	}
+	device_property_read_u32(dev, "contact-threshold",
+				&data->contact_threshold);
+	device_property_read_u32(dev, "moving-threshold",
+				&data->moving_threshold);
 
-	of_property_read_u32(np, "contact-threshold",
-				&pdata->contact_threshold);
-	of_property_read_u32(np, "moving-threshold",
-				&pdata->moving_threshold);
+	if (device_property_read_bool(dev, "x-invert"))
+		props->invert_x = true;
+	if (device_property_read_bool(dev, "y-invert"))
+		props->invert_y = true;
 
-	if (of_find_property(np, "x-invert", NULL))
-		pdata->x_invert = true;
-	if (of_find_property(np, "y-invert", NULL))
-		pdata->y_invert = true;
+	props->swap_x_y = false;
 
-	return pdata;
+	return 0;
 }
-#else
-static inline struct mms114_platform_data *mms114_parse_dt(struct device *dev)
-{
-	return NULL;
-}
-#endif
 
 static int mms114_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
-	const struct mms114_platform_data *pdata;
 	struct mms114_data *data;
 	struct input_dev *input_dev;
 	int error;
-
-	pdata = dev_get_platdata(&client->dev);
-	if (!pdata)
-		pdata = mms114_parse_dt(&client->dev);
-
-	if (!pdata) {
-		dev_err(&client->dev, "Need platform data\n");
-		return -EINVAL;
-	}
 
 	if (!i2c_check_functionality(client->adapter,
 				I2C_FUNC_PROTOCOL_MANGLING)) {
@@ -454,21 +414,44 @@ static int mms114_probe(struct i2c_client *client,
 
 	data->client = client;
 	data->input_dev = input_dev;
-	data->pdata = pdata;
+
+	input_set_capability(input_dev, EV_ABS, ABS_MT_POSITION_X);
+	input_set_capability(input_dev, EV_ABS, ABS_MT_POSITION_Y);
+	input_set_abs_params(input_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
+	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
+			     0, MMS114_MAX_AREA, 0, 0);
+
+	touchscreen_parse_properties(input_dev, true, &data->props);
+	if (!data->props.max_x || !data->props.max_y) {
+		dev_dbg(&client->dev,
+			"missing X/Y size properties, trying legacy bindings\n");
+		error = mms114_parse_legacy_bindings(data);
+		if (error)
+			return error;
+
+		input_set_abs_params(input_dev, ABS_MT_POSITION_X,
+				     0, data->props.max_x, 0, 0);
+		input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
+				     0, data->props.max_y, 0, 0);
+	}
+
+	/*
+	 * The firmware handles movement and pressure fuzz, so
+	 * don't duplicate that in software.
+	 */
+	data->moving_threshold = input_abs_get_fuzz(input_dev,
+						    ABS_MT_POSITION_X);
+	data->contact_threshold = input_abs_get_fuzz(input_dev,
+						     ABS_MT_PRESSURE);
+	input_abs_set_fuzz(input_dev, ABS_MT_POSITION_X, 0);
+	input_abs_set_fuzz(input_dev, ABS_MT_POSITION_Y, 0);
+	input_abs_set_fuzz(input_dev, ABS_MT_PRESSURE, 0);
 
 	input_dev->name = "MELFAS MMS114 Touchscreen";
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->dev.parent = &client->dev;
 	input_dev->open = mms114_input_open;
 	input_dev->close = mms114_input_close;
-
-	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
-			     0, MMS114_MAX_AREA, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_POSITION_X,
-			     0, data->pdata->x_size, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
-			     0, data->pdata->y_size, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
 
 	error = input_mt_init_slots(input_dev, MMS114_MAX_TOUCH,
 				    INPUT_MT_DIRECT);
