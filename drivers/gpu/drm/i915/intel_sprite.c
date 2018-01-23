@@ -1423,7 +1423,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 	intel_plane->pipe = pipe;
 	intel_plane->i9xx_plane = plane;
 	intel_plane->id = PLANE_SPRITE0 + plane;
-	intel_plane->frontbuffer_bit = INTEL_FRONTBUFFER_SPRITE(pipe, plane);
+	intel_plane->frontbuffer_bit = INTEL_FRONTBUFFER(pipe, intel_plane->id);
 	intel_plane->check_plane = intel_check_sprite_plane;
 
 	possible_crtcs = (1 << pipe);

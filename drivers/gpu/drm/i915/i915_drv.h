@@ -2410,16 +2410,11 @@ enum hdmi_force_audio {
  *
  * We have one bit per pipe and per scanout plane type.
  */
-#define INTEL_MAX_SPRITE_BITS_PER_PIPE 5
 #define INTEL_FRONTBUFFER_BITS_PER_PIPE 8
-#define INTEL_FRONTBUFFER_PRIMARY(pipe) \
-	(1 << (INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)))
-#define INTEL_FRONTBUFFER_CURSOR(pipe) \
-	(1 << (1 + (INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))))
-#define INTEL_FRONTBUFFER_SPRITE(pipe, plane) \
-	(1 << (2 + plane + (INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))))
+#define INTEL_FRONTBUFFER(pipe, plane_id) \
+	(1 << ((plane_id) + INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)))
 #define INTEL_FRONTBUFFER_OVERLAY(pipe) \
-	(1 << (2 + INTEL_MAX_SPRITE_BITS_PER_PIPE + (INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))))
+	(1 << (INTEL_FRONTBUFFER_BITS_PER_PIPE - 1 + INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)))
 #define INTEL_FRONTBUFFER_ALL_MASK(pipe) \
 	(0xff << (INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)))
 

@@ -1373,7 +1373,7 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 
 	for_each_pipe(dev_priv, pipe) {
 		fbc->possible_framebuffer_bits |=
-				INTEL_FRONTBUFFER_PRIMARY(pipe);
+			INTEL_FRONTBUFFER(pipe, PLANE_PRIMARY);
 
 		if (fbc_on_pipe_a_only(dev_priv))
 			break;
