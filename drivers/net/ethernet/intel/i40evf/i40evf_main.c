@@ -2236,6 +2236,48 @@ void i40evf_free_all_rx_resources(struct i40evf_adapter *adapter)
 }
 
 /**
+ * i40evf_validate_tx_bandwidth - validate the max Tx bandwidth
+ * @adapter: board private structure
+ * @max_tx_rate: max Tx bw for a tc
+ **/
+static int i40evf_validate_tx_bandwidth(struct i40evf_adapter *adapter,
+					u64 max_tx_rate)
+{
+	int speed = 0, ret = 0;
+
+	switch (adapter->link_speed) {
+	case I40E_LINK_SPEED_40GB:
+		speed = 40000;
+		break;
+	case I40E_LINK_SPEED_25GB:
+		speed = 25000;
+		break;
+	case I40E_LINK_SPEED_20GB:
+		speed = 20000;
+		break;
+	case I40E_LINK_SPEED_10GB:
+		speed = 10000;
+		break;
+	case I40E_LINK_SPEED_1GB:
+		speed = 1000;
+		break;
+	case I40E_LINK_SPEED_100MB:
+		speed = 100;
+		break;
+	default:
+		break;
+	}
+
+	if (max_tx_rate > speed) {
+		dev_err(&adapter->pdev->dev,
+			"Invalid tx rate specified\n");
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+/**
  * i40evf_validate_channel_config - validate queue mapping info
  * @adapter: board private structure
  * @mqprio_qopt: queue parameters
@@ -2247,7 +2289,10 @@ void i40evf_free_all_rx_resources(struct i40evf_adapter *adapter)
 static int i40evf_validate_ch_config(struct i40evf_adapter *adapter,
 				     struct tc_mqprio_qopt_offload *mqprio_qopt)
 {
+	u64 total_max_rate = 0;
 	int i, num_qps = 0;
+	u64 tx_rate = 0;
+	int ret = 0;
 
 	if (mqprio_qopt->qopt.num_tc > I40EVF_MAX_TRAFFIC_CLASS ||
 	    mqprio_qopt->qopt.num_tc < 1)
@@ -2255,16 +2300,24 @@ static int i40evf_validate_ch_config(struct i40evf_adapter *adapter,
 
 	for (i = 0; i <= mqprio_qopt->qopt.num_tc - 1; i++) {
 		if (!mqprio_qopt->qopt.count[i] ||
-		    mqprio_qopt->min_rate[i] ||
-		    mqprio_qopt->max_rate[i] ||
 		    mqprio_qopt->qopt.offset[i] != num_qps)
 			return -EINVAL;
+		if (mqprio_qopt->min_rate[i]) {
+			dev_err(&adapter->pdev->dev,
+				"Invalid min tx rate (greater than 0) specified\n");
+			return -EINVAL;
+		}
+		/*convert to Mbps */
+		tx_rate = div_u64(mqprio_qopt->max_rate[i],
+				  I40EVF_MBPS_DIVISOR);
+		total_max_rate += tx_rate;
 		num_qps += mqprio_qopt->qopt.count[i];
 	}
 	if (num_qps > MAX_QUEUES)
 		return -EINVAL;
 
-	return 0;
+	ret = i40evf_validate_tx_bandwidth(adapter, total_max_rate);
+	return ret;
 }
 
 /**
@@ -2285,6 +2338,7 @@ static int __i40evf_setup_tc(struct net_device *netdev, void *type_data)
 	struct virtchnl_vf_resource *vfres = adapter->vf_res;
 	u8 num_tc = 0, total_qps = 0;
 	int ret = 0, netdev_tc = 0;
+	u64 max_tx_rate;
 	u16 mode;
 	int i;
 
@@ -2332,6 +2386,12 @@ static int __i40evf_setup_tc(struct net_device *netdev, void *type_data)
 				adapter->ch_config.ch_info[i].offset =
 					mqprio_qopt->qopt.offset[i];
 				total_qps += mqprio_qopt->qopt.count[i];
+				max_tx_rate = mqprio_qopt->max_rate[i];
+				/* convert to Mbps */
+				max_tx_rate = div_u64(max_tx_rate,
+						      I40EVF_MBPS_DIVISOR);
+				adapter->ch_config.ch_info[i].max_tx_rate =
+					max_tx_rate;
 			} else {
 				adapter->ch_config.ch_info[i].count = 1;
 				adapter->ch_config.ch_info[i].offset = 0;

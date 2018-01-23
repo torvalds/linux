@@ -1003,6 +1003,9 @@ void i40evf_enable_channels(struct i40evf_adapter *adapter)
 	for (i = 0; i < vti->num_tc; i++) {
 		vti->list[i].count = adapter->ch_config.ch_info[i].count;
 		vti->list[i].offset = adapter->ch_config.ch_info[i].offset;
+		vti->list[i].pad = 0;
+		vti->list[i].max_tx_rate =
+				adapter->ch_config.ch_info[i].max_tx_rate;
 	}
 
 	adapter->ch_config.state = __I40EVF_TC_RUNNING;
