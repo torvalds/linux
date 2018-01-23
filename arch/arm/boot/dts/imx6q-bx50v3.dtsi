@@ -92,6 +92,56 @@
 		mux-int-port = <1>;
 		mux-ext-port = <4>;
 	};
+
+	aliases {
+		mdio-gpio0 = &mdio0;
+	};
+
+	mdio0: mdio-gpio {
+		compatible = "virtual,mdio-gpio";
+		gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>, /* mdc */
+			<&gpio2 7 GPIO_ACTIVE_HIGH>; /* mdio */
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		switch@0 {
+			compatible = "marvell,mv88e6085"; /* 88e6240*/
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			switch_ports: ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				switchphy0: switchphy@0 {
+					reg = <0>;
+				};
+
+				switchphy1: switchphy@1 {
+					reg = <1>;
+				};
+
+				switchphy2: switchphy@2 {
+					reg = <2>;
+				};
+
+				switchphy3: switchphy@3 {
+					reg = <3>;
+				};
+
+				switchphy4: switchphy@4 {
+					reg = <4>;
+				};
+			};
+		};
+	};
 };
 
 &ecspi5 {
@@ -324,5 +374,17 @@
 		interrupt-parent = <&gpio2>;
 		interrupts = <6 IRQ_TYPE_LEVEL_HIGH>;
 		tcxo-clock-frequency = <26000000>;
+	};
+};
+
+&pcie {
+	/* Synopsys, Inc. Device */
+	pci_root: root@0,0 {
+		compatible = "pci16c3,abcd";
+		reg = <0x00000000 0 0 0 0>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
 	};
 };
