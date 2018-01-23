@@ -899,6 +899,65 @@
 		status = "disabled";
 	};
 
+	cif: cif@ff490000 {
+		compatible = "rockchip,cif";
+		reg = <0x0 0xff490000 0x0 0x200>;
+		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_CIF>, <&cru HCLK_CIF>, <&cru PCLK_CIF>, <&cru SCLK_CIF_OUT>;
+		clock-names = "aclk_cif0", "hclk_cif0", "pclk_cif", "cif0_out";
+		resets = <&cru SRST_CIF_A>, <&cru SRST_CIF_H>, <&cru SRST_CIF_PCLKIN>;
+		reset-names = "rst_cif_a", "rst_cif_h", "rst_cif_pclkin";
+		pinctrl-names = "cif_pin_all";
+		pinctrl-0 = <&dvp_d2d9_m0>;
+		status = "disabled";
+	};
+
+	vip_mmu: iommu@ff490800{
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff490800 0x0 0x100>;
+		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vip_mmu";
+		clocks = <&cru ACLK_CIF>, <&cru HCLK_CIF>;
+		clock-names = "aclk", "hclk";
+		rk_iommu,disable_reset_quirk;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	rk_isp: rk_isp@ff4a0000 {
+		compatible = "rockchip,px30-isp", "rockchip,isp";
+		reg = <0x0 0xff4a0000 0x0 0x4000>;
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>, <&cru SCLK_ISP>, <&cru SCLK_ISP>,
+			<&cru PCLK_ISP>, <&cru SCLK_CIF_OUT>, <&cru SCLK_CIF_OUT>, <&cru PCLK_MIPICSIPHY>;
+		clock-names = "aclk_isp", "hclk_isp", "clk_isp", "clk_isp_jpe",
+			"pclkin_isp", "clk_cif_pll", "clk_cif_out", "pclk_dphyrx";
+		resets = <&cru SRST_ISP>, <&cru SRST_MIPICSIPHY_P>;
+		reset-names = "rst_isp", "rst_mipicsiphy";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cif_clkout_m0>;
+		rockchip,isp,mipiphy = <1>;
+		rockchip,isp,cifphy = <1>;
+		rockchip,isp,csiphy,reg = <0xff2f0000 0x4000>;
+		rockchip,grf = <&grf>;
+		rockchip,cru = <&cru>;
+		rockchip,isp,iommu-enable = <1>;
+		iommus = <&isp_mmu>;
+		status = "disabled";
+	};
+
+	isp_mmu: iommu@ff4a8000 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff4a8000 0x0 0x100>;
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "isp_mmu";
+		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>;
+		clock-names = "aclk", "hclk";
+		rk_iommu,disable_reset_quirk;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
 	qos_gmac: qos@ff518000 {
 		compatible = "syscon";
 		reg = <0x0 0xff518000 0x0 0x20>;
@@ -1977,5 +2036,73 @@
 			};
 		};
 
+	};
+
+	cif-m0 {
+		cif_clkout_m0: cif-clkout-m0 {
+			rockchip,pins = <2 RK_PB3 RK_FUNC_1 &pcfg_pull_none>;/* cif_clkout */
+		};
+		dvp_d2d9_m0: dvp-d2d9-m0 {
+			rockchip,pins =
+				<2 RK_PA0 RK_FUNC_1 &pcfg_pull_none>,/* cif_data2 */
+				<2 RK_PA1 RK_FUNC_1 &pcfg_pull_none>,/* cif_data3 */
+				<2 RK_PA2 RK_FUNC_1 &pcfg_pull_none>,/* cif_data4 */
+				<2 RK_PA3 RK_FUNC_1 &pcfg_pull_none>,/* cif_data5 */
+				<2 RK_PA4 RK_FUNC_1 &pcfg_pull_none>,/* cif_data6 */
+				<2 RK_PA5 RK_FUNC_1 &pcfg_pull_none>,/* cif_data7 */
+				<2 RK_PA6 RK_FUNC_1 &pcfg_pull_none>,/* cif_data8 */
+				<2 RK_PA7 RK_FUNC_1 &pcfg_pull_none>,/* cif_data9 */
+				<2 RK_PB0 RK_FUNC_1 &pcfg_pull_none>,/* cif_sync */
+				<2 RK_PB1 RK_FUNC_1 &pcfg_pull_none>,/* cif_href */
+				<2 RK_PB2 RK_FUNC_1 &pcfg_pull_none>,/* cif_clkin */
+				<2 RK_PB3 RK_FUNC_1 &pcfg_pull_none>;/* cif_clkout */
+		};
+		dvp_d0d1_m0: dvp-d0d1-m0 {
+			rockchip,pins =
+				<2 RK_PB4 RK_FUNC_1 &pcfg_pull_none>,/* cif_data0 */
+				<2 RK_PB6 RK_FUNC_1 &pcfg_pull_none>;/* cif_data1 */
+		};
+		dvp_d10d11_m0:d10-d11-m0 {
+			rockchip,pins =
+				<2 RK_PB7 RK_FUNC_1 &pcfg_pull_none>,/* cif_data10 */
+				<2 RK_PC0 RK_FUNC_1 &pcfg_pull_none>;/* cif_data11 */
+		};
+	};
+
+	cif-m1 {
+		cif_clkout_m1: cif-clkout-m1 {
+			rockchip,pins = <3 RK_PD0 RK_FUNC_3 &pcfg_pull_none>;/* cif_clkout */
+		};
+		dvp_d2d9_m1: dvp-d2d9-m1 {
+			rockchip,pins =
+				<3 RK_PA3 RK_FUNC_1 &pcfg_pull_none>,/* cif_data2 */
+				<3 RK_PA5 RK_FUNC_1 &pcfg_pull_none>,/* cif_data3 */
+				<3 RK_PA7 RK_FUNC_1 &pcfg_pull_none>,/* cif_data4 */
+				<3 RK_PB0 RK_FUNC_1 &pcfg_pull_none>,/* cif_data5 */
+				<3 RK_PB1 RK_FUNC_1 &pcfg_pull_none>,/* cif_data6 */
+				<3 RK_PB4 RK_FUNC_1 &pcfg_pull_none>,/* cif_data7 */
+				<3 RK_PB6 RK_FUNC_1 &pcfg_pull_none>,/* cif_data8 */
+				<3 RK_PB7 RK_FUNC_1 &pcfg_pull_none>,/* cif_data9 */
+				<3 RK_PD1 RK_FUNC_3 &pcfg_pull_none>,/* cif_sync */
+				<3 RK_PD2 RK_FUNC_2 &pcfg_pull_none>,/* cif_href */
+				<3 RK_PD3 RK_FUNC_2 &pcfg_pull_none>,/* cif_clkin */
+				<3 RK_PD0 RK_FUNC_3 &pcfg_pull_none>;/* cif_clkout */
+		};
+		dvp_d0d1_m1: dvp-d0d1-m1 {
+			rockchip,pins =
+				<3 RK_PA1 RK_FUNC_3 &pcfg_pull_none>,/* cif_data0 */
+				<3 RK_PA2 RK_FUNC_3 &pcfg_pull_none>;/* cif_data1 */
+		};
+		dvp_d10d11_m1:d10-d11-m1 {
+			rockchip,pins =
+				<3 RK_PC6 RK_FUNC_3 &pcfg_pull_none>,/* cif_data10 */
+				<3 RK_PC7 RK_FUNC_3 &pcfg_pull_none>;/* cif_data11 */
+		};
+	};
+
+	isp {
+		isp_prelight: isp-prelight {
+			rockchip,pins = <3 RK_PD1 RK_FUNC_4 &pcfg_pull_none>;/* ISP_PRELIGHTTRIG */
+		};
 	};
 };
