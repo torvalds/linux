@@ -1164,6 +1164,9 @@ static int i40evf_alloc_queues(struct i40evf_adapter *adapter)
 	 */
 	if (adapter->num_req_queues)
 		num_active_queues = adapter->num_req_queues;
+	else if ((adapter->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_ADQ) &&
+		 adapter->num_tc)
+		num_active_queues = adapter->ch_config.total_qps;
 	else
 		num_active_queues = min_t(int,
 					  adapter->vsi_res->num_queue_pairs,
@@ -1490,6 +1493,16 @@ int i40evf_init_interrupt_scheme(struct i40evf_adapter *adapter)
 			"Unable to allocate memory for queue vectors\n");
 		goto err_alloc_q_vectors;
 	}
+
+	/* If we've made it so far while ADq flag being ON, then we haven't
+	 * bailed out anywhere in middle. And ADq isn't just enabled but actual
+	 * resources have been allocated in the reset path.
+	 * Now we can truly claim that ADq is enabled.
+	 */
+	if ((adapter->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_ADQ) &&
+	    adapter->num_tc)
+		dev_info(&adapter->pdev->dev, "ADq Enabled, %u TCs created",
+			 adapter->num_tc);
 
 	dev_info(&adapter->pdev->dev, "Multiqueue %s: Queue pair count = %u",
 		 (adapter->num_active_queues > 1) ? "Enabled" : "Disabled",
@@ -3263,6 +3276,7 @@ static void i40evf_remove(struct pci_dev *pdev)
 	/* Shut down all the garbage mashers on the detention level */
 	adapter->state = __I40EVF_REMOVE;
 	adapter->aq_required = 0;
+	adapter->flags &= ~I40EVF_FLAG_REINIT_ITR_NEEDED;
 	i40evf_request_reset(adapter);
 	msleep(50);
 	/* If the FW isn't responding, kick it once, but only once. */

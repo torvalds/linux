@@ -695,6 +695,12 @@ static int i40evf_set_channels(struct net_device *netdev,
 		return -EINVAL;
 	}
 
+	if ((adapter->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_ADQ) &&
+	    adapter->num_tc) {
+		dev_info(&adapter->pdev->dev, "Cannot set channels since ADq is enabled.\n");
+		return -EINVAL;
+	}
+
 	/* All of these should have already been checked by ethtool before this
 	 * even gets to us, but just to be sure.
 	 */
