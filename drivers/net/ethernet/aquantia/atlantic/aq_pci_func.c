@@ -210,8 +210,10 @@ static int aq_pci_probe(struct pci_dev *pdev,
 		goto err_pci_func;
 
 	ndev = aq_ndev_alloc();
-	if (!ndev)
+	if (!ndev) {
+		err = -ENOMEM;
 		goto err_ndev;
+	}
 
 	self = netdev_priv(ndev);
 	self->pdev = pdev;
