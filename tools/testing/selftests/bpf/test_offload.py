@@ -429,8 +429,26 @@ class NetdevSim:
                  (len(filters), expected))
         return filters
 
-    def cls_bpf_add_filter(self, bpf, da=False, verbose=False, skip_sw=False,
-                           skip_hw=False, fail=True, include_stderr=False):
+    def cls_filter_op(self, op, qdisc="ingress", prio=None, handle=None,
+                      cls="", params="",
+                      fail=True, include_stderr=False):
+        spec = ""
+        if prio is not None:
+            spec += " prio %d" % (prio)
+        if handle:
+            spec += " handle %s" % (handle)
+
+        return tc("filter {op} dev {dev} {qdisc} {spec} {cls} {params}"\
+                  .format(op=op, dev=self['ifname'], qdisc=qdisc, spec=spec,
+                          cls=cls, params=params),
+                  fail=fail, include_stderr=include_stderr)
+
+    def cls_bpf_add_filter(self, bpf, op="add", prio=None, handle=None,
+                           da=False, verbose=False,
+                           skip_sw=False, skip_hw=False,
+                           fail=True, include_stderr=False):
+        cls = "bpf " + bpf
+
         params = ""
         if da:
             params += " da"
@@ -440,9 +458,10 @@ class NetdevSim:
             params += " skip_sw"
         if skip_hw:
             params += " skip_hw"
-        return tc("filter add dev %s ingress bpf %s %s" %
-                  (self['ifname'], bpf, params),
-                  fail=fail, include_stderr=include_stderr)
+
+        return self.cls_filter_op(op=op, prio=prio, handle=handle, cls=cls,
+                                  params=params,
+                                  fail=fail, include_stderr=include_stderr)
 
     def set_ethtool_tc_offloads(self, enable, fail=True):
         args = "hw-tc-offload %s" % ("on" if enable else "off")
@@ -643,6 +662,32 @@ try:
     check_extack_nsim(err, "netdevsim configured to reject unbound programs.",
                       args)
     sim.wait_for_flush()
+
+    start_test("Test TC replace...")
+    sim.cls_bpf_add_filter(obj, prio=1, handle=1)
+    sim.cls_bpf_add_filter(obj, op="replace", prio=1, handle=1)
+    sim.cls_filter_op(op="delete", prio=1, handle=1, cls="bpf")
+
+    sim.cls_bpf_add_filter(obj, prio=1, handle=1, skip_sw=True)
+    sim.cls_bpf_add_filter(obj, op="replace", prio=1, handle=1, skip_sw=True)
+    sim.cls_filter_op(op="delete", prio=1, handle=1, cls="bpf")
+
+    sim.cls_bpf_add_filter(obj, prio=1, handle=1, skip_hw=True)
+    sim.cls_bpf_add_filter(obj, op="replace", prio=1, handle=1, skip_hw=True)
+    sim.cls_filter_op(op="delete", prio=1, handle=1, cls="bpf")
+
+    start_test("Test TC replace bad flags...")
+    for i in range(3):
+        for j in range(3):
+            ret, _ = sim.cls_bpf_add_filter(obj, op="replace", prio=1, handle=1,
+                                            skip_sw=(j == 1), skip_hw=(j == 2),
+                                            fail=False)
+            fail(bool(ret) != bool(j),
+                 "Software TC incorrect load in replace test, iteration %d" %
+                 (j))
+        sim.cls_filter_op(op="delete", prio=1, handle=1, cls="bpf")
+
+    sim.tc_flush_filters()
 
     start_test("Test TC offloads work...")
     ret, _, err = sim.cls_bpf_add_filter(obj, verbose=True, skip_sw=True,
