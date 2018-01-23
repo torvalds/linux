@@ -2950,22 +2950,27 @@ void dce110_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->top_pipe && pipe_ctx->plane_state != pipe_ctx->top_pipe->plane_state)
 		pos_cpy.enable = false;
 
-	ipp->funcs->ipp_cursor_set_position(ipp, &pos_cpy, &param);
-	mi->funcs->set_cursor_position(mi, &pos_cpy, &param);
+	if (ipp->funcs->ipp_cursor_set_position)
+		ipp->funcs->ipp_cursor_set_position(ipp, &pos_cpy, &param);
+	if (mi->funcs->set_cursor_position)
+		mi->funcs->set_cursor_position(mi, &pos_cpy, &param);
 }
 
 void dce110_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_cursor_attributes *attributes = &pipe_ctx->stream->cursor_attributes;
 
-	pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes(
+	if (pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes)
+		pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes(
 				pipe_ctx->plane_res.ipp, attributes);
 
-	pipe_ctx->plane_res.mi->funcs->set_cursor_attributes(
-			pipe_ctx->plane_res.mi, attributes);
+	if (pipe_ctx->plane_res.mi->funcs->set_cursor_attributes)
+		pipe_ctx->plane_res.mi->funcs->set_cursor_attributes(
+				pipe_ctx->plane_res.mi, attributes);
 
-	pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes(
-		pipe_ctx->plane_res.xfm, attributes);
+	if (pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes)
+		pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes(
+				pipe_ctx->plane_res.xfm, attributes);
 }
 
 static void ready_shared_resources(struct dc *dc, struct dc_state *context) {}
