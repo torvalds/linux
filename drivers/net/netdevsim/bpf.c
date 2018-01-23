@@ -23,6 +23,9 @@
 
 #include "netdevsim.h"
 
+#define pr_vlog(env, fmt, ...)	\
+	bpf_verifier_log_write(env, "[netdevsim] " fmt, ##__VA_ARGS__)
+
 struct nsim_bpf_bound_prog {
 	struct netdevsim *ns;
 	struct bpf_prog *prog;
@@ -76,6 +79,9 @@ nsim_bpf_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn)
 	state = env->prog->aux->offload->dev_priv;
 	if (state->ns->bpf_bind_verifier_delay && !insn_idx)
 		msleep(state->ns->bpf_bind_verifier_delay);
+
+	if (insn_idx == env->prog->len - 1)
+		pr_vlog(env, "Hello from netdevsim!\n");
 
 	return 0;
 }

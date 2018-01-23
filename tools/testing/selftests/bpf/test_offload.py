@@ -362,8 +362,10 @@ class NetdevSim:
         return ip("link set dev %s mtu %d" % (self.dev["ifname"], mtu),
                   fail=fail)
 
-    def set_xdp(self, bpf, mode, force=False, JSON=True,
+    def set_xdp(self, bpf, mode, force=False, JSON=True, verbose=False,
                 fail=True, include_stderr=False):
+        if verbose:
+            bpf += " verbose"
         return ip("link set dev %s xdp%s %s" % (self.dev["ifname"], mode, bpf),
                   force=force, JSON=JSON,
                   fail=fail, include_stderr=include_stderr)
@@ -427,11 +429,13 @@ class NetdevSim:
                  (len(filters), expected))
         return filters
 
-    def cls_bpf_add_filter(self, bpf, da=False, skip_sw=False, skip_hw=False,
-                           fail=True, include_stderr=False):
+    def cls_bpf_add_filter(self, bpf, da=False, verbose=False, skip_sw=False,
+                           skip_hw=False, fail=True, include_stderr=False):
         params = ""
         if da:
             params += " da"
+        if verbose:
+            params += " verbose"
         if skip_sw:
             params += " skip_sw"
         if skip_hw:
@@ -519,6 +523,13 @@ def check_extack(output, reference, args):
 
 def check_extack_nsim(output, reference, args):
     check_extack(output, "Error: netdevsim: " + reference, args)
+
+def check_verifier_log(output, reference):
+    lines = output.split("\n")
+    for l in reversed(lines):
+        if l == reference:
+            return
+    fail(True, "Missing or incorrect message from netdevsim in verifier log")
 
 # Parse command line
 parser = argparse.ArgumentParser()
@@ -634,8 +645,10 @@ try:
     sim.wait_for_flush()
 
     start_test("Test TC offloads work...")
-    ret, _ = sim.cls_bpf_add_filter(obj, skip_sw=True, fail=False)
+    ret, _, err = sim.cls_bpf_add_filter(obj, verbose=True, skip_sw=True,
+                                         fail=False, include_stderr=True)
     fail(ret != 0, "TC filter did not load with TC offloads enabled")
+    check_verifier_log(err, "[netdevsim] Hello from netdevsim!")
 
     start_test("Test TC offload basics...")
     dfs = sim.dfs_get_bound_progs(expected=1)
@@ -744,12 +757,13 @@ try:
 
     sim.wait_for_flush()
     start_test("Test XDP offload...")
-    sim.set_xdp(obj, "offload")
+    _, _, err = sim.set_xdp(obj, "offload", verbose=True, include_stderr=True)
     ipl = sim.ip_link_show(xdp=True)
     link_xdp = ipl["xdp"]["prog"]
     progs = bpftool_prog_list(expected=1)
     prog = progs[0]
     fail(link_xdp["id"] != prog["id"], "Loaded program has wrong ID")
+    check_verifier_log(err, "[netdevsim] Hello from netdevsim!")
 
     start_test("Test XDP offload is device bound...")
     dfs = sim.dfs_get_bound_progs(expected=1)
