@@ -110,7 +110,8 @@ lnet_selftest_init(void)
 	lst_init_step = LST_INIT_WI_TEST;
 	for (i = 0; i < nscheds; i++) {
 		int nthrs = cfs_cpt_weight(lnet_cpt_table(), i);
-		struct workqueue_attrs attrs;
+		struct workqueue_attrs attrs = {0};
+		cpumask_var_t *mask = cfs_cpt_cpumask(lnet_cpt_table(), i);
 
 		/* reserve at least one CPU for LND */
 		nthrs = max(nthrs - 1, 1);
@@ -121,14 +122,12 @@ lnet_selftest_init(void)
 			rc = -ENOMEM;
 			goto error;
 		}
-		attrs.nice = 0;
-		#ifdef CONFIG_CPUMASK_OFFSTACK
-		attrs.cpumask = lnet_cpt_table()->ctb_parts[i].cpt_cpumask;
-		#else
-		cpumask_copy(attrs.cpumask, lnet_cpt_table()->ctb_parts[i].cpt_cpumask);
-		#endif
-		attrs.no_numa = false;
-		apply_workqueue_attrs(lst_test_wq[i], &attrs);
+
+		if (mask && alloc_cpumask_var(&attrs.cpumask, GFP_KERNEL)) {
+			cpumask_copy(attrs.cpumask, *mask);
+			apply_workqueue_attrs(lst_test_wq[i], &attrs);
+			free_cpumask_var(attrs.cpumask);
+		}
 	}
 
 	rc = srpc_startup();
