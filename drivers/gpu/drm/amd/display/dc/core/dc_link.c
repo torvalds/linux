@@ -465,7 +465,7 @@ static void link_disconnect_sink(struct dc_link *link)
 	link->dpcd_sink_count = 0;
 }
 
-static void detect_dp(
+static bool detect_dp(
 	struct dc_link *link,
 	struct display_sink_capability *sink_caps,
 	bool *converter_disable_audio,
@@ -479,7 +479,8 @@ static void detect_dp(
 
 	if (sink_caps->transaction_type == DDC_TRANSACTION_TYPE_I2C_OVER_AUX) {
 		sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT;
-		detect_dp_sink_caps(link);
+		if (!detect_dp_sink_caps(link))
+			return false;
 
 		if (is_mst_supported(link)) {
 			sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT_MST;
@@ -530,7 +531,7 @@ static void detect_dp(
 				 * active dongle unplug processing for short irq
 				 */
 				link_disconnect_sink(link);
-				return;
+				return true;
 			}
 
 			if (link->dpcd_caps.dongle_type != DISPLAY_DONGLE_DP_HDMI_CONVERTER)
@@ -542,6 +543,8 @@ static void detect_dp(
 				sink_caps,
 				audio_support);
 	}
+
+	return true;
 }
 
 bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
@@ -605,11 +608,12 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		}
 
 		case SIGNAL_TYPE_DISPLAY_PORT: {
-			detect_dp(
+			if (!detect_dp(
 				link,
 				&sink_caps,
 				&converter_disable_audio,
-				aud_support, reason);
+				aud_support, reason))
+				return false;
 
 			/* Active dongle downstream unplug */
 			if (link->type == dc_connection_active_dongle
