@@ -792,7 +792,7 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 		switch (adev->asic_type) {
 		case CHIP_VEGA10:  /* all engines support GPUVM */
 		default:
-			adev->gmc.gart_size = 256ULL << 20;
+			adev->gmc.gart_size = 512ULL << 20;
 			break;
 		case CHIP_RAVEN:   /* DCE SG support */
 			adev->gmc.gart_size = 1024ULL << 20;
