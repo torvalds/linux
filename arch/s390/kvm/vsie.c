@@ -913,7 +913,7 @@ static void register_shadow_scb(struct kvm_vcpu *vcpu,
 	 * External calls have to lead to a kick of the vcpu and
 	 * therefore the vsie -> Simulate Wait state.
 	 */
-	atomic_or(CPUSTAT_WAIT, &vcpu->arch.sie_block->cpuflags);
+	kvm_s390_set_cpuflags(vcpu, CPUSTAT_WAIT);
 	/*
 	 * We have to adjust the g3 epoch by the g2 epoch. The epoch will
 	 * automatically be adjusted on tod clock changes via kvm_sync_clock.
