@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/of_graph.h>
+#include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 
 #include <drm/drmP.h>
@@ -25,6 +26,7 @@ struct dumb_vga {
 
 	struct i2c_adapter	*ddc;
 	struct regulator	*vdd;
+	struct gpio_desc	*psave_gpio;
 };
 
 static inline struct dumb_vga *
@@ -136,11 +138,17 @@ static void dumb_vga_enable(struct drm_bridge *bridge)
 
 	if (ret)
 		DRM_ERROR("Failed to enable vdd regulator: %d\n", ret);
+
+	if (vga->psave_gpio)
+		gpiod_direction_output(vga->psave_gpio, 1);
 }
 
 static void dumb_vga_disable(struct drm_bridge *bridge)
 {
 	struct dumb_vga *vga = drm_bridge_to_dumb_vga(bridge);
+
+	if (vga->psave_gpio)
+		gpiod_direction_output(vga->psave_gpio, 0);
 
 	if (vga->vdd)
 		regulator_disable(vga->vdd);
@@ -177,6 +185,7 @@ static struct i2c_adapter *dumb_vga_retrieve_ddc(struct device *dev)
 static int dumb_vga_probe(struct platform_device *pdev)
 {
 	struct dumb_vga *vga;
+	int err;
 
 	vga = devm_kzalloc(&pdev->dev, sizeof(*vga), GFP_KERNEL);
 	if (!vga)
@@ -190,6 +199,13 @@ static int dumb_vga_probe(struct platform_device *pdev)
 			return -EPROBE_DEFER;
 		vga->vdd = NULL;
 		dev_dbg(&pdev->dev, "No vdd regulator found: %d\n", ret);
+	}
+
+	vga->psave_gpio = devm_gpiod_get_optional(&pdev->dev, "psave", 0);
+	if (IS_ERR(vga->psave_gpio)) {
+		err = PTR_ERR(vga->psave_gpio);
+		dev_err(&pdev->dev, "failed to get psave GPIO: %d\n", err);
+		return err;
 	}
 
 	vga->ddc = dumb_vga_retrieve_ddc(&pdev->dev);
