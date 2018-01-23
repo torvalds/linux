@@ -577,6 +577,8 @@ alloc_payload:
 		get_page(page);
 		sg = ctx->sg_plaintext_data + ctx->sg_plaintext_num_elem;
 		sg_set_page(sg, page, copy, offset);
+		sg_unmark_end(sg);
+
 		ctx->sg_plaintext_num_elem++;
 
 		sk_mem_charge(sk, copy);
