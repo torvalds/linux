@@ -562,7 +562,7 @@ a_bus_req_store(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR_RW(a_bus_req);
 
 static ssize_t
-set_a_clr_err(struct device *dev, struct device_attribute *attr,
+a_clr_err_store(struct device *dev, struct device_attribute *attr,
 	      const char *buf, size_t count)
 {
 	struct mv_otg *mvotg = dev_get_drvdata(dev);
@@ -586,7 +586,7 @@ set_a_clr_err(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(a_clr_err, S_IWUSR, NULL, set_a_clr_err);
+static DEVICE_ATTR_WO(a_clr_err);
 
 static ssize_t
 a_bus_drop_show(struct device *dev, struct device_attribute *attr,

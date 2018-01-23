@@ -218,7 +218,7 @@ static int valid_port(__u32 pdev_nr, __u32 rhport)
 	return 1;
 }
 
-static ssize_t store_detach(struct device *dev, struct device_attribute *attr,
+static ssize_t detach_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	__u32 port = 0, pdev_nr = 0, rhport = 0;
@@ -256,7 +256,7 @@ static ssize_t store_detach(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
-static DEVICE_ATTR(detach, S_IWUSR, NULL, store_detach);
+static DEVICE_ATTR_WO(detach);
 
 static int valid_args(__u32 pdev_nr, __u32 rhport, enum usb_device_speed speed)
 {
@@ -292,7 +292,7 @@ static int valid_args(__u32 pdev_nr, __u32 rhport, enum usb_device_speed speed)
  *
  * write() returns 0 on success, else negative errno.
  */
-static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
+static ssize_t attach_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	struct socket *socket;
@@ -387,7 +387,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
-static DEVICE_ATTR(attach, S_IWUSR, NULL, store_attach);
+static DEVICE_ATTR_WO(attach);
 
 #define MAX_STATUS_NAME 16
 
