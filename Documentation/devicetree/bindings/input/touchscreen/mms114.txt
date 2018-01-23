@@ -1,7 +1,9 @@
-* MELFAS MMS114 touchscreen controller
+* MELFAS MMS114/MMS152 touchscreen controller
 
 Required properties:
-- compatible: must be "melfas,mms114"
+- compatible: should be one of:
+	- "melfas,mms114"
+	- "melfas,mms152"
 - reg: I2C address of the chip
 - interrupts: interrupt to which the chip is connected
 - touchscreen-size-x: See [1]
