@@ -18,7 +18,7 @@
 #define MAX_KMEM_PAGES (sizeof(unsigned long) << 3)
 #define SCLP_CONSOLE_PAGES	6
 
-#define SCLP_EVTYP_MASK(T)	(1U << (32 - (T)))
+#define SCLP_EVTYP_MASK(T) (1UL << (sizeof(sccb_mask_t) * BITS_PER_BYTE - (T)))
 
 #define EVTYP_OPCMD		0x01
 #define EVTYP_MSG		0x02
@@ -230,8 +230,8 @@ void sclp_early_wait_irq(void);
 int sclp_early_cmd(sclp_cmdw_t cmd, void *sccb);
 unsigned int sclp_early_con_check_linemode(struct init_sccb *sccb);
 int sclp_early_set_event_mask(struct init_sccb *sccb,
-			      unsigned long receive_mask,
-			      unsigned long send_mask);
+			      sccb_mask_t receive_mask,
+			      sccb_mask_t send_mask);
 
 /* useful inlines */
 

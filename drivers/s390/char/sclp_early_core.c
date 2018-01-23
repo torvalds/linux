@@ -142,8 +142,8 @@ static void sclp_early_print_vt220(const char *str, unsigned int len)
 }
 
 int sclp_early_set_event_mask(struct init_sccb *sccb,
-			      unsigned long receive_mask,
-			      unsigned long send_mask)
+			      sccb_mask_t receive_mask,
+			      sccb_mask_t send_mask)
 {
 	memset(sccb, 0, sizeof(*sccb));
 	sccb->header.length = sizeof(*sccb);

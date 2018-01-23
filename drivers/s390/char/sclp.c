@@ -417,7 +417,7 @@ sclp_dispatch_evbufs(struct sccb_header *sccb)
 		reg = NULL;
 		list_for_each(l, &sclp_reg_list) {
 			reg = list_entry(l, struct sclp_register, list);
-			if (reg->receive_mask & (1 << (32 - evbuf->type)))
+			if (reg->receive_mask & SCLP_EVTYP_MASK(evbuf->type))
 				break;
 			else
 				reg = NULL;
@@ -748,7 +748,7 @@ EXPORT_SYMBOL(sclp_remove_processed);
 
 /* Prepare init mask request. Called while sclp_lock is locked. */
 static inline void
-__sclp_make_init_req(u32 receive_mask, u32 send_mask)
+__sclp_make_init_req(sccb_mask_t receive_mask, sccb_mask_t send_mask)
 {
 	struct init_sccb *sccb;
 
@@ -761,7 +761,7 @@ __sclp_make_init_req(u32 receive_mask, u32 send_mask)
 	sclp_init_req.callback = NULL;
 	sclp_init_req.callback_data = NULL;
 	sclp_init_req.sccb = sccb;
-	sccb->header.length = sizeof(struct init_sccb);
+	sccb->header.length = sizeof(*sccb);
 	sccb->mask_length = sizeof(sccb_mask_t);
 	sccb->receive_mask = receive_mask;
 	sccb->send_mask = send_mask;
