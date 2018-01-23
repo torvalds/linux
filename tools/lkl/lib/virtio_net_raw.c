@@ -13,9 +13,13 @@
 #include <string.h>
 #include <unistd.h>
 #include <net/if.h>
+#include <arpa/inet.h>
+#ifdef __linux__
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
-#include <arpa/inet.h>
+#elif __FreeBSD__
+#include <netinet/in.h>
+#endif
 #include <fcntl.h>
 
 #include "virtio.h"
@@ -28,6 +32,7 @@
 
 struct lkl_netdev *lkl_netdev_raw_create(const char *ifname)
 {
+#ifdef __linux__
 	int ret;
 	int ifindex =  if_nametoindex(ifname);
 	struct sockaddr_ll ll = {
@@ -39,7 +44,10 @@ struct lkl_netdev *lkl_netdev_raw_create(const char *ifname)
 		.mr_type = PACKET_MR_PROMISC,
 		.mr_ifindex = ifindex,
 	};
-	int fd, fd_flags, val;
+#endif
+	int fd, fd_flags;
+#ifdef __linux__
+	int val;
 
 	if (ifindex < 0) {
 		perror("if_nametoindex");
@@ -47,11 +55,15 @@ struct lkl_netdev *lkl_netdev_raw_create(const char *ifname)
 	}
 
 	fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+#elif __FreeBSD__
+	fd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+#endif
 	if (fd < 0) {
 		perror("socket");
 		return NULL;
 	}
 
+#ifdef __linux__
 	ret = bind(fd, (struct sockaddr *)&ll, sizeof(ll));
 	if (ret) {
 		perror("bind");
@@ -72,6 +84,7 @@ struct lkl_netdev *lkl_netdev_raw_create(const char *ifname)
 			 sizeof(val));
 	if (ret)
 		perror("PACKET_QDISC_BYPASS, ignoring");
+#endif
 
 	fd_flags = fcntl(fd, F_GETFD, NULL);
 	fcntl(fd, F_SETFL, fd_flags | O_NONBLOCK);

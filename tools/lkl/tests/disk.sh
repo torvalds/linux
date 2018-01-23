@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 script_dir=$(cd $(dirname ${BASH_SOURCE:-$0}); pwd)
 
@@ -20,6 +20,12 @@ function prepfs()
         rm $file
         file=$ANDROID_WDIR/$(basename $file)
     fi
+    if ! [ -z $BSD_WDIR ]; then
+        $MYSSH mkdir -p $BSD_WDIR
+        ssh_copy $file $BSD_WDIR
+        rm $file
+        file=$BSD_WDIR/$(basename $file)
+    fi
 
     export_vars file
 }
@@ -31,6 +37,9 @@ function cleanfs()
     if ! [ -z $ANDROID_WDIR ]; then
         adb shell rm $1
         adb shell rm $ANDROID_WDIR/disk
+    elif ! [ -z $BSD_WDIR ]; then
+        $MYSSH rm $1
+        $MYSSH rm $BSD_WDIR/disk
     else
         rm $1
     fi

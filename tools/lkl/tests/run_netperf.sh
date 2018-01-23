@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Usage
 #  ./run_netperf.sh [ip] [test_name] [use_taskset] [num_runs]

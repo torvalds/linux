@@ -2,6 +2,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#endif
 #ifdef __MINGW32__
 #include <winsock2.h>
 #else
@@ -98,7 +101,7 @@ static int lkl_test_icmp(void)
 	int sock, ret;
 	struct lkl_iphdr *iph;
 	struct lkl_icmphdr *icmp;
-	struct sockaddr_in saddr;
+	struct lkl_sockaddr_in saddr;
 	struct lkl_pollfd pfd;
 	char buf[32];
 
@@ -107,9 +110,10 @@ static int lkl_test_icmp(void)
 
 	memset(&saddr, 0, sizeof(saddr));
 	saddr.sin_family = AF_INET;
-	saddr.sin_addr.s_addr = cla.dst;
+	saddr.sin_addr.lkl_s_addr = cla.dst;
 
-	lkl_test_logf("pinging %s\n", inet_ntoa(saddr.sin_addr));
+	lkl_test_logf("pinging %s\n",
+		      inet_ntoa(*(struct in_addr *)&saddr.sin_addr));
 
 	sock = lkl_sys_socket(LKL_AF_INET, LKL_SOCK_RAW, LKL_IPPROTO_ICMP);
 	if (sock < 0) {

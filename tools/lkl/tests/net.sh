@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 script_dir=$(cd $(dirname ${BASH_SOURCE:-$0}); pwd)
 
@@ -77,12 +77,17 @@ setup_backend()
     "tap")
         tap_prepare
         if ! lkl_test_cmd test -c /dev/net/tun; then
-            echo "missing /dev/net/tun"
-            return $TEST_SKIP
+            if [ -z "$LKL_HOST_CONFIG_BSD" ]; then
+                echo "missing /dev/net/tun"
+                return $TEST_SKIP
+            fi
         fi
         tap_setup
         ;;
     "raw")
+        if [ -n "$LKL_HOST_CONFIG_BSD" ]; then
+            return $TEST_SKIP
+        fi
         get_test_ip
         ;;
     "macvtap")
@@ -121,11 +126,13 @@ run_tests()
         lkl_test_exec $script_dir/net-test --backend pipe \
                       --ifname "$fifo1|$fifo2" \
                       --ip $(ip_host) --netmask-len $TEST_IP_NETMASK \
-                      --sleep 10 >/dev/null &
-        lkl_test_exec $script_dir/net-test --backend pipe \
+                      --sleep 30 >/dev/null &
+        cp $script_dir/net-test $script_dir/net-test2
+        lkl_test_exec $script_dir/net-test2 --backend pipe \
                       --ifname "$fifo2|$fifo1" \
                       --ip $(ip_lkl) --netmask-len $TEST_IP_NETMASK \
                       --dst $(ip_host)
+        rm -f $script_dir/net-test2
         wait
         ;;
     "tap")

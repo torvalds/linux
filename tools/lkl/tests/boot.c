@@ -6,12 +6,16 @@
 #include <stdint.h>
 #include <lkl.h>
 #include <lkl_host.h>
-#ifndef __MINGW32__
+
 #include <sys/stat.h>
 #include <fcntl.h>
+#if defined(__FreeBSD__)
+#include <net/if.h>
 #include <sys/ioctl.h>
+#elif __linux
 #include <sys/epoll.h>
-#else
+#include <sys/ioctl.h>
+#elif __MINGW32__
 #include <windows.h>
 #endif
 

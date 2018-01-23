@@ -48,10 +48,12 @@ do_steps: &do_steps
           sudo cp tools/lkl/bin/i686-w64-mingw32-* /usr/bin;
         fi
   - run:
-      name: start android emulator
+      name: start emulator
       command: |
         if [[ $CROSS_COMPILE == *android* ]]; then
           emulator -avd Nexus5_API24 -no-window -no-audio -no-boot-anim;
+        elif [[ $CROSS_COMPILE == *freebsd* ]]; then
+          cd /home/ubuntu && $QEMU
         fi
       background: true
   - run: cd tools/lkl && make -j8 ${MKARG}
@@ -60,10 +62,15 @@ do_steps: &do_steps
        - /home/ubuntu/.ccache
      key: compiler-cache-{{ checksum "~/_cross_compile" }}-{{ epoch }}
   - run:
-      name: wait android emulator to boot
+      name: wait emulator to boot
       command: |
         if [[ $CROSS_COMPILE == *android* ]]; then
           /home/ubuntu/circle-android.sh wait-for-boot;
+        elif [[ $CROSS_COMPILE == *freebsd* ]]; then
+          while ! $MYSSH -o ConnectTimeout=1 exit 2> /dev/null
+          do
+             sleep 5
+          done
         fi
   - run:
       name: run tests
@@ -118,6 +125,13 @@ jobs:
      ANDROID_SDK_ROOT: /home/ubuntu/android-sdk
    <<: *do_steps
 
+  freebsd11_x86_64:
+   docker:
+     - image: lkldocker/circleci-freebsd11-x86_64:0.1
+   environment:
+     CROSS_COMPILE: "x86_64-pc-freebsd11-"
+   <<: *do_steps
+
   x86_64_valgrind:
    docker:
      - image: lkldocker/circleci-x86_64:0.5
@@ -150,6 +164,7 @@ workflows:
      - mingw32
      - android-arm32
      - android-aarch64
+     - freebsd11_x86_64
      - checkpatch
   nightly:
     triggers:
