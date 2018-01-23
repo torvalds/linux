@@ -1800,12 +1800,10 @@ sleep:
 		if (unlikely(test_bit(BTRFS_FS_STATE_ERROR,
 				      &fs_info->fs_state)))
 			btrfs_cleanup_transaction(fs_info);
-		set_current_state(TASK_INTERRUPTIBLE);
 		if (!kthread_should_stop() &&
 				(!btrfs_transaction_blocked(fs_info) ||
 				 cannot_commit))
-			schedule_timeout(delay);
-		__set_current_state(TASK_RUNNING);
+			schedule_timeout_interruptible(delay);
 	} while (!kthread_should_stop());
 	return 0;
 }
