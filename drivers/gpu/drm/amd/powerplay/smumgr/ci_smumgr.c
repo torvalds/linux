@@ -411,8 +411,7 @@ static uint8_t ci_get_sleep_divider_id_from_clock(uint32_t clock,
 }
 
 static int ci_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
-		uint32_t clock, uint16_t sclk_al_threshold,
-		struct SMU7_Discrete_GraphicsLevel *level)
+		uint32_t clock, struct SMU7_Discrete_GraphicsLevel *level)
 {
 	int result;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
@@ -438,7 +437,7 @@ static int ci_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 				clock,
 				&level->MinVddcPhases);
 
-	level->ActivityLevel = sclk_al_threshold;
+	level->ActivityLevel = data->current_profile_setting.sclk_activity;
 	level->CcPwrDynRm = 0;
 	level->CcPwrDynRm1 = 0;
 	level->EnabledForActivity = 0;
@@ -492,7 +491,6 @@ static int ci_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 	for (i = 0; i < dpm_table->sclk_table.count; i++) {
 		result = ci_populate_single_graphic_level(hwmgr,
 				dpm_table->sclk_table.dpm_levels[i].value,
-				data->current_profile_setting.sclk_activity,
 				&levels[i]);
 		if (result)
 			return result;

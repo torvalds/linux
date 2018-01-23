@@ -934,8 +934,7 @@ static int polaris10_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 }
 
 static int polaris10_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
-		uint32_t clock, uint16_t sclk_al_threshold,
-		struct SMU74_Discrete_GraphicsLevel *level)
+		uint32_t clock, struct SMU74_Discrete_GraphicsLevel *level)
 {
 	int result;
 	/* PP_Clocks minClocks; */
@@ -962,7 +961,7 @@ static int polaris10_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 			"can not find VDDC voltage value for "
 			"VDDC engine clock dependency table",
 			return result);
-	level->ActivityLevel = sclk_al_threshold;
+	level->ActivityLevel = data->current_profile_setting.sclk_activity;
 
 	level->CcPwrDynRm = 0;
 	level->CcPwrDynRm1 = 0;
@@ -1033,7 +1032,6 @@ static int polaris10_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 
 		result = polaris10_populate_single_graphic_level(hwmgr,
 				dpm_table->sclk_table.dpm_levels[i].value,
-				hw_data->current_profile_setting.sclk_activity,
 				&(smu_data->smc_state_table.GraphicsLevel[i]));
 		if (result)
 			return result;

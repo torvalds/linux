@@ -608,7 +608,6 @@ static int tonga_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 
 static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 						uint32_t engine_clock,
-				uint16_t sclk_activity_level_threshold,
 				SMU72_Discrete_GraphicsLevel *graphic_level)
 {
 	int result;
@@ -636,7 +635,7 @@ static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	/* SCLK frequency in units of 10KHz*/
 	graphic_level->SclkFrequency = engine_clock;
 	/* Indicates maximum activity level for this performance level. 50% for now*/
-	graphic_level->ActivityLevel = sclk_activity_level_threshold;
+	graphic_level->ActivityLevel = data->current_profile_setting.sclk_activity;
 
 	graphic_level->CcPwrDynRm = 0;
 	graphic_level->CcPwrDynRm1 = 0;
@@ -704,7 +703,6 @@ static int tonga_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 	for (i = 0; i < dpm_table->sclk_table.count; i++) {
 		result = tonga_populate_single_graphic_level(hwmgr,
 					dpm_table->sclk_table.dpm_levels[i].value,
-					data->current_profile_setting.sclk_activity,
 					&(smu_data->smc_state_table.GraphicsLevel[i]));
 		if (result != 0)
 			return result;

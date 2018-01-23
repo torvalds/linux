@@ -968,8 +968,7 @@ static int fiji_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 }
 
 static int fiji_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
-		uint32_t clock, uint16_t sclk_al_threshold,
-		struct SMU73_Discrete_GraphicsLevel *level)
+		uint32_t clock, struct SMU73_Discrete_GraphicsLevel *level)
 {
 	int result;
 	/* PP_Clocks minClocks; */
@@ -996,7 +995,7 @@ static int fiji_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 			return result);
 
 	level->SclkFrequency = clock;
-	level->ActivityLevel = sclk_al_threshold;
+	level->ActivityLevel = data->current_profile_setting.sclk_activity;
 	level->CcPwrDynRm = 0;
 	level->CcPwrDynRm1 = 0;
 	level->EnabledForActivity = 0;
@@ -1059,7 +1058,6 @@ static int fiji_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 	for (i = 0; i < dpm_table->sclk_table.count; i++) {
 		result = fiji_populate_single_graphic_level(hwmgr,
 				dpm_table->sclk_table.dpm_levels[i].value,
-				data->current_profile_setting.sclk_activity,
 				&levels[i]);
 		if (result)
 			return result;

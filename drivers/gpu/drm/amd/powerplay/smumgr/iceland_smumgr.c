@@ -894,7 +894,6 @@ static int iceland_populate_phase_value_based_on_sclk(struct pp_hwmgr *hwmgr,
 
 static int iceland_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 						uint32_t engine_clock,
-				uint16_t sclk_activity_level_threshold,
 				SMU71_Discrete_GraphicsLevel *graphic_level)
 {
 	int result;
@@ -920,7 +919,7 @@ static int iceland_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 				&graphic_level->MinVddcPhases);
 
 	/* Indicates maximum activity level for this performance level. 50% for now*/
-	graphic_level->ActivityLevel = sclk_activity_level_threshold;
+	graphic_level->ActivityLevel = data->current_profile_setting.sclk_activity;
 
 	graphic_level->CcPwrDynRm = 0;
 	graphic_level->CcPwrDynRm1 = 0;
@@ -985,7 +984,6 @@ static int iceland_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 	for (i = 0; i < dpm_table->sclk_table.count; i++) {
 		result = iceland_populate_single_graphic_level(hwmgr,
 					dpm_table->sclk_table.dpm_levels[i].value,
-					data->current_profile_setting.sclk_activity,
 					&(smu_data->smc_state_table.GraphicsLevel[i]));
 		if (result != 0)
 			return result;
