@@ -8766,6 +8766,7 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.result = ACCEPT,
+		.retval = 1,
 	},
 	{
 		"check deducing bounds from const, 3",
