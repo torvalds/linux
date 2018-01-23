@@ -165,7 +165,7 @@ static void update_display_visual(struct usb_sevsegdev *mydev, gfp_t mf)
 }
 
 #define MYDEV_ATTR_SIMPLE_UNSIGNED(name, update_fcn)		\
-static ssize_t show_attr_##name(struct device *dev, 		\
+static ssize_t name##_show(struct device *dev,			\
 	struct device_attribute *attr, char *buf) 		\
 {								\
 	struct usb_interface *intf = to_usb_interface(dev);	\
@@ -174,7 +174,7 @@ static ssize_t show_attr_##name(struct device *dev, 		\
 	return sprintf(buf, "%u\n", mydev->name);		\
 }								\
 								\
-static ssize_t set_attr_##name(struct device *dev, 		\
+static ssize_t name##_store(struct device *dev,			\
 	struct device_attribute *attr, const char *buf, size_t count) \
 {								\
 	struct usb_interface *intf = to_usb_interface(dev);	\
@@ -185,7 +185,7 @@ static ssize_t set_attr_##name(struct device *dev, 		\
 								\
 	return count;						\
 }								\
-static DEVICE_ATTR(name, S_IRUGO | S_IWUSR, show_attr_##name, set_attr_##name);
+static DEVICE_ATTR_RW(name);
 
 static ssize_t text_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
