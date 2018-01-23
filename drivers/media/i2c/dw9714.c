@@ -60,7 +60,7 @@ static inline struct dw9714_device *sd_to_dw9714_vcm(struct v4l2_subdev *subdev)
 static int dw9714_i2c_write(struct i2c_client *client, u16 data)
 {
 	int ret;
-	u16 val = cpu_to_be16(data);
+	__be16 val = cpu_to_be16(data);
 
 	ret = i2c_master_send(client, (const char *)&val, sizeof(val));
 	if (ret != sizeof(val)) {
