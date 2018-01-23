@@ -58,6 +58,19 @@ static struct cpu_freqs *all_freqs[NR_CPUS];
 
 static unsigned int next_offset;
 
+
+/* Caller must hold rcu_read_lock() */
+static struct uid_entry *find_uid_entry_rcu(uid_t uid)
+{
+	struct uid_entry *uid_entry;
+
+	hash_for_each_possible_rcu(uid_hash_table, uid_entry, hash, uid) {
+		if (uid_entry->uid == uid)
+			return uid_entry;
+	}
+	return NULL;
+}
+
 /* Caller must hold uid lock */
 static struct uid_entry *find_uid_entry_locked(uid_t uid)
 {
@@ -123,6 +136,36 @@ static bool freq_index_invalid(unsigned int index)
 			CPUFREQ_ENTRY_INVALID;
 	}
 	return true;
+}
+
+static int single_uid_time_in_state_show(struct seq_file *m, void *ptr)
+{
+	struct uid_entry *uid_entry;
+	unsigned int i;
+	u64 time;
+	uid_t uid = from_kuid_munged(current_user_ns(), *(kuid_t *)m->private);
+
+	if (uid == overflowuid)
+		return -EINVAL;
+
+	rcu_read_lock();
+
+	uid_entry = find_uid_entry_rcu(uid);
+	if (!uid_entry) {
+		rcu_read_unlock();
+		return 0;
+	}
+
+	for (i = 0; i < uid_entry->max_state; ++i) {
+		if (freq_index_invalid(i))
+			continue;
+		time = cputime_to_clock_t(uid_entry->time_in_state[i]);
+		seq_write(m, &time, sizeof(time));
+	}
+
+	rcu_read_unlock();
+
+	return 0;
 }
 
 static void *uid_seq_start(struct seq_file *seq, loff_t *pos)
@@ -387,6 +430,12 @@ static const struct seq_operations uid_time_in_state_seq_ops = {
 static int uid_time_in_state_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &uid_time_in_state_seq_ops);
+}
+
+int single_uid_time_in_state_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, single_uid_time_in_state_show,
+			&(inode->i_uid));
 }
 
 static const struct file_operations uid_time_in_state_fops = {
