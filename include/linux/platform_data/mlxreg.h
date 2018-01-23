@@ -39,7 +39,7 @@
  * @adapter: I2C device adapter;
  * @client: I2C device client;
  * @brdinfo: device board information;
- * @bus: I2C bus, where device is attached;
+ * @nr: I2C device adapter number, to which device is to be attached;
  *
  * Structure represents I2C hotplug device static data (board topology) and
  * dynamic data (related kernel objects handles).
@@ -48,7 +48,7 @@ struct mlxreg_hotplug_device {
 	struct i2c_adapter *adapter;
 	struct i2c_client *client;
 	struct i2c_board_info brdinfo;
-	u16 bus;
+	int nr;
 };
 
 /**

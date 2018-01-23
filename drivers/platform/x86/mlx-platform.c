@@ -141,41 +141,41 @@ static struct i2c_mux_reg_platform_data mlxplat_mux_data[] = {
 static struct mlxreg_hotplug_device mlxplat_mlxcpld_psu[] = {
 	{
 		.brdinfo = { I2C_BOARD_INFO("24c02", 0x51) },
-		.bus = 10,
+		.nr = 10,
 	},
 	{
 		.brdinfo = { I2C_BOARD_INFO("24c02", 0x50) },
-		.bus = 10,
+		.nr = 10,
 	},
 };
 
 static struct mlxreg_hotplug_device mlxplat_mlxcpld_pwr[] = {
 	{
 		.brdinfo = { I2C_BOARD_INFO("dps460", 0x59) },
-		.bus = 10,
+		.nr = 10,
 	},
 	{
 		.brdinfo = { I2C_BOARD_INFO("dps460", 0x58) },
-		.bus = 10,
+		.nr = 10,
 	},
 };
 
 static struct mlxreg_hotplug_device mlxplat_mlxcpld_fan[] = {
 	{
 		.brdinfo = { I2C_BOARD_INFO("24c32", 0x50) },
-		.bus = 11,
+		.nr = 11,
 	},
 	{
 		.brdinfo = { I2C_BOARD_INFO("24c32", 0x50) },
-		.bus = 12,
+		.nr = 12,
 	},
 	{
 		.brdinfo = { I2C_BOARD_INFO("24c32", 0x50) },
-		.bus = 13,
+		.nr = 13,
 	},
 	{
 		.brdinfo = { I2C_BOARD_INFO("24c32", 0x50) },
-		.bus = 14,
+		.nr = 14,
 	},
 };
 
