@@ -795,7 +795,7 @@ struct fe_priv {
 	 */
 	union ring_type get_rx, put_rx, last_rx;
 	struct nv_skb_map *get_rx_ctx, *put_rx_ctx;
-	struct nv_skb_map *first_rx_ctx, *last_rx_ctx;
+	struct nv_skb_map *last_rx_ctx;
 	struct nv_skb_map *rx_skb;
 
 	union ring_type rx_ring;
@@ -1835,7 +1835,7 @@ static int nv_alloc_rx(struct net_device *dev)
 			if (unlikely(np->put_rx.orig++ == np->last_rx.orig))
 				np->put_rx.orig = np->rx_ring.orig;
 			if (unlikely(np->put_rx_ctx++ == np->last_rx_ctx))
-				np->put_rx_ctx = np->first_rx_ctx;
+				np->put_rx_ctx = np->rx_skb;
 		} else {
 packet_dropped:
 			u64_stats_update_begin(&np->swstats_rx_syncp);
@@ -1877,7 +1877,7 @@ static int nv_alloc_rx_optimized(struct net_device *dev)
 			if (unlikely(np->put_rx.ex++ == np->last_rx.ex))
 				np->put_rx.ex = np->rx_ring.ex;
 			if (unlikely(np->put_rx_ctx++ == np->last_rx_ctx))
-				np->put_rx_ctx = np->first_rx_ctx;
+				np->put_rx_ctx = np->rx_skb;
 		} else {
 packet_dropped:
 			u64_stats_update_begin(&np->swstats_rx_syncp);
@@ -1910,7 +1910,8 @@ static void nv_init_rx(struct net_device *dev)
 		np->last_rx.orig = &np->rx_ring.orig[np->rx_ring_size-1];
 	else
 		np->last_rx.ex = &np->rx_ring.ex[np->rx_ring_size-1];
-	np->get_rx_ctx = np->put_rx_ctx = np->first_rx_ctx = np->rx_skb;
+	np->get_rx_ctx = np->rx_skb;
+	np->put_rx_ctx = np->rx_skb;
 	np->last_rx_ctx = &np->rx_skb[np->rx_ring_size-1];
 
 	for (i = 0; i < np->rx_ring_size; i++) {
@@ -2914,7 +2915,7 @@ next_pkt:
 		if (unlikely(np->get_rx.orig++ == np->last_rx.orig))
 			np->get_rx.orig = np->rx_ring.orig;
 		if (unlikely(np->get_rx_ctx++ == np->last_rx_ctx))
-			np->get_rx_ctx = np->first_rx_ctx;
+			np->get_rx_ctx = np->rx_skb;
 
 		rx_work++;
 	}
@@ -3003,7 +3004,7 @@ next_pkt:
 		if (unlikely(np->get_rx.ex++ == np->last_rx.ex))
 			np->get_rx.ex = np->rx_ring.ex;
 		if (unlikely(np->get_rx_ctx++ == np->last_rx_ctx))
-			np->get_rx_ctx = np->first_rx_ctx;
+			np->get_rx_ctx = np->rx_skb;
 
 		rx_work++;
 	}
