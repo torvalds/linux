@@ -1041,6 +1041,134 @@ void i40evf_disable_channels(struct i40evf_adapter *adapter)
 }
 
 /**
+ * i40evf_print_cloud_filter
+ * @adapter: adapter structure
+ * @f: cloud filter to print
+ *
+ * Print the cloud filter
+ **/
+static void i40evf_print_cloud_filter(struct i40evf_adapter *adapter,
+				      struct virtchnl_filter f)
+{
+	switch (f.flow_type) {
+	case VIRTCHNL_TCP_V4_FLOW:
+		dev_info(&adapter->pdev->dev, "dst_mac: %pM src_mac: %pM vlan_id: %hu dst_ip: %pI4 src_ip %pI4 dst_port %hu src_port %hu\n",
+			 &f.data.tcp_spec.dst_mac, &f.data.tcp_spec.src_mac,
+			 ntohs(f.data.tcp_spec.vlan_id),
+			 &f.data.tcp_spec.dst_ip[0], &f.data.tcp_spec.src_ip[0],
+			 ntohs(f.data.tcp_spec.dst_port),
+			 ntohs(f.data.tcp_spec.src_port));
+		break;
+	case VIRTCHNL_TCP_V6_FLOW:
+		dev_info(&adapter->pdev->dev, "dst_mac: %pM src_mac: %pM vlan_id: %hu dst_ip: %pI6 src_ip %pI6 dst_port %hu src_port %hu\n",
+			 &f.data.tcp_spec.dst_mac, &f.data.tcp_spec.src_mac,
+			 ntohs(f.data.tcp_spec.vlan_id),
+			 &f.data.tcp_spec.dst_ip, &f.data.tcp_spec.src_ip,
+			 ntohs(f.data.tcp_spec.dst_port),
+			 ntohs(f.data.tcp_spec.src_port));
+		break;
+	}
+}
+
+/**
+ * i40evf_add_cloud_filter
+ * @adapter: adapter structure
+ *
+ * Request that the PF add cloud filters as specified
+ * by the user via tc tool.
+ **/
+void i40evf_add_cloud_filter(struct i40evf_adapter *adapter)
+{
+	struct i40evf_cloud_filter *cf;
+	struct virtchnl_filter *f;
+	int len = 0, count = 0;
+
+	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot add cloud filter, command %d pending\n",
+			adapter->current_op);
+		return;
+	}
+	list_for_each_entry(cf, &adapter->cloud_filter_list, list) {
+		if (cf->add) {
+			count++;
+			break;
+		}
+	}
+	if (!count) {
+		adapter->aq_required &= ~I40EVF_FLAG_AQ_ADD_CLOUD_FILTER;
+		return;
+	}
+	adapter->current_op = VIRTCHNL_OP_ADD_CLOUD_FILTER;
+
+	len = sizeof(struct virtchnl_filter);
+	f = kzalloc(len, GFP_KERNEL);
+	if (!f)
+		return;
+
+	list_for_each_entry(cf, &adapter->cloud_filter_list, list) {
+		if (cf->add) {
+			memcpy(f, &cf->f, sizeof(struct virtchnl_filter));
+			cf->add = false;
+			cf->state = __I40EVF_CF_ADD_PENDING;
+			i40evf_send_pf_msg(adapter,
+					   VIRTCHNL_OP_ADD_CLOUD_FILTER,
+					   (u8 *)f, len);
+		}
+	}
+	kfree(f);
+}
+
+/**
+ * i40evf_del_cloud_filter
+ * @adapter: adapter structure
+ *
+ * Request that the PF delete cloud filters as specified
+ * by the user via tc tool.
+ **/
+void i40evf_del_cloud_filter(struct i40evf_adapter *adapter)
+{
+	struct i40evf_cloud_filter *cf, *cftmp;
+	struct virtchnl_filter *f;
+	int len = 0, count = 0;
+
+	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot remove cloud filter, command %d pending\n",
+			adapter->current_op);
+		return;
+	}
+	list_for_each_entry(cf, &adapter->cloud_filter_list, list) {
+		if (cf->del) {
+			count++;
+			break;
+		}
+	}
+	if (!count) {
+		adapter->aq_required &= ~I40EVF_FLAG_AQ_DEL_CLOUD_FILTER;
+		return;
+	}
+	adapter->current_op = VIRTCHNL_OP_DEL_CLOUD_FILTER;
+
+	len = sizeof(struct virtchnl_filter);
+	f = kzalloc(len, GFP_KERNEL);
+	if (!f)
+		return;
+
+	list_for_each_entry_safe(cf, cftmp, &adapter->cloud_filter_list, list) {
+		if (cf->del) {
+			memcpy(f, &cf->f, sizeof(struct virtchnl_filter));
+			cf->del = false;
+			cf->state = __I40EVF_CF_DEL_PENDING;
+			i40evf_send_pf_msg(adapter,
+					   VIRTCHNL_OP_DEL_CLOUD_FILTER,
+					   (u8 *)f, len);
+		}
+	}
+	kfree(f);
+}
+
+/**
  * i40evf_request_reset
  * @adapter: adapter structure
  *
@@ -1163,6 +1291,42 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 			adapter->ch_config.state = __I40EVF_TC_RUNNING;
 			netif_tx_start_all_queues(netdev);
 			break;
+		case VIRTCHNL_OP_ADD_CLOUD_FILTER: {
+			struct i40evf_cloud_filter *cf, *cftmp;
+
+			list_for_each_entry_safe(cf, cftmp,
+						 &adapter->cloud_filter_list,
+						 list) {
+				if (cf->state == __I40EVF_CF_ADD_PENDING) {
+					cf->state = __I40EVF_CF_INVALID;
+					dev_info(&adapter->pdev->dev, "Failed to add cloud filter, error %s\n",
+						 i40evf_stat_str(&adapter->hw,
+								 v_retval));
+					i40evf_print_cloud_filter(adapter,
+								  cf->f);
+					list_del(&cf->list);
+					kfree(cf);
+					adapter->num_cloud_filters--;
+				}
+			}
+			}
+			break;
+		case VIRTCHNL_OP_DEL_CLOUD_FILTER: {
+			struct i40evf_cloud_filter *cf;
+
+			list_for_each_entry(cf, &adapter->cloud_filter_list,
+					    list) {
+				if (cf->state == __I40EVF_CF_DEL_PENDING) {
+					cf->state = __I40EVF_CF_ACTIVE;
+					dev_info(&adapter->pdev->dev, "Failed to del cloud filter, error %s\n",
+						 i40evf_stat_str(&adapter->hw,
+								 v_retval));
+					i40evf_print_cloud_filter(adapter,
+								  cf->f);
+				}
+			}
+			}
+			break;
 		default:
 			dev_err(&adapter->pdev->dev, "PF returned error %d (%s) to our request %d\n",
 				v_retval,
@@ -1254,6 +1418,29 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 				 vfres->num_queue_pairs);
 			adapter->num_req_queues = 0;
 			adapter->flags &= ~I40EVF_FLAG_REINIT_ITR_NEEDED;
+		}
+		}
+		break;
+	case VIRTCHNL_OP_ADD_CLOUD_FILTER: {
+		struct i40evf_cloud_filter *cf;
+
+		list_for_each_entry(cf, &adapter->cloud_filter_list, list) {
+			if (cf->state == __I40EVF_CF_ADD_PENDING)
+				cf->state = __I40EVF_CF_ACTIVE;
+		}
+		}
+		break;
+	case VIRTCHNL_OP_DEL_CLOUD_FILTER: {
+		struct i40evf_cloud_filter *cf, *cftmp;
+
+		list_for_each_entry_safe(cf, cftmp, &adapter->cloud_filter_list,
+					 list) {
+			if (cf->state == __I40EVF_CF_DEL_PENDING) {
+				cf->state = __I40EVF_CF_INVALID;
+				list_del(&cf->list);
+				kfree(cf);
+				adapter->num_cloud_filters--;
+			}
 		}
 		}
 		break;
