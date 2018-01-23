@@ -9,6 +9,10 @@
 #define PNV_OCXL_TL_BITS_PER_RATE       4
 #define PNV_OCXL_TL_RATE_BUF_SIZE       ((PNV_OCXL_TL_MAX_TEMPLATE+1) * PNV_OCXL_TL_BITS_PER_RATE / 8)
 
+extern int pnv_ocxl_get_actag(struct pci_dev *dev, u16 *base, u16 *enabled,
+			u16 *supported);
+extern int pnv_ocxl_get_pasid_count(struct pci_dev *dev, int *count);
+
 extern int pnv_ocxl_get_tl_cap(struct pci_dev *dev, long *cap,
 			char *rate_buf, int rate_buf_size);
 extern int pnv_ocxl_set_tl_conf(struct pci_dev *dev, long cap,
