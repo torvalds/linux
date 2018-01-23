@@ -21,7 +21,7 @@
 
 #define DEV_CGROUP_PROG "./dev_cgroup.o"
 
-#define TEST_CGROUP "test-bpf-based-device-cgroup/"
+#define TEST_CGROUP "/test-bpf-based-device-cgroup/"
 
 int main(int argc, char **argv)
 {
