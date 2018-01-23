@@ -900,7 +900,7 @@ static int __init lp_setup (char *str)
 			printk(KERN_INFO "lp: too many ports, %s ignored.\n",
 			       str);
 	} else if (!strcmp(str, "reset")) {
-		reset = 1;
+		reset = true;
 	}
 	return 1;
 }
