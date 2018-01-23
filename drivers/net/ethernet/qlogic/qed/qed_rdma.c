@@ -615,9 +615,6 @@ static int qed_rdma_reserve_lkey(struct qed_hwfn *p_hwfn)
 {
 	struct qed_rdma_device *dev = p_hwfn->p_rdma_info->dev;
 
-	/* The first DPI is reserved for the Kernel */
-	__set_bit(0, p_hwfn->p_rdma_info->dpi_map.bitmap);
-
 	/* Tid 0 will be used as the key for "reserved MR".
 	 * The driver should allocate memory for it so it can be loaded but no
 	 * ramrod should be passed on it.
