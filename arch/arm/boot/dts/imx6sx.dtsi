@@ -768,6 +768,11 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 
+					power-domain@0 {
+						reg = <0>;
+						#power-domain-cells = <0>;
+					};
+
 					pd_pu: power-domain@1 {
 						reg = <1>;
 						#power-domain-cells = <0>;
