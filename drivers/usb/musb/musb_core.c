@@ -1778,8 +1778,7 @@ static DEVICE_ATTR_RW(vbus);
 /* Gadget drivers can't know that a host is connected so they might want
  * to start SRP, but users can.  This allows userspace to trigger SRP.
  */
-static ssize_t
-musb_srp_store(struct device *dev, struct device_attribute *attr,
+static ssize_t srp_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t n)
 {
 	struct musb	*musb = dev_to_musb(dev);
@@ -1796,7 +1795,7 @@ musb_srp_store(struct device *dev, struct device_attribute *attr,
 
 	return n;
 }
-static DEVICE_ATTR(srp, 0644, NULL, musb_srp_store);
+static DEVICE_ATTR_WO(srp);
 
 static struct attribute *musb_attributes[] = {
 	&dev_attr_mode.attr,
