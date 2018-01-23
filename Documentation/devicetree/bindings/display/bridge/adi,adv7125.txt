@@ -1,0 +1,49 @@
+Analog Device ADV7125 RGB to VGA DAC bridge
+-------------------------------
+
+The ADV7125 is a digital-to-analog converter that outputs VGA signals from a
+RGB input.
+
+Required properties:
+
+- compatible: Should be "adi,adv7125"
+
+Optional properties:
+
+- psave-gpios: Power save control GPIO
+
+Required nodes:
+
+The ADV7125 has two video ports. Their connections are modeled using the OF
+graph bindings specified in Documentation/devicetree/bindings/graph.txt.
+
+- Video port 0 for RGB input
+- Video port 1 for VGA output
+
+
+Example
+-------
+
+	adv7125: encoder@0 {
+		compatible = "adi,adv7125";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ports {
+			port@0 {
+				reg = <0>;
+
+				adv7125_in: endpoint@0 {
+					remote-endpoint = <&rgb_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				adv7125_out: endpoint@0 {
+					remote-endpoint = <&vga_connector_in>;
+				};
+			};
+		};
+	};
