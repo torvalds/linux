@@ -3876,8 +3876,6 @@ xfs_bmapi_reserve_delalloc(
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
 	xfs_extlen_t		alen;
 	xfs_extlen_t		indlen;
-	char			rt = XFS_IS_REALTIME_INODE(ip);
-	xfs_extlen_t		extsz;
 	int			error;
 	xfs_fileoff_t		aoff = off;
 
@@ -3892,23 +3890,17 @@ xfs_bmapi_reserve_delalloc(
 		prealloc = alen - len;
 
 	/* Figure out the extent size, adjust alen */
-	if (whichfork == XFS_COW_FORK)
-		extsz = xfs_get_cowextsz_hint(ip);
-	else
-		extsz = xfs_get_extsz_hint(ip);
-	if (extsz) {
+	if (whichfork == XFS_COW_FORK) {
 		struct xfs_bmbt_irec	prev;
+		xfs_extlen_t		extsz = xfs_get_cowextsz_hint(ip);
 
 		if (!xfs_iext_peek_prev_extent(ifp, icur, &prev))
 			prev.br_startoff = NULLFILEOFF;
 
-		error = xfs_bmap_extsize_align(mp, got, &prev, extsz, rt, eof,
+		error = xfs_bmap_extsize_align(mp, got, &prev, extsz, 0, eof,
 					       1, 0, &aoff, &alen);
 		ASSERT(!error);
 	}
-
-	if (rt)
-		extsz = alen / mp->m_sb.sb_rextsize;
 
 	/*
 	 * Make a transaction-less quota reservation for delayed allocation
@@ -3916,7 +3908,7 @@ xfs_bmapi_reserve_delalloc(
 	 * allocated blocks already inside this loop.
 	 */
 	error = xfs_trans_reserve_quota_nblks(NULL, ip, (long)alen, 0,
-			rt ? XFS_QMOPT_RES_RTBLKS : XFS_QMOPT_RES_REGBLKS);
+						XFS_QMOPT_RES_REGBLKS);
 	if (error)
 		return error;
 
@@ -3927,12 +3919,7 @@ xfs_bmapi_reserve_delalloc(
 	indlen = (xfs_extlen_t)xfs_bmap_worst_indlen(ip, alen);
 	ASSERT(indlen > 0);
 
-	if (rt) {
-		error = xfs_mod_frextents(mp, -((int64_t)extsz));
-	} else {
-		error = xfs_mod_fdblocks(mp, -((int64_t)alen), false);
-	}
-
+	error = xfs_mod_fdblocks(mp, -((int64_t)alen), false);
 	if (error)
 		goto out_unreserve_quota;
 
@@ -3963,14 +3950,11 @@ xfs_bmapi_reserve_delalloc(
 	return 0;
 
 out_unreserve_blocks:
-	if (rt)
-		xfs_mod_frextents(mp, extsz);
-	else
-		xfs_mod_fdblocks(mp, alen, false);
+	xfs_mod_fdblocks(mp, alen, false);
 out_unreserve_quota:
 	if (XFS_IS_QUOTA_ON(mp))
-		xfs_trans_unreserve_quota_nblks(NULL, ip, (long)alen, 0, rt ?
-				XFS_QMOPT_RES_RTBLKS : XFS_QMOPT_RES_REGBLKS);
+		xfs_trans_unreserve_quota_nblks(NULL, ip, (long)alen, 0,
+						XFS_QMOPT_RES_REGBLKS);
 	return error;
 }
 
