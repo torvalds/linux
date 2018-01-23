@@ -316,7 +316,6 @@ void dc_stream_set_dither_option(struct dc_stream_state *stream,
 		}
 	}
 
-	memset(&params, 0, sizeof(params));
 	if (!pipes)
 		return;
 	if (option > DITHER_OPTION_MAX)
@@ -324,9 +323,18 @@ void dc_stream_set_dither_option(struct dc_stream_state *stream,
 
 	stream->dither_option = option;
 
-	resource_build_bit_depth_reduction_params(stream,
-				&params);
+	memset(&params, 0, sizeof(params));
+	resource_build_bit_depth_reduction_params(stream, &params);
 	stream->bit_depth_params = params;
+
+	if (pipes->plane_res.xfm &&
+	    pipes->plane_res.xfm->funcs->transform_set_pixel_storage_depth) {
+		pipes->plane_res.xfm->funcs->transform_set_pixel_storage_depth(
+			pipes->plane_res.xfm,
+			pipes->plane_res.scl_data.lb_params.depth,
+			&stream->bit_depth_params);
+	}
+
 	pipes->stream_res.opp->funcs->
 		opp_program_bit_depth_reduction(pipes->stream_res.opp, &params);
 }
