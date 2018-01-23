@@ -2,6 +2,7 @@
  * /proc/uid support
  */
 
+#include <linux/cpufreq_times.h>
 #include <linux/fs.h>
 #include <linux/hashtable.h>
 #include <linux/init.h>
@@ -82,7 +83,20 @@ struct uid_entry {
 	.fop	= FOP,					\
 }
 
-static const struct uid_entry uid_base_stuff[] = {};
+#ifdef CONFIG_CPU_FREQ_TIMES
+static const struct file_operations proc_uid_time_in_state_operations = {
+	.open		= single_uid_time_in_state_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+#endif
+
+static const struct uid_entry uid_base_stuff[] = {
+#ifdef CONFIG_CPU_FREQ_TIMES
+	NOD("time_in_state", 0444, NULL, &proc_uid_time_in_state_operations),
+#endif
+};
 
 static const struct inode_operations proc_uid_def_inode_operations = {
 	.setattr	= proc_setattr,
