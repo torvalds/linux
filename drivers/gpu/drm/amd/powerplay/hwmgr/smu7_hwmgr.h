@@ -186,6 +186,17 @@ struct smu7_odn_dpm_table {
 	uint32_t					odn_mclk_min_limit;
 };
 
+struct profile_mode_setting {
+	uint8_t bupdate_sclk;
+	uint8_t sclk_up_hyst;
+	uint8_t sclk_down_hyst;
+	uint16_t sclk_activity;
+	uint8_t bupdate_mclk;
+	uint8_t mclk_up_hyst;
+	uint8_t mclk_down_hyst;
+	uint16_t mclk_activity;
+};
+
 struct smu7_hwmgr {
 	struct smu7_dpm_table			dpm_table;
 	struct smu7_dpm_table			golden_dpm_table;
@@ -289,8 +300,6 @@ struct smu7_hwmgr {
 	struct smu7_pcie_perf_range          pcie_lane_power_saving;
 	bool                                      use_pcie_performance_levels;
 	bool                                      use_pcie_power_saving_levels;
-	uint16_t                                  mclk_activity_target;
-	uint16_t                                  sclk_activity_target;
 	uint32_t                                  mclk_dpm0_activity_target;
 	uint32_t                                  low_sclk_interrupt_threshold;
 	uint32_t                                  last_mclk_dpm_enable_mask;
@@ -316,6 +325,8 @@ struct smu7_hwmgr {
 	uint16_t                              mem_latency_high;
 	uint16_t                              mem_latency_low;
 	uint32_t                              vr_config;
+	struct profile_mode_setting           custom_profile_setting;
+	struct profile_mode_setting           current_profile_setting;
 };
 
 /* To convert to Q8.8 format for firmware */
