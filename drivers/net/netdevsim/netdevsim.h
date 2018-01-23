@@ -68,12 +68,40 @@ struct netdevsim {
 
 extern struct dentry *nsim_ddir;
 
+#ifdef CONFIG_BPF_SYSCALL
 int nsim_bpf_init(struct netdevsim *ns);
 void nsim_bpf_uninit(struct netdevsim *ns);
 int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf);
 int nsim_bpf_disable_tc(struct netdevsim *ns);
 int nsim_bpf_setup_tc_block_cb(enum tc_setup_type type,
 			       void *type_data, void *cb_priv);
+#else
+static inline int nsim_bpf_init(struct netdevsim *ns)
+{
+	return 0;
+}
+
+static inline void nsim_bpf_uninit(struct netdevsim *ns)
+{
+}
+
+static inline int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
+{
+	return bpf->command == XDP_QUERY_PROG ? 0 : -EOPNOTSUPP;
+}
+
+static inline int nsim_bpf_disable_tc(struct netdevsim *ns)
+{
+	return 0;
+}
+
+static inline int
+nsim_bpf_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
+			   void *cb_priv)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 static inline struct netdevsim *to_nsim(struct device *ptr)
 {
