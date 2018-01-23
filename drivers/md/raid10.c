@@ -3784,7 +3784,7 @@ static int raid10_run(struct mddev *mddev)
 		if (fc > 1 || fo > 0) {
 			pr_err("only near layout is supported by clustered"
 				" raid10\n");
-			goto out;
+			goto out_free_conf;
 		}
 	}
 
