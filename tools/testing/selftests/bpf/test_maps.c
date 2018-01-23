@@ -463,7 +463,7 @@ static void test_devmap(int task, void *data)
 #define SOCKMAP_VERDICT_PROG "./sockmap_verdict_prog.o"
 static void test_sockmap(int tasks, void *data)
 {
-	int one = 1, map_fd_rx, map_fd_tx, map_fd_break, s, sc, rc;
+	int one = 1, map_fd_rx = 0, map_fd_tx = 0, map_fd_break, s, sc, rc;
 	struct bpf_map *bpf_map_rx, *bpf_map_tx, *bpf_map_break;
 	int ports[] = {50200, 50201, 50202, 50204};
 	int err, i, fd, udp, sfd[6] = {0xdeadbeef};
@@ -868,9 +868,12 @@ static void test_sockmap(int tasks, void *data)
 		goto out_sockmap;
 	}
 
-	/* Test map close sockets */
-	for (i = 0; i < 6; i++)
+	/* Test map close sockets and empty maps */
+	for (i = 0; i < 6; i++) {
+		bpf_map_delete_elem(map_fd_tx, &i);
+		bpf_map_delete_elem(map_fd_rx, &i);
 		close(sfd[i]);
+	}
 	close(fd);
 	close(map_fd_rx);
 	bpf_object__close(obj);
@@ -881,8 +884,13 @@ out:
 	printf("Failed to create sockmap '%i:%s'!\n", i, strerror(errno));
 	exit(1);
 out_sockmap:
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < 6; i++) {
+		if (map_fd_tx)
+			bpf_map_delete_elem(map_fd_tx, &i);
+		if (map_fd_rx)
+			bpf_map_delete_elem(map_fd_rx, &i);
 		close(sfd[i]);
+	}
 	close(fd);
 	exit(1);
 }
