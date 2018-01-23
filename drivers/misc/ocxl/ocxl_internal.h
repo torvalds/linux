@@ -190,4 +190,11 @@ extern void ocxl_context_free(struct ocxl_context *ctx);
 extern int ocxl_sysfs_add_afu(struct ocxl_afu *afu);
 extern void ocxl_sysfs_remove_afu(struct ocxl_afu *afu);
 
+extern int ocxl_afu_irq_alloc(struct ocxl_context *ctx, u64 *irq_offset);
+extern int ocxl_afu_irq_free(struct ocxl_context *ctx, u64 irq_offset);
+extern void ocxl_afu_irq_free_all(struct ocxl_context *ctx);
+extern int ocxl_afu_irq_set_fd(struct ocxl_context *ctx, u64 irq_offset,
+			int eventfd);
+extern u64 ocxl_afu_irq_get_addr(struct ocxl_context *ctx, u64 irq_offset);
+
 #endif /* _OCXL_INTERNAL_H_ */

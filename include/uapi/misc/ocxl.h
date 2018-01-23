@@ -32,9 +32,18 @@ struct ocxl_ioctl_attach {
 	__u64 reserved3;
 };
 
+struct ocxl_ioctl_irq_fd {
+	__u64 irq_offset;
+	__s32 eventfd;
+	__u32 reserved;
+};
+
 /* ioctl numbers */
 #define OCXL_MAGIC 0xCA
 /* AFU devices */
 #define OCXL_IOCTL_ATTACH	_IOW(OCXL_MAGIC, 0x10, struct ocxl_ioctl_attach)
+#define OCXL_IOCTL_IRQ_ALLOC	_IOR(OCXL_MAGIC, 0x11, __u64)
+#define OCXL_IOCTL_IRQ_FREE	_IOW(OCXL_MAGIC, 0x12, __u64)
+#define OCXL_IOCTL_IRQ_SET_FD	_IOW(OCXL_MAGIC, 0x13, struct ocxl_ioctl_irq_fd)
 
 #endif /* _UAPI_MISC_OCXL_H */

@@ -31,6 +31,8 @@ int ocxl_context_init(struct ocxl_context *ctx, struct ocxl_afu *afu,
 	mutex_init(&ctx->mapping_lock);
 	init_waitqueue_head(&ctx->events_wq);
 	mutex_init(&ctx->xsl_error_lock);
+	mutex_init(&ctx->irq_lock);
+	idr_init(&ctx->irq_idr);
 	/*
 	 * Keep a reference on the AFU to make sure it's valid for the
 	 * duration of the life of the context
@@ -80,6 +82,19 @@ out:
 	return rc;
 }
 
+static int map_afu_irq(struct vm_area_struct *vma, unsigned long address,
+		u64 offset, struct ocxl_context *ctx)
+{
+	u64 trigger_addr;
+
+	trigger_addr = ocxl_afu_irq_get_addr(ctx, offset);
+	if (!trigger_addr)
+		return VM_FAULT_SIGBUS;
+
+	vm_insert_pfn(vma, address, trigger_addr >> PAGE_SHIFT);
+	return VM_FAULT_NOPAGE;
+}
+
 static int map_pp_mmio(struct vm_area_struct *vma, unsigned long address,
 		u64 offset, struct ocxl_context *ctx)
 {
@@ -118,13 +133,40 @@ static int ocxl_mmap_fault(struct vm_fault *vmf)
 	pr_debug("%s: pasid %d address 0x%lx offset 0x%llx\n", __func__,
 		ctx->pasid, vmf->address, offset);
 
-	rc = map_pp_mmio(vma, vmf->address, offset, ctx);
+	if (offset < ctx->afu->irq_base_offset)
+		rc = map_pp_mmio(vma, vmf->address, offset, ctx);
+	else
+		rc = map_afu_irq(vma, vmf->address, offset, ctx);
 	return rc;
 }
 
 static const struct vm_operations_struct ocxl_vmops = {
 	.fault = ocxl_mmap_fault,
 };
+
+static int check_mmap_afu_irq(struct ocxl_context *ctx,
+			struct vm_area_struct *vma)
+{
+	/* only one page */
+	if (vma_pages(vma) != 1)
+		return -EINVAL;
+
+	/* check offset validty */
+	if (!ocxl_afu_irq_get_addr(ctx, vma->vm_pgoff << PAGE_SHIFT))
+		return -EINVAL;
+
+	/*
+	 * trigger page should only be accessible in write mode.
+	 *
+	 * It's a bit theoretical, as a page mmaped with only
+	 * PROT_WRITE is currently readable, but it doesn't hurt.
+	 */
+	if ((vma->vm_flags & VM_READ) || (vma->vm_flags & VM_EXEC) ||
+		!(vma->vm_flags & VM_WRITE))
+		return -EINVAL;
+	vma->vm_flags &= ~(VM_MAYREAD | VM_MAYEXEC);
+	return 0;
+}
 
 static int check_mmap_mmio(struct ocxl_context *ctx,
 			struct vm_area_struct *vma)
@@ -139,7 +181,10 @@ int ocxl_context_mmap(struct ocxl_context *ctx, struct vm_area_struct *vma)
 {
 	int rc;
 
-	rc = check_mmap_mmio(ctx, vma);
+	if ((vma->vm_pgoff << PAGE_SHIFT) < ctx->afu->irq_base_offset)
+		rc = check_mmap_mmio(ctx, vma);
+	else
+		rc = check_mmap_afu_irq(ctx, vma);
 	if (rc)
 		return rc;
 
@@ -224,6 +269,8 @@ void ocxl_context_free(struct ocxl_context *ctx)
 	idr_remove(&ctx->afu->contexts_idr, ctx->pasid);
 	mutex_unlock(&ctx->afu->contexts_lock);
 
+	ocxl_afu_irq_free_all(ctx);
+	idr_destroy(&ctx->irq_idr);
 	/* reference to the AFU taken in ocxl_context_init */
 	ocxl_afu_put(ctx->afu);
 	kfree(ctx);

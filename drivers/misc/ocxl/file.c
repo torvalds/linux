@@ -103,12 +103,17 @@ static long afu_ioctl_attach(struct ocxl_context *ctx,
 }
 
 #define CMD_STR(x) (x == OCXL_IOCTL_ATTACH ? "ATTACH" :			\
+			x == OCXL_IOCTL_IRQ_ALLOC ? "IRQ_ALLOC" :	\
+			x == OCXL_IOCTL_IRQ_FREE ? "IRQ_FREE" :		\
+			x == OCXL_IOCTL_IRQ_SET_FD ? "IRQ_SET_FD" :	\
 			"UNKNOWN")
 
 static long afu_ioctl(struct file *file, unsigned int cmd,
 		unsigned long args)
 {
 	struct ocxl_context *ctx = file->private_data;
+	struct ocxl_ioctl_irq_fd irq_fd;
+	u64 irq_offset;
 	long rc;
 
 	pr_debug("%s for context %d, command %s\n", __func__, ctx->pasid,
@@ -121,6 +126,35 @@ static long afu_ioctl(struct file *file, unsigned int cmd,
 	case OCXL_IOCTL_ATTACH:
 		rc = afu_ioctl_attach(ctx,
 				(struct ocxl_ioctl_attach __user *) args);
+		break;
+
+	case OCXL_IOCTL_IRQ_ALLOC:
+		rc = ocxl_afu_irq_alloc(ctx, &irq_offset);
+		if (!rc) {
+			rc = copy_to_user((u64 __user *) args, &irq_offset,
+					sizeof(irq_offset));
+			if (rc)
+				ocxl_afu_irq_free(ctx, irq_offset);
+		}
+		break;
+
+	case OCXL_IOCTL_IRQ_FREE:
+		rc = copy_from_user(&irq_offset, (u64 __user *) args,
+				sizeof(irq_offset));
+		if (rc)
+			return -EFAULT;
+		rc = ocxl_afu_irq_free(ctx, irq_offset);
+		break;
+
+	case OCXL_IOCTL_IRQ_SET_FD:
+		rc = copy_from_user(&irq_fd, (u64 __user *) args,
+				sizeof(irq_fd));
+		if (rc)
+			return -EFAULT;
+		if (irq_fd.reserved)
+			return -EINVAL;
+		rc = ocxl_afu_irq_set_fd(ctx, irq_fd.irq_offset,
+					irq_fd.eventfd);
 		break;
 
 	default:
