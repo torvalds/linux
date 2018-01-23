@@ -9818,6 +9818,18 @@ M:	Josh Poimboeuf <jpoimboe@redhat.com>
 S:	Supported
 F:	tools/objtool/
 
+OCXL (Open Coherent Accelerator Processor Interface OpenCAPI) DRIVER
+M:	Frederic Barrat <fbarrat@linux.vnet.ibm.com>
+M:	Andrew Donnellan <andrew.donnellan@au1.ibm.com>
+L:	linuxppc-dev@lists.ozlabs.org
+S:	Supported
+F:	arch/powerpc/platforms/powernv/ocxl.c
+F:	arch/powerpc/include/asm/pnv-ocxl.h
+F:	drivers/misc/ocxl/
+F:	include/misc/ocxl*
+F:	include/uapi/misc/ocxl.h
+F:	Documentation/accelerators/ocxl.txt
+
 OMAP AUDIO SUPPORT
 M:	Peter Ujfalusi <peter.ujfalusi@ti.com>
 M:	Jarkko Nikula <jarkko.nikula@bitmer.com>
