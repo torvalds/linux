@@ -4693,7 +4693,7 @@ static void scan_isoc(struct fotg210_hcd *fotg210)
 
 /* Display / Set uframe_periodic_max
  */
-static ssize_t show_uframe_periodic_max(struct device *dev,
+static ssize_t uframe_periodic_max_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct fotg210_hcd *fotg210;
@@ -4705,7 +4705,7 @@ static ssize_t show_uframe_periodic_max(struct device *dev,
 }
 
 
-static ssize_t store_uframe_periodic_max(struct device *dev,
+static ssize_t uframe_periodic_max_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct fotg210_hcd *fotg210;
@@ -4772,8 +4772,7 @@ out_unlock:
 	return ret;
 }
 
-static DEVICE_ATTR(uframe_periodic_max, 0644, show_uframe_periodic_max,
-		   store_uframe_periodic_max);
+static DEVICE_ATTR_RW(uframe_periodic_max);
 
 static inline int create_sysfs_files(struct fotg210_hcd *fotg210)
 {

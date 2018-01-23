@@ -920,7 +920,7 @@ static ssize_t dbc_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(dbc, 0644, dbc_show, dbc_store);
+static DEVICE_ATTR_RW(dbc);
 
 int xhci_dbc_init(struct xhci_hcd *xhci)
 {

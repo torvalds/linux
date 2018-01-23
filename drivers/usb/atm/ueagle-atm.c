@@ -2280,7 +2280,7 @@ static struct uea_softc *dev_to_uea(struct device *dev)
 	return usbatm->driver_data;
 }
 
-static ssize_t read_status(struct device *dev, struct device_attribute *attr,
+static ssize_t stat_status_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	int ret = -ENODEV;
@@ -2296,7 +2296,7 @@ out:
 	return ret;
 }
 
-static ssize_t reboot(struct device *dev, struct device_attribute *attr,
+static ssize_t stat_status_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	int ret = -ENODEV;
@@ -2313,7 +2313,7 @@ out:
 	return ret;
 }
 
-static DEVICE_ATTR(stat_status, S_IWUSR | S_IRUGO, read_status, reboot);
+static DEVICE_ATTR_RW(stat_status);
 
 static ssize_t read_human_status(struct device *dev,
 			struct device_attribute *attr, char *buf)
