@@ -271,58 +271,65 @@ static int gfx_v9_0_ring_test_ring(struct amdgpu_ring *ring)
 
 static int gfx_v9_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
-        struct amdgpu_device *adev = ring->adev;
-        struct amdgpu_ib ib;
-        struct dma_fence *f = NULL;
-        uint32_t scratch;
-        uint32_t tmp = 0;
-        long r;
+	struct amdgpu_device *adev = ring->adev;
+	struct amdgpu_ib ib;
+	struct dma_fence *f = NULL;
 
-        r = amdgpu_gfx_scratch_get(adev, &scratch);
-        if (r) {
-                DRM_ERROR("amdgpu: failed to get scratch reg (%ld).\n", r);
-                return r;
-        }
-        WREG32(scratch, 0xCAFEDEAD);
-        memset(&ib, 0, sizeof(ib));
-        r = amdgpu_ib_get(adev, NULL, 256, &ib);
-        if (r) {
-                DRM_ERROR("amdgpu: failed to get ib (%ld).\n", r);
-                goto err1;
-        }
-        ib.ptr[0] = PACKET3(PACKET3_SET_UCONFIG_REG, 1);
-        ib.ptr[1] = ((scratch - PACKET3_SET_UCONFIG_REG_START));
-        ib.ptr[2] = 0xDEADBEEF;
-        ib.length_dw = 3;
+	unsigned index;
+	uint64_t gpu_addr;
+	uint32_t tmp;
+	long r;
 
-        r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
-        if (r)
-                goto err2;
+	r = amdgpu_device_wb_get(adev, &index);
+	if (r) {
+		dev_err(adev->dev, "(%ld) failed to allocate wb slot\n", r);
+		return r;
+	}
 
-        r = dma_fence_wait_timeout(f, false, timeout);
-        if (r == 0) {
-                DRM_ERROR("amdgpu: IB test timed out.\n");
-                r = -ETIMEDOUT;
-                goto err2;
-        } else if (r < 0) {
-                DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
-                goto err2;
-        }
-        tmp = RREG32(scratch);
-        if (tmp == 0xDEADBEEF) {
-                DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
-                r = 0;
-        } else {
-                DRM_ERROR("amdgpu: ib test failed (scratch(0x%04X)=0x%08X)\n",
-                          scratch, tmp);
-                r = -EINVAL;
-        }
+	gpu_addr = adev->wb.gpu_addr + (index * 4);
+	adev->wb.wb[index] = cpu_to_le32(0xCAFEDEAD);
+	memset(&ib, 0, sizeof(ib));
+	r = amdgpu_ib_get(adev, NULL, 16, &ib);
+	if (r) {
+		DRM_ERROR("amdgpu: failed to get ib (%ld).\n", r);
+		goto err1;
+	}
+	ib.ptr[0] = PACKET3(PACKET3_WRITE_DATA, 3);
+	ib.ptr[1] = WRITE_DATA_DST_SEL(5) | WR_CONFIRM;
+	ib.ptr[2] = lower_32_bits(gpu_addr);
+	ib.ptr[3] = upper_32_bits(gpu_addr);
+	ib.ptr[4] = 0xDEADBEEF;
+	ib.length_dw = 5;
+
+	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
+	if (r)
+		goto err2;
+
+	r = dma_fence_wait_timeout(f, false, timeout);
+	if (r == 0) {
+			DRM_ERROR("amdgpu: IB test timed out.\n");
+			r = -ETIMEDOUT;
+			goto err2;
+	} else if (r < 0) {
+			DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
+			goto err2;
+	}
+
+	tmp = adev->wb.wb[index];
+	if (tmp == 0xDEADBEEF) {
+			DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
+			r = 0;
+	} else {
+			DRM_ERROR("ib test on ring %d failed\n", ring->idx);
+			r = -EINVAL;
+	}
+
 err2:
-        amdgpu_ib_free(adev, &ib, NULL);
-        dma_fence_put(f);
+	amdgpu_ib_free(adev, &ib, NULL);
+	dma_fence_put(f);
 err1:
-        amdgpu_gfx_scratch_free(adev, scratch);
-        return r;
+	amdgpu_device_wb_free(adev, index);
+	return r;
 }
 
 
