@@ -459,6 +459,11 @@ isl1208_i2c_set_time(struct i2c_client *client, struct rtc_time const *tm)
 	}
 
 	/* clear WRTC again */
+	sr = isl1208_i2c_get_sr(client);
+	if (sr < 0) {
+		dev_err(&client->dev, "%s: reading SR failed\n", __func__);
+		return sr;
+	}
 	sr = i2c_smbus_write_byte_data(client, ISL1208_REG_SR,
 				       sr & ~ISL1208_REG_SR_WRTC);
 	if (sr < 0) {
