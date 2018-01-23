@@ -1029,11 +1029,13 @@ static void block_mark_swapping(struct gpmi_nand_data *this,
 	p[1] = (p[1] & mask) | (from_oob >> (8 - bit));
 }
 
-static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-				uint8_t *buf, int oob_required, int page)
+static int gpmi_ecc_read_page_data(struct nand_chip *chip,
+				   uint8_t *buf, int oob_required,
+				   int page)
 {
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	struct bch_geometry *nfc_geo = &this->bch_geometry;
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	void          *payload_virt;
 	dma_addr_t    payload_phys;
 	void          *auxiliary_virt;
@@ -1042,8 +1044,6 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	unsigned char *status;
 	unsigned int  max_bitflips = 0;
 	int           ret;
-
-	nand_read_page_op(chip, page, 0, NULL, 0);
 
 	dev_dbg(this->dev, "page number is : %d\n", page);
 	ret = read_page_prepare(this, buf, nfc_geo->payload_size,
@@ -1178,6 +1178,14 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	return max_bitflips;
 }
 
+static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
+			      uint8_t *buf, int oob_required, int page)
+{
+	nand_read_page_op(chip, page, 0, NULL, 0);
+
+	return gpmi_ecc_read_page_data(chip, buf, oob_required, page);
+}
+
 /* Fake a virtual small page for the subpage read */
 static int gpmi_ecc_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 			uint32_t offs, uint32_t len, uint8_t *buf, int page)
@@ -1256,7 +1264,7 @@ static int gpmi_ecc_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 
 	/* Read the subpage now */
 	this->swap_block_mark = false;
-	max_bitflips = gpmi_ecc_read_page(mtd, chip, buf, 0, page);
+	max_bitflips = gpmi_ecc_read_page_data(chip, buf, 0, page);
 
 	/* Restore */
 	writel(r1_old, bch_regs + HW_BCH_FLASH0LAYOUT0);
