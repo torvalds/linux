@@ -242,7 +242,7 @@ static void test_hashmap_percpu(int task, void *data)
 
 static void test_hashmap_walk(int task, void *data)
 {
-	int fd, i, max_entries = 100000;
+	int fd, i, max_entries = 1000;
 	long long key, value, next_key;
 	bool next_key_valid = true;
 
@@ -931,8 +931,12 @@ static void test_map_large(void)
 	close(fd);
 }
 
-static void run_parallel(int tasks, void (*fn)(int task, void *data),
-			 void *data)
+#define run_parallel(N, FN, DATA) \
+	printf("Fork %d tasks to '" #FN "'\n", N); \
+	__run_parallel(N, FN, DATA)
+
+static void __run_parallel(int tasks, void (*fn)(int task, void *data),
+			   void *data)
 {
 	pid_t pid[tasks];
 	int i;
@@ -972,7 +976,7 @@ static void test_map_stress(void)
 #define DO_UPDATE 1
 #define DO_DELETE 0
 
-static void do_work(int fn, void *data)
+static void test_update_delete(int fn, void *data)
 {
 	int do_update = ((int *)data)[1];
 	int fd = ((int *)data)[0];
@@ -1012,7 +1016,7 @@ static void test_map_parallel(void)
 	 */
 	data[0] = fd;
 	data[1] = DO_UPDATE;
-	run_parallel(TASKS, do_work, data);
+	run_parallel(TASKS, test_update_delete, data);
 
 	/* Check that key=0 is already there. */
 	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
@@ -1035,7 +1039,7 @@ static void test_map_parallel(void)
 
 	/* Now let's delete all elemenets in parallel. */
 	data[1] = DO_DELETE;
-	run_parallel(TASKS, do_work, data);
+	run_parallel(TASKS, test_update_delete, data);
 
 	/* Nothing should be left. */
 	key = -1;
