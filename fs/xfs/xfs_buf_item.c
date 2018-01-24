@@ -457,7 +457,7 @@ xfs_buf_item_unpin(
 		if (bip->bli_flags & XFS_BLI_STALE_INODE) {
 			xfs_buf_do_callbacks(bp);
 			bp->b_log_item = NULL;
-			bp->b_li_list = NULL;
+			list_del_init(&bp->b_li_list);
 			bp->b_iodone = NULL;
 		} else {
 			spin_lock(&ailp->xa_lock);
@@ -955,13 +955,12 @@ xfs_buf_item_relse(
 	xfs_buf_t	*bp)
 {
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
-	struct xfs_log_item	*lip = bp->b_li_list;
 
 	trace_xfs_buf_item_relse(bp, _RET_IP_);
 	ASSERT(!(bip->bli_item.li_flags & XFS_LI_IN_AIL));
 
 	bp->b_log_item = NULL;
-	if (lip == NULL)
+	if (list_empty(&bp->b_li_list))
 		bp->b_iodone = NULL;
 
 	xfs_buf_rele(bp);
@@ -982,18 +981,10 @@ xfs_buf_attach_iodone(
 	void		(*cb)(xfs_buf_t *, xfs_log_item_t *),
 	xfs_log_item_t	*lip)
 {
-	xfs_log_item_t	*head_lip;
-
 	ASSERT(xfs_buf_islocked(bp));
 
 	lip->li_cb = cb;
-	head_lip = bp->b_li_list;
-	if (head_lip) {
-		lip->li_bio_list = head_lip->li_bio_list;
-		head_lip->li_bio_list = lip;
-	} else {
-		bp->b_li_list = lip;
-	}
+	list_add_tail(&lip->li_bio_list, &bp->b_li_list);
 
 	ASSERT(bp->b_iodone == NULL ||
 	       bp->b_iodone == xfs_buf_iodone_callbacks);
@@ -1003,12 +994,12 @@ xfs_buf_attach_iodone(
 /*
  * We can have many callbacks on a buffer. Running the callbacks individually
  * can cause a lot of contention on the AIL lock, so we allow for a single
- * callback to be able to scan the remaining lip->li_bio_list for other items
- * of the same type and callback to be processed in the first call.
+ * callback to be able to scan the remaining items in bp->b_li_list for other
+ * items of the same type and callback to be processed in the first call.
  *
  * As a result, the loop walking the callback list below will also modify the
  * list. it removes the first item from the list and then runs the callback.
- * The loop then restarts from the new head of the list. This allows the
+ * The loop then restarts from the new first item int the list. This allows the
  * callback to scan and modify the list attached to the buffer and we don't
  * have to care about maintaining a next item pointer.
  */
@@ -1025,16 +1016,17 @@ xfs_buf_do_callbacks(
 		lip->li_cb(bp, lip);
 	}
 
-	while ((lip = bp->b_li_list) != NULL) {
-		bp->b_li_list = lip->li_bio_list;
-		ASSERT(lip->li_cb != NULL);
+	while (!list_empty(&bp->b_li_list)) {
+		lip = list_first_entry(&bp->b_li_list, struct xfs_log_item,
+				       li_bio_list);
+
 		/*
-		 * Clear the next pointer so we don't have any
+		 * Remove the item from the list, so we don't have any
 		 * confusion if the item is added to another buf.
 		 * Don't touch the log item after calling its
 		 * callback, because it could have freed itself.
 		 */
-		lip->li_bio_list = NULL;
+		list_del_init(&lip->li_bio_list);
 		lip->li_cb(bp, lip);
 	}
 }
@@ -1051,8 +1043,7 @@ STATIC void
 xfs_buf_do_callbacks_fail(
 	struct xfs_buf		*bp)
 {
-	struct xfs_log_item	*lip = bp->b_li_list;
-	struct xfs_log_item	*next;
+	struct xfs_log_item	*lip;
 	struct xfs_ail		*ailp;
 
 	/*
@@ -1060,13 +1051,14 @@ xfs_buf_do_callbacks_fail(
 	 * and xfs_buf_iodone_callback_error, and they have no IO error
 	 * callbacks. Check only for items in b_li_list.
 	 */
-	if (lip == NULL)
+	if (list_empty(&bp->b_li_list))
 		return;
 
+	lip = list_first_entry(&bp->b_li_list, struct xfs_log_item,
+			li_bio_list);
 	ailp = lip->li_ailp;
 	spin_lock(&ailp->xa_lock);
-	for (; lip; lip = next) {
-		next = lip->li_bio_list;
+	list_for_each_entry(lip, &bp->b_li_list, li_bio_list) {
 		if (lip->li_ops->iop_error)
 			lip->li_ops->iop_error(lip, bp);
 	}
@@ -1078,7 +1070,7 @@ xfs_buf_iodone_callback_error(
 	struct xfs_buf		*bp)
 {
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
-	struct xfs_log_item	*lip = bp->b_li_list;
+	struct xfs_log_item	*lip;
 	struct xfs_mount	*mp;
 	static ulong		lasttime;
 	static xfs_buftarg_t	*lasttarg;
@@ -1089,7 +1081,9 @@ xfs_buf_iodone_callback_error(
 	 * log_item list might be empty. Get the mp from the available
 	 * xfs_log_item
 	 */
-	mp = bip ? bip->bli_item.li_mountp : lip->li_mountp;
+	lip = list_first_entry_or_null(&bp->b_li_list, struct xfs_log_item,
+				       li_bio_list);
+	mp = lip ? lip->li_mountp : bip->bli_item.li_mountp;
 
 	/*
 	 * If we've already decided to shutdown the filesystem because of
@@ -1200,7 +1194,7 @@ xfs_buf_iodone_callbacks(
 
 	xfs_buf_do_callbacks(bp);
 	bp->b_log_item = NULL;
-	bp->b_li_list = NULL;
+	list_del_init(&bp->b_li_list);
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp);
 }
@@ -1245,10 +1239,9 @@ xfs_buf_iodone(
 bool
 xfs_buf_resubmit_failed_buffers(
 	struct xfs_buf		*bp,
-	struct xfs_log_item	*lip,
 	struct list_head	*buffer_list)
 {
-	struct xfs_log_item	*next;
+	struct xfs_log_item	*lip;
 
 	/*
 	 * Clear XFS_LI_FAILED flag from all items before resubmit
@@ -1256,10 +1249,8 @@ xfs_buf_resubmit_failed_buffers(
 	 * XFS_LI_FAILED set/clear is protected by xa_lock, caller  this
 	 * function already have it acquired
 	 */
-	for (; lip; lip = next) {
-		next = lip->li_bio_list;
+	list_for_each_entry(lip, &bp->b_li_list, li_bio_list)
 		xfs_clear_li_failed(lip);
-	}
 
 	/* Add this buffer back to the delayed write list */
 	return xfs_buf_delwri_queue(bp, buffer_list);

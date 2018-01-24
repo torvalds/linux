@@ -176,7 +176,7 @@ xfs_qm_dquot_logitem_push(
 		if (!xfs_buf_trylock(bp))
 			return XFS_ITEM_LOCKED;
 
-		if (!xfs_buf_resubmit_failed_buffers(bp, lip, buffer_list))
+		if (!xfs_buf_resubmit_failed_buffers(bp, buffer_list))
 			rval = XFS_ITEM_FLUSHING;
 
 		xfs_buf_unlock(bp);
