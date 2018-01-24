@@ -991,6 +991,11 @@ static ssize_t amdgpu_hwmon_set_pwm1_enable(struct device *dev,
 	int err;
 	int value;
 
+	/* Can't adjust fan when the card is off */
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (adev->ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
+
 	if (!adev->powerplay.pp_funcs->set_fan_control_mode)
 		return -EINVAL;
 
@@ -1025,6 +1030,11 @@ static ssize_t amdgpu_hwmon_set_pwm1(struct device *dev,
 	int err;
 	u32 value;
 
+	/* Can't adjust fan when the card is off */
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (adev->ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
+
 	err = kstrtou32(buf, 10, &value);
 	if (err)
 		return err;
@@ -1048,6 +1058,11 @@ static ssize_t amdgpu_hwmon_get_pwm1(struct device *dev,
 	int err;
 	u32 speed = 0;
 
+	/* Can't adjust fan when the card is off */
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (adev->ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
+
 	if (adev->powerplay.pp_funcs->get_fan_speed_percent) {
 		err = amdgpu_dpm_get_fan_speed_percent(adev, &speed);
 		if (err)
@@ -1066,6 +1081,11 @@ static ssize_t amdgpu_hwmon_get_fan1_input(struct device *dev,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	int err;
 	u32 speed = 0;
+
+	/* Can't adjust fan when the card is off */
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (adev->ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
 
 	if (adev->powerplay.pp_funcs->get_fan_speed_rpm) {
 		err = amdgpu_dpm_get_fan_speed_rpm(adev, &speed);
