@@ -202,18 +202,17 @@ static struct hisi_clock_data *hi3798cv200_clk_register(
 
 	return clk_data;
 
-unregister_fixed_rate:
-	hisi_clk_unregister_fixed_rate(hi3798cv200_fixed_rate_clks,
-				ARRAY_SIZE(hi3798cv200_fixed_rate_clks),
+unregister_gate:
+	hisi_clk_unregister_gate(hi3798cv200_gate_clks,
+				ARRAY_SIZE(hi3798cv200_gate_clks),
 				clk_data);
-
 unregister_mux:
 	hisi_clk_unregister_mux(hi3798cv200_mux_clks,
 				ARRAY_SIZE(hi3798cv200_mux_clks),
 				clk_data);
-unregister_gate:
-	hisi_clk_unregister_gate(hi3798cv200_gate_clks,
-				ARRAY_SIZE(hi3798cv200_gate_clks),
+unregister_fixed_rate:
+	hisi_clk_unregister_fixed_rate(hi3798cv200_fixed_rate_clks,
+				ARRAY_SIZE(hi3798cv200_fixed_rate_clks),
 				clk_data);
 	return ERR_PTR(ret);
 }
