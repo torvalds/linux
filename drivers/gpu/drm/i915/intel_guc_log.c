@@ -637,12 +637,15 @@ void intel_guc_log_destroy(struct intel_guc *guc)
 	i915_vma_unpin_and_release(&guc->log.vma);
 }
 
-int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val)
+int intel_guc_log_control(struct intel_guc *guc, u64 control_val)
 {
-	struct intel_guc *guc = &dev_priv->guc;
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	bool enable_logging = control_val > 0;
 	u32 verbosity;
 	int ret;
+
+	if (!guc->log.vma)
+		return -ENODEV;
 
 	BUILD_BUG_ON(GUC_LOG_VERBOSITY_MIN);
 	if (control_val > 1 + GUC_LOG_VERBOSITY_MAX)

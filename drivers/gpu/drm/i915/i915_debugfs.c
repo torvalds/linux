@@ -2471,10 +2471,7 @@ static int i915_guc_log_control_set(void *data, u64 val)
 	if (!HAS_GUC(dev_priv))
 		return -ENODEV;
 
-	if (!dev_priv->guc.log.vma)
-		return -EINVAL;
-
-	return i915_guc_log_control(dev_priv, val);
+	return intel_guc_log_control(&dev_priv->guc, val);
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_guc_log_control_fops,

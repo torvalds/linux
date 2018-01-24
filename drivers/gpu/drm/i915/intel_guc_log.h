@@ -64,7 +64,7 @@ void intel_guc_log_destroy(struct intel_guc *guc);
 void intel_guc_log_init_early(struct intel_guc *guc);
 int intel_guc_log_relay_create(struct intel_guc *guc);
 void intel_guc_log_relay_destroy(struct intel_guc *guc);
-int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val);
+int intel_guc_log_control(struct intel_guc *guc, u64 control_val);
 void i915_guc_log_register(struct drm_i915_private *dev_priv);
 void i915_guc_log_unregister(struct drm_i915_private *dev_priv);
 
