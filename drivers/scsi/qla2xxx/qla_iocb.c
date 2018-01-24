@@ -14,7 +14,7 @@
 
 /**
  * qla2x00_get_cmd_direction() - Determine control_flag data direction.
- * @cmd: SCSI command
+ * @sp: SCSI command
  *
  * Returns the proper CF_* direction based on CDB.
  */
@@ -86,7 +86,7 @@ qla2x00_calc_iocbs_64(uint16_t dsds)
 
 /**
  * qla2x00_prep_cont_type0_iocb() - Initialize a Continuation Type 0 IOCB.
- * @ha: HA context
+ * @vha: HA context
  *
  * Returns a pointer to the Continuation Type 0 IOCB packet.
  */
@@ -114,7 +114,8 @@ qla2x00_prep_cont_type0_iocb(struct scsi_qla_host *vha)
 
 /**
  * qla2x00_prep_cont_type1_iocb() - Initialize a Continuation Type 1 IOCB.
- * @ha: HA context
+ * @vha: HA context
+ * @req: request queue
  *
  * Returns a pointer to the continuation type 1 IOCB packet.
  */
@@ -445,6 +446,8 @@ queuing_error:
 
 /**
  * qla2x00_start_iocbs() - Execute the IOCB command
+ * @vha: HA context
+ * @req: request queue
  */
 void
 qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
@@ -486,7 +489,9 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
 
 /**
  * qla2x00_marker() - Send a marker IOCB to the firmware.
- * @ha: HA context
+ * @vha: HA context
+ * @req: request queue
+ * @rsp: response queue
  * @loop_id: loop ID
  * @lun: LUN
  * @type: marker modifier
@@ -1190,6 +1195,8 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
  * @sp: SRB command to process
  * @cmd_pkt: Command type 3 IOCB
  * @tot_dsds: Total number of segments to transfer
+ * @tot_prot_dsds:
+ * @fw_prot_opts:
  */
 inline int
 qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,

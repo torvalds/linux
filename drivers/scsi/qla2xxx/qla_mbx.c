@@ -3385,7 +3385,10 @@ qla8044_read_serdes_word(scsi_qla_host_t *vha, uint32_t addr, uint32_t *data)
 
 /**
  * qla2x00_set_serdes_params() -
- * @ha: HA context
+ * @vha: HA context
+ * @sw_em_1g:
+ * @sw_em_2g:
+ * @sw_em_4g:
  *
  * Returns
  */
