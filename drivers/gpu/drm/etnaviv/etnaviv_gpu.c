@@ -1637,6 +1637,7 @@ static const struct of_device_id etnaviv_gpu_match[] = {
 	},
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, etnaviv_gpu_match);
 
 static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 {
