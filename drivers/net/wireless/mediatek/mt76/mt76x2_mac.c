@@ -172,6 +172,7 @@ void mt76x2_mac_write_txwi(struct mt76x2_dev *dev, struct mt76x2_txwi *txwi,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *rate = &info->control.rates[0];
 	struct ieee80211_key_conf *key = info->control.hw_key;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	u16 rate_ht_mask = FIELD_PREP(MT_RXWI_RATE_PHY, BIT(1) | BIT(2));
 	u16 txwi_flags = 0;
 	u8 nss;
@@ -247,6 +248,10 @@ void mt76x2_mac_write_txwi(struct mt76x2_dev *dev, struct mt76x2_txwi *txwi,
 			 FIELD_PREP(MT_TXWI_FLAGS_MPDU_DENSITY,
 				    sta->ht_cap.ampdu_density);
 	}
+
+	if (ieee80211_is_probe_resp(hdr->frame_control) ||
+	    ieee80211_is_beacon(hdr->frame_control))
+		txwi_flags |= MT_TXWI_FLAGS_TS;
 
 	txwi->flags |= cpu_to_le16(txwi_flags);
 	txwi->len_ctl = cpu_to_le16(skb->len);
@@ -634,7 +639,6 @@ mt76_write_beacon(struct mt76x2_dev *dev, int offset, struct sk_buff *skb)
 		return -ENOSPC;
 
 	mt76x2_mac_write_txwi(dev, &txwi, skb, NULL, NULL);
-	txwi.flags |= cpu_to_le16(MT_TXWI_FLAGS_TS);
 
 	mt76_wr_copy(dev, offset, &txwi, sizeof(txwi));
 	offset += sizeof(txwi);
