@@ -580,6 +580,49 @@ struct backlight_device *of_find_backlight_by_node(struct device_node *node)
 EXPORT_SYMBOL(of_find_backlight_by_node);
 #endif
 
+/**
+ * of_find_backlight - Get backlight device
+ * @dev: Device
+ *
+ * This function looks for a property named 'backlight' on the DT node
+ * connected to @dev and looks up the backlight device.
+ *
+ * Call backlight_put() to drop the reference on the backlight device.
+ *
+ * Returns:
+ * A pointer to the backlight device if found.
+ * Error pointer -EPROBE_DEFER if the DT property is set, but no backlight
+ * device is found.
+ * NULL if there's no backlight property.
+ */
+struct backlight_device *of_find_backlight(struct device *dev)
+{
+	struct backlight_device *bd = NULL;
+	struct device_node *np;
+
+	if (!dev)
+		return NULL;
+
+	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
+		np = of_parse_phandle(dev->of_node, "backlight", 0);
+		if (np) {
+			bd = of_find_backlight_by_node(np);
+			of_node_put(np);
+			if (!bd)
+				return ERR_PTR(-EPROBE_DEFER);
+			/*
+			 * Note: gpio_backlight uses brightness as
+			 * power state during probe
+			 */
+			if (!bd->props.brightness)
+				bd->props.brightness = bd->props.max_brightness;
+		}
+	}
+
+	return bd;
+}
+EXPORT_SYMBOL(of_find_backlight);
+
 static void __exit backlight_class_exit(void)
 {
 	class_destroy(backlight_class);
