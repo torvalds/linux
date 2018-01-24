@@ -40,6 +40,11 @@
  */
 
 / {
+	/* Will be filled by the bootloader */
+	memory {
+		reg = <0 0>;
+	};
+
 	chosen {
 		stdout-path = &uart1;
 	};

@@ -53,6 +53,11 @@
 	compatible = "toradex,colibri_imx6dl-eval-v3", "toradex,colibri_imx6dl",
 		     "fsl,imx6dl";
 
+	/* Will be filled by the bootloader */
+	memory {
+		reg = <0 0>;
+	};
+
 	aliases {
 		i2c0 = &i2c2;
 		i2c1 = &i2c3;

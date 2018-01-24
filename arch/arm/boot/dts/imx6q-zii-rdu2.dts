@@ -47,4 +47,9 @@
 / {
 	model = "ZII RDU2 Board";
 	compatible = "zii,imx6q-zii-rdu2", "fsl,imx6q";
+
+	/* Will be filled by the bootloader */
+	memory {
+		reg = <0 0>;
+	};
 };

@@ -49,6 +49,11 @@
 	model = "Auvidea H100";
 	compatible = "auvidea,h100", "fsl,imx6q";
 
+	/* Will be filled by the bootloader */
+	memory {
+		reg = <0 0>;
+	};
+
 	aliases {
 		rtc0 = &rtc;
 		rtc1 = &snvs_rtc;
