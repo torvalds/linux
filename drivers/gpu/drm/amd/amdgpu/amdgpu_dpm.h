@@ -265,9 +265,6 @@ enum amdgpu_pcie_gen {
 #define amdgpu_dpm_read_sensor(adev, idx, value, size) \
 		((adev)->powerplay.pp_funcs->read_sensor((adev)->powerplay.pp_handle, (idx), (value), (size)))
 
-#define amdgpu_dpm_get_temperature(adev) \
-		((adev)->powerplay.pp_funcs->get_temperature((adev)->powerplay.pp_handle))
-
 #define amdgpu_dpm_set_fan_control_mode(adev, m) \
 		((adev)->powerplay.pp_funcs->set_fan_control_mode((adev)->powerplay.pp_handle, (m)))
 

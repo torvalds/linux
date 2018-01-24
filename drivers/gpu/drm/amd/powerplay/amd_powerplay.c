@@ -687,29 +687,6 @@ static int pp_dpm_get_fan_speed_rpm(void *handle, uint32_t *rpm)
 	return ret;
 }
 
-static int pp_dpm_get_temperature(void *handle)
-{
-	struct pp_hwmgr  *hwmgr;
-	struct pp_instance *pp_handle = (struct pp_instance *)handle;
-	int ret = 0;
-
-	ret = pp_check(pp_handle);
-
-	if (ret)
-		return ret;
-
-	hwmgr = pp_handle->hwmgr;
-
-	if (hwmgr->hwmgr_func->get_temperature == NULL) {
-		pr_info("%s was not implemented.\n", __func__);
-		return 0;
-	}
-	mutex_lock(&pp_handle->pp_lock);
-	ret = hwmgr->hwmgr_func->get_temperature(hwmgr);
-	mutex_unlock(&pp_handle->pp_lock);
-	return ret;
-}
-
 static int pp_dpm_get_pp_num_states(void *handle,
 		struct pp_states_info *data)
 {
@@ -1492,7 +1469,6 @@ static int pp_get_display_mode_validation_clocks(void *handle,
 }
 
 const struct amd_pm_funcs pp_dpm_funcs = {
-	.get_temperature = pp_dpm_get_temperature,
 	.load_firmware = pp_dpm_load_fw,
 	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
 	.force_performance_level = pp_dpm_force_performance_level,

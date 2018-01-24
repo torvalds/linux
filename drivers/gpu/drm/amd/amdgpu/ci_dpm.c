@@ -7029,7 +7029,6 @@ const struct amd_ip_funcs ci_dpm_ip_funcs = {
 };
 
 const struct amd_pm_funcs ci_dpm_funcs = {
-	.get_temperature = &ci_dpm_get_temp,
 	.pre_set_power_state = &ci_dpm_pre_set_power_state,
 	.set_power_state = &ci_dpm_set_power_state,
 	.post_set_power_state = &ci_dpm_post_set_power_state,

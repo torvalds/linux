@@ -4958,7 +4958,6 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.display_config_changed = smu7_display_configuration_changed_task,
 	.set_max_fan_pwm_output = smu7_set_max_fan_pwm_output,
 	.set_max_fan_rpm_output = smu7_set_max_fan_rpm_output,
-	.get_temperature = smu7_thermal_get_temperature,
 	.stop_thermal_controller = smu7_thermal_stop_thermal_controller,
 	.get_fan_speed_info = smu7_fan_ctrl_get_fan_speed_info,
 	.get_fan_speed_percent = smu7_fan_ctrl_get_fan_speed_percent,
