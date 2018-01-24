@@ -215,7 +215,7 @@ static u32 sdio_read32(struct intf_hdl *intfhdl, u32 addr)
 		u8 *tmpbuf;
 
 		tmpbuf = rtw_malloc(8);
-		if (NULL == tmpbuf) {
+		if (!tmpbuf) {
 			DBG_8192C(KERN_ERR "%s: Allocate memory FAIL!(size =8) addr = 0x%x\n", __func__, addr);
 			return SDIO_ERR_VAL32;
 		}
@@ -264,7 +264,7 @@ static s32 sdio_readN(struct intf_hdl *intfhdl, u32 addr, u32 cnt, u8 *buf)
 		ftaddr &= ~(u16)0x3;
 		n = cnt + shift;
 		tmpbuf = rtw_malloc(n);
-		if (NULL == tmpbuf)
+		if (!tmpbuf)
 			return -1;
 
 		err = sd_read(intfhdl, ftaddr, n, tmpbuf);
@@ -367,7 +367,7 @@ static s32 sdio_writeN(struct intf_hdl *intfhdl, u32 addr, u32 cnt, u8 *buf)
 		ftaddr &= ~(u16)0x3;
 		n = cnt + shift;
 		tmpbuf = rtw_malloc(n);
-		if (NULL == tmpbuf)
+		if (!tmpbuf)
 			return -1;
 		err = sd_read(intfhdl, ftaddr, 4, tmpbuf);
 		if (err) {
@@ -730,7 +730,7 @@ static s32 ReadInterrupt8723BSdio(struct adapter *adapter, u32 *phisr)
 	u8 val8, hisr_len;
 
 
-	if (phisr == NULL)
+	if (!phisr)
 		return false;
 
 	himr = GET_HAL_DATA(adapter)->sdio_himr;
@@ -954,13 +954,13 @@ static struct recv_buf *sd_recv_rxfifo(struct adapter *adapter, u32 size)
 	/* 3 1. alloc recvbuf */
 	recv_priv = &adapter->recvpriv;
 	recvbuf = rtw_dequeue_recvbuf(&recv_priv->free_recv_buf_queue);
-	if (recvbuf == NULL) {
+	if (!recvbuf) {
 		DBG_871X_LEVEL(_drv_err_, "%s: alloc recvbuf FAIL!\n", __func__);
 		return NULL;
 	}
 
 	/* 3 2. alloc skb */
-	if (recvbuf->pskb == NULL) {
+	if (!recvbuf->pskb) {
 		SIZE_PTR tmpaddr = 0;
 		SIZE_PTR alignment = 0;
 
@@ -974,7 +974,7 @@ static struct recv_buf *sd_recv_rxfifo(struct adapter *adapter, u32 size)
 			skb_reserve(recvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
 		}
 
-		if (recvbuf->pskb == NULL) {
+		if (!recvbuf->pskb) {
 			DBG_871X("%s: alloc_skb fail! read =%d\n", __func__, readsize);
 			return NULL;
 		}
@@ -1232,7 +1232,7 @@ u8 RecvOnePkt(struct adapter *adapter, u32 size)
 
 	DBG_871X("+%s: size: %d+\n", __func__, size);
 
-	if (adapter == NULL) {
+	if (!adapter) {
 		DBG_871X(KERN_ERR "%s: adapter is NULL!\n", __func__);
 		return false;
 	}
