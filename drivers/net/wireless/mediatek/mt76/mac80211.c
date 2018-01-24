@@ -384,10 +384,37 @@ int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 }
 EXPORT_SYMBOL_GPL(mt76_get_survey);
 
+static void
+mt76_rx_convert(struct sk_buff *skb)
+{
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+	struct mt76_rx_status mstat;
+
+	mstat = *((struct mt76_rx_status *) skb->cb);
+	memset(status, 0, sizeof(*status));
+
+	status->flag = mstat.flag;
+	status->freq = mstat.freq;
+	status->enc_flags = mstat.enc_flags;
+	status->encoding = mstat.encoding;
+	status->bw = mstat.bw;
+	status->rate_idx = mstat.rate_idx;
+	status->nss = mstat.nss;
+	status->band = mstat.band;
+	status->signal = mstat.signal;
+	status->chains = mstat.chains;
+
+	BUILD_BUG_ON(sizeof(mstat) > sizeof(skb->cb));
+	BUILD_BUG_ON(sizeof(status->chain_signal) != sizeof(mstat.chain_signal));
+	memcpy(status->chain_signal, mstat.chain_signal, sizeof(mstat.chain_signal));
+}
+
 void mt76_rx_complete(struct mt76_dev *dev, enum mt76_rxq_id q)
 {
 	struct sk_buff *skb;
 
-	while ((skb = __skb_dequeue(&dev->rx_skb[q])) != NULL)
+	while ((skb = __skb_dequeue(&dev->rx_skb[q])) != NULL) {
+		mt76_rx_convert(skb);
 		ieee80211_rx_napi(dev->hw, NULL, skb, &dev->napi[q]);
+	}
 }

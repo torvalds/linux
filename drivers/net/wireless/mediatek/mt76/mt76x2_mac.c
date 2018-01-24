@@ -29,7 +29,7 @@ void mt76x2_mac_set_bssid(struct mt76x2_dev *dev, u8 idx, const u8 *addr)
 }
 
 static int
-mt76x2_mac_process_rate(struct ieee80211_rx_status *status, u16 rate)
+mt76x2_mac_process_rate(struct mt76_rx_status *status, u16 rate)
 {
 	u8 idx = FIELD_GET(MT_RXWI_RATE_INDEX, rate);
 
@@ -268,7 +268,7 @@ static void mt76x2_remove_hdr_pad(struct sk_buff *skb)
 int mt76x2_mac_process_rx(struct mt76x2_dev *dev, struct sk_buff *skb,
 			  void *rxi)
 {
-	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;
 	struct mt76x2_rxwi *rxwi = rxi;
 	u32 ctl = le32_to_cpu(rxwi->ctl);
 	u16 rate = le16_to_cpu(rxwi->rate);

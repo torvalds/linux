@@ -250,6 +250,19 @@ struct mt76_rate_power {
 	};
 };
 
+struct mt76_rx_status {
+	u32 flag;
+	u16 freq;
+	u8 enc_flags;
+	u8 encoding:2, bw:3;
+	u8 rate_idx;
+	u8 nss;
+	u8 band;
+	u8 signal;
+	u8 chains;
+	s8 chain_signal[IEEE80211_MAX_CHAINS];
+};
+
 #define mt76_rr(dev, ...)	(dev)->mt76.bus->rr(&((dev)->mt76), __VA_ARGS__)
 #define mt76_wr(dev, ...)	(dev)->mt76.bus->wr(&((dev)->mt76), __VA_ARGS__)
 #define mt76_rmw(dev, ...)	(dev)->mt76.bus->rmw(&((dev)->mt76), __VA_ARGS__)
