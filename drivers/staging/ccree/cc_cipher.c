@@ -1094,6 +1094,7 @@ int cc_cipher_free(struct cc_drvdata *drvdata)
 {
 	struct cc_crypto_alg *t_alg, *n;
 	struct cc_cipher_handle *blkcipher_handle = drvdata->blkcipher_handle;
+
 	if (blkcipher_handle) {
 		/* Remove registered algs */
 		list_for_each_entry_safe(t_alg, n,
