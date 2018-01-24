@@ -186,19 +186,24 @@
 #define CTX_GPGPU_CSR_BASE_ADDRESS	0x44
 
 #define CTX_REG(reg_state, pos, reg, val) do { \
-	(reg_state)[(pos)+0] = i915_mmio_reg_offset(reg); \
-	(reg_state)[(pos)+1] = (val); \
+	u32 *reg_state__ = (reg_state); \
+	const u32 pos__ = (pos); \
+	(reg_state__)[(pos__) + 0] = i915_mmio_reg_offset(reg); \
+	(reg_state__)[(pos__) + 1] = (val); \
 } while (0)
 
-#define ASSIGN_CTX_PDP(ppgtt, reg_state, n) do {		\
-	const u64 _addr = i915_page_dir_dma_addr((ppgtt), (n));	\
-	reg_state[CTX_PDP ## n ## _UDW+1] = upper_32_bits(_addr); \
-	reg_state[CTX_PDP ## n ## _LDW+1] = lower_32_bits(_addr); \
+#define ASSIGN_CTX_PDP(ppgtt, reg_state, n) do { \
+	u32 *reg_state__ = (reg_state); \
+	const u64 addr__ = i915_page_dir_dma_addr((ppgtt), (n)); \
+	(reg_state__)[CTX_PDP ## n ## _UDW + 1] = upper_32_bits(addr__); \
+	(reg_state__)[CTX_PDP ## n ## _LDW + 1] = lower_32_bits(addr__); \
 } while (0)
 
 #define ASSIGN_CTX_PML4(ppgtt, reg_state) do { \
-	reg_state[CTX_PDP0_UDW + 1] = upper_32_bits(px_dma(&ppgtt->pml4)); \
-	reg_state[CTX_PDP0_LDW + 1] = lower_32_bits(px_dma(&ppgtt->pml4)); \
+	u32 *reg_state__ = (reg_state); \
+	const u64 addr__ = px_dma(&ppgtt->pml4); \
+	(reg_state__)[CTX_PDP0_UDW + 1] = upper_32_bits(addr__); \
+	(reg_state__)[CTX_PDP0_LDW + 1] = lower_32_bits(addr__); \
 } while (0)
 
 #define GEN8_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT	0x17
