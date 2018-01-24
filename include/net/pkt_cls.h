@@ -605,17 +605,6 @@ struct tc_cls_common_offload {
 	struct netlink_ext_ack *extack;
 };
 
-static inline void
-tc_cls_common_offload_init_deprecated(struct tc_cls_common_offload *cls_common,
-				      const struct tcf_proto *tp,
-				      struct netlink_ext_ack *extack)
-{
-	cls_common->chain_index = tp->chain->index;
-	cls_common->protocol = tp->protocol;
-	cls_common->prio = tp->prio;
-	cls_common->extack = extack;
-}
-
 struct tc_cls_u32_knode {
 	struct tcf_exts *exts;
 	struct tc_u32_sel *sel;
