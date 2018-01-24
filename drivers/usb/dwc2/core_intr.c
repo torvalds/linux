@@ -531,6 +531,67 @@ skip_power_saving:
 	}
 }
 
+/**
+ * dwc2_handle_lpm_intr - GINTSTS_LPMTRANRCVD Interrupt handler
+ *
+ * @hsotg: Programming view of DWC_otg controller
+ *
+ */
+static void dwc2_handle_lpm_intr(struct dwc2_hsotg *hsotg)
+{
+	u32 glpmcfg;
+	u32 pcgcctl;
+	u32 hird;
+	u32 hird_thres;
+	u32 hird_thres_en;
+	u32 enslpm;
+
+	/* Clear interrupt */
+	dwc2_writel(GINTSTS_LPMTRANRCVD, hsotg->regs + GINTSTS);
+
+	glpmcfg = dwc2_readl(hsotg->regs + GLPMCFG);
+
+	if (!(glpmcfg & GLPMCFG_LPMCAP)) {
+		dev_err(hsotg->dev, "Unexpected LPM interrupt\n");
+		return;
+	}
+
+	hird = (glpmcfg & GLPMCFG_HIRD_MASK) >> GLPMCFG_HIRD_SHIFT;
+	hird_thres = (glpmcfg & GLPMCFG_HIRD_THRES_MASK &
+			~GLPMCFG_HIRD_THRES_EN) >> GLPMCFG_HIRD_THRES_SHIFT;
+	hird_thres_en = glpmcfg & GLPMCFG_HIRD_THRES_EN;
+	enslpm = glpmcfg & GLPMCFG_SNDLPM;
+
+	if (dwc2_is_device_mode(hsotg)) {
+		dev_dbg(hsotg->dev, "HIRD_THRES_EN = %d\n", hird_thres_en);
+
+		if (hird_thres_en && hird >= hird_thres) {
+			dev_dbg(hsotg->dev, "L1 with utmi_l1_suspend_n\n");
+		} else if (enslpm) {
+			dev_dbg(hsotg->dev, "L1 with utmi_sleep_n\n");
+		} else {
+			dev_dbg(hsotg->dev, "Entering Sleep with L1 Gating\n");
+
+			pcgcctl = dwc2_readl(hsotg->regs + PCGCTL);
+			pcgcctl |= PCGCTL_ENBL_SLEEP_GATING;
+			dwc2_writel(pcgcctl, hsotg->regs + PCGCTL);
+		}
+		/**
+		 * Examine prt_sleep_sts after TL1TokenTetry period max (10 us)
+		 */
+		udelay(10);
+
+		glpmcfg = dwc2_readl(hsotg->regs + GLPMCFG);
+
+		if (glpmcfg & GLPMCFG_SLPSTS) {
+			/* Save the current state */
+			hsotg->lx_state = DWC2_L1;
+			dev_dbg(hsotg->dev,
+				"Core is in L1 sleep glpmcfg=%08x\n", glpmcfg);
+		}
+	}
+}
+
 #define GINTMSK_COMMON	(GINTSTS_WKUPINT | GINTSTS_SESSREQINT |		\
 			 GINTSTS_CONIDSTSCHNG | GINTSTS_OTGINT |	\
 			 GINTSTS_MODEMIS | GINTSTS_DISCONNINT |		\
@@ -605,6 +666,8 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 		dwc2_handle_wakeup_detected_intr(hsotg);
 	if (gintsts & GINTSTS_USBSUSP)
 		dwc2_handle_usb_suspend_intr(hsotg);
+	if (gintsts & GINTSTS_LPMTRANRCVD)
+		dwc2_handle_lpm_intr(hsotg);
 
 	if (gintsts & GINTSTS_PRTINT) {
 		/*
