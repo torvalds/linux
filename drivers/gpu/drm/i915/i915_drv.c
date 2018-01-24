@@ -2600,6 +2600,11 @@ static int intel_runtime_suspend(struct device *kdev)
 
 		intel_runtime_pm_enable_interrupts(dev_priv);
 
+		intel_guc_resume(dev_priv);
+
+		i915_gem_init_swizzling(dev_priv);
+		i915_gem_restore_fences(dev_priv);
+
 		enable_rpm_wakeref_asserts(dev_priv);
 
 		return ret;
@@ -2665,8 +2670,6 @@ static int intel_runtime_resume(struct device *kdev)
 	if (intel_uncore_unclaimed_mmio(dev_priv))
 		DRM_DEBUG_DRIVER("Unclaimed access during suspend, bios?\n");
 
-	intel_guc_resume(dev_priv);
-
 	if (IS_GEN9_LP(dev_priv)) {
 		bxt_disable_dc9(dev_priv);
 		bxt_display_core_init(dev_priv, true);
@@ -2681,14 +2684,16 @@ static int intel_runtime_resume(struct device *kdev)
 
 	intel_uncore_runtime_resume(dev_priv);
 
+	intel_runtime_pm_enable_interrupts(dev_priv);
+
+	intel_guc_resume(dev_priv);
+
 	/*
 	 * No point of rolling back things in case of an error, as the best
 	 * we can do is to hope that things will still work (and disable RPM).
 	 */
 	i915_gem_init_swizzling(dev_priv);
 	i915_gem_restore_fences(dev_priv);
-
-	intel_runtime_pm_enable_interrupts(dev_priv);
 
 	/*
 	 * On VLV/CHV display interrupts are part of the display
