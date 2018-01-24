@@ -628,6 +628,7 @@ struct dwc2_gregs_backup {
 	u32 gi2cctl;
 	u32 hptxfsiz;
 	u32 pcgcctl;
+	u32 pcgcctl1;
 	u32 gdfifocfg;
 	u32 dtxfsiz[MAX_EPS_CHANNELS];
 	u32 gpwrdn;

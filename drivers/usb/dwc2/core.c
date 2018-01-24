@@ -80,6 +80,7 @@ static int dwc2_backup_global_registers(struct dwc2_hsotg *hsotg)
 	gr->gnptxfsiz = dwc2_readl(hsotg->regs + GNPTXFSIZ);
 	gr->hptxfsiz = dwc2_readl(hsotg->regs + HPTXFSIZ);
 	gr->gdfifocfg = dwc2_readl(hsotg->regs + GDFIFOCFG);
+	gr->pcgcctl1 = dwc2_readl(hsotg->regs + PCGCCTL1);
 	for (i = 0; i < MAX_EPS_CHANNELS; i++)
 		gr->dtxfsiz[i] = dwc2_readl(hsotg->regs + DPTXFSIZN(i));
 
@@ -119,6 +120,7 @@ static int dwc2_restore_global_registers(struct dwc2_hsotg *hsotg)
 	dwc2_writel(gr->gnptxfsiz, hsotg->regs + GNPTXFSIZ);
 	dwc2_writel(gr->hptxfsiz, hsotg->regs + HPTXFSIZ);
 	dwc2_writel(gr->gdfifocfg, hsotg->regs + GDFIFOCFG);
+	dwc2_writel(gr->pcgcctl1, hsotg->regs + PCGCCTL1);
 	for (i = 0; i < MAX_EPS_CHANNELS; i++)
 		dwc2_writel(gr->dtxfsiz[i], hsotg->regs + DPTXFSIZN(i));
 
