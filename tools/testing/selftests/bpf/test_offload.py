@@ -26,6 +26,7 @@ import time
 
 logfile = None
 log_level = 1
+skip_extack = False
 bpf_test_dir = os.path.dirname(os.path.realpath(__file__))
 pp = pprint.PrettyPrinter()
 devs = [] # devices we created for clean up
@@ -132,7 +133,7 @@ def rm(f):
     if f in files:
         files.remove(f)
 
-def tool(name, args, flags, JSON=True, ns="", fail=True):
+def tool(name, args, flags, JSON=True, ns="", fail=True, include_stderr=False):
     params = ""
     if JSON:
         params += "%s " % (flags["json"])
@@ -140,9 +141,20 @@ def tool(name, args, flags, JSON=True, ns="", fail=True):
     if ns != "":
         ns = "ip netns exec %s " % (ns)
 
-    ret, out = cmd(ns + name + " " + params + args, fail=fail)
-    if JSON and len(out.strip()) != 0:
-        return ret, json.loads(out)
+    if include_stderr:
+        ret, stdout, stderr = cmd(ns + name + " " + params + args,
+                                  fail=fail, include_stderr=True)
+    else:
+        ret, stdout = cmd(ns + name + " " + params + args,
+                          fail=fail, include_stderr=False)
+
+    if JSON and len(stdout.strip()) != 0:
+        out = json.loads(stdout)
+    else:
+        out = stdout
+
+    if include_stderr:
+        return ret, out, stderr
     else:
         return ret, out
 
@@ -181,13 +193,15 @@ def bpftool_map_list_wait(expected=0, n_retry=20):
         time.sleep(0.05)
     raise Exception("Time out waiting for map counts to stabilize want %d, have %d" % (expected, nmaps))
 
-def ip(args, force=False, JSON=True, ns="", fail=True):
+def ip(args, force=False, JSON=True, ns="", fail=True, include_stderr=False):
     if force:
         args = "-force " + args
-    return tool("ip", args, {"json":"-j"}, JSON=JSON, ns=ns, fail=fail)
+    return tool("ip", args, {"json":"-j"}, JSON=JSON, ns=ns,
+                fail=fail, include_stderr=include_stderr)
 
-def tc(args, JSON=True, ns="", fail=True):
-    return tool("tc", args, {"json":"-p"}, JSON=JSON, ns=ns, fail=fail)
+def tc(args, JSON=True, ns="", fail=True, include_stderr=False):
+    return tool("tc", args, {"json":"-p"}, JSON=JSON, ns=ns,
+                fail=fail, include_stderr=include_stderr)
 
 def ethtool(dev, opt, args, fail=True):
     return cmd("ethtool %s %s %s" % (opt, dev["ifname"], args), fail=fail)
@@ -348,13 +362,19 @@ class NetdevSim:
         return ip("link set dev %s mtu %d" % (self.dev["ifname"], mtu),
                   fail=fail)
 
-    def set_xdp(self, bpf, mode, force=False, JSON=True, fail=True):
+    def set_xdp(self, bpf, mode, force=False, JSON=True, verbose=False,
+                fail=True, include_stderr=False):
+        if verbose:
+            bpf += " verbose"
         return ip("link set dev %s xdp%s %s" % (self.dev["ifname"], mode, bpf),
-                  force=force, JSON=JSON, fail=fail)
+                  force=force, JSON=JSON,
+                  fail=fail, include_stderr=include_stderr)
 
-    def unset_xdp(self, mode, force=False, JSON=True, fail=True):
+    def unset_xdp(self, mode, force=False, JSON=True,
+                  fail=True, include_stderr=False):
         return ip("link set dev %s xdp%s off" % (self.dev["ifname"], mode),
-                  force=force, JSON=JSON, fail=fail)
+                  force=force, JSON=JSON,
+                  fail=fail, include_stderr=include_stderr)
 
     def ip_link_show(self, xdp):
         _, link = ip("link show dev %s" % (self['ifname']))
@@ -409,17 +429,39 @@ class NetdevSim:
                  (len(filters), expected))
         return filters
 
-    def cls_bpf_add_filter(self, bpf, da=False, skip_sw=False, skip_hw=False,
-                           fail=True):
+    def cls_filter_op(self, op, qdisc="ingress", prio=None, handle=None,
+                      cls="", params="",
+                      fail=True, include_stderr=False):
+        spec = ""
+        if prio is not None:
+            spec += " prio %d" % (prio)
+        if handle:
+            spec += " handle %s" % (handle)
+
+        return tc("filter {op} dev {dev} {qdisc} {spec} {cls} {params}"\
+                  .format(op=op, dev=self['ifname'], qdisc=qdisc, spec=spec,
+                          cls=cls, params=params),
+                  fail=fail, include_stderr=include_stderr)
+
+    def cls_bpf_add_filter(self, bpf, op="add", prio=None, handle=None,
+                           da=False, verbose=False,
+                           skip_sw=False, skip_hw=False,
+                           fail=True, include_stderr=False):
+        cls = "bpf " + bpf
+
         params = ""
         if da:
             params += " da"
+        if verbose:
+            params += " verbose"
         if skip_sw:
             params += " skip_sw"
         if skip_hw:
             params += " skip_hw"
-        return tc("filter add dev %s ingress bpf %s %s" %
-                  (self['ifname'], bpf, params), fail=fail)
+
+        return self.cls_filter_op(op=op, prio=prio, handle=handle, cls=cls,
+                                  params=params,
+                                  fail=fail, include_stderr=include_stderr)
 
     def set_ethtool_tc_offloads(self, enable, fail=True):
         args = "hw-tc-offload %s" % ("on" if enable else "off")
@@ -491,6 +533,23 @@ def check_dev_info(other_ns, ns, prog_file=None, map_file=None, removed=False):
         fail("dev" not in m.keys(), "Device parameters not reported")
         fail(dev != m["dev"], "Map's device different than program's")
 
+def check_extack(output, reference, args):
+    if skip_extack:
+        return
+    lines = output.split("\n")
+    comp = len(lines) >= 2 and lines[1] == reference
+    fail(not comp, "Missing or incorrect netlink extack message")
+
+def check_extack_nsim(output, reference, args):
+    check_extack(output, "Error: netdevsim: " + reference, args)
+
+def check_verifier_log(output, reference):
+    lines = output.split("\n")
+    for l in reversed(lines):
+        if l == reference:
+            return
+    fail(True, "Missing or incorrect message from netdevsim in verifier log")
+
 # Parse command line
 parser = argparse.ArgumentParser()
 parser.add_argument("--log", help="output verbose log to given file")
@@ -527,6 +586,14 @@ for s in samples:
     skip(ret != 0, "sample %s/%s not found, please compile it" %
          (bpf_test_dir, s))
 
+# Check if iproute2 is built with libmnl (needed by extack support)
+_, _, err = cmd("tc qdisc delete dev lo handle 0",
+                fail=False, include_stderr=True)
+if err.find("Error: Failed to find qdisc with specified handle.") == -1:
+    print("Warning: no extack message in iproute2 output, libmnl missing?")
+    log("Warning: no extack message in iproute2 output, libmnl missing?", "")
+    skip_extack = True
+
 # Check if net namespaces seem to work
 ns = mknetns()
 skip(ns is None, "Could not create a net namespace")
@@ -558,8 +625,10 @@ try:
     sim.tc_flush_filters()
 
     start_test("Test TC offloads are off by default...")
-    ret, _ = sim.cls_bpf_add_filter(obj, skip_sw=True, fail=False)
+    ret, _, err = sim.cls_bpf_add_filter(obj, skip_sw=True,
+                                         fail=False, include_stderr=True)
     fail(ret == 0, "TC filter loaded without enabling TC offloads")
+    check_extack(err, "Error: TC offload is disabled on net device.", args)
     sim.wait_for_flush()
 
     sim.set_ethtool_tc_offloads(True)
@@ -587,13 +656,44 @@ try:
     sim.dfs["bpf_tc_non_bound_accept"] = "N"
 
     start_test("Test TC cBPF unbound bytecode doesn't offload...")
-    ret, _ = sim.cls_bpf_add_filter(bytecode, skip_sw=True, fail=False)
+    ret, _, err = sim.cls_bpf_add_filter(bytecode, skip_sw=True,
+                                         fail=False, include_stderr=True)
     fail(ret == 0, "TC bytecode loaded for offload")
+    check_extack_nsim(err, "netdevsim configured to reject unbound programs.",
+                      args)
     sim.wait_for_flush()
 
+    start_test("Test TC replace...")
+    sim.cls_bpf_add_filter(obj, prio=1, handle=1)
+    sim.cls_bpf_add_filter(obj, op="replace", prio=1, handle=1)
+    sim.cls_filter_op(op="delete", prio=1, handle=1, cls="bpf")
+
+    sim.cls_bpf_add_filter(obj, prio=1, handle=1, skip_sw=True)
+    sim.cls_bpf_add_filter(obj, op="replace", prio=1, handle=1, skip_sw=True)
+    sim.cls_filter_op(op="delete", prio=1, handle=1, cls="bpf")
+
+    sim.cls_bpf_add_filter(obj, prio=1, handle=1, skip_hw=True)
+    sim.cls_bpf_add_filter(obj, op="replace", prio=1, handle=1, skip_hw=True)
+    sim.cls_filter_op(op="delete", prio=1, handle=1, cls="bpf")
+
+    start_test("Test TC replace bad flags...")
+    for i in range(3):
+        for j in range(3):
+            ret, _ = sim.cls_bpf_add_filter(obj, op="replace", prio=1, handle=1,
+                                            skip_sw=(j == 1), skip_hw=(j == 2),
+                                            fail=False)
+            fail(bool(ret) != bool(j),
+                 "Software TC incorrect load in replace test, iteration %d" %
+                 (j))
+        sim.cls_filter_op(op="delete", prio=1, handle=1, cls="bpf")
+
+    sim.tc_flush_filters()
+
     start_test("Test TC offloads work...")
-    ret, _ = sim.cls_bpf_add_filter(obj, skip_sw=True, fail=False)
+    ret, _, err = sim.cls_bpf_add_filter(obj, verbose=True, skip_sw=True,
+                                         fail=False, include_stderr=True)
     fail(ret != 0, "TC filter did not load with TC offloads enabled")
+    check_verifier_log(err, "[netdevsim] Hello from netdevsim!")
 
     start_test("Test TC offload basics...")
     dfs = sim.dfs_get_bound_progs(expected=1)
@@ -669,16 +769,24 @@ try:
          "Device parameters reported for non-offloaded program")
 
     start_test("Test XDP prog replace with bad flags...")
-    ret, _ = sim.set_xdp(obj, "offload", force=True, fail=False)
+    ret, _, err = sim.set_xdp(obj, "offload", force=True,
+                              fail=False, include_stderr=True)
     fail(ret == 0, "Replaced XDP program with a program in different mode")
-    ret, _ = sim.set_xdp(obj, "", force=True, fail=False)
+    check_extack_nsim(err, "program loaded with different flags.", args)
+    ret, _, err = sim.set_xdp(obj, "", force=True,
+                              fail=False, include_stderr=True)
     fail(ret == 0, "Replaced XDP program with a program in different mode")
+    check_extack_nsim(err, "program loaded with different flags.", args)
 
     start_test("Test XDP prog remove with bad flags...")
-    ret, _ = sim.unset_xdp("offload", force=True, fail=False)
+    ret, _, err = sim.unset_xdp("offload", force=True,
+                                fail=False, include_stderr=True)
     fail(ret == 0, "Removed program with a bad mode mode")
-    ret, _ = sim.unset_xdp("", force=True, fail=False)
+    check_extack_nsim(err, "program loaded with different flags.", args)
+    ret, _, err = sim.unset_xdp("", force=True,
+                                fail=False, include_stderr=True)
     fail(ret == 0, "Removed program with a bad mode mode")
+    check_extack_nsim(err, "program loaded with different flags.", args)
 
     start_test("Test MTU restrictions...")
     ret, _ = sim.set_mtu(9000, fail=False)
@@ -687,18 +795,20 @@ try:
     sim.unset_xdp("drv")
     bpftool_prog_list_wait(expected=0)
     sim.set_mtu(9000)
-    ret, _ = sim.set_xdp(obj, "drv", fail=False)
+    ret, _, err = sim.set_xdp(obj, "drv", fail=False, include_stderr=True)
     fail(ret == 0, "Driver should refuse to load program with MTU of 9000...")
+    check_extack_nsim(err, "MTU too large w/ XDP enabled.", args)
     sim.set_mtu(1500)
 
     sim.wait_for_flush()
     start_test("Test XDP offload...")
-    sim.set_xdp(obj, "offload")
+    _, _, err = sim.set_xdp(obj, "offload", verbose=True, include_stderr=True)
     ipl = sim.ip_link_show(xdp=True)
     link_xdp = ipl["xdp"]["prog"]
     progs = bpftool_prog_list(expected=1)
     prog = progs[0]
     fail(link_xdp["id"] != prog["id"], "Loaded program has wrong ID")
+    check_verifier_log(err, "[netdevsim] Hello from netdevsim!")
 
     start_test("Test XDP offload is device bound...")
     dfs = sim.dfs_get_bound_progs(expected=1)
@@ -724,25 +834,32 @@ try:
     sim2.set_xdp(obj, "offload")
     pin_file, pinned = pin_prog("/sys/fs/bpf/tmp")
 
-    ret, _ = sim.set_xdp(pinned, "offload", fail=False)
+    ret, _, err = sim.set_xdp(pinned, "offload",
+                              fail=False, include_stderr=True)
     fail(ret == 0, "Pinned program loaded for a different device accepted")
+    check_extack_nsim(err, "program bound to different dev.", args)
     sim2.remove()
-    ret, _ = sim.set_xdp(pinned, "offload", fail=False)
+    ret, _, err = sim.set_xdp(pinned, "offload",
+                              fail=False, include_stderr=True)
     fail(ret == 0, "Pinned program loaded for a removed device accepted")
+    check_extack_nsim(err, "xdpoffload of non-bound program.", args)
     rm(pin_file)
     bpftool_prog_list_wait(expected=0)
 
     start_test("Test mixing of TC and XDP...")
     sim.tc_add_ingress()
     sim.set_xdp(obj, "offload")
-    ret, _ = sim.cls_bpf_add_filter(obj, skip_sw=True, fail=False)
+    ret, _, err = sim.cls_bpf_add_filter(obj, skip_sw=True,
+                                         fail=False, include_stderr=True)
     fail(ret == 0, "Loading TC when XDP active should fail")
+    check_extack_nsim(err, "driver and netdev offload states mismatch.", args)
     sim.unset_xdp("offload")
     sim.wait_for_flush()
 
     sim.cls_bpf_add_filter(obj, skip_sw=True)
-    ret, _ = sim.set_xdp(obj, "offload", fail=False)
+    ret, _, err = sim.set_xdp(obj, "offload", fail=False, include_stderr=True)
     fail(ret == 0, "Loading XDP when TC active should fail")
+    check_extack_nsim(err, "TC program is already loaded.", args)
 
     start_test("Test binding TC from pinned...")
     pin_file, pinned = pin_prog("/sys/fs/bpf/tmp")
@@ -765,8 +882,10 @@ try:
 
     start_test("Test asking for TC offload of two filters...")
     sim.cls_bpf_add_filter(obj, da=True, skip_sw=True)
-    ret, _ = sim.cls_bpf_add_filter(obj, da=True, skip_sw=True, fail=False)
+    ret, _, err = sim.cls_bpf_add_filter(obj, da=True, skip_sw=True,
+                                         fail=False, include_stderr=True)
     fail(ret == 0, "Managed to offload two TC filters at the same time")
+    check_extack_nsim(err, "driver and netdev offload states mismatch.", args)
 
     sim.tc_flush_filters(bound=2, total=2)
 
