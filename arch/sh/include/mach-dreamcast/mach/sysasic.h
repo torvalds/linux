@@ -42,7 +42,6 @@
 /* arch/sh/boards/mach-dreamcast/irq.c */
 extern int systemasic_irq_demux(int);
 extern void systemasic_irq_init(void);
-extern void aica_time_init(void);
 
 #endif /* __ASM_SH_DREAMCAST_SYSASIC_H */
 
