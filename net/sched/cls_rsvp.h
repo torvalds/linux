@@ -322,7 +322,7 @@ static void rsvp_delete_filter(struct tcf_proto *tp, struct rsvp_filter *f)
 		__rsvp_delete_filter(f);
 }
 
-static void rsvp_destroy(struct tcf_proto *tp)
+static void rsvp_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct rsvp_head *data = rtnl_dereference(tp->root);
 	int h1, h2;

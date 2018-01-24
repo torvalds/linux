@@ -172,9 +172,10 @@ errout:
 	return ERR_PTR(err);
 }
 
-static void tcf_proto_destroy(struct tcf_proto *tp)
+static void tcf_proto_destroy(struct tcf_proto *tp,
+			      struct netlink_ext_ack *extack)
 {
-	tp->ops->destroy(tp);
+	tp->ops->destroy(tp, extack);
 	module_put(tp->ops->owner);
 	kfree_rcu(tp, rcu);
 }
@@ -223,7 +224,7 @@ static void tcf_chain_flush(struct tcf_chain *chain)
 	tcf_chain_head_change(chain, NULL);
 	while (tp) {
 		RCU_INIT_POINTER(chain->filter_chain, tp->next);
-		tcf_proto_destroy(tp);
+		tcf_proto_destroy(tp, NULL);
 		tp = rtnl_dereference(chain->filter_chain);
 		tcf_chain_put(chain);
 	}
@@ -1182,7 +1183,7 @@ replay:
 			tcf_chain_tp_remove(chain, &chain_info, tp);
 			tfilter_notify(net, skb, n, tp, block, q, parent, fh,
 				       RTM_DELTFILTER, false);
-			tcf_proto_destroy(tp);
+			tcf_proto_destroy(tp, extack);
 			err = 0;
 			goto errout;
 		}
@@ -1200,7 +1201,7 @@ replay:
 		case RTM_NEWTFILTER:
 			if (n->nlmsg_flags & NLM_F_EXCL) {
 				if (tp_created)
-					tcf_proto_destroy(tp);
+					tcf_proto_destroy(tp, NULL);
 				NL_SET_ERR_MSG(extack, "Filter already exists");
 				err = -EEXIST;
 				goto errout;
@@ -1214,7 +1215,7 @@ replay:
 				goto errout;
 			if (last) {
 				tcf_chain_tp_remove(chain, &chain_info, tp);
-				tcf_proto_destroy(tp);
+				tcf_proto_destroy(tp, extack);
 			}
 			goto errout;
 		case RTM_GETTFILTER:
@@ -1240,7 +1241,7 @@ replay:
 			       RTM_NEWTFILTER, false);
 	} else {
 		if (tp_created)
-			tcf_proto_destroy(tp);
+			tcf_proto_destroy(tp, NULL);
 	}
 
 errout:

@@ -218,12 +218,13 @@ static void fl_destroy_filter(struct rcu_head *head)
 	tcf_queue_work(&f->work);
 }
 
-static void fl_hw_destroy_filter(struct tcf_proto *tp, struct cls_fl_filter *f)
+static void fl_hw_destroy_filter(struct tcf_proto *tp, struct cls_fl_filter *f,
+				 struct netlink_ext_ack *extack)
 {
 	struct tc_cls_flower_offload cls_flower = {};
 	struct tcf_block *block = tp->chain->block;
 
-	tc_cls_common_offload_init(&cls_flower.common, tp, NULL);
+	tc_cls_common_offload_init(&cls_flower.common, tp, f->flags, extack);
 	cls_flower.command = TC_CLSFLOWER_DESTROY;
 	cls_flower.cookie = (unsigned long) f;
 
@@ -243,7 +244,7 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 	bool skip_sw = tc_skip_sw(f->flags);
 	int err;
 
-	tc_cls_common_offload_init(&cls_flower.common, tp, extack);
+	tc_cls_common_offload_init(&cls_flower.common, tp, f->flags, extack);
 	cls_flower.command = TC_CLSFLOWER_REPLACE;
 	cls_flower.cookie = (unsigned long) f;
 	cls_flower.dissector = dissector;
@@ -255,7 +256,7 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 	err = tc_setup_cb_call(block, &f->exts, TC_SETUP_CLSFLOWER,
 			       &cls_flower, skip_sw);
 	if (err < 0) {
-		fl_hw_destroy_filter(tp, f);
+		fl_hw_destroy_filter(tp, f, NULL);
 		return err;
 	} else if (err > 0) {
 		tcf_block_offload_inc(block, &f->flags);
@@ -272,7 +273,7 @@ static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f)
 	struct tc_cls_flower_offload cls_flower = {};
 	struct tcf_block *block = tp->chain->block;
 
-	tc_cls_common_offload_init(&cls_flower.common, tp, NULL);
+	tc_cls_common_offload_init(&cls_flower.common, tp, f->flags, NULL);
 	cls_flower.command = TC_CLSFLOWER_STATS;
 	cls_flower.cookie = (unsigned long) f;
 	cls_flower.exts = &f->exts;
@@ -282,14 +283,15 @@ static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f)
 			 &cls_flower, false);
 }
 
-static void __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f)
+static void __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f,
+			struct netlink_ext_ack *extack)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 
 	idr_remove_ext(&head->handle_idr, f->handle);
 	list_del_rcu(&f->list);
 	if (!tc_skip_hw(f->flags))
-		fl_hw_destroy_filter(tp, f);
+		fl_hw_destroy_filter(tp, f, extack);
 	tcf_unbind_filter(tp, &f->res);
 	if (tcf_exts_get_net(&f->exts))
 		call_rcu(&f->rcu, fl_destroy_filter);
@@ -315,13 +317,13 @@ static void fl_destroy_rcu(struct rcu_head *rcu)
 	schedule_work(&head->work);
 }
 
-static void fl_destroy(struct tcf_proto *tp)
+static void fl_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *f, *next;
 
 	list_for_each_entry_safe(f, next, &head->filters, list)
-		__fl_delete(tp, f);
+		__fl_delete(tp, f, extack);
 	idr_destroy(&head->handle_idr);
 
 	__module_get(THIS_MODULE);
@@ -958,7 +960,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 			rhashtable_remove_fast(&head->ht, &fold->ht_node,
 					       head->ht_params);
 		if (!tc_skip_hw(fold->flags))
-			fl_hw_destroy_filter(tp, fold);
+			fl_hw_destroy_filter(tp, fold, NULL);
 	}
 
 	*arg = fnew;
@@ -997,7 +999,7 @@ static int fl_delete(struct tcf_proto *tp, void *arg, bool *last,
 	if (!tc_skip_sw(f->flags))
 		rhashtable_remove_fast(&head->ht, &f->ht_node,
 				       head->ht_params);
-	__fl_delete(tp, f);
+	__fl_delete(tp, f, extack);
 	*last = list_empty(&head->filters);
 	return 0;
 }

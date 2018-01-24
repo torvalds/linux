@@ -605,17 +605,6 @@ struct tc_cls_common_offload {
 	struct netlink_ext_ack *extack;
 };
 
-static inline void
-tc_cls_common_offload_init(struct tc_cls_common_offload *cls_common,
-			   const struct tcf_proto *tp,
-			   struct netlink_ext_ack *extack)
-{
-	cls_common->chain_index = tp->chain->index;
-	cls_common->protocol = tp->protocol;
-	cls_common->prio = tp->prio;
-	cls_common->extack = extack;
-}
-
 struct tc_cls_u32_knode {
 	struct tcf_exts *exts;
 	struct tc_u32_sel *sel;
@@ -694,6 +683,18 @@ static inline bool tc_in_hw(u32 flags)
 	return (flags & TCA_CLS_FLAGS_IN_HW) ? true : false;
 }
 
+static inline void
+tc_cls_common_offload_init(struct tc_cls_common_offload *cls_common,
+			   const struct tcf_proto *tp, u32 flags,
+			   struct netlink_ext_ack *extack)
+{
+	cls_common->chain_index = tp->chain->index;
+	cls_common->protocol = tp->protocol;
+	cls_common->prio = tp->prio;
+	if (tc_skip_sw(flags))
+		cls_common->extack = extack;
+}
+
 enum tc_fl_command {
 	TC_CLSFLOWER_REPLACE,
 	TC_CLSFLOWER_DESTROY,
@@ -736,7 +737,6 @@ struct tc_cls_bpf_offload {
 	struct bpf_prog *oldprog;
 	const char *name;
 	bool exts_integrated;
-	u32 gen_flags;
 };
 
 struct tc_mqprio_qopt_offload {

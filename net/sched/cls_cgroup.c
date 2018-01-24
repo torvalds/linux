@@ -143,7 +143,8 @@ errout:
 	return err;
 }
 
-static void cls_cgroup_destroy(struct tcf_proto *tp)
+static void cls_cgroup_destroy(struct tcf_proto *tp,
+			       struct netlink_ext_ack *extack)
 {
 	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
 

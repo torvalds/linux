@@ -281,7 +281,7 @@ static void route4_delete_filter(struct rcu_head *head)
 	tcf_queue_work(&f->work);
 }
 
-static void route4_destroy(struct tcf_proto *tp)
+static void route4_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct route4_head *head = rtnl_dereference(tp->root);
 	int h1, h2;
