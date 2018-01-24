@@ -2429,12 +2429,16 @@ enum hdmi_force_audio {
  * We have one bit per pipe and per scanout plane type.
  */
 #define INTEL_FRONTBUFFER_BITS_PER_PIPE 8
-#define INTEL_FRONTBUFFER(pipe, plane_id) \
-	(1 << ((plane_id) + INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)))
+#define INTEL_FRONTBUFFER(pipe, plane_id) ({ \
+	BUILD_BUG_ON(INTEL_FRONTBUFFER_BITS_PER_PIPE * I915_MAX_PIPES > 32); \
+	BUILD_BUG_ON(I915_MAX_PLANES > INTEL_FRONTBUFFER_BITS_PER_PIPE); \
+	BIT((plane_id) + INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)); \
+})
 #define INTEL_FRONTBUFFER_OVERLAY(pipe) \
-	(1 << (INTEL_FRONTBUFFER_BITS_PER_PIPE - 1 + INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)))
+	BIT(INTEL_FRONTBUFFER_BITS_PER_PIPE - 1 + INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))
 #define INTEL_FRONTBUFFER_ALL_MASK(pipe) \
-	(0xff << (INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)))
+	GENMASK(INTEL_FRONTBUFFER_BITS_PER_PIPE * ((pipe) + 1) - 1, \
+		INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))
 
 /*
  * Optimised SGL iterator for GEM objects
