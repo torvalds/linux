@@ -335,6 +335,53 @@ static void dwc2_handle_session_req_intr(struct dwc2_hsotg *hsotg)
 	}
 }
 
+/**
+ * dwc2_wakeup_from_lpm_l1 - Exit the device from LPM L1 state
+ *
+ * @hsotg: Programming view of DWC_otg controller
+ *
+ */
+static void dwc2_wakeup_from_lpm_l1(struct dwc2_hsotg *hsotg)
+{
+	u32 glpmcfg;
+	u32 i = 0;
+
+	if (hsotg->lx_state != DWC2_L1) {
+		dev_err(hsotg->dev, "Core isn't in DWC2_L1 state\n");
+		return;
+	}
+
+	glpmcfg = dwc2_readl(hsotg->regs + GLPMCFG);
+	if (dwc2_is_device_mode(hsotg)) {
+		dev_dbg(hsotg->dev, "Exit from L1 state\n");
+		glpmcfg &= ~GLPMCFG_ENBLSLPM;
+		glpmcfg &= ~GLPMCFG_HIRD_THRES_EN;
+		dwc2_writel(glpmcfg, hsotg->regs + GLPMCFG);
+
+		do {
+			glpmcfg = dwc2_readl(hsotg->regs + GLPMCFG);
+
+			if (!(glpmcfg & (GLPMCFG_COREL1RES_MASK |
+					 GLPMCFG_L1RESUMEOK | GLPMCFG_SLPSTS)))
+				break;
+
+			udelay(1);
+		} while (++i < 200);
+
+		if (i == 200) {
+			dev_err(hsotg->dev, "Failed to exit L1 sleep state in 200us.\n");
+			return;
+		}
+	} else {
+		/* TODO */
+		dev_err(hsotg->dev, "Host side LPM is not supported.\n");
+		return;
+	}
+
+	/* Change to L0 state */
+	hsotg->lx_state = DWC2_L0;
+}
+
 /*
  * This interrupt indicates that the DWC_otg controller has detected a
  * resume or remote wakeup sequence. If the DWC_otg controller is in
@@ -351,6 +398,11 @@ static void dwc2_handle_wakeup_detected_intr(struct dwc2_hsotg *hsotg)
 
 	dev_dbg(hsotg->dev, "++Resume or Remote Wakeup Detected Interrupt++\n");
 	dev_dbg(hsotg->dev, "%s lxstate = %d\n", __func__, hsotg->lx_state);
+
+	if (hsotg->lx_state == DWC2_L1) {
+		dwc2_wakeup_from_lpm_l1(hsotg);
+		return;
+	}
 
 	if (dwc2_is_device_mode(hsotg)) {
 		dev_dbg(hsotg->dev, "DSTS=0x%0x\n",
