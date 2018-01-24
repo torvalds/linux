@@ -1050,14 +1050,13 @@ static int __fm10k_uc_sync(struct net_device *dev,
 			   const unsigned char *addr, bool sync)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
-	struct fm10k_hw *hw = &interface->hw;
 	u16 vid, glort = interface->glort;
 	s32 err;
 
 	if (!is_valid_ether_addr(addr))
 		return -EADDRNOTAVAIL;
 
-	for (vid = hw->mac.default_vid ? fm10k_find_next_vlan(interface, 0) : 1;
+	for (vid = fm10k_find_next_vlan(interface, 0);
 	     vid < VLAN_N_VID;
 	     vid = fm10k_find_next_vlan(interface, vid)) {
 		err = fm10k_queue_mac_request(interface, glort,
@@ -1116,14 +1115,13 @@ static int __fm10k_mc_sync(struct net_device *dev,
 			   const unsigned char *addr, bool sync)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
-	struct fm10k_hw *hw = &interface->hw;
 	u16 vid, glort = interface->glort;
 	s32 err;
 
 	if (!is_multicast_ether_addr(addr))
 		return -EADDRNOTAVAIL;
 
-	for (vid = hw->mac.default_vid ? fm10k_find_next_vlan(interface, 0) : 1;
+	for (vid = fm10k_find_next_vlan(interface, 0);
 	     vid < VLAN_N_VID;
 	     vid = fm10k_find_next_vlan(interface, vid)) {
 		err = fm10k_queue_mac_request(interface, glort,
@@ -1223,7 +1221,7 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 				 xcast_mode == FM10K_XCAST_MODE_PROMISC);
 
 	/* update table with current entries */
-	for (vid = hw->mac.default_vid ? fm10k_find_next_vlan(interface, 0) : 1;
+	for (vid = fm10k_find_next_vlan(interface, 0);
 	     vid < VLAN_N_VID;
 	     vid = fm10k_find_next_vlan(interface, vid)) {
 		fm10k_queue_vlan_request(interface, vid, 0, true);
