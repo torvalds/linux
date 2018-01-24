@@ -87,11 +87,7 @@ static int panel_dpi_enable(struct omap_dss_device *dssdev)
 	}
 
 	gpiod_set_value_cansleep(ddata->enable_gpio, 1);
-
-	if (ddata->backlight) {
-		ddata->backlight->props.power = FB_BLANK_UNBLANK;
-		backlight_update_status(ddata->backlight);
-	}
+	backlight_enable(ddata->backlight);
 
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
@@ -106,10 +102,7 @@ static void panel_dpi_disable(struct omap_dss_device *dssdev)
 	if (!omapdss_device_is_enabled(dssdev))
 		return;
 
-	if (ddata->backlight) {
-		ddata->backlight->props.power = FB_BLANK_POWERDOWN;
-		backlight_update_status(ddata->backlight);
-	}
+	backlight_disable(ddata->backlight);
 
 	gpiod_set_value_cansleep(ddata->enable_gpio, 0);
 	regulator_disable(ddata->vcc_supply);
