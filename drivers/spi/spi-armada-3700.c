@@ -739,7 +739,7 @@ static int a3700_spi_transfer_one_full_duplex(struct spi_master *master,
 				  struct spi_transfer *xfer)
 {
 	struct a3700_spi *a3700_spi = spi_master_get_devdata(master);
-	u32 val_in, val_out;
+	u32 val;
 
 	/* Disable FIFO mode */
 	a3700_spi_fifo_mode_set(a3700_spi, false);
@@ -753,21 +753,20 @@ static int a3700_spi_transfer_one_full_duplex(struct spi_master *master,
 			a3700_spi_bytelen_set(a3700_spi, 1);
 
 		if (a3700_spi->byte_len == 1)
-			val_out = *a3700_spi->tx_buf;
+			val = *a3700_spi->tx_buf;
 		else
-			val_out = cpu_to_le32(*(u32 *)a3700_spi->tx_buf);
+			val = *(u32 *)a3700_spi->tx_buf;
 
-		spireg_write(a3700_spi, A3700_SPI_DATA_OUT_REG, val_out);
+		spireg_write(a3700_spi, A3700_SPI_DATA_OUT_REG, val);
 
 		/* Wait for all the data to be shifted in / out */
 		while (!(spireg_read(a3700_spi, A3700_SPI_IF_CTRL_REG) &
 				A3700_SPI_XFER_DONE))
 			cpu_relax();
 
-		val_in = le32_to_cpu(spireg_read(a3700_spi,
-						 A3700_SPI_DATA_IN_REG));
+		val = spireg_read(a3700_spi, A3700_SPI_DATA_IN_REG);
 
-		memcpy(a3700_spi->rx_buf, &val_in, a3700_spi->byte_len);
+		memcpy(a3700_spi->rx_buf, &val, a3700_spi->byte_len);
 
 		a3700_spi->buf_len -= a3700_spi->byte_len;
 		a3700_spi->tx_buf += a3700_spi->byte_len;
