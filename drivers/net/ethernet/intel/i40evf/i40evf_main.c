@@ -1716,6 +1716,8 @@ static void i40evf_watchdog_task(struct work_struct *work)
 	if (adapter->state == __I40EVF_RUNNING)
 		i40evf_request_stats(adapter);
 watchdog_done:
+	if (adapter->state == __I40EVF_RUNNING)
+		i40evf_detect_recover_hung(&adapter->vsi);
 	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 restart_watchdog:
 	if (adapter->state == __I40EVF_REMOVE)
@@ -1802,6 +1804,12 @@ static void i40evf_reset_task(struct work_struct *work)
 	u32 reg_val;
 	int i = 0, err;
 	bool running;
+
+	/* When device is being removed it doesn't make sense to run the reset
+	 * task, just return in such a case.
+	 */
+	if (test_bit(__I40EVF_IN_REMOVE_TASK, &adapter->crit_section))
+		return;
 
 	while (test_and_set_bit(__I40EVF_IN_CLIENT_TASK,
 				&adapter->crit_section))
@@ -3053,7 +3061,8 @@ static void i40evf_remove(struct pci_dev *pdev)
 	struct i40evf_mac_filter *f, *ftmp;
 	struct i40e_hw *hw = &adapter->hw;
 	int err;
-
+	/* Indicate we are in remove and not to run reset_task */
+	set_bit(__I40EVF_IN_REMOVE_TASK, &adapter->crit_section);
 	cancel_delayed_work_sync(&adapter->init_task);
 	cancel_work_sync(&adapter->reset_task);
 	cancel_delayed_work_sync(&adapter->client_task);
@@ -3087,8 +3096,6 @@ static void i40evf_remove(struct pci_dev *pdev)
 
 	if (adapter->watchdog_timer.function)
 		del_timer_sync(&adapter->watchdog_timer);
-
-	flush_scheduled_work();
 
 	i40evf_free_rss(adapter);
 
