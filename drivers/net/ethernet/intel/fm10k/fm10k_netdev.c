@@ -1182,9 +1182,10 @@ static void fm10k_set_rx_mode(struct net_device *dev)
 
 void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 {
+	struct fm10k_l2_accel *l2_accel = interface->l2_accel;
 	struct net_device *netdev = interface->netdev;
 	struct fm10k_hw *hw = &interface->hw;
-	int xcast_mode;
+	int xcast_mode, i;
 	u16 vid, glort;
 
 	/* record glort for this interface */
@@ -1233,6 +1234,24 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 	/* synchronize all of the addresses */
 	__dev_uc_sync(netdev, fm10k_uc_sync, fm10k_uc_unsync);
 	__dev_mc_sync(netdev, fm10k_mc_sync, fm10k_mc_unsync);
+
+	/* synchronize macvlan addresses */
+	if (l2_accel) {
+		for (i = 0; i < l2_accel->size; i++) {
+			struct net_device *sdev = l2_accel->macvlan[i];
+
+			if (!sdev)
+				continue;
+
+			glort = l2_accel->dglort + 1 + i;
+
+			hw->mac.ops.update_xcast_mode(hw, glort,
+						      FM10K_XCAST_MODE_MULTI);
+			fm10k_queue_mac_request(interface, glort,
+						sdev->dev_addr,
+						hw->mac.default_vid, true);
+		}
+	}
 
 	fm10k_mbx_unlock(interface);
 
@@ -1490,7 +1509,7 @@ static void *fm10k_dfwd_add_station(struct net_device *dev,
 		hw->mac.ops.update_xcast_mode(hw, glort,
 					      FM10K_XCAST_MODE_MULTI);
 		fm10k_queue_mac_request(interface, glort, sdev->dev_addr,
-					0, true);
+					hw->mac.default_vid, true);
 	}
 
 	fm10k_mbx_unlock(interface);
@@ -1530,7 +1549,7 @@ static void fm10k_dfwd_del_station(struct net_device *dev, void *priv)
 		hw->mac.ops.update_xcast_mode(hw, glort,
 					      FM10K_XCAST_MODE_NONE);
 		fm10k_queue_mac_request(interface, glort, sdev->dev_addr,
-					0, false);
+					hw->mac.default_vid, false);
 	}
 
 	fm10k_mbx_unlock(interface);
