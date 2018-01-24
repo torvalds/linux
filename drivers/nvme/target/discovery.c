@@ -43,7 +43,8 @@ void nvmet_referral_disable(struct nvmet_port *port)
 }
 
 static void nvmet_format_discovery_entry(struct nvmf_disc_rsp_page_hdr *hdr,
-		struct nvmet_port *port, char *subsys_nqn, u8 type, u32 numrec)
+		struct nvmet_port *port, char *subsys_nqn, char *traddr,
+		u8 type, u32 numrec)
 {
 	struct nvmf_disc_rsp_page_entry *e = &hdr->entries[numrec];
 
@@ -56,9 +57,28 @@ static void nvmet_format_discovery_entry(struct nvmf_disc_rsp_page_hdr *hdr,
 	e->asqsz = cpu_to_le16(NVME_AQ_DEPTH);
 	e->subtype = type;
 	memcpy(e->trsvcid, port->disc_addr.trsvcid, NVMF_TRSVCID_SIZE);
-	memcpy(e->traddr, port->disc_addr.traddr, NVMF_TRADDR_SIZE);
+	memcpy(e->traddr, traddr, NVMF_TRADDR_SIZE);
 	memcpy(e->tsas.common, port->disc_addr.tsas.common, NVMF_TSAS_SIZE);
 	memcpy(e->subnqn, subsys_nqn, NVMF_NQN_SIZE);
+}
+
+/*
+ * nvmet_set_disc_traddr - set a correct discovery log entry traddr
+ *
+ * IP based transports (e.g RDMA) can listen on "any" ipv4/ipv6 addresses
+ * (INADDR_ANY or IN6ADDR_ANY_INIT). The discovery log page traddr reply
+ * must not contain that "any" IP address. If the transport implements
+ * .disc_traddr, use it. this callback will set the discovery traddr
+ * from the req->port address in case the port in question listens
+ * "any" IP address.
+ */
+static void nvmet_set_disc_traddr(struct nvmet_req *req, struct nvmet_port *port,
+		char *traddr)
+{
+	if (req->ops->disc_traddr)
+		req->ops->disc_traddr(req, port, traddr);
+	else
+		memcpy(traddr, port->disc_addr.traddr, NVMF_TRADDR_SIZE);
 }
 
 static void nvmet_execute_get_disc_log_page(struct nvmet_req *req)
@@ -90,8 +110,11 @@ static void nvmet_execute_get_disc_log_page(struct nvmet_req *req)
 		if (!nvmet_host_allowed(req, p->subsys, ctrl->hostnqn))
 			continue;
 		if (residual_len >= entry_size) {
+			char traddr[NVMF_TRADDR_SIZE];
+
+			nvmet_set_disc_traddr(req, req->port, traddr);
 			nvmet_format_discovery_entry(hdr, req->port,
-					p->subsys->subsysnqn,
+					p->subsys->subsysnqn, traddr,
 					NVME_NQN_NVME, numrec);
 			residual_len -= entry_size;
 		}
@@ -102,6 +125,7 @@ static void nvmet_execute_get_disc_log_page(struct nvmet_req *req)
 		if (residual_len >= entry_size) {
 			nvmet_format_discovery_entry(hdr, r,
 					NVME_DISC_SUBSYS_NAME,
+					r->disc_addr.traddr,
 					NVME_NQN_DISC, numrec);
 			residual_len -= entry_size;
 		}

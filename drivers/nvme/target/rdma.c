@@ -1445,6 +1445,23 @@ static void nvmet_rdma_remove_port(struct nvmet_port *port)
 		rdma_destroy_id(cm_id);
 }
 
+static void nvmet_rdma_disc_port_addr(struct nvmet_req *req,
+		struct nvmet_port *port, char *traddr)
+{
+	struct rdma_cm_id *cm_id = port->priv;
+
+	if (inet_addr_is_any((struct sockaddr *)&cm_id->route.addr.src_addr)) {
+		struct nvmet_rdma_rsp *rsp =
+			container_of(req, struct nvmet_rdma_rsp, req);
+		struct rdma_cm_id *req_cm_id = rsp->queue->cm_id;
+		struct sockaddr *addr = (void *)&req_cm_id->route.addr.src_addr;
+
+		sprintf(traddr, "%pISc", addr);
+	} else {
+		memcpy(traddr, port->disc_addr.traddr, NVMF_TRADDR_SIZE);
+	}
+}
+
 static struct nvmet_fabrics_ops nvmet_rdma_ops = {
 	.owner			= THIS_MODULE,
 	.type			= NVMF_TRTYPE_RDMA,
@@ -1455,6 +1472,7 @@ static struct nvmet_fabrics_ops nvmet_rdma_ops = {
 	.remove_port		= nvmet_rdma_remove_port,
 	.queue_response		= nvmet_rdma_queue_response,
 	.delete_ctrl		= nvmet_rdma_delete_ctrl,
+	.disc_traddr		= nvmet_rdma_disc_port_addr,
 };
 
 static void nvmet_rdma_remove_one(struct ib_device *ib_device, void *client_data)
