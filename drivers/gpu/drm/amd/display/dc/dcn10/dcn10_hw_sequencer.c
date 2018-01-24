@@ -121,20 +121,19 @@ void dcn10_log_hw_state(struct dc *dc)
 
 	dcn10_log_hubbub_state(dc);
 
-	DTN_INFO("HUBP:\t format \t addr_hi \t width \t height \t "
-			"rotation \t mirror \t  sw_mode \t "
-			"dcc_en \t blank_en \t ttu_dis \t underflow \t "
-			"min_ttu_vblank \t qos_low_wm \t qos_high_wm \n");
-
+	DTN_INFO("HUBP:  format  addr_hi  width  height  "
+			"rotation  mirror  sw_mode  "
+			"dcc_en  blank_en  ttu_dis  underflow  "
+			"min_ttu_vblank  qos_low_wm  qos_high_wm\n");
 	for (i = 0; i < pool->pipe_count; i++) {
 		struct hubp *hubp = pool->hubps[i];
 		struct dcn_hubp_state s;
 
 		hubp1_read_state(TO_DCN10_HUBP(hubp), &s);
 
-		DTN_INFO("[%d]:\t %xh \t %xh \t %d \t %d \t "
-				"%xh \t %xh \t %xh \t "
-				"%d \t %d \t %d \t %xh \t",
+		DTN_INFO("[%-2d]:  %5xh  %6xh  %5d  %6d  "
+				"%7xh  %5xh  %6xh  "
+				"%6d  %8d  %7d  %8xh \t",
 				hubp->inst,
 				s.pixel_format,
 				s.inuse_addr_hi,
@@ -151,6 +150,22 @@ void dcn10_log_hw_state(struct dc *dc)
 		DTN_INFO_MICRO_SEC(s.qos_level_low_wm);
 		DTN_INFO_MICRO_SEC(s.qos_level_high_wm);
 		DTN_INFO("\n");
+	}
+	DTN_INFO("\n");
+	for (i = 0; i < pool->pipe_count; i++) {
+		struct output_pixel_processor *opp = pool->opps[i];
+		struct mpcc *mpcc = opp->mpc_tree_params.opp_list;
+		struct mpcc_state s = {0};
+
+		while (mpcc) {
+			ASSERT(opp->mpc_tree_params.opp_id == opp->inst);
+			pool->mpc->funcs->read_mpcc_state(pool->mpc, mpcc->mpcc_id, &s);
+			DTN_INFO("[OPP%d - MPCC%d]: DPP%d MPCCBOT%x MODE:%d ALPHA_MODE:%d PREMULT:%d OVERLAP_ONLY:%d\n",
+				s.opp_id, mpcc->mpcc_id, s.dpp_id, s.bot_mpcc_id,
+				s.mode, s.alpha_mode, s.pre_multiplied_alpha, s.overlap_only);
+			mpcc = mpcc->mpcc_bot;
+			ASSERT(!mpcc || mpcc->mpcc_id == s.bot_mpcc_id);
+		}
 	}
 	DTN_INFO("\n");
 

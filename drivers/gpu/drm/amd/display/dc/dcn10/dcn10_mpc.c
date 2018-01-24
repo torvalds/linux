@@ -409,7 +409,24 @@ void mpc1_init_mpcc_list_from_hw(
 	}
 }
 
+void mpc1_read_mpcc_state(
+		struct mpc *mpc,
+		int mpcc_inst,
+		struct mpcc_state *s)
+{
+	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
+
+	REG_GET(MPCC_OPP_ID[mpcc_inst], MPCC_OPP_ID, &s->opp_id);
+	REG_GET(MPCC_TOP_SEL[mpcc_inst], MPCC_TOP_SEL, &s->dpp_id);
+	REG_GET(MPCC_BOT_SEL[mpcc_inst], MPCC_BOT_SEL, &s->bot_mpcc_id);
+	REG_GET_4(MPCC_CONTROL[mpcc_inst], MPCC_MODE, &s->mode,
+			MPCC_ALPHA_BLND_MODE, &s->alpha_mode,
+			MPCC_ALPHA_MULTIPLIED_MODE, &s->pre_multiplied_alpha,
+			MPCC_BLND_ACTIVE_OVERLAP_ONLY, &s->pre_multiplied_alpha);
+}
+
 const struct mpc_funcs dcn10_mpc_funcs = {
+	.read_mpcc_state = mpc1_read_mpcc_state,
 	.insert_plane = mpc1_insert_plane,
 	.remove_mpcc = mpc1_remove_mpcc,
 	.mpc_init = mpc1_mpc_init,
