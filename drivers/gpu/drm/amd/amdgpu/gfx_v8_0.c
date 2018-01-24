@@ -4847,6 +4847,9 @@ static int gfx_v8_0_kcq_init_queue(struct amdgpu_ring *ring)
 		/* reset MQD to a clean status */
 		if (adev->gfx.mec.mqd_backup[mqd_idx])
 			memcpy(mqd, adev->gfx.mec.mqd_backup[mqd_idx], sizeof(struct vi_mqd_allocation));
+		/* reset ring buffer */
+		ring->wptr = 0;
+		amdgpu_ring_clear_ring(ring);
 	} else {
 		amdgpu_ring_clear_ring(ring);
 	}
@@ -4921,13 +4924,6 @@ static int gfx_v8_0_kiq_resume(struct amdgpu_device *adev)
 	/* Test KCQs */
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		ring = &adev->gfx.compute_ring[i];
-		if (adev->in_gpu_reset) {
-			/* move reset ring buffer to here to workaround
-			 * compute ring test failed
-			 */
-			ring->wptr = 0;
-			amdgpu_ring_clear_ring(ring);
-		}
 		ring->ready = true;
 		r = amdgpu_ring_test_ring(ring);
 		if (r)
