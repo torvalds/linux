@@ -125,6 +125,8 @@ struct mt76_wcid {
 	u8 idx;
 	u8 hw_key_idx;
 
+	u8 sta:1;
+
 	__le16 tx_rate;
 	bool tx_rate_set;
 	u8 tx_rate_nss;
@@ -251,6 +253,7 @@ struct mt76_rate_power {
 };
 
 struct mt76_rx_status {
+	struct mt76_wcid *wcid;
 	u32 flag;
 	u16 freq;
 	u8 enc_flags;
@@ -341,6 +344,17 @@ mtxq_to_txq(struct mt76_txq *mtxq)
 	void *ptr = mtxq;
 
 	return container_of(ptr, struct ieee80211_txq, drv_priv);
+}
+
+static inline struct ieee80211_sta *
+wcid_to_sta(struct mt76_wcid *wcid)
+{
+	void *ptr = wcid;
+
+	if (!wcid || !wcid->sta)
+		return NULL;
+
+	return container_of(ptr, struct ieee80211_sta, drv_priv);
 }
 
 int mt76_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,

@@ -273,6 +273,7 @@ mt76x2_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		goto out;
 	}
 
+	msta->wcid.sta = 1;
 	msta->wcid.idx = idx;
 	msta->wcid.hw_key_idx = -1;
 	mt76x2_mac_wcid_setup(dev, idx, mvif->idx, sta->addr);
