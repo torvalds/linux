@@ -1297,8 +1297,8 @@ static int dwc2_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 		req->zero, req->short_not_ok);
 
 	/* Prevent new request submission when controller is suspended */
-	if (hs->lx_state == DWC2_L2) {
-		dev_dbg(hs->dev, "%s: don't submit request while suspended\n",
+	if (hs->lx_state != DWC2_L0) {
+		dev_dbg(hs->dev, "%s: submit request only in active state\n",
 			__func__);
 		return -EAGAIN;
 	}
