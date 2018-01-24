@@ -1116,6 +1116,96 @@
 		status = "disabled";
 	};
 
+	mpp_srv: mpp-srv {
+		compatible = "rockchip,mpp-service";
+		rockchip,taskqueue-count = <1>;
+		rockchip,resetgroup-count = <1>;
+		rockchip,grf = <&grf>;
+		rockchip,grf-offset = <0x0410>;
+		rockchip,grf-values = <0x80008000>, <0x80000000>, <0x80000000>;
+		rockchip,grf-names = "grf_rkvdec", "grf_vdpu2", "grf_vepu2";
+		status = "disabled";
+	};
+
+	vdpu: vdpu@ff442400 {
+		compatible = "rockchip,vpu-decoder-px30";
+		reg = <0x0 0xff442400 0x0 0x400>;
+		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_dec";
+		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		resets = <&cru SRST_VPU_A>, <&cru SRST_VPU_H>;
+		reset-names = "shared_video_a", "shared_video_h";
+		iommus = <&vpu_mmu>;
+		power-domains = <&power PX30_PD_VPU>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <0>;
+		rockchip,resetgroup-node = <0>;
+		status = "disabled";
+	};
+
+	vpu_mmu: iommu@ff442800 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff442800 0x0 0x100>;
+		interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vpu_mmu";
+		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power PX30_PD_VPU>;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	vepu: vepu@ff442000 {
+		compatible = "rockchip,vpu-encoder-px30";
+		reg = <0x0 0xff442000 0x0 0x400>;
+		interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_enc";
+		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		resets = <&cru SRST_VPU_A>, <&cru SRST_VPU_H>;
+		reset-names = "shared_video_a", "shared_video_h";
+		iommus = <&vpu_mmu>;
+		power-domains = <&power PX30_PD_VPU>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <0>;
+		rockchip,resetgroup-node = <0>;
+		status = "disabled";
+	};
+
+	hevc: hevc@ff440000 {
+		compatible = "rockchip,hevc-decoder-px30";
+		reg = <0x0 0xff440000 0x0 0x400>;
+		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_dec";
+		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>, <&cru SCLK_CORE_VPU>;
+		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
+		resets = <&cru SRST_VPU_A>, <&cru SRST_VPU_H>,
+			 <&cru SRST_VPU_NIU_A>, <&cru SRST_VPU_NIU_H>,
+			 <&cru SRST_VPU_CORE>;
+		reset-names = "shared_video_a", "shared_video_h",
+			      "niu_a", "niu_h",
+			      "video_core";
+		iommus = <&hevc_mmu>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <0>;
+		rockchip,resetgroup-node = <0>;
+		power-domains = <&power PX30_PD_VPU>;
+		status = "disabled";
+	};
+
+	hevc_mmu: iommu@ff440440 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff440440 0x0 0x40>, <0x0 0xff440480 0x0 0x40>;
+		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "hevc_mmu";
+		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power PX30_PD_VPU>;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
 	dsi: dsi@ff450000 {
 		compatible = "rockchip,px30-mipi-dsi";
 		reg = <0x0 0xff450000 0x0 0x10000>;
