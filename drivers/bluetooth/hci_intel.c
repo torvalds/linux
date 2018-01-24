@@ -708,16 +708,43 @@ static int intel_setup(struct hci_uart *hu)
 	}
 
 	/* With this Intel bootloader only the hardware variant and device
-	 * revision information are used to select the right firmware.
+	 * revision information are used to select the right firmware for SfP
+	 * and WsP.
 	 *
 	 * The firmware filename is ibt-<hw_variant>-<dev_revid>.sfi.
 	 *
 	 * Currently the supported hardware variants are:
 	 *   11 (0x0b) for iBT 3.0 (LnP/SfP)
+	 *   12 (0x0c) for iBT 3.5 (WsP)
+	 *
+	 * For ThP/JfP and for future SKU's, the FW name varies based on HW
+	 * variant, HW revision and FW revision, as these are dependent on CNVi
+	 * and RF Combination.
+	 *
+	 *   18 (0x12) for iBT3.5 (ThP/JfP)
+	 *
+	 * The firmware file name for these will be
+	 * ibt-<hw_variant>-<hw_revision>-<fw_revision>.sfi.
+	 *
 	 */
-	snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u.sfi",
-		le16_to_cpu(ver.hw_variant),
-		le16_to_cpu(params->dev_revid));
+	switch (ver.hw_variant) {
+	case 0x0b:      /* SfP */
+	case 0x0c:      /* WsP */
+		snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u.sfi",
+			 le16_to_cpu(ver.hw_variant),
+			 le16_to_cpu(params->dev_revid));
+		break;
+	case 0x12:      /* ThP */
+		snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u-%u.sfi",
+			 le16_to_cpu(ver.hw_variant),
+			 le16_to_cpu(ver.hw_revision),
+			 le16_to_cpu(ver.fw_revision));
+		break;
+	default:
+		bt_dev_err(hdev, "Unsupported Intel hardware variant (%u)",
+			   ver.hw_variant);
+		return -EINVAL;
+	}
 
 	err = request_firmware(&fw, fwname, &hdev->dev);
 	if (err < 0) {
@@ -730,9 +757,24 @@ static int intel_setup(struct hci_uart *hu)
 	bt_dev_info(hdev, "Found device firmware: %s", fwname);
 
 	/* Save the DDC file name for later */
-	snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u.ddc",
-		le16_to_cpu(ver.hw_variant),
-		le16_to_cpu(params->dev_revid));
+	switch (ver.hw_variant) {
+	case 0x0b:      /* SfP */
+	case 0x0c:      /* WsP */
+		snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u.ddc",
+			 le16_to_cpu(ver.hw_variant),
+			 le16_to_cpu(params->dev_revid));
+		break;
+	case 0x12:      /* ThP */
+		snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u-%u.ddc",
+			 le16_to_cpu(ver.hw_variant),
+			 le16_to_cpu(ver.hw_revision),
+			 le16_to_cpu(ver.fw_revision));
+		break;
+	default:
+		bt_dev_err(hdev, "Unsupported Intel hardware variant (%u)",
+			   ver.hw_variant);
+		return -EINVAL;
+	}
 
 	kfree_skb(skb);
 
