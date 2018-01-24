@@ -2831,10 +2831,9 @@ static void soc_pcm_private_free(struct snd_pcm *pcm)
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_component *component;
 
+	/* need to sync the delayed work before releasing resources */
+	flush_delayed_work(&rtd->delayed_work);
 	for_each_rtdcom(rtd, rtdcom) {
-		/* need to sync the delayed work before releasing resources */
-
-		flush_delayed_work(&rtd->delayed_work);
 		component = rtdcom->component;
 
 		if (component->pcm_free)
