@@ -604,10 +604,20 @@ static void __register_request(struct ceph_mds_client *mdsc,
 			       struct ceph_mds_request *req,
 			       struct inode *dir)
 {
+	int ret = 0;
+
 	req->r_tid = ++mdsc->last_tid;
-	if (req->r_num_caps)
-		ceph_reserve_caps(mdsc, &req->r_caps_reservation,
-				  req->r_num_caps);
+	if (req->r_num_caps) {
+		ret = ceph_reserve_caps(mdsc, &req->r_caps_reservation,
+					req->r_num_caps);
+		if (ret < 0) {
+			pr_err("__register_request %p "
+			       "failed to reserve caps: %d\n", req, ret);
+			/* set req->r_err to fail early from __do_request */
+			req->r_err = ret;
+			return;
+		}
+	}
 	dout("__register_request %p tid %lld\n", req, req->r_tid);
 	ceph_mdsc_get_request(req);
 	insert_request(&mdsc->request_tree, req);
@@ -1545,9 +1555,9 @@ out:
 /*
  * Trim session cap count down to some max number.
  */
-static int trim_caps(struct ceph_mds_client *mdsc,
-		     struct ceph_mds_session *session,
-		     int max_caps)
+int ceph_trim_caps(struct ceph_mds_client *mdsc,
+		   struct ceph_mds_session *session,
+		   int max_caps)
 {
 	int trim_caps = session->s_nr_caps - max_caps;
 
@@ -2776,7 +2786,7 @@ static void handle_session(struct ceph_mds_session *session,
 		break;
 
 	case CEPH_SESSION_RECALL_STATE:
-		trim_caps(mdsc, session, le32_to_cpu(h->max_caps));
+		ceph_trim_caps(mdsc, session, le32_to_cpu(h->max_caps));
 		break;
 
 	case CEPH_SESSION_FLUSHMSG:
