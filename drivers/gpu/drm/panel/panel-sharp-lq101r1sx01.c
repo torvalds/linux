@@ -96,10 +96,7 @@ static int sharp_panel_disable(struct drm_panel *panel)
 	if (!sharp->enabled)
 		return 0;
 
-	if (sharp->backlight) {
-		sharp->backlight->props.power = FB_BLANK_POWERDOWN;
-		backlight_update_status(sharp->backlight);
-	}
+	backlight_disable(sharp->backlight);
 
 	sharp->enabled = false;
 
@@ -263,10 +260,7 @@ static int sharp_panel_enable(struct drm_panel *panel)
 	if (sharp->enabled)
 		return 0;
 
-	if (sharp->backlight) {
-		sharp->backlight->props.power = FB_BLANK_UNBLANK;
-		backlight_update_status(sharp->backlight);
-	}
+	backlight_enable(sharp->backlight);
 
 	sharp->enabled = true;
 

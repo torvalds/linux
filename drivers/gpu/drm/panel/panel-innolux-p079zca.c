@@ -45,8 +45,7 @@ static int innolux_panel_disable(struct drm_panel *panel)
 	if (!innolux->enabled)
 		return 0;
 
-	innolux->backlight->props.power = FB_BLANK_POWERDOWN;
-	backlight_update_status(innolux->backlight);
+	backlight_disable(innolux->backlight);
 
 	err = mipi_dsi_dcs_set_display_off(innolux->link);
 	if (err < 0)
@@ -151,8 +150,7 @@ static int innolux_panel_enable(struct drm_panel *panel)
 	if (innolux->enabled)
 		return 0;
 
-	innolux->backlight->props.power = FB_BLANK_UNBLANK;
-	ret = backlight_update_status(innolux->backlight);
+	ret = backlight_enable(innolux->backlight);
 	if (ret) {
 		DRM_DEV_ERROR(panel->drm->dev,
 			      "Failed to enable backlight %d\n", ret);

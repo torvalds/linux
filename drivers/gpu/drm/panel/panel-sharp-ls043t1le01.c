@@ -117,10 +117,7 @@ static int sharp_nt_panel_disable(struct drm_panel *panel)
 	if (!sharp_nt->enabled)
 		return 0;
 
-	if (sharp_nt->backlight) {
-		sharp_nt->backlight->props.power = FB_BLANK_POWERDOWN;
-		backlight_update_status(sharp_nt->backlight);
-	}
+	backlight_disable(sharp_nt->backlight);
 
 	sharp_nt->enabled = false;
 
@@ -203,10 +200,7 @@ static int sharp_nt_panel_enable(struct drm_panel *panel)
 	if (sharp_nt->enabled)
 		return 0;
 
-	if (sharp_nt->backlight) {
-		sharp_nt->backlight->props.power = FB_BLANK_UNBLANK;
-		backlight_update_status(sharp_nt->backlight);
-	}
+	backlight_enable(sharp_nt->backlight);
 
 	sharp_nt->enabled = true;
 
