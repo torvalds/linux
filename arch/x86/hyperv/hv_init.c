@@ -191,6 +191,26 @@ void clear_hv_tscchange_cb(void)
 }
 EXPORT_SYMBOL_GPL(clear_hv_tscchange_cb);
 
+static int hv_cpu_die(unsigned int cpu)
+{
+	struct hv_reenlightenment_control re_ctrl;
+	unsigned int new_cpu;
+
+	if (hv_reenlightenment_cb == NULL)
+		return 0;
+
+	rdmsrl(HV_X64_MSR_REENLIGHTENMENT_CONTROL, *((u64 *)&re_ctrl));
+	if (re_ctrl.target_vp == hv_vp_index[cpu]) {
+		/* Reassign to some other online CPU */
+		new_cpu = cpumask_any_but(cpu_online_mask, cpu);
+
+		re_ctrl.target_vp = hv_vp_index[new_cpu];
+		wrmsrl(HV_X64_MSR_REENLIGHTENMENT_CONTROL, *((u64 *)&re_ctrl));
+	}
+
+	return 0;
+}
+
 /*
  * This function is to be invoked early in the boot sequence after the
  * hypervisor has been detected.
@@ -220,7 +240,7 @@ void hyperv_init(void)
 		return;
 
 	if (cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/hyperv_init:online",
-			      hv_cpu_init, NULL) < 0)
+			      hv_cpu_init, hv_cpu_die) < 0)
 		goto free_vp_index;
 
 	/*
