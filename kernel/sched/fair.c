@@ -5447,10 +5447,22 @@ static int sched_group_energy(struct energy_env *eenv)
 {
 	struct cpumask visit_cpus;
 	u64 total_energy = 0;
+	int cpu_count;
 
 	WARN_ON(!eenv->sg_top->sge);
 
 	cpumask_copy(&visit_cpus, sched_group_cpus(eenv->sg_top));
+	/* If a cpu is hotplugged in while we are in this function,
+	 * it does not appear in the existing visit_cpus mask
+	 * which came from the sched_group pointer of the
+	 * sched_domain pointed at by sd_ea for either the prev
+	 * or next cpu and was dereferenced in __energy_diff.
+	 * Since we will dereference sd_scs later as we iterate
+	 * through the CPUs we expect to visit, new CPUs can
+	 * be present which are not in the visit_cpus mask.
+	 * Guard this with cpu_count.
+	 */
+	cpu_count = cpumask_weight(&visit_cpus);
 
 	while (!cpumask_empty(&visit_cpus)) {
 		struct sched_group *sg_shared_cap = NULL;
@@ -5460,6 +5472,8 @@ static int sched_group_energy(struct energy_env *eenv)
 		/*
 		 * Is the group utilization affected by cpus outside this
 		 * sched_group?
+		 * This sd may have groups with cpus which were not present
+		 * when we took visit_cpus.
 		 */
 		sd = rcu_dereference(per_cpu(sd_scs, cpu));
 
@@ -5509,8 +5523,24 @@ static int sched_group_energy(struct energy_env *eenv)
 
 				total_energy += sg_busy_energy + sg_idle_energy;
 
-				if (!sd->child)
+				if (!sd->child) {
+					/*
+					 * cpu_count here is the number of
+					 * cpus we expect to visit in this
+					 * calculation. If we race against
+					 * hotplug, we can have extra cpus
+					 * added to the groups we are
+					 * iterating which do not appear in
+					 * the visit_cpus mask. In that case
+					 * we are not able to calculate energy
+					 * without restarting so we will bail
+					 * out and use prev_cpu this time.
+					 */
+					if (!cpu_count)
+						return -EINVAL;
 					cpumask_xor(&visit_cpus, &visit_cpus, sched_group_cpus(sg));
+					cpu_count--;
+				}
 
 				if (cpumask_equal(sched_group_cpus(sg), sched_group_cpus(eenv->sg_top)))
 					goto next_cpu;
@@ -5522,6 +5552,9 @@ static int sched_group_energy(struct energy_env *eenv)
 		 * If we raced with hotplug and got an sd NULL-pointer;
 		 * returning a wrong energy estimation is better than
 		 * entering an infinite loop.
+		 * Specifically: If a cpu is unplugged after we took
+		 * the visit_cpus mask, it no longer has an sd_scs
+		 * pointer, so when we dereference it, we get NULL.
 		 */
 		if (cpumask_test_cpu(cpu, &visit_cpus))
 			return -EINVAL;
