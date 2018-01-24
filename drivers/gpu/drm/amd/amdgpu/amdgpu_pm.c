@@ -1096,6 +1096,80 @@ static ssize_t amdgpu_hwmon_get_fan1_input(struct device *dev,
 	return sprintf(buf, "%i\n", speed);
 }
 
+static ssize_t amdgpu_hwmon_show_vddgfx(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	struct drm_device *ddev = adev->ddev;
+	u32 vddgfx;
+	int r, size = sizeof(vddgfx);
+
+	/* Can't get voltage when the card is off */
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
+
+	/* sanity check PP is enabled */
+	if (!(adev->powerplay.pp_funcs &&
+	      adev->powerplay.pp_funcs->read_sensor))
+	      return -EINVAL;
+
+	/* get the voltage */
+	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VDDGFX,
+				   (void *)&vddgfx, &size);
+	if (r)
+		return r;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", vddgfx);
+}
+
+static ssize_t amdgpu_hwmon_show_vddgfx_label(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "vddgfx\n");
+}
+
+static ssize_t amdgpu_hwmon_show_vddnb(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	struct drm_device *ddev = adev->ddev;
+	u32 vddnb;
+	int r, size = sizeof(vddnb);
+
+	/* only APUs have vddnb */
+	if  (adev->flags & AMD_IS_APU)
+		return -EINVAL;
+
+	/* Can't get voltage when the card is off */
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
+
+	/* sanity check PP is enabled */
+	if (!(adev->powerplay.pp_funcs &&
+	      adev->powerplay.pp_funcs->read_sensor))
+	      return -EINVAL;
+
+	/* get the voltage */
+	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VDDNB,
+				   (void *)&vddnb, &size);
+	if (r)
+		return r;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", vddnb);
+}
+
+static ssize_t amdgpu_hwmon_show_vddnb_label(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "vddnb\n");
+}
+
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, amdgpu_hwmon_show_temp, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, amdgpu_hwmon_show_temp_thresh, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IRUGO, amdgpu_hwmon_show_temp_thresh, NULL, 1);
@@ -1104,6 +1178,10 @@ static SENSOR_DEVICE_ATTR(pwm1_enable, S_IRUGO | S_IWUSR, amdgpu_hwmon_get_pwm1_
 static SENSOR_DEVICE_ATTR(pwm1_min, S_IRUGO, amdgpu_hwmon_get_pwm1_min, NULL, 0);
 static SENSOR_DEVICE_ATTR(pwm1_max, S_IRUGO, amdgpu_hwmon_get_pwm1_max, NULL, 0);
 static SENSOR_DEVICE_ATTR(fan1_input, S_IRUGO, amdgpu_hwmon_get_fan1_input, NULL, 0);
+static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, amdgpu_hwmon_show_vddgfx, NULL, 0);
+static SENSOR_DEVICE_ATTR(in0_label, S_IRUGO, amdgpu_hwmon_show_vddgfx_label, NULL, 0);
+static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, amdgpu_hwmon_show_vddnb, NULL, 0);
+static SENSOR_DEVICE_ATTR(in1_label, S_IRUGO, amdgpu_hwmon_show_vddnb_label, NULL, 0);
 
 static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -1114,6 +1192,10 @@ static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_pwm1_min.dev_attr.attr,
 	&sensor_dev_attr_pwm1_max.dev_attr.attr,
 	&sensor_dev_attr_fan1_input.dev_attr.attr,
+	&sensor_dev_attr_in0_input.dev_attr.attr,
+	&sensor_dev_attr_in0_label.dev_attr.attr,
+	&sensor_dev_attr_in1_input.dev_attr.attr,
+	&sensor_dev_attr_in1_label.dev_attr.attr,
 	NULL
 };
 
