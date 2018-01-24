@@ -114,7 +114,7 @@ static int mall_replace_hw_filter(struct tcf_proto *tp,
 	return 0;
 }
 
-static void mall_destroy(struct tcf_proto *tp)
+static void mall_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct cls_mall_head *head = rtnl_dereference(tp->root);
 

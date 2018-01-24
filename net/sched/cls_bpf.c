@@ -314,7 +314,8 @@ static int cls_bpf_delete(struct tcf_proto *tp, void *arg, bool *last,
 	return 0;
 }
 
-static void cls_bpf_destroy(struct tcf_proto *tp)
+static void cls_bpf_destroy(struct tcf_proto *tp,
+			    struct netlink_ext_ack *extack)
 {
 	struct cls_bpf_head *head = rtnl_dereference(tp->root);
 	struct cls_bpf_prog *prog, *tmp;

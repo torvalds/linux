@@ -149,7 +149,7 @@ static void fw_delete_filter(struct rcu_head *head)
 	tcf_queue_work(&f->work);
 }
 
-static void fw_destroy(struct tcf_proto *tp)
+static void fw_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct fw_head *head = rtnl_dereference(tp->root);
 	struct fw_filter *f;

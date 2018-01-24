@@ -638,7 +638,7 @@ static bool ht_empty(struct tc_u_hnode *ht)
 	return true;
 }
 
-static void u32_destroy(struct tcf_proto *tp)
+static void u32_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct tc_u_common *tp_c = tp->data;
 	struct tc_u_hnode *root_ht = rtnl_dereference(tp->root);

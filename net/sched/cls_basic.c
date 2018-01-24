@@ -112,7 +112,7 @@ static void basic_delete_filter(struct rcu_head *head)
 	tcf_queue_work(&f->work);
 }
 
-static void basic_destroy(struct tcf_proto *tp)
+static void basic_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct basic_head *head = rtnl_dereference(tp->root);
 	struct basic_filter *f, *n;
