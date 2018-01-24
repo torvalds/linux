@@ -639,7 +639,10 @@ void i915_guc_log_unregister(struct drm_i915_private *dev_priv)
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	/* GuC logging is currently the only user of Guc2Host interrupts */
+	intel_runtime_pm_get(dev_priv);
 	gen9_disable_guc_interrupts(dev_priv);
+	intel_runtime_pm_put(dev_priv);
+
 	guc_log_runtime_destroy(&dev_priv->guc);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 }
