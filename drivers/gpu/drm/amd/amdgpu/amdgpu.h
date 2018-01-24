@@ -319,13 +319,6 @@ struct amdgpu_vm_pte_funcs {
 	void (*write_pte)(struct amdgpu_ib *ib, uint64_t pe,
 			  uint64_t value, unsigned count,
 			  uint32_t incr);
-
-	/* maximum nums of PTEs/PDEs in a single operation */
-	uint32_t	set_max_nums_pte_pde;
-
-	/* number of dw to reserve per operation */
-	unsigned	set_pte_pde_num_dw;
-
 	/* for linear pte/pde updates without addr mapping */
 	void (*set_pte_pde)(struct amdgpu_ib *ib,
 			    uint64_t pe,
