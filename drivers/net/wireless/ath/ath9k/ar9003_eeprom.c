@@ -4689,7 +4689,8 @@ static int ar9003_hw_cal_pier_get(struct ath_hw *ah,
 				  int ichain,
 				  int *pfrequency,
 				  int *pcorrection,
-				  int *ptemperature, int *pvoltage)
+				  int *ptemperature, int *pvoltage,
+				  int *pnf_cal, int *pnf_power)
 {
 	u8 *pCalPier;
 	struct ar9300_cal_data_per_freq_op_loop *pCalPierStruct;
@@ -4731,6 +4732,10 @@ static int ar9003_hw_cal_pier_get(struct ath_hw *ah,
 	*pcorrection = pCalPierStruct->refPower;
 	*ptemperature = pCalPierStruct->tempMeas;
 	*pvoltage = pCalPierStruct->voltMeas;
+	*pnf_cal = pCalPierStruct->rxTempMeas ?
+			N2DBM(pCalPierStruct->rxNoisefloorCal) : 0;
+	*pnf_power = pCalPierStruct->rxTempMeas ?
+			N2DBM(pCalPierStruct->rxNoisefloorPower) : 0;
 
 	return 0;
 }
@@ -4895,14 +4900,18 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 	int mode;
 	int lfrequency[AR9300_MAX_CHAINS],
 	    lcorrection[AR9300_MAX_CHAINS],
-	    ltemperature[AR9300_MAX_CHAINS], lvoltage[AR9300_MAX_CHAINS];
+	    ltemperature[AR9300_MAX_CHAINS], lvoltage[AR9300_MAX_CHAINS],
+	    lnf_cal[AR9300_MAX_CHAINS], lnf_pwr[AR9300_MAX_CHAINS];
 	int hfrequency[AR9300_MAX_CHAINS],
 	    hcorrection[AR9300_MAX_CHAINS],
-	    htemperature[AR9300_MAX_CHAINS], hvoltage[AR9300_MAX_CHAINS];
+	    htemperature[AR9300_MAX_CHAINS], hvoltage[AR9300_MAX_CHAINS],
+	    hnf_cal[AR9300_MAX_CHAINS], hnf_pwr[AR9300_MAX_CHAINS];
 	int fdiff;
 	int correction[AR9300_MAX_CHAINS],
-	    voltage[AR9300_MAX_CHAINS], temperature[AR9300_MAX_CHAINS];
-	int pfrequency, pcorrection, ptemperature, pvoltage;
+	    voltage[AR9300_MAX_CHAINS], temperature[AR9300_MAX_CHAINS],
+	    nf_cal[AR9300_MAX_CHAINS], nf_pwr[AR9300_MAX_CHAINS];
+	int pfrequency, pcorrection, ptemperature, pvoltage,
+	    pnf_cal, pnf_pwr;
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	mode = (frequency >= 4000);
@@ -4920,7 +4929,8 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 		for (ipier = 0; ipier < npier; ipier++) {
 			if (!ar9003_hw_cal_pier_get(ah, mode, ipier, ichain,
 						    &pfrequency, &pcorrection,
-						    &ptemperature, &pvoltage)) {
+						    &ptemperature, &pvoltage,
+						    &pnf_cal, &pnf_pwr)) {
 				fdiff = frequency - pfrequency;
 
 				/*
@@ -4942,6 +4952,8 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 						htemperature[ichain] =
 						    ptemperature;
 						hvoltage[ichain] = pvoltage;
+						hnf_cal[ichain] = pnf_cal;
+						hnf_pwr[ichain] = pnf_pwr;
 					}
 				}
 				if (fdiff >= 0) {
@@ -4958,6 +4970,8 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 						ltemperature[ichain] =
 						    ptemperature;
 						lvoltage[ichain] = pvoltage;
+						lnf_cal[ichain] = pnf_cal;
+						lnf_pwr[ichain] = pnf_pwr;
 					}
 				}
 			}
@@ -4966,15 +4980,20 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 
 	/* interpolate  */
 	for (ichain = 0; ichain < AR9300_MAX_CHAINS; ichain++) {
-		ath_dbg(common, EEPROM, "ch=%d f=%d low=%d %d h=%d %d\n",
+		ath_dbg(common, EEPROM,
+			"ch=%d f=%d low=%d %d h=%d %d n=%d %d p=%d %d\n",
 			ichain, frequency, lfrequency[ichain],
 			lcorrection[ichain], hfrequency[ichain],
-			hcorrection[ichain]);
+			hcorrection[ichain], lnf_cal[ichain],
+			hnf_cal[ichain], lnf_pwr[ichain],
+			hnf_pwr[ichain]);
 		/* they're the same, so just pick one */
 		if (hfrequency[ichain] == lfrequency[ichain]) {
 			correction[ichain] = lcorrection[ichain];
 			voltage[ichain] = lvoltage[ichain];
 			temperature[ichain] = ltemperature[ichain];
+			nf_cal[ichain] = lnf_cal[ichain];
+			nf_pwr[ichain] = lnf_pwr[ichain];
 		}
 		/* the low frequency is good */
 		else if (frequency - lfrequency[ichain] < 1000) {
@@ -4998,12 +5017,26 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 						hfrequency[ichain],
 						lvoltage[ichain],
 						hvoltage[ichain]);
+
+				nf_cal[ichain] = interpolate(frequency,
+						lfrequency[ichain],
+						hfrequency[ichain],
+						lnf_cal[ichain],
+						hnf_cal[ichain]);
+
+				nf_pwr[ichain] = interpolate(frequency,
+						lfrequency[ichain],
+						hfrequency[ichain],
+						lnf_pwr[ichain],
+						hnf_pwr[ichain]);
 			}
 			/* only low is good, use it */
 			else {
 				correction[ichain] = lcorrection[ichain];
 				temperature[ichain] = ltemperature[ichain];
 				voltage[ichain] = lvoltage[ichain];
+				nf_cal[ichain] = lnf_cal[ichain];
+				nf_pwr[ichain] = lnf_pwr[ichain];
 			}
 		}
 		/* only high is good, use it */
@@ -5011,10 +5044,14 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 			correction[ichain] = hcorrection[ichain];
 			temperature[ichain] = htemperature[ichain];
 			voltage[ichain] = hvoltage[ichain];
+			nf_cal[ichain] = hnf_cal[ichain];
+			nf_pwr[ichain] = hnf_pwr[ichain];
 		} else {	/* nothing is good, presume 0???? */
 			correction[ichain] = 0;
 			temperature[ichain] = 0;
 			voltage[ichain] = 0;
+			nf_cal[ichain] = 0;
+			nf_pwr[ichain] = 0;
 		}
 	}
 
@@ -5024,6 +5061,16 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 	ath_dbg(common, EEPROM,
 		"for frequency=%d, calibration correction = %d %d %d\n",
 		frequency, correction[0], correction[1], correction[2]);
+
+	/* Store calibrated noise floor values */
+	for (ichain = 0; ichain < AR5416_MAX_CHAINS; ichain++)
+		if (mode) {
+			ah->nf_5g.cal[ichain] = nf_cal[ichain];
+			ah->nf_5g.pwr[ichain] = nf_pwr[ichain];
+		} else {
+			ah->nf_2g.cal[ichain] = nf_cal[ichain];
+			ah->nf_2g.pwr[ichain] = nf_pwr[ichain];
+		}
 
 	return 0;
 }
