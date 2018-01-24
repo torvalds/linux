@@ -80,6 +80,9 @@
 #include "iwl-csr.h"
 #include "fw/acpi.h"
 #include "fw/api/nvm-reg.h"
+#include "fw/api/commands.h"
+#include "fw/api/cmdhdr.h"
+#include "fw/img.h"
 
 /* NVM offsets (in words) definitions */
 enum nvm_offsets {
@@ -460,9 +463,10 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 	vht_cap->vht_mcs.tx_mcs_map = vht_cap->vht_mcs.rx_mcs_map;
 }
 
-void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
-		     struct iwl_nvm_data *data, const __le16 *nvm_ch_flags,
-		     u8 tx_chains, u8 rx_chains, u32 sbands_flags)
+static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
+			    struct iwl_nvm_data *data,
+			    const __le16 *nvm_ch_flags, u8 tx_chains,
+			    u8 rx_chains, u32 sbands_flags)
 {
 	int n_channels;
 	int n_used = 0;
@@ -495,7 +499,6 @@ void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 		IWL_ERR_DEV(dev, "NVM: used only %d of %d channels\n",
 			    n_used, n_channels);
 }
-IWL_EXPORT_SYMBOL(iwl_init_sbands);
 
 static int iwl_get_sku(const struct iwl_cfg *cfg, const __le16 *nvm_sw,
 		       const __le16 *phy_sku)
@@ -573,8 +576,8 @@ static void iwl_flip_hw_address(__le32 mac_addr0, __le32 mac_addr1, u8 *dest)
 	dest[5] = hw_addr[0];
 }
 
-void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
-				 struct iwl_nvm_data *data)
+static void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
+					struct iwl_nvm_data *data)
 {
 	__le32 mac_addr0 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR0_STRAP));
 	__le32 mac_addr1 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR1_STRAP));
@@ -592,7 +595,6 @@ void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
 
 	iwl_flip_hw_address(mac_addr0, mac_addr1, data->hw_addr);
 }
-IWL_EXPORT_SYMBOL(iwl_set_hw_address_from_csr);
 
 static void iwl_set_hw_address_family_8000(struct iwl_trans *trans,
 					   const struct iwl_cfg *cfg,
@@ -1145,3 +1147,98 @@ out:
 	return ret;
 }
 IWL_EXPORT_SYMBOL(iwl_read_external_nvm);
+
+struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
+				 const struct iwl_fw *fw)
+{
+	struct iwl_nvm_get_info cmd = {};
+	struct iwl_nvm_get_info_rsp *rsp;
+	struct iwl_nvm_data *nvm;
+	struct iwl_host_cmd hcmd = {
+		.flags = CMD_WANT_SKB | CMD_SEND_IN_RFKILL,
+		.data = { &cmd, },
+		.len = { sizeof(cmd) },
+		.id = WIDE_ID(REGULATORY_AND_NVM_GROUP, NVM_GET_INFO)
+	};
+	int  ret;
+	bool lar_fw_supported = !iwlwifi_mod_params.lar_disable &&
+				fw_has_capa(&fw->ucode_capa,
+					    IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
+	u32 mac_flags;
+	u32 sbands_flags = 0;
+
+	ret = iwl_trans_send_cmd(trans, &hcmd);
+	if (ret)
+		return ERR_PTR(ret);
+
+	if (WARN(iwl_rx_packet_payload_len(hcmd.resp_pkt) != sizeof(*rsp),
+		 "Invalid payload len in NVM response from FW %d",
+		 iwl_rx_packet_payload_len(hcmd.resp_pkt))) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	rsp = (void *)hcmd.resp_pkt->data;
+	if (le32_to_cpu(rsp->general.flags) & NVM_GENERAL_FLAGS_EMPTY_OTP)
+		IWL_INFO(trans, "OTP is empty\n");
+
+	nvm = kzalloc(sizeof(*nvm) +
+		      sizeof(struct ieee80211_channel) * IWL_NUM_CHANNELS,
+		      GFP_KERNEL);
+	if (!nvm) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	iwl_set_hw_address_from_csr(trans, nvm);
+	/* TODO: if platform NVM has MAC address - override it here */
+
+	if (!is_valid_ether_addr(nvm->hw_addr)) {
+		IWL_ERR(trans, "no valid mac address was found\n");
+		ret = -EINVAL;
+		goto err_free;
+	}
+
+	IWL_INFO(trans, "base HW address: %pM\n", nvm->hw_addr);
+
+	/* Initialize general data */
+	nvm->nvm_version = le16_to_cpu(rsp->general.nvm_version);
+
+	/* Initialize MAC sku data */
+	mac_flags = le32_to_cpu(rsp->mac_sku.mac_sku_flags);
+	nvm->sku_cap_11ac_enable =
+		!!(mac_flags & NVM_MAC_SKU_FLAGS_802_11AC_ENABLED);
+	nvm->sku_cap_11n_enable =
+		!!(mac_flags & NVM_MAC_SKU_FLAGS_802_11N_ENABLED);
+	nvm->sku_cap_band_24ghz_enable =
+		!!(mac_flags & NVM_MAC_SKU_FLAGS_BAND_2_4_ENABLED);
+	nvm->sku_cap_band_52ghz_enable =
+		!!(mac_flags & NVM_MAC_SKU_FLAGS_BAND_5_2_ENABLED);
+	nvm->sku_cap_mimo_disabled =
+		!!(mac_flags & NVM_MAC_SKU_FLAGS_MIMO_DISABLED);
+
+	/* Initialize PHY sku data */
+	nvm->valid_tx_ant = (u8)le32_to_cpu(rsp->phy_sku.tx_chains);
+	nvm->valid_rx_ant = (u8)le32_to_cpu(rsp->phy_sku.rx_chains);
+
+	if (le32_to_cpu(rsp->regulatory.lar_enabled) && lar_fw_supported) {
+		nvm->lar_enabled = true;
+		sbands_flags |= IWL_NVM_SBANDS_FLAGS_LAR;
+	}
+
+	iwl_init_sbands(trans->dev, trans->cfg, nvm,
+			rsp->regulatory.channel_profile,
+			nvm->valid_tx_ant & fw->valid_tx_ant,
+			nvm->valid_rx_ant & fw->valid_rx_ant,
+			sbands_flags);
+
+	iwl_free_resp(&hcmd);
+	return nvm;
+
+err_free:
+	kfree(nvm);
+out:
+	iwl_free_resp(&hcmd);
+	return ERR_PTR(ret);
+}
+IWL_EXPORT_SYMBOL(iwl_get_nvm);

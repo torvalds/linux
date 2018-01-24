@@ -96,19 +96,6 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		   u8 tx_chains, u8 rx_chains, bool lar_fw_supported);
 
 /**
- * iwl_set_hw_address_from_csr - sets HW address for 9000 devices and on
- */
-void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
-				 struct iwl_nvm_data *data);
-
-/**
- * iwl_init_sbands - parse and set all channel profiles
- */
-void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
-		     struct iwl_nvm_data *data, const __le16 *nvm_ch_flags,
-		     u8 tx_chains, u8 rx_chains, u32 sbands_flags);
-
-/**
  * iwl_parse_mcc_info - parse MCC (mobile country code) info coming from FW
  *
  * This function parses the regulatory channel data received as a
@@ -142,4 +129,12 @@ int iwl_read_external_nvm(struct iwl_trans *trans,
 void iwl_nvm_fixups(u32 hw_id, unsigned int section, u8 *data,
 		    unsigned int len);
 
+/**
+ * iwl_get_nvm - retrieve NVM data from firmware
+ *
+ * Allocates a new iwl_nvm_data structure, fills it with
+ * NVM data, and returns it to caller.
+ */
+struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
+				 const struct iwl_fw *fw);
 #endif /* __iwl_nvm_parse_h__ */

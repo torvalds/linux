@@ -415,7 +415,7 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 
 	/* Read the NVM only at driver load time, no need to do this twice */
 	if (!IWL_MVM_PARSE_NVM && read_nvm) {
-		mvm->nvm_data = iwl_fw_get_nvm(&mvm->fwrt);
+		mvm->nvm_data = iwl_get_nvm(mvm->trans, mvm->fw);
 		if (IS_ERR(mvm->nvm_data)) {
 			ret = PTR_ERR(mvm->nvm_data);
 			mvm->nvm_data = NULL;
