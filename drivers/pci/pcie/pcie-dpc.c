@@ -15,6 +15,7 @@
 #include <linux/pci.h>
 #include <linux/pcieport_if.h>
 #include "../pci.h"
+#include "aer/aerdrv.h"
 
 struct rp_pio_header_log_regs {
 	u32 dw0;
@@ -308,6 +309,9 @@ static int dpc_probe(struct pcie_device *dev)
 	struct device *device = &dev->device;
 	int status;
 	u16 ctl, cap;
+
+	if (pcie_aer_get_firmware_first(pdev))
+		return -ENOTSUPP;
 
 	dpc = devm_kzalloc(device, sizeof(*dpc), GFP_KERNEL);
 	if (!dpc)
