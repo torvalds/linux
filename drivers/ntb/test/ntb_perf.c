@@ -273,21 +273,21 @@ static int perf_spad_cmd_send(struct perf_peer *peer, enum perf_cmd cmd,
 
 		sts = ntb_peer_spad_read(perf->ntb, peer->pidx,
 					 PERF_SPAD_CMD(perf->gidx));
-		if (le32_to_cpu(sts) != PERF_CMD_INVAL) {
+		if (sts != PERF_CMD_INVAL) {
 			usleep_range(MSG_UDELAY_LOW, MSG_UDELAY_HIGH);
 			continue;
 		}
 
 		ntb_peer_spad_write(perf->ntb, peer->pidx,
 				    PERF_SPAD_LDATA(perf->gidx),
-				    cpu_to_le32(lower_32_bits(data)));
+				    lower_32_bits(data));
 		ntb_peer_spad_write(perf->ntb, peer->pidx,
 				    PERF_SPAD_HDATA(perf->gidx),
-				    cpu_to_le32(upper_32_bits(data)));
+				    upper_32_bits(data));
 		mmiowb();
 		ntb_peer_spad_write(perf->ntb, peer->pidx,
 				    PERF_SPAD_CMD(perf->gidx),
-				    cpu_to_le32(cmd));
+				    cmd);
 		mmiowb();
 		ntb_peer_db_set(perf->ntb, PERF_SPAD_NOTIFY(peer->gidx));
 
@@ -321,21 +321,20 @@ static int perf_spad_cmd_recv(struct perf_ctx *perf, int *pidx,
 			continue;
 
 		val = ntb_spad_read(perf->ntb, PERF_SPAD_CMD(peer->gidx));
-		val = le32_to_cpu(val);
 		if (val == PERF_CMD_INVAL)
 			continue;
 
 		*cmd = val;
 
 		val = ntb_spad_read(perf->ntb, PERF_SPAD_LDATA(peer->gidx));
-		*data = le32_to_cpu(val);
+		*data = val;
 
 		val = ntb_spad_read(perf->ntb, PERF_SPAD_HDATA(peer->gidx));
-		*data |= (u64)le32_to_cpu(val) << 32;
+		*data |= (u64)val << 32;
 
 		/* Next command can be retrieved from now */
 		ntb_spad_write(perf->ntb, PERF_SPAD_CMD(peer->gidx),
-			       cpu_to_le32(PERF_CMD_INVAL));
+			       PERF_CMD_INVAL);
 
 		dev_dbg(&perf->ntb->dev, "CMD recv: %d 0x%llx\n", *cmd, *data);
 
@@ -371,7 +370,7 @@ static int perf_msg_cmd_send(struct perf_peer *peer, enum perf_cmd cmd,
 			return ret;
 
 		ntb_peer_msg_write(perf->ntb, peer->pidx, PERF_MSG_LDATA,
-			      cpu_to_le32(lower_32_bits(data)));
+				   lower_32_bits(data));
 
 		if (ntb_msg_read_sts(perf->ntb) & outbits) {
 			usleep_range(MSG_UDELAY_LOW, MSG_UDELAY_HIGH);
@@ -379,12 +378,11 @@ static int perf_msg_cmd_send(struct perf_peer *peer, enum perf_cmd cmd,
 		}
 
 		ntb_peer_msg_write(perf->ntb, peer->pidx, PERF_MSG_HDATA,
-			      cpu_to_le32(upper_32_bits(data)));
+				   upper_32_bits(data));
 		mmiowb();
 
 		/* This call shall trigger peer message event */
-		ntb_peer_msg_write(perf->ntb, peer->pidx, PERF_MSG_CMD,
-			      cpu_to_le32(cmd));
+		ntb_peer_msg_write(perf->ntb, peer->pidx, PERF_MSG_CMD, cmd);
 
 		break;
 	}
@@ -404,13 +402,13 @@ static int perf_msg_cmd_recv(struct perf_ctx *perf, int *pidx,
 		return -ENODATA;
 
 	val = ntb_msg_read(perf->ntb, pidx, PERF_MSG_CMD);
-	*cmd = le32_to_cpu(val);
+	*cmd = val;
 
 	val = ntb_msg_read(perf->ntb, pidx, PERF_MSG_LDATA);
-	*data = le32_to_cpu(val);
+	*data = val;
 
 	val = ntb_msg_read(perf->ntb, pidx, PERF_MSG_HDATA);
-	*data |= (u64)le32_to_cpu(val) << 32;
+	*data |= (u64)val << 32;
 
 	/* Next command can be retrieved from now */
 	ntb_msg_clear_sts(perf->ntb, inbits);
