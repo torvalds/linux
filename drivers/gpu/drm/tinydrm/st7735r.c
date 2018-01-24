@@ -164,7 +164,7 @@ static int st7735r_probe(struct spi_device *spi)
 		return PTR_ERR(dc);
 	}
 
-	mipi->backlight = of_find_backlight(dev);
+	mipi->backlight = devm_of_find_backlight(dev);
 	if (IS_ERR(mipi->backlight))
 		return PTR_ERR(mipi->backlight);
 
