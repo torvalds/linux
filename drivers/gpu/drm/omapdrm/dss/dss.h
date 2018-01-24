@@ -180,6 +180,9 @@ struct dss_pll_hw {
 
 	/* DRA7 errata i886: use high N & M to avoid jitter */
 	bool errata_i886;
+
+	/* DRA7 errata i932: retry pll lock on failure */
+	bool errata_i932;
 };
 
 struct dss_pll {
