@@ -43,7 +43,7 @@
 
 #define STATS_CHECK_PERIOD (HZ / 2)
 
-struct ch_tc_pedit_fields pedits[] = {
+static struct ch_tc_pedit_fields pedits[] = {
 	PEDIT_FIELDS(ETH_, DMAC_31_0, 4, dmac, 0),
 	PEDIT_FIELDS(ETH_, DMAC_47_32, 2, dmac, 4),
 	PEDIT_FIELDS(ETH_, SMAC_15_0, 2, smac, 0),
