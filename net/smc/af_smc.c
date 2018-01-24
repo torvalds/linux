@@ -599,16 +599,9 @@ static int smc_clcsock_accept(struct smc_sock *lsmc, struct smc_sock **new_smc)
 
 	rc = kernel_accept(lsmc->clcsock, &new_clcsock, 0);
 	lock_sock(lsk);
-	if  (rc < 0) {
+	if  (rc < 0)
 		lsk->sk_err = -rc;
-		new_sk->sk_state = SMC_CLOSED;
-		sock_set_flag(new_sk, SOCK_DEAD);
-		new_sk->sk_prot->unhash(new_sk);
-		sock_put(new_sk);
-		*new_smc = NULL;
-		goto out;
-	}
-	if (lsk->sk_state == SMC_CLOSED) {
+	if (rc < 0 || lsk->sk_state == SMC_CLOSED) {
 		if (new_clcsock)
 			sock_release(new_clcsock);
 		new_sk->sk_state = SMC_CLOSED;
