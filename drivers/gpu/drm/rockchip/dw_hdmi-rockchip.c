@@ -121,6 +121,7 @@ inno_dw_hdmi_phy_init(struct dw_hdmi *dw_hdmi, void *data,
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
 
 	inno_dw_hdmi_phy_disable(dw_hdmi, data);
+	dw_hdmi_set_high_tmds_clock_ratio(dw_hdmi);
 	return phy_power_on(hdmi->phy);
 }
 
