@@ -1902,6 +1902,49 @@ struct net *rtnl_link_get_net(struct net *src_net, struct nlattr *tb[])
 }
 EXPORT_SYMBOL(rtnl_link_get_net);
 
+/* Figure out which network namespace we are talking about by
+ * examining the link attributes in the following order:
+ *
+ * 1. IFLA_NET_NS_PID
+ * 2. IFLA_NET_NS_FD
+ * 3. IFLA_IF_NETNSID
+ */
+static struct net *rtnl_link_get_net_by_nlattr(struct net *src_net,
+					       struct nlattr *tb[])
+{
+	struct net *net;
+
+	if (tb[IFLA_NET_NS_PID] || tb[IFLA_NET_NS_FD])
+		return rtnl_link_get_net(src_net, tb);
+
+	if (!tb[IFLA_IF_NETNSID])
+		return get_net(src_net);
+
+	net = get_net_ns_by_id(src_net, nla_get_u32(tb[IFLA_IF_NETNSID]));
+	if (!net)
+		return ERR_PTR(-EINVAL);
+
+	return net;
+}
+
+static struct net *rtnl_link_get_net_capable(const struct sk_buff *skb,
+					     struct net *src_net,
+					     struct nlattr *tb[], int cap)
+{
+	struct net *net;
+
+	net = rtnl_link_get_net_by_nlattr(src_net, tb);
+	if (IS_ERR(net))
+		return net;
+
+	if (!netlink_ns_capable(skb, net->user_ns, cap)) {
+		put_net(net);
+		return ERR_PTR(-EPERM);
+	}
+
+	return net;
+}
+
 static int validate_linkmsg(struct net_device *dev, struct nlattr *tb[])
 {
 	if (dev) {
@@ -2164,17 +2207,14 @@ static int do_setlink(const struct sk_buff *skb,
 	const struct net_device_ops *ops = dev->netdev_ops;
 	int err;
 
-	if (tb[IFLA_NET_NS_PID] || tb[IFLA_NET_NS_FD]) {
-		struct net *net = rtnl_link_get_net(dev_net(dev), tb);
+	if (tb[IFLA_NET_NS_PID] || tb[IFLA_NET_NS_FD] || tb[IFLA_IF_NETNSID]) {
+		struct net *net = rtnl_link_get_net_capable(skb, dev_net(dev),
+							    tb, CAP_NET_ADMIN);
 		if (IS_ERR(net)) {
 			err = PTR_ERR(net);
 			goto errout;
 		}
-		if (!netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN)) {
-			put_net(net);
-			err = -EPERM;
-			goto errout;
-		}
+
 		err = dev_change_net_namespace(dev, net, ifname);
 		put_net(net);
 		if (err)
