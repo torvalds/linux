@@ -76,7 +76,7 @@ static void mall_destroy_hw_filter(struct tcf_proto *tp,
 	struct tc_cls_matchall_offload cls_mall = {};
 	struct tcf_block *block = tp->chain->block;
 
-	tc_cls_common_offload_init(&cls_mall.common, tp, NULL);
+	tc_cls_common_offload_init_deprecated(&cls_mall.common, tp, NULL);
 	cls_mall.command = TC_CLSMATCHALL_DESTROY;
 	cls_mall.cookie = cookie;
 
@@ -94,7 +94,7 @@ static int mall_replace_hw_filter(struct tcf_proto *tp,
 	bool skip_sw = tc_skip_sw(head->flags);
 	int err;
 
-	tc_cls_common_offload_init(&cls_mall.common, tp, extack);
+	tc_cls_common_offload_init_deprecated(&cls_mall.common, tp, extack);
 	cls_mall.command = TC_CLSMATCHALL_REPLACE;
 	cls_mall.exts = &head->exts;
 	cls_mall.cookie = cookie;
