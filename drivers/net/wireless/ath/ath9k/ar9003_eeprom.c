@@ -3310,6 +3310,12 @@ static int ar9300_eeprom_restore_internal(struct ath_hw *ah,
 	if (ar9300_check_eeprom_header(ah, read, cptr))
 		goto found;
 
+	cptr = AR9300_BASE_ADDR_4K;
+	ath_dbg(common, EEPROM, "Trying EEPROM access at Address 0x%04x\n",
+		cptr);
+	if (ar9300_check_eeprom_header(ah, read, cptr))
+		goto found;
+
 	cptr = AR9300_BASE_ADDR_512;
 	ath_dbg(common, EEPROM, "Trying EEPROM access at Address 0x%04x\n",
 		cptr);
