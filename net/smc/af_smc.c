@@ -581,39 +581,32 @@ out_err:
 
 static int smc_clcsock_accept(struct smc_sock *lsmc, struct smc_sock **new_smc)
 {
-	struct sock *sk = &lsmc->sk;
-	struct socket *new_clcsock;
+	struct socket *new_clcsock = NULL;
+	struct sock *lsk = &lsmc->sk;
 	struct sock *new_sk;
 	int rc;
 
-	release_sock(&lsmc->sk);
-	new_sk = smc_sock_alloc(sock_net(sk), NULL);
+	release_sock(lsk);
+	new_sk = smc_sock_alloc(sock_net(lsk), NULL);
 	if (!new_sk) {
 		rc = -ENOMEM;
-		lsmc->sk.sk_err = ENOMEM;
+		lsk->sk_err = ENOMEM;
 		*new_smc = NULL;
-		lock_sock(&lsmc->sk);
+		lock_sock(lsk);
 		goto out;
 	}
 	*new_smc = smc_sk(new_sk);
 
 	rc = kernel_accept(lsmc->clcsock, &new_clcsock, 0);
-	lock_sock(&lsmc->sk);
-	if  (rc < 0) {
-		lsmc->sk.sk_err = -rc;
-		new_sk->sk_state = SMC_CLOSED;
-		sock_set_flag(new_sk, SOCK_DEAD);
-		sk->sk_prot->unhash(new_sk);
-		sock_put(new_sk);
-		*new_smc = NULL;
-		goto out;
-	}
-	if (lsmc->sk.sk_state == SMC_CLOSED) {
+	lock_sock(lsk);
+	if  (rc < 0)
+		lsk->sk_err = -rc;
+	if (rc < 0 || lsk->sk_state == SMC_CLOSED) {
 		if (new_clcsock)
 			sock_release(new_clcsock);
 		new_sk->sk_state = SMC_CLOSED;
 		sock_set_flag(new_sk, SOCK_DEAD);
-		sk->sk_prot->unhash(new_sk);
+		new_sk->sk_prot->unhash(new_sk);
 		sock_put(new_sk);
 		*new_smc = NULL;
 		goto out;
@@ -936,11 +929,12 @@ static void smc_tcp_listen_work(struct work_struct *work)
 {
 	struct smc_sock *lsmc = container_of(work, struct smc_sock,
 					     tcp_listen_work);
+	struct sock *lsk = &lsmc->sk;
 	struct smc_sock *new_smc;
 	int rc = 0;
 
-	lock_sock(&lsmc->sk);
-	while (lsmc->sk.sk_state == SMC_LISTEN) {
+	lock_sock(lsk);
+	while (lsk->sk_state == SMC_LISTEN) {
 		rc = smc_clcsock_accept(lsmc, &new_smc);
 		if (rc)
 			goto out;
@@ -949,15 +943,15 @@ static void smc_tcp_listen_work(struct work_struct *work)
 
 		new_smc->listen_smc = lsmc;
 		new_smc->use_fallback = false; /* assume rdma capability first*/
-		sock_hold(&lsmc->sk); /* sock_put in smc_listen_work */
+		sock_hold(lsk); /* sock_put in smc_listen_work */
 		INIT_WORK(&new_smc->smc_listen_work, smc_listen_work);
 		smc_copy_sock_settings_to_smc(new_smc);
 		schedule_work(&new_smc->smc_listen_work);
 	}
 
 out:
-	release_sock(&lsmc->sk);
-	lsmc->sk.sk_data_ready(&lsmc->sk); /* no more listening, wake accept */
+	release_sock(lsk);
+	lsk->sk_data_ready(lsk); /* no more listening, wake accept */
 }
 
 static int smc_listen(struct socket *sock, int backlog)

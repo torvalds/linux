@@ -57,9 +57,6 @@ static void smc_cdc_tx_handler(struct smc_wr_tx_pend_priv *pnd_snd,
 			       cdcpend->conn);
 	}
 	smc_tx_sndbuf_nonfull(smc);
-	if (smc->sk.sk_state != SMC_ACTIVE)
-		/* wake up smc_close_wait_tx_pends() */
-		smc->sk.sk_state_change(&smc->sk);
 	bh_unlock_sock(&smc->sk);
 }
 
@@ -153,14 +150,6 @@ void smc_cdc_tx_dismiss_slots(struct smc_connection *conn)
 	smc_wr_tx_dismiss_slots(link, SMC_CDC_MSG_TYPE,
 				smc_cdc_tx_filter, smc_cdc_tx_dismisser,
 				(unsigned long)conn);
-}
-
-bool smc_cdc_tx_has_pending(struct smc_connection *conn)
-{
-	struct smc_link *link = &conn->lgr->lnk[SMC_SINGLE_LINK];
-
-	return smc_wr_tx_has_pending(link, SMC_CDC_MSG_TYPE,
-				     smc_cdc_tx_filter, (unsigned long)conn);
 }
 
 /********************************* receive ***********************************/
