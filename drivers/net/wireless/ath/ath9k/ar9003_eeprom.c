@@ -3436,6 +3436,60 @@ static u32 ar9003_dump_modal_eeprom(char *buf, u32 len, u32 size,
 	return len;
 }
 
+static u32 ar9003_dump_cal_data(struct ath_hw *ah, char *buf, u32 len, u32 size,
+				bool is_2g)
+{
+	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+	struct ar9300_base_eep_hdr *pBase;
+	struct ar9300_cal_data_per_freq_op_loop *cal_pier;
+	int cal_pier_nr;
+	int freq;
+	int i, j;
+
+	pBase = &eep->baseEepHeader;
+
+	if (is_2g)
+		cal_pier_nr = AR9300_NUM_2G_CAL_PIERS;
+	else
+		cal_pier_nr = AR9300_NUM_5G_CAL_PIERS;
+
+	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+		if (!((pBase->txrxMask >> i) & 1))
+			continue;
+
+		len += snprintf(buf + len, size - len, "Chain %d\n", i);
+
+		len += snprintf(buf + len, size - len,
+			"Freq\t ref\tvolt\ttemp\tnf_cal\tnf_pow\trx_temp\n");
+
+		for (j = 0; j < cal_pier_nr; j++) {
+			if (is_2g) {
+				cal_pier = &eep->calPierData2G[i][j];
+				freq = 2300 + eep->calFreqPier2G[j];
+			} else {
+				cal_pier = &eep->calPierData5G[i][j];
+				freq = 4800 + eep->calFreqPier5G[j] * 5;
+			}
+
+			len += snprintf(buf + len, size - len,
+				"%d\t", freq);
+
+			len += snprintf(buf + len, size - len,
+				"%d\t%d\t%d\t%d\t%d\t%d\n",
+				cal_pier->refPower,
+				cal_pier->voltMeas,
+				cal_pier->tempMeas,
+				cal_pier->rxTempMeas ?
+				N2DBM(cal_pier->rxNoisefloorCal) : 0,
+				cal_pier->rxTempMeas ?
+				N2DBM(cal_pier->rxNoisefloorPower) : 0,
+				cal_pier->rxTempMeas);
+		}
+	}
+
+	return len;
+}
+
 static u32 ath9k_hw_ar9003_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 				       u8 *buf, u32 len, u32 size)
 {
@@ -3447,10 +3501,18 @@ static u32 ath9k_hw_ar9003_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 				 "%20s :\n", "2GHz modal Header");
 		len = ar9003_dump_modal_eeprom(buf, len, size,
 						&eep->modalHeader2G);
-		len += scnprintf(buf + len, size - len,
+
+		len += scnprintf(buf + len, size - len, "Calibration data\n");
+		len = ar9003_dump_cal_data(ah, buf, len, size, true);
+
+		len +=  snprintf(buf + len, size - len,
 				 "%20s :\n", "5GHz modal Header");
 		len = ar9003_dump_modal_eeprom(buf, len, size,
 						&eep->modalHeader5G);
+
+		len += snprintf(buf + len, size - len, "Calibration data\n");
+		len = ar9003_dump_cal_data(ah, buf, len, size, false);
+
 		goto out;
 	}
 
