@@ -545,7 +545,7 @@ static int intel_setup(struct hci_uart *hu)
 	struct hci_dev *hdev = hu->hdev;
 	struct sk_buff *skb;
 	struct intel_version ver;
-	struct intel_boot_params *params;
+	struct intel_boot_params params;
 	struct list_head *p;
 	const struct firmware *fw;
 	const u8 *fw_ptr;
@@ -662,53 +662,24 @@ static int intel_setup(struct hci_uart *hu)
 	/* Read the secure boot parameters to identify the operating
 	 * details of the bootloader.
 	 */
-	skb = __hci_cmd_sync(hdev, 0xfc0d, 0, NULL, HCI_CMD_TIMEOUT);
-	if (IS_ERR(skb)) {
-		bt_dev_err(hdev, "Reading Intel boot parameters failed (%ld)",
-			   PTR_ERR(skb));
-		return PTR_ERR(skb);
-	}
-
-	if (skb->len != sizeof(*params)) {
-		bt_dev_err(hdev, "Intel boot parameters size mismatch");
-		kfree_skb(skb);
-		return -EILSEQ;
-	}
-
-	params = (struct intel_boot_params *)skb->data;
-	if (params->status) {
-		bt_dev_err(hdev, "Intel boot parameters command failure (%02x)",
-			   params->status);
-		err = -bt_to_errno(params->status);
-		kfree_skb(skb);
+	err = btintel_read_boot_params(hdev, &params);
+	if (err)
 		return err;
-	}
-
-	bt_dev_info(hdev, "Device revision is %u",
-		    le16_to_cpu(params->dev_revid));
-
-	bt_dev_info(hdev, "Secure boot is %s",
-		    params->secure_boot ? "enabled" : "disabled");
-
-	bt_dev_info(hdev, "Minimum firmware build %u week %u %u",
-		params->min_fw_build_nn, params->min_fw_build_cw,
-		2000 + params->min_fw_build_yy);
 
 	/* It is required that every single firmware fragment is acknowledged
 	 * with a command complete event. If the boot parameters indicate
 	 * that this bootloader does not send them, then abort the setup.
 	 */
-	if (params->limited_cce != 0x00) {
+	if (params.limited_cce != 0x00) {
 		bt_dev_err(hdev, "Unsupported Intel firmware loading method (%u)",
-			   params->limited_cce);
-		kfree_skb(skb);
+			   params.limited_cce);
 		return -EINVAL;
 	}
 
 	/* If the OTP has no valid Bluetooth device address, then there will
 	 * also be no valid address for the operational firmware.
 	 */
-	if (!bacmp(&params->otp_bdaddr, BDADDR_ANY)) {
+	if (!bacmp(&params.otp_bdaddr, BDADDR_ANY)) {
 		bt_dev_info(hdev, "No device address configured");
 		set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
 	}
@@ -738,7 +709,7 @@ static int intel_setup(struct hci_uart *hu)
 	case 0x0c:      /* WsP */
 		snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u.sfi",
 			 le16_to_cpu(ver.hw_variant),
-			 le16_to_cpu(params->dev_revid));
+			 le16_to_cpu(params.dev_revid));
 		break;
 	case 0x12:      /* ThP */
 		snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u-%u.sfi",
@@ -756,7 +727,6 @@ static int intel_setup(struct hci_uart *hu)
 	if (err < 0) {
 		bt_dev_err(hdev, "Failed to load Intel firmware file (%d)",
 			   err);
-		kfree_skb(skb);
 		return err;
 	}
 
@@ -768,7 +738,7 @@ static int intel_setup(struct hci_uart *hu)
 	case 0x0c:      /* WsP */
 		snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u.ddc",
 			 le16_to_cpu(ver.hw_variant),
-			 le16_to_cpu(params->dev_revid));
+			 le16_to_cpu(params.dev_revid));
 		break;
 	case 0x12:      /* ThP */
 		snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u-%u.ddc",
@@ -781,8 +751,6 @@ static int intel_setup(struct hci_uart *hu)
 			   ver.hw_variant);
 		return -EINVAL;
 	}
-
-	kfree_skb(skb);
 
 	if (fw->size < 644) {
 		bt_dev_err(hdev, "Invalid size of firmware file (%zu)",

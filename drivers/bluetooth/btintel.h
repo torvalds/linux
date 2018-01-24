@@ -98,6 +98,8 @@ int btintel_read_version(struct hci_dev *hdev, struct intel_version *ver);
 struct regmap *btintel_regmap_init(struct hci_dev *hdev, u16 opcode_read,
 				   u16 opcode_write);
 int btintel_send_intel_reset(struct hci_dev *hdev, u32 boot_param);
+int btintel_read_boot_params(struct hci_dev *hdev,
+			     struct intel_boot_params *params);
 
 #else
 
@@ -177,6 +179,12 @@ static inline struct regmap *btintel_regmap_init(struct hci_dev *hdev,
 
 static inline int btintel_send_intel_reset(struct hci_dev *hdev,
 					   u32 reset_param)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btintel_read_boot_params(struct hci_dev *hdev,
+					   struct intel_boot_params *params)
 {
 	return -EOPNOTSUPP;
 }
