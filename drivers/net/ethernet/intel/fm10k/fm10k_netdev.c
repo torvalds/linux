@@ -1165,10 +1165,12 @@ static void fm10k_set_rx_mode(struct net_device *dev)
 
 	/* update xcast mode first, but only if it changed */
 	if (interface->xcast_mode != xcast_mode) {
-		/* update VLAN table */
+		/* update VLAN table when entering promiscuous mode */
 		if (xcast_mode == FM10K_XCAST_MODE_PROMISC)
 			fm10k_queue_vlan_request(interface, FM10K_VLAN_ALL,
 						 0, true);
+
+		/* clear VLAN table when exiting promiscuous mode */
 		if (interface->xcast_mode == FM10K_XCAST_MODE_PROMISC)
 			fm10k_clear_unused_vlans(interface);
 
