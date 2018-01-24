@@ -411,7 +411,7 @@ xfs_buf_item_unpin(
 	int			stale = bip->bli_flags & XFS_BLI_STALE;
 	int			freed;
 
-	ASSERT(bp->b_fspriv == bip);
+	ASSERT(bp->b_log_item == bip);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 
 	trace_xfs_buf_item_unpin(bip);
@@ -456,13 +456,14 @@ xfs_buf_item_unpin(
 		 */
 		if (bip->bli_flags & XFS_BLI_STALE_INODE) {
 			xfs_buf_do_callbacks(bp);
-			bp->b_fspriv = NULL;
+			bp->b_log_item = NULL;
+			bp->b_li_list = NULL;
 			bp->b_iodone = NULL;
 		} else {
 			spin_lock(&ailp->xa_lock);
 			xfs_trans_ail_delete(ailp, lip, SHUTDOWN_LOG_IO_ERROR);
 			xfs_buf_item_relse(bp);
-			ASSERT(bp->b_fspriv == NULL);
+			ASSERT(bp->b_log_item == NULL);
 		}
 		xfs_buf_relse(bp);
 	} else if (freed && remove) {
@@ -722,18 +723,15 @@ xfs_buf_item_free_format(
 
 /*
  * Allocate a new buf log item to go with the given buffer.
- * Set the buffer's b_fsprivate field to point to the new
- * buf log item.  If there are other item's attached to the
- * buffer (see xfs_buf_attach_iodone() below), then put the
- * buf log item at the front.
+ * Set the buffer's b_log_item field to point to the new
+ * buf log item.
  */
 int
 xfs_buf_item_init(
 	struct xfs_buf	*bp,
 	struct xfs_mount *mp)
 {
-	struct xfs_log_item	*lip = bp->b_fspriv;
-	struct xfs_buf_log_item	*bip;
+	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	int			chunks;
 	int			map_size;
 	int			error;
@@ -741,13 +739,14 @@ xfs_buf_item_init(
 
 	/*
 	 * Check to see if there is already a buf log item for
-	 * this buffer.  If there is, it is guaranteed to be
-	 * the first.  If we do already have one, there is
+	 * this buffer. If we do already have one, there is
 	 * nothing to do here so return.
 	 */
 	ASSERT(bp->b_target->bt_mount == mp);
-	if (lip != NULL && lip->li_type == XFS_LI_BUF)
+	if (bip != NULL) {
+		ASSERT(bip->bli_item.li_type == XFS_LI_BUF);
 		return 0;
+	}
 
 	bip = kmem_zone_zalloc(xfs_buf_item_zone, KM_SLEEP);
 	xfs_log_item_init(mp, &bip->bli_item, XFS_LI_BUF, &xfs_buf_item_ops);
@@ -781,13 +780,7 @@ xfs_buf_item_init(
 		bip->bli_formats[i].blf_map_size = map_size;
 	}
 
-	/*
-	 * Put the buf item into the list of items attached to the
-	 * buffer at the front.
-	 */
-	if (bp->b_fspriv)
-		bip->bli_item.li_bio_list = bp->b_fspriv;
-	bp->b_fspriv = bip;
+	bp->b_log_item = bip;
 	xfs_buf_hold(bp);
 	return 0;
 }
@@ -961,13 +954,14 @@ void
 xfs_buf_item_relse(
 	xfs_buf_t	*bp)
 {
-	struct xfs_buf_log_item	*bip = bp->b_fspriv;
+	struct xfs_buf_log_item	*bip = bp->b_log_item;
+	struct xfs_log_item	*lip = bp->b_li_list;
 
 	trace_xfs_buf_item_relse(bp, _RET_IP_);
 	ASSERT(!(bip->bli_item.li_flags & XFS_LI_IN_AIL));
 
-	bp->b_fspriv = bip->bli_item.li_bio_list;
-	if (bp->b_fspriv == NULL)
+	bp->b_log_item = NULL;
+	if (lip == NULL)
 		bp->b_iodone = NULL;
 
 	xfs_buf_rele(bp);
@@ -980,9 +974,7 @@ xfs_buf_item_relse(
  * to be called when the buffer's I/O completes.  If it is not set
  * already, set the buffer's b_iodone() routine to be
  * xfs_buf_iodone_callbacks() and link the log item into the list of
- * items rooted at b_fsprivate.  Items are always added as the second
- * entry in the list if there is a first, because the buf item code
- * assumes that the buf log item is first.
+ * items rooted at b_li_list.
  */
 void
 xfs_buf_attach_iodone(
@@ -995,12 +987,12 @@ xfs_buf_attach_iodone(
 	ASSERT(xfs_buf_islocked(bp));
 
 	lip->li_cb = cb;
-	head_lip = bp->b_fspriv;
+	head_lip = bp->b_li_list;
 	if (head_lip) {
 		lip->li_bio_list = head_lip->li_bio_list;
 		head_lip->li_bio_list = lip;
 	} else {
-		bp->b_fspriv = lip;
+		bp->b_li_list = lip;
 	}
 
 	ASSERT(bp->b_iodone == NULL ||
@@ -1024,10 +1016,17 @@ STATIC void
 xfs_buf_do_callbacks(
 	struct xfs_buf		*bp)
 {
+	struct xfs_buf_log_item *blip = bp->b_log_item;
 	struct xfs_log_item	*lip;
 
-	while ((lip = bp->b_fspriv) != NULL) {
-		bp->b_fspriv = lip->li_bio_list;
+	/* If there is a buf_log_item attached, run its callback */
+	if (blip) {
+		lip = &blip->bli_item;
+		lip->li_cb(bp, lip);
+	}
+
+	while ((lip = bp->b_li_list) != NULL) {
+		bp->b_li_list = lip->li_bio_list;
 		ASSERT(lip->li_cb != NULL);
 		/*
 		 * Clear the next pointer so we don't have any
@@ -1052,10 +1051,19 @@ STATIC void
 xfs_buf_do_callbacks_fail(
 	struct xfs_buf		*bp)
 {
+	struct xfs_log_item	*lip = bp->b_li_list;
 	struct xfs_log_item	*next;
-	struct xfs_log_item	*lip = bp->b_fspriv;
-	struct xfs_ail		*ailp = lip->li_ailp;
+	struct xfs_ail		*ailp;
 
+	/*
+	 * Buffer log item errors are handled directly by xfs_buf_item_push()
+	 * and xfs_buf_iodone_callback_error, and they have no IO error
+	 * callbacks. Check only for items in b_li_list.
+	 */
+	if (lip == NULL)
+		return;
+
+	ailp = lip->li_ailp;
 	spin_lock(&ailp->xa_lock);
 	for (; lip; lip = next) {
 		next = lip->li_bio_list;
@@ -1069,11 +1077,19 @@ static bool
 xfs_buf_iodone_callback_error(
 	struct xfs_buf		*bp)
 {
-	struct xfs_log_item	*lip = bp->b_fspriv;
-	struct xfs_mount	*mp = lip->li_mountp;
+	struct xfs_buf_log_item	*bip = bp->b_log_item;
+	struct xfs_log_item	*lip = bp->b_li_list;
+	struct xfs_mount	*mp;
 	static ulong		lasttime;
 	static xfs_buftarg_t	*lasttarg;
 	struct xfs_error_cfg	*cfg;
+
+	/*
+	 * The failed buffer might not have a buf_log_item attached or the
+	 * log_item list might be empty. Get the mp from the available
+	 * xfs_log_item
+	 */
+	mp = bip ? bip->bli_item.li_mountp : lip->li_mountp;
 
 	/*
 	 * If we've already decided to shutdown the filesystem because of
@@ -1183,7 +1199,8 @@ xfs_buf_iodone_callbacks(
 	bp->b_first_retry_time = 0;
 
 	xfs_buf_do_callbacks(bp);
-	bp->b_fspriv = NULL;
+	bp->b_log_item = NULL;
+	bp->b_li_list = NULL;
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp);
 }

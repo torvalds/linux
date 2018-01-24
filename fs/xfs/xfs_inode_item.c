@@ -722,7 +722,7 @@ xfs_iflush_done(
 	 * Scan the buffer IO completions for other inodes being completed and
 	 * attach them to the current inode log item.
 	 */
-	blip = bp->b_fspriv;
+	blip = bp->b_li_list;
 	prev = NULL;
 	while (blip != NULL) {
 		if (blip->li_cb != xfs_iflush_done) {
@@ -734,7 +734,7 @@ xfs_iflush_done(
 		/* remove from list */
 		next = blip->li_bio_list;
 		if (!prev) {
-			bp->b_fspriv = next;
+			bp->b_li_list = next;
 		} else {
 			prev->li_bio_list = next;
 		}
