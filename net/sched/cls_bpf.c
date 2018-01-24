@@ -166,7 +166,6 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 	cls_bpf.oldprog = oldprog ? oldprog->filter : NULL;
 	cls_bpf.name = obj->bpf_name;
 	cls_bpf.exts_integrated = obj->exts_integrated;
-	cls_bpf.gen_flags = obj->gen_flags;
 
 	if (oldprog)
 		tcf_block_offload_dec(block, &oldprog->gen_flags);
@@ -233,7 +232,6 @@ static void cls_bpf_offload_update_stats(struct tcf_proto *tp,
 	cls_bpf.prog = prog->filter;
 	cls_bpf.name = prog->bpf_name;
 	cls_bpf.exts_integrated = prog->exts_integrated;
-	cls_bpf.gen_flags = prog->gen_flags;
 
 	tc_setup_cb_call(block, NULL, TC_SETUP_CLSBPF, &cls_bpf, false);
 }
