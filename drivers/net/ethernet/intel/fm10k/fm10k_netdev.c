@@ -934,8 +934,12 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 	if (vid >= VLAN_N_VID)
 		return -EINVAL;
 
-	/* Verify we have permission to add VLANs */
-	if (hw->mac.vlan_override)
+	/* Verify that we have permission to add VLANs. If this is a request
+	 * to remove a VLAN, we still want to allow the user to remove the
+	 * VLAN device. In that case, we need to clear the bit in the
+	 * active_vlans bitmask.
+	 */
+	if (set && hw->mac.vlan_override)
 		return -EACCES;
 
 	/* update active_vlans bitmask */
@@ -953,6 +957,12 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 		else
 			rx_ring->vid &= ~FM10K_VLAN_CLEAR;
 	}
+
+	/* If our VLAN has been overridden, there is no reason to send VLAN
+	 * removal requests as they will be silently ignored.
+	 */
+	if (hw->mac.vlan_override)
+		return 0;
 
 	/* Do not remove default VLAN ID related entries from VLAN and MAC
 	 * tables
