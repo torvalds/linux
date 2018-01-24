@@ -69,7 +69,7 @@ static const struct dce100_hw_seq_reg_offsets reg_offsets[] = {
  ******************************************************************************/
 /***************************PIPE_CONTROL***********************************/
 
-static bool dce100_enable_display_power_gating(
+bool dce100_enable_display_power_gating(
 	struct dc *dc,
 	uint8_t controller_id,
 	struct dc_bios *dcb,
