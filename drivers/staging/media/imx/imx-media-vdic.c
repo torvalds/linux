@@ -177,7 +177,7 @@ static int vdic_get_ipu_resources(struct vdic_priv *priv)
 		priv->vdi_in_ch = ch;
 
 		ch = ipu_idmac_get(priv->ipu, IPUV3_CHANNEL_MEM_VDI_NEXT);
-		if (IS_ERR(priv->vdi_in_ch_n)) {
+		if (IS_ERR(ch)) {
 			err_chan = IPUV3_CHANNEL_MEM_VDI_NEXT;
 			ret = PTR_ERR(ch);
 			goto out_err_chan;
