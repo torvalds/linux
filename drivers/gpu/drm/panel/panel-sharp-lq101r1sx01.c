@@ -318,8 +318,7 @@ MODULE_DEVICE_TABLE(of, sharp_of_match);
 
 static int sharp_panel_add(struct sharp_panel *sharp)
 {
-	struct device_node *np;
-	int err;
+	struct device *dev = &sharp->link1->dev;
 
 	sharp->mode = &default_mode;
 
@@ -327,39 +326,22 @@ static int sharp_panel_add(struct sharp_panel *sharp)
 	if (IS_ERR(sharp->supply))
 		return PTR_ERR(sharp->supply);
 
-	np = of_parse_phandle(sharp->link1->dev.of_node, "backlight", 0);
-	if (np) {
-		sharp->backlight = of_find_backlight_by_node(np);
-		of_node_put(np);
+	sharp->backlight = devm_of_find_backlight(dev);
 
-		if (!sharp->backlight)
-			return -EPROBE_DEFER;
-	}
+	if (IS_ERR(sharp->backlight))
+		return PTR_ERR(sharp->backlight);
 
 	drm_panel_init(&sharp->base);
 	sharp->base.funcs = &sharp_panel_funcs;
 	sharp->base.dev = &sharp->link1->dev;
 
-	err = drm_panel_add(&sharp->base);
-	if (err < 0)
-		goto put_backlight;
-
-	return 0;
-
-put_backlight:
-	if (sharp->backlight)
-		put_device(&sharp->backlight->dev);
-
-	return err;
+	return drm_panel_add(&sharp->base);
 }
 
 static void sharp_panel_del(struct sharp_panel *sharp)
 {
 	if (sharp->base.dev)
 		drm_panel_remove(&sharp->base);
-
-	if (sharp->backlight)
-		put_device(&sharp->backlight->dev);
 
 	if (sharp->link2)
 		put_device(&sharp->link2->dev);
