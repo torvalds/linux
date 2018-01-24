@@ -4833,10 +4833,11 @@ CIFSGetDFSRefer(const unsigned int xid, struct cifs_ses *ses,
 	*target_nodes = NULL;
 
 	cifs_dbg(FYI, "In GetDFSRefer the path %s\n", search_name);
-	if (ses == NULL)
+	if (ses == NULL || ses->tcon_ipc == NULL)
 		return -ENODEV;
+
 getDFSRetry:
-	rc = smb_init(SMB_COM_TRANSACTION2, 15, NULL, (void **) &pSMB,
+	rc = smb_init(SMB_COM_TRANSACTION2, 15, ses->tcon_ipc, (void **) &pSMB,
 		      (void **) &pSMBr);
 	if (rc)
 		return rc;
@@ -4844,7 +4845,7 @@ getDFSRetry:
 	/* server pointer checked in called function,
 	but should never be null here anyway */
 	pSMB->hdr.Mid = get_next_mid(ses->server);
-	pSMB->hdr.Tid = ses->ipc_tid;
+	pSMB->hdr.Tid = ses->tcon_ipc->tid;
 	pSMB->hdr.Uid = ses->Suid;
 	if (ses->capabilities & CAP_STATUS32)
 		pSMB->hdr.Flags2 |= SMBFLG2_ERR_STATUS;

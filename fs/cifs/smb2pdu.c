@@ -1258,8 +1258,7 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	}
 
 	/* SMB2 TREE_CONNECT request must be called with TreeId == 0 */
-	if (tcon)
-		tcon->tid = 0;
+	tcon->tid = 0;
 
 	rc = smb2_plain_req_init(SMB2_TREE_CONNECT, tcon, (void **) &req,
 			     &total_len);
@@ -1268,15 +1267,7 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 		return rc;
 	}
 
-	if (tcon == NULL) {
-		if ((ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA))
-			flags |= CIFS_TRANSFORM_REQ;
-
-		/* since no tcon, smb2_init can not do this, so do here */
-		req->sync_hdr.SessionId = ses->Suid;
-		if (ses->server->sign)
-			req->sync_hdr.Flags |= SMB2_FLAGS_SIGNED;
-	} else if (encryption_required(tcon))
+	if (encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
 
 	iov[0].iov_base = (char *)req;
@@ -1302,21 +1293,16 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 		goto tcon_error_exit;
 	}
 
-	if (tcon == NULL) {
-		ses->ipc_tid = rsp->hdr.sync_hdr.TreeId;
-		goto tcon_exit;
-	}
-
 	switch (rsp->ShareType) {
 	case SMB2_SHARE_TYPE_DISK:
 		cifs_dbg(FYI, "connection to disk share\n");
 		break;
 	case SMB2_SHARE_TYPE_PIPE:
-		tcon->ipc = true;
+		tcon->pipe = true;
 		cifs_dbg(FYI, "connection to pipe share\n");
 		break;
 	case SMB2_SHARE_TYPE_PRINT:
-		tcon->ipc = true;
+		tcon->print = true;
 		cifs_dbg(FYI, "connection to printer\n");
 		break;
 	default:
@@ -1892,16 +1878,6 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	if (rc)
 		return rc;
 
-	if (use_ipc) {
-		if (ses->ipc_tid == 0) {
-			cifs_small_buf_release(req);
-			return -ENOTCONN;
-		}
-
-		cifs_dbg(FYI, "replacing tid 0x%x with IPC tid 0x%x\n",
-			 req->sync_hdr.TreeId, ses->ipc_tid);
-		req->sync_hdr.TreeId = ses->ipc_tid;
-	}
 	if (encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
 
@@ -2316,6 +2292,10 @@ void smb2_reconnect_server(struct work_struct *work)
 				list_add_tail(&tcon->rlist, &tmp_list);
 				tcon_exist = true;
 			}
+		}
+		if (ses->tcon_ipc && ses->tcon_ipc->need_reconnect) {
+			list_add_tail(&ses->tcon_ipc->rlist, &tmp_list);
+			tcon_exist = true;
 		}
 	}
 	/*
