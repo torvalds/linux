@@ -274,6 +274,8 @@ static void mark_busy(struct drm_i915_private *i915)
 	intel_display_power_get(i915, POWER_DOMAIN_GT_IRQ);
 
 	i915->gt.awake = true;
+	if (unlikely(++i915->gt.epoch == 0)) /* keep 0 as invalid */
+		i915->gt.epoch = 1;
 
 	intel_enable_gt_powersave(i915);
 	i915_update_gfx_val(i915);

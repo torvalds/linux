@@ -2313,6 +2313,12 @@ struct drm_i915_private {
 		bool awake;
 
 		/**
+		 * The number of times we have woken up.
+		 */
+		unsigned int epoch;
+#define I915_EPOCH_INVALID 0
+
+		/**
 		 * We leave the user IRQ off as much as possible,
 		 * but this means that requests will finish and never
 		 * be retired once the system goes idle. Set a timer to
