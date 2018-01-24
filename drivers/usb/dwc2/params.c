@@ -279,6 +279,11 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 	p->uframe_sched = true;
 	p->external_id_pin_ctl = false;
 	p->hibernation = false;
+	p->lpm = true;
+	p->lpm_clock_gating = true;
+	p->besl = true;
+	p->hird_threshold_en = true;
+	p->hird_threshold = 4;
 	p->max_packet_count = hw->max_packet_count;
 	p->max_transfer_size = hw->max_transfer_size;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR << GAHBCFG_HBSTLEN_SHIFT;
@@ -529,6 +534,13 @@ static void dwc2_check_params(struct dwc2_hsotg *hsotg)
 	CHECK_BOOL(i2c_enable, hw->i2c_enable);
 	CHECK_BOOL(acg_enable, hw->acg_enable);
 	CHECK_BOOL(reload_ctl, (hsotg->hw_params.snpsid > DWC2_CORE_REV_2_92a));
+	CHECK_BOOL(lpm, (hsotg->hw_params.snpsid >= DWC2_CORE_REV_2_80a));
+	CHECK_BOOL(lpm, hw->lpm_mode);
+	CHECK_BOOL(lpm_clock_gating, hsotg->params.lpm);
+	CHECK_BOOL(besl, hsotg->params.lpm);
+	CHECK_BOOL(besl, (hsotg->hw_params.snpsid >= DWC2_CORE_REV_3_00a));
+	CHECK_BOOL(hird_threshold_en, hsotg->params.lpm);
+	CHECK_RANGE(hird_threshold, 0, hsotg->params.besl ? 12 : 7, 0);
 	CHECK_RANGE(max_packet_count,
 		    15, hw->max_packet_count,
 		    hw->max_packet_count);
@@ -707,6 +719,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	hw->i2c_enable = !!(hwcfg3 & GHWCFG3_I2C);
 	hw->total_fifo_size = (hwcfg3 & GHWCFG3_DFIFO_DEPTH_MASK) >>
 			      GHWCFG3_DFIFO_DEPTH_SHIFT;
+	hw->lpm_mode = !!(hwcfg3 & GHWCFG3_OTG_LPM_EN);
 
 	/* hwcfg4 */
 	hw->en_multiple_tx_fifo = !!(hwcfg4 & GHWCFG4_DED_FIFO_EN);

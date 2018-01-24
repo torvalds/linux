@@ -427,6 +427,19 @@ enum dwc2_ep0_state {
  *			needed.
  *			0 - No (default)
  *			1 - Yes
+ * @lpm:		Enable LPM support.
+ *			0 - No
+ *			1 - Yes
+ * @lpm_clock_gating:		Enable core PHY clock gating.
+ *			0 - No
+ *			1 - Yes
+ * @besl:		Enable LPM Errata support.
+ *			0 - No
+ *			1 - Yes
+ * @hird_threshold_en:	HIRD or HIRD Threshold enable.
+ *			0 - No
+ *			1 - Yes
+ * @hird_threshold:	Value of BESL or HIRD Threshold.
  * @activate_stm_fs_transceiver: Activate internal transceiver using GGPIO
  *			register.
  *			0 - Deactivate the transceiver (default)
@@ -486,6 +499,11 @@ struct dwc2_core_params {
 	bool uframe_sched;
 	bool external_id_pin_ctl;
 	bool hibernation;
+	bool lpm;
+	bool lpm_clock_gating;
+	bool besl;
+	bool hird_threshold_en;
+	u8 hird_threshold;
 	bool activate_stm_fs_transceiver;
 	u16 max_packet_count;
 	u32 max_transfer_size;
@@ -595,6 +613,7 @@ struct dwc2_hw_params {
 	unsigned total_fifo_size:16;
 	unsigned power_optimized:1;
 	unsigned utmi_phy_data_width:2;
+	unsigned lpm_mode:1;
 	u32 snpsid;
 	u32 dev_ep_dirs;
 	u32 g_tx_fifo_size[MAX_EPS_CHANNELS];
@@ -950,6 +969,7 @@ struct dwc2_hsotg {
 
 	/* DWC OTG HW Release versions */
 #define DWC2_CORE_REV_2_71a	0x4f54271a
+#define DWC2_CORE_REV_2_80a	0x4f54280a
 #define DWC2_CORE_REV_2_90a	0x4f54290a
 #define DWC2_CORE_REV_2_91a	0x4f54291a
 #define DWC2_CORE_REV_2_92a	0x4f54292a
