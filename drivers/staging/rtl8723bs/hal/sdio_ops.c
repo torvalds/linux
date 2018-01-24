@@ -453,21 +453,6 @@ static u32 sdio_read_port(
 		cnt = _RND(cnt, psdio->block_transfer_len);
 /* 	cnt = sdio_align_size(cnt); */
 
-	if (oldcnt != cnt) {
-#ifdef SDIO_DYNAMIC_ALLOC_MEM
-		oldmem = mem;
-		mem = rtw_malloc(cnt);
-		if (mem == NULL) {
-			DBG_8192C(KERN_WARNING "%s: allocate memory %d bytes fail!\n", __func__, cnt);
-			mem = oldmem;
-			oldmem == NULL;
-		}
-#else
-		/*  in this case, caller should gurante the buffer is big enough */
-		/*  to receive data after alignment */
-#endif
-	}
-
 	err = _sd_read(intfhdl, addr, cnt, mem);
 
 #ifdef SDIO_DYNAMIC_ALLOC_MEM
