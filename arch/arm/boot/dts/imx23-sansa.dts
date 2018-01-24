@@ -49,7 +49,7 @@
 	model = "SanDisk Sansa Fuze+";
 	compatible = "sandisk,sansa_fuze_plus", "fsl,imx23";
 
-	memory {
+	memory@40000000 {
 		reg = <0x40000000 0x04000000>;
 	};
 

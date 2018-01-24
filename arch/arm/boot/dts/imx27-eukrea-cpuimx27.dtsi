@@ -16,7 +16,7 @@
 	model = "Eukrea CPUIMX27";
 	compatible = "eukrea,cpuimx27", "fsl,imx27";
 
-	memory {
+	memory@a0000000 {
 		reg = <0xa0000000 0x04000000>;
 	};
 

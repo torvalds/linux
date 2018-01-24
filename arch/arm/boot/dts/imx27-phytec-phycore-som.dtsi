@@ -16,7 +16,7 @@
 	model = "Phytec pcm038";
 	compatible = "phytec,imx27-pcm038", "fsl,imx27";
 
-	memory {
+	memory@a0000000 {
 		reg = <0xa0000000 0x08000000>;
 	};
 

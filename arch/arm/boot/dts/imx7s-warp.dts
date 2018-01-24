@@ -50,7 +50,7 @@
 	model = "Warp i.MX7 Board";
 	compatible = "warp,imx7s-warp", "fsl,imx7s";
 
-	memory {
+	memory@80000000 {
 		reg = <0x80000000 0x20000000>;
 	};
 

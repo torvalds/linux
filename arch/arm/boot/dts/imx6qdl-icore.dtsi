@@ -45,7 +45,7 @@
 #include <dt-bindings/sound/fsl-imx-audmux.h>
 
 / {
-	memory {
+	memory@10000000 {
 		reg = <0x10000000 0x80000000>;
 	};
 
