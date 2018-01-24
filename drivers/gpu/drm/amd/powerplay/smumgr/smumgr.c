@@ -253,3 +253,11 @@ bool smum_is_hw_avfs_present(struct pp_hwmgr *hwmgr)
 
 	return false;
 }
+
+int smum_update_dpm_settings(struct pp_hwmgr *hwmgr, void *profile_setting)
+{
+	if (hwmgr->smumgr_funcs->update_dpm_settings)
+		return hwmgr->smumgr_funcs->update_dpm_settings(hwmgr, profile_setting);
+
+	return -EINVAL;
+}

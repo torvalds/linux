@@ -239,6 +239,7 @@ struct pp_smumgr_func {
 	int (*populate_requested_graphic_levels)(struct pp_hwmgr *hwmgr,
 			struct amd_pp_profile *request);
 	bool (*is_hw_avfs_present)(struct pp_hwmgr  *hwmgr);
+	int (*update_dpm_settings)(struct pp_hwmgr *hwmgr, void *profile_setting);
 };
 
 struct pp_hwmgr_func {
