@@ -147,6 +147,8 @@ __visible void __irq_entry hyperv_reenlightenment_intr(struct pt_regs *regs)
 {
 	entering_ack_irq();
 
+	inc_irq_stat(irq_hv_reenlightenment_count);
+
 	schedule_delayed_work(&hv_reenlightenment_work, HZ/10);
 
 	exiting_irq();
