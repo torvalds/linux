@@ -1324,9 +1324,6 @@ static void nvme_disable_admin_queue(struct nvme_dev *dev, bool shutdown)
 {
 	struct nvme_queue *nvmeq = &dev->queues[0];
 
-	if (nvme_suspend_queue(nvmeq))
-		return;
-
 	if (shutdown)
 		nvme_shutdown_ctrl(&dev->ctrl);
 	else
@@ -2011,9 +2008,9 @@ static int nvme_delete_queue(struct nvme_queue *nvmeq, u8 opcode)
 	return 0;
 }
 
-static void nvme_disable_io_queues(struct nvme_dev *dev, int queues)
+static void nvme_disable_io_queues(struct nvme_dev *dev)
 {
-	int pass;
+	int pass, queues = dev->online_queues - 1;
 	unsigned long timeout;
 	u8 opcode = nvme_admin_delete_sq;
 
@@ -2164,7 +2161,7 @@ static void nvme_pci_disable(struct nvme_dev *dev)
 
 static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 {
-	int i, queues;
+	int i;
 	bool dead = true;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
@@ -2199,21 +2196,13 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 	}
 	nvme_stop_queues(&dev->ctrl);
 
-	queues = dev->online_queues - 1;
-	for (i = dev->ctrl.queue_count - 1; i > 0; i--)
-		nvme_suspend_queue(&dev->queues[i]);
-
-	if (dead) {
-		/* A device might become IO incapable very soon during
-		 * probe, before the admin queue is configured. Thus,
-		 * queue_count can be 0 here.
-		 */
-		if (dev->ctrl.queue_count)
-			nvme_suspend_queue(&dev->queues[0]);
-	} else {
-		nvme_disable_io_queues(dev, queues);
+	if (!dead) {
+		nvme_disable_io_queues(dev);
 		nvme_disable_admin_queue(dev, shutdown);
 	}
+	for (i = dev->ctrl.queue_count - 1; i >= 0; i--)
+		nvme_suspend_queue(&dev->queues[i]);
+
 	nvme_pci_disable(dev);
 
 	blk_mq_tagset_busy_iter(&dev->tagset, nvme_cancel_request, &dev->ctrl);
