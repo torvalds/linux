@@ -1,0 +1,13 @@
+#!/bin/bash
+
+cd "$1" || exit 1
+
+{
+	echo "./vmlinux"
+	find . -name \*.ko
+} | xargs objdump --disassemble | \
+awk -F'	' '
+	/^.\//				{ file=$1; sub(":.*", "", file); sub("^.*/", "", file); }
+	/^[0-9a-f][0-9a-f]* <.*>:/	{ tag=$1; sub(".*<", "", tag); sub(">.*", "", tag); tag=file " " tag; }
+	$3 ~ /(callq|jmpq)  *\*%/	{ print(tag " " $3); }
+'

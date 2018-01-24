@@ -16,7 +16,20 @@ module-check-%: $(stampdir)/stamp-build-%
 	@perl -f $(DROOT)/scripts/module-check "$*" \
 		"$(prev_abidir)" "$(abidir)" $(skipmodule)
 
-checks-%: module-check-% abi-check-%
+# Check the reptoline jmp/call functions against the last release.
+retpoline-check-%: $(stampdir)/stamp-build-%
+	@echo Debug: $@
+	install -d $(abidir)
+	if grep -q CONFIG_RETPOLINE=y $(builddir)/build-$*/.config; then \
+		$(SHELL) $(DROOT)/scripts/retpoline-extract $(builddir)/build-$* \
+			>$(abidir)/$*.retpoline; \
+	else \
+		echo "# RETPOLINE NOT ENABLED" >$(abidir)/$*.retpoline; \
+	fi
+	$(SHELL) $(DROOT)/scripts/retpoline-check "$*" \
+		"$(prev_abidir)" "$(abidir)" "$(skipretpoline)"
+
+checks-%: module-check-% abi-check-% retpoline-check-%
 	@echo Debug: $@
 
 # Check the config against the known options list.

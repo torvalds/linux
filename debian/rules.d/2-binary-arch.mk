@@ -143,6 +143,8 @@ endif
 		$(pkgdir)/boot/config-$(abi_release)-$*
 	install -m644 $(abidir)/$* \
 		$(pkgdir)/boot/abi-$(abi_release)-$*
+	install -m644 $(abidir)/$*.retpoline \
+		$(pkgdir)/boot/retpoline-$(abi_release)-$*
 	install -m600 $(builddir)/build-$*/System.map \
 		$(pkgdir)/boot/System.map-$(abi_release)-$*
 	if [ "$(filter true,$(do_dtbs))" ]; then \

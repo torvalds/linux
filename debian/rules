@@ -65,6 +65,9 @@ ifeq ($(do_mainline_build),true)
 	do_tools=false
 	no_dumpfile=1
 	do_zfs=false
+	skipabi=true
+	skipmodule=true
+	skipretpoline=true
 endif
 
 # Disable tools build and packaging if do_tools != true

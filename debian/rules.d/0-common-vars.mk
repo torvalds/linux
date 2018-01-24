@@ -36,6 +36,7 @@ AUTOBUILD=
 ifneq ($(AUTOBUILD),)
 skipabi		= true
 skipmodule	= true
+skipretpoline	= true
 skipdbg		= true
 gitver=$(shell if test -f .git/HEAD; then cat .git/HEAD; else uuidgen; fi)
 gitverpre=$(shell echo $(gitver) | cut -b -3)
