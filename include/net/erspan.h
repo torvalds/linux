@@ -123,7 +123,7 @@ static inline void erspan_build_header(struct sk_buff *skb,
 				__be32 id, u32 index,
 				bool truncate, bool is_ipv4)
 {
-	struct ethhdr *eth = eth_hdr(skb);
+	struct ethhdr *eth = (struct ethhdr *)skb->data;
 	enum erspan_encap_type enc_type;
 	struct erspan_base_hdr *ershdr;
 	struct erspan_metadata *ersmd;
@@ -190,7 +190,7 @@ static inline void erspan_build_header_v2(struct sk_buff *skb,
 					  __be32 id, u8 direction, u16 hwid,
 					  bool truncate, bool is_ipv4)
 {
-	struct ethhdr *eth = eth_hdr(skb);
+	struct ethhdr *eth = (struct ethhdr *)skb->data;
 	struct erspan_base_hdr *ershdr;
 	struct erspan_metadata *md;
 	struct qtag_prefix {
