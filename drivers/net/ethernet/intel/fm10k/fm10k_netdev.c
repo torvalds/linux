@@ -1222,9 +1222,6 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 	fm10k_queue_vlan_request(interface, FM10K_VLAN_ALL, 0,
 				 xcast_mode == FM10K_XCAST_MODE_PROMISC);
 
-	/* Add filter for VLAN 0 */
-	fm10k_queue_vlan_request(interface, 0, 0, true);
-
 	/* update table with current entries */
 	for (vid = hw->mac.default_vid ? fm10k_find_next_vlan(interface, 0) : 1;
 	     vid < VLAN_N_VID;
