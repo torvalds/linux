@@ -2183,10 +2183,8 @@ static void vcodec_power_off_default(struct vpu_service_info *pservice)
 
 static void vcodec_power_off_rk322x(struct vpu_service_info *pservice)
 {
-	/*
-	 * rk322x do not have power domain
-	 * we just lower the clock to minimize the power consumption
-	 */
+	vcodec_power_off_default(pservice);
+
 	if (pservice->aclk_vcodec)
 		set_div_clk(pservice->aclk_vcodec, 32);
 	if (pservice->clk_core)
