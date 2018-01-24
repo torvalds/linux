@@ -153,14 +153,14 @@ ENDPROC(cpu_do_resume)
 ENTRY(cpu_do_switch_mm)
 	mrs	x2, ttbr1_el1
 	mmid	x1, x1				// get mm->context.id
+	phys_to_ttbr x0, x3
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
-	bfi	x0, x1, #48, #16		// set the ASID field in TTBR0
+	bfi	x3, x1, #48, #16		// set the ASID field in TTBR0
 #endif
 	bfi	x2, x1, #48, #16		// set the ASID
 	msr	ttbr1_el1, x2			// in TTBR1 (since TCR.A1 is set)
 	isb
-	phys_to_ttbr x0, x2
-	msr	ttbr0_el1, x2			// now update TTBR0
+	msr	ttbr0_el1, x3			// now update TTBR0
 	isb
 	b	post_ttbr_update_workaround	// Back to C code...
 ENDPROC(cpu_do_switch_mm)
