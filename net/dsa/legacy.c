@@ -86,7 +86,7 @@ static int dsa_cpu_dsa_setups(struct dsa_switch *ds)
 		if (!(dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)))
 			continue;
 
-		ret = dsa_port_fixed_link_register_of(&ds->ports[port]);
+		ret = dsa_port_link_register_of(&ds->ports[port]);
 		if (ret)
 			return ret;
 	}
@@ -275,7 +275,7 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 	for (port = 0; port < ds->num_ports; port++) {
 		if (!(dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)))
 			continue;
-		dsa_port_fixed_link_unregister_of(&ds->ports[port]);
+		dsa_port_link_unregister_of(&ds->ports[port]);
 	}
 
 	if (ds->slave_mii_bus && ds->ops->phy_read)
