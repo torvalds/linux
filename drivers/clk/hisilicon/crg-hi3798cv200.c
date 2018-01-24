@@ -49,6 +49,7 @@
 #define HI3798CV200_FIXED_60M			83
 #define HI3798CV200_FIXED_166P5M		84
 #define HI3798CV200_SDIO0_MUX			85
+#define HI3798CV200_COMBPHY0_MUX		86
 
 #define HI3798CV200_CRG_NR_CLKS			128
 
@@ -74,9 +75,9 @@ static const char *const mmc_mux_p[] = {
 		"100m", "50m", "25m", "200m", "150m" };
 static u32 mmc_mux_table[] = {0, 1, 2, 3, 6};
 
-static const char *const comphy1_mux_p[] = {
+static const char *const comphy_mux_p[] = {
 		"100m", "25m"};
-static u32 comphy1_mux_table[] = {2, 3};
+static u32 comphy_mux_table[] = {2, 3};
 
 static const char *const sdio_mux_p[] = {
 		"100m", "50m", "150m", "166p5m" };
@@ -85,9 +86,12 @@ static u32 sdio_mux_table[] = {0, 1, 2, 3};
 static struct hisi_mux_clock hi3798cv200_mux_clks[] = {
 	{ HI3798CV200_MMC_MUX, "mmc_mux", mmc_mux_p, ARRAY_SIZE(mmc_mux_p),
 		CLK_SET_RATE_PARENT, 0xa0, 8, 3, 0, mmc_mux_table, },
+	{ HI3798CV200_COMBPHY0_MUX, "combphy0_mux",
+		comphy_mux_p, ARRAY_SIZE(comphy_mux_p),
+		CLK_SET_RATE_PARENT, 0x188, 2, 2, 0, comphy_mux_table, },
 	{ HI3798CV200_COMBPHY1_MUX, "combphy1_mux",
-		comphy1_mux_p, ARRAY_SIZE(comphy1_mux_p),
-		CLK_SET_RATE_PARENT, 0x188, 10, 2, 0, comphy1_mux_table, },
+		comphy_mux_p, ARRAY_SIZE(comphy_mux_p),
+		CLK_SET_RATE_PARENT, 0x188, 10, 2, 0, comphy_mux_table, },
 	{ HI3798CV200_SDIO0_MUX, "sdio0_mux", sdio_mux_p,
 		ARRAY_SIZE(sdio_mux_p), CLK_SET_RATE_PARENT,
 		0x9c, 8, 2, 0, sdio_mux_table, },
@@ -147,6 +151,9 @@ static const struct hisi_gate_clock hi3798cv200_gate_clks[] = {
 		CLK_SET_RATE_PARENT, 0xcc, 4, 0, },
 	{ HISTB_ETH1_MACIF_CLK, "clk_macif1", "clk_bus_m1",
 		CLK_SET_RATE_PARENT, 0xcc, 25, 0, },
+	/* COMBPHY0 */
+	{ HISTB_COMBPHY0_CLK, "clk_combphy0", "combphy0_mux",
+		CLK_SET_RATE_PARENT, 0x188, 0, 0, },
 	/* COMBPHY1 */
 	{ HISTB_COMBPHY1_CLK, "clk_combphy1", "combphy1_mux",
 		CLK_SET_RATE_PARENT, 0x188, 8, 0, },
