@@ -479,6 +479,7 @@ struct dwc2_core_params {
 	bool enable_dynamic_fifo;
 	bool en_multiple_tx_fifo;
 	bool i2c_enable;
+	bool acg_enable;
 	bool ulpi_fs_ls;
 	bool ts_dline;
 	bool reload_ctl;
@@ -587,6 +588,7 @@ struct dwc2_hw_params {
 	unsigned hs_phy_type:2;
 	unsigned fs_phy_type:2;
 	unsigned i2c_enable:1;
+	unsigned acg_enable:1;
 	unsigned num_dev_ep:4;
 	unsigned num_dev_in_eps : 4;
 	unsigned num_dev_perio_in_ep:4;
@@ -1114,6 +1116,8 @@ void dwc2_flush_rx_fifo(struct dwc2_hsotg *hsotg);
 
 void dwc2_enable_global_interrupts(struct dwc2_hsotg *hcd);
 void dwc2_disable_global_interrupts(struct dwc2_hsotg *hcd);
+
+void dwc2_enable_acg(struct dwc2_hsotg *hsotg);
 
 /* This function should be called on every hardware interrupt. */
 irqreturn_t dwc2_handle_common_intr(int irq, void *dev);

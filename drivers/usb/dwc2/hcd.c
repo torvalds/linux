@@ -2436,6 +2436,9 @@ static void dwc2_core_host_init(struct dwc2_hsotg *hsotg)
 		}
 	}
 
+	/* Enable ACG feature in host mode, if supported */
+	dwc2_enable_acg(hsotg);
+
 	/* Turn on the vbus power */
 	dev_dbg(hsotg->dev, "Init: Port Power? op_state=%d\n", hsotg->op_state);
 	if (hsotg->op_state == OTG_STATE_A_HOST) {
@@ -3302,6 +3305,8 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 		spin_lock_irqsave(&hsotg->lock, flags);
 		dwc2_hsotg_core_init_disconnected(hsotg, false);
 		spin_unlock_irqrestore(&hsotg->lock, flags);
+		/* Enable ACG feature in device mode,if supported */
+		dwc2_enable_acg(hsotg);
 		dwc2_hsotg_core_connect(hsotg);
 	} else {
 host:

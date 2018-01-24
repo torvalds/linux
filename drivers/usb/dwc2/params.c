@@ -272,6 +272,7 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 	p->enable_dynamic_fifo = hw->enable_dynamic_fifo;
 	p->en_multiple_tx_fifo = hw->en_multiple_tx_fifo;
 	p->i2c_enable = hw->i2c_enable;
+	p->acg_enable = hw->acg_enable;
 	p->ulpi_fs_ls = false;
 	p->ts_dline = false;
 	p->reload_ctl = (hw->snpsid >= DWC2_CORE_REV_2_92a);
@@ -526,6 +527,7 @@ static void dwc2_check_params(struct dwc2_hsotg *hsotg)
 	CHECK_BOOL(enable_dynamic_fifo, hw->enable_dynamic_fifo);
 	CHECK_BOOL(en_multiple_tx_fifo, hw->en_multiple_tx_fifo);
 	CHECK_BOOL(i2c_enable, hw->i2c_enable);
+	CHECK_BOOL(acg_enable, hw->acg_enable);
 	CHECK_BOOL(reload_ctl, (hsotg->hw_params.snpsid > DWC2_CORE_REV_2_92a));
 	CHECK_RANGE(max_packet_count,
 		    15, hw->max_packet_count,
@@ -716,6 +718,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	hw->power_optimized = !!(hwcfg4 & GHWCFG4_POWER_OPTIMIZ);
 	hw->utmi_phy_data_width = (hwcfg4 & GHWCFG4_UTMI_PHY_DATA_WIDTH_MASK) >>
 				  GHWCFG4_UTMI_PHY_DATA_WIDTH_SHIFT;
+	hw->acg_enable = !!(hwcfg4 & GHWCFG4_ACG_SUPPORTED);
 
 	/* fifo sizes */
 	hw->rx_fifo_size = (grxfsiz & GRXFSIZ_DEPTH_MASK) >>
