@@ -388,6 +388,8 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 	ln->nrhosts++;
 	nrhosts++;
 
+	refcount_inc(&host->h_count);
+
 	dprintk("lockd: %s created host %s (%s)\n",
 		__func__, host->h_name, host->h_addrbuf);
 
@@ -662,8 +664,7 @@ nlm_gc_hosts(struct net *net)
 	for_each_host_safe(host, next, chain, nlm_server_hosts) {
 		if (net && host->net != net)
 			continue;
-		if (refcount_read(&host->h_count) || host->h_inuse
-		 || time_before(jiffies, host->h_expires)) {
+		if (host->h_inuse || time_before(jiffies, host->h_expires)) {
 			dprintk("nlm_gc_hosts skipping %s "
 				"(cnt %d use %d exp %ld net %x)\n",
 				host->h_name, refcount_read(&host->h_count),
@@ -671,7 +672,8 @@ nlm_gc_hosts(struct net *net)
 				host->net->ns.inum);
 			continue;
 		}
-		nlm_destroy_host_locked(host);
+		if (refcount_dec_if_one(&host->h_count))
+			nlm_destroy_host_locked(host);
 	}
 
 	if (net) {
