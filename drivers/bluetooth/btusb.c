@@ -2024,8 +2024,11 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
-	/* The default boot parameter */
-	boot_param = 0x00040800;
+	/* Set the default boot parameter to 0x0 and it is updated to
+	 * SKU specific boot parameter after reading Intel_Write_Boot_Params
+	 * command while downloading the firmware.
+	 */
+	boot_param = 0x00000000;
 
 	calltime = ktime_get();
 
@@ -2268,6 +2271,20 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 
 	while (fw_ptr - fw->data < fw->size) {
 		struct hci_command_hdr *cmd = (void *)(fw_ptr + frag_len);
+
+		/* Each SKU has a different reset parameter to use in the
+		 * HCI_Intel_Reset command and it is embedded in the firmware
+		 * data. So, instead of using static value per SKU, check
+		 * the firmware data and save it for later use.
+		 */
+		if (cmd->opcode == 0xfc0e) {
+			/* The boot parameter is the first 32-bit value
+			 * and rest of 3 octets are reserved.
+			 */
+			boot_param = get_unaligned_le32(fw_ptr + sizeof(*cmd));
+
+			bt_dev_dbg(hdev, "boot_param=0x%x", boot_param);
+		}
 
 		frag_len += sizeof(*cmd) + cmd->plen;
 
