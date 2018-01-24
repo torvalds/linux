@@ -266,12 +266,20 @@ static void mt76x2_remove_hdr_pad(struct sk_buff *skb)
 }
 
 static struct mt76_wcid *
-mt76x2_rx_get_wcid(struct mt76x2_dev *dev, u8 idx)
+mt76x2_rx_get_sta_wcid(struct mt76x2_dev *dev, u8 idx, bool unicast)
 {
+	struct mt76x2_sta *sta;
+	struct mt76_wcid *wcid;
+
 	if (idx >= ARRAY_SIZE(dev->wcid))
 		return NULL;
 
-	return rcu_dereference(dev->wcid[idx]);
+	wcid = rcu_dereference(dev->wcid[idx]);
+	if (unicast || !wcid)
+		return wcid;
+
+	sta = container_of(wcid, struct mt76x2_sta, wcid);
+	return &sta->vif->group_wcid;
 }
 
 int mt76x2_mac_process_rx(struct mt76x2_dev *dev, struct sk_buff *skb,
@@ -282,11 +290,12 @@ int mt76x2_mac_process_rx(struct mt76x2_dev *dev, struct sk_buff *skb,
 	u32 ctl = le32_to_cpu(rxwi->ctl);
 	u16 rate = le16_to_cpu(rxwi->rate);
 	u16 tid_sn = le16_to_cpu(rxwi->tid_sn);
+	bool unicast = rxwi->rxinfo & cpu_to_le32(MT_RXINFO_UNICAST);
 	u8 wcid;
 	int len;
 
 	wcid = FIELD_GET(MT_RXWI_CTL_WCID, ctl);
-	status->wcid = mt76x2_rx_get_wcid(dev, wcid);
+	status->wcid = mt76x2_rx_get_sta_wcid(dev, wcid, unicast);
 
 	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_L2PAD))
 		mt76x2_remove_hdr_pad(skb);

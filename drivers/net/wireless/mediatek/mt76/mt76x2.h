@@ -144,6 +144,7 @@ struct mt76x2_vif {
 struct mt76x2_sta {
 	struct mt76_wcid wcid; /* must be first */
 
+	struct mt76x2_vif *vif;
 	struct mt76x2_tx_status status;
 	int n_frames;
 };
