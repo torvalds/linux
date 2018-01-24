@@ -36,8 +36,6 @@ bonding.txt
 	- Linux Ethernet Bonding Driver HOWTO: link aggregation in Linux.
 bridge.txt
 	- where to get user space programs for ethernet bridging with Linux.
-can.txt
-	- documentation on CAN protocol family.
 cdc_mbim.txt
 	- 3G/LTE USB modem (Mobile Broadband Interface Model)
 checksum-offloads.txt

@@ -412,7 +412,7 @@ EXPORT_SYMBOL_GPL(can_change_state);
  * Local echo of CAN messages
  *
  * CAN network devices *should* support a local echo functionality
- * (see Documentation/networking/can.txt). To test the handling of CAN
+ * (see Documentation/networking/can.rst). To test the handling of CAN
  * interfaces that do not support the local echo both driver types are
  * implemented. In the case that the driver does not support the echo
  * the IFF_ECHO remains clear in dev->flags. This causes the PF_CAN core
