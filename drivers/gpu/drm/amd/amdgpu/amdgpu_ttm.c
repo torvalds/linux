@@ -1312,7 +1312,7 @@ static int amdgpu_ttm_fw_reserve_vram_init(struct amdgpu_device *adev)
 		r = amdgpu_bo_create(adev, adev->fw_vram_usage.size,
 			PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_VRAM,
 			AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS, NULL, NULL, 0,
+			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS, NULL, NULL,
 			&adev->fw_vram_usage.reserved_bo);
 		if (r)
 			goto error_create;

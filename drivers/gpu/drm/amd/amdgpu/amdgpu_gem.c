@@ -60,7 +60,7 @@ int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 
 retry:
 	r = amdgpu_bo_create(adev, size, alignment, kernel, initial_domain,
-			     flags, NULL, resv, 0, &bo);
+			     flags, NULL, resv, &bo);
 	if (r) {
 		if (r != -ERESTARTSYS) {
 			if (flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED) {

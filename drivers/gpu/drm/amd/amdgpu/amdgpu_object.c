@@ -190,7 +190,7 @@ int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
 		r = amdgpu_bo_create(adev, size, align, true, domain,
 				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
 				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-				     NULL, NULL, 0, bo_ptr);
+				     NULL, NULL, bo_ptr);
 		if (r) {
 			dev_err(adev->dev, "(%d) failed to allocate kernel bo\n",
 				r);
@@ -336,7 +336,6 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 			       bool kernel, u32 domain, u64 flags,
 			       struct sg_table *sg,
 			       struct reservation_object *resv,
-			       uint64_t init_value,
 			       struct amdgpu_bo **bo_ptr)
 {
 	struct ttm_operation_ctx ctx = {
@@ -443,7 +442,7 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 	    bo->tbo.mem.placement & TTM_PL_FLAG_VRAM) {
 		struct dma_fence *fence;
 
-		r = amdgpu_fill_buffer(bo, init_value, bo->tbo.resv, &fence);
+		r = amdgpu_fill_buffer(bo, 0, bo->tbo.resv, &fence);
 		if (unlikely(r))
 			goto fail_unreserve;
 
@@ -484,7 +483,7 @@ static int amdgpu_bo_create_shadow(struct amdgpu_device *adev,
 				AMDGPU_GEM_DOMAIN_GTT,
 				AMDGPU_GEM_CREATE_CPU_GTT_USWC |
 				AMDGPU_GEM_CREATE_SHADOW,
-				NULL, bo->tbo.resv, 0,
+				NULL, bo->tbo.resv,
 				&bo->shadow);
 	if (!r) {
 		bo->shadow->parent = amdgpu_bo_ref(bo);
@@ -496,22 +495,18 @@ static int amdgpu_bo_create_shadow(struct amdgpu_device *adev,
 	return r;
 }
 
-/* init_value will only take effect when flags contains
- * AMDGPU_GEM_CREATE_VRAM_CLEARED.
- */
 int amdgpu_bo_create(struct amdgpu_device *adev,
 		     unsigned long size, int byte_align,
 		     bool kernel, u32 domain, u64 flags,
 		     struct sg_table *sg,
 		     struct reservation_object *resv,
-		     uint64_t init_value,
 		     struct amdgpu_bo **bo_ptr)
 {
 	uint64_t parent_flags = flags & ~AMDGPU_GEM_CREATE_SHADOW;
 	int r;
 
 	r = amdgpu_bo_do_create(adev, size, byte_align, kernel, domain,
-				parent_flags, sg, resv, init_value, bo_ptr);
+				parent_flags, sg, resv, bo_ptr);
 	if (r)
 		return r;
 

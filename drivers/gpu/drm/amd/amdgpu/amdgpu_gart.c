@@ -120,7 +120,7 @@ int amdgpu_gart_table_vram_alloc(struct amdgpu_device *adev)
 				     PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_VRAM,
 				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
 				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-				     NULL, NULL, 0, &adev->gart.robj);
+				     NULL, NULL, &adev->gart.robj);
 		if (r) {
 			return r;
 		}

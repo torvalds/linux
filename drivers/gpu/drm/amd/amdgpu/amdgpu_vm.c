@@ -385,7 +385,7 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 					     amdgpu_vm_bo_size(adev, level),
 					     AMDGPU_GPU_PAGE_SIZE, true,
 					     AMDGPU_GEM_DOMAIN_VRAM, flags,
-					     NULL, resv, 0, &pt);
+					     NULL, resv, &pt);
 			if (r)
 				return r;
 
@@ -2354,8 +2354,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 	size = amdgpu_vm_bo_size(adev, adev->vm_manager.root_level);
 	r = amdgpu_bo_create(adev, size, align, true, AMDGPU_GEM_DOMAIN_VRAM,
-			     flags, NULL, NULL, 0,
-			     &vm->root.base.bo);
+			     flags, NULL, NULL, &vm->root.base.bo);
 	if (r)
 		goto error_free_sched_entity;
 

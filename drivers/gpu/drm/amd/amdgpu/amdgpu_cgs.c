@@ -109,7 +109,7 @@ static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 	*handle = 0;
 
 	ret = amdgpu_bo_create(adev, size, align, true, domain, flags,
-			       NULL, NULL, 0, &obj);
+			       NULL, NULL, &obj);
 	if (ret) {
 		DRM_ERROR("(%d) bo create failed\n", ret);
 		return ret;
