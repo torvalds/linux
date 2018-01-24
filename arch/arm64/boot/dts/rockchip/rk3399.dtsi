@@ -2753,17 +2753,17 @@
 				rockchip,pins =
 					<4 18 RK_FUNC_2 &pcfg_pull_none>;
 			};
+
+			vop1_pwm_pin: vop1-pwm-pin {
+				rockchip,pins =
+					<4 18 RK_FUNC_3 &pcfg_pull_none>;
+			};
 		};
 
 		pwm1 {
 			pwm1_pin: pwm1-pin {
 				rockchip,pins =
 					<4 22 RK_FUNC_1 &pcfg_pull_none>;
-			};
-
-			vop1_pwm_pin: vop1-pwm-pin {
-				rockchip,pins =
-					<4 18 RK_FUNC_3 &pcfg_pull_none>;
 			};
 		};
 
