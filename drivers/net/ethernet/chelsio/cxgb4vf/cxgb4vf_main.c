@@ -791,6 +791,8 @@ static int cxgb4vf_open(struct net_device *dev)
 	if (err)
 		goto err_unwind;
 
+	pi->vlan_id = t4vf_get_vf_vlan_acl(adapter);
+
 	netif_tx_start_all_queues(dev);
 	set_bit(pi->port_id, &adapter->open_device_map);
 	return 0;

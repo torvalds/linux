@@ -1202,6 +1202,10 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	BUG_ON(qidx >= pi->nqsets);
 	txq = &adapter->sge.ethtxq[pi->first_qset + qidx];
 
+	if (pi->vlan_id && !skb_vlan_tag_present(skb))
+		__vlan_hwaccel_put_tag(skb, cpu_to_be16(ETH_P_8021Q),
+				       pi->vlan_id);
+
 	/*
 	 * Take this opportunity to reclaim any TX Descriptors whose DMA
 	 * transfers have completed.
@@ -1570,6 +1574,7 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 {
 	struct adapter *adapter = rxq->rspq.adapter;
 	struct sge *s = &adapter->sge;
+	struct port_info *pi;
 	int ret;
 	struct sk_buff *skb;
 
@@ -1586,8 +1591,9 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 	skb->truesize += skb->data_len;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb_record_rx_queue(skb, rxq->rspq.idx);
+	pi = netdev_priv(skb->dev);
 
-	if (pkt->vlan_ex) {
+	if (pkt->vlan_ex && !pi->vlan_id) {
 		__vlan_hwaccel_put_tag(skb, cpu_to_be16(ETH_P_8021Q),
 					be16_to_cpu(pkt->vlan));
 		rxq->stats.vlan_ex++;
@@ -1620,6 +1626,7 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 	struct sge_eth_rxq *rxq = container_of(rspq, struct sge_eth_rxq, rspq);
 	struct adapter *adapter = rspq->adapter;
 	struct sge *s = &adapter->sge;
+	struct port_info *pi;
 
 	/*
 	 * If this is a good TCP packet and we have Generic Receive Offload
@@ -1644,6 +1651,7 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 	__skb_pull(skb, s->pktshift);
 	skb->protocol = eth_type_trans(skb, rspq->netdev);
 	skb_record_rx_queue(skb, rspq->idx);
+	pi = netdev_priv(skb->dev);
 	rxq->stats.pkts++;
 
 	if (csum_ok && !pkt->err_vec &&
@@ -1660,9 +1668,10 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 	} else
 		skb_checksum_none_assert(skb);
 
-	if (pkt->vlan_ex) {
+	if (pkt->vlan_ex && !pi->vlan_id) {
 		rxq->stats.vlan_ex++;
-		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), be16_to_cpu(pkt->vlan));
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+				       be16_to_cpu(pkt->vlan));
 	}
 
 	netif_receive_skb(skb);

@@ -9899,3 +9899,35 @@ int t4_i2c_rd(struct adapter *adap, unsigned int mbox, int port,
 
 	return ret;
 }
+
+/**
+ *      t4_set_vlan_acl - Set a VLAN id for the specified VF
+ *      @adapter: the adapter
+ *      @mbox: mailbox to use for the FW command
+ *      @vf: one of the VFs instantiated by the specified PF
+ *      @vlan: The vlanid to be set
+ */
+int t4_set_vlan_acl(struct adapter *adap, unsigned int mbox, unsigned int vf,
+		    u16 vlan)
+{
+	struct fw_acl_vlan_cmd vlan_cmd;
+	unsigned int enable;
+
+	enable = (vlan ? FW_ACL_VLAN_CMD_EN_F : 0);
+	memset(&vlan_cmd, 0, sizeof(vlan_cmd));
+	vlan_cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_ACL_VLAN_CMD) |
+					 FW_CMD_REQUEST_F |
+					 FW_CMD_WRITE_F |
+					 FW_CMD_EXEC_F |
+					 FW_ACL_VLAN_CMD_PFN_V(adap->pf) |
+					 FW_ACL_VLAN_CMD_VFN_V(vf));
+	vlan_cmd.en_to_len16 = cpu_to_be32(enable | FW_LEN16(vlan_cmd));
+	/* Drop all packets that donot match vlan id */
+	vlan_cmd.dropnovlan_fm = FW_ACL_VLAN_CMD_FM_F;
+	if (enable != 0) {
+		vlan_cmd.nvlan = 1;
+		vlan_cmd.vlanid[0] = cpu_to_be16(vlan);
+	}
+
+	return t4_wr_mbox(adap, adap->mbox, &vlan_cmd, sizeof(vlan_cmd), NULL);
+}

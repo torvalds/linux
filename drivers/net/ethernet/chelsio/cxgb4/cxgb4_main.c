@@ -2783,7 +2783,30 @@ static int cxgb4_mgmt_set_vf_rate(struct net_device *dev, int vf,
 	return 0;
 }
 
-#endif
+static int cxgb4_mgmt_set_vf_vlan(struct net_device *dev, int vf,
+				  u16 vlan, u8 qos, __be16 vlan_proto)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	int ret;
+
+	if (vf >= adap->num_vfs || vlan > 4095 || qos > 7)
+		return -EINVAL;
+
+	if (vlan_proto != htons(ETH_P_8021Q) || qos != 0)
+		return -EPROTONOSUPPORT;
+
+	ret = t4_set_vlan_acl(adap, adap->mbox, vf + 1, vlan);
+	if (!ret) {
+		adap->vfinfo[vf].vlan = vlan;
+		return 0;
+	}
+
+	dev_err(adap->pdev_dev, "Err %d %s VLAN ACL for PF/VF %d/%d\n",
+		ret, (vlan ? "setting" : "clearing"), adap->pf, vf);
+	return ret;
+}
+#endif /* CONFIG_PCI_IOV */
 
 static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 {
@@ -3207,6 +3230,7 @@ static const struct net_device_ops cxgb4_mgmt_netdev_ops = {
 	.ndo_get_vf_config    = cxgb4_mgmt_get_vf_config,
 	.ndo_set_vf_rate      = cxgb4_mgmt_set_vf_rate,
 	.ndo_get_phys_port_id = cxgb4_mgmt_get_phys_port_id,
+	.ndo_set_vf_vlan      = cxgb4_mgmt_set_vf_vlan,
 };
 #endif
 
