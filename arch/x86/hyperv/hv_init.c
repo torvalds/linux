@@ -18,6 +18,8 @@
  */
 
 #include <linux/types.h>
+#include <asm/apic.h>
+#include <asm/desc.h>
 #include <asm/hypervisor.h>
 #include <asm/hyperv.h>
 #include <asm/mshyperv.h>
@@ -101,6 +103,93 @@ static int hv_cpu_init(unsigned int cpu)
 
 	return 0;
 }
+
+static void (*hv_reenlightenment_cb)(void);
+
+static void hv_reenlightenment_notify(struct work_struct *dummy)
+{
+	struct hv_tsc_emulation_status emu_status;
+
+	rdmsrl(HV_X64_MSR_TSC_EMULATION_STATUS, *(u64 *)&emu_status);
+
+	/* Don't issue the callback if TSC accesses are not emulated */
+	if (hv_reenlightenment_cb && emu_status.inprogress)
+		hv_reenlightenment_cb();
+}
+static DECLARE_DELAYED_WORK(hv_reenlightenment_work, hv_reenlightenment_notify);
+
+void hyperv_stop_tsc_emulation(void)
+{
+	u64 freq;
+	struct hv_tsc_emulation_status emu_status;
+
+	rdmsrl(HV_X64_MSR_TSC_EMULATION_STATUS, *(u64 *)&emu_status);
+	emu_status.inprogress = 0;
+	wrmsrl(HV_X64_MSR_TSC_EMULATION_STATUS, *(u64 *)&emu_status);
+
+	rdmsrl(HV_X64_MSR_TSC_FREQUENCY, freq);
+	tsc_khz = div64_u64(freq, 1000);
+}
+EXPORT_SYMBOL_GPL(hyperv_stop_tsc_emulation);
+
+static inline bool hv_reenlightenment_available(void)
+{
+	/*
+	 * Check for required features and priviliges to make TSC frequency
+	 * change notifications work.
+	 */
+	return ms_hyperv.features & HV_X64_ACCESS_FREQUENCY_MSRS &&
+		ms_hyperv.misc_features & HV_FEATURE_FREQUENCY_MSRS_AVAILABLE &&
+		ms_hyperv.features & HV_X64_ACCESS_REENLIGHTENMENT;
+}
+
+__visible void __irq_entry hyperv_reenlightenment_intr(struct pt_regs *regs)
+{
+	entering_ack_irq();
+
+	schedule_delayed_work(&hv_reenlightenment_work, HZ/10);
+
+	exiting_irq();
+}
+
+void set_hv_tscchange_cb(void (*cb)(void))
+{
+	struct hv_reenlightenment_control re_ctrl = {
+		.vector = HYPERV_REENLIGHTENMENT_VECTOR,
+		.enabled = 1,
+		.target_vp = hv_vp_index[smp_processor_id()]
+	};
+	struct hv_tsc_emulation_control emu_ctrl = {.enabled = 1};
+
+	if (!hv_reenlightenment_available()) {
+		pr_warn("Hyper-V: reenlightenment support is unavailable\n");
+		return;
+	}
+
+	hv_reenlightenment_cb = cb;
+
+	/* Make sure callback is registered before we write to MSRs */
+	wmb();
+
+	wrmsrl(HV_X64_MSR_REENLIGHTENMENT_CONTROL, *((u64 *)&re_ctrl));
+	wrmsrl(HV_X64_MSR_TSC_EMULATION_CONTROL, *((u64 *)&emu_ctrl));
+}
+EXPORT_SYMBOL_GPL(set_hv_tscchange_cb);
+
+void clear_hv_tscchange_cb(void)
+{
+	struct hv_reenlightenment_control re_ctrl;
+
+	if (!hv_reenlightenment_available())
+		return;
+
+	rdmsrl(HV_X64_MSR_REENLIGHTENMENT_CONTROL, *(u64 *)&re_ctrl);
+	re_ctrl.enabled = 0;
+	wrmsrl(HV_X64_MSR_REENLIGHTENMENT_CONTROL, *(u64 *)&re_ctrl);
+
+	hv_reenlightenment_cb = NULL;
+}
+EXPORT_SYMBOL_GPL(clear_hv_tscchange_cb);
 
 /*
  * This function is to be invoked early in the boot sequence after the

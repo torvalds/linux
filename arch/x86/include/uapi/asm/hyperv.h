@@ -40,6 +40,9 @@
  */
 #define HV_X64_ACCESS_FREQUENCY_MSRS		(1 << 11)
 
+/* AccessReenlightenmentControls privilege */
+#define HV_X64_ACCESS_REENLIGHTENMENT		BIT(13)
+
 /*
  * Basic SynIC MSRs (HV_X64_MSR_SCONTROL through HV_X64_MSR_EOM
  * and HV_X64_MSR_SINT0 through HV_X64_MSR_SINT15) available
@@ -233,6 +236,30 @@
 #define HV_X64_MSR_CRASH_CTL_NOTIFY		(1ULL << 63)
 #define HV_X64_MSR_CRASH_PARAMS		\
 		(1 + (HV_X64_MSR_CRASH_P4 - HV_X64_MSR_CRASH_P0))
+
+/* TSC emulation after migration */
+#define HV_X64_MSR_REENLIGHTENMENT_CONTROL	0x40000106
+
+struct hv_reenlightenment_control {
+	u64 vector:8;
+	u64 reserved1:8;
+	u64 enabled:1;
+	u64 reserved2:15;
+	u64 target_vp:32;
+};
+
+#define HV_X64_MSR_TSC_EMULATION_CONTROL	0x40000107
+#define HV_X64_MSR_TSC_EMULATION_STATUS		0x40000108
+
+struct hv_tsc_emulation_control {
+	u64 enabled:1;
+	u64 reserved:63;
+};
+
+struct hv_tsc_emulation_status {
+	u64 inprogress:1;
+	u64 reserved:63;
+};
 
 #define HV_X64_MSR_HYPERCALL_ENABLE		0x00000001
 #define HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_SHIFT	12
