@@ -822,14 +822,12 @@ static void vpu_service_power_off(struct vpu_service_info *pservice)
 
 	udelay(5);
 
-	mutex_lock(&pservice->reset_lock);
 	list_for_each_entry_safe(data, n, &pservice->subdev_list, lnk_service) {
 		if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
 			clear_bit(MMU_ACTIVATED, &data->state);
 			vcodec_iommu_detach(data->iommu_info);
 		}
 	}
-	mutex_unlock(&pservice->reset_lock);
 	pservice->curr_mode = VCODEC_RUNNING_MODE_NONE;
 	if (pservice->hw_ops->power_off)
 		pservice->hw_ops->power_off(pservice);
@@ -1564,6 +1562,8 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, struct vpu_reg *reg)
 	} break;
 	default: {
 		vpu_err("error: unsupport session type %d", reg->type);
+
+		vcodec_exit_mode(data);
 		atomic_sub(1, &pservice->total_running);
 		atomic_sub(1, &reg->session->task_running);
 	} break;
