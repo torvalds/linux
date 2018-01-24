@@ -623,6 +623,36 @@ struct backlight_device *of_find_backlight(struct device *dev)
 }
 EXPORT_SYMBOL(of_find_backlight);
 
+static void devm_backlight_release(void *data)
+{
+	backlight_put(data);
+}
+
+/**
+ * devm_of_find_backlight - Resource-managed of_find_backlight()
+ * @dev: Device
+ *
+ * Device managed version of of_find_backlight().
+ * The reference on the backlight device is automatically
+ * dropped on driver detach.
+ */
+struct backlight_device *devm_of_find_backlight(struct device *dev)
+{
+	struct backlight_device *bd;
+	int ret;
+
+	bd = of_find_backlight(dev);
+	if (IS_ERR_OR_NULL(bd))
+		return bd;
+	ret = devm_add_action(dev, devm_backlight_release, bd);
+	if (ret) {
+		backlight_put(bd);
+		return ERR_PTR(ret);
+	}
+	return bd;
+}
+EXPORT_SYMBOL(devm_of_find_backlight);
+
 static void __exit backlight_class_exit(void)
 {
 	class_destroy(backlight_class);
