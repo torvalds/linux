@@ -40,8 +40,8 @@ int cudbg_compress_buff(struct cudbg_init *pdbg_init,
 			struct cudbg_buffer *pin_buff,
 			struct cudbg_buffer *pout_buff)
 {
-	struct z_stream_s compress_stream = { 0 };
 	struct cudbg_buffer temp_buff = { 0 };
+	struct z_stream_s compress_stream;
 	struct cudbg_compress_hdr *c_hdr;
 	int rc;
 
@@ -53,6 +53,7 @@ int cudbg_compress_buff(struct cudbg_init *pdbg_init,
 	c_hdr = (struct cudbg_compress_hdr *)temp_buff.data;
 	c_hdr->compress_id = CUDBG_ZLIB_COMPRESS_ID;
 
+	memset(&compress_stream, 0, sizeof(struct z_stream_s));
 	compress_stream.workspace = pdbg_init->workspace;
 	rc = zlib_deflateInit2(&compress_stream, Z_DEFAULT_COMPRESSION,
 			       Z_DEFLATED, CUDBG_ZLIB_WIN_BITS,
