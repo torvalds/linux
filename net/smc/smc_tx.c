@@ -86,7 +86,7 @@ static int smc_tx_wait_memory(struct smc_sock *smc, int flags)
 			rc = -EPIPE;
 			break;
 		}
-		if (conn->local_rx_ctrl.conn_state_flags.peer_conn_abort) {
+		if (smc_cdc_rxed_any_close(conn)) {
 			rc = -ECONNRESET;
 			break;
 		}
@@ -107,7 +107,7 @@ static int smc_tx_wait_memory(struct smc_sock *smc, int flags)
 		sk_wait_event(sk, &timeo,
 			      sk->sk_err ||
 			      (sk->sk_shutdown & SEND_SHUTDOWN) ||
-			      smc_cdc_rxed_any_close_or_senddone(conn) ||
+			      smc_cdc_rxed_any_close(conn) ||
 			      atomic_read(&conn->sndbuf_space),
 			      &wait);
 	}
