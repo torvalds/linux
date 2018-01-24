@@ -61,14 +61,14 @@ xfs_buf_log_format_size(
  */
 STATIC void
 xfs_buf_item_size_segment(
-	struct xfs_buf_log_item	*bip,
-	struct xfs_buf_log_format *blfp,
-	int			*nvecs,
-	int			*nbytes)
+	struct xfs_buf_log_item		*bip,
+	struct xfs_buf_log_format	*blfp,
+	int				*nvecs,
+	int				*nbytes)
 {
-	struct xfs_buf		*bp = bip->bli_buf;
-	int			next_bit;
-	int			last_bit;
+	struct xfs_buf			*bp = bip->bli_buf;
+	int				next_bit;
+	int				last_bit;
 
 	last_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size, 0);
 	if (last_bit == -1)
@@ -218,12 +218,12 @@ xfs_buf_item_format_segment(
 	uint			offset,
 	struct xfs_buf_log_format *blfp)
 {
-	struct xfs_buf	*bp = bip->bli_buf;
-	uint		base_size;
-	int		first_bit;
-	int		last_bit;
-	int		next_bit;
-	uint		nbits;
+	struct xfs_buf		*bp = bip->bli_buf;
+	uint			base_size;
+	int			first_bit;
+	int			last_bit;
+	int			next_bit;
+	uint			nbits;
 
 	/* copy the flags across from the base format item */
 	blfp->blf_flags = bip->__bli_format.blf_flags;
@@ -406,10 +406,10 @@ xfs_buf_item_unpin(
 	int			remove)
 {
 	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
-	xfs_buf_t	*bp = bip->bli_buf;
-	struct xfs_ail	*ailp = lip->li_ailp;
-	int		stale = bip->bli_flags & XFS_BLI_STALE;
-	int		freed;
+	xfs_buf_t		*bp = bip->bli_buf;
+	struct xfs_ail		*ailp = lip->li_ailp;
+	int			stale = bip->bli_flags & XFS_BLI_STALE;
+	int			freed;
 
 	ASSERT(bp->b_fspriv == bip);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
@@ -880,7 +880,7 @@ xfs_buf_item_log_segment(
  */
 void
 xfs_buf_item_log(
-	xfs_buf_log_item_t	*bip,
+	struct xfs_buf_log_item	*bip,
 	uint			first,
 	uint			last)
 {
@@ -943,7 +943,7 @@ xfs_buf_item_dirty_format(
 
 STATIC void
 xfs_buf_item_free(
-	xfs_buf_log_item_t	*bip)
+	struct xfs_buf_log_item	*bip)
 {
 	xfs_buf_item_free_format(bip);
 	kmem_free(bip->bli_item.li_lv_shadow);
@@ -961,7 +961,7 @@ void
 xfs_buf_item_relse(
 	xfs_buf_t	*bp)
 {
-	xfs_buf_log_item_t	*bip = bp->b_fspriv;
+	struct xfs_buf_log_item	*bip = bp->b_fspriv;
 
 	trace_xfs_buf_item_relse(bp, _RET_IP_);
 	ASSERT(!(bip->bli_item.li_flags & XFS_LI_IN_AIL));
