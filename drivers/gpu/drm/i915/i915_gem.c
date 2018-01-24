@@ -5272,7 +5272,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	if (ret)
 		return ret;
 
-	ret = intel_uc_init_wq(dev_priv);
+	ret = intel_uc_init_misc(dev_priv);
 	if (ret)
 		return ret;
 
@@ -5368,7 +5368,7 @@ err_unlock:
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
-	intel_uc_fini_wq(dev_priv);
+	intel_uc_fini_misc(dev_priv);
 
 	if (ret != -EIO)
 		i915_gem_cleanup_userptr(dev_priv);

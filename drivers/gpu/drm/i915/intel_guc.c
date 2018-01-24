@@ -64,6 +64,7 @@ void intel_guc_init_early(struct intel_guc *guc)
 {
 	intel_guc_fw_init_early(guc);
 	intel_guc_ct_init_early(&guc->ct);
+	intel_guc_log_init_early(guc);
 
 	mutex_init(&guc->send_mutex);
 	guc->send = intel_guc_send_nop;
@@ -87,8 +88,10 @@ int intel_guc_init_wq(struct intel_guc *guc)
 	 */
 	guc->log.runtime.flush_wq = alloc_ordered_workqueue("i915-guc_log",
 						WQ_HIGHPRI | WQ_FREEZABLE);
-	if (!guc->log.runtime.flush_wq)
+	if (!guc->log.runtime.flush_wq) {
+		DRM_ERROR("Couldn't allocate workqueue for GuC log\n");
 		return -ENOMEM;
+	}
 
 	/*
 	 * Even though both sending GuC action, and adding a new workitem to
@@ -109,6 +112,8 @@ int intel_guc_init_wq(struct intel_guc *guc)
 							  WQ_HIGHPRI);
 		if (!guc->preempt_wq) {
 			destroy_workqueue(guc->log.runtime.flush_wq);
+			DRM_ERROR("Couldn't allocate workqueue for GuC "
+				  "preemption\n");
 			return -ENOMEM;
 		}
 	}

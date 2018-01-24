@@ -236,28 +236,44 @@ static void guc_disable_communication(struct intel_guc *guc)
 	guc->send = intel_guc_send_nop;
 }
 
-int intel_uc_init_wq(struct drm_i915_private *dev_priv)
+int intel_uc_init_misc(struct drm_i915_private *dev_priv)
 {
+	struct intel_guc *guc = &dev_priv->guc;
 	int ret;
 
 	if (!USES_GUC(dev_priv))
 		return 0;
 
-	ret = intel_guc_init_wq(&dev_priv->guc);
+	ret = intel_guc_init_wq(guc);
 	if (ret) {
 		DRM_ERROR("Couldn't allocate workqueues for GuC\n");
-		return ret;
+		goto err;
+	}
+
+	ret = intel_guc_log_relay_create(guc);
+	if (ret) {
+		DRM_ERROR("Couldn't allocate relay for GuC log\n");
+		goto err_relay;
 	}
 
 	return 0;
+
+err_relay:
+	intel_guc_fini_wq(guc);
+err:
+	return ret;
 }
 
-void intel_uc_fini_wq(struct drm_i915_private *dev_priv)
+void intel_uc_fini_misc(struct drm_i915_private *dev_priv)
 {
+	struct intel_guc *guc = &dev_priv->guc;
+
 	if (!USES_GUC(dev_priv))
 		return;
 
-	intel_guc_fini_wq(&dev_priv->guc);
+	intel_guc_fini_wq(guc);
+
+	intel_guc_log_relay_destroy(guc);
 }
 
 int intel_uc_init(struct drm_i915_private *dev_priv)

@@ -2467,7 +2467,6 @@ static int i915_guc_log_control_get(void *data, u64 *val)
 static int i915_guc_log_control_set(void *data, u64 val)
 {
 	struct drm_i915_private *dev_priv = data;
-	int ret;
 
 	if (!HAS_GUC(dev_priv))
 		return -ENODEV;
@@ -2475,16 +2474,7 @@ static int i915_guc_log_control_set(void *data, u64 val)
 	if (!dev_priv->guc.log.vma)
 		return -EINVAL;
 
-	ret = mutex_lock_interruptible(&dev_priv->drm.struct_mutex);
-	if (ret)
-		return ret;
-
-	intel_runtime_pm_get(dev_priv);
-	ret = i915_guc_log_control(dev_priv, val);
-	intel_runtime_pm_put(dev_priv);
-
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-	return ret;
+	return i915_guc_log_control(dev_priv, val);
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_guc_log_control_fops,

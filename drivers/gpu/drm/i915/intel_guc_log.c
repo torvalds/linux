@@ -153,6 +153,8 @@ static int guc_log_relay_file_create(struct intel_guc *guc)
 	if (!i915_modparams.guc_log_level)
 		return 0;
 
+	mutex_lock(&guc->log.runtime.relay_lock);
+
 	/* For now create the log file in /sys/kernel/debug/dri/0 dir */
 	log_dir = dev_priv->drm.primary->debugfs_root;
 
@@ -169,16 +171,26 @@ static int guc_log_relay_file_create(struct intel_guc *guc)
 	 */
 	if (!log_dir) {
 		DRM_ERROR("Debugfs dir not available yet for GuC log file\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto out_unlock;
 	}
 
 	ret = relay_late_setup_files(guc->log.runtime.relay_chan, "guc_log", log_dir);
 	if (ret < 0 && ret != -EEXIST) {
 		DRM_ERROR("Couldn't associate relay chan with file %d\n", ret);
-		return ret;
+		goto out_unlock;
 	}
 
-	return 0;
+out_unlock:
+	mutex_unlock(&guc->log.runtime.relay_lock);
+	return ret;
+}
+
+static bool guc_log_has_relay(struct intel_guc *guc)
+{
+	lockdep_assert_held(&guc->log.runtime.relay_lock);
+
+	return guc->log.runtime.relay_chan != NULL;
 }
 
 static void guc_move_to_next_buf(struct intel_guc *guc)
@@ -187,6 +199,9 @@ static void guc_move_to_next_buf(struct intel_guc *guc)
 	 * Consumer sees the following update to offset inside the sub buffer.
 	 */
 	smp_wmb();
+
+	if (!guc_log_has_relay(guc))
+		return;
 
 	/* All data has been written, so now move the offset of sub buffer. */
 	relay_reserve(guc->log.runtime.relay_chan, guc->log.vma->obj->base.size);
@@ -197,7 +212,7 @@ static void guc_move_to_next_buf(struct intel_guc *guc)
 
 static void *guc_get_write_buffer(struct intel_guc *guc)
 {
-	if (!guc->log.runtime.relay_chan)
+	if (!guc_log_has_relay(guc))
 		return NULL;
 
 	/* Just get the base address of a new sub buffer and copy data into it
@@ -265,8 +280,21 @@ static void guc_read_update_log_buffer(struct intel_guc *guc)
 	/* Get the pointer to shared GuC log buffer */
 	log_buf_state = src_data = guc->log.runtime.buf_addr;
 
+	mutex_lock(&guc->log.runtime.relay_lock);
+
 	/* Get the pointer to local buffer to store the logs */
 	log_buf_snapshot_state = dst_data = guc_get_write_buffer(guc);
+
+	if (unlikely(!log_buf_snapshot_state)) {
+		/* Used rate limited to avoid deluge of messages, logs might be
+		 * getting consumed by User at a slow rate.
+		 */
+		DRM_ERROR_RATELIMITED("no sub-buffer to capture logs\n");
+		guc->log.capture_miss_count++;
+		mutex_unlock(&guc->log.runtime.relay_lock);
+
+		return;
+	}
 
 	/* Actual logs are present from the 2nd page */
 	src_data += PAGE_SIZE;
@@ -292,9 +320,6 @@ static void guc_read_update_log_buffer(struct intel_guc *guc)
 		log_buf_state->read_ptr = write_offset;
 		log_buf_state->flush_to_file = 0;
 		log_buf_state++;
-
-		if (unlikely(!log_buf_snapshot_state))
-			continue;
 
 		/* First copy the state structure in snapshot buffer */
 		memcpy(log_buf_snapshot_state, &log_buf_state_local,
@@ -335,15 +360,9 @@ static void guc_read_update_log_buffer(struct intel_guc *guc)
 		dst_data += buffer_size;
 	}
 
-	if (log_buf_snapshot_state)
-		guc_move_to_next_buf(guc);
-	else {
-		/* Used rate limited to avoid deluge of messages, logs might be
-		 * getting consumed by User at a slow rate.
-		 */
-		DRM_ERROR_RATELIMITED("no sub-buffer to capture logs\n");
-		guc->log.capture_miss_count++;
-	}
+	guc_move_to_next_buf(guc);
+
+	mutex_unlock(&guc->log.runtime.relay_lock);
 }
 
 static void capture_logs_work(struct work_struct *work)
@@ -363,8 +382,6 @@ static int guc_log_runtime_create(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	void *vaddr;
-	struct rchan *guc_log_relay_chan;
-	size_t n_subbufs, subbuf_size;
 	int ret;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
@@ -387,8 +404,44 @@ static int guc_log_runtime_create(struct intel_guc *guc)
 
 	guc->log.runtime.buf_addr = vaddr;
 
+	return 0;
+}
+
+static void guc_log_runtime_destroy(struct intel_guc *guc)
+{
+	/*
+	 * It's possible that the runtime stuff was never allocated because
+	 * GuC log was disabled at the boot time.
+	 */
+	if (!guc_log_has_runtime(guc))
+		return;
+
+	i915_gem_object_unpin_map(guc->log.vma->obj);
+	guc->log.runtime.buf_addr = NULL;
+}
+
+void intel_guc_log_init_early(struct intel_guc *guc)
+{
+	mutex_init(&guc->log.runtime.relay_lock);
+	INIT_WORK(&guc->log.runtime.flush_work, capture_logs_work);
+}
+
+int intel_guc_log_relay_create(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct rchan *guc_log_relay_chan;
+	size_t n_subbufs, subbuf_size;
+	int ret;
+
+	if (!i915_modparams.guc_log_level)
+		return 0;
+
+	mutex_lock(&guc->log.runtime.relay_lock);
+
+	GEM_BUG_ON(guc_log_has_relay(guc));
+
 	 /* Keep the size of sub buffers same as shared log buffer */
-	subbuf_size = guc->log.vma->obj->base.size;
+	subbuf_size = GUC_LOG_SIZE;
 
 	/* Store up to 8 snapshots, which is large enough to buffer sufficient
 	 * boot time logs and provides enough leeway to User, in terms of
@@ -407,33 +460,39 @@ static int guc_log_runtime_create(struct intel_guc *guc)
 		DRM_ERROR("Couldn't create relay chan for GuC logging\n");
 
 		ret = -ENOMEM;
-		goto err_vaddr;
+		goto err;
 	}
 
 	GEM_BUG_ON(guc_log_relay_chan->subbuf_size < subbuf_size);
 	guc->log.runtime.relay_chan = guc_log_relay_chan;
 
-	INIT_WORK(&guc->log.runtime.flush_work, capture_logs_work);
+	mutex_unlock(&guc->log.runtime.relay_lock);
+
 	return 0;
 
-err_vaddr:
-	i915_gem_object_unpin_map(guc->log.vma->obj);
-	guc->log.runtime.buf_addr = NULL;
+err:
+	mutex_unlock(&guc->log.runtime.relay_lock);
+	/* logging will be off */
+	i915_modparams.guc_log_level = 0;
 	return ret;
 }
 
-static void guc_log_runtime_destroy(struct intel_guc *guc)
+void intel_guc_log_relay_destroy(struct intel_guc *guc)
 {
+	mutex_lock(&guc->log.runtime.relay_lock);
+
 	/*
-	 * It's possible that the runtime stuff was never allocated because
+	 * It's possible that the relay was never allocated because
 	 * GuC log was disabled at the boot time.
 	 */
-	if (!guc_log_has_runtime(guc))
-		return;
+	if (!guc_log_has_relay(guc))
+		goto out_unlock;
 
 	relay_close(guc->log.runtime.relay_chan);
-	i915_gem_object_unpin_map(guc->log.vma->obj);
-	guc->log.runtime.buf_addr = NULL;
+	guc->log.runtime.relay_chan = NULL;
+
+out_unlock:
+	mutex_unlock(&guc->log.runtime.relay_lock);
 }
 
 static int guc_log_late_setup(struct intel_guc *guc)
@@ -441,17 +500,24 @@ static int guc_log_late_setup(struct intel_guc *guc)
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	int ret;
 
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
 	if (!guc_log_has_runtime(guc)) {
 		/*
 		 * If log was disabled at boot time, then setup needed to handle
 		 * log buffer flush interrupts would not have been done yet, so
 		 * do that now.
 		 */
-		ret = guc_log_runtime_create(guc);
+		ret = intel_guc_log_relay_create(guc);
 		if (ret)
 			goto err;
+
+		mutex_lock(&dev_priv->drm.struct_mutex);
+		intel_runtime_pm_get(dev_priv);
+		ret = guc_log_runtime_create(guc);
+		intel_runtime_pm_put(dev_priv);
+		mutex_unlock(&dev_priv->drm.struct_mutex);
+
+		if (ret)
+			goto err_relay;
 	}
 
 	ret = guc_log_relay_file_create(guc);
@@ -461,7 +527,11 @@ static int guc_log_late_setup(struct intel_guc *guc)
 	return 0;
 
 err_runtime:
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	guc_log_runtime_destroy(guc);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
+err_relay:
+	intel_guc_log_relay_destroy(guc);
 err:
 	/* logging will remain off */
 	i915_modparams.guc_log_level = 0;
@@ -490,7 +560,11 @@ static void guc_flush_logs(struct intel_guc *guc)
 		return;
 
 	/* First disable the interrupts, will be renabled afterwards */
+	mutex_lock(&dev_priv->drm.struct_mutex);
+	intel_runtime_pm_get(dev_priv);
 	gen9_disable_guc_interrupts(dev_priv);
+	intel_runtime_pm_put(dev_priv);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	/* Before initiating the forceful flush, wait for any pending/ongoing
 	 * flush to complete otherwise forceful flush may not actually happen.
@@ -498,7 +572,9 @@ static void guc_flush_logs(struct intel_guc *guc)
 	flush_work(&guc->log.runtime.flush_work);
 
 	/* Ask GuC to update the log buffer state */
+	intel_runtime_pm_get(dev_priv);
 	guc_log_flush(guc);
+	intel_runtime_pm_put(dev_priv);
 
 	/* GuC would have updated log buffer by now, so capture it */
 	guc_log_capture_logs(guc);
@@ -509,16 +585,9 @@ int intel_guc_log_create(struct intel_guc *guc)
 	struct i915_vma *vma;
 	unsigned long offset;
 	u32 flags;
-	u32 size;
 	int ret;
 
 	GEM_BUG_ON(guc->log.vma);
-
-	/* The first page is to save log buffer state. Allocate one
-	 * extra page for others in case for overlap */
-	size = (1 + GUC_LOG_DPC_PAGES + 1 +
-		GUC_LOG_ISR_PAGES + 1 +
-		GUC_LOG_CRASH_PAGES + 1) << PAGE_SHIFT;
 
 	/* We require SSE 4.1 for fast reads from the GuC log buffer and
 	 * it should be present on the chipsets supporting GuC based
@@ -529,7 +598,7 @@ int intel_guc_log_create(struct intel_guc *guc)
 		goto err;
 	}
 
-	vma = intel_guc_allocate_vma(guc, size);
+	vma = intel_guc_allocate_vma(guc, GUC_LOG_SIZE);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto err;
@@ -584,7 +653,15 @@ int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val)
 		return 0;
 
 	verbosity = enable_logging ? control_val - 1 : 0;
+
+	ret = mutex_lock_interruptible(&dev_priv->drm.struct_mutex);
+	if (ret)
+		return ret;
+	intel_runtime_pm_get(dev_priv);
 	ret = guc_log_control(guc, enable_logging, verbosity);
+	intel_runtime_pm_put(dev_priv);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
+
 	if (ret < 0) {
 		DRM_DEBUG_DRIVER("guc_logging_control action failed %d\n", ret);
 		return ret;
@@ -605,7 +682,11 @@ int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val)
 		}
 
 		/* GuC logging is currently the only user of Guc2Host interrupts */
+		mutex_lock(&dev_priv->drm.struct_mutex);
+		intel_runtime_pm_get(dev_priv);
 		gen9_enable_guc_interrupts(dev_priv);
+		intel_runtime_pm_put(dev_priv);
+		mutex_unlock(&dev_priv->drm.struct_mutex);
 	} else {
 		/*
 		 * Once logging is disabled, GuC won't generate logs & send an
@@ -627,13 +708,13 @@ void i915_guc_log_register(struct drm_i915_private *dev_priv)
 	if (!USES_GUC_SUBMISSION(dev_priv) || !i915_modparams.guc_log_level)
 		return;
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
 	guc_log_late_setup(&dev_priv->guc);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 }
 
 void i915_guc_log_unregister(struct drm_i915_private *dev_priv)
 {
+	struct intel_guc *guc = &dev_priv->guc;
+
 	if (!USES_GUC_SUBMISSION(dev_priv))
 		return;
 
@@ -643,6 +724,8 @@ void i915_guc_log_unregister(struct drm_i915_private *dev_priv)
 	gen9_disable_guc_interrupts(dev_priv);
 	intel_runtime_pm_put(dev_priv);
 
-	guc_log_runtime_destroy(&dev_priv->guc);
+	guc_log_runtime_destroy(guc);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
+
+	intel_guc_log_relay_destroy(guc);
 }
