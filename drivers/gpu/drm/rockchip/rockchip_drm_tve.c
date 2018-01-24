@@ -26,7 +26,7 @@ static const struct drm_display_mode cvbs_mode[] = {
 		   .vrefresh = 50, 0, },
 
 	{ DRM_MODE("720x480i", DRM_MODE_TYPE_DRIVER, 13500, 720, 753,
-		   815, 858, 0, 480, 488, 494, 525, 0,
+		   815, 858, 0, 480, 480, 486, 525, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC |
 		   DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_DBLCLK),
 		   .vrefresh = 60, 0, },
