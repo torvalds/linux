@@ -81,7 +81,8 @@ static int subbuf_start_callback(struct rchan_buf *buf,
 				 void *prev_subbuf,
 				 size_t prev_padding)
 {
-	/* Use no-overwrite mode by default, where relay will stop accepting
+	/*
+	 * Use no-overwrite mode by default, where relay will stop accepting
 	 * new data if there are no empty sub buffers left.
 	 * There is no strict synchronization enforced by relay between Consumer
 	 * and Producer. In overwrite mode, there is a possibility of getting
@@ -107,7 +108,8 @@ static struct dentry *create_buf_file_callback(const char *filename,
 {
 	struct dentry *buf_file;
 
-	/* This to enable the use of a single buffer for the relay channel and
+	/*
+	 * This to enable the use of a single buffer for the relay channel and
 	 * correspondingly have a single file exposed to User, through which
 	 * it can collect the logs in order without any post-processing.
 	 * Need to set 'is_global' even if parent is NULL for early logging.
@@ -117,7 +119,8 @@ static struct dentry *create_buf_file_callback(const char *filename,
 	if (!parent)
 		return NULL;
 
-	/* Not using the channel filename passed as an argument, since for each
+	/*
+	 * Not using the channel filename passed as an argument, since for each
 	 * channel relay appends the corresponding CPU number to the filename
 	 * passed in relay_open(). This should be fine as relay just needs a
 	 * dentry of the file associated with the channel buffer and that file's
@@ -158,7 +161,8 @@ static int guc_log_relay_file_create(struct intel_guc *guc)
 	/* For now create the log file in /sys/kernel/debug/dri/0 dir */
 	log_dir = dev_priv->drm.primary->debugfs_root;
 
-	/* If /sys/kernel/debug/dri/0 location do not exist, then debugfs is
+	/*
+	 * If /sys/kernel/debug/dri/0 location do not exist, then debugfs is
 	 * not mounted and so can't create the relay file.
 	 * The relay API seems to fit well with debugfs only, for availing relay
 	 * there are 3 requirements which can be met for debugfs file only in a
@@ -195,7 +199,8 @@ static bool guc_log_has_relay(struct intel_guc *guc)
 
 static void guc_move_to_next_buf(struct intel_guc *guc)
 {
-	/* Make sure the updates made in the sub buffer are visible when
+	/*
+	 * Make sure the updates made in the sub buffer are visible when
 	 * Consumer sees the following update to offset inside the sub buffer.
 	 */
 	smp_wmb();
@@ -215,7 +220,8 @@ static void *guc_get_write_buffer(struct intel_guc *guc)
 	if (!guc_log_has_relay(guc))
 		return NULL;
 
-	/* Just get the base address of a new sub buffer and copy data into it
+	/*
+	 * Just get the base address of a new sub buffer and copy data into it
 	 * ourselves. NULL will be returned in no-overwrite mode, if all sub
 	 * buffers are full. Could have used the relay_write() to indirectly
 	 * copy the data, but that would have been bit convoluted, as we need to
@@ -286,7 +292,8 @@ static void guc_read_update_log_buffer(struct intel_guc *guc)
 	log_buf_snapshot_state = dst_data = guc_get_write_buffer(guc);
 
 	if (unlikely(!log_buf_snapshot_state)) {
-		/* Used rate limited to avoid deluge of messages, logs might be
+		/*
+		 * Used rate limited to avoid deluge of messages, logs might be
 		 * getting consumed by User at a slow rate.
 		 */
 		DRM_ERROR_RATELIMITED("no sub-buffer to capture logs\n");
@@ -301,7 +308,8 @@ static void guc_read_update_log_buffer(struct intel_guc *guc)
 	dst_data += PAGE_SIZE;
 
 	for (type = GUC_ISR_LOG_BUFFER; type < GUC_MAX_LOG_BUFFER; type++) {
-		/* Make a copy of the state structure, inside GuC log buffer
+		/*
+		 * Make a copy of the state structure, inside GuC log buffer
 		 * (which is uncached mapped), on the stack to avoid reading
 		 * from it multiple times.
 		 */
@@ -325,7 +333,8 @@ static void guc_read_update_log_buffer(struct intel_guc *guc)
 		memcpy(log_buf_snapshot_state, &log_buf_state_local,
 		       sizeof(struct guc_log_buffer_state));
 
-		/* The write pointer could have been updated by GuC firmware,
+		/*
+		 * The write pointer could have been updated by GuC firmware,
 		 * after sending the flush interrupt to Host, for consistency
 		 * set write pointer value to same value of sampled_write_ptr
 		 * in the snapshot buffer.
@@ -392,7 +401,8 @@ static int guc_log_runtime_create(struct intel_guc *guc)
 	if (ret)
 		return ret;
 
-	/* Create a WC (Uncached for read) vmalloc mapping of log
+	/*
+	 * Create a WC (Uncached for read) vmalloc mapping of log
 	 * buffer pages, so that we can directly get the data
 	 * (up-to-date) from memory.
 	 */
@@ -443,14 +453,16 @@ int intel_guc_log_relay_create(struct intel_guc *guc)
 	 /* Keep the size of sub buffers same as shared log buffer */
 	subbuf_size = GUC_LOG_SIZE;
 
-	/* Store up to 8 snapshots, which is large enough to buffer sufficient
+	/*
+	 * Store up to 8 snapshots, which is large enough to buffer sufficient
 	 * boot time logs and provides enough leeway to User, in terms of
 	 * latency, for consuming the logs from relay. Also doesn't take
 	 * up too much memory.
 	 */
 	n_subbufs = 8;
 
-	/* Create a relay channel, so that we have buffers for storing
+	/*
+	 * Create a relay channel, so that we have buffers for storing
 	 * the GuC firmware logs, the channel will be linked with a file
 	 * later on when debugfs is registered.
 	 */
@@ -544,7 +556,8 @@ static void guc_log_capture_logs(struct intel_guc *guc)
 
 	guc_read_update_log_buffer(guc);
 
-	/* Generally device is expected to be active only at this
+	/*
+	 * Generally device is expected to be active only at this
 	 * time, so get/put should be really quick.
 	 */
 	intel_runtime_pm_get(dev_priv);
@@ -566,7 +579,8 @@ static void guc_flush_logs(struct intel_guc *guc)
 	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
-	/* Before initiating the forceful flush, wait for any pending/ongoing
+	/*
+	 * Before initiating the forceful flush, wait for any pending/ongoing
 	 * flush to complete otherwise forceful flush may not actually happen.
 	 */
 	flush_work(&guc->log.runtime.flush_work);
@@ -589,7 +603,8 @@ int intel_guc_log_create(struct intel_guc *guc)
 
 	GEM_BUG_ON(guc->log.vma);
 
-	/* We require SSE 4.1 for fast reads from the GuC log buffer and
+	/*
+	 * We require SSE 4.1 for fast reads from the GuC log buffer and
 	 * it should be present on the chipsets supporting GuC based
 	 * submisssions.
 	 */
