@@ -68,6 +68,7 @@
 #include <asm/div64.h>
 #include <asm/irq_remapping.h>
 #include <asm/mshyperv.h>
+#include <asm/hypervisor.h>
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -5932,6 +5933,43 @@ static void tsc_khz_changed(void *data)
 	__this_cpu_write(cpu_tsc_khz, khz);
 }
 
+static void kvm_hyperv_tsc_notifier(void)
+{
+#ifdef CONFIG_X86_64
+	struct kvm *kvm;
+	struct kvm_vcpu *vcpu;
+	int cpu;
+
+	spin_lock(&kvm_lock);
+	list_for_each_entry(kvm, &vm_list, vm_list)
+		kvm_make_mclock_inprogress_request(kvm);
+
+	hyperv_stop_tsc_emulation();
+
+	/* TSC frequency always matches when on Hyper-V */
+	for_each_present_cpu(cpu)
+		per_cpu(cpu_tsc_khz, cpu) = tsc_khz;
+	kvm_max_guest_tsc_khz = tsc_khz;
+
+	list_for_each_entry(kvm, &vm_list, vm_list) {
+		struct kvm_arch *ka = &kvm->arch;
+
+		spin_lock(&ka->pvclock_gtod_sync_lock);
+
+		pvclock_update_vm_gtod_copy(kvm);
+
+		kvm_for_each_vcpu(cpu, vcpu, kvm)
+			kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
+
+		kvm_for_each_vcpu(cpu, vcpu, kvm)
+			kvm_clear_request(KVM_REQ_MCLOCK_INPROGRESS, vcpu);
+
+		spin_unlock(&ka->pvclock_gtod_sync_lock);
+	}
+	spin_unlock(&kvm_lock);
+#endif
+}
+
 static int kvmclock_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 				     void *data)
 {
@@ -6217,6 +6255,9 @@ int kvm_arch_init(void *opaque)
 	kvm_lapic_init();
 #ifdef CONFIG_X86_64
 	pvclock_gtod_register_notifier(&pvclock_gtod_notifier);
+
+	if (x86_hyper_type == X86_HYPER_MS_HYPERV)
+		set_hv_tscchange_cb(kvm_hyperv_tsc_notifier);
 #endif
 
 	return 0;
@@ -6229,6 +6270,10 @@ out:
 
 void kvm_arch_exit(void)
 {
+#ifdef CONFIG_X86_64
+	if (x86_hyper_type == X86_HYPER_MS_HYPERV)
+		clear_hv_tscchange_cb();
+#endif
 	kvm_lapic_exit();
 	perf_unregister_guest_info_callbacks(&kvm_guest_cbs);
 
