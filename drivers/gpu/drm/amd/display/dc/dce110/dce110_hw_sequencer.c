@@ -1484,20 +1484,21 @@ static struct dc_link *get_link_for_edp_not_in_use(
  */
 void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 {
+	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct dc_link *edp_link_to_turnoff = get_link_for_edp_not_in_use(dc, context);
 
 	struct dc_link *edp_link = get_link_for_edp(dc);
-
-	if (edp_link)
-		/*we need turn off backlight before DP_blank and encoder powered down*/
-		dc->hwss.edp_backlight_control(edp_link, false);
-
-	power_down_all_hw_blocks(dc);
-	disable_vga_and_power_gate_all_controllers(dc);
-
-	if (edp_link_to_turnoff)
-		dc->hwss.edp_power_control(edp_link_to_turnoff, false);
-
+	if (dcb->funcs->get_vga_enabled_displays(dc->ctx->dc_bios) != 0) {
+		if (edp_link_to_turnoff) {
+			/*we need turn off backlight before DP_blank and encoder powered down, todo add optimization*/
+			dc->hwss.edp_backlight_control(edp_link, false);
+		}
+		/*resume from S3, no vbios posting, no need to power down again*/
+		power_down_all_hw_blocks(dc);
+		disable_vga_and_power_gate_all_controllers(dc);
+		if (edp_link_to_turnoff)
+			dc->hwss.edp_power_control(edp_link_to_turnoff, false);
+	}
 	bios_set_scratch_acc_mode_change(dc->ctx->dc_bios);
 }
 

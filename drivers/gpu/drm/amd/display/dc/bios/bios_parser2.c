@@ -1280,6 +1280,12 @@ static bool bios_parser_is_accelerated_mode(
 	return bios_is_accelerated_mode(dcb);
 }
 
+static uint32_t bios_parser_get_vga_enabled_displays(
+	struct dc_bios *bios)
+{
+	return bios_get_vga_enabled_displays(bios);
+}
+
 
 /**
  * bios_parser_set_scratch_critical_state
@@ -1800,6 +1806,7 @@ static const struct dc_vbios_funcs vbios_funcs = {
 
 
 	.is_accelerated_mode = bios_parser_is_accelerated_mode,
+	.get_vga_enabled_displays = bios_parser_get_vga_enabled_displays,
 
 	.set_scratch_critical_state = bios_parser_set_scratch_critical_state,
 
