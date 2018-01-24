@@ -281,6 +281,7 @@ int mt76x2_mac_process_rx(struct mt76x2_dev *dev, struct sk_buff *skb,
 	struct mt76x2_rxwi *rxwi = rxi;
 	u32 ctl = le32_to_cpu(rxwi->ctl);
 	u16 rate = le16_to_cpu(rxwi->rate);
+	u16 tid_sn = le16_to_cpu(rxwi->tid_sn);
 	u8 wcid;
 	int len;
 
@@ -289,6 +290,9 @@ int mt76x2_mac_process_rx(struct mt76x2_dev *dev, struct sk_buff *skb,
 
 	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_L2PAD))
 		mt76x2_remove_hdr_pad(skb);
+
+	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_BA))
+		status->aggr = true;
 
 	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_DECRYPT)) {
 		status->flag |= RX_FLAG_DECRYPTED;
@@ -306,6 +310,9 @@ int mt76x2_mac_process_rx(struct mt76x2_dev *dev, struct sk_buff *skb,
 	status->signal = max(status->chain_signal[0], status->chain_signal[1]);
 	status->freq = dev->mt76.chandef.chan->center_freq;
 	status->band = dev->mt76.chandef.chan->band;
+
+	status->tid = FIELD_GET(MT_RXWI_TID, tid_sn);
+	status->seqno = FIELD_GET(MT_RXWI_SN, tid_sn);
 
 	return mt76x2_mac_process_rate(status, rate);
 }

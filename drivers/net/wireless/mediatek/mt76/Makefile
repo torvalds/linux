@@ -2,7 +2,7 @@ obj-$(CONFIG_MT76_CORE) += mt76.o
 obj-$(CONFIG_MT76x2E) += mt76x2e.o
 
 mt76-y := \
-	mmio.o util.o trace.o dma.o mac80211.o debugfs.o eeprom.o tx.o
+	mmio.o util.o trace.o dma.o mac80211.o debugfs.o eeprom.o tx.o agg-rx.o
 
 CFLAGS_trace.o := -I$(src)
 

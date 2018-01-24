@@ -122,6 +122,10 @@ struct mt76_queue_ops {
 };
 
 struct mt76_wcid {
+	struct mt76_rx_tid __rcu *aggr[IEEE80211_NUM_TIDS];
+
+	struct work_struct aggr_work;
+
 	u8 idx;
 	u8 hw_key_idx;
 
@@ -150,6 +154,24 @@ struct mt76_txwi_cache {
 	u32 txwi[8];
 	dma_addr_t dma_addr;
 	struct list_head list;
+};
+
+
+struct mt76_rx_tid {
+	struct rcu_head rcu_head;
+
+	struct mt76_dev *dev;
+
+	spinlock_t lock;
+	struct delayed_work reorder_work;
+
+	u16 head;
+	u8 size;
+	u8 nframes;
+
+	u8 started:1, stopped:1, timer_pending:1;
+
+	struct sk_buff *reorder_buf[];
 };
 
 enum {
@@ -254,6 +276,13 @@ struct mt76_rate_power {
 
 struct mt76_rx_status {
 	struct mt76_wcid *wcid;
+
+	unsigned long reorder_time;
+
+	u8 aggr;
+	u8 tid;
+	u16 seqno;
+
 	u32 flag;
 	u16 freq;
 	u8 enc_flags;
@@ -380,9 +409,15 @@ void mt76_set_channel(struct mt76_dev *dev);
 int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 		    struct survey_info *survey);
 
+int mt76_rx_aggr_start(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tid,
+		       u16 ssn, u8 size);
+void mt76_rx_aggr_stop(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tid);
+
 /* internal */
 void mt76_tx_free(struct mt76_dev *dev);
 void mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
 void mt76_rx_complete(struct mt76_dev *dev, enum mt76_rxq_id q);
+void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames);
+struct ieee80211_sta *mt76_rx_convert(struct sk_buff *skb);
 
 #endif
