@@ -69,7 +69,6 @@ struct meson_i2c_data {
  * @dev:	Pointer to device structure
  * @regs:	Base address of the device memory mapped registers
  * @clk:	Pointer to clock structure
- * @irq:	IRQ number
  * @msg:	Pointer to the current I2C message
  * @state:	Current state in the driver state machine
  * @last:	Flag set for the last message in the transfer
@@ -80,6 +79,7 @@ struct meson_i2c_data {
  * @done:	Completion used to wait for transfer termination
  * @tokens:	Sequence of tokens to be written to the device
  * @num_tokens:	Number of tokens
+ * @data:	Pointer to the controlller's platform data
  */
 struct meson_i2c {
 	struct i2c_adapter	adap;
