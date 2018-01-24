@@ -8,6 +8,7 @@
 #include <asm/ftrace.h>
 #include <asm/export.h>
 #include <asm/nospec-branch.h>
+#include <asm/unwind_hints.h>
 
 	.code64
 	.section .entry.text, "ax"
@@ -20,7 +21,6 @@ EXPORT_SYMBOL(__fentry__)
 EXPORT_SYMBOL(mcount)
 #endif
 
-/* All cases save the original rbp (8 bytes) */
 #ifdef CONFIG_FRAME_POINTER
 # ifdef CC_USING_FENTRY
 /* Save parent and function stack frames (rip and rbp) */
@@ -31,7 +31,7 @@ EXPORT_SYMBOL(mcount)
 # endif
 #else
 /* No need to save a stack frame */
-# define MCOUNT_FRAME_SIZE	8
+# define MCOUNT_FRAME_SIZE	0
 #endif /* CONFIG_FRAME_POINTER */
 
 /* Size of stack used to save mcount regs in save_mcount_regs */
@@ -64,10 +64,10 @@ EXPORT_SYMBOL(mcount)
  */
 .macro save_mcount_regs added=0
 
-	/* Always save the original rbp */
+#ifdef CONFIG_FRAME_POINTER
+	/* Save the original rbp */
 	pushq %rbp
 
-#ifdef CONFIG_FRAME_POINTER
 	/*
 	 * Stack traces will stop at the ftrace trampoline if the frame pointer
 	 * is not set up properly. If fentry is used, we need to save a frame
@@ -105,7 +105,11 @@ EXPORT_SYMBOL(mcount)
 	 * Save the original RBP. Even though the mcount ABI does not
 	 * require this, it helps out callers.
 	 */
+#ifdef CONFIG_FRAME_POINTER
 	movq MCOUNT_REG_SIZE-8(%rsp), %rdx
+#else
+	movq %rbp, %rdx
+#endif
 	movq %rdx, RBP(%rsp)
 
 	/* Copy the parent address into %rsi (second parameter) */
@@ -148,7 +152,7 @@ EXPORT_SYMBOL(mcount)
 
 ENTRY(function_hook)
 	retq
-END(function_hook)
+ENDPROC(function_hook)
 
 ENTRY(ftrace_caller)
 	/* save_mcount_regs fills in first two parameters */
@@ -184,7 +188,7 @@ GLOBAL(ftrace_graph_call)
 /* This is weak to keep gas from relaxing the jumps */
 WEAK(ftrace_stub)
 	retq
-END(ftrace_caller)
+ENDPROC(ftrace_caller)
 
 ENTRY(ftrace_regs_caller)
 	/* Save the current flags before any operations that can change them */
@@ -255,7 +259,7 @@ GLOBAL(ftrace_regs_caller_end)
 
 	jmp ftrace_epilogue
 
-END(ftrace_regs_caller)
+ENDPROC(ftrace_regs_caller)
 
 
 #else /* ! CONFIG_DYNAMIC_FTRACE */
@@ -313,9 +317,10 @@ ENTRY(ftrace_graph_caller)
 	restore_mcount_regs
 
 	retq
-END(ftrace_graph_caller)
+ENDPROC(ftrace_graph_caller)
 
-GLOBAL(return_to_handler)
+ENTRY(return_to_handler)
+	UNWIND_HINT_EMPTY
 	subq  $24, %rsp
 
 	/* Save the return values */
@@ -330,4 +335,5 @@ GLOBAL(return_to_handler)
 	movq (%rsp), %rax
 	addq $24, %rsp
 	JMP_NOSPEC %rdi
+END(return_to_handler)
 #endif
