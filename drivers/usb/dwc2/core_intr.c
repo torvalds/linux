@@ -372,6 +372,7 @@ static void dwc2_wakeup_from_lpm_l1(struct dwc2_hsotg *hsotg)
 			dev_err(hsotg->dev, "Failed to exit L1 sleep state in 200us.\n");
 			return;
 		}
+		dwc2_gadget_init_lpm(hsotg);
 	} else {
 		/* TODO */
 		dev_err(hsotg->dev, "Host side LPM is not supported.\n");
