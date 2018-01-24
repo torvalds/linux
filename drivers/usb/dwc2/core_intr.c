@@ -381,6 +381,9 @@ static void dwc2_wakeup_from_lpm_l1(struct dwc2_hsotg *hsotg)
 
 	/* Change to L0 state */
 	hsotg->lx_state = DWC2_L0;
+
+	/* Inform gadget to exit from L1 */
+	call_gadget(hsotg, resume);
 }
 
 /*
@@ -589,6 +592,9 @@ static void dwc2_handle_lpm_intr(struct dwc2_hsotg *hsotg)
 			hsotg->lx_state = DWC2_L1;
 			dev_dbg(hsotg->dev,
 				"Core is in L1 sleep glpmcfg=%08x\n", glpmcfg);
+
+			/* Inform gadget that we are in L1 state */
+			call_gadget(hsotg, suspend);
 		}
 	}
 }
