@@ -19,8 +19,6 @@
 #include "smc_cdc.h"
 #include "smc_close.h"
 
-#define SMC_CLOSE_WAIT_TX_PENDS_TIME		(5 * HZ)
-
 static void smc_close_cleanup_listen(struct sock *parent)
 {
 	struct sock *sk;
@@ -28,26 +26,6 @@ static void smc_close_cleanup_listen(struct sock *parent)
 	/* Close non-accepted connections */
 	while ((sk = smc_accept_dequeue(parent, NULL)))
 		smc_close_non_accepted(sk);
-}
-
-static void smc_close_wait_tx_pends(struct smc_sock *smc)
-{
-	DEFINE_WAIT_FUNC(wait, woken_wake_function);
-	struct sock *sk = &smc->sk;
-	signed long timeout;
-
-	timeout = SMC_CLOSE_WAIT_TX_PENDS_TIME;
-	add_wait_queue(sk_sleep(sk), &wait);
-	while (!signal_pending(current) && timeout) {
-		int rc;
-
-		rc = sk_wait_event(sk, &timeout,
-				   !smc_cdc_tx_has_pending(&smc->conn),
-				   &wait);
-		if (rc)
-			break;
-	}
-	remove_wait_queue(sk_sleep(sk), &wait);
 }
 
 /* wait for sndbuf data being transmitted */
@@ -230,7 +208,6 @@ again:
 			rc = smc_close_final(conn);
 		}
 		sk->sk_state = SMC_CLOSED;
-		smc_close_wait_tx_pends(smc);
 		break;
 	case SMC_APPCLOSEWAIT1:
 	case SMC_APPCLOSEWAIT2:
@@ -251,7 +228,6 @@ again:
 		else
 			/* peer has just issued a shutdown write */
 			sk->sk_state = SMC_PEERFINCLOSEWAIT;
-		smc_close_wait_tx_pends(smc);
 		break;
 	case SMC_PEERCLOSEWAIT1:
 	case SMC_PEERCLOSEWAIT2:
@@ -271,7 +247,6 @@ again:
 		lock_sock(sk);
 		smc_close_abort(conn);
 		sk->sk_state = SMC_CLOSED;
-		smc_close_wait_tx_pends(smc);
 		break;
 	case SMC_PEERABORTWAIT:
 	case SMC_CLOSED:
