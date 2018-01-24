@@ -278,7 +278,7 @@ static bool vega10_ih_prescreen_iv(struct amdgpu_device *adev)
 	/* Track retry faults in per-VM fault FIFO. */
 	spin_lock(&adev->vm_manager.pasid_lock);
 	vm = idr_find(&adev->vm_manager.pasid_idr, pasid);
-	if (WARN_ON_ONCE(!vm)) {
+	if (!vm) {
 		/* VM not found, process it normally */
 		spin_unlock(&adev->vm_manager.pasid_lock);
 		amdgpu_ih_clear_fault(adev, key);
