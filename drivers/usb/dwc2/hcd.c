@@ -91,6 +91,9 @@ static void dwc2_enable_common_interrupts(struct dwc2_hsotg *hsotg)
 	intmsk |= GINTSTS_WKUPINT | GINTSTS_USBSUSP |
 		  GINTSTS_SESSREQINT;
 
+	if (dwc2_is_device_mode(hsotg) && hsotg->params.lpm)
+		intmsk |= GINTSTS_LPMTRANRCVD;
+
 	dwc2_writel(intmsk, hsotg->regs + GINTMSK);
 }
 
