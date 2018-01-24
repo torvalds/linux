@@ -37,6 +37,7 @@ struct ms_hyperv_tsc_page *hv_get_tsc_page(void)
 {
 	return tsc_pg;
 }
+EXPORT_SYMBOL_GPL(hv_get_tsc_page);
 
 static u64 read_hv_clock_tsc(struct clocksource *arg)
 {
