@@ -936,17 +936,23 @@ static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	struct drm_device *ddev = adev->ddev;
-	int temp;
+	int r, temp, size = sizeof(temp);
 
 	/* Can't get temperature when the card is off */
 	if  ((adev->flags & AMD_IS_PX) &&
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
 
-	if (!adev->powerplay.pp_funcs->get_temperature)
-		temp = 0;
-	else
-		temp = amdgpu_dpm_get_temperature(adev);
+	/* sanity check PP is enabled */
+	if (!(adev->powerplay.pp_funcs &&
+	      adev->powerplay.pp_funcs->read_sensor))
+		return -EINVAL;
+
+	/* get the temperature */
+	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_TEMP,
+				   (void *)&temp, &size);
+	if (r)
+		return r;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", temp);
 }
@@ -1306,13 +1312,15 @@ void amdgpu_dpm_thermal_work_handler(struct work_struct *work)
 			     pm.dpm.thermal.work);
 	/* switch to the thermal state */
 	enum amd_pm_state_type dpm_state = POWER_STATE_TYPE_INTERNAL_THERMAL;
+	int temp, size = sizeof(temp);
 
 	if (!adev->pm.dpm_enabled)
 		return;
 
-	if (adev->powerplay.pp_funcs->get_temperature) {
-		int temp = amdgpu_dpm_get_temperature(adev);
-
+	if (adev->powerplay.pp_funcs &&
+	    adev->powerplay.pp_funcs->read_sensor &&
+	    !amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_TEMP,
+				    (void *)&temp, &size)) {
 		if (temp < adev->pm.dpm.thermal.min_temp)
 			/* switch back the user state */
 			dpm_state = adev->pm.dpm.user_state;
