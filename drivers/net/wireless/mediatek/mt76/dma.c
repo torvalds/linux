@@ -396,7 +396,7 @@ mt76_dma_rx_poll(struct napi_struct *napi, int budget)
 
 	do {
 		cur = mt76_dma_rx_process(dev, &dev->q_rx[qid], budget - done);
-		mt76_rx_complete(dev, qid);
+		mt76_rx_poll_complete(dev, qid);
 		done += cur;
 	} while (cur && done < budget);
 

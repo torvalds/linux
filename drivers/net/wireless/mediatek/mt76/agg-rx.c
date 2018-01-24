@@ -97,9 +97,7 @@ mt76_rx_aggr_reorder_work(struct work_struct *work)
 	struct mt76_rx_tid *tid = container_of(work, struct mt76_rx_tid,
 					       reorder_work.work);
 	struct mt76_dev *dev = tid->dev;
-	struct ieee80211_sta *sta;
 	struct sk_buff_head frames;
-	struct sk_buff *skb;
 
 	__skb_queue_head_init(&frames);
 
@@ -110,11 +108,7 @@ mt76_rx_aggr_reorder_work(struct work_struct *work)
 	spin_unlock(&tid->lock);
 
 	ieee80211_queue_delayed_work(tid->dev->hw, &tid->reorder_work, REORDER_TIMEOUT);
-
-	while ((skb = __skb_dequeue(&frames)) != NULL) {
-		sta = mt76_rx_convert(skb);
-		ieee80211_rx_napi(dev->hw, sta, skb, NULL);
-	}
+	mt76_rx_complete(dev, &frames, -1);
 
 	local_bh_enable();
 }
