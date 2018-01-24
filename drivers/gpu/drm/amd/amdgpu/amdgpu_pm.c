@@ -719,7 +719,6 @@ static ssize_t amdgpu_set_pp_power_profile_mode(struct device *dev,
 				count = -EINVAL;
 				goto fail;
 			}
-			pr_info("value is %ld \n", parameter[parameter_size]);
 			parameter_size++;
 			while (isspace(*tmp_str))
 				tmp_str++;

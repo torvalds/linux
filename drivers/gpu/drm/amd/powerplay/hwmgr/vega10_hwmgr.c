@@ -5095,8 +5095,6 @@ static int vega10_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 					PPSMC_MSG_SetCustomGfxDpmParameters,
 					busy_set_point | FPS<<8 |
 					use_rlc_busy << 16 | min_active_level<<24);
-				pr_info("size is %d value is %x \n", size, busy_set_point | FPS<<8 |
-					use_rlc_busy << 16 | min_active_level<<24);
 	}
 
 	return 0;
