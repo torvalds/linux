@@ -244,7 +244,7 @@ static const struct hisi_crg_funcs hi3798cv200_crg_funcs = {
 #define HI3798CV200_SYSCTRL_NR_CLKS 16
 
 static const struct hisi_gate_clock hi3798cv200_sysctrl_gate_clks[] = {
-	{ HISTB_IR_CLK, "clk_ir", "100m",
+	{ HISTB_IR_CLK, "clk_ir", "24m",
 		CLK_SET_RATE_PARENT, 0x48, 4, 0, },
 	{ HISTB_TIMER01_CLK, "clk_timer01", "24m",
 		CLK_SET_RATE_PARENT, 0x48, 6, 0, },
