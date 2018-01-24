@@ -125,7 +125,7 @@
 					reg = <0x0 0xc00000 0x0 0x4000000>;
 				};
 
-				partition@8c00000 {
+				partition@4c00000 {
 					label = "system";
 					reg = <0x0 0x4c00000 0x1 0xfb400000>;
 				};
