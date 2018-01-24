@@ -212,11 +212,12 @@ static int cls_bpf_offload(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 }
 
 static void cls_bpf_stop_offload(struct tcf_proto *tp,
-				 struct cls_bpf_prog *prog)
+				 struct cls_bpf_prog *prog,
+				 struct netlink_ext_ack *extack)
 {
 	int err;
 
-	err = cls_bpf_offload_cmd(tp, NULL, prog, NULL);
+	err = cls_bpf_offload_cmd(tp, NULL, prog, extack);
 	if (err)
 		pr_err("Stopping hardware offload failed: %d\n", err);
 }
@@ -289,12 +290,13 @@ static void cls_bpf_delete_prog_rcu(struct rcu_head *rcu)
 	tcf_queue_work(&prog->work);
 }
 
-static void __cls_bpf_delete(struct tcf_proto *tp, struct cls_bpf_prog *prog)
+static void __cls_bpf_delete(struct tcf_proto *tp, struct cls_bpf_prog *prog,
+			     struct netlink_ext_ack *extack)
 {
 	struct cls_bpf_head *head = rtnl_dereference(tp->root);
 
 	idr_remove_ext(&head->handle_idr, prog->handle);
-	cls_bpf_stop_offload(tp, prog);
+	cls_bpf_stop_offload(tp, prog, extack);
 	list_del_rcu(&prog->link);
 	tcf_unbind_filter(tp, &prog->res);
 	if (tcf_exts_get_net(&prog->exts))
@@ -308,7 +310,7 @@ static int cls_bpf_delete(struct tcf_proto *tp, void *arg, bool *last,
 {
 	struct cls_bpf_head *head = rtnl_dereference(tp->root);
 
-	__cls_bpf_delete(tp, arg);
+	__cls_bpf_delete(tp, arg, extack);
 	*last = list_empty(&head->plist);
 	return 0;
 }
@@ -320,7 +322,7 @@ static void cls_bpf_destroy(struct tcf_proto *tp,
 	struct cls_bpf_prog *prog, *tmp;
 
 	list_for_each_entry_safe(prog, tmp, &head->plist, link)
-		__cls_bpf_delete(tp, prog);
+		__cls_bpf_delete(tp, prog, extack);
 
 	idr_destroy(&head->handle_idr);
 	kfree_rcu(head, rcu);
