@@ -3334,6 +3334,65 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	}
 }
 
+static void shrink_caches(struct drm_i915_private *i915)
+{
+	/*
+	 * kmem_cache_shrink() discards empty slabs and reorders partially
+	 * filled slabs to prioritise allocating from the mostly full slabs,
+	 * with the aim of reducing fragmentation.
+	 */
+	kmem_cache_shrink(i915->priorities);
+	kmem_cache_shrink(i915->dependencies);
+	kmem_cache_shrink(i915->requests);
+	kmem_cache_shrink(i915->luts);
+	kmem_cache_shrink(i915->vmas);
+	kmem_cache_shrink(i915->objects);
+}
+
+struct sleep_rcu_work {
+	union {
+		struct rcu_head rcu;
+		struct work_struct work;
+	};
+	struct drm_i915_private *i915;
+	unsigned int epoch;
+};
+
+static inline bool
+same_epoch(struct drm_i915_private *i915, unsigned int epoch)
+{
+	/*
+	 * There is a small chance that the epoch wrapped since we started
+	 * sleeping. If we assume that epoch is at least a u32, then it will
+	 * take at least 2^32 * 100ms for it to wrap, or about 326 years.
+	 */
+	return epoch == READ_ONCE(i915->gt.epoch);
+}
+
+static void __sleep_work(struct work_struct *work)
+{
+	struct sleep_rcu_work *s = container_of(work, typeof(*s), work);
+	struct drm_i915_private *i915 = s->i915;
+	unsigned int epoch = s->epoch;
+
+	kfree(s);
+	if (same_epoch(i915, epoch))
+		shrink_caches(i915);
+}
+
+static void __sleep_rcu(struct rcu_head *rcu)
+{
+	struct sleep_rcu_work *s = container_of(rcu, typeof(*s), rcu);
+	struct drm_i915_private *i915 = s->i915;
+
+	if (same_epoch(i915, s->epoch)) {
+		INIT_WORK(&s->work, __sleep_work);
+		queue_work(i915->wq, &s->work);
+	} else {
+		kfree(s);
+	}
+}
+
 static inline bool
 new_requests_since_last_retire(const struct drm_i915_private *i915)
 {
@@ -3346,6 +3405,7 @@ i915_gem_idle_work_handler(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv), gt.idle_work.work);
+	unsigned int epoch = I915_EPOCH_INVALID;
 	bool rearm_hangcheck;
 	ktime_t end;
 
@@ -3405,6 +3465,8 @@ i915_gem_idle_work_handler(struct work_struct *work)
 
 	GEM_BUG_ON(!dev_priv->gt.awake);
 	dev_priv->gt.awake = false;
+	epoch = dev_priv->gt.epoch;
+	GEM_BUG_ON(epoch == I915_EPOCH_INVALID);
 	rearm_hangcheck = false;
 
 	if (INTEL_GEN(dev_priv) >= 6)
@@ -3420,6 +3482,23 @@ out_rearm:
 	if (rearm_hangcheck) {
 		GEM_BUG_ON(!dev_priv->gt.awake);
 		i915_queue_hangcheck(dev_priv);
+	}
+
+	/*
+	 * When we are idle, it is an opportune time to reap our caches.
+	 * However, we have many objects that utilise RCU and the ordered
+	 * i915->wq that this work is executing on. To try and flush any
+	 * pending frees now we are idle, we first wait for an RCU grace
+	 * period, and then queue a task (that will run last on the wq) to
+	 * shrink and re-optimize the caches.
+	 */
+	if (same_epoch(dev_priv, epoch)) {
+		struct sleep_rcu_work *s = kmalloc(sizeof(*s), GFP_KERNEL);
+		if (s) {
+			s->i915 = dev_priv;
+			s->epoch = epoch;
+			call_rcu(&s->rcu, __sleep_rcu);
+		}
 	}
 }
 
