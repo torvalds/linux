@@ -33,7 +33,6 @@
 #include <linux/acpi.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
-#include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -548,9 +547,7 @@ static int intel_setup(struct hci_uart *hu)
 	struct intel_boot_params params;
 	struct list_head *p;
 	const struct firmware *fw;
-	const u8 *fw_ptr;
 	char fwname[64];
-	u32 frag_len;
 	u32 boot_param;
 	ktime_t calltime, delta, rettime;
 	unsigned long long duration;
@@ -761,84 +758,10 @@ static int intel_setup(struct hci_uart *hu)
 
 	set_bit(STATE_DOWNLOADING, &intel->flags);
 
-	/* Start the firmware download transaction with the Init fragment
-	 * represented by the 128 bytes of CSS header.
-	 */
-	err = btintel_secure_send(hdev, 0x00, 128, fw->data);
-	if (err < 0) {
-		bt_dev_err(hdev, "Failed to send firmware header (%d)", err);
+	/* Start firmware downloading and get boot parameter */
+	err = btintel_download_firmware(hdev, fw, &boot_param);
+	if (err < 0)
 		goto done;
-	}
-
-	/* Send the 256 bytes of public key information from the firmware
-	 * as the PKey fragment.
-	 */
-	err = btintel_secure_send(hdev, 0x03, 256, fw->data + 128);
-	if (err < 0) {
-		bt_dev_err(hdev, "Failed to send firmware public key (%d)",
-			   err);
-		goto done;
-	}
-
-	/* Send the 256 bytes of signature information from the firmware
-	 * as the Sign fragment.
-	 */
-	err = btintel_secure_send(hdev, 0x02, 256, fw->data + 388);
-	if (err < 0) {
-		bt_dev_err(hdev, "Failed to send firmware signature (%d)",
-			   err);
-		goto done;
-	}
-
-	fw_ptr = fw->data + 644;
-	frag_len = 0;
-
-	while (fw_ptr - fw->data < fw->size) {
-		struct hci_command_hdr *cmd = (void *)(fw_ptr + frag_len);
-
-		/* Each SKU has a different reset parameter to use in the
-		 * HCI_Intel_Reset command and it is embedded in the firmware
-		 * data. So, instead of using static value per SKU, check
-		 * the firmware data and save it for later use.
-		 */
-		if (cmd->opcode == 0xfc0e) {
-			/* The boot parameter is the first 32-bit value
-			 * and rest of 3 octets are reserved.
-			 */
-			boot_param = get_unaligned_le32(fw_ptr + sizeof(*cmd));
-
-			bt_dev_dbg(hdev, "boot_param=0x%x", boot_param);
-		}
-
-		frag_len += sizeof(*cmd) + cmd->plen;
-
-		bt_dev_dbg(hdev, "Patching %td/%zu", (fw_ptr - fw->data),
-			   fw->size);
-
-		/* The parameter length of the secure send command requires
-		 * a 4 byte alignment. It happens so that the firmware file
-		 * contains proper Intel_NOP commands to align the fragments
-		 * as needed.
-		 *
-		 * Send set of commands with 4 byte alignment from the
-		 * firmware data buffer as a single Data fragement.
-		 */
-		if (frag_len % 4)
-			continue;
-
-		/* Send each command from the firmware data buffer as
-		 * a single Data fragment.
-		 */
-		err = btintel_secure_send(hdev, 0x01, frag_len, fw_ptr);
-		if (err < 0) {
-			bt_dev_err(hdev, "Failed to send firmware data (%d)",
-				   err);
-			goto done;
-		}
-
-		fw_ptr += frag_len;
-		frag_len = 0;
-	}
 
 	set_bit(STATE_FIRMWARE_LOADED, &intel->flags);
 
