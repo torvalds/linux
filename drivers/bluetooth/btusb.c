@@ -2009,8 +2009,6 @@ static int btusb_send_frame_intel(struct hci_dev *hdev, struct sk_buff *skb)
 
 static int btusb_setup_intel_new(struct hci_dev *hdev)
 {
-	static const u8 reset_param[] = { 0x00, 0x01, 0x00, 0x01,
-					  0x00, 0x08, 0x04, 0x00 };
 	struct btusb_data *data = hci_get_drvdata(hdev);
 	struct sk_buff *skb;
 	struct intel_version ver;
@@ -2018,12 +2016,16 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	const struct firmware *fw;
 	const u8 *fw_ptr;
 	u32 frag_len;
+	u32 boot_param;
 	char fwname[64];
 	ktime_t calltime, delta, rettime;
 	unsigned long long duration;
 	int err;
 
 	BT_DBG("%s", hdev->name);
+
+	/* The default boot parameter */
+	boot_param = 0x00040800;
 
 	calltime = ktime_get();
 
@@ -2341,12 +2343,9 @@ done:
 
 	set_bit(BTUSB_BOOTING, &data->flags);
 
-	skb = __hci_cmd_sync(hdev, 0xfc01, sizeof(reset_param), reset_param,
-			     HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	kfree_skb(skb);
+	err = btintel_send_intel_reset(hdev, boot_param);
+	if (err)
+		return err;
 
 	/* The bootloader will not indicate when the device is ready. This
 	 * is done by the operational firmware sending bootup notification.

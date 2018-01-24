@@ -540,8 +540,6 @@ static int intel_set_baudrate(struct hci_uart *hu, unsigned int speed)
 
 static int intel_setup(struct hci_uart *hu)
 {
-	static const u8 reset_param[] = { 0x00, 0x01, 0x00, 0x01,
-					  0x00, 0x08, 0x04, 0x00 };
 	struct intel_data *intel = hu->priv;
 	struct hci_dev *hdev = hu->hdev;
 	struct sk_buff *skb;
@@ -552,6 +550,7 @@ static int intel_setup(struct hci_uart *hu)
 	const u8 *fw_ptr;
 	char fwname[64];
 	u32 frag_len;
+	u32 boot_param;
 	ktime_t calltime, delta, rettime;
 	unsigned long long duration;
 	unsigned int init_speed, oper_speed;
@@ -562,6 +561,9 @@ static int intel_setup(struct hci_uart *hu)
 
 	hu->hdev->set_diag = btintel_set_diag;
 	hu->hdev->set_bdaddr = btintel_set_bdaddr;
+
+	/* Default boot parameter */
+	boot_param = 0x00040800;
 
 	calltime = ktime_get();
 
@@ -911,12 +913,9 @@ done:
 
 	set_bit(STATE_BOOTING, &intel->flags);
 
-	skb = __hci_cmd_sync(hdev, 0xfc01, sizeof(reset_param), reset_param,
-			     HCI_CMD_TIMEOUT);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	kfree_skb(skb);
+	err = btintel_send_intel_reset(hdev, boot_param);
+	if (err)
+		return err;
 
 	/* The bootloader will not indicate when the device is ready. This
 	 * is done by the operational firmware sending bootup notification.

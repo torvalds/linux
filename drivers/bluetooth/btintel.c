@@ -569,6 +569,26 @@ struct regmap *btintel_regmap_init(struct hci_dev *hdev, u16 opcode_read,
 }
 EXPORT_SYMBOL_GPL(btintel_regmap_init);
 
+int btintel_send_intel_reset(struct hci_dev *hdev, u32 boot_param)
+{
+	struct intel_reset params = { 0x00, 0x01, 0x00, 0x01, 0x00000000 };
+	struct sk_buff *skb;
+
+	params.boot_param = cpu_to_le32(boot_param);
+
+	skb = __hci_cmd_sync(hdev, 0xfc01, sizeof(params), &params,
+			     HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		bt_dev_err(hdev, "Failed to send Intel Reset command");
+		return PTR_ERR(skb);
+	}
+
+	kfree_skb(skb);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(btintel_send_intel_reset);
+
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth support for Intel devices ver " VERSION);
 MODULE_VERSION(VERSION);
