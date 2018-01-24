@@ -498,7 +498,7 @@
 	};
 
 	eeprom@54 {
-		compatible = "at,24c128";
+		compatible = "atmel,24c128";
 		reg = <0x54>;
 	};
 
