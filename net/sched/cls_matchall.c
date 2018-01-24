@@ -71,12 +71,13 @@ static void mall_destroy_rcu(struct rcu_head *rcu)
 
 static void mall_destroy_hw_filter(struct tcf_proto *tp,
 				   struct cls_mall_head *head,
-				   unsigned long cookie)
+				   unsigned long cookie,
+				   struct netlink_ext_ack *extack)
 {
 	struct tc_cls_matchall_offload cls_mall = {};
 	struct tcf_block *block = tp->chain->block;
 
-	tc_cls_common_offload_init(&cls_mall.common, tp, head->flags, NULL);
+	tc_cls_common_offload_init(&cls_mall.common, tp, head->flags, extack);
 	cls_mall.command = TC_CLSMATCHALL_DESTROY;
 	cls_mall.cookie = cookie;
 
@@ -102,7 +103,7 @@ static int mall_replace_hw_filter(struct tcf_proto *tp,
 	err = tc_setup_cb_call(block, NULL, TC_SETUP_CLSMATCHALL,
 			       &cls_mall, skip_sw);
 	if (err < 0) {
-		mall_destroy_hw_filter(tp, head, cookie);
+		mall_destroy_hw_filter(tp, head, cookie, NULL);
 		return err;
 	} else if (err > 0) {
 		tcf_block_offload_inc(block, &head->flags);
@@ -122,7 +123,7 @@ static void mall_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 		return;
 
 	if (!tc_skip_hw(head->flags))
-		mall_destroy_hw_filter(tp, head, (unsigned long) head);
+		mall_destroy_hw_filter(tp, head, (unsigned long) head, extack);
 
 	if (tcf_exts_get_net(&head->exts))
 		call_rcu(&head->rcu, mall_destroy_rcu);
