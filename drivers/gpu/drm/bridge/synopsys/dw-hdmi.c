@@ -2598,6 +2598,7 @@ dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
 					     connector);
 	struct drm_display_mode *mode = NULL;
 	void *data = hdmi->plat_data->phy_data;
+	struct hdmi_vmode *vmode = &hdmi->hdmi_data.video_mode;
 	unsigned int in_bus_format = hdmi->hdmi_data.enc_in_bus_format;
 	unsigned int out_bus_format = hdmi->hdmi_data.enc_out_bus_format;
 
@@ -2611,7 +2612,7 @@ dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
 	 * If HDMI is enabled in uboot, it's need to record
 	 * drm_display_mode and set phy status to enabled.
 	 */
-	if (!hdmi->hdmi_data.video_mode.mpixelclock) {
+	if (!vmode->mpixelclock) {
 		if (hdmi->plat_data->get_enc_in_encoding)
 			hdmi->hdmi_data.enc_in_encoding =
 				hdmi->plat_data->get_enc_in_encoding(data);
@@ -2627,11 +2628,17 @@ dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
 
 		mode = &conn_state->crtc->mode;
 		memcpy(&hdmi->previous_mode, mode, sizeof(hdmi->previous_mode));
-		hdmi->hdmi_data.video_mode.mpixelclock = mode->clock;
-		hdmi->hdmi_data.video_mode.previous_pixelclock = mode->clock;
-		hdmi->hdmi_data.video_mode.previous_tmdsclock = mode->clock;
+		vmode->mpixelclock = mode->crtc_clock * 1000;
+		vmode->previous_pixelclock = mode->clock;
+		vmode->previous_tmdsclock = mode->clock;
+		vmode->mtmdsclock = hdmi_get_tmdsclock(hdmi,
+						       vmode->mpixelclock);
+		if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
+			vmode->mtmdsclock /= 2;
+
 		hdmi->mc_clkdis = hdmi_readb(hdmi, HDMI_MC_CLKDIS);
 		hdmi->phy.enabled = true;
+		hdmi->bridge_is_on = true;
 		if (in_bus_format != hdmi->hdmi_data.enc_in_bus_format ||
 		    out_bus_format != hdmi->hdmi_data.enc_out_bus_format)
 			hdmi->hdmi_data.update = true;
