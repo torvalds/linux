@@ -49,6 +49,12 @@ static struct attribute ttm_bo_count = {
 	.mode = S_IRUGO
 };
 
+/* default destructor */
+static void ttm_bo_default_destroy(struct ttm_buffer_object *bo)
+{
+	kfree(bo);
+}
+
 static inline int ttm_mem_type_from_place(const struct ttm_place *place,
 					  uint32_t *mem_type)
 {
@@ -147,10 +153,7 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	dma_fence_put(bo->moving);
 	reservation_object_fini(&bo->ttm_resv);
 	mutex_destroy(&bo->wu_mutex);
-	if (bo->destroy)
-		bo->destroy(bo);
-	else
-		kfree(bo);
+	bo->destroy(bo);
 	ttm_mem_global_free(bdev->glob->mem_glob, acc_size);
 }
 
@@ -1176,7 +1179,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 		ttm_mem_global_free(mem_glob, acc_size);
 		return -EINVAL;
 	}
-	bo->destroy = destroy;
+	bo->destroy = destroy ? destroy : ttm_bo_default_destroy;
 
 	kref_init(&bo->kref);
 	kref_init(&bo->list_kref);
