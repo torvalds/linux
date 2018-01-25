@@ -8529,10 +8529,7 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
 	rcu_barrier();
 	call_netdevice_notifiers(NETDEV_UNREGISTER_FINAL, dev);
-	if (dev->rtnl_link_ops && dev->rtnl_link_ops->get_link_net)
-		new_nsid = peernet2id_alloc(dev_net(dev), net);
-	else
-		new_nsid = peernet2id(dev_net(dev), net);
+	new_nsid = peernet2id_alloc(dev_net(dev), net);
 	rtmsg_ifinfo_newnet(RTM_DELLINK, dev, ~0U, GFP_KERNEL, &new_nsid);
 
 	/*
