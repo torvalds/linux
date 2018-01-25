@@ -94,21 +94,21 @@ clean:
 clean-conf: clean
 	$(call QUIET_CLEAN, Makefile.conf)$(RM) $(OUTPUT)/Makefile.conf
 
-headers_install:
+headers_install: $(TARGETS)
 	$(call QUIET_INSTALL, headers) \
 	    install -d $(DESTDIR)$(PREFIX)/include ; \
 	    install -m 644 include/lkl.h include/lkl_host.h $(DESTDIR)$(PREFIX)/include ; \
 	    cp -r $(OUTPUT)include/lkl $(DESTDIR)$(PREFIX)/include
 
-libraries_install: $(ALL_LIBRARIES)
+libraries_install: $(libs-y:%=$(OUTPUT)%$(SOSUF))
 	$(call QUIET_INSTALL, libraries) \
 	    install -d $(DESTDIR)$(PREFIX)/lib ; \
-	    install -m 644 $(ALL_LIBRARIES) $(DESTDIR)$(PREFIX)/lib
+	    install -m 644 $^ $(DESTDIR)$(PREFIX)/lib
 
-programs_install: $(ALL_PROGRAMS)
+programs_install: $(progs-y:%=$(OUTPUT)%$(EXESUF))
 	$(call QUIET_INSTALL, programs) \
 	    install -d $(DESTDIR)$(PREFIX)/bin ; \
-	    install -m 755 $(ALL_PROGRAMS) $(DESTDIR)$(PREFIX)/bin
+	    install -m 755 $^ $(DESTDIR)$(PREFIX)/bin
 
 install: headers_install libraries_install programs_install
 

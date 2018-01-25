@@ -96,6 +96,8 @@ export do_autoconf
 
 
 $(OUTPUT)Makefile.conf: Makefile.autoconf
+	$(shell mkdir -p $(OUTPUT)/include)
+	$(shell mkdir -p $(OUTPUT)/tests)
 	$(shell echo -n "" > $(OUTPUT)/include/autoconf.h)
 	$(shell echo -n "" > $(OUTPUT)/tests/autoconf.sh)
 	@echo "$$do_autoconf" > $(OUTPUT)/Makefile.conf
