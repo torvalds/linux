@@ -82,6 +82,8 @@
 #define EDID_QUIRK_FORCE_6BPC			(1 << 10)
 /* Force 10bpc */
 #define EDID_QUIRK_FORCE_10BPC			(1 << 11)
+/* Non desktop display (i.e. HMD) */
+#define EDID_QUIRK_NON_DESKTOP			(1 << 12)
 
 struct detailed_mode_closure {
 	struct drm_connector *connector;
@@ -157,6 +159,9 @@ static const struct edid_quirk {
 
 	/* Rotel RSX-1058 forwards sink's EDID but only does HDMI 1.1*/
 	{ "ETR", 13896, EDID_QUIRK_FORCE_8BPC },
+
+	/* HTC Vive VR Headset */
+	{ "HVR", 0xaa01, EDID_QUIRK_NON_DESKTOP },
 };
 
 /*
@@ -1533,6 +1538,10 @@ static void connector_bad_edid(struct drm_connector *connector,
  * level, drivers must make all reasonable efforts to expose it as an I2C
  * adapter and use drm_get_edid() instead of abusing this function.
  *
+ * The EDID may be overridden using debugfs override_edid or firmare EDID
+ * (drm_load_edid_firmware() and drm.edid_firmware parameter), in this priority
+ * order. Having either of them bypasses actual EDID reads.
+ *
  * Return: Pointer to valid EDID or NULL if we couldn't find any.
  */
 struct edid *drm_do_get_edid(struct drm_connector *connector,
@@ -1542,6 +1551,17 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 {
 	int i, j = 0, valid_extensions = 0;
 	u8 *edid, *new;
+	struct edid *override = NULL;
+
+	if (connector->override_edid)
+		override = drm_edid_duplicate((const struct edid *)
+					      connector->edid_blob_ptr->data);
+
+	if (!override)
+		override = drm_load_edid_firmware(connector);
+
+	if (!IS_ERR_OR_NULL(override))
+		return override;
 
 	if ((edid = kmalloc(EDID_LENGTH, GFP_KERNEL)) == NULL)
 		return NULL;
@@ -4378,7 +4398,7 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 }
 
 static void drm_add_display_info(struct drm_connector *connector,
-				 struct edid *edid)
+				 struct edid *edid, u32 quirks)
 {
 	struct drm_display_info *info = &connector->display_info;
 
@@ -4391,6 +4411,8 @@ static void drm_add_display_info(struct drm_connector *connector,
 	info->cea_rev = 0;
 	info->max_tmds_clock = 0;
 	info->dvi_dual = false;
+
+	info->non_desktop = !!(quirks & EDID_QUIRK_NON_DESKTOP);
 
 	if (edid->revision < 3)
 		return;
@@ -4612,7 +4634,7 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	 * To avoid multiple parsing of same block, lets parse that map
 	 * from sink info, before parsing CEA modes.
 	 */
-	drm_add_display_info(connector, edid);
+	drm_add_display_info(connector, edid, quirks);
 
 	/*
 	 * EDID spec says modes should be preferred in this order:

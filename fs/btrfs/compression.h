@@ -76,7 +76,7 @@ struct compressed_bio {
 void btrfs_init_compress(void);
 void btrfs_exit_compress(void);
 
-int btrfs_compress_pages(int type, struct address_space *mapping,
+int btrfs_compress_pages(unsigned int type_level, struct address_space *mapping,
 			 u64 start, struct page **pages,
 			 unsigned long *out_pages,
 			 unsigned long *total_in,
@@ -94,6 +94,8 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 				  unsigned long nr_pages);
 blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags);
+
+unsigned btrfs_compress_str2level(const char *str);
 
 enum btrfs_compression_type {
 	BTRFS_COMPRESS_NONE  = 0,
@@ -124,6 +126,8 @@ struct btrfs_compress_op {
 			  struct page *dest_page,
 			  unsigned long start_byte,
 			  size_t srclen, size_t destlen);
+
+	void (*set_level)(struct list_head *ws, unsigned int type);
 };
 
 extern const struct btrfs_compress_op btrfs_zlib_compress;

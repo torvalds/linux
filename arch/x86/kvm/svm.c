@@ -1034,15 +1034,12 @@ static int avic_ga_log_notifier(u32 ga_tag)
 	}
 	spin_unlock_irqrestore(&svm_vm_data_hash_lock, flags);
 
-	if (!vcpu)
-		return 0;
-
 	/* Note:
 	 * At this point, the IOMMU should have already set the pending
 	 * bit in the vAPIC backing page. So, we just need to schedule
 	 * in the vcpu.
 	 */
-	if (vcpu->mode == OUTSIDE_GUEST_MODE)
+	if (vcpu)
 		kvm_vcpu_wake_up(vcpu);
 
 	return 0;
@@ -2144,7 +2141,18 @@ static int pf_interception(struct vcpu_svm *svm)
 
 	return kvm_handle_page_fault(&svm->vcpu, error_code, fault_address,
 			svm->vmcb->control.insn_bytes,
-			svm->vmcb->control.insn_len, !npt_enabled);
+			svm->vmcb->control.insn_len);
+}
+
+static int npf_interception(struct vcpu_svm *svm)
+{
+	u64 fault_address = svm->vmcb->control.exit_info_2;
+	u64 error_code = svm->vmcb->control.exit_info_1;
+
+	trace_kvm_page_fault(fault_address, error_code);
+	return kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code,
+			svm->vmcb->control.insn_bytes,
+			svm->vmcb->control.insn_len);
 }
 
 static int db_interception(struct vcpu_svm *svm)
@@ -2916,70 +2924,9 @@ static bool nested_vmcb_checks(struct vmcb *vmcb)
 	return true;
 }
 
-static bool nested_svm_vmrun(struct vcpu_svm *svm)
+static void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
+				 struct vmcb *nested_vmcb, struct page *page)
 {
-	struct vmcb *nested_vmcb;
-	struct vmcb *hsave = svm->nested.hsave;
-	struct vmcb *vmcb = svm->vmcb;
-	struct page *page;
-	u64 vmcb_gpa;
-
-	vmcb_gpa = svm->vmcb->save.rax;
-
-	nested_vmcb = nested_svm_map(svm, svm->vmcb->save.rax, &page);
-	if (!nested_vmcb)
-		return false;
-
-	if (!nested_vmcb_checks(nested_vmcb)) {
-		nested_vmcb->control.exit_code    = SVM_EXIT_ERR;
-		nested_vmcb->control.exit_code_hi = 0;
-		nested_vmcb->control.exit_info_1  = 0;
-		nested_vmcb->control.exit_info_2  = 0;
-
-		nested_svm_unmap(page);
-
-		return false;
-	}
-
-	trace_kvm_nested_vmrun(svm->vmcb->save.rip, vmcb_gpa,
-			       nested_vmcb->save.rip,
-			       nested_vmcb->control.int_ctl,
-			       nested_vmcb->control.event_inj,
-			       nested_vmcb->control.nested_ctl);
-
-	trace_kvm_nested_intercepts(nested_vmcb->control.intercept_cr & 0xffff,
-				    nested_vmcb->control.intercept_cr >> 16,
-				    nested_vmcb->control.intercept_exceptions,
-				    nested_vmcb->control.intercept);
-
-	/* Clear internal status */
-	kvm_clear_exception_queue(&svm->vcpu);
-	kvm_clear_interrupt_queue(&svm->vcpu);
-
-	/*
-	 * Save the old vmcb, so we don't need to pick what we save, but can
-	 * restore everything when a VMEXIT occurs
-	 */
-	hsave->save.es     = vmcb->save.es;
-	hsave->save.cs     = vmcb->save.cs;
-	hsave->save.ss     = vmcb->save.ss;
-	hsave->save.ds     = vmcb->save.ds;
-	hsave->save.gdtr   = vmcb->save.gdtr;
-	hsave->save.idtr   = vmcb->save.idtr;
-	hsave->save.efer   = svm->vcpu.arch.efer;
-	hsave->save.cr0    = kvm_read_cr0(&svm->vcpu);
-	hsave->save.cr4    = svm->vcpu.arch.cr4;
-	hsave->save.rflags = kvm_get_rflags(&svm->vcpu);
-	hsave->save.rip    = kvm_rip_read(&svm->vcpu);
-	hsave->save.rsp    = vmcb->save.rsp;
-	hsave->save.rax    = vmcb->save.rax;
-	if (npt_enabled)
-		hsave->save.cr3    = vmcb->save.cr3;
-	else
-		hsave->save.cr3    = kvm_read_cr3(&svm->vcpu);
-
-	copy_vmcb_control_area(hsave, vmcb);
-
 	if (kvm_get_rflags(&svm->vcpu) & X86_EFLAGS_IF)
 		svm->vcpu.arch.hflags |= HF_HIF_MASK;
 	else
@@ -3072,6 +3019,73 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	enable_gif(svm);
 
 	mark_all_dirty(svm->vmcb);
+}
+
+static bool nested_svm_vmrun(struct vcpu_svm *svm)
+{
+	struct vmcb *nested_vmcb;
+	struct vmcb *hsave = svm->nested.hsave;
+	struct vmcb *vmcb = svm->vmcb;
+	struct page *page;
+	u64 vmcb_gpa;
+
+	vmcb_gpa = svm->vmcb->save.rax;
+
+	nested_vmcb = nested_svm_map(svm, svm->vmcb->save.rax, &page);
+	if (!nested_vmcb)
+		return false;
+
+	if (!nested_vmcb_checks(nested_vmcb)) {
+		nested_vmcb->control.exit_code    = SVM_EXIT_ERR;
+		nested_vmcb->control.exit_code_hi = 0;
+		nested_vmcb->control.exit_info_1  = 0;
+		nested_vmcb->control.exit_info_2  = 0;
+
+		nested_svm_unmap(page);
+
+		return false;
+	}
+
+	trace_kvm_nested_vmrun(svm->vmcb->save.rip, vmcb_gpa,
+			       nested_vmcb->save.rip,
+			       nested_vmcb->control.int_ctl,
+			       nested_vmcb->control.event_inj,
+			       nested_vmcb->control.nested_ctl);
+
+	trace_kvm_nested_intercepts(nested_vmcb->control.intercept_cr & 0xffff,
+				    nested_vmcb->control.intercept_cr >> 16,
+				    nested_vmcb->control.intercept_exceptions,
+				    nested_vmcb->control.intercept);
+
+	/* Clear internal status */
+	kvm_clear_exception_queue(&svm->vcpu);
+	kvm_clear_interrupt_queue(&svm->vcpu);
+
+	/*
+	 * Save the old vmcb, so we don't need to pick what we save, but can
+	 * restore everything when a VMEXIT occurs
+	 */
+	hsave->save.es     = vmcb->save.es;
+	hsave->save.cs     = vmcb->save.cs;
+	hsave->save.ss     = vmcb->save.ss;
+	hsave->save.ds     = vmcb->save.ds;
+	hsave->save.gdtr   = vmcb->save.gdtr;
+	hsave->save.idtr   = vmcb->save.idtr;
+	hsave->save.efer   = svm->vcpu.arch.efer;
+	hsave->save.cr0    = kvm_read_cr0(&svm->vcpu);
+	hsave->save.cr4    = svm->vcpu.arch.cr4;
+	hsave->save.rflags = kvm_get_rflags(&svm->vcpu);
+	hsave->save.rip    = kvm_rip_read(&svm->vcpu);
+	hsave->save.rsp    = vmcb->save.rsp;
+	hsave->save.rax    = vmcb->save.rax;
+	if (npt_enabled)
+		hsave->save.cr3    = vmcb->save.cr3;
+	else
+		hsave->save.cr3    = kvm_read_cr3(&svm->vcpu);
+
+	copy_vmcb_control_area(hsave, vmcb);
+
+	enter_svm_guest_mode(svm, vmcb_gpa, nested_vmcb, page);
 
 	return true;
 }
@@ -3173,7 +3187,7 @@ static int stgi_interception(struct vcpu_svm *svm)
 
 	/*
 	 * If VGIF is enabled, the STGI intercept is only added to
-	 * detect the opening of the NMI window; remove it now.
+	 * detect the opening of the SMI/NMI window; remove it now.
 	 */
 	if (vgif_enabled(svm))
 		clr_intercept(svm, INTERCEPT_STGI);
@@ -3657,6 +3671,13 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	u32 ecx = msr->index;
 	u64 data = msr->data;
 	switch (ecx) {
+	case MSR_IA32_CR_PAT:
+		if (!kvm_mtrr_valid(vcpu, MSR_IA32_CR_PAT, data))
+			return 1;
+		vcpu->arch.pat = data;
+		svm->vmcb->save.g_pat = data;
+		mark_dirty(svm->vmcb, VMCB_NPT);
+		break;
 	case MSR_IA32_TSC:
 		kvm_write_tsc(vcpu, msr);
 		break;
@@ -4131,7 +4152,7 @@ static int (*const svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_MONITOR]			= monitor_interception,
 	[SVM_EXIT_MWAIT]			= mwait_interception,
 	[SVM_EXIT_XSETBV]			= xsetbv_interception,
-	[SVM_EXIT_NPF]				= pf_interception,
+	[SVM_EXIT_NPF]				= npf_interception,
 	[SVM_EXIT_RSM]                          = emulate_on_interception,
 	[SVM_EXIT_AVIC_INCOMPLETE_IPI]		= avic_incomplete_ipi_interception,
 	[SVM_EXIT_AVIC_UNACCELERATED_ACCESS]	= avic_unaccelerated_access_interception,
@@ -5393,6 +5414,88 @@ static void svm_setup_mce(struct kvm_vcpu *vcpu)
 	vcpu->arch.mcg_cap &= 0x1ff;
 }
 
+static int svm_smi_allowed(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	/* Per APM Vol.2 15.22.2 "Response to SMI" */
+	if (!gif_set(svm))
+		return 0;
+
+	if (is_guest_mode(&svm->vcpu) &&
+	    svm->nested.intercept & (1ULL << INTERCEPT_SMI)) {
+		/* TODO: Might need to set exit_info_1 and exit_info_2 here */
+		svm->vmcb->control.exit_code = SVM_EXIT_SMI;
+		svm->nested.exit_required = true;
+		return 0;
+	}
+
+	return 1;
+}
+
+static int svm_pre_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	int ret;
+
+	if (is_guest_mode(vcpu)) {
+		/* FED8h - SVM Guest */
+		put_smstate(u64, smstate, 0x7ed8, 1);
+		/* FEE0h - SVM Guest VMCB Physical Address */
+		put_smstate(u64, smstate, 0x7ee0, svm->nested.vmcb);
+
+		svm->vmcb->save.rax = vcpu->arch.regs[VCPU_REGS_RAX];
+		svm->vmcb->save.rsp = vcpu->arch.regs[VCPU_REGS_RSP];
+		svm->vmcb->save.rip = vcpu->arch.regs[VCPU_REGS_RIP];
+
+		ret = nested_svm_vmexit(svm);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+static int svm_pre_leave_smm(struct kvm_vcpu *vcpu, u64 smbase)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	struct vmcb *nested_vmcb;
+	struct page *page;
+	struct {
+		u64 guest;
+		u64 vmcb;
+	} svm_state_save;
+	int ret;
+
+	ret = kvm_vcpu_read_guest(vcpu, smbase + 0xfed8, &svm_state_save,
+				  sizeof(svm_state_save));
+	if (ret)
+		return ret;
+
+	if (svm_state_save.guest) {
+		vcpu->arch.hflags &= ~HF_SMM_MASK;
+		nested_vmcb = nested_svm_map(svm, svm_state_save.vmcb, &page);
+		if (nested_vmcb)
+			enter_svm_guest_mode(svm, svm_state_save.vmcb, nested_vmcb, page);
+		else
+			ret = 1;
+		vcpu->arch.hflags |= HF_SMM_MASK;
+	}
+	return ret;
+}
+
+static int enable_smi_window(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (!gif_set(svm)) {
+		if (vgif_enabled(svm))
+			set_intercept(svm, INTERCEPT_STGI);
+		/* STGI will cause a vm exit */
+		return 1;
+	}
+	return 0;
+}
+
 static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -5503,6 +5606,11 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.deliver_posted_interrupt = svm_deliver_avic_intr,
 	.update_pi_irte = svm_update_pi_irte,
 	.setup_mce = svm_setup_mce,
+
+	.smi_allowed = svm_smi_allowed,
+	.pre_enter_smm = svm_pre_enter_smm,
+	.pre_leave_smm = svm_pre_leave_smm,
+	.enable_smi_window = enable_smi_window,
 };
 
 static int __init svm_init(void)

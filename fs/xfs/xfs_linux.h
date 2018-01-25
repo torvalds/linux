@@ -142,6 +142,13 @@ typedef __u32			xfs_nlink_t;
 #define SYNCHRONIZE()	barrier()
 #define __return_address __builtin_return_address(0)
 
+/*
+ * Return the address of a label.  Use barrier() so that the optimizer
+ * won't reorder code to refactor the error jumpouts into a single
+ * return, which throws off the reported address.
+ */
+#define __this_address	({ __label__ __here; __here: barrier(); &&__here; })
+
 #define XFS_PROJID_DEFAULT	0
 
 #define MIN(a,b)	(min(a,b))
@@ -197,6 +204,16 @@ static inline kgid_t xfs_gid_to_kgid(uint32_t gid)
 	return make_kgid(&init_user_ns, gid);
 }
 
+static inline dev_t xfs_to_linux_dev_t(xfs_dev_t dev)
+{
+	return MKDEV(sysv_major(dev) & 0x1ff, sysv_minor(dev));
+}
+
+static inline xfs_dev_t linux_to_xfs_dev_t(dev_t dev)
+{
+	return sysv_encode_dev(dev);
+}
+
 /*
  * Various platform dependent calls that don't fit anywhere else
  */
@@ -243,10 +260,6 @@ static inline uint64_t howmany_64(uint64_t x, uint32_t y)
 #define ASSERT(expr)	\
 	(likely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
 
-#ifndef STATIC
-# define STATIC noinline
-#endif
-
 #else	/* !DEBUG */
 
 #ifdef XFS_WARN
@@ -254,20 +267,14 @@ static inline uint64_t howmany_64(uint64_t x, uint32_t y)
 #define ASSERT(expr)	\
 	(likely(expr) ? (void)0 : asswarn(#expr, __FILE__, __LINE__))
 
-#ifndef STATIC
-# define STATIC static noinline
-#endif
-
 #else	/* !DEBUG && !XFS_WARN */
 
 #define ASSERT(expr)	((void)0)
 
-#ifndef STATIC
-# define STATIC static noinline
-#endif
-
 #endif /* XFS_WARN */
 #endif /* DEBUG */
+
+#define STATIC static noinline
 
 #ifdef CONFIG_XFS_RT
 

@@ -13,6 +13,8 @@
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
+#include <linux/pinctrl/pinconf.h>
+#include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
@@ -22,6 +24,19 @@
 #define DRIVER_NAME "pinctrl-gemini"
 
 /**
+ * struct gemini_pin_conf - information about configuring a pin
+ * @pin: the pin number
+ * @reg: config register
+ * @mask: the bits affecting the configuration of the pin
+ */
+struct gemini_pin_conf {
+	unsigned int pin;
+	u32 reg;
+	u32 mask;
+};
+
+/**
+ * struct gemini_pmx - state holder for the gemini pin controller
  * @dev: a pointer back to containing device
  * @virtbase: the offset to the controller in virtual memory
  * @map: regmap to access registers
@@ -29,6 +44,8 @@
  * @is_3516: whether the SoC/package is the 3516 variant
  * @flash_pin: whether the flash pin (extended pins for parallel
  * flash) is set
+ * @confs: pin config information
+ * @nconfs: number of pin config information items
  */
 struct gemini_pmx {
 	struct device *dev;
@@ -37,6 +54,8 @@ struct gemini_pmx {
 	bool is_3512;
 	bool is_3516;
 	bool flash_pin;
+	const struct gemini_pin_conf *confs;
+	unsigned int nconfs;
 };
 
 /**
@@ -57,6 +76,13 @@ struct gemini_pin_group {
 	u32 value;
 };
 
+/* Some straight-forward control registers */
+#define GLOBAL_WORD_ID		0x00
+#define GLOBAL_STATUS		0x04
+#define GLOBAL_STATUS_FLPIN	BIT(20)
+#define GLOBAL_GMAC_CTRL_SKEW	0x1c
+#define GLOBAL_GMAC0_DATA_SKEW	0x20
+#define GLOBAL_GMAC1_DATA_SKEW	0x24
 /*
  * Global Miscellaneous Control Register
  * This register controls all Gemini pad/pin multiplexing
@@ -69,10 +95,14 @@ struct gemini_pin_group {
  *   DISABLED again. So you select a flash configuration once, and then
  *   you are stuck with it.
  */
-#define GLOBAL_WORD_ID		0x00
-#define GLOBAL_STATUS		0x04
-#define GLOBAL_STATUS_FLPIN	BIT(20)
 #define GLOBAL_MISC_CTRL	0x30
+#define GEMINI_GMAC_IOSEL_MASK	GENMASK(28, 27)
+/* Not really used */
+#define GEMINI_GMAC_IOSEL_GMAC0_GMII	BIT(28)
+/* Activated with GMAC1 */
+#define GEMINI_GMAC_IOSEL_GMAC0_GMAC1_RGMII BIT(27)
+/* This will be the default */
+#define GEMINI_GMAC_IOSEL_GMAC0_RGMII_GMAC1_GPIO2 0
 #define TVC_CLK_PAD_ENABLE	BIT(20)
 #define PCI_CLK_PAD_ENABLE	BIT(17)
 #define LPC_CLK_PAD_ENABLE	BIT(16)
@@ -86,8 +116,8 @@ struct gemini_pin_group {
 #define NAND_PADS_DISABLE	BIT(2)
 #define PFLASH_PADS_DISABLE	BIT(1)
 #define SFLASH_PADS_DISABLE	BIT(0)
-#define PADS_MASK		(GENMASK(9, 0) | BIT(16) | BIT(17) | BIT(20))
-#define PADS_MAXBIT		20
+#define PADS_MASK		(GENMASK(9, 0) | BIT(16) | BIT(17) | BIT(20) | BIT(27))
+#define PADS_MAXBIT		27
 
 /* Ordered by bit index */
 static const char * const gemini_padgroups[] = {
@@ -106,6 +136,8 @@ static const char * const gemini_padgroups[] = {
 	"PCI CLK",
 	NULL, NULL,
 	"TVC CLK",
+	NULL, NULL, NULL, NULL, NULL,
+	"GMAC1",
 };
 
 static const struct pinctrl_pin_desc gemini_3512_pins[] = {
@@ -493,9 +525,12 @@ static const unsigned int usb_3512_pins[] = {
 };
 
 /* GMII, ethernet pins */
-static const unsigned int gmii_3512_pins[] = {
-	311, 240, 258, 276, 294, 312, 241, 259, 277, 295, 313, 242, 260, 278, 296,
-	315, 297, 279, 261, 243, 316, 298, 280, 262, 244, 317, 299, 281
+static const unsigned int gmii_gmac0_3512_pins[] = {
+	240, 241, 242, 258, 259, 260, 276, 277, 278, 294, 295, 311, 312, 313
+};
+
+static const unsigned int gmii_gmac1_3512_pins[] = {
+	243, 244, 261, 262, 279, 280, 281, 296, 297, 298, 299, 315, 316, 317
 };
 
 static const unsigned int pci_3512_pins[] = {
@@ -645,10 +680,10 @@ static const unsigned int gpio1c_3512_pins[] = {
 /* The GPIO1D (28-31) pins overlap with LCD and TVC */
 static const unsigned int gpio1d_3512_pins[] = { 246, 319, 301, 283 };
 
-/* The GPIO2A (0-3) pins overlap with GMII and extended parallel flash */
+/* The GPIO2A (0-3) pins overlap with GMII GMAC1 and extended parallel flash */
 static const unsigned int gpio2a_3512_pins[] = { 315, 297, 279, 261 };
 
-/* The GPIO2B (4-7) pins overlap with GMII, extended parallel flash and LCD */
+/* The GPIO2B (4-7) pins overlap with GMII GMAC1, extended parallel flash and LCD */
 static const unsigned int gpio2b_3512_pins[] = { 262, 244, 317, 299 };
 
 /* The GPIO2C (8-31) pins overlap with PCI */
@@ -715,9 +750,16 @@ static const struct gemini_pin_group gemini_3512_pin_groups[] = {
 		.num_pins = ARRAY_SIZE(usb_3512_pins),
 	},
 	{
-		.name = "gmiigrp",
-		.pins = gmii_3512_pins,
-		.num_pins = ARRAY_SIZE(gmii_3512_pins),
+		.name = "gmii_gmac0_grp",
+		.pins = gmii_gmac0_3512_pins,
+		.num_pins = ARRAY_SIZE(gmii_gmac0_3512_pins),
+	},
+	{
+		.name = "gmii_gmac1_grp",
+		.pins = gmii_gmac1_3512_pins,
+		.num_pins = ARRAY_SIZE(gmii_gmac1_3512_pins),
+		/* Bring out RGMII on the GMAC1 pins */
+		.value = GEMINI_GMAC_IOSEL_GMAC0_GMAC1_RGMII,
 	},
 	{
 		.name = "pcigrp",
@@ -931,14 +973,15 @@ static const struct gemini_pin_group gemini_3512_pin_groups[] = {
 		.name = "gpio2agrp",
 		.pins = gpio2a_3512_pins,
 		.num_pins = ARRAY_SIZE(gpio2a_3512_pins),
-		/* Conflict with GMII and extended parallel flash */
+		.mask = GEMINI_GMAC_IOSEL_GMAC0_GMAC1_RGMII,
+		/* Conflict with GMII GMAC1 and extended parallel flash */
 	},
 	{
 		.name = "gpio2bgrp",
 		.pins = gpio2b_3512_pins,
 		.num_pins = ARRAY_SIZE(gpio2b_3512_pins),
-		/* Conflict with GMII, extended parallel flash and LCD */
-		.mask = LCD_PADS_ENABLE,
+		/* Conflict with GMII GMAC1, extended parallel flash and LCD */
+		.mask = LCD_PADS_ENABLE | GEMINI_GMAC_IOSEL_GMAC0_GMAC1_RGMII,
 	},
 	{
 		.name = "gpio2cgrp",
@@ -1418,9 +1461,12 @@ static const unsigned int usb_3516_pins[] = {
 };
 
 /* GMII, ethernet pins */
-static const unsigned int gmii_3516_pins[] = {
-	306, 307, 308, 309, 310, 325, 326, 327, 328, 329, 330, 345, 346, 347,
-	348, 349, 350, 351, 367, 368, 369, 370, 371, 386, 387, 389, 390, 391
+static const unsigned int gmii_gmac0_3516_pins[] = {
+	306, 307, 325, 326, 327, 328, 345, 346, 347, 348, 367, 368, 386, 387
+};
+
+static const unsigned int gmii_gmac1_3516_pins[] = {
+	308, 309, 310, 329, 330, 349, 350, 351, 369, 370, 371, 389, 390, 391
 };
 
 static const unsigned int pci_3516_pins[] = {
@@ -1562,10 +1608,10 @@ static const unsigned int gpio1c_3516_pins[] = {
 /* The GPIO1D (28-31) pins overlap with TVC */
 static const unsigned int gpio1d_3516_pins[] = { 353, 311, 394, 374 };
 
-/* The GPIO2A (0-3) pins overlap with GMII and extended parallel flash */
+/* The GPIO2A (0-3) pins overlap with GMII GMAC1 and extended parallel flash */
 static const unsigned int gpio2a_3516_pins[] = { 308, 369, 389, 329 };
 
-/* The GPIO2B (4-7) pins overlap with GMII, extended parallel flash and LCD */
+/* The GPIO2B (4-7) pins overlap with GMII GMAC1, extended parallel flash and LCD */
 static const unsigned int gpio2b_3516_pins[] = { 391, 351, 310, 371 };
 
 /* The GPIO2C (8-31) pins overlap with PCI */
@@ -1637,9 +1683,16 @@ static const struct gemini_pin_group gemini_3516_pin_groups[] = {
 		.num_pins = ARRAY_SIZE(usb_3516_pins),
 	},
 	{
-		.name = "gmiigrp",
-		.pins = gmii_3516_pins,
-		.num_pins = ARRAY_SIZE(gmii_3516_pins),
+		.name = "gmii_gmac0_grp",
+		.pins = gmii_gmac0_3516_pins,
+		.num_pins = ARRAY_SIZE(gmii_gmac0_3516_pins),
+	},
+	{
+		.name = "gmii_gmac1_grp",
+		.pins = gmii_gmac1_3516_pins,
+		.num_pins = ARRAY_SIZE(gmii_gmac1_3516_pins),
+		/* Bring out RGMII on the GMAC1 pins */
+		.value = GEMINI_GMAC_IOSEL_GMAC0_GMAC1_RGMII,
 	},
 	{
 		.name = "pcigrp",
@@ -1838,14 +1891,15 @@ static const struct gemini_pin_group gemini_3516_pin_groups[] = {
 		.name = "gpio2agrp",
 		.pins = gpio2a_3516_pins,
 		.num_pins = ARRAY_SIZE(gpio2a_3516_pins),
-		/* Conflict with GMII and extended parallel flash */
+		.mask = GEMINI_GMAC_IOSEL_GMAC0_GMAC1_RGMII,
+		/* Conflict with GMII GMAC1 and extended parallel flash */
 	},
 	{
 		.name = "gpio2bgrp",
 		.pins = gpio2b_3516_pins,
 		.num_pins = ARRAY_SIZE(gpio2b_3516_pins),
-		/* Conflict with GMII, extended parallel flash and LCD */
-		.mask = LCD_PADS_ENABLE,
+		/* Conflict with GMII GMAC1, extended parallel flash and LCD */
+		.mask = LCD_PADS_ENABLE | GEMINI_GMAC_IOSEL_GMAC0_GMAC1_RGMII,
 	},
 	{
 		.name = "gpio2cgrp",
@@ -1918,73 +1972,13 @@ static void gemini_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	seq_printf(s, " " DRIVER_NAME);
 }
 
-static int gemini_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-					    struct device_node *np,
-					    struct pinctrl_map **map,
-					    unsigned int *reserved_maps,
-					    unsigned int *num_maps)
-{
-	int ret;
-	const char *function = NULL;
-	const char *group;
-	struct property *prop;
-
-	ret = of_property_read_string(np, "function", &function);
-	if (ret < 0)
-		return ret;
-
-	ret = of_property_count_strings(np, "groups");
-	if (ret < 0)
-		return ret;
-
-	ret = pinctrl_utils_reserve_map(pctldev, map, reserved_maps,
-					num_maps, ret);
-	if (ret < 0)
-		return ret;
-
-	of_property_for_each_string(np, "groups", prop, group) {
-		ret = pinctrl_utils_add_map_mux(pctldev, map, reserved_maps,
-						num_maps, group, function);
-		if (ret < 0)
-			return ret;
-		pr_debug("ADDED FUNCTION %s <-> GROUP %s\n",
-			 function, group);
-	}
-
-	return 0;
-}
-
-static int gemini_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-				struct device_node *np_config,
-				struct pinctrl_map **map,
-				unsigned int *num_maps)
-{
-	unsigned int reserved_maps = 0;
-	struct device_node *np;
-	int ret;
-
-	*map = NULL;
-	*num_maps = 0;
-
-	for_each_child_of_node(np_config, np) {
-		ret = gemini_pinctrl_dt_subnode_to_map(pctldev, np, map,
-					&reserved_maps, num_maps);
-		if (ret < 0) {
-			pinctrl_utils_free_map(pctldev, *map, *num_maps);
-			return ret;
-		}
-	}
-
-	return 0;
-};
-
 static const struct pinctrl_ops gemini_pctrl_ops = {
 	.get_groups_count = gemini_get_groups_count,
 	.get_group_name = gemini_get_group_name,
 	.get_group_pins = gemini_get_group_pins,
 	.pin_dbg_show = gemini_pin_dbg_show,
-	.dt_node_to_map = gemini_pinctrl_dt_node_to_map,
-	.dt_free_map = pinctrl_utils_free_map,
+	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
 /**
@@ -2008,7 +2002,7 @@ static const char * const icegrps[] = { "icegrp" };
 static const char * const idegrps[] = { "idegrp" };
 static const char * const satagrps[] = { "satagrp" };
 static const char * const usbgrps[] = { "usbgrp" };
-static const char * const gmiigrps[] = { "gmiigrp" };
+static const char * const gmiigrps[] = { "gmii_gmac0_grp", "gmii_gmac1_grp" };
 static const char * const pcigrps[] = { "pcigrp" };
 static const char * const lpcgrps[] = { "lpcgrp" };
 static const char * const lcdgrps[] = { "lcdgrp" };
@@ -2072,6 +2066,16 @@ static const struct gemini_pmx_func gemini_pmx_functions[] = {
 		.name = "sata",
 		.groups = satagrps,
 		.num_groups = ARRAY_SIZE(satagrps),
+	},
+	{
+		.name = "usb",
+		.groups = usbgrps,
+		.num_groups = ARRAY_SIZE(usbgrps),
+	},
+	{
+		.name = "gmii",
+		.groups = gmiigrps,
+		.num_groups = ARRAY_SIZE(gmiigrps),
 	},
 	{
 		.name = "pci",
@@ -2251,10 +2255,155 @@ static const struct pinmux_ops gemini_pmx_ops = {
 	.set_mux = gemini_pmx_set_mux,
 };
 
+#define GEMINI_CFGPIN(_n, _r, _lb, _hb) {	\
+	.pin = _n,				\
+	.reg = _r,				\
+	.mask = GENMASK(_hb, _lb)		\
+}
+
+static const struct gemini_pin_conf gemini_confs_3512[] = {
+	GEMINI_CFGPIN(259, GLOBAL_GMAC_CTRL_SKEW, 0, 3), /* GMAC0 RXDV */
+	GEMINI_CFGPIN(277, GLOBAL_GMAC_CTRL_SKEW, 4, 7), /* GMAC0 RXC */
+	GEMINI_CFGPIN(241, GLOBAL_GMAC_CTRL_SKEW, 8, 11), /* GMAC0 TXEN */
+	GEMINI_CFGPIN(312, GLOBAL_GMAC_CTRL_SKEW, 12, 15), /* GMAC0 TXC */
+	GEMINI_CFGPIN(298, GLOBAL_GMAC_CTRL_SKEW, 16, 19), /* GMAC1 RXDV */
+	GEMINI_CFGPIN(280, GLOBAL_GMAC_CTRL_SKEW, 20, 23), /* GMAC1 RXC */
+	GEMINI_CFGPIN(316, GLOBAL_GMAC_CTRL_SKEW, 24, 27), /* GMAC1 TXEN */
+	GEMINI_CFGPIN(243, GLOBAL_GMAC_CTRL_SKEW, 28, 31), /* GMAC1 TXC */
+	GEMINI_CFGPIN(295, GLOBAL_GMAC0_DATA_SKEW, 0, 3), /* GMAC0 RXD0 */
+	GEMINI_CFGPIN(313, GLOBAL_GMAC0_DATA_SKEW, 4, 7), /* GMAC0 RXD1 */
+	GEMINI_CFGPIN(242, GLOBAL_GMAC0_DATA_SKEW, 8, 11), /* GMAC0 RXD2 */
+	GEMINI_CFGPIN(260, GLOBAL_GMAC0_DATA_SKEW, 12, 15), /* GMAC0 RXD3 */
+	GEMINI_CFGPIN(294, GLOBAL_GMAC0_DATA_SKEW, 16, 19), /* GMAC0 TXD0 */
+	GEMINI_CFGPIN(276, GLOBAL_GMAC0_DATA_SKEW, 20, 23), /* GMAC0 TXD1 */
+	GEMINI_CFGPIN(258, GLOBAL_GMAC0_DATA_SKEW, 24, 27), /* GMAC0 TXD2 */
+	GEMINI_CFGPIN(240, GLOBAL_GMAC0_DATA_SKEW, 28, 31), /* GMAC0 TXD3 */
+	GEMINI_CFGPIN(262, GLOBAL_GMAC1_DATA_SKEW, 0, 3), /* GMAC1 RXD0 */
+	GEMINI_CFGPIN(244, GLOBAL_GMAC1_DATA_SKEW, 4, 7), /* GMAC1 RXD1 */
+	GEMINI_CFGPIN(317, GLOBAL_GMAC1_DATA_SKEW, 8, 11), /* GMAC1 RXD2 */
+	GEMINI_CFGPIN(299, GLOBAL_GMAC1_DATA_SKEW, 12, 15), /* GMAC1 RXD3 */
+	GEMINI_CFGPIN(261, GLOBAL_GMAC1_DATA_SKEW, 16, 19), /* GMAC1 TXD0 */
+	GEMINI_CFGPIN(279, GLOBAL_GMAC1_DATA_SKEW, 20, 23), /* GMAC1 TXD1 */
+	GEMINI_CFGPIN(297, GLOBAL_GMAC1_DATA_SKEW, 24, 27), /* GMAC1 TXD2 */
+	GEMINI_CFGPIN(315, GLOBAL_GMAC1_DATA_SKEW, 28, 31), /* GMAC1 TXD3 */
+};
+
+static const struct gemini_pin_conf gemini_confs_3516[] = {
+	GEMINI_CFGPIN(347, GLOBAL_GMAC_CTRL_SKEW, 0, 3), /* GMAC0 RXDV */
+	GEMINI_CFGPIN(386, GLOBAL_GMAC_CTRL_SKEW, 4, 7), /* GMAC0 RXC */
+	GEMINI_CFGPIN(307, GLOBAL_GMAC_CTRL_SKEW, 8, 11), /* GMAC0 TXEN */
+	GEMINI_CFGPIN(327, GLOBAL_GMAC_CTRL_SKEW, 12, 15), /* GMAC0 TXC */
+	GEMINI_CFGPIN(309, GLOBAL_GMAC_CTRL_SKEW, 16, 19), /* GMAC1 RXDV */
+	GEMINI_CFGPIN(390, GLOBAL_GMAC_CTRL_SKEW, 20, 23), /* GMAC1 RXC */
+	GEMINI_CFGPIN(370, GLOBAL_GMAC_CTRL_SKEW, 24, 27), /* GMAC1 TXEN */
+	GEMINI_CFGPIN(350, GLOBAL_GMAC_CTRL_SKEW, 28, 31), /* GMAC1 TXC */
+	GEMINI_CFGPIN(367, GLOBAL_GMAC0_DATA_SKEW, 0, 3), /* GMAC0 RXD0 */
+	GEMINI_CFGPIN(348, GLOBAL_GMAC0_DATA_SKEW, 4, 7), /* GMAC0 RXD1 */
+	GEMINI_CFGPIN(387, GLOBAL_GMAC0_DATA_SKEW, 8, 11), /* GMAC0 RXD2 */
+	GEMINI_CFGPIN(328, GLOBAL_GMAC0_DATA_SKEW, 12, 15), /* GMAC0 RXD3 */
+	GEMINI_CFGPIN(306, GLOBAL_GMAC0_DATA_SKEW, 16, 19), /* GMAC0 TXD0 */
+	GEMINI_CFGPIN(325, GLOBAL_GMAC0_DATA_SKEW, 20, 23), /* GMAC0 TXD1 */
+	GEMINI_CFGPIN(346, GLOBAL_GMAC0_DATA_SKEW, 24, 27), /* GMAC0 TXD2 */
+	GEMINI_CFGPIN(326, GLOBAL_GMAC0_DATA_SKEW, 28, 31), /* GMAC0 TXD3 */
+	GEMINI_CFGPIN(391, GLOBAL_GMAC1_DATA_SKEW, 0, 3), /* GMAC1 RXD0 */
+	GEMINI_CFGPIN(351, GLOBAL_GMAC1_DATA_SKEW, 4, 7), /* GMAC1 RXD1 */
+	GEMINI_CFGPIN(310, GLOBAL_GMAC1_DATA_SKEW, 8, 11), /* GMAC1 RXD2 */
+	GEMINI_CFGPIN(371, GLOBAL_GMAC1_DATA_SKEW, 12, 15), /* GMAC1 RXD3 */
+	GEMINI_CFGPIN(329, GLOBAL_GMAC1_DATA_SKEW, 16, 19), /* GMAC1 TXD0 */
+	GEMINI_CFGPIN(389, GLOBAL_GMAC1_DATA_SKEW, 20, 23), /* GMAC1 TXD1 */
+	GEMINI_CFGPIN(369, GLOBAL_GMAC1_DATA_SKEW, 24, 27), /* GMAC1 TXD2 */
+	GEMINI_CFGPIN(308, GLOBAL_GMAC1_DATA_SKEW, 28, 31), /* GMAC1 TXD3 */
+};
+
+static const struct gemini_pin_conf *gemini_get_pin_conf(struct gemini_pmx *pmx,
+							 unsigned int pin)
+{
+	const struct gemini_pin_conf *retconf;
+	int i;
+
+	for (i = 0; i < pmx->nconfs; i++) {
+		retconf = &gemini_confs_3516[i];
+		if (retconf->pin == pin)
+			return retconf;
+	}
+	return NULL;
+}
+
+static int gemini_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
+			      unsigned long *config)
+{
+	struct gemini_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
+	enum pin_config_param param = pinconf_to_config_param(*config);
+	const struct gemini_pin_conf *conf;
+	u32 val;
+
+	switch (param) {
+	case PIN_CONFIG_SKEW_DELAY:
+		conf = gemini_get_pin_conf(pmx, pin);
+		if (!conf)
+			return -ENOTSUPP;
+		regmap_read(pmx->map, conf->reg, &val);
+		val &= conf->mask;
+		val >>= (ffs(conf->mask) - 1);
+		*config = pinconf_to_config_packed(PIN_CONFIG_SKEW_DELAY, val);
+		break;
+	default:
+		return -ENOTSUPP;
+	}
+
+	return 0;
+}
+
+static int gemini_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
+			      unsigned long *configs, unsigned int num_configs)
+{
+	struct gemini_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
+	const struct gemini_pin_conf *conf;
+	enum pin_config_param param;
+	u32 arg;
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < num_configs; i++) {
+		param = pinconf_to_config_param(configs[i]);
+		arg = pinconf_to_config_argument(configs[i]);
+
+		switch (param) {
+		case PIN_CONFIG_SKEW_DELAY:
+			if (arg > 0xf)
+				return -EINVAL;
+			conf = gemini_get_pin_conf(pmx, pin);
+			if (!conf) {
+				dev_err(pmx->dev,
+					"invalid pin for skew delay %d\n", pin);
+				return -ENOTSUPP;
+			}
+			arg <<= (ffs(conf->mask) - 1);
+			dev_dbg(pmx->dev,
+				"set pin %d to skew delay mask %08x, val %08x\n",
+				pin, conf->mask, arg);
+			regmap_update_bits(pmx->map, conf->reg, conf->mask, arg);
+			break;
+		default:
+			dev_err(pmx->dev, "Invalid config param %04x\n", param);
+			return -ENOTSUPP;
+		}
+	}
+
+	return ret;
+}
+
+static const struct pinconf_ops gemini_pinconf_ops = {
+	.pin_config_get = gemini_pinconf_get,
+	.pin_config_set = gemini_pinconf_set,
+	.is_generic = true,
+};
+
 static struct pinctrl_desc gemini_pmx_desc = {
 	.name = DRIVER_NAME,
 	.pctlops = &gemini_pctrl_ops,
 	.pmxops = &gemini_pmx_ops,
+	.confops = &gemini_pinconf_ops,
 	.owner = THIS_MODULE,
 };
 
@@ -2297,11 +2446,15 @@ static int gemini_pmx_probe(struct platform_device *pdev)
 	val &= 0xffff;
 	if (val == 0x3512) {
 		pmx->is_3512 = true;
+		pmx->confs = gemini_confs_3512;
+		pmx->nconfs = ARRAY_SIZE(gemini_confs_3512);
 		gemini_pmx_desc.pins = gemini_3512_pins;
 		gemini_pmx_desc.npins = ARRAY_SIZE(gemini_3512_pins);
 		dev_info(dev, "detected 3512 chip variant\n");
 	} else if (val == 0x3516) {
 		pmx->is_3516 = true;
+		pmx->confs = gemini_confs_3516;
+		pmx->nconfs = ARRAY_SIZE(gemini_confs_3516);
 		gemini_pmx_desc.pins = gemini_3516_pins;
 		gemini_pmx_desc.npins = ARRAY_SIZE(gemini_3516_pins);
 		dev_info(dev, "detected 3516 chip variant\n");

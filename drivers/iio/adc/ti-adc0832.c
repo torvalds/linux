@@ -195,7 +195,6 @@ static int adc0832_read_raw(struct iio_dev *iio,
 
 static const struct iio_info adc0832_info = {
 	.read_raw = adc0832_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static irqreturn_t adc0832_trigger_handler(int irq, void *p)

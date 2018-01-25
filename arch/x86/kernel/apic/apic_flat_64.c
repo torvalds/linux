@@ -119,7 +119,7 @@ static unsigned int flat_get_apic_id(unsigned long x)
 	return (x >> 24) & 0xFF;
 }
 
-static unsigned long set_apic_id(unsigned int id)
+static u32 set_apic_id(unsigned int id)
 {
 	return (id & 0xFF) << 24;
 }
@@ -154,12 +154,10 @@ static struct apic apic_flat __ro_after_init = {
 	.irq_delivery_mode		= dest_LowestPrio,
 	.irq_dest_mode			= 1, /* logical */
 
-	.target_cpus			= online_target_cpus,
 	.disable_esr			= 0,
 	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= NULL,
 
-	.vector_allocation_domain	= flat_vector_allocation_domain,
 	.init_apic_ldr			= flat_init_apic_ldr,
 
 	.ioapic_phys_id_map		= NULL,
@@ -172,7 +170,7 @@ static struct apic apic_flat __ro_after_init = {
 	.get_apic_id			= flat_get_apic_id,
 	.set_apic_id			= set_apic_id,
 
-	.cpu_mask_to_apicid		= flat_cpu_mask_to_apicid,
+	.calc_dest_apicid		= apic_flat_calc_apicid,
 
 	.send_IPI			= default_send_IPI_single,
 	.send_IPI_mask			= flat_send_IPI_mask,
@@ -249,12 +247,10 @@ static struct apic apic_physflat __ro_after_init = {
 	.irq_delivery_mode		= dest_Fixed,
 	.irq_dest_mode			= 0, /* physical */
 
-	.target_cpus			= online_target_cpus,
 	.disable_esr			= 0,
 	.dest_logical			= 0,
 	.check_apicid_used		= NULL,
 
-	.vector_allocation_domain	= default_vector_allocation_domain,
 	/* not needed, but shouldn't hurt: */
 	.init_apic_ldr			= flat_init_apic_ldr,
 
@@ -268,7 +264,7 @@ static struct apic apic_physflat __ro_after_init = {
 	.get_apic_id			= flat_get_apic_id,
 	.set_apic_id			= set_apic_id,
 
-	.cpu_mask_to_apicid		= default_cpu_mask_to_apicid,
+	.calc_dest_apicid		= apic_default_calc_apicid,
 
 	.send_IPI			= default_send_IPI_single_phys,
 	.send_IPI_mask			= default_send_IPI_mask_sequence_phys,

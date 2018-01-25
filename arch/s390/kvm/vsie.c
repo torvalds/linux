@@ -443,22 +443,14 @@ static int map_prefix(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
  *
  * Returns: - 0 on success
  *          - -EINVAL if the gpa is not valid guest storage
- *          - -ENOMEM if out of memory
  */
 static int pin_guest_page(struct kvm *kvm, gpa_t gpa, hpa_t *hpa)
 {
 	struct page *page;
-	hva_t hva;
-	int rc;
 
-	hva = gfn_to_hva(kvm, gpa_to_gfn(gpa));
-	if (kvm_is_error_hva(hva))
+	page = gfn_to_page(kvm, gpa_to_gfn(gpa));
+	if (is_error_page(page))
 		return -EINVAL;
-	rc = get_user_pages_fast(hva, 1, 1, &page);
-	if (rc < 0)
-		return rc;
-	else if (rc != 1)
-		return -ENOMEM;
 	*hpa = (hpa_t) page_to_virt(page) + (gpa & ~PAGE_MASK);
 	return 0;
 }
@@ -466,11 +458,7 @@ static int pin_guest_page(struct kvm *kvm, gpa_t gpa, hpa_t *hpa)
 /* Unpins a page previously pinned via pin_guest_page, marking it as dirty. */
 static void unpin_guest_page(struct kvm *kvm, gpa_t gpa, hpa_t hpa)
 {
-	struct page *page;
-
-	page = virt_to_page(hpa);
-	set_page_dirty_lock(page);
-	put_page(page);
+	kvm_release_pfn_dirty(hpa >> PAGE_SHIFT);
 	/* mark the page always as dirty for migration */
 	mark_page_dirty(kvm, gpa_to_gfn(gpa));
 }
@@ -557,7 +545,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 			rc = set_validity_icpt(scb_s, 0x003bU);
 		if (!rc) {
 			rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
-			if (rc == -EINVAL)
+			if (rc)
 				rc = set_validity_icpt(scb_s, 0x0034U);
 		}
 		if (rc)
@@ -574,10 +562,10 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		}
 		/* 256 bytes cannot cross page boundaries */
 		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
-		if (rc == -EINVAL)
+		if (rc) {
 			rc = set_validity_icpt(scb_s, 0x0080U);
-		if (rc)
 			goto unpin;
+		}
 		scb_s->itdba = hpa;
 	}
 
@@ -592,10 +580,10 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		 * if this block gets bigger, we have to shadow it.
 		 */
 		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
-		if (rc == -EINVAL)
+		if (rc) {
 			rc = set_validity_icpt(scb_s, 0x1310U);
-		if (rc)
 			goto unpin;
+		}
 		scb_s->gvrd = hpa;
 	}
 
@@ -607,11 +595,11 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		}
 		/* 64 bytes cannot cross page boundaries */
 		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
-		if (rc == -EINVAL)
+		if (rc) {
 			rc = set_validity_icpt(scb_s, 0x0043U);
-		/* Validity 0x0044 will be checked by SIE */
-		if (rc)
 			goto unpin;
+		}
+		/* Validity 0x0044 will be checked by SIE */
 		scb_s->riccbd = hpa;
 	}
 	if ((scb_s->ecb & ECB_GS) && !(scb_s->ecd & ECD_HOSTREGMGMT)) {
@@ -635,10 +623,10 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		 * cross page boundaries
 		 */
 		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
-		if (rc == -EINVAL)
+		if (rc) {
 			rc = set_validity_icpt(scb_s, 0x10b0U);
-		if (rc)
 			goto unpin;
+		}
 		scb_s->sdnxo = hpa | sdnxc;
 	}
 	return 0;
@@ -663,7 +651,6 @@ static void unpin_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page,
  *
  * Returns: - 0 if the scb was pinned.
  *          - > 0 if control has to be given to guest 2
- *          - -ENOMEM if out of memory
  */
 static int pin_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page,
 		   gpa_t gpa)
@@ -672,14 +659,13 @@ static int pin_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page,
 	int rc;
 
 	rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
-	if (rc == -EINVAL) {
+	if (rc) {
 		rc = kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-		if (!rc)
-			rc = 1;
+		WARN_ON_ONCE(rc);
+		return 1;
 	}
-	if (!rc)
-		vsie_page->scb_o = (struct kvm_s390_sie_block *) hpa;
-	return rc;
+	vsie_page->scb_o = (struct kvm_s390_sie_block *) hpa;
+	return 0;
 }
 
 /*

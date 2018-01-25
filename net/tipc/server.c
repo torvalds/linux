@@ -36,6 +36,8 @@
 #include "server.h"
 #include "core.h"
 #include "socket.h"
+#include "addr.h"
+#include "msg.h"
 #include <net/sock.h>
 #include <linux/module.h>
 
@@ -105,13 +107,11 @@ static void tipc_conn_kref_release(struct kref *kref)
 		kernel_bind(sock, (struct sockaddr *)saddr, sizeof(*saddr));
 		sock_release(sock);
 		con->sock = NULL;
-
-		spin_lock_bh(&s->idr_lock);
-		idr_remove(&s->conn_idr, con->conid);
-		s->idr_in_use--;
-		spin_unlock_bh(&s->idr_lock);
 	}
-
+	spin_lock_bh(&s->idr_lock);
+	idr_remove(&s->conn_idr, con->conid);
+	s->idr_in_use--;
+	spin_unlock_bh(&s->idr_lock);
 	tipc_clean_outqueues(con);
 	kfree(con);
 }
@@ -197,7 +197,8 @@ static void tipc_close_conn(struct tipc_conn *con)
 	struct tipc_server *s = con->server;
 
 	if (test_and_clear_bit(CF_CONNECTED, &con->flags)) {
-		tipc_unregister_callbacks(con);
+		if (con->sock)
+			tipc_unregister_callbacks(con);
 
 		if (con->conid)
 			s->tipc_conn_release(con->conid, con->usr_data);
@@ -207,8 +208,8 @@ static void tipc_close_conn(struct tipc_conn *con)
 		 * are harmless for us here as we have already deleted this
 		 * connection from server connection list.
 		 */
-		kernel_sock_shutdown(con->sock, SHUT_RDWR);
-
+		if (con->sock)
+			kernel_sock_shutdown(con->sock, SHUT_RDWR);
 		conn_put(con);
 	}
 }
@@ -487,38 +488,104 @@ void tipc_conn_terminate(struct tipc_server *s, int conid)
 	}
 }
 
+bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type,
+			     u32 lower, u32 upper, int *conid)
+{
+	struct tipc_subscriber *scbr;
+	struct tipc_subscr sub;
+	struct tipc_server *s;
+	struct tipc_conn *con;
+
+	sub.seq.type = type;
+	sub.seq.lower = lower;
+	sub.seq.upper = upper;
+	sub.timeout = TIPC_WAIT_FOREVER;
+	sub.filter = TIPC_SUB_PORTS;
+	*(u32 *)&sub.usr_handle = port;
+
+	con = tipc_alloc_conn(tipc_topsrv(net));
+	if (IS_ERR(con))
+		return false;
+
+	*conid = con->conid;
+	s = con->server;
+	scbr = s->tipc_conn_new(*conid);
+	if (!scbr) {
+		tipc_close_conn(con);
+		return false;
+	}
+
+	con->usr_data = scbr;
+	con->sock = NULL;
+	s->tipc_conn_recvmsg(net, *conid, NULL, scbr, &sub, sizeof(sub));
+	return true;
+}
+
+void tipc_topsrv_kern_unsubscr(struct net *net, int conid)
+{
+	struct tipc_conn *con;
+
+	con = tipc_conn_lookup(tipc_topsrv(net), conid);
+	if (!con)
+		return;
+	tipc_close_conn(con);
+	conn_put(con);
+}
+
+static void tipc_send_kern_top_evt(struct net *net, struct tipc_event *evt)
+{
+	u32 port = *(u32 *)&evt->s.usr_handle;
+	u32 self = tipc_own_addr(net);
+	struct sk_buff_head evtq;
+	struct sk_buff *skb;
+
+	skb = tipc_msg_create(TOP_SRV, 0, INT_H_SIZE, sizeof(*evt),
+			      self, self, port, port, 0);
+	if (!skb)
+		return;
+	msg_set_dest_droppable(buf_msg(skb), true);
+	memcpy(msg_data(buf_msg(skb)), evt, sizeof(*evt));
+	skb_queue_head_init(&evtq);
+	__skb_queue_tail(&evtq, skb);
+	tipc_sk_rcv(net, &evtq);
+}
+
 static void tipc_send_to_sock(struct tipc_conn *con)
 {
-	int count = 0;
 	struct tipc_server *s = con->server;
 	struct outqueue_entry *e;
+	struct tipc_event *evt;
 	struct msghdr msg;
+	int count = 0;
 	int ret;
 
 	spin_lock_bh(&con->outqueue_lock);
 	while (test_bit(CF_CONNECTED, &con->flags)) {
-		e = list_entry(con->outqueue.next, struct outqueue_entry,
-			       list);
+		e = list_entry(con->outqueue.next, struct outqueue_entry, list);
 		if ((struct list_head *) e == &con->outqueue)
 			break;
+
 		spin_unlock_bh(&con->outqueue_lock);
 
-		memset(&msg, 0, sizeof(msg));
-		msg.msg_flags = MSG_DONTWAIT;
-
-		if (s->type == SOCK_DGRAM || s->type == SOCK_RDM) {
-			msg.msg_name = &e->dest;
-			msg.msg_namelen = sizeof(struct sockaddr_tipc);
+		if (con->sock) {
+			memset(&msg, 0, sizeof(msg));
+			msg.msg_flags = MSG_DONTWAIT;
+			if (s->type == SOCK_DGRAM || s->type == SOCK_RDM) {
+				msg.msg_name = &e->dest;
+				msg.msg_namelen = sizeof(struct sockaddr_tipc);
+			}
+			ret = kernel_sendmsg(con->sock, &msg, &e->iov, 1,
+					     e->iov.iov_len);
+			if (ret == -EWOULDBLOCK || ret == 0) {
+				cond_resched();
+				goto out;
+			} else if (ret < 0) {
+				goto send_err;
+			}
+		} else {
+			evt = e->iov.iov_base;
+			tipc_send_kern_top_evt(s->net, evt);
 		}
-		ret = kernel_sendmsg(con->sock, &msg, &e->iov, 1,
-				     e->iov.iov_len);
-		if (ret == -EWOULDBLOCK || ret == 0) {
-			cond_resched();
-			goto out;
-		} else if (ret < 0) {
-			goto send_err;
-		}
-
 		/* Don't starve users filling buffers */
 		if (++count >= MAX_SEND_MSG_COUNT) {
 			cond_resched();

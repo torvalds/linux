@@ -29,6 +29,7 @@ more details.
 #endif
 
 #include "system_global.h"
+#include <linux/kernel.h>
 
 #ifdef USE_INPUT_SYSTEM_VERSION_2
 
@@ -487,7 +488,7 @@ static void ifmtr_set_if_blocking_mode(
 {
 	int i;
 	bool block[] = { false, false, false, false };
-	assert(N_INPUT_FORMATTER_ID <= (sizeof(block) / sizeof(block[0])));
+	assert(N_INPUT_FORMATTER_ID <= (ARRAY_SIZE(block)));
 
 #if !defined(IS_ISP_2400_SYSTEM)
 #error "ifmtr_set_if_blocking_mode: ISP_SYSTEM must be one of {IS_ISP_2400_SYSTEM}"

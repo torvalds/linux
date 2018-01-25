@@ -38,12 +38,11 @@
 #include <linux/backing-dev.h>
 #include <linux/security.h>
 #include <linux/xattr.h>
-#ifdef CONFIG_UBIFS_FS_ENCRYPTION
-#include <linux/fscrypt_supp.h>
-#else
-#include <linux/fscrypt_notsupp.h>
-#endif
 #include <linux/random.h>
+
+#define __FS_HAS_ENCRYPTION IS_ENABLED(CONFIG_UBIFS_FS_ENCRYPTION)
+#include <linux/fscrypt.h>
+
 #include "ubifs-media.h"
 
 /* Version of this UBIFS implementation */
@@ -1835,16 +1834,11 @@ int ubifs_decrypt(const struct inode *inode, struct ubifs_data_node *dn,
 
 extern const struct fscrypt_operations ubifs_crypt_operations;
 
-static inline bool __ubifs_crypt_is_encrypted(struct inode *inode)
-{
-	struct ubifs_inode *ui = ubifs_inode(inode);
-
-	return ui->flags & UBIFS_CRYPT_FL;
-}
-
 static inline bool ubifs_crypt_is_encrypted(const struct inode *inode)
 {
-	return __ubifs_crypt_is_encrypted((struct inode *)inode);
+	const struct ubifs_inode *ui = ubifs_inode(inode);
+
+	return ui->flags & UBIFS_CRYPT_FL;
 }
 
 /* Normal UBIFS messages */

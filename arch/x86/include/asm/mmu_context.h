@@ -73,8 +73,8 @@ static inline void load_mm_ldt(struct mm_struct *mm)
 #ifdef CONFIG_MODIFY_LDT_SYSCALL
 	struct ldt_struct *ldt;
 
-	/* lockless_dereference synchronizes with smp_store_release */
-	ldt = lockless_dereference(mm->context.ldt);
+	/* READ_ONCE synchronizes with smp_store_release */
+	ldt = READ_ONCE(mm->context.ldt);
 
 	/*
 	 * Any change to mm->context.ldt is followed by an IPI to all

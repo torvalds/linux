@@ -100,8 +100,7 @@ static int mwifiex_register(void *card, struct device *dev,
 	}
 	mwifiex_init_lock_list(adapter);
 
-	setup_timer(&adapter->cmd_timer, mwifiex_cmd_timeout_func,
-		    (unsigned long)adapter);
+	timer_setup(&adapter->cmd_timer, mwifiex_cmd_timeout_func, 0);
 
 	return 0;
 

@@ -53,7 +53,7 @@ CONTENTS
      - SMP barrier pairing.
      - Examples of memory barrier sequences.
      - Read memory barriers vs load speculation.
-     - Transitivity
+     - Multicopy atomicity.
 
  (*) Explicit kernel barriers.
 
@@ -383,8 +383,8 @@ Memory barriers come in four basic varieties:
      to have any effect on loads.
 
      A CPU can be viewed as committing a sequence of store operations to the
-     memory system as time progresses.  All stores before a write barrier will
-     occur in the sequence _before_ all the stores after the write barrier.
+     memory system as time progresses.  All stores _before_ a write barrier
+     will occur _before_ all the stores after the write barrier.
 
      [!] Note that write barriers should normally be paired with read or data
      dependency barriers; see the "SMP barrier pairing" subsection.
@@ -635,6 +635,11 @@ can be used to record rare error conditions and the like, and the CPUs'
 naturally occurring ordering prevents such records from being lost.
 
 
+Note well that the ordering provided by a data dependency is local to
+the CPU containing it.  See the section on "Multicopy atomicity" for
+more information.
+
+
 The data dependency barrier is very important to the RCU system,
 for example.  See rcu_assign_pointer() and rcu_dereference() in
 include/linux/rcupdate.h.  This permits the current target of an RCU'd
@@ -851,38 +856,11 @@ In short, control dependencies apply only to the stores in the then-clause
 and else-clause of the if-statement in question (including functions
 invoked by those two clauses), not to code following that if-statement.
 
-Finally, control dependencies do -not- provide transitivity.  This is
-demonstrated by two related examples, with the initial values of
-'x' and 'y' both being zero:
 
-	CPU 0                     CPU 1
-	=======================   =======================
-	r1 = READ_ONCE(x);        r2 = READ_ONCE(y);
-	if (r1 > 0)               if (r2 > 0)
-	  WRITE_ONCE(y, 1);         WRITE_ONCE(x, 1);
+Note well that the ordering provided by a control dependency is local
+to the CPU containing it.  See the section on "Multicopy atomicity"
+for more information.
 
-	assert(!(r1 == 1 && r2 == 1));
-
-The above two-CPU example will never trigger the assert().  However,
-if control dependencies guaranteed transitivity (which they do not),
-then adding the following CPU would guarantee a related assertion:
-
-	CPU 2
-	=====================
-	WRITE_ONCE(x, 2);
-
-	assert(!(r1 == 2 && r2 == 1 && x == 2)); /* FAILS!!! */
-
-But because control dependencies do -not- provide transitivity, the above
-assertion can fail after the combined three-CPU example completes.  If you
-need the three-CPU example to provide ordering, you will need smp_mb()
-between the loads and stores in the CPU 0 and CPU 1 code fragments,
-that is, just before or just after the "if" statements.  Furthermore,
-the original two-CPU example is very fragile and should be avoided.
-
-These two examples are the LB and WWC litmus tests from this paper:
-http://www.cl.cam.ac.uk/users/pes20/ppc-supplemental/test6.pdf and this
-site: https://www.cl.cam.ac.uk/~pes20/ppcmem/index.html.
 
 In summary:
 
@@ -922,8 +900,8 @@ In summary:
 
   (*) Control dependencies pair normally with other types of barriers.
 
-  (*) Control dependencies do -not- provide transitivity.  If you
-      need transitivity, use smp_mb().
+  (*) Control dependencies do -not- provide multicopy atomicity.  If you
+      need all the CPUs to see a given store at the same time, use smp_mb().
 
   (*) Compilers do not understand control dependencies.  It is therefore
       your job to ensure that they do not break your code.
@@ -936,13 +914,14 @@ When dealing with CPU-CPU interactions, certain types of memory barrier should
 always be paired.  A lack of appropriate pairing is almost certainly an error.
 
 General barriers pair with each other, though they also pair with most
-other types of barriers, albeit without transitivity.  An acquire barrier
-pairs with a release barrier, but both may also pair with other barriers,
-including of course general barriers.  A write barrier pairs with a data
-dependency barrier, a control dependency, an acquire barrier, a release
-barrier, a read barrier, or a general barrier.  Similarly a read barrier,
-control dependency, or a data dependency barrier pairs with a write
-barrier, an acquire barrier, a release barrier, or a general barrier:
+other types of barriers, albeit without multicopy atomicity.  An acquire
+barrier pairs with a release barrier, but both may also pair with other
+barriers, including of course general barriers.  A write barrier pairs
+with a data dependency barrier, a control dependency, an acquire barrier,
+a release barrier, a read barrier, or a general barrier.  Similarly a
+read barrier, control dependency, or a data dependency barrier pairs
+with a write barrier, an acquire barrier, a release barrier, or a
+general barrier:
 
 	CPU 1		      CPU 2
 	===============	      ===============
@@ -968,7 +947,7 @@ Or even:
 	===============	      ===============================
 	r1 = READ_ONCE(y);
 	<general barrier>
-	WRITE_ONCE(y, 1);     if (r2 = READ_ONCE(x)) {
+	WRITE_ONCE(x, 1);     if (r2 = READ_ONCE(x)) {
 			         <implicit control dependency>
 			         WRITE_ONCE(y, 1);
 			      }
@@ -1359,64 +1338,79 @@ the speculation will be cancelled and the value reloaded:
 	retrieved                               :       :       +-------+
 
 
-TRANSITIVITY
-------------
+MULTICOPY ATOMICITY
+--------------------
 
-Transitivity is a deeply intuitive notion about ordering that is not
-always provided by real computer systems.  The following example
-demonstrates transitivity:
+Multicopy atomicity is a deeply intuitive notion about ordering that is
+not always provided by real computer systems, namely that a given store
+becomes visible at the same time to all CPUs, or, alternatively, that all
+CPUs agree on the order in which all stores become visible.  However,
+support of full multicopy atomicity would rule out valuable hardware
+optimizations, so a weaker form called ``other multicopy atomicity''
+instead guarantees only that a given store becomes visible at the same
+time to all -other- CPUs.  The remainder of this document discusses this
+weaker form, but for brevity will call it simply ``multicopy atomicity''.
+
+The following example demonstrates multicopy atomicity:
 
 	CPU 1			CPU 2			CPU 3
 	=======================	=======================	=======================
 		{ X = 0, Y = 0 }
-	STORE X=1		LOAD X			STORE Y=1
-				<general barrier>	<general barrier>
-				LOAD Y			LOAD X
+	STORE X=1		r1=LOAD X (reads 1)	LOAD Y (reads 1)
+				<general barrier>	<read barrier>
+				STORE Y=r1		LOAD X
 
-Suppose that CPU 2's load from X returns 1 and its load from Y returns 0.
-This indicates that CPU 2's load from X in some sense follows CPU 1's
-store to X and that CPU 2's load from Y in some sense preceded CPU 3's
-store to Y.  The question is then "Can CPU 3's load from X return 0?"
+Suppose that CPU 2's load from X returns 1, which it then stores to Y,
+and CPU 3's load from Y returns 1.  This indicates that CPU 1's store
+to X precedes CPU 2's load from X and that CPU 2's store to Y precedes
+CPU 3's load from Y.  In addition, the memory barriers guarantee that
+CPU 2 executes its load before its store, and CPU 3 loads from Y before
+it loads from X.  The question is then "Can CPU 3's load from X return 0?"
 
-Because CPU 2's load from X in some sense came after CPU 1's store, it
+Because CPU 3's load from X in some sense comes after CPU 2's load, it
 is natural to expect that CPU 3's load from X must therefore return 1.
-This expectation is an example of transitivity: if a load executing on
-CPU A follows a load from the same variable executing on CPU B, then
-CPU A's load must either return the same value that CPU B's load did,
-or must return some later value.
+This expectation follows from multicopy atomicity: if a load executing
+on CPU B follows a load from the same variable executing on CPU A (and
+CPU A did not originally store the value which it read), then on
+multicopy-atomic systems, CPU B's load must return either the same value
+that CPU A's load did or some later value.  However, the Linux kernel
+does not require systems to be multicopy atomic.
 
-In the Linux kernel, use of general memory barriers guarantees
-transitivity.  Therefore, in the above example, if CPU 2's load from X
-returns 1 and its load from Y returns 0, then CPU 3's load from X must
-also return 1.
+The use of a general memory barrier in the example above compensates
+for any lack of multicopy atomicity.  In the example, if CPU 2's load
+from X returns 1 and CPU 3's load from Y returns 1, then CPU 3's load
+from X must indeed also return 1.
 
-However, transitivity is -not- guaranteed for read or write barriers.
-For example, suppose that CPU 2's general barrier in the above example
-is changed to a read barrier as shown below:
+However, dependencies, read barriers, and write barriers are not always
+able to compensate for non-multicopy atomicity.  For example, suppose
+that CPU 2's general barrier is removed from the above example, leaving
+only the data dependency shown below:
 
 	CPU 1			CPU 2			CPU 3
 	=======================	=======================	=======================
 		{ X = 0, Y = 0 }
-	STORE X=1		LOAD X			STORE Y=1
-				<read barrier>		<general barrier>
-				LOAD Y			LOAD X
+	STORE X=1		r1=LOAD X (reads 1)	LOAD Y (reads 1)
+				<data dependency>	<read barrier>
+				STORE Y=r1		LOAD X (reads 0)
 
-This substitution destroys transitivity: in this example, it is perfectly
-legal for CPU 2's load from X to return 1, its load from Y to return 0,
-and CPU 3's load from X to return 0.
+This substitution allows non-multicopy atomicity to run rampant: in
+this example, it is perfectly legal for CPU 2's load from X to return 1,
+CPU 3's load from Y to return 1, and its load from X to return 0.
 
-The key point is that although CPU 2's read barrier orders its pair
-of loads, it does not guarantee to order CPU 1's store.  Therefore, if
-this example runs on a system where CPUs 1 and 2 share a store buffer
-or a level of cache, CPU 2 might have early access to CPU 1's writes.
-General barriers are therefore required to ensure that all CPUs agree
-on the combined order of CPU 1's and CPU 2's accesses.
+The key point is that although CPU 2's data dependency orders its load
+and store, it does not guarantee to order CPU 1's store.  Thus, if this
+example runs on a non-multicopy-atomic system where CPUs 1 and 2 share a
+store buffer or a level of cache, CPU 2 might have early access to CPU 1's
+writes.  General barriers are therefore required to ensure that all CPUs
+agree on the combined order of multiple accesses.
 
-General barriers provide "global transitivity", so that all CPUs will
-agree on the order of operations.  In contrast, a chain of release-acquire
-pairs provides only "local transitivity", so that only those CPUs on
-the chain are guaranteed to agree on the combined order of the accesses.
-For example, switching to C code in deference to Herman Hollerith:
+General barriers can compensate not only for non-multicopy atomicity,
+but can also generate additional ordering that can ensure that -all-
+CPUs will perceive the same order of -all- operations.  In contrast, a
+chain of release-acquire pairs do not provide this additional ordering,
+which means that only those CPUs on the chain are guaranteed to agree
+on the combined order of the accesses.  For example, switching to C code
+in deference to the ghost of Herman Hollerith:
 
 	int u, v, x, y, z;
 
@@ -1448,9 +1442,9 @@ For example, switching to C code in deference to Herman Hollerith:
 		r3 = READ_ONCE(u);
 	}
 
-Because cpu0(), cpu1(), and cpu2() participate in a local transitive
-chain of smp_store_release()/smp_load_acquire() pairs, the following
-outcome is prohibited:
+Because cpu0(), cpu1(), and cpu2() participate in a chain of
+smp_store_release()/smp_load_acquire() pairs, the following outcome
+is prohibited:
 
 	r0 == 1 && r1 == 1 && r2 == 1
 
@@ -1460,9 +1454,9 @@ outcome is prohibited:
 
 	r1 == 1 && r5 == 0
 
-However, the transitivity of release-acquire is local to the participating
-CPUs and does not apply to cpu3().  Therefore, the following outcome
-is possible:
+However, the ordering provided by a release-acquire chain is local
+to the CPUs participating in that chain and does not apply to cpu3(),
+at least aside from stores.  Therefore, the following outcome is possible:
 
 	r0 == 0 && r1 == 1 && r2 == 1 && r3 == 0 && r4 == 0
 
@@ -1490,8 +1484,8 @@ following outcome is possible:
 Note that this outcome can happen even on a mythical sequentially
 consistent system where nothing is ever reordered.
 
-To reiterate, if your code requires global transitivity, use general
-barriers throughout.
+To reiterate, if your code requires full ordering of all operations,
+use general barriers throughout.
 
 
 ========================
@@ -1884,18 +1878,6 @@ There are some more advanced barrier functions:
      *before* the reference counter is decremented.
 
      See Documentation/atomic_{t,bitops}.txt for more information.
-
-
- (*) lockless_dereference();
-
-     This can be thought of as a pointer-fetch wrapper around the
-     smp_read_barrier_depends() data-dependency barrier.
-
-     This is also similar to rcu_dereference(), but in cases where
-     object lifetime is handled by some mechanism other than RCU, for
-     example, when the objects removed only when the system goes down.
-     In addition, lockless_dereference() is used in some data structures
-     that can be used both with and without RCU.
 
 
  (*) dma_wmb();
@@ -3101,6 +3083,9 @@ AMD64 Architecture Programmer's Manual Volume 2: System Programming
 	Chapter 7.1: Memory-Access Ordering
 	Chapter 7.4: Buffering and Combining Memory Writes
 
+ARM Architecture Reference Manual (ARMv8, for ARMv8-A architecture profile)
+	Chapter B2: The AArch64 Application Level Memory Model
+
 IA-32 Intel Architecture Software Developer's Manual, Volume 3:
 System Programming Guide
 	Chapter 7.1: Locked Atomic Operations
@@ -3111,6 +3096,8 @@ The SPARC Architecture Manual, Version 9
 	Chapter 8: Memory Models
 	Appendix D: Formal Specification of the Memory Models
 	Appendix J: Programming with the Memory Models
+
+Storage in the PowerPC (Stone and Fitzgerald)
 
 UltraSPARC Programmer Reference Manual
 	Chapter 5: Memory Accesses and Cacheability

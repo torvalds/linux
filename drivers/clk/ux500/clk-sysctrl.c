@@ -139,11 +139,9 @@ static struct clk *clk_reg_sysctrl(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	clk = devm_kzalloc(dev, sizeof(struct clk_sysctrl), GFP_KERNEL);
-	if (!clk) {
-		dev_err(dev, "clk_sysctrl: could not allocate clk\n");
+	clk = devm_kzalloc(dev, sizeof(*clk), GFP_KERNEL);
+	if (!clk)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	/* set main clock registers */
 	clk->reg_sel[0] = reg_sel[0];

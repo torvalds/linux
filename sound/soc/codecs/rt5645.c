@@ -3346,9 +3346,9 @@ static irqreturn_t rt5645_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void rt5645_btn_check_callback(unsigned long data)
+static void rt5645_btn_check_callback(struct timer_list *t)
 {
-	struct rt5645_priv *rt5645 = (struct rt5645_priv *)data;
+	struct rt5645_priv *rt5645 = from_timer(rt5645, t, btn_check_timer);
 
 	queue_delayed_work(system_power_efficient_wq,
 		   &rt5645->jack_detect_work, msecs_to_jiffies(5));
@@ -3954,8 +3954,7 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
 			RT5645_JD_1_1_MASK, RT5645_JD_1_1_INV);
 	}
-	setup_timer(&rt5645->btn_check_timer,
-		rt5645_btn_check_callback, (unsigned long)rt5645);
+	timer_setup(&rt5645->btn_check_timer, rt5645_btn_check_callback, 0);
 
 	INIT_DELAYED_WORK(&rt5645->jack_detect_work, rt5645_jack_detect_work);
 	INIT_DELAYED_WORK(&rt5645->rcclock_work, rt5645_rcclock_work);

@@ -53,8 +53,6 @@ static inline void dsb_sev(void)
  * memory.
  */
 
-#define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
-
 static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
 	unsigned long tmp;
@@ -74,7 +72,7 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 
 	while (lockval.tickets.next != lockval.tickets.owner) {
 		wfe();
-		lockval.tickets.owner = ACCESS_ONCE(lock->tickets.owner);
+		lockval.tickets.owner = READ_ONCE(lock->tickets.owner);
 	}
 
 	smp_mb();
@@ -194,9 +192,6 @@ static inline void arch_write_unlock(arch_rwlock_t *rw)
 	dsb_sev();
 }
 
-/* write_can_lock - would write_trylock() succeed? */
-#define arch_write_can_lock(x)		(ACCESS_ONCE((x)->lock) == 0)
-
 /*
  * Read locks are a bit more hairy:
  *  - Exclusively load the lock value.
@@ -273,15 +268,5 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 		return 0;
 	}
 }
-
-/* read_can_lock - would read_trylock() succeed? */
-#define arch_read_can_lock(x)		(ACCESS_ONCE((x)->lock) < 0x80000000)
-
-#define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
-#define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
-
-#define arch_spin_relax(lock)	cpu_relax()
-#define arch_read_relax(lock)	cpu_relax()
-#define arch_write_relax(lock)	cpu_relax()
 
 #endif /* __ASM_SPINLOCK_H */

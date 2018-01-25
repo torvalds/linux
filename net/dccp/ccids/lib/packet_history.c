@@ -149,10 +149,8 @@ static void tfrc_rx_hist_swap(struct tfrc_rx_hist *h, const u8 a, const u8 b)
 {
 	const u8 idx_a = tfrc_rx_hist_index(h, a),
 		 idx_b = tfrc_rx_hist_index(h, b);
-	struct tfrc_rx_hist_entry *tmp = h->ring[idx_a];
 
-	h->ring[idx_a] = h->ring[idx_b];
-	h->ring[idx_b] = tmp;
+	swap(h->ring[idx_a], h->ring[idx_b]);
 }
 
 /*

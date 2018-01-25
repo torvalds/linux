@@ -661,9 +661,8 @@ static int ctrl_slot_setup(struct controller *ctrl,
 
 		slot->p_sm_slot = slot_entry;
 
-		init_timer(&slot->task_event);
+		timer_setup(&slot->task_event, cpqhp_pushbutton_thread, 0);
 		slot->task_event.expires = jiffies + 5 * HZ;
-		slot->task_event.function = cpqhp_pushbutton_thread;
 
 		/*FIXME: these capabilities aren't used but if they are
 		 *	 they need to be correctly implemented

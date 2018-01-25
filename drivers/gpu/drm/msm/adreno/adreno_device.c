@@ -125,49 +125,22 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = priv->gpu_pdev;
-	struct adreno_platform_config *config;
-	struct adreno_rev rev;
-	const struct adreno_info *info;
-	struct msm_gpu *gpu = NULL;
+	struct msm_gpu *gpu = platform_get_drvdata(priv->gpu_pdev);
+	int ret;
 
-	if (!pdev) {
+	if (!gpu) {
 		dev_err(dev->dev, "no adreno device\n");
 		return NULL;
 	}
 
-	config = pdev->dev.platform_data;
-	rev = config->rev;
-	info = adreno_info(config->rev);
-
-	if (!info) {
-		dev_warn(dev->dev, "Unknown GPU revision: %u.%u.%u.%u\n",
-				rev.core, rev.major, rev.minor, rev.patchid);
+	pm_runtime_get_sync(&pdev->dev);
+	mutex_lock(&dev->struct_mutex);
+	ret = msm_gpu_hw_init(gpu);
+	mutex_unlock(&dev->struct_mutex);
+	pm_runtime_put_sync(&pdev->dev);
+	if (ret) {
+		dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
 		return NULL;
-	}
-
-	DBG("Found GPU: %u.%u.%u.%u",  rev.core, rev.major,
-			rev.minor, rev.patchid);
-
-	gpu = info->init(dev);
-	if (IS_ERR(gpu)) {
-		dev_warn(dev->dev, "failed to load adreno gpu\n");
-		gpu = NULL;
-		/* not fatal */
-	}
-
-	if (gpu) {
-		int ret;
-
-		pm_runtime_get_sync(&pdev->dev);
-		mutex_lock(&dev->struct_mutex);
-		ret = msm_gpu_hw_init(gpu);
-		mutex_unlock(&dev->struct_mutex);
-		pm_runtime_put_sync(&pdev->dev);
-		if (ret) {
-			dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
-			gpu->funcs->destroy(gpu);
-			gpu = NULL;
-		}
 	}
 
 	return gpu;
@@ -282,6 +255,9 @@ static int adreno_get_pwrlevels(struct device *dev,
 static int adreno_bind(struct device *dev, struct device *master, void *data)
 {
 	static struct adreno_platform_config config = {};
+	const struct adreno_info *info;
+	struct drm_device *drm = dev_get_drvdata(master);
+	struct msm_gpu *gpu;
 	u32 val;
 	int ret;
 
@@ -302,13 +278,39 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 
 	dev->platform_data = &config;
-	set_gpu_pdev(dev_get_drvdata(master), to_platform_device(dev));
+	set_gpu_pdev(drm, to_platform_device(dev));
+
+	info = adreno_info(config.rev);
+
+	if (!info) {
+		dev_warn(drm->dev, "Unknown GPU revision: %u.%u.%u.%u\n",
+			config.rev.core, config.rev.major,
+			config.rev.minor, config.rev.patchid);
+		return -ENXIO;
+	}
+
+	DBG("Found GPU: %u.%u.%u.%u", config.rev.core, config.rev.major,
+		config.rev.minor, config.rev.patchid);
+
+	gpu = info->init(drm);
+	if (IS_ERR(gpu)) {
+		dev_warn(drm->dev, "failed to load adreno gpu\n");
+		return PTR_ERR(gpu);
+	}
+
+	dev_set_drvdata(dev, gpu);
+
 	return 0;
 }
 
 static void adreno_unbind(struct device *dev, struct device *master,
 		void *data)
 {
+	struct msm_gpu *gpu = dev_get_drvdata(dev);
+
+	gpu->funcs->pm_suspend(gpu);
+	gpu->funcs->destroy(gpu);
+
 	set_gpu_pdev(dev_get_drvdata(master), NULL);
 }
 

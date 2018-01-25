@@ -59,7 +59,7 @@ syscon: syscon@10000000 {
 	compatible = "syscon";
 	reg = <0x10000000 0x1000>;
 
-	oscclk0: osc0@0c {
+	oscclk0: osc0@c {
 		compatible = "arm,syscon-icst307";
 		#clock-cells = <0>;
 		lock-offset = <0x20>;

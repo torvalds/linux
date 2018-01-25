@@ -221,7 +221,7 @@ static int qmimux_register_device(struct net_device *real_dev, u8 mux_id)
 	/* Account for reference in struct qmimux_priv_priv */
 	dev_hold(real_dev);
 
-	err = netdev_upper_dev_link(real_dev, new_dev);
+	err = netdev_upper_dev_link(real_dev, new_dev, NULL);
 	if (err)
 		goto out_unregister_netdev;
 
@@ -499,6 +499,7 @@ static int qmi_wwan_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		return 1;
 	}
 	if (rawip) {
+		skb_reset_mac_header(skb);
 		skb->dev = dev->net; /* normally set by eth_type_trans */
 		skb->protocol = proto;
 		return 1;
@@ -681,7 +682,7 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 	}
 
 	/* errors aren't fatal - we can live with the dynamic address */
-	if (cdc_ether) {
+	if (cdc_ether && cdc_ether->wMaxSegmentSize) {
 		dev->hard_mtu = le16_to_cpu(cdc_ether->wMaxSegmentSize);
 		usbnet_get_ethernet_addr(dev, cdc_ether->iMACAddress);
 	}
@@ -1238,6 +1239,7 @@ static const struct usb_device_id products[] = {
 	{QMI_FIXED_INTF(0x1e0e, 0x9001, 5)},	/* SIMCom 7230E */
 	{QMI_QUIRK_SET_DTR(0x2c7c, 0x0125, 4)},	/* Quectel EC25, EC20 R2.0  Mini PCIe */
 	{QMI_QUIRK_SET_DTR(0x2c7c, 0x0121, 4)},	/* Quectel EC21 Mini PCIe */
+	{QMI_FIXED_INTF(0x2c7c, 0x0296, 4)},	/* Quectel BG96 */
 
 	/* 4. Gobi 1000 devices */
 	{QMI_GOBI1K_DEVICE(0x05c6, 0x9212)},	/* Acer Gobi Modem Device */

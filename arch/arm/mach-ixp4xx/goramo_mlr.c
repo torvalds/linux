@@ -7,7 +7,6 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/hdlc.h>
-#include <linux/i2c-gpio.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -79,6 +78,12 @@
 static u32 hw_bits = 0xFFFFFFFD;    /* assume all hardware present */;
 static u8 control_value;
 
+/*
+ * FIXME: this is reimplementing I2C bit-bangining. Move this
+ * over to using driver/i2c/busses/i2c-gpio.c like all other boards
+ * and register proper I2C device(s) on the bus for this. (See
+ * other IXP4xx boards for examples.)
+ */
 static void set_scl(u8 value)
 {
 	gpio_set_value(GPIO_SCL, !!value);
@@ -216,20 +221,6 @@ static struct platform_device device_flash = {
 	.num_resources	= 1,
 	.resource	= &flash_resource,
 };
-
-
-/* I^2C interface */
-static struct i2c_gpio_platform_data i2c_data = {
-	.sda_pin	= GPIO_SDA,
-	.scl_pin	= GPIO_SCL,
-};
-
-static struct platform_device device_i2c = {
-	.name		= "i2c-gpio",
-	.id		= 0,
-	.dev		= { .platform_data = &i2c_data },
-};
-
 
 /* IXP425 2 UART ports */
 static struct resource uart_resources[] = {
@@ -411,9 +402,6 @@ static void __init gmlr_init(void)
 		device_tab[devices++] = &device_hss_tab[0]; /* max index 4 */
 	if (hw_bits & CFG_HW_HAS_HSS1)
 		device_tab[devices++] = &device_hss_tab[1]; /* max index 5 */
-
-	if (hw_bits & CFG_HW_HAS_EEPROM)
-		device_tab[devices++] = &device_i2c; /* max index 6 */
 
 	gpio_request(GPIO_SCL, "SCL/clock");
 	gpio_request(GPIO_SDA, "SDA/data");

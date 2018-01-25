@@ -1,5 +1,0 @@
-What:		/proc/sys/vm/nr_pdflush_threads
-Date:		June 2012
-Contact:	Wanpeng Li <liwp@linux.vnet.ibm.com>
-Description: Since pdflush is replaced by per-BDI flusher, the interface of old pdflush
-             exported in /proc/sys/vm/ should be removed.

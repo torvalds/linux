@@ -1326,12 +1326,22 @@ static int kvm_arch_vcpu_ioctl_set_sregs_pr(struct kvm_vcpu *vcpu,
 	kvmppc_set_pvr_pr(vcpu, sregs->pvr);
 
 	vcpu3s->sdr1 = sregs->u.s.sdr1;
+#ifdef CONFIG_PPC_BOOK3S_64
 	if (vcpu->arch.hflags & BOOK3S_HFLAG_SLB) {
+		/* Flush all SLB entries */
+		vcpu->arch.mmu.slbmte(vcpu, 0, 0);
+		vcpu->arch.mmu.slbia(vcpu);
+
 		for (i = 0; i < 64; i++) {
-			vcpu->arch.mmu.slbmte(vcpu, sregs->u.s.ppc64.slb[i].slbv,
-						    sregs->u.s.ppc64.slb[i].slbe);
+			u64 rb = sregs->u.s.ppc64.slb[i].slbe;
+			u64 rs = sregs->u.s.ppc64.slb[i].slbv;
+
+			if (rb & SLB_ESID_V)
+				vcpu->arch.mmu.slbmte(vcpu, rs, rb);
 		}
-	} else {
+	} else
+#endif
+	{
 		for (i = 0; i < 16; i++) {
 			vcpu->arch.mmu.mtsrin(vcpu, i, sregs->u.s.ppc32.sr[i]);
 		}

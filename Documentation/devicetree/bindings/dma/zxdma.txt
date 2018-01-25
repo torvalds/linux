@@ -26,7 +26,7 @@ Controller:
 Client:
 Use specific request line passing from dmax
 For example, spdif0 tx channel request line is 4
-	spdif0: spdif0@0b004000 {
+	spdif0: spdif0@b004000 {
 		#sound-dai-cells = <0>;
 		compatible = "zte,zx296702-spdif";
 		reg = <0x0b004000 0x1000>;

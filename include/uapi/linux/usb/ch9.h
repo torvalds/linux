@@ -144,6 +144,10 @@
 #define	TEST_PACKET	4
 #define	TEST_FORCE_EN	5
 
+/* Status Type */
+#define USB_STATUS_TYPE_STANDARD	0
+#define USB_STATUS_TYPE_PTM		1
+
 /*
  * New Feature Selectors as added by USB 3.0
  * See USB 3.0 spec Table 9-7

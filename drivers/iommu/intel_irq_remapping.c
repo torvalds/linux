@@ -1122,6 +1122,24 @@ struct irq_remap_ops intel_irq_remap_ops = {
 	.get_irq_domain		= intel_get_irq_domain,
 };
 
+static void intel_ir_reconfigure_irte(struct irq_data *irqd, bool force)
+{
+	struct intel_ir_data *ir_data = irqd->chip_data;
+	struct irte *irte = &ir_data->irte_entry;
+	struct irq_cfg *cfg = irqd_cfg(irqd);
+
+	/*
+	 * Atomically updates the IRTE with the new destination, vector
+	 * and flushes the interrupt entry cache.
+	 */
+	irte->vector = cfg->vector;
+	irte->dest_id = IRTE_DEST(cfg->dest_apicid);
+
+	/* Update the hardware only if the interrupt is in remapped mode. */
+	if (!force || ir_data->irq_2_iommu.mode == IRQ_REMAPPING)
+		modify_irte(&ir_data->irq_2_iommu, irte);
+}
+
 /*
  * Migrate the IO-APIC irq in the presence of intr-remapping.
  *
@@ -1140,27 +1158,15 @@ static int
 intel_ir_set_affinity(struct irq_data *data, const struct cpumask *mask,
 		      bool force)
 {
-	struct intel_ir_data *ir_data = data->chip_data;
-	struct irte *irte = &ir_data->irte_entry;
-	struct irq_cfg *cfg = irqd_cfg(data);
 	struct irq_data *parent = data->parent_data;
+	struct irq_cfg *cfg = irqd_cfg(data);
 	int ret;
 
 	ret = parent->chip->irq_set_affinity(parent, mask, force);
 	if (ret < 0 || ret == IRQ_SET_MASK_OK_DONE)
 		return ret;
 
-	/*
-	 * Atomically updates the IRTE with the new destination, vector
-	 * and flushes the interrupt entry cache.
-	 */
-	irte->vector = cfg->vector;
-	irte->dest_id = IRTE_DEST(cfg->dest_apicid);
-
-	/* Update the hardware only if the interrupt is in remapped mode. */
-	if (ir_data->irq_2_iommu.mode == IRQ_REMAPPING)
-		modify_irte(&ir_data->irq_2_iommu, irte);
-
+	intel_ir_reconfigure_irte(data, false);
 	/*
 	 * After this point, all the interrupts will start arriving
 	 * at the new destination. So, time to cleanup the previous
@@ -1390,12 +1396,11 @@ static void intel_irq_remapping_free(struct irq_domain *domain,
 	irq_domain_free_irqs_common(domain, virq, nr_irqs);
 }
 
-static void intel_irq_remapping_activate(struct irq_domain *domain,
-					 struct irq_data *irq_data)
+static int intel_irq_remapping_activate(struct irq_domain *domain,
+					struct irq_data *irq_data, bool early)
 {
-	struct intel_ir_data *data = irq_data->chip_data;
-
-	modify_irte(&data->irq_2_iommu, &data->irte_entry);
+	intel_ir_reconfigure_irte(irq_data, true);
+	return 0;
 }
 
 static void intel_irq_remapping_deactivate(struct irq_domain *domain,

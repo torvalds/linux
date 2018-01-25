@@ -217,7 +217,7 @@ SYSCALL_DEFINE3(fstatfs64, unsigned int, fd, size_t, sz, struct statfs64 __user 
 	return error;
 }
 
-int vfs_ustat(dev_t dev, struct kstatfs *sbuf)
+static int vfs_ustat(dev_t dev, struct kstatfs *sbuf)
 {
 	struct super_block *s = user_get_super(dev);
 	int err;

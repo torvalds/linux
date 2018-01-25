@@ -652,7 +652,7 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 				return -1;
 		} else if (info.control.vif->type == NL80211_IFTYPE_STATION &&
 			   is_multicast_ether_addr(hdr->addr1)) {
-			u8 ap_sta_id = ACCESS_ONCE(mvmvif->ap_sta_id);
+			u8 ap_sta_id = READ_ONCE(mvmvif->ap_sta_id);
 
 			if (ap_sta_id != IWL_MVM_INVALID_STA)
 				sta_id = ap_sta_id;
@@ -700,7 +700,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	snap_ip_tcp = 8 + skb_transport_header(skb) - skb_network_header(skb) +
 		tcp_hdrlen(skb);
 
-	dbg_max_amsdu_len = ACCESS_ONCE(mvm->max_amsdu_len);
+	dbg_max_amsdu_len = READ_ONCE(mvm->max_amsdu_len);
 
 	if (!sta->max_amsdu_len ||
 	    !ieee80211_is_data_qos(hdr->frame_control) ||
@@ -1594,8 +1594,7 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 		mvmsta->tid_data[tid].tx_time =
 			le16_to_cpu(tx_resp->wireless_media_time);
 		mvmsta->tid_data[tid].lq_color =
-			(tx_resp->tlc_info & TX_RES_RATE_TABLE_COLOR_MSK) >>
-			TX_RES_RATE_TABLE_COLOR_POS;
+			TX_RES_RATE_TABLE_COL_GET(tx_resp->tlc_info);
 	}
 
 	rcu_read_unlock();
@@ -1746,6 +1745,7 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	if (iwl_mvm_has_new_tx_api(mvm)) {
 		struct iwl_mvm_compressed_ba_notif *ba_res =
 			(void *)pkt->data;
+		u8 lq_color = TX_RES_RATE_TABLE_COL_GET(ba_res->tlc_rate_info);
 		int i;
 
 		sta_id = ba_res->sta_id;
@@ -1759,11 +1759,18 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		if (!le16_to_cpu(ba_res->tfd_cnt))
 			goto out;
 
+		rcu_read_lock();
+
+		mvmsta = iwl_mvm_sta_from_staid_rcu(mvm, sta_id);
+		if (!mvmsta)
+			goto out_unlock;
+
 		/* Free per TID */
 		for (i = 0; i < le16_to_cpu(ba_res->tfd_cnt); i++) {
 			struct iwl_mvm_compressed_ba_tfd *ba_tfd =
 				&ba_res->tfd[i];
 
+			mvmsta->tid_data[i].lq_color = lq_color;
 			iwl_mvm_tx_reclaim(mvm, sta_id, ba_tfd->tid,
 					   (int)(le16_to_cpu(ba_tfd->q_num)),
 					   le16_to_cpu(ba_tfd->tfd_index),
@@ -1771,6 +1778,8 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 					   le32_to_cpu(ba_res->tx_rate));
 		}
 
+out_unlock:
+		rcu_read_unlock();
 out:
 		IWL_DEBUG_TX_REPLY(mvm,
 				   "BA_NOTIFICATION Received from sta_id = %d, flags %x, sent:%d, acked:%d\n",

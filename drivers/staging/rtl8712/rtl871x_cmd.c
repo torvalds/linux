@@ -899,9 +899,10 @@ void r8712_createbss_cmd_callback(struct _adapter *padapter,
 			if (!pwlan)
 				goto createbss_cmd_fail;
 			pwlan->last_scanned = jiffies;
-		} else
+		} else {
 			list_add_tail(&(pwlan->list),
 					 &pmlmepriv->scanned_queue.queue);
+		}
 		pnetwork->Length = r8712_get_wlan_bssid_ex_sz(pnetwork);
 		memcpy(&(pwlan->network), pnetwork, pnetwork->Length);
 		pwlan->fixed = true;

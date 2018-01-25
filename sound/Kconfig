@@ -3,25 +3,7 @@ menuconfig SOUND
 	depends on HAS_IOMEM
 	help
 	  If you have a sound card in your computer, i.e. if it can say more
-	  than an occasional beep, say Y.  Be sure to have all the information
-	  about your sound card and its configuration down (I/O port,
-	  interrupt and DMA channel), because you will be asked for it.
-
-	  You want to read the Sound-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>. General information about
-	  the modular sound system is contained in the files
-	  <file:Documentation/sound/oss/Introduction>.  The file
-	  <file:Documentation/sound/oss/README.OSS> contains some slightly
-	  outdated but still useful information as well.  Newer sound
-	  driver documentation is found in <file:Documentation/sound/alsa/*>.
-
-	  If you have a PnP sound card and you want to configure it at boot
-	  time using the ISA PnP tools (read
-	  <http://www.roestock.demon.co.uk/isapnptools/>), then you need to
-	  compile the sound card support as a module and load that module
-	  after the PnP configuration is finished.  To do this, choose M here
-	  and read <file:Documentation/sound/oss/README.modules>; the module
-	  will be called soundcore.
+	  than an occasional beep, say Y.
 
 if SOUND
 
@@ -115,19 +97,6 @@ source "sound/x86/Kconfig"
 source "sound/synth/Kconfig"
 
 endif # SND
-
-menuconfig SOUND_PRIME
-	tristate "Open Sound System (DEPRECATED)"
-	select SOUND_OSS_CORE
-	depends on BROKEN
-	help
-	  Say 'Y' or 'M' to enable Open Sound System drivers.
-
-if SOUND_PRIME
-
-source "sound/oss/Kconfig"
-
-endif # SOUND_PRIME
 
 endif # !UML
 

@@ -308,10 +308,8 @@ unmap_cache:
 		ctx->base.cache_sz = 0;
 	}
 free_cache:
-	if (ctx->base.cache) {
-		kfree(ctx->base.cache);
-		ctx->base.cache = NULL;
-	}
+	kfree(ctx->base.cache);
+	ctx->base.cache = NULL;
 
 unlock:
 	spin_unlock_bh(&priv->ring[ring].egress_lock);

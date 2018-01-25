@@ -50,7 +50,7 @@
 							reg = <0x0 0x7c0000>;
 						};
 
-						root@07c0000 {
+						root@7c0000 {
 							label = "root";
 							reg = <0x7c0000 0x7840000>;
 						};

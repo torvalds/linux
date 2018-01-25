@@ -118,6 +118,7 @@ static int pvrdma_init_device(struct pvrdma_dev *dev)
 	spin_lock_init(&dev->cmd_lock);
 	sema_init(&dev->cmd_sema, 1);
 	atomic_set(&dev->num_qps, 0);
+	atomic_set(&dev->num_srqs, 0);
 	atomic_set(&dev->num_cqs, 0);
 	atomic_set(&dev->num_pds, 0);
 	atomic_set(&dev->num_ahs, 0);
@@ -254,9 +255,32 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 		goto err_cq_free;
 	spin_lock_init(&dev->qp_tbl_lock);
 
+	/* Check if SRQ is supported by backend */
+	if (dev->dsr->caps.max_srq) {
+		dev->ib_dev.uverbs_cmd_mask |=
+			(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)	|
+			(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)	|
+			(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)	|
+			(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ)	|
+			(1ull << IB_USER_VERBS_CMD_POST_SRQ_RECV);
+
+		dev->ib_dev.create_srq = pvrdma_create_srq;
+		dev->ib_dev.modify_srq = pvrdma_modify_srq;
+		dev->ib_dev.query_srq = pvrdma_query_srq;
+		dev->ib_dev.destroy_srq = pvrdma_destroy_srq;
+		dev->ib_dev.post_srq_recv = pvrdma_post_srq_recv;
+
+		dev->srq_tbl = kcalloc(dev->dsr->caps.max_srq,
+				       sizeof(struct pvrdma_srq *),
+				       GFP_KERNEL);
+		if (!dev->srq_tbl)
+			goto err_qp_free;
+	}
+	spin_lock_init(&dev->srq_tbl_lock);
+
 	ret = ib_register_device(&dev->ib_dev, NULL);
 	if (ret)
-		goto err_qp_free;
+		goto err_srq_free;
 
 	for (i = 0; i < ARRAY_SIZE(pvrdma_class_attributes); ++i) {
 		ret = device_create_file(&dev->ib_dev.dev,
@@ -271,6 +295,8 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 
 err_class:
 	ib_unregister_device(&dev->ib_dev);
+err_srq_free:
+	kfree(dev->srq_tbl);
 err_qp_free:
 	kfree(dev->qp_tbl);
 err_cq_free:
@@ -353,6 +379,35 @@ static void pvrdma_cq_event(struct pvrdma_dev *dev, u32 cqn, int type)
 	}
 }
 
+static void pvrdma_srq_event(struct pvrdma_dev *dev, u32 srqn, int type)
+{
+	struct pvrdma_srq *srq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->srq_tbl_lock, flags);
+	if (dev->srq_tbl)
+		srq = dev->srq_tbl[srqn % dev->dsr->caps.max_srq];
+	else
+		srq = NULL;
+	if (srq)
+		refcount_inc(&srq->refcnt);
+	spin_unlock_irqrestore(&dev->srq_tbl_lock, flags);
+
+	if (srq && srq->ibsrq.event_handler) {
+		struct ib_srq *ibsrq = &srq->ibsrq;
+		struct ib_event e;
+
+		e.device = ibsrq->device;
+		e.element.srq = ibsrq;
+		e.event = type; /* 1:1 mapping for now. */
+		ibsrq->event_handler(&e, ibsrq->srq_context);
+	}
+	if (srq) {
+		if (refcount_dec_and_test(&srq->refcnt))
+			wake_up(&srq->wait);
+	}
+}
+
 static void pvrdma_dispatch_event(struct pvrdma_dev *dev, int port,
 				  enum ib_event_type event)
 {
@@ -423,6 +478,7 @@ static irqreturn_t pvrdma_intr1_handler(int irq, void *dev_id)
 
 		case PVRDMA_EVENT_SRQ_ERR:
 		case PVRDMA_EVENT_SRQ_LIMIT_REACHED:
+			pvrdma_srq_event(dev, eqe->info, eqe->type);
 			break;
 
 		case PVRDMA_EVENT_PORT_ACTIVE:
@@ -1059,6 +1115,7 @@ static void pvrdma_pci_remove(struct pci_dev *pdev)
 	iounmap(dev->regs);
 	kfree(dev->sgid_tbl);
 	kfree(dev->cq_tbl);
+	kfree(dev->srq_tbl);
 	kfree(dev->qp_tbl);
 	pvrdma_uar_table_cleanup(dev);
 	iounmap(dev->driver_uar.map);

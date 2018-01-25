@@ -10,6 +10,7 @@ obj-$(CONFIG_MMU)		+= fault-armv.o flush.o idmap.o ioremap.o \
 
 ifneq ($(CONFIG_MMU),y)
 obj-y				+= nommu.o
+obj-$(CONFIG_ARM_MPU)		+= pmsa-v7.o
 endif
 
 obj-$(CONFIG_ARM_PTDUMP)	+= dump.o

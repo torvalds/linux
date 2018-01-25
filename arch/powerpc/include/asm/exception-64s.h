@@ -55,6 +55,11 @@
 #endif
 
 /*
+ * maximum recursive depth of MCE exceptions
+ */
+#define MAX_MCE_DEPTH	4
+
+/*
  * EX_LR is only used in EXSLB and where it does not overlap with EX_DAR
  * EX_CCR similarly with DSISR, but being 4 byte registers there is a hole
  * in the save area so it's not necessary to overlap them. Could be used

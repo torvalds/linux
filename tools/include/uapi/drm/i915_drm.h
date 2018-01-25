@@ -829,6 +829,7 @@ struct drm_i915_gem_exec_fence {
 
 #define I915_EXEC_FENCE_WAIT            (1<<0)
 #define I915_EXEC_FENCE_SIGNAL          (1<<1)
+#define __I915_EXEC_FENCE_UNKNOWN_FLAGS (-(I915_EXEC_FENCE_SIGNAL << 1))
 	__u32 flags;
 };
 

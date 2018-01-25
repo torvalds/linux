@@ -667,11 +667,6 @@ static inline bool pte_accessible(struct mm_struct *mm, pte_t a)
 	return false;
 }
 
-static inline int pte_hidden(pte_t pte)
-{
-	return pte_flags(pte) & _PAGE_HIDDEN;
-}
-
 static inline int pmd_present(pmd_t pmd)
 {
 	/*

@@ -126,8 +126,12 @@ struct acpi_exception_info {
 #define AE_NOT_CONFIGURED               EXCEP_ENV (0x001C)
 #define AE_ACCESS                       EXCEP_ENV (0x001D)
 #define AE_IO_ERROR                     EXCEP_ENV (0x001E)
+#define AE_NUMERIC_OVERFLOW             EXCEP_ENV (0x001F)
+#define AE_HEX_OVERFLOW                 EXCEP_ENV (0x0020)
+#define AE_DECIMAL_OVERFLOW             EXCEP_ENV (0x0021)
+#define AE_OCTAL_OVERFLOW               EXCEP_ENV (0x0022)
 
-#define AE_CODE_ENV_MAX                 0x001E
+#define AE_CODE_ENV_MAX                 0x0022
 
 /*
  * Programmer exceptions
@@ -263,7 +267,15 @@ static const struct acpi_exception_info acpi_gbl_exception_names_env[] = {
 	EXCEP_TXT("AE_NOT_CONFIGURED",
 		  "The interface is not part of the current subsystem configuration"),
 	EXCEP_TXT("AE_ACCESS", "Permission denied for the requested operation"),
-	EXCEP_TXT("AE_IO_ERROR", "An I/O error occurred")
+	EXCEP_TXT("AE_IO_ERROR", "An I/O error occurred"),
+	EXCEP_TXT("AE_NUMERIC_OVERFLOW",
+		  "Overflow during string-to-integer conversion"),
+	EXCEP_TXT("AE_HEX_OVERFLOW",
+		  "Overflow during ASCII hex-to-binary conversion"),
+	EXCEP_TXT("AE_DECIMAL_OVERFLOW",
+		  "Overflow during ASCII decimal-to-binary conversion"),
+	EXCEP_TXT("AE_OCTAL_OVERFLOW",
+		  "Overflow during ASCII octal-to-binary conversion")
 };
 
 static const struct acpi_exception_info acpi_gbl_exception_names_pgm[] = {

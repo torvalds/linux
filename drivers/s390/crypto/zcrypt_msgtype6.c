@@ -474,7 +474,8 @@ static int XCRB_msg_to_type6CPRB_msgX(struct ap_message *ap_msg,
 	*fcode = (msg->hdr.function_code[0] << 8) | msg->hdr.function_code[1];
 	*dom = (unsigned short *)&msg->cprbx.domain;
 
-	if (memcmp(function_code, "US", 2) == 0)
+	if (memcmp(function_code, "US", 2) == 0
+	    || memcmp(function_code, "AU", 2) == 0)
 		ap_msg->special = 1;
 	else
 		ap_msg->special = 0;

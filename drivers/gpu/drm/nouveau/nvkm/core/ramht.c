@@ -21,6 +21,7 @@
  */
 #include <core/ramht.h>
 #include <core/engine.h>
+#include <core/object.h>
 
 static u32
 nvkm_ramht_hash(struct nvkm_ramht *ramht, int chid, u32 handle)

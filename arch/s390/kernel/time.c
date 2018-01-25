@@ -523,7 +523,7 @@ static void __init stp_reset(void)
 	}
 }
 
-static void stp_timeout(unsigned long dummy)
+static void stp_timeout(struct timer_list *unused)
 {
 	queue_work(time_sync_wq, &stp_work);
 }
@@ -532,7 +532,7 @@ static int __init stp_init(void)
 {
 	if (!test_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags))
 		return 0;
-	setup_timer(&stp_timer, stp_timeout, 0UL);
+	timer_setup(&stp_timer, stp_timeout, 0);
 	time_init_wq();
 	if (!stp_online)
 		return 0;

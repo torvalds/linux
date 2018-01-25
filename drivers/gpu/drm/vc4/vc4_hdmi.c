@@ -309,16 +309,13 @@ static const struct drm_connector_helper_funcs vc4_hdmi_connector_helper_funcs =
 static struct drm_connector *vc4_hdmi_connector_init(struct drm_device *dev,
 						     struct drm_encoder *encoder)
 {
-	struct drm_connector *connector = NULL;
+	struct drm_connector *connector;
 	struct vc4_hdmi_connector *hdmi_connector;
-	int ret = 0;
 
 	hdmi_connector = devm_kzalloc(dev->dev, sizeof(*hdmi_connector),
 				      GFP_KERNEL);
-	if (!hdmi_connector) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!hdmi_connector)
+		return ERR_PTR(-ENOMEM);
 	connector = &hdmi_connector->base;
 
 	hdmi_connector->encoder = encoder;
@@ -336,12 +333,6 @@ static struct drm_connector *vc4_hdmi_connector_init(struct drm_device *dev,
 	drm_mode_connector_attach_encoder(connector, encoder);
 
 	return connector;
-
- fail:
-	if (connector)
-		vc4_hdmi_connector_destroy(connector);
-
-	return ERR_PTR(ret);
 }
 
 static void vc4_hdmi_encoder_destroy(struct drm_encoder *encoder)

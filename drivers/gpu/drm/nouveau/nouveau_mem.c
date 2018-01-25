@@ -1,0 +1,198 @@
+/*
+ * Copyright 2017 Red Hat Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ */
+#include "nouveau_mem.h"
+#include "nouveau_drv.h"
+#include "nouveau_bo.h"
+
+#include <drm/ttm/ttm_bo_driver.h>
+
+#include <nvif/class.h>
+#include <nvif/if000a.h>
+#include <nvif/if500b.h>
+#include <nvif/if500d.h>
+#include <nvif/if900b.h>
+#include <nvif/if900d.h>
+
+int
+nouveau_mem_map(struct nouveau_mem *mem,
+		struct nvif_vmm *vmm, struct nvif_vma *vma)
+{
+	union {
+		struct nv50_vmm_map_v0 nv50;
+		struct gf100_vmm_map_v0 gf100;
+	} args;
+	u32 argc = 0;
+	bool super;
+	int ret;
+
+	switch (vmm->object.oclass) {
+	case NVIF_CLASS_VMM_NV04:
+		break;
+	case NVIF_CLASS_VMM_NV50:
+		args.nv50.version = 0;
+		args.nv50.ro = 0;
+		args.nv50.priv = 0;
+		args.nv50.kind = mem->kind;
+		args.nv50.comp = mem->comp;
+		argc = sizeof(args.nv50);
+		break;
+	case NVIF_CLASS_VMM_GF100:
+	case NVIF_CLASS_VMM_GM200:
+	case NVIF_CLASS_VMM_GP100:
+		args.gf100.version = 0;
+		if (mem->mem.type & NVIF_MEM_VRAM)
+			args.gf100.vol = 0;
+		else
+			args.gf100.vol = 1;
+		args.gf100.ro = 0;
+		args.gf100.priv = 0;
+		args.gf100.kind = mem->kind;
+		argc = sizeof(args.gf100);
+		break;
+	default:
+		WARN_ON(1);
+		return -ENOSYS;
+	}
+
+	super = vmm->object.client->super;
+	vmm->object.client->super = true;
+	ret = nvif_vmm_map(vmm, vma->addr, mem->mem.size, &args, argc,
+			   &mem->mem, 0);
+	vmm->object.client->super = super;
+	return ret;
+}
+
+void
+nouveau_mem_fini(struct nouveau_mem *mem)
+{
+	nvif_vmm_put(&mem->cli->drm->client.vmm.vmm, &mem->vma[1]);
+	nvif_vmm_put(&mem->cli->drm->client.vmm.vmm, &mem->vma[0]);
+	mutex_lock(&mem->cli->drm->master.lock);
+	nvif_mem_fini(&mem->mem);
+	mutex_unlock(&mem->cli->drm->master.lock);
+}
+
+int
+nouveau_mem_host(struct ttm_mem_reg *reg, struct ttm_dma_tt *tt)
+{
+	struct nouveau_mem *mem = nouveau_mem(reg);
+	struct nouveau_cli *cli = mem->cli;
+	struct nouveau_drm *drm = cli->drm;
+	struct nvif_mmu *mmu = &cli->mmu;
+	struct nvif_mem_ram_v0 args = {};
+	bool super = cli->base.super;
+	u8 type;
+	int ret;
+
+	if (mmu->type[drm->ttm.type_host].type & NVIF_MEM_UNCACHED)
+		type = drm->ttm.type_ncoh;
+	else
+		type = drm->ttm.type_host;
+
+	if (mem->kind && !(mmu->type[type].type & NVIF_MEM_KIND))
+		mem->comp = mem->kind = 0;
+	if (mem->comp && !(mmu->type[type].type & NVIF_MEM_COMP)) {
+		if (mmu->object.oclass >= NVIF_CLASS_MMU_GF100)
+			mem->kind = mmu->kind[mem->kind];
+		mem->comp = 0;
+	}
+
+	if (tt->ttm.sg) args.sgl = tt->ttm.sg->sgl;
+	else            args.dma = tt->dma_address;
+
+	mutex_lock(&drm->master.lock);
+	cli->base.super = true;
+	ret = nvif_mem_init_type(mmu, cli->mem->oclass, type, PAGE_SHIFT,
+				 reg->num_pages << PAGE_SHIFT,
+				 &args, sizeof(args), &mem->mem);
+	cli->base.super = super;
+	mutex_unlock(&drm->master.lock);
+	return ret;
+}
+
+int
+nouveau_mem_vram(struct ttm_mem_reg *reg, bool contig, u8 page)
+{
+	struct nouveau_mem *mem = nouveau_mem(reg);
+	struct nouveau_cli *cli = mem->cli;
+	struct nouveau_drm *drm = cli->drm;
+	struct nvif_mmu *mmu = &cli->mmu;
+	bool super = cli->base.super;
+	u64 size = ALIGN(reg->num_pages << PAGE_SHIFT, 1 << page);
+	int ret;
+
+	mutex_lock(&drm->master.lock);
+	cli->base.super = true;
+	switch (cli->mem->oclass) {
+	case NVIF_CLASS_MEM_GF100:
+		ret = nvif_mem_init_type(mmu, cli->mem->oclass,
+					 drm->ttm.type_vram, page, size,
+					 &(struct gf100_mem_v0) {
+						.contig = contig,
+					 }, sizeof(struct gf100_mem_v0),
+					 &mem->mem);
+		break;
+	case NVIF_CLASS_MEM_NV50:
+		ret = nvif_mem_init_type(mmu, cli->mem->oclass,
+					 drm->ttm.type_vram, page, size,
+					 &(struct nv50_mem_v0) {
+						.bankswz = mmu->kind[mem->kind] == 2,
+						.contig = contig,
+					 }, sizeof(struct nv50_mem_v0),
+					 &mem->mem);
+		break;
+	default:
+		ret = -ENOSYS;
+		WARN_ON(1);
+		break;
+	}
+	cli->base.super = super;
+	mutex_unlock(&drm->master.lock);
+
+	reg->start = mem->mem.addr >> PAGE_SHIFT;
+	return ret;
+}
+
+void
+nouveau_mem_del(struct ttm_mem_reg *reg)
+{
+	struct nouveau_mem *mem = nouveau_mem(reg);
+	nouveau_mem_fini(mem);
+	kfree(reg->mm_node);
+	reg->mm_node = NULL;
+}
+
+int
+nouveau_mem_new(struct nouveau_cli *cli, u8 kind, u8 comp,
+		struct ttm_mem_reg *reg)
+{
+	struct nouveau_mem *mem;
+
+	if (!(mem = kzalloc(sizeof(*mem), GFP_KERNEL)))
+		return -ENOMEM;
+	mem->cli = cli;
+	mem->kind = kind;
+	mem->comp = comp;
+
+	reg->mm_node = mem;
+	return 0;
+}

@@ -30,7 +30,7 @@ struct iio_hrtimer_info {
 	ktime_t period;
 };
 
-static struct config_item_type iio_hrtimer_type = {
+static const struct config_item_type iio_hrtimer_type = {
 	.ct_owner = THIS_MODULE,
 };
 
@@ -114,7 +114,6 @@ static int iio_trig_hrtimer_set_state(struct iio_trigger *trig, bool state)
 }
 
 static const struct iio_trigger_ops iio_hrtimer_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = iio_trig_hrtimer_set_state,
 };
 

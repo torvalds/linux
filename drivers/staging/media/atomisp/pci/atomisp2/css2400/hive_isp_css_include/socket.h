@@ -30,18 +30,17 @@
  *
  */
 
-#include "storage_class.h"
 
 #include "system_local.h"
 #include "socket_local.h"
 
 #ifndef __INLINE_SOCKET__
-#define STORAGE_CLASS_SOCKET_H STORAGE_CLASS_EXTERN
+#define STORAGE_CLASS_SOCKET_H extern
 #define STORAGE_CLASS_SOCKET_C
 #include "socket_public.h"
 #else  /* __INLINE_SOCKET__ */
-#define STORAGE_CLASS_SOCKET_H STORAGE_CLASS_INLINE
-#define STORAGE_CLASS_SOCKET_C STORAGE_CLASS_INLINE
+#define STORAGE_CLASS_SOCKET_H static inline
+#define STORAGE_CLASS_SOCKET_C static inline
 #include "socket_private.h"
 #endif /* __INLINE_SOCKET__ */
 

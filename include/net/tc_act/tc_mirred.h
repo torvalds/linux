@@ -11,6 +11,7 @@ struct tcf_mirred {
 	int			tcfm_ifindex;
 	bool			tcfm_mac_header_xmit;
 	struct net_device __rcu	*tcfm_dev;
+	struct net		*net;
 	struct list_head	tcfm_list;
 };
 #define to_mirred(a) ((struct tcf_mirred *)a)

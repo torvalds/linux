@@ -1879,6 +1879,7 @@ retry:
 	switch (class) {
 	case ATA_DEV_SEMB:
 		class = ATA_DEV_ATA;	/* some hard drives report SEMB sig */
+		/* fall through */
 	case ATA_DEV_ATA:
 	case ATA_DEV_ZAC:
 		tf.command = ATA_CMD_ID_ATA;
@@ -2975,6 +2976,7 @@ int ata_bus_probe(struct ata_port *ap)
 	case -ENODEV:
 		/* give it just one more chance */
 		tries[dev->devno] = min(tries[dev->devno], 1);
+		/* fall through */
 	case -EIO:
 		if (tries[dev->devno] == 1) {
 			/* This is the last chance, better to slow
@@ -3462,6 +3464,7 @@ int ata_down_xfermask_limit(struct ata_device *dev, unsigned int sel)
 
 	case ATA_DNXFER_FORCE_PIO0:
 		pio_mask &= 1;
+		/* fall through */
 	case ATA_DNXFER_FORCE_PIO:
 		mwdma_mask = 0;
 		udma_mask = 0;
@@ -3964,6 +3967,7 @@ int sata_link_scr_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 		scontrol &= ~(0x1 << 8);
 		scontrol |= (0x6 << 8);
 		break;
+	case ATA_LPM_MED_POWER_WITH_DIPM:
 	case ATA_LPM_MIN_POWER:
 		if (ata_link_nr_enabled(link) > 0)
 			/* no restrictions on LPM transitions */
@@ -5823,7 +5827,7 @@ void ata_host_resume(struct ata_host *host)
 }
 #endif
 
-struct device_type ata_port_type = {
+const struct device_type ata_port_type = {
 	.name = "ata_port",
 #ifdef CONFIG_PM
 	.pm = &ata_port_pm_ops,
@@ -5979,9 +5983,8 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	INIT_LIST_HEAD(&ap->eh_done_q);
 	init_waitqueue_head(&ap->eh_wait_q);
 	init_completion(&ap->park_req_pending);
-	setup_deferrable_timer(&ap->fastdrain_timer,
-			       ata_eh_fastdrain_timerfn,
-			       (unsigned long)ap);
+	timer_setup(&ap->fastdrain_timer, ata_eh_fastdrain_timerfn,
+		    TIMER_DEFERRABLE);
 
 	ap->cbl = ATA_CBL_NONE;
 
@@ -6904,7 +6907,7 @@ static int __init ata_parse_force_one(char **cur,
 		return -EINVAL;
 	}
 	if (nr_matches > 1) {
-		*reason = "ambigious value";
+		*reason = "ambiguous value";
 		return -EINVAL;
 	}
 

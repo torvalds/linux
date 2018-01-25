@@ -93,7 +93,7 @@ struct eeh_pe {
 	struct pci_bus *bus;		/* Top PCI bus for bus PE	*/
 	int check_count;		/* Times of ignored error	*/
 	int freeze_count;		/* Times of froze up		*/
-	struct timeval tstamp;		/* Time on first-time freeze	*/
+	time64_t tstamp;		/* Time on first-time freeze	*/
 	int false_positives;		/* Times of reported #ff's	*/
 	atomic_t pass_dev_cnt;		/* Count of passed through devs	*/
 	struct eeh_pe *parent;		/* Parent PE			*/
@@ -200,7 +200,6 @@ enum {
 struct eeh_ops {
 	char *name;
 	int (*init)(void);
-	int (*post_init)(void);
 	void* (*probe)(struct pci_dn *pdn, void *data);
 	int (*set_option)(struct eeh_pe *pe, int option);
 	int (*get_pe_addr)(struct eeh_pe *pe);
@@ -275,7 +274,7 @@ struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe);
 
 struct eeh_dev *eeh_dev_init(struct pci_dn *pdn);
 void eeh_dev_phb_init_dynamic(struct pci_controller *phb);
-int eeh_init(void);
+void eeh_probe_devices(void);
 int __init eeh_ops_register(struct eeh_ops *ops);
 int __exit eeh_ops_unregister(const char *name);
 int eeh_check_failure(const volatile void __iomem *token);
@@ -321,10 +320,7 @@ static inline bool eeh_enabled(void)
         return false;
 }
 
-static inline int eeh_init(void)
-{
-	return 0;
-}
+static inline void eeh_probe_devices(void) { }
 
 static inline void *eeh_dev_init(struct pci_dn *pdn, void *data)
 {

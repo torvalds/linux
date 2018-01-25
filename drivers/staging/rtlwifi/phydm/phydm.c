@@ -1338,7 +1338,7 @@ static void odm_update_power_training_state(struct phy_dm_struct *dm)
 		return;
 
 	/* First connect */
-	if ((dm->is_linked) && !dig_tab->is_media_connect_0) {
+	if (dm->is_linked && !dig_tab->is_media_connect_0) {
 		dm->PT_score = 0;
 		dm->is_change_state = true;
 		dm->phy_dbg_info.num_qry_phy_status_ofdm = 0;
@@ -1360,7 +1360,7 @@ static void odm_update_power_training_state(struct phy_dm_struct *dm)
 			     (u32)(dm->phy_dbg_info.num_qry_phy_status_cck);
 
 		if ((false_alm_cnt->cnt_cca_all > 31 && rx_pkt_cnt > 31) &&
-		    (false_alm_cnt->cnt_cca_all >= rx_pkt_cnt)) {
+		    false_alm_cnt->cnt_cca_all >= rx_pkt_cnt) {
 			if ((rx_pkt_cnt + (rx_pkt_cnt >> 1)) <=
 			    false_alm_cnt->cnt_cca_all)
 				score = 0;
@@ -1697,7 +1697,7 @@ static u8 phydm_calculate_fc(void *dm_void, u32 channel, u32 bw, u32 second_ch,
 
 		fc = 2412 + (channel - 1) * 5;
 
-		if (bw == 40 && (second_ch == PHYDM_ABOVE)) {
+		if (bw == 40 && second_ch == PHYDM_ABOVE) {
 			if (channel >= 10) {
 				ODM_RT_TRACE(
 					dm, ODM_COMP_API,
@@ -1774,7 +1774,7 @@ static u8 phydm_calculate_intf_distance(void *dm_void, u32 bw, u32 fc,
 		     "[f_l, fc, fh] = [ %d, %d, %d ], f_int = ((%d))\n", bw_low,
 		     fc, bw_up, f_interference);
 
-	if ((f_interference >= bw_low) && (f_interference <= bw_up)) {
+	if (f_interference >= bw_low && f_interference <= bw_up) {
 		int_distance = (fc >= f_interference) ? (fc - f_interference) :
 							(f_interference - fc);
 		tone_idx_tmp =

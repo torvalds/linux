@@ -773,7 +773,7 @@ host:
 # cat /dev/usb/lp0
 
 More advanced testing can be done with the prn_example
-described in Documentation/usb/gadget-printer.txt.
+described in Documentation/usb/gadget_printer.txt.
 
 
 20. UAC1 function (virtual ALSA card, using u_audio API)

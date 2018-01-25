@@ -19,9 +19,9 @@
 #include <stdlib.h>
 
 #define unlikely(cond) (cond)
-#include "insn/insn.h"
-#include "insn/inat.c"
-#include "insn/insn.c"
+#include <asm/insn.h>
+#include "lib/inat.c"
+#include "lib/insn.c"
 
 #include "../../elf.h"
 #include "../../arch.h"

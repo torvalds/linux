@@ -93,7 +93,7 @@ typedef struct {
 #ifdef CONFIG_PPC_MM_SLICES
 	u64 low_slices_psize;	/* SLB page size encodings */
 	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
-	unsigned long addr_limit;
+	unsigned long slb_addr_limit;
 #else
 	u16 sllp;		/* SLB page size encoding */
 #endif

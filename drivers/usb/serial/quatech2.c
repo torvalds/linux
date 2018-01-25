@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * usb-serial driver for Quatech USB 2 devices
  *
  * Copyright (C) 2012 Bill Pemberton (wfp5p@virginia.edu)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
  *
  *  These devices all have only 1 bulk in and 1 bulk out that is shared
  *  for all serial ports.
@@ -1027,4 +1023,4 @@ static struct usb_serial_driver *const serial_drivers[] = {
 module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

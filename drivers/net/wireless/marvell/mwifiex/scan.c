@@ -1936,8 +1936,6 @@ mwifiex_active_scan_req_for_passive_chan(struct mwifiex_private *priv)
 	if (!user_scan_cfg)
 		return -ENOMEM;
 
-	memset(user_scan_cfg, 0, sizeof(*user_scan_cfg));
-
 	for (id = 0; id < MWIFIEX_USER_SCAN_CHAN_MAX; id++) {
 		if (!priv->hidden_chan[id].chan_number)
 			break;
@@ -1948,7 +1946,8 @@ mwifiex_active_scan_req_for_passive_chan(struct mwifiex_private *priv)
 
 	adapter->active_scan_triggered = true;
 	if (priv->scan_request->flags & NL80211_SCAN_FLAG_RANDOM_ADDR)
-		ether_addr_copy(user_scan_cfg->random_mac, priv->random_mac);
+		ether_addr_copy(user_scan_cfg->random_mac,
+				priv->scan_request->mac_addr);
 	user_scan_cfg->num_ssids = priv->scan_request->n_ssids;
 	user_scan_cfg->ssid_list = priv->scan_request->ssids;
 

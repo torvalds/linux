@@ -13,10 +13,10 @@ struct nv50_fb {
 
 struct nv50_fb_func {
 	int (*ram_new)(struct nvkm_fb *, struct nvkm_ram **);
+	u32 (*tags)(struct nvkm_fb *);
 	u32 trap;
 };
 
 int nv50_fb_new_(const struct nv50_fb_func *, struct nvkm_device *, int index,
 		 struct nvkm_fb **pfb);
-extern int nv50_fb_memtype[0x80];
 #endif

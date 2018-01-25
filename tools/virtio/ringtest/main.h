@@ -110,11 +110,15 @@ static inline void busy_wait(void)
 		barrier();
 } 
 
+#if defined(__x86_64__) || defined(__i386__)
+#define smp_mb()     asm volatile("lock; addl $0,-128(%%rsp)" ::: "memory", "cc")
+#else
 /*
  * Not using __ATOMIC_SEQ_CST since gcc docs say they are only synchronized
  * with other __ATOMIC_SEQ_CST calls.
  */
 #define smp_mb() __sync_synchronize()
+#endif
 
 /*
  * This abuses the atomic builtins for thread fences, and

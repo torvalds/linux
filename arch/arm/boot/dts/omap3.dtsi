@@ -215,6 +215,7 @@
 			#dma-cells = <1>;
 			dma-channels = <32>;
 			dma-requests = <96>;
+			ti,hwmods = "dma";
 		};
 
 		gpio1: gpio@48310000 {

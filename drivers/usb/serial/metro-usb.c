@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
   Some of this code is credited to Linux USB open source files that are
   distributed with Linux.
@@ -54,12 +55,24 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define UNI_CMD_OPEN	0x80
 #define UNI_CMD_CLOSE	0xFF
 
-static inline int metrousb_is_unidirectional_mode(struct usb_serial_port *port)
+static int metrousb_is_unidirectional_mode(struct usb_serial *serial)
 {
-	__u16 product_id = le16_to_cpu(
-		port->serial->dev->descriptor.idProduct);
+	u16 product_id = le16_to_cpu(serial->dev->descriptor.idProduct);
 
 	return product_id == FOCUS_PRODUCT_ID_UNI;
+}
+
+static int metrousb_calc_num_ports(struct usb_serial *serial,
+				   struct usb_serial_endpoints *epds)
+{
+	if (metrousb_is_unidirectional_mode(serial)) {
+		if (epds->num_interrupt_out == 0) {
+			dev_err(&serial->interface->dev, "interrupt-out endpoint missing\n");
+			return -ENODEV;
+		}
+	}
+
+	return 1;
 }
 
 static int metrousb_send_unidirectional_cmd(u8 cmd, struct usb_serial_port *port)
@@ -68,7 +81,7 @@ static int metrousb_send_unidirectional_cmd(u8 cmd, struct usb_serial_port *port
 	int actual_len;
 	u8 *buffer_cmd = NULL;
 
-	if (!metrousb_is_unidirectional_mode(port))
+	if (!metrousb_is_unidirectional_mode(port->serial))
 		return 0;
 
 	buffer_cmd = kzalloc(sizeof(cmd), GFP_KERNEL);
@@ -161,13 +174,6 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 	unsigned long flags = 0;
 	int result = 0;
 
-	/* Make sure the urb is initialized. */
-	if (!port->interrupt_in_urb) {
-		dev_err(&port->dev, "%s - interrupt urb not initialized\n",
-			__func__);
-		return -ENODEV;
-	}
-
 	/* Set the private data information for the port. */
 	spin_lock_irqsave(&metro_priv->lock, flags);
 	metro_priv->control_state = 0;
@@ -189,7 +195,7 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_err(&port->dev,
 			"%s - failed submitting interrupt in urb, error code=%d\n",
 			__func__, result);
-		goto exit;
+		return result;
 	}
 
 	/* Send activate cmd to device */
@@ -198,9 +204,14 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_err(&port->dev,
 			"%s - failed to configure device, error code=%d\n",
 			__func__, result);
-		goto exit;
+		goto err_kill_urb;
 	}
-exit:
+
+	return 0;
+
+err_kill_urb:
+	usb_kill_urb(port->interrupt_in_urb);
+
 	return result;
 }
 
@@ -337,7 +348,8 @@ static struct usb_serial_driver metrousb_device = {
 	},
 	.description		= "Metrologic USB to Serial",
 	.id_table		= id_table,
-	.num_ports		= 1,
+	.num_interrupt_in	= 1,
+	.calc_num_ports		= metrousb_calc_num_ports,
 	.open			= metrousb_open,
 	.close			= metrousb_cleanup,
 	.read_int_callback	= metrousb_read_int_callback,
@@ -356,7 +368,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 
 module_usb_serial_driver(serial_drivers, id_table);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Philip Nicastro");
 MODULE_AUTHOR("Aleksey Babahin <tamerlan311@gmail.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);

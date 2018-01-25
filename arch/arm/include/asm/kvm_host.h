@@ -293,4 +293,7 @@ int kvm_arm_vcpu_arch_get_attr(struct kvm_vcpu *vcpu,
 int kvm_arm_vcpu_arch_has_attr(struct kvm_vcpu *vcpu,
 			       struct kvm_device_attr *attr);
 
+/* All host FP/SIMD state is restored on guest exit, so nothing to save: */
+static inline void kvm_fpsimd_flush_cpu_state(void) {}
+
 #endif /* __ARM_KVM_HOST_H__ */

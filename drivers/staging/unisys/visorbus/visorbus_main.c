@@ -13,7 +13,10 @@
  * details.
  */
 
+#include <linux/ctype.h>
 #include <linux/debugfs.h>
+#include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/uuid.h>
 
 #include "visorbus.h"
@@ -69,12 +72,9 @@ static LIST_HEAD(list_all_device_instances);
  * Note that <logCtx> is only needed for callers in the EFI environment, and
  * is used to pass the EFI_DIAG_CAPTURE_PROTOCOL needed to log messages.
  */
-int visor_check_channel(struct channel_header *ch,
-			struct device *dev,
-			const guid_t *expected_guid,
-			char *chname,
-			u64 expected_min_bytes,
-			u32 expected_version,
+int visor_check_channel(struct channel_header *ch, struct device *dev,
+			const guid_t *expected_guid, char *chname,
+			u64 expected_min_bytes, u32 expected_version,
 			u64 expected_signature)
 {
 	if (!guid_is_null(expected_guid)) {
@@ -125,7 +125,6 @@ static int visorbus_uevent(struct device *xdev, struct kobj_uevent_env *env)
 
 	dev = to_visor_device(xdev);
 	guid = visorchannel_get_guid(dev->visorchannel);
-
 	return add_uevent_var(env, "MODALIAS=visorbus:%pUl", guid);
 }
 
@@ -144,17 +143,24 @@ static int visorbus_match(struct device *xdev, struct device_driver *xdrv)
 	int i;
 	struct visor_device *dev;
 	struct visor_driver *drv;
+	struct visorchannel *chan;
 
 	dev = to_visor_device(xdev);
 	channel_type = visorchannel_get_guid(dev->visorchannel);
 	drv = to_visor_driver(xdrv);
+	chan = dev->visorchannel;
 	if (!drv->channel_types)
 		return 0;
-
 	for (i = 0; !guid_is_null(&drv->channel_types[i].guid); i++)
-		if (guid_equal(&drv->channel_types[i].guid, channel_type))
+		if (guid_equal(&drv->channel_types[i].guid, channel_type) &&
+		    visor_check_channel(visorchannel_get_header(chan),
+					xdev,
+					&drv->channel_types[i].guid,
+					(char *)drv->channel_types[i].name,
+					drv->channel_types[i].min_bytes,
+					drv->channel_types[i].version,
+					VISOR_CHANNEL_SIGNATURE))
 			return i + 1;
-
 	return 0;
 }
 
@@ -162,12 +168,47 @@ static int visorbus_match(struct device *xdev, struct device_driver *xdrv)
  * This describes the TYPE of bus.
  * (Don't confuse this with an INSTANCE of the bus.)
  */
-struct bus_type visorbus_type = {
+static struct bus_type visorbus_type = {
 	.name = "visorbus",
 	.match = visorbus_match,
 	.uevent = visorbus_uevent,
 	.dev_groups = visorbus_dev_groups,
 };
+
+struct visor_busdev {
+	u32 bus_no;
+	u32 dev_no;
+};
+
+static int match_visorbus_dev_by_id(struct device *dev, void *data)
+{
+	struct visor_device *vdev = to_visor_device(dev);
+	struct visor_busdev *id = data;
+
+	if (vdev->chipset_bus_no == id->bus_no &&
+	    vdev->chipset_dev_no == id->dev_no)
+		return 1;
+	return 0;
+}
+
+struct visor_device *visorbus_get_device_by_id(u32 bus_no, u32 dev_no,
+					       struct visor_device *from)
+{
+	struct device *dev;
+	struct device *dev_start = NULL;
+	struct visor_busdev id = {
+		.bus_no = bus_no,
+		.dev_no = dev_no
+	};
+
+	if (from)
+		dev_start = &from->device;
+	dev = bus_find_device(&visorbus_type, dev_start, (void *)&id,
+			      match_visorbus_dev_by_id);
+	if (!dev)
+		return NULL;
+	return to_visor_device(dev);
+}
 
 /*
  * visorbus_release_busdevice() - called when device_unregister() is called for
@@ -179,8 +220,9 @@ static void visorbus_release_busdevice(struct device *xdev)
 {
 	struct visor_device *dev = dev_get_drvdata(xdev);
 
-	debugfs_remove(dev->debugfs_client_bus_info);
+	debugfs_remove(dev->debugfs_bus_info);
 	debugfs_remove_recursive(dev->debugfs_dir);
+	visorchannel_destroy(dev->visorchannel);
 	kfree(dev);
 }
 
@@ -198,7 +240,7 @@ static void visorbus_release_device(struct device *xdev)
 }
 
 /*
- * begin implementation of specific channel attributes to appear under
+ * BUS specific channel attributes to appear under
  * /sys/bus/visorbus<x>/dev<y>/channel
  */
 
@@ -218,7 +260,7 @@ static ssize_t nbytes_show(struct device *dev, struct device_attribute *attr,
 	struct visor_device *vdev = to_visor_device(dev);
 
 	return sprintf(buf, "0x%lx\n",
-			visorchannel_get_nbytes(vdev->visorchannel));
+		       visorchannel_get_nbytes(vdev->visorchannel));
 }
 static DEVICE_ATTR_RO(nbytes);
 
@@ -284,18 +326,14 @@ static struct attribute *channel_attrs[] = {
 
 ATTRIBUTE_GROUPS(channel);
 
-/* end implementation of specific channel attributes */
-
 /*
  *  BUS instance attributes
  *
  *  define & implement display of bus attributes under
  *  /sys/bus/visorbus/devices/visorbus<n>.
  */
-
 static ssize_t partition_handle_show(struct device *dev,
-				     struct device_attribute *attr,
-				     char *buf)
+				     struct device_attribute *attr, char *buf)
 {
 	struct visor_device *vdev = to_visor_device(dev);
 	u64 handle = visorchannel_get_clientpartition(vdev->visorchannel);
@@ -305,8 +343,7 @@ static ssize_t partition_handle_show(struct device *dev,
 static DEVICE_ATTR_RO(partition_handle);
 
 static ssize_t partition_guid_show(struct device *dev,
-				   struct device_attribute *attr,
-				   char *buf)
+				   struct device_attribute *attr, char *buf)
 {
 	struct visor_device *vdev = to_visor_device(dev);
 
@@ -315,8 +352,7 @@ static ssize_t partition_guid_show(struct device *dev,
 static DEVICE_ATTR_RO(partition_guid);
 
 static ssize_t partition_name_show(struct device *dev,
-				   struct device_attribute *attr,
-				   char *buf)
+				   struct device_attribute *attr, char *buf)
 {
 	struct visor_device *vdev = to_visor_device(dev);
 
@@ -325,8 +361,7 @@ static ssize_t partition_name_show(struct device *dev,
 static DEVICE_ATTR_RO(partition_name);
 
 static ssize_t channel_addr_show(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
+				 struct device_attribute *attr, char *buf)
 {
 	struct visor_device *vdev = to_visor_device(dev);
 	u64 addr = visorchannel_get_physaddr(vdev->visorchannel);
@@ -336,8 +371,7 @@ static ssize_t channel_addr_show(struct device *dev,
 static DEVICE_ATTR_RO(channel_addr);
 
 static ssize_t channel_bytes_show(struct device *dev,
-				  struct device_attribute *attr,
-				  char *buf)
+				  struct device_attribute *attr, char *buf)
 {
 	struct visor_device *vdev = to_visor_device(dev);
 	u64 nbytes = visorchannel_get_nbytes(vdev->visorchannel);
@@ -347,8 +381,7 @@ static ssize_t channel_bytes_show(struct device *dev,
 static DEVICE_ATTR_RO(channel_bytes);
 
 static ssize_t channel_id_show(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
+			       struct device_attribute *attr, char *buf)
 {
 	struct visor_device *vdev = to_visor_device(dev);
 	int len = 0;
@@ -356,7 +389,6 @@ static ssize_t channel_id_show(struct device *dev,
 	visorchannel_id(vdev->visorchannel, buf);
 	len = strlen(buf);
 	buf[len++] = '\n';
-
 	return len;
 }
 static DEVICE_ATTR_RO(channel_id);
@@ -396,13 +428,11 @@ static void vbuschannel_print_devinfo(struct visor_vbus_deviceinfo *devinfo,
 	/* uninitialized vbus device entry */
 	if (!isprint(devinfo->devtype[0]))
 		return;
-
 	if (devix >= 0)
 		seq_printf(seq, "[%d]", devix);
 	else
 		/* vbus device entry is for bus or chipset */
 		seq_puts(seq, "   ");
-
 	/*
 	 * Note: because the s-Par back-end is free to scribble in this area,
 	 * we never assume '\0'-termination.
@@ -415,7 +445,7 @@ static void vbuschannel_print_devinfo(struct visor_vbus_deviceinfo *devinfo,
 		   devinfo->infostrs);
 }
 
-static int client_bus_info_debugfs_show(struct seq_file *seq, void *v)
+static int bus_info_debugfs_show(struct seq_file *seq, void *v)
 {
 	int i = 0;
 	unsigned long off;
@@ -427,10 +457,9 @@ static int client_bus_info_debugfs_show(struct seq_file *seq, void *v)
 		return 0;
 
 	seq_printf(seq,
-		   "Client device / client driver info for %s partition (vbus #%u):\n",
+		   "Client device/driver info for %s partition (vbus #%u):\n",
 		   ((vdev->name) ? (char *)(vdev->name) : ""),
 		   vdev->chipset_bus_no);
-
 	if (visorchannel_read(channel,
 			      offsetof(struct visor_vbus_channel, chp_info),
 			      &dev_info, sizeof(dev_info)) >= 0)
@@ -448,27 +477,25 @@ static int client_bus_info_debugfs_show(struct seq_file *seq, void *v)
 		off += sizeof(dev_info);
 		i++;
 	}
-
 	return 0;
 }
 
-static int client_bus_info_debugfs_open(struct inode *inode, struct file *file)
+static int bus_info_debugfs_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, client_bus_info_debugfs_show,
-			   inode->i_private);
+	return single_open(file, bus_info_debugfs_show, inode->i_private);
 }
 
-static const struct file_operations client_bus_info_debugfs_fops = {
+static const struct file_operations bus_info_debugfs_fops = {
 	.owner = THIS_MODULE,
-	.open = client_bus_info_debugfs_open,
+	.open = bus_info_debugfs_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static void dev_periodic_work(unsigned long __opaque)
+static void dev_periodic_work(struct timer_list *t)
 {
-	struct visor_device *dev = (struct visor_device *)__opaque;
+	struct visor_device *dev = from_timer(dev, t, timer);
 	struct visor_driver *drv = to_visor_driver(dev->device.driver);
 
 	drv->channel_interrupt(dev);
@@ -479,6 +506,7 @@ static int dev_start_periodic_work(struct visor_device *dev)
 {
 	if (dev->being_removed || dev->timer_active)
 		return -EINVAL;
+
 	/* now up by at least 2 */
 	get_device(&dev->device);
 	dev->timer.expires = jiffies + POLLJIFFIES_NORMALCHANNEL;
@@ -491,6 +519,7 @@ static void dev_stop_periodic_work(struct visor_device *dev)
 {
 	if (!dev->timer_active)
 		return;
+
 	del_timer_sync(&dev->timer);
 	dev->timer_active = false;
 	put_device(&dev->device);
@@ -508,20 +537,15 @@ static void dev_stop_periodic_work(struct visor_device *dev)
  */
 static int visordriver_remove_device(struct device *xdev)
 {
-	struct visor_device *dev;
-	struct visor_driver *drv;
-
-	dev = to_visor_device(xdev);
-	drv = to_visor_driver(xdev->driver);
+	struct visor_device *dev = to_visor_device(xdev);
+	struct visor_driver *drv = to_visor_driver(xdev->driver);
 
 	mutex_lock(&dev->visordriver_callback_lock);
 	dev->being_removed = true;
 	drv->remove(dev);
 	mutex_unlock(&dev->visordriver_callback_lock);
-
 	dev_stop_periodic_work(dev);
 	put_device(&dev->device);
-
 	return 0;
 }
 
@@ -546,8 +570,7 @@ EXPORT_SYMBOL_GPL(visorbus_unregister_visor_driver);
  * @dest:   the destination buffer that is written into from the channel
  * @nbytes: the number of bytes to read from the channel
  *
- * If receiving a message, use the visorchannel_signalremove()
- * function instead.
+ * If receiving a message, use the visorchannel_signalremove() function instead.
  *
  * Return: integer indicating success (zero) or failure (non-zero)
  */
@@ -566,8 +589,7 @@ EXPORT_SYMBOL_GPL(visorbus_read_channel);
  * @src:    the source buffer that is written into the channel
  * @nbytes: the number of bytes to write into the channel
  *
- * If sending a message, use the visorchannel_signalinsert()
- * function instead.
+ * If sending a message, use the visorchannel_signalinsert() function instead.
  *
  * Return: integer indicating success (zero) or failure (non-zero)
  */
@@ -618,17 +640,16 @@ EXPORT_SYMBOL_GPL(visorbus_disable_channel_interrupts);
  *
  * This is how everything starts from the device end.
  * This function is called when a channel first appears via a ControlVM
- * message.  In response, this function allocates a visor_device to
- * correspond to the new channel, and attempts to connect it the appropriate
- * driver.  If the appropriate driver is found, the visor_driver.probe()
- * function for that driver will be called, and will be passed the new
- * visor_device that we just created.
+ * message.  In response, this function allocates a visor_device to correspond
+ * to the new channel, and attempts to connect it the appropriate * driver. If
+ * the appropriate driver is found, the visor_driver.probe() function for that
+ * driver will be called, and will be passed the new * visor_device that we
+ * just created.
  *
  * It's ok if the appropriate driver is not yet loaded, because in that case
  * the new device struct will just stick around in the bus' list of devices.
  * When the appropriate driver calls visorbus_register_visor_driver(), the
- * visor_driver.probe() for the new driver will be called with the new
- * device.
+ * visor_driver.probe() for the new driver will be called with the new device.
  *
  * Return: 0 if successful, otherwise the negative value returned by
  *         device_add() indicating the reason for failure
@@ -646,18 +667,16 @@ int create_visor_device(struct visor_device *dev)
 	dev->device.release = visorbus_release_device;
 	/* keep a reference just for us (now 2) */
 	get_device(&dev->device);
-	setup_timer(&dev->timer, dev_periodic_work, (unsigned long)dev);
-
+	timer_setup(&dev->timer, dev_periodic_work, 0);
 	/*
-	 * bus_id must be a unique name with respect to this bus TYPE
-	 * (NOT bus instance).  That's why we need to include the bus
-	 * number within the name.
+	 * bus_id must be a unique name with respect to this bus TYPE (NOT bus
+	 * instance).  That's why we need to include the bus number within the
+	 * name.
 	 */
 	err = dev_set_name(&dev->device, "vbus%u:dev%u",
 			   chipset_bus_no, chipset_dev_no);
 	if (err)
 		goto err_put;
-
 	/*
 	 * device_add does this:
 	 *    bus_add_device(dev)
@@ -671,14 +690,13 @@ int create_visor_device(struct visor_device *dev)
 	 *              if (!drv.probe(dev))  [visordriver_probe_device]
 	 *                dev.drv = NULL
 	 *
-	 *  Note that device_add does NOT fail if no driver failed to
-	 *  claim the device.  The device will be linked onto
-	 *  bus_type.klist_devices regardless (use bus_for_each_dev).
+	 * Note that device_add does NOT fail if no driver failed to claim the
+	 * device.  The device will be linked onto bus_type.klist_devices
+	 * regardless (use bus_for_each_dev).
 	 */
 	err = device_add(&dev->device);
 	if (err < 0)
 		goto err_put;
-
 	list_add_tail(&dev->list_all, &list_all_device_instances);
 	dev->state.created = 1;
 	visorbus_response(dev, err, CONTROLVM_DEVICE_CREATE);
@@ -695,8 +713,9 @@ void remove_visor_device(struct visor_device *dev)
 {
 	list_del(&dev->list_all);
 	put_device(&dev->device);
+	if (dev->pending_msg_hdr)
+		visorbus_response(dev, 0, CONTROLVM_DEVICE_DESTROY);
 	device_unregister(&dev->device);
-	visorbus_response(dev, 0, CONTROLVM_DEVICE_DESTROY);
 }
 
 static int get_vbus_header_info(struct visorchannel *chan,
@@ -718,14 +737,11 @@ static int get_vbus_header_info(struct visorchannel *chan,
 				sizeof(*hdr_info));
 	if (err < 0)
 		return err;
-
 	if (hdr_info->struct_bytes < sizeof(struct visor_vbus_headerinfo))
 		return -EINVAL;
-
 	if (hdr_info->device_info_struct_bytes <
 	    sizeof(struct visor_vbus_deviceinfo))
 		return -EINVAL;
-
 	return 0;
 }
 
@@ -746,11 +762,12 @@ static void write_vbus_chp_info(struct visorchannel *chan,
 				struct visor_vbus_headerinfo *hdr_info,
 				struct visor_vbus_deviceinfo *info)
 {
-	int off = sizeof(struct channel_header) + hdr_info->chp_info_offset;
+	int off;
 
 	if (hdr_info->chp_info_offset == 0)
 		return;
 
+	off = sizeof(struct channel_header) + hdr_info->chp_info_offset;
 	visorchannel_write(chan, off, info, sizeof(*info));
 }
 
@@ -771,11 +788,12 @@ static void write_vbus_bus_info(struct visorchannel *chan,
 				struct visor_vbus_headerinfo *hdr_info,
 				struct visor_vbus_deviceinfo *info)
 {
-	int off = sizeof(struct channel_header) + hdr_info->bus_info_offset;
+	int off;
 
 	if (hdr_info->bus_info_offset == 0)
 		return;
 
+	off = sizeof(struct channel_header) + hdr_info->bus_info_offset;
 	visorchannel_write(chan, off, info, sizeof(*info));
 }
 
@@ -798,13 +816,12 @@ static void write_vbus_dev_info(struct visorchannel *chan,
 				struct visor_vbus_deviceinfo *info,
 				unsigned int devix)
 {
-	int off =
-	    (sizeof(struct channel_header) + hdr_info->dev_info_offset) +
-	    (hdr_info->device_info_struct_bytes * devix);
+	int off;
 
 	if (hdr_info->dev_info_offset == 0)
 		return;
-
+	off = (sizeof(struct channel_header) + hdr_info->dev_info_offset) +
+	      (hdr_info->device_info_struct_bytes * devix);
 	visorchannel_write(chan, off, info, sizeof(*info));
 }
 
@@ -844,7 +861,6 @@ static void publish_vbus_dev_info(struct visor_device *visordev)
 
 	if (!visordev->device.driver)
 		return;
-
 	bdev = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
 	if (!bdev)
 		return;
@@ -860,14 +876,12 @@ static void publish_vbus_dev_info(struct visor_device *visordev)
 	 * type name
 	 */
 	for (i = 0; visordrv->channel_types[i].name; i++) {
-		if (memcmp(&visordrv->channel_types[i].guid,
-			   &visordev->channel_type_guid,
-			   sizeof(visordrv->channel_types[i].guid)) == 0) {
+		if (guid_equal(&visordrv->channel_types[i].guid,
+			       &visordev->channel_type_guid)) {
 			chan_type_name = visordrv->channel_types[i].name;
 			break;
 		}
 	}
-
 	bus_device_info_init(&dev_info, chan_type_name, visordrv->name);
 	write_vbus_dev_info(bdev->visorchannel, hdr_info, &dev_info, dev_no);
 	write_vbus_chp_info(bdev->visorchannel, hdr_info, &chipset_driverinfo);
@@ -892,36 +906,32 @@ static void publish_vbus_dev_info(struct visor_device *visordev)
  */
 static int visordriver_probe_device(struct device *xdev)
 {
-	int res;
-	struct visor_driver *drv;
-	struct visor_device *dev;
-
-	dev = to_visor_device(xdev);
-	drv = to_visor_driver(xdev->driver);
+	int err;
+	struct visor_driver *drv = to_visor_driver(xdev->driver);
+	struct visor_device *dev = to_visor_device(xdev);
 
 	mutex_lock(&dev->visordriver_callback_lock);
 	dev->being_removed = false;
-
-	res = drv->probe(dev);
-	if (res >= 0) {
-		/* success: reference kept via unmatched get_device() */
-		get_device(&dev->device);
-		publish_vbus_dev_info(dev);
+	err = drv->probe(dev);
+	if (err) {
+		mutex_unlock(&dev->visordriver_callback_lock);
+		return err;
 	}
-
+	/* success: reference kept via unmatched get_device() */
+	get_device(&dev->device);
+	publish_vbus_dev_info(dev);
 	mutex_unlock(&dev->visordriver_callback_lock);
-	return res;
+	return 0;
 }
 
 /*
- * visorbus_register_visor_driver() - registers the provided visor driver
- *                                    for handling one or more visor device
+ * visorbus_register_visor_driver() - registers the provided visor driver for
+ *				      handling one or more visor device
  *                                    types (channel_types)
  * @drv: the driver to register
  *
- * A visor function driver calls this function to register
- * the driver.  The caller MUST fill in the following fields within the
- * #drv structure:
+ * A visor function driver calls this function to register the driver. The
+ * caller MUST fill in the following fields within the #drv structure:
  *     name, version, owner, channel_types, probe, remove
  *
  * Here's how the whole Linux bus / driver / device model works.
@@ -967,16 +977,12 @@ int visorbus_register_visor_driver(struct visor_driver *drv)
 	/* can't register on a nonexistent bus */
 	if (!initialized)
 		return -ENODEV;
-
 	if (!drv->probe)
 		return -EINVAL;
-
 	if (!drv->remove)
 		return -EINVAL;
-
 	if (!drv->pause)
 		return -EINVAL;
-
 	if (!drv->resume)
 		return -EINVAL;
 
@@ -985,7 +991,6 @@ int visorbus_register_visor_driver(struct visor_driver *drv)
 	drv->driver.probe = visordriver_probe_device;
 	drv->driver.remove = visordriver_remove_device;
 	drv->driver.owner = drv->owner;
-
 	/*
 	 * driver_register does this:
 	 *   bus_add_driver(drv)
@@ -998,7 +1003,6 @@ int visorbus_register_visor_driver(struct visor_driver *drv)
 	 *               if (!drv.probe(dev))   [visordriver_probe_device]
 	 *                 dev.drv = NULL
 	 */
-
 	return driver_register(&drv->driver);
 }
 EXPORT_SYMBOL_GPL(visorbus_register_visor_driver);
@@ -1019,39 +1023,28 @@ int visorbus_create_instance(struct visor_device *dev)
 	hdr_info = kzalloc(sizeof(*hdr_info), GFP_KERNEL);
 	if (!hdr_info)
 		return -ENOMEM;
-
 	dev_set_name(&dev->device, "visorbus%d", id);
 	dev->device.bus = &visorbus_type;
 	dev->device.groups = visorbus_groups;
 	dev->device.release = visorbus_release_busdevice;
-
 	dev->debugfs_dir = debugfs_create_dir(dev_name(&dev->device),
 					      visorbus_debugfs_dir);
-	dev->debugfs_client_bus_info =
-		debugfs_create_file("client_bus_info", 0440,
-				    dev->debugfs_dir, dev,
-				    &client_bus_info_debugfs_fops);
-
+	dev->debugfs_bus_info = debugfs_create_file("client_bus_info", 0440,
+						    dev->debugfs_dir, dev,
+						    &bus_info_debugfs_fops);
 	dev_set_drvdata(&dev->device, dev);
 	err = get_vbus_header_info(dev->visorchannel, &dev->device, hdr_info);
 	if (err < 0)
 		goto err_debugfs_dir;
-
 	err = device_register(&dev->device);
 	if (err < 0)
 		goto err_debugfs_dir;
-
 	list_add_tail(&dev->list_all, &list_all_bus_instances);
-
 	dev->state.created = 1;
 	dev->vbus_hdr_info = (void *)hdr_info;
-	write_vbus_chp_info(dev->visorchannel, hdr_info,
-			    &chipset_driverinfo);
-	write_vbus_bus_info(dev->visorchannel, hdr_info,
-			    &clientbus_driverinfo);
-
+	write_vbus_chp_info(dev->visorchannel, hdr_info, &chipset_driverinfo);
+	write_vbus_bus_info(dev->visorchannel, hdr_info, &clientbus_driverinfo);
 	visorbus_response(dev, err, CONTROLVM_BUS_CREATE);
-
 	return 0;
 
 err_debugfs_dir:
@@ -1075,11 +1068,11 @@ void visorbus_remove_instance(struct visor_device *dev)
 	 * successfully been able to trace thru the code to see where/how
 	 * release() gets called.  But I know it does.
 	 */
-	visorchannel_destroy(dev->visorchannel);
 	kfree(dev->vbus_hdr_info);
 	list_del(&dev->list_all);
+	if (dev->pending_msg_hdr)
+		visorbus_response(dev, 0, CONTROLVM_BUS_DESTROY);
 	device_unregister(&dev->device);
-	visorbus_response(dev, 0, CONTROLVM_BUS_DESTROY);
 }
 
 /*
@@ -1090,9 +1083,9 @@ static void remove_all_visor_devices(void)
 	struct list_head *listentry, *listtmp;
 
 	list_for_each_safe(listentry, listtmp, &list_all_device_instances) {
-		struct visor_device *dev = list_entry(listentry,
-						      struct visor_device,
-						      list_all);
+		struct visor_device *dev;
+
+		dev = list_entry(listentry, struct visor_device, list_all);
 		remove_visor_device(dev);
 	}
 }
@@ -1131,7 +1124,6 @@ static void resume_state_change_complete(struct visor_device *dev, int status)
 		return;
 
 	dev->resuming = false;
-
 	/*
 	 * Notify the chipset driver that the resume is complete,
 	 * which will presumably want to send some sort of response to
@@ -1156,7 +1148,7 @@ static int visorchipset_initiate_device_pause_resume(struct visor_device *dev,
 						     bool is_pause)
 {
 	int err;
-	struct visor_driver *drv = NULL;
+	struct visor_driver *drv;
 
 	/* If no driver associated with the device nothing to pause/resume */
 	if (!dev->device.driver)
@@ -1177,7 +1169,6 @@ static int visorchipset_initiate_device_pause_resume(struct visor_device *dev,
 		dev->resuming = true;
 		err = drv->resume(dev, resume_state_change_complete);
 	}
-
 	return err;
 }
 
@@ -1198,7 +1189,6 @@ int visorchipset_device_pause(struct visor_device *dev_info)
 		dev_info->pausing = false;
 		return err;
 	}
-
 	return 0;
 }
 
@@ -1219,7 +1209,6 @@ int visorchipset_device_resume(struct visor_device *dev_info)
 		dev_info->resuming = false;
 		return err;
 	}
-
 	return 0;
 }
 
@@ -1228,18 +1217,12 @@ int visorbus_init(void)
 	int err;
 
 	visorbus_debugfs_dir = debugfs_create_dir("visorbus", NULL);
-	if (!visorbus_debugfs_dir)
-		return -ENOMEM;
-
 	bus_device_info_init(&clientbus_driverinfo, "clientbus", "visorbus");
-
 	err = bus_register(&visorbus_type);
 	if (err < 0)
 		return err;
-
 	initialized = true;
 	bus_device_info_init(&chipset_driverinfo, "chipset", "visorchipset");
-
 	return 0;
 }
 
@@ -1248,14 +1231,12 @@ void visorbus_exit(void)
 	struct list_head *listentry, *listtmp;
 
 	remove_all_visor_devices();
-
 	list_for_each_safe(listentry, listtmp, &list_all_bus_instances) {
-		struct visor_device *dev = list_entry(listentry,
-						      struct visor_device,
-						      list_all);
+		struct visor_device *dev;
+
+		dev = list_entry(listentry, struct visor_device, list_all);
 		visorbus_remove_instance(dev);
 	}
-
 	bus_unregister(&visorbus_type);
 	initialized = false;
 	debugfs_remove_recursive(visorbus_debugfs_dir);

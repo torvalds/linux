@@ -292,7 +292,7 @@ static int print_events_table_entry(void *data, char *name, char *event,
 				    char *desc, char *long_desc,
 				    char *pmu, char *unit, char *perpkg,
 				    char *metric_expr,
-				    char *metric_name)
+				    char *metric_name, char *metric_group)
 {
 	struct perf_entry_data *pd = data;
 	FILE *outfp = pd->outfp;
@@ -304,8 +304,10 @@ static int print_events_table_entry(void *data, char *name, char *event,
 	 */
 	fprintf(outfp, "{\n");
 
-	fprintf(outfp, "\t.name = \"%s\",\n", name);
-	fprintf(outfp, "\t.event = \"%s\",\n", event);
+	if (name)
+		fprintf(outfp, "\t.name = \"%s\",\n", name);
+	if (event)
+		fprintf(outfp, "\t.event = \"%s\",\n", event);
 	fprintf(outfp, "\t.desc = \"%s\",\n", desc);
 	fprintf(outfp, "\t.topic = \"%s\",\n", topic);
 	if (long_desc && long_desc[0])
@@ -320,6 +322,8 @@ static int print_events_table_entry(void *data, char *name, char *event,
 		fprintf(outfp, "\t.metric_expr = \"%s\",\n", metric_expr);
 	if (metric_name)
 		fprintf(outfp, "\t.metric_name = \"%s\",\n", metric_name);
+	if (metric_group)
+		fprintf(outfp, "\t.metric_group = \"%s\",\n", metric_group);
 	fprintf(outfp, "},\n");
 
 	return 0;
@@ -357,6 +361,9 @@ static char *real_event(const char *name, char *event)
 {
 	int i;
 
+	if (!name)
+		return NULL;
+
 	for (i = 0; fixed[i].name; i++)
 		if (!strcasecmp(name, fixed[i].name))
 			return (char *)fixed[i].event;
@@ -369,7 +376,7 @@ int json_events(const char *fn,
 		      char *long_desc,
 		      char *pmu, char *unit, char *perpkg,
 		      char *metric_expr,
-		      char *metric_name),
+		      char *metric_name, char *metric_group),
 	  void *data)
 {
 	int err = -EIO;
@@ -397,6 +404,7 @@ int json_events(const char *fn,
 		char *unit = NULL;
 		char *metric_expr = NULL;
 		char *metric_name = NULL;
+		char *metric_group = NULL;
 		unsigned long long eventcode = 0;
 		struct msrmap *msr = NULL;
 		jsmntok_t *msrval = NULL;
@@ -476,6 +484,8 @@ int json_events(const char *fn,
 				addfield(map, &perpkg, "", "", val);
 			} else if (json_streq(map, field, "MetricName")) {
 				addfield(map, &metric_name, "", "", val);
+			} else if (json_streq(map, field, "MetricGroup")) {
+				addfield(map, &metric_group, "", "", val);
 			} else if (json_streq(map, field, "MetricExpr")) {
 				addfield(map, &metric_expr, "", "", val);
 				for (s = metric_expr; *s; s++)
@@ -501,10 +511,11 @@ int json_events(const char *fn,
 			addfield(map, &event, ",", filter, NULL);
 		if (msr != NULL)
 			addfield(map, &event, ",", msr->pname, msrval);
-		fixname(name);
+		if (name)
+			fixname(name);
 
 		err = func(data, name, real_event(name, event), desc, long_desc,
-				pmu, unit, perpkg, metric_expr, metric_name);
+			   pmu, unit, perpkg, metric_expr, metric_name, metric_group);
 		free(event);
 		free(desc);
 		free(name);
@@ -516,6 +527,7 @@ int json_events(const char *fn,
 		free(unit);
 		free(metric_expr);
 		free(metric_name);
+		free(metric_group);
 		if (err)
 			break;
 		tok += j;

@@ -130,7 +130,6 @@ static const struct adc128_configuration adc128_config[] = {
 
 static const struct iio_info adc128_info = {
 	.read_raw = adc128_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int adc128_probe(struct spi_device *spi)

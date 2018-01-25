@@ -24,7 +24,7 @@
 /* ACPI 6.1 */
 #define UUID_NFIT_BUS "2f10e7a4-9e91-11e4-89d3-123b93f75cba"
 
-/* http://pmem.io/documents/NVDIMM_DSM_Interface_Example.pdf */
+/* http://pmem.io/documents/NVDIMM_DSM_Interface-V1.6.pdf */
 #define UUID_NFIT_DIMM "4309ac30-0d11-11e4-9191-0800200c9a66"
 
 /* https://github.com/HewlettPackard/hpe-nvm/blob/master/Documentation/ */
@@ -37,6 +37,37 @@
 #define ACPI_NFIT_MEM_FAILED_MASK (ACPI_NFIT_MEM_SAVE_FAILED \
 		| ACPI_NFIT_MEM_RESTORE_FAILED | ACPI_NFIT_MEM_FLUSH_FAILED \
 		| ACPI_NFIT_MEM_NOT_ARMED | ACPI_NFIT_MEM_MAP_FAILED)
+
+#define NVDIMM_FAMILY_MAX NVDIMM_FAMILY_MSFT
+
+#define NVDIMM_STANDARD_CMDMASK \
+(1 << ND_CMD_SMART | 1 << ND_CMD_SMART_THRESHOLD | 1 << ND_CMD_DIMM_FLAGS \
+ | 1 << ND_CMD_GET_CONFIG_SIZE | 1 << ND_CMD_GET_CONFIG_DATA \
+ | 1 << ND_CMD_SET_CONFIG_DATA | 1 << ND_CMD_VENDOR_EFFECT_LOG_SIZE \
+ | 1 << ND_CMD_VENDOR_EFFECT_LOG | 1 << ND_CMD_VENDOR)
+
+/*
+ * Command numbers that the kernel needs to know about to handle
+ * non-default DSM revision ids
+ */
+enum nvdimm_family_cmds {
+	NVDIMM_INTEL_LATCH_SHUTDOWN = 10,
+	NVDIMM_INTEL_GET_MODES = 11,
+	NVDIMM_INTEL_GET_FWINFO = 12,
+	NVDIMM_INTEL_START_FWUPDATE = 13,
+	NVDIMM_INTEL_SEND_FWUPDATE = 14,
+	NVDIMM_INTEL_FINISH_FWUPDATE = 15,
+	NVDIMM_INTEL_QUERY_FWUPDATE = 16,
+	NVDIMM_INTEL_SET_THRESHOLD = 17,
+	NVDIMM_INTEL_INJECT_ERROR = 18,
+};
+
+#define NVDIMM_INTEL_CMDMASK \
+(NVDIMM_STANDARD_CMDMASK | 1 << NVDIMM_INTEL_GET_MODES \
+ | 1 << NVDIMM_INTEL_GET_FWINFO | 1 << NVDIMM_INTEL_START_FWUPDATE \
+ | 1 << NVDIMM_INTEL_SEND_FWUPDATE | 1 << NVDIMM_INTEL_FINISH_FWUPDATE \
+ | 1 << NVDIMM_INTEL_QUERY_FWUPDATE | 1 << NVDIMM_INTEL_SET_THRESHOLD \
+ | 1 << NVDIMM_INTEL_INJECT_ERROR | 1 << NVDIMM_INTEL_LATCH_SHUTDOWN)
 
 enum nfit_uuids {
 	/* for simplicity alias the uuid index with the family id */
@@ -140,6 +171,9 @@ struct nfit_mem {
 	struct resource *flush_wpq;
 	unsigned long dsm_mask;
 	int family;
+	u32 has_lsi:1;
+	u32 has_lsr:1;
+	u32 has_lsw:1;
 };
 
 struct acpi_nfit_desc {
@@ -167,6 +201,7 @@ struct acpi_nfit_desc {
 	unsigned int init_complete:1;
 	unsigned long dimm_cmd_force_en;
 	unsigned long bus_cmd_force_en;
+	unsigned long bus_nfit_cmd_force_en;
 	int (*blk_do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
 			void *iobuf, u64 len, int rw);
 };

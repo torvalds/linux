@@ -1359,7 +1359,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 		return true;
 	}
 
-	bssid = (struct wlan_bssid_ex *)rtw_zmalloc(sizeof(struct wlan_bssid_ex));
+	bssid = rtw_zmalloc(sizeof(struct wlan_bssid_ex));
 	if (bssid == NULL) {
 		DBG_871X("%s rtw_zmalloc fail !!!\n", __func__);
 		return true;
@@ -1946,7 +1946,7 @@ void process_addba_req(struct adapter *padapter, u8 *paddba_req, u8 *addr)
 		preorder_ctrl->indicate_seq = 0xffff;
 		#endif
 
-		preorder_ctrl->enable = (pmlmeinfo->bAcceptAddbaReq == true) ? true : false;
+		preorder_ctrl->enable = pmlmeinfo->accept_addba_req;
 	}
 
 }

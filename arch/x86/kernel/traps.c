@@ -42,7 +42,6 @@
 #include <linux/edac.h>
 #endif
 
-#include <asm/kmemcheck.h>
 #include <asm/stacktrace.h>
 #include <asm/processor.h>
 #include <asm/debugreg.h>
@@ -60,6 +59,7 @@
 #include <asm/trace/mpx.h>
 #include <asm/mpx.h>
 #include <asm/vm86.h>
+#include <asm/umip.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/x86_init.h>
@@ -71,7 +71,7 @@
 #include <asm/proto.h>
 #endif
 
-DECLARE_BITMAP(used_vectors, NR_VECTORS);
+DECLARE_BITMAP(system_vectors, NR_VECTORS);
 
 static inline void cond_local_irq_enable(struct pt_regs *regs)
 {
@@ -141,8 +141,7 @@ void ist_begin_non_atomic(struct pt_regs *regs)
 	 * will catch asm bugs and any attempt to use ist_preempt_enable
 	 * from double_fault.
 	 */
-	BUG_ON((unsigned long)(current_top_of_stack() -
-			       current_stack_pointer) >= THREAD_SIZE);
+	BUG_ON(!on_thread_stack());
 
 	preempt_enable_no_resched();
 }
@@ -207,9 +206,6 @@ do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
 
 	if (!user_mode(regs)) {
 		if (fixup_exception(regs, trapnr))
-			return 0;
-
-		if (fixup_bug(regs, trapnr))
 			return 0;
 
 		tsk->thread.error_code = error_code;
@@ -291,6 +287,13 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
 	siginfo_t info;
 
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
+
+	/*
+	 * WARN*()s end up here; fix them up before we call the
+	 * notifier chain.
+	 */
+	if (!user_mode(regs) && fixup_bug(regs, trapnr))
+		return;
 
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) !=
 			NOTIFY_STOP) {
@@ -513,6 +516,11 @@ do_general_protection(struct pt_regs *regs, long error_code)
 
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	cond_local_irq_enable(regs);
+
+	if (static_cpu_has(X86_FEATURE_UMIP)) {
+		if (user_mode(regs) && fixup_umip_exception(regs))
+			return;
+	}
 
 	if (v8086_mode(regs)) {
 		local_irq_enable();
@@ -739,10 +747,6 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	 */
 	if (!dr6 && user_mode(regs))
 		user_icebp = 1;
-
-	/* Catch kmemcheck conditions! */
-	if ((dr6 & DR_STEP) && kmemcheck_trap(regs))
-		goto exit;
 
 	/* Store the virtualized DR6 value */
 	tsk->thread.debugreg6 = dr6;

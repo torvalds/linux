@@ -615,7 +615,6 @@ static const struct attribute_group sx9500_attribute_group = {
 };
 
 static const struct iio_info sx9500_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &sx9500_attribute_group,
 	.read_raw = &sx9500_read_raw,
 	.write_raw = &sx9500_write_raw,
@@ -650,7 +649,6 @@ out:
 
 static const struct iio_trigger_ops sx9500_trigger_ops = {
 	.set_trigger_state = sx9500_set_trigger_state,
-	.owner = THIS_MODULE,
 };
 
 static irqreturn_t sx9500_trigger_handler(int irq, void *private)

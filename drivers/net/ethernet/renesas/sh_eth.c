@@ -594,7 +594,7 @@ static struct sh_eth_cpu_data r8a7740_data = {
 };
 
 /* There is CPU dependent code */
-static void sh_eth_set_rate_r8a777x(struct net_device *ndev)
+static void sh_eth_set_rate_rcar(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -608,10 +608,10 @@ static void sh_eth_set_rate_r8a777x(struct net_device *ndev)
 	}
 }
 
-/* R8A7778/9 */
-static struct sh_eth_cpu_data r8a777x_data = {
+/* R-Car Gen1 */
+static struct sh_eth_cpu_data rcar_gen1_data = {
 	.set_duplex	= sh_eth_set_duplex,
-	.set_rate	= sh_eth_set_rate_r8a777x,
+	.set_rate	= sh_eth_set_rate_rcar,
 
 	.register_type	= SH_ETH_REG_FAST_RCAR,
 
@@ -635,10 +635,10 @@ static struct sh_eth_cpu_data r8a777x_data = {
 	.hw_swap	= 1,
 };
 
-/* R8A7790/1 */
-static struct sh_eth_cpu_data r8a779x_data = {
+/* R-Car Gen2 and RZ/G1 */
+static struct sh_eth_cpu_data rcar_gen2_data = {
 	.set_duplex	= sh_eth_set_duplex,
-	.set_rate	= sh_eth_set_rate_r8a777x,
+	.set_rate	= sh_eth_set_rate_rcar,
 
 	.register_type	= SH_ETH_REG_FAST_RCAR,
 
@@ -3086,15 +3086,17 @@ static struct sh_eth_plat_data *sh_eth_parse_dt(struct device *dev)
 
 static const struct of_device_id sh_eth_match_table[] = {
 	{ .compatible = "renesas,gether-r8a7740", .data = &r8a7740_data },
-	{ .compatible = "renesas,ether-r8a7743", .data = &r8a779x_data },
-	{ .compatible = "renesas,ether-r8a7745", .data = &r8a779x_data },
-	{ .compatible = "renesas,ether-r8a7778", .data = &r8a777x_data },
-	{ .compatible = "renesas,ether-r8a7779", .data = &r8a777x_data },
-	{ .compatible = "renesas,ether-r8a7790", .data = &r8a779x_data },
-	{ .compatible = "renesas,ether-r8a7791", .data = &r8a779x_data },
-	{ .compatible = "renesas,ether-r8a7793", .data = &r8a779x_data },
-	{ .compatible = "renesas,ether-r8a7794", .data = &r8a779x_data },
+	{ .compatible = "renesas,ether-r8a7743", .data = &rcar_gen2_data },
+	{ .compatible = "renesas,ether-r8a7745", .data = &rcar_gen2_data },
+	{ .compatible = "renesas,ether-r8a7778", .data = &rcar_gen1_data },
+	{ .compatible = "renesas,ether-r8a7779", .data = &rcar_gen1_data },
+	{ .compatible = "renesas,ether-r8a7790", .data = &rcar_gen2_data },
+	{ .compatible = "renesas,ether-r8a7791", .data = &rcar_gen2_data },
+	{ .compatible = "renesas,ether-r8a7793", .data = &rcar_gen2_data },
+	{ .compatible = "renesas,ether-r8a7794", .data = &rcar_gen2_data },
 	{ .compatible = "renesas,ether-r7s72100", .data = &r7s72100_data },
+	{ .compatible = "renesas,rcar-gen1-ether", .data = &rcar_gen1_data },
+	{ .compatible = "renesas,rcar-gen2-ether", .data = &rcar_gen2_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sh_eth_match_table);

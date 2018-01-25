@@ -572,6 +572,12 @@ static void pa11_dma_sync_sg_for_device(struct device *dev, struct scatterlist *
 		flush_kernel_vmap_range(sg_virt(sg), sg->length);
 }
 
+static void pa11_dma_cache_sync(struct device *dev, void *vaddr, size_t size,
+	       enum dma_data_direction direction)
+{
+	flush_kernel_dcache_range((unsigned long)vaddr, size);
+}
+
 const struct dma_map_ops pcxl_dma_ops = {
 	.dma_supported =	pa11_dma_supported,
 	.alloc =		pa11_dma_alloc,
@@ -584,6 +590,7 @@ const struct dma_map_ops pcxl_dma_ops = {
 	.sync_single_for_device = pa11_dma_sync_single_for_device,
 	.sync_sg_for_cpu =	pa11_dma_sync_sg_for_cpu,
 	.sync_sg_for_device =	pa11_dma_sync_sg_for_device,
+	.cache_sync =		pa11_dma_cache_sync,
 };
 
 static void *pcx_dma_alloc(struct device *dev, size_t size,
@@ -620,4 +627,5 @@ const struct dma_map_ops pcx_dma_ops = {
 	.sync_single_for_device = pa11_dma_sync_single_for_device,
 	.sync_sg_for_cpu =	pa11_dma_sync_sg_for_cpu,
 	.sync_sg_for_device =	pa11_dma_sync_sg_for_device,
+	.cache_sync =		pa11_dma_cache_sync,
 };

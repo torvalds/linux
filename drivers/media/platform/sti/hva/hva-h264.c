@@ -999,7 +999,6 @@ static int hva_h264_encode(struct hva_ctx *pctx, struct hva_frame *frame,
 {
 	struct hva_h264_ctx *ctx = (struct hva_h264_ctx *)pctx->priv;
 	struct hva_h264_task *task = (struct hva_h264_task *)ctx->task->vaddr;
-	struct hva_buffer *tmp_frame;
 	u32 stuffing_bytes = 0;
 	int ret = 0;
 
@@ -1023,9 +1022,7 @@ static int hva_h264_encode(struct hva_ctx *pctx, struct hva_frame *frame,
 				       &stream->bytesused);
 
 	/* switch reference & reconstructed frame */
-	tmp_frame = ctx->ref_frame;
-	ctx->ref_frame = ctx->rec_frame;
-	ctx->rec_frame = tmp_frame;
+	swap(ctx->ref_frame, ctx->rec_frame);
 
 	return 0;
 err:

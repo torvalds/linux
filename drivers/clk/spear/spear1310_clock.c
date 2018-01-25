@@ -284,7 +284,7 @@ static struct frac_rate_tbl clcd_rtbl[] = {
 };
 
 /* i2s prescaler1 masks */
-static struct aux_clk_masks i2s_prs1_masks = {
+static const struct aux_clk_masks i2s_prs1_masks = {
 	.eq_sel_mask = AUX_EQ_SEL_MASK,
 	.eq_sel_shift = SPEAR1310_I2S_PRS1_EQ_SEL_SHIFT,
 	.eq1_mask = AUX_EQ1_SEL,

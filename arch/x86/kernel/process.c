@@ -49,7 +49,13 @@
  */
 __visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss) = {
 	.x86_tss = {
-		.sp0 = TOP_OF_INIT_STACK,
+		/*
+		 * .sp0 is only used when entering ring 0 from a lower
+		 * privilege level.  Since the init task never runs anything
+		 * but ring 0 code, there is no need for a valid value here.
+		 * Poison it.
+		 */
+		.sp0 = (1UL << (BITS_PER_LONG-1)) + 1,
 #ifdef CONFIG_X86_32
 		.ss0 = __KERNEL_DS,
 		.ss1 = __KERNEL_CS,

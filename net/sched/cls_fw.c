@@ -28,6 +28,7 @@
 #include <net/netlink.h>
 #include <net/act_api.h>
 #include <net/pkt_cls.h>
+#include <net/sch_generic.h>
 
 #define HTSIZE 256
 
@@ -86,9 +87,11 @@ static int fw_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			}
 		}
 	} else {
+		struct Qdisc *q = tcf_block_q(tp->chain->block);
+
 		/* Old method: classify the packet using its skb mark. */
 		if (id && (TC_H_MAJ(id) == 0 ||
-			   !(TC_H_MAJ(id ^ tp->q->handle)))) {
+			   !(TC_H_MAJ(id ^ q->handle)))) {
 			res->classid = id;
 			res->class = 0;
 			return 0;
@@ -122,13 +125,19 @@ static int fw_init(struct tcf_proto *tp)
 	return 0;
 }
 
+static void __fw_delete_filter(struct fw_filter *f)
+{
+	tcf_exts_destroy(&f->exts);
+	tcf_exts_put_net(&f->exts);
+	kfree(f);
+}
+
 static void fw_delete_filter_work(struct work_struct *work)
 {
 	struct fw_filter *f = container_of(work, struct fw_filter, work);
 
 	rtnl_lock();
-	tcf_exts_destroy(&f->exts);
-	kfree(f);
+	__fw_delete_filter(f);
 	rtnl_unlock();
 }
 
@@ -154,7 +163,10 @@ static void fw_destroy(struct tcf_proto *tp)
 			RCU_INIT_POINTER(head->ht[h],
 					 rtnl_dereference(f->next));
 			tcf_unbind_filter(tp, &f->res);
-			call_rcu(&f->rcu, fw_delete_filter);
+			if (tcf_exts_get_net(&f->exts))
+				call_rcu(&f->rcu, fw_delete_filter);
+			else
+				__fw_delete_filter(f);
 		}
 	}
 	kfree_rcu(head, rcu);
@@ -179,6 +191,7 @@ static int fw_delete(struct tcf_proto *tp, void *arg, bool *last)
 		if (pfp == f) {
 			RCU_INIT_POINTER(*fp, rtnl_dereference(f->next));
 			tcf_unbind_filter(tp, &f->res);
+			tcf_exts_get_net(&f->exts);
 			call_rcu(&f->rcu, fw_delete_filter);
 			ret = 0;
 			break;
@@ -299,6 +312,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 		RCU_INIT_POINTER(fnew->next, rtnl_dereference(pfp->next));
 		rcu_assign_pointer(*fp, fnew);
 		tcf_unbind_filter(tp, &f->res);
+		tcf_exts_get_net(&f->exts);
 		call_rcu(&f->rcu, fw_delete_filter);
 
 		*arg = fnew;

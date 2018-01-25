@@ -104,6 +104,12 @@ enum fixed_addresses {
 	FIX_GDT_REMAP_BEGIN,
 	FIX_GDT_REMAP_END = FIX_GDT_REMAP_BEGIN + NR_CPUS - 1,
 
+#ifdef CONFIG_ACPI_APEI_GHES
+	/* Used for GHES mapping from assorted contexts */
+	FIX_APEI_GHES_IRQ,
+	FIX_APEI_GHES_NMI,
+#endif
+
 	__end_of_permanent_fixed_addresses,
 
 	/*

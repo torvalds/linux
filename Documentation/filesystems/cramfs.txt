@@ -45,6 +45,48 @@ you can just change the #define in mkcramfs.c, so long as you don't
 mind the filesystem becoming unreadable to future kernels.
 
 
+Memory Mapped cramfs image
+--------------------------
+
+The CRAMFS_MTD Kconfig option adds support for loading data directly from
+a physical linear memory range (usually non volatile memory like Flash)
+instead of going through the block device layer. This saves some memory
+since no intermediate buffering is necessary to hold the data before
+decompressing.
+
+And when data blocks are kept uncompressed and properly aligned, they will
+automatically be mapped directly into user space whenever possible providing
+eXecute-In-Place (XIP) from ROM of read-only segments. Data segments mapped
+read-write (hence they have to be copied to RAM) may still be compressed in
+the cramfs image in the same file along with non compressed read-only
+segments. Both MMU and no-MMU systems are supported. This is particularly
+handy for tiny embedded systems with very tight memory constraints.
+
+The location of the cramfs image in memory is system dependent. You must
+know the proper physical address where the cramfs image is located and
+configure an MTD device for it. Also, that MTD device must be supported
+by a map driver that implements the "point" method. Examples of such
+MTD drivers are cfi_cmdset_0001 (Intel/Sharp CFI flash) or physmap
+(Flash device in physical memory map). MTD partitions based on such devices
+are fine too. Then that device should be specified with the "mtd:" prefix
+as the mount device argument. For example, to mount the MTD device named
+"fs_partition" on the /mnt directory:
+
+$ mount -t cramfs mtd:fs_partition /mnt
+
+To boot a kernel with this as root filesystem, suffice to specify
+something like "root=mtd:fs_partition" on the kernel command line.
+
+
+Tools
+-----
+
+A version of mkcramfs that can take advantage of the latest capabilities
+described above can be found here:
+
+https://github.com/npitre/cramfs-tools
+
+
 For /usr/share/magic
 --------------------
 

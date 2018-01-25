@@ -97,6 +97,12 @@ config HANDLE_DOMAIN_IRQ
 config IRQ_TIMINGS
 	bool
 
+config GENERIC_IRQ_MATRIX_ALLOCATOR
+	bool
+
+config GENERIC_IRQ_RESERVATION_MODE
+	bool
+
 config IRQ_DOMAIN_DEBUG
 	bool "Expose hardware/virtual IRQ mapping via debugfs"
 	depends on IRQ_DOMAIN && DEBUG_FS

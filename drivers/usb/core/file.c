@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/usb/core/file.c
  *
@@ -14,7 +15,6 @@
  * (C) Copyright Greg Kroah-Hartman 2002-2003
  *
  * Released under the GPLv2 only.
- * SPDX-License-Identifier: GPL-2.0
  */
 
 #include <linux/module.h>

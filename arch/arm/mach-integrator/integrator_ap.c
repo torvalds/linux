@@ -36,7 +36,6 @@
 #include "hardware.h"
 #include "cm.h"
 #include "common.h"
-#include "pci_v3.h"
 #include "lm.h"
 
 /* Regmap to the AP system controller */
@@ -74,7 +73,6 @@ static struct map_desc ap_io_desc[] __initdata __maybe_unused = {
 static void __init ap_map_io(void)
 {
 	iotable_init(ap_io_desc, ARRAY_SIZE(ap_io_desc));
-	pci_v3_early_init();
 }
 
 #ifdef CONFIG_PM

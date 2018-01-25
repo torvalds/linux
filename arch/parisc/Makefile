@@ -22,7 +22,7 @@ KBUILD_IMAGE := vmlinuz
 KBUILD_DEFCONFIG := default_defconfig
 
 NM		= sh $(srctree)/arch/parisc/nm
-CHECKFLAGS	+= -D__hppa__=1
+CHECKFLAGS	+= -D__hppa__=1 -mbig-endian
 LIBGCC		= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 export LIBGCC
 

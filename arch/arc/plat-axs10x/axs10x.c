@@ -111,13 +111,6 @@ static void __init axs10x_early_init(void)
 
 	axs10x_enable_gpio_intc_wire();
 
-	/*
-	 * Reset ethernet IP core.
-	 * TODO: get rid of this quirk after axs10x reset driver (or simple
-	 * reset driver) will be available in upstream.
-	 */
-	iowrite32((1 << 5), (void __iomem *) CREG_MB_SW_RESET);
-
 	scnprintf(mb, 32, "MainBoard v%d", mb_rev);
 	axs10x_print_board_ver(CREG_MB_VER, mb);
 }

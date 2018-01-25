@@ -166,6 +166,10 @@ static inline void do_raw_spin_lock(raw_spinlock_t *lock) __acquires(lock)
 	arch_spin_lock(&lock->raw_lock);
 }
 
+#ifndef arch_spin_lock_flags
+#define arch_spin_lock_flags(lock, flags)	arch_spin_lock(lock)
+#endif
+
 static inline void
 do_raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long *flags) __acquires(lock)
 {
@@ -279,12 +283,6 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
 	1 : ({ local_irq_restore(flags); 0; }); \
 })
 
-/**
- * raw_spin_can_lock - would raw_spin_trylock() succeed?
- * @lock: the spinlock in question.
- */
-#define raw_spin_can_lock(lock)	(!raw_spin_is_locked(lock))
-
 /* Include rwlock functions */
 #include <linux/rwlock.h>
 
@@ -395,11 +393,6 @@ static __always_inline int spin_is_locked(spinlock_t *lock)
 static __always_inline int spin_is_contended(spinlock_t *lock)
 {
 	return raw_spin_is_contended(&lock->rlock);
-}
-
-static __always_inline int spin_can_lock(spinlock_t *lock)
-{
-	return raw_spin_can_lock(&lock->rlock);
 }
 
 #define assert_spin_locked(lock)	assert_raw_spin_locked(&(lock)->rlock)

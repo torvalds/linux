@@ -591,11 +591,11 @@ void __init bmips_cpu_setup(void)
 
 		/* Flush and enable RAC */
 		cfg = __raw_readl(cbr + BMIPS_RAC_CONFIG);
-		__raw_writel(cfg | 0x100, BMIPS_RAC_CONFIG);
+		__raw_writel(cfg | 0x100, cbr + BMIPS_RAC_CONFIG);
 		__raw_readl(cbr + BMIPS_RAC_CONFIG);
 
 		cfg = __raw_readl(cbr + BMIPS_RAC_CONFIG);
-		__raw_writel(cfg | 0xf, BMIPS_RAC_CONFIG);
+		__raw_writel(cfg | 0xf, cbr + BMIPS_RAC_CONFIG);
 		__raw_readl(cbr + BMIPS_RAC_CONFIG);
 
 		cfg = __raw_readl(cbr + BMIPS_RAC_ADDRESS_RANGE);

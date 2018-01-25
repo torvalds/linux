@@ -144,6 +144,12 @@ struct hws_trailer_entry {
 	unsigned long long progusage2;	 /*				      */
 } __packed;
 
+/* Load program parameter */
+static inline void lpp(void *pp)
+{
+	asm volatile(".insn s,0xb2800000,0(%0)\n":: "a" (pp) : "memory");
+}
+
 /* Query counter information */
 static inline int qctri(struct cpumf_ctr_info *info)
 {
@@ -167,7 +173,7 @@ static inline int lcctl(u64 ctl)
 		"	.insn	s,0xb2840000,%1\n"
 		"	ipm	%0\n"
 		"	srl	%0,28\n"
-		: "=d" (cc) : "m" (ctl) : "cc");
+		: "=d" (cc) : "Q" (ctl) : "cc");
 	return cc;
 }
 

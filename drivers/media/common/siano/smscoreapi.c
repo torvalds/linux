@@ -447,7 +447,7 @@ static struct smscore_registry_entry_t *smscore_find_registry(char *devpath)
 			return entry;
 		}
 	}
-	entry = kmalloc(sizeof(struct smscore_registry_entry_t), GFP_KERNEL);
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry) {
 		entry->mode = default_mode;
 		strcpy(entry->devpath, devpath);
@@ -536,9 +536,7 @@ int smscore_register_hotplug(hotplug_t hotplug)
 	int rc = 0;
 
 	kmutex_lock(&g_smscore_deviceslock);
-
-	notifyee = kmalloc(sizeof(struct smscore_device_notifyee_t),
-			   GFP_KERNEL);
+	notifyee = kmalloc(sizeof(*notifyee), GFP_KERNEL);
 	if (notifyee) {
 		/* now notify callback about existing devices */
 		first = &g_smscore_devices;
@@ -627,7 +625,7 @@ smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
 {
 	struct smscore_buffer_t *cb;
 
-	cb = kzalloc(sizeof(struct smscore_buffer_t), GFP_KERNEL);
+	cb = kzalloc(sizeof(*cb), GFP_KERNEL);
 	if (!cb)
 		return NULL;
 
@@ -655,7 +653,7 @@ int smscore_register_device(struct smsdevice_params_t *params,
 	struct smscore_device_t *dev;
 	u8 *buffer;
 
-	dev = kzalloc(sizeof(struct smscore_device_t), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
@@ -751,7 +749,7 @@ static int smscore_sendrequest_and_wait(struct smscore_device_t *coredev,
 		void *buffer, size_t size, struct completion *completion) {
 	int rc;
 
-	if (completion == NULL)
+	if (!completion)
 		return -EINVAL;
 	init_completion(completion);
 
@@ -1153,8 +1151,8 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 	}
 	pr_debug("Firmware name: %s\n", fw_filename);
 
-	if (loadfirmware_handler == NULL && !(coredev->device_flags
-			& SMS_DEVICE_FAMILY2))
+	if (!loadfirmware_handler &&
+	    !(coredev->device_flags & SMS_DEVICE_FAMILY2))
 		return -EINVAL;
 
 	rc = request_firmware(&fw, fw_filename, coredev->device);
@@ -1301,10 +1299,8 @@ static int smscore_init_device(struct smscore_device_t *coredev, int mode)
 
 	buffer = kmalloc(sizeof(struct sms_msg_data) +
 			SMS_DMA_ALIGNMENT, GFP_KERNEL | GFP_DMA);
-	if (!buffer) {
-		pr_err("Could not allocate buffer for init device message.\n");
+	if (!buffer)
 		return -ENOMEM;
-	}
 
 	msg = (struct sms_msg_data *)SMS_ALIGN_ADDRESS(buffer);
 	SMS_INIT_MSG(&msg->x_msg_header, MSG_SMS_INIT_DEVICE_REQ,
@@ -1686,11 +1682,10 @@ static int smscore_validate_client(struct smscore_device_t *coredev,
 		pr_err("The msg ID already registered to another client.\n");
 		return -EEXIST;
 	}
-	listentry = kzalloc(sizeof(struct smscore_idlist_t), GFP_KERNEL);
-	if (!listentry) {
-		pr_err("Can't allocate memory for client id.\n");
+	listentry = kzalloc(sizeof(*listentry), GFP_KERNEL);
+	if (!listentry)
 		return -ENOMEM;
-	}
+
 	listentry->id = id;
 	listentry->data_type = data_type;
 	list_add_locked(&listentry->entry, &client->idlist,
@@ -1724,11 +1719,9 @@ int smscore_register_client(struct smscore_device_t *coredev,
 		return -EEXIST;
 	}
 
-	newclient = kzalloc(sizeof(struct smscore_client_t), GFP_KERNEL);
-	if (!newclient) {
-		pr_err("Failed to allocate memory for client.\n");
+	newclient = kzalloc(sizeof(*newclient), GFP_KERNEL);
+	if (!newclient)
 		return -ENOMEM;
-	}
 
 	INIT_LIST_HEAD(&newclient->idlist);
 	newclient->coredev = coredev;
@@ -1796,7 +1789,7 @@ int smsclient_sendrequest(struct smscore_client_t *client,
 	struct sms_msg_hdr *phdr = (struct sms_msg_hdr *) buffer;
 	int rc;
 
-	if (client == NULL) {
+	if (!client) {
 		pr_err("Got NULL client\n");
 		return -EINVAL;
 	}
@@ -1804,7 +1797,7 @@ int smsclient_sendrequest(struct smscore_client_t *client,
 	coredev = client->coredev;
 
 	/* check that no other channel with same id exists */
-	if (coredev == NULL) {
+	if (!coredev) {
 		pr_err("Got NULL coredev\n");
 		return -EINVAL;
 	}
@@ -1961,7 +1954,7 @@ int smscore_gpio_configure(struct smscore_device_t *coredev, u8 pin_num,
 	if (pin_num > MAX_GPIO_PIN_NUMBER)
 		return -EINVAL;
 
-	if (p_gpio_config == NULL)
+	if (!p_gpio_config)
 		return -EINVAL;
 
 	total_len = sizeof(struct sms_msg_hdr) + (sizeof(u32) * 6);

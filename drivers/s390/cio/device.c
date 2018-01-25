@@ -142,7 +142,7 @@ static void io_subchannel_shutdown(struct subchannel *);
 static int io_subchannel_sch_event(struct subchannel *, int);
 static int io_subchannel_chp_event(struct subchannel *, struct chp_link *,
 				   int);
-static void recovery_func(unsigned long data);
+static void recovery_func(struct timer_list *unused);
 
 static struct css_device_id io_subchannel_ids[] = {
 	{ .match_flags = 0x1, .type = SUBCHANNEL_TYPE_IO, },
@@ -194,7 +194,7 @@ int __init io_subchannel_init(void)
 {
 	int ret;
 
-	setup_timer(&recovery_timer, recovery_func, 0);
+	timer_setup(&recovery_timer, recovery_func, 0);
 	ret = bus_register(&ccw_bus_type);
 	if (ret)
 		return ret;
@@ -726,7 +726,7 @@ static int io_subchannel_initialize_dev(struct subchannel *sch,
 	INIT_WORK(&priv->todo_work, ccw_device_todo);
 	INIT_LIST_HEAD(&priv->cmb_list);
 	init_waitqueue_head(&priv->wait_q);
-	init_timer(&priv->timer);
+	timer_setup(&priv->timer, ccw_device_timeout, 0);
 
 	atomic_set(&priv->onoff, 0);
 	cdev->ccwlock = sch->lock;
@@ -1271,7 +1271,7 @@ static void recovery_work_func(struct work_struct *unused)
 
 static DECLARE_WORK(recovery_work, recovery_work_func);
 
-static void recovery_func(unsigned long data)
+static void recovery_func(struct timer_list *unused)
 {
 	/*
 	 * We can't do our recovery in softirq context and it's not

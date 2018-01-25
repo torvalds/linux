@@ -1128,30 +1128,24 @@ bool snd_usb_get_sample_rate_quirk(struct snd_usb_audio *chip)
 	/* devices which do not support reading the sample rate. */
 	switch (chip->usb_id) {
 	case USB_ID(0x041E, 0x4080): /* Creative Live Cam VF0610 */
-	case USB_ID(0x045E, 0x075D): /* MS Lifecam Cinema  */
-	case USB_ID(0x045E, 0x076D): /* MS Lifecam HD-5000 */
-	case USB_ID(0x045E, 0x076E): /* MS Lifecam HD-5001 */
-	case USB_ID(0x045E, 0x076F): /* MS Lifecam HD-6000 */
-	case USB_ID(0x045E, 0x0772): /* MS Lifecam Studio */
-	case USB_ID(0x045E, 0x0779): /* MS Lifecam HD-3000 */
-	case USB_ID(0x047F, 0x02F7): /* Plantronics BT-600 */
-	case USB_ID(0x047F, 0x0415): /* Plantronics BT-300 */
-	case USB_ID(0x047F, 0xAA05): /* Plantronics DA45 */
-	case USB_ID(0x047F, 0xC022): /* Plantronics C310 */
-	case USB_ID(0x047F, 0xC02F): /* Plantronics P610 */
-	case USB_ID(0x047F, 0xC036): /* Plantronics C520-M */
 	case USB_ID(0x04D8, 0xFEEA): /* Benchmark DAC1 Pre */
 	case USB_ID(0x0556, 0x0014): /* Phoenix Audio TMX320VC */
 	case USB_ID(0x05A3, 0x9420): /* ELP HD USB Camera */
 	case USB_ID(0x074D, 0x3553): /* Outlaw RR2150 (Micronas UAC3553B) */
 	case USB_ID(0x1395, 0x740a): /* Sennheiser DECT */
 	case USB_ID(0x1901, 0x0191): /* GE B850V3 CP2114 audio interface */
-	case USB_ID(0x1de7, 0x0013): /* Phoenix Audio MT202exe */
-	case USB_ID(0x1de7, 0x0014): /* Phoenix Audio TMX320 */
-	case USB_ID(0x1de7, 0x0114): /* Phoenix Audio MT202pcs */
 	case USB_ID(0x21B4, 0x0081): /* AudioQuest DragonFly */
 		return true;
 	}
+
+	/* devices of these vendors don't support reading rate, either */
+	switch (USB_ID_VENDOR(chip->usb_id)) {
+	case 0x045E: /* MS Lifecam */
+	case 0x047F: /* Plantronics */
+	case 0x1de7: /* Phoenix Audio */
+		return true;
+	}
+
 	return false;
 }
 
@@ -1375,6 +1369,7 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 			case 0x199:
 				return SNDRV_PCM_FMTBIT_DSD_U32_LE;
 			case 0x19b:
+			case 0x203:
 				return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 			default:
 				break;

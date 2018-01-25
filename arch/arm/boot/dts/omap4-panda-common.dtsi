@@ -13,6 +13,10 @@
 		reg = <0x80000000 0x40000000>; /* 1 GB */
 	};
 
+	chosen {
+		stdout-path = &uart3;
+	};
+
 	aliases {
 		display0 = &dvi0;
 		display1 = &hdmi0;

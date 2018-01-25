@@ -1326,6 +1326,9 @@ write_data:
 
 cleanup:
 	rbio_orig_end_io(rbio, BLK_STS_IOERR);
+
+	while ((bio = bio_list_pop(&bio_list)))
+		bio_put(bio);
 }
 
 /*
@@ -1582,6 +1585,10 @@ static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
 
 cleanup:
 	rbio_orig_end_io(rbio, BLK_STS_IOERR);
+
+	while ((bio = bio_list_pop(&bio_list)))
+		bio_put(bio);
+
 	return -EIO;
 
 finish:
@@ -2107,6 +2114,10 @@ cleanup:
 	if (rbio->operation == BTRFS_RBIO_READ_REBUILD ||
 	    rbio->operation == BTRFS_RBIO_REBUILD_MISSING)
 		rbio_orig_end_io(rbio, BLK_STS_IOERR);
+
+	while ((bio = bio_list_pop(&bio_list)))
+		bio_put(bio);
+
 	return -EIO;
 }
 
@@ -2231,12 +2242,18 @@ raid56_parity_alloc_scrub_rbio(struct btrfs_fs_info *fs_info, struct bio *bio,
 	ASSERT(!bio->bi_iter.bi_size);
 	rbio->operation = BTRFS_RBIO_PARITY_SCRUB;
 
-	for (i = 0; i < rbio->real_stripes; i++) {
+	/*
+	 * After mapping bbio with BTRFS_MAP_WRITE, parities have been sorted
+	 * to the end position, so this search can start from the first parity
+	 * stripe.
+	 */
+	for (i = rbio->nr_data; i < rbio->real_stripes; i++) {
 		if (bbio->stripes[i].dev == scrub_dev) {
 			rbio->scrubp = i;
 			break;
 		}
 	}
+	ASSERT(i < rbio->real_stripes);
 
 	/* Now we just support the sectorsize equals to page size */
 	ASSERT(fs_info->sectorsize == PAGE_SIZE);
@@ -2454,6 +2471,9 @@ submit_write:
 
 cleanup:
 	rbio_orig_end_io(rbio, BLK_STS_IOERR);
+
+	while ((bio = bio_list_pop(&bio_list)))
+		bio_put(bio);
 }
 
 static inline int is_data_stripe(struct btrfs_raid_bio *rbio, int stripe)
@@ -2563,11 +2583,11 @@ static void raid56_parity_scrub_stripe(struct btrfs_raid_bio *rbio)
 	int stripe;
 	struct bio *bio;
 
+	bio_list_init(&bio_list);
+
 	ret = alloc_rbio_essential_pages(rbio);
 	if (ret)
 		goto cleanup;
-
-	bio_list_init(&bio_list);
 
 	atomic_set(&rbio->error, 0);
 	/*
@@ -2636,6 +2656,10 @@ static void raid56_parity_scrub_stripe(struct btrfs_raid_bio *rbio)
 
 cleanup:
 	rbio_orig_end_io(rbio, BLK_STS_IOERR);
+
+	while ((bio = bio_list_pop(&bio_list)))
+		bio_put(bio);
+
 	return;
 
 finish:

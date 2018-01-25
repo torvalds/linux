@@ -48,6 +48,7 @@
 #include <linux/notifier.h>
 #include <net/psample.h>
 #include <net/pkt_cls.h>
+#include <net/red.h>
 
 #include "port.h"
 #include "core.h"
@@ -62,7 +63,7 @@
 
 #define MLXSW_SP_PORT_BASE_SPEED 25000	/* Mb/s */
 
-#define MLXSW_SP_KVD_LINEAR_SIZE 65536 /* entries */
+#define MLXSW_SP_KVD_LINEAR_SIZE 98304 /* entries */
 #define MLXSW_SP_KVD_GRANULARITY 128
 
 struct mlxsw_sp_port;
@@ -94,7 +95,8 @@ struct mlxsw_sp_mid {
 	unsigned char addr[ETH_ALEN];
 	u16 fid;
 	u16 mid;
-	unsigned int ref_count;
+	bool in_hw;
+	unsigned long *ports_in_mid; /* bits array */
 };
 
 enum mlxsw_sp_span_type {
@@ -138,9 +140,11 @@ struct mlxsw_sp_port_mall_tc_entry {
 struct mlxsw_sp_sb;
 struct mlxsw_sp_bridge;
 struct mlxsw_sp_router;
+struct mlxsw_sp_mr;
 struct mlxsw_sp_acl;
 struct mlxsw_sp_counter_pool;
 struct mlxsw_sp_fid_core;
+struct mlxsw_sp_kvdl;
 
 struct mlxsw_sp {
 	struct mlxsw_sp_port **ports;
@@ -148,15 +152,16 @@ struct mlxsw_sp {
 	const struct mlxsw_bus_info *bus_info;
 	unsigned char base_mac[ETH_ALEN];
 	struct mlxsw_sp_upper *lags;
-	u8 *port_to_module;
+	int *port_to_module;
 	struct mlxsw_sp_sb *sb;
 	struct mlxsw_sp_bridge *bridge;
 	struct mlxsw_sp_router *router;
+	struct mlxsw_sp_mr *mr;
+	struct mlxsw_afa *afa;
 	struct mlxsw_sp_acl *acl;
 	struct mlxsw_sp_fid_core *fid_core;
-	struct {
-		DECLARE_BITMAP(usage, MLXSW_SP_KVD_LINEAR_SIZE);
-	} kvdl;
+	struct mlxsw_sp_kvdl *kvdl;
+	struct notifier_block netdevice_nb;
 
 	struct mlxsw_sp_counter_pool *counter_pool;
 	struct {
@@ -199,6 +204,37 @@ struct mlxsw_sp_port_vlan {
 	struct list_head bridge_vlan_node;
 };
 
+enum mlxsw_sp_qdisc_type {
+	MLXSW_SP_QDISC_NO_QDISC,
+	MLXSW_SP_QDISC_RED,
+};
+
+struct mlxsw_sp_qdisc {
+	u32 handle;
+	enum mlxsw_sp_qdisc_type type;
+	struct red_stats xstats_base;
+	union {
+		struct {
+			u64 tail_drop_base;
+			u64 ecn_base;
+			u64 wred_drop_base;
+		} red;
+	} xstats;
+
+	u64 tx_bytes;
+	u64 tx_packets;
+	u64 drops;
+	u64 overlimits;
+};
+
+/* No need an internal lock; At worse - miss a single periodic iteration */
+struct mlxsw_sp_port_xstats {
+	u64 ecn;
+	u64 wred_drop[TC_MAX_QUEUE];
+	u64 tail_drop[TC_MAX_QUEUE];
+	u64 backlog[TC_MAX_QUEUE];
+};
+
 struct mlxsw_sp_port {
 	struct net_device *dev;
 	struct mlxsw_sp_port_pcpu_stats __percpu *pcpu_stats;
@@ -227,11 +263,13 @@ struct mlxsw_sp_port {
 	struct list_head mall_tc_list;
 	struct {
 		#define MLXSW_HW_STATS_UPDATE_TIME HZ
-		struct rtnl_link_stats64 *cache;
+		struct rtnl_link_stats64 stats;
+		struct mlxsw_sp_port_xstats xstats;
 		struct delayed_work update_dw;
-	} hw_stats;
+	} periodic_hw_stats;
 	struct mlxsw_sp_port_sample *sample;
 	struct list_head vlans_list;
+	struct mlxsw_sp_qdisc root_qdisc;
 };
 
 static inline bool
@@ -322,7 +360,8 @@ void
 mlxsw_sp_port_vlan_bridge_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
 int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port,
 			      struct net_device *brport_dev,
-			      struct net_device *br_dev);
+			      struct net_device *br_dev,
+			      struct netlink_ext_ack *extack);
 void mlxsw_sp_port_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 				struct net_device *brport_dev,
 				struct net_device *br_dev);
@@ -380,23 +419,43 @@ static inline void mlxsw_sp_port_dcb_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 /* spectrum_router.c */
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
-int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
-				   unsigned long event, void *ptr);
 int mlxsw_sp_netdevice_router_port_event(struct net_device *dev);
 int mlxsw_sp_inetaddr_event(struct notifier_block *unused,
 			    unsigned long event, void *ptr);
+int mlxsw_sp_inetaddr_valid_event(struct notifier_block *unused,
+				  unsigned long event, void *ptr);
 int mlxsw_sp_inet6addr_event(struct notifier_block *unused,
 			     unsigned long event, void *ptr);
+int mlxsw_sp_inet6addr_valid_event(struct notifier_block *unused,
+				   unsigned long event, void *ptr);
 int mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
 				 struct netdev_notifier_changeupper_info *info);
+bool mlxsw_sp_netdev_is_ipip_ol(const struct mlxsw_sp *mlxsw_sp,
+				const struct net_device *dev);
+bool mlxsw_sp_netdev_is_ipip_ul(const struct mlxsw_sp *mlxsw_sp,
+				const struct net_device *dev);
+int mlxsw_sp_netdevice_ipip_ol_event(struct mlxsw_sp *mlxsw_sp,
+				     struct net_device *l3_dev,
+				     unsigned long event,
+				     struct netdev_notifier_info *info);
+int
+mlxsw_sp_netdevice_ipip_ul_event(struct mlxsw_sp *mlxsw_sp,
+				 struct net_device *l3_dev,
+				 unsigned long event,
+				 struct netdev_notifier_info *info);
 void
 mlxsw_sp_port_vlan_router_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
 void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif);
 
 /* spectrum_kvdl.c */
+int mlxsw_sp_kvdl_init(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_kvdl_fini(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, unsigned int entry_count,
 			u32 *p_entry_index);
 void mlxsw_sp_kvdl_free(struct mlxsw_sp *mlxsw_sp, int entry_index);
+int mlxsw_sp_kvdl_alloc_size_query(struct mlxsw_sp *mlxsw_sp,
+				   unsigned int entry_count,
+				   unsigned int *p_alloc_size);
 
 struct mlxsw_sp_acl_rule_info {
 	unsigned int priority;
@@ -466,9 +525,9 @@ void mlxsw_sp_acl_rulei_keymask_buf(struct mlxsw_sp_acl_rule_info *rulei,
 				    enum mlxsw_afk_element element,
 				    const char *key_value,
 				    const char *mask_value, unsigned int len);
-void mlxsw_sp_acl_rulei_act_continue(struct mlxsw_sp_acl_rule_info *rulei);
-void mlxsw_sp_acl_rulei_act_jump(struct mlxsw_sp_acl_rule_info *rulei,
-				 u16 group_id);
+int mlxsw_sp_acl_rulei_act_continue(struct mlxsw_sp_acl_rule_info *rulei);
+int mlxsw_sp_acl_rulei_act_jump(struct mlxsw_sp_acl_rule_info *rulei,
+				u16 group_id);
 int mlxsw_sp_acl_rulei_act_drop(struct mlxsw_sp_acl_rule_info *rulei);
 int mlxsw_sp_acl_rulei_act_trap(struct mlxsw_sp_acl_rule_info *rulei);
 int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
@@ -520,6 +579,10 @@ void mlxsw_sp_flower_destroy(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 			     struct tc_cls_flower_offload *f);
 int mlxsw_sp_flower_stats(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 			  struct tc_cls_flower_offload *f);
+
+/* spectrum_qdisc.c */
+int mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
+			  struct tc_red_qopt_offload *p);
 
 /* spectrum_fid.c */
 int mlxsw_sp_fid_flood_set(struct mlxsw_sp_fid *fid,
