@@ -1918,13 +1918,16 @@ static void mlx5e_build_rq_param(struct mlx5e_priv *priv,
 	param->wq.linear = 1;
 }
 
-static void mlx5e_build_drop_rq_param(struct mlx5e_rq_param *param)
+static void mlx5e_build_drop_rq_param(struct mlx5_core_dev *mdev,
+				      struct mlx5e_rq_param *param)
 {
 	void *rqc = param->rqc;
 	void *wq = MLX5_ADDR_OF(rqc, rqc, wq);
 
 	MLX5_SET(wq, wq, wq_type, MLX5_WQ_TYPE_LINKED_LIST);
 	MLX5_SET(wq, wq, log_wq_stride,    ilog2(sizeof(struct mlx5e_rx_wqe)));
+
+	param->wq.buf_numa_node = dev_to_node(&mdev->pdev->dev);
 }
 
 static void mlx5e_build_sq_param_common(struct mlx5e_priv *priv,
@@ -2778,6 +2781,9 @@ static int mlx5e_alloc_drop_cq(struct mlx5_core_dev *mdev,
 			       struct mlx5e_cq *cq,
 			       struct mlx5e_cq_param *param)
 {
+	param->wq.buf_numa_node = dev_to_node(&mdev->pdev->dev);
+	param->wq.db_numa_node  = dev_to_node(&mdev->pdev->dev);
+
 	return mlx5e_alloc_cq_common(mdev, param, cq);
 }
 
@@ -2789,7 +2795,7 @@ static int mlx5e_open_drop_rq(struct mlx5_core_dev *mdev,
 	struct mlx5e_cq *cq = &drop_rq->cq;
 	int err;
 
-	mlx5e_build_drop_rq_param(&rq_param);
+	mlx5e_build_drop_rq_param(mdev, &rq_param);
 
 	err = mlx5e_alloc_drop_cq(mdev, cq, &cq_param);
 	if (err)
