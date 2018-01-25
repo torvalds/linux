@@ -237,10 +237,17 @@ struct efx_ptp_timeset {
  * @ns_to_nic_time: Function to convert from scalar nanoseconds to NIC time
  * @nic_to_kernel_time: Function to convert from NIC to kernel time
  * @min_synchronisation_ns: Minimum acceptable corrected sync window
- * @ts_corrections.tx: Required driver correction of transmit timestamps
- * @ts_corrections.rx: Required driver correction of receive timestamps
+ * @capabilities: Capabilities flags from the NIC
+ * @ts_corrections.ptp_tx: Required driver correction of PTP packet transmit
+ *                         timestamps
+ * @ts_corrections.ptp_rx: Required driver correction of PTP packet receive
+ *                         timestamps
  * @ts_corrections.pps_out: PPS output error (information only)
  * @ts_corrections.pps_in: Required driver correction of PPS input timestamps
+ * @ts_corrections.general_tx: Required driver correction of general packet
+ *                             transmit timestamps
+ * @ts_corrections.general_rx: Required driver correction of general packet
+ *                             receive timestamps
  * @evt_frags: Partly assembled PTP events
  * @evt_frag_idx: Current fragment number
  * @evt_code: Last event code
@@ -291,10 +298,12 @@ struct efx_ptp_data {
 				      s32 correction);
 	unsigned int min_synchronisation_ns;
 	struct {
-		s32 tx;
-		s32 rx;
+		s32 ptp_tx;
+		s32 ptp_rx;
 		s32 pps_out;
 		s32 pps_in;
+		s32 general_tx;
+		s32 general_rx;
 	} ts_corrections;
 	efx_qword_t evt_frags[MAX_EVENT_FRAGS];
 	int evt_frag_idx;
@@ -537,11 +546,13 @@ ktime_t efx_ptp_nic_to_kernel_time(struct efx_tx_queue *tx_queue)
 	if (efx_ptp_use_mac_tx_timestamps(efx))
 		kt = efx_ptp_mac_s27_to_ktime_correction(efx,
 				tx_queue->completed_timestamp_major,
-				tx_queue->completed_timestamp_minor, 0);
+				tx_queue->completed_timestamp_minor,
+				ptp->ts_corrections.general_tx);
 	else
 		kt = ptp->nic_to_kernel_time(
 				tx_queue->completed_timestamp_major,
-				tx_queue->completed_timestamp_minor, 0);
+				tx_queue->completed_timestamp_minor,
+				ptp->ts_corrections.general_tx);
 	return kt;
 }
 
@@ -606,8 +617,9 @@ static int efx_ptp_get_attributes(struct efx_nic *efx)
 static int efx_ptp_get_timestamp_corrections(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_PTP_IN_GET_TIMESTAMP_CORRECTIONS_LEN);
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2_LEN);
 	int rc;
+	size_t out_len;
 
 	/* Get the timestamp corrections from the NIC. If this operation is
 	 * not supported (older NICs) then no correction is required.
@@ -617,21 +629,37 @@ static int efx_ptp_get_timestamp_corrections(struct efx_nic *efx)
 	MCDI_SET_DWORD(inbuf, PTP_IN_PERIPH_ID, 0);
 
 	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
-				outbuf, sizeof(outbuf), NULL);
+				outbuf, sizeof(outbuf), &out_len);
 	if (rc == 0) {
-		efx->ptp_data->ts_corrections.tx = MCDI_DWORD(outbuf,
+		efx->ptp_data->ts_corrections.ptp_tx = MCDI_DWORD(outbuf,
 			PTP_OUT_GET_TIMESTAMP_CORRECTIONS_TRANSMIT);
-		efx->ptp_data->ts_corrections.rx = MCDI_DWORD(outbuf,
+		efx->ptp_data->ts_corrections.ptp_rx = MCDI_DWORD(outbuf,
 			PTP_OUT_GET_TIMESTAMP_CORRECTIONS_RECEIVE);
 		efx->ptp_data->ts_corrections.pps_out = MCDI_DWORD(outbuf,
 			PTP_OUT_GET_TIMESTAMP_CORRECTIONS_PPS_OUT);
 		efx->ptp_data->ts_corrections.pps_in = MCDI_DWORD(outbuf,
 			PTP_OUT_GET_TIMESTAMP_CORRECTIONS_PPS_IN);
+
+		if (out_len >= MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2_LEN) {
+			efx->ptp_data->ts_corrections.general_tx = MCDI_DWORD(
+				outbuf,
+				PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2_GENERAL_TX);
+			efx->ptp_data->ts_corrections.general_rx = MCDI_DWORD(
+				outbuf,
+				PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2_GENERAL_RX);
+		} else {
+			efx->ptp_data->ts_corrections.general_tx =
+				efx->ptp_data->ts_corrections.ptp_tx;
+			efx->ptp_data->ts_corrections.general_rx =
+				efx->ptp_data->ts_corrections.ptp_rx;
+		}
 	} else if (rc == -EINVAL) {
-		efx->ptp_data->ts_corrections.tx = 0;
-		efx->ptp_data->ts_corrections.rx = 0;
+		efx->ptp_data->ts_corrections.ptp_tx = 0;
+		efx->ptp_data->ts_corrections.ptp_rx = 0;
 		efx->ptp_data->ts_corrections.pps_out = 0;
 		efx->ptp_data->ts_corrections.pps_in = 0;
+		efx->ptp_data->ts_corrections.general_tx = 0;
+		efx->ptp_data->ts_corrections.general_rx = 0;
 	} else {
 		efx_mcdi_display_error(efx, MC_CMD_PTP, sizeof(inbuf), outbuf,
 				       sizeof(outbuf), rc);
@@ -998,7 +1026,7 @@ static void efx_ptp_xmit_skb_mc(struct efx_nic *efx, struct sk_buff *skb)
 	timestamps.hwtstamp = ptp_data->nic_to_kernel_time(
 		MCDI_DWORD(txtime, PTP_OUT_TRANSMIT_MAJOR),
 		MCDI_DWORD(txtime, PTP_OUT_TRANSMIT_MINOR),
-		ptp_data->ts_corrections.tx);
+		ptp_data->ts_corrections.ptp_tx);
 
 	skb_tstamp_tx(skb, &timestamps);
 
@@ -1745,7 +1773,7 @@ static void ptp_event_rx(struct efx_nic *efx, struct efx_ptp_data *ptp)
 		evt->hwtimestamp = efx->ptp_data->nic_to_kernel_time(
 			EFX_QWORD_FIELD(ptp->evt_frags[0], MCDI_EVENT_DATA),
 			EFX_QWORD_FIELD(ptp->evt_frags[1], MCDI_EVENT_DATA),
-			ptp->ts_corrections.rx);
+			ptp->ts_corrections.ptp_rx);
 		evt->expiry = jiffies + msecs_to_jiffies(PKT_EVENT_LIFETIME_MS);
 		list_add_tail(&evt->link, &ptp->evt_list);
 
@@ -1908,7 +1936,7 @@ void __efx_rx_skb_attach_timestamp(struct efx_channel *channel,
 	timestamps->hwtstamp = efx_ptp_s27_to_ktime_correction(
 				pkt_timestamp_major,
 				pkt_timestamp_minor,
-				efx->ptp_data->ts_corrections.rx);
+				efx->ptp_data->ts_corrections.general_rx);
 }
 
 static int efx_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
