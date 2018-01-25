@@ -818,17 +818,16 @@ static void efx_farch_magic_event(struct efx_channel *channel, u32 magic)
  * The NIC batches TX completion events; the message we receive is of
  * the form "complete all TX events up to this index".
  */
-static int
+static void
 efx_farch_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 {
 	unsigned int tx_ev_desc_ptr;
 	unsigned int tx_ev_q_label;
 	struct efx_tx_queue *tx_queue;
 	struct efx_nic *efx = channel->efx;
-	int tx_packets = 0;
 
 	if (unlikely(READ_ONCE(efx->reset_pending)))
-		return 0;
+		return;
 
 	if (likely(EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_COMP))) {
 		/* Transmit completion */
@@ -836,8 +835,6 @@ efx_farch_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 		tx_ev_q_label = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_Q_LABEL);
 		tx_queue = efx_channel_get_tx_queue(
 			channel, tx_ev_q_label % EFX_TXQ_TYPES);
-		tx_packets = ((tx_ev_desc_ptr - tx_queue->read_count) &
-			      tx_queue->ptr_mask);
 		efx_xmit_done(tx_queue, tx_ev_desc_ptr);
 	} else if (EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_WQ_FF_FULL)) {
 		/* Rewrite the FIFO write pointer */
@@ -856,8 +853,6 @@ efx_farch_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 			  EFX_QWORD_FMT"\n", channel->channel,
 			  EFX_QWORD_VAL(*event));
 	}
-
-	return tx_packets;
 }
 
 /* Detect errors included in the rx_evt_pkt_ok bit. */
@@ -1270,7 +1265,6 @@ int efx_farch_ev_process(struct efx_channel *channel, int budget)
 	unsigned int read_ptr;
 	efx_qword_t event, *p_event;
 	int ev_code;
-	int tx_packets = 0;
 	int spent = 0;
 
 	if (budget <= 0)
@@ -1304,12 +1298,7 @@ int efx_farch_ev_process(struct efx_channel *channel, int budget)
 				goto out;
 			break;
 		case FSE_AZ_EV_CODE_TX_EV:
-			tx_packets += efx_farch_handle_tx_event(channel,
-								&event);
-			if (tx_packets > efx->txq_entries) {
-				spent = budget;
-				goto out;
-			}
+			efx_farch_handle_tx_event(channel, &event);
 			break;
 		case FSE_AZ_EV_CODE_DRV_GEN_EV:
 			efx_farch_handle_generated_event(channel, &event);

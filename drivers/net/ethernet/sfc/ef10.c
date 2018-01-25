@@ -3572,31 +3572,26 @@ static int efx_ef10_handle_rx_event(struct efx_channel *channel,
 	return n_packets;
 }
 
-static int
+static void
 efx_ef10_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 {
 	struct efx_nic *efx = channel->efx;
 	struct efx_tx_queue *tx_queue;
 	unsigned int tx_ev_desc_ptr;
 	unsigned int tx_ev_q_label;
-	int tx_descs = 0;
 
 	if (unlikely(READ_ONCE(efx->reset_pending)))
-		return 0;
+		return;
 
 	if (unlikely(EFX_QWORD_FIELD(*event, ESF_DZ_TX_DROP_EVENT)))
-		return 0;
+		return;
 
 	/* Transmit completion */
 	tx_ev_desc_ptr = EFX_QWORD_FIELD(*event, ESF_DZ_TX_DESCR_INDX);
 	tx_ev_q_label = EFX_QWORD_FIELD(*event, ESF_DZ_TX_QLABEL);
 	tx_queue = efx_channel_get_tx_queue(channel,
 					    tx_ev_q_label % EFX_TXQ_TYPES);
-	tx_descs = ((tx_ev_desc_ptr + 1 - tx_queue->read_count) &
-		    tx_queue->ptr_mask);
 	efx_xmit_done(tx_queue, tx_ev_desc_ptr & tx_queue->ptr_mask);
-
-	return tx_descs;
 }
 
 static void
@@ -3658,7 +3653,6 @@ static int efx_ef10_ev_process(struct efx_channel *channel, int quota)
 	efx_qword_t event, *p_event;
 	unsigned int read_ptr;
 	int ev_code;
-	int tx_descs = 0;
 	int spent = 0;
 
 	if (quota <= 0)
@@ -3698,13 +3692,7 @@ static int efx_ef10_ev_process(struct efx_channel *channel, int quota)
 			}
 			break;
 		case ESE_DZ_EV_CODE_TX_EV:
-			tx_descs += efx_ef10_handle_tx_event(channel, &event);
-			if (tx_descs > efx->txq_entries) {
-				spent = quota;
-				goto out;
-			} else if (++spent == quota) {
-				goto out;
-			}
+			efx_ef10_handle_tx_event(channel, &event);
 			break;
 		case ESE_DZ_EV_CODE_DRIVER_EV:
 			efx_ef10_handle_driver_event(channel, &event);
