@@ -149,18 +149,14 @@ enum ptp_packet_state {
 /* Maximum parts-per-billion adjustment that is acceptable */
 #define MAX_PPB			1000000
 
-/* Number of bits required to hold the above */
-#define	MAX_PPB_BITS		20
-
-/* Number of extra bits allowed when calculating fractional ns.
- * EXTRA_BITS + MC_CMD_PTP_IN_ADJUST_BITS + MAX_PPB_BITS should
- * be less than 63.
- */
-#define	PPB_EXTRA_BITS		2
-
 /* Precalculate scale word to avoid long long division at runtime */
-#define	PPB_SCALE_WORD	((1LL << (PPB_EXTRA_BITS + MC_CMD_PTP_IN_ADJUST_BITS +\
-			MAX_PPB_BITS)) / 1000000000LL)
+/* This is equivalent to 2^66 / 10^9. */
+#define PPB_SCALE_WORD  ((1LL << (57)) / 1953125LL)
+
+/* How much to shift down after scaling to convert to FP40 */
+#define PPB_SHIFT_FP40		26
+/* ... and FP44. */
+#define PPB_SHIFT_FP44		22
 
 #define PTP_SYNC_ATTEMPTS	4
 
@@ -261,6 +257,8 @@ struct efx_ptp_timeset {
  * @evt_code: Last event code
  * @start: Address at which MC indicates ready for synchronisation
  * @host_time_pps: Host time at last PPS
+ * @adjfreq_ppb_shift: Shift required to convert scaled parts-per-billion
+ * frequency adjustment into a fixed point fractional nanosecond format.
  * @current_adjfreq: Current ppb adjustment.
  * @phc_clock: Pointer to registered phc device (if primary function)
  * @phc_clock_info: Registration structure for phc device
@@ -310,6 +308,7 @@ struct efx_ptp_data {
 		unsigned int sync_event_minor_shift;
 	} nic_time;
 	unsigned int min_synchronisation_ns;
+	unsigned int capabilities;
 	struct {
 		s32 ptp_tx;
 		s32 ptp_rx;
@@ -323,6 +322,7 @@ struct efx_ptp_data {
 	int evt_code;
 	struct efx_buffer start;
 	struct pps_event_time host_time_pps;
+	unsigned int adjfreq_ppb_shift;
 	s64 current_adjfreq;
 	struct ptp_clock *phc_clock;
 	struct ptp_clock_info phc_clock_info;
@@ -675,6 +675,22 @@ static int efx_ptp_get_attributes(struct efx_nic *efx)
 				   PTP_OUT_GET_ATTRIBUTES_SYNC_WINDOW_MIN);
 	else
 		ptp->min_synchronisation_ns = DEFAULT_MIN_SYNCHRONISATION_NS;
+
+	if (rc == 0 &&
+	    out_len >= MC_CMD_PTP_OUT_GET_ATTRIBUTES_LEN)
+		ptp->capabilities = MCDI_DWORD(outbuf,
+					PTP_OUT_GET_ATTRIBUTES_CAPABILITIES);
+	else
+		ptp->capabilities = 0;
+
+	/* Set up the shift for conversion between frequency
+	 * adjustments in parts-per-billion and the fixed-point
+	 * fractional ns format that the adapter uses.
+	 */
+	if (ptp->capabilities & (1 << MC_CMD_PTP_OUT_GET_ATTRIBUTES_FP44_FREQ_ADJ_LBN))
+		ptp->adjfreq_ppb_shift = PPB_SHIFT_FP44;
+	else
+		ptp->adjfreq_ppb_shift = PPB_SHIFT_FP40;
 
 	return 0;
 }
@@ -2027,9 +2043,10 @@ static int efx_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 	else if (delta < -MAX_PPB)
 		delta = -MAX_PPB;
 
-	/* Convert ppb to fixed point ns. */
-	adjustment_ns = (((s64)delta * PPB_SCALE_WORD) >>
-			 (PPB_EXTRA_BITS + MAX_PPB_BITS));
+	/* Convert ppb to fixed point ns taking care to round correctly. */
+	adjustment_ns = ((s64)delta * PPB_SCALE_WORD +
+			 (1 << (ptp_data->adjfreq_ppb_shift - 1))) >>
+			ptp_data->adjfreq_ppb_shift;
 
 	MCDI_SET_DWORD(inadj, PTP_IN_OP, MC_CMD_PTP_OP_ADJUST);
 	MCDI_SET_DWORD(inadj, PTP_IN_PERIPH_ID, 0);
