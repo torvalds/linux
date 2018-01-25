@@ -119,14 +119,14 @@
 				compatible = "android,fstab";
 				system {
 					compatible = "android,system";
-					dev = "/dev/block/rknand_system";
+					dev = "/dev/block/by-name/system";
 					type = "ext4";
 					mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
 					fsmgr_flags = "wait";
 				};
 				vendor {
 					compatible = "android,vendor";
-					dev = "/dev/block/rknand_vendor";
+					dev = "/dev/block/by-name/vendor";
 					type = "ext4";
 					mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
 					fsmgr_flags = "wait";
