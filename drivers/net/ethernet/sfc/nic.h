@@ -440,6 +440,7 @@ struct efx_ef10_nic_data {
 	struct efx_udp_tunnel udp_tunnels[16];
 	bool udp_tunnels_dirty;
 	struct mutex udp_tunnels_lock;
+	u64 licensed_features;
 };
 
 int efx_init_sriov(void);

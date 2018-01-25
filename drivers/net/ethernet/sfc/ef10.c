@@ -322,6 +322,25 @@ static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 	return 0;
 }
 
+static void efx_ef10_read_licensed_features(struct efx_nic *efx)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_LICENSING_V3_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_LICENSING_V3_OUT_LEN);
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	size_t outlen;
+	int rc;
+
+	MCDI_SET_DWORD(inbuf, LICENSING_V3_IN_OP,
+		       MC_CMD_LICENSING_V3_IN_OP_REPORT_LICENSE);
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_LICENSING_V3, inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf), &outlen);
+	if (rc || (outlen < MC_CMD_LICENSING_V3_OUT_LEN))
+		return;
+
+	nic_data->licensed_features = MCDI_QWORD(outbuf,
+					 LICENSING_V3_OUT_LICENSED_FEATURES);
+}
+
 static int efx_ef10_get_sysclk_freq(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_CLOCK_OUT_LEN);
@@ -721,6 +740,8 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	rc = efx_ef10_init_datapath_caps(efx);
 	if (rc < 0)
 		goto fail5;
+
+	efx_ef10_read_licensed_features(efx);
 
 	/* We can have one VI for each vi_stride-byte region.
 	 * However, until we use TX option descriptors we need two TX queues
@@ -2400,6 +2421,13 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 	int rc;
 	int i;
 	BUILD_BUG_ON(MC_CMD_INIT_TXQ_OUT_LEN != 0);
+
+	/* Only attempt to enable TX timestamping if we have the license for it,
+	 * otherwise TXQ init will fail
+	 */
+	if (!(nic_data->licensed_features &
+	      (1 << LICENSED_V3_FEATURES_TX_TIMESTAMPS_LBN)))
+		tx_queue->timestamping = false;
 
 	/* TSOv2 is a limited resource that can only be configured on a limited
 	 * number of queues. TSO without checksum offload is not really a thing,
