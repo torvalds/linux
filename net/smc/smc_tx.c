@@ -408,8 +408,9 @@ int smc_tx_sndbuf_nonempty(struct smc_connection *conn)
 				goto out_unlock;
 			}
 			rc = 0;
-			schedule_delayed_work(&conn->tx_work,
-					      SMC_TX_WORK_DELAY);
+			if (conn->alert_token_local) /* connection healthy */
+				schedule_delayed_work(&conn->tx_work,
+						      SMC_TX_WORK_DELAY);
 		}
 		goto out_unlock;
 	}
@@ -440,10 +441,17 @@ static void smc_tx_work(struct work_struct *work)
 	int rc;
 
 	lock_sock(&smc->sk);
+	if (smc->sk.sk_err ||
+	    !conn->alert_token_local ||
+	    conn->local_rx_ctrl.conn_state_flags.peer_conn_abort)
+		goto out;
+
 	rc = smc_tx_sndbuf_nonempty(conn);
 	if (!rc && conn->local_rx_ctrl.prod_flags.write_blocked &&
 	    !atomic_read(&conn->bytes_to_rcv))
 		conn->local_rx_ctrl.prod_flags.write_blocked = 0;
+
+out:
 	release_sock(&smc->sk);
 }
 
@@ -464,7 +472,8 @@ void smc_tx_consumer_update(struct smc_connection *conn)
 	    ((to_confirm > conn->rmbe_update_limit) &&
 	     ((to_confirm > (conn->rmbe_size / 2)) ||
 	      conn->local_rx_ctrl.prod_flags.write_blocked))) {
-		if (smc_cdc_get_slot_and_msg_send(conn) < 0) {
+		if ((smc_cdc_get_slot_and_msg_send(conn) < 0) &&
+		    conn->alert_token_local) { /* connection healthy */
 			schedule_delayed_work(&conn->tx_work,
 					      SMC_TX_WORK_DELAY);
 			return;

@@ -174,9 +174,9 @@ int smc_wr_tx_get_free_slot(struct smc_link *link,
 			    struct smc_wr_tx_pend_priv **wr_pend_priv)
 {
 	struct smc_wr_tx_pend *wr_pend;
+	u32 idx = link->wr_tx_cnt;
 	struct ib_send_wr *wr_ib;
 	u64 wr_id;
-	u32 idx;
 	int rc;
 
 	*wr_buf = NULL;
@@ -186,16 +186,17 @@ int smc_wr_tx_get_free_slot(struct smc_link *link,
 		if (rc)
 			return rc;
 	} else {
+		struct smc_link_group *lgr;
+
+		lgr = container_of(link, struct smc_link_group,
+				   lnk[SMC_SINGLE_LINK]);
 		rc = wait_event_timeout(
 			link->wr_tx_wait,
+			list_empty(&lgr->list) || /* lgr terminated */
 			(smc_wr_tx_get_free_slot_index(link, &idx) != -EBUSY),
 			SMC_WR_TX_WAIT_FREE_SLOT_TIME);
 		if (!rc) {
 			/* timeout - terminate connections */
-			struct smc_link_group *lgr;
-
-			lgr = container_of(link, struct smc_link_group,
-					   lnk[SMC_SINGLE_LINK]);
 			smc_lgr_terminate(lgr);
 			return -EPIPE;
 		}

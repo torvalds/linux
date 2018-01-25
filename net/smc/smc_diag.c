@@ -86,7 +86,8 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 	if (smc_diag_msg_attrs_fill(sk, skb, r, user_ns))
 		goto errout;
 
-	if ((req->diag_ext & (1 << (SMC_DIAG_CONNINFO - 1))) && smc->conn.lgr) {
+	if ((req->diag_ext & (1 << (SMC_DIAG_CONNINFO - 1))) &&
+	    smc->conn.alert_token_local) {
 		struct smc_connection *conn = &smc->conn;
 		struct smc_diag_conninfo cinfo = {
 			.token = conn->alert_token_local,
@@ -124,7 +125,8 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 			goto errout;
 	}
 
-	if ((req->diag_ext & (1 << (SMC_DIAG_LGRINFO - 1))) && smc->conn.lgr) {
+	if ((req->diag_ext & (1 << (SMC_DIAG_LGRINFO - 1))) && smc->conn.lgr &&
+	    !list_empty(&smc->conn.lgr->list)) {
 		struct smc_diag_lgrinfo linfo = {
 			.role = smc->conn.lgr->role,
 			.lnk[0].ibport = smc->conn.lgr->lnk[0].ibport,
