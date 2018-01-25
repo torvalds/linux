@@ -196,7 +196,9 @@ static inline void *__ptr_ring_peek(struct ptr_ring *r)
  */
 static inline bool __ptr_ring_empty(struct ptr_ring *r)
 {
-	return !__ptr_ring_peek(r);
+	if (likely(r->size))
+		return !r->queue[READ_ONCE(r->consumer_head)];
+	return true;
 }
 
 static inline bool ptr_ring_empty(struct ptr_ring *r)
@@ -285,7 +287,8 @@ static inline void __ptr_ring_discard_one(struct ptr_ring *r)
 		consumer_head = 0;
 		r->consumer_tail = 0;
 	}
-	r->consumer_head = consumer_head;
+	/* matching READ_ONCE in __ptr_ring_empty for lockless tests */
+	WRITE_ONCE(r->consumer_head, consumer_head);
 }
 
 static inline void *__ptr_ring_consume(struct ptr_ring *r)
@@ -541,7 +544,9 @@ static inline void ptr_ring_unconsume(struct ptr_ring *r, void **batch, int n,
 			goto done;
 		}
 		r->queue[head] = batch[--n];
-		r->consumer_tail = r->consumer_head = head;
+		r->consumer_tail = head;
+		/* matching READ_ONCE in __ptr_ring_empty for lockless tests */
+		WRITE_ONCE(r->consumer_head, head);
 	}
 
 done:
