@@ -267,24 +267,33 @@ bool amdgpu_vm_ready(struct amdgpu_vm *vm)
  * Root PD needs to be reserved when calling this.
  */
 static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
-			      struct amdgpu_vm *vm,
-			      struct amdgpu_bo *bo,
-			      unsigned level)
+			      struct amdgpu_vm *vm, struct amdgpu_bo *bo,
+			      unsigned level, bool pte_support_ats)
 {
 	struct ttm_operation_ctx ctx = { true, false };
 	struct dma_fence *fence = NULL;
-	uint64_t addr, init_value;
+	unsigned entries, ats_entries;
 	struct amdgpu_ring *ring;
 	struct amdgpu_job *job;
-	unsigned entries;
+	uint64_t addr;
 	int r;
 
-	if (vm->pte_support_ats) {
-		init_value = AMDGPU_PTE_DEFAULT_ATC;
-		if (level != AMDGPU_VM_PTB)
-			init_value |= AMDGPU_PDE_PTE;
+	addr = amdgpu_bo_gpu_offset(bo);
+	entries = amdgpu_bo_size(bo) / 8;
+
+	if (pte_support_ats) {
+		if (level == adev->vm_manager.root_level) {
+			ats_entries = amdgpu_vm_level_shift(adev, level);
+			ats_entries += AMDGPU_GPU_PAGE_SHIFT;
+			ats_entries = AMDGPU_VA_HOLE_START >> ats_entries;
+			ats_entries = min(ats_entries, entries);
+			entries -= ats_entries;
+		} else {
+			ats_entries = entries;
+			entries = 0;
+		}
 	} else {
-		init_value = 0;
+		ats_entries = 0;
 	}
 
 	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
@@ -297,15 +306,26 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	if (r)
 		goto error;
 
-	addr = amdgpu_bo_gpu_offset(bo);
-	entries = amdgpu_bo_size(bo) / 8;
-
 	r = amdgpu_job_alloc_with_ib(adev, 64, &job);
 	if (r)
 		goto error;
 
-	amdgpu_vm_set_pte_pde(adev, &job->ibs[0], addr, 0,
-			      entries, 0, init_value);
+	if (ats_entries) {
+		uint64_t ats_value;
+
+		ats_value = AMDGPU_PTE_DEFAULT_ATC;
+		if (level != AMDGPU_VM_PTB)
+			ats_value |= AMDGPU_PDE_PTE;
+
+		amdgpu_vm_set_pte_pde(adev, &job->ibs[0], addr, 0,
+				      ats_entries, 0, ats_value);
+		addr += ats_entries * 8;
+	}
+
+	if (entries)
+		amdgpu_vm_set_pte_pde(adev, &job->ibs[0], addr, 0,
+				      entries, 0, 0);
+
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 
 	WARN_ON(job->ibs[0].length_dw > 64);
@@ -339,7 +359,7 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 				  struct amdgpu_vm *vm,
 				  struct amdgpu_vm_pt *parent,
 				  uint64_t saddr, uint64_t eaddr,
-				  unsigned level)
+				  unsigned level, bool ats)
 {
 	unsigned shift = amdgpu_vm_level_shift(adev, level);
 	unsigned pt_idx, from, to;
@@ -389,7 +409,7 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 			if (r)
 				return r;
 
-			r = amdgpu_vm_clear_bo(adev, vm, pt, level);
+			r = amdgpu_vm_clear_bo(adev, vm, pt, level, ats);
 			if (r) {
 				amdgpu_bo_unref(&pt);
 				return r;
@@ -421,7 +441,7 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 			uint64_t sub_eaddr = (pt_idx == to) ? eaddr :
 				((1 << shift) - 1);
 			r = amdgpu_vm_alloc_levels(adev, vm, entry, sub_saddr,
-						   sub_eaddr, level);
+						   sub_eaddr, level, ats);
 			if (r)
 				return r;
 		}
@@ -444,26 +464,29 @@ int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 			struct amdgpu_vm *vm,
 			uint64_t saddr, uint64_t size)
 {
-	uint64_t last_pfn;
 	uint64_t eaddr;
+	bool ats = false;
 
 	/* validate the parameters */
 	if (saddr & AMDGPU_GPU_PAGE_MASK || size & AMDGPU_GPU_PAGE_MASK)
 		return -EINVAL;
 
 	eaddr = saddr + size - 1;
-	last_pfn = eaddr / AMDGPU_GPU_PAGE_SIZE;
-	if (last_pfn >= adev->vm_manager.max_pfn) {
-		dev_err(adev->dev, "va above limit (0x%08llX >= 0x%08llX)\n",
-			last_pfn, adev->vm_manager.max_pfn);
-		return -EINVAL;
-	}
+
+	if (vm->pte_support_ats)
+		ats = saddr < AMDGPU_VA_HOLE_START;
 
 	saddr /= AMDGPU_GPU_PAGE_SIZE;
 	eaddr /= AMDGPU_GPU_PAGE_SIZE;
 
+	if (eaddr >= adev->vm_manager.max_pfn) {
+		dev_err(adev->dev, "va above limit (0x%08llX >= 0x%08llX)\n",
+			eaddr, adev->vm_manager.max_pfn);
+		return -EINVAL;
+	}
+
 	return amdgpu_vm_alloc_levels(adev, vm, &vm->root, saddr, eaddr,
-				      adev->vm_manager.root_level);
+				      adev->vm_manager.root_level, ats);
 }
 
 /**
@@ -1660,16 +1683,16 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 			  struct dma_fence **fence)
 {
 	struct amdgpu_bo_va_mapping *mapping;
+	uint64_t init_pte_value = 0;
 	struct dma_fence *f = NULL;
 	int r;
-	uint64_t init_pte_value = 0;
 
 	while (!list_empty(&vm->freed)) {
 		mapping = list_first_entry(&vm->freed,
 			struct amdgpu_bo_va_mapping, list);
 		list_del(&mapping->list);
 
-		if (vm->pte_support_ats)
+		if (vm->pte_support_ats && mapping->start < AMDGPU_VA_HOLE_START)
 			init_pte_value = AMDGPU_PTE_DEFAULT_ATC;
 
 		r = amdgpu_vm_bo_update_mapping(adev, NULL, NULL, vm,
@@ -2362,7 +2385,8 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		goto error_free_root;
 
 	r = amdgpu_vm_clear_bo(adev, vm, vm->root.base.bo,
-			       adev->vm_manager.root_level);
+			       adev->vm_manager.root_level,
+			       vm->pte_support_ats);
 	if (r)
 		goto error_unreserve;
 
