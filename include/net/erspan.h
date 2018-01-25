@@ -46,6 +46,8 @@
  * GRE proto ERSPAN type II = 0x88BE, type III = 0x22EB
  */
 
+#include <uapi/linux/erspan.h>
+
 #define ERSPAN_VERSION	0x1	/* ERSPAN type II */
 #define VER_MASK	0xf000
 #define VLAN_MASK	0x0fff
@@ -68,29 +70,6 @@
 #define HWID_OFFSET    4
 #define DIR_OFFSET     3
 
-/* ERSPAN version 2 metadata header */
-struct erspan_md2 {
-	__be32 timestamp;
-	__be16 sgt;	/* security group tag */
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u8	hwid_upper:2,
-		ft:5,
-		p:1;
-	__u8	o:1,
-		gra:2,
-		dir:1,
-		hwid:4;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-	__u8	p:1,
-		ft:5,
-		hwid_upper:2;
-	__u8	hwid:4,
-		dir:1,
-		gra:2,
-		o:1;
-#endif
-};
-
 enum erspan_encap_type {
 	ERSPAN_ENCAP_NOVLAN = 0x0,	/* originally without VLAN tag */
 	ERSPAN_ENCAP_ISL = 0x1,		/* originally ISL encapsulated */
@@ -100,13 +79,6 @@ enum erspan_encap_type {
 
 #define ERSPAN_V1_MDSIZE	4
 #define ERSPAN_V2_MDSIZE	8
-struct erspan_metadata {
-	union {
-		__be32 index;		/* Version 1 (type II)*/
-		struct erspan_md2 md2;	/* Version 2 (type III) */
-	} u;
-	int version;
-};
 
 struct erspan_base_hdr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
