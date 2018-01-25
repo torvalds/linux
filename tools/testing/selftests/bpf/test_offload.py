@@ -543,12 +543,28 @@ def check_extack(output, reference, args):
 def check_extack_nsim(output, reference, args):
     check_extack(output, "Error: netdevsim: " + reference, args)
 
+def check_no_extack(res, needle):
+    fail((res[1] + res[2]).count(needle) or (res[1] + res[2]).count("Warning:"),
+         "Found '%s' in command output, leaky extack?" % (needle))
+
 def check_verifier_log(output, reference):
     lines = output.split("\n")
     for l in reversed(lines):
         if l == reference:
             return
     fail(True, "Missing or incorrect message from netdevsim in verifier log")
+
+def test_spurios_extack(sim, obj, skip_hw, needle):
+    res = sim.cls_bpf_add_filter(obj, prio=1, handle=1, skip_hw=skip_hw,
+                                 include_stderr=True)
+    check_no_extack(res, needle)
+    res = sim.cls_bpf_add_filter(obj, op="replace", prio=1, handle=1,
+                                 skip_hw=skip_hw, include_stderr=True)
+    check_no_extack(res, needle)
+    res = sim.cls_filter_op(op="delete", prio=1, handle=1, cls="bpf",
+                            include_stderr=True)
+    check_no_extack(res, needle)
+
 
 # Parse command line
 parser = argparse.ArgumentParser()
@@ -686,6 +702,17 @@ try:
                  "Software TC incorrect load in replace test, iteration %d" %
                  (j))
         sim.cls_filter_op(op="delete", prio=1, handle=1, cls="bpf")
+
+    start_test("Test spurious extack from the driver...")
+    test_spurios_extack(sim, obj, False, "netdevsim")
+    test_spurios_extack(sim, obj, True, "netdevsim")
+
+    sim.set_ethtool_tc_offloads(False)
+
+    test_spurios_extack(sim, obj, False, "TC offload is disabled")
+    test_spurios_extack(sim, obj, True, "TC offload is disabled")
+
+    sim.set_ethtool_tc_offloads(True)
 
     sim.tc_flush_filters()
 
