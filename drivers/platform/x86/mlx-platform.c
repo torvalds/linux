@@ -83,6 +83,7 @@
 /* mlxplat_priv - platform private data
  * @pdev_i2c - i2c controller platform device
  * @pdev_mux - array of mux platform devices
+ * @pdev_hotplug - hotplug platform devices
  */
 struct mlxplat_priv {
 	struct platform_device *pdev_i2c;
