@@ -465,10 +465,7 @@ static int camsys_sysctl(camsys_sysctrl_t *devctl, camsys_dev_t *camsys_dev)
 
 	/* spin_lock(&camsys_dev->lock); */
 	mutex_lock(&camsys_dev->extdevs.mut);
-	if (devctl->ops == 0xaa) {
-		dump_stack();
-		return 0;
-	}
+
 	/* Internal */
 	if (camsys_dev->dev_id & devctl->dev_mask) {
 		switch (devctl->ops) {
@@ -1431,7 +1428,8 @@ static int camsys_platform_probe(struct platform_device *pdev)
 		CHIP_TYPE = 3366;
 	else if (strstr(compatible, "rk3399"))
 		CHIP_TYPE = 3399;
-
+	else if (strstr(compatible, "px30") || strstr(compatible, "rk3326"))
+		CHIP_TYPE = 3326;
 	camsys_soc_init(CHIP_TYPE);
 
 	err = of_address_to_resource(dev->of_node, 0, &register_res);
@@ -1497,6 +1495,7 @@ static int camsys_platform_probe(struct platform_device *pdev)
 			dev_name(&pdev->dev),
 			CAMSYS_REGISTER_MEM_NAME);
 		err = -ENXIO;
+		kfree(meminfo);
 		goto request_mem_fail;
 	}
 	camsys_dev->rk_isp_base = meminfo->vir_base;
@@ -1605,7 +1604,7 @@ request_mem_fail:
 			meminfo_fail = NULL;
 		}
 
-		kfree(camsys_dev);
+		devm_kfree(&pdev->dev, camsys_dev);
 		camsys_dev = NULL;
 	}
 fail_end:

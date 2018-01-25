@@ -633,7 +633,8 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 		clk_prepare_enable(clk->isp);
 		clk_prepare_enable(clk->isp_jpe);
 		clk_prepare_enable(clk->pclkin_isp);
-		if (CHIP_TYPE == 3368 || CHIP_TYPE == 3366) {
+		if (CHIP_TYPE == 3368 || CHIP_TYPE == 3366 ||
+		    CHIP_TYPE == 3326) {
 			clk_prepare_enable(clk->cif_clk_out);
 			clk_prepare_enable(clk->pclk_dphyrx);
 		} else {
@@ -652,7 +653,8 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 		clk_disable_unprepare(clk->isp);
 		clk_disable_unprepare(clk->isp_jpe);
 		clk_disable_unprepare(clk->pclkin_isp);
-		if (CHIP_TYPE == 3368 || CHIP_TYPE == 3366) {
+		if (CHIP_TYPE == 3368 || CHIP_TYPE == 3366 ||
+		    CHIP_TYPE == 3326) {
 			clk_disable_unprepare(clk->cif_clk_out);
 			clk_disable_unprepare(clk->pclk_dphyrx);
 		} else {
@@ -960,7 +962,8 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 		err = -EINVAL;
 		goto clk_failed;
 	}
-	if (CHIP_TYPE == 3368 || CHIP_TYPE == 3366) {
+	if (CHIP_TYPE == 3368 || CHIP_TYPE == 3366 ||
+	    CHIP_TYPE == 3326) {
 		/* mrv_clk->pd_isp = devm_clk_get(&pdev->dev, "pd_isp"); */
 		mrv_clk->aclk_isp	 = devm_clk_get(&pdev->dev, "aclk_isp");
 		mrv_clk->hclk_isp	 = devm_clk_get(&pdev->dev, "hclk_isp");
@@ -1208,7 +1211,8 @@ clk_failed:
 		if (!IS_ERR_OR_NULL(mrv_clk->cif_clk_out))
 			clk_put(mrv_clk->cif_clk_out);
 
-		if (CHIP_TYPE == 3368 || CHIP_TYPE == 3366) {
+		if (CHIP_TYPE == 3368 || CHIP_TYPE == 3366 ||
+		    CHIP_TYPE == 3326) {
 			if (!IS_ERR_OR_NULL(mrv_clk->pclk_dphyrx))
 				clk_put(mrv_clk->pclk_dphyrx);
 

@@ -93,7 +93,8 @@ static int camsys_mipiphy_remove_cb(struct platform_device *pdev)
 			}
 		}
 	}
-	if (CHIP_TYPE == 3368 || CHIP_TYPE == 3366 || CHIP_TYPE == 3399) {
+	if (CHIP_TYPE == 3368 || CHIP_TYPE == 3366 ||
+	    CHIP_TYPE == 3399 || CHIP_TYPE == 3326) {
 		if (camsys_dev->csiphy_reg != NULL) {
 			kfree(camsys_dev->csiphy_reg);
 			camsys_dev->csiphy_reg = NULL;
@@ -207,7 +208,7 @@ struct platform_device *pdev, camsys_dev_t *camsys_dev)
 	}
 
 	if (CHIP_TYPE == 3368 || CHIP_TYPE == 3366 ||
-	    CHIP_TYPE == 3399 || CHIP_TYPE == 3288) {
+	    CHIP_TYPE == 3399 || CHIP_TYPE == 3288 || CHIP_TYPE == 3326) {
 
 		if (CHIP_TYPE == 3399) {
 			camsys_dev->dsiphy_reg =

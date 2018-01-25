@@ -128,8 +128,9 @@ static int camsys_rk3368_mipihpy_cfg(camsys_mipiphy_soc_para_t *para)
 		write_csiphy_reg(MIPI_CSI_DPHY_CTRL_PWRCTL_OFFSET, 0xe4);
 
 		/* set data lane num and enable clock lane */
-		write_csiphy_reg(MIPI_CSI_DPHY_LANEX_THS_SETTLE_OFFSET,
-			((para->phy->data_en_bit << 2) | (0x1 << 6) | 0x1));
+		write_csiphy_reg(MIPI_CSI_DPHY_CTRL_LANE_ENABLE_OFFSET,
+			((para->phy->data_en_bit << MIPI_CSI_DPHY_CTRL_LANE_ENABLE_OFFSET_BIT) |
+			(0x1 << 6) | 0x1));
 		/* Reset dphy analog part */
 		write_csiphy_reg(MIPI_CSI_DPHY_CTRL_PWRCTL_OFFSET, 0xe0);
 		usleep_range(500, 1000);
@@ -139,7 +140,7 @@ static int camsys_rk3368_mipihpy_cfg(camsys_mipiphy_soc_para_t *para)
 
 		write_grf_reg(GRF_SOC_CON6_OFFSET,
 			MIPI_CSI_DPHY_RX_FORCERXMODE_MASK |
-			MIPI_CSI_DPHY_RX_FORCERXMODE_BIT);
+			(0x0 << MIPI_CSI_DPHY_RX_FORCERXMODE_BIT));
 
 	write_csiphy_reg((MIPI_CSI_DPHY_LANEX_THS_SETTLE_OFFSET + 0x100),
 		hsfreqrange |

@@ -11,6 +11,8 @@ extern int camsys_rk3366_cfg(
 	camsys_dev_t *camsys_dev, camsys_soc_cfg_t cfg_cmd, void *cfg_para);
 extern int camsys_rk3399_cfg(
 	camsys_dev_t *camsys_dev, camsys_soc_cfg_t cfg_cmd, void *cfg_para);
+extern int camsys_rk3326_cfg(
+	camsys_dev_t *camsys_dev, camsys_soc_cfg_t cfg_cmd, void *cfg_para);
 #else
 extern int camsys_rk3288_cfg(
 	camsys_dev_t *camsys_dev, camsys_soc_cfg_t cfg_cmd, void *cfg_para);
@@ -45,6 +47,10 @@ int camsys_soc_init(unsigned int chip_type)
 		strlcpy(camsys_soc_p->name, "camsys_rk3399", 31);
 		camsys_soc_p->soc_cfg = camsys_rk3399_cfg;
 		camsys_trace(2, "rk3399 exit!");
+	} else if (chip_type == 3326) {
+		strlcpy(camsys_soc_p->name, "camsys_rk3326", 31);
+		camsys_soc_p->soc_cfg = camsys_rk3326_cfg;
+		camsys_trace(2, "rk3326 exit!");
 	}
 #else
 	if (chip_type == 3288) {
