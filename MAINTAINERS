@@ -6887,7 +6887,7 @@ M:	Jason Gunthorpe <jgg@mellanox.com>
 L:	linux-rdma@vger.kernel.org
 W:	http://www.openfabrics.org/
 Q:	http://patchwork.kernel.org/project/linux-rdma/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dledford/rdma.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git
 S:	Supported
 F:	Documentation/devicetree/bindings/infiniband/
 F:	Documentation/infiniband/
