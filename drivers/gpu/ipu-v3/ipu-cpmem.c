@@ -795,6 +795,7 @@ int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image)
 	case V4L2_PIX_FMT_SGBRG16:
 	case V4L2_PIX_FMT_SGRBG16:
 	case V4L2_PIX_FMT_SRGGB16:
+	case V4L2_PIX_FMT_Y16:
 		offset = image->rect.left * 2 +
 			 image->rect.top * pix->bytesperline;
 		break;
