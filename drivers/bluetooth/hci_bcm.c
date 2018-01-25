@@ -412,8 +412,11 @@ out:
 	return 0;
 
 err_unset_hu:
+	if (hu->serdev)
+		serdev_device_close(hu->serdev);
 #ifdef CONFIG_PM
-	bcm->dev->hu = NULL;
+	else
+		bcm->dev->hu = NULL;
 #endif
 err_free:
 	mutex_unlock(&bcm_device_lock);
