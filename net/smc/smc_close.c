@@ -107,6 +107,9 @@ static void smc_close_active_abort(struct smc_sock *smc)
 	case SMC_INIT:
 	case SMC_ACTIVE:
 		sk->sk_state = SMC_PEERABORTWAIT;
+		release_sock(sk);
+		cancel_delayed_work_sync(&smc->conn.tx_work);
+		lock_sock(sk);
 		break;
 	case SMC_APPCLOSEWAIT1:
 	case SMC_APPCLOSEWAIT2:
@@ -116,6 +119,9 @@ static void smc_close_active_abort(struct smc_sock *smc)
 			sk->sk_state = SMC_PEERABORTWAIT;
 		else
 			sk->sk_state = SMC_CLOSED;
+		release_sock(sk);
+		cancel_delayed_work_sync(&smc->conn.tx_work);
+		lock_sock(sk);
 		break;
 	case SMC_PEERCLOSEWAIT1:
 	case SMC_PEERCLOSEWAIT2:
@@ -249,9 +255,6 @@ again:
 		/* peer sending PeerConnectionClosed will cause transition */
 		break;
 	case SMC_PROCESSABORT:
-		release_sock(sk);
-		cancel_delayed_work_sync(&conn->tx_work);
-		lock_sock(sk);
 		smc_close_abort(conn);
 		sk->sk_state = SMC_CLOSED;
 		break;
@@ -327,6 +330,9 @@ static void smc_close_passive_work(struct work_struct *work)
 	rxflags = &conn->local_rx_ctrl.conn_state_flags;
 	if (rxflags->peer_conn_abort) {
 		smc_close_passive_abort_received(smc);
+		release_sock(&smc->sk);
+		cancel_delayed_work_sync(&conn->tx_work);
+		lock_sock(&smc->sk);
 		goto wakeup;
 	}
 
