@@ -37,6 +37,9 @@
 #include "gmc/gmc_8_1_d.h"
 #include "vi.h"
 
+/* Polaris10/11/12 firmware version */
+#define FW_1_130_16 ((1 << 24) | (130 << 16) | (16 << 8))
+
 static void uvd_v6_0_set_ring_funcs(struct amdgpu_device *adev);
 static void uvd_v6_0_set_enc_ring_funcs(struct amdgpu_device *adev);
 
@@ -58,7 +61,9 @@ static void uvd_v6_0_enable_mgcg(struct amdgpu_device *adev,
 */
 static inline bool uvd_v6_0_enc_support(struct amdgpu_device *adev)
 {
-	return ((adev->asic_type >= CHIP_POLARIS10) && (adev->asic_type <= CHIP_POLARIS12));
+	return ((adev->asic_type >= CHIP_POLARIS10) &&
+			(adev->asic_type <= CHIP_POLARIS12) &&
+			(!adev->uvd.fw_version || adev->uvd.fw_version >= FW_1_130_16));
 }
 
 /**
@@ -411,7 +416,15 @@ static int uvd_v6_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	if (uvd_v6_0_enc_support(adev)) {
+	if (!uvd_v6_0_enc_support(adev)) {
+		for (i = 0; i < adev->uvd.num_enc_rings; ++i)
+			adev->uvd.ring_enc[i].funcs = NULL;
+
+		adev->uvd.irq.num_types = 1;
+		adev->uvd.num_enc_rings = 0;
+
+		DRM_INFO("UVD ENC is disabled\n");
+	} else {
 		struct drm_sched_rq *rq;
 		ring = &adev->uvd.ring_enc[0];
 		rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];

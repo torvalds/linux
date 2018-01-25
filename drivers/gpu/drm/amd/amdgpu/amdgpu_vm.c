@@ -970,12 +970,16 @@ static void amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
 	amdgpu_gart_get_vm_pde(p->adev, AMDGPU_VM_PDB0,
 			       &dst, &flags);
 
-	if (parent->base.bo->shadow) {
-		pd_addr = amdgpu_bo_gpu_offset(parent->base.bo->shadow);
-		pde = pd_addr + (entry - parent->entries) * 8;
-		p->func(p, pde, dst, 1, 0, flags);
+	if (p->func == amdgpu_vm_cpu_set_ptes) {
+		pd_addr = (unsigned long)amdgpu_bo_kptr(parent->base.bo);
+	} else {
+		if (parent->base.bo->shadow) {
+			pd_addr = amdgpu_bo_gpu_offset(parent->base.bo->shadow);
+			pde = pd_addr + (entry - parent->entries) * 8;
+			p->func(p, pde, dst, 1, 0, flags);
+		}
+		pd_addr = amdgpu_bo_gpu_offset(parent->base.bo);
 	}
-	pd_addr = amdgpu_bo_gpu_offset(parent->base.bo);
 	pde = pd_addr + (entry - parent->entries) * 8;
 	p->func(p, pde, dst, 1, 0, flags);
 }
@@ -2478,17 +2482,21 @@ bool amdgpu_vm_pasid_fault_credit(struct amdgpu_device *adev,
 
 	spin_lock(&adev->vm_manager.pasid_lock);
 	vm = idr_find(&adev->vm_manager.pasid_idr, pasid);
-	spin_unlock(&adev->vm_manager.pasid_lock);
-	if (!vm)
+	if (!vm) {
 		/* VM not found, can't track fault credit */
+		spin_unlock(&adev->vm_manager.pasid_lock);
 		return true;
+	}
 
 	/* No lock needed. only accessed by IRQ handler */
-	if (!vm->fault_credit)
+	if (!vm->fault_credit) {
 		/* Too many faults in this VM */
+		spin_unlock(&adev->vm_manager.pasid_lock);
 		return false;
+	}
 
 	vm->fault_credit--;
+	spin_unlock(&adev->vm_manager.pasid_lock);
 	return true;
 }
 
