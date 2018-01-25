@@ -652,7 +652,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (rel_info > dst_mtu(skb_dst(skb2)))
 			goto out;
 
-		skb_dst(skb2)->ops->update_pmtu(skb_dst(skb2), NULL, skb2, rel_info);
+		skb_dst_update_pmtu(skb2, rel_info);
 	}
 	if (rel_type == ICMP_REDIRECT)
 		skb_dst(skb2)->ops->redirect(skb_dst(skb2), NULL, skb2);
@@ -1141,8 +1141,7 @@ route_lookup:
 		mtu = 576;
 	}
 
-	if (skb_dst(skb) && !t->parms.collect_md)
-		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
+	skb_dst_update_pmtu(skb, mtu);
 	if (skb->len - t->tun_hlen - eth_hlen > mtu && !skb_is_gso(skb)) {
 		*pmtu = mtu;
 		err = -EMSGSIZE;

@@ -520,4 +520,12 @@ static inline struct xfrm_state *dst_xfrm(const struct dst_entry *dst)
 }
 #endif
 
+static inline void skb_dst_update_pmtu(struct sk_buff *skb, u32 mtu)
+{
+	struct dst_entry *dst = skb_dst(skb);
+
+	if (dst && dst->ops->update_pmtu)
+		dst->ops->update_pmtu(dst, NULL, skb, mtu);
+}
+
 #endif /* _NET_DST_H */
