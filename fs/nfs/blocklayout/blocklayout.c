@@ -137,6 +137,11 @@ bl_alloc_init_bio(int npg, struct block_device *bdev, sector_t disk_sector,
 	return bio;
 }
 
+static bool offset_in_map(u64 offset, struct pnfs_block_dev_map *map)
+{
+	return offset >= map->start && offset < map->start + map->len;
+}
+
 static struct bio *
 do_add_page_to_bio(struct bio *bio, int npg, int rw, sector_t isect,
 		struct page *page, struct pnfs_block_dev_map *map,
@@ -156,8 +161,8 @@ do_add_page_to_bio(struct bio *bio, int npg, int rw, sector_t isect,
 
 	/* translate to physical disk offset */
 	disk_addr = (u64)isect << SECTOR_SHIFT;
-	if (disk_addr < map->start || disk_addr >= map->start + map->len) {
-		if (!dev->map(dev, disk_addr, map))
+	if (!offset_in_map(disk_addr, map)) {
+		if (!dev->map(dev, disk_addr, map) || !offset_in_map(disk_addr, map))
 			return ERR_PTR(-EIO);
 		bio = bl_submit_bio(bio);
 	}
