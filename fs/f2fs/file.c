@@ -672,7 +672,16 @@ int f2fs_getattr(const struct path *path, struct kstat *stat,
 {
 	struct inode *inode = d_inode(path->dentry);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
+	struct f2fs_inode *ri;
 	unsigned int flags;
+
+	if (f2fs_has_extra_attr(inode) &&
+			f2fs_sb_has_inode_crtime(inode->i_sb) &&
+			F2FS_FITS_IN_INODE(ri, fi->i_extra_isize, i_crtime)) {
+		stat->result_mask |= STATX_BTIME;
+		stat->btime.tv_sec = fi->i_crtime.tv_sec;
+		stat->btime.tv_nsec = fi->i_crtime.tv_nsec;
+	}
 
 	flags = fi->i_flags & (FS_FL_USER_VISIBLE | FS_PROJINHERIT_FL);
 	if (flags & FS_APPEND_FL)

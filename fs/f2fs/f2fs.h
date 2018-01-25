@@ -124,6 +124,7 @@ struct f2fs_mount_info {
 #define F2FS_FEATURE_INODE_CHKSUM	0x0020
 #define F2FS_FEATURE_FLEXIBLE_INLINE_XATTR	0x0040
 #define F2FS_FEATURE_QUOTA_INO		0x0080
+#define F2FS_FEATURE_INODE_CRTIME	0x0100
 
 #define F2FS_HAS_FEATURE(sb, mask)					\
 	((F2FS_SB(sb)->raw_super->feature & cpu_to_le32(mask)) != 0)
@@ -635,6 +636,7 @@ struct f2fs_inode_info {
 	int i_extra_isize;		/* size of extra space located in i_addr */
 	kprojid_t i_projid;		/* id for project quota */
 	int i_inline_xattr_size;	/* inline xattr size */
+	struct timespec i_crtime;	/* inode creation time */
 };
 
 static inline void get_extent_info(struct extent_info *ext,
@@ -3203,6 +3205,11 @@ static inline int f2fs_sb_has_flexible_inline_xattr(struct super_block *sb)
 static inline int f2fs_sb_has_quota_ino(struct super_block *sb)
 {
 	return F2FS_HAS_FEATURE(sb, F2FS_FEATURE_QUOTA_INO);
+}
+
+static inline int f2fs_sb_has_inode_crtime(struct super_block *sb)
+{
+	return F2FS_HAS_FEATURE(sb, F2FS_FEATURE_INODE_CRTIME);
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
