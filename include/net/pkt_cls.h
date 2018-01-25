@@ -656,6 +656,20 @@ static inline bool tc_can_offload_extack(const struct net_device *dev,
 	return can;
 }
 
+static inline bool
+tc_cls_can_offload_and_chain0(const struct net_device *dev,
+			      struct tc_cls_common_offload *common)
+{
+	if (!tc_can_offload_extack(dev, common->extack))
+		return false;
+	if (common->chain_index) {
+		NL_SET_ERR_MSG(common->extack,
+			       "Driver supports only offload of chain 0");
+		return false;
+	}
+	return true;
+}
+
 static inline bool tc_skip_hw(u32 flags)
 {
 	return (flags & TCA_CLS_FLAGS_SKIP_HW) ? true : false;
