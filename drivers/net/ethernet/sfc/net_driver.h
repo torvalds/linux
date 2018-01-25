@@ -531,8 +531,12 @@ struct efx_msi_context {
  * @copy: Copy the channel state prior to reallocation.  May be %NULL if
  *	reallocation is not supported.
  * @receive_skb: Handle an skb ready to be passed to netif_receive_skb()
+ * @want_txqs: Determine whether this channel should have TX queues
+ *	created.  If %NULL, TX queues are not created.
  * @keep_eventq: Flag for whether event queue should be kept initialised
  *	while the device is stopped
+ * @want_pio: Flag for whether PIO buffers should be linked to this
+ *	channel's TX queues.
  */
 struct efx_channel_type {
 	void (*handle_no_channel)(struct efx_nic *);
@@ -541,7 +545,9 @@ struct efx_channel_type {
 	void (*get_name)(struct efx_channel *, char *buf, size_t len);
 	struct efx_channel *(*copy)(const struct efx_channel *);
 	bool (*receive_skb)(struct efx_channel *, struct sk_buff *);
+	bool (*want_txqs)(struct efx_channel *);
 	bool keep_eventq;
+	bool want_pio;
 };
 
 enum efx_led_mode {
@@ -744,6 +750,7 @@ struct vfdi_status;
  * @n_channels: Number of channels in use
  * @n_rx_channels: Number of channels used for RX (= number of RX queues)
  * @n_tx_channels: Number of channels used for TX
+ * @n_extra_tx_channels: Number of extra channels with TX queues
  * @rx_ip_align: RX DMA address offset to have IP header aligned in
  *	in accordance with NET_IP_ALIGN
  * @rx_dma_len: Current maximum RX DMA length
@@ -890,6 +897,7 @@ struct efx_nic {
 	unsigned rss_spread;
 	unsigned tx_channel_offset;
 	unsigned n_tx_channels;
+	unsigned n_extra_tx_channels;
 	unsigned int rx_ip_align;
 	unsigned int rx_dma_len;
 	unsigned int rx_buffer_order;
@@ -1372,8 +1380,8 @@ efx_get_tx_queue(struct efx_nic *efx, unsigned index, unsigned type)
 
 static inline bool efx_channel_has_tx_queues(struct efx_channel *channel)
 {
-	return channel->channel - channel->efx->tx_channel_offset <
-		channel->efx->n_tx_channels;
+	return channel->type && channel->type->want_txqs &&
+				channel->type->want_txqs(channel);
 }
 
 static inline struct efx_tx_queue *

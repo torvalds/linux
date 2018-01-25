@@ -341,6 +341,14 @@ bool efx_ptp_use_mac_tx_timestamps(struct efx_nic *efx)
 		));
 }
 
+/* PTP 'extra' channel is still a traffic channel, but we only create TX queues
+ * if PTP uses MAC TX timestamps, not if PTP uses the MC directly to transmit.
+ */
+bool efx_ptp_want_txqs(struct efx_channel *channel)
+{
+	return efx_ptp_use_mac_tx_timestamps(channel->efx);
+}
+
 #define PTP_SW_STAT(ext_name, field_name)				\
 	{ #ext_name, 0, offsetof(struct efx_ptp_data, field_name) }
 #define PTP_MC_STAT(ext_name, mcdi_name)				\
@@ -1321,10 +1329,13 @@ int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel)
 		goto fail2;
 	}
 
-	if (efx_ptp_use_mac_tx_timestamps(efx))
+	if (efx_ptp_use_mac_tx_timestamps(efx)) {
 		ptp->xmit_skb = efx_ptp_xmit_skb_queue;
-	else
-		ptp->xmit_skb =	efx_ptp_xmit_skb_mc;
+		/* Request sync events on this channel. */
+		channel->sync_events_state = SYNC_EVENTS_QUIESCENT;
+	} else {
+		ptp->xmit_skb = efx_ptp_xmit_skb_mc;
+	}
 
 	INIT_WORK(&ptp->work, efx_ptp_worker);
 	ptp->config.flags = 0;
@@ -2009,13 +2020,14 @@ static int efx_phc_enable(struct ptp_clock_info *ptp,
 	return 0;
 }
 
-static const struct efx_channel_type efx_ptp_channel_type = {
+const struct efx_channel_type efx_ptp_channel_type = {
 	.handle_no_channel	= efx_ptp_handle_no_channel,
 	.pre_probe		= efx_ptp_probe_channel,
 	.post_remove		= efx_ptp_remove_channel,
 	.get_name		= efx_ptp_get_channel_name,
 	/* no copy operation; there is no need to reallocate this channel */
 	.receive_skb		= efx_ptp_rx,
+	.want_txqs		= efx_ptp_want_txqs,
 	.keep_eventq		= false,
 };
 

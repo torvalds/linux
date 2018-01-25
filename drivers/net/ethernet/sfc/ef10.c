@@ -951,6 +951,11 @@ static int efx_ef10_link_piobufs(struct efx_nic *efx)
 
 	/* Link a buffer to each TX queue */
 	efx_for_each_channel(channel, efx) {
+		/* Extra channels, even those with TXQs (PTP), do not require
+		 * PIO resources.
+		 */
+		if (!channel->type->want_pio)
+			continue;
 		efx_for_each_channel_tx_queue(tx_queue, channel) {
 			/* We assign the PIO buffers to queues in
 			 * reverse order to allow for the following
@@ -1298,7 +1303,9 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 	void __iomem *membase;
 	int rc;
 
-	channel_vis = max(efx->n_channels, efx->n_tx_channels * EFX_TXQ_TYPES);
+	channel_vis = max(efx->n_channels,
+			  (efx->n_tx_channels + efx->n_extra_tx_channels) *
+			  EFX_TXQ_TYPES);
 
 #ifdef EFX_USE_PIO
 	/* Try to allocate PIO buffers if wanted and if the full
@@ -6259,7 +6266,8 @@ static int efx_ef10_ptp_set_ts_sync_events(struct efx_nic *efx, bool en,
 	      efx_ef10_rx_enable_timestamping :
 	      efx_ef10_rx_disable_timestamping;
 
-	efx_for_each_channel(channel, efx) {
+	channel = efx_ptp_channel(efx);
+	if (channel) {
 		int rc = set(channel, temp);
 		if (en && rc != 0) {
 			efx_ef10_ptp_set_ts_sync_events(efx, false, temp);
