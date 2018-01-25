@@ -65,16 +65,30 @@
 #define GRA_MASK	0x0006
 #define O_MASK		0x0001
 
+#define HWID_OFFSET    4
+#define DIR_OFFSET     3
+
 /* ERSPAN version 2 metadata header */
 struct erspan_md2 {
 	__be32 timestamp;
 	__be16 sgt;	/* security group tag */
-	__be16 flags;
-#define P_OFFSET	15
-#define FT_OFFSET	10
-#define HWID_OFFSET	4
-#define DIR_OFFSET	3
-#define GRA_OFFSET	1
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	__u8	hwid_upper:2,
+		ft:5,
+		p:1;
+	__u8	o:1,
+		gra:2,
+		dir:1,
+		hwid:4;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	__u8	p:1,
+		ft:5,
+		hwid_upper:2;
+	__u8	hwid:4,
+		dir:1,
+		gra:2,
+		o:1;
+#endif
 };
 
 enum erspan_encap_type {
@@ -95,14 +109,61 @@ struct erspan_metadata {
 };
 
 struct erspan_base_hdr {
-	__be16 ver_vlan;
-#define VER_OFFSET  12
-	__be16 session_id;
-#define COS_OFFSET  13
-#define EN_OFFSET   11
-#define BSO_OFFSET  EN_OFFSET
-#define T_OFFSET    10
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	__u8	vlan_upper:4,
+		ver:4;
+	__u8	vlan:8;
+	__u8	session_id_upper:2,
+		t:1,
+		en:2,
+		cos:3;
+	__u8	session_id:8;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	__u8	ver: 4,
+		vlan_upper:4;
+	__u8	vlan:8;
+	__u8	cos:3,
+		en:2,
+		t:1,
+		session_id_upper:2;
+	__u8	session_id:8;
+#else
+#error "Please fix <asm/byteorder.h>"
+#endif
 };
+
+static inline void set_session_id(struct erspan_base_hdr *ershdr, u16 id)
+{
+	ershdr->session_id = id & 0xff;
+	ershdr->session_id_upper = (id >> 8) & 0x3;
+}
+
+static inline u16 get_session_id(const struct erspan_base_hdr *ershdr)
+{
+	return (ershdr->session_id_upper << 8) + ershdr->session_id;
+}
+
+static inline void set_vlan(struct erspan_base_hdr *ershdr, u16 vlan)
+{
+	ershdr->vlan = vlan & 0xff;
+	ershdr->vlan_upper = (vlan >> 8) & 0xf;
+}
+
+static inline u16 get_vlan(const struct erspan_base_hdr *ershdr)
+{
+	return (ershdr->vlan_upper << 8) + ershdr->vlan;
+}
+
+static inline void set_hwid(struct erspan_md2 *md2, u8 hwid)
+{
+	md2->hwid = hwid & 0xf;
+	md2->hwid_upper = (hwid >> 4) & 0x3;
+}
+
+static inline u8 get_hwid(const struct erspan_md2 *md2)
+{
+	return (md2->hwid_upper << 4) + md2->hwid;
+}
 
 static inline int erspan_hdr_len(int version)
 {
@@ -120,7 +181,7 @@ static inline u8 tos_to_cos(u8 tos)
 }
 
 static inline void erspan_build_header(struct sk_buff *skb,
-				__be32 id, u32 index,
+				u32 id, u32 index,
 				bool truncate, bool is_ipv4)
 {
 	struct ethhdr *eth = (struct ethhdr *)skb->data;
@@ -154,12 +215,12 @@ static inline void erspan_build_header(struct sk_buff *skb,
 	memset(ershdr, 0, sizeof(*ershdr) + ERSPAN_V1_MDSIZE);
 
 	/* Build base header */
-	ershdr->ver_vlan = htons((vlan_tci & VLAN_MASK) |
-				 (ERSPAN_VERSION << VER_OFFSET));
-	ershdr->session_id = htons((u16)(ntohl(id) & ID_MASK) |
-			   ((tos_to_cos(tos) << COS_OFFSET) & COS_MASK) |
-			   (enc_type << EN_OFFSET & EN_MASK) |
-			   ((truncate << T_OFFSET) & T_MASK));
+	ershdr->ver = ERSPAN_VERSION;
+	ershdr->cos = tos_to_cos(tos);
+	ershdr->en = enc_type;
+	ershdr->t = truncate;
+	set_vlan(ershdr, vlan_tci);
+	set_session_id(ershdr, id);
 
 	/* Build metadata */
 	ersmd = (struct erspan_metadata *)(ershdr + 1);
@@ -187,7 +248,7 @@ static inline __be32 erspan_get_timestamp(void)
 }
 
 static inline void erspan_build_header_v2(struct sk_buff *skb,
-					  __be32 id, u8 direction, u16 hwid,
+					  u32 id, u8 direction, u16 hwid,
 					  bool truncate, bool is_ipv4)
 {
 	struct ethhdr *eth = (struct ethhdr *)skb->data;
@@ -198,7 +259,6 @@ static inline void erspan_build_header_v2(struct sk_buff *skb,
 		__be16 tci;
 	} *qp;
 	u16 vlan_tci = 0;
-	u16 session_id;
 	u8 gra = 0; /* 100 usec */
 	u8 bso = 0; /* Bad/Short/Oversized */
 	u8 sgt = 0;
@@ -221,22 +281,23 @@ static inline void erspan_build_header_v2(struct sk_buff *skb,
 	memset(ershdr, 0, sizeof(*ershdr) + ERSPAN_V2_MDSIZE);
 
 	/* Build base header */
-	ershdr->ver_vlan = htons((vlan_tci & VLAN_MASK) |
-				 (ERSPAN_VERSION2 << VER_OFFSET));
-	session_id = (u16)(ntohl(id) & ID_MASK) |
-		     ((tos_to_cos(tos) << COS_OFFSET) & COS_MASK) |
-		     (bso << BSO_OFFSET & BSO_MASK) |
-		     ((truncate << T_OFFSET) & T_MASK);
-	ershdr->session_id = htons(session_id);
+	ershdr->ver = ERSPAN_VERSION2;
+	ershdr->cos = tos_to_cos(tos);
+	ershdr->en = bso;
+	ershdr->t = truncate;
+	set_vlan(ershdr, vlan_tci);
+	set_session_id(ershdr, id);
 
 	/* Build metadata */
 	md = (struct erspan_metadata *)(ershdr + 1);
 	md->u.md2.timestamp = erspan_get_timestamp();
 	md->u.md2.sgt = htons(sgt);
-	md->u.md2.flags = htons(((1 << P_OFFSET) & P_MASK) |
-				((hwid << HWID_OFFSET) & HWID_MASK) |
-				((direction << DIR_OFFSET) & DIR_MASK) |
-				((gra << GRA_OFFSET) & GRA_MASK));
+	md->u.md2.p = 1;
+	md->u.md2.ft = 0;
+	md->u.md2.dir = direction;
+	md->u.md2.gra = gra;
+	md->u.md2.o = 0;
+	set_hwid(&md->u.md2, hwid);
 }
 
 #endif

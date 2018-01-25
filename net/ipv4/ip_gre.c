@@ -114,7 +114,7 @@ MODULE_PARM_DESC(log_ecn_error, "Log packets received with corrupted ECN");
 static struct rtnl_link_ops ipgre_link_ops __read_mostly;
 static int ipgre_tunnel_init(struct net_device *dev);
 static void erspan_build_header(struct sk_buff *skb,
-				__be32 id, u32 index,
+				u32 id, u32 index,
 				bool truncate, bool is_ipv4);
 
 static unsigned int ipgre_net_id __read_mostly;
@@ -273,12 +273,12 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 
 	iph = ip_hdr(skb);
 	ershdr = (struct erspan_base_hdr *)(skb->data + gre_hdr_len);
-	ver = (ntohs(ershdr->ver_vlan) & VER_MASK) >> VER_OFFSET;
+	ver = ershdr->ver;
 
 	/* The original GRE header does not have key field,
 	 * Use ERSPAN 10-bit session ID as key.
 	 */
-	tpi->key = cpu_to_be32(ntohs(ershdr->session_id) & ID_MASK);
+	tpi->key = cpu_to_be32(get_session_id(ershdr));
 	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex,
 				  tpi->flags | TUNNEL_KEY,
 				  iph->saddr, iph->daddr, tpi->key);
@@ -324,14 +324,8 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 			if (ver == 1) {
 				tunnel->index = ntohl(pkt_md->u.index);
 			} else {
-				u16 md2_flags;
-				u16 dir, hwid;
-
-				md2_flags = ntohs(pkt_md->u.md2.flags);
-				dir = (md2_flags & DIR_MASK) >> DIR_OFFSET;
-				hwid = (md2_flags & HWID_MASK) >> HWID_OFFSET;
-				tunnel->dir = dir;
-				tunnel->hwid = hwid;
+				tunnel->dir = pkt_md->u.md2.dir;
+				tunnel->hwid = get_hwid(&pkt_md->u.md2);
 			}
 
 		}
@@ -615,19 +609,14 @@ static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	if (version == 1) {
-		erspan_build_header(skb, tunnel_id_to_key32(key->tun_id),
+		erspan_build_header(skb, ntohl(tunnel_id_to_key32(key->tun_id)),
 				    ntohl(md->u.index), truncate, true);
 	} else if (version == 2) {
-		u16 md2_flags;
-		u8 direction;
-		u16 hwid;
-
-		md2_flags = ntohs(md->u.md2.flags);
-		direction = (md2_flags & DIR_MASK) >> DIR_OFFSET;
-		hwid = (md2_flags & HWID_MASK) >> HWID_OFFSET;
-
-		erspan_build_header_v2(skb, tunnel_id_to_key32(key->tun_id),
-				       direction, hwid,	truncate, true);
+		erspan_build_header_v2(skb,
+				       ntohl(tunnel_id_to_key32(key->tun_id)),
+				       md->u.md2.dir,
+				       get_hwid(&md->u.md2),
+				       truncate, true);
 	} else {
 		goto err_free_rt;
 	}
@@ -733,10 +722,11 @@ static netdev_tx_t erspan_xmit(struct sk_buff *skb,
 
 	/* Push ERSPAN header */
 	if (tunnel->erspan_ver == 1)
-		erspan_build_header(skb, tunnel->parms.o_key, tunnel->index,
+		erspan_build_header(skb, ntohl(tunnel->parms.o_key),
+				    tunnel->index,
 				    truncate, true);
 	else
-		erspan_build_header_v2(skb, tunnel->parms.o_key,
+		erspan_build_header_v2(skb, ntohl(tunnel->parms.o_key),
 				       tunnel->dir, tunnel->hwid,
 				       truncate, true);
 
