@@ -34,7 +34,7 @@ static int coreboot_table_of_probe(struct platform_device *pdev)
 	if (!ptr)
 		return -ENOMEM;
 
-	return coreboot_table_init(ptr);
+	return coreboot_table_init(&pdev->dev, ptr);
 }
 
 static int coreboot_table_of_remove(struct platform_device *pdev)
