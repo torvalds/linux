@@ -682,10 +682,10 @@ err_mem:
 static struct dma_pool *ttm_dma_find_pool(struct device *dev,
 					  enum pool_type type)
 {
-	struct dma_pool *pool, *tmp, *found = NULL;
+	struct dma_pool *pool, *tmp;
 
 	if (type == IS_UNDEFINED)
-		return found;
+		return NULL;
 
 	/* NB: We iterate on the 'struct dev' which has no spinlock, but
 	 * it does have a kref which we have taken. The kref is taken during
@@ -698,13 +698,10 @@ static struct dma_pool *ttm_dma_find_pool(struct device *dev,
 	 * thing is at that point of time there are no pages associated with the
 	 * driver so this function will not be called.
 	 */
-	list_for_each_entry_safe(pool, tmp, &dev->dma_pools, pools) {
-		if (pool->type != type)
-			continue;
-		found = pool;
-		break;
-	}
-	return found;
+	list_for_each_entry_safe(pool, tmp, &dev->dma_pools, pools)
+		if (pool->type == type)
+			return pool;
+	return NULL;
 }
 
 /*
