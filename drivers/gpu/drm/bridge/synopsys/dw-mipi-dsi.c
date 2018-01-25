@@ -412,7 +412,16 @@ static ssize_t dw_mipi_dsi_host_transfer(struct mipi_dsi_host *host,
 
 	dw_mipi_message_config(dsi, msg);
 
-	return dw_mipi_dsi_write(dsi, &packet);
+	ret = dw_mipi_dsi_write(dsi, &packet);
+	if (ret)
+		return ret;
+
+	/*
+	 * TODO Only transmitted size is returned as actual driver does
+	 * not support dcs/generic reads. Please update return value when
+	 * delivering the read feature.
+	 */
+	return packet.size;
 }
 
 static const struct mipi_dsi_host_ops dw_mipi_dsi_host_ops = {
