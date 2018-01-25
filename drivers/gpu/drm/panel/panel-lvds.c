@@ -215,8 +215,15 @@ static int panel_lvds_probe(struct platform_device *pdev)
 	lvds->supply = devm_regulator_get_optional(lvds->dev, "power");
 	if (IS_ERR(lvds->supply)) {
 		ret = PTR_ERR(lvds->supply);
-		dev_err(lvds->dev, "failed to request regulator: %d\n", ret);
-		return ret;
+
+		if (ret != -ENODEV) {
+			if (ret != -EPROBE_DEFER)
+				dev_err(lvds->dev, "failed to request regulator: %d\n",
+					ret);
+			return ret;
+		}
+
+		lvds->supply = NULL;
 	}
 
 	/* Get GPIOs and backlight controller. */
