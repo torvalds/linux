@@ -34,7 +34,6 @@ struct dpc_rp_pio_regs {
 	struct rp_pio_header_log_regs header_log;
 	u32 impspec_log;
 	u32 tlp_prefix_log[4];
-	u32 log_size;
 	u16 first_error;
 };
 
@@ -44,6 +43,7 @@ struct dpc_dev {
 	u16			cap_pos;
 	bool			rp_extensions;
 	u32			rp_pio_status;
+	u8			rp_log_size;
 };
 
 static const char * const rp_pio_error_string[] = {
@@ -173,11 +173,12 @@ static void dpc_rp_pio_print_error(struct dpc_dev *dpc,
 	}
 
 	dpc_rp_pio_print_tlp_header(dev, &rp_pio->header_log);
-	if (rp_pio->log_size == 4)
+	if (dpc->rp_log_size == 4)
 		return;
+
 	dev_err(dev, "RP PIO ImpSpec Log %#010x\n", rp_pio->impspec_log);
 
-	for (i = 0; i < rp_pio->log_size - 5; i++)
+	for (i = 0; i < dpc->rp_log_size - 5; i++)
 		dev_err(dev, "TLP Prefix Header: dw%d, %#010x\n", i,
 			rp_pio->tlp_prefix_log[i]);
 }
@@ -186,7 +187,6 @@ static void dpc_rp_pio_get_info(struct dpc_dev *dpc,
 				struct dpc_rp_pio_regs *rp_pio)
 {
 	struct pci_dev *pdev = dpc->dev->port;
-	struct device *dev = &dpc->dev->device;
 	int i;
 	u16 cap = dpc->cap_pos, status;
 
@@ -206,13 +206,8 @@ static void dpc_rp_pio_get_info(struct dpc_dev *dpc,
 	pci_read_config_word(pdev, cap + PCI_EXP_DPC_STATUS, &status);
 	rp_pio->first_error = (status & 0x1f00) >> 8;
 
-	pci_read_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_CAP, &cap);
-	rp_pio->log_size = (cap & PCI_EXP_DPC_RP_PIO_LOG_SIZE) >> 8;
-	if (rp_pio->log_size < 4 || rp_pio->log_size > 9) {
-		dev_err(dev, "RP PIO log size %u is invalid\n",
-			rp_pio->log_size);
+	if (dpc->rp_log_size < 4)
 		return;
-	}
 
 	pci_read_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_HEADER_LOG,
 			      &rp_pio->header_log.dw0);
@@ -222,12 +217,12 @@ static void dpc_rp_pio_get_info(struct dpc_dev *dpc,
 			      &rp_pio->header_log.dw2);
 	pci_read_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_HEADER_LOG + 12,
 			      &rp_pio->header_log.dw3);
-	if (rp_pio->log_size == 4)
+	if (dpc->rp_log_size == 4)
 		return;
 
 	pci_read_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_IMPSPEC_LOG,
 			      &rp_pio->impspec_log);
-	for (i = 0; i < rp_pio->log_size - 5; i++)
+	for (i = 0; i < dpc->rp_log_size - 5; i++)
 		pci_read_config_dword(pdev,
 			cap + PCI_EXP_DPC_RP_PIO_TLPPREFIX_LOG,
 			&rp_pio->tlp_prefix_log[i]);
@@ -327,6 +322,14 @@ static int dpc_probe(struct pcie_device *dev)
 	pci_read_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_CTL, &ctl);
 
 	dpc->rp_extensions = (cap & PCI_EXP_DPC_CAP_RP_EXT);
+	if (dpc->rp_extensions) {
+		dpc->rp_log_size = (cap & PCI_EXP_DPC_RP_PIO_LOG_SIZE) >> 8;
+		if (dpc->rp_log_size < 4 || dpc->rp_log_size > 9) {
+			dev_err(device, "RP PIO log size %u is invalid\n",
+				dpc->rp_log_size);
+			dpc->rp_log_size = 0;
+		}
+	}
 
 	ctl = (ctl & 0xfff4) | PCI_EXP_DPC_CTL_EN_NONFATAL | PCI_EXP_DPC_CTL_INT_EN;
 	pci_write_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_CTL, ctl);
@@ -334,7 +337,7 @@ static int dpc_probe(struct pcie_device *dev)
 	dev_info(device, "DPC error containment capabilities: Int Msg #%d, RPExt%c PoisonedTLP%c SwTrigger%c RP PIO Log %d, DL_ActiveErr%c\n",
 		cap & PCI_EXP_DPC_IRQ, FLAG(cap, PCI_EXP_DPC_CAP_RP_EXT),
 		FLAG(cap, PCI_EXP_DPC_CAP_POISONED_TLP),
-		FLAG(cap, PCI_EXP_DPC_CAP_SW_TRIGGER), (cap >> 8) & 0xf,
+		FLAG(cap, PCI_EXP_DPC_CAP_SW_TRIGGER), dpc->rp_log_size,
 		FLAG(cap, PCI_EXP_DPC_CAP_DL_ACTIVE));
 	return status;
 }
