@@ -16,13 +16,13 @@
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_dp_helper.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_of.h>
 
 #include <linux/component.h>
 #include <linux/clk.h>
 #include <linux/mfd/syscon.h>
+#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -60,7 +60,6 @@ struct rockchip_lvds_soc_data {
 };
 
 struct rockchip_lvds {
-	void *base;
 	struct device *dev;
 	void __iomem *regs;
 	void __iomem *regs_ctrl;
@@ -73,19 +72,15 @@ struct rockchip_lvds {
 	int output;
 	int format;
 
-	struct drm_device *drm_dev;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
 	struct drm_connector connector;
 	struct drm_encoder encoder;
+	struct drm_display_mode mode;
 
-	struct mutex suspend_lock;
-	int suspend;
 	struct pinctrl *pinctrl;
-	struct pinctrl_state *pins_lcdc;
 	struct pinctrl_state *pins_m0;
 	struct pinctrl_state *pins_m1;
-	struct drm_display_mode mode;
 };
 
 static inline void lvds_writel(struct rockchip_lvds *lvds, u32 offset, u32 val)
@@ -431,9 +426,8 @@ static const struct drm_connector_funcs rockchip_lvds_connector_funcs = {
 static int rockchip_lvds_connector_get_modes(struct drm_connector *connector)
 {
 	struct rockchip_lvds *lvds = connector_to_lvds(connector);
-	struct drm_panel *panel = lvds->panel;
 
-	return panel->funcs->get_modes(panel);
+	return drm_panel_get_modes(lvds->panel);
 }
 
 static struct drm_encoder *
@@ -442,13 +436,6 @@ rockchip_lvds_connector_best_encoder(struct drm_connector *connector)
 	struct rockchip_lvds *lvds = connector_to_lvds(connector);
 
 	return &lvds->encoder;
-}
-
-static enum drm_mode_status rockchip_lvds_connector_mode_valid(
-		struct drm_connector *connector,
-		struct drm_display_mode *mode)
-{
-	return MODE_OK;
 }
 
 static
@@ -466,60 +453,9 @@ int rockchip_lvds_connector_loader_protect(struct drm_connector *connector,
 static const
 struct drm_connector_helper_funcs rockchip_lvds_connector_helper_funcs = {
 	.get_modes = rockchip_lvds_connector_get_modes,
-	.mode_valid = rockchip_lvds_connector_mode_valid,
 	.best_encoder = rockchip_lvds_connector_best_encoder,
 	.loader_protect = rockchip_lvds_connector_loader_protect,
 };
-
-static void rockchip_lvds_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
-	int ret;
-
-	mutex_lock(&lvds->suspend_lock);
-
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		if (!lvds->suspend)
-			goto out;
-
-		drm_panel_prepare(lvds->panel);
-		ret = rockchip_lvds_poweron(lvds);
-		if (ret < 0) {
-			drm_panel_unprepare(lvds->panel);
-			goto out;
-		}
-		drm_panel_enable(lvds->panel);
-
-		lvds->suspend = false;
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		if (lvds->suspend)
-			goto out;
-
-		drm_panel_disable(lvds->panel);
-		rockchip_lvds_poweroff(lvds);
-		drm_panel_unprepare(lvds->panel);
-
-		lvds->suspend = true;
-		break;
-	default:
-		break;
-	}
-
-out:
-	mutex_unlock(&lvds->suspend_lock);
-}
-
-static bool
-rockchip_lvds_encoder_mode_fixup(struct drm_encoder *encoder,
-				const struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
 
 static void rockchip_lvds_encoder_mode_set(struct drm_encoder *encoder,
 					  struct drm_display_mode *mode,
@@ -539,11 +475,6 @@ static void rockchip_lvds_grf_config(struct drm_encoder *encoder,
 	u8 pin_dclk = (mode->flags & DRM_MODE_FLAG_PCSYNC) ? 1 : 0;
 	u32 val;
 	int ret;
-
-	/* iomux to LCD data/sync mode */
-	if (lvds->output == DISPLAY_OUTPUT_RGB)
-		if (lvds->pins_lcdc)
-			pinctrl_select_state(lvds->pinctrl, lvds->pins_lcdc);
 
 	if (LVDS_CHIP(lvds) == RK3288_LVDS) {
 		val = lvds->format;
@@ -743,14 +674,29 @@ static void rockchip_lvds_encoder_enable(struct drm_encoder *encoder)
 {
 	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
 
-	rockchip_lvds_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
+	if (lvds->panel)
+		drm_panel_prepare(lvds->panel);
+
+	rockchip_lvds_poweron(lvds);
+
+	if (lvds->panel)
+		drm_panel_enable(lvds->panel);
+
 	rockchip_lvds_grf_config(encoder, &lvds->mode);
 	rockchip_lvds_set_vop_source(lvds, encoder);
 }
 
 static void rockchip_lvds_encoder_disable(struct drm_encoder *encoder)
 {
-	rockchip_lvds_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
+	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
+
+	if (lvds->panel)
+		drm_panel_disable(lvds->panel);
+
+	rockchip_lvds_poweroff(lvds);
+
+	if (lvds->panel)
+		drm_panel_unprepare(lvds->panel);
 }
 
 static int rockchip_lvds_encoder_loader_protect(struct drm_encoder *encoder,
@@ -768,7 +714,6 @@ static int rockchip_lvds_encoder_loader_protect(struct drm_encoder *encoder,
 
 static const
 struct drm_encoder_helper_funcs rockchip_lvds_encoder_helper_funcs = {
-	.mode_fixup = rockchip_lvds_encoder_mode_fixup,
 	.mode_set = rockchip_lvds_encoder_mode_set,
 	.enable = rockchip_lvds_encoder_enable,
 	.disable = rockchip_lvds_encoder_disable,
@@ -854,7 +799,6 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	struct device_node  *port, *endpoint;
 	int ret, i;
 	const char *name;
-	lvds->drm_dev = drm_dev;
 
 	port = of_graph_get_port_by_id(dev->of_node, 1);
 	if (!port) {
@@ -948,7 +892,6 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 
 	if (lvds->panel) {
 		connector = &lvds->connector;
-		connector->dpms = DRM_MODE_DPMS_OFF;
 		ret = drm_connector_init(drm_dev, connector,
 					 &rockchip_lvds_connector_funcs,
 					 DRM_MODE_CONNECTOR_LVDS);
@@ -1005,8 +948,6 @@ static void rockchip_lvds_unbind(struct device *dev, struct device *master,
 {
 	struct rockchip_lvds *lvds = dev_get_drvdata(dev);
 
-	rockchip_lvds_encoder_dpms(&lvds->encoder, DRM_MODE_DPMS_OFF);
-
 	drm_panel_detach(lvds->panel);
 
 	drm_connector_cleanup(&lvds->connector);
@@ -1024,37 +965,23 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rockchip_lvds *lvds;
-	const struct of_device_id *match;
 	struct resource *res;
 	int ret;
 
-	if (!dev->of_node)
-		return -ENODEV;
-
-	lvds = devm_kzalloc(&pdev->dev, sizeof(*lvds), GFP_KERNEL);
+	lvds = devm_kzalloc(dev, sizeof(*lvds), GFP_KERNEL);
 	if (!lvds)
 		return -ENOMEM;
 
 	lvds->dev = dev;
-	lvds->suspend = true;
-	match = of_match_node(rockchip_lvds_dt_ids, dev->of_node);
-	lvds->soc_data = match->data;
+	lvds->soc_data = of_device_get_match_data(dev);
+	platform_set_drvdata(pdev, lvds);
 
-	if (LVDS_CHIP(lvds) == RK3288_LVDS) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		lvds->regs = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(lvds->regs))
-			return PTR_ERR(lvds->regs);
-	} else {
-		/* lvds regs on MIPIPHY_REG */
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						   "mipi_lvds_phy");
-		lvds->regs = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(lvds->regs)) {
-			dev_err(&pdev->dev, "ioremap lvds phy reg failed\n");
-			return PTR_ERR(lvds->regs);
-		}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	lvds->regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(lvds->regs))
+		return PTR_ERR(lvds->regs);
 
+	if (!(LVDS_CHIP(lvds) == RK3288_LVDS)) {
 		/* pll lock on status reg that is MIPICTRL Register */
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   "mipi_lvds_ctl");
@@ -1075,7 +1002,8 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 			lvds->hclk_ctrl = NULL;
 		}
 	}
-	lvds->pclk = devm_clk_get(&pdev->dev, "pclk_lvds");
+
+	lvds->pclk = devm_clk_get(dev, "pclk_lvds");
 	if (IS_ERR(lvds->pclk)) {
 		dev_err(dev, "could not get pclk_lvds\n");
 		return PTR_ERR(lvds->pclk);
@@ -1086,12 +1014,6 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 		dev_info(dev, "no pinctrl handle\n");
 		lvds->pinctrl = NULL;
 	} else {
-		lvds->pins_lcdc = pinctrl_lookup_state(lvds->pinctrl, "lcdc");
-		if (IS_ERR(lvds->pins_lcdc)) {
-			dev_info(dev, "no lcdc pinctrl state\n");
-			lvds->pins_lcdc = NULL;
-		}
-
 		lvds->pins_m0 = pinctrl_lookup_state(lvds->pinctrl, "m0");
 		if (IS_ERR(lvds->pins_m0)) {
 			dev_info(dev, "no m0 pinctrl state\n");
@@ -1111,9 +1033,6 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 		dev_err(dev, "missing rockchip,grf property\n");
 		return PTR_ERR(lvds->grf);
 	}
-
-	dev_set_drvdata(dev, lvds);
-	mutex_init(&lvds->suspend_lock);
 
 	if (lvds->pclk) {
 		ret = clk_prepare(lvds->pclk);
