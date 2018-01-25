@@ -183,17 +183,21 @@ struct comedi_subdevice {
 			  struct comedi_insn *insn, unsigned int *data);
 	int (*insn_bits)(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_insn *insn, unsigned int *data);
-	int (*insn_config)(struct comedi_device *dev, struct comedi_subdevice *s,
-			   struct comedi_insn *insn, unsigned int *data);
+	int (*insn_config)(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
+			   unsigned int *data);
 
 	int (*do_cmd)(struct comedi_device *dev, struct comedi_subdevice *s);
-	int (*do_cmdtest)(struct comedi_device *dev, struct comedi_subdevice *s,
+	int (*do_cmdtest)(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
 			  struct comedi_cmd *cmd);
 	int (*poll)(struct comedi_device *dev, struct comedi_subdevice *s);
 	int (*cancel)(struct comedi_device *dev, struct comedi_subdevice *s);
 
 	/* called when the buffer changes */
-	int (*buf_change)(struct comedi_device *dev, struct comedi_subdevice *s);
+	int (*buf_change)(struct comedi_device *dev,
+			  struct comedi_subdevice *s);
 
 	void (*munge)(struct comedi_device *dev, struct comedi_subdevice *s,
 		      void *data, unsigned int num_bytes,
