@@ -65,9 +65,14 @@ int smc_cdc_get_free_slot(struct smc_connection *conn,
 			  struct smc_cdc_tx_pend **pend)
 {
 	struct smc_link *link = &conn->lgr->lnk[SMC_SINGLE_LINK];
+	int rc;
 
-	return smc_wr_tx_get_free_slot(link, smc_cdc_tx_handler, wr_buf,
-				       (struct smc_wr_tx_pend_priv **)pend);
+	rc = smc_wr_tx_get_free_slot(link, smc_cdc_tx_handler, wr_buf,
+				     (struct smc_wr_tx_pend_priv **)pend);
+	if (!conn->alert_token_local)
+		/* abnormal termination */
+		rc = -EPIPE;
+	return rc;
 }
 
 static inline void smc_cdc_add_pending_send(struct smc_connection *conn,

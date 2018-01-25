@@ -377,6 +377,15 @@ static void smc_link_save_peer_info(struct smc_link *link,
 	link->peer_mtu = clc->qp_mtu;
 }
 
+static void smc_lgr_forget(struct smc_link_group *lgr)
+{
+	spin_lock_bh(&smc_lgr_list.lock);
+	/* do not use this link group for new connections */
+	if (!list_empty(&lgr->list))
+		list_del_init(&lgr->list);
+	spin_unlock_bh(&smc_lgr_list.lock);
+}
+
 /* setup for RDMA connection of client */
 static int smc_connect_rdma(struct smc_sock *smc)
 {
@@ -513,6 +522,8 @@ out_connected:
 	return rc ? rc : local_contact;
 
 decline_rdma_unlock:
+	if (local_contact == SMC_FIRST_CONTACT)
+		smc_lgr_forget(smc->conn.lgr);
 	mutex_unlock(&smc_create_lgr_pending);
 	smc_conn_free(&smc->conn);
 decline_rdma:
@@ -526,6 +537,8 @@ decline_rdma:
 	goto out_connected;
 
 out_err_unlock:
+	if (local_contact == SMC_FIRST_CONTACT)
+		smc_lgr_forget(smc->conn.lgr);
 	mutex_unlock(&smc_create_lgr_pending);
 	smc_conn_free(&smc->conn);
 out_err:
@@ -906,6 +919,8 @@ enqueue:
 	return;
 
 decline_rdma_unlock:
+	if (local_contact == SMC_FIRST_CONTACT)
+		smc_lgr_forget(new_smc->conn.lgr);
 	mutex_unlock(&smc_create_lgr_pending);
 decline_rdma:
 	/* RDMA setup failed, switch back to TCP */
@@ -918,6 +933,8 @@ decline_rdma:
 	goto out_connected;
 
 out_err_unlock:
+	if (local_contact == SMC_FIRST_CONTACT)
+		smc_lgr_forget(new_smc->conn.lgr);
 	mutex_unlock(&smc_create_lgr_pending);
 out_err:
 	newsmcsk->sk_state = SMC_CLOSED;
