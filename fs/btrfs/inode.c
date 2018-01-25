@@ -3355,14 +3355,6 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans,
 			return -ENOMEM;
 	}
 
-	spin_lock(&root->orphan_lock);
-	if (!root->orphan_block_rsv) {
-		root->orphan_block_rsv = block_rsv;
-	} else if (block_rsv) {
-		btrfs_free_block_rsv(fs_info, block_rsv);
-		block_rsv = NULL;
-	}
-
 	if (!test_and_set_bit(BTRFS_INODE_HAS_ORPHAN_ITEM,
 			      &inode->runtime_flags)) {
 #if 0
@@ -3377,12 +3369,23 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans,
 			insert = 1;
 #endif
 		insert = 1;
-		atomic_inc(&root->orphan_inodes);
 	}
 
 	if (!test_and_set_bit(BTRFS_INODE_ORPHAN_META_RESERVED,
 			      &inode->runtime_flags))
 		reserve = 1;
+
+	spin_lock(&root->orphan_lock);
+	/* If someone has created ->orphan_block_rsv, be happy to use it. */
+	if (!root->orphan_block_rsv) {
+		root->orphan_block_rsv = block_rsv;
+	} else if (block_rsv) {
+		btrfs_free_block_rsv(fs_info, block_rsv);
+		block_rsv = NULL;
+	}
+
+	if (insert)
+		atomic_inc(&root->orphan_inodes);
 	spin_unlock(&root->orphan_lock);
 
 	/* grab metadata reservation from transaction handle */
