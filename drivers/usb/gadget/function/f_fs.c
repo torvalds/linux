@@ -1856,44 +1856,20 @@ static int ffs_func_eps_enable(struct ffs_function *func)
 
 	spin_lock_irqsave(&func->ffs->eps_lock, flags);
 	while(count--) {
-		struct usb_endpoint_descriptor *ds;
-		struct usb_ss_ep_comp_descriptor *comp_desc = NULL;
-		int needs_comp_desc = false;
-		int desc_idx;
-
-		if (ffs->gadget->speed == USB_SPEED_SUPER) {
-			desc_idx = 2;
-			needs_comp_desc = true;
-		} else if (ffs->gadget->speed == USB_SPEED_HIGH)
-			desc_idx = 1;
-		else
-			desc_idx = 0;
-
-		/* fall-back to lower speed if desc missing for current speed */
-		do {
-			ds = ep->descs[desc_idx];
-		} while (!ds && --desc_idx >= 0);
-
-		if (!ds) {
-			ret = -EINVAL;
-			break;
-		}
-
 		ep->ep->driver_data = ep;
-		ep->ep->desc = ds;
 
-		if (needs_comp_desc) {
-			comp_desc = (struct usb_ss_ep_comp_descriptor *)(ds +
-					USB_DT_ENDPOINT_SIZE);
-			ep->ep->maxburst = comp_desc->bMaxBurst + 1;
-			ep->ep->comp_desc = comp_desc;
+		ret = config_ep_by_speed(func->gadget, &func->function, ep->ep);
+		if (ret) {
+			pr_err("%s: config_ep_by_speed(%s) returned %d\n",
+					__func__, ep->ep->name, ret);
+			break;
 		}
 
 		ret = usb_ep_enable(ep->ep);
 		if (likely(!ret)) {
 			epfile->ep = ep;
-			epfile->in = usb_endpoint_dir_in(ds);
-			epfile->isoc = usb_endpoint_xfer_isoc(ds);
+			epfile->in = usb_endpoint_dir_in(ep->ep->desc);
+			epfile->isoc = usb_endpoint_xfer_isoc(ep->ep->desc);
 		} else {
 			break;
 		}
