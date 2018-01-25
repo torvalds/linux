@@ -135,7 +135,7 @@ int nsim_bpf_setup_tc_block_cb(enum tc_setup_type type,
 		return -EOPNOTSUPP;
 	}
 
-	if (!tc_can_offload_extack(ns->netdev, cls_bpf->common.extack))
+	if (!tc_cls_can_offload_and_chain0(ns->netdev, &cls_bpf->common))
 		return -EOPNOTSUPP;
 
 	if (cls_bpf->common.protocol != htons(ETH_P_ALL)) {
@@ -143,9 +143,6 @@ int nsim_bpf_setup_tc_block_cb(enum tc_setup_type type,
 			"only ETH_P_ALL supported as filter protocol");
 		return -EOPNOTSUPP;
 	}
-
-	if (cls_bpf->common.chain_index)
-		return -EOPNOTSUPP;
 
 	if (!ns->bpf_tc_accept) {
 		NSIM_EA(cls_bpf->common.extack,
