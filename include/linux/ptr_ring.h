@@ -45,9 +45,10 @@ struct ptr_ring {
 };
 
 /* Note: callers invoking this in a loop must use a compiler barrier,
- * for example cpu_relax().  If ring is ever resized, callers must hold
- * producer_lock - see e.g. ptr_ring_full.  Otherwise, if callers don't hold
- * producer_lock, the next call to __ptr_ring_produce may fail.
+ * for example cpu_relax().
+ *
+ * NB: this is unlike __ptr_ring_empty in that callers must hold producer_lock:
+ * see e.g. ptr_ring_full.
  */
 static inline bool __ptr_ring_full(struct ptr_ring *r)
 {
