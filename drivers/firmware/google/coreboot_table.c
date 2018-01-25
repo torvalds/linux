@@ -97,49 +97,6 @@ void coreboot_driver_unregister(struct coreboot_driver *driver)
 }
 EXPORT_SYMBOL(coreboot_driver_unregister);
 
-/*
- * This function parses the coreboot table for an entry that contains the base
- * address of the given entry tag. The coreboot table consists of a header
- * directly followed by a number of small, variable-sized entries, which each
- * contain an identifying tag and their length as the first two fields.
- */
-int coreboot_table_find(int tag, void *data, size_t data_size)
-{
-	struct coreboot_table_header header;
-	struct coreboot_table_entry entry;
-	void *ptr_entry;
-	int i;
-
-	if (!ptr_header)
-		return -EPROBE_DEFER;
-
-	memcpy_fromio(&header, ptr_header, sizeof(header));
-
-	if (strncmp(header.signature, "LBIO", sizeof(header.signature))) {
-		pr_warn("coreboot_table: coreboot table missing or corrupt!\n");
-		return -ENODEV;
-	}
-
-	ptr_entry = (void *)ptr_header + header.header_bytes;
-
-	for (i = 0; i < header.table_entries; i++) {
-		memcpy_fromio(&entry, ptr_entry, sizeof(entry));
-		if (entry.tag == tag) {
-			if (data_size < entry.size)
-				return -EINVAL;
-
-			memcpy_fromio(data, ptr_entry, entry.size);
-
-			return 0;
-		}
-
-		ptr_entry += entry.size;
-	}
-
-	return -ENOENT;
-}
-EXPORT_SYMBOL(coreboot_table_find);
-
 int coreboot_table_init(struct device *dev, void __iomem *ptr)
 {
 	int i, ret;
