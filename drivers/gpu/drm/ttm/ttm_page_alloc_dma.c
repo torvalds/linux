@@ -210,6 +210,7 @@ static ssize_t ttm_pool_store(struct kobject *kobj, struct attribute *attr,
 		container_of(kobj, struct ttm_pool_manager, kobj);
 	int chars;
 	unsigned val;
+
 	chars = sscanf(buffer, "%u", &val);
 	if (chars == 0)
 		return size;
@@ -217,11 +218,11 @@ static ssize_t ttm_pool_store(struct kobject *kobj, struct attribute *attr,
 	/* Convert kb to number of pages */
 	val = val / (PAGE_SIZE >> 10);
 
-	if (attr == &ttm_page_pool_max)
+	if (attr == &ttm_page_pool_max) {
 		m->options.max_size = val;
-	else if (attr == &ttm_page_pool_small)
+	} else if (attr == &ttm_page_pool_small) {
 		m->options.small = val;
-	else if (attr == &ttm_page_pool_alloc_size) {
+	} else if (attr == &ttm_page_pool_alloc_size) {
 		if (val > NUM_PAGES_TO_ALLOC*8) {
 			pr_err("Setting allocation size to %lu is not allowed. Recommended size is %lu\n",
 			       NUM_PAGES_TO_ALLOC*(PAGE_SIZE >> 7),
