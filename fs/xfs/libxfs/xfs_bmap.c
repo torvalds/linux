@@ -3337,6 +3337,22 @@ xfs_bmap_btalloc_filestreams(
 	return 0;
 }
 
+/* Update all inode and quota accounting for the allocation we just did. */
+static void
+xfs_bmap_btalloc_accounting(
+	struct xfs_bmalloca	*ap,
+	struct xfs_alloc_arg	*args)
+{
+	if (!(ap->flags & XFS_BMAPI_COWFORK))
+		ap->ip->i_d.di_nblocks += args->len;
+	xfs_trans_log_inode(ap->tp, ap->ip, XFS_ILOG_CORE);
+	if (ap->wasdel)
+		ap->ip->i_delayed_blks -= args->len;
+	xfs_trans_mod_dquot_byino(ap->tp, ap->ip,
+		ap->wasdel ? XFS_TRANS_DQ_DELBCOUNT : XFS_TRANS_DQ_BCOUNT,
+		args->len);
+}
+
 STATIC int
 xfs_bmap_btalloc(
 	struct xfs_bmalloca	*ap)	/* bmap alloc argument struct */
@@ -3571,19 +3587,7 @@ xfs_bmap_btalloc(
 			*ap->firstblock = args.fsbno;
 		ASSERT(nullfb || fb_agno <= args.agno);
 		ap->length = args.len;
-		if (!(ap->flags & XFS_BMAPI_COWFORK))
-			ap->ip->i_d.di_nblocks += args.len;
-		xfs_trans_log_inode(ap->tp, ap->ip, XFS_ILOG_CORE);
-		if (ap->wasdel)
-			ap->ip->i_delayed_blks -= args.len;
-		/*
-		 * Adjust the disk quota also. This was reserved
-		 * earlier.
-		 */
-		xfs_trans_mod_dquot_byino(ap->tp, ap->ip,
-			ap->wasdel ? XFS_TRANS_DQ_DELBCOUNT :
-					XFS_TRANS_DQ_BCOUNT,
-			(long) args.len);
+		xfs_bmap_btalloc_accounting(ap, &args);
 	} else {
 		ap->blkno = NULLFSBLOCK;
 		ap->length = 0;
