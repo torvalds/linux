@@ -2928,9 +2928,6 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 static int cxgb_setup_tc_flower(struct net_device *dev,
 				struct tc_cls_flower_offload *cls_flower)
 {
-	if (cls_flower->common.chain_index)
-		return -EOPNOTSUPP;
-
 	switch (cls_flower->command) {
 	case TC_CLSFLOWER_REPLACE:
 		return cxgb4_tc_flower_replace(dev, cls_flower);
@@ -2946,9 +2943,6 @@ static int cxgb_setup_tc_flower(struct net_device *dev,
 static int cxgb_setup_tc_cls_u32(struct net_device *dev,
 				 struct tc_cls_u32_offload *cls_u32)
 {
-	if (cls_u32->common.chain_index)
-		return -EOPNOTSUPP;
-
 	switch (cls_u32->command) {
 	case TC_CLSU32_NEW_KNODE:
 	case TC_CLSU32_REPLACE_KNODE:
@@ -2974,7 +2968,7 @@ static int cxgb_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 		return -EINVAL;
 	}
 
-	if (!tc_can_offload(dev))
+	if (!tc_cls_can_offload_and_chain0(dev, type_data))
 		return -EOPNOTSUPP;
 
 	switch (type) {
