@@ -321,20 +321,20 @@ static int altera_uart_startup(struct uart_port *port)
 {
 	struct altera_uart *pp = container_of(port, struct altera_uart, port);
 	unsigned long flags;
-	int ret;
 
 	if (!port->irq) {
 		timer_setup(&pp->tmr, altera_uart_timer, 0);
 		mod_timer(&pp->tmr, jiffies + uart_poll_timeout(port));
-		return 0;
-	}
+	} else {
+		int ret;
 
-	ret = request_irq(port->irq, altera_uart_interrupt, 0,
-			DRV_NAME, port);
-	if (ret) {
-		pr_err(DRV_NAME ": unable to attach Altera UART %d "
-		       "interrupt vector=%d\n", port->line, port->irq);
-		return ret;
+		ret = request_irq(port->irq, altera_uart_interrupt, 0,
+				DRV_NAME, port);
+		if (ret) {
+			pr_err(DRV_NAME ": unable to attach Altera UART %d "
+			       "interrupt vector=%d\n", port->line, port->irq);
+			return ret;
+		}
 	}
 
 	spin_lock_irqsave(&port->lock, flags);
