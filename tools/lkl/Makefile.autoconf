@@ -3,7 +3,7 @@ NT_HOSTS=pe-i386 pe-x86-64
 
 define set_autoconf_var
   $(shell echo "#define LKL_HOST_CONFIG_$(1) $(2)" \
-	  >> $(OUTPUT)/include/autoconf.h)
+	  >> $(OUTPUT)/include/lkl_autoconf.h)
   $(shell echo "LKL_HOST_CONFIG_$(1)=$(2)" >> $(OUTPUT)/tests/autoconf.sh)
   export LKL_HOST_CONFIG_$(1)=$(2)
 endef
@@ -98,6 +98,6 @@ export do_autoconf
 $(OUTPUT)Makefile.conf: Makefile.autoconf
 	$(shell mkdir -p $(OUTPUT)/include)
 	$(shell mkdir -p $(OUTPUT)/tests)
-	$(shell echo -n "" > $(OUTPUT)/include/autoconf.h)
+	$(shell echo -n "" > $(OUTPUT)/include/lkl_autoconf.h)
 	$(shell echo -n "" > $(OUTPUT)/tests/autoconf.sh)
 	@echo "$$do_autoconf" > $(OUTPUT)/Makefile.conf

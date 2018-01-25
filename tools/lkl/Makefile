@@ -87,7 +87,8 @@ $(OUTPUT)cpfromfs$(EXESUF): cptofs$(EXESUF)
 clean:
 	$(call QUIET_CLEAN, objects)find $(OUTPUT) -name '*.o' -delete -o -name '\.*.cmd'\
 	 -delete -o -name '\.*.d' -delete
-	$(call QUIET_CLEAN, headers)$(RM) -r $(OUTPUT)/include/lkl/
+	$(call QUIET_CLEAN, headers)$(RM) -r $(OUTPUT)/include/lkl/ \
+		$(OUTPUT)include/lkl_autoconf.h
 	$(call QUIET_CLEAN, liblkl.a)$(RM) $(OUTPUT)/liblkl.a
 	$(call QUIET_CLEAN, targets)$(RM) $(TARGETS) bin/stat
 
@@ -97,7 +98,8 @@ clean-conf: clean
 headers_install: $(TARGETS)
 	$(call QUIET_INSTALL, headers) \
 	    install -d $(DESTDIR)$(PREFIX)/include ; \
-	    install -m 644 include/lkl.h include/lkl_host.h $(DESTDIR)$(PREFIX)/include ; \
+	    install -m 644 include/lkl.h include/lkl_host.h $(OUTPUT)include/lkl_autoconf.h \
+	      $(DESTDIR)$(PREFIX)/include ; \
 	    cp -r $(OUTPUT)include/lkl $(DESTDIR)$(PREFIX)/include
 
 libraries_install: $(libs-y:%=$(OUTPUT)%$(SOSUF))
