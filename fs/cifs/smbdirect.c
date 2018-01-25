@@ -1855,7 +1855,8 @@ try_again:
  * consumed. But this will require more changes to upper layer code, and also
  * need to consider packet boundaries while they still being reassembled.
  */
-int smbd_recv_buf(struct smbd_connection *info, char *buf, unsigned int size)
+static int smbd_recv_buf(struct smbd_connection *info, char *buf,
+		unsigned int size)
 {
 	struct smbd_response *response;
 	struct smbd_data_transfer *data_transfer;
@@ -1992,7 +1993,7 @@ read_rfc1002_done:
  * to_read: the length of data to read
  * return value: actual data read
  */
-int smbd_recv_page(struct smbd_connection *info,
+static int smbd_recv_page(struct smbd_connection *info,
 		struct page *page, unsigned int to_read)
 {
 	int ret;

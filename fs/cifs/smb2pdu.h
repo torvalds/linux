@@ -830,9 +830,9 @@ struct smb2_flush_rsp {
 #define SMB2_READFLAG_READ_UNBUFFERED	0x01
 
 /* Channel field for read and write: exactly one of following flags can be set*/
-#define SMB2_CHANNEL_NONE		0x00000000
-#define SMB2_CHANNEL_RDMA_V1		0x00000001 /* SMB3 or later */
-#define SMB2_CHANNEL_RDMA_V1_INVALIDATE 0x00000002 /* SMB3.02 or later */
+#define SMB2_CHANNEL_NONE	cpu_to_le32(0x00000000)
+#define SMB2_CHANNEL_RDMA_V1	cpu_to_le32(0x00000001) /* SMB3 or later */
+#define SMB2_CHANNEL_RDMA_V1_INVALIDATE cpu_to_le32(0x00000002) /* >= SMB3.02 */
 
 /* SMB2 read request without RFC1001 length at the beginning */
 struct smb2_read_plain_req {
@@ -847,8 +847,8 @@ struct smb2_read_plain_req {
 	__le32 MinimumCount;
 	__le32 Channel; /* MBZ except for SMB3 or later */
 	__le32 RemainingBytes;
-	__le16 ReadChannelInfoOffset; /* Reserved MBZ */
-	__le16 ReadChannelInfoLength; /* Reserved MBZ */
+	__le16 ReadChannelInfoOffset;
+	__le16 ReadChannelInfoLength;
 	__u8   Buffer[1];
 } __packed;
 
@@ -877,8 +877,8 @@ struct smb2_write_req {
 	__u64  VolatileFileId; /* opaque endianness */
 	__le32 Channel; /* Reserved MBZ */
 	__le32 RemainingBytes;
-	__le16 WriteChannelInfoOffset; /* Reserved MBZ */
-	__le16 WriteChannelInfoLength; /* Reserved MBZ */
+	__le16 WriteChannelInfoOffset;
+	__le16 WriteChannelInfoLength;
 	__le32 Flags;
 	__u8   Buffer[1];
 } __packed;

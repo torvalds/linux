@@ -2463,13 +2463,13 @@ smb2_new_read_req(void **buf, unsigned int *total_len,
 		if (need_invalidate)
 			req->Channel = SMB2_CHANNEL_RDMA_V1;
 		req->ReadChannelInfoOffset =
-			offsetof(struct smb2_read_plain_req, Buffer);
+			cpu_to_le16(offsetof(struct smb2_read_plain_req, Buffer));
 		req->ReadChannelInfoLength =
-			sizeof(struct smbd_buffer_descriptor_v1);
+			cpu_to_le16(sizeof(struct smbd_buffer_descriptor_v1));
 		v1 = (struct smbd_buffer_descriptor_v1 *) &req->Buffer[0];
-		v1->offset = rdata->mr->mr->iova;
-		v1->token = rdata->mr->mr->rkey;
-		v1->length = rdata->mr->mr->length;
+		v1->offset = cpu_to_le64(rdata->mr->mr->iova);
+		v1->token = cpu_to_le32(rdata->mr->mr->rkey);
+		v1->length = cpu_to_le32(rdata->mr->mr->length);
 
 		*total_len += sizeof(*v1) - 1;
 	}
@@ -2840,18 +2840,18 @@ smb2_async_writev(struct cifs_writedata *wdata,
 		req->Length = 0;
 		req->DataOffset = 0;
 		req->RemainingBytes =
-			(wdata->nr_pages-1)*PAGE_SIZE + wdata->tailsz;
+			cpu_to_le32((wdata->nr_pages-1)*PAGE_SIZE + wdata->tailsz);
 		req->Channel = SMB2_CHANNEL_RDMA_V1_INVALIDATE;
 		if (need_invalidate)
 			req->Channel = SMB2_CHANNEL_RDMA_V1;
 		req->WriteChannelInfoOffset =
-			offsetof(struct smb2_write_req, Buffer);
+			cpu_to_le16(offsetof(struct smb2_write_req, Buffer));
 		req->WriteChannelInfoLength =
-			sizeof(struct smbd_buffer_descriptor_v1);
+			cpu_to_le16(sizeof(struct smbd_buffer_descriptor_v1));
 		v1 = (struct smbd_buffer_descriptor_v1 *) &req->Buffer[0];
-		v1->offset = wdata->mr->mr->iova;
-		v1->token = wdata->mr->mr->rkey;
-		v1->length = wdata->mr->mr->length;
+		v1->offset = cpu_to_le64(wdata->mr->mr->iova);
+		v1->token = cpu_to_le32(wdata->mr->mr->rkey);
+		v1->length = cpu_to_le32(wdata->mr->mr->length);
 	}
 #endif
 	/* 4 for rfc1002 length field and 1 for Buffer */
