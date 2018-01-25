@@ -896,12 +896,20 @@ void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue)
 	mod_timer(&rx_queue->slow_fill, jiffies + msecs_to_jiffies(100));
 }
 
+bool efx_default_channel_want_txqs(struct efx_channel *channel)
+{
+	return channel->channel - channel->efx->tx_channel_offset <
+		channel->efx->n_tx_channels;
+}
+
 static const struct efx_channel_type efx_default_channel_type = {
 	.pre_probe		= efx_channel_dummy_op_int,
 	.post_remove		= efx_channel_dummy_op_void,
 	.get_name		= efx_get_channel_name,
 	.copy			= efx_copy_channel,
+	.want_txqs		= efx_default_channel_want_txqs,
 	.keep_eventq		= false,
+	.want_pio		= true,
 };
 
 int efx_channel_dummy_op_int(struct efx_channel *channel)
@@ -1501,6 +1509,7 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 	}
 
 	/* Assign extra channels if possible */
+	efx->n_extra_tx_channels = 0;
 	j = efx->n_channels;
 	for (i = 0; i < EFX_MAX_EXTRA_CHANNELS; i++) {
 		if (!efx->extra_channel_type[i])
@@ -1512,6 +1521,8 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 			--j;
 			efx_get_channel(efx, j)->type =
 				efx->extra_channel_type[i];
+			if (efx_channel_has_tx_queues(efx_get_channel(efx, j)))
+				efx->n_extra_tx_channels++;
 		}
 	}
 

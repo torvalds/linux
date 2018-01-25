@@ -322,6 +322,25 @@ static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 	return 0;
 }
 
+static void efx_ef10_read_licensed_features(struct efx_nic *efx)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_LICENSING_V3_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_LICENSING_V3_OUT_LEN);
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	size_t outlen;
+	int rc;
+
+	MCDI_SET_DWORD(inbuf, LICENSING_V3_IN_OP,
+		       MC_CMD_LICENSING_V3_IN_OP_REPORT_LICENSE);
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_LICENSING_V3, inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf), &outlen);
+	if (rc || (outlen < MC_CMD_LICENSING_V3_OUT_LEN))
+		return;
+
+	nic_data->licensed_features = MCDI_QWORD(outbuf,
+					 LICENSING_V3_OUT_LICENSED_FEATURES);
+}
+
 static int efx_ef10_get_sysclk_freq(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_CLOCK_OUT_LEN);
@@ -722,6 +741,8 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	if (rc < 0)
 		goto fail5;
 
+	efx_ef10_read_licensed_features(efx);
+
 	/* We can have one VI for each vi_stride-byte region.
 	 * However, until we use TX option descriptors we need two TX queues
 	 * per channel.
@@ -760,14 +781,7 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	if (rc && rc != -EPERM)
 		goto fail5;
 
-	rc = efx_ptp_probe(efx, NULL);
-	/* Failure to probe PTP is not fatal.
-	 * In the case of EPERM, efx_ptp_probe will print its own message (in
-	 * efx_ptp_get_attributes()), so we don't need to.
-	 */
-	if (rc && rc != -EPERM)
-		netif_warn(efx, drv, efx->net_dev,
-			   "Failed to probe PTP, rc=%d\n", rc);
+	efx_ptp_defer_probe_with_channel(efx);
 
 #ifdef CONFIG_SFC_SRIOV
 	if ((efx->pci_dev->physfn) && (!efx->pci_dev->is_physfn)) {
@@ -937,6 +951,11 @@ static int efx_ef10_link_piobufs(struct efx_nic *efx)
 
 	/* Link a buffer to each TX queue */
 	efx_for_each_channel(channel, efx) {
+		/* Extra channels, even those with TXQs (PTP), do not require
+		 * PIO resources.
+		 */
+		if (!channel->type->want_pio)
+			continue;
 		efx_for_each_channel_tx_queue(tx_queue, channel) {
 			/* We assign the PIO buffers to queues in
 			 * reverse order to allow for the following
@@ -1284,7 +1303,9 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 	void __iomem *membase;
 	int rc;
 
-	channel_vis = max(efx->n_channels, efx->n_tx_channels * EFX_TXQ_TYPES);
+	channel_vis = max(efx->n_channels,
+			  (efx->n_tx_channels + efx->n_extra_tx_channels) *
+			  EFX_TXQ_TYPES);
 
 #ifdef EFX_USE_PIO
 	/* Try to allocate PIO buffers if wanted and if the full
@@ -2408,12 +2429,25 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 	int i;
 	BUILD_BUG_ON(MC_CMD_INIT_TXQ_OUT_LEN != 0);
 
+	/* Only attempt to enable TX timestamping if we have the license for it,
+	 * otherwise TXQ init will fail
+	 */
+	if (!(nic_data->licensed_features &
+	      (1 << LICENSED_V3_FEATURES_TX_TIMESTAMPS_LBN))) {
+		tx_queue->timestamping = false;
+		/* Disable sync events on this channel. */
+		if (efx->type->ptp_set_ts_sync_events)
+			efx->type->ptp_set_ts_sync_events(efx, false, false);
+	}
+
 	/* TSOv2 is a limited resource that can only be configured on a limited
 	 * number of queues. TSO without checksum offload is not really a thing,
 	 * so we only enable it for those queues.
+	 * TSOv2 cannot be used with Hardware timestamping.
 	 */
 	if (csum_offload && (nic_data->datapath_caps2 &
-			(1 << MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_LBN))) {
+			(1 << MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_LBN)) &&
+	    !tx_queue->timestamping) {
 		tso_v2 = true;
 		netif_dbg(efx, hw, efx->net_dev, "Using TSOv2 for channel %u\n",
 				channel->channel);
@@ -2439,14 +2473,16 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 	inlen = MC_CMD_INIT_TXQ_IN_LEN(entries);
 
 	do {
-		MCDI_POPULATE_DWORD_3(inbuf, INIT_TXQ_IN_FLAGS,
+		MCDI_POPULATE_DWORD_4(inbuf, INIT_TXQ_IN_FLAGS,
 				/* This flag was removed from mcdi_pcol.h for
 				 * the non-_EXT version of INIT_TXQ.  However,
 				 * firmware still honours it.
 				 */
 				INIT_TXQ_EXT_IN_FLAG_TSOV2_EN, tso_v2,
 				INIT_TXQ_IN_FLAG_IP_CSUM_DIS, !csum_offload,
-				INIT_TXQ_IN_FLAG_TCP_CSUM_DIS, !csum_offload);
+				INIT_TXQ_IN_FLAG_TCP_CSUM_DIS, !csum_offload,
+				INIT_TXQ_EXT_IN_FLAG_TIMESTAMP,
+						tx_queue->timestamping);
 
 		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_INIT_TXQ, inbuf, inlen,
 					NULL, 0, NULL);
@@ -2472,12 +2508,13 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 	tx_queue->buffer[0].flags = EFX_TX_BUF_OPTION;
 	tx_queue->insert_count = 1;
 	txd = efx_tx_desc(tx_queue, 0);
-	EFX_POPULATE_QWORD_4(*txd,
+	EFX_POPULATE_QWORD_5(*txd,
 			     ESF_DZ_TX_DESC_IS_OPT, true,
 			     ESF_DZ_TX_OPTION_TYPE,
 			     ESE_DZ_TX_OPTION_DESC_CRC_CSUM,
 			     ESF_DZ_TX_OPTION_UDP_TCP_CSUM, csum_offload,
-			     ESF_DZ_TX_OPTION_IP_CSUM, csum_offload);
+			     ESF_DZ_TX_OPTION_IP_CSUM, csum_offload,
+			     ESF_DZ_TX_TIMESTAMP, tx_queue->timestamping);
 	tx_queue->write_count = 1;
 
 	if (tso_v2) {
@@ -3572,31 +3609,92 @@ static int efx_ef10_handle_rx_event(struct efx_channel *channel,
 	return n_packets;
 }
 
-static int
+static u32 efx_ef10_extract_event_ts(efx_qword_t *event)
+{
+	u32 tstamp;
+
+	tstamp = EFX_QWORD_FIELD(*event, TX_TIMESTAMP_EVENT_TSTAMP_DATA_HI);
+	tstamp <<= 16;
+	tstamp |= EFX_QWORD_FIELD(*event, TX_TIMESTAMP_EVENT_TSTAMP_DATA_LO);
+
+	return tstamp;
+}
+
+static void
 efx_ef10_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 {
 	struct efx_nic *efx = channel->efx;
 	struct efx_tx_queue *tx_queue;
 	unsigned int tx_ev_desc_ptr;
 	unsigned int tx_ev_q_label;
-	int tx_descs = 0;
+	unsigned int tx_ev_type;
+	u64 ts_part;
 
 	if (unlikely(READ_ONCE(efx->reset_pending)))
-		return 0;
+		return;
 
 	if (unlikely(EFX_QWORD_FIELD(*event, ESF_DZ_TX_DROP_EVENT)))
-		return 0;
+		return;
 
-	/* Transmit completion */
-	tx_ev_desc_ptr = EFX_QWORD_FIELD(*event, ESF_DZ_TX_DESCR_INDX);
+	/* Get the transmit queue */
 	tx_ev_q_label = EFX_QWORD_FIELD(*event, ESF_DZ_TX_QLABEL);
 	tx_queue = efx_channel_get_tx_queue(channel,
 					    tx_ev_q_label % EFX_TXQ_TYPES);
-	tx_descs = ((tx_ev_desc_ptr + 1 - tx_queue->read_count) &
-		    tx_queue->ptr_mask);
-	efx_xmit_done(tx_queue, tx_ev_desc_ptr & tx_queue->ptr_mask);
 
-	return tx_descs;
+	if (!tx_queue->timestamping) {
+		/* Transmit completion */
+		tx_ev_desc_ptr = EFX_QWORD_FIELD(*event, ESF_DZ_TX_DESCR_INDX);
+		efx_xmit_done(tx_queue, tx_ev_desc_ptr & tx_queue->ptr_mask);
+		return;
+	}
+
+	/* Transmit timestamps are only available for 8XXX series. They result
+	 * in three events per packet. These occur in order, and are:
+	 *  - the normal completion event
+	 *  - the low part of the timestamp
+	 *  - the high part of the timestamp
+	 *
+	 * Each part of the timestamp is itself split across two 16 bit
+	 * fields in the event.
+	 */
+	tx_ev_type = EFX_QWORD_FIELD(*event, ESF_EZ_TX_SOFT1);
+
+	switch (tx_ev_type) {
+	case TX_TIMESTAMP_EVENT_TX_EV_COMPLETION:
+		/* In case of Queue flush or FLR, we might have received
+		 * the previous TX completion event but not the Timestamp
+		 * events.
+		 */
+		if (tx_queue->completed_desc_ptr != tx_queue->ptr_mask)
+			efx_xmit_done(tx_queue, tx_queue->completed_desc_ptr);
+
+		tx_ev_desc_ptr = EFX_QWORD_FIELD(*event,
+						 ESF_DZ_TX_DESCR_INDX);
+		tx_queue->completed_desc_ptr =
+					tx_ev_desc_ptr & tx_queue->ptr_mask;
+		break;
+
+	case TX_TIMESTAMP_EVENT_TX_EV_TSTAMP_LO:
+		ts_part = efx_ef10_extract_event_ts(event);
+		tx_queue->completed_timestamp_minor = ts_part;
+		break;
+
+	case TX_TIMESTAMP_EVENT_TX_EV_TSTAMP_HI:
+		ts_part = efx_ef10_extract_event_ts(event);
+		tx_queue->completed_timestamp_major = ts_part;
+
+		efx_xmit_done(tx_queue, tx_queue->completed_desc_ptr);
+		tx_queue->completed_desc_ptr = tx_queue->ptr_mask;
+		break;
+
+	default:
+		netif_err(efx, hw, efx->net_dev,
+			  "channel %d unknown tx event type %d (data "
+			  EFX_QWORD_FMT ")\n",
+			  channel->channel, tx_ev_type,
+			  EFX_QWORD_VAL(*event));
+		break;
+	}
 }
 
 static void
@@ -3658,7 +3756,6 @@ static int efx_ef10_ev_process(struct efx_channel *channel, int quota)
 	efx_qword_t event, *p_event;
 	unsigned int read_ptr;
 	int ev_code;
-	int tx_descs = 0;
 	int spent = 0;
 
 	if (quota <= 0)
@@ -3698,13 +3795,7 @@ static int efx_ef10_ev_process(struct efx_channel *channel, int quota)
 			}
 			break;
 		case ESE_DZ_EV_CODE_TX_EV:
-			tx_descs += efx_ef10_handle_tx_event(channel, &event);
-			if (tx_descs > efx->txq_entries) {
-				spent = quota;
-				goto out;
-			} else if (++spent == quota) {
-				goto out;
-			}
+			efx_ef10_handle_tx_event(channel, &event);
 			break;
 		case ESE_DZ_EV_CODE_DRIVER_EV:
 			efx_ef10_handle_driver_event(channel, &event);
@@ -6179,7 +6270,8 @@ static int efx_ef10_ptp_set_ts_sync_events(struct efx_nic *efx, bool en,
 	      efx_ef10_rx_enable_timestamping :
 	      efx_ef10_rx_disable_timestamping;
 
-	efx_for_each_channel(channel, efx) {
+	channel = efx_ptp_channel(efx);
+	if (channel) {
 		int rc = set(channel, temp);
 		if (en && rc != 0) {
 			efx_ef10_ptp_set_ts_sync_events(efx, false, temp);
