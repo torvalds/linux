@@ -184,6 +184,7 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 
 	err = dev->xfrmdev_ops->xdo_dev_state_add(x);
 	if (err) {
+		xso->dev = NULL;
 		dev_put(dev);
 		return err;
 	}

@@ -332,6 +332,8 @@ extern int ftrace_text_reserved(const void *start, const void *end);
 
 extern int ftrace_nr_registered_ops(void);
 
+struct ftrace_ops *ftrace_ops_trampoline(unsigned long addr);
+
 bool is_ftrace_trampoline(unsigned long addr);
 
 /*

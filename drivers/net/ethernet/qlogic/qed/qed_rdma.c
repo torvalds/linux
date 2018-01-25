@@ -358,10 +358,27 @@ static void qed_rdma_resc_free(struct qed_hwfn *p_hwfn)
 	kfree(p_rdma_info);
 }
 
+static void qed_rdma_free_tid(void *rdma_cxt, u32 itid)
+{
+        struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
+
+        DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "itid = %08x\n", itid);
+
+        spin_lock_bh(&p_hwfn->p_rdma_info->lock);
+        qed_bmap_release_id(p_hwfn, &p_hwfn->p_rdma_info->tid_map, itid);
+        spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
+}
+
+static void qed_rdma_free_reserved_lkey(struct qed_hwfn *p_hwfn)
+{
+	qed_rdma_free_tid(p_hwfn, p_hwfn->p_rdma_info->dev->reserved_lkey);
+}
+
 static void qed_rdma_free(struct qed_hwfn *p_hwfn)
 {
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Freeing RDMA\n");
 
+	qed_rdma_free_reserved_lkey(p_hwfn);
 	qed_rdma_resc_free(p_hwfn);
 }
 
@@ -615,9 +632,6 @@ static int qed_rdma_reserve_lkey(struct qed_hwfn *p_hwfn)
 {
 	struct qed_rdma_device *dev = p_hwfn->p_rdma_info->dev;
 
-	/* The first DPI is reserved for the Kernel */
-	__set_bit(0, p_hwfn->p_rdma_info->dpi_map.bitmap);
-
 	/* Tid 0 will be used as the key for "reserved MR".
 	 * The driver should allocate memory for it so it can be loaded but no
 	 * ramrod should be passed on it.
@@ -795,17 +809,6 @@ static struct qed_rdma_device *qed_rdma_query_device(void *rdma_cxt)
 
 	/* Return struct with device parameters */
 	return p_hwfn->p_rdma_info->dev;
-}
-
-static void qed_rdma_free_tid(void *rdma_cxt, u32 itid)
-{
-	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
-
-	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "itid = %08x\n", itid);
-
-	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
-	qed_bmap_release_id(p_hwfn, &p_hwfn->p_rdma_info->tid_map, itid);
-	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
 }
 
 static void qed_rdma_cnq_prod_update(void *rdma_cxt, u8 qz_offset, u16 prod)

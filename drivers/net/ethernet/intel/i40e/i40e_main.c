@@ -7437,6 +7437,8 @@ static int i40e_setup_tc_cls_flower(struct i40e_netdev_priv *np,
 {
 	struct i40e_vsi *vsi = np->vsi;
 
+	if (!tc_can_offload(vsi->netdev))
+		return -EOPNOTSUPP;
 	if (cls_flower->common.chain_index)
 		return -EOPNOTSUPP;
 
