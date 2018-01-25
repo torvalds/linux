@@ -586,8 +586,6 @@ static int efx_ptp_get_attributes(struct efx_nic *efx)
 		return -ERANGE;
 	}
 
-	ptp->time_format = fmt;
-
 	/* MC_CMD_PTP_OP_GET_ATTRIBUTES is an extended version of an older
 	 * operation MC_CMD_PTP_OP_GET_TIME_FORMAT that also returns a value
 	 * to use for the minimum acceptable corrected synchronization window.
@@ -1869,10 +1867,7 @@ void __efx_rx_skb_attach_timestamp(struct efx_channel *channel,
 	u32 diff, carry;
 	struct skb_shared_hwtstamps *timestamps;
 
-	pkt_timestamp_minor = (efx_rx_buf_timestamp_minor(efx,
-							  skb_mac_header(skb)) +
-			       (u32) efx->ptp_data->ts_corrections.rx) &
-			      (MINOR_TICKS_PER_SECOND - 1);
+	pkt_timestamp_minor = efx_rx_buf_timestamp_minor(efx, skb_mac_header(skb));
 
 	/* get the difference between the packet and sync timestamps,
 	 * modulo one second
@@ -1910,8 +1905,10 @@ void __efx_rx_skb_attach_timestamp(struct efx_channel *channel,
 
 	/* attach the timestamps to the skb */
 	timestamps = skb_hwtstamps(skb);
-	timestamps->hwtstamp =
-		efx_ptp_s27_to_ktime(pkt_timestamp_major, pkt_timestamp_minor);
+	timestamps->hwtstamp = efx_ptp_s27_to_ktime_correction(
+				pkt_timestamp_major,
+				pkt_timestamp_minor,
+				efx->ptp_data->ts_corrections.rx);
 }
 
 static int efx_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
