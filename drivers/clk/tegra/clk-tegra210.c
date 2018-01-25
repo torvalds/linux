@@ -41,6 +41,7 @@
 #define CLK_SOURCE_CSITE 0x1d4
 #define CLK_SOURCE_EMC 0x19c
 #define CLK_SOURCE_SOR1 0x410
+#define CLK_SOURCE_LA 0x1f8
 
 #define PLLC_BASE 0x80
 #define PLLC_OUT 0x84
@@ -2654,6 +2655,13 @@ static struct tegra_periph_init_data tegra210_periph[] = {
 			      sor1_parents_idx, 0, &sor1_lock),
 };
 
+static const char * const la_parents[] = {
+	"pll_p", "pll_c2", "pll_c", "pll_c3", "pll_re_out1", "pll_a1", "clk_m", "pll_c4_out0"
+};
+
+static struct tegra_clk_periph tegra210_la =
+	TEGRA_CLK_PERIPH(29, 7, 9, 0, 8, 1, TEGRA_DIVIDER_ROUND_UP, 76, 0, NULL, 0);
+
 static __init void tegra210_periph_clk_init(void __iomem *clk_base,
 					    void __iomem *pmc_base)
 {
@@ -2699,6 +2707,12 @@ static __init void tegra210_periph_clk_init(void __iomem *clk_base,
 					     clk_base, 0, 82,
 					     periph_clk_enb_refcnt);
 	clks[TEGRA210_CLK_DSIB] = clk;
+
+	/* la */
+	clk = tegra_clk_register_periph("la", la_parents,
+			ARRAY_SIZE(la_parents), &tegra210_la, clk_base,
+			CLK_SOURCE_LA, 0);
+	clks[TEGRA210_CLK_LA] = clk;
 
 	/* emc mux */
 	clk = clk_register_mux(NULL, "emc_mux", mux_pllmcp_clkm,
