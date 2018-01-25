@@ -483,15 +483,6 @@ static const struct file_operations cifs_##name##_proc_fops = { \
 	.write		= name##_write, \
 }
 
-extern int rdma_readwrite_threshold;
-extern int smbd_max_frmr_depth;
-extern int smbd_keep_alive_interval;
-extern int smbd_max_receive_size;
-extern int smbd_max_fragmented_recv_size;
-extern int smbd_max_send_size;
-extern int smbd_send_credit_target;
-extern int smbd_receive_credit_max;
-
 PROC_FILE_DEFINE(rdma_readwrite_threshold);
 PROC_FILE_DEFINE(smbd_max_frmr_depth);
 PROC_FILE_DEFINE(smbd_keep_alive_interval);
