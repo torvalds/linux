@@ -298,10 +298,10 @@ struct video_device
  * media_entity_to_video_device - Returns a &struct video_device from
  *	the &struct media_entity embedded on it.
  *
- * @entity: pointer to &struct media_entity
+ * @__entity: pointer to &struct media_entity
  */
-#define media_entity_to_video_device(entity) \
-	container_of(entity, struct video_device, entity)
+#define media_entity_to_video_device(__entity) \
+	container_of(__entity, struct video_device, entity)
 
 /**
  * to_video_device - Returns a &struct video_device from the
