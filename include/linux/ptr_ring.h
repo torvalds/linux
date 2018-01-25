@@ -114,7 +114,7 @@ static inline int __ptr_ring_produce(struct ptr_ring *r, void *ptr)
 	/* Pairs with smp_read_barrier_depends in __ptr_ring_consume. */
 	smp_wmb();
 
-	r->queue[r->producer++] = ptr;
+	WRITE_ONCE(r->queue[r->producer++], ptr);
 	if (unlikely(r->producer >= r->size))
 		r->producer = 0;
 	return 0;
@@ -173,7 +173,7 @@ static inline int ptr_ring_produce_bh(struct ptr_ring *r, void *ptr)
 static inline void *__ptr_ring_peek(struct ptr_ring *r)
 {
 	if (likely(r->size))
-		return r->queue[r->consumer_head];
+		return READ_ONCE(r->queue[r->consumer_head]);
 	return NULL;
 }
 
