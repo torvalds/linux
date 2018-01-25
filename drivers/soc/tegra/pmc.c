@@ -153,6 +153,7 @@ struct tegra_pmc_soc {
 
 	bool has_tsense_reset;
 	bool has_gpu_clamps;
+	bool needs_mbist_war;
 
 	const struct tegra_io_pad_soc *io_pads;
 	unsigned int num_io_pads;
@@ -396,6 +397,11 @@ static int tegra_powergate_reset_deassert(struct tegra_powergate *pg)
 	return 0;
 }
 
+int __weak tegra210_clk_handle_mbist_war(unsigned int id)
+{
+	return 0;
+}
+
 static int tegra_powergate_power_up(struct tegra_powergate *pg,
 				    bool disable_clocks)
 {
@@ -430,6 +436,11 @@ static int tegra_powergate_power_up(struct tegra_powergate *pg,
 		goto powergate_off;
 
 	usleep_range(10, 20);
+
+	if (pg->pmc->soc->needs_mbist_war)
+		err = tegra210_clk_handle_mbist_war(pg->id);
+	if (err)
+		goto disable_clks;
 
 	if (disable_clocks)
 		tegra_powergate_disable_clocks(pg);
@@ -1815,6 +1826,7 @@ static const struct tegra_pmc_soc tegra210_pmc_soc = {
 	.cpu_powergates = tegra210_cpu_powergates,
 	.has_tsense_reset = true,
 	.has_gpu_clamps = true,
+	.needs_mbist_war = true,
 	.num_io_pads = ARRAY_SIZE(tegra210_io_pads),
 	.io_pads = tegra210_io_pads,
 	.regs = &tegra20_pmc_regs,
