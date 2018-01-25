@@ -829,7 +829,7 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 		int mtu = dst_mtu(&rt->dst) - sizeof(struct iphdr) -
 			  GENEVE_BASE_HLEN - info->options_len - 14;
 
-		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
+		skb_dst_update_pmtu(skb, mtu);
 	}
 
 	sport = udp_flow_src_port(geneve->net, skb, 1, USHRT_MAX, true);
@@ -875,7 +875,7 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 		int mtu = dst_mtu(dst) - sizeof(struct ipv6hdr) -
 			  GENEVE_BASE_HLEN - info->options_len - 14;
 
-		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
+		skb_dst_update_pmtu(skb, mtu);
 	}
 
 	sport = udp_flow_src_port(geneve->net, skb, 1, USHRT_MAX, true);
