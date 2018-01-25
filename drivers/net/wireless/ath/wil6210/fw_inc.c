@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -128,14 +129,13 @@ static int fw_ignore_section(struct wil6210_priv *wil, const void *data,
 }
 
 static int
-fw_handle_comment(struct wil6210_priv *wil, const void *data,
-		  size_t size)
+fw_handle_capabilities(struct wil6210_priv *wil, const void *data,
+		       size_t size)
 {
 	const struct wil_fw_record_capabilities *rec = data;
 	size_t capa_size;
 
-	if (size < sizeof(*rec) ||
-	    le32_to_cpu(rec->magic) != WIL_FW_CAPABILITIES_MAGIC) {
+	if (size < sizeof(*rec)) {
 		wil_hex_dump_fw("", DUMP_PREFIX_OFFSET, 16, 1,
 				data, size, true);
 		return 0;
@@ -151,8 +151,56 @@ fw_handle_comment(struct wil6210_priv *wil, const void *data,
 	return 0;
 }
 
-static int fw_handle_data(struct wil6210_priv *wil, const void *data,
-			  size_t size)
+static int
+fw_handle_brd_file(struct wil6210_priv *wil, const void *data,
+		   size_t size)
+{
+	const struct wil_fw_record_brd_file *rec = data;
+
+	if (size < sizeof(*rec)) {
+		wil_hex_dump_fw("", DUMP_PREFIX_OFFSET, 16, 1,
+				data, size, true);
+		return 0;
+	}
+
+	wil->brd_file_addr = le32_to_cpu(rec->base_addr);
+	wil->brd_file_max_size = le32_to_cpu(rec->max_size_bytes);
+
+	wil_dbg_fw(wil, "brd_file_addr 0x%x, brd_file_max_size %d\n",
+		   wil->brd_file_addr, wil->brd_file_max_size);
+
+	return 0;
+}
+
+static int
+fw_handle_comment(struct wil6210_priv *wil, const void *data,
+		  size_t size)
+{
+	const struct wil_fw_record_comment_hdr *hdr = data;
+	u32 magic;
+	int rc = 0;
+
+	if (size < sizeof(*hdr))
+		return 0;
+
+	magic = le32_to_cpu(hdr->magic);
+
+	switch (magic) {
+	case WIL_FW_CAPABILITIES_MAGIC:
+		wil_dbg_fw(wil, "magic is WIL_FW_CAPABILITIES_MAGIC\n");
+		rc = fw_handle_capabilities(wil, data, size);
+		break;
+	case WIL_BRD_FILE_MAGIC:
+		wil_dbg_fw(wil, "magic is WIL_BRD_FILE_MAGIC\n");
+		rc = fw_handle_brd_file(wil, data, size);
+		break;
+	}
+
+	return rc;
+}
+
+static int __fw_handle_data(struct wil6210_priv *wil, const void *data,
+			    size_t size, __le32 addr)
 {
 	const struct wil_fw_record_data *d = data;
 	void __iomem *dst;
@@ -163,14 +211,21 @@ static int fw_handle_data(struct wil6210_priv *wil, const void *data,
 		return -EINVAL;
 	}
 
-	if (!wil_fw_addr_check(wil, &dst, d->addr, s, "address"))
+	if (!wil_fw_addr_check(wil, &dst, addr, s, "address"))
 		return -EINVAL;
-	wil_dbg_fw(wil, "write [0x%08x] <== %zu bytes\n", le32_to_cpu(d->addr),
-		   s);
+	wil_dbg_fw(wil, "write [0x%08x] <== %zu bytes\n", le32_to_cpu(addr), s);
 	wil_memcpy_toio_32(dst, d->data, s);
 	wmb(); /* finish before processing next record */
 
 	return 0;
+}
+
+static int fw_handle_data(struct wil6210_priv *wil, const void *data,
+			  size_t size)
+{
+	const struct wil_fw_record_data *d = data;
+
+	return __fw_handle_data(wil, data, size, d->addr);
 }
 
 static int fw_handle_fill(struct wil6210_priv *wil, const void *data,
@@ -548,6 +603,100 @@ int wil_request_firmware(struct wil6210_priv *wil, const char *name,
 
 out:
 	release_firmware(fw);
+	return rc;
+}
+
+/**
+ * wil_brd_process - process section from BRD file
+ *
+ * Return error code
+ */
+static int wil_brd_process(struct wil6210_priv *wil, const void *data,
+			   size_t size)
+{
+	int rc = 0;
+	const struct wil_fw_record_head *hdr = data;
+	size_t s, hdr_sz;
+	u16 type;
+
+	/* Assuming the board file includes only one header record and one data
+	 * record. Each record starts with wil_fw_record_head.
+	 */
+	if (size < sizeof(*hdr))
+		return -EINVAL;
+	s = sizeof(*hdr) + le32_to_cpu(hdr->size);
+	if (s > size)
+		return -EINVAL;
+
+	/* Skip the header record and handle the data record */
+	hdr = (const void *)hdr + s;
+	size -= s;
+	if (size < sizeof(*hdr))
+		return -EINVAL;
+	hdr_sz = le32_to_cpu(hdr->size);
+
+	if (wil->brd_file_max_size && hdr_sz > wil->brd_file_max_size)
+		return -EINVAL;
+	if (sizeof(*hdr) + hdr_sz > size)
+		return -EINVAL;
+	if (hdr_sz % 4) {
+		wil_err_fw(wil, "unaligned record size: %zu\n",
+			   hdr_sz);
+		return -EINVAL;
+	}
+	type = le16_to_cpu(hdr->type);
+	if (type != wil_fw_type_data) {
+		wil_err_fw(wil, "invalid record type for board file: %d\n",
+			   type);
+		return -EINVAL;
+	}
+	if (hdr_sz < sizeof(struct wil_fw_record_data)) {
+		wil_err_fw(wil, "data record too short: %zu\n", hdr_sz);
+		return -EINVAL;
+	}
+
+	wil_dbg_fw(wil, "using addr from fw file: [0x%08x]\n",
+		   wil->brd_file_addr);
+
+	rc = __fw_handle_data(wil, &hdr[1], hdr_sz,
+			      cpu_to_le32(wil->brd_file_addr));
+
+	return rc;
+}
+
+/**
+ * wil_request_board - Request board file
+ *
+ * Request board image from the file
+ * board file address and max size are read from FW file
+ * during initialization.
+ * brd file shall include one header and one data section.
+ *
+ * Return error code
+ */
+int wil_request_board(struct wil6210_priv *wil, const char *name)
+{
+	int rc, dlen;
+	const struct firmware *brd;
+
+	rc = request_firmware(&brd, name, wil_to_dev(wil));
+	if (rc) {
+		wil_err_fw(wil, "Failed to load brd %s\n", name);
+		return rc;
+	}
+	wil_dbg_fw(wil, "Loading <%s>, %zu bytes\n", name, brd->size);
+
+	/* Verify the header */
+	dlen = wil_fw_verify(wil, brd->data, brd->size);
+	if (dlen < 0) {
+		rc = dlen;
+		goto out;
+	}
+	/* Process the data record */
+	rc = wil_brd_process(wil, brd->data, dlen);
+
+out:
+	release_firmware(brd);
 	return rc;
 }
 

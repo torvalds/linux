@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -395,8 +396,9 @@ static irqreturn_t wil6210_irq_misc(int irq, void *cookie)
 	wil6210_mask_irq_misc(wil, false);
 
 	if (isr & ISR_MISC_FW_ERROR) {
-		u32 fw_assert_code = wil_r(wil, RGF_FW_ASSERT_CODE);
-		u32 ucode_assert_code = wil_r(wil, RGF_UCODE_ASSERT_CODE);
+		u32 fw_assert_code = wil_r(wil, wil->rgf_fw_assert_code_addr);
+		u32 ucode_assert_code =
+			wil_r(wil, wil->rgf_ucode_assert_code_addr);
 
 		wil_err(wil,
 			"Firmware error detected, assert codes FW 0x%08x, UCODE 0x%08x\n",
