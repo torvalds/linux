@@ -2966,7 +2966,7 @@ static void vop_update_cabc(struct drm_crtc *crtc,
 		VOP_CTRL_SET(vop, cabc_stage_down, s->cabc_stage_down);
 		VOP_CTRL_SET(vop, cabc_global_dn, s->cabc_global_dn);
 		VOP_CTRL_SET(vop, cabc_calc_pixel_num,
-			     s->cabc_calc_pixel_num * pixel_total / 1000);
+			     pixel_total / 1000 * s->cabc_calc_pixel_num);
 	} else {
 		/*
 		 * There are some hardware issues on cabc disabling:
