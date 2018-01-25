@@ -1715,25 +1715,20 @@ void init_discard_policy(struct discard_policy *dpolicy,
 	dpolicy->sync = true;
 	dpolicy->granularity = granularity;
 
+	dpolicy->max_requests = DEF_MAX_DISCARD_REQUEST;
+	dpolicy->io_aware_gran = MAX_PLIST_NUM;
+
 	if (discard_type == DPOLICY_BG) {
 		dpolicy->min_interval = DEF_MIN_DISCARD_ISSUE_TIME;
 		dpolicy->max_interval = DEF_MAX_DISCARD_ISSUE_TIME;
-		dpolicy->max_requests = DEF_MAX_DISCARD_REQUEST;
-		dpolicy->io_aware_gran = MAX_PLIST_NUM;
 		dpolicy->io_aware = true;
 	} else if (discard_type == DPOLICY_FORCE) {
 		dpolicy->min_interval = DEF_MIN_DISCARD_ISSUE_TIME;
 		dpolicy->max_interval = DEF_MAX_DISCARD_ISSUE_TIME;
-		dpolicy->max_requests = DEF_MAX_DISCARD_REQUEST;
-		dpolicy->io_aware_gran = MAX_PLIST_NUM;
 		dpolicy->io_aware = true;
 	} else if (discard_type == DPOLICY_FSTRIM) {
-		dpolicy->max_requests = DEF_MAX_DISCARD_REQUEST;
-		dpolicy->io_aware_gran = MAX_PLIST_NUM;
 		dpolicy->io_aware = false;
 	} else if (discard_type == DPOLICY_UMOUNT) {
-		dpolicy->max_requests = DEF_MAX_DISCARD_REQUEST;
-		dpolicy->io_aware_gran = MAX_PLIST_NUM;
 		dpolicy->io_aware = false;
 	}
 }
