@@ -57,11 +57,9 @@
 #include "sha512_mb_mgr.h"
 
 #define HASH_UPDATE          0x00
-#define HASH_FIRST           0x01
-#define HASH_LAST            0x02
-#define HASH_ENTIRE          0x03
-#define HASH_DONE            0x04
-#define HASH_FINAL           0x08
+#define HASH_LAST            0x01
+#define HASH_DONE            0x02
+#define HASH_FINAL           0x04
 
 #define HASH_CTX_STS_IDLE       0x00
 #define HASH_CTX_STS_PROCESSING 0x01
