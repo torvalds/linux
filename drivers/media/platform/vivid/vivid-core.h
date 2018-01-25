@@ -154,6 +154,7 @@ struct vivid_dev {
 	struct v4l2_ctrl_handler	ctrl_hdl_streaming;
 	struct v4l2_ctrl_handler	ctrl_hdl_sdtv_cap;
 	struct v4l2_ctrl_handler	ctrl_hdl_loop_cap;
+	struct v4l2_ctrl_handler	ctrl_hdl_fb;
 	struct video_device		vid_cap_dev;
 	struct v4l2_ctrl_handler	ctrl_hdl_vid_cap;
 	struct video_device		vid_out_dev;
