@@ -1704,6 +1704,8 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 	case CHIP_BONAIRE:
 	case CHIP_HAWAII:
 	case CHIP_KAVERI:
+	case CHIP_KABINI:
+	case CHIP_MULLINS:
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
 	case CHIP_POLARIS11:
@@ -1714,9 +1716,6 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 #if defined(CONFIG_DRM_AMD_DC_PRE_VEGA)
 		return amdgpu_dc != 0;
 #endif
-	case CHIP_KABINI:
-	case CHIP_MULLINS:
-		return amdgpu_dc > 0;
 	case CHIP_VEGA10:
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case CHIP_RAVEN:
