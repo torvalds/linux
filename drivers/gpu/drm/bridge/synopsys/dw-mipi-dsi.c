@@ -398,6 +398,12 @@ static ssize_t dw_mipi_dsi_host_transfer(struct mipi_dsi_host *host,
 	struct mipi_dsi_packet packet;
 	int ret;
 
+	if (msg->rx_buf || msg->rx_len) {
+		/* TODO dw drv improvements: implement read feature */
+		dev_warn(dsi->dev, "read operations not yet implemented\n");
+		return -EINVAL;
+	}
+
 	ret = mipi_dsi_create_packet(&packet, msg);
 	if (ret) {
 		dev_err(dsi->dev, "failed to create packet: %d\n", ret);
