@@ -2704,6 +2704,13 @@ cifs_set_cifscreds(struct smb_vol *vol __attribute__((unused)),
 }
 #endif /* CONFIG_KEYS */
 
+/**
+ * cifs_get_smb_ses - get a session matching @volume_info data from @server
+ *
+ * This function assumes it is being called from cifs_mount() where we
+ * already got a server reference (server refcount +1). See
+ * cifs_get_tcon() for refcount explanations.
+ */
 static struct cifs_ses *
 cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 {
@@ -2877,6 +2884,26 @@ cifs_put_tcon(struct cifs_tcon *tcon)
 	cifs_put_smb_ses(ses);
 }
 
+/**
+ * cifs_get_tcon - get a tcon matching @volume_info data from @ses
+ *
+ * - tcon refcount is the number of mount points using the tcon.
+ * - ses refcount is the number of tcon using the session.
+ *
+ * 1. This function assumes it is being called from cifs_mount() where
+ *    we already got a session reference (ses refcount +1).
+ *
+ * 2. Since we're in the context of adding a mount point, the end
+ *    result should be either:
+ *
+ * a) a new tcon already allocated with refcount=1 (1 mount point) and
+ *    its session refcount incremented (1 new tcon). This +1 was
+ *    already done in (1).
+ *
+ * b) an existing tcon with refcount+1 (add a mount point to it) and
+ *    identical ses refcount (no new tcon). Because of (1) we need to
+ *    decrement the ses refcount.
+ */
 static struct cifs_tcon *
 cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 {
@@ -2885,8 +2912,11 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 
 	tcon = cifs_find_tcon(ses, volume_info);
 	if (tcon) {
+		/*
+		 * tcon has refcount already incremented but we need to
+		 * decrement extra ses reference gotten by caller (case b)
+		 */
 		cifs_dbg(FYI, "Found match on UNC path\n");
-		/* existing tcon already has a reference */
 		cifs_put_smb_ses(ses);
 		return tcon;
 	}
