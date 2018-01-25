@@ -329,6 +329,16 @@ static int efx_phc_settime(struct ptp_clock_info *ptp,
 static int efx_phc_enable(struct ptp_clock_info *ptp,
 			  struct ptp_clock_request *request, int on);
 
+bool efx_ptp_use_mac_tx_timestamps(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+	return ((efx_nic_rev(efx) >= EFX_REV_HUNT_A0) &&
+		(nic_data->datapath_caps2 &
+		 (1 << MC_CMD_GET_CAPABILITIES_V2_OUT_TX_MAC_TIMESTAMPING_LBN)
+		));
+}
+
 #define PTP_SW_STAT(ext_name, field_name)				\
 	{ #ext_name, 0, offsetof(struct efx_ptp_data, field_name) }
 #define PTP_MC_STAT(ext_name, mcdi_name)				\
