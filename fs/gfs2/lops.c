@@ -162,7 +162,7 @@ u64 gfs2_log_bmap(struct gfs2_sbd *sdp)
  * @bvec: The bio_vec
  * @error: The i/o status
  *
- * This finds the relavent buffers and unlocks then and sets the
+ * This finds the relevant buffers and unlocks them and sets the
  * error flag according to the status of the i/o request. This is
  * used when the log is writing data which has an in-place version
  * that is pinned in the pagecache.
