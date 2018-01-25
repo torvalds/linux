@@ -234,9 +234,7 @@ static void smc_buf_unuse(struct smc_connection *conn)
 /* remove a finished connection from its link group */
 void smc_conn_free(struct smc_connection *conn)
 {
-	struct smc_link_group *lgr = conn->lgr;
-
-	if (!lgr)
+	if (!conn->lgr)
 		return;
 	smc_cdc_tx_dismiss_slots(conn);
 	smc_lgr_unregister_conn(conn);
@@ -331,12 +329,16 @@ void smc_lgr_terminate(struct smc_link_group *lgr)
 		conn = rb_entry(node, struct smc_connection, alert_node);
 		smc = container_of(conn, struct smc_sock, conn);
 		sock_hold(&smc->sk);
+		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
 		__smc_lgr_unregister_conn(conn);
+		write_unlock_bh(&lgr->conns_lock);
 		schedule_work(&conn->close_work);
+		write_lock_bh(&lgr->conns_lock);
 		sock_put(&smc->sk);
 		node = rb_first(&lgr->conns_all);
 	}
 	write_unlock_bh(&lgr->conns_lock);
+	wake_up(&lgr->lnk[SMC_SINGLE_LINK].wr_reg_wait);
 }
 
 /* Determine vlan of internal TCP socket.
