@@ -4296,6 +4296,9 @@ static int smu7_force_clock_level(struct pp_hwmgr *hwmgr,
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
+	if (mask == 0)
+		return -EINVAL;
+
 	switch (type) {
 	case PP_SCLK:
 		if (!data->sclk_dpm_key_disabled)
@@ -4312,15 +4315,15 @@ static int smu7_force_clock_level(struct pp_hwmgr *hwmgr,
 	case PP_PCIE:
 	{
 		uint32_t tmp = mask & data->dpm_level_enable_mask.pcie_dpm_enable_mask;
-		uint32_t level = 0;
 
-		while (tmp >>= 1)
-			level++;
-
-		if (!data->pcie_dpm_key_disabled)
-			smum_send_msg_to_smc_with_parameter(hwmgr,
+		if (!data->pcie_dpm_key_disabled) {
+			if (fls(tmp) != ffs(tmp))
+				smum_send_msg_to_smc(hwmgr, PPSMC_MSG_PCIeDPM_UnForceLevel);
+			else
+				smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_PCIeDPM_ForceLevel,
-					level);
+					fls(tmp) - 1);
+		}
 		break;
 	}
 	default:

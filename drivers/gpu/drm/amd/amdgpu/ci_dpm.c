@@ -6642,6 +6642,9 @@ static int ci_dpm_force_clock_level(void *handle,
 	if (adev->pm.dpm.forced_level != AMD_DPM_FORCED_LEVEL_MANUAL)
 		return -EINVAL;
 
+	if (mask == 0)
+		return -EINVAL;
+
 	switch (type) {
 	case PP_SCLK:
 		if (!pi->sclk_dpm_key_disabled)
@@ -6660,15 +6663,15 @@ static int ci_dpm_force_clock_level(void *handle,
 	case PP_PCIE:
 	{
 		uint32_t tmp = mask & pi->dpm_level_enable_mask.pcie_dpm_enable_mask;
-		uint32_t level = 0;
 
-		while (tmp >>= 1)
-			level++;
-
-		if (!pi->pcie_dpm_key_disabled)
-			amdgpu_ci_send_msg_to_smc_with_parameter(adev,
+		if (!pi->pcie_dpm_key_disabled) {
+			if (fls(tmp) != ffs(tmp))
+				amdgpu_ci_send_msg_to_smc(adev, PPSMC_MSG_PCIeDPM_UnForceLevel);
+			else
+				amdgpu_ci_send_msg_to_smc_with_parameter(adev,
 					PPSMC_MSG_PCIeDPM_ForceLevel,
-					level);
+					fls(tmp) - 1);
+		}
 		break;
 	}
 	default:
