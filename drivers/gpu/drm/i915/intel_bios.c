@@ -1107,6 +1107,7 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 }
 
 static const u8 cnp_ddc_pin_map[] = {
+	[0] = 0, /* N/A */
 	[DDC_BUS_DDI_B] = GMBUS_PIN_1_BXT,
 	[DDC_BUS_DDI_C] = GMBUS_PIN_2_BXT,
 	[DDC_BUS_DDI_D] = GMBUS_PIN_4_CNP, /* sic */
@@ -1116,9 +1117,9 @@ static const u8 cnp_ddc_pin_map[] = {
 static u8 map_ddc_pin(struct drm_i915_private *dev_priv, u8 vbt_pin)
 {
 	if (HAS_PCH_CNP(dev_priv)) {
-		if (vbt_pin > 0 && vbt_pin < ARRAY_SIZE(cnp_ddc_pin_map))
+		if (vbt_pin < ARRAY_SIZE(cnp_ddc_pin_map)) {
 			return cnp_ddc_pin_map[vbt_pin];
-		if (vbt_pin > GMBUS_PIN_4_CNP) {
+		} else {
 			DRM_DEBUG_KMS("Ignoring alternate pin: VBT claims DDC pin %d, which is not valid for this platform\n", vbt_pin);
 			return 0;
 		}
