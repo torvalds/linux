@@ -245,16 +245,13 @@ static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
 	uintptr_t data[UVERBS_OPTIMIZE_USING_STACK_SZ / sizeof(uintptr_t)];
 #endif
 
-	if (hdr->reserved)
-		return -EINVAL;
-
 	object_spec = uverbs_get_object(ib_dev, hdr->object_id);
 	if (!object_spec)
-		return -EOPNOTSUPP;
+		return -EPROTONOSUPPORT;
 
 	method_spec = uverbs_get_method(object_spec, hdr->method_id);
 	if (!method_spec)
-		return -EOPNOTSUPP;
+		return -EPROTONOSUPPORT;
 
 	if ((method_spec->flags & UVERBS_ACTION_FLAG_CREATE_ROOT) ^ !file->ucontext)
 		return -EINVAL;
@@ -310,6 +307,16 @@ static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
 
 	err = uverbs_handle_method(buf, ctx->uattrs, hdr->num_attrs, ib_dev,
 				   file, method_spec, ctx->uverbs_attr_bundle);
+
+	/*
+	 * EPROTONOSUPPORT is ONLY to be returned if the ioctl framework can
+	 * not invoke the method because the request is not supported.  No
+	 * other cases should return this code.
+	*/
+	if (unlikely(err == -EPROTONOSUPPORT)) {
+		WARN_ON_ONCE(err == -EPROTONOSUPPORT);
+		err = -EINVAL;
+	}
 out:
 #ifdef UVERBS_OPTIMIZE_USING_STACK_SZ
 	if (ctx_size > UVERBS_OPTIMIZE_USING_STACK_SZ)
@@ -348,7 +355,7 @@ long ib_uverbs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 
 		if (hdr.reserved) {
-			err = -EOPNOTSUPP;
+			err = -EPROTONOSUPPORT;
 			goto out;
 		}
 
