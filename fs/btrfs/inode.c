@@ -3366,7 +3366,7 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans,
 	struct btrfs_root *root = inode->root;
 	struct btrfs_block_rsv *block_rsv = NULL;
 	int reserve = 0;
-	int insert = 0;
+	bool insert = false;
 	int ret;
 
 	if (!root->orphan_block_rsv) {
@@ -3377,20 +3377,8 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans,
 	}
 
 	if (!test_and_set_bit(BTRFS_INODE_HAS_ORPHAN_ITEM,
-			      &inode->runtime_flags)) {
-#if 0
-		/*
-		 * For proper ENOSPC handling, we should do orphan
-		 * cleanup when mounting. But this introduces backward
-		 * compatibility issue.
-		 */
-		if (!xchg(&root->orphan_item_inserted, 1))
-			insert = 2;
-		else
-			insert = 1;
-#endif
-		insert = 1;
-	}
+			      &inode->runtime_flags))
+		insert = true;
 
 	if (!test_and_set_bit(BTRFS_INODE_ORPHAN_META_RESERVED,
 			      &inode->runtime_flags))
@@ -3430,7 +3418,7 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans,
 	}
 
 	/* insert an orphan item to track this unlinked/truncated file */
-	if (insert >= 1) {
+	if (insert) {
 		ret = btrfs_insert_orphan_item(trans, root, btrfs_ino(inode));
 		if (ret) {
 			if (reserve) {
@@ -3454,15 +3442,6 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans,
 		ret = 0;
 	}
 
-	/* insert an orphan item to track subvolume contains orphan files */
-	if (insert >= 2) {
-		ret = btrfs_insert_orphan_item(trans, fs_info->tree_root,
-					       root->root_key.objectid);
-		if (ret && ret != -EEXIST) {
-			btrfs_abort_transaction(trans, ret);
-			return ret;
-		}
-	}
 	return 0;
 }
 
