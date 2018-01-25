@@ -109,6 +109,20 @@ static unsigned int altera_uart_get_mctrl(struct uart_port *port)
 	return sigs;
 }
 
+static void altera_uart_update_ctrl_reg(struct altera_uart *pp)
+{
+	unsigned short imr = pp->imr;
+
+	/*
+	 * If the device doesn't have an irq, ensure that the irq bits are
+	 * masked out to keep the irq line inactive.
+	 */
+	if (!pp->port.irq)
+		imr &= ALTERA_UART_CONTROL_TRBK_MSK | ALTERA_UART_CONTROL_RTS_MSK;
+
+	altera_uart_writel(&pp->port, imr, ALTERA_UART_CONTROL_REG);
+}
+
 static void altera_uart_set_mctrl(struct uart_port *port, unsigned int sigs)
 {
 	struct altera_uart *pp = container_of(port, struct altera_uart, port);
@@ -118,7 +132,7 @@ static void altera_uart_set_mctrl(struct uart_port *port, unsigned int sigs)
 		pp->imr |= ALTERA_UART_CONTROL_RTS_MSK;
 	else
 		pp->imr &= ~ALTERA_UART_CONTROL_RTS_MSK;
-	altera_uart_writel(port, pp->imr, ALTERA_UART_CONTROL_REG);
+	altera_uart_update_ctrl_reg(pp);
 }
 
 static void altera_uart_start_tx(struct uart_port *port)
@@ -126,7 +140,7 @@ static void altera_uart_start_tx(struct uart_port *port)
 	struct altera_uart *pp = container_of(port, struct altera_uart, port);
 
 	pp->imr |= ALTERA_UART_CONTROL_TRDY_MSK;
-	altera_uart_writel(port, pp->imr, ALTERA_UART_CONTROL_REG);
+	altera_uart_update_ctrl_reg(pp);
 }
 
 static void altera_uart_stop_tx(struct uart_port *port)
@@ -134,7 +148,7 @@ static void altera_uart_stop_tx(struct uart_port *port)
 	struct altera_uart *pp = container_of(port, struct altera_uart, port);
 
 	pp->imr &= ~ALTERA_UART_CONTROL_TRDY_MSK;
-	altera_uart_writel(port, pp->imr, ALTERA_UART_CONTROL_REG);
+	altera_uart_update_ctrl_reg(pp);
 }
 
 static void altera_uart_stop_rx(struct uart_port *port)
@@ -142,7 +156,7 @@ static void altera_uart_stop_rx(struct uart_port *port)
 	struct altera_uart *pp = container_of(port, struct altera_uart, port);
 
 	pp->imr &= ~ALTERA_UART_CONTROL_RRDY_MSK;
-	altera_uart_writel(port, pp->imr, ALTERA_UART_CONTROL_REG);
+	altera_uart_update_ctrl_reg(pp);
 }
 
 static void altera_uart_break_ctl(struct uart_port *port, int break_state)
@@ -155,7 +169,7 @@ static void altera_uart_break_ctl(struct uart_port *port, int break_state)
 		pp->imr |= ALTERA_UART_CONTROL_TRBK_MSK;
 	else
 		pp->imr &= ~ALTERA_UART_CONTROL_TRBK_MSK;
-	altera_uart_writel(port, pp->imr, ALTERA_UART_CONTROL_REG);
+	altera_uart_update_ctrl_reg(pp);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -262,7 +276,7 @@ static void altera_uart_tx_chars(struct altera_uart *pp)
 
 	if (xmit->head == xmit->tail) {
 		pp->imr &= ~ALTERA_UART_CONTROL_TRDY_MSK;
-		altera_uart_writel(port, pp->imr, ALTERA_UART_CONTROL_REG);
+		altera_uart_update_ctrl_reg(pp);
 	}
 }
 
@@ -327,7 +341,7 @@ static int altera_uart_startup(struct uart_port *port)
 
 	/* Enable RX interrupts now */
 	pp->imr = ALTERA_UART_CONTROL_RRDY_MSK;
-	altera_uart_writel(port, pp->imr, ALTERA_UART_CONTROL_REG);
+	altera_uart_update_ctrl_reg(pp);
 
 	spin_unlock_irqrestore(&port->lock, flags);
 
@@ -343,7 +357,7 @@ static void altera_uart_shutdown(struct uart_port *port)
 
 	/* Disable all interrupts now */
 	pp->imr = 0;
-	altera_uart_writel(port, pp->imr, ALTERA_UART_CONTROL_REG);
+	altera_uart_update_ctrl_reg(pp);
 
 	spin_unlock_irqrestore(&port->lock, flags);
 
