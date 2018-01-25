@@ -18,7 +18,7 @@
 #include "thunder_bgx.h"
 #include "../common/cavium_ptp.h"
 
-#define DRV_NAME	"thunder-nicvf"
+#define DRV_NAME	"nicvf"
 #define DRV_VERSION     "1.0"
 
 struct nicvf_stat {

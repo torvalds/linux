@@ -18,7 +18,7 @@
 #include "q_struct.h"
 #include "thunder_bgx.h"
 
-#define DRV_NAME	"thunder-nic"
+#define DRV_NAME	"nicpf"
 #define DRV_VERSION	"1.0"
 
 struct hw_info {
