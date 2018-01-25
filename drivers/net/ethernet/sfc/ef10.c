@@ -760,14 +760,7 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	if (rc && rc != -EPERM)
 		goto fail5;
 
-	rc = efx_ptp_probe(efx, NULL);
-	/* Failure to probe PTP is not fatal.
-	 * In the case of EPERM, efx_ptp_probe will print its own message (in
-	 * efx_ptp_get_attributes()), so we don't need to.
-	 */
-	if (rc && rc != -EPERM)
-		netif_warn(efx, drv, efx->net_dev,
-			   "Failed to probe PTP, rc=%d\n", rc);
+	efx_ptp_defer_probe_with_channel(efx);
 
 #ifdef CONFIG_SFC_SRIOV
 	if ((efx->pci_dev->physfn) && (!efx->pci_dev->is_physfn)) {

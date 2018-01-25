@@ -218,8 +218,8 @@ struct efx_ptp_timeset {
  * @channel: The PTP channel (Siena only)
  * @rx_ts_inline: Flag for whether RX timestamps are inline (else they are
  *	separate events)
- * @rxq: Receive queue (awaiting timestamps)
- * @txq: Transmit queue
+ * @rxq: Receive SKB queue (awaiting timestamps)
+ * @txq: Transmit SKB queue
  * @evt_list: List of MC receive events awaiting packets
  * @evt_free_list: List of free events
  * @evt_lock: Lock for manipulating evt_list and evt_free_list
@@ -264,6 +264,7 @@ struct efx_ptp_timeset {
  * @oversize_sync_windows: Number of corrected sync windows that are too large
  * @rx_no_timestamp: Number of packets received without a timestamp.
  * @timeset: Last set of synchronisation statistics.
+ * @xmit_skb: Transmit SKB function.
  */
 struct efx_ptp_data {
 	struct efx_nic *efx;
@@ -319,6 +320,7 @@ struct efx_ptp_data {
 	unsigned int rx_no_timestamp;
 	struct efx_ptp_timeset
 	timeset[MC_CMD_PTP_OUT_SYNCHRONIZE_TIMESET_MAXNUM];
+	void (*xmit_skb)(struct efx_nic *efx, struct sk_buff *skb);
 };
 
 static int efx_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta);
@@ -894,8 +896,24 @@ static int efx_ptp_synchronize(struct efx_nic *efx, unsigned int num_readings)
 	return rc;
 }
 
+/* Transmit a PTP packet via the dedicated hardware timestamped queue. */
+static void efx_ptp_xmit_skb_queue(struct efx_nic *efx, struct sk_buff *skb)
+{
+	struct efx_ptp_data *ptp_data = efx->ptp_data;
+	struct efx_tx_queue *tx_queue;
+	u8 type = skb->ip_summed == CHECKSUM_PARTIAL ? EFX_TXQ_TYPE_OFFLOAD : 0;
+
+	tx_queue = &ptp_data->channel->tx_queue[type];
+	if (tx_queue && tx_queue->timestamping) {
+		efx_enqueue_skb(tx_queue, skb);
+	} else {
+		WARN_ONCE(1, "PTP channel has no timestamped tx queue\n");
+		dev_kfree_skb_any(skb);
+	}
+}
+
 /* Transmit a PTP packet, via the MCDI interface, to the wire. */
-static int efx_ptp_xmit_skb(struct efx_nic *efx, struct sk_buff *skb)
+static void efx_ptp_xmit_skb_mc(struct efx_nic *efx, struct sk_buff *skb)
 {
 	struct efx_ptp_data *ptp_data = efx->ptp_data;
 	struct skb_shared_hwtstamps timestamps;
@@ -938,9 +956,9 @@ static int efx_ptp_xmit_skb(struct efx_nic *efx, struct sk_buff *skb)
 	rc = 0;
 
 fail:
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 
-	return rc;
+	return;
 }
 
 static void efx_ptp_drop_time_expired_events(struct efx_nic *efx)
@@ -1210,7 +1228,7 @@ static void efx_ptp_worker(struct work_struct *work)
 	efx_ptp_process_events(efx, &tempq);
 
 	while ((skb = skb_dequeue(&ptp_data->txq)))
-		efx_ptp_xmit_skb(efx, skb);
+		ptp_data->xmit_skb(efx, skb);
 
 	while ((skb = __skb_dequeue(&tempq)))
 		efx_ptp_process_rx(efx, skb);
@@ -1259,6 +1277,11 @@ int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel)
 		rc = -ENOMEM;
 		goto fail2;
 	}
+
+	if (efx_ptp_use_mac_tx_timestamps(efx))
+		ptp->xmit_skb = efx_ptp_xmit_skb_queue;
+	else
+		ptp->xmit_skb =	efx_ptp_xmit_skb_mc;
 
 	INIT_WORK(&ptp->work, efx_ptp_worker);
 	ptp->config.flags = 0;
@@ -1324,11 +1347,21 @@ fail1:
 static int efx_ptp_probe_channel(struct efx_channel *channel)
 {
 	struct efx_nic *efx = channel->efx;
+	int rc;
 
 	channel->irq_moderation_us = 0;
 	channel->rx_queue.core_index = 0;
 
-	return efx_ptp_probe(efx, channel);
+	rc = efx_ptp_probe(efx, channel);
+	/* Failure to probe PTP is not fatal; this channel will just not be
+	 * used for anything.
+	 * In the case of EPERM, efx_ptp_probe will print its own message (in
+	 * efx_ptp_get_attributes()), so we don't need to.
+	 */
+	if (rc && rc != -EPERM)
+		netif_warn(efx, drv, efx->net_dev,
+			   "Failed to probe PTP, rc=%d\n", rc);
+	return 0;
 }
 
 void efx_ptp_remove(struct efx_nic *efx)
@@ -1353,6 +1386,7 @@ void efx_ptp_remove(struct efx_nic *efx)
 
 	efx_nic_free_buffer(efx, &efx->ptp_data->start);
 	kfree(efx->ptp_data);
+	efx->ptp_data = NULL;
 }
 
 static void efx_ptp_remove_channel(struct efx_channel *channel)
