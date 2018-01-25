@@ -352,8 +352,9 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
 			pr_err("Failed allocating swap storage\n");
 			return PTR_ERR(swap_storage);
 		}
-	} else
+	} else {
 		swap_storage = persistent_swap_storage;
+	}
 
 	swap_space = swap_storage->f_mapping;
 
