@@ -143,11 +143,9 @@ static struct nat_entry *__alloc_nat_entry(nid_t nid, bool no_fail)
 	struct nat_entry *new;
 
 	if (no_fail)
-		new = f2fs_kmem_cache_alloc(nat_entry_slab,
-						GFP_NOFS | __GFP_ZERO);
+		new = f2fs_kmem_cache_alloc(nat_entry_slab, GFP_F2FS_ZERO);
 	else
-		new = kmem_cache_alloc(nat_entry_slab,
-						GFP_NOFS | __GFP_ZERO);
+		new = kmem_cache_alloc(nat_entry_slab, GFP_F2FS_ZERO);
 	if (new) {
 		nat_set_nid(new, nid);
 		nat_reset_flag(new);
