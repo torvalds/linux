@@ -430,13 +430,15 @@ class NetdevSim:
         return filters
 
     def cls_filter_op(self, op, qdisc="ingress", prio=None, handle=None,
-                      cls="", params="",
+                      chain=None, cls="", params="",
                       fail=True, include_stderr=False):
         spec = ""
         if prio is not None:
             spec += " prio %d" % (prio)
         if handle:
             spec += " handle %s" % (handle)
+        if chain is not None:
+            spec += " chain %d" % (chain)
 
         return tc("filter {op} dev {dev} {qdisc} {spec} {cls} {params}"\
                   .format(op=op, dev=self['ifname'], qdisc=qdisc, spec=spec,
@@ -444,7 +446,7 @@ class NetdevSim:
                   fail=fail, include_stderr=include_stderr)
 
     def cls_bpf_add_filter(self, bpf, op="add", prio=None, handle=None,
-                           da=False, verbose=False,
+                           chain=None, da=False, verbose=False,
                            skip_sw=False, skip_hw=False,
                            fail=True, include_stderr=False):
         cls = "bpf " + bpf
@@ -460,7 +462,7 @@ class NetdevSim:
             params += " skip_hw"
 
         return self.cls_filter_op(op=op, prio=prio, handle=handle, cls=cls,
-                                  params=params,
+                                  chain=chain, params=params,
                                   fail=fail, include_stderr=include_stderr)
 
     def set_ethtool_tc_offloads(self, enable, fail=True):
@@ -678,6 +680,14 @@ try:
     check_extack_nsim(err, "netdevsim configured to reject unbound programs.",
                       args)
     sim.wait_for_flush()
+
+    start_test("Test non-0 chain offload...")
+    ret, _, err = sim.cls_bpf_add_filter(obj, chain=1, prio=1, handle=1,
+                                         skip_sw=True,
+                                         fail=False, include_stderr=True)
+    fail(ret == 0, "Offloaded a filter to chain other than 0")
+    check_extack(err, "Error: Driver supports only offload of chain 0.", args)
+    sim.tc_flush_filters()
 
     start_test("Test TC replace...")
     sim.cls_bpf_add_filter(obj, prio=1, handle=1)
