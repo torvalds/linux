@@ -483,14 +483,57 @@ static ktime_t efx_ptp_s27_to_ktime_correction(u32 nic_major, u32 nic_minor,
 	return efx_ptp_s27_to_ktime(nic_major, nic_minor);
 }
 
+struct efx_channel *efx_ptp_channel(struct efx_nic *efx)
+{
+	return efx->ptp_data ? efx->ptp_data->channel : NULL;
+}
+
+static u32 last_sync_timestamp_major(struct efx_nic *efx)
+{
+	struct efx_channel *channel = efx_ptp_channel(efx);
+	u32 major = 0;
+
+	if (channel)
+		major = channel->sync_timestamp_major;
+	return major;
+}
+
+/* The 8000 series and later can provide the time from the MAC, which is only
+ * 48 bits long and provides meta-information in the top 2 bits.
+ */
+static ktime_t
+efx_ptp_mac_s27_to_ktime_correction(struct efx_nic *efx,
+				    u32 nic_major, u32 nic_minor,
+				    s32 correction)
+{
+	ktime_t kt = { 0 };
+
+	if (!(nic_major & 0x80000000)) {
+		WARN_ON_ONCE(nic_major >> 16);
+		/* Use the top bits from the latest sync event. */
+		nic_major &= 0xffff;
+		nic_major |= (last_sync_timestamp_major(efx) & 0xffff0000);
+
+		kt = efx_ptp_s27_to_ktime_correction(nic_major, nic_minor,
+						     correction);
+	}
+	return kt;
+}
+
 ktime_t efx_ptp_nic_to_kernel_time(struct efx_tx_queue *tx_queue)
 {
 	struct efx_nic *efx = tx_queue->efx;
 	struct efx_ptp_data *ptp = efx->ptp_data;
 	ktime_t kt;
 
-	kt = ptp->nic_to_kernel_time(tx_queue->completed_timestamp_major,
-				     tx_queue->completed_timestamp_minor, 0);
+	if (efx_ptp_use_mac_tx_timestamps(efx))
+		kt = efx_ptp_mac_s27_to_ktime_correction(efx,
+				tx_queue->completed_timestamp_major,
+				tx_queue->completed_timestamp_minor, 0);
+	else
+		kt = ptp->nic_to_kernel_time(
+				tx_queue->completed_timestamp_major,
+				tx_queue->completed_timestamp_minor, 0);
 	return kt;
 }
 
