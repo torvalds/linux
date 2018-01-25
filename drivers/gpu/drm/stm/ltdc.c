@@ -428,12 +428,35 @@ static void ltdc_crtc_atomic_disable(struct drm_crtc *crtc,
 	reg_set(ldev->regs, LTDC_SRCR, SRCR_IMR);
 }
 
+static bool ltdc_crtc_mode_fixup(struct drm_crtc *crtc,
+				 const struct drm_display_mode *mode,
+				 struct drm_display_mode *adjusted_mode)
+{
+	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+	int rate = mode->clock * 1000;
+
+	/*
+	 * TODO clk_round_rate() does not work yet. When ready, it can
+	 * be used instead of clk_set_rate() then clk_get_rate().
+	 */
+
+	clk_disable(ldev->pixel_clk);
+	if (clk_set_rate(ldev->pixel_clk, rate) < 0) {
+		DRM_ERROR("Cannot set rate (%dHz) for pixel clk\n", rate);
+		return false;
+	}
+	clk_enable(ldev->pixel_clk);
+
+	adjusted_mode->clock = clk_get_rate(ldev->pixel_clk) / 1000;
+
+	return true;
+}
+
 static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	struct videomode vm;
-	int rate = mode->clock * 1000;
 	u32 hsync, vsync, accum_hbp, accum_vbp, accum_act_w, accum_act_h;
 	u32 total_width, total_height;
 	u32 val;
@@ -455,15 +478,6 @@ static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	accum_act_h = accum_vbp + vm.vactive;
 	total_width = accum_act_w + vm.hfront_porch;
 	total_height = accum_act_h + vm.vfront_porch;
-
-	clk_disable(ldev->pixel_clk);
-
-	if (clk_set_rate(ldev->pixel_clk, rate) < 0) {
-		DRM_ERROR("Cannot set rate (%dHz) for pixel clk\n", rate);
-		return;
-	}
-
-	clk_enable(ldev->pixel_clk);
 
 	/* Configures the HS, VS, DE and PC polarities. Default Active Low */
 	val = 0;
@@ -528,6 +542,7 @@ static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs ltdc_crtc_helper_funcs = {
+	.mode_fixup = ltdc_crtc_mode_fixup,
 	.mode_set_nofb = ltdc_crtc_mode_set_nofb,
 	.atomic_flush = ltdc_crtc_atomic_flush,
 	.atomic_enable = ltdc_crtc_atomic_enable,
