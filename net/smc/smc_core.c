@@ -128,6 +128,8 @@ static void smc_lgr_free_work(struct work_struct *work)
 	bool conns;
 
 	spin_lock_bh(&smc_lgr_list.lock);
+	if (list_empty(&lgr->list))
+		goto free;
 	read_lock_bh(&lgr->conns_lock);
 	conns = RB_EMPTY_ROOT(&lgr->conns_all);
 	read_unlock_bh(&lgr->conns_lock);
@@ -136,6 +138,7 @@ static void smc_lgr_free_work(struct work_struct *work)
 		return;
 	}
 	list_del_init(&lgr->list); /* remove from smc_lgr_list */
+free:
 	spin_unlock_bh(&smc_lgr_list.lock);
 	smc_lgr_free(lgr);
 }
