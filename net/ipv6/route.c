@@ -2734,6 +2734,12 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 	if (!dev)
 		goto out;
 
+	if (!(dev->flags & IFF_UP)) {
+		NL_SET_ERR_MSG(extack, "Nexthop device is not up");
+		err = -ENETDOWN;
+		goto out;
+	}
+
 	if (!ipv6_addr_any(&cfg->fc_prefsrc)) {
 		if (!ipv6_chk_addr(net, &cfg->fc_prefsrc, dev, 0)) {
 			NL_SET_ERR_MSG(extack, "Invalid source address");
