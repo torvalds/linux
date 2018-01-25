@@ -233,9 +233,17 @@ struct efx_ptp_timeset {
  * @config: Current timestamp configuration
  * @enabled: PTP operation enabled
  * @mode: Mode in which PTP operating (PTP version)
- * @time_format: Time format supported by this NIC
  * @ns_to_nic_time: Function to convert from scalar nanoseconds to NIC time
  * @nic_to_kernel_time: Function to convert from NIC to kernel time
+ * @nic_time.minor_max: Wrap point for NIC minor times
+ * @nic_time.sync_event_diff_min: Minimum acceptable difference between time
+ * in packet prefix and last MCDI time sync event i.e. how much earlier than
+ * the last sync event time a packet timestamp can be.
+ * @nic_time.sync_event_diff_max: Maximum acceptable difference between time
+ * in packet prefix and last MCDI time sync event i.e. how much later than
+ * the last sync event time a packet timestamp can be.
+ * @nic_time.sync_event_minor_shift: Shift required to make minor time from
+ * field in MCDI time sync event.
  * @min_synchronisation_ns: Minimum acceptable corrected sync window
  * @capabilities: Capabilities flags from the NIC
  * @ts_corrections.ptp_tx: Required driver correction of PTP packet transmit
@@ -292,10 +300,15 @@ struct efx_ptp_data {
 	struct hwtstamp_config config;
 	bool enabled;
 	unsigned int mode;
-	unsigned int time_format;
 	void (*ns_to_nic_time)(s64 ns, u32 *nic_major, u32 *nic_minor);
 	ktime_t (*nic_to_kernel_time)(u32 nic_major, u32 nic_minor,
 				      s32 correction);
+	struct {
+		u32 minor_max;
+		u32 sync_event_diff_min;
+		u32 sync_event_diff_max;
+		unsigned int sync_event_minor_shift;
+	} nic_time;
 	unsigned int min_synchronisation_ns;
 	struct {
 		s32 ptp_tx;
@@ -500,6 +513,32 @@ static ktime_t efx_ptp_s27_to_ktime_correction(u32 nic_major, u32 nic_minor,
 	return efx_ptp_s27_to_ktime(nic_major, nic_minor);
 }
 
+/* For Medford2 platforms the time is in seconds and quarter nanoseconds. */
+static void efx_ptp_ns_to_s_qns(s64 ns, u32 *nic_major, u32 *nic_minor)
+{
+	struct timespec64 ts = ns_to_timespec64(ns);
+
+	*nic_major = (u32)ts.tv_sec;
+	*nic_minor = ts.tv_nsec * 4;
+}
+
+static ktime_t efx_ptp_s_qns_to_ktime_correction(u32 nic_major, u32 nic_minor,
+						 s32 correction)
+{
+	ktime_t kt;
+
+	nic_minor = DIV_ROUND_CLOSEST(nic_minor, 4);
+	correction = DIV_ROUND_CLOSEST(correction, 4);
+
+	kt = ktime_set(nic_major, nic_minor);
+
+	if (correction >= 0)
+		kt = ktime_add_ns(kt, (u64)correction);
+	else
+		kt = ktime_sub_ns(kt, (u64)-correction);
+	return kt;
+}
+
 struct efx_channel *efx_ptp_channel(struct efx_nic *efx)
 {
 	return efx->ptp_data ? efx->ptp_data->channel : NULL;
@@ -519,7 +558,8 @@ static u32 last_sync_timestamp_major(struct efx_nic *efx)
  * 48 bits long and provides meta-information in the top 2 bits.
  */
 static ktime_t
-efx_ptp_mac_s27_to_ktime_correction(struct efx_nic *efx,
+efx_ptp_mac_nic_to_ktime_correction(struct efx_nic *efx,
+				    struct efx_ptp_data *ptp,
 				    u32 nic_major, u32 nic_minor,
 				    s32 correction)
 {
@@ -531,8 +571,8 @@ efx_ptp_mac_s27_to_ktime_correction(struct efx_nic *efx,
 		nic_major &= 0xffff;
 		nic_major |= (last_sync_timestamp_major(efx) & 0xffff0000);
 
-		kt = efx_ptp_s27_to_ktime_correction(nic_major, nic_minor,
-						     correction);
+		kt = ptp->nic_to_kernel_time(nic_major, nic_minor,
+					     correction);
 	}
 	return kt;
 }
@@ -544,7 +584,7 @@ ktime_t efx_ptp_nic_to_kernel_time(struct efx_tx_queue *tx_queue)
 	ktime_t kt;
 
 	if (efx_ptp_use_mac_tx_timestamps(efx))
-		kt = efx_ptp_mac_s27_to_ktime_correction(efx,
+		kt = efx_ptp_mac_nic_to_ktime_correction(efx, ptp,
 				tx_queue->completed_timestamp_major,
 				tx_queue->completed_timestamp_minor,
 				ptp->ts_corrections.general_tx);
@@ -587,23 +627,49 @@ static int efx_ptp_get_attributes(struct efx_nic *efx)
 		return rc;
 	}
 
-	if (fmt == MC_CMD_PTP_OUT_GET_ATTRIBUTES_SECONDS_27FRACTION) {
+	switch (fmt) {
+	case MC_CMD_PTP_OUT_GET_ATTRIBUTES_SECONDS_27FRACTION:
 		ptp->ns_to_nic_time = efx_ptp_ns_to_s27;
 		ptp->nic_to_kernel_time = efx_ptp_s27_to_ktime_correction;
-	} else if (fmt == MC_CMD_PTP_OUT_GET_ATTRIBUTES_SECONDS_NANOSECONDS) {
+		ptp->nic_time.minor_max = 1 << 27;
+		ptp->nic_time.sync_event_minor_shift = 19;
+		break;
+	case MC_CMD_PTP_OUT_GET_ATTRIBUTES_SECONDS_NANOSECONDS:
 		ptp->ns_to_nic_time = efx_ptp_ns_to_s_ns;
 		ptp->nic_to_kernel_time = efx_ptp_s_ns_to_ktime_correction;
-	} else {
+		ptp->nic_time.minor_max = 1000000000;
+		ptp->nic_time.sync_event_minor_shift = 22;
+		break;
+	case MC_CMD_PTP_OUT_GET_ATTRIBUTES_SECONDS_QTR_NANOSECONDS:
+		ptp->ns_to_nic_time = efx_ptp_ns_to_s_qns;
+		ptp->nic_to_kernel_time = efx_ptp_s_qns_to_ktime_correction;
+		ptp->nic_time.minor_max = 4000000000;
+		ptp->nic_time.sync_event_minor_shift = 24;
+		break;
+	default:
 		return -ERANGE;
 	}
 
-	/* MC_CMD_PTP_OP_GET_ATTRIBUTES is an extended version of an older
-	 * operation MC_CMD_PTP_OP_GET_TIME_FORMAT that also returns a value
-	 * to use for the minimum acceptable corrected synchronization window.
+	/* Precalculate acceptable difference between the minor time in the
+	 * packet prefix and the last MCDI time sync event. We expect the
+	 * packet prefix timestamp to be after of sync event by up to one
+	 * sync event interval (0.25s) but we allow it to exceed this by a
+	 * fuzz factor of (0.1s)
+	 */
+	ptp->nic_time.sync_event_diff_min = ptp->nic_time.minor_max
+		- (ptp->nic_time.minor_max / 10);
+	ptp->nic_time.sync_event_diff_max = (ptp->nic_time.minor_max / 4)
+		+ (ptp->nic_time.minor_max / 10);
+
+	/* MC_CMD_PTP_OP_GET_ATTRIBUTES has been extended twice from an older
+	 * operation MC_CMD_PTP_OP_GET_TIME_FORMAT. The function now may return
+	 * a value to use for the minimum acceptable corrected synchronization
+	 * window and may return further capabilities.
 	 * If we have the extra information store it. For older firmware that
 	 * does not implement the extended command use the default value.
 	 */
-	if (rc == 0 && out_len >= MC_CMD_PTP_OUT_GET_ATTRIBUTES_LEN)
+	if (rc == 0 &&
+	    out_len >= MC_CMD_PTP_OUT_GET_ATTRIBUTES_CAPABILITIES_OFST)
 		ptp->min_synchronisation_ns =
 			MCDI_DWORD(outbuf,
 				   PTP_OUT_GET_ATTRIBUTES_SYNC_WINDOW_MIN);
@@ -1855,24 +1921,26 @@ void efx_ptp_event(struct efx_nic *efx, efx_qword_t *ev)
 
 void efx_time_sync_event(struct efx_channel *channel, efx_qword_t *ev)
 {
+	struct efx_nic *efx = channel->efx;
+	struct efx_ptp_data *ptp = efx->ptp_data;
+
+	/* When extracting the sync timestamp minor value, we should discard
+	 * the least significant two bits. These are not required in order
+	 * to reconstruct full-range timestamps and they are optionally used
+	 * to report status depending on the options supplied when subscribing
+	 * for sync events.
+	 */
 	channel->sync_timestamp_major = MCDI_EVENT_FIELD(*ev, PTP_TIME_MAJOR);
 	channel->sync_timestamp_minor =
-		MCDI_EVENT_FIELD(*ev, PTP_TIME_MINOR_26_19) << 19;
+		(MCDI_EVENT_FIELD(*ev, PTP_TIME_MINOR_MS_8BITS) & 0xFC)
+			<< ptp->nic_time.sync_event_minor_shift;
+
 	/* if sync events have been disabled then we want to silently ignore
 	 * this event, so throw away result.
 	 */
 	(void) cmpxchg(&channel->sync_events_state, SYNC_EVENTS_REQUESTED,
 		       SYNC_EVENTS_VALID);
 }
-
-/* make some assumptions about the time representation rather than abstract it,
- * since we currently only support one type of inline timestamping and only on
- * EF10.
- */
-#define MINOR_TICKS_PER_SECOND 0x8000000
-/* Fuzz factor for sync events to be out of order with RX events */
-#define FUZZ (MINOR_TICKS_PER_SECOND / 10)
-#define EXPECTED_SYNC_EVENTS_PER_SECOND 4
 
 static inline u32 efx_rx_buf_timestamp_minor(struct efx_nic *efx, const u8 *eh)
 {
@@ -1891,28 +1959,33 @@ void __efx_rx_skb_attach_timestamp(struct efx_channel *channel,
 				   struct sk_buff *skb)
 {
 	struct efx_nic *efx = channel->efx;
+	struct efx_ptp_data *ptp = efx->ptp_data;
 	u32 pkt_timestamp_major, pkt_timestamp_minor;
 	u32 diff, carry;
 	struct skb_shared_hwtstamps *timestamps;
+
+	if (channel->sync_events_state != SYNC_EVENTS_VALID)
+		return;
 
 	pkt_timestamp_minor = efx_rx_buf_timestamp_minor(efx, skb_mac_header(skb));
 
 	/* get the difference between the packet and sync timestamps,
 	 * modulo one second
 	 */
-	diff = (pkt_timestamp_minor - channel->sync_timestamp_minor) &
-		(MINOR_TICKS_PER_SECOND - 1);
+	diff = pkt_timestamp_minor - channel->sync_timestamp_minor;
+	if (pkt_timestamp_minor < channel->sync_timestamp_minor)
+		diff += ptp->nic_time.minor_max;
+
 	/* do we roll over a second boundary and need to carry the one? */
-	carry = channel->sync_timestamp_minor + diff > MINOR_TICKS_PER_SECOND ?
+	carry = (channel->sync_timestamp_minor >= ptp->nic_time.minor_max - diff) ?
 		1 : 0;
 
-	if (diff <= MINOR_TICKS_PER_SECOND / EXPECTED_SYNC_EVENTS_PER_SECOND +
-		    FUZZ) {
+	if (diff <= ptp->nic_time.sync_event_diff_max) {
 		/* packet is ahead of the sync event by a quarter of a second or
 		 * less (allowing for fuzz)
 		 */
 		pkt_timestamp_major = channel->sync_timestamp_major + carry;
-	} else if (diff >= MINOR_TICKS_PER_SECOND - FUZZ) {
+	} else if (diff >= ptp->nic_time.sync_event_diff_min) {
 		/* packet is behind the sync event but within the fuzz factor.
 		 * This means the RX packet and sync event crossed as they were
 		 * placed on the event queue, which can sometimes happen.
@@ -1933,10 +2006,10 @@ void __efx_rx_skb_attach_timestamp(struct efx_channel *channel,
 
 	/* attach the timestamps to the skb */
 	timestamps = skb_hwtstamps(skb);
-	timestamps->hwtstamp = efx_ptp_s27_to_ktime_correction(
-				pkt_timestamp_major,
-				pkt_timestamp_minor,
-				efx->ptp_data->ts_corrections.general_rx);
+	timestamps->hwtstamp =
+		ptp->nic_to_kernel_time(pkt_timestamp_major,
+					pkt_timestamp_minor,
+					ptp->ts_corrections.general_rx);
 }
 
 static int efx_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
