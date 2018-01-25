@@ -17,6 +17,43 @@
 	model = "Rockchip rk3326 evb board";
 	compatible = "rockchip,rk3326-evb-lp3-v10", "rockchip,rk3326";
 
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 2>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+
+		vol-up-key {
+			linux,code = <KEY_VOLUMEUP>;
+			label = "volume up";
+			press-threshold-microvolt = <10000>;
+		};
+
+		vol-down-key {
+			linux,code = <KEY_VOLUMEDOWN>;
+			label = "volume down";
+			press-threshold-microvolt = <170000>;
+		};
+
+		home-key {
+			linux,code = <KEY_HOME>;
+			label = "home";
+			press-threshold-microvolt = <254000>;
+		};
+
+		menu-key {
+			linux,code = <KEY_MENU>;
+			label = "menu";
+			press-threshold-microvolt = <414000>;
+		};
+
+		esc-key {
+			linux,code = <KEY_ESC>;
+			label = "esc";
+			press-threshold-microvolt = <614000>;
+		};
+	};
+
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm1 0 25000 0>;
@@ -96,43 +133,6 @@
 		};
 	};
 
-	rk_key: rockchip-key {
-		compatible = "rockchip,key";
-		status = "okay";
-
-		io-channels = <&saradc 2>;
-
-		vol-up-key {
-			linux,code = <KEY_VOLUMEUP>;
-			label = "volume up";
-			rockchip,adc_value = <10>;
-		};
-
-		vol-down-key {
-			linux,code = <KEY_VOLUMEDOWN>;
-			label = "volume down";
-			rockchip,adc_value = <170>;
-		};
-
-		home-key {
-			linux,code = <KEY_HOME>;
-			label = "home";
-			rockchip,adc_value = <254>;
-		};
-
-		menu-key {
-			linux,code = <KEY_MENU>;
-			label = "menu";
-			rockchip,adc_value = <414>;
-		};
-
-		esc-key {
-			linux,code = <KEY_ESC>;
-			label = "esc";
-			rockchip,adc_value = <614>;
-		};
-	};
-
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		/*clocks = <&rk817 1>;*/
@@ -168,90 +168,6 @@
 		BT,wake_gpio = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
 		BT,wake_host_irq = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
 		status = "okay";
-	};
-};
-
-&pwm1 {
-	status = "okay";
-};
-
-&saradc {
-	status = "okay";
-};
-
-&uart1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart1_xfer &uart1_cts>;
-	status = "okay";
-};
-
-&emmc {
-	bus-width = <8>;
-	cap-mmc-highspeed;
-	mmc-hs200-1_8v;
-	supports-emmc;
-	disable-wp;
-	non-removable;
-	num-slots = <1>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
-	status = "okay";
-};
-
-&sdmmc {
-	cap-mmc-highspeed;
-	supports-sd;
-	broken-cd;
-	card-detect-delay = <800>;
-	ignore-pm-notify;
-	keep-power-in-suspend;
-	/*cd-gpios = <&gpio2 4 GPIO_ACTIVE_HIGH>; [> CD GPIO <]*/
-	status = "disabled";
-};
-
-&sdio {
-	max-frequency = <50000000>;
-	cap-sd-highspeed;
-	supports-sdio;
-	ignore-pm-notify;
-	keep-power-in-suspend;
-	non-removable;
-	mmc-pwrseq = <&sdio_pwrseq>;
-	status = "okay";
-};
-
-&i2c1 {
-	status = "okay";
-
-	sensor@0f {
-		status = "okay";
-		compatible = "ak8963";
-		reg = <0x0f>;
-		type = <SENSOR_TYPE_COMPASS>;
-		irq_enable = <0>;
-		poll_delay_ms = <30>;
-		layout = <1>;
-		reprobe_en = <1>;
-	};
-
-	ts@40 {
-		status = "okay";
-		compatible = "GT1X";
-		reg = <0x14>;
-		irq_gpio_number = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
-		rst_gpio_number = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
-	};
-
-	sensor@4c {
-		status = "okay";
-		compatible = "gs_mma7660";
-		reg = <0x4c>;
-		type = <SENSOR_TYPE_ACCEL>;
-		irq-gpio = <&gpio0 RK_PB5 IRQ_TYPE_LEVEL_LOW>;
-		irq_enable = <0>;
-		poll_delay_ms = <30>;
-		layout = <6>;
-		reprobe_en = <1>;
 	};
 };
 
@@ -356,6 +272,54 @@
 	status = "disabled";
 };
 
+&emmc {
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
+	supports-emmc;
+	disable-wp;
+	non-removable;
+	num-slots = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+
+	sensor@0f {
+		status = "okay";
+		compatible = "ak8963";
+		reg = <0x0f>;
+		type = <SENSOR_TYPE_COMPASS>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		layout = <1>;
+		reprobe_en = <1>;
+	};
+
+	ts@40 {
+		status = "okay";
+		compatible = "GT1X";
+		reg = <0x14>;
+		irq_gpio_number = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
+		rst_gpio_number = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
+	};
+
+	sensor@4c {
+		status = "okay";
+		compatible = "gs_mma7660";
+		reg = <0x4c>;
+		type = <SENSOR_TYPE_ACCEL>;
+		irq-gpio = <&gpio0 RK_PB5 IRQ_TYPE_LEVEL_LOW>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		layout = <6>;
+		reprobe_en = <1>;
+	};
+};
+
 &lvds {
 	//pinctrl-names = "lcdc";
 	//pinctrl-0 = <&lcdc_rgb_dclk_pin &lcdc_rgb_m0_den_pin &lcdc_rgb_m0_hsync_pin &lcdc_rgb_m0_vsync_pin &lcdc_rgb666_m0_data_pins>;
@@ -378,6 +342,44 @@
 };
 
 &mipi_dphy {
+	status = "okay";
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&pinctrl {
+	sdio-pwrseq {
+		wifi_enable_h: wifi-enable-h {
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&saradc {
+	status = "okay";
+};
+
+&sdmmc {
+	cap-mmc-highspeed;
+	supports-sd;
+	broken-cd;
+	card-detect-delay = <800>;
+	ignore-pm-notify;
+	keep-power-in-suspend;
+	/*cd-gpios = <&gpio2 4 GPIO_ACTIVE_HIGH>; [> CD GPIO <]*/
+	status = "disabled";
+};
+
+&sdio {
+	max-frequency = <50000000>;
+	cap-sd-highspeed;
+	supports-sdio;
+	ignore-pm-notify;
+	keep-power-in-suspend;
+	non-removable;
+	mmc-pwrseq = <&sdio_pwrseq>;
 	status = "okay";
 };
 
@@ -413,6 +415,12 @@
 	status = "okay";
 };
 
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_xfer &uart1_cts>;
+	status = "okay";
+};
+
 &vopb {
 	status = "okay";
 };
@@ -427,12 +435,4 @@
 
 &vopl_mmu {
 	status = "okay";
-};
-
-&pinctrl {
-	sdio-pwrseq {
-		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
 };
