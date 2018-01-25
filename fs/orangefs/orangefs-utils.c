@@ -537,6 +537,7 @@ int orangefs_normalize_to_errno(__s32 error_code)
 	 */
 	} else {
 		gossip_err("orangefs: orangefs_normalize_to_errno: got error code which is not from ORANGEFS.\n");
+		error_code = -EINVAL;
 	}
 	return error_code;
 }
