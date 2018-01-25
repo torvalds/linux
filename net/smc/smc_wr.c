@@ -248,8 +248,14 @@ int smc_wr_tx_send(struct smc_link *link, struct smc_wr_tx_pend_priv *priv)
 	pend = container_of(priv, struct smc_wr_tx_pend, priv);
 	rc = ib_post_send(link->roce_qp, &link->wr_tx_ibs[pend->idx],
 			  &failed_wr);
-	if (rc)
+	if (rc) {
+		struct smc_link_group *lgr =
+			container_of(link, struct smc_link_group,
+				     lnk[SMC_SINGLE_LINK]);
+
 		smc_wr_tx_put_slot(link, priv);
+		smc_lgr_terminate(lgr);
+	}
 	return rc;
 }
 

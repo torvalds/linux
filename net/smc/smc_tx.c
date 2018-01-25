@@ -248,8 +248,10 @@ static int smc_tx_rdma_write(struct smc_connection *conn, int peer_rmbe_offset,
 		peer_rmbe_offset;
 	rdma_wr.rkey = lgr->rtokens[conn->rtoken_idx][SMC_SINGLE_LINK].rkey;
 	rc = ib_post_send(link->roce_qp, &rdma_wr.wr, &failed_wr);
-	if (rc)
+	if (rc) {
 		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
+		smc_lgr_terminate(lgr);
+	}
 	return rc;
 }
 
