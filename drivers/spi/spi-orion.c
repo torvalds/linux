@@ -638,8 +638,10 @@ static int orion_spi_probe(struct platform_device *pdev)
 	/* The following clock is only used by some SoCs */
 	spi->axi_clk = devm_clk_get(&pdev->dev, "axi");
 	if (IS_ERR(spi->axi_clk) &&
-	    PTR_ERR(spi->axi_clk) == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
+	    PTR_ERR(spi->axi_clk) == -EPROBE_DEFER) {
+		status = -EPROBE_DEFER;
+		goto out_rel_clk;
+	}
 	if (!IS_ERR(spi->axi_clk))
 		clk_prepare_enable(spi->axi_clk);
 
@@ -667,7 +669,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 	spi->base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(spi->base)) {
 		status = PTR_ERR(spi->base);
-		goto out_rel_clk;
+		goto out_rel_axi_clk;
 	}
 
 	/* Scan all SPI devices of this controller for direct mapped devices */
@@ -705,7 +707,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 							    PAGE_SIZE);
 		if (!spi->direct_access[cs].vaddr) {
 			status = -ENOMEM;
-			goto out_rel_clk;
+			goto out_rel_axi_clk;
 		}
 		spi->direct_access[cs].size = PAGE_SIZE;
 
@@ -733,8 +735,9 @@ static int orion_spi_probe(struct platform_device *pdev)
 
 out_rel_pm:
 	pm_runtime_disable(&pdev->dev);
-out_rel_clk:
+out_rel_axi_clk:
 	clk_disable_unprepare(spi->axi_clk);
+out_rel_clk:
 	clk_disable_unprepare(spi->clk);
 out:
 	spi_master_put(master);
