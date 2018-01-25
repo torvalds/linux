@@ -371,6 +371,7 @@ mt76x2_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 		key = NULL;
 	}
+	mt76_wcid_key_setup(&dev->mt76, wcid, key);
 
 	if (!msta) {
 		if (key || wcid->hw_key_idx == idx) {

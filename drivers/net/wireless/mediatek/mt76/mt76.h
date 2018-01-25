@@ -131,6 +131,9 @@ struct mt76_wcid {
 
 	u8 sta:1;
 
+	u8 rx_check_pn;
+	u8 rx_key_pn[IEEE80211_NUM_TIDS][6];
+
 	__le16 tx_rate;
 	bool tx_rate_set;
 	u8 tx_rate_nss;
@@ -279,12 +282,14 @@ struct mt76_rx_status {
 
 	unsigned long reorder_time;
 
-	u8 aggr;
+	u8 iv[6];
+
+	u8 aggr:1;
 	u8 tid;
 	u16 seqno;
 
-	u32 flag;
 	u16 freq;
+	u32 flag;
 	u8 enc_flags;
 	u8 encoding:2, bw:3;
 	u8 rate_idx;
@@ -412,6 +417,9 @@ int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 int mt76_rx_aggr_start(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tid,
 		       u16 ssn, u8 size);
 void mt76_rx_aggr_stop(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tid);
+
+void mt76_wcid_key_setup(struct mt76_dev *dev, struct mt76_wcid *wcid,
+			 struct ieee80211_key_conf *key);
 
 /* internal */
 void mt76_tx_free(struct mt76_dev *dev);

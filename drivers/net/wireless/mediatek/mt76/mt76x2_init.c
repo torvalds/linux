@@ -131,7 +131,7 @@ mt76_write_mac_initvals(struct mt76x2_dev *dev)
 		{ MT_RX_FILTR_CFG,		0x00015f97 },
 		{ MT_LEGACY_BASIC_RATE,		0x0000017f },
 		{ MT_HT_BASIC_RATE,		0x00004003 },
-		{ MT_PN_PAD_MODE,		0x00000002 },
+		{ MT_PN_PAD_MODE,		0x00000003 },
 		{ MT_TXOP_HLDR_ET,		0x00000002 },
 		{ 0xa44,			0x00000000 },
 		{ MT_HEADER_TRANS_CTRL_REG,	0x00000000 },
