@@ -471,6 +471,17 @@ static ktime_t efx_ptp_s27_to_ktime_correction(u32 nic_major, u32 nic_minor,
 	return efx_ptp_s27_to_ktime(nic_major, nic_minor);
 }
 
+ktime_t efx_ptp_nic_to_kernel_time(struct efx_tx_queue *tx_queue)
+{
+	struct efx_nic *efx = tx_queue->efx;
+	struct efx_ptp_data *ptp = efx->ptp_data;
+	ktime_t kt;
+
+	kt = ptp->nic_to_kernel_time(tx_queue->completed_timestamp_major,
+				     tx_queue->completed_timestamp_minor, 0);
+	return kt;
+}
+
 /* Get PTP attributes and set up time conversions */
 static int efx_ptp_get_attributes(struct efx_nic *efx)
 {
