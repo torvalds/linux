@@ -2433,8 +2433,12 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 	 * otherwise TXQ init will fail
 	 */
 	if (!(nic_data->licensed_features &
-	      (1 << LICENSED_V3_FEATURES_TX_TIMESTAMPS_LBN)))
+	      (1 << LICENSED_V3_FEATURES_TX_TIMESTAMPS_LBN))) {
 		tx_queue->timestamping = false;
+		/* Disable sync events on this channel. */
+		if (efx->type->ptp_set_ts_sync_events)
+			efx->type->ptp_set_ts_sync_events(efx, false, false);
+	}
 
 	/* TSOv2 is a limited resource that can only be configured on a limited
 	 * number of queues. TSO without checksum offload is not really a thing,
