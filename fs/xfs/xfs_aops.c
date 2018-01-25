@@ -390,6 +390,19 @@ xfs_map_blocks(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
+	/*
+	 * Truncate can race with writeback since writeback doesn't take the
+	 * iolock and truncate decreases the file size before it starts
+	 * truncating the pages between new_size and old_size.  Therefore, we
+	 * can end up in the situation where writeback gets a CoW fork mapping
+	 * but the truncate makes the mapping invalid and we end up in here
+	 * trying to get a new mapping.  Bail out here so that we simply never
+	 * get a valid mapping and so we drop the write altogether.  The page
+	 * truncation will kill the contents anyway.
+	 */
+	if (type == XFS_IO_COW && offset > i_size_read(inode))
+		return 0;
+
 	ASSERT(type != XFS_IO_COW);
 	if (type == XFS_IO_UNWRITTEN)
 		bmapi_flags |= XFS_BMAPI_IGSTATE;
