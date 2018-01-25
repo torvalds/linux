@@ -1474,9 +1474,6 @@ int bnxt_tc_setup_flower(struct bnxt *bp, u16 src_fid,
 {
 	int rc = 0;
 
-	if (cls_flower->common.chain_index)
-		return -EOPNOTSUPP;
-
 	switch (cls_flower->command) {
 	case TC_CLSFLOWER_REPLACE:
 		rc = bnxt_tc_add_flow(bp, src_fid, cls_flower);

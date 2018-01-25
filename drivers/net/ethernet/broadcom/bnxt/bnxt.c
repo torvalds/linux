@@ -7778,7 +7778,8 @@ static int bnxt_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 {
 	struct bnxt *bp = cb_priv;
 
-	if (!bnxt_tc_flower_enabled(bp) || !tc_can_offload(bp->dev))
+	if (!bnxt_tc_flower_enabled(bp) ||
+	    !tc_cls_can_offload_and_chain0(bp->dev, type_data))
 		return -EOPNOTSUPP;
 
 	switch (type) {
