@@ -763,10 +763,9 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 		return -ENOMEM;
 	}
 
-	if (count > 1) {
+	if (count > 1)
 		pr_debug("%s: (%s:%d) Getting %d pages\n",
 			 pool->dev_name, pool->name, current->pid, count);
-	}
 
 	for (i = 0, cpages = 0; i < count; ++i) {
 		dma_p = __ttm_dma_alloc_page(pool);
