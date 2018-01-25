@@ -390,14 +390,12 @@ static void ttm_dma_page_put(struct dma_pool *pool, struct dma_page *d_page)
 {
 	struct page *page = d_page->p;
 	unsigned i, num_pages;
-	int ret;
 
 	/* Don't set WB on WB page pool. */
 	if (!(pool->type & IS_CACHED)) {
 		num_pages = pool->size / PAGE_SIZE;
 		for (i = 0; i < num_pages; ++i, ++page) {
-			ret = set_pages_array_wb(&page, 1);
-			if (ret) {
+			if (set_pages_array_wb(&page, 1)) {
 				pr_err("%s: Failed to set %d pages to wb!\n",
 				       pool->dev_name, 1);
 			}
