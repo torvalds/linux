@@ -6715,8 +6715,17 @@ nl80211_check_scan_flags(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	*flags = nla_get_u32(attrs[NL80211_ATTR_SCAN_FLAGS]);
 
-	if ((*flags & NL80211_SCAN_FLAG_LOW_PRIORITY) &&
-	    !(wiphy->features & NL80211_FEATURE_LOW_PRIORITY_SCAN))
+	if (((*flags & NL80211_SCAN_FLAG_LOW_PRIORITY) &&
+	     !(wiphy->features & NL80211_FEATURE_LOW_PRIORITY_SCAN)) ||
+	    ((*flags & NL80211_SCAN_FLAG_LOW_SPAN) &&
+	     !wiphy_ext_feature_isset(wiphy,
+				      NL80211_EXT_FEATURE_LOW_SPAN_SCAN)) ||
+	    ((*flags & NL80211_SCAN_FLAG_LOW_POWER) &&
+	     !wiphy_ext_feature_isset(wiphy,
+				      NL80211_EXT_FEATURE_LOW_POWER_SCAN)) ||
+	    ((*flags & NL80211_SCAN_FLAG_HIGH_ACCURACY) &&
+	     !wiphy_ext_feature_isset(wiphy,
+				      NL80211_EXT_FEATURE_HIGH_ACCURACY_SCAN)))
 		return -EOPNOTSUPP;
 
 	if (*flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
