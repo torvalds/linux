@@ -136,7 +136,11 @@ struct lowcore {
 	__u64	vdso_per_cpu_data;		/* 0x03b8 */
 	__u64	machine_flags;			/* 0x03c0 */
 	__u64	gmap;				/* 0x03c8 */
-	__u8	pad_0x03d0[0x0e00-0x03d0];	/* 0x03d0 */
+	__u8	pad_0x03d0[0x0400-0x03d0];	/* 0x03d0 */
+
+	/* br %r1 trampoline */
+	__u16	br_r1_trampoline;		/* 0x0400 */
+	__u8	pad_0x0402[0x0e00-0x0402];	/* 0x0402 */
 
 	/*
 	 * 0xe00 contains the address of the IPL Parameter Information
