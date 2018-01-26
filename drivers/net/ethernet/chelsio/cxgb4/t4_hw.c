@@ -5090,7 +5090,7 @@ int t4_read_rss(struct adapter *adapter, u16 *map)
 
 static unsigned int t4_use_ldst(struct adapter *adap)
 {
-	return (adap->flags & FW_OK) || !adap->use_bd;
+	return (adap->flags & FW_OK) && !adap->use_bd;
 }
 
 /**
