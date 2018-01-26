@@ -328,13 +328,13 @@ void smc_lgr_terminate(struct smc_link_group *lgr)
 	while (node) {
 		conn = rb_entry(node, struct smc_connection, alert_node);
 		smc = container_of(conn, struct smc_sock, conn);
-		sock_hold(&smc->sk);
+		sock_hold(&smc->sk); /* sock_put in close work */
 		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
 		__smc_lgr_unregister_conn(conn);
 		write_unlock_bh(&lgr->conns_lock);
-		schedule_work(&conn->close_work);
+		if (!schedule_work(&conn->close_work))
+			sock_put(&smc->sk);
 		write_lock_bh(&lgr->conns_lock);
-		sock_put(&smc->sk);
 		node = rb_first(&lgr->conns_all);
 	}
 	write_unlock_bh(&lgr->conns_lock);

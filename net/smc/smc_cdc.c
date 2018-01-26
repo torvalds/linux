@@ -212,6 +212,14 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 		smc->sk.sk_data_ready(&smc->sk);
 	}
 
+	/* piggy backed tx info */
+	/* trigger sndbuf consumer: RDMA write into peer RMBE and CDC */
+	if (diff_cons && smc_tx_prepared_sends(conn)) {
+		smc_tx_sndbuf_nonempty(conn);
+		/* trigger socket release if connection closed */
+		smc_close_wake_tx_prepared(smc);
+	}
+
 	if (conn->local_rx_ctrl.conn_state_flags.peer_conn_abort) {
 		smc->sk.sk_err = ECONNRESET;
 		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
@@ -221,15 +229,9 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 		if (smc->clcsock && smc->clcsock->sk)
 			smc->clcsock->sk->sk_shutdown |= RCV_SHUTDOWN;
 		sock_set_flag(&smc->sk, SOCK_DONE);
-		schedule_work(&conn->close_work);
-	}
-
-	/* piggy backed tx info */
-	/* trigger sndbuf consumer: RDMA write into peer RMBE and CDC */
-	if (diff_cons && smc_tx_prepared_sends(conn)) {
-		smc_tx_sndbuf_nonempty(conn);
-		/* trigger socket release if connection closed */
-		smc_close_wake_tx_prepared(smc);
+		sock_hold(&smc->sk); /* sock_put in close_work */
+		if (!schedule_work(&conn->close_work))
+			sock_put(&smc->sk);
 	}
 }
 
