@@ -1092,11 +1092,9 @@ execlists_context_pin(struct intel_engine_cs *engine,
 		goto out;
 	GEM_BUG_ON(!ce->pin_count); /* no overflow please! */
 
-	if (!ce->state) {
-		ret = execlists_context_deferred_alloc(ctx, engine);
-		if (ret)
-			goto err;
-	}
+	ret = execlists_context_deferred_alloc(ctx, engine);
+	if (ret)
+		goto err;
 	GEM_BUG_ON(!ce->state);
 
 	ret = __context_pin(ctx, ce->state);
@@ -1413,7 +1411,8 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 	 */
 	for (i = 0; i < ARRAY_SIZE(wa_bb_fn); i++) {
 		wa_bb[i]->offset = batch_ptr - batch;
-		if (WARN_ON(!IS_ALIGNED(wa_bb[i]->offset, CACHELINE_BYTES))) {
+		if (GEM_WARN_ON(!IS_ALIGNED(wa_bb[i]->offset,
+					    CACHELINE_BYTES))) {
 			ret = -EINVAL;
 			break;
 		}
@@ -2265,7 +2264,8 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 	struct intel_ring *ring;
 	int ret;
 
-	WARN_ON(ce->state);
+	if (ce->state)
+		return 0;
 
 	context_size = round_up(engine->context_size, I915_GTT_PAGE_SIZE);
 
