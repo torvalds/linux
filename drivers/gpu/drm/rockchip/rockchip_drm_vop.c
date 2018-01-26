@@ -2996,7 +2996,7 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 	if (!memcmp(s->tv_state,
 		    &vop->active_tv_state, sizeof(*s->tv_state)) &&
 	    s->yuv_overlay == old_s->yuv_overlay &&
-	    s->bcsh_en == old_s->bcsh_en)
+	    s->bcsh_en == old_s->bcsh_en && s->bus_format == old_s->bus_format)
 		return;
 
 	memcpy(&vop->active_tv_state, s->tv_state, sizeof(*s->tv_state));
