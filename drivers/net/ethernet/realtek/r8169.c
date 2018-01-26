@@ -2239,19 +2239,14 @@ static bool rtl8169_do_counters(struct net_device *dev, u32 counter_cmd)
 	void __iomem *ioaddr = tp->mmio_addr;
 	dma_addr_t paddr = tp->counters_phys_addr;
 	u32 cmd;
-	bool ret;
 
 	RTL_W32(CounterAddrHigh, (u64)paddr >> 32);
+	RTL_R32(CounterAddrHigh);
 	cmd = (u64)paddr & DMA_BIT_MASK(32);
 	RTL_W32(CounterAddrLow, cmd);
 	RTL_W32(CounterAddrLow, cmd | counter_cmd);
 
-	ret = rtl_udelay_loop_wait_low(tp, &rtl_counters_cond, 10, 1000);
-
-	RTL_W32(CounterAddrLow, 0);
-	RTL_W32(CounterAddrHigh, 0);
-
-	return ret;
+	return rtl_udelay_loop_wait_low(tp, &rtl_counters_cond, 10, 1000);
 }
 
 static bool rtl8169_reset_counters(struct net_device *dev)
