@@ -281,34 +281,34 @@ static const struct snd_kcontrol_new aic32x4_snd_controls[] = {
 
 static const struct aic32x4_rate_divs aic32x4_divs[] = {
 	/* 8k rate */
-	{AIC32X4_FREQ_12000000, 8000, 1, 7, 6800, 768, 5, 3, 128, 5, 18, 24},
-	{AIC32X4_FREQ_24000000, 8000, 2, 7, 6800, 768, 15, 1, 64, 45, 4, 24},
-	{AIC32X4_FREQ_25000000, 8000, 2, 7, 3728, 768, 15, 1, 64, 45, 4, 24},
+	{12000000, 8000, 1, 7, 6800, 768, 5, 3, 128, 5, 18, 24},
+	{24000000, 8000, 2, 7, 6800, 768, 15, 1, 64, 45, 4, 24},
+	{25000000, 8000, 2, 7, 3728, 768, 15, 1, 64, 45, 4, 24},
 	/* 11.025k rate */
-	{AIC32X4_FREQ_12000000, 11025, 1, 7, 5264, 512, 8, 2, 128, 8, 8, 16},
-	{AIC32X4_FREQ_24000000, 11025, 2, 7, 5264, 512, 16, 1, 64, 32, 4, 16},
+	{12000000, 11025, 1, 7, 5264, 512, 8, 2, 128, 8, 8, 16},
+	{24000000, 11025, 2, 7, 5264, 512, 16, 1, 64, 32, 4, 16},
 	/* 16k rate */
-	{AIC32X4_FREQ_12000000, 16000, 1, 7, 6800, 384, 5, 3, 128, 5, 9, 12},
-	{AIC32X4_FREQ_24000000, 16000, 2, 7, 6800, 384, 15, 1, 64, 18, 5, 12},
-	{AIC32X4_FREQ_25000000, 16000, 2, 7, 3728, 384, 15, 1, 64, 18, 5, 12},
+	{12000000, 16000, 1, 7, 6800, 384, 5, 3, 128, 5, 9, 12},
+	{24000000, 16000, 2, 7, 6800, 384, 15, 1, 64, 18, 5, 12},
+	{25000000, 16000, 2, 7, 3728, 384, 15, 1, 64, 18, 5, 12},
 	/* 22.05k rate */
-	{AIC32X4_FREQ_12000000, 22050, 1, 7, 5264, 256, 4, 4, 128, 4, 8, 8},
-	{AIC32X4_FREQ_24000000, 22050, 2, 7, 5264, 256, 16, 1, 64, 16, 4, 8},
-	{AIC32X4_FREQ_25000000, 22050, 2, 7, 2253, 256, 16, 1, 64, 16, 4, 8},
+	{12000000, 22050, 1, 7, 5264, 256, 4, 4, 128, 4, 8, 8},
+	{24000000, 22050, 2, 7, 5264, 256, 16, 1, 64, 16, 4, 8},
+	{25000000, 22050, 2, 7, 2253, 256, 16, 1, 64, 16, 4, 8},
 	/* 32k rate */
-	{AIC32X4_FREQ_12000000, 32000, 1, 7, 1680, 192, 2, 7, 64, 2, 21, 6},
-	{AIC32X4_FREQ_24000000, 32000, 2, 7, 1680, 192, 7, 2, 64, 7, 6, 6},
+	{12000000, 32000, 1, 7, 1680, 192, 2, 7, 64, 2, 21, 6},
+	{24000000, 32000, 2, 7, 1680, 192, 7, 2, 64, 7, 6, 6},
 	/* 44.1k rate */
-	{AIC32X4_FREQ_12000000, 44100, 1, 7, 5264, 128, 2, 8, 128, 2, 8, 4},
-	{AIC32X4_FREQ_24000000, 44100, 2, 7, 5264, 128, 8, 2, 64, 8, 4, 4},
-	{AIC32X4_FREQ_25000000, 44100, 2, 7, 2253, 128, 8, 2, 64, 8, 4, 4},
+	{12000000, 44100, 1, 7, 5264, 128, 2, 8, 128, 2, 8, 4},
+	{24000000, 44100, 2, 7, 5264, 128, 8, 2, 64, 8, 4, 4},
+	{25000000, 44100, 2, 7, 2253, 128, 8, 2, 64, 8, 4, 4},
 	/* 48k rate */
-	{AIC32X4_FREQ_12000000, 48000, 1, 8, 1920, 128, 2, 8, 128, 2, 8, 4},
-	{AIC32X4_FREQ_24000000, 48000, 2, 8, 1920, 128, 8, 2, 64, 8, 4, 4},
-	{AIC32X4_FREQ_25000000, 48000, 2, 7, 8643, 128, 8, 2, 64, 8, 4, 4},
+	{12000000, 48000, 1, 8, 1920, 128, 2, 8, 128, 2, 8, 4},
+	{24000000, 48000, 2, 8, 1920, 128, 8, 2, 64, 8, 4, 4},
+	{25000000, 48000, 2, 7, 8643, 128, 8, 2, 64, 8, 4, 4},
 
 	/* 96k rate */
-	{AIC32X4_FREQ_25000000, 96000, 2, 7, 8643, 64, 4, 4, 64, 4, 4, 1},
+	{25000000, 96000, 2, 7, 8643, 64, 4, 4, 64, 4, 4, 1},
 };
 
 static const struct snd_kcontrol_new hpl_output_mixer_controls[] = {
@@ -601,9 +601,9 @@ static int aic32x4_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	struct aic32x4_priv *aic32x4 = snd_soc_codec_get_drvdata(codec);
 
 	switch (freq) {
-	case AIC32X4_FREQ_12000000:
-	case AIC32X4_FREQ_24000000:
-	case AIC32X4_FREQ_25000000:
+	case 12000000:
+	case 24000000:
+	case 25000000:
 		aic32x4->sysclk = freq;
 		return 0;
 	}
@@ -614,16 +614,9 @@ static int aic32x4_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 static int aic32x4_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	u8 iface_reg_1;
-	u8 iface_reg_2;
-	u8 iface_reg_3;
-
-	iface_reg_1 = snd_soc_read(codec, AIC32X4_IFACE1);
-	iface_reg_1 = iface_reg_1 & ~(3 << 6 | 3 << 2);
-	iface_reg_2 = snd_soc_read(codec, AIC32X4_IFACE2);
-	iface_reg_2 = 0;
-	iface_reg_3 = snd_soc_read(codec, AIC32X4_IFACE3);
-	iface_reg_3 = iface_reg_3 & ~(1 << 3);
+	u8 iface_reg_1 = 0;
+	u8 iface_reg_2 = 0;
+	u8 iface_reg_3 = 0;
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -641,30 +634,37 @@ static int aic32x4_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_I2S:
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
-		iface_reg_1 |= (AIC32X4_DSP_MODE << AIC32X4_PLLJ_SHIFT);
-		iface_reg_3 |= (1 << 3); /* invert bit clock */
+		iface_reg_1 |= (AIC32X4_DSP_MODE <<
+				AIC32X4_IFACE1_DATATYPE_SHIFT);
+		iface_reg_3 |= AIC32X4_BCLKINV_MASK; /* invert bit clock */
 		iface_reg_2 = 0x01; /* add offset 1 */
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
-		iface_reg_1 |= (AIC32X4_DSP_MODE << AIC32X4_PLLJ_SHIFT);
-		iface_reg_3 |= (1 << 3); /* invert bit clock */
+		iface_reg_1 |= (AIC32X4_DSP_MODE <<
+				AIC32X4_IFACE1_DATATYPE_SHIFT);
+		iface_reg_3 |= AIC32X4_BCLKINV_MASK; /* invert bit clock */
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
-		iface_reg_1 |=
-			(AIC32X4_RIGHT_JUSTIFIED_MODE << AIC32X4_PLLJ_SHIFT);
+		iface_reg_1 |= (AIC32X4_RIGHT_JUSTIFIED_MODE <<
+				AIC32X4_IFACE1_DATATYPE_SHIFT);
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		iface_reg_1 |=
-			(AIC32X4_LEFT_JUSTIFIED_MODE << AIC32X4_PLLJ_SHIFT);
+		iface_reg_1 |= (AIC32X4_LEFT_JUSTIFIED_MODE <<
+				AIC32X4_IFACE1_DATATYPE_SHIFT);
 		break;
 	default:
 		printk(KERN_ERR "aic32x4: invalid DAI interface format\n");
 		return -EINVAL;
 	}
 
-	snd_soc_write(codec, AIC32X4_IFACE1, iface_reg_1);
-	snd_soc_write(codec, AIC32X4_IFACE2, iface_reg_2);
-	snd_soc_write(codec, AIC32X4_IFACE3, iface_reg_3);
+	snd_soc_update_bits(codec, AIC32X4_IFACE1,
+			    AIC32X4_IFACE1_DATATYPE_MASK |
+			    AIC32X4_IFACE1_MASTER_MASK, iface_reg_1);
+	snd_soc_update_bits(codec, AIC32X4_IFACE2,
+			    AIC32X4_DATA_OFFSET_MASK, iface_reg_2);
+	snd_soc_update_bits(codec, AIC32X4_IFACE3,
+			    AIC32X4_BCLKINV_MASK, iface_reg_3);
+
 	return 0;
 }
 
@@ -674,7 +674,8 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct aic32x4_priv *aic32x4 = snd_soc_codec_get_drvdata(codec);
-	u8 data;
+	u8 iface1_reg = 0;
+	u8 dacsetup_reg = 0;
 	int i;
 
 	i = aic32x4_get_divs(aic32x4->sysclk, params_rate(params));
@@ -683,82 +684,88 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 		return i;
 	}
 
-	/* Use PLL as CODEC_CLKIN and DAC_MOD_CLK as BDIV_CLKIN */
-	snd_soc_write(codec, AIC32X4_CLKMUX, AIC32X4_PLLCLKIN);
-	snd_soc_write(codec, AIC32X4_IFACE3, AIC32X4_DACMOD2BCLK);
+	/* MCLK as PLL_CLKIN */
+	snd_soc_update_bits(codec, AIC32X4_CLKMUX, AIC32X4_PLL_CLKIN_MASK,
+			    AIC32X4_PLL_CLKIN_MCLK << AIC32X4_PLL_CLKIN_SHIFT);
+	/* PLL as CODEC_CLKIN */
+	snd_soc_update_bits(codec, AIC32X4_CLKMUX, AIC32X4_CODEC_CLKIN_MASK,
+			    AIC32X4_CODEC_CLKIN_PLL << AIC32X4_CODEC_CLKIN_SHIFT);
+	/* DAC_MOD_CLK as BDIV_CLKIN */
+	snd_soc_update_bits(codec, AIC32X4_IFACE3, AIC32X4_BDIVCLK_MASK,
+			    AIC32X4_DACMOD2BCLK << AIC32X4_BDIVCLK_SHIFT);
 
-	/* We will fix R value to 1 and will make P & J=K.D as varialble */
-	data = snd_soc_read(codec, AIC32X4_PLLPR);
-	data &= ~(7 << 4);
-	snd_soc_write(codec, AIC32X4_PLLPR,
-		      (data | (aic32x4_divs[i].p_val << 4) | 0x01));
+	/* We will fix R value to 1 and will make P & J=K.D as variable */
+	snd_soc_update_bits(codec, AIC32X4_PLLPR, AIC32X4_PLL_R_MASK, 0x01);
 
+	/* PLL P value */
+	snd_soc_update_bits(codec, AIC32X4_PLLPR, AIC32X4_PLL_P_MASK,
+			    aic32x4_divs[i].p_val << AIC32X4_PLL_P_SHIFT);
+
+	/* PLL J value */
 	snd_soc_write(codec, AIC32X4_PLLJ, aic32x4_divs[i].pll_j);
 
+	/* PLL D value */
 	snd_soc_write(codec, AIC32X4_PLLDMSB, (aic32x4_divs[i].pll_d >> 8));
-	snd_soc_write(codec, AIC32X4_PLLDLSB,
-		      (aic32x4_divs[i].pll_d & 0xff));
+	snd_soc_write(codec, AIC32X4_PLLDLSB, (aic32x4_divs[i].pll_d & 0xff));
 
 	/* NDAC divider value */
-	data = snd_soc_read(codec, AIC32X4_NDAC);
-	data &= ~(0x7f);
-	snd_soc_write(codec, AIC32X4_NDAC, data | aic32x4_divs[i].ndac);
+	snd_soc_update_bits(codec, AIC32X4_NDAC,
+			    AIC32X4_NDAC_MASK, aic32x4_divs[i].ndac);
 
 	/* MDAC divider value */
-	data = snd_soc_read(codec, AIC32X4_MDAC);
-	data &= ~(0x7f);
-	snd_soc_write(codec, AIC32X4_MDAC, data | aic32x4_divs[i].mdac);
+	snd_soc_update_bits(codec, AIC32X4_MDAC,
+			    AIC32X4_MDAC_MASK, aic32x4_divs[i].mdac);
 
 	/* DOSR MSB & LSB values */
 	snd_soc_write(codec, AIC32X4_DOSRMSB, aic32x4_divs[i].dosr >> 8);
-	snd_soc_write(codec, AIC32X4_DOSRLSB,
-		      (aic32x4_divs[i].dosr & 0xff));
+	snd_soc_write(codec, AIC32X4_DOSRLSB, (aic32x4_divs[i].dosr & 0xff));
 
 	/* NADC divider value */
-	data = snd_soc_read(codec, AIC32X4_NADC);
-	data &= ~(0x7f);
-	snd_soc_write(codec, AIC32X4_NADC, data | aic32x4_divs[i].nadc);
+	snd_soc_update_bits(codec, AIC32X4_NADC,
+			    AIC32X4_NADC_MASK, aic32x4_divs[i].nadc);
 
 	/* MADC divider value */
-	data = snd_soc_read(codec, AIC32X4_MADC);
-	data &= ~(0x7f);
-	snd_soc_write(codec, AIC32X4_MADC, data | aic32x4_divs[i].madc);
+	snd_soc_update_bits(codec, AIC32X4_MADC,
+			    AIC32X4_MADC_MASK, aic32x4_divs[i].madc);
 
 	/* AOSR value */
 	snd_soc_write(codec, AIC32X4_AOSR, aic32x4_divs[i].aosr);
 
 	/* BCLK N divider */
-	data = snd_soc_read(codec, AIC32X4_BCLKN);
-	data &= ~(0x7f);
-	snd_soc_write(codec, AIC32X4_BCLKN, data | aic32x4_divs[i].blck_N);
+	snd_soc_update_bits(codec, AIC32X4_BCLKN,
+			    AIC32X4_BCLK_MASK, aic32x4_divs[i].blck_N);
 
-	data = snd_soc_read(codec, AIC32X4_IFACE1);
-	data = data & ~(3 << 4);
 	switch (params_width(params)) {
 	case 16:
+		iface1_reg |= (AIC32X4_WORD_LEN_16BITS <<
+			       AIC32X4_IFACE1_DATALEN_SHIFT);
 		break;
 	case 20:
-		data |= (AIC32X4_WORD_LEN_20BITS << AIC32X4_DOSRMSB_SHIFT);
+		iface1_reg |= (AIC32X4_WORD_LEN_20BITS <<
+			       AIC32X4_IFACE1_DATALEN_SHIFT);
 		break;
 	case 24:
-		data |= (AIC32X4_WORD_LEN_24BITS << AIC32X4_DOSRMSB_SHIFT);
+		iface1_reg |= (AIC32X4_WORD_LEN_24BITS <<
+			       AIC32X4_IFACE1_DATALEN_SHIFT);
 		break;
 	case 32:
-		data |= (AIC32X4_WORD_LEN_32BITS << AIC32X4_DOSRMSB_SHIFT);
+		iface1_reg |= (AIC32X4_WORD_LEN_32BITS <<
+			       AIC32X4_IFACE1_DATALEN_SHIFT);
 		break;
 	}
-	snd_soc_write(codec, AIC32X4_IFACE1, data);
+	snd_soc_update_bits(codec, AIC32X4_IFACE1,
+			    AIC32X4_IFACE1_DATALEN_MASK, iface1_reg);
 
 	if (params_channels(params) == 1) {
-		data = AIC32X4_RDAC2LCHN | AIC32X4_LDAC2LCHN;
+		dacsetup_reg = AIC32X4_RDAC2LCHN | AIC32X4_LDAC2LCHN;
 	} else {
 		if (aic32x4->swapdacs)
-			data = AIC32X4_RDAC2LCHN | AIC32X4_LDAC2RCHN;
+			dacsetup_reg = AIC32X4_RDAC2LCHN | AIC32X4_LDAC2RCHN;
 		else
-			data = AIC32X4_LDAC2LCHN | AIC32X4_RDAC2RCHN;
+			dacsetup_reg = AIC32X4_LDAC2LCHN | AIC32X4_RDAC2RCHN;
 	}
-	snd_soc_update_bits(codec, AIC32X4_DACSETUP, AIC32X4_DAC_CHAN_MASK,
-			data);
+	snd_soc_update_bits(codec, AIC32X4_DACSETUP,
+			    AIC32X4_DAC_CHAN_MASK, dacsetup_reg);
 
 	return 0;
 }
@@ -766,13 +773,10 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 static int aic32x4_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	u8 dac_reg;
 
-	dac_reg = snd_soc_read(codec, AIC32X4_DACMUTE) & ~AIC32X4_MUTEON;
-	if (mute)
-		snd_soc_write(codec, AIC32X4_DACMUTE, dac_reg | AIC32X4_MUTEON);
-	else
-		snd_soc_write(codec, AIC32X4_DACMUTE, dac_reg);
+	snd_soc_update_bits(codec, AIC32X4_DACMUTE,
+			    AIC32X4_MUTEON, mute ? AIC32X4_MUTEON : 0);
+
 	return 0;
 }
 

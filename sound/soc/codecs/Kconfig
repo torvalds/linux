@@ -150,6 +150,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TAS5086 if I2C
 	select SND_SOC_TAS571X if I2C
 	select SND_SOC_TAS5720 if I2C
+	select SND_SOC_TAS6424 if I2C
 	select SND_SOC_TFA9879 if I2C
 	select SND_SOC_TLV320AIC23_I2C if I2C
 	select SND_SOC_TLV320AIC23_SPI if SPI_MASTER
@@ -901,6 +902,13 @@ config SND_SOC_TAS5720
 	  Enable support for Texas Instruments TAS5720L/M high-efficiency mono
 	  Class-D audio power amplifiers.
 
+config SND_SOC_TAS6424
+	tristate "Texas Instruments TAS6424 Quad-Channel Audio amplifier"
+	depends on I2C
+	help
+	  Enable support for Texas Instruments TAS6424 high-efficiency
+	  digital input quad-channel Class-D audio power amplifiers.
+
 config SND_SOC_TFA9879
 	tristate "NXP Semiconductors TFA9879 amplifier"
 	depends on I2C
@@ -931,12 +939,12 @@ config SND_SOC_TLV320AIC32X4
 	tristate
 
 config SND_SOC_TLV320AIC32X4_I2C
-	tristate
+	tristate "Texas Instruments TLV320AIC32x4 audio CODECs - I2C"
 	depends on I2C
 	select SND_SOC_TLV320AIC32X4
 
 config SND_SOC_TLV320AIC32X4_SPI
-	tristate
+	tristate "Texas Instruments TLV320AIC32x4 audio CODECs - SPI"
 	depends on SPI_MASTER
 	select SND_SOC_TLV320AIC32X4
 
