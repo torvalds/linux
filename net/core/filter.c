@@ -401,8 +401,8 @@ do_pass:
 		/* Classic BPF expects A and X to be reset first. These need
 		 * to be guaranteed to be the first two instructions.
 		 */
-		*new_insn++ = BPF_ALU64_REG(BPF_XOR, BPF_REG_A, BPF_REG_A);
-		*new_insn++ = BPF_ALU64_REG(BPF_XOR, BPF_REG_X, BPF_REG_X);
+		*new_insn++ = BPF_ALU32_REG(BPF_XOR, BPF_REG_A, BPF_REG_A);
+		*new_insn++ = BPF_ALU32_REG(BPF_XOR, BPF_REG_X, BPF_REG_X);
 
 		/* All programs must keep CTX in callee saved BPF_REG_CTX.
 		 * In eBPF case it's done by the compiler, here we need to
