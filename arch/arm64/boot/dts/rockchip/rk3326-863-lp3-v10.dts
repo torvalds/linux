@@ -5,16 +5,17 @@
  */
 
 /dts-v1/;
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/rockchip.h>
-#include <dt-bindings/input/input.h>
 #include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/sensor-dev.h>
 #include "rk3326.dtsi"
+#include "rk3326-863-cif-sensor.dtsi"
 #include "px30-android.dtsi"
 
 / {
-	model = "Rockchip rk3326 f863 board";
+	model = "Rockchip rk3326 863 board";
 	compatible = "rockchip,rk3326-863-lp3-v10", "rockchip,rk3326";
 
 	adc-keys {
@@ -109,6 +110,14 @@
 		BT,wake_host_irq = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+};
+
+&cif {
+	status = "okay";
+};
+
+&cif_sensor {
+	status = "okay";
 };
 
 &display_subsystem {
