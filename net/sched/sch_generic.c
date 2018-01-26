@@ -1178,6 +1178,39 @@ void dev_deactivate(struct net_device *dev)
 }
 EXPORT_SYMBOL(dev_deactivate);
 
+static int qdisc_change_tx_queue_len(struct net_device *dev,
+				     struct netdev_queue *dev_queue)
+{
+	struct Qdisc *qdisc = dev_queue->qdisc_sleeping;
+	const struct Qdisc_ops *ops = qdisc->ops;
+
+	if (ops->change_tx_queue_len)
+		return ops->change_tx_queue_len(qdisc, dev->tx_queue_len);
+	return 0;
+}
+
+int dev_qdisc_change_tx_queue_len(struct net_device *dev)
+{
+	bool up = dev->flags & IFF_UP;
+	unsigned int i;
+	int ret = 0;
+
+	if (up)
+		dev_deactivate(dev);
+
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		ret = qdisc_change_tx_queue_len(dev, &dev->_tx[i]);
+
+		/* TODO: revert changes on a partial failure */
+		if (ret)
+			break;
+	}
+
+	if (up)
+		dev_activate(dev);
+	return ret;
+}
+
 static void dev_init_scheduler_queue(struct net_device *dev,
 				     struct netdev_queue *dev_queue,
 				     void *_qdisc)

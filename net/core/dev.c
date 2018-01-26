@@ -7070,6 +7070,7 @@ int dev_change_tx_queue_len(struct net_device *dev, unsigned long new_len)
 			dev->tx_queue_len = orig_len;
 			return res;
 		}
+		return dev_qdisc_change_tx_queue_len(dev);
 	}
 
 	return 0;
