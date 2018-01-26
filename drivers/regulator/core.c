@@ -2980,7 +2980,7 @@ static int regulator_set_voltage_unlocked(struct regulator *regulator,
 			goto out2;
 		}
 
-		best_supply_uV = _regulator_list_voltage(regulator, selector, 0);
+		best_supply_uV = _regulator_list_voltage(rdev, selector, 0);
 		if (best_supply_uV < 0) {
 			ret = best_supply_uV;
 			goto out2;
