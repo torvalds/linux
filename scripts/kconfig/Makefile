@@ -34,6 +34,8 @@ config: $(obj)/conf
 nconfig: $(obj)/nconf
 	$< $(silent) $(Kconfig)
 
+# This has become an internal implementation detail and is now deprecated
+# for external use.
 silentoldconfig: $(obj)/conf
 	$(Q)mkdir -p include/config include/generated
 	$(Q)test -e include/generated/autoksyms.h || \
@@ -144,7 +146,6 @@ help:
 	@echo  '  oldconfig	  - Update current config utilising a provided .config as base'
 	@echo  '  localmodconfig  - Update current config disabling modules not loaded'
 	@echo  '  localyesconfig  - Update current config converting local mods to core'
-	@echo  '  silentoldconfig - Same as oldconfig, but quietly, additionally update deps'
 	@echo  '  defconfig	  - New config with default from ARCH supplied defconfig'
 	@echo  '  savedefconfig   - Save current config as ./defconfig (minimal config)'
 	@echo  '  allnoconfig	  - New config where all options are answered with no'
@@ -153,8 +154,8 @@ help:
 	@echo  '  alldefconfig    - New config with all symbols set to default'
 	@echo  '  randconfig	  - New config with random answer to all options'
 	@echo  '  listnewconfig   - List new options'
-	@echo  '  olddefconfig	  - Same as silentoldconfig but sets new symbols to their'
-	@echo  '                    default value'
+	@echo  '  olddefconfig	  - Same as oldconfig but sets new symbols to their'
+	@echo  '                    default value without prompting'
 	@echo  '  kvmconfig	  - Enable additional options for kvm guest kernel support'
 	@echo  '  xenconfig       - Enable additional options for xen dom0 and guest kernel support'
 	@echo  '  tinyconfig	  - Configure the tiniest possible kernel'
