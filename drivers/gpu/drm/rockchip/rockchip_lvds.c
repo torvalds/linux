@@ -312,35 +312,6 @@ static int rk336x_lvds_poweron(struct rockchip_lvds *lvds)
 
 static int rockchip_lvds_poweron(struct rockchip_lvds *lvds)
 {
-	int ret;
-
-	if (lvds->pclk) {
-		ret = clk_enable(lvds->pclk);
-		if (ret < 0) {
-			dev_err(lvds->dev, "failed to enable lvds pclk %d\n", ret);
-			return ret;
-		}
-	}
-	if (lvds->pclk_ctrl) {
-		ret = clk_enable(lvds->pclk_ctrl);
-		if (ret < 0) {
-			dev_err(lvds->dev, "failed to enable lvds pclk_ctrl %d\n", ret);
-			return ret;
-		}
-	}
-
-	if (lvds->hclk_ctrl) {
-		ret = clk_enable(lvds->hclk_ctrl);
-		if (ret < 0) {
-			dev_err(lvds->dev, "failed to enable lvds hclk_ctrl %d\n", ret);
-			return ret;
-		}
-	}
-	ret = pm_runtime_get_sync(lvds->dev);
-	if (ret < 0) {
-		dev_err(lvds->dev, "failed to get pm runtime: %d\n", ret);
-		return ret;
-	}
 	if (LVDS_CHIP(lvds) == RK3288_LVDS)
 		rk3288_lvds_poweron(lvds);
 	else
@@ -363,10 +334,6 @@ static void rockchip_lvds_poweroff(struct rockchip_lvds *lvds)
 				   lvds->soc_data->grf_soc_con7, 0xffff8000);
 		if (ret != 0)
 			dev_err(lvds->dev, "Could not write to GRF: %d\n", ret);
-
-		pm_runtime_put(lvds->dev);
-		if (lvds->pclk)
-			clk_disable(lvds->pclk);
 	} else if ((LVDS_CHIP(lvds) == RK336X_LVDS) ||
 		   (LVDS_CHIP(lvds) == RK3126_LVDS)) {
 		if (LVDS_CHIP(lvds) == RK336X_LVDS)
@@ -392,13 +359,6 @@ static void rockchip_lvds_poweroff(struct rockchip_lvds *lvds)
 		/* disable lvds */
 		lvds_msk_reg(lvds, MIPIPHY_REGE3, m_LVDS_EN | m_TTL_EN,
 			     v_LVDS_EN(0) | v_TTL_EN(0));
-		pm_runtime_put(lvds->dev);
-		if (lvds->pclk)
-			clk_disable(lvds->pclk);
-		if (lvds->pclk_ctrl)
-			clk_disable(lvds->pclk_ctrl);
-		if (lvds->hclk_ctrl)
-			clk_disable(lvds->hclk_ctrl);
 	}
 }
 
@@ -674,6 +634,11 @@ static void rockchip_lvds_encoder_enable(struct drm_encoder *encoder)
 {
 	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
 
+	clk_prepare_enable(lvds->pclk);
+	clk_prepare_enable(lvds->pclk_ctrl);
+	clk_prepare_enable(lvds->hclk_ctrl);
+	pm_runtime_get_sync(lvds->dev);
+
 	if (lvds->panel)
 		drm_panel_prepare(lvds->panel);
 
@@ -697,6 +662,11 @@ static void rockchip_lvds_encoder_disable(struct drm_encoder *encoder)
 
 	if (lvds->panel)
 		drm_panel_unprepare(lvds->panel);
+
+	pm_runtime_put(lvds->dev);
+	clk_disable_unprepare(lvds->hclk_ctrl);
+	clk_disable_unprepare(lvds->pclk_ctrl);
+	clk_disable_unprepare(lvds->pclk);
 }
 
 static int rockchip_lvds_encoder_loader_protect(struct drm_encoder *encoder,
@@ -966,7 +936,6 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rockchip_lvds *lvds;
 	struct resource *res;
-	int ret;
 
 	lvds = devm_kzalloc(dev, sizeof(*lvds), GFP_KERNEL);
 	if (!lvds)
@@ -1034,52 +1003,13 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 		return PTR_ERR(lvds->grf);
 	}
 
-	if (lvds->pclk) {
-		ret = clk_prepare(lvds->pclk);
-		if (ret < 0) {
-			dev_err(dev, "failed to prepare pclk_lvds\n");
-			return ret;
-		}
-	}
-	if (lvds->pclk_ctrl) {
-		ret = clk_prepare(lvds->pclk_ctrl);
-		if (ret < 0) {
-			dev_err(dev, "failed to prepare pclk_ctrl lvds\n");
-			return ret;
-		}
-	}
-
-	if (lvds->hclk_ctrl) {
-		ret = clk_prepare(lvds->hclk_ctrl);
-		if (ret < 0) {
-			dev_err(dev, "failed to prepare hclk_ctrl lvds\n");
-			return ret;
-		}
-	}
-	ret = component_add(&pdev->dev, &rockchip_lvds_component_ops);
-	if (ret < 0) {
-		if (lvds->pclk)
-			clk_unprepare(lvds->pclk);
-		if (lvds->pclk_ctrl)
-			clk_unprepare(lvds->pclk_ctrl);
-		if (lvds->hclk_ctrl)
-			clk_unprepare(lvds->hclk_ctrl);
-	}
-
-	return ret;
+	return component_add(dev, &rockchip_lvds_component_ops);
 }
 
 static int rockchip_lvds_remove(struct platform_device *pdev)
 {
-	struct rockchip_lvds *lvds = dev_get_drvdata(&pdev->dev);
-
 	component_del(&pdev->dev, &rockchip_lvds_component_ops);
-	if (lvds->pclk)
-		clk_unprepare(lvds->pclk);
-	if (lvds->pclk_ctrl)
-		clk_unprepare(lvds->pclk_ctrl);
-	if (lvds->hclk_ctrl)
-		clk_unprepare(lvds->hclk_ctrl);
+
 	return 0;
 }
 
