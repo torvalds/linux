@@ -4981,6 +4981,13 @@ static int replace_map_fd_with_map_ptr(struct bpf_verifier_env *env)
 next_insn:
 			insn++;
 			i++;
+			continue;
+		}
+
+		/* Basic sanity check before we invest more work here. */
+		if (!bpf_opcode_in_insntable(insn->code)) {
+			verbose(env, "unknown opcode %02x\n", insn->code);
+			return -EINVAL;
 		}
 	}
 
