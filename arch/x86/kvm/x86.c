@@ -177,7 +177,6 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "request_irq", VCPU_STAT(request_irq_exits) },
 	{ "irq_exits", VCPU_STAT(irq_exits) },
 	{ "host_state_reload", VCPU_STAT(host_state_reload) },
-	{ "efer_reload", VCPU_STAT(efer_reload) },
 	{ "fpu_reload", VCPU_STAT(fpu_reload) },
 	{ "insn_emulation", VCPU_STAT(insn_emulation) },
 	{ "insn_emulation_fail", VCPU_STAT(insn_emulation_fail) },

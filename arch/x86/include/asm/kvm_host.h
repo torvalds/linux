@@ -895,7 +895,6 @@ struct kvm_vcpu_stat {
 	u64 request_irq_exits;
 	u64 irq_exits;
 	u64 host_state_reload;
-	u64 efer_reload;
 	u64 fpu_reload;
 	u64 insn_emulation;
 	u64 insn_emulation_fail;
