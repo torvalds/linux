@@ -2469,6 +2469,54 @@ static struct rt6_info *ip6_nh_lookup_table(struct net *net,
 	return rt;
 }
 
+static int ip6_route_check_nh(struct net *net,
+			      struct fib6_config *cfg,
+			      struct net_device **_dev,
+			      struct inet6_dev **idev)
+{
+	const struct in6_addr *gw_addr = &cfg->fc_gateway;
+	struct net_device *dev = _dev ? *_dev : NULL;
+	struct rt6_info *grt = NULL;
+	int err = -EHOSTUNREACH;
+
+	if (cfg->fc_table) {
+		grt = ip6_nh_lookup_table(net, cfg, gw_addr);
+		if (grt) {
+			if (grt->rt6i_flags & RTF_GATEWAY ||
+			    (dev && dev != grt->dst.dev)) {
+				ip6_rt_put(grt);
+				grt = NULL;
+			}
+		}
+	}
+
+	if (!grt)
+		grt = rt6_lookup(net, gw_addr, NULL, cfg->fc_ifindex, 1);
+
+	if (!grt)
+		goto out;
+
+	if (dev) {
+		if (dev != grt->dst.dev) {
+			ip6_rt_put(grt);
+			goto out;
+		}
+	} else {
+		*_dev = dev = grt->dst.dev;
+		*idev = grt->rt6i_idev;
+		dev_hold(dev);
+		in6_dev_hold(grt->rt6i_idev);
+	}
+
+	if (!(grt->rt6i_flags & RTF_GATEWAY))
+		err = 0;
+
+	ip6_rt_put(grt);
+
+out:
+	return err;
+}
+
 static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 					      struct netlink_ext_ack *extack)
 {
@@ -2664,8 +2712,6 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 		rt->rt6i_gateway = *gw_addr;
 
 		if (gwa_type != (IPV6_ADDR_LINKLOCAL|IPV6_ADDR_UNICAST)) {
-			struct rt6_info *grt = NULL;
-
 			/* IPv6 strictly inhibits using not link-local
 			   addresses as nexthop address.
 			   Otherwise, router will not able to send redirects.
@@ -2682,40 +2728,7 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 				goto out;
 			}
 
-			if (cfg->fc_table) {
-				grt = ip6_nh_lookup_table(net, cfg, gw_addr);
-
-				if (grt) {
-					if (grt->rt6i_flags & RTF_GATEWAY ||
-					    (dev && dev != grt->dst.dev)) {
-						ip6_rt_put(grt);
-						grt = NULL;
-					}
-				}
-			}
-
-			if (!grt)
-				grt = rt6_lookup(net, gw_addr, NULL,
-						 cfg->fc_ifindex, 1);
-
-			err = -EHOSTUNREACH;
-			if (!grt)
-				goto out;
-			if (dev) {
-				if (dev != grt->dst.dev) {
-					ip6_rt_put(grt);
-					goto out;
-				}
-			} else {
-				dev = grt->dst.dev;
-				idev = grt->rt6i_idev;
-				dev_hold(dev);
-				in6_dev_hold(grt->rt6i_idev);
-			}
-			if (!(grt->rt6i_flags & RTF_GATEWAY))
-				err = 0;
-			ip6_rt_put(grt);
-
+			err = ip6_route_check_nh(net, cfg, &dev, &idev);
 			if (err)
 				goto out;
 		}
