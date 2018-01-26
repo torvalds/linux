@@ -88,6 +88,9 @@
 #define RK3288_LVDS_PLL_PREDIV_REGD(_pd) \
 		(_pd & RK3288_LVDS_CH0_REGD_PLL_PREDIV_MASK)
 
+#define RK3288_GRF_SOC_CON6		0x025c
+#define RK3288_GRF_SOC_CON7		0x0260
+
 #define RK3288_LVDS_SOC_CON6_SEL_VOP_LIT	BIT(3)
 
 #define RK3366_GRF_SOC_CON0	0x0400
@@ -221,13 +224,6 @@
 enum {
 	LVDS_MSB_D0 = 0,
 	LVDS_MSB_D7,
-};
-
-enum rockchip_lvds_sub_devtype {
-	PX30_LVDS,
-	RK3126_LVDS,
-	RK3288_LVDS,
-	RK336X_LVDS,
 };
 
 #endif /* _ROCKCHIP_LVDS_ */
