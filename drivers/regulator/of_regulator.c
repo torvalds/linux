@@ -184,9 +184,23 @@ static void of_get_regulation_constraints(struct device_node *np,
 		else
 			suspend_state->enabled = DO_NOTHING_IN_SUSPEND;
 
+		if (!of_property_read_u32(np, "regulator-suspend-min-microvolt",
+					  &pval))
+			suspend_state->min_uV = pval;
+
+		if (!of_property_read_u32(np, "regulator-suspend-max-microvolt",
+					  &pval))
+			suspend_state->max_uV = pval;
+
 		if (!of_property_read_u32(suspend_np,
 					"regulator-suspend-microvolt", &pval))
 			suspend_state->uV = pval;
+		else /* otherwise use min_uV as default suspend voltage */
+			suspend_state->uV = suspend_state->min_uV;
+
+		if (of_property_read_bool(suspend_np,
+					"regulator-changeable-in-suspend"))
+			suspend_state->changeable = true;
 
 		if (i == PM_SUSPEND_MEM)
 			constraints->initial_state = PM_SUSPEND_MEM;

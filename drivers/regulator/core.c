@@ -236,6 +236,12 @@ static int regulator_check_voltage(struct regulator_dev *rdev,
 	return 0;
 }
 
+/* return 0 if the state is valid */
+static int regulator_check_states(suspend_state_t state)
+{
+	return (state > PM_SUSPEND_MAX || state == PM_SUSPEND_TO_IDLE);
+}
+
 /* Make sure we select a voltage that suits the needs of all
  * regulator consumers
  */
@@ -325,6 +331,24 @@ static int regulator_mode_constrain(struct regulator_dev *rdev,
 	}
 
 	return -EINVAL;
+}
+
+static inline struct regulator_state *
+regulator_get_suspend_state(struct regulator_dev *rdev, suspend_state_t state)
+{
+	if (rdev->constraints == NULL)
+		return NULL;
+
+	switch (state) {
+	case PM_SUSPEND_STANDBY:
+		return &rdev->constraints->state_standby;
+	case PM_SUSPEND_MEM:
+		return &rdev->constraints->state_mem;
+	case PM_SUSPEND_MAX:
+		return &rdev->constraints->state_disk;
+	default:
+		return NULL;
+	}
 }
 
 static ssize_t regulator_uV_show(struct device *dev,
@@ -734,9 +758,14 @@ static int drms_uA_update(struct regulator_dev *rdev)
 }
 
 static int suspend_set_state(struct regulator_dev *rdev,
-	struct regulator_state *rstate)
+				    suspend_state_t state)
 {
 	int ret = 0;
+	struct regulator_state *rstate;
+
+	rstate = regulator_get_suspend_state(rdev, state);
+	if (rstate == NULL)
+		return -EINVAL;
 
 	/* If we have no suspend mode configration don't set anything;
 	 * only warn if the driver implements set_suspend_voltage or
@@ -779,28 +808,8 @@ static int suspend_set_state(struct regulator_dev *rdev,
 			return ret;
 		}
 	}
+
 	return ret;
-}
-
-/* locks held by caller */
-static int suspend_prepare(struct regulator_dev *rdev, suspend_state_t state)
-{
-	if (!rdev->constraints)
-		return -EINVAL;
-
-	switch (state) {
-	case PM_SUSPEND_STANDBY:
-		return suspend_set_state(rdev,
-			&rdev->constraints->state_standby);
-	case PM_SUSPEND_MEM:
-		return suspend_set_state(rdev,
-			&rdev->constraints->state_mem);
-	case PM_SUSPEND_MAX:
-		return suspend_set_state(rdev,
-			&rdev->constraints->state_disk);
-	default:
-		return -EINVAL;
-	}
 }
 
 static void print_constraints(struct regulator_dev *rdev)
@@ -1069,7 +1078,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 
 	/* do we need to setup our suspend state */
 	if (rdev->constraints->initial_state) {
-		ret = suspend_prepare(rdev, rdev->constraints->initial_state);
+		ret = suspend_set_state(rdev, rdev->constraints->initial_state);
 		if (ret < 0) {
 			rdev_err(rdev, "failed to set suspend state\n");
 			return ret;
@@ -2898,6 +2907,32 @@ out:
 	return ret;
 }
 
+static int _regulator_do_set_suspend_voltage(struct regulator_dev *rdev,
+				  int min_uV, int max_uV, suspend_state_t state)
+{
+	struct regulator_state *rstate;
+	int uV, sel;
+
+	rstate = regulator_get_suspend_state(rdev, state);
+	if (rstate == NULL)
+		return -EINVAL;
+
+	if (min_uV < rstate->min_uV)
+		min_uV = rstate->min_uV;
+	if (max_uV > rstate->max_uV)
+		max_uV = rstate->max_uV;
+
+	sel = regulator_map_voltage(rdev, min_uV, max_uV);
+	if (sel < 0)
+		return sel;
+
+	uV = rdev->desc->ops->list_voltage(rdev, sel);
+	if (uV >= min_uV && uV <= max_uV)
+		rstate->uV = uV;
+
+	return 0;
+}
+
 static int regulator_set_voltage_unlocked(struct regulator *regulator,
 					  int min_uV, int max_uV,
 					  suspend_state_t state)
@@ -2993,7 +3028,11 @@ static int regulator_set_voltage_unlocked(struct regulator *regulator,
 		}
 	}
 
-	ret = _regulator_do_set_voltage(rdev, min_uV, max_uV);
+	if (state == PM_SUSPEND_ON)
+		ret = _regulator_do_set_voltage(rdev, min_uV, max_uV);
+	else
+		ret = _regulator_do_set_suspend_voltage(rdev, min_uV,
+							max_uV, state);
 	if (ret < 0)
 		goto out2;
 
@@ -3048,6 +3087,89 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_set_voltage);
+
+static inline int regulator_suspend_toggle(struct regulator_dev *rdev,
+					   suspend_state_t state, bool en)
+{
+	struct regulator_state *rstate;
+
+	rstate = regulator_get_suspend_state(rdev, state);
+	if (rstate == NULL)
+		return -EINVAL;
+
+	if (!rstate->changeable)
+		return -EPERM;
+
+	rstate->enabled = en;
+
+	return 0;
+}
+
+int regulator_suspend_enable(struct regulator_dev *rdev,
+				    suspend_state_t state)
+{
+	return regulator_suspend_toggle(rdev, state, true);
+}
+EXPORT_SYMBOL_GPL(regulator_suspend_enable);
+
+int regulator_suspend_disable(struct regulator_dev *rdev,
+				     suspend_state_t state)
+{
+	struct regulator *regulator;
+	struct regulator_voltage *voltage;
+
+	/*
+	 * if any consumer wants this regulator device keeping on in
+	 * suspend states, don't set it as disabled.
+	 */
+	list_for_each_entry(regulator, &rdev->consumer_list, list) {
+		voltage = &regulator->voltage[state];
+		if (voltage->min_uV || voltage->max_uV)
+			return 0;
+	}
+
+	return regulator_suspend_toggle(rdev, state, false);
+}
+EXPORT_SYMBOL_GPL(regulator_suspend_disable);
+
+static int _regulator_set_suspend_voltage(struct regulator *regulator,
+					  int min_uV, int max_uV,
+					  suspend_state_t state)
+{
+	struct regulator_dev *rdev = regulator->rdev;
+	struct regulator_state *rstate;
+
+	rstate = regulator_get_suspend_state(rdev, state);
+	if (rstate == NULL)
+		return -EINVAL;
+
+	if (rstate->min_uV == rstate->max_uV) {
+		rdev_err(rdev, "The suspend voltage can't be changed!\n");
+		return -EPERM;
+	}
+
+	return regulator_set_voltage_unlocked(regulator, min_uV, max_uV, state);
+}
+
+int regulator_set_suspend_voltage(struct regulator *regulator, int min_uV,
+				  int max_uV, suspend_state_t state)
+{
+	int ret = 0;
+
+	/* PM_SUSPEND_ON is handled by regulator_set_voltage() */
+	if (regulator_check_states(state) || state == PM_SUSPEND_ON)
+		return -EINVAL;
+
+	regulator_lock_supply(regulator->rdev);
+
+	ret = _regulator_set_suspend_voltage(regulator, min_uV,
+					     max_uV, state);
+
+	regulator_unlock_supply(regulator->rdev);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regulator_set_suspend_voltage);
 
 /**
  * regulator_set_voltage_time - get raise/fall time
@@ -3923,12 +4045,6 @@ static void regulator_dev_release(struct device *dev)
 	kfree(rdev);
 }
 
-static struct class regulator_class = {
-	.name = "regulator",
-	.dev_release = regulator_dev_release,
-	.dev_groups = regulator_dev_groups,
-};
-
 static void rdev_init_debugfs(struct regulator_dev *rdev)
 {
 	struct device *parent = rdev->dev.parent;
@@ -4179,7 +4295,86 @@ void regulator_unregister(struct regulator_dev *rdev)
 }
 EXPORT_SYMBOL_GPL(regulator_unregister);
 
+#ifdef CONFIG_SUSPEND
+static int _regulator_suspend_late(struct device *dev, void *data)
+{
+	struct regulator_dev *rdev = dev_to_rdev(dev);
+	suspend_state_t *state = data;
+	int ret;
 
+	mutex_lock(&rdev->mutex);
+	ret = suspend_set_state(rdev, *state);
+	mutex_unlock(&rdev->mutex);
+
+	return ret;
+}
+
+/**
+ * regulator_suspend_late - prepare regulators for system wide suspend
+ * @state: system suspend state
+ *
+ * Configure each regulator with it's suspend operating parameters for state.
+ */
+static int regulator_suspend_late(struct device *dev)
+{
+	suspend_state_t state = pm_suspend_target_state;
+
+	return class_for_each_device(&regulator_class, NULL, &state,
+				     _regulator_suspend_late);
+}
+static int _regulator_resume_early(struct device *dev, void *data)
+{
+	int ret = 0;
+	struct regulator_dev *rdev = dev_to_rdev(dev);
+	suspend_state_t *state = data;
+	struct regulator_state *rstate;
+
+	rstate = regulator_get_suspend_state(rdev, *state);
+	if (rstate == NULL)
+		return -EINVAL;
+
+	mutex_lock(&rdev->mutex);
+
+	if (rdev->desc->ops->resume_early &&
+	    (rstate->enabled == ENABLE_IN_SUSPEND ||
+	     rstate->enabled == DISABLE_IN_SUSPEND))
+		ret = rdev->desc->ops->resume_early(rdev);
+
+	mutex_unlock(&rdev->mutex);
+
+	return ret;
+}
+
+static int regulator_resume_early(struct device *dev)
+{
+	suspend_state_t state = pm_suspend_target_state;
+
+	return class_for_each_device(&regulator_class, NULL, &state,
+				     _regulator_resume_early);
+}
+
+#else /* !CONFIG_SUSPEND */
+
+#define regulator_suspend_late	NULL
+#define regulator_resume_early	NULL
+
+#endif /* !CONFIG_SUSPEND */
+
+#ifdef CONFIG_PM
+static const struct dev_pm_ops __maybe_unused regulator_pm_ops = {
+	.suspend_late	= regulator_suspend_late,
+	.resume_early	= regulator_resume_early,
+};
+#endif
+
+static struct class regulator_class = {
+	.name = "regulator",
+	.dev_release = regulator_dev_release,
+	.dev_groups = regulator_dev_groups,
+#ifdef CONFIG_PM
+	.pm = &regulator_pm_ops,
+#endif
+};
 /**
  * regulator_has_full_constraints - the system has fully specified constraints
  *
