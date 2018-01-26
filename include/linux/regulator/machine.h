@@ -42,6 +42,16 @@ struct regulator;
 #define REGULATOR_CHANGE_DRMS		0x10
 #define REGULATOR_CHANGE_BYPASS		0x20
 
+/*
+ * operations in suspend mode
+ * DO_NOTHING_IN_SUSPEND - the default value
+ * DISABLE_IN_SUSPEND	- turn off regulator in suspend states
+ * ENABLE_IN_SUSPEND	- keep regulator on in suspend states
+ */
+#define DO_NOTHING_IN_SUSPEND	(-1)
+#define DISABLE_IN_SUSPEND	0
+#define ENABLE_IN_SUSPEND	1
+
 /* Regulator active discharge flags */
 enum regulator_active_discharge {
 	REGULATOR_ACTIVE_DISCHARGE_DEFAULT,
@@ -58,14 +68,15 @@ enum regulator_active_discharge {
  *
  * @uV: Operating voltage during suspend.
  * @mode: Operating mode during suspend.
- * @enabled: Enabled during suspend.
- * @disabled: Disabled during suspend.
+ * @enabled: operations during suspend.
+ *	     - DO_NOTHING_IN_SUSPEND
+ *	     - DISABLE_IN_SUSPEND
+ *	     - ENABLE_IN_SUSPEND
  */
 struct regulator_state {
 	int uV;	/* suspend voltage */
 	unsigned int mode; /* suspend regulator operating mode */
-	int enabled; /* is regulator enabled in this suspend state */
-	int disabled; /* is the regulator disabled in this suspend state */
+	int enabled;
 };
 
 /**
