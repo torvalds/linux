@@ -328,7 +328,7 @@ static int help_show(struct seq_file *m, void *v)
 /*
  * initialize the client-debug file.
  */
-int orangefs_client_debug_init(void)
+static int orangefs_client_debug_init(void)
 {
 
 	int rc = -ENOMEM;
