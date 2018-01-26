@@ -66,6 +66,8 @@ struct rockchip_drm_mode_set {
 	int vdisplay;
 	int vrefresh;
 	int flags;
+	int crtc_hsync_end;
+	int crtc_vsync_end;
 
 	int left_margin;
 	int right_margin;
@@ -393,6 +395,12 @@ of_parse_display_resource(struct drm_device *drm_dev, struct device_node *route)
 	if (!of_property_read_u32(route, "video,vdisplay", &val))
 		set->vdisplay = val;
 
+	if (!of_property_read_u32(route, "video,crtc_hsync_end", &val))
+		set->crtc_hsync_end = val;
+
+	if (!of_property_read_u32(route, "video,crtc_vsync_end", &val))
+		set->crtc_vsync_end = val;
+
 	if (!of_property_read_u32(route, "video,vrefresh", &val))
 		set->vrefresh = val;
 
@@ -468,12 +476,14 @@ int setup_initial_state(struct drm_device *drm_dev,
 		dev_err(drm_dev->dev, "connector[%s] can't found any modes\n",
 			connector->name);
 		ret = -EINVAL;
-		goto error;
+		goto error_conn;
 	}
 
 	list_for_each_entry(mode, &connector->modes, head) {
 		if (mode->hdisplay == set->hdisplay &&
 		    mode->vdisplay == set->vdisplay &&
+		    mode->crtc_hsync_end == set->crtc_hsync_end &&
+		    mode->crtc_vsync_end == set->crtc_vsync_end &&
 		    drm_mode_vrefresh(mode) == set->vrefresh &&
 		    mode->flags == set->flags) {
 			found = 1;
@@ -483,30 +493,15 @@ int setup_initial_state(struct drm_device *drm_dev,
 	}
 
 	if (!found) {
-		list_for_each_entry(mode, &connector->modes, head) {
-			if (mode->type & DRM_MODE_TYPE_PREFERRED) {
-				found = 1;
-				break;
-			}
-		}
-
-		if (!found) {
-			mode = list_first_entry_or_null(&connector->modes,
-							struct drm_display_mode,
-							head);
-			if (!mode) {
-				pr_err("failed to find available modes\n");
-				ret = -EINVAL;
-				goto error;
-			}
-		}
+		ret = -EINVAL;
+		goto error_conn;
 	}
 
 	set->mode = mode;
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	if (IS_ERR(crtc_state)) {
 		ret = PTR_ERR(crtc_state);
-		goto error;
+		goto error_conn;
 	}
 
 	drm_mode_copy(&crtc_state->adjusted_mode, mode);
@@ -515,11 +510,11 @@ int setup_initial_state(struct drm_device *drm_dev,
 	} else {
 		ret = drm_atomic_set_crtc_for_connector(conn_state, crtc);
 		if (ret)
-			goto error;
+			goto error_conn;
 
 		ret = drm_atomic_set_mode_for_crtc(crtc_state, mode);
 		if (ret)
-			goto error;
+			goto error_conn;
 
 		crtc_state->active = true;
 
@@ -530,12 +525,12 @@ int setup_initial_state(struct drm_device *drm_dev,
 
 	if (!set->fb) {
 		ret = 0;
-		goto error;
+		goto error_crtc;
 	}
 	primary_state = drm_atomic_get_plane_state(state, crtc->primary);
 	if (IS_ERR(primary_state)) {
 		ret = PTR_ERR(primary_state);
-		goto error;
+		goto error_crtc;
 	}
 
 	hdisplay = mode->hdisplay;
@@ -573,16 +568,16 @@ int setup_initial_state(struct drm_device *drm_dev,
 
 	return 0;
 
-error:
+error_crtc:
+	if (priv->crtc_funcs[pipe] && priv->crtc_funcs[pipe]->loader_protect)
+		priv->crtc_funcs[pipe]->loader_protect(crtc, false);
+error_conn:
 	if (funcs->loader_protect)
 		funcs->loader_protect(connector, false);
 	connector->loader_protect = false;
 	if (encoder_funcs->loader_protect)
 		encoder_funcs->loader_protect(conn_state->best_encoder, false);
 	conn_state->best_encoder->loader_protect = false;
-	if (priv->crtc_funcs[pipe] &&
-	    priv->crtc_funcs[pipe]->loader_protect)
-		priv->crtc_funcs[pipe]->loader_protect(crtc, false);
 
 	return ret;
 }
