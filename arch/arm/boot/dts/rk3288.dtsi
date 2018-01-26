@@ -1490,8 +1490,6 @@
 		reg = <0x0 0xff96c000 0x0 0x4000>;
 		clocks = <&cru PCLK_LVDS_PHY>;
 		clock-names = "pclk_lvds";
-		pinctrl-names = "lcdc";
-		pinctrl-0 = <&lcdc_ctl>;
 		power-domains = <&power RK3288_PD_VIO>;
 		rockchip,grf = <&grf>;
 		status = "disabled";
