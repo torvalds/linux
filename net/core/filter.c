@@ -3328,6 +3328,33 @@ static const struct bpf_func_proto bpf_getsockopt_proto = {
 	.arg5_type	= ARG_CONST_SIZE,
 };
 
+BPF_CALL_2(bpf_sock_ops_cb_flags_set, struct bpf_sock_ops_kern *, bpf_sock,
+	   int, argval)
+{
+	struct sock *sk = bpf_sock->sk;
+	int val = argval & BPF_SOCK_OPS_ALL_CB_FLAGS;
+
+	if (!sk_fullsock(sk))
+		return -EINVAL;
+
+#ifdef CONFIG_INET
+	if (val)
+		tcp_sk(sk)->bpf_sock_ops_cb_flags = val;
+
+	return argval & (~BPF_SOCK_OPS_ALL_CB_FLAGS);
+#else
+	return -EINVAL;
+#endif
+}
+
+static const struct bpf_func_proto bpf_sock_ops_cb_flags_set_proto = {
+	.func		= bpf_sock_ops_cb_flags_set,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+};
+
 static const struct bpf_func_proto *
 bpf_base_func_proto(enum bpf_func_id func_id)
 {
@@ -3510,6 +3537,8 @@ static const struct bpf_func_proto *
 		return &bpf_setsockopt_proto;
 	case BPF_FUNC_getsockopt:
 		return &bpf_getsockopt_proto;
+	case BPF_FUNC_sock_ops_cb_flags_set:
+		return &bpf_sock_ops_cb_flags_set_proto;
 	case BPF_FUNC_sock_map_update:
 		return &bpf_sock_map_update_proto;
 	default:
@@ -4545,6 +4574,11 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 
 	case offsetof(struct bpf_sock_ops, srtt_us):
 		SOCK_OPS_GET_FIELD(srtt_us, srtt_us, struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, bpf_sock_ops_cb_flags):
+		SOCK_OPS_GET_FIELD(bpf_sock_ops_cb_flags, bpf_sock_ops_cb_flags,
+				   struct tcp_sock);
 		break;
 	}
 	return insn - insn_buf;

@@ -642,6 +642,14 @@ union bpf_attr {
  *     @optlen: length of optval in bytes
  *     Return: 0 or negative error
  *
+ * int bpf_sock_ops_cb_flags_set(bpf_sock_ops, flags)
+ *     Set callback flags for sock_ops
+ *     @bpf_sock_ops: pointer to bpf_sock_ops_kern struct
+ *     @flags: flags value
+ *     Return: 0 for no error
+ *             -EINVAL if there is no full tcp socket
+ *             bits in flags that are not supported by current kernel
+ *
  * int bpf_skb_adjust_room(skb, len_diff, mode, flags)
  *     Grow or shrink room in sk_buff.
  *     @skb: pointer to skb
@@ -748,7 +756,8 @@ union bpf_attr {
 	FN(perf_event_read_value),	\
 	FN(perf_prog_read_value),	\
 	FN(getsockopt),			\
-	FN(override_return),
+	FN(override_return),		\
+	FN(sock_ops_cb_flags_set),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -969,7 +978,13 @@ struct bpf_sock_ops {
 				 */
 	__u32 snd_cwnd;
 	__u32 srtt_us;		/* Averaged RTT << 3 in usecs */
+	__u32 bpf_sock_ops_cb_flags; /* flags defined in uapi/linux/tcp.h */
 };
+
+/* Definitions for bpf_sock_ops_cb_flags */
+#define BPF_SOCK_OPS_ALL_CB_FLAGS       0		/* Mask of all currently
+							 * supported cb flags
+							 */
 
 /* List of known BPF sock_ops operators.
  * New entries can only be added at the end
