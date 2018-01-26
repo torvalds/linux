@@ -1,0 +1,43 @@
+Spreadtrum SC2731 Voltage regulators
+
+The SC2731 integrates low-voltage and low quiescent current DCDC/LDO.
+14 LDO and 3 DCDCs are designed for external use. All DCDCs/LDOs have
+their own bypass (power-down) control signals. External tantalum or MLCC
+ceramic capacitors are recommended to use with these LDOs.
+
+Required properties:
+ - compatible: should be "sprd,sc27xx-regulator".
+
+List of regulators provided by this controller. It is named according to
+its regulator type, BUCK_<name> and LDO_<name>. The definition for each
+of these nodes is defined using the standard binding for regulators at
+Documentation/devicetree/bindings/regulator/regulator.txt.
+
+The valid names for regulators are:
+BUCK:
+	BUCK_CPU0, BUCK_CPU1, BUCK_RF
+LDO:
+	LDO_CAMA0, LDO_CAMA1, LDO_CAMMOT, LDO_VLDO, LDO_EMMCCORE, LDO_SDCORE,
+	LDO_SDIO, LDO_WIFIPA, LDO_USB33, LDO_CAMD0, LDO_CAMD1, LDO_CON,
+	LDO_CAMIO, LDO_SRAM
+
+Example:
+	regulators {
+		compatible = "sprd,sc27xx-regulator";
+
+		vddarm0: BUCK_CPU0 {
+			regulator-name = "vddarm0";
+			regulator-min-microvolt = <400000>;
+			regulator-max-microvolt = <1996875>;
+			regulator-ramp-delay = <25000>;
+			regulator-always-on;
+		};
+
+		vddcama0: LDO_CAMA0 {
+			regulator-name = "vddcama0";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <3750000>;
+			regulator-enable-ramp-delay = <100>;
+		};
+		...
+	};
