@@ -65,6 +65,8 @@ iomap_apply(struct inode *inode, loff_t pos, loff_t length, unsigned flags,
 		return ret;
 	if (WARN_ON(iomap.offset > pos))
 		return -EIO;
+	if (WARN_ON(iomap.length == 0))
+		return -EIO;
 
 	/*
 	 * Cut down the length to the one actually provided by the filesystem,
