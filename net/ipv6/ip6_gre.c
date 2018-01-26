@@ -513,8 +513,8 @@ static int ip6erspan_rcv(struct sk_buff *skb, int gre_hdr_len,
 
 	ipv6h = ipv6_hdr(skb);
 	ershdr = (struct erspan_base_hdr *)skb->data;
-	ver = (ntohs(ershdr->ver_vlan) & VER_MASK) >> VER_OFFSET;
-	tpi->key = cpu_to_be32(ntohs(ershdr->session_id) & ID_MASK);
+	ver = ershdr->ver;
+	tpi->key = cpu_to_be32(get_session_id(ershdr));
 
 	tunnel = ip6gre_tunnel_lookup(skb->dev,
 				      &ipv6h->saddr, &ipv6h->daddr, tpi->key,
@@ -565,14 +565,8 @@ static int ip6erspan_rcv(struct sk_buff *skb, int gre_hdr_len,
 			if (ver == 1) {
 				tunnel->parms.index = ntohl(pkt_md->u.index);
 			} else {
-				u16 md2_flags;
-				u16 dir, hwid;
-
-				md2_flags = ntohs(pkt_md->u.md2.flags);
-				dir = (md2_flags & DIR_MASK) >> DIR_OFFSET;
-				hwid = (md2_flags & HWID_MASK) >> HWID_OFFSET;
-				tunnel->parms.dir = dir;
-				tunnel->parms.hwid = hwid;
+				tunnel->parms.dir = pkt_md->u.md2.dir;
+				tunnel->parms.hwid = get_hwid(&pkt_md->u.md2);
 			}
 
 			ip6_tnl_rcv(tunnel, skb, tpi, NULL, log_ecn_error);
@@ -925,6 +919,7 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 		struct ip_tunnel_info *tun_info;
 		const struct ip_tunnel_key *key;
 		struct erspan_metadata *md;
+		__be32 tun_id;
 
 		tun_info = skb_tunnel_info(skb);
 		if (unlikely(!tun_info ||
@@ -944,23 +939,18 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 		if (!md)
 			goto tx_err;
 
+		tun_id = tunnel_id_to_key32(key->tun_id);
 		if (md->version == 1) {
 			erspan_build_header(skb,
-					    tunnel_id_to_key32(key->tun_id),
+					    ntohl(tun_id),
 					    ntohl(md->u.index), truncate,
 					    false);
 		} else if (md->version == 2) {
-			u16 md2_flags;
-			u16 dir, hwid;
-
-			md2_flags = ntohs(md->u.md2.flags);
-			dir = (md2_flags & DIR_MASK) >> DIR_OFFSET;
-			hwid = (md2_flags & HWID_MASK) >> HWID_OFFSET;
-
 			erspan_build_header_v2(skb,
-					       tunnel_id_to_key32(key->tun_id),
-					       dir, hwid, truncate,
-					       false);
+					       ntohl(tun_id),
+					       md->u.md2.dir,
+					       get_hwid(&md->u.md2),
+					       truncate, false);
 		}
 	} else {
 		switch (skb->protocol) {
@@ -982,11 +972,11 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 		}
 
 		if (t->parms.erspan_ver == 1)
-			erspan_build_header(skb, t->parms.o_key,
+			erspan_build_header(skb, ntohl(t->parms.o_key),
 					    t->parms.index,
 					    truncate, false);
 		else
-			erspan_build_header_v2(skb, t->parms.o_key,
+			erspan_build_header_v2(skb, ntohl(t->parms.o_key),
 					       t->parms.dir,
 					       t->parms.hwid,
 					       truncate, false);
