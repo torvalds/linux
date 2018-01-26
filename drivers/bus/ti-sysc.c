@@ -816,7 +816,7 @@ static const struct sysc_regbits sysc_regbits_omap36xx_sr = {
 
 static const struct sysc_capabilities sysc_36xx_sr = {
 	.type = TI_SYSC_OMAP36XX_SR,
-	.sysc_mask = SYSC_OMAP2_ENAWAKEUP,
+	.sysc_mask = SYSC_OMAP3_SR_ENAWAKEUP,
 	.regbits = &sysc_regbits_omap36xx_sr,
 	.mod_quirks = SYSC_QUIRK_UNCACHED,
 };
