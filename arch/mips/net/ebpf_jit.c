@@ -860,11 +860,6 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			break;
 		case BPF_DIV:
 		case BPF_MOD:
-			b_off = b_imm(exit_idx, ctx);
-			if (is_bad_offset(b_off))
-				return -E2BIG;
-			emit_instr(ctx, beq, src, MIPS_R_ZERO, b_off);
-			emit_instr(ctx, movz, MIPS_R_V0, MIPS_R_ZERO, src);
 			emit_instr(ctx, ddivu, dst, src);
 			if (bpf_op == BPF_DIV)
 				emit_instr(ctx, mflo, dst);
@@ -943,11 +938,6 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			break;
 		case BPF_DIV:
 		case BPF_MOD:
-			b_off = b_imm(exit_idx, ctx);
-			if (is_bad_offset(b_off))
-				return -E2BIG;
-			emit_instr(ctx, beq, src, MIPS_R_ZERO, b_off);
-			emit_instr(ctx, movz, MIPS_R_V0, MIPS_R_ZERO, src);
 			emit_instr(ctx, divu, dst, src);
 			if (bpf_op == BPF_DIV)
 				emit_instr(ctx, mflo, dst);
