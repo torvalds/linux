@@ -5,7 +5,15 @@ then
   exit 1;
 fi
 
-if [[ -z "$(which arm-linux-gnueabihf-gcc)" ]];then echo "please install gcc-arm-linux-gnueabihf";exit 1;fi
+crosscompile=0
+if [[ -z $(cat /proc/cpuinfo | grep -i 'model name.*ArmV7') ]];
+then
+  echo do crosscompile;
+  if [[ -z "$(which arm-linux-gnueabihf-gcc)" ]];then echo "please install gcc-arm-linux-gnueabihf";exit 1;fi
+
+  export ARCH=arm;export CROSS_COMPILE=arm-linux-gnueabihf-
+  crosscompile=1
+fi;
 if [[ -z "$(which mkimage)" ]];then echo "please install u-boot-tools";exit 1;fi
 
 function prepare_SD
@@ -47,7 +55,6 @@ then
   #git reset --hard v4.14
   CFLAGS=-j$(grep ^processor /proc/cpuinfo  | wc -l)
   #export INSTALL_MOD_PATH=$(dirname $(pwd))/mod/;
-  export ARCH=arm;export CROSS_COMPILE=arm-linux-gnueabihf-
 #  if [[ ! -z ${#INSTALL_MOD_PATH}  ]]; then
 #    rm -r $INSTALL_MOD_PATH/lib/modules 2>/dev/null
 #    #echo $INSTALL_MOD_PATH
@@ -101,7 +108,12 @@ then
       cat arch/arm/boot/zImage arch/arm/boot/dts/mt7623n-bananapi-bpi-r2.dtb > arch/arm/boot/zImage-dtb
       mkimage -A arm -O linux -T kernel -C none -a 80008000 -e 80008000 -n "Linux Kernel $kernver-$gitbranch" -d arch/arm/boot/zImage-dtb ./uImage
       echo "==========================================="
-      echo -e "1) pack\n2) install to SD-Card"
+      echo "1) pack"
+      if [[ $crosscompile -eq 0 ]];then
+        echo "2) install to System"
+      else
+        echo "2) install to SD-Card"
+      fi;
       read -n1 -p "choice [12]:" choice
       echo
       if [[ "$choice" == "1" ]]; then
@@ -115,27 +127,40 @@ then
         ls -lh $(pwd)"/"$fname
         cd $olddir
       elif [[ "$choice" == "2" ]];then
-        read -p "Press [enter] to copy data to SD-Card..."
-        if  [[ -d /media/$USER/BPI-BOOT ]];
+        if [[ $crosscompile -eq 0 ]];
         then
-		  kernelfile=/media/$USER/BPI-BOOT/bananapi/bpi-r2/linux/uImage
+          kernelfile=/boot/bananapi/bpi-r2/linux/uImage
           if [[ -e $kernelfile ]];then
 		    echo "backup of kernel: $kernelfile.bak"
 		    cp $kernelfile $kernelfile.bak
+            cp ./uImage $kernelfile
+            sudo make modules_install
+          else
+            echo "actual Kernel not found...is /boot mounted?"
 		  fi
-		  echo "copy new kernel"
-          cp ./uImage /media/$USER/BPI-BOOT/bananapi/bpi-r2/linux/uImage
-		  echo "copy modules (root needed because of ext-fs permission)"
-          export INSTALL_MOD_PATH=/media/$USER/BPI-ROOT/;
-          echo "INSTALL_MOD_PATH: $INSTALL_MOD_PATH"
-          sudo make ARCH=$ARCH INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
-          #sudo cp -r ../mod/lib/modules /media/$USER/BPI-ROOT/lib/
-          if [[ -n "$(grep 'CONFIG_MT76=' .config)" ]];then
-            echo "MT76 set,don't forget the firmware-files...";
-          fi
-          sync
         else
-          echo "SD-Card not found!"
+          read -p "Press [enter] to copy data to SD-Card..."
+          if  [[ -d /media/$USER/BPI-BOOT ]];
+          then
+            kernelfile=/media/$USER/BPI-BOOT/bananapi/bpi-r2/linux/uImage
+            if [[ -e $kernelfile ]];then
+		      echo "backup of kernel: $kernelfile.bak"
+		      cp $kernelfile $kernelfile.bak
+		    fi
+		    echo "copy new kernel"
+            cp ./uImage /media/$USER/BPI-BOOT/bananapi/bpi-r2/linux/uImage
+            echo "copy modules (root needed because of ext-fs permission)"
+            export INSTALL_MOD_PATH=/media/$USER/BPI-ROOT/;
+            echo "INSTALL_MOD_PATH: $INSTALL_MOD_PATH"
+            sudo make ARCH=$ARCH INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
+            #sudo cp -r ../mod/lib/modules /media/$USER/BPI-ROOT/lib/
+            if [[ -n "$(grep 'CONFIG_MT76=' .config)" ]];then
+              echo "MT76 set,don't forget the firmware-files...";
+            fi
+            sync
+          else
+            echo "SD-Card not found!"
+          fi
         fi
       else
         echo "wrong option: $choice"
