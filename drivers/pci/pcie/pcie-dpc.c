@@ -281,7 +281,7 @@ static irqreturn_t dpc_irq(int irq, void *context)
 		 (ext_reason == 1) ? "software trigger" :
 				     "reserved error");
 	/* show RP PIO error detail information */
-	if (reason == 3 && ext_reason == 0)
+	if (dpc->rp_extensions && reason == 3 && ext_reason == 0)
 		dpc_process_rp_pio_error(dpc);
 
 	schedule_work(&dpc->work);
