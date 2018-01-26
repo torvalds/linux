@@ -463,11 +463,10 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 	if (op->downcall.type != ORANGEFS_VFS_OP_READDIR)
 		goto wakeup;
 
-	op->downcall.trailer_buf = vmalloc(op->downcall.trailer_size);
+	op->downcall.trailer_buf = vzalloc(op->downcall.trailer_size);
 	if (!op->downcall.trailer_buf)
 		goto Enomem;
 
-	memset(op->downcall.trailer_buf, 0, op->downcall.trailer_size);
 	if (!copy_from_iter_full(op->downcall.trailer_buf,
 			         op->downcall.trailer_size, iter)) {
 		gossip_err("%s: failed to copy trailer.\n", __func__);
