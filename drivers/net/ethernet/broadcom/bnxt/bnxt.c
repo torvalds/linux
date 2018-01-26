@@ -6082,8 +6082,14 @@ static void bnxt_disable_napi(struct bnxt *bp)
 	if (!bp->bnapi)
 		return;
 
-	for (i = 0; i < bp->cp_nr_rings; i++)
+	for (i = 0; i < bp->cp_nr_rings; i++) {
+		struct bnxt_cp_ring_info *cpr = &bp->bnapi[i]->cp_ring;
+
+		if (bp->bnapi[i]->rx_ring)
+			cancel_work_sync(&cpr->dim.work);
+
 		napi_disable(&bp->bnapi[i]->napi);
+	}
 }
 
 static void bnxt_enable_napi(struct bnxt *bp)
