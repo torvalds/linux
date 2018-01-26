@@ -252,12 +252,12 @@ static inline int smc_uncompress_bufsize(u8 compressed)
 static inline bool using_ipsec(struct smc_sock *smc)
 {
 	return (smc->clcsock->sk->sk_policy[0] ||
-		smc->clcsock->sk->sk_policy[1]) ? 1 : 0;
+		smc->clcsock->sk->sk_policy[1]) ? true : false;
 }
 #else
 static inline bool using_ipsec(struct smc_sock *smc)
 {
-	return 0;
+	return false;
 }
 #endif
 
