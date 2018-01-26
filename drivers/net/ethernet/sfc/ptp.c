@@ -366,7 +366,7 @@ bool efx_ptp_use_mac_tx_timestamps(struct efx_nic *efx)
 /* PTP 'extra' channel is still a traffic channel, but we only create TX queues
  * if PTP uses MAC TX timestamps, not if PTP uses the MC directly to transmit.
  */
-bool efx_ptp_want_txqs(struct efx_channel *channel)
+static bool efx_ptp_want_txqs(struct efx_channel *channel)
 {
 	return efx_ptp_use_mac_tx_timestamps(channel->efx);
 }
@@ -2146,7 +2146,7 @@ static int efx_phc_enable(struct ptp_clock_info *ptp,
 	return 0;
 }
 
-const struct efx_channel_type efx_ptp_channel_type = {
+static const struct efx_channel_type efx_ptp_channel_type = {
 	.handle_no_channel	= efx_ptp_handle_no_channel,
 	.pre_probe		= efx_ptp_probe_channel,
 	.post_remove		= efx_ptp_remove_channel,
