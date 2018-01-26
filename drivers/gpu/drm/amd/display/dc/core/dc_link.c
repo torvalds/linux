@@ -127,6 +127,8 @@ static bool program_hpd_filter(
 	int delay_on_connect_in_ms = 0;
 	int delay_on_disconnect_in_ms = 0;
 
+	if (link->is_hpd_filter_disabled)
+		return false;
 	/* Verify feature is supported */
 	switch (link->connector_signal) {
 	case SIGNAL_TYPE_DVI_SINGLE_LINK:
@@ -2344,5 +2346,35 @@ void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 		return;
 
 	core_dc->hwss.set_avmute(pipe_ctx, enable);
+}
+
+void dc_link_disable_hpd_filter(struct dc_link *link)
+{
+	struct gpio *hpd;
+
+	if (!link->is_hpd_filter_disabled) {
+		link->is_hpd_filter_disabled = true;
+		/* Obtain HPD handle */
+		hpd = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
+
+		if (!hpd)
+			return;
+
+		/* Setup HPD filtering */
+		if (dal_gpio_open(hpd, GPIO_MODE_INTERRUPT) == GPIO_RESULT_OK) {
+			struct gpio_hpd_config config;
+
+			config.delay_on_connect = 0;
+			config.delay_on_disconnect = 0;
+
+			dal_irq_setup_hpd_filter(hpd, &config);
+
+			dal_gpio_close(hpd);
+		} else {
+			ASSERT_CRITICAL(false);
+		}
+		/* Release HPD handle */
+		dal_gpio_destroy_irq(&hpd);
+	}
 }
 
