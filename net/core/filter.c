@@ -3845,8 +3845,7 @@ static bool sock_ops_is_valid_access(int off, int size,
 {
 	if (type == BPF_WRITE) {
 		switch (off) {
-		case offsetof(struct bpf_sock_ops, op) ...
-		     offsetof(struct bpf_sock_ops, replylong[3]):
+		case offsetof(struct bpf_sock_ops, reply):
 			break;
 		default:
 			return false;
