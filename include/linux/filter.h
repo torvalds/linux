@@ -1003,6 +1003,7 @@ struct bpf_sock_ops_kern {
 	struct	sock *sk;
 	u32	op;
 	union {
+		u32 args[4];
 		u32 reply;
 		u32 replylong[4];
 	};

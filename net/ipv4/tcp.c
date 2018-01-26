@@ -463,7 +463,7 @@ void tcp_init_transfer(struct sock *sk, int bpf_op)
 	tcp_mtup_init(sk);
 	icsk->icsk_af_ops->rebuild_header(sk);
 	tcp_init_metrics(sk);
-	tcp_call_bpf(sk, bpf_op);
+	tcp_call_bpf(sk, bpf_op, 0, NULL);
 	tcp_init_congestion_control(sk);
 	tcp_init_buffer_space(sk);
 }

@@ -952,8 +952,9 @@ struct bpf_map_info {
 struct bpf_sock_ops {
 	__u32 op;
 	union {
-		__u32 reply;
-		__u32 replylong[4];
+		__u32 args[4];		/* Optionally passed to bpf program */
+		__u32 reply;		/* Returned by bpf program	    */
+		__u32 replylong[4];	/* Optionally returned by bpf prog  */
 	};
 	__u32 family;
 	__u32 remote_ip4;	/* Stored in network byte order */
