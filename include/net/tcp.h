@@ -2011,7 +2011,7 @@ static inline int tcp_call_bpf(struct sock *sk, int op)
 	struct bpf_sock_ops_kern sock_ops;
 	int ret;
 
-	memset(&sock_ops, 0, sizeof(sock_ops));
+	memset(&sock_ops, 0, offsetof(struct bpf_sock_ops_kern, temp));
 	if (sk_fullsock(sk)) {
 		sock_ops.is_fullsock = 1;
 		sock_owned_by_me(sk);

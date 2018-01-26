@@ -4491,6 +4491,54 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 				      offsetof(OBJ, OBJ_FIELD));	      \
 	} while (0)
 
+/* Helper macro for adding write access to tcp_sock or sock fields.
+ * The macro is called with two registers, dst_reg which contains a pointer
+ * to ctx (context) and src_reg which contains the value that should be
+ * stored. However, we need an additional register since we cannot overwrite
+ * dst_reg because it may be used later in the program.
+ * Instead we "borrow" one of the other register. We first save its value
+ * into a new (temp) field in bpf_sock_ops_kern, use it, and then restore
+ * it at the end of the macro.
+ */
+#define SOCK_OPS_SET_FIELD(BPF_FIELD, OBJ_FIELD, OBJ)			      \
+	do {								      \
+		int reg = BPF_REG_9;					      \
+		BUILD_BUG_ON(FIELD_SIZEOF(OBJ, OBJ_FIELD) >		      \
+			     FIELD_SIZEOF(struct bpf_sock_ops, BPF_FIELD));   \
+		if (si->dst_reg == reg || si->src_reg == reg)		      \
+			reg--;						      \
+		if (si->dst_reg == reg || si->src_reg == reg)		      \
+			reg--;						      \
+		*insn++ = BPF_STX_MEM(BPF_DW, si->dst_reg, reg,		      \
+				      offsetof(struct bpf_sock_ops_kern,      \
+					       temp));			      \
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(			      \
+						struct bpf_sock_ops_kern,     \
+						is_fullsock),		      \
+				      reg, si->dst_reg,			      \
+				      offsetof(struct bpf_sock_ops_kern,      \
+					       is_fullsock));		      \
+		*insn++ = BPF_JMP_IMM(BPF_JEQ, reg, 0, 2);		      \
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(			      \
+						struct bpf_sock_ops_kern, sk),\
+				      reg, si->dst_reg,			      \
+				      offsetof(struct bpf_sock_ops_kern, sk));\
+		*insn++ = BPF_STX_MEM(BPF_FIELD_SIZEOF(OBJ, OBJ_FIELD),	      \
+				      reg, si->src_reg,			      \
+				      offsetof(OBJ, OBJ_FIELD));	      \
+		*insn++ = BPF_LDX_MEM(BPF_DW, reg, si->dst_reg,		      \
+				      offsetof(struct bpf_sock_ops_kern,      \
+					       temp));			      \
+	} while (0)
+
+#define SOCK_OPS_GET_OR_SET_FIELD(BPF_FIELD, OBJ_FIELD, OBJ, TYPE)	      \
+	do {								      \
+		if (TYPE == BPF_WRITE)					      \
+			SOCK_OPS_SET_FIELD(BPF_FIELD, OBJ_FIELD, OBJ);	      \
+		else							      \
+			SOCK_OPS_GET_FIELD(BPF_FIELD, OBJ_FIELD, OBJ);	      \
+	} while (0)
+
 	case offsetof(struct bpf_sock_ops, snd_cwnd):
 		SOCK_OPS_GET_FIELD(snd_cwnd, snd_cwnd, struct tcp_sock);
 		break;
