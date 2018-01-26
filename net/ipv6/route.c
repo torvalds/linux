@@ -2440,7 +2440,8 @@ static int ip6_convert_metrics(struct mx6_config *mxc,
 
 static struct rt6_info *ip6_nh_lookup_table(struct net *net,
 					    struct fib6_config *cfg,
-					    const struct in6_addr *gw_addr)
+					    const struct in6_addr *gw_addr,
+					    u32 tbid, int flags)
 {
 	struct flowi6 fl6 = {
 		.flowi6_oif = cfg->fc_ifindex,
@@ -2449,15 +2450,15 @@ static struct rt6_info *ip6_nh_lookup_table(struct net *net,
 	};
 	struct fib6_table *table;
 	struct rt6_info *rt;
-	int flags = RT6_LOOKUP_F_IFACE | RT6_LOOKUP_F_IGNORE_LINKSTATE;
 
-	table = fib6_get_table(net, cfg->fc_table);
+	table = fib6_get_table(net, tbid);
 	if (!table)
 		return NULL;
 
 	if (!ipv6_addr_any(&cfg->fc_prefsrc))
 		flags |= RT6_LOOKUP_F_HAS_SADDR;
 
+	flags |= RT6_LOOKUP_F_IGNORE_LINKSTATE;
 	rt = ip6_pol_route(net, table, cfg->fc_ifindex, &fl6, flags);
 
 	/* if table lookup failed, fall back to full lookup */
@@ -2467,6 +2468,82 @@ static struct rt6_info *ip6_nh_lookup_table(struct net *net,
 	}
 
 	return rt;
+}
+
+static int ip6_route_check_nh_onlink(struct net *net,
+				     struct fib6_config *cfg,
+				     struct net_device *dev,
+				     struct netlink_ext_ack *extack)
+{
+	u32 tbid = l3mdev_fib_table(dev) ? : RT_TABLE_LOCAL;
+	const struct in6_addr *gw_addr = &cfg->fc_gateway;
+	u32 flags = RTF_LOCAL | RTF_ANYCAST | RTF_REJECT;
+	struct rt6_info *grt;
+	int err;
+
+	err = 0;
+	grt = ip6_nh_lookup_table(net, cfg, gw_addr, tbid, 0);
+	if (grt) {
+		if (grt->rt6i_flags & flags || dev != grt->dst.dev) {
+			NL_SET_ERR_MSG(extack, "Nexthop has invalid gateway");
+			err = -EINVAL;
+		}
+
+		ip6_rt_put(grt);
+	}
+
+	return err;
+}
+
+static int ip6_route_check_nh(struct net *net,
+			      struct fib6_config *cfg,
+			      struct net_device **_dev,
+			      struct inet6_dev **idev)
+{
+	const struct in6_addr *gw_addr = &cfg->fc_gateway;
+	struct net_device *dev = _dev ? *_dev : NULL;
+	struct rt6_info *grt = NULL;
+	int err = -EHOSTUNREACH;
+
+	if (cfg->fc_table) {
+		int flags = RT6_LOOKUP_F_IFACE;
+
+		grt = ip6_nh_lookup_table(net, cfg, gw_addr,
+					  cfg->fc_table, flags);
+		if (grt) {
+			if (grt->rt6i_flags & RTF_GATEWAY ||
+			    (dev && dev != grt->dst.dev)) {
+				ip6_rt_put(grt);
+				grt = NULL;
+			}
+		}
+	}
+
+	if (!grt)
+		grt = rt6_lookup(net, gw_addr, NULL, cfg->fc_ifindex, 1);
+
+	if (!grt)
+		goto out;
+
+	if (dev) {
+		if (dev != grt->dst.dev) {
+			ip6_rt_put(grt);
+			goto out;
+		}
+	} else {
+		*_dev = dev = grt->dst.dev;
+		*idev = grt->rt6i_idev;
+		dev_hold(dev);
+		in6_dev_hold(grt->rt6i_idev);
+	}
+
+	if (!(grt->rt6i_flags & RTF_GATEWAY))
+		err = 0;
+
+	ip6_rt_put(grt);
+
+out:
+	return err;
 }
 
 static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
@@ -2519,6 +2596,21 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 
 	if (cfg->fc_metric == 0)
 		cfg->fc_metric = IP6_RT_PRIO_USER;
+
+	if (cfg->fc_flags & RTNH_F_ONLINK) {
+		if (!dev) {
+			NL_SET_ERR_MSG(extack,
+				       "Nexthop device required for onlink");
+			err = -ENODEV;
+			goto out;
+		}
+
+		if (!(dev->flags & IFF_UP)) {
+			NL_SET_ERR_MSG(extack, "Nexthop device is not up");
+			err = -ENETDOWN;
+			goto out;
+		}
+	}
 
 	err = -ENOBUFS;
 	if (cfg->fc_nlinfo.nlh &&
@@ -2664,8 +2756,6 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 		rt->rt6i_gateway = *gw_addr;
 
 		if (gwa_type != (IPV6_ADDR_LINKLOCAL|IPV6_ADDR_UNICAST)) {
-			struct rt6_info *grt = NULL;
-
 			/* IPv6 strictly inhibits using not link-local
 			   addresses as nexthop address.
 			   Otherwise, router will not able to send redirects.
@@ -2682,40 +2772,12 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 				goto out;
 			}
 
-			if (cfg->fc_table) {
-				grt = ip6_nh_lookup_table(net, cfg, gw_addr);
-
-				if (grt) {
-					if (grt->rt6i_flags & RTF_GATEWAY ||
-					    (dev && dev != grt->dst.dev)) {
-						ip6_rt_put(grt);
-						grt = NULL;
-					}
-				}
-			}
-
-			if (!grt)
-				grt = rt6_lookup(net, gw_addr, NULL,
-						 cfg->fc_ifindex, 1);
-
-			err = -EHOSTUNREACH;
-			if (!grt)
-				goto out;
-			if (dev) {
-				if (dev != grt->dst.dev) {
-					ip6_rt_put(grt);
-					goto out;
-				}
+			if (cfg->fc_flags & RTNH_F_ONLINK) {
+				err = ip6_route_check_nh_onlink(net, cfg, dev,
+								extack);
 			} else {
-				dev = grt->dst.dev;
-				idev = grt->rt6i_idev;
-				dev_hold(dev);
-				in6_dev_hold(grt->rt6i_idev);
+				err = ip6_route_check_nh(net, cfg, &dev, &idev);
 			}
-			if (!(grt->rt6i_flags & RTF_GATEWAY))
-				err = 0;
-			ip6_rt_put(grt);
-
 			if (err)
 				goto out;
 		}
@@ -2757,6 +2819,7 @@ install_route:
 	if (!(rt->rt6i_flags & (RTF_LOCAL | RTF_ANYCAST)) &&
 	    !netif_carrier_ok(dev))
 		rt->rt6i_nh_flags |= RTNH_F_LINKDOWN;
+	rt->rt6i_nh_flags |= (cfg->fc_flags & RTNH_F_ONLINK);
 	rt->dst.dev = dev;
 	rt->rt6i_idev = idev;
 	rt->rt6i_table = table;
@@ -3826,6 +3889,8 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (rtm->rtm_flags & RTM_F_CLONED)
 		cfg->fc_flags |= RTF_CACHE;
 
+	cfg->fc_flags |= (rtm->rtm_flags & RTNH_F_ONLINK);
+
 	cfg->fc_nlinfo.portid = NETLINK_CB(skb).portid;
 	cfg->fc_nlinfo.nlh = nlh;
 	cfg->fc_nlinfo.nl_net = sock_net(skb->sk);
@@ -4231,6 +4296,7 @@ static int rt6_nexthop_info(struct sk_buff *skb, struct rt6_info *rt,
 			goto nla_put_failure;
 	}
 
+	*flags |= (rt->rt6i_nh_flags & RTNH_F_ONLINK);
 	if (rt->rt6i_nh_flags & RTNH_F_OFFLOAD)
 		*flags |= RTNH_F_OFFLOAD;
 
