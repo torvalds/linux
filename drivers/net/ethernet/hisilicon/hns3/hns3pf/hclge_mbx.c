@@ -116,6 +116,9 @@ static int hclge_get_ring_chain_from_mbx(
 	hnae_set_bit(ring_chain->flag, HNAE3_RING_TYPE_B, req->msg[3]);
 	ring_chain->tqp_index =
 			hclge_get_queue_id(vport->nic.kinfo.tqp[req->msg[4]]);
+	hnae_set_field(ring_chain->int_gl_idx, HCLGE_INT_GL_IDX_M,
+		       HCLGE_INT_GL_IDX_S,
+		       req->msg[5]);
 
 	cur_chain = ring_chain;
 
@@ -132,6 +135,11 @@ static int hclge_get_ring_chain_from_mbx(
 		hclge_get_queue_id(vport->nic.kinfo.tqp
 			[req->msg[HCLGE_RING_NODE_VARIABLE_NUM * i +
 			HCLGE_RING_MAP_MBX_BASIC_MSG_NUM + 1]]);
+
+		hnae_set_field(new_chain->int_gl_idx, HCLGE_INT_GL_IDX_M,
+			       HCLGE_INT_GL_IDX_S,
+			       req->msg[HCLGE_RING_NODE_VARIABLE_NUM * i +
+			       HCLGE_RING_MAP_MBX_BASIC_MSG_NUM + 2]);
 
 		cur_chain->next = new_chain;
 		cur_chain = new_chain;

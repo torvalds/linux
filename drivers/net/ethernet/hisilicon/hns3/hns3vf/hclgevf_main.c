@@ -565,6 +565,11 @@ static int hclgevf_bind_ring_to_vector(struct hnae3_handle *handle, bool en,
 				hnae_get_bit(node->flag, HNAE3_RING_TYPE_B);
 		req->msg[HCLGEVF_RING_NODE_VARIABLE_NUM * i + 1] =
 				node->tqp_index;
+		req->msg[HCLGEVF_RING_NODE_VARIABLE_NUM * i + 2] =
+				hnae_get_field(node->int_gl_idx,
+					       HNAE3_RING_GL_IDX_M,
+					       HNAE3_RING_GL_IDX_S);
+
 		if (i == (HCLGE_MBX_VF_MSG_DATA_NUM -
 		    HCLGEVF_RING_MAP_MBX_BASIC_MSG_NUM) /
 		    HCLGEVF_RING_NODE_VARIABLE_NUM) {
