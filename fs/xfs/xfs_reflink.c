@@ -464,6 +464,13 @@ retry:
 	error = xfs_trans_commit(tp);
 	if (error)
 		return error;
+
+	/*
+	 * Allocation succeeded but the requested range was not even partially
+	 * satisfied?  Bail out!
+	 */
+	if (nimaps == 0)
+		return -ENOSPC;
 convert:
 	return xfs_reflink_convert_cow_extent(ip, imap, offset_fsb, count_fsb,
 			&dfops);
