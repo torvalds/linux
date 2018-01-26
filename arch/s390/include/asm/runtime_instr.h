@@ -85,6 +85,8 @@ static inline void restore_ri_cb(struct runtime_instr_cb *cb_next,
 		load_runtime_instr_cb(&runtime_instr_empty_cb);
 }
 
-void exit_thread_runtime_instr(void);
+struct task_struct;
+
+void runtime_instr_release(struct task_struct *tsk);
 
 #endif /* _RUNTIME_INSTR_H */

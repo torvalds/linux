@@ -180,6 +180,8 @@ static void decon_commit(struct exynos_drm_crtc *crtc)
 
 	/* enable output and display signal */
 	decon_set_bits(ctx, DECON_VIDCON0, VIDCON0_ENVID | VIDCON0_ENVID_F, ~0);
+
+	decon_set_bits(ctx, DECON_UPDATE, STANDALONE_UPDATE_F, ~0);
 }
 
 static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,

@@ -3,10 +3,26 @@
 #
 
 KASAN_SANITIZE_slab_common.o := n
+KASAN_SANITIZE_slab.o := n
 KASAN_SANITIZE_slub.o := n
 
 # Since __builtin_frame_address does work as used, disable the warning.
 CFLAGS_usercopy.o += $(call cc-disable-warning, frame-address)
+
+# These files are disabled because they produce non-interesting and/or
+# flaky coverage that is not a function of syscall inputs. E.g. slab is out of
+# free pages, or a task is migrated between nodes.
+KCOV_INSTRUMENT_slab_common.o := n
+KCOV_INSTRUMENT_slob.o := n
+KCOV_INSTRUMENT_slab.o := n
+KCOV_INSTRUMENT_slub.o := n
+KCOV_INSTRUMENT_page_alloc.o := n
+KCOV_INSTRUMENT_debug-pagealloc.o := n
+KCOV_INSTRUMENT_kmemleak.o := n
+KCOV_INSTRUMENT_kmemcheck.o := n
+KCOV_INSTRUMENT_memcontrol.o := n
+KCOV_INSTRUMENT_mmzone.o := n
+KCOV_INSTRUMENT_vmstat.o := n
 
 mmu-y			:= nommu.o
 mmu-$(CONFIG_MMU)	:= gup.o highmem.o memory.o mincore.o \

@@ -351,9 +351,24 @@ static void do_simple_tests(void)
 	install_invalid(&desc, false);
 
 	desc.seg_not_present = 0;
-	desc.read_exec_only = 0;
 	desc.seg_32bit = 1;
+	desc.read_exec_only = 0;
+	desc.limit = 0xfffff;
+
 	install_valid(&desc, AR_DPL3 | AR_TYPE_RWDATA | AR_S | AR_P | AR_DB);
+
+	desc.limit_in_pages = 1;
+
+	install_valid(&desc, AR_DPL3 | AR_TYPE_RWDATA | AR_S | AR_P | AR_DB | AR_G);
+	desc.read_exec_only = 1;
+	install_valid(&desc, AR_DPL3 | AR_TYPE_RODATA | AR_S | AR_P | AR_DB | AR_G);
+	desc.contents = 1;
+	desc.read_exec_only = 0;
+	install_valid(&desc, AR_DPL3 | AR_TYPE_RWDATA_EXPDOWN | AR_S | AR_P | AR_DB | AR_G);
+	desc.read_exec_only = 1;
+	install_valid(&desc, AR_DPL3 | AR_TYPE_RODATA_EXPDOWN | AR_S | AR_P | AR_DB | AR_G);
+
+	desc.limit = 0;
 	install_invalid(&desc, true);
 }
 

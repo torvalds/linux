@@ -450,6 +450,7 @@ struct iser_fr_desc {
 	struct list_head		  list;
 	struct iser_reg_resources	  rsc;
 	struct iser_pi_context		 *pi_ctx;
+	struct list_head                  all_list;
 };
 
 /**
@@ -463,6 +464,7 @@ struct iser_fr_pool {
 	struct list_head        list;
 	spinlock_t              lock;
 	int                     size;
+	struct list_head        all_list;
 };
 
 /**

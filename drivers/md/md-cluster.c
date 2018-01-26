@@ -821,6 +821,7 @@ static int leave(struct mddev *mddev)
 	lockres_free(cinfo->no_new_dev_lockres);
 	lockres_free(cinfo->bitmap_lockres);
 	dlm_release_lockspace(cinfo->lockspace, 2);
+	kfree(cinfo);
 	return 0;
 }
 

@@ -224,6 +224,8 @@
 #define TCR_TG1_16K		(UL(1) << 30)
 #define TCR_TG1_4K		(UL(2) << 30)
 #define TCR_TG1_64K		(UL(3) << 30)
+
+#define TCR_A1			(UL(1) << 22)
 #define TCR_ASID16		(UL(1) << 36)
 #define TCR_TBI0		(UL(1) << 37)
 #define TCR_HA			(UL(1) << 39)

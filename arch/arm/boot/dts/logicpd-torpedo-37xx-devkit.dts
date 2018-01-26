@@ -88,7 +88,7 @@
 	interrupts-extended = <&intc 83 &omap3_pmx_core 0x11a>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins &mmc1_cd>;
-	cd-gpios = <&gpio4 31 IRQ_TYPE_LEVEL_LOW>;		/* gpio127 */
+	cd-gpios = <&gpio4 31 GPIO_ACTIVE_LOW>;		/* gpio127 */
 	vmmc-supply = <&vmmc1>;
 	bus-width = <4>;
 	cap-power-off-card;

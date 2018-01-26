@@ -114,6 +114,7 @@ static struct vm_special_mapping vdso_spec[2];
 static int __init vdso_init(void)
 {
 	int i;
+	unsigned long pfn;
 
 	if (memcmp(&vdso_start, "\177ELF", 4)) {
 		pr_err("vDSO is not a valid ELF object!\n");
@@ -131,11 +132,14 @@ static int __init vdso_init(void)
 		return -ENOMEM;
 
 	/* Grab the vDSO data page. */
-	vdso_pagelist[0] = virt_to_page(vdso_data);
+	vdso_pagelist[0] = phys_to_page(__pa_symbol(vdso_data));
+
 
 	/* Grab the vDSO code pages. */
+	pfn = sym_to_pfn(&vdso_start);
+
 	for (i = 0; i < vdso_pages; i++)
-		vdso_pagelist[i + 1] = virt_to_page(&vdso_start + i * PAGE_SIZE);
+		vdso_pagelist[i + 1] = pfn_to_page(pfn + i);
 
 	/* Populate the special mapping structures */
 	vdso_spec[0] = (struct vm_special_mapping) {
@@ -214,10 +218,8 @@ void update_vsyscall(struct timekeeper *tk)
 	if (!use_syscall) {
 		/* tkr_mono.cycle_last == tkr_raw.cycle_last */
 		vdso_data->cs_cycle_last	= tk->tkr_mono.cycle_last;
-		vdso_data->raw_time_sec		= tk->raw_time.tv_sec;
-		vdso_data->raw_time_nsec	= (tk->raw_time.tv_nsec <<
-						   tk->tkr_raw.shift) +
-						  tk->tkr_raw.xtime_nsec;
+		vdso_data->raw_time_sec         = tk->raw_sec;
+		vdso_data->raw_time_nsec        = tk->tkr_raw.xtime_nsec;
 		vdso_data->xtime_clock_sec	= tk->xtime_sec;
 		vdso_data->xtime_clock_nsec	= tk->tkr_mono.xtime_nsec;
 		vdso_data->cs_mono_mult		= tk->tkr_mono.mult;

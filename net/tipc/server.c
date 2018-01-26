@@ -311,6 +311,7 @@ static int tipc_accept_from_sock(struct tipc_conn *con)
 	newcon->usr_data = s->tipc_conn_new(newcon->conid);
 	if (!newcon->usr_data) {
 		sock_release(newsock);
+		conn_put(newcon);
 		return -ENOMEM;
 	}
 
@@ -618,14 +619,12 @@ int tipc_server_start(struct tipc_server *s)
 void tipc_server_stop(struct tipc_server *s)
 {
 	struct tipc_conn *con;
-	int total = 0;
 	int id;
 
 	spin_lock_bh(&s->idr_lock);
-	for (id = 0; total < s->idr_in_use; id++) {
+	for (id = 0; s->idr_in_use; id++) {
 		con = idr_find(&s->conn_idr, id);
 		if (con) {
-			total++;
 			spin_unlock_bh(&s->idr_lock);
 			tipc_close_conn(con);
 			spin_lock_bh(&s->idr_lock);
