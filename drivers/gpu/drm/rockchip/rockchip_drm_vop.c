@@ -2825,6 +2825,9 @@ static void vop_post_config(struct drm_crtc *crtc)
 	u16 hact_end, vact_end;
 	u32 val;
 
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		vsize = rounddown(vsize, 2);
+
 	hact_st += hdisplay * (100 - s->left_margin) / 200;
 	hact_end = hact_st + hsize;
 	val = hact_st << 16;
