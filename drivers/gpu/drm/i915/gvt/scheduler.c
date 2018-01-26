@@ -1092,17 +1092,17 @@ int intel_vgpu_select_submission_ops(struct intel_vgpu *vgpu,
 	if (WARN_ON(interface >= ARRAY_SIZE(ops)))
 		return -EINVAL;
 
-	if (s->active) {
+	if (WARN_ON(interface == 0 && engine_mask != ALL_ENGINES))
+		return -EINVAL;
+
+	if (s->active)
 		s->ops->clean(vgpu, engine_mask);
-		s->active = false;
-		gvt_dbg_core("vgpu%d: de-select ops [ %s ] \n",
-				vgpu->id, s->ops->name);
-	}
 
 	if (interface == 0) {
 		s->ops = NULL;
 		s->virtual_submission_interface = 0;
-		gvt_dbg_core("vgpu%d: no submission ops\n", vgpu->id);
+		s->active = false;
+		gvt_dbg_core("vgpu%d: remove submission ops\n", vgpu->id);
 		return 0;
 	}
 
