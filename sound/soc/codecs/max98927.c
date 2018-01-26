@@ -682,7 +682,6 @@ static int max98927_probe(struct snd_soc_codec *codec)
 	struct max98927_priv *max98927 = snd_soc_codec_get_drvdata(codec);
 
 	max98927->codec = codec;
-	codec->control_data = max98927->regmap;
 
 	/* Software Reset */
 	regmap_write(max98927->regmap,
