@@ -819,7 +819,7 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	/* PD_BUS_TOP */
 	GATE(0, "pclk_top_niu", "pclk_top_pre", CLK_IGNORE_UNUSED, PX30_CLKGATE_CON(16), 0, GFLAGS),
 	GATE(0, "pclk_top_cru", "pclk_top_pre", CLK_IGNORE_UNUSED, PX30_CLKGATE_CON(16), 1, GFLAGS),
-	GATE(0, "pclk_otp_phy", "pclk_top_pre", CLK_IGNORE_UNUSED, PX30_CLKGATE_CON(16), 2, GFLAGS),
+	GATE(PCLK_OTP_PHY, "pclk_otp_phy", "pclk_top_pre", CLK_IGNORE_UNUSED, PX30_CLKGATE_CON(16), 2, GFLAGS),
 	GATE(0, "pclk_ddrphy", "pclk_top_pre", CLK_IGNORE_UNUSED, PX30_CLKGATE_CON(16), 3, GFLAGS),
 	GATE(PCLK_MIPIDSIPHY, "pclk_mipidsiphy", "pclk_top_pre", 0, PX30_CLKGATE_CON(16), 4, GFLAGS),
 	GATE(PCLK_MIPICSIPHY, "pclk_mipicsiphy", "pclk_top_pre", 0, PX30_CLKGATE_CON(16), 5, GFLAGS),
