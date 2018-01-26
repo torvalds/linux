@@ -105,7 +105,7 @@ static void dpc_wait_link_inactive(struct dpc_dev *dpc)
 		dev_warn(dev, "Link state not disabled for DPC event\n");
 }
 
-static void interrupt_event_handler(struct work_struct *work)
+static void dpc_work(struct work_struct *work)
 {
 	struct dpc_dev *dpc = container_of(work, struct dpc_dev, work);
 	struct pci_dev *dev, *temp, *pdev = dpc->dev->port;
@@ -319,7 +319,7 @@ static int dpc_probe(struct pcie_device *dev)
 
 	dpc->cap_pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_DPC);
 	dpc->dev = dev;
-	INIT_WORK(&dpc->work, interrupt_event_handler);
+	INIT_WORK(&dpc->work, dpc_work);
 	set_service_data(dev, dpc);
 
 	status = devm_request_irq(device, dev->irq, dpc_irq, IRQF_SHARED,
