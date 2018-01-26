@@ -21,7 +21,6 @@
 
 void smc_close_wake_tx_prepared(struct smc_sock *smc);
 int smc_close_active(struct smc_sock *smc);
-void smc_close_sock_put_work(struct work_struct *work);
 int smc_close_shutdown_write(struct smc_sock *smc);
 void smc_close_init(struct smc_sock *smc);
 

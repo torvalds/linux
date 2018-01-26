@@ -115,7 +115,6 @@ static int smc_release(struct socket *sock)
 		goto out;
 
 	smc = smc_sk(sk);
-	sock_hold(sk);
 	if (sk->sk_state == SMC_LISTEN)
 		/* smc_close_non_accepted() is called and acquires
 		 * sock lock for child sockets again
@@ -124,10 +123,7 @@ static int smc_release(struct socket *sock)
 	else
 		lock_sock(sk);
 
-	if (smc->use_fallback) {
-		sk->sk_state = SMC_CLOSED;
-		sk->sk_state_change(sk);
-	} else {
+	if (!smc->use_fallback) {
 		rc = smc_close_active(smc);
 		sock_set_flag(sk, SOCK_DEAD);
 		sk->sk_shutdown |= SHUTDOWN_MASK;
@@ -136,20 +132,21 @@ static int smc_release(struct socket *sock)
 		sock_release(smc->clcsock);
 		smc->clcsock = NULL;
 	}
+	if (smc->use_fallback) {
+		sock_put(sk); /* passive closing */
+		sk->sk_state = SMC_CLOSED;
+		sk->sk_state_change(sk);
+	}
 
 	/* detach socket */
 	sock_orphan(sk);
 	sock->sk = NULL;
-	if (smc->use_fallback) {
-		schedule_delayed_work(&smc->sock_put_work, TCP_TIMEWAIT_LEN);
-	} else if (sk->sk_state == SMC_CLOSED) {
+	if (!smc->use_fallback && sk->sk_state == SMC_CLOSED)
 		smc_conn_free(&smc->conn);
-		schedule_delayed_work(&smc->sock_put_work,
-				      SMC_CLOSE_SOCK_PUT_DELAY);
-	}
 	release_sock(sk);
 
-	sock_put(sk);
+	sk->sk_prot->unhash(sk);
+	sock_put(sk); /* final sock_put */
 out:
 	return rc;
 }
@@ -181,7 +178,6 @@ static struct sock *smc_sock_alloc(struct net *net, struct socket *sock)
 	INIT_WORK(&smc->tcp_listen_work, smc_tcp_listen_work);
 	INIT_LIST_HEAD(&smc->accept_q);
 	spin_lock_init(&smc->accept_q_lock);
-	INIT_DELAYED_WORK(&smc->sock_put_work, smc_close_sock_put_work);
 	sk->sk_prot->hash(sk);
 	sk_refcnt_debug_inc(sk);
 
@@ -399,6 +395,8 @@ static int smc_connect_rdma(struct smc_sock *smc)
 	int rc = 0;
 	u8 ibport;
 
+	sock_hold(&smc->sk); /* sock put in passive closing */
+
 	if (!tcp_sk(smc->clcsock->sk)->syn_smc) {
 		/* peer has not signalled SMC-capability */
 		smc->use_fallback = true;
@@ -542,6 +540,8 @@ out_err_unlock:
 	mutex_unlock(&smc_create_lgr_pending);
 	smc_conn_free(&smc->conn);
 out_err:
+	if (smc->sk.sk_state == SMC_INIT)
+		sock_put(&smc->sk); /* passive closing */
 	return rc;
 }
 
@@ -620,7 +620,7 @@ static int smc_clcsock_accept(struct smc_sock *lsmc, struct smc_sock **new_smc)
 		new_sk->sk_state = SMC_CLOSED;
 		sock_set_flag(new_sk, SOCK_DEAD);
 		new_sk->sk_prot->unhash(new_sk);
-		sock_put(new_sk);
+		sock_put(new_sk); /* final */
 		*new_smc = NULL;
 		goto out;
 	}
@@ -637,7 +637,7 @@ static void smc_accept_enqueue(struct sock *parent, struct sock *sk)
 {
 	struct smc_sock *par = smc_sk(parent);
 
-	sock_hold(sk);
+	sock_hold(sk); /* sock_put in smc_accept_unlink () */
 	spin_lock(&par->accept_q_lock);
 	list_add_tail(&smc_sk(sk)->accept_q, &par->accept_q);
 	spin_unlock(&par->accept_q_lock);
@@ -653,7 +653,7 @@ static void smc_accept_unlink(struct sock *sk)
 	list_del_init(&smc_sk(sk)->accept_q);
 	spin_unlock(&par->accept_q_lock);
 	sk_acceptq_removed(&smc_sk(sk)->listen_smc->sk);
-	sock_put(sk);
+	sock_put(sk); /* sock_hold in smc_accept_enqueue */
 }
 
 /* remove a sock from the accept queue to bind it to a new socket created
@@ -671,7 +671,7 @@ struct sock *smc_accept_dequeue(struct sock *parent,
 		smc_accept_unlink(new_sk);
 		if (new_sk->sk_state == SMC_CLOSED) {
 			new_sk->sk_prot->unhash(new_sk);
-			sock_put(new_sk);
+			sock_put(new_sk); /* final */
 			continue;
 		}
 		if (new_sock)
@@ -686,14 +686,11 @@ void smc_close_non_accepted(struct sock *sk)
 {
 	struct smc_sock *smc = smc_sk(sk);
 
-	sock_hold(sk);
 	lock_sock(sk);
 	if (!sk->sk_lingertime)
 		/* wait for peer closing */
 		sk->sk_lingertime = SMC_MAX_STREAM_WAIT_TIMEOUT;
-	if (smc->use_fallback) {
-		sk->sk_state = SMC_CLOSED;
-	} else {
+	if (!smc->use_fallback) {
 		smc_close_active(smc);
 		sock_set_flag(sk, SOCK_DEAD);
 		sk->sk_shutdown |= SHUTDOWN_MASK;
@@ -706,14 +703,15 @@ void smc_close_non_accepted(struct sock *sk)
 		sock_release(tcp);
 	}
 	if (smc->use_fallback) {
-		schedule_delayed_work(&smc->sock_put_work, TCP_TIMEWAIT_LEN);
-	} else if (sk->sk_state == SMC_CLOSED) {
-		smc_conn_free(&smc->conn);
-		schedule_delayed_work(&smc->sock_put_work,
-				      SMC_CLOSE_SOCK_PUT_DELAY);
+		sock_put(sk); /* passive closing */
+		sk->sk_state = SMC_CLOSED;
+	} else {
+		if (sk->sk_state == SMC_CLOSED)
+			smc_conn_free(&smc->conn);
 	}
 	release_sock(sk);
-	sock_put(sk);
+	sk->sk_prot->unhash(sk);
+	sock_put(sk); /* final sock_put */
 }
 
 static int smc_serv_conf_first_link(struct smc_sock *smc)
@@ -937,6 +935,8 @@ out_err_unlock:
 		smc_lgr_forget(new_smc->conn.lgr);
 	mutex_unlock(&smc_create_lgr_pending);
 out_err:
+	if (newsmcsk->sk_state == SMC_INIT)
+		sock_put(&new_smc->sk); /* passive closing */
 	newsmcsk->sk_state = SMC_CLOSED;
 	smc_conn_free(&new_smc->conn);
 	goto enqueue; /* queue new sock with sk_err set */
@@ -963,12 +963,15 @@ static void smc_tcp_listen_work(struct work_struct *work)
 		sock_hold(lsk); /* sock_put in smc_listen_work */
 		INIT_WORK(&new_smc->smc_listen_work, smc_listen_work);
 		smc_copy_sock_settings_to_smc(new_smc);
-		schedule_work(&new_smc->smc_listen_work);
+		sock_hold(&new_smc->sk); /* sock_put in passive closing */
+		if (!schedule_work(&new_smc->smc_listen_work))
+			sock_put(&new_smc->sk);
 	}
 
 out:
 	release_sock(lsk);
 	lsk->sk_data_ready(lsk); /* no more listening, wake accept */
+	sock_put(&lsmc->sk); /* sock_hold in smc_listen */
 }
 
 static int smc_listen(struct socket *sock, int backlog)
@@ -1002,7 +1005,9 @@ static int smc_listen(struct socket *sock, int backlog)
 	sk->sk_ack_backlog = 0;
 	sk->sk_state = SMC_LISTEN;
 	INIT_WORK(&smc->tcp_listen_work, smc_tcp_listen_work);
-	schedule_work(&smc->tcp_listen_work);
+	sock_hold(sk); /* sock_hold in tcp_listen_worker */
+	if (!schedule_work(&smc->tcp_listen_work))
+		sock_put(sk);
 
 out:
 	release_sock(sk);
@@ -1019,6 +1024,7 @@ static int smc_accept(struct socket *sock, struct socket *new_sock,
 	int rc = 0;
 
 	lsmc = smc_sk(sk);
+	sock_hold(sk); /* sock_put below */
 	lock_sock(sk);
 
 	if (lsmc->sk.sk_state != SMC_LISTEN) {
@@ -1053,6 +1059,7 @@ static int smc_accept(struct socket *sock, struct socket *new_sock,
 
 out:
 	release_sock(sk);
+	sock_put(sk); /* sock_hold above */
 	return rc;
 }
 

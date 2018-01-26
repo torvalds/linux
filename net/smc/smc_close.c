@@ -110,6 +110,7 @@ static void smc_close_active_abort(struct smc_sock *smc)
 		release_sock(sk);
 		cancel_delayed_work_sync(&smc->conn.tx_work);
 		lock_sock(sk);
+		sock_put(sk); /* passive closing */
 		break;
 	case SMC_APPCLOSEWAIT1:
 	case SMC_APPCLOSEWAIT2:
@@ -125,11 +126,13 @@ static void smc_close_active_abort(struct smc_sock *smc)
 	case SMC_PEERCLOSEWAIT1:
 	case SMC_PEERCLOSEWAIT2:
 		if (!txflags->peer_conn_closed) {
+			/* just SHUTDOWN_SEND done */
 			sk->sk_state = SMC_PEERABORTWAIT;
 			sock_release(smc->clcsock);
 		} else {
 			sk->sk_state = SMC_CLOSED;
 		}
+		sock_put(sk); /* passive closing */
 		break;
 	case SMC_PROCESSABORT:
 	case SMC_APPFINCLOSEWAIT:
@@ -138,6 +141,8 @@ static void smc_close_active_abort(struct smc_sock *smc)
 		sk->sk_state = SMC_CLOSED;
 		break;
 	case SMC_PEERFINCLOSEWAIT:
+		sock_put(sk); /* passive closing */
+		break;
 	case SMC_PEERABORTWAIT:
 	case SMC_CLOSED:
 		break;
@@ -229,12 +234,14 @@ again:
 		rc = smc_close_final(conn);
 		if (rc)
 			break;
-		if (smc_cdc_rxed_any_close(conn))
+		if (smc_cdc_rxed_any_close(conn)) {
 			/* peer has closed the socket already */
 			sk->sk_state = SMC_CLOSED;
-		else
+			sock_put(sk); /* postponed passive closing */
+		} else {
 			/* peer has just issued a shutdown write */
 			sk->sk_state = SMC_PEERFINCLOSEWAIT;
+		}
 		break;
 	case SMC_PEERCLOSEWAIT1:
 	case SMC_PEERCLOSEWAIT2:
@@ -272,27 +279,33 @@ static void smc_close_passive_abort_received(struct smc_sock *smc)
 	struct sock *sk = &smc->sk;
 
 	switch (sk->sk_state) {
+	case SMC_INIT:
 	case SMC_ACTIVE:
-	case SMC_APPFINCLOSEWAIT:
 	case SMC_APPCLOSEWAIT1:
-	case SMC_APPCLOSEWAIT2:
+		sk->sk_state = SMC_PROCESSABORT;
+		sock_put(sk); /* passive closing */
+		break;
+	case SMC_APPFINCLOSEWAIT:
 		sk->sk_state = SMC_PROCESSABORT;
 		break;
 	case SMC_PEERCLOSEWAIT1:
 	case SMC_PEERCLOSEWAIT2:
 		if (txflags->peer_done_writing &&
-		    !smc_close_sent_any_close(&smc->conn)) {
+		    !smc_close_sent_any_close(&smc->conn))
 			/* just shutdown, but not yet closed locally */
 			sk->sk_state = SMC_PROCESSABORT;
-		} else {
+		else
 			sk->sk_state = SMC_CLOSED;
-		}
+		sock_put(sk); /* passive closing */
 		break;
+	case SMC_APPCLOSEWAIT2:
 	case SMC_PEERFINCLOSEWAIT:
+		sk->sk_state = SMC_CLOSED;
+		sock_put(sk); /* passive closing */
+		break;
 	case SMC_PEERABORTWAIT:
 		sk->sk_state = SMC_CLOSED;
 		break;
-	case SMC_INIT:
 	case SMC_PROCESSABORT:
 	/* nothing to do, add tracing in future patch */
 		break;
@@ -336,13 +349,18 @@ static void smc_close_passive_work(struct work_struct *work)
 	case SMC_INIT:
 		if (atomic_read(&conn->bytes_to_rcv) ||
 		    (rxflags->peer_done_writing &&
-		     !smc_cdc_rxed_any_close(conn)))
+		     !smc_cdc_rxed_any_close(conn))) {
 			sk->sk_state = SMC_APPCLOSEWAIT1;
-		else
+		} else {
 			sk->sk_state = SMC_CLOSED;
+			sock_put(sk); /* passive closing */
+		}
 		break;
 	case SMC_ACTIVE:
 		sk->sk_state = SMC_APPCLOSEWAIT1;
+		/* postpone sock_put() for passive closing to cover
+		 * received SEND_SHUTDOWN as well
+		 */
 		break;
 	case SMC_PEERCLOSEWAIT1:
 		if (rxflags->peer_done_writing)
@@ -360,13 +378,20 @@ static void smc_close_passive_work(struct work_struct *work)
 			/* just shutdown, but not yet closed locally */
 			sk->sk_state = SMC_APPFINCLOSEWAIT;
 		}
+		sock_put(sk); /* passive closing */
 		break;
 	case SMC_PEERFINCLOSEWAIT:
-		if (smc_cdc_rxed_any_close(conn))
+		if (smc_cdc_rxed_any_close(conn)) {
 			sk->sk_state = SMC_CLOSED;
+			sock_put(sk); /* passive closing */
+		}
 		break;
 	case SMC_APPCLOSEWAIT1:
 	case SMC_APPCLOSEWAIT2:
+		/* postpone sock_put() for passive closing to cover
+		 * received SEND_SHUTDOWN as well
+		 */
+		break;
 	case SMC_APPFINCLOSEWAIT:
 	case SMC_PEERABORTWAIT:
 	case SMC_PROCESSABORT:
@@ -382,23 +407,11 @@ wakeup:
 	if (old_state != sk->sk_state) {
 		sk->sk_state_change(sk);
 		if ((sk->sk_state == SMC_CLOSED) &&
-		    (sock_flag(sk, SOCK_DEAD) || !sk->sk_socket)) {
+		    (sock_flag(sk, SOCK_DEAD) || !sk->sk_socket))
 			smc_conn_free(conn);
-			schedule_delayed_work(&smc->sock_put_work,
-					      SMC_CLOSE_SOCK_PUT_DELAY);
-		}
 	}
 	release_sock(sk);
-}
-
-void smc_close_sock_put_work(struct work_struct *work)
-{
-	struct smc_sock *smc = container_of(to_delayed_work(work),
-					    struct smc_sock,
-					    sock_put_work);
-
-	smc->sk.sk_prot->unhash(&smc->sk);
-	sock_put(&smc->sk);
+	sock_put(sk); /* sock_hold done by schedulers of close_work */
 }
 
 int smc_close_shutdown_write(struct smc_sock *smc)
