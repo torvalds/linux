@@ -220,6 +220,8 @@ void nvme_complete_rq(struct request *req)
 {
 	blk_status_t status = nvme_error_status(req);
 
+	trace_nvme_complete_rq(req);
+
 	if (unlikely(status != BLK_STS_OK && nvme_req_needs_retry(req))) {
 		if (nvme_req_needs_failover(req, status)) {
 			nvme_failover_req(req);

@@ -129,6 +129,31 @@ TRACE_EVENT(nvme_setup_nvm_cmd,
 		      __parse_nvme_cmd(__entry->opcode, __entry->cdw10))
 );
 
+TRACE_EVENT(nvme_complete_rq,
+	    TP_PROTO(struct request *req),
+	    TP_ARGS(req),
+	    TP_STRUCT__entry(
+		    __field(int, qid)
+		    __field(int, cid)
+		    __field(u64, result)
+		    __field(u8, retries)
+		    __field(u8, flags)
+		    __field(u16, status)
+	    ),
+	    TP_fast_assign(
+		    __entry->qid = req->q->id;
+		    __entry->cid = req->tag;
+		    __entry->result = le64_to_cpu(nvme_req(req)->result.u64);
+		    __entry->retries = nvme_req(req)->retries;
+		    __entry->flags = nvme_req(req)->flags;
+		    __entry->status = nvme_req(req)->status;
+	    ),
+	    TP_printk("cmdid=%u, qid=%d, res=%llu, retries=%u, flags=0x%x, status=%u",
+		      __entry->cid, __entry->qid, __entry->result,
+		      __entry->retries, __entry->flags, __entry->status)
+
+);
+
 #endif /* _TRACE_NVME_H */
 
 #undef TRACE_INCLUDE_PATH
