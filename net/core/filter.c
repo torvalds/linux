@@ -4469,11 +4469,11 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 					       is_fullsock));
 		break;
 
-/* Helper macro for adding read access to tcp_sock fields. */
-#define SOCK_OPS_GET_TCP(FIELD_NAME)					      \
+/* Helper macro for adding read access to tcp_sock or sock fields. */
+#define SOCK_OPS_GET_FIELD(BPF_FIELD, OBJ_FIELD, OBJ)			      \
 	do {								      \
-		BUILD_BUG_ON(FIELD_SIZEOF(struct tcp_sock, FIELD_NAME) >      \
-			     FIELD_SIZEOF(struct bpf_sock_ops, FIELD_NAME));  \
+		BUILD_BUG_ON(FIELD_SIZEOF(OBJ, OBJ_FIELD) >		      \
+			     FIELD_SIZEOF(struct bpf_sock_ops, BPF_FIELD));   \
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(			      \
 						struct bpf_sock_ops_kern,     \
 						is_fullsock),		      \
@@ -4485,18 +4485,18 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 						struct bpf_sock_ops_kern, sk),\
 				      si->dst_reg, si->src_reg,		      \
 				      offsetof(struct bpf_sock_ops_kern, sk));\
-		*insn++ = BPF_LDX_MEM(FIELD_SIZEOF(struct tcp_sock,	      \
-						   FIELD_NAME), si->dst_reg,  \
-				      si->dst_reg,			      \
-				      offsetof(struct tcp_sock, FIELD_NAME)); \
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(OBJ,		      \
+						       OBJ_FIELD),	      \
+				      si->dst_reg, si->dst_reg,		      \
+				      offsetof(OBJ, OBJ_FIELD));	      \
 	} while (0)
 
 	case offsetof(struct bpf_sock_ops, snd_cwnd):
-		SOCK_OPS_GET_TCP(snd_cwnd);
+		SOCK_OPS_GET_FIELD(snd_cwnd, snd_cwnd, struct tcp_sock);
 		break;
 
 	case offsetof(struct bpf_sock_ops, srtt_us):
-		SOCK_OPS_GET_TCP(srtt_us);
+		SOCK_OPS_GET_FIELD(srtt_us, srtt_us, struct tcp_sock);
 		break;
 	}
 	return insn - insn_buf;
