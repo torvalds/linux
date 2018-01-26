@@ -658,6 +658,11 @@ static int soc15_common_early_init(void *handle)
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x14;
 		break;
+	case CHIP_VEGA20:
+		adev->cg_flags = 0;
+		adev->pg_flags = 0;
+		adev->external_rev_id = adev->rev_id + 0x28;
+		break;
 	case CHIP_RAVEN:
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 			AMD_CG_SUPPORT_GFX_MGLS |
