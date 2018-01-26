@@ -150,6 +150,8 @@ struct amdgpu_ring_funcs {
 	void (*emit_cntxcntl) (struct amdgpu_ring *ring, uint32_t flags);
 	void (*emit_rreg)(struct amdgpu_ring *ring, uint32_t reg);
 	void (*emit_wreg)(struct amdgpu_ring *ring, uint32_t reg, uint32_t val);
+	void (*emit_reg_wait)(struct amdgpu_ring *ring, uint32_t reg,
+			      uint32_t val, uint32_t mask);
 	void (*emit_tmz)(struct amdgpu_ring *ring, bool start);
 	/* priority functions */
 	void (*set_priority) (struct amdgpu_ring *ring,
