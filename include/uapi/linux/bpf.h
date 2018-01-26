@@ -979,6 +979,28 @@ struct bpf_sock_ops {
 	__u32 snd_cwnd;
 	__u32 srtt_us;		/* Averaged RTT << 3 in usecs */
 	__u32 bpf_sock_ops_cb_flags; /* flags defined in uapi/linux/tcp.h */
+	__u32 state;
+	__u32 rtt_min;
+	__u32 snd_ssthresh;
+	__u32 rcv_nxt;
+	__u32 snd_nxt;
+	__u32 snd_una;
+	__u32 mss_cache;
+	__u32 ecn_flags;
+	__u32 rate_delivered;
+	__u32 rate_interval_us;
+	__u32 packets_out;
+	__u32 retrans_out;
+	__u32 total_retrans;
+	__u32 segs_in;
+	__u32 data_segs_in;
+	__u32 segs_out;
+	__u32 data_segs_out;
+	__u32 lost_out;
+	__u32 sacked_out;
+	__u32 sk_txhash;
+	__u64 bytes_received;
+	__u64 bytes_acked;
 };
 
 /* Definitions for bpf_sock_ops_cb_flags */

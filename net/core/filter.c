@@ -3855,33 +3855,43 @@ void bpf_warn_invalid_xdp_action(u32 act)
 }
 EXPORT_SYMBOL_GPL(bpf_warn_invalid_xdp_action);
 
-static bool __is_valid_sock_ops_access(int off, int size)
-{
-	if (off < 0 || off >= sizeof(struct bpf_sock_ops))
-		return false;
-	/* The verifier guarantees that size > 0. */
-	if (off % size != 0)
-		return false;
-	if (size != sizeof(__u32))
-		return false;
-
-	return true;
-}
-
 static bool sock_ops_is_valid_access(int off, int size,
 				     enum bpf_access_type type,
 				     struct bpf_insn_access_aux *info)
 {
+	const int size_default = sizeof(__u32);
+
+	if (off < 0 || off >= sizeof(struct bpf_sock_ops))
+		return false;
+
+	/* The verifier guarantees that size > 0. */
+	if (off % size != 0)
+		return false;
+
 	if (type == BPF_WRITE) {
 		switch (off) {
 		case offsetof(struct bpf_sock_ops, reply):
+			if (size != size_default)
+				return false;
 			break;
 		default:
 			return false;
 		}
+	} else {
+		switch (off) {
+		case bpf_ctx_range_till(struct bpf_sock_ops, bytes_received,
+					bytes_acked):
+			if (size != sizeof(__u64))
+				return false;
+			break;
+		default:
+			if (size != size_default)
+				return false;
+			break;
+		}
 	}
 
-	return __is_valid_sock_ops_access(off, size);
+	return true;
 }
 
 static int sk_skb_prologue(struct bpf_insn *insn_buf, bool direct_write,
@@ -4498,6 +4508,32 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 					       is_fullsock));
 		break;
 
+	case offsetof(struct bpf_sock_ops, state):
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_state) != 1);
+
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
+						struct bpf_sock_ops_kern, sk),
+				      si->dst_reg, si->src_reg,
+				      offsetof(struct bpf_sock_ops_kern, sk));
+		*insn++ = BPF_LDX_MEM(BPF_B, si->dst_reg, si->dst_reg,
+				      offsetof(struct sock_common, skc_state));
+		break;
+
+	case offsetof(struct bpf_sock_ops, rtt_min):
+		BUILD_BUG_ON(FIELD_SIZEOF(struct tcp_sock, rtt_min) !=
+			     sizeof(struct minmax));
+		BUILD_BUG_ON(sizeof(struct minmax) <
+			     sizeof(struct minmax_sample));
+
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
+						struct bpf_sock_ops_kern, sk),
+				      si->dst_reg, si->src_reg,
+				      offsetof(struct bpf_sock_ops_kern, sk));
+		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->dst_reg,
+				      offsetof(struct tcp_sock, rtt_min) +
+				      FIELD_SIZEOF(struct minmax_sample, t));
+		break;
+
 /* Helper macro for adding read access to tcp_sock or sock fields. */
 #define SOCK_OPS_GET_FIELD(BPF_FIELD, OBJ_FIELD, OBJ)			      \
 	do {								      \
@@ -4579,6 +4615,91 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 	case offsetof(struct bpf_sock_ops, bpf_sock_ops_cb_flags):
 		SOCK_OPS_GET_FIELD(bpf_sock_ops_cb_flags, bpf_sock_ops_cb_flags,
 				   struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, snd_ssthresh):
+		SOCK_OPS_GET_FIELD(snd_ssthresh, snd_ssthresh, struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, rcv_nxt):
+		SOCK_OPS_GET_FIELD(rcv_nxt, rcv_nxt, struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, snd_nxt):
+		SOCK_OPS_GET_FIELD(snd_nxt, snd_nxt, struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, snd_una):
+		SOCK_OPS_GET_FIELD(snd_una, snd_una, struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, mss_cache):
+		SOCK_OPS_GET_FIELD(mss_cache, mss_cache, struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, ecn_flags):
+		SOCK_OPS_GET_FIELD(ecn_flags, ecn_flags, struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, rate_delivered):
+		SOCK_OPS_GET_FIELD(rate_delivered, rate_delivered,
+				   struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, rate_interval_us):
+		SOCK_OPS_GET_FIELD(rate_interval_us, rate_interval_us,
+				   struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, packets_out):
+		SOCK_OPS_GET_FIELD(packets_out, packets_out, struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, retrans_out):
+		SOCK_OPS_GET_FIELD(retrans_out, retrans_out, struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, total_retrans):
+		SOCK_OPS_GET_FIELD(total_retrans, total_retrans,
+				   struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, segs_in):
+		SOCK_OPS_GET_FIELD(segs_in, segs_in, struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, data_segs_in):
+		SOCK_OPS_GET_FIELD(data_segs_in, data_segs_in, struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, segs_out):
+		SOCK_OPS_GET_FIELD(segs_out, segs_out, struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, data_segs_out):
+		SOCK_OPS_GET_FIELD(data_segs_out, data_segs_out,
+				   struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, lost_out):
+		SOCK_OPS_GET_FIELD(lost_out, lost_out, struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, sacked_out):
+		SOCK_OPS_GET_FIELD(sacked_out, sacked_out, struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, sk_txhash):
+		SOCK_OPS_GET_FIELD(sk_txhash, sk_txhash, struct sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, bytes_received):
+		SOCK_OPS_GET_FIELD(bytes_received, bytes_received,
+				   struct tcp_sock);
+		break;
+
+	case offsetof(struct bpf_sock_ops, bytes_acked):
+		SOCK_OPS_GET_FIELD(bytes_acked, bytes_acked, struct tcp_sock);
 		break;
 	}
 	return insn - insn_buf;
