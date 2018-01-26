@@ -279,11 +279,6 @@ int amdgpu_ib_pool_init(struct amdgpu_device *adev)
 		return r;
 	}
 
-	r = amdgpu_sa_bo_manager_start(adev, &adev->ring_tmp_bo);
-	if (r) {
-		return r;
-	}
-
 	adev->ib_pool_ready = true;
 	if (amdgpu_debugfs_sa_init(adev)) {
 		dev_err(adev->dev, "failed to register debugfs file for SA\n");
@@ -302,7 +297,6 @@ int amdgpu_ib_pool_init(struct amdgpu_device *adev)
 void amdgpu_ib_pool_fini(struct amdgpu_device *adev)
 {
 	if (adev->ib_pool_ready) {
-		amdgpu_sa_bo_manager_suspend(adev, &adev->ring_tmp_bo);
 		amdgpu_sa_bo_manager_fini(adev, &adev->ring_tmp_bo);
 		adev->ib_pool_ready = false;
 	}
