@@ -944,7 +944,7 @@ static int soc_compr_copy(struct snd_compr_stream *cstream,
 	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
-	int ret = 0, __ret;
+	int ret = 0;
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
@@ -965,10 +965,10 @@ static int soc_compr_copy(struct snd_compr_stream *cstream,
 		    !component->driver->compr_ops->copy)
 			continue;
 
-		__ret = component->driver->compr_ops->copy(cstream, buf, count);
-		if (__ret < 0)
-			ret = __ret;
+		ret = component->driver->compr_ops->copy(cstream, buf, count);
+		break;
 	}
+
 err:
 	mutex_unlock(&rtd->pcm_mutex);
 	return ret;
