@@ -1,7 +1,7 @@
 #ifndef _LKL_H
 #define _LKL_H
 
-#include "autoconf.h"
+#include "lkl_autoconf.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -11,13 +11,6 @@ ifneq ($(silent),1)
   endif
 endif
 
-ifneq ($(OUTPUT),)
-  OUTPUT := $(OUTPUT)/tools/lkl/
-else
-  OUTPUT := $(CURDIR)/
-endif
-export OUTPUT
-
 PREFIX   := /usr
 
 ifeq (,$(srctree))
@@ -27,6 +20,15 @@ endif
 export srctree
 
 -include ../scripts/Makefile.include
+
+# OUTPUT fixup should be *after* include ../scripts/Makefile.include
+ifneq ($(OUTPUT),)
+  OUTPUT := $(OUTPUT)/tools/lkl/
+else
+  OUTPUT := $(CURDIR)/
+endif
+export OUTPUT
+
 
 all:
 
@@ -87,28 +89,30 @@ $(OUTPUT)cpfromfs$(EXESUF): cptofs$(EXESUF)
 clean:
 	$(call QUIET_CLEAN, objects)find $(OUTPUT) -name '*.o' -delete -o -name '\.*.cmd'\
 	 -delete -o -name '\.*.d' -delete
-	$(call QUIET_CLEAN, headers)$(RM) -r $(OUTPUT)/include/lkl/
+	$(call QUIET_CLEAN, headers)$(RM) -r $(OUTPUT)/include/lkl/ \
+		$(OUTPUT)include/lkl_autoconf.h
 	$(call QUIET_CLEAN, liblkl.a)$(RM) $(OUTPUT)/liblkl.a
 	$(call QUIET_CLEAN, targets)$(RM) $(TARGETS) bin/stat
 
 clean-conf: clean
 	$(call QUIET_CLEAN, Makefile.conf)$(RM) $(OUTPUT)/Makefile.conf
 
-headers_install:
+headers_install: $(TARGETS)
 	$(call QUIET_INSTALL, headers) \
 	    install -d $(DESTDIR)$(PREFIX)/include ; \
-	    install -m 644 include/lkl.h include/lkl_host.h $(DESTDIR)$(PREFIX)/include ; \
+	    install -m 644 include/lkl.h include/lkl_host.h $(OUTPUT)include/lkl_autoconf.h \
+	      $(DESTDIR)$(PREFIX)/include ; \
 	    cp -r $(OUTPUT)include/lkl $(DESTDIR)$(PREFIX)/include
 
-libraries_install: $(ALL_LIBRARIES)
+libraries_install: $(libs-y:%=$(OUTPUT)%$(SOSUF))
 	$(call QUIET_INSTALL, libraries) \
 	    install -d $(DESTDIR)$(PREFIX)/lib ; \
-	    install -m 644 $(ALL_LIBRARIES) $(DESTDIR)$(PREFIX)/lib
+	    install -m 644 $^ $(DESTDIR)$(PREFIX)/lib
 
-programs_install: $(ALL_PROGRAMS)
+programs_install: $(progs-y:%=$(OUTPUT)%$(EXESUF))
 	$(call QUIET_INSTALL, programs) \
 	    install -d $(DESTDIR)$(PREFIX)/bin ; \
-	    install -m 755 $(ALL_PROGRAMS) $(DESTDIR)$(PREFIX)/bin
+	    install -m 755 $^ $(DESTDIR)$(PREFIX)/bin
 
 install: headers_install libraries_install programs_install
 
