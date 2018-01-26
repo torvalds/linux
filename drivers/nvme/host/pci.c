@@ -1140,9 +1140,14 @@ static bool nvme_should_reset(struct nvme_dev *dev, u32 csts)
 	 */
 	bool nssro = dev->subsystem && (csts & NVME_CSTS_NSSRO);
 
-	/* If there is a reset ongoing, we shouldn't reset again. */
-	if (dev->ctrl.state == NVME_CTRL_RESETTING)
+	/* If there is a reset/reinit ongoing, we shouldn't reset again. */
+	switch (dev->ctrl.state) {
+	case NVME_CTRL_RESETTING:
+	case NVME_CTRL_RECONNECTING:
 		return false;
+	default:
+		break;
+	}
 
 	/* We shouldn't reset unless the controller is on fatal error state
 	 * _or_ if we lost the communication with it.
@@ -1324,9 +1329,6 @@ static void nvme_disable_admin_queue(struct nvme_dev *dev, bool shutdown)
 {
 	struct nvme_queue *nvmeq = &dev->queues[0];
 
-	if (nvme_suspend_queue(nvmeq))
-		return;
-
 	if (shutdown)
 		nvme_shutdown_ctrl(&dev->ctrl);
 	else
@@ -1383,6 +1385,9 @@ static int nvme_alloc_queue(struct nvme_dev *dev, int qid,
 		int depth, int node)
 {
 	struct nvme_queue *nvmeq = &dev->queues[qid];
+
+	if (dev->ctrl.queue_count > qid)
+		return 0;
 
 	nvmeq->cqes = dma_zalloc_coherent(dev->dev, CQ_SIZE(depth),
 					  &nvmeq->cq_dma_addr, GFP_KERNEL);
@@ -2008,9 +2013,9 @@ static int nvme_delete_queue(struct nvme_queue *nvmeq, u8 opcode)
 	return 0;
 }
 
-static void nvme_disable_io_queues(struct nvme_dev *dev, int queues)
+static void nvme_disable_io_queues(struct nvme_dev *dev)
 {
-	int pass;
+	int pass, queues = dev->online_queues - 1;
 	unsigned long timeout;
 	u8 opcode = nvme_admin_delete_sq;
 
@@ -2161,7 +2166,7 @@ static void nvme_pci_disable(struct nvme_dev *dev)
 
 static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 {
-	int i, queues;
+	int i;
 	bool dead = true;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
@@ -2196,21 +2201,13 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 	}
 	nvme_stop_queues(&dev->ctrl);
 
-	queues = dev->online_queues - 1;
-	for (i = dev->ctrl.queue_count - 1; i > 0; i--)
-		nvme_suspend_queue(&dev->queues[i]);
-
-	if (dead) {
-		/* A device might become IO incapable very soon during
-		 * probe, before the admin queue is configured. Thus,
-		 * queue_count can be 0 here.
-		 */
-		if (dev->ctrl.queue_count)
-			nvme_suspend_queue(&dev->queues[0]);
-	} else {
-		nvme_disable_io_queues(dev, queues);
+	if (!dead) {
+		nvme_disable_io_queues(dev);
 		nvme_disable_admin_queue(dev, shutdown);
 	}
+	for (i = dev->ctrl.queue_count - 1; i >= 0; i--)
+		nvme_suspend_queue(&dev->queues[i]);
+
 	nvme_pci_disable(dev);
 
 	blk_mq_tagset_busy_iter(&dev->tagset, nvme_cancel_request, &dev->ctrl);
@@ -2291,6 +2288,16 @@ static void nvme_reset_work(struct work_struct *work)
 	 */
 	if (dev->ctrl.ctrl_config & NVME_CC_ENABLE)
 		nvme_dev_disable(dev, false);
+
+	/*
+	 * Introduce RECONNECTING state from nvme-fc/rdma transports to mark the
+	 * initializing procedure here.
+	 */
+	if (!nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_RECONNECTING)) {
+		dev_warn(dev->ctrl.device,
+			"failed to mark controller RECONNECTING\n");
+		goto out;
+	}
 
 	result = nvme_pci_enable(dev);
 	if (result)

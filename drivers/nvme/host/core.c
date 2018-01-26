@@ -29,6 +29,9 @@
 #include <linux/pm_qos.h>
 #include <asm/unaligned.h>
 
+#define CREATE_TRACE_POINTS
+#include "trace.h"
+
 #include "nvme.h"
 #include "fabrics.h"
 
@@ -217,6 +220,8 @@ void nvme_complete_rq(struct request *req)
 {
 	blk_status_t status = nvme_error_status(req);
 
+	trace_nvme_complete_rq(req);
+
 	if (unlikely(status != BLK_STS_OK && nvme_req_needs_retry(req))) {
 		if (nvme_req_needs_failover(req, status)) {
 			nvme_failover_req(req);
@@ -260,7 +265,7 @@ bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 	switch (new_state) {
 	case NVME_CTRL_ADMIN_ONLY:
 		switch (old_state) {
-		case NVME_CTRL_RESETTING:
+		case NVME_CTRL_RECONNECTING:
 			changed = true;
 			/* FALLTHRU */
 		default:
@@ -628,6 +633,10 @@ blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
 	}
 
 	cmd->common.command_id = req->tag;
+	if (ns)
+		trace_nvme_setup_nvm_cmd(req->q->id, cmd);
+	else
+		trace_nvme_setup_admin_cmd(cmd);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nvme_setup_cmd);
