@@ -170,7 +170,7 @@ static void unref_cursor_worker(struct drm_flip_work *work, void *val)
 	struct msm_kms *kms = &mdp5_kms->base.base;
 
 	msm_gem_put_iova(val, kms->aspace);
-	drm_gem_object_unreference_unlocked(val);
+	drm_gem_object_put_unlocked(val);
 }
 
 static void mdp5_crtc_destroy(struct drm_crtc *crtc)
