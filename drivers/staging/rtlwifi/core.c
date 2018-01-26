@@ -1816,7 +1816,7 @@ bool rtl_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
 			      u8 faversion, u8 interface_type,
 			      struct wlan_pwr_cfg pwrcfgcmd[])
 {
-	struct wlan_pwr_cfg cfg_cmd = {0};
+	struct wlan_pwr_cfg cfg_cmd;
 	bool polling_bit = false;
 	u32 ary_idx = 0;
 	u8 value = 0;
