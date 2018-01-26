@@ -1003,10 +1003,20 @@ struct bpf_sock_ops_kern {
 	struct	sock *sk;
 	u32	op;
 	union {
+		u32 args[4];
 		u32 reply;
 		u32 replylong[4];
 	};
 	u32	is_fullsock;
+	u64	temp;			/* temp and everything after is not
+					 * initialized to 0 before calling
+					 * the BPF program. New fields that
+					 * should be initialized to 0 should
+					 * be inserted before temp.
+					 * temp is scratch storage used by
+					 * sock_ops_convert_ctx_access
+					 * as temporary storage of a register.
+					 */
 };
 
 #endif /* __LINUX_FILTER_H__ */

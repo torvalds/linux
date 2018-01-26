@@ -146,7 +146,7 @@ static void tcpnv_init(struct sock *sk)
 	 * within a datacenter, where we have reasonable estimates of
 	 * RTTs
 	 */
-	base_rtt = tcp_call_bpf(sk, BPF_SOCK_OPS_BASE_RTT);
+	base_rtt = tcp_call_bpf(sk, BPF_SOCK_OPS_BASE_RTT, 0, NULL);
 	if (base_rtt > 0) {
 		ca->nv_base_rtt = base_rtt;
 		ca->nv_lower_bound_rtt = (base_rtt * 205) >> 8; /* 80% */
