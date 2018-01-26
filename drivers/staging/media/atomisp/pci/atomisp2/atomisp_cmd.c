@@ -1850,7 +1850,7 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr)
 	bool frame_done_found[MAX_STREAM_NUM] = {0};
 	bool css_pipe_done[MAX_STREAM_NUM] = {0};
 	unsigned int i;
-	struct atomisp_sub_device *asd = &isp->asd[0];
+	struct atomisp_sub_device *asd;
 
 	dev_dbg(isp->dev, ">%s\n", __func__);
 

@@ -1893,7 +1893,7 @@ static int ov5693_probe(struct i2c_client *client)
 	struct ov5693_device *dev;
 	int i2c;
 	int ret = 0;
-	void *pdata = client->dev.platform_data;
+	void *pdata;
 	unsigned int i;
 
 	/*

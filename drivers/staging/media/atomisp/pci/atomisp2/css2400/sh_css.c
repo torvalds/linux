@@ -6958,7 +6958,7 @@ static enum ia_css_err ia_css_pipe_create_cas_scaler_desc_single_output(
 	unsigned int i;
 	unsigned int hor_ds_factor = 0, ver_ds_factor = 0;
 	enum ia_css_err err = IA_CSS_SUCCESS;
-	struct ia_css_frame_info tmp_in_info = IA_CSS_BINARY_DEFAULT_FRAME_INFO;
+	struct ia_css_frame_info tmp_in_info;
 
 	unsigned max_scale_factor_per_stage = MAX_PREFERRED_YUV_DS_PER_STEP;
 
