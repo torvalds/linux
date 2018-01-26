@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * File:	pci-acpi.c
  * Purpose:	Provide PCI support in ACPI

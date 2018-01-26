@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 menu "DesignWare PCI Core Support"
 
 config PCIE_DW
