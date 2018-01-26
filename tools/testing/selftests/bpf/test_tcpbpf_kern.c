@@ -79,9 +79,6 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 		}
 		break;
 	case BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB:
-		/* Set callback */
-//		good_call_rv = bpf_sock_ops_cb_flags_set(skops,
-//						 BPF_SOCK_OPS_STATE_CB_FLAG);
 		skops->sk_txhash = 0x12345f;
 		v = 0xff;
 		rv = bpf_setsockopt(skops, SOL_IPV6, IPV6_TCLASS, &v,
