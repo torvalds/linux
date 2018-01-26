@@ -546,23 +546,36 @@ again:
 
 /*
  * xfs_lock_two_inodes() can only be used to lock one type of lock at a time -
- * the iolock, the mmaplock or the ilock, but not more than one at a time. If we
- * lock more than one at a time, lockdep will report false positives saying we
- * have violated locking orders.
+ * the mmaplock or the ilock, but not more than one type at a time. If we lock
+ * more than one at a time, lockdep will report false positives saying we have
+ * violated locking orders.  The iolock must be double-locked separately since
+ * we use i_rwsem for that.  We now support taking one lock EXCL and the other
+ * SHARED.
  */
 void
 xfs_lock_two_inodes(
-	xfs_inode_t		*ip0,
-	xfs_inode_t		*ip1,
-	uint			lock_mode)
+	struct xfs_inode	*ip0,
+	uint			ip0_mode,
+	struct xfs_inode	*ip1,
+	uint			ip1_mode)
 {
-	xfs_inode_t		*temp;
+	struct xfs_inode	*temp;
+	uint			mode_temp;
 	int			attempts = 0;
 	xfs_log_item_t		*lp;
 
-	ASSERT(!(lock_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL)));
-	if (lock_mode & (XFS_MMAPLOCK_SHARED|XFS_MMAPLOCK_EXCL))
-		ASSERT(!(lock_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL)));
+	ASSERT(hweight32(ip0_mode) == 1);
+	ASSERT(hweight32(ip1_mode) == 1);
+	ASSERT(!(ip0_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL)));
+	ASSERT(!(ip1_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL)));
+	ASSERT(!(ip0_mode & (XFS_MMAPLOCK_SHARED|XFS_MMAPLOCK_EXCL)) ||
+	       !(ip0_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL)));
+	ASSERT(!(ip1_mode & (XFS_MMAPLOCK_SHARED|XFS_MMAPLOCK_EXCL)) ||
+	       !(ip1_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL)));
+	ASSERT(!(ip1_mode & (XFS_MMAPLOCK_SHARED|XFS_MMAPLOCK_EXCL)) ||
+	       !(ip0_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL)));
+	ASSERT(!(ip0_mode & (XFS_MMAPLOCK_SHARED|XFS_MMAPLOCK_EXCL)) ||
+	       !(ip1_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL)));
 
 	ASSERT(ip0->i_ino != ip1->i_ino);
 
@@ -570,10 +583,13 @@ xfs_lock_two_inodes(
 		temp = ip0;
 		ip0 = ip1;
 		ip1 = temp;
+		mode_temp = ip0_mode;
+		ip0_mode = ip1_mode;
+		ip1_mode = mode_temp;
 	}
 
  again:
-	xfs_ilock(ip0, xfs_lock_inumorder(lock_mode, 0));
+	xfs_ilock(ip0, xfs_lock_inumorder(ip0_mode, 0));
 
 	/*
 	 * If the first lock we have locked is in the AIL, we must TRY to get
@@ -582,17 +598,16 @@ xfs_lock_two_inodes(
 	 */
 	lp = (xfs_log_item_t *)ip0->i_itemp;
 	if (lp && (lp->li_flags & XFS_LI_IN_AIL)) {
-		if (!xfs_ilock_nowait(ip1, xfs_lock_inumorder(lock_mode, 1))) {
-			xfs_iunlock(ip0, lock_mode);
+		if (!xfs_ilock_nowait(ip1, xfs_lock_inumorder(ip1_mode, 1))) {
+			xfs_iunlock(ip0, ip0_mode);
 			if ((++attempts % 5) == 0)
 				delay(1); /* Don't just spin the CPU */
 			goto again;
 		}
 	} else {
-		xfs_ilock(ip1, xfs_lock_inumorder(lock_mode, 1));
+		xfs_ilock(ip1, xfs_lock_inumorder(ip1_mode, 1));
 	}
 }
-
 
 void
 __xfs_iflock(
@@ -1421,7 +1436,7 @@ xfs_link(
 	if (error)
 		goto std_return;
 
-	xfs_lock_two_inodes(sip, tdp, XFS_ILOCK_EXCL);
+	xfs_lock_two_inodes(sip, XFS_ILOCK_EXCL, tdp, XFS_ILOCK_EXCL);
 
 	xfs_trans_ijoin(tp, sip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, tdp, XFS_ILOCK_EXCL);
@@ -2585,7 +2600,7 @@ xfs_remove(
 		goto std_return;
 	}
 
-	xfs_lock_two_inodes(dp, ip, XFS_ILOCK_EXCL);
+	xfs_lock_two_inodes(dp, XFS_ILOCK_EXCL, ip, XFS_ILOCK_EXCL);
 
 	xfs_trans_ijoin(tp, dp, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);

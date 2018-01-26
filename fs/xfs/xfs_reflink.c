@@ -944,7 +944,7 @@ xfs_reflink_set_inode_flag(
 	if (src->i_ino == dest->i_ino)
 		xfs_ilock(src, XFS_ILOCK_EXCL);
 	else
-		xfs_lock_two_inodes(src, dest, XFS_ILOCK_EXCL);
+		xfs_lock_two_inodes(src, XFS_ILOCK_EXCL, dest, XFS_ILOCK_EXCL);
 
 	if (!xfs_is_reflink_inode(src)) {
 		trace_xfs_reflink_set_inode_flag(src);
@@ -1324,7 +1324,8 @@ xfs_reflink_remap_range(
 	if (same_inode)
 		xfs_ilock(src, XFS_MMAPLOCK_EXCL);
 	else
-		xfs_lock_two_inodes(src, dest, XFS_MMAPLOCK_EXCL);
+		xfs_lock_two_inodes(src, XFS_MMAPLOCK_EXCL, dest,
+				XFS_MMAPLOCK_EXCL);
 
 	/* Check file eligibility and prepare for block sharing. */
 	ret = -EINVAL;
