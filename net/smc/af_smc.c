@@ -670,6 +670,10 @@ struct sock *smc_accept_dequeue(struct sock *parent,
 
 		smc_accept_unlink(new_sk);
 		if (new_sk->sk_state == SMC_CLOSED) {
+			if (isk->clcsock) {
+				sock_release(isk->clcsock);
+				isk->clcsock = NULL;
+			}
 			new_sk->sk_prot->unhash(new_sk);
 			sock_put(new_sk); /* final */
 			continue;
@@ -969,8 +973,15 @@ static void smc_tcp_listen_work(struct work_struct *work)
 	}
 
 out:
+	if (lsmc->clcsock) {
+		sock_release(lsmc->clcsock);
+		lsmc->clcsock = NULL;
+	}
 	release_sock(lsk);
-	lsk->sk_data_ready(lsk); /* no more listening, wake accept */
+	/* no more listening, wake up smc_close_wait_listen_clcsock and
+	 * accept
+	 */
+	lsk->sk_state_change(lsk);
 	sock_put(&lsmc->sk); /* sock_hold in smc_listen */
 }
 

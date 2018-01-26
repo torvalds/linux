@@ -19,6 +19,8 @@
 #include "smc_cdc.h"
 #include "smc_close.h"
 
+#define SMC_CLOSE_WAIT_LISTEN_CLCSOCK_TIME	(5 * HZ)
+
 static void smc_close_cleanup_listen(struct sock *parent)
 {
 	struct sock *sk;
@@ -26,6 +28,27 @@ static void smc_close_cleanup_listen(struct sock *parent)
 	/* Close non-accepted connections */
 	while ((sk = smc_accept_dequeue(parent, NULL)))
 		smc_close_non_accepted(sk);
+}
+
+static void smc_close_wait_listen_clcsock(struct smc_sock *smc)
+{
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
+	struct sock *sk = &smc->sk;
+	signed long timeout;
+
+	timeout = SMC_CLOSE_WAIT_LISTEN_CLCSOCK_TIME;
+	add_wait_queue(sk_sleep(sk), &wait);
+	do {
+		release_sock(sk);
+		if (smc->clcsock)
+			timeout = wait_woken(&wait, TASK_UNINTERRUPTIBLE,
+					     timeout);
+		sched_annotate_sleep();
+		lock_sock(sk);
+		if (!smc->clcsock)
+			break;
+	} while (timeout);
+	remove_wait_queue(sk_sleep(sk), &wait);
 }
 
 /* wait for sndbuf data being transmitted */
@@ -114,7 +137,6 @@ static void smc_close_active_abort(struct smc_sock *smc)
 		break;
 	case SMC_APPCLOSEWAIT1:
 	case SMC_APPCLOSEWAIT2:
-		sock_release(smc->clcsock);
 		if (!smc_cdc_rxed_any_close(&smc->conn))
 			sk->sk_state = SMC_PEERABORTWAIT;
 		else
@@ -128,7 +150,6 @@ static void smc_close_active_abort(struct smc_sock *smc)
 		if (!txflags->peer_conn_closed) {
 			/* just SHUTDOWN_SEND done */
 			sk->sk_state = SMC_PEERABORTWAIT;
-			sock_release(smc->clcsock);
 		} else {
 			sk->sk_state = SMC_CLOSED;
 		}
@@ -136,8 +157,6 @@ static void smc_close_active_abort(struct smc_sock *smc)
 		break;
 	case SMC_PROCESSABORT:
 	case SMC_APPFINCLOSEWAIT:
-		if (!txflags->peer_conn_closed)
-			sock_release(smc->clcsock);
 		sk->sk_state = SMC_CLOSED;
 		break;
 	case SMC_PEERFINCLOSEWAIT:
@@ -177,8 +196,6 @@ again:
 	switch (sk->sk_state) {
 	case SMC_INIT:
 		sk->sk_state = SMC_CLOSED;
-		if (smc->smc_listen_work.func)
-			cancel_work_sync(&smc->smc_listen_work);
 		break;
 	case SMC_LISTEN:
 		sk->sk_state = SMC_CLOSED;
@@ -187,11 +204,9 @@ again:
 			rc = kernel_sock_shutdown(smc->clcsock, SHUT_RDWR);
 			/* wake up kernel_accept of smc_tcp_listen_worker */
 			smc->clcsock->sk->sk_data_ready(smc->clcsock->sk);
+			smc_close_wait_listen_clcsock(smc);
 		}
-		release_sock(sk);
 		smc_close_cleanup_listen(sk);
-		cancel_work_sync(&smc->smc_listen_work);
-		lock_sock(sk);
 		break;
 	case SMC_ACTIVE:
 		smc_close_stream_wait(smc, timeout);
