@@ -96,6 +96,13 @@ struct mlxreg_hotplug_priv_data {
 static int mlxreg_hotplug_device_create(struct device *dev,
 					struct mlxreg_core_data *data)
 {
+	/*
+	 * Return if adapter number is negative. It could be in case hotplug
+	 * event is not associated with hotplug device.
+	 */
+	if (data->hpdev.nr < 0)
+		return 0;
+
 	data->hpdev.adapter = i2c_get_adapter(data->hpdev.nr);
 	if (!data->hpdev.adapter) {
 		dev_err(dev, "Failed to get adapter for bus %d\n",
