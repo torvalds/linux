@@ -1078,9 +1078,6 @@
 		clocks = <&cru PCLK_DPHYTX>, <&cru PCLK_MIPI_DSI0>;
 		clock-names = "pclk_lvds", "pclk_lvds_ctl";
 		power-domains = <&power RK3366_PD_VIO>;
-		pinctrl-names = "lcdc", "gpio";
-		pinctrl-0 = <&lcdc_lcdc>;
-		pinctrl-1 = <&lcdc_gpio>;
 		rockchip,grf = <&grf>;
 		status = "disabled";
 
