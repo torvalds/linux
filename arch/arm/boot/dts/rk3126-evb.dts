@@ -351,7 +351,7 @@
 
 &lvds {
 	status = "okay";
-	pinctrl-names = "lcdc";
+	pinctrl-names = "default";
 	pinctrl-0 = <&lcdc_lcdc>;
 	ports {
 		lvds_out: port@1 {
