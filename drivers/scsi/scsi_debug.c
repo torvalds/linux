@@ -649,7 +649,6 @@ static bool sdebug_any_injecting_opt;
 static bool sdebug_verbose;
 static bool have_dif_prot;
 static bool sdebug_statistics = DEF_STATISTICS;
-static bool sdebug_mq_active;
 
 static unsigned int sdebug_store_sectors;
 static sector_t sdebug_capacity;	/* in sectors */
@@ -3727,20 +3726,13 @@ static int resp_xdwriteread_10(struct scsi_cmnd *scp,
 
 static struct sdebug_queue *get_queue(struct scsi_cmnd *cmnd)
 {
-	struct sdebug_queue *sqp = sdebug_q_arr;
+	u32 tag = blk_mq_unique_tag(cmnd->request);
+	u16 hwq = blk_mq_unique_tag_to_hwq(tag);
 
-	if (sdebug_mq_active) {
-		u32 tag = blk_mq_unique_tag(cmnd->request);
-		u16 hwq = blk_mq_unique_tag_to_hwq(tag);
-
-		if (unlikely(hwq >= submit_queues)) {
-			pr_warn("Unexpected hwq=%d, apply modulo\n", hwq);
-			hwq %= submit_queues;
-		}
-		pr_debug("tag=%u, hwq=%d\n", tag, hwq);
-		return sqp + hwq;
-	} else
-		return sqp;
+	pr_debug("tag=%#x, hwq=%d\n", tag, hwq);
+	if (WARN_ON_ONCE(hwq >= submit_queues))
+		hwq = 0;
+	return sdebug_q_arr + hwq;
 }
 
 /* Queued (deferred) command completions converge here. */
@@ -4587,9 +4579,8 @@ static int scsi_debug_show_info(struct seq_file *m, struct Scsi_Host *host)
 		   num_host_resets);
 	seq_printf(m, "dix_reads=%d, dix_writes=%d, dif_errors=%d\n",
 		   dix_reads, dix_writes, dif_errors);
-	seq_printf(m, "usec_in_jiffy=%lu, %s=%d, mq_active=%d\n",
-		   TICK_NSEC / 1000, "statistics", sdebug_statistics,
-		   sdebug_mq_active);
+	seq_printf(m, "usec_in_jiffy=%lu, statistics=%d\n", TICK_NSEC / 1000,
+		   sdebug_statistics);
 	seq_printf(m, "cmnd_count=%d, completions=%d, %s=%d, a_tsf=%d\n",
 		   atomic_read(&sdebug_cmnd_count),
 		   atomic_read(&sdebug_completions),
@@ -5612,13 +5603,8 @@ static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 				n += scnprintf(b + n, sb - n, "%02x ",
 					       (u32)cmd[k]);
 		}
-		if (sdebug_mq_active)
-			sdev_printk(KERN_INFO, sdp, "%s: tag=%u, cmd %s\n",
-				    my_name, blk_mq_unique_tag(scp->request),
-				    b);
-		else
-			sdev_printk(KERN_INFO, sdp, "%s: cmd %s\n", my_name,
-				    b);
+		sdev_printk(KERN_INFO, sdp, "%s: tag=%#x, cmd %s\n", my_name,
+			    blk_mq_unique_tag(scp->request), b);
 	}
 	if (fake_host_busy(scp))
 		return SCSI_MLQUEUE_HOST_BUSY;
@@ -5782,8 +5768,7 @@ static int sdebug_driver_probe(struct device * dev)
 	}
 	/* Decide whether to tell scsi subsystem that we want mq */
 	/* Following should give the same answer for each host */
-	sdebug_mq_active = shost_use_blk_mq(hpnt) && (submit_queues > 1);
-	if (sdebug_mq_active)
+	if (shost_use_blk_mq(hpnt))
 		hpnt->nr_hw_queues = submit_queues;
 
 	sdbg_host->shost = hpnt;
