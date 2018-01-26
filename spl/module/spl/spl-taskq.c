@@ -345,19 +345,18 @@ taskq_find_list(taskq_t *tq, struct list_head *lh, taskqid_t id)
 
 /*
  * Find an already dispatched task given the task id regardless of what
- * state it is in.  If a task is still pending or executing it will be
- * returned and 'active' set appropriately.  If the task has already
- * been run then NULL is returned.
+ * state it is in.  If a task is still pending it will be returned.
+ * If a task is executing, then -EBUSY will be returned instead.
+ * If the task has already been run then NULL is returned.
  */
 static taskq_ent_t *
-taskq_find(taskq_t *tq, taskqid_t id, int *active)
+taskq_find(taskq_t *tq, taskqid_t id)
 {
 	taskq_thread_t *tqt;
 	struct list_head *l;
 	taskq_ent_t *t;
 
 	ASSERT(spin_is_locked(&tq->tq_lock));
-	*active = 0;
 
 	t = taskq_find_list(tq, &tq->tq_delay_list, id);
 	if (t)
@@ -374,9 +373,12 @@ taskq_find(taskq_t *tq, taskqid_t id, int *active)
 	list_for_each(l, &tq->tq_active_list) {
 		tqt = list_entry(l, taskq_thread_t, tqt_active_list);
 		if (tqt->tqt_id == id) {
-			t = tqt->tqt_task;
-			*active = 1;
-			return (t);
+			/*
+			 * Instead of returning tqt_task, we just return a non
+			 * NULL value to prevent misuse, since tqt_task only
+			 * has two valid fields.
+			 */
+			return (ERR_PTR(-EBUSY));
 		}
 	}
 
@@ -413,12 +415,11 @@ taskq_find(taskq_t *tq, taskqid_t id, int *active)
 static int
 taskq_wait_id_check(taskq_t *tq, taskqid_t id)
 {
-	int active = 0;
 	int rc;
 	unsigned long flags;
 
 	spin_lock_irqsave_nested(&tq->tq_lock, flags, tq->tq_lock_class);
-	rc = (taskq_find(tq, id, &active) == NULL);
+	rc = (taskq_find(tq, id) == NULL);
 	spin_unlock_irqrestore(&tq->tq_lock, flags);
 
 	return (rc);
@@ -505,15 +506,14 @@ int
 taskq_cancel_id(taskq_t *tq, taskqid_t id)
 {
 	taskq_ent_t *t;
-	int active = 0;
 	int rc = ENOENT;
 	unsigned long flags;
 
 	ASSERT(tq);
 
 	spin_lock_irqsave_nested(&tq->tq_lock, flags, tq->tq_lock_class);
-	t = taskq_find(tq, id, &active);
-	if (t && !active) {
+	t = taskq_find(tq, id);
+	if (t && t != ERR_PTR(-EBUSY)) {
 		list_del_init(&t->tqent_list);
 		t->tqent_flags |= TQENT_FLAG_CANCEL;
 
@@ -544,7 +544,7 @@ taskq_cancel_id(taskq_t *tq, taskqid_t id)
 	}
 	spin_unlock_irqrestore(&tq->tq_lock, flags);
 
-	if (active) {
+	if (t == ERR_PTR(-EBUSY)) {
 		taskq_wait_id(tq, id);
 		rc = EBUSY;
 	}
@@ -864,6 +864,7 @@ taskq_thread(void *args)
 	taskq_ent_t *t;
 	int seq_tasks = 0;
 	unsigned long flags;
+	taskq_ent_t dup_task = {};
 
 	ASSERT(tqt);
 	ASSERT(tqt->tqt_tq);
@@ -923,21 +924,23 @@ taskq_thread(void *args)
 			list_del_init(&t->tqent_list);
 
 			/*
-			 * In order to support recursively dispatching a
-			 * preallocated taskq_ent_t, tqent_id must be
-			 * stored prior to executing tqent_func.
+			 * A TQENT_FLAG_PREALLOC task may be reused or freed
+			 * during the task function call. Store tqent_id and
+			 * tqent_flags here.
+			 *
+			 * Also use an on stack taskq_ent_t for tqt_task
+			 * assignment in this case. We only populate the two
+			 * fields used by the only user in taskq proc file.
 			 */
 			tqt->tqt_id = t->tqent_id;
-			tqt->tqt_task = t;
-
-			/*
-			 * We must store a copy of the flags prior to
-			 * servicing the task (servicing a prealloc'd task
-			 * returns the ownership of the tqent back to
-			 * the caller of taskq_dispatch). Thus,
-			 * tqent_flags _may_ change within the call.
-			 */
 			tqt->tqt_flags = t->tqent_flags;
+
+			if (t->tqent_flags & TQENT_FLAG_PREALLOC) {
+				dup_task.tqent_func = t->tqent_func;
+				dup_task.tqent_arg = t->tqent_arg;
+				t = &dup_task;
+			}
+			tqt->tqt_task = t;
 
 			taskq_insert_in_order(tq, tqt);
 			tq->tq_nactive++;

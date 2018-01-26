@@ -88,12 +88,12 @@ static int skein_digest_atomic(crypto_provider_handle_t, crypto_session_id_t,
     crypto_req_handle_t);
 
 static crypto_digest_ops_t skein_digest_ops = {
-	skein_digest_init,
-	skein_digest,
-	skein_update,
-	NULL,
-	skein_final,
-	skein_digest_atomic
+	.digest_init = skein_digest_init,
+	.digest = skein_digest,
+	.digest_update = skein_update,
+	.digest_key = NULL,
+	.digest_final = skein_final,
+	.digest_atomic = skein_digest_atomic
 };
 
 static int skein_mac_init(crypto_ctx_t *, crypto_mechanism_t *, crypto_key_t *,
@@ -103,12 +103,12 @@ static int skein_mac_atomic(crypto_provider_handle_t, crypto_session_id_t,
     crypto_spi_ctx_template_t, crypto_req_handle_t);
 
 static crypto_mac_ops_t skein_mac_ops = {
-	skein_mac_init,
-	NULL,
-	skein_update,	/* using regular digest update is OK here */
-	skein_final,	/* using regular digest final is OK here */
-	skein_mac_atomic,
-	NULL
+	.mac_init = skein_mac_init,
+	.mac = NULL,
+	.mac_update = skein_update, /* using regular digest update is OK here */
+	.mac_final = skein_final,   /* using regular digest final is OK here */
+	.mac_atomic = skein_mac_atomic,
+	.mac_verify_atomic = NULL
 };
 
 static int skein_create_ctx_template(crypto_provider_handle_t,
@@ -117,8 +117,8 @@ static int skein_create_ctx_template(crypto_provider_handle_t,
 static int skein_free_context(crypto_ctx_t *);
 
 static crypto_ctx_ops_t skein_ctx_ops = {
-	skein_create_ctx_template,
-	skein_free_context
+	.create_ctx_template = skein_create_ctx_template,
+	.free_context = skein_free_context
 };
 
 static crypto_ops_t skein_crypto_ops = {{{{{

@@ -2043,12 +2043,10 @@ dmu_offset_next(objset_t *os, uint64_t object, boolean_t hole, uint64_t *off)
 	/*
 	 * Check if dnode is dirty
 	 */
-	if (dn->dn_dirtyctx != DN_UNDIRTIED) {
-		for (i = 0; i < TXG_SIZE; i++) {
-			if (!list_is_empty(&dn->dn_dirty_records[i])) {
-				clean = B_FALSE;
-				break;
-			}
+	for (i = 0; i < TXG_SIZE; i++) {
+		if (list_link_active(&dn->dn_dirty_link[i])) {
+			clean = B_FALSE;
+			break;
 		}
 	}
 

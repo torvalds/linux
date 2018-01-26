@@ -264,7 +264,7 @@ kstat_seq_show_io(struct seq_file *f, kstat_io_t *kip)
                    kip->nread, kip->nwritten,
                    kip->reads, kip->writes,
                    kip->wtime, kip->wlentime, kip->wlastupdate,
-                   kip->rtime, kip->wlentime, kip->rlastupdate,
+                   kip->rtime, kip->rlentime, kip->rlastupdate,
                    kip->wcnt,  kip->rcnt);
 
         return 0;

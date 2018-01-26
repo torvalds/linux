@@ -36,7 +36,9 @@ static int mod_infonull(void *, struct modlinkage *, int *);
  * Cryptographic Modules
  */
 struct mod_ops mod_cryptoops = {
-	mod_null, mod_null, mod_infonull
+	.modm_install = mod_null,
+	.modm_remove = mod_null,
+	.modm_info = mod_infonull
 };
 
 /*

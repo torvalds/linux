@@ -2801,11 +2801,11 @@ nvs_native_nvpair(nvstream_t *nvs, nvpair_t *nvp, size_t *size)
 }
 
 static const nvs_ops_t nvs_native_ops = {
-	nvs_native_nvlist,
-	nvs_native_nvpair,
-	nvs_native_nvp_op,
-	nvs_native_nvp_size,
-	nvs_native_nvl_fini
+	.nvs_nvlist = nvs_native_nvlist,
+	.nvs_nvpair = nvs_native_nvpair,
+	.nvs_nvp_op = nvs_native_nvp_op,
+	.nvs_nvp_size = nvs_native_nvp_size,
+	.nvs_nvl_fini = nvs_native_nvl_fini
 };
 
 static int
@@ -3288,11 +3288,11 @@ nvs_xdr_nvpair(nvstream_t *nvs, nvpair_t *nvp, size_t *size)
 }
 
 static const struct nvs_ops nvs_xdr_ops = {
-	nvs_xdr_nvlist,
-	nvs_xdr_nvpair,
-	nvs_xdr_nvp_op,
-	nvs_xdr_nvp_size,
-	nvs_xdr_nvl_fini
+	.nvs_nvlist = nvs_xdr_nvlist,
+	.nvs_nvpair = nvs_xdr_nvpair,
+	.nvs_nvp_op = nvs_xdr_nvp_op,
+	.nvs_nvp_size = nvs_xdr_nvp_size,
+	.nvs_nvl_fini = nvs_xdr_nvl_fini
 };
 
 static int

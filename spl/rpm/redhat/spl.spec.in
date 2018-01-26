@@ -34,6 +34,12 @@ make install DESTDIR=%{?buildroot}
 %{_mandir}/man5/*
 
 %changelog
+* Mon Dec 18 2017 Tony Hutter <hutter2@llnl.gov> - 0.7.5-1
+- Released 0.7.5-1, detailed release notes are available at:
+- https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.7.5
+* Thu Dec 07 2017 Tony Hutter <hutter2@llnl.gov> - 0.7.4-1
+- Released 0.7.4-1, detailed release notes are available at:
+- https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.7.4
 * Wed Oct 18 2017 Tony Hutter <hutter2@llnl.gov> - 0.7.3-1
 - Released 0.7.3-1, detailed release notes are available at:
 - https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.7.3

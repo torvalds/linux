@@ -109,8 +109,8 @@ vdev_mirror_map_free(zio_t *zio)
 }
 
 static const zio_vsd_ops_t vdev_mirror_vsd_ops = {
-	vdev_mirror_map_free,
-	zio_vsd_default_cksum_report
+	.vsd_free = vdev_mirror_map_free,
+	.vsd_cksum_report = zio_vsd_default_cksum_report
 };
 
 static int

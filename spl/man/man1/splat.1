@@ -32,7 +32,7 @@ Print the usage message.
 .BI "\-l" "" ", \-\-list" ""
 .IP
 For each spl.ko subsystem, print all available test names and
-hexidecimal identifiers with a short description.
+hexadecimal identifiers with a short description.
 .HP
 .BI "\-t" " subsystem" ":" "test" ", \-\-test" " subsystem" ":" "test"
 .HP
@@ -42,9 +42,9 @@ Run the \fItest\fR diagnostic routine for the spl.ko \fIsubsystem\fR.
 Specify this option more than once to run multiple tests.
 
 The \fItest\fR and \fIsubsystem\fR parameters are the names or
-hexidecimal identifiers returned by the \fBsplat --list\fR command.
+hexadecimal identifiers returned by the \fBsplat --list\fR command.
 
-If \fIsubsystem\fR is a name and not a hexidecimal identifier, then the
+If \fIsubsystem\fR is a name and not a hexadecimal identifier, then the
 \fBall\fR keyword can be used to run all available \fIsubsystem\fR
 tests.
 
@@ -73,7 +73,7 @@ Test the kernel compression and queue waiting facilities:
 # splat --test zlib:compress/uncompress --test taskq:wait
 .LP
 This is the same as the previous command, except that the subsystems
-and tests are referenced by hexidecimal identifier instead of by name:
+and tests are referenced by hexadecimal identifier instead of by name:
 .IP
 # splat -t 0x0f00:0x0f01 -t 0x0200:0x0204
 

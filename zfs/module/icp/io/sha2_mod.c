@@ -143,12 +143,12 @@ static int sha2_digest_atomic(crypto_provider_handle_t, crypto_session_id_t,
     crypto_req_handle_t);
 
 static crypto_digest_ops_t sha2_digest_ops = {
-	sha2_digest_init,
-	sha2_digest,
-	sha2_digest_update,
-	NULL,
-	sha2_digest_final,
-	sha2_digest_atomic
+	.digest_init = sha2_digest_init,
+	.digest = sha2_digest,
+	.digest_update = sha2_digest_update,
+	.digest_key = NULL,
+	.digest_final = sha2_digest_final,
+	.digest_atomic = sha2_digest_atomic
 };
 
 static int sha2_mac_init(crypto_ctx_t *, crypto_mechanism_t *, crypto_key_t *,
@@ -164,12 +164,12 @@ static int sha2_mac_verify_atomic(crypto_provider_handle_t, crypto_session_id_t,
     crypto_spi_ctx_template_t, crypto_req_handle_t);
 
 static crypto_mac_ops_t sha2_mac_ops = {
-	sha2_mac_init,
-	NULL,
-	sha2_mac_update,
-	sha2_mac_final,
-	sha2_mac_atomic,
-	sha2_mac_verify_atomic
+	.mac_init = sha2_mac_init,
+	.mac = NULL,
+	.mac_update = sha2_mac_update,
+	.mac_final = sha2_mac_final,
+	.mac_atomic = sha2_mac_atomic,
+	.mac_verify_atomic = sha2_mac_verify_atomic
 };
 
 static int sha2_create_ctx_template(crypto_provider_handle_t,
@@ -178,8 +178,8 @@ static int sha2_create_ctx_template(crypto_provider_handle_t,
 static int sha2_free_context(crypto_ctx_t *);
 
 static crypto_ctx_ops_t sha2_ctx_ops = {
-	sha2_create_ctx_template,
-	sha2_free_context
+	.create_ctx_template = sha2_create_ctx_template,
+	.free_context = sha2_free_context
 };
 
 static crypto_ops_t sha2_crypto_ops = {{{{{

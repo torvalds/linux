@@ -89,17 +89,17 @@ spa_history_create_obj(spa_t *spa, dmu_tx_t *tx)
 	spa_history_phys_t *shpp;
 	objset_t *mos = spa->spa_meta_objset;
 
-	ASSERT(spa->spa_history == 0);
+	ASSERT0(spa->spa_history);
 	spa->spa_history = dmu_object_alloc(mos, DMU_OT_SPA_HISTORY,
 	    SPA_OLD_MAXBLOCKSIZE, DMU_OT_SPA_HISTORY_OFFSETS,
 	    sizeof (spa_history_phys_t), tx);
 
-	VERIFY(zap_add(mos, DMU_POOL_DIRECTORY_OBJECT,
+	VERIFY0(zap_add(mos, DMU_POOL_DIRECTORY_OBJECT,
 	    DMU_POOL_HISTORY, sizeof (uint64_t), 1,
-	    &spa->spa_history, tx) == 0);
+	    &spa->spa_history, tx));
 
-	VERIFY(0 == dmu_bonus_hold(mos, spa->spa_history, FTAG, &dbp));
-	ASSERT(dbp->db_size >= sizeof (spa_history_phys_t));
+	VERIFY0(dmu_bonus_hold(mos, spa->spa_history, FTAG, &dbp));
+	ASSERT3U(dbp->db_size, >=, sizeof (spa_history_phys_t));
 
 	shpp = dbp->db_data;
 	dmu_buf_will_dirty(dbp, tx);
@@ -525,7 +525,7 @@ log_internal(nvlist_t *nvl, const char *operation, spa_t *spa,
 	 * initialized yet, so don't bother logging the internal events.
 	 * Likewise if the pool is not writeable.
 	 */
-	if (tx->tx_txg == TXG_INITIAL || !spa_writeable(spa)) {
+	if (spa_is_initializing(spa) || !spa_writeable(spa)) {
 		fnvlist_free(nvl);
 		return;
 	}
@@ -611,11 +611,11 @@ spa_history_log_internal_dd(dsl_dir_t *dd, const char *operation,
 }
 
 void
-spa_history_log_version(spa_t *spa, const char *operation)
+spa_history_log_version(spa_t *spa, const char *operation, dmu_tx_t *tx)
 {
 	utsname_t *u = utsname();
 
-	spa_history_log_internal(spa, operation, NULL,
+	spa_history_log_internal(spa, operation, tx,
 	    "pool version %llu; software version %llu/%llu; uts %s %s %s %s",
 	    (u_longlong_t)spa_version(spa), SPA_VERSION, ZPL_VERSION,
 	    u->nodename, u->release, u->version, u->machine);

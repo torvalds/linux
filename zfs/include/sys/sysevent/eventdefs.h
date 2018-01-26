@@ -101,6 +101,7 @@ extern "C" {
 #define	ESC_ZFS_POOL_CREATE		"pool_create"
 #define	ESC_ZFS_POOL_DESTROY		"pool_destroy"
 #define	ESC_ZFS_POOL_IMPORT		"pool_import"
+#define	ESC_ZFS_POOL_EXPORT		"pool_export"
 #define	ESC_ZFS_VDEV_ADD		"vdev_add"
 #define	ESC_ZFS_VDEV_ATTACH		"vdev_attach"
 #define	ESC_ZFS_VDEV_CLEAR		"vdev_clear"

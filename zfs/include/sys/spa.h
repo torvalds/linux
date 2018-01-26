@@ -876,7 +876,8 @@ extern int spa_history_get(spa_t *spa, uint64_t *offset, uint64_t *len_read,
     char *his_buf);
 extern int spa_history_log(spa_t *spa, const char *his_buf);
 extern int spa_history_log_nvl(spa_t *spa, nvlist_t *nvl);
-extern void spa_history_log_version(spa_t *spa, const char *operation);
+extern void spa_history_log_version(spa_t *spa, const char *operation,
+    dmu_tx_t *tx);
 extern void spa_history_log_internal(spa_t *spa, const char *operation,
     dmu_tx_t *tx, const char *fmt, ...);
 extern void spa_history_log_internal_ds(struct dsl_dataset *ds, const char *op,

@@ -174,18 +174,18 @@ zfs_ace_v0_data(void *acep, void **datap)
 }
 
 static acl_ops_t zfs_acl_v0_ops = {
-	zfs_ace_v0_get_mask,
-	zfs_ace_v0_set_mask,
-	zfs_ace_v0_get_flags,
-	zfs_ace_v0_set_flags,
-	zfs_ace_v0_get_type,
-	zfs_ace_v0_set_type,
-	zfs_ace_v0_get_who,
-	zfs_ace_v0_set_who,
-	zfs_ace_v0_size,
-	zfs_ace_v0_abstract_size,
-	zfs_ace_v0_mask_off,
-	zfs_ace_v0_data
+	.ace_mask_get = zfs_ace_v0_get_mask,
+	.ace_mask_set = zfs_ace_v0_set_mask,
+	.ace_flags_get = zfs_ace_v0_get_flags,
+	.ace_flags_set = zfs_ace_v0_set_flags,
+	.ace_type_get = zfs_ace_v0_get_type,
+	.ace_type_set = zfs_ace_v0_set_type,
+	.ace_who_get = zfs_ace_v0_get_who,
+	.ace_who_set = zfs_ace_v0_set_who,
+	.ace_size = zfs_ace_v0_size,
+	.ace_abstract_size = zfs_ace_v0_abstract_size,
+	.ace_mask_off = zfs_ace_v0_mask_off,
+	.ace_data = zfs_ace_v0_data
 };
 
 static uint16_t
@@ -310,18 +310,18 @@ zfs_ace_fuid_data(void *acep, void **datap)
 }
 
 static acl_ops_t zfs_acl_fuid_ops = {
-	zfs_ace_fuid_get_mask,
-	zfs_ace_fuid_set_mask,
-	zfs_ace_fuid_get_flags,
-	zfs_ace_fuid_set_flags,
-	zfs_ace_fuid_get_type,
-	zfs_ace_fuid_set_type,
-	zfs_ace_fuid_get_who,
-	zfs_ace_fuid_set_who,
-	zfs_ace_fuid_size,
-	zfs_ace_fuid_abstract_size,
-	zfs_ace_fuid_mask_off,
-	zfs_ace_fuid_data
+	.ace_mask_get = zfs_ace_fuid_get_mask,
+	.ace_mask_set = zfs_ace_fuid_set_mask,
+	.ace_flags_get = zfs_ace_fuid_get_flags,
+	.ace_flags_set = zfs_ace_fuid_set_flags,
+	.ace_type_get = zfs_ace_fuid_get_type,
+	.ace_type_set = zfs_ace_fuid_set_type,
+	.ace_who_get = zfs_ace_fuid_get_who,
+	.ace_who_set = zfs_ace_fuid_set_who,
+	.ace_size = zfs_ace_fuid_size,
+	.ace_abstract_size = zfs_ace_fuid_abstract_size,
+	.ace_mask_off = zfs_ace_fuid_mask_off,
+	.ace_data = zfs_ace_fuid_data
 };
 
 /*

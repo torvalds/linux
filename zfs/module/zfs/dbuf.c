@@ -63,7 +63,6 @@ struct dbuf_hold_impl_data {
 	blkptr_t *dh_bp;
 	int dh_err;
 	dbuf_dirty_record_t *dh_dr;
-	arc_buf_contents_t dh_type;
 	int dh_depth;
 };
 
@@ -2484,6 +2483,10 @@ dbuf_prefetch_indirect_done(zio_t *zio, arc_buf_t *abuf, void *private)
 		arc_flags_t iter_aflags = ARC_FLAG_NOWAIT;
 		zbookmark_phys_t zb;
 
+		/* flag if L2ARC eligible, l2arc_noprefetch then decides */
+		if (dpa->dpa_aflags & ARC_FLAG_L2CACHE)
+			iter_aflags |= ARC_FLAG_L2CACHE;
+
 		ASSERT3U(dpa->dpa_curlevel, ==, BP_GET_LEVEL(bp));
 
 		SET_BOOKMARK(&zb, dpa->dpa_zb.zb_objset,
@@ -2597,6 +2600,10 @@ dbuf_prefetch(dnode_t *dn, int64_t level, uint64_t blkid, zio_priority_t prio,
 	dpa->dpa_epbs = epbs;
 	dpa->dpa_zio = pio;
 
+	/* flag if L2ARC eligible, l2arc_noprefetch then decides */
+	if (DNODE_LEVEL_IS_L2CACHEABLE(dn, level))
+		dpa->dpa_aflags |= ARC_FLAG_L2CACHE;
+
 	/*
 	 * If we have the indirect just above us, no need to do the asynchronous
 	 * prefetch chain; we'll just run the last step ourselves.  If we're at
@@ -2611,6 +2618,10 @@ dbuf_prefetch(dnode_t *dn, int64_t level, uint64_t blkid, zio_priority_t prio,
 	} else {
 		arc_flags_t iter_aflags = ARC_FLAG_NOWAIT;
 		zbookmark_phys_t zb;
+
+		/* flag if L2ARC eligible, l2arc_noprefetch then decides */
+		if (DNODE_LEVEL_IS_L2CACHEABLE(dn, level))
+			iter_aflags |= ARC_FLAG_L2CACHE;
 
 		SET_BOOKMARK(&zb, ds != NULL ? ds->ds_object : DMU_META_OBJSET,
 		    dn->dn_object, curlevel, curblkid);
@@ -2627,6 +2638,36 @@ dbuf_prefetch(dnode_t *dn, int64_t level, uint64_t blkid, zio_priority_t prio,
 }
 
 #define	DBUF_HOLD_IMPL_MAX_DEPTH	20
+
+/*
+ * Helper function for __dbuf_hold_impl() to copy a buffer. Handles
+ * the case of compressed and uncompressed buffers by allocating the
+ * new buffer, respectively, with arc_alloc_raw_buf(),
+ * arc_alloc_compressed_buf() or arc_alloc_buf().*
+ *
+ * NOTE: Declared noinline to avoid stack bloat in __dbuf_hold_impl().
+ */
+noinline static void
+dbuf_hold_copy(struct dbuf_hold_impl_data *dh)
+{
+	dnode_t *dn = dh->dh_dn;
+	dmu_buf_impl_t *db = dh->dh_db;
+	dbuf_dirty_record_t *dr = dh->dh_dr;
+	arc_buf_t *data = dr->dt.dl.dr_data;
+
+	enum zio_compress compress_type = arc_get_compression(data);
+
+	if (compress_type != ZIO_COMPRESS_OFF) {
+		dbuf_set_data(db, arc_alloc_compressed_buf(
+		    dn->dn_objset->os_spa, db, arc_buf_size(data),
+		    arc_buf_lsize(data), compress_type));
+	} else {
+		dbuf_set_data(db, arc_alloc_buf(dn->dn_objset->os_spa, db,
+		    DBUF_GET_BUFC_TYPE(db), db->db.db_size));
+	}
+
+	bcopy(data->b_data, db->db.db_data, arc_buf_size(data));
+}
 
 /*
  * Returns with db_holds incremented, and db_mtx not held.
@@ -2693,16 +2734,8 @@ __dbuf_hold_impl(struct dbuf_hold_impl_data *dh)
 	    dh->dh_dn->dn_object != DMU_META_DNODE_OBJECT &&
 	    dh->dh_db->db_state == DB_CACHED && dh->dh_db->db_data_pending) {
 		dh->dh_dr = dh->dh_db->db_data_pending;
-
-		if (dh->dh_dr->dt.dl.dr_data == dh->dh_db->db_buf) {
-			dh->dh_type = DBUF_GET_BUFC_TYPE(dh->dh_db);
-
-			dbuf_set_data(dh->dh_db,
-			    arc_alloc_buf(dh->dh_dn->dn_objset->os_spa,
-			    dh->dh_db, dh->dh_type, dh->dh_db->db.db_size));
-			bcopy(dh->dh_dr->dt.dl.dr_data->b_data,
-			    dh->dh_db->db.db_data, dh->dh_db->db.db_size);
-		}
+		if (dh->dh_dr->dt.dl.dr_data == dh->dh_db->db_buf)
+			dbuf_hold_copy(dh);
 	}
 
 	if (multilist_link_active(&dh->dh_db->db_cache_link)) {
@@ -2775,7 +2808,6 @@ __dbuf_hold_impl_init(struct dbuf_hold_impl_data *dh,
 	dh->dh_bp = NULL;
 	dh->dh_err = 0;
 	dh->dh_dr = NULL;
-	dh->dh_type = 0;
 
 	dh->dh_depth = depth;
 }

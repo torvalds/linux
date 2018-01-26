@@ -2341,7 +2341,8 @@ vdev_count_verify_zaps(vdev_t *vd)
  * Determine whether the activity check is required.
  */
 static boolean_t
-spa_activity_check_required(spa_t *spa, uberblock_t *ub, nvlist_t *config)
+spa_activity_check_required(spa_t *spa, uberblock_t *ub, nvlist_t *label,
+    nvlist_t *config)
 {
 	uint64_t state = 0;
 	uint64_t hostid = 0;
@@ -2358,7 +2359,6 @@ spa_activity_check_required(spa_t *spa, uberblock_t *ub, nvlist_t *config)
 	}
 
 	(void) nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_STATE, &state);
-	(void) nvlist_lookup_uint64(config, ZPOOL_CONFIG_HOSTID, &hostid);
 
 	/*
 	 * Disable the MMP activity check - This is used by zdb which
@@ -2384,8 +2384,12 @@ spa_activity_check_required(spa_t *spa, uberblock_t *ub, nvlist_t *config)
 
 	/*
 	 * Allow the activity check to be skipped when importing the pool
-	 * on the same host which last imported it.
+	 * on the same host which last imported it.  Since the hostid from
+	 * configuration may be stale use the one read from the label.
 	 */
+	if (nvlist_exists(label, ZPOOL_CONFIG_HOSTID))
+		hostid = fnvlist_lookup_uint64(label, ZPOOL_CONFIG_HOSTID);
+
 	if (hostid == spa_get_hostid())
 		return (B_FALSE);
 
@@ -2651,7 +2655,7 @@ spa_load_impl(spa_t *spa, uint64_t pool_guid, nvlist_t *config,
 	 * pool is truly inactive and can be safely imported.  Prevent
 	 * hosts which don't have a hostid set from importing the pool.
 	 */
-	activity_check = spa_activity_check_required(spa, ub, config);
+	activity_check = spa_activity_check_required(spa, ub, label, config);
 	if (activity_check) {
 		if (ub->ub_mmp_magic == MMP_MAGIC && ub->ub_mmp_delay &&
 		    spa_get_hostid() == 0) {
@@ -3257,7 +3261,7 @@ spa_load_impl(spa_t *spa, uint64_t pool_guid, nvlist_t *config,
 		 * Log the fact that we booted up (so that we can detect if
 		 * we rebooted in the middle of an operation).
 		 */
-		spa_history_log_version(spa, "open");
+		spa_history_log_version(spa, "open", NULL);
 
 		/*
 		 * Delete any inconsistent datasets.
@@ -4140,6 +4144,15 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	tx = dmu_tx_create_assigned(dp, txg);
 
 	/*
+	 * Create the pool's history object.
+	 */
+	if (version >= SPA_VERSION_ZPOOL_HISTORY && !spa->spa_history)
+		spa_history_create_obj(spa, tx);
+
+	spa_event_notify(spa, NULL, NULL, ESC_ZFS_POOL_CREATE);
+	spa_history_log_version(spa, "create", tx);
+
+	/*
 	 * Create the pool config object.
 	 */
 	spa->spa_config_object = dmu_object_alloc(spa->spa_meta_objset,
@@ -4188,12 +4201,6 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	    spa->spa_meta_objset, obj));
 
 	/*
-	 * Create the pool's history object.
-	 */
-	if (version >= SPA_VERSION_ZPOOL_HISTORY)
-		spa_history_create_obj(spa, tx);
-
-	/*
 	 * Generate some random noise for salted checksums to operate on.
 	 */
 	(void) random_get_pseudo_bytes(spa->spa_cksum_salt.zcs_bytes,
@@ -4226,9 +4233,6 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	txg_wait_synced(spa->spa_dsl_pool, txg);
 
 	spa_config_sync(spa, B_FALSE, B_TRUE);
-	spa_event_notify(spa, NULL, NULL, ESC_ZFS_POOL_CREATE);
-
-	spa_history_log_version(spa, "create");
 
 	/*
 	 * Don't count references from objsets that are already closed
@@ -4415,7 +4419,7 @@ spa_import(char *pool, nvlist_t *config, nvlist_t *props, uint64_t flags)
 	 */
 	spa_async_request(spa, SPA_ASYNC_AUTOEXPAND);
 
-	spa_history_log_version(spa, "import");
+	spa_history_log_version(spa, "import", NULL);
 
 	spa_event_notify(spa, NULL, NULL, ESC_ZFS_POOL_IMPORT);
 
@@ -4618,7 +4622,10 @@ spa_export_common(char *pool, int new_state, nvlist_t **oldconfig,
 	}
 
 export_spa:
-	spa_event_notify(spa, NULL, NULL, ESC_ZFS_POOL_DESTROY);
+	if (new_state == POOL_STATE_DESTROYED)
+		spa_event_notify(spa, NULL, NULL, ESC_ZFS_POOL_DESTROY);
+	else if (new_state == POOL_STATE_EXPORTED)
+		spa_event_notify(spa, NULL, NULL, ESC_ZFS_POOL_EXPORT);
 
 	if (spa->spa_state != POOL_STATE_UNINITIALIZED) {
 		spa_unload(spa);

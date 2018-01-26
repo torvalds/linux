@@ -532,10 +532,10 @@ AC_DEFUN([ZFS_AC_QAT], [
 
 		AC_MSG_RESULT([$qatbuild])
 		QAT_OBJ=${qatbuild}
-		AS_IF([ ! test -e "$QAT_OBJ/icp_qa_al.ko"], [
+		AS_IF([ ! test -e "$QAT_OBJ/icp_qa_al.ko" && ! test -e "$QAT_OBJ/qat_api.ko"], [
 			AC_MSG_ERROR([
 		*** Please make sure the qat driver is installed then try again.
-		*** Failed to find icp_qa_al.ko in:
+		*** Failed to find icp_qa_al.ko or qat_api.ko in:
 		$QAT_OBJ])
 		])
 

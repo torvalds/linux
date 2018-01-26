@@ -1,8 +1,8 @@
 #! /bin/sh
 # Attempt to guess a canonical system name.
-#   Copyright 1992-2016 Free Software Foundation, Inc.
+#   Copyright 1992-2017 Free Software Foundation, Inc.
 
-timestamp='2016-10-02'
+timestamp='2017-11-07'
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@ timestamp='2016-10-02'
 # General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, see <http://www.gnu.org/licenses/>.
+# along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 # As a special exception to the GNU General Public License, if you
 # distribute this file as part of a program that contains a
@@ -27,7 +27,7 @@ timestamp='2016-10-02'
 # Originally written by Per Bothner; maintained since 2000 by Ben Elliston.
 #
 # You can get the latest version of this script from:
-# http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess
+# https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess
 #
 # Please send patches to <config-patches@gnu.org>.
 
@@ -39,7 +39,7 @@ Usage: $0 [OPTION]
 
 Output the configuration name of the system \`$me' is run on.
 
-Operation modes:
+Options:
   -h, --help         print this help, then exit
   -t, --time-stamp   print date of last modification, then exit
   -v, --version      print version number, then exit
@@ -50,7 +50,7 @@ version="\
 GNU config.guess ($timestamp)
 
 Originally written by Per Bothner.
-Copyright 1992-2016 Free Software Foundation, Inc.
+Copyright 1992-2017 Free Software Foundation, Inc.
 
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
@@ -244,6 +244,9 @@ case "${UNAME_MACHINE}:${UNAME_SYSTEM}:${UNAME_RELEASE}:${UNAME_VERSION}" in
 	UNAME_MACHINE_ARCH=`arch | sed 's/^.*BSD\.//'`
 	echo ${UNAME_MACHINE_ARCH}-unknown-libertybsd${UNAME_RELEASE}
 	exit ;;
+    *:MidnightBSD:*:*)
+	echo ${UNAME_MACHINE}-unknown-midnightbsd${UNAME_RELEASE}
+	exit ;;
     *:ekkoBSD:*:*)
 	echo ${UNAME_MACHINE}-unknown-ekkobsd${UNAME_RELEASE}
 	exit ;;
@@ -258,6 +261,9 @@ case "${UNAME_MACHINE}:${UNAME_SYSTEM}:${UNAME_RELEASE}:${UNAME_VERSION}" in
 	exit ;;
     *:Sortix:*:*)
 	echo ${UNAME_MACHINE}-unknown-sortix
+	exit ;;
+    *:Redox:*:*)
+	echo ${UNAME_MACHINE}-unknown-redox
 	exit ;;
     alpha:OSF1:*:*)
 	case $UNAME_RELEASE in
@@ -315,15 +321,6 @@ case "${UNAME_MACHINE}:${UNAME_SYSTEM}:${UNAME_RELEASE}:${UNAME_VERSION}" in
 	exitcode=$?
 	trap '' 0
 	exit $exitcode ;;
-    Alpha\ *:Windows_NT*:*)
-	# How do we know it's Interix rather than the generic POSIX subsystem?
-	# Should we change UNAME_MACHINE based on the output of uname instead
-	# of the specific Alpha model?
-	echo alpha-pc-interix
-	exit ;;
-    21064:Windows_NT:50:3)
-	echo alpha-dec-winnt3.5
-	exit ;;
     Amiga*:UNIX_System_V:4.0:*)
 	echo m68k-unknown-sysv4
 	exit ;;
@@ -485,13 +482,13 @@ case "${UNAME_MACHINE}:${UNAME_SYSTEM}:${UNAME_RELEASE}:${UNAME_VERSION}" in
 #endif
 	#if defined (host_mips) && defined (MIPSEB)
 	#if defined (SYSTYPE_SYSV)
-	  printf ("mips-mips-riscos%ssysv\n", argv[1]); exit (0);
+	  printf ("mips-mips-riscos%ssysv\\n", argv[1]); exit (0);
 	#endif
 	#if defined (SYSTYPE_SVR4)
-	  printf ("mips-mips-riscos%ssvr4\n", argv[1]); exit (0);
+	  printf ("mips-mips-riscos%ssvr4\\n", argv[1]); exit (0);
 	#endif
 	#if defined (SYSTYPE_BSD43) || defined(SYSTYPE_BSD)
-	  printf ("mips-mips-riscos%sbsd\n", argv[1]); exit (0);
+	  printf ("mips-mips-riscos%sbsd\\n", argv[1]); exit (0);
 	#endif
 	#endif
 	  exit (-1);
@@ -614,7 +611,7 @@ EOF
     *:AIX:*:*)
 	echo rs6000-ibm-aix
 	exit ;;
-    ibmrt:4.4BSD:*|romp-ibm:BSD:*)
+    ibmrt:4.4BSD:*|romp-ibm:4.4BSD:*)
 	echo romp-ibm-bsd4.4
 	exit ;;
     ibmrt:*BSD:*|romp-ibm:BSD:*)            # covers RT/PC BSD and
@@ -635,8 +632,8 @@ EOF
     9000/[34678]??:HP-UX:*:*)
 	HPUX_REV=`echo ${UNAME_RELEASE}|sed -e 's/[^.]*.[0B]*//'`
 	case "${UNAME_MACHINE}" in
-	    9000/31? )            HP_ARCH=m68000 ;;
-	    9000/[34]?? )         HP_ARCH=m68k ;;
+	    9000/31?)            HP_ARCH=m68000 ;;
+	    9000/[34]??)         HP_ARCH=m68k ;;
 	    9000/[678][0-9][0-9])
 		if [ -x /usr/bin/getconf ]; then
 		    sc_cpu_version=`/usr/bin/getconf SC_CPU_VERSION 2>/dev/null`
@@ -749,7 +746,7 @@ EOF
 		{ echo "$SYSTEM_NAME"; exit; }
 	echo unknown-hitachi-hiuxwe2
 	exit ;;
-    9000/7??:4.3bsd:*:* | 9000/8?[79]:4.3bsd:*:* )
+    9000/7??:4.3bsd:*:* | 9000/8?[79]:4.3bsd:*:*)
 	echo hppa1.1-hp-bsd
 	exit ;;
     9000/8??:4.3bsd:*:*)
@@ -758,7 +755,7 @@ EOF
     *9??*:MPE/iX:*:* | *3000*:MPE/iX:*:*)
 	echo hppa1.0-hp-mpeix
 	exit ;;
-    hp7??:OSF1:*:* | hp8?[79]:OSF1:*:* )
+    hp7??:OSF1:*:* | hp8?[79]:OSF1:*:*)
 	echo hppa1.1-hp-osf
 	exit ;;
     hp8??:OSF1:*:*)
@@ -837,10 +834,11 @@ EOF
 	UNAME_PROCESSOR=`/usr/bin/uname -p`
 	case ${UNAME_PROCESSOR} in
 	    amd64)
-		echo x86_64-unknown-freebsd`echo ${UNAME_RELEASE}|sed -e 's/[-(].*//'` ;;
-	    *)
-		echo ${UNAME_PROCESSOR}-unknown-freebsd`echo ${UNAME_RELEASE}|sed -e 's/[-(].*//'` ;;
+		UNAME_PROCESSOR=x86_64 ;;
+	    i386)
+		UNAME_PROCESSOR=i586 ;;
 	esac
+	echo ${UNAME_PROCESSOR}-unknown-freebsd`echo ${UNAME_RELEASE}|sed -e 's/[-(].*//'`
 	exit ;;
     i*:CYGWIN*:*)
 	echo ${UNAME_MACHINE}-pc-cygwin
@@ -853,10 +851,6 @@ EOF
 	exit ;;
     *:MSYS*:*)
 	echo ${UNAME_MACHINE}-pc-msys
-	exit ;;
-    i*:windows32*:*)
-	# uname -m includes "-pc" on this system.
-	echo ${UNAME_MACHINE}-mingw32
 	exit ;;
     i*:PW*:*)
 	echo ${UNAME_MACHINE}-pc-pw32
@@ -873,26 +867,11 @@ EOF
 		echo ia64-unknown-interix${UNAME_RELEASE}
 		exit ;;
 	esac ;;
-    [345]86:Windows_95:* | [345]86:Windows_98:* | [345]86:Windows_NT:*)
-	echo i${UNAME_MACHINE}-pc-mks
-	exit ;;
-    8664:Windows_NT:*)
-	echo x86_64-pc-mks
-	exit ;;
-    i*:Windows_NT*:* | Pentium*:Windows_NT*:*)
-	# How do we know it's Interix rather than the generic POSIX subsystem?
-	# It also conflicts with pre-2.0 versions of AT&T UWIN. Should we
-	# UNAME_MACHINE based on the output of uname instead of i386?
-	echo i586-pc-interix
-	exit ;;
     i*:UWIN*:*)
 	echo ${UNAME_MACHINE}-pc-uwin
 	exit ;;
     amd64:CYGWIN*:*:* | x86_64:CYGWIN*:*:*)
 	echo x86_64-unknown-cygwin
-	exit ;;
-    p*:CYGWIN*:*)
-	echo powerpcle-unknown-cygwin
 	exit ;;
     prep*:SunOS:5.*:*)
 	echo powerpcle-unknown-solaris2`echo ${UNAME_RELEASE}|sed -e 's/[^.]*//'`
@@ -1096,7 +1075,7 @@ EOF
     i*86:*DOS:*:*)
 	echo ${UNAME_MACHINE}-pc-msdosdjgpp
 	exit ;;
-    i*86:*:4.*:* | i*86:SYSTEM_V:4.*:*)
+    i*86:*:4.*:*)
 	UNAME_REL=`echo ${UNAME_RELEASE} | sed 's/\/MP$//'`
 	if grep Novell /usr/include/link.h >/dev/null 2>/dev/null; then
 		echo ${UNAME_MACHINE}-univel-sysv${UNAME_REL}
@@ -1303,13 +1282,20 @@ EOF
 	if test `echo "$UNAME_RELEASE" | sed -e 's/\..*//'` -le 10 ; then
 	    if [ "$CC_FOR_BUILD" != no_compiler_found ]; then
 		if (echo '#ifdef __LP64__'; echo IS_64BIT_ARCH; echo '#endif') | \
-		    (CCOPTS="" $CC_FOR_BUILD -E - 2>/dev/null) | \
-		    grep IS_64BIT_ARCH >/dev/null
+		       (CCOPTS="" $CC_FOR_BUILD -E - 2>/dev/null) | \
+		       grep IS_64BIT_ARCH >/dev/null
 		then
 		    case $UNAME_PROCESSOR in
 			i386) UNAME_PROCESSOR=x86_64 ;;
 			powerpc) UNAME_PROCESSOR=powerpc64 ;;
 		    esac
+		fi
+		# On 10.4-10.6 one might compile for PowerPC via gcc -arch ppc
+		if (echo '#ifdef __POWERPC__'; echo IS_PPC; echo '#endif') | \
+		       (CCOPTS="" $CC_FOR_BUILD -E - 2>/dev/null) | \
+		       grep IS_PPC >/dev/null
+		then
+		    UNAME_PROCESSOR=powerpc
 		fi
 	    fi
 	elif test "$UNAME_PROCESSOR" = i386 ; then
@@ -1334,14 +1320,17 @@ EOF
     *:QNX:*:4*)
 	echo i386-pc-qnx
 	exit ;;
-    NEO-?:NONSTOP_KERNEL:*:*)
+    NEO-*:NONSTOP_KERNEL:*:*)
 	echo neo-tandem-nsk${UNAME_RELEASE}
 	exit ;;
     NSE-*:NONSTOP_KERNEL:*:*)
 	echo nse-tandem-nsk${UNAME_RELEASE}
 	exit ;;
-    NSR-?:NONSTOP_KERNEL:*:*)
+    NSR-*:NONSTOP_KERNEL:*:*)
 	echo nsr-tandem-nsk${UNAME_RELEASE}
+	exit ;;
+    NSX-*:NONSTOP_KERNEL:*:*)
+	echo nsx-tandem-nsk${UNAME_RELEASE}
 	exit ;;
     *:NonStop-UX:*:*)
 	echo mips-compaq-nonstopux
@@ -1414,16 +1403,28 @@ EOF
 	exit ;;
 esac
 
+echo "$0: unable to guess system type" >&2
+
+case "${UNAME_MACHINE}:${UNAME_SYSTEM}" in
+    mips:Linux | mips64:Linux)
+	# If we got here on MIPS GNU/Linux, output extra information.
+	cat >&2 <<EOF
+
+NOTE: MIPS GNU/Linux systems require a C compiler to fully recognize
+the system type. Please install a C compiler and try again.
+EOF
+	;;
+esac
+
 cat >&2 <<EOF
-$0: unable to guess system type
 
 This script (version $timestamp), has failed to recognize the
-operating system you are using. If your script is old, overwrite
-config.guess and config.sub with the latest versions from:
+operating system you are using. If your script is old, overwrite *all*
+copies of config.guess and config.sub with the latest versions from:
 
-  http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess
+  https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess
 and
-  http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub
+  https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub
 
 If $0 has already been updated, send the following data and any
 information you think might be pertinent to config-patches@gnu.org to
@@ -1455,7 +1456,7 @@ EOF
 exit 1
 
 # Local variables:
-# eval: (add-hook 'write-file-hooks 'time-stamp)
+# eval: (add-hook 'write-file-functions 'time-stamp)
 # time-stamp-start: "timestamp='"
 # time-stamp-format: "%:y-%02m-%02d"
 # time-stamp-end: "'"

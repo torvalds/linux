@@ -1126,7 +1126,7 @@ top:
  *
  *	you own the directory,
  *	you own the entry,
- *	the entry is a plain file and you have write access,
+ *	you have write access to the entry,
  *	or you are privileged (checked in secpolicy...).
  *
  * The function returns 0 if remove access is granted.
@@ -1151,8 +1151,7 @@ zfs_sticky_remove_access(znode_t *zdp, znode_t *zp, cred_t *cr)
 	    cr, ZFS_OWNER);
 
 	if ((uid = crgetuid(cr)) == downer || uid == fowner ||
-	    (S_ISDIR(ZTOI(zp)->i_mode) &&
-	    zfs_zaccess(zp, ACE_WRITE_DATA, 0, B_FALSE, cr) == 0))
+	    zfs_zaccess(zp, ACE_WRITE_DATA, 0, B_FALSE, cr) == 0)
 		return (0);
 	else
 		return (secpolicy_vnode_remove(cr));

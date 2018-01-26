@@ -198,50 +198,40 @@ mmp_thread_stop(spa_t *spa)
 }
 
 /*
- * Randomly choose a leaf vdev, to write an MMP block to.  It must be
- * writable.  It must not have an outstanding mmp write (if so then
- * there is a problem, and a new write will also block).
+ * Choose a leaf vdev to write an MMP block to.  It must not have an
+ * outstanding mmp write (if so then there is a problem, and a new write will
+ * also block).  If there is no usable leaf in this subtree return NULL,
+ * otherwise return a pointer to the leaf.
  *
- * We try 10 times to pick a random leaf without an outstanding write.
- * If 90% of the leaves have pending writes, this gives us a >65%
- * chance of finding one we can write to.  There will be at least
- * (zfs_multihost_fail_intervals) tries before the inability to write an MMP
- * block causes serious problems.
+ * When walking the subtree, a random child is chosen as the starting point so
+ * that when the tree is healthy, the leaf chosen will be random with even
+ * distribution.  If there are unhealthy vdevs in the tree, the distribution
+ * will be really poor only if a large proportion of the vdevs are unhealthy,
+ * in which case there are other more pressing problems.
  */
 static vdev_t *
-vdev_random_leaf(spa_t *spa)
+mmp_random_leaf(vdev_t *vd)
 {
-	vdev_t *vd, *child;
-	int pending_writes = 10;
+	int child_idx;
 
-	ASSERT(spa);
-	ASSERT(spa_config_held(spa, SCL_STATE, RW_READER) == SCL_STATE);
-
-	/*
-	 * Since we hold SCL_STATE, neither pool nor vdev state can
-	 * change.  Therefore, if the root is not dead, there is a
-	 * child that is not dead, and so on down to a leaf.
-	 */
-	if (!vdev_writeable(spa->spa_root_vdev))
+	if (!vdev_writeable(vd))
 		return (NULL);
 
-	vd = spa->spa_root_vdev;
-	while (!vd->vdev_ops->vdev_op_leaf) {
-		child = vd->vdev_child[spa_get_random(vd->vdev_children)];
+	if (vd->vdev_ops->vdev_op_leaf)
+		return (vd->vdev_mmp_pending == 0 ? vd : NULL);
 
-		if (!vdev_writeable(child))
-			continue;
+	child_idx = spa_get_random(vd->vdev_children);
+	for (int offset = vd->vdev_children; offset > 0; offset--) {
+		vdev_t *leaf;
+		vdev_t *child = vd->vdev_child[(child_idx + offset) %
+		    vd->vdev_children];
 
-		if (child->vdev_ops->vdev_op_leaf && child->vdev_mmp_pending) {
-			if (pending_writes-- > 0)
-				continue;
-			else
-				return (NULL);
-		}
-
-		vd = child;
+		leaf = mmp_random_leaf(child);
+		if (leaf)
+			return (leaf);
 	}
-	return (vd);
+
+	return (NULL);
 }
 
 static void
@@ -324,8 +314,8 @@ mmp_write_uberblock(spa_t *spa)
 	uint64_t offset;
 
 	spa_config_enter(spa, SCL_STATE, FTAG, RW_READER);
-	vd = vdev_random_leaf(spa);
-	if (vd == NULL || !vdev_writeable(vd)) {
+	vd = mmp_random_leaf(spa->spa_root_vdev);
+	if (vd == NULL) {
 		spa_config_exit(spa, SCL_STATE, FTAG);
 		return;
 	}

@@ -1,8 +1,8 @@
 #! /bin/sh
 # Configuration validation subroutine script.
-#   Copyright 1992-2016 Free Software Foundation, Inc.
+#   Copyright 1992-2017 Free Software Foundation, Inc.
 
-timestamp='2016-11-04'
+timestamp='2017-11-23'
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@ timestamp='2016-11-04'
 # General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, see <http://www.gnu.org/licenses/>.
+# along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 # As a special exception to the GNU General Public License, if you
 # distribute this file as part of a program that contains a
@@ -33,7 +33,7 @@ timestamp='2016-11-04'
 # Otherwise, we print the canonical config type on stdout and succeed.
 
 # You can get the latest version of this script from:
-# http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub
+# https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub
 
 # This file is supposed to be the same for all GNU packages
 # and recognize all the CPU types, system types and aliases
@@ -57,7 +57,7 @@ Usage: $0 [OPTION] CPU-MFR-OPSYS or ALIAS
 
 Canonicalize a configuration name.
 
-Operation modes:
+Options:
   -h, --help         print this help, then exit
   -t, --time-stamp   print date of last modification, then exit
   -v, --version      print version number, then exit
@@ -67,7 +67,7 @@ Report bugs and patches to <config-patches@gnu.org>."
 version="\
 GNU config.sub ($timestamp)
 
-Copyright 1992-2016 Free Software Foundation, Inc.
+Copyright 1992-2017 Free Software Foundation, Inc.
 
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
@@ -229,9 +229,6 @@ case $os in
 	-ptx*)
 		basic_machine=`echo $1 | sed -e 's/86-.*/86-sequent/'`
 		;;
-	-windowsnt*)
-		os=`echo $os | sed -e 's/windowsnt/winnt/'`
-		;;
 	-psos*)
 		os=-psos
 		;;
@@ -263,7 +260,7 @@ case $basic_machine in
 	| fido | fr30 | frv | ft32 \
 	| h8300 | h8500 | hppa | hppa1.[01] | hppa2.0 | hppa2.0[nw] | hppa64 \
 	| hexagon \
-	| i370 | i860 | i960 | ia64 \
+	| i370 | i860 | i960 | ia16 | ia64 \
 	| ip2k | iq2000 \
 	| k1om \
 	| le32 | le64 \
@@ -315,7 +312,7 @@ case $basic_machine in
 	| ubicom32 \
 	| v850 | v850e | v850e1 | v850e2 | v850es | v850e2v3 \
 	| visium \
-	| we32k \
+	| wasm32 \
 	| x86 | xc16x | xstormy16 | xtensa \
 	| z8k | z80)
 		basic_machine=$basic_machine-unknown
@@ -388,7 +385,7 @@ case $basic_machine in
 	| h8300-* | h8500-* \
 	| hppa-* | hppa1.[01]-* | hppa2.0-* | hppa2.0[nw]-* | hppa64-* \
 	| hexagon-* \
-	| i*86-* | i860-* | i960-* | ia64-* \
+	| i*86-* | i860-* | i960-* | ia16-* | ia64-* \
 	| ip2k-* | iq2000-* \
 	| k1om-* \
 	| le32-* | le64-* \
@@ -446,6 +443,7 @@ case $basic_machine in
 	| v850-* | v850e-* | v850e1-* | v850es-* | v850e2-* | v850e2v3-* \
 	| vax-* \
 	| visium-* \
+	| wasm32-* \
 	| we32k-* \
 	| x86-* | x86_64-* | xc16x-* | xps100-* \
 	| xstormy16-* | xtensa*-* \
@@ -641,7 +639,7 @@ case $basic_machine in
 		basic_machine=rs6000-bull
 		os=-bosx
 		;;
-	dpx2* | dpx2*-bull)
+	dpx2*)
 		basic_machine=m68k-bull
 		os=-sysv3
 		;;
@@ -903,7 +901,7 @@ case $basic_machine in
 		basic_machine=v70-nec
 		os=-sysv
 		;;
-	next | m*-next )
+	next | m*-next)
 		basic_machine=m68k-next
 		case $os in
 		    -nextstep* )
@@ -947,6 +945,9 @@ case $basic_machine in
 		;;
 	nsr-tandem)
 		basic_machine=nsr-tandem
+		;;
+	nsx-tandem)
+		basic_machine=nsx-tandem
 		;;
 	op50n-* | op60c-*)
 		basic_machine=hppa1.1-oki
@@ -1243,6 +1244,9 @@ case $basic_machine in
 		basic_machine=a29k-wrs
 		os=-vxworks
 		;;
+	wasm32)
+		basic_machine=wasm32-unknown
+		;;
 	w65*)
 		basic_machine=w65-wdc
 		os=-none
@@ -1250,6 +1254,9 @@ case $basic_machine in
 	w89k-*)
 		basic_machine=hppa1.1-winbond
 		os=-proelf
+		;;
+	x64)
+		basic_machine=x86_64-pc
 		;;
 	xbox)
 		basic_machine=i686-pc
@@ -1358,8 +1365,8 @@ esac
 if [ x"$os" != x"" ]
 then
 case $os in
-	# First match some system type aliases
-	# that might get confused with valid system types.
+	# First match some system type aliases that might get confused
+	# with valid system types.
 	# -solaris* is a basic system type, with this one exception.
 	-auroraux)
 		os=-auroraux
@@ -1379,9 +1386,9 @@ case $os in
 	-gnu/linux*)
 		os=`echo $os | sed -e 's|gnu/linux|linux-gnu|'`
 		;;
-	# First accept the basic system types.
+	# Now accept the basic system types.
 	# The portable systems comes first.
-	# Each alternative MUST END IN A *, to match a version number.
+	# Each alternative MUST end in a * to match a version number.
 	# -sysv* is not here because it comes later, after sysvr4.
 	-gnu* | -bsd* | -mach* | -minix* | -genix* | -ultrix* | -irix* \
 	      | -*vms* | -sco* | -esix* | -isc* | -aix* | -cnk* | -sunos | -sunos[34]*\
@@ -1397,7 +1404,7 @@ case $os in
 	      | -bosx* | -nextstep* | -cxux* | -aout* | -elf* | -oabi* \
 	      | -ptx* | -coff* | -ecoff* | -winnt* | -domain* | -vsta* \
 	      | -udi* | -eabi* | -lites* | -ieee* | -go32* | -aux* \
-	      | -chorusos* | -chorusrdb* | -cegcc* \
+	      | -chorusos* | -chorusrdb* | -cegcc* | -glidix* \
 	      | -cygwin* | -msys* | -pe* | -psos* | -moss* | -proelf* | -rtems* \
 	      | -midipix* | -mingw32* | -mingw64* | -linux-gnu* | -linux-android* \
 	      | -linux-newlib* | -linux-musl* | -linux-uclibc* \
@@ -1409,7 +1416,7 @@ case $os in
 	      | -morphos* | -superux* | -rtmk* | -rtmk-nova* | -windiss* \
 	      | -powermax* | -dnix* | -nx6 | -nx7 | -sei* | -dragonfly* \
 	      | -skyos* | -haiku* | -rdos* | -toppers* | -drops* | -es* \
-	      | -onefs* | -tirtos* | -phoenix* | -fuchsia*)
+	      | -onefs* | -tirtos* | -phoenix* | -fuchsia* | -redox*)
 	# Remember, each alternative MUST END IN *, to match a version number.
 		;;
 	-qnx*)
@@ -1484,7 +1491,7 @@ case $os in
 	-nova*)
 		os=-rtmk-nova
 		;;
-	-ns2 )
+	-ns2)
 		os=-nextstep2
 		;;
 	-nsk*)
@@ -1538,6 +1545,19 @@ case $os in
 		;;
 	-dicos*)
 		os=-dicos
+		;;
+	-pikeos*)
+		# Until real need of OS specific support for
+		# particular features comes up, bare metal
+		# configurations are quite functional.
+		case $basic_machine in
+		    arm*)
+			os=-eabi
+			;;
+		    *)
+			os=-elf
+			;;
+		esac
 		;;
 	-nacl*)
 		;;
@@ -1638,6 +1658,9 @@ case $basic_machine in
 	sparc-* | *-sun)
 		os=-sunos4.1.1
 		;;
+	pru-*)
+		os=-elf
+		;;
 	*-be)
 		os=-beos
 		;;
@@ -1683,7 +1706,7 @@ case $basic_machine in
 	m88k-omron*)
 		os=-luna
 		;;
-	*-next )
+	*-next)
 		os=-nextstep
 		;;
 	*-sequent)
@@ -1818,7 +1841,7 @@ echo $basic_machine$os
 exit
 
 # Local variables:
-# eval: (add-hook 'write-file-hooks 'time-stamp)
+# eval: (add-hook 'write-file-functions 'time-stamp)
 # time-stamp-start: "timestamp='"
 # time-stamp-format: "%:y-%02m-%02d"
 # time-stamp-end: "'"

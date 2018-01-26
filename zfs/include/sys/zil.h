@@ -394,6 +394,7 @@ typedef struct itx {
 	uint8_t		itx_sync;	/* synchronous transaction */
 	zil_callback_t	itx_callback;   /* Called when the itx is persistent */
 	void		*itx_callback_data; /* User data for the callback */
+	size_t		itx_size;	/* allocated itx structure size */
 	uint64_t	itx_oid;	/* object id */
 	lr_t		itx_lr;		/* common part of log record */
 	/* followed by type-specific part of lr_xx_t and its immediate data */
