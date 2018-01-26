@@ -741,16 +741,11 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 		break;
 	case BPF_ALU | BPF_DIV | BPF_K: /* ALU_IMM */
 	case BPF_ALU | BPF_MOD | BPF_K: /* ALU_IMM */
+		if (insn->imm == 0)
+			return -EINVAL;
 		dst = ebpf_to_mips_reg(ctx, insn, dst_reg);
 		if (dst < 0)
 			return dst;
-		if (insn->imm == 0) { /* Div by zero */
-			b_off = b_imm(exit_idx, ctx);
-			if (is_bad_offset(b_off))
-				return -E2BIG;
-			emit_instr(ctx, beq, MIPS_R_ZERO, MIPS_R_ZERO, b_off);
-			emit_instr(ctx, addu, MIPS_R_V0, MIPS_R_ZERO, MIPS_R_ZERO);
-		}
 		td = get_reg_val_type(ctx, this_idx, insn->dst_reg);
 		if (td == REG_64BIT || td == REG_32BIT_ZERO_EX)
 			/* sign extend */
@@ -770,19 +765,13 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 		break;
 	case BPF_ALU64 | BPF_DIV | BPF_K: /* ALU_IMM */
 	case BPF_ALU64 | BPF_MOD | BPF_K: /* ALU_IMM */
+		if (insn->imm == 0)
+			return -EINVAL;
 		dst = ebpf_to_mips_reg(ctx, insn, dst_reg);
 		if (dst < 0)
 			return dst;
-		if (insn->imm == 0) { /* Div by zero */
-			b_off = b_imm(exit_idx, ctx);
-			if (is_bad_offset(b_off))
-				return -E2BIG;
-			emit_instr(ctx, beq, MIPS_R_ZERO, MIPS_R_ZERO, b_off);
-			emit_instr(ctx, addu, MIPS_R_V0, MIPS_R_ZERO, MIPS_R_ZERO);
-		}
 		if (get_reg_val_type(ctx, this_idx, insn->dst_reg) == REG_32BIT)
 			emit_instr(ctx, dinsu, dst, MIPS_R_ZERO, 32, 32);
-
 		if (insn->imm == 1) {
 			/* div by 1 is a nop, mod by 1 is zero */
 			if (bpf_op == BPF_MOD)
