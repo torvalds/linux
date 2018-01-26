@@ -535,7 +535,6 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 	struct vpu_service_info *pservice = data->pservice;
 	struct vpu_subdev_data *subdata, *n;
 
-	mutex_lock(&pservice->reset_lock);
 	/*
 	 * For the RK3228H, it is not necessary to write a register to
 	 * switch vpu combo mode, it is unsafe to write the grf.
@@ -588,15 +587,12 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 
 static void vcodec_exit_mode(struct vpu_subdev_data *data)
 {
-	struct vpu_service_info *pservice = data->pservice;
-
 	/*
 	 * In case of VPU Combo, it require HW switch its running mode
 	 * before the other HW component start work. set current HW running
 	 * mode to none, can ensure HW switch to its reqired mode properly.
 	 */
 	data->pservice->curr_mode = VCODEC_RUNNING_MODE_NONE;
-	mutex_unlock(&pservice->reset_lock);
 }
 
 static int vpu_get_clk(struct vpu_service_info *pservice)
@@ -1563,7 +1559,6 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, struct vpu_reg *reg)
 	default: {
 		vpu_err("error: unsupport session type %d", reg->type);
 
-		vcodec_exit_mode(data);
 		atomic_sub(1, &pservice->total_running);
 		atomic_sub(1, &reg->session->task_running);
 	} break;
@@ -1813,7 +1808,11 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 		if (ret < 0) {
 			int task_running = atomic_read(&session->task_running);
 
-			mutex_lock(&pservice->reset_lock);
+			/*
+			 * if reaching here, no irq return, and need to do
+			 * vpu_reset immediately. there is no need to care
+			 * reset_lock at this situation.
+			 */
 			mutex_lock(&pservice->lock);
 			if (task_running) {
 				atomic_set(&session->task_running, 0);
@@ -1826,7 +1825,6 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 			}
 			vpu_service_session_clear(data, session);
 			mutex_unlock(&pservice->lock);
-			mutex_unlock(&pservice->reset_lock);
 
 			return ret;
 		}
