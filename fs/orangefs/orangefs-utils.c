@@ -230,6 +230,25 @@ static int orangefs_inode_type(enum orangefs_ds_type objtype)
 		return -1;
 }
 
+static void orangefs_make_bad_inode(struct inode *inode)
+{
+	if (is_root_handle(inode)) {
+		/*
+		 * if this occurs, the pvfs2-client-core was killed but we
+		 * can't afford to lose the inode operations and such
+		 * associated with the root handle in any case.
+		 */
+		gossip_debug(GOSSIP_UTILS_DEBUG,
+			     "*** NOT making bad root inode %pU\n",
+			     get_khandle_from_ino(inode));
+	} else {
+		gossip_debug(GOSSIP_UTILS_DEBUG,
+			     "*** making bad inode %pU\n",
+			     get_khandle_from_ino(inode));
+		make_bad_inode(inode);
+	}
+}
+
 static int orangefs_inode_is_stale(struct inode *inode, int new,
     struct ORANGEFS_sys_attr_s *attrs, char *link_target)
 {
@@ -442,25 +461,6 @@ int orangefs_inode_setattr(struct inode *inode, struct iattr *iattr)
 		orangefs_inode->getattr_time = jiffies - 1;
 
 	return ret;
-}
-
-void orangefs_make_bad_inode(struct inode *inode)
-{
-	if (is_root_handle(inode)) {
-		/*
-		 * if this occurs, the pvfs2-client-core was killed but we
-		 * can't afford to lose the inode operations and such
-		 * associated with the root handle in any case.
-		 */
-		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "*** NOT making bad root inode %pU\n",
-			     get_khandle_from_ino(inode));
-	} else {
-		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "*** making bad inode %pU\n",
-			     get_khandle_from_ino(inode));
-		make_bad_inode(inode);
-	}
 }
 
 /*
