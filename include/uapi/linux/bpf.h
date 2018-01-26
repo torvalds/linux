@@ -1006,7 +1006,8 @@ struct bpf_sock_ops {
 /* Definitions for bpf_sock_ops_cb_flags */
 #define BPF_SOCK_OPS_RTO_CB_FLAG	(1<<0)
 #define BPF_SOCK_OPS_RETRANS_CB_FLAG	(1<<1)
-#define BPF_SOCK_OPS_ALL_CB_FLAGS       0x3		/* Mask of all currently
+#define BPF_SOCK_OPS_STATE_CB_FLAG	(1<<2)
+#define BPF_SOCK_OPS_ALL_CB_FLAGS       0x7		/* Mask of all currently
 							 * supported cb flags
 							 */
 
@@ -1054,6 +1055,32 @@ enum {
 					 * Arg3: return value of
 					 *       tcp_transmit_skb (0 => success)
 					 */
+	BPF_SOCK_OPS_STATE_CB,		/* Called when TCP changes state.
+					 * Arg1: old_state
+					 * Arg2: new_state
+					 */
+};
+
+/* List of TCP states. There is a build check in net/ipv4/tcp.c to detect
+ * changes between the TCP and BPF versions. Ideally this should never happen.
+ * If it does, we need to add code to convert them before calling
+ * the BPF sock_ops function.
+ */
+enum {
+	BPF_TCP_ESTABLISHED = 1,
+	BPF_TCP_SYN_SENT,
+	BPF_TCP_SYN_RECV,
+	BPF_TCP_FIN_WAIT1,
+	BPF_TCP_FIN_WAIT2,
+	BPF_TCP_TIME_WAIT,
+	BPF_TCP_CLOSE,
+	BPF_TCP_CLOSE_WAIT,
+	BPF_TCP_LAST_ACK,
+	BPF_TCP_LISTEN,
+	BPF_TCP_CLOSING,	/* Now a valid state */
+	BPF_TCP_NEW_SYN_RECV,
+
+	BPF_TCP_MAX_STATES	/* Leave at the end! */
 };
 
 #define TCP_BPF_IW		1001	/* Set TCP initial congestion window */
