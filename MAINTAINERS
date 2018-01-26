@@ -3206,7 +3206,7 @@ W:	https://github.com/linux-can
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkl/linux-can.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkl/linux-can-next.git
 S:	Maintained
-F:	Documentation/networking/can.txt
+F:	Documentation/networking/can.rst
 F:	net/can/
 F:	include/linux/can/core.h
 F:	include/uapi/linux/can.h
