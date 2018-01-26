@@ -1122,21 +1122,15 @@ out:
 
 static unsigned int smc_accept_poll(struct sock *parent)
 {
-	struct smc_sock *isk;
-	struct sock *sk;
+	struct smc_sock *isk = smc_sk(parent);
+	int mask = 0;
 
-	lock_sock(parent);
-	list_for_each_entry(isk, &smc_sk(parent)->accept_q, accept_q) {
-		sk = (struct sock *)isk;
+	spin_lock(&isk->accept_q_lock);
+	if (!list_empty(&isk->accept_q))
+		mask = POLLIN | POLLRDNORM;
+	spin_unlock(&isk->accept_q_lock);
 
-		if (sk->sk_state == SMC_ACTIVE) {
-			release_sock(parent);
-			return POLLIN | POLLRDNORM;
-		}
-	}
-	release_sock(parent);
-
-	return 0;
+	return mask;
 }
 
 static unsigned int smc_poll(struct file *file, struct socket *sock,
@@ -1147,9 +1141,15 @@ static unsigned int smc_poll(struct file *file, struct socket *sock,
 	struct smc_sock *smc;
 	int rc;
 
+	if (!sk)
+		return POLLNVAL;
+
 	smc = smc_sk(sock->sk);
+	sock_hold(sk);
+	lock_sock(sk);
 	if ((sk->sk_state == SMC_INIT) || smc->use_fallback) {
 		/* delegate to CLC child sock */
+		release_sock(sk);
 		mask = smc->clcsock->ops->poll(file, smc->clcsock, wait);
 		/* if non-blocking connect finished ... */
 		lock_sock(sk);
@@ -1161,37 +1161,43 @@ static unsigned int smc_poll(struct file *file, struct socket *sock,
 				rc = smc_connect_rdma(smc);
 				if (rc < 0)
 					mask |= POLLERR;
-				else
-					/* success cases including fallback */
-					mask |= POLLOUT | POLLWRNORM;
+				/* success cases including fallback */
+				mask |= POLLOUT | POLLWRNORM;
 			}
 		}
-		release_sock(sk);
 	} else {
-		sock_poll_wait(file, sk_sleep(sk), wait);
-		if (sk->sk_state == SMC_LISTEN)
-			/* woken up by sk_data_ready in smc_listen_work() */
-			mask |= smc_accept_poll(sk);
+		if (sk->sk_state != SMC_CLOSED) {
+			release_sock(sk);
+			sock_poll_wait(file, sk_sleep(sk), wait);
+			lock_sock(sk);
+		}
 		if (sk->sk_err)
 			mask |= POLLERR;
-		if (atomic_read(&smc->conn.sndbuf_space) ||
-		    (sk->sk_shutdown & SEND_SHUTDOWN)) {
-			mask |= POLLOUT | POLLWRNORM;
-		} else {
-			sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
-			set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
-		}
-		if (atomic_read(&smc->conn.bytes_to_rcv))
-			mask |= POLLIN | POLLRDNORM;
 		if ((sk->sk_shutdown == SHUTDOWN_MASK) ||
 		    (sk->sk_state == SMC_CLOSED))
 			mask |= POLLHUP;
-		if (sk->sk_shutdown & RCV_SHUTDOWN)
-			mask |= POLLIN | POLLRDNORM | POLLRDHUP;
-		if (sk->sk_state == SMC_APPCLOSEWAIT1)
-			mask |= POLLIN;
+		if (sk->sk_state == SMC_LISTEN) {
+			/* woken up by sk_data_ready in smc_listen_work() */
+			mask = smc_accept_poll(sk);
+		} else {
+			if (atomic_read(&smc->conn.sndbuf_space) ||
+			    sk->sk_shutdown & SEND_SHUTDOWN) {
+				mask |= POLLOUT | POLLWRNORM;
+			} else {
+				sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
+				set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+			}
+			if (atomic_read(&smc->conn.bytes_to_rcv))
+				mask |= POLLIN | POLLRDNORM;
+			if (sk->sk_shutdown & RCV_SHUTDOWN)
+				mask |= POLLIN | POLLRDNORM | POLLRDHUP;
+			if (sk->sk_state == SMC_APPCLOSEWAIT1)
+				mask |= POLLIN;
+		}
 
 	}
+	release_sock(sk);
+	sock_put(sk);
 
 	return mask;
 }
