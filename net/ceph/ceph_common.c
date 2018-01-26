@@ -421,6 +421,10 @@ ceph_parse_options(char *options, const char *dev_name,
 			opt->name = kstrndup(argstr[0].from,
 					      argstr[0].to-argstr[0].from,
 					      GFP_KERNEL);
+			if (!opt->name) {
+				err = -ENOMEM;
+				goto out;
+			}
 			break;
 		case Opt_secret:
 		        opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
