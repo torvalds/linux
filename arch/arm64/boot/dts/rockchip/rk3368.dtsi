@@ -1540,9 +1540,6 @@
 		clock-names = "pclk_lvds", "pclk_lvds_ctl";
 		power-domains = <&power RK3368_PD_VIO>;
 		rockchip,grf = <&grf>;
-		pinctrl-names = "lcdc", "gpio";
-		pinctrl-0 = <&lcdc_lcdc>;
-		pinctrl-1 = <&lcdc_gpio>;
 		status = "disabled";
 
 		ports {
