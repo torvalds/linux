@@ -932,11 +932,6 @@ restart:
 		amdgpu_ring_pad_ib(ring, params.ib);
 		amdgpu_sync_resv(adev, &job->sync, root->tbo.resv,
 				 AMDGPU_FENCE_OWNER_VM, false);
-		if (root->shadow)
-			amdgpu_sync_resv(adev, &job->sync,
-					 root->shadow->tbo.resv,
-					 AMDGPU_FENCE_OWNER_VM, false);
-
 		WARN_ON(params.ib->length_dw > ndw);
 		r = amdgpu_job_submit(job, ring, &vm->entity,
 				      AMDGPU_FENCE_OWNER_VM, &fence);
