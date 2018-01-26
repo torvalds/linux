@@ -335,7 +335,7 @@ static int orangefs_encode_fh(struct inode *inode,
 	struct orangefs_object_kref refn;
 
 	if (*max_len < len) {
-		gossip_lerr("fh buffer is too small for encoding\n");
+		gossip_err("fh buffer is too small for encoding\n");
 		*max_len = len;
 		type = 255;
 		goto out;
