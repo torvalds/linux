@@ -2003,10 +2003,14 @@ static struct bpf_test tests[] = {
 		{ { 4, 0 }, { 5, 10 } }
 	},
 	{
-		"INT: DIV by zero",
+		/* This one doesn't go through verifier, but is just raw insn
+		 * as opposed to cBPF tests from here. Thus div by 0 tests are
+		 * done in test_verifier in BPF kselftests.
+		 */
+		"INT: DIV by -1",
 		.u.insns_int = {
 			BPF_ALU64_REG(BPF_MOV, R6, R1),
-			BPF_ALU64_IMM(BPF_MOV, R7, 0),
+			BPF_ALU64_IMM(BPF_MOV, R7, -1),
 			BPF_LD_ABS(BPF_B, 3),
 			BPF_ALU32_REG(BPF_DIV, R0, R7),
 			BPF_EXIT_INSN(),
