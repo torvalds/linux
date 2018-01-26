@@ -875,6 +875,7 @@ static int soc15_common_set_clockgating_state(void *handle,
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
+	case CHIP_VEGA20:
 		adev->nbio_funcs->update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		adev->nbio_funcs->update_medium_grain_light_sleep(adev,
