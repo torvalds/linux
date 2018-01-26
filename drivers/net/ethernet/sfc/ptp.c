@@ -643,7 +643,7 @@ static int efx_ptp_get_attributes(struct efx_nic *efx)
 	case MC_CMD_PTP_OUT_GET_ATTRIBUTES_SECONDS_QTR_NANOSECONDS:
 		ptp->ns_to_nic_time = efx_ptp_ns_to_s_qns;
 		ptp->nic_to_kernel_time = efx_ptp_s_qns_to_ktime_correction;
-		ptp->nic_time.minor_max = 4000000000;
+		ptp->nic_time.minor_max = 4000000000UL;
 		ptp->nic_time.sync_event_minor_shift = 24;
 		break;
 	default:
