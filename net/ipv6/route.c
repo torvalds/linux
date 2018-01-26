@@ -1586,12 +1586,19 @@ static void rt6_age_examine_exception(struct rt6_exception_bucket *bucket,
 	 * EXPIRES exceptions - e.g. pmtu-generated ones are pruned when
 	 * expired, independently from their aging, as per RFC 8201 section 4
 	 */
-	if (!(rt->rt6i_flags & RTF_EXPIRES) &&
-	    time_after_eq(now, rt->dst.lastuse + gc_args->timeout)) {
-		RT6_TRACE("aging clone %p\n", rt);
+	if (!(rt->rt6i_flags & RTF_EXPIRES)) {
+		if (time_after_eq(now, rt->dst.lastuse + gc_args->timeout)) {
+			RT6_TRACE("aging clone %p\n", rt);
+			rt6_remove_exception(bucket, rt6_ex);
+			return;
+		}
+	} else if (time_after(jiffies, rt->dst.expires)) {
+		RT6_TRACE("purging expired route %p\n", rt);
 		rt6_remove_exception(bucket, rt6_ex);
 		return;
-	} else if (rt->rt6i_flags & RTF_GATEWAY) {
+	}
+
+	if (rt->rt6i_flags & RTF_GATEWAY) {
 		struct neighbour *neigh;
 		__u8 neigh_flags = 0;
 
@@ -1606,11 +1613,8 @@ static void rt6_age_examine_exception(struct rt6_exception_bucket *bucket,
 			rt6_remove_exception(bucket, rt6_ex);
 			return;
 		}
-	} else if (__rt6_check_expired(rt)) {
-		RT6_TRACE("purging expired route %p\n", rt);
-		rt6_remove_exception(bucket, rt6_ex);
-		return;
 	}
+
 	gc_args->more++;
 }
 
