@@ -42,7 +42,7 @@ struct dpc_dev {
 	struct pcie_device	*dev;
 	struct work_struct	work;
 	u16			cap_pos;
-	bool			rp;
+	bool			rp_extensions;
 	u32			rp_pio_status;
 };
 
@@ -126,9 +126,9 @@ static void dpc_work(struct work_struct *work)
 	pci_unlock_rescan_remove();
 
 	dpc_wait_link_inactive(dpc);
-	if (dpc->rp && dpc_wait_rp_inactive(dpc))
+	if (dpc->rp_extensions && dpc_wait_rp_inactive(dpc))
 		return;
-	if (dpc->rp && dpc->rp_pio_status) {
+	if (dpc->rp_extensions && dpc->rp_pio_status) {
 		pci_write_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_STATUS,
 				       dpc->rp_pio_status);
 		dpc->rp_pio_status = 0;
@@ -326,7 +326,7 @@ static int dpc_probe(struct pcie_device *dev)
 	pci_read_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_CAP, &cap);
 	pci_read_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_CTL, &ctl);
 
-	dpc->rp = (cap & PCI_EXP_DPC_CAP_RP_EXT);
+	dpc->rp_extensions = (cap & PCI_EXP_DPC_CAP_RP_EXT);
 
 	ctl = (ctl & 0xfff4) | PCI_EXP_DPC_CTL_EN_NONFATAL | PCI_EXP_DPC_CTL_INT_EN;
 	pci_write_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_CTL, ctl);
