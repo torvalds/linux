@@ -2440,7 +2440,8 @@ static int ip6_convert_metrics(struct mx6_config *mxc,
 
 static struct rt6_info *ip6_nh_lookup_table(struct net *net,
 					    struct fib6_config *cfg,
-					    const struct in6_addr *gw_addr)
+					    const struct in6_addr *gw_addr,
+					    u32 tbid, int flags)
 {
 	struct flowi6 fl6 = {
 		.flowi6_oif = cfg->fc_ifindex,
@@ -2449,15 +2450,15 @@ static struct rt6_info *ip6_nh_lookup_table(struct net *net,
 	};
 	struct fib6_table *table;
 	struct rt6_info *rt;
-	int flags = RT6_LOOKUP_F_IFACE | RT6_LOOKUP_F_IGNORE_LINKSTATE;
 
-	table = fib6_get_table(net, cfg->fc_table);
+	table = fib6_get_table(net, tbid);
 	if (!table)
 		return NULL;
 
 	if (!ipv6_addr_any(&cfg->fc_prefsrc))
 		flags |= RT6_LOOKUP_F_HAS_SADDR;
 
+	flags |= RT6_LOOKUP_F_IGNORE_LINKSTATE;
 	rt = ip6_pol_route(net, table, cfg->fc_ifindex, &fl6, flags);
 
 	/* if table lookup failed, fall back to full lookup */
@@ -2480,7 +2481,10 @@ static int ip6_route_check_nh(struct net *net,
 	int err = -EHOSTUNREACH;
 
 	if (cfg->fc_table) {
-		grt = ip6_nh_lookup_table(net, cfg, gw_addr);
+		int flags = RT6_LOOKUP_F_IFACE;
+
+		grt = ip6_nh_lookup_table(net, cfg, gw_addr,
+					  cfg->fc_table, flags);
 		if (grt) {
 			if (grt->rt6i_flags & RTF_GATEWAY ||
 			    (dev && dev != grt->dst.dev)) {
