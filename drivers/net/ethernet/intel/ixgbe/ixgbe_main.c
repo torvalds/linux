@@ -9303,9 +9303,6 @@ free_jump:
 static int ixgbe_setup_tc_cls_u32(struct ixgbe_adapter *adapter,
 				  struct tc_cls_u32_offload *cls_u32)
 {
-	if (cls_u32->common.chain_index)
-		return -EOPNOTSUPP;
-
 	switch (cls_u32->command) {
 	case TC_CLSU32_NEW_KNODE:
 	case TC_CLSU32_REPLACE_KNODE:
@@ -9327,7 +9324,7 @@ static int ixgbe_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 {
 	struct ixgbe_adapter *adapter = cb_priv;
 
-	if (!tc_can_offload(adapter->netdev))
+	if (!tc_cls_can_offload_and_chain0(adapter->netdev, type_data))
 		return -EOPNOTSUPP;
 
 	switch (type) {

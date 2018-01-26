@@ -430,13 +430,15 @@ class NetdevSim:
         return filters
 
     def cls_filter_op(self, op, qdisc="ingress", prio=None, handle=None,
-                      cls="", params="",
+                      chain=None, cls="", params="",
                       fail=True, include_stderr=False):
         spec = ""
         if prio is not None:
             spec += " prio %d" % (prio)
         if handle:
             spec += " handle %s" % (handle)
+        if chain is not None:
+            spec += " chain %d" % (chain)
 
         return tc("filter {op} dev {dev} {qdisc} {spec} {cls} {params}"\
                   .format(op=op, dev=self['ifname'], qdisc=qdisc, spec=spec,
@@ -444,7 +446,7 @@ class NetdevSim:
                   fail=fail, include_stderr=include_stderr)
 
     def cls_bpf_add_filter(self, bpf, op="add", prio=None, handle=None,
-                           da=False, verbose=False,
+                           chain=None, da=False, verbose=False,
                            skip_sw=False, skip_hw=False,
                            fail=True, include_stderr=False):
         cls = "bpf " + bpf
@@ -460,7 +462,7 @@ class NetdevSim:
             params += " skip_hw"
 
         return self.cls_filter_op(op=op, prio=prio, handle=handle, cls=cls,
-                                  params=params,
+                                  chain=chain, params=params,
                                   fail=fail, include_stderr=include_stderr)
 
     def set_ethtool_tc_offloads(self, enable, fail=True):
@@ -543,12 +545,28 @@ def check_extack(output, reference, args):
 def check_extack_nsim(output, reference, args):
     check_extack(output, "Error: netdevsim: " + reference, args)
 
+def check_no_extack(res, needle):
+    fail((res[1] + res[2]).count(needle) or (res[1] + res[2]).count("Warning:"),
+         "Found '%s' in command output, leaky extack?" % (needle))
+
 def check_verifier_log(output, reference):
     lines = output.split("\n")
     for l in reversed(lines):
         if l == reference:
             return
     fail(True, "Missing or incorrect message from netdevsim in verifier log")
+
+def test_spurios_extack(sim, obj, skip_hw, needle):
+    res = sim.cls_bpf_add_filter(obj, prio=1, handle=1, skip_hw=skip_hw,
+                                 include_stderr=True)
+    check_no_extack(res, needle)
+    res = sim.cls_bpf_add_filter(obj, op="replace", prio=1, handle=1,
+                                 skip_hw=skip_hw, include_stderr=True)
+    check_no_extack(res, needle)
+    res = sim.cls_filter_op(op="delete", prio=1, handle=1, cls="bpf",
+                            include_stderr=True)
+    check_no_extack(res, needle)
+
 
 # Parse command line
 parser = argparse.ArgumentParser()
@@ -663,6 +681,14 @@ try:
                       args)
     sim.wait_for_flush()
 
+    start_test("Test non-0 chain offload...")
+    ret, _, err = sim.cls_bpf_add_filter(obj, chain=1, prio=1, handle=1,
+                                         skip_sw=True,
+                                         fail=False, include_stderr=True)
+    fail(ret == 0, "Offloaded a filter to chain other than 0")
+    check_extack(err, "Error: Driver supports only offload of chain 0.", args)
+    sim.tc_flush_filters()
+
     start_test("Test TC replace...")
     sim.cls_bpf_add_filter(obj, prio=1, handle=1)
     sim.cls_bpf_add_filter(obj, op="replace", prio=1, handle=1)
@@ -686,6 +712,17 @@ try:
                  "Software TC incorrect load in replace test, iteration %d" %
                  (j))
         sim.cls_filter_op(op="delete", prio=1, handle=1, cls="bpf")
+
+    start_test("Test spurious extack from the driver...")
+    test_spurios_extack(sim, obj, False, "netdevsim")
+    test_spurios_extack(sim, obj, True, "netdevsim")
+
+    sim.set_ethtool_tc_offloads(False)
+
+    test_spurios_extack(sim, obj, False, "TC offload is disabled")
+    test_spurios_extack(sim, obj, True, "TC offload is disabled")
+
+    sim.set_ethtool_tc_offloads(True)
 
     sim.tc_flush_filters()
 

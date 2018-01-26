@@ -130,7 +130,7 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 				   "only offload of BPF classifiers supported");
 		return -EOPNOTSUPP;
 	}
-	if (!tc_can_offload_extack(nn->dp.netdev, cls_bpf->common.extack))
+	if (!tc_cls_can_offload_and_chain0(nn->dp.netdev, &cls_bpf->common))
 		return -EOPNOTSUPP;
 	if (!nfp_net_ebpf_capable(nn)) {
 		NL_SET_ERR_MSG_MOD(cls_bpf->common.extack,
@@ -142,8 +142,6 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 				   "only ETH_P_ALL supported as filter protocol");
 		return -EOPNOTSUPP;
 	}
-	if (cls_bpf->common.chain_index)
-		return -EOPNOTSUPP;
 
 	/* Only support TC direct action */
 	if (!cls_bpf->exts_integrated ||

@@ -719,9 +719,6 @@ static int
 mlx5e_rep_setup_tc_cls_flower(struct mlx5e_priv *priv,
 			      struct tc_cls_flower_offload *cls_flower)
 {
-	if (cls_flower->common.chain_index)
-		return -EOPNOTSUPP;
-
 	switch (cls_flower->command) {
 	case TC_CLSFLOWER_REPLACE:
 		return mlx5e_configure_flower(priv, cls_flower);
@@ -739,7 +736,7 @@ static int mlx5e_rep_setup_tc_cb(enum tc_setup_type type, void *type_data,
 {
 	struct mlx5e_priv *priv = cb_priv;
 
-	if (!tc_can_offload(priv->netdev))
+	if (!tc_cls_can_offload_and_chain0(priv->netdev, type_data))
 		return -EOPNOTSUPP;
 
 	switch (type) {

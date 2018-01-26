@@ -1738,9 +1738,6 @@ static int mlxsw_sp_setup_tc_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 					  struct tc_cls_matchall_offload *f,
 					  bool ingress)
 {
-	if (f->common.chain_index)
-		return -EOPNOTSUPP;
-
 	switch (f->command) {
 	case TC_CLSMATCHALL_REPLACE:
 		return mlxsw_sp_port_add_cls_matchall(mlxsw_sp_port, f,
@@ -1780,7 +1777,8 @@ static int mlxsw_sp_setup_tc_block_cb_matchall(enum tc_setup_type type,
 
 	switch (type) {
 	case TC_SETUP_CLSMATCHALL:
-		if (!tc_can_offload(mlxsw_sp_port->dev))
+		if (!tc_cls_can_offload_and_chain0(mlxsw_sp_port->dev,
+						   type_data))
 			return -EOPNOTSUPP;
 
 		return mlxsw_sp_setup_tc_cls_matchall(mlxsw_sp_port, type_data,
