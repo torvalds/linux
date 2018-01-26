@@ -363,15 +363,7 @@ static inline int epilogue_offset(const struct jit_ctx *ctx)
 static inline void emit_udivmod(u8 rd, u8 rm, u8 rn, struct jit_ctx *ctx, u8 op)
 {
 	const u8 *tmp = bpf2a32[TMP_REG_1];
-	s32 jmp_offset;
 
-	/* checks if divisor is zero or not. If it is, then
-	 * exit directly.
-	 */
-	emit(ARM_CMP_I(rn, 0), ctx);
-	_emit(ARM_COND_EQ, ARM_MOV_I(ARM_R0, 0), ctx);
-	jmp_offset = epilogue_offset(ctx);
-	_emit(ARM_COND_EQ, ARM_B(jmp_offset), ctx);
 #if __LINUX_ARM_ARCH__ == 7
 	if (elf_hwcap & HWCAP_IDIVA) {
 		if (op == BPF_DIV)
