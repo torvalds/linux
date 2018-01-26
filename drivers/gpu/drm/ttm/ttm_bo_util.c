@@ -402,8 +402,9 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 						    PAGE_KERNEL);
 			ret = ttm_copy_io_ttm_page(ttm, old_iomap, page,
 						   prot);
-		} else
+		} else {
 			ret = ttm_copy_io_page(new_iomap, old_iomap, page);
+		}
 		if (ret)
 			goto out1;
 	}
