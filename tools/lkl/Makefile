@@ -11,13 +11,6 @@ ifneq ($(silent),1)
   endif
 endif
 
-ifneq ($(OUTPUT),)
-  OUTPUT := $(OUTPUT)/tools/lkl/
-else
-  OUTPUT := $(CURDIR)/
-endif
-export OUTPUT
-
 PREFIX   := /usr
 
 ifeq (,$(srctree))
@@ -27,6 +20,15 @@ endif
 export srctree
 
 -include ../scripts/Makefile.include
+
+# OUTPUT fixup should be *after* include ../scripts/Makefile.include
+ifneq ($(OUTPUT),)
+  OUTPUT := $(OUTPUT)/tools/lkl/
+else
+  OUTPUT := $(CURDIR)/
+endif
+export OUTPUT
+
 
 all:
 
