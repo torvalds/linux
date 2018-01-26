@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PCI Express Downstream Port Containment services driver
  * Author: Keith Busch <keith.busch@intel.com>
  *
  * Copyright (C) 2016 Intel Corp.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #include <linux/delay.h>

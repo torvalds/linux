@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/pci/pcie/aer/aerdrv_core.c
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  *
  * This file implements the core part of PCIe AER. When a PCIe
  * error is delivered, an error message will be collected and printed to
