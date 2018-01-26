@@ -122,6 +122,7 @@ enum stm32_hash_data_format {
 #define HASH_DMA_THRESHOLD		50
 
 struct stm32_hash_ctx {
+	struct crypto_engine_ctx enginectx;
 	struct stm32_hash_dev	*hdev;
 	unsigned long		flags;
 
@@ -828,15 +829,19 @@ static int stm32_hash_hw_init(struct stm32_hash_dev *hdev,
 	return 0;
 }
 
+static int stm32_hash_one_request(struct crypto_engine *engine, void *areq);
+static int stm32_hash_prepare_req(struct crypto_engine *engine, void *areq);
+
 static int stm32_hash_handle_queue(struct stm32_hash_dev *hdev,
 				   struct ahash_request *req)
 {
 	return crypto_transfer_hash_request_to_engine(hdev->engine, req);
 }
 
-static int stm32_hash_prepare_req(struct crypto_engine *engine,
-				  struct ahash_request *req)
+static int stm32_hash_prepare_req(struct crypto_engine *engine, void *areq)
 {
+	struct ahash_request *req = container_of(areq, struct ahash_request,
+						 base);
 	struct stm32_hash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(req));
 	struct stm32_hash_dev *hdev = stm32_hash_find_dev(ctx);
 	struct stm32_hash_request_ctx *rctx;
@@ -854,9 +859,10 @@ static int stm32_hash_prepare_req(struct crypto_engine *engine,
 	return stm32_hash_hw_init(hdev, rctx);
 }
 
-static int stm32_hash_one_request(struct crypto_engine *engine,
-				  struct ahash_request *req)
+static int stm32_hash_one_request(struct crypto_engine *engine, void *areq)
 {
+	struct ahash_request *req = container_of(areq, struct ahash_request,
+						 base);
 	struct stm32_hash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(req));
 	struct stm32_hash_dev *hdev = stm32_hash_find_dev(ctx);
 	struct stm32_hash_request_ctx *rctx;
@@ -1033,6 +1039,9 @@ static int stm32_hash_cra_init_algs(struct crypto_tfm *tfm,
 	if (algs_hmac_name)
 		ctx->flags |= HASH_FLAGS_HMAC;
 
+	ctx->enginectx.op.do_one_request = stm32_hash_one_request;
+	ctx->enginectx.op.prepare_request = stm32_hash_prepare_req;
+	ctx->enginectx.op.unprepare_request = NULL;
 	return 0;
 }
 
@@ -1492,9 +1501,6 @@ static int stm32_hash_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_engine;
 	}
-
-	hdev->engine->prepare_hash_request = stm32_hash_prepare_req;
-	hdev->engine->hash_one_request = stm32_hash_one_request;
 
 	ret = crypto_engine_start(hdev->engine);
 	if (ret)
