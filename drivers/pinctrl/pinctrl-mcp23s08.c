@@ -918,7 +918,14 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	if (ret < 0)
 		goto fail;
 
-	mcp->pinctrl_desc.name = "mcp23xxx-pinctrl";
+	if (one_regmap_config) {
+		mcp->pinctrl_desc.name = devm_kasprintf(dev, GFP_KERNEL,
+				"mcp23xxx-pinctrl.%d", raw_chip_address);
+		if (!mcp->pinctrl_desc.name)
+			return -ENOMEM;
+	} else {
+		mcp->pinctrl_desc.name = "mcp23xxx-pinctrl";
+	}
 	mcp->pinctrl_desc.pctlops = &mcp_pinctrl_ops;
 	mcp->pinctrl_desc.confops = &mcp_pinconf_ops;
 	mcp->pinctrl_desc.npins = mcp->chip.ngpio;

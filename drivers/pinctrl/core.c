@@ -1866,9 +1866,23 @@ static struct dentry *debugfs_root;
 static void pinctrl_init_device_debugfs(struct pinctrl_dev *pctldev)
 {
 	struct dentry *device_root;
+	const char *debugfs_name;
 
-	device_root = debugfs_create_dir(dev_name(pctldev->dev),
-					 debugfs_root);
+	if (pctldev->desc->name &&
+			strcmp(dev_name(pctldev->dev), pctldev->desc->name)) {
+		debugfs_name = devm_kasprintf(pctldev->dev, GFP_KERNEL,
+				"%s-%s", dev_name(pctldev->dev),
+				pctldev->desc->name);
+		if (!debugfs_name) {
+			pr_warn("failed to determine debugfs dir name for %s\n",
+				dev_name(pctldev->dev));
+			return;
+		}
+	} else {
+		debugfs_name = dev_name(pctldev->dev);
+	}
+
+	device_root = debugfs_create_dir(debugfs_name, debugfs_root);
 	pctldev->device_root = device_root;
 
 	if (IS_ERR(device_root) || !device_root) {
