@@ -396,6 +396,10 @@ static uint64_t gmc_v9_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 
 	amdgpu_ring_emit_wreg(ring, hub->vm_inv_eng0_req + eng, req);
 
+	/* wait for the invalidate to complete */
+	amdgpu_ring_emit_reg_wait(ring, hub->vm_inv_eng0_ack + eng,
+				  1 << vmid, 1 << vmid);
+
 	return pd_addr;
 }
 

@@ -979,17 +979,12 @@ static void vce_v4_0_emit_vm_flush(struct amdgpu_ring *ring,
 				   uint64_t pd_addr)
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
-	unsigned eng = ring->vm_inv_eng;
 
 	pd_addr = amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pasid, pd_addr);
 
 	/* wait for reg writes */
 	vce_v4_0_emit_reg_wait(ring, hub->ctx0_ptb_addr_lo32 + vmid * 2,
 			       lower_32_bits(pd_addr), 0xffffffff);
-
-	/* wait for flush */
-	vce_v4_0_emit_reg_wait(ring, hub->vm_inv_eng0_ack + eng,
-			       1 << vmid, 1 << vmid);
 }
 
 static void vce_v4_0_emit_wreg(struct amdgpu_ring *ring,
@@ -1069,7 +1064,9 @@ static const struct amdgpu_ring_funcs vce_v4_0_ring_vm_funcs = {
 	.set_wptr = vce_v4_0_ring_set_wptr,
 	.parse_cs = amdgpu_vce_ring_parse_cs_vm,
 	.emit_frame_size =
-		SOC15_FLUSH_GPU_TLB_NUM_WREG * 3 + 8 + /* vce_v4_0_emit_vm_flush */
+		SOC15_FLUSH_GPU_TLB_NUM_WREG * 3 +
+		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 4 +
+		4 + /* vce_v4_0_emit_vm_flush */
 		5 + 5 + /* amdgpu_vce_ring_emit_fence x2 vm fence */
 		1, /* vce_v4_0_ring_insert_end */
 	.emit_ib_size = 5, /* vce_v4_0_ring_emit_ib */
