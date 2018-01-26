@@ -300,11 +300,6 @@ struct ib_tm_caps {
 	u32 max_sge;
 };
 
-enum ib_cq_creation_flags {
-	IB_CQ_FLAGS_TIMESTAMP_COMPLETION   = 1 << 0,
-	IB_CQ_FLAGS_IGNORE_OVERRUN	   = 1 << 1,
-};
-
 struct ib_cq_init_attr {
 	unsigned int	cqe;
 	int		comp_vector;

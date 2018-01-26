@@ -1123,8 +1123,8 @@ static inline u32 check_cq_create_flags(u32 flags)
 	 * It returns non-zero value for unsupported CQ
 	 * create flags, otherwise it returns zero.
 	 */
-	return (flags & ~(IB_CQ_FLAGS_IGNORE_OVERRUN |
-			  IB_CQ_FLAGS_TIMESTAMP_COMPLETION));
+	return (flags & ~(IB_UVERBS_CQ_FLAGS_IGNORE_OVERRUN |
+			  IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION));
 }
 
 static inline int verify_assign_uidx(u8 cqe_version, u32 cmd_uidx,

@@ -402,13 +402,18 @@ struct ib_uverbs_create_cq {
 	__u64 driver_data[0];
 };
 
+enum ib_uverbs_ex_create_cq_flags {
+	IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION = 1 << 0,
+	IB_UVERBS_CQ_FLAGS_IGNORE_OVERRUN = 1 << 1,
+};
+
 struct ib_uverbs_ex_create_cq {
 	__u64 user_handle;
 	__u32 cqe;
 	__u32 comp_vector;
 	__s32 comp_channel;
 	__u32 comp_mask;
-	__u32 flags;
+	__u32 flags;  /* bitmask of ib_uverbs_ex_create_cq_flags */
 	__u32 reserved;
 };
 
