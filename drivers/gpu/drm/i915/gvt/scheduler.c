@@ -991,7 +991,7 @@ void intel_vgpu_clean_submission(struct intel_vgpu *vgpu)
 {
 	struct intel_vgpu_submission *s = &vgpu->submission;
 
-	intel_vgpu_select_submission_ops(vgpu, 0);
+	intel_vgpu_select_submission_ops(vgpu, ALL_ENGINES, 0);
 	i915_gem_context_put(s->shadow_ctx);
 	kmem_cache_destroy(s->workloads);
 }
@@ -1079,6 +1079,7 @@ out_shadow_ctx:
  *
  */
 int intel_vgpu_select_submission_ops(struct intel_vgpu *vgpu,
+				     unsigned long engine_mask,
 				     unsigned int interface)
 {
 	struct intel_vgpu_submission *s = &vgpu->submission;
@@ -1092,7 +1093,7 @@ int intel_vgpu_select_submission_ops(struct intel_vgpu *vgpu,
 		return -EINVAL;
 
 	if (s->active) {
-		s->ops->clean(vgpu);
+		s->ops->clean(vgpu, engine_mask);
 		s->active = false;
 		gvt_dbg_core("vgpu%d: de-select ops [ %s ] \n",
 				vgpu->id, s->ops->name);
@@ -1105,7 +1106,7 @@ int intel_vgpu_select_submission_ops(struct intel_vgpu *vgpu,
 		return 0;
 	}
 
-	ret = ops[interface]->init(vgpu);
+	ret = ops[interface]->init(vgpu, engine_mask);
 	if (ret)
 		return ret;
 

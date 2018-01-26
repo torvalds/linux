@@ -1527,6 +1527,7 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 			return 0;
 
 		ret = intel_vgpu_select_submission_ops(vgpu,
+				ALL_ENGINES,
 				INTEL_VGPU_EXECLIST_SUBMISSION);
 		if (ret)
 			return ret;
