@@ -371,7 +371,7 @@ static char *translate_scan(struct adapter *padapter,
 		u8 *wpsie_ptr = NULL;
 		uint wps_ielen = 0;
 
-		u8 *ie_ptr = pnetwork->network.IEs + ie_offset;
+		u8 *ie_ptr;
 		total_ielen = pnetwork->network.IELength - ie_offset;
 
 		if (pnetwork->network.Reserved[0] == 2) { /*  Probe Request */
