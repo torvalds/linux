@@ -568,26 +568,6 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			 */
 			EMIT2(0x31, 0xd2);
 
-			if (BPF_SRC(insn->code) == BPF_X) {
-				/* if (src_reg == 0) return 0 */
-
-				/* cmp r11, 0 */
-				EMIT4(0x49, 0x83, 0xFB, 0x00);
-
-				/* jne .+9 (skip over pop, pop, xor and jmp) */
-				EMIT2(X86_JNE, 1 + 1 + 2 + 5);
-				EMIT1(0x5A); /* pop rdx */
-				EMIT1(0x58); /* pop rax */
-				EMIT2(0x31, 0xc0); /* xor eax, eax */
-
-				/* jmp cleanup_addr
-				 * addrs[i] - 11, because there are 11 bytes
-				 * after this insn: div, mov, pop, pop, mov
-				 */
-				jmp_offset = ctx->cleanup_addr - (addrs[i] - 11);
-				EMIT1_off32(0xE9, jmp_offset);
-			}
-
 			if (BPF_CLASS(insn->code) == BPF_ALU64)
 				/* div r11 */
 				EMIT3(0x49, 0xF7, 0xF3);
