@@ -699,6 +699,13 @@ static int parse_options(struct super_block *sb, char *options)
 	}
 
 	if (test_opt(sbi, INLINE_XATTR_SIZE)) {
+		if (!f2fs_sb_has_extra_attr(sb) ||
+			!f2fs_sb_has_flexible_inline_xattr(sb)) {
+			f2fs_msg(sb, KERN_ERR,
+					"extra_attr or flexible_inline_xattr "
+					"feature is off");
+			return -EINVAL;
+		}
 		if (!test_opt(sbi, INLINE_XATTR)) {
 			f2fs_msg(sb, KERN_ERR,
 					"inline_xattr_size option should be "
