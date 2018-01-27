@@ -151,11 +151,11 @@ int rf69_set_modulation(struct spi_device *spi, enum modulation modulation)
 
 static enum modulation rf69_get_modulation(struct spi_device *spi)
 {
-	u8 currentValue;
+	u8 modulation_reg;
 
-	currentValue = rf69_read_reg(spi, REG_DATAMODUL);
+	modulation_reg = rf69_read_reg(spi, REG_DATAMODUL);
 
-	switch (currentValue & MASK_DATAMODUL_MODULATION_TYPE) {
+	switch (modulation_reg & MASK_DATAMODUL_MODULATION_TYPE) {
 	case DATAMODUL_MODULATION_TYPE_OOK:
 		return OOK;
 	case DATAMODUL_MODULATION_TYPE_FSK:
