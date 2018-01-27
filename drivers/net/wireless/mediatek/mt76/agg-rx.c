@@ -98,6 +98,7 @@ mt76_rx_aggr_reorder_work(struct work_struct *work)
 					       reorder_work.work);
 	struct mt76_dev *dev = tid->dev;
 	struct sk_buff_head frames;
+	int nframes;
 
 	__skb_queue_head_init(&frames);
 
@@ -105,9 +106,12 @@ mt76_rx_aggr_reorder_work(struct work_struct *work)
 
 	spin_lock(&tid->lock);
 	mt76_rx_aggr_check_release(tid, &frames);
+	nframes = tid->nframes;
 	spin_unlock(&tid->lock);
 
-	ieee80211_queue_delayed_work(tid->dev->hw, &tid->reorder_work, REORDER_TIMEOUT);
+	if (nframes)
+		ieee80211_queue_delayed_work(tid->dev->hw, &tid->reorder_work,
+					     REORDER_TIMEOUT);
 	mt76_rx_complete(dev, &frames, -1);
 
 	local_bh_enable();
