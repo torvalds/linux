@@ -26,16 +26,6 @@ struct freq_tbl {
 };
 
 /**
- * struct parent_map - map table for PLL source select configuration values
- * @src: source PLL
- * @cfg: configuration value
- */
-struct parent_map {
-	u8 src;
-	u8 cfg;
-};
-
-/**
  * struct mn - M/N:D counter
  * @mnctr_en_bit: bit to enable mn counter
  * @mnctr_reset_bit: bit to assert mn counter reset

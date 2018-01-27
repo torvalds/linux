@@ -41,7 +41,7 @@ struct clockgen_pll_div {
 };
 
 struct clockgen_pll {
-	struct clockgen_pll_div div[4];
+	struct clockgen_pll_div div[8];
 };
 
 #define CLKSEL_VALID	1
@@ -1126,6 +1126,13 @@ static void __init create_one_pll(struct clockgen *cg, int idx)
 	for (i = 0; i < ARRAY_SIZE(pll->div); i++) {
 		struct clk *clk;
 		int ret;
+
+		/*
+		 * For platform PLL, there are 8 divider clocks.
+		 * For core PLL, there are 4 divider clocks at most.
+		 */
+		if (idx != PLATFORM_PLL && i >= 4)
+			break;
 
 		snprintf(pll->div[i].name, sizeof(pll->div[i].name),
 			 "cg-pll%d-div%d", idx, i + 1);
