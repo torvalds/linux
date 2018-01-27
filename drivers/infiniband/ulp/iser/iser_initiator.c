@@ -452,10 +452,8 @@ int iser_send_data_out(struct iscsi_conn *conn,
 		 __func__,(int)itt,(int)data_seg_len,(int)buf_offset);
 
 	tx_desc = kmem_cache_zalloc(ig.desc_cache, GFP_ATOMIC);
-	if (tx_desc == NULL) {
-		iser_err("Failed to alloc desc for post dataout\n");
+	if (!tx_desc)
 		return -ENOMEM;
-	}
 
 	tx_desc->type = ISCSI_TX_DATAOUT;
 	tx_desc->cqe.done = iser_dataout_comp;
