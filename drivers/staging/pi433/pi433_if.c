@@ -1183,7 +1183,7 @@ static int pi433_probe(struct spi_device *spi)
 	retval = rf69_set_output_power_level(spi, 13);
 	if (retval < 0)
 		goto minor_failed;
-	retval = rf69_set_antenna_impedance(spi, fiftyOhm);
+	retval = rf69_set_antenna_impedance(spi, fifty_ohm);
 	if (retval < 0)
 		goto minor_failed;
 

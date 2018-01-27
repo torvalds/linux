@@ -61,8 +61,8 @@ enum paRamp {
 };
 
 enum antenna_impedance {
-	fiftyOhm,
-	twohundretOhm
+	fifty_ohm,
+	two_hundred_ohm
 };
 
 enum lnaGain {

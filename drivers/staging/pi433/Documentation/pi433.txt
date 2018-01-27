@@ -194,8 +194,8 @@ rf params:
 		step_6_0db	- increase in 6 db steps
 	antenna_impedance
 		sets the electrical adoption of the antenna
-		fiftyOhm	- for antennas with an impedance of 50Ohm
-		twohundretOhm	- for antennas with an impedance of 200Ohm
+		fifty_ohm	- for antennas with an impedance of 50Ohm
+		two_hundred_ohm	- for antennas with an impedance of 200Ohm
 	lnaGain
 		sets the gain of the low noise amp
 		automatic	- lna gain is determined by an agc
