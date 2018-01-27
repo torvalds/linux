@@ -1,6 +1,5 @@
 generic-y += asm-offsets.h
 generic-y += cacheflush.h
-generic-y += clkdev.h
 generic-y += device.h
 generic-y += dma-contiguous.h
 generic-y += div64.h
