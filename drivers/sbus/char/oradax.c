@@ -336,9 +336,9 @@ static int __init dax_attach(void)
 	}
 
 	cl = class_create(THIS_MODULE, DAX_NAME);
-	if (cl == NULL) {
+	if (IS_ERR(cl)) {
 		dax_err("class_create failed");
-		ret = -ENXIO;
+		ret = PTR_ERR(cl);
 		goto class_error;
 	}
 
