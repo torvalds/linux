@@ -723,7 +723,7 @@ static int vector_config(char *str, char **error_out)
 	 */
 
 	params = kstrdup(params, GFP_KERNEL);
-	if (str == NULL) {
+	if (params == NULL) {
 		*error_out = "vector_config failed to strdup string";
 		return -ENOMEM;
 	}
