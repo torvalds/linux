@@ -26,6 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/adb.h>
 #include <linux/cuda.h>
+#include <linux/pmu.h>
 #include <linux/rtc.h>
 
 #include <asm/setup.h>
@@ -889,6 +890,9 @@ static void __init mac_identify(void)
 
 #ifdef CONFIG_ADB_CUDA
 	find_via_cuda();
+#endif
+#ifdef CONFIG_ADB_PMU68K
+	find_via_pmu();
 #endif
 }
 
