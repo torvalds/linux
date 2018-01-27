@@ -94,8 +94,12 @@ void skl_tplg_d0i3_put(struct skl *skl, enum d0i3_capability caps)
  * SKL DSP driver modelling uses only few DAPM widgets so for rest we will
  * ignore. This helpers checks if the SKL driver handles this widget type
  */
-static int is_skl_dsp_widget_type(struct snd_soc_dapm_widget *w)
+static int is_skl_dsp_widget_type(struct snd_soc_dapm_widget *w,
+				  struct device *dev)
 {
+	if (w->dapm->dev != dev)
+		return false;
+
 	switch (w->id) {
 	case snd_soc_dapm_dai_link:
 	case snd_soc_dapm_dai_in:
@@ -969,7 +973,7 @@ static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 
 		next_sink = p->sink;
 
-		if (!is_skl_dsp_widget_type(p->sink))
+		if (!is_skl_dsp_widget_type(p->sink, ctx->dev))
 			return skl_tplg_bind_sinks(p->sink, skl, src_w, src_mconfig);
 
 		/*
@@ -978,7 +982,7 @@ static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 		 * they are ones used for SKL so check that first
 		 */
 		if ((p->sink->priv != NULL) &&
-					is_skl_dsp_widget_type(p->sink)) {
+				is_skl_dsp_widget_type(p->sink, ctx->dev)) {
 
 			sink = p->sink;
 			sink_mconfig = sink->priv;
@@ -1092,7 +1096,7 @@ static struct snd_soc_dapm_widget *skl_get_src_dsp_widget(
 		 * ones used for SKL so check that first
 		 */
 		if ((p->source->priv != NULL) &&
-					is_skl_dsp_widget_type(p->source)) {
+				is_skl_dsp_widget_type(p->source, ctx->dev)) {
 			return p->source;
 		}
 	}
@@ -1654,7 +1658,7 @@ skl_tplg_fe_get_cpr_module(struct snd_soc_dai *dai, int stream)
 		w = dai->playback_widget;
 		snd_soc_dapm_widget_for_each_sink_path(w, p) {
 			if (p->connect && p->sink->power &&
-					!is_skl_dsp_widget_type(p->sink))
+				!is_skl_dsp_widget_type(p->sink, dai->dev))
 				continue;
 
 			if (p->sink->priv) {
@@ -1667,7 +1671,7 @@ skl_tplg_fe_get_cpr_module(struct snd_soc_dai *dai, int stream)
 		w = dai->capture_widget;
 		snd_soc_dapm_widget_for_each_source_path(w, p) {
 			if (p->connect && p->source->power &&
-					!is_skl_dsp_widget_type(p->source))
+				!is_skl_dsp_widget_type(p->source, dai->dev))
 				continue;
 
 			if (p->source->priv) {
@@ -1819,7 +1823,7 @@ static int skl_tplg_be_set_src_pipe_params(struct snd_soc_dai *dai,
 	int ret = -EIO;
 
 	snd_soc_dapm_widget_for_each_source_path(w, p) {
-		if (p->connect && is_skl_dsp_widget_type(p->source) &&
+		if (p->connect && is_skl_dsp_widget_type(p->source, dai->dev) &&
 						p->source->priv) {
 
 			ret = skl_tplg_be_fill_pipe_params(dai,
@@ -1844,7 +1848,7 @@ static int skl_tplg_be_set_sink_pipe_params(struct snd_soc_dai *dai,
 	int ret = -EIO;
 
 	snd_soc_dapm_widget_for_each_sink_path(w, p) {
-		if (p->connect && is_skl_dsp_widget_type(p->sink) &&
+		if (p->connect && is_skl_dsp_widget_type(p->sink, dai->dev) &&
 						p->sink->priv) {
 
 			ret = skl_tplg_be_fill_pipe_params(dai,
@@ -2752,7 +2756,7 @@ void skl_cleanup_resources(struct skl *skl)
 	skl->resource.mcps = 0;
 
 	list_for_each_entry(w, &card->widgets, list) {
-		if (is_skl_dsp_widget_type(w) && (w->priv != NULL))
+		if (is_skl_dsp_widget_type(w, ctx->dev) && w->priv != NULL)
 			skl_clear_pin_config(soc_platform, w);
 	}
 
@@ -3408,7 +3412,7 @@ static int skl_tplg_create_pipe_widget_list(struct snd_soc_platform *platform)
 	struct skl_pipe *pipe;
 
 	list_for_each_entry(w, &platform->component.card->widgets, list) {
-		if (is_skl_dsp_widget_type(w) && w->priv != NULL) {
+		if (is_skl_dsp_widget_type(w, platform->dev) && w->priv) {
 			mcfg = w->priv;
 			pipe = mcfg->pipe;
 
