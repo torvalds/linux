@@ -311,3 +311,9 @@ ssize_t cpu_show_spectre_v2(struct device *dev,
 		       spectre_v2_module_string());
 }
 #endif
+
+void __ibp_barrier(void)
+{
+	__wrmsr(MSR_IA32_PRED_CMD, PRED_CMD_IBPB, 0);
+}
+EXPORT_SYMBOL_GPL(__ibp_barrier);
