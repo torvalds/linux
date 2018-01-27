@@ -39,7 +39,8 @@ unsigned long sprd_div_helper_recalc_rate(struct sprd_clk_common *common,
 	val = reg >> div->shift;
 	val &= (1 << div->width) - 1;
 
-	return divider_recalc_rate(&common->hw, parent_rate, val, NULL, 0);
+	return divider_recalc_rate(&common->hw, parent_rate, val, NULL, 0,
+				   div->width);
 }
 EXPORT_SYMBOL_GPL(sprd_div_helper_recalc_rate);
 
