@@ -645,18 +645,18 @@ int rf69_set_sync_size(struct spi_device *spi, u8 syncSize)
 	return rf69_read_mod_write(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_SYNC_SIZE, (syncSize << 3));
 }
 
-int rf69_set_sync_values(struct spi_device *spi, u8 syncValues[8])
+int rf69_set_sync_values(struct spi_device *spi, u8 sync_values[8])
 {
 	int retval = 0;
 
-	retval += rf69_write_reg(spi, REG_SYNCVALUE1, syncValues[0]);
-	retval += rf69_write_reg(spi, REG_SYNCVALUE2, syncValues[1]);
-	retval += rf69_write_reg(spi, REG_SYNCVALUE3, syncValues[2]);
-	retval += rf69_write_reg(spi, REG_SYNCVALUE4, syncValues[3]);
-	retval += rf69_write_reg(spi, REG_SYNCVALUE5, syncValues[4]);
-	retval += rf69_write_reg(spi, REG_SYNCVALUE6, syncValues[5]);
-	retval += rf69_write_reg(spi, REG_SYNCVALUE7, syncValues[6]);
-	retval += rf69_write_reg(spi, REG_SYNCVALUE8, syncValues[7]);
+	retval += rf69_write_reg(spi, REG_SYNCVALUE1, sync_values[0]);
+	retval += rf69_write_reg(spi, REG_SYNCVALUE2, sync_values[1]);
+	retval += rf69_write_reg(spi, REG_SYNCVALUE3, sync_values[2]);
+	retval += rf69_write_reg(spi, REG_SYNCVALUE4, sync_values[3]);
+	retval += rf69_write_reg(spi, REG_SYNCVALUE5, sync_values[4]);
+	retval += rf69_write_reg(spi, REG_SYNCVALUE6, sync_values[5]);
+	retval += rf69_write_reg(spi, REG_SYNCVALUE7, sync_values[6]);
+	retval += rf69_write_reg(spi, REG_SYNCVALUE8, sync_values[7]);
 
 	return retval;
 }
