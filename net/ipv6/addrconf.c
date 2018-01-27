@@ -4352,9 +4352,11 @@ restart:
 						spin_lock(&ifpub->lock);
 						ifpub->regen_count = 0;
 						spin_unlock(&ifpub->lock);
+						rcu_read_unlock_bh();
 						ipv6_create_tempaddr(ifpub, ifp, true);
 						in6_ifa_put(ifpub);
 						in6_ifa_put(ifp);
+						rcu_read_lock_bh();
 						goto restart;
 					}
 				} else if (time_before(ifp->tstamp + ifp->prefered_lft * HZ - regen_advance * HZ, next))
