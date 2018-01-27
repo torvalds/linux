@@ -967,30 +967,16 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		emit_alu(MULX, src, dst, ctx);
 		break;
 	case BPF_ALU | BPF_DIV | BPF_X:
-		emit_cmp(src, G0, ctx);
-		emit_branch(BE|ANNUL, ctx->idx, ctx->epilogue_offset, ctx);
-		emit_loadimm(0, bpf2sparc[BPF_REG_0], ctx);
-
 		emit_write_y(G0, ctx);
 		emit_alu(DIV, src, dst, ctx);
 		break;
-
 	case BPF_ALU64 | BPF_DIV | BPF_X:
-		emit_cmp(src, G0, ctx);
-		emit_branch(BE|ANNUL, ctx->idx, ctx->epilogue_offset, ctx);
-		emit_loadimm(0, bpf2sparc[BPF_REG_0], ctx);
-
 		emit_alu(UDIVX, src, dst, ctx);
 		break;
-
 	case BPF_ALU | BPF_MOD | BPF_X: {
 		const u8 tmp = bpf2sparc[TMP_REG_1];
 
 		ctx->tmp_1_used = true;
-
-		emit_cmp(src, G0, ctx);
-		emit_branch(BE|ANNUL, ctx->idx, ctx->epilogue_offset, ctx);
-		emit_loadimm(0, bpf2sparc[BPF_REG_0], ctx);
 
 		emit_write_y(G0, ctx);
 		emit_alu3(DIV, dst, src, tmp, ctx);
@@ -1002,10 +988,6 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		const u8 tmp = bpf2sparc[TMP_REG_1];
 
 		ctx->tmp_1_used = true;
-
-		emit_cmp(src, G0, ctx);
-		emit_branch(BE|ANNUL, ctx->idx, ctx->epilogue_offset, ctx);
-		emit_loadimm(0, bpf2sparc[BPF_REG_0], ctx);
 
 		emit_alu3(UDIVX, dst, src, tmp, ctx);
 		emit_alu3(MULX, tmp, src, tmp, ctx);
