@@ -341,7 +341,7 @@ int mt76x2_mac_process_rx(struct mt76x2_dev *dev, struct sk_buff *skb,
 
 	mt76x2_remove_hdr_pad(skb, pad_len);
 
-	if (rxinfo & MT_RXINFO_BA)
+	if ((rxinfo & MT_RXINFO_BA) && !(rxinfo & MT_RXINFO_NULL))
 		status->aggr = true;
 
 	if (WARN_ON_ONCE(len > skb->len))
