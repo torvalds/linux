@@ -198,8 +198,11 @@ For 32-bit we have the following conventions - kernel is built with
  * PAGE_TABLE_ISOLATION PGDs are 8k.  Flip bit 12 to switch between the two
  * halves:
  */
-#define PTI_SWITCH_PGTABLES_MASK	(1<<PAGE_SHIFT)
-#define PTI_SWITCH_MASK		(PTI_SWITCH_PGTABLES_MASK|(1<<X86_CR3_PTI_SWITCH_BIT))
+#define PTI_USER_PGTABLE_BIT		PAGE_SHIFT
+#define PTI_USER_PGTABLE_MASK		(1 << PTI_USER_PGTABLE_BIT)
+#define PTI_USER_PCID_BIT		X86_CR3_PTI_PCID_USER_BIT
+#define PTI_USER_PCID_MASK		(1 << PTI_USER_PCID_BIT)
+#define PTI_USER_PGTABLE_AND_PCID_MASK  (PTI_USER_PCID_MASK | PTI_USER_PGTABLE_MASK)
 
 .macro SET_NOFLUSH_BIT	reg:req
 	bts	$X86_CR3_PCID_NOFLUSH_BIT, \reg
@@ -208,7 +211,7 @@ For 32-bit we have the following conventions - kernel is built with
 .macro ADJUST_KERNEL_CR3 reg:req
 	ALTERNATIVE "", "SET_NOFLUSH_BIT \reg", X86_FEATURE_PCID
 	/* Clear PCID and "PAGE_TABLE_ISOLATION bit", point CR3 at kernel pagetables: */
-	andq    $(~PTI_SWITCH_MASK), \reg
+	andq    $(~PTI_USER_PGTABLE_AND_PCID_MASK), \reg
 .endm
 
 .macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
@@ -239,15 +242,19 @@ For 32-bit we have the following conventions - kernel is built with
 	/* Flush needed, clear the bit */
 	btr	\scratch_reg, THIS_CPU_user_pcid_flush_mask
 	movq	\scratch_reg2, \scratch_reg
-	jmp	.Lwrcr3_\@
+	jmp	.Lwrcr3_pcid_\@
 
 .Lnoflush_\@:
 	movq	\scratch_reg2, \scratch_reg
 	SET_NOFLUSH_BIT \scratch_reg
 
+.Lwrcr3_pcid_\@:
+	/* Flip the ASID to the user version */
+	orq	$(PTI_USER_PCID_MASK), \scratch_reg
+
 .Lwrcr3_\@:
-	/* Flip the PGD and ASID to the user version */
-	orq     $(PTI_SWITCH_MASK), \scratch_reg
+	/* Flip the PGD to the user version */
+	orq     $(PTI_USER_PGTABLE_MASK), \scratch_reg
 	mov	\scratch_reg, %cr3
 .Lend_\@:
 .endm
@@ -263,17 +270,12 @@ For 32-bit we have the following conventions - kernel is built with
 	movq	%cr3, \scratch_reg
 	movq	\scratch_reg, \save_reg
 	/*
-	 * Is the "switch mask" all zero?  That means that both of
-	 * these are zero:
-	 *
-	 *	1. The user/kernel PCID bit, and
-	 *	2. The user/kernel "bit" that points CR3 to the
-	 *	   bottom half of the 8k PGD
-	 *
-	 * That indicates a kernel CR3 value, not a user CR3.
+	 * Test the user pagetable bit. If set, then the user page tables
+	 * are active. If clear CR3 already has the kernel page table
+	 * active.
 	 */
-	testq	$(PTI_SWITCH_MASK), \scratch_reg
-	jz	.Ldone_\@
+	bt	$PTI_USER_PGTABLE_BIT, \scratch_reg
+	jnc	.Ldone_\@
 
 	ADJUST_KERNEL_CR3 \scratch_reg
 	movq	\scratch_reg, %cr3
@@ -290,7 +292,7 @@ For 32-bit we have the following conventions - kernel is built with
 	 * KERNEL pages can always resume with NOFLUSH as we do
 	 * explicit flushes.
 	 */
-	bt	$X86_CR3_PTI_SWITCH_BIT, \save_reg
+	bt	$PTI_USER_PGTABLE_BIT, \save_reg
 	jnc	.Lnoflush_\@
 
 	/*

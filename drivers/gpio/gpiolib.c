@@ -2893,6 +2893,27 @@ void gpiod_set_raw_value(struct gpio_desc *desc, int value)
 EXPORT_SYMBOL_GPL(gpiod_set_raw_value);
 
 /**
+ * gpiod_set_value_nocheck() - set a GPIO line value without checking
+ * @desc: the descriptor to set the value on
+ * @value: value to set
+ *
+ * This sets the value of a GPIO line backing a descriptor, applying
+ * different semantic quirks like active low and open drain/source
+ * handling.
+ */
+static void gpiod_set_value_nocheck(struct gpio_desc *desc, int value)
+{
+	if (test_bit(FLAG_ACTIVE_LOW, &desc->flags))
+		value = !value;
+	if (test_bit(FLAG_OPEN_DRAIN, &desc->flags))
+		gpio_set_open_drain_value_commit(desc, value);
+	else if (test_bit(FLAG_OPEN_SOURCE, &desc->flags))
+		gpio_set_open_source_value_commit(desc, value);
+	else
+		gpiod_set_raw_value_commit(desc, value);
+}
+
+/**
  * gpiod_set_value() - assign a gpio's value
  * @desc: gpio whose value will be assigned
  * @value: value to assign
@@ -2906,16 +2927,8 @@ EXPORT_SYMBOL_GPL(gpiod_set_raw_value);
 void gpiod_set_value(struct gpio_desc *desc, int value)
 {
 	VALIDATE_DESC_VOID(desc);
-	/* Should be using gpiod_set_value_cansleep() */
 	WARN_ON(desc->gdev->chip->can_sleep);
-	if (test_bit(FLAG_ACTIVE_LOW, &desc->flags))
-		value = !value;
-	if (test_bit(FLAG_OPEN_DRAIN, &desc->flags))
-		gpio_set_open_drain_value_commit(desc, value);
-	else if (test_bit(FLAG_OPEN_SOURCE, &desc->flags))
-		gpio_set_open_source_value_commit(desc, value);
-	else
-		gpiod_set_raw_value_commit(desc, value);
+	gpiod_set_value_nocheck(desc, value);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_value);
 
@@ -3243,9 +3256,7 @@ void gpiod_set_value_cansleep(struct gpio_desc *desc, int value)
 {
 	might_sleep_if(extra_checks);
 	VALIDATE_DESC_VOID(desc);
-	if (test_bit(FLAG_ACTIVE_LOW, &desc->flags))
-		value = !value;
-	gpiod_set_raw_value_commit(desc, value);
+	gpiod_set_value_nocheck(desc, value);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_value_cansleep);
 

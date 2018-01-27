@@ -877,6 +877,8 @@ static void mlx5e_init_rep(struct mlx5_core_dev *mdev,
 
 	mlx5e_build_rep_params(mdev, &priv->channels.params);
 	mlx5e_build_rep_netdev(netdev);
+
+	mlx5e_timestamp_init(priv);
 }
 
 static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)

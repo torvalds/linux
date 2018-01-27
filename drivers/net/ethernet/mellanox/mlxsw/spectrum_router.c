@@ -821,13 +821,18 @@ static int mlxsw_sp_vr_lpm_tree_replace(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_lpm_tree *old_tree = fib->lpm_tree;
 	int err;
 
-	err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, fib, new_tree->id);
-	if (err)
-		return err;
 	fib->lpm_tree = new_tree;
 	mlxsw_sp_lpm_tree_hold(new_tree);
+	err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, fib, new_tree->id);
+	if (err)
+		goto err_tree_bind;
 	mlxsw_sp_lpm_tree_put(mlxsw_sp, old_tree);
 	return 0;
+
+err_tree_bind:
+	mlxsw_sp_lpm_tree_put(mlxsw_sp, new_tree);
+	fib->lpm_tree = old_tree;
+	return err;
 }
 
 static int mlxsw_sp_vrs_lpm_tree_replace(struct mlxsw_sp *mlxsw_sp,
@@ -868,11 +873,14 @@ err_tree_replace:
 	return err;
 
 no_replace:
-	err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, fib, new_tree->id);
-	if (err)
-		return err;
 	fib->lpm_tree = new_tree;
 	mlxsw_sp_lpm_tree_hold(new_tree);
+	err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, fib, new_tree->id);
+	if (err) {
+		mlxsw_sp_lpm_tree_put(mlxsw_sp, new_tree);
+		fib->lpm_tree = NULL;
+		return err;
+	}
 	return 0;
 }
 
@@ -1934,11 +1942,8 @@ static void mlxsw_sp_router_neigh_ent_ipv4_process(struct mlxsw_sp *mlxsw_sp,
 	dipn = htonl(dip);
 	dev = mlxsw_sp->router->rifs[rif]->dev;
 	n = neigh_lookup(&arp_tbl, &dipn, dev);
-	if (!n) {
-		netdev_err(dev, "Failed to find matching neighbour for IP=%pI4h\n",
-			   &dip);
+	if (!n)
 		return;
-	}
 
 	netdev_dbg(dev, "Updating neighbour with IP=%pI4h\n", &dip);
 	neigh_event_send(n, NULL);
@@ -1965,11 +1970,8 @@ static void mlxsw_sp_router_neigh_ent_ipv6_process(struct mlxsw_sp *mlxsw_sp,
 
 	dev = mlxsw_sp->router->rifs[rif]->dev;
 	n = neigh_lookup(&nd_tbl, &dip, dev);
-	if (!n) {
-		netdev_err(dev, "Failed to find matching neighbour for IP=%pI6c\n",
-			   &dip);
+	if (!n)
 		return;
-	}
 
 	netdev_dbg(dev, "Updating neighbour with IP=%pI6c\n", &dip);
 	neigh_event_send(n, NULL);
@@ -3228,7 +3230,7 @@ static void __mlxsw_sp_nexthop_neigh_update(struct mlxsw_sp_nexthop *nh,
 {
 	if (!removing)
 		nh->should_offload = 1;
-	else if (nh->offloaded)
+	else
 		nh->should_offload = 0;
 	nh->update = 1;
 }

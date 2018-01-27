@@ -174,6 +174,15 @@ static inline int ptr_ring_produce_bh(struct ptr_ring *r, void *ptr)
  * if they dereference the pointer - see e.g. PTR_RING_PEEK_CALL.
  * If ring is never resized, and if the pointer is merely
  * tested, there's no need to take the lock - see e.g.  __ptr_ring_empty.
+ * However, if called outside the lock, and if some other CPU
+ * consumes ring entries at the same time, the value returned
+ * is not guaranteed to be correct.
+ * In this case - to avoid incorrectly detecting the ring
+ * as empty - the CPU consuming the ring entries is responsible
+ * for either consuming all ring entries until the ring is empty,
+ * or synchronizing with some other CPU and causing it to
+ * execute __ptr_ring_peek and/or consume the ring enteries
+ * after the synchronization point.
  */
 static inline void *__ptr_ring_peek(struct ptr_ring *r)
 {
@@ -182,10 +191,7 @@ static inline void *__ptr_ring_peek(struct ptr_ring *r)
 	return NULL;
 }
 
-/* Note: callers invoking this in a loop must use a compiler barrier,
- * for example cpu_relax(). Callers must take consumer_lock
- * if the ring is ever resized - see e.g. ptr_ring_empty.
- */
+/* See __ptr_ring_peek above for locking rules. */
 static inline bool __ptr_ring_empty(struct ptr_ring *r)
 {
 	return !__ptr_ring_peek(r);

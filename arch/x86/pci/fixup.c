@@ -662,10 +662,14 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2033, quirk_no_aersid);
  */
 static void pci_amd_enable_64bit_bar(struct pci_dev *dev)
 {
-	unsigned i;
-	u32 base, limit, high;
+	static const char *name = "PCI Bus 0000:00";
 	struct resource *res, *conflict;
+	u32 base, limit, high;
 	struct pci_dev *other;
+	unsigned i;
+
+	if (!(pci_probe & PCI_BIG_ROOT_WINDOW))
+		return;
 
 	/* Check that we are the only device of that type */
 	other = pci_get_device(dev->vendor, dev->device, NULL);
@@ -699,22 +703,30 @@ static void pci_amd_enable_64bit_bar(struct pci_dev *dev)
 	if (!res)
 		return;
 
-	res->name = "PCI Bus 0000:00";
+	/*
+	 * Allocate a 256GB window directly below the 0xfd00000000 hardware
+	 * limit (see AMD Family 15h Models 30h-3Fh BKDG, sec 2.4.6).
+	 */
+	res->name = name;
 	res->flags = IORESOURCE_PREFETCH | IORESOURCE_MEM |
 		IORESOURCE_MEM_64 | IORESOURCE_WINDOW;
-	res->start = 0x100000000ull;
+	res->start = 0xbd00000000ull;
 	res->end = 0xfd00000000ull - 1;
 
-	/* Just grab the free area behind system memory for this */
-	while ((conflict = request_resource_conflict(&iomem_resource, res))) {
-		if (conflict->end >= res->end) {
-			kfree(res);
+	conflict = request_resource_conflict(&iomem_resource, res);
+	if (conflict) {
+		kfree(res);
+		if (conflict->name != name)
 			return;
-		}
-		res->start = conflict->end + 1;
-	}
 
-	dev_info(&dev->dev, "adding root bus resource %pR\n", res);
+		/* We are resuming from suspend; just reenable the window */
+		res = conflict;
+	} else {
+		dev_info(&dev->dev, "adding root bus resource %pR (tainting kernel)\n",
+			 res);
+		add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
+		pci_bus_add_resource(dev->bus, res, 0);
+	}
 
 	base = ((res->start >> 8) & AMD_141b_MMIO_BASE_MMIOBASE_MASK) |
 		AMD_141b_MMIO_BASE_RE_MASK | AMD_141b_MMIO_BASE_WE_MASK;
@@ -726,13 +738,16 @@ static void pci_amd_enable_64bit_bar(struct pci_dev *dev)
 	pci_write_config_dword(dev, AMD_141b_MMIO_HIGH(i), high);
 	pci_write_config_dword(dev, AMD_141b_MMIO_LIMIT(i), limit);
 	pci_write_config_dword(dev, AMD_141b_MMIO_BASE(i), base);
-
-	pci_bus_add_resource(dev->bus, res, 0);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x1401, pci_amd_enable_64bit_bar);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x141b, pci_amd_enable_64bit_bar);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x1571, pci_amd_enable_64bit_bar);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x15b1, pci_amd_enable_64bit_bar);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x1601, pci_amd_enable_64bit_bar);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_AMD, 0x1401, pci_amd_enable_64bit_bar);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_AMD, 0x141b, pci_amd_enable_64bit_bar);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_AMD, 0x1571, pci_amd_enable_64bit_bar);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_AMD, 0x15b1, pci_amd_enable_64bit_bar);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_AMD, 0x1601, pci_amd_enable_64bit_bar);
 
 #endif

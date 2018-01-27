@@ -75,6 +75,9 @@ static struct workqueue_struct *ena_wq;
 MODULE_DEVICE_TABLE(pci, ena_pci_tbl);
 
 static int ena_rss_init_default(struct ena_adapter *adapter);
+static void check_for_admin_com_state(struct ena_adapter *adapter);
+static void ena_destroy_device(struct ena_adapter *adapter);
+static int ena_restore_device(struct ena_adapter *adapter);
 
 static void ena_tx_timeout(struct net_device *dev)
 {
@@ -1565,7 +1568,7 @@ static int ena_rss_configure(struct ena_adapter *adapter)
 
 static int ena_up_complete(struct ena_adapter *adapter)
 {
-	int rc, i;
+	int rc;
 
 	rc = ena_rss_configure(adapter);
 	if (rc)
@@ -1583,17 +1586,6 @@ static int ena_up_complete(struct ena_adapter *adapter)
 	ena_restore_ethtool_params(adapter);
 
 	ena_napi_enable_all(adapter);
-
-	/* Enable completion queues interrupt */
-	for (i = 0; i < adapter->num_queues; i++)
-		ena_unmask_interrupt(&adapter->tx_ring[i],
-				     &adapter->rx_ring[i]);
-
-	/* schedule napi in case we had pending packets
-	 * from the last time we disable napi
-	 */
-	for (i = 0; i < adapter->num_queues; i++)
-		napi_schedule(&adapter->ena_napi[i].napi);
 
 	return 0;
 }
@@ -1731,7 +1723,7 @@ create_err:
 
 static int ena_up(struct ena_adapter *adapter)
 {
-	int rc;
+	int rc, i;
 
 	netdev_dbg(adapter->netdev, "%s\n", __func__);
 
@@ -1773,6 +1765,17 @@ static int ena_up(struct ena_adapter *adapter)
 	u64_stats_update_end(&adapter->syncp);
 
 	set_bit(ENA_FLAG_DEV_UP, &adapter->flags);
+
+	/* Enable completion queues interrupt */
+	for (i = 0; i < adapter->num_queues; i++)
+		ena_unmask_interrupt(&adapter->tx_ring[i],
+				     &adapter->rx_ring[i]);
+
+	/* schedule napi in case we had pending packets
+	 * from the last time we disable napi
+	 */
+	for (i = 0; i < adapter->num_queues; i++)
+		napi_schedule(&adapter->ena_napi[i].napi);
 
 	return rc;
 
@@ -1883,6 +1886,17 @@ static int ena_close(struct net_device *netdev)
 
 	if (test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
 		ena_down(adapter);
+
+	/* Check for device status and issue reset if needed*/
+	check_for_admin_com_state(adapter);
+	if (unlikely(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
+		netif_err(adapter, ifdown, adapter->netdev,
+			  "Destroy failure, restarting device\n");
+		ena_dump_stats_to_dmesg(adapter);
+		/* rtnl lock already obtained in dev_ioctl() layer */
+		ena_destroy_device(adapter);
+		ena_restore_device(adapter);
+	}
 
 	return 0;
 }
@@ -2544,11 +2558,12 @@ static void ena_destroy_device(struct ena_adapter *adapter)
 
 	ena_com_set_admin_running_state(ena_dev, false);
 
-	ena_close(netdev);
+	if (test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
+		ena_down(adapter);
 
 	/* Before releasing the ENA resources, a device reset is required.
 	 * (to prevent the device from accessing them).
-	 * In case the reset flag is set and the device is up, ena_close
+	 * In case the reset flag is set and the device is up, ena_down()
 	 * already perform the reset, so it can be skipped.
 	 */
 	if (!(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags) && dev_up))

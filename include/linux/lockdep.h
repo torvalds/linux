@@ -475,8 +475,6 @@ enum xhlock_context_t {
 #define STATIC_LOCKDEP_MAP_INIT(_name, _key) \
 	{ .name = (_name), .key = (void *)(_key), }
 
-static inline void crossrelease_hist_start(enum xhlock_context_t c) {}
-static inline void crossrelease_hist_end(enum xhlock_context_t c) {}
 static inline void lockdep_invariant_state(bool force) {}
 static inline void lockdep_init_task(struct task_struct *task) {}
 static inline void lockdep_free_task(struct task_struct *task) {}

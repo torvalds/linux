@@ -364,16 +364,6 @@ static void __init reserve_initrd(void)
 	    !ramdisk_image || !ramdisk_size)
 		return;		/* No initrd provided by bootloader */
 
-	/*
-	 * If SME is active, this memory will be marked encrypted by the
-	 * kernel when it is accessed (including relocation). However, the
-	 * ramdisk image was loaded decrypted by the bootloader, so make
-	 * sure that it is encrypted before accessing it. For SEV the
-	 * ramdisk will already be encrypted, so only do this for SME.
-	 */
-	if (sme_active())
-		sme_early_encrypt(ramdisk_image, ramdisk_end - ramdisk_image);
-
 	initrd_start = 0;
 
 	mapped_size = memblock_mem_size(max_pfn_mapped);

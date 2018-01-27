@@ -62,7 +62,15 @@ trivial patch so apply some common sense.
 
 7.	When sending security related changes or reports to a maintainer
 	please Cc: security@kernel.org, especially if the maintainer
-	does not respond.
+	does not respond. Please keep in mind that the security team is
+	a small set of people who can be efficient only when working on
+	verified bugs. Please only Cc: this list when you have identified
+	that the bug would present a short-term risk to other users if it
+	were publicly disclosed. For example, reports of address leaks do
+	not represent an immediate threat and are better handled publicly,
+	and ideally, should come with a patch proposal. Please do not send
+	automated reports to this list either. Such bugs will be handled
+	better and faster in the usual public places.
 
 8.	Happy hacking.
 
@@ -9085,6 +9093,7 @@ F:	drivers/usb/image/microtek.*
 
 MIPS
 M:	Ralf Baechle <ralf@linux-mips.org>
+M:	James Hogan <jhogan@kernel.org>
 L:	linux-mips@linux-mips.org
 W:	http://www.linux-mips.org/
 T:	git git://git.linux-mips.org/pub/scm/ralf/linux.git
@@ -9638,8 +9647,8 @@ F:	include/uapi/linux/sunrpc/
 NILFS2 FILESYSTEM
 M:	Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>
 L:	linux-nilfs@vger.kernel.org
-W:	http://nilfs.sourceforge.net/
-W:	http://nilfs.osdn.jp/
+W:	https://nilfs.sourceforge.io/
+W:	https://nilfs.osdn.jp/
 T:	git git://github.com/konis/nilfs2.git
 S:	Supported
 F:	Documentation/filesystems/nilfs2.txt
@@ -10134,7 +10143,7 @@ F:	drivers/irqchip/irq-ompic.c
 F:	drivers/irqchip/irq-or1k-*
 
 OPENVSWITCH
-M:	Pravin Shelar <pshelar@nicira.com>
+M:	Pravin B Shelar <pshelar@ovn.org>
 L:	netdev@vger.kernel.org
 L:	dev@openvswitch.org
 W:	http://openvswitch.org
@@ -12232,7 +12241,7 @@ M:	Security Officers <security@kernel.org>
 S:	Supported
 
 SECURITY SUBSYSTEM
-M:	James Morris <james.l.morris@oracle.com>
+M:	James Morris <jmorris@namei.org>
 M:	"Serge E. Hallyn" <serge@hallyn.com>
 L:	linux-security-module@vger.kernel.org (suggested Cc:)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jmorris/linux-security.git

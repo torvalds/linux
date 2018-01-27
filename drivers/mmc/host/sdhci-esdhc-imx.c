@@ -687,6 +687,20 @@ static inline void esdhc_pltfm_set_clock(struct sdhci_host *host,
 		return;
 	}
 
+	/* For i.MX53 eSDHCv3, SYSCTL.SDCLKFS may not be set to 0. */
+	if (is_imx53_esdhc(imx_data)) {
+		/*
+		 * According to the i.MX53 reference manual, if DLLCTRL[10] can
+		 * be set, then the controller is eSDHCv3, else it is eSDHCv2.
+		 */
+		val = readl(host->ioaddr + ESDHC_DLL_CTRL);
+		writel(val | BIT(10), host->ioaddr + ESDHC_DLL_CTRL);
+		temp = readl(host->ioaddr + ESDHC_DLL_CTRL);
+		writel(val, host->ioaddr + ESDHC_DLL_CTRL);
+		if (temp & BIT(10))
+			pre_div = 2;
+	}
+
 	temp = sdhci_readl(host, ESDHC_SYSTEM_CONTROL);
 	temp &= ~(ESDHC_CLOCK_IPGEN | ESDHC_CLOCK_HCKEN | ESDHC_CLOCK_PEREN
 		| ESDHC_CLOCK_MASK);

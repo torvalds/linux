@@ -66,7 +66,6 @@ static int ingress_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct ingress_sched_data *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
-	int err;
 
 	net_inc_ingress_queue();
 
@@ -76,13 +75,7 @@ static int ingress_init(struct Qdisc *sch, struct nlattr *opt)
 	q->block_info.chain_head_change = clsact_chain_head_change;
 	q->block_info.chain_head_change_priv = &q->miniqp;
 
-	err = tcf_block_get_ext(&q->block, sch, &q->block_info);
-	if (err)
-		return err;
-
-	sch->flags |= TCQ_F_CPUSTATS;
-
-	return 0;
+	return tcf_block_get_ext(&q->block, sch, &q->block_info);
 }
 
 static void ingress_destroy(struct Qdisc *sch)
@@ -121,6 +114,7 @@ static struct Qdisc_ops ingress_qdisc_ops __read_mostly = {
 	.cl_ops		=	&ingress_class_ops,
 	.id		=	"ingress",
 	.priv_size	=	sizeof(struct ingress_sched_data),
+	.static_flags	=	TCQ_F_CPUSTATS,
 	.init		=	ingress_init,
 	.destroy	=	ingress_destroy,
 	.dump		=	ingress_dump,
@@ -192,13 +186,7 @@ static int clsact_init(struct Qdisc *sch, struct nlattr *opt)
 	q->egress_block_info.chain_head_change = clsact_chain_head_change;
 	q->egress_block_info.chain_head_change_priv = &q->miniqp_egress;
 
-	err = tcf_block_get_ext(&q->egress_block, sch, &q->egress_block_info);
-	if (err)
-		return err;
-
-	sch->flags |= TCQ_F_CPUSTATS;
-
-	return 0;
+	return tcf_block_get_ext(&q->egress_block, sch, &q->egress_block_info);
 }
 
 static void clsact_destroy(struct Qdisc *sch)
@@ -225,6 +213,7 @@ static struct Qdisc_ops clsact_qdisc_ops __read_mostly = {
 	.cl_ops		=	&clsact_class_ops,
 	.id		=	"clsact",
 	.priv_size	=	sizeof(struct clsact_sched_data),
+	.static_flags	=	TCQ_F_CPUSTATS,
 	.init		=	clsact_init,
 	.destroy	=	clsact_destroy,
 	.dump		=	ingress_dump,
