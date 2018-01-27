@@ -113,6 +113,33 @@ mt76_rx_aggr_reorder_work(struct work_struct *work)
 	local_bh_enable();
 }
 
+static void
+mt76_rx_aggr_check_ctl(struct sk_buff *skb, struct sk_buff_head *frames)
+{
+	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;
+	struct ieee80211_bar *bar = (struct ieee80211_bar *) skb->data;
+	struct mt76_wcid *wcid = status->wcid;
+	struct mt76_rx_tid *tid;
+	u16 seqno;
+
+	if (!ieee80211_is_ctl(bar->frame_control))
+		return;
+
+	if (!ieee80211_is_back_req(bar->frame_control))
+		return;
+
+	status->tid = le16_to_cpu(bar->control) >> 12;
+	seqno = le16_to_cpu(bar->start_seq_num) >> 4;
+	tid = rcu_dereference(wcid->aggr[status->tid]);
+	if (!tid)
+		return;
+
+	spin_lock_bh(&tid->lock);
+	mt76_rx_aggr_release_frames(tid, frames, seqno);
+	mt76_rx_aggr_release_head(tid, frames);
+	spin_unlock_bh(&tid->lock);
+}
+
 void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;
@@ -126,8 +153,13 @@ void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames)
 	__skb_queue_tail(frames, skb);
 
 	sta = wcid_to_sta(wcid);
-	if (!sta || !status->aggr)
+	if (!sta)
 		return;
+
+	if (!status->aggr) {
+		mt76_rx_aggr_check_ctl(skb, frames);
+		return;
+	}
 
 	tid = rcu_dereference(wcid->aggr[status->tid]);
 	if (!tid)
