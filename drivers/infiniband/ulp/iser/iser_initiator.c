@@ -436,7 +436,7 @@ int iser_send_data_out(struct iscsi_conn *conn,
 {
 	struct iser_conn *iser_conn = conn->dd_data;
 	struct iscsi_iser_task *iser_task = task->dd_data;
-	struct iser_tx_desc *tx_desc = NULL;
+	struct iser_tx_desc *tx_desc;
 	struct iser_mem_reg *mem_reg;
 	unsigned long buf_offset;
 	unsigned long data_seg_len;
