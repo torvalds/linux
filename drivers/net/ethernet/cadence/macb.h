@@ -13,6 +13,7 @@
 #include <linux/phy.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/net_tstamp.h>
+#include <linux/interrupt.h>
 
 #if defined(CONFIG_ARCH_DMA_ADDR_T_64BIT) || defined(CONFIG_MACB_USE_HWSTAMP)
 #define MACB_EXT_DESC
@@ -1200,6 +1201,8 @@ struct macb {
 	struct ethtool_rx_fs_list rx_fs_list;
 	spinlock_t rx_fs_lock;
 	unsigned int max_tuples;
+
+	struct tasklet_struct	hresp_err_tasklet;
 };
 
 #ifdef CONFIG_MACB_USE_HWSTAMP
