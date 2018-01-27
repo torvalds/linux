@@ -638,10 +638,7 @@ static int armada_3700_add_composite_clk(const struct clk_periph_data *data,
 					mux_ops, rate_hw, rate_ops,
 					gate_hw, gate_ops, CLK_IGNORE_UNUSED);
 
-	if (IS_ERR(*hw))
-		return PTR_ERR(*hw);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(*hw);
 }
 
 static int armada_3700_periph_clock_probe(struct platform_device *pdev)
