@@ -505,27 +505,27 @@ int rf69_set_dio_mapping(struct spi_device *spi, u8 DIONumber, u8 value)
 {
 	u8 mask;
 	u8 shift;
-	u8 regaddr;
-	u8 regValue;
+	u8 dio_addr;
+	u8 dio_value;
 
 	switch (DIONumber) {
 	case 0:
-		mask = MASK_DIO0; shift = SHIFT_DIO0; regaddr = REG_DIOMAPPING1;
+		mask = MASK_DIO0; shift = SHIFT_DIO0; dio_addr = REG_DIOMAPPING1;
 		break;
 	case 1:
-		mask = MASK_DIO1; shift = SHIFT_DIO1; regaddr = REG_DIOMAPPING1;
+		mask = MASK_DIO1; shift = SHIFT_DIO1; dio_addr = REG_DIOMAPPING1;
 		break;
 	case 2:
-		mask = MASK_DIO2; shift = SHIFT_DIO2; regaddr = REG_DIOMAPPING1;
+		mask = MASK_DIO2; shift = SHIFT_DIO2; dio_addr = REG_DIOMAPPING1;
 		break;
 	case 3:
-		mask = MASK_DIO3; shift = SHIFT_DIO3; regaddr = REG_DIOMAPPING1;
+		mask = MASK_DIO3; shift = SHIFT_DIO3; dio_addr = REG_DIOMAPPING1;
 		break;
 	case 4:
-		mask = MASK_DIO4; shift = SHIFT_DIO4; regaddr = REG_DIOMAPPING2;
+		mask = MASK_DIO4; shift = SHIFT_DIO4; dio_addr = REG_DIOMAPPING2;
 		break;
 	case 5:
-		mask = MASK_DIO5; shift = SHIFT_DIO5; regaddr = REG_DIOMAPPING2;
+		mask = MASK_DIO5; shift = SHIFT_DIO5; dio_addr = REG_DIOMAPPING2;
 		break;
 	default:
 	dev_dbg(&spi->dev, "set: illegal input param");
@@ -533,13 +533,13 @@ int rf69_set_dio_mapping(struct spi_device *spi, u8 DIONumber, u8 value)
 	}
 
 	// read reg
-	regValue = rf69_read_reg(spi, regaddr);
+	dio_value = rf69_read_reg(spi, dio_addr);
 	// delete old value
-	regValue = regValue & ~mask;
+	dio_value = dio_value & ~mask;
 	// add new value
-	regValue = regValue | value << shift;
+	dio_value = dio_value | value << shift;
 	// write back
-	return rf69_write_reg(spi, regaddr, regValue);
+	return rf69_write_reg(spi, dio_addr, dio_value);
 }
 
 bool rf69_get_flag(struct spi_device *spi, enum flag flag)
