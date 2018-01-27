@@ -116,7 +116,7 @@ struct pi433_rx_cfg {
 
 	__u8			rssi_threshold;
 	enum thresholdDecrement	threshold_decrement;
-	enum antennaImpedance	antenna_impedance;
+	enum antenna_impedance	antenna_impedance;
 	enum lnaGain		lna_gain;
 	enum mantisse		bw_mantisse;	/* normal: 0x50 */
 	__u8			bw_exponent;	/* during AFC: 0x8b */

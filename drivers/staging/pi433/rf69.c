@@ -386,9 +386,9 @@ int rf69_set_pa_ramp(struct spi_device *spi, enum paRamp paRamp)
 	}
 }
 
-int rf69_set_antenna_impedance(struct spi_device *spi, enum antennaImpedance antennaImpedance)
+int rf69_set_antenna_impedance(struct spi_device *spi, enum antenna_impedance antenna_impedance)
 {
-	switch (antennaImpedance) {
+	switch (antenna_impedance) {
 	case fiftyOhm:
 		return rf69_clear_bit(spi, REG_LNA, MASK_LNA_ZIN);
 	case twohundretOhm:

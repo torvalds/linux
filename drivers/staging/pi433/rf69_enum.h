@@ -60,7 +60,7 @@ enum paRamp {
 	ramp10
 };
 
-enum antennaImpedance {
+enum antenna_impedance {
 	fiftyOhm,
 	twohundretOhm
 };

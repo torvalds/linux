@@ -192,7 +192,7 @@ rf params:
 		step_4_0db	- increase in 4 db steps
 		step_5_0db	- increase in 5 db steps
 		step_6_0db	- increase in 6 db steps
-	antennaImpedance
+	antenna_impedance
 		sets the electrical adoption of the antenna
 		fiftyOhm	- for antennas with an impedance of 50Ohm
 		twohundretOhm	- for antennas with an impedance of 200Ohm
