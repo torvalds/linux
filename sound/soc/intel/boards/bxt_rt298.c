@@ -146,6 +146,9 @@ static const struct snd_soc_dapm_route geminilake_rt298_map[] = {
 	{ "dmic01_hifi", NULL, "DMIC01 Rx" },
 	{ "DMIC01 Rx", NULL, "Capture" },
 
+	{ "dmic_voice", NULL, "DMIC16k Rx" },
+	{ "DMIC16k Rx", NULL, "Capture" },
+
 	{ "hifi3", NULL, "iDisp3 Tx"},
 	{ "iDisp3 Tx", NULL, "iDisp3_out"},
 	{ "hifi2", NULL, "iDisp2 Tx"},
@@ -448,6 +451,18 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 		.name = "dmic01",
 		.id = 1,
 		.cpu_dai_name = "DMIC01 Pin",
+		.codec_name = "dmic-codec",
+		.codec_dai_name = "dmic-hifi",
+		.platform_name = "0000:00:0e.0",
+		.be_hw_params_fixup = broxton_dmic_fixup,
+		.ignore_suspend = 1,
+		.dpcm_capture = 1,
+		.no_pcm = 1,
+	},
+	{
+		.name = "dmic16k",
+		.id = 2,
+		.cpu_dai_name = "DMIC16k Pin",
 		.codec_name = "dmic-codec",
 		.codec_dai_name = "dmic-hifi",
 		.platform_name = "0000:00:0e.0",
