@@ -694,7 +694,7 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 	}
 
 	bpmp->rx.virt = gen_pool_dma_alloc(bpmp->rx.pool, 4096, &bpmp->rx.phys);
-	if (!bpmp->rx.pool) {
+	if (!bpmp->rx.virt) {
 		dev_err(&pdev->dev, "failed to allocate from RX pool\n");
 		err = -ENOMEM;
 		goto free_tx;
