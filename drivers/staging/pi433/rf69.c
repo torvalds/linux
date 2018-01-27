@@ -425,7 +425,7 @@ int rf69_set_lna_gain(struct spi_device *spi, enum lnaGain lnaGain)
 static int rf69_set_bandwidth_intern(struct spi_device *spi, u8 reg,
 				     enum mantisse mantisse, u8 exponent)
 {
-	u8 newValue;
+	u8 bandwidth;
 
 	// check value for mantisse and exponent
 	if (exponent > 7) {
@@ -441,29 +441,29 @@ static int rf69_set_bandwidth_intern(struct spi_device *spi, u8 reg,
 	}
 
 	// read old value
-	newValue = rf69_read_reg(spi, reg);
+	bandwidth = rf69_read_reg(spi, reg);
 
 	// "delete" mantisse and exponent = just keep the DCC setting
-	newValue = newValue & MASK_BW_DCC_FREQ;
+	bandwidth = bandwidth & MASK_BW_DCC_FREQ;
 
 	// add new mantisse
 	switch (mantisse) {
 	case mantisse16:
-		newValue = newValue | BW_MANT_16;
+		bandwidth = bandwidth | BW_MANT_16;
 		break;
 	case mantisse20:
-		newValue = newValue | BW_MANT_20;
+		bandwidth = bandwidth | BW_MANT_20;
 		break;
 	case mantisse24:
-		newValue = newValue | BW_MANT_24;
+		bandwidth = bandwidth | BW_MANT_24;
 		break;
 	}
 
 	// add new exponent
-	newValue = newValue | exponent;
+	bandwidth = bandwidth | exponent;
 
 	// write back
-	return rf69_write_reg(spi, reg, newValue);
+	return rf69_write_reg(spi, reg, bandwidth);
 }
 
 int rf69_set_bandwidth(struct spi_device *spi, enum mantisse mantisse, u8 exponent)
