@@ -330,19 +330,19 @@ int rf69_disable_amplifier(struct spi_device *spi, u8 amplifier_mask)
 	return rf69_clear_bit(spi, REG_PALEVEL, amplifier_mask);
 }
 
-int rf69_set_output_power_level(struct spi_device *spi, u8 powerLevel)
+int rf69_set_output_power_level(struct spi_device *spi, u8 power_level)
 {
 	// TODO: Dependency to PA0,1,2 setting
-	powerLevel += 18;
+	power_level += 18;
 
 	// check input value
-	if (powerLevel > 0x1f) {
+	if (power_level > 0x1f) {
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
 	}
 
 	// write value
-	return rf69_read_mod_write(spi, REG_PALEVEL, MASK_PALEVEL_OUTPUT_POWER, powerLevel);
+	return rf69_read_mod_write(spi, REG_PALEVEL, MASK_PALEVEL_OUTPUT_POWER, power_level);
 }
 
 int rf69_set_pa_ramp(struct spi_device *spi, enum paRamp paRamp)
