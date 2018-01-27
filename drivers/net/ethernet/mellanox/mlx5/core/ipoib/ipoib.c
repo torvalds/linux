@@ -271,7 +271,7 @@ static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
 
 	mlx5e_set_ttc_ft_params(&ttc_params);
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
-		ttc_params.indir_tirn[tt] = priv->inner_indir_tir[tt].tirn;
+		ttc_params.indir_tirn[tt] = priv->indir_tir[tt].tirn;
 
 	err = mlx5e_create_ttc_table(priv, &ttc_params, &priv->fs.ttc);
 	if (err) {
