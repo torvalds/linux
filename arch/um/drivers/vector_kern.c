@@ -677,7 +677,7 @@ static struct vector_device *find_device(int n)
 static int vector_parse(char *str, int *index_out, char **str_out,
 			char **error_out)
 {
-	int n, len, err = -EINVAL;
+	int n, len, err;
 	char *start = str;
 
 	len = strlen(str);
@@ -686,7 +686,7 @@ static int vector_parse(char *str, int *index_out, char **str_out,
 		str++;
 	if (*str != ':') {
 		*error_out = "Expected ':' after device number";
-		return err;
+		return -EINVAL;
 	}
 	*str = '\0';
 
@@ -699,7 +699,7 @@ static int vector_parse(char *str, int *index_out, char **str_out,
 	str++;
 	if (find_device(n)) {
 		*error_out = "Device already configured";
-		return err;
+		return -EINVAL;
 	}
 
 	*index_out = n;
