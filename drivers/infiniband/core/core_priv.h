@@ -301,4 +301,31 @@ struct ib_device *ib_device_get_by_index(u32 ifindex);
 /* RDMA device netlink */
 void nldev_init(void);
 void nldev_exit(void);
+
+static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
+					  struct ib_pd *pd,
+					  struct ib_qp_init_attr *attr,
+					  struct ib_udata *udata)
+{
+	struct ib_qp *qp;
+
+	qp = dev->create_qp(pd, attr, udata);
+	if (IS_ERR(qp))
+		return qp;
+
+	qp->device = dev;
+	qp->pd = pd;
+	/*
+	 * We don't track XRC QPs for now, because they don't have PD
+	 * and more importantly they are created internaly by driver,
+	 * see mlx5 create_dev_resources() as an example.
+	 */
+	if (attr->qp_type < IB_QPT_XRC_INI) {
+		qp->res.type = RDMA_RESTRACK_QP;
+		rdma_restrack_add(&qp->res);
+	} else
+		qp->res.valid = false;
+
+	return qp;
+}
 #endif /* _CORE_PRIV_H */
