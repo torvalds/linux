@@ -976,6 +976,8 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		upperdentry = dget(index);
 
 	if (upperdentry || ctr) {
+		if (ctr)
+			origin = stack[0].dentry;
 		inode = ovl_get_inode(dentry->d_sb, upperdentry, origin, index,
 				      ctr);
 		err = PTR_ERR(inode);
