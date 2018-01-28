@@ -11,11 +11,13 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/usb/of.h>
@@ -99,6 +101,8 @@ struct phy_meson_gxl_usb2_priv {
 	struct regmap		*regmap;
 	enum phy_mode		mode;
 	int			is_enabled;
+	struct clk		*clk;
+	struct reset_control	*reset;
 };
 
 static const struct regmap_config phy_meson_gxl_usb2_regmap_conf = {
@@ -107,6 +111,31 @@ static const struct regmap_config phy_meson_gxl_usb2_regmap_conf = {
 	.reg_stride = 4,
 	.max_register = U2P_R3,
 };
+
+static int phy_meson_gxl_usb2_init(struct phy *phy)
+{
+	struct phy_meson_gxl_usb2_priv *priv = phy_get_drvdata(phy);
+	int ret;
+
+	ret = reset_control_reset(priv->reset);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(priv->clk);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int phy_meson_gxl_usb2_exit(struct phy *phy)
+{
+	struct phy_meson_gxl_usb2_priv *priv = phy_get_drvdata(phy);
+
+	clk_disable_unprepare(priv->clk);
+
+	return 0;
+}
 
 static int phy_meson_gxl_usb2_reset(struct phy *phy)
 {
@@ -195,6 +224,8 @@ static int phy_meson_gxl_usb2_power_on(struct phy *phy)
 }
 
 static const struct phy_ops phy_meson_gxl_usb2_ops = {
+	.init		= phy_meson_gxl_usb2_init,
+	.exit		= phy_meson_gxl_usb2_exit,
 	.power_on	= phy_meson_gxl_usb2_power_on,
 	.power_off	= phy_meson_gxl_usb2_power_off,
 	.set_mode	= phy_meson_gxl_usb2_set_mode,
@@ -240,6 +271,19 @@ static int phy_meson_gxl_usb2_probe(struct platform_device *pdev)
 					     &phy_meson_gxl_usb2_regmap_conf);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
+
+	priv->clk = devm_clk_get(dev, "phy");
+	if (IS_ERR(priv->clk)) {
+		ret = PTR_ERR(priv->clk);
+		if (ret == -ENOENT)
+			priv->clk = NULL;
+		else
+			return ret;
+	}
+
+	priv->reset = devm_reset_control_get_optional_shared(dev, "phy");
+	if (IS_ERR(priv->reset))
+		return PTR_ERR(priv->reset);
 
 	phy = devm_phy_create(dev, NULL, &phy_meson_gxl_usb2_ops);
 	if (IS_ERR(phy)) {
