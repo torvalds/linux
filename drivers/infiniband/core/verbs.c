@@ -263,6 +263,10 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 		mr_access_flags |= IB_ACCESS_REMOTE_READ | IB_ACCESS_REMOTE_WRITE;
 	}
 
+	pd->res.type = RDMA_RESTRACK_PD;
+	pd->res.kern_name = caller;
+	rdma_restrack_add(&pd->res);
+
 	if (mr_access_flags) {
 		struct ib_mr *mr;
 
@@ -312,6 +316,7 @@ void ib_dealloc_pd(struct ib_pd *pd)
 	   requires the caller to guarantee we can't race here. */
 	WARN_ON(atomic_read(&pd->usecnt));
 
+	rdma_restrack_del(&pd->res);
 	/* Making delalloc_pd a void return is a WIP, no driver should return
 	   an error here. */
 	ret = pd->device->dealloc_pd(pd);
