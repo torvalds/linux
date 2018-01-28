@@ -317,7 +317,7 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 		fte->dests_size * MLX5_ST_SZ_BYTES(dest_format_struct);
 	u32 out[MLX5_ST_SZ_DW(set_fte_out)] = {0};
 	struct mlx5_flow_rule *dst;
-	void *in_flow_context;
+	void *in_flow_context, *vlan;
 	void *in_match_value;
 	void *in_dests;
 	u32 *in;
@@ -340,11 +340,19 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 
 	in_flow_context = MLX5_ADDR_OF(set_fte_in, in, flow_context);
 	MLX5_SET(flow_context, in_flow_context, group_id, group_id);
+
 	MLX5_SET(flow_context, in_flow_context, flow_tag, fte->action.flow_tag);
 	MLX5_SET(flow_context, in_flow_context, action, fte->action.action);
 	MLX5_SET(flow_context, in_flow_context, encap_id, fte->action.encap_id);
 	MLX5_SET(flow_context, in_flow_context, modify_header_id,
 		 fte->action.modify_id);
+
+	vlan = MLX5_ADDR_OF(flow_context, in_flow_context, push_vlan);
+
+	MLX5_SET(vlan, vlan, ethtype, fte->action.vlan.ethtype);
+	MLX5_SET(vlan, vlan, vid, fte->action.vlan.vid);
+	MLX5_SET(vlan, vlan, prio, fte->action.vlan.prio);
+
 	in_match_value = MLX5_ADDR_OF(flow_context, in_flow_context,
 				      match_value);
 	memcpy(in_match_value, &fte->val, sizeof(fte->val));

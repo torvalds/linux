@@ -314,7 +314,10 @@ struct mlx5_ifc_flow_table_prop_layout_bits {
 	u8         flow_table_modify[0x1];
 	u8         encap[0x1];
 	u8         decap[0x1];
-	u8         reserved_at_9[0x17];
+	u8         reserved_at_9[0x1];
+	u8         pop_vlan[0x1];
+	u8         push_vlan[0x1];
+	u8         reserved_at_c[0x14];
 
 	u8         reserved_at_20[0x2];
 	u8         log_max_ft_size[0x6];
@@ -2311,10 +2314,19 @@ enum {
 	MLX5_FLOW_CONTEXT_ACTION_ENCAP     = 0x10,
 	MLX5_FLOW_CONTEXT_ACTION_DECAP     = 0x20,
 	MLX5_FLOW_CONTEXT_ACTION_MOD_HDR   = 0x40,
+	MLX5_FLOW_CONTEXT_ACTION_VLAN_POP  = 0x80,
+	MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH = 0x100,
+};
+
+struct mlx5_ifc_vlan_bits {
+	u8         ethtype[0x10];
+	u8         prio[0x3];
+	u8         cfi[0x1];
+	u8         vid[0xc];
 };
 
 struct mlx5_ifc_flow_context_bits {
-	u8         reserved_at_0[0x20];
+	struct mlx5_ifc_vlan_bits push_vlan;
 
 	u8         group_id[0x20];
 
