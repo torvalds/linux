@@ -295,7 +295,7 @@ trace:
 	restore_mcount_regs
 
 	jmp fgraph_trace
-END(function_hook)
+ENDPROC(function_hook)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
