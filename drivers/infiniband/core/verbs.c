@@ -1782,7 +1782,7 @@ int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 }
 EXPORT_SYMBOL(ib_detach_mcast);
 
-struct ib_xrcd *ib_alloc_xrcd(struct ib_device *device)
+struct ib_xrcd *__ib_alloc_xrcd(struct ib_device *device, const char *caller)
 {
 	struct ib_xrcd *xrcd;
 
@@ -1800,7 +1800,7 @@ struct ib_xrcd *ib_alloc_xrcd(struct ib_device *device)
 
 	return xrcd;
 }
-EXPORT_SYMBOL(ib_alloc_xrcd);
+EXPORT_SYMBOL(__ib_alloc_xrcd);
 
 int ib_dealloc_xrcd(struct ib_xrcd *xrcd)
 {
