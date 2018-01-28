@@ -59,6 +59,18 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY_NAME] = { .type = NLA_NUL_STRING,
 					     .len = 16 },
 	[RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY_CURR] = { .type = NLA_U64 },
+	[RDMA_NLDEV_ATTR_RES_QP]		= { .type = NLA_NESTED },
+	[RDMA_NLDEV_ATTR_RES_QP_ENTRY]		= { .type = NLA_NESTED },
+	[RDMA_NLDEV_ATTR_RES_LQPN]		= { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_RES_RQPN]		= { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_RES_RQ_PSN]		= { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_RES_SQ_PSN]		= { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_RES_PATH_MIG_STATE] = { .type = NLA_U8 },
+	[RDMA_NLDEV_ATTR_RES_TYPE]		= { .type = NLA_U8 },
+	[RDMA_NLDEV_ATTR_RES_STATE]		= { .type = NLA_U8 },
+	[RDMA_NLDEV_ATTR_RES_PID]		= { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_RES_KERN_NAME]		= { .type = NLA_NUL_STRING,
+						    .len = TASK_COMM_LEN },
 };
 
 static int fill_nldev_handle(struct sk_buff *msg, struct ib_device *device)
@@ -198,6 +210,78 @@ static int fill_res_info(struct sk_buff *msg, struct ib_device *device)
 err:
 	nla_nest_cancel(msg, table_attr);
 	return ret;
+}
+
+static int fill_res_qp_entry(struct sk_buff *msg,
+			     struct ib_qp *qp, uint32_t port)
+{
+	struct rdma_restrack_entry *res = &qp->res;
+	struct ib_qp_init_attr qp_init_attr;
+	struct nlattr *entry_attr;
+	struct ib_qp_attr qp_attr;
+	int ret;
+
+	ret = ib_query_qp(qp, &qp_attr, 0, &qp_init_attr);
+	if (ret)
+		return ret;
+
+	if (port && port != qp_attr.port_num)
+		return 0;
+
+	entry_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_RES_QP_ENTRY);
+	if (!entry_attr)
+		goto out;
+
+	/* In create_qp() port is not set yet */
+	if (qp_attr.port_num &&
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_PORT_INDEX, qp_attr.port_num))
+		goto err;
+
+	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_LQPN, qp->qp_num))
+		goto err;
+	if (qp->qp_type == IB_QPT_RC || qp->qp_type == IB_QPT_UC) {
+		if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_RQPN,
+				qp_attr.dest_qp_num))
+			goto err;
+		if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_RQ_PSN,
+				qp_attr.rq_psn))
+			goto err;
+	}
+
+	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_SQ_PSN, qp_attr.sq_psn))
+		goto err;
+
+	if (qp->qp_type == IB_QPT_RC || qp->qp_type == IB_QPT_UC ||
+	    qp->qp_type == IB_QPT_XRC_INI || qp->qp_type == IB_QPT_XRC_TGT) {
+		if (nla_put_u8(msg, RDMA_NLDEV_ATTR_RES_PATH_MIG_STATE,
+			       qp_attr.path_mig_state))
+			goto err;
+	}
+	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_RES_TYPE, qp->qp_type))
+		goto err;
+	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_RES_STATE, qp_attr.qp_state))
+		goto err;
+
+	/*
+	 * Existence of task means that it is user QP and netlink
+	 * user is invited to go and read /proc/PID/comm to get name
+	 * of the task file and res->task_com should be NULL.
+	 */
+	if (rdma_is_kernel_res(res)) {
+		if (nla_put_string(msg, RDMA_NLDEV_ATTR_RES_KERN_NAME, res->kern_name))
+			goto err;
+	} else {
+		if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_PID, task_pid_vnr(res->task)))
+			goto err;
+	}
+
+	nla_nest_end(msg, entry_attr);
+	return 0;
+
+err:
+	nla_nest_cancel(msg, entry_attr);
+out:
+	return -EMSGSIZE;
 }
 
 static int nldev_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -472,6 +556,136 @@ static int nldev_res_get_dumpit(struct sk_buff *skb,
 	return ib_enum_all_devs(_nldev_res_get_dumpit, skb, cb);
 }
 
+static int nldev_res_get_qp_dumpit(struct sk_buff *skb,
+				   struct netlink_callback *cb)
+{
+	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX];
+	struct rdma_restrack_entry *res;
+	int err, ret = 0, idx = 0;
+	struct nlattr *table_attr;
+	struct ib_device *device;
+	int start = cb->args[0];
+	struct ib_qp *qp = NULL;
+	struct nlmsghdr *nlh;
+	u32 index, port = 0;
+
+	err = nlmsg_parse(cb->nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1,
+			  nldev_policy, NULL);
+	/*
+	 * Right now, we are expecting the device index to get QP information,
+	 * but it is possible to extend this code to return all devices in
+	 * one shot by checking the existence of RDMA_NLDEV_ATTR_DEV_INDEX.
+	 * if it doesn't exist, we will iterate over all devices.
+	 *
+	 * But it is not needed for now.
+	 */
+	if (err || !tb[RDMA_NLDEV_ATTR_DEV_INDEX])
+		return -EINVAL;
+
+	index = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
+	device = ib_device_get_by_index(index);
+	if (!device)
+		return -EINVAL;
+
+	/*
+	 * If no PORT_INDEX is supplied, we will return all QPs from that device
+	 */
+	if (tb[RDMA_NLDEV_ATTR_PORT_INDEX]) {
+		port = nla_get_u32(tb[RDMA_NLDEV_ATTR_PORT_INDEX]);
+		if (!rdma_is_port_valid(device, port)) {
+			ret = -EINVAL;
+			goto err_index;
+		}
+	}
+
+	nlh = nlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+			RDMA_NL_GET_TYPE(RDMA_NL_NLDEV, RDMA_NLDEV_CMD_RES_QP_GET),
+			0, NLM_F_MULTI);
+
+	if (fill_nldev_handle(skb, device)) {
+		ret = -EMSGSIZE;
+		goto err;
+	}
+
+	table_attr = nla_nest_start(skb, RDMA_NLDEV_ATTR_RES_QP);
+	if (!table_attr) {
+		ret = -EMSGSIZE;
+		goto err;
+	}
+
+	down_read(&device->res.rwsem);
+	hash_for_each_possible(device->res.hash, res, node, RDMA_RESTRACK_QP) {
+		if (idx < start)
+			goto next;
+
+		if ((rdma_is_kernel_res(res) &&
+		     task_active_pid_ns(current) != &init_pid_ns) ||
+		    (!rdma_is_kernel_res(res) &&
+		     task_active_pid_ns(current) != task_active_pid_ns(res->task)))
+			/*
+			 * 1. Kernel QPs should be visible in init namspace only
+			 * 2. Present only QPs visible in the current namespace
+			 */
+			goto next;
+
+		if (!rdma_restrack_get(res))
+			/*
+			 * Resource is under release now, but we are not
+			 * relesing lock now, so it will be released in
+			 * our next pass, once we will get ->next pointer.
+			 */
+			goto next;
+
+		qp = container_of(res, struct ib_qp, res);
+
+		up_read(&device->res.rwsem);
+		ret = fill_res_qp_entry(skb, qp, port);
+		down_read(&device->res.rwsem);
+		/*
+		 * Return resource back, but it won't be released till
+		 * the &device->res.rwsem will be released for write.
+		 */
+		rdma_restrack_put(res);
+
+		if (ret == -EMSGSIZE)
+			/*
+			 * There is a chance to optimize here.
+			 * It can be done by using list_prepare_entry
+			 * and list_for_each_entry_continue afterwards.
+			 */
+			break;
+		if (ret)
+			goto res_err;
+next:		idx++;
+	}
+	up_read(&device->res.rwsem);
+
+	nla_nest_end(skb, table_attr);
+	nlmsg_end(skb, nlh);
+	cb->args[0] = idx;
+
+	/*
+	 * No more QPs to fill, cancel the message and
+	 * return 0 to mark end of dumpit.
+	 */
+	if (!qp)
+		goto err;
+
+	put_device(&device->dev);
+	return skb->len;
+
+res_err:
+	nla_nest_cancel(skb, table_attr);
+	up_read(&device->res.rwsem);
+
+err:
+	nlmsg_cancel(skb, nlh);
+
+err_index:
+	put_device(&device->dev);
+	return ret;
+}
+
 static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
 	[RDMA_NLDEV_CMD_GET] = {
 		.doit = nldev_get_doit,
@@ -484,6 +698,19 @@ static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
 	[RDMA_NLDEV_CMD_RES_GET] = {
 		.doit = nldev_res_get_doit,
 		.dump = nldev_res_get_dumpit,
+	},
+	[RDMA_NLDEV_CMD_RES_QP_GET] = {
+		.dump = nldev_res_get_qp_dumpit,
+		/*
+		 * .doit is not implemented yet for two reasons:
+		 * 1. It is not needed yet.
+		 * 2. There is a need to provide identifier, while it is easy
+		 * for the QPs (device index + port index + LQPN), it is not
+		 * the case for the rest of resources (PD and CQ). Because it
+		 * is better to provide similar interface for all resources,
+		 * let's wait till we will have other resources implemented
+		 * too.
+		 */
 	},
 };
 
