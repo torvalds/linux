@@ -74,18 +74,16 @@ static int mlx5e_ipsec_sadb_rx_add(struct mlx5e_ipsec_sa_entry *sa_entry)
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&ipsec->sadb_rx_lock, flags);
 	ret = ida_simple_get(&ipsec->halloc, 1, 0, GFP_KERNEL);
 	if (ret < 0)
-		goto out;
+		return ret;
 
+	spin_lock_irqsave(&ipsec->sadb_rx_lock, flags);
 	sa_entry->handle = ret;
 	hash_add_rcu(ipsec->sadb_rx, &sa_entry->hlist, sa_entry->handle);
-	ret = 0;
-
-out:
 	spin_unlock_irqrestore(&ipsec->sadb_rx_lock, flags);
-	return ret;
+
+	return 0;
 }
 
 static void mlx5e_ipsec_sadb_rx_del(struct mlx5e_ipsec_sa_entry *sa_entry)
@@ -101,13 +99,10 @@ static void mlx5e_ipsec_sadb_rx_del(struct mlx5e_ipsec_sa_entry *sa_entry)
 static void mlx5e_ipsec_sadb_rx_free(struct mlx5e_ipsec_sa_entry *sa_entry)
 {
 	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
-	unsigned long flags;
 
 	/* Wait for the hash_del_rcu call in sadb_rx_del to affect data path */
 	synchronize_rcu();
-	spin_lock_irqsave(&ipsec->sadb_rx_lock, flags);
 	ida_simple_remove(&ipsec->halloc, sa_entry->handle);
-	spin_unlock_irqrestore(&ipsec->sadb_rx_lock, flags);
 }
 
 static enum mlx5_accel_ipsec_enc_mode mlx5e_ipsec_enc_mode(struct xfrm_state *x)
