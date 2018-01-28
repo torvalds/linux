@@ -71,12 +71,11 @@
 
 /* bits [31:14] are read-only */
 #define U2P_R2							0x8
-	#define U2P_R2_DATA_IN_MASK				GENMASK(3, 0)
-	#define U2P_R2_DATA_IN_EN_MASK				GENMASK(7, 4)
-	#define U2P_R2_ADDR_MASK				GENMASK(11, 8)
-	#define U2P_R2_DATA_OUT_SEL				BIT(12)
-	#define U2P_R2_CLK					BIT(13)
-	#define U2P_R2_DATA_OUT_MASK				GENMASK(17, 14)
+	#define U2P_R2_TESTDATA_IN_MASK				GENMASK(7, 0)
+	#define U2P_R2_TESTADDR_MASK				GENMASK(11, 8)
+	#define U2P_R2_TESTDATA_OUT_SEL				BIT(12)
+	#define U2P_R2_TESTCLK					BIT(13)
+	#define U2P_R2_TESTDATA_OUT_MASK			GENMASK(17, 14)
 	#define U2P_R2_ACA_PIN_RANGE_C				BIT(18)
 	#define U2P_R2_ACA_PIN_RANGE_B				BIT(19)
 	#define U2P_R2_ACA_PIN_RANGE_A				BIT(20)
