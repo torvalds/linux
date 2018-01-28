@@ -18,7 +18,6 @@ config PHY_MESON_GXL_USB2
 	default ARCH_MESON
 	depends on OF && (ARCH_MESON || COMPILE_TEST)
 	depends on USB_SUPPORT
-	select USB_COMMON
 	select GENERIC_PHY
 	select REGMAP_MMIO
 	help

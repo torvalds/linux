@@ -20,7 +20,6 @@
 #include <linux/reset.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
-#include <linux/usb/of.h>
 
 /* bits [31:27] are read-only */
 #define U2P_R0							0x0
@@ -254,18 +253,8 @@ static int phy_meson_gxl_usb2_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	switch (of_usb_get_dr_mode_by_phy(dev->of_node, -1)) {
-	case USB_DR_MODE_PERIPHERAL:
-		priv->mode = PHY_MODE_USB_DEVICE;
-		break;
-	case USB_DR_MODE_OTG:
-		priv->mode = PHY_MODE_USB_OTG;
-		break;
-	case USB_DR_MODE_HOST:
-	default:
-		priv->mode = PHY_MODE_USB_HOST;
-		break;
-	}
+	/* start in host mode */
+	priv->mode = PHY_MODE_USB_HOST;
 
 	priv->regmap = devm_regmap_init_mmio(dev, base,
 					     &phy_meson_gxl_usb2_regmap_conf);
