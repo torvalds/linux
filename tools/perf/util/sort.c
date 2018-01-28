@@ -2887,10 +2887,10 @@ static int setup_output_list(struct perf_hpp_list *list, char *str)
 			tok; tok = strtok_r(NULL, ", ", &tmp)) {
 		ret = output_field_add(list, tok);
 		if (ret == -EINVAL) {
-			pr_err("Invalid --fields key: `%s'", tok);
+			ui__error("Invalid --fields key: `%s'", tok);
 			break;
 		} else if (ret == -ESRCH) {
-			pr_err("Unknown --fields key: `%s'", tok);
+			ui__error("Unknown --fields key: `%s'", tok);
 			break;
 		}
 	}

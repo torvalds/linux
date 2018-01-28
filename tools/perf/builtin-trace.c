@@ -21,6 +21,7 @@
 #include "builtin.h"
 #include "util/color.h"
 #include "util/debug.h"
+#include "util/env.h"
 #include "util/event.h"
 #include "util/evlist.h"
 #include <subcmd/exec-cmd.h>
@@ -45,18 +46,17 @@
 
 #include <errno.h>
 #include <inttypes.h>
-#include <libaudit.h> /* FIXME: Still needed for audit_errno_to_name */
 #include <poll.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <linux/err.h>
 #include <linux/filter.h>
-#include <linux/audit.h>
 #include <linux/kernel.h>
 #include <linux/random.h>
 #include <linux/stringify.h>
 #include <linux/time64.h>
+#include <fcntl.h>
 
 #include "sane_ctype.h"
 
@@ -111,6 +111,7 @@ struct trace {
 	bool			summary;
 	bool			summary_only;
 	bool			show_comm;
+	bool			print_sample;
 	bool			show_tool_stats;
 	bool			trace_syscalls;
 	bool			kernel_syscallchains;
@@ -545,9 +546,10 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 	  { .scnprintf	= SCA_STRARRAY, \
 	    .parm	= &strarray__##array, }
 
+#include "trace/beauty/arch_errno_names.c"
 #include "trace/beauty/eventfd.c"
-#include "trace/beauty/flock.c"
 #include "trace/beauty/futex_op.c"
+#include "trace/beauty/futex_val3.c"
 #include "trace/beauty/mmap.c"
 #include "trace/beauty/mode_t.c"
 #include "trace/beauty/msg_flags.c"
@@ -610,7 +612,8 @@ static struct syscall_fmt {
 	{ .name	    = "fstat", .alias = "newfstat", },
 	{ .name	    = "fstatat", .alias = "newfstatat", },
 	{ .name	    = "futex",
-	  .arg = { [1] = { .scnprintf = SCA_FUTEX_OP, /* op */ }, }, },
+	  .arg = { [1] = { .scnprintf = SCA_FUTEX_OP, /* op */ },
+		   [5] = { .scnprintf = SCA_FUTEX_VAL3, /* val3 */ }, }, },
 	{ .name	    = "futimesat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* fd */ }, }, },
 	{ .name	    = "getitimer",
@@ -820,7 +823,7 @@ static size_t fprintf_duration(unsigned long t, bool calculated, FILE *fp)
 	size_t printed = fprintf(fp, "(");
 
 	if (!calculated)
-		printed += fprintf(fp, "     ?   ");
+		printed += fprintf(fp, "         ");
 	else if (duration >= 1.0)
 		printed += color_fprintf(fp, PERF_COLOR_RED, "%6.3f ms", duration);
 	else if (duration >= 0.01)
@@ -1555,10 +1558,9 @@ static void thread__update_stats(struct thread_trace *ttrace,
 	update_stats(stats, duration);
 }
 
-static int trace__printf_interrupted_entry(struct trace *trace, struct perf_sample *sample)
+static int trace__printf_interrupted_entry(struct trace *trace)
 {
 	struct thread_trace *ttrace;
-	u64 duration;
 	size_t printed;
 
 	if (trace->current == NULL)
@@ -1569,11 +1571,26 @@ static int trace__printf_interrupted_entry(struct trace *trace, struct perf_samp
 	if (!ttrace->entry_pending)
 		return 0;
 
-	duration = sample->time - ttrace->entry_time;
-
-	printed  = trace__fprintf_entry_head(trace, trace->current, duration, true, ttrace->entry_time, trace->output);
+	printed  = trace__fprintf_entry_head(trace, trace->current, 0, false, ttrace->entry_time, trace->output);
 	printed += fprintf(trace->output, "%-70s) ...\n", ttrace->entry_str);
 	ttrace->entry_pending = false;
+
+	return printed;
+}
+
+static int trace__fprintf_sample(struct trace *trace, struct perf_evsel *evsel,
+				 struct perf_sample *sample, struct thread *thread)
+{
+	int printed = 0;
+
+	if (trace->print_sample) {
+		double ts = (double)sample->time / NSEC_PER_MSEC;
+
+		printed += fprintf(trace->output, "%22s %10.3f %s %d/%d [%d]\n",
+				   perf_evsel__name(evsel), ts,
+				   thread__comm_str(thread),
+				   sample->pid, sample->tid, sample->cpu);
+	}
 
 	return printed;
 }
@@ -1598,6 +1615,8 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	if (ttrace == NULL)
 		goto out_put;
 
+	trace__fprintf_sample(trace, evsel, sample, thread);
+
 	args = perf_evsel__sc_tp_ptr(evsel, args, sample);
 
 	if (ttrace->entry_str == NULL) {
@@ -1607,7 +1626,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	}
 
 	if (!(trace->duration_filter || trace->summary_only || trace->min_stack))
-		trace__printf_interrupted_entry(trace, sample);
+		trace__printf_interrupted_entry(trace);
 
 	ttrace->entry_time = sample->time;
 	msg = ttrace->entry_str;
@@ -1660,6 +1679,14 @@ static int trace__fprintf_callchain(struct trace *trace, struct perf_sample *sam
 	return sample__fprintf_callchain(sample, 38, print_opts, &callchain_cursor, trace->output);
 }
 
+static const char *errno_to_name(struct perf_evsel *evsel, int err)
+{
+	struct perf_env *env = perf_evsel__env(evsel);
+	const char *arch_name = perf_env__arch(env);
+
+	return arch_syscalls__strerrno(arch_name, err);
+}
+
 static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 			   union perf_event *event __maybe_unused,
 			   struct perf_sample *sample)
@@ -1679,6 +1706,8 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
 		goto out_put;
+
+	trace__fprintf_sample(trace, evsel, sample, thread);
 
 	if (trace->summary)
 		thread__update_stats(ttrace, id, sample);
@@ -1730,7 +1759,7 @@ signed_print:
 errno_print: {
 		char bf[STRERR_BUFSIZE];
 		const char *emsg = str_error_r(-ret, bf, sizeof(bf)),
-			   *e = audit_errno_to_name(-ret);
+			   *e = errno_to_name(evsel, -ret);
 
 		fprintf(trace->output, ") = -1 %s %s", e, emsg);
 	}
@@ -1911,7 +1940,7 @@ static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 		}
 	}
 
-	trace__printf_interrupted_entry(trace, sample);
+	trace__printf_interrupted_entry(trace);
 	trace__fprintf_tstamp(trace, sample->time, trace->output);
 
 	if (trace->trace_syscalls)
@@ -3026,6 +3055,8 @@ int cmd_trace(int argc, const char **argv)
 		     "Set the maximum stack depth when parsing the callchain, "
 		     "anything beyond the specified depth will be ignored. "
 		     "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
+	OPT_BOOLEAN(0, "print-sample", &trace.print_sample,
+			"print the PERF_RECORD_SAMPLE PERF_SAMPLE_ info, for debugging"),
 	OPT_UINTEGER(0, "proc-map-timeout", &trace.opts.proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
 	OPT_UINTEGER('D', "delay", &trace.opts.initial_delay,

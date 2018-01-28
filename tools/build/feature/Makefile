@@ -52,7 +52,8 @@ FILES=                                          \
          test-cxx.bin                           \
          test-jvmti.bin				\
          test-sched_getcpu.bin			\
-         test-setns.bin
+         test-setns.bin				\
+         test-libopencsd.bin
 
 FILES := $(addprefix $(OUTPUT),$(FILES))
 
@@ -103,6 +104,10 @@ $(OUTPUT)test-sched_getcpu.bin:
 
 $(OUTPUT)test-setns.bin:
 	$(BUILD)
+
+$(OUTPUT)test-libopencsd.bin:
+	$(BUILD) # -lopencsd_c_api -lopencsd provided by
+		 # $(FEATURE_CHECK_LDFLAGS-libopencsd)
 
 DWARFLIBS := -ldw
 ifeq ($(findstring -static,${LDFLAGS}),-static)
