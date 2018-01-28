@@ -2596,6 +2596,29 @@ static struct bpf_test tests[] = {
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	},
 	{
+		"context stores via ST",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_ST_MEM(BPF_DW, BPF_REG_1, offsetof(struct __sk_buff, mark), 0),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "BPF_ST stores into R1 context is not allowed",
+		.result = REJECT,
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	},
+	{
+		"context stores via XADD",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_RAW_INSN(BPF_STX | BPF_XADD | BPF_W, BPF_REG_1,
+				     BPF_REG_0, offsetof(struct __sk_buff, mark), 0),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "BPF_XADD stores into R1 context is not allowed",
+		.result = REJECT,
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	},
+	{
 		"direct packet access: test1",
 		.insns = {
 			BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
@@ -4317,7 +4340,8 @@ static struct bpf_test tests[] = {
 		.fixup_map1 = { 2 },
 		.errstr_unpriv = "R2 leaks addr into mem",
 		.result_unpriv = REJECT,
-		.result = ACCEPT,
+		.result = REJECT,
+		.errstr = "BPF_XADD stores into R1 context is not allowed",
 	},
 	{
 		"leak pointer into ctx 2",
@@ -4331,7 +4355,8 @@ static struct bpf_test tests[] = {
 		},
 		.errstr_unpriv = "R10 leaks addr into mem",
 		.result_unpriv = REJECT,
-		.result = ACCEPT,
+		.result = REJECT,
+		.errstr = "BPF_XADD stores into R1 context is not allowed",
 	},
 	{
 		"leak pointer into ctx 3",
