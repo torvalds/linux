@@ -1577,15 +1577,13 @@ static void cm_opa_to_ib_sgid(struct cm_work *work,
 			      struct sa_path_rec *path)
 {
 	struct ib_device *dev = work->port->cm_dev->ib_device;
-	struct ib_gid_attr gid_attr;
 	u8 port_num = work->port->port_num;
 
 	if (rdma_cap_opa_ah(dev, port_num) &&
 	    (ib_is_opa_gid(&path->sgid))) {
 		union ib_gid sgid;
 
-		if (ib_get_cached_gid(dev, port_num, 0,
-				      &sgid, &gid_attr)) {
+		if (ib_get_cached_gid(dev, port_num, 0, &sgid, NULL)) {
 			dev_warn(&dev->dev,
 				 "Error updating sgid in CM request\n");
 			return;
