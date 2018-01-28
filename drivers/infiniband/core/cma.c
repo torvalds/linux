@@ -4294,7 +4294,7 @@ static int cma_netdev_callback(struct notifier_block *self, unsigned long event,
 	if (event != NETDEV_BONDING_FAILOVER)
 		return NOTIFY_DONE;
 
-	if (!(ndev->flags & IFF_MASTER) || !(ndev->priv_flags & IFF_BONDING))
+	if (!netif_is_bond_master(ndev))
 		return NOTIFY_DONE;
 
 	mutex_lock(&lock);
