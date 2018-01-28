@@ -3085,26 +3085,9 @@ static int ixgbe_get_ts_info(struct net_device *dev,
 	case ixgbe_mac_X550EM_x:
 	case ixgbe_mac_x550em_a:
 		info->rx_filters |= BIT(HWTSTAMP_FILTER_ALL);
-		/* fallthrough */
+		break;
 	case ixgbe_mac_X540:
 	case ixgbe_mac_82599EB:
-		info->so_timestamping =
-			SOF_TIMESTAMPING_TX_SOFTWARE |
-			SOF_TIMESTAMPING_RX_SOFTWARE |
-			SOF_TIMESTAMPING_SOFTWARE |
-			SOF_TIMESTAMPING_TX_HARDWARE |
-			SOF_TIMESTAMPING_RX_HARDWARE |
-			SOF_TIMESTAMPING_RAW_HARDWARE;
-
-		if (adapter->ptp_clock)
-			info->phc_index = ptp_clock_index(adapter->ptp_clock);
-		else
-			info->phc_index = -1;
-
-		info->tx_types =
-			BIT(HWTSTAMP_TX_OFF) |
-			BIT(HWTSTAMP_TX_ON);
-
 		info->rx_filters |=
 			BIT(HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
 			BIT(HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
@@ -3113,6 +3096,24 @@ static int ixgbe_get_ts_info(struct net_device *dev,
 	default:
 		return ethtool_op_get_ts_info(dev, info);
 	}
+
+	info->so_timestamping =
+		SOF_TIMESTAMPING_TX_SOFTWARE |
+		SOF_TIMESTAMPING_RX_SOFTWARE |
+		SOF_TIMESTAMPING_SOFTWARE |
+		SOF_TIMESTAMPING_TX_HARDWARE |
+		SOF_TIMESTAMPING_RX_HARDWARE |
+		SOF_TIMESTAMPING_RAW_HARDWARE;
+
+	if (adapter->ptp_clock)
+		info->phc_index = ptp_clock_index(adapter->ptp_clock);
+	else
+		info->phc_index = -1;
+
+	info->tx_types =
+		BIT(HWTSTAMP_TX_OFF) |
+		BIT(HWTSTAMP_TX_ON);
+
 	return 0;
 }
 

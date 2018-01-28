@@ -75,6 +75,9 @@ static struct ixgbe_stats ixgbevf_gstrings_stats[] = {
 	IXGBEVF_STAT("tx_timeout_count", tx_timeout_count),
 	IXGBEVF_NETDEV_STAT(multicast),
 	IXGBEVF_STAT("rx_csum_offload_errors", hw_csum_rx_error),
+	IXGBEVF_STAT("alloc_rx_page", alloc_rx_page),
+	IXGBEVF_STAT("alloc_rx_page_failed", alloc_rx_page_failed),
+	IXGBEVF_STAT("alloc_rx_buff_failed", alloc_rx_buff_failed),
 };
 
 #define IXGBEVF_QUEUE_STATS_LEN ( \
