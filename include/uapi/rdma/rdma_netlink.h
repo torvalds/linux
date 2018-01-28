@@ -236,6 +236,8 @@ enum rdma_nldev_command {
 	RDMA_NLDEV_CMD_PORT_NEW,
 	RDMA_NLDEV_CMD_PORT_DEL,
 
+	RDMA_NLDEV_CMD_RES_GET, /* can dump */
+
 	RDMA_NLDEV_NUM_OPS
 };
 
@@ -302,6 +304,11 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_ATTR_PORT_PHYS_STATE,	/* u8 */
 
 	RDMA_NLDEV_ATTR_DEV_NODE_TYPE,		/* u8 */
+
+	RDMA_NLDEV_ATTR_RES_SUMMARY,		/* nested table */
+	RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY,	/* nested table */
+	RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY_NAME,	/* string */
+	RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY_CURR,	/* u64 */
 
 	RDMA_NLDEV_ATTR_MAX
 };
