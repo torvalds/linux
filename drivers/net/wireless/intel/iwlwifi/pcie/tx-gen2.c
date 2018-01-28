@@ -569,15 +569,13 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 	unsigned long flags;
 	void *dup_buf = NULL;
 	dma_addr_t phys_addr;
-	int i, cmd_pos, idx = iwl_pcie_get_cmd_index(txq, txq->write_ptr);
+	int i, cmd_pos, idx;
 	u16 copy_size, cmd_size, tb0_size;
 	bool had_nocopy = false;
 	u8 group_id = iwl_cmd_groupid(cmd->id);
 	const u8 *cmddata[IWL_MAX_CMD_TBS_PER_TFD];
 	u16 cmdlen[IWL_MAX_CMD_TBS_PER_TFD];
-	struct iwl_tfh_tfd *tfd = iwl_pcie_get_tfd(trans, txq, txq->write_ptr);
-
-	memset(tfd, 0, sizeof(*tfd));
+	struct iwl_tfh_tfd *tfd;
 
 	copy_size = sizeof(struct iwl_cmd_header_wide);
 	cmd_size = sizeof(struct iwl_cmd_header_wide);
@@ -647,6 +645,10 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 	}
 
 	spin_lock_bh(&txq->lock);
+
+	idx = iwl_pcie_get_cmd_index(txq, txq->write_ptr);
+	tfd = iwl_pcie_get_tfd(trans, txq, txq->write_ptr);
+	memset(tfd, 0, sizeof(*tfd));
 
 	if (iwl_queue_space(txq) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
 		spin_unlock_bh(&txq->lock);
