@@ -1901,8 +1901,6 @@ static int cm_req_handler(struct cm_work *work)
 				grh->sgid_index,
 				&gid, &gid_attr);
 	if (ret) {
-		if (gid_attr.ndev)
-			dev_put(gid_attr.ndev);
 		ib_send_cm_rej(cm_id, IB_CM_REJ_UNSUPPORTED, NULL, 0, NULL, 0);
 		goto rejected;
 	}
