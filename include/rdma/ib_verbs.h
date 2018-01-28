@@ -2853,7 +2853,7 @@ enum ib_pd_flags {
 struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 		const char *caller);
 #define ib_alloc_pd(device, flags) \
-	__ib_alloc_pd((device), (flags), __func__)
+	__ib_alloc_pd((device), (flags), KBUILD_MODNAME)
 void ib_dealloc_pd(struct ib_pd *pd);
 
 /**
