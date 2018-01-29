@@ -1964,7 +1964,7 @@ enum i915_power_well_id {
 #define _CNL_PORT_TX_DW2_LN0_B		0x162648
 #define _CNL_PORT_TX_DW2_LN0_C		0x162C48
 #define _CNL_PORT_TX_DW2_LN0_D		0x162E48
-#define _CNL_PORT_TX_DW2_LN0_F		0x162A48
+#define _CNL_PORT_TX_DW2_LN0_F		0x162848
 #define CNL_PORT_TX_DW2_GRP(port)	_MMIO_PORT6(port, \
 						    _CNL_PORT_TX_DW2_GRP_AE, \
 						    _CNL_PORT_TX_DW2_GRP_B, \
