@@ -594,38 +594,18 @@ static void xcan_set_error_state(struct net_device *ndev,
 	u32 ecr = priv->read_reg(priv, XCAN_ECR_OFFSET);
 	u32 txerr = ecr & XCAN_ECR_TEC_MASK;
 	u32 rxerr = (ecr & XCAN_ECR_REC_MASK) >> XCAN_ESR_REC_SHIFT;
+	enum can_state tx_state = txerr >= rxerr ? new_state : 0;
+	enum can_state rx_state = txerr <= rxerr ? new_state : 0;
 
-	priv->can.state = new_state;
+	/* non-ERROR states are handled elsewhere */
+	if (WARN_ON(new_state > CAN_STATE_ERROR_PASSIVE))
+		return;
+
+	can_change_state(ndev, cf, tx_state, rx_state);
 
 	if (cf) {
-		cf->can_id |= CAN_ERR_CRTL;
 		cf->data[6] = txerr;
 		cf->data[7] = rxerr;
-	}
-
-	switch (new_state) {
-	case CAN_STATE_ERROR_PASSIVE:
-		priv->can.can_stats.error_passive++;
-		if (cf)
-			cf->data[1] = (rxerr > 127) ?
-					CAN_ERR_CRTL_RX_PASSIVE :
-					CAN_ERR_CRTL_TX_PASSIVE;
-		break;
-	case CAN_STATE_ERROR_WARNING:
-		priv->can.can_stats.error_warning++;
-		if (cf)
-			cf->data[1] |= (txerr > rxerr) ?
-					CAN_ERR_CRTL_TX_WARNING :
-					CAN_ERR_CRTL_RX_WARNING;
-		break;
-	case CAN_STATE_ERROR_ACTIVE:
-		if (cf)
-			cf->data[1] |= CAN_ERR_CRTL_ACTIVE;
-		break;
-	default:
-		/* non-ERROR states are handled elsewhere */
-		WARN_ON(1);
-		break;
 	}
 }
 
