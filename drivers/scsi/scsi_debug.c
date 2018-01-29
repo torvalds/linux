@@ -4294,8 +4294,13 @@ static void clear_queue_stats(void)
 static void setup_inject(struct sdebug_queue *sqp,
 			 struct sdebug_queued_cmd *sqcp)
 {
-	if ((atomic_read(&sdebug_cmnd_count) % abs(sdebug_every_nth)) > 0)
+	if ((atomic_read(&sdebug_cmnd_count) % abs(sdebug_every_nth)) > 0) {
+		if (sdebug_every_nth > 0)
+			sqcp->inj_recovered = sqcp->inj_transport
+				= sqcp->inj_dif
+				= sqcp->inj_dix = sqcp->inj_short = 0;
 		return;
+	}
 	sqcp->inj_recovered = !!(SDEBUG_OPT_RECOVERED_ERR & sdebug_opts);
 	sqcp->inj_transport = !!(SDEBUG_OPT_TRANSPORT_ERR & sdebug_opts);
 	sqcp->inj_dif = !!(SDEBUG_OPT_DIF_ERR & sdebug_opts);
