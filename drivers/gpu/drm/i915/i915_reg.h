@@ -8759,10 +8759,12 @@ enum skl_power_gate {
  * CNL Clocks
  */
 #define DPCLKA_CFGCR0				_MMIO(0x6C200)
-#define  DPCLKA_CFGCR0_DDI_CLK_OFF(port)	(1 << ((port)+10))
-#define  DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port)	(3 << ((port)*2))
-#define  DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(port)	((port)*2)
-#define  DPCLKA_CFGCR0_DDI_CLK_SEL(pll, port)	((pll) << ((port)*2))
+#define  DPCLKA_CFGCR0_DDI_CLK_OFF(port)	(1 << ((port) ==  PORT_F ? 23 : \
+						      (port)+10))
+#define  DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(port)	((port) == PORT_F ? 21 : \
+						(port)*2)
+#define  DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port)	(3 << DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(port))
+#define  DPCLKA_CFGCR0_DDI_CLK_SEL(pll, port)	((pll) << DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(port))
 
 /* CNL PLL */
 #define DPLL0_ENABLE		0x46010
