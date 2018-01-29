@@ -744,13 +744,15 @@ static int stm32_hash_final_req(struct stm32_hash_dev *hdev)
 	struct ahash_request *req = hdev->req;
 	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(req);
 	int err;
+	int buflen = rctx->bufcnt;
+
+	rctx->bufcnt = 0;
 
 	if (!(rctx->flags & HASH_FLAGS_CPU))
 		err = stm32_hash_dma_send(hdev);
 	else
-		err = stm32_hash_xmit_cpu(hdev, rctx->buffer, rctx->bufcnt, 1);
+		err = stm32_hash_xmit_cpu(hdev, rctx->buffer, buflen, 1);
 
-	rctx->bufcnt = 0;
 
 	return err;
 }
@@ -1105,6 +1107,8 @@ static irqreturn_t stm32_hash_irq_handler(int irq, void *dev_id)
 		reg &= ~HASH_SR_OUTPUT_READY;
 		stm32_hash_write(hdev, HASH_SR, reg);
 		hdev->flags |= HASH_FLAGS_OUTPUT_READY;
+		/* Disable IT*/
+		stm32_hash_write(hdev, HASH_IMR, 0);
 		return IRQ_WAKE_THREAD;
 	}
 
