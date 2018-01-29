@@ -63,7 +63,7 @@ static void cpg_simple_notifier_register(struct raw_notifier_head *notifiers,
 }
 
 /*
- * Z Clock
+ * Z Clock & Z2 Clock
  *
  * Traits of this clock:
  * prepare - clk_prepare only ensures that parents are prepared
@@ -75,11 +75,13 @@ static void cpg_simple_notifier_register(struct raw_notifier_head *notifiers,
 #define CPG_FRQCRB_KICK			BIT(31)
 #define CPG_FRQCRC			0x000000e0
 #define CPG_FRQCRC_ZFC_MASK		GENMASK(12, 8)
+#define CPG_FRQCRC_Z2FC_MASK		GENMASK(4, 0)
 
 struct cpg_z_clk {
 	struct clk_hw hw;
 	void __iomem *reg;
 	void __iomem *kick_reg;
+	unsigned long mask;
 };
 
 #define to_z_clk(_hw)	container_of(_hw, struct cpg_z_clk, hw)
@@ -89,8 +91,10 @@ static unsigned long cpg_z_clk_recalc_rate(struct clk_hw *hw,
 {
 	struct cpg_z_clk *zclk = to_z_clk(hw);
 	unsigned int mult;
+	u32 val;
 
-	mult = 32 - FIELD_GET(CPG_FRQCRC_ZFC_MASK, clk_readl(zclk->reg));
+	val = clk_readl(zclk->reg) & zclk->mask;
+	mult = 32 - (val >> __ffs(zclk->mask));
 
 	/* Factor of 2 is for fixed divider */
 	return DIV_ROUND_CLOSEST_ULL((u64)parent_rate * mult, 32 * 2);
@@ -124,8 +128,8 @@ static int cpg_z_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (clk_readl(zclk->kick_reg) & CPG_FRQCRB_KICK)
 		return -EBUSY;
 
-	val = clk_readl(zclk->reg) & ~CPG_FRQCRC_ZFC_MASK;
-	val |= FIELD_PREP(CPG_FRQCRC_ZFC_MASK, 32 - mult);
+	val = clk_readl(zclk->reg) & ~zclk->mask;
+	val |= ((32 - mult) << __ffs(zclk->mask)) & zclk->mask;
 	clk_writel(val, zclk->reg);
 
 	/*
@@ -163,7 +167,8 @@ static const struct clk_ops cpg_z_clk_ops = {
 
 static struct clk * __init cpg_z_clk_register(const char *name,
 					      const char *parent_name,
-					      void __iomem *reg)
+					      void __iomem *reg,
+					      unsigned long mask)
 {
 	struct clk_init_data init;
 	struct cpg_z_clk *zclk;
@@ -182,6 +187,7 @@ static struct clk * __init cpg_z_clk_register(const char *name,
 	zclk->reg = reg + CPG_FRQCRC;
 	zclk->kick_reg = reg + CPG_FRQCRB;
 	zclk->hw.init = &init;
+	zclk->mask = mask;
 
 	clk = clk_register(NULL, &zclk->hw);
 	if (IS_ERR(clk))
@@ -551,7 +557,11 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 
 	case CLK_TYPE_GEN3_Z:
 		return cpg_z_clk_register(core->name, __clk_get_name(parent),
-					  base);
+					  base, CPG_FRQCRC_ZFC_MASK);
+
+	case CLK_TYPE_GEN3_Z2:
+		return cpg_z_clk_register(core->name, __clk_get_name(parent),
+					  base, CPG_FRQCRC_Z2FC_MASK);
 
 	default:
 		return ERR_PTR(-EINVAL);
