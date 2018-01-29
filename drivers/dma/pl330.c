@@ -1785,16 +1785,17 @@ static int pl330_update(struct pl330_dmac *pl330)
 
 			/* Detach the req */
 			descdone = thrd->req[active].desc;
+			if (descdone) {
+				if (!descdone->cyclic) {
+					thrd->req[active].desc = NULL;
+					thrd->req_running = -1;
+					/* Get going again ASAP */
+					_start(thrd);
+				}
 
-			if (!descdone->cyclic) {
-				thrd->req[active].desc = NULL;
-				thrd->req_running = -1;
-				/* Get going again ASAP */
-				_start(thrd);
+				/* For now, just make a list of callbacks to be done */
+				list_add_tail(&descdone->rqd, &pl330->req_done);
 			}
-
-			/* For now, just make a list of callbacks to be done */
-			list_add_tail(&descdone->rqd, &pl330->req_done);
 		}
 	}
 
