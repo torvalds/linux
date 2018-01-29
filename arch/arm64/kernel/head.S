@@ -148,26 +148,6 @@ preserve_boot_args:
 ENDPROC(preserve_boot_args)
 
 /*
- * Macro to arrange a physical address in a page table entry, taking care of
- * 52-bit addresses.
- *
- * Preserves:	phys
- * Returns:	pte
- */
-	.macro	phys_to_pte, phys, pte
-#ifdef CONFIG_ARM64_PA_BITS_52
-	/*
-	 * We assume \phys is 64K aligned and this is guaranteed by only
-	 * supporting this configuration with 64K pages.
-	 */
-	orr	\pte, \phys, \phys, lsr #36
-	and	\pte, \pte, #PTE_ADDR_MASK
-#else
-	mov	\pte, \phys
-#endif
-	.endm
-
-/*
  * Macro to create a table entry to the next page.
  *
  *	tbl:	page table address
@@ -181,7 +161,7 @@ ENDPROC(preserve_boot_args)
  */
 	.macro	create_table_entry, tbl, virt, shift, ptrs, tmp1, tmp2
 	add	\tmp1, \tbl, #PAGE_SIZE
-	phys_to_pte \tmp1, \tmp2
+	phys_to_pte \tmp2, \tmp1
 	orr	\tmp2, \tmp2, #PMD_TYPE_TABLE	// address of next table and entry type
 	lsr	\tmp1, \virt, #\shift
 	sub	\ptrs, \ptrs, #1
@@ -207,7 +187,7 @@ ENDPROC(preserve_boot_args)
  * Returns:	rtbl
  */
 	.macro populate_entries, tbl, rtbl, index, eindex, flags, inc, tmp1
-.Lpe\@:	phys_to_pte \rtbl, \tmp1
+.Lpe\@:	phys_to_pte \tmp1, \rtbl
 	orr	\tmp1, \tmp1, \flags	// tmp1 = table entry
 	str	\tmp1, [\tbl, \index, lsl #3]
 	add	\rtbl, \rtbl, \inc	// rtbl = pa next level
