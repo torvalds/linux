@@ -2585,6 +2585,9 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 					    GEN9_AUX_CHANNEL_C |
 					    GEN9_AUX_CHANNEL_D;
 
+			if (IS_CNL_WITH_PORT_F(dev_priv))
+				tmp_mask |= CNL_AUX_CHANNEL_F;
+
 			if (iir & tmp_mask) {
 				dp_aux_irq_handler(dev_priv);
 				found = true;
@@ -3616,6 +3619,9 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	} else {
 		de_pipe_masked |= GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
 	}
+
+	if (IS_CNL_WITH_PORT_F(dev_priv))
+		de_port_masked |= CNL_AUX_CHANNEL_F;
 
 	de_pipe_enables = de_pipe_masked | GEN8_PIPE_VBLANK |
 					   GEN8_PIPE_FIFO_UNDERRUN;

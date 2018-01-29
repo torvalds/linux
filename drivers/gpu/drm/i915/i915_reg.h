@@ -1312,6 +1312,7 @@ enum i915_power_well_id {
 	CNL_DISP_PW_AUX_B = GLK_DISP_PW_AUX_B,
 	CNL_DISP_PW_AUX_C = GLK_DISP_PW_AUX_C,
 	CNL_DISP_PW_AUX_D,
+	CNL_DISP_PW_AUX_F,
 
 	SKL_DISP_PW_1 = 14,
 	SKL_DISP_PW_2,
@@ -5283,6 +5284,13 @@ enum {
 #define _DPD_AUX_CH_DATA4	(dev_priv->info.display_mmio_offset + 0x64320)
 #define _DPD_AUX_CH_DATA5	(dev_priv->info.display_mmio_offset + 0x64324)
 
+#define _DPF_AUX_CH_CTL		(dev_priv->info.display_mmio_offset + 0x64510)
+#define _DPF_AUX_CH_DATA1	(dev_priv->info.display_mmio_offset + 0x64514)
+#define _DPF_AUX_CH_DATA2	(dev_priv->info.display_mmio_offset + 0x64518)
+#define _DPF_AUX_CH_DATA3	(dev_priv->info.display_mmio_offset + 0x6451c)
+#define _DPF_AUX_CH_DATA4	(dev_priv->info.display_mmio_offset + 0x64520)
+#define _DPF_AUX_CH_DATA5	(dev_priv->info.display_mmio_offset + 0x64524)
+
 #define DP_AUX_CH_CTL(port)	_MMIO_PORT(port, _DPA_AUX_CH_CTL, _DPB_AUX_CH_CTL)
 #define DP_AUX_CH_DATA(port, i)	_MMIO(_PORT(port, _DPA_AUX_CH_DATA1, _DPB_AUX_CH_DATA1) + (i) * 4) /* 5 registers */
 
@@ -6938,6 +6946,7 @@ enum {
 #define GEN8_DE_PORT_IMR _MMIO(0x44444)
 #define GEN8_DE_PORT_IIR _MMIO(0x44448)
 #define GEN8_DE_PORT_IER _MMIO(0x4444c)
+#define  CNL_AUX_CHANNEL_F		(1 << 28)
 #define  GEN9_AUX_CHANNEL_D		(1 << 27)
 #define  GEN9_AUX_CHANNEL_C		(1 << 26)
 #define  GEN9_AUX_CHANNEL_B		(1 << 25)
