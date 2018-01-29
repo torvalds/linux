@@ -329,7 +329,7 @@ static void dmatest_callback(void *arg)
 {
 	struct dmatest_done *done = arg;
 	struct dmatest_thread *thread =
-		container_of(arg, struct dmatest_thread, done_wait);
+		container_of(done, struct dmatest_thread, test_done);
 	if (!thread->done) {
 		done->done = true;
 		wake_up_all(done->wait);
