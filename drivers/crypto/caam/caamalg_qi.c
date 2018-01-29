@@ -562,8 +562,18 @@ static void aead_done(struct caam_drv_req *drv_req, u32 status)
 	qidev = caam_ctx->qidev;
 
 	if (unlikely(status)) {
+		u32 ssrc = status & JRSTA_SSRC_MASK;
+		u8 err_id = status & JRSTA_CCBERR_ERRID_MASK;
+
 		caam_jr_strstatus(qidev, status);
-		ecode = -EIO;
+		/*
+		 * verify hw auth check passed else return -EBADMSG
+		 */
+		if (ssrc == JRSTA_SSRC_CCB_ERROR &&
+		    err_id == JRSTA_CCBERR_ERRID_ICVCHK)
+			ecode = -EBADMSG;
+		else
+			ecode = -EIO;
 	}
 
 	edesc = container_of(drv_req, typeof(*edesc), drv_req);
