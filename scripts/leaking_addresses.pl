@@ -170,24 +170,26 @@ sub is_supported_architecture
 	return (is_x86_64() or is_ppc64());
 }
 
+sub is_arch
+{
+       my ($desc) = @_;
+       my $arch = `uname -m`;
+
+       chomp $arch;
+       if ($arch eq $desc) {
+               return 1;
+       }
+       return 0;
+}
+
 sub is_x86_64
 {
-	my $archname = `uname -m`;
-
-	if ($archname =~ m/x86_64/) {
-		return 1;
-	}
-	return 0;
+	return is_arch('x86_64');
 }
 
 sub is_ppc64
 {
-	my $archname = `uname -m`;
-
-	if ($archname =~ m/ppc64/) {
-		return 1;
-	}
-	return 0;
+	return is_arch('ppc64');
 }
 
 # Gets config option value from kernel config file.
