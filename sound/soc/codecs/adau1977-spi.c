@@ -46,12 +46,6 @@ static int adau1977_spi_probe(struct spi_device *spi)
 		id->driver_data, adau1977_spi_switch_mode);
 }
 
-static int adau1977_spi_remove(struct spi_device *spi)
-{
-	snd_soc_unregister_codec(&spi->dev);
-	return 0;
-}
-
 static const struct spi_device_id adau1977_spi_ids[] = {
 	{ "adau1977", ADAU1977 },
 	{ "adau1978", ADAU1978 },
@@ -65,7 +59,6 @@ static struct spi_driver adau1977_spi_driver = {
 		.name = "adau1977",
 	},
 	.probe = adau1977_spi_probe,
-	.remove = adau1977_spi_remove,
 	.id_table = adau1977_spi_ids,
 };
 module_spi_driver(adau1977_spi_driver);
