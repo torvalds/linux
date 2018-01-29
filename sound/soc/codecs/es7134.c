@@ -69,26 +69,22 @@ static const struct snd_soc_dapm_route es7134_dapm_routes[] = {
 	{ "AOUTR", NULL, "DAC" },
 };
 
-static const struct snd_soc_codec_driver es7134_codec_driver = {
-	.component_driver = {
-		.dapm_widgets		= es7134_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(es7134_dapm_widgets),
-		.dapm_routes		= es7134_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(es7134_dapm_routes),
-	},
+static const struct snd_soc_component_driver es7134_component_driver = {
+	.dapm_widgets		= es7134_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(es7134_dapm_widgets),
+	.dapm_routes		= es7134_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(es7134_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int es7134_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev,
-				      &es7134_codec_driver,
+	return devm_snd_soc_register_component(&pdev->dev,
+				      &es7134_component_driver,
 				      &es7134_dai, 1);
-}
-
-static int es7134_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_codec(&pdev->dev);
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -106,7 +102,6 @@ static struct platform_driver es7134_driver = {
 		.of_match_table = of_match_ptr(es7134_ids),
 	},
 	.probe = es7134_probe,
-	.remove = es7134_remove,
 };
 
 module_platform_driver(es7134_driver);
