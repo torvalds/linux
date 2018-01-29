@@ -2305,6 +2305,7 @@ dhd_rtt_init(dhd_pub_t *dhd)
 	int32 version;
 	rtt_status_info_t *rtt_status;
 	NULL_CHECK(dhd, "dhd is NULL", err);
+	dhd->rtt_supported = FALSE;
 	if (dhd->rtt_state) {
 		return err;
 	}
@@ -2331,6 +2332,7 @@ dhd_rtt_init(dhd_pub_t *dhd)
 	ret = dhd_rtt_get_version(dhd, &version);
 	if (ret == BCME_OK && (version == WL_PROXD_API_VERSION)) {
 		DHD_ERROR(("%s : FTM is supported\n", __FUNCTION__));
+		dhd->rtt_supported = TRUE;
 		/* rtt_status->rtt_capa.proto |= RTT_CAP_ONE_WAY; */
 		rtt_status->rtt_capa.proto |= RTT_CAP_FTM_WAY;
 

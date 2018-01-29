@@ -806,6 +806,7 @@ typedef struct dhd_pub {
 #endif
 #ifdef RTT_SUPPORT
 	void *rtt_state;
+	bool rtt_supported;
 #endif
 	bool	dongle_isolation;
 	bool	is_pcie_watchdog_reset;
