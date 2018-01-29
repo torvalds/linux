@@ -2544,12 +2544,30 @@ static int alps_update_btn_info_ss4_v2(unsigned char otp[][4],
 }
 
 static int alps_update_dual_info_ss4_v2(unsigned char otp[][4],
-				       struct alps_data *priv)
+					struct alps_data *priv,
+					struct psmouse *psmouse)
 {
 	bool is_dual = false;
+	int reg_val = 0;
+	struct ps2dev *ps2dev = &psmouse->ps2dev;
 
-	if (IS_SS4PLUS_DEV(priv->dev_id))
+	if (IS_SS4PLUS_DEV(priv->dev_id)) {
 		is_dual = (otp[0][0] >> 4) & 0x01;
+
+		if (!is_dual) {
+			/* For support TrackStick of Thinkpad L/E series */
+			if (alps_exit_command_mode(psmouse) == 0 &&
+				alps_enter_command_mode(psmouse) == 0) {
+				reg_val = alps_command_mode_read_reg(psmouse,
+									0xD7);
+			}
+			alps_exit_command_mode(psmouse);
+			ps2_command(ps2dev, NULL, PSMOUSE_CMD_ENABLE);
+
+			if (reg_val == 0x0C || reg_val == 0x1D)
+				is_dual = true;
+		}
+	}
 
 	if (is_dual)
 		priv->flags |= ALPS_DUALPOINT |
@@ -2573,7 +2591,7 @@ static int alps_set_defaults_ss4_v2(struct psmouse *psmouse,
 
 	alps_update_btn_info_ss4_v2(otp, priv);
 
-	alps_update_dual_info_ss4_v2(otp, priv);
+	alps_update_dual_info_ss4_v2(otp, priv, psmouse);
 
 	return 0;
 }
