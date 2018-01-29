@@ -1701,7 +1701,8 @@ static void __floating_irq_kick(struct kvm *kvm, u64 type)
 		kvm_s390_set_cpuflags(dst_vcpu, CPUSTAT_STOP_INT);
 		break;
 	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
-		kvm_s390_set_cpuflags(dst_vcpu, CPUSTAT_IO_INT);
+		if (!(type & KVM_S390_INT_IO_AI_MASK && kvm->arch.gisa))
+			kvm_s390_set_cpuflags(dst_vcpu, CPUSTAT_IO_INT);
 		break;
 	default:
 		kvm_s390_set_cpuflags(dst_vcpu, CPUSTAT_EXT_INT);
