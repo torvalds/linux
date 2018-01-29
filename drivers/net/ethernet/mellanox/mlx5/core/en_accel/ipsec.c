@@ -100,8 +100,8 @@ static void mlx5e_ipsec_sadb_rx_free(struct mlx5e_ipsec_sa_entry *sa_entry)
 {
 	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
 
-	/* Wait for the hash_del_rcu call in sadb_rx_del to affect data path */
-	synchronize_rcu();
+	/* xfrm already doing sync rcu between del and free callbacks */
+
 	ida_simple_remove(&ipsec->halloc, sa_entry->handle);
 }
 
