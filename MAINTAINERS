@@ -791,11 +791,6 @@ S:	Supported
 F:	drivers/net/ethernet/amd/xgbe/
 F:	arch/arm64/boot/dts/amd/amd-seattle-xgbe*.dtsi
 
-AMS (Apple Motion Sensor) DRIVER
-M:	Michael Hanselmann <linux-kernel@hansmi.ch>
-S:	Supported
-F:	drivers/macintosh/ams/
-
 ANALOG DEVICES INC AD5686 DRIVER
 M:	Stefan Popa <stefan.popa@analog.com>
 L:	linux-pm@vger.kernel.org
