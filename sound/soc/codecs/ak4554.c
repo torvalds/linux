@@ -64,26 +64,22 @@ static struct snd_soc_dai_driver ak4554_dai = {
 	.symmetric_rates = 1,
 };
 
-static const struct snd_soc_codec_driver soc_codec_dev_ak4554 = {
-	.component_driver = {
-		.dapm_widgets		= ak4554_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(ak4554_dapm_widgets),
-		.dapm_routes		= ak4554_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(ak4554_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_ak4554 = {
+	.dapm_widgets		= ak4554_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(ak4554_dapm_widgets),
+	.dapm_routes		= ak4554_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(ak4554_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int ak4554_soc_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev,
-				      &soc_codec_dev_ak4554,
+	return devm_snd_soc_register_component(&pdev->dev,
+				      &soc_component_dev_ak4554,
 				      &ak4554_dai, 1);
-}
-
-static int ak4554_soc_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_codec(&pdev->dev);
-	return 0;
 }
 
 static const struct of_device_id ak4554_of_match[] = {
@@ -98,7 +94,6 @@ static struct platform_driver ak4554_driver = {
 		.of_match_table = ak4554_of_match,
 	},
 	.probe	= ak4554_soc_probe,
-	.remove	= ak4554_soc_remove,
 };
 module_platform_driver(ak4554_driver);
 
