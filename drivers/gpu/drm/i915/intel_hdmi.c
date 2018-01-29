@@ -1935,6 +1935,9 @@ static u8 cnp_port_to_ddc_pin(struct drm_i915_private *dev_priv,
 	case PORT_D:
 		ddc_pin = GMBUS_PIN_4_CNP;
 		break;
+	case PORT_F:
+		ddc_pin = GMBUS_PIN_3_BXT;
+		break;
 	default:
 		MISSING_CASE(port);
 		ddc_pin = GMBUS_PIN_1_BXT;
