@@ -218,15 +218,36 @@ intel_dp_downstream_max_dotclock(struct intel_dp *intel_dp)
 	return max_dotclk;
 }
 
+static int cnl_adjusted_max_rate(struct intel_dp *intel_dp, int size)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	enum port port = dig_port->base.port;
+
+	u32 voltage = I915_READ(CNL_PORT_COMP_DW3) & VOLTAGE_INFO_MASK;
+
+	/* Low voltage SKUs are limited to max of 5.4G */
+	if (voltage == VOLTAGE_INFO_0_85V)
+		return size - 2;
+
+	/* For this SKU 8.1G is supported in all ports */
+	if (IS_CNL_WITH_PORT_F(dev_priv))
+		return size;
+
+	/* For other SKUs, max rate on ports A and B is 5.4G */
+	if (port == PORT_A || port == PORT_D)
+		return size - 2;
+
+	return size;
+}
+
 static void
 intel_dp_set_source_rates(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	enum port port = dig_port->base.port;
 	const int *source_rates;
 	int size;
-	u32 voltage;
 
 	/* This should only be done once */
 	WARN_ON(intel_dp->source_rates || intel_dp->num_source_rates);
@@ -236,11 +257,7 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 		size = ARRAY_SIZE(bxt_rates);
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		source_rates = cnl_rates;
-		size = ARRAY_SIZE(cnl_rates);
-		voltage = I915_READ(CNL_PORT_COMP_DW3) & VOLTAGE_INFO_MASK;
-		if (port == PORT_A || port == PORT_D ||
-		    voltage == VOLTAGE_INFO_0_85V)
-			size -= 2;
+		size = cnl_adjusted_max_rate(intel_dp, ARRAY_SIZE(cnl_rates));
 	} else if (IS_GEN9_BC(dev_priv)) {
 		source_rates = skl_rates;
 		size = ARRAY_SIZE(skl_rates);
