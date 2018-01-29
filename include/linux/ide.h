@@ -1212,7 +1212,7 @@ extern int ide_wait_not_busy(ide_hwif_t *hwif, unsigned long timeout);
 
 extern void ide_stall_queue(ide_drive_t *drive, unsigned long timeout);
 
-extern void ide_timer_expiry(unsigned long);
+extern void ide_timer_expiry(struct timer_list *t);
 extern irqreturn_t ide_intr(int irq, void *dev_id);
 extern void do_ide_request(struct request_queue *);
 extern void ide_requeue_and_plug(ide_drive_t *drive, struct request *rq);

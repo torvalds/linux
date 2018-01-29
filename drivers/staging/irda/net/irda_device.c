@@ -54,29 +54,30 @@
 
 static void __irda_task_delete(struct irda_task *task);
 
-static hashbin_t *dongles = NULL;
-static hashbin_t *tasks = NULL;
+static hashbin_t *dongles;
+static hashbin_t *tasks;
 
-static void irda_task_timer_expired(void *data);
+static void irda_task_timer_expired(struct timer_list *timer);
 
-int __init irda_device_init( void)
+int __init irda_device_init(void)
 {
 	dongles = hashbin_new(HB_NOLOCK);
-	if (dongles == NULL) {
+	if (!dongles) {
 		net_warn_ratelimited("IrDA: Can't allocate dongles hashbin!\n");
 		return -ENOMEM;
 	}
 	spin_lock_init(&dongles->hb_spinlock);
 
 	tasks = hashbin_new(HB_LOCK);
-	if (tasks == NULL) {
+	if (!tasks) {
 		net_warn_ratelimited("IrDA: Can't allocate tasks hashbin!\n");
 		hashbin_delete(dongles, NULL);
 		return -ENOMEM;
 	}
 
 	/* We no longer initialise the driver ourselves here, we let
-	 * the system do it for us... - Jean II */
+	 * the system do it for us... - Jean II
+	 */
 
 	return 0;
 }
@@ -84,6 +85,7 @@ int __init irda_device_init( void)
 static void leftover_dongle(void *arg)
 {
 	struct dongle_reg *reg = arg;
+
 	net_warn_ratelimited("IrDA: Dongle type %x not unregistered\n",
 			     reg->type);
 }
@@ -107,7 +109,7 @@ void irda_device_set_media_busy(struct net_device *dev, int status)
 
 	pr_debug("%s(%s)\n", __func__, status ? "TRUE" : "FALSE");
 
-	self = (struct irlap_cb *) dev->atalk_ptr;
+	self = (struct irlap_cb *)dev->atalk_ptr;
 
 	/* Some drivers may enable the receive interrupt before calling
 	 * irlap_open(), or they may disable the receive interrupt
@@ -115,7 +117,8 @@ void irda_device_set_media_busy(struct net_device *dev, int status)
 	 * The IrDA stack is protected from this in irlap_driver_rcv().
 	 * However, the driver calls directly the wrapper, that calls
 	 * us directly. Make sure we protect ourselves.
-	 * Jean II */
+	 * Jean II
+	 */
 	if (!self || self->magic != LAP_MAGIC)
 		return;
 
@@ -132,7 +135,6 @@ void irda_device_set_media_busy(struct net_device *dev, int status)
 	}
 }
 EXPORT_SYMBOL(irda_device_set_media_busy);
-
 
 /*
  * Function irda_device_is_receiving (dev)
@@ -169,7 +171,7 @@ static void __irda_task_delete(struct irda_task *task)
 static void irda_task_delete(struct irda_task *task)
 {
 	/* Unregister task */
-	hashbin_remove(tasks, (long) task, NULL);
+	hashbin_remove(tasks, (long)task, NULL);
 
 	__irda_task_delete(task);
 }
@@ -231,7 +233,7 @@ static int irda_task_kick(struct irda_task *task)
 		}
 		irda_task_delete(task);
 	} else if (timeout > 0) {
-		irda_start_timer(&task->timer, timeout, (void *) task,
+		irda_start_timer(&task->timer, timeout,
 				 irda_task_timer_expired);
 		finished = FALSE;
 	} else {
@@ -249,11 +251,9 @@ static int irda_task_kick(struct irda_task *task)
  *    Task time has expired. We now try to execute task (again), and restart
  *    the timer if the task has not finished yet
  */
-static void irda_task_timer_expired(void *data)
+static void irda_task_timer_expired(struct timer_list *t)
 {
-	struct irda_task *task;
-
-	task = data;
+	struct irda_task *task = from_timer(task, t, timer);
 
 	irda_task_kick(task);
 }
@@ -280,8 +280,8 @@ static void irda_device_setup(struct net_device *dev)
 
 /*
  * Funciton  alloc_irdadev
- * 	Allocates and sets up an IRDA device in a manner similar to
- * 	alloc_etherdev.
+ *      Allocates and sets up an IRDA device in a manner similar to
+ *      alloc_etherdev.
  */
 struct net_device *alloc_irdadev(int sizeof_priv)
 {

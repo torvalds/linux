@@ -117,6 +117,17 @@
 		clock-output-names = "xin24m";
 	};
 
+	gpu: gpu@10090000 {
+		compatible = "arm,mali-400";
+		reg = <0x10090000 0x10000>;
+		clocks = <&cru ACLK_GPU>, <&cru ACLK_GPU>;
+		clock-names = "core", "bus";
+		assigned-clocks = <&cru ACLK_GPU>;
+		assigned-clock-rates = <100000000>;
+		resets = <&cru SRST_GPU>;
+		status = "disabled";
+	};
+
 	L2: l2-cache-controller@10138000 {
 		compatible = "arm,pl310-cache";
 		reg = <0x10138000 0x1000>;

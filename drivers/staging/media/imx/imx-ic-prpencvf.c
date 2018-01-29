@@ -293,9 +293,9 @@ static irqreturn_t prp_nfb4eof_interrupt(int irq, void *dev_id)
  * EOF timeout timer function. This is an unrecoverable condition
  * without a stream restart.
  */
-static void prp_eof_timeout(unsigned long data)
+static void prp_eof_timeout(struct timer_list *t)
 {
-	struct prp_priv *priv = (struct prp_priv *)data;
+	struct prp_priv *priv = from_timer(priv, t, eof_timeout_timer);
 	struct imx_media_video_dev *vdev = priv->vdev;
 	struct imx_ic_priv *ic_priv = priv->ic_priv;
 
@@ -1292,8 +1292,7 @@ static int prp_init(struct imx_ic_priv *ic_priv)
 	priv->ic_priv = ic_priv;
 
 	spin_lock_init(&priv->irqlock);
-	setup_timer(&priv->eof_timeout_timer, prp_eof_timeout,
-		    (unsigned long)priv);
+	timer_setup(&priv->eof_timeout_timer, prp_eof_timeout, 0);
 
 	priv->vdev = imx_media_capture_device_init(&ic_priv->sd,
 						   PRPENCVF_SRC_PAD);

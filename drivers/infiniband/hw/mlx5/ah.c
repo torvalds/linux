@@ -89,10 +89,6 @@ struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
 
 		resp.response_length = min_resp_len;
 
-		err = ib_resolve_eth_dmac(pd->device, ah_attr);
-		if (err)
-			return ERR_PTR(err);
-
 		memcpy(resp.dmac, ah_attr->roce.dmac, ETH_ALEN);
 		err = ib_copy_to_udata(udata, &resp, resp.response_length);
 		if (err)

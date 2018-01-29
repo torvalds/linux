@@ -441,7 +441,7 @@ static void *eeh_add_virt_device(void *data, void *userdata)
 	}
 
 #ifdef CONFIG_PPC_POWERNV
-	pci_iov_add_virtfn(edev->physfn, pdn->vf_index, 0);
+	pci_iov_add_virtfn(edev->physfn, pdn->vf_index);
 #endif
 	return NULL;
 }
@@ -499,7 +499,7 @@ static void *eeh_rmv_device(void *data, void *userdata)
 #ifdef CONFIG_PPC_POWERNV
 		struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 
-		pci_iov_remove_virtfn(edev->physfn, pdn->vf_index, 0);
+		pci_iov_remove_virtfn(edev->physfn, pdn->vf_index);
 		edev->pdev = NULL;
 
 		/*
@@ -623,7 +623,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 				struct eeh_rmv_data *rmv_data)
 {
 	struct pci_bus *frozen_bus = eeh_pe_bus_get(pe);
-	struct timeval tstamp;
+	time64_t tstamp;
 	int cnt, rc;
 	struct eeh_dev *edev;
 

@@ -29,7 +29,6 @@ static irqreturn_t iio_interrupt_trigger_poll(int irq, void *private)
 }
 
 static const struct iio_trigger_ops iio_interrupt_trigger_ops = {
-	.owner = THIS_MODULE,
 };
 
 static int iio_interrupt_trigger_probe(struct platform_device *pdev)

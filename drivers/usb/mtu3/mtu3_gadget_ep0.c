@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mtu3_gadget_ep0.c - MediaTek USB3 DRD peripheral driver ep0 handling
  *
  * Copyright (c) 2016 MediaTek Inc.
  *
  * Author:  Chunfeng.Yun <chunfeng.yun@mediatek.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/usb/composite.h>
@@ -212,8 +203,8 @@ ep0_get_status(struct mtu3 *mtu, const struct usb_ctrlrequest *setup)
 	case USB_RECIP_DEVICE:
 		result[0] = mtu->is_self_powered << USB_DEVICE_SELF_POWERED;
 		result[0] |= mtu->may_wakeup << USB_DEVICE_REMOTE_WAKEUP;
-		/* superspeed only */
-		if (mtu->g.speed == USB_SPEED_SUPER) {
+
+		if (mtu->g.speed >= USB_SPEED_SUPER) {
 			result[0] |= mtu->u1_enable << USB_DEV_STAT_U1_ENABLED;
 			result[0] |= mtu->u2_enable << USB_DEV_STAT_U2_ENABLED;
 		}
@@ -329,8 +320,8 @@ static int ep0_handle_feature_dev(struct mtu3 *mtu,
 		handled = handle_test_mode(mtu, setup);
 		break;
 	case USB_DEVICE_U1_ENABLE:
-		if (mtu->g.speed != USB_SPEED_SUPER ||
-			mtu->g.state != USB_STATE_CONFIGURED)
+		if (mtu->g.speed < USB_SPEED_SUPER ||
+		    mtu->g.state != USB_STATE_CONFIGURED)
 			break;
 
 		lpc = mtu3_readl(mbase, U3D_LINK_POWER_CONTROL);
@@ -344,8 +335,8 @@ static int ep0_handle_feature_dev(struct mtu3 *mtu,
 		handled = 1;
 		break;
 	case USB_DEVICE_U2_ENABLE:
-		if (mtu->g.speed != USB_SPEED_SUPER ||
-			mtu->g.state != USB_STATE_CONFIGURED)
+		if (mtu->g.speed < USB_SPEED_SUPER ||
+		    mtu->g.state != USB_STATE_CONFIGURED)
 			break;
 
 		lpc = mtu3_readl(mbase, U3D_LINK_POWER_CONTROL);
@@ -384,8 +375,8 @@ static int ep0_handle_feature(struct mtu3 *mtu,
 		break;
 	case USB_RECIP_INTERFACE:
 		/* superspeed only */
-		if ((value == USB_INTRF_FUNC_SUSPEND)
-			&& (mtu->g.speed == USB_SPEED_SUPER)) {
+		if (value == USB_INTRF_FUNC_SUSPEND &&
+		    mtu->g.speed >= USB_SPEED_SUPER) {
 			/*
 			 * forward the request because function drivers
 			 * should handle it

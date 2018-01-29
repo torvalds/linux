@@ -10,14 +10,30 @@ Guidelines for GPIOs consumers
 ==============================
 
 Drivers that can't work without standard GPIO calls should have Kconfig entries
-that depend on GPIOLIB. The functions that allow a driver to obtain and use
-GPIOs are available by including the following file:
+that depend on GPIOLIB or select GPIOLIB. The functions that allow a driver to
+obtain and use GPIOs are available by including the following file:
 
 	#include <linux/gpio/consumer.h>
 
+There are static inline stubs for all functions in the header file in the case
+where GPIOLIB is disabled. When these stubs are called they will emit
+warnings. These stubs are used for two use cases:
+
+- Simple compile coverage with e.g. COMPILE_TEST - it does not matter that
+  the current platform does not enable or select GPIOLIB because we are not
+  going to execute the system anyway.
+
+- Truly optional GPIOLIB support - where the driver does not really make use
+  of the GPIOs on certain compile-time configurations for certain systems, but
+  will use it under other compile-time configurations. In this case the
+  consumer must make sure not to call into these functions, or the user will
+  be met with console warnings that may be perceived as intimidating.
+
 All the functions that work with the descriptor-based GPIO interface are
 prefixed with gpiod_. The gpio_ prefix is used for the legacy interface. No
-other function in the kernel should use these prefixes.
+other function in the kernel should use these prefixes. The use of the legacy
+functions is strongly discouraged, new code should use <linux/gpio/consumer.h>
+and descriptors exclusively.
 
 
 Obtaining and Disposing GPIOs
@@ -279,9 +295,22 @@ as possible, especially by drivers which should not care about the actual
 physical line level and worry about the logical value instead.
 
 
-Set multiple GPIO outputs with a single function call
------------------------------------------------------
-The following functions set the output values of an array of GPIOs:
+Access multiple GPIOs with a single function call
+-------------------------------------------------
+The following functions get or set the values of an array of GPIOs:
+
+	int gpiod_get_array_value(unsigned int array_size,
+				  struct gpio_desc **desc_array,
+				  int *value_array);
+	int gpiod_get_raw_array_value(unsigned int array_size,
+				      struct gpio_desc **desc_array,
+				      int *value_array);
+	int gpiod_get_array_value_cansleep(unsigned int array_size,
+					   struct gpio_desc **desc_array,
+					   int *value_array);
+	int gpiod_get_raw_array_value_cansleep(unsigned int array_size,
+					   struct gpio_desc **desc_array,
+					   int *value_array);
 
 	void gpiod_set_array_value(unsigned int array_size,
 				   struct gpio_desc **desc_array,
@@ -296,33 +325,39 @@ The following functions set the output values of an array of GPIOs:
 						struct gpio_desc **desc_array,
 						int *value_array)
 
-The array can be an arbitrary set of GPIOs. The functions will try to set
+The array can be an arbitrary set of GPIOs. The functions will try to access
 GPIOs belonging to the same bank or chip simultaneously if supported by the
 corresponding chip driver. In that case a significantly improved performance
-can be expected. If simultaneous setting is not possible the GPIOs will be set
-sequentially.
+can be expected. If simultaneous access is not possible the GPIOs will be
+accessed sequentially.
 
-The gpiod_set_array() functions take three arguments:
+The functions take three arguments:
 	* array_size	- the number of array elements
 	* desc_array	- an array of GPIO descriptors
-	* value_array	- an array of values to assign to the GPIOs
+	* value_array	- an array to store the GPIOs' values (get) or
+			  an array of values to assign to the GPIOs (set)
 
 The descriptor array can be obtained using the gpiod_get_array() function
 or one of its variants. If the group of descriptors returned by that function
-matches the desired group of GPIOs, those GPIOs can be set by simply using
+matches the desired group of GPIOs, those GPIOs can be accessed by simply using
 the struct gpio_descs returned by gpiod_get_array():
 
 	struct gpio_descs *my_gpio_descs = gpiod_get_array(...);
 	gpiod_set_array_value(my_gpio_descs->ndescs, my_gpio_descs->desc,
 			      my_gpio_values);
 
-It is also possible to set a completely arbitrary array of descriptors. The
+It is also possible to access a completely arbitrary array of descriptors. The
 descriptors may be obtained using any combination of gpiod_get() and
 gpiod_get_array(). Afterwards the array of descriptors has to be setup
-manually before it can be used with gpiod_set_array().
+manually before it can be passed to one of the above functions.
 
 Note that for optimal performance GPIOs belonging to the same chip should be
 contiguous within the array of descriptors.
+
+The return value of gpiod_get_array_value() and its variants is 0 on success
+or negative on error. Note the difference to gpiod_get_value(), which returns
+0 or 1 on success to convey the GPIO value. With the array functions, the GPIO
+values are stored in value_array rather than passed back as return value.
 
 
 GPIOs mapped to IRQs

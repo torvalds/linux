@@ -1286,11 +1286,7 @@ static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
 					struct btrfs_block_group_cache *block_group,
 					struct btrfs_path *path)
 {
-	u64 start, end;
 	int ret;
-
-	start = block_group->key.objectid;
-	end = block_group->key.objectid + block_group->key.offset;
 
 	block_group->needs_free_space = 0;
 

@@ -10,8 +10,8 @@
 
 . $(dirname $0)/lib/probe.sh
 
-ld=$(realpath /lib64/ld*.so.* | uniq)
-libc=$(echo $ld | sed 's/ld/libc/g')
+libc=$(grep -w libc /proc/self/maps | head -1 | sed -r 's/.*[[:space:]](\/.*)/\1/g')
+nm -g $libc 2>/dev/null | fgrep -q inet_pton || exit 254
 
 trace_libc_inet_pton_backtrace() {
 	idx=0
@@ -36,6 +36,9 @@ trace_libc_inet_pton_backtrace() {
 		[ $idx -eq 9 ] && break
 	done
 }
+
+# Check for IPv6 interface existence
+ip a sh lo | fgrep -q inet6 || exit 2
 
 skip_if_no_perf_probe && \
 perf probe -q $libc inet_pton && \

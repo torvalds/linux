@@ -646,7 +646,7 @@ static void setup(struct super_block *sb)
 {
 	MSDOS_SB(sb)->dir_ops = &msdos_dir_inode_operations;
 	sb->s_d_op = &msdos_dentry_operations;
-	sb->s_flags |= MS_NOATIME;
+	sb->s_flags |= SB_NOATIME;
 }
 
 static int msdos_fill_super(struct super_block *sb, void *data, int silent)

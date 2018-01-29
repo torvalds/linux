@@ -183,6 +183,12 @@ static int xgpu_ai_send_access_requests(struct amdgpu_device *adev,
 			pr_err("Doesn't get READY_TO_ACCESS_GPU from pf, give up\n");
 			return r;
 		}
+		/* Retrieve checksum from mailbox2 */
+		if (req == IDH_REQ_GPU_INIT_ACCESS) {
+			adev->virt.fw_reserve.checksum_key =
+				RREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0,
+					mmBIF_BX_PF0_MAILBOX_MSGBUF_RCV_DW2));
+		}
 	}
 
 	return 0;

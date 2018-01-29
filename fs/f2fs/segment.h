@@ -231,7 +231,7 @@ struct sit_info {
 	unsigned long *dirty_sentries_bitmap;	/* bitmap for dirty sentries */
 	unsigned int dirty_sentries;		/* # of dirty sentries */
 	unsigned int sents_per_block;		/* # of SIT entries per block */
-	struct mutex sentry_lock;		/* to protect SIT cache */
+	struct rw_semaphore sentry_lock;	/* to protect SIT cache */
 	struct seg_entry *sentries;		/* SIT segment-level cache */
 	struct sec_entry *sec_entries;		/* SIT section-level cache */
 
@@ -497,6 +497,33 @@ static inline int reserved_sections(struct f2fs_sb_info *sbi)
 	return GET_SEC_FROM_SEG(sbi, (unsigned int)reserved_segments(sbi));
 }
 
+static inline bool has_curseg_enough_space(struct f2fs_sb_info *sbi)
+{
+	unsigned int node_blocks = get_pages(sbi, F2FS_DIRTY_NODES) +
+					get_pages(sbi, F2FS_DIRTY_DENTS);
+	unsigned int dent_blocks = get_pages(sbi, F2FS_DIRTY_DENTS);
+	unsigned int segno, left_blocks;
+	int i;
+
+	/* check current node segment */
+	for (i = CURSEG_HOT_NODE; i <= CURSEG_COLD_NODE; i++) {
+		segno = CURSEG_I(sbi, i)->segno;
+		left_blocks = sbi->blocks_per_seg -
+			get_seg_entry(sbi, segno)->ckpt_valid_blocks;
+
+		if (node_blocks > left_blocks)
+			return false;
+	}
+
+	/* check current data segment */
+	segno = CURSEG_I(sbi, CURSEG_HOT_DATA)->segno;
+	left_blocks = sbi->blocks_per_seg -
+			get_seg_entry(sbi, segno)->ckpt_valid_blocks;
+	if (dent_blocks > left_blocks)
+		return false;
+	return true;
+}
+
 static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi,
 					int freed, int needed)
 {
@@ -507,6 +534,9 @@ static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi,
 	if (unlikely(is_sbi_flag_set(sbi, SBI_POR_DOING)))
 		return false;
 
+	if (free_sections(sbi) + freed == reserved_sections(sbi) + needed &&
+			has_curseg_enough_space(sbi))
+		return false;
 	return (free_sections(sbi) + freed) <=
 		(node_secs + 2 * dent_secs + imeta_secs +
 		reserved_sections(sbi) + needed);
@@ -731,7 +761,7 @@ static inline block_t sum_blk_addr(struct f2fs_sb_info *sbi, int base, int type)
 static inline bool no_fggc_candidate(struct f2fs_sb_info *sbi,
 						unsigned int secno)
 {
-	if (get_valid_blocks(sbi, GET_SEG_FROM_SEC(sbi, secno), true) >=
+	if (get_valid_blocks(sbi, GET_SEG_FROM_SEC(sbi, secno), true) >
 						sbi->fggc_threshold)
 		return true;
 	return false;
@@ -796,8 +826,9 @@ static inline void wake_up_discard_thread(struct f2fs_sb_info *sbi, bool force)
 		goto wake_up;
 
 	mutex_lock(&dcc->cmd_lock);
-	for (i = MAX_PLIST_NUM - 1;
-			i >= 0 && plist_issue(dcc->pend_list_tag[i]); i--) {
+	for (i = MAX_PLIST_NUM - 1; i >= 0; i--) {
+		if (i + 1 < dcc->discard_granularity)
+			break;
 		if (!list_empty(&dcc->pend_list[i])) {
 			wakeup = true;
 			break;

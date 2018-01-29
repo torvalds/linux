@@ -597,7 +597,7 @@ nfp_net_eth_port_update(struct nfp_cpp *cpp, struct nfp_port *port,
 		return -EIO;
 	}
 	if (eth_port->override_changed) {
-		nfp_warn(cpp, "Port #%d config changed, unregistering. Reboot required before port will be operational again.\n", port->eth_id);
+		nfp_warn(cpp, "Port #%d config changed, unregistering. Driver reload required before port will be operational again.\n", port->eth_id);
 		port->type = NFP_PORT_INVALID;
 	}
 
@@ -611,6 +611,7 @@ int nfp_net_refresh_port_table_sync(struct nfp_pf *pf)
 	struct nfp_eth_table *eth_table;
 	struct nfp_net *nn, *next;
 	struct nfp_port *port;
+	int err;
 
 	lockdep_assert_held(&pf->lock);
 
@@ -639,6 +640,11 @@ int nfp_net_refresh_port_table_sync(struct nfp_pf *pf)
 	rtnl_unlock();
 
 	kfree(eth_table);
+
+	/* Resync repr state. This may cause reprs to be removed. */
+	err = nfp_reprs_resync_phys_ports(pf->app);
+	if (err)
+		return err;
 
 	/* Shoot off the ports which became invalid */
 	list_for_each_entry_safe(nn, next, &pf->vnics, vnic_list) {

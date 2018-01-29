@@ -156,7 +156,6 @@ extern const struct clk_ops clk_dyn_rcg_ops;
  * @hid_width: number of bits in half integer divider
  * @parent_map: map from software's parent index to hardware's src_sel field
  * @freq_tbl: frequency table
- * @current_freq: last cached frequency when using branches with shared RCGs
  * @clkr: regmap clock handle
  *
  */
@@ -166,7 +165,6 @@ struct clk_rcg2 {
 	u8			hid_width;
 	const struct parent_map	*parent_map;
 	const struct freq_tbl	*freq_tbl;
-	unsigned long		current_freq;
 	struct clk_regmap	clkr;
 };
 
@@ -174,7 +172,6 @@ struct clk_rcg2 {
 
 extern const struct clk_ops clk_rcg2_ops;
 extern const struct clk_ops clk_rcg2_floor_ops;
-extern const struct clk_ops clk_rcg2_shared_ops;
 extern const struct clk_ops clk_edp_pixel_ops;
 extern const struct clk_ops clk_byte_ops;
 extern const struct clk_ops clk_byte2_ops;

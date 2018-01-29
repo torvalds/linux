@@ -82,8 +82,8 @@ struct ccdc_hw_device {
 };
 
 /* Used by CCDC module to register & unregister with vpfe capture driver */
-int vpfe_register_ccdc_device(struct ccdc_hw_device *dev);
-void vpfe_unregister_ccdc_device(struct ccdc_hw_device *dev);
+int vpfe_register_ccdc_device(const struct ccdc_hw_device *dev);
+void vpfe_unregister_ccdc_device(const struct ccdc_hw_device *dev);
 
 #endif
 #endif

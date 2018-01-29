@@ -22,7 +22,6 @@
 #include <linux/io.h>
 #include <linux/mtd/partitions.h>
 #include <linux/i2c.h>
-#include <linux/i2c-gpio.h>
 #include <linux/platform_data/pca953x.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
@@ -144,10 +143,6 @@ static struct pca953x_platform_data pca953x_77_gpio_data = {
 /*************************************************************************
  * I2C Bus
  *************************************************************************/
-static struct i2c_gpio_platform_data vision_i2c_gpio_data __initdata = {
-	.sda_pin		= EP93XX_GPIO_LINE_EEDAT,
-	.scl_pin		= EP93XX_GPIO_LINE_EECLK,
-};
 
 static struct i2c_board_info vision_i2c_info[] __initdata = {
 	{
@@ -289,7 +284,7 @@ static void __init vision_init_machine(void)
 
 	vision_i2c_info[1].irq = gpio_to_irq(EP93XX_GPIO_LINE_F(7));
 
-	ep93xx_register_i2c(&vision_i2c_gpio_data, vision_i2c_info,
+	ep93xx_register_i2c(vision_i2c_info,
 				ARRAY_SIZE(vision_i2c_info));
 	ep93xx_register_spi(&vision_spi_master, vision_spi_board_info,
 				ARRAY_SIZE(vision_spi_board_info));

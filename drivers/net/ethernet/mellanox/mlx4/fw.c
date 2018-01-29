@@ -57,12 +57,12 @@ MODULE_PARM_DESC(enable_qos, "Enable Enhanced QoS support (default: off)");
 #define MLX4_GET(dest, source, offset)				      \
 	do {							      \
 		void *__p = (char *) (source) + (offset);	      \
-		u64 val;                                              \
-		switch (sizeof(dest)) {			      \
+		__be64 val;                                           \
+		switch (sizeof(dest)) {				      \
 		case 1: (dest) = *(u8 *) __p;	    break;	      \
 		case 2: (dest) = be16_to_cpup(__p); break;	      \
 		case 4: (dest) = be32_to_cpup(__p); break;	      \
-		case 8: val = get_unaligned((u64 *)__p);              \
+		case 8: val = get_unaligned((__be64 *)__p);           \
 			(dest) = be64_to_cpu(val);  break;            \
 		default: __buggy_use_of_MLX4_GET();		      \
 		}						      \

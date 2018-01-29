@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -576,11 +577,16 @@ alloc_sglist(int nents, int max, int vary, struct usbtest_dev *dev, int pipe)
 	return sg;
 }
 
-static void sg_timeout(unsigned long _req)
-{
-	struct usb_sg_request	*req = (struct usb_sg_request *) _req;
+struct sg_timeout {
+	struct timer_list timer;
+	struct usb_sg_request *req;
+};
 
-	usb_sg_cancel(req);
+static void sg_timeout(struct timer_list *t)
+{
+	struct sg_timeout *timeout = from_timer(timeout, t, timer);
+
+	usb_sg_cancel(timeout->req);
 }
 
 static int perform_sglist(
@@ -594,9 +600,11 @@ static int perform_sglist(
 {
 	struct usb_device	*udev = testdev_to_usbdev(tdev);
 	int			retval = 0;
-	struct timer_list	sg_timer;
+	struct sg_timeout	timeout = {
+		.req = req,
+	};
 
-	setup_timer_on_stack(&sg_timer, sg_timeout, (unsigned long) req);
+	timer_setup_on_stack(&timeout.timer, sg_timeout, 0);
 
 	while (retval == 0 && iterations-- > 0) {
 		retval = usb_sg_init(req, udev, pipe,
@@ -607,13 +615,14 @@ static int perform_sglist(
 
 		if (retval)
 			break;
-		mod_timer(&sg_timer, jiffies +
+		mod_timer(&timeout.timer, jiffies +
 				msecs_to_jiffies(SIMPLE_IO_TIMEOUT));
 		usb_sg_wait(req);
-		if (!del_timer_sync(&sg_timer))
+		if (!del_timer_sync(&timeout.timer))
 			retval = -ETIMEDOUT;
 		else
 			retval = req->status;
+		destroy_timer_on_stack(&timeout.timer);
 
 		/* FIXME check resulting data pattern */
 
@@ -1015,7 +1024,7 @@ static int ch9_postconfig(struct usbtest_dev *dev)
 	/* FIXME fetch strings from at least the device descriptor */
 
 	/* [9.4.5] get_status always works */
-	retval = usb_get_status(udev, USB_RECIP_DEVICE, 0, dev->buf);
+	retval = usb_get_std_status(udev, USB_RECIP_DEVICE, 0, dev->buf);
 	if (retval) {
 		dev_err(&iface->dev, "get dev status --> %d\n", retval);
 		return retval;
@@ -1025,7 +1034,7 @@ static int ch9_postconfig(struct usbtest_dev *dev)
 	 * the device's remote wakeup feature ... if we can, test that here
 	 */
 
-	retval = usb_get_status(udev, USB_RECIP_INTERFACE,
+	retval = usb_get_std_status(udev, USB_RECIP_INTERFACE,
 			iface->altsetting[0].desc.bInterfaceNumber, dev->buf);
 	if (retval) {
 		dev_err(&iface->dev, "get interface status --> %d\n", retval);
@@ -1614,7 +1623,7 @@ static int verify_not_halted(struct usbtest_dev *tdev, int ep, struct urb *urb)
 	u16	status;
 
 	/* shouldn't look or act halted */
-	retval = usb_get_status(urb->dev, USB_RECIP_ENDPOINT, ep, &status);
+	retval = usb_get_std_status(urb->dev, USB_RECIP_ENDPOINT, ep, &status);
 	if (retval < 0) {
 		ERROR(tdev, "ep %02x couldn't get no-halt status, %d\n",
 				ep, retval);
@@ -1636,7 +1645,7 @@ static int verify_halted(struct usbtest_dev *tdev, int ep, struct urb *urb)
 	u16	status;
 
 	/* should look and act halted */
-	retval = usb_get_status(urb->dev, USB_RECIP_ENDPOINT, ep, &status);
+	retval = usb_get_std_status(urb->dev, USB_RECIP_ENDPOINT, ep, &status);
 	if (retval < 0) {
 		ERROR(tdev, "ep %02x couldn't get halt status, %d\n",
 				ep, retval);
@@ -1909,7 +1918,7 @@ static struct urb *iso_alloc_urb(
 
 	if (bytes < 0 || !desc)
 		return NULL;
-	maxp = 0x7ff & usb_endpoint_maxp(desc);
+	maxp = usb_endpoint_maxp(desc);
 	maxp *= usb_endpoint_maxp_mult(desc);
 	packets = DIV_ROUND_UP(bytes, maxp);
 

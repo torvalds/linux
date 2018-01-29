@@ -375,7 +375,7 @@ u32 igb_rd32(struct e1000_hw *hw, u32 reg);
 /* write operations, indexed using DWORDS */
 #define wr32(reg, val) \
 do { \
-	u8 __iomem *hw_addr = ACCESS_ONCE((hw)->hw_addr); \
+	u8 __iomem *hw_addr = READ_ONCE((hw)->hw_addr); \
 	if (!E1000_REMOVED(hw_addr)) \
 		writel((val), &hw_addr[(reg)]); \
 } while (0)
@@ -420,6 +420,14 @@ do { \
 #define E1000_I210_FLSWCNT	0x12050
 
 #define E1000_I210_FLA		0x1201C
+
+#define E1000_I210_DTXMXPKTSZ	0x355C
+
+#define E1000_I210_TXDCTL(_n)	(0x0E028 + ((_n) * 0x40))
+
+#define E1000_I210_TQAVCTRL	0x3570
+#define E1000_I210_TQAVCC(_n)	(0x3004 + ((_n) * 0x40))
+#define E1000_I210_TQAVHC(_n)	(0x300C + ((_n) * 0x40))
 
 #define E1000_INVM_DATA_REG(_n)	(0x12120 + 4*(_n))
 #define E1000_INVM_SIZE		64 /* Number of INVM Data Registers */

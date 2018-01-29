@@ -27,7 +27,7 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-T=/tmp/parse-torture.sh.$$
+T=${TMPDIR-/tmp}/parse-torture.sh.$$
 file="$1"
 title="$2"
 

@@ -167,7 +167,7 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_1T_SEGMENT)
         /*
          * user space make sure we are within the allowed limit
 	 */
-	ld	r11,PACA_ADDR_LIMIT(r13)
+	ld	r11,PACA_SLB_ADDR_LIMIT(r13)
 	cmpld	r3,r11
 	bge-	8f
 
@@ -309,10 +309,6 @@ slb_compare_rr_to_size:
 	srdi	r10,r10,(SID_SHIFT_1T - SID_SHIFT)	/* get 1T ESID */
 	rldimi  r10,r9,ESID_BITS_1T,0
 	ASM_VSID_SCRAMBLE(r10,r9,r11,1T)
-	/*
-	 * bits above VSID_BITS_1T need to be ignored from r10
-	 * also combine VSID and flags
-	 */
 
 	li	r10,MMU_SEGSIZE_1T
 	rldimi	r11,r10,SLB_VSID_SSIZE_SHIFT,0	/* insert segment size */

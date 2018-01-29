@@ -1,0 +1,7 @@
+ifdef CONFIG_KCOV
+CFLAGS_KCOV	:= $(call cc-option,-fsanitize-coverage=trace-pc,)
+ifeq ($(CONFIG_KCOV_ENABLE_COMPARISONS),y)
+CFLAGS_KCOV += $(call cc-option,-fsanitize-coverage=trace-cmp,)
+endif
+
+endif

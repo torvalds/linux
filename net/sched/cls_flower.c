@@ -155,36 +155,11 @@ static int fl_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 	struct cls_fl_filter *f;
 	struct fl_flow_key skb_key;
 	struct fl_flow_key skb_mkey;
-	struct ip_tunnel_info *info;
 
 	if (!atomic_read(&head->ht.nelems))
 		return -1;
 
 	fl_clear_masked_range(&skb_key, &head->mask);
-
-	info = skb_tunnel_info(skb);
-	if (info) {
-		struct ip_tunnel_key *key = &info->key;
-
-		switch (ip_tunnel_info_af(info)) {
-		case AF_INET:
-			skb_key.enc_control.addr_type =
-				FLOW_DISSECTOR_KEY_IPV4_ADDRS;
-			skb_key.enc_ipv4.src = key->u.ipv4.src;
-			skb_key.enc_ipv4.dst = key->u.ipv4.dst;
-			break;
-		case AF_INET6:
-			skb_key.enc_control.addr_type =
-				FLOW_DISSECTOR_KEY_IPV6_ADDRS;
-			skb_key.enc_ipv6.src = key->u.ipv6.src;
-			skb_key.enc_ipv6.dst = key->u.ipv6.dst;
-			break;
-		}
-
-		skb_key.enc_key_id.keyid = tunnel_id_to_key32(key->tun_id);
-		skb_key.enc_tp.src = key->tp_src;
-		skb_key.enc_tp.dst = key->tp_dst;
-	}
 
 	skb_key.indev_ifindex = skb->skb_iif;
 	/* skb_flow_dissect() does not set n_proto in case an unknown protocol,
@@ -245,17 +220,14 @@ static void fl_destroy_filter(struct rcu_head *head)
 static void fl_hw_destroy_filter(struct tcf_proto *tp, struct cls_fl_filter *f)
 {
 	struct tc_cls_flower_offload cls_flower = {};
-	struct net_device *dev = f->hw_dev;
-
-	if (!tc_can_offload(dev))
-		return;
+	struct tcf_block *block = tp->chain->block;
 
 	tc_cls_common_offload_init(&cls_flower.common, tp);
 	cls_flower.command = TC_CLSFLOWER_DESTROY;
 	cls_flower.cookie = (unsigned long) f;
-	cls_flower.egress_dev = f->hw_dev != tp->q->dev_queue->dev;
 
-	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSFLOWER, &cls_flower);
+	tc_setup_cb_call(block, &f->exts, TC_SETUP_CLSFLOWER,
+			 &cls_flower, false);
 }
 
 static int fl_hw_replace_filter(struct tcf_proto *tp,
@@ -263,21 +235,10 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 				struct fl_flow_key *mask,
 				struct cls_fl_filter *f)
 {
-	struct net_device *dev = tp->q->dev_queue->dev;
 	struct tc_cls_flower_offload cls_flower = {};
+	struct tcf_block *block = tp->chain->block;
+	bool skip_sw = tc_skip_sw(f->flags);
 	int err;
-
-	if (!tc_can_offload(dev)) {
-		if (tcf_exts_get_dev(dev, &f->exts, &f->hw_dev) ||
-		    (f->hw_dev && !tc_can_offload(f->hw_dev))) {
-			f->hw_dev = dev;
-			return tc_skip_sw(f->flags) ? -EINVAL : 0;
-		}
-		dev = f->hw_dev;
-		cls_flower.egress_dev = true;
-	} else {
-		f->hw_dev = dev;
-	}
 
 	tc_cls_common_offload_init(&cls_flower.common, tp);
 	cls_flower.command = TC_CLSFLOWER_REPLACE;
@@ -286,33 +247,36 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 	cls_flower.mask = mask;
 	cls_flower.key = &f->mkey;
 	cls_flower.exts = &f->exts;
+	cls_flower.classid = f->res.classid;
 
-	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSFLOWER,
-					    &cls_flower);
-	if (!err)
-		f->flags |= TCA_CLS_FLAGS_IN_HW;
-
-	if (tc_skip_sw(f->flags))
+	err = tc_setup_cb_call(block, &f->exts, TC_SETUP_CLSFLOWER,
+			       &cls_flower, skip_sw);
+	if (err < 0) {
+		fl_hw_destroy_filter(tp, f);
 		return err;
+	} else if (err > 0) {
+		f->flags |= TCA_CLS_FLAGS_IN_HW;
+	}
+
+	if (skip_sw && !(f->flags & TCA_CLS_FLAGS_IN_HW))
+		return -EINVAL;
+
 	return 0;
 }
 
 static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f)
 {
 	struct tc_cls_flower_offload cls_flower = {};
-	struct net_device *dev = f->hw_dev;
-
-	if (!tc_can_offload(dev))
-		return;
+	struct tcf_block *block = tp->chain->block;
 
 	tc_cls_common_offload_init(&cls_flower.common, tp);
 	cls_flower.command = TC_CLSFLOWER_STATS;
 	cls_flower.cookie = (unsigned long) f;
 	cls_flower.exts = &f->exts;
-	cls_flower.egress_dev = f->hw_dev != tp->q->dev_queue->dev;
+	cls_flower.classid = f->res.classid;
 
-	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSFLOWER,
-				      &cls_flower);
+	tc_setup_cb_call(block, &f->exts, TC_SETUP_CLSFLOWER,
+			 &cls_flower, false);
 }
 
 static void __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f)

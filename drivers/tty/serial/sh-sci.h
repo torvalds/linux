@@ -63,6 +63,9 @@ enum {
 #define SCSCR_TDRQE	BIT(15)	/* Tx Data Transfer Request Enable */
 #define SCSCR_RDRQE	BIT(14)	/* Rx Data Transfer Request Enable */
 
+/* Serial Control Register, HSCIF-only bits */
+#define HSSCR_TOT_SHIFT	14
+
 /* SCxSR (Serial Status Register) on SCI */
 #define SCI_TDRE	BIT(7)	/* Transmit Data Register Empty */
 #define SCI_RDRF	BIT(6)	/* Receive Data Register Full */

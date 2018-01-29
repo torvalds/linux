@@ -43,7 +43,6 @@ cryptoloop_init(struct loop_device *lo, const struct loop_info64 *info)
 	int cipher_len;
 	int mode_len;
 	char cms[LO_NAME_SIZE];			/* cipher-mode string */
-	char *cipher;
 	char *mode;
 	char *cmsp = cms;			/* c-m string pointer */
 	struct crypto_skcipher *tfm;
@@ -56,7 +55,6 @@ cryptoloop_init(struct loop_device *lo, const struct loop_info64 *info)
 	strncpy(cms, info->lo_crypt_name, LO_NAME_SIZE);
 	cms[LO_NAME_SIZE - 1] = 0;
 
-	cipher = cmsp;
 	cipher_len = strcspn(cmsp, "-");
 
 	mode = cmsp + cipher_len;

@@ -185,7 +185,6 @@ static int cros_ec_sensors_write(struct iio_dev *indio_dev,
 static const struct iio_info ec_sensors_info = {
 	.read_raw = &cros_ec_sensors_read,
 	.write_raw = &cros_ec_sensors_write,
-	.driver_module = THIS_MODULE,
 };
 
 static int cros_ec_sensors_probe(struct platform_device *pdev)

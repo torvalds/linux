@@ -282,44 +282,44 @@ static struct configfs_item_operations node_ops = {
 	.release = release_node,
 };
 
-static struct config_item_type clusters_type = {
+static const struct config_item_type clusters_type = {
 	.ct_group_ops = &clusters_ops,
 	.ct_owner = THIS_MODULE,
 };
 
-static struct config_item_type cluster_type = {
+static const struct config_item_type cluster_type = {
 	.ct_item_ops = &cluster_ops,
 	.ct_attrs = cluster_attrs,
 	.ct_owner = THIS_MODULE,
 };
 
-static struct config_item_type spaces_type = {
+static const struct config_item_type spaces_type = {
 	.ct_group_ops = &spaces_ops,
 	.ct_owner = THIS_MODULE,
 };
 
-static struct config_item_type space_type = {
+static const struct config_item_type space_type = {
 	.ct_item_ops = &space_ops,
 	.ct_owner = THIS_MODULE,
 };
 
-static struct config_item_type comms_type = {
+static const struct config_item_type comms_type = {
 	.ct_group_ops = &comms_ops,
 	.ct_owner = THIS_MODULE,
 };
 
-static struct config_item_type comm_type = {
+static const struct config_item_type comm_type = {
 	.ct_item_ops = &comm_ops,
 	.ct_attrs = comm_attrs,
 	.ct_owner = THIS_MODULE,
 };
 
-static struct config_item_type nodes_type = {
+static const struct config_item_type nodes_type = {
 	.ct_group_ops = &nodes_ops,
 	.ct_owner = THIS_MODULE,
 };
 
-static struct config_item_type node_type = {
+static const struct config_item_type node_type = {
 	.ct_item_ops = &node_ops,
 	.ct_attrs = node_attrs,
 	.ct_owner = THIS_MODULE,

@@ -15,13 +15,13 @@
 #ifndef __IA_CSS_SHADING_H
 #define __IA_CSS_SHADING_H
 
-/** @file
+/* @file
  * This file contains support for setting the shading table for CSS
  */
 
 #include <ia_css_types.h>
 
-/** @brief Shading table
+/* @brief Shading table
  * @param[in]	width Width of the shading table.
  * @param[in]	height Height of the shading table.
  * @return		Pointer to the shading table
@@ -30,7 +30,7 @@ struct ia_css_shading_table *
 ia_css_shading_table_alloc(unsigned int width,
 			   unsigned int height);
 
-/** @brief Free shading table
+/* @brief Free shading table
  * @param[in]	table Pointer to the shading table.
  * @return		None
 */

@@ -478,4 +478,5 @@ void bnxt_qplib_release_cq_locks(struct bnxt_qplib_qp *qp,
 int bnxt_qplib_process_flush_list(struct bnxt_qplib_cq *cq,
 				  struct bnxt_qplib_cqe *cqe,
 				  int num_cqes);
+void bnxt_qplib_flush_cqn_wq(struct bnxt_qplib_qp *qp);
 #endif /* __BNXT_QPLIB_FP_H__ */

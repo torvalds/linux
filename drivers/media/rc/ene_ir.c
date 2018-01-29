@@ -670,9 +670,9 @@ exit:
 }
 
 /* timer to simulate tx done interrupt */
-static void ene_tx_irqsim(unsigned long data)
+static void ene_tx_irqsim(struct timer_list *t)
 {
-	struct ene_device *dev = (struct ene_device *)data;
+	struct ene_device *dev = from_timer(dev, t, tx_sim_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->hw_lock, flags);
@@ -1045,8 +1045,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 
 	if (!dev->hw_learning_and_tx_capable && txsim) {
 		dev->hw_learning_and_tx_capable = true;
-		setup_timer(&dev->tx_sim_timer, ene_tx_irqsim,
-						(long unsigned int)dev);
+		timer_setup(&dev->tx_sim_timer, ene_tx_irqsim, 0);
 		pr_warn("Simulation of TX activated\n");
 	}
 

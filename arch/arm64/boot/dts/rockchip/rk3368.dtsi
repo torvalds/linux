@@ -786,6 +786,22 @@
 		status = "disabled";
 	};
 
+	efuse256: efuse@ffb00000 {
+		compatible = "rockchip,rk3368-efuse";
+		reg = <0x0 0xffb00000 0x0 0x20>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		clocks = <&cru PCLK_EFUSE256>;
+		clock-names = "pclk_efuse";
+
+		cpu_leakage: cpu-leakage@17 {
+			reg = <0x17 0x1>;
+		};
+		temp_adjust: temp-adjust@1f {
+			reg = <0x1f 0x1>;
+		};
+	};
+
 	gic: interrupt-controller@ffb71000 {
 		compatible = "arm,gic-400";
 		interrupt-controller;

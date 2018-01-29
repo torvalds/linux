@@ -24,7 +24,8 @@ platform.
 
 If one of the strings listed in /sys/power/state is written to it, the system
 will attempt to transition into the corresponding sleep state.  Refer to
-Documentation/power/states.txt for a description of each of those states.
+Documentation/admin-guide/pm/sleep-states.rst for a description of each of
+those states.
 
 /sys/power/disk controls the operating mode of hibernation (Suspend-to-Disk).
 Specifically, it tells the kernel what to do after creating a hibernation image.
@@ -42,7 +43,7 @@ The currently selected option is printed in square brackets.
 The 'platform' option is only available if the platform provides a special
 mechanism to put the system to sleep after creating a hibernation image (ACPI
 does that, for example).  The 'suspend' option is available if Suspend-to-RAM
-is supported.  Refer to Documentation/power/basic_pm_debugging.txt for the
+is supported.  Refer to Documentation/power/basic-pm-debugging.txt for the
 description of the 'test_resume' option.
 
 To select an option, write the string representing it to /sys/power/disk.

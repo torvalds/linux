@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * MediaTek xHCI Host Controller Driver
  *
  * Copyright (c) 2015 MediaTek Inc.
  * Author:
  *  Chunfeng Yun <chunfeng.yun@mediatek.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/clk.h>
@@ -43,6 +34,7 @@
 
 /* ip_pw_sts1 register */
 #define STS1_IP_SLEEP_STS	BIT(30)
+#define STS1_U3_MAC_RST	BIT(16)
 #define STS1_XHCI_RST		BIT(11)
 #define STS1_SYS125_RST	BIT(10)
 #define STS1_REF_RST		BIT(8)
@@ -91,6 +83,7 @@ static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 {
 	struct mu3c_ippc_regs __iomem *ippc = mtk->ippc_regs;
 	u32 value, check_val;
+	int u3_ports_disabed = 0;
 	int ret;
 	int i;
 
@@ -102,8 +95,13 @@ static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 	value &= ~CTRL1_IP_HOST_PDN;
 	writel(value, &ippc->ip_pw_ctr1);
 
-	/* power on and enable all u3 ports */
+	/* power on and enable u3 ports except skipped ones */
 	for (i = 0; i < mtk->num_u3_ports; i++) {
+		if ((0x1 << i) & mtk->u3p_dis_msk) {
+			u3_ports_disabed++;
+			continue;
+		}
+
 		value = readl(&ippc->u3_ctrl_p[i]);
 		value &= ~(CTRL_U3_PORT_PDN | CTRL_U3_PORT_DIS);
 		value |= CTRL_U3_PORT_HOST_SEL;
@@ -125,6 +123,9 @@ static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 	check_val = STS1_SYSPLL_STABLE | STS1_REF_RST |
 			STS1_SYS125_RST | STS1_XHCI_RST;
 
+	if (mtk->num_u3_ports > u3_ports_disabed)
+		check_val |= STS1_U3_MAC_RST;
+
 	ret = readl_poll_timeout(&ippc->ip_pw_sts1, value,
 			  (check_val == (value & check_val)), 100, 20000);
 	if (ret) {
@@ -145,8 +146,11 @@ static int xhci_mtk_host_disable(struct xhci_hcd_mtk *mtk)
 	if (!mtk->has_ippc)
 		return 0;
 
-	/* power down all u3 ports */
+	/* power down u3 ports except skipped ones */
 	for (i = 0; i < mtk->num_u3_ports; i++) {
+		if ((0x1 << i) & mtk->u3p_dis_msk)
+			continue;
+
 		value = readl(&ippc->u3_ctrl_p[i]);
 		value |= CTRL_U3_PORT_PDN;
 		writel(value, &ippc->u3_ctrl_p[i]);
@@ -208,6 +212,41 @@ static int xhci_mtk_ssusb_config(struct xhci_hcd_mtk *mtk)
 	return xhci_mtk_host_enable(mtk);
 }
 
+/* ignore the error if the clock does not exist */
+static struct clk *optional_clk_get(struct device *dev, const char *id)
+{
+	struct clk *opt_clk;
+
+	opt_clk = devm_clk_get(dev, id);
+	/* ignore error number except EPROBE_DEFER */
+	if (IS_ERR(opt_clk) && (PTR_ERR(opt_clk) != -EPROBE_DEFER))
+		opt_clk = NULL;
+
+	return opt_clk;
+}
+
+static int xhci_mtk_clks_get(struct xhci_hcd_mtk *mtk)
+{
+	struct device *dev = mtk->dev;
+
+	mtk->sys_clk = devm_clk_get(dev, "sys_ck");
+	if (IS_ERR(mtk->sys_clk)) {
+		dev_err(dev, "fail to get sys_ck\n");
+		return PTR_ERR(mtk->sys_clk);
+	}
+
+	mtk->ref_clk = optional_clk_get(dev, "ref_ck");
+	if (IS_ERR(mtk->ref_clk))
+		return PTR_ERR(mtk->ref_clk);
+
+	mtk->mcu_clk = optional_clk_get(dev, "mcu_ck");
+	if (IS_ERR(mtk->mcu_clk))
+		return PTR_ERR(mtk->mcu_clk);
+
+	mtk->dma_clk = optional_clk_get(dev, "dma_ck");
+	return PTR_ERR_OR_ZERO(mtk->dma_clk);
+}
+
 static int xhci_mtk_clks_enable(struct xhci_hcd_mtk *mtk)
 {
 	int ret;
@@ -224,37 +263,34 @@ static int xhci_mtk_clks_enable(struct xhci_hcd_mtk *mtk)
 		goto sys_clk_err;
 	}
 
-	if (mtk->wakeup_src) {
-		ret = clk_prepare_enable(mtk->wk_deb_p0);
-		if (ret) {
-			dev_err(mtk->dev, "failed to enable wk_deb_p0\n");
-			goto usb_p0_err;
-		}
-
-		ret = clk_prepare_enable(mtk->wk_deb_p1);
-		if (ret) {
-			dev_err(mtk->dev, "failed to enable wk_deb_p1\n");
-			goto usb_p1_err;
-		}
+	ret = clk_prepare_enable(mtk->mcu_clk);
+	if (ret) {
+		dev_err(mtk->dev, "failed to enable mcu_clk\n");
+		goto mcu_clk_err;
 	}
+
+	ret = clk_prepare_enable(mtk->dma_clk);
+	if (ret) {
+		dev_err(mtk->dev, "failed to enable dma_clk\n");
+		goto dma_clk_err;
+	}
+
 	return 0;
 
-usb_p1_err:
-	clk_disable_unprepare(mtk->wk_deb_p0);
-usb_p0_err:
+dma_clk_err:
+	clk_disable_unprepare(mtk->mcu_clk);
+mcu_clk_err:
 	clk_disable_unprepare(mtk->sys_clk);
 sys_clk_err:
 	clk_disable_unprepare(mtk->ref_clk);
 ref_clk_err:
-	return -EINVAL;
+	return ret;
 }
 
 static void xhci_mtk_clks_disable(struct xhci_hcd_mtk *mtk)
 {
-	if (mtk->wakeup_src) {
-		clk_disable_unprepare(mtk->wk_deb_p1);
-		clk_disable_unprepare(mtk->wk_deb_p0);
-	}
+	clk_disable_unprepare(mtk->dma_clk);
+	clk_disable_unprepare(mtk->mcu_clk);
 	clk_disable_unprepare(mtk->sys_clk);
 	clk_disable_unprepare(mtk->ref_clk);
 }
@@ -357,18 +393,6 @@ static int usb_wakeup_of_property_parse(struct xhci_hcd_mtk *mtk,
 	of_property_read_u32(dn, "mediatek,wakeup-src", &mtk->wakeup_src);
 	if (!mtk->wakeup_src)
 		return 0;
-
-	mtk->wk_deb_p0 = devm_clk_get(dev, "wakeup_deb_p0");
-	if (IS_ERR(mtk->wk_deb_p0)) {
-		dev_err(dev, "fail to get wakeup_deb_p0\n");
-		return PTR_ERR(mtk->wk_deb_p0);
-	}
-
-	mtk->wk_deb_p1 = devm_clk_get(dev, "wakeup_deb_p1");
-	if (IS_ERR(mtk->wk_deb_p1)) {
-		dev_err(dev, "fail to get wakeup_deb_p1\n");
-		return PTR_ERR(mtk->wk_deb_p1);
-	}
 
 	mtk->pericfg = syscon_regmap_lookup_by_phandle(dn,
 						"mediatek,syscon-wakeup");
@@ -492,7 +516,6 @@ static void xhci_mtk_quirks(struct device *dev, struct xhci_hcd *xhci)
 /* called during probe() after chip reset completes */
 static int xhci_mtk_setup(struct usb_hcd *hcd)
 {
-	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	struct xhci_hcd_mtk *mtk = hcd_to_mtk(hcd);
 	int ret;
 
@@ -507,8 +530,6 @@ static int xhci_mtk_setup(struct usb_hcd *hcd)
 		return ret;
 
 	if (usb_hcd_is_primary_hcd(hcd)) {
-		mtk->num_u3_ports = xhci->num_usb3_ports;
-		mtk->num_u2_ports = xhci->num_usb2_ports;
 		ret = xhci_mtk_sch_init(mtk);
 		if (ret)
 			return ret;
@@ -552,26 +573,14 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 		return PTR_ERR(mtk->vusb33);
 	}
 
-	mtk->sys_clk = devm_clk_get(dev, "sys_ck");
-	if (IS_ERR(mtk->sys_clk)) {
-		dev_err(dev, "fail to get sys_ck\n");
-		return PTR_ERR(mtk->sys_clk);
-	}
-
-	/*
-	 * reference clock is usually a "fixed-clock", make it optional
-	 * for backward compatibility and ignore the error if it does
-	 * not exist.
-	 */
-	mtk->ref_clk = devm_clk_get(dev, "ref_ck");
-	if (IS_ERR(mtk->ref_clk)) {
-		if (PTR_ERR(mtk->ref_clk) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-
-		mtk->ref_clk = NULL;
-	}
+	ret = xhci_mtk_clks_get(mtk);
+	if (ret)
+		return ret;
 
 	mtk->lpm_support = of_property_read_bool(node, "usb3-lpm-capable");
+	/* optional property, ignore the error if it does not exist */
+	of_property_read_u32(node, "mediatek,u3p-dis-msk",
+			     &mtk->u3p_dis_msk);
 
 	ret = usb_wakeup_of_property_parse(mtk, node);
 	if (ret)
@@ -606,14 +615,9 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize dma_mask and coherent_dma_mask to 32-bits */
-	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (ret)
 		goto disable_clk;
-
-	if (!dev->dma_mask)
-		dev->dma_mask = &dev->coherent_dma_mask;
-	else
-		dma_set_mask(dev, DMA_BIT_MASK(32));
 
 	hcd = usb_create_hcd(driver, dev, dev_name(dev));
 	if (!hcd) {

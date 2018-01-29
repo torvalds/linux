@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ISP1362 HCD (Host Controller Driver) for USB.
  *
@@ -712,7 +713,7 @@ static inline void enable_istl_transfers(struct isp1362_hcd *isp1362_hcd, int fl
 static int submit_req(struct isp1362_hcd *isp1362_hcd, struct urb *urb,
 		      struct isp1362_ep *ep, struct isp1362_ep_queue *epq)
 {
-	int index = epq->free_ptd;
+	int index;
 
 	prepare_ptd(isp1362_hcd, urb, ep, epq, 0);
 	index = claim_ptd_buffers(epq, ep, ep->length);
@@ -1578,6 +1579,7 @@ static int isp1362_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			spin_lock_irqsave(&isp1362_hcd->lock, flags);
 			isp1362_write_reg32(isp1362_hcd, HCRHSTATUS, RH_HS_OCIC);
 			spin_unlock_irqrestore(&isp1362_hcd->lock, flags);
+			break;
 		case C_HUB_LOCAL_POWER:
 			DBG(0, "C_HUB_LOCAL_POWER\n");
 			break;
@@ -2251,7 +2253,6 @@ static int isp1362_mem_config(struct usb_hcd *hcd)
 		return -ENOMEM;
 	}
 
-	total = istl_size + intl_size + atl_size;
 	spin_lock_irqsave(&isp1362_hcd->lock, flags);
 
 	for (i = 0; i < 2; i++) {

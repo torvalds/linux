@@ -22,7 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/notifier.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/regmap.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>

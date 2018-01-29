@@ -263,7 +263,7 @@ salinfo_timeout_check(struct salinfo_data *data)
 }
 
 static void
-salinfo_timeout (unsigned long arg)
+salinfo_timeout(struct timer_list *unused)
 {
 	ia64_mlogbuf_dump();
 	salinfo_timeout_check(salinfo_data + SAL_INFO_TYPE_MCA);
@@ -623,9 +623,8 @@ salinfo_init(void)
 
 	*sdir++ = salinfo_dir;
 
-	init_timer(&salinfo_timer);
+	timer_setup(&salinfo_timer, salinfo_timeout, 0);
 	salinfo_timer.expires = jiffies + SALINFO_TIMER_DELAY;
-	salinfo_timer.function = &salinfo_timeout;
 	add_timer(&salinfo_timer);
 
 	i = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "ia64/salinfo:online",

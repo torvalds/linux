@@ -99,7 +99,7 @@ nvbios_iccsense_parse(struct nvkm_bios *bios, struct nvbios_iccsense *iccsense)
 			rail->extdev_id = nvbios_rd08(bios, entry + 0x1);
 			res_start = 0x5;
 			break;
-		};
+		}
 
 		if (nvbios_extdev_parse(bios, rail->extdev_id, &extdev))
 			continue;
@@ -115,7 +115,7 @@ nvbios_iccsense_parse(struct nvkm_bios *bios, struct nvbios_iccsense *iccsense)
 		default:
 			rail->resistor_count = 0;
 			break;
-		};
+		}
 
 		for (r = 0; r < rail->resistor_count; ++r) {
 			rail->resistors[r].mohm = nvbios_rd08(bios, entry + res_start + r * 2);

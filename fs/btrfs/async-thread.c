@@ -67,7 +67,7 @@ struct btrfs_workqueue {
 static void normal_work_helper(struct btrfs_work *work);
 
 #define BTRFS_WORK_HELPER(name)					\
-void btrfs_##name(struct work_struct *arg)				\
+noinline_for_stack void btrfs_##name(struct work_struct *arg)		\
 {									\
 	struct btrfs_work *work = container_of(arg, struct btrfs_work,	\
 					       normal_work);		\

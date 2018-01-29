@@ -10,7 +10,9 @@
 #define __ASM_CPUFEATURE_H
 
 #include <asm/cpucaps.h>
+#include <asm/fpsimd.h>
 #include <asm/hwcap.h>
+#include <asm/sigcontext.h>
 #include <asm/sysreg.h>
 
 /*
@@ -57,6 +59,9 @@ enum ftr_type {
 
 #define FTR_VISIBLE	true	/* Feature visible to the user space */
 #define FTR_HIDDEN	false	/* Feature is hidden from the user */
+
+#define FTR_VISIBLE_IF_IS_ENABLED(config)		\
+	(IS_ENABLED(config) ? FTR_VISIBLE : FTR_HIDDEN)
 
 struct arm64_ftr_bits {
 	bool		sign;	/* Value is signed ? */
@@ -223,6 +228,13 @@ static inline bool id_aa64pfr0_32bit_el0(u64 pfr0)
 	return val == ID_AA64PFR0_EL0_32BIT_64BIT;
 }
 
+static inline bool id_aa64pfr0_sve(u64 pfr0)
+{
+	u32 val = cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_SVE_SHIFT);
+
+	return val > 0;
+}
+
 void __init setup_cpu_features(void);
 
 void update_cpu_capabilities(const struct arm64_cpu_capabilities *caps,
@@ -260,6 +272,39 @@ static inline bool system_uses_ttbr0_pan(void)
 {
 	return IS_ENABLED(CONFIG_ARM64_SW_TTBR0_PAN) &&
 		!cpus_have_const_cap(ARM64_HAS_PAN);
+}
+
+static inline bool system_supports_sve(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_SVE) &&
+		cpus_have_const_cap(ARM64_SVE);
+}
+
+/*
+ * Read the pseudo-ZCR used by cpufeatures to identify the supported SVE
+ * vector length.
+ *
+ * Use only if SVE is present.
+ * This function clobbers the SVE vector length.
+ */
+static inline u64 read_zcr_features(void)
+{
+	u64 zcr;
+	unsigned int vq_max;
+
+	/*
+	 * Set the maximum possible VL, and write zeroes to all other
+	 * bits to see if they stick.
+	 */
+	sve_kernel_enable(NULL);
+	write_sysreg_s(ZCR_ELx_LEN_MASK, SYS_ZCR_EL1);
+
+	zcr = read_sysreg_s(SYS_ZCR_EL1);
+	zcr &= ~(u64)ZCR_ELx_LEN_MASK; /* find sticky 1s outside LEN field */
+	vq_max = sve_vq_from_vl(sve_get_vl());
+	zcr |= vq_max - 1; /* set LEN field to maximum effective value */
+
+	return zcr;
 }
 
 #endif /* __ASSEMBLY__ */

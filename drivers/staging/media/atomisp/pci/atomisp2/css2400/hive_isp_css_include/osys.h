@@ -30,18 +30,17 @@
  *
  */
 
-#include "storage_class.h"
 
 #include "system_local.h"
 #include "osys_local.h"
 
 #ifndef __INLINE_OSYS__
-#define STORAGE_CLASS_OSYS_H STORAGE_CLASS_EXTERN
+#define STORAGE_CLASS_OSYS_H extern
 #define STORAGE_CLASS_OSYS_C
 #include "osys_public.h"
 #else  /* __INLINE_OSYS__ */
-#define STORAGE_CLASS_OSYS_H STORAGE_CLASS_INLINE
-#define STORAGE_CLASS_OSYS_C STORAGE_CLASS_INLINE
+#define STORAGE_CLASS_OSYS_H static inline
+#define STORAGE_CLASS_OSYS_C static inline
 #include "osys_private.h"
 #endif /* __INLINE_OSYS__ */
 

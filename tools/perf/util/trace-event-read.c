@@ -27,7 +27,6 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
-#include <pthread.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>

@@ -17,33 +17,33 @@
 
 #include "isp/kernels/ctc/ctc_1.0/ia_css_ctc_types.h"  /* FIXME: needed for ia_css_vamem_type */
 
-/** @file
+/* @file
 * CSS-API header file for Gamma Correction parameters.
 */
 
-/** sRGB Gamma table, used for sRGB Gamma Correction.
+/* sRGB Gamma table, used for sRGB Gamma Correction.
  *
  *  ISP block: GC2 (sRGB Gamma Correction)
  * (ISP1: GC1(YUV Gamma Correction) is used.)
  *  ISP2: GC2 is used.
  */
 
-/** Number of elements in the sRGB gamma table. */
+/* Number of elements in the sRGB gamma table. */
 #define IA_CSS_VAMEM_1_RGB_GAMMA_TABLE_SIZE_LOG2 8
 #define IA_CSS_VAMEM_1_RGB_GAMMA_TABLE_SIZE      (1U<<IA_CSS_VAMEM_1_RGB_GAMMA_TABLE_SIZE_LOG2)
 
-/** Number of elements in the sRGB gamma table. */
+/* Number of elements in the sRGB gamma table. */
 #define IA_CSS_VAMEM_2_RGB_GAMMA_TABLE_SIZE_LOG2    8
 #define IA_CSS_VAMEM_2_RGB_GAMMA_TABLE_SIZE     ((1U<<IA_CSS_VAMEM_2_RGB_GAMMA_TABLE_SIZE_LOG2) + 1)
 
-/**< IA_CSS_VAMEM_TYPE_1(ISP2300) or
+/** IA_CSS_VAMEM_TYPE_1(ISP2300) or
      IA_CSS_VAMEM_TYPE_2(ISP2400) */
 union ia_css_rgb_gamma_data {
 	uint16_t vamem_1[IA_CSS_VAMEM_1_RGB_GAMMA_TABLE_SIZE];
-	/**< RGB Gamma table on vamem type1. This table is not used,
+	/** RGB Gamma table on vamem type1. This table is not used,
 		because sRGB Gamma Correction is not implemented for ISP2300. */
 	uint16_t vamem_2[IA_CSS_VAMEM_2_RGB_GAMMA_TABLE_SIZE];
-		/**< RGB Gamma table on vamem type2. u0.12, [0,4095] */
+		/** RGB Gamma table on vamem type2. u0.12, [0,4095] */
 };
 
 struct ia_css_rgb_gamma_table {

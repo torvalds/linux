@@ -15,7 +15,7 @@
 #ifndef __IA_CSS_VF_TYPES_H
 #define __IA_CSS_VF_TYPES_H
 
-/** Viewfinder decimation
+/* Viewfinder decimation
  *
  *  ISP block: vfeven_horizontal_downscale
  */
@@ -24,7 +24,7 @@
 #include <type_support.h>
 
 struct ia_css_vf_configuration {
-	uint32_t vf_downscale_bits; /**< Log VF downscale value */
+	uint32_t vf_downscale_bits; /** Log VF downscale value */
 	const struct ia_css_frame_info *info;
 };
 

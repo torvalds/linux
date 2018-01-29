@@ -159,7 +159,7 @@ void ath9k_wmi_event_tasklet(unsigned long data)
 
 		switch (cmd_id) {
 		case WMI_SWBA_EVENTID:
-			swba = (struct wmi_event_swba *) wmi_event;
+			swba = wmi_event;
 			ath9k_htc_swba(priv, swba);
 			break;
 		case WMI_FATAL_EVENTID:
@@ -207,7 +207,7 @@ static void ath9k_wmi_rsp_callback(struct wmi *wmi, struct sk_buff *skb)
 static void ath9k_wmi_ctrl_rx(void *priv, struct sk_buff *skb,
 			      enum htc_endpoint_id epid)
 {
-	struct wmi *wmi = (struct wmi *) priv;
+	struct wmi *wmi = priv;
 	struct wmi_cmd_hdr *hdr;
 	u16 cmd_id;
 

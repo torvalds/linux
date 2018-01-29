@@ -307,7 +307,7 @@ variety of potential coding problems; it can also propose fixes for those
 problems.  Quite a few "semantic patches" for the kernel have been packaged
 under the scripts/coccinelle directory; running "make coccicheck" will run
 through those semantic patches and report on any problems found.  See
-Documentation/coccinelle.txt for more information.
+Documentation/dev-tools/coccinelle.rst for more information.
 
 Other kinds of portability errors are best found by compiling your code for
 other architectures.  If you do not happen to have an S/390 system or a

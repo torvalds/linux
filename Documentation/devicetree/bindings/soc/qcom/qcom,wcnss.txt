@@ -37,6 +37,11 @@ The following properties are defined to the bluetooth node:
 	Definition: must be:
 		    "qcom,wcnss-bt"
 
+- local-bd-address:
+	Usage: optional
+	Value type: <u8 array>
+	Definition: see Documentation/devicetree/bindings/net/bluetooth.txt
+
 == WiFi
 The following properties are defined to the WiFi node:
 
@@ -91,6 +96,9 @@ smd {
 
 			bt {
 				compatible = "qcom,wcnss-bt";
+
+				/* BD address 00:11:22:33:44:55 */
+				local-bd-address = [ 55 44 33 22 11 00 ];
 			};
 
 			wlan {

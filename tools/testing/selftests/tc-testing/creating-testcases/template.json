@@ -26,7 +26,13 @@
             ""
         ],
         "setup": [
-            ""
+            "",
+	    [
+		"",
+		0,
+		1,
+		255
+	    ]
         ],
         "cmdUnderTest": "",
         "expExitCode": "",
@@ -34,7 +40,12 @@
         "matchPattern": "",
         "matchCount": "",
         "teardown": [
-            ""
+            "",
+	    [
+		"",
+		0,
+		255
+            ]
         ]
     }
 ]

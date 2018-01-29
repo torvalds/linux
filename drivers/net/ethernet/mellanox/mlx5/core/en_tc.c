@@ -90,8 +90,8 @@ enum {
 	MLX5_HEADER_TYPE_NVGRE = 0x1,
 };
 
-#define MLX5E_TC_TABLE_NUM_ENTRIES 1024
 #define MLX5E_TC_TABLE_NUM_GROUPS 4
+#define MLX5E_TC_TABLE_MAX_GROUP_SIZE (1 << 16)
 
 struct mod_hdr_key {
 	int num_actions;
@@ -263,10 +263,21 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 	}
 
 	if (IS_ERR_OR_NULL(priv->fs.tc.t)) {
+		int tc_grp_size, tc_tbl_size;
+		u32 max_flow_counter;
+
+		max_flow_counter = (MLX5_CAP_GEN(dev, max_flow_counter_31_16) << 16) |
+				    MLX5_CAP_GEN(dev, max_flow_counter_15_0);
+
+		tc_grp_size = min_t(int, max_flow_counter, MLX5E_TC_TABLE_MAX_GROUP_SIZE);
+
+		tc_tbl_size = min_t(int, tc_grp_size * MLX5E_TC_TABLE_NUM_GROUPS,
+				    BIT(MLX5_CAP_FLOWTABLE_NIC_RX(dev, log_max_ft_size)));
+
 		priv->fs.tc.t =
 			mlx5_create_auto_grouped_flow_table(priv->fs.ns,
 							    MLX5E_TC_PRIO,
-							    MLX5E_TC_TABLE_NUM_ENTRIES,
+							    tc_tbl_size,
 							    MLX5E_TC_TABLE_NUM_GROUPS,
 							    0, 0);
 		if (IS_ERR(priv->fs.tc.t)) {

@@ -102,7 +102,7 @@ static int check_free_space(struct bsd_acct_struct *acct)
 {
 	struct kstatfs sbuf;
 
-	if (time_is_before_jiffies(acct->needcheck))
+	if (time_is_after_jiffies(acct->needcheck))
 		goto out;
 
 	/* May block */
@@ -147,7 +147,7 @@ static struct bsd_acct_struct *acct_get(struct pid_namespace *ns)
 again:
 	smp_rmb();
 	rcu_read_lock();
-	res = to_acct(ACCESS_ONCE(ns->bacct));
+	res = to_acct(READ_ONCE(ns->bacct));
 	if (!res) {
 		rcu_read_unlock();
 		return NULL;
@@ -159,7 +159,7 @@ again:
 	}
 	rcu_read_unlock();
 	mutex_lock(&res->lock);
-	if (res != to_acct(ACCESS_ONCE(ns->bacct))) {
+	if (res != to_acct(READ_ONCE(ns->bacct))) {
 		mutex_unlock(&res->lock);
 		acct_put(res);
 		goto again;

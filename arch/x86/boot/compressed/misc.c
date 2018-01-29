@@ -169,6 +169,16 @@ void __puthex(unsigned long value)
 	}
 }
 
+static bool l5_supported(void)
+{
+	/* Check if leaf 7 is supported. */
+	if (native_cpuid_eax(0) < 7)
+		return 0;
+
+	/* Check if la57 is supported. */
+	return native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31));
+}
+
 #if CONFIG_X86_NEED_RELOCS
 static void handle_relocations(void *output, unsigned long output_len,
 			       unsigned long virt_addr)
@@ -361,6 +371,12 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 
 	console_init();
 	debug_putstr("early console in extract_kernel\n");
+
+	if (IS_ENABLED(CONFIG_X86_5LEVEL) && !l5_supported()) {
+		error("This linux kernel as configured requires 5-level paging\n"
+			"This CPU does not support the required 'cr4.la57' feature\n"
+			"Unable to boot - please use a kernel appropriate for your CPU\n");
+	}
 
 	free_mem_ptr     = heap;	/* Heap */
 	free_mem_end_ptr = heap + BOOT_HEAP_SIZE;

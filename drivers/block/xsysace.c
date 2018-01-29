@@ -770,9 +770,9 @@ static void ace_fsm_tasklet(unsigned long data)
 	spin_unlock_irqrestore(&ace->lock, flags);
 }
 
-static void ace_stall_timer(unsigned long data)
+static void ace_stall_timer(struct timer_list *t)
 {
-	struct ace_device *ace = (void *)data;
+	struct ace_device *ace = from_timer(ace, t, stall_timer);
 	unsigned long flags;
 
 	dev_warn(ace->dev,
@@ -984,7 +984,7 @@ static int ace_setup(struct ace_device *ace)
 	 * Initialize the state machine tasklet and stall timer
 	 */
 	tasklet_init(&ace->fsm_tasklet, ace_fsm_tasklet, (unsigned long)ace);
-	setup_timer(&ace->stall_timer, ace_stall_timer, (unsigned long)ace);
+	timer_setup(&ace->stall_timer, ace_stall_timer, 0);
 
 	/*
 	 * Initialize the request queue

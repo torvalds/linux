@@ -669,12 +669,47 @@ static void i40evf_get_channels(struct net_device *netdev,
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
 	/* Report maximum channels */
-	ch->max_combined = adapter->num_active_queues;
+	ch->max_combined = I40EVF_MAX_REQ_QUEUES;
 
 	ch->max_other = NONQ_VECS;
 	ch->other_count = NONQ_VECS;
 
 	ch->combined_count = adapter->num_active_queues;
+}
+
+/**
+ * i40evf_set_channels: set the new channel count
+ * @netdev: network interface device structure
+ * @ch: channel information structure
+ *
+ * Negotiate a new number of channels with the PF then do a reset.  During
+ * reset we'll realloc queues and fix the RSS table.  Returns 0 on success,
+ * negative on failure.
+ **/
+static int i40evf_set_channels(struct net_device *netdev,
+			       struct ethtool_channels *ch)
+{
+	struct i40evf_adapter *adapter = netdev_priv(netdev);
+	int num_req = ch->combined_count;
+
+	if (num_req != adapter->num_active_queues &&
+	    !(adapter->vf_res->vf_cap_flags &
+	      VIRTCHNL_VF_OFFLOAD_REQ_QUEUES)) {
+		dev_info(&adapter->pdev->dev, "PF is not capable of queue negotiation.\n");
+		return -EINVAL;
+	}
+
+	/* All of these should have already been checked by ethtool before this
+	 * even gets to us, but just to be sure.
+	 */
+	if (num_req <= 0 || num_req > I40EVF_MAX_REQ_QUEUES)
+		return -EINVAL;
+
+	if (ch->rx_count || ch->tx_count || ch->other_count != NONQ_VECS)
+		return -EINVAL;
+
+	adapter->num_req_queues = num_req;
+	return i40evf_request_queues(adapter, num_req);
 }
 
 /**
@@ -785,6 +820,7 @@ static const struct ethtool_ops i40evf_ethtool_ops = {
 	.get_rxfh		= i40evf_get_rxfh,
 	.set_rxfh		= i40evf_set_rxfh,
 	.get_channels		= i40evf_get_channels,
+	.set_channels		= i40evf_set_channels,
 	.get_rxfh_key_size	= i40evf_get_rxfh_key_size,
 	.get_link_ksettings	= i40evf_get_link_ksettings,
 };

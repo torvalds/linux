@@ -87,7 +87,7 @@ static inline struct netlbl_af4list *__af4list_valid_rcu(struct list_head *s,
 	struct list_head *i = s;
 	struct netlbl_af4list *n = __af4list_entry(s);
 	while (i != h && !n->valid) {
-		i = rcu_dereference(i->next);
+		i = rcu_dereference(list_next_rcu(i));
 		n = __af4list_entry(i);
 	}
 	return n;
@@ -154,7 +154,7 @@ static inline struct netlbl_af6list *__af6list_valid_rcu(struct list_head *s,
 	struct list_head *i = s;
 	struct netlbl_af6list *n = __af6list_entry(s);
 	while (i != h && !n->valid) {
-		i = rcu_dereference(i->next);
+		i = rcu_dereference(list_next_rcu(i));
 		n = __af6list_entry(i);
 	}
 	return n;
