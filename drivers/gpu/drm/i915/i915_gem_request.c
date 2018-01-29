@@ -537,6 +537,8 @@ void __i915_gem_request_unsubmit(struct drm_i915_gem_request *request)
 	 */
 	GEM_BUG_ON(!request->global_seqno);
 	GEM_BUG_ON(request->global_seqno != engine->timeline->seqno);
+	GEM_BUG_ON(i915_seqno_passed(intel_engine_get_seqno(engine),
+				     request->global_seqno));
 	engine->timeline->seqno--;
 
 	/* We may be recursing from the signal callback of another i915 fence */
