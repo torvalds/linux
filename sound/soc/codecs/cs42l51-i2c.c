@@ -35,20 +35,12 @@ static int cs42l51_i2c_probe(struct i2c_client *i2c,
 	return cs42l51_probe(&i2c->dev, devm_regmap_init_i2c(i2c, &config));
 }
 
-static int cs42l51_i2c_remove(struct i2c_client *i2c)
-{
-	snd_soc_unregister_codec(&i2c->dev);
-
-	return 0;
-}
-
 static struct i2c_driver cs42l51_i2c_driver = {
 	.driver = {
 		.name = "cs42l51",
 		.of_match_table = cs42l51_of_match,
 	},
 	.probe = cs42l51_i2c_probe,
-	.remove = cs42l51_i2c_remove,
 	.id_table = cs42l51_i2c_id,
 };
 
