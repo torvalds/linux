@@ -2036,21 +2036,6 @@ static inline void inode_dec_link_count(struct inode *inode)
 	mark_inode_dirty(inode);
 }
 
-/**
- * inode_inc_iversion - increments i_version
- * @inode: inode that need to be updated
- *
- * Every time the inode is modified, the i_version field will be incremented.
- * The filesystem has to be mounted with i_version flag
- */
-
-static inline void inode_inc_iversion(struct inode *inode)
-{
-       spin_lock(&inode->i_lock);
-       inode->i_version++;
-       spin_unlock(&inode->i_lock);
-}
-
 enum file_time_flags {
 	S_ATIME = 1,
 	S_MTIME = 2,
