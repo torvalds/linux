@@ -21,7 +21,7 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/mfd/rtsx_pci.h>
+#include <linux/rtsx_pci.h>
 
 #include "rtsx_pcr.h"
 

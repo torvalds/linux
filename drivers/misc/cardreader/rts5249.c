@@ -21,7 +21,7 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/mfd/rtsx_pci.h>
+#include <linux/rtsx_pci.h>
 
 #include "rtsx_pcr.h"
 
@@ -738,4 +738,3 @@ void rts525a_init_params(struct rtsx_pcr *pcr)
 	pcr->reg_pm_ctrl3 = RTS524A_PM_CTRL3;
 	pcr->ops = &rts525a_pcr_ops;
 }
-

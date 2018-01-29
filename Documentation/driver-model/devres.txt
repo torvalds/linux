@@ -384,6 +384,9 @@ RESET
   devm_reset_control_get()
   devm_reset_controller_register()
 
+SERDEV
+  devm_serdev_device_open()
+
 SLAVE DMA ENGINE
   devm_acpi_dma_controller_register()
 
