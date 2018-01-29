@@ -2512,10 +2512,10 @@ static int kdb_kill(int argc, const char **argv)
  */
 static void kdb_sysinfo(struct sysinfo *val)
 {
-	struct timespec uptime;
-	ktime_get_ts(&uptime);
+	u64 uptime = ktime_get_mono_fast_ns();
+
 	memset(val, 0, sizeof(*val));
-	val->uptime = uptime.tv_sec;
+	val->uptime = div_u64(uptime, NSEC_PER_SEC);
 	val->loads[0] = avenrun[0];
 	val->loads[1] = avenrun[1];
 	val->loads[2] = avenrun[2];
