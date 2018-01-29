@@ -1207,6 +1207,69 @@ static ssize_t amdgpu_hwmon_show_power_avg(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%u\n", uw);
 }
 
+static ssize_t amdgpu_hwmon_show_power_cap_min(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	return sprintf(buf, "%i\n", 0);
+}
+
+static ssize_t amdgpu_hwmon_show_power_cap_max(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	uint32_t limit = 0;
+
+	if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->get_power_limit) {
+		adev->powerplay.pp_funcs->get_power_limit(adev->powerplay.pp_handle, &limit, true);
+		return snprintf(buf, PAGE_SIZE, "%u\n", limit * 1000000);
+	} else {
+		return snprintf(buf, PAGE_SIZE, "\n");
+	}
+}
+
+static ssize_t amdgpu_hwmon_show_power_cap(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	uint32_t limit = 0;
+
+	if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->get_power_limit) {
+		adev->powerplay.pp_funcs->get_power_limit(adev->powerplay.pp_handle, &limit, false);
+		return snprintf(buf, PAGE_SIZE, "%u\n", limit * 1000000);
+	} else {
+		return snprintf(buf, PAGE_SIZE, "\n");
+	}
+}
+
+
+static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf,
+		size_t count)
+{
+	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	int err;
+	u32 value;
+
+	err = kstrtou32(buf, 10, &value);
+	if (err)
+		return err;
+
+	value = value / 1000000; /* convert to Watt */
+	if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->set_power_limit) {
+		err = adev->powerplay.pp_funcs->set_power_limit(adev->powerplay.pp_handle, value);
+		if (err)
+			return err;
+	} else {
+		return -EINVAL;
+	}
+
+	return count;
+}
+
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, amdgpu_hwmon_show_temp, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, amdgpu_hwmon_show_temp_thresh, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IRUGO, amdgpu_hwmon_show_temp_thresh, NULL, 1);
@@ -1220,6 +1283,9 @@ static SENSOR_DEVICE_ATTR(in0_label, S_IRUGO, amdgpu_hwmon_show_vddgfx_label, NU
 static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, amdgpu_hwmon_show_vddnb, NULL, 0);
 static SENSOR_DEVICE_ATTR(in1_label, S_IRUGO, amdgpu_hwmon_show_vddnb_label, NULL, 0);
 static SENSOR_DEVICE_ATTR(power1_average, S_IRUGO, amdgpu_hwmon_show_power_avg, NULL, 0);
+static SENSOR_DEVICE_ATTR(power1_cap_max, S_IRUGO, amdgpu_hwmon_show_power_cap_max, NULL, 0);
+static SENSOR_DEVICE_ATTR(power1_cap_min, S_IRUGO, amdgpu_hwmon_show_power_cap_min, NULL, 0);
+static SENSOR_DEVICE_ATTR(power1_cap, S_IRUGO | S_IWUSR, amdgpu_hwmon_show_power_cap, amdgpu_hwmon_set_power_cap, 0);
 
 static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -1235,6 +1301,9 @@ static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_in1_input.dev_attr.attr,
 	&sensor_dev_attr_in1_label.dev_attr.attr,
 	&sensor_dev_attr_power1_average.dev_attr.attr,
+	&sensor_dev_attr_power1_cap_max.dev_attr.attr,
+	&sensor_dev_attr_power1_cap_min.dev_attr.attr,
+	&sensor_dev_attr_power1_cap.dev_attr.attr,
 	NULL
 };
 
@@ -1281,6 +1350,12 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	    (!adev->powerplay.pp_funcs->set_fan_control_mode &&
 	     attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr)) /* can't manage state */
 		effective_mode &= ~S_IWUSR;
+
+	if ((adev->flags & AMD_IS_APU) &&
+	    (attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
+	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr||
+	     attr == &sensor_dev_attr_power1_cap.dev_attr.attr))
+		return 0;
 
 	/* hide max/min values if we can't both query and manage the fan */
 	if ((!adev->powerplay.pp_funcs->set_fan_speed_percent &&
