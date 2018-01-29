@@ -5671,6 +5671,8 @@ enum intel_display_power_domain intel_port_to_power_domain(enum port port)
 		return POWER_DOMAIN_PORT_DDI_D_LANES;
 	case PORT_E:
 		return POWER_DOMAIN_PORT_DDI_E_LANES;
+	case PORT_F:
+		return POWER_DOMAIN_PORT_DDI_F_LANES;
 	default:
 		MISSING_CASE(port);
 		return POWER_DOMAIN_PORT_OTHER;
@@ -13624,7 +13626,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		if (found || IS_GEN9_BC(dev_priv))
 			intel_ddi_init(dev_priv, PORT_A);
 
-		/* DDI B, C and D detection is indicated by the SFUSE_STRAP
+		/* DDI B, C, D, and F detection is indicated by the SFUSE_STRAP
 		 * register */
 		found = I915_READ(SFUSE_STRAP);
 
@@ -13634,6 +13636,8 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 			intel_ddi_init(dev_priv, PORT_C);
 		if (found & SFUSE_STRAP_DDID_DETECTED)
 			intel_ddi_init(dev_priv, PORT_D);
+		if (found & SFUSE_STRAP_DDIF_DETECTED)
+			intel_ddi_init(dev_priv, PORT_F);
 		/*
 		 * On SKL we don't have a way to detect DDI-E so we rely on VBT.
 		 */

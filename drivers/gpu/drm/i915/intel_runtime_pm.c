@@ -94,6 +94,8 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 		return "PORT_DDI_D_LANES";
 	case POWER_DOMAIN_PORT_DDI_E_LANES:
 		return "PORT_DDI_E_LANES";
+	case POWER_DOMAIN_PORT_DDI_F_LANES:
+		return "PORT_DDI_F_LANES";
 	case POWER_DOMAIN_PORT_DDI_A_IO:
 		return "PORT_DDI_A_IO";
 	case POWER_DOMAIN_PORT_DDI_B_IO:
@@ -104,6 +106,8 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 		return "PORT_DDI_D_IO";
 	case POWER_DOMAIN_PORT_DDI_E_IO:
 		return "PORT_DDI_E_IO";
+	case POWER_DOMAIN_PORT_DDI_F_IO:
+		return "PORT_DDI_F_IO";
 	case POWER_DOMAIN_PORT_DSI:
 		return "PORT_DSI";
 	case POWER_DOMAIN_PORT_CRT:
@@ -1827,6 +1831,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
 	BIT_ULL(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
 	BIT_ULL(POWER_DOMAIN_PORT_DDI_D_LANES) |		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_F_LANES) |		\
 	BIT_ULL(POWER_DOMAIN_AUX_B) |                       \
 	BIT_ULL(POWER_DOMAIN_AUX_C) |			\
 	BIT_ULL(POWER_DOMAIN_AUX_D) |			\
@@ -1860,6 +1865,9 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_INIT))
 #define CNL_DISPLAY_AUX_F_POWER_DOMAINS (		\
 	BIT_ULL(POWER_DOMAIN_AUX_F) |			\
+	BIT_ULL(POWER_DOMAIN_INIT))
+#define CNL_DISPLAY_DDI_F_IO_POWER_DOMAINS (		\
+	BIT_ULL(POWER_DOMAIN_PORT_DDI_F_IO) |		\
 	BIT_ULL(POWER_DOMAIN_INIT))
 #define CNL_DISPLAY_DC_OFF_POWER_DOMAINS (		\
 	CNL_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
@@ -2412,6 +2420,12 @@ static struct i915_power_well cnl_power_wells[] = {
 		.id = SKL_DISP_PW_DDI_D,
 	},
 	{
+		.name = "DDI F IO power well",
+		.domains = CNL_DISPLAY_DDI_F_IO_POWER_DOMAINS,
+		.ops = &hsw_power_well_ops,
+		.id = CNL_DISP_PW_DDI_F,
+	},
+	{
 		.name = "AUX F",
 		.domains = CNL_DISPLAY_AUX_F_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
@@ -2534,13 +2548,13 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 		set_power_wells(power_domains, cnl_power_wells);
 
 		/*
-		 * Aux IO is getting enabled for all ports
+		 * DDI and Aux IO are getting enabled for all ports
 		 * regardless the presence or use. So, in order to avoid
-		 * timeouts, lets remove it from the list
+		 * timeouts, lets remove them from the list
 		 * for the SKUs without port F.
 		 */
 		if (!IS_CNL_WITH_PORT_F(dev_priv))
-			power_domains->power_well_count -= 1;
+			power_domains->power_well_count -= 2;
 
 	} else if (IS_BROXTON(dev_priv)) {
 		set_power_wells(power_domains, bxt_power_wells);

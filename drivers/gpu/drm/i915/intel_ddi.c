@@ -2910,6 +2910,10 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 		intel_dig_port->ddi_io_power_domain =
 			POWER_DOMAIN_PORT_DDI_E_IO;
 		break;
+	case PORT_F:
+		intel_dig_port->ddi_io_power_domain =
+			POWER_DOMAIN_PORT_DDI_F_IO;
+		break;
 	default:
 		MISSING_CASE(port);
 	}
