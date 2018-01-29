@@ -168,6 +168,7 @@ static struct timespec		ref_time;
 static struct cpu_map		*aggr_map;
 static aggr_get_id_t		aggr_get_id;
 static bool			append_file;
+static bool			interval_count;
 static const char		*output_name;
 static int			output_fd;
 static int			print_free_counters_hint;
@@ -571,6 +572,7 @@ static struct perf_evsel *perf_evsel__reset_weak_group(struct perf_evsel *evsel)
 static int __run_perf_stat(int argc, const char **argv)
 {
 	int interval = stat_config.interval;
+	int times = stat_config.times;
 	char msg[BUFSIZ];
 	unsigned long long t0, t1;
 	struct perf_evsel *counter;
@@ -700,6 +702,8 @@ try_again:
 			while (!waitpid(child_pid, &status, WNOHANG)) {
 				nanosleep(&ts, NULL);
 				process_interval();
+				if (interval_count && !(--times))
+					break;
 			}
 		}
 		waitpid(child_pid, &status, 0);
@@ -716,8 +720,11 @@ try_again:
 		enable_counters();
 		while (!done) {
 			nanosleep(&ts, NULL);
-			if (interval)
+			if (interval) {
 				process_interval();
+				if (interval_count && !(--times))
+					break;
+			}
 		}
 	}
 
@@ -1891,6 +1898,8 @@ static const struct option stat_options[] = {
 			"command to run after to the measured command"),
 	OPT_UINTEGER('I', "interval-print", &stat_config.interval,
 		    "print counts at regular interval in ms (>= 10)"),
+	OPT_INTEGER(0, "interval-count", &stat_config.times,
+		    "print counts for fixed number of times"),
 	OPT_SET_UINT(0, "per-socket", &stat_config.aggr_mode,
 		     "aggregate counts per processor socket", AGGR_SOCKET),
 	OPT_SET_UINT(0, "per-core", &stat_config.aggr_mode,
@@ -2869,6 +2878,15 @@ int cmd_stat(int argc, const char **argv)
 			pr_warning("print interval < 100ms. "
 				   "The overhead percentage could be high in some cases. "
 				   "Please proceed with caution.\n");
+	}
+	if (stat_config.times && interval)
+		interval_count = true;
+	else if (stat_config.times && !interval) {
+		pr_err("interval-count option should be used together with "
+				"interval-print.\n");
+		parse_options_usage(stat_usage, stat_options, "interval-count", 0);
+		parse_options_usage(stat_usage, stat_options, "I", 1);
+		goto out;
 	}
 
 	if (perf_evlist__alloc_stats(evsel_list, interval))
