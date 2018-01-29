@@ -1442,8 +1442,13 @@ int btrfs_qgroup_trace_extent_post(struct btrfs_fs_info *fs_info,
 	int ret;
 
 	ret = btrfs_find_all_roots(NULL, fs_info, bytenr, 0, &old_root, false);
-	if (ret < 0)
-		return ret;
+	if (ret < 0) {
+		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
+		btrfs_warn(fs_info,
+"error accounting new delayed refs extent (err code: %d), quota inconsistent",
+			ret);
+		return 0;
+	}
 
 	/*
 	 * Here we don't need to get the lock of
