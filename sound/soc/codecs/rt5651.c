@@ -384,17 +384,17 @@ static const struct snd_kcontrol_new rt5651_snd_controls[] = {
 static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
 	int idx, rate;
 
 	rate = rt5651->sysclk / rl6231_get_pre_div(rt5651->regmap,
 		RT5651_ADDA_CLK1, RT5651_I2S_PD1_SFT);
 	idx = rl6231_calc_dmic_clk(rate);
 	if (idx < 0)
-		dev_err(codec->dev, "Failed to set DMIC clock\n");
+		dev_err(component->dev, "Failed to set DMIC clock\n");
 	else
-		snd_soc_update_bits(codec, RT5651_DMIC, RT5651_DMIC_CLK_MASK,
+		snd_soc_component_update_bits(component, RT5651_DMIC, RT5651_DMIC_CLK_MASK,
 					idx << RT5651_DMIC_CLK_SFT);
 
 	return idx;
@@ -403,10 +403,10 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 static int is_sysclk_from_pll(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
 	unsigned int val;
 
-	val = snd_soc_read(codec, RT5651_GLB_CLK);
+	val = snd_soc_component_read32(component, RT5651_GLB_CLK);
 	val &= RT5651_SCLK_SRC_MASK;
 	if (val == RT5651_SCLK_SRC_PLL1)
 		return 1;
@@ -703,8 +703,8 @@ static const struct snd_kcontrol_new rt5651_pdm_r_mux =
 static int rt5651_amp_power_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -741,8 +741,8 @@ static int rt5651_amp_power_event(struct snd_soc_dapm_widget *w,
 static int rt5651_hp_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -786,8 +786,8 @@ static int rt5651_hp_post_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
 
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -806,16 +806,16 @@ static int rt5651_hp_post_event(struct snd_soc_dapm_widget *w,
 static int rt5651_bst1_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec, RT5651_PWR_ANLG2,
+		snd_soc_component_update_bits(component, RT5651_PWR_ANLG2,
 			RT5651_PWR_BST1_OP2, RT5651_PWR_BST1_OP2);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(codec, RT5651_PWR_ANLG2,
+		snd_soc_component_update_bits(component, RT5651_PWR_ANLG2,
 			RT5651_PWR_BST1_OP2, 0);
 		break;
 
@@ -829,16 +829,16 @@ static int rt5651_bst1_event(struct snd_soc_dapm_widget *w,
 static int rt5651_bst2_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec, RT5651_PWR_ANLG2,
+		snd_soc_component_update_bits(component, RT5651_PWR_ANLG2,
 			RT5651_PWR_BST2_OP2, RT5651_PWR_BST2_OP2);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(codec, RT5651_PWR_ANLG2,
+		snd_soc_component_update_bits(component, RT5651_PWR_ANLG2,
 			RT5651_PWR_BST2_OP2, 0);
 		break;
 
@@ -852,16 +852,16 @@ static int rt5651_bst2_event(struct snd_soc_dapm_widget *w,
 static int rt5651_bst3_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec, RT5651_PWR_ANLG2,
+		snd_soc_component_update_bits(component, RT5651_PWR_ANLG2,
 			RT5651_PWR_BST3_OP2, RT5651_PWR_BST3_OP2);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(codec, RT5651_PWR_ANLG2,
+		snd_soc_component_update_bits(component, RT5651_PWR_ANLG2,
 			RT5651_PWR_BST3_OP2, 0);
 		break;
 
@@ -1313,8 +1313,8 @@ static const struct snd_soc_dapm_route rt5651_dapm_routes[] = {
 static int rt5651_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
 	unsigned int val_len = 0, val_clk, mask_clk;
 	int pre_div, bclk_ms, frame_size;
 
@@ -1322,12 +1322,12 @@ static int rt5651_hw_params(struct snd_pcm_substream *substream,
 	pre_div = rl6231_get_clk_info(rt5651->sysclk, rt5651->lrck[dai->id]);
 
 	if (pre_div < 0) {
-		dev_err(codec->dev, "Unsupported clock setting\n");
+		dev_err(component->dev, "Unsupported clock setting\n");
 		return -EINVAL;
 	}
 	frame_size = snd_soc_params_to_frame_size(params);
 	if (frame_size < 0) {
-		dev_err(codec->dev, "Unsupported frame size: %d\n", frame_size);
+		dev_err(component->dev, "Unsupported frame size: %d\n", frame_size);
 		return -EINVAL;
 	}
 	bclk_ms = frame_size > 32 ? 1 : 0;
@@ -1358,19 +1358,19 @@ static int rt5651_hw_params(struct snd_pcm_substream *substream,
 	case RT5651_AIF1:
 		mask_clk = RT5651_I2S_PD1_MASK;
 		val_clk = pre_div << RT5651_I2S_PD1_SFT;
-		snd_soc_update_bits(codec, RT5651_I2S1_SDP,
+		snd_soc_component_update_bits(component, RT5651_I2S1_SDP,
 			RT5651_I2S_DL_MASK, val_len);
-		snd_soc_update_bits(codec, RT5651_ADDA_CLK1, mask_clk, val_clk);
+		snd_soc_component_update_bits(component, RT5651_ADDA_CLK1, mask_clk, val_clk);
 		break;
 	case RT5651_AIF2:
 		mask_clk = RT5651_I2S_BCLK_MS2_MASK | RT5651_I2S_PD2_MASK;
 		val_clk = pre_div << RT5651_I2S_PD2_SFT;
-		snd_soc_update_bits(codec, RT5651_I2S2_SDP,
+		snd_soc_component_update_bits(component, RT5651_I2S2_SDP,
 			RT5651_I2S_DL_MASK, val_len);
-		snd_soc_update_bits(codec, RT5651_ADDA_CLK1, mask_clk, val_clk);
+		snd_soc_component_update_bits(component, RT5651_ADDA_CLK1, mask_clk, val_clk);
 		break;
 	default:
-		dev_err(codec->dev, "Wrong dai->id: %d\n", dai->id);
+		dev_err(component->dev, "Wrong dai->id: %d\n", dai->id);
 		return -EINVAL;
 	}
 
@@ -1379,8 +1379,8 @@ static int rt5651_hw_params(struct snd_pcm_substream *substream,
 
 static int rt5651_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
 	unsigned int reg_val = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -1423,17 +1423,17 @@ static int rt5651_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	switch (dai->id) {
 	case RT5651_AIF1:
-		snd_soc_update_bits(codec, RT5651_I2S1_SDP,
+		snd_soc_component_update_bits(component, RT5651_I2S1_SDP,
 			RT5651_I2S_MS_MASK | RT5651_I2S_BP_MASK |
 			RT5651_I2S_DF_MASK, reg_val);
 		break;
 	case RT5651_AIF2:
-		snd_soc_update_bits(codec, RT5651_I2S2_SDP,
+		snd_soc_component_update_bits(component, RT5651_I2S2_SDP,
 			RT5651_I2S_MS_MASK | RT5651_I2S_BP_MASK |
 			RT5651_I2S_DF_MASK, reg_val);
 		break;
 	default:
-		dev_err(codec->dev, "Wrong dai->id: %d\n", dai->id);
+		dev_err(component->dev, "Wrong dai->id: %d\n", dai->id);
 		return -EINVAL;
 	}
 	return 0;
@@ -1442,8 +1442,8 @@ static int rt5651_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 static int rt5651_set_dai_sysclk(struct snd_soc_dai *dai,
 		int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
 	unsigned int reg_val = 0;
 
 	if (freq == rt5651->sysclk && clk_id == rt5651->sysclk_src)
@@ -1460,10 +1460,10 @@ static int rt5651_set_dai_sysclk(struct snd_soc_dai *dai,
 		reg_val |= RT5651_SCLK_SRC_RCCLK;
 		break;
 	default:
-		dev_err(codec->dev, "Invalid clock id (%d)\n", clk_id);
+		dev_err(component->dev, "Invalid clock id (%d)\n", clk_id);
 		return -EINVAL;
 	}
-	snd_soc_update_bits(codec, RT5651_GLB_CLK,
+	snd_soc_component_update_bits(component, RT5651_GLB_CLK,
 		RT5651_SCLK_SRC_MASK, reg_val);
 	rt5651->sysclk = freq;
 	rt5651->sysclk_src = clk_id;
@@ -1476,8 +1476,8 @@ static int rt5651_set_dai_sysclk(struct snd_soc_dai *dai,
 static int rt5651_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 			unsigned int freq_in, unsigned int freq_out)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
 	struct rl6231_pll_code pll_code;
 	int ret;
 
@@ -1486,46 +1486,46 @@ static int rt5651_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		return 0;
 
 	if (!freq_in || !freq_out) {
-		dev_dbg(codec->dev, "PLL disabled\n");
+		dev_dbg(component->dev, "PLL disabled\n");
 
 		rt5651->pll_in = 0;
 		rt5651->pll_out = 0;
-		snd_soc_update_bits(codec, RT5651_GLB_CLK,
+		snd_soc_component_update_bits(component, RT5651_GLB_CLK,
 			RT5651_SCLK_SRC_MASK, RT5651_SCLK_SRC_MCLK);
 		return 0;
 	}
 
 	switch (source) {
 	case RT5651_PLL1_S_MCLK:
-		snd_soc_update_bits(codec, RT5651_GLB_CLK,
+		snd_soc_component_update_bits(component, RT5651_GLB_CLK,
 			RT5651_PLL1_SRC_MASK, RT5651_PLL1_SRC_MCLK);
 		break;
 	case RT5651_PLL1_S_BCLK1:
-		snd_soc_update_bits(codec, RT5651_GLB_CLK,
+		snd_soc_component_update_bits(component, RT5651_GLB_CLK,
 				RT5651_PLL1_SRC_MASK, RT5651_PLL1_SRC_BCLK1);
 		break;
 	case RT5651_PLL1_S_BCLK2:
-			snd_soc_update_bits(codec, RT5651_GLB_CLK,
+			snd_soc_component_update_bits(component, RT5651_GLB_CLK,
 				RT5651_PLL1_SRC_MASK, RT5651_PLL1_SRC_BCLK2);
 		break;
 	default:
-		dev_err(codec->dev, "Unknown PLL source %d\n", source);
+		dev_err(component->dev, "Unknown PLL source %d\n", source);
 		return -EINVAL;
 	}
 
 	ret = rl6231_pll_calc(freq_in, freq_out, &pll_code);
 	if (ret < 0) {
-		dev_err(codec->dev, "Unsupport input clock %d\n", freq_in);
+		dev_err(component->dev, "Unsupport input clock %d\n", freq_in);
 		return ret;
 	}
 
-	dev_dbg(codec->dev, "bypass=%d m=%d n=%d k=%d\n",
+	dev_dbg(component->dev, "bypass=%d m=%d n=%d k=%d\n",
 		pll_code.m_bp, (pll_code.m_bp ? 0 : pll_code.m_code),
 		pll_code.n_code, pll_code.k_code);
 
-	snd_soc_write(codec, RT5651_PLL_CTRL1,
+	snd_soc_component_write(component, RT5651_PLL_CTRL1,
 		pll_code.n_code << RT5651_PLL_N_SFT | pll_code.k_code);
-	snd_soc_write(codec, RT5651_PLL_CTRL2,
+	snd_soc_component_write(component, RT5651_PLL_CTRL2,
 		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5651_PLL_M_SFT |
 		pll_code.m_bp << RT5651_PLL_M_BP_SFT);
 
@@ -1536,45 +1536,45 @@ static int rt5651_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	return 0;
 }
 
-static int rt5651_set_bias_level(struct snd_soc_codec *codec,
+static int rt5651_set_bias_level(struct snd_soc_component *component,
 			enum snd_soc_bias_level level)
 {
-	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (SND_SOC_BIAS_STANDBY == snd_soc_codec_get_bias_level(codec)) {
-			snd_soc_update_bits(codec, RT5651_PWR_ANLG1,
+		if (SND_SOC_BIAS_STANDBY == snd_soc_component_get_bias_level(component)) {
+			snd_soc_component_update_bits(component, RT5651_PWR_ANLG1,
 				RT5651_PWR_VREF1 | RT5651_PWR_MB |
 				RT5651_PWR_BG | RT5651_PWR_VREF2,
 				RT5651_PWR_VREF1 | RT5651_PWR_MB |
 				RT5651_PWR_BG | RT5651_PWR_VREF2);
 			usleep_range(10000, 15000);
-			snd_soc_update_bits(codec, RT5651_PWR_ANLG1,
+			snd_soc_component_update_bits(component, RT5651_PWR_ANLG1,
 				RT5651_PWR_FV1 | RT5651_PWR_FV2,
 				RT5651_PWR_FV1 | RT5651_PWR_FV2);
-			snd_soc_update_bits(codec, RT5651_PWR_ANLG1,
+			snd_soc_component_update_bits(component, RT5651_PWR_ANLG1,
 				RT5651_PWR_LDO_DVO_MASK,
 				RT5651_PWR_LDO_DVO_1_2V);
-			snd_soc_update_bits(codec, RT5651_D_MISC, 0x1, 0x1);
-			if (snd_soc_read(codec, RT5651_PLL_MODE_1) & 0x9200)
-				snd_soc_update_bits(codec, RT5651_D_MISC,
+			snd_soc_component_update_bits(component, RT5651_D_MISC, 0x1, 0x1);
+			if (snd_soc_component_read32(component, RT5651_PLL_MODE_1) & 0x9200)
+				snd_soc_component_update_bits(component, RT5651_D_MISC,
 						    0xc00, 0xc00);
 		}
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		snd_soc_write(codec, RT5651_D_MISC, 0x0010);
-		snd_soc_write(codec, RT5651_PWR_DIG1, 0x0000);
-		snd_soc_write(codec, RT5651_PWR_DIG2, 0x0000);
-		snd_soc_write(codec, RT5651_PWR_VOL, 0x0000);
-		snd_soc_write(codec, RT5651_PWR_MIXER, 0x0000);
+		snd_soc_component_write(component, RT5651_D_MISC, 0x0010);
+		snd_soc_component_write(component, RT5651_PWR_DIG1, 0x0000);
+		snd_soc_component_write(component, RT5651_PWR_DIG2, 0x0000);
+		snd_soc_component_write(component, RT5651_PWR_VOL, 0x0000);
+		snd_soc_component_write(component, RT5651_PWR_MIXER, 0x0000);
 		if (rt5651->pdata.jd_src) {
-			snd_soc_write(codec, RT5651_PWR_ANLG2, 0x0204);
-			snd_soc_write(codec, RT5651_PWR_ANLG1, 0x0002);
+			snd_soc_component_write(component, RT5651_PWR_ANLG2, 0x0204);
+			snd_soc_component_write(component, RT5651_PWR_ANLG1, 0x0002);
 		} else {
-			snd_soc_write(codec, RT5651_PWR_ANLG1, 0x0000);
-			snd_soc_write(codec, RT5651_PWR_ANLG2, 0x0000);
+			snd_soc_component_write(component, RT5651_PWR_ANLG1, 0x0000);
+			snd_soc_component_write(component, RT5651_PWR_ANLG2, 0x0000);
 		}
 		break;
 
@@ -1585,24 +1585,24 @@ static int rt5651_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int rt5651_probe(struct snd_soc_codec *codec)
+static int rt5651_probe(struct snd_soc_component *component)
 {
-	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 
-	rt5651->codec = codec;
+	rt5651->component = component;
 
-	snd_soc_update_bits(codec, RT5651_PWR_ANLG1,
+	snd_soc_component_update_bits(component, RT5651_PWR_ANLG1,
 		RT5651_PWR_VREF1 | RT5651_PWR_MB |
 		RT5651_PWR_BG | RT5651_PWR_VREF2,
 		RT5651_PWR_VREF1 | RT5651_PWR_MB |
 		RT5651_PWR_BG | RT5651_PWR_VREF2);
 	usleep_range(10000, 15000);
-	snd_soc_update_bits(codec, RT5651_PWR_ANLG1,
+	snd_soc_component_update_bits(component, RT5651_PWR_ANLG1,
 		RT5651_PWR_FV1 | RT5651_PWR_FV2,
 		RT5651_PWR_FV1 | RT5651_PWR_FV2);
 
-	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
+	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
 
 	if (rt5651->pdata.jd_src) {
 		snd_soc_dapm_force_enable_pin(dapm, "JD Power");
@@ -1617,21 +1617,21 @@ static int rt5651_probe(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int rt5651_suspend(struct snd_soc_codec *codec)
+static int rt5651_suspend(struct snd_soc_component *component)
 {
-	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
 
 	regcache_cache_only(rt5651->regmap, true);
 	regcache_mark_dirty(rt5651->regmap);
 	return 0;
 }
 
-static int rt5651_resume(struct snd_soc_codec *codec)
+static int rt5651_resume(struct snd_soc_component *component)
 {
-	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
 
 	regcache_cache_only(rt5651->regmap, false);
-	snd_soc_cache_sync(codec);
+	snd_soc_component_cache_sync(component);
 
 	return 0;
 }
@@ -1692,20 +1692,20 @@ static struct snd_soc_dai_driver rt5651_dai[] = {
 	},
 };
 
-static const struct snd_soc_codec_driver soc_codec_dev_rt5651 = {
-	.probe = rt5651_probe,
-	.suspend = rt5651_suspend,
-	.resume = rt5651_resume,
-	.set_bias_level = rt5651_set_bias_level,
-	.idle_bias_off = true,
-	.component_driver = {
-		.controls		= rt5651_snd_controls,
-		.num_controls		= ARRAY_SIZE(rt5651_snd_controls),
-		.dapm_widgets		= rt5651_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(rt5651_dapm_widgets),
-		.dapm_routes		= rt5651_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(rt5651_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_rt5651 = {
+	.probe			= rt5651_probe,
+	.suspend		= rt5651_suspend,
+	.resume			= rt5651_resume,
+	.set_bias_level		= rt5651_set_bias_level,
+	.controls		= rt5651_snd_controls,
+	.num_controls		= ARRAY_SIZE(rt5651_snd_controls),
+	.dapm_widgets		= rt5651_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(rt5651_dapm_widgets),
+	.dapm_routes		= rt5651_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(rt5651_dapm_routes),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5651_regmap = {
@@ -1794,16 +1794,16 @@ static irqreturn_t rt5651_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int rt5651_jack_detect(struct snd_soc_codec *codec, int jack_insert)
+static int rt5651_jack_detect(struct snd_soc_component *component, int jack_insert)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	int jack_type;
 
 	if (jack_insert) {
 		snd_soc_dapm_force_enable_pin(dapm, "LDO");
 		snd_soc_dapm_sync(dapm);
 
-		snd_soc_update_bits(codec, RT5651_MICBIAS,
+		snd_soc_component_update_bits(component, RT5651_MICBIAS,
 				    RT5651_MIC1_OVCD_MASK |
 				    RT5651_MIC1_OVTH_MASK |
 				    RT5651_PWR_CLK12M_MASK |
@@ -1813,16 +1813,16 @@ static int rt5651_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 				    RT5651_PWR_MB_PU |
 				    RT5651_PWR_CLK12M_PU);
 		msleep(100);
-		if (snd_soc_read(codec, RT5651_IRQ_CTRL2) & RT5651_MB1_OC_CLR)
+		if (snd_soc_component_read32(component, RT5651_IRQ_CTRL2) & RT5651_MB1_OC_CLR)
 			jack_type = SND_JACK_HEADPHONE;
 		else
 			jack_type = SND_JACK_HEADSET;
-		snd_soc_update_bits(codec, RT5651_IRQ_CTRL2,
+		snd_soc_component_update_bits(component, RT5651_IRQ_CTRL2,
 				    RT5651_MB1_OC_CLR, 0);
 	} else { /* jack out */
 		jack_type = 0;
 
-		snd_soc_update_bits(codec, RT5651_MICBIAS,
+		snd_soc_component_update_bits(component, RT5651_MICBIAS,
 				    RT5651_MIC1_OVCD_MASK,
 				    RT5651_MIC1_OVCD_DIS);
 	}
@@ -1837,32 +1837,32 @@ static void rt5651_jack_detect_work(struct work_struct *work)
 
 	int report, val = 0;
 
-	if (!rt5651->codec)
+	if (!rt5651->component)
 		return;
 
 	switch (rt5651->pdata.jd_src) {
 	case RT5651_JD1_1:
-		val = snd_soc_read(rt5651->codec, RT5651_INT_IRQ_ST) & 0x1000;
+		val = snd_soc_component_read32(rt5651->component, RT5651_INT_IRQ_ST) & 0x1000;
 		break;
 	case RT5651_JD1_2:
-		val = snd_soc_read(rt5651->codec, RT5651_INT_IRQ_ST) & 0x2000;
+		val = snd_soc_component_read32(rt5651->component, RT5651_INT_IRQ_ST) & 0x2000;
 		break;
 	case RT5651_JD2:
-		val = snd_soc_read(rt5651->codec, RT5651_INT_IRQ_ST) & 0x4000;
+		val = snd_soc_component_read32(rt5651->component, RT5651_INT_IRQ_ST) & 0x4000;
 		break;
 	default:
 		break;
 	}
 
-	report = rt5651_jack_detect(rt5651->codec, !val);
+	report = rt5651_jack_detect(rt5651->component, !val);
 
 	snd_soc_jack_report(rt5651->hp_jack, report, SND_JACK_HEADSET);
 }
 
-int rt5651_set_jack_detect(struct snd_soc_codec *codec,
+int rt5651_set_jack_detect(struct snd_soc_component *component,
 			   struct snd_soc_jack *hp_jack)
 {
-	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
 
 	rt5651->hp_jack = hp_jack;
 	rt5651_irq(0, rt5651);
@@ -1979,7 +1979,8 @@ static int rt5651_i2c_probe(struct i2c_client *i2c,
 		}
 	}
 
-	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5651,
+	ret = devm_snd_soc_register_component(&i2c->dev,
+				&soc_component_dev_rt5651,
 				rt5651_dai, ARRAY_SIZE(rt5651_dai));
 
 	return ret;
@@ -1990,7 +1991,6 @@ static int rt5651_i2c_remove(struct i2c_client *i2c)
 	struct rt5651_priv *rt5651 = i2c_get_clientdata(i2c);
 
 	cancel_delayed_work_sync(&rt5651->jack_detect_work);
-	snd_soc_unregister_codec(&i2c->dev);
 
 	return 0;
 }

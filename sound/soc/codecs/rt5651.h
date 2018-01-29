@@ -2059,7 +2059,7 @@ struct rt5651_pll_code {
 };
 
 struct rt5651_priv {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct rt5651_platform_data pdata;
 	struct regmap *regmap;
 	struct snd_soc_jack *hp_jack;
@@ -2079,6 +2079,6 @@ struct rt5651_priv {
 	bool hp_mute;
 };
 
-int rt5651_set_jack_detect(struct snd_soc_codec *codec,
+int rt5651_set_jack_detect(struct snd_soc_component *component,
 			   struct snd_soc_jack *hp_jack);
 #endif /* __RT5651_H__ */
