@@ -41,7 +41,19 @@
 #include <linux/sched/task.h>
 #include <linux/idr.h>
 
-struct pid init_struct_pid = INIT_STRUCT_PID;
+struct pid init_struct_pid = {
+	.count 		= ATOMIC_INIT(1),
+	.tasks		= {
+		{ .first = NULL },
+		{ .first = NULL },
+		{ .first = NULL },
+	},
+	.level		= 0,
+	.numbers	= { {
+		.nr		= 0,
+		.ns		= &init_pid_ns,
+	}, }
+};
 
 int pid_max = PID_MAX_DEFAULT;
 
