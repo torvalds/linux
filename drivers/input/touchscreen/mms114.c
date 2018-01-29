@@ -31,7 +31,7 @@
 
 /* Read only registers */
 #define MMS114_PACKET_SIZE		0x0F
-#define MMS114_INFOMATION		0x10
+#define MMS114_INFORMATION		0x10
 #define MMS114_TSP_REV			0xF0
 
 #define MMS152_FW_REV			0xE1
@@ -213,7 +213,7 @@ static irqreturn_t mms114_interrupt(int irq, void *dev_id)
 
 	touch_size = packet_size / MMS114_PACKET_NUM;
 
-	error = __mms114_read_reg(data, MMS114_INFOMATION, packet_size,
+	error = __mms114_read_reg(data, MMS114_INFORMATION, packet_size,
 			(u8 *)touch);
 	if (error < 0)
 		goto out;
