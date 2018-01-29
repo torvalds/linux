@@ -583,7 +583,8 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 			}
 
 			if (ACPI_FAILURE(status)) {
-				ACPI_ERROR_NAMESPACE(name_string, status);
+				ACPI_ERROR_NAMESPACE(walk_state->scope_info,
+						     name_string, status);
 			}
 		}
 
