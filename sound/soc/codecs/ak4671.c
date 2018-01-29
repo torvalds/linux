@@ -163,15 +163,15 @@ static const struct snd_kcontrol_new ak4671_snd_controls[] = {
 static int ak4671_out2_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec, AK4671_LOUT2_POWER_MANAGERMENT,
+		snd_soc_component_update_bits(component, AK4671_LOUT2_POWER_MANAGERMENT,
 				    AK4671_MUTEN, AK4671_MUTEN);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(codec, AK4671_LOUT2_POWER_MANAGERMENT,
+		snd_soc_component_update_bits(component, AK4671_LOUT2_POWER_MANAGERMENT,
 				    AK4671_MUTEN, 0);
 		break;
 	}
@@ -427,10 +427,10 @@ static int ak4671_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params,
 		struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 	u8 fs;
 
-	fs = snd_soc_read(codec, AK4671_PLL_MODE_SELECT0);
+	fs = snd_soc_component_read32(component, AK4671_PLL_MODE_SELECT0);
 	fs &= ~AK4671_FS;
 
 	switch (params_rate(params)) {
@@ -465,7 +465,7 @@ static int ak4671_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_write(codec, AK4671_PLL_MODE_SELECT0, fs);
+	snd_soc_component_write(component, AK4671_PLL_MODE_SELECT0, fs);
 
 	return 0;
 }
@@ -473,10 +473,10 @@ static int ak4671_hw_params(struct snd_pcm_substream *substream,
 static int ak4671_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 		unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 	u8 pll;
 
-	pll = snd_soc_read(codec, AK4671_PLL_MODE_SELECT0);
+	pll = snd_soc_component_read32(component, AK4671_PLL_MODE_SELECT0);
 	pll &= ~AK4671_PLL;
 
 	switch (freq) {
@@ -511,19 +511,19 @@ static int ak4671_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 		return -EINVAL;
 	}
 
-	snd_soc_write(codec, AK4671_PLL_MODE_SELECT0, pll);
+	snd_soc_component_write(component, AK4671_PLL_MODE_SELECT0, pll);
 
 	return 0;
 }
 
 static int ak4671_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 	u8 mode;
 	u8 format;
 
 	/* set master/slave audio interface */
-	mode = snd_soc_read(codec, AK4671_PLL_MODE_SELECT1);
+	mode = snd_soc_component_read32(component, AK4671_PLL_MODE_SELECT1);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -537,7 +537,7 @@ static int ak4671_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	}
 
 	/* interface format */
-	format = snd_soc_read(codec, AK4671_FORMAT_SELECT);
+	format = snd_soc_component_read32(component, AK4671_FORMAT_SELECT);
 	format &= ~AK4671_DIF;
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -557,24 +557,24 @@ static int ak4671_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	}
 
 	/* set mode and format */
-	snd_soc_write(codec, AK4671_PLL_MODE_SELECT1, mode);
-	snd_soc_write(codec, AK4671_FORMAT_SELECT, format);
+	snd_soc_component_write(component, AK4671_PLL_MODE_SELECT1, mode);
+	snd_soc_component_write(component, AK4671_FORMAT_SELECT, format);
 
 	return 0;
 }
 
-static int ak4671_set_bias_level(struct snd_soc_codec *codec,
+static int ak4671_set_bias_level(struct snd_soc_component *component,
 		enum snd_soc_bias_level level)
 {
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
 	case SND_SOC_BIAS_STANDBY:
-		snd_soc_update_bits(codec, AK4671_AD_DA_POWER_MANAGEMENT,
+		snd_soc_component_update_bits(component, AK4671_AD_DA_POWER_MANAGEMENT,
 				    AK4671_PMVCM, AK4671_PMVCM);
 		break;
 	case SND_SOC_BIAS_OFF:
-		snd_soc_write(codec, AK4671_AD_DA_POWER_MANAGEMENT, 0x00);
+		snd_soc_component_write(component, AK4671_AD_DA_POWER_MANAGEMENT, 0x00);
 		break;
 	}
 	return 0;
@@ -610,16 +610,18 @@ static struct snd_soc_dai_driver ak4671_dai = {
 	.ops = &ak4671_dai_ops,
 };
 
-static const struct snd_soc_codec_driver soc_codec_dev_ak4671 = {
-	.set_bias_level = ak4671_set_bias_level,
-	.component_driver = {
-		.controls		= ak4671_snd_controls,
-		.num_controls		= ARRAY_SIZE(ak4671_snd_controls),
-		.dapm_widgets		= ak4671_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(ak4671_dapm_widgets),
-		.dapm_routes		= ak4671_intercon,
-		.num_dapm_routes	= ARRAY_SIZE(ak4671_intercon),
-	},
+static const struct snd_soc_component_driver soc_component_dev_ak4671 = {
+	.set_bias_level		= ak4671_set_bias_level,
+	.controls		= ak4671_snd_controls,
+	.num_controls		= ARRAY_SIZE(ak4671_snd_controls),
+	.dapm_widgets		= ak4671_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(ak4671_dapm_widgets),
+	.dapm_routes		= ak4671_intercon,
+	.num_dapm_routes	= ARRAY_SIZE(ak4671_intercon),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ak4671_regmap = {
@@ -645,15 +647,9 @@ static int ak4671_i2c_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ret = snd_soc_register_codec(&client->dev,
-			&soc_codec_dev_ak4671, &ak4671_dai, 1);
+	ret = devm_snd_soc_register_component(&client->dev,
+			&soc_component_dev_ak4671, &ak4671_dai, 1);
 	return ret;
-}
-
-static int ak4671_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
 }
 
 static const struct i2c_device_id ak4671_i2c_id[] = {
@@ -667,7 +663,6 @@ static struct i2c_driver ak4671_i2c_driver = {
 		.name = "ak4671-codec",
 	},
 	.probe = ak4671_i2c_probe,
-	.remove = ak4671_i2c_remove,
 	.id_table = ak4671_i2c_id,
 };
 
