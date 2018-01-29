@@ -3,7 +3,7 @@
 # (c) 2017 Tobin C. Harding <me@tobin.cc>
 # Licensed under the terms of the GNU GPL License version 2
 #
-# leaking_addresses.pl: Scan 64 bit kernel for potential leaking addresses.
+# leaking_addresses.pl: Scan the kernel for potential leaking addresses.
 #  - Scans dmesg output.
 #  - Walks directory tree and parses each file (for each directory in @DIRS).
 #
@@ -31,10 +31,9 @@ my @DIRS = ('/proc', '/sys');
 # Timer for parsing each file, in seconds.
 my $TIMEOUT = 10;
 
-# Script can only grep for kernel addresses on the following architectures. If
-# your architecture is not listed here and has a grep'able kernel address please
-# consider submitting a patch.
-my @SUPPORTED_ARCHITECTURES = ('x86_64', 'ppc64');
+# Kernel addresses vary by architecture.  We can only auto-detect the following
+# architectures (using `uname -m`).  (flag --32-bit overrides auto-detection.)
+my @SUPPORTED_ARCHITECTURES = ('x86_64', 'ppc64', 'x86');
 
 # Command line options.
 my $help = 0;
@@ -46,6 +45,8 @@ my $suppress_dmesg = 0;		# Don't show dmesg in output.
 my $squash_by_path = 0;		# Summary report grouped by absolute path.
 my $squash_by_filename = 0;	# Summary report grouped by filename.
 my $kernel_config_file = "";	# Kernel configuration file.
+my $opt_32bit = 0;		# Scan 32-bit kernel.
+my $page_offset_32bit = 0;	# Page offset for 32-bit kernel.
 
 # Do not parse these files (absolute path).
 my @skip_parse_files_abs = ('/proc/kmsg',
@@ -101,10 +102,12 @@ Options:
 	      --squash-by-path		Show one result per unique path.
 	      --squash-by-filename	Show one result per unique filename.
 	--kernel-config-file=<file>     Kernel configuration file (e.g /boot/config)
+	--32-bit			Scan 32-bit kernel.
+	--page-offset-32-bit=o		Page offset (for 32-bit kernel 0xABCD1234).
 	-d, --debug			Display debugging output.
 	-h, --help, --version		Display this help and exit.
 
-Scans the running (64 bit) kernel for potential leaking addresses.
+Scans the running kernel for potential leaking addresses.
 
 EOM
 	exit($exitcode);
@@ -121,6 +124,8 @@ GetOptions(
 	'squash-by-filename'    => \$squash_by_filename,
 	'raw'                   => \$raw,
 	'kernel-config-file=s'	=> \$kernel_config_file,
+	'32-bit'		=> \$opt_32bit,
+	'page-offset-32-bit=o'	=> \$page_offset_32bit,
 ) or help(1);
 
 help(0) if ($help);
@@ -136,13 +141,16 @@ if (!$input_raw and ($squash_by_path or $squash_by_filename)) {
 	exit(128);
 }
 
-if (!is_supported_architecture()) {
+if (!(is_supported_architecture() or $opt_32bit or $page_offset_32bit)) {
 	printf "\nScript does not support your architecture, sorry.\n";
 	printf "\nCurrently we support: \n\n";
 	foreach(@SUPPORTED_ARCHITECTURES) {
 		printf "\t%s\n", $_;
 	}
 	printf("\n");
+
+	printf("If you are running a 32-bit architecture you may use:\n");
+	printf("\n\t--32-bit or --page-offset-32-bit=<page offset>\n\n");
 
 	my $archname = `uname -m`;
 	printf("Machine hardware name (`uname -m`): %s\n", $archname);
@@ -167,7 +175,28 @@ sub dprint
 
 sub is_supported_architecture
 {
-	return (is_x86_64() or is_ppc64());
+	return (is_x86_64() or is_ppc64() or is_ix86_32());
+}
+
+sub is_32bit
+{
+	# Allow --32-bit or --page-offset-32-bit to override
+	if ($opt_32bit or $page_offset_32bit) {
+		return 1;
+	}
+
+	return is_ix86_32();
+}
+
+sub is_ix86_32
+{
+       my $arch = `uname -m`;
+
+       chomp $arch;
+       if ($arch =~ m/i[3456]86/) {
+               return 1;
+       }
+       return 0;
 }
 
 sub is_arch
@@ -258,6 +287,12 @@ sub is_false_positive
 {
 	my ($match) = @_;
 
+	if (is_32bit()) {
+		return is_false_positive_32bit($match);
+	}
+
+	# 64 bit false positives.
+
 	if ($match =~ '\b(0x)?(f|F){16}\b' or
 	    $match =~ '\b(0x)?0{16}\b') {
 		return 1;
@@ -268,6 +303,40 @@ sub is_false_positive
 	}
 
 	return 0;
+}
+
+sub is_false_positive_32bit
+{
+       my ($match) = @_;
+       state $page_offset = get_page_offset();
+
+       if ($match =~ '\b(0x)?(f|F){8}\b') {
+               return 1;
+       }
+
+       if (hex($match) < $page_offset) {
+               return 1;
+       }
+
+       return 0;
+}
+
+# returns integer value
+sub get_page_offset
+{
+       my $page_offset;
+       my $default_offset = 0xc0000000;
+
+       # Allow --page-offset-32bit to override.
+       if ($page_offset_32bit != 0) {
+               return $page_offset_32bit;
+       }
+
+       $page_offset = get_kernel_config_option('CONFIG_PAGE_OFFSET');
+       if (!$page_offset) {
+	       return $default_offset;
+       }
+       return $page_offset;
 }
 
 sub is_in_vsyscall_memory_region
@@ -311,11 +380,13 @@ sub may_leak_address
 
 sub get_address_re
 {
-	if (is_x86_64()) {
-		return get_x86_64_re();
-	} elsif (is_ppc64()) {
+	if (is_ppc64()) {
 		return '\b(0x)?[89abcdef]00[[:xdigit:]]{13}\b';
+	} elsif (is_32bit()) {
+		return '\b(0x)?[[:xdigit:]]{8}\b';
 	}
+
+	return get_x86_64_re();
 }
 
 sub get_x86_64_re
