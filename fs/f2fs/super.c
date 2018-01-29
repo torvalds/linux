@@ -1898,7 +1898,6 @@ static int __f2fs_commit_super(struct buffer_head *bh,
 	lock_buffer(bh);
 	if (super)
 		memcpy(bh->b_data + F2FS_SUPER_OFFSET, super, sizeof(*super));
-	set_buffer_uptodate(bh);
 	set_buffer_dirty(bh);
 	unlock_buffer(bh);
 
@@ -2338,7 +2337,7 @@ int f2fs_commit_super(struct f2fs_sb_info *sbi, bool recover)
 	}
 
 	/* write back-up superblock first */
-	bh = sb_getblk(sbi->sb, sbi->valid_super_block ? 0: 1);
+	bh = sb_bread(sbi->sb, sbi->valid_super_block ? 0 : 1);
 	if (!bh)
 		return -EIO;
 	err = __f2fs_commit_super(bh, F2FS_RAW_SUPER(sbi));
@@ -2349,7 +2348,7 @@ int f2fs_commit_super(struct f2fs_sb_info *sbi, bool recover)
 		return err;
 
 	/* write current valid superblock */
-	bh = sb_getblk(sbi->sb, sbi->valid_super_block);
+	bh = sb_bread(sbi->sb, sbi->valid_super_block);
 	if (!bh)
 		return -EIO;
 	err = __f2fs_commit_super(bh, F2FS_RAW_SUPER(sbi));
