@@ -242,7 +242,8 @@ static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)
 		return -EINVAL;
 	}
 	if (x->props.family == AF_INET6 &&
-	    !(mlx5_accel_ipsec_device_caps(priv->mdev) & MLX5_ACCEL_IPSEC_IPV6)) {
+	    !(mlx5_accel_ipsec_device_caps(priv->mdev) &
+	     MLX5_ACCEL_IPSEC_CAP_IPV6)) {
 		netdev_info(netdev, "IPv6 xfrm state offload is not supported by this device\n");
 		return -EINVAL;
 	}
@@ -375,7 +376,7 @@ int mlx5e_ipsec_init(struct mlx5e_priv *priv)
 	ipsec->en_priv = priv;
 	ipsec->en_priv->ipsec = ipsec;
 	ipsec->no_trailer = !!(mlx5_accel_ipsec_device_caps(priv->mdev) &
-			       MLX5_ACCEL_IPSEC_NO_TRAILER);
+			       MLX5_ACCEL_IPSEC_CAP_RX_NO_TRAILER);
 	netdev_dbg(priv->netdev, "IPSec attached to netdevice\n");
 	return 0;
 }
@@ -422,7 +423,7 @@ void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
 	if (!priv->ipsec)
 		return;
 
-	if (!(mlx5_accel_ipsec_device_caps(mdev) & MLX5_ACCEL_IPSEC_ESP) ||
+	if (!(mlx5_accel_ipsec_device_caps(mdev) & MLX5_ACCEL_IPSEC_CAP_ESP) ||
 	    !MLX5_CAP_ETH(mdev, swp)) {
 		mlx5_core_dbg(mdev, "mlx5e: ESP and SWP offload not supported\n");
 		return;
@@ -441,7 +442,7 @@ void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
 	netdev->features |= NETIF_F_HW_ESP_TX_CSUM;
 	netdev->hw_enc_features |= NETIF_F_HW_ESP_TX_CSUM;
 
-	if (!(mlx5_accel_ipsec_device_caps(mdev) & MLX5_ACCEL_IPSEC_LSO) ||
+	if (!(mlx5_accel_ipsec_device_caps(mdev) & MLX5_ACCEL_IPSEC_CAP_LSO) ||
 	    !MLX5_CAP_ETH(mdev, swp_lso)) {
 		mlx5_core_dbg(mdev, "mlx5e: ESP LSO not supported\n");
 		return;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2018 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -31,56 +31,27 @@
  *
  */
 
-#include <linux/mlx5/device.h>
+#ifndef __MLX5_ACCEL_H__
+#define __MLX5_ACCEL_H__
 
-#include "accel/ipsec.h"
-#include "mlx5_core.h"
-#include "fpga/ipsec.h"
+#include <linux/mlx5/driver.h>
 
-void *mlx5_accel_ipsec_sa_cmd_exec(struct mlx5_core_dev *mdev,
-				   struct mlx5_accel_ipsec_sa *cmd)
-{
-	int cmd_size;
+enum mlx5_accel_ipsec_caps {
+	MLX5_ACCEL_IPSEC_CAP_DEVICE		= 1 << 0,
+	MLX5_ACCEL_IPSEC_CAP_ESP		= 1 << 2,
+	MLX5_ACCEL_IPSEC_CAP_IPV6		= 1 << 3,
+	MLX5_ACCEL_IPSEC_CAP_LSO		= 1 << 4,
+	MLX5_ACCEL_IPSEC_CAP_RX_NO_TRAILER	= 1 << 5,
+	MLX5_ACCEL_IPSEC_CAP_V2_CMD		= 1 << 6,
+};
 
-	if (!MLX5_IPSEC_DEV(mdev))
-		return ERR_PTR(-EOPNOTSUPP);
+#ifdef CONFIG_MLX5_ACCEL
 
-	if (mlx5_accel_ipsec_device_caps(mdev) & MLX5_ACCEL_IPSEC_CAP_V2_CMD)
-		cmd_size = sizeof(*cmd);
-	else
-		cmd_size = sizeof(cmd->ipsec_sa_v1);
+u32 mlx5_accel_ipsec_device_caps(struct mlx5_core_dev *mdev);
 
-	return mlx5_fpga_ipsec_sa_cmd_exec(mdev, cmd, cmd_size);
-}
+#else
 
-int mlx5_accel_ipsec_sa_cmd_wait(void *ctx)
-{
-	return mlx5_fpga_ipsec_sa_cmd_wait(ctx);
-}
+static inline u32 mlx5_accel_ipsec_device_caps(struct mlx5_core_dev *mdev) { return 0; }
 
-u32 mlx5_accel_ipsec_device_caps(struct mlx5_core_dev *mdev)
-{
-	return mlx5_fpga_ipsec_device_caps(mdev);
-}
-EXPORT_SYMBOL_GPL(mlx5_accel_ipsec_device_caps);
-
-unsigned int mlx5_accel_ipsec_counters_count(struct mlx5_core_dev *mdev)
-{
-	return mlx5_fpga_ipsec_counters_count(mdev);
-}
-
-int mlx5_accel_ipsec_counters_read(struct mlx5_core_dev *mdev, u64 *counters,
-				   unsigned int count)
-{
-	return mlx5_fpga_ipsec_counters_read(mdev, counters, count);
-}
-
-int mlx5_accel_ipsec_init(struct mlx5_core_dev *mdev)
-{
-	return mlx5_fpga_ipsec_init(mdev);
-}
-
-void mlx5_accel_ipsec_cleanup(struct mlx5_core_dev *mdev)
-{
-	mlx5_fpga_ipsec_cleanup(mdev);
-}
+#endif
+#endif

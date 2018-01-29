@@ -35,17 +35,9 @@
 #define __MLX5_ACCEL_IPSEC_H__
 
 #include <linux/mlx5/driver.h>
+#include <linux/mlx5/accel.h>
 
 #ifdef CONFIG_MLX5_ACCEL
-
-enum {
-	MLX5_ACCEL_IPSEC_DEVICE = BIT(1),
-	MLX5_ACCEL_IPSEC_IPV6 = BIT(2),
-	MLX5_ACCEL_IPSEC_ESP = BIT(3),
-	MLX5_ACCEL_IPSEC_LSO = BIT(4),
-	MLX5_ACCEL_IPSEC_NO_TRAILER = BIT(5),
-	MLX5_ACCEL_IPSEC_V2_CMD = BIT(7),
-};
 
 #define MLX5_IPSEC_SADB_IP_AH       BIT(7)
 #define MLX5_IPSEC_SADB_IP_ESP      BIT(6)
@@ -70,7 +62,7 @@ enum mlx5_accel_ipsec_enc_mode {
 };
 
 #define MLX5_IPSEC_DEV(mdev) (mlx5_accel_ipsec_device_caps(mdev) & \
-			      MLX5_ACCEL_IPSEC_DEVICE)
+			      MLX5_ACCEL_IPSEC_CAP_DEVICE)
 
 struct mlx5_accel_ipsec_sa_v1 {
 	__be32 cmd;
@@ -125,8 +117,6 @@ void *mlx5_accel_ipsec_sa_cmd_exec(struct mlx5_core_dev *mdev,
  * Returns the command result, or -EINTR if killed
  */
 int mlx5_accel_ipsec_sa_cmd_wait(void *context);
-
-u32 mlx5_accel_ipsec_device_caps(struct mlx5_core_dev *mdev);
 
 unsigned int mlx5_accel_ipsec_counters_count(struct mlx5_core_dev *mdev);
 int mlx5_accel_ipsec_counters_read(struct mlx5_core_dev *mdev, u64 *counters,
