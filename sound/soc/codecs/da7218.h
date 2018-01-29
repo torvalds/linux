@@ -1410,6 +1410,6 @@ struct da7218_priv {
 };
 
 /* HP detect control */
-int da7218_hpldet(struct snd_soc_codec *codec, struct snd_soc_jack *jack);
+int da7218_hpldet(struct snd_soc_component *component, struct snd_soc_jack *jack);
 
 #endif /* _DA7218_H */
