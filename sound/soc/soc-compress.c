@@ -1096,7 +1096,6 @@ static struct snd_compr_ops soc_compr_dyn_ops = {
  */
 int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 {
-	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
@@ -1199,8 +1198,9 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 	ret = snd_compress_new(rtd->card->snd_card, num, direction,
 				new_name, compr);
 	if (ret < 0) {
+		component = rtd->codec_dai->component;
 		pr_err("compress asoc: can't create compress for codec %s\n",
-			codec->component.name);
+			component->name);
 		goto compr_err;
 	}
 
