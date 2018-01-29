@@ -157,9 +157,11 @@ int parse_cgroups(const struct option *opt __maybe_unused, const char *str,
 		  int unset __maybe_unused)
 {
 	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
+	struct perf_evsel *counter;
+	struct cgroup_sel *cgrp = NULL;
 	const char *p, *e, *eos = str + strlen(str);
 	char *s;
-	int ret;
+	int ret, i;
 
 	if (list_empty(&evlist->entries)) {
 		fprintf(stderr, "must define events before cgroups\n");
@@ -187,6 +189,19 @@ int parse_cgroups(const struct option *opt __maybe_unused, const char *str,
 		if (!p)
 			break;
 		str = p+1;
+	}
+	/* for the case one cgroup combine to multiple events */
+	i = 0;
+	if (nr_cgroups == 1) {
+		evlist__for_each_entry(evlist, counter) {
+			if (i == 0)
+				cgrp = counter->cgrp;
+			else {
+				counter->cgrp = cgrp;
+				refcount_inc(&cgrp->refcnt);
+			}
+			i++;
+		}
 	}
 	return 0;
 }
