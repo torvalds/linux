@@ -1152,12 +1152,11 @@ static int gfs2_unlink(struct inode *dir, struct dentry *dentry)
 
 	error = gfs2_trans_begin(sdp, 2*RES_DINODE + 3*RES_LEAF + RES_RG_BIT, 0);
 	if (error)
-		goto out_end_trans;
+		goto out_gunlock;
 
 	error = gfs2_unlink_inode(dip, dentry);
-
-out_end_trans:
 	gfs2_trans_end(sdp);
+
 out_gunlock:
 	gfs2_glock_dq(ghs + 2);
 out_rgrp:
