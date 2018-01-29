@@ -758,9 +758,6 @@ void __init mem_init(void)
 	 * important here.
 	 */
 	set_highmem_pages_init();
-#ifdef CONFIG_HIGHMEM
-	set_default_mem_hotplug_zone(ZONE_HIGHMEM);
-#endif
 
 	/* this will put all low memory onto the freelists */
 	free_all_bootmem();

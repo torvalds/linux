@@ -54,8 +54,6 @@ static DEFINE_MUTEX(online_page_callback_lock);
 
 DEFINE_STATIC_PERCPU_RWSEM(mem_hotplug_lock);
 
-static int default_kernel_zone = ZONE_NORMAL;
-
 void get_online_mems(void)
 {
 	percpu_down_read(&mem_hotplug_lock);
@@ -835,21 +833,10 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
 	set_zone_contiguous(zone);
 }
 
-void set_default_mem_hotplug_zone(enum zone_type zone)
-{
-	default_kernel_zone = zone;
-}
-
-#ifdef CONFIG_HIGHMEM
-#define MAX_KERNEL_ZONE ZONE_HIGHMEM
-#else
-#define MAX_KERNEL_ZONE ZONE_NORMAL
-#endif
-
 /*
  * Returns a default kernel memory zone for the given pfn range.
  * If no kernel zone covers this pfn range it will automatically go
- * to the MAX_KERNEL_ZONE.
+ * to the ZONE_NORMAL.
  */
 static struct zone *default_kernel_zone_for_pfn(int nid, unsigned long start_pfn,
 		unsigned long nr_pages)
@@ -857,14 +844,14 @@ static struct zone *default_kernel_zone_for_pfn(int nid, unsigned long start_pfn
 	struct pglist_data *pgdat = NODE_DATA(nid);
 	int zid;
 
-	for (zid = 0; zid <= MAX_KERNEL_ZONE; zid++) {
+	for (zid = 0; zid <= ZONE_NORMAL; zid++) {
 		struct zone *zone = &pgdat->node_zones[zid];
 
 		if (zone_intersects(zone, start_pfn, nr_pages))
 			return zone;
 	}
 
-	return &pgdat->node_zones[default_kernel_zone];
+	return &pgdat->node_zones[ZONE_NORMAL];
 }
 
 static inline struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,

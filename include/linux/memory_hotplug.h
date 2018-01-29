@@ -231,8 +231,6 @@ void put_online_mems(void);
 void mem_hotplug_begin(void);
 void mem_hotplug_done(void);
 
-void set_default_mem_hotplug_zone(enum zone_type zone);
-
 extern void set_zone_contiguous(struct zone *zone);
 extern void clear_zone_contiguous(struct zone *zone);
 
@@ -285,8 +283,6 @@ static inline void put_online_mems(void) {}
 
 static inline void mem_hotplug_begin(void) {}
 static inline void mem_hotplug_done(void) {}
-
-static inline void set_default_mem_hotplug_zone(enum zone_type zone) {}
 
 static inline bool movable_node_is_enabled(void)
 {
