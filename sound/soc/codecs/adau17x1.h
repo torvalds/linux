@@ -53,18 +53,18 @@ struct adau {
 	struct sigmadsp *sigmadsp;
 };
 
-int adau17x1_add_widgets(struct snd_soc_codec *codec);
-int adau17x1_add_routes(struct snd_soc_codec *codec);
+int adau17x1_add_widgets(struct snd_soc_component *component);
+int adau17x1_add_routes(struct snd_soc_component *component);
 int adau17x1_probe(struct device *dev, struct regmap *regmap,
 	enum adau17x1_type type, void (*switch_mode)(struct device *dev),
 	const char *firmware_name);
 void adau17x1_remove(struct device *dev);
-int adau17x1_set_micbias_voltage(struct snd_soc_codec *codec,
+int adau17x1_set_micbias_voltage(struct snd_soc_component *component,
 	enum adau17x1_micbias_voltage micbias);
 bool adau17x1_readable_register(struct device *dev, unsigned int reg);
 bool adau17x1_volatile_register(struct device *dev, unsigned int reg);
 bool adau17x1_precious_register(struct device *dev, unsigned int reg);
-int adau17x1_resume(struct snd_soc_codec *codec);
+int adau17x1_resume(struct snd_soc_component *component);
 
 extern const struct snd_soc_dai_ops adau17x1_dai_ops;
 
