@@ -1303,40 +1303,42 @@ static void btrfs_async_run_delayed_root(struct btrfs_work *work)
 	if (!path)
 		goto out;
 
-again:
-	if (atomic_read(&delayed_root->items) < BTRFS_DELAYED_BACKGROUND / 2)
-		goto free_path;
+	do {
+		if (atomic_read(&delayed_root->items) <
+		    BTRFS_DELAYED_BACKGROUND / 2)
+			break;
 
-	delayed_node = btrfs_first_prepared_delayed_node(delayed_root);
-	if (!delayed_node)
-		goto free_path;
+		delayed_node = btrfs_first_prepared_delayed_node(delayed_root);
+		if (!delayed_node)
+			break;
 
-	path->leave_spinning = 1;
-	root = delayed_node->root;
+		path->leave_spinning = 1;
+		root = delayed_node->root;
 
-	trans = btrfs_join_transaction(root);
-	if (IS_ERR(trans))
-		goto release_path;
+		trans = btrfs_join_transaction(root);
+		if (IS_ERR(trans)) {
+			btrfs_release_path(path);
+			btrfs_release_prepared_delayed_node(delayed_node);
+			total_done++;
+			continue;
+		}
 
-	block_rsv = trans->block_rsv;
-	trans->block_rsv = &root->fs_info->delayed_block_rsv;
+		block_rsv = trans->block_rsv;
+		trans->block_rsv = &root->fs_info->delayed_block_rsv;
 
-	__btrfs_commit_inode_delayed_items(trans, path, delayed_node);
+		__btrfs_commit_inode_delayed_items(trans, path, delayed_node);
 
-	trans->block_rsv = block_rsv;
-	btrfs_end_transaction(trans);
-	btrfs_btree_balance_dirty_nodelay(root->fs_info);
+		trans->block_rsv = block_rsv;
+		btrfs_end_transaction(trans);
+		btrfs_btree_balance_dirty_nodelay(root->fs_info);
 
-release_path:
-	btrfs_release_path(path);
-	total_done++;
+		btrfs_release_path(path);
+		btrfs_release_prepared_delayed_node(delayed_node);
+		total_done++;
 
-	btrfs_release_prepared_delayed_node(delayed_node);
-	if ((async_work->nr == 0 && total_done < BTRFS_DELAYED_WRITEBACK) ||
-	    total_done < async_work->nr)
-		goto again;
+	} while ((async_work->nr == 0 && total_done < BTRFS_DELAYED_WRITEBACK)
+		 || total_done < async_work->nr);
 
-free_path:
 	btrfs_free_path(path);
 out:
 	wake_up(&delayed_root->wait);
@@ -1348,10 +1350,6 @@ static int btrfs_wq_run_delayed_node(struct btrfs_delayed_root *delayed_root,
 				     struct btrfs_fs_info *fs_info, int nr)
 {
 	struct btrfs_async_delayed_work *async_work;
-
-	if (atomic_read(&delayed_root->items) < BTRFS_DELAYED_BACKGROUND ||
-	    btrfs_workqueue_normal_congested(fs_info->delayed_workers))
-		return 0;
 
 	async_work = kmalloc(sizeof(*async_work), GFP_NOFS);
 	if (!async_work)
@@ -1388,7 +1386,8 @@ void btrfs_balance_delayed_items(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_delayed_root *delayed_root = fs_info->delayed_root;
 
-	if (atomic_read(&delayed_root->items) < BTRFS_DELAYED_BACKGROUND)
+	if ((atomic_read(&delayed_root->items) < BTRFS_DELAYED_BACKGROUND) ||
+		btrfs_workqueue_normal_congested(fs_info->delayed_workers))
 		return;
 
 	if (atomic_read(&delayed_root->items) >= BTRFS_DELAYED_WRITEBACK) {
