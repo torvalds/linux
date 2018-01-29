@@ -4826,9 +4826,6 @@ static int rt5665_i2c_probe(struct i2c_client *i2c,
 	case 0x0:
 		rt5665->id = CODEC_5666;
 		break;
-	case 0x6:
-		rt5665->id = CODEC_5668;
-		break;
 	case 0x3:
 	default:
 		rt5665->id = CODEC_5665;
@@ -4955,7 +4952,6 @@ static void rt5665_i2c_shutdown(struct i2c_client *client)
 static const struct of_device_id rt5665_of_match[] = {
 	{.compatible = "realtek,rt5665"},
 	{.compatible = "realtek,rt5666"},
-	{.compatible = "realtek,rt5668"},
 	{},
 };
 MODULE_DEVICE_TABLE(of, rt5665_of_match);
@@ -4965,7 +4961,6 @@ MODULE_DEVICE_TABLE(of, rt5665_of_match);
 static const struct acpi_device_id rt5665_acpi_match[] = {
 	{"10EC5665", 0,},
 	{"10EC5666", 0,},
-	{"10EC5668", 0,},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, rt5665_acpi_match);

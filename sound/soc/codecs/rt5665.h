@@ -1978,7 +1978,6 @@ enum {
 enum {
 	CODEC_5665,
 	CODEC_5666,
-	CODEC_5668,
 };
 
 /* filter mask */
