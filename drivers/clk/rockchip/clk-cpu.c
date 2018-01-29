@@ -121,7 +121,8 @@ static void rockchip_cpuclk_set_dividers(struct rockchip_cpuclk *cpuclk,
 }
 
 static int rockchip_cpuclk_pre_rate_change(struct rockchip_cpuclk *cpuclk,
-					   struct clk_notifier_data *ndata)
+					   struct clk_notifier_data *ndata,
+					   struct clk_hw *pphw)
 {
 	const struct rockchip_cpuclk_reg_data *reg_data = cpuclk->reg_data;
 	const struct rockchip_cpuclk_rate_table *rate;
@@ -135,6 +136,8 @@ static int rockchip_cpuclk_pre_rate_change(struct rockchip_cpuclk *cpuclk,
 		       __func__, ndata->new_rate);
 		return -EINVAL;
 	}
+
+	rockchip_boost_enable_recovery_sw_low(pphw);
 
 	alt_prate = clk_get_rate(cpuclk->alt_parent);
 
@@ -184,7 +187,8 @@ static int rockchip_cpuclk_pre_rate_change(struct rockchip_cpuclk *cpuclk,
 }
 
 static int rockchip_cpuclk_post_rate_change(struct rockchip_cpuclk *cpuclk,
-					    struct clk_notifier_data *ndata)
+					    struct clk_notifier_data *ndata,
+					    struct clk_hw *pphw)
 {
 	const struct rockchip_cpuclk_reg_data *reg_data = cpuclk->reg_data;
 	const struct rockchip_cpuclk_rate_table *rate;
@@ -219,6 +223,8 @@ static int rockchip_cpuclk_post_rate_change(struct rockchip_cpuclk *cpuclk,
 	if (ndata->old_rate > ndata->new_rate)
 		rockchip_cpuclk_set_dividers(cpuclk, rate);
 
+	rockchip_boost_disable_recovery_sw(pphw);
+
 	spin_unlock_irqrestore(cpuclk->lock, flags);
 	return 0;
 }
@@ -234,14 +240,16 @@ static int rockchip_cpuclk_notifier_cb(struct notifier_block *nb,
 {
 	struct clk_notifier_data *ndata = data;
 	struct rockchip_cpuclk *cpuclk = to_rockchip_cpuclk_nb(nb);
+	struct clk_hw *phw = clk_hw_get_parent(__clk_get_hw(ndata->clk));
+	struct clk_hw *pphw = clk_hw_get_parent(phw);
 	int ret = 0;
 
 	pr_debug("%s: event %lu, old_rate %lu, new_rate: %lu\n",
 		 __func__, event, ndata->old_rate, ndata->new_rate);
 	if (event == PRE_RATE_CHANGE)
-		ret = rockchip_cpuclk_pre_rate_change(cpuclk, ndata);
+		ret = rockchip_cpuclk_pre_rate_change(cpuclk, ndata, pphw);
 	else if (event == POST_RATE_CHANGE)
-		ret = rockchip_cpuclk_post_rate_change(cpuclk, ndata);
+		ret = rockchip_cpuclk_post_rate_change(cpuclk, ndata, pphw);
 
 	return notifier_from_errno(ret);
 }

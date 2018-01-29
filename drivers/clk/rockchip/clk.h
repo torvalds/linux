@@ -303,6 +303,10 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 		struct rockchip_pll_rate_table *rate_table,
 		unsigned long flags, u8 clk_pll_flags);
 
+void rockchip_boost_enable_recovery_sw_low(struct clk_hw *hw);
+
+void rockchip_boost_disable_recovery_sw(struct clk_hw *hw);
+
 struct rockchip_cpuclk_clksel {
 	int reg;
 	u32 val;
