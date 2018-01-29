@@ -330,9 +330,6 @@ rx_handler_result_t tap_handle_frame(struct sk_buff **pskb)
 	if (!q)
 		return RX_HANDLER_PASS;
 
-	if (__ptr_ring_full(&q->ring))
-		goto drop;
-
 	skb_push(skb, ETH_HLEN);
 
 	/* Apply the forward feature mask so that we perform segmentation
