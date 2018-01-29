@@ -354,17 +354,17 @@ static const struct snd_kcontrol_new rt5660_snd_controls[] = {
 static int rt5660_set_dmic_clk(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct rt5660_priv *rt5660 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct rt5660_priv *rt5660 = snd_soc_component_get_drvdata(component);
 	int idx, rate;
 
 	rate = rt5660->sysclk / rl6231_get_pre_div(rt5660->regmap,
 		RT5660_ADDA_CLK1, RT5660_I2S_PD1_SFT);
 	idx = rl6231_calc_dmic_clk(rate);
 	if (idx < 0)
-		dev_err(codec->dev, "Failed to set DMIC clock\n");
+		dev_err(component->dev, "Failed to set DMIC clock\n");
 	else
-		snd_soc_update_bits(codec, RT5660_DMIC_CTRL1,
+		snd_soc_component_update_bits(component, RT5660_DMIC_CTRL1,
 			RT5660_DMIC_CLK_MASK, idx << RT5660_DMIC_CLK_SFT);
 
 	return idx;
@@ -373,10 +373,10 @@ static int rt5660_set_dmic_clk(struct snd_soc_dapm_widget *w,
 static int rt5660_is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
 	unsigned int val;
 
-	val = snd_soc_read(codec, RT5660_GLB_CLK);
+	val = snd_soc_component_read32(component, RT5660_GLB_CLK);
 	val &= RT5660_SCLK_SRC_MASK;
 	if (val == RT5660_SCLK_SRC_PLL1)
 		return 1;
@@ -541,17 +541,17 @@ static const struct snd_kcontrol_new rt5660_if1_adc_swap_mux =
 static int rt5660_lout_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec, RT5660_LOUT_AMP_CTRL,
+		snd_soc_component_update_bits(component, RT5660_LOUT_AMP_CTRL,
 			RT5660_LOUT_CO_MASK | RT5660_LOUT_CB_MASK,
 			RT5660_LOUT_CO_EN | RT5660_LOUT_CB_PU);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(codec, RT5660_LOUT_AMP_CTRL,
+		snd_soc_component_update_bits(component, RT5660_LOUT_AMP_CTRL,
 			RT5660_LOUT_CO_MASK | RT5660_LOUT_CB_MASK,
 			RT5660_LOUT_CO_DIS | RT5660_LOUT_CB_PD);
 		break;
@@ -838,22 +838,22 @@ static const struct snd_soc_dapm_route rt5660_dapm_routes[] = {
 static int rt5660_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt5660_priv *rt5660 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt5660_priv *rt5660 = snd_soc_component_get_drvdata(component);
 	unsigned int val_len = 0, val_clk, mask_clk;
 	int pre_div, bclk_ms, frame_size;
 
 	rt5660->lrck[dai->id] = params_rate(params);
 	pre_div = rl6231_get_clk_info(rt5660->sysclk, rt5660->lrck[dai->id]);
 	if (pre_div < 0) {
-		dev_err(codec->dev, "Unsupported clock setting %d for DAI %d\n",
+		dev_err(component->dev, "Unsupported clock setting %d for DAI %d\n",
 			rt5660->lrck[dai->id], dai->id);
 		return -EINVAL;
 	}
 
 	frame_size = snd_soc_params_to_frame_size(params);
 	if (frame_size < 0) {
-		dev_err(codec->dev, "Unsupported frame size: %d\n", frame_size);
+		dev_err(component->dev, "Unsupported frame size: %d\n", frame_size);
 		return frame_size;
 	}
 
@@ -890,13 +890,13 @@ static int rt5660_hw_params(struct snd_pcm_substream *substream,
 		mask_clk = RT5660_I2S_BCLK_MS1_MASK | RT5660_I2S_PD1_MASK;
 		val_clk = bclk_ms << RT5660_I2S_BCLK_MS1_SFT |
 			pre_div << RT5660_I2S_PD1_SFT;
-		snd_soc_update_bits(codec, RT5660_I2S1_SDP, RT5660_I2S_DL_MASK,
+		snd_soc_component_update_bits(component, RT5660_I2S1_SDP, RT5660_I2S_DL_MASK,
 			val_len);
-		snd_soc_update_bits(codec, RT5660_ADDA_CLK1, mask_clk, val_clk);
+		snd_soc_component_update_bits(component, RT5660_ADDA_CLK1, mask_clk, val_clk);
 		break;
 
 	default:
-		dev_err(codec->dev, "Invalid dai->id: %d\n", dai->id);
+		dev_err(component->dev, "Invalid dai->id: %d\n", dai->id);
 		return -EINVAL;
 	}
 
@@ -905,8 +905,8 @@ static int rt5660_hw_params(struct snd_pcm_substream *substream,
 
 static int rt5660_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt5660_priv *rt5660 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt5660_priv *rt5660 = snd_soc_component_get_drvdata(component);
 	unsigned int reg_val = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -957,13 +957,13 @@ static int rt5660_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	switch (dai->id) {
 	case RT5660_AIF1:
-		snd_soc_update_bits(codec, RT5660_I2S1_SDP,
+		snd_soc_component_update_bits(component, RT5660_I2S1_SDP,
 			RT5660_I2S_MS_MASK | RT5660_I2S_BP_MASK |
 			RT5660_I2S_DF_MASK, reg_val);
 		break;
 
 	default:
-		dev_err(codec->dev, "Invalid dai->id: %d\n", dai->id);
+		dev_err(component->dev, "Invalid dai->id: %d\n", dai->id);
 		return -EINVAL;
 	}
 
@@ -973,8 +973,8 @@ static int rt5660_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 static int rt5660_set_dai_sysclk(struct snd_soc_dai *dai,
 		int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt5660_priv *rt5660 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt5660_priv *rt5660 = snd_soc_component_get_drvdata(component);
 	unsigned int reg_val = 0;
 
 	if (freq == rt5660->sysclk && clk_id == rt5660->sysclk_src)
@@ -994,11 +994,11 @@ static int rt5660_set_dai_sysclk(struct snd_soc_dai *dai,
 		break;
 
 	default:
-		dev_err(codec->dev, "Invalid clock id (%d)\n", clk_id);
+		dev_err(component->dev, "Invalid clock id (%d)\n", clk_id);
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, RT5660_GLB_CLK, RT5660_SCLK_SRC_MASK,
+	snd_soc_component_update_bits(component, RT5660_GLB_CLK, RT5660_SCLK_SRC_MASK,
 		reg_val);
 
 	rt5660->sysclk = freq;
@@ -1012,8 +1012,8 @@ static int rt5660_set_dai_sysclk(struct snd_soc_dai *dai,
 static int rt5660_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 			unsigned int freq_in, unsigned int freq_out)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt5660_priv *rt5660 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt5660_priv *rt5660 = snd_soc_component_get_drvdata(component);
 	struct rl6231_pll_code pll_code;
 	int ret;
 
@@ -1022,44 +1022,44 @@ static int rt5660_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		return 0;
 
 	if (!freq_in || !freq_out) {
-		dev_dbg(codec->dev, "PLL disabled\n");
+		dev_dbg(component->dev, "PLL disabled\n");
 
 		rt5660->pll_in = 0;
 		rt5660->pll_out = 0;
-		snd_soc_update_bits(codec, RT5660_GLB_CLK,
+		snd_soc_component_update_bits(component, RT5660_GLB_CLK,
 			RT5660_SCLK_SRC_MASK, RT5660_SCLK_SRC_MCLK);
 		return 0;
 	}
 
 	switch (source) {
 	case RT5660_PLL1_S_MCLK:
-		snd_soc_update_bits(codec, RT5660_GLB_CLK,
+		snd_soc_component_update_bits(component, RT5660_GLB_CLK,
 			RT5660_PLL1_SRC_MASK, RT5660_PLL1_SRC_MCLK);
 		break;
 
 	case RT5660_PLL1_S_BCLK:
-		snd_soc_update_bits(codec, RT5660_GLB_CLK,
+		snd_soc_component_update_bits(component, RT5660_GLB_CLK,
 			RT5660_PLL1_SRC_MASK, RT5660_PLL1_SRC_BCLK1);
 		break;
 
 	default:
-		dev_err(codec->dev, "Unknown PLL source %d\n", source);
+		dev_err(component->dev, "Unknown PLL source %d\n", source);
 		return -EINVAL;
 	}
 
 	ret = rl6231_pll_calc(freq_in, freq_out, &pll_code);
 	if (ret < 0) {
-		dev_err(codec->dev, "Unsupport input clock %d\n", freq_in);
+		dev_err(component->dev, "Unsupport input clock %d\n", freq_in);
 		return ret;
 	}
 
-	dev_dbg(codec->dev, "bypass=%d m=%d n=%d k=%d\n",
+	dev_dbg(component->dev, "bypass=%d m=%d n=%d k=%d\n",
 		pll_code.m_bp, (pll_code.m_bp ? 0 : pll_code.m_code),
 		pll_code.n_code, pll_code.k_code);
 
-	snd_soc_write(codec, RT5660_PLL_CTRL1,
+	snd_soc_component_write(component, RT5660_PLL_CTRL1,
 		pll_code.n_code << RT5660_PLL_N_SFT | pll_code.k_code);
-	snd_soc_write(codec, RT5660_PLL_CTRL2,
+	snd_soc_component_write(component, RT5660_PLL_CTRL2,
 		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5660_PLL_M_SFT |
 		pll_code.m_bp << RT5660_PLL_M_BP_SFT);
 
@@ -1070,10 +1070,10 @@ static int rt5660_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	return 0;
 }
 
-static int rt5660_set_bias_level(struct snd_soc_codec *codec,
+static int rt5660_set_bias_level(struct snd_soc_component *component,
 			enum snd_soc_bias_level level)
 {
-	struct rt5660_priv *rt5660 = snd_soc_codec_get_drvdata(codec);
+	struct rt5660_priv *rt5660 = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	switch (level) {
@@ -1081,13 +1081,13 @@ static int rt5660_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
-		snd_soc_update_bits(codec, RT5660_GEN_CTRL1,
+		snd_soc_component_update_bits(component, RT5660_GEN_CTRL1,
 			RT5660_DIG_GATE_CTRL, RT5660_DIG_GATE_CTRL);
 
 		if (IS_ERR(rt5660->mclk))
 			break;
 
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_ON) {
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_ON) {
 			clk_disable_unprepare(rt5660->mclk);
 		} else {
 			ret = clk_prepare_enable(rt5660->mclk);
@@ -1097,21 +1097,21 @@ static int rt5660_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
-			snd_soc_update_bits(codec, RT5660_PWR_ANLG1,
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+			snd_soc_component_update_bits(component, RT5660_PWR_ANLG1,
 				RT5660_PWR_VREF1 | RT5660_PWR_MB |
 				RT5660_PWR_BG | RT5660_PWR_VREF2,
 				RT5660_PWR_VREF1 | RT5660_PWR_MB |
 				RT5660_PWR_BG | RT5660_PWR_VREF2);
 			usleep_range(10000, 15000);
-			snd_soc_update_bits(codec, RT5660_PWR_ANLG1,
+			snd_soc_component_update_bits(component, RT5660_PWR_ANLG1,
 				RT5660_PWR_FV1 | RT5660_PWR_FV2,
 				RT5660_PWR_FV1 | RT5660_PWR_FV2);
 		}
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		snd_soc_update_bits(codec, RT5660_GEN_CTRL1,
+		snd_soc_component_update_bits(component, RT5660_GEN_CTRL1,
 			RT5660_DIG_GATE_CTRL, 0);
 		break;
 
@@ -1122,24 +1122,24 @@ static int rt5660_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int rt5660_probe(struct snd_soc_codec *codec)
+static int rt5660_probe(struct snd_soc_component *component)
 {
-	struct rt5660_priv *rt5660 = snd_soc_codec_get_drvdata(codec);
+	struct rt5660_priv *rt5660 = snd_soc_component_get_drvdata(component);
 
-	rt5660->codec = codec;
+	rt5660->component = component;
 
 	return 0;
 }
 
-static int rt5660_remove(struct snd_soc_codec *codec)
+static void rt5660_remove(struct snd_soc_component *component)
 {
-	return snd_soc_write(codec, RT5660_RESET, 0);
+	snd_soc_component_write(component, RT5660_RESET, 0);
 }
 
 #ifdef CONFIG_PM
-static int rt5660_suspend(struct snd_soc_codec *codec)
+static int rt5660_suspend(struct snd_soc_component *component)
 {
-	struct rt5660_priv *rt5660 = snd_soc_codec_get_drvdata(codec);
+	struct rt5660_priv *rt5660 = snd_soc_component_get_drvdata(component);
 
 	regcache_cache_only(rt5660->regmap, true);
 	regcache_mark_dirty(rt5660->regmap);
@@ -1147,9 +1147,9 @@ static int rt5660_suspend(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int rt5660_resume(struct snd_soc_codec *codec)
+static int rt5660_resume(struct snd_soc_component *component)
 {
-	struct rt5660_priv *rt5660 = snd_soc_codec_get_drvdata(codec);
+	struct rt5660_priv *rt5660 = snd_soc_component_get_drvdata(component);
 
 	if (rt5660->pdata.poweroff_codec_in_suspend)
 		msleep(350);
@@ -1197,21 +1197,21 @@ static struct snd_soc_dai_driver rt5660_dai[] = {
 	},
 };
 
-static const struct snd_soc_codec_driver soc_codec_dev_rt5660 = {
-	.probe = rt5660_probe,
-	.remove = rt5660_remove,
-	.suspend = rt5660_suspend,
-	.resume = rt5660_resume,
-	.set_bias_level = rt5660_set_bias_level,
-	.idle_bias_off = true,
-	.component_driver = {
-		.controls		= rt5660_snd_controls,
-		.num_controls		= ARRAY_SIZE(rt5660_snd_controls),
-		.dapm_widgets		= rt5660_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(rt5660_dapm_widgets),
-		.dapm_routes		= rt5660_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(rt5660_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_rt5660 = {
+	.probe			= rt5660_probe,
+	.remove			= rt5660_remove,
+	.suspend		= rt5660_suspend,
+	.resume			= rt5660_resume,
+	.set_bias_level		= rt5660_set_bias_level,
+	.controls		= rt5660_snd_controls,
+	.num_controls		= ARRAY_SIZE(rt5660_snd_controls),
+	.dapm_widgets		= rt5660_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(rt5660_dapm_widgets),
+	.dapm_routes		= rt5660_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(rt5660_dapm_routes),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5660_regmap = {
@@ -1329,15 +1329,9 @@ static int rt5660_i2c_probe(struct i2c_client *i2c,
 				RT5660_SEL_DMIC_DATA_IN1P);
 	}
 
-	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5660,
+	return devm_snd_soc_register_component(&i2c->dev,
+				      &soc_component_dev_rt5660,
 				      rt5660_dai, ARRAY_SIZE(rt5660_dai));
-}
-
-static int rt5660_i2c_remove(struct i2c_client *i2c)
-{
-	snd_soc_unregister_codec(&i2c->dev);
-
-	return 0;
 }
 
 static struct i2c_driver rt5660_i2c_driver = {
@@ -1347,7 +1341,6 @@ static struct i2c_driver rt5660_i2c_driver = {
 		.of_match_table = of_match_ptr(rt5660_of_match),
 	},
 	.probe = rt5660_i2c_probe,
-	.remove   = rt5660_i2c_remove,
 	.id_table = rt5660_i2c_id,
 };
 module_i2c_driver(rt5660_i2c_driver);
