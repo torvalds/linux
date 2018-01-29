@@ -220,8 +220,8 @@ static void evea_update_switch_all(struct evea_priv *evea)
 static int evea_get_switch_lin(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct evea_priv *evea = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct evea_priv *evea = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = evea->switch_lin;
 
@@ -231,8 +231,8 @@ static int evea_get_switch_lin(struct snd_kcontrol *kcontrol,
 static int evea_set_switch_lin(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct evea_priv *evea = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct evea_priv *evea = snd_soc_component_get_drvdata(component);
 
 	if (evea->switch_lin == ucontrol->value.integer.value[0])
 		return 0;
@@ -245,8 +245,8 @@ static int evea_set_switch_lin(struct snd_kcontrol *kcontrol,
 static int evea_get_switch_lo(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct evea_priv *evea = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct evea_priv *evea = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = evea->switch_lo;
 
@@ -256,8 +256,8 @@ static int evea_get_switch_lo(struct snd_kcontrol *kcontrol,
 static int evea_set_switch_lo(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct evea_priv *evea = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct evea_priv *evea = snd_soc_component_get_drvdata(component);
 
 	if (evea->switch_lo == ucontrol->value.integer.value[0])
 		return 0;
@@ -270,8 +270,8 @@ static int evea_set_switch_lo(struct snd_kcontrol *kcontrol,
 static int evea_get_switch_hp(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct evea_priv *evea = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct evea_priv *evea = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = evea->switch_hp;
 
@@ -281,8 +281,8 @@ static int evea_get_switch_hp(struct snd_kcontrol *kcontrol,
 static int evea_set_switch_hp(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct evea_priv *evea = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct evea_priv *evea = snd_soc_component_get_drvdata(component);
 
 	if (evea->switch_hp == ucontrol->value.integer.value[0])
 		return 0;
@@ -301,9 +301,9 @@ static const struct snd_kcontrol_new eva_controls[] = {
 			    evea_get_switch_hp, evea_set_switch_hp),
 };
 
-static int evea_codec_probe(struct snd_soc_codec *codec)
+static int evea_codec_probe(struct snd_soc_component *component)
 {
-	struct evea_priv *evea = snd_soc_codec_get_drvdata(codec);
+	struct evea_priv *evea = snd_soc_component_get_drvdata(component);
 
 	evea->switch_lin = 1;
 	evea->switch_lo = 1;
@@ -315,9 +315,9 @@ static int evea_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int evea_codec_suspend(struct snd_soc_codec *codec)
+static int evea_codec_suspend(struct snd_soc_component *component)
 {
-	struct evea_priv *evea = snd_soc_codec_get_drvdata(codec);
+	struct evea_priv *evea = snd_soc_component_get_drvdata(component);
 
 	evea_set_power_state_off(evea);
 
@@ -331,9 +331,9 @@ static int evea_codec_suspend(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int evea_codec_resume(struct snd_soc_codec *codec)
+static int evea_codec_resume(struct snd_soc_component *component)
 {
-	struct evea_priv *evea = snd_soc_codec_get_drvdata(codec);
+	struct evea_priv *evea = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	ret = clk_prepare_enable(evea->clk);
@@ -376,19 +376,20 @@ err_out_clock:
 	return ret;
 }
 
-static struct snd_soc_codec_driver soc_codec_evea = {
-	.probe   = evea_codec_probe,
-	.suspend = evea_codec_suspend,
-	.resume  = evea_codec_resume,
-
-	.component_driver = {
-		.dapm_widgets = evea_widgets,
-		.num_dapm_widgets = ARRAY_SIZE(evea_widgets),
-		.dapm_routes = evea_routes,
-		.num_dapm_routes = ARRAY_SIZE(evea_routes),
-		.controls = eva_controls,
-		.num_controls = ARRAY_SIZE(eva_controls),
-	},
+static struct snd_soc_component_driver soc_codec_evea = {
+	.probe			= evea_codec_probe,
+	.suspend		= evea_codec_suspend,
+	.resume			= evea_codec_resume,
+	.dapm_widgets		= evea_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(evea_widgets),
+	.dapm_routes		= evea_routes,
+	.num_dapm_routes	= ARRAY_SIZE(evea_routes),
+	.controls		= eva_controls,
+	.num_controls		= ARRAY_SIZE(eva_controls),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static struct snd_soc_dai_driver soc_dai_evea[] = {
@@ -505,7 +506,7 @@ static int evea_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, evea);
 
-	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_evea,
+	ret = devm_snd_soc_register_component(&pdev->dev, &soc_codec_evea,
 				     soc_dai_evea, ARRAY_SIZE(soc_dai_evea));
 	if (ret)
 		goto err_out_reset_adamv;
@@ -533,8 +534,6 @@ err_out_clock:
 static int evea_remove(struct platform_device *pdev)
 {
 	struct evea_priv *evea = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_codec(&pdev->dev);
 
 	reset_control_assert(evea->rst_adamv);
 	reset_control_assert(evea->rst_exiv);
