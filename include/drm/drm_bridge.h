@@ -91,7 +91,7 @@ struct drm_bridge_funcs {
 	 *
 	 * drm_mode_status Enum
 	 */
-	enum drm_mode_status (*mode_valid)(struct drm_bridge *crtc,
+	enum drm_mode_status (*mode_valid)(struct drm_bridge *bridge,
 					   const struct drm_display_mode *mode);
 
 	/**
