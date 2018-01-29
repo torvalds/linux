@@ -412,7 +412,7 @@ static void chp_release(struct device *dev)
 
 /**
  * chp_update_desc - update channel-path description
- * @chp - channel-path
+ * @chp: channel-path
  *
  * Update the channel-path description of the specified channel-path
  * including channel measurement related information.
@@ -438,7 +438,7 @@ int chp_update_desc(struct channel_path *chp)
 
 /**
  * chp_new - register a new channel-path
- * @chpid - channel-path ID
+ * @chpid: channel-path ID
  *
  * Create and register data structure representing new channel-path. Return
  * zero on success, non-zero otherwise.
@@ -730,8 +730,8 @@ static void cfg_func(struct work_struct *work)
 
 /**
  * chp_cfg_schedule - schedule chpid configuration request
- * @chpid - channel-path ID
- * @configure - Non-zero for configure, zero for deconfigure
+ * @chpid: channel-path ID
+ * @configure: Non-zero for configure, zero for deconfigure
  *
  * Schedule a channel-path configuration/deconfiguration request.
  */
@@ -747,7 +747,7 @@ void chp_cfg_schedule(struct chp_id chpid, int configure)
 
 /**
  * chp_cfg_cancel_deconfigure - cancel chpid deconfiguration request
- * @chpid - channel-path ID
+ * @chpid: channel-path ID
  *
  * Cancel an active channel-path deconfiguration request if it has not yet
  * been performed.
