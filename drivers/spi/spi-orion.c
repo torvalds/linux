@@ -94,6 +94,7 @@ struct orion_spi {
 	struct spi_master	*master;
 	void __iomem		*base;
 	struct clk              *clk;
+	struct clk              *axi_clk;
 	const struct orion_spi_dev *devdata;
 
 	struct orion_direct_acc	direct_access[ORION_NUM_CHIPSELECTS];
@@ -634,6 +635,16 @@ static int orion_spi_probe(struct platform_device *pdev)
 	if (status)
 		goto out;
 
+	/* The following clock is only used by some SoCs */
+	spi->axi_clk = devm_clk_get(&pdev->dev, "axi");
+	if (IS_ERR(spi->axi_clk) &&
+	    PTR_ERR(spi->axi_clk) == -EPROBE_DEFER) {
+		status = -EPROBE_DEFER;
+		goto out_rel_clk;
+	}
+	if (!IS_ERR(spi->axi_clk))
+		clk_prepare_enable(spi->axi_clk);
+
 	tclk_hz = clk_get_rate(spi->clk);
 
 	/*
@@ -658,7 +669,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 	spi->base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(spi->base)) {
 		status = PTR_ERR(spi->base);
-		goto out_rel_clk;
+		goto out_rel_axi_clk;
 	}
 
 	/* Scan all SPI devices of this controller for direct mapped devices */
@@ -696,7 +707,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 							    PAGE_SIZE);
 		if (!spi->direct_access[cs].vaddr) {
 			status = -ENOMEM;
-			goto out_rel_clk;
+			goto out_rel_axi_clk;
 		}
 		spi->direct_access[cs].size = PAGE_SIZE;
 
@@ -724,6 +735,8 @@ static int orion_spi_probe(struct platform_device *pdev)
 
 out_rel_pm:
 	pm_runtime_disable(&pdev->dev);
+out_rel_axi_clk:
+	clk_disable_unprepare(spi->axi_clk);
 out_rel_clk:
 	clk_disable_unprepare(spi->clk);
 out:
@@ -738,6 +751,7 @@ static int orion_spi_remove(struct platform_device *pdev)
 	struct orion_spi *spi = spi_master_get_devdata(master);
 
 	pm_runtime_get_sync(&pdev->dev);
+	clk_disable_unprepare(spi->axi_clk);
 	clk_disable_unprepare(spi->clk);
 
 	spi_unregister_master(master);
@@ -754,6 +768,7 @@ static int orion_spi_runtime_suspend(struct device *dev)
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct orion_spi *spi = spi_master_get_devdata(master);
 
+	clk_disable_unprepare(spi->axi_clk);
 	clk_disable_unprepare(spi->clk);
 	return 0;
 }
@@ -763,6 +778,8 @@ static int orion_spi_runtime_resume(struct device *dev)
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct orion_spi *spi = spi_master_get_devdata(master);
 
+	if (!IS_ERR(spi->axi_clk))
+		clk_prepare_enable(spi->axi_clk);
 	return clk_prepare_enable(spi->clk);
 }
 #endif

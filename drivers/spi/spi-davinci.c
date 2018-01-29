@@ -945,6 +945,8 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		goto free_master;
 	}
 
+	init_completion(&dspi->done);
+
 	ret = platform_get_irq(pdev, 0);
 	if (ret == 0)
 		ret = -EINVAL;
@@ -1020,8 +1022,6 @@ static int davinci_spi_probe(struct platform_device *pdev)
 
 	dspi->get_rx = davinci_spi_rx_buf_u8;
 	dspi->get_tx = davinci_spi_tx_buf_u8;
-
-	init_completion(&dspi->done);
 
 	/* Reset In/OUT SPI module */
 	iowrite32(0, dspi->base + SPIGCR0);
