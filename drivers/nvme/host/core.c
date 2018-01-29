@@ -29,6 +29,9 @@
 #include <linux/pm_qos.h>
 #include <asm/unaligned.h>
 
+#define CREATE_TRACE_POINTS
+#include "trace.h"
+
 #include "nvme.h"
 #include "fabrics.h"
 
@@ -65,8 +68,25 @@ static bool streams;
 module_param(streams, bool, 0644);
 MODULE_PARM_DESC(streams, "turn on support for Streams write directives");
 
+/*
+ * nvme_wq - hosts nvme related works that are not reset or delete
+ * nvme_reset_wq - hosts nvme reset works
+ * nvme_delete_wq - hosts nvme delete works
+ *
+ * nvme_wq will host works such are scan, aen handling, fw activation,
+ * keep-alive error recovery, periodic reconnects etc. nvme_reset_wq
+ * runs reset works which also flush works hosted on nvme_wq for
+ * serialization purposes. nvme_delete_wq host controller deletion
+ * works which flush reset works for serialization.
+ */
 struct workqueue_struct *nvme_wq;
 EXPORT_SYMBOL_GPL(nvme_wq);
+
+struct workqueue_struct *nvme_reset_wq;
+EXPORT_SYMBOL_GPL(nvme_reset_wq);
+
+struct workqueue_struct *nvme_delete_wq;
+EXPORT_SYMBOL_GPL(nvme_delete_wq);
 
 static DEFINE_IDA(nvme_subsystems_ida);
 static LIST_HEAD(nvme_subsystems);
@@ -89,13 +109,13 @@ int nvme_reset_ctrl(struct nvme_ctrl *ctrl)
 {
 	if (!nvme_change_ctrl_state(ctrl, NVME_CTRL_RESETTING))
 		return -EBUSY;
-	if (!queue_work(nvme_wq, &ctrl->reset_work))
+	if (!queue_work(nvme_reset_wq, &ctrl->reset_work))
 		return -EBUSY;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nvme_reset_ctrl);
 
-static int nvme_reset_ctrl_sync(struct nvme_ctrl *ctrl)
+int nvme_reset_ctrl_sync(struct nvme_ctrl *ctrl)
 {
 	int ret;
 
@@ -104,6 +124,7 @@ static int nvme_reset_ctrl_sync(struct nvme_ctrl *ctrl)
 		flush_work(&ctrl->reset_work);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nvme_reset_ctrl_sync);
 
 static void nvme_delete_ctrl_work(struct work_struct *work)
 {
@@ -122,7 +143,7 @@ int nvme_delete_ctrl(struct nvme_ctrl *ctrl)
 {
 	if (!nvme_change_ctrl_state(ctrl, NVME_CTRL_DELETING))
 		return -EBUSY;
-	if (!queue_work(nvme_wq, &ctrl->delete_work))
+	if (!queue_work(nvme_delete_wq, &ctrl->delete_work))
 		return -EBUSY;
 	return 0;
 }
@@ -157,13 +178,20 @@ static blk_status_t nvme_error_status(struct request *req)
 		return BLK_STS_OK;
 	case NVME_SC_CAP_EXCEEDED:
 		return BLK_STS_NOSPC;
+	case NVME_SC_LBA_RANGE:
+		return BLK_STS_TARGET;
+	case NVME_SC_BAD_ATTRIBUTES:
 	case NVME_SC_ONCS_NOT_SUPPORTED:
+	case NVME_SC_INVALID_OPCODE:
+	case NVME_SC_INVALID_FIELD:
+	case NVME_SC_INVALID_NS:
 		return BLK_STS_NOTSUPP;
 	case NVME_SC_WRITE_FAULT:
 	case NVME_SC_READ_ERROR:
 	case NVME_SC_UNWRITTEN_BLOCK:
 	case NVME_SC_ACCESS_DENIED:
 	case NVME_SC_READ_ONLY:
+	case NVME_SC_COMPARE_FAILED:
 		return BLK_STS_MEDIUM;
 	case NVME_SC_GUARD_CHECK:
 	case NVME_SC_APPTAG_CHECK:
@@ -190,8 +218,12 @@ static inline bool nvme_req_needs_retry(struct request *req)
 
 void nvme_complete_rq(struct request *req)
 {
-	if (unlikely(nvme_req(req)->status && nvme_req_needs_retry(req))) {
-		if (nvme_req_needs_failover(req)) {
+	blk_status_t status = nvme_error_status(req);
+
+	trace_nvme_complete_rq(req);
+
+	if (unlikely(status != BLK_STS_OK && nvme_req_needs_retry(req))) {
+		if (nvme_req_needs_failover(req, status)) {
 			nvme_failover_req(req);
 			return;
 		}
@@ -202,8 +234,7 @@ void nvme_complete_rq(struct request *req)
 			return;
 		}
 	}
-
-	blk_mq_end_request(req, nvme_error_status(req));
+	blk_mq_end_request(req, status);
 }
 EXPORT_SYMBOL_GPL(nvme_complete_rq);
 
@@ -232,6 +263,15 @@ bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 
 	old_state = ctrl->state;
 	switch (new_state) {
+	case NVME_CTRL_ADMIN_ONLY:
+		switch (old_state) {
+		case NVME_CTRL_RECONNECTING:
+			changed = true;
+			/* FALLTHRU */
+		default:
+			break;
+		}
+		break;
 	case NVME_CTRL_LIVE:
 		switch (old_state) {
 		case NVME_CTRL_NEW:
@@ -247,6 +287,7 @@ bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 		switch (old_state) {
 		case NVME_CTRL_NEW:
 		case NVME_CTRL_LIVE:
+		case NVME_CTRL_ADMIN_ONLY:
 			changed = true;
 			/* FALLTHRU */
 		default:
@@ -266,6 +307,7 @@ bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 	case NVME_CTRL_DELETING:
 		switch (old_state) {
 		case NVME_CTRL_LIVE:
+		case NVME_CTRL_ADMIN_ONLY:
 		case NVME_CTRL_RESETTING:
 		case NVME_CTRL_RECONNECTING:
 			changed = true;
@@ -591,6 +633,10 @@ blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
 	}
 
 	cmd->common.command_id = req->tag;
+	if (ns)
+		trace_nvme_setup_nvm_cmd(req->q->id, cmd);
+	else
+		trace_nvme_setup_admin_cmd(cmd);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nvme_setup_cmd);
@@ -1217,16 +1263,27 @@ static int nvme_open(struct block_device *bdev, fmode_t mode)
 #ifdef CONFIG_NVME_MULTIPATH
 	/* should never be called due to GENHD_FL_HIDDEN */
 	if (WARN_ON_ONCE(ns->head->disk))
-		return -ENXIO;
+		goto fail;
 #endif
 	if (!kref_get_unless_zero(&ns->kref))
-		return -ENXIO;
+		goto fail;
+	if (!try_module_get(ns->ctrl->ops->module))
+		goto fail_put_ns;
+
 	return 0;
+
+fail_put_ns:
+	nvme_put_ns(ns);
+fail:
+	return -ENXIO;
 }
 
 static void nvme_release(struct gendisk *disk, fmode_t mode)
 {
-	nvme_put_ns(disk->private_data);
+	struct nvme_ns *ns = disk->private_data;
+
+	module_put(ns->ctrl->ops->module);
+	nvme_put_ns(ns);
 }
 
 static int nvme_getgeo(struct block_device *bdev, struct hd_geometry *geo)
@@ -2052,6 +2109,22 @@ static const struct attribute_group *nvme_subsys_attrs_groups[] = {
 	NULL,
 };
 
+static int nvme_active_ctrls(struct nvme_subsystem *subsys)
+{
+	int count = 0;
+	struct nvme_ctrl *ctrl;
+
+	mutex_lock(&subsys->lock);
+	list_for_each_entry(ctrl, &subsys->ctrls, subsys_entry) {
+		if (ctrl->state != NVME_CTRL_DELETING &&
+		    ctrl->state != NVME_CTRL_DEAD)
+			count++;
+	}
+	mutex_unlock(&subsys->lock);
+
+	return count;
+}
+
 static int nvme_init_subsystem(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 {
 	struct nvme_subsystem *subsys, *found;
@@ -2090,7 +2163,7 @@ static int nvme_init_subsystem(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 		 * Verify that the subsystem actually supports multiple
 		 * controllers, else bail out.
 		 */
-		if (!(id->cmic & (1 << 1))) {
+		if (nvme_active_ctrls(found) && !(id->cmic & (1 << 1))) {
 			dev_err(ctrl->device,
 				"ignoring ctrl due to duplicate subnqn (%s).\n",
 				found->subnqn);
@@ -2257,7 +2330,7 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 						 shutdown_timeout, 60);
 
 		if (ctrl->shutdown_timeout != shutdown_timeout)
-			dev_warn(ctrl->device,
+			dev_info(ctrl->device,
 				 "Shutdown timeout set to %u seconds\n",
 				 ctrl->shutdown_timeout);
 	} else
@@ -2341,8 +2414,14 @@ static int nvme_dev_open(struct inode *inode, struct file *file)
 	struct nvme_ctrl *ctrl =
 		container_of(inode->i_cdev, struct nvme_ctrl, cdev);
 
-	if (ctrl->state != NVME_CTRL_LIVE)
+	switch (ctrl->state) {
+	case NVME_CTRL_LIVE:
+	case NVME_CTRL_ADMIN_ONLY:
+		break;
+	default:
 		return -EWOULDBLOCK;
+	}
+
 	file->private_data = ctrl;
 	return 0;
 }
@@ -2606,6 +2685,7 @@ static ssize_t nvme_sysfs_show_state(struct device *dev,
 	static const char *const state_name[] = {
 		[NVME_CTRL_NEW]		= "new",
 		[NVME_CTRL_LIVE]	= "live",
+		[NVME_CTRL_ADMIN_ONLY]	= "only-admin",
 		[NVME_CTRL_RESETTING]	= "resetting",
 		[NVME_CTRL_RECONNECTING]= "reconnecting",
 		[NVME_CTRL_DELETING]	= "deleting",
@@ -3079,6 +3159,8 @@ static void nvme_scan_work(struct work_struct *work)
 	if (ctrl->state != NVME_CTRL_LIVE)
 		return;
 
+	WARN_ON_ONCE(!ctrl->tagset);
+
 	if (nvme_identify_ctrl(ctrl, &id))
 		return;
 
@@ -3099,8 +3181,7 @@ static void nvme_scan_work(struct work_struct *work)
 void nvme_queue_scan(struct nvme_ctrl *ctrl)
 {
 	/*
-	 * Do not queue new scan work when a controller is reset during
-	 * removal.
+	 * Only new queue scan work when admin and IO queues are both alive
 	 */
 	if (ctrl->state == NVME_CTRL_LIVE)
 		queue_work(nvme_wq, &ctrl->scan_work);
@@ -3477,16 +3558,26 @@ EXPORT_SYMBOL_GPL(nvme_reinit_tagset);
 
 int __init nvme_core_init(void)
 {
-	int result;
+	int result = -ENOMEM;
 
 	nvme_wq = alloc_workqueue("nvme-wq",
 			WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_SYSFS, 0);
 	if (!nvme_wq)
-		return -ENOMEM;
+		goto out;
+
+	nvme_reset_wq = alloc_workqueue("nvme-reset-wq",
+			WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_SYSFS, 0);
+	if (!nvme_reset_wq)
+		goto destroy_wq;
+
+	nvme_delete_wq = alloc_workqueue("nvme-delete-wq",
+			WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_SYSFS, 0);
+	if (!nvme_delete_wq)
+		goto destroy_reset_wq;
 
 	result = alloc_chrdev_region(&nvme_chr_devt, 0, NVME_MINORS, "nvme");
 	if (result < 0)
-		goto destroy_wq;
+		goto destroy_delete_wq;
 
 	nvme_class = class_create(THIS_MODULE, "nvme");
 	if (IS_ERR(nvme_class)) {
@@ -3505,8 +3596,13 @@ destroy_class:
 	class_destroy(nvme_class);
 unregister_chrdev:
 	unregister_chrdev_region(nvme_chr_devt, NVME_MINORS);
+destroy_delete_wq:
+	destroy_workqueue(nvme_delete_wq);
+destroy_reset_wq:
+	destroy_workqueue(nvme_reset_wq);
 destroy_wq:
 	destroy_workqueue(nvme_wq);
+out:
 	return result;
 }
 
@@ -3516,6 +3612,8 @@ void nvme_core_exit(void)
 	class_destroy(nvme_subsys_class);
 	class_destroy(nvme_class);
 	unregister_chrdev_region(nvme_chr_devt, NVME_MINORS);
+	destroy_workqueue(nvme_delete_wq);
+	destroy_workqueue(nvme_reset_wq);
 	destroy_workqueue(nvme_wq);
 }
 

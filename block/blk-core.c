@@ -126,6 +126,8 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	rq->start_time = jiffies;
 	set_start_time_ns(rq);
 	rq->part = NULL;
+	seqcount_init(&rq->gstate_seq);
+	u64_stats_init(&rq->aborted_gstate_sync);
 }
 EXPORT_SYMBOL(blk_rq_init);
 
@@ -698,6 +700,15 @@ void blk_cleanup_queue(struct request_queue *q)
 	spin_lock_irq(lock);
 	queue_flag_set(QUEUE_FLAG_DEAD, q);
 	spin_unlock_irq(lock);
+
+	/*
+	 * make sure all in-progress dispatch are completed because
+	 * blk_freeze_queue() can only complete all requests, and
+	 * dispatch may still be in-progress since we dispatch requests
+	 * from more than one contexts
+	 */
+	if (q->mq_ops)
+		blk_mq_quiesce_queue(q);
 
 	/* for synchronous bio-based driver finish in-flight integrity i/o */
 	blk_flush_integrity();
@@ -1646,6 +1657,7 @@ void __blk_put_request(struct request_queue *q, struct request *req)
 
 	lockdep_assert_held(q->queue_lock);
 
+	blk_req_zone_write_unlock(req);
 	blk_pm_put_request(req);
 
 	elv_completed_request(q, req);
@@ -2055,6 +2067,21 @@ static inline bool should_fail_request(struct hd_struct *part,
 
 #endif /* CONFIG_FAIL_MAKE_REQUEST */
 
+static inline bool bio_check_ro(struct bio *bio, struct hd_struct *part)
+{
+	if (part->policy && op_is_write(bio_op(bio))) {
+		char b[BDEVNAME_SIZE];
+
+		printk(KERN_ERR
+		       "generic_make_request: Trying to write "
+			"to read-only block-device %s (partno %d)\n",
+			bio_devname(bio, b), part->partno);
+		return true;
+	}
+
+	return false;
+}
+
 /*
  * Remap block n of partition p to block n+start(p) of the disk.
  */
@@ -2063,27 +2090,28 @@ static inline int blk_partition_remap(struct bio *bio)
 	struct hd_struct *p;
 	int ret = 0;
 
+	rcu_read_lock();
+	p = __disk_get_part(bio->bi_disk, bio->bi_partno);
+	if (unlikely(!p || should_fail_request(p, bio->bi_iter.bi_size) ||
+		     bio_check_ro(bio, p))) {
+		ret = -EIO;
+		goto out;
+	}
+
 	/*
 	 * Zone reset does not include bi_size so bio_sectors() is always 0.
 	 * Include a test for the reset op code and perform the remap if needed.
 	 */
-	if (!bio->bi_partno ||
-	    (!bio_sectors(bio) && bio_op(bio) != REQ_OP_ZONE_RESET))
-		return 0;
+	if (!bio_sectors(bio) && bio_op(bio) != REQ_OP_ZONE_RESET)
+		goto out;
 
-	rcu_read_lock();
-	p = __disk_get_part(bio->bi_disk, bio->bi_partno);
-	if (likely(p && !should_fail_request(p, bio->bi_iter.bi_size))) {
-		bio->bi_iter.bi_sector += p->start_sect;
-		bio->bi_partno = 0;
-		trace_block_bio_remap(bio->bi_disk->queue, bio, part_devt(p),
-				bio->bi_iter.bi_sector - p->start_sect);
-	} else {
-		printk("%s: fail for partition %d\n", __func__, bio->bi_partno);
-		ret = -EIO;
-	}
+	bio->bi_iter.bi_sector += p->start_sect;
+	bio->bi_partno = 0;
+	trace_block_bio_remap(bio->bi_disk->queue, bio, part_devt(p),
+			      bio->bi_iter.bi_sector - p->start_sect);
+
+out:
 	rcu_read_unlock();
-
 	return ret;
 }
 
@@ -2142,15 +2170,19 @@ generic_make_request_checks(struct bio *bio)
 	 * For a REQ_NOWAIT based request, return -EOPNOTSUPP
 	 * if queue is not a request based queue.
 	 */
-
 	if ((bio->bi_opf & REQ_NOWAIT) && !queue_is_rq_based(q))
 		goto not_supported;
 
 	if (should_fail_request(&bio->bi_disk->part0, bio->bi_iter.bi_size))
 		goto end_io;
 
-	if (blk_partition_remap(bio))
-		goto end_io;
+	if (!bio->bi_partno) {
+		if (unlikely(bio_check_ro(bio, &bio->bi_disk->part0)))
+			goto end_io;
+	} else {
+		if (blk_partition_remap(bio))
+			goto end_io;
+	}
 
 	if (bio_check_eod(bio, nr_sectors))
 		goto end_io;
@@ -2493,8 +2525,7 @@ blk_status_t blk_insert_cloned_request(struct request_queue *q, struct request *
 		 * bypass a potential scheduler on the bottom device for
 		 * insert.
 		 */
-		blk_mq_request_bypass_insert(rq, true);
-		return BLK_STS_OK;
+		return blk_mq_request_issue_directly(rq);
 	}
 
 	spin_lock_irqsave(q->queue_lock, flags);
@@ -2846,7 +2877,7 @@ void blk_start_request(struct request *req)
 		wbt_issue(req->q->rq_wb, &req->issue_stat);
 	}
 
-	BUG_ON(test_bit(REQ_ATOM_COMPLETE, &req->atomic_flags));
+	BUG_ON(blk_rq_is_complete(req));
 	blk_add_timer(req);
 }
 EXPORT_SYMBOL(blk_start_request);
@@ -3414,20 +3445,6 @@ int kblockd_mod_delayed_work_on(int cpu, struct delayed_work *dwork,
 	return mod_delayed_work_on(cpu, kblockd_workqueue, dwork, delay);
 }
 EXPORT_SYMBOL(kblockd_mod_delayed_work_on);
-
-int kblockd_schedule_delayed_work(struct delayed_work *dwork,
-				  unsigned long delay)
-{
-	return queue_delayed_work(kblockd_workqueue, dwork, delay);
-}
-EXPORT_SYMBOL(kblockd_schedule_delayed_work);
-
-int kblockd_schedule_delayed_work_on(int cpu, struct delayed_work *dwork,
-				     unsigned long delay)
-{
-	return queue_delayed_work_on(cpu, kblockd_workqueue, dwork, delay);
-}
-EXPORT_SYMBOL(kblockd_schedule_delayed_work_on);
 
 /**
  * blk_start_plug - initialize blk_plug and track it inside the task_struct
