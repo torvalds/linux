@@ -187,7 +187,7 @@ struct intel_ntb_dev {
 #define hb_ndev(__work) container_of(__work, struct intel_ntb_dev, \
 				     hb_timer.work)
 
-static inline int pdev_is_xeon(struct pci_dev *pdev)
+static inline int pdev_is_gen1(struct pci_dev *pdev)
 {
 	switch (pdev->device) {
 	case PCI_DEVICE_ID_INTEL_NTB_SS_JSF:
@@ -210,7 +210,7 @@ static inline int pdev_is_xeon(struct pci_dev *pdev)
 	return 0;
 }
 
-static inline int pdev_is_skx_xeon(struct pci_dev *pdev)
+static inline int pdev_is_gen3(struct pci_dev *pdev)
 {
 	if (pdev->device == PCI_DEVICE_ID_INTEL_NTB_B2B_SKX)
 		return 1;

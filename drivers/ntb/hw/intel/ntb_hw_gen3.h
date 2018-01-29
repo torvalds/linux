@@ -47,64 +47,63 @@
 #include "ntb_hw_intel.h"
 
 /* Intel Skylake Xeon hardware */
-#define SKX_IMBAR1SZ_OFFSET		0x00d0
-#define SKX_IMBAR2SZ_OFFSET		0x00d1
-#define SKX_EMBAR1SZ_OFFSET		0x00d2
-#define SKX_EMBAR2SZ_OFFSET		0x00d3
-#define SKX_DEVCTRL_OFFSET		0x0098
-#define SKX_DEVSTS_OFFSET		0x009a
-#define SKX_UNCERRSTS_OFFSET		0x014c
-#define SKX_CORERRSTS_OFFSET		0x0158
-#define SKX_LINK_STATUS_OFFSET		0x01a2
+#define GEN3_IMBAR1SZ_OFFSET		0x00d0
+#define GEN3_IMBAR2SZ_OFFSET		0x00d1
+#define GEN3_EMBAR1SZ_OFFSET		0x00d2
+#define GEN3_EMBAR2SZ_OFFSET		0x00d3
+#define GEN3_DEVCTRL_OFFSET		0x0098
+#define GEN3_DEVSTS_OFFSET		0x009a
+#define GEN3_UNCERRSTS_OFFSET		0x014c
+#define GEN3_CORERRSTS_OFFSET		0x0158
+#define GEN3_LINK_STATUS_OFFSET		0x01a2
 
-#define SKX_NTBCNTL_OFFSET		0x0000
-#define SKX_IMBAR1XBASE_OFFSET		0x0010		/* SBAR2XLAT */
-#define SKX_IMBAR1XLMT_OFFSET		0x0018		/* SBAR2LMT */
-#define SKX_IMBAR2XBASE_OFFSET		0x0020		/* SBAR4XLAT */
-#define SKX_IMBAR2XLMT_OFFSET		0x0028		/* SBAR4LMT */
-#define SKX_IM_INT_STATUS_OFFSET	0x0040
-#define SKX_IM_INT_DISABLE_OFFSET	0x0048
-#define SKX_IM_SPAD_OFFSET		0x0080		/* SPAD */
-#define SKX_USMEMMISS_OFFSET		0x0070
-#define SKX_INTVEC_OFFSET		0x00d0
-#define SKX_IM_DOORBELL_OFFSET		0x0100		/* SDOORBELL0 */
-#define SKX_B2B_SPAD_OFFSET		0x0180		/* B2B SPAD */
-#define SKX_EMBAR0XBASE_OFFSET		0x4008		/* B2B_XLAT */
-#define SKX_EMBAR1XBASE_OFFSET		0x4010		/* PBAR2XLAT */
-#define SKX_EMBAR1XLMT_OFFSET		0x4018		/* PBAR2LMT */
-#define SKX_EMBAR2XBASE_OFFSET		0x4020		/* PBAR4XLAT */
-#define SKX_EMBAR2XLMT_OFFSET		0x4028		/* PBAR4LMT */
-#define SKX_EM_INT_STATUS_OFFSET	0x4040
-#define SKX_EM_INT_DISABLE_OFFSET	0x4048
-#define SKX_EM_SPAD_OFFSET		0x4080		/* remote SPAD */
-#define SKX_EM_DOORBELL_OFFSET		0x4100		/* PDOORBELL0 */
-#define SKX_SPCICMD_OFFSET		0x4504		/* SPCICMD */
-#define SKX_EMBAR0_OFFSET		0x4510		/* SBAR0BASE */
-#define SKX_EMBAR1_OFFSET		0x4518		/* SBAR23BASE */
-#define SKX_EMBAR2_OFFSET		0x4520		/* SBAR45BASE */
+#define GEN3_NTBCNTL_OFFSET		0x0000
+#define GEN3_IMBAR1XBASE_OFFSET		0x0010		/* SBAR2XLAT */
+#define GEN3_IMBAR1XLMT_OFFSET		0x0018		/* SBAR2LMT */
+#define GEN3_IMBAR2XBASE_OFFSET		0x0020		/* SBAR4XLAT */
+#define GEN3_IMBAR2XLMT_OFFSET		0x0028		/* SBAR4LMT */
+#define GEN3_IM_INT_STATUS_OFFSET	0x0040
+#define GEN3_IM_INT_DISABLE_OFFSET	0x0048
+#define GEN3_IM_SPAD_OFFSET		0x0080		/* SPAD */
+#define GEN3_USMEMMISS_OFFSET		0x0070
+#define GEN3_INTVEC_OFFSET		0x00d0
+#define GEN3_IM_DOORBELL_OFFSET		0x0100		/* SDOORBELL0 */
+#define GEN3_B2B_SPAD_OFFSET		0x0180		/* B2B SPAD */
+#define GEN3_EMBAR0XBASE_OFFSET		0x4008		/* B2B_XLAT */
+#define GEN3_EMBAR1XBASE_OFFSET		0x4010		/* PBAR2XLAT */
+#define GEN3_EMBAR1XLMT_OFFSET		0x4018		/* PBAR2LMT */
+#define GEN3_EMBAR2XBASE_OFFSET		0x4020		/* PBAR4XLAT */
+#define GEN3_EMBAR2XLMT_OFFSET		0x4028		/* PBAR4LMT */
+#define GEN3_EM_INT_STATUS_OFFSET	0x4040
+#define GEN3_EM_INT_DISABLE_OFFSET	0x4048
+#define GEN3_EM_SPAD_OFFSET		0x4080		/* remote SPAD */
+#define GEN3_EM_DOORBELL_OFFSET		0x4100		/* PDOORBELL0 */
+#define GEN3_SPCICMD_OFFSET		0x4504		/* SPCICMD */
+#define GEN3_EMBAR0_OFFSET		0x4510		/* SBAR0BASE */
+#define GEN3_EMBAR1_OFFSET		0x4518		/* SBAR23BASE */
+#define GEN3_EMBAR2_OFFSET		0x4520		/* SBAR45BASE */
 
-#define SKX_DB_COUNT			32
-#define SKX_DB_LINK			32
-#define SKX_DB_LINK_BIT			BIT_ULL(SKX_DB_LINK)
-#define SKX_DB_MSIX_VECTOR_COUNT	33
-#define SKX_DB_MSIX_VECTOR_SHIFT	1
-#define SKX_DB_TOTAL_SHIFT		33
-#define SKX_SPAD_COUNT			16
+#define GEN3_DB_COUNT			32
+#define GEN3_DB_LINK			32
+#define GEN3_DB_LINK_BIT		BIT_ULL(GEN3_DB_LINK)
+#define GEN3_DB_MSIX_VECTOR_COUNT	33
+#define GEN3_DB_MSIX_VECTOR_SHIFT	1
+#define GEN3_DB_TOTAL_SHIFT		33
+#define GEN3_SPAD_COUNT			16
 
-static inline u64 skx_db_ioread(void __iomem *mmio)
+static inline u64 gen3_db_ioread(void __iomem *mmio)
 {
 	return ioread64(mmio);
 }
 
-static inline void skx_db_iowrite(u64 bits, void __iomem *mmio)
+static inline void gen3_db_iowrite(u64 bits, void __iomem *mmio)
 {
 	iowrite64(bits, mmio);
 }
 
 ssize_t ndev_ntb3_debugfs_read(struct file *filp, char __user *ubuf,
 				      size_t count, loff_t *offp);
-int skx_init_dev(struct intel_ntb_dev *ndev);
-int skx_poll_link(struct intel_ntb_dev *ndev);
+int gen3_init_dev(struct intel_ntb_dev *ndev);
 
 extern const struct ntb_dev_ops intel_ntb3_ops;
 

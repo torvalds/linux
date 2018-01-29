@@ -45,9 +45,6 @@
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Intel PCIe NTB Linux driver
- *
- * Contact Information:
- * Jon Mason <jon.mason@intel.com>
  */
 
 #include <linux/debugfs.h>
@@ -651,7 +648,7 @@ static ssize_t ndev_ntb_debugfs_read(struct file *filp, char __user *ubuf,
 				 "LMT45 -\t\t\t%#018llx\n", u.v64);
 	}
 
-	if (pdev_is_xeon(pdev)) {
+	if (pdev_is_gen1(pdev)) {
 		if (ntb_topo_is_b2b(ndev->ntb.topo)) {
 			off += scnprintf(buf + off, buf_size - off,
 					 "\nNTB Outgoing B2B XLAT:\n");
@@ -763,9 +760,9 @@ static ssize_t ndev_debugfs_read(struct file *filp, char __user *ubuf,
 {
 	struct intel_ntb_dev *ndev = filp->private_data;
 
-	if (pdev_is_xeon(ndev->ntb.pdev))
+	if (pdev_is_gen1(ndev->ntb.pdev))
 		return ndev_ntb_debugfs_read(filp, ubuf, count, offp);
-	else if (pdev_is_skx_xeon(ndev->ntb.pdev))
+	else if (pdev_is_gen3(ndev->ntb.pdev))
 		return ndev_ntb3_debugfs_read(filp, ubuf, count, offp);
 
 	return -ENXIO;
@@ -1849,7 +1846,7 @@ static int intel_ntb_pci_probe(struct pci_dev *pdev,
 
 	node = dev_to_node(&pdev->dev);
 
-	if (pdev_is_xeon(pdev)) {
+	if (pdev_is_gen1(pdev)) {
 		ndev = kzalloc_node(sizeof(*ndev), GFP_KERNEL, node);
 		if (!ndev) {
 			rc = -ENOMEM;
@@ -1866,7 +1863,7 @@ static int intel_ntb_pci_probe(struct pci_dev *pdev,
 		if (rc)
 			goto err_init_dev;
 
-	} else if (pdev_is_skx_xeon(pdev)) {
+	} else if (pdev_is_gen3(pdev)) {
 		ndev = kzalloc_node(sizeof(*ndev), GFP_KERNEL, node);
 		if (!ndev) {
 			rc = -ENOMEM;
@@ -1880,7 +1877,7 @@ static int intel_ntb_pci_probe(struct pci_dev *pdev,
 		if (rc)
 			goto err_init_pci;
 
-		rc = skx_init_dev(ndev);
+		rc = gen3_init_dev(ndev);
 		if (rc)
 			goto err_init_dev;
 
@@ -1905,7 +1902,7 @@ static int intel_ntb_pci_probe(struct pci_dev *pdev,
 
 err_register:
 	ndev_deinit_debugfs(ndev);
-	if (pdev_is_xeon(pdev) || pdev_is_skx_xeon(pdev))
+	if (pdev_is_gen1(pdev) || pdev_is_gen3(pdev))
 		xeon_deinit_dev(ndev);
 err_init_dev:
 	intel_ntb_deinit_pci(ndev);
@@ -1921,7 +1918,7 @@ static void intel_ntb_pci_remove(struct pci_dev *pdev)
 
 	ntb_unregister_device(&ndev->ntb);
 	ndev_deinit_debugfs(ndev);
-	if (pdev_is_xeon(pdev) || pdev_is_skx_xeon(pdev))
+	if (pdev_is_gen1(pdev) || pdev_is_gen3(pdev))
 		xeon_deinit_dev(ndev);
 	intel_ntb_deinit_pci(ndev);
 	kfree(ndev);

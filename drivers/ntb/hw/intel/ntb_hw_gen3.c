@@ -40,10 +40,8 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Intel PCIe NTB Linux driver
+ * Intel PCIe GEN3 NTB Linux driver
  *
- * Contact Information:
- * Jon Mason <jon.mason@intel.com>
  */
 
 #include <linux/debugfs.h>
@@ -60,37 +58,39 @@
 #include "ntb_hw_gen1.h"
 #include "ntb_hw_gen3.h"
 
-static const struct intel_ntb_reg skx_reg = {
-	.poll_link		= skx_poll_link,
+static int gen3_poll_link(struct intel_ntb_dev *ndev);
+
+static const struct intel_ntb_reg gen3_reg = {
+	.poll_link		= gen3_poll_link,
 	.link_is_up		= xeon_link_is_up,
-	.db_ioread		= skx_db_ioread,
-	.db_iowrite		= skx_db_iowrite,
+	.db_ioread		= gen3_db_ioread,
+	.db_iowrite		= gen3_db_iowrite,
 	.db_size		= sizeof(u32),
-	.ntb_ctl		= SKX_NTBCNTL_OFFSET,
+	.ntb_ctl		= GEN3_NTBCNTL_OFFSET,
 	.mw_bar			= {2, 4},
 };
 
-static const struct intel_ntb_alt_reg skx_pri_reg = {
-	.db_bell		= SKX_EM_DOORBELL_OFFSET,
-	.db_clear		= SKX_IM_INT_STATUS_OFFSET,
-	.db_mask		= SKX_IM_INT_DISABLE_OFFSET,
-	.spad			= SKX_IM_SPAD_OFFSET,
+static const struct intel_ntb_alt_reg gen3_pri_reg = {
+	.db_bell		= GEN3_EM_DOORBELL_OFFSET,
+	.db_clear		= GEN3_IM_INT_STATUS_OFFSET,
+	.db_mask		= GEN3_IM_INT_DISABLE_OFFSET,
+	.spad			= GEN3_IM_SPAD_OFFSET,
 };
 
-static const struct intel_ntb_alt_reg skx_b2b_reg = {
-	.db_bell		= SKX_IM_DOORBELL_OFFSET,
-	.db_clear		= SKX_EM_INT_STATUS_OFFSET,
-	.db_mask		= SKX_EM_INT_DISABLE_OFFSET,
-	.spad			= SKX_B2B_SPAD_OFFSET,
+static const struct intel_ntb_alt_reg gen3_b2b_reg = {
+	.db_bell		= GEN3_IM_DOORBELL_OFFSET,
+	.db_clear		= GEN3_EM_INT_STATUS_OFFSET,
+	.db_mask		= GEN3_EM_INT_DISABLE_OFFSET,
+	.spad			= GEN3_B2B_SPAD_OFFSET,
 };
 
-static const struct intel_ntb_xlat_reg skx_sec_xlat = {
-/*	.bar0_base		= SKX_EMBAR0_OFFSET, */
-	.bar2_limit		= SKX_IMBAR1XLMT_OFFSET,
-	.bar2_xlat		= SKX_IMBAR1XBASE_OFFSET,
+static const struct intel_ntb_xlat_reg gen3_sec_xlat = {
+/*	.bar0_base		= GEN3_EMBAR0_OFFSET, */
+	.bar2_limit		= GEN3_IMBAR1XLMT_OFFSET,
+	.bar2_xlat		= GEN3_IMBAR1XBASE_OFFSET,
 };
 
-int skx_poll_link(struct intel_ntb_dev *ndev)
+static int gen3_poll_link(struct intel_ntb_dev *ndev)
 {
 	u16 reg_val;
 	int rc;
@@ -100,7 +100,7 @@ int skx_poll_link(struct intel_ntb_dev *ndev)
 			      ndev->self_reg->db_clear);
 
 	rc = pci_read_config_word(ndev->ntb.pdev,
-				  SKX_LINK_STATUS_OFFSET, &reg_val);
+				  GEN3_LINK_STATUS_OFFSET, &reg_val);
 	if (rc)
 		return 0;
 
@@ -112,7 +112,7 @@ int skx_poll_link(struct intel_ntb_dev *ndev)
 	return 1;
 }
 
-static int skx_init_isr(struct intel_ntb_dev *ndev)
+static int gen3_init_isr(struct intel_ntb_dev *ndev)
 {
 	int i;
 
@@ -123,23 +123,23 @@ static int skx_init_isr(struct intel_ntb_dev *ndev)
 	 * The vectors at reset is 1-32,0. We need to reprogram to 0-32.
 	 */
 
-	for (i = 0; i < SKX_DB_MSIX_VECTOR_COUNT; i++)
-		iowrite8(i, ndev->self_mmio + SKX_INTVEC_OFFSET + i);
+	for (i = 0; i < GEN3_DB_MSIX_VECTOR_COUNT; i++)
+		iowrite8(i, ndev->self_mmio + GEN3_INTVEC_OFFSET + i);
 
 	/* move link status down one as workaround */
 	if (ndev->hwerr_flags & NTB_HWERR_MSIX_VECTOR32_BAD) {
-		iowrite8(SKX_DB_MSIX_VECTOR_COUNT - 2,
-			 ndev->self_mmio + SKX_INTVEC_OFFSET +
-			 (SKX_DB_MSIX_VECTOR_COUNT - 1));
+		iowrite8(GEN3_DB_MSIX_VECTOR_COUNT - 2,
+			 ndev->self_mmio + GEN3_INTVEC_OFFSET +
+			 (GEN3_DB_MSIX_VECTOR_COUNT - 1));
 	}
 
-	return ndev_init_isr(ndev, SKX_DB_MSIX_VECTOR_COUNT,
-			     SKX_DB_MSIX_VECTOR_COUNT,
-			     SKX_DB_MSIX_VECTOR_SHIFT,
-			     SKX_DB_TOTAL_SHIFT);
+	return ndev_init_isr(ndev, GEN3_DB_MSIX_VECTOR_COUNT,
+			     GEN3_DB_MSIX_VECTOR_COUNT,
+			     GEN3_DB_MSIX_VECTOR_SHIFT,
+			     GEN3_DB_TOTAL_SHIFT);
 }
 
-static int skx_setup_b2b_mw(struct intel_ntb_dev *ndev,
+static int gen3_setup_b2b_mw(struct intel_ntb_dev *ndev,
 			    const struct intel_b2b_addr *addr,
 			    const struct intel_b2b_addr *peer_addr)
 {
@@ -152,33 +152,33 @@ static int skx_setup_b2b_mw(struct intel_ntb_dev *ndev,
 
 	/* setup incoming bar limits == base addrs (zero length windows) */
 	bar_addr = addr->bar2_addr64;
-	iowrite64(bar_addr, mmio + SKX_IMBAR1XLMT_OFFSET);
-	bar_addr = ioread64(mmio + SKX_IMBAR1XLMT_OFFSET);
+	iowrite64(bar_addr, mmio + GEN3_IMBAR1XLMT_OFFSET);
+	bar_addr = ioread64(mmio + GEN3_IMBAR1XLMT_OFFSET);
 	dev_dbg(&pdev->dev, "IMBAR1XLMT %#018llx\n", bar_addr);
 
 	bar_addr = addr->bar4_addr64;
-	iowrite64(bar_addr, mmio + SKX_IMBAR2XLMT_OFFSET);
-	bar_addr = ioread64(mmio + SKX_IMBAR2XLMT_OFFSET);
+	iowrite64(bar_addr, mmio + GEN3_IMBAR2XLMT_OFFSET);
+	bar_addr = ioread64(mmio + GEN3_IMBAR2XLMT_OFFSET);
 	dev_dbg(&pdev->dev, "IMBAR2XLMT %#018llx\n", bar_addr);
 
 	/* zero incoming translation addrs */
-	iowrite64(0, mmio + SKX_IMBAR1XBASE_OFFSET);
-	iowrite64(0, mmio + SKX_IMBAR2XBASE_OFFSET);
+	iowrite64(0, mmio + GEN3_IMBAR1XBASE_OFFSET);
+	iowrite64(0, mmio + GEN3_IMBAR2XBASE_OFFSET);
 
 	ndev->peer_mmio = ndev->self_mmio;
 
 	return 0;
 }
 
-static int skx_init_ntb(struct intel_ntb_dev *ndev)
+static int gen3_init_ntb(struct intel_ntb_dev *ndev)
 {
 	int rc;
 
 
 	ndev->mw_count = XEON_MW_COUNT;
-	ndev->spad_count = SKX_SPAD_COUNT;
-	ndev->db_count = SKX_DB_COUNT;
-	ndev->db_link_mask = SKX_DB_LINK_BIT;
+	ndev->spad_count = GEN3_SPAD_COUNT;
+	ndev->db_count = GEN3_DB_COUNT;
+	ndev->db_link_mask = GEN3_DB_LINK_BIT;
 
 	/* DB fixup for using 31 right now */
 	if (ndev->hwerr_flags & NTB_HWERR_MSIX_VECTOR32_BAD)
@@ -187,16 +187,16 @@ static int skx_init_ntb(struct intel_ntb_dev *ndev)
 	switch (ndev->ntb.topo) {
 	case NTB_TOPO_B2B_USD:
 	case NTB_TOPO_B2B_DSD:
-		ndev->self_reg = &skx_pri_reg;
-		ndev->peer_reg = &skx_b2b_reg;
-		ndev->xlat_reg = &skx_sec_xlat;
+		ndev->self_reg = &gen3_pri_reg;
+		ndev->peer_reg = &gen3_b2b_reg;
+		ndev->xlat_reg = &gen3_sec_xlat;
 
 		if (ndev->ntb.topo == NTB_TOPO_B2B_USD) {
-			rc = skx_setup_b2b_mw(ndev,
+			rc = gen3_setup_b2b_mw(ndev,
 					      &xeon_b2b_dsd_addr,
 					      &xeon_b2b_usd_addr);
 		} else {
-			rc = skx_setup_b2b_mw(ndev,
+			rc = gen3_setup_b2b_mw(ndev,
 					      &xeon_b2b_usd_addr,
 					      &xeon_b2b_dsd_addr);
 		}
@@ -206,7 +206,7 @@ static int skx_init_ntb(struct intel_ntb_dev *ndev)
 
 		/* Enable Bus Master and Memory Space on the secondary side */
 		iowrite16(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER,
-			  ndev->self_mmio + SKX_SPCICMD_OFFSET);
+			  ndev->self_mmio + GEN3_SPCICMD_OFFSET);
 
 		break;
 
@@ -223,7 +223,7 @@ static int skx_init_ntb(struct intel_ntb_dev *ndev)
 	return 0;
 }
 
-int skx_init_dev(struct intel_ntb_dev *ndev)
+int gen3_init_dev(struct intel_ntb_dev *ndev)
 {
 	struct pci_dev *pdev;
 	u8 ppd;
@@ -231,7 +231,7 @@ int skx_init_dev(struct intel_ntb_dev *ndev)
 
 	pdev = ndev->ntb.pdev;
 
-	ndev->reg = &skx_reg;
+	ndev->reg = &gen3_reg;
 
 	rc = pci_read_config_byte(pdev, XEON_PPD_OFFSET, &ppd);
 	if (rc)
@@ -245,11 +245,11 @@ int skx_init_dev(struct intel_ntb_dev *ndev)
 
 	ndev->hwerr_flags |= NTB_HWERR_MSIX_VECTOR32_BAD;
 
-	rc = skx_init_ntb(ndev);
+	rc = gen3_init_ntb(ndev);
 	if (rc)
 		return rc;
 
-	return skx_init_isr(ndev);
+	return gen3_init_isr(ndev);
 }
 
 ssize_t ndev_ntb3_debugfs_read(struct file *filp, char __user *ubuf,
@@ -328,19 +328,19 @@ ssize_t ndev_ntb3_debugfs_read(struct file *filp, char __user *ubuf,
 	off += scnprintf(buf + off, buf_size - off,
 			 "\nNTB Incoming XLAT:\n");
 
-	u.v64 = ioread64(mmio + SKX_IMBAR1XBASE_OFFSET);
+	u.v64 = ioread64(mmio + GEN3_IMBAR1XBASE_OFFSET);
 	off += scnprintf(buf + off, buf_size - off,
 			 "IMBAR1XBASE -\t\t%#018llx\n", u.v64);
 
-	u.v64 = ioread64(mmio + SKX_IMBAR2XBASE_OFFSET);
+	u.v64 = ioread64(mmio + GEN3_IMBAR2XBASE_OFFSET);
 	off += scnprintf(buf + off, buf_size - off,
 			 "IMBAR2XBASE -\t\t%#018llx\n", u.v64);
 
-	u.v64 = ioread64(mmio + SKX_IMBAR1XLMT_OFFSET);
+	u.v64 = ioread64(mmio + GEN3_IMBAR1XLMT_OFFSET);
 	off += scnprintf(buf + off, buf_size - off,
 			 "IMBAR1XLMT -\t\t\t%#018llx\n", u.v64);
 
-	u.v64 = ioread64(mmio + SKX_IMBAR2XLMT_OFFSET);
+	u.v64 = ioread64(mmio + GEN3_IMBAR2XLMT_OFFSET);
 	off += scnprintf(buf + off, buf_size - off,
 			 "IMBAR2XLMT -\t\t\t%#018llx\n", u.v64);
 
@@ -348,34 +348,34 @@ ssize_t ndev_ntb3_debugfs_read(struct file *filp, char __user *ubuf,
 		off += scnprintf(buf + off, buf_size - off,
 				 "\nNTB Outgoing B2B XLAT:\n");
 
-		u.v64 = ioread64(mmio + SKX_EMBAR1XBASE_OFFSET);
+		u.v64 = ioread64(mmio + GEN3_EMBAR1XBASE_OFFSET);
 		off += scnprintf(buf + off, buf_size - off,
 				 "EMBAR1XBASE -\t\t%#018llx\n", u.v64);
 
-		u.v64 = ioread64(mmio + SKX_EMBAR2XBASE_OFFSET);
+		u.v64 = ioread64(mmio + GEN3_EMBAR2XBASE_OFFSET);
 		off += scnprintf(buf + off, buf_size - off,
 				 "EMBAR2XBASE -\t\t%#018llx\n", u.v64);
 
-		u.v64 = ioread64(mmio + SKX_EMBAR1XLMT_OFFSET);
+		u.v64 = ioread64(mmio + GEN3_EMBAR1XLMT_OFFSET);
 		off += scnprintf(buf + off, buf_size - off,
 				 "EMBAR1XLMT -\t\t%#018llx\n", u.v64);
 
-		u.v64 = ioread64(mmio + SKX_EMBAR2XLMT_OFFSET);
+		u.v64 = ioread64(mmio + GEN3_EMBAR2XLMT_OFFSET);
 		off += scnprintf(buf + off, buf_size - off,
 				 "EMBAR2XLMT -\t\t%#018llx\n", u.v64);
 
 		off += scnprintf(buf + off, buf_size - off,
 				 "\nNTB Secondary BAR:\n");
 
-		u.v64 = ioread64(mmio + SKX_EMBAR0_OFFSET);
+		u.v64 = ioread64(mmio + GEN3_EMBAR0_OFFSET);
 		off += scnprintf(buf + off, buf_size - off,
 				 "EMBAR0 -\t\t%#018llx\n", u.v64);
 
-		u.v64 = ioread64(mmio + SKX_EMBAR1_OFFSET);
+		u.v64 = ioread64(mmio + GEN3_EMBAR1_OFFSET);
 		off += scnprintf(buf + off, buf_size - off,
 				 "EMBAR1 -\t\t%#018llx\n", u.v64);
 
-		u.v64 = ioread64(mmio + SKX_EMBAR2_OFFSET);
+		u.v64 = ioread64(mmio + GEN3_EMBAR2_OFFSET);
 		off += scnprintf(buf + off, buf_size - off,
 				 "EMBAR2 -\t\t%#018llx\n", u.v64);
 	}
@@ -383,7 +383,7 @@ ssize_t ndev_ntb3_debugfs_read(struct file *filp, char __user *ubuf,
 	off += scnprintf(buf + off, buf_size - off,
 			 "\nNTB Statistics:\n");
 
-	u.v16 = ioread16(mmio + SKX_USMEMMISS_OFFSET);
+	u.v16 = ioread16(mmio + GEN3_USMEMMISS_OFFSET);
 	off += scnprintf(buf + off, buf_size - off,
 			 "Upstream Memory Miss -\t%u\n", u.v16);
 
@@ -391,22 +391,22 @@ ssize_t ndev_ntb3_debugfs_read(struct file *filp, char __user *ubuf,
 			 "\nNTB Hardware Errors:\n");
 
 	if (!pci_read_config_word(ndev->ntb.pdev,
-				  SKX_DEVSTS_OFFSET, &u.v16))
+				  GEN3_DEVSTS_OFFSET, &u.v16))
 		off += scnprintf(buf + off, buf_size - off,
 				 "DEVSTS -\t\t%#06x\n", u.v16);
 
 	if (!pci_read_config_word(ndev->ntb.pdev,
-				  SKX_LINK_STATUS_OFFSET, &u.v16))
+				  GEN3_LINK_STATUS_OFFSET, &u.v16))
 		off += scnprintf(buf + off, buf_size - off,
 				 "LNKSTS -\t\t%#06x\n", u.v16);
 
 	if (!pci_read_config_dword(ndev->ntb.pdev,
-				   SKX_UNCERRSTS_OFFSET, &u.v32))
+				   GEN3_UNCERRSTS_OFFSET, &u.v32))
 		off += scnprintf(buf + off, buf_size - off,
 				 "UNCERRSTS -\t\t%#06x\n", u.v32);
 
 	if (!pci_read_config_dword(ndev->ntb.pdev,
-				   SKX_CORERRSTS_OFFSET, &u.v32))
+				   GEN3_CORERRSTS_OFFSET, &u.v32))
 		off += scnprintf(buf + off, buf_size - off,
 				 "CORERRSTS -\t\t%#06x\n", u.v32);
 
@@ -510,7 +510,7 @@ static int intel_ntb3_mw_set_trans(struct ntb_dev *ntb, int pidx, int idx,
 
 	/* setup the EP */
 	limit_reg = ndev->xlat_reg->bar2_limit + (idx * 0x10) + 0x4000;
-	base = ioread64(mmio + SKX_EMBAR1_OFFSET + (8 * idx));
+	base = ioread64(mmio + GEN3_EMBAR1_OFFSET + (8 * idx));
 	base &= ~0xf;
 
 	if (limit_reg && size != mw_size)
