@@ -57,7 +57,7 @@ static void mlx5i_build_nic_params(struct mlx5_core_dev *mdev,
 				   struct mlx5e_params *params)
 {
 	/* Override RQ params as IPoIB supports only LINKED LIST RQ for now */
-	mlx5e_set_rq_type_params(mdev, params, MLX5_WQ_TYPE_LINKED_LIST);
+	mlx5e_init_rq_type_params(mdev, params, MLX5_WQ_TYPE_LINKED_LIST);
 
 	/* RQ size in ipoib by default is 512 */
 	params->log_rq_size = is_kdump_kernel() ?
@@ -85,6 +85,8 @@ void mlx5i_init(struct mlx5_core_dev *mdev,
 
 	mlx5e_build_nic_params(mdev, &priv->channels.params, profile->max_nch(mdev));
 	mlx5i_build_nic_params(mdev, &priv->channels.params);
+
+	mlx5e_timestamp_init(priv);
 
 	/* netdev init */
 	netdev->hw_features    |= NETIF_F_SG;
@@ -450,7 +452,6 @@ static int mlx5i_open(struct net_device *netdev)
 
 	mlx5e_refresh_tirs(epriv, false);
 	mlx5e_activate_priv_channels(epriv);
-	mlx5e_timestamp_set(epriv);
 
 	mutex_unlock(&epriv->state_lock);
 	return 0;

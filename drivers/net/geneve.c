@@ -825,6 +825,13 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 
+	if (skb_dst(skb)) {
+		int mtu = dst_mtu(&rt->dst) - sizeof(struct iphdr) -
+			  GENEVE_BASE_HLEN - info->options_len - 14;
+
+		skb_dst_update_pmtu(skb, mtu);
+	}
+
 	sport = udp_flow_src_port(geneve->net, skb, 1, USHRT_MAX, true);
 	if (geneve->collect_md) {
 		tos = ip_tunnel_ecn_encap(key->tos, ip_hdr(skb), skb);
@@ -863,6 +870,13 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	dst = geneve_get_v6_dst(skb, dev, gs6, &fl6, info);
 	if (IS_ERR(dst))
 		return PTR_ERR(dst);
+
+	if (skb_dst(skb)) {
+		int mtu = dst_mtu(dst) - sizeof(struct ipv6hdr) -
+			  GENEVE_BASE_HLEN - info->options_len - 14;
+
+		skb_dst_update_pmtu(skb, mtu);
+	}
 
 	sport = udp_flow_src_port(geneve->net, skb, 1, USHRT_MAX, true);
 	if (geneve->collect_md) {

@@ -139,6 +139,7 @@ vc4_irq_finish_render_job(struct drm_device *dev)
 	list_move_tail(&exec->head, &vc4->job_done_list);
 	if (exec->fence) {
 		dma_fence_signal_locked(exec->fence);
+		dma_fence_put(exec->fence);
 		exec->fence = NULL;
 	}
 	vc4_submit_next_render_job(dev);
@@ -207,9 +208,6 @@ int
 vc4_irq_postinstall(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-
-	/* Undo the effects of a previous vc4_irq_uninstall. */
-	enable_irq(dev->irq);
 
 	/* Enable both the render done and out of memory interrupts. */
 	V3D_WRITE(V3D_INTENA, V3D_DRIVER_IRQS);

@@ -1091,6 +1091,8 @@ struct ibmvnic_adapter {
 	u64 opt_rxba_entries_per_subcrq;
 	__be64 tx_rx_desc_req;
 	u8 map_id;
+	u64 num_active_rx_pools;
+	u64 num_active_tx_pools;
 
 	struct tasklet_struct tasklet;
 	enum vnic_state state;

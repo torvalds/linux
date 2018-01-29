@@ -2777,12 +2777,12 @@ int intel_gvt_scan_and_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 }
 
 static struct cmd_info *find_cmd_entry_any_ring(struct intel_gvt *gvt,
-		unsigned int opcode, int rings)
+		unsigned int opcode, unsigned long rings)
 {
 	struct cmd_info *info = NULL;
 	unsigned int ring;
 
-	for_each_set_bit(ring, (unsigned long *)&rings, I915_NUM_ENGINES) {
+	for_each_set_bit(ring, &rings, I915_NUM_ENGINES) {
 		info = find_cmd_entry(gvt, opcode, ring);
 		if (info)
 			break;

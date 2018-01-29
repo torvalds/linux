@@ -5187,7 +5187,7 @@ int get_frame_info_nop(struct atomisp_sub_device *asd,
 	return 0;
 }
 
-/**
+/*
  * Resets CSS parameters that depend on input resolution.
  *
  * Update params like CSS RAW binning, 2ppc mode and pp_input

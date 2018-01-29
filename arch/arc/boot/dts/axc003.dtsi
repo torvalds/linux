@@ -35,6 +35,14 @@
 			reg = <0x80 0x10>, <0x100 0x10>;
 			#clock-cells = <0>;
 			clocks = <&input_clk>;
+
+			/*
+			 * Set initial core pll output frequency to 90MHz.
+			 * It will be applied at the core pll driver probing
+			 * on early boot.
+			 */
+			assigned-clocks = <&core_clk>;
+			assigned-clock-rates = <90000000>;
 		};
 
 		core_intc: archs-intc@cpu {

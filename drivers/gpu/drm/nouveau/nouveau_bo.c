@@ -224,7 +224,7 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 		/* Determine if we can get a cache-coherent map, forcing
 		 * uncached mapping if we can't.
 		 */
-		if (mmu->type[drm->ttm.type_host].type & NVIF_MEM_UNCACHED)
+		if (!nouveau_drm_use_coherent_gpu_mapping(drm))
 			nvbo->force_coherent = true;
 	}
 
@@ -262,7 +262,8 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 		if (cli->device.info.family > NV_DEVICE_INFO_V0_CURIE &&
 		    (flags & TTM_PL_FLAG_VRAM) && !vmm->page[i].vram)
 			continue;
-		if ((flags & TTM_PL_FLAG_TT  ) && !vmm->page[i].host)
+		if ((flags & TTM_PL_FLAG_TT) &&
+		    (!vmm->page[i].host || vmm->page[i].shift > PAGE_SHIFT))
 			continue;
 
 		/* Select this page size if it's the first that supports
@@ -1446,11 +1447,13 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 				args.nv50.ro = 0;
 				args.nv50.kind = mem->kind;
 				args.nv50.comp = mem->comp;
+				argc = sizeof(args.nv50);
 				break;
 			case NVIF_CLASS_MEM_GF100:
 				args.gf100.version = 0;
 				args.gf100.ro = 0;
 				args.gf100.kind = mem->kind;
+				argc = sizeof(args.gf100);
 				break;
 			default:
 				WARN_ON(1);
@@ -1458,7 +1461,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 			}
 
 			ret = nvif_object_map_handle(&mem->mem.object,
-						     &argc, argc,
+						     &args, argc,
 						     &handle, &length);
 			if (ret != 1)
 				return ret ? ret : -EINVAL;

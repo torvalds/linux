@@ -172,6 +172,14 @@ struct nfp_prog {
 	struct list_head insns;
 };
 
+/**
+ * struct nfp_bpf_vnic - per-vNIC BPF priv structure
+ * @tc_prog:	currently loaded cls_bpf program
+ */
+struct nfp_bpf_vnic {
+	struct bpf_prog *tc_prog;
+};
+
 int nfp_bpf_jit(struct nfp_prog *prog);
 
 extern const struct bpf_ext_analyzer_ops nfp_bpf_analyzer_ops;

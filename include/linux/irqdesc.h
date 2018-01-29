@@ -230,7 +230,7 @@ irq_set_chip_handler_name_locked(struct irq_data *data, struct irq_chip *chip,
 	data->chip = chip;
 }
 
-static inline int irq_balancing_disabled(unsigned int irq)
+static inline bool irq_balancing_disabled(unsigned int irq)
 {
 	struct irq_desc *desc;
 
@@ -238,7 +238,7 @@ static inline int irq_balancing_disabled(unsigned int irq)
 	return desc->status_use_accessors & IRQ_NO_BALANCING_MASK;
 }
 
-static inline int irq_is_percpu(unsigned int irq)
+static inline bool irq_is_percpu(unsigned int irq)
 {
 	struct irq_desc *desc;
 
@@ -246,7 +246,7 @@ static inline int irq_is_percpu(unsigned int irq)
 	return desc->status_use_accessors & IRQ_PER_CPU;
 }
 
-static inline int irq_is_percpu_devid(unsigned int irq)
+static inline bool irq_is_percpu_devid(unsigned int irq)
 {
 	struct irq_desc *desc;
 
@@ -255,12 +255,15 @@ static inline int irq_is_percpu_devid(unsigned int irq)
 }
 
 static inline void
-irq_set_lockdep_class(unsigned int irq, struct lock_class_key *class)
+irq_set_lockdep_class(unsigned int irq, struct lock_class_key *lock_class,
+		      struct lock_class_key *request_class)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	if (desc)
-		lockdep_set_class(&desc->lock, class);
+	if (desc) {
+		lockdep_set_class(&desc->lock, lock_class);
+		lockdep_set_class(&desc->request_mutex, request_class);
+	}
 }
 
 #ifdef CONFIG_IRQ_PREFLOW_FASTEOI

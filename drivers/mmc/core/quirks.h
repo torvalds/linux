@@ -53,6 +53,14 @@ static const struct mmc_fixup mmc_blk_fixups[] = {
 		  MMC_QUIRK_BLK_NO_CMD23),
 
 	/*
+	 * Some SD cards lockup while using CMD23 multiblock transfers.
+	 */
+	MMC_FIXUP("AF SD", CID_MANFID_ATP, CID_OEMID_ANY, add_quirk_sd,
+		  MMC_QUIRK_BLK_NO_CMD23),
+	MMC_FIXUP("APUSD", CID_MANFID_APACER, 0x5048, add_quirk_sd,
+		  MMC_QUIRK_BLK_NO_CMD23),
+
+	/*
 	 * Some MMC cards need longer data read timeout than indicated in CSD.
 	 */
 	MMC_FIXUP(CID_NAME_ANY, CID_MANFID_MICRON, 0x200, add_quirk_mmc,

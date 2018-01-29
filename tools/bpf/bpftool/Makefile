@@ -45,8 +45,8 @@ $(LIBBPF)-clean:
 	$(call QUIET_CLEAN, libbpf)
 	$(Q)$(MAKE) -C $(BPF_DIR) OUTPUT=$(OUTPUT) clean >/dev/null
 
-prefix = /usr
-bash_compdir ?= $(prefix)/share/bash-completion/completions
+prefix = /usr/local
+bash_compdir ?= /usr/share/bash-completion/completions
 
 CC = gcc
 
@@ -76,6 +76,7 @@ clean: $(LIBBPF)-clean
 	$(Q)rm -rf $(OUTPUT)bpftool $(OUTPUT)*.o $(OUTPUT)*.d
 
 install:
+	install -m 0755 -d $(prefix)/sbin
 	install $(OUTPUT)bpftool $(prefix)/sbin/bpftool
 	install -m 0755 -d $(bash_compdir)
 	install -m 0644 bash-completion/bpftool $(bash_compdir)
@@ -88,5 +89,5 @@ doc-install:
 
 FORCE:
 
-.PHONY: all clean FORCE
+.PHONY: all clean FORCE install doc doc-install
 .DEFAULT_GOAL := all

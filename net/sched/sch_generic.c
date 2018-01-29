@@ -26,6 +26,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/if_vlan.h>
+#include <linux/if_macvlan.h>
 #include <net/sch_generic.h>
 #include <net/pkt_sched.h>
 #include <net/dst.h>
@@ -277,6 +278,8 @@ unsigned long dev_trans_start(struct net_device *dev)
 
 	if (is_vlan_dev(dev))
 		dev = vlan_dev_real_dev(dev);
+	else if (netif_is_macvlan(dev))
+		dev = macvlan_dev_real_dev(dev);
 	res = netdev_get_tx_queue(dev, 0)->trans_start;
 	for (i = 1; i < dev->num_tx_queues; i++) {
 		val = netdev_get_tx_queue(dev, i)->trans_start;
@@ -630,6 +633,19 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	qdisc_skb_head_init(&sch->q);
 	spin_lock_init(&sch->q.lock);
 
+	if (ops->static_flags & TCQ_F_CPUSTATS) {
+		sch->cpu_bstats =
+			netdev_alloc_pcpu_stats(struct gnet_stats_basic_cpu);
+		if (!sch->cpu_bstats)
+			goto errout1;
+
+		sch->cpu_qstats = alloc_percpu(struct gnet_stats_queue);
+		if (!sch->cpu_qstats) {
+			free_percpu(sch->cpu_bstats);
+			goto errout1;
+		}
+	}
+
 	spin_lock_init(&sch->busylock);
 	lockdep_set_class(&sch->busylock,
 			  dev->qdisc_tx_busylock ?: &qdisc_tx_busylock);
@@ -639,6 +655,7 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 			  dev->qdisc_running_key ?: &qdisc_running_key);
 
 	sch->ops = ops;
+	sch->flags = ops->static_flags;
 	sch->enqueue = ops->enqueue;
 	sch->dequeue = ops->dequeue;
 	sch->dev_queue = dev_queue;
@@ -646,6 +663,8 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	refcount_set(&sch->refcnt, 1);
 
 	return sch;
+errout1:
+	kfree(p);
 errout:
 	return ERR_PTR(err);
 }
@@ -695,7 +714,7 @@ void qdisc_reset(struct Qdisc *qdisc)
 }
 EXPORT_SYMBOL(qdisc_reset);
 
-static void qdisc_free(struct Qdisc *qdisc)
+void qdisc_free(struct Qdisc *qdisc)
 {
 	if (qdisc_is_percpu_stats(qdisc)) {
 		free_percpu(qdisc->cpu_bstats);
@@ -1037,6 +1056,8 @@ void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
 
 	if (!tp_head) {
 		RCU_INIT_POINTER(*miniqp->p_miniq, NULL);
+		/* Wait for flying RCU callback before it is freed. */
+		rcu_barrier_bh();
 		return;
 	}
 
@@ -1052,7 +1073,7 @@ void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
 	rcu_assign_pointer(*miniqp->p_miniq, miniq);
 
 	if (miniq_old)
-		/* This is counterpart of the rcu barrier above. We need to
+		/* This is counterpart of the rcu barriers above. We need to
 		 * block potential new user of miniq_old until all readers
 		 * are not seeing it.
 		 */

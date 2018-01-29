@@ -63,7 +63,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 		goto vmalloc_fault;
 
 	/* Enable interrupts if they were enabled in the parent context. */
-	if (likely(regs->sstatus & SR_PIE))
+	if (likely(regs->sstatus & SR_SPIE))
 		local_irq_enable();
 
 	/*
