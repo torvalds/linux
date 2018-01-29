@@ -258,13 +258,13 @@ static struct snd_soc_jack littlemill_headset;
 static int littlemill_late_probe(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct snd_soc_dai *aif1_dai;
 	struct snd_soc_dai *aif2_dai;
 	int ret;
 
 	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
-	codec = rtd->codec;
+	component = rtd->codec_dai->component;
 	aif1_dai = rtd->codec_dai;
 
 	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[1].name);
@@ -290,10 +290,10 @@ static int littlemill_late_probe(struct snd_soc_card *card)
 		return ret;
 
 	/* This will check device compatibility itself */
-	wm8958_mic_detect(codec, &littlemill_headset, NULL, NULL, NULL, NULL);
+	wm8958_mic_detect(component, &littlemill_headset, NULL, NULL, NULL, NULL);
 
 	/* As will this */
-	wm8994_mic_detect(codec, &littlemill_headset, 1);
+	wm8994_mic_detect(component, &littlemill_headset, 1);
 
 	return 0;
 }
