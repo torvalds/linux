@@ -44,6 +44,8 @@
 #ifndef _NTB_INTEL_GEN1_H_
 #define _NTB_INTEL_GEN1_H_
 
+#include "ntb_hw_intel.h"
+
 /* Intel Gen1 Xeon hardware */
 #define XEON_PBAR23LMT_OFFSET		0x0000
 #define XEON_PBAR45LMT_OFFSET		0x0008
@@ -138,5 +140,43 @@
 #define NTB_HWERR_SB01BASE_LOCKUP	BIT_ULL(1)
 #define NTB_HWERR_B2BDOORBELL_BIT14	BIT_ULL(2)
 #define NTB_HWERR_MSIX_VECTOR32_BAD	BIT_ULL(3)
+
+extern struct intel_b2b_addr xeon_b2b_usd_addr;
+extern struct intel_b2b_addr xeon_b2b_dsd_addr;
+
+int ndev_init_isr(struct intel_ntb_dev *ndev, int msix_min, int msix_max,
+		int msix_shift, int total_shift);
+enum ntb_topo xeon_ppd_topo(struct intel_ntb_dev *ndev, u8 ppd);
+u64 ndev_db_read(struct intel_ntb_dev *ndev, void __iomem *mmio);
+int ndev_db_write(struct intel_ntb_dev *ndev, u64 db_bits,
+				void __iomem *mmio);
+int ndev_mw_to_bar(struct intel_ntb_dev *ndev, int idx);
+int intel_ntb_mw_count(struct ntb_dev *ntb, int pidx);
+int intel_ntb_mw_get_align(struct ntb_dev *ntb, int pidx, int idx,
+		resource_size_t *addr_align, resource_size_t *size_align,
+		resource_size_t *size_max);
+int intel_ntb_peer_mw_count(struct ntb_dev *ntb);
+int intel_ntb_peer_mw_get_addr(struct ntb_dev *ntb, int idx,
+		phys_addr_t *base, resource_size_t *size);
+u64 intel_ntb_link_is_up(struct ntb_dev *ntb, enum ntb_speed *speed,
+		enum ntb_width *width);
+int intel_ntb_link_disable(struct ntb_dev *ntb);
+u64 intel_ntb_db_valid_mask(struct ntb_dev *ntb);
+int intel_ntb_db_vector_count(struct ntb_dev *ntb);
+u64 intel_ntb_db_vector_mask(struct ntb_dev *ntb, int db_vector);
+int intel_ntb_db_set_mask(struct ntb_dev *ntb, u64 db_bits);
+int intel_ntb_db_clear_mask(struct ntb_dev *ntb, u64 db_bits);
+int intel_ntb_peer_db_addr(struct ntb_dev *ntb, phys_addr_t *db_addr,
+		resource_size_t *db_size);
+int intel_ntb_spad_is_unsafe(struct ntb_dev *ntb);
+int intel_ntb_spad_count(struct ntb_dev *ntb);
+u32 intel_ntb_spad_read(struct ntb_dev *ntb, int idx);
+int intel_ntb_spad_write(struct ntb_dev *ntb, int idx, u32 val);
+u32 intel_ntb_peer_spad_read(struct ntb_dev *ntb, int pidx, int sidx);
+int intel_ntb_peer_spad_write(struct ntb_dev *ntb, int pidx, int sidx,
+		u32 val);
+int intel_ntb_peer_spad_addr(struct ntb_dev *ntb, int pidx, int sidx,
+				    phys_addr_t *spad_addr);
+int xeon_link_is_up(struct intel_ntb_dev *ndev);
 
 #endif

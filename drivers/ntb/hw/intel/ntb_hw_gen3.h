@@ -44,6 +44,8 @@
 #ifndef _NTB_INTEL_GEN3_H_
 #define _NTB_INTEL_GEN3_H_
 
+#include "ntb_hw_intel.h"
+
 /* Intel Skylake Xeon hardware */
 #define SKX_IMBAR1SZ_OFFSET		0x00d0
 #define SKX_IMBAR2SZ_OFFSET		0x00d1
@@ -88,5 +90,22 @@
 #define SKX_DB_MSIX_VECTOR_SHIFT	1
 #define SKX_DB_TOTAL_SHIFT		33
 #define SKX_SPAD_COUNT			16
+
+static inline u64 skx_db_ioread(void __iomem *mmio)
+{
+	return ioread64(mmio);
+}
+
+static inline void skx_db_iowrite(u64 bits, void __iomem *mmio)
+{
+	iowrite64(bits, mmio);
+}
+
+ssize_t ndev_ntb3_debugfs_read(struct file *filp, char __user *ubuf,
+				      size_t count, loff_t *offp);
+int skx_init_dev(struct intel_ntb_dev *ndev);
+int skx_poll_link(struct intel_ntb_dev *ndev);
+
+extern const struct ntb_dev_ops intel_ntb3_ops;
 
 #endif
