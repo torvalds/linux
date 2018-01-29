@@ -71,9 +71,9 @@ static int cz_init(struct snd_soc_pcm_runtime *rtd)
 {
 	int ret;
 	struct snd_soc_card *card;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *codec;
 
-	codec = rtd->codec;
+	codec = rtd->codec_dai->component;
 	card = rtd->card;
 
 	ret = snd_soc_card_jack_new(card, "Headset Jack",
