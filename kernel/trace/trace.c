@@ -2380,7 +2380,7 @@ EXPORT_SYMBOL_GPL(trace_event_buffer_commit);
  *   trace_buffer_unlock_commit_regs()
  *   trace_event_buffer_commit()
  *   trace_event_raw_event_xxx()
-*/
+ */
 # define STACK_SKIP 3
 
 void trace_buffer_unlock_commit_regs(struct trace_array *tr,
