@@ -522,7 +522,7 @@ static inline unsigned char * tcf_get_base_ptr(struct sk_buff *skb, int layer)
 {
 	switch (layer) {
 		case TCF_LAYER_LINK:
-			return skb->data;
+			return skb_mac_header(skb);
 		case TCF_LAYER_NETWORK:
 			return skb_network_header(skb);
 		case TCF_LAYER_TRANSPORT:

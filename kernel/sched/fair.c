@@ -4365,12 +4365,12 @@ static inline bool cfs_bandwidth_used(void)
 
 void cfs_bandwidth_usage_inc(void)
 {
-	static_key_slow_inc(&__cfs_bandwidth_used);
+	static_key_slow_inc_cpuslocked(&__cfs_bandwidth_used);
 }
 
 void cfs_bandwidth_usage_dec(void)
 {
-	static_key_slow_dec(&__cfs_bandwidth_used);
+	static_key_slow_dec_cpuslocked(&__cfs_bandwidth_used);
 }
 #else /* HAVE_JUMP_LABEL */
 static bool cfs_bandwidth_used(void)

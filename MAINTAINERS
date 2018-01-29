@@ -62,7 +62,15 @@ trivial patch so apply some common sense.
 
 7.	When sending security related changes or reports to a maintainer
 	please Cc: security@kernel.org, especially if the maintainer
-	does not respond.
+	does not respond. Please keep in mind that the security team is
+	a small set of people who can be efficient only when working on
+	verified bugs. Please only Cc: this list when you have identified
+	that the bug would present a short-term risk to other users if it
+	were publicly disclosed. For example, reports of address leaks do
+	not represent an immediate threat and are better handled publicly,
+	and ideally, should come with a patch proposal. Please do not send
+	automated reports to this list either. Such bugs will be handled
+	better and faster in the usual public places.
 
 8.	Happy hacking.
 
@@ -6609,16 +6617,6 @@ L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/i2c-stub.c
 
-i386 BOOT CODE
-M:	"H. Peter Anvin" <hpa@zytor.com>
-S:	Maintained
-F:	arch/x86/boot/
-
-i386 SETUP CODE / CPU ERRATA WORKAROUNDS
-M:	"H. Peter Anvin" <hpa@zytor.com>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hpa/linux-2.6-x86setup.git
-S:	Maintained
-
 IA64 (Itanium) PLATFORM
 M:	Tony Luck <tony.luck@intel.com>
 M:	Fenghua Yu <fenghua.yu@intel.com>
@@ -11651,8 +11649,8 @@ F:	drivers/mtd/nand/r852.h
 RISC-V ARCHITECTURE
 M:	Palmer Dabbelt <palmer@sifive.com>
 M:	Albert Ou <albert@sifive.com>
-L:	patches@groups.riscv.org
-T:	git https://github.com/riscv/riscv-linux
+L:	linux-riscv@lists.infradead.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/palmer/riscv-linux.git
 S:	Supported
 F:	arch/riscv/
 K:	riscv
@@ -12233,7 +12231,7 @@ M:	Security Officers <security@kernel.org>
 S:	Supported
 
 SECURITY SUBSYSTEM
-M:	James Morris <james.l.morris@oracle.com>
+M:	James Morris <jmorris@namei.org>
 M:	"Serge E. Hallyn" <serge@hallyn.com>
 L:	linux-security-module@vger.kernel.org (suggested Cc:)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jmorris/linux-security.git
@@ -14858,7 +14856,7 @@ F:	net/x25/
 X86 ARCHITECTURE (32-BIT AND 64-BIT)
 M:	Thomas Gleixner <tglx@linutronix.de>
 M:	Ingo Molnar <mingo@redhat.com>
-M:	"H. Peter Anvin" <hpa@zytor.com>
+R:	"H. Peter Anvin" <hpa@zytor.com>
 M:	x86@kernel.org
 L:	linux-kernel@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git x86/core
