@@ -21,7 +21,7 @@
 /* Write only registers */
 #define MMS114_MODE_CONTROL		0x01
 #define MMS114_OPERATION_MODE_MASK	0xE
-#define MMS114_ACTIVE			(1 << 1)
+#define MMS114_ACTIVE			BIT(1)
 
 #define MMS114_XY_RESOLUTION_H		0x02
 #define MMS114_X_RESOLUTION		0x03
