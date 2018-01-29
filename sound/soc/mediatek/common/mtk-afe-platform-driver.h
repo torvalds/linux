@@ -17,7 +17,8 @@
 #ifndef _MTK_AFE_PLATFORM_DRIVER_H_
 #define _MTK_AFE_PLATFORM_DRIVER_H_
 
-extern const struct snd_soc_platform_driver mtk_afe_pcm_platform;
+#define AFE_PCM_NAME "mtk-afe-pcm"
+extern const struct snd_soc_component_driver mtk_afe_pcm_platform;
 
 #endif
 
