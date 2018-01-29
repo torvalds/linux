@@ -31,7 +31,7 @@
  * enum membarrier_cmd - membarrier system call command
  * @MEMBARRIER_CMD_QUERY:   Query the set of supported commands. It returns
  *                          a bitmask of valid commands.
- * @MEMBARRIER_CMD_SHARED:  Execute a memory barrier on all running threads.
+ * @MEMBARRIER_CMD_GLOBAL:  Execute a memory barrier on all running threads.
  *                          Upon return from system call, the caller thread
  *                          is ensured that all running threads have passed
  *                          through a state where all memory accesses to
@@ -40,6 +40,28 @@
  *                          (non-running threads are de facto in such a
  *                          state). This covers threads from all processes
  *                          running on the system. This command returns 0.
+ * @MEMBARRIER_CMD_GLOBAL_EXPEDITED:
+ *                          Execute a memory barrier on all running threads
+ *                          of all processes which previously registered
+ *                          with MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED.
+ *                          Upon return from system call, the caller thread
+ *                          is ensured that all running threads have passed
+ *                          through a state where all memory accesses to
+ *                          user-space addresses match program order between
+ *                          entry to and return from the system call
+ *                          (non-running threads are de facto in such a
+ *                          state). This only covers threads from processes
+ *                          which registered with
+ *                          MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED.
+ *                          This command returns 0. Given that
+ *                          registration is about the intent to receive
+ *                          the barriers, it is valid to invoke
+ *                          MEMBARRIER_CMD_GLOBAL_EXPEDITED from a
+ *                          non-registered process.
+ * @MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED:
+ *                          Register the process intent to receive
+ *                          MEMBARRIER_CMD_GLOBAL_EXPEDITED memory
+ *                          barriers. Always returns 0.
  * @MEMBARRIER_CMD_PRIVATE_EXPEDITED:
  *                          Execute a memory barrier on each running
  *                          thread belonging to the same process as the current
@@ -64,18 +86,24 @@
  *                          Register the process intent to use
  *                          MEMBARRIER_CMD_PRIVATE_EXPEDITED. Always
  *                          returns 0.
+ * @MEMBARRIER_CMD_SHARED:
+ *                          Alias to MEMBARRIER_CMD_GLOBAL. Provided for
+ *                          header backward compatibility.
  *
  * Command to be passed to the membarrier system call. The commands need to
  * be a single bit each, except for MEMBARRIER_CMD_QUERY which is assigned to
  * the value 0.
  */
 enum membarrier_cmd {
-	MEMBARRIER_CMD_QUERY				= 0,
-	MEMBARRIER_CMD_SHARED				= (1 << 0),
-	/* reserved for MEMBARRIER_CMD_SHARED_EXPEDITED (1 << 1) */
-	/* reserved for MEMBARRIER_CMD_PRIVATE (1 << 2) */
-	MEMBARRIER_CMD_PRIVATE_EXPEDITED		= (1 << 3),
-	MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED	= (1 << 4),
+	MEMBARRIER_CMD_QUERY					= 0,
+	MEMBARRIER_CMD_GLOBAL					= (1 << 0),
+	MEMBARRIER_CMD_GLOBAL_EXPEDITED				= (1 << 1),
+	MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED		= (1 << 2),
+	MEMBARRIER_CMD_PRIVATE_EXPEDITED			= (1 << 3),
+	MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED		= (1 << 4),
+
+	/* Alias for header backward compatibility. */
+	MEMBARRIER_CMD_SHARED			= MEMBARRIER_CMD_GLOBAL,
 };
 
 #endif /* _UAPI_LINUX_MEMBARRIER_H */

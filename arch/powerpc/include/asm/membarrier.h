@@ -13,7 +13,8 @@ static inline void membarrier_arch_switch_mm(struct mm_struct *prev,
 	 * store to rq->curr.
 	 */
 	if (likely(!(atomic_read(&next->membarrier_state) &
-		     MEMBARRIER_STATE_PRIVATE_EXPEDITED) || !prev))
+		     (MEMBARRIER_STATE_PRIVATE_EXPEDITED |
+		      MEMBARRIER_STATE_GLOBAL_EXPEDITED)) || !prev))
 		return;
 
 	/*
