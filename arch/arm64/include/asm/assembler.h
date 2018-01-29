@@ -514,7 +514,7 @@ alternative_endif
  * 	phys:	physical address, preserved
  * 	ttbr:	returns the TTBR value
  */
-	.macro	phys_to_ttbr, phys, ttbr
+	.macro	phys_to_ttbr, ttbr, phys
 #ifdef CONFIG_ARM64_PA_BITS_52
 	orr	\ttbr, \phys, \phys, lsr #46
 	and	\ttbr, \ttbr, #TTBR_BADDR_MASK_52

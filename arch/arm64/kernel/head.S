@@ -776,8 +776,8 @@ ENTRY(__enable_mmu)
 	update_early_cpu_boot_status 0, x1, x2
 	adrp	x1, idmap_pg_dir
 	adrp	x2, swapper_pg_dir
-	phys_to_ttbr x1, x3
-	phys_to_ttbr x2, x4
+	phys_to_ttbr x3, x1
+	phys_to_ttbr x4, x2
 	msr	ttbr0_el1, x3			// load TTBR0
 	msr	ttbr1_el1, x4			// load TTBR1
 	isb
