@@ -54,6 +54,7 @@
 #include <linux/xattr.h>
 #include <linux/utsname.h>
 #include <linux/freezer.h>
+#include <linux/iversion.h>
 
 #include "nfs4_fs.h"
 #include "delegation.h"
@@ -1045,16 +1046,16 @@ static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo,
 
 	spin_lock(&dir->i_lock);
 	nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
-	if (cinfo->atomic && cinfo->before == dir->i_version) {
+	if (cinfo->atomic && cinfo->before == inode_peek_iversion_raw(dir)) {
 		nfsi->cache_validity &= ~NFS_INO_REVAL_PAGECACHE;
 		nfsi->attrtimeo_timestamp = jiffies;
 	} else {
 		nfs_force_lookup_revalidate(dir);
-		if (cinfo->before != dir->i_version)
+		if (cinfo->before != inode_peek_iversion_raw(dir))
 			nfsi->cache_validity |= NFS_INO_INVALID_ACCESS |
 				NFS_INO_INVALID_ACL;
 	}
-	dir->i_version = cinfo->after;
+	inode_set_iversion_raw(dir, cinfo->after);
 	nfsi->read_cache_jiffies = timestamp;
 	nfsi->attr_gencount = nfs_inc_attr_generation_counter();
 	nfs_fscache_invalidate(dir);
@@ -2454,7 +2455,8 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 			data->file_created = true;
 		else if (o_res->cinfo.before != o_res->cinfo.after)
 			data->file_created = true;
-		if (data->file_created || dir->i_version != o_res->cinfo.after)
+		if (data->file_created ||
+		    inode_peek_iversion_raw(dir) != o_res->cinfo.after)
 			update_changeattr(dir, &o_res->cinfo,
 					o_res->f_attr->time_start);
 	}

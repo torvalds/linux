@@ -38,8 +38,8 @@
 #include <linux/slab.h>
 #include <linux/compat.h>
 #include <linux/freezer.h>
-
 #include <linux/uaccess.h>
+#include <linux/iversion.h>
 
 #include "nfs4_fs.h"
 #include "callback.h"
@@ -483,7 +483,7 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr, st
 		memset(&inode->i_atime, 0, sizeof(inode->i_atime));
 		memset(&inode->i_mtime, 0, sizeof(inode->i_mtime));
 		memset(&inode->i_ctime, 0, sizeof(inode->i_ctime));
-		inode->i_version = 0;
+		inode_set_iversion_raw(inode, 0);
 		inode->i_size = 0;
 		clear_nlink(inode);
 		inode->i_uid = make_kuid(&init_user_ns, -2);
@@ -508,7 +508,7 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr, st
 		else if (nfs_server_capable(inode, NFS_CAP_CTIME))
 			nfs_set_cache_invalid(inode, NFS_INO_INVALID_ATTR);
 		if (fattr->valid & NFS_ATTR_FATTR_CHANGE)
-			inode->i_version = fattr->change_attr;
+			inode_set_iversion_raw(inode, fattr->change_attr);
 		else
 			nfs_set_cache_invalid(inode, NFS_INO_INVALID_ATTR
 				| NFS_INO_REVAL_PAGECACHE);
@@ -1289,8 +1289,8 @@ static unsigned long nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr 
 
 	if ((fattr->valid & NFS_ATTR_FATTR_PRECHANGE)
 			&& (fattr->valid & NFS_ATTR_FATTR_CHANGE)
-			&& inode->i_version == fattr->pre_change_attr) {
-		inode->i_version = fattr->change_attr;
+			&& !inode_cmp_iversion_raw(inode, fattr->pre_change_attr)) {
+		inode_set_iversion_raw(inode, fattr->change_attr);
 		if (S_ISDIR(inode->i_mode))
 			nfs_set_cache_invalid(inode, NFS_INO_INVALID_DATA);
 		ret |= NFS_INO_INVALID_ATTR;
@@ -1348,7 +1348,7 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 
 	if (!nfs_file_has_buffered_writers(nfsi)) {
 		/* Verify a few of the more important attributes */
-		if ((fattr->valid & NFS_ATTR_FATTR_CHANGE) != 0 && inode->i_version != fattr->change_attr)
+		if ((fattr->valid & NFS_ATTR_FATTR_CHANGE) != 0 && inode_cmp_iversion_raw(inode, fattr->change_attr))
 			invalid |= NFS_INO_INVALID_ATTR | NFS_INO_REVAL_PAGECACHE;
 
 		if ((fattr->valid & NFS_ATTR_FATTR_MTIME) && !timespec_equal(&inode->i_mtime, &fattr->mtime))
@@ -1642,7 +1642,7 @@ int nfs_post_op_update_inode_force_wcc_locked(struct inode *inode, struct nfs_fa
 	}
 	if ((fattr->valid & NFS_ATTR_FATTR_CHANGE) != 0 &&
 			(fattr->valid & NFS_ATTR_FATTR_PRECHANGE) == 0) {
-		fattr->pre_change_attr = inode->i_version;
+		fattr->pre_change_attr = inode_peek_iversion_raw(inode);
 		fattr->valid |= NFS_ATTR_FATTR_PRECHANGE;
 	}
 	if ((fattr->valid & NFS_ATTR_FATTR_CTIME) != 0 &&
@@ -1778,7 +1778,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 
 	/* More cache consistency checks */
 	if (fattr->valid & NFS_ATTR_FATTR_CHANGE) {
-		if (inode->i_version != fattr->change_attr) {
+		if (inode_cmp_iversion_raw(inode, fattr->change_attr)) {
 			dprintk("NFS: change_attr change on server for file %s/%ld\n",
 					inode->i_sb->s_id, inode->i_ino);
 			/* Could it be a race with writeback? */
@@ -1790,7 +1790,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 				if (S_ISDIR(inode->i_mode))
 					nfs_force_lookup_revalidate(inode);
 			}
-			inode->i_version = fattr->change_attr;
+			inode_set_iversion_raw(inode, fattr->change_attr);
 		}
 	} else {
 		nfsi->cache_validity |= save_cache_validity;

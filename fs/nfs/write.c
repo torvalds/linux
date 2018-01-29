@@ -23,6 +23,7 @@
 #include <linux/export.h>
 #include <linux/freezer.h>
 #include <linux/wait.h>
+#include <linux/iversion.h>
 
 #include <linux/uaccess.h>
 
@@ -753,11 +754,8 @@ static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 	 */
 	spin_lock(&mapping->private_lock);
 	if (!nfs_have_writebacks(inode) &&
-	    NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE)) {
-		spin_lock(&inode->i_lock);
-		inode->i_version++;
-		spin_unlock(&inode->i_lock);
-	}
+	    NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE))
+		inode_inc_iversion_raw(inode);
 	if (likely(!PageSwapCache(req->wb_page))) {
 		set_bit(PG_MAPPED, &req->wb_flags);
 		SetPagePrivate(req->wb_page);
