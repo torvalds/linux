@@ -249,6 +249,8 @@ enum skl_ipc_glb_reply {
 	IPC_GLB_REPLY_INVALID_CONFIG_DATA_LEN = 121,
 	IPC_GLB_REPLY_GATEWAY_NOT_INITIALIZED = 140,
 	IPC_GLB_REPLY_GATEWAY_NOT_EXIST = 141,
+	IPC_GLB_REPLY_SCLK_ALREADY_RUNNING = 150,
+	IPC_GLB_REPLY_MCLK_ALREADY_RUNNING = 151,
 
 	IPC_GLB_REPLY_PPL_NOT_INITIALIZED = 160,
 	IPC_GLB_REPLY_PPL_NOT_EXIST = 161,
@@ -401,6 +403,10 @@ struct skl_ipc_err_map {
 static struct skl_ipc_err_map skl_err_map[] = {
 	{"DSP out of memory", IPC_GLB_REPLY_OUT_OF_MEMORY, -ENOMEM},
 	{"DSP busy", IPC_GLB_REPLY_BUSY, -EBUSY},
+	{"SCLK already running", IPC_GLB_REPLY_SCLK_ALREADY_RUNNING,
+			IPC_GLB_REPLY_SCLK_ALREADY_RUNNING},
+	{"MCLK already running", IPC_GLB_REPLY_MCLK_ALREADY_RUNNING,
+			IPC_GLB_REPLY_MCLK_ALREADY_RUNNING},
 };
 
 static int skl_ipc_set_reply_error_code(struct sst_generic_ipc *ipc, u32 reply)
