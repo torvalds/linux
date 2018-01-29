@@ -60,6 +60,8 @@
 #include <linux/slab.h>
 #include <linux/ntb.h>
 
+#include "ntb_hw_gen1.h"
+#include "ntb_hw_gen3.h"
 #include "ntb_hw_intel.h"
 
 #define NTB_NAME	"ntb_hw_intel"
