@@ -353,23 +353,15 @@ static void cafe_nand_bug(struct mtd_info *mtd)
 static int cafe_nand_write_oob(struct mtd_info *mtd,
 			       struct nand_chip *chip, int page)
 {
-	int status = 0;
-
-	chip->cmdfunc(mtd, NAND_CMD_SEQIN, mtd->writesize, page);
-	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
-	chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
-	status = chip->waitfunc(mtd, chip);
-
-	return status & NAND_STATUS_FAIL ? -EIO : 0;
+	return nand_prog_page_op(chip, page, mtd->writesize, chip->oob_poi,
+				 mtd->oobsize);
 }
 
 /* Don't use -- use nand_read_oob_std for now */
 static int cafe_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 			      int page)
 {
-	chip->cmdfunc(mtd, NAND_CMD_READOOB, 0, page);
-	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
-	return 0;
+	return nand_read_oob_op(chip, page, 0, chip->oob_poi, mtd->oobsize);
 }
 /**
  * cafe_nand_read_page_syndrome - [REPLACEABLE] hardware ecc syndrome based page read
@@ -391,7 +383,7 @@ static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		     cafe_readl(cafe, NAND_ECC_RESULT),
 		     cafe_readl(cafe, NAND_ECC_SYN01));
 
-	chip->read_buf(mtd, buf, mtd->writesize);
+	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
 	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
 
 	if (checkecc && cafe_readl(cafe, NAND_ECC_RESULT) & (1<<18)) {
@@ -549,13 +541,13 @@ static int cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
 {
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
-	chip->write_buf(mtd, buf, mtd->writesize);
+	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
 	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
 
 	/* Set up ECC autogeneration */
 	cafe->ctl2 |= (1<<30);
 
-	return 0;
+	return nand_prog_page_end_op(chip);
 }
 
 static int cafe_nand_block_bad(struct mtd_info *mtd, loff_t ofs)
@@ -613,7 +605,6 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	uint32_t ctrl;
 	int err = 0;
 	int old_dma;
-	struct nand_buffers *nbuf;
 
 	/* Very old versions shared the same PCI ident for all three
 	   functions on the chip. Verify the class too... */
@@ -661,7 +652,6 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 
 	/* Enable the following for a flash based bad block table */
 	cafe->nand.bbt_options = NAND_BBT_USE_FLASH;
-	cafe->nand.options = NAND_OWN_BUFFERS;
 
 	if (skipbbt) {
 		cafe->nand.options |= NAND_SKIP_BBTSCAN;
@@ -731,31 +721,19 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	if (err)
 		goto out_irq;
 
-	cafe->dmabuf = dma_alloc_coherent(&cafe->pdev->dev,
-				2112 + sizeof(struct nand_buffers) +
-				mtd->writesize + mtd->oobsize,
-				&cafe->dmaaddr, GFP_KERNEL);
+	cafe->dmabuf = dma_alloc_coherent(&cafe->pdev->dev, 2112,
+					  &cafe->dmaaddr, GFP_KERNEL);
 	if (!cafe->dmabuf) {
 		err = -ENOMEM;
 		goto out_irq;
 	}
-	cafe->nand.buffers = nbuf = (void *)cafe->dmabuf + 2112;
 
 	/* Set up DMA address */
-	cafe_writel(cafe, cafe->dmaaddr & 0xffffffff, NAND_DMA_ADDR0);
-	if (sizeof(cafe->dmaaddr) > 4)
-		/* Shift in two parts to shut the compiler up */
-		cafe_writel(cafe, (cafe->dmaaddr >> 16) >> 16, NAND_DMA_ADDR1);
-	else
-		cafe_writel(cafe, 0, NAND_DMA_ADDR1);
+	cafe_writel(cafe, lower_32_bits(cafe->dmaaddr), NAND_DMA_ADDR0);
+	cafe_writel(cafe, upper_32_bits(cafe->dmaaddr), NAND_DMA_ADDR1);
 
 	cafe_dev_dbg(&cafe->pdev->dev, "Set DMA address to %x (virt %p)\n",
 		cafe_readl(cafe, NAND_DMA_ADDR0), cafe->dmabuf);
-
-	/* this driver does not need the @ecccalc and @ecccode */
-	nbuf->ecccalc = NULL;
-	nbuf->ecccode = NULL;
-	nbuf->databuf = (uint8_t *)(nbuf + 1);
 
 	/* Restore the DMA flag */
 	usedma = old_dma;
@@ -801,10 +779,7 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	goto out;
 
  out_free_dma:
-	dma_free_coherent(&cafe->pdev->dev,
-			2112 + sizeof(struct nand_buffers) +
-			mtd->writesize + mtd->oobsize,
-			cafe->dmabuf, cafe->dmaaddr);
+	dma_free_coherent(&cafe->pdev->dev, 2112, cafe->dmabuf, cafe->dmaaddr);
  out_irq:
 	/* Disable NAND IRQ in global IRQ mask register */
 	cafe_writel(cafe, ~1 & cafe_readl(cafe, GLOBAL_IRQ_MASK), GLOBAL_IRQ_MASK);
@@ -829,10 +804,7 @@ static void cafe_nand_remove(struct pci_dev *pdev)
 	nand_release(mtd);
 	free_rs(cafe->rs);
 	pci_iounmap(pdev, cafe->mmio);
-	dma_free_coherent(&cafe->pdev->dev,
-			2112 + sizeof(struct nand_buffers) +
-			mtd->writesize + mtd->oobsize,
-			cafe->dmabuf, cafe->dmaaddr);
+	dma_free_coherent(&cafe->pdev->dev, 2112, cafe->dmabuf, cafe->dmaaddr);
 	kfree(cafe);
 }
 
