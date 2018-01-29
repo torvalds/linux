@@ -627,7 +627,7 @@ static int stm32_hash_dma_send(struct stm32_hash_dev *hdev)
 			writesl(hdev->io_base + HASH_DIN, buffer,
 				DIV_ROUND_UP(ncp, sizeof(u32)));
 		}
-		stm32_hash_set_nblw(hdev, DIV_ROUND_UP(ncp, sizeof(u32)));
+		stm32_hash_set_nblw(hdev, ncp);
 		reg = stm32_hash_read(hdev, HASH_STR);
 		reg |= HASH_STR_DCAL;
 		stm32_hash_write(hdev, HASH_STR, reg);
