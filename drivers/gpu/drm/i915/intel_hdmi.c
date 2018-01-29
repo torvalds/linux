@@ -2091,7 +2091,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 
 	if (WARN_ON(port == PORT_A))
 		return;
-	intel_encoder->hpd_pin = intel_hpd_pin(port);
+	intel_encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);
 
 	if (HAS_DDI(dev_priv))
 		intel_connector->get_hw_state = intel_ddi_connector_get_hw_state;

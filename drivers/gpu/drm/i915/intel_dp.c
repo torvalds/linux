@@ -5981,8 +5981,10 @@ intel_dp_init_connector_port_info(struct intel_digital_port *intel_dig_port)
 {
 	struct intel_encoder *encoder = &intel_dig_port->base;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
+	struct intel_encoder *intel_encoder = &intel_dig_port->base;
+	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
 
-	encoder->hpd_pin = intel_hpd_pin(encoder->port);
+	encoder->hpd_pin = intel_hpd_pin_default(dev_priv, encoder->port);
 
 	switch (encoder->port) {
 	case PORT_A:
