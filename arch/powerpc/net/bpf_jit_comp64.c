@@ -381,10 +381,6 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			goto bpf_alu32_trunc;
 		case BPF_ALU | BPF_DIV | BPF_X: /* (u32) dst /= (u32) src */
 		case BPF_ALU | BPF_MOD | BPF_X: /* (u32) dst %= (u32) src */
-			PPC_CMPWI(src_reg, 0);
-			PPC_BCC_SHORT(COND_NE, (ctx->idx * 4) + 12);
-			PPC_LI(b2p[BPF_REG_0], 0);
-			PPC_JMP(exit_addr);
 			if (BPF_OP(code) == BPF_MOD) {
 				PPC_DIVWU(b2p[TMP_REG_1], dst_reg, src_reg);
 				PPC_MULW(b2p[TMP_REG_1], src_reg,
@@ -395,10 +391,6 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			goto bpf_alu32_trunc;
 		case BPF_ALU64 | BPF_DIV | BPF_X: /* dst /= src */
 		case BPF_ALU64 | BPF_MOD | BPF_X: /* dst %= src */
-			PPC_CMPDI(src_reg, 0);
-			PPC_BCC_SHORT(COND_NE, (ctx->idx * 4) + 12);
-			PPC_LI(b2p[BPF_REG_0], 0);
-			PPC_JMP(exit_addr);
 			if (BPF_OP(code) == BPF_MOD) {
 				PPC_DIVD(b2p[TMP_REG_1], dst_reg, src_reg);
 				PPC_MULD(b2p[TMP_REG_1], src_reg,

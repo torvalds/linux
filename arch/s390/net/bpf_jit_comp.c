@@ -610,11 +610,6 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 	{
 		int rc_reg = BPF_OP(insn->code) == BPF_DIV ? REG_W1 : REG_W0;
 
-		jit->seen |= SEEN_RET0;
-		/* ltr %src,%src (if src == 0 goto fail) */
-		EMIT2(0x1200, src_reg, src_reg);
-		/* jz <ret0> */
-		EMIT4_PCREL(0xa7840000, jit->ret0_ip - jit->prg);
 		/* lhi %w0,0 */
 		EMIT4_IMM(0xa7080000, REG_W0, 0);
 		/* lr %w1,%dst */
@@ -630,11 +625,6 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 	{
 		int rc_reg = BPF_OP(insn->code) == BPF_DIV ? REG_W1 : REG_W0;
 
-		jit->seen |= SEEN_RET0;
-		/* ltgr %src,%src (if src == 0 goto fail) */
-		EMIT4(0xb9020000, src_reg, src_reg);
-		/* jz <ret0> */
-		EMIT4_PCREL(0xa7840000, jit->ret0_ip - jit->prg);
 		/* lghi %w0,0 */
 		EMIT4_IMM(0xa7090000, REG_W0, 0);
 		/* lgr %w1,%dst */
