@@ -323,8 +323,7 @@ Additional Configurations
   NAPI
   ----
 
-  NAPI (Rx polling mode) is supported in the ixgb driver.  NAPI is enabled
-  or disabled based on the configuration of the kernel.  see CONFIG_IXGB_NAPI
+  NAPI (Rx polling mode) is supported in the ixgb driver.
 
   See www.cyberus.ca/~hadi/usenix-paper.tgz for more information on NAPI.
 
