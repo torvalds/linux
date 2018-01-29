@@ -2337,19 +2337,11 @@ static int do_setlink(const struct sk_buff *skb,
 
 	if (tb[IFLA_TXQLEN]) {
 		unsigned int value = nla_get_u32(tb[IFLA_TXQLEN]);
-		unsigned int orig_len = dev->tx_queue_len;
 
-		if (dev->tx_queue_len ^ value) {
-			dev->tx_queue_len = value;
-			err = call_netdevice_notifiers(
-			      NETDEV_CHANGE_TX_QUEUE_LEN, dev);
-			err = notifier_to_errno(err);
-			if (err) {
-				dev->tx_queue_len = orig_len;
-				goto errout;
-			}
-			status |= DO_SETLINK_MODIFIED;
-		}
+		err = dev_change_tx_queue_len(dev, value);
+		if (err)
+			goto errout;
+		status |= DO_SETLINK_MODIFIED;
 	}
 
 	if (tb[IFLA_GSO_MAX_SIZE]) {

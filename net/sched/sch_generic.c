@@ -763,6 +763,23 @@ static void pfifo_fast_destroy(struct Qdisc *sch)
 	}
 }
 
+static int pfifo_fast_change_tx_queue_len(struct Qdisc *sch,
+					  unsigned int new_len)
+{
+	struct pfifo_fast_priv *priv = qdisc_priv(sch);
+	struct skb_array *bands[PFIFO_FAST_BANDS];
+	int prio;
+
+	for (prio = 0; prio < PFIFO_FAST_BANDS; prio++) {
+		struct skb_array *q = band2list(priv, prio);
+
+		bands[prio] = q;
+	}
+
+	return skb_array_resize_multiple(bands, PFIFO_FAST_BANDS, new_len,
+					 GFP_KERNEL);
+}
+
 struct Qdisc_ops pfifo_fast_ops __read_mostly = {
 	.id		=	"pfifo_fast",
 	.priv_size	=	sizeof(struct pfifo_fast_priv),
@@ -773,6 +790,7 @@ struct Qdisc_ops pfifo_fast_ops __read_mostly = {
 	.destroy	=	pfifo_fast_destroy,
 	.reset		=	pfifo_fast_reset,
 	.dump		=	pfifo_fast_dump,
+	.change_tx_queue_len =  pfifo_fast_change_tx_queue_len,
 	.owner		=	THIS_MODULE,
 	.static_flags	=	TCQ_F_NOLOCK | TCQ_F_CPUSTATS,
 };
@@ -1177,6 +1195,39 @@ void dev_deactivate(struct net_device *dev)
 	list_del(&single);
 }
 EXPORT_SYMBOL(dev_deactivate);
+
+static int qdisc_change_tx_queue_len(struct net_device *dev,
+				     struct netdev_queue *dev_queue)
+{
+	struct Qdisc *qdisc = dev_queue->qdisc_sleeping;
+	const struct Qdisc_ops *ops = qdisc->ops;
+
+	if (ops->change_tx_queue_len)
+		return ops->change_tx_queue_len(qdisc, dev->tx_queue_len);
+	return 0;
+}
+
+int dev_qdisc_change_tx_queue_len(struct net_device *dev)
+{
+	bool up = dev->flags & IFF_UP;
+	unsigned int i;
+	int ret = 0;
+
+	if (up)
+		dev_deactivate(dev);
+
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		ret = qdisc_change_tx_queue_len(dev, &dev->_tx[i]);
+
+		/* TODO: revert changes on a partial failure */
+		if (ret)
+			break;
+	}
+
+	if (up)
+		dev_activate(dev);
+	return ret;
+}
 
 static void dev_init_scheduler_queue(struct net_device *dev,
 				     struct netdev_queue *dev_queue,
