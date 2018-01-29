@@ -5155,6 +5155,7 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.start_thermal_controller = vega10_start_thermal_controller,
 	.get_power_profile_mode = vega10_get_power_profile_mode,
 	.set_power_profile_mode = vega10_set_power_profile_mode,
+	.set_power_limit = vega10_set_power_limit,
 };
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)

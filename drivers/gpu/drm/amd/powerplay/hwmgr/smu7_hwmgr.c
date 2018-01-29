@@ -4987,6 +4987,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.get_max_high_clocks = smu7_get_max_high_clocks,
 	.get_thermal_temperature_range = smu7_get_thermal_temperature_range,
 	.odn_edit_dpm_table = smu7_odn_edit_dpm_table,
+	.set_power_limit = smu7_set_power_limit,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,

@@ -283,6 +283,8 @@ struct amd_pm_funcs {
 					uint32_t mc_addr_low,
 					uint32_t mc_addr_hi,
 					uint32_t size);
+	int (*set_power_limit)(void *handle, uint32_t n);
+	int (*get_power_limit)(void *handle, uint32_t *limit, bool default_limit);
 /* export to DC */
 	u32 (*get_sclk)(void *handle, bool low);
 	u32 (*get_mclk)(void *handle, bool low);
