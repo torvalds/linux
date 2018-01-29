@@ -1883,6 +1883,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 		goto err;
 	}
 
+	iwl_fw_dbg_read_d3_debug_data(&mvm->fwrt);
 	/* query SRAM first in case we want event logging */
 	iwl_mvm_read_d3_sram(mvm);
 
@@ -2116,6 +2117,8 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 					 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
 
 	mvm->d3_test_active = false;
+
+	iwl_fw_dbg_read_d3_debug_data(&mvm->fwrt);
 
 	rtnl_lock();
 	__iwl_mvm_resume(mvm, true);

@@ -182,6 +182,9 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 	if (mvm->trans->cfg->device_family < IWL_DEVICE_FAMILY_8000)
 		reg_val |= CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI;
 
+	if (iwl_fw_dbg_is_d3_debug_enabled(&mvm->fwrt))
+		reg_val |= CSR_HW_IF_CONFIG_REG_D3_DEBUG;
+
 	iwl_trans_set_bits_mask(mvm->trans, CSR_HW_IF_CONFIG_REG,
 				CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
 				CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP |
@@ -189,7 +192,8 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 				CSR_HW_IF_CONFIG_REG_MSK_PHY_STEP |
 				CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH |
 				CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
-				CSR_HW_IF_CONFIG_REG_BIT_MAC_SI,
+				CSR_HW_IF_CONFIG_REG_BIT_MAC_SI   |
+				CSR_HW_IF_CONFIG_REG_D3_DEBUG,
 				reg_val);
 
 	IWL_DEBUG_INFO(mvm, "Radio type=0x%x-0x%x-0x%x\n", radio_cfg_type,

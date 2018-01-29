@@ -746,6 +746,11 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 			 sizeof(struct iwl_fw_error_dump_paging) +
 			 PAGING_BLOCK_SIZE);
 
+	if (iwl_fw_dbg_is_d3_debug_enabled(fwrt) && fwrt->dump.d3_debug_data) {
+		file_len += sizeof(*dump_data) +
+			fwrt->trans->cfg->d3_debug_data_length * 2;
+	}
+
 	/* If we only want a monitor dump, reset the file length */
 	if (monitor_dump_only) {
 		file_len = sizeof(*dump_file) + sizeof(*dump_data) * 2 +
@@ -855,6 +860,26 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 		dump_mem->offset = cpu_to_le32(sram_ofs);
 		iwl_trans_read_mem_bytes(fwrt->trans, sram_ofs, dump_mem->data,
 					 sram_len);
+		dump_data = iwl_fw_error_next_data(dump_data);
+	}
+
+	if (iwl_fw_dbg_is_d3_debug_enabled(fwrt) && fwrt->dump.d3_debug_data) {
+		u32 addr = fwrt->trans->cfg->d3_debug_data_base_addr;
+		size_t data_size = fwrt->trans->cfg->d3_debug_data_length;
+
+		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_D3_DEBUG_DATA);
+		dump_data->len = cpu_to_le32(data_size * 2);
+
+		memcpy(dump_data->data, fwrt->dump.d3_debug_data,
+		       data_size);
+
+		kfree(fwrt->dump.d3_debug_data);
+		fwrt->dump.d3_debug_data = NULL;
+
+		iwl_trans_read_mem_bytes(fwrt->trans, addr,
+					 dump_data->data + data_size,
+					 data_size);
+
 		dump_data = iwl_fw_error_next_data(dump_data);
 	}
 
@@ -1212,3 +1237,26 @@ out:
 		fwrt->ops->dump_end(fwrt->ops_ctx);
 }
 
+void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt)
+{
+	const struct iwl_cfg *cfg = fwrt->trans->cfg;
+
+	if (!iwl_fw_dbg_is_d3_debug_enabled(fwrt))
+		return;
+
+	if (!fwrt->dump.d3_debug_data) {
+		fwrt->dump.d3_debug_data = kmalloc(cfg->d3_debug_data_length,
+						   GFP_KERNEL);
+		if (!fwrt->dump.d3_debug_data) {
+			IWL_ERR(fwrt,
+				"failed to allocate memory for D3 debug data\n");
+			return;
+		}
+	}
+
+	/* if the buffer holds previous debug data it is overwritten */
+	iwl_trans_read_mem_bytes(fwrt->trans, cfg->d3_debug_data_base_addr,
+				 fwrt->dump.d3_debug_data,
+				 cfg->d3_debug_data_length);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_read_d3_debug_data);

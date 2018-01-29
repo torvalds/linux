@@ -388,6 +388,8 @@ struct iwl_csr_params {
  * @gen2: 22000 and on transport operation
  * @cdb: CDB support
  * @nvm_type: see &enum iwl_nvm_type
+ * @d3_debug_data_base_addr: base address where D3 debug data is stored
+ * @d3_debug_data_length: length of the D3 debug data
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -452,6 +454,8 @@ struct iwl_cfg {
 	u8 ucode_api_min;
 	u32 min_umac_error_event_table;
 	u32 extra_phy_cfg_flags;
+	u32 d3_debug_data_base_addr;
+	u32 d3_debug_data_length;
 };
 
 static const struct iwl_csr_params iwl_csr_v1 = {

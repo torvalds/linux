@@ -349,6 +349,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  *	command size (command version 4) that supports toggling ACK TX
  *	power reduction.
  * @IWL_UCODE_TLV_CAPA_MLME_OFFLOAD: supports MLME offload
+ * @IWL_UCODE_TLV_CAPA_D3_DEBUG: supports debug recording during D3
  *
  * @NUM_IWL_UCODE_TLV_CAPA: number of bits used
  */
@@ -397,6 +398,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_LQM_SUPPORT			= (__force iwl_ucode_tlv_capa_t)81,
 	IWL_UCODE_TLV_CAPA_TX_POWER_ACK			= (__force iwl_ucode_tlv_capa_t)84,
 	IWL_UCODE_TLV_CAPA_LED_CMD_SUPPORT		= (__force iwl_ucode_tlv_capa_t)86,
+	IWL_UCODE_TLV_CAPA_D3_DEBUG			= (__force iwl_ucode_tlv_capa_t)87,
 	IWL_UCODE_TLV_CAPA_MLME_OFFLOAD			= (__force iwl_ucode_tlv_capa_t)96,
 
 	NUM_IWL_UCODE_TLV_CAPA

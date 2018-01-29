@@ -1275,8 +1275,8 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	fw->ucode_capa.standard_phy_calibration_size =
 			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE;
 	fw->ucode_capa.n_scan_channels = IWL_DEFAULT_SCAN_CHANNELS;
-	/* dump all fw memory areas by default */
-	fw->dbg_dump_mask = 0xffffffff;
+	/* dump all fw memory areas by default except d3 debug data */
+	fw->dbg_dump_mask = 0xfffdffff;
 
 	pieces = kzalloc(sizeof(*pieces), GFP_KERNEL);
 	if (!pieces)
