@@ -90,6 +90,7 @@ struct perf_stat_config {
 	bool		scale;
 	FILE		*output;
 	unsigned int	interval;
+	unsigned int	timeout;
 	int		times;
 	struct runtime_stat *stats;
 	int		stats_num;

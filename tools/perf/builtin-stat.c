@@ -573,6 +573,7 @@ static int __run_perf_stat(int argc, const char **argv)
 {
 	int interval = stat_config.interval;
 	int times = stat_config.times;
+	int timeout = stat_config.timeout;
 	char msg[BUFSIZ];
 	unsigned long long t0, t1;
 	struct perf_evsel *counter;
@@ -586,6 +587,9 @@ static int __run_perf_stat(int argc, const char **argv)
 	if (interval) {
 		ts.tv_sec  = interval / USEC_PER_MSEC;
 		ts.tv_nsec = (interval % USEC_PER_MSEC) * NSEC_PER_MSEC;
+	} else if (timeout) {
+		ts.tv_sec  = timeout / USEC_PER_MSEC;
+		ts.tv_nsec = (timeout % USEC_PER_MSEC) * NSEC_PER_MSEC;
 	} else {
 		ts.tv_sec  = 1;
 		ts.tv_nsec = 0;
@@ -698,9 +702,11 @@ try_again:
 		perf_evlist__start_workload(evsel_list);
 		enable_counters();
 
-		if (interval) {
+		if (interval || timeout) {
 			while (!waitpid(child_pid, &status, WNOHANG)) {
 				nanosleep(&ts, NULL);
+				if (timeout)
+					break;
 				process_interval();
 				if (interval_count && !(--times))
 					break;
@@ -720,6 +726,8 @@ try_again:
 		enable_counters();
 		while (!done) {
 			nanosleep(&ts, NULL);
+			if (timeout)
+				break;
 			if (interval) {
 				process_interval();
 				if (interval_count && !(--times))
@@ -1900,6 +1908,8 @@ static const struct option stat_options[] = {
 		    "print counts at regular interval in ms (>= 10)"),
 	OPT_INTEGER(0, "interval-count", &stat_config.times,
 		    "print counts for fixed number of times"),
+	OPT_UINTEGER(0, "timeout", &stat_config.timeout,
+		    "stop workload and print counts after a timeout period in ms (>= 10ms)"),
 	OPT_SET_UINT(0, "per-socket", &stat_config.aggr_mode,
 		     "aggregate counts per processor socket", AGGR_SOCKET),
 	OPT_SET_UINT(0, "per-core", &stat_config.aggr_mode,
@@ -2697,7 +2707,7 @@ int cmd_stat(int argc, const char **argv)
 	int status = -EINVAL, run_idx;
 	const char *mode;
 	FILE *output = stderr;
-	unsigned int interval;
+	unsigned int interval, timeout;
 	const char * const stat_subcommands[] = { "record", "report" };
 
 	setlocale(LC_ALL, "");
@@ -2728,6 +2738,7 @@ int cmd_stat(int argc, const char **argv)
 		return __cmd_report(argc, argv);
 
 	interval = stat_config.interval;
+	timeout = stat_config.timeout;
 
 	/*
 	 * For record command the -o is already taken care of.
@@ -2879,12 +2890,30 @@ int cmd_stat(int argc, const char **argv)
 				   "The overhead percentage could be high in some cases. "
 				   "Please proceed with caution.\n");
 	}
+
 	if (stat_config.times && interval)
 		interval_count = true;
 	else if (stat_config.times && !interval) {
 		pr_err("interval-count option should be used together with "
 				"interval-print.\n");
 		parse_options_usage(stat_usage, stat_options, "interval-count", 0);
+		parse_options_usage(stat_usage, stat_options, "I", 1);
+		goto out;
+	}
+
+	if (timeout && timeout < 100) {
+		if (timeout < 10) {
+			pr_err("timeout must be >= 10ms.\n");
+			parse_options_usage(stat_usage, stat_options, "timeout", 0);
+			goto out;
+		} else
+			pr_warning("timeout < 100ms. "
+				   "The overhead percentage could be high in some cases. "
+				   "Please proceed with caution.\n");
+	}
+	if (timeout && interval) {
+		pr_err("timeout option is not supported with interval-print.\n");
+		parse_options_usage(stat_usage, stat_options, "timeout", 0);
 		parse_options_usage(stat_usage, stat_options, "I", 1);
 		goto out;
 	}
