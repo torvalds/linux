@@ -38,24 +38,26 @@ static struct snd_soc_dai_driver adau7002_dai = {
 	},
 };
 
-static const struct snd_soc_codec_driver adau7002_codec_driver = {
-	.component_driver = {
-		.dapm_widgets		= adau7002_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(adau7002_widgets),
-		.dapm_routes		= adau7002_routes,
-		.num_dapm_routes	= ARRAY_SIZE(adau7002_routes),
-	},
+static const struct snd_soc_component_driver adau7002_component_driver = {
+	.dapm_widgets		= adau7002_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(adau7002_widgets),
+	.dapm_routes		= adau7002_routes,
+	.num_dapm_routes	= ARRAY_SIZE(adau7002_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int adau7002_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev, &adau7002_codec_driver,
+	return devm_snd_soc_register_component(&pdev->dev,
+			&adau7002_component_driver,
 			&adau7002_dai, 1);
 }
 
 static int adau7002_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }
 
