@@ -284,7 +284,7 @@ static const struct snd_pcm_ops dummy_dma_ops = {
 	.ioctl		= snd_pcm_lib_ioctl,
 };
 
-static const struct snd_soc_platform_driver dummy_platform = {
+static const struct snd_soc_component_driver dummy_platform = {
 	.ops = &dummy_dma_ops,
 };
 
@@ -342,7 +342,8 @@ static int snd_soc_dummy_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_register_platform(&pdev->dev, &dummy_platform);
+	ret = devm_snd_soc_register_component(&pdev->dev, &dummy_platform,
+					      NULL, 0);
 	if (ret < 0) {
 		snd_soc_unregister_codec(&pdev->dev);
 		return ret;
@@ -353,7 +354,6 @@ static int snd_soc_dummy_probe(struct platform_device *pdev)
 
 static int snd_soc_dummy_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 
 	return 0;
