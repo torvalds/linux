@@ -26,6 +26,9 @@
 #include <linux/suspend.h>
 #include <acpi/acpi_bus.h>
 
+/* When NOT in tablet mode, VGBS returns with the flag 0x40 */
+#define TABLET_MODE_FLAG 0x40
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("AceLan Kao");
 
@@ -108,6 +111,7 @@ out_unknown:
 
 static int intel_vbtn_probe(struct platform_device *device)
 {
+	struct acpi_buffer vgbs_output = { ACPI_ALLOCATE_BUFFER, NULL };
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
 	struct intel_vbtn_priv *priv;
 	acpi_status status;
@@ -129,6 +133,23 @@ static int intel_vbtn_probe(struct platform_device *device)
 		pr_err("Failed to setup Intel Virtual Button\n");
 		return err;
 	}
+
+	/*
+	 * VGBS being present and returning something means we have
+	 * a tablet mode switch.
+	 */
+	status = acpi_evaluate_object(handle, "VGBS", NULL, &vgbs_output);
+	if (ACPI_SUCCESS(status)) {
+		union acpi_object *obj = vgbs_output.pointer;
+
+		if (obj && obj->type == ACPI_TYPE_INTEGER) {
+			int m = !(obj->integer.value & TABLET_MODE_FLAG);
+
+			input_report_switch(priv->input_dev, SW_TABLET_MODE, m);
+		}
+	}
+
+	kfree(vgbs_output.pointer);
 
 	status = acpi_install_notify_handler(handle,
 					     ACPI_DEVICE_NOTIFY,
