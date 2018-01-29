@@ -82,6 +82,10 @@ static int sdhci_probe(struct platform_device *pdev)
 	host->hw_name = "sdhci";
 	host->ops = &sdhci_pltfm_ops;
 	host->irq = platform_get_irq(pdev, 0);
+	if (host->irq <= 0) {
+		ret = -EINVAL;
+		goto err_host;
+	}
 	host->quirks = SDHCI_QUIRK_BROKEN_ADMA;
 
 	sdhci = sdhci_priv(host);
