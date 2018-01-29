@@ -384,10 +384,122 @@ int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 }
 EXPORT_SYMBOL_GPL(mt76_get_survey);
 
-void mt76_rx_complete(struct mt76_dev *dev, enum mt76_rxq_id q)
+void mt76_wcid_key_setup(struct mt76_dev *dev, struct mt76_wcid *wcid,
+			 struct ieee80211_key_conf *key)
 {
+	struct ieee80211_key_seq seq;
+	int i;
+
+	wcid->rx_check_pn = false;
+
+	if (!key)
+		return;
+
+	if (key->cipher == WLAN_CIPHER_SUITE_CCMP)
+		wcid->rx_check_pn = true;
+
+	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
+		ieee80211_get_key_rx_seq(key, i, &seq);
+		memcpy(wcid->rx_key_pn[i], seq.ccmp.pn, sizeof(seq.ccmp.pn));
+	}
+}
+EXPORT_SYMBOL(mt76_wcid_key_setup);
+
+static struct ieee80211_sta *mt76_rx_convert(struct sk_buff *skb)
+{
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+	struct mt76_rx_status mstat;
+
+	mstat = *((struct mt76_rx_status *) skb->cb);
+	memset(status, 0, sizeof(*status));
+
+	status->flag = mstat.flag;
+	status->freq = mstat.freq;
+	status->enc_flags = mstat.enc_flags;
+	status->encoding = mstat.encoding;
+	status->bw = mstat.bw;
+	status->rate_idx = mstat.rate_idx;
+	status->nss = mstat.nss;
+	status->band = mstat.band;
+	status->signal = mstat.signal;
+	status->chains = mstat.chains;
+
+	BUILD_BUG_ON(sizeof(mstat) > sizeof(skb->cb));
+	BUILD_BUG_ON(sizeof(status->chain_signal) != sizeof(mstat.chain_signal));
+	memcpy(status->chain_signal, mstat.chain_signal, sizeof(mstat.chain_signal));
+
+	return wcid_to_sta(mstat.wcid);
+}
+
+static int
+mt76_check_ccmp_pn(struct sk_buff *skb)
+{
+	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;
+	struct mt76_wcid *wcid = status->wcid;
+	struct ieee80211_hdr *hdr;
+	int ret;
+
+	if (!(status->flag & RX_FLAG_DECRYPTED))
+		return 0;
+
+	if (!wcid || !wcid->rx_check_pn)
+		return 0;
+
+	if (!(status->flag & RX_FLAG_IV_STRIPPED)) {
+		/*
+		 * Validate the first fragment both here and in mac80211
+		 * All further fragments will be validated by mac80211 only.
+		 */
+		hdr = (struct ieee80211_hdr *) skb->data;
+		if (ieee80211_is_frag(hdr) &&
+		    !ieee80211_is_first_frag(hdr->frame_control))
+			return 0;
+	}
+
+	BUILD_BUG_ON(sizeof(status->iv) != sizeof(wcid->rx_key_pn[0]));
+	ret = memcmp(status->iv, wcid->rx_key_pn[status->tid],
+		     sizeof(status->iv));
+	if (ret <= 0)
+		return -EINVAL; /* replay */
+
+	memcpy(wcid->rx_key_pn[status->tid], status->iv, sizeof(status->iv));
+
+	if (status->flag & RX_FLAG_IV_STRIPPED)
+		status->flag |= RX_FLAG_PN_VALIDATED;
+
+	return 0;
+}
+
+void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
+		      int queue)
+{
+	struct napi_struct *napi = NULL;
+	struct ieee80211_sta *sta;
 	struct sk_buff *skb;
 
+	if (queue >= 0)
+	    napi = &dev->napi[queue];
+
+	while ((skb = __skb_dequeue(frames)) != NULL) {
+		if (mt76_check_ccmp_pn(skb)) {
+			dev_kfree_skb(skb);
+			continue;
+		}
+
+		sta = mt76_rx_convert(skb);
+		ieee80211_rx_napi(dev->hw, sta, skb, napi);
+	}
+}
+
+void mt76_rx_poll_complete(struct mt76_dev *dev, enum mt76_rxq_id q)
+{
+	struct sk_buff_head frames;
+	struct sk_buff *skb;
+
+	__skb_queue_head_init(&frames);
+
 	while ((skb = __skb_dequeue(&dev->rx_skb[q])) != NULL)
-		ieee80211_rx_napi(dev->hw, NULL, skb, &dev->napi[q]);
+		mt76_rx_aggr_reorder(skb, &frames);
+
+	mt76_rx_complete(dev, &frames, q);
 }

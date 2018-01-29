@@ -541,9 +541,9 @@ static int qtnf_event_process_skb(struct qtnf_bus *bus,
 	if (unlikely(!mac))
 		return -ENXIO;
 
-	qtnf_bus_lock(bus);
+	rtnl_lock();
 	res = qtnf_event_parse(mac, skb);
-	qtnf_bus_unlock(bus);
+	rtnl_unlock();
 
 	return res;
 }

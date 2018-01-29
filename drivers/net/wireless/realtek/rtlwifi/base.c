@@ -244,7 +244,8 @@ static void _rtl_init_hw_vht_capab(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 
-	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE) {
+	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE ||
+	    rtlhal->hw_type == HARDWARE_TYPE_RTL8822BE) {
 		u16 mcs_map;
 
 		vht_cap->vht_supported = true;
@@ -697,14 +698,94 @@ static void _rtl_query_protection_mode(struct ieee80211_hw *hw,
 	}
 }
 
+u8 rtl_mrate_idx_to_arfr_id(struct ieee80211_hw *hw, u8 rate_index,
+			    enum wireless_mode wirelessmode)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_phy *rtlphy = &rtlpriv->phy;
+	u8 ret = 0;
+
+	switch (rate_index) {
+	case RATR_INX_WIRELESS_NGB:
+		if (rtlphy->rf_type == RF_1T1R)
+			ret = RATEID_IDX_BGN_40M_1SS;
+		else
+			ret = RATEID_IDX_BGN_40M_2SS;
+		; break;
+	case RATR_INX_WIRELESS_N:
+	case RATR_INX_WIRELESS_NG:
+		if (rtlphy->rf_type == RF_1T1R)
+			ret = RATEID_IDX_GN_N1SS;
+		else
+			ret = RATEID_IDX_GN_N2SS;
+		; break;
+	case RATR_INX_WIRELESS_NB:
+		if (rtlphy->rf_type == RF_1T1R)
+			ret = RATEID_IDX_BGN_20M_1SS_BN;
+		else
+			ret = RATEID_IDX_BGN_20M_2SS_BN;
+		; break;
+	case RATR_INX_WIRELESS_GB:
+		ret = RATEID_IDX_BG;
+		break;
+	case RATR_INX_WIRELESS_G:
+		ret = RATEID_IDX_G;
+		break;
+	case RATR_INX_WIRELESS_B:
+		ret = RATEID_IDX_B;
+		break;
+	case RATR_INX_WIRELESS_MC:
+		if (wirelessmode == WIRELESS_MODE_B ||
+		    wirelessmode == WIRELESS_MODE_G ||
+		    wirelessmode == WIRELESS_MODE_N_24G ||
+		    wirelessmode == WIRELESS_MODE_AC_24G)
+			ret = RATEID_IDX_BG;
+		else
+			ret = RATEID_IDX_G;
+		break;
+	case RATR_INX_WIRELESS_AC_5N:
+		if (rtlphy->rf_type == RF_1T1R)
+			ret = RATEID_IDX_VHT_1SS;
+		else
+			ret = RATEID_IDX_VHT_2SS;
+		break;
+	case RATR_INX_WIRELESS_AC_24N:
+		if (rtlphy->current_chan_bw == HT_CHANNEL_WIDTH_80) {
+			if (rtlphy->rf_type == RF_1T1R)
+				ret = RATEID_IDX_VHT_1SS;
+			else
+				ret = RATEID_IDX_VHT_2SS;
+		} else {
+			if (rtlphy->rf_type == RF_1T1R)
+				ret = RATEID_IDX_MIX1;
+			else
+				ret = RATEID_IDX_MIX2;
+		}
+		break;
+	default:
+		ret = RATEID_IDX_BGN_40M_2SS;
+		break;
+	}
+	return ret;
+}
+EXPORT_SYMBOL(rtl_mrate_idx_to_arfr_id);
+
 static void _rtl_txrate_selectmode(struct ieee80211_hw *hw,
 				   struct ieee80211_sta *sta,
 				   struct rtl_tcb_desc *tcb_desc)
 {
+#define SET_RATE_ID(rate_id)					\
+	({typeof(rate_id) _id = rate_id;			\
+	  ((rtlpriv->cfg->spec_ver & RTL_SPEC_NEW_RATEID) ?	\
+		rtl_mrate_idx_to_arfr_id(hw, _id,		\
+			(sta_entry ? sta_entry->wireless_mode :	\
+			 WIRELESS_MODE_G)) :			\
+		_id); })
+
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_sta_info *sta_entry = NULL;
-	u8 ratr_index = 7;
+	u8 ratr_index = SET_RATE_ID(RATR_INX_WIRELESS_MC);
 
 	if (sta) {
 		sta_entry = (struct rtl_sta_info *) sta->drv_priv;
@@ -719,7 +800,8 @@ static void _rtl_txrate_selectmode(struct ieee80211_hw *hw,
 				tcb_desc->hw_rate =
 				    rtlpriv->cfg->maps[RTL_RC_CCK_RATE2M];
 				tcb_desc->use_driver_rate = 1;
-				tcb_desc->ratr_index = RATR_INX_WIRELESS_MC;
+				tcb_desc->ratr_index =
+					SET_RATE_ID(RATR_INX_WIRELESS_MC);
 			} else {
 				tcb_desc->ratr_index = ratr_index;
 			}
@@ -735,22 +817,30 @@ static void _rtl_txrate_selectmode(struct ieee80211_hw *hw,
 		    mac->opmode == NL80211_IFTYPE_MESH_POINT) {
 			tcb_desc->mac_id = 0;
 
-			if (mac->mode == WIRELESS_MODE_AC_5G)
+			if (sta &&
+			    (rtlpriv->cfg->spec_ver & RTL_SPEC_NEW_RATEID))
+				;	/* use sta_entry->ratr_index */
+			else if (mac->mode == WIRELESS_MODE_AC_5G)
 				tcb_desc->ratr_index =
-					RATR_INX_WIRELESS_AC_5N;
+					SET_RATE_ID(RATR_INX_WIRELESS_AC_5N);
 			else if (mac->mode == WIRELESS_MODE_AC_24G)
 				tcb_desc->ratr_index =
-					RATR_INX_WIRELESS_AC_24N;
+					SET_RATE_ID(RATR_INX_WIRELESS_AC_24N);
 			else if (mac->mode == WIRELESS_MODE_N_24G)
-				tcb_desc->ratr_index = RATR_INX_WIRELESS_NGB;
+				tcb_desc->ratr_index =
+					SET_RATE_ID(RATR_INX_WIRELESS_NGB);
 			else if (mac->mode == WIRELESS_MODE_N_5G)
-				tcb_desc->ratr_index = RATR_INX_WIRELESS_NG;
+				tcb_desc->ratr_index =
+					SET_RATE_ID(RATR_INX_WIRELESS_NG);
 			else if (mac->mode & WIRELESS_MODE_G)
-				tcb_desc->ratr_index = RATR_INX_WIRELESS_GB;
+				tcb_desc->ratr_index =
+					SET_RATE_ID(RATR_INX_WIRELESS_GB);
 			else if (mac->mode & WIRELESS_MODE_B)
-				tcb_desc->ratr_index = RATR_INX_WIRELESS_B;
+				tcb_desc->ratr_index =
+					SET_RATE_ID(RATR_INX_WIRELESS_B);
 			else if (mac->mode & WIRELESS_MODE_A)
-				tcb_desc->ratr_index = RATR_INX_WIRELESS_G;
+				tcb_desc->ratr_index =
+					SET_RATE_ID(RATR_INX_WIRELESS_G);
 
 		} else if (mac->opmode == NL80211_IFTYPE_AP ||
 			mac->opmode == NL80211_IFTYPE_ADHOC) {
@@ -764,6 +854,7 @@ static void _rtl_txrate_selectmode(struct ieee80211_hw *hw,
 			}
 		}
 	}
+#undef SET_RATE_ID
 }
 
 static void _rtl_query_bandwidth_mode(struct ieee80211_hw *hw,
@@ -1140,9 +1231,19 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		      struct ieee80211_sta *sta,
 		      struct sk_buff *skb, struct rtl_tcb_desc *tcb_desc)
 {
+#define SET_RATE_ID(rate_id)					\
+	({typeof(rate_id) _id = rate_id;			\
+	  ((rtlpriv->cfg->spec_ver & RTL_SPEC_NEW_RATEID) ?	\
+		rtl_mrate_idx_to_arfr_id(hw, _id,		\
+			(sta_entry ? sta_entry->wireless_mode :	\
+			 WIRELESS_MODE_G)) :			\
+		_id); })
+
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *rtlmac = rtl_mac(rtl_priv(hw));
 	struct ieee80211_hdr *hdr = rtl_get_hdr(skb);
+	struct rtl_sta_info *sta_entry =
+		(sta ? (struct rtl_sta_info *)sta->drv_priv : NULL);
 
 	__le16 fc = rtl_get_fc(skb);
 
@@ -1165,7 +1266,8 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		if (info->control.rates[0].idx == 0 ||
 				ieee80211_is_nullfunc(fc)) {
 			tcb_desc->use_driver_rate = true;
-			tcb_desc->ratr_index = RATR_INX_WIRELESS_MC;
+			tcb_desc->ratr_index =
+					SET_RATE_ID(RATR_INX_WIRELESS_MC);
 
 			tcb_desc->disable_ratefallback = 1;
 		} else {
@@ -1207,11 +1309,12 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		_rtl_query_protection_mode(hw, tcb_desc, info);
 	} else {
 		tcb_desc->use_driver_rate = true;
-		tcb_desc->ratr_index = RATR_INX_WIRELESS_MC;
+		tcb_desc->ratr_index = SET_RATE_ID(RATR_INX_WIRELESS_MC);
 		tcb_desc->disable_ratefallback = 1;
 		tcb_desc->mac_id = 0;
 		tcb_desc->packet_bw = false;
 	}
+#undef SET_RATE_ID
 }
 EXPORT_SYMBOL(rtl_get_tcb_desc);
 

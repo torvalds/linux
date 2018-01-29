@@ -81,6 +81,41 @@ qtnf_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 };
 
 static int
+qtnf_validate_iface_combinations(struct wiphy *wiphy,
+				 struct qtnf_vif *change_vif,
+				 enum nl80211_iftype new_type)
+{
+	struct qtnf_wmac *mac;
+	struct qtnf_vif *vif;
+	int i;
+	int ret = 0;
+	struct iface_combination_params params = {
+		.num_different_channels = 1,
+	};
+
+	mac = wiphy_priv(wiphy);
+	if (!mac)
+		return -EFAULT;
+
+	for (i = 0; i < QTNF_MAX_INTF; i++) {
+		vif = &mac->iflist[i];
+		if (vif->wdev.iftype != NL80211_IFTYPE_UNSPECIFIED)
+			params.iftype_num[vif->wdev.iftype]++;
+	}
+
+	if (change_vif) {
+		params.iftype_num[new_type]++;
+		params.iftype_num[change_vif->wdev.iftype]--;
+	} else {
+		params.iftype_num[new_type]++;
+	}
+
+	ret = cfg80211_check_combinations(wiphy, &params);
+
+	return ret;
+}
+
+static int
 qtnf_change_virtual_intf(struct wiphy *wiphy,
 			 struct net_device *dev,
 			 enum nl80211_iftype type,
@@ -89,6 +124,13 @@ qtnf_change_virtual_intf(struct wiphy *wiphy,
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 	u8 *mac_addr;
 	int ret;
+
+	ret = qtnf_validate_iface_combinations(wiphy, vif, type);
+	if (ret) {
+		pr_err("VIF%u.%u combination check: failed to set type %d\n",
+		       vif->mac->macid, vif->vifid, type);
+		return ret;
+	}
 
 	if (params)
 		mac_addr = params->macaddr;
@@ -120,10 +162,6 @@ int qtnf_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 
 	qtnf_scan_done(vif->mac, true);
 
-	if (qtnf_cmd_send_del_intf(vif))
-		pr_err("VIF%u.%u: failed to delete VIF\n", vif->mac->macid,
-		       vif->vifid);
-
 	/* Stop data */
 	netif_tx_stop_all_queues(netdev);
 	if (netif_carrier_ok(netdev))
@@ -131,6 +169,10 @@ int qtnf_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 
 	if (netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdevice(netdev);
+
+	if (qtnf_cmd_send_del_intf(vif))
+		pr_err("VIF%u.%u: failed to delete VIF\n", vif->mac->macid,
+		       vif->vifid);
 
 	vif->netdev->ieee80211_ptr = NULL;
 	vif->netdev = NULL;
@@ -150,11 +192,19 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 	struct qtnf_wmac *mac;
 	struct qtnf_vif *vif;
 	u8 *mac_addr = NULL;
+	int ret;
 
 	mac = wiphy_priv(wiphy);
 
 	if (!mac)
 		return ERR_PTR(-EFAULT);
+
+	ret = qtnf_validate_iface_combinations(wiphy, NULL, type);
+	if (ret) {
+		pr_err("MAC%u invalid combination: failed to add type %d\n",
+		       mac->macid, type);
+		return ERR_PTR(ret);
+	}
 
 	switch (type) {
 	case NL80211_IFTYPE_STATION:
@@ -545,18 +595,12 @@ qtnf_del_station(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
-static void qtnf_scan_timeout(struct timer_list *t)
-{
-	struct qtnf_wmac *mac = from_timer(mac, t, scan_timeout);
-
-	pr_warn("mac%d scan timed out\n", mac->macid);
-	qtnf_scan_done(mac, true);
-}
-
 static int
 qtnf_scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 {
 	struct qtnf_wmac *mac = wiphy_priv(wiphy);
+
+	cancel_delayed_work_sync(&mac->scan_timeout);
 
 	mac->scan_req = request;
 
@@ -566,9 +610,8 @@ qtnf_scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 		return -EFAULT;
 	}
 
-	mac->scan_timeout.function = qtnf_scan_timeout;
-	mod_timer(&mac->scan_timeout,
-		  jiffies + QTNF_SCAN_TIMEOUT_SEC * HZ);
+	queue_delayed_work(mac->bus->workqueue, &mac->scan_timeout,
+			   QTNF_SCAN_TIMEOUT_SEC * HZ);
 
 	return 0;
 }
@@ -629,7 +672,6 @@ qtnf_disconnect(struct wiphy *wiphy, struct net_device *dev,
 		return ret;
 	}
 
-	vif->sta_state = QTNF_STA_DISCONNECTED;
 	return 0;
 }
 
@@ -876,29 +918,29 @@ struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus)
 	return wiphy;
 }
 
-static int qtnf_wiphy_setup_if_comb(struct wiphy *wiphy,
-				    struct ieee80211_iface_combination *if_comb,
-				    const struct qtnf_mac_info *mac_info)
+static int
+qtnf_wiphy_setup_if_comb(struct wiphy *wiphy, struct qtnf_mac_info *mac_info)
 {
-	size_t max_interfaces = 0;
+	struct ieee80211_iface_combination *if_comb;
+	size_t n_if_comb;
 	u16 interface_modes = 0;
-	size_t i;
+	size_t i, j;
 
-	if (unlikely(!mac_info->limits || !mac_info->n_limits))
+	if_comb = mac_info->if_comb;
+	n_if_comb = mac_info->n_if_comb;
+
+	if (!if_comb || !n_if_comb)
 		return -ENOENT;
 
-	if_comb->limits = mac_info->limits;
-	if_comb->n_limits = mac_info->n_limits;
+	for (i = 0; i < n_if_comb; i++) {
+		if_comb[i].radar_detect_widths = mac_info->radar_detect_widths;
 
-	for (i = 0; i < mac_info->n_limits; i++) {
-		max_interfaces += mac_info->limits[i].max;
-		interface_modes |= mac_info->limits[i].types;
+		for (j = 0; j < if_comb[i].n_limits; j++)
+			interface_modes |= if_comb[i].limits[j].types;
 	}
 
-	if_comb->num_different_channels = 1;
-	if_comb->beacon_int_infra_match = true;
-	if_comb->max_interfaces = max_interfaces;
-	if_comb->radar_detect_widths = mac_info->radar_detect_widths;
+	wiphy->iface_combinations = if_comb;
+	wiphy->n_iface_combinations = n_if_comb;
 	wiphy->interface_modes = interface_modes;
 
 	return 0;
@@ -907,21 +949,12 @@ static int qtnf_wiphy_setup_if_comb(struct wiphy *wiphy,
 int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 {
 	struct wiphy *wiphy = priv_to_wiphy(mac);
-	struct ieee80211_iface_combination *iface_comb = NULL;
 	int ret;
 
 	if (!wiphy) {
 		pr_err("invalid wiphy pointer\n");
 		return -EFAULT;
 	}
-
-	iface_comb = kzalloc(sizeof(*iface_comb), GFP_KERNEL);
-	if (!iface_comb)
-		return -ENOMEM;
-
-	ret = qtnf_wiphy_setup_if_comb(wiphy, iface_comb, &mac->macinfo);
-	if (ret)
-		goto out;
 
 	wiphy->frag_threshold = mac->macinfo.frag_thr;
 	wiphy->rts_threshold = mac->macinfo.rts_thr;
@@ -934,10 +967,11 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	wiphy->mgmt_stypes = qtnf_mgmt_stypes;
 	wiphy->max_remain_on_channel_duration = 5000;
 	wiphy->max_acl_mac_addrs = mac->macinfo.max_acl_mac_addrs;
-
-	wiphy->iface_combinations = iface_comb;
-	wiphy->n_iface_combinations = 1;
 	wiphy->max_num_csa_counters = 2;
+
+	ret = qtnf_wiphy_setup_if_comb(wiphy, &mac->macinfo);
+	if (ret)
+		goto out;
 
 	/* Initialize cipher suits */
 	wiphy->cipher_suites = qtnf_cipher_suites;
@@ -972,6 +1006,10 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 		wiphy->regulatory_flags |= REGULATORY_WIPHY_SELF_MANAGED;
 	}
 
+	strlcpy(wiphy->fw_version, hw_info->fw_version,
+		sizeof(wiphy->fw_version));
+	wiphy->hw_version = hw_info->hw_version;
+
 	ret = wiphy_register(wiphy);
 	if (ret < 0)
 		goto out;
@@ -983,12 +1021,7 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 		ret = regulatory_hint(wiphy, hw_info->rd->alpha2);
 
 out:
-	if (ret) {
-		kfree(iface_comb);
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 void qtnf_netdev_updown(struct net_device *ndev, bool up)

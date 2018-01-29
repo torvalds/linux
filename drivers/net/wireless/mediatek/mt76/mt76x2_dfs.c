@@ -460,8 +460,8 @@ void mt76x2_dfs_init_params(struct mt76x2_dev *dev)
 {
 	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
 
-	tasklet_kill(&dev->dfs_pd.dfs_tasklet);
-	if (chandef->chan->flags & IEEE80211_CHAN_RADAR) {
+	if ((chandef->chan->flags & IEEE80211_CHAN_RADAR) &&
+	    dev->dfs_pd.region != NL80211_DFS_UNSET) {
 		mt76x2_dfs_set_bbp_params(dev);
 		/* enable debug mode */
 		mt76x2_dfs_set_capture_mode_ctrl(dev, true);
@@ -489,5 +489,18 @@ void mt76x2_dfs_init_detector(struct mt76x2_dev *dev)
 	dfs_pd->region = NL80211_DFS_UNSET;
 	tasklet_init(&dfs_pd->dfs_tasklet, mt76x2_dfs_tasklet,
 		     (unsigned long)dev);
+}
+
+void mt76x2_dfs_set_domain(struct mt76x2_dev *dev,
+			   enum nl80211_dfs_regions region)
+{
+	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+
+	if (dfs_pd->region != region) {
+		tasklet_disable(&dfs_pd->dfs_tasklet);
+		dfs_pd->region = region;
+		mt76x2_dfs_init_params(dev);
+		tasklet_enable(&dfs_pd->dfs_tasklet);
+	}
 }
 

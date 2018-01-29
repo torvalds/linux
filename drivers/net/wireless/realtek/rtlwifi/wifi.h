@@ -873,6 +873,24 @@ enum ratr_table_mode {
 	RATR_INX_WIRELESS_AC_24N = 9,
 };
 
+enum ratr_table_mode_new {
+	RATEID_IDX_BGN_40M_2SS = 0,
+	RATEID_IDX_BGN_40M_1SS = 1,
+	RATEID_IDX_BGN_20M_2SS_BN = 2,
+	RATEID_IDX_BGN_20M_1SS_BN = 3,
+	RATEID_IDX_GN_N2SS = 4,
+	RATEID_IDX_GN_N1SS = 5,
+	RATEID_IDX_BG = 6,
+	RATEID_IDX_G = 7,
+	RATEID_IDX_B = 8,
+	RATEID_IDX_VHT_2SS = 9,
+	RATEID_IDX_VHT_1SS = 10,
+	RATEID_IDX_MIX1 = 11,
+	RATEID_IDX_MIX2 = 12,
+	RATEID_IDX_VHT_3SS = 13,
+	RATEID_IDX_BGN_3SS = 14,
+};
+
 enum rtl_link_state {
 	MAC80211_NOLINK = 0,
 	MAC80211_LINKING = 1,
@@ -929,6 +947,10 @@ enum package_type {
 	PACKAGE_TFBGA90,
 	PACKAGE_TFBGA80,
 	PACKAGE_TFBGA79
+};
+
+enum rtl_spec_ver {
+	RTL_SPEC_NEW_RATEID = BIT(0),	/* use ratr_table_mode_new */
 };
 
 struct octet_string {
@@ -2315,6 +2337,7 @@ struct rtl_hal_cfg {
 	struct rtl_hal_ops *ops;
 	struct rtl_mod_params *mod_params;
 	struct rtl_hal_usbint_cfg *usb_interface_cfg;
+	enum rtl_spec_ver spec_ver;
 
 	/*this map used for some registers or vars
 	   defined int HAL but used in MAIN */
@@ -2502,6 +2525,7 @@ struct bt_coexist_info {
 	struct rtl_btc_info btc_info;
 	/* btc context */
 	void *btc_context;
+	void *wifi_only_context;
 	/* EEPROM BT info. */
 	u8 eeprom_bt_coexist;
 	u8 eeprom_bt_type;
@@ -2558,13 +2582,17 @@ struct bt_coexist_info {
 
 struct rtl_btc_ops {
 	void (*btc_init_variables) (struct rtl_priv *rtlpriv);
+	void (*btc_init_variables_wifi_only)(struct rtl_priv *rtlpriv);
 	void (*btc_deinit_variables)(struct rtl_priv *rtlpriv);
 	void (*btc_init_hal_vars) (struct rtl_priv *rtlpriv);
 	void (*btc_power_on_setting)(struct rtl_priv *rtlpriv);
 	void (*btc_init_hw_config) (struct rtl_priv *rtlpriv);
+	void (*btc_init_hw_config_wifi_only)(struct rtl_priv *rtlpriv);
 	void (*btc_ips_notify) (struct rtl_priv *rtlpriv, u8 type);
 	void (*btc_lps_notify)(struct rtl_priv *rtlpriv, u8 type);
 	void (*btc_scan_notify) (struct rtl_priv *rtlpriv, u8 scantype);
+	void (*btc_scan_notify_wifi_only)(struct rtl_priv *rtlpriv,
+					  u8 scantype);
 	void (*btc_connect_notify) (struct rtl_priv *rtlpriv, u8 action);
 	void (*btc_mediastatus_notify) (struct rtl_priv *rtlpriv,
 					enum rt_media_status mstatus);
@@ -2579,6 +2607,10 @@ struct rtl_btc_ops {
 	bool (*btc_is_bt_disabled) (struct rtl_priv *rtlpriv);
 	void (*btc_special_packet_notify)(struct rtl_priv *rtlpriv,
 					  u8 pkt_type);
+	void (*btc_switch_band_notify)(struct rtl_priv *rtlpriv, u8 type,
+				       bool scanning);
+	void (*btc_switch_band_notify_wifi_only)(struct rtl_priv *rtlpriv,
+						 u8 type, bool scanning);
 	void (*btc_display_bt_coex_info)(struct rtl_priv *rtlpriv,
 					 struct seq_file *m);
 	void (*btc_record_pwr_mode)(struct rtl_priv *rtlpriv, u8 *buf, u8 len);

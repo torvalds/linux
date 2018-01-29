@@ -153,6 +153,7 @@ struct btc_board_info {
 	bool tfbga_package;
 
 	u8 rfe_type;
+	u8 ant_div_cfg;
 };
 
 enum btc_dbg_opcode {
@@ -190,6 +191,7 @@ enum btc_wifi_bw_mode {
 	BTC_WIFI_BW_LEGACY = 0x0,
 	BTC_WIFI_BW_HT20 = 0x1,
 	BTC_WIFI_BW_HT40 = 0x2,
+	BTC_WIFI_BW_HT80 = 0x3,
 	BTC_WIFI_BW_MAX
 };
 
@@ -384,6 +386,14 @@ enum btc_notify_type_scan {
 	BTC_SCAN_MAX
 };
 
+enum btc_notify_type_switchband {
+	BTC_NOT_SWITCH = 0x0,
+	BTC_SWITCH_TO_24G = 0x1,
+	BTC_SWITCH_TO_5G = 0x2,
+	BTC_SWITCH_TO_24G_NOFORSCAN = 0x3,
+	BTC_SWITCH_MAX
+};
+
 enum btc_notify_type_associate {
 	BTC_ASSOCIATE_FINISH = 0x0,
 	BTC_ASSOCIATE_START = 0x1,
@@ -573,6 +583,8 @@ struct btc_coexist {
 	 */
 	bool auto_report_1ant;
 	bool auto_report_2ant;
+	bool dbg_mode_1ant;
+	bool dbg_mode_2ant;
 	bool initilized;
 	bool stop_coex_dm;
 	bool manual_control;
@@ -626,21 +638,31 @@ bool halbtc_is_wifi_uplink(struct rtl_priv *adapter);
 
 #define rtl_btc_coexist(rtlpriv)				\
 	((struct btc_coexist *)((rtlpriv)->btcoexist.btc_context))
+#define rtl_btc_wifi_only(rtlpriv)				\
+	((struct wifi_only_cfg *)((rtlpriv)->btcoexist.wifi_only_context))
+
+struct wifi_only_cfg;
 
 bool exhalbtc_initlize_variables(struct rtl_priv *rtlpriv);
+bool exhalbtc_initlize_variables_wifi_only(struct rtl_priv *rtlpriv);
 bool exhalbtc_bind_bt_coex_withadapter(void *adapter);
 void exhalbtc_power_on_setting(struct btc_coexist *btcoexist);
+void exhalbtc_pre_load_firmware(struct btc_coexist *btcoexist);
 void exhalbtc_init_hw_config(struct btc_coexist *btcoexist, bool wifi_only);
+void exhalbtc_init_hw_config_wifi_only(struct wifi_only_cfg *wifionly_cfg);
 void exhalbtc_init_coex_dm(struct btc_coexist *btcoexist);
 void exhalbtc_ips_notify(struct btc_coexist *btcoexist, u8 type);
 void exhalbtc_lps_notify(struct btc_coexist *btcoexist, u8 type);
 void exhalbtc_scan_notify(struct btc_coexist *btcoexist, u8 type);
+void exhalbtc_scan_notify_wifi_only(struct wifi_only_cfg *wifionly_cfg,
+				    u8 is_5g);
 void exhalbtc_connect_notify(struct btc_coexist *btcoexist, u8 action);
 void exhalbtc_mediastatus_notify(struct btc_coexist *btcoexist,
 				 enum rt_media_status media_status);
 void exhalbtc_special_packet_notify(struct btc_coexist *btcoexist, u8 pkt_type);
 void exhalbtc_bt_info_notify(struct btc_coexist *btcoexist, u8 *tmp_buf,
 			     u8 length);
+void exhalbtc_rf_status_notify(struct btc_coexist *btcoexist, u8 type);
 void exhalbtc_stack_operation_notify(struct btc_coexist *btcoexist, u8 type);
 void exhalbtc_halt_notify(struct btc_coexist *btcoexist);
 void exhalbtc_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state);
@@ -648,6 +670,8 @@ void exhalbtc_coex_dm_switch(struct btc_coexist *btcoexist);
 void exhalbtc_periodical(struct btc_coexist *btcoexist);
 void exhalbtc_dbg_control(struct btc_coexist *btcoexist, u8 code, u8 len,
 			  u8 *data);
+void exhalbtc_antenna_detection(struct btc_coexist *btcoexist, u32 cent_freq,
+				u32 offset, u32 span, u32 seconds);
 void exhalbtc_stack_update_profile_info(void);
 void exhalbtc_set_hci_version(struct btc_coexist *btcoexist, u16 hci_version);
 void exhalbtc_set_bt_patch_version(struct btc_coexist *btcoexist,
@@ -658,11 +682,51 @@ void exhalbtc_set_chip_type(struct btc_coexist *btcoexist, u8 chip_type);
 void exhalbtc_set_ant_num(struct rtl_priv *rtlpriv, u8 type, u8 ant_num);
 void exhalbtc_display_bt_coex_info(struct btc_coexist *btcoexist,
 				   struct seq_file *m);
+void exhalbtc_switch_band_notify(struct btc_coexist *btcoexist, u8 type);
+void exhalbtc_switch_band_notify_wifi_only(struct wifi_only_cfg *wifionly_cfg,
+					   u8 is_5g);
 void exhalbtc_signal_compensation(struct btc_coexist *btcoexist,
 				  u8 *rssi_wifi, u8 *rssi_bt);
 void exhalbtc_lps_leave(struct btc_coexist *btcoexist);
 void exhalbtc_low_wifi_traffic_notify(struct btc_coexist *btcoexist);
 void exhalbtc_set_single_ant_path(struct btc_coexist *btcoexist,
 				  u8 single_ant_path);
+
+/* The following are used by wifi_only case */
+enum wifionly_chip_interface {
+	WIFIONLY_INTF_UNKNOWN	= 0,
+	WIFIONLY_INTF_PCI		= 1,
+	WIFIONLY_INTF_USB		= 2,
+	WIFIONLY_INTF_SDIO		= 3,
+	WIFIONLY_INTF_MAX
+};
+
+enum wifionly_customer_id {
+	CUSTOMER_NORMAL			= 0,
+	CUSTOMER_HP_1			= 1,
+};
+
+struct wifi_only_haldata {
+	u16		customer_id;
+	u8		efuse_pg_antnum;
+	u8		efuse_pg_antpath;
+	u8		rfe_type;
+	u8		ant_div_cfg;
+};
+
+struct wifi_only_cfg {
+	void				*adapter;
+	struct wifi_only_haldata	haldata_info;
+	enum wifionly_chip_interface	chip_interface;
+};
+
+static inline
+void halwifionly_phy_set_bb_reg(struct wifi_only_cfg *wifi_conly_cfg,
+				u32 regaddr, u32 bitmask, u32 data)
+{
+	struct rtl_priv *rtlpriv = (struct rtl_priv *)wifi_conly_cfg->adapter;
+
+	rtl_set_bbreg(rtlpriv->hw, regaddr, bitmask, data);
+}
 
 #endif

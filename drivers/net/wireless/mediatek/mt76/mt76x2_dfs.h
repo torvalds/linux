@@ -76,5 +76,7 @@ struct mt76x2_dfs_pattern_detector {
 void mt76x2_dfs_init_params(struct mt76x2_dev *dev);
 void mt76x2_dfs_init_detector(struct mt76x2_dev *dev);
 void mt76x2_dfs_adjust_agc(struct mt76x2_dev *dev);
+void mt76x2_dfs_set_domain(struct mt76x2_dev *dev,
+			   enum nl80211_dfs_regions region);
 
 #endif /* __MT76x2_DFS_H */

@@ -36,7 +36,9 @@ void mt76x2_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 
 		msta = (struct mt76x2_sta *) control->sta->drv_priv;
 		wcid = &msta->wcid;
-	} else if (vif) {
+	}
+
+	if (vif || (!info->control.hw_key && wcid->hw_key_idx != -1)) {
 		struct mt76x2_vif *mvif;
 
 		mvif = (struct mt76x2_vif *) vif->drv_priv;
@@ -166,7 +168,7 @@ int mt76x2_tx_prepare_skb(struct mt76_dev *mdev, void *txwi,
 	*tx_info = FIELD_PREP(MT_TXD_INFO_QSEL, qsel) |
 		   MT_TXD_INFO_80211;
 
-	if (!wcid || wcid->hw_key_idx == 0xff)
+	if (!wcid || wcid->hw_key_idx == 0xff || wcid->sw_iv)
 		*tx_info |= MT_TXD_INFO_WIV;
 
 	return 0;

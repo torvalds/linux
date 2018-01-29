@@ -187,7 +187,8 @@ static bool qtnf_cmd_start_ap_can_fit(const struct qtnf_vif *vif,
 		len += sizeof(struct qlink_tlv_chandef);
 
 	if (s->acl)
-		len += qtnf_cmd_acl_data_size(s->acl);
+		len += sizeof(struct qlink_tlv_hdr) +
+		       qtnf_cmd_acl_data_size(s->acl);
 
 	if (len > (sizeof(struct qlink_cmd) + QTNF_MAX_CMD_BUF_SIZE)) {
 		pr_err("VIF%u.%u: can not fit AP settings: %u\n",
@@ -214,7 +215,7 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_START_AP,
 					    sizeof(*cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	cmd = (struct qlink_cmd_start_ap *)cmd_skb->data;
@@ -334,7 +335,7 @@ int qtnf_cmd_send_stop_ap(struct qtnf_vif *vif)
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_STOP_AP,
 					    sizeof(struct qlink_cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(vif->mac->bus);
@@ -368,7 +369,7 @@ int qtnf_cmd_send_register_mgmt(struct qtnf_vif *vif, u16 frame_type, bool reg)
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_REGISTER_MGMT,
 					    sizeof(*cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(vif->mac->bus);
@@ -411,7 +412,7 @@ int qtnf_cmd_send_mgmt_frame(struct qtnf_vif *vif, u32 cookie, u16 flags,
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_SEND_MGMT_FRAME,
 					    sizeof(*cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(vif->mac->bus);
@@ -457,7 +458,7 @@ int qtnf_cmd_send_mgmt_set_appie(struct qtnf_vif *vif, u8 frame_type,
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_MGMT_SET_APPIE,
 					    sizeof(struct qlink_cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_cmd_tlv_ie_set_add(cmd_skb, frame_type, buf, len);
@@ -712,8 +713,7 @@ int qtnf_cmd_get_sta_info(struct qtnf_vif *vif, const u8 *sta_mac,
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_GET_STA_INFO,
 					    sizeof(*cmd));
-
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(vif->mac->bus);
@@ -778,7 +778,7 @@ static int qtnf_cmd_send_add_change_intf(struct qtnf_vif *vif,
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    cmd_type,
 					    sizeof(*cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(vif->mac->bus);
@@ -851,7 +851,7 @@ int qtnf_cmd_send_del_intf(struct qtnf_vif *vif)
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_DEL_INTF,
 					    sizeof(*cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(vif->mac->bus);
@@ -948,6 +948,16 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 	struct qtnf_hw_info *hwinfo = &bus->hw_info;
 	const struct qlink_tlv_hdr *tlv;
 	const struct qlink_tlv_reg_rule *tlv_rule;
+	const char *bld_name = NULL;
+	const char *bld_rev = NULL;
+	const char *bld_type = NULL;
+	const char *bld_label = NULL;
+	u32 bld_tmstamp = 0;
+	u32 plat_id = 0;
+	const char *hw_id = NULL;
+	const char *calibration_ver = NULL;
+	const char *uboot_ver = NULL;
+	u32 hw_ver = 0;
 	struct ieee80211_reg_rule *rule;
 	u16 tlv_type;
 	u16 tlv_value_len;
@@ -973,6 +983,10 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 	hwinfo->rd->n_reg_rules = resp->n_reg_rules;
 	hwinfo->rd->alpha2[0] = resp->alpha2[0];
 	hwinfo->rd->alpha2[1] = resp->alpha2[1];
+
+	bld_tmstamp = le32_to_cpu(resp->bld_tmstamp);
+	plat_id = le32_to_cpu(resp->plat_id);
+	hw_ver = le32_to_cpu(resp->hw_ver);
 
 	switch (resp->dfs_region) {
 	case QLINK_DFS_FCC:
@@ -1034,6 +1048,27 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 			rule->flags = qtnf_cmd_resp_reg_rule_flags_parse(
 					le32_to_cpu(tlv_rule->flags));
 			break;
+		case QTN_TLV_ID_BUILD_NAME:
+			bld_name = (const void *)tlv->val;
+			break;
+		case QTN_TLV_ID_BUILD_REV:
+			bld_rev = (const void *)tlv->val;
+			break;
+		case QTN_TLV_ID_BUILD_TYPE:
+			bld_type = (const void *)tlv->val;
+			break;
+		case QTN_TLV_ID_BUILD_LABEL:
+			bld_label = (const void *)tlv->val;
+			break;
+		case QTN_TLV_ID_HW_ID:
+			hw_id = (const void *)tlv->val;
+			break;
+		case QTN_TLV_ID_CALIBRATION_VER:
+			calibration_ver = (const void *)tlv->val;
+			break;
+		case QTN_TLV_ID_UBOOT_VER:
+			uboot_ver = (const void *)tlv->val;
+			break;
 		default:
 			break;
 		}
@@ -1056,25 +1091,46 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 		hwinfo->total_tx_chain, hwinfo->total_rx_chain,
 		hwinfo->hw_capab);
 
+	pr_info("\nBuild name:            %s"  \
+		"\nBuild revision:        %s"  \
+		"\nBuild type:            %s"  \
+		"\nBuild label:           %s"  \
+		"\nBuild timestamp:       %lu" \
+		"\nPlatform ID:           %lu" \
+		"\nHardware ID:           %s"  \
+		"\nCalibration version:   %s"  \
+		"\nU-Boot version:        %s"  \
+		"\nHardware version:      0x%08x",
+		bld_name, bld_rev, bld_type, bld_label,
+		(unsigned long)bld_tmstamp,
+		(unsigned long)plat_id,
+		hw_id, calibration_ver, uboot_ver, hw_ver);
+
+	strlcpy(hwinfo->fw_version, bld_label, sizeof(hwinfo->fw_version));
+	hwinfo->hw_version = hw_ver;
+
 	return 0;
 }
 
 static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 					const u8 *tlv_buf, size_t tlv_buf_size)
 {
-	struct ieee80211_iface_limit *limits = NULL;
-	const struct qlink_iface_limit *limit_record;
-	size_t record_count = 0, rec = 0;
-	u16 tlv_type, tlv_value_len;
-	struct qlink_iface_comb_num *comb;
+	struct ieee80211_iface_combination *comb = NULL;
+	size_t n_comb = 0;
+	struct ieee80211_iface_limit *limits;
+	const struct qlink_iface_comb_num *comb_num;
+	const struct qlink_iface_limit_record *rec;
+	const struct qlink_iface_limit *lim;
+	u16 rec_len;
+	u16 tlv_type;
+	u16 tlv_value_len;
 	size_t tlv_full_len;
 	const struct qlink_tlv_hdr *tlv;
 	u8 *ext_capa = NULL;
 	u8 *ext_capa_mask = NULL;
 	u8 ext_capa_len = 0;
 	u8 ext_capa_mask_len = 0;
-
-	mac->macinfo.n_limits = 0;
+	int i = 0;
 
 	tlv = (const struct qlink_tlv_hdr *)tlv_buf;
 	while (tlv_buf_size >= sizeof(struct qlink_tlv_hdr)) {
@@ -1089,52 +1145,77 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 
 		switch (tlv_type) {
 		case QTN_TLV_ID_NUM_IFACE_COMB:
-			if (unlikely(tlv_value_len != sizeof(*comb)))
+			if (tlv_value_len != sizeof(*comb_num))
 				return -EINVAL;
 
-			comb = (void *)tlv->val;
-			record_count = le16_to_cpu(comb->iface_comb_num);
+			comb_num = (void *)tlv->val;
 
-			mac->macinfo.n_limits = record_count;
-			/* free earlier iface limits memory */
-			kfree(mac->macinfo.limits);
-			mac->macinfo.limits =
-				kzalloc(sizeof(*mac->macinfo.limits) *
-					record_count, GFP_KERNEL);
+			/* free earlier iface comb memory */
+			qtnf_mac_iface_comb_free(mac);
 
-			if (unlikely(!mac->macinfo.limits))
+			mac->macinfo.n_if_comb =
+				le32_to_cpu(comb_num->iface_comb_num);
+
+			mac->macinfo.if_comb =
+				kcalloc(mac->macinfo.n_if_comb,
+					sizeof(*mac->macinfo.if_comb),
+					GFP_KERNEL);
+
+			if (!mac->macinfo.if_comb)
 				return -ENOMEM;
 
-			limits = mac->macinfo.limits;
+			comb = mac->macinfo.if_comb;
+
+			pr_debug("MAC%u: %zu iface combinations\n",
+				 mac->macid, mac->macinfo.n_if_comb);
+
 			break;
 		case QTN_TLV_ID_IFACE_LIMIT:
-			if (unlikely(!limits)) {
-				pr_warn("MAC%u: limits are not inited\n",
+			if (unlikely(!comb)) {
+				pr_warn("MAC%u: no combinations advertised\n",
 					mac->macid);
 				return -EINVAL;
 			}
 
-			if (unlikely(tlv_value_len != sizeof(*limit_record))) {
-				pr_warn("MAC%u: record size mismatch\n",
+			if (n_comb >= mac->macinfo.n_if_comb) {
+				pr_warn("MAC%u: combinations count exceeded\n",
 					mac->macid);
+				n_comb++;
+				break;
+			}
+
+			rec = (void *)tlv->val;
+			rec_len = sizeof(*rec) + rec->n_limits * sizeof(*lim);
+
+			if (unlikely(tlv_value_len != rec_len)) {
+				pr_warn("MAC%u: record %zu size mismatch\n",
+					mac->macid, n_comb);
 				return -EINVAL;
 			}
 
-			limit_record = (void *)tlv->val;
-			limits[rec].max = le16_to_cpu(limit_record->max_num);
-			limits[rec].types = qlink_iface_type_to_nl_mask(
-				le16_to_cpu(limit_record->type));
+			limits = kzalloc(sizeof(*limits) * rec->n_limits,
+					 GFP_KERNEL);
+			if (!limits)
+				return -ENOMEM;
 
-			/* supported modes: STA, AP */
-			limits[rec].types &= BIT(NL80211_IFTYPE_AP) |
-					     BIT(NL80211_IFTYPE_AP_VLAN) |
-					     BIT(NL80211_IFTYPE_STATION);
+			comb[n_comb].num_different_channels =
+				rec->num_different_channels;
+			comb[n_comb].max_interfaces =
+				le16_to_cpu(rec->max_interfaces);
+			comb[n_comb].n_limits = rec->n_limits;
+			comb[n_comb].limits = limits;
 
-			pr_debug("MAC%u: MAX: %u; TYPES: %.4X\n", mac->macid,
-				 limits[rec].max, limits[rec].types);
+			for (i = 0; i < rec->n_limits; i++) {
+				lim = &rec->limits[i];
+				limits[i].max = le16_to_cpu(lim->max_num);
+				limits[i].types =
+					qlink_iface_type_to_nl_mask(le16_to_cpu(lim->type));
+				pr_debug("MAC%u: comb[%zu]: MAX:%u TYPES:%.4X\n",
+					 mac->macid, n_comb,
+					 limits[i].max, limits[i].types);
+			}
 
-			if (limits[rec].types)
-				rec++;
+			n_comb++;
 			break;
 		case WLAN_EID_EXT_CAPABILITY:
 			if (unlikely(tlv_value_len > U8_MAX))
@@ -1162,9 +1243,9 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 		return -EINVAL;
 	}
 
-	if (mac->macinfo.n_limits != rec) {
+	if (mac->macinfo.n_if_comb != n_comb) {
 		pr_err("MAC%u: combination mismatch: reported=%zu parsed=%zu\n",
-		       mac->macid, mac->macinfo.n_limits, rec);
+		       mac->macid, mac->macinfo.n_if_comb, n_comb);
 		return -EINVAL;
 	}
 
@@ -1575,7 +1656,7 @@ int qtnf_cmd_get_mac_info(struct qtnf_wmac *mac)
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, QLINK_VIFID_RSVD,
 					    QLINK_CMD_MAC_INFO,
 					    sizeof(struct qlink_cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(mac->bus);
@@ -1613,7 +1694,7 @@ int qtnf_cmd_get_hw_info(struct qtnf_bus *bus)
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(QLINK_MACID_RSVD, QLINK_VIFID_RSVD,
 					    QLINK_CMD_GET_HW_INFO,
 					    sizeof(struct qlink_cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(bus);
@@ -1793,7 +1874,7 @@ int qtnf_cmd_send_init_fw(struct qtnf_bus *bus)
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(QLINK_MACID_RSVD, QLINK_VIFID_RSVD,
 					    QLINK_CMD_FW_INIT,
 					    sizeof(struct qlink_cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(bus);
@@ -1842,7 +1923,7 @@ int qtnf_cmd_send_add_key(struct qtnf_vif *vif, u8 key_index, bool pairwise,
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_ADD_KEY,
 					    sizeof(*cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(vif->mac->bus);
@@ -1895,7 +1976,7 @@ int qtnf_cmd_send_del_key(struct qtnf_vif *vif, u8 key_index, bool pairwise,
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_DEL_KEY,
 					    sizeof(*cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(vif->mac->bus);
@@ -1936,7 +2017,7 @@ int qtnf_cmd_send_set_default_key(struct qtnf_vif *vif, u8 key_index,
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_SET_DEFAULT_KEY,
 					    sizeof(*cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(vif->mac->bus);
@@ -1971,7 +2052,7 @@ int qtnf_cmd_send_set_default_mgmt_key(struct qtnf_vif *vif, u8 key_index)
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_SET_DEFAULT_MGMT_KEY,
 					    sizeof(*cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(vif->mac->bus);
@@ -2026,7 +2107,7 @@ int qtnf_cmd_send_change_sta(struct qtnf_vif *vif, const u8 *mac,
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_CHANGE_STA,
 					    sizeof(*cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(vif->mac->bus);
@@ -2078,7 +2159,7 @@ int qtnf_cmd_send_del_sta(struct qtnf_vif *vif,
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_DEL_STA,
 					    sizeof(*cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(vif->mac->bus);
@@ -2148,7 +2229,7 @@ int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, QLINK_VIFID_RSVD,
 					    QLINK_CMD_SCAN,
 					    sizeof(struct qlink_cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(mac->bus);
@@ -2218,7 +2299,7 @@ int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_CONNECT,
 					    sizeof(*cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	cmd = (struct qlink_cmd_connect *)cmd_skb->data;
@@ -2320,7 +2401,7 @@ int qtnf_cmd_send_disconnect(struct qtnf_vif *vif, u16 reason_code)
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_DISCONNECT,
 					    sizeof(*cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(vif->mac->bus);
@@ -2354,7 +2435,7 @@ int qtnf_cmd_send_updown_intf(struct qtnf_vif *vif, bool up)
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_UPDOWN_INTF,
 					    sizeof(*cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	cmd = (struct qlink_cmd_updown *)cmd_skb->data;
@@ -2515,8 +2596,7 @@ int qtnf_cmd_send_chan_switch(struct qtnf_vif *vif,
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, vif->vifid,
 					    QLINK_CMD_CHAN_SWITCH,
 					    sizeof(*cmd));
-
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(mac->bus);
@@ -2568,7 +2648,7 @@ int qtnf_cmd_get_channel(struct qtnf_vif *vif, struct cfg80211_chan_def *chdef)
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_CHAN_GET,
 					    sizeof(struct qlink_cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	qtnf_bus_lock(bus);
@@ -2607,7 +2687,7 @@ int qtnf_cmd_start_cac(const struct qtnf_vif *vif,
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_START_CAC,
 					    sizeof(*cmd));
-	if (unlikely(!cmd_skb))
+	if (!cmd_skb)
 		return -ENOMEM;
 
 	cmd = (struct qlink_cmd_start_cac *)cmd_skb->data;
@@ -2637,19 +2717,21 @@ int qtnf_cmd_set_mac_acl(const struct qtnf_vif *vif,
 {
 	struct qtnf_bus *bus = vif->mac->bus;
 	struct sk_buff *cmd_skb;
-	struct qlink_cmd_set_mac_acl *cmd;
+	struct qlink_tlv_hdr *tlv;
+	size_t acl_size = qtnf_cmd_acl_data_size(params);
 	u16 res_code;
 	int ret;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_SET_MAC_ACL,
-					    sizeof(*cmd) +
-					    qtnf_cmd_acl_data_size(params));
-	if (unlikely(!cmd_skb))
+					    sizeof(struct qlink_cmd));
+	if (!cmd_skb)
 		return -ENOMEM;
 
-	cmd = (struct qlink_cmd_set_mac_acl *)cmd_skb->data;
-	qlink_acl_data_cfg2q(params, &cmd->acl);
+	tlv = skb_put(cmd_skb, sizeof(*tlv) + acl_size);
+	tlv->type = cpu_to_le16(QTN_TLV_ID_ACL_DATA);
+	tlv->len = cpu_to_le16(acl_size);
+	qlink_acl_data_cfg2q(params, (struct qlink_acl_data *)tlv->val);
 
 	qtnf_bus_lock(bus);
 	ret = qtnf_cmd_send(bus, cmd_skb, &res_code);

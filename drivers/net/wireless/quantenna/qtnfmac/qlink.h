@@ -19,7 +19,7 @@
 
 #include <linux/ieee80211.h>
 
-#define QLINK_PROTO_VER		10
+#define QLINK_PROTO_VER		11
 
 #define QLINK_MACID_RSVD		0xFF
 #define QLINK_VIFID_RSVD		0xFF
@@ -663,16 +663,6 @@ struct qlink_acl_data {
 	struct qlink_mac_address mac_addrs[0];
 } __packed;
 
-/**
- * struct qlink_cmd_set_mac_acl - data for QLINK_CMD_SET_MAC_ACL command
- *
- * @acl: ACL data.
- */
-struct qlink_cmd_set_mac_acl {
-	struct qlink_cmd chdr;
-	struct qlink_acl_data acl;
-} __packed;
-
 /* QLINK Command Responses messages related definitions
  */
 
@@ -774,6 +764,9 @@ struct qlink_resp_get_hw_info {
 	struct qlink_resp rhdr;
 	__le32 fw_ver;
 	__le32 hw_capab;
+	__le32 bld_tmstamp;
+	__le32 plat_id;
+	__le32 hw_ver;
 	__le16 ql_proto_ver;
 	u8 num_mac;
 	u8 mac_bitmap;
@@ -1084,6 +1077,13 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_IE_SET		= 0x0305,
 	QTN_TLV_ID_EXT_CAPABILITY_MASK	= 0x0306,
 	QTN_TLV_ID_ACL_DATA		= 0x0307,
+	QTN_TLV_ID_BUILD_NAME		= 0x0401,
+	QTN_TLV_ID_BUILD_REV		= 0x0402,
+	QTN_TLV_ID_BUILD_TYPE		= 0x0403,
+	QTN_TLV_ID_BUILD_LABEL		= 0x0404,
+	QTN_TLV_ID_HW_ID		= 0x0405,
+	QTN_TLV_ID_CALIBRATION_VER	= 0x0406,
+	QTN_TLV_ID_UBOOT_VER		= 0x0407,
 };
 
 struct qlink_tlv_hdr {
@@ -1092,13 +1092,20 @@ struct qlink_tlv_hdr {
 	u8 val[0];
 } __packed;
 
+struct qlink_iface_comb_num {
+	__le32 iface_comb_num;
+} __packed;
+
 struct qlink_iface_limit {
 	__le16 max_num;
 	__le16 type;
 } __packed;
 
-struct qlink_iface_comb_num {
-	__le16 iface_comb_num;
+struct qlink_iface_limit_record {
+	__le16 max_interfaces;
+	u8 num_different_channels;
+	u8 n_limits;
+	struct qlink_iface_limit limits[0];
 } __packed;
 
 #define QLINK_RSSI_OFFSET	120

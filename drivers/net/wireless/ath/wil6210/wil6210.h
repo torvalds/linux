@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -169,6 +170,7 @@ struct RGF_ICR {
 	#define HW_MACHINE_BOOT_DONE	(0x3fffffd)
 #define RGF_USER_USER_CPU_0		(0x8801e0)
 	#define BIT_USER_USER_CPU_MAN_RST	BIT(1) /* user_cpu_man_rst */
+#define RGF_USER_CPU_PC			(0x8801e8)
 #define RGF_USER_MAC_CPU_0		(0x8801fc)
 	#define BIT_USER_MAC_CPU_MAN_RST	BIT(1) /* mac_cpu_man_rst */
 #define RGF_USER_USER_SCRATCH_PAD	(0x8802bc)
@@ -194,6 +196,19 @@ struct RGF_ICR {
 #define RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1	(0x880c2c)
 #define RGF_USER_SPARROW_M_4			(0x880c50) /* Sparrow */
 	#define BIT_SPARROW_M_4_SEL_SLEEP_OR_REF	BIT(2)
+#define RGF_USER_OTP_HW_RD_MACHINE_1	(0x880ce0)
+	#define BIT_NO_FLASH_INDICATION		BIT(8)
+#define RGF_USER_XPM_IFC_RD_TIME1	(0x880cec)
+#define RGF_USER_XPM_IFC_RD_TIME2	(0x880cf0)
+#define RGF_USER_XPM_IFC_RD_TIME3	(0x880cf4)
+#define RGF_USER_XPM_IFC_RD_TIME4	(0x880cf8)
+#define RGF_USER_XPM_IFC_RD_TIME5	(0x880cfc)
+#define RGF_USER_XPM_IFC_RD_TIME6	(0x880d00)
+#define RGF_USER_XPM_IFC_RD_TIME7	(0x880d04)
+#define RGF_USER_XPM_IFC_RD_TIME8	(0x880d08)
+#define RGF_USER_XPM_IFC_RD_TIME9	(0x880d0c)
+#define RGF_USER_XPM_IFC_RD_TIME10	(0x880d10)
+#define RGF_USER_XPM_RD_DOUT_SAMPLE_TIME (0x880d64)
 
 #define RGF_DMA_EP_TX_ICR		(0x881bb4) /* struct RGF_ICR */
 	#define BIT_DMA_EP_TX_ICR_TX_DONE	BIT(0)
@@ -284,22 +299,33 @@ struct RGF_ICR {
 #define RGF_CAF_PLL_LOCK_STATUS		(0x88afec)
 	#define BIT_CAF_OSC_DIG_XTAL_STABLE	BIT(0)
 
+#define USER_EXT_USER_PMU_3		(0x88d00c)
+	#define BIT_PMU_DEVICE_RDY		BIT(0)
+
 #define RGF_USER_JTAG_DEV_ID	(0x880b34) /* device ID */
 	#define JTAG_DEV_ID_SPARROW	(0x2632072f)
+	#define JTAG_DEV_ID_TALYN	(0x7e0e1)
 
 #define RGF_USER_REVISION_ID		(0x88afe4)
 #define RGF_USER_REVISION_ID_MASK	(3)
 	#define REVISION_ID_SPARROW_B0	(0x0)
 	#define REVISION_ID_SPARROW_D0	(0x3)
 
+#define RGF_OTP_MAC			(0x8a0620)
+
 /* crash codes for FW/Ucode stored here */
-#define RGF_FW_ASSERT_CODE		(0x91f020)
-#define RGF_UCODE_ASSERT_CODE		(0x91f028)
+
+/* ASSERT RGFs */
+#define SPARROW_RGF_FW_ASSERT_CODE	(0x91f020)
+#define SPARROW_RGF_UCODE_ASSERT_CODE	(0x91f028)
+#define TALYN_RGF_FW_ASSERT_CODE	(0xa37020)
+#define TALYN_RGF_UCODE_ASSERT_CODE	(0xa37028)
 
 enum {
 	HW_VER_UNKNOWN,
 	HW_VER_SPARROW_B0, /* REVISION_ID_SPARROW_B0 */
 	HW_VER_SPARROW_D0, /* REVISION_ID_SPARROW_D0 */
+	HW_VER_TALYN,	/* JTAG_DEV_ID_TALYN */
 };
 
 /* popular locations */
@@ -315,6 +341,10 @@ enum {
 #define WIL_DATA_COMPLETION_TO_MS 200
 
 /* Hardware definitions end */
+#define SPARROW_FW_MAPPING_TABLE_SIZE 10
+#define TALYN_FW_MAPPING_TABLE_SIZE 13
+#define MAX_FW_MAPPING_TABLE_SIZE 13
+
 struct fw_map {
 	u32 from; /* linker address - from, inclusive */
 	u32 to;   /* linker address - to, exclusive */
@@ -324,7 +354,10 @@ struct fw_map {
 };
 
 /* array size should be in sync with actual definition in the wmi.c */
-extern const struct fw_map fw_mapping[10];
+extern const struct fw_map sparrow_fw_mapping[SPARROW_FW_MAPPING_TABLE_SIZE];
+extern const struct fw_map sparrow_d0_mac_rgf_ext;
+extern const struct fw_map talyn_fw_mapping[TALYN_FW_MAPPING_TABLE_SIZE];
+extern struct fw_map fw_mapping[MAX_FW_MAPPING_TABLE_SIZE];
 
 /**
  * mk_cidxtid - construct @cidxtid field
@@ -570,7 +603,8 @@ enum {
 };
 
 enum {
-	hw_capability_last
+	hw_capa_no_flash,
+	hw_capa_last
 };
 
 struct wil_probe_client_req {
@@ -646,7 +680,10 @@ struct wil6210_priv {
 	u8 chip_revision;
 	const char *hw_name;
 	const char *wil_fw_name;
-	DECLARE_BITMAP(hw_capabilities, hw_capability_last);
+	char *board_file;
+	u32 brd_file_addr;
+	u32 brd_file_max_size;
+	DECLARE_BITMAP(hw_capa, hw_capa_last);
 	DECLARE_BITMAP(fw_capabilities, WMI_FW_CAPABILITY_MAX);
 	DECLARE_BITMAP(platform_capa, WIL_PLATFORM_CAPA_MAX);
 	u8 n_mids; /* number of additional MIDs as reported by FW */
@@ -720,7 +757,7 @@ struct wil6210_priv {
 	atomic_t isr_count_rx, isr_count_tx;
 	/* debugfs */
 	struct dentry *debug;
-	struct wil_blob_wrapper blobs[ARRAY_SIZE(fw_mapping)];
+	struct wil_blob_wrapper blobs[MAX_FW_MAPPING_TABLE_SIZE];
 	u8 discovery_mode;
 	u8 abft_len;
 	u8 wakeup_trigger;
@@ -755,6 +792,10 @@ struct wil6210_priv {
 	bool suspend_resp_comp;
 	u32 bus_request_kbps;
 	u32 bus_request_kbps_pre_suspend;
+
+	u32 rgf_fw_assert_code_addr;
+	u32 rgf_ucode_assert_code_addr;
+	u32 iccm_base;
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)
@@ -880,6 +921,7 @@ void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r);
 int wil_find_cid(struct wil6210_priv *wil, const u8 *mac);
 void wil_set_ethtoolops(struct net_device *ndev);
 
+struct fw_map *wil_find_fw_mapping(const char *section);
 void __iomem *wmi_buffer_block(struct wil6210_priv *wil, __le32 ptr, u32 size);
 void __iomem *wmi_buffer(struct wil6210_priv *wil, __le32 ptr);
 void __iomem *wmi_addr(struct wil6210_priv *wil, u32 ptr);
@@ -1013,6 +1055,7 @@ int wil_iftype_nl2wmi(enum nl80211_iftype type);
 
 int wil_request_firmware(struct wil6210_priv *wil, const char *name,
 			 bool load);
+int wil_request_board(struct wil6210_priv *wil, const char *name);
 bool wil_fw_verify_file_exists(struct wil6210_priv *wil, const char *name);
 
 void wil_pm_runtime_allow(struct wil6210_priv *wil);
