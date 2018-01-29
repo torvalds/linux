@@ -439,7 +439,7 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		 */
 		if (!rockchip->skip_suspend) {
 			reset_control_assert(rockchip->otg_rst);
-			usleep_range(1000, 1200);
+			udelay(1);
 			reset_control_deassert(rockchip->otg_rst);
 
 			pm_runtime_get_sync(rockchip->dev);
@@ -487,7 +487,7 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		 * registers while the reset is asserted, with unknown impact.
 		 */
 		reset_control_assert(rockchip->otg_rst);
-		usleep_range(1000, 1200);
+		udelay(1);
 		reset_control_deassert(rockchip->otg_rst);
 
 		/*
