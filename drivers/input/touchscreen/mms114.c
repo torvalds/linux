@@ -349,7 +349,7 @@ static int mms114_start(struct mms114_data *data)
 		return error;
 	}
 
-	mdelay(MMS114_POWERON_DELAY);
+	msleep(MMS114_POWERON_DELAY);
 
 	error = mms114_setup_regs(data);
 	if (error < 0) {
