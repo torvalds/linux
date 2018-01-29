@@ -2648,6 +2648,8 @@ intel_info(const struct drm_i915_private *dev_priv)
 				 (dev_priv)->info.gt == 2)
 #define IS_CFL_GT3(dev_priv)	(IS_COFFEELAKE(dev_priv) && \
 				 (dev_priv)->info.gt == 3)
+#define IS_CNL_WITH_PORT_F(dev_priv)   (IS_CANNONLAKE(dev_priv) && \
+					(INTEL_DEVID(dev_priv) & 0x0004) == 0x0004)
 
 #define IS_ALPHA_SUPPORT(intel_info) ((intel_info)->is_alpha_support)
 
