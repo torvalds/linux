@@ -4461,173 +4461,174 @@ edp_detect(struct intel_dp *intel_dp)
 	return status;
 }
 
-static bool ibx_digital_port_connected(struct drm_i915_private *dev_priv,
-				       struct intel_digital_port *port)
+static bool ibx_digital_port_connected(struct intel_encoder *encoder)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 bit;
 
-	switch (port->base.port) {
-	case PORT_B:
+	switch (encoder->hpd_pin) {
+	case HPD_PORT_B:
 		bit = SDE_PORTB_HOTPLUG;
 		break;
-	case PORT_C:
+	case HPD_PORT_C:
 		bit = SDE_PORTC_HOTPLUG;
 		break;
-	case PORT_D:
+	case HPD_PORT_D:
 		bit = SDE_PORTD_HOTPLUG;
 		break;
 	default:
-		MISSING_CASE(port->base.port);
+		MISSING_CASE(encoder->hpd_pin);
 		return false;
 	}
 
 	return I915_READ(SDEISR) & bit;
 }
 
-static bool cpt_digital_port_connected(struct drm_i915_private *dev_priv,
-				       struct intel_digital_port *port)
+static bool cpt_digital_port_connected(struct intel_encoder *encoder)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 bit;
 
-	switch (port->base.port) {
-	case PORT_B:
+	switch (encoder->hpd_pin) {
+	case HPD_PORT_B:
 		bit = SDE_PORTB_HOTPLUG_CPT;
 		break;
-	case PORT_C:
+	case HPD_PORT_C:
 		bit = SDE_PORTC_HOTPLUG_CPT;
 		break;
-	case PORT_D:
+	case HPD_PORT_D:
 		bit = SDE_PORTD_HOTPLUG_CPT;
 		break;
 	default:
-		MISSING_CASE(port->base.port);
+		MISSING_CASE(encoder->hpd_pin);
 		return false;
 	}
 
 	return I915_READ(SDEISR) & bit;
 }
 
-static bool spt_digital_port_connected(struct drm_i915_private *dev_priv,
-				       struct intel_digital_port *port)
+static bool spt_digital_port_connected(struct intel_encoder *encoder)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 bit;
 
-	switch (port->base.port) {
-	case PORT_A:
+	switch (encoder->hpd_pin) {
+	case HPD_PORT_A:
 		bit = SDE_PORTA_HOTPLUG_SPT;
 		break;
-	case PORT_E:
+	case HPD_PORT_E:
 		bit = SDE_PORTE_HOTPLUG_SPT;
 		break;
 	default:
-		return cpt_digital_port_connected(dev_priv, port);
+		return cpt_digital_port_connected(encoder);
 	}
 
 	return I915_READ(SDEISR) & bit;
 }
 
-static bool g4x_digital_port_connected(struct drm_i915_private *dev_priv,
-				       struct intel_digital_port *port)
+static bool g4x_digital_port_connected(struct intel_encoder *encoder)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 bit;
 
-	switch (port->base.port) {
-	case PORT_B:
+	switch (encoder->hpd_pin) {
+	case HPD_PORT_B:
 		bit = PORTB_HOTPLUG_LIVE_STATUS_G4X;
 		break;
-	case PORT_C:
+	case HPD_PORT_C:
 		bit = PORTC_HOTPLUG_LIVE_STATUS_G4X;
 		break;
-	case PORT_D:
+	case HPD_PORT_D:
 		bit = PORTD_HOTPLUG_LIVE_STATUS_G4X;
 		break;
 	default:
-		MISSING_CASE(port->base.port);
+		MISSING_CASE(encoder->hpd_pin);
 		return false;
 	}
 
 	return I915_READ(PORT_HOTPLUG_STAT) & bit;
 }
 
-static bool gm45_digital_port_connected(struct drm_i915_private *dev_priv,
-					struct intel_digital_port *port)
+static bool gm45_digital_port_connected(struct intel_encoder *encoder)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 bit;
 
-	switch (port->base.port) {
-	case PORT_B:
+	switch (encoder->hpd_pin) {
+	case HPD_PORT_B:
 		bit = PORTB_HOTPLUG_LIVE_STATUS_GM45;
 		break;
-	case PORT_C:
+	case HPD_PORT_C:
 		bit = PORTC_HOTPLUG_LIVE_STATUS_GM45;
 		break;
-	case PORT_D:
+	case HPD_PORT_D:
 		bit = PORTD_HOTPLUG_LIVE_STATUS_GM45;
 		break;
 	default:
-		MISSING_CASE(port->base.port);
+		MISSING_CASE(encoder->hpd_pin);
 		return false;
 	}
 
 	return I915_READ(PORT_HOTPLUG_STAT) & bit;
 }
 
-static bool ilk_digital_port_connected(struct drm_i915_private *dev_priv,
-				       struct intel_digital_port *port)
+static bool ilk_digital_port_connected(struct intel_encoder *encoder)
 {
-	if (port->base.port == PORT_A)
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
+	if (encoder->hpd_pin == HPD_PORT_A)
 		return I915_READ(DEISR) & DE_DP_A_HOTPLUG;
 	else
-		return ibx_digital_port_connected(dev_priv, port);
+		return ibx_digital_port_connected(encoder);
 }
 
-static bool snb_digital_port_connected(struct drm_i915_private *dev_priv,
-				       struct intel_digital_port *port)
+static bool snb_digital_port_connected(struct intel_encoder *encoder)
 {
-	if (port->base.port == PORT_A)
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
+	if (encoder->hpd_pin == HPD_PORT_A)
 		return I915_READ(DEISR) & DE_DP_A_HOTPLUG;
 	else
-		return cpt_digital_port_connected(dev_priv, port);
+		return cpt_digital_port_connected(encoder);
 }
 
-static bool ivb_digital_port_connected(struct drm_i915_private *dev_priv,
-				       struct intel_digital_port *port)
+static bool ivb_digital_port_connected(struct intel_encoder *encoder)
 {
-	if (port->base.port == PORT_A)
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
+	if (encoder->hpd_pin == HPD_PORT_A)
 		return I915_READ(DEISR) & DE_DP_A_HOTPLUG_IVB;
 	else
-		return cpt_digital_port_connected(dev_priv, port);
+		return cpt_digital_port_connected(encoder);
 }
 
-static bool bdw_digital_port_connected(struct drm_i915_private *dev_priv,
-				       struct intel_digital_port *port)
+static bool bdw_digital_port_connected(struct intel_encoder *encoder)
 {
-	if (port->base.port == PORT_A)
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
+	if (encoder->hpd_pin == HPD_PORT_A)
 		return I915_READ(GEN8_DE_PORT_ISR) & GEN8_PORT_DP_A_HOTPLUG;
 	else
-		return cpt_digital_port_connected(dev_priv, port);
+		return cpt_digital_port_connected(encoder);
 }
 
-static bool bxt_digital_port_connected(struct drm_i915_private *dev_priv,
-				       struct intel_digital_port *intel_dig_port)
+static bool bxt_digital_port_connected(struct intel_encoder *encoder)
 {
-	struct intel_encoder *intel_encoder = &intel_dig_port->base;
-	enum port port;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 bit;
 
-	port = intel_hpd_pin_to_port(intel_encoder->hpd_pin);
-	switch (port) {
-	case PORT_A:
+	switch (encoder->hpd_pin) {
+	case HPD_PORT_A:
 		bit = BXT_DE_PORT_HP_DDIA;
 		break;
-	case PORT_B:
+	case HPD_PORT_B:
 		bit = BXT_DE_PORT_HP_DDIB;
 		break;
-	case PORT_C:
+	case HPD_PORT_C:
 		bit = BXT_DE_PORT_HP_DDIC;
 		break;
 	default:
-		MISSING_CASE(port);
+		MISSING_CASE(encoder->hpd_pin);
 		return false;
 	}
 
@@ -4636,33 +4637,33 @@ static bool bxt_digital_port_connected(struct drm_i915_private *dev_priv,
 
 /*
  * intel_digital_port_connected - is the specified port connected?
- * @dev_priv: i915 private structure
- * @port: the port to test
+ * @encoder: intel_encoder
  *
- * Return %true if @port is connected, %false otherwise.
+ * Return %true if port is connected, %false otherwise.
  */
-bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
-				  struct intel_digital_port *port)
+bool intel_digital_port_connected(struct intel_encoder *encoder)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
 	if (HAS_GMCH_DISPLAY(dev_priv)) {
 		if (IS_GM45(dev_priv))
-			return gm45_digital_port_connected(dev_priv, port);
+			return gm45_digital_port_connected(encoder);
 		else
-			return g4x_digital_port_connected(dev_priv, port);
+			return g4x_digital_port_connected(encoder);
 	}
 
 	if (IS_GEN5(dev_priv))
-		return ilk_digital_port_connected(dev_priv, port);
+		return ilk_digital_port_connected(encoder);
 	else if (IS_GEN6(dev_priv))
-		return snb_digital_port_connected(dev_priv, port);
+		return snb_digital_port_connected(encoder);
 	else if (IS_GEN7(dev_priv))
-		return ivb_digital_port_connected(dev_priv, port);
+		return ivb_digital_port_connected(encoder);
 	else if (IS_GEN8(dev_priv))
-		return bdw_digital_port_connected(dev_priv, port);
+		return bdw_digital_port_connected(encoder);
 	else if (IS_GEN9_LP(dev_priv))
-		return bxt_digital_port_connected(dev_priv, port);
+		return bxt_digital_port_connected(encoder);
 	else
-		return spt_digital_port_connected(dev_priv, port);
+		return spt_digital_port_connected(encoder);
 }
 
 static struct edid *
@@ -4721,8 +4722,7 @@ intel_dp_long_pulse(struct intel_connector *connector)
 	/* Can't disconnect eDP, but you can close the lid... */
 	if (intel_dp_is_edp(intel_dp))
 		status = edp_detect(intel_dp);
-	else if (intel_digital_port_connected(dev_priv,
-					      dp_to_dig_port(intel_dp)))
+	else if (intel_digital_port_connected(&dp_to_dig_port(intel_dp)->base))
 		status = intel_dp_detect_dpcd(intel_dp);
 	else
 		status = connector_status_disconnected;
