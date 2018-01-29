@@ -322,8 +322,8 @@ static ssize_t dwc3_rockchip_host_testmode_write(struct file *file,
 				    EXTCON_PROP_USB_TYPEC_POLARITY, property);
 		extcon_set_cable_state_(edev, EXTCON_USB_HOST, true);
 
-		/* Add a delay 1~1.5s to wait for XHCI HCD init */
-		usleep_range(1000000, 1500000);
+		/* Add a delay 1s to wait for XHCI HCD init */
+		msleep(1000);
 	}
 
 	dwc3_rockchip_set_test_mode(rockchip, testmode);
