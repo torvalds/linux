@@ -230,6 +230,11 @@
 	regulator-name = "vcc-rtc";
 };
 
+/* On Euler connector */
+&spdif {
+	status = "disabled";
+};
+
 /* On Exp and Euler connectors */
 &uart0 {
 	pinctrl-names = "default";
