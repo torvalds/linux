@@ -2647,6 +2647,9 @@ EXPORT_SYMBOL_GPL(rtl_global_var);
 static int __init rtl_core_module_init(void)
 {
 	BUILD_BUG_ON(TX_PWR_BY_RATE_NUM_RATE < TX_PWR_BY_RATE_NUM_SECTION);
+	BUILD_BUG_ON(MAX_RATE_SECTION_NUM != MAX_RATE_SECTION);
+	BUILD_BUG_ON(MAX_BASE_NUM_IN_PHY_REG_PG_24G != MAX_RATE_SECTION);
+	BUILD_BUG_ON(MAX_BASE_NUM_IN_PHY_REG_PG_5G != (MAX_RATE_SECTION - 1));
 
 	if (rtl_rate_control_register())
 		pr_err("rtl: Unable to register rtl_rc, use default RC !!\n");
