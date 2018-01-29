@@ -102,3 +102,23 @@ struct mlx5_eswitch_rep *mlx5_ib_vport_rep(struct mlx5_eswitch *esw, int vport)
 {
 	return mlx5_eswitch_vport_rep(esw, vport);
 }
+
+int create_flow_rule_vport_sq(struct mlx5_ib_dev *dev,
+			      struct mlx5_ib_sq *sq)
+{
+	struct mlx5_flow_handle *flow_rule;
+	struct mlx5_eswitch *esw = dev->mdev->priv.eswitch;
+
+	if (!dev->rep)
+		return 0;
+
+	flow_rule =
+		mlx5_eswitch_add_send_to_vport_rule(esw,
+						    dev->rep->vport,
+						    sq->base.mqp.qpn);
+	if (IS_ERR(flow_rule))
+		return PTR_ERR(flow_rule);
+	sq->flow_rule = flow_rule;
+
+	return 0;
+}

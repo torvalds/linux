@@ -343,6 +343,7 @@ struct mlx5_ib_sq {
 	struct mlx5_ib_wq	*sq;
 	struct mlx5_ib_ubuffer  ubuffer;
 	struct mlx5_db		*doorbell;
+	struct mlx5_flow_handle	*flow_rule;
 	u32			tisn;
 	u8			state;
 };

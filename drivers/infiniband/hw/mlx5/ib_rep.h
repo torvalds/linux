@@ -17,6 +17,8 @@ struct mlx5_eswitch_rep *mlx5_ib_vport_rep(struct mlx5_eswitch *esw,
 					   int vport_index);
 void mlx5_ib_register_vport_reps(struct mlx5_ib_dev *dev);
 void mlx5_ib_unregister_vport_reps(struct mlx5_ib_dev *dev);
+int create_flow_rule_vport_sq(struct mlx5_ib_dev *dev,
+			      struct mlx5_ib_sq *sq);
 struct net_device *mlx5_ib_get_rep_netdev(struct mlx5_eswitch *esw,
 					  int vport_index);
 #else /* CONFIG_MLX5_ESWITCH */
@@ -41,6 +43,12 @@ struct mlx5_eswitch_rep *mlx5_ib_vport_rep(struct mlx5_eswitch *esw,
 
 static inline void mlx5_ib_register_vport_reps(struct mlx5_ib_dev *dev) {}
 static inline void mlx5_ib_unregister_vport_reps(struct mlx5_ib_dev *dev) {}
+static inline int create_flow_rule_vport_sq(struct mlx5_ib_dev *dev,
+					    struct mlx5_ib_sq *sq)
+{
+	return 0;
+}
+
 static inline
 struct net_device *mlx5_ib_get_rep_netdev(struct mlx5_eswitch *esw,
 					  int vport_index)
