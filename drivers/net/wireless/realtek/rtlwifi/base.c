@@ -1597,7 +1597,11 @@ static u16 rtl_get_tx_report_sn(struct ieee80211_hw *hw)
 	struct rtl_tx_report *tx_report = &rtlpriv->tx_report;
 	u16 sn;
 
-	sn = atomic_inc_return(&tx_report->sn) & 0x0FFF;
+	/* SW_DEFINE[11:8] are reserved (driver fills zeros)
+	 * SW_DEFINE[7:2] are used by driver
+	 * SW_DEFINE[1:0] are reserved for firmware (driver fills zeros)
+	 */
+	sn = (atomic_inc_return(&tx_report->sn) & 0x003F) << 2;
 
 	tx_report->last_sent_sn = sn;
 	tx_report->last_sent_time = jiffies;
@@ -1625,14 +1629,23 @@ void rtl_tx_report_handler(struct ieee80211_hw *hw, u8 *tmp_buf, u8 c2h_cmd_len)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_tx_report *tx_report = &rtlpriv->tx_report;
 	u16 sn;
+	u8 st, retry;
 
-	sn = ((tmp_buf[7] & 0x0F) << 8) | tmp_buf[6];
+	if (rtlpriv->cfg->spec_ver & RTL_SPEC_EXT_C2H) {
+		sn = GET_TX_REPORT_SN_V2(tmp_buf);
+		st = GET_TX_REPORT_ST_V2(tmp_buf);
+		retry = GET_TX_REPORT_RETRY_V2(tmp_buf);
+	} else {
+		sn = GET_TX_REPORT_SN_V1(tmp_buf);
+		st = GET_TX_REPORT_ST_V1(tmp_buf);
+		retry = GET_TX_REPORT_RETRY_V1(tmp_buf);
+	}
 
 	tx_report->last_recv_sn = sn;
 
 	RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_DMESG,
 		 "Recv TX-Report st=0x%02X sn=0x%X retry=0x%X\n",
-		 tmp_buf[0], sn, tmp_buf[2]);
+		 st, sn, retry);
 }
 EXPORT_SYMBOL_GPL(rtl_tx_report_handler);
 
@@ -1646,7 +1659,8 @@ bool rtl_check_tx_report_acked(struct ieee80211_hw *hw)
 
 	if (time_before(tx_report->last_sent_time + 3 * HZ, jiffies)) {
 		RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_WARNING,
-			 "Check TX-Report timeout!!\n");
+			 "Check TX-Report timeout!! s_sn=0x%X r_sn=0x%X\n",
+			 tx_report->last_sent_sn, tx_report->last_recv_sn);
 		return true;	/* 3 sec. (timeout) seen as acked */
 	}
 

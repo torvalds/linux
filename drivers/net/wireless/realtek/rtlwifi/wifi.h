@@ -154,6 +154,13 @@ enum rtl8192c_h2c_cmd {
 	MAX_H2CCMD
 };
 
+#define GET_TX_REPORT_SN_V1(c2h)	(c2h[6])
+#define GET_TX_REPORT_ST_V1(c2h)	(c2h[0] & 0xC0)
+#define GET_TX_REPORT_RETRY_V1(c2h)	(c2h[2] & 0x3F)
+#define GET_TX_REPORT_SN_V2(c2h)	(c2h[6])
+#define GET_TX_REPORT_ST_V2(c2h)	(c2h[7] & 0xC0)
+#define GET_TX_REPORT_RETRY_V2(c2h)	(c2h[8] & 0x3F)
+
 #define MAX_TX_COUNT			4
 #define MAX_REGULATION_NUM		4
 #define MAX_RF_PATH_NUM			4
@@ -953,6 +960,7 @@ enum package_type {
 enum rtl_spec_ver {
 	RTL_SPEC_NEW_RATEID = BIT(0),	/* use ratr_table_mode_new */
 	RTL_SPEC_SUPPORT_VHT = BIT(1),	/* support VHT */
+	RTL_SPEC_EXT_C2H = BIT(2),	/* extend FW C2H (e.g. TX REPORT) */
 };
 
 struct octet_string {
