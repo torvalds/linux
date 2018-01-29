@@ -1818,6 +1818,10 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 	num_tc_qps = qcount / numtc;
 	num_tc_qps = min_t(int, num_tc_qps, i40e_pf_get_max_q_per_tc(pf));
 
+	/* Do not allow use more TC queue pairs than MSI-X vectors exist */
+	if (pf->flags & I40E_FLAG_MSIX_ENABLED)
+		num_tc_qps = min_t(int, num_tc_qps, pf->num_lan_msix);
+
 	/* Setup queue offset/count for all TCs for given VSI */
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
 		/* See if the given TC is enabled for the given VSI */
@@ -4122,6 +4126,7 @@ static void i40e_vsi_map_rings_to_vectors(struct i40e_vsi *vsi)
 		num_ringpairs = DIV_ROUND_UP(qp_remaining, q_vectors - v_start);
 
 		q_vector->num_ringpairs = num_ringpairs;
+		q_vector->reg_idx = q_vector->v_idx + vsi->base_vector - 1;
 
 		q_vector->rx.count = 0;
 		q_vector->tx.count = 0;
@@ -6320,8 +6325,11 @@ static int i40e_init_pf_dcb(struct i40e_pf *pf)
 	struct i40e_hw *hw = &pf->hw;
 	int err = 0;
 
-	/* Do not enable DCB for SW1 and SW2 images even if the FW is capable */
-	if (pf->hw_features & I40E_HW_NO_DCB_SUPPORT)
+	/* Do not enable DCB for SW1 and SW2 images even if the FW is capable
+	 * Also do not enable DCBx if FW LLDP agent is disabled
+	 */
+	if ((pf->hw_features & I40E_HW_NO_DCB_SUPPORT) ||
+	    (pf->flags & I40E_FLAG_DISABLE_FW_LLDP))
 		goto out;
 
 	/* Get the initial DCB configuration */
@@ -6348,6 +6356,9 @@ static int i40e_init_pf_dcb(struct i40e_pf *pf)
 			dev_dbg(&pf->pdev->dev,
 				"DCBX offload is supported for this PF.\n");
 		}
+	} else if (pf->hw.aq.asq_last_status == I40E_AQ_RC_EPERM) {
+		dev_info(&pf->pdev->dev, "FW LLDP disabled for this PF.\n");
+		pf->flags |= I40E_FLAG_DISABLE_FW_LLDP;
 	} else {
 		dev_info(&pf->pdev->dev,
 			 "Query for DCB configuration failed, err %s aq_err %s\n",
@@ -7673,6 +7684,9 @@ static void i40e_fdir_filter_exit(struct i40e_pf *pf)
 
 	/* Reprogram the default input set for Other/IPv4 */
 	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV4_OTHER,
+				I40E_L3_SRC_MASK | I40E_L3_DST_MASK);
+
+	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_FRAG_IPV4,
 				I40E_L3_SRC_MASK | I40E_L3_DST_MASK);
 }
 
@@ -9220,6 +9234,9 @@ static void i40e_rebuild(struct i40e_pf *pf, bool reinit, bool lock_acquired)
 		dev_info(&pf->pdev->dev, "configure_lan_hmc failed: %d\n", ret);
 		goto end_core_reset;
 	}
+
+	/* Enable FW to write a default DCB config on link-up */
+	i40e_aq_set_dcb_parameters(hw, true, NULL);
 
 #ifdef CONFIG_I40E_DCB
 	ret = i40e_init_pf_dcb(pf);
@@ -11060,13 +11077,13 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	    pf->hw.aq.fw_maj_ver >= 6)
 		pf->hw_features |= I40E_HW_PTP_L4_CAPABLE;
 
-	if (pf->hw.func_caps.vmdq) {
+	if (pf->hw.func_caps.vmdq && num_online_cpus() != 1) {
 		pf->num_vmdq_vsis = I40E_DEFAULT_NUM_VMDQ_VSI;
 		pf->flags |= I40E_FLAG_VMDQ_ENABLED;
 		pf->num_vmdq_qps = i40e_default_queues_per_vmdq(pf);
 	}
 
-	if (pf->hw.func_caps.iwarp) {
+	if (pf->hw.func_caps.iwarp && num_online_cpus() != 1) {
 		pf->flags |= I40E_FLAG_IWARP_ENABLED;
 		/* IWARP needs one extra vector for CQP just like MISC.*/
 		pf->num_iwarp_msix = (int)num_online_cpus() + 1;
@@ -13543,6 +13560,10 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, pf);
 	pci_save_state(pdev);
+
+	/* Enable FW to write default DCB config on link-up */
+	i40e_aq_set_dcb_parameters(hw, true, NULL);
+
 #ifdef CONFIG_I40E_DCB
 	err = i40e_init_pf_dcb(pf);
 	if (err) {

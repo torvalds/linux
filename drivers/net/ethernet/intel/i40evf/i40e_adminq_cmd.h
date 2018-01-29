@@ -205,6 +205,7 @@ enum i40e_admin_queue_opc {
 	/* DCB commands */
 	i40e_aqc_opc_dcb_ignore_pfc	= 0x0301,
 	i40e_aqc_opc_dcb_updated	= 0x0302,
+	i40e_aqc_opc_set_dcb_parameters = 0x0303,
 
 	/* TX scheduler */
 	i40e_aqc_opc_configure_vsi_bw_limit		= 0x0400,
@@ -2460,6 +2461,17 @@ struct i40e_aqc_lldp_start {
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_start);
+
+/* Set DCB (direct 0x0303) */
+struct i40e_aqc_set_dcb_parameters {
+	u8 command;
+#define I40E_AQ_DCB_SET_AGENT	0x1
+#define I40E_DCB_VALID		0x1
+	u8 valid_flags;
+	u8 reserved[14];
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_set_dcb_parameters);
 
 /* Apply MIB changes (0x0A07)
  * uses the generic struc as it contains no data

@@ -956,7 +956,7 @@ static void i40e_enable_wb_on_itr(struct i40e_vsi *vsi,
 		      I40E_PFINT_DYN_CTLN_ITR_INDX_MASK; /* set noitr */
 
 		wr32(&vsi->back->hw,
-		     I40E_PFINT_DYN_CTLN(q_vector->v_idx + vsi->base_vector - 1),
+		     I40E_PFINT_DYN_CTLN(q_vector->reg_idx),
 		     val);
 	} else {
 		val = I40E_PFINT_DYN_CTL0_WB_ON_ITR_MASK |
@@ -983,8 +983,7 @@ void i40e_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
 			  /* allow 00 to be written to the index */
 
 		wr32(&vsi->back->hw,
-		     I40E_PFINT_DYN_CTLN(q_vector->v_idx +
-					 vsi->base_vector - 1), val);
+		     I40E_PFINT_DYN_CTLN(q_vector->reg_idx), val);
 	} else {
 		u32 val = I40E_PFINT_DYN_CTL0_INTENA_MASK |
 			  I40E_PFINT_DYN_CTL0_ITR_INDX_MASK | /* set noitr */
@@ -2311,7 +2310,6 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 	struct i40e_hw *hw = &vsi->back->hw;
 	bool rx = false, tx = false;
 	u32 rxval, txval;
-	int vector;
 	int idx = q_vector->v_idx;
 	int rx_itr_setting, tx_itr_setting;
 
@@ -2320,8 +2318,6 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 		i40e_irq_dynamic_enable_icr0(vsi->back);
 		return;
 	}
-
-	vector = (q_vector->v_idx + vsi->base_vector);
 
 	/* avoid dynamic calculation if in countdown mode OR if
 	 * all dynamic is disabled
@@ -2371,12 +2367,12 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 		 */
 		rxval |= BIT(31);
 		/* don't check _DOWN because interrupt isn't being enabled */
-		wr32(hw, INTREG(vector - 1), rxval);
+		wr32(hw, INTREG(q_vector->reg_idx), rxval);
 	}
 
 enable_int:
 	if (!test_bit(__I40E_VSI_DOWN, vsi->state))
-		wr32(hw, INTREG(vector - 1), txval);
+		wr32(hw, INTREG(q_vector->reg_idx), txval);
 
 	if (q_vector->itr_countdown)
 		q_vector->itr_countdown--;
