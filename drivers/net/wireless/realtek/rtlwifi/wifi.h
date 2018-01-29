@@ -952,6 +952,7 @@ enum package_type {
 
 enum rtl_spec_ver {
 	RTL_SPEC_NEW_RATEID = BIT(0),	/* use ratr_table_mode_new */
+	RTL_SPEC_SUPPORT_VHT = BIT(1),	/* support VHT */
 };
 
 struct octet_string {
