@@ -380,7 +380,7 @@ struct msr_counter bic[] = {
 	{ 0x0, "Pkg%pc7" },
 	{ 0x0, "Pkg%pc8" },
 	{ 0x0, "Pkg%pc9" },
-	{ 0x0, "Pkg%pc10" },
+	{ 0x0, "Pk%pc10" },
 	{ 0x0, "CPU%LPI" },
 	{ 0x0, "SYS%LPI" },
 	{ 0x0, "PkgWatt" },
