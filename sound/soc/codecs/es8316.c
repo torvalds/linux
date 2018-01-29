@@ -356,8 +356,8 @@ static const struct snd_soc_dapm_route es8316_dapm_routes[] = {
 static int es8316_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				 int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct es8316_priv *es8316 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
 	int i;
 	int count = 0;
 
@@ -385,19 +385,19 @@ static int es8316_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 static int es8316_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			      unsigned int fmt)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 	u8 serdata1 = 0;
 	u8 serdata2 = 0;
 	u8 clksw;
 	u8 mask;
 
 	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS) {
-		dev_err(codec->dev, "Codec driver only supports slave mode\n");
+		dev_err(component->dev, "Codec driver only supports slave mode\n");
 		return -EINVAL;
 	}
 
 	if ((fmt & SND_SOC_DAIFMT_FORMAT_MASK) != SND_SOC_DAIFMT_I2S) {
-		dev_err(codec->dev, "Codec driver only supports I2S format\n");
+		dev_err(component->dev, "Codec driver only supports I2S format\n");
 		return -EINVAL;
 	}
 
@@ -420,15 +420,15 @@ static int es8316_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	}
 
 	mask = ES8316_SERDATA1_MASTER | ES8316_SERDATA1_BCLK_INV;
-	snd_soc_update_bits(codec, ES8316_SERDATA1, mask, serdata1);
+	snd_soc_component_update_bits(component, ES8316_SERDATA1, mask, serdata1);
 
 	mask = ES8316_SERDATA2_FMT_MASK | ES8316_SERDATA2_ADCLRP;
-	snd_soc_update_bits(codec, ES8316_SERDATA_ADC, mask, serdata2);
-	snd_soc_update_bits(codec, ES8316_SERDATA_DAC, mask, serdata2);
+	snd_soc_component_update_bits(component, ES8316_SERDATA_ADC, mask, serdata2);
+	snd_soc_component_update_bits(component, ES8316_SERDATA_DAC, mask, serdata2);
 
 	/* Enable BCLK and MCLK inputs in slave mode */
 	clksw = ES8316_CLKMGR_CLKSW_MCLK_ON | ES8316_CLKMGR_CLKSW_BCLK_ON;
-	snd_soc_update_bits(codec, ES8316_CLKMGR_CLKSW, clksw, clksw);
+	snd_soc_component_update_bits(component, ES8316_CLKMGR_CLKSW, clksw, clksw);
 
 	return 0;
 }
@@ -436,11 +436,11 @@ static int es8316_set_dai_fmt(struct snd_soc_dai *codec_dai,
 static int es8316_pcm_startup(struct snd_pcm_substream *substream,
 			      struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct es8316_priv *es8316 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
 
 	if (es8316->sysclk == 0) {
-		dev_err(codec->dev, "No sysclk provided\n");
+		dev_err(component->dev, "No sysclk provided\n");
 		return -EINVAL;
 	}
 
@@ -458,13 +458,12 @@ static int es8316_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
-	struct es8316_priv *es8316 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
 	u8 wordlen = 0;
 
 	if (!es8316->sysclk) {
-		dev_err(codec->dev, "No MCLK configured\n");
+		dev_err(component->dev, "No MCLK configured\n");
 		return -EINVAL;
 	}
 
@@ -485,16 +484,16 @@ static int es8316_pcm_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, ES8316_SERDATA_DAC,
+	snd_soc_component_update_bits(component, ES8316_SERDATA_DAC,
 			    ES8316_SERDATA2_LEN_MASK, wordlen);
-	snd_soc_update_bits(codec, ES8316_SERDATA_ADC,
+	snd_soc_component_update_bits(component, ES8316_SERDATA_ADC,
 			    ES8316_SERDATA2_LEN_MASK, wordlen);
 	return 0;
 }
 
 static int es8316_mute(struct snd_soc_dai *dai, int mute)
 {
-	snd_soc_update_bits(dai->codec, ES8316_DAC_SET1, 0x20,
+	snd_soc_component_update_bits(dai->component, ES8316_DAC_SET1, 0x20,
 			    mute ? 0x20 : 0);
 	return 0;
 }
@@ -530,42 +529,41 @@ static struct snd_soc_dai_driver es8316_dai = {
 	.symmetric_rates = 1,
 };
 
-static int es8316_probe(struct snd_soc_codec *codec)
+static int es8316_probe(struct snd_soc_component *component)
 {
 	/* Reset codec and enable current state machine */
-	snd_soc_write(codec, ES8316_RESET, 0x3f);
+	snd_soc_component_write(component, ES8316_RESET, 0x3f);
 	usleep_range(5000, 5500);
-	snd_soc_write(codec, ES8316_RESET, ES8316_RESET_CSM_ON);
+	snd_soc_component_write(component, ES8316_RESET, ES8316_RESET_CSM_ON);
 	msleep(30);
 
 	/*
 	 * Documentation is unclear, but this value from the vendor driver is
 	 * needed otherwise audio output is silent.
 	 */
-	snd_soc_write(codec, ES8316_SYS_VMIDSEL, 0xff);
+	snd_soc_component_write(component, ES8316_SYS_VMIDSEL, 0xff);
 
 	/*
 	 * Documentation for this register is unclear and incomplete,
 	 * but here is a vendor-provided value that improves volume
 	 * and quality for Intel CHT platforms.
 	 */
-	snd_soc_write(codec, ES8316_CLKMGR_ADCOSR, 0x32);
+	snd_soc_component_write(component, ES8316_CLKMGR_ADCOSR, 0x32);
 
 	return 0;
 }
 
-static const struct snd_soc_codec_driver soc_codec_dev_es8316 = {
-	.probe		= es8316_probe,
-	.idle_bias_off	= true,
-
-	.component_driver = {
-		.controls		= es8316_snd_controls,
-		.num_controls		= ARRAY_SIZE(es8316_snd_controls),
-		.dapm_widgets		= es8316_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(es8316_dapm_widgets),
-		.dapm_routes		= es8316_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(es8316_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_es8316 = {
+	.probe			= es8316_probe,
+	.controls		= es8316_snd_controls,
+	.num_controls		= ARRAY_SIZE(es8316_snd_controls),
+	.dapm_widgets		= es8316_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(es8316_dapm_widgets),
+	.dapm_routes		= es8316_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(es8316_dapm_routes),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config es8316_regmap = {
@@ -592,14 +590,9 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	return snd_soc_register_codec(&i2c_client->dev, &soc_codec_dev_es8316,
+	return devm_snd_soc_register_component(&i2c_client->dev,
+				      &soc_component_dev_es8316,
 				      &es8316_dai, 1);
-}
-
-static int es8316_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
 }
 
 static const struct i2c_device_id es8316_i2c_id[] = {
@@ -627,7 +620,6 @@ static struct i2c_driver es8316_i2c_driver = {
 		.of_match_table		= of_match_ptr(es8316_of_match),
 	},
 	.probe		= es8316_i2c_probe,
-	.remove		= es8316_i2c_remove,
 	.id_table	= es8316_i2c_id,
 };
 module_i2c_driver(es8316_i2c_driver);
