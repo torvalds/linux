@@ -17,7 +17,6 @@
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/time.h>
-#include <linux/rk_fb.h>
 
 #define PWM_CTRL_TIMER_EN	(1 << 0)
 #define PWM_CTRL_OUTPUT_EN	(1 << 3)
@@ -155,16 +154,6 @@ static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		ctrl &= ~PWM_LOCK_EN;
 
 	writel(ctrl, pc->base + pc->data->regs.ctrl);
-
-#ifdef CONFIG_FB_ROCKCHIP
-	if (!pc->data->regs.ctrl) {
-		int ret;
-
-		ret = rk_fb_set_vop_pwm();
-		if (ret)
-			dev_err(pc->chip.dev, "rk_fb_set_vop_pwm failed: %d\n", ret);
-	}
-#endif
 }
 
 static int rockchip_pwm_enable(struct pwm_chip *chip,
