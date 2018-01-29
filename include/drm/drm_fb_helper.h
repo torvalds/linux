@@ -33,6 +33,7 @@
 struct drm_fb_helper;
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
 #include <linux/kgdb.h>
 
 enum mode_set_atomic {
@@ -275,6 +276,7 @@ void drm_fb_helper_unlink_fbi(struct drm_fb_helper *fb_helper);
 
 void drm_fb_helper_deferred_io(struct fb_info *info,
 			       struct list_head *pagelist);
+int drm_fb_helper_defio_init(struct drm_fb_helper *fb_helper);
 
 ssize_t drm_fb_helper_sys_read(struct fb_info *info, char __user *buf,
 			       size_t count, loff_t *ppos);
@@ -319,6 +321,13 @@ int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_
 int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 				       struct drm_connector *connector);
 
+int drm_fb_helper_fbdev_setup(struct drm_device *dev,
+			      struct drm_fb_helper *fb_helper,
+			      const struct drm_fb_helper_funcs *funcs,
+			      unsigned int preferred_bpp,
+			      unsigned int max_conn_count);
+void drm_fb_helper_fbdev_teardown(struct drm_device *dev);
+
 void drm_fb_helper_lastclose(struct drm_device *dev);
 void drm_fb_helper_output_poll_changed(struct drm_device *dev);
 #else
@@ -332,11 +341,17 @@ static inline int drm_fb_helper_init(struct drm_device *dev,
 		       struct drm_fb_helper *helper,
 		       int max_conn)
 {
+	/* So drivers can use it to free the struct */
+	helper->dev = dev;
+	dev->fb_helper = helper;
+
 	return 0;
 }
 
 static inline void drm_fb_helper_fini(struct drm_fb_helper *helper)
 {
+	if (helper && helper->dev)
+		helper->dev->fb_helper = NULL;
 }
 
 static inline int drm_fb_helper_blank(int blank, struct fb_info *info)
@@ -407,6 +422,11 @@ static inline void drm_fb_helper_unlink_fbi(struct drm_fb_helper *fb_helper)
 static inline void drm_fb_helper_deferred_io(struct fb_info *info,
 					     struct list_head *pagelist)
 {
+}
+
+static inline int drm_fb_helper_defio_init(struct drm_fb_helper *fb_helper)
+{
+	return -ENODEV;
 }
 
 static inline ssize_t drm_fb_helper_sys_read(struct fb_info *info,
@@ -516,6 +536,24 @@ drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 				   struct drm_connector *connector)
 {
 	return 0;
+}
+
+static inline int
+drm_fb_helper_fbdev_setup(struct drm_device *dev,
+			  struct drm_fb_helper *fb_helper,
+			  const struct drm_fb_helper_funcs *funcs,
+			  unsigned int preferred_bpp,
+			  unsigned int max_conn_count)
+{
+	/* So drivers can use it to free the struct */
+	dev->fb_helper = fb_helper;
+
+	return 0;
+}
+
+static inline void drm_fb_helper_fbdev_teardown(struct drm_device *dev)
+{
+	dev->fb_helper = NULL;
 }
 
 static inline void drm_fb_helper_lastclose(struct drm_device *dev)

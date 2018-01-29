@@ -339,7 +339,7 @@ static int radeon_move_vram_ram(struct ttm_buffer_object *bo,
 		goto out_cleanup;
 	}
 
-	r = ttm_tt_bind(bo->ttm, &tmp_mem);
+	r = ttm_tt_bind(bo->ttm, &tmp_mem, &ctx);
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
@@ -347,7 +347,7 @@ static int radeon_move_vram_ram(struct ttm_buffer_object *bo,
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
-	r = ttm_bo_move_ttm(bo, interruptible, no_wait_gpu, new_mem);
+	r = ttm_bo_move_ttm(bo, &ctx, new_mem);
 out_cleanup:
 	ttm_bo_mem_put(bo, &tmp_mem);
 	return r;
@@ -380,7 +380,7 @@ static int radeon_move_ram_vram(struct ttm_buffer_object *bo,
 	if (unlikely(r)) {
 		return r;
 	}
-	r = ttm_bo_move_ttm(bo, interruptible, no_wait_gpu, &tmp_mem);
+	r = ttm_bo_move_ttm(bo, &ctx, &tmp_mem);
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
@@ -445,8 +445,7 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 
 	if (r) {
 memcpy:
-		r = ttm_bo_move_memcpy(bo, ctx->interruptible,
-				       ctx->no_wait_gpu, new_mem);
+		r = ttm_bo_move_memcpy(bo, ctx, new_mem);
 		if (r) {
 			return r;
 		}
@@ -722,7 +721,8 @@ static struct radeon_ttm_tt *radeon_ttm_tt_to_gtt(struct ttm_tt *ttm)
 	return (struct radeon_ttm_tt *)ttm;
 }
 
-static int radeon_ttm_tt_populate(struct ttm_tt *ttm)
+static int radeon_ttm_tt_populate(struct ttm_tt *ttm,
+			struct ttm_operation_ctx *ctx)
 {
 	struct radeon_ttm_tt *gtt = radeon_ttm_tt_to_gtt(ttm);
 	struct radeon_device *rdev;
@@ -751,17 +751,17 @@ static int radeon_ttm_tt_populate(struct ttm_tt *ttm)
 	rdev = radeon_get_rdev(ttm->bdev);
 #if IS_ENABLED(CONFIG_AGP)
 	if (rdev->flags & RADEON_IS_AGP) {
-		return ttm_agp_tt_populate(ttm);
+		return ttm_agp_tt_populate(ttm, ctx);
 	}
 #endif
 
 #ifdef CONFIG_SWIOTLB
 	if (swiotlb_nr_tbl()) {
-		return ttm_dma_populate(&gtt->ttm, rdev->dev);
+		return ttm_dma_populate(&gtt->ttm, rdev->dev, ctx);
 	}
 #endif
 
-	return ttm_populate_and_map_pages(rdev->dev, &gtt->ttm);
+	return ttm_populate_and_map_pages(rdev->dev, &gtt->ttm, ctx);
 }
 
 static void radeon_ttm_tt_unpopulate(struct ttm_tt *ttm)
@@ -845,7 +845,6 @@ static struct ttm_bo_driver radeon_bo_driver = {
 	.fault_reserve_notify = &radeon_bo_fault_reserve_notify,
 	.io_mem_reserve = &radeon_ttm_io_mem_reserve,
 	.io_mem_free = &radeon_ttm_io_mem_free,
-	.io_mem_pfn = ttm_bo_default_io_mem_pfn,
 };
 
 int radeon_ttm_init(struct radeon_device *rdev)

@@ -815,8 +815,6 @@
 #define mmTA_CNTL_AUX_BASE_IDX                                                                         0
 #define mmTA_RESERVED_010C                                                                             0x0543
 #define mmTA_RESERVED_010C_BASE_IDX                                                                    0
-#define mmTA_GRAD_ADJ                                                                                  0x0544
-#define mmTA_GRAD_ADJ_BASE_IDX                                                                         0
 #define mmTA_STATUS                                                                                    0x0548
 #define mmTA_STATUS_BASE_IDX                                                                           0
 #define mmTA_SCRATCH                                                                                   0x0564
@@ -3617,8 +3615,6 @@
 #define mmDB_STENCIL_WRITE_BASE_HI_BASE_IDX                                                            1
 #define mmDB_DFSM_CONTROL                                                                              0x0018
 #define mmDB_DFSM_CONTROL_BASE_IDX                                                                     1
-#define mmDB_RENDER_FILTER                                                                             0x0019
-#define mmDB_RENDER_FILTER_BASE_IDX                                                                    1
 #define mmDB_Z_INFO2                                                                                   0x001a
 #define mmDB_Z_INFO2_BASE_IDX                                                                          1
 #define mmDB_STENCIL_INFO2                                                                             0x001b
@@ -3829,10 +3825,6 @@
 #define mmPA_SC_LEFT_VERT_GRID_BASE_IDX                                                                1
 #define mmPA_SC_HORIZ_GRID                                                                             0x00ea
 #define mmPA_SC_HORIZ_GRID_BASE_IDX                                                                    1
-#define mmPA_SC_FOV_WINDOW_LR                                                                          0x00eb
-#define mmPA_SC_FOV_WINDOW_LR_BASE_IDX                                                                 1
-#define mmPA_SC_FOV_WINDOW_TB                                                                          0x00ec
-#define mmPA_SC_FOV_WINDOW_TB_BASE_IDX                                                                 1
 #define mmVGT_MULTI_PRIM_IB_RESET_INDX                                                                 0x0103
 #define mmVGT_MULTI_PRIM_IB_RESET_INDX_BASE_IDX                                                        1
 #define mmCB_BLEND_RED                                                                                 0x0105
@@ -4361,8 +4353,6 @@
 #define mmVGT_GS_MAX_PRIMS_PER_SUBGROUP_BASE_IDX                                                       1
 #define mmVGT_DRAW_PAYLOAD_CNTL                                                                        0x02a6
 #define mmVGT_DRAW_PAYLOAD_CNTL_BASE_IDX                                                               1
-#define mmVGT_INDEX_PAYLOAD_CNTL                                                                       0x02a7
-#define mmVGT_INDEX_PAYLOAD_CNTL_BASE_IDX                                                              1
 #define mmVGT_INSTANCE_STEP_RATE_0                                                                     0x02a8
 #define mmVGT_INSTANCE_STEP_RATE_0_BASE_IDX                                                            1
 #define mmVGT_INSTANCE_STEP_RATE_1                                                                     0x02a9
@@ -5195,8 +5185,6 @@
 #define mmWD_INDEX_BUF_BASE_HI_BASE_IDX                                                                1
 #define mmIA_MULTI_VGT_PARAM                                                                           0x2258
 #define mmIA_MULTI_VGT_PARAM_BASE_IDX                                                                  1
-#define mmVGT_OBJECT_ID                                                                                0x2259
-#define mmVGT_OBJECT_ID_BASE_IDX                                                                       1
 #define mmVGT_INSTANCE_BASE_ID                                                                         0x225a
 #define mmVGT_INSTANCE_BASE_ID_BASE_IDX                                                                1
 #define mmPA_SU_LINE_STIPPLE_VALUE                                                                     0x2280
@@ -5283,8 +5271,6 @@
 #define mmTA_CS_BC_BASE_ADDR_BASE_IDX                                                                  1
 #define mmTA_CS_BC_BASE_ADDR_HI                                                                        0x2381
 #define mmTA_CS_BC_BASE_ADDR_HI_BASE_IDX                                                               1
-#define mmTA_GRAD_ADJ_UCONFIG                                                                          0x2382
-#define mmTA_GRAD_ADJ_UCONFIG_BASE_IDX                                                                 1
 #define mmDB_OCCLUSION_COUNT0_LOW                                                                      0x23c0
 #define mmDB_OCCLUSION_COUNT0_LOW_BASE_IDX                                                             1
 #define mmDB_OCCLUSION_COUNT0_HI                                                                       0x23c1

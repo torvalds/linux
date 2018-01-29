@@ -698,7 +698,7 @@ bool fib_metrics_match(struct fib_config *cfg, struct fib_info *fi)
 
 	nla_for_each_attr(nla, cfg->fc_mx, cfg->fc_mx_len, remaining) {
 		int type = nla_type(nla);
-		u32 val;
+		u32 fi_val, val;
 
 		if (!type)
 			continue;
@@ -715,7 +715,11 @@ bool fib_metrics_match(struct fib_config *cfg, struct fib_info *fi)
 			val = nla_get_u32(nla);
 		}
 
-		if (fi->fib_metrics->metrics[type - 1] != val)
+		fi_val = fi->fib_metrics->metrics[type - 1];
+		if (type == RTAX_FEATURES)
+			fi_val &= ~DST_FEATURE_ECN_CA;
+
+		if (fi_val != val)
 			return false;
 	}
 

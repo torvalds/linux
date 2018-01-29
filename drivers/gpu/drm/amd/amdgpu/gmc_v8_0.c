@@ -120,44 +120,44 @@ static void gmc_v8_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_FIJI:
-		amdgpu_program_register_sequence(adev,
-						 fiji_mgcg_cgcg_init,
-						 ARRAY_SIZE(fiji_mgcg_cgcg_init));
-		amdgpu_program_register_sequence(adev,
-						 golden_settings_fiji_a10,
-						 ARRAY_SIZE(golden_settings_fiji_a10));
+		amdgpu_device_program_register_sequence(adev,
+							fiji_mgcg_cgcg_init,
+							ARRAY_SIZE(fiji_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							golden_settings_fiji_a10,
+							ARRAY_SIZE(golden_settings_fiji_a10));
 		break;
 	case CHIP_TONGA:
-		amdgpu_program_register_sequence(adev,
-						 tonga_mgcg_cgcg_init,
-						 ARRAY_SIZE(tonga_mgcg_cgcg_init));
-		amdgpu_program_register_sequence(adev,
-						 golden_settings_tonga_a11,
-						 ARRAY_SIZE(golden_settings_tonga_a11));
+		amdgpu_device_program_register_sequence(adev,
+							tonga_mgcg_cgcg_init,
+							ARRAY_SIZE(tonga_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							golden_settings_tonga_a11,
+							ARRAY_SIZE(golden_settings_tonga_a11));
 		break;
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
-		amdgpu_program_register_sequence(adev,
-						 golden_settings_polaris11_a11,
-						 ARRAY_SIZE(golden_settings_polaris11_a11));
+		amdgpu_device_program_register_sequence(adev,
+							golden_settings_polaris11_a11,
+							ARRAY_SIZE(golden_settings_polaris11_a11));
 		break;
 	case CHIP_POLARIS10:
-		amdgpu_program_register_sequence(adev,
-						 golden_settings_polaris10_a11,
-						 ARRAY_SIZE(golden_settings_polaris10_a11));
+		amdgpu_device_program_register_sequence(adev,
+							golden_settings_polaris10_a11,
+							ARRAY_SIZE(golden_settings_polaris10_a11));
 		break;
 	case CHIP_CARRIZO:
-		amdgpu_program_register_sequence(adev,
-						 cz_mgcg_cgcg_init,
-						 ARRAY_SIZE(cz_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							cz_mgcg_cgcg_init,
+							ARRAY_SIZE(cz_mgcg_cgcg_init));
 		break;
 	case CHIP_STONEY:
-		amdgpu_program_register_sequence(adev,
-						 stoney_mgcg_cgcg_init,
-						 ARRAY_SIZE(stoney_mgcg_cgcg_init));
-		amdgpu_program_register_sequence(adev,
-						 golden_settings_stoney_common,
-						 ARRAY_SIZE(golden_settings_stoney_common));
+		amdgpu_device_program_register_sequence(adev,
+							stoney_mgcg_cgcg_init,
+							ARRAY_SIZE(stoney_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							golden_settings_stoney_common,
+							ARRAY_SIZE(golden_settings_stoney_common));
 		break;
 	default:
 		break;
@@ -405,8 +405,8 @@ static void gmc_v8_0_vram_gtt_location(struct amdgpu_device *adev,
 		base = RREG32(mmMC_VM_FB_LOCATION) & 0xFFFF;
 	base <<= 24;
 
-	amdgpu_vram_location(adev, &adev->mc, base);
-	amdgpu_gart_location(adev, mc);
+	amdgpu_device_vram_location(adev, &adev->mc, base);
+	amdgpu_device_gart_location(adev, mc);
 }
 
 /**
@@ -677,10 +677,10 @@ static uint64_t gmc_v8_0_get_vm_pte_flags(struct amdgpu_device *adev,
 	return pte_flag;
 }
 
-static uint64_t gmc_v8_0_get_vm_pde(struct amdgpu_device *adev, uint64_t addr)
+static void gmc_v8_0_get_vm_pde(struct amdgpu_device *adev, int level,
+				uint64_t *addr, uint64_t *flags)
 {
-	BUG_ON(addr & 0xFFFFFF0000000FFFULL);
-	return addr;
+	BUG_ON(*addr & 0xFFFFFF0000000FFFULL);
 }
 
 /**
@@ -1212,7 +1212,7 @@ static int gmc_v8_0_resume(void *handle)
 	if (r)
 		return r;
 
-	amdgpu_vm_reset_all_ids(adev);
+	amdgpu_vmid_reset_all(adev);
 
 	return 0;
 }

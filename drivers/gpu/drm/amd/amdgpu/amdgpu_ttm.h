@@ -25,7 +25,7 @@
 #define __AMDGPU_TTM_H__
 
 #include "amdgpu.h"
-#include "gpu_scheduler.h"
+#include <drm/gpu_scheduler.h>
 
 #define AMDGPU_PL_GDS		(TTM_PL_PRIV + 0)
 #define AMDGPU_PL_GWS		(TTM_PL_PRIV + 1)
@@ -55,7 +55,7 @@ struct amdgpu_mman {
 
 	struct mutex				gtt_window_lock;
 	/* Scheduler entity for buffer moves */
-	struct amd_sched_entity			entity;
+	struct drm_sched_entity			entity;
 };
 
 struct amdgpu_copy_mem {

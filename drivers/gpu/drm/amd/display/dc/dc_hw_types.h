@@ -579,8 +579,6 @@ enum dc_timing_standard {
 	TIMING_STANDARD_MAX
 };
 
-
-
 enum dc_color_depth {
 	COLOR_DEPTH_UNDEFINED,
 	COLOR_DEPTH_666,

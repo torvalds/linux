@@ -436,7 +436,6 @@
 #define mmTA_CNTL_DEFAULT                                                        0x8004d850
 #define mmTA_CNTL_AUX_DEFAULT                                                    0x00000000
 #define mmTA_RESERVED_010C_DEFAULT                                               0x00000000
-#define mmTA_GRAD_ADJ_DEFAULT                                                    0x40000040
 #define mmTA_STATUS_DEFAULT                                                      0x00000000
 #define mmTA_SCRATCH_DEFAULT                                                     0x00000000
 
@@ -1700,7 +1699,6 @@
 #define mmDB_STENCIL_WRITE_BASE_DEFAULT                                          0x00000000
 #define mmDB_STENCIL_WRITE_BASE_HI_DEFAULT                                       0x00000000
 #define mmDB_DFSM_CONTROL_DEFAULT                                                0x00000000
-#define mmDB_RENDER_FILTER_DEFAULT                                               0x00000000
 #define mmDB_Z_INFO2_DEFAULT                                                     0x00000000
 #define mmDB_STENCIL_INFO2_DEFAULT                                               0x00000000
 #define mmTA_BC_BASE_ADDR_DEFAULT                                                0x00000000
@@ -1806,8 +1804,6 @@
 #define mmPA_SC_RIGHT_VERT_GRID_DEFAULT                                          0x00000000
 #define mmPA_SC_LEFT_VERT_GRID_DEFAULT                                           0x00000000
 #define mmPA_SC_HORIZ_GRID_DEFAULT                                               0x00000000
-#define mmPA_SC_FOV_WINDOW_LR_DEFAULT                                            0x00000000
-#define mmPA_SC_FOV_WINDOW_TB_DEFAULT                                            0x00000000
 #define mmVGT_MULTI_PRIM_IB_RESET_INDX_DEFAULT                                   0x00000000
 #define mmCB_BLEND_RED_DEFAULT                                                   0x00000000
 #define mmCB_BLEND_GREEN_DEFAULT                                                 0x00000000
@@ -2072,7 +2068,6 @@
 #define mmVGT_EVENT_INITIATOR_DEFAULT                                            0x00000000
 #define mmVGT_GS_MAX_PRIMS_PER_SUBGROUP_DEFAULT                                  0x00000000
 #define mmVGT_DRAW_PAYLOAD_CNTL_DEFAULT                                          0x00000000
-#define mmVGT_INDEX_PAYLOAD_CNTL_DEFAULT                                         0x00000000
 #define mmVGT_INSTANCE_STEP_RATE_0_DEFAULT                                       0x00000000
 #define mmVGT_INSTANCE_STEP_RATE_1_DEFAULT                                       0x00000000
 #define mmVGT_ESGS_RING_ITEMSIZE_DEFAULT                                         0x00000000
@@ -2490,7 +2485,6 @@
 #define mmWD_INDEX_BUF_BASE_DEFAULT                                              0x00000000
 #define mmWD_INDEX_BUF_BASE_HI_DEFAULT                                           0x00000000
 #define mmIA_MULTI_VGT_PARAM_DEFAULT                                             0x006000ff
-#define mmVGT_OBJECT_ID_DEFAULT                                                  0x00000000
 #define mmVGT_INSTANCE_BASE_ID_DEFAULT                                           0x00000000
 #define mmPA_SU_LINE_STIPPLE_VALUE_DEFAULT                                       0x00000000
 #define mmPA_SC_LINE_STIPPLE_STATE_DEFAULT                                       0x00000000
@@ -2534,7 +2528,6 @@
 #define mmSQC_WRITEBACK_DEFAULT                                                  0x00000000
 #define mmTA_CS_BC_BASE_ADDR_DEFAULT                                             0x00000000
 #define mmTA_CS_BC_BASE_ADDR_HI_DEFAULT                                          0x00000000
-#define mmTA_GRAD_ADJ_UCONFIG_DEFAULT                                            0x40000040
 #define mmDB_OCCLUSION_COUNT0_LOW_DEFAULT                                        0x00000000
 #define mmDB_OCCLUSION_COUNT0_HI_DEFAULT                                         0x00000000
 #define mmDB_OCCLUSION_COUNT1_LOW_DEFAULT                                        0x00000000

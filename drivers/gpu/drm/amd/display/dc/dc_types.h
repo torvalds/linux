@@ -218,6 +218,7 @@ struct dc_edid_caps {
 	bool lte_340mcsc_scramble;
 
 	bool edid_hdmi;
+	bool hdr_supported;
 };
 
 struct view {

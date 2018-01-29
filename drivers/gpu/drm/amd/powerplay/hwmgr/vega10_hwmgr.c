@@ -426,9 +426,9 @@ static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 		data->smu_features[GNLD_VR0HOT].supported = true;
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetSmuVersion);
-	vega10_read_arg_from_smc(hwmgr, &(data->smu_version));
+	vega10_read_arg_from_smc(hwmgr, &(hwmgr->smu_version));
 		/* ACG firmware has major version 5 */
-	if ((data->smu_version & 0xff000000) == 0x5000000)
+	if ((hwmgr->smu_version & 0xff000000) == 0x5000000)
 		data->smu_features[GNLD_ACG].supported = true;
 
 	if (data->registry_data.didt_support)
@@ -2879,8 +2879,8 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			"DPM is already running right , skipping re-enablement!",
 			return 0);
 
-	if ((data->smu_version == 0x001c2c00) ||
-			(data->smu_version == 0x001c2d00)) {
+	if ((hwmgr->smu_version == 0x001c2c00) ||
+			(hwmgr->smu_version == 0x001c2d00)) {
 		tmp_result = smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_UpdatePkgPwrPidAlpha, 1);
 		PP_ASSERT_WITH_CODE(!tmp_result,
@@ -3124,9 +3124,6 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 		}
 	}
 
-	vega10_ps->vce_clks.evclk = hwmgr->vce_arbiter.evclk;
-	vega10_ps->vce_clks.ecclk = hwmgr->vce_arbiter.ecclk;
-
 	cgs_get_active_displays_info(hwmgr->device, &info);
 
 	/* result = PHM_CheckVBlankTime(hwmgr, &vblankTooShort);*/
@@ -3163,38 +3160,6 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 
 		minimum_clocks.engineClock = stable_pstate_sclk;
 		minimum_clocks.memoryClock = stable_pstate_mclk;
-	}
-
-	if (minimum_clocks.engineClock < hwmgr->gfx_arbiter.sclk)
-		minimum_clocks.engineClock = hwmgr->gfx_arbiter.sclk;
-
-	if (minimum_clocks.memoryClock < hwmgr->gfx_arbiter.mclk)
-		minimum_clocks.memoryClock = hwmgr->gfx_arbiter.mclk;
-
-	vega10_ps->sclk_threshold = hwmgr->gfx_arbiter.sclk_threshold;
-
-	if (hwmgr->gfx_arbiter.sclk_over_drive) {
-		PP_ASSERT_WITH_CODE((hwmgr->gfx_arbiter.sclk_over_drive <=
-				hwmgr->platform_descriptor.overdriveLimit.engineClock),
-				"Overdrive sclk exceeds limit",
-				hwmgr->gfx_arbiter.sclk_over_drive =
-						hwmgr->platform_descriptor.overdriveLimit.engineClock);
-
-		if (hwmgr->gfx_arbiter.sclk_over_drive >= hwmgr->gfx_arbiter.sclk)
-			vega10_ps->performance_levels[1].gfx_clock =
-					hwmgr->gfx_arbiter.sclk_over_drive;
-	}
-
-	if (hwmgr->gfx_arbiter.mclk_over_drive) {
-		PP_ASSERT_WITH_CODE((hwmgr->gfx_arbiter.mclk_over_drive <=
-				hwmgr->platform_descriptor.overdriveLimit.memoryClock),
-				"Overdrive mclk exceeds limit",
-				hwmgr->gfx_arbiter.mclk_over_drive =
-						hwmgr->platform_descriptor.overdriveLimit.memoryClock);
-
-		if (hwmgr->gfx_arbiter.mclk_over_drive >= hwmgr->gfx_arbiter.mclk)
-			vega10_ps->performance_levels[1].mem_clock =
-					hwmgr->gfx_arbiter.mclk_over_drive;
 	}
 
 	disable_mclk_switching_for_frame_lock = phm_cap_enabled(
@@ -3819,10 +3784,7 @@ static int vega10_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 	uint32_t low_sclk_interrupt_threshold = 0;
 
 	if (PP_CAP(PHM_PlatformCaps_SclkThrottleLowNotification) &&
-	    (hwmgr->gfx_arbiter.sclk_threshold !=
-				data->low_sclk_interrupt_threshold)) {
-		data->low_sclk_interrupt_threshold =
-				hwmgr->gfx_arbiter.sclk_threshold;
+		(data->low_sclk_interrupt_threshold != 0)) {
 		low_sclk_interrupt_threshold =
 				data->low_sclk_interrupt_threshold;
 

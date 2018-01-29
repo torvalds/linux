@@ -187,7 +187,7 @@ int amdgpu_fence_emit_polling(struct amdgpu_ring *ring, uint32_t *s)
 
 	seq = ++ring->fence_drv.sync_seq;
 	amdgpu_ring_emit_fence(ring, ring->fence_drv.gpu_addr,
-			       seq, AMDGPU_FENCE_FLAG_INT);
+			       seq, 0);
 
 	*s = seq;
 
@@ -410,7 +410,6 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 				  unsigned num_hw_submission)
 {
-	long timeout;
 	int r;
 
 	/* Check that num_hw_submission is a power of two */
@@ -434,20 +433,9 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 
 	/* No need to setup the GPU scheduler for KIQ ring */
 	if (ring->funcs->type != AMDGPU_RING_TYPE_KIQ) {
-		timeout = msecs_to_jiffies(amdgpu_lockup_timeout);
-		if (timeout == 0) {
-			/*
-			 * FIXME:
-			 * Delayed workqueue cannot use it directly,
-			 * so the scheduler will not use delayed workqueue if
-			 * MAX_SCHEDULE_TIMEOUT is set.
-			 * Currently keep it simple and silly.
-			 */
-			timeout = MAX_SCHEDULE_TIMEOUT;
-		}
-		r = amd_sched_init(&ring->sched, &amdgpu_sched_ops,
+		r = drm_sched_init(&ring->sched, &amdgpu_sched_ops,
 				   num_hw_submission, amdgpu_job_hang_limit,
-				   timeout, ring->name);
+				   msecs_to_jiffies(amdgpu_lockup_timeout), ring->name);
 		if (r) {
 			DRM_ERROR("Failed to create scheduler on ring %s.\n",
 				  ring->name);
@@ -503,7 +491,7 @@ void amdgpu_fence_driver_fini(struct amdgpu_device *adev)
 		}
 		amdgpu_irq_put(adev, ring->fence_drv.irq_src,
 			       ring->fence_drv.irq_type);
-		amd_sched_fini(&ring->sched);
+		drm_sched_fini(&ring->sched);
 		del_timer_sync(&ring->fence_drv.fallback_timer);
 		for (j = 0; j <= ring->fence_drv.num_fences_mask; ++j)
 			dma_fence_put(ring->fence_drv.fences[j]);
@@ -705,7 +693,7 @@ static int amdgpu_debugfs_gpu_recover(struct seq_file *m, void *data)
 	struct amdgpu_device *adev = dev->dev_private;
 
 	seq_printf(m, "gpu recover\n");
-	amdgpu_gpu_recover(adev, NULL);
+	amdgpu_device_gpu_recover(adev, NULL, true);
 
 	return 0;
 }

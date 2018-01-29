@@ -50,7 +50,7 @@
 #define AQ_CFG_PCI_FUNC_MSIX_IRQS   9U
 #define AQ_CFG_PCI_FUNC_PORTS       2U
 
-#define AQ_CFG_SERVICE_TIMER_INTERVAL    (2 * HZ)
+#define AQ_CFG_SERVICE_TIMER_INTERVAL    (1 * HZ)
 #define AQ_CFG_POLLING_TIMER_INTERVAL   ((unsigned int)(2 * HZ))
 
 #define AQ_CFG_SKB_FRAGS_MAX   32U
@@ -80,6 +80,7 @@
 #define AQ_CFG_DRV_VERSION	__stringify(NIC_MAJOR_DRIVER_VERSION)"."\
 				__stringify(NIC_MINOR_DRIVER_VERSION)"."\
 				__stringify(NIC_BUILD_DRIVER_VERSION)"."\
-				__stringify(NIC_REVISION_DRIVER_VERSION)
+				__stringify(NIC_REVISION_DRIVER_VERSION) \
+				AQ_CFG_DRV_VERSION_SUFFIX
 
 #endif /* AQ_CFG_H */

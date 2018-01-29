@@ -114,6 +114,7 @@ static void htab_free_elems(struct bpf_htab *htab)
 		pptr = htab_elem_get_ptr(get_htab_elem(htab, i),
 					 htab->map.key_size);
 		free_percpu(pptr);
+		cond_resched();
 	}
 free_elems:
 	bpf_map_area_free(htab->elems);
@@ -159,6 +160,7 @@ static int prealloc_init(struct bpf_htab *htab)
 			goto free_elems;
 		htab_elem_set_ptr(get_htab_elem(htab, i), htab->map.key_size,
 				  pptr);
+		cond_resched();
 	}
 
 skip_percpu_elems:

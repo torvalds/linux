@@ -15,6 +15,7 @@ sun8i-mixer-y			+= sun8i_mixer.o sun8i_ui_layer.o \
 
 sun4i-tcon-y			+= sun4i_crtc.o
 sun4i-tcon-y			+= sun4i_dotclock.o
+sun4i-tcon-y			+= sun4i_lvds.o
 sun4i-tcon-y			+= sun4i_tcon.o
 sun4i-tcon-y			+= sun4i_rgb.o
 

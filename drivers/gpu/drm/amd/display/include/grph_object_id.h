@@ -233,10 +233,6 @@ static inline struct graphics_object_id dal_graphics_object_id_init(
 	return result;
 }
 
-bool dal_graphics_object_id_is_equal(
-	struct graphics_object_id id1,
-	struct graphics_object_id id2);
-
 /* Based on internal data members memory layout */
 static inline uint32_t dal_graphics_object_id_to_uint(
 	struct graphics_object_id id)

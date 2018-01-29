@@ -582,7 +582,8 @@ struct dce_hwseq_registers {
 	type DOMAIN7_PGFSM_PWR_STATUS; \
 	type DCFCLK_GATE_DIS; \
 	type DCHUBBUB_GLOBAL_TIMER_REFDIV; \
-	type DENTIST_DPPCLK_WDIVIDER;
+	type DENTIST_DPPCLK_WDIVIDER; \
+	type DENTIST_DISPCLK_WDIVIDER;
 
 struct dce_hwseq_shift {
 	HWSEQ_REG_FIELD_LIST(uint8_t)

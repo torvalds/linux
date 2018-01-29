@@ -898,6 +898,13 @@ controller implements weight and absolute bandwidth limit models for
 normal scheduling policy and absolute bandwidth allocation model for
 realtime scheduling policy.
 
+WARNING: cgroup2 doesn't yet support control of realtime processes and
+the cpu controller can only be enabled when all RT processes are in
+the root cgroup.  Be aware that system management software may already
+have placed RT processes into nonroot cgroups during the system boot
+process, and these processes may need to be moved to the root cgroup
+before the cpu controller can be enabled.
+
 
 CPU Interface Files
 ~~~~~~~~~~~~~~~~~~~

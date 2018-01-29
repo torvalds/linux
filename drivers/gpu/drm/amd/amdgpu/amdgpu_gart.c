@@ -57,6 +57,51 @@
  */
 
 /**
+ * amdgpu_dummy_page_init - init dummy page used by the driver
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Allocate the dummy page used by the driver (all asics).
+ * This dummy page is used by the driver as a filler for gart entries
+ * when pages are taken out of the GART
+ * Returns 0 on sucess, -ENOMEM on failure.
+ */
+static int amdgpu_gart_dummy_page_init(struct amdgpu_device *adev)
+{
+	if (adev->dummy_page.page)
+		return 0;
+	adev->dummy_page.page = alloc_page(GFP_DMA32 | GFP_KERNEL | __GFP_ZERO);
+	if (adev->dummy_page.page == NULL)
+		return -ENOMEM;
+	adev->dummy_page.addr = pci_map_page(adev->pdev, adev->dummy_page.page,
+					0, PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+	if (pci_dma_mapping_error(adev->pdev, adev->dummy_page.addr)) {
+		dev_err(&adev->pdev->dev, "Failed to DMA MAP the dummy page\n");
+		__free_page(adev->dummy_page.page);
+		adev->dummy_page.page = NULL;
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+/**
+ * amdgpu_dummy_page_fini - free dummy page used by the driver
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Frees the dummy page used by the driver (all asics).
+ */
+static void amdgpu_gart_dummy_page_fini(struct amdgpu_device *adev)
+{
+	if (adev->dummy_page.page == NULL)
+		return;
+	pci_unmap_page(adev->pdev, adev->dummy_page.addr,
+			PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+	__free_page(adev->dummy_page.page);
+	adev->dummy_page.page = NULL;
+}
+
+/**
  * amdgpu_gart_table_vram_alloc - allocate vram for gart page table
  *
  * @adev: amdgpu_device pointer
@@ -308,7 +353,7 @@ int amdgpu_gart_init(struct amdgpu_device *adev)
 		DRM_ERROR("Page size is smaller than GPU page size!\n");
 		return -EINVAL;
 	}
-	r = amdgpu_dummy_page_init(adev);
+	r = amdgpu_gart_dummy_page_init(adev);
 	if (r)
 		return r;
 	/* Compute table size */
@@ -340,5 +385,5 @@ void amdgpu_gart_fini(struct amdgpu_device *adev)
 	vfree(adev->gart.pages);
 	adev->gart.pages = NULL;
 #endif
-	amdgpu_dummy_page_fini(adev);
+	amdgpu_gart_dummy_page_fini(adev);
 }

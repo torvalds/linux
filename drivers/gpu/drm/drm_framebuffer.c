@@ -664,6 +664,7 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 	INIT_LIST_HEAD(&fb->filp_head);
 
 	fb->funcs = funcs;
+	strcpy(fb->comm, current->comm);
 
 	ret = __drm_mode_object_add(dev, &fb->base, DRM_MODE_OBJECT_FB,
 				    false, drm_framebuffer_free);
@@ -978,6 +979,7 @@ void drm_framebuffer_print_info(struct drm_printer *p, unsigned int indent,
 	struct drm_format_name_buf format_name;
 	unsigned int i;
 
+	drm_printf_indent(p, indent, "allocated by = %s\n", fb->comm);
 	drm_printf_indent(p, indent, "refcount=%u\n",
 			  drm_framebuffer_read_refcount(fb));
 	drm_printf_indent(p, indent, "format=%s\n",

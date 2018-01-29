@@ -23,6 +23,9 @@
  */
 #undef CONFIG_AMD_MEM_ENCRYPT
 
+/* No PAGE_TABLE_ISOLATION support needed either: */
+#undef CONFIG_PAGE_TABLE_ISOLATION
+
 #include "misc.h"
 
 /* These actually do the work of building the kernel identity maps. */

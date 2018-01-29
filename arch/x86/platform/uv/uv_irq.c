@@ -128,7 +128,7 @@ static void uv_domain_free(struct irq_domain *domain, unsigned int virq,
  * on the specified blade to allow the sending of MSIs to the specified CPU.
  */
 static int uv_domain_activate(struct irq_domain *domain,
-			      struct irq_data *irq_data, bool early)
+			      struct irq_data *irq_data, bool reserve)
 {
 	uv_program_mmr(irqd_cfg(irq_data), irq_data->chip_data);
 	return 0;

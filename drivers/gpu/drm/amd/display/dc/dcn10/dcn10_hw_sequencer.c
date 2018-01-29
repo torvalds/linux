@@ -32,7 +32,7 @@
 #include "dce/dce_hwseq.h"
 #include "abm.h"
 #include "dmcu.h"
-#include "dcn10/dcn10_timing_generator.h"
+#include "dcn10_optc.h"
 #include "dcn10/dcn10_dpp.h"
 #include "dcn10/dcn10_mpc.h"
 #include "timing_generator.h"
@@ -43,6 +43,7 @@
 #include "custom_float.h"
 #include "dcn10_hubp.h"
 #include "dcn10_hubbub.h"
+#include "dcn10_cm_common.h"
 
 #define CTX \
 	hws->ctx
@@ -158,7 +159,7 @@ void dcn10_log_hw_state(struct dc *dc)
 		struct timing_generator *tg = pool->timing_generators[i];
 		struct dcn_otg_state s = {0};
 
-		tgn10_read_otg_state(DCN10TG_FROM_TG(tg), &s);
+		optc1_read_otg_state(DCN10TG_FROM_TG(tg), &s);
 
 		//only print if OTG master is enabled
 		if ((s.otg_enabled & 1) == 0)
@@ -425,6 +426,34 @@ static void bios_golden_init(struct dc *dc)
 	}
 }
 
+static void false_optc_underflow_wa(
+		struct dc *dc,
+		const struct dc_stream_state *stream,
+		struct timing_generator *tg)
+{
+	int i;
+	bool underflow;
+
+	if (!dc->hwseq->wa.false_optc_underflow)
+		return;
+
+	underflow = tg->funcs->is_optc_underflow_occurred(tg);
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *old_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (old_pipe_ctx->stream != stream)
+			continue;
+
+		dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, old_pipe_ctx);
+	}
+
+	tg->funcs->set_blank_data_double_buffer(tg, true);
+
+	if (tg->funcs->is_optc_underflow_occurred(tg) && !underflow)
+		tg->funcs->clear_optc_underflow(tg);
+}
+
 static enum dc_status dcn10_prog_pixclk_crtc_otg(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context,
@@ -433,9 +462,6 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_color_space color_space;
 	struct tg_color black_color = {0};
-	bool enableStereo    = stream->timing.timing_3d_format == TIMING_3D_FORMAT_NONE ?
-			false:true;
-	bool rightEyePolarity = stream->timing.flags.RIGHT_EYE_3D_POLARITY;
 
 	/* by upper caller loop, pipe0 is parent pipe and be called first.
 	 * back end is set up by for pipe0. Other children pipe share back end
@@ -470,11 +496,6 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 			&stream->timing,
 			true);
 
-	pipe_ctx->stream_res.opp->funcs->opp_set_stereo_polarity(
-				pipe_ctx->stream_res.opp,
-				enableStereo,
-				rightEyePolarity);
-
 #if 0 /* move to after enable_crtc */
 	/* TODO: OPP FMT, ABM. etc. should be done here. */
 	/* or FPGA now. instance 0 only. TODO: move to opp.c */
@@ -489,12 +510,18 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 	/* program otg blank color */
 	color_space = stream->output_color_space;
 	color_space_to_black_color(dc, color_space, &black_color);
-	pipe_ctx->stream_res.tg->funcs->set_blank_color(
-			pipe_ctx->stream_res.tg,
-			&black_color);
 
-	pipe_ctx->stream_res.tg->funcs->set_blank(pipe_ctx->stream_res.tg, true);
-	hwss_wait_for_blank_complete(pipe_ctx->stream_res.tg);
+	if (pipe_ctx->stream_res.tg->funcs->set_blank_color)
+		pipe_ctx->stream_res.tg->funcs->set_blank_color(
+				pipe_ctx->stream_res.tg,
+				&black_color);
+
+	if (pipe_ctx->stream_res.tg->funcs->is_blanked &&
+			!pipe_ctx->stream_res.tg->funcs->is_blanked(pipe_ctx->stream_res.tg)) {
+		pipe_ctx->stream_res.tg->funcs->set_blank(pipe_ctx->stream_res.tg, true);
+		hwss_wait_for_blank_complete(pipe_ctx->stream_res.tg);
+		false_optc_underflow_wa(dc, pipe_ctx->stream, pipe_ctx->stream_res.tg);
+	}
 
 	/* VTG is  within DCHUB command block. DCFCLK is always on */
 	if (false == pipe_ctx->stream_res.tg->funcs->enable_crtc(pipe_ctx->stream_res.tg)) {
@@ -573,41 +600,34 @@ static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	int fe_idx = pipe_ctx->pipe_idx;
 	struct hubp *hubp = dc->res_pool->hubps[fe_idx];
 	struct mpc *mpc = dc->res_pool->mpc;
-	int opp_id, z_idx;
-	int mpcc_id = -1;
+	int opp_id;
+	struct mpc_tree *mpc_tree_params;
+	struct mpcc *mpcc_to_remove = NULL;
 
 	/* look at tree rather than mi here to know if we already reset */
 	for (opp_id = 0; opp_id < dc->res_pool->pipe_count; opp_id++) {
 		struct output_pixel_processor *opp = dc->res_pool->opps[opp_id];
 
-		for (z_idx = 0; z_idx < opp->mpc_tree.num_pipes; z_idx++) {
-			if (opp->mpc_tree.dpp[z_idx] == fe_idx) {
-				mpcc_id = opp->mpc_tree.mpcc[z_idx];
-				break;
-			}
-		}
-		if (mpcc_id != -1)
+		mpc_tree_params = &(opp->mpc_tree_params);
+		mpcc_to_remove = mpc->funcs->get_mpcc_for_dpp(mpc_tree_params, fe_idx);
+		if (mpcc_to_remove != NULL)
 			break;
 	}
+
 	/*Already reset*/
 	if (opp_id == dc->res_pool->pipe_count)
 		return;
 
-	mpc->funcs->remove(mpc, &(dc->res_pool->opps[opp_id]->mpc_tree),
-					dc->res_pool->opps[opp_id]->inst, fe_idx);
+	mpc->funcs->remove_mpcc(mpc, mpc_tree_params, mpcc_to_remove);
+	dc->res_pool->opps[opp_id]->mpcc_disconnect_pending[fe_idx] = true;
+
+	dc->optimized_required = true;
 
 	if (hubp->funcs->hubp_disconnect)
 		hubp->funcs->hubp_disconnect(hubp);
 
 	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
-
-	pipe_ctx->stream = NULL;
-	memset(&pipe_ctx->stream_res, 0, sizeof(pipe_ctx->stream_res));
-	memset(&pipe_ctx->plane_res, 0, sizeof(pipe_ctx->plane_res));
-	pipe_ctx->top_pipe = NULL;
-	pipe_ctx->bottom_pipe = NULL;
-	pipe_ctx->plane_state = NULL;
 }
 
 static void plane_atomic_power_down(struct dc *dc, int fe_idx)
@@ -636,29 +656,30 @@ static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	int fe_idx = pipe_ctx->pipe_idx;
 	struct dce_hwseq *hws = dc->hwseq;
 	struct hubp *hubp = dc->res_pool->hubps[fe_idx];
-	struct mpc *mpc = dc->res_pool->mpc;
 	int opp_id = hubp->opp_id;
-	struct output_pixel_processor *opp;
 
-	if (opp_id != 0xf) {
-		mpc->funcs->wait_for_idle(mpc, hubp->mpcc_id);
-		opp = dc->res_pool->opps[hubp->opp_id];
-		opp->mpcc_disconnect_pending[hubp->mpcc_id] = false;
-		hubp->funcs->set_blank(hubp, true);
-	}
+	dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe_ctx);
 
 	REG_UPDATE(HUBP_CLK_CNTL[fe_idx],
 			HUBP_CLOCK_ENABLE, 0);
 	REG_UPDATE(DPP_CONTROL[fe_idx],
 			DPP_CLOCK_ENABLE, 0);
 
-	if (opp_id != 0xf && dc->res_pool->opps[opp_id]->mpc_tree.num_pipes == 0)
+	if (opp_id != 0xf && dc->res_pool->opps[opp_id]->mpc_tree_params.opp_list == NULL)
 		REG_UPDATE(OPP_PIPE_CONTROL[opp_id],
 				OPP_PIPE_CLOCK_EN, 0);
 
 	hubp->power_gated = true;
+	dc->optimized_required = false; /* We're powering off, no need to optimize */
 
 	plane_atomic_power_down(dc, fe_idx);
+
+	pipe_ctx->stream = NULL;
+	memset(&pipe_ctx->stream_res, 0, sizeof(pipe_ctx->stream_res));
+	memset(&pipe_ctx->plane_res, 0, sizeof(pipe_ctx->plane_res));
+	pipe_ctx->top_pipe = NULL;
+	pipe_ctx->bottom_pipe = NULL;
+	pipe_ctx->plane_state = NULL;
 }
 
 static void dcn10_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
@@ -740,24 +761,26 @@ static void dcn10_init_hw(struct dc *dc)
 		}
 	}
 
+	/* Reset all MPCC muxes */
+	dc->res_pool->mpc->funcs->mpc_init(dc->res_pool->mpc);
+
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-		struct output_pixel_processor *opp = dc->res_pool->opps[i];
-		struct mpc_tree_cfg *mpc_tree = &opp->mpc_tree;
 		struct hubp *hubp = dc->res_pool->hubps[i];
-
-		mpc_tree->dpp[0] = i;
-		mpc_tree->mpcc[0] = i;
-		mpc_tree->num_pipes = 1;
 
 		pipe_ctx->stream_res.tg = tg;
 		pipe_ctx->pipe_idx = i;
 
 		pipe_ctx->plane_res.hubp = hubp;
 		hubp->mpcc_id = i;
-		hubp->opp_id = dc->res_pool->mpc->funcs->get_opp_id(dc->res_pool->mpc, i);
+		hubp->opp_id = 0xf;
 		hubp->power_gated = false;
+
+		dc->res_pool->opps[i]->mpc_tree_params.opp_id = dc->res_pool->opps[i]->inst;
+		dc->res_pool->opps[i]->mpc_tree_params.opp_list = NULL;
+		dc->res_pool->opps[i]->mpcc_disconnect_pending[i] = true;
+		pipe_ctx->stream_res.opp = dc->res_pool->opps[i];
 
 		plane_atomic_disconnect(dc, pipe_ctx);
 	}
@@ -929,280 +952,10 @@ static bool dcn10_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
 
 	return result;
 }
-/*modify the method to handle rgb for arr_points*/
-static bool convert_to_custom_float(
-		struct pwl_result_data *rgb_resulted,
-		struct curve_points *arr_points,
-		uint32_t hw_points_num)
-{
-	struct custom_float_format fmt;
 
-	struct pwl_result_data *rgb = rgb_resulted;
 
-	uint32_t i = 0;
 
-	fmt.exponenta_bits = 6;
-	fmt.mantissa_bits = 12;
-	fmt.sign = false;
 
-	if (!convert_to_custom_float_format(arr_points[0].x, &fmt,
-					    &arr_points[0].custom_float_x)) {
-		BREAK_TO_DEBUGGER();
-		return false;
-	}
-
-	if (!convert_to_custom_float_format(arr_points[0].offset, &fmt,
-					    &arr_points[0].custom_float_offset)) {
-		BREAK_TO_DEBUGGER();
-		return false;
-	}
-
-	if (!convert_to_custom_float_format(arr_points[0].slope, &fmt,
-					    &arr_points[0].custom_float_slope)) {
-		BREAK_TO_DEBUGGER();
-		return false;
-	}
-
-	fmt.mantissa_bits = 10;
-	fmt.sign = false;
-
-	if (!convert_to_custom_float_format(arr_points[1].x, &fmt,
-					    &arr_points[1].custom_float_x)) {
-		BREAK_TO_DEBUGGER();
-		return false;
-	}
-
-	if (!convert_to_custom_float_format(arr_points[1].y, &fmt,
-					    &arr_points[1].custom_float_y)) {
-		BREAK_TO_DEBUGGER();
-		return false;
-	}
-
-	if (!convert_to_custom_float_format(arr_points[1].slope, &fmt,
-					    &arr_points[1].custom_float_slope)) {
-		BREAK_TO_DEBUGGER();
-		return false;
-	}
-
-	fmt.mantissa_bits = 12;
-	fmt.sign = true;
-
-	while (i != hw_points_num) {
-		if (!convert_to_custom_float_format(rgb->red, &fmt,
-						    &rgb->red_reg)) {
-			BREAK_TO_DEBUGGER();
-			return false;
-		}
-
-		if (!convert_to_custom_float_format(rgb->green, &fmt,
-						    &rgb->green_reg)) {
-			BREAK_TO_DEBUGGER();
-			return false;
-		}
-
-		if (!convert_to_custom_float_format(rgb->blue, &fmt,
-						    &rgb->blue_reg)) {
-			BREAK_TO_DEBUGGER();
-			return false;
-		}
-
-		if (!convert_to_custom_float_format(rgb->delta_red, &fmt,
-						    &rgb->delta_red_reg)) {
-			BREAK_TO_DEBUGGER();
-			return false;
-		}
-
-		if (!convert_to_custom_float_format(rgb->delta_green, &fmt,
-						    &rgb->delta_green_reg)) {
-			BREAK_TO_DEBUGGER();
-			return false;
-		}
-
-		if (!convert_to_custom_float_format(rgb->delta_blue, &fmt,
-						    &rgb->delta_blue_reg)) {
-			BREAK_TO_DEBUGGER();
-			return false;
-		}
-
-		++rgb;
-		++i;
-	}
-
-	return true;
-}
-#define MAX_REGIONS_NUMBER 34
-#define MAX_LOW_POINT      25
-#define NUMBER_SEGMENTS    32
-
-static bool
-dcn10_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
-				     struct pwl_params *regamma_params)
-{
-	struct curve_points *arr_points;
-	struct pwl_result_data *rgb_resulted;
-	struct pwl_result_data *rgb;
-	struct pwl_result_data *rgb_plus_1;
-	struct fixed31_32 y_r;
-	struct fixed31_32 y_g;
-	struct fixed31_32 y_b;
-	struct fixed31_32 y1_min;
-	struct fixed31_32 y3_max;
-
-	int32_t segment_start, segment_end;
-	int32_t i;
-	uint32_t j, k, seg_distr[MAX_REGIONS_NUMBER], increment, start_index, hw_points;
-
-	if (output_tf == NULL || regamma_params == NULL || output_tf->type == TF_TYPE_BYPASS)
-		return false;
-
-	PERF_TRACE();
-
-	arr_points = regamma_params->arr_points;
-	rgb_resulted = regamma_params->rgb_resulted;
-	hw_points = 0;
-
-	memset(regamma_params, 0, sizeof(struct pwl_params));
-	memset(seg_distr, 0, sizeof(seg_distr));
-
-	if (output_tf->tf == TRANSFER_FUNCTION_PQ) {
-		/* 32 segments
-		 * segments are from 2^-25 to 2^7
-		 */
-		for (i = 0; i < 32 ; i++)
-			seg_distr[i] = 3;
-
-		segment_start = -25;
-		segment_end   = 7;
-	} else {
-		/* 10 segments
-		 * segment is from 2^-10 to 2^0
-		 * There are less than 256 points, for optimization
-		 */
-		seg_distr[0] = 3;
-		seg_distr[1] = 4;
-		seg_distr[2] = 4;
-		seg_distr[3] = 4;
-		seg_distr[4] = 4;
-		seg_distr[5] = 4;
-		seg_distr[6] = 4;
-		seg_distr[7] = 4;
-		seg_distr[8] = 5;
-		seg_distr[9] = 5;
-
-		segment_start = -10;
-		segment_end = 0;
-	}
-
-	for (i = segment_end - segment_start; i < MAX_REGIONS_NUMBER ; i++)
-		seg_distr[i] = -1;
-
-	for (k = 0; k < MAX_REGIONS_NUMBER; k++) {
-		if (seg_distr[k] != -1)
-			hw_points += (1 << seg_distr[k]);
-	}
-
-	j = 0;
-	for (k = 0; k < (segment_end - segment_start); k++) {
-		increment = NUMBER_SEGMENTS / (1 << seg_distr[k]);
-		start_index = (segment_start + k + MAX_LOW_POINT) * NUMBER_SEGMENTS;
-		for (i = start_index; i < start_index + NUMBER_SEGMENTS; i += increment) {
-			if (j == hw_points - 1)
-				break;
-			rgb_resulted[j].red = output_tf->tf_pts.red[i];
-			rgb_resulted[j].green = output_tf->tf_pts.green[i];
-			rgb_resulted[j].blue = output_tf->tf_pts.blue[i];
-			j++;
-		}
-	}
-
-	/* last point */
-	start_index = (segment_end + MAX_LOW_POINT) * NUMBER_SEGMENTS;
-	rgb_resulted[hw_points - 1].red = output_tf->tf_pts.red[start_index];
-	rgb_resulted[hw_points - 1].green = output_tf->tf_pts.green[start_index];
-	rgb_resulted[hw_points - 1].blue = output_tf->tf_pts.blue[start_index];
-
-	arr_points[0].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
-					     dal_fixed31_32_from_int(segment_start));
-	arr_points[1].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
-					     dal_fixed31_32_from_int(segment_end));
-
-	y_r = rgb_resulted[0].red;
-	y_g = rgb_resulted[0].green;
-	y_b = rgb_resulted[0].blue;
-
-	y1_min = dal_fixed31_32_min(y_r, dal_fixed31_32_min(y_g, y_b));
-
-	arr_points[0].y = y1_min;
-	arr_points[0].slope = dal_fixed31_32_div(arr_points[0].y, arr_points[0].x);
-	y_r = rgb_resulted[hw_points - 1].red;
-	y_g = rgb_resulted[hw_points - 1].green;
-	y_b = rgb_resulted[hw_points - 1].blue;
-
-	/* see comment above, m_arrPoints[1].y should be the Y value for the
-	 * region end (m_numOfHwPoints), not last HW point(m_numOfHwPoints - 1)
-	 */
-	y3_max = dal_fixed31_32_max(y_r, dal_fixed31_32_max(y_g, y_b));
-
-	arr_points[1].y = y3_max;
-
-	arr_points[1].slope = dal_fixed31_32_zero;
-
-	if (output_tf->tf == TRANSFER_FUNCTION_PQ) {
-		/* for PQ, we want to have a straight line from last HW X point,
-		 * and the slope to be such that we hit 1.0 at 10000 nits.
-		 */
-		const struct fixed31_32 end_value =
-				dal_fixed31_32_from_int(125);
-
-		arr_points[1].slope = dal_fixed31_32_div(
-			dal_fixed31_32_sub(dal_fixed31_32_one, arr_points[1].y),
-			dal_fixed31_32_sub(end_value, arr_points[1].x));
-	}
-
-	regamma_params->hw_points_num = hw_points;
-
-	i = 1;
-	for (k = 0; k < MAX_REGIONS_NUMBER && i < MAX_REGIONS_NUMBER; k++) {
-		if (seg_distr[k] != -1) {
-			regamma_params->arr_curve_points[k].segments_num =
-					seg_distr[k];
-			regamma_params->arr_curve_points[i].offset =
-					regamma_params->arr_curve_points[k].offset + (1 << seg_distr[k]);
-		}
-		i++;
-	}
-
-	if (seg_distr[k] != -1)
-		regamma_params->arr_curve_points[k].segments_num = seg_distr[k];
-
-	rgb = rgb_resulted;
-	rgb_plus_1 = rgb_resulted + 1;
-
-	i = 1;
-
-	while (i != hw_points + 1) {
-		if (dal_fixed31_32_lt(rgb_plus_1->red, rgb->red))
-			rgb_plus_1->red = rgb->red;
-		if (dal_fixed31_32_lt(rgb_plus_1->green, rgb->green))
-			rgb_plus_1->green = rgb->green;
-		if (dal_fixed31_32_lt(rgb_plus_1->blue, rgb->blue))
-			rgb_plus_1->blue = rgb->blue;
-
-		rgb->delta_red = dal_fixed31_32_sub(rgb_plus_1->red, rgb->red);
-		rgb->delta_green = dal_fixed31_32_sub(rgb_plus_1->green, rgb->green);
-		rgb->delta_blue = dal_fixed31_32_sub(rgb_plus_1->blue, rgb->blue);
-
-		++rgb_plus_1;
-		++rgb;
-		++i;
-	}
-
-	convert_to_custom_float(rgb_resulted, arr_points, hw_points);
-
-	PERF_TRACE();
-
-	return true;
-}
 
 static bool
 dcn10_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
@@ -1223,9 +976,9 @@ dcn10_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
 	/* dcn10_translate_regamma_to_hw_format takes 750us, only do it when full
 	 * update.
 	 */
-	else if (dcn10_translate_regamma_to_hw_format(
+	else if (cm_helper_translate_curve_to_hw_format(
 			stream->out_transfer_func,
-			&dpp->regamma_params)) {
+			&dpp->regamma_params, false)) {
 		dpp->funcs->dpp_program_regamma_pwl(
 				dpp,
 				&dpp->regamma_params, OPP_REGAMMA_USER);
@@ -1579,7 +1332,6 @@ static void dcn10_enable_plane(
 	/* make sure OPP_PIPE_CLOCK_EN = 1 */
 	REG_UPDATE(OPP_PIPE_CONTROL[pipe_ctx->stream_res.tg->inst],
 			OPP_PIPE_CLOCK_EN, 1);
-	/*TODO: REG_UPDATE(DENTIST_DISPCLK_CNTL, DENTIST_DPPCLK_WDIVIDER, 0x1f);*/
 
 /* TODO: enable/disable in dm as per update type.
 	if (plane_state) {
@@ -1672,57 +1424,12 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 		enum dc_color_space colorspace,
 		uint16_t *matrix)
 {
-	int i;
-	struct out_csc_color_matrix tbl_entry;
-
 	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment == true) {
-			enum dc_color_space color_space =
-				pipe_ctx->stream->output_color_space;
-
-			//uint16_t matrix[12];
-			for (i = 0; i < 12; i++)
-				tbl_entry.regval[i] = pipe_ctx->stream->csc_color_matrix.matrix[i];
-
-			tbl_entry.color_space = color_space;
-			//tbl_entry.regval = matrix;
-
 			if (pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment != NULL)
-				pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment(pipe_ctx->plane_res.dpp, &tbl_entry);
+				pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment(pipe_ctx->plane_res.dpp, matrix);
 	} else {
 		if (pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_default != NULL)
 			pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_default(pipe_ctx->plane_res.dpp, colorspace);
-	}
-}
-
-static void set_mpc_output_csc(struct dc *dc,
-		struct pipe_ctx *pipe_ctx,
-		enum dc_color_space colorspace,
-		uint16_t *matrix,
-		int opp_id)
-{
-	struct mpc *mpc = dc->res_pool->mpc;
-	int i;
-	struct out_csc_color_matrix tbl_entry;
-	enum mpc_output_csc_mode ocsc_mode = MPC_OUTPUT_CSC_COEF_A;
-
-
-	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment == true) {
-		//uint16_t matrix[12];
-		for (i = 0; i < 12; i++)
-			tbl_entry.regval[i] = matrix[i];
-		tbl_entry.color_space = colorspace;
-
-		if (mpc->funcs->set_output_csc != NULL)
-			mpc->funcs->set_output_csc(mpc,
-					opp_id,
-					&tbl_entry,
-					ocsc_mode);
-	} else {
-		if (mpc->funcs->set_ocsc_default != NULL)
-			mpc->funcs->set_ocsc_default(mpc,
-					opp_id,
-					colorspace,
-					ocsc_mode);
 	}
 }
 
@@ -1736,13 +1443,6 @@ static void program_output_csc(struct dc *dc,
 		program_csc_matrix(pipe_ctx,
 				colorspace,
 				matrix);
-	else
-		set_mpc_output_csc(dc,
-			pipe_ctx,
-			colorspace,
-			matrix,
-			opp_id);
-
 }
 
 static bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
@@ -1914,35 +1614,73 @@ static void update_dpp(struct dpp *dpp, struct dc_plane_state *plane_state)
 
 static void update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
-	struct mpcc_cfg mpcc_cfg = {0};
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
-	struct pipe_ctx *top_pipe;
-	bool per_pixel_alpha =
-			pipe_ctx->plane_state->per_pixel_alpha && pipe_ctx->bottom_pipe;
+	struct mpcc_blnd_cfg blnd_cfg;
+	bool per_pixel_alpha = pipe_ctx->plane_state->per_pixel_alpha && pipe_ctx->bottom_pipe;
+	int mpcc_id;
+	struct mpcc *new_mpcc;
+	struct mpc *mpc = dc->res_pool->mpc;
+	struct mpc_tree *mpc_tree_params = &(pipe_ctx->stream_res.opp->mpc_tree_params);
 
 	/* TODO: proper fix once fpga works */
 
-	mpcc_cfg.dpp_id = hubp->inst;
-	mpcc_cfg.opp_id = pipe_ctx->stream_res.opp->inst;
-	mpcc_cfg.tree_cfg = &(pipe_ctx->stream_res.opp->mpc_tree);
-	for (top_pipe = pipe_ctx->top_pipe; top_pipe; top_pipe = top_pipe->top_pipe)
-		mpcc_cfg.z_index++;
 	if (dc->debug.surface_visual_confirm)
 		dcn10_get_surface_visual_confirm_color(
-				pipe_ctx, &mpcc_cfg.black_color);
+				pipe_ctx, &blnd_cfg.black_color);
 	else
 		color_space_to_black_color(
 			dc, pipe_ctx->stream->output_color_space,
-			&mpcc_cfg.black_color);
-	mpcc_cfg.per_pixel_alpha = per_pixel_alpha;
+			&blnd_cfg.black_color);
+
+	if (per_pixel_alpha)
+		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA;
+	else
+		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_GLOBAL_ALPHA;
+
+	blnd_cfg.overlap_only = false;
+	blnd_cfg.global_alpha = 0xff;
+	blnd_cfg.global_gain = 0xff;
+
 	/* DCN1.0 has output CM before MPC which seems to screw with
 	 * pre-multiplied alpha.
 	 */
-	mpcc_cfg.pre_multiplied_alpha = is_rgb_cspace(
+	blnd_cfg.pre_multiplied_alpha = is_rgb_cspace(
 			pipe_ctx->stream->output_color_space)
 					&& per_pixel_alpha;
-	hubp->mpcc_id = dc->res_pool->mpc->funcs->add(dc->res_pool->mpc, &mpcc_cfg);
-	hubp->opp_id = mpcc_cfg.opp_id;
+
+	/*
+	 * TODO: remove hack
+	 * Note: currently there is a bug in init_hw such that
+	 * on resume from hibernate, BIOS sets up MPCC0, and
+	 * we do mpcc_remove but the mpcc cannot go to idle
+	 * after remove. This cause us to pick mpcc1 here,
+	 * which causes a pstate hang for yet unknown reason.
+	 */
+	mpcc_id = hubp->inst;
+
+	/* check if this MPCC is already being used */
+	new_mpcc = mpc->funcs->get_mpcc_for_dpp(mpc_tree_params, mpcc_id);
+	/* remove MPCC if being used */
+	if (new_mpcc != NULL)
+		mpc->funcs->remove_mpcc(mpc, mpc_tree_params, new_mpcc);
+	else
+		if (dc->debug.sanity_checks)
+			mpc->funcs->assert_mpcc_idle_before_connect(
+					dc->res_pool->mpc, mpcc_id);
+
+	/* Call MPC to insert new plane */
+	new_mpcc = mpc->funcs->insert_plane(dc->res_pool->mpc,
+			mpc_tree_params,
+			&blnd_cfg,
+			NULL,
+			NULL,
+			hubp->inst,
+			mpcc_id);
+
+	ASSERT(new_mpcc != NULL);
+
+	hubp->opp_id = pipe_ctx->stream_res.opp->inst;
+	hubp->mpcc_id = mpcc_id;
 }
 
 static void update_scaler(struct pipe_ctx *pipe_ctx)
@@ -1971,7 +1709,7 @@ static void update_dchubp_dpp(
 	union plane_size size = plane_state->plane_size;
 
 	/* depends on DML calculation, DPP clock value may change dynamically */
-	if (pipe_ctx->plane_state->update_flags.raw != 0) {
+	if (plane_state->update_flags.bits.full_update) {
 		enable_dppclk(
 			dc->hwseq,
 			pipe_ctx->pipe_idx,
@@ -2015,7 +1753,8 @@ static void update_dchubp_dpp(
 	}
 
 	if (plane_state->update_flags.bits.full_update ||
-		plane_state->update_flags.bits.scaling_change) {
+		plane_state->update_flags.bits.scaling_change ||
+		plane_state->update_flags.bits.position_change) {
 		hubp->funcs->mem_program_viewport(
 			hubp,
 			&pipe_ctx->plane_res.scl_data.viewport,
@@ -2037,7 +1776,9 @@ static void update_dchubp_dpp(
 		plane_state->update_flags.bits.horizontal_mirror_change ||
 		plane_state->update_flags.bits.rotation_change ||
 		plane_state->update_flags.bits.swizzle_change ||
-		plane_state->update_flags.bits.bpp_change) {
+		plane_state->update_flags.bits.dcc_change ||
+		plane_state->update_flags.bits.bpp_change ||
+		plane_state->update_flags.bits.scaling_change) {
 		hubp->funcs->hubp_program_surface_config(
 			hubp,
 			plane_state->format,
@@ -2062,6 +1803,7 @@ static void program_all_pipe_in_tree(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context)
 {
+
 	if (pipe_ctx->top_pipe == NULL) {
 
 		pipe_ctx->stream_res.tg->dlg_otg_param.vready_offset = pipe_ctx->pipe_dlg_param.vready_offset;
@@ -2072,7 +1814,11 @@ static void program_all_pipe_in_tree(
 
 		pipe_ctx->stream_res.tg->funcs->program_global_sync(
 				pipe_ctx->stream_res.tg);
-		pipe_ctx->stream_res.tg->funcs->set_blank(pipe_ctx->stream_res.tg, !is_pipe_tree_visible(pipe_ctx));
+
+		if (pipe_ctx->stream_res.tg->funcs->set_blank)
+			pipe_ctx->stream_res.tg->funcs->set_blank(
+					pipe_ctx->stream_res.tg,
+					!is_pipe_tree_visible(pipe_ctx));
 	}
 
 	if (pipe_ctx->plane_state != NULL) {
@@ -2179,6 +1925,7 @@ static void dcn10_apply_ctx_for_surface(
 {
 	int i;
 	struct timing_generator *tg;
+	struct output_pixel_processor *opp;
 	bool removed_pipe[4] = { false };
 	unsigned int ref_clk_mhz = dc->res_pool->ref_clock_inKhz/1000;
 	bool program_water_mark = false;
@@ -2189,6 +1936,8 @@ static void dcn10_apply_ctx_for_surface(
 	if (!top_pipe_to_program)
 		return;
 
+	opp = top_pipe_to_program->stream_res.opp;
+
 	tg = top_pipe_to_program->stream_res.tg;
 
 	tg->funcs->lock(tg);
@@ -2196,7 +1945,8 @@ static void dcn10_apply_ctx_for_surface(
 	if (num_planes == 0) {
 
 		/* OTG blank before remove all front end */
-		tg->funcs->set_blank(tg, true);
+		if (tg->funcs->set_blank)
+			tg->funcs->set_blank(tg, true);
 	}
 
 	/* Disconnect unused mpcc */
@@ -2236,23 +1986,13 @@ static void dcn10_apply_ctx_for_surface(
 		}
 	}
 
-	if (num_planes > 0) {
+	if (num_planes > 0)
 		program_all_pipe_in_tree(dc, top_pipe_to_program, context);
 
-		/* TODO: this is a hack w/a for switching from mpo to pipe split */
-		if (stream->cursor_attributes.address.quad_part != 0) {
-			struct dc_cursor_position position = { 0 };
-
-			dc_stream_set_cursor_position(
-				(struct dc_stream_state *)stream,
-				&position);
-			dc_stream_set_cursor_attributes(
-				(struct dc_stream_state *)stream,
-				&stream->cursor_attributes);
-		}
-	}
-
 	tg->funcs->unlock(tg);
+
+	if (num_planes == 0)
+		false_optc_underflow_wa(dc, stream, tg);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *old_pipe_ctx =
@@ -2264,7 +2004,7 @@ static void dcn10_apply_ctx_for_surface(
 			pipe_ctx->plane_state->update_flags.bits.full_update)
 			program_water_mark = true;
 
-		if (removed_pipe[i] && num_planes == 0)
+		if (removed_pipe[i])
 			dcn10_disable_plane(dc, old_pipe_ctx);
 	}
 
@@ -2273,6 +2013,7 @@ static void dcn10_apply_ctx_for_surface(
 			/* pstate stuck check after watermark update */
 			dcn10_verify_allow_pstate_change_high(dc);
 		}
+
 		/* watermark is for all pipes */
 		hubbub1_program_watermarks(dc->res_pool->hubbub,
 				&context->bw.dcn.watermarks, ref_clk_mhz);
@@ -2502,10 +2243,10 @@ static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct dc *dc)
 
 	dcn10_config_stereo_parameters(stream, &flags);
 
-	pipe_ctx->stream_res.opp->funcs->opp_set_stereo_polarity(
+	pipe_ctx->stream_res.opp->funcs->opp_program_stereo(
 		pipe_ctx->stream_res.opp,
 		flags.PROGRAM_STEREO == 1 ? true:false,
-		stream->timing.flags.RIGHT_EYE_3D_POLARITY == 1 ? true:false);
+		&stream->timing);
 
 	pipe_ctx->stream_res.tg->funcs->program_stereo(
 		pipe_ctx->stream_res.tg,
@@ -2619,7 +2360,8 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.pplib_apply_display_requirements =
 			dcn10_pplib_apply_display_requirements,
 	.edp_backlight_control = hwss_edp_backlight_control,
-	.edp_power_control = hwss_edp_power_control
+	.edp_power_control = hwss_edp_power_control,
+	.edp_wait_for_hpd_ready = hwss_edp_wait_for_hpd_ready,
 };
 
 

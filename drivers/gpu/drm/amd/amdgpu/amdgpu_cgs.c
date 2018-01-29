@@ -801,6 +801,11 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				else
 					strcpy(fw_name, "amdgpu/vega10_smc.bin");
 				break;
+			case CHIP_CARRIZO:
+			case CHIP_STONEY:
+			case CHIP_RAVEN:
+				adev->pm.fw_version = info->version;
+				return 0;
 			default:
 				DRM_ERROR("SMC firmware not supported\n");
 				return -EINVAL;

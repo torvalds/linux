@@ -67,12 +67,12 @@ static void gmc_v7_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
-		amdgpu_program_register_sequence(adev,
-						 iceland_mgcg_cgcg_init,
-						 ARRAY_SIZE(iceland_mgcg_cgcg_init));
-		amdgpu_program_register_sequence(adev,
-						 golden_settings_iceland_a11,
-						 ARRAY_SIZE(golden_settings_iceland_a11));
+		amdgpu_device_program_register_sequence(adev,
+							iceland_mgcg_cgcg_init,
+							ARRAY_SIZE(iceland_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							golden_settings_iceland_a11,
+							ARRAY_SIZE(golden_settings_iceland_a11));
 		break;
 	default:
 		break;
@@ -240,8 +240,8 @@ static void gmc_v7_0_vram_gtt_location(struct amdgpu_device *adev,
 	u64 base = RREG32(mmMC_VM_FB_LOCATION) & 0xFFFF;
 	base <<= 24;
 
-	amdgpu_vram_location(adev, &adev->mc, base);
-	amdgpu_gart_location(adev, mc);
+	amdgpu_device_vram_location(adev, &adev->mc, base);
+	amdgpu_device_gart_location(adev, mc);
 }
 
 /**
@@ -480,10 +480,10 @@ static uint64_t gmc_v7_0_get_vm_pte_flags(struct amdgpu_device *adev,
 	return pte_flag;
 }
 
-static uint64_t gmc_v7_0_get_vm_pde(struct amdgpu_device *adev, uint64_t addr)
+static void gmc_v7_0_get_vm_pde(struct amdgpu_device *adev, int level,
+				uint64_t *addr, uint64_t *flags)
 {
-	BUG_ON(addr & 0xFFFFFF0000000FFFULL);
-	return addr;
+	BUG_ON(*addr & 0xFFFFFF0000000FFFULL);
 }
 
 /**
@@ -1107,7 +1107,7 @@ static int gmc_v7_0_resume(void *handle)
 	if (r)
 		return r;
 
-	amdgpu_vm_reset_all_ids(adev);
+	amdgpu_vmid_reset_all(adev);
 
 	return 0;
 }

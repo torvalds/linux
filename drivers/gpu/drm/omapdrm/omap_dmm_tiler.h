@@ -1,5 +1,4 @@
 /*
- *
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
  *         Andy Gross <andy.gross@ti.com>

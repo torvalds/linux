@@ -85,7 +85,7 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work);
 int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 {
 	struct amdgpu_ring *ring;
-	struct amd_sched_rq *rq;
+	struct drm_sched_rq *rq;
 	const char *fw_name;
 	const struct common_firmware_header *hdr;
 	unsigned ucode_version, version_major, version_minor, binary_id;
@@ -174,8 +174,8 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 	}
 
 	ring = &adev->vce.ring[0];
-	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_NORMAL];
-	r = amd_sched_entity_init(&ring->sched, &adev->vce.entity,
+	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
+	r = drm_sched_entity_init(&ring->sched, &adev->vce.entity,
 				  rq, amdgpu_sched_jobs, NULL);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up VCE run queue.\n");
@@ -207,7 +207,7 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 	if (adev->vce.vcpu_bo == NULL)
 		return 0;
 
-	amd_sched_entity_fini(&adev->vce.ring[0].sched, &adev->vce.entity);
+	drm_sched_entity_fini(&adev->vce.ring[0].sched, &adev->vce.entity);
 
 	amdgpu_bo_free_kernel(&adev->vce.vcpu_bo, &adev->vce.gpu_addr,
 		(void **)&adev->vce.cpu_addr);
@@ -311,10 +311,10 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work)
 			amdgpu_dpm_enable_vce(adev, false);
 		} else {
 			amdgpu_asic_set_vce_clocks(adev, 0, 0);
-			amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							    AMD_PG_STATE_GATE);
-			amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							    AMD_CG_STATE_GATE);
+			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
+							       AMD_PG_STATE_GATE);
+			amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
+							       AMD_CG_STATE_GATE);
 		}
 	} else {
 		schedule_delayed_work(&adev->vce.idle_work, VCE_IDLE_TIMEOUT);
@@ -343,10 +343,10 @@ void amdgpu_vce_ring_begin_use(struct amdgpu_ring *ring)
 			amdgpu_dpm_enable_vce(adev, true);
 		} else {
 			amdgpu_asic_set_vce_clocks(adev, 53300, 40000);
-			amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							    AMD_CG_STATE_UNGATE);
-			amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							    AMD_PG_STATE_UNGATE);
+			amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
+							       AMD_CG_STATE_UNGATE);
+			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
+							       AMD_PG_STATE_UNGATE);
 
 		}
 	}
@@ -585,8 +585,8 @@ static int amdgpu_vce_validate_bo(struct amdgpu_cs_parser *p, uint32_t ib_idx,
 
 	for (i = 0; i < bo->placement.num_placement; ++i) {
 		bo->placements[i].fpfn = max(bo->placements[i].fpfn, fpfn);
-		bo->placements[i].lpfn = bo->placements[i].fpfn ?
-			min(bo->placements[i].fpfn, lpfn) : lpfn;
+		bo->placements[i].lpfn = bo->placements[i].lpfn ?
+			min(bo->placements[i].lpfn, lpfn) : lpfn;
 	}
 	return ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 }
@@ -991,7 +991,7 @@ out:
  *
  */
 void amdgpu_vce_ring_emit_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib,
-			     unsigned vm_id, bool ctx_switch)
+			     unsigned vmid, bool ctx_switch)
 {
 	amdgpu_ring_write(ring, VCE_CMD_IB);
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));

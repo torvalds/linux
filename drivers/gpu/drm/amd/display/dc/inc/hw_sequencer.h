@@ -28,6 +28,7 @@
 #include "dc_types.h"
 #include "clock_source.h"
 #include "inc/hw/timing_generator.h"
+#include "inc/hw/opp.h"
 #include "inc/hw/link_encoder.h"
 #include "core_status.h"
 
@@ -40,6 +41,7 @@ enum pipe_gating_control {
 struct dce_hwseq_wa {
 	bool blnd_crtc_trigger;
 	bool DEGVIDCN10_253;
+	bool false_optc_underflow;
 };
 
 struct hwseq_wa_state {
@@ -137,10 +139,6 @@ struct hw_sequencer_funcs {
 
 	void (*disable_plane)(struct dc *dc, struct pipe_ctx *pipe_ctx);
 
-	void (*enable_plane)(struct dc *dc,
-			struct pipe_ctx *pipe,
-			struct dc_state *context);
-
 	void (*update_info_frame)(struct pipe_ctx *pipe_ctx);
 
 	void (*enable_stream)(struct pipe_ctx *pipe_ctx);
@@ -198,6 +196,7 @@ struct hw_sequencer_funcs {
 	void (*edp_backlight_control)(
 			struct dc_link *link,
 			bool enable);
+	void (*edp_wait_for_hpd_ready)(struct dc_link *link, bool power_up);
 
 };
 
@@ -208,5 +207,9 @@ void color_space_to_black_color(
 
 bool hwss_wait_for_blank_complete(
 		struct timing_generator *tg);
+
+const uint16_t *find_color_matrix(
+		enum dc_color_space color_space,
+		uint32_t *array_size);
 
 #endif /* __DC_HW_SEQUENCER_H__ */

@@ -2844,8 +2844,6 @@ enum {
 	SF_RD_DATA_FAST = 0xb,        /* read flash */
 	SF_RD_ID        = 0x9f,       /* read ID */
 	SF_ERASE_SECTOR = 0xd8,       /* erase sector */
-
-	FW_MAX_SIZE = 16 * SF_SEC_SIZE,
 };
 
 /**
@@ -3558,8 +3556,9 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	const __be32 *p = (const __be32 *)fw_data;
 	const struct fw_hdr *hdr = (const struct fw_hdr *)fw_data;
 	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
-	unsigned int fw_img_start = adap->params.sf_fw_start;
-	unsigned int fw_start_sec = fw_img_start / sf_sec_size;
+	unsigned int fw_start_sec = FLASH_FW_START_SEC;
+	unsigned int fw_size = FLASH_FW_MAX_SIZE;
+	unsigned int fw_start = FLASH_FW_START;
 
 	if (!size) {
 		dev_err(adap->pdev_dev, "FW image has no data\n");
@@ -3575,9 +3574,9 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 			"FW image size differs from size in FW header\n");
 		return -EINVAL;
 	}
-	if (size > FW_MAX_SIZE) {
+	if (size > fw_size) {
 		dev_err(adap->pdev_dev, "FW image too large, max is %u bytes\n",
-			FW_MAX_SIZE);
+			fw_size);
 		return -EFBIG;
 	}
 	if (!t4_fw_matches_chip(adap, hdr))
@@ -3604,11 +3603,11 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	 */
 	memcpy(first_page, fw_data, SF_PAGE_SIZE);
 	((struct fw_hdr *)first_page)->fw_ver = cpu_to_be32(0xffffffff);
-	ret = t4_write_flash(adap, fw_img_start, SF_PAGE_SIZE, first_page);
+	ret = t4_write_flash(adap, fw_start, SF_PAGE_SIZE, first_page);
 	if (ret)
 		goto out;
 
-	addr = fw_img_start;
+	addr = fw_start;
 	for (size -= SF_PAGE_SIZE; size; size -= SF_PAGE_SIZE) {
 		addr += SF_PAGE_SIZE;
 		fw_data += SF_PAGE_SIZE;
@@ -3618,7 +3617,7 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	}
 
 	ret = t4_write_flash(adap,
-			     fw_img_start + offsetof(struct fw_hdr, fw_ver),
+			     fw_start + offsetof(struct fw_hdr, fw_ver),
 			     sizeof(hdr->fw_ver), (const u8 *)&hdr->fw_ver);
 out:
 	if (ret)

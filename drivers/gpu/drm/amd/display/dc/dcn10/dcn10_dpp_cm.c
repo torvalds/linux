@@ -49,6 +49,8 @@
 #define FN(reg_name, field_name) \
 	dpp->tf_shift->field_name, dpp->tf_mask->field_name
 
+#define NUM_ELEMENTS(a) (sizeof(a) / sizeof((a)[0]))
+
 struct dcn10_input_csc_matrix {
 	enum dc_color_space color_space;
 	uint16_t regval[12];
@@ -223,18 +225,18 @@ void dpp1_cm_set_gamut_remap(
 
 static void dpp1_cm_program_color_matrix(
 		struct dcn10_dpp *dpp,
-		const struct out_csc_color_matrix *tbl_entry)
+		const uint16_t *regval)
 {
 	uint32_t mode;
 	struct color_matrices_reg gam_regs;
 
 	REG_GET(CM_OCSC_CONTROL, CM_OCSC_MODE, &mode);
 
-	if (tbl_entry == NULL) {
+	if (regval == NULL) {
 		BREAK_TO_DEBUGGER();
 		return;
 	}
-
+	mode = 4;
 	gam_regs.shifts.csc_c11 = dpp->tf_shift->CM_OCSC_C11;
 	gam_regs.masks.csc_c11  = dpp->tf_mask->CM_OCSC_C11;
 	gam_regs.shifts.csc_c12 = dpp->tf_shift->CM_OCSC_C12;
@@ -247,7 +249,7 @@ static void dpp1_cm_program_color_matrix(
 
 		cm_helper_program_color_matrices(
 				dpp->base.ctx,
-				tbl_entry->regval,
+				regval,
 				&gam_regs);
 
 	} else {
@@ -257,7 +259,7 @@ static void dpp1_cm_program_color_matrix(
 
 		cm_helper_program_color_matrices(
 				dpp->base.ctx,
-				tbl_entry->regval,
+				regval,
 				&gam_regs);
 	}
 }
@@ -266,24 +268,18 @@ void dpp1_cm_set_output_csc_default(
 		struct dpp *dpp_base,
 		enum dc_color_space colorspace)
 {
-
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
-	struct out_csc_color_matrix tbl_entry;
-	int i, j;
-	int arr_size = sizeof(output_csc_matrix) / sizeof(struct output_csc_matrix);
+	const uint16_t *regval = NULL;
+	int arr_size;
 	uint32_t ocsc_mode = 4;
 
-	tbl_entry.color_space = colorspace;
-
-	for (i = 0; i < arr_size; i++)
-		if (output_csc_matrix[i].color_space == colorspace) {
-			for (j = 0; j < 12; j++)
-				tbl_entry.regval[j] = output_csc_matrix[i].regval[j];
-			break;
-		}
-
+	regval = find_color_matrix(colorspace, &arr_size);
+	if (regval == NULL) {
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+	dpp1_cm_program_color_matrix(dpp, regval);
 	REG_SET(CM_OCSC_CONTROL, 0, CM_OCSC_MODE, ocsc_mode);
-	dpp1_cm_program_color_matrix(dpp, &tbl_entry);
 }
 
 static void dpp1_cm_get_reg_field(
@@ -315,41 +311,12 @@ static void dpp1_cm_get_reg_field(
 
 void dpp1_cm_set_output_csc_adjustment(
 		struct dpp *dpp_base,
-		const struct out_csc_color_matrix *tbl_entry)
+		const uint16_t *regval)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
-	//enum csc_color_mode config = CSC_COLOR_MODE_GRAPHICS_OUTPUT_CSC;
 	uint32_t ocsc_mode = 4;
-
-	/**
-	*if (tbl_entry != NULL) {
-	*	switch (tbl_entry->color_space) {
-	*	case COLOR_SPACE_SRGB:
-	*	case COLOR_SPACE_2020_RGB_FULLRANGE:
-	*		ocsc_mode = 0;
-	*		break;
-	*	case COLOR_SPACE_SRGB_LIMITED:
-	*	case COLOR_SPACE_2020_RGB_LIMITEDRANGE:
-	*		ocsc_mode = 1;
-	*		break;
-	*	case COLOR_SPACE_YCBCR601:
-	*	case COLOR_SPACE_YCBCR601_LIMITED:
-	*		ocsc_mode = 2;
-	*		break;
-	*	case COLOR_SPACE_YCBCR709:
-	*	case COLOR_SPACE_YCBCR709_LIMITED:
-	*	case COLOR_SPACE_2020_YCBCR:
-	*		ocsc_mode = 3;
-	*		break;
-	*	case COLOR_SPACE_UNKNOWN:
-	*	default:
-	*		break;
-	*	}
-	*}
-	*/
-
+	dpp1_cm_program_color_matrix(dpp, regval);
 	REG_SET(CM_OCSC_CONTROL, 0, CM_OCSC_MODE, ocsc_mode);
-	dpp1_cm_program_color_matrix(dpp, tbl_entry);
 }
 
 void dpp1_cm_power_on_regamma_lut(struct dpp *dpp_base,

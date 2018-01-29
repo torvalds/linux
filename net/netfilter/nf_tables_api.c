@@ -2072,7 +2072,7 @@ static int nf_tables_dump_rules(struct sk_buff *skb,
 				continue;
 
 			list_for_each_entry_rcu(chain, &table->chains, list) {
-				if (ctx && ctx->chain[0] &&
+				if (ctx && ctx->chain &&
 				    strcmp(ctx->chain, chain->name) != 0)
 					continue;
 
@@ -4665,8 +4665,10 @@ static int nf_tables_dump_obj_done(struct netlink_callback *cb)
 {
 	struct nft_obj_filter *filter = cb->data;
 
-	kfree(filter->table);
-	kfree(filter);
+	if (filter) {
+		kfree(filter->table);
+		kfree(filter);
+	}
 
 	return 0;
 }
@@ -5847,6 +5849,12 @@ static int __net_init nf_tables_init_net(struct net *net)
 	return 0;
 }
 
+static void __net_exit nf_tables_exit_net(struct net *net)
+{
+	WARN_ON_ONCE(!list_empty(&net->nft.af_info));
+	WARN_ON_ONCE(!list_empty(&net->nft.commit_list));
+}
+
 int __nft_release_basechain(struct nft_ctx *ctx)
 {
 	struct nft_rule *rule, *nr;
@@ -5917,6 +5925,7 @@ static void __nft_release_afinfo(struct net *net, struct nft_af_info *afi)
 
 static struct pernet_operations nf_tables_net_ops = {
 	.init	= nf_tables_init_net,
+	.exit	= nf_tables_exit_net,
 };
 
 static int __init nf_tables_module_init(void)

@@ -1731,7 +1731,7 @@ EXPORT_SYMBOL(drm_edid_duplicate);
  *
  * Returns true if @vendor is in @edid, false otherwise
  */
-static bool edid_vendor(struct edid *edid, const char *vendor)
+static bool edid_vendor(const struct edid *edid, const char *vendor)
 {
 	char edid_vendor[3];
 
@@ -1749,7 +1749,7 @@ static bool edid_vendor(struct edid *edid, const char *vendor)
  *
  * This tells subsequent routines what fixes they need to apply.
  */
-static u32 edid_get_quirks(struct edid *edid)
+static u32 edid_get_quirks(const struct edid *edid)
 {
 	const struct edid_quirk *quirk;
 	int i;
@@ -2813,7 +2813,7 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 /*
  * Search EDID for CEA extension block.
  */
-static u8 *drm_find_edid_extension(struct edid *edid, int ext_id)
+static u8 *drm_find_edid_extension(const struct edid *edid, int ext_id)
 {
 	u8 *edid_ext = NULL;
 	int i;
@@ -2835,12 +2835,12 @@ static u8 *drm_find_edid_extension(struct edid *edid, int ext_id)
 	return edid_ext;
 }
 
-static u8 *drm_find_cea_extension(struct edid *edid)
+static u8 *drm_find_cea_extension(const struct edid *edid)
 {
 	return drm_find_edid_extension(edid, CEA_EXT);
 }
 
-static u8 *drm_find_displayid_extension(struct edid *edid)
+static u8 *drm_find_displayid_extension(const struct edid *edid)
 {
 	return drm_find_edid_extension(edid, DISPLAYID_EXT);
 }
@@ -4378,7 +4378,7 @@ drm_parse_hdmi_vsdb_video(struct drm_connector *connector, const u8 *db)
 }
 
 static void drm_parse_cea_ext(struct drm_connector *connector,
-			      struct edid *edid)
+			      const struct edid *edid)
 {
 	struct drm_display_info *info = &connector->display_info;
 	const u8 *edid_ext;
@@ -4412,10 +4412,33 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 	}
 }
 
-static void drm_add_display_info(struct drm_connector *connector,
-				 struct edid *edid, u32 quirks)
+/* A connector has no EDID information, so we've got no EDID to compute quirks from. Reset
+ * all of the values which would have been set from EDID
+ */
+void
+drm_reset_display_info(struct drm_connector *connector)
 {
 	struct drm_display_info *info = &connector->display_info;
+
+	info->width_mm = 0;
+	info->height_mm = 0;
+
+	info->bpc = 0;
+	info->color_formats = 0;
+	info->cea_rev = 0;
+	info->max_tmds_clock = 0;
+	info->dvi_dual = false;
+	info->has_hdmi_infoframe = false;
+
+	info->non_desktop = 0;
+}
+EXPORT_SYMBOL_GPL(drm_reset_display_info);
+
+u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid)
+{
+	struct drm_display_info *info = &connector->display_info;
+
+	u32 quirks = edid_get_quirks(edid);
 
 	info->width_mm = edid->width_cm * 10;
 	info->height_mm = edid->height_cm * 10;
@@ -4430,11 +4453,13 @@ static void drm_add_display_info(struct drm_connector *connector,
 
 	info->non_desktop = !!(quirks & EDID_QUIRK_NON_DESKTOP);
 
+	DRM_DEBUG_KMS("non_desktop set to %d\n", info->non_desktop);
+
 	if (edid->revision < 3)
-		return;
+		return quirks;
 
 	if (!(edid->input & DRM_EDID_INPUT_DIGITAL))
-		return;
+		return quirks;
 
 	drm_parse_cea_ext(connector, edid);
 
@@ -4454,7 +4479,7 @@ static void drm_add_display_info(struct drm_connector *connector,
 
 	/* Only defined for 1.4 with digital displays */
 	if (edid->revision < 4)
-		return;
+		return quirks;
 
 	switch (edid->input & DRM_EDID_DIGITAL_DEPTH_MASK) {
 	case DRM_EDID_DIGITAL_DEPTH_6:
@@ -4489,7 +4514,9 @@ static void drm_add_display_info(struct drm_connector *connector,
 		info->color_formats |= DRM_COLOR_FORMAT_YCRCB444;
 	if (edid->features & DRM_EDID_FEATURE_RGB_YCRCB422)
 		info->color_formats |= DRM_COLOR_FORMAT_YCRCB422;
+	return quirks;
 }
+EXPORT_SYMBOL_GPL(drm_add_display_info);
 
 static int validate_displayid(u8 *displayid, int length, int idx)
 {
@@ -4645,8 +4672,6 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 		return 0;
 	}
 
-	quirks = edid_get_quirks(edid);
-
 	drm_edid_to_eld(connector, edid);
 
 	/*
@@ -4654,7 +4679,7 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	 * To avoid multiple parsing of same block, lets parse that map
 	 * from sink info, before parsing CEA modes.
 	 */
-	drm_add_display_info(connector, edid, quirks);
+	quirks = drm_add_display_info(connector, edid);
 
 	/*
 	 * EDID spec says modes should be preferred in this order:
@@ -4846,6 +4871,11 @@ EXPORT_SYMBOL(drm_hdmi_avi_infoframe_from_display_mode);
  * @mode: DRM display mode
  * @rgb_quant_range: RGB quantization range (Q)
  * @rgb_quant_range_selectable: Sink support selectable RGB quantization range (QS)
+ * @is_hdmi2_sink: HDMI 2.0 sink, which has different default recommendations
+ *
+ * Note that @is_hdmi2_sink can be derived by looking at the
+ * &drm_scdc.supported flag stored in &drm_hdmi_info.scdc,
+ * &drm_display_info.hdmi, which can be found in &drm_connector.display_info.
  */
 void
 drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,

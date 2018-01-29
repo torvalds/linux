@@ -277,7 +277,7 @@ static int acp_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	const struct amdgpu_ip_block *ip_block =
-		amdgpu_get_ip_block(adev, AMD_IP_BLOCK_TYPE_ACP);
+		amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_ACP);
 
 	if (!ip_block)
 		return -EINVAL;

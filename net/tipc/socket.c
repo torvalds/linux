@@ -727,11 +727,11 @@ static unsigned int tipc_poll(struct file *file, struct socket *sock,
 
 	switch (sk->sk_state) {
 	case TIPC_ESTABLISHED:
+	case TIPC_CONNECTING:
 		if (!tsk->cong_link_cnt && !tsk_conn_cong(tsk))
 			revents |= POLLOUT;
 		/* fall thru' */
 	case TIPC_LISTEN:
-	case TIPC_CONNECTING:
 		if (!skb_queue_empty(&sk->sk_receive_queue))
 			revents |= POLLIN | POLLRDNORM;
 		break;
@@ -1140,7 +1140,7 @@ void tipc_sk_mcast_rcv(struct net *net, struct sk_buff_head *arrvq,
 				__skb_dequeue(arrvq);
 				__skb_queue_tail(inputq, skb);
 			}
-			refcount_dec(&skb->users);
+			kfree_skb(skb);
 			spin_unlock_bh(&inputq->lock);
 			continue;
 		}

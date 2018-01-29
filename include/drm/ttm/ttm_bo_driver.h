@@ -352,7 +352,8 @@ struct ttm_bo_driver {
 	 * Returns:
 	 * -ENOMEM: Out of memory.
 	 */
-	int (*ttm_tt_populate)(struct ttm_tt *ttm);
+	int (*ttm_tt_populate)(struct ttm_tt *ttm,
+			struct ttm_operation_ctx *ctx);
 
 	/**
 	 * ttm_tt_unpopulate
@@ -522,7 +523,6 @@ struct ttm_bo_global {
 	struct kobject kobj;
 	struct ttm_mem_global *mem_glob;
 	struct page *dummy_read_page;
-	struct ttm_mem_shrink shrink;
 	struct mutex device_list_mutex;
 	spinlock_t lru_lock;
 
@@ -650,7 +650,8 @@ void ttm_dma_tt_fini(struct ttm_dma_tt *ttm_dma);
  *
  * Bind the pages of @ttm to an aperture location identified by @bo_mem
  */
-int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem);
+int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem,
+		struct ttm_operation_ctx *ctx);
 
 /**
  * ttm_ttm_destroy:
@@ -976,7 +977,7 @@ void ttm_mem_io_free(struct ttm_bo_device *bdev,
  */
 
 int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
-		    bool interruptible, bool no_wait_gpu,
+		    struct ttm_operation_ctx *ctx,
 		    struct ttm_mem_reg *new_mem);
 
 /**
@@ -998,7 +999,7 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
  */
 
 int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
-		       bool interruptible, bool no_wait_gpu,
+		       struct ttm_operation_ctx *ctx,
 		       struct ttm_mem_reg *new_mem);
 
 /**
@@ -1078,7 +1079,7 @@ struct ttm_tt *ttm_agp_tt_create(struct ttm_bo_device *bdev,
 				 struct agp_bridge_data *bridge,
 				 unsigned long size, uint32_t page_flags,
 				 struct page *dummy_read_page);
-int ttm_agp_tt_populate(struct ttm_tt *ttm);
+int ttm_agp_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx);
 void ttm_agp_tt_unpopulate(struct ttm_tt *ttm);
 #endif
 

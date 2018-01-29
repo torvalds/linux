@@ -10,6 +10,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/tinydrm/tinydrm.h>
 #include <linux/device.h>
@@ -34,23 +35,6 @@
  * devm_tinydrm_init(), sets up the pipeline using tinydrm_display_pipe_init()
  * and registers the DRM device using devm_tinydrm_register().
  */
-
-/**
- * tinydrm_lastclose - DRM lastclose helper
- * @drm: DRM device
- *
- * This function ensures that fbdev is restored when drm_lastclose() is called
- * on the last drm_release(). Drivers can use this as their
- * &drm_driver->lastclose callback.
- */
-void tinydrm_lastclose(struct drm_device *drm)
-{
-	struct tinydrm_device *tdev = drm->dev_private;
-
-	DRM_DEBUG_KMS("\n");
-	drm_fbdev_cma_restore_mode(tdev->fbdev_cma);
-}
-EXPORT_SYMBOL(tinydrm_lastclose);
 
 /**
  * tinydrm_gem_cma_prime_import_sg_table - Produce a CMA GEM object from
@@ -214,35 +198,24 @@ EXPORT_SYMBOL(devm_tinydrm_init);
 static int tinydrm_register(struct tinydrm_device *tdev)
 {
 	struct drm_device *drm = tdev->drm;
-	int bpp = drm->mode_config.preferred_depth;
-	struct drm_fbdev_cma *fbdev;
 	int ret;
 
 	ret = drm_dev_register(tdev->drm, 0);
 	if (ret)
 		return ret;
 
-	fbdev = drm_fbdev_cma_init_with_funcs(drm, bpp ? bpp : 32,
-					      drm->mode_config.num_connector,
-					      tdev->fb_funcs);
-	if (IS_ERR(fbdev))
-		DRM_ERROR("Failed to initialize fbdev: %ld\n", PTR_ERR(fbdev));
-	else
-		tdev->fbdev_cma = fbdev;
+	ret = drm_fb_cma_fbdev_init_with_funcs(drm, 0, 0, tdev->fb_funcs);
+	if (ret)
+		DRM_ERROR("Failed to initialize fbdev: %d\n", ret);
 
 	return 0;
 }
 
 static void tinydrm_unregister(struct tinydrm_device *tdev)
 {
-	struct drm_fbdev_cma *fbdev_cma = tdev->fbdev_cma;
-
 	drm_atomic_helper_shutdown(tdev->drm);
-	/* don't restore fbdev in lastclose, keep pipeline disabled */
-	tdev->fbdev_cma = NULL;
+	drm_fb_cma_fbdev_fini(tdev->drm);
 	drm_dev_unregister(tdev->drm);
-	if (fbdev_cma)
-		drm_fbdev_cma_fini(fbdev_cma);
 }
 
 static void devm_tinydrm_register_release(void *data)

@@ -7,9 +7,11 @@ ARCH := x86
 endif
 
 # always use the host compiler
-CC = gcc
-LD = ld
-AR = ar
+HOSTCC	?= gcc
+HOSTLD	?= ld
+CC	 = $(HOSTCC)
+LD	 = $(HOSTLD)
+AR	 = ar
 
 ifeq ($(srctree),)
 srctree := $(patsubst %/,%,$(dir $(CURDIR)))
@@ -44,7 +46,7 @@ $(OBJTOOL_IN): fixdep FORCE
 	@$(MAKE) $(build)=objtool
 
 $(OBJTOOL): $(LIBSUBCMD) $(OBJTOOL_IN)
-	@./sync-check.sh
+	@$(CONFIG_SHELL) ./sync-check.sh
 	$(QUIET_LINK)$(CC) $(OBJTOOL_IN) $(LDFLAGS) -o $@
 
 

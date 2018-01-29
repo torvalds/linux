@@ -80,13 +80,13 @@ void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf);
 __printf(2, 3)
 void drm_printf(struct drm_printer *p, const char *f, ...);
 
+__printf(2, 0)
 /**
  * drm_vprintf - print to a &drm_printer stream
  * @p: the &drm_printer
  * @fmt: format string
  * @va: the va_list
  */
-__printf(2, 0)
 static inline void
 drm_vprintf(struct drm_printer *p, const char *fmt, va_list *va)
 {

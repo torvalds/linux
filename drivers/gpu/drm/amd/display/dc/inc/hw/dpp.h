@@ -68,7 +68,7 @@ struct dpp_funcs {
 
 	void (*dpp_set_csc_adjustment)(
 		struct dpp *dpp,
-		const struct out_csc_color_matrix *tbl_entry);
+		const uint16_t *regval);
 
 	void (*dpp_power_on_regamma_lut)(
 		struct dpp *dpp,
@@ -122,7 +122,7 @@ struct dpp_funcs {
 
 	void (*set_cursor_attributes)(
 			struct dpp *dpp_base,
-			const struct dc_cursor_attributes *attr);
+			enum dc_cursor_color_format color_format);
 
 	void (*set_cursor_position)(
 			struct dpp *dpp_base,

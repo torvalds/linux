@@ -263,6 +263,8 @@ struct ttm_bo_kmap_obj {
  *
  * @interruptible: Sleep interruptible if sleeping.
  * @no_wait_gpu: Return immediately if the GPU is busy.
+ * @allow_reserved_eviction: Allow eviction of reserved BOs.
+ * @resv: Reservation object to allow reserved evictions with.
  *
  * Context for TTM operations like changing buffer placement or general memory
  * allocation.
@@ -270,6 +272,8 @@ struct ttm_bo_kmap_obj {
 struct ttm_operation_ctx {
 	bool interruptible;
 	bool no_wait_gpu;
+	bool allow_reserved_eviction;
+	struct reservation_object *resv;
 	uint64_t bytes_moved;
 };
 
@@ -701,17 +705,6 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map);
 int ttm_fbdev_mmap(struct vm_area_struct *vma, struct ttm_buffer_object *bo);
 
 /**
- * ttm_bo_default_iomem_pfn - get a pfn for a page offset
- *
- * @bo: the BO we need to look up the pfn for
- * @page_offset: offset inside the BO to look up.
- *
- * Calculate the PFN for iomem based mappings during page fault
- */
-unsigned long ttm_bo_default_io_mem_pfn(struct ttm_buffer_object *bo,
-				        unsigned long page_offset);
-
-/**
  * ttm_bo_mmap - mmap out of the ttm device address space.
  *
  * @filp:      filp as input from the mmap method.
@@ -748,6 +741,8 @@ ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
 		  const char __user *wbuf, char __user *rbuf,
 		  size_t count, loff_t *f_pos, bool write);
 
+int ttm_bo_swapout(struct ttm_bo_global *glob,
+			struct ttm_operation_ctx *ctx);
 void ttm_bo_swapout_all(struct ttm_bo_device *bdev);
 int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo);
 #endif

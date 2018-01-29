@@ -216,9 +216,10 @@ static struct ttm_tt *mgag200_ttm_tt_create(struct ttm_bo_device *bdev,
 	return tt;
 }
 
-static int mgag200_ttm_tt_populate(struct ttm_tt *ttm)
+static int mgag200_ttm_tt_populate(struct ttm_tt *ttm,
+			struct ttm_operation_ctx *ctx)
 {
-	return ttm_pool_populate(ttm);
+	return ttm_pool_populate(ttm, ctx);
 }
 
 static void mgag200_ttm_tt_unpopulate(struct ttm_tt *ttm)
@@ -237,7 +238,6 @@ struct ttm_bo_driver mgag200_bo_driver = {
 	.verify_access = mgag200_bo_verify_access,
 	.io_mem_reserve = &mgag200_ttm_io_mem_reserve,
 	.io_mem_free = &mgag200_ttm_io_mem_free,
-	.io_mem_pfn = ttm_bo_default_io_mem_pfn,
 };
 
 int mgag200_mm_init(struct mga_device *mdev)

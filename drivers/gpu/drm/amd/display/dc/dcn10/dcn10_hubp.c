@@ -48,9 +48,20 @@ void hubp1_set_blank(struct hubp *hubp, bool blank)
 			HUBP_TTU_DISABLE, blank_en);
 
 	if (blank) {
-		REG_WAIT(DCHUBP_CNTL,
-				HUBP_NO_OUTSTANDING_REQ, 1,
-				1, 200);
+		uint32_t reg_val = REG_READ(DCHUBP_CNTL);
+
+		if (reg_val) {
+			/* init sequence workaround: in case HUBP is
+			 * power gated, this wait would timeout.
+			 *
+			 * we just wrote reg_val to non-0, if it stay 0
+			 * it means HUBP is gated
+			 */
+			REG_WAIT(DCHUBP_CNTL,
+					HUBP_NO_OUTSTANDING_REQ, 1,
+					1, 200);
+		}
+
 		hubp->mpcc_id = 0xf;
 		hubp->opp_id = 0xf;
 	}
@@ -96,10 +107,12 @@ static void hubp1_vready_workaround(struct hubp *hubp,
 }
 
 void hubp1_program_tiling(
-	struct dcn10_hubp *hubp1,
+	struct hubp *hubp,
 	const union dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
 {
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+
 	REG_UPDATE_6(DCSURF_ADDR_CONFIG,
 			NUM_PIPES, log_2(info->gfx9.num_pipes),
 			NUM_BANKS, log_2(info->gfx9.num_banks),
@@ -116,13 +129,14 @@ void hubp1_program_tiling(
 }
 
 void hubp1_program_size_and_rotation(
-	struct dcn10_hubp *hubp1,
+	struct hubp *hubp,
 	enum dc_rotation_angle rotation,
 	enum surface_pixel_format format,
 	const union plane_size *plane_size,
 	struct dc_plane_dcc_param *dcc,
 	bool horizontal_mirror)
 {
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 	uint32_t pitch, meta_pitch, pitch_c, meta_pitch_c, mirror;
 
 	/* Program data and meta surface pitch (calculation from addrlib)
@@ -178,9 +192,10 @@ void hubp1_program_size_and_rotation(
 }
 
 void hubp1_program_pixel_format(
-	struct dcn10_hubp *hubp1,
+	struct hubp *hubp,
 	enum surface_pixel_format format)
 {
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 	uint32_t red_bar = 3;
 	uint32_t blue_bar = 2;
 
@@ -424,13 +439,11 @@ void hubp1_program_surface_config(
 	struct dc_plane_dcc_param *dcc,
 	bool horizontal_mirror)
 {
-	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
-
 	hubp1_dcc_control(hubp, dcc->enable, dcc->grph.independent_64b_blks);
-	hubp1_program_tiling(hubp1, tiling_info, format);
+	hubp1_program_tiling(hubp, tiling_info, format);
 	hubp1_program_size_and_rotation(
-			hubp1, rotation, format, plane_size, dcc, horizontal_mirror);
-	hubp1_program_pixel_format(hubp1, format);
+			hubp, rotation, format, plane_size, dcc, horizontal_mirror);
+	hubp1_program_pixel_format(hubp, format);
 }
 
 void hubp1_program_requestor(
@@ -765,42 +778,7 @@ void hubp1_read_state(struct dcn10_hubp *hubp1,
 			QoS_LEVEL_HIGH_WM, &s->qos_level_high_wm);
 }
 
-enum cursor_pitch {
-	CURSOR_PITCH_64_PIXELS = 0,
-	CURSOR_PITCH_128_PIXELS,
-	CURSOR_PITCH_256_PIXELS
-};
-
-enum cursor_lines_per_chunk {
-	CURSOR_LINE_PER_CHUNK_2 = 1,
-	CURSOR_LINE_PER_CHUNK_4,
-	CURSOR_LINE_PER_CHUNK_8,
-	CURSOR_LINE_PER_CHUNK_16
-};
-
-static bool ippn10_cursor_program_control(
-		struct dcn10_hubp *hubp1,
-		bool pixel_data_invert,
-		enum dc_cursor_color_format color_format)
-{
-	if (REG(CURSOR_SETTINS))
-		REG_SET_2(CURSOR_SETTINS, 0,
-				/* no shift of the cursor HDL schedule */
-				CURSOR0_DST_Y_OFFSET, 0,
-				 /* used to shift the cursor chunk request deadline */
-				CURSOR0_CHUNK_HDL_ADJUST, 3);
-	else
-		REG_SET_2(CURSOR_SETTINGS, 0,
-				/* no shift of the cursor HDL schedule */
-				CURSOR0_DST_Y_OFFSET, 0,
-				 /* used to shift the cursor chunk request deadline */
-				CURSOR0_CHUNK_HDL_ADJUST, 3);
-
-	return true;
-}
-
-static enum cursor_pitch ippn10_get_cursor_pitch(
-		unsigned int pitch)
+enum cursor_pitch hubp1_get_cursor_pitch(unsigned int pitch)
 {
 	enum cursor_pitch hw_pitch;
 
@@ -823,7 +801,7 @@ static enum cursor_pitch ippn10_get_cursor_pitch(
 	return hw_pitch;
 }
 
-static enum cursor_lines_per_chunk ippn10_get_lines_per_chunk(
+static enum cursor_lines_per_chunk hubp1_get_lines_per_chunk(
 		unsigned int cur_width,
 		enum dc_cursor_color_format format)
 {
@@ -849,8 +827,8 @@ void hubp1_cursor_set_attributes(
 		const struct dc_cursor_attributes *attr)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
-	enum cursor_pitch hw_pitch = ippn10_get_cursor_pitch(attr->pitch);
-	enum cursor_lines_per_chunk lpc = ippn10_get_lines_per_chunk(
+	enum cursor_pitch hw_pitch = hubp1_get_cursor_pitch(attr->pitch);
+	enum cursor_lines_per_chunk lpc = hubp1_get_lines_per_chunk(
 			attr->width, attr->color_format);
 
 	hubp->curs_attr = *attr;
@@ -863,13 +841,17 @@ void hubp1_cursor_set_attributes(
 	REG_UPDATE_2(CURSOR_SIZE,
 			CURSOR_WIDTH, attr->width,
 			CURSOR_HEIGHT, attr->height);
+
 	REG_UPDATE_3(CURSOR_CONTROL,
 			CURSOR_MODE, attr->color_format,
 			CURSOR_PITCH, hw_pitch,
 			CURSOR_LINES_PER_CHUNK, lpc);
-	ippn10_cursor_program_control(hubp1,
-			attr->attribute_flags.bits.INVERT_PIXEL_DATA,
-			attr->color_format);
+
+	REG_SET_2(CURSOR_SETTINS, 0,
+			/* no shift of the cursor HDL schedule */
+			CURSOR0_DST_Y_OFFSET, 0,
+			 /* used to shift the cursor chunk request deadline */
+			CURSOR0_CHUNK_HDL_ADJUST, 3);
 }
 
 void hubp1_cursor_set_position(
@@ -909,7 +891,8 @@ void hubp1_cursor_set_position(
 		cur_en = 0;  /* not visible beyond left edge*/
 
 	if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
-		hubp1_cursor_set_attributes(hubp, &hubp->curs_attr);
+		hubp->funcs->set_cursor_attributes(hubp, &hubp->curs_attr);
+
 	REG_UPDATE(CURSOR_CONTROL,
 			CURSOR_ENABLE, cur_en);
 

@@ -77,5 +77,9 @@ void hwss_edp_backlight_control(
 	struct dc_link *link,
 	bool enable);
 
+void hwss_edp_wait_for_hpd_ready(
+		struct dc_link *link,
+		bool power_up);
+
 #endif /* __DC_HWSS_DCE110_H__ */
 

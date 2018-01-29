@@ -431,9 +431,9 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	adev->dm.dc = dc_create(&init_data);
 
 	if (adev->dm.dc) {
-		DRM_INFO("Display Core initialized!\n");
+		DRM_INFO("Display Core initialized with v%s!\n", DC_VER);
 	} else {
-		DRM_INFO("Display Core failed to initialize!\n");
+		DRM_INFO("Display Core failed to initialize with v%s!\n", DC_VER);
 		goto error;
 	}
 
@@ -2351,7 +2351,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		       const struct dm_connector_state *dm_state)
 {
 	struct drm_display_mode *preferred_mode = NULL;
-	const struct drm_connector *drm_connector;
+	struct drm_connector *drm_connector;
 	struct dc_stream_state *stream = NULL;
 	struct drm_display_mode mode = *drm_mode;
 	bool native_mode_found = false;
@@ -2370,11 +2370,13 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 
 	if (!aconnector->dc_sink) {
 		/*
-		 * Exclude MST from creating fake_sink
-		 * TODO: need to enable MST into fake_sink feature
+		 * Create dc_sink when necessary to MST
+		 * Don't apply fake_sink to MST
 		 */
-		if (aconnector->mst_port)
-			goto stream_create_fail;
+		if (aconnector->mst_port) {
+			dm_dp_mst_dc_sink_create(drm_connector);
+			goto mst_dc_sink_create_done;
+		}
 
 		if (create_fake_sink(aconnector))
 			goto stream_create_fail;
@@ -2425,6 +2427,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 stream_create_fail:
 dm_state_null:
 drm_connector_null:
+mst_dc_sink_create_done:
 	return stream;
 }
 
@@ -2725,8 +2728,7 @@ static void create_eml_sink(struct amdgpu_dm_connector *aconnector)
 	};
 	struct edid *edid;
 
-	if (!aconnector->base.edid_blob_ptr ||
-		!aconnector->base.edid_blob_ptr->data) {
+	if (!aconnector->base.edid_blob_ptr) {
 		DRM_ERROR("No EDID firmware found on connector: %s ,forcing to OFF!\n",
 				aconnector->base.name);
 
@@ -4514,17 +4516,14 @@ static int dm_update_crtcs_state(struct dc *dc,
 						__func__, acrtc->base.base.id);
 				break;
 			}
+
+			if (dc_is_stream_unchanged(new_stream, dm_old_crtc_state->stream) &&
+			    dc_is_stream_scaling_unchanged(new_stream, dm_old_crtc_state->stream)) {
+				new_crtc_state->mode_changed = false;
+				DRM_DEBUG_DRIVER("Mode change not required, setting mode_changed to %d",
+						 new_crtc_state->mode_changed);
+			}
 		}
-
-		if (enable && dc_is_stream_unchanged(new_stream, dm_old_crtc_state->stream) &&
-				dc_is_stream_scaling_unchanged(new_stream, dm_old_crtc_state->stream)) {
-
-			new_crtc_state->mode_changed = false;
-
-			DRM_DEBUG_DRIVER("Mode change not required, setting mode_changed to %d",
-				         new_crtc_state->mode_changed);
-		}
-
 
 		if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
 			goto next_crtc;

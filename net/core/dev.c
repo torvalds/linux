@@ -1106,7 +1106,7 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 	 * when the name is long and there isn't enough space left
 	 * for the digits, or if all bits are used.
 	 */
-	return p ? -ENFILE : -EEXIST;
+	return -ENFILE;
 }
 
 static int dev_alloc_name_ns(struct net *net,
@@ -1146,7 +1146,19 @@ EXPORT_SYMBOL(dev_alloc_name);
 int dev_get_valid_name(struct net *net, struct net_device *dev,
 		       const char *name)
 {
-	return dev_alloc_name_ns(net, dev, name);
+	BUG_ON(!net);
+
+	if (!dev_valid_name(name))
+		return -EINVAL;
+
+	if (strchr(name, '%'))
+		return dev_alloc_name_ns(net, dev, name);
+	else if (__dev_get_by_name(net, name))
+		return -EEXIST;
+	else if (dev->name != name)
+		strlcpy(dev->name, name, IFNAMSIZ);
+
+	return 0;
 }
 EXPORT_SYMBOL(dev_get_valid_name);
 
@@ -3904,7 +3916,7 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 				     hroom > 0 ? ALIGN(hroom, NET_SKB_PAD) : 0,
 				     troom > 0 ? troom + 128 : 0, GFP_ATOMIC))
 			goto do_drop;
-		if (troom > 0 && __skb_linearize(skb))
+		if (skb_linearize(skb))
 			goto do_drop;
 	}
 

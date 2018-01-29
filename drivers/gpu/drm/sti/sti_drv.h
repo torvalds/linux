@@ -24,7 +24,6 @@ struct sti_private {
 	struct sti_compositor *compo;
 	struct drm_property *plane_zorder_property;
 	struct drm_device *drm_dev;
-	struct drm_fbdev_cma *fbdev;
 };
 
 extern struct platform_driver sti_tvout_driver;

@@ -1,5 +1,5 @@
 /*
-* Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -498,26 +498,15 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 	data->viewport_c.height = (data->viewport.height + vpc_div - 1) / vpc_div;
 
 	/* Handle hsplit */
-	if (pri_split || sec_split) {
-		/* HMirror XOR Secondary_pipe XOR Rotation_180 */
-		bool right_view = (sec_split != plane_state->horizontal_mirror) !=
-					(plane_state->rotation == ROTATION_ANGLE_180);
-
-		if (plane_state->rotation == ROTATION_ANGLE_90
-				|| plane_state->rotation == ROTATION_ANGLE_270)
-			/* Secondary_pipe XOR Rotation_270 */
-			right_view = (plane_state->rotation == ROTATION_ANGLE_270) != sec_split;
-
-		if (right_view) {
-			data->viewport.x +=  data->viewport.width / 2;
-			data->viewport_c.x +=  data->viewport_c.width / 2;
-			/* Ceil offset pipe */
-			data->viewport.width = (data->viewport.width + 1) / 2;
-			data->viewport_c.width = (data->viewport_c.width + 1) / 2;
-		} else {
-			data->viewport.width /= 2;
-			data->viewport_c.width /= 2;
-		}
+	if (sec_split) {
+		data->viewport.x +=  data->viewport.width / 2;
+		data->viewport_c.x +=  data->viewport_c.width / 2;
+		/* Ceil offset pipe */
+		data->viewport.width = (data->viewport.width + 1) / 2;
+		data->viewport_c.width = (data->viewport_c.width + 1) / 2;
+	} else if (pri_split) {
+		data->viewport.width /= 2;
+		data->viewport_c.width /= 2;
 	}
 
 	if (plane_state->rotation == ROTATION_ANGLE_90 ||
@@ -534,6 +523,11 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 	struct rect surf_src = plane_state->src_rect;
 	struct rect surf_clip = plane_state->clip_rect;
 	int recout_full_x, recout_full_y;
+	bool pri_split = pipe_ctx->bottom_pipe &&
+			pipe_ctx->bottom_pipe->plane_state == pipe_ctx->plane_state;
+	bool sec_split = pipe_ctx->top_pipe &&
+			pipe_ctx->top_pipe->plane_state == pipe_ctx->plane_state;
+	bool top_bottom_split = stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM;
 
 	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
 			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
@@ -568,33 +562,43 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 						- pipe_ctx->plane_res.scl_data.recout.y;
 
 	/* Handle h & vsplit */
-	if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->plane_state ==
-		pipe_ctx->plane_state) {
-		if (stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
-			pipe_ctx->plane_res.scl_data.recout.y += pipe_ctx->plane_res.scl_data.recout.height / 2;
-			/* Floor primary pipe, ceil 2ndary pipe */
-			pipe_ctx->plane_res.scl_data.recout.height = (pipe_ctx->plane_res.scl_data.recout.height + 1) / 2;
-		} else {
-			pipe_ctx->plane_res.scl_data.recout.x += pipe_ctx->plane_res.scl_data.recout.width / 2;
-			pipe_ctx->plane_res.scl_data.recout.width = (pipe_ctx->plane_res.scl_data.recout.width + 1) / 2;
-		}
-	} else if (pipe_ctx->bottom_pipe &&
-			pipe_ctx->bottom_pipe->plane_state == pipe_ctx->plane_state) {
-		if (stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM)
-			pipe_ctx->plane_res.scl_data.recout.height /= 2;
-		else
-			pipe_ctx->plane_res.scl_data.recout.width /= 2;
-	}
+	if (sec_split && top_bottom_split) {
+		pipe_ctx->plane_res.scl_data.recout.y +=
+				pipe_ctx->plane_res.scl_data.recout.height / 2;
+		/* Floor primary pipe, ceil 2ndary pipe */
+		pipe_ctx->plane_res.scl_data.recout.height =
+				(pipe_ctx->plane_res.scl_data.recout.height + 1) / 2;
+	} else if (pri_split && top_bottom_split)
+		pipe_ctx->plane_res.scl_data.recout.height /= 2;
+	else if (pri_split || sec_split) {
+		/* HMirror XOR Secondary_pipe XOR Rotation_180 */
+		bool right_view = (sec_split != plane_state->horizontal_mirror) !=
+					(plane_state->rotation == ROTATION_ANGLE_180);
 
+		if (plane_state->rotation == ROTATION_ANGLE_90
+				|| plane_state->rotation == ROTATION_ANGLE_270)
+			/* Secondary_pipe XOR Rotation_270 */
+			right_view = (plane_state->rotation == ROTATION_ANGLE_270) != sec_split;
+
+		if (right_view) {
+			pipe_ctx->plane_res.scl_data.recout.x +=
+					pipe_ctx->plane_res.scl_data.recout.width / 2;
+			/* Ceil offset pipe */
+			pipe_ctx->plane_res.scl_data.recout.width =
+					(pipe_ctx->plane_res.scl_data.recout.width + 1) / 2;
+		} else {
+			pipe_ctx->plane_res.scl_data.recout.width /= 2;
+		}
+	}
 	/* Unclipped recout offset = stream dst offset + ((surf dst offset - stream surf_src offset)
 	 * 				* 1/ stream scaling ratio) - (surf surf_src offset * 1/ full scl
 	 * 				ratio)
 	 */
-	recout_full_x = stream->dst.x + (plane_state->dst_rect.x -  stream->src.x)
+	recout_full_x = stream->dst.x + (plane_state->dst_rect.x - stream->src.x)
 					* stream->dst.width / stream->src.width -
 			surf_src.x * plane_state->dst_rect.width / surf_src.width
 					* stream->dst.width / stream->src.width;
-	recout_full_y = stream->dst.y + (plane_state->dst_rect.y -  stream->src.y)
+	recout_full_y = stream->dst.y + (plane_state->dst_rect.y - stream->src.y)
 					* stream->dst.height / stream->src.height -
 			surf_src.y * plane_state->dst_rect.height / surf_src.height
 					* stream->dst.height / stream->src.height;
@@ -650,7 +654,20 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 	struct rect src = pipe_ctx->plane_state->src_rect;
 	int vpc_div = (data->format == PIXEL_FORMAT_420BPP8
 			|| data->format == PIXEL_FORMAT_420BPP10) ? 2 : 1;
+	bool flip_vert_scan_dir = false, flip_horz_scan_dir = false;
 
+	/*
+	 * Need to calculate the scan direction for viewport to make adjustments
+	 */
+	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_180) {
+		flip_vert_scan_dir = true;
+		flip_horz_scan_dir = true;
+	} else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90)
+		flip_vert_scan_dir = true;
+	else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
+		flip_horz_scan_dir = true;
+	if (pipe_ctx->plane_state->horizontal_mirror)
+		flip_horz_scan_dir = !flip_horz_scan_dir;
 
 	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
 			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270) {
@@ -715,7 +732,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 	}
 
 	/* Adjust for non-0 viewport offset */
-	if (data->viewport.x) {
+	if (data->viewport.x && !flip_horz_scan_dir) {
 		int int_part;
 
 		data->inits.h = dal_fixed31_32_add(data->inits.h, dal_fixed31_32_mul_int(
@@ -736,7 +753,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 		data->inits.h = dal_fixed31_32_add_int(data->inits.h, int_part);
 	}
 
-	if (data->viewport_c.x) {
+	if (data->viewport_c.x && !flip_horz_scan_dir) {
 		int int_part;
 
 		data->inits.h_c = dal_fixed31_32_add(data->inits.h_c, dal_fixed31_32_mul_int(
@@ -757,7 +774,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 		data->inits.h_c = dal_fixed31_32_add_int(data->inits.h_c, int_part);
 	}
 
-	if (data->viewport.y) {
+	if (data->viewport.y && !flip_vert_scan_dir) {
 		int int_part;
 
 		data->inits.v = dal_fixed31_32_add(data->inits.v, dal_fixed31_32_mul_int(
@@ -778,7 +795,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 		data->inits.v = dal_fixed31_32_add_int(data->inits.v, int_part);
 	}
 
-	if (data->viewport_c.y) {
+	if (data->viewport_c.y && !flip_vert_scan_dir) {
 		int int_part;
 
 		data->inits.v_c = dal_fixed31_32_add(data->inits.v_c, dal_fixed31_32_mul_int(

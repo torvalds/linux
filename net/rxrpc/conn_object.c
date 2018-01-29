@@ -424,7 +424,7 @@ void rxrpc_service_connection_reaper(struct work_struct *work)
 	if (earliest != now + MAX_JIFFY_OFFSET) {
 		_debug("reschedule reaper %ld", (long)earliest - (long)now);
 		ASSERT(time_after(earliest, now));
-		rxrpc_set_service_reap_timer(rxnet, earliest);		
+		rxrpc_set_service_reap_timer(rxnet, earliest);
 	}
 
 	while (!list_empty(&graveyard)) {

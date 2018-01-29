@@ -976,7 +976,7 @@ static void rxrpc_input_call_packet(struct rxrpc_call *call,
 		rxrpc_reduce_call_timer(call, expect_rx_by, now,
 					rxrpc_timer_set_for_normal);
 	}
-	
+
 	switch (sp->hdr.type) {
 	case RXRPC_PACKET_TYPE_DATA:
 		rxrpc_input_data(call, skb, skew);
@@ -1213,7 +1213,7 @@ void rxrpc_data_ready(struct sock *udp_sk)
 				goto reupgrade;
 			conn->service_id = sp->hdr.serviceId;
 		}
-		
+
 		if (sp->hdr.callNumber == 0) {
 			/* Connection-level packet */
 			_debug("CONN %p {%d}", conn, conn->debug_id);

@@ -679,55 +679,55 @@ static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
-		amdgpu_program_register_sequence(adev,
-						 iceland_mgcg_cgcg_init,
-						 ARRAY_SIZE(iceland_mgcg_cgcg_init));
-		amdgpu_program_register_sequence(adev,
-						 golden_settings_iceland_a11,
-						 ARRAY_SIZE(golden_settings_iceland_a11));
-		amdgpu_program_register_sequence(adev,
-						 iceland_golden_common_all,
-						 ARRAY_SIZE(iceland_golden_common_all));
+		amdgpu_device_program_register_sequence(adev,
+							iceland_mgcg_cgcg_init,
+							ARRAY_SIZE(iceland_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							golden_settings_iceland_a11,
+							ARRAY_SIZE(golden_settings_iceland_a11));
+		amdgpu_device_program_register_sequence(adev,
+							iceland_golden_common_all,
+							ARRAY_SIZE(iceland_golden_common_all));
 		break;
 	case CHIP_FIJI:
-		amdgpu_program_register_sequence(adev,
-						 fiji_mgcg_cgcg_init,
-						 ARRAY_SIZE(fiji_mgcg_cgcg_init));
-		amdgpu_program_register_sequence(adev,
-						 golden_settings_fiji_a10,
-						 ARRAY_SIZE(golden_settings_fiji_a10));
-		amdgpu_program_register_sequence(adev,
-						 fiji_golden_common_all,
-						 ARRAY_SIZE(fiji_golden_common_all));
+		amdgpu_device_program_register_sequence(adev,
+							fiji_mgcg_cgcg_init,
+							ARRAY_SIZE(fiji_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							golden_settings_fiji_a10,
+							ARRAY_SIZE(golden_settings_fiji_a10));
+		amdgpu_device_program_register_sequence(adev,
+							fiji_golden_common_all,
+							ARRAY_SIZE(fiji_golden_common_all));
 		break;
 
 	case CHIP_TONGA:
-		amdgpu_program_register_sequence(adev,
-						 tonga_mgcg_cgcg_init,
-						 ARRAY_SIZE(tonga_mgcg_cgcg_init));
-		amdgpu_program_register_sequence(adev,
-						 golden_settings_tonga_a11,
-						 ARRAY_SIZE(golden_settings_tonga_a11));
-		amdgpu_program_register_sequence(adev,
-						 tonga_golden_common_all,
-						 ARRAY_SIZE(tonga_golden_common_all));
+		amdgpu_device_program_register_sequence(adev,
+							tonga_mgcg_cgcg_init,
+							ARRAY_SIZE(tonga_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							golden_settings_tonga_a11,
+							ARRAY_SIZE(golden_settings_tonga_a11));
+		amdgpu_device_program_register_sequence(adev,
+							tonga_golden_common_all,
+							ARRAY_SIZE(tonga_golden_common_all));
 		break;
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
-		amdgpu_program_register_sequence(adev,
-						 golden_settings_polaris11_a11,
-						 ARRAY_SIZE(golden_settings_polaris11_a11));
-		amdgpu_program_register_sequence(adev,
-						 polaris11_golden_common_all,
-						 ARRAY_SIZE(polaris11_golden_common_all));
+		amdgpu_device_program_register_sequence(adev,
+							golden_settings_polaris11_a11,
+							ARRAY_SIZE(golden_settings_polaris11_a11));
+		amdgpu_device_program_register_sequence(adev,
+							polaris11_golden_common_all,
+							ARRAY_SIZE(polaris11_golden_common_all));
 		break;
 	case CHIP_POLARIS10:
-		amdgpu_program_register_sequence(adev,
-						 golden_settings_polaris10_a11,
-						 ARRAY_SIZE(golden_settings_polaris10_a11));
-		amdgpu_program_register_sequence(adev,
-						 polaris10_golden_common_all,
-						 ARRAY_SIZE(polaris10_golden_common_all));
+		amdgpu_device_program_register_sequence(adev,
+							golden_settings_polaris10_a11,
+							ARRAY_SIZE(golden_settings_polaris10_a11));
+		amdgpu_device_program_register_sequence(adev,
+							polaris10_golden_common_all,
+							ARRAY_SIZE(polaris10_golden_common_all));
 		WREG32_SMC(ixCG_ACLK_CNTL, 0x0000001C);
 		if (adev->pdev->revision == 0xc7 &&
 		    ((adev->pdev->subsystem_device == 0xb37 && adev->pdev->subsystem_vendor == 0x1002) ||
@@ -738,26 +738,26 @@ static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 		}
 		break;
 	case CHIP_CARRIZO:
-		amdgpu_program_register_sequence(adev,
-						 cz_mgcg_cgcg_init,
-						 ARRAY_SIZE(cz_mgcg_cgcg_init));
-		amdgpu_program_register_sequence(adev,
-						 cz_golden_settings_a11,
-						 ARRAY_SIZE(cz_golden_settings_a11));
-		amdgpu_program_register_sequence(adev,
-						 cz_golden_common_all,
-						 ARRAY_SIZE(cz_golden_common_all));
+		amdgpu_device_program_register_sequence(adev,
+							cz_mgcg_cgcg_init,
+							ARRAY_SIZE(cz_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							cz_golden_settings_a11,
+							ARRAY_SIZE(cz_golden_settings_a11));
+		amdgpu_device_program_register_sequence(adev,
+							cz_golden_common_all,
+							ARRAY_SIZE(cz_golden_common_all));
 		break;
 	case CHIP_STONEY:
-		amdgpu_program_register_sequence(adev,
-						 stoney_mgcg_cgcg_init,
-						 ARRAY_SIZE(stoney_mgcg_cgcg_init));
-		amdgpu_program_register_sequence(adev,
-						 stoney_golden_settings_a11,
-						 ARRAY_SIZE(stoney_golden_settings_a11));
-		amdgpu_program_register_sequence(adev,
-						 stoney_golden_common_all,
-						 ARRAY_SIZE(stoney_golden_common_all));
+		amdgpu_device_program_register_sequence(adev,
+							stoney_mgcg_cgcg_init,
+							ARRAY_SIZE(stoney_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							stoney_golden_settings_a11,
+							ARRAY_SIZE(stoney_golden_settings_a11));
+		amdgpu_device_program_register_sequence(adev,
+							stoney_golden_common_all,
+							ARRAY_SIZE(stoney_golden_common_all));
 		break;
 	default:
 		break;
@@ -5062,8 +5062,9 @@ static int gfx_v8_0_hw_fini(void *handle)
 	gfx_v8_0_cp_enable(adev, false);
 	gfx_v8_0_rlc_stop(adev);
 
-	amdgpu_set_powergating_state(adev,
-			AMD_IP_BLOCK_TYPE_GFX, AMD_PG_STATE_UNGATE);
+	amdgpu_device_ip_set_powergating_state(adev,
+					       AMD_IP_BLOCK_TYPE_GFX,
+					       AMD_PG_STATE_UNGATE);
 
 	return 0;
 }
@@ -5480,8 +5481,9 @@ static int gfx_v8_0_late_init(void *handle)
 	if (r)
 		return r;
 
-	amdgpu_set_powergating_state(adev,
-			AMD_IP_BLOCK_TYPE_GFX, AMD_PG_STATE_GATE);
+	amdgpu_device_ip_set_powergating_state(adev,
+					       AMD_IP_BLOCK_TYPE_GFX,
+					       AMD_PG_STATE_GATE);
 
 	return 0;
 }
@@ -5492,10 +5494,10 @@ static void gfx_v8_0_enable_gfx_static_mg_power_gating(struct amdgpu_device *ade
 	if ((adev->asic_type == CHIP_POLARIS11) ||
 	    (adev->asic_type == CHIP_POLARIS12))
 		/* Send msg to SMU via Powerplay */
-		amdgpu_set_powergating_state(adev,
-					     AMD_IP_BLOCK_TYPE_SMC,
-					     enable ?
-					     AMD_PG_STATE_GATE : AMD_PG_STATE_UNGATE);
+		amdgpu_device_ip_set_powergating_state(adev,
+						       AMD_IP_BLOCK_TYPE_SMC,
+						       enable ?
+						       AMD_PG_STATE_GATE : AMD_PG_STATE_UNGATE);
 
 	WREG32_FIELD(RLC_PG_CNTL, STATIC_PER_CU_PG_ENABLE, enable ? 1 : 0);
 }
@@ -6243,7 +6245,7 @@ static void gfx_v8_0_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
 
 static void gfx_v8_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 				      struct amdgpu_ib *ib,
-				      unsigned vm_id, bool ctx_switch)
+				      unsigned vmid, bool ctx_switch)
 {
 	u32 header, control = 0;
 
@@ -6252,7 +6254,7 @@ static void gfx_v8_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 	else
 		header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
 
-	control |= ib->length_dw | (vm_id << 24);
+	control |= ib->length_dw | (vmid << 24);
 
 	if (amdgpu_sriov_vf(ring->adev) && (ib->flags & AMDGPU_IB_FLAG_PREEMPT)) {
 		control |= INDIRECT_BUFFER_PRE_ENB(1);
@@ -6273,9 +6275,9 @@ static void gfx_v8_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 
 static void gfx_v8_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
 					  struct amdgpu_ib *ib,
-					  unsigned vm_id, bool ctx_switch)
+					  unsigned vmid, bool ctx_switch)
 {
-	u32 control = INDIRECT_BUFFER_VALID | ib->length_dw | (vm_id << 24);
+	u32 control = INDIRECT_BUFFER_VALID | ib->length_dw | (vmid << 24);
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
 	amdgpu_ring_write(ring,
@@ -6326,7 +6328,7 @@ static void gfx_v8_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 }
 
 static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
-					unsigned vm_id, uint64_t pd_addr)
+					unsigned vmid, uint64_t pd_addr)
 {
 	int usepfp = (ring->funcs->type == AMDGPU_RING_TYPE_GFX);
 
@@ -6334,12 +6336,12 @@ static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(usepfp) |
 				 WRITE_DATA_DST_SEL(0)) |
 				 WR_CONFIRM);
-	if (vm_id < 8) {
+	if (vmid < 8) {
 		amdgpu_ring_write(ring,
-				  (mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vm_id));
+				  (mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vmid));
 	} else {
 		amdgpu_ring_write(ring,
-				  (mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vm_id - 8));
+				  (mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vmid - 8));
 	}
 	amdgpu_ring_write(ring, 0);
 	amdgpu_ring_write(ring, pd_addr >> 12);
@@ -6351,7 +6353,7 @@ static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 				 WRITE_DATA_DST_SEL(0)));
 	amdgpu_ring_write(ring, mmVM_INVALIDATE_REQUEST);
 	amdgpu_ring_write(ring, 0);
-	amdgpu_ring_write(ring, 1 << vm_id);
+	amdgpu_ring_write(ring, 1 << vmid);
 
 	/* wait for the invalidate to complete */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WAIT_REG_MEM, 5));
@@ -6472,10 +6474,10 @@ static void gfx_v8_0_hqd_set_priority(struct amdgpu_device *adev,
 	mutex_unlock(&adev->srbm_mutex);
 }
 static void gfx_v8_0_ring_set_priority_compute(struct amdgpu_ring *ring,
-					       enum amd_sched_priority priority)
+					       enum drm_sched_priority priority)
 {
 	struct amdgpu_device *adev = ring->adev;
-	bool acquire = priority == AMD_SCHED_PRIORITY_HIGH_HW;
+	bool acquire = priority == DRM_SCHED_PRIORITY_HIGH_HW;
 
 	if (ring->funcs->type != AMDGPU_RING_TYPE_COMPUTE)
 		return;
@@ -7114,6 +7116,11 @@ static void gfx_v8_0_get_cu_info(struct amdgpu_device *adev)
 
 	cu_info->number = active_cu_number;
 	cu_info->ao_cu_mask = ao_cu_mask;
+	cu_info->simd_per_cu = NUM_SIMD_PER_CU;
+	cu_info->max_waves_per_simd = 10;
+	cu_info->max_scratch_slots_per_cu = 32;
+	cu_info->wave_front_size = 64;
+	cu_info->lds_size = 64;
 }
 
 const struct amdgpu_ip_block_version gfx_v8_0_ip_block =

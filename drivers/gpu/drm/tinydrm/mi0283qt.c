@@ -9,6 +9,7 @@
  * (at your option) any later version.
  */
 
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_modeset_helper.h>
 #include <drm/tinydrm/ili9341.h>
 #include <drm/tinydrm/mipi-dbi.h>
@@ -140,7 +141,7 @@ static struct drm_driver mi0283qt_driver = {
 				  DRIVER_ATOMIC,
 	.fops			= &mi0283qt_fops,
 	TINYDRM_GEM_DRIVER_OPS,
-	.lastclose		= tinydrm_lastclose,
+	.lastclose		= drm_fb_helper_lastclose,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "mi0283qt",
 	.desc			= "Multi-Inno MI0283QT",

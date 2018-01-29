@@ -103,7 +103,6 @@ struct tve200_drm_dev_private {
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
 	struct drm_simple_display_pipe pipe;
-	struct drm_fbdev_cma *fbdev;
 
 	void *regs;
 	struct clk *pclk;

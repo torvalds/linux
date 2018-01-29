@@ -86,6 +86,7 @@ struct dc_stream_state {
 	struct dc_stream_status status;
 
 	struct dc_cursor_attributes cursor_attributes;
+	struct dc_cursor_position cursor_position;
 
 	/* from stream struct */
 	struct kref refcount;

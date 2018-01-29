@@ -28,7 +28,7 @@
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 
-static void amdgpu_job_timedout(struct amd_sched_job *s_job)
+static void amdgpu_job_timedout(struct drm_sched_job *s_job)
 {
 	struct amdgpu_job *job = container_of(s_job, struct amdgpu_job, base);
 
@@ -37,7 +37,7 @@ static void amdgpu_job_timedout(struct amd_sched_job *s_job)
 		  atomic_read(&job->ring->fence_drv.last_seq),
 		  job->ring->fence_drv.sync_seq);
 
-	amdgpu_gpu_recover(job->adev, job);
+	amdgpu_device_gpu_recover(job->adev, job, false);
 }
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
@@ -96,7 +96,7 @@ void amdgpu_job_free_resources(struct amdgpu_job *job)
 		amdgpu_ib_free(job->adev, &job->ibs[i], f);
 }
 
-static void amdgpu_job_free_cb(struct amd_sched_job *s_job)
+static void amdgpu_job_free_cb(struct drm_sched_job *s_job)
 {
 	struct amdgpu_job *job = container_of(s_job, struct amdgpu_job, base);
 
@@ -118,7 +118,7 @@ void amdgpu_job_free(struct amdgpu_job *job)
 }
 
 int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
-		      struct amd_sched_entity *entity, void *owner,
+		      struct drm_sched_entity *entity, void *owner,
 		      struct dma_fence **f)
 {
 	int r;
@@ -127,7 +127,7 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 	if (!f)
 		return -EINVAL;
 
-	r = amd_sched_job_init(&job->base, &ring->sched, entity, owner);
+	r = drm_sched_job_init(&job->base, &ring->sched, entity, owner);
 	if (r)
 		return r;
 
@@ -136,13 +136,13 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 	*f = dma_fence_get(&job->base.s_fence->finished);
 	amdgpu_job_free_resources(job);
 	amdgpu_ring_priority_get(job->ring, job->base.s_priority);
-	amd_sched_entity_push_job(&job->base, entity);
+	drm_sched_entity_push_job(&job->base, entity);
 
 	return 0;
 }
 
-static struct dma_fence *amdgpu_job_dependency(struct amd_sched_job *sched_job,
-					       struct amd_sched_entity *s_entity)
+static struct dma_fence *amdgpu_job_dependency(struct drm_sched_job *sched_job,
+					       struct drm_sched_entity *s_entity)
 {
 	struct amdgpu_job *job = to_amdgpu_job(sched_job);
 	struct amdgpu_vm *vm = job->vm;
@@ -151,19 +151,19 @@ static struct dma_fence *amdgpu_job_dependency(struct amd_sched_job *sched_job,
 	struct dma_fence *fence = amdgpu_sync_get_fence(&job->sync, &explicit);
 
 	if (fence && explicit) {
-		if (amd_sched_dependency_optimized(fence, s_entity)) {
+		if (drm_sched_dependency_optimized(fence, s_entity)) {
 			r = amdgpu_sync_fence(job->adev, &job->sched_sync, fence, false);
 			if (r)
 				DRM_ERROR("Error adding fence to sync (%d)\n", r);
 		}
 	}
 
-	while (fence == NULL && vm && !job->vm_id) {
+	while (fence == NULL && vm && !job->vmid) {
 		struct amdgpu_ring *ring = job->ring;
 
-		r = amdgpu_vm_grab_id(vm, ring, &job->sync,
-				      &job->base.s_fence->finished,
-				      job);
+		r = amdgpu_vmid_grab(vm, ring, &job->sync,
+				     &job->base.s_fence->finished,
+				     job);
 		if (r)
 			DRM_ERROR("Error getting VM ID (%d)\n", r);
 
@@ -173,7 +173,7 @@ static struct dma_fence *amdgpu_job_dependency(struct amd_sched_job *sched_job,
 	return fence;
 }
 
-static struct dma_fence *amdgpu_job_run(struct amd_sched_job *sched_job)
+static struct dma_fence *amdgpu_job_run(struct drm_sched_job *sched_job)
 {
 	struct dma_fence *fence = NULL, *finished;
 	struct amdgpu_device *adev;
@@ -211,7 +211,7 @@ static struct dma_fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 	return fence;
 }
 
-const struct amd_sched_backend_ops amdgpu_sched_ops = {
+const struct drm_sched_backend_ops amdgpu_sched_ops = {
 	.dependency = amdgpu_job_dependency,
 	.run_job = amdgpu_job_run,
 	.timedout_job = amdgpu_job_timedout,

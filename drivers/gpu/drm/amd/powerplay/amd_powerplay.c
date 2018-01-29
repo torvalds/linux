@@ -389,20 +389,12 @@ static int pp_dpm_force_performance_level(void *handle,
 	if (level == hwmgr->dpm_level)
 		return 0;
 
-	if (hwmgr->hwmgr_func->force_dpm_level == NULL) {
-		pr_info("%s was not implemented.\n", __func__);
-		return 0;
-	}
-
 	mutex_lock(&pp_handle->pp_lock);
 	pp_dpm_en_umd_pstate(hwmgr, &level);
 	hwmgr->request_dpm_level = level;
 	hwmgr_handle_task(pp_handle, AMD_PP_TASK_READJUST_POWER_STATE, NULL, NULL);
-	ret = hwmgr->hwmgr_func->force_dpm_level(hwmgr, level);
-	if (!ret)
-		hwmgr->dpm_level = hwmgr->request_dpm_level;
-
 	mutex_unlock(&pp_handle->pp_lock);
+
 	return 0;
 }
 
@@ -725,6 +717,8 @@ static int pp_dpm_get_pp_num_states(void *handle,
 	int i;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
 	int ret = 0;
+
+	memset(data, 0, sizeof(*data));
 
 	ret = pp_check(pp_handle);
 

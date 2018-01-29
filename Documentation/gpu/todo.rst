@@ -194,6 +194,24 @@ drm_mode_config_helper_suspend/resume().
 
 Contact: Maintainer of the driver you plan to convert
 
+Convert drivers to use drm_fb_helper_fbdev_setup/teardown()
+-----------------------------------------------------------
+
+Most drivers can use drm_fb_helper_fbdev_setup() except maybe:
+
+- amdgpu which has special logic to decide whether to call
+  drm_helper_disable_unused_functions()
+
+- armada which isn't atomic and doesn't call
+  drm_helper_disable_unused_functions()
+
+- i915 which calls drm_fb_helper_initial_config() in a worker
+
+Drivers that use drm_framebuffer_remove() to clean up the fbdev framebuffer can
+probably use drm_fb_helper_fbdev_teardown().
+
+Contact: Maintainer of the driver you plan to convert
+
 Core refactorings
 =================
 
@@ -394,11 +412,6 @@ those drivers as simple as possible, so lots of room for refactoring:
   least) into a separate helper, like we have for mipi-dsi already. Or follow
   one of the ideas for having a shared dsi/dbi helper, abstracting away the
   transport details more.
-
-- tinydrm_lastclose could be drm_fb_helper_lastclose. Only thing we need
-  for that is to store the drm_fb_helper pointer somewhere in
-  drm_device->mode_config. And then we could roll that out to all the
-  drivers.
 
 - tinydrm_gem_cma_prime_import_sg_table should probably go into the cma
   helpers, as a _vmapped variant (since not every driver needs the vmap).

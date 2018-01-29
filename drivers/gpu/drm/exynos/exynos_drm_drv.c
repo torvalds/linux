@@ -16,6 +16,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 
 #include <linux/component.h>
 
@@ -28,7 +29,6 @@
 #include "exynos_drm_plane.h"
 #include "exynos_drm_vidi.h"
 #include "exynos_drm_g2d.h"
-#include "exynos_drm_ipp.h"
 #include "exynos_drm_iommu.h"
 
 #define DRIVER_NAME	"exynos"
@@ -36,8 +36,6 @@
 #define DRIVER_DATE	"20110530"
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
-
-static struct device *exynos_drm_get_dma_device(void);
 
 int exynos_atomic_check(struct drm_device *dev,
 			struct drm_atomic_state *state)
@@ -89,11 +87,6 @@ static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 	file->driver_priv = NULL;
 }
 
-static void exynos_drm_lastclose(struct drm_device *dev)
-{
-	exynos_drm_fbdev_restore_mode(dev);
-}
-
 static const struct vm_operations_struct exynos_drm_gem_vm_ops = {
 	.fault = exynos_drm_gem_fault,
 	.open = drm_gem_vm_open,
@@ -115,14 +108,6 @@ static const struct drm_ioctl_desc exynos_ioctls[] = {
 			DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_EXEC, exynos_g2d_exec_ioctl,
 			DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_GET_PROPERTY, exynos_drm_ipp_get_property,
-			DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_SET_PROPERTY, exynos_drm_ipp_set_property,
-			DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_QUEUE_BUF, exynos_drm_ipp_queue_buf,
-			DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_CMD_CTRL, exynos_drm_ipp_cmd_ctrl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
 };
 
 static const struct file_operations exynos_drm_driver_fops = {
@@ -140,7 +125,7 @@ static struct drm_driver exynos_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME
 				  | DRIVER_ATOMIC | DRIVER_RENDER,
 	.open			= exynos_drm_open,
-	.lastclose		= exynos_drm_lastclose,
+	.lastclose		= drm_fb_helper_lastclose,
 	.postclose		= exynos_drm_postclose,
 	.gem_free_object_unlocked = exynos_drm_gem_free_object,
 	.gem_vm_ops		= &exynos_drm_gem_vm_ops,
@@ -148,7 +133,7 @@ static struct drm_driver exynos_drm_driver = {
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_export	= drm_gem_prime_export,
-	.gem_prime_import	= drm_gem_prime_import,
+	.gem_prime_import	= exynos_drm_gem_prime_import,
 	.gem_prime_get_sg_table	= exynos_drm_gem_prime_get_sg_table,
 	.gem_prime_import_sg_table	= exynos_drm_gem_prime_import_sg_table,
 	.gem_prime_vmap		= exynos_drm_gem_prime_vmap,
@@ -263,9 +248,6 @@ static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 	}, {
 		DRV_PTR(gsc_driver, CONFIG_DRM_EXYNOS_GSC),
 	}, {
-		DRV_PTR(ipp_driver, CONFIG_DRM_EXYNOS_IPP),
-		DRM_VIRTUAL_DEVICE
-	}, {
 		&exynos_drm_platform_driver,
 		DRM_VIRTUAL_DEVICE
 	}
@@ -299,6 +281,27 @@ static struct component_match *exynos_drm_match_add(struct device *dev)
 	}
 
 	return match ?: ERR_PTR(-ENODEV);
+}
+
+static struct device *exynos_drm_get_dma_device(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(exynos_drm_drivers); ++i) {
+		struct exynos_drm_driver_info *info = &exynos_drm_drivers[i];
+		struct device *dev;
+
+		if (!info->driver || !(info->flags & DRM_DMA_DEVICE))
+			continue;
+
+		while ((dev = bus_find_device(&platform_bus_type, NULL,
+					    &info->driver->driver,
+					    (void *)platform_bus_type.match))) {
+			put_device(dev);
+			return dev;
+		}
+	}
+	return NULL;
 }
 
 static int exynos_drm_bind(struct device *dev)
@@ -468,27 +471,6 @@ static struct platform_driver exynos_drm_platform_driver = {
 		.pm	= &exynos_drm_pm_ops,
 	},
 };
-
-static struct device *exynos_drm_get_dma_device(void)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(exynos_drm_drivers); ++i) {
-		struct exynos_drm_driver_info *info = &exynos_drm_drivers[i];
-		struct device *dev;
-
-		if (!info->driver || !(info->flags & DRM_DMA_DEVICE))
-			continue;
-
-		while ((dev = bus_find_device(&platform_bus_type, NULL,
-					    &info->driver->driver,
-					    (void *)platform_bus_type.match))) {
-			put_device(dev);
-			return dev;
-		}
-	}
-	return NULL;
-}
 
 static void exynos_drm_unregister_devices(void)
 {

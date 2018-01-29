@@ -1072,21 +1072,6 @@ void dce110_link_encoder_disable_output(
 	/* disable encoder */
 	if (dc_is_dp_signal(signal))
 		link_encoder_disable(enc110);
-
-	/*
-	 * TODO: Power control cause regression, we should implement
-	 * it properly, for now just comment it.
-	 */
-//	if (enc110->base.connector.id == CONNECTOR_ID_EDP) {
-//		/* power down eDP panel */
-//		link_encoder_edp_wait_for_hpd_ready(
-//				enc,
-//				enc->connector,
-//				false);
-//
-//		link_encoder_edp_power_control(
-//				enc, false);
-//	}
 }
 
 void dce110_link_encoder_dp_set_lane_settings(

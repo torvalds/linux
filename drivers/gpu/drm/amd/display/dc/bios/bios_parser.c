@@ -190,6 +190,7 @@ static struct graphics_object_id bios_parser_get_connector_id(
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 	struct graphics_object_id object_id = dal_graphics_object_id_init(
 		0, ENUM_ID_UNKNOWN, OBJECT_TYPE_UNKNOWN);
+	uint16_t id;
 
 	uint32_t connector_table_offset = bp->object_info_tbl_offset
 		+ le16_to_cpu(bp->object_info_tbl.v1_1->usConnectorObjectTableOffset);
@@ -197,12 +198,19 @@ static struct graphics_object_id bios_parser_get_connector_id(
 	ATOM_OBJECT_TABLE *tbl =
 		GET_IMAGE(ATOM_OBJECT_TABLE, connector_table_offset);
 
-	if (tbl && tbl->ucNumberOfObjects > i) {
-		const uint16_t id = le16_to_cpu(tbl->asObjects[i].usObjectID);
-
-		object_id = object_id_from_bios_object_id(id);
+	if (!tbl) {
+		dm_error("Can't get connector table from atom bios.\n");
+		return object_id;
 	}
 
+	if (tbl->ucNumberOfObjects <= i) {
+		dm_error("Can't find connector id %d in connector table of size %d.\n",
+			 i, tbl->ucNumberOfObjects);
+		return object_id;
+	}
+
+	id = le16_to_cpu(tbl->asObjects[i].usObjectID);
+	object_id = object_id_from_bios_object_id(id);
 	return object_id;
 }
 
@@ -2252,6 +2260,52 @@ static enum bp_result get_gpio_i2c_info(struct bios_parser *bp,
 			header->asGPIO_Info[info->i2c_line].ucDataA_Shift;
 
 	return BP_RESULT_OK;
+}
+
+static bool dal_graphics_object_id_is_valid(struct graphics_object_id id)
+{
+	bool rc = true;
+
+	switch (id.type) {
+	case OBJECT_TYPE_UNKNOWN:
+		rc = false;
+		break;
+	case OBJECT_TYPE_GPU:
+	case OBJECT_TYPE_ENGINE:
+		/* do NOT check for id.id == 0 */
+		if (id.enum_id == ENUM_ID_UNKNOWN)
+			rc = false;
+		break;
+	default:
+		if (id.id == 0 || id.enum_id == ENUM_ID_UNKNOWN)
+			rc = false;
+		break;
+	}
+
+	return rc;
+}
+
+static bool dal_graphics_object_id_is_equal(
+	struct graphics_object_id id1,
+	struct graphics_object_id id2)
+{
+	if (false == dal_graphics_object_id_is_valid(id1)) {
+		dm_output_to_console(
+		"%s: Warning: comparing invalid object 'id1'!\n", __func__);
+		return false;
+	}
+
+	if (false == dal_graphics_object_id_is_valid(id2)) {
+		dm_output_to_console(
+		"%s: Warning: comparing invalid object 'id2'!\n", __func__);
+		return false;
+	}
+
+	if (id1.id == id2.id && id1.enum_id == id2.enum_id
+		&& id1.type == id2.type)
+		return true;
+
+	return false;
 }
 
 static ATOM_OBJECT *get_bios_object(struct bios_parser *bp,

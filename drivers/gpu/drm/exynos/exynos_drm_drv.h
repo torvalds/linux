@@ -188,17 +188,11 @@ struct exynos_drm_g2d_private {
 
 struct drm_exynos_file_private {
 	struct exynos_drm_g2d_private	*g2d_priv;
-	struct device			*ipp_dev;
 };
 
 /*
  * Exynos drm private structure.
  *
- * @da_start: start address to device address space.
- *	with iommu, device address space starts from this address
- *	otherwise default one.
- * @da_space_size: size of device address space.
- *	if 0 then default value is used for it.
  * @pending: the crtcs that have pending updates to finish
  * @lock: protect access to @pending
  * @wait: wait an atomic commit to finish
@@ -296,6 +290,5 @@ extern struct platform_driver g2d_driver;
 extern struct platform_driver fimc_driver;
 extern struct platform_driver rotator_driver;
 extern struct platform_driver gsc_driver;
-extern struct platform_driver ipp_driver;
 extern struct platform_driver mic_driver;
 #endif

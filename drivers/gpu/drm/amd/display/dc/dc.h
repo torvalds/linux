@@ -38,7 +38,7 @@
 #include "inc/compressor.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.1.20"
+#define DC_VER "3.1.27"
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
@@ -250,6 +250,8 @@ struct dc {
 	 */
 	struct dm_pp_display_configuration prev_display_config;
 
+	bool optimized_required;
+
 	/* FBC compressor */
 #if defined(CONFIG_DRM_AMD_DC_FBC)
 	struct compressor *fbc_compressor;
@@ -340,7 +342,7 @@ struct dc_hdr_static_metadata {
 enum dc_transfer_func_type {
 	TF_TYPE_PREDEFINED,
 	TF_TYPE_DISTRIBUTED_POINTS,
-	TF_TYPE_BYPASS
+	TF_TYPE_BYPASS,
 };
 
 struct dc_transfer_func_distributed_points {
@@ -359,6 +361,7 @@ enum dc_transfer_func_predefined {
 	TRANSFER_FUNCTION_BT709,
 	TRANSFER_FUNCTION_PQ,
 	TRANSFER_FUNCTION_LINEAR,
+	TRANSFER_FUNCTION_UNITY,
 };
 
 struct dc_transfer_func {
@@ -385,6 +388,7 @@ union surface_update_flags {
 
 	struct {
 		/* Medium updates */
+		uint32_t dcc_change:1;
 		uint32_t color_space_change:1;
 		uint32_t input_tf_change:1;
 		uint32_t horizontal_mirror_change:1;
@@ -436,6 +440,7 @@ struct dc_plane_state {
 	enum dc_rotation_angle rotation;
 	enum plane_stereo_format stereo_format;
 
+	bool is_tiling_rotated;
 	bool per_pixel_alpha;
 	bool visible;
 	bool flip_immediate;

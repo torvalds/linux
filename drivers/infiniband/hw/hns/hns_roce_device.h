@@ -726,11 +726,9 @@ static inline struct hns_roce_qp
 
 static inline void *hns_roce_buf_offset(struct hns_roce_buf *buf, int offset)
 {
-	u32 bits_per_long_val = BITS_PER_LONG;
 	u32 page_size = 1 << buf->page_shift;
 
-	if ((bits_per_long_val == 64 && buf->page_shift == PAGE_SHIFT) ||
-	    buf->nbufs == 1)
+	if (buf->nbufs == 1)
 		return (char *)(buf->direct.buf) + offset;
 	else
 		return (char *)(buf->page_list[offset >> buf->page_shift].buf) +

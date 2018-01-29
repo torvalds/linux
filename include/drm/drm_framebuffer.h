@@ -121,6 +121,12 @@ struct drm_framebuffer {
 	 * @base: base modeset object structure, contains the reference count.
 	 */
 	struct drm_mode_object base;
+
+	/**
+	 * @comm: Name of the process allocating the fb, used for fb dumping.
+	 */
+	char comm[TASK_COMM_LEN];
+
 	/**
 	 * @format: framebuffer format information
 	 */

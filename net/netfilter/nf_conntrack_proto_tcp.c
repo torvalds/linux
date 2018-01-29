@@ -1039,6 +1039,9 @@ static int tcp_packet(struct nf_conn *ct,
 		 IP_CT_TCP_FLAG_DATA_UNACKNOWLEDGED &&
 		 timeouts[new_state] > timeouts[TCP_CONNTRACK_UNACK])
 		timeout = timeouts[TCP_CONNTRACK_UNACK];
+	else if (ct->proto.tcp.last_win == 0 &&
+		 timeouts[new_state] > timeouts[TCP_CONNTRACK_RETRANS])
+		timeout = timeouts[TCP_CONNTRACK_RETRANS];
 	else
 		timeout = timeouts[new_state];
 	spin_unlock_bh(&ct->lock);

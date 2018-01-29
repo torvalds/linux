@@ -299,7 +299,7 @@ static void bau_process_message(struct msg_desc *mdp, struct bau_control *bcp,
 		local_flush_tlb();
 		stat->d_alltlb++;
 	} else {
-		__flush_tlb_one(msg->address);
+		__flush_tlb_single(msg->address);
 		stat->d_onetlb++;
 	}
 	stat->d_requestee++;

@@ -68,7 +68,7 @@ vcodec_dec: vcodec@16000000 {
                   "vdec_bus_clk_src";
   };
 
-  vcodec_enc: vcodec@0x18002000 {
+  vcodec_enc: vcodec@18002000 {
     compatible = "mediatek,mt8173-vcodec-enc";
     reg = <0 0x18002000 0 0x1000>,    /*VENC_SYS*/
           <0 0x19002000 0 0x1000>;    /*VENC_LT_SYS*/

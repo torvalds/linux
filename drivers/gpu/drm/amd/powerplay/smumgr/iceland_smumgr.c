@@ -204,7 +204,7 @@ static int iceland_smu_upload_firmware_image(struct pp_hwmgr *hwmgr)
 		pr_err("[ powerplay ] SMC address is beyond the SMC RAM area\n");
 		return -EINVAL;
 	}
-
+	hwmgr->smu_version = info.version;
 	/* wait for smc boot up */
 	PHM_WAIT_INDIRECT_FIELD_UNEQUAL(hwmgr, SMC_IND,
 					 RCU_UC_EVENTS, boot_seq_done, 0);
@@ -2202,10 +2202,7 @@ static int iceland_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkThrottleLowNotification)
-		&& (hwmgr->gfx_arbiter.sclk_threshold !=
-				data->low_sclk_interrupt_threshold)) {
-		data->low_sclk_interrupt_threshold =
-				hwmgr->gfx_arbiter.sclk_threshold;
+		&& (data->low_sclk_interrupt_threshold != 0)) {
 		low_sclk_interrupt_threshold =
 				data->low_sclk_interrupt_threshold;
 

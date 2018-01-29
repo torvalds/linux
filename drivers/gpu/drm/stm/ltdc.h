@@ -20,7 +20,6 @@ struct ltdc_caps {
 };
 
 struct ltdc_device {
-	struct drm_fbdev_cma *fbdev;
 	void __iomem *regs;
 	struct clk *pixel_clk;	/* lcd pixel clock */
 	struct mutex err_lock;	/* protecting error_status */

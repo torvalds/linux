@@ -159,11 +159,10 @@ bool dpp_get_optimal_number_of_taps(
 			scl_data->taps.h_taps = 1;
 		if (IDENTITY_RATIO(scl_data->ratios.vert))
 			scl_data->taps.v_taps = 1;
-		/*
-		 * Spreadsheet doesn't handle taps_c is one properly,
-		 * need to force Chroma to always be scaled to pass
-		 * bandwidth validation.
-		 */
+		if (IDENTITY_RATIO(scl_data->ratios.horz_c))
+			scl_data->taps.h_taps_c = 1;
+		if (IDENTITY_RATIO(scl_data->ratios.vert_c))
+			scl_data->taps.v_taps_c = 1;
 	}
 
 	return true;
@@ -386,10 +385,9 @@ void dpp1_cnv_setup (
 
 void dpp1_set_cursor_attributes(
 		struct dpp *dpp_base,
-		const struct dc_cursor_attributes *attr)
+		enum dc_cursor_color_format color_format)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
-	enum dc_cursor_color_format color_format = attr->color_format;
 
 	REG_UPDATE_2(CURSOR0_CONTROL,
 			CUR0_MODE, color_format,
@@ -402,13 +400,6 @@ void dpp1_set_cursor_attributes(
 		REG_UPDATE(CURSOR0_COLOR1,
 				CUR0_COLOR1, 0xFFFFFFFF);
 	}
-
-	/* TODO: Fixed vs float */
-
-	REG_UPDATE_3(FORMAT_CONTROL,
-				CNVC_BYPASS, 0,
-				FORMAT_CONTROL__ALPHA_EN, 1,
-				FORMAT_EXPANSION_MODE, 0);
 }
 
 

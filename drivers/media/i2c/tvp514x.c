@@ -86,6 +86,7 @@ static int tvp514x_s_stream(struct v4l2_subdev *sd, int enable);
 /**
  * struct tvp514x_decoder - TVP5146/47 decoder object
  * @sd: Subdevice Slave handle
+ * @hdl: embedded &struct v4l2_ctrl_handler
  * @tvp514x_regs: copy of hw's regs with preset values.
  * @pdata: Board specific
  * @ver: Chip version
@@ -98,6 +99,9 @@ static int tvp514x_s_stream(struct v4l2_subdev *sd, int enable);
  * @std_list: Standards list
  * @input: Input routing at chip level
  * @output: Output routing at chip level
+ * @pad: subdev media pad associated with the decoder
+ * @format: media bus frame format
+ * @int_seq: driver's register init sequence
  */
 struct tvp514x_decoder {
 	struct v4l2_subdev sd;
@@ -211,7 +215,7 @@ static struct tvp514x_reg tvp514x_reg_list_default[] = {
 	{TOK_TERM, 0, 0},
 };
 
-/**
+/*
  * List of image formats supported by TVP5146/47 decoder
  * Currently we are using 8 bit mode only, but can be
  * extended to 10/20 bit mode.
@@ -226,7 +230,7 @@ static const struct v4l2_fmtdesc tvp514x_fmt_list[] = {
 	},
 };
 
-/**
+/*
  * Supported standards -
  *
  * Currently supports two standards only, need to add support for rest of the
@@ -931,7 +935,7 @@ static int tvp514x_get_pad_format(struct v4l2_subdev *sd,
  * tvp514x_set_pad_format() - V4L2 decoder interface handler for set pad format
  * @sd: pointer to standard V4L2 sub-device structure
  * @cfg: pad configuration
- * @format: pointer to v4l2_subdev_format structure
+ * @fmt: pointer to v4l2_subdev_format structure
  *
  * Set pad format for the output pad
  */
@@ -1199,7 +1203,7 @@ static const struct tvp514x_reg tvp514xm_init_reg_seq[] = {
 	{TOK_TERM, 0, 0},
 };
 
-/**
+/*
  * I2C Device Table -
  *
  * name - Name of the actual device/chip.

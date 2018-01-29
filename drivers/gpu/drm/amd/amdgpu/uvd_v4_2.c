@@ -541,7 +541,7 @@ static int uvd_v4_2_ring_test_ring(struct amdgpu_ring *ring)
  */
 static void uvd_v4_2_ring_emit_ib(struct amdgpu_ring *ring,
 				  struct amdgpu_ib *ib,
-				  unsigned vm_id, bool ctx_switch)
+				  unsigned vmid, bool ctx_switch)
 {
 	amdgpu_ring_write(ring, PACKET0(mmUVD_RBC_IB_BASE, 0));
 	amdgpu_ring_write(ring, ib->gpu_addr);

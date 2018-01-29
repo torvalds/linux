@@ -20,6 +20,11 @@
 #include <linux/mii.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
+#include <linux/if_vlan.h>
+#include <linux/netdevice.h>
+#include <linux/netdev_features.h>
+#include <linux/skbuff.h>
+
 #include <net/iucv/af_iucv.h>
 #include <net/dsfield.h>
 
@@ -1475,9 +1480,9 @@ static int qeth_setup_card(struct qeth_card *card)
 	qeth_set_intial_options(card);
 	/* IP address takeover */
 	INIT_LIST_HEAD(&card->ipato.entries);
-	card->ipato.enabled = 0;
-	card->ipato.invert4 = 0;
-	card->ipato.invert6 = 0;
+	card->ipato.enabled = false;
+	card->ipato.invert4 = false;
+	card->ipato.invert6 = false;
 	/* init QDIO stuff */
 	qeth_init_qdio_info(card);
 	INIT_DELAYED_WORK(&card->buffer_reclaim_work, qeth_buffer_reclaim_work);
@@ -5381,6 +5386,13 @@ out:
 }
 EXPORT_SYMBOL_GPL(qeth_poll);
 
+static int qeth_setassparms_inspect_rc(struct qeth_ipa_cmd *cmd)
+{
+	if (!cmd->hdr.return_code)
+		cmd->hdr.return_code = cmd->data.setassparms.hdr.return_code;
+	return cmd->hdr.return_code;
+}
+
 int qeth_setassparms_cb(struct qeth_card *card,
 			struct qeth_reply *reply, unsigned long data)
 {
@@ -6237,7 +6249,7 @@ static int qeth_ipa_checksum_run_cmd_cb(struct qeth_card *card,
 				(struct qeth_checksum_cmd *)reply->param;
 
 	QETH_CARD_TEXT(card, 4, "chkdoccb");
-	if (cmd->hdr.return_code)
+	if (qeth_setassparms_inspect_rc(cmd))
 		return 0;
 
 	memset(chksum_cb, 0, sizeof(*chksum_cb));
@@ -6438,6 +6450,32 @@ netdev_features_t qeth_fix_features(struct net_device *dev,
 	return features;
 }
 EXPORT_SYMBOL_GPL(qeth_fix_features);
+
+netdev_features_t qeth_features_check(struct sk_buff *skb,
+				      struct net_device *dev,
+				      netdev_features_t features)
+{
+	/* GSO segmentation builds skbs with
+	 *	a (small) linear part for the headers, and
+	 *	page frags for the data.
+	 * Compared to a linear skb, the header-only part consumes an
+	 * additional buffer element. This reduces buffer utilization, and
+	 * hurts throughput. So compress small segments into one element.
+	 */
+	if (netif_needs_gso(skb, features)) {
+		/* match skb_segment(): */
+		unsigned int doffset = skb->data - skb_mac_header(skb);
+		unsigned int hsize = skb_shinfo(skb)->gso_size;
+		unsigned int hroom = skb_headroom(skb);
+
+		/* linearize only if resulting skb allocations are order-0: */
+		if (SKB_DATA_ALIGN(hroom + doffset + hsize) <= SKB_MAX_HEAD(0))
+			features &= ~NETIF_F_SG;
+	}
+
+	return vlan_features_check(skb, features);
+}
+EXPORT_SYMBOL_GPL(qeth_features_check);
 
 static int __init qeth_core_init(void)
 {

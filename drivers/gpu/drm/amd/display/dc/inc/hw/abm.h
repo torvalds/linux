@@ -50,9 +50,9 @@ struct abm_funcs {
 	bool (*set_backlight_level)(struct abm *abm,
 			unsigned int backlight_level,
 			unsigned int frame_ramp,
-			unsigned int controller_id);
+			unsigned int controller_id,
+			bool use_smooth_brightness);
 	unsigned int (*get_current_backlight_8_bit)(struct abm *abm);
-	bool (*is_dmcu_initialized)(struct abm *abm);
 };
 
 #endif

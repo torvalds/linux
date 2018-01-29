@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/console.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/of_reserved_mem.h>
@@ -24,6 +23,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -183,13 +183,6 @@ static int malidp_set_and_wait_config_valid(struct drm_device *drm)
 	return (ret > 0) ? 0 : -ETIMEDOUT;
 }
 
-static void malidp_output_poll_changed(struct drm_device *drm)
-{
-	struct malidp_drm *malidp = drm->dev_private;
-
-	drm_fbdev_cma_hotplug_event(malidp->fbdev);
-}
-
 static void malidp_atomic_commit_hw_done(struct drm_atomic_state *state)
 {
 	struct drm_pending_vblank_event *event;
@@ -252,7 +245,7 @@ static const struct drm_mode_config_helper_funcs malidp_mode_config_helpers = {
 
 static const struct drm_mode_config_funcs malidp_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create,
-	.output_poll_changed = malidp_output_poll_changed,
+	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -317,19 +310,12 @@ static int malidp_irq_init(struct platform_device *pdev)
 	return 0;
 }
 
-static void malidp_lastclose(struct drm_device *drm)
-{
-	struct malidp_drm *malidp = drm->dev_private;
-
-	drm_fbdev_cma_restore_mode(malidp->fbdev);
-}
-
 DEFINE_DRM_GEM_CMA_FOPS(fops);
 
 static struct drm_driver malidp_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
 			   DRIVER_PRIME,
-	.lastclose = malidp_lastclose,
+	.lastclose = drm_fb_helper_lastclose,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
@@ -623,14 +609,9 @@ static int malidp_bind(struct device *dev)
 
 	drm_mode_config_reset(drm);
 
-	malidp->fbdev = drm_fbdev_cma_init(drm, 32,
-					   drm->mode_config.num_connector);
-
-	if (IS_ERR(malidp->fbdev)) {
-		ret = PTR_ERR(malidp->fbdev);
-		malidp->fbdev = NULL;
+	ret = drm_fb_cma_fbdev_init(drm, 32, 0);
+	if (ret)
 		goto fbdev_fail;
-	}
 
 	drm_kms_helper_poll_init(drm);
 
@@ -641,10 +622,7 @@ static int malidp_bind(struct device *dev)
 	return 0;
 
 register_fail:
-	if (malidp->fbdev) {
-		drm_fbdev_cma_fini(malidp->fbdev);
-		malidp->fbdev = NULL;
-	}
+	drm_fb_cma_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
 fbdev_fail:
 	pm_runtime_get_sync(dev);
@@ -681,10 +659,7 @@ static void malidp_unbind(struct device *dev)
 	struct malidp_drm *malidp = drm->dev_private;
 
 	drm_dev_unregister(drm);
-	if (malidp->fbdev) {
-		drm_fbdev_cma_fini(malidp->fbdev);
-		malidp->fbdev = NULL;
-	}
+	drm_fb_cma_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
 	pm_runtime_get_sync(dev);
 	malidp_se_irq_fini(drm);

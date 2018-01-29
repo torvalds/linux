@@ -27,6 +27,7 @@
 #include <linux/types.h>
 #include <linux/idr.h>
 #include <linux/workqueue.h>
+#include <linux/llist.h>
 
 #include <drm/drm_modeset_lock.h>
 
@@ -268,6 +269,9 @@ struct drm_mode_config_funcs {
 	 * state easily. If this hook is implemented, drivers must also
 	 * implement @atomic_state_clear and @atomic_state_free.
 	 *
+	 * Subclassing of &drm_atomic_state is deprecated in favour of using
+	 * &drm_private_state and &drm_private_obj.
+	 *
 	 * RETURNS:
 	 *
 	 * A new &drm_atomic_state on success or NULL on failure.
@@ -289,6 +293,9 @@ struct drm_mode_config_funcs {
 	 *
 	 * Drivers that implement this must call drm_atomic_state_default_clear()
 	 * to clear common state.
+	 *
+	 * Subclassing of &drm_atomic_state is deprecated in favour of using
+	 * &drm_private_state and &drm_private_obj.
 	 */
 	void (*atomic_state_clear)(struct drm_atomic_state *state);
 
@@ -301,6 +308,9 @@ struct drm_mode_config_funcs {
 	 *
 	 * Drivers that implement this must call
 	 * drm_atomic_state_default_release() to release common resources.
+	 *
+	 * Subclassing of &drm_atomic_state is deprecated in favour of using
+	 * &drm_private_state and &drm_private_obj.
 	 */
 	void (*atomic_state_free)(struct drm_atomic_state *state);
 };
@@ -393,7 +403,7 @@ struct drm_mode_config {
 
 	/**
 	 * @connector_list_lock: Protects @num_connector and
-	 * @connector_list.
+	 * @connector_list and @connector_free_list.
 	 */
 	spinlock_t connector_list_lock;
 	/**
@@ -413,6 +423,21 @@ struct drm_mode_config {
 	 * &struct drm_connector_list_iter to walk this list.
 	 */
 	struct list_head connector_list;
+	/**
+	 * @connector_free_list:
+	 *
+	 * List of connector objects linked with &drm_connector.free_head.
+	 * Protected by @connector_list_lock. Used by
+	 * drm_for_each_connector_iter() and
+	 * &struct drm_connector_list_iter to savely free connectors using
+	 * @connector_free_work.
+	 */
+	struct llist_head connector_free_list;
+	/**
+	 * @connector_free_work: Work to clean up @connector_free_list.
+	 */
+	struct work_struct connector_free_work;
+
 	/**
 	 * @num_encoder:
 	 *
