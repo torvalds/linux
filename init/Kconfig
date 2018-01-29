@@ -1415,6 +1415,9 @@ config USERFAULTFD
 config ARCH_HAS_MEMBARRIER_CALLBACKS
 	bool
 
+config ARCH_HAS_MEMBARRIER_SYNC_CORE
+	bool
+
 config EMBEDDED
 	bool "Embedded system"
 	option allnoconfig_y
