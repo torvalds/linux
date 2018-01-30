@@ -408,6 +408,8 @@ void __init start_parisc(void)
 
 	cpunum = smp_processor_id();
 
+	init_cpu_topology();
+
 	set_firmware_width_unlocked();
 
 	ret = pdc_coproc_cfg_unlocked(&coproc_cfg);

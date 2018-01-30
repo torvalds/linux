@@ -275,20 +275,10 @@ static struct omap_dma_dev_attr dma_dev_attr = {
 };
 
 /* dma_system */
-static struct omap_hwmod_irq_info omap54xx_dma_system_irqs[] = {
-	{ .name = "0", .irq = 12 + OMAP54XX_IRQ_GIC_START },
-	{ .name = "1", .irq = 13 + OMAP54XX_IRQ_GIC_START },
-	{ .name = "2", .irq = 14 + OMAP54XX_IRQ_GIC_START },
-	{ .name = "3", .irq = 15 + OMAP54XX_IRQ_GIC_START },
-	{ .irq = -1 }
-};
-
 static struct omap_hwmod omap54xx_dma_system_hwmod = {
 	.name		= "dma_system",
 	.class		= &omap54xx_dma_hwmod_class,
 	.clkdm_name	= "dma_clkdm",
-	.mpu_irqs	= omap54xx_dma_system_irqs,
-	.xlate_irq	= omap4_xlate_irq,
 	.main_clk	= "l3_iclk_div",
 	.prcm = {
 		.omap4 = {
@@ -2255,21 +2245,11 @@ static struct omap_hwmod_ocp_if omap54xx_l4_wkup__counter_32k = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-static struct omap_hwmod_addr_space omap54xx_dma_system_addrs[] = {
-	{
-		.pa_start	= 0x4a056000,
-		.pa_end		= 0x4a056fff,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l4_cfg -> dma_system */
 static struct omap_hwmod_ocp_if omap54xx_l4_cfg__dma_system = {
 	.master		= &omap54xx_l4_cfg_hwmod,
 	.slave		= &omap54xx_dma_system_hwmod,
 	.clk		= "l4_root_clk_div",
-	.addr		= omap54xx_dma_system_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 

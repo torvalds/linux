@@ -126,7 +126,6 @@ static int cm3605_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info cm3605_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = cm3605_read_raw,
 };
 

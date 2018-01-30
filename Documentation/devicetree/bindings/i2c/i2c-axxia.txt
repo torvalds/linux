@@ -17,7 +17,7 @@ Optional properties :
 
 Example :
 
-i2c@02010084000 {
+i2c@2010084000 {
 	compatible = "lsi,api2c";
 	device_type = "i2c";
 	#address-cells = <1>;

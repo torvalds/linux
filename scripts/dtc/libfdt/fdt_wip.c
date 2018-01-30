@@ -82,7 +82,7 @@ int fdt_setprop_inplace(void *fdt, int nodeoffset, const char *name,
 	int proplen;
 
 	propval = fdt_getprop(fdt, nodeoffset, name, &proplen);
-	if (! propval)
+	if (!propval)
 		return proplen;
 
 	if (proplen != len)
@@ -107,7 +107,7 @@ int fdt_nop_property(void *fdt, int nodeoffset, const char *name)
 	int len;
 
 	prop = fdt_get_property_w(fdt, nodeoffset, name, &len);
-	if (! prop)
+	if (!prop)
 		return len;
 
 	_fdt_nop_region(prop, len + sizeof(*prop));

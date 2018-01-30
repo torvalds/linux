@@ -43,13 +43,13 @@ int btintel_check_bdaddr(struct hci_dev *hdev)
 			     HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
 		int err = PTR_ERR(skb);
-		BT_ERR("%s: Reading Intel device address failed (%d)",
-		       hdev->name, err);
+		bt_dev_err(hdev, "Reading Intel device address failed (%d)",
+			   err);
 		return err;
 	}
 
 	if (skb->len != sizeof(*bda)) {
-		BT_ERR("%s: Intel device address length mismatch", hdev->name);
+		bt_dev_err(hdev, "Intel device address length mismatch");
 		kfree_skb(skb);
 		return -EIO;
 	}
@@ -62,8 +62,8 @@ int btintel_check_bdaddr(struct hci_dev *hdev)
 	 * and that in turn can cause problems with Bluetooth operation.
 	 */
 	if (!bacmp(&bda->bdaddr, BDADDR_INTEL)) {
-		BT_ERR("%s: Found Intel default device address (%pMR)",
-		       hdev->name, &bda->bdaddr);
+		bt_dev_err(hdev, "Found Intel default device address (%pMR)",
+			   &bda->bdaddr);
 		set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
 	}
 
@@ -123,8 +123,8 @@ int btintel_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 	skb = __hci_cmd_sync(hdev, 0xfc31, 6, bdaddr, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
 		err = PTR_ERR(skb);
-		BT_ERR("%s: Changing Intel device address failed (%d)",
-		       hdev->name, err);
+		bt_dev_err(hdev, "Changing Intel device address failed (%d)",
+			   err);
 		return err;
 	}
 	kfree_skb(skb);
@@ -154,8 +154,8 @@ int btintel_set_diag(struct hci_dev *hdev, bool enable)
 		err = PTR_ERR(skb);
 		if (err == -ENODATA)
 			goto done;
-		BT_ERR("%s: Changing Intel diagnostic mode failed (%d)",
-		       hdev->name, err);
+		bt_dev_err(hdev, "Changing Intel diagnostic mode failed (%d)",
+			   err);
 		return err;
 	}
 	kfree_skb(skb);
@@ -189,30 +189,30 @@ void btintel_hw_error(struct hci_dev *hdev, u8 code)
 	struct sk_buff *skb;
 	u8 type = 0x00;
 
-	BT_ERR("%s: Hardware error 0x%2.2x", hdev->name, code);
+	bt_dev_err(hdev, "Hardware error 0x%2.2x", code);
 
 	skb = __hci_cmd_sync(hdev, HCI_OP_RESET, 0, NULL, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
-		BT_ERR("%s: Reset after hardware error failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
+		bt_dev_err(hdev, "Reset after hardware error failed (%ld)",
+			   PTR_ERR(skb));
 		return;
 	}
 	kfree_skb(skb);
 
 	skb = __hci_cmd_sync(hdev, 0xfc22, 1, &type, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
-		BT_ERR("%s: Retrieving Intel exception info failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
+		bt_dev_err(hdev, "Retrieving Intel exception info failed (%ld)",
+			   PTR_ERR(skb));
 		return;
 	}
 
 	if (skb->len != 13) {
-		BT_ERR("%s: Exception info size mismatch", hdev->name);
+		bt_dev_err(hdev, "Exception info size mismatch");
 		kfree_skb(skb);
 		return;
 	}
 
-	BT_ERR("%s: Exception info %s", hdev->name, (char *)(skb->data + 1));
+	bt_dev_err(hdev, "Exception info %s", (char *)(skb->data + 1));
 
 	kfree_skb(skb);
 }
@@ -233,9 +233,10 @@ void btintel_version_info(struct hci_dev *hdev, struct intel_version *ver)
 		return;
 	}
 
-	BT_INFO("%s: %s revision %u.%u build %u week %u %u", hdev->name,
-		variant, ver->fw_revision >> 4, ver->fw_revision & 0x0f,
-		ver->fw_build_num, ver->fw_build_ww, 2000 + ver->fw_build_yy);
+	bt_dev_info(hdev, "%s revision %u.%u build %u week %u %u",
+		    variant, ver->fw_revision >> 4, ver->fw_revision & 0x0f,
+		    ver->fw_build_num, ver->fw_build_ww,
+		    2000 + ver->fw_build_yy);
 }
 EXPORT_SYMBOL_GPL(btintel_version_info);
 
@@ -321,8 +322,7 @@ int btintel_set_event_mask(struct hci_dev *hdev, bool debug)
 	skb = __hci_cmd_sync(hdev, 0xfc52, 8, mask, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
 		err = PTR_ERR(skb);
-		BT_ERR("%s: Setting Intel event mask failed (%d)",
-		       hdev->name, err);
+		bt_dev_err(hdev, "Setting Intel event mask failed (%d)", err);
 		return err;
 	}
 	kfree_skb(skb);

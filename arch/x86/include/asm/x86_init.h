@@ -51,11 +51,13 @@ struct x86_init_resources {
  *				are set up.
  * @intr_init:			interrupt init code
  * @trap_init:			platform specific trap setup
+ * @intr_mode_init:		interrupt delivery mode setup
  */
 struct x86_init_irqs {
 	void (*pre_vector_init)(void);
 	void (*intr_init)(void);
 	void (*trap_init)(void);
+	void (*intr_mode_init)(void);
 };
 
 /**
@@ -117,11 +119,13 @@ struct x86_init_pci {
 /**
  * struct x86_hyper_init - x86 hypervisor init functions
  * @init_platform:		platform setup
+ * @guest_late_init:		guest late init
  * @x2apic_available:		X2APIC detection
  * @init_mem_mapping:		setup early mappings during init_mem_mapping()
  */
 struct x86_hyper_init {
 	void (*init_platform)(void);
+	void (*guest_late_init)(void);
 	bool (*x2apic_available)(void);
 	void (*init_mem_mapping)(void);
 };
@@ -208,6 +212,7 @@ enum x86_legacy_i8042_state {
 struct x86_legacy_features {
 	enum x86_legacy_i8042_state i8042;
 	int rtc;
+	int no_vga;
 	int reserve_bios_regions;
 	struct x86_legacy_devices devices;
 };

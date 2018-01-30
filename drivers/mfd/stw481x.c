@@ -72,10 +72,12 @@ static int stw481x_get_pctl_reg(struct stw481x *stw481x, u8 reg)
 static int stw481x_startup(struct stw481x *stw481x)
 {
 	/* Voltages multiplied by 100 */
-	u8 vcore_val[] = { 100, 105, 110, 115, 120, 122, 124, 126, 128,
-			   130, 132, 134, 136, 138, 140, 145 };
-	u8 vpll_val[] = { 105, 120, 130, 180 };
-	u8 vaux_val[] = { 15, 18, 25, 28 };
+	static const u8 vcore_val[] = {
+		100, 105, 110, 115, 120, 122, 124, 126, 128,
+		130, 132, 134, 136, 138, 140, 145
+	};
+	static const u8 vpll_val[] = { 105, 120, 130, 180 };
+	static const u8 vaux_val[] = { 15, 18, 25, 28 };
 	u8 vcore;
 	u8 vcore_slp;
 	u8 vpll;

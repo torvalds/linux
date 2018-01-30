@@ -137,7 +137,7 @@
 			};
 
 			i2c0: i2c@80058000 {
-				sgtl5000: codec@0a {
+				sgtl5000: codec@a {
 					compatible = "fsl,sgtl5000";
 					reg = <0x0a>;
 					VDDA-supply = <&reg_3p3v>;

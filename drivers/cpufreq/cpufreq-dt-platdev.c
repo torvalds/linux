@@ -48,7 +48,6 @@ static const struct of_device_id whitelist[] __initconst = {
 
 	{ .compatible = "samsung,exynos3250", },
 	{ .compatible = "samsung,exynos4210", },
-	{ .compatible = "samsung,exynos4212", },
 	{ .compatible = "samsung,exynos5250", },
 #ifndef CONFIG_BL_SWITCHER
 	{ .compatible = "samsung,exynos5800", },
@@ -82,8 +81,6 @@ static const struct of_device_id whitelist[] __initconst = {
 	{ .compatible = "rockchip,rk3366", },
 	{ .compatible = "rockchip,rk3368", },
 	{ .compatible = "rockchip,rk3399", },
-
-	{ .compatible = "socionext,uniphier-ld6b", },
 
 	{ .compatible = "st-ericsson,u8500", },
 	{ .compatible = "st-ericsson,u8540", },

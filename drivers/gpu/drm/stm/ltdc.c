@@ -791,9 +791,8 @@ static const struct drm_encoder_funcs ltdc_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
-static int ltdc_encoder_init(struct drm_device *ddev)
+static int ltdc_encoder_init(struct drm_device *ddev, struct drm_bridge *bridge)
 {
-	struct ltdc_device *ldev = ddev->dev_private;
 	struct drm_encoder *encoder;
 	int ret;
 
@@ -807,7 +806,7 @@ static int ltdc_encoder_init(struct drm_device *ddev)
 	drm_encoder_init(ddev, encoder, &ltdc_encoder_funcs,
 			 DRM_MODE_ENCODER_DPI, NULL);
 
-	ret = drm_bridge_attach(encoder, ldev->bridge, NULL);
+	ret = drm_bridge_attach(encoder, bridge, NULL);
 	if (ret) {
 		drm_encoder_cleanup(encoder);
 		return -EINVAL;
@@ -936,12 +935,9 @@ int ltdc_load(struct drm_device *ddev)
 			ret = PTR_ERR(bridge);
 			goto err;
 		}
-		ldev->is_panel_bridge = true;
 	}
 
-	ldev->bridge = bridge;
-
-	ret = ltdc_encoder_init(ddev);
+	ret = ltdc_encoder_init(ddev, bridge);
 	if (ret) {
 		DRM_ERROR("Failed to init encoder\n");
 		goto err;
@@ -972,8 +968,7 @@ int ltdc_load(struct drm_device *ddev)
 	return 0;
 
 err:
-	if (ldev->is_panel_bridge)
-		drm_panel_bridge_remove(bridge);
+	drm_panel_bridge_remove(bridge);
 
 	clk_disable_unprepare(ldev->pixel_clk);
 
@@ -986,8 +981,7 @@ void ltdc_unload(struct drm_device *ddev)
 
 	DRM_DEBUG_DRIVER("\n");
 
-	if (ldev->is_panel_bridge)
-		drm_panel_bridge_remove(ldev->bridge);
+	drm_of_panel_bridge_remove(ddev->dev->of_node, 0, 0);
 
 	clk_disable_unprepare(ldev->pixel_clk);
 }

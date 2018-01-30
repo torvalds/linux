@@ -325,7 +325,7 @@ static int hdac_component_master_match(struct device *dev, void *data)
  */
 int snd_hdac_i915_register_notifier(const struct i915_audio_component_audio_ops *aops)
 {
-	if (WARN_ON(!hdac_acomp))
+	if (!hdac_acomp)
 		return -ENODEV;
 
 	hdac_acomp->audio_ops = aops;

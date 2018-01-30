@@ -179,7 +179,6 @@ static const struct iio_info tmp006_info = {
 	.read_raw = tmp006_read_raw,
 	.write_raw = tmp006_write_raw,
 	.attrs = &tmp006_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static bool tmp006_check_identification(struct i2c_client *client)

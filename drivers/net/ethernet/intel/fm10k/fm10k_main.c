@@ -28,7 +28,7 @@
 
 #include "fm10k.h"
 
-#define DRV_VERSION	"0.21.7-k"
+#define DRV_VERSION	"0.22.1-k"
 #define DRV_SUMMARY	"Intel(R) Ethernet Switch Host Interface Driver"
 const char fm10k_driver_version[] = DRV_VERSION;
 char fm10k_driver_name[] = "fm10k";
@@ -806,9 +806,10 @@ static int fm10k_tso(struct fm10k_ring *tx_ring,
 	tx_desc->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
 
 	return 1;
+
 err_vxlan:
 	tx_ring->netdev->features &= ~NETIF_F_GSO_UDP_TUNNEL;
-	if (!net_ratelimit())
+	if (net_ratelimit())
 		netdev_err(tx_ring->netdev,
 			   "TSO requested for unsupported tunnel, disabling offload\n");
 	return -1;
@@ -876,6 +877,7 @@ static void fm10k_tx_csum(struct fm10k_ring *tx_ring,
 	case IPPROTO_GRE:
 		if (skb->encapsulation)
 			break;
+		/* fall through */
 	default:
 		if (unlikely(net_ratelimit())) {
 			dev_warn(tx_ring->dev,
@@ -1229,7 +1231,7 @@ static bool fm10k_clean_tx_irq(struct fm10k_q_vector *q_vector,
 			break;
 
 		/* prevent any other reads prior to eop_desc */
-		read_barrier_depends();
+		smp_rmb();
 
 		/* if DD is not set pending work has not been completed */
 		if (!(eop_desc->flags & FM10K_TXD_FLAG_DONE))

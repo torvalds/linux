@@ -358,7 +358,7 @@ void au0828_dvb_suspend(struct au0828_dev *dev);
 void au0828_dvb_resume(struct au0828_dev *dev);
 
 /* au0828-vbi.c */
-extern struct vb2_ops au0828_vbi_qops;
+extern const struct vb2_ops au0828_vbi_qops;
 
 #define dprintk(level, fmt, arg...)\
 	do { if (au0828_debug & level)\

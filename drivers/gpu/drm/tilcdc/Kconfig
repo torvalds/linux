@@ -12,14 +12,3 @@ config DRM_TILCDC
 	  controller, for example AM33xx in beagle-bone, DA8xx, or
 	  OMAP-L1xx.  This driver replaces the FB_DA8XX fbdev driver.
 
-config DRM_TILCDC_SLAVE_COMPAT
-	bool "Support device tree blobs using TI LCDC Slave binding"
-	depends on DRM_TILCDC
-	default y
-	select OF_RESOLVE
-	select OF_OVERLAY
-	help
-	  Choose this option if you need a kernel that is compatible
-	  with device tree blobs using the obsolete "ti,tilcdc,slave"
-	  binding. If you find "ti,tilcdc,slave"-string from your DTB,
-	  you probably need this. Otherwise you do not.

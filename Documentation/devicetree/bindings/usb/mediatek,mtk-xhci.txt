@@ -26,10 +26,11 @@ Required properties:
  - clocks : a list of phandle + clock-specifier pairs, one for each
 	entry in clock-names
  - clock-names : must contain
-	"sys_ck": for clock of xHCI MAC
-	"ref_ck": for reference clock of xHCI MAC
-	"wakeup_deb_p0": for USB wakeup debounce clock of port0
-	"wakeup_deb_p1": for USB wakeup debounce clock of port1
+	"sys_ck": controller clock used by normal mode,
+	the following ones are optional:
+	"ref_ck": reference clock used by low power mode etc,
+	"mcu_ck": mcu_bus clock for register access,
+	"dma_ck": dma_bus clock for data transfer by DMA
 
  - phys : a list of phandle + phy specifier pairs
 
@@ -38,6 +39,8 @@ Optional properties:
 	mode;
  - mediatek,syscon-wakeup : phandle to syscon used to access USB wakeup
 	control register, it depends on "mediatek,wakeup-src".
+ - mediatek,u3p-dis-msk : mask to disable u3ports, bit0 for u3port0,
+	bit1 for u3port1, ... etc;
  - vbus-supply : reference to the VBUS regulator;
  - usb3-lpm-capable : supports USB3.0 LPM
  - pinctrl-names : a pinctrl state named "default" must be defined
@@ -55,9 +58,7 @@ usb30: usb@11270000 {
 	clocks = <&topckgen CLK_TOP_USB30_SEL>, <&clk26m>,
 		 <&pericfg CLK_PERI_USB0>,
 		 <&pericfg CLK_PERI_USB1>;
-	clock-names = "sys_ck", "ref_ck",
-		      "wakeup_deb_p0",
-		      "wakeup_deb_p1";
+	clock-names = "sys_ck", "ref_ck";
 	phys = <&phy_port0 PHY_TYPE_USB3>,
 	       <&phy_port1 PHY_TYPE_USB2>;
 	vusb33-supply = <&mt6397_vusb_reg>;
@@ -89,9 +90,8 @@ Required properties:
 
  - clocks : a list of phandle + clock-specifier pairs, one for each
 	entry in clock-names
- - clock-names : must be
-	"sys_ck": for clock of xHCI MAC
-	"ref_ck": for reference clock of xHCI MAC
+ - clock-names : must contain "sys_ck", and the following ones are optional:
+	"ref_ck", "mcu_ck" and "dma_ck"
 
 Optional properties:
  - vbus-supply : reference to the VBUS regulator;

@@ -70,6 +70,7 @@ struct vsp1_dl_body {
  * @dma: DMA address for the header
  * @body0: first display list body
  * @fragments: list of extra display list bodies
+ * @has_chain: if true, indicates that there's a partition chain
  * @chain: entry in the display list partition chain
  */
 struct vsp1_dl_list {

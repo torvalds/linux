@@ -139,6 +139,7 @@ vc4_irq_finish_render_job(struct drm_device *dev)
 	list_move_tail(&exec->head, &vc4->job_done_list);
 	if (exec->fence) {
 		dma_fence_signal_locked(exec->fence);
+		dma_fence_put(exec->fence);
 		exec->fence = NULL;
 	}
 	vc4_submit_next_render_job(dev);
@@ -224,6 +225,9 @@ vc4_irq_uninstall(struct drm_device *dev)
 
 	/* Clear any pending interrupts we might have left. */
 	V3D_WRITE(V3D_INTCTL, V3D_DRIVER_IRQS);
+
+	/* Finish any interrupt handler still in flight. */
+	disable_irq(dev->irq);
 
 	cancel_work_sync(&vc4->overflow_mem_work);
 }

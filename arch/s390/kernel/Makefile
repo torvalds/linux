@@ -34,6 +34,8 @@ AFLAGS_REMOVE_head.o	+= $(CC_FLAGS_MARCH)
 AFLAGS_head.o		+= -march=z900
 endif
 
+CFLAGS_als.o		+= -D__NO_FORTIFY
+
 #
 # Passing null pointers is ok for smp code, since we access the lowcore here.
 #
@@ -56,8 +58,8 @@ obj-y	:= traps.o time.o process.o base.o early.o setup.o idle.o vtime.o
 obj-y	+= processor.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o nmi.o
 obj-y	+= debug.o irq.o ipl.o dis.o diag.o vdso.o als.o
 obj-y	+= sysinfo.o jump_label.o lgr.o os_info.o machine_kexec.o pgm_check.o
-obj-y	+= runtime_instr.o cache.o fpu.o dumpstack.o guarded_storage.o
-obj-y	+= entry.o reipl.o relocate_kernel.o kdebugfs.o
+obj-y	+= runtime_instr.o cache.o fpu.o dumpstack.o guarded_storage.o sthyi.o
+obj-y	+= entry.o reipl.o relocate_kernel.o kdebugfs.o alternative.o
 
 extra-y				+= head.o head64.o vmlinux.lds
 
@@ -77,7 +79,7 @@ obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 obj-$(CONFIG_UPROBES)		+= uprobes.o
 
 obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_cpum_cf.o perf_cpum_sf.o
-obj-$(CONFIG_PERF_EVENTS)	+= perf_cpum_cf_events.o
+obj-$(CONFIG_PERF_EVENTS)	+= perf_cpum_cf_events.o perf_regs.o
 
 obj-$(CONFIG_TRACEPOINTS)	+= trace.o
 

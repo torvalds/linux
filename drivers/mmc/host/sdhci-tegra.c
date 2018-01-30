@@ -422,7 +422,15 @@ static const struct sdhci_pltfm_data sdhci_tegra186_pdata = {
 		  SDHCI_QUIRK_NO_HISPD_BIT |
 		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC |
 		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
-	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+		   /* SDHCI controllers on Tegra186 support 40-bit addressing.
+		    * IOVA addresses are 48-bit wide on Tegra186.
+		    * With 64-bit dma mask used for SDHCI, accesses can
+		    * be broken. Disable 64-bit dma, which would fall back
+		    * to 32-bit dma mask. Ideally 40-bit dma mask would work,
+		    * But it is not supported as of now.
+		    */
+		   SDHCI_QUIRK2_BROKEN_64_BIT_DMA,
 	.ops  = &tegra114_sdhci_ops,
 };
 

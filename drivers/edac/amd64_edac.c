@@ -3434,8 +3434,13 @@ MODULE_DEVICE_TABLE(x86cpu, amd64_cpuids);
 
 static int __init amd64_edac_init(void)
 {
+	const char *owner;
 	int err = -ENODEV;
 	int i;
+
+	owner = edac_get_owner();
+	if (owner && strncmp(owner, EDAC_MOD_STR, sizeof(EDAC_MOD_STR)))
+		return -EBUSY;
 
 	if (!x86_match_cpu(amd64_cpuids))
 		return -ENODEV;

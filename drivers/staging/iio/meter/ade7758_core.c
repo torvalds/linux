@@ -827,7 +827,6 @@ static const struct iio_info ade7758_info = {
 	.attrs = &ade7758_attribute_group,
 	.read_raw = &ade7758_read_raw,
 	.write_raw = &ade7758_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int ade7758_probe(struct spi_device *spi)

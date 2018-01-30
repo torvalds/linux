@@ -20,11 +20,11 @@
 #include <linux/crc8.h>
 #include <linux/printk.h>
 
-/*
+/**
  * crc8_populate_msb - fill crc table for given polynomial in reverse bit order.
  *
- * table:	table to be filled.
- * polynomial:	polynomial for which table is to be filled.
+ * @table:	table to be filled.
+ * @polynomial:	polynomial for which table is to be filled.
  */
 void crc8_populate_msb(u8 table[CRC8_TABLE_SIZE], u8 polynomial)
 {
@@ -42,11 +42,11 @@ void crc8_populate_msb(u8 table[CRC8_TABLE_SIZE], u8 polynomial)
 }
 EXPORT_SYMBOL(crc8_populate_msb);
 
-/*
+/**
  * crc8_populate_lsb - fill crc table for given polynomial in regular bit order.
  *
- * table:	table to be filled.
- * polynomial:	polynomial for which table is to be filled.
+ * @table:	table to be filled.
+ * @polynomial:	polynomial for which table is to be filled.
  */
 void crc8_populate_lsb(u8 table[CRC8_TABLE_SIZE], u8 polynomial)
 {
@@ -63,13 +63,13 @@ void crc8_populate_lsb(u8 table[CRC8_TABLE_SIZE], u8 polynomial)
 }
 EXPORT_SYMBOL(crc8_populate_lsb);
 
-/*
+/**
  * crc8 - calculate a crc8 over the given input data.
  *
- * table: crc table used for calculation.
- * pdata: pointer to data buffer.
- * nbytes: number of bytes in data buffer.
- * crc:	previous returned crc8 value.
+ * @table: crc table used for calculation.
+ * @pdata: pointer to data buffer.
+ * @nbytes: number of bytes in data buffer.
+ * @crc: previous returned crc8 value.
  */
 u8 crc8(const u8 table[CRC8_TABLE_SIZE], u8 *pdata, size_t nbytes, u8 crc)
 {

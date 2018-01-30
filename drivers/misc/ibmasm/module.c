@@ -94,12 +94,14 @@ static int ibmasm_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	snprintf(sp->dirname, IBMASM_NAME_SIZE, "%d", sp->number);
 	snprintf(sp->devname, IBMASM_NAME_SIZE, "%s%d", DRIVER_NAME, sp->number);
 
-	if (ibmasm_event_buffer_init(sp)) {
+	result = ibmasm_event_buffer_init(sp);
+	if (result) {
 		dev_err(sp->dev, "Failed to allocate event buffer\n");
 		goto error_eventbuffer;
 	}
 
-	if (ibmasm_heartbeat_init(sp)) {
+	result = ibmasm_heartbeat_init(sp);
+	if (result) {
 		dev_err(sp->dev, "Failed to allocate heartbeat command\n");
 		goto error_heartbeat;
 	}

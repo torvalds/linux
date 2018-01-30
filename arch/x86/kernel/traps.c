@@ -42,7 +42,6 @@
 #include <linux/edac.h>
 #endif
 
-#include <asm/kmemcheck.h>
 #include <asm/stacktrace.h>
 #include <asm/processor.h>
 #include <asm/debugreg.h>
@@ -61,6 +60,7 @@
 #include <asm/trace/mpx.h>
 #include <asm/mpx.h>
 #include <asm/vm86.h>
+#include <asm/umip.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/x86_init.h>
@@ -72,7 +72,7 @@
 #include <asm/proto.h>
 #endif
 
-DECLARE_BITMAP(used_vectors, NR_VECTORS);
+DECLARE_BITMAP(system_vectors, NR_VECTORS);
 
 static inline void cond_local_irq_enable(struct pt_regs *regs)
 {
@@ -361,7 +361,7 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 	 *
 	 * No need for ist_enter here because we don't use RCU.
 	 */
-	if (((long)regs->sp >> PGDIR_SHIFT) == ESPFIX_PGD_ENTRY &&
+	if (((long)regs->sp >> P4D_SHIFT) == ESPFIX_PGD_ENTRY &&
 		regs->cs == __KERNEL_CS &&
 		regs->ip == (unsigned long)native_irq_return_iret)
 	{
@@ -536,6 +536,11 @@ do_general_protection(struct pt_regs *regs, long error_code)
 
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	cond_local_irq_enable(regs);
+
+	if (static_cpu_has(X86_FEATURE_UMIP)) {
+		if (user_mode(regs) && fixup_umip_exception(regs))
+			return;
+	}
 
 	if (v8086_mode(regs)) {
 		local_irq_enable();
@@ -763,10 +768,6 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	 */
 	if (!dr6 && user_mode(regs))
 		user_icebp = 1;
-
-	/* Catch kmemcheck conditions! */
-	if ((dr6 & DR_STEP) && kmemcheck_trap(regs))
-		goto exit;
 
 	/* Store the virtualized DR6 value */
 	tsk->thread.debugreg6 = dr6;

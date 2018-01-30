@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 #ifndef __ATOMISP_SUBDEV_H__
@@ -227,7 +223,7 @@ struct atomisp_subdev_params {
 
 	bool dis_proj_data_valid;
 
-	struct ia_css_dz_config   dz_config;  /**< Digital Zoom */
+	struct ia_css_dz_config   dz_config;  /** Digital Zoom */
 	struct ia_css_capture_config   capture_config;
 
 	struct atomisp_css_isp_config config;

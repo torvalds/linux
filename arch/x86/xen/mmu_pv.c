@@ -315,7 +315,7 @@ void xen_ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 static pteval_t pte_mfn_to_pfn(pteval_t val)
 {
 	if (val & _PAGE_PRESENT) {
-		unsigned long mfn = (val & PTE_PFN_MASK) >> PAGE_SHIFT;
+		unsigned long mfn = (val & XEN_PTE_MFN_MASK) >> PAGE_SHIFT;
 		unsigned long pfn = mfn_to_pfn(mfn);
 
 		pteval_t flags = val & PTE_FLAGS_MASK;
@@ -1325,20 +1325,18 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 {
 	struct {
 		struct mmuext_op op;
-#ifdef CONFIG_SMP
-		DECLARE_BITMAP(mask, num_processors);
-#else
 		DECLARE_BITMAP(mask, NR_CPUS);
-#endif
 	} *args;
 	struct multicall_space mcs;
+	const size_t mc_entry_size = sizeof(args->op) +
+		sizeof(args->mask[0]) * BITS_TO_LONGS(num_possible_cpus());
 
 	trace_xen_mmu_flush_tlb_others(cpus, info->mm, info->start, info->end);
 
 	if (cpumask_empty(cpus))
 		return;		/* nothing to do */
 
-	mcs = xen_mc_entry(sizeof(*args));
+	mcs = xen_mc_entry(mc_entry_size);
 	args = mcs.args;
 	args->op.arg2.vcpumask = to_cpumask(args->mask);
 
@@ -1721,7 +1719,7 @@ static unsigned long __init m2p(phys_addr_t maddr)
 {
 	phys_addr_t paddr;
 
-	maddr &= PTE_PFN_MASK;
+	maddr &= XEN_PTE_MFN_MASK;
 	paddr = mfn_to_pfn(maddr >> PAGE_SHIFT) << PAGE_SHIFT;
 
 	return paddr;
@@ -1901,6 +1899,18 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 	copy_page(level2_ident_pgt, l2);
 	/* Graft it onto L4[511][510] */
 	copy_page(level2_kernel_pgt, l2);
+
+	/*
+	 * Zap execute permission from the ident map. Due to the sharing of
+	 * L1 entries we need to do this in the L2.
+	 */
+	if (__supported_pte_mask & _PAGE_NX) {
+		for (i = 0; i < PTRS_PER_PMD; ++i) {
+			if (pmd_none(level2_ident_pgt[i]))
+				continue;
+			level2_ident_pgt[i] = pmd_set_flags(level2_ident_pgt[i], _PAGE_NX);
+		}
+	}
 
 	/* Copy the initial P->M table mappings if necessary. */
 	i = pgd_index(xen_start_info->mfn_list);

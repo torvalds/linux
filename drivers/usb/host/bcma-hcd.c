@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Broadcom specific Advanced Microcontroller Bus
  * Broadcom USB-core driver (BCMA bus glue)
@@ -16,8 +17,6 @@
  *
  * Derived from the USBcore related parts of Broadcom-SB
  * Copyright 2005-2011 Broadcom Corporation
- *
- * Licensed under the GNU/GPL. See COPYING for details.
  */
 #include <linux/bcma/bcma.h>
 #include <linux/delay.h>

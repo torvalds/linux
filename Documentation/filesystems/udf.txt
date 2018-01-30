@@ -1,11 +1,9 @@
 *
 * Documentation/filesystems/udf.txt
 *
-UDF Filesystem version 0.9.8.1
 
 If you encounter problems with reading UDF discs using this driver,
-please report them to linux_udf@hpesjro.fc.hp.com, which is the
-developer's list.
+please report them according to MAINTAINERS file.
 
 Write support requires a block driver which supports writing.  Currently
 dvd+rw drives and media support true random sector writes, and so a udf
@@ -73,10 +71,8 @@ The following expect a offset from the partition root.
 
 
 For the latest version and toolset see:
-	http://linux-udf.sourceforge.net/
+	https://github.com/pali/udftools
 
 Documentation on UDF and ECMA 167 is available FREE from:
 	http://www.osta.org/
 	http://www.ecma-international.org/
-
-Ben Fennema <bfennema@falcon.csc.calpoly.edu>

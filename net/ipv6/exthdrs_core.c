@@ -99,7 +99,7 @@ int ipv6_skip_exthdr(const struct sk_buff *skb, int start, u8 *nexthdrp,
 				break;
 			hdrlen = 8;
 		} else if (nexthdr == NEXTHDR_AUTH)
-			hdrlen = (hp->hdrlen+2)<<2;
+			hdrlen = ipv6_authlen(hp);
 		else
 			hdrlen = ipv6_optlen(hp);
 
@@ -187,7 +187,6 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 {
 	unsigned int start = skb_network_offset(skb) + sizeof(struct ipv6hdr);
 	u8 nexthdr = ipv6_hdr(skb)->nexthdr;
-	unsigned int len;
 	bool found;
 
 	if (fragoff)
@@ -204,7 +203,6 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 		start = *offset + sizeof(struct ipv6hdr);
 		nexthdr = ip6->nexthdr;
 	}
-	len = skb->len - start;
 
 	do {
 		struct ipv6_opt_hdr _hdr, *hp;
@@ -273,7 +271,6 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 
 		if (!found) {
 			nexthdr = hp->nexthdr;
-			len -= hdrlen;
 			start += hdrlen;
 		}
 	} while (!found);

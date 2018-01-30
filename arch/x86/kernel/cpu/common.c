@@ -331,6 +331,30 @@ static __always_inline void setup_smap(struct cpuinfo_x86 *c)
 	}
 }
 
+static __always_inline void setup_umip(struct cpuinfo_x86 *c)
+{
+	/* Check the boot processor, plus build option for UMIP. */
+	if (!cpu_feature_enabled(X86_FEATURE_UMIP))
+		goto out;
+
+	/* Check the current processor's cpuid bits. */
+	if (!cpu_has(c, X86_FEATURE_UMIP))
+		goto out;
+
+	cr4_set_bits(X86_CR4_UMIP);
+
+	pr_info("x86/cpu: Activated the Intel User Mode Instruction Prevention (UMIP) CPU feature\n");
+
+	return;
+
+out:
+	/*
+	 * Make sure UMIP is disabled in case it was enabled in a
+	 * previous boot (e.g., via kexec).
+	 */
+	cr4_clear_bits(X86_CR4_UMIP);
+}
+
 /*
  * Protection Keys are not available in 32-bit mode.
  */
@@ -896,8 +920,8 @@ static bool __init cpu_vulnerable_to_meltdown(struct cpuinfo_x86 *c)
  * cache alignment.
  * The others are not touched to avoid unwanted side effects.
  *
- * WARNING: this function is only called on the BP.  Don't add code here
- * that is supposed to run on all CPUs.
+ * WARNING: this function is only called on the boot CPU.  Don't add code
+ * here that is supposed to run on all CPUs.
  */
 static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 {
@@ -1188,9 +1212,10 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	/* Disable the PN if appropriate */
 	squash_the_stupid_serial_number(c);
 
-	/* Set up SMEP/SMAP */
+	/* Set up SMEP/SMAP/UMIP */
 	setup_smep(c);
 	setup_smap(c);
+	setup_umip(c);
 
 	/*
 	 * The vendor-specific functions might have changed features.

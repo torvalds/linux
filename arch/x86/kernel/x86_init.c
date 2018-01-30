@@ -57,6 +57,7 @@ struct x86_init_ops x86_init __initdata = {
 		.pre_vector_init	= init_ISA_irqs,
 		.intr_init		= native_init_IRQ,
 		.trap_init		= x86_init_noop,
+		.intr_mode_init		= apic_intr_mode_init
 	},
 
 	.oem = {
@@ -86,6 +87,7 @@ struct x86_init_ops x86_init __initdata = {
 
 	.hyper = {
 		.init_platform		= x86_init_noop,
+		.guest_late_init	= x86_init_noop,
 		.x2apic_available	= bool_x86_init_noop,
 		.init_mem_mapping	= x86_init_noop,
 	},

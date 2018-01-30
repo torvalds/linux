@@ -571,6 +571,11 @@ xfs_growfs_data_private(
 		 * this doesn't actually exist in the rmap btree.
 		 */
 		xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_NULL);
+		error = xfs_rmap_free(tp, bp, agno,
+				be32_to_cpu(agf->agf_length) - new,
+				new, &oinfo);
+		if (error)
+			goto error0;
 		error = xfs_free_extent(tp,
 				XFS_AGB_TO_FSB(mp, agno,
 					be32_to_cpu(agf->agf_length) - new),

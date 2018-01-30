@@ -1,0 +1,9 @@
+config NTB_SWITCHTEC
+	tristate "MicroSemi Switchtec Non-Transparent Bridge Support"
+	select PCI_SW_SWITCHTEC
+	help
+	 Enables NTB support for Switchtec PCI switches. This also
+	 selects the Switchtec management driver as they share the same
+	 hardware interface.
+
+	 If unsure, say N.

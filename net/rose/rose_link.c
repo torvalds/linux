@@ -27,8 +27,8 @@
 #include <linux/interrupt.h>
 #include <net/rose.h>
 
-static void rose_ftimer_expiry(unsigned long);
-static void rose_t0timer_expiry(unsigned long);
+static void rose_ftimer_expiry(struct timer_list *);
+static void rose_t0timer_expiry(struct timer_list *);
 
 static void rose_transmit_restart_confirmation(struct rose_neigh *neigh);
 static void rose_transmit_restart_request(struct rose_neigh *neigh);
@@ -37,8 +37,7 @@ void rose_start_ftimer(struct rose_neigh *neigh)
 {
 	del_timer(&neigh->ftimer);
 
-	neigh->ftimer.data     = (unsigned long)neigh;
-	neigh->ftimer.function = &rose_ftimer_expiry;
+	neigh->ftimer.function = rose_ftimer_expiry;
 	neigh->ftimer.expires  =
 		jiffies + msecs_to_jiffies(sysctl_rose_link_fail_timeout);
 
@@ -49,8 +48,7 @@ static void rose_start_t0timer(struct rose_neigh *neigh)
 {
 	del_timer(&neigh->t0timer);
 
-	neigh->t0timer.data     = (unsigned long)neigh;
-	neigh->t0timer.function = &rose_t0timer_expiry;
+	neigh->t0timer.function = rose_t0timer_expiry;
 	neigh->t0timer.expires  =
 		jiffies + msecs_to_jiffies(sysctl_rose_restart_request_timeout);
 
@@ -77,13 +75,13 @@ static int rose_t0timer_running(struct rose_neigh *neigh)
 	return timer_pending(&neigh->t0timer);
 }
 
-static void rose_ftimer_expiry(unsigned long param)
+static void rose_ftimer_expiry(struct timer_list *t)
 {
 }
 
-static void rose_t0timer_expiry(unsigned long param)
+static void rose_t0timer_expiry(struct timer_list *t)
 {
-	struct rose_neigh *neigh = (struct rose_neigh *)param;
+	struct rose_neigh *neigh = from_timer(neigh, t, t0timer);
 
 	rose_transmit_restart_request(neigh);
 

@@ -207,7 +207,6 @@ static const struct iio_info mcp4531_info = {
 	.read_raw = mcp4531_read_raw,
 	.read_avail = mcp4531_read_avail,
 	.write_raw = mcp4531_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #ifdef CONFIG_OF

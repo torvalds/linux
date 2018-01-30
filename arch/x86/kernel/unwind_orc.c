@@ -74,8 +74,50 @@ static struct orc_entry *orc_module_find(unsigned long ip)
 }
 #endif
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+static struct orc_entry *orc_find(unsigned long ip);
+
+/*
+ * Ftrace dynamic trampolines do not have orc entries of their own.
+ * But they are copies of the ftrace entries that are static and
+ * defined in ftrace_*.S, which do have orc entries.
+ *
+ * If the undwinder comes across a ftrace trampoline, then find the
+ * ftrace function that was used to create it, and use that ftrace
+ * function's orc entrie, as the placement of the return code in
+ * the stack will be identical.
+ */
+static struct orc_entry *orc_ftrace_find(unsigned long ip)
+{
+	struct ftrace_ops *ops;
+	unsigned long caller;
+
+	ops = ftrace_ops_trampoline(ip);
+	if (!ops)
+		return NULL;
+
+	if (ops->flags & FTRACE_OPS_FL_SAVE_REGS)
+		caller = (unsigned long)ftrace_regs_call;
+	else
+		caller = (unsigned long)ftrace_call;
+
+	/* Prevent unlikely recursion */
+	if (ip == caller)
+		return NULL;
+
+	return orc_find(caller);
+}
+#else
+static struct orc_entry *orc_ftrace_find(unsigned long ip)
+{
+	return NULL;
+}
+#endif
+
 static struct orc_entry *orc_find(unsigned long ip)
 {
+	static struct orc_entry *orc;
+
 	if (!orc_init)
 		return NULL;
 
@@ -111,7 +153,11 @@ static struct orc_entry *orc_find(unsigned long ip)
 				  __stop_orc_unwind_ip - __start_orc_unwind_ip, ip);
 
 	/* Module lookup: */
-	return orc_module_find(ip);
+	orc = orc_module_find(ip);
+	if (orc)
+		return orc;
+
+	return orc_ftrace_find(ip);
 }
 
 static void orc_sort_swap(void *_a, void *_b, int size)

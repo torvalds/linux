@@ -4,6 +4,7 @@ config QEDI
 	depends on QED
 	select SCSI_ISCSI_ATTRS
 	select QED_LL2
+	select QED_OOO
 	select QED_ISCSI
 	select ISCSI_BOOT_SYSFS
 	---help---

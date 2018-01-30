@@ -114,19 +114,7 @@ static DEFINE_MUTEX(ghes_list_mutex);
  * from BIOS to Linux can be determined only in NMI, IRQ or timer
  * handler, but general ioremap can not be used in atomic context, so
  * the fixmap is used instead.
- */
-
-/*
- * Two virtual pages are used, one for IRQ/PROCESS context, the other for
- * NMI context (optionally).
- */
-#define GHES_IOREMAP_PAGES           2
-#define GHES_IOREMAP_IRQ_PAGE(base)	(base)
-#define GHES_IOREMAP_NMI_PAGE(base)	((base) + PAGE_SIZE)
-
-/* virtual memory area for atomic ioremap */
-static struct vm_struct *ghes_ioremap_area;
-/*
+ *
  * These 2 spinlocks are used to prevent the fixmap entries from being used
  * simultaneously.
  */
@@ -140,23 +128,6 @@ static struct ghes_estatus_cache *ghes_estatus_caches[GHES_ESTATUS_CACHES_SIZE];
 static atomic_t ghes_estatus_cache_alloced;
 
 static int ghes_panic_timeout __read_mostly = 30;
-
-static int ghes_ioremap_init(void)
-{
-	ghes_ioremap_area = __get_vm_area(PAGE_SIZE * GHES_IOREMAP_PAGES,
-		VM_IOREMAP, VMALLOC_START, VMALLOC_END);
-	if (!ghes_ioremap_area) {
-		pr_err(GHES_PFX "Failed to allocate virtual memory area for atomic ioremap.\n");
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
-static void ghes_ioremap_exit(void)
-{
-	free_vm_area(ghes_ioremap_area);
-}
 
 static void __iomem *ghes_ioremap_pfn_nmi(u64 pfn)
 {
@@ -759,9 +730,9 @@ static void ghes_add_timer(struct ghes *ghes)
 	add_timer(&ghes->timer);
 }
 
-static void ghes_poll_func(unsigned long data)
+static void ghes_poll_func(struct timer_list *t)
 {
-	struct ghes *ghes = (void *)data;
+	struct ghes *ghes = from_timer(ghes, t, timer);
 
 	ghes_proc(ghes);
 	if (!(ghes->flags & GHES_EXITING))
@@ -1109,8 +1080,7 @@ static int ghes_probe(struct platform_device *ghes_dev)
 
 	switch (generic->notify.type) {
 	case ACPI_HEST_NOTIFY_POLLED:
-		setup_deferrable_timer(&ghes->timer, ghes_poll_func,
-				       (unsigned long)ghes);
+		timer_setup(&ghes->timer, ghes_poll_func, TIMER_DEFERRABLE);
 		ghes_add_timer(ghes);
 		break;
 	case ACPI_HEST_NOTIFY_EXTERNAL:
@@ -1247,13 +1217,9 @@ static int __init ghes_init(void)
 
 	ghes_nmi_init_cxt();
 
-	rc = ghes_ioremap_init();
-	if (rc)
-		goto err;
-
 	rc = ghes_estatus_pool_init();
 	if (rc)
-		goto err_ioremap_exit;
+		goto err;
 
 	rc = ghes_estatus_pool_expand(GHES_ESTATUS_CACHE_AVG_SIZE *
 				      GHES_ESTATUS_CACHE_ALLOCED_MAX);
@@ -1277,8 +1243,6 @@ static int __init ghes_init(void)
 	return 0;
 err_pool_exit:
 	ghes_estatus_pool_exit();
-err_ioremap_exit:
-	ghes_ioremap_exit();
 err:
 	return rc;
 }

@@ -26,6 +26,26 @@ static struct i40e_ops i40evf_lan_ops = {
 };
 
 /**
+ * i40evf_client_get_params - retrieve relevant client parameters
+ * @vsi: VSI with parameters
+ * @params: client param struct
+ **/
+static
+void i40evf_client_get_params(struct i40e_vsi *vsi, struct i40e_params *params)
+{
+	int i;
+
+	memset(params, 0, sizeof(struct i40e_params));
+	params->mtu = vsi->netdev->mtu;
+	params->link_up = vsi->back->link_up;
+
+	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
+		params->qos.prio_qos[i].tc = 0;
+		params->qos.prio_qos[i].qs_handle = vsi->qs_handle;
+	}
+}
+
+/**
  * i40evf_notify_client_message - call the client message receive callback
  * @vsi: the VSI associated with this client
  * @msg: message buffer
@@ -66,10 +86,6 @@ void i40evf_notify_client_l2_params(struct i40e_vsi *vsi)
 		return;
 
 	cinst = vsi->back->cinst;
-	memset(&params, 0, sizeof(params));
-	params.mtu = vsi->netdev->mtu;
-	params.link_up = vsi->back->link_up;
-	params.qos.prio_qos[0].qs_handle = vsi->qs_handle;
 
 	if (!cinst || !cinst->client || !cinst->client->ops ||
 	    !cinst->client->ops->l2_param_change) {
@@ -77,6 +93,8 @@ void i40evf_notify_client_l2_params(struct i40e_vsi *vsi)
 			"Cannot locate client instance l2_param_change function\n");
 		return;
 	}
+	i40evf_client_get_params(vsi, &params);
+	cinst->lan_info.params = params;
 	cinst->client->ops->l2_param_change(&cinst->lan_info, cinst->client,
 					    &params);
 }
@@ -166,9 +184,9 @@ static struct i40e_client_instance *
 i40evf_client_add_instance(struct i40evf_adapter *adapter)
 {
 	struct i40e_client_instance *cinst = NULL;
-	struct netdev_hw_addr *mac = NULL;
 	struct i40e_vsi *vsi = &adapter->vsi;
-	int i;
+	struct netdev_hw_addr *mac = NULL;
+	struct i40e_params params;
 
 	if (!vf_registered_client)
 		goto out;
@@ -192,17 +210,13 @@ i40evf_client_add_instance(struct i40evf_adapter *adapter)
 	cinst->lan_info.version.major = I40EVF_CLIENT_VERSION_MAJOR;
 	cinst->lan_info.version.minor = I40EVF_CLIENT_VERSION_MINOR;
 	cinst->lan_info.version.build = I40EVF_CLIENT_VERSION_BUILD;
+	i40evf_client_get_params(vsi, &params);
+	cinst->lan_info.params = params;
 	set_bit(__I40E_CLIENT_INSTANCE_NONE, &cinst->state);
 
 	cinst->lan_info.msix_count = adapter->num_iwarp_msix;
 	cinst->lan_info.msix_entries =
 			&adapter->msix_entries[adapter->iwarp_base_vector];
-
-	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-		cinst->lan_info.params.qos.prio_qos[i].tc = 0;
-		cinst->lan_info.params.qos.prio_qos[i].qs_handle =
-								vsi->qs_handle;
-	}
 
 	mac = list_first_entry(&cinst->lan_info.netdev->dev_addrs.list,
 			       struct netdev_hw_addr, list);

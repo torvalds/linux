@@ -399,8 +399,7 @@ struct mesh_path *mesh_path_new(struct ieee80211_sub_if_data *sdata,
 	skb_queue_head_init(&new_mpath->frame_queue);
 	new_mpath->exp_time = jiffies;
 	spin_lock_init(&new_mpath->state_lock);
-	setup_timer(&new_mpath->timer, mesh_path_timer,
-		    (unsigned long) new_mpath);
+	timer_setup(&new_mpath->timer, mesh_path_timer, 0);
 
 	return new_mpath;
 }

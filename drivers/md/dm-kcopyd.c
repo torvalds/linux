@@ -107,7 +107,7 @@ static void io_job_start(struct dm_kcopyd_throttle *t)
 try_again:
 	spin_lock_irq(&throttle_spinlock);
 
-	throttle = ACCESS_ONCE(t->throttle);
+	throttle = READ_ONCE(t->throttle);
 
 	if (likely(throttle >= 100))
 		goto skip_limit;
@@ -157,7 +157,7 @@ static void io_job_finish(struct dm_kcopyd_throttle *t)
 
 	t->num_io_jobs--;
 
-	if (likely(ACCESS_ONCE(t->throttle) >= 100))
+	if (likely(READ_ONCE(t->throttle) >= 100))
 		goto skip_limit;
 
 	if (!t->num_io_jobs) {

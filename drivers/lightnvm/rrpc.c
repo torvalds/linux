@@ -267,9 +267,9 @@ static void rrpc_gc_kick(struct rrpc *rrpc)
 /*
  * timed GC every interval.
  */
-static void rrpc_gc_timer(unsigned long data)
+static void rrpc_gc_timer(struct timer_list *t)
 {
-	struct rrpc *rrpc = (struct rrpc *)data;
+	struct rrpc *rrpc = from_timer(rrpc, t, gc_timer);
 
 	rrpc_gc_kick(rrpc);
 	mod_timer(&rrpc->gc_timer, jiffies + msecs_to_jiffies(10));
@@ -1063,7 +1063,7 @@ static int rrpc_gc_init(struct rrpc *rrpc)
 	if (!rrpc->kgc_wq)
 		return -ENOMEM;
 
-	setup_timer(&rrpc->gc_timer, rrpc_gc_timer, (unsigned long)rrpc);
+	timer_setup(&rrpc->gc_timer, rrpc_gc_timer, 0);
 
 	return 0;
 }

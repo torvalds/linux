@@ -44,6 +44,7 @@ extern char __entry_text_start[], __entry_text_end[];
 extern char __start_rodata[], __end_rodata[];
 extern char __irqentry_text_start[], __irqentry_text_end[];
 extern char __softirqentry_text_start[], __softirqentry_text_end[];
+extern char __start_once[], __end_once[];
 
 /* Start and end of .ctors section - used for constructor calls. */
 extern char __ctors_start[], __ctors_end[];

@@ -212,6 +212,7 @@
 #define DMA_FSTS_IQE (1 << 4)
 #define DMA_FSTS_ICE (1 << 5)
 #define DMA_FSTS_ITE (1 << 6)
+#define DMA_FSTS_PRO (1 << 7)
 #define dma_fsts_fault_record_index(s) (((s) >> 8) & 0xff)
 
 /* FRCD_REG, 32 bits access */

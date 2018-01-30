@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *	mxuport.c - MOXA UPort series driver
  *
  *	Copyright (c) 2006 Moxa Technologies Co., Ltd.
  *	Copyright (c) 2013 Andrew Lunn <andrew@lunn.ch>
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  *
  *	Supports the following Moxa USB to serial converters:
  *	 2 ports : UPort 1250, UPort 1250I

@@ -50,10 +50,11 @@ parameters may be changed at runtime by the command
 	mac5380=	[HW,SCSI]
 			See drivers/scsi/mac_scsi.c.
 
-	max_luns=	[SCSI] Maximum number of LUNs to probe.
+	scsi_mod.max_luns=
+			[SCSI] Maximum number of LUNs to probe.
 			Should be between 1 and 2^32-1.
 
-	max_report_luns=
+	scsi_mod.max_report_luns=
 			[SCSI] Maximum number of LUNs received.
 			Should be between 1 and 16384.
 
@@ -80,15 +81,17 @@ parameters may be changed at runtime by the command
 	scsi_debug_*=	[SCSI]
 			See drivers/scsi/scsi_debug.c.
 
-	scsi_default_dev_flags=
+	scsi_mod.default_dev_flags=
 			[SCSI] SCSI default device flags
 			Format: <integer>
 
-	scsi_dev_flags=	[SCSI] Black/white list entry for vendor and model
+	scsi_mod.dev_flags=
+			[SCSI] Black/white list entry for vendor and model
 			Format: <vendor>:<model>:<flags>
 			(flags are integer value)
 
-	scsi_logging_level=	[SCSI] a bit mask of logging levels
+	scsi_mod.scsi_logging_level=
+			[SCSI] a bit mask of logging levels
 			See drivers/scsi/scsi_logging.h for bits.  Also
 			settable via sysctl at dev.scsi.logging_level
 			(/proc/sys/dev/scsi/logging_level).

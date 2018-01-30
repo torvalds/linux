@@ -1,3 +1,4 @@
+#include <linux/acpi.h>
 #include <linux/cpu.h>
 #include <linux/kexec.h>
 #include <linux/memblock.h>
@@ -188,8 +189,6 @@ static void __init xen_hvm_guest_init(void)
 	xen_hvm_init_time_ops();
 	xen_hvm_init_mmu_ops();
 
-	if (xen_pvh_domain())
-		machine_ops.emergency_restart = xen_emergency_restart;
 #ifdef CONFIG_KEXEC_CORE
 	machine_ops.shutdown = xen_hvm_shutdown;
 	machine_ops.crash_shutdown = xen_hvm_crash_shutdown;
@@ -226,6 +225,26 @@ static uint32_t __init xen_platform_hvm(void)
 	return xen_cpuid_base();
 }
 
+static __init void xen_hvm_guest_late_init(void)
+{
+#ifdef CONFIG_XEN_PVH
+	/* Test for PVH domain (PVH boot path taken overrides ACPI flags). */
+	if (!xen_pvh &&
+	    (x86_platform.legacy.rtc || !x86_platform.legacy.no_vga))
+		return;
+
+	/* PVH detected. */
+	xen_pvh = true;
+
+	/* Make sure we don't fall back to (default) ACPI_IRQ_MODEL_PIC. */
+	if (!nr_ioapics && acpi_irq_model == ACPI_IRQ_MODEL_PIC)
+		acpi_irq_model = ACPI_IRQ_MODEL_PLATFORM;
+
+	machine_ops.emergency_restart = xen_emergency_restart;
+	pv_info.name = "Xen PVH";
+#endif
+}
+
 const __initconst struct hypervisor_x86 x86_hyper_xen_hvm = {
 	.name                   = "Xen HVM",
 	.detect                 = xen_platform_hvm,
@@ -233,5 +252,6 @@ const __initconst struct hypervisor_x86 x86_hyper_xen_hvm = {
 	.init.init_platform     = xen_hvm_guest_init,
 	.init.x2apic_available  = xen_x2apic_para_available,
 	.init.init_mem_mapping	= xen_hvm_init_mem_mapping,
+	.init.guest_late_init	= xen_hvm_guest_late_init,
 	.runtime.pin_vcpu       = xen_pin_vcpu,
 };

@@ -177,6 +177,9 @@ enum nand_ecc_algo {
  */
 #define NAND_NEED_SCRAMBLING	0x00002000
 
+/* Device needs 3rd row address cycle */
+#define NAND_ROW_ADDR_3		0x00004000
+
 /* Options valid for Samsung large page devices */
 #define NAND_SAMSUNG_LP_OPTIONS NAND_CACHEPRG
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * USB FTDI client driver for Elan Digital Systems's Uxxx adapters
  *
@@ -6,11 +7,6 @@
  *
  * Author and Maintainer - Tony Olech - Elan Digital Systems
  * tony.olech@elandigitalsystems.com
- *
- * This program is free software;you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2.
- *
  *
  * This driver was written by Tony Olech(tony.olech@elandigitalsystems.com)
  * based on various USB client drivers in the 2.6.15 linux kernel

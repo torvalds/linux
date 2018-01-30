@@ -110,6 +110,8 @@
 #define X86_CR4_OSFXSR		_BITUL(X86_CR4_OSFXSR_BIT)
 #define X86_CR4_OSXMMEXCPT_BIT	10 /* enable unmasked SSE exceptions */
 #define X86_CR4_OSXMMEXCPT	_BITUL(X86_CR4_OSXMMEXCPT_BIT)
+#define X86_CR4_UMIP_BIT	11 /* enable UMIP support */
+#define X86_CR4_UMIP		_BITUL(X86_CR4_UMIP_BIT)
 #define X86_CR4_LA57_BIT	12 /* enable 5-level page tables */
 #define X86_CR4_LA57		_BITUL(X86_CR4_LA57_BIT)
 #define X86_CR4_VMXE_BIT	13 /* enable VMX virtualization */

@@ -1039,14 +1039,14 @@ static void dn_eth_down(struct net_device *dev)
 
 static void dn_dev_set_timer(struct net_device *dev);
 
-static void dn_dev_timer_func(unsigned long arg)
+static void dn_dev_timer_func(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)arg;
-	struct dn_dev *dn_db;
+	struct dn_dev *dn_db = from_timer(dn_db, t, timer);
+	struct net_device *dev;
 	struct dn_ifaddr *ifa;
 
 	rcu_read_lock();
-	dn_db = rcu_dereference(dev->dn_ptr);
+	dev = dn_db->dev;
 	if (dn_db->t3 <= dn_db->parms.t2) {
 		if (dn_db->parms.timer3) {
 			for (ifa = rcu_dereference(dn_db->ifa_list);
@@ -1071,8 +1071,6 @@ static void dn_dev_set_timer(struct net_device *dev)
 	if (dn_db->parms.t2 > dn_db->parms.t3)
 		dn_db->parms.t2 = dn_db->parms.t3;
 
-	dn_db->timer.data = (unsigned long)dev;
-	dn_db->timer.function = dn_dev_timer_func;
 	dn_db->timer.expires = jiffies + (dn_db->parms.t2 * HZ);
 
 	add_timer(&dn_db->timer);
@@ -1101,7 +1099,7 @@ static struct dn_dev *dn_dev_create(struct net_device *dev, int *err)
 
 	rcu_assign_pointer(dev->dn_ptr, dn_db);
 	dn_db->dev = dev;
-	init_timer(&dn_db->timer);
+	timer_setup(&dn_db->timer, dn_dev_timer_func, 0);
 
 	dn_db->uptime = jiffies;
 

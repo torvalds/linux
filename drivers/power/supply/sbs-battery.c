@@ -177,10 +177,8 @@ static bool force_load;
 static int sbs_read_word_data(struct i2c_client *client, u8 address)
 {
 	struct sbs_info *chip = i2c_get_clientdata(client);
+	int retries = chip->i2c_retry_count;
 	s32 ret = 0;
-	int retries = 1;
-
-	retries = chip->i2c_retry_count;
 
 	while (retries > 0) {
 		ret = i2c_smbus_read_word_data(client, address);
@@ -204,7 +202,7 @@ static int sbs_read_string_data(struct i2c_client *client, u8 address,
 {
 	struct sbs_info *chip = i2c_get_clientdata(client);
 	s32 ret = 0, block_length = 0;
-	int retries_length = 1, retries_block = 1;
+	int retries_length, retries_block;
 	u8 block_buffer[I2C_SMBUS_BLOCK_MAX + 1];
 
 	retries_length = chip->i2c_retry_count;
@@ -269,10 +267,8 @@ static int sbs_write_word_data(struct i2c_client *client, u8 address,
 	u16 value)
 {
 	struct sbs_info *chip = i2c_get_clientdata(client);
+	int retries = chip->i2c_retry_count;
 	s32 ret = 0;
-	int retries = 1;
-
-	retries = chip->i2c_retry_count;
 
 	while (retries > 0) {
 		ret = i2c_smbus_write_word_data(client, address, value);
@@ -321,16 +317,6 @@ static int sbs_get_battery_presence_and_health(
 	union power_supply_propval *val)
 {
 	s32 ret;
-	struct sbs_info *chip = i2c_get_clientdata(client);
-
-	if (psp == POWER_SUPPLY_PROP_PRESENT && chip->gpio_detect) {
-		ret = gpiod_get_value_cansleep(chip->gpio_detect);
-		if (ret < 0)
-			return ret;
-		val->intval = ret;
-		chip->is_present = val->intval;
-		return ret;
-	}
 
 	/*
 	 * Write to ManufacturerAccess with ManufacturerAccess command
@@ -570,7 +556,7 @@ static int sbs_get_battery_serial_number(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	ret = sprintf(sbs_serial, "%04x", ret);
+	sprintf(sbs_serial, "%04x", ret);
 	val->strval = sbs_serial;
 
 	return 0;
@@ -597,6 +583,19 @@ static int sbs_get_property(struct power_supply *psy,
 	int ret = 0;
 	struct sbs_info *chip = power_supply_get_drvdata(psy);
 	struct i2c_client *client = chip->client;
+
+	if (chip->gpio_detect) {
+		ret = gpiod_get_value_cansleep(chip->gpio_detect);
+		if (ret < 0)
+			return ret;
+		if (psp == POWER_SUPPLY_PROP_PRESENT) {
+			val->intval = ret;
+			chip->is_present = val->intval;
+			return 0;
+		}
+		if (ret == 0)
+			return -ENODATA;
+	}
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_PRESENT:

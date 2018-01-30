@@ -87,6 +87,7 @@ static struct btrfs_delayed_node *btrfs_get_delayed_node(
 
 	spin_lock(&root->inode_lock);
 	node = radix_tree_lookup(&root->delayed_nodes_tree, ino);
+
 	if (node) {
 		if (btrfs_inode->delayed_node) {
 			refcount_inc(&node->refs);	/* can be accessed */
@@ -94,9 +95,30 @@ static struct btrfs_delayed_node *btrfs_get_delayed_node(
 			spin_unlock(&root->inode_lock);
 			return node;
 		}
-		btrfs_inode->delayed_node = node;
-		/* can be accessed and cached in the inode */
-		refcount_add(2, &node->refs);
+
+		/*
+		 * It's possible that we're racing into the middle of removing
+		 * this node from the radix tree.  In this case, the refcount
+		 * was zero and it should never go back to one.  Just return
+		 * NULL like it was never in the radix at all; our release
+		 * function is in the process of removing it.
+		 *
+		 * Some implementations of refcount_inc refuse to bump the
+		 * refcount once it has hit zero.  If we don't do this dance
+		 * here, refcount_inc() may decide to just WARN_ONCE() instead
+		 * of actually bumping the refcount.
+		 *
+		 * If this node is properly in the radix, we want to bump the
+		 * refcount twice, once for the inode and once for this get
+		 * operation.
+		 */
+		if (refcount_inc_not_zero(&node->refs)) {
+			refcount_inc(&node->refs);
+			btrfs_inode->delayed_node = node;
+		} else {
+			node = NULL;
+		}
+
 		spin_unlock(&root->inode_lock);
 		return node;
 	}
@@ -254,17 +276,18 @@ static void __btrfs_release_delayed_node(
 	mutex_unlock(&delayed_node->mutex);
 
 	if (refcount_dec_and_test(&delayed_node->refs)) {
-		bool free = false;
 		struct btrfs_root *root = delayed_node->root;
+
 		spin_lock(&root->inode_lock);
-		if (refcount_read(&delayed_node->refs) == 0) {
-			radix_tree_delete(&root->delayed_nodes_tree,
-					  delayed_node->inode_id);
-			free = true;
-		}
+		/*
+		 * Once our refcount goes to zero, nobody is allowed to bump it
+		 * back up.  We can delete it now.
+		 */
+		ASSERT(refcount_read(&delayed_node->refs) == 0);
+		radix_tree_delete(&root->delayed_nodes_tree,
+				  delayed_node->inode_id);
 		spin_unlock(&root->inode_lock);
-		if (free)
-			kmem_cache_free(delayed_node_cache, delayed_node);
+		kmem_cache_free(delayed_node_cache, delayed_node);
 	}
 }
 
@@ -581,35 +604,11 @@ static int btrfs_delayed_inode_reserve_metadata(
 	struct btrfs_block_rsv *dst_rsv;
 	u64 num_bytes;
 	int ret;
-	bool release = false;
 
 	src_rsv = trans->block_rsv;
 	dst_rsv = &fs_info->delayed_block_rsv;
 
 	num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
-
-	/*
-	 * If our block_rsv is the delalloc block reserve then check and see if
-	 * we have our extra reservation for updating the inode.  If not fall
-	 * through and try to reserve space quickly.
-	 *
-	 * We used to try and steal from the delalloc block rsv or the global
-	 * reserve, but we'd steal a full reservation, which isn't kind.  We are
-	 * here through delalloc which means we've likely just cowed down close
-	 * to the leaf that contains the inode, so we would steal less just
-	 * doing the fallback inode update, so if we do end up having to steal
-	 * from the global block rsv we hopefully only steal one or two blocks
-	 * worth which is less likely to hurt us.
-	 */
-	if (src_rsv && src_rsv->type == BTRFS_BLOCK_RSV_DELALLOC) {
-		spin_lock(&inode->lock);
-		if (test_and_clear_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
-				       &inode->runtime_flags))
-			release = true;
-		else
-			src_rsv = NULL;
-		spin_unlock(&inode->lock);
-	}
 
 	/*
 	 * btrfs_dirty_inode will update the inode under btrfs_join_transaction
@@ -618,7 +617,7 @@ static int btrfs_delayed_inode_reserve_metadata(
 	 * space.
 	 *
 	 * Now if src_rsv == delalloc_block_rsv we'll let it just steal since
-	 * we're accounted for.
+	 * we always reserve enough to update the inode item.
 	 */
 	if (!src_rsv || (!trans->bytes_reserved &&
 			 src_rsv->type != BTRFS_BLOCK_RSV_DELALLOC)) {
@@ -643,30 +642,10 @@ static int btrfs_delayed_inode_reserve_metadata(
 	}
 
 	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
-
-	/*
-	 * Migrate only takes a reservation, it doesn't touch the size of the
-	 * block_rsv.  This is to simplify people who don't normally have things
-	 * migrated from their block rsv.  If they go to release their
-	 * reservation, that will decrease the size as well, so if migrate
-	 * reduced size we'd end up with a negative size.  But for the
-	 * delalloc_meta_reserved stuff we will only know to drop 1 reservation,
-	 * but we could in fact do this reserve/migrate dance several times
-	 * between the time we did the original reservation and we'd clean it
-	 * up.  So to take care of this, release the space for the meta
-	 * reservation here.  I think it may be time for a documentation page on
-	 * how block rsvs. work.
-	 */
 	if (!ret) {
 		trace_btrfs_space_reservation(fs_info, "delayed_inode",
 					      btrfs_ino(inode), num_bytes, 1);
 		node->bytes_reserved = num_bytes;
-	}
-
-	if (release) {
-		trace_btrfs_space_reservation(fs_info, "delalloc",
-					      btrfs_ino(inode), num_bytes, 0);
-		btrfs_block_rsv_release(fs_info, src_rsv, num_bytes);
 	}
 
 	return ret;
@@ -1654,28 +1633,18 @@ void btrfs_readdir_put_delayed_items(struct inode *inode,
 int btrfs_should_delete_dir_index(struct list_head *del_list,
 				  u64 index)
 {
-	struct btrfs_delayed_item *curr, *next;
-	int ret;
+	struct btrfs_delayed_item *curr;
+	int ret = 0;
 
-	if (list_empty(del_list))
-		return 0;
-
-	list_for_each_entry_safe(curr, next, del_list, readdir_list) {
+	list_for_each_entry(curr, del_list, readdir_list) {
 		if (curr->key.offset > index)
 			break;
-
-		list_del(&curr->readdir_list);
-		ret = (curr->key.offset == index);
-
-		if (refcount_dec_and_test(&curr->refs))
-			kfree(curr);
-
-		if (ret)
-			return 1;
-		else
-			continue;
+		if (curr->key.offset == index) {
+			ret = 1;
+			break;
+		}
 	}
-	return 0;
+	return ret;
 }
 
 /*

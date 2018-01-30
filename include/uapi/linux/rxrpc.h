@@ -20,12 +20,12 @@
  * RxRPC socket address
  */
 struct sockaddr_rxrpc {
-	sa_family_t	srx_family;	/* address family */
-	u16		srx_service;	/* service desired */
-	u16		transport_type;	/* type of transport socket (SOCK_DGRAM) */
-	u16		transport_len;	/* length of transport address */
+	__kernel_sa_family_t	srx_family;	/* address family */
+	__u16			srx_service;	/* service desired */
+	__u16			transport_type;	/* type of transport socket (SOCK_DGRAM) */
+	__u16			transport_len;	/* length of transport address */
 	union {
-		sa_family_t family;		/* transport address family */
+		__kernel_sa_family_t family;	/* transport address family */
 		struct sockaddr_in sin;		/* IPv4 transport address */
 		struct sockaddr_in6 sin6;	/* IPv6 transport address */
 	} transport;
@@ -59,6 +59,7 @@ enum rxrpc_cmsg_type {
 	RXRPC_EXCLUSIVE_CALL	= 10,	/* s-: Call should be on exclusive connection */
 	RXRPC_UPGRADE_SERVICE	= 11,	/* s-: Request service upgrade for client call */
 	RXRPC_TX_LENGTH		= 12,	/* s-: Total length of Tx data */
+	RXRPC_SET_CALL_TIMEOUT	= 13,	/* s-: Set one or more call timeouts */
 	RXRPC__SUPPORTED
 };
 

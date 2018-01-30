@@ -641,7 +641,7 @@ static struct sk_buff* ath9k_htc_tx_get_packet(struct ath9k_htc_priv *priv,
 
 void ath9k_htc_txstatus(struct ath9k_htc_priv *priv, void *wmi_event)
 {
-	struct wmi_event_txstatus *txs = (struct wmi_event_txstatus *)wmi_event;
+	struct wmi_event_txstatus *txs = wmi_event;
 	struct __wmi_event_txstatus *__txs;
 	struct sk_buff *skb;
 	struct ath9k_htc_tx_event *tx_pend;
@@ -684,7 +684,7 @@ void ath9k_htc_txstatus(struct ath9k_htc_priv *priv, void *wmi_event)
 void ath9k_htc_txep(void *drv_priv, struct sk_buff *skb,
 		    enum htc_endpoint_id ep_id, bool txok)
 {
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) drv_priv;
+	struct ath9k_htc_priv *priv = drv_priv;
 	struct ath9k_htc_tx_ctl *tx_ctl;
 	struct sk_buff_head *epid_queue;
 
@@ -752,9 +752,9 @@ static void ath9k_htc_tx_cleanup_queue(struct ath9k_htc_priv *priv,
 	}
 }
 
-void ath9k_htc_tx_cleanup_timer(unsigned long data)
+void ath9k_htc_tx_cleanup_timer(struct timer_list *t)
 {
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) data;
+	struct ath9k_htc_priv *priv = from_timer(priv, t, tx.cleanup_timer);
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ath9k_htc_tx_event *event, *tmp;
 	struct sk_buff *skb;
@@ -1103,7 +1103,7 @@ requeue:
 void ath9k_htc_rxep(void *drv_priv, struct sk_buff *skb,
 		    enum htc_endpoint_id ep_id)
 {
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)drv_priv;
+	struct ath9k_htc_priv *priv = drv_priv;
 	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_htc_rxbuf *rxbuf = NULL, *tmp_buf = NULL;

@@ -178,13 +178,12 @@ static int proc_keys_show(struct seq_file *m, void *v)
 {
 	struct rb_node *_p = v;
 	struct key *key = rb_entry(_p, struct key, serial_node);
-	struct timespec now;
-	time_t expiry;
-	unsigned long timo;
 	unsigned long flags;
 	key_ref_t key_ref, skey_ref;
+	time64_t now, expiry;
 	char xbuf[16];
 	short state;
+	u64 timo;
 	int rc;
 
 	struct keyring_search_context ctx = {
@@ -215,7 +214,7 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	if (rc < 0)
 		return 0;
 
-	now = current_kernel_time();
+	now = ktime_get_real_seconds();
 
 	rcu_read_lock();
 
@@ -223,21 +222,21 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	expiry = READ_ONCE(key->expiry);
 	if (expiry == 0) {
 		memcpy(xbuf, "perm", 5);
-	} else if (now.tv_sec >= expiry) {
+	} else if (now >= expiry) {
 		memcpy(xbuf, "expd", 5);
 	} else {
-		timo = expiry - now.tv_sec;
+		timo = expiry - now;
 
 		if (timo < 60)
-			sprintf(xbuf, "%lus", timo);
+			sprintf(xbuf, "%llus", timo);
 		else if (timo < 60*60)
-			sprintf(xbuf, "%lum", timo / 60);
+			sprintf(xbuf, "%llum", div_u64(timo, 60));
 		else if (timo < 60*60*24)
-			sprintf(xbuf, "%luh", timo / (60*60));
+			sprintf(xbuf, "%lluh", div_u64(timo, 60 * 60));
 		else if (timo < 60*60*24*7)
-			sprintf(xbuf, "%lud", timo / (60*60*24));
+			sprintf(xbuf, "%llud", div_u64(timo, 60 * 60 * 24));
 		else
-			sprintf(xbuf, "%luw", timo / (60*60*24*7));
+			sprintf(xbuf, "%lluw", div_u64(timo, 60 * 60 * 24 * 7));
 	}
 
 	state = key_read_state(key);

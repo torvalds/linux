@@ -11,7 +11,7 @@ config NFC_ST_NCI_I2C
 	select NFC_ST_NCI
 	---help---
 	  This module adds support for an I2C interface to the
-	  STMicroelectronics NFC NCI chips familly.
+	  STMicroelectronics NFC NCI chips family.
 	  Select this if your platform is using the i2c bus.
 
 	  If you choose to build a module, it'll be called st-nci_i2c.
@@ -23,7 +23,7 @@ config NFC_ST_NCI_SPI
 	select NFC_ST_NCI
 	---help---
 	  This module adds support for an SPI interface to the
-	  STMicroelectronics NFC NCI chips familly.
+	  STMicroelectronics NFC NCI chips family.
 	  Select this if your platform is using the spi bus.
 
 	  If you choose to build a module, it'll be called st-nci_spi.

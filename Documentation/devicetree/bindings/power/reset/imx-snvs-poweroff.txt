@@ -10,7 +10,7 @@ Required Properties:
 -reg: Specifies the physical address of the SNVS_LPCR register
 
 Example:
-	snvs@020cc000 {
+	snvs@20cc000 {
 		compatible = "fsl,sec-v4.0-mon", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;

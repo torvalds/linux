@@ -1,4 +1,26 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Copyright 2017 Advanced Micro Devices, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
+
 #if !defined(_AMDGPU_TRACE_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _AMDGPU_TRACE_H_
 
@@ -14,62 +36,6 @@
 
 #define AMDGPU_JOB_GET_TIMELINE_NAME(job) \
 	 job->base.s_fence->finished.ops->get_timeline_name(&job->base.s_fence->finished)
-
-TRACE_EVENT(amdgpu_ttm_tt_populate,
-	    TP_PROTO(struct amdgpu_device *adev, uint64_t dma_address, uint64_t phys_address),
-	    TP_ARGS(adev, dma_address, phys_address),
-	    TP_STRUCT__entry(
-				__field(uint16_t, domain)
-				__field(uint8_t, bus)
-				__field(uint8_t, slot)
-				__field(uint8_t, func)
-				__field(uint64_t, dma)
-				__field(uint64_t, phys)
-			    ),
-	    TP_fast_assign(
-			   __entry->domain = pci_domain_nr(adev->pdev->bus);
-			   __entry->bus = adev->pdev->bus->number;
-			   __entry->slot = PCI_SLOT(adev->pdev->devfn);
-			   __entry->func = PCI_FUNC(adev->pdev->devfn);
-			   __entry->dma = dma_address;
-			   __entry->phys = phys_address;
-			   ),
-	    TP_printk("%04x:%02x:%02x.%x: 0x%llx => 0x%llx",
-		      (unsigned)__entry->domain,
-		      (unsigned)__entry->bus,
-		      (unsigned)__entry->slot,
-		      (unsigned)__entry->func,
-		      (unsigned long long)__entry->dma,
-		      (unsigned long long)__entry->phys)
-);
-
-TRACE_EVENT(amdgpu_ttm_tt_unpopulate,
-	    TP_PROTO(struct amdgpu_device *adev, uint64_t dma_address, uint64_t phys_address),
-	    TP_ARGS(adev, dma_address, phys_address),
-	    TP_STRUCT__entry(
-				__field(uint16_t, domain)
-				__field(uint8_t, bus)
-				__field(uint8_t, slot)
-				__field(uint8_t, func)
-				__field(uint64_t, dma)
-				__field(uint64_t, phys)
-			    ),
-	    TP_fast_assign(
-			   __entry->domain = pci_domain_nr(adev->pdev->bus);
-			   __entry->bus = adev->pdev->bus->number;
-			   __entry->slot = PCI_SLOT(adev->pdev->devfn);
-			   __entry->func = PCI_FUNC(adev->pdev->devfn);
-			   __entry->dma = dma_address;
-			   __entry->phys = phys_address;
-			   ),
-	    TP_printk("%04x:%02x:%02x.%x: 0x%llx => 0x%llx",
-		      (unsigned)__entry->domain,
-		      (unsigned)__entry->bus,
-		      (unsigned)__entry->slot,
-		      (unsigned)__entry->func,
-		      (unsigned long long)__entry->dma,
-		      (unsigned long long)__entry->phys)
-);
 
 TRACE_EVENT(amdgpu_mm_rreg,
 	    TP_PROTO(unsigned did, uint32_t reg, uint32_t value),
@@ -474,5 +440,5 @@ TRACE_EVENT(amdgpu_ttm_bo_move,
 
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_PATH ../../drivers/gpu/drm/amd/amdgpu
 #include <trace/define_trace.h>

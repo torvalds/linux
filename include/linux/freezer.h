@@ -182,7 +182,7 @@ static inline void freezable_schedule_unsafe(void)
 }
 
 /*
- * Like freezable_schedule_timeout(), but should not block the freezer.  Do not
+ * Like schedule_timeout(), but should not block the freezer.  Do not
  * call this with locks held.
  */
 static inline long freezable_schedule_timeout(long timeout)

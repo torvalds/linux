@@ -49,17 +49,19 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *,
 					   unsigned long,
 					   s64,
 					   gfp_t,
-					   rxrpc_notify_rx_t);
+					   rxrpc_notify_rx_t,
+					   bool);
 int rxrpc_kernel_send_data(struct socket *, struct rxrpc_call *,
 			   struct msghdr *, size_t,
 			   rxrpc_notify_end_tx_t);
 int rxrpc_kernel_recv_data(struct socket *, struct rxrpc_call *,
-			   void *, size_t, size_t *, bool, u32 *);
+			   void *, size_t, size_t *, bool, u32 *, u16 *);
 bool rxrpc_kernel_abort_call(struct socket *, struct rxrpc_call *,
 			     u32, int, const char *);
 void rxrpc_kernel_end_call(struct socket *, struct rxrpc_call *);
 void rxrpc_kernel_get_peer(struct socket *, struct rxrpc_call *,
 			   struct sockaddr_rxrpc *);
+u64 rxrpc_kernel_get_rtt(struct socket *, struct rxrpc_call *);
 int rxrpc_kernel_charge_accept(struct socket *, rxrpc_notify_rx_t,
 			       rxrpc_user_attach_call_t, unsigned long, gfp_t);
 void rxrpc_kernel_set_tx_length(struct socket *, struct rxrpc_call *, s64);
@@ -67,5 +69,6 @@ int rxrpc_kernel_retry_call(struct socket *, struct rxrpc_call *,
 			    struct sockaddr_rxrpc *, struct key *);
 int rxrpc_kernel_check_call(struct socket *, struct rxrpc_call *,
 			    enum rxrpc_call_completion *, u32 *);
+u32 rxrpc_kernel_check_life(struct socket *, struct rxrpc_call *);
 
 #endif /* _NET_RXRPC_H */

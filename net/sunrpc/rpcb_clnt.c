@@ -216,9 +216,9 @@ static void rpcb_set_local(struct net *net, struct rpc_clnt *clnt,
 	smp_wmb(); 
 	sn->rpcb_users = 1;
 	dprintk("RPC:       created new rpcb local clients (rpcb_local_clnt: "
-			"%p, rpcb_local_clnt4: %p) for net %p%s\n",
-			sn->rpcb_local_clnt, sn->rpcb_local_clnt4,
-			net, (net == &init_net) ? " (init_net)" : "");
+		"%p, rpcb_local_clnt4: %p) for net %x%s\n",
+		sn->rpcb_local_clnt, sn->rpcb_local_clnt4,
+		net->ns.inum, (net == &init_net) ? " (init_net)" : "");
 }
 
 /*

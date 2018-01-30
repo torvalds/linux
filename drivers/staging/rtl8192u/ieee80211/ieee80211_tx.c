@@ -302,7 +302,6 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 	}
 }
 
-#define SN_LESS(a, b)		(((a-b)&0x800)!=0)
 static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
 				       struct sk_buff *skb, struct cb_desc *tcb_desc)
 {

@@ -53,6 +53,7 @@ struct skl {
 	struct platform_device *dmic_dev;
 	struct platform_device *i2s_dev;
 	struct snd_soc_platform *platform;
+	struct snd_soc_dai_driver *dais;
 
 	struct nhlt_acpi_table *nhlt; /* nhlt ptr */
 	struct skl_sst *skl_sst; /* sst skl ctx */
@@ -73,6 +74,7 @@ struct skl {
 	struct skl_debug *debugfs;
 	u8 nr_modules;
 	struct skl_module **modules;
+	bool use_tplg_pcm;
 };
 
 #define skl_to_ebus(s)	(&(s)->ebus)
@@ -85,9 +87,9 @@ struct skl_dma_params {
 	u8 stream_tag;
 };
 
-/* to pass dmic data */
 struct skl_machine_pdata {
 	u32 dmic_num;
+	bool use_tplg_pcm; /* use dais and dai links from topology */
 };
 
 struct skl_dsp_ops {

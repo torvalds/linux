@@ -358,17 +358,6 @@ static void rockchip_pd_detach_dev(struct generic_pm_domain *genpd,
 	pm_clk_destroy(dev);
 }
 
-static bool rockchip_active_wakeup(struct device *dev)
-{
-	struct generic_pm_domain *genpd;
-	struct rockchip_pm_domain *pd;
-
-	genpd = pd_to_genpd(dev->pm_domain);
-	pd = container_of(genpd, struct rockchip_pm_domain, genpd);
-
-	return pd->info->active_wakeup;
-}
-
 static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 				      struct device_node *node)
 {
@@ -489,8 +478,9 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	pd->genpd.power_on = rockchip_pd_power_on;
 	pd->genpd.attach_dev = rockchip_pd_attach_dev;
 	pd->genpd.detach_dev = rockchip_pd_detach_dev;
-	pd->genpd.dev_ops.active_wakeup = rockchip_active_wakeup;
 	pd->genpd.flags = GENPD_FLAG_PM_CLK;
+	if (pd_info->active_wakeup)
+		pd->genpd.flags |= GENPD_FLAG_ACTIVE_WAKEUP;
 	pm_genpd_init(&pd->genpd, NULL, false);
 
 	pmu->genpd_data.domains[id] = &pd->genpd;

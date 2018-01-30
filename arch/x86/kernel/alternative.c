@@ -445,7 +445,6 @@ static void alternatives_smp_lock(const s32 *start, const s32 *end,
 {
 	const s32 *poff;
 
-	mutex_lock(&text_mutex);
 	for (poff = start; poff < end; poff++) {
 		u8 *ptr = (u8 *)poff + *poff;
 
@@ -455,7 +454,6 @@ static void alternatives_smp_lock(const s32 *start, const s32 *end,
 		if (*ptr == 0x3e)
 			text_poke(ptr, ((unsigned char []){0xf0}), 1);
 	}
-	mutex_unlock(&text_mutex);
 }
 
 static void alternatives_smp_unlock(const s32 *start, const s32 *end,
@@ -463,7 +461,6 @@ static void alternatives_smp_unlock(const s32 *start, const s32 *end,
 {
 	const s32 *poff;
 
-	mutex_lock(&text_mutex);
 	for (poff = start; poff < end; poff++) {
 		u8 *ptr = (u8 *)poff + *poff;
 
@@ -473,7 +470,6 @@ static void alternatives_smp_unlock(const s32 *start, const s32 *end,
 		if (*ptr == 0xf0)
 			text_poke(ptr, ((unsigned char []){0x3E}), 1);
 	}
-	mutex_unlock(&text_mutex);
 }
 
 struct smp_alt_module {
@@ -492,8 +488,7 @@ struct smp_alt_module {
 	struct list_head next;
 };
 static LIST_HEAD(smp_alt_modules);
-static DEFINE_MUTEX(smp_alt);
-static bool uniproc_patched = false;	/* protected by smp_alt */
+static bool uniproc_patched = false;	/* protected by text_mutex */
 
 void __init_or_module alternatives_smp_module_add(struct module *mod,
 						  char *name,
@@ -502,7 +497,7 @@ void __init_or_module alternatives_smp_module_add(struct module *mod,
 {
 	struct smp_alt_module *smp;
 
-	mutex_lock(&smp_alt);
+	mutex_lock(&text_mutex);
 	if (!uniproc_patched)
 		goto unlock;
 
@@ -529,14 +524,14 @@ void __init_or_module alternatives_smp_module_add(struct module *mod,
 smp_unlock:
 	alternatives_smp_unlock(locks, locks_end, text, text_end);
 unlock:
-	mutex_unlock(&smp_alt);
+	mutex_unlock(&text_mutex);
 }
 
 void __init_or_module alternatives_smp_module_del(struct module *mod)
 {
 	struct smp_alt_module *item;
 
-	mutex_lock(&smp_alt);
+	mutex_lock(&text_mutex);
 	list_for_each_entry(item, &smp_alt_modules, next) {
 		if (mod != item->mod)
 			continue;
@@ -544,7 +539,7 @@ void __init_or_module alternatives_smp_module_del(struct module *mod)
 		kfree(item);
 		break;
 	}
-	mutex_unlock(&smp_alt);
+	mutex_unlock(&text_mutex);
 }
 
 void alternatives_enable_smp(void)
@@ -554,7 +549,7 @@ void alternatives_enable_smp(void)
 	/* Why bother if there are no other CPUs? */
 	BUG_ON(num_possible_cpus() == 1);
 
-	mutex_lock(&smp_alt);
+	mutex_lock(&text_mutex);
 
 	if (uniproc_patched) {
 		pr_info("switching to SMP code\n");
@@ -566,16 +561,21 @@ void alternatives_enable_smp(void)
 					      mod->text, mod->text_end);
 		uniproc_patched = false;
 	}
-	mutex_unlock(&smp_alt);
+	mutex_unlock(&text_mutex);
 }
 
-/* Return 1 if the address range is reserved for smp-alternatives */
+/*
+ * Return 1 if the address range is reserved for SMP-alternatives.
+ * Must hold text_mutex.
+ */
 int alternatives_text_reserved(void *start, void *end)
 {
 	struct smp_alt_module *mod;
 	const s32 *poff;
 	u8 *text_start = start;
 	u8 *text_end = end;
+
+	lockdep_assert_held(&text_mutex);
 
 	list_for_each_entry(mod, &smp_alt_modules, next) {
 		if (mod->text > text_end || mod->text_end < text_start)

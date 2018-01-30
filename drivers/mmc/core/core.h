@@ -49,6 +49,7 @@ void mmc_set_bus_mode(struct mmc_host *host, unsigned int mode);
 void mmc_set_bus_width(struct mmc_host *host, unsigned int width);
 u32 mmc_select_voltage(struct mmc_host *host, u32 ocr);
 int mmc_set_uhs_voltage(struct mmc_host *host, u32 ocr);
+int mmc_host_set_uhs_voltage(struct mmc_host *host);
 int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage);
 void mmc_set_timing(struct mmc_host *host, unsigned int timing);
 void mmc_set_driver_type(struct mmc_host *host, unsigned int drv_type);
@@ -107,6 +108,8 @@ static inline void mmc_unregister_pm_notifier(struct mmc_host *host) { }
 void mmc_wait_for_req_done(struct mmc_host *host, struct mmc_request *mrq);
 bool mmc_is_req_done(struct mmc_host *host, struct mmc_request *mrq);
 
+int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq);
+
 struct mmc_async_req;
 
 struct mmc_async_req *mmc_start_areq(struct mmc_host *host,
@@ -128,10 +131,11 @@ int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen);
 int mmc_set_blockcount(struct mmc_card *card, unsigned int blockcount,
 			bool is_rel_write);
 
-int __mmc_claim_host(struct mmc_host *host, atomic_t *abort);
+int __mmc_claim_host(struct mmc_host *host, struct mmc_ctx *ctx,
+		     atomic_t *abort);
 void mmc_release_host(struct mmc_host *host);
-void mmc_get_card(struct mmc_card *card);
-void mmc_put_card(struct mmc_card *card);
+void mmc_get_card(struct mmc_card *card, struct mmc_ctx *ctx);
+void mmc_put_card(struct mmc_card *card, struct mmc_ctx *ctx);
 
 /**
  *	mmc_claim_host - exclusively claim a host
@@ -141,7 +145,11 @@ void mmc_put_card(struct mmc_card *card);
  */
 static inline void mmc_claim_host(struct mmc_host *host)
 {
-	__mmc_claim_host(host, NULL);
+	__mmc_claim_host(host, NULL, NULL);
 }
+
+int mmc_cqe_start_req(struct mmc_host *host, struct mmc_request *mrq);
+void mmc_cqe_post_req(struct mmc_host *host, struct mmc_request *mrq);
+int mmc_cqe_recovery(struct mmc_host *host);
 
 #endif
