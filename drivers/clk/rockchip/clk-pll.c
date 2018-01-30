@@ -21,6 +21,8 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/clk-provider.h>
+#include <linux/device.h>
+#include <linux/list.h>
 #include <linux/regmap.h>
 #include <linux/clk.h>
 #include <linux/gcd.h>
@@ -53,6 +55,10 @@ struct rockchip_clk_pll {
 	bool			boost_enabled;
 
 	struct rockchip_clk_provider *ctx;
+#ifdef CONFIG_DEBUG_FS
+	struct hlist_node	debug_node;
+#endif
+
 };
 
 #define to_rockchip_clk_pll(_hw) container_of(_hw, struct rockchip_clk_pll, hw)
@@ -86,6 +92,8 @@ static int rockchip_rk3366_pll_set_params(struct rockchip_clk_pll *pll,
 #define MAX_FOUTVCO_FREQ	(2000 * MHZ)
 
 static struct rockchip_pll_rate_table auto_table;
+static HLIST_HEAD(clk_boost_list);
+static DEFINE_MUTEX(clk_boost_lock);
 
 int rockchip_pll_clk_adaptive_scaling(struct clk *clk, int sel)
 {
@@ -1502,6 +1510,12 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 		goto err_pll;
 	}
 
+	if (boost_enabled && !IS_ERR(ctx->boost)) {
+		mutex_lock(&clk_boost_lock);
+		hlist_add_head(&pll->debug_node, &clk_boost_list);
+		mutex_unlock(&clk_boost_lock);
+	}
+
 	return mux_clk;
 
 err_pll:
@@ -1511,3 +1525,95 @@ err_mux:
 	kfree(pll);
 	return mux_clk;
 }
+
+#ifdef CONFIG_DEBUG_FS
+#include <linux/debugfs.h>
+
+static int boost_summary_show(struct seq_file *s, void *data)
+{
+	struct rockchip_clk_pll *pll = (struct rockchip_clk_pll *)s->private;
+	struct regmap *boost = pll->ctx->boost;
+	u32 boost_count = 0;
+	u32 freq_cnt0 = 0, freq_cnt1 = 0;
+	u64 high_freq_time = 0;
+	u32 short_count = 0, short_threshold = 0;
+	u32 interval_time = 0;
+
+	seq_puts(s, " device   boost_count   high_freq_time(us)   short_count   short_threshold   interval_time\n");
+	seq_puts(s, "------------------------------------------------------------------------------------------\n");
+	seq_printf(s, " %s\n", clk_hw_get_name(&pll->hw));
+
+	regmap_read(boost, BOOST_SWITCH_CNT, &boost_count);
+
+	regmap_read(boost, BOOST_HIGH_PERF_CNT0, &freq_cnt0);
+	regmap_read(boost, BOOST_HIGH_PERF_CNT1, &freq_cnt1);
+	high_freq_time = ((u64)freq_cnt1 << 32) + (u64)freq_cnt0;
+	do_div(high_freq_time, 24);
+
+	regmap_read(boost, BOOST_SHORT_SWITCH_CNT, &short_count);
+	regmap_read(boost, BOOST_STATIS_THRESHOLD, &short_threshold);
+	regmap_read(boost, BOOST_SWITCH_THRESHOLD, &interval_time);
+
+	seq_printf(s, "%21u %20llu %13u %17u %15u\n",
+		   boost_count, high_freq_time, short_count,
+		   short_threshold, interval_time);
+
+	return 0;
+}
+
+static int boost_summary_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, boost_summary_show, inode->i_private);
+}
+
+static const struct file_operations boost_summary_fops = {
+	.open		= boost_summary_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int boost_debug_create_one(struct rockchip_clk_pll *pll,
+				  struct dentry *rootdir)
+{
+	struct dentry *pdentry, *d;
+
+	pdentry = debugfs_lookup(clk_hw_get_name(&pll->hw), rootdir);
+	if (!pdentry) {
+		pr_err("%s: failed to lookup %s dentry\n", __func__,
+		       clk_hw_get_name(&pll->hw));
+		return -ENOMEM;
+	}
+
+	d = debugfs_create_file("boost_summary", 0444, pdentry,
+				pll, &boost_summary_fops);
+	if (!d) {
+		pr_err("%s: failed to create boost_summary file\n", __func__);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static int __init boost_debug_init(void)
+{
+	struct rockchip_clk_pll *pll;
+	struct dentry *rootdir;
+
+	rootdir = debugfs_lookup("clk", NULL);
+	if (!rootdir) {
+		pr_err("%s: failed to lookup clk dentry\n", __func__);
+		return -ENOMEM;
+	}
+
+	mutex_lock(&clk_boost_lock);
+
+	hlist_for_each_entry(pll, &clk_boost_list, debug_node)
+		boost_debug_create_one(pll, rootdir);
+
+	mutex_unlock(&clk_boost_lock);
+
+	return 0;
+}
+late_initcall(boost_debug_init);
+#endif
