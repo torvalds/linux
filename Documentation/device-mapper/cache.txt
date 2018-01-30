@@ -119,7 +119,7 @@ doing here to avoid migrating during those peak io moments.
 
 For the time being, a message "migration_threshold <#sectors>"
 can be used to set the maximum number of sectors being migrated,
-the default being 204800 sectors (100MB).
+the default being 2048 sectors (1MB).
 
 Updating on-disk metadata
 -------------------------
