@@ -1284,7 +1284,10 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 
 static void assert_plane(struct intel_plane *plane, bool state)
 {
-	bool cur_state = plane->get_hw_state(plane);
+	enum pipe pipe;
+	bool cur_state;
+
+	cur_state = plane->get_hw_state(plane, &pipe);
 
 	I915_STATE_WARN(cur_state != state,
 			"%s assertion failure (expected %s, current %s)\n",
@@ -3387,24 +3390,33 @@ static void i9xx_disable_plane(struct intel_plane *plane,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static bool i9xx_plane_get_hw_state(struct intel_plane *plane)
+static bool i9xx_plane_get_hw_state(struct intel_plane *plane,
+				    enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
-	enum pipe pipe = plane->pipe;
 	bool ret;
+	u32 val;
 
 	/*
 	 * Not 100% correct for planes that can move between pipes,
 	 * but that's only the case for gen2-4 which don't have any
 	 * display power wells.
 	 */
-	power_domain = POWER_DOMAIN_PIPE(pipe);
+	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
-	ret = I915_READ(DSPCNTR(i9xx_plane)) & DISPLAY_PLANE_ENABLE;
+	val = I915_READ(DSPCNTR(i9xx_plane));
+
+	ret = val & DISPLAY_PLANE_ENABLE;
+
+	if (INTEL_GEN(dev_priv) >= 5)
+		*pipe = plane->pipe;
+	else
+		*pipe = (val & DISPPLANE_SEL_PIPE_MASK) >>
+			DISPPLANE_SEL_PIPE_SHIFT;
 
 	intel_display_power_put(dev_priv, power_domain);
 
@@ -7647,15 +7659,17 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
-	enum pipe pipe = crtc->pipe;
+	enum pipe pipe;
 	u32 val, base, offset;
 	int fourcc, pixel_format;
 	unsigned int aligned_height;
 	struct drm_framebuffer *fb;
 	struct intel_framebuffer *intel_fb;
 
-	if (!plane->get_hw_state(plane))
+	if (!plane->get_hw_state(plane, &pipe))
 		return;
+
+	WARN_ON(pipe != crtc->pipe);
 
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
 	if (!intel_fb) {
@@ -8677,15 +8691,17 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
 	enum plane_id plane_id = plane->id;
-	enum pipe pipe = crtc->pipe;
+	enum pipe pipe;
 	u32 val, base, offset, stride_mult, tiling, alpha;
 	int fourcc, pixel_format;
 	unsigned int aligned_height;
 	struct drm_framebuffer *fb;
 	struct intel_framebuffer *intel_fb;
 
-	if (!plane->get_hw_state(plane))
+	if (!plane->get_hw_state(plane, &pipe))
 		return;
+
+	WARN_ON(pipe != crtc->pipe);
 
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
 	if (!intel_fb) {
@@ -9667,7 +9683,8 @@ static void i845_disable_cursor(struct intel_plane *plane,
 	i845_update_cursor(plane, NULL, NULL);
 }
 
-static bool i845_cursor_get_hw_state(struct intel_plane *plane)
+static bool i845_cursor_get_hw_state(struct intel_plane *plane,
+				     enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
@@ -9678,6 +9695,8 @@ static bool i845_cursor_get_hw_state(struct intel_plane *plane)
 		return false;
 
 	ret = I915_READ(CURCNTR(PIPE_A)) & CURSOR_ENABLE;
+
+	*pipe = PIPE_A;
 
 	intel_display_power_put(dev_priv, power_domain);
 
@@ -9880,23 +9899,32 @@ static void i9xx_disable_cursor(struct intel_plane *plane,
 	i9xx_update_cursor(plane, NULL, NULL);
 }
 
-static bool i9xx_cursor_get_hw_state(struct intel_plane *plane)
+static bool i9xx_cursor_get_hw_state(struct intel_plane *plane,
+				     enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
-	enum pipe pipe = plane->pipe;
 	bool ret;
+	u32 val;
 
 	/*
 	 * Not 100% correct for planes that can move between pipes,
 	 * but that's only the case for gen2-3 which don't have any
 	 * display power wells.
 	 */
-	power_domain = POWER_DOMAIN_PIPE(pipe);
+	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
-	ret = I915_READ(CURCNTR(pipe)) & CURSOR_MODE;
+	val = I915_READ(CURCNTR(plane->pipe));
+
+	ret = val & CURSOR_MODE;
+
+	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
+		*pipe = plane->pipe;
+	else
+		*pipe = (val & MCURSOR_PIPE_SELECT_MASK) >>
+			MCURSOR_PIPE_SELECT_SHIFT;
 
 	intel_display_power_put(dev_priv, power_domain);
 
@@ -15087,12 +15115,12 @@ void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 static bool intel_plane_mapping_ok(struct intel_crtc *crtc,
 				   struct intel_plane *plane)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
-	u32 val = I915_READ(DSPCNTR(i9xx_plane));
+	enum pipe pipe;
 
-	return (val & DISPLAY_PLANE_ENABLE) == 0 ||
-		(val & DISPPLANE_SEL_PIPE_MASK) == DISPPLANE_SEL_PIPE(crtc->pipe);
+	if (!plane->get_hw_state(plane, &pipe))
+		return true;
+
+	return pipe == crtc->pipe;
 }
 
 static void
@@ -15294,7 +15322,10 @@ static void readout_plane_state(struct intel_crtc *crtc)
 	for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
 		struct intel_plane_state *plane_state =
 			to_intel_plane_state(plane->base.state);
-		bool visible = plane->get_hw_state(plane);
+		enum pipe pipe;
+		bool visible;
+
+		visible = plane->get_hw_state(plane, &pipe);
 
 		intel_set_plane_visible(crtc_state, plane_state, visible);
 	}

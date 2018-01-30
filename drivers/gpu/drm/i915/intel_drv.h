@@ -970,7 +970,7 @@ struct intel_plane {
 			     const struct intel_plane_state *plane_state);
 	void (*disable_plane)(struct intel_plane *plane,
 			      struct intel_crtc *crtc);
-	bool (*get_hw_state)(struct intel_plane *plane);
+	bool (*get_hw_state)(struct intel_plane *plane, enum pipe *pipe);
 	int (*check_plane)(struct intel_plane *plane,
 			   struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *state);
@@ -2082,7 +2082,7 @@ void skl_update_plane(struct intel_plane *plane,
 		      const struct intel_crtc_state *crtc_state,
 		      const struct intel_plane_state *plane_state);
 void skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc);
-bool skl_plane_get_hw_state(struct intel_plane *plane);
+bool skl_plane_get_hw_state(struct intel_plane *plane, enum pipe *pipe);
 bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,
 		       enum pipe pipe, enum plane_id plane_id);
 bool intel_format_is_yuv(uint32_t format);

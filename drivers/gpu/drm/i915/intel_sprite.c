@@ -327,19 +327,21 @@ skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 }
 
 bool
-skl_plane_get_hw_state(struct intel_plane *plane)
+skl_plane_get_hw_state(struct intel_plane *plane,
+		       enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
 	enum plane_id plane_id = plane->id;
-	enum pipe pipe = plane->pipe;
 	bool ret;
 
-	power_domain = POWER_DOMAIN_PIPE(pipe);
+	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
-	ret = I915_READ(PLANE_CTL(pipe, plane_id)) & PLANE_CTL_ENABLE;
+	ret = I915_READ(PLANE_CTL(plane->pipe, plane_id)) & PLANE_CTL_ENABLE;
+
+	*pipe = plane->pipe;
 
 	intel_display_power_put(dev_priv, power_domain);
 
@@ -588,19 +590,21 @@ vlv_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 }
 
 static bool
-vlv_plane_get_hw_state(struct intel_plane *plane)
+vlv_plane_get_hw_state(struct intel_plane *plane,
+		       enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
 	enum plane_id plane_id = plane->id;
-	enum pipe pipe = plane->pipe;
 	bool ret;
 
-	power_domain = POWER_DOMAIN_PIPE(pipe);
+	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
-	ret = I915_READ(SPCNTR(pipe, plane_id)) & SP_ENABLE;
+	ret = I915_READ(SPCNTR(plane->pipe, plane_id)) & SP_ENABLE;
+
+	*pipe = plane->pipe;
 
 	intel_display_power_put(dev_priv, power_domain);
 
@@ -754,18 +758,20 @@ ivb_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 }
 
 static bool
-ivb_plane_get_hw_state(struct intel_plane *plane)
+ivb_plane_get_hw_state(struct intel_plane *plane,
+		       enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
-	enum pipe pipe = plane->pipe;
 	bool ret;
 
-	power_domain = POWER_DOMAIN_PIPE(pipe);
+	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
-	ret =  I915_READ(SPRCTL(pipe)) & SPRITE_ENABLE;
+	ret =  I915_READ(SPRCTL(plane->pipe)) & SPRITE_ENABLE;
+
+	*pipe = plane->pipe;
 
 	intel_display_power_put(dev_priv, power_domain);
 
@@ -910,18 +916,20 @@ g4x_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 }
 
 static bool
-g4x_plane_get_hw_state(struct intel_plane *plane)
+g4x_plane_get_hw_state(struct intel_plane *plane,
+		       enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
-	enum pipe pipe = plane->pipe;
 	bool ret;
 
-	power_domain = POWER_DOMAIN_PIPE(pipe);
+	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
-	ret = I915_READ(DVSCNTR(pipe)) & DVS_ENABLE;
+	ret = I915_READ(DVSCNTR(plane->pipe)) & DVS_ENABLE;
+
+	*pipe = plane->pipe;
 
 	intel_display_power_put(dev_priv, power_domain);
 
