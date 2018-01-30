@@ -2290,9 +2290,10 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		if (rsp->op == NVMET_FCOP_READDATA_RSP) {
 			atomic_inc(&tgtp->xmt_fcp_read_rsp);
 			bf_set(wqe_ar, &wqe->fcp_tsend.wqe_com, 1);
-			if ((ndlp->nlp_flag & NLP_SUPPRESS_RSP) &&
-			    (rsp->rsplen == 12)) {
-				bf_set(wqe_sup, &wqe->fcp_tsend.wqe_com, 1);
+			if (rsp->rsplen == LPFC_NVMET_SUCCESS_LEN) {
+				if (ndlp->nlp_flag & NLP_SUPPRESS_RSP)
+					bf_set(wqe_sup,
+					       &wqe->fcp_tsend.wqe_com, 1);
 				bf_set(wqe_wqes, &wqe->fcp_tsend.wqe_com, 0);
 				bf_set(wqe_irsp, &wqe->fcp_tsend.wqe_com, 0);
 				bf_set(wqe_irsplen, &wqe->fcp_tsend.wqe_com, 0);

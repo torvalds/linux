@@ -10473,8 +10473,19 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		phba->cfg_enable_fc4_type = LPFC_ENABLE_FCP;
 	}
 
-	if (bf_get(cfg_xib, mbx_sli4_parameters) && phba->cfg_suppress_rsp)
+	/*
+	 * To support Suppress Response feature we must satisfy 3 conditions.
+	 * lpfc_suppress_rsp module parameter must be set (default).
+	 * In SLI4-Parameters Descriptor:
+	 * Extended Inline Buffers (XIB) must be supported.
+	 * Suppress Response IU Not Supported (SRIUNS) must NOT be supported
+	 * (double negative).
+	 */
+	if (phba->cfg_suppress_rsp && bf_get(cfg_xib, mbx_sli4_parameters) &&
+	    !(bf_get(cfg_nosr, mbx_sli4_parameters)))
 		phba->sli.sli_flag |= LPFC_SLI_SUPPRESS_RSP;
+	else
+		phba->cfg_suppress_rsp = 0;
 
 	if (bf_get(cfg_eqdr, mbx_sli4_parameters))
 		phba->sli.sli_flag |= LPFC_SLI_USE_EQDR;
