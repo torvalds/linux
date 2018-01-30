@@ -2223,21 +2223,17 @@ out_unwind:
 	return -ENOMEM;
 }
 
-static int rbd_img_request_submit(struct rbd_img_request *img_request)
+static void rbd_img_request_submit(struct rbd_img_request *img_request)
 {
 	struct rbd_obj_request *obj_request;
-	struct rbd_obj_request *next_obj_request;
-	int ret = 0;
 
 	dout("%s: img %p\n", __func__, img_request);
 
 	rbd_img_request_get(img_request);
-	for_each_obj_request_safe(img_request, obj_request, next_obj_request) {
+	for_each_obj_request(img_request, obj_request)
 		rbd_obj_request_submit(obj_request);
-	}
 
 	rbd_img_request_put(img_request);
-	return ret;
 }
 
 static void rbd_img_end_child_request(struct rbd_img_request *img_req);
@@ -3668,10 +3664,7 @@ static void rbd_queue_workfn(struct work_struct *work)
 	if (result)
 		goto err_img_request;
 
-	result = rbd_img_request_submit(img_request);
-	if (result)
-		goto err_img_request;
-
+	rbd_img_request_submit(img_request);
 	if (must_be_locked)
 		up_read(&rbd_dev->lock_rwsem);
 	return;
