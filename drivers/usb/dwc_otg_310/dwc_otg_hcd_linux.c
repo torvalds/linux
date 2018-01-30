@@ -115,7 +115,7 @@ static struct hc_driver dwc_otg_hc_driver = {
 
 	.irq = dwc_otg_hcd_irq,
 
-	.flags = HCD_MEMORY | HCD_USB2,
+	.flags = HCD_MEMORY | HCD_USB2 | HCD_BH,
 
 	/* .reset = */
 	.start = hcd_start,
@@ -330,13 +330,11 @@ static int _complete(dwc_otg_hcd_t *hcd, void *urb_handle,
 
 	usb_hcd_unlink_urb_from_ep(dwc_otg_hcd_to_hcd(hcd), urb);
 
-	DWC_SPINUNLOCK(hcd->lock);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
 	usb_hcd_giveback_urb(dwc_otg_hcd_to_hcd(hcd), urb);
 #else
 	usb_hcd_giveback_urb(dwc_otg_hcd_to_hcd(hcd), urb, status);
 #endif
-	DWC_SPINLOCK(hcd->lock);
 
 	return 0;
 }
