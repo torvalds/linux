@@ -39,14 +39,13 @@ void amdgpu_dm_init_color_mod(void)
 }
 
 
-#define MAX_LUT_ENTRIES 256
-
 /*
  * Return true if the given lut is a linear mapping of values, i.e. it acts
  * like a bypass LUT.
  *
  * It is considered linear if the lut represents:
- * f(a) = (0xFF00/MAX_LUT_ENTRIES-1)a; for integer a in [0, MAX_LUT_ENTRIES)
+ * f(a) = (0xFF00/MAX_COLOR_LUT_ENTRIES-1)a; for integer a in
+ *                                           [0, MAX_COLOR_LUT_ENTRIES)
  */
 static bool __is_lut_linear(struct drm_color_lut *lut)
 {
@@ -55,12 +54,12 @@ static bool __is_lut_linear(struct drm_color_lut *lut)
 	uint32_t expected;
 	int delta;
 
-	for (i = 0; i < MAX_LUT_ENTRIES; i++) {
+	for (i = 0; i < MAX_COLOR_LUT_ENTRIES; i++) {
 		/* All color values should equal */
 		if ((lut[i].red != lut[i].green) || (lut[i].green != lut[i].blue))
 			return false;
 
-		expected = i * max_os / (MAX_LUT_ENTRIES-1);
+		expected = i * max_os / (MAX_COLOR_LUT_ENTRIES-1);
 
 		/* Allow a +/-1 error. */
 		delta = lut[i].red - expected;
@@ -113,7 +112,7 @@ int amdgpu_dm_set_regamma_lut(struct dm_crtc_state *crtc)
 	if (!gamma)
 		return -ENOMEM;
 
-	gamma->num_entries = MAX_LUT_ENTRIES;
+	gamma->num_entries = MAX_COLOR_LUT_ENTRIES;
 	gamma->type = GAMMA_RGB_256;
 
 	/* Truncate, and store in dc_gamma for output tf calculation */
