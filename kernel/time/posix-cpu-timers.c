@@ -1189,9 +1189,8 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 	u64 now;
 
 	WARN_ON_ONCE(clock_idx == CPUCLOCK_SCHED);
-	cpu_timer_sample_group(clock_idx, tsk, &now);
 
-	if (oldval) {
+	if (oldval && cpu_timer_sample_group(clock_idx, tsk, &now) != -EINVAL) {
 		/*
 		 * We are setting itimer. The *oldval is absolute and we update
 		 * it to be relative, *newval argument is relative and we update
@@ -1363,8 +1362,8 @@ static long posix_cpu_nsleep_restart(struct restart_block *restart_block)
 	return do_cpu_nanosleep(which_clock, TIMER_ABSTIME, &t);
 }
 
-#define PROCESS_CLOCK	MAKE_PROCESS_CPUCLOCK(0, CPUCLOCK_SCHED)
-#define THREAD_CLOCK	MAKE_THREAD_CPUCLOCK(0, CPUCLOCK_SCHED)
+#define PROCESS_CLOCK	make_process_cpuclock(0, CPUCLOCK_SCHED)
+#define THREAD_CLOCK	make_thread_cpuclock(0, CPUCLOCK_SCHED)
 
 static int process_cpu_clock_getres(const clockid_t which_clock,
 				    struct timespec64 *tp)
