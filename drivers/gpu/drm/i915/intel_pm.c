@@ -3778,7 +3778,8 @@ skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 	ddb_size = INTEL_INFO(dev_priv)->ddb_size;
 	WARN_ON(ddb_size == 0);
 
-	ddb_size -= 4; /* 4 blocks for bypass path allocation */
+	if (INTEL_GEN(dev_priv) < 11)
+		ddb_size -= 4; /* 4 blocks for bypass path allocation */
 
 	/*
 	 * If the state doesn't change the active CRTC's, then there's
