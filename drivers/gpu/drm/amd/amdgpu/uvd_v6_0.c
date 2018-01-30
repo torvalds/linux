@@ -1530,6 +1530,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_phys_funcs = {
 	.set_wptr = uvd_v6_0_ring_set_wptr,
 	.parse_cs = amdgpu_uvd_ring_parse_cs,
 	.emit_frame_size =
+		6 + 6 + /* hdp flush / invalidate */
 		10 + /* uvd_v6_0_ring_emit_pipeline_sync */
 		14, /* uvd_v6_0_ring_emit_fence x1 no user fence */
 	.emit_ib_size = 8, /* uvd_v6_0_ring_emit_ib */
@@ -1541,6 +1542,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_phys_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,
+	.emit_wreg = uvd_v6_0_ring_emit_wreg,
 };
 
 static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
@@ -1554,7 +1556,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
 	.emit_frame_size =
 		6 + 6 + /* hdp flush / invalidate */
 		10 + /* uvd_v6_0_ring_emit_pipeline_sync */
-		20 + /* uvd_v6_0_ring_emit_vm_flush */
+		VI_FLUSH_GPU_TLB_NUM_WREG * 6 + 8 + /* uvd_v6_0_ring_emit_vm_flush */
 		14 + 14, /* uvd_v6_0_ring_emit_fence x2 vm fence */
 	.emit_ib_size = 8, /* uvd_v6_0_ring_emit_ib */
 	.emit_ib = uvd_v6_0_ring_emit_ib,

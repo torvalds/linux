@@ -1628,7 +1628,7 @@ static const struct amdgpu_ring_funcs sdma_v3_0_ring_funcs = {
 		6 + /* sdma_v3_0_ring_emit_hdp_flush */
 		3 + /* hdp invalidate */
 		6 + /* sdma_v3_0_ring_emit_pipeline_sync */
-		12 + /* sdma_v3_0_ring_emit_vm_flush */
+		VI_FLUSH_GPU_TLB_NUM_WREG * 3 + 6 + /* sdma_v3_0_ring_emit_vm_flush */
 		10 + 10 + 10, /* sdma_v3_0_ring_emit_fence x3 for user fence, vm fence */
 	.emit_ib_size = 7 + 6, /* sdma_v3_0_ring_emit_ib */
 	.emit_ib = sdma_v3_0_ring_emit_ib,
