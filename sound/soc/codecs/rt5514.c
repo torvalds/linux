@@ -353,8 +353,7 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 				msleep(20);
 #if IS_ENABLED(CONFIG_SND_SOC_RT5514_SPI)
 				rt5514_spi_burst_read(RT5514_PLL3_CALIB_CTRL6 |
-					RT5514_DSP_MAPPING,
-					(u8 *)&buf, sizeof(buf));
+					RT5514_DSP_MAPPING, buf, sizeof(buf));
 #else
 				dev_err(component->dev, "There is no SPI driver for"
 					" loading the firmware\n");
