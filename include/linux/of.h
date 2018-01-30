@@ -544,6 +544,8 @@ const char *of_prop_next_string(struct property *prop, const char *cur);
 
 bool of_console_check(struct device_node *dn, char *name, int index);
 
+extern int of_cpu_node_to_id(struct device_node *np);
+
 #else /* CONFIG_OF */
 
 static inline void of_core_init(void)
@@ -914,6 +916,11 @@ static inline void of_property_set_flag(struct property *p, unsigned long flag)
 
 static inline void of_property_clear_flag(struct property *p, unsigned long flag)
 {
+}
+
+static inline int of_cpu_node_to_id(struct device_node *np)
+{
+	return -ENODEV;
 }
 
 #define of_match_ptr(_ptr)	NULL

@@ -12645,6 +12645,15 @@ L:	linux-media@vger.kernel.org
 S:	Supported
 F:	drivers/media/pci/solo6x10/
 
+SOFTWARE DELEGATED EXCEPTION INTERFACE (SDEI)
+M:	James Morse <james.morse@arm.com>
+L:	linux-arm-kernel@lists.infradead.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/arm/firmware/sdei.txt
+F:	drivers/firmware/arm_sdei.c
+F:	include/linux/sdei.h
+F:	include/uapi/linux/sdei.h
+
 SOFTWARE RAID (Multiple Disks) SUPPORT
 M:	Shaohua Li <shli@kernel.org>
 L:	linux-raid@vger.kernel.org

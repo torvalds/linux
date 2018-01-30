@@ -43,5 +43,6 @@
 #define HWCAP_ASIMDDP		(1 << 20)
 #define HWCAP_SHA512		(1 << 21)
 #define HWCAP_SVE		(1 << 22)
+#define HWCAP_ASIMDFHM		(1 << 23)
 
 #endif /* _UAPI__ASM_HWCAP_H */
