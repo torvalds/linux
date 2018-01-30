@@ -2917,10 +2917,6 @@ static void intel_fixup_cur_wm_latency(struct drm_i915_private *dev_priv,
 	/* ILK cursor LP0 latency is 1300 ns */
 	if (IS_GEN5(dev_priv))
 		wm[0] = 13;
-
-	/* WaDoubleCursorLP3Latency:ivb */
-	if (IS_IVYBRIDGE(dev_priv))
-		wm[3] *= 2;
 }
 
 int ilk_wm_max_level(const struct drm_i915_private *dev_priv)
