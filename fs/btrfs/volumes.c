@@ -4722,7 +4722,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		return -ENOSPC;
 	}
 
-	index = __get_raid_index(type);
+	index = btrfs_bg_flags_to_raid_index(type);
 
 	sub_stripes = btrfs_raid_array[index].sub_stripes;
 	dev_stripes = btrfs_raid_array[index].dev_stripes;

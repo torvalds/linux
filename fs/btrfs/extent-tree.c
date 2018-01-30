@@ -7345,29 +7345,6 @@ wait_block_group_cache_done(struct btrfs_block_group_cache *cache)
 	return ret;
 }
 
-int __get_raid_index(u64 flags)
-{
-	if (flags & BTRFS_BLOCK_GROUP_RAID10)
-		return BTRFS_RAID_RAID10;
-	else if (flags & BTRFS_BLOCK_GROUP_RAID1)
-		return BTRFS_RAID_RAID1;
-	else if (flags & BTRFS_BLOCK_GROUP_DUP)
-		return BTRFS_RAID_DUP;
-	else if (flags & BTRFS_BLOCK_GROUP_RAID0)
-		return BTRFS_RAID_RAID0;
-	else if (flags & BTRFS_BLOCK_GROUP_RAID5)
-		return BTRFS_RAID_RAID5;
-	else if (flags & BTRFS_BLOCK_GROUP_RAID6)
-		return BTRFS_RAID_RAID6;
-
-	return BTRFS_RAID_SINGLE; /* BTRFS_BLOCK_GROUP_SINGLE */
-}
-
-int get_block_group_index(struct btrfs_block_group_cache *cache)
-{
-	return __get_raid_index(cache->flags);
-}
-
 static const char *btrfs_raid_type_names[BTRFS_NR_RAID_TYPES] = {
 	[BTRFS_RAID_RAID10]	= "raid10",
 	[BTRFS_RAID_RAID1]	= "raid1",
@@ -7482,7 +7459,7 @@ static noinline int find_free_extent(struct btrfs_fs_info *fs_info,
 	u64 empty_cluster = 0;
 	struct btrfs_space_info *space_info;
 	int loop = 0;
-	int index = __get_raid_index(flags);
+	int index = btrfs_bg_flags_to_raid_index(flags);
 	bool failed_cluster_refill = false;
 	bool failed_alloc = false;
 	bool use_cluster = true;
@@ -7568,7 +7545,8 @@ static noinline int find_free_extent(struct btrfs_fs_info *fs_info,
 				btrfs_put_block_group(block_group);
 				up_read(&space_info->groups_sem);
 			} else {
-				index = get_block_group_index(block_group);
+				index = btrfs_bg_flags_to_raid_index(
+						block_group->flags);
 				btrfs_lock_block_group(block_group, delalloc);
 				goto have_block_group;
 			}
@@ -7578,7 +7556,7 @@ static noinline int find_free_extent(struct btrfs_fs_info *fs_info,
 	}
 search:
 	have_caching_bg = false;
-	if (index == 0 || index == __get_raid_index(flags))
+	if (index == 0 || index == btrfs_bg_flags_to_raid_index(flags))
 		full_search = true;
 	down_read(&space_info->groups_sem);
 	list_for_each_entry(block_group, &space_info->block_groups[index],
@@ -7836,7 +7814,8 @@ checks:
 loop:
 		failed_cluster_refill = false;
 		failed_alloc = false;
-		BUG_ON(index != get_block_group_index(block_group));
+		BUG_ON(btrfs_bg_flags_to_raid_index(block_group->flags) !=
+		       index);
 		btrfs_release_block_group(block_group, delalloc);
 		cond_resched();
 	}
@@ -9642,7 +9621,7 @@ int btrfs_can_relocate(struct btrfs_fs_info *fs_info, u64 bytenr)
 	 */
 	target = get_restripe_target(fs_info, block_group->flags);
 	if (target) {
-		index = __get_raid_index(extended_to_chunk(target));
+		index = btrfs_bg_flags_to_raid_index(extended_to_chunk(target));
 	} else {
 		/*
 		 * this is just a balance, so if we were marked as full
@@ -9656,7 +9635,7 @@ int btrfs_can_relocate(struct btrfs_fs_info *fs_info, u64 bytenr)
 			goto out;
 		}
 
-		index = get_block_group_index(block_group);
+		index = btrfs_bg_flags_to_raid_index(block_group->flags);
 	}
 
 	if (index == BTRFS_RAID_RAID10) {
@@ -9908,7 +9887,7 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 static void link_block_group(struct btrfs_block_group_cache *cache)
 {
 	struct btrfs_space_info *space_info = cache->space_info;
-	int index = get_block_group_index(cache);
+	int index = btrfs_bg_flags_to_raid_index(cache->flags);
 	bool first = false;
 
 	down_write(&space_info->groups_sem);
@@ -10328,7 +10307,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 				  block_group->key.offset);
 
 	memcpy(&key, &block_group->key, sizeof(key));
-	index = get_block_group_index(block_group);
+	index = btrfs_bg_flags_to_raid_index(block_group->flags);
 	if (block_group->flags & (BTRFS_BLOCK_GROUP_DUP |
 				  BTRFS_BLOCK_GROUP_RAID1 |
 				  BTRFS_BLOCK_GROUP_RAID10))
