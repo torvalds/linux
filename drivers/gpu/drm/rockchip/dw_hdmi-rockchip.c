@@ -101,6 +101,7 @@ struct rockchip_hdmi {
 
 	unsigned int colordepth;
 	unsigned int colorimetry;
+	unsigned int phy_bus_width;
 	enum drm_hdmi_output_type hdmi_output;
 };
 
@@ -542,6 +543,12 @@ static void dw_hdmi_rockchip_encoder_disable(struct drm_encoder *encoder)
 {
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
 
+	/*
+	 * when plug out hdmi it will be switch cvbs and then phy bus width
+	 * must be set as 8
+	 */
+	if (hdmi->phy)
+		phy_set_bus_width(hdmi->phy, 8);
 	clk_disable_unprepare(hdmi->dclk);
 }
 
@@ -556,6 +563,9 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 
 	if (WARN_ON(!crtc || !crtc->state))
 		return;
+
+	if (hdmi->phy)
+		phy_set_bus_width(hdmi->phy, hdmi->phy_bus_width);
 
 	clk_set_rate(hdmi->vpll_clk,
 		     crtc->state->adjusted_mode.crtc_clock * 1000);
@@ -800,6 +810,7 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 			bus_width = colordepth;
 	}
 
+	hdmi->phy_bus_width = bus_width;
 	if (hdmi->phy)
 		phy_set_bus_width(hdmi->phy, bus_width);
 
