@@ -302,14 +302,13 @@ struct rbd_obj_request {
 };
 
 enum img_req_flags {
-	IMG_REQ_WRITE,		/* I/O direction: read = 0, write = 1 */
 	IMG_REQ_CHILD,		/* initiator: block = 0, child image = 1 */
 	IMG_REQ_LAYERED,	/* ENOENT handling: normal = 0, layered = 1 */
-	IMG_REQ_DISCARD,	/* discard: normal = 0, discard request = 1 */
 };
 
 struct rbd_img_request {
 	struct rbd_device	*rbd_dev;
+	enum obj_operation_type	op_type;
 	u64			offset;	/* starting image byte offset */
 	u64			length;	/* byte count from offset */
 	unsigned long		flags;
@@ -1490,33 +1489,6 @@ static void rbd_img_request_complete(struct rbd_img_request *img_request)
  * is conditionally set to 1 at image request initialization time
  * and currently never change thereafter.
  */
-static void img_request_write_set(struct rbd_img_request *img_request)
-{
-	set_bit(IMG_REQ_WRITE, &img_request->flags);
-	smp_mb();
-}
-
-static bool img_request_write_test(struct rbd_img_request *img_request)
-{
-	smp_mb();
-	return test_bit(IMG_REQ_WRITE, &img_request->flags) != 0;
-}
-
-/*
- * Set the discard flag when the img_request is an discard request
- */
-static void img_request_discard_set(struct rbd_img_request *img_request)
-{
-	set_bit(IMG_REQ_DISCARD, &img_request->flags);
-	smp_mb();
-}
-
-static bool img_request_discard_test(struct rbd_img_request *img_request)
-{
-	smp_mb();
-	return test_bit(IMG_REQ_DISCARD, &img_request->flags) != 0;
-}
-
 static void img_request_child_set(struct rbd_img_request *img_request)
 {
 	set_bit(IMG_REQ_CHILD, &img_request->flags);
@@ -1553,17 +1525,6 @@ static bool img_request_layered_test(struct rbd_img_request *img_request)
 	return test_bit(IMG_REQ_LAYERED, &img_request->flags) != 0;
 }
 
-static enum obj_operation_type
-rbd_img_request_op_type(struct rbd_img_request *img_request)
-{
-	if (img_request_write_test(img_request))
-		return OBJ_OP_WRITE;
-	else if (img_request_discard_test(img_request))
-		return OBJ_OP_DISCARD;
-	else
-		return OBJ_OP_READ;
-}
-
 static bool rbd_obj_is_entire(struct rbd_obj_request *obj_req)
 {
 	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
@@ -1582,7 +1543,7 @@ static bool rbd_obj_is_tail(struct rbd_obj_request *obj_req)
 
 static bool rbd_img_is_write(struct rbd_img_request *img_req)
 {
-	switch (rbd_img_request_op_type(img_req)) {
+	switch (img_req->op_type) {
 	case OBJ_OP_READ:
 		return false;
 	case OBJ_OP_WRITE:
@@ -1816,17 +1777,14 @@ static struct rbd_img_request *rbd_img_request_create(
 		return NULL;
 
 	img_request->rbd_dev = rbd_dev;
+	img_request->op_type = op_type;
 	img_request->offset = offset;
 	img_request->length = length;
-	if (op_type == OBJ_OP_DISCARD) {
-		img_request_discard_set(img_request);
-		img_request->snapc = snapc;
-	} else if (op_type == OBJ_OP_WRITE) {
-		img_request_write_set(img_request);
-		img_request->snapc = snapc;
-	} else {
+	if (!rbd_img_is_write(img_request))
 		img_request->snap_id = rbd_dev->spec->snap_id;
-	}
+	else
+		img_request->snapc = snapc;
+
 	if (rbd_dev_parent_get(rbd_dev))
 		img_request_layered_set(img_request);
 
@@ -1859,8 +1817,7 @@ static void rbd_img_request_destroy(struct kref *kref)
 		rbd_dev_parent_put(img_request->rbd_dev);
 	}
 
-	if (img_request_write_test(img_request) ||
-		img_request_discard_test(img_request))
+	if (rbd_img_is_write(img_request))
 		ceph_put_snap_context(img_request->snapc);
 
 	kmem_cache_free(rbd_img_request_cache, img_request);
@@ -1918,17 +1875,9 @@ static bool rbd_img_obj_end_request(struct rbd_obj_request *obj_request)
 	result = obj_request->result;
 	if (result) {
 		struct rbd_device *rbd_dev = img_request->rbd_dev;
-		enum obj_operation_type op_type;
-
-		if (img_request_discard_test(img_request))
-			op_type = OBJ_OP_DISCARD;
-		else if (img_request_write_test(img_request))
-			op_type = OBJ_OP_WRITE;
-		else
-			op_type = OBJ_OP_READ;
 
 		rbd_warn(rbd_dev, "%s %llx at %llx (%llx)",
-			obj_op_name(op_type), obj_request->length,
+			obj_op_name(img_request->op_type), obj_request->length,
 			obj_request->img_offset, obj_request->offset);
 		rbd_warn(rbd_dev, "  result %d xferred %x",
 			result, xferred);
@@ -2175,7 +2124,7 @@ static int __rbd_img_fill_request(struct rbd_img_request *img_req)
 	int ret;
 
 	for_each_obj_request(img_req, obj_req) {
-		switch (rbd_img_request_op_type(img_req)) {
+		switch (img_req->op_type) {
 		case OBJ_OP_READ:
 			ret = rbd_obj_setup_read(obj_req);
 			break;
@@ -2428,7 +2377,7 @@ static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 	osd_req_op_cls_request_data_bvecs(obj_req->osd_req, 0,
 					  obj_req->copyup_bvecs, bytes);
 
-	switch (rbd_img_request_op_type(obj_req->img_request)) {
+	switch (obj_req->img_request->op_type) {
 	case OBJ_OP_WRITE:
 		__rbd_obj_setup_write(obj_req, 1);
 		break;
@@ -2572,7 +2521,7 @@ again:
  */
 static bool __rbd_obj_handle_request(struct rbd_obj_request *obj_req)
 {
-	switch (rbd_img_request_op_type(obj_req->img_request)) {
+	switch (obj_req->img_request->op_type) {
 	case OBJ_OP_READ:
 		return rbd_obj_handle_read(obj_req);
 	case OBJ_OP_WRITE:
