@@ -4507,6 +4507,7 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	struct intel_atomic_state *state =
 		to_intel_atomic_state(cstate->base.state);
 	bool apply_memory_bw_wa = skl_needs_memory_bw_wa(state);
+	uint32_t min_disp_buf_needed;
 
 	if (latency == 0 ||
 	    !intel_wm_plane_visible(cstate, intel_pstate)) {
@@ -4565,7 +4566,31 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		}
 	}
 
-	if (res_blocks >= ddb_allocation || res_lines > 31) {
+	if (INTEL_GEN(dev_priv) >= 11) {
+		if (wp->y_tiled) {
+			uint32_t extra_lines;
+			uint_fixed_16_16_t fp_min_disp_buf_needed;
+
+			if (res_lines % wp->y_min_scanlines == 0)
+				extra_lines = wp->y_min_scanlines;
+			else
+				extra_lines = wp->y_min_scanlines * 2 -
+					      res_lines % wp->y_min_scanlines;
+
+			fp_min_disp_buf_needed = mul_u32_fixed16(res_lines +
+						extra_lines,
+						wp->plane_blocks_per_line);
+			min_disp_buf_needed = fixed16_to_u32_round_up(
+						fp_min_disp_buf_needed);
+		} else {
+			min_disp_buf_needed = DIV_ROUND_UP(res_blocks * 11, 10);
+		}
+	} else {
+		min_disp_buf_needed = res_blocks;
+	}
+
+	if (res_blocks >= ddb_allocation || res_lines > 31 ||
+	    min_disp_buf_needed >= ddb_allocation) {
 		*enabled = false;
 
 		/*
