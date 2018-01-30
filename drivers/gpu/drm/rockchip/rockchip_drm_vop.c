@@ -95,9 +95,6 @@ struct vop {
 	struct drm_device *drm_dev;
 	bool is_enabled;
 
-	/* mutex vsync_ work */
-	struct mutex vsync_mutex;
-	bool vsync_work_pending;
 	struct completion dsp_hold_completion;
 
 	/* protected by dev->event_lock */
@@ -1554,8 +1551,6 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 
 	spin_lock_init(&vop->reg_lock);
 	spin_lock_init(&vop->irq_lock);
-
-	mutex_init(&vop->vsync_mutex);
 
 	ret = devm_request_irq(dev, vop->irq, vop_isr,
 			       IRQF_SHARED, dev_name(dev), vop);
