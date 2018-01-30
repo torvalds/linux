@@ -155,40 +155,6 @@ struct intel_vgpu_mm {
 	};
 };
 
-extern int intel_vgpu_mm_get_entry(
-		struct intel_vgpu_mm *mm,
-		void *page_table, struct intel_gvt_gtt_entry *e,
-		unsigned long index);
-
-extern int intel_vgpu_mm_set_entry(
-		struct intel_vgpu_mm *mm,
-		void *page_table, struct intel_gvt_gtt_entry *e,
-		unsigned long index);
-
-#define ggtt_get_guest_entry(mm, e, index) \
-	intel_vgpu_mm_get_entry(mm, mm->ggtt_mm.virtual_ggtt, e, index)
-
-#define ggtt_set_guest_entry(mm, e, index) \
-	intel_vgpu_mm_set_entry(mm, mm->ggtt_mm.virtual_ggtt, e, index)
-
-#define ggtt_get_shadow_entry(mm, e, index) \
-	intel_vgpu_mm_get_entry(mm, mm->ggtt_mm.virtual_ggtt, e, index)
-
-#define ggtt_set_shadow_entry(mm, e, index) \
-	intel_vgpu_mm_set_entry(mm, mm->ggtt_mm.virtual_ggtt, e, index)
-
-#define ppgtt_get_guest_root_entry(mm, e, index) \
-	intel_vgpu_mm_get_entry(mm, mm->ppgtt_mm.guest_pdps, e, index)
-
-#define ppgtt_set_guest_root_entry(mm, e, index) \
-	intel_vgpu_mm_set_entry(mm, mm->ppgtt_mm.guest_pdps, e, index)
-
-#define ppgtt_get_shadow_root_entry(mm, e, index) \
-	intel_vgpu_mm_get_entry(mm, mm->ppgtt_mm.shadow_pdps, e, index)
-
-#define ppgtt_set_shadow_root_entry(mm, e, index) \
-	intel_vgpu_mm_set_entry(mm, mm->ppgtt_mm.shadow_pdps, e, index)
-
 struct intel_vgpu_mm *intel_vgpu_create_ppgtt_mm(struct intel_vgpu *vgpu,
 		intel_gvt_gtt_type_t root_entry_type, u64 pdps[]);
 

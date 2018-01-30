@@ -473,35 +473,88 @@ static int gtt_entry_p2m(struct intel_vgpu *vgpu, struct intel_gvt_gtt_entry *p,
 /*
  * MM helpers.
  */
-int intel_vgpu_mm_get_entry(struct intel_vgpu_mm *mm,
-		void *page_table, struct intel_gvt_gtt_entry *e,
-		unsigned long index)
+static void _ppgtt_get_root_entry(struct intel_vgpu_mm *mm,
+		struct intel_gvt_gtt_entry *entry, unsigned long index,
+		bool guest)
 {
-	struct intel_gvt *gvt = mm->vgpu->gvt;
-	struct intel_gvt_gtt_pte_ops *ops = gvt->gtt.pte_ops;
-	int ret;
+	struct intel_gvt_gtt_pte_ops *pte_ops = mm->vgpu->gvt->gtt.pte_ops;
 
-	if (mm->type == INTEL_GVT_MM_PPGTT)
-		e->type = mm->ppgtt_mm.root_entry_type;
-	else
-		e->type = GTT_TYPE_GGTT_PTE;
+	GEM_BUG_ON(mm->type != INTEL_GVT_MM_PPGTT);
 
-	ret = ops->get_entry(page_table, e, index, false, 0, mm->vgpu);
-	if (ret)
-		return ret;
+	entry->type = mm->ppgtt_mm.root_entry_type;
+	pte_ops->get_entry(guest ? mm->ppgtt_mm.guest_pdps :
+			   mm->ppgtt_mm.shadow_pdps,
+			   entry, index, false, 0, mm->vgpu);
 
-	ops->test_pse(e);
-	return 0;
+	pte_ops->test_pse(entry);
 }
 
-int intel_vgpu_mm_set_entry(struct intel_vgpu_mm *mm,
-		void *page_table, struct intel_gvt_gtt_entry *e,
-		unsigned long index)
+static inline void ppgtt_get_guest_root_entry(struct intel_vgpu_mm *mm,
+		struct intel_gvt_gtt_entry *entry, unsigned long index)
 {
-	struct intel_gvt *gvt = mm->vgpu->gvt;
-	struct intel_gvt_gtt_pte_ops *ops = gvt->gtt.pte_ops;
+	_ppgtt_get_root_entry(mm, entry, index, true);
+}
 
-	return ops->set_entry(page_table, e, index, false, 0, mm->vgpu);
+static inline void ppgtt_get_shadow_root_entry(struct intel_vgpu_mm *mm,
+		struct intel_gvt_gtt_entry *entry, unsigned long index)
+{
+	_ppgtt_get_root_entry(mm, entry, index, false);
+}
+
+static void _ppgtt_set_root_entry(struct intel_vgpu_mm *mm,
+		struct intel_gvt_gtt_entry *entry, unsigned long index,
+		bool guest)
+{
+	struct intel_gvt_gtt_pte_ops *pte_ops = mm->vgpu->gvt->gtt.pte_ops;
+
+	pte_ops->set_entry(guest ? mm->ppgtt_mm.guest_pdps :
+			   mm->ppgtt_mm.shadow_pdps,
+			   entry, index, false, 0, mm->vgpu);
+}
+
+static inline void ppgtt_set_guest_root_entry(struct intel_vgpu_mm *mm,
+		struct intel_gvt_gtt_entry *entry, unsigned long index)
+{
+	_ppgtt_set_root_entry(mm, entry, index, true);
+}
+
+static inline void ppgtt_set_shadow_root_entry(struct intel_vgpu_mm *mm,
+		struct intel_gvt_gtt_entry *entry, unsigned long index)
+{
+	_ppgtt_set_root_entry(mm, entry, index, false);
+}
+
+static void ggtt_get_guest_entry(struct intel_vgpu_mm *mm,
+		struct intel_gvt_gtt_entry *entry, unsigned long index)
+{
+	struct intel_gvt_gtt_pte_ops *pte_ops = mm->vgpu->gvt->gtt.pte_ops;
+
+	GEM_BUG_ON(mm->type != INTEL_GVT_MM_GGTT);
+
+	entry->type = GTT_TYPE_GGTT_PTE;
+	pte_ops->get_entry(mm->ggtt_mm.virtual_ggtt, entry, index,
+			   false, 0, mm->vgpu);
+}
+
+static void ggtt_set_guest_entry(struct intel_vgpu_mm *mm,
+		struct intel_gvt_gtt_entry *entry, unsigned long index)
+{
+	struct intel_gvt_gtt_pte_ops *pte_ops = mm->vgpu->gvt->gtt.pte_ops;
+
+	GEM_BUG_ON(mm->type != INTEL_GVT_MM_GGTT);
+
+	pte_ops->set_entry(mm->ggtt_mm.virtual_ggtt, entry, index,
+			   false, 0, mm->vgpu);
+}
+
+static void ggtt_set_host_entry(struct intel_vgpu_mm *mm,
+		struct intel_gvt_gtt_entry *entry, unsigned long index)
+{
+	struct intel_gvt_gtt_pte_ops *pte_ops = mm->vgpu->gvt->gtt.pte_ops;
+
+	GEM_BUG_ON(mm->type != INTEL_GVT_MM_GGTT);
+
+	pte_ops->set_entry(NULL, entry, index, false, 0, mm->vgpu);
 }
 
 /*
@@ -1897,7 +1950,7 @@ static int emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 	}
 
 out:
-	ggtt_set_shadow_entry(ggtt_mm, &m, g_gtt_index);
+	ggtt_set_host_entry(ggtt_mm, &m, g_gtt_index);
 	gtt_invalidate(gvt->dev_priv);
 	ggtt_set_guest_entry(ggtt_mm, &e, g_gtt_index);
 	return 0;
