@@ -2215,6 +2215,7 @@ static void vcodec_power_off_rk3328(struct vpu_service_info *pservice)
 static void vcodec_get_reg_freq_default(struct vpu_subdev_data *data,
 					struct vpu_reg *reg)
 {
+	reg->freq = VPU_FREQ_300M;
 	if (reg->type == VPU_DEC || reg->type == VPU_DEC_PP) {
 		if (reg_check_fmt(reg) == VPU_DEC_FMT_H264) {
 			if (reg_probe_width(reg) > 2560) {
@@ -2224,15 +2225,16 @@ static void vcodec_get_reg_freq_default(struct vpu_subdev_data *data,
 				 */
 				reg->freq = VPU_FREQ_600M;
 			}
-		} else {
-			if (reg_check_interlace(reg))
-				reg->freq = VPU_FREQ_400M;
+		} else if (reg_check_interlace(reg)) {
+			reg->freq = VPU_FREQ_400M;
 		}
 	}
+
 	if (data->hw_id == HEVC_ID) {
 		if (reg_probe_hevc_y_stride(reg) > 60000)
 			reg->freq = VPU_FREQ_400M;
 	}
+
 	if (reg->type == VPU_PP)
 		reg->freq = VPU_FREQ_400M;
 }
