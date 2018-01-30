@@ -1629,6 +1629,7 @@ static void rbd_osd_req_format_read(struct rbd_obj_request *obj_request)
 	struct ceph_osd_request *osd_req = obj_request->osd_req;
 
 	rbd_assert(obj_request_img_data_test(obj_request));
+	osd_req->r_flags = CEPH_OSD_FLAG_READ;
 	osd_req->r_snapid = obj_request->img_request->snap_id;
 }
 
@@ -1636,32 +1637,33 @@ static void rbd_osd_req_format_write(struct rbd_obj_request *obj_request)
 {
 	struct ceph_osd_request *osd_req = obj_request->osd_req;
 
+	osd_req->r_flags = CEPH_OSD_FLAG_WRITE;
 	ktime_get_real_ts(&osd_req->r_mtime);
 	osd_req->r_data_offset = obj_request->offset;
 }
 
 static struct ceph_osd_request *
-__rbd_osd_req_create(struct rbd_device *rbd_dev,
-		     struct ceph_snap_context *snapc,
-		     int num_ops, unsigned int flags,
-		     struct rbd_obj_request *obj_request)
+rbd_osd_req_create(struct rbd_obj_request *obj_req, unsigned int num_ops)
 {
+	struct rbd_img_request *img_req = obj_req->img_request;
+	struct rbd_device *rbd_dev = img_req->rbd_dev;
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
 	struct ceph_osd_request *req;
 	const char *name_format = rbd_dev->image_format == 1 ?
 				      RBD_V1_DATA_FORMAT : RBD_V2_DATA_FORMAT;
 
-	req = ceph_osdc_alloc_request(osdc, snapc, num_ops, false, GFP_NOIO);
+	req = ceph_osdc_alloc_request(osdc,
+			(rbd_img_is_write(img_req) ? img_req->snapc : NULL),
+			num_ops, false, GFP_NOIO);
 	if (!req)
 		return NULL;
 
-	req->r_flags = flags;
 	req->r_callback = rbd_osd_req_callback;
-	req->r_priv = obj_request;
+	req->r_priv = obj_req;
 
 	req->r_base_oloc.pool = rbd_dev->layout.pool_id;
 	if (ceph_oid_aprintf(&req->r_base_oid, GFP_NOIO, name_format,
-			rbd_dev->header.object_prefix, obj_request->object_no))
+			rbd_dev->header.object_prefix, obj_req->object_no))
 		goto err_req;
 
 	if (ceph_osdc_alloc_messages(req, GFP_NOIO))
@@ -1672,30 +1674,6 @@ __rbd_osd_req_create(struct rbd_device *rbd_dev,
 err_req:
 	ceph_osdc_put_request(req);
 	return NULL;
-}
-
-static struct ceph_osd_request *rbd_osd_req_create(
-					struct rbd_device *rbd_dev,
-					enum obj_operation_type op_type,
-					unsigned int num_ops,
-					struct rbd_obj_request *obj_request)
-{
-	struct ceph_snap_context *snapc = NULL;
-
-	if (obj_request_img_data_test(obj_request) &&
-		(op_type == OBJ_OP_DISCARD || op_type == OBJ_OP_WRITE)) {
-		struct rbd_img_request *img_request = obj_request->img_request;
-		if (op_type == OBJ_OP_WRITE) {
-			rbd_assert(img_request_write_test(img_request));
-		} else {
-			rbd_assert(img_request_discard_test(img_request));
-		}
-		snapc = img_request->snapc;
-	}
-
-	return __rbd_osd_req_create(rbd_dev, snapc, num_ops,
-	    (op_type == OBJ_OP_WRITE || op_type == OBJ_OP_DISCARD) ?
-	    CEPH_OSD_FLAG_WRITE : CEPH_OSD_FLAG_READ, obj_request);
 }
 
 static void rbd_osd_req_destroy(struct ceph_osd_request *osd_req)
@@ -2039,9 +2017,7 @@ static void rbd_osd_req_setup_data(struct rbd_obj_request *obj_req, u32 which)
 
 static int rbd_obj_setup_read(struct rbd_obj_request *obj_req)
 {
-	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
-
-	obj_req->osd_req = rbd_osd_req_create(rbd_dev, OBJ_OP_READ, 1, obj_req);
+	obj_req->osd_req = rbd_osd_req_create(obj_req, 1);
 	if (!obj_req->osd_req)
 		return -ENOMEM;
 
@@ -2102,7 +2078,6 @@ static void __rbd_obj_setup_write(struct rbd_obj_request *obj_req,
 
 static int rbd_obj_setup_write(struct rbd_obj_request *obj_req)
 {
-	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
 	unsigned int num_osd_ops, which = 0;
 	int ret;
 
@@ -2114,8 +2089,7 @@ static int rbd_obj_setup_write(struct rbd_obj_request *obj_req)
 		num_osd_ops = 2; /* setallochint + write/writefull */
 	}
 
-	obj_req->osd_req = rbd_osd_req_create(rbd_dev, OBJ_OP_WRITE,
-					      num_osd_ops, obj_req);
+	obj_req->osd_req = rbd_osd_req_create(obj_req, num_osd_ops);
 	if (!obj_req->osd_req)
 		return -ENOMEM;
 
@@ -2159,7 +2133,6 @@ static void __rbd_obj_setup_discard(struct rbd_obj_request *obj_req,
 
 static int rbd_obj_setup_discard(struct rbd_obj_request *obj_req)
 {
-	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
 	unsigned int num_osd_ops, which = 0;
 	int ret;
 
@@ -2176,8 +2149,7 @@ static int rbd_obj_setup_discard(struct rbd_obj_request *obj_req)
 		}
 	}
 
-	obj_req->osd_req = rbd_osd_req_create(rbd_dev, OBJ_OP_DISCARD,
-					      num_osd_ops, obj_req);
+	obj_req->osd_req = rbd_osd_req_create(obj_req, num_osd_ops);
 	if (!obj_req->osd_req)
 		return -ENOMEM;
 
@@ -2426,7 +2398,6 @@ static bool is_zero_bvecs(struct bio_vec *bvecs, u32 bytes)
 
 static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 {
-	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
 	unsigned int num_osd_ops = obj_req->osd_req->r_num_ops;
 
 	dout("%s obj_req %p bytes %u\n", __func__, obj_req, bytes);
@@ -2438,9 +2409,7 @@ static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 	 * the original request.  The original request was stat + op(s),
 	 * the new copyup request will be copyup + the same op(s).
 	 */
-	obj_req->osd_req = rbd_osd_req_create(rbd_dev,
-				rbd_img_request_op_type(obj_req->img_request),
-				num_osd_ops, obj_req);
+	obj_req->osd_req = rbd_osd_req_create(obj_req, num_osd_ops);
 	if (!obj_req->osd_req)
 		return -ENOMEM;
 
