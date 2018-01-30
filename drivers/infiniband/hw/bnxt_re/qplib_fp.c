@@ -557,8 +557,10 @@ int bnxt_qplib_create_srq(struct bnxt_qplib_res *res,
 
 	srq->swq = kcalloc(srq->hwq.max_elements, sizeof(*srq->swq),
 			   GFP_KERNEL);
-	if (!srq->swq)
+	if (!srq->swq) {
+		rc = -ENOMEM;
 		goto fail;
+	}
 
 	RCFW_CMD_PREP(req, CREATE_SRQ, cmd_flags);
 
