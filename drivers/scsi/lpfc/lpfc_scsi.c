@@ -3926,7 +3926,6 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	struct lpfc_rport_data *rdata = lpfc_cmd->rdata;
 	struct lpfc_nodelist *pnode = rdata->pnode;
 	struct scsi_cmnd *cmd;
-	int depth;
 	unsigned long flags;
 	struct lpfc_fast_path_event *fast_path_evt;
 	struct Scsi_Host *shost;
@@ -4132,16 +4131,11 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		}
 		spin_unlock_irqrestore(shost->host_lock, flags);
 	} else if (pnode && NLP_CHK_NODE_ACT(pnode)) {
-		if ((pnode->cmd_qdepth < vport->cfg_tgt_queue_depth) &&
-		   time_after(jiffies, pnode->last_change_time +
+		if ((pnode->cmd_qdepth != vport->cfg_tgt_queue_depth) &&
+		    time_after(jiffies, pnode->last_change_time +
 			      msecs_to_jiffies(LPFC_TGTQ_INTERVAL))) {
 			spin_lock_irqsave(shost->host_lock, flags);
-			depth = pnode->cmd_qdepth * LPFC_TGTQ_RAMPUP_PCENT
-				/ 100;
-			depth = depth ? depth : 1;
-			pnode->cmd_qdepth += depth;
-			if (pnode->cmd_qdepth > vport->cfg_tgt_queue_depth)
-				pnode->cmd_qdepth = vport->cfg_tgt_queue_depth;
+			pnode->cmd_qdepth = vport->cfg_tgt_queue_depth;
 			pnode->last_change_time = jiffies;
 			spin_unlock_irqrestore(shost->host_lock, flags);
 		}
@@ -4564,9 +4558,32 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	 */
 	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
 		goto out_tgt_busy;
-	if (atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth)
+	if (atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP_ERROR,
+				 "3377 Target Queue Full, scsi Id:%d Qdepth:%d"
+				 " Pending command:%d"
+				 " WWNN:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x, "
+				 " WWPN:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
+				 ndlp->nlp_sid, ndlp->cmd_qdepth,
+				 atomic_read(&ndlp->cmd_pending),
+				 ndlp->nlp_nodename.u.wwn[0],
+				 ndlp->nlp_nodename.u.wwn[1],
+				 ndlp->nlp_nodename.u.wwn[2],
+				 ndlp->nlp_nodename.u.wwn[3],
+				 ndlp->nlp_nodename.u.wwn[4],
+				 ndlp->nlp_nodename.u.wwn[5],
+				 ndlp->nlp_nodename.u.wwn[6],
+				 ndlp->nlp_nodename.u.wwn[7],
+				 ndlp->nlp_portname.u.wwn[0],
+				 ndlp->nlp_portname.u.wwn[1],
+				 ndlp->nlp_portname.u.wwn[2],
+				 ndlp->nlp_portname.u.wwn[3],
+				 ndlp->nlp_portname.u.wwn[4],
+				 ndlp->nlp_portname.u.wwn[5],
+				 ndlp->nlp_portname.u.wwn[6],
+				 ndlp->nlp_portname.u.wwn[7]);
 		goto out_tgt_busy;
-
+	}
 	lpfc_cmd = lpfc_get_scsi_buf(phba, ndlp);
 	if (lpfc_cmd == NULL) {
 		lpfc_rampdown_queue_depth(phba);
