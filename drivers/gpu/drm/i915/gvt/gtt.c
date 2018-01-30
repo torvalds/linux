@@ -38,6 +38,12 @@
 #include "i915_pvinfo.h"
 #include "trace.h"
 
+#if defined(VERBOSE_DEBUG)
+#define gvt_vdbg_mm(fmt, args...) gvt_dbg_mm(fmt, ##args)
+#else
+#define gvt_vdbg_mm(fmt, args...)
+#endif
+
 static bool enable_out_of_sync = false;
 static int preallocated_oos_pages = 8192;
 
@@ -582,6 +588,9 @@ static inline int ppgtt_spt_get_entry(
 		return ret;
 
 	ops->test_pse(e);
+
+	gvt_vdbg_mm("read ppgtt entry, spt type %d, entry type %d, index %lu, value %llx\n",
+		    type, e->type, index, e->val64);
 	return 0;
 }
 
@@ -596,6 +605,9 @@ static inline int ppgtt_spt_set_entry(
 
 	if (WARN(!gtt_type_is_entry(e->type), "invalid entry type\n"))
 		return -EINVAL;
+
+	gvt_vdbg_mm("set ppgtt entry, spt type %d, entry type %d, index %lu, value %llx\n",
+		    type, e->type, index, e->val64);
 
 	return ops->set_entry(page_table, e, index, guest,
 			spt->guest_page.track.gfn << I915_GTT_PAGE_SHIFT,
@@ -1109,6 +1121,9 @@ static int ppgtt_handle_guest_entry_removal(struct intel_vgpu_guest_page *gpt,
 	trace_gpt_change(spt->vgpu->id, "remove", spt, sp->type, se->val64,
 			 index);
 
+	gvt_vdbg_mm("destroy old shadow entry, type %d, index %lu, value %llx\n",
+		    se->type, index, se->val64);
+
 	if (!ops->test_present(se))
 		return 0;
 
@@ -1146,6 +1161,9 @@ static int ppgtt_handle_guest_entry_add(struct intel_vgpu_guest_page *gpt,
 
 	trace_gpt_change(spt->vgpu->id, "add", spt, sp->type,
 		we->val64, index);
+
+	gvt_vdbg_mm("add shadow entry: type %d, index %lu, value %llx\n",
+		    we->type, index, we->val64);
 
 	if (gtt_type_is_pt(get_next_pt_type(we->type))) {
 		s = ppgtt_populate_shadow_page_by_guest_entry(vgpu, we);
