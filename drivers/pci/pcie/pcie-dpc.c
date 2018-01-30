@@ -158,6 +158,8 @@ static void dpc_rp_pio_get_info(struct dpc_dev *dpc,
 	dev_err(dev, "rp_pio_status: %#010x, rp_pio_mask: %#010x\n",
 		rp_pio->status, rp_pio->mask);
 
+	dpc->rp_pio_status = rp_pio->status;
+
 	pci_read_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_SEVERITY,
 			      &rp_pio->severity);
 	pci_read_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_SYSERROR,
@@ -213,7 +215,6 @@ static void dpc_process_rp_pio_error(struct dpc_dev *dpc)
 
 	dpc_rp_pio_get_info(dpc, &rp_pio_regs);
 
-	dpc->rp_pio_status = rp_pio_regs.status;
 }
 
 static irqreturn_t dpc_irq(int irq, void *context)
