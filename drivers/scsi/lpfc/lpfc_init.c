@@ -958,6 +958,7 @@ lpfc_hba_clean_txcmplq(struct lpfc_hba *phba)
 	struct lpfc_sli_ring *pring;
 	LIST_HEAD(completions);
 	int i;
+	struct lpfc_iocbq *piocb, *next_iocb;
 
 	if (phba->sli_rev != LPFC_SLI_REV4) {
 		for (i = 0; i < psli->num_rings; i++) {
@@ -983,6 +984,9 @@ lpfc_hba_clean_txcmplq(struct lpfc_hba *phba)
 		if (!pring)
 			continue;
 		spin_lock_irq(&pring->ring_lock);
+		list_for_each_entry_safe(piocb, next_iocb,
+					 &pring->txcmplq, list)
+			piocb->iocb_flag &= ~LPFC_IO_ON_TXCMPLQ;
 		list_splice_init(&pring->txcmplq, &completions);
 		pring->txcmplq_cnt = 0;
 		spin_unlock_irq(&pring->ring_lock);
