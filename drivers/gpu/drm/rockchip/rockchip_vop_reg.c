@@ -886,6 +886,7 @@ static const struct vop_ctrl rk3328_ctrl_data = {
 	.global_regdone_en = VOP_REG(RK3328_SYS_CTRL, 0x1, 11),
 	.overlay_mode = VOP_REG(RK3328_SYS_CTRL, 0x1, 16),
 	.core_dclk_div = VOP_REG(RK3328_DSP_CTRL0, 0x1, 4),
+	.dclk_ddr = VOP_REG(RK3328_DSP_CTRL0, 0x1, 8),
 	.p2i_en = VOP_REG(RK3328_DSP_CTRL0, 0x1, 5),
 	.rgb_en = VOP_REG(RK3328_SYS_CTRL, 0x1, 12),
 	.hdmi_en = VOP_REG(RK3328_SYS_CTRL, 0x1, 13),
