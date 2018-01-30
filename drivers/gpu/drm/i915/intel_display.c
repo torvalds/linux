@@ -3163,7 +3163,7 @@ static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		dspcntr |= DISPPLANE_PIPE_CSC_ENABLE;
 
-	if (INTEL_GEN(dev_priv) < 4)
+	if (INTEL_GEN(dev_priv) < 5)
 		dspcntr |= DISPPLANE_SEL_PIPE(crtc->pipe);
 
 	switch (fb->format->format) {
