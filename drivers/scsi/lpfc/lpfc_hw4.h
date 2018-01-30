@@ -3212,6 +3212,9 @@ struct lpfc_sli4_parameters {
 #define cfg_cqv_SHIFT				14
 #define cfg_cqv_MASK				0x00000003
 #define cfg_cqv_WORD				word4
+#define cfg_cqpsize_SHIFT			16
+#define cfg_cqpsize_MASK			0x000000ff
+#define cfg_cqpsize_WORD			word4
 	uint32_t word5;
 	uint32_t word6;
 #define cfg_mqv_SHIFT				14

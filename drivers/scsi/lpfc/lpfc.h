@@ -760,6 +760,7 @@ struct lpfc_hba {
 	uint8_t  mds_diags_support;
 	uint32_t initial_imax;
 	uint8_t  bbcredit_support;
+	uint8_t  enab_exp_wqcq_pages;
 
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
