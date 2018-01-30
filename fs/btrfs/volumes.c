@@ -568,6 +568,7 @@ void btrfs_free_stale_device(struct btrfs_device *cur_dev)
 				btrfs_sysfs_remove_fsid(fs_devs);
 				list_del(&fs_devs->list);
 				free_fs_devices(fs_devs);
+				break;
 			} else {
 				fs_devs->num_devices--;
 				list_del(&dev->dev_list);
