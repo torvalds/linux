@@ -130,7 +130,7 @@ lpfc_nvmet_xmt_ls_rsp_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	if (tgtp) {
 		if (status) {
 			atomic_inc(&tgtp->xmt_ls_rsp_error);
-			if (status == IOERR_ABORT_REQUESTED)
+			if (result == IOERR_ABORT_REQUESTED)
 				atomic_inc(&tgtp->xmt_ls_rsp_aborted);
 			if (bf_get(lpfc_wcqe_c_xb, wcqe))
 				atomic_inc(&tgtp->xmt_ls_rsp_xb_set);
@@ -541,7 +541,7 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 		rsp->transferred_length = 0;
 		if (tgtp) {
 			atomic_inc(&tgtp->xmt_fcp_rsp_error);
-			if (status == IOERR_ABORT_REQUESTED)
+			if (result == IOERR_ABORT_REQUESTED)
 				atomic_inc(&tgtp->xmt_fcp_rsp_aborted);
 		}
 
