@@ -36,7 +36,7 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/fc/fc_fs.h>
 
-#include <../drivers/nvme/host/nvme.h>
+#include <linux/nvme.h>
 #include <linux/nvme-fc-driver.h>
 #include <linux/nvme-fc.h>
 
