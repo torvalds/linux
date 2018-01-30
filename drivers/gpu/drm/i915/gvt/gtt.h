@@ -186,7 +186,7 @@ struct intel_vgpu_gtt {
 	struct intel_vgpu_mm *ggtt_mm;
 	unsigned long active_ppgtt_mm_bitmap;
 	struct list_head ppgtt_mm_list_head;
-	DECLARE_HASHTABLE(shadow_page_hash_table, INTEL_GVT_GTT_HASH_BITS);
+	DECLARE_HASHTABLE(spt_hash_table, INTEL_GVT_GTT_HASH_BITS);
 	DECLARE_HASHTABLE(tracked_guest_page_hash_table, INTEL_GVT_GTT_HASH_BITS);
 	atomic_t n_tracked_guest_page;
 	struct list_head oos_page_list_head;
