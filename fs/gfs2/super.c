@@ -768,6 +768,12 @@ static int gfs2_write_inode(struct inode *inode, struct writeback_control *wbc)
 		ret = filemap_fdatawait(metamapping);
 	if (ret)
 		mark_inode_dirty_sync(inode);
+	else {
+		spin_lock(&inode->i_lock);
+		if (!(inode->i_flags & I_DIRTY))
+			gfs2_ordered_del_inode(ip);
+		spin_unlock(&inode->i_lock);
+	}
 	return ret;
 }
 
