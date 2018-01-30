@@ -758,7 +758,7 @@ static int suspend_set_state(struct regulator_dev *rdev,
 
 	rstate = regulator_get_suspend_state(rdev, state);
 	if (rstate == NULL)
-		return -EINVAL;
+		return 0;
 
 	/* If we have no suspend mode configration don't set anything;
 	 * only warn if the driver implements set_suspend_voltage or
