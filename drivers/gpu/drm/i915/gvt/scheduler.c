@@ -1198,18 +1198,10 @@ static int prepare_mm(struct intel_vgpu_workload *workload)
 
 	read_guest_pdps(workload->vgpu, workload->ring_context_gpa, (void *)pdps);
 
-	mm = intel_vgpu_find_ppgtt_mm(workload->vgpu, pdps);
-	if (mm) {
-		intel_vgpu_mm_get(mm);
-	} else {
+	mm = intel_vgpu_get_ppgtt_mm(workload->vgpu, root_entry_type, pdps);
+	if (IS_ERR(mm))
+		return PTR_ERR(mm);
 
-		mm = intel_vgpu_create_ppgtt_mm(workload->vgpu, root_entry_type,
-						pdps);
-		if (IS_ERR(mm)) {
-			gvt_vgpu_err("fail to create mm object.\n");
-			return PTR_ERR(mm);
-		}
-	}
 	workload->shadow_mm = mm;
 	return 0;
 }

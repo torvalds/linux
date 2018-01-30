@@ -275,10 +275,10 @@ unsigned long intel_vgpu_gma_to_gpa(struct intel_vgpu_mm *mm,
 struct intel_vgpu_mm *intel_vgpu_find_ppgtt_mm(struct intel_vgpu *vgpu,
 		u64 pdps[]);
 
-int intel_vgpu_g2v_create_ppgtt_mm(struct intel_vgpu *vgpu,
+struct intel_vgpu_mm *intel_vgpu_get_ppgtt_mm(struct intel_vgpu *vgpu,
 		intel_gvt_gtt_type_t root_entry_type, u64 pdps[]);
 
-int intel_vgpu_g2v_destroy_ppgtt_mm(struct intel_vgpu *vgpu, u64 pdps[]);
+int intel_vgpu_put_ppgtt_mm(struct intel_vgpu *vgpu, u64 pdps[]);
 
 int intel_vgpu_emulate_ggtt_mmio_read(struct intel_vgpu *vgpu,
 	unsigned int off, void *p_data, unsigned int bytes);

@@ -2292,19 +2292,17 @@ struct intel_vgpu_mm *intel_vgpu_find_ppgtt_mm(struct intel_vgpu *vgpu,
 }
 
 /**
- * intel_vgpu_g2v_create_ppgtt_mm - create a PPGTT mm object from
- * g2v notification
+ * intel_vgpu_get_ppgtt_mm - get or create a PPGTT mm object.
  * @vgpu: a vGPU
  * @root_entry_type: ppgtt root entry type
  * @pdps: guest pdps
  *
- * This function is used to create a PPGTT mm object from a guest to GVT-g
- * notification.
+ * This function is used to find or create a PPGTT mm object from a guest.
  *
  * Returns:
  * Zero on success, negative error code if failed.
  */
-int intel_vgpu_g2v_create_ppgtt_mm(struct intel_vgpu *vgpu,
+struct intel_vgpu_mm *intel_vgpu_get_ppgtt_mm(struct intel_vgpu *vgpu,
 		intel_gvt_gtt_type_t root_entry_type, u64 pdps[])
 {
 	struct intel_vgpu_mm *mm;
@@ -2314,28 +2312,23 @@ int intel_vgpu_g2v_create_ppgtt_mm(struct intel_vgpu *vgpu,
 		intel_vgpu_mm_get(mm);
 	} else {
 		mm = intel_vgpu_create_ppgtt_mm(vgpu, root_entry_type, pdps);
-		if (IS_ERR(mm)) {
+		if (IS_ERR(mm))
 			gvt_vgpu_err("fail to create mm\n");
-			return PTR_ERR(mm);
-		}
 	}
-	return 0;
+	return mm;
 }
 
 /**
- * intel_vgpu_g2v_destroy_ppgtt_mm - destroy a PPGTT mm object from
- * g2v notification
+ * intel_vgpu_put_ppgtt_mm - find and put a PPGTT mm object.
  * @vgpu: a vGPU
  * @pdps: guest pdps
  *
- * This function is used to create a PPGTT mm object from a guest to GVT-g
- * notification.
+ * This function is used to find a PPGTT mm object from a guest and destroy it.
  *
  * Returns:
  * Zero on success, negative error code if failed.
  */
-int intel_vgpu_g2v_destroy_ppgtt_mm(struct intel_vgpu *vgpu,
-		u64 pdps[])
+int intel_vgpu_put_ppgtt_mm(struct intel_vgpu *vgpu, u64 pdps[])
 {
 	struct intel_vgpu_mm *mm;
 
