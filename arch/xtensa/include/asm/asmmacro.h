@@ -150,5 +150,45 @@
 		__endl	\ar \as
 	.endm
 
+/* Load or store instructions that may cause exceptions use the EX macro. */
+
+#define EX(handler)				\
+	.section __ex_table, "a";		\
+	.word	97f, handler;			\
+	.previous				\
+97:
+
+
+/*
+ * Extract unaligned word that is split between two registers w0 and w1
+ * into r regardless of machine endianness. SAR must be loaded with the
+ * starting bit of the word (see __ssa8).
+ */
+
+	.macro __src_b	r, w0, w1
+#ifdef __XTENSA_EB__
+		src	\r, \w0, \w1
+#else
+		src	\r, \w1, \w0
+#endif
+	.endm
+
+/*
+ * Load 2 lowest address bits of r into SAR for __src_b to extract unaligned
+ * word starting at r from two registers loaded from consecutive aligned
+ * addresses covering r regardless of machine endianness.
+ *
+ *      r   0   1   2   3
+ * LE SAR   0   8  16  24
+ * BE SAR  32  24  16   8
+ */
+
+	.macro __ssa8	r
+#ifdef __XTENSA_EB__
+		ssa8b	\r
+#else
+		ssa8l	\r
+#endif
+	.endm
 
 #endif /* _XTENSA_ASMMACRO_H */
