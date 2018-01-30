@@ -14,6 +14,7 @@
 #include <linux/tick.h>
 #include <linux/workqueue.h>
 #include <linux/compat.h>
+#include <linux/sched/deadline.h>
 
 #include "posix-timers.h"
 
@@ -791,6 +792,14 @@ check_timers_list(struct list_head *timers,
 	return 0;
 }
 
+static inline void check_dl_overrun(struct task_struct *tsk)
+{
+	if (tsk->dl.dl_overrun) {
+		tsk->dl.dl_overrun = 0;
+		__group_send_sig_info(SIGXCPU, SEND_SIG_PRIV, tsk);
+	}
+}
+
 /*
  * Check for any per-thread CPU timers that have fired and move them off
  * the tsk->cpu_timers[N] list onto the firing list.  Here we update the
@@ -803,6 +812,9 @@ static void check_thread_timers(struct task_struct *tsk,
 	struct task_cputime *tsk_expires = &tsk->cputime_expires;
 	u64 expires;
 	unsigned long soft;
+
+	if (dl_task(tsk))
+		check_dl_overrun(tsk);
 
 	/*
 	 * If cputime_expires is zero, then there are no active
@@ -905,6 +917,9 @@ static void check_process_timers(struct task_struct *tsk,
 	struct list_head *timers = sig->cpu_timers;
 	struct task_cputime cputime;
 	unsigned long soft;
+
+	if (dl_task(tsk))
+		check_dl_overrun(tsk);
 
 	/*
 	 * If cputimer is not running, then there are no active
@@ -1110,6 +1125,9 @@ static inline int fastpath_timer_check(struct task_struct *tsk)
 		if (task_cputime_expired(&group_sample, &sig->cputime_expires))
 			return 1;
 	}
+
+	if (dl_task(tsk) && tsk->dl.dl_overrun)
+		return 1;
 
 	return 0;
 }

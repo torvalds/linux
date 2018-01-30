@@ -3020,9 +3020,7 @@ static inline void cfs_rq_util_change(struct cfs_rq *cfs_rq)
 		/*
 		 * There are a few boundary cases this might miss but it should
 		 * get called often enough that that should (hopefully) not be
-		 * a real problem -- added to that it only calls on the local
-		 * CPU, so if we enqueue remotely we'll miss an update, but
-		 * the next tick/schedule should update.
+		 * a real problem.
 		 *
 		 * It will not get called when we go idle, because the idle
 		 * thread is a different class (!fair), nor will the utilization
@@ -3091,8 +3089,6 @@ static u32 __accumulate_pelt_segments(u64 periods, u32 d1, u32 d3)
 	return c1 + c2 + c3;
 }
 
-#define cap_scale(v, s) ((v)*(s) >> SCHED_CAPACITY_SHIFT)
-
 /*
  * Accumulate the three separate parts of the sum; d1 the remainder
  * of the last (incomplete) period, d2 the span of full periods and d3
@@ -3122,7 +3118,7 @@ accumulate_sum(u64 delta, int cpu, struct sched_avg *sa,
 	u32 contrib = (u32)delta; /* p == 0 -> delta < 1024 */
 	u64 periods;
 
-	scale_freq = arch_scale_freq_capacity(NULL, cpu);
+	scale_freq = arch_scale_freq_capacity(cpu);
 	scale_cpu = arch_scale_cpu_capacity(NULL, cpu);
 
 	delta += sa->period_contrib;
@@ -5689,8 +5685,8 @@ static int wake_wide(struct task_struct *p)
  * soonest. For the purpose of speed we only consider the waking and previous
  * CPU.
  *
- * wake_affine_idle() - only considers 'now', it check if the waking CPU is (or
- *			will be) idle.
+ * wake_affine_idle() - only considers 'now', it check if the waking CPU is
+ *			cache-affine and is (or	will be) idle.
  *
  * wake_affine_weight() - considers the weight to reflect the average
  *			  scheduling latency of the CPUs. This seems to work
@@ -5701,7 +5697,13 @@ static bool
 wake_affine_idle(struct sched_domain *sd, struct task_struct *p,
 		 int this_cpu, int prev_cpu, int sync)
 {
-	if (idle_cpu(this_cpu))
+	/*
+	 * If this_cpu is idle, it implies the wakeup is from interrupt
+	 * context. Only allow the move if cache is shared. Otherwise an
+	 * interrupt intensive workload could force all tasks onto one
+	 * node depending on the IO topology or IRQ affinity settings.
+	 */
+	if (idle_cpu(this_cpu) && cpus_share_cache(this_cpu, prev_cpu))
 		return true;
 
 	if (sync && cpu_rq(this_cpu)->nr_running == 1)
@@ -5765,12 +5767,12 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p,
 	return affine;
 }
 
-static inline int task_util(struct task_struct *p);
-static int cpu_util_wake(int cpu, struct task_struct *p);
+static inline unsigned long task_util(struct task_struct *p);
+static unsigned long cpu_util_wake(int cpu, struct task_struct *p);
 
 static unsigned long capacity_spare_wake(int cpu, struct task_struct *p)
 {
-	return capacity_orig_of(cpu) - cpu_util_wake(cpu, p);
+	return max_t(long, capacity_of(cpu) - cpu_util_wake(cpu, p), 0);
 }
 
 /*
@@ -5950,7 +5952,7 @@ find_idlest_group_cpu(struct sched_group *group, struct task_struct *p, int this
 			}
 		} else if (shallowest_idle_cpu == -1) {
 			load = weighted_cpuload(cpu_rq(i));
-			if (load < min_load || (load == min_load && i == this_cpu)) {
+			if (load < min_load) {
 				min_load = load;
 				least_loaded_cpu = i;
 			}
@@ -6247,7 +6249,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
  * capacity_orig) as it useful for predicting the capacity required after task
  * migrations (scheduler-driven DVFS).
  */
-static int cpu_util(int cpu)
+static unsigned long cpu_util(int cpu)
 {
 	unsigned long util = cpu_rq(cpu)->cfs.avg.util_avg;
 	unsigned long capacity = capacity_orig_of(cpu);
@@ -6255,7 +6257,7 @@ static int cpu_util(int cpu)
 	return (util >= capacity) ? capacity : util;
 }
 
-static inline int task_util(struct task_struct *p)
+static inline unsigned long task_util(struct task_struct *p)
 {
 	return p->se.avg.util_avg;
 }
@@ -6264,7 +6266,7 @@ static inline int task_util(struct task_struct *p)
  * cpu_util_wake: Compute cpu utilization with any contributions from
  * the waking task p removed.
  */
-static int cpu_util_wake(int cpu, struct task_struct *p)
+static unsigned long cpu_util_wake(int cpu, struct task_struct *p)
 {
 	unsigned long util, capacity;
 
@@ -6449,8 +6451,7 @@ static void task_dead_fair(struct task_struct *p)
 }
 #endif /* CONFIG_SMP */
 
-static unsigned long
-wakeup_gran(struct sched_entity *curr, struct sched_entity *se)
+static unsigned long wakeup_gran(struct sched_entity *se)
 {
 	unsigned long gran = sysctl_sched_wakeup_granularity;
 
@@ -6492,7 +6493,7 @@ wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se)
 	if (vdiff <= 0)
 		return -1;
 
-	gran = wakeup_gran(curr, se);
+	gran = wakeup_gran(se);
 	if (vdiff > gran)
 		return 1;
 

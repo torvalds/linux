@@ -472,11 +472,15 @@ struct sched_dl_entity {
 	 * has not been executed yet. This flag is useful to avoid race
 	 * conditions between the inactive timer handler and the wakeup
 	 * code.
+	 *
+	 * @dl_overrun tells if the task asked to be informed about runtime
+	 * overruns.
 	 */
 	unsigned int			dl_throttled      : 1;
 	unsigned int			dl_boosted        : 1;
 	unsigned int			dl_yielded        : 1;
 	unsigned int			dl_non_contending : 1;
+	unsigned int			dl_overrun	  : 1;
 
 	/*
 	 * Bandwidth enforcement timer. Each -deadline task has its
@@ -1427,6 +1431,7 @@ extern int idle_cpu(int cpu);
 extern int sched_setscheduler(struct task_struct *, int, const struct sched_param *);
 extern int sched_setscheduler_nocheck(struct task_struct *, int, const struct sched_param *);
 extern int sched_setattr(struct task_struct *, const struct sched_attr *);
+extern int sched_setattr_nocheck(struct task_struct *, const struct sched_attr *);
 extern struct task_struct *idle_task(int cpu);
 
 /**
