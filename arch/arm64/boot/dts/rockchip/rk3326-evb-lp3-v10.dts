@@ -445,3 +445,7 @@
 &vopl_mmu {
 	status = "okay";
 };
+
+&vpu_combo {
+	status = "okay";
+};
