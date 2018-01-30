@@ -1378,7 +1378,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 	mutex_lock(&dev_priv->pcu_lock);
 	ret = sandybridge_pcode_write_timeout(dev_priv,
 					      HSW_PCODE_DE_WRITE_FREQ_REQ,
-					      0x80000000, 2000);
+					      0x80000000, 150, 2);
 	mutex_unlock(&dev_priv->pcu_lock);
 
 	if (ret) {
@@ -1417,7 +1417,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 	 */
 	ret = sandybridge_pcode_write_timeout(dev_priv,
 					      HSW_PCODE_DE_WRITE_FREQ_REQ,
-					      cdclk_state->voltage_level, 2000);
+					      cdclk_state->voltage_level, 150, 2);
 	mutex_unlock(&dev_priv->pcu_lock);
 
 	if (ret) {

@@ -3729,9 +3729,10 @@ extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 
 int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val);
 int sandybridge_pcode_write_timeout(struct drm_i915_private *dev_priv, u32 mbox,
-				    u32 val, int timeout_us);
+				    u32 val, int fast_timeout_us,
+				    int slow_timeout_ms);
 #define sandybridge_pcode_write(dev_priv, mbox, val)	\
-	sandybridge_pcode_write_timeout(dev_priv, mbox, val, 500)
+	sandybridge_pcode_write_timeout(dev_priv, mbox, val, 500, 0)
 
 int skl_pcode_request(struct drm_i915_private *dev_priv, u32 mbox, u32 request,
 		      u32 reply_mask, u32 reply, int timeout_base_ms);
