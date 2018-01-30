@@ -183,7 +183,7 @@ static void dpc_rp_pio_get_info(struct dpc_dev *dpc,
 {
 	struct pci_dev *pdev = dpc->dev->port;
 	int i;
-	u16 cap = dpc->cap_pos, status;
+	u16 cap = dpc->cap_pos, dpc_status;
 
 	pci_read_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_STATUS,
 			      &rp_pio->status);
@@ -198,8 +198,8 @@ static void dpc_rp_pio_get_info(struct dpc_dev *dpc,
 			      &rp_pio->exception);
 
 	/* Get First Error Pointer */
-	pci_read_config_word(pdev, cap + PCI_EXP_DPC_STATUS, &status);
-	rp_pio->first_error = (status & 0x1f00) >> 8;
+	pci_read_config_word(pdev, cap + PCI_EXP_DPC_STATUS, &dpc_status);
+	rp_pio->first_error = (dpc_status & 0x1f00) >> 8;
 
 	if (dpc->rp_log_size < 4)
 		return;
