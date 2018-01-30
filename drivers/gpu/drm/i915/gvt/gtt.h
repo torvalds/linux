@@ -187,8 +187,6 @@ struct intel_vgpu_gtt {
 	unsigned long active_ppgtt_mm_bitmap;
 	struct list_head ppgtt_mm_list_head;
 	DECLARE_HASHTABLE(spt_hash_table, INTEL_GVT_GTT_HASH_BITS);
-	DECLARE_HASHTABLE(tracked_guest_page_hash_table, INTEL_GVT_GTT_HASH_BITS);
-	atomic_t n_tracked_guest_page;
 	struct list_head oos_page_list_head;
 	struct list_head post_shadow_list_head;
 	struct intel_vgpu_scratch_pt scratch_pt[GTT_TYPE_MAX];
@@ -204,14 +202,6 @@ extern void intel_gvt_clean_gtt(struct intel_gvt *gvt);
 
 extern struct intel_vgpu_mm *intel_gvt_find_ppgtt_mm(struct intel_vgpu *vgpu,
 		int page_table_level, void *root_entry);
-
-struct intel_vgpu_page_track {
-	struct hlist_node node;
-	bool tracked;
-	unsigned long gfn;
-	int (*handler)(void *, u64, void *, int);
-	void *data;
-};
 
 struct intel_vgpu_oos_page {
 	struct intel_vgpu_ppgtt_spt *spt;
@@ -240,7 +230,6 @@ struct intel_vgpu_ppgtt_spt {
 		intel_gvt_gtt_type_t type;
 		unsigned long gfn;
 		unsigned long write_cnt;
-		struct intel_vgpu_page_track track;
 		struct intel_vgpu_oos_page *oos_page;
 	} guest_page;
 
@@ -272,8 +261,5 @@ int intel_vgpu_emulate_ggtt_mmio_read(struct intel_vgpu *vgpu,
 
 int intel_vgpu_emulate_ggtt_mmio_write(struct intel_vgpu *vgpu,
 	unsigned int off, void *p_data, unsigned int bytes);
-
-int intel_vgpu_write_protect_handler(struct intel_vgpu *vgpu, u64 pa,
-				     void *p_data, unsigned int bytes);
 
 #endif /* _GVT_GTT_H_ */
