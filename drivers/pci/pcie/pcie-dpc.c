@@ -142,13 +142,6 @@ static void dpc_work(struct work_struct *work)
 			      ctl | PCI_EXP_DPC_CTL_INT_EN);
 }
 
-static void dpc_rp_pio_print_tlp_header(struct device *dev,
-					struct rp_pio_header_log_regs *t)
-{
-	dev_err(dev, "TLP Header: %#010x %#010x %#010x %#010x\n",
-		t->dw0, t->dw1, t->dw2, t->dw3);
-}
-
 static void dpc_rp_pio_print_error(struct dpc_dev *dpc,
 				   struct dpc_rp_pio_regs *rp_pio)
 {
@@ -172,7 +165,9 @@ static void dpc_rp_pio_print_error(struct dpc_dev *dpc,
 			rp_pio->first_error == i ? " (First)" : "");
 	}
 
-	dpc_rp_pio_print_tlp_header(dev, &rp_pio->header_log);
+	dev_err(dev, "TLP Header: %#010x %#010x %#010x %#010x\n",
+		rp_pio->header_log.dw0, rp_pio->header_log.dw1,
+		rp_pio->header_log.dw2, rp_pio->header_log.dw3);
 	if (dpc->rp_log_size == 4)
 		return;
 
