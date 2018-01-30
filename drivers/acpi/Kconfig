@@ -361,22 +361,6 @@ config ACPI_PCI_SLOT
 	  i.e., segment/bus/device/function tuples, with physical slots in
 	  the system.  If you are unsure, say N.
 
-config X86_PM_TIMER
-	bool "Power Management Timer Support" if EXPERT
-	depends on X86
-	default y
-	help
-	  The Power Management Timer is available on all ACPI-capable,
-	  in most cases even if ACPI is unusable or blacklisted.
-
-	  This timing source is not affected by power management features
-	  like aggressive processor idling, throttling, frequency and/or
-	  voltage scaling, unlike the commonly used Time Stamp Counter
-	  (TSC) timing source.
-
-	  You should nearly always say Y here because many modern
-	  systems require this timer. 
-
 config ACPI_CONTAINER
 	bool "Container and Module Devices"
 	default (ACPI_HOTPLUG_MEMORY || ACPI_HOTPLUG_CPU)
@@ -564,3 +548,19 @@ config TPS68470_PMIC_OPREGION
 	  using this, are probed.
 
 endif	# ACPI
+
+config X86_PM_TIMER
+	bool "Power Management Timer Support" if EXPERT
+	depends on X86 && (ACPI || JAILHOUSE_GUEST)
+	default y
+	help
+	  The Power Management Timer is available on all ACPI-capable,
+	  in most cases even if ACPI is unusable or blacklisted.
+
+	  This timing source is not affected by power management features
+	  like aggressive processor idling, throttling, frequency and/or
+	  voltage scaling, unlike the commonly used Time Stamp Counter
+	  (TSC) timing source.
+
+	  You should nearly always say Y here because many modern
+	  systems require this timer.
