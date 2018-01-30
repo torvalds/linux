@@ -2650,6 +2650,31 @@ enum i915_power_well_id {
 #define LM_FIFO_WATERMARK   0x0000001F
 #define MI_ARB_STATE	_MMIO(0x20e4) /* 915+ only */
 
+#define MBUS_ABOX_CTL			_MMIO(0x45038)
+#define MBUS_ABOX_BW_CREDIT_MASK	(3 << 20)
+#define MBUS_ABOX_BW_CREDIT(x)		((x) << 20)
+#define MBUS_ABOX_B_CREDIT_MASK		(0xF << 16)
+#define MBUS_ABOX_B_CREDIT(x)		((x) << 16)
+#define MBUS_ABOX_BT_CREDIT_POOL2_MASK	(0x1F << 8)
+#define MBUS_ABOX_BT_CREDIT_POOL2(x)	((x) << 8)
+#define MBUS_ABOX_BT_CREDIT_POOL1_MASK	(0x1F << 0)
+#define MBUS_ABOX_BT_CREDIT_POOL1(x)	((x) << 0)
+
+#define _PIPEA_MBUS_DBOX_CTL		0x7003C
+#define _PIPEB_MBUS_DBOX_CTL		0x7103C
+#define PIPE_MBUS_DBOX_CTL(pipe)	_MMIO_PIPE(pipe, _PIPEA_MBUS_DBOX_CTL, \
+						   _PIPEB_MBUS_DBOX_CTL)
+#define MBUS_DBOX_BW_CREDIT_MASK	(3 << 14)
+#define MBUS_DBOX_BW_CREDIT(x)		((x) << 14)
+#define MBUS_DBOX_B_CREDIT_MASK		(0x1F << 8)
+#define MBUS_DBOX_B_CREDIT(x)		((x) << 8)
+#define MBUS_DBOX_A_CREDIT_MASK		(0xF << 0)
+#define MBUS_DBOX_A_CREDIT(x)		((x) << 0)
+
+#define MBUS_UBOX_CTL			_MMIO(0x4503C)
+#define MBUS_BBOX_CTL_S1		_MMIO(0x45040)
+#define MBUS_BBOX_CTL_S2		_MMIO(0x45044)
+
 /* Make render/texture TLB fetches lower priorty than associated data
  *   fetches. This is not turned on by default
  */
