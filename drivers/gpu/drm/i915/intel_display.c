@@ -9540,7 +9540,8 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 	if (HAS_DDI(dev_priv))
 		cntl |= CURSOR_PIPE_CSC_ENABLE;
 
-	cntl |= MCURSOR_PIPE_SELECT(crtc->pipe);
+	if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv))
+		cntl |= MCURSOR_PIPE_SELECT(crtc->pipe);
 
 	switch (plane_state->base.crtc_w) {
 	case 64:
