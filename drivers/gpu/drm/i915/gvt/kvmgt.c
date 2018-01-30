@@ -1321,7 +1321,7 @@ static void kvmgt_host_exit(struct device *dev, void *gvt)
 	mdev_unregister_device(dev);
 }
 
-static int kvmgt_write_protect_add(unsigned long handle, u64 gfn)
+static int kvmgt_page_track_add(unsigned long handle, u64 gfn)
 {
 	struct kvmgt_guest_info *info;
 	struct kvm *kvm;
@@ -1355,7 +1355,7 @@ out:
 	return 0;
 }
 
-static int kvmgt_write_protect_remove(unsigned long handle, u64 gfn)
+static int kvmgt_page_track_remove(unsigned long handle, u64 gfn)
 {
 	struct kvmgt_guest_info *info;
 	struct kvm *kvm;
@@ -1629,8 +1629,8 @@ struct intel_gvt_mpt kvmgt_mpt = {
 	.detach_vgpu = kvmgt_detach_vgpu,
 	.inject_msi = kvmgt_inject_msi,
 	.from_virt_to_mfn = kvmgt_virt_to_pfn,
-	.set_wp_page = kvmgt_write_protect_add,
-	.unset_wp_page = kvmgt_write_protect_remove,
+	.enable_page_track = kvmgt_page_track_add,
+	.disable_page_track = kvmgt_page_track_remove,
 	.read_gpa = kvmgt_read_gpa,
 	.write_gpa = kvmgt_write_gpa,
 	.gfn_to_mfn = kvmgt_gfn_to_pfn,

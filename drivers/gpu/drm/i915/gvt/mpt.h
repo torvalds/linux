@@ -154,7 +154,7 @@ static inline unsigned long intel_gvt_hypervisor_virt_to_mfn(void *p)
 }
 
 /**
- * intel_gvt_hypervisor_enable - set a guest page to write-protected
+ * intel_gvt_hypervisor_enable_page_track - track a guest page
  * @vgpu: a vGPU
  * @t: page track data structure
  *
@@ -170,7 +170,7 @@ static inline int intel_gvt_hypervisor_enable_page_track(
 	if (t->tracked)
 		return 0;
 
-	ret = intel_gvt_host.mpt->set_wp_page(vgpu->handle, t->gfn);
+	ret = intel_gvt_host.mpt->enable_page_track(vgpu->handle, t->gfn);
 	if (ret)
 		return ret;
 	t->tracked = true;
@@ -179,8 +179,7 @@ static inline int intel_gvt_hypervisor_enable_page_track(
 }
 
 /**
- * intel_gvt_hypervisor_disable_page_track - remove the write-protection of a
- * guest page
+ * intel_gvt_hypervisor_disable_page_track - untrack a guest page
  * @vgpu: a vGPU
  * @t: page track data structure
  *
@@ -196,7 +195,7 @@ static inline int intel_gvt_hypervisor_disable_page_track(
 	if (!t->tracked)
 		return 0;
 
-	ret = intel_gvt_host.mpt->unset_wp_page(vgpu->handle, t->gfn);
+	ret = intel_gvt_host.mpt->disable_page_track(vgpu->handle, t->gfn);
 	if (ret)
 		return ret;
 	t->tracked = false;
