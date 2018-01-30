@@ -6535,9 +6535,11 @@ lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	struct lpfc_rqe hrqe;
 	struct lpfc_rqe drqe;
 	struct lpfc_rqb *rqbp;
+	unsigned long flags;
 	struct rqb_dmabuf *rqb_buffer;
 	LIST_HEAD(rqb_buf_list);
 
+	spin_lock_irqsave(&phba->hbalock, flags);
 	rqbp = hrq->rqbp;
 	for (i = 0; i < count; i++) {
 		/* IF RQ is already full, don't bother */
@@ -6561,6 +6563,15 @@ lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 		drqe.address_hi = putPaddrHigh(rqb_buffer->dbuf.phys);
 		rc = lpfc_sli4_rq_put(hrq, drq, &hrqe, &drqe);
 		if (rc < 0) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"6421 Cannot post to HRQ %d: %x %x %x "
+					"DRQ %x %x\n",
+					hrq->queue_id,
+					hrq->host_index,
+					hrq->hba_index,
+					hrq->entry_count,
+					drq->host_index,
+					drq->hba_index);
 			rqbp->rqb_free_buffer(phba, rqb_buffer);
 		} else {
 			list_add_tail(&rqb_buffer->hbuf.list,
@@ -6568,6 +6579,7 @@ lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 			rqbp->buffer_count++;
 		}
 	}
+	spin_unlock_irqrestore(&phba->hbalock, flags);
 	return 1;
 }
 

@@ -270,8 +270,6 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 					 "NVMET RCV BUSY: xri x%x sz %d "
 					 "from %06x\n",
 					 oxid, size, sid);
-			/* defer repost rcv buffer till .defer_rcv callback */
-			ctxp->flag &= ~LPFC_NVMET_DEFER_RCV_REPOST;
 			atomic_inc(&tgtp->rcv_fcp_cmd_out);
 			return;
 		}
@@ -837,6 +835,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 		list_add_tail(&nvmewqeq->list, &wq->wqfull_list);
 		wq->q_flag |= HBA_NVMET_WQFULL;
 		spin_unlock_irqrestore(&pring->ring_lock, iflags);
+		atomic_inc(&lpfc_nvmep->defer_wqfull);
 		return 0;
 	}
 
@@ -975,11 +974,9 @@ lpfc_nvmet_defer_rcv(struct nvmet_fc_target_port *tgtport,
 
 	tgtp = phba->targetport->private;
 	atomic_inc(&tgtp->rcv_fcp_cmd_defer);
-	if (ctxp->flag & LPFC_NVMET_DEFER_RCV_REPOST)
-		lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
-	else
-		nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
-	ctxp->flag &= ~LPFC_NVMET_DEFER_RCV_REPOST;
+
+	/* Free the nvmebuf since a new buffer already replaced it */
+	nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
 }
 
 static struct nvmet_fc_target_template lpfc_tgttemplate = {
@@ -1309,6 +1306,9 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 		atomic_set(&tgtp->xmt_abort_sol, 0);
 		atomic_set(&tgtp->xmt_abort_rsp, 0);
 		atomic_set(&tgtp->xmt_abort_rsp_error, 0);
+		atomic_set(&tgtp->defer_ctx, 0);
+		atomic_set(&tgtp->defer_fod, 0);
+		atomic_set(&tgtp->defer_wqfull, 0);
 	}
 	return error;
 }
@@ -1810,6 +1810,8 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	lpfc_nvmeio_data(phba, "NVMET FCP  RCV: xri x%x sz %d CPU %02x\n",
 			 oxid, size, smp_processor_id());
 
+	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
+
 	if (!ctx_buf) {
 		/* Queue this NVME IO to process later */
 		spin_lock_irqsave(&phba->sli4_hba.nvmet_io_wait_lock, iflag);
@@ -1825,10 +1827,11 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 		lpfc_post_rq_buffer(
 			phba, phba->sli4_hba.nvmet_mrq_hdr[qno],
 			phba->sli4_hba.nvmet_mrq_data[qno], 1, qno);
+
+		atomic_inc(&tgtp->defer_ctx);
 		return;
 	}
 
-	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 	payload = (uint32_t *)(nvmebuf->dbuf.virt);
 	sid = sli4_sid_from_fc_hdr(fc_hdr);
 
@@ -1892,12 +1895,20 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 
 	/* Processing of FCP command is deferred */
 	if (rc == -EOVERFLOW) {
+		/*
+		 * Post a brand new DMA buffer to RQ and defer
+		 * freeing rcv buffer till .defer_rcv callback
+		 */
+		qno = nvmebuf->idx;
+		lpfc_post_rq_buffer(
+			phba, phba->sli4_hba.nvmet_mrq_hdr[qno],
+			phba->sli4_hba.nvmet_mrq_data[qno], 1, qno);
+
 		lpfc_nvmeio_data(phba,
 				 "NVMET RCV BUSY: xri x%x sz %d from %06x\n",
 				 oxid, size, sid);
-		/* defer reposting rcv buffer till .defer_rcv callback */
-		ctxp->flag |= LPFC_NVMET_DEFER_RCV_REPOST;
 		atomic_inc(&tgtp->rcv_fcp_cmd_out);
+		atomic_inc(&tgtp->defer_fod);
 		return;
 	}
 	ctxp->rqb_buffer = nvmebuf;

@@ -259,6 +259,12 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 				atomic_read(&tgtp->xmt_abort_rsp),
 				atomic_read(&tgtp->xmt_abort_rsp_error));
 
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"DELAY: ctx %08x  fod %08x wqfull %08x\n",
+				atomic_read(&tgtp->defer_ctx),
+				atomic_read(&tgtp->defer_fod),
+				atomic_read(&tgtp->defer_wqfull));
+
 		/* Calculate outstanding IOs */
 		tot = atomic_read(&tgtp->rcv_fcp_cmd_drop);
 		tot += atomic_read(&tgtp->xmt_fcp_release);
