@@ -3694,10 +3694,17 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 	struct intel_crtc_state *cstate;
 	enum pipe pipe;
 	int level, latency;
-	int sagv_block_time_us = IS_GEN9(dev_priv) ? 30 : 20;
+	int sagv_block_time_us;
 
 	if (!intel_has_sagv(dev_priv))
 		return false;
+
+	if (IS_GEN9(dev_priv))
+		sagv_block_time_us = 30;
+	else if (IS_GEN10(dev_priv))
+		sagv_block_time_us = 20;
+	else
+		sagv_block_time_us = 10;
 
 	/*
 	 * SKL+ workaround: bspec recommends we disable the SAGV when we have
