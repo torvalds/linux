@@ -4346,9 +4346,9 @@ struct lpfc_nvme_prli {
 #define prli_init_SHIFT                 5
 #define prli_init_MASK                  0x00000001
 #define prli_init_WORD                  word4
-#define prli_recov_SHIFT                8
-#define prli_recov_MASK                 0x00000001
-#define prli_recov_WORD                 word4
+#define prli_conf_SHIFT                 7
+#define prli_conf_MASK                  0x00000001
+#define prli_conf_WORD                  word4
 	uint32_t word5;
 #define prli_fb_sz_SHIFT                0
 #define prli_fb_sz_MASK                 0x0000ffff
