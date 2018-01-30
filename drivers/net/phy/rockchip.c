@@ -42,11 +42,37 @@
 #define TSTMODE_ENABLE				0x400
 #define TSTMODE_DISABLE				0x0
 
+#define DSP_REG_BANK_SEL			0
+#define WOL_REG_BANK_SEL			BIT(11)
+#define BIST_REG_BANK_SEL			GENMASK(12, 11)
+
+#define WR_ADDR_A3CFG                           0x14
 #define WR_ADDR_A7CFG				0x18
 
-static int rockchip_init_tstmode(struct phy_device *phydev)
+#define RD_ADDR_A3CFG				(0x14 << 5)
+#define RD_ADDR_LPISTA				(12 << 5)
+
+#define A3CFG_100M				0xFC00
+#define A3CFG_TAG				0xFFFF
+
+#define PHY_ABNORMAL_THRESHOLD			15
+
+struct rk_int_phy_priv {
+	int restore_reg0;
+	int restore_a3_config;
+	int force_10m_full_mode;
+	int a3_config_set;
+	int txrx_counters_done_count;
+	int last_speed;
+};
+
+static int rockchip_integrated_phy_init_tstmode(struct phy_device *phydev)
 {
 	int ret;
+
+	ret = phy_write(phydev, SMI_ADDR_TSTCNTL, TSTMODE_DISABLE);
+	if (ret)
+		return ret;
 
 	/* Enable access to Analog and DSP register banks */
 	ret = phy_write(phydev, SMI_ADDR_TSTCNTL, TSTMODE_ENABLE);
@@ -60,20 +86,15 @@ static int rockchip_init_tstmode(struct phy_device *phydev)
 	return phy_write(phydev, SMI_ADDR_TSTCNTL, TSTMODE_ENABLE);
 }
 
-static int rockchip_close_tstmode(struct phy_device *phydev)
-{
-	/* Back to basic register bank */
-	return phy_write(phydev, SMI_ADDR_TSTCNTL, TSTMODE_DISABLE);
-}
-
 static int rockchip_integrated_phy_analog_init(struct phy_device *phydev)
 {
 	int ret;
 
-	ret = rockchip_init_tstmode(phydev);
+	phydev_dbg(phydev, "%s: %d\n", __func__, __LINE__);
+
+	ret = rockchip_integrated_phy_init_tstmode(phydev);
 	if (ret)
 		return ret;
-
 	/*
 	 * Adjust tx amplitude to make sginal better,
 	 * the default value is 0x8.
@@ -85,12 +106,14 @@ static int rockchip_integrated_phy_analog_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	return rockchip_close_tstmode(phydev);
+	return ret;
 }
 
 static int rockchip_integrated_phy_config_init(struct phy_device *phydev)
 {
 	int val, ret;
+
+	phydev_dbg(phydev, "%s: %d\n", __func__, __LINE__);
 
 	/*
 	 * The auto MIDX has linked problem on some board,
@@ -107,9 +130,70 @@ static int rockchip_integrated_phy_config_init(struct phy_device *phydev)
 	return rockchip_integrated_phy_analog_init(phydev);
 }
 
-static void rockchip_link_change_notify(struct phy_device *phydev)
+static int rockchip_integrated_phy_probe(struct phy_device *phydev)
+{
+	struct rk_int_phy_priv *priv;
+
+	phydev_dbg(phydev, "%s: %d\n", __func__, __LINE__);
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	phydev->priv = priv;
+
+	return 0;
+}
+
+static void rockchip_integrated_phy_remove(struct phy_device *phydev)
+{
+	struct rk_int_phy_priv *priv = phydev->priv;
+
+	phydev_dbg(phydev, "%s: %d\n", __func__, __LINE__);
+
+	kfree(priv);
+}
+
+static int rockchip_integrated_phy_adjust_a3_config(struct phy_device *phydev,
+						    int value)
+{
+	int ret, val;
+	struct rk_int_phy_priv *priv = phydev->priv;
+
+	phydev_dbg(phydev, "%s: %d: value = %x\n", __func__, __LINE__, value);
+
+	if (value == A3CFG_TAG) {
+		ret = phy_write(phydev, SMI_ADDR_TSTCNTL,
+				TSTCNTL_RD | RD_ADDR_A3CFG);
+		if (ret)
+			return ret;
+		val = phy_read(phydev, SMI_ADDR_TSTREAD1);
+		if (val < 0)
+			return val;
+		priv->restore_a3_config = val;
+		priv->a3_config_set = 1;
+
+		ret = phy_write(phydev, SMI_ADDR_TSTWRITE, A3CFG_100M);
+		if (ret)
+			return ret;
+	} else {
+		ret = phy_write(phydev, SMI_ADDR_TSTWRITE, value);
+		if (ret)
+			return ret;
+	}
+
+	ret = phy_write(phydev, SMI_ADDR_TSTCNTL, TSTCNTL_WR | WR_ADDR_A3CFG);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static
+void rockchip_integrated_phy_link_change_notify(struct phy_device *phydev)
 {
 	int speed = SPEED_10;
+	struct rk_int_phy_priv *priv = phydev->priv;
 
 	if (phydev->autoneg == AUTONEG_ENABLE) {
 		int reg = phy_read(phydev, MII_SPECIAL_CONTROL_STATUS);
@@ -142,13 +226,18 @@ static void rockchip_link_change_notify(struct phy_device *phydev)
 	 * registers are set to default values. So any AFE/DSP
 	 * registers have to be re-initialized in this case.
 	 */
-	if ((phydev->speed == SPEED_10) && (speed == SPEED_100)) {
+	if (phydev->link &&
+	    speed == SPEED_100 &&
+	    priv->last_speed == SPEED_10) {
 		int ret = rockchip_integrated_phy_analog_init(phydev);
 
 		if (ret)
 			phydev_err(phydev, "rockchip_integrated_phy_analog_init err: %d.\n",
 				   ret);
 	}
+
+	if (phydev->link)
+		priv->last_speed = speed;
 }
 
 static int rockchip_set_polarity(struct phy_device *phydev, int polarity)
@@ -185,7 +274,7 @@ static int rockchip_set_polarity(struct phy_device *phydev, int polarity)
 	return 0;
 }
 
-static int rockchip_config_aneg(struct phy_device *phydev)
+static int rockchip_integrated_phy_config_aneg(struct phy_device *phydev)
 {
 	int err;
 
@@ -196,8 +285,145 @@ static int rockchip_config_aneg(struct phy_device *phydev)
 	return genphy_config_aneg(phydev);
 }
 
-static int rockchip_phy_resume(struct phy_device *phydev)
+static int rockchip_integrated_phy_fixup_10M(struct phy_device *phydev)
 {
+	int val, ret;
+	struct rk_int_phy_priv *priv = phydev->priv;
+
+	/* link partner does not have auto-negotiation ability
+	 * setting PHY to 10M full-duplex by force
+	 */
+	if (phydev->state == PHY_RUNNING && !priv->force_10m_full_mode &&
+	    phydev->link && phydev->speed == SPEED_10) {
+		int an_expan;
+
+		val = phy_read(phydev, MII_EXPANSION);
+		if (val < 0)
+			return val;
+
+		an_expan = val;
+		if (!(an_expan & 0x1)) {
+			phydev_dbg(phydev, "%s: force_10m_full_mode\n",
+				   __func__);
+
+			val = phy_read(phydev, MII_BMCR);
+			if (val < 0)
+				return val;
+			priv->restore_reg0 = val;
+
+			val = val & (~BMCR_ANENABLE);
+			val &= ~BMCR_SPEED100;
+			val |= BMCR_FULLDPLX;
+			ret = phy_write(phydev, MII_BMCR, val);
+			if (ret)
+				return ret;
+			priv->force_10m_full_mode = 1;
+		}
+	/* restore BMCR register */
+	} else if (!phydev->link && priv->force_10m_full_mode) {
+		phydev_dbg(phydev, "%s: restore force_10m_full_mode\n",
+			   __func__);
+		priv->force_10m_full_mode = 0;
+		ret = phy_write(phydev, MII_BMCR, priv->restore_reg0);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int rockchip_integrated_phy_fixup_100M(struct phy_device *phydev)
+{
+	int ret, val;
+	struct rk_int_phy_priv *priv = phydev->priv;
+
+	/* reset phy when continue detect phy abnormal */
+	if (phydev->link && phydev->speed == SPEED_100) {
+		/* read wol bank reg12 and check bit 12 */
+		ret = phy_write(phydev, SMI_ADDR_TSTCNTL, TSTCNTL_RD |
+					WOL_REG_BANK_SEL | RD_ADDR_LPISTA);
+		if (ret)
+			return ret;
+
+		val = phy_read(phydev, SMI_ADDR_TSTREAD1);
+		if (val < 0)
+			return val;
+
+		if (val & 0x1000)
+			priv->txrx_counters_done_count = 0;
+		if (!(val & 0x1000))
+			priv->txrx_counters_done_count++;
+
+		/* phydev_dbg(phydev, "txrx_counters_done_count = %d,"
+		 *		threshol = %d\n",
+		 *		priv->txrx_counters_done_count,
+		 *		PHY_ABNORMAL_THRESHOLD);
+		 */
+		if (priv->txrx_counters_done_count >=
+		    PHY_ABNORMAL_THRESHOLD) {
+			phydev_err(phydev, "%s: reset phy\n", __func__);
+			priv->txrx_counters_done_count = 0;
+			ret = genphy_soft_reset(phydev);
+			if (ret < 0)
+				return ret;
+		}
+	} else {
+		priv->txrx_counters_done_count = 0;
+	}
+
+	/* adjust A3_CONFIG for optimize long cable when 100M link up*/
+	if (phydev->link && phydev->speed == SPEED_100 &&
+	    !priv->a3_config_set) {
+		ret = rockchip_integrated_phy_adjust_a3_config
+					(phydev,
+					A3CFG_TAG);
+		if (ret) {
+			phydev_err(phydev, "adjust_a3_config fail %x\n",
+				   A3CFG_TAG);
+			return ret;
+		}
+	/* restore A3_CONFIG when 100M link down */
+	} else if (!phydev->link && priv->a3_config_set) {
+		priv->a3_config_set = 0;
+		ret = rockchip_integrated_phy_adjust_a3_config
+					(phydev,
+					priv->restore_a3_config);
+		if (ret) {
+			phydev_err(phydev, "adjust_a3_config fail %x\n",
+				   priv->restore_a3_config);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int rockchip_integrated_phy_read_status(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = genphy_read_status(phydev);
+	if (ret)
+		return ret;
+
+	ret = rockchip_integrated_phy_fixup_10M(phydev);
+	if (ret)
+		return ret;
+
+	ret = rockchip_integrated_phy_fixup_100M(phydev);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int rockchip_integrated_phy_resume(struct phy_device *phydev)
+{
+	struct rk_int_phy_priv *priv = phydev->priv;
+
+	if (phydev->link && phydev->speed == SPEED_100)
+		priv->a3_config_set = 0;
+
 	genphy_resume(phydev);
 
 	return rockchip_integrated_phy_config_init(phydev);
@@ -210,13 +436,15 @@ static struct phy_driver rockchip_phy_driver[] = {
 	.name			= "Rockchip integrated EPHY",
 	.features		= PHY_BASIC_FEATURES,
 	.flags			= 0,
-	.link_change_notify	= rockchip_link_change_notify,
+	.probe			= rockchip_integrated_phy_probe,
+	.remove			= rockchip_integrated_phy_remove,
+	.link_change_notify	= rockchip_integrated_phy_link_change_notify,
 	.soft_reset		= genphy_soft_reset,
 	.config_init		= rockchip_integrated_phy_config_init,
-	.config_aneg		= rockchip_config_aneg,
-	.read_status		= genphy_read_status,
+	.config_aneg		= rockchip_integrated_phy_config_aneg,
+	.read_status		= rockchip_integrated_phy_read_status,
 	.suspend		= genphy_suspend,
-	.resume			= rockchip_phy_resume,
+	.resume			= rockchip_integrated_phy_resume,
 },
 };
 
