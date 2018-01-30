@@ -1,7 +1,7 @@
 #!/bin/awk -f
 # SPDX-License-Identifier: GPL-2.0
-# Usage: objdump -d a.out | awk -f distill.awk | ./test_get_len
-# Distills the disassembly as follows:
+# Usage: objdump -d a.out | awk -f objdump_reformat.awk | ./insn_decoder_test
+# Reformats the disassembly as follows:
 # - Removes all lines except the disassembled instructions.
 # - For instructions that exceed 1 line (7 bytes), crams all the hex bytes
 # into a single line.

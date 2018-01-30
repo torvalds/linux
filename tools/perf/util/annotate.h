@@ -59,33 +59,55 @@ bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2);
 
 struct annotation;
 
-struct disasm_line {
-	struct list_head    node;
-	s64		    offset;
-	char		    *line;
-	struct ins	    ins;
-	int		    line_nr;
-	float		    ipc;
-	u64		    cycles;
-	struct ins_operands ops;
+struct sym_hist_entry {
+	u64		nr_samples;
+	u64		period;
 };
+
+struct annotation_data {
+	double			 percent;
+	double			 percent_sum;
+	struct sym_hist_entry	 he;
+};
+
+struct annotation_line {
+	struct list_head	 node;
+	struct rb_node		 rb_node;
+	s64			 offset;
+	char			*line;
+	int			 line_nr;
+	float			 ipc;
+	u64			 cycles;
+	size_t			 privsize;
+	char			*path;
+	int			 samples_nr;
+	struct annotation_data	 samples[0];
+};
+
+struct disasm_line {
+	struct ins		 ins;
+	struct ins_operands	 ops;
+
+	/* This needs to be at the end. */
+	struct annotation_line	 al;
+};
+
+static inline struct disasm_line *disasm_line(struct annotation_line *al)
+{
+	return al ? container_of(al, struct disasm_line, al) : NULL;
+}
 
 static inline bool disasm_line__has_offset(const struct disasm_line *dl)
 {
 	return dl->ops.target.offset_avail;
 }
 
-struct sym_hist_entry {
-	u64		nr_samples;
-	u64		period;
-};
-
 void disasm_line__free(struct disasm_line *dl);
-struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disasm_line *pos);
+struct annotation_line *
+annotation_line__next(struct annotation_line *pos, struct list_head *head);
 int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw);
 size_t disasm__fprintf(struct list_head *head, FILE *fp);
-double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
-			    s64 end, const char **path, struct sym_hist_entry *sample);
+void symbol__calc_percent(struct symbol *sym, struct perf_evsel *evsel);
 
 struct sym_hist {
 	u64		      nr_samples;
@@ -104,19 +126,6 @@ struct cyc_hist {
 	u16	reset;
 };
 
-struct source_line_samples {
-	double		percent;
-	double		percent_sum;
-	u64		nr;
-};
-
-struct source_line {
-	struct rb_node	node;
-	char		*path;
-	int		nr_pcnt;
-	struct source_line_samples samples[1];
-};
-
 /** struct annotated_source - symbols with hits have this attached as in sannotation
  *
  * @histogram: Array of addr hit histograms per event being monitored
@@ -132,7 +141,6 @@ struct source_line {
  */
 struct annotated_source {
 	struct list_head   source;
-	struct source_line *lines;
 	int    		   nr_histograms;
 	size_t		   sizeof_sym_hist;
 	struct cyc_hist	   *cycles_hist;
@@ -169,9 +177,9 @@ int hist_entry__inc_addr_samples(struct hist_entry *he, struct perf_sample *samp
 int symbol__alloc_hist(struct symbol *sym);
 void symbol__annotate_zero_histograms(struct symbol *sym);
 
-int symbol__disassemble(struct symbol *sym, struct map *map,
-			const char *arch_name, size_t privsize,
-			struct arch **parch, char *cpuid);
+int symbol__annotate(struct symbol *sym, struct map *map,
+		     struct perf_evsel *evsel, size_t privsize,
+		     struct arch **parch);
 
 enum symbol_disassemble_errno {
 	SYMBOL_ANNOTATE_ERRNO__SUCCESS		= 0,
@@ -198,7 +206,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 			    int min_pcnt, int max_lines, int context);
 void symbol__annotate_zero_histogram(struct symbol *sym, int evidx);
 void symbol__annotate_decay_histogram(struct symbol *sym, int evidx);
-void disasm__purge(struct list_head *head);
+void annotated_source__purge(struct annotated_source *as);
 
 bool ui__has_annotation(void);
 

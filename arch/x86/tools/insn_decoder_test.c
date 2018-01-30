@@ -9,10 +9,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- *
  * Copyright (C) IBM Corporation, 2009
  */
 
@@ -21,6 +17,7 @@
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
+#include <stdarg.h>
 
 #define unlikely(cond) (cond)
 
@@ -33,7 +30,7 @@
  * particular.  See if insn_get_length() and the disassembler agree
  * on the length of each instruction in an elf disassembly.
  *
- * Usage: objdump -d a.out | awk -f distill.awk | ./test_get_len
+ * Usage: objdump -d a.out | awk -f objdump_reformat.awk | ./insn_decoder_test
  */
 
 const char *prog;
@@ -42,8 +39,8 @@ static int x86_64;
 
 static void usage(void)
 {
-	fprintf(stderr, "Usage: objdump -d a.out | awk -f distill.awk |"
-		" %s [-y|-n] [-v]\n", prog);
+	fprintf(stderr, "Usage: objdump -d a.out | awk -f objdump_reformat.awk"
+		" | %s [-y|-n] [-v]\n", prog);
 	fprintf(stderr, "\t-y	64bit mode\n");
 	fprintf(stderr, "\t-n	32bit mode\n");
 	fprintf(stderr, "\t-v	verbose mode\n");
@@ -52,8 +49,19 @@ static void usage(void)
 
 static void malformed_line(const char *line, int line_nr)
 {
-	fprintf(stderr, "%s: malformed line %d:\n%s", prog, line_nr, line);
+	fprintf(stderr, "%s: error: malformed line %d:\n%s",
+		prog, line_nr, line);
 	exit(3);
+}
+
+static void pr_warn(const char *fmt, ...)
+{
+	va_list ap;
+
+	fprintf(stderr, "%s: warning: ", prog);
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
 }
 
 static void dump_field(FILE *fp, const char *name, const char *indent,
@@ -153,21 +161,20 @@ int main(int argc, char **argv)
 		insn_get_length(&insn);
 		if (insn.length != nb) {
 			warnings++;
-			fprintf(stderr, "Warning: %s found difference at %s\n",
-				prog, sym);
-			fprintf(stderr, "Warning: %s", line);
-			fprintf(stderr, "Warning: objdump says %d bytes, but "
-				"insn_get_length() says %d\n", nb,
-				insn.length);
+			pr_warn("Found an x86 instruction decoder bug, "
+				"please report this.\n", sym);
+			pr_warn("%s", line);
+			pr_warn("objdump says %d bytes, but insn_get_length() "
+				"says %d\n", nb, insn.length);
 			if (verbose)
 				dump_insn(stderr, &insn);
 		}
 	}
 	if (warnings)
-		fprintf(stderr, "Warning: decoded and checked %d"
-			" instructions with %d warnings\n", insns, warnings);
+		pr_warn("Decoded and checked %d instructions with %d "
+			"failures\n", insns, warnings);
 	else
-		fprintf(stdout, "Success: decoded and checked %d"
-			" instructions\n", insns);
+		fprintf(stdout, "%s: success: Decoded and checked %d"
+			" instructions\n", prog, insns);
 	return 0;
 }
