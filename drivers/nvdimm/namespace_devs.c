@@ -2408,7 +2408,7 @@ static struct device **scan_labels(struct nd_region *nd_region)
 
 static struct device **create_namespaces(struct nd_region *nd_region)
 {
-	struct nd_mapping *nd_mapping = &nd_region->mapping[0];
+	struct nd_mapping *nd_mapping;
 	struct device **devs;
 	int i;
 
