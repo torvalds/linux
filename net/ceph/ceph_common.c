@@ -217,7 +217,7 @@ static int parse_fsid(const char *str, struct ceph_fsid *fsid)
 
 	if (i == 16)
 		err = 0;
-	dout("parse_fsid ret %d got fsid %pU", err, fsid);
+	dout("parse_fsid ret %d got fsid %pU\n", err, fsid);
 	return err;
 }
 

@@ -41,7 +41,7 @@ static __le32 ceph_flags_sys2wire(u32 flags)
 #undef ceph_sys2wire
 
 	if (flags)
-		dout("unused open flags: %x", flags);
+		dout("unused open flags: %x\n", flags);
 
 	return cpu_to_le32(wire_flags);
 }

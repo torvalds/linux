@@ -451,7 +451,7 @@ more:
 				fi->dir_ordered_count = req->r_dir_ordered_cnt;
 			}
 		} else {
-			dout("readdir !did_prepopulate");
+			dout("readdir !did_prepopulate\n");
 			/* disable readdir cache */
 			fi->readdir_cache_idx = -1;
 			/* preclude from marking dir complete */

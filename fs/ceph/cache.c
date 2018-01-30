@@ -190,7 +190,7 @@ static enum fscache_checkaux ceph_fscache_inode_check_aux(
 	if (memcmp(data, &aux, sizeof(aux)) != 0)
 		return FSCACHE_CHECKAUX_OBSOLETE;
 
-	dout("ceph inode 0x%p cached okay", ci);
+	dout("ceph inode 0x%p cached okay\n", ci);
 	return FSCACHE_CHECKAUX_OKAY;
 }
 
