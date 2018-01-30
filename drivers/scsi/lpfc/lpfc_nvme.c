@@ -980,14 +980,14 @@ out_err:
 			phba->cpucheck_cmpl_io[lpfc_ncmd->cpu]++;
 	}
 #endif
-	freqpriv = nCmd->private;
-	freqpriv->nvme_buf = NULL;
 
 	/* NVME targets need completion held off until the abort exchange
 	 * completes unless the NVME Rport is getting unregistered.
 	 */
 
 	if (!(lpfc_ncmd->flags & LPFC_SBUF_XBUSY)) {
+		freqpriv = nCmd->private;
+		freqpriv->nvme_buf = NULL;
 		nCmd->done(nCmd);
 		lpfc_ncmd->nvmeCmd = NULL;
 	}
