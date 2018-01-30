@@ -52,8 +52,31 @@ disable rtcwake and require a user keypress to resume.
 \fB-addlogs\fR
 Add the dmesg and ftrace logs to the html output. They will be viewable by
 clicking buttons in the timeline.
+.TP
+\fB-result \fIfile\fR
+Export a results table to a text file for parsing.
+.TP
+\fB-sync\fR
+Sync the filesystems before starting the test. This reduces the size of
+the sys_sync call which happens in the suspend_prepare phase.
+.TP
+\fB-rs \fIenable/disable\fR
+During test, enable/disable runtime suspend for all devices. The test is delayed
+by 5 seconds to allow runtime suspend changes to occur. The settings are restored
+after the test is complete.
+.TP
+\fB-display \fIon/off\fR
+Turn the display on or off for the test using the xset command. This helps
+maintain the consistecy of test data for better comparison.
+.TP
+\fB-skiphtml\fR
+Run the test and capture the trace logs, but skip the timeline generation.
 
 .SS "advanced"
+.TP
+\fB-gzip\fR
+Gzip the trace and dmesg logs to save space. The tool can also read in gzipped
+logs for processing.
 .TP
 \fB-cmd \fIstr\fR
 Run the timeline over a custom suspend command, e.g. pm-suspend. By default
@@ -114,6 +137,18 @@ This reduces the html file size as there can be many tiny callgraphs
 which are barely visible in the timeline.
 The value is a float: e.g. 0.001 represents 1 us.
 .TP
+\fB-cgfilter \fI"func1,func2,..."\fR
+Reduce callgraph output in the timeline by limiting it to a list of calls. The
+argument can be a single function name or a comma delimited list.
+(default: none)
+.TP
+\fB-cgskip \fIfile\fR
+Reduce callgraph timeline size by skipping over uninteresting functions
+in the trace, e.g. printk or console_unlock. The functions listed
+in this file will show up as empty leaves in the callgraph with only the start/end
+times displayed. cgskip.txt is used automatically if found in the path, so
+use "off" to disable completely (default: cgskip.txt)
+.TP
 \fB-cgphase \fIp\fR
 Only show callgraph data for phase \fIp\fR (e.g. suspend_late).
 .TP
@@ -122,6 +157,9 @@ In an x2 run, only show callgraph data for test \fIn\fR (e.g. 0 or 1).
 .TP
 \fB-timeprec \fIn\fR
 Number of significant digits in timestamps (0:S, [3:ms], 6:us).
+.TP
+\fB-bufsize \fIN\fR
+Set trace buffer size to N kilo-bytes (default: all of free memory up to 3GB)
 
 .SH COMMANDS
 .TP
@@ -144,11 +182,8 @@ Print out the contents of the ACPI Firmware Performance Data Table.
 \fB-sysinfo\fR
 Print out system info extracted from BIOS. Reads /dev/mem directly instead of going through dmidecode.
 .TP
-\fB-usbtopo\fR
-Print out the current USB topology with power info.
-.TP
-\fB-usbauto\fR
-Enable autosuspend for all connected USB devices.
+\fB-devinfo\fR
+Print out the pm settings of all devices which support runtime suspend.
 .TP
 \fB-flist\fR
 Print the list of ftrace functions currently being captured. Functions
@@ -198,7 +233,7 @@ Execute a mem suspend with a 15 second wakeup. Include the logs in the html.
 .PP
 Execute a standby with a 15 second wakeup. Change the output folder name.
 .IP
-\f(CW$ sudo sleepgraph -m standby -rtcwake 15 -o "standby-{hostname}-{date}-{time}"\fR
+\f(CW$ sudo sleepgraph -m standby -rtcwake 15 -o "standby-{host}-{date}-{time}"\fR
 .PP
 Execute a freeze with no wakeup (require keypress). Change output folder name.
 .IP
