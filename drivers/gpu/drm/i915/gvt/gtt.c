@@ -640,8 +640,8 @@ static void ppgtt_free_spt(struct intel_vgpu_ppgtt_spt *spt)
 
 	dma_unmap_page(kdev, spt->shadow_page.mfn << I915_GTT_PAGE_SHIFT, 4096,
 		       PCI_DMA_BIDIRECTIONAL);
-	if (!hlist_unhashed(&spt->node))
-		hash_del(&spt->node);
+
+	radix_tree_delete(&spt->vgpu->gtt.spt_tree, spt->shadow_page.mfn);
 
 	if (spt->guest_page.oos_page)
 		detach_oos_page(spt->vgpu, spt->guest_page.oos_page);
@@ -654,12 +654,14 @@ static void ppgtt_free_spt(struct intel_vgpu_ppgtt_spt *spt)
 
 static void ppgtt_free_all_spt(struct intel_vgpu *vgpu)
 {
-	struct hlist_node *n;
 	struct intel_vgpu_ppgtt_spt *spt;
-	int i;
+	struct radix_tree_iter iter;
+	void **slot;
 
-	hash_for_each_safe(vgpu->gtt.spt_hash_table, i, n, spt, node)
+	radix_tree_for_each_slot(slot, &vgpu->gtt.spt_tree, &iter, 0) {
+		spt = radix_tree_deref_slot(slot);
 		ppgtt_free_spt(spt);
+	}
 }
 
 static int ppgtt_handle_guest_write_page_table_bytes(
@@ -697,16 +699,10 @@ static struct intel_vgpu_ppgtt_spt *intel_vgpu_find_spt_by_gfn(
 }
 
 /* Find the spt by shadow page mfn. */
-static struct intel_vgpu_ppgtt_spt *intel_vgpu_find_spt_by_mfn(
+static inline struct intel_vgpu_ppgtt_spt *intel_vgpu_find_spt_by_mfn(
 		struct intel_vgpu *vgpu, unsigned long mfn)
 {
-	struct intel_vgpu_ppgtt_spt *spt;
-
-	hash_for_each_possible(vgpu->gtt.spt_hash_table, spt, node, mfn) {
-		if (spt->shadow_page.mfn == mfn)
-			return spt;
-	}
-	return NULL;
+	return radix_tree_lookup(&vgpu->gtt.spt_tree, mfn);
 }
 
 static int reclaim_one_ppgtt_mm(struct intel_gvt *gvt);
@@ -741,8 +737,8 @@ retry:
 			     0, 4096, PCI_DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(kdev, daddr)) {
 		gvt_vgpu_err("fail to map dma addr\n");
-		free_spt(spt);
-		return ERR_PTR(-EINVAL);
+		ret = -EINVAL;
+		goto err_free_spt;
 	}
 	spt->shadow_page.vaddr = page_address(spt->shadow_page.page);
 	spt->shadow_page.mfn = daddr >> I915_GTT_PAGE_SHIFT;
@@ -755,17 +751,23 @@ retry:
 
 	ret = intel_vgpu_register_page_track(vgpu, spt->guest_page.gfn,
 					ppgtt_write_protection_handler, spt);
-	if (ret) {
-		free_spt(spt);
-		dma_unmap_page(kdev, daddr, PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-		return ERR_PTR(ret);
-	}
+	if (ret)
+		goto err_unmap_dma;
 
-	INIT_HLIST_NODE(&spt->node);
-	hash_add(vgpu->gtt.spt_hash_table, &spt->node, spt->shadow_page.mfn);
+	ret = radix_tree_insert(&vgpu->gtt.spt_tree, spt->shadow_page.mfn, spt);
+	if (ret)
+		goto err_unreg_page_track;
 
 	trace_spt_alloc(vgpu->id, spt, type, spt->shadow_page.mfn, gfn);
 	return spt;
+
+err_unreg_page_track:
+	intel_vgpu_unregister_page_track(vgpu, spt->guest_page.gfn);
+err_unmap_dma:
+	dma_unmap_page(kdev, daddr, PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+err_free_spt:
+	free_spt(spt);
+	return ERR_PTR(ret);
 }
 
 #define pt_entry_size_shift(spt) \
@@ -1994,7 +1996,7 @@ int intel_vgpu_init_gtt(struct intel_vgpu *vgpu)
 {
 	struct intel_vgpu_gtt *gtt = &vgpu->gtt;
 
-	hash_init(gtt->spt_hash_table);
+	INIT_RADIX_TREE(&gtt->spt_tree, GFP_KERNEL);
 
 	INIT_LIST_HEAD(&gtt->ppgtt_mm_list_head);
 	INIT_LIST_HEAD(&gtt->oos_page_list_head);
@@ -2024,7 +2026,7 @@ static void intel_vgpu_destroy_all_ppgtt_mm(struct intel_vgpu *vgpu)
 	if (GEM_WARN_ON(!list_empty(&vgpu->gtt.ppgtt_mm_list_head)))
 		gvt_err("vgpu ppgtt mm is not fully destoried\n");
 
-	if (GEM_WARN_ON(!hlist_empty(vgpu->gtt.spt_hash_table))) {
+	if (GEM_WARN_ON(!radix_tree_empty(&vgpu->gtt.spt_tree))) {
 		gvt_err("Why we still has spt not freed?\n");
 		ppgtt_free_all_spt(vgpu);
 	}

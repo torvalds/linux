@@ -39,7 +39,6 @@
 
 struct intel_vgpu_mm;
 
-#define INTEL_GVT_GTT_HASH_BITS 8
 #define INTEL_GVT_INVALID_ADDR (~0UL)
 
 struct intel_gvt_gtt_entry {
@@ -186,7 +185,7 @@ struct intel_vgpu_gtt {
 	struct intel_vgpu_mm *ggtt_mm;
 	unsigned long active_ppgtt_mm_bitmap;
 	struct list_head ppgtt_mm_list_head;
-	DECLARE_HASHTABLE(spt_hash_table, INTEL_GVT_GTT_HASH_BITS);
+	struct radix_tree_root spt_tree;
 	struct list_head oos_page_list_head;
 	struct list_head post_shadow_list_head;
 	struct intel_vgpu_scratch_pt scratch_pt[GTT_TYPE_MAX];
@@ -217,7 +216,6 @@ struct intel_vgpu_oos_page {
 struct intel_vgpu_ppgtt_spt {
 	atomic_t refcount;
 	struct intel_vgpu *vgpu;
-	struct hlist_node node;
 
 	struct {
 		intel_gvt_gtt_type_t type;
