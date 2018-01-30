@@ -241,10 +241,11 @@ lpfc_nvme_cmpl_gen_req(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	ndlp = (struct lpfc_nodelist *)cmdwqe->context1;
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
 			 "6047 nvme cmpl Enter "
-			 "Data %p DID %x Xri: %x status %x cmd:%p lsreg:%p "
-			 "bmp:%p ndlp:%p\n",
+			 "Data %p DID %x Xri: %x status %x reason x%x cmd:%p "
+			 "lsreg:%p bmp:%p ndlp:%p\n",
 			 pnvme_lsreq, ndlp ? ndlp->nlp_DID : 0,
 			 cmdwqe->sli4_xritag, status,
+			 (wcqe->parameter & 0xffff),
 			 cmdwqe, pnvme_lsreq, cmdwqe->context3, ndlp);
 
 	lpfc_nvmeio_data(phba, "NVME LS  CMPL: xri x%x stat x%x parm x%x\n",
@@ -419,6 +420,7 @@ lpfc_nvme_ls_req(struct nvme_fc_local_port *pnvme_lport,
 {
 	int ret = 0;
 	struct lpfc_nvme_lport *lport;
+	struct lpfc_nvme_rport *rport;
 	struct lpfc_vport *vport;
 	struct lpfc_nodelist *ndlp;
 	struct ulp_bde64 *bpl;
@@ -437,19 +439,18 @@ lpfc_nvme_ls_req(struct nvme_fc_local_port *pnvme_lport,
 	 */
 
 	lport = (struct lpfc_nvme_lport *)pnvme_lport->private;
+	rport = (struct lpfc_nvme_rport *)pnvme_rport->private;
 	vport = lport->vport;
 
 	if (vport->load_flag & FC_UNLOADING)
 		return -ENODEV;
 
-	if (vport->load_flag & FC_UNLOADING)
-		return -ENODEV;
-
-	ndlp = lpfc_findnode_did(vport, pnvme_rport->port_id);
+	/* Need the ndlp.  It is stored in the driver's rport. */
+	ndlp = rport->ndlp;
 	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE | LOG_NVME_IOERR,
-				 "6051 DID x%06x not an active rport.\n",
-				 pnvme_rport->port_id);
+				 "6051 Remoteport %p, rport has invalid ndlp. "
+				 "Failing LS Req\n", pnvme_rport);
 		return -ENODEV;
 	}
 
@@ -500,8 +501,9 @@ lpfc_nvme_ls_req(struct nvme_fc_local_port *pnvme_lport,
 
 	/* Expand print to include key fields. */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
-			 "6149 ENTER.  lport %p, rport %p lsreq%p rqstlen:%d "
-			 "rsplen:%d %pad %pad\n",
+			 "6149 Issue LS Req to DID 0x%06x lport %p, rport %p "
+			 "lsreq%p rqstlen:%d rsplen:%d %pad %pad\n",
+			 ndlp->nlp_DID,
 			 pnvme_lport, pnvme_rport,
 			 pnvme_lsreq, pnvme_lsreq->rqstlen,
 			 pnvme_lsreq->rsplen, &pnvme_lsreq->rqstdma,
@@ -517,7 +519,7 @@ lpfc_nvme_ls_req(struct nvme_fc_local_port *pnvme_lport,
 				ndlp, 2, 30, 0);
 	if (ret != WQE_SUCCESS) {
 		atomic_inc(&lport->xmt_ls_err);
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_DISC,
 				 "6052 EXIT. issue ls wqe failed lport %p, "
 				 "rport %p lsreq%p Status %x DID %x\n",
 				 pnvme_lport, pnvme_rport, pnvme_lsreq,
