@@ -351,13 +351,24 @@ static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
 	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_handle *flow_rule = NULL;
 	struct mlx5_flow_spec *spec;
+	void *headers_c;
+	void *headers_v;
 	int err = 0;
+	u8 *dmac_c;
+	u8 *dmac_v;
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
 		err = -ENOMEM;
 		goto out;
 	}
+
+	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
+	headers_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
+				 outer_headers);
+	dmac_c = MLX5_ADDR_OF(fte_match_param, headers_c,
+			      outer_headers.dmac_47_16);
+	dmac_c[0] = 0x01;
 
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 	dest.vport_num = 0;
@@ -367,11 +378,28 @@ static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
 					&flow_act, &dest, 1);
 	if (IS_ERR(flow_rule)) {
 		err = PTR_ERR(flow_rule);
-		esw_warn(esw->dev,  "FDB: Failed to add miss flow rule err %d\n", err);
+		esw_warn(esw->dev,  "FDB: Failed to add unicast miss flow rule err %d\n", err);
 		goto out;
 	}
 
-	esw->fdb_table.offloads.miss_rule = flow_rule;
+	esw->fdb_table.offloads.miss_rule_uni = flow_rule;
+
+	headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				 outer_headers);
+	dmac_v = MLX5_ADDR_OF(fte_match_param, headers_v,
+			      outer_headers.dmac_47_16);
+	dmac_v[0] = 0x01;
+	flow_rule = mlx5_add_flow_rules(esw->fdb_table.offloads.fdb, spec,
+					&flow_act, &dest, 1);
+	if (IS_ERR(flow_rule)) {
+		err = PTR_ERR(flow_rule);
+		esw_warn(esw->dev, "FDB: Failed to add multicast miss flow rule err %d\n", err);
+		mlx5_del_flow_rules(esw->fdb_table.offloads.miss_rule_uni);
+		goto out;
+	}
+
+	esw->fdb_table.offloads.miss_rule_multi = flow_rule;
+
 out:
 	kvfree(spec);
 	return err;
@@ -440,6 +468,7 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 	struct mlx5_flow_group *g;
 	void *match_criteria;
 	u32 *flow_group_in;
+	u8 *dmac;
 
 	esw_debug(esw->dev, "Create offloads FDB Tables\n");
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
@@ -457,7 +486,7 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 	if (err)
 		goto fast_fdb_err;
 
-	table_size = nvports * MAX_SQ_NVPORTS + MAX_PF_SQ + 1;
+	table_size = nvports * MAX_SQ_NVPORTS + MAX_PF_SQ + 2;
 
 	ft_attr.max_fte = table_size;
 	ft_attr.prio = FDB_SLOW_PATH;
@@ -494,10 +523,16 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 
 	/* create miss group */
 	memset(flow_group_in, 0, inlen);
-	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable, 0);
+	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable,
+		 MLX5_MATCH_OUTER_HEADERS);
+	match_criteria = MLX5_ADDR_OF(create_flow_group_in, flow_group_in,
+				      match_criteria);
+	dmac = MLX5_ADDR_OF(fte_match_param, match_criteria,
+			    outer_headers.dmac_47_16);
+	dmac[0] = 0x01;
 
 	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, ix);
-	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, ix + 1);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, ix + 2);
 
 	g = mlx5_create_flow_group(fdb, flow_group_in);
 	if (IS_ERR(g)) {
@@ -533,7 +568,8 @@ static void esw_destroy_offloads_fdb_tables(struct mlx5_eswitch *esw)
 		return;
 
 	esw_debug(esw->dev, "Destroy offloads FDB Tables\n");
-	mlx5_del_flow_rules(esw->fdb_table.offloads.miss_rule);
+	mlx5_del_flow_rules(esw->fdb_table.offloads.miss_rule_multi);
+	mlx5_del_flow_rules(esw->fdb_table.offloads.miss_rule_uni);
 	mlx5_destroy_flow_group(esw->fdb_table.offloads.send_to_vport_grp);
 	mlx5_destroy_flow_group(esw->fdb_table.offloads.miss_grp);
 

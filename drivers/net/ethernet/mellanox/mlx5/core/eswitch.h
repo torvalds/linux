@@ -129,7 +129,8 @@ struct mlx5_eswitch_fdb {
 			struct mlx5_flow_table *fdb;
 			struct mlx5_flow_group *send_to_vport_grp;
 			struct mlx5_flow_group *miss_grp;
-			struct mlx5_flow_handle *miss_rule;
+			struct mlx5_flow_handle *miss_rule_uni;
+			struct mlx5_flow_handle *miss_rule_multi;
 			int vlan_push_pop_refcount;
 		} offloads;
 	};
