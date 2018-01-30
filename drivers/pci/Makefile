@@ -56,5 +56,6 @@ obj-y += switch/
 obj-$(CONFIG_PCI_ENDPOINT)	+= endpoint/
 
 # Endpoint library must be initialized before its users
+obj-$(CONFIG_PCIE_CADENCE)	+= cadence/
 # pcie-hisi.o quirks are needed even without CONFIG_PCIE_DW
 obj-y				+= dwc/

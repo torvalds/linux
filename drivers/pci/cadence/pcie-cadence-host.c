@@ -38,68 +38,6 @@ struct cdns_pcie_rc {
 	u16			device_id;
 };
 
-static void cdns_pcie_set_outbound_region(struct cdns_pcie *pcie,
-				   u32 r, bool is_io,
-				   u64 cpu_addr, u64 pci_addr, size_t size)
-{
-	/*
-	 * roundup_pow_of_two() returns an unsigned long, which is not suited
-	 * for 64bit values.
-	 */
-	u64 sz = 1ULL << fls64(size - 1);
-	int nbits = ilog2(sz);
-	u32 addr0, addr1, desc0, desc1;
-
-	if (nbits < 8)
-		nbits = 8;
-
-	/* Set the PCI address */
-	addr0 = CDNS_PCIE_AT_OB_REGION_PCI_ADDR0_NBITS(nbits) |
-		(lower_32_bits(pci_addr) & GENMASK(31, 8));
-	addr1 = upper_32_bits(pci_addr);
-
-	cdns_pcie_writel(pcie, CDNS_PCIE_AT_OB_REGION_PCI_ADDR0(r), addr0);
-	cdns_pcie_writel(pcie, CDNS_PCIE_AT_OB_REGION_PCI_ADDR1(r), addr1);
-
-	/* Set the PCIe header descriptor */
-	if (is_io)
-		desc0 = CDNS_PCIE_AT_OB_REGION_DESC0_TYPE_IO;
-	else
-		desc0 = CDNS_PCIE_AT_OB_REGION_DESC0_TYPE_MEM;
-	desc1 = 0;
-
-	/*
-	 * Whatever Bit [23] is set or not inside DESC0 register of the outbound
-	 * PCIe descriptor, the PCI function number must be set into
-	 * Bits [26:24] of DESC0 anyway.
-	 *
-	 * In Root Complex mode, the function number is always 0 but in Endpoint
-	 * mode, the PCIe controller may support more than one function. This
-	 * function number needs to be set properly into the outbound PCIe
-	 * descriptor.
-	 *
-	 * Besides, setting Bit [23] is mandatory when in Root Complex mode:
-	 * then the driver must provide the bus, resp. device, number in
-	 * Bits [7:0] of DESC1, resp. Bits[31:27] of DESC0. Like the function
-	 * number, the device number is always 0 in Root Complex mode.
-	 */
-	desc0 |= CDNS_PCIE_AT_OB_REGION_DESC0_HARDCODED_RID |
-		CDNS_PCIE_AT_OB_REGION_DESC0_DEVFN(0);
-	desc1 |= CDNS_PCIE_AT_OB_REGION_DESC1_BUS(pcie->bus);
-
-	cdns_pcie_writel(pcie, CDNS_PCIE_AT_OB_REGION_DESC0(r), desc0);
-	cdns_pcie_writel(pcie, CDNS_PCIE_AT_OB_REGION_DESC1(r), desc1);
-
-	/* Set the CPU address */
-	cpu_addr -= pcie->mem_res->start;
-	addr0 = CDNS_PCIE_AT_OB_REGION_CPU_ADDR0_NBITS(nbits) |
-		(lower_32_bits(cpu_addr) & GENMASK(31, 8));
-	addr1 = upper_32_bits(cpu_addr);
-
-	cdns_pcie_writel(pcie, CDNS_PCIE_AT_OB_REGION_CPU_ADDR0(r), addr0);
-	cdns_pcie_writel(pcie, CDNS_PCIE_AT_OB_REGION_CPU_ADDR1(r), addr1);
-}
-
 static void __iomem *cdns_pci_map_bus(struct pci_bus *bus, unsigned int devfn,
 				      int where)
 {
@@ -239,7 +177,7 @@ static int cdns_pcie_host_init_address_translation(struct cdns_pcie_rc *rc)
 		else
 			continue;
 
-		cdns_pcie_set_outbound_region(pcie, r, is_io,
+		cdns_pcie_set_outbound_region(pcie, 0, r, is_io,
 					      range.cpu_addr,
 					      range.pci_addr,
 					      range.size);
@@ -310,6 +248,7 @@ static int cdns_pcie_host_probe(struct platform_device *pdev)
 	rc->dev = dev;
 
 	pcie = &rc->pcie;
+	pcie->is_rc = true;
 
 	rc->max_regions = 32;
 	of_property_read_u32(np, "cdns,max-outbound-regions", &rc->max_regions);
