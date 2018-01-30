@@ -205,16 +205,6 @@ extern void intel_gvt_clean_gtt(struct intel_gvt *gvt);
 extern struct intel_vgpu_mm *intel_gvt_find_ppgtt_mm(struct intel_vgpu *vgpu,
 		int page_table_level, void *root_entry);
 
-struct intel_vgpu_oos_page;
-
-struct intel_vgpu_shadow_page {
-	void *vaddr;
-	struct page *page;
-	int type;
-	struct hlist_node node;
-	unsigned long mfn;
-};
-
 struct intel_vgpu_page_track {
 	struct hlist_node node;
 	bool tracked;
@@ -223,14 +213,8 @@ struct intel_vgpu_page_track {
 	void *data;
 };
 
-struct intel_vgpu_guest_page {
-	struct intel_vgpu_page_track track;
-	unsigned long write_cnt;
-	struct intel_vgpu_oos_page *oos_page;
-};
-
 struct intel_vgpu_oos_page {
-	struct intel_vgpu_guest_page *guest_page;
+	struct intel_vgpu_ppgtt_spt *spt;
 	struct list_head list;
 	struct list_head vm_list;
 	int id;
@@ -239,27 +223,30 @@ struct intel_vgpu_oos_page {
 
 #define GTT_ENTRY_NUM_IN_ONE_PAGE 512
 
+/* Represent a vgpu shadow page table. */
 struct intel_vgpu_ppgtt_spt {
-	struct intel_vgpu_shadow_page shadow_page;
-	struct intel_vgpu_guest_page guest_page;
-	int guest_page_type;
 	atomic_t refcount;
 	struct intel_vgpu *vgpu;
+	struct hlist_node node;
+
+	struct {
+		intel_gvt_gtt_type_t type;
+		void *vaddr;
+		struct page *page;
+		unsigned long mfn;
+	} shadow_page;
+
+	struct {
+		intel_gvt_gtt_type_t type;
+		unsigned long gfn;
+		unsigned long write_cnt;
+		struct intel_vgpu_page_track track;
+		struct intel_vgpu_oos_page *oos_page;
+	} guest_page;
+
 	DECLARE_BITMAP(post_shadow_bitmap, GTT_ENTRY_NUM_IN_ONE_PAGE);
 	struct list_head post_shadow_list;
 };
-
-int intel_vgpu_init_page_track(struct intel_vgpu *vgpu,
-		struct intel_vgpu_page_track *t,
-		unsigned long gfn,
-		int (*handler)(void *gp, u64, void *, int),
-		void *data);
-
-void intel_vgpu_clean_page_track(struct intel_vgpu *vgpu,
-		struct intel_vgpu_page_track *t);
-
-struct intel_vgpu_page_track *intel_vgpu_find_tracked_page(
-		struct intel_vgpu *vgpu, unsigned long gfn);
 
 int intel_vgpu_sync_oos_pages(struct intel_vgpu *vgpu);
 
