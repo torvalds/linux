@@ -82,7 +82,6 @@ struct intel_gvt_device_info {
 struct intel_vgpu_gm {
 	u64 aperture_sz;
 	u64 hidden_sz;
-	void *aperture_va;
 	struct drm_mm_node low_gm_node;
 	struct drm_mm_node high_gm_node;
 };
