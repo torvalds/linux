@@ -917,7 +917,7 @@ void unknown_exception(struct pt_regs *regs)
 	printk("Bad trap at PC: %lx, SR: %lx, vector=%lx\n",
 	       regs->nip, regs->msr, regs->trap);
 
-	_exception(SIGTRAP, regs, 0, 0);
+	_exception(SIGTRAP, regs, TRAP_FIXME, 0);
 
 	exception_exit(prev_state);
 }
@@ -939,7 +939,7 @@ bail:
 
 void RunModeException(struct pt_regs *regs)
 {
-	_exception(SIGTRAP, regs, 0, 0);
+	_exception(SIGTRAP, regs, TRAP_FIXME, 0);
 }
 
 void single_step_exception(struct pt_regs *regs)
@@ -978,7 +978,7 @@ static void emulate_single_step(struct pt_regs *regs)
 
 static inline int __parse_fpscr(unsigned long fpscr)
 {
-	int ret = 0;
+	int ret = FPE_FIXME;
 
 	/* Invalid operation */
 	if ((fpscr & FPSCR_VE) && (fpscr & FPSCR_VX))
@@ -1750,34 +1750,34 @@ static void handle_debug(struct pt_regs *regs, unsigned long debug_status)
 #ifdef CONFIG_PPC_ADV_DEBUG_DAC_RANGE
 		current->thread.debug.dbcr2 &= ~DBCR2_DAC12MODE;
 #endif
-		do_send_trap(regs, mfspr(SPRN_DAC1), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_DAC1), debug_status,
 			     5);
 		changed |= 0x01;
 	}  else if (debug_status & (DBSR_DAC2R | DBSR_DAC2W)) {
 		dbcr_dac(current) &= ~(DBCR_DAC2R | DBCR_DAC2W);
-		do_send_trap(regs, mfspr(SPRN_DAC2), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_DAC2), debug_status,
 			     6);
 		changed |= 0x01;
 	}  else if (debug_status & DBSR_IAC1) {
 		current->thread.debug.dbcr0 &= ~DBCR0_IAC1;
 		dbcr_iac_range(current) &= ~DBCR_IAC12MODE;
-		do_send_trap(regs, mfspr(SPRN_IAC1), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_IAC1), debug_status,
 			     1);
 		changed |= 0x01;
 	}  else if (debug_status & DBSR_IAC2) {
 		current->thread.debug.dbcr0 &= ~DBCR0_IAC2;
-		do_send_trap(regs, mfspr(SPRN_IAC2), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_IAC2), debug_status,
 			     2);
 		changed |= 0x01;
 	}  else if (debug_status & DBSR_IAC3) {
 		current->thread.debug.dbcr0 &= ~DBCR0_IAC3;
 		dbcr_iac_range(current) &= ~DBCR_IAC34MODE;
-		do_send_trap(regs, mfspr(SPRN_IAC3), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_IAC3), debug_status,
 			     3);
 		changed |= 0x01;
 	}  else if (debug_status & DBSR_IAC4) {
 		current->thread.debug.dbcr0 &= ~DBCR0_IAC4;
-		do_send_trap(regs, mfspr(SPRN_IAC4), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_IAC4), debug_status,
 			     4);
 		changed |= 0x01;
 	}
@@ -1929,7 +1929,7 @@ void SPEFloatingPointException(struct pt_regs *regs)
 	extern int do_spe_mathemu(struct pt_regs *regs);
 	unsigned long spefscr;
 	int fpexc_mode;
-	int code = 0;
+	int code = FPE_FIXME;
 	int err;
 
 	flush_spe_to_thread(current);
@@ -1998,7 +1998,7 @@ void SPEFloatingPointRoundException(struct pt_regs *regs)
 		printk(KERN_ERR "unrecognized spe instruction "
 		       "in %s at %lx\n", current->comm, regs->nip);
 	} else {
-		_exception(SIGFPE, regs, 0, regs->nip);
+		_exception(SIGFPE, regs, FPE_FIXME, regs->nip);
 		return;
 	}
 }

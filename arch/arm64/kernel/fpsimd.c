@@ -867,7 +867,7 @@ asmlinkage void do_fpsimd_acc(unsigned int esr, struct pt_regs *regs)
 asmlinkage void do_fpsimd_exc(unsigned int esr, struct pt_regs *regs)
 {
 	siginfo_t info;
-	unsigned int si_code = 0;
+	unsigned int si_code = FPE_FIXME;
 
 	if (esr & FPEXC_IOF)
 		si_code = FPE_FLTINV;

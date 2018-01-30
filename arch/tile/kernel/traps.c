@@ -256,11 +256,13 @@ static int do_bpt(struct pt_regs *regs)
 void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 		       unsigned long reason)
 {
-	siginfo_t info = { 0 };
+	siginfo_t info;
 	int signo, code;
 	unsigned long address = 0;
 	tile_bundle_bits instr;
 	int is_kernel = !user_mode(regs);
+
+	clear_siginfo(&info);
 
 	/* Handle breakpoints, etc. */
 	if (is_kernel && fault_num == INT_ILL && do_bpt(regs))

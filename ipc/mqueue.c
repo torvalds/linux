@@ -639,6 +639,7 @@ static void __do_notify(struct mqueue_inode_info *info)
 		case SIGEV_SIGNAL:
 			/* sends signal */
 
+			clear_siginfo(&sig_i);
 			sig_i.si_signo = info->notify.sigev_signo;
 			sig_i.si_errno = 0;
 			sig_i.si_code = SI_MESGQ;
