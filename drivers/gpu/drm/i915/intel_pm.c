@@ -4312,7 +4312,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 */
 static uint_fixed_16_16_t
 skl_wm_method1(const struct drm_i915_private *dev_priv, uint32_t pixel_rate,
-	       uint8_t cpp, uint32_t latency)
+	       uint8_t cpp, uint32_t latency, uint32_t dbuf_block_size)
 {
 	uint32_t wm_intermediate_val;
 	uint_fixed_16_16_t ret;
@@ -4321,7 +4321,7 @@ skl_wm_method1(const struct drm_i915_private *dev_priv, uint32_t pixel_rate,
 		return FP_16_16_MAX;
 
 	wm_intermediate_val = latency * pixel_rate * cpp;
-	ret = div_fixed16(wm_intermediate_val, 1000 * 512);
+	ret = div_fixed16(wm_intermediate_val, 1000 * dbuf_block_size);
 
 	if (INTEL_GEN(dev_priv) >= 10)
 		ret = add_fixed16_u32(ret, 1);
@@ -4431,6 +4431,12 @@ skl_compute_plane_wm_params(const struct drm_i915_private *dev_priv,
 	wp->plane_pixel_rate = skl_adjusted_plane_pixel_rate(cstate,
 							     intel_pstate);
 
+	if (INTEL_GEN(dev_priv) >= 11 &&
+	    fb->modifier == I915_FORMAT_MOD_Yf_TILED && wp->cpp == 8)
+		wp->dbuf_block_size = 256;
+	else
+		wp->dbuf_block_size = 512;
+
 	if (drm_rotation_90_or_270(pstate->rotation)) {
 
 		switch (wp->cpp) {
@@ -4457,7 +4463,8 @@ skl_compute_plane_wm_params(const struct drm_i915_private *dev_priv,
 	wp->plane_bytes_per_line = wp->width * wp->cpp;
 	if (wp->y_tiled) {
 		interm_pbpl = DIV_ROUND_UP(wp->plane_bytes_per_line *
-					   wp->y_min_scanlines, 512);
+					   wp->y_min_scanlines,
+					   wp->dbuf_block_size);
 
 		if (INTEL_GEN(dev_priv) >= 10)
 			interm_pbpl++;
@@ -4465,10 +4472,12 @@ skl_compute_plane_wm_params(const struct drm_i915_private *dev_priv,
 		wp->plane_blocks_per_line = div_fixed16(interm_pbpl,
 							wp->y_min_scanlines);
 	} else if (wp->x_tiled && IS_GEN9(dev_priv)) {
-		interm_pbpl = DIV_ROUND_UP(wp->plane_bytes_per_line, 512);
+		interm_pbpl = DIV_ROUND_UP(wp->plane_bytes_per_line,
+					   wp->dbuf_block_size);
 		wp->plane_blocks_per_line = u32_to_fixed16(interm_pbpl);
 	} else {
-		interm_pbpl = DIV_ROUND_UP(wp->plane_bytes_per_line, 512) + 1;
+		interm_pbpl = DIV_ROUND_UP(wp->plane_bytes_per_line,
+					   wp->dbuf_block_size) + 1;
 		wp->plane_blocks_per_line = u32_to_fixed16(interm_pbpl);
 	}
 
@@ -4515,7 +4524,7 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		latency += 15;
 
 	method1 = skl_wm_method1(dev_priv, wp->plane_pixel_rate,
-				 wp->cpp, latency);
+				 wp->cpp, latency, wp->dbuf_block_size);
 	method2 = skl_wm_method2(wp->plane_pixel_rate,
 				 cstate->base.adjusted_mode.crtc_htotal,
 				 latency,
@@ -4525,7 +4534,8 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		selected_result = max_fixed16(method2, wp->y_tile_minimum);
 	} else {
 		if ((wp->cpp * cstate->base.adjusted_mode.crtc_htotal /
-		     512 < 1) && (wp->plane_bytes_per_line / 512 < 1))
+		     wp->dbuf_block_size < 1) &&
+		     (wp->plane_bytes_per_line / wp->dbuf_block_size < 1))
 			selected_result = method2;
 		else if (ddb_allocation >=
 			 fixed16_to_u32_round_up(wp->plane_blocks_per_line))

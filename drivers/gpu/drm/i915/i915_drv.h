@@ -1461,6 +1461,7 @@ struct skl_wm_params {
 	uint_fixed_16_16_t plane_blocks_per_line;
 	uint_fixed_16_16_t y_tile_minimum;
 	uint32_t linetime_us;
+	uint32_t dbuf_block_size;
 };
 
 /*
