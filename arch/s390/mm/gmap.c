@@ -1021,18 +1021,17 @@ static inline void gmap_insert_rmap(struct gmap *sg, unsigned long vmaddr,
 }
 
 /**
- * gmap_protect_rmap - modify access rights to memory and create an rmap
+ * gmap_protect_rmap - restrict access rights to memory (RO) and create an rmap
  * @sg: pointer to the shadow guest address space structure
  * @raddr: rmap address in the shadow gmap
  * @paddr: address in the parent guest address space
  * @len: length of the memory area to protect
- * @prot: indicates access rights: none, read-only or read-write
  *
  * Returns 0 if successfully protected and the rmap was created, -ENOMEM
  * if out of memory and -EFAULT if paddr is invalid.
  */
 static int gmap_protect_rmap(struct gmap *sg, unsigned long raddr,
-			     unsigned long paddr, unsigned long len, int prot)
+			     unsigned long paddr, unsigned long len)
 {
 	struct gmap *parent;
 	struct gmap_rmap *rmap;
@@ -1060,7 +1059,7 @@ static int gmap_protect_rmap(struct gmap *sg, unsigned long raddr,
 		ptep = gmap_pte_op_walk(parent, paddr, &ptl);
 		if (ptep) {
 			spin_lock(&sg->guest_table_lock);
-			rc = ptep_force_prot(parent->mm, paddr, ptep, prot,
+			rc = ptep_force_prot(parent->mm, paddr, ptep, PROT_READ,
 					     PGSTE_VSIE_BIT);
 			if (!rc)
 				gmap_insert_rmap(sg, vmaddr, rmap);
@@ -1070,7 +1069,7 @@ static int gmap_protect_rmap(struct gmap *sg, unsigned long raddr,
 		radix_tree_preload_end();
 		if (rc) {
 			kfree(rmap);
-			rc = gmap_pte_op_fixup(parent, paddr, vmaddr, prot);
+			rc = gmap_pte_op_fixup(parent, paddr, vmaddr, PROT_READ);
 			if (rc)
 				return rc;
 			continue;
@@ -1609,7 +1608,7 @@ int gmap_shadow_r2t(struct gmap *sg, unsigned long saddr, unsigned long r2t,
 	origin = r2t & _REGION_ENTRY_ORIGIN;
 	offset = ((r2t & _REGION_ENTRY_OFFSET) >> 6) * PAGE_SIZE;
 	len = ((r2t & _REGION_ENTRY_LENGTH) + 1) * PAGE_SIZE - offset;
-	rc = gmap_protect_rmap(sg, raddr, origin + offset, len, PROT_READ);
+	rc = gmap_protect_rmap(sg, raddr, origin + offset, len);
 	spin_lock(&sg->guest_table_lock);
 	if (!rc) {
 		table = gmap_table_walk(sg, saddr, 4);
@@ -1692,7 +1691,7 @@ int gmap_shadow_r3t(struct gmap *sg, unsigned long saddr, unsigned long r3t,
 	origin = r3t & _REGION_ENTRY_ORIGIN;
 	offset = ((r3t & _REGION_ENTRY_OFFSET) >> 6) * PAGE_SIZE;
 	len = ((r3t & _REGION_ENTRY_LENGTH) + 1) * PAGE_SIZE - offset;
-	rc = gmap_protect_rmap(sg, raddr, origin + offset, len, PROT_READ);
+	rc = gmap_protect_rmap(sg, raddr, origin + offset, len);
 	spin_lock(&sg->guest_table_lock);
 	if (!rc) {
 		table = gmap_table_walk(sg, saddr, 3);
@@ -1776,7 +1775,7 @@ int gmap_shadow_sgt(struct gmap *sg, unsigned long saddr, unsigned long sgt,
 	origin = sgt & _REGION_ENTRY_ORIGIN;
 	offset = ((sgt & _REGION_ENTRY_OFFSET) >> 6) * PAGE_SIZE;
 	len = ((sgt & _REGION_ENTRY_LENGTH) + 1) * PAGE_SIZE - offset;
-	rc = gmap_protect_rmap(sg, raddr, origin + offset, len, PROT_READ);
+	rc = gmap_protect_rmap(sg, raddr, origin + offset, len);
 	spin_lock(&sg->guest_table_lock);
 	if (!rc) {
 		table = gmap_table_walk(sg, saddr, 2);
@@ -1895,7 +1894,7 @@ int gmap_shadow_pgt(struct gmap *sg, unsigned long saddr, unsigned long pgt,
 	/* Make pgt read-only in parent gmap page table (not the pgste) */
 	raddr = (saddr & _SEGMENT_MASK) | _SHADOW_RMAP_SEGMENT;
 	origin = pgt & _SEGMENT_ENTRY_ORIGIN & PAGE_MASK;
-	rc = gmap_protect_rmap(sg, raddr, origin, PAGE_SIZE, PROT_READ);
+	rc = gmap_protect_rmap(sg, raddr, origin, PAGE_SIZE);
 	spin_lock(&sg->guest_table_lock);
 	if (!rc) {
 		table = gmap_table_walk(sg, saddr, 1);
@@ -1998,7 +1997,7 @@ EXPORT_SYMBOL_GPL(gmap_shadow_page);
  * Called with sg->parent->shadow_lock.
  */
 static void gmap_shadow_notify(struct gmap *sg, unsigned long vmaddr,
-			       unsigned long gaddr, pte_t *pte)
+			       unsigned long gaddr)
 {
 	struct gmap_rmap *rmap, *rnext, *head;
 	unsigned long start, end, bits, raddr;
@@ -2083,7 +2082,7 @@ void ptep_notify(struct mm_struct *mm, unsigned long vmaddr,
 			spin_lock(&gmap->shadow_lock);
 			list_for_each_entry_safe(sg, next,
 						 &gmap->children, list)
-				gmap_shadow_notify(sg, vmaddr, gaddr, pte);
+				gmap_shadow_notify(sg, vmaddr, gaddr);
 			spin_unlock(&gmap->shadow_lock);
 		}
 		if (bits & PGSTE_IN_BIT)

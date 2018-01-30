@@ -2,7 +2,7 @@
 /*
  * hosting IBM Z kernel virtual machines (s390x)
  *
- * Copyright IBM Corp. 2008, 2017
+ * Copyright IBM Corp. 2008, 2018
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *               Christian Borntraeger <borntraeger@de.ibm.com>
@@ -87,19 +87,31 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "deliver_restart_signal", VCPU_STAT(deliver_restart_signal) },
 	{ "deliver_program_interruption", VCPU_STAT(deliver_program_int) },
 	{ "exit_wait_state", VCPU_STAT(exit_wait_state) },
+	{ "instruction_epsw", VCPU_STAT(instruction_epsw) },
+	{ "instruction_gs", VCPU_STAT(instruction_gs) },
+	{ "instruction_io_other", VCPU_STAT(instruction_io_other) },
+	{ "instruction_lpsw", VCPU_STAT(instruction_lpsw) },
+	{ "instruction_lpswe", VCPU_STAT(instruction_lpswe) },
 	{ "instruction_pfmf", VCPU_STAT(instruction_pfmf) },
+	{ "instruction_ptff", VCPU_STAT(instruction_ptff) },
 	{ "instruction_stidp", VCPU_STAT(instruction_stidp) },
+	{ "instruction_sck", VCPU_STAT(instruction_sck) },
+	{ "instruction_sckpf", VCPU_STAT(instruction_sckpf) },
 	{ "instruction_spx", VCPU_STAT(instruction_spx) },
 	{ "instruction_stpx", VCPU_STAT(instruction_stpx) },
 	{ "instruction_stap", VCPU_STAT(instruction_stap) },
-	{ "instruction_storage_key", VCPU_STAT(instruction_storage_key) },
+	{ "instruction_iske", VCPU_STAT(instruction_iske) },
+	{ "instruction_ri", VCPU_STAT(instruction_ri) },
+	{ "instruction_rrbe", VCPU_STAT(instruction_rrbe) },
+	{ "instruction_sske", VCPU_STAT(instruction_sske) },
 	{ "instruction_ipte_interlock", VCPU_STAT(instruction_ipte_interlock) },
-	{ "instruction_stsch", VCPU_STAT(instruction_stsch) },
-	{ "instruction_chsc", VCPU_STAT(instruction_chsc) },
 	{ "instruction_essa", VCPU_STAT(instruction_essa) },
 	{ "instruction_stsi", VCPU_STAT(instruction_stsi) },
 	{ "instruction_stfl", VCPU_STAT(instruction_stfl) },
+	{ "instruction_tb", VCPU_STAT(instruction_tb) },
+	{ "instruction_tpi", VCPU_STAT(instruction_tpi) },
 	{ "instruction_tprot", VCPU_STAT(instruction_tprot) },
+	{ "instruction_tsch", VCPU_STAT(instruction_tsch) },
 	{ "instruction_sthyi", VCPU_STAT(instruction_sthyi) },
 	{ "instruction_sie", VCPU_STAT(instruction_sie) },
 	{ "instruction_sigp_sense", VCPU_STAT(instruction_sigp_sense) },
@@ -118,12 +130,13 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "instruction_sigp_cpu_reset", VCPU_STAT(instruction_sigp_cpu_reset) },
 	{ "instruction_sigp_init_cpu_reset", VCPU_STAT(instruction_sigp_init_cpu_reset) },
 	{ "instruction_sigp_unknown", VCPU_STAT(instruction_sigp_unknown) },
-	{ "diagnose_10", VCPU_STAT(diagnose_10) },
-	{ "diagnose_44", VCPU_STAT(diagnose_44) },
-	{ "diagnose_9c", VCPU_STAT(diagnose_9c) },
-	{ "diagnose_258", VCPU_STAT(diagnose_258) },
-	{ "diagnose_308", VCPU_STAT(diagnose_308) },
-	{ "diagnose_500", VCPU_STAT(diagnose_500) },
+	{ "instruction_diag_10", VCPU_STAT(diagnose_10) },
+	{ "instruction_diag_44", VCPU_STAT(diagnose_44) },
+	{ "instruction_diag_9c", VCPU_STAT(diagnose_9c) },
+	{ "instruction_diag_258", VCPU_STAT(diagnose_258) },
+	{ "instruction_diag_308", VCPU_STAT(diagnose_308) },
+	{ "instruction_diag_500", VCPU_STAT(diagnose_500) },
+	{ "instruction_diag_other", VCPU_STAT(diagnose_other) },
 	{ NULL }
 };
 
@@ -1915,6 +1928,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	if (!kvm->arch.dbf)
 		goto out_err;
 
+	BUILD_BUG_ON(sizeof(struct sie_page2) != 4096);
 	kvm->arch.sie_page2 =
 	     (struct sie_page2 *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!kvm->arch.sie_page2)
@@ -1985,6 +1999,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	spin_lock_init(&kvm->arch.start_stop_lock);
 	kvm_s390_vsie_init(kvm);
+	kvm_s390_gisa_init(kvm);
 	KVM_EVENT(3, "vm 0x%pK created by pid %u", kvm, current->pid);
 
 	return 0;
@@ -2047,6 +2062,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kvm_free_vcpus(kvm);
 	sca_dispose(kvm);
 	debug_unregister(kvm->arch.dbf);
+	kvm_s390_gisa_destroy(kvm);
 	free_page((unsigned long)kvm->arch.sie_page2);
 	if (!kvm_is_ucontrol(kvm))
 		gmap_remove(kvm->arch.gmap);
@@ -2316,7 +2332,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 
 	gmap_enable(vcpu->arch.enabled_gmap);
-	atomic_or(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
+	kvm_s390_set_cpuflags(vcpu, CPUSTAT_RUNNING);
 	if (vcpu->arch.cputm_enabled && !is_vcpu_idle(vcpu))
 		__start_cpu_timer_accounting(vcpu);
 	vcpu->cpu = cpu;
@@ -2327,7 +2343,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	vcpu->cpu = -1;
 	if (vcpu->arch.cputm_enabled && !is_vcpu_idle(vcpu))
 		__stop_cpu_timer_accounting(vcpu);
-	atomic_andnot(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
+	kvm_s390_clear_cpuflags(vcpu, CPUSTAT_RUNNING);
 	vcpu->arch.enabled_gmap = gmap_get_enabled();
 	gmap_disable(vcpu->arch.enabled_gmap);
 
@@ -2423,9 +2439,9 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 						    CPUSTAT_STOPPED);
 
 	if (test_kvm_facility(vcpu->kvm, 78))
-		atomic_or(CPUSTAT_GED2, &vcpu->arch.sie_block->cpuflags);
+		kvm_s390_set_cpuflags(vcpu, CPUSTAT_GED2);
 	else if (test_kvm_facility(vcpu->kvm, 8))
-		atomic_or(CPUSTAT_GED, &vcpu->arch.sie_block->cpuflags);
+		kvm_s390_set_cpuflags(vcpu, CPUSTAT_GED);
 
 	kvm_s390_vcpu_setup_model(vcpu);
 
@@ -2457,12 +2473,17 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	if (test_kvm_facility(vcpu->kvm, 139))
 		vcpu->arch.sie_block->ecd |= ECD_MEF;
 
+	if (vcpu->arch.sie_block->gd) {
+		vcpu->arch.sie_block->eca |= ECA_AIV;
+		VCPU_EVENT(vcpu, 3, "AIV gisa format-%u enabled for cpu %03u",
+			   vcpu->arch.sie_block->gd & 0x3, vcpu->vcpu_id);
+	}
 	vcpu->arch.sie_block->sdnxo = ((unsigned long) &vcpu->run->s.regs.sdnx)
 					| SDNXC;
 	vcpu->arch.sie_block->riccbd = (unsigned long) &vcpu->run->s.regs.riccb;
 
 	if (sclp.has_kss)
-		atomic_or(CPUSTAT_KSS, &vcpu->arch.sie_block->cpuflags);
+		kvm_s390_set_cpuflags(vcpu, CPUSTAT_KSS);
 	else
 		vcpu->arch.sie_block->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE;
 
@@ -2509,6 +2530,9 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 
 	vcpu->arch.sie_block->icpua = id;
 	spin_lock_init(&vcpu->arch.local_int.lock);
+	vcpu->arch.sie_block->gd = (u32)(u64)kvm->arch.gisa;
+	if (vcpu->arch.sie_block->gd && sclp.has_gisaf)
+		vcpu->arch.sie_block->gd |= GISA_FORMAT1;
 	seqcount_init(&vcpu->arch.cputm_seqcount);
 
 	rc = kvm_vcpu_init(vcpu, kvm, id);
@@ -2565,7 +2589,7 @@ static void kvm_s390_vcpu_request_handled(struct kvm_vcpu *vcpu)
  * return immediately. */
 void exit_sie(struct kvm_vcpu *vcpu)
 {
-	atomic_or(CPUSTAT_STOP_INT, &vcpu->arch.sie_block->cpuflags);
+	kvm_s390_set_cpuflags(vcpu, CPUSTAT_STOP_INT);
 	while (vcpu->arch.sie_block->prog0c & PROG_IN_SIE)
 		cpu_relax();
 }
@@ -2840,19 +2864,19 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	if (dbg->control & KVM_GUESTDBG_ENABLE) {
 		vcpu->guest_debug = dbg->control;
 		/* enforce guest PER */
-		atomic_or(CPUSTAT_P, &vcpu->arch.sie_block->cpuflags);
+		kvm_s390_set_cpuflags(vcpu, CPUSTAT_P);
 
 		if (dbg->control & KVM_GUESTDBG_USE_HW_BP)
 			rc = kvm_s390_import_bp_data(vcpu, dbg);
 	} else {
-		atomic_andnot(CPUSTAT_P, &vcpu->arch.sie_block->cpuflags);
+		kvm_s390_clear_cpuflags(vcpu, CPUSTAT_P);
 		vcpu->arch.guestdbg.last_bp = 0;
 	}
 
 	if (rc) {
 		vcpu->guest_debug = 0;
 		kvm_s390_clear_bp_data(vcpu);
-		atomic_andnot(CPUSTAT_P, &vcpu->arch.sie_block->cpuflags);
+		kvm_s390_clear_cpuflags(vcpu, CPUSTAT_P);
 	}
 
 out:
@@ -2905,7 +2929,7 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 
 static bool ibs_enabled(struct kvm_vcpu *vcpu)
 {
-	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_IBS;
+	return kvm_s390_test_cpuflags(vcpu, CPUSTAT_IBS);
 }
 
 static int kvm_s390_handle_requests(struct kvm_vcpu *vcpu)
@@ -2941,8 +2965,7 @@ retry:
 	if (kvm_check_request(KVM_REQ_ENABLE_IBS, vcpu)) {
 		if (!ibs_enabled(vcpu)) {
 			trace_kvm_s390_enable_disable_ibs(vcpu->vcpu_id, 1);
-			atomic_or(CPUSTAT_IBS,
-					&vcpu->arch.sie_block->cpuflags);
+			kvm_s390_set_cpuflags(vcpu, CPUSTAT_IBS);
 		}
 		goto retry;
 	}
@@ -2950,8 +2973,7 @@ retry:
 	if (kvm_check_request(KVM_REQ_DISABLE_IBS, vcpu)) {
 		if (ibs_enabled(vcpu)) {
 			trace_kvm_s390_enable_disable_ibs(vcpu->vcpu_id, 0);
-			atomic_andnot(CPUSTAT_IBS,
-					  &vcpu->arch.sie_block->cpuflags);
+			kvm_s390_clear_cpuflags(vcpu, CPUSTAT_IBS);
 		}
 		goto retry;
 	}
@@ -3601,7 +3623,7 @@ void kvm_s390_vcpu_start(struct kvm_vcpu *vcpu)
 		__disable_ibs_on_all_vcpus(vcpu->kvm);
 	}
 
-	atomic_andnot(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
+	kvm_s390_clear_cpuflags(vcpu, CPUSTAT_STOPPED);
 	/*
 	 * Another VCPU might have used IBS while we were offline.
 	 * Let's play safe and flush the VCPU at startup.
@@ -3627,7 +3649,7 @@ void kvm_s390_vcpu_stop(struct kvm_vcpu *vcpu)
 	/* SIGP STOP and SIGP STOP AND STORE STATUS has been fully processed */
 	kvm_s390_clear_stop_irq(vcpu);
 
-	atomic_or(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
+	kvm_s390_set_cpuflags(vcpu, CPUSTAT_STOPPED);
 	__disable_ibs_on_vcpu(vcpu);
 
 	for (i = 0; i < online_vcpus; i++) {
