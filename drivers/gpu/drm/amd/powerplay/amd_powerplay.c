@@ -839,7 +839,10 @@ static int pp_dpm_force_clock_level(void *handle,
 		return 0;
 	}
 	mutex_lock(&pp_handle->pp_lock);
-	hwmgr->hwmgr_func->force_clock_level(hwmgr, type, mask);
+	if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL)
+		ret = hwmgr->hwmgr_func->force_clock_level(hwmgr, type, mask);
+	else
+		ret = -EINVAL;
 	mutex_unlock(&pp_handle->pp_lock);
 	return ret;
 }

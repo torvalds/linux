@@ -4296,11 +4296,6 @@ static int smu7_force_clock_level(struct pp_hwmgr *hwmgr,
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
-	if (hwmgr->request_dpm_level & (AMD_DPM_FORCED_LEVEL_AUTO |
-					AMD_DPM_FORCED_LEVEL_LOW |
-					AMD_DPM_FORCED_LEVEL_HIGH))
-		return -EINVAL;
-
 	switch (type) {
 	case PP_SCLK:
 		if (!data->sclk_dpm_key_disabled)

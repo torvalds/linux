@@ -1558,9 +1558,6 @@ static int cz_get_dal_power_level(struct pp_hwmgr *hwmgr,
 static int cz_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask)
 {
-	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
-		return -EINVAL;
-
 	switch (type) {
 	case PP_SCLK:
 		smum_send_msg_to_smc_with_parameter(hwmgr,

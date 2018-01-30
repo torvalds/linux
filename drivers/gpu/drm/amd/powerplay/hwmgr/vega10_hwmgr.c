@@ -4500,11 +4500,6 @@ static int vega10_force_clock_level(struct pp_hwmgr *hwmgr,
 {
 	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
 
-	if (hwmgr->request_dpm_level & (AMD_DPM_FORCED_LEVEL_AUTO |
-				AMD_DPM_FORCED_LEVEL_LOW |
-				AMD_DPM_FORCED_LEVEL_HIGH))
-		return -EINVAL;
-
 	switch (type) {
 	case PP_SCLK:
 		data->smc_state_table.gfx_boot_level = mask ? (ffs(mask) - 1) : 0;
