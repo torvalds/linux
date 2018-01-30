@@ -346,11 +346,11 @@ static unsigned long gen8_gtt_get_pfn(struct intel_gvt_gtt_entry *e)
 	unsigned long pfn;
 
 	if (e->type == GTT_TYPE_PPGTT_PTE_1G_ENTRY)
-		pfn = (e->val64 & ADDR_1G_MASK) >> 12;
+		pfn = (e->val64 & ADDR_1G_MASK) >> PAGE_SHIFT;
 	else if (e->type == GTT_TYPE_PPGTT_PTE_2M_ENTRY)
-		pfn = (e->val64 & ADDR_2M_MASK) >> 12;
+		pfn = (e->val64 & ADDR_2M_MASK) >> PAGE_SHIFT;
 	else
-		pfn = (e->val64 & ADDR_4K_MASK) >> 12;
+		pfn = (e->val64 & ADDR_4K_MASK) >> PAGE_SHIFT;
 	return pfn;
 }
 
@@ -358,16 +358,16 @@ static void gen8_gtt_set_pfn(struct intel_gvt_gtt_entry *e, unsigned long pfn)
 {
 	if (e->type == GTT_TYPE_PPGTT_PTE_1G_ENTRY) {
 		e->val64 &= ~ADDR_1G_MASK;
-		pfn &= (ADDR_1G_MASK >> 12);
+		pfn &= (ADDR_1G_MASK >> PAGE_SHIFT);
 	} else if (e->type == GTT_TYPE_PPGTT_PTE_2M_ENTRY) {
 		e->val64 &= ~ADDR_2M_MASK;
-		pfn &= (ADDR_2M_MASK >> 12);
+		pfn &= (ADDR_2M_MASK >> PAGE_SHIFT);
 	} else {
 		e->val64 &= ~ADDR_4K_MASK;
-		pfn &= (ADDR_4K_MASK >> 12);
+		pfn &= (ADDR_4K_MASK >> PAGE_SHIFT);
 	}
 
-	e->val64 |= (pfn << 12);
+	e->val64 |= (pfn << PAGE_SHIFT);
 }
 
 static bool gen8_gtt_test_pse(struct intel_gvt_gtt_entry *e)
@@ -377,7 +377,7 @@ static bool gen8_gtt_test_pse(struct intel_gvt_gtt_entry *e)
 		return false;
 
 	e->type = get_entry_type(e->type);
-	if (!(e->val64 & BIT(7)))
+	if (!(e->val64 & _PAGE_PSE))
 		return false;
 
 	e->type = get_pse_type(e->type);
@@ -395,17 +395,17 @@ static bool gen8_gtt_test_present(struct intel_gvt_gtt_entry *e)
 			|| e->type == GTT_TYPE_PPGTT_ROOT_L4_ENTRY)
 		return (e->val64 != 0);
 	else
-		return (e->val64 & BIT(0));
+		return (e->val64 & _PAGE_PRESENT);
 }
 
 static void gtt_entry_clear_present(struct intel_gvt_gtt_entry *e)
 {
-	e->val64 &= ~BIT(0);
+	e->val64 &= ~_PAGE_PRESENT;
 }
 
 static void gtt_entry_set_present(struct intel_gvt_gtt_entry *e)
 {
-	e->val64 |= BIT(0);
+	e->val64 |= _PAGE_PRESENT;
 }
 
 /*
