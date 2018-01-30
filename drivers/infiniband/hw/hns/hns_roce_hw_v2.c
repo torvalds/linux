@@ -2123,10 +2123,10 @@ static void set_access_flags(struct hns_roce_qp *hr_qp,
 	u8 dest_rd_atomic;
 	u32 access_flags;
 
-	dest_rd_atomic = !!(attr_mask & IB_QP_MAX_DEST_RD_ATOMIC) ?
+	dest_rd_atomic = (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC) ?
 			 attr->max_dest_rd_atomic : hr_qp->resp_depth;
 
-	access_flags = !!(attr_mask & IB_QP_ACCESS_FLAGS) ?
+	access_flags = (attr_mask & IB_QP_ACCESS_FLAGS) ?
 		       attr->qp_access_flags : hr_qp->atomic_rd_en;
 
 	if (!dest_rd_atomic)
