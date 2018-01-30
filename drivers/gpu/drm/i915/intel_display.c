@@ -9711,6 +9711,9 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	u32 cntl = 0;
 
+	if (IS_GEN6(dev_priv) || IS_IVYBRIDGE(dev_priv))
+		cntl |= MCURSOR_TRICKLE_FEED_DISABLE;
+
 	if (INTEL_GEN(dev_priv) <= 10) {
 		cntl |= MCURSOR_GAMMA_ENABLE;
 
