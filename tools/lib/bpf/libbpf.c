@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-2.1
+
 /*
  * Common eBPF ELF object loading operations.
  *
