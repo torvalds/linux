@@ -108,6 +108,9 @@ static int ovl_d_to_fh(struct dentry *dentry, char *buf, int buflen)
 
 	/* Encode an upper or origin file handle */
 	fh = ovl_encode_fh(origin ?: ovl_dentry_upper(dentry), !origin);
+	err = PTR_ERR(fh);
+	if (IS_ERR(fh))
+		goto fail;
 
 	err = -EOVERFLOW;
 	if (fh->len > buflen)
