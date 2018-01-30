@@ -400,6 +400,10 @@
 	status = "okay";
 };
 
+&rk_rga {
+	status = "okay";
+};
+
 &route_lvds {
 	status = "disabled";
 };
