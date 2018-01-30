@@ -85,12 +85,8 @@ flat_send_IPI_mask_allbutself(const struct cpumask *cpumask, int vector)
 static void flat_send_IPI_allbutself(int vector)
 {
 	int cpu = smp_processor_id();
-#ifdef	CONFIG_HOTPLUG_CPU
-	int hotplug = 1;
-#else
-	int hotplug = 0;
-#endif
-	if (hotplug || vector == NMI_VECTOR) {
+
+	if (IS_ENABLED(CONFIG_HOTPLUG_CPU) || vector == NMI_VECTOR) {
 		if (!cpumask_equal(cpu_online_mask, cpumask_of(cpu))) {
 			unsigned long mask = cpumask_bits(cpu_online_mask)[0];
 
