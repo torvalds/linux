@@ -1844,6 +1844,9 @@ static int rockchip_get_drive_perpin(struct rockchip_pin_bank *bank,
 
 		break;
 	case DRV_TYPE_IO_WIDE_LEVEL:
+		if (!ctrl->drv_calc_extra_reg)
+			return -EINVAL;
+
 		rmask_bits = RK3288_DRV_BITS_PER_PIN;
 		/* enable the write to the equivalent lower bits */
 		ret = regmap_read(regmap, reg, &data);
@@ -1856,11 +1859,10 @@ static int rockchip_get_drive_perpin(struct rockchip_pin_bank *bank,
 		 * assume the drive strength of N channel and
 		 * P channel are the same.
 		 */
-		if (ctrl->drv_calc_extra_reg)
-			ctrl->drv_calc_extra_reg(bank, pin_num,
-						 &extra_regmap,
-						 &extra_reg,
-						 &extra_bit);
+		ctrl->drv_calc_extra_reg(bank, pin_num,
+					 &extra_regmap,
+					 &extra_reg,
+					 &extra_bit);
 
 		/*
 		 * It is enough to read one channel drive strength,
@@ -1981,6 +1983,9 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 		}
 		break;
 	case DRV_TYPE_IO_WIDE_LEVEL:
+		if (!ctrl->drv_calc_extra_reg)
+			return -EINVAL;
+
 		extra_value = ((strength -
 				rockchip_perpin_drv_list[drv_type][ret])) >> 1;
 		rmask_bits = RK3288_DRV_BITS_PER_PIN;
@@ -1989,11 +1994,10 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 		 * assume the drive strength of N channel and
 		 * P channel are the same.
 		 */
-		if (ctrl->drv_calc_extra_reg)
-			extra_drv_type = ctrl->drv_calc_extra_reg(bank, pin_num,
-								  &extra_regmap,
-								  &extra_reg,
-								  &extra_bit);
+		extra_drv_type = ctrl->drv_calc_extra_reg(bank, pin_num,
+							  &extra_regmap,
+							  &extra_reg,
+							  &extra_bit);
 
 		/* enable the write to the equivalent lower bits */
 		data = ((1 << rmask_bits) - 1) << (extra_bit + 16);
