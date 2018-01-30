@@ -156,51 +156,29 @@ static inline unsigned long intel_gvt_hypervisor_virt_to_mfn(void *p)
 /**
  * intel_gvt_hypervisor_enable_page_track - track a guest page
  * @vgpu: a vGPU
- * @t: page track data structure
+ * @gfn: the gfn of guest
  *
  * Returns:
  * Zero on success, negative error code if failed.
  */
 static inline int intel_gvt_hypervisor_enable_page_track(
-		struct intel_vgpu *vgpu,
-		struct intel_vgpu_page_track *t)
+		struct intel_vgpu *vgpu, unsigned long gfn)
 {
-	int ret;
-
-	if (t->tracked)
-		return 0;
-
-	ret = intel_gvt_host.mpt->enable_page_track(vgpu->handle, t->gfn);
-	if (ret)
-		return ret;
-	t->tracked = true;
-	atomic_inc(&vgpu->gtt.n_tracked_guest_page);
-	return 0;
+	return intel_gvt_host.mpt->enable_page_track(vgpu->handle, gfn);
 }
 
 /**
  * intel_gvt_hypervisor_disable_page_track - untrack a guest page
  * @vgpu: a vGPU
- * @t: page track data structure
+ * @gfn: the gfn of guest
  *
  * Returns:
  * Zero on success, negative error code if failed.
  */
 static inline int intel_gvt_hypervisor_disable_page_track(
-		struct intel_vgpu *vgpu,
-		struct intel_vgpu_page_track *t)
+		struct intel_vgpu *vgpu, unsigned long gfn)
 {
-	int ret;
-
-	if (!t->tracked)
-		return 0;
-
-	ret = intel_gvt_host.mpt->disable_page_track(vgpu->handle, t->gfn);
-	if (ret)
-		return ret;
-	t->tracked = false;
-	atomic_dec(&vgpu->gtt.n_tracked_guest_page);
-	return 0;
+	return intel_gvt_host.mpt->disable_page_track(vgpu->handle, gfn);
 }
 
 /**

@@ -678,7 +678,7 @@ static void ppgtt_free_spt(struct intel_vgpu_ppgtt_spt *spt)
 
 	if (spt->guest_page.track.tracked)
 		intel_gvt_hypervisor_disable_page_track(spt->vgpu,
-				&spt->guest_page.track);
+				spt->guest_page.track.gfn);
 
 	list_del_init(&spt->post_shadow_list);
 	free_spt(spt);
@@ -926,10 +926,11 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_populate_spt_by_guest_entry(
 			goto fail;
 		}
 
-		ret = intel_gvt_hypervisor_enable_page_track(vgpu, &spt->guest_page.track);
+		ret = intel_gvt_hypervisor_enable_page_track(vgpu, spt->guest_page.track.gfn);
 		if (ret)
 			goto fail;
 
+		spt->guest_page.track.tracked = true;
 		ret = ppgtt_populate_spt(spt);
 		if (ret)
 			goto fail;
@@ -1196,9 +1197,10 @@ static int ppgtt_set_guest_page_sync(struct intel_vgpu_ppgtt_spt *spt)
 	struct intel_vgpu_oos_page *oos_page = spt->guest_page.oos_page;
 	int ret;
 
-	ret = intel_gvt_hypervisor_enable_page_track(spt->vgpu, &spt->guest_page.track);
+	ret = intel_gvt_hypervisor_enable_page_track(spt->vgpu, spt->guest_page.track.gfn);
 	if (ret)
 		return ret;
+	spt->guest_page.track.tracked = true;
 
 	trace_oos_change(spt->vgpu->id, "set page sync", oos_page->id,
 			 spt, spt->guest_page.type);
@@ -1234,6 +1236,7 @@ static int ppgtt_allocate_oos_page(struct intel_vgpu_ppgtt_spt *spt)
 static int ppgtt_set_guest_page_oos(struct intel_vgpu_ppgtt_spt *spt)
 {
 	struct intel_vgpu_oos_page *oos_page = spt->guest_page.oos_page;
+	int ret;
 
 	if (WARN(!oos_page, "shadow PPGTT page should have a oos page\n"))
 		return -EINVAL;
@@ -1242,7 +1245,11 @@ static int ppgtt_set_guest_page_oos(struct intel_vgpu_ppgtt_spt *spt)
 			 spt, spt->guest_page.type);
 
 	list_add_tail(&oos_page->vm_list, &spt->vgpu->gtt.oos_page_list_head);
-	return intel_gvt_hypervisor_disable_page_track(spt->vgpu, &spt->guest_page.track);
+	ret = intel_gvt_hypervisor_disable_page_track(spt->vgpu, spt->guest_page.track.gfn);
+	if (ret)
+		return ret;
+	spt->guest_page.track.tracked = false;
+	return 0;
 }
 
 /**
@@ -1917,29 +1924,28 @@ int intel_vgpu_write_protect_handler(struct intel_vgpu *vgpu, u64 pa,
 	struct intel_gvt *gvt = vgpu->gvt;
 	int ret = 0;
 
-	if (atomic_read(&vgpu->gtt.n_tracked_guest_page)) {
-		struct intel_vgpu_page_track *t;
+	struct intel_vgpu_page_track *t;
 
-		mutex_lock(&gvt->lock);
+	mutex_lock(&gvt->lock);
 
-		t = intel_vgpu_find_tracked_page(vgpu, pa >> PAGE_SHIFT);
-		if (t) {
-			if (unlikely(vgpu->failsafe)) {
-				/* remove write protection to prevent furture traps */
-				intel_gvt_hypervisor_disable_page_track(vgpu, t);
-			} else {
-				ret = t->handler(t, pa, p_data, bytes);
-				if (ret) {
-					gvt_err("guest page write error %d, "
-						"gfn 0x%lx, pa 0x%llx, "
-						"var 0x%x, len %d\n",
-						ret, t->gfn, pa,
-						*(u32 *)p_data, bytes);
-				}
+	t = intel_vgpu_find_tracked_page(vgpu, pa >> PAGE_SHIFT);
+	if (t) {
+		if (unlikely(vgpu->failsafe)) {
+			/* remove write protection to prevent furture traps */
+			intel_gvt_hypervisor_disable_page_track(vgpu, t->gfn);
+		} else {
+			ret = t->handler(t, pa, p_data, bytes);
+			if (ret) {
+				gvt_err("guest page write error %d, "
+					"gfn 0x%lx, pa 0x%llx, "
+					"var 0x%x, len %d\n",
+					ret, t->gfn, pa,
+					*(u32 *)p_data, bytes);
 			}
 		}
-		mutex_unlock(&gvt->lock);
 	}
+	mutex_unlock(&gvt->lock);
+
 	return ret;
 }
 
