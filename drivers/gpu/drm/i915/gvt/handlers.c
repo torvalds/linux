@@ -1139,20 +1139,27 @@ static int pvinfo_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
 
 static int handle_g2v_notification(struct intel_vgpu *vgpu, int notification)
 {
+	u64 *pdps;
 	int ret = 0;
+
+	pdps = (u64 *)&vgpu_vreg64_t(vgpu, vgtif_reg(pdp[0]));
 
 	switch (notification) {
 	case VGT_G2V_PPGTT_L3_PAGE_TABLE_CREATE:
-		ret = intel_vgpu_g2v_create_ppgtt_mm(vgpu, 3);
+		ret = intel_vgpu_g2v_create_ppgtt_mm(vgpu,
+				GTT_TYPE_PPGTT_ROOT_L3_ENTRY,
+				pdps);
 		break;
 	case VGT_G2V_PPGTT_L3_PAGE_TABLE_DESTROY:
-		ret = intel_vgpu_g2v_destroy_ppgtt_mm(vgpu, 3);
+		ret = intel_vgpu_g2v_destroy_ppgtt_mm(vgpu, pdps);
 		break;
 	case VGT_G2V_PPGTT_L4_PAGE_TABLE_CREATE:
-		ret = intel_vgpu_g2v_create_ppgtt_mm(vgpu, 4);
+		ret = intel_vgpu_g2v_create_ppgtt_mm(vgpu,
+				GTT_TYPE_PPGTT_ROOT_L4_ENTRY,
+				pdps);
 		break;
 	case VGT_G2V_PPGTT_L4_PAGE_TABLE_DESTROY:
-		ret = intel_vgpu_g2v_destroy_ppgtt_mm(vgpu, 4);
+		ret = intel_vgpu_g2v_destroy_ppgtt_mm(vgpu, pdps);
 		break;
 	case VGT_G2V_EXECLIST_CONTEXT_CREATE:
 	case VGT_G2V_EXECLIST_CONTEXT_DESTROY:

@@ -113,7 +113,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 #undef COPY_REG
 
 	set_context_pdp_root_pointer(shadow_ring_context,
-				     workload->shadow_mm->shadow_page_table);
+				     (void *)workload->shadow_mm->ppgtt_mm.shadow_pdps);
 
 	intel_gvt_hypervisor_read_gpa(vgpu,
 			workload->ring_context_gpa +
@@ -1181,27 +1181,30 @@ static int prepare_mm(struct intel_vgpu_workload *workload)
 	struct execlist_ctx_descriptor_format *desc = &workload->ctx_desc;
 	struct intel_vgpu_mm *mm;
 	struct intel_vgpu *vgpu = workload->vgpu;
-	int page_table_level;
-	u32 pdp[8];
+	intel_gvt_gtt_type_t root_entry_type;
+	u64 pdps[GVT_RING_CTX_NR_PDPS];
 
-	if (desc->addressing_mode == 1) { /* legacy 32-bit */
-		page_table_level = 3;
-	} else if (desc->addressing_mode == 3) { /* legacy 64 bit */
-		page_table_level = 4;
-	} else {
+	switch (desc->addressing_mode) {
+	case 1: /* legacy 32-bit */
+		root_entry_type = GTT_TYPE_PPGTT_ROOT_L3_ENTRY;
+		break;
+	case 3: /* legacy 64-bit */
+		root_entry_type = GTT_TYPE_PPGTT_ROOT_L4_ENTRY;
+		break;
+	default:
 		gvt_vgpu_err("Advanced Context mode(SVM) is not supported!\n");
 		return -EINVAL;
 	}
 
-	read_guest_pdps(workload->vgpu, workload->ring_context_gpa, pdp);
+	read_guest_pdps(workload->vgpu, workload->ring_context_gpa, (void *)pdps);
 
-	mm = intel_vgpu_find_ppgtt_mm(workload->vgpu, page_table_level, pdp);
+	mm = intel_vgpu_find_ppgtt_mm(workload->vgpu, pdps);
 	if (mm) {
 		intel_gvt_mm_reference(mm);
 	} else {
 
-		mm = intel_vgpu_create_mm(workload->vgpu, INTEL_GVT_MM_PPGTT,
-				pdp, page_table_level, 0);
+		mm = intel_vgpu_create_ppgtt_mm(workload->vgpu, root_entry_type,
+						pdps);
 		if (IS_ERR(mm)) {
 			gvt_vgpu_err("fail to create mm object.\n");
 			return PTR_ERR(mm);

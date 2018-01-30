@@ -84,15 +84,10 @@ struct intel_gvt_gtt {
 	void (*mm_free_page_table)(struct intel_vgpu_mm *mm);
 	struct list_head oos_page_use_list_head;
 	struct list_head oos_page_free_list_head;
-	struct list_head mm_lru_list_head;
+	struct list_head ppgtt_mm_lru_list_head;
 
 	struct page *scratch_page;
 	unsigned long scratch_mfn;
-};
-
-enum {
-	INTEL_GVT_MM_GGTT = 0,
-	INTEL_GVT_MM_PPGTT,
 };
 
 typedef enum {
@@ -125,26 +120,39 @@ typedef enum {
 	GTT_TYPE_MAX,
 } intel_gvt_gtt_type_t;
 
+enum intel_gvt_mm_type {
+	INTEL_GVT_MM_GGTT,
+	INTEL_GVT_MM_PPGTT,
+};
+
+#define GVT_RING_CTX_NR_PDPS	GEN8_3LVL_PDPES
+
 struct intel_vgpu_mm {
-	int type;
-	bool initialized;
-	bool shadowed;
+	enum intel_gvt_mm_type type;
+	struct intel_vgpu *vgpu;
 
-	int page_table_entry_type;
-	u32 page_table_entry_size;
-	u32 page_table_entry_cnt;
-	void *virtual_page_table;
-	void *shadow_page_table;
-
-	int page_table_level;
-	bool has_shadow_page_table;
-	u32 pde_base_index;
-
-	struct list_head list;
 	struct kref ref;
 	atomic_t pincount;
-	struct list_head lru_list;
-	struct intel_vgpu *vgpu;
+
+	union {
+		struct {
+			intel_gvt_gtt_type_t root_entry_type;
+			/*
+			 * The 4 PDPs in ring context. For 48bit addressing,
+			 * only PDP0 is valid and point to PML4. For 32it
+			 * addressing, all 4 are used as true PDPs.
+			 */
+			u64 guest_pdps[GVT_RING_CTX_NR_PDPS];
+			u64 shadow_pdps[GVT_RING_CTX_NR_PDPS];
+			bool shadowed;
+
+			struct list_head list;
+			struct list_head lru_list;
+		} ppgtt_mm;
+		struct {
+			void *virtual_ggtt;
+		} ggtt_mm;
+	};
 };
 
 extern int intel_vgpu_mm_get_entry(
@@ -158,32 +166,31 @@ extern int intel_vgpu_mm_set_entry(
 		unsigned long index);
 
 #define ggtt_get_guest_entry(mm, e, index) \
-	intel_vgpu_mm_get_entry(mm, mm->virtual_page_table, e, index)
+	intel_vgpu_mm_get_entry(mm, mm->ggtt_mm.virtual_ggtt, e, index)
 
 #define ggtt_set_guest_entry(mm, e, index) \
-	intel_vgpu_mm_set_entry(mm, mm->virtual_page_table, e, index)
+	intel_vgpu_mm_set_entry(mm, mm->ggtt_mm.virtual_ggtt, e, index)
 
 #define ggtt_get_shadow_entry(mm, e, index) \
-	intel_vgpu_mm_get_entry(mm, mm->shadow_page_table, e, index)
+	intel_vgpu_mm_get_entry(mm, mm->ggtt_mm.virtual_ggtt, e, index)
 
 #define ggtt_set_shadow_entry(mm, e, index) \
-	intel_vgpu_mm_set_entry(mm, mm->shadow_page_table, e, index)
+	intel_vgpu_mm_set_entry(mm, mm->ggtt_mm.virtual_ggtt, e, index)
 
 #define ppgtt_get_guest_root_entry(mm, e, index) \
-	intel_vgpu_mm_get_entry(mm, mm->virtual_page_table, e, index)
+	intel_vgpu_mm_get_entry(mm, mm->ppgtt_mm.guest_pdps, e, index)
 
 #define ppgtt_set_guest_root_entry(mm, e, index) \
-	intel_vgpu_mm_set_entry(mm, mm->virtual_page_table, e, index)
+	intel_vgpu_mm_set_entry(mm, mm->ppgtt_mm.guest_pdps, e, index)
 
 #define ppgtt_get_shadow_root_entry(mm, e, index) \
-	intel_vgpu_mm_get_entry(mm, mm->shadow_page_table, e, index)
+	intel_vgpu_mm_get_entry(mm, mm->ppgtt_mm.shadow_pdps, e, index)
 
 #define ppgtt_set_shadow_root_entry(mm, e, index) \
-	intel_vgpu_mm_set_entry(mm, mm->shadow_page_table, e, index)
+	intel_vgpu_mm_set_entry(mm, mm->ppgtt_mm.shadow_pdps, e, index)
 
-extern struct intel_vgpu_mm *intel_vgpu_create_mm(struct intel_vgpu *vgpu,
-		int mm_type, void *virtual_page_table, int page_table_level,
-		u32 pde_base_index);
+struct intel_vgpu_mm *intel_vgpu_create_ppgtt_mm(struct intel_vgpu *vgpu,
+		intel_gvt_gtt_type_t root_entry_type, u64 pdps[]);
 extern void intel_vgpu_destroy_mm(struct kref *mm_ref);
 
 struct intel_vgpu_guest_page;
@@ -196,7 +203,7 @@ struct intel_vgpu_scratch_pt {
 struct intel_vgpu_gtt {
 	struct intel_vgpu_mm *ggtt_mm;
 	unsigned long active_ppgtt_mm_bitmap;
-	struct list_head mm_list_head;
+	struct list_head ppgtt_mm_list_head;
 	DECLARE_HASHTABLE(shadow_page_hash_table, INTEL_GVT_GTT_HASH_BITS);
 	DECLARE_HASHTABLE(tracked_guest_page_hash_table, INTEL_GVT_GTT_HASH_BITS);
 	atomic_t n_tracked_guest_page;
@@ -294,13 +301,12 @@ unsigned long intel_vgpu_gma_to_gpa(struct intel_vgpu_mm *mm,
 		unsigned long gma);
 
 struct intel_vgpu_mm *intel_vgpu_find_ppgtt_mm(struct intel_vgpu *vgpu,
-		int page_table_level, void *root_entry);
+		u64 pdps[]);
 
 int intel_vgpu_g2v_create_ppgtt_mm(struct intel_vgpu *vgpu,
-		int page_table_level);
+		intel_gvt_gtt_type_t root_entry_type, u64 pdps[]);
 
-int intel_vgpu_g2v_destroy_ppgtt_mm(struct intel_vgpu *vgpu,
-		int page_table_level);
+int intel_vgpu_g2v_destroy_ppgtt_mm(struct intel_vgpu *vgpu, u64 pdps[]);
 
 int intel_vgpu_emulate_gtt_mmio_read(struct intel_vgpu *vgpu,
 	unsigned int off, void *p_data, unsigned int bytes);
