@@ -1165,7 +1165,7 @@ ERRORHANDLER:
 	return result;
 }
 
-static s32 Handle_ConnectTimeout(struct wilc_vif *vif)
+static s32 handle_connect_timeout(struct wilc_vif *vif)
 {
 	s32 result = 0;
 	struct connect_info strConnectInfo;
@@ -1525,7 +1525,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 	return result;
 }
 
-static int Handle_Key(struct wilc_vif *vif,
+static int handle_key(struct wilc_vif *vif,
 		      struct key_attr *pstrHostIFkeyAttr)
 {
 	s32 result = 0;
@@ -2511,7 +2511,7 @@ static void host_if_work(struct work_struct *work)
 		break;
 
 	case HOST_IF_MSG_KEY:
-		Handle_Key(msg->vif, &msg->body.key_info);
+		handle_key(msg->vif, &msg->body.key_info);
 		break;
 
 	case HOST_IF_MSG_CFG_PARAMS:
@@ -2578,7 +2578,7 @@ static void host_if_work(struct work_struct *work)
 		break;
 
 	case HOST_IF_MSG_CONNECT_TIMER_FIRED:
-		Handle_ConnectTimeout(msg->vif);
+		handle_connect_timeout(msg->vif);
 		break;
 
 	case HOST_IF_MSG_POWER_MGMT:
