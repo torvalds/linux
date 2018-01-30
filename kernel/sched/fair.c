@@ -5692,10 +5692,8 @@ static int wake_wide(struct task_struct *p)
  *			  scheduling latency of the CPUs. This seems to work
  *			  for the overloaded case.
  */
-
 static bool
-wake_affine_idle(struct sched_domain *sd, struct task_struct *p,
-		 int this_cpu, int prev_cpu, int sync)
+wake_affine_idle(int this_cpu, int prev_cpu, int sync)
 {
 	/*
 	 * If this_cpu is idle, it implies the wakeup is from interrupt
@@ -5752,8 +5750,8 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p,
 	int this_cpu = smp_processor_id();
 	bool affine = false;
 
-	if (sched_feat(WA_IDLE) && !affine)
-		affine = wake_affine_idle(sd, p, this_cpu, prev_cpu, sync);
+	if (sched_feat(WA_IDLE))
+		affine = wake_affine_idle(this_cpu, prev_cpu, sync);
 
 	if (sched_feat(WA_WEIGHT) && !affine)
 		affine = wake_affine_weight(sd, p, this_cpu, prev_cpu, sync);
