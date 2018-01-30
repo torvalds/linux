@@ -270,7 +270,7 @@ static u64 read_pte64(struct drm_i915_private *dev_priv, unsigned long index)
 	return readq(addr);
 }
 
-static void gtt_invalidate(struct drm_i915_private *dev_priv)
+static void ggtt_invalidate(struct drm_i915_private *dev_priv)
 {
 	mmio_hw_access_pre(dev_priv);
 	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
@@ -1873,7 +1873,7 @@ err:
 	return INTEL_GVT_INVALID_ADDR;
 }
 
-static int emulate_gtt_mmio_read(struct intel_vgpu *vgpu,
+static int emulate_ggtt_mmio_read(struct intel_vgpu *vgpu,
 	unsigned int off, void *p_data, unsigned int bytes)
 {
 	struct intel_vgpu_mm *ggtt_mm = vgpu->gtt.ggtt_mm;
@@ -1902,7 +1902,7 @@ static int emulate_gtt_mmio_read(struct intel_vgpu *vgpu,
  * Returns:
  * Zero on success, error code if failed.
  */
-int intel_vgpu_emulate_gtt_mmio_read(struct intel_vgpu *vgpu, unsigned int off,
+int intel_vgpu_emulate_ggtt_mmio_read(struct intel_vgpu *vgpu, unsigned int off,
 	void *p_data, unsigned int bytes)
 {
 	const struct intel_gvt_device_info *info = &vgpu->gvt->device_info;
@@ -1912,11 +1912,11 @@ int intel_vgpu_emulate_gtt_mmio_read(struct intel_vgpu *vgpu, unsigned int off,
 		return -EINVAL;
 
 	off -= info->gtt_start_offset;
-	ret = emulate_gtt_mmio_read(vgpu, off, p_data, bytes);
+	ret = emulate_ggtt_mmio_read(vgpu, off, p_data, bytes);
 	return ret;
 }
 
-static int emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
+static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 	void *p_data, unsigned int bytes)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
@@ -1969,13 +1969,13 @@ static int emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 
 out:
 	ggtt_set_host_entry(ggtt_mm, &m, g_gtt_index);
-	gtt_invalidate(gvt->dev_priv);
+	ggtt_invalidate(gvt->dev_priv);
 	ggtt_set_guest_entry(ggtt_mm, &e, g_gtt_index);
 	return 0;
 }
 
 /*
- * intel_vgpu_emulate_gtt_mmio_write - emulate GTT MMIO register write
+ * intel_vgpu_emulate_ggtt_mmio_write - emulate GTT MMIO register write
  * @vgpu: a vGPU
  * @off: register offset
  * @p_data: data from guest write
@@ -1986,8 +1986,8 @@ out:
  * Returns:
  * Zero on success, error code if failed.
  */
-int intel_vgpu_emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
-	void *p_data, unsigned int bytes)
+int intel_vgpu_emulate_ggtt_mmio_write(struct intel_vgpu *vgpu,
+		unsigned int off, void *p_data, unsigned int bytes)
 {
 	const struct intel_gvt_device_info *info = &vgpu->gvt->device_info;
 	int ret;
@@ -1996,7 +1996,7 @@ int intel_vgpu_emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 		return -EINVAL;
 
 	off -= info->gtt_start_offset;
-	ret = emulate_gtt_mmio_write(vgpu, off, p_data, bytes);
+	ret = emulate_ggtt_mmio_write(vgpu, off, p_data, bytes);
 	return ret;
 }
 
@@ -2457,7 +2457,7 @@ void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu)
 	while (num_entries--)
 		ggtt_set_host_entry(vgpu->gtt.ggtt_mm, &entry, index++);
 
-	gtt_invalidate(dev_priv);
+	ggtt_invalidate(dev_priv);
 }
 
 /**
