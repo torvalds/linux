@@ -145,6 +145,7 @@ struct lpfc_rqb {
 struct lpfc_queue {
 	struct list_head list;
 	struct list_head wq_list;
+	struct list_head wqfull_list;
 	enum lpfc_sli4_queue_type type;
 	enum lpfc_sli4_queue_subtype subtype;
 	struct lpfc_hba *phba;
@@ -173,9 +174,11 @@ struct lpfc_queue {
 #define LPFC_EXPANDED_PAGE_SIZE	16384
 #define LPFC_DEFAULT_PAGE_SIZE	4096
 	uint16_t chann;		/* IO channel this queue is associated with */
-	uint16_t db_format;
+	uint8_t db_format;
 #define LPFC_DB_RING_FORMAT	0x01
 #define LPFC_DB_LIST_FORMAT	0x02
+	uint8_t q_flag;
+#define HBA_NVMET_WQFULL	0x1 /* We hit WQ Full condition for NVMET */
 	void __iomem *db_regaddr;
 	/* For q stats */
 	uint32_t q_cnt_1;
