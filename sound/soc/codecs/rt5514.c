@@ -357,6 +357,7 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 #else
 				dev_err(component->dev, "There is no SPI driver for"
 					" loading the firmware\n");
+				memset(buf, 0, sizeof(buf));
 #endif
 				rt5514->pll3_cal_value = buf[0] | buf[1] << 8 |
 					buf[2] << 16 | buf[3] << 24;
