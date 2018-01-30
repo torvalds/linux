@@ -168,10 +168,8 @@ int intel_hdcp_auth_downstream(struct intel_digital_port *intel_dig_port,
 
 	/* If there are no downstream devices, we're all done. */
 	num_downstream = DRM_HDCP_NUM_DOWNSTREAM(bstatus[0]);
-	if (num_downstream == 0) {
-		DRM_INFO("HDCP is enabled (no downstream devices)\n");
+	if (num_downstream == 0)
 		return 0;
-	}
 
 	ksv_fifo = kzalloc(num_downstream * DRM_HDCP_KSV_LEN, GFP_KERNEL);
 	if (!ksv_fifo)
@@ -502,6 +500,7 @@ static int intel_hdcp_auth(struct intel_digital_port *intel_dig_port,
 	if (repeater_present)
 		return intel_hdcp_auth_downstream(intel_dig_port, shim);
 
+	DRM_INFO("HDCP is enabled (no repeater present)\n");
 	return 0;
 }
 
