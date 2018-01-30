@@ -1443,8 +1443,22 @@ static void enable_execlists(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 
 	I915_WRITE(RING_HWSTAM(engine->mmio_base), 0xffffffff);
-	I915_WRITE(RING_MODE_GEN7(engine),
-		   _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE));
+
+	/*
+	 * Make sure we're not enabling the new 12-deep CSB
+	 * FIFO as that requires a slightly updated handling
+	 * in the ctx switch irq. Since we're currently only
+	 * using only 2 elements of the enhanced execlists the
+	 * deeper FIFO it's not needed and it's not worth adding
+	 * more statements to the irq handler to support it.
+	 */
+	if (INTEL_GEN(dev_priv) >= 11)
+		I915_WRITE(RING_MODE_GEN7(engine),
+			   _MASKED_BIT_DISABLE(GEN11_GFX_DISABLE_LEGACY_MODE));
+	else
+		I915_WRITE(RING_MODE_GEN7(engine),
+			   _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE));
+
 	I915_WRITE(RING_HWS_PGA(engine->mmio_base),
 		   engine->status_page.ggtt_offset);
 	POSTING_READ(RING_HWS_PGA(engine->mmio_base));
