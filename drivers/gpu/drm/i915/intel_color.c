@@ -84,26 +84,25 @@ static bool crtc_state_is_legacy_gamma(struct drm_crtc_state *state)
 
 /*
  * When using limited range, multiply the matrix given by userspace by
- * the matrix that we would use for the limited range. We do the
- * multiplication in U2.30 format.
+ * the matrix that we would use for the limited range.
  */
-static void ctm_mult_by_limited(uint64_t *result, int64_t *input)
+static void ctm_mult_by_limited(u64 *result, const u64 *input)
 {
 	int i;
 
-	for (i = 0; i < 9; i++)
-		result[i] = 0;
+	for (i = 0; i < 9; i++) {
+		u64 user_coeff = input[i];
+		u32 limited_coeff = CTM_COEFF_LIMITED_RANGE;
+		u32 abs_coeff = clamp_val(CTM_COEFF_ABS(user_coeff), 0,
+					  CTM_COEFF_4_0 - 1) >> 2;
 
-	for (i = 0; i < 3; i++) {
-		int64_t user_coeff = input[i * 3 + i];
-		uint64_t limited_coeff = CTM_COEFF_LIMITED_RANGE >> 2;
-		uint64_t abs_coeff = clamp_val(CTM_COEFF_ABS(user_coeff),
-					       0,
-					       CTM_COEFF_4_0 - 1) >> 2;
-
-		result[i * 3 + i] = (limited_coeff * abs_coeff) >> 27;
-		if (CTM_COEFF_NEGATIVE(user_coeff))
-			result[i * 3 + i] |= CTM_COEFF_SIGN;
+		/*
+		 * By scaling every co-efficient with limited range (16-235)
+		 * vs full range (0-255) the final o/p will be scaled down to
+		 * fit in the limited range supported by the panel.
+		 */
+		result[i] = mul_u32_u32(limited_coeff, abs_coeff) >> 30;
+		result[i] |= user_coeff & CTM_COEFF_SIGN;
 	}
 }
 
