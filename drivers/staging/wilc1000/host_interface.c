@@ -2123,34 +2123,34 @@ ERRORHANDLER:
 	kfree(wid.val);
 }
 
-static void Handle_DelAllSta(struct wilc_vif *vif,
-			     struct del_all_sta *pstrDelAllStaParam)
+static void handle_del_all_sta(struct wilc_vif *vif,
+			       struct del_all_sta *param)
 {
 	s32 result = 0;
 	struct wid wid;
-	u8 *pu8CurrByte;
+	u8 *curr_byte;
 	u8 i;
-	u8 au8Zero_Buff[6] = {0};
+	u8 zero_buff[6] = {0};
 
 	wid.id = (u16)WID_DEL_ALL_STA;
 	wid.type = WID_STR;
-	wid.size = (pstrDelAllStaParam->assoc_sta * ETH_ALEN) + 1;
+	wid.size = (param->assoc_sta * ETH_ALEN) + 1;
 
-	wid.val = kmalloc((pstrDelAllStaParam->assoc_sta * ETH_ALEN) + 1, GFP_KERNEL);
+	wid.val = kmalloc((param->assoc_sta * ETH_ALEN) + 1, GFP_KERNEL);
 	if (!wid.val)
 		goto ERRORHANDLER;
 
-	pu8CurrByte = wid.val;
+	curr_byte = wid.val;
 
-	*(pu8CurrByte++) = pstrDelAllStaParam->assoc_sta;
+	*(curr_byte++) = param->assoc_sta;
 
 	for (i = 0; i < MAX_NUM_STA; i++) {
-		if (memcmp(pstrDelAllStaParam->del_all_sta[i], au8Zero_Buff, ETH_ALEN))
-			memcpy(pu8CurrByte, pstrDelAllStaParam->del_all_sta[i], ETH_ALEN);
+		if (memcmp(param->del_all_sta[i], zero_buff, ETH_ALEN))
+			memcpy(curr_byte, param->del_all_sta[i], ETH_ALEN);
 		else
 			continue;
 
-		pu8CurrByte += ETH_ALEN;
+		curr_byte += ETH_ALEN;
 	}
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
@@ -2626,7 +2626,7 @@ static void host_if_work(struct work_struct *work)
 		break;
 
 	case HOST_IF_MSG_DEL_ALL_STA:
-		Handle_DelAllSta(msg->vif, &msg->body.del_all_sta_info);
+		handle_del_all_sta(msg->vif, &msg->body.del_all_sta_info);
 		break;
 
 	case HOST_IF_MSG_SET_TX_POWER:
