@@ -626,7 +626,7 @@ static void srcu_funnel_exp_start(struct srcu_struct *sp, struct srcu_node *snp,
 		spin_unlock_irqrestore_rcu_node(snp, flags);
 	}
 	spin_lock_irqsave_rcu_node(sp, flags);
-	if (!ULONG_CMP_LT(sp->srcu_gp_seq_needed_exp, s))
+	if (ULONG_CMP_LT(sp->srcu_gp_seq_needed_exp, s))
 		sp->srcu_gp_seq_needed_exp = s;
 	spin_unlock_irqrestore_rcu_node(sp, flags);
 }
