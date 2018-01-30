@@ -201,6 +201,7 @@ struct vop {
 	bool is_iommu_enabled;
 	bool is_iommu_needed;
 	bool is_enabled;
+	bool mode_update;
 
 	u32 version;
 
@@ -858,6 +859,20 @@ static int to_vop_csc_mode(int csc_mode)
 	default:
 		return CSC_BT709L;
 	}
+}
+
+static void vop_disable_all_planes(struct vop *vop)
+{
+	bool active;
+	int ret;
+
+	vop_disable_allwin(vop);
+	vop_cfg_done(vop);
+	ret = readx_poll_timeout_atomic(vop_is_allwin_disabled,
+					vop, active, active,
+					0, 500 * 1000);
+	if (ret)
+		dev_err(vop->dev, "wait win close timeout\n");
 }
 
 /*
@@ -2401,8 +2416,7 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	int sys_status = drm_crtc_index(crtc) ?
 				SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
 	uint32_t val;
-	bool active;
-	int ret, act_end;
+	int act_end;
 
 	rockchip_set_system_status(sys_status);
 	mutex_lock(&vop->vop_lock);
@@ -2523,7 +2537,8 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, win_csc_mode_sel, 1);
 
 	if (vop_crtc_mode_update(crtc)) {
-		vop_disable_allwin(vop);
+		vop_disable_all_planes(vop);
+		vop->mode_update = true;
 		DRM_DEV_INFO(vop->dev, "Update mode to %d*%d, close all win\n",
 			      hdisplay, vdisplay);
 	}
@@ -2538,20 +2553,7 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 
 	enable_irq(vop->irq);
 	drm_crtc_vblank_on(crtc);
-	drm_crtc_vblank_get(crtc);
 	mutex_unlock(&vop->vop_lock);
-	/* make sure timing config take effect */
-	ret = readx_poll_timeout_atomic(vop_fs_irq_is_active,
-					vop, active, !active,
-					0, 100 * 1000);
-	if (ret)
-		dev_err(vop->dev, "wait exit fs irq timeout\n");
-	ret = readx_poll_timeout_atomic(vop_fs_irq_is_active,
-					vop, active, active,
-					0, 100 * 1000);
-	if (ret)
-		dev_err(vop->dev, "wait get fs irq timeout\n");
-	drm_crtc_vblank_put(crtc);
 }
 
 static int vop_zpos_cmp(const void *a, const void *b)
@@ -3142,8 +3144,16 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	vop_cfg_update(crtc, old_crtc_state);
 
 	if (!vop->is_iommu_enabled && vop->is_iommu_needed) {
-		bool need_wait_vblank = !vop_is_allwin_disabled(vop);
+		bool need_wait_vblank;
 		int ret;
+
+		if (vop->mode_update)
+			vop_disable_all_planes(vop);
+
+		need_wait_vblank = !vop_is_allwin_disabled(vop);
+		if (vop->mode_update && need_wait_vblank)
+			dev_warn(vop->dev, "mode_update:%d, need wait blk:%d\n",
+				 vop->mode_update, need_wait_vblank);
 
 		if (need_wait_vblank) {
 			bool active;
@@ -3188,6 +3198,7 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	spin_lock_irqsave(&vop->irq_lock, flags);
 	vop->pre_overlay = s->hdr.pre_overlay;
 	vop_cfg_done(vop);
+	vop->mode_update = false;
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 
 	/*
