@@ -72,7 +72,7 @@ static s16 ath9k_hw_get_default_nf(struct ath_hw *ah,
 s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan,
 			   s16 nf)
 {
-	s8 noise = ath9k_hw_get_default_nf(ah, chan, 0);
+	s8 noise = ATH_DEFAULT_NOISE_FLOOR;
 
 	if (nf) {
 		s8 delta = nf - ATH9K_NF_CAL_NOISE_THRESH -
