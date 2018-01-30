@@ -230,10 +230,14 @@ static int fence_update(struct drm_i915_fence_reg *fence,
 	}
 
 	if (fence->vma) {
-		ret = i915_gem_active_retire(&fence->vma->last_fence,
-				      &fence->vma->obj->base.dev->struct_mutex);
+		struct i915_vma *old = fence->vma;
+
+		ret = i915_gem_active_retire(&old->last_fence,
+					     &old->obj->base.dev->struct_mutex);
 		if (ret)
 			return ret;
+
+		i915_vma_flush_writes(old);
 	}
 
 	if (fence->vma && fence->vma != vma) {
