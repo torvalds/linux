@@ -1132,7 +1132,7 @@ void intel_vgpu_destroy_workload(struct intel_vgpu_workload *workload)
 	struct intel_vgpu_submission *s = &workload->vgpu->submission;
 
 	if (workload->shadow_mm)
-		intel_gvt_mm_unreference(workload->shadow_mm);
+		intel_vgpu_mm_put(workload->shadow_mm);
 
 	kmem_cache_free(s->workloads, workload);
 }
@@ -1200,7 +1200,7 @@ static int prepare_mm(struct intel_vgpu_workload *workload)
 
 	mm = intel_vgpu_find_ppgtt_mm(workload->vgpu, pdps);
 	if (mm) {
-		intel_gvt_mm_reference(mm);
+		intel_vgpu_mm_get(mm);
 	} else {
 
 		mm = intel_vgpu_create_ppgtt_mm(workload->vgpu, root_entry_type,

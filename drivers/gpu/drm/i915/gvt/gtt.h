@@ -191,7 +191,23 @@ extern int intel_vgpu_mm_set_entry(
 
 struct intel_vgpu_mm *intel_vgpu_create_ppgtt_mm(struct intel_vgpu *vgpu,
 		intel_gvt_gtt_type_t root_entry_type, u64 pdps[]);
-extern void intel_vgpu_destroy_mm(struct kref *mm_ref);
+
+static inline void intel_vgpu_mm_get(struct intel_vgpu_mm *mm)
+{
+	kref_get(&mm->ref);
+}
+
+void _intel_vgpu_mm_release(struct kref *mm_ref);
+
+static inline void intel_vgpu_mm_put(struct intel_vgpu_mm *mm)
+{
+	kref_put(&mm->ref, _intel_vgpu_mm_release);
+}
+
+static inline void intel_vgpu_destroy_mm(struct intel_vgpu_mm *mm)
+{
+	intel_vgpu_mm_put(mm);
+}
 
 struct intel_vgpu_guest_page;
 
@@ -282,16 +298,6 @@ struct intel_vgpu_page_track *intel_vgpu_find_tracked_page(
 int intel_vgpu_sync_oos_pages(struct intel_vgpu *vgpu);
 
 int intel_vgpu_flush_post_shadow(struct intel_vgpu *vgpu);
-
-static inline void intel_gvt_mm_reference(struct intel_vgpu_mm *mm)
-{
-	kref_get(&mm->ref);
-}
-
-static inline void intel_gvt_mm_unreference(struct intel_vgpu_mm *mm)
-{
-	kref_put(&mm->ref, intel_vgpu_destroy_mm);
-}
 
 int intel_vgpu_pin_mm(struct intel_vgpu_mm *mm);
 

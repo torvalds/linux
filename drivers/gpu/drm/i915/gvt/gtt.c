@@ -1613,13 +1613,13 @@ static struct intel_vgpu_mm *intel_vgpu_create_ggtt_mm(struct intel_vgpu *vgpu)
 }
 
 /**
- * intel_vgpu_destroy_mm - destroy a mm object
+ * _intel_vgpu_mm_release - destroy a mm object
  * @mm_ref: a kref object
  *
  * This function is used to destroy a mm object for vGPU
  *
  */
-void intel_vgpu_destroy_mm(struct kref *mm_ref)
+void _intel_vgpu_mm_release(struct kref *mm_ref)
 {
 	struct intel_vgpu_mm *mm = container_of(mm_ref, typeof(*mm), ref);
 
@@ -2101,7 +2101,7 @@ static void intel_vgpu_destroy_all_ppgtt_mm(struct intel_vgpu *vgpu)
 
 	list_for_each_safe(pos, n, &vgpu->gtt.ppgtt_mm_list_head) {
 		mm = container_of(pos, struct intel_vgpu_mm, ppgtt_mm.list);
-		intel_vgpu_destroy_mm(&mm->ref);
+		intel_vgpu_destroy_mm(mm);
 	}
 
 	if (GEM_WARN_ON(!list_empty(&vgpu->gtt.ppgtt_mm_list_head)))
@@ -2115,7 +2115,7 @@ static void intel_vgpu_destroy_all_ppgtt_mm(struct intel_vgpu *vgpu)
 
 static void intel_vgpu_destroy_ggtt_mm(struct intel_vgpu *vgpu)
 {
-	intel_vgpu_destroy_mm(&vgpu->gtt.ggtt_mm->ref);
+	intel_vgpu_destroy_mm(vgpu->gtt.ggtt_mm);
 	vgpu->gtt.ggtt_mm = NULL;
 }
 
@@ -2240,7 +2240,7 @@ int intel_vgpu_g2v_create_ppgtt_mm(struct intel_vgpu *vgpu,
 
 	mm = intel_vgpu_find_ppgtt_mm(vgpu, pdps);
 	if (mm) {
-		intel_gvt_mm_reference(mm);
+		intel_vgpu_mm_get(mm);
 	} else {
 		mm = intel_vgpu_create_ppgtt_mm(vgpu, root_entry_type, pdps);
 		if (IS_ERR(mm)) {
@@ -2273,7 +2273,7 @@ int intel_vgpu_g2v_destroy_ppgtt_mm(struct intel_vgpu *vgpu,
 		gvt_vgpu_err("fail to find ppgtt instance.\n");
 		return -EINVAL;
 	}
-	intel_gvt_mm_unreference(mm);
+	intel_vgpu_mm_put(mm);
 	return 0;
 }
 
