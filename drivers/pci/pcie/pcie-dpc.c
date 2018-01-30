@@ -212,11 +212,12 @@ static void dpc_rp_pio_get_info(struct dpc_dev *dpc,
 			      &rp_pio->header_log.dw2);
 	pci_read_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_HEADER_LOG + 12,
 			      &rp_pio->header_log.dw3);
-	if (dpc->rp_log_size == 4)
-		return;
 
+	if (dpc->rp_log_size < 5)
+		return;
 	pci_read_config_dword(pdev, cap + PCI_EXP_DPC_RP_PIO_IMPSPEC_LOG,
 			      &rp_pio->impspec_log);
+
 	for (i = 0; i < dpc->rp_log_size - 5; i++)
 		pci_read_config_dword(pdev,
 			cap + PCI_EXP_DPC_RP_PIO_TLPPREFIX_LOG,
