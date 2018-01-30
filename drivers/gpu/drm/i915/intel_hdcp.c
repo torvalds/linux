@@ -379,7 +379,8 @@ int intel_hdcp_auth_downstream(struct intel_digital_port *intel_dig_port,
 		return -ENXIO;
 	}
 
-	DRM_INFO("HDCP is enabled (%d downstream devices)\n", num_downstream);
+	DRM_DEBUG_KMS("HDCP is enabled (%d downstream devices)\n",
+		      num_downstream);
 	return 0;
 }
 
@@ -500,7 +501,7 @@ static int intel_hdcp_auth(struct intel_digital_port *intel_dig_port,
 	if (repeater_present)
 		return intel_hdcp_auth_downstream(intel_dig_port, shim);
 
-	DRM_INFO("HDCP is enabled (no repeater present)\n");
+	DRM_DEBUG_KMS("HDCP is enabled (no repeater present)\n");
 	return 0;
 }
 
@@ -532,7 +533,7 @@ static int _intel_hdcp_disable(struct intel_connector *connector)
 		return ret;
 	}
 
-	DRM_INFO("HDCP is disabled\n");
+	DRM_DEBUG_KMS("HDCP is disabled\n");
 	return 0;
 }
 
@@ -735,7 +736,7 @@ int intel_hdcp_check_link(struct intel_connector *connector)
 		goto out;
 	}
 
-	DRM_INFO("HDCP link failed, retrying authentication\n");
+	DRM_DEBUG_KMS("HDCP link failed, retrying authentication\n");
 
 	ret = _intel_hdcp_disable(connector);
 	if (ret) {
