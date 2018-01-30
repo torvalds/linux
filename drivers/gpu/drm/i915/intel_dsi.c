@@ -1665,16 +1665,16 @@ static int intel_dsi_get_panel_orientation(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	int orientation = DRM_MODE_PANEL_ORIENTATION_NORMAL;
-	enum i9xx_plane_id plane;
+	enum i9xx_plane_id i9xx_plane;
 	u32 val;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		if (connector->encoder->crtc_mask == BIT(PIPE_B))
-			plane = PLANE_B;
+			i9xx_plane = PLANE_B;
 		else
-			plane = PLANE_A;
+			i9xx_plane = PLANE_A;
 
-		val = I915_READ(DSPCNTR(plane));
+		val = I915_READ(DSPCNTR(i9xx_plane));
 		if (val & DISPPLANE_ROTATE_180)
 			orientation = DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP;
 	}
