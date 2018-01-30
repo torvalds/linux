@@ -1136,8 +1136,8 @@ static int __ov965x_set_frame_interval(struct ov965x *ov965x,
 	if (fi->interval.denominator == 0)
 		return -EINVAL;
 
-	req_int = (u64)(fi->interval.numerator * 10000) /
-		fi->interval.denominator;
+	req_int = (u64)fi->interval.numerator * 10000;
+	do_div(req_int, fi->interval.denominator);
 
 	for (i = 0; i < ARRAY_SIZE(ov965x_intervals); i++) {
 		const struct ov965x_interval *iv = &ov965x_intervals[i];
