@@ -2421,26 +2421,23 @@ void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct drm_i915_private *dev_priv = gvt->dev_priv;
-	struct intel_gvt_gtt_pte_ops *ops = vgpu->gvt->gtt.pte_ops;
+	struct intel_gvt_gtt_pte_ops *pte_ops = vgpu->gvt->gtt.pte_ops;
+	struct intel_gvt_gtt_entry entry = {.type = GTT_TYPE_GGTT_PTE};
 	u32 index;
-	u32 offset;
 	u32 num_entries;
-	struct intel_gvt_gtt_entry e;
 
-	memset(&e, 0, sizeof(struct intel_gvt_gtt_entry));
-	e.type = GTT_TYPE_GGTT_PTE;
-	ops->set_pfn(&e, gvt->gtt.scratch_mfn);
-	e.val64 |= _PAGE_PRESENT;
+	pte_ops->set_pfn(&entry, gvt->gtt.scratch_mfn);
+	pte_ops->set_present(&entry);
 
 	index = vgpu_aperture_gmadr_base(vgpu) >> PAGE_SHIFT;
 	num_entries = vgpu_aperture_sz(vgpu) >> PAGE_SHIFT;
-	for (offset = 0; offset < num_entries; offset++)
-		ops->set_entry(NULL, &e, index + offset, false, 0, vgpu);
+	while (num_entries--)
+		ggtt_set_host_entry(vgpu->gtt.ggtt_mm, &entry, index++);
 
 	index = vgpu_hidden_gmadr_base(vgpu) >> PAGE_SHIFT;
 	num_entries = vgpu_hidden_sz(vgpu) >> PAGE_SHIFT;
-	for (offset = 0; offset < num_entries; offset++)
-		ops->set_entry(NULL, &e, index + offset, false, 0, vgpu);
+	while (num_entries--)
+		ggtt_set_host_entry(vgpu->gtt.ggtt_mm, &entry, index++);
 
 	gtt_invalidate(dev_priv);
 }
