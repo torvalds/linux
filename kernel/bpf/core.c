@@ -444,7 +444,7 @@ select_insn:
 		DST = tmp;
 		CONT;
 	ALU_MOD_X:
-		if (unlikely(SRC == 0))
+		if (unlikely((u32)SRC == 0))
 			return 0;
 		tmp = (u32) DST;
 		DST = do_div(tmp, (u32) SRC);
@@ -463,7 +463,7 @@ select_insn:
 		DST = div64_u64(DST, SRC);
 		CONT;
 	ALU_DIV_X:
-		if (unlikely(SRC == 0))
+		if (unlikely((u32)SRC == 0))
 			return 0;
 		tmp = (u32) DST;
 		do_div(tmp, (u32) SRC);
