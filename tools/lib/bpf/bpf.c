@@ -32,6 +32,10 @@
 #include <sys/socket.h>
 #include <errno.h>
 
+#ifndef SOL_NETLINK
+#define SOL_NETLINK 270
+#endif
+
 /*
  * When building perf, unistd.h is overridden. __NR_bpf is
  * required to be defined explicitly.
@@ -436,6 +440,7 @@ int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags)
 	struct nlmsghdr *nh;
 	struct nlmsgerr *err;
 	socklen_t addrlen;
+	int one = 1;
 
 	memset(&sa, 0, sizeof(sa));
 	sa.nl_family = AF_NETLINK;
@@ -443,6 +448,11 @@ int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags)
 	sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (sock < 0) {
 		return -errno;
+	}
+
+	if (setsockopt(sock, SOL_NETLINK, NETLINK_EXT_ACK,
+		       &one, sizeof(one)) < 0) {
+		fprintf(stderr, "Netlink error reporting not supported\n");
 	}
 
 	if (bind(sock, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
@@ -521,6 +531,7 @@ int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags)
 			if (!err->error)
 				continue;
 			ret = err->error;
+			nla_dump_errormsg(nh);
 			goto cleanup;
 		case NLMSG_DONE:
 			break;
