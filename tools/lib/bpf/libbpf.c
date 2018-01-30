@@ -106,6 +106,8 @@ static const char *libbpf_strerror_table[NR_ERRNO] = {
 	[ERRCODE_OFFSET(PROG2BIG)]	= "Program too big",
 	[ERRCODE_OFFSET(KVER)]		= "Incorrect kernel version",
 	[ERRCODE_OFFSET(PROGTYPE)]	= "Kernel doesn't support this program type",
+	[ERRCODE_OFFSET(WRNGPID)]	= "Wrong pid in netlink message",
+	[ERRCODE_OFFSET(INVSEQ)]	= "Invalid netlink sequence",
 };
 
 int libbpf_strerror(int err, char *buf, size_t size)
