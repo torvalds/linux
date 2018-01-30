@@ -122,7 +122,7 @@ static void dpc_work(struct work_struct *work)
 			      ctl | PCI_EXP_DPC_CTL_INT_EN);
 }
 
-static void dpc_rp_pio_get_info(struct dpc_dev *dpc)
+static void dpc_process_rp_pio_error(struct dpc_dev *dpc)
 {
 	struct device *dev = &dpc->dev->device;
 	struct pci_dev *pdev = dpc->dev->port;
@@ -177,12 +177,6 @@ static void dpc_rp_pio_get_info(struct dpc_dev *dpc)
 			cap + PCI_EXP_DPC_RP_PIO_TLPPREFIX_LOG, &prefix);
 		dev_err(dev, "TLP Prefix Header: dw%d, %#010x\n", i, prefix);
 	}
-}
-
-static void dpc_process_rp_pio_error(struct dpc_dev *dpc)
-{
-	dpc_rp_pio_get_info(dpc);
-
 }
 
 static irqreturn_t dpc_irq(int irq, void *context)
