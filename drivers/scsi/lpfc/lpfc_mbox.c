@@ -2170,10 +2170,8 @@ lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
 	/* Only FC supports upd bit */
 	if ((phba->sli4_hba.lnk_info.lnk_tp == LPFC_LNK_TYPE_FC) &&
 	    (vport->fc_flag & FC_VFI_REGISTERED) &&
-	    (!phba->fc_topology_changed)) {
-		bf_set(lpfc_reg_vfi_vp, reg_vfi, 0);
+	    (!phba->fc_topology_changed))
 		bf_set(lpfc_reg_vfi_upd, reg_vfi, 1);
-	}
 
 	bf_set(lpfc_reg_vfi_bbcr, reg_vfi, 0);
 	bf_set(lpfc_reg_vfi_bbscn, reg_vfi, 0);
