@@ -477,8 +477,8 @@ static struct dentry *ovl_lookup_real_inode(struct super_block *sb,
 		dput(upper);
 	}
 
-	if (!this)
-		return NULL;
+	if (IS_ERR_OR_NULL(this))
+		return this;
 
 	if (WARN_ON(ovl_dentry_real_at(this, layer->idx) != real)) {
 		dput(this);
