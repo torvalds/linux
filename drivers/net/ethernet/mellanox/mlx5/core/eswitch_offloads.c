@@ -88,10 +88,10 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_DECAP)
 		spec->match_criteria_enable |= MLX5_MATCH_INNER_HEADERS;
 
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
+	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		flow_act.modify_id = attr->mod_hdr_id;
 
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_ENCAP)
+	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_ENCAP)
 		flow_act.encap_id = attr->encap_id;
 
 	rule = mlx5_add_flow_rules((struct mlx5_flow_table *)esw->fdb_table.fdb,
