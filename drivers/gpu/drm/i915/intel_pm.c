@@ -8941,8 +8941,8 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val
 	return 0;
 }
 
-int sandybridge_pcode_write(struct drm_i915_private *dev_priv,
-			    u32 mbox, u32 val)
+int sandybridge_pcode_write_timeout(struct drm_i915_private *dev_priv,
+				    u32 mbox, u32 val, int timeout_us)
 {
 	int status;
 
@@ -8965,7 +8965,7 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv,
 
 	if (__intel_wait_for_register_fw(dev_priv,
 					 GEN6_PCODE_MAILBOX, GEN6_PCODE_READY, 0,
-					 500, 0, NULL)) {
+					 timeout_us, 0, NULL)) {
 		DRM_ERROR("timeout waiting for pcode write of 0x%08x to mbox %x to finish for %ps\n",
 			  val, mbox, __builtin_return_address(0));
 		return -ETIMEDOUT;
