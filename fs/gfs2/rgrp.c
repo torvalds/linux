@@ -1339,7 +1339,7 @@ start_new_extent:
 
 fail:
 	if (sdp->sd_args.ar_discard)
-		fs_warn(sdp, "error %d on discard request, turning discards off for this filesystem", rv);
+		fs_warn(sdp, "error %d on discard request, turning discards off for this filesystem\n", rv);
 	sdp->sd_args.ar_discard = 0;
 	return -EIO;
 }
