@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config GM7122_TV_ENCODER
 	bool "gm7122 tv encoder support"
 	depends on RK_TVENCODER

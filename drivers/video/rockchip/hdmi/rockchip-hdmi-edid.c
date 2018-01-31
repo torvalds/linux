@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include "rockchip-hdmi.h"
 #include "../../fbdev/edid.h"
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config RTL8192CU
 	tristate "Realtek 8192CU USB WiFi Support"
 	depends on USB

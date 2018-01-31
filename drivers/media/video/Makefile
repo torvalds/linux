@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_RK30_CAMERA_PINGPONG) += rk30_camera_pingpong.o generic_sensor.o \
 gc0307.o \
 gc0308.o \

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _HAL_H2CEXTRAINFO_H2C_C2H_NIC_H_
 #define _HAL_H2CEXTRAINFO_H2C_C2H_NIC_H_
 #define PHY_PARAMETER_INFO_GET_LENGTH(__pExtraInfo)    LE_BITS_TO_4BYTE(__pExtraInfo + 0X00, 0, 8)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #if (BT_SUPPORT == 1 && COEX_SUPPORT == 1)
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifdef CONFIG_ARM64
 #include "camsys_soc_priv.h"
 #include "camsys_soc_rk3366.h"

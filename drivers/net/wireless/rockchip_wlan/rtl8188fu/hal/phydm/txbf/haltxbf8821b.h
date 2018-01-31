@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __HAL_TXBF_8821B_H__
 #define __HAL_TXBF_8821B_H__
 #if (BEAMFORMING_SUPPORT == 1)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Copyright (C) 2014 ROCKCHIP, Inc.
  * arch/arm/boot/dts/lcd-lq070m1sx01-mipi.dtsi

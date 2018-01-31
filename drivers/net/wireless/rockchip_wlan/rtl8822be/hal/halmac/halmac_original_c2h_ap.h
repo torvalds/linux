@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _HAL_ORIGINALC2HFORMAT_H2C_C2H_AP_H_
 #define _HAL_ORIGINALC2HFORMAT_H2C_C2H_AP_H_
 #define CMD_ID_C2H  0X00

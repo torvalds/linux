@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __TS_AUTO_H
 #define __TS_AUTO_H
 #include <linux/miscdevice.h>

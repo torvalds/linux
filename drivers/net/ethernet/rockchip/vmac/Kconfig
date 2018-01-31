@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config RK_VMAC_ETH
 	bool "Rockchip 10/100 Ethernet driver"
 	depends on HAS_IOMEM && HAS_DMA

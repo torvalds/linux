@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _HALMAC_API_8197F_PCIE_H_
 #define _HALMAC_API_8197F_PCIE_H_
 

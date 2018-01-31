@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef __DWC_NOTIFIER_H__
 #define __DWC_NOTIFIER_H__

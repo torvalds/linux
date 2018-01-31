@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef IEP_REGS_H
 #define IEP_REGS_H
 #include "hw_iep_config_addr.h"

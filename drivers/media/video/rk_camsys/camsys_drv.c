@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <media/camsys_head.h>
 
 #include "camsys_cif.h"

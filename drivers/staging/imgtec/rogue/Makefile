@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 ccflags-y += -include $(srctree)/drivers/staging/imgtec/config_kernel.h \
  -I$(srctree)/drivers/staging/imgtec \
  -I$(srctree)/$(src) \

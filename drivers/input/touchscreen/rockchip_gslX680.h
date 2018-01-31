@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _GSLX680_H_
 #define _GSLX680_H_
 

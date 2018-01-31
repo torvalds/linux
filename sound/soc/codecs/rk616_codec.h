@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * rk616.h  --  RK616 CODEC ALSA SoC audio driver
  *

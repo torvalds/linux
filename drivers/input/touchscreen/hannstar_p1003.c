@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /****************************************************************************************
  * driver/input/touchscreen/hannstar_p1003.c
  *Copyright 	:ROCKCHIP  Inc

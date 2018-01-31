@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __RKCAMSYS_GPIO_H__
 #define __RKCAMSYS_GPIO_H__
 

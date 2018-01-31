@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #pragma once
 #ifndef __INC_HW_IMG_H
 #define __INC_HW_IMG_H

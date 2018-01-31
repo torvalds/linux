@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __RK3036_TVE_H__
 #define __RK3036_TVE_H__
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig TS_AUTO_I2C
 	bool "Support auto touch screen with I2C"
 	default n	

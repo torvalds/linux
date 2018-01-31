@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config RTL8822BE
 	tristate "Realtek 8822B PCIE WiFi"
 	depends on PCI

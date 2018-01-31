@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include "rockchip_hdmiv1.h"
 #include "rockchip_hdmiv1_hw.h"
 #include "../rockchip-hdmi-cec.h"

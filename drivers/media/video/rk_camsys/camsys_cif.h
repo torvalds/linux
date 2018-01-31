@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __CAMSYS_CIF_H__
 #define __CAMSYS_CIF_H__
 

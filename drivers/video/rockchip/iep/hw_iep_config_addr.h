@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef HW_IEP_CONFIG_ADDR_H_
 #define HW_IEP_CONFIG_ADDR_H_
 

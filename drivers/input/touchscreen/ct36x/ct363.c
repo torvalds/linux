@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #define CT363_POINT_NUM		10
 
 struct ct363_finger_data {

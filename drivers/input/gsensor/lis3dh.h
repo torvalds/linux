@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /****************************************************************************************
  * File:		driver/input/gsensor/lis3dh.h
  * Copyright:	Copyright (C) 2012-2013 RK Corporation.

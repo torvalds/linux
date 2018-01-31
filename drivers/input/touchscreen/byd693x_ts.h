@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 //a4, 52
 #define MAX_TOUCH_MAJOR		10		//Charles added
 #define MAX_WIDTH_MAJOR		15		//Charles added

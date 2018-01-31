@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include "halmac_8822b_cfg.h"
 
 HALMAC_RET_STATUS

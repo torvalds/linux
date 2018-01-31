@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifdef CONFIG_ARM64
 #include "usbdev_rk.h"
 #include "dwc_otg_regs.h"

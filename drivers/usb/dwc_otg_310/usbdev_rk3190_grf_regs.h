@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __USBDEV_RK3190_GRF_REGS_H__
 #define __USBDEV_RK3190_GRF_REGS_H__
 #include <mach/grf.h>

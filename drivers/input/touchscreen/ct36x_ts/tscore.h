@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef TSCORE_H
 #define TSCORE_H
 

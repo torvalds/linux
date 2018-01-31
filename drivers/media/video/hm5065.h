@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __HM5065_H__
 #define __HM5065_H__
 

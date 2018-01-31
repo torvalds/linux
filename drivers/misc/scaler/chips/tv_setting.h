@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/scaler-core.h>
 /****************rgb to vga**************/
 unsigned char tv1280_720to1280_720_reg[]=

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig RK_HDMI
        bool "Rockchip HDMI support"
        depends on FB_ROCKCHIP || DRM_ROCKCHIP

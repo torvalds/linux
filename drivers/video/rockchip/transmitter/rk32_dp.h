@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __RK32_DP_H
 #define __RK32_DP_H
 

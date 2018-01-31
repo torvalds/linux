@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig INV_SENSORS_COMPASS
 	bool "Compass Slave Sensors"
 	default y

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * rk3026.c  --  RK3026 CODEC ALSA SoC audio driver
  *

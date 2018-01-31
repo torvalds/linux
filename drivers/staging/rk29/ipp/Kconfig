@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "IPP"
 config RK29_IPP
 	tristate "ROCKCHIP RK29 IPP"

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config POWERVR_APOLLO
 	tristate "PowerVR Apollo test chip support"
 	depends on X86

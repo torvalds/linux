@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # bcmdhd
 # 1. WL_IFACE_COMB_NUM_CHANNELS must be added if Android version is 4.4 with Kernel version 3.0~3.4,
 #    otherwise please remove it.

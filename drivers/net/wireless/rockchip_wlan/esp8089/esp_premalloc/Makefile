@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # copyright (c) 2011 - 2012 espressif system
 # linux_sdio
 #ifneq ($(KERNELRELEASE),)

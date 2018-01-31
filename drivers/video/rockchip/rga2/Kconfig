@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "RGA2"
 	depends on ARCH_ROCKCHIP
 

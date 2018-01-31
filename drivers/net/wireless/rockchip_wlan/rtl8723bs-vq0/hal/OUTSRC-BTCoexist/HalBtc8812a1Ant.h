@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 //===========================================
 // The following is for 8812A_1ANT BT Co-exist definition
 //===========================================

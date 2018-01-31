@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _DT_BINDINGS_CLOCK_ROCKCHIP_RK3368_H
 #define _DT_BINDINGS_CLOCK_ROCKCHIP_RK3368_H
 

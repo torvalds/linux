@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /****************************************************************************************
  * driver/input/touchscreen/i2cpca955x.c
  *Copyright 	:ROCKCHIP  Inc

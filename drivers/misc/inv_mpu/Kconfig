@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config MPU_SENSORS_TIMERIRQ
 	tristate "MPU Timer IRQ"
 	help

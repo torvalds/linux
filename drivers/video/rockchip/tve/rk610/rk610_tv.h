@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _RK610_TV_H
 #define _RK610_TV_H
 #include <linux/display-sys.h>

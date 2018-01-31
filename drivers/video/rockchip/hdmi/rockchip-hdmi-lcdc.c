@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include "rockchip-hdmi.h"
 
 static const struct hdmi_video_timing hdmi_mode[] = {

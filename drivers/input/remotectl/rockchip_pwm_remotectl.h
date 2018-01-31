@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef __RKXX_PWM_REMOTECTL_H__
 #define __RKXX_PWM_REMOTECTL_H__

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <dt-bindings/gpio/gpio.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _CMMB_AV_MEMORY_H_
 #define _CMMB_AV_MEMORY_H_
 

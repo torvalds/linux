@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2010 ROCKCHIP, Inc.
  * Author: roger_chen <cz@rock-chips.com>

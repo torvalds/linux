@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config VIDEO_OV8858
 	tristate "ov8858 driver adapt to rockchip cif isp platform"
 	depends on VIDEO_V4L2 && VIDEO_RK_CIF_ISP10 && I2C

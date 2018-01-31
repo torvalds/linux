@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/delay.h>
 #include <sound/pcm_params.h>
 #include "rockchip-hdmi.h"

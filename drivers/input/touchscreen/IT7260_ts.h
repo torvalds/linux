@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #define MAX_BUFFER_SIZE		144
 #define MAX_FINGER_NUMBER	3
 #define MAX_PRESSURE		15

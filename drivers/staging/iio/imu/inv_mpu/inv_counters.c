@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * @file inv_counters.c
  * @brief Exports i2c read write counts through sysfs

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 battery_graph_prop rt5025_battery_param1[] =
 {
   {4190, 1000},

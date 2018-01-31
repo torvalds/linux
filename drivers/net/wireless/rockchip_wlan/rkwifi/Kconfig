@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config AP6XXX
 	tristate "ap6xxx wireless sdio cards support"
 	#depends on MMC && WLAN_80211

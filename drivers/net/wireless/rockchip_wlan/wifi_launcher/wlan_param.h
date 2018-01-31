@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef _WLAN_PARAM_H_
 #define _WLAN_PARAM_H_

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 #include "rk3128-box.dts"
 
 / {

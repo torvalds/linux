@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/fb.h>
 #include <linux/delay.h>
 #include <mach/gpio.h>

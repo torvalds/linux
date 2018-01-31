@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # gsensor drivers
 
 obj-$(CONFIG_CM3202) 	+= cm3202.o

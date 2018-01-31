@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef RK_HEADSET_H
 #define RK_HEADSET_H
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _HALMAC_88XX_CFG_H_
 #define _HALMAC_88XX_CFG_H_
 

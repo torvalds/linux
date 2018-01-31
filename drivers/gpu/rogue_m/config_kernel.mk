@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 override HOST_PRIMARY_ARCH := host_x86_64
 override HOST_32BIT_ARCH := host_i386
 override HOST_FORCE_32BIT := -m32

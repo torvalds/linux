@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config MALI400
 	tristate "Mali-300/400/450 support"
 	depends on ARM || ARM64

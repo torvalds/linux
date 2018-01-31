@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _IR_SERIAL_H_
 #define _IR_SERIAL_H_
 

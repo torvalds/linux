@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # copyright (c) 2011 - 2012 espressif system
 DRIVER_NAME := wlan
 include drivers/net/wireless/rockchip_wlan/esp8089/esp_driver/esp_config.mk

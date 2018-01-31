@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef REALTEK_POWER_SEQUENCE_8192E
 #define REALTEK_POWER_SEQUENCE_8192E
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config RK3036_TV_ENCODER
 	bool "rk3036/3128 tv encoder support"
 	depends on (LCDC_RK3036 || LCDC_RK312X) && RK_TVENCODER

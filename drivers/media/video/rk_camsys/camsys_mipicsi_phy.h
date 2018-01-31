@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __CAMSYS_MIPICSI_PHY_H__
 #define __CAMSYS_MIPICSI_PHY_H__
 

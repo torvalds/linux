@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include "rockchip_dp.h"
 #include <linux/delay.h>
 #include <linux/of_gpio.h>

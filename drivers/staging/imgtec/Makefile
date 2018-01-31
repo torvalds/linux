@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_POWERVR_ADF_FBDEV) += powervr_adf_fbdev.o
 powervr_adf_fbdev-y += adf_common.o adf_fbdev.o
 ccflags-y += \

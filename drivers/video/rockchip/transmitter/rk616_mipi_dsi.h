@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
 drivers/video/rockchip/transmitter/rk616_mipi_dsi.h
 */

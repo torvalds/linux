@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __GPIO_PWM_H__
 #define __GPIO_PWM_H__
 

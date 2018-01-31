@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig FB_ROCKCHIP
 	tristate "Frame buffer support for Rockchip "
 	depends on FB

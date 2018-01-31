@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_RK_NAND) += rk_ftl.o rk_nand_base.o rk_nand_blk.o
 ifdef CONFIG_THUMB2_KERNEL
 rk_ftl-$(CONFIG_THUMB2_KERNEL) += rk_ftl_arm_v7_thumb.o

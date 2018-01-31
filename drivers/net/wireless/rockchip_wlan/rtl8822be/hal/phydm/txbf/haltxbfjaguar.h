@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __HAL_TXBF_JAGUAR_H__
 #define __HAL_TXBF_JAGUAR_H__
 #if ((RTL8812A_SUPPORT == 1) || (RTL8821A_SUPPORT == 1))

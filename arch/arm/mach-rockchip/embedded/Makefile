@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Makefile for embedded code blobs for Rockchip SoCs
 #
 # These code blobs are emedded into vmlinux and copied into SRAM

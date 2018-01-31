@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __INC_HAL8723U_FW_IMG_H
 #define __INC_HAL8723U_FW_IMG_H
 

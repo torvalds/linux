@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _HALMAC_API_88XX_USB_H_
 #define _HALMAC_API_88XX_USB_H_
 

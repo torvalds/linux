@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include "rk1000_tve.h"

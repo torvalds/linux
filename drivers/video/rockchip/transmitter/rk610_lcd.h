@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _RK610_LCD_H
 #define _RK610_LCD_H
 #include <linux/mfd/rk610_core.h>

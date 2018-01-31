@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 choice
 	depends on FB_ROCKCHIP || DRM_ROCKCHIP
 	prompt  "LCD Panel Select"

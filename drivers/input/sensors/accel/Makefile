@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_GS_KXTIK) 		+= kxtik.o
 obj-$(CONFIG_GS_KXTJ9) 		+= kxtj9.o
 obj-$(CONFIG_GS_MMA8452) 	+= mma8452.o

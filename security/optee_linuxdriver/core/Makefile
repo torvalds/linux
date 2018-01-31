@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 CFG_TEE_CORE_CORE_TARGET := armv7
 
 #########################################################################

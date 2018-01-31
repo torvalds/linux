@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __DPCD_EDID_H
 #define __DPCD_EDID_H
 #include "../../fbdev/edid.h"

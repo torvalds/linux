@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _RK1000_TVE_H
 #define _RK1000_TVE_H
 #include <linux/fb.h>

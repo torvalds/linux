@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 #include "../../mach-rockchip/rk_camera_sensor_info.h"
 /{
 	rk3126_cif_sensor: rk3126_cif_sensor{

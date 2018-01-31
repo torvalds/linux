@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_HDMI_NOTIFIER_H
 #define LINUX_HDMI_NOTIFIER_H
 

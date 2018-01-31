@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __RK32_HDMI_H__
 #define __RK32_HDMI_H__
 #include <linux/gpio.h>

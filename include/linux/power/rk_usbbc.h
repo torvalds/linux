@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __RK_USBBC_H
 #define __RK_USBBC_H
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_RK_GMAC_ETH) += stmmac.o
 stmmac-$(CONFIG_RK_GMAC_ETH) += stmmac_platform.o
 stmmac-$(CONFIG_STMMAC_PCI) += stmmac_pci.o

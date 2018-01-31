@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __S5K6AA_H__
 #define __S5K6AA_H__
 

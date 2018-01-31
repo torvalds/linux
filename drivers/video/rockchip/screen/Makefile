@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_LCD_GENERAL)			+= lcd_general.o
 obj-$(CONFIG_LCD_MIPI)	+= lcd_mipi.o
 

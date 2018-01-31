@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /****************************************************************************************
  * driver/input/touchscreen/hannstar_nas.c
  *Copyright 	:ROCKCHIP  Inc

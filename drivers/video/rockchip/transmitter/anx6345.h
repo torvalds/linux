@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ANX6345_H_
 #define __ANX6345_H_
 

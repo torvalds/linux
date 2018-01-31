@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_RMI4_BUS) += rmi_bus.o
 obj-$(CONFIG_RMI4_I2C) += rmi_i2c.o
 obj-$(CONFIG_RMI4_SPI) += rmi_spi.o

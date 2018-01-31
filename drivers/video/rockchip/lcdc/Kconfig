@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config LCDC_RK2928
         tristate "rk2928 lcdc support"
         depends on (DRM_ROCKCHIP || FB_ROCKCHIP) && ARCH_RK2928

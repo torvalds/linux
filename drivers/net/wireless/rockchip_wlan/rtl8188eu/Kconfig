@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config RTL8188EU
 	tristate "Realtek 8188E USB WiFi"
 	depends on USB

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __HALMAC_COM_REG_H__
 #define __HALMAC_COM_REG_H__
 /*-------------------------Modification Log-----------------------------------

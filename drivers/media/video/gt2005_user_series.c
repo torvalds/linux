@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #if defined(CONFIG_MACH_RK30_PHONE_PAD)
 
 /* init 352X288 SVGA */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #if DEV_BUS_TYPE == RT_USB_INTERFACE
 

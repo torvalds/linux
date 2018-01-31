@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PLAT_RK_FIQ_DEBUGGER_H
 #define __PLAT_RK_FIQ_DEBUGGER_H
 

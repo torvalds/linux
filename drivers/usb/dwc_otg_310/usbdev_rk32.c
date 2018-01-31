@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifdef CONFIG_ARM
 #include "usbdev_rk.h"
 #include "usbdev_grf_regs.h"

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config  RK_HDMI_V2
         bool "RockChip HDMI V2 support"
         depends on RK_HDMI

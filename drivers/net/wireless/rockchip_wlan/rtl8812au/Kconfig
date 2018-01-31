@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config RTL8812AU
 	tristate "Realtek 8812AU USB WiFi Support"
 	depends on USB

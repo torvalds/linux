@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>

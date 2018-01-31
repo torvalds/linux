@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __RK616_VIF_H__
 #define __RK616_VIF_H__
 #include<linux/mfd/rk616.h>

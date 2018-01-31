@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_BP_AUTO)                           += mw100.o
 obj-$(CONFIG_BP_AUTO)                           += mi700.o
 obj-$(CONFIG_BP_AUTO)				+= mt6229.o

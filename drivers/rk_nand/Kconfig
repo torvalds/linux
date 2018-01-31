@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if ARCH_ROCKCHIP
 config RK_NAND
 	tristate "RK NAND Device Support"

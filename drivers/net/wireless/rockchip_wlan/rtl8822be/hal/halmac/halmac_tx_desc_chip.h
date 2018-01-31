@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _HALMAC_TX_DESC_CHIP_H_
 #define _HALMAC_TX_DESC_CHIP_H_
 #if (HALMAC_8814A_SUPPORT)

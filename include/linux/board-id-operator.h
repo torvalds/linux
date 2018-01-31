@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __BOARD_ID_OPERATOR_H
 #define __BOARD_ID_OPERATOR_H
 

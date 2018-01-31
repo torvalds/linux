@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # 64-bit Android AArch64 compiler
 TARGET_PRIMARY_ARCH := target_aarch64
 ifeq ($(MULTIARCH),1)

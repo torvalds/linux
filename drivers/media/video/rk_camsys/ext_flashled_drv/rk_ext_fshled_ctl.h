@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __RK_EXT_FSHLED_H__
 #define __RK_EXT_FSHLED_H__
 #include "../camsys_internal.h"

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * $Id: compat.h,v 1.44 2006/01/15 09:35:16 mchehab Exp $
  */

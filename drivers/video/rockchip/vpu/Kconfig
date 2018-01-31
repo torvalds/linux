@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "ROCKCHIP_MPP"
 	depends on ARCH_ROCKCHIP
 

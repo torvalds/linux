@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __RGA_ROP_H__
 #define __RGA_ROP_H__
 

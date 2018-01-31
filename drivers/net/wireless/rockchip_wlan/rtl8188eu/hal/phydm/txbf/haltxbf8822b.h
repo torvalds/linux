@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __HAL_TXBF_8822B_H__
 #define __HAL_TXBF_8822B_H__
 

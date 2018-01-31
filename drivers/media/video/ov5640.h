@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __OV5640_H__
 #define __OV5640_H__
 struct reginfo

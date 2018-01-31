@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #if defined(SUPPORT_ION)
 #include "ion_sys.h"
 #endif /* defined(SUPPORT_ION) */

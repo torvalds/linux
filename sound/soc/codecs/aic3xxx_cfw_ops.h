@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef AIC3XXX_CFW_OPS_H_
 #define AIC3XXX_CFW_OPS_H_
 

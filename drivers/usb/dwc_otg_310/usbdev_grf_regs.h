@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __USBDEV_GRF_REGS_H__
 #define __USBDEV_GRF_REGS_H__
 

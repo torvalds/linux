@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 MEMORY {
 	pmu_sram_code  : ORIGIN = 0xff720000, LENGTH = 0xf00
 	pmu_sram_stack : ORIGIN = 0xff720f00, LENGTH = 0x100

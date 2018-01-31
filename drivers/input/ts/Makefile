@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # auto touch screen drivers
 obj-$(CONFIG_TS_AUTO_I2C)		+= ts-i2c.o
 obj-$(CONFIG_TS_AUTO_SPI)		+= ts-spi.o

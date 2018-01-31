@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #include <linux/memory.h>
 #include "RGA2_API.h"

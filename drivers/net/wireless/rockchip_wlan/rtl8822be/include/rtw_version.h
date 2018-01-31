@@ -1,2 +1,3 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #define DRIVERVERSION	"v5.1.7a.Foxconn_21299.20170224"
 #define BTCOEXVERSION	"BTCOEX20161116-413c"

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __DT_BINDINGS_ROCKCHIP_PINCTRL_RK3036_H__
 #define __DT_BINDINGS_ROCKCHIP_PINCTRL_RK3036_H__
 

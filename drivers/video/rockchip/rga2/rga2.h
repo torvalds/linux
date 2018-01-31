@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _RGA_DRIVER_H_
 #define _RGA_DRIVER_H_
 

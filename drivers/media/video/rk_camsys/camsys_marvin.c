@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include "camsys_marvin.h"
 #include "camsys_soc_priv.h"
 #include "camsys_gpio.h"

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_FT5X0X_TS_H__
 #define __LINUX_FT5X0X_TS_H__
 

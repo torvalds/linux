@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 obj-$(CONFIG_TOUCHSCREEN_VTL_CT36X)	+= vtl_ts_ct36x.o
 #obj-y	+= vtl_ts_ct36x.o
