@@ -99,14 +99,6 @@ struct irq_alloc_info {
 			void		*dmar_data;
 		};
 #endif
-#ifdef	CONFIG_HT_IRQ
-		struct {
-			int		ht_pos;
-			int		ht_idx;
-			struct pci_dev	*ht_dev;
-			void		*ht_update;
-		};
-#endif
 #ifdef	CONFIG_X86_UV
 		struct {
 			int		uv_limit;

@@ -72,12 +72,12 @@ static const char *dma_mode_name(unsigned int mode)
 	}
 }
 
-static int tw686x_dma_mode_get(char *buffer, struct kernel_param *kp)
+static int tw686x_dma_mode_get(char *buffer, const struct kernel_param *kp)
 {
 	return sprintf(buffer, "%s", dma_mode_name(dma_mode));
 }
 
-static int tw686x_dma_mode_set(const char *val, struct kernel_param *kp)
+static int tw686x_dma_mode_set(const char *val, const struct kernel_param *kp)
 {
 	if (!strcasecmp(val, dma_mode_name(TW686X_DMA_MODE_MEMCPY)))
 		dma_mode = TW686X_DMA_MODE_MEMCPY;
@@ -126,9 +126,9 @@ void tw686x_enable_channel(struct tw686x_dev *dev, unsigned int channel)
  * channels "too fast" which makes some TW686x devices very
  * angry and freeze the CPU (see note 1).
  */
-static void tw686x_dma_delay(unsigned long data)
+static void tw686x_dma_delay(struct timer_list *t)
 {
-	struct tw686x_dev *dev = (struct tw686x_dev *)data;
+	struct tw686x_dev *dev = from_timer(dev, t, dma_delay_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->lock, flags);
@@ -325,8 +325,7 @@ static int tw686x_probe(struct pci_dev *pci_dev,
 		goto iounmap;
 	}
 
-	setup_timer(&dev->dma_delay_timer,
-		    tw686x_dma_delay, (unsigned long) dev);
+	timer_setup(&dev->dma_delay_timer, tw686x_dma_delay, 0);
 
 	/*
 	 * This must be set right before initializing v4l2_dev.

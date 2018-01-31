@@ -2159,9 +2159,9 @@ static void hns_nic_task_schedule(struct hns_nic_priv *priv)
 		(void)schedule_work(&priv->service_task);
 }
 
-static void hns_nic_service_timer(unsigned long data)
+static void hns_nic_service_timer(struct timer_list *t)
 {
-	struct hns_nic_priv *priv = (struct hns_nic_priv *)data;
+	struct hns_nic_priv *priv = from_timer(priv, t, service_timer);
 
 	(void)mod_timer(&priv->service_timer, jiffies + SERVICE_TIMER_HZ);
 
@@ -2451,8 +2451,7 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(ndev);
 
-	setup_timer(&priv->service_timer, hns_nic_service_timer,
-		    (unsigned long)priv);
+	timer_setup(&priv->service_timer, hns_nic_service_timer, 0);
 	INIT_WORK(&priv->service_task, hns_nic_service_task);
 
 	set_bit(NIC_STATE_SERVICE_INITED, &priv->state);

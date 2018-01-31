@@ -1391,6 +1391,12 @@ static int soc_camera_async_complete(struct v4l2_async_notifier *notifier)
 	return 0;
 }
 
+static const struct v4l2_async_notifier_operations soc_camera_async_ops = {
+	.bound = soc_camera_async_bound,
+	.unbind = soc_camera_async_unbind,
+	.complete = soc_camera_async_complete,
+};
+
 static int scan_async_group(struct soc_camera_host *ici,
 			    struct v4l2_async_subdev **asd, unsigned int size)
 {
@@ -1437,9 +1443,7 @@ static int scan_async_group(struct soc_camera_host *ici,
 
 	sasc->notifier.subdevs = asd;
 	sasc->notifier.num_subdevs = size;
-	sasc->notifier.bound = soc_camera_async_bound;
-	sasc->notifier.unbind = soc_camera_async_unbind;
-	sasc->notifier.complete = soc_camera_async_complete;
+	sasc->notifier.ops = &soc_camera_async_ops;
 
 	icd->sasc = sasc;
 	icd->parent = ici->v4l2_dev.dev;
@@ -1537,9 +1541,7 @@ static int soc_of_bind(struct soc_camera_host *ici,
 
 	sasc->notifier.subdevs = &info->subdev;
 	sasc->notifier.num_subdevs = 1;
-	sasc->notifier.bound = soc_camera_async_bound;
-	sasc->notifier.unbind = soc_camera_async_unbind;
-	sasc->notifier.complete = soc_camera_async_complete;
+	sasc->notifier.ops = &soc_camera_async_ops;
 
 	icd->sasc = sasc;
 	icd->parent = ici->v4l2_dev.dev;

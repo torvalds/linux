@@ -57,6 +57,7 @@ Required root node properties:
 	- "hardkernel,odroid-xu3-lite" - for Exynos5422-based Hardkernel
 					 Odroid XU3 Lite board.
 	- "hardkernel,odroid-xu4" - for Exynos5422-based Hardkernel Odroid XU4.
+	- "hardkernel,odroid-hc1" - for Exynos5422-based Hardkernel Odroid HC1.
 
   * Insignal
 	- "insignal,arndale"      - for Exynos5250-based Insignal Arndale board.

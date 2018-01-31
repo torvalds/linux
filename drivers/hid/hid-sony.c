@@ -2450,10 +2450,7 @@ static int sony_check_add(struct sony_sc *sc)
 		memcpy(sc->mac_address, &buf[1], sizeof(sc->mac_address));
 
 		snprintf(sc->hdev->uniq, sizeof(sc->hdev->uniq),
-			"%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
-			sc->mac_address[5], sc->mac_address[4],
-			sc->mac_address[3], sc->mac_address[2],
-			sc->mac_address[1], sc->mac_address[0]);
+			 "%pMR", sc->mac_address);
 	} else if ((sc->quirks & SIXAXIS_CONTROLLER_USB) ||
 			(sc->quirks & NAVIGATION_CONTROLLER_USB)) {
 		buf = kmalloc(SIXAXIS_REPORT_0xF2_SIZE, GFP_KERNEL);
@@ -2483,10 +2480,7 @@ static int sony_check_add(struct sony_sc *sc)
 			sc->mac_address[5-n] = buf[4+n];
 
 		snprintf(sc->hdev->uniq, sizeof(sc->hdev->uniq),
-			"%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
-			sc->mac_address[5], sc->mac_address[4],
-			sc->mac_address[3], sc->mac_address[2],
-			sc->mac_address[1], sc->mac_address[0]);
+			 "%pMR", sc->mac_address);
 	} else {
 		return 0;
 	}

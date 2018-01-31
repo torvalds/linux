@@ -165,9 +165,16 @@ static unsigned int network_rec_config_shadow = 0;
 
 static unsigned int network_tr_ctrl_shadow = 0;
 
+/* Timers */
+static void e100_check_speed(struct timer_list *unused);
+static void e100_clear_network_leds(struct timer_list *unused);
+static void e100_check_duplex(struct timer_list *unused);
+static DEFINE_TIMER(speed_timer, e100_check_speed);
+static DEFINE_TIMER(clear_led_timer, e100_clear_network_leds);
+static DEFINE_TIMER(duplex_timer, e100_check_duplex);
+static struct net_device *timer_dev;
+
 /* Network speed indication. */
-static DEFINE_TIMER(speed_timer, NULL);
-static DEFINE_TIMER(clear_led_timer, NULL);
 static int current_speed; /* Speed read from transceiver */
 static int current_speed_selection; /* Speed selected by user */
 static unsigned long led_next_time;
@@ -175,7 +182,6 @@ static int led_active;
 static int rx_queue_len;
 
 /* Duplex */
-static DEFINE_TIMER(duplex_timer, NULL);
 static int full_duplex;
 static enum duplex current_duplex;
 
@@ -200,9 +206,7 @@ static void update_rx_stats(struct net_device_stats *);
 static void update_tx_stats(struct net_device_stats *);
 static int e100_probe_transceiver(struct net_device* dev);
 
-static void e100_check_speed(unsigned long priv);
 static void e100_set_speed(struct net_device* dev, unsigned long speed);
-static void e100_check_duplex(unsigned long priv);
 static void e100_set_duplex(struct net_device* dev, enum duplex);
 static void e100_negotiate(struct net_device* dev);
 
@@ -214,7 +218,6 @@ static void e100_send_mdio_bit(unsigned char bit);
 static unsigned char e100_receive_mdio_bit(void);
 static void e100_reset_transceiver(struct net_device* net);
 
-static void e100_clear_network_leds(unsigned long dummy);
 static void e100_set_network_leds(int active);
 
 static const struct ethtool_ops e100_ethtool_ops;
@@ -381,17 +384,12 @@ etrax_ethernet_init(void)
 	current_speed = 10;
 	current_speed_selection = 0; /* Auto */
 	speed_timer.expires = jiffies + NET_LINK_UP_CHECK_INTERVAL;
-	speed_timer.data = (unsigned long)dev;
-	speed_timer.function = e100_check_speed;
-
-	clear_led_timer.function = e100_clear_network_leds;
-	clear_led_timer.data = (unsigned long)dev;
 
 	full_duplex = 0;
 	current_duplex = autoneg;
 	duplex_timer.expires = jiffies + NET_DUPLEX_CHECK_INTERVAL;
-        duplex_timer.data = (unsigned long)dev;
-	duplex_timer.function = e100_check_duplex;
+
+	timer_dev = dev;
 
         /* Initialize mii interface */
 	np->mii_if.phy_id_mask = 0x1f;
@@ -680,9 +678,9 @@ intel_check_speed(struct net_device* dev)
 }
 #endif
 static void
-e100_check_speed(unsigned long priv)
+e100_check_speed(struct timer_list *unused)
 {
-	struct net_device* dev = (struct net_device*)priv;
+	struct net_device* dev = timer_dev;
 	struct net_local *np = netdev_priv(dev);
 	static int led_initiated = 0;
 	unsigned long data;
@@ -799,9 +797,9 @@ e100_set_speed(struct net_device* dev, unsigned long speed)
 }
 
 static void
-e100_check_duplex(unsigned long priv)
+e100_check_duplex(struct timer_list *unused)
 {
-	struct net_device *dev = (struct net_device *)priv;
+	struct net_device *dev = timer_dev;
 	struct net_local *np = netdev_priv(dev);
 	int old_duplex;
 
@@ -1669,9 +1667,9 @@ e100_hardware_send_packet(struct net_local *np, char *buf, int length)
 }
 
 static void
-e100_clear_network_leds(unsigned long dummy)
+e100_clear_network_leds(struct timer_list *unused)
 {
-	struct net_device *dev = (struct net_device *)dummy;
+	struct net_device *dev = timer_dev;
 	struct net_local *np = netdev_priv(dev);
 
 	spin_lock(&np->led_lock);

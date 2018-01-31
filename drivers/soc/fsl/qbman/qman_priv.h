@@ -28,8 +28,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include "dpaa_sys.h"
 
 #include <soc/fsl/qman.h>
@@ -155,11 +153,9 @@ static inline void qman_cgrs_xor(struct qman_cgrs *dest,
 void qman_init_cgr_all(void);
 
 struct qm_portal_config {
-	/*
-	 * Corenet portal addresses;
-	 * [0]==cache-enabled, [1]==cache-inhibited.
-	 */
-	void __iomem *addr_virt[2];
+	/* Portal addresses */
+	void *addr_virt_ce;
+	void __iomem *addr_virt_ci;
 	struct device *dev;
 	struct iommu_domain *iommu_domain;
 	/* Allow these to be joined in lists */
@@ -187,6 +183,7 @@ struct qm_portal_config {
 #define QMAN_REV20 0x0200
 #define QMAN_REV30 0x0300
 #define QMAN_REV31 0x0301
+#define QMAN_REV32 0x0302
 extern u16 qman_ip_rev; /* 0 if uninitialised, otherwise QMAN_REVx */
 
 #define QM_FQID_RANGE_START 1 /* FQID 0 reserved for internal use */

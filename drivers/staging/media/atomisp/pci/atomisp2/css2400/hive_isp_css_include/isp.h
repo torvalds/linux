@@ -29,18 +29,17 @@
  *	- local:   system and cell specific constants and identifiers
  */
 
-#include "storage_class.h"
 
 #include "system_local.h"
 #include "isp_local.h"
 
 #ifndef __INLINE_ISP__
-#define STORAGE_CLASS_ISP_H STORAGE_CLASS_EXTERN
+#define STORAGE_CLASS_ISP_H extern
 #define STORAGE_CLASS_ISP_C 
 #include "isp_public.h"
 #else  /* __INLINE_iSP__ */
-#define STORAGE_CLASS_ISP_H STORAGE_CLASS_INLINE
-#define STORAGE_CLASS_ISP_C STORAGE_CLASS_INLINE
+#define STORAGE_CLASS_ISP_H static inline
+#define STORAGE_CLASS_ISP_C static inline
 #include "isp_private.h"
 #endif /* __INLINE_ISP__ */
 

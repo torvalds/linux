@@ -15,6 +15,8 @@ struct scsi_cmnd;
 struct scsi_lun;
 struct scsi_sense_hdr;
 
+typedef unsigned int __bitwise blist_flags_t;
+
 struct scsi_mode_data {
 	__u32	length;
 	__u16	block_descriptor_length;
@@ -141,7 +143,7 @@ struct scsi_device {
 	unsigned char current_tag;	/* current tag */
 	struct scsi_target      *sdev_target;   /* used only for single_lun */
 
-	unsigned int	sdev_bflags; /* black/white flags as also found in
+	blist_flags_t		sdev_bflags; /* black/white flags as also found in
 				 * scsi_devinfo.[hc]. For now used only to
 				 * pass settings from slave_alloc to scsi
 				 * core. */

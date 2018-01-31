@@ -674,6 +674,10 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	efx->rx_packet_len_offset =
 		ES_DZ_RX_PREFIX_PKTLEN_OFST - ES_DZ_RX_PREFIX_SIZE;
 
+	if (nic_data->datapath_caps &
+	    (1 << MC_CMD_GET_CAPABILITIES_OUT_RX_INCLUDE_FCS_LBN))
+		efx->net_dev->hw_features |= NETIF_F_RXFCS;
+
 	rc = efx_mcdi_port_get_number(efx);
 	if (rc < 0)
 		goto fail5;
@@ -3199,11 +3203,15 @@ static u16 efx_ef10_handle_rx_event_errors(struct efx_channel *channel,
 					   const efx_qword_t *event)
 {
 	struct efx_nic *efx = channel->efx;
+	bool handled = false;
 
 	if (EFX_QWORD_FIELD(*event, ESF_DZ_RX_ECRC_ERR)) {
-		if (!efx->loopback_selftest)
-			channel->n_rx_eth_crc_err += n_packets;
-		return EFX_RX_PKT_DISCARD;
+		if (!(efx->net_dev->features & NETIF_F_RXALL)) {
+			if (!efx->loopback_selftest)
+				channel->n_rx_eth_crc_err += n_packets;
+			return EFX_RX_PKT_DISCARD;
+		}
+		handled = true;
 	}
 	if (EFX_QWORD_FIELD(*event, ESF_DZ_RX_IPCKSUM_ERR)) {
 		if (unlikely(rx_encap_hdr != ESE_EZ_ENCAP_HDR_VXLAN &&
@@ -3274,7 +3282,7 @@ static u16 efx_ef10_handle_rx_event_errors(struct efx_channel *channel,
 		return 0;
 	}
 
-	WARN_ON(1); /* No error bits were recognised */
+	WARN_ON(!handled); /* No error bits were recognised */
 	return 0;
 }
 
@@ -5726,7 +5734,7 @@ static int efx_ef10_set_mac_address(struct efx_nic *efx)
 		 * MCFW do not support VFs.
 		 */
 		rc = efx_ef10_vport_set_mac_address(efx);
-	} else {
+	} else if (rc) {
 		efx_mcdi_display_error(efx, MC_CMD_VADAPTOR_SET_MAC,
 				       sizeof(inbuf), NULL, 0, rc);
 	}

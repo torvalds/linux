@@ -997,7 +997,7 @@ static void ipr_do_req(struct ipr_cmnd *ipr_cmd,
 	ipr_cmd->done = done;
 
 	ipr_cmd->timer.expires = jiffies + timeout;
-	ipr_cmd->timer.function = (TIMER_FUNC_TYPE)timeout_func;
+	ipr_cmd->timer.function = timeout_func;
 
 	add_timer(&ipr_cmd->timer);
 
@@ -8312,7 +8312,7 @@ static void ipr_reset_start_timer(struct ipr_cmnd *ipr_cmd,
 	ipr_cmd->done = ipr_reset_ioa_job;
 
 	ipr_cmd->timer.expires = jiffies + timeout;
-	ipr_cmd->timer.function = (TIMER_FUNC_TYPE)ipr_reset_timer_done;
+	ipr_cmd->timer.function = ipr_reset_timer_done;
 	add_timer(&ipr_cmd->timer);
 }
 
@@ -8397,7 +8397,7 @@ static int ipr_reset_next_stage(struct ipr_cmnd *ipr_cmd)
 	}
 
 	ipr_cmd->timer.expires = jiffies + stage_time * HZ;
-	ipr_cmd->timer.function = (TIMER_FUNC_TYPE)ipr_oper_timeout;
+	ipr_cmd->timer.function = ipr_oper_timeout;
 	ipr_cmd->done = ipr_reset_ioa_job;
 	add_timer(&ipr_cmd->timer);
 
@@ -8468,7 +8468,7 @@ static int ipr_reset_enable_ioa(struct ipr_cmnd *ipr_cmd)
 	}
 
 	ipr_cmd->timer.expires = jiffies + (ioa_cfg->transop_timeout * HZ);
-	ipr_cmd->timer.function = (TIMER_FUNC_TYPE)ipr_oper_timeout;
+	ipr_cmd->timer.function = ipr_oper_timeout;
 	ipr_cmd->done = ipr_reset_ioa_job;
 	add_timer(&ipr_cmd->timer);
 	list_add_tail(&ipr_cmd->queue, &ipr_cmd->hrrq->hrrq_pending_q);

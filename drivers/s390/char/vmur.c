@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Linux driver for System z and s390 unit record devices
  * (z/VM virtual punch, reader, printer)

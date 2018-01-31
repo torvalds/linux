@@ -473,10 +473,10 @@ struct sched_dl_entity {
 	 * conditions between the inactive timer handler and the wakeup
 	 * code.
 	 */
-	int				dl_throttled      : 1;
-	int				dl_boosted        : 1;
-	int				dl_yielded        : 1;
-	int				dl_non_contending : 1;
+	unsigned int			dl_throttled      : 1;
+	unsigned int			dl_boosted        : 1;
+	unsigned int			dl_yielded        : 1;
+	unsigned int			dl_non_contending : 1;
 
 	/*
 	 * Bandwidth enforcement timer. Each -deadline task has its
@@ -847,17 +847,6 @@ struct task_struct {
 	int				lockdep_depth;
 	unsigned int			lockdep_recursion;
 	struct held_lock		held_locks[MAX_LOCK_DEPTH];
-#endif
-
-#ifdef CONFIG_LOCKDEP_CROSSRELEASE
-#define MAX_XHLOCKS_NR 64UL
-	struct hist_lock *xhlocks; /* Crossrelease history locks */
-	unsigned int xhlock_idx;
-	/* For restoring at history boundaries */
-	unsigned int xhlock_idx_hist[XHLOCK_CTX_NR];
-	unsigned int hist_id;
-	/* For overwrite check at each context exit */
-	unsigned int hist_id_save[XHLOCK_CTX_NR];
 #endif
 
 #ifdef CONFIG_UBSAN
@@ -1503,7 +1492,11 @@ static inline void set_task_comm(struct task_struct *tsk, const char *from)
 	__set_task_comm(tsk, from, false);
 }
 
-extern char *get_task_comm(char *to, struct task_struct *tsk);
+extern char *__get_task_comm(char *to, size_t len, struct task_struct *tsk);
+#define get_task_comm(buf, tsk) ({			\
+	BUILD_BUG_ON(sizeof(buf) != TASK_COMM_LEN);	\
+	__get_task_comm(buf, sizeof(buf), tsk);		\
+})
 
 #ifdef CONFIG_SMP
 void scheduler_ipi(void);

@@ -257,7 +257,7 @@ struct jpu_fmt {
 };
 
 /**
- * jpu_q_data - parameters of one queue
+ * struct jpu_q_data - parameters of one queue
  * @fmtinfo: driver-specific format of this queue
  * @format: multiplanar format of this queue
  * @sequence: sequence number
@@ -269,7 +269,7 @@ struct jpu_q_data {
 };
 
 /**
- * jpu_ctx - the device context data
+ * struct jpu_ctx - the device context data
  * @jpu: JPEG IP device for this context
  * @encoder: compression (encode) operation or decompression (decode)
  * @compr_quality: destination image quality in compression (encode) mode

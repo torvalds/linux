@@ -149,8 +149,7 @@ static struct sctp_association *sctp_association_init(
 
 	/* Initializes the timers */
 	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i)
-		setup_timer(&asoc->timers[i], sctp_timer_events[i],
-				(unsigned long)asoc);
+		timer_setup(&asoc->timers[i], sctp_timer_events[i], 0);
 
 	/* Pull default initialization values from the sock options.
 	 * Note: This assumes that the values have already been

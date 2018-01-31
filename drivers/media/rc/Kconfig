@@ -2,7 +2,6 @@
 menuconfig RC_CORE
 	tristate "Remote Controller support"
 	depends on INPUT
-	default y
 	---help---
 	  Enable support for Remote Controllers on Linux. This is
 	  needed in order to support several video capture adapters,
@@ -179,6 +178,7 @@ config IR_ENE
 config IR_HIX5HD2
 	tristate "Hisilicon hix5hd2 IR remote control"
 	depends on RC_CORE
+	depends on OF || COMPILE_TEST
 	help
 	   Say Y here if you want to use hisilicon hix5hd2 remote control.
 	   To compile this driver as a module, choose M here: the module will be
@@ -286,6 +286,7 @@ config IR_REDRAT3
 config IR_SPI
 	tristate "SPI connected IR LED"
 	depends on SPI && LIRC
+	depends on OF || COMPILE_TEST
 	---help---
 	  Say Y if you want to use an IR LED connected through SPI bus.
 
@@ -393,6 +394,7 @@ config RC_LOOPBACK
 config IR_GPIO_CIR
 	tristate "GPIO IR remote control"
 	depends on RC_CORE
+	depends on (OF && GPIOLIB) || COMPILE_TEST
 	---help---
 	   Say Y if you want to use GPIO based IR Receiver.
 
@@ -403,6 +405,7 @@ config IR_GPIO_TX
 	tristate "GPIO IR Bit Banging Transmitter"
 	depends on RC_CORE
 	depends on LIRC
+	depends on (OF && GPIOLIB) || COMPILE_TEST
 	---help---
 	   Say Y if you want to a GPIO based IR transmitter. This is a
 	   bit banging driver.
@@ -415,6 +418,7 @@ config IR_PWM_TX
 	depends on RC_CORE
 	depends on LIRC
 	depends on PWM
+	depends on OF || COMPILE_TEST
 	---help---
 	   Say Y if you want to use a PWM based IR transmitter. This is
 	   more power efficient than the bit banging gpio driver.
@@ -468,6 +472,16 @@ config IR_SIR
 
 	   To compile this driver as a module, choose M here: the module will
 	   be called sir-ir.
+
+config IR_TANGO
+	tristate "Sigma Designs SMP86xx IR decoder"
+	depends on RC_CORE
+	depends on ARCH_TANGO || COMPILE_TEST
+	---help---
+	   Adds support for the HW IR decoder embedded on Sigma Designs
+	   Tango-based systems (SMP86xx, SMP87xx).
+	   The HW decoder supports NEC, RC-5, RC-6 IR protocols.
+	   When compiled as a module, look for tango-ir.
 
 config IR_ZX
 	tristate "ZTE ZX IR remote control"

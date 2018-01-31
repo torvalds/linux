@@ -109,6 +109,7 @@ int its_get_vlpi(int irq, struct its_vlpi_map *map);
 int its_unmap_vlpi(int irq);
 int its_prop_update_vlpi(int irq, u8 config, bool inv);
 
+struct irq_domain_ops;
 int its_init_v4(struct irq_domain *domain, const struct irq_domain_ops *ops);
 
 #endif

@@ -302,7 +302,6 @@ config BLK_DEV_SX8
 
 config BLK_DEV_RAM
 	tristate "RAM block device support"
-	select DAX if BLK_DEV_RAM_DAX
 	---help---
 	  Saying Y here will allow you to use a portion of your RAM memory as
 	  a block device, so that you can make file systems on it, read and
@@ -337,17 +336,6 @@ config BLK_DEV_RAM_SIZE
 	help
 	  The default value is 4096 kilobytes. Only change this if you know
 	  what you are doing.
-
-config BLK_DEV_RAM_DAX
-	bool "Support Direct Access (DAX) to RAM block devices"
-	depends on BLK_DEV_RAM && FS_DAX
-	default n
-	help
-	  Support filesystems using DAX to access RAM block devices.  This
-	  avoids double-buffering data in the page cache before copying it
-	  to the block device.  Answering Y will slightly enlarge the kernel,
-	  and will prevent RAM block device backing store memory from being
-	  allocated from highmem (only a problem for highmem systems).
 
 config CDROM_PKTCDVD
 	tristate "Packet writing on CD/DVD media (DEPRECATED)"

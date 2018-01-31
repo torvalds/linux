@@ -260,11 +260,10 @@ static int hexium_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_d
 
 	DEB_EE("\n");
 
-	hexium = kzalloc(sizeof(struct hexium), GFP_KERNEL);
-	if (NULL == hexium) {
-		pr_err("not enough kernel memory in hexium_attach()\n");
+	hexium = kzalloc(sizeof(*hexium), GFP_KERNEL);
+	if (!hexium)
 		return -ENOMEM;
-	}
+
 	dev->ext_priv = hexium;
 
 	/* enable i2c-port pins */

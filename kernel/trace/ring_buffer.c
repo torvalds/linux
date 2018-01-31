@@ -13,7 +13,6 @@
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
 #include <linux/kthread.h>	/* for self test */
-#include <linux/kmemcheck.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/mutex.h>
@@ -281,6 +280,8 @@ EXPORT_SYMBOL_GPL(ring_buffer_event_data);
 /* Missed count stored at end */
 #define RB_MISSED_STORED	(1 << 30)
 
+#define RB_MISSED_FLAGS		(RB_MISSED_EVENTS|RB_MISSED_STORED)
+
 struct buffer_data_page {
 	u64		 time_stamp;	/* page time stamp */
 	local_t		 commit;	/* write committed index */
@@ -332,7 +333,9 @@ static void rb_init_page(struct buffer_data_page *bpage)
  */
 size_t ring_buffer_page_len(void *page)
 {
-	return local_read(&((struct buffer_data_page *)page)->commit)
+	struct buffer_data_page *bpage = page;
+
+	return (local_read(&bpage->commit) & ~RB_MISSED_FLAGS)
 		+ BUF_PAGE_HDR_SIZE;
 }
 
@@ -1800,12 +1803,6 @@ void ring_buffer_change_overwrite(struct ring_buffer *buffer, int val)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_change_overwrite);
 
-static __always_inline void *
-__rb_data_page_index(struct buffer_data_page *bpage, unsigned index)
-{
-	return bpage->data + index;
-}
-
 static __always_inline void *__rb_page_index(struct buffer_page *bpage, unsigned index)
 {
 	return bpage->page->data + index;
@@ -2055,7 +2052,6 @@ rb_reset_tail(struct ring_buffer_per_cpu *cpu_buffer,
 	}
 
 	event = __rb_page_index(tail_page, tail);
-	kmemcheck_annotate_bitfield(event, bitfield);
 
 	/* account for padding bytes */
 	local_add(BUF_PAGE_SIZE - tail, &cpu_buffer->entries_bytes);
@@ -2538,61 +2534,29 @@ rb_wakeups(struct ring_buffer *buffer, struct ring_buffer_per_cpu *cpu_buffer)
  * The lock and unlock are done within a preempt disable section.
  * The current_context per_cpu variable can only be modified
  * by the current task between lock and unlock. But it can
- * be modified more than once via an interrupt. To pass this
- * information from the lock to the unlock without having to
- * access the 'in_interrupt()' functions again (which do show
- * a bit of overhead in something as critical as function tracing,
- * we use a bitmask trick.
+ * be modified more than once via an interrupt. There are four
+ * different contexts that we need to consider.
  *
- *  bit 0 =  NMI context
- *  bit 1 =  IRQ context
- *  bit 2 =  SoftIRQ context
- *  bit 3 =  normal context.
+ *  Normal context.
+ *  SoftIRQ context
+ *  IRQ context
+ *  NMI context
  *
- * This works because this is the order of contexts that can
- * preempt other contexts. A SoftIRQ never preempts an IRQ
- * context.
- *
- * When the context is determined, the corresponding bit is
- * checked and set (if it was set, then a recursion of that context
- * happened).
- *
- * On unlock, we need to clear this bit. To do so, just subtract
- * 1 from the current_context and AND it to itself.
- *
- * (binary)
- *  101 - 1 = 100
- *  101 & 100 = 100 (clearing bit zero)
- *
- *  1010 - 1 = 1001
- *  1010 & 1001 = 1000 (clearing bit 1)
- *
- * The least significant bit can be cleared this way, and it
- * just so happens that it is the same bit corresponding to
- * the current context.
+ * If for some reason the ring buffer starts to recurse, we
+ * only allow that to happen at most 4 times (one for each
+ * context). If it happens 5 times, then we consider this a
+ * recusive loop and do not let it go further.
  */
 
 static __always_inline int
 trace_recursive_lock(struct ring_buffer_per_cpu *cpu_buffer)
 {
-	unsigned int val = cpu_buffer->current_context;
-	int bit;
-
-	if (in_interrupt()) {
-		if (in_nmi())
-			bit = RB_CTX_NMI;
-		else if (in_irq())
-			bit = RB_CTX_IRQ;
-		else
-			bit = RB_CTX_SOFTIRQ;
-	} else
-		bit = RB_CTX_NORMAL;
-
-	if (unlikely(val & (1 << bit)))
+	if (cpu_buffer->current_context >= 4)
 		return 1;
 
-	val |= (1 << bit);
-	cpu_buffer->current_context = val;
+	cpu_buffer->current_context++;
+	/* Interrupts must see this update */
+	barrier();
 
 	return 0;
 }
@@ -2600,7 +2564,9 @@ trace_recursive_lock(struct ring_buffer_per_cpu *cpu_buffer)
 static __always_inline void
 trace_recursive_unlock(struct ring_buffer_per_cpu *cpu_buffer)
 {
-	cpu_buffer->current_context &= cpu_buffer->current_context - 1;
+	/* Don't let the dec leak out */
+	barrier();
+	cpu_buffer->current_context--;
 }
 
 /**
@@ -2686,7 +2652,6 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	/* We reserved something on the buffer */
 
 	event = __rb_page_index(tail_page, tail);
-	kmemcheck_annotate_bitfield(event, bitfield);
 	rb_update_event(cpu_buffer, event, info);
 
 	local_inc(&tail_page->entries);
@@ -4439,7 +4404,12 @@ void ring_buffer_free_read_page(struct ring_buffer *buffer, int cpu, void *data)
 {
 	struct ring_buffer_per_cpu *cpu_buffer = buffer->buffers[cpu];
 	struct buffer_data_page *bpage = data;
+	struct page *page = virt_to_page(bpage);
 	unsigned long flags;
+
+	/* If the page is still in use someplace else, we can't reuse it */
+	if (page_ref_count(page) > 1)
+		goto out;
 
 	local_irq_save(flags);
 	arch_spin_lock(&cpu_buffer->lock);
@@ -4452,6 +4422,7 @@ void ring_buffer_free_read_page(struct ring_buffer *buffer, int cpu, void *data)
 	arch_spin_unlock(&cpu_buffer->lock);
 	local_irq_restore(flags);
 
+ out:
 	free_page((unsigned long)bpage);
 }
 EXPORT_SYMBOL_GPL(ring_buffer_free_read_page);

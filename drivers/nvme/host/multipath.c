@@ -131,7 +131,7 @@ static blk_qc_t nvme_ns_head_make_request(struct request_queue *q,
 		bio->bi_opf |= REQ_NVME_MPATH;
 		ret = direct_make_request(bio);
 	} else if (!list_empty_careful(&head->list)) {
-		dev_warn_ratelimited(dev, "no path available - requeing I/O\n");
+		dev_warn_ratelimited(dev, "no path available - requeuing I/O\n");
 
 		spin_lock_irq(&head->requeue_lock);
 		bio_list_add(&head->requeue_list, bio);

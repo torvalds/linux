@@ -81,7 +81,7 @@ struct tctl_offset {
 };
 
 static const struct tctl_offset tctl_offset_table[] = {
-	{ 0x17, "AMD Ryzen 7 1600X", 20000 },
+	{ 0x17, "AMD Ryzen 5 1600X", 20000 },
 	{ 0x17, "AMD Ryzen 7 1700X", 20000 },
 	{ 0x17, "AMD Ryzen 7 1800X", 20000 },
 	{ 0x17, "AMD Ryzen Threadripper 1950X", 27000 },

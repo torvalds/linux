@@ -354,9 +354,9 @@ static SUNXI_CCU_GATE(bus_tdm_clk,	"bus-tdm",	"apb1",
 static SUNXI_CCU_GATE(bus_i2c0_clk,	"bus-i2c0",	"apb2",
 		      0x06c, BIT(0), 0);
 static SUNXI_CCU_GATE(bus_i2c1_clk,	"bus-i2c1",	"apb2",
-		      0x06c, BIT(0), 0);
+		      0x06c, BIT(1), 0);
 static SUNXI_CCU_GATE(bus_i2c2_clk,	"bus-i2c2",	"apb2",
-		      0x06c, BIT(0), 0);
+		      0x06c, BIT(2), 0);
 static SUNXI_CCU_GATE(bus_uart0_clk,	"bus-uart0",	"apb2",
 		      0x06c, BIT(16), 0);
 static SUNXI_CCU_GATE(bus_uart1_clk,	"bus-uart1",	"apb2",
@@ -506,7 +506,7 @@ static SUNXI_CCU_M_WITH_MUX_TABLE_GATE(csi_mclk_clk, "csi-mclk",
 				       csi_mclk_parents, csi_mclk_table,
 				       0x134,
 				       0, 5,	/* M */
-				       10, 3,	/* mux */
+				       8, 3,	/* mux */
 				       BIT(15),	/* gate */
 				       0);
 

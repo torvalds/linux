@@ -42,60 +42,12 @@ static struct ep93xxfb_mach_info __initdata simone_fb_info = {
 	.flags		= EP93XXFB_USE_SDCSN0 | EP93XXFB_PCLK_FALLING,
 };
 
-/*
- * GPIO lines used for MMC card detection.
- */
-#define MMC_CARD_DETECT_GPIO EP93XX_GPIO_LINE_EGPIO0
-
-/*
- * MMC card detection GPIO setup.
- */
-
-static int simone_mmc_spi_init(struct device *dev,
-	irqreturn_t (*irq_handler)(int, void *), void *mmc)
-{
-	unsigned int gpio = MMC_CARD_DETECT_GPIO;
-	int irq, err;
-
-	err = gpio_request(gpio, dev_name(dev));
-	if (err)
-		return err;
-
-	err = gpio_direction_input(gpio);
-	if (err)
-		goto fail;
-
-	irq = gpio_to_irq(gpio);
-	if (irq < 0)
-		goto fail;
-
-	err = request_irq(irq, irq_handler, IRQF_TRIGGER_FALLING,
-			  "MMC card detect", mmc);
-	if (err)
-		goto fail;
-
-	printk(KERN_INFO "%s: using irq %d for MMC card detection\n",
-	       dev_name(dev), irq);
-
-	return 0;
-fail:
-	gpio_free(gpio);
-	return err;
-}
-
-static void simone_mmc_spi_exit(struct device *dev, void *mmc)
-{
-	unsigned int gpio = MMC_CARD_DETECT_GPIO;
-
-	free_irq(gpio_to_irq(gpio), mmc);
-	gpio_free(gpio);
-}
-
 static struct mmc_spi_platform_data simone_mmc_spi_data = {
-	.init		= simone_mmc_spi_init,
-	.exit		= simone_mmc_spi_exit,
 	.detect_delay	= 500,
 	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.flags		= MMC_SPI_USE_CD_GPIO,
+	.cd_gpio	= EP93XX_GPIO_LINE_EGPIO0,
+	.cd_debounce	= 1,
 };
 
 static struct spi_board_info simone_spi_devices[] __initdata = {

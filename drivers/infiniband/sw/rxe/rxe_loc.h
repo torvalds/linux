@@ -218,8 +218,8 @@ static inline void rxe_advance_resp_resource(struct rxe_qp *qp)
 		qp->resp.res_head = 0;
 }
 
-void retransmit_timer(unsigned long data);
-void rnr_nak_timer(unsigned long data);
+void retransmit_timer(struct timer_list *t);
+void rnr_nak_timer(struct timer_list *t);
 
 /* rxe_srq.c */
 #define IB_SRQ_INIT_MASK (~IB_SRQ_LIMIT)

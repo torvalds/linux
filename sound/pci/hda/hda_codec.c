@@ -1823,7 +1823,9 @@ struct slave_init_arg {
 };
 
 /* initialize the slave volume with 0dB via snd_ctl_apply_vmaster_slaves() */
-static int init_slave_0dB(struct snd_kcontrol *kctl, void *_arg)
+static int init_slave_0dB(struct snd_kcontrol *slave,
+			  struct snd_kcontrol *kctl,
+			  void *_arg)
 {
 	struct slave_init_arg *arg = _arg;
 	int _tlv[4];
@@ -1860,7 +1862,7 @@ static int init_slave_0dB(struct snd_kcontrol *kctl, void *_arg)
 	arg->step = step;
 	val = -tlv[2] / step;
 	if (val > 0) {
-		put_kctl_with_value(kctl, val);
+		put_kctl_with_value(slave, val);
 		return val;
 	}
 
@@ -1868,7 +1870,9 @@ static int init_slave_0dB(struct snd_kcontrol *kctl, void *_arg)
 }
 
 /* unmute the slave via snd_ctl_apply_vmaster_slaves() */
-static int init_slave_unmute(struct snd_kcontrol *slave, void *_arg)
+static int init_slave_unmute(struct snd_kcontrol *slave,
+			     struct snd_kcontrol *kctl,
+			     void *_arg)
 {
 	return put_kctl_with_value(slave, 1);
 }

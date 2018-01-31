@@ -92,4 +92,9 @@ static inline void clear_task_ebb(struct task_struct *t)
 #endif
 }
 
+extern int set_thread_uses_vas(void);
+
+extern int set_thread_tidr(struct task_struct *t);
+extern void clear_thread_tidr(struct task_struct *t);
+
 #endif /* _ASM_POWERPC_SWITCH_TO_H */

@@ -50,6 +50,7 @@ enum led_enable {
 /**
  * struct lm3560_flash
  *
+ * @dev: pointer to &struct device
  * @pdata: platform data
  * @regmap: reg. map for i2c
  * @lock: muxtex for serial access.

@@ -4266,33 +4266,33 @@ sh_css_params_write_to_ddr_internal(
 		size_t *virt_size_tetra_y[
 			IA_CSS_MORPH_TABLE_NUM_PLANES];
 
-			virt_addr_tetra_x[0] = &ddr_map->tetra_r_x;
-			virt_addr_tetra_x[1] = &ddr_map->tetra_gr_x;
-			virt_addr_tetra_x[2] = &ddr_map->tetra_gb_x;
-			virt_addr_tetra_x[3] = &ddr_map->tetra_b_x;
-			virt_addr_tetra_x[4] = &ddr_map->tetra_ratb_x;
-			virt_addr_tetra_x[5] = &ddr_map->tetra_batr_x;
+		virt_addr_tetra_x[0] = &ddr_map->tetra_r_x;
+		virt_addr_tetra_x[1] = &ddr_map->tetra_gr_x;
+		virt_addr_tetra_x[2] = &ddr_map->tetra_gb_x;
+		virt_addr_tetra_x[3] = &ddr_map->tetra_b_x;
+		virt_addr_tetra_x[4] = &ddr_map->tetra_ratb_x;
+		virt_addr_tetra_x[5] = &ddr_map->tetra_batr_x;
 
-			virt_size_tetra_x[0] = &ddr_map_size->tetra_r_x;
-			virt_size_tetra_x[1] = &ddr_map_size->tetra_gr_x;
-			virt_size_tetra_x[2] = &ddr_map_size->tetra_gb_x;
-			virt_size_tetra_x[3] = &ddr_map_size->tetra_b_x;
-			virt_size_tetra_x[4] = &ddr_map_size->tetra_ratb_x;
-			virt_size_tetra_x[5] = &ddr_map_size->tetra_batr_x;
+		virt_size_tetra_x[0] = &ddr_map_size->tetra_r_x;
+		virt_size_tetra_x[1] = &ddr_map_size->tetra_gr_x;
+		virt_size_tetra_x[2] = &ddr_map_size->tetra_gb_x;
+		virt_size_tetra_x[3] = &ddr_map_size->tetra_b_x;
+		virt_size_tetra_x[4] = &ddr_map_size->tetra_ratb_x;
+		virt_size_tetra_x[5] = &ddr_map_size->tetra_batr_x;
 
-			virt_addr_tetra_y[0] = &ddr_map->tetra_r_y;
-			virt_addr_tetra_y[1] = &ddr_map->tetra_gr_y;
-			virt_addr_tetra_y[2] = &ddr_map->tetra_gb_y;
-			virt_addr_tetra_y[3] = &ddr_map->tetra_b_y;
-			virt_addr_tetra_y[4] = &ddr_map->tetra_ratb_y;
-			virt_addr_tetra_y[5] = &ddr_map->tetra_batr_y;
+		virt_addr_tetra_y[0] = &ddr_map->tetra_r_y;
+		virt_addr_tetra_y[1] = &ddr_map->tetra_gr_y;
+		virt_addr_tetra_y[2] = &ddr_map->tetra_gb_y;
+		virt_addr_tetra_y[3] = &ddr_map->tetra_b_y;
+		virt_addr_tetra_y[4] = &ddr_map->tetra_ratb_y;
+		virt_addr_tetra_y[5] = &ddr_map->tetra_batr_y;
 
-			virt_size_tetra_y[0] = &ddr_map_size->tetra_r_y;
-			virt_size_tetra_y[1] = &ddr_map_size->tetra_gr_y;
-			virt_size_tetra_y[2] = &ddr_map_size->tetra_gb_y;
-			virt_size_tetra_y[3] = &ddr_map_size->tetra_b_y;
-			virt_size_tetra_y[4] = &ddr_map_size->tetra_ratb_y;
-			virt_size_tetra_y[5] = &ddr_map_size->tetra_batr_y;
+		virt_size_tetra_y[0] = &ddr_map_size->tetra_r_y;
+		virt_size_tetra_y[1] = &ddr_map_size->tetra_gr_y;
+		virt_size_tetra_y[2] = &ddr_map_size->tetra_gb_y;
+		virt_size_tetra_y[3] = &ddr_map_size->tetra_b_y;
+		virt_size_tetra_y[4] = &ddr_map_size->tetra_ratb_y;
+		virt_size_tetra_y[5] = &ddr_map_size->tetra_batr_y;
 
 		buff_realloced = false;
 		for (i = 0; i < IA_CSS_MORPH_TABLE_NUM_PLANES; i++) {

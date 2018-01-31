@@ -166,14 +166,14 @@
 			};
 		};
 
-		usb0: gadget@00500000 {
+		usb0: gadget@500000 {
 			atmel,vbus-gpio = <&pioD 29 GPIO_ACTIVE_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usba_vbus>;
 			status = "okay";
 		};
 
-		usb1: ohci@00600000 {
+		usb1: ohci@600000 {
 			num-ports = <3>;
 			atmel,vbus-gpio = <&pioD 25 GPIO_ACTIVE_HIGH
 					   &pioD 26 GPIO_ACTIVE_LOW
@@ -182,7 +182,7 @@
 			status = "okay";
 		};
 
-		usb2: ehci@00700000 {
+		usb2: ehci@700000 {
 			status = "okay";
 		};
 	};

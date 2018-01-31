@@ -927,6 +927,10 @@ static u16 efx_farch_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 	}
 #endif
 
+	if (efx->net_dev->features & NETIF_F_RXALL)
+		/* don't discard frame for CRC error */
+		rx_ev_eth_crc_err = false;
+
 	/* The frame must be discarded if any of these are true. */
 	return (rx_ev_eth_crc_err | rx_ev_frm_trunc |
 		rx_ev_tobe_disc | rx_ev_pause_frm) ?

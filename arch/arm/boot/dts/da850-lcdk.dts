@@ -26,6 +26,19 @@
 		reg = <0xc0000000 0x08000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		dsp_memory_region: dsp-memory@c3000000 {
+			compatible = "shared-dma-pool";
+			reg = <0xc3000000 0x1000000>;
+			reusable;
+			status = "okay";
+		};
+	};
+
 	sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "DA850/OMAP-L138 LCDK";
@@ -317,5 +330,10 @@
 &vpif {
 	pinctrl-names = "default";
 	pinctrl-0 = <&vpif_capture_pins>;
+	status = "okay";
+};
+
+&dsp {
+	memory-region = <&dsp_memory_region>;
 	status = "okay";
 };

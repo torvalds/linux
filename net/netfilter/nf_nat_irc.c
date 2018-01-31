@@ -106,7 +106,7 @@ static int __init nf_nat_irc_init(void)
 }
 
 /* Prior to 2.6.11, we had a ports param.  No longer, but don't break users. */
-static int warn_set(const char *val, struct kernel_param *kp)
+static int warn_set(const char *val, const struct kernel_param *kp)
 {
 	printk(KERN_INFO KBUILD_MODNAME
 	       ": kernel >= 2.6.10 only uses 'ports' for conntrack modules\n");

@@ -43,12 +43,14 @@
 	hsusb1_phy: hsusb1_phy {
 		compatible = "usb-nop-xceiv";
 		vcc-supply = <&hsusb1_power>;
+		#phy-cells = <0>;
 	};
 
 	/* HS USB Host PHY on PORT 2 */
 	hsusb2_phy: hsusb2_phy {
 		compatible = "usb-nop-xceiv";
 		vcc-supply = <&hsusb2_power>;
+		#phy-cells = <0>;
 	};
 
 	ads7846reg: ads7846-reg {

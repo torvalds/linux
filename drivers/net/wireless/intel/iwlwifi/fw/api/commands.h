@@ -504,6 +504,7 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @MARKER_CMD: trace marker command, uses &struct iwl_mvm_marker
+	 * with &struct iwl_mvm_marker_rsp
 	 */
 	MARKER_CMD = 0xcb,
 

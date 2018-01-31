@@ -44,9 +44,9 @@ FDINITRD=$6
 
 # Make sure the files actually exist
 verify "$FBZIMAGE"
-verify "$MTOOLSRC"
 
 genbzdisk() {
+	verify "$MTOOLSRC"
 	mformat a:
 	syslinux $FIMAGE
 	echo "$KCMDLINE" | mcopy - a:syslinux.cfg
@@ -57,6 +57,7 @@ genbzdisk() {
 }
 
 genfdimage144() {
+	verify "$MTOOLSRC"
 	dd if=/dev/zero of=$FIMAGE bs=1024 count=1440 2> /dev/null
 	mformat v:
 	syslinux $FIMAGE
@@ -68,6 +69,7 @@ genfdimage144() {
 }
 
 genfdimage288() {
+	verify "$MTOOLSRC"
 	dd if=/dev/zero of=$FIMAGE bs=1024 count=2880 2> /dev/null
 	mformat w:
 	syslinux $FIMAGE

@@ -36,7 +36,7 @@
 #define MACHINE_FLAG_SCC	_BITUL(17)
 
 #define LPP_MAGIC		_BITUL(31)
-#define LPP_PFAULT_PID_MASK	_AC(0xffffffff, UL)
+#define LPP_PID_MASK		_AC(0xffffffff, UL)
 
 #ifndef __ASSEMBLY__
 

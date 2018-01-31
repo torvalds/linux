@@ -86,7 +86,7 @@ static inline unsigned int aa_dfa_null_transition(struct aa_dfa *dfa,
 
 static inline bool path_mediated_fs(struct dentry *dentry)
 {
-	return !(dentry->d_sb->s_flags & MS_NOUSER);
+	return !(dentry->d_sb->s_flags & SB_NOUSER);
 }
 
 

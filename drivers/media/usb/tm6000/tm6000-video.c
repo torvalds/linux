@@ -342,10 +342,10 @@ static inline void print_err_status(struct tm6000_core *dev,
 
 	switch (status) {
 	case -ENOENT:
-		errmsg = "unlinked synchronuously";
+		errmsg = "unlinked synchronously";
 		break;
 	case -ECONNRESET:
-		errmsg = "unlinked asynchronuously";
+		errmsg = "unlinked asynchronously";
 		break;
 	case -ENOSR:
 		errmsg = "Buffer error (overrun)";
@@ -470,20 +470,16 @@ static int tm6000_alloc_urb_buffers(struct tm6000_core *dev)
 	int num_bufs = TM6000_NUM_URB_BUF;
 	int i;
 
-	if (dev->urb_buffer != NULL)
+	if (dev->urb_buffer)
 		return 0;
 
 	dev->urb_buffer = kmalloc(sizeof(void *)*num_bufs, GFP_KERNEL);
-	if (!dev->urb_buffer) {
-		tm6000_err("cannot allocate memory for urb buffers\n");
+	if (!dev->urb_buffer)
 		return -ENOMEM;
-	}
 
 	dev->urb_dma = kmalloc(sizeof(dma_addr_t *)*num_bufs, GFP_KERNEL);
-	if (!dev->urb_dma) {
-		tm6000_err("cannot allocate memory for urb dma pointers\n");
+	if (!dev->urb_dma)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < num_bufs; i++) {
 		dev->urb_buffer[i] = usb_alloc_coherent(
@@ -507,7 +503,7 @@ static int tm6000_free_urb_buffers(struct tm6000_core *dev)
 {
 	int i;
 
-	if (dev->urb_buffer == NULL)
+	if (!dev->urb_buffer)
 		return 0;
 
 	for (i = 0; i < TM6000_NUM_URB_BUF; i++) {
@@ -598,15 +594,12 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev)
 	dev->isoc_ctl.num_bufs = num_bufs;
 
 	dev->isoc_ctl.urb = kmalloc(sizeof(void *)*num_bufs, GFP_KERNEL);
-	if (!dev->isoc_ctl.urb) {
-		tm6000_err("cannot alloc memory for usb buffers\n");
+	if (!dev->isoc_ctl.urb)
 		return -ENOMEM;
-	}
 
 	dev->isoc_ctl.transfer_buffer = kmalloc(sizeof(void *)*num_bufs,
 				   GFP_KERNEL);
 	if (!dev->isoc_ctl.transfer_buffer) {
-		tm6000_err("cannot allocate memory for usbtransfer\n");
 		kfree(dev->isoc_ctl.urb);
 		return -ENOMEM;
 	}

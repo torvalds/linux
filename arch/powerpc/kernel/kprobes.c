@@ -43,12 +43,6 @@ DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 struct kretprobe_blackpoint kretprobe_blacklist[] = {{NULL, NULL}};
 
-int is_current_kprobe_addr(unsigned long addr)
-{
-	struct kprobe *p = kprobe_running();
-	return (p && (unsigned long)p->addr == addr) ? 1 : 0;
-}
-
 bool arch_within_kprobe_blacklist(unsigned long addr)
 {
 	return  (addr >= (unsigned long)__kprobes_text_start &&
@@ -59,7 +53,7 @@ bool arch_within_kprobe_blacklist(unsigned long addr)
 
 kprobe_opcode_t *kprobe_lookup_name(const char *name, unsigned int offset)
 {
-	kprobe_opcode_t *addr;
+	kprobe_opcode_t *addr = NULL;
 
 #ifdef PPC64_ELF_ABI_v2
 	/* PPC64 ABIv2 needs local entry point */
@@ -91,36 +85,29 @@ kprobe_opcode_t *kprobe_lookup_name(const char *name, unsigned int offset)
 	 * Also handle <module:symbol> format.
 	 */
 	char dot_name[MODULE_NAME_LEN + 1 + KSYM_NAME_LEN];
-	const char *modsym;
 	bool dot_appended = false;
-	if ((modsym = strchr(name, ':')) != NULL) {
-		modsym++;
-		if (*modsym != '\0' && *modsym != '.') {
-			/* Convert to <module:.symbol> */
-			strncpy(dot_name, name, modsym - name);
-			dot_name[modsym - name] = '.';
-			dot_name[modsym - name + 1] = '\0';
-			strncat(dot_name, modsym,
-				sizeof(dot_name) - (modsym - name) - 2);
-			dot_appended = true;
-		} else {
-			dot_name[0] = '\0';
-			strncat(dot_name, name, sizeof(dot_name) - 1);
-		}
-	} else if (name[0] != '.') {
-		dot_name[0] = '.';
-		dot_name[1] = '\0';
-		strncat(dot_name, name, KSYM_NAME_LEN - 2);
+	const char *c;
+	ssize_t ret = 0;
+	int len = 0;
+
+	if ((c = strnchr(name, MODULE_NAME_LEN, ':')) != NULL) {
+		c++;
+		len = c - name;
+		memcpy(dot_name, name, len);
+	} else
+		c = name;
+
+	if (*c != '\0' && *c != '.') {
+		dot_name[len++] = '.';
 		dot_appended = true;
-	} else {
-		dot_name[0] = '\0';
-		strncat(dot_name, name, KSYM_NAME_LEN - 1);
 	}
-	addr = (kprobe_opcode_t *)kallsyms_lookup_name(dot_name);
-	if (!addr && dot_appended) {
-		/* Let's try the original non-dot symbol lookup	*/
+	ret = strscpy(dot_name + len, c, KSYM_NAME_LEN);
+	if (ret > 0)
+		addr = (kprobe_opcode_t *)kallsyms_lookup_name(dot_name);
+
+	/* Fallback to the original non-dot symbol lookup */
+	if (!addr && dot_appended)
 		addr = (kprobe_opcode_t *)kallsyms_lookup_name(name);
-	}
 #else
 	addr = (kprobe_opcode_t *)kallsyms_lookup_name(name);
 #endif
@@ -239,7 +226,7 @@ void arch_prepare_kretprobe(struct kretprobe_instance *ri, struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(arch_prepare_kretprobe);
 
-int try_to_emulate(struct kprobe *p, struct pt_regs *regs)
+static int try_to_emulate(struct kprobe *p, struct pt_regs *regs)
 {
 	int ret;
 	unsigned int insn = *p->ainsn.insn;
@@ -261,9 +248,20 @@ int try_to_emulate(struct kprobe *p, struct pt_regs *regs)
 		 */
 		printk("Can't step on instruction %x\n", insn);
 		BUG();
-	} else if (ret == 0)
-		/* This instruction can't be boosted */
-		p->ainsn.boostable = -1;
+	} else {
+		/*
+		 * If we haven't previously emulated this instruction, then it
+		 * can't be boosted. Note it down so we don't try to do so again.
+		 *
+		 * If, however, we had emulated this instruction in the past,
+		 * then this is just an error with the current run (for
+		 * instance, exceptions due to a load/store). We return 0 so
+		 * that this is now single-stepped, but continue to try
+		 * emulating it in subsequent probe hits.
+		 */
+		if (unlikely(p->ainsn.boostable != 1))
+			p->ainsn.boostable = -1;
+	}
 
 	return ret;
 }
@@ -639,24 +637,22 @@ NOKPROBE_SYMBOL(setjmp_pre_handler);
 
 void __used jprobe_return(void)
 {
-	asm volatile("trap" ::: "memory");
+	asm volatile("jprobe_return_trap:\n"
+		     "trap\n"
+		     ::: "memory");
 }
 NOKPROBE_SYMBOL(jprobe_return);
-
-static void __used jprobe_return_end(void)
-{
-}
-NOKPROBE_SYMBOL(jprobe_return_end);
 
 int longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 
-	/*
-	 * FIXME - we should ideally be validating that we got here 'cos
-	 * of the "trap" in jprobe_return() above, before restoring the
-	 * saved regs...
-	 */
+	if (regs->nip != ppc_kallsyms_lookup_name("jprobe_return_trap")) {
+		pr_debug("longjmp_break_handler NIP (0x%lx) does not match jprobe_return_trap (0x%lx)\n",
+				regs->nip, ppc_kallsyms_lookup_name("jprobe_return_trap"));
+		return 0;
+	}
+
 	memcpy(regs, &kcb->jprobe_saved_regs, sizeof(struct pt_regs));
 	/* It's OK to start function graph tracing again */
 	unpause_graph_tracing();

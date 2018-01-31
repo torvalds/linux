@@ -315,7 +315,7 @@ void xen_ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 static pteval_t pte_mfn_to_pfn(pteval_t val)
 {
 	if (val & _PAGE_PRESENT) {
-		unsigned long mfn = (val & PTE_PFN_MASK) >> PAGE_SHIFT;
+		unsigned long mfn = (val & XEN_PTE_MFN_MASK) >> PAGE_SHIFT;
 		unsigned long pfn = mfn_to_pfn(mfn);
 
 		pteval_t flags = val & PTE_FLAGS_MASK;
@@ -1721,7 +1721,7 @@ static unsigned long __init m2p(phys_addr_t maddr)
 {
 	phys_addr_t paddr;
 
-	maddr &= PTE_PFN_MASK;
+	maddr &= XEN_PTE_MFN_MASK;
 	paddr = mfn_to_pfn(maddr >> PAGE_SHIFT) << PAGE_SHIFT;
 
 	return paddr;
@@ -1901,6 +1901,18 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 	copy_page(level2_ident_pgt, l2);
 	/* Graft it onto L4[511][510] */
 	copy_page(level2_kernel_pgt, l2);
+
+	/*
+	 * Zap execute permission from the ident map. Due to the sharing of
+	 * L1 entries we need to do this in the L2.
+	 */
+	if (__supported_pte_mask & _PAGE_NX) {
+		for (i = 0; i < PTRS_PER_PMD; ++i) {
+			if (pmd_none(level2_ident_pgt[i]))
+				continue;
+			level2_ident_pgt[i] = pmd_set_flags(level2_ident_pgt[i], _PAGE_NX);
+		}
+	}
 
 	/* Copy the initial P->M table mappings if necessary. */
 	i = pgd_index(xen_start_info->mfn_list);
@@ -2261,7 +2273,6 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 
 	switch (idx) {
 	case FIX_BTMAP_END ... FIX_BTMAP_BEGIN:
-	case FIX_RO_IDT:
 #ifdef CONFIG_X86_32
 	case FIX_WP_TEST:
 # ifdef CONFIG_HIGHMEM
@@ -2272,7 +2283,6 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 #endif
 	case FIX_TEXT_POKE0:
 	case FIX_TEXT_POKE1:
-	case FIX_GDT_REMAP_BEGIN ... FIX_GDT_REMAP_END:
 		/* All local page mappings */
 		pte = pfn_pte(phys, prot);
 		break;

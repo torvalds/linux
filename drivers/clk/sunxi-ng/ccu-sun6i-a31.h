@@ -27,7 +27,9 @@
 #define CLK_PLL_AUDIO_4X	4
 #define CLK_PLL_AUDIO_8X	5
 #define CLK_PLL_VIDEO0		6
-#define CLK_PLL_VIDEO0_2X	7
+
+/* The PLL_VIDEO0_2X clock is exported */
+
 #define CLK_PLL_VE		8
 #define CLK_PLL_DDR		9
 
@@ -35,7 +37,9 @@
 
 #define CLK_PLL_PERIPH_2X	11
 #define CLK_PLL_VIDEO1		12
-#define CLK_PLL_VIDEO1_2X	13
+
+/* The PLL_VIDEO1_2X clock is exported */
+
 #define CLK_PLL_GPU		14
 #define CLK_PLL_MIPI		15
 #define CLK_PLL9		16

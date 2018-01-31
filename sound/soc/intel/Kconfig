@@ -34,6 +34,11 @@ config SND_SOC_INTEL_SST_TOPLEVEL
 	depends on X86 || COMPILE_TEST
 	select SND_SOC_INTEL_MACH
 	select SND_SOC_INTEL_COMMON
+	help
+          Intel ASoC Audio Drivers. If you have a Intel machine that
+          has audio controller with a DSP and I2S or DMIC port, then
+          enable this option by saying Y or M
+          If unsure select "N".
 
 config SND_SOC_INTEL_HASWELL
 	tristate "Intel ASoC SST driver for Haswell/Broadwell"

@@ -1048,50 +1048,6 @@ static const struct file_operations fops_bf = {
 	.llseek		= seq_lseek,
 };
 
-/*---------SSID------------*/
-static ssize_t wil_read_file_ssid(struct file *file, char __user *user_buf,
-				  size_t count, loff_t *ppos)
-{
-	struct wil6210_priv *wil = file->private_data;
-	struct wireless_dev *wdev = wil_to_wdev(wil);
-
-	return simple_read_from_buffer(user_buf, count, ppos,
-				       wdev->ssid, wdev->ssid_len);
-}
-
-static ssize_t wil_write_file_ssid(struct file *file, const char __user *buf,
-				   size_t count, loff_t *ppos)
-{
-	struct wil6210_priv *wil = file->private_data;
-	struct wireless_dev *wdev = wil_to_wdev(wil);
-	struct net_device *ndev = wil_to_ndev(wil);
-
-	if (*ppos != 0) {
-		wil_err(wil, "Unable to set SSID substring from [%d]\n",
-			(int)*ppos);
-		return -EINVAL;
-	}
-
-	if (count > sizeof(wdev->ssid)) {
-		wil_err(wil, "SSID too long, len = %d\n", (int)count);
-		return -EINVAL;
-	}
-	if (netif_running(ndev)) {
-		wil_err(wil, "Unable to change SSID on running interface\n");
-		return -EINVAL;
-	}
-
-	wdev->ssid_len = count;
-	return simple_write_to_buffer(wdev->ssid, wdev->ssid_len, ppos,
-				      buf, count);
-}
-
-static const struct file_operations fops_ssid = {
-	.read = wil_read_file_ssid,
-	.write = wil_write_file_ssid,
-	.open  = simple_open,
-};
-
 /*---------temp------------*/
 static void print_temp(struct seq_file *s, const char *prefix, u32 t)
 {
@@ -1695,7 +1651,6 @@ static const struct {
 	{"stations", 0444,		&fops_sta},
 	{"desc",	0444,		&fops_txdesc},
 	{"bf",		0444,		&fops_bf},
-	{"ssid",	0644,		&fops_ssid},
 	{"mem_val",	0644,		&fops_memread},
 	{"reset",	0244,		&fops_reset},
 	{"rxon",	0244,		&fops_rxon},

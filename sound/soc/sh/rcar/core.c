@@ -1332,8 +1332,8 @@ static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd)
 
 	return snd_pcm_lib_preallocate_pages_for_all(
 		rtd->pcm,
-		SNDRV_DMA_TYPE_CONTINUOUS,
-		snd_dma_continuous_data(GFP_KERNEL),
+		SNDRV_DMA_TYPE_DEV,
+		rtd->card->snd_card->dev,
 		PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
 }
 

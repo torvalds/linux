@@ -276,13 +276,11 @@ void sunxi_factors_unregister(struct device_node *node, struct clk *clk)
 {
 	struct clk_hw *hw = __clk_get_hw(clk);
 	struct clk_factors *factors;
-	const char *name;
 
 	if (!hw)
 		return;
 
 	factors = to_clk_factors(hw);
-	name = clk_hw_get_name(hw);
 
 	of_clk_del_provider(node);
 	/* TODO: The composite clock stuff will leak a bit here. */

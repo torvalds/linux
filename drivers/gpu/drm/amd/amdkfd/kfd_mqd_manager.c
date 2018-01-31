@@ -31,6 +31,9 @@ struct mqd_manager *mqd_manager_init(enum KFD_MQD_TYPE type,
 		return mqd_manager_init_cik(type, dev);
 	case CHIP_CARRIZO:
 		return mqd_manager_init_vi(type, dev);
+	default:
+		WARN(1, "Unexpected ASIC family %u",
+		     dev->device_info->asic_family);
 	}
 
 	return NULL;

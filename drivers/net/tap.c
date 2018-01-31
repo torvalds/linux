@@ -829,8 +829,11 @@ static ssize_t tap_do_read(struct tap_queue *q,
 	DEFINE_WAIT(wait);
 	ssize_t ret = 0;
 
-	if (!iov_iter_count(to))
+	if (!iov_iter_count(to)) {
+		if (skb)
+			kfree_skb(skb);
 		return 0;
+	}
 
 	if (skb)
 		goto put;
@@ -1077,7 +1080,7 @@ static long tap_ioctl(struct file *file, unsigned int cmd,
 	case TUNSETOFFLOAD:
 		/* let the user check for future flags */
 		if (arg & ~(TUN_F_CSUM | TUN_F_TSO4 | TUN_F_TSO6 |
-			    TUN_F_TSO_ECN))
+			    TUN_F_TSO_ECN | TUN_F_UFO))
 			return -EINVAL;
 
 		rtnl_lock();
@@ -1154,11 +1157,14 @@ static int tap_recvmsg(struct socket *sock, struct msghdr *m,
 		       size_t total_len, int flags)
 {
 	struct tap_queue *q = container_of(sock, struct tap_queue, sock);
+	struct sk_buff *skb = m->msg_control;
 	int ret;
-	if (flags & ~(MSG_DONTWAIT|MSG_TRUNC))
+	if (flags & ~(MSG_DONTWAIT|MSG_TRUNC)) {
+		if (skb)
+			kfree_skb(skb);
 		return -EINVAL;
-	ret = tap_do_read(q, &m->msg_iter, flags & MSG_DONTWAIT,
-			  m->msg_control);
+	}
+	ret = tap_do_read(q, &m->msg_iter, flags & MSG_DONTWAIT, skb);
 	if (ret > total_len) {
 		m->msg_flags |= MSG_TRUNC;
 		ret = flags & MSG_TRUNC ? ret : total_len;

@@ -76,17 +76,14 @@ static int __init list_sort_test(void)
 	pr_debug("start testing list_sort()\n");
 
 	elts = kcalloc(TEST_LIST_LEN, sizeof(*elts), GFP_KERNEL);
-	if (!elts) {
-		pr_err("error: cannot allocate memory\n");
+	if (!elts)
 		return err;
-	}
 
 	for (i = 0; i < TEST_LIST_LEN; i++) {
 		el = kmalloc(sizeof(*el), GFP_KERNEL);
-		if (!el) {
-			pr_err("error: cannot allocate memory\n");
+		if (!el)
 			goto exit;
-		}
+
 		 /* force some equivalencies */
 		el->value = prandom_u32() % (TEST_LIST_LEN / 3);
 		el->serial = i;

@@ -328,6 +328,7 @@ struct diag_pkt {
 #define SC15_PACKET 0xF
 #define SIZE_OF_CRC 1
 #define SIZE_OF_LT 1
+#define MAX_16B_PADDING 12 /* CRC = 4, LT = 1, Pad = 0 to 7 bytes */
 
 #define LIM_MGMT_P_KEY       0x7FFF
 #define FULL_MGMT_P_KEY      0xFFFF

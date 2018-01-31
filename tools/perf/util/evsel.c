@@ -733,12 +733,16 @@ static void apply_config_terms(struct perf_evsel *evsel,
 	list_for_each_entry(term, config_terms, list) {
 		switch (term->type) {
 		case PERF_EVSEL__CONFIG_TERM_PERIOD:
-			attr->sample_period = term->val.period;
-			attr->freq = 0;
+			if (!(term->weak && opts->user_interval != ULLONG_MAX)) {
+				attr->sample_period = term->val.period;
+				attr->freq = 0;
+			}
 			break;
 		case PERF_EVSEL__CONFIG_TERM_FREQ:
-			attr->sample_freq = term->val.freq;
-			attr->freq = 1;
+			if (!(term->weak && opts->user_freq != UINT_MAX)) {
+				attr->sample_freq = term->val.freq;
+				attr->freq = 1;
+			}
 			break;
 		case PERF_EVSEL__CONFIG_TERM_TIME:
 			if (term->val.time)
@@ -1371,7 +1375,7 @@ perf_evsel__process_group_data(struct perf_evsel *leader,
 static int
 perf_evsel__read_group(struct perf_evsel *leader, int cpu, int thread)
 {
-	struct perf_stat_evsel *ps = leader->priv;
+	struct perf_stat_evsel *ps = leader->stats;
 	u64 read_format = leader->attr.read_format;
 	int size = perf_evsel__read_size(leader);
 	u64 *data = ps->group_data;

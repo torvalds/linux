@@ -182,7 +182,7 @@ config CHARGER_SBS
         tristate "SBS Compliant charger"
         depends on I2C
         help
-	  Say Y to include support for SBS compilant battery chargers.
+	  Say Y to include support for SBS compliant battery chargers.
 
 config MANAGER_SBS
 	tristate "Smart Battery System Manager"

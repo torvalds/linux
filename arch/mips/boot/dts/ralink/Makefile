@@ -7,6 +7,3 @@ dtb-$(CONFIG_DTB_OMEGA2P)	+= omega2p.dtb
 dtb-$(CONFIG_DTB_VOCORE2)	+= vocore2.dtb
 
 obj-y				+= $(patsubst %.dtb, %.dtb.o, $(dtb-y))
-
-# Force kbuild to make empty built-in.o if necessary
-obj-				+= dummy.o

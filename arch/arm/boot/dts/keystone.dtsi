@@ -78,17 +78,17 @@
 		ranges = <0x0 0x0 0x0 0xc0000000>;
 		dma-ranges = <0x80000000 0x8 0x00000000 0x80000000>;
 
-		pllctrl: pll-controller@02310000 {
+		pllctrl: pll-controller@2310000 {
 			compatible = "ti,keystone-pllctrl", "syscon";
 			reg = <0x02310000 0x200>;
 		};
 
-		psc: power-sleep-controller@02350000 {
+		psc: power-sleep-controller@2350000 {
 			compatible = "syscon", "simple-mfd";
 			reg = <0x02350000 0x1000>;
 		};
 
-		devctrl: device-state-control@02620000 {
+		devctrl: device-state-control@2620000 {
 			compatible = "ti,keystone-devctrl", "syscon";
 			reg = <0x02620000 0x1000>;
 		};
@@ -102,7 +102,7 @@
 
 		/include/ "keystone-clocks.dtsi"
 
-		uart0: serial@02530c00 {
+		uart0: serial@2530c00 {
 			compatible = "ti,da830-uart", "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
@@ -112,7 +112,7 @@
 			interrupts = <GIC_SPI 277 IRQ_TYPE_EDGE_RISING>;
 		};
 
-		uart1:	serial@02531000 {
+		uart1:	serial@2531000 {
 			compatible = "ti,da830-uart", "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
@@ -214,7 +214,7 @@
 			};
 		};
 
-		wdt: wdt@022f0080 {
+		wdt: wdt@22f0080 {
 			compatible = "ti,keystone-wdt","ti,davinci-wdt";
 			reg = <0x022f0080 0x80>;
 			clocks = <&clkwdtimer0>;

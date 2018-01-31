@@ -442,9 +442,9 @@ next_gc_group:
 		goto next_gc_group;
 }
 
-static void pblk_gc_timer(unsigned long data)
+static void pblk_gc_timer(struct timer_list *t)
 {
-	struct pblk *pblk = (struct pblk *)data;
+	struct pblk *pblk = from_timer(pblk, t, gc.gc_timer);
 
 	pblk_gc_kick(pblk);
 }
@@ -601,7 +601,7 @@ int pblk_gc_init(struct pblk *pblk)
 		goto fail_free_writer_kthread;
 	}
 
-	setup_timer(&gc->gc_timer, pblk_gc_timer, (unsigned long)pblk);
+	timer_setup(&gc->gc_timer, pblk_gc_timer, 0);
 	mod_timer(&gc->gc_timer, jiffies + msecs_to_jiffies(GC_TIME_MSECS));
 
 	gc->gc_active = 0;

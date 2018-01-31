@@ -450,7 +450,7 @@ extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
 int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter);
 struct rq_map_data;
 extern struct bio *bio_map_user_iov(struct request_queue *,
-				    const struct iov_iter *, gfp_t);
+				    struct iov_iter *, gfp_t);
 extern void bio_unmap_user(struct bio *);
 extern struct bio *bio_map_kern(struct request_queue *, void *, unsigned int,
 				gfp_t);
@@ -482,7 +482,7 @@ extern void bio_free_pages(struct bio *bio);
 
 extern struct bio *bio_copy_user_iov(struct request_queue *,
 				     struct rq_map_data *,
-				     const struct iov_iter *,
+				     struct iov_iter *,
 				     gfp_t);
 extern int bio_uncopy_user(struct bio *);
 void zero_fill_bio(struct bio *bio);
@@ -492,6 +492,8 @@ extern unsigned int bvec_nr_vecs(unsigned short idx);
 
 #define bio_set_dev(bio, bdev) 			\
 do {						\
+	if ((bio)->bi_disk != (bdev)->bd_disk)	\
+		bio_clear_flag(bio, BIO_THROTTLED);\
 	(bio)->bi_disk = (bdev)->bd_disk;	\
 	(bio)->bi_partno = (bdev)->bd_partno;	\
 } while (0)

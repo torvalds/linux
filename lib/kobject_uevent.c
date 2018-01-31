@@ -294,6 +294,55 @@ static void cleanup_uevent_env(struct subprocess_info *info)
 }
 #endif
 
+static int kobject_uevent_net_broadcast(struct kobject *kobj,
+					struct kobj_uevent_env *env,
+					const char *action_string,
+					const char *devpath)
+{
+	int retval = 0;
+#if defined(CONFIG_NET)
+	struct sk_buff *skb = NULL;
+	struct uevent_sock *ue_sk;
+
+	/* send netlink message */
+	list_for_each_entry(ue_sk, &uevent_sock_list, list) {
+		struct sock *uevent_sock = ue_sk->sk;
+
+		if (!netlink_has_listeners(uevent_sock, 1))
+			continue;
+
+		if (!skb) {
+			/* allocate message with the maximum possible size */
+			size_t len = strlen(action_string) + strlen(devpath) + 2;
+			char *scratch;
+
+			retval = -ENOMEM;
+			skb = alloc_skb(len + env->buflen, GFP_KERNEL);
+			if (!skb)
+				continue;
+
+			/* add header */
+			scratch = skb_put(skb, len);
+			sprintf(scratch, "%s@%s", action_string, devpath);
+
+			skb_put_data(skb, env->buf, env->buflen);
+
+			NETLINK_CB(skb).dst_group = 1;
+		}
+
+		retval = netlink_broadcast_filtered(uevent_sock, skb_get(skb),
+						    0, 1, GFP_KERNEL,
+						    kobj_bcast_filter,
+						    kobj);
+		/* ENOBUFS should be handled in userspace */
+		if (retval == -ENOBUFS || retval == -ESRCH)
+			retval = 0;
+	}
+	consume_skb(skb);
+#endif
+	return retval;
+}
+
 static void zap_modalias_env(struct kobj_uevent_env *env)
 {
 	static const char modalias_prefix[] = "MODALIAS=";
@@ -336,9 +385,6 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	const struct kset_uevent_ops *uevent_ops;
 	int i = 0;
 	int retval = 0;
-#ifdef CONFIG_NET
-	struct uevent_sock *ue_sk;
-#endif
 
 	pr_debug("kobject: '%s' (%p): %s\n",
 		 kobject_name(kobj), kobj, __func__);
@@ -460,46 +506,8 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 		mutex_unlock(&uevent_sock_mutex);
 		goto exit;
 	}
-
-#if defined(CONFIG_NET)
-	/* send netlink message */
-	list_for_each_entry(ue_sk, &uevent_sock_list, list) {
-		struct sock *uevent_sock = ue_sk->sk;
-		struct sk_buff *skb;
-		size_t len;
-
-		if (!netlink_has_listeners(uevent_sock, 1))
-			continue;
-
-		/* allocate message with the maximum possible size */
-		len = strlen(action_string) + strlen(devpath) + 2;
-		skb = alloc_skb(len + env->buflen, GFP_KERNEL);
-		if (skb) {
-			char *scratch;
-
-			/* add header */
-			scratch = skb_put(skb, len);
-			sprintf(scratch, "%s@%s", action_string, devpath);
-
-			/* copy keys to our continuous event payload buffer */
-			for (i = 0; i < env->envp_idx; i++) {
-				len = strlen(env->envp[i]) + 1;
-				scratch = skb_put(skb, len);
-				strcpy(scratch, env->envp[i]);
-			}
-
-			NETLINK_CB(skb).dst_group = 1;
-			retval = netlink_broadcast_filtered(uevent_sock, skb,
-							    0, 1, GFP_KERNEL,
-							    kobj_bcast_filter,
-							    kobj);
-			/* ENOBUFS should be handled in userspace */
-			if (retval == -ENOBUFS || retval == -ESRCH)
-				retval = 0;
-		} else
-			retval = -ENOMEM;
-	}
-#endif
+	retval = kobject_uevent_net_broadcast(kobj, env, action_string,
+					      devpath);
 	mutex_unlock(&uevent_sock_mutex);
 
 #ifdef CONFIG_UEVENT_HELPER

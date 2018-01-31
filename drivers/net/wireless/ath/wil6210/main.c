@@ -336,9 +336,9 @@ static void wil_disconnect_worker(struct work_struct *work)
 	clear_bit(wil_status_fwconnecting, wil->status);
 }
 
-static void wil_connect_timer_fn(ulong x)
+static void wil_connect_timer_fn(struct timer_list *t)
 {
-	struct wil6210_priv *wil = (void *)x;
+	struct wil6210_priv *wil = from_timer(wil, t, connect_timer);
 	bool q;
 
 	wil_err(wil, "Connect timeout detected, disconnect station\n");
@@ -351,9 +351,9 @@ static void wil_connect_timer_fn(ulong x)
 	wil_dbg_wmi(wil, "queue_work of disconnect_worker -> %d\n", q);
 }
 
-static void wil_scan_timer_fn(ulong x)
+static void wil_scan_timer_fn(struct timer_list *t)
 {
-	struct wil6210_priv *wil = (void *)x;
+	struct wil6210_priv *wil = from_timer(wil, t, scan_timer);
 
 	clear_bit(wil_status_fwready, wil->status);
 	wil_err(wil, "Scan timeout detected, start fw error recovery\n");
@@ -540,10 +540,9 @@ int wil_priv_init(struct wil6210_priv *wil)
 	init_completion(&wil->halp.comp);
 
 	wil->bcast_vring = -1;
-	setup_timer(&wil->connect_timer, wil_connect_timer_fn, (ulong)wil);
-	setup_timer(&wil->scan_timer, wil_scan_timer_fn, (ulong)wil);
-	setup_timer(&wil->p2p.discovery_timer, wil_p2p_discovery_timer_fn,
-		    (ulong)wil);
+	timer_setup(&wil->connect_timer, wil_connect_timer_fn, 0);
+	timer_setup(&wil->scan_timer, wil_scan_timer_fn, 0);
+	timer_setup(&wil->p2p.discovery_timer, wil_p2p_discovery_timer_fn, 0);
 
 	INIT_WORK(&wil->disconnect_worker, wil_disconnect_worker);
 	INIT_WORK(&wil->wmi_event_worker, wmi_event_worker);

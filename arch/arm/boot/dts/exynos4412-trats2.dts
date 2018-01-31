@@ -18,6 +18,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/maxim,max77686.h>
+#include <dt-bindings/pinctrl/samsung.h>
 
 / {
 	model = "Samsung Trats 2 based on Exynos4412";
@@ -40,7 +41,7 @@
 		stdout-path = &serial_2;
 	};
 
-	firmware@0204F000 {
+	firmware@204f000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x0204F000 0x1000>;
 	};
@@ -95,6 +96,34 @@
 			regulator-min-microvolt = <3000000>;
 			regulator-max-microvolt = <3000000>;
 			gpio = <&gpj0 5 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+		vsil12: voltage-regulator-6 {
+			compatible = "regulator-fixed";
+			regulator-name = "VSIL_1.2V";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&buck7_reg>;
+		};
+
+		vcc33mhl: voltage-regulator-7 {
+			compatible = "regulator-fixed";
+			regulator-name = "VCC_3.3_MHL";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+		vcc18mhl: voltage-regulator-8 {
+			compatible = "regulator-fixed";
+			regulator-name = "VCC_1.8_MHL";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 	};
@@ -206,7 +235,7 @@
 		#size-cells = <0>;
 		status = "okay";
 
-		ak8975@0c {
+		ak8975@c {
 			compatible = "asahi-kasei,ak8975";
 			reg = <0x0c>;
 			gpios = <&gpj0 7 GPIO_ACTIVE_HIGH>;
@@ -226,6 +255,36 @@
 			interrupt-parent = <&gpx0>;
 			interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
 			vled-supply = <&ps_als_reg>;
+		};
+	};
+
+	i2c-mhl {
+		compatible = "i2c-gpio";
+		gpios = <&gpf0 4 GPIO_ACTIVE_HIGH>, <&gpf0 6 GPIO_ACTIVE_HIGH>;
+		i2c-gpio,delay-us = <100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pinctrl-0 = <&i2c_mhl_bus>;
+		pinctrl-names = "default";
+		status = "okay";
+
+		sii9234: hdmi-bridge@39 {
+			compatible = "sil,sii9234";
+			avcc33-supply = <&vcc33mhl>;
+			iovcc18-supply = <&vcc18mhl>;
+			avcc12-supply = <&vsil12>;
+			cvcc12-supply = <&vsil12>;
+			reset-gpios = <&gpf3 4 GPIO_ACTIVE_LOW>;
+			interrupt-parent = <&gpf3>;
+			interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x39>;
+
+			port {
+				mhl_to_hdmi: endpoint {
+					remote-endpoint = <&hdmi_to_mhl>;
+				};
+			};
 		};
 	};
 
@@ -501,6 +560,29 @@
 	status = "okay";
 };
 
+&hdmi {
+	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_hpd>;
+	vdd-supply = <&ldo3_reg>;
+	vdd_osc-supply = <&ldo4_reg>;
+	vdd_pll-supply = <&ldo3_reg>;
+	ddc = <&i2c_5>;
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			hdmi_to_mhl: endpoint {
+				remote-endpoint = <&mhl_to_hdmi>;
+			};
+		};
+	};
+};
+
 &hsotg {
 	vusb_d-supply = <&ldo15_reg>;
 	vusb_a-supply = <&ldo12_reg>;
@@ -579,6 +661,10 @@
 	};
 };
 
+&i2c_5 {
+	status = "okay";
+};
+
 &i2c_7 {
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-slave-addr = <0x10>;
@@ -587,7 +673,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	max77686: max77686_pmic@09 {
+	max77686: max77686_pmic@9 {
 		compatible = "maxim,max77686";
 		interrupt-parent = <&gpx0>;
 		interrupts = <7 IRQ_TYPE_NONE>;
@@ -873,9 +959,17 @@
 	};
 };
 
+&i2c_8 {
+	status = "okay";
+};
+
 &i2s0 {
 	pinctrl-0 = <&i2s0_bus>;
 	pinctrl-names = "default";
+	status = "okay";
+};
+
+&mixer {
 	status = "okay";
 };
 
@@ -903,6 +997,18 @@
 &pinctrl_0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sleep0>;
+
+	mhl_int: mhl-int {
+		samsung,pins = "gpf3-5";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	i2c_mhl_bus: i2c-mhl-bus {
+		samsung,pins = "gpf0-4", "gpf0-6";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
 
 	sleep0: sleep-states {
 		PIN_SLP(gpa0-0, INPUT, NONE);
@@ -1006,6 +1112,11 @@
 &pinctrl_1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sleep1>;
+
+	hdmi_hpd: hdmi-hpd {
+		samsung,pins = "gpx3-7";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+	};
 
 	sleep1: sleep-states {
 		PIN_SLP(gpk0-0, PREV, NONE);

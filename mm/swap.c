@@ -76,7 +76,7 @@ static void __page_cache_release(struct page *page)
 static void __put_single_page(struct page *page)
 {
 	__page_cache_release(page);
-	free_hot_cold_page(page, false);
+	free_unref_page(page);
 }
 
 static void __put_compound_page(struct page *page)
@@ -210,7 +210,7 @@ static void pagevec_lru_move_fn(struct pagevec *pvec,
 	}
 	if (pgdat)
 		spin_unlock_irqrestore(&pgdat->lru_lock, flags);
-	release_pages(pvec->pages, pvec->nr, pvec->cold);
+	release_pages(pvec->pages, pvec->nr);
 	pagevec_reinit(pvec);
 }
 
@@ -740,7 +740,7 @@ void lru_add_drain_all(void)
  * Decrement the reference count on all the pages in @pages.  If it
  * fell to zero, remove the page from the LRU and free it.
  */
-void release_pages(struct page **pages, int nr, bool cold)
+void release_pages(struct page **pages, int nr)
 {
 	int i;
 	LIST_HEAD(pages_to_free);
@@ -817,7 +817,7 @@ void release_pages(struct page **pages, int nr, bool cold)
 		spin_unlock_irqrestore(&locked_pgdat->lru_lock, flags);
 
 	mem_cgroup_uncharge_list(&pages_to_free);
-	free_hot_cold_page_list(&pages_to_free, cold);
+	free_unref_page_list(&pages_to_free);
 }
 EXPORT_SYMBOL(release_pages);
 
@@ -833,8 +833,11 @@ EXPORT_SYMBOL(release_pages);
  */
 void __pagevec_release(struct pagevec *pvec)
 {
-	lru_add_drain();
-	release_pages(pvec->pages, pagevec_count(pvec), pvec->cold);
+	if (!pvec->percpu_pvec_drained) {
+		lru_add_drain();
+		pvec->percpu_pvec_drained = true;
+	}
+	release_pages(pvec->pages, pagevec_count(pvec));
 	pagevec_reinit(pvec);
 }
 EXPORT_SYMBOL(__pagevec_release);
@@ -986,15 +989,25 @@ unsigned pagevec_lookup_range(struct pagevec *pvec,
 }
 EXPORT_SYMBOL(pagevec_lookup_range);
 
-unsigned pagevec_lookup_tag(struct pagevec *pvec, struct address_space *mapping,
-		pgoff_t *index, int tag, unsigned nr_pages)
+unsigned pagevec_lookup_range_tag(struct pagevec *pvec,
+		struct address_space *mapping, pgoff_t *index, pgoff_t end,
+		int tag)
 {
-	pvec->nr = find_get_pages_tag(mapping, index, tag,
-					nr_pages, pvec->pages);
+	pvec->nr = find_get_pages_range_tag(mapping, index, end, tag,
+					PAGEVEC_SIZE, pvec->pages);
 	return pagevec_count(pvec);
 }
-EXPORT_SYMBOL(pagevec_lookup_tag);
+EXPORT_SYMBOL(pagevec_lookup_range_tag);
 
+unsigned pagevec_lookup_range_nr_tag(struct pagevec *pvec,
+		struct address_space *mapping, pgoff_t *index, pgoff_t end,
+		int tag, unsigned max_pages)
+{
+	pvec->nr = find_get_pages_range_tag(mapping, index, end, tag,
+		min_t(unsigned int, max_pages, PAGEVEC_SIZE), pvec->pages);
+	return pagevec_count(pvec);
+}
+EXPORT_SYMBOL(pagevec_lookup_range_nr_tag);
 /*
  * Perform any setup for the swap system
  */

@@ -259,7 +259,6 @@
 #include <linux/cryptohash.h>
 #include <linux/fips.h>
 #include <linux/ptrace.h>
-#include <linux/kmemcheck.h>
 #include <linux/workqueue.h>
 #include <linux/irq.h>
 #include <linux/syscalls.h>

@@ -359,7 +359,7 @@ static struct tegra_clk_pll_freq_table pll_e_freq_table[] = {
 };
 
 /* PLL parameters */
-static struct tegra_clk_pll_params pll_c_params = {
+static struct tegra_clk_pll_params pll_c_params __ro_after_init = {
 	.input_min = 2000000,
 	.input_max = 31000000,
 	.cf_min = 1000000,
@@ -388,7 +388,7 @@ static struct div_nmp pllm_nmp = {
 	.override_divp_shift = 15,
 };
 
-static struct tegra_clk_pll_params pll_m_params = {
+static struct tegra_clk_pll_params pll_m_params __ro_after_init = {
 	.input_min = 2000000,
 	.input_max = 31000000,
 	.cf_min = 1000000,
@@ -409,7 +409,7 @@ static struct tegra_clk_pll_params pll_m_params = {
 		 TEGRA_PLL_HAS_LOCK_ENABLE | TEGRA_PLL_FIXED,
 };
 
-static struct tegra_clk_pll_params pll_p_params = {
+static struct tegra_clk_pll_params pll_p_params __ro_after_init = {
 	.input_min = 2000000,
 	.input_max = 31000000,
 	.cf_min = 1000000,
@@ -444,7 +444,7 @@ static struct tegra_clk_pll_params pll_a_params = {
 		 TEGRA_PLL_HAS_LOCK_ENABLE,
 };
 
-static struct tegra_clk_pll_params pll_d_params = {
+static struct tegra_clk_pll_params pll_d_params __ro_after_init = {
 	.input_min = 2000000,
 	.input_max = 40000000,
 	.cf_min = 1000000,
@@ -461,7 +461,7 @@ static struct tegra_clk_pll_params pll_d_params = {
 		 TEGRA_PLL_USE_LOCK | TEGRA_PLL_HAS_LOCK_ENABLE,
 };
 
-static struct tegra_clk_pll_params pll_d2_params = {
+static struct tegra_clk_pll_params pll_d2_params __ro_after_init = {
 	.input_min = 2000000,
 	.input_max = 40000000,
 	.cf_min = 1000000,
@@ -478,7 +478,7 @@ static struct tegra_clk_pll_params pll_d2_params = {
 		 TEGRA_PLL_USE_LOCK | TEGRA_PLL_HAS_LOCK_ENABLE,
 };
 
-static struct tegra_clk_pll_params pll_u_params = {
+static struct tegra_clk_pll_params pll_u_params __ro_after_init = {
 	.input_min = 2000000,
 	.input_max = 40000000,
 	.cf_min = 1000000,
@@ -496,7 +496,7 @@ static struct tegra_clk_pll_params pll_u_params = {
 		 TEGRA_PLL_HAS_LOCK_ENABLE,
 };
 
-static struct tegra_clk_pll_params pll_x_params = {
+static struct tegra_clk_pll_params pll_x_params __ro_after_init = {
 	.input_min = 2000000,
 	.input_max = 31000000,
 	.cf_min = 1000000,
@@ -513,7 +513,7 @@ static struct tegra_clk_pll_params pll_x_params = {
 		 TEGRA_PLL_USE_LOCK | TEGRA_PLL_HAS_LOCK_ENABLE,
 };
 
-static struct tegra_clk_pll_params pll_e_params = {
+static struct tegra_clk_pll_params pll_e_params __ro_after_init = {
 	.input_min = 12000000,
 	.input_max = 216000000,
 	.cf_min = 12000000,
@@ -788,6 +788,7 @@ static struct tegra_clk tegra30_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_extern3] = { .dt_id = TEGRA30_CLK_EXTERN3, .present = true },
 	[tegra_clk_disp1] = { .dt_id = TEGRA30_CLK_DISP1, .present = true },
 	[tegra_clk_disp2] = { .dt_id = TEGRA30_CLK_DISP2, .present = true },
+	[tegra_clk_ahbdma] = { .dt_id = TEGRA30_CLK_AHBDMA, .present = true },
 	[tegra_clk_apbdma] = { .dt_id = TEGRA30_CLK_APBDMA, .present = true },
 	[tegra_clk_rtc] = { .dt_id = TEGRA30_CLK_RTC, .present = true },
 	[tegra_clk_timer] = { .dt_id = TEGRA30_CLK_TIMER, .present = true },
@@ -964,7 +965,7 @@ static void __init tegra30_super_clk_init(void)
 	 * U71 divider of cclk_lp.
 	 */
 	clk = tegra_clk_register_divider("pll_p_out3_cclklp", "pll_p_out3",
-				clk_base + SUPER_CCLKG_DIVIDER, 0,
+				clk_base + SUPER_CCLKLP_DIVIDER, 0,
 				TEGRA_DIVIDER_INT, 16, 8, 1, NULL);
 	clk_register_clkdev(clk, "pll_p_out3_cclklp", NULL);
 
@@ -1079,9 +1080,7 @@ static void __init tegra30_periph_clk_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(tegra_periph_clk_list); i++) {
 		data = &tegra_periph_clk_list[i];
-		clk = tegra_clk_register_periph(data->name, data->p.parent_names,
-				data->num_parents, &data->periph,
-				clk_base, data->offset, data->flags);
+		clk = tegra_clk_register_periph_data(clk_base, data);
 		clks[data->clk_id] = clk;
 	}
 

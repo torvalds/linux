@@ -200,9 +200,9 @@ static void ath10k_htt_rx_msdu_buff_replenish(struct ath10k_htt *htt)
 	spin_unlock_bh(&htt->rx_ring.lock);
 }
 
-static void ath10k_htt_rx_ring_refill_retry(unsigned long arg)
+static void ath10k_htt_rx_ring_refill_retry(struct timer_list *t)
 {
-	struct ath10k_htt *htt = (struct ath10k_htt *)arg;
+	struct ath10k_htt *htt = from_timer(htt, t, rx_ring.refill_retry_timer);
 
 	ath10k_htt_rx_msdu_buff_replenish(htt);
 }
@@ -507,7 +507,7 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	*htt->rx_ring.alloc_idx.vaddr = 0;
 
 	/* Initialize the Rx refill retry timer */
-	setup_timer(timer, ath10k_htt_rx_ring_refill_retry, (unsigned long)htt);
+	timer_setup(timer, ath10k_htt_rx_ring_refill_retry, 0);
 
 	spin_lock_init(&htt->rx_ring.lock);
 
@@ -566,18 +566,16 @@ static int ath10k_htt_rx_crypto_param_len(struct ath10k *ar,
 
 #define MICHAEL_MIC_LEN 8
 
-static int ath10k_htt_rx_crypto_tail_len(struct ath10k *ar,
-					 enum htt_rx_mpdu_encrypt_type type)
+static int ath10k_htt_rx_crypto_mic_len(struct ath10k *ar,
+					enum htt_rx_mpdu_encrypt_type type)
 {
 	switch (type) {
 	case HTT_RX_MPDU_ENCRYPT_NONE:
-		return 0;
 	case HTT_RX_MPDU_ENCRYPT_WEP40:
 	case HTT_RX_MPDU_ENCRYPT_WEP104:
-		return IEEE80211_WEP_ICV_LEN;
 	case HTT_RX_MPDU_ENCRYPT_TKIP_WITHOUT_MIC:
 	case HTT_RX_MPDU_ENCRYPT_TKIP_WPA:
-		return IEEE80211_TKIP_ICV_LEN;
+		return 0;
 	case HTT_RX_MPDU_ENCRYPT_AES_CCM_WPA2:
 		return IEEE80211_CCMP_MIC_LEN;
 	case HTT_RX_MPDU_ENCRYPT_AES_CCM256_WPA2:
@@ -585,6 +583,31 @@ static int ath10k_htt_rx_crypto_tail_len(struct ath10k *ar,
 	case HTT_RX_MPDU_ENCRYPT_AES_GCMP_WPA2:
 	case HTT_RX_MPDU_ENCRYPT_AES_GCMP256_WPA2:
 		return IEEE80211_GCMP_MIC_LEN;
+	case HTT_RX_MPDU_ENCRYPT_WEP128:
+	case HTT_RX_MPDU_ENCRYPT_WAPI:
+		break;
+	}
+
+	ath10k_warn(ar, "unsupported encryption type %d\n", type);
+	return 0;
+}
+
+static int ath10k_htt_rx_crypto_icv_len(struct ath10k *ar,
+					enum htt_rx_mpdu_encrypt_type type)
+{
+	switch (type) {
+	case HTT_RX_MPDU_ENCRYPT_NONE:
+	case HTT_RX_MPDU_ENCRYPT_AES_CCM_WPA2:
+	case HTT_RX_MPDU_ENCRYPT_AES_CCM256_WPA2:
+	case HTT_RX_MPDU_ENCRYPT_AES_GCMP_WPA2:
+	case HTT_RX_MPDU_ENCRYPT_AES_GCMP256_WPA2:
+		return 0;
+	case HTT_RX_MPDU_ENCRYPT_WEP40:
+	case HTT_RX_MPDU_ENCRYPT_WEP104:
+		return IEEE80211_WEP_ICV_LEN;
+	case HTT_RX_MPDU_ENCRYPT_TKIP_WITHOUT_MIC:
+	case HTT_RX_MPDU_ENCRYPT_TKIP_WPA:
+		return IEEE80211_TKIP_ICV_LEN;
 	case HTT_RX_MPDU_ENCRYPT_WEP128:
 	case HTT_RX_MPDU_ENCRYPT_WAPI:
 		break;
@@ -1063,25 +1086,27 @@ static void ath10k_htt_rx_h_undecap_raw(struct ath10k *ar,
 	/* Tail */
 	if (status->flag & RX_FLAG_IV_STRIPPED) {
 		skb_trim(msdu, msdu->len -
-			 ath10k_htt_rx_crypto_tail_len(ar, enctype));
+			 ath10k_htt_rx_crypto_mic_len(ar, enctype));
+
+		skb_trim(msdu, msdu->len -
+			 ath10k_htt_rx_crypto_icv_len(ar, enctype));
 	} else {
 		/* MIC */
-		if ((status->flag & RX_FLAG_MIC_STRIPPED) &&
-		    enctype == HTT_RX_MPDU_ENCRYPT_AES_CCM_WPA2)
-			skb_trim(msdu, msdu->len - 8);
+		if (status->flag & RX_FLAG_MIC_STRIPPED)
+			skb_trim(msdu, msdu->len -
+				 ath10k_htt_rx_crypto_mic_len(ar, enctype));
 
 		/* ICV */
-		if (status->flag & RX_FLAG_ICV_STRIPPED &&
-		    enctype != HTT_RX_MPDU_ENCRYPT_AES_CCM_WPA2)
+		if (status->flag & RX_FLAG_ICV_STRIPPED)
 			skb_trim(msdu, msdu->len -
-				 ath10k_htt_rx_crypto_tail_len(ar, enctype));
+				 ath10k_htt_rx_crypto_icv_len(ar, enctype));
 	}
 
 	/* MMIC */
 	if ((status->flag & RX_FLAG_MMIC_STRIPPED) &&
 	    !ieee80211_has_morefrags(hdr->frame_control) &&
 	    enctype == HTT_RX_MPDU_ENCRYPT_TKIP_WPA)
-		skb_trim(msdu, msdu->len - 8);
+		skb_trim(msdu, msdu->len - MICHAEL_MIC_LEN);
 
 	/* Head */
 	if (status->flag & RX_FLAG_IV_STRIPPED) {

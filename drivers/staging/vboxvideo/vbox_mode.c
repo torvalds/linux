@@ -377,7 +377,7 @@ static struct drm_encoder *vbox_best_single_encoder(struct drm_connector
 
 	/* pick the encoder ids */
 	if (enc_id)
-		return drm_encoder_find(connector->dev, enc_id);
+		return drm_encoder_find(connector->dev, NULL, enc_id);
 
 	return NULL;
 }

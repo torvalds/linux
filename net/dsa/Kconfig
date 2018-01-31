@@ -7,6 +7,7 @@ config HAVE_NET_DSA
 config NET_DSA
 	tristate "Distributed Switch Architecture"
 	depends on HAVE_NET_DSA && MAY_USE_DEVLINK
+	depends on BRIDGE || BRIDGE=n
 	select NET_SWITCHDEV
 	select PHYLIB
 	---help---
@@ -17,6 +18,9 @@ if NET_DSA
 
 # tagging formats
 config NET_DSA_TAG_BRCM
+	bool
+
+config NET_DSA_TAG_BRCM_PREPEND
 	bool
 
 config NET_DSA_TAG_DSA

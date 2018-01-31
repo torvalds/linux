@@ -19,6 +19,11 @@ config WEXT_PRIV
 config CFG80211
 	tristate "cfg80211 - wireless configuration API"
 	depends on RFKILL || !RFKILL
+	select FW_LOADER
+	# may need to update this when certificates are changed and are
+	# using a different algorithm, though right now they shouldn't
+	# (this is here rather than below to allow it to be a module)
+	select CRYPTO_SHA256 if CFG80211_USE_KERNEL_REGDB_KEYS
 	---help---
 	  cfg80211 is the Linux wireless LAN (802.11) configuration API.
 	  Enable this if you have a wireless device.
@@ -82,6 +87,39 @@ config CFG80211_CERTIFICATION_ONUS
 	  you are a wireless researcher and are working in a controlled
 	  and approved environment by your local regulatory agency.
 
+config CFG80211_REQUIRE_SIGNED_REGDB
+	bool "require regdb signature" if CFG80211_CERTIFICATION_ONUS
+	default y
+	select SYSTEM_DATA_VERIFICATION
+	help
+	  Require that in addition to the "regulatory.db" file a
+	  "regulatory.db.p7s" can be loaded with a valid PKCS#7
+	  signature for the regulatory.db file made by one of the
+	  keys in the certs/ directory.
+
+config CFG80211_USE_KERNEL_REGDB_KEYS
+	bool "allow regdb keys shipped with the kernel" if CFG80211_CERTIFICATION_ONUS
+	default y
+	depends on CFG80211_REQUIRE_SIGNED_REGDB
+	help
+	  Allow the regulatory database to be signed by one of the keys for
+	  which certificates are part of the kernel sources
+	  (in net/wireless/certs/).
+
+	  This is currently only Seth Forshee's key, who is the regulatory
+	  database maintainer.
+
+config CFG80211_EXTRA_REGDB_KEYDIR
+	string "additional regdb key directory" if CFG80211_CERTIFICATION_ONUS
+	depends on CFG80211_REQUIRE_SIGNED_REGDB
+	help
+	  If selected, point to a directory with DER-encoded X.509
+	  certificates like in the kernel sources (net/wireless/certs/)
+	  that shall be accepted for a signed regulatory database.
+
+	  Note that you need to also select the correct CRYPTO_<hash> modules
+	  for your certificates, and if cfg80211 is built-in they also must be.
+
 config CFG80211_REG_CELLULAR_HINTS
 	bool "cfg80211 regulatory support for cellular base station hints"
 	depends on CFG80211_CERTIFICATION_ONUS
@@ -139,35 +177,14 @@ config CFG80211_DEBUGFS
 
 	  If unsure, say N.
 
-config CFG80211_INTERNAL_REGDB
-	bool "use statically compiled regulatory rules database" if EXPERT
-	default n
-	depends on CFG80211
-	---help---
-	  This option generates an internal data structure representing
-	  the wireless regulatory rules described in net/wireless/db.txt
-	  and includes code to query that database. This is an alternative
-	  to using CRDA for defining regulatory rules for the kernel.
-
-	  Using this option requires some parsing of the db.txt at build time,
-	  the parser will be upkept with the latest wireless-regdb updates but
-	  older wireless-regdb formats will be ignored. The parser may later
-	  be replaced to avoid issues with conflicts on versions of
-	  wireless-regdb.
-
-	  For details see:
-
-	  http://wireless.kernel.org/en/developers/Regulatory
-
-	  Most distributions have a CRDA package. So if unsure, say N.
-
 config CFG80211_CRDA_SUPPORT
-	bool "support CRDA" if CFG80211_INTERNAL_REGDB
+	bool "support CRDA" if EXPERT
 	default y
 	depends on CFG80211
 	help
 	  You should enable this option unless you know for sure you have no
-	  need for it, for example when using internal regdb (above.)
+	  need for it, for example when using internal regdb (above) or the
+	  database loaded as a firmware file.
 
 	  If unsure, say Y.
 

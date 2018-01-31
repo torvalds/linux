@@ -549,8 +549,8 @@ static int vmw_stdu_crtc_page_flip(struct drm_crtc *crtc,
 
 		ret = vmw_event_fence_action_queue(file_priv, fence,
 						   &event->base,
-						   &event->event.tv_sec,
-						   &event->event.tv_usec,
+						   &event->event.vbl.tv_sec,
+						   &event->event.vbl.tv_usec,
 						   true);
 		vmw_fence_obj_unreference(&fence);
 	} else {

@@ -325,7 +325,7 @@ static int univ8250_setup_irq(struct uart_8250_port *up)
 	if (up->bugs & UART_BUG_THRE) {
 		pr_debug("ttyS%d - using backup timer\n", serial_index(port));
 
-		up->timer.function = (TIMER_FUNC_TYPE)serial8250_backup_timeout;
+		up->timer.function = serial8250_backup_timeout;
 		mod_timer(&up->timer, jiffies +
 			  uart_poll_timeout(port) + HZ / 5);
 	}
@@ -348,7 +348,7 @@ static void univ8250_release_irq(struct uart_8250_port *up)
 	struct uart_port *port = &up->port;
 
 	del_timer_sync(&up->timer);
-	up->timer.function = (TIMER_FUNC_TYPE)serial8250_timeout;
+	up->timer.function = serial8250_timeout;
 	if (port->irq)
 		serial_unlink_irq_chain(up);
 }

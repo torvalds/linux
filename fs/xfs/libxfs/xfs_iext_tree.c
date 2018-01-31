@@ -302,7 +302,7 @@ xfs_iext_rec_cmp(
 	xfs_fileoff_t		offset)
 {
 	uint64_t		rec_offset = rec->lo & XFS_IEXT_STARTOFF_MASK;
-	u32			rec_len = rec->hi & XFS_IEXT_LENGTH_MASK;
+	uint32_t		rec_len = rec->hi & XFS_IEXT_LENGTH_MASK;
 
 	if (rec_offset > offset)
 		return 1;
@@ -632,8 +632,6 @@ xfs_iext_insert(
 	struct xfs_iext_leaf	*new = NULL;
 	int			nr_entries, i;
 
-	trace_xfs_iext_insert(ip, cur, state, _RET_IP_);
-
 	if (ifp->if_height == 0)
 		xfs_iext_alloc_root(ifp, cur);
 	else if (ifp->if_height == 1)
@@ -660,6 +658,8 @@ xfs_iext_insert(
 		cur->leaf->recs[i] = cur->leaf->recs[i - 1];
 	xfs_iext_set(cur_rec(cur), irec);
 	ifp->if_bytes += sizeof(struct xfs_iext_rec);
+
+	trace_xfs_iext_insert(ip, cur, state, _RET_IP_);
 
 	if (new)
 		xfs_iext_insert_node(ifp, xfs_iext_leaf_key(new, 0), new, 2);
@@ -850,9 +850,9 @@ static void
 xfs_iext_free_last_leaf(
 	struct xfs_ifork	*ifp)
 {
-	ifp->if_u1.if_root = NULL;
 	ifp->if_height--;
 	kmem_free(ifp->if_u1.if_root);
+	ifp->if_u1.if_root = NULL;
 }
 
 void

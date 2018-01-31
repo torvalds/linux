@@ -604,7 +604,7 @@ static void pmcraid_start_bist(struct pmcraid_cmd *cmd)
 
 	cmd->time_left = msecs_to_jiffies(PMCRAID_BIST_TIMEOUT);
 	cmd->timer.expires = jiffies + msecs_to_jiffies(PMCRAID_BIST_TIMEOUT);
-	cmd->timer.function = (TIMER_FUNC_TYPE)pmcraid_bist_done;
+	cmd->timer.function = pmcraid_bist_done;
 	add_timer(&cmd->timer);
 }
 
@@ -636,7 +636,7 @@ static void pmcraid_reset_alert_done(struct timer_list *t)
 		/* restart timer if some more time is available to wait */
 		cmd->time_left -= PMCRAID_CHECK_FOR_RESET_TIMEOUT;
 		cmd->timer.expires = jiffies + PMCRAID_CHECK_FOR_RESET_TIMEOUT;
-		cmd->timer.function = (TIMER_FUNC_TYPE)pmcraid_reset_alert_done;
+		cmd->timer.function = pmcraid_reset_alert_done;
 		add_timer(&cmd->timer);
 	}
 }
@@ -673,7 +673,7 @@ static void pmcraid_reset_alert(struct pmcraid_cmd *cmd)
 		 */
 		cmd->time_left = PMCRAID_RESET_TIMEOUT;
 		cmd->timer.expires = jiffies + PMCRAID_CHECK_FOR_RESET_TIMEOUT;
-		cmd->timer.function = (TIMER_FUNC_TYPE)pmcraid_reset_alert_done;
+		cmd->timer.function = pmcraid_reset_alert_done;
 		add_timer(&cmd->timer);
 
 		iowrite32(DOORBELL_IOA_RESET_ALERT,
@@ -923,7 +923,7 @@ static void pmcraid_send_cmd(
 	if (timeout_func) {
 		/* setup timeout handler */
 		cmd->timer.expires = jiffies + timeout;
-		cmd->timer.function = (TIMER_FUNC_TYPE)timeout_func;
+		cmd->timer.function = timeout_func;
 		add_timer(&cmd->timer);
 	}
 
@@ -1951,7 +1951,7 @@ static void pmcraid_soft_reset(struct pmcraid_cmd *cmd)
 	cmd->cmd_done = pmcraid_ioa_reset;
 	cmd->timer.expires = jiffies +
 			     msecs_to_jiffies(PMCRAID_TRANSOP_TIMEOUT);
-	cmd->timer.function = (TIMER_FUNC_TYPE)pmcraid_timeout_handler;
+	cmd->timer.function = pmcraid_timeout_handler;
 
 	if (!timer_pending(&cmd->timer))
 		add_timer(&cmd->timer);

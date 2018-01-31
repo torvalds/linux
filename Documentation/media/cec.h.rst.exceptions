@@ -24,8 +24,6 @@ ignore define CEC_VENDOR_ID_NONE
 ignore define CEC_MODE_INITIATOR_MSK
 ignore define CEC_MODE_FOLLOWER_MSK
 
-ignore define CEC_EVENT_FL_INITIAL_STATE
-
 # Part of CEC 2.0 spec - shouldn't be documented too?
 ignore define CEC_LOG_ADDR_TV
 ignore define CEC_LOG_ADDR_RECORD_1
