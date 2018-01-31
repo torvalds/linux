@@ -887,7 +887,7 @@ free_ctrl:
 static void nvme_rdma_reconnect_or_remove(struct nvme_rdma_ctrl *ctrl)
 {
 	/* If we are resetting/deleting then do nothing */
-	if (ctrl->ctrl.state != NVME_CTRL_RECONNECTING) {
+	if (ctrl->ctrl.state != NVME_CTRL_CONNECTING) {
 		WARN_ON_ONCE(ctrl->ctrl.state == NVME_CTRL_NEW ||
 			ctrl->ctrl.state == NVME_CTRL_LIVE);
 		return;
@@ -973,7 +973,7 @@ static void nvme_rdma_error_recovery_work(struct work_struct *work)
 	blk_mq_unquiesce_queue(ctrl->ctrl.admin_q);
 	nvme_start_queues(&ctrl->ctrl);
 
-	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_RECONNECTING)) {
+	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_CONNECTING)) {
 		/* state change failure should never happen */
 		WARN_ON_ONCE(1);
 		return;
@@ -1756,7 +1756,7 @@ static void nvme_rdma_reset_ctrl_work(struct work_struct *work)
 	nvme_stop_ctrl(&ctrl->ctrl);
 	nvme_rdma_shutdown_ctrl(ctrl, false);
 
-	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_RECONNECTING)) {
+	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_CONNECTING)) {
 		/* state change failure should never happen */
 		WARN_ON_ONCE(1);
 		return;

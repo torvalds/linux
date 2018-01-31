@@ -532,7 +532,7 @@ nvme_fc_resume_controller(struct nvme_fc_ctrl *ctrl)
 {
 	switch (ctrl->ctrl.state) {
 	case NVME_CTRL_NEW:
-	case NVME_CTRL_RECONNECTING:
+	case NVME_CTRL_CONNECTING:
 		/*
 		 * As all reconnects were suppressed, schedule a
 		 * connect.
@@ -777,7 +777,7 @@ nvme_fc_ctrl_connectivity_loss(struct nvme_fc_ctrl *ctrl)
 		}
 		break;
 
-	case NVME_CTRL_RECONNECTING:
+	case NVME_CTRL_CONNECTING:
 		/*
 		 * The association has already been terminated and the
 		 * controller is attempting reconnects.  No need to do anything
@@ -1722,7 +1722,7 @@ done:
 	if (status &&
 	    (blk_queue_dying(rq->q) ||
 	     ctrl->ctrl.state == NVME_CTRL_NEW ||
-	     ctrl->ctrl.state == NVME_CTRL_RECONNECTING))
+	     ctrl->ctrl.state == NVME_CTRL_CONNECTING))
 		status |= cpu_to_le16(NVME_SC_DNR << 1);
 
 	if (__nvme_fc_fcpop_chk_teardowns(ctrl, op))
@@ -2943,7 +2943,7 @@ nvme_fc_reconnect_or_delete(struct nvme_fc_ctrl *ctrl, int status)
 	unsigned long recon_delay = ctrl->ctrl.opts->reconnect_delay * HZ;
 	bool recon = true;
 
-	if (ctrl->ctrl.state != NVME_CTRL_RECONNECTING)
+	if (ctrl->ctrl.state != NVME_CTRL_CONNECTING)
 		return;
 
 	if (portptr->port_state == FC_OBJSTATE_ONLINE)
@@ -2991,10 +2991,10 @@ nvme_fc_reset_ctrl_work(struct work_struct *work)
 	/* will block will waiting for io to terminate */
 	nvme_fc_delete_association(ctrl);
 
-	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_RECONNECTING)) {
+	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_CONNECTING)) {
 		dev_err(ctrl->ctrl.device,
 			"NVME-FC{%d}: error_recovery: Couldn't change state "
-			"to RECONNECTING\n", ctrl->cnum);
+			"to CONNECTING\n", ctrl->cnum);
 		return;
 	}
 
@@ -3195,7 +3195,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	 * transport errors (frame drop, LS failure) inherently must kill
 	 * the association. The transport is coded so that any command used
 	 * to create the association (prior to a LIVE state transition
-	 * while NEW or RECONNECTING) will fail if it completes in error or
+	 * while NEW or CONNECTING) will fail if it completes in error or
 	 * times out.
 	 *
 	 * As such: as the connect request was mostly likely due to a

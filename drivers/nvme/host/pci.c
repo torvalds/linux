@@ -1141,7 +1141,7 @@ static bool nvme_should_reset(struct nvme_dev *dev, u32 csts)
 	/* If there is a reset/reinit ongoing, we shouldn't reset again. */
 	switch (dev->ctrl.state) {
 	case NVME_CTRL_RESETTING:
-	case NVME_CTRL_RECONNECTING:
+	case NVME_CTRL_CONNECTING:
 		return false;
 	default:
 		break;
@@ -2288,12 +2288,12 @@ static void nvme_reset_work(struct work_struct *work)
 		nvme_dev_disable(dev, false);
 
 	/*
-	 * Introduce RECONNECTING state from nvme-fc/rdma transports to mark the
+	 * Introduce CONNECTING state from nvme-fc/rdma transports to mark the
 	 * initializing procedure here.
 	 */
-	if (!nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_RECONNECTING)) {
+	if (!nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_CONNECTING)) {
 		dev_warn(dev->ctrl.device,
-			"failed to mark controller RECONNECTING\n");
+			"failed to mark controller CONNECTING\n");
 		goto out;
 	}
 
