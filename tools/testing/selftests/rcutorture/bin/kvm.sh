@@ -179,6 +179,12 @@ do
 		checkarg --torture "(suite name)" "$#" "$2" '^\(lock\|rcu\|rcuperf\)$' '^--'
 		TORTURE_SUITE=$2
 		shift
+		if test "$TORTURE_SUITE" = rcuperf
+		then
+			# If you really want jitter for rcuperf, specify
+			# it after specifying rcuperf.  (But why?)
+			jitter=0
+		fi
 		;;
 	*)
 		echo Unknown argument $1
