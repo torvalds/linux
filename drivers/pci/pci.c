@@ -156,7 +156,7 @@ void __iomem *pci_ioremap_bar(struct pci_dev *pdev, int bar)
 	 * Make sure the BAR is actually a memory resource, not an IO resource
 	 */
 	if (res->flags & IORESOURCE_UNSET || !(res->flags & IORESOURCE_MEM)) {
-		dev_warn(&pdev->dev, "can't ioremap BAR %d: %pR\n", bar, res);
+		pci_warn(pdev, "can't ioremap BAR %d: %pR\n", bar, res);
 		return NULL;
 	}
 	return ioremap_nocache(res->start, resource_size(res));
@@ -648,7 +648,7 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 	 */
 	if (state != PCI_D0 && dev->current_state <= PCI_D3cold
 	    && dev->current_state > state) {
-		dev_err(&dev->dev, "invalid power transition (from state %d to %d)\n",
+		pci_err(dev, "invalid power transition (from state %d to %d)\n",
 			dev->current_state, state);
 		return -EINVAL;
 	}
@@ -696,7 +696,7 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
 	dev->current_state = (pmcsr & PCI_PM_CTRL_STATE_MASK);
 	if (dev->current_state != state && printk_ratelimit())
-		dev_info(&dev->dev, "Refused to change power state, currently in D%d\n",
+		pci_info(dev, "Refused to change power state, currently in D%d\n",
 			 dev->current_state);
 
 	/*
@@ -970,7 +970,7 @@ pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
 	case PM_EVENT_HIBERNATE:
 		return PCI_D3hot;
 	default:
-		dev_info(&dev->dev, "unrecognized suspend event %d\n",
+		pci_info(dev, "unrecognized suspend event %d\n",
 			 state.event);
 		BUG();
 	}
@@ -1013,7 +1013,7 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 
 	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_EXP);
 	if (!save_state) {
-		dev_err(&dev->dev, "buffer not found in %s\n", __func__);
+		pci_err(dev, "buffer not found in %s\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -1061,7 +1061,7 @@ static int pci_save_pcix_state(struct pci_dev *dev)
 
 	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_PCIX);
 	if (!save_state) {
-		dev_err(&dev->dev, "buffer not found in %s\n", __func__);
+		pci_err(dev, "buffer not found in %s\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -1121,7 +1121,7 @@ static void pci_restore_config_dword(struct pci_dev *pdev, int offset,
 		return;
 
 	for (;;) {
-		dev_dbg(&pdev->dev, "restoring config space at offset %#x (was %#x, writing %#x)\n",
+		pci_dbg(pdev, "restoring config space at offset %#x (was %#x, writing %#x)\n",
 			offset, val, saved_val);
 		pci_write_config_dword(pdev, offset, saved_val);
 		if (retry-- <= 0)
@@ -1358,7 +1358,7 @@ static void pci_enable_bridge(struct pci_dev *dev)
 
 	retval = pci_enable_device(dev);
 	if (retval)
-		dev_err(&dev->dev, "Error enabling bridge (%d), continuing\n",
+		pci_err(dev, "Error enabling bridge (%d), continuing\n",
 			retval);
 	pci_set_master(dev);
 }
@@ -1863,7 +1863,7 @@ void pci_pme_active(struct pci_dev *dev, bool enable)
 			pme_dev = kmalloc(sizeof(struct pci_pme_device),
 					  GFP_KERNEL);
 			if (!pme_dev) {
-				dev_warn(&dev->dev, "can't enable PME#\n");
+				pci_warn(dev, "can't enable PME#\n");
 				return;
 			}
 			pme_dev->dev = dev;
@@ -1887,7 +1887,7 @@ void pci_pme_active(struct pci_dev *dev, bool enable)
 		}
 	}
 
-	dev_dbg(&dev->dev, "PME# %s\n", enable ? "enabled" : "disabled");
+	pci_dbg(dev, "PME# %s\n", enable ? "enabled" : "disabled");
 }
 EXPORT_SYMBOL(pci_pme_active);
 
@@ -2424,7 +2424,7 @@ void pci_pm_init(struct pci_dev *dev)
 	pci_read_config_word(dev, pm + PCI_PM_PMC, &pmc);
 
 	if ((pmc & PCI_PM_CAP_VER_MASK) > 3) {
-		dev_err(&dev->dev, "unsupported PM cap regs version (%u)\n",
+		pci_err(dev, "unsupported PM cap regs version (%u)\n",
 			pmc & PCI_PM_CAP_VER_MASK);
 		return;
 	}
@@ -2444,15 +2444,14 @@ void pci_pm_init(struct pci_dev *dev)
 			dev->d2_support = true;
 
 		if (dev->d1_support || dev->d2_support)
-			dev_printk(KERN_DEBUG, &dev->dev, "supports%s%s\n",
+			pci_printk(KERN_DEBUG, dev, "supports%s%s\n",
 				   dev->d1_support ? " D1" : "",
 				   dev->d2_support ? " D2" : "");
 	}
 
 	pmc &= PCI_PM_CAP_PME_MASK;
 	if (pmc) {
-		dev_printk(KERN_DEBUG, &dev->dev,
-			 "PME# supported from%s%s%s%s%s\n",
+		pci_printk(KERN_DEBUG, dev, "PME# supported from%s%s%s%s%s\n",
 			 (pmc & PCI_PM_CAP_PME_D0) ? " D0" : "",
 			 (pmc & PCI_PM_CAP_PME_D1) ? " D1" : "",
 			 (pmc & PCI_PM_CAP_PME_D2) ? " D2" : "",
@@ -2544,13 +2543,13 @@ static int pci_ea_read(struct pci_dev *dev, int offset)
 
 	res = pci_ea_get_resource(dev, bei, prop);
 	if (!res) {
-		dev_err(&dev->dev, "Unsupported EA entry BEI: %u\n", bei);
+		pci_err(dev, "Unsupported EA entry BEI: %u\n", bei);
 		goto out;
 	}
 
 	flags = pci_ea_flags(dev, prop);
 	if (!flags) {
-		dev_err(&dev->dev, "Unsupported EA properties: %#x\n", prop);
+		pci_err(dev, "Unsupported EA properties: %#x\n", prop);
 		goto out;
 	}
 
@@ -2600,13 +2599,12 @@ static int pci_ea_read(struct pci_dev *dev, int offset)
 	}
 
 	if (end < start) {
-		dev_err(&dev->dev, "EA Entry crosses address boundary\n");
+		pci_err(dev, "EA Entry crosses address boundary\n");
 		goto out;
 	}
 
 	if (ent_size != ent_offset - offset) {
-		dev_err(&dev->dev,
-			"EA Entry Size (%d) does not match length read (%d)\n",
+		pci_err(dev, "EA Entry Size (%d) does not match length read (%d)\n",
 			ent_size, ent_offset - offset);
 		goto out;
 	}
@@ -2617,16 +2615,16 @@ static int pci_ea_read(struct pci_dev *dev, int offset)
 	res->flags = flags;
 
 	if (bei <= PCI_EA_BEI_BAR5)
-		dev_printk(KERN_DEBUG, &dev->dev, "BAR %d: %pR (from Enhanced Allocation, properties %#02x)\n",
+		pci_printk(KERN_DEBUG, dev, "BAR %d: %pR (from Enhanced Allocation, properties %#02x)\n",
 			   bei, res, prop);
 	else if (bei == PCI_EA_BEI_ROM)
-		dev_printk(KERN_DEBUG, &dev->dev, "ROM: %pR (from Enhanced Allocation, properties %#02x)\n",
+		pci_printk(KERN_DEBUG, dev, "ROM: %pR (from Enhanced Allocation, properties %#02x)\n",
 			   res, prop);
 	else if (bei >= PCI_EA_BEI_VF_BAR0 && bei <= PCI_EA_BEI_VF_BAR5)
-		dev_printk(KERN_DEBUG, &dev->dev, "VF BAR %d: %pR (from Enhanced Allocation, properties %#02x)\n",
+		pci_printk(KERN_DEBUG, dev, "VF BAR %d: %pR (from Enhanced Allocation, properties %#02x)\n",
 			   bei - PCI_EA_BEI_VF_BAR0, res, prop);
 	else
-		dev_printk(KERN_DEBUG, &dev->dev, "BEI %d res: %pR (from Enhanced Allocation, properties %#02x)\n",
+		pci_printk(KERN_DEBUG, dev, "BEI %d res: %pR (from Enhanced Allocation, properties %#02x)\n",
 			   bei, res, prop);
 
 out:
@@ -2723,13 +2721,11 @@ void pci_allocate_cap_save_buffers(struct pci_dev *dev)
 	error = pci_add_cap_save_buffer(dev, PCI_CAP_ID_EXP,
 					PCI_EXP_SAVE_REGS * sizeof(u16));
 	if (error)
-		dev_err(&dev->dev,
-			"unable to preallocate PCI Express save buffer\n");
+		pci_err(dev, "unable to preallocate PCI Express save buffer\n");
 
 	error = pci_add_cap_save_buffer(dev, PCI_CAP_ID_PCIX, sizeof(u16));
 	if (error)
-		dev_err(&dev->dev,
-			"unable to preallocate PCI-X save buffer\n");
+		pci_err(dev, "unable to preallocate PCI-X save buffer\n");
 
 	pci_allocate_vc_save_buffers(dev);
 }
@@ -3273,7 +3269,7 @@ static int __pci_request_region(struct pci_dev *pdev, int bar,
 	return 0;
 
 err_out:
-	dev_warn(&pdev->dev, "BAR %d: can't reserve %pR\n", bar,
+	pci_warn(pdev, "BAR %d: can't reserve %pR\n", bar,
 		 &pdev->resource[bar]);
 	return -EBUSY;
 }
@@ -3696,7 +3692,7 @@ static void __pci_set_master(struct pci_dev *dev, bool enable)
 	else
 		cmd = old_cmd & ~PCI_COMMAND_MASTER;
 	if (cmd != old_cmd) {
-		dev_dbg(&dev->dev, "%s bus mastering\n",
+		pci_dbg(dev, "%s bus mastering\n",
 			enable ? "enabling" : "disabling");
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
@@ -3797,7 +3793,7 @@ int pci_set_cacheline_size(struct pci_dev *dev)
 	if (cacheline_size == pci_cache_line_size)
 		return 0;
 
-	dev_printk(KERN_DEBUG, &dev->dev, "cache line size of %d is not supported\n",
+	pci_printk(KERN_DEBUG, dev, "cache line size of %d is not supported\n",
 		   pci_cache_line_size << 2);
 
 	return -EINVAL;
@@ -3826,7 +3822,7 @@ int pci_set_mwi(struct pci_dev *dev)
 
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
 	if (!(cmd & PCI_COMMAND_INVALIDATE)) {
-		dev_dbg(&dev->dev, "enabling Mem-Wr-Inval\n");
+		pci_dbg(dev, "enabling Mem-Wr-Inval\n");
 		cmd |= PCI_COMMAND_INVALIDATE;
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
@@ -4022,13 +4018,13 @@ static void pci_flr_wait(struct pci_dev *dev)
 	pci_read_config_dword(dev, PCI_COMMAND, &id);
 	while (id == ~0) {
 		if (delay > timeout) {
-			dev_warn(&dev->dev, "not ready %dms after FLR; giving up\n",
+			pci_warn(dev, "not ready %dms after FLR; giving up\n",
 				 100 + delay - 1);
 			return;
 		}
 
 		if (delay > 1000)
-			dev_info(&dev->dev, "not ready %dms after FLR; waiting\n",
+			pci_info(dev, "not ready %dms after FLR; waiting\n",
 				 100 + delay - 1);
 
 		msleep(delay);
@@ -4037,7 +4033,7 @@ static void pci_flr_wait(struct pci_dev *dev)
 	}
 
 	if (delay > 1000)
-		dev_info(&dev->dev, "ready %dms after FLR\n", 100 + delay - 1);
+		pci_info(dev, "ready %dms after FLR\n", 100 + delay - 1);
 }
 
 /**
@@ -4069,7 +4065,7 @@ static bool pcie_has_flr(struct pci_dev *dev)
 void pcie_flr(struct pci_dev *dev)
 {
 	if (!pci_wait_for_pending_transaction(dev))
-		dev_err(&dev->dev, "timed out waiting for pending transaction; performing function level reset anyway\n");
+		pci_err(dev, "timed out waiting for pending transaction; performing function level reset anyway\n");
 
 	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_BCR_FLR);
 	pci_flr_wait(dev);
@@ -4102,7 +4098,7 @@ static int pci_af_flr(struct pci_dev *dev, int probe)
 	 */
 	if (!pci_wait_for_pending(dev, pos + PCI_AF_CTRL,
 				 PCI_AF_STATUS_TP << 8))
-		dev_err(&dev->dev, "timed out waiting for pending transaction; performing AF function level reset anyway\n");
+		pci_err(dev, "timed out waiting for pending transaction; performing AF function level reset anyway\n");
 
 	pci_write_config_byte(dev, pos + PCI_AF_CTRL, PCI_AF_CTRL_FLR);
 	pci_flr_wait(dev);
@@ -5225,12 +5221,12 @@ void pci_add_dma_alias(struct pci_dev *dev, u8 devfn)
 		dev->dma_alias_mask = kcalloc(BITS_TO_LONGS(U8_MAX),
 					      sizeof(long), GFP_KERNEL);
 	if (!dev->dma_alias_mask) {
-		dev_warn(&dev->dev, "Unable to allocate DMA alias mask\n");
+		pci_warn(dev, "Unable to allocate DMA alias mask\n");
 		return;
 	}
 
 	set_bit(devfn, dev->dma_alias_mask);
-	dev_info(&dev->dev, "Enabling fixed DMA alias to %02x.%d\n",
+	pci_info(dev, "Enabling fixed DMA alias to %02x.%d\n",
 		 PCI_SLOT(devfn), PCI_FUNC(devfn));
 }
 
@@ -5379,7 +5375,7 @@ static void pci_request_resource_alignment(struct pci_dev *dev, int bar,
 		return;
 
 	if (r->flags & IORESOURCE_PCI_FIXED) {
-		dev_info(&dev->dev, "BAR%d %pR: ignoring requested alignment %#llx\n",
+		pci_info(dev, "BAR%d %pR: ignoring requested alignment %#llx\n",
 			 bar, r, (unsigned long long)align);
 		return;
 	}
@@ -5416,7 +5412,7 @@ static void pci_request_resource_alignment(struct pci_dev *dev, int bar,
 	 * devices and we use the second.
 	 */
 
-	dev_info(&dev->dev, "BAR%d %pR: requesting alignment to %#llx\n",
+	pci_info(dev, "BAR%d %pR: requesting alignment to %#llx\n",
 		 bar, r, (unsigned long long)align);
 
 	if (resize) {
@@ -5462,13 +5458,11 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 
 	if (dev->hdr_type == PCI_HEADER_TYPE_NORMAL &&
 	    (dev->class >> 8) == PCI_CLASS_BRIDGE_HOST) {
-		dev_warn(&dev->dev,
-			"Can't reassign resources to host bridge.\n");
+		pci_warn(dev, "Can't reassign resources to host bridge\n");
 		return;
 	}
 
-	dev_info(&dev->dev,
-		"Disabling memory decoding and releasing memory resources.\n");
+	pci_info(dev, "Disabling memory decoding and releasing memory resources\n");
 	pci_read_config_word(dev, PCI_COMMAND, &command);
 	command &= ~PCI_COMMAND_MEMORY;
 	pci_write_config_word(dev, PCI_COMMAND, command);

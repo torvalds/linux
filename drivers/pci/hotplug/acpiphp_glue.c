@@ -811,10 +811,8 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 
 	handle = adev->handle;
 	bridge = kzalloc(sizeof(struct acpiphp_bridge), GFP_KERNEL);
-	if (!bridge) {
-		acpi_handle_err(handle, "No memory for bridge object\n");
+	if (!bridge)
 		return;
-	}
 
 	INIT_LIST_HEAD(&bridge->slots);
 	kref_init(&bridge->ref);

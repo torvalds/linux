@@ -28,7 +28,7 @@ MODULE_PARM_DESC(ids, "Initial PCI IDs to add to the stub driver, format is "
 
 static int pci_stub_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	dev_info(&dev->dev, "claimed by stub\n");
+	pci_info(dev, "claimed by stub\n");
 	return 0;
 }
 

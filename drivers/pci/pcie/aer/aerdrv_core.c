@@ -226,9 +226,8 @@ static bool find_source_device(struct pci_dev *parent,
 	pci_walk_bus(parent->subordinate, find_device_iter, e_info);
 
 	if (!e_info->error_dev_num) {
-		dev_printk(KERN_DEBUG, &parent->dev,
-				"can't find device of ID%04x\n",
-				e_info->id);
+		pci_printk(KERN_DEBUG, parent, "can't find device of ID%04x\n",
+			   e_info->id);
 		return false;
 	}
 	return true;
@@ -256,7 +255,7 @@ static int report_error_detected(struct pci_dev *dev, void *data)
 			 * of a driver for this device is unaware of
 			 * its hw state.
 			 */
-			dev_printk(KERN_DEBUG, &dev->dev, "device has %s\n",
+			pci_printk(KERN_DEBUG, dev, "device has %s\n",
 				   dev->driver ?
 				   "no AER-aware driver" : "no driver");
 		}
@@ -364,7 +363,7 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 {
 	struct aer_broadcast_data result_data;
 
-	dev_printk(KERN_DEBUG, &dev->dev, "broadcast %s message\n", error_mesg);
+	pci_printk(KERN_DEBUG, dev, "broadcast %s message\n", error_mesg);
 	result_data.state = state;
 	if (cb == report_error_detected)
 		result_data.result = PCI_ERS_RESULT_CAN_RECOVER;
@@ -413,7 +412,7 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 static pci_ers_result_t default_reset_link(struct pci_dev *dev)
 {
 	pci_reset_bridge_secondary_bus(dev);
-	dev_printk(KERN_DEBUG, &dev->dev, "downstream link has been reset\n");
+	pci_printk(KERN_DEBUG, dev, "downstream link has been reset\n");
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
@@ -465,15 +464,13 @@ static pci_ers_result_t reset_link(struct pci_dev *dev)
 	} else if (udev->has_secondary_link) {
 		status = default_reset_link(udev);
 	} else {
-		dev_printk(KERN_DEBUG, &dev->dev,
-			"no link-reset support at upstream device %s\n",
+		pci_printk(KERN_DEBUG, dev, "no link-reset support at upstream device %s\n",
 			pci_name(udev));
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
 	if (status != PCI_ERS_RESULT_RECOVERED) {
-		dev_printk(KERN_DEBUG, &dev->dev,
-			"link reset at upstream device %s failed\n",
+		pci_printk(KERN_DEBUG, dev, "link reset at upstream device %s failed\n",
 			pci_name(udev));
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
@@ -537,12 +534,12 @@ static void do_recovery(struct pci_dev *dev, int severity)
 				"resume",
 				report_resume);
 
-	dev_info(&dev->dev, "AER: Device recovery successful\n");
+	pci_info(dev, "AER: Device recovery successful\n");
 	return;
 
 failed:
 	/* TODO: Should kernel panic here? */
-	dev_info(&dev->dev, "AER: Device recovery failed\n");
+	pci_info(dev, "AER: Device recovery failed\n");
 }
 
 /**

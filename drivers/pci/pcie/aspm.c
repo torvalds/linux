@@ -266,7 +266,7 @@ static void pcie_aspm_configure_common_clock(struct pcie_link_state *link)
 		return;
 
 	/* Training failed. Restore common clock configurations */
-	dev_err(&parent->dev, "ASPM: Could not configure common clock\n");
+	pci_err(parent, "ASPM: Could not configure common clock\n");
 	list_for_each_entry(child, &linkbus->devices, bus_list)
 		pcie_capability_write_word(child, PCI_EXP_LNKCTL,
 					   child_reg[PCI_FUNC(child->devfn)]);
@@ -316,8 +316,7 @@ static u32 calc_l1ss_pwron(struct pci_dev *pdev, u32 scale, u32 val)
 	case 2:
 		return val * 100;
 	}
-	dev_err(&pdev->dev, "%s: Invalid T_PwrOn scale: %u\n",
-		__func__, scale);
+	pci_err(pdev, "%s: Invalid T_PwrOn scale: %u\n", __func__, scale);
 	return 0;
 }
 
@@ -809,7 +808,7 @@ static int pcie_aspm_sanity_check(struct pci_dev *pdev)
 		 */
 		pcie_capability_read_dword(child, PCI_EXP_DEVCAP, &reg32);
 		if (!(reg32 & PCI_EXP_DEVCAP_RBER) && !aspm_force) {
-			dev_info(&child->dev, "disabling ASPM on pre-1.1 PCIe device.  You can enable it with 'pcie_aspm=force'\n");
+			pci_info(child, "disabling ASPM on pre-1.1 PCIe device.  You can enable it with 'pcie_aspm=force'\n");
 			return -EINVAL;
 		}
 	}
@@ -1050,7 +1049,7 @@ static void __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem)
 	 * ignored in this situation.
 	 */
 	if (aspm_disabled) {
-		dev_warn(&pdev->dev, "can't disable ASPM; OS doesn't have ASPM control\n");
+		pci_warn(pdev, "can't disable ASPM; OS doesn't have ASPM control\n");
 		return;
 	}
 

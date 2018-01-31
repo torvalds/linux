@@ -10552,8 +10552,12 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/helgaas/pci.git
 S:	Supported
 F:	Documentation/devicetree/bindings/pci/
 F:	Documentation/PCI/
+F:	drivers/acpi/pci*
 F:	drivers/pci/
+F:	include/asm-generic/pci*
 F:	include/linux/pci*
+F:	include/uapi/linux/pci*
+F:	lib/pci*
 F:	arch/x86/pci/
 F:	arch/x86/kernel/quirks.c
 

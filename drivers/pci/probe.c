@@ -253,7 +253,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 
 	sz64 = pci_size(l64, sz64, mask64);
 	if (!sz64) {
-		dev_info(&dev->dev, FW_BUG "reg 0x%x: invalid BAR (can't size)\n",
+		pci_info(dev, FW_BUG "reg 0x%x: invalid BAR (can't size)\n",
 			 pos);
 		goto fail;
 	}
@@ -264,7 +264,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 			res->flags |= IORESOURCE_UNSET | IORESOURCE_DISABLED;
 			res->start = 0;
 			res->end = 0;
-			dev_err(&dev->dev, "reg 0x%x: can't handle BAR larger than 4GB (size %#010llx)\n",
+			pci_err(dev, "reg 0x%x: can't handle BAR larger than 4GB (size %#010llx)\n",
 				pos, (unsigned long long)sz64);
 			goto out;
 		}
@@ -274,7 +274,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 			res->flags |= IORESOURCE_UNSET;
 			res->start = 0;
 			res->end = sz64;
-			dev_info(&dev->dev, "reg 0x%x: can't handle BAR above 4GB (bus address %#010llx)\n",
+			pci_info(dev, "reg 0x%x: can't handle BAR above 4GB (bus address %#010llx)\n",
 				 pos, (unsigned long long)l64);
 			goto out;
 		}
@@ -301,7 +301,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		res->flags |= IORESOURCE_UNSET;
 		res->start = 0;
 		res->end = region.end - region.start;
-		dev_info(&dev->dev, "reg 0x%x: initial BAR value %#010llx invalid\n",
+		pci_info(dev, "reg 0x%x: initial BAR value %#010llx invalid\n",
 			 pos, (unsigned long long)region.start);
 	}
 
@@ -312,7 +312,7 @@ fail:
 	res->flags = 0;
 out:
 	if (res->flags)
-		dev_printk(KERN_DEBUG, &dev->dev, "reg 0x%x: %pR\n", pos, res);
+		pci_printk(KERN_DEBUG, dev, "reg 0x%x: %pR\n", pos, res);
 
 	return (res->flags & IORESOURCE_MEM_64) ? 1 : 0;
 }
@@ -375,7 +375,7 @@ static void pci_read_bridge_io(struct pci_bus *child)
 		region.start = base;
 		region.end = limit + io_granularity - 1;
 		pcibios_bus_to_resource(dev->bus, res, &region);
-		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
+		pci_printk(KERN_DEBUG, dev, "  bridge window %pR\n", res);
 	}
 }
 
@@ -397,7 +397,7 @@ static void pci_read_bridge_mmio(struct pci_bus *child)
 		region.start = base;
 		region.end = limit + 0xfffff;
 		pcibios_bus_to_resource(dev->bus, res, &region);
-		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
+		pci_printk(KERN_DEBUG, dev, "  bridge window %pR\n", res);
 	}
 }
 
@@ -437,7 +437,7 @@ static void pci_read_bridge_mmio_pref(struct pci_bus *child)
 	limit = (pci_bus_addr_t) limit64;
 
 	if (base != base64) {
-		dev_err(&dev->dev, "can't handle bridge window above 4GB (bus address %#010llx)\n",
+		pci_err(dev, "can't handle bridge window above 4GB (bus address %#010llx)\n",
 			(unsigned long long) base64);
 		return;
 	}
@@ -450,7 +450,7 @@ static void pci_read_bridge_mmio_pref(struct pci_bus *child)
 		region.start = base;
 		region.end = limit + 0xfffff;
 		pcibios_bus_to_resource(dev->bus, res, &region);
-		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
+		pci_printk(KERN_DEBUG, dev, "  bridge window %pR\n", res);
 	}
 }
 
@@ -463,7 +463,7 @@ void pci_read_bridge_bases(struct pci_bus *child)
 	if (pci_is_root_bus(child))	/* It's a host bus, nothing to read */
 		return;
 
-	dev_info(&dev->dev, "PCI bridge to %pR%s\n",
+	pci_info(dev, "PCI bridge to %pR%s\n",
 		 &child->busn_res,
 		 dev->transparent ? " (subtractive decode)" : "");
 
@@ -480,7 +480,7 @@ void pci_read_bridge_bases(struct pci_bus *child)
 			if (res && res->flags) {
 				pci_bus_add_resource(child, res,
 						     PCI_SUBTRACTIVE_DECODE);
-				dev_printk(KERN_DEBUG, &dev->dev,
+				pci_printk(KERN_DEBUG, dev,
 					   "  bridge window %pR (subtractive decode)\n",
 					   res);
 			}
@@ -1005,11 +1005,11 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 	secondary = (buses >> 8) & 0xFF;
 	subordinate = (buses >> 16) & 0xFF;
 
-	dev_dbg(&dev->dev, "scanning [bus %02x-%02x] behind bridge, pass %d\n",
+	pci_dbg(dev, "scanning [bus %02x-%02x] behind bridge, pass %d\n",
 		secondary, subordinate, pass);
 
 	if (!primary && (primary != bus->number) && secondary && subordinate) {
-		dev_warn(&dev->dev, "Primary bus is hard wired to 0\n");
+		pci_warn(dev, "Primary bus is hard wired to 0\n");
 		primary = bus->number;
 	}
 
@@ -1017,7 +1017,7 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 	if (!pass &&
 	    (primary != bus->number || secondary <= bus->number ||
 	     secondary > subordinate)) {
-		dev_info(&dev->dev, "bridge configuration invalid ([bus %02x-%02x]), reconfiguring\n",
+		pci_info(dev, "bridge configuration invalid ([bus %02x-%02x]), reconfiguring\n",
 			 secondary, subordinate);
 		broken = 1;
 	}
@@ -1058,7 +1058,7 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 
 		cmax = pci_scan_child_bus(child);
 		if (cmax > subordinate)
-			dev_warn(&dev->dev, "bridge has subordinate %02x but max busn %02x\n",
+			pci_warn(dev, "bridge has subordinate %02x but max busn %02x\n",
 				 subordinate, cmax);
 		/* subordinate should equal child->busn_res.end */
 		if (subordinate > max)
@@ -1468,7 +1468,7 @@ int pci_setup_device(struct pci_dev *dev)
 	dev->revision = class & 0xff;
 	dev->class = class >> 8;		    /* upper 3 bytes */
 
-	dev_printk(KERN_DEBUG, &dev->dev, "[%04x:%04x] type %02x class %#08x\n",
+	pci_printk(KERN_DEBUG, dev, "[%04x:%04x] type %02x class %#08x\n",
 		   dev->vendor, dev->device, dev->hdr_type, dev->class);
 
 	/* need to have dev->class ready */
@@ -1488,7 +1488,7 @@ int pci_setup_device(struct pci_dev *dev)
 	if (dev->non_compliant_bars) {
 		pci_read_config_word(dev, PCI_COMMAND, &cmd);
 		if (cmd & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY)) {
-			dev_info(&dev->dev, "device has non-compliant BARs; disabling IO/MEM decoding\n");
+			pci_info(dev, "device has non-compliant BARs; disabling IO/MEM decoding\n");
 			cmd &= ~PCI_COMMAND_IO;
 			cmd &= ~PCI_COMMAND_MEMORY;
 			pci_write_config_word(dev, PCI_COMMAND, cmd);
@@ -1521,14 +1521,14 @@ int pci_setup_device(struct pci_dev *dev)
 				res = &dev->resource[0];
 				res->flags = LEGACY_IO_RESOURCE;
 				pcibios_bus_to_resource(dev->bus, res, &region);
-				dev_info(&dev->dev, "legacy IDE quirk: reg 0x10: %pR\n",
+				pci_info(dev, "legacy IDE quirk: reg 0x10: %pR\n",
 					 res);
 				region.start = 0x3F6;
 				region.end = 0x3F6;
 				res = &dev->resource[1];
 				res->flags = LEGACY_IO_RESOURCE;
 				pcibios_bus_to_resource(dev->bus, res, &region);
-				dev_info(&dev->dev, "legacy IDE quirk: reg 0x14: %pR\n",
+				pci_info(dev, "legacy IDE quirk: reg 0x14: %pR\n",
 					 res);
 			}
 			if ((progif & 4) == 0) {
@@ -1537,14 +1537,14 @@ int pci_setup_device(struct pci_dev *dev)
 				res = &dev->resource[2];
 				res->flags = LEGACY_IO_RESOURCE;
 				pcibios_bus_to_resource(dev->bus, res, &region);
-				dev_info(&dev->dev, "legacy IDE quirk: reg 0x18: %pR\n",
+				pci_info(dev, "legacy IDE quirk: reg 0x18: %pR\n",
 					 res);
 				region.start = 0x376;
 				region.end = 0x376;
 				res = &dev->resource[3];
 				res->flags = LEGACY_IO_RESOURCE;
 				pcibios_bus_to_resource(dev->bus, res, &region);
-				dev_info(&dev->dev, "legacy IDE quirk: reg 0x1c: %pR\n",
+				pci_info(dev, "legacy IDE quirk: reg 0x1c: %pR\n",
 					 res);
 			}
 		}
@@ -1577,12 +1577,12 @@ int pci_setup_device(struct pci_dev *dev)
 		break;
 
 	default:				    /* unknown header */
-		dev_err(&dev->dev, "unknown header type %02x, ignoring device\n",
+		pci_err(dev, "unknown header type %02x, ignoring device\n",
 			dev->hdr_type);
 		return -EIO;
 
 	bad:
-		dev_err(&dev->dev, "ignoring class %#08x (doesn't match header type %02x)\n",
+		pci_err(dev, "ignoring class %#08x (doesn't match header type %02x)\n",
 			dev->class, dev->hdr_type);
 		dev->class = PCI_CLASS_NOT_DEFINED << 8;
 	}
@@ -1606,7 +1606,7 @@ static void pci_configure_mps(struct pci_dev *dev)
 		return;
 
 	if (pcie_bus_config == PCIE_BUS_TUNE_OFF) {
-		dev_warn(&dev->dev, "Max Payload Size %d, but upstream %s set to %d; if necessary, use \"pci=pcie_bus_safe\" and report a bug\n",
+		pci_warn(dev, "Max Payload Size %d, but upstream %s set to %d; if necessary, use \"pci=pcie_bus_safe\" and report a bug\n",
 			 mps, pci_name(bridge), p_mps);
 		return;
 	}
@@ -1620,12 +1620,12 @@ static void pci_configure_mps(struct pci_dev *dev)
 
 	rc = pcie_set_mps(dev, p_mps);
 	if (rc) {
-		dev_warn(&dev->dev, "can't set Max Payload Size to %d; if necessary, use \"pci=pcie_bus_safe\" and report a bug\n",
+		pci_warn(dev, "can't set Max Payload Size to %d; if necessary, use \"pci=pcie_bus_safe\" and report a bug\n",
 			 p_mps);
 		return;
 	}
 
-	dev_info(&dev->dev, "Max Payload Size set to %d (was %d, max %d)\n",
+	pci_info(dev, "Max Payload Size set to %d (was %d, max %d)\n",
 		 p_mps, mps, 128 << dev->pcie_mpss);
 }
 
@@ -1645,8 +1645,7 @@ static void program_hpp_type0(struct pci_dev *dev, struct hpp_type0 *hpp)
 		hpp = &pci_default_type0;
 
 	if (hpp->revision > 1) {
-		dev_warn(&dev->dev,
-			 "PCI settings rev %d not supported; using defaults\n",
+		pci_warn(dev, "PCI settings rev %d not supported; using defaults\n",
 			 hpp->revision);
 		hpp = &pci_default_type0;
 	}
@@ -1684,7 +1683,7 @@ static void program_hpp_type1(struct pci_dev *dev, struct hpp_type1 *hpp)
 	if (!pos)
 		return;
 
-	dev_warn(&dev->dev, "PCI-X settings not supported\n");
+	pci_warn(dev, "PCI-X settings not supported\n");
 }
 
 static bool pcie_root_rcb_set(struct pci_dev *dev)
@@ -1714,7 +1713,7 @@ static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
 		return;
 
 	if (hpp->revision > 1) {
-		dev_warn(&dev->dev, "PCIe settings rev %d not supported\n",
+		pci_warn(dev, "PCIe settings rev %d not supported\n",
 			 hpp->revision);
 		return;
 	}
@@ -1818,7 +1817,7 @@ int pci_configure_extended_tags(struct pci_dev *dev, void *ign)
 	 */
 	if (host->no_ext_tags) {
 		if (ctl & PCI_EXP_DEVCTL_EXT_TAG) {
-			dev_info(&dev->dev, "disabling Extended Tags\n");
+			pci_info(dev, "disabling Extended Tags\n");
 			pcie_capability_clear_word(dev, PCI_EXP_DEVCTL,
 						   PCI_EXP_DEVCTL_EXT_TAG);
 		}
@@ -1826,7 +1825,7 @@ int pci_configure_extended_tags(struct pci_dev *dev, void *ign)
 	}
 
 	if (!(ctl & PCI_EXP_DEVCTL_EXT_TAG)) {
-		dev_info(&dev->dev, "enabling Extended Tags\n");
+		pci_info(dev, "enabling Extended Tags\n");
 		pcie_capability_set_word(dev, PCI_EXP_DEVCTL,
 					 PCI_EXP_DEVCTL_EXT_TAG);
 	}
@@ -1871,7 +1870,7 @@ static void pci_configure_relaxed_ordering(struct pci_dev *dev)
 	if (root->dev_flags & PCI_DEV_FLAGS_NO_RELAXED_ORDERING) {
 		pcie_capability_clear_word(dev, PCI_EXP_DEVCTL,
 					   PCI_EXP_DEVCTL_RELAX_EN);
-		dev_info(&dev->dev, "Disable Relaxed Ordering because the Root Port didn't support it\n");
+		pci_info(dev, "Relaxed Ordering disabled because the Root Port didn't support it\n");
 	}
 }
 
@@ -2372,7 +2371,7 @@ static void pcie_write_mps(struct pci_dev *dev, int mps)
 
 	rc = pcie_set_mps(dev, mps);
 	if (rc)
-		dev_err(&dev->dev, "Failed attempting to set the MPS\n");
+		pci_err(dev, "Failed attempting to set the MPS\n");
 }
 
 static void pcie_write_mrrs(struct pci_dev *dev)
@@ -2402,12 +2401,12 @@ static void pcie_write_mrrs(struct pci_dev *dev)
 		if (!rc)
 			break;
 
-		dev_warn(&dev->dev, "Failed attempting to set the MRRS\n");
+		pci_warn(dev, "Failed attempting to set the MRRS\n");
 		mrrs /= 2;
 	}
 
 	if (mrrs < 128)
-		dev_err(&dev->dev, "MRRS was unable to be configured with a safe value.  If problems are experienced, try running with pci=pcie_bus_safe\n");
+		pci_err(dev, "MRRS was unable to be configured with a safe value.  If problems are experienced, try running with pci=pcie_bus_safe\n");
 }
 
 static int pcie_bus_configure_set(struct pci_dev *dev, void *data)
@@ -2427,7 +2426,7 @@ static int pcie_bus_configure_set(struct pci_dev *dev, void *data)
 	pcie_write_mps(dev, mps);
 	pcie_write_mrrs(dev);
 
-	dev_info(&dev->dev, "Max Payload Size set to %4d/%4d (was %4d), Max Read Rq %4d\n",
+	pci_info(dev, "Max Payload Size set to %4d/%4d (was %4d), Max Read Rq %4d\n",
 		 pcie_get_mps(dev), 128 << dev->pcie_mpss,
 		 orig_mps, pcie_get_readrq(dev));
 
@@ -2912,7 +2911,7 @@ int pci_hp_add_bridge(struct pci_dev *dev)
 			break;
 	}
 	if (busnr-- > end) {
-		dev_err(&dev->dev, "No bus number available for hot-added bridge\n");
+		pci_err(dev, "No bus number available for hot-added bridge\n");
 		return -1;
 	}
 

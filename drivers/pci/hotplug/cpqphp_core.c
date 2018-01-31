@@ -835,7 +835,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	bus = pdev->subordinate;
 	if (!bus) {
-		dev_notice(&pdev->dev, "the device is not a bridge, skipping\n");
+		pci_notice(pdev, "the device is not a bridge, skipping\n");
 		rc = -ENODEV;
 		goto err_disable_device;
 	}
@@ -883,7 +883,6 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ctrl = kzalloc(sizeof(struct controller), GFP_KERNEL);
 	if (!ctrl) {
-		err("%s : out of memory\n", __func__);
 		rc = -ENOMEM;
 		goto err_disable_device;
 	}
