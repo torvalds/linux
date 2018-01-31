@@ -272,11 +272,11 @@ static int rxe_init_av(struct rxe_dev *rxe, struct rdma_ah_attr *attr,
 	}
 
 	rxe_av_from_attr(rdma_ah_get_port_num(attr), av, attr);
-	err = rxe_av_fill_ip_info(rxe, av, attr, &sgid_attr, &sgid);
+	rxe_av_fill_ip_info(rxe, av, attr, &sgid_attr, &sgid);
 
 	if (sgid_attr.ndev)
 		dev_put(sgid_attr.ndev);
-	return err;
+	return 0;
 }
 
 static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd,
