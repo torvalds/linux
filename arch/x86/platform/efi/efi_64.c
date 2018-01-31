@@ -27,6 +27,7 @@
 #include <linux/ioport.h>
 #include <linux/mc146818rtc.h>
 #include <linux/efi.h>
+#include <linux/export.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/reboot.h>
@@ -190,7 +191,8 @@ void __init efi_call_phys_epilog(pgd_t *save_pgd)
 	early_code_mapping_set_exec(0);
 }
 
-static pgd_t *efi_pgd;
+pgd_t *efi_pgd;
+EXPORT_SYMBOL_GPL(efi_pgd);
 
 /*
  * We need our own copy of the higher levels of the page tables
