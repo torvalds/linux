@@ -59,6 +59,8 @@ obj-$(CONFIG_VIDEO_XILINX)		+= xilinx/
 
 obj-$(CONFIG_VIDEO_ROCKCHIP_VPU)	+= rockchip-vpu/
 
+obj-$(CONFIG_ROCKCHIP_TSP)		+= rockchip-tsp/
+
 ccflags-y += -I$(srctree)/drivers/media/i2c
 
 obj-$(CONFIG_VIDEO_RK_CIF_ISP10) += rk-isp10/

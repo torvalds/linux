@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config ROCKCHIP_TSP
+	bool "Support for Rockchip TSP"
+	default n
+
+	---help---
+	  Say Y here if you want to use the Transport Stream Processing.
+	  This option will add tsp module code.
+
+	  Say N hera if you do not want to use the processor.
+
