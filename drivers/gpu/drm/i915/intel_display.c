@@ -9715,7 +9715,7 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 		cntl |= MCURSOR_GAMMA_ENABLE;
 
 		if (HAS_DDI(dev_priv))
-			cntl |= CURSOR_PIPE_CSC_ENABLE;
+			cntl |= MCURSOR_PIPE_CSC_ENABLE;
 	}
 
 	if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv))
@@ -9723,13 +9723,13 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 
 	switch (plane_state->base.crtc_w) {
 	case 64:
-		cntl |= CURSOR_MODE_64_ARGB_AX;
+		cntl |= MCURSOR_MODE_64_ARGB_AX;
 		break;
 	case 128:
-		cntl |= CURSOR_MODE_128_ARGB_AX;
+		cntl |= MCURSOR_MODE_128_ARGB_AX;
 		break;
 	case 256:
-		cntl |= CURSOR_MODE_256_ARGB_AX;
+		cntl |= MCURSOR_MODE_256_ARGB_AX;
 		break;
 	default:
 		MISSING_CASE(plane_state->base.crtc_w);
@@ -9737,7 +9737,7 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 	}
 
 	if (plane_state->base.rotation & DRM_MODE_ROTATE_180)
-		cntl |= CURSOR_ROTATE_180;
+		cntl |= MCURSOR_ROTATE_180;
 
 	return cntl;
 }
@@ -9918,7 +9918,7 @@ static bool i9xx_cursor_get_hw_state(struct intel_plane *plane,
 
 	val = I915_READ(CURCNTR(plane->pipe));
 
-	ret = val & CURSOR_MODE;
+	ret = val & MCURSOR_MODE;
 
 	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
 		*pipe = plane->pipe;
@@ -15100,8 +15100,8 @@ void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 	WARN_ON(I915_READ(DSPCNTR(PLANE_A)) & DISPLAY_PLANE_ENABLE);
 	WARN_ON(I915_READ(DSPCNTR(PLANE_B)) & DISPLAY_PLANE_ENABLE);
 	WARN_ON(I915_READ(DSPCNTR(PLANE_C)) & DISPLAY_PLANE_ENABLE);
-	WARN_ON(I915_READ(CURCNTR(PIPE_A)) & CURSOR_MODE);
-	WARN_ON(I915_READ(CURCNTR(PIPE_B)) & CURSOR_MODE);
+	WARN_ON(I915_READ(CURCNTR(PIPE_A)) & MCURSOR_MODE);
+	WARN_ON(I915_READ(CURCNTR(PIPE_B)) & MCURSOR_MODE);
 
 	I915_WRITE(PIPECONF(pipe), 0);
 	POSTING_READ(PIPECONF(pipe));

@@ -273,8 +273,8 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 	for_each_pipe(dev_priv, pipe) {
 		vgpu_vreg_t(vgpu, DSPCNTR(pipe)) &= ~DISPLAY_PLANE_ENABLE;
 		vgpu_vreg_t(vgpu, SPRCTL(pipe)) &= ~SPRITE_ENABLE;
-		vgpu_vreg_t(vgpu, CURCNTR(pipe)) &= ~CURSOR_MODE;
-		vgpu_vreg_t(vgpu, CURCNTR(pipe)) |= CURSOR_MODE_DISABLE;
+		vgpu_vreg_t(vgpu, CURCNTR(pipe)) &= ~MCURSOR_MODE;
+		vgpu_vreg_t(vgpu, CURCNTR(pipe)) |= MCURSOR_MODE_DISABLE;
 	}
 
 	vgpu_vreg_t(vgpu, PIPECONF(PIPE_A)) |= PIPECONF_ENABLE;
