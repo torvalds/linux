@@ -6892,7 +6892,7 @@ M:	Jason Gunthorpe <jgg@mellanox.com>
 L:	linux-rdma@vger.kernel.org
 W:	http://www.openfabrics.org/
 Q:	http://patchwork.kernel.org/project/linux-rdma/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dledford/rdma.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git
 S:	Supported
 F:	Documentation/devicetree/bindings/infiniband/
 F:	Documentation/infiniband/
@@ -11218,7 +11218,8 @@ S:	Maintained
 F:	drivers/firmware/qemu_fw_cfg.c
 
 QIB DRIVER
-M:	Mike Marciniszyn <infinipath@intel.com>
+M:	Dennis Dalessandro <dennis.dalessandro@intel.com>
+M:	Mike Marciniszyn <mike.marciniszyn@intel.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/hw/qib/
@@ -11245,7 +11246,6 @@ F:	include/linux/qed/
 F:	drivers/net/ethernet/qlogic/qede/
 
 QLOGIC QL4xxx RDMA DRIVER
-M:	Ram Amrani <Ram.Amrani@cavium.com>
 M:	Michal Kalderon <Michal.Kalderon@cavium.com>
 M:	Ariel Elior <Ariel.Elior@cavium.com>
 L:	linux-rdma@vger.kernel.org
@@ -11507,6 +11507,7 @@ F:	drivers/net/ethernet/rdc/r6040.c
 
 RDMAVT - RDMA verbs software
 M:	Dennis Dalessandro <dennis.dalessandro@intel.com>
+M:	Mike Marciniszyn <mike.marciniszyn@intel.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/sw/rdmavt

@@ -79,6 +79,11 @@
 		     << __mlx5_dw_bit_off(typ, fld))); \
 } while (0)
 
+#define MLX5_ARRAY_SET(typ, p, fld, idx, v) do { \
+	BUILD_BUG_ON(__mlx5_bit_off(typ, fld) % 32); \
+	MLX5_SET(typ, p, fld[idx], v); \
+} while (0)
+
 #define MLX5_SET_TO_ONES(typ, p, fld) do { \
 	BUILD_BUG_ON(__mlx5_st_sz_bits(typ) % 32);             \
 	*((__be32 *)(p) + __mlx5_dw_off(typ, fld)) = \
@@ -244,6 +249,8 @@ enum {
 					  MLX5_NON_FP_BFREGS_PER_UAR,
 	MLX5_UARS_IN_PAGE		= PAGE_SIZE / MLX5_ADAPTER_PAGE_SIZE,
 	MLX5_NON_FP_BFREGS_IN_PAGE	= MLX5_NON_FP_BFREGS_PER_UAR * MLX5_UARS_IN_PAGE,
+	MLX5_MIN_DYN_BFREGS		= 512,
+	MLX5_MAX_DYN_BFREGS		= 1024,
 };
 
 enum {
@@ -284,6 +291,7 @@ enum {
 	MLX5_EVENT_QUEUE_TYPE_QP = 0,
 	MLX5_EVENT_QUEUE_TYPE_RQ = 1,
 	MLX5_EVENT_QUEUE_TYPE_SQ = 2,
+	MLX5_EVENT_QUEUE_TYPE_DCT = 6,
 };
 
 enum mlx5_event {
@@ -318,6 +326,8 @@ enum mlx5_event {
 
 	MLX5_EVENT_TYPE_PAGE_FAULT	   = 0xc,
 	MLX5_EVENT_TYPE_NIC_VPORT_CHANGE   = 0xd,
+
+	MLX5_EVENT_TYPE_DCT_DRAINED        = 0x1c,
 
 	MLX5_EVENT_TYPE_FPGA_ERROR         = 0x20,
 };
@@ -611,6 +621,11 @@ struct mlx5_eqe_pps {
 	u8		rsvd2[12];
 } __packed;
 
+struct mlx5_eqe_dct {
+	__be32  reserved[6];
+	__be32  dctn;
+};
+
 union ev_data {
 	__be32				raw[7];
 	struct mlx5_eqe_cmd		cmd;
@@ -626,6 +641,7 @@ union ev_data {
 	struct mlx5_eqe_vport_change	vport_change;
 	struct mlx5_eqe_port_module	port_module;
 	struct mlx5_eqe_pps		pps;
+	struct mlx5_eqe_dct             dct;
 } __packed;
 
 struct mlx5_eqe {

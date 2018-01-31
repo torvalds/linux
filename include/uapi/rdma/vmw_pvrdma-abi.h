@@ -52,12 +52,14 @@
 #define PVRDMA_UVERBS_ABI_VERSION	3		/* ABI Version. */
 #define PVRDMA_UAR_HANDLE_MASK		0x00FFFFFF	/* Bottom 24 bits. */
 #define PVRDMA_UAR_QP_OFFSET		0		/* QP doorbell. */
-#define PVRDMA_UAR_QP_SEND		BIT(30)		/* Send bit. */
-#define PVRDMA_UAR_QP_RECV		BIT(31)		/* Recv bit. */
+#define PVRDMA_UAR_QP_SEND		(1 << 30)	/* Send bit. */
+#define PVRDMA_UAR_QP_RECV		(1 << 31)	/* Recv bit. */
 #define PVRDMA_UAR_CQ_OFFSET		4		/* CQ doorbell. */
-#define PVRDMA_UAR_CQ_ARM_SOL		BIT(29)		/* Arm solicited bit. */
-#define PVRDMA_UAR_CQ_ARM		BIT(30)		/* Arm bit. */
-#define PVRDMA_UAR_CQ_POLL		BIT(31)		/* Poll bit. */
+#define PVRDMA_UAR_CQ_ARM_SOL		(1 << 29)	/* Arm solicited bit. */
+#define PVRDMA_UAR_CQ_ARM		(1 << 30)	/* Arm bit. */
+#define PVRDMA_UAR_CQ_POLL		(1 << 31)	/* Poll bit. */
+#define PVRDMA_UAR_SRQ_OFFSET		8		/* SRQ doorbell. */
+#define PVRDMA_UAR_SRQ_RECV		(1 << 30)	/* Recv bit. */
 
 enum pvrdma_wr_opcode {
 	PVRDMA_WR_RDMA_WRITE,

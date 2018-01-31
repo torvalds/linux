@@ -568,20 +568,16 @@ done:
 static int qib_set_part_key(struct qib_ctxtdata *rcd, u16 key)
 {
 	struct qib_pportdata *ppd = rcd->ppd;
-	int i, any = 0, pidx = -1;
+	int i, pidx = -1;
+	bool any = false;
 	u16 lkey = key & 0x7FFF;
-	int ret;
 
-	if (lkey == (QIB_DEFAULT_P_KEY & 0x7FFF)) {
+	if (lkey == (QIB_DEFAULT_P_KEY & 0x7FFF))
 		/* nothing to do; this key always valid */
-		ret = 0;
-		goto bail;
-	}
+		return 0;
 
-	if (!lkey) {
-		ret = -EINVAL;
-		goto bail;
-	}
+	if (!lkey)
+		return -EINVAL;
 
 	/*
 	 * Set the full membership bit, because it has to be
@@ -594,18 +590,14 @@ static int qib_set_part_key(struct qib_ctxtdata *rcd, u16 key)
 	for (i = 0; i < ARRAY_SIZE(rcd->pkeys); i++) {
 		if (!rcd->pkeys[i] && pidx == -1)
 			pidx = i;
-		if (rcd->pkeys[i] == key) {
-			ret = -EEXIST;
-			goto bail;
-		}
+		if (rcd->pkeys[i] == key)
+			return -EEXIST;
 	}
-	if (pidx == -1) {
-		ret = -EBUSY;
-		goto bail;
-	}
-	for (any = i = 0; i < ARRAY_SIZE(ppd->pkeys); i++) {
+	if (pidx == -1)
+		return -EBUSY;
+	for (i = 0; i < ARRAY_SIZE(ppd->pkeys); i++) {
 		if (!ppd->pkeys[i]) {
-			any++;
+			any = true;
 			continue;
 		}
 		if (ppd->pkeys[i] == key) {
@@ -613,44 +605,34 @@ static int qib_set_part_key(struct qib_ctxtdata *rcd, u16 key)
 
 			if (atomic_inc_return(pkrefs) > 1) {
 				rcd->pkeys[pidx] = key;
-				ret = 0;
-				goto bail;
-			} else {
-				/*
-				 * lost race, decrement count, catch below
-				 */
-				atomic_dec(pkrefs);
-				any++;
+				return 0;
 			}
+			/*
+			 * lost race, decrement count, catch below
+			 */
+			atomic_dec(pkrefs);
+			any = true;
 		}
-		if ((ppd->pkeys[i] & 0x7FFF) == lkey) {
+		if ((ppd->pkeys[i] & 0x7FFF) == lkey)
 			/*
 			 * It makes no sense to have both the limited and
 			 * full membership PKEY set at the same time since
 			 * the unlimited one will disable the limited one.
 			 */
-			ret = -EEXIST;
-			goto bail;
-		}
+			return -EEXIST;
 	}
-	if (!any) {
-		ret = -EBUSY;
-		goto bail;
-	}
-	for (any = i = 0; i < ARRAY_SIZE(ppd->pkeys); i++) {
+	if (!any)
+		return -EBUSY;
+	for (i = 0; i < ARRAY_SIZE(ppd->pkeys); i++) {
 		if (!ppd->pkeys[i] &&
 		    atomic_inc_return(&ppd->pkeyrefs[i]) == 1) {
 			rcd->pkeys[pidx] = key;
 			ppd->pkeys[i] = key;
 			(void) ppd->dd->f_set_ib_cfg(ppd, QIB_IB_CFG_PKEYS, 0);
-			ret = 0;
-			goto bail;
+			return 0;
 		}
 	}
-	ret = -EBUSY;
-
-bail:
-	return ret;
+	return -EBUSY;
 }
 
 /**

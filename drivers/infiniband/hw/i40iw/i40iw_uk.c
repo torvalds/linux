@@ -894,20 +894,6 @@ exit:
 }
 
 /**
- * i40iw_qp_roundup - return round up QP WQ depth
- * @wqdepth: WQ depth in quantas to round up
- */
-static int i40iw_qp_round_up(u32 wqdepth)
-{
-	int scount = 1;
-
-	for (wqdepth--; scount <= 16; scount *= 2)
-		wqdepth |= wqdepth >> scount;
-
-	return ++wqdepth;
-}
-
-/**
  * i40iw_get_wqe_shift - get shift count for maximum wqe size
  * @sge: Maximum Scatter Gather Elements wqe
  * @inline_data: Maximum inline data size
@@ -934,7 +920,7 @@ void i40iw_get_wqe_shift(u32 sge, u32 inline_data, u8 *shift)
  */
 enum i40iw_status_code i40iw_get_sqdepth(u32 sq_size, u8 shift, u32 *sqdepth)
 {
-	*sqdepth = i40iw_qp_round_up((sq_size << shift) + I40IW_SQ_RSVD);
+	*sqdepth = roundup_pow_of_two((sq_size << shift) + I40IW_SQ_RSVD);
 
 	if (*sqdepth < (I40IW_QP_SW_MIN_WQSIZE << shift))
 		*sqdepth = I40IW_QP_SW_MIN_WQSIZE << shift;
@@ -953,7 +939,7 @@ enum i40iw_status_code i40iw_get_sqdepth(u32 sq_size, u8 shift, u32 *sqdepth)
  */
 enum i40iw_status_code i40iw_get_rqdepth(u32 rq_size, u8 shift, u32 *rqdepth)
 {
-	*rqdepth = i40iw_qp_round_up((rq_size << shift) + I40IW_RQ_RSVD);
+	*rqdepth = roundup_pow_of_two((rq_size << shift) + I40IW_RQ_RSVD);
 
 	if (*rqdepth < (I40IW_QP_SW_MIN_WQSIZE << shift))
 		*rqdepth = I40IW_QP_SW_MIN_WQSIZE << shift;

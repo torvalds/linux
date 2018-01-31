@@ -385,6 +385,8 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 				iwcq->ibcq.event_handler(&ibevent, iwcq->ibcq.cq_context);
 			}
 			break;
+		case I40IW_AE_LLP_DOUBT_REACHABILITY:
+			break;
 		case I40IW_AE_PRIV_OPERATION_DENIED:
 		case I40IW_AE_STAG_ZERO_INVALID:
 		case I40IW_AE_IB_RREQ_AND_Q1_FULL:
@@ -403,7 +405,6 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 		case I40IW_AE_LLP_SEGMENT_TOO_SMALL:
 		case I40IW_AE_LLP_SYN_RECEIVED:
 		case I40IW_AE_LLP_TOO_MANY_RETRIES:
-		case I40IW_AE_LLP_DOUBT_REACHABILITY:
 		case I40IW_AE_LCE_QP_CATASTROPHIC:
 		case I40IW_AE_LCE_FUNCTION_CATASTROPHIC:
 		case I40IW_AE_LCE_CQ_CATASTROPHIC:

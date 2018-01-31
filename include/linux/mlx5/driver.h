@@ -155,6 +155,13 @@ enum mlx5_dcbx_oper_mode {
 	MLX5E_DCBX_PARAM_VER_OPER_AUTO  = 0x3,
 };
 
+enum mlx5_dct_atomic_mode {
+	MLX5_ATOMIC_MODE_DCT_OFF        = 20,
+	MLX5_ATOMIC_MODE_DCT_NONE       = 0 << MLX5_ATOMIC_MODE_DCT_OFF,
+	MLX5_ATOMIC_MODE_DCT_IB_COMP    = 1 << MLX5_ATOMIC_MODE_DCT_OFF,
+	MLX5_ATOMIC_MODE_DCT_CX         = 2 << MLX5_ATOMIC_MODE_DCT_OFF,
+};
+
 enum {
 	MLX5_ATOMIC_OPS_CMP_SWAP	= 1 << 0,
 	MLX5_ATOMIC_OPS_FETCH_ADD	= 1 << 1,
@@ -231,6 +238,9 @@ struct mlx5_bfreg_info {
 	u32			ver;
 	bool			lib_uar_4k;
 	u32			num_sys_pages;
+	u32			num_static_sys_pages;
+	u32			total_num_bfregs;
+	u32			num_dyn_bfregs;
 };
 
 struct mlx5_cmd_first {
@@ -430,6 +440,7 @@ enum mlx5_res_type {
 	MLX5_RES_SRQ	= 3,
 	MLX5_RES_XSRQ	= 4,
 	MLX5_RES_XRQ	= 5,
+	MLX5_RES_DCT	= MLX5_EVENT_QUEUE_TYPE_DCT,
 };
 
 struct mlx5_core_rsc_common {
@@ -788,6 +799,7 @@ struct mlx5_clock {
 	u32                        nominal_c_mult;
 	unsigned long              overflow_period;
 	struct delayed_work        overflow_work;
+	struct mlx5_core_dev      *mdev;
 	struct ptp_clock          *ptp;
 	struct ptp_clock_info      ptp_info;
 	struct mlx5_pps            pps_info;
@@ -826,7 +838,7 @@ struct mlx5_core_dev {
 	struct mlx5e_resources  mlx5e_res;
 	struct {
 		struct mlx5_rsvd_gids	reserved_gids;
-		atomic_t                roce_en;
+		u32			roce_en;
 	} roce;
 #ifdef CONFIG_MLX5_FPGA
 	struct mlx5_fpga_device *fpga;
@@ -835,6 +847,8 @@ struct mlx5_core_dev {
 	struct cpu_rmap         *rmap;
 #endif
 	struct mlx5_clock        clock;
+	struct mlx5_ib_clock_info  *clock_info;
+	struct page             *clock_info_page;
 };
 
 struct mlx5_db {
@@ -1103,7 +1117,7 @@ void mlx5_free_bfreg(struct mlx5_core_dev *mdev, struct mlx5_sq_bfreg *bfreg);
 unsigned int mlx5_core_reserved_gids_count(struct mlx5_core_dev *dev);
 int mlx5_core_roce_gid_set(struct mlx5_core_dev *dev, unsigned int index,
 			   u8 roce_version, u8 roce_l3_type, const u8 *gid,
-			   const u8 *mac, bool vlan, u16 vlan_id);
+			   const u8 *mac, bool vlan, u16 vlan_id, u8 port_num);
 
 static inline int fw_initializing(struct mlx5_core_dev *dev)
 {
@@ -1223,6 +1237,31 @@ static inline int mlx5_get_gid_table_len(u16 param)
 static inline bool mlx5_rl_is_supported(struct mlx5_core_dev *dev)
 {
 	return !!(dev->priv.rl_table.max_size);
+}
+
+static inline int mlx5_core_is_mp_slave(struct mlx5_core_dev *dev)
+{
+	return MLX5_CAP_GEN(dev, affiliate_nic_vport_criteria) &&
+	       MLX5_CAP_GEN(dev, num_vhca_ports) <= 1;
+}
+
+static inline int mlx5_core_is_mp_master(struct mlx5_core_dev *dev)
+{
+	return MLX5_CAP_GEN(dev, num_vhca_ports) > 1;
+}
+
+static inline int mlx5_core_mp_enabled(struct mlx5_core_dev *dev)
+{
+	return mlx5_core_is_mp_slave(dev) ||
+	       mlx5_core_is_mp_master(dev);
+}
+
+static inline int mlx5_core_native_port_num(struct mlx5_core_dev *dev)
+{
+	if (!mlx5_core_mp_enabled(dev))
+		return 1;
+
+	return MLX5_CAP_GEN(dev, native_port_num);
 }
 
 enum {

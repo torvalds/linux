@@ -39,6 +39,27 @@
 #ifndef __BNXT_QPLIB_FP_H__
 #define __BNXT_QPLIB_FP_H__
 
+struct bnxt_qplib_srq {
+	struct bnxt_qplib_pd		*pd;
+	struct bnxt_qplib_dpi		*dpi;
+	void __iomem			*dbr_base;
+	u64				srq_handle;
+	u32				id;
+	u32				max_wqe;
+	u32				max_sge;
+	u32				threshold;
+	bool				arm_req;
+	struct bnxt_qplib_cq		*cq;
+	struct bnxt_qplib_hwq		hwq;
+	struct bnxt_qplib_swq		*swq;
+	struct scatterlist		*sglist;
+	int				start_idx;
+	int				last_idx;
+	u32				nmap;
+	u16				eventq_hw_ring_id;
+	spinlock_t			lock; /* protect SRQE link list */
+};
+
 struct bnxt_qplib_sge {
 	u64				addr;
 	u32				lkey;
@@ -79,6 +100,7 @@ static inline u32 get_psne_idx(u32 val)
 
 struct bnxt_qplib_swq {
 	u64				wr_id;
+	int				next_idx;
 	u8				type;
 	u8				flags;
 	u32				start_psn;
@@ -404,29 +426,27 @@ struct bnxt_qplib_cq {
 	writel(NQ_DB_CP_FLAGS | ((raw_cons) & ((cp_bit) - 1)), db)
 
 struct bnxt_qplib_nq {
-	struct pci_dev			*pdev;
+	struct pci_dev		*pdev;
 
-	int				vector;
-	cpumask_t			mask;
-	int				budget;
-	bool				requested;
-	struct tasklet_struct		worker;
-	struct bnxt_qplib_hwq		hwq;
+	int			vector;
+	cpumask_t		mask;
+	int			budget;
+	bool			requested;
+	struct tasklet_struct	worker;
+	struct bnxt_qplib_hwq	hwq;
 
-	u16				bar_reg;
-	u16				bar_reg_off;
-	u16				ring_id;
-	void __iomem			*bar_reg_iomem;
+	u16			bar_reg;
+	u16			bar_reg_off;
+	u16			ring_id;
+	void __iomem		*bar_reg_iomem;
 
-	int				(*cqn_handler)
-						(struct bnxt_qplib_nq *nq,
-						 struct bnxt_qplib_cq *cq);
-	int				(*srqn_handler)
-						(struct bnxt_qplib_nq *nq,
-						 void *srq,
-						 u8 event);
-	struct workqueue_struct         *cqn_wq;
-	char                            name[32];
+	int			(*cqn_handler)(struct bnxt_qplib_nq *nq,
+					       struct bnxt_qplib_cq *cq);
+	int			(*srqn_handler)(struct bnxt_qplib_nq *nq,
+						struct bnxt_qplib_srq *srq,
+						u8 event);
+	struct workqueue_struct	*cqn_wq;
+	char			name[32];
 };
 
 struct bnxt_qplib_nq_work {
@@ -441,8 +461,18 @@ int bnxt_qplib_enable_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq,
 			 int (*cqn_handler)(struct bnxt_qplib_nq *nq,
 					    struct bnxt_qplib_cq *cq),
 			 int (*srqn_handler)(struct bnxt_qplib_nq *nq,
-					     void *srq,
+					     struct bnxt_qplib_srq *srq,
 					     u8 event));
+int bnxt_qplib_create_srq(struct bnxt_qplib_res *res,
+			  struct bnxt_qplib_srq *srq);
+int bnxt_qplib_modify_srq(struct bnxt_qplib_res *res,
+			  struct bnxt_qplib_srq *srq);
+int bnxt_qplib_query_srq(struct bnxt_qplib_res *res,
+			 struct bnxt_qplib_srq *srq);
+int bnxt_qplib_destroy_srq(struct bnxt_qplib_res *res,
+			   struct bnxt_qplib_srq *srq);
+int bnxt_qplib_post_srq_recv(struct bnxt_qplib_srq *srq,
+			     struct bnxt_qplib_swqe *wqe);
 int bnxt_qplib_create_qp1(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp);
 int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp);
 int bnxt_qplib_modify_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp);
