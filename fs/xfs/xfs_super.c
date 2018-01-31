@@ -1666,9 +1666,12 @@ xfs_fs_fill_super(
 			"DAX unsupported by block device. Turning off DAX.");
 			mp->m_flags &= ~XFS_MOUNT_DAX;
 		}
-		if (xfs_sb_version_hasreflink(&mp->m_sb))
+		if (xfs_sb_version_hasreflink(&mp->m_sb)) {
 			xfs_alert(mp,
 		"DAX and reflink cannot be used together!");
+			error = -EINVAL;
+			goto out_filestream_unmount;
+		}
 	}
 
 	if (mp->m_flags & XFS_MOUNT_DISCARD) {
