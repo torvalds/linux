@@ -263,33 +263,34 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 				     struct amdgpu_ring *ring,
 				     struct amdgpu_sync *sync,
 				     struct dma_fence *fence,
-				     struct amdgpu_job *job)
+				     struct amdgpu_job *job,
+				     struct amdgpu_vmid **id)
 {
 	struct amdgpu_device *adev = ring->adev;
 	unsigned vmhub = ring->funcs->vmhub;
 	uint64_t fence_context = adev->fence_context + ring->idx;
-	struct amdgpu_vmid *id = vm->reserved_vmid[vmhub];
-	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
 	struct dma_fence *updates = sync->last_vm_update;
 	bool needs_flush = vm->use_cpu_for_update;
 	int r = 0;
 
-	if (updates && id->flushed_updates &&
-	    updates->context == id->flushed_updates->context &&
-	    !dma_fence_is_later(updates, id->flushed_updates))
+	*id = vm->reserved_vmid[vmhub];
+	if (updates && (*id)->flushed_updates &&
+	    updates->context == (*id)->flushed_updates->context &&
+	    !dma_fence_is_later(updates, (*id)->flushed_updates))
 	    updates = NULL;
 
-	if (id->owner != vm->entity.fence_context ||
-	    job->vm_pd_addr != id->pd_gpu_addr ||
-	    updates || !id->last_flush ||
-	    (id->last_flush->context != fence_context &&
-	     !dma_fence_is_signaled(id->last_flush))) {
+	if ((*id)->owner != vm->entity.fence_context ||
+	    job->vm_pd_addr != (*id)->pd_gpu_addr ||
+	    updates || !(*id)->last_flush ||
+	    ((*id)->last_flush->context != fence_context &&
+	     !dma_fence_is_signaled((*id)->last_flush))) {
 		struct dma_fence *tmp;
 
 		/* to prevent one context starved by another context */
-		id->pd_gpu_addr = 0;
-		tmp = amdgpu_sync_peek_fence(&id->active, ring);
+		(*id)->pd_gpu_addr = 0;
+		tmp = amdgpu_sync_peek_fence(&(*id)->active, ring);
 		if (tmp) {
+			*id = NULL;
 			r = amdgpu_sync_fence(adev, sync, tmp, false);
 			return r;
 		}
@@ -299,24 +300,15 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 	/* Good we can use this VMID. Remember this submission as
 	* user of the VMID.
 	*/
-	r = amdgpu_sync_fence(ring->adev, &id->active, fence, false);
+	r = amdgpu_sync_fence(ring->adev, &(*id)->active, fence, false);
 	if (r)
 		return r;
 
 	if (updates) {
-		dma_fence_put(id->flushed_updates);
-		id->flushed_updates = dma_fence_get(updates);
+		dma_fence_put((*id)->flushed_updates);
+		(*id)->flushed_updates = dma_fence_get(updates);
 	}
-	id->pd_gpu_addr = job->vm_pd_addr;
-	id->owner = vm->entity.fence_context;
 	job->vm_needs_flush = needs_flush;
-	if (needs_flush) {
-		dma_fence_put(id->last_flush);
-		id->last_flush = NULL;
-	}
-	job->vmid = id - id_mgr->ids;
-	job->pasid = vm->pasid;
-	trace_amdgpu_vm_grab_id(vm, ring, job);
 	return 0;
 }
 
@@ -411,7 +403,6 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	struct amdgpu_device *adev = ring->adev;
 	unsigned vmhub = ring->funcs->vmhub;
 	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
-	struct dma_fence *updates = sync->last_vm_update;
 	struct amdgpu_vmid *id, *idle;
 	int r = 0;
 
@@ -421,37 +412,41 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		goto error;
 
 	if (vm->reserved_vmid[vmhub]) {
-		r = amdgpu_vmid_grab_reserved(vm, ring, sync, fence, job);
-		mutex_unlock(&id_mgr->lock);
-		return r;
-	}
-
-	r = amdgpu_vmid_grab_used(vm, ring, sync, fence, job, &id);
-	if (r)
-		goto error;
-
-	if (!id) {
-		/* Still no ID to use? Then use the idle one found earlier */
-		id = idle;
-
-		/* Remember this submission as user of the VMID */
-		r = amdgpu_sync_fence(ring->adev, &id->active, fence, false);
+		r = amdgpu_vmid_grab_reserved(vm, ring, sync, fence, job, &id);
+		if (r || !id)
+			goto error;
+	} else {
+		r = amdgpu_vmid_grab_used(vm, ring, sync, fence, job, &id);
 		if (r)
 			goto error;
 
-		id->pd_gpu_addr = job->vm_pd_addr;
-		dma_fence_put(id->flushed_updates);
-		id->flushed_updates = dma_fence_get(updates);
-		id->owner = vm->entity.fence_context;
-		job->vm_needs_flush = true;
+		if (!id) {
+			struct dma_fence *updates = sync->last_vm_update;
+
+			/* Still no ID to use? Then use the idle one found earlier */
+			id = idle;
+
+			/* Remember this submission as user of the VMID */
+			r = amdgpu_sync_fence(ring->adev, &id->active,
+					      fence, false);
+			if (r)
+				goto error;
+
+			dma_fence_put(id->flushed_updates);
+			id->flushed_updates = dma_fence_get(updates);
+			job->vm_needs_flush = true;
+		}
+
+		list_move_tail(&id->list, &id_mgr->ids_lru);
 	}
+
+	id->pd_gpu_addr = job->vm_pd_addr;
+	id->owner = vm->entity.fence_context;
 
 	if (job->vm_needs_flush) {
 		dma_fence_put(id->last_flush);
 		id->last_flush = NULL;
 	}
-	list_move_tail(&id->list, &id_mgr->ids_lru);
-
 	job->vmid = id - id_mgr->ids;
 	job->pasid = vm->pasid;
 	trace_amdgpu_vm_grab_id(vm, ring, job);
