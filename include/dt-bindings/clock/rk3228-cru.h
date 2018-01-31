@@ -124,6 +124,7 @@
 #define PCLK_HDMI_CTRL		364
 #define PCLK_HDMI_PHY		365
 #define PCLK_GMAC		367
+#define PCLK_ACODECPHY		368
 
 /* hclk gates */
 #define HCLK_I2S0_8CH		442

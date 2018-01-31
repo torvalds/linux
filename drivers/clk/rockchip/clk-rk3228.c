@@ -606,7 +606,7 @@ static struct rockchip_clk_branch rk3228_clk_branches[] __initdata = {
 	GATE(0, "pclk_sim", "pclk_cpu", CLK_IGNORE_UNUSED, RK2928_CLKGATE_CON(10), 3, GFLAGS),
 
 	GATE(0, "pclk_ddrphy", "pclk_phy_pre", CLK_IGNORE_UNUSED, RK2928_CLKGATE_CON(10), 3, GFLAGS),
-	GATE(0, "pclk_acodecphy", "pclk_phy_pre", CLK_IGNORE_UNUSED, RK2928_CLKGATE_CON(10), 5, GFLAGS),
+	GATE(PCLK_ACODECPHY, "pclk_acodecphy", "pclk_phy_pre", CLK_IGNORE_UNUSED, RK2928_CLKGATE_CON(10), 5, GFLAGS),
 	GATE(PCLK_HDMI_PHY, "pclk_hdmiphy", "pclk_phy_pre", 0, RK2928_CLKGATE_CON(10), 7, GFLAGS),
 	GATE(0, "pclk_vdacphy", "pclk_phy_pre", CLK_IGNORE_UNUSED, RK2928_CLKGATE_CON(10), 8, GFLAGS),
 	GATE(0, "pclk_phy_noc", "pclk_phy_pre", CLK_IGNORE_UNUSED, RK2928_CLKGATE_CON(10), 9, GFLAGS),
