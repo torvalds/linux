@@ -153,6 +153,9 @@ static void exit_to_usermode_loop(struct pt_regs *regs, u32 cached_flags)
 		if (cached_flags & _TIF_UPROBE)
 			uprobe_notify_resume(regs);
 
+		if (cached_flags & _TIF_PATCH_PENDING)
+			klp_update_patch_state(current);
+
 		/* deal with pending signal delivery */
 		if (cached_flags & _TIF_SIGPENDING)
 			do_signal(regs);
@@ -164,9 +167,6 @@ static void exit_to_usermode_loop(struct pt_regs *regs, u32 cached_flags)
 
 		if (cached_flags & _TIF_USER_RETURN_NOTIFY)
 			fire_user_return_notifiers();
-
-		if (cached_flags & _TIF_PATCH_PENDING)
-			klp_update_patch_state(current);
 
 		/* Disable IRQs and retry */
 		local_irq_disable();
