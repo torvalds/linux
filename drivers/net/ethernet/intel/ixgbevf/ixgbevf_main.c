@@ -130,6 +130,9 @@ static void ixgbevf_service_event_complete(struct ixgbevf_adapter *adapter)
 static void ixgbevf_queue_reset_subtask(struct ixgbevf_adapter *adapter);
 static void ixgbevf_set_itr(struct ixgbevf_q_vector *q_vector);
 static void ixgbevf_free_all_rx_resources(struct ixgbevf_adapter *adapter);
+static bool ixgbevf_can_reuse_rx_page(struct ixgbevf_rx_buffer *rx_buffer);
+static void ixgbevf_reuse_rx_page(struct ixgbevf_ring *rx_ring,
+				  struct ixgbevf_rx_buffer *old_buff);
 
 static void ixgbevf_remove_adapter(struct ixgbe_hw *hw)
 {
@@ -527,6 +530,49 @@ static void ixgbevf_process_skb_fields(struct ixgbevf_ring *rx_ring,
 	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 }
 
+static
+struct ixgbevf_rx_buffer *ixgbevf_get_rx_buffer(struct ixgbevf_ring *rx_ring,
+						const unsigned int size)
+{
+	struct ixgbevf_rx_buffer *rx_buffer;
+
+	rx_buffer = &rx_ring->rx_buffer_info[rx_ring->next_to_clean];
+	prefetchw(rx_buffer->page);
+
+	/* we are reusing so sync this buffer for CPU use */
+	dma_sync_single_range_for_cpu(rx_ring->dev,
+				      rx_buffer->dma,
+				      rx_buffer->page_offset,
+				      size,
+				      DMA_FROM_DEVICE);
+
+	rx_buffer->pagecnt_bias--;
+
+	return rx_buffer;
+}
+
+static void ixgbevf_put_rx_buffer(struct ixgbevf_ring *rx_ring,
+				  struct ixgbevf_rx_buffer *rx_buffer)
+{
+	if (ixgbevf_can_reuse_rx_page(rx_buffer)) {
+		/* hand second half of page back to the ring */
+		ixgbevf_reuse_rx_page(rx_ring, rx_buffer);
+	} else {
+		/* We are not reusing the buffer so unmap it and free
+		 * any references we are holding to it
+		 */
+		dma_unmap_page_attrs(rx_ring->dev, rx_buffer->dma,
+				     ixgbevf_rx_pg_size(rx_ring),
+				     DMA_FROM_DEVICE,
+				     IXGBEVF_RX_DMA_ATTR);
+		__page_frag_cache_drain(rx_buffer->page,
+					rx_buffer->pagecnt_bias);
+	}
+
+	/* clear contents of rx_buffer */
+	rx_buffer->page = NULL;
+}
+
 /**
  * ixgbevf_is_non_eop - process handling of non-EOP buffers
  * @rx_ring: Rx ring being processed
@@ -740,11 +786,10 @@ static inline bool ixgbevf_page_is_reserved(struct page *page)
 	return (page_to_nid(page) != numa_mem_id()) || page_is_pfmemalloc(page);
 }
 
-static bool ixgbevf_can_reuse_rx_page(struct ixgbevf_rx_buffer *rx_buffer,
-				      struct page *page,
-				      const unsigned int truesize)
+static bool ixgbevf_can_reuse_rx_page(struct ixgbevf_rx_buffer *rx_buffer)
 {
-	unsigned int pagecnt_bias = rx_buffer->pagecnt_bias--;
+	unsigned int pagecnt_bias = rx_buffer->pagecnt_bias;
+	struct page *page = rx_buffer->page;
 
 	/* avoid re-using remote pages */
 	if (unlikely(ixgbevf_page_is_reserved(page)))
@@ -752,16 +797,9 @@ static bool ixgbevf_can_reuse_rx_page(struct ixgbevf_rx_buffer *rx_buffer,
 
 #if (PAGE_SIZE < 8192)
 	/* if we are only owner of page we can reuse it */
-	if (unlikely(page_ref_count(page) != pagecnt_bias))
+	if (unlikely((page_ref_count(page) - pagecnt_bias) > 1))
 		return false;
-
-	/* flip page offset to other buffer */
-	rx_buffer->page_offset ^= truesize;
-
 #else
-	/* move offset up to the next cache line */
-	rx_buffer->page_offset += truesize;
-
 #define IXGBEVF_LAST_OFFSET \
 	(SKB_WITH_OVERHEAD(PAGE_SIZE) - IXGBEVF_RXBUFFER_2048)
 
@@ -774,7 +812,7 @@ static bool ixgbevf_can_reuse_rx_page(struct ixgbevf_rx_buffer *rx_buffer,
 	 * the pagecnt_bias and page count so that we fully restock the
 	 * number of references the driver holds.
 	 */
-	if (unlikely(pagecnt_bias == 1)) {
+	if (unlikely(!pagecnt_bias)) {
 		page_ref_add(page, USHRT_MAX);
 		rx_buffer->pagecnt_bias = USHRT_MAX;
 	}
@@ -786,25 +824,16 @@ static bool ixgbevf_can_reuse_rx_page(struct ixgbevf_rx_buffer *rx_buffer,
  * ixgbevf_add_rx_frag - Add contents of Rx buffer to sk_buff
  * @rx_ring: rx descriptor ring to transact packets on
  * @rx_buffer: buffer containing page to add
- * @rx_desc: descriptor containing length of buffer written by hardware
  * @skb: sk_buff to place the data into
+ * @size: size of buffer to be added
  *
  * This function will add the data contained in rx_buffer->page to the skb.
- * This is done either through a direct copy if the data in the buffer is
- * less than the skb header size, otherwise it will just attach the page as
- * a frag to the skb.
- *
- * The function will then update the page offset if necessary and return
- * true if the buffer can be reused by the adapter.
  **/
-static bool ixgbevf_add_rx_frag(struct ixgbevf_ring *rx_ring,
+static void ixgbevf_add_rx_frag(struct ixgbevf_ring *rx_ring,
 				struct ixgbevf_rx_buffer *rx_buffer,
-				u16 size,
-				union ixgbe_adv_rx_desc *rx_desc,
-				struct sk_buff *skb)
+				struct sk_buff *skb,
+				unsigned int size)
 {
-	struct page *page = rx_buffer->page;
-	void *va = page_address(page) + rx_buffer->page_offset;
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = ixgbevf_rx_pg_size(rx_ring) / 2;
 #else
@@ -812,101 +841,63 @@ static bool ixgbevf_add_rx_frag(struct ixgbevf_ring *rx_ring,
 				SKB_DATA_ALIGN(IXGBEVF_SKB_PAD + size) :
 				SKB_DATA_ALIGN(size);
 #endif
-	unsigned int pull_len;
-
-	if (unlikely(skb_is_nonlinear(skb)))
-		goto add_tail_frag;
-
-	if (likely(size <= IXGBEVF_RX_HDR_SIZE)) {
-		memcpy(__skb_put(skb, size), va, ALIGN(size, sizeof(long)));
-
-		/* page is not reserved, we can reuse buffer as is */
-		if (likely(!ixgbevf_page_is_reserved(page)))
-			return true;
-
-		/* this page cannot be reused so discard it */
-		return false;
-	}
-
-	/* we need the header to contain the greater of either ETH_HLEN or
-	 * 60 bytes if the skb->len is less than 60 for skb_pad.
-	 */
-	pull_len = eth_get_headlen(va, IXGBEVF_RX_HDR_SIZE);
-
-	/* align pull length to size of long to optimize memcpy performance */
-	memcpy(__skb_put(skb, pull_len), va, ALIGN(pull_len, sizeof(long)));
-
-	/* update all of the pointers */
-	va += pull_len;
-	size -= pull_len;
-
-add_tail_frag:
-	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
-			va - page_address(page), size, truesize);
-
-	return ixgbevf_can_reuse_rx_page(rx_buffer, page, truesize);
+	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, rx_buffer->page,
+			rx_buffer->page_offset, size, truesize);
+#if (PAGE_SIZE < 8192)
+	rx_buffer->page_offset ^= truesize;
+#else
+	rx_buffer->page_offset += truesize;
+#endif
 }
 
-static struct sk_buff *ixgbevf_fetch_rx_buffer(struct ixgbevf_ring *rx_ring,
-					       union ixgbe_adv_rx_desc *rx_desc,
-					       struct sk_buff *skb)
+static
+struct sk_buff *ixgbevf_construct_skb(struct ixgbevf_ring *rx_ring,
+				      struct ixgbevf_rx_buffer *rx_buffer,
+				      union ixgbe_adv_rx_desc *rx_desc,
+				      unsigned int size)
 {
-	struct ixgbevf_rx_buffer *rx_buffer;
-	struct page *page;
-	u16 size = le16_to_cpu(rx_desc->wb.upper.length);
+	void *va = page_address(rx_buffer->page) + rx_buffer->page_offset;
+#if (PAGE_SIZE < 8192)
+	unsigned int truesize = ixgbevf_rx_pg_size(rx_ring) / 2;
+#else
+	unsigned int truesize = SKB_DATA_ALIGN(size);
+#endif
+	unsigned int headlen;
+	struct sk_buff *skb;
 
-	rx_buffer = &rx_ring->rx_buffer_info[rx_ring->next_to_clean];
-	page = rx_buffer->page;
-	prefetchw(page);
-
-	/* we are reusing so sync this buffer for CPU use */
-	dma_sync_single_range_for_cpu(rx_ring->dev,
-				      rx_buffer->dma,
-				      rx_buffer->page_offset,
-				      size,
-				      DMA_FROM_DEVICE);
-
-	if (likely(!skb)) {
-		void *va = page_address(page) + rx_buffer->page_offset;
-
-		/* prefetch first cache line of first page */
-		prefetch(va);
+	/* prefetch first cache line of first page */
+	prefetch(va);
 #if L1_CACHE_BYTES < 128
-		prefetch(va + L1_CACHE_BYTES);
+	prefetch(va + L1_CACHE_BYTES);
 #endif
 
-		/* allocate a skb to store the frags */
-		skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
-						IXGBEVF_RX_HDR_SIZE);
-		if (unlikely(!skb)) {
-			rx_ring->rx_stats.alloc_rx_buff_failed++;
-			return NULL;
-		}
+	/* allocate a skb to store the frags */
+	skb = napi_alloc_skb(&rx_ring->q_vector->napi, IXGBEVF_RX_HDR_SIZE);
+	if (unlikely(!skb))
+		return NULL;
 
-		/* we will be copying header into skb->data in
-		 * pskb_may_pull so it is in our interest to prefetch
-		 * it now to avoid a possible cache miss
-		 */
-		prefetchw(skb->data);
-	}
+	/* Determine available headroom for copy */
+	headlen = size;
+	if (headlen > IXGBEVF_RX_HDR_SIZE)
+		headlen = eth_get_headlen(va, IXGBEVF_RX_HDR_SIZE);
 
-	/* pull page into skb */
-	if (ixgbevf_add_rx_frag(rx_ring, rx_buffer, size, rx_desc, skb)) {
-		/* hand second half of page back to the ring */
-		ixgbevf_reuse_rx_page(rx_ring, rx_buffer);
+	/* align pull length to size of long to optimize memcpy performance */
+	memcpy(__skb_put(skb, headlen), va, ALIGN(headlen, sizeof(long)));
+
+	/* update all of the pointers */
+	size -= headlen;
+	if (size) {
+		skb_add_rx_frag(skb, 0, rx_buffer->page,
+				(va + headlen) - page_address(rx_buffer->page),
+				size, truesize);
+#if (PAGE_SIZE < 8192)
+		rx_buffer->page_offset ^= truesize;
+#else
+		rx_buffer->page_offset += truesize;
+#endif
 	} else {
-		/* We are not reusing the buffer so unmap it and free
-		 * any references we are holding to it
-		 */
-		dma_unmap_page_attrs(rx_ring->dev, rx_buffer->dma,
-				     ixgbevf_rx_pg_size(rx_ring),
-				     DMA_FROM_DEVICE, IXGBEVF_RX_DMA_ATTR);
-		__page_frag_cache_drain(page, rx_buffer->pagecnt_bias);
+		rx_buffer->pagecnt_bias++;
 	}
-
-	/* clear contents of buffer_info */
-	rx_buffer->dma = 0;
-	rx_buffer->page = NULL;
 
 	return skb;
 }
@@ -929,6 +920,8 @@ static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 
 	while (likely(total_rx_packets < budget)) {
 		union ixgbe_adv_rx_desc *rx_desc;
+		struct ixgbevf_rx_buffer *rx_buffer;
+		unsigned int size;
 
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= IXGBEVF_RX_BUFFER_WRITE) {
@@ -937,8 +930,8 @@ static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 		}
 
 		rx_desc = IXGBEVF_RX_DESC(rx_ring, rx_ring->next_to_clean);
-
-		if (!rx_desc->wb.upper.length)
+		size = le16_to_cpu(rx_desc->wb.upper.length);
+		if (!size)
 			break;
 
 		/* This memory barrier is needed to keep us from reading
@@ -947,15 +940,23 @@ static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 		 */
 		rmb();
 
+		rx_buffer = ixgbevf_get_rx_buffer(rx_ring, size);
+
 		/* retrieve a buffer from the ring */
-		skb = ixgbevf_fetch_rx_buffer(rx_ring, rx_desc, skb);
+		if (skb)
+			ixgbevf_add_rx_frag(rx_ring, rx_buffer, skb, size);
+		else
+			skb = ixgbevf_construct_skb(rx_ring, rx_buffer,
+						    rx_desc, size);
 
 		/* exit if we failed to retrieve a buffer */
 		if (!skb) {
 			rx_ring->rx_stats.alloc_rx_buff_failed++;
+			rx_buffer->pagecnt_bias++;
 			break;
 		}
 
+		ixgbevf_put_rx_buffer(rx_ring, rx_buffer);
 		cleaned_count++;
 
 		/* fetch next buffer in frame if non-eop */
