@@ -459,7 +459,7 @@ static int rcar_pcie_enable(struct rcar_pcie *pcie)
 
 	rcar_pcie_setup(&bridge->windows, pcie);
 
-	pci_add_flags(PCI_REASSIGN_ALL_RSRC | PCI_REASSIGN_ALL_BUS);
+	pci_add_flags(PCI_REASSIGN_ALL_BUS);
 
 	bridge->dev.parent = dev;
 	bridge->sysdata = pcie;
