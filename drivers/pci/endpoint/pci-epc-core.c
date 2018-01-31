@@ -142,25 +142,26 @@ EXPORT_SYMBOL_GPL(pci_epc_start);
 /**
  * pci_epc_raise_irq() - interrupt the host system
  * @epc: the EPC device which has to interrupt the host
+ * @func_no: the endpoint function number in the EPC device
  * @type: specify the type of interrupt; legacy or MSI
  * @interrupt_num: the MSI interrupt number
  *
  * Invoke to raise an MSI or legacy interrupt
  */
-int pci_epc_raise_irq(struct pci_epc *epc, enum pci_epc_irq_type type,
-		      u8 interrupt_num)
+int pci_epc_raise_irq(struct pci_epc *epc, u8 func_no,
+		      enum pci_epc_irq_type type, u8 interrupt_num)
 {
 	int ret;
 	unsigned long flags;
 
-	if (IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions)
 		return -EINVAL;
 
 	if (!epc->ops->raise_irq)
 		return 0;
 
 	spin_lock_irqsave(&epc->lock, flags);
-	ret = epc->ops->raise_irq(epc, type, interrupt_num);
+	ret = epc->ops->raise_irq(epc, func_no, type, interrupt_num);
 	spin_unlock_irqrestore(&epc->lock, flags);
 
 	return ret;
@@ -170,22 +171,23 @@ EXPORT_SYMBOL_GPL(pci_epc_raise_irq);
 /**
  * pci_epc_get_msi() - get the number of MSI interrupt numbers allocated
  * @epc: the EPC device to which MSI interrupts was requested
+ * @func_no: the endpoint function number in the EPC device
  *
  * Invoke to get the number of MSI interrupts allocated by the RC
  */
-int pci_epc_get_msi(struct pci_epc *epc)
+int pci_epc_get_msi(struct pci_epc *epc, u8 func_no)
 {
 	int interrupt;
 	unsigned long flags;
 
-	if (IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions)
 		return 0;
 
 	if (!epc->ops->get_msi)
 		return 0;
 
 	spin_lock_irqsave(&epc->lock, flags);
-	interrupt = epc->ops->get_msi(epc);
+	interrupt = epc->ops->get_msi(epc, func_no);
 	spin_unlock_irqrestore(&epc->lock, flags);
 
 	if (interrupt < 0)
@@ -200,17 +202,18 @@ EXPORT_SYMBOL_GPL(pci_epc_get_msi);
 /**
  * pci_epc_set_msi() - set the number of MSI interrupt numbers required
  * @epc: the EPC device on which MSI has to be configured
+ * @func_no: the endpoint function number in the EPC device
  * @interrupts: number of MSI interrupts required by the EPF
  *
  * Invoke to set the required number of MSI interrupts.
  */
-int pci_epc_set_msi(struct pci_epc *epc, u8 interrupts)
+int pci_epc_set_msi(struct pci_epc *epc, u8 func_no, u8 interrupts)
 {
 	int ret;
 	u8 encode_int;
 	unsigned long flags;
 
-	if (IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions)
 		return -EINVAL;
 
 	if (!epc->ops->set_msi)
@@ -219,7 +222,7 @@ int pci_epc_set_msi(struct pci_epc *epc, u8 interrupts)
 	encode_int = order_base_2(interrupts);
 
 	spin_lock_irqsave(&epc->lock, flags);
-	ret = epc->ops->set_msi(epc, encode_int);
+	ret = epc->ops->set_msi(epc, func_no, encode_int);
 	spin_unlock_irqrestore(&epc->lock, flags);
 
 	return ret;
@@ -229,22 +232,24 @@ EXPORT_SYMBOL_GPL(pci_epc_set_msi);
 /**
  * pci_epc_unmap_addr() - unmap CPU address from PCI address
  * @epc: the EPC device on which address is allocated
+ * @func_no: the endpoint function number in the EPC device
  * @phys_addr: physical address of the local system
  *
  * Invoke to unmap the CPU address from PCI address.
  */
-void pci_epc_unmap_addr(struct pci_epc *epc, phys_addr_t phys_addr)
+void pci_epc_unmap_addr(struct pci_epc *epc, u8 func_no,
+			phys_addr_t phys_addr)
 {
 	unsigned long flags;
 
-	if (IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions)
 		return;
 
 	if (!epc->ops->unmap_addr)
 		return;
 
 	spin_lock_irqsave(&epc->lock, flags);
-	epc->ops->unmap_addr(epc, phys_addr);
+	epc->ops->unmap_addr(epc, func_no, phys_addr);
 	spin_unlock_irqrestore(&epc->lock, flags);
 }
 EXPORT_SYMBOL_GPL(pci_epc_unmap_addr);
@@ -252,26 +257,27 @@ EXPORT_SYMBOL_GPL(pci_epc_unmap_addr);
 /**
  * pci_epc_map_addr() - map CPU address to PCI address
  * @epc: the EPC device on which address is allocated
+ * @func_no: the endpoint function number in the EPC device
  * @phys_addr: physical address of the local system
  * @pci_addr: PCI address to which the physical address should be mapped
  * @size: the size of the allocation
  *
  * Invoke to map CPU address with PCI address.
  */
-int pci_epc_map_addr(struct pci_epc *epc, phys_addr_t phys_addr,
-		     u64 pci_addr, size_t size)
+int pci_epc_map_addr(struct pci_epc *epc, u8 func_no,
+		     phys_addr_t phys_addr, u64 pci_addr, size_t size)
 {
 	int ret;
 	unsigned long flags;
 
-	if (IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions)
 		return -EINVAL;
 
 	if (!epc->ops->map_addr)
 		return 0;
 
 	spin_lock_irqsave(&epc->lock, flags);
-	ret = epc->ops->map_addr(epc, phys_addr, pci_addr, size);
+	ret = epc->ops->map_addr(epc, func_no, phys_addr, pci_addr, size);
 	spin_unlock_irqrestore(&epc->lock, flags);
 
 	return ret;
@@ -281,22 +287,23 @@ EXPORT_SYMBOL_GPL(pci_epc_map_addr);
 /**
  * pci_epc_clear_bar() - reset the BAR
  * @epc: the EPC device for which the BAR has to be cleared
+ * @func_no: the endpoint function number in the EPC device
  * @bar: the BAR number that has to be reset
  *
  * Invoke to reset the BAR of the endpoint device.
  */
-void pci_epc_clear_bar(struct pci_epc *epc, int bar)
+void pci_epc_clear_bar(struct pci_epc *epc, u8 func_no, int bar)
 {
 	unsigned long flags;
 
-	if (IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions)
 		return;
 
 	if (!epc->ops->clear_bar)
 		return;
 
 	spin_lock_irqsave(&epc->lock, flags);
-	epc->ops->clear_bar(epc, bar);
+	epc->ops->clear_bar(epc, func_no, bar);
 	spin_unlock_irqrestore(&epc->lock, flags);
 }
 EXPORT_SYMBOL_GPL(pci_epc_clear_bar);
@@ -304,26 +311,27 @@ EXPORT_SYMBOL_GPL(pci_epc_clear_bar);
 /**
  * pci_epc_set_bar() - configure BAR in order for host to assign PCI addr space
  * @epc: the EPC device on which BAR has to be configured
+ * @func_no: the endpoint function number in the EPC device
  * @bar: the BAR number that has to be configured
  * @size: the size of the addr space
  * @flags: specify memory allocation/io allocation/32bit address/64 bit address
  *
  * Invoke to configure the BAR of the endpoint device.
  */
-int pci_epc_set_bar(struct pci_epc *epc, enum pci_barno bar,
+int pci_epc_set_bar(struct pci_epc *epc, u8 func_no, enum pci_barno bar,
 		    dma_addr_t bar_phys, size_t size, int flags)
 {
 	int ret;
 	unsigned long irq_flags;
 
-	if (IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions)
 		return -EINVAL;
 
 	if (!epc->ops->set_bar)
 		return 0;
 
 	spin_lock_irqsave(&epc->lock, irq_flags);
-	ret = epc->ops->set_bar(epc, bar, bar_phys, size, flags);
+	ret = epc->ops->set_bar(epc, func_no, bar, bar_phys, size, flags);
 	spin_unlock_irqrestore(&epc->lock, irq_flags);
 
 	return ret;
@@ -333,6 +341,7 @@ EXPORT_SYMBOL_GPL(pci_epc_set_bar);
 /**
  * pci_epc_write_header() - write standard configuration header
  * @epc: the EPC device to which the configuration header should be written
+ * @func_no: the endpoint function number in the EPC device
  * @header: standard configuration header fields
  *
  * Invoke to write the configuration header to the endpoint controller. Every
@@ -340,19 +349,20 @@ EXPORT_SYMBOL_GPL(pci_epc_set_bar);
  * configuration header would be written. The callback function should write
  * the header fields to this dedicated location.
  */
-int pci_epc_write_header(struct pci_epc *epc, struct pci_epf_header *header)
+int pci_epc_write_header(struct pci_epc *epc, u8 func_no,
+			 struct pci_epf_header *header)
 {
 	int ret;
 	unsigned long flags;
 
-	if (IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions)
 		return -EINVAL;
 
 	if (!epc->ops->write_header)
 		return 0;
 
 	spin_lock_irqsave(&epc->lock, flags);
-	ret = epc->ops->write_header(epc, header);
+	ret = epc->ops->write_header(epc, func_no, header);
 	spin_unlock_irqrestore(&epc->lock, flags);
 
 	return ret;

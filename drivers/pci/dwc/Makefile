@@ -27,4 +27,6 @@ obj-$(CONFIG_PCIE_HISI_STB) += pcie-histb.o
 # ARM64 and use internal ifdefs to only build the pieces we need
 # depending on whether ACPI, the DT driver, or both are enabled.
 
+ifdef CONFIG_PCI
 obj-$(CONFIG_ARM64) += pcie-hisi.o
+endif

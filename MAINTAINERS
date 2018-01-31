@@ -10402,6 +10402,13 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/pci/pci-armada8k.txt
 F:	drivers/pci/dwc/pcie-armada8k.c
 
+PCI DRIVER FOR CADENCE PCIE IP
+M:	Alan Douglas <adouglas@cadence.com>
+L:	linux-pci@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/pci/cdns,*.txt
+F:	drivers/pci/cadence/pcie-cadence*
+
 PCI DRIVER FOR FREESCALE LAYERSCAPE
 M:	Minghuan Lian <minghuan.Lian@freescale.com>
 M:	Mingkai Hu <mingkai.hu@freescale.com>

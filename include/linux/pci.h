@@ -879,6 +879,7 @@ struct pci_bus *pci_scan_bus(int bus, struct pci_ops *ops, void *sysdata);
 struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 				    struct pci_ops *ops, void *sysdata,
 				    struct list_head *resources);
+int pci_host_probe(struct pci_host_bridge *bridge);
 int pci_bus_insert_busn_res(struct pci_bus *b, int bus, int busmax);
 int pci_bus_update_busn_res_end(struct pci_bus *b, int busmax);
 void pci_bus_release_busn_res(struct pci_bus *b);
@@ -2171,6 +2172,9 @@ void pci_release_of_node(struct pci_dev *dev);
 void pci_set_bus_of_node(struct pci_bus *bus);
 void pci_release_bus_of_node(struct pci_bus *bus);
 struct irq_domain *pci_host_bridge_of_msi_domain(struct pci_bus *bus);
+int pci_parse_request_of_pci_ranges(struct device *dev,
+				    struct list_head *resources,
+				    struct resource **bus_range);
 
 /* Arch may override this (weak) */
 struct device_node *pcibios_get_phb_of_node(struct pci_bus *bus);
@@ -2195,7 +2199,13 @@ static inline struct device_node *
 pci_device_to_OF_node(const struct pci_dev *pdev) { return NULL; }
 static inline struct irq_domain *
 pci_host_bridge_of_msi_domain(struct pci_bus *bus) { return NULL; }
-#endif	/* CONFIG_OF */
+static inline int pci_parse_request_of_pci_ranges(struct device *dev,
+						  struct list_head *resources,
+						  struct resource **bus_range)
+{
+	return -EINVAL;
+}
+#endif  /* CONFIG_OF */
 
 #ifdef CONFIG_ACPI
 struct irq_domain *pci_host_bridge_acpi_msi_domain(struct pci_bus *bus);

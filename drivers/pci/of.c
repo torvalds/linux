@@ -92,7 +92,6 @@ struct irq_domain *pci_host_bridge_of_msi_domain(struct pci_bus *bus)
 #endif
 }
 
-
 static inline int __of_pci_pci_compare(struct device_node *node,
 				       unsigned int data)
 {
@@ -598,3 +597,55 @@ int of_irq_parse_and_map_pci(const struct pci_dev *dev, u8 slot, u8 pin)
 }
 EXPORT_SYMBOL_GPL(of_irq_parse_and_map_pci);
 #endif	/* CONFIG_OF_IRQ */
+
+int pci_parse_request_of_pci_ranges(struct device *dev,
+				    struct list_head *resources,
+				    struct resource **bus_range)
+{
+	int err, res_valid = 0;
+	struct device_node *np = dev->of_node;
+	resource_size_t iobase;
+	struct resource_entry *win, *tmp;
+
+	INIT_LIST_HEAD(resources);
+	err = of_pci_get_host_bridge_resources(np, 0, 0xff, resources, &iobase);
+	if (err)
+		return err;
+
+	err = devm_request_pci_bus_resources(dev, resources);
+	if (err)
+		goto out_release_res;
+
+	resource_list_for_each_entry_safe(win, tmp, resources) {
+		struct resource *res = win->res;
+
+		switch (resource_type(res)) {
+		case IORESOURCE_IO:
+			err = pci_remap_iospace(res, iobase);
+			if (err) {
+				dev_warn(dev, "error %d: failed to map resource %pR\n",
+					 err, res);
+				resource_list_destroy_entry(win);
+			}
+			break;
+		case IORESOURCE_MEM:
+			res_valid |= !(res->flags & IORESOURCE_PREFETCH);
+			break;
+		case IORESOURCE_BUS:
+			if (bus_range)
+				*bus_range = res;
+			break;
+		}
+	}
+
+	if (res_valid)
+		return 0;
+
+	dev_err(dev, "non-prefetchable memory resource required\n");
+	err = -EINVAL;
+
+ out_release_res:
+	pci_free_resource_list(resources);
+	return err;
+}
+
