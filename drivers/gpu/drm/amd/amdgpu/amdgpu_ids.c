@@ -266,8 +266,7 @@ static int amdgpu_vmid_grab_reserved_locked(struct amdgpu_vm *vm,
 	bool needs_flush = vm->use_cpu_for_update;
 
 	flushed  = id->flushed_updates;
-	if ((amdgpu_vmid_had_gpu_reset(adev, id)) ||
-	    (id->owner != vm->entity.fence_context) ||
+	if ((id->owner != vm->entity.fence_context) ||
 	    (job->vm_pd_addr != id->pd_gpu_addr) ||
 	    (updates && (!flushed || updates->context != flushed->context ||
 			dma_fence_is_later(updates, flushed))) ||
@@ -350,9 +349,6 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		bool needs_flush = vm->use_cpu_for_update;
 
 		/* Check all the prerequisites to using this VMID */
-		if (amdgpu_vmid_had_gpu_reset(adev, id))
-			continue;
-
 		if (id->owner != vm->entity.fence_context)
 			continue;
 
