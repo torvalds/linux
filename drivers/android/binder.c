@@ -2622,6 +2622,8 @@ static unsigned int binder_poll(struct file *filp,
 	binder_lock(__func__);
 
 	thread = binder_get_thread(proc);
+	if (!thread)
+		return POLLERR;
 
 	wait_for_proc_work = thread->transaction_stack == NULL &&
 		list_empty(&thread->todo) && thread->return_error == BR_OK;
