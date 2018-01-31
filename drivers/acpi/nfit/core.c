@@ -2675,6 +2675,9 @@ static int acpi_nfit_register_region(struct acpi_nfit_desc *acpi_desc,
 	if(acpi_desc->platform_cap & ACPI_NFIT_CAPABILITY_CACHE_FLUSH)
 		set_bit(ND_REGION_PERSIST_CACHE, &ndr_desc->flags);
 
+	if (acpi_desc->platform_cap & ACPI_NFIT_CAPABILITY_MEM_FLUSH)
+		set_bit(ND_REGION_PERSIST_MEMCTRL, &ndr_desc->flags);
+
 	list_for_each_entry(nfit_memdev, &acpi_desc->memdevs, list) {
 		struct acpi_nfit_memory_map *memdev = nfit_memdev->memdev;
 		struct nd_mapping_desc *mapping;
