@@ -4596,8 +4596,8 @@ F:	include/uapi/drm/
 F:	include/linux/vga*
 
 DRM DRIVERS AND MISC GPU PATCHES
-M:	Daniel Vetter <daniel.vetter@intel.com>
 M:	Gustavo Padovan <gustavo@padovan.org>
+M:	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>
 M:	Sean Paul <seanpaul@chromium.org>
 W:	https://01.org/linuxgraphics/gfx-docs/maintainer-tools/drm-misc.html
 S:	Maintained
