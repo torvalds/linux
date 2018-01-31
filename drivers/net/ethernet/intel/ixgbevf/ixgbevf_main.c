@@ -3779,11 +3779,10 @@ static int ixgbevf_maybe_stop_tx(struct ixgbevf_ring *tx_ring, int size)
 	return __ixgbevf_maybe_stop_tx(tx_ring, size);
 }
 
-static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static int ixgbevf_xmit_frame_ring(struct sk_buff *skb,
+				   struct ixgbevf_ring *tx_ring)
 {
-	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbevf_tx_buffer *first;
-	struct ixgbevf_ring *tx_ring;
 	int tso;
 	u32 tx_flags = 0;
 	u16 count = TXD_USE_COUNT(skb_headlen(skb));
@@ -3797,8 +3796,6 @@ static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
-
-	tx_ring = adapter->tx_ring[skb->queue_mapping];
 
 	/* need: 1 descriptor per page * PAGE_SIZE/IXGBE_MAX_DATA_PER_TXD,
 	 *       + 1 desc for skb_headlen/IXGBE_MAX_DATA_PER_TXD,
@@ -3850,6 +3847,29 @@ out_drop:
 	first->skb = NULL;
 
 	return NETDEV_TX_OK;
+}
+
+static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+{
+	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
+	struct ixgbevf_ring *tx_ring;
+
+	if (skb->len <= 0) {
+		dev_kfree_skb_any(skb);
+		return NETDEV_TX_OK;
+	}
+
+	/* The minimum packet size for olinfo paylen is 17 so pad the skb
+	 * in order to meet this minimum size requirement.
+	 */
+	if (skb->len < 17) {
+		if (skb_padto(skb, 17))
+			return NETDEV_TX_OK;
+		skb->len = 17;
+	}
+
+	tx_ring = adapter->tx_ring[skb->queue_mapping];
+	return ixgbevf_xmit_frame_ring(skb, tx_ring);
 }
 
 /**
