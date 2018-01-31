@@ -268,11 +268,6 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	int r = 0;
 
 	mutex_lock(&id_mgr->lock);
-	if (vm->reserved_vmid[vmhub]) {
-		r = amdgpu_vmid_grab_reserved_locked(vm, ring, sync, fence, job);
-		mutex_unlock(&id_mgr->lock);
-		return r;
-	}
 	fences = kmalloc_array(sizeof(void *), id_mgr->num_ids, GFP_KERNEL);
 	if (!fences) {
 		mutex_unlock(&id_mgr->lock);
@@ -318,6 +313,13 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 
 	}
 	kfree(fences);
+
+	if (vm->reserved_vmid[vmhub]) {
+		r = amdgpu_vmid_grab_reserved_locked(vm, ring, sync,
+						     fence, job);
+		mutex_unlock(&id_mgr->lock);
+		return r;
+	}
 
 	job->vm_needs_flush = vm->use_cpu_for_update;
 	/* Check if we can use a VMID already assigned to this VM */
