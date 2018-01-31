@@ -4874,18 +4874,17 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	 * and compare that answer with the max chunk size
 	 */
 	if (stripe_size * data_stripes > max_chunk_size) {
-		u64 mask = (1ULL << 24) - 1;
-
 		stripe_size = div_u64(max_chunk_size, data_stripes);
 
 		/* bump the answer up to a 16MB boundary */
-		stripe_size = (stripe_size + mask) & ~mask;
+		stripe_size = round_up(stripe_size, SZ_16M);
 
-		/* but don't go higher than the limits we found
-		 * while searching for free extents
+		/*
+		 * But don't go higher than the limits we found while searching
+		 * for free extents
 		 */
-		if (stripe_size > devices_info[ndevs-1].max_avail)
-			stripe_size = devices_info[ndevs-1].max_avail;
+		stripe_size = min(devices_info[ndevs - 1].max_avail,
+				  stripe_size);
 	}
 
 	/* align to BTRFS_STRIPE_LEN */
