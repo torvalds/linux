@@ -137,6 +137,11 @@ bl_alloc_init_bio(int npg, struct block_device *bdev, sector_t disk_sector,
 	return bio;
 }
 
+static bool offset_in_map(u64 offset, struct pnfs_block_dev_map *map)
+{
+	return offset >= map->start && offset < map->start + map->len;
+}
+
 static struct bio *
 do_add_page_to_bio(struct bio *bio, int npg, int rw, sector_t isect,
 		struct page *page, struct pnfs_block_dev_map *map,
@@ -156,8 +161,8 @@ do_add_page_to_bio(struct bio *bio, int npg, int rw, sector_t isect,
 
 	/* translate to physical disk offset */
 	disk_addr = (u64)isect << SECTOR_SHIFT;
-	if (disk_addr < map->start || disk_addr >= map->start + map->len) {
-		if (!dev->map(dev, disk_addr, map))
+	if (!offset_in_map(disk_addr, map)) {
+		if (!dev->map(dev, disk_addr, map) || !offset_in_map(disk_addr, map))
 			return ERR_PTR(-EIO);
 		bio = bl_submit_bio(bio);
 	}
@@ -184,6 +189,29 @@ retry:
 	return bio;
 }
 
+static void bl_mark_devices_unavailable(struct nfs_pgio_header *header, bool rw)
+{
+	struct pnfs_block_layout *bl = BLK_LSEG2EXT(header->lseg);
+	size_t bytes_left = header->args.count;
+	sector_t isect, extent_length = 0;
+	struct pnfs_block_extent be;
+
+	isect = header->args.offset >> SECTOR_SHIFT;
+	bytes_left += header->args.offset - (isect << SECTOR_SHIFT);
+
+	while (bytes_left > 0) {
+		if (!ext_tree_lookup(bl, isect, &be, rw))
+				return;
+		extent_length = be.be_length - (isect - be.be_f_offset);
+		nfs4_mark_deviceid_unavailable(be.be_device);
+		isect += extent_length;
+		if (bytes_left > extent_length << SECTOR_SHIFT)
+			bytes_left -= extent_length << SECTOR_SHIFT;
+		else
+			bytes_left = 0;
+	}
+}
+
 static void bl_end_io_read(struct bio *bio)
 {
 	struct parallel_io *par = bio->bi_private;
@@ -194,6 +222,7 @@ static void bl_end_io_read(struct bio *bio)
 		if (!header->pnfs_error)
 			header->pnfs_error = -EIO;
 		pnfs_set_lo_fail(header->lseg);
+		bl_mark_devices_unavailable(header, false);
 	}
 
 	bio_put(bio);
@@ -323,6 +352,7 @@ static void bl_end_io_write(struct bio *bio)
 		if (!header->pnfs_error)
 			header->pnfs_error = -EIO;
 		pnfs_set_lo_fail(header->lseg);
+		bl_mark_devices_unavailable(header, true);
 	}
 	bio_put(bio);
 	put_parallel(par);
@@ -552,6 +582,31 @@ static int decode_sector_number(__be32 **rp, sector_t *sp)
 	return 0;
 }
 
+static struct nfs4_deviceid_node *
+bl_find_get_deviceid(struct nfs_server *server,
+		const struct nfs4_deviceid *id, struct rpc_cred *cred,
+		gfp_t gfp_mask)
+{
+	struct nfs4_deviceid_node *node;
+	unsigned long start, end;
+
+retry:
+	node = nfs4_find_get_deviceid(server, id, cred, gfp_mask);
+	if (!node)
+		return ERR_PTR(-ENODEV);
+
+	if (test_bit(NFS_DEVICEID_UNAVAILABLE, &node->flags) == 0)
+		return node;
+
+	end = jiffies;
+	start = end - PNFS_DEVICE_RETRY_TIMEOUT;
+	if (!time_in_range(node->timestamp_unavailable, start, end)) {
+		nfs4_delete_deviceid(node->ld, node->nfs_client, id);
+		goto retry;
+	}
+	return ERR_PTR(-ENODEV);
+}
+
 static int
 bl_alloc_extent(struct xdr_stream *xdr, struct pnfs_layout_hdr *lo,
 		struct layout_verification *lv, struct list_head *extents,
@@ -573,16 +628,18 @@ bl_alloc_extent(struct xdr_stream *xdr, struct pnfs_layout_hdr *lo,
 	memcpy(&id, p, NFS4_DEVICEID4_SIZE);
 	p += XDR_QUADLEN(NFS4_DEVICEID4_SIZE);
 
-	error = -EIO;
-	be->be_device = nfs4_find_get_deviceid(NFS_SERVER(lo->plh_inode), &id,
+	be->be_device = bl_find_get_deviceid(NFS_SERVER(lo->plh_inode), &id,
 						lo->plh_lc_cred, gfp_mask);
-	if (!be->be_device)
+	if (IS_ERR(be->be_device)) {
+		error = PTR_ERR(be->be_device);
 		goto out_free_be;
+	}
 
 	/*
 	 * The next three values are read in as bytes, but stored in the
 	 * extent structure in 512-byte granularity.
 	 */
+	error = -EIO;
 	if (decode_sector_number(&p, &be->be_f_offset) < 0)
 		goto out_put_deviceid;
 	if (decode_sector_number(&p, &be->be_length) < 0)
@@ -692,11 +749,16 @@ out_free_scratch:
 	__free_page(scratch);
 out:
 	dprintk("%s returns %d\n", __func__, status);
-	if (status) {
+	switch (status) {
+	case -ENODEV:
+		/* Our extent block devices are unavailable */
+		set_bit(NFS_LSEG_UNAVAILABLE, &lseg->pls_flags);
+	case 0:
+		return lseg;
+	default:
 		kfree(lseg);
 		return ERR_PTR(status);
 	}
-	return lseg;
 }
 
 static void
@@ -798,6 +860,13 @@ bl_pg_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
 	}
 
 	pnfs_generic_pg_init_read(pgio, req);
+
+	if (pgio->pg_lseg &&
+		test_bit(NFS_LSEG_UNAVAILABLE, &pgio->pg_lseg->pls_flags)) {
+		pnfs_error_mark_layout_for_return(pgio->pg_inode, pgio->pg_lseg);
+		pnfs_set_lo_fail(pgio->pg_lseg);
+		nfs_pageio_reset_read_mds(pgio);
+	}
 }
 
 /*
@@ -853,6 +922,14 @@ bl_pg_init_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
 		wb_size = nfs_dreq_bytes_left(pgio->pg_dreq);
 
 	pnfs_generic_pg_init_write(pgio, req, wb_size);
+
+	if (pgio->pg_lseg &&
+		test_bit(NFS_LSEG_UNAVAILABLE, &pgio->pg_lseg->pls_flags)) {
+
+		pnfs_error_mark_layout_for_return(pgio->pg_inode, pgio->pg_lseg);
+		pnfs_set_lo_fail(pgio->pg_lseg);
+		nfs_pageio_reset_write_mds(pgio);
+	}
 }
 
 /*
@@ -887,6 +964,7 @@ static struct pnfs_layoutdriver_type blocklayout_type = {
 	.name				= "LAYOUT_BLOCK_VOLUME",
 	.owner				= THIS_MODULE,
 	.flags				= PNFS_LAYOUTRET_ON_SETATTR |
+					  PNFS_LAYOUTRET_ON_ERROR |
 					  PNFS_READ_WHOLE_PAGE,
 	.read_pagelist			= bl_read_pagelist,
 	.write_pagelist			= bl_write_pagelist,
@@ -910,6 +988,7 @@ static struct pnfs_layoutdriver_type scsilayout_type = {
 	.name				= "LAYOUT_SCSI",
 	.owner				= THIS_MODULE,
 	.flags				= PNFS_LAYOUTRET_ON_SETATTR |
+					  PNFS_LAYOUTRET_ON_ERROR |
 					  PNFS_READ_WHOLE_PAGE,
 	.read_pagelist			= bl_read_pagelist,
 	.write_pagelist			= bl_write_pagelist,
@@ -967,6 +1046,7 @@ static void __exit nfs4blocklayout_exit(void)
 }
 
 MODULE_ALIAS("nfs-layouttype4-3");
+MODULE_ALIAS("nfs-layouttype4-5");
 
 module_init(nfs4blocklayout_init);
 module_exit(nfs4blocklayout_exit);

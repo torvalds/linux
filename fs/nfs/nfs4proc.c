@@ -2020,7 +2020,7 @@ static int nfs4_open_reclaim(struct nfs4_state_owner *sp, struct nfs4_state *sta
 	return ret;
 }
 
-static int nfs4_handle_delegation_recall_error(struct nfs_server *server, struct nfs4_state *state, const nfs4_stateid *stateid, int err)
+static int nfs4_handle_delegation_recall_error(struct nfs_server *server, struct nfs4_state *state, const nfs4_stateid *stateid, struct file_lock *fl, int err)
 {
 	switch (err) {
 		default:
@@ -2067,7 +2067,11 @@ static int nfs4_handle_delegation_recall_error(struct nfs_server *server, struct
 			return -EAGAIN;
 		case -ENOMEM:
 		case -NFS4ERR_DENIED:
-			/* kill_proc(fl->fl_pid, SIGLOST, 1); */
+			if (fl) {
+				struct nfs4_lock_state *lsp = fl->fl_u.nfs4_fl.owner;
+				if (lsp)
+					set_bit(NFS_LOCK_LOST, &lsp->ls_flags);
+			}
 			return 0;
 	}
 	return err;
@@ -2103,7 +2107,7 @@ int nfs4_open_delegation_recall(struct nfs_open_context *ctx,
 		err = nfs4_open_recover_helper(opendata, FMODE_READ);
 	}
 	nfs4_opendata_put(opendata);
-	return nfs4_handle_delegation_recall_error(server, state, stateid, err);
+	return nfs4_handle_delegation_recall_error(server, state, stateid, NULL, err);
 }
 
 static void nfs4_open_confirm_prepare(struct rpc_task *task, void *calldata)
@@ -3150,6 +3154,11 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 	struct nfs4_state *state = calldata->state;
 	struct nfs_server *server = NFS_SERVER(calldata->inode);
 	nfs4_stateid *res_stateid = NULL;
+	struct nfs4_exception exception = {
+		.state = state,
+		.inode = calldata->inode,
+		.stateid = &calldata->arg.stateid,
+	};
 
 	dprintk("%s: begin!\n", __func__);
 	if (!nfs4_sequence_done(task, &calldata->res.seq_res))
@@ -3215,7 +3224,9 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 		case -NFS4ERR_BAD_STATEID:
 			break;
 		default:
-			if (nfs4_async_handle_error(task, server, state, NULL) == -EAGAIN)
+			task->tk_status = nfs4_async_handle_exception(task,
+					server, task->tk_status, &exception);
+			if (exception.retry)
 				goto out_restart;
 	}
 	nfs_clear_open_stateid(state, &calldata->arg.stateid,
@@ -5759,6 +5770,10 @@ struct nfs4_delegreturndata {
 static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_delegreturndata *data = calldata;
+	struct nfs4_exception exception = {
+		.inode = data->inode,
+		.stateid = &data->stateid,
+	};
 
 	if (!nfs4_sequence_done(task, &data->res.seq_res))
 		return;
@@ -5820,10 +5835,11 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 		}
 		/* Fallthrough */
 	default:
-		if (nfs4_async_handle_error(task, data->res.server,
-					    NULL, NULL) == -EAGAIN) {
+		task->tk_status = nfs4_async_handle_exception(task,
+				data->res.server, task->tk_status,
+				&exception);
+		if (exception.retry)
 			goto out_restart;
-		}
 	}
 	data->rpc_status = task->tk_status;
 	return;
@@ -6061,6 +6077,10 @@ static void nfs4_locku_release_calldata(void *data)
 static void nfs4_locku_done(struct rpc_task *task, void *data)
 {
 	struct nfs4_unlockdata *calldata = data;
+	struct nfs4_exception exception = {
+		.inode = calldata->lsp->ls_state->inode,
+		.stateid = &calldata->arg.stateid,
+	};
 
 	if (!nfs4_sequence_done(task, &calldata->res.seq_res))
 		return;
@@ -6084,8 +6104,10 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 				rpc_restart_call_prepare(task);
 			break;
 		default:
-			if (nfs4_async_handle_error(task, calldata->server,
-						    NULL, NULL) == -EAGAIN)
+			task->tk_status = nfs4_async_handle_exception(task,
+					calldata->server, task->tk_status,
+					&exception);
+			if (exception.retry)
 				rpc_restart_call_prepare(task);
 	}
 	nfs_release_seqid(calldata->arg.seqid);
@@ -6741,7 +6763,7 @@ int nfs4_lock_delegation_recall(struct file_lock *fl, struct nfs4_state *state, 
 	if (err != 0)
 		return err;
 	err = _nfs4_do_setlk(state, F_SETLK, fl, NFS_LOCK_NEW);
-	return nfs4_handle_delegation_recall_error(server, state, stateid, err);
+	return nfs4_handle_delegation_recall_error(server, state, stateid, fl, err);
 }
 
 struct nfs_release_lockowner_data {

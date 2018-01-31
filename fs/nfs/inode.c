@@ -735,12 +735,20 @@ int nfs_getattr(const struct path *path, struct kstat *stat,
 		u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
-	int need_atime = NFS_I(inode)->cache_validity & NFS_INO_INVALID_ATIME;
+	struct nfs_server *server = NFS_SERVER(inode);
+	unsigned long cache_validity;
 	int err = 0;
+	bool force_sync = query_flags & AT_STATX_FORCE_SYNC;
+	bool do_update = false;
 
 	trace_nfs_getattr_enter(inode);
+
+	if ((query_flags & AT_STATX_DONT_SYNC) && !force_sync)
+		goto out_no_update;
+
 	/* Flush out writes to the server in order to update c/mtime.  */
-	if (S_ISREG(inode->i_mode)) {
+	if ((request_mask & (STATX_CTIME|STATX_MTIME)) &&
+			S_ISREG(inode->i_mode)) {
 		err = filemap_write_and_wait(inode->i_mapping);
 		if (err)
 			goto out;
@@ -757,24 +765,42 @@ int nfs_getattr(const struct path *path, struct kstat *stat,
 	 */
 	if ((path->mnt->mnt_flags & MNT_NOATIME) ||
 	    ((path->mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode)))
-		need_atime = 0;
+		request_mask &= ~STATX_ATIME;
 
-	if (need_atime || nfs_need_revalidate_inode(inode)) {
-		struct nfs_server *server = NFS_SERVER(inode);
+	/* Is the user requesting attributes that might need revalidation? */
+	if (!(request_mask & (STATX_MODE|STATX_NLINK|STATX_ATIME|STATX_CTIME|
+					STATX_MTIME|STATX_UID|STATX_GID|
+					STATX_SIZE|STATX_BLOCKS)))
+		goto out_no_revalidate;
 
+	/* Check whether the cached attributes are stale */
+	do_update |= force_sync || nfs_attribute_cache_expired(inode);
+	cache_validity = READ_ONCE(NFS_I(inode)->cache_validity);
+	do_update |= cache_validity &
+		(NFS_INO_INVALID_ATTR|NFS_INO_INVALID_LABEL);
+	if (request_mask & STATX_ATIME)
+		do_update |= cache_validity & NFS_INO_INVALID_ATIME;
+	if (request_mask & (STATX_CTIME|STATX_MTIME))
+		do_update |= cache_validity & NFS_INO_REVAL_PAGECACHE;
+	if (do_update) {
+		/* Update the attribute cache */
 		if (!(server->flags & NFS_MOUNT_NOAC))
 			nfs_readdirplus_parent_cache_miss(path->dentry);
 		else
 			nfs_readdirplus_parent_cache_hit(path->dentry);
 		err = __nfs_revalidate_inode(server, inode);
+		if (err)
+			goto out;
 	} else
 		nfs_readdirplus_parent_cache_hit(path->dentry);
-	if (!err) {
-		generic_fillattr(inode, stat);
-		stat->ino = nfs_compat_user_ino64(NFS_FILEID(inode));
-		if (S_ISDIR(inode->i_mode))
-			stat->blksize = NFS_SERVER(inode)->dtsize;
-	}
+out_no_revalidate:
+	/* Only return attributes that were revalidated. */
+	stat->result_mask &= request_mask;
+out_no_update:
+	generic_fillattr(inode, stat);
+	stat->ino = nfs_compat_user_ino64(NFS_FILEID(inode));
+	if (S_ISDIR(inode->i_mode))
+		stat->blksize = NFS_SERVER(inode)->dtsize;
 out:
 	trace_nfs_getattr_exit(inode, err);
 	return err;
@@ -1144,7 +1170,6 @@ static int nfs_invalidate_mapping(struct inode *inode, struct address_space *map
 
 	if (mapping->nrpages != 0) {
 		if (S_ISREG(inode->i_mode)) {
-			unmap_mapping_range(mapping, 0, 0, 0);
 			ret = nfs_sync_mapping(mapping);
 			if (ret < 0)
 				return ret;

@@ -755,22 +755,20 @@ static void __rpc_execute(struct rpc_task *task)
 		void (*do_action)(struct rpc_task *);
 
 		/*
-		 * Execute any pending callback first.
+		 * Perform the next FSM step or a pending callback.
+		 *
+		 * tk_action may be NULL if the task has been killed.
+		 * In particular, note that rpc_killall_tasks may
+		 * do this at any time, so beware when dereferencing.
 		 */
-		do_action = task->tk_callback;
-		task->tk_callback = NULL;
-		if (do_action == NULL) {
-			/*
-			 * Perform the next FSM step.
-			 * tk_action may be NULL if the task has been killed.
-			 * In particular, note that rpc_killall_tasks may
-			 * do this at any time, so beware when dereferencing.
-			 */
-			do_action = task->tk_action;
-			if (do_action == NULL)
-				break;
+		do_action = task->tk_action;
+		if (task->tk_callback) {
+			do_action = task->tk_callback;
+			task->tk_callback = NULL;
 		}
-		trace_rpc_task_run_action(task->tk_client, task, task->tk_action);
+		if (!do_action)
+			break;
+		trace_rpc_task_run_action(task->tk_client, task, do_action);
 		do_action(task);
 
 		/*
