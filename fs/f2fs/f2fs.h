@@ -1101,6 +1101,11 @@ enum {
 	MAX_TIME,
 };
 
+enum {
+	WHINT_MODE_OFF,		/* not pass down write hints */
+	WHINT_MODE_USER,	/* try to pass down hints given by users */
+};
+
 struct f2fs_sb_info {
 	struct super_block *sb;			/* pointer to VFS super block */
 	struct proc_dir_entry *s_proc;		/* proc entry */
@@ -1284,6 +1289,8 @@ struct f2fs_sb_info {
 	char *s_qf_names[MAXQUOTAS];
 	int s_jquota_fmt;			/* Format of quota to use */
 #endif
+	/* For which write hints are passed down to block layer */
+	int whint_mode;
 };
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
@@ -2573,15 +2580,6 @@ static inline void *kvzalloc(size_t size, gfp_t flags)
 	return ret;
 }
 
-enum rw_hint {
-	WRITE_LIFE_NOT_SET	= 0,
-	WRITE_LIFE_NONE		= 1, /* RWH_WRITE_LIFE_NONE */
-	WRITE_LIFE_SHORT	= 2, /* RWH_WRITE_LIFE_SHORT */
-	WRITE_LIFE_MEDIUM	= 3, /* RWH_WRITE_LIFE_MEDIUM */
-	WRITE_LIFE_LONG		= 4, /* RWH_WRITE_LIFE_LONG */
-	WRITE_LIFE_EXTREME	= 5, /* RWH_WRITE_LIFE_EXTREME */
-};
-
 static inline void *f2fs_kzalloc(struct f2fs_sb_info *sbi,
 					size_t size, gfp_t flags)
 {
@@ -2862,6 +2860,8 @@ void destroy_segment_manager(struct f2fs_sb_info *sbi);
 int __init create_segment_manager_caches(void);
 void destroy_segment_manager_caches(void);
 int rw_hint_to_seg_type(enum rw_hint hint);
+enum rw_hint io_type_to_rw_hint(struct f2fs_sb_info *sbi, enum page_type type,
+				enum temp_type temp);
 
 /*
  * checkpoint.c

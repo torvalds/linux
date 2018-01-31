@@ -173,15 +173,22 @@ static bool __same_bdev(struct f2fs_sb_info *sbi,
  */
 static struct bio *__bio_alloc(struct f2fs_sb_info *sbi, block_t blk_addr,
 				struct writeback_control *wbc,
-				int npages, bool is_read)
+				int npages, bool is_read,
+				enum page_type type, enum temp_type temp)
 {
 	struct bio *bio;
 
 	bio = f2fs_bio_alloc(sbi, npages, true);
 
 	f2fs_target_device(sbi, blk_addr, bio);
-	bio->bi_end_io = is_read ? f2fs_read_end_io : f2fs_write_end_io;
-	bio->bi_private = is_read ? NULL : sbi;
+	if (is_read) {
+		bio->bi_end_io = f2fs_read_end_io;
+		bio->bi_private = NULL;
+	} else {
+		bio->bi_end_io = f2fs_write_end_io;
+		bio->bi_private = sbi;
+		bio->bi_write_hint = io_type_to_rw_hint(sbi, type, temp);
+	}
 	if (wbc)
 		wbc_init_bio(wbc, bio);
 
@@ -380,7 +387,7 @@ int f2fs_submit_page_bio(struct f2fs_io_info *fio)
 
 	/* Allocate a new bio */
 	bio = __bio_alloc(fio->sbi, fio->new_blkaddr, fio->io_wbc,
-				1, is_read_io(fio->op));
+				1, is_read_io(fio->op), fio->type, fio->temp);
 
 	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {
 		bio_put(bio);
@@ -443,7 +450,8 @@ alloc_new:
 			goto out_fail;
 		}
 		io->bio = __bio_alloc(sbi, fio->new_blkaddr, fio->io_wbc,
-						BIO_MAX_PAGES, false);
+						BIO_MAX_PAGES, false,
+						fio->type, fio->temp);
 		io->fio = *fio;
 	}
 
@@ -867,8 +875,7 @@ int f2fs_preallocate_blocks(struct kiocb *iocb, struct iov_iter *from)
 	map.m_seg_type = NO_CHECK_TYPE;
 
 	if (direct_io) {
-		/* map.m_seg_type = rw_hint_to_seg_type(iocb->ki_hint); */
-		map.m_seg_type = rw_hint_to_seg_type(WRITE_LIFE_NOT_SET);
+		map.m_seg_type = rw_hint_to_seg_type(iocb->ki_hint);
 		flag = __force_buffered_io(inode, WRITE) ?
 					F2FS_GET_BLOCK_PRE_AIO :
 					F2FS_GET_BLOCK_PRE_DIO;
@@ -1150,8 +1157,7 @@ static int get_data_block_dio(struct inode *inode, sector_t iblock,
 	return __get_data_block(inode, iblock, bh_result, create,
 						F2FS_GET_BLOCK_DEFAULT, NULL,
 						rw_hint_to_seg_type(
-							WRITE_LIFE_NOT_SET));
-						/* inode->i_write_hint)); */
+							inode->i_write_hint));
 }
 
 static int get_data_block_bmap(struct inode *inode, sector_t iblock,
@@ -2292,9 +2298,12 @@ static ssize_t f2fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 {
 	struct address_space *mapping = iocb->ki_filp->f_mapping;
 	struct inode *inode = mapping->host;
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	size_t count = iov_iter_count(iter);
 	int rw = iov_iter_rw(iter);
 	int err;
+	enum rw_hint hint = iocb->ki_hint;
+	int whint_mode = sbi->whint_mode;
 
 	err = check_direct_IO(inode, iter, offset);
 	if (err)
@@ -2305,11 +2314,16 @@ static ssize_t f2fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 
 	trace_f2fs_direct_IO_enter(inode, offset, count, rw);
 
+	if (rw == WRITE && whint_mode == WHINT_MODE_OFF)
+		iocb->ki_hint = WRITE_LIFE_NOT_SET;
+
 	down_read(&F2FS_I(inode)->dio_rwsem[rw]);
 	err = blockdev_direct_IO(iocb, inode, iter, offset, get_data_block_dio);
 	up_read(&F2FS_I(inode)->dio_rwsem[rw]);
 
 	if (rw == WRITE) {
+		if (whint_mode == WHINT_MODE_OFF)
+			iocb->ki_hint = hint;
 		if (err > 0) {
 			f2fs_update_iostat(F2FS_I_SB(inode), APP_DIRECT_IO,
 									err);

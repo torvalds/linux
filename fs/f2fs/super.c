@@ -129,6 +129,7 @@ enum {
 	Opt_jqfmt_vfsold,
 	Opt_jqfmt_vfsv0,
 	Opt_jqfmt_vfsv1,
+	Opt_whint,
 	Opt_err,
 };
 
@@ -182,6 +183,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_jqfmt_vfsold, "jqfmt=vfsold"},
 	{Opt_jqfmt_vfsv0, "jqfmt=vfsv0"},
 	{Opt_jqfmt_vfsv1, "jqfmt=vfsv1"},
+	{Opt_whint, "whint_mode=%s"},
 	{Opt_err, NULL},
 };
 
@@ -679,6 +681,22 @@ static int parse_options(struct super_block *sb, char *options)
 					"quota operations not supported");
 			break;
 #endif
+		case Opt_whint:
+			name = match_strdup(&args[0]);
+			if (!name)
+				return -ENOMEM;
+			if (strlen(name) == 10 &&
+					!strncmp(name, "user-based", 10)) {
+				sbi->whint_mode = WHINT_MODE_USER;
+			} else if (strlen(name) == 3 &&
+					!strncmp(name, "off", 3)) {
+				sbi->whint_mode = WHINT_MODE_OFF;
+			} else {
+				kfree(name);
+				return -EINVAL;
+			}
+			kfree(name);
+			break;
 		default:
 			f2fs_msg(sb, KERN_ERR,
 				"Unrecognized mount option \"%s\" or missing value",
@@ -722,6 +740,12 @@ static int parse_options(struct super_block *sb, char *options)
 			return -EINVAL;
 		}
 	}
+
+	/* Not pass down write hints if the number of active logs is lesser
+	 * than NR_CURSEG_TYPE.
+	 */
+	if (sbi->active_logs != NR_CURSEG_TYPE)
+		sbi->whint_mode = WHINT_MODE_OFF;
 	return 0;
 }
 
@@ -1233,6 +1257,8 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",prjquota");
 #endif
 	f2fs_show_quota_options(seq, sbi->sb);
+	if (sbi->whint_mode == WHINT_MODE_USER)
+		seq_printf(seq, ",whint_mode=%s", "user-based");
 
 	return 0;
 }
@@ -1242,6 +1268,7 @@ static void default_options(struct f2fs_sb_info *sbi)
 	/* init some FS parameters */
 	sbi->active_logs = NR_CURSEG_TYPE;
 	sbi->inline_xattr_size = DEFAULT_INLINE_XATTR_ADDRS;
+	sbi->whint_mode = WHINT_MODE_OFF;
 
 	set_opt(sbi, BG_GC);
 	set_opt(sbi, INLINE_XATTR);
@@ -1282,6 +1309,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	bool need_restart_gc = false;
 	bool need_stop_gc = false;
 	bool no_extent_cache = !test_opt(sbi, EXTENT_CACHE);
+	int old_whint_mode = sbi->whint_mode;
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	struct f2fs_fault_info ffi = sbi->fault_info;
 #endif
@@ -1381,7 +1409,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 		need_stop_gc = true;
 	}
 
-	if (*flags & MS_RDONLY) {
+	if (*flags & MS_RDONLY || sbi->whint_mode != old_whint_mode) {
 		writeback_inodes_sb(sb, WB_REASON_SYNC);
 		sync_inodes_sb(sb);
 
@@ -1431,6 +1459,7 @@ restore_opts:
 		sbi->s_qf_names[i] = s_qf_names[i];
 	}
 #endif
+	sbi->whint_mode = old_whint_mode;
 	sbi->mount_opt = org_mount_opt;
 	sbi->active_logs = active_logs;
 	sb->s_flags = old_sb_flags;
