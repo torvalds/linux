@@ -14909,6 +14909,12 @@ F:	include/linux/workqueue.h
 F:	kernel/workqueue.c
 F:	Documentation/core-api/workqueue.rst
 
+X-POWERS AXP288 PMIC DRIVERS
+M:	Hans de Goede <hdegoede@redhat.com>
+S:	Maintained
+N:	axp288
+F:	drivers/acpi/pmic/intel_pmic_xpower.c
+
 X-POWERS MULTIFUNCTION PMIC DEVICE DRIVERS
 M:	Chen-Yu Tsai <wens@csie.org>
 L:	linux-kernel@vger.kernel.org
