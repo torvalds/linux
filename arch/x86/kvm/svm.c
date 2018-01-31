@@ -37,6 +37,7 @@
 #include <asm/desc.h>
 #include <asm/debugreg.h>
 #include <asm/kvm_para.h>
+#include <asm/nospec-branch.h>
 
 #include <asm/virtext.h>
 #include "trace.h"
@@ -3903,6 +3904,9 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 		, "ebx", "ecx", "edx", "esi", "edi"
 #endif
 		);
+
+	/* Eliminate branch target predictions from guest mode */
+	vmexit_fill_RSB();
 
 #ifdef CONFIG_X86_64
 	wrmsrl(MSR_GS_BASE, svm->host.gs_base);
