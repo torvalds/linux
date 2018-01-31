@@ -75,6 +75,9 @@ static struct clk *clk_get_by_name(const char *clk_name)
 	int i;
 
 	np = of_find_node_by_name(NULL, "clock-controller");
+	if (!np)
+		return ERR_PTR(-ENODEV);
+
 	clkspec.np = np;
 	clkspec.args_count = 1;
 	for (i = 1; i < CLK_NR_CLKS; i++) {
@@ -83,11 +86,17 @@ static struct clk *clk_get_by_name(const char *clk_name)
 		if (IS_ERR_OR_NULL(clk))
 			continue;
 		name = __clk_get_name(clk);
-		if (strlen(name) != strlen(clk_name))
+		if (strlen(name) != strlen(clk_name)) {
+			clk_put(clk);
 			continue;
+		}
 		if (!strncmp(name, clk_name, strlen(clk_name)))
 			break;
+
+		clk_put(clk);
 	}
+
+	of_node_put(np);
 
 	if (i == CLK_NR_CLKS)
 		clk = NULL;
@@ -141,6 +150,7 @@ static int clk_rate_rawset(const char *buf)
 	ret = clk_set_rate(clk, rate);
 	if (ret) {
 		pr_err("set %s rate %d error\n", clk_name, ret);
+		clk_put(clk);
 		return ret;
 	}
 
