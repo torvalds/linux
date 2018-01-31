@@ -267,7 +267,7 @@ static int amdgpu_vmid_grab_reserved_locked(struct amdgpu_vm *vm,
 
 	flushed  = id->flushed_updates;
 	if ((amdgpu_vmid_had_gpu_reset(adev, id)) ||
-	    (atomic64_read(&id->owner) != vm->entity.fence_context) ||
+	    (id->owner != vm->entity.fence_context) ||
 	    (job->vm_pd_addr != id->pd_gpu_addr) ||
 	    (updates && (!flushed || updates->context != flushed->context ||
 			dma_fence_is_later(updates, flushed))) ||
@@ -296,7 +296,7 @@ static int amdgpu_vmid_grab_reserved_locked(struct amdgpu_vm *vm,
 		id->flushed_updates = dma_fence_get(updates);
 	}
 	id->pd_gpu_addr = job->vm_pd_addr;
-	atomic64_set(&id->owner, vm->entity.fence_context);
+	id->owner = vm->entity.fence_context;
 	job->vm_needs_flush = needs_flush;
 	if (needs_flush) {
 		dma_fence_put(id->last_flush);
@@ -353,7 +353,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		if (amdgpu_vmid_had_gpu_reset(adev, id))
 			continue;
 
-		if (atomic64_read(&id->owner) != vm->entity.fence_context)
+		if (id->owner != vm->entity.fence_context)
 			continue;
 
 		if (job->vm_pd_addr != id->pd_gpu_addr)
@@ -402,7 +402,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	id->pd_gpu_addr = job->vm_pd_addr;
 	dma_fence_put(id->flushed_updates);
 	id->flushed_updates = dma_fence_get(updates);
-	atomic64_set(&id->owner, vm->entity.fence_context);
+	id->owner = vm->entity.fence_context;
 
 needs_flush:
 	job->vm_needs_flush = true;
@@ -482,13 +482,15 @@ void amdgpu_vmid_reset(struct amdgpu_device *adev, unsigned vmhub,
 	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
 	struct amdgpu_vmid *id = &id_mgr->ids[vmid];
 
-	atomic64_set(&id->owner, 0);
+	mutex_lock(&id_mgr->lock);
+	id->owner = 0;
 	id->gds_base = 0;
 	id->gds_size = 0;
 	id->gws_base = 0;
 	id->gws_size = 0;
 	id->oa_base = 0;
 	id->oa_size = 0;
+	mutex_unlock(&id_mgr->lock);
 }
 
 /**
