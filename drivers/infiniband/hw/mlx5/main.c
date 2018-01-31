@@ -4585,8 +4585,6 @@ int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 		goto err_free_port;
 
 	if (!mlx5_core_mp_enabled(mdev)) {
-		int i;
-
 		for (i = 1; i <= dev->num_ports; i++) {
 			err = get_port_caps(dev, i);
 			if (err)
