@@ -49,7 +49,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Marvell 8040 MACHIATOBin";
+	model = "Marvell 8040 MACCHIATOBin";
 	compatible = "marvell,armada8040-mcbin", "marvell,armada8040",
 			"marvell,armada-ap806-quad", "marvell,armada-ap806";
 
