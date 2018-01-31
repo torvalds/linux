@@ -52,6 +52,7 @@ struct efi __read_mostly efi = {
 	.properties_table	= EFI_INVALID_TABLE_ADDR,
 	.mem_attr_table		= EFI_INVALID_TABLE_ADDR,
 	.rng_seed		= EFI_INVALID_TABLE_ADDR,
+	.tpm_log		= EFI_INVALID_TABLE_ADDR
 };
 EXPORT_SYMBOL(efi);
 
@@ -464,6 +465,7 @@ static __initdata efi_config_table_type_t common_tables[] = {
 	{EFI_PROPERTIES_TABLE_GUID, "PROP", &efi.properties_table},
 	{EFI_MEMORY_ATTRIBUTES_TABLE_GUID, "MEMATTR", &efi.mem_attr_table},
 	{LINUX_EFI_RANDOM_SEED_TABLE_GUID, "RNG", &efi.rng_seed},
+	{LINUX_EFI_TPM_EVENT_LOG_GUID, "TPMEventLog", &efi.tpm_log},
 	{NULL_GUID, NULL, NULL},
 };
 
@@ -551,6 +553,8 @@ int __init efi_config_parse_tables(void *config_tables, int count, int sz,
 
 	if (efi_enabled(EFI_MEMMAP))
 		efi_memattr_init();
+
+	efi_tpm_eventlog_init();
 
 	/* Parse the EFI Properties table if it exists */
 	if (efi.properties_table != EFI_INVALID_TABLE_ADDR) {
