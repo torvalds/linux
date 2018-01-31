@@ -18,6 +18,8 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/statfs.h>
+
 #include "super.h"
 #include "mds_client.h"
 
@@ -303,3 +305,57 @@ bool ceph_quota_is_max_bytes_approaching(struct inode *inode, loff_t newsize)
 	return check_quota_exceeded(inode, QUOTA_CHECK_MAX_BYTES_APPROACHING_OP,
 				    (newsize - size));
 }
+
+/*
+ * ceph_quota_update_statfs - if root has quota update statfs with quota status
+ * @fsc:	filesystem client instance
+ * @buf:	statfs to update
+ *
+ * If the mounted filesystem root has max_bytes quota set, update the filesystem
+ * statistics with the quota status.
+ *
+ * This function returns true if the stats have been updated, false otherwise.
+ */
+bool ceph_quota_update_statfs(struct ceph_fs_client *fsc, struct kstatfs *buf)
+{
+	struct ceph_mds_client *mdsc = fsc->mdsc;
+	struct ceph_inode_info *ci;
+	struct ceph_snap_realm *realm;
+	struct inode *in;
+	u64 total = 0, used, free;
+	bool is_updated = false;
+
+	down_read(&mdsc->snap_rwsem);
+	realm = get_quota_realm(mdsc, d_inode(fsc->sb->s_root));
+	up_read(&mdsc->snap_rwsem);
+	if (!realm)
+		return false;
+
+	spin_lock(&realm->inodes_with_caps_lock);
+	in = realm->inode ? igrab(realm->inode) : NULL;
+	spin_unlock(&realm->inodes_with_caps_lock);
+	if (in) {
+		ci = ceph_inode(in);
+		spin_lock(&ci->i_ceph_lock);
+		if (ci->i_max_bytes) {
+			total = ci->i_max_bytes >> CEPH_BLOCK_SHIFT;
+			used = ci->i_rbytes >> CEPH_BLOCK_SHIFT;
+			/* It is possible for a quota to be exceeded.
+			 * Report 'zero' in that case
+			 */
+			free = total > used ? total - used : 0;
+		}
+		spin_unlock(&ci->i_ceph_lock);
+		if (total) {
+			buf->f_blocks = total;
+			buf->f_bfree = free;
+			buf->f_bavail = free;
+			is_updated = true;
+		}
+		iput(in);
+	}
+	ceph_put_snap_realm(mdsc, realm);
+
+	return is_updated;
+}
+

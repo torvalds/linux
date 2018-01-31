@@ -76,9 +76,18 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 	 */
 	buf->f_bsize = 1 << CEPH_BLOCK_SHIFT;
 	buf->f_frsize = 1 << CEPH_BLOCK_SHIFT;
-	buf->f_blocks = le64_to_cpu(st.kb) >> (CEPH_BLOCK_SHIFT-10);
-	buf->f_bfree = le64_to_cpu(st.kb_avail) >> (CEPH_BLOCK_SHIFT-10);
-	buf->f_bavail = le64_to_cpu(st.kb_avail) >> (CEPH_BLOCK_SHIFT-10);
+
+	/*
+	 * By default use root quota for stats; fallback to overall filesystem
+	 * usage if using 'noquotadf' mount option or if the root dir doesn't
+	 * have max_bytes quota set.
+	 */
+	if (ceph_test_mount_opt(fsc, NOQUOTADF) ||
+	    !ceph_quota_update_statfs(fsc, buf)) {
+		buf->f_blocks = le64_to_cpu(st.kb) >> (CEPH_BLOCK_SHIFT-10);
+		buf->f_bfree = le64_to_cpu(st.kb_avail) >> (CEPH_BLOCK_SHIFT-10);
+		buf->f_bavail = le64_to_cpu(st.kb_avail) >> (CEPH_BLOCK_SHIFT-10);
+	}
 
 	buf->f_files = le64_to_cpu(st.num_objects);
 	buf->f_ffree = -1;
@@ -151,6 +160,8 @@ enum {
 	Opt_acl,
 #endif
 	Opt_noacl,
+	Opt_quotadf,
+	Opt_noquotadf,
 };
 
 static match_table_t fsopt_tokens = {
@@ -187,6 +198,8 @@ static match_table_t fsopt_tokens = {
 	{Opt_acl, "acl"},
 #endif
 	{Opt_noacl, "noacl"},
+	{Opt_quotadf, "quotadf"},
+	{Opt_noquotadf, "noquotadf"},
 	{-1, NULL}
 };
 
@@ -333,6 +346,12 @@ static int parse_fsopt_token(char *c, void *private)
 		break;
 	case Opt_norequire_active_mds:
 		fsopt->flags |= CEPH_MOUNT_OPT_MOUNTWAIT;
+		break;
+	case Opt_quotadf:
+		fsopt->flags &= ~CEPH_MOUNT_OPT_NOQUOTADF;
+		break;
+	case Opt_noquotadf:
+		fsopt->flags |= CEPH_MOUNT_OPT_NOQUOTADF;
 		break;
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	case Opt_acl:
@@ -520,6 +539,8 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 	}
 	if (fsopt->flags & CEPH_MOUNT_OPT_NOPOOLPERM)
 		seq_puts(m, ",nopoolperm");
+	if (fsopt->flags & CEPH_MOUNT_OPT_NOQUOTADF)
+		seq_puts(m, ",noquotadf");
 
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	if (fsopt->sb_flags & SB_POSIXACL)
