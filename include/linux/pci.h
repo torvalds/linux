@@ -350,6 +350,8 @@ struct pci_dev {
 
 #ifdef CONFIG_PCIEASPM
 	struct pcie_link_state	*link_state;	/* ASPM link state */
+	unsigned int	ltr_path:1;	/* Latency Tolerance Reporting
+					   supported from root to here */
 #endif
 
 	pci_channel_state_t error_state;	/* current connectivity state */
