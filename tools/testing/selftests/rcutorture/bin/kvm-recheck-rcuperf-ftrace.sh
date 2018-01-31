@@ -44,6 +44,7 @@ $8 == "start" {
 	starttask = $1;
 	starttime = $3;
 	startseq = $7;
+	seqtask[startseq] = starttask;
 }
 
 $8 == "end" {
@@ -62,7 +63,7 @@ $8 == "end" {
 	}
 }
 
-$8 == "done" {
+$8 == "done" && seqtask[$7] != $1 {
 	piggybackcnt[$1]++;
 }
 
