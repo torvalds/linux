@@ -1,0 +1,18 @@
+C CoWR+poonceonce+Once
+
+{}
+
+P0(int *x)
+{
+	int r0;
+
+	WRITE_ONCE(*x, 1);
+	r0 = READ_ONCE(*x);
+}
+
+P1(int *x)
+{
+	WRITE_ONCE(*x, 2);
+}
+
+exists (x=1 /\ 0:r0=2)

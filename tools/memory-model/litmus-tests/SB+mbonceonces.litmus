@@ -1,0 +1,23 @@
+C SB+mbonceonces
+
+{}
+
+P0(int *x, int *y)
+{
+	int r0;
+
+	WRITE_ONCE(*x, 1);
+	smp_mb();
+	r0 = READ_ONCE(*y);
+}
+
+P1(int *x, int *y)
+{
+	int r0;
+
+	WRITE_ONCE(*y, 1);
+	smp_mb();
+	r0 = READ_ONCE(*x);
+}
+
+exists (0:r0=0 /\ 1:r0=0)

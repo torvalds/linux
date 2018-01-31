@@ -1,0 +1,25 @@
+C MP+onceassign+derefonce.litmus
+
+{
+y=z;
+z=0;
+}
+
+P0(int *x, int **y)
+{
+	WRITE_ONCE(*x, 1);
+	rcu_assign_pointer(*y, x);
+}
+
+P1(int *x, int **y)
+{
+	int *r0;
+	int r1;
+
+	rcu_read_lock();
+	r0 = rcu_dereference(*y);
+	r1 = READ_ONCE(*r0);
+	rcu_read_unlock();
+}
+
+exists (1:r0=x /\ 1:r1=0)
