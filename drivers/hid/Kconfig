@@ -280,6 +280,7 @@ config HID_ELECOM
 	---help---
 	Support for ELECOM devices:
 	  - BM084 Bluetooth Mouse
+	  - EX-G Trackball (Wired and wireless)
 	  - DEFT Trackball (Wired and wireless)
 	  - HUGE Trackball (Wired and wireless)
 
