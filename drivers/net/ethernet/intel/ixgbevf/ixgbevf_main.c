@@ -554,6 +554,11 @@ static bool ixgbevf_is_non_eop(struct ixgbevf_ring *rx_ring,
 	return true;
 }
 
+static inline unsigned int ixgbevf_rx_offset(struct ixgbevf_ring *rx_ring)
+{
+	return ring_uses_build_skb(rx_ring) ? IXGBEVF_SKB_PAD : 0;
+}
+
 static bool ixgbevf_alloc_mapped_page(struct ixgbevf_ring *rx_ring,
 				      struct ixgbevf_rx_buffer *bi)
 {
@@ -588,7 +593,7 @@ static bool ixgbevf_alloc_mapped_page(struct ixgbevf_ring *rx_ring,
 
 	bi->dma = dma;
 	bi->page = page;
-	bi->page_offset = 0;
+	bi->page_offset = ixgbevf_rx_offset(rx_ring);
 	bi->pagecnt_bias = 1;
 	rx_ring->rx_stats.alloc_rx_page++;
 
@@ -803,7 +808,9 @@ static bool ixgbevf_add_rx_frag(struct ixgbevf_ring *rx_ring,
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = ixgbevf_rx_pg_size(rx_ring) / 2;
 #else
-	unsigned int truesize = ALIGN(size, L1_CACHE_BYTES);
+	unsigned int truesize = ring_uses_build_skb(rx_ring) ?
+				SKB_DATA_ALIGN(IXGBEVF_SKB_PAD + size) :
+				SKB_DATA_ALIGN(size);
 #endif
 	unsigned int pull_len;
 
@@ -1776,8 +1783,19 @@ static void ixgbevf_configure_rx_ring(struct ixgbevf_adapter *adapter,
 
 	ixgbevf_configure_srrctl(adapter, ring, reg_idx);
 
-	/* allow any size packet since we can handle overflow */
-	rxdctl &= ~IXGBE_RXDCTL_RLPML_EN;
+	/* RXDCTL.RLPML does not work on 82599 */
+	if (adapter->hw.mac.type != ixgbe_mac_82599_vf) {
+		rxdctl &= ~(IXGBE_RXDCTL_RLPMLMASK |
+			    IXGBE_RXDCTL_RLPML_EN);
+
+#if (PAGE_SIZE < 8192)
+		/* Limit the maximum frame size so we don't overrun the skb */
+		if (ring_uses_build_skb(ring) &&
+		    !ring_uses_large_buffer(ring))
+			rxdctl |= IXGBEVF_MAX_FRAME_BUILD_SKB |
+				  IXGBE_RXDCTL_RLPML_EN;
+#endif
+	}
 
 	rxdctl |= IXGBE_RXDCTL_ENABLE | IXGBE_RXDCTL_VME;
 	IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(reg_idx), rxdctl);
@@ -1793,10 +1811,13 @@ static void ixgbevf_set_rx_buffer_len(struct ixgbevf_adapter *adapter,
 	unsigned int max_frame = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 
 	/* set build_skb and buffer size flags */
+	clear_ring_build_skb_enabled(rx_ring);
 	clear_ring_uses_large_buffer(rx_ring);
 
 	if (adapter->flags & IXGBEVF_FLAGS_LEGACY_RX)
 		return;
+
+	set_ring_build_skb_enabled(rx_ring);
 
 #if (PAGE_SIZE < 8192)
 	if (max_frame <= IXGBEVF_MAX_FRAME_BUILD_SKB)
@@ -3889,6 +3910,9 @@ static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 
 	/* must set new MTU before calling down or up */
 	netdev->mtu = new_mtu;
+
+	if (netif_running(netdev))
+		ixgbevf_reinit_locked(adapter);
 
 	return 0;
 }
