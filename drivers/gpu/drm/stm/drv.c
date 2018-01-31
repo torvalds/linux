@@ -35,7 +35,6 @@ static int stm_gem_cma_dumb_create(struct drm_file *file,
 				   struct drm_device *dev,
 				   struct drm_mode_create_dumb *args)
 {
-#ifdef CONFIG_MMU
 	unsigned int min_pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
 
 	/*
@@ -44,7 +43,6 @@ static int stm_gem_cma_dumb_create(struct drm_file *file,
 	 */
 	args->pitch = roundup(min_pitch, 128);
 	args->height = roundup(args->height, 4);
-#endif
 
 	return drm_gem_cma_dumb_create_internal(file, dev, args);
 }
