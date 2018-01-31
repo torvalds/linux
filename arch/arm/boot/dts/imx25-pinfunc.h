@@ -236,7 +236,8 @@
 #define MX25_PAD_LD8__LD8			0x0e8 0x2e0 0x000 0x00 0x000
 #define MX25_PAD_LD8__UART4_RXD			0x0e8 0x2e0 0x570 0x02 0x000
 #define MX25_PAD_LD8__FEC_TX_ERR		0x0e8 0x2e0 0x000 0x05 0x000
-#define MX25_PAD_LD8__ESDHC2_CMD		0x0e8 0x2e0 0x4e0 0x06 0x000
+/* SION must be set; see the comment for MX25_PAD_SD1_CMD__ESDHC1_CMD. */
+#define MX25_PAD_LD8__ESDHC2_CMD		0x0e8 0x2e0 0x4e0 0x16 0x000
 
 #define MX25_PAD_LD9__LD9			0x0ec 0x2e4 0x000 0x00 0x000
 #define MX25_PAD_LD9__UART4_TXD			0x0ec 0x2e4 0x000 0x02 0x000
@@ -316,7 +317,8 @@
 #define MX25_PAD_CSI_D5__CSPI3_RDY		0x12c 0x324 0x000 0x07 0x000
 
 #define MX25_PAD_CSI_D6__CSI_D6			0x130 0x328 0x000 0x00 0x000
-#define MX25_PAD_CSI_D6__ESDHC2_CMD		0x130 0x328 0x4e0 0x02 0x001
+/* SION must be set; see the comment for MX25_PAD_SD1_CMD__ESDHC1_CMD. */
+#define MX25_PAD_CSI_D6__ESDHC2_CMD		0x130 0x328 0x4e0 0x12 0x001
 #define MX25_PAD_CSI_D6__SIM1_PD0		0x130 0x328 0x000 0x04 0x000
 #define MX25_PAD_CSI_D6__GPIO_1_31		0x130 0x328 0x000 0x05 0x000
 
@@ -419,11 +421,11 @@
 #define MX25_PAD_UART2_CTS__GPIO_4_29		0x18c 0x384 0x000 0x05 0x000
 
 /*
- * Removing the SION bit from MX25_PAD_SD1_CMD__ESDHC1_CMD breaks detecting an
- * SD card. According to the i.MX25 reference manual (e.g. Figure 23-2 in
- * IMX25RM Rev. 2 from 01/2011) this pin is bidirectional. So it seems to be a
- * silicon bug that configuring the ESDHC1_CMD function doesn't enable the input
- * path for this pin.
+ * Removing the SION bit from MX25_PAD_*__ESDHCn_CMD breaks detecting an SD
+ * card. According to the i.MX25 reference manual (e.g. Figure 23-2 in IMX25RM
+ * Rev. 2 from 01/2011) this pin is bidirectional. So it seems to be a silicon
+ * bug that configuring the ESDHCn_CMD function doesn't enable the input path
+ * for this pin.
  * This might have side effects for other hardware units that are connected to
  * that pin and use the respective function as input.
  */
@@ -496,6 +498,8 @@
 #define MX25_PAD_KPP_COL3__GPIO_3_4		0x1c4 0x3bc 0x000 0x05 0x000
 
 #define MX25_PAD_FEC_MDC__FEC_MDC		0x1c8 0x3c0 0x000 0x00 0x000
+/* SION must be set; see the comment for MX25_PAD_SD1_CMD__ESDHC1_CMD. */
+#define MX25_PAD_FEC_MDC__ESDHC2_CMD		0x1c8 0x3c0 0x4e0 0x11 0x002
 #define MX25_PAD_FEC_MDC__AUD4_TXD		0x1c8 0x3c0 0x464 0x02 0x001
 #define MX25_PAD_FEC_MDC__GPIO_3_5		0x1c8 0x3c0 0x000 0x05 0x000
 
