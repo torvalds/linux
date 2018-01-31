@@ -707,12 +707,12 @@ static int gsc_m2m_release(struct file *file)
 	return 0;
 }
 
-static unsigned int gsc_m2m_poll(struct file *file,
+static __poll_t gsc_m2m_poll(struct file *file,
 					struct poll_table_struct *wait)
 {
 	struct gsc_ctx *ctx = fh_to_ctx(file->private_data);
 	struct gsc_dev *gsc = ctx->gsc_dev;
-	unsigned int ret;
+	__poll_t ret;
 
 	if (mutex_lock_interruptible(&gsc->lock))
 		return -ERESTARTSYS;

@@ -93,6 +93,14 @@ static struct snd_soc_dai_link mxs_sgtl5000_dai[] = {
 	},
 };
 
+static const struct snd_soc_dapm_widget mxs_sgtl5000_dapm_widgets[] = {
+	SND_SOC_DAPM_MIC("Mic Jack", NULL),
+	SND_SOC_DAPM_LINE("Line In Jack", NULL),
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_SPK("Line Out Jack", NULL),
+	SND_SOC_DAPM_SPK("Ext Spk", NULL),
+};
+
 static struct snd_soc_card mxs_sgtl5000 = {
 	.name		= "mxs_sgtl5000",
 	.owner		= THIS_MODULE,
@@ -141,10 +149,23 @@ static int mxs_sgtl5000_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
+	if (of_find_property(np, "audio-routing", NULL)) {
+		card->dapm_widgets = mxs_sgtl5000_dapm_widgets;
+		card->num_dapm_widgets = ARRAY_SIZE(mxs_sgtl5000_dapm_widgets);
+
+		ret = snd_soc_of_parse_audio_routing(card, "audio-routing");
+		if (ret) {
+			dev_err(&pdev->dev, "failed to parse audio-routing (%d)\n",
+				ret);
+			return ret;
+		}
+	}
+
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
-		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
-			ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
+				ret);
 		return ret;
 	}
 

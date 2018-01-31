@@ -419,12 +419,12 @@ irnet_ctrl_read(irnet_socket *	ap,
  * Poll : called when someone do a select on /dev/irnet.
  * Just check if there are new events...
  */
-static inline unsigned int
+static inline __poll_t
 irnet_ctrl_poll(irnet_socket *	ap,
 		struct file *	file,
 		poll_table *	wait)
 {
-  unsigned int mask;
+  __poll_t mask;
 
   DENTER(CTRL_TRACE, "(ap=0x%p)\n", ap);
 
@@ -608,12 +608,12 @@ dev_irnet_read(struct file *	file,
 /*
  * Poll : called when someone do a select on /dev/irnet
  */
-static unsigned int
+static __poll_t
 dev_irnet_poll(struct file *	file,
 	       poll_table *	wait)
 {
   irnet_socket *	ap = file->private_data;
-  unsigned int		mask;
+  __poll_t		mask;
 
   DENTER(FS_TRACE, "(file=0x%p, ap=0x%p)\n",
 	 file, ap);

@@ -710,13 +710,13 @@ static int tipc_getname(struct socket *sock, struct sockaddr *uaddr,
  * imply that the operation will succeed, merely that it should be performed
  * and will not block.
  */
-static unsigned int tipc_poll(struct file *file, struct socket *sock,
+static __poll_t tipc_poll(struct file *file, struct socket *sock,
 			      poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct tipc_sock *tsk = tipc_sk(sk);
 	struct tipc_group *grp = tsk->group;
-	u32 revents = 0;
+	__poll_t revents = 0;
 
 	sock_poll_wait(file, sk_sleep(sk), wait);
 

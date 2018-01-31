@@ -1124,10 +1124,10 @@ static int cs_char_fasync(int fd, struct file *file, int on)
 	return 0;
 }
 
-static unsigned int cs_char_poll(struct file *file, poll_table *wait)
+static __poll_t cs_char_poll(struct file *file, poll_table *wait)
 {
 	struct cs_char *csdata = file->private_data;
-	unsigned int ret = 0;
+	__poll_t ret = 0;
 
 	poll_wait(file, &cs_char_data.wait, wait);
 	spin_lock_bh(&csdata->lock);

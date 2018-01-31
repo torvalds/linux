@@ -147,7 +147,7 @@ static long rtc_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static void rtc_get_rtc_time(struct rtc_time *rtc_tm);
 
 #ifdef RTC_IRQ
-static unsigned int rtc_poll(struct file *file, poll_table *wait);
+static __poll_t rtc_poll(struct file *file, poll_table *wait);
 #endif
 
 static void get_rtc_alm_time(struct rtc_time *alm_tm);
@@ -790,7 +790,7 @@ no_irq:
 }
 
 #ifdef RTC_IRQ
-static unsigned int rtc_poll(struct file *file, poll_table *wait)
+static __poll_t rtc_poll(struct file *file, poll_table *wait)
 {
 	unsigned long l;
 

@@ -40,7 +40,7 @@ static ssize_t kmsg_read(struct file *file, char __user *buf,
 	return do_syslog(SYSLOG_ACTION_READ, buf, count, SYSLOG_FROM_PROC);
 }
 
-static unsigned int kmsg_poll(struct file *file, poll_table *wait)
+static __poll_t kmsg_poll(struct file *file, poll_table *wait)
 {
 	poll_wait(file, &log_wait, wait);
 	if (do_syslog(SYSLOG_ACTION_SIZE_UNREAD, NULL, 0, SYSLOG_FROM_PROC))

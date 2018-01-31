@@ -86,10 +86,10 @@ static u32 spu_backing_mbox_stat_read(struct spu_context *ctx)
 	return ctx->csa.prob.mb_stat_R;
 }
 
-static unsigned int spu_backing_mbox_stat_poll(struct spu_context *ctx,
-					  unsigned int events)
+static __poll_t spu_backing_mbox_stat_poll(struct spu_context *ctx,
+					  __poll_t events)
 {
-	int ret;
+	__poll_t ret;
 	u32 stat;
 
 	ret = 0;

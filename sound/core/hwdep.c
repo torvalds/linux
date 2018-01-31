@@ -177,7 +177,7 @@ static int snd_hwdep_release(struct inode *inode, struct file * file)
 	return err;
 }
 
-static unsigned int snd_hwdep_poll(struct file * file, poll_table * wait)
+static __poll_t snd_hwdep_poll(struct file * file, poll_table * wait)
 {
 	struct snd_hwdep *hw = file->private_data;
 	if (hw->ops.poll)

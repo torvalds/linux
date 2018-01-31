@@ -982,10 +982,10 @@ error_out:
 	return ret;
 }
 
-static unsigned int port_fops_poll(struct file *filp, poll_table *wait)
+static __poll_t port_fops_poll(struct file *filp, poll_table *wait)
 {
 	struct port *port;
-	unsigned int ret;
+	__poll_t ret;
 
 	port = filp->private_data;
 	poll_wait(filp, &port->waitqueue, wait);

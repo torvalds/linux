@@ -3135,12 +3135,12 @@ static ssize_t snd_pcm_writev(struct kiocb *iocb, struct iov_iter *from)
 	return result;
 }
 
-static unsigned int snd_pcm_playback_poll(struct file *file, poll_table * wait)
+static __poll_t snd_pcm_playback_poll(struct file *file, poll_table * wait)
 {
 	struct snd_pcm_file *pcm_file;
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime *runtime;
-        unsigned int mask;
+        __poll_t mask;
 	snd_pcm_uframes_t avail;
 
 	pcm_file = file->private_data;
@@ -3174,12 +3174,12 @@ static unsigned int snd_pcm_playback_poll(struct file *file, poll_table * wait)
 	return mask;
 }
 
-static unsigned int snd_pcm_capture_poll(struct file *file, poll_table * wait)
+static __poll_t snd_pcm_capture_poll(struct file *file, poll_table * wait)
 {
 	struct snd_pcm_file *pcm_file;
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime *runtime;
-        unsigned int mask;
+        __poll_t mask;
 	snd_pcm_uframes_t avail;
 
 	pcm_file = file->private_data;
@@ -3446,7 +3446,7 @@ EXPORT_SYMBOL_GPL(snd_pcm_lib_default_mmap);
 int snd_pcm_lib_mmap_iomem(struct snd_pcm_substream *substream,
 			   struct vm_area_struct *area)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	area->vm_page_prot = pgprot_noncached(area->vm_page_prot);
 	return vm_iomap_memory(area, runtime->dma_addr, runtime->dma_bytes);

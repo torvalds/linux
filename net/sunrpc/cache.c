@@ -930,10 +930,10 @@ out:
 
 static DECLARE_WAIT_QUEUE_HEAD(queue_wait);
 
-static unsigned int cache_poll(struct file *filp, poll_table *wait,
+static __poll_t cache_poll(struct file *filp, poll_table *wait,
 			       struct cache_detail *cd)
 {
-	unsigned int mask;
+	__poll_t mask;
 	struct cache_reader *rp = filp->private_data;
 	struct cache_queue *cq;
 
@@ -1501,7 +1501,7 @@ static ssize_t cache_write_procfs(struct file *filp, const char __user *buf,
 	return cache_write(filp, buf, count, ppos, cd);
 }
 
-static unsigned int cache_poll_procfs(struct file *filp, poll_table *wait)
+static __poll_t cache_poll_procfs(struct file *filp, poll_table *wait)
 {
 	struct cache_detail *cd = PDE_DATA(file_inode(filp));
 
@@ -1720,7 +1720,7 @@ static ssize_t cache_write_pipefs(struct file *filp, const char __user *buf,
 	return cache_write(filp, buf, count, ppos, cd);
 }
 
-static unsigned int cache_poll_pipefs(struct file *filp, poll_table *wait)
+static __poll_t cache_poll_pipefs(struct file *filp, poll_table *wait)
 {
 	struct cache_detail *cd = RPC_I(file_inode(filp))->private;
 

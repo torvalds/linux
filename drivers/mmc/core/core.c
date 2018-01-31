@@ -341,6 +341,8 @@ int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 {
 	int err;
 
+	init_completion(&mrq->cmd_completion);
+
 	mmc_retune_hold(host);
 
 	if (mmc_card_removed(host->card))
@@ -361,20 +363,6 @@ int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 }
 EXPORT_SYMBOL(mmc_start_request);
 
-/*
- * mmc_wait_data_done() - done callback for data request
- * @mrq: done data request
- *
- * Wakes up mmc context, passed as a callback to host controller driver
- */
-static void mmc_wait_data_done(struct mmc_request *mrq)
-{
-	struct mmc_context_info *context_info = &mrq->host->context_info;
-
-	context_info->is_done_rcv = true;
-	wake_up_interruptible(&context_info->wait);
-}
-
 static void mmc_wait_done(struct mmc_request *mrq)
 {
 	complete(&mrq->completion);
@@ -392,37 +380,6 @@ static inline void mmc_wait_ongoing_tfr_cmd(struct mmc_host *host)
 		wait_for_completion(&ongoing_mrq->cmd_completion);
 }
 
-/*
- *__mmc_start_data_req() - starts data request
- * @host: MMC host to start the request
- * @mrq: data request to start
- *
- * Sets the done callback to be called when request is completed by the card.
- * Starts data mmc request execution
- * If an ongoing transfer is already in progress, wait for the command line
- * to become available before sending another command.
- */
-static int __mmc_start_data_req(struct mmc_host *host, struct mmc_request *mrq)
-{
-	int err;
-
-	mmc_wait_ongoing_tfr_cmd(host);
-
-	mrq->done = mmc_wait_data_done;
-	mrq->host = host;
-
-	init_completion(&mrq->cmd_completion);
-
-	err = mmc_start_request(host, mrq);
-	if (err) {
-		mrq->cmd->error = err;
-		mmc_complete_cmd(mrq);
-		mmc_wait_data_done(mrq);
-	}
-
-	return err;
-}
-
 static int __mmc_start_req(struct mmc_host *host, struct mmc_request *mrq)
 {
 	int err;
@@ -431,8 +388,6 @@ static int __mmc_start_req(struct mmc_host *host, struct mmc_request *mrq)
 
 	init_completion(&mrq->completion);
 	mrq->done = mmc_wait_done;
-
-	init_completion(&mrq->cmd_completion);
 
 	err = mmc_start_request(host, mrq);
 	if (err) {
@@ -650,162 +605,9 @@ EXPORT_SYMBOL(mmc_cqe_recovery);
  */
 bool mmc_is_req_done(struct mmc_host *host, struct mmc_request *mrq)
 {
-	if (host->areq)
-		return host->context_info.is_done_rcv;
-	else
-		return completion_done(&mrq->completion);
+	return completion_done(&mrq->completion);
 }
 EXPORT_SYMBOL(mmc_is_req_done);
-
-/**
- *	mmc_pre_req - Prepare for a new request
- *	@host: MMC host to prepare command
- *	@mrq: MMC request to prepare for
- *
- *	mmc_pre_req() is called in prior to mmc_start_req() to let
- *	host prepare for the new request. Preparation of a request may be
- *	performed while another request is running on the host.
- */
-static void mmc_pre_req(struct mmc_host *host, struct mmc_request *mrq)
-{
-	if (host->ops->pre_req)
-		host->ops->pre_req(host, mrq);
-}
-
-/**
- *	mmc_post_req - Post process a completed request
- *	@host: MMC host to post process command
- *	@mrq: MMC request to post process for
- *	@err: Error, if non zero, clean up any resources made in pre_req
- *
- *	Let the host post process a completed request. Post processing of
- *	a request may be performed while another reuqest is running.
- */
-static void mmc_post_req(struct mmc_host *host, struct mmc_request *mrq,
-			 int err)
-{
-	if (host->ops->post_req)
-		host->ops->post_req(host, mrq, err);
-}
-
-/**
- * mmc_finalize_areq() - finalize an asynchronous request
- * @host: MMC host to finalize any ongoing request on
- *
- * Returns the status of the ongoing asynchronous request, but
- * MMC_BLK_SUCCESS if no request was going on.
- */
-static enum mmc_blk_status mmc_finalize_areq(struct mmc_host *host)
-{
-	struct mmc_context_info *context_info = &host->context_info;
-	enum mmc_blk_status status;
-
-	if (!host->areq)
-		return MMC_BLK_SUCCESS;
-
-	while (1) {
-		wait_event_interruptible(context_info->wait,
-				(context_info->is_done_rcv ||
-				 context_info->is_new_req));
-
-		if (context_info->is_done_rcv) {
-			struct mmc_command *cmd;
-
-			context_info->is_done_rcv = false;
-			cmd = host->areq->mrq->cmd;
-
-			if (!cmd->error || !cmd->retries ||
-			    mmc_card_removed(host->card)) {
-				status = host->areq->err_check(host->card,
-							       host->areq);
-				break; /* return status */
-			} else {
-				mmc_retune_recheck(host);
-				pr_info("%s: req failed (CMD%u): %d, retrying...\n",
-					mmc_hostname(host),
-					cmd->opcode, cmd->error);
-				cmd->retries--;
-				cmd->error = 0;
-				__mmc_start_request(host, host->areq->mrq);
-				continue; /* wait for done/new event again */
-			}
-		}
-
-		return MMC_BLK_NEW_REQUEST;
-	}
-
-	mmc_retune_release(host);
-
-	/*
-	 * Check BKOPS urgency for each R1 response
-	 */
-	if (host->card && mmc_card_mmc(host->card) &&
-	    ((mmc_resp_type(host->areq->mrq->cmd) == MMC_RSP_R1) ||
-	     (mmc_resp_type(host->areq->mrq->cmd) == MMC_RSP_R1B)) &&
-	    (host->areq->mrq->cmd->resp[0] & R1_EXCEPTION_EVENT)) {
-		mmc_start_bkops(host->card, true);
-	}
-
-	return status;
-}
-
-/**
- *	mmc_start_areq - start an asynchronous request
- *	@host: MMC host to start command
- *	@areq: asynchronous request to start
- *	@ret_stat: out parameter for status
- *
- *	Start a new MMC custom command request for a host.
- *	If there is on ongoing async request wait for completion
- *	of that request and start the new one and return.
- *	Does not wait for the new request to complete.
- *
- *      Returns the completed request, NULL in case of none completed.
- *	Wait for the an ongoing request (previoulsy started) to complete and
- *	return the completed request. If there is no ongoing request, NULL
- *	is returned without waiting. NULL is not an error condition.
- */
-struct mmc_async_req *mmc_start_areq(struct mmc_host *host,
-				     struct mmc_async_req *areq,
-				     enum mmc_blk_status *ret_stat)
-{
-	enum mmc_blk_status status;
-	int start_err = 0;
-	struct mmc_async_req *previous = host->areq;
-
-	/* Prepare a new request */
-	if (areq)
-		mmc_pre_req(host, areq->mrq);
-
-	/* Finalize previous request */
-	status = mmc_finalize_areq(host);
-	if (ret_stat)
-		*ret_stat = status;
-
-	/* The previous request is still going on... */
-	if (status == MMC_BLK_NEW_REQUEST)
-		return NULL;
-
-	/* Fine so far, start the new request! */
-	if (status == MMC_BLK_SUCCESS && areq)
-		start_err = __mmc_start_data_req(host, areq->mrq);
-
-	/* Postprocess the old request at this point */
-	if (host->areq)
-		mmc_post_req(host, host->areq->mrq, 0);
-
-	/* Cancel a prepared request if it was not started. */
-	if ((status != MMC_BLK_SUCCESS || start_err) && areq)
-		mmc_post_req(host, areq->mrq, -EINVAL);
-
-	if (status != MMC_BLK_SUCCESS)
-		host->areq = NULL;
-	else
-		host->areq = areq;
-
-	return previous;
-}
-EXPORT_SYMBOL(mmc_start_areq);
 
 /**
  *	mmc_wait_for_req - start a request and wait for completion
@@ -2959,6 +2761,14 @@ static int mmc_pm_notify(struct notifier_block *notify_block,
 		if (!err)
 			break;
 
+		if (!mmc_card_is_removable(host)) {
+			dev_warn(mmc_dev(host),
+				 "pre_suspend failed for non-removable host: "
+				 "%d\n", err);
+			/* Avoid removing non-removable hosts */
+			break;
+		}
+
 		/* Calling bus_ops->remove() with a claimed host can deadlock */
 		host->bus_ops->remove(host);
 		mmc_claim_host(host);
@@ -2993,22 +2803,6 @@ void mmc_unregister_pm_notifier(struct mmc_host *host)
 	unregister_pm_notifier(&host->pm_notify);
 }
 #endif
-
-/**
- * mmc_init_context_info() - init synchronization context
- * @host: mmc host
- *
- * Init struct context_info needed to implement asynchronous
- * request mechanism, used by mmc core, host driver and mmc requests
- * supplier.
- */
-void mmc_init_context_info(struct mmc_host *host)
-{
-	host->context_info.is_new_req = false;
-	host->context_info.is_done_rcv = false;
-	host->context_info.is_waiting_last_req = false;
-	init_waitqueue_head(&host->context_info.wait);
-}
 
 static int __init mmc_init(void)
 {

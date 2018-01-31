@@ -493,9 +493,9 @@ static void tcp_tx_timestamp(struct sock *sk, u16 tsflags)
  *	take care of normal races (between the test and the event) and we don't
  *	go look at any of the socket buffers directly.
  */
-unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
+__poll_t tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 {
-	unsigned int mask;
+	__poll_t mask;
 	struct sock *sk = sock->sk;
 	const struct tcp_sock *tp = tcp_sk(sk);
 	int state;

@@ -320,13 +320,13 @@ static int fops_mmap(struct file *file, struct vm_area_struct * vma)
 	return res;
 }
 
-static unsigned int __fops_poll(struct file *file, struct poll_table_struct *wait)
+static __poll_t __fops_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct saa7146_fh *fh = file->private_data;
 	struct videobuf_buffer *buf = NULL;
 	struct videobuf_queue *q;
-	unsigned int res = v4l2_ctrl_poll(file, wait);
+	__poll_t res = v4l2_ctrl_poll(file, wait);
 
 	DEB_EE("file:%p, poll:%p\n", file, wait);
 
@@ -359,10 +359,10 @@ static unsigned int __fops_poll(struct file *file, struct poll_table_struct *wai
 	return res;
 }
 
-static unsigned int fops_poll(struct file *file, struct poll_table_struct *wait)
+static __poll_t fops_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct video_device *vdev = video_devdata(file);
-	unsigned int res;
+	__poll_t res;
 
 	mutex_lock(vdev->lock);
 	res = __fops_poll(file, wait);

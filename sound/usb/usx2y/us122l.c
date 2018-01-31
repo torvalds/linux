@@ -271,12 +271,12 @@ out:
 	return err;
 }
 
-static unsigned int usb_stream_hwdep_poll(struct snd_hwdep *hw,
+static __poll_t usb_stream_hwdep_poll(struct snd_hwdep *hw,
 					  struct file *file, poll_table *wait)
 {
 	struct us122l	*us122l = hw->private_data;
 	unsigned	*polled;
-	unsigned int	mask;
+	__poll_t	mask;
 
 	poll_wait(file, &us122l->sk.sleep, wait);
 

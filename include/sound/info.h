@@ -62,7 +62,7 @@ struct snd_info_entry_ops {
 	loff_t (*llseek)(struct snd_info_entry *entry,
 			 void *file_private_data, struct file *file,
 			 loff_t offset, int orig);
-	unsigned int (*poll)(struct snd_info_entry *entry,
+	__poll_t (*poll)(struct snd_info_entry *entry,
 			     void *file_private_data, struct file *file,
 			     poll_table *wait);
 	int (*ioctl)(struct snd_info_entry *entry, void *file_private_data,

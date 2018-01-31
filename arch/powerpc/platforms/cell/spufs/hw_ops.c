@@ -56,11 +56,10 @@ static u32 spu_hw_mbox_stat_read(struct spu_context *ctx)
 	return in_be32(&ctx->spu->problem->mb_stat_R);
 }
 
-static unsigned int spu_hw_mbox_stat_poll(struct spu_context *ctx,
-					  unsigned int events)
+static __poll_t spu_hw_mbox_stat_poll(struct spu_context *ctx, __poll_t events)
 {
 	struct spu *spu = ctx->spu;
-	int ret = 0;
+	__poll_t ret = 0;
 	u32 stat;
 
 	spin_lock_irq(&spu->register_lock);

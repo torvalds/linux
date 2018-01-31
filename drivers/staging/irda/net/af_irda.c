@@ -1737,12 +1737,12 @@ static int irda_shutdown(struct socket *sock, int how)
 /*
  * Function irda_poll (file, sock, wait)
  */
-static unsigned int irda_poll(struct file * file, struct socket *sock,
+static __poll_t irda_poll(struct file * file, struct socket *sock,
 			      poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct irda_sock *self = irda_sk(sk);
-	unsigned int mask;
+	__poll_t mask;
 
 	poll_wait(file, sk_sleep(sk), wait);
 	mask = 0;

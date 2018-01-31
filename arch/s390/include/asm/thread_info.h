@@ -42,8 +42,6 @@ struct thread_info {
 	.flags		= 0,			\
 }
 
-#define init_stack		(init_thread_union.stack)
-
 void arch_release_task_struct(struct task_struct *tsk);
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 

@@ -104,7 +104,7 @@ static ssize_t hvt_op_write(struct file *file, const char __user *buf,
 	return ret ? ret : count;
 }
 
-static unsigned int hvt_op_poll(struct file *file, poll_table *wait)
+static __poll_t hvt_op_poll(struct file *file, poll_table *wait)
 {
 	struct hvutil_transport *hvt;
 

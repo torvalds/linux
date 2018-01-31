@@ -42,6 +42,16 @@ struct regulator;
 #define REGULATOR_CHANGE_DRMS		0x10
 #define REGULATOR_CHANGE_BYPASS		0x20
 
+/*
+ * operations in suspend mode
+ * DO_NOTHING_IN_SUSPEND - the default value
+ * DISABLE_IN_SUSPEND	- turn off regulator in suspend states
+ * ENABLE_IN_SUSPEND	- keep regulator on in suspend states
+ */
+#define DO_NOTHING_IN_SUSPEND	(-1)
+#define DISABLE_IN_SUSPEND	0
+#define ENABLE_IN_SUSPEND	1
+
 /* Regulator active discharge flags */
 enum regulator_active_discharge {
 	REGULATOR_ACTIVE_DISCHARGE_DEFAULT,
@@ -56,16 +66,24 @@ enum regulator_active_discharge {
  * state.  One of enabled or disabled must be set for the
  * configuration to be applied.
  *
- * @uV: Operating voltage during suspend.
+ * @uV: Default operating voltage during suspend, it can be adjusted
+ *	among <min_uV, max_uV>.
+ * @min_uV: Minimum suspend voltage may be set.
+ * @max_uV: Maximum suspend voltage may be set.
  * @mode: Operating mode during suspend.
- * @enabled: Enabled during suspend.
- * @disabled: Disabled during suspend.
+ * @enabled: operations during suspend.
+ *	     - DO_NOTHING_IN_SUSPEND
+ *	     - DISABLE_IN_SUSPEND
+ *	     - ENABLE_IN_SUSPEND
+ * @changeable: Is this state can be switched between enabled/disabled,
  */
 struct regulator_state {
-	int uV;	/* suspend voltage */
-	unsigned int mode; /* suspend regulator operating mode */
-	int enabled; /* is regulator enabled in this suspend state */
-	int disabled; /* is the regulator disabled in this suspend state */
+	int uV;
+	int min_uV;
+	int max_uV;
+	unsigned int mode;
+	int enabled;
+	bool changeable;
 };
 
 /**
@@ -225,12 +243,12 @@ struct regulator_init_data {
 
 #ifdef CONFIG_REGULATOR
 void regulator_has_full_constraints(void);
-int regulator_suspend_prepare(suspend_state_t state);
-int regulator_suspend_finish(void);
 #else
 static inline void regulator_has_full_constraints(void)
 {
 }
+#endif
+
 static inline int regulator_suspend_prepare(suspend_state_t state)
 {
 	return 0;
@@ -239,6 +257,5 @@ static inline int regulator_suspend_finish(void)
 {
 	return 0;
 }
-#endif
 
 #endif

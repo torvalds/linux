@@ -180,34 +180,34 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 				struct pt_regs *regs)
 {
 	struct arch_hw_breakpoint *bkpt = counter_arch_bp(bp);
-	siginfo_t info = {
-		.si_signo	= SIGTRAP,
-		.si_errno	= 0,
-		.si_code	= TRAP_HWBKPT,
-		.si_addr	= (void __user *)(bkpt->trigger),
-	};
+	siginfo_t info;
+
+	clear_siginfo(&info);
+	info.si_signo	= SIGTRAP;
+	info.si_errno	= 0;
+	info.si_code	= TRAP_HWBKPT;
+	info.si_addr	= (void __user *)(bkpt->trigger);
 
 #ifdef CONFIG_COMPAT
-	int i;
+	if (is_compat_task()) {
+		int si_errno = 0;
+		int i;
 
-	if (!is_compat_task())
-		goto send_sig;
-
-	for (i = 0; i < ARM_MAX_BRP; ++i) {
-		if (current->thread.debug.hbp_break[i] == bp) {
-			info.si_errno = (i << 1) + 1;
-			break;
+		for (i = 0; i < ARM_MAX_BRP; ++i) {
+			if (current->thread.debug.hbp_break[i] == bp) {
+				si_errno = (i << 1) + 1;
+				break;
+			}
 		}
-	}
 
-	for (i = 0; i < ARM_MAX_WRP; ++i) {
-		if (current->thread.debug.hbp_watch[i] == bp) {
-			info.si_errno = -((i << 1) + 1);
-			break;
+		for (i = 0; i < ARM_MAX_WRP; ++i) {
+			if (current->thread.debug.hbp_watch[i] == bp) {
+				si_errno = -((i << 1) + 1);
+				break;
+			}
 		}
+		force_sig_ptrace_errno_trap(si_errno, (void __user *)bkpt->trigger);
 	}
-
-send_sig:
 #endif
 	force_sig_info(SIGTRAP, &info, current);
 }

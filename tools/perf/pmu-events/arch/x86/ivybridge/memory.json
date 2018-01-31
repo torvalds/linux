@@ -39,18 +39,6 @@
     },
     {
         "PEBS": "2",
-        "EventCode": "0xCD",
-        "Counter": "3",
-        "UMask": "0x2",
-        "EventName": "MEM_TRANS_RETIRED.PRECISE_STORE",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Sample stores and collect precise store operation via PEBS record. PMC3 only.",
-        "PRECISE_STORE": "1",
-        "TakenAlone": "1",
-        "CounterHTOff": "3"
-    },
-    {
-        "PEBS": "2",
         "PublicDescription": "Loads with latency value being above 4.",
         "EventCode": "0xCD",
         "MSRValue": "0x4",
@@ -158,6 +146,18 @@
         "MSRIndex": "0x3F6",
         "SampleAfterValue": "101",
         "BriefDescription": "Loads with latency value being above 512",
+        "TakenAlone": "1",
+        "CounterHTOff": "3"
+    },
+    {
+        "PEBS": "2",
+        "EventCode": "0xCD",
+        "Counter": "3",
+        "UMask": "0x2",
+        "EventName": "MEM_TRANS_RETIRED.PRECISE_STORE",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Sample stores and collect precise store operation via PEBS record. PMC3 only.",
+        "PRECISE_STORE": "1",
         "TakenAlone": "1",
         "CounterHTOff": "3"
     },

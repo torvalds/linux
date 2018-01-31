@@ -17,8 +17,9 @@ management with temperature and remote voltage sensing. Various fan control
 features are provided, including PWM frequency control, temperature hysteresis,
 dual tachometer measurements, and fan health monitoring.
 
-For dual rotor fan configuration, the MAX31785 exposes the slowest rotor of the
-two in the fan[1-4]_input attributes.
+For dual-rotor configurations the MAX31785A exposes the second rotor tachometer
+readings in attributes fan[5-8]_input. By contrast the MAX31785 only exposes
+the slowest rotor measurement, and does so in the fan[1-4]_input attributes.
 
 Usage Notes
 -----------
@@ -31,7 +32,9 @@ Sysfs attributes
 
 fan[1-4]_alarm		Fan alarm.
 fan[1-4]_fault		Fan fault.
-fan[1-4]_input		Fan RPM.
+fan[1-8]_input		Fan RPM. On the MAX31785A, inputs 5-8 correspond to the
+			second rotor of fans 1-4
+fan[1-4]_target		Fan input target
 
 in[1-6]_crit		Critical maximum output voltage
 in[1-6]_crit_alarm	Output voltage critical high alarm
@@ -43,6 +46,12 @@ in[1-6]_max		Maximum output voltage
 in[1-6]_max_alarm	Output voltage high alarm
 in[1-6]_min		Minimum output voltage
 in[1-6]_min_alarm	Output voltage low alarm
+
+pwm[1-4]		Fan target duty cycle (0..255)
+pwm[1-4]_enable		0: Full-speed
+			1: Manual PWM control
+			2: Automatic PWM (tach-feedback RPM fan-control)
+			3: Automatic closed-loop (temp-feedback fan-control)
 
 temp[1-11]_crit		Critical high temperature
 temp[1-11]_crit_alarm	Chip temperature critical high alarm

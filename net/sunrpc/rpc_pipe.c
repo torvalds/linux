@@ -340,12 +340,12 @@ rpc_pipe_write(struct file *filp, const char __user *buf, size_t len, loff_t *of
 	return res;
 }
 
-static unsigned int
+static __poll_t
 rpc_pipe_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	struct inode *inode = file_inode(filp);
 	struct rpc_inode *rpci = RPC_I(inode);
-	unsigned int mask = POLLOUT | POLLWRNORM;
+	__poll_t mask = POLLOUT | POLLWRNORM;
 
 	poll_wait(filp, &rpci->waitq, wait);
 

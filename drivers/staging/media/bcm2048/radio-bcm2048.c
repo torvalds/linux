@@ -2174,11 +2174,11 @@ static int bcm2048_fops_release(struct file *file)
 	return 0;
 }
 
-static unsigned int bcm2048_fops_poll(struct file *file,
+static __poll_t bcm2048_fops_poll(struct file *file,
 				      struct poll_table_struct *pts)
 {
 	struct bcm2048_device *bdev = video_drvdata(file);
-	int retval = 0;
+	__poll_t retval = 0;
 
 	poll_wait(file, &bdev->read_queue, pts);
 

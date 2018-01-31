@@ -1245,10 +1245,10 @@ static ssize_t smu_read(struct file *file, char __user *buf,
 	return -EBADFD;
 }
 
-static unsigned int smu_fpoll(struct file *file, poll_table *wait)
+static __poll_t smu_fpoll(struct file *file, poll_table *wait)
 {
 	struct smu_private *pp = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	unsigned long flags;
 
 	if (pp == 0)

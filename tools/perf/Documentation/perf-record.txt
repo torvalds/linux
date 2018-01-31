@@ -430,6 +430,9 @@ Configure all used events to run in user space.
 --timestamp-filename
 Append timestamp to output file name.
 
+--timestamp-boundary::
+Record timestamp boundary (time of first/last samples).
+
 --switch-output[=mode]::
 Generate multiple perf.data files, timestamp prefixed, switching to a new one
 based on 'mode' value:

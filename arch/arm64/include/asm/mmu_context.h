@@ -19,8 +19,6 @@
 #ifndef __ASM_MMU_CONTEXT_H
 #define __ASM_MMU_CONTEXT_H
 
-#define FALKOR_RESERVED_ASID	1
-
 #ifndef __ASSEMBLY__
 
 #include <linux/compiler.h>
@@ -51,10 +49,17 @@ static inline void contextidr_thread_switch(struct task_struct *next)
  */
 static inline void cpu_set_reserved_ttbr0(void)
 {
-	unsigned long ttbr = __pa_symbol(empty_zero_page);
+	unsigned long ttbr = phys_to_ttbr(__pa_symbol(empty_zero_page));
 
 	write_sysreg(ttbr, ttbr0_el1);
 	isb();
+}
+
+static inline void cpu_switch_mm(pgd_t *pgd, struct mm_struct *mm)
+{
+	BUG_ON(pgd == swapper_pg_dir);
+	cpu_set_reserved_ttbr0();
+	cpu_do_switch_mm(virt_to_phys(pgd),mm);
 }
 
 /*
@@ -63,11 +68,20 @@ static inline void cpu_set_reserved_ttbr0(void)
  * physical memory, in which case it will be smaller.
  */
 extern u64 idmap_t0sz;
+extern u64 idmap_ptrs_per_pgd;
 
 static inline bool __cpu_uses_extended_idmap(void)
 {
-	return (!IS_ENABLED(CONFIG_ARM64_VA_BITS_48) &&
-		unlikely(idmap_t0sz != TCR_T0SZ(VA_BITS)));
+	return unlikely(idmap_t0sz != TCR_T0SZ(VA_BITS));
+}
+
+/*
+ * True if the extended ID map requires an extra level of translation table
+ * to be configured.
+ */
+static inline bool __cpu_uses_extended_idmap_level(void)
+{
+	return ARM64_HW_PGTABLE_LEVELS(64 - idmap_t0sz) > CONFIG_PGTABLE_LEVELS;
 }
 
 /*
@@ -170,7 +184,7 @@ static inline void update_saved_ttbr0(struct task_struct *tsk,
 	else
 		ttbr = virt_to_phys(mm->pgd) | ASID(mm) << 48;
 
-	task_thread_info(tsk)->ttbr0 = ttbr;
+	WRITE_ONCE(task_thread_info(tsk)->ttbr0, ttbr);
 }
 #else
 static inline void update_saved_ttbr0(struct task_struct *tsk,
@@ -225,6 +239,7 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 #define activate_mm(prev,next)	switch_mm(prev, next, current)
 
 void verify_cpu_asid_bits(void);
+void post_ttbr_update_workaround(void);
 
 #endif /* !__ASSEMBLY__ */
 
