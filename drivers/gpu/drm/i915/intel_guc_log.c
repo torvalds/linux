@@ -397,6 +397,9 @@ static int guc_log_runtime_create(struct intel_guc *guc)
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
+	if (!guc->log.vma)
+		return -ENODEV;
+
 	GEM_BUG_ON(guc_log_has_runtime(guc));
 
 	ret = i915_gem_object_set_to_wc_domain(guc->log.vma->obj, true);
