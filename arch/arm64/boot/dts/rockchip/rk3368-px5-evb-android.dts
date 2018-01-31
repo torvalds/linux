@@ -250,6 +250,28 @@
 		status = "okay";
 	};
 
+	gpio_det: gpio-det {
+		compatible = "gpio-detection";
+		status = "okay";
+
+		pinctrl-0 = <&gpio3_b1 &gpio3_b2>;
+		pinctrl-names = "default";
+
+		car-reverse {
+			car-reverse-gpios = <&gpio3 10 GPIO_ACTIVE_LOW>;
+			linux,debounce-ms = <5>;
+			label = "car-reverse";
+			gpio,wakeup;
+		};
+
+		car-acc {
+			car-acc-gpios = <&gpio3 9 GPIO_ACTIVE_LOW>;
+			linux,debounce-ms = <5>;
+			label = "car-acc";
+			gpio,wakeup;
+		};
+	};
+
 	vcc_sys: vcc-sys-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
