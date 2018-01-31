@@ -307,7 +307,7 @@ static int rockchip_drm_backlight_bind(struct device *dev,
 
 	drm_for_each_connector(connector, drm_dev) {
 		panel = drm_find_panel_by_connector(connector);
-		if (!panel && !panel->dev)
+		if (!panel || !panel->dev)
 			continue;
 		backlight_np = of_parse_phandle(panel->dev->of_node,
 						"backlight", 0);
