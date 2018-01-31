@@ -58,8 +58,16 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	if (esw->mode != SRIOV_OFFLOADS)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	/* per flow vlan pop/push is emulated, don't set that into the firmware */
-	flow_act.action = attr->action & ~(MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH | MLX5_FLOW_CONTEXT_ACTION_VLAN_POP);
+	flow_act.action = attr->action;
+	/* if per flow vlan pop/push is emulated, don't set that into the firmware */
+	if (!mlx5_eswitch_vlan_actions_supported(esw->dev))
+		flow_act.action &= ~(MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH |
+				     MLX5_FLOW_CONTEXT_ACTION_VLAN_POP);
+	else if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH) {
+		flow_act.vlan.ethtype = ntohs(attr->vlan_proto);
+		flow_act.vlan.vid = attr->vlan_vid;
+		flow_act.vlan.prio = attr->vlan_prio;
+	}
 
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
 		dest[i].type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
@@ -185,7 +193,7 @@ static int esw_add_vlan_action_check(struct mlx5_esw_flow_attr *attr,
 	/* protects against (1) setting rules with different vlans to push and
 	 * (2) setting rules w.o vlans (attr->vlan = 0) && w. vlans to push (!= 0)
 	 */
-	if (push && in_rep->vlan_refcount && (in_rep->vlan != attr->vlan))
+	if (push && in_rep->vlan_refcount && (in_rep->vlan != attr->vlan_vid))
 		goto out_notsupp;
 
 	return 0;
@@ -201,6 +209,10 @@ int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
 	struct mlx5_eswitch_rep *vport = NULL;
 	bool push, pop, fwd;
 	int err = 0;
+
+	/* nop if we're on the vlan push/pop non emulation mode */
+	if (mlx5_eswitch_vlan_actions_supported(esw->dev))
+		return 0;
 
 	push = !!(attr->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH);
 	pop  = !!(attr->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP);
@@ -239,11 +251,11 @@ int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
 		if (vport->vlan_refcount)
 			goto skip_set_push;
 
-		err = __mlx5_eswitch_set_vport_vlan(esw, vport->vport, attr->vlan, 0,
+		err = __mlx5_eswitch_set_vport_vlan(esw, vport->vport, attr->vlan_vid, 0,
 						    SET_VLAN_INSERT | SET_VLAN_STRIP);
 		if (err)
 			goto out;
-		vport->vlan = attr->vlan;
+		vport->vlan = attr->vlan_vid;
 skip_set_push:
 		vport->vlan_refcount++;
 	}
@@ -260,6 +272,10 @@ int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
 	struct mlx5_eswitch_rep *vport = NULL;
 	bool push, pop, fwd;
 	int err = 0;
+
+	/* nop if we're on the vlan push/pop non emulation mode */
+	if (mlx5_eswitch_vlan_actions_supported(esw->dev))
+		return 0;
 
 	if (!attr->vlan_handled)
 		return 0;
