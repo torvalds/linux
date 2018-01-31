@@ -25,13 +25,13 @@
 	isb
 	.endm
 
-	.macro	uaccess_ttbr0_disable, tmp1
+	.macro	uaccess_ttbr0_disable, tmp1, tmp2
 alternative_if_not ARM64_HAS_PAN
 	__uaccess_ttbr0_disable \tmp1
 alternative_else_nop_endif
 	.endm
 
-	.macro	uaccess_ttbr0_enable, tmp1, tmp2
+	.macro	uaccess_ttbr0_enable, tmp1, tmp2, tmp3
 alternative_if_not ARM64_HAS_PAN
 	save_and_disable_irq \tmp2		// avoid preemption
 	__uaccess_ttbr0_enable \tmp1
@@ -39,18 +39,18 @@ alternative_if_not ARM64_HAS_PAN
 alternative_else_nop_endif
 	.endm
 #else
-	.macro	uaccess_ttbr0_disable, tmp1
+	.macro	uaccess_ttbr0_disable, tmp1, tmp2
 	.endm
 
-	.macro	uaccess_ttbr0_enable, tmp1, tmp2
+	.macro	uaccess_ttbr0_enable, tmp1, tmp2, tmp3
 	.endm
 #endif
 
 /*
  * These macros are no-ops when UAO is present.
  */
-	.macro	uaccess_disable_not_uao, tmp1
-	uaccess_ttbr0_disable \tmp1
+	.macro	uaccess_disable_not_uao, tmp1, tmp2
+	uaccess_ttbr0_disable \tmp1, \tmp2
 alternative_if ARM64_ALT_PAN_NOT_UAO
 	SET_PSTATE_PAN(1)
 alternative_else_nop_endif
