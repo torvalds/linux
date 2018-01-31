@@ -694,7 +694,6 @@ static unsigned int mdc_get_new_events(struct mdc_chan *mchan)
 static int mdc_terminate_all(struct dma_chan *chan)
 {
 	struct mdc_chan *mchan = to_mdc_chan(chan);
-	struct mdc_tx_desc *mdesc;
 	unsigned long flags;
 	LIST_HEAD(head);
 
@@ -703,19 +702,26 @@ static int mdc_terminate_all(struct dma_chan *chan)
 	mdc_chan_writel(mchan, MDC_CONTROL_AND_STATUS_CANCEL,
 			MDC_CONTROL_AND_STATUS);
 
-	mdesc = mchan->desc;
-	mchan->desc = NULL;
+	if (mchan->desc) {
+		vchan_terminate_vdesc(&mchan->desc->vd);
+		mchan->desc = NULL;
+	}
 	vchan_get_all_descriptors(&mchan->vc, &head);
 
 	mdc_get_new_events(mchan);
 
 	spin_unlock_irqrestore(&mchan->vc.lock, flags);
 
-	if (mdesc)
-		mdc_desc_free(&mdesc->vd);
 	vchan_dma_desc_free_list(&mchan->vc, &head);
 
 	return 0;
+}
+
+static void mdc_synchronize(struct dma_chan *chan)
+{
+	struct mdc_chan *mchan = to_mdc_chan(chan);
+
+	vchan_synchronize(&mchan->vc);
 }
 
 static int mdc_slave_config(struct dma_chan *chan,
@@ -952,6 +958,7 @@ static int mdc_dma_probe(struct platform_device *pdev)
 	mdma->dma_dev.device_tx_status = mdc_tx_status;
 	mdma->dma_dev.device_issue_pending = mdc_issue_pending;
 	mdma->dma_dev.device_terminate_all = mdc_terminate_all;
+	mdma->dma_dev.device_synchronize = mdc_synchronize;
 	mdma->dma_dev.device_config = mdc_slave_config;
 
 	mdma->dma_dev.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
