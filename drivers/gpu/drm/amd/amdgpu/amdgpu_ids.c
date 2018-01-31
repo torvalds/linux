@@ -182,6 +182,72 @@ bool amdgpu_vmid_had_gpu_reset(struct amdgpu_device *adev,
 		atomic_read(&adev->gpu_reset_counter);
 }
 
+/**
+ * amdgpu_vm_grab_idle - grab idle VMID
+ *
+ * @vm: vm to allocate id for
+ * @ring: ring we want to submit job to
+ * @sync: sync object where we add dependencies
+ * @idle: resulting idle VMID
+ *
+ * Try to find an idle VMID, if none is idle add a fence to wait to the sync
+ * object. Returns -ENOMEM when we are out of memory.
+ */
+static int amdgpu_vmid_grab_idle(struct amdgpu_vm *vm,
+				 struct amdgpu_ring *ring,
+				 struct amdgpu_sync *sync,
+				 struct amdgpu_vmid **idle)
+{
+	struct amdgpu_device *adev = ring->adev;
+	unsigned vmhub = ring->funcs->vmhub;
+	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
+	struct dma_fence **fences;
+	unsigned i;
+	int r;
+
+	fences = kmalloc_array(sizeof(void *), id_mgr->num_ids, GFP_KERNEL);
+	if (!fences)
+		return -ENOMEM;
+
+	/* Check if we have an idle VMID */
+	i = 0;
+	list_for_each_entry((*idle), &id_mgr->ids_lru, list) {
+		fences[i] = amdgpu_sync_peek_fence(&(*idle)->active, ring);
+		if (!fences[i])
+			break;
+		++i;
+	}
+
+	/* If we can't find a idle VMID to use, wait till one becomes available */
+	if (&(*idle)->list == &id_mgr->ids_lru) {
+		u64 fence_context = adev->vm_manager.fence_context + ring->idx;
+		unsigned seqno = ++adev->vm_manager.seqno[ring->idx];
+		struct dma_fence_array *array;
+		unsigned j;
+
+		*idle = NULL;
+		for (j = 0; j < i; ++j)
+			dma_fence_get(fences[j]);
+
+		array = dma_fence_array_create(i, fences, fence_context,
+					       seqno, true);
+		if (!array) {
+			for (j = 0; j < i; ++j)
+				dma_fence_put(fences[j]);
+			kfree(fences);
+			return -ENOMEM;
+		}
+
+		r = amdgpu_sync_fence(adev, sync, &array->base, false);
+		dma_fence_put(&array->base);
+		return r;
+
+	}
+	kfree(fences);
+
+	return 0;
+}
+
 /* idr_mgr->lock must be held */
 static int amdgpu_vmid_grab_reserved_locked(struct amdgpu_vm *vm,
 					    struct amdgpu_ring *ring,
@@ -263,56 +329,12 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	uint64_t fence_context = adev->fence_context + ring->idx;
 	struct dma_fence *updates = sync->last_vm_update;
 	struct amdgpu_vmid *id, *idle;
-	struct dma_fence **fences;
-	unsigned i;
 	int r = 0;
 
 	mutex_lock(&id_mgr->lock);
-	fences = kmalloc_array(sizeof(void *), id_mgr->num_ids, GFP_KERNEL);
-	if (!fences) {
-		mutex_unlock(&id_mgr->lock);
-		return -ENOMEM;
-	}
-	/* Check if we have an idle VMID */
-	i = 0;
-	list_for_each_entry(idle, &id_mgr->ids_lru, list) {
-		fences[i] = amdgpu_sync_peek_fence(&idle->active, ring);
-		if (!fences[i])
-			break;
-		++i;
-	}
-
-	/* If we can't find a idle VMID to use, wait till one becomes available */
-	if (&idle->list == &id_mgr->ids_lru) {
-		u64 fence_context = adev->vm_manager.fence_context + ring->idx;
-		unsigned seqno = ++adev->vm_manager.seqno[ring->idx];
-		struct dma_fence_array *array;
-		unsigned j;
-
-		for (j = 0; j < i; ++j)
-			dma_fence_get(fences[j]);
-
-		array = dma_fence_array_create(i, fences, fence_context,
-					   seqno, true);
-		if (!array) {
-			for (j = 0; j < i; ++j)
-				dma_fence_put(fences[j]);
-			kfree(fences);
-			r = -ENOMEM;
-			goto error;
-		}
-
-
-		r = amdgpu_sync_fence(ring->adev, sync, &array->base, false);
-		dma_fence_put(&array->base);
-		if (r)
-			goto error;
-
-		mutex_unlock(&id_mgr->lock);
-		return 0;
-
-	}
-	kfree(fences);
+	r = amdgpu_vmid_grab_idle(vm, ring, sync, &idle);
+	if (r || !idle)
+		goto error;
 
 	if (vm->reserved_vmid[vmhub]) {
 		r = amdgpu_vmid_grab_reserved_locked(vm, ring, sync,
