@@ -32,9 +32,23 @@
 		  0x81, 0xc3, 0x61, 0xab, 0xcd, 0xbd, 0xbd, 0x87)
 #define VISOR_MOUSE_CHANNEL_GUID_STR "addf07d4-94a9-46e2-81c3-61abcdbdbd87"
 
-#define PIXELS_ACROSS_DEFAULT 800
-#define PIXELS_DOWN_DEFAULT   600
+#define PIXELS_ACROSS_DEFAULT 1024
+#define PIXELS_DOWN_DEFAULT   768
 #define KEYCODE_TABLE_BYTES   256
+
+/* header of keyboard/mouse channels */
+struct visor_input_channel_data {
+	u32 n_input_reports;
+	union {
+		struct {
+			u16 x_res;
+			u16 y_res;
+		} mouse;
+		struct {
+			u32 flags;
+		} keyboard;
+	};
+} __packed;
 
 enum visorinput_device_type {
 	visorinput_keyboard,
@@ -306,10 +320,9 @@ static struct input_dev *setup_client_keyboard(void *devdata,
 	return visorinput_dev;
 }
 
-static struct input_dev *setup_client_mouse(void *devdata)
+static struct input_dev *setup_client_mouse(void *devdata, unsigned int xres,
+					    unsigned int yres)
 {
-	int xres, yres;
-	struct fb_info *fb0;
 	struct input_dev *visorinput_dev = input_allocate_device();
 
 	if (!visorinput_dev)
@@ -327,14 +340,10 @@ static struct input_dev *setup_client_mouse(void *devdata)
 	set_bit(BTN_RIGHT, visorinput_dev->keybit);
 	set_bit(BTN_MIDDLE, visorinput_dev->keybit);
 
-	if (registered_fb[0]) {
-		fb0 = registered_fb[0];
-		xres = fb0->var.xres_virtual;
-		yres = fb0->var.yres_virtual;
-	} else {
+	if (xres == 0)
 		xres = PIXELS_ACROSS_DEFAULT;
+	if (yres == 0)
 		yres = PIXELS_DOWN_DEFAULT;
-	}
 	input_set_abs_params(visorinput_dev, ABS_X, 0, xres, 0, 0);
 	input_set_abs_params(visorinput_dev, ABS_Y, 0, yres, 0, 0);
 
@@ -353,6 +362,8 @@ static struct visorinput_devdata *devdata_create(
 {
 	struct visorinput_devdata *devdata = NULL;
 	unsigned int extra_bytes = 0;
+	unsigned int size, xres, yres, err;
+	struct visor_input_channel_data data;
 
 	if (devtype == visorinput_keyboard)
 		/* allocate room for devdata->keycode_table, filled in below */
@@ -390,7 +401,15 @@ static struct visorinput_devdata *devdata_create(
 			goto cleanups_register;
 		break;
 	case visorinput_mouse:
-		devdata->visorinput_dev = setup_client_mouse(devdata);
+		size = sizeof(struct visor_input_channel_data);
+		err = visorbus_read_channel(dev, sizeof(struct channel_header),
+					    &data, size);
+		if (err)
+			goto cleanups_register;
+		xres = data.mouse.x_res;
+		yres = data.mouse.y_res;
+		devdata->visorinput_dev = setup_client_mouse(devdata, xres,
+							     yres);
 		if (!devdata->visorinput_dev)
 			goto cleanups_register;
 		break;
