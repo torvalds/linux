@@ -35,7 +35,6 @@ struct gpio_data {
 	struct device dev;
 	int notify;
 	struct gpio_desc *gpio;
-	int atv_val;
 	int val;
 	int irq;
 	struct delayed_work work;
@@ -104,7 +103,7 @@ static void gpio_det_report_event(struct gpio_data *gpiod)
 	char *status = NULL;
 	char *envp[2];
 
-	event.val = gpiod->val ^ gpiod->atv_val;
+	event.val = gpiod->val;
 	event.name = gpiod->name;
 	status = kasprintf(GFP_KERNEL, "GPIO_NAME=%s GPIO_STATE=%s",
 			   gpiod->name, event.val ? "over" : "on");
@@ -137,7 +136,7 @@ static void gpio_det_work_func(struct work_struct *work)
 static irqreturn_t gpio_det_interrupt(int irq, void *dev_id)
 {
 	struct gpio_data *gpiod = dev_id;
-	int val = gpiod_get_value(gpiod->gpio);
+	int val = gpiod_get_raw_value(gpiod->gpio);
 	unsigned int irqflags = IRQF_ONESHOT;
 
 	if (val)
@@ -160,7 +159,7 @@ static int gpio_det_init_status_check(struct gpio_detection *gpio_det)
 	for (i = 0; i < gpio_det->num; i++) {
 		gpiod = &gpio_det->data[i];
 		gpiod->val = gpiod_get_value(gpiod->gpio);
-		if (gpiod->atv_val == gpiod->val)
+		if (gpiod->val)
 			gpio_det_report_event(gpiod);
 	}
 
@@ -212,7 +211,7 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 	struct gpio_data *gpiod = container_of(dev, struct gpio_data, dev);
 	unsigned int val = gpiod_get_value(gpiod->gpio);
 
-	return sprintf(buf, "%d\n", val == gpiod->atv_val);
+	return sprintf(buf, "%d\n", val);
 }
 
 static ssize_t status_store(struct device *dev, struct device_attribute *attr,
@@ -301,7 +300,6 @@ static int gpio_det_parse_dt(struct gpio_detection *gpio_det,
 		gpiod = &data[i++];
 		gpiod->parent = gpio_det;
 		gpiod->notify = 1;
-		gpiod->atv_val = !OF_GPIO_ACTIVE_LOW;
 		gpiod->name = of_get_property(node, "label", NULL);
 		gpiod->wakeup = !!of_get_property(node, "gpio,wakeup", NULL);
 		of_property_read_u32(node, "linux,debounce-ms",
@@ -367,7 +365,7 @@ static int gpio_det_probe(struct platform_device *pdev)
 		if (ret < 0)
 			return ret;
 		INIT_DELAYED_WORK(&gpiod->work, gpio_det_work_func);
-		gpiod->val = gpiod_get_value(gpiod->gpio);
+		gpiod->val = gpiod_get_raw_value(gpiod->gpio);
 		if  (gpiod->val)
 			irqflags |= IRQ_TYPE_EDGE_FALLING;
 		else
