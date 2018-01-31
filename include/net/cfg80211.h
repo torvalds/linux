@@ -3554,6 +3554,35 @@ enum wiphy_vendor_command_flags {
 };
 
 /**
+ * enum wiphy_opmode_flag - Station's ht/vht operation mode information flags
+ *
+ * @STA_OPMODE_MAX_BW_CHANGED: Max Bandwidth changed
+ * @STA_OPMODE_SMPS_MODE_CHANGED: SMPS mode changed
+ * @STA_OPMODE_N_SS_CHANGED: max N_SS (number of spatial streams) changed
+ *
+ */
+enum wiphy_opmode_flag {
+	STA_OPMODE_MAX_BW_CHANGED	= BIT(0),
+	STA_OPMODE_SMPS_MODE_CHANGED	= BIT(1),
+	STA_OPMODE_N_SS_CHANGED		= BIT(2),
+};
+
+/**
+ * struct sta_opmode_info - Station's ht/vht operation mode information
+ * @changed: contains value from &enum wiphy_opmode_flag
+ * @smps_mode: New SMPS mode of a station
+ * @bw: new max bandwidth value of a station
+ * @rx_nss: new rx_nss value of a station
+ */
+
+struct sta_opmode_info {
+	u32 changed;
+	u8 smps_mode;
+	u8 bw;
+	u8 rx_nss;
+};
+
+/**
  * struct wiphy_vendor_command - vendor command definition
  * @info: vendor command identifying information, as used in nl80211
  * @flags: flags, see &enum wiphy_vendor_command_flags
@@ -5720,6 +5749,20 @@ void cfg80211_cqm_beacon_loss_notify(struct net_device *dev, gfp_t gfp);
  */
 void cfg80211_radar_event(struct wiphy *wiphy,
 			  struct cfg80211_chan_def *chandef, gfp_t gfp);
+
+/**
+ * cfg80211_sta_opmode_change_notify - STA's ht/vht operation mode change event
+ * @dev: network device
+ * @mac: MAC address of a station which opmode got modified
+ * @sta_opmode: station's current opmode value
+ * @gfp: context flags
+ *
+ * Driver should call this function when station's opmode modified via action
+ * frame.
+ */
+void cfg80211_sta_opmode_change_notify(struct net_device *dev, const u8 *mac,
+				       struct sta_opmode_info *sta_opmode,
+				       gfp_t gfp);
 
 /**
  * cfg80211_cac_event - Channel availability check (CAC) event

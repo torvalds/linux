@@ -14950,6 +14950,61 @@ nl80211_radar_notify(struct cfg80211_registered_device *rdev,
 	nlmsg_free(msg);
 }
 
+void cfg80211_sta_opmode_change_notify(struct net_device *dev, const u8 *mac,
+				       struct sta_opmode_info *sta_opmode,
+				       gfp_t gfp)
+{
+	struct sk_buff *msg;
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
+	void *hdr;
+
+	if (WARN_ON(!mac))
+		return;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
+	if (!msg)
+		return;
+
+	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_STA_OPMODE_CHANGED);
+	if (!hdr) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx))
+		goto nla_put_failure;
+
+	if (nla_put_u32(msg, NL80211_ATTR_IFINDEX, dev->ifindex))
+		goto nla_put_failure;
+
+	if (nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, mac))
+		goto nla_put_failure;
+
+	if ((sta_opmode->changed & STA_OPMODE_SMPS_MODE_CHANGED) &&
+	    nla_put_u8(msg, NL80211_ATTR_SMPS_MODE, sta_opmode->smps_mode))
+		goto nla_put_failure;
+
+	if ((sta_opmode->changed & STA_OPMODE_MAX_BW_CHANGED) &&
+	    nla_put_u8(msg, NL80211_ATTR_CHANNEL_WIDTH, sta_opmode->bw))
+		goto nla_put_failure;
+
+	if ((sta_opmode->changed & STA_OPMODE_N_SS_CHANGED) &&
+	    nla_put_u8(msg, NL80211_ATTR_NSS, sta_opmode->rx_nss))
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+
+	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
+				NL80211_MCGRP_MLME, gfp);
+
+	return;
+
+nla_put_failure:
+	nlmsg_free(msg);
+}
+EXPORT_SYMBOL(cfg80211_sta_opmode_change_notify);
+
 void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
 			   u64 cookie, bool acked, gfp_t gfp)
 {
