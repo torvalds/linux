@@ -179,6 +179,8 @@ void cec_queue_pin_hpd_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
 	};
 	struct cec_fh *fh;
 
+	if (!adap)
+		return;
 	/* hdmi HPD may occur before devnode is registered */
 	if (!adap->devnode.registered)
 		return;
