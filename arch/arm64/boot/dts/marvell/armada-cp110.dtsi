@@ -298,6 +298,46 @@
 			status = "disabled";
 		};
 
+		CP110_LABEL(uart0): serial@702000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x702000 0x100>;
+			reg-shift = <2>;
+			interrupts = <ICU_GRP_NSR 122 IRQ_TYPE_LEVEL_HIGH>;
+			reg-io-width = <1>;
+			clocks = <&CP110_LABEL(clk) 1 21>;
+			status = "disabled";
+		};
+
+		CP110_LABEL(uart1): serial@702100 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x702100 0x100>;
+			reg-shift = <2>;
+			interrupts = <ICU_GRP_NSR 123 IRQ_TYPE_LEVEL_HIGH>;
+			reg-io-width = <1>;
+			clocks = <&CP110_LABEL(clk) 1 21>;
+			status = "disabled";
+		};
+
+		CP110_LABEL(uart2): serial@702200 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x702200 0x100>;
+			reg-shift = <2>;
+			interrupts = <ICU_GRP_NSR 124 IRQ_TYPE_LEVEL_HIGH>;
+			reg-io-width = <1>;
+			clocks = <&CP110_LABEL(clk) 1 21>;
+			status = "disabled";
+		};
+
+		CP110_LABEL(uart3): serial@702300 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x702300 0x100>;
+			reg-shift = <2>;
+			interrupts = <ICU_GRP_NSR 125 IRQ_TYPE_LEVEL_HIGH>;
+			reg-io-width = <1>;
+			clocks = <&CP110_LABEL(clk) 1 21>;
+			status = "disabled";
+		};
+
 		CP110_LABEL(nand): nand@720000 {
 			/*
 			* Due to the limitation of the pins available
