@@ -366,11 +366,6 @@ static int __klp_enable_patch(struct klp_patch *patch)
 	/*
 	 * A reference is taken on the patch module to prevent it from being
 	 * unloaded.
-	 *
-	 * Note: For immediate (no consistency model) patches we don't allow
-	 * patch modules to unload since there is no safe/sane method to
-	 * determine if a thread is still running in the patched code contained
-	 * in the patch module once the ftrace registration is successful.
 	 */
 	if (!try_module_get(patch->mod))
 		return -ENODEV;
@@ -894,12 +889,7 @@ int klp_register_patch(struct klp_patch *patch)
 	if (!klp_initialized())
 		return -ENODEV;
 
-	/*
-	 * Architectures without reliable stack traces have to set
-	 * patch->immediate because there's currently no way to patch kthreads
-	 * with the consistency model.
-	 */
-	if (!klp_have_reliable_stack() && !patch->immediate) {
+	if (!klp_have_reliable_stack()) {
 		pr_err("This architecture doesn't have support for the livepatch consistency model.\n");
 		return -ENOSYS;
 	}

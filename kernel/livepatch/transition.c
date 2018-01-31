@@ -82,7 +82,6 @@ static void klp_complete_transition(void)
 	struct klp_func *func;
 	struct task_struct *g, *task;
 	unsigned int cpu;
-	bool immediate_func = false;
 
 	pr_debug("'%s': completing %s transition\n",
 		 klp_transition_patch->mod->name,
@@ -104,16 +103,9 @@ static void klp_complete_transition(void)
 		klp_synchronize_transition();
 	}
 
-	if (klp_transition_patch->immediate)
-		goto done;
-
-	klp_for_each_object(klp_transition_patch, obj) {
-		klp_for_each_func(obj, func) {
+	klp_for_each_object(klp_transition_patch, obj)
+		klp_for_each_func(obj, func)
 			func->transition = false;
-			if (func->immediate)
-				immediate_func = true;
-		}
-	}
 
 	/* Prevent klp_ftrace_handler() from seeing KLP_UNDEFINED state */
 	if (klp_target_state == KLP_PATCHED)
@@ -132,7 +124,6 @@ static void klp_complete_transition(void)
 		task->patch_state = KLP_UNDEFINED;
 	}
 
-done:
 	klp_for_each_object(klp_transition_patch, obj) {
 		if (!klp_is_object_loaded(obj))
 			continue;
@@ -146,16 +137,11 @@ done:
 		  klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
 
 	/*
-	 * See complementary comment in __klp_enable_patch() for why we
-	 * keep the module reference for immediate patches.
-	 *
-	 * klp_forced or immediate_func set implies unbounded increase of
-	 * module's ref count if the module is disabled/enabled in a loop.
+	 * klp_forced set implies unbounded increase of module's ref count if
+	 * the module is disabled/enabled in a loop.
 	 */
-	if (!klp_forced && !klp_transition_patch->immediate &&
-		!immediate_func && klp_target_state == KLP_UNPATCHED) {
+	if (!klp_forced && klp_target_state == KLP_UNPATCHED)
 		module_put(klp_transition_patch->mod);
-	}
 
 	klp_target_state = KLP_UNDEFINED;
 	klp_transition_patch = NULL;
@@ -222,9 +208,6 @@ static int klp_check_stack_func(struct klp_func *func,
 	unsigned long func_addr, func_size, address;
 	struct klp_ops *ops;
 	int i;
-
-	if (func->immediate)
-		return 0;
 
 	for (i = 0; i < trace->nr_entries; i++) {
 		address = trace->entries[i];
@@ -388,13 +371,6 @@ void klp_try_complete_transition(void)
 	WARN_ON_ONCE(klp_target_state == KLP_UNDEFINED);
 
 	/*
-	 * If the patch can be applied or reverted immediately, skip the
-	 * per-task transitions.
-	 */
-	if (klp_transition_patch->immediate)
-		goto success;
-
-	/*
 	 * Try to switch the tasks to the target patch state by walking their
 	 * stacks and looking for any to-be-patched or to-be-unpatched
 	 * functions.  If such functions are found on a stack, or if the stack
@@ -437,7 +413,6 @@ void klp_try_complete_transition(void)
 		return;
 	}
 
-success:
 	/* we're done, now cleanup the data structures */
 	klp_complete_transition();
 }
@@ -456,13 +431,6 @@ void klp_start_transition(void)
 	pr_notice("'%s': starting %s transition\n",
 		  klp_transition_patch->mod->name,
 		  klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
-
-	/*
-	 * If the patch can be applied or reverted immediately, skip the
-	 * per-task transitions.
-	 */
-	if (klp_transition_patch->immediate)
-		return;
 
 	/*
 	 * Mark all normal tasks as needing a patch state update.  They'll
@@ -512,13 +480,6 @@ void klp_init_transition(struct klp_patch *patch, int state)
 
 	pr_debug("'%s': initializing %s transition\n", patch->mod->name,
 		 klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
-
-	/*
-	 * If the patch can be applied or reverted immediately, skip the
-	 * per-task transitions.
-	 */
-	if (patch->immediate)
-		return;
 
 	/*
 	 * Initialize all tasks to the initial patch state to prepare them for
