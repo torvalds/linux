@@ -205,6 +205,9 @@ static int amdgpu_vmid_grab_idle(struct amdgpu_vm *vm,
 	unsigned i;
 	int r;
 
+	if (ring->vmid_wait && !dma_fence_is_signaled(ring->vmid_wait))
+		return amdgpu_sync_fence(adev, sync, ring->vmid_wait, false);
+
 	fences = kmalloc_array(sizeof(void *), id_mgr->num_ids, GFP_KERNEL);
 	if (!fences)
 		return -ENOMEM;
@@ -239,9 +242,9 @@ static int amdgpu_vmid_grab_idle(struct amdgpu_vm *vm,
 		}
 
 		r = amdgpu_sync_fence(adev, sync, &array->base, false);
-		dma_fence_put(&array->base);
+		dma_fence_put(ring->vmid_wait);
+		ring->vmid_wait = &array->base;
 		return r;
-
 	}
 	kfree(fences);
 

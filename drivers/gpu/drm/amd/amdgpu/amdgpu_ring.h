@@ -196,6 +196,7 @@ struct amdgpu_ring {
 	u64			cond_exe_gpu_addr;
 	volatile u32		*cond_exe_cpu_addr;
 	unsigned		vm_inv_eng;
+	struct dma_fence	*vmid_wait;
 	bool			has_compute_vm_bug;
 
 	atomic_t		num_jobs[DRM_SCHED_PRIORITY_MAX];
