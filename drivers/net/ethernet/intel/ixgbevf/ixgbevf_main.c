@@ -795,7 +795,7 @@ static bool ixgbevf_add_rx_frag(struct ixgbevf_ring *rx_ring,
 				struct sk_buff *skb)
 {
 	struct page *page = rx_buffer->page;
-	unsigned char *va = page_address(page) + rx_buffer->page_offset;
+	void *va = page_address(page) + rx_buffer->page_offset;
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = IXGBEVF_RX_BUFSZ;
 #else
@@ -831,7 +831,7 @@ static bool ixgbevf_add_rx_frag(struct ixgbevf_ring *rx_ring,
 
 add_tail_frag:
 	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
-			(unsigned long)va & ~PAGE_MASK, size, truesize);
+			va - page_address(page), size, truesize);
 
 	return ixgbevf_can_reuse_rx_page(rx_buffer, page, truesize);
 }
@@ -856,13 +856,12 @@ static struct sk_buff *ixgbevf_fetch_rx_buffer(struct ixgbevf_ring *rx_ring,
 				      DMA_FROM_DEVICE);
 
 	if (likely(!skb)) {
-		void *page_addr = page_address(page) +
-				  rx_buffer->page_offset;
+		void *va = page_address(page) + rx_buffer->page_offset;
 
 		/* prefetch first cache line of first page */
-		prefetch(page_addr);
+		prefetch(va);
 #if L1_CACHE_BYTES < 128
-		prefetch(page_addr + L1_CACHE_BYTES);
+		prefetch(va + L1_CACHE_BYTES);
 #endif
 
 		/* allocate a skb to store the frags */
