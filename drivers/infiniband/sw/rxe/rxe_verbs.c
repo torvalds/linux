@@ -334,12 +334,11 @@ static int rxe_modify_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 
 static int rxe_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 {
-	struct rxe_dev *rxe = to_rdev(ibah->device);
 	struct rxe_ah *ah = to_rah(ibah);
 
 	memset(attr, 0, sizeof(*attr));
 	attr->type = ibah->type;
-	rxe_av_to_attr(rxe, &ah->av, attr);
+	rxe_av_to_attr(&ah->av, attr);
 	return 0;
 }
 

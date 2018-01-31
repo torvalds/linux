@@ -764,8 +764,6 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 /* called by the query qp verb */
 int rxe_qp_to_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask)
 {
-	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
-
 	*attr = qp->attr;
 
 	attr->rq_psn				= qp->resp.psn;
@@ -780,8 +778,8 @@ int rxe_qp_to_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask)
 		attr->cap.max_recv_sge		= qp->rq.max_sge;
 	}
 
-	rxe_av_to_attr(rxe, &qp->pri_av, &attr->ah_attr);
-	rxe_av_to_attr(rxe, &qp->alt_av, &attr->alt_ah_attr);
+	rxe_av_to_attr(&qp->pri_av, &attr->ah_attr);
+	rxe_av_to_attr(&qp->alt_av, &attr->alt_ah_attr);
 
 	if (qp->req.state == QP_STATE_DRAIN) {
 		attr->sq_draining = 1;
