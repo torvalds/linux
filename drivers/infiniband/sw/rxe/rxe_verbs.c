@@ -271,7 +271,7 @@ static int rxe_init_av(struct rxe_dev *rxe, struct rdma_ah_attr *attr,
 		return err;
 	}
 
-	err = rxe_av_from_attr(rxe, rdma_ah_get_port_num(attr), av, attr);
+	err = rxe_av_from_attr(rdma_ah_get_port_num(attr), av, attr);
 	if (!err)
 		err = rxe_av_fill_ip_info(rxe, av, attr, &sgid_attr, &sgid);
 
