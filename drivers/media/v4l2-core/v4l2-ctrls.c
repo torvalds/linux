@@ -3457,7 +3457,7 @@ int v4l2_ctrl_subdev_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 }
 EXPORT_SYMBOL(v4l2_ctrl_subdev_subscribe_event);
 
-unsigned int v4l2_ctrl_poll(struct file *file, struct poll_table_struct *wait)
+__poll_t v4l2_ctrl_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct v4l2_fh *fh = file->private_data;
 

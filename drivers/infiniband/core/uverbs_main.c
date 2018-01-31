@@ -339,11 +339,11 @@ static ssize_t ib_uverbs_comp_event_read(struct file *filp, char __user *buf,
 				    sizeof(struct ib_uverbs_comp_event_desc));
 }
 
-static unsigned int ib_uverbs_event_poll(struct ib_uverbs_event_queue *ev_queue,
+static __poll_t ib_uverbs_event_poll(struct ib_uverbs_event_queue *ev_queue,
 					 struct file *filp,
 					 struct poll_table_struct *wait)
 {
-	unsigned int pollflags = 0;
+	__poll_t pollflags = 0;
 
 	poll_wait(filp, &ev_queue->poll_wait, wait);
 
@@ -355,13 +355,13 @@ static unsigned int ib_uverbs_event_poll(struct ib_uverbs_event_queue *ev_queue,
 	return pollflags;
 }
 
-static unsigned int ib_uverbs_async_event_poll(struct file *filp,
+static __poll_t ib_uverbs_async_event_poll(struct file *filp,
 					       struct poll_table_struct *wait)
 {
 	return ib_uverbs_event_poll(filp->private_data, filp, wait);
 }
 
-static unsigned int ib_uverbs_comp_event_poll(struct file *filp,
+static __poll_t ib_uverbs_comp_event_poll(struct file *filp,
 					      struct poll_table_struct *wait)
 {
 	struct ib_uverbs_completion_event_file *comp_ev_file =

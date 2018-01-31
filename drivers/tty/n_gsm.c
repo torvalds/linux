@@ -2457,10 +2457,10 @@ static ssize_t gsmld_write(struct tty_struct *tty, struct file *file,
  *	Called without the kernel lock held - fine
  */
 
-static unsigned int gsmld_poll(struct tty_struct *tty, struct file *file,
+static __poll_t gsmld_poll(struct tty_struct *tty, struct file *file,
 							poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	struct gsm_mux *gsm = tty->disc_data;
 
 	poll_wait(file, &tty->read_wait, wait);

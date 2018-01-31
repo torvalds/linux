@@ -2955,13 +2955,13 @@ static ssize_t bttv_read(struct file *file, char __user *data,
 	return retval;
 }
 
-static unsigned int bttv_poll(struct file *file, poll_table *wait)
+static __poll_t bttv_poll(struct file *file, poll_table *wait)
 {
 	struct bttv_fh *fh = file->private_data;
 	struct bttv_buffer *buf;
 	enum v4l2_field field;
-	unsigned int rc = 0;
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t rc = 0;
+	__poll_t req_events = poll_requested_events(wait);
 
 	if (v4l2_event_pending(&fh->fh))
 		rc = POLLPRI;
@@ -3329,13 +3329,13 @@ static ssize_t radio_read(struct file *file, char __user *data,
 	return cmd.result;
 }
 
-static unsigned int radio_poll(struct file *file, poll_table *wait)
+static __poll_t radio_poll(struct file *file, poll_table *wait)
 {
 	struct bttv_fh *fh = file->private_data;
 	struct bttv *btv = fh->btv;
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct saa6588_command cmd;
-	unsigned int res = 0;
+	__poll_t res = 0;
 
 	if (v4l2_event_pending(&fh->fh))
 		res = POLLPRI;

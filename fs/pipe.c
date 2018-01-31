@@ -515,10 +515,10 @@ static long pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 }
 
 /* No kernel lock held - fine */
-static unsigned int
+static __poll_t
 pipe_poll(struct file *filp, poll_table *wait)
 {
-	unsigned int mask;
+	__poll_t mask;
 	struct pipe_inode_info *pipe = filp->private_data;
 	int nrbufs;
 

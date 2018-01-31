@@ -919,12 +919,12 @@ static int qcom_smd_trysend(struct rpmsg_endpoint *ept, void *data, int len)
 	return __qcom_smd_send(qsept->qsch, data, len, false);
 }
 
-static unsigned int qcom_smd_poll(struct rpmsg_endpoint *ept,
+static __poll_t qcom_smd_poll(struct rpmsg_endpoint *ept,
 				  struct file *filp, poll_table *wait)
 {
 	struct qcom_smd_endpoint *qsept = to_smd_endpoint(ept);
 	struct qcom_smd_channel *channel = qsept->qsch;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(filp, &channel->fblockread_event, wait);
 

@@ -920,10 +920,10 @@ static loff_t devkmsg_llseek(struct file *file, loff_t offset, int whence)
 	return ret;
 }
 
-static unsigned int devkmsg_poll(struct file *file, poll_table *wait)
+static __poll_t devkmsg_poll(struct file *file, poll_table *wait)
 {
 	struct devkmsg_user *user = file->private_data;
-	int ret = 0;
+	__poll_t ret = 0;
 
 	if (!user)
 		return POLLERR|POLLNVAL;

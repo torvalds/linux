@@ -1197,12 +1197,12 @@ static ssize_t write(struct file *filep, const char __user *buf, size_t n,
 }
 
 /* copied from lirc_dev */
-static unsigned int poll(struct file *filep, poll_table *wait)
+static __poll_t poll(struct file *filep, poll_table *wait)
 {
 	struct IR *ir = lirc_get_pdata(filep);
 	struct IR_rx *rx;
 	struct lirc_buffer *rbuf = ir->l->buf;
-	unsigned int ret;
+	__poll_t ret;
 
 	dev_dbg(ir->dev, "%s called\n", __func__);
 

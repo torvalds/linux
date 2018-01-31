@@ -331,10 +331,10 @@ static ssize_t v4l2_write(struct file *filp, const char __user *buf,
 	return ret;
 }
 
-static unsigned int v4l2_poll(struct file *filp, struct poll_table_struct *poll)
+static __poll_t v4l2_poll(struct file *filp, struct poll_table_struct *poll)
 {
 	struct video_device *vdev = video_devdata(filp);
-	unsigned int res = POLLERR | POLLHUP;
+	__poll_t res = POLLERR | POLLHUP;
 
 	if (!vdev->fops->poll)
 		return DEFAULT_POLLMASK;

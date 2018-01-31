@@ -534,7 +534,7 @@ _ctl_fasync(int fd, struct file *filep, int mode)
  * @wait -
  *
  */
-static unsigned int
+static __poll_t
 _ctl_poll(struct file *filep, poll_table *wait)
 {
 	struct MPT3SAS_ADAPTER *ioc;

@@ -2501,13 +2501,13 @@ static int zoran_s_jpegcomp(struct file *file, void *__fh,
 	return res;
 }
 
-static unsigned int
+static __poll_t
 zoran_poll (struct file *file,
 	    poll_table  *wait)
 {
 	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
-	int res = v4l2_ctrl_poll(file, wait);
+	__poll_t res = v4l2_ctrl_poll(file, wait);
 	int frame;
 	unsigned long flags;
 

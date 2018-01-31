@@ -207,7 +207,7 @@ static int fdtv_ca_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return err;
 }
 
-static unsigned int fdtv_ca_io_poll(struct file *file, poll_table *wait)
+static __poll_t fdtv_ca_io_poll(struct file *file, poll_table *wait)
 {
 	return POLLIN;
 }

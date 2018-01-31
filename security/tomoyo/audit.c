@@ -458,7 +458,7 @@ void tomoyo_read_log(struct tomoyo_io_buffer *head)
  *
  * Returns POLLIN | POLLRDNORM when ready to read an audit log.
  */
-unsigned int tomoyo_poll_log(struct file *file, poll_table *wait)
+__poll_t tomoyo_poll_log(struct file *file, poll_table *wait)
 {
 	if (tomoyo_log_count)
 		return POLLIN | POLLRDNORM;

@@ -2331,12 +2331,12 @@ static enum hrtimer_restart oa_poll_check_timer_cb(struct hrtimer *hrtimer)
  *
  * Returns: any poll events that are ready without sleeping
  */
-static unsigned int i915_perf_poll_locked(struct drm_i915_private *dev_priv,
+static __poll_t i915_perf_poll_locked(struct drm_i915_private *dev_priv,
 					  struct i915_perf_stream *stream,
 					  struct file *file,
 					  poll_table *wait)
 {
-	unsigned int events = 0;
+	__poll_t events = 0;
 
 	stream->ops->poll_wait(stream, file, wait);
 
@@ -2365,11 +2365,11 @@ static unsigned int i915_perf_poll_locked(struct drm_i915_private *dev_priv,
  *
  * Returns: any poll events that are ready without sleeping
  */
-static unsigned int i915_perf_poll(struct file *file, poll_table *wait)
+static __poll_t i915_perf_poll(struct file *file, poll_table *wait)
 {
 	struct i915_perf_stream *stream = file->private_data;
 	struct drm_i915_private *dev_priv = stream->dev_priv;
-	int ret;
+	__poll_t ret;
 
 	mutex_lock(&dev_priv->perf.lock);
 	ret = i915_perf_poll_locked(dev_priv, stream, file, wait);
