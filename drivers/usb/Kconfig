@@ -21,11 +21,9 @@ config USB_EHCI_BIG_ENDIAN_DESC
 
 config USB_UHCI_BIG_ENDIAN_MMIO
 	bool
-	default y if SPARC_LEON
 
 config USB_UHCI_BIG_ENDIAN_DESC
 	bool
-	default y if SPARC_LEON
 
 menuconfig USB_SUPPORT
 	bool "USB support"
