@@ -780,7 +780,7 @@ void arch_setup_pdev_archdata(struct platform_device *pdev)
 {
 	pdev->archdata.dma_mask = DMA_BIT_MASK(32);
 	pdev->dev.dma_mask = &pdev->archdata.dma_mask;
- 	set_dma_ops(&pdev->dev, &dma_direct_ops);
+ 	set_dma_ops(&pdev->dev, &dma_nommu_ops);
 }
 
 static __init void print_system_info(void)

@@ -89,9 +89,4 @@ config IOMMU_HELPER
 config NEED_SG_DMA_LENGTH
 	bool
 
-config SWIOTLB
-	def_bool y
-	select NEED_SG_DMA_LENGTH
-	select IOMMU_HELPER
-
 endif

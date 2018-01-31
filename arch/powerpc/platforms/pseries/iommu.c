@@ -1231,7 +1231,7 @@ static int dma_set_mask_pSeriesLP(struct device *dev, u64 dma_mask)
 			if (dma_offset != 0) {
 				dev_info(dev, "Using 64-bit direct DMA at offset %llx\n", dma_offset);
 				set_dma_offset(dev, dma_offset);
-				set_dma_ops(dev, &dma_direct_ops);
+				set_dma_ops(dev, &dma_nommu_ops);
 				ddw_enabled = true;
 			}
 		}
