@@ -315,6 +315,10 @@ static void dm_done(struct request *clone, blk_status_t error, bool mapped)
 		/* The target wants to requeue the I/O */
 		dm_requeue_original_request(tio, false);
 		break;
+	case DM_ENDIO_DELAY_REQUEUE:
+		/* The target wants to requeue the I/O after a delay */
+		dm_requeue_original_request(tio, true);
+		break;
 	default:
 		DMWARN("unimplemented target endio return value: %d", r);
 		BUG();
@@ -713,7 +717,6 @@ int dm_old_init_request_queue(struct mapped_device *md, struct dm_table *t)
 	/* disable dm_old_request_fn's merge heuristic by default */
 	md->seq_rq_merge_deadline_usecs = 0;
 
-	dm_init_normal_md_queue(md);
 	blk_queue_softirq_done(md->queue, dm_softirq_done);
 
 	/* Initialize the request-based DM worker thread */
@@ -821,7 +824,6 @@ int dm_mq_init_request_queue(struct mapped_device *md, struct dm_table *t)
 		err = PTR_ERR(q);
 		goto out_tag_set;
 	}
-	dm_init_md_queue(md);
 
 	return 0;
 
