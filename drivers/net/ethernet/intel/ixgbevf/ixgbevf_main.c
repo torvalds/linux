@@ -1270,85 +1270,6 @@ static irqreturn_t ixgbevf_msix_clean_rings(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static inline void map_vector_to_rxq(struct ixgbevf_adapter *a, int v_idx,
-				     int r_idx)
-{
-	struct ixgbevf_q_vector *q_vector = a->q_vector[v_idx];
-
-	a->rx_ring[r_idx]->next = q_vector->rx.ring;
-	q_vector->rx.ring = a->rx_ring[r_idx];
-	q_vector->rx.count++;
-}
-
-static inline void map_vector_to_txq(struct ixgbevf_adapter *a, int v_idx,
-				     int t_idx)
-{
-	struct ixgbevf_q_vector *q_vector = a->q_vector[v_idx];
-
-	a->tx_ring[t_idx]->next = q_vector->tx.ring;
-	q_vector->tx.ring = a->tx_ring[t_idx];
-	q_vector->tx.count++;
-}
-
-/**
- * ixgbevf_map_rings_to_vectors - Maps descriptor rings to vectors
- * @adapter: board private structure to initialize
- *
- * This function maps descriptor rings to the queue-specific vectors
- * we were allotted through the MSI-X enabling code.  Ideally, we'd have
- * one vector per ring/queue, but on a constrained vector budget, we
- * group the rings as "efficiently" as possible.  You would add new
- * mapping configurations in here.
- **/
-static int ixgbevf_map_rings_to_vectors(struct ixgbevf_adapter *adapter)
-{
-	int q_vectors;
-	int v_start = 0;
-	int rxr_idx = 0, txr_idx = 0;
-	int rxr_remaining = adapter->num_rx_queues;
-	int txr_remaining = adapter->num_tx_queues;
-	int i, j;
-	int rqpv, tqpv;
-
-	q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
-
-	/* The ideal configuration...
-	 * We have enough vectors to map one per queue.
-	 */
-	if (q_vectors == adapter->num_rx_queues + adapter->num_tx_queues) {
-		for (; rxr_idx < rxr_remaining; v_start++, rxr_idx++)
-			map_vector_to_rxq(adapter, v_start, rxr_idx);
-
-		for (; txr_idx < txr_remaining; v_start++, txr_idx++)
-			map_vector_to_txq(adapter, v_start, txr_idx);
-		return 0;
-	}
-
-	/* If we don't have enough vectors for a 1-to-1
-	 * mapping, we'll have to group them so there are
-	 * multiple queues per vector.
-	 */
-	/* Re-adjusting *qpv takes care of the remainder. */
-	for (i = v_start; i < q_vectors; i++) {
-		rqpv = DIV_ROUND_UP(rxr_remaining, q_vectors - i);
-		for (j = 0; j < rqpv; j++) {
-			map_vector_to_rxq(adapter, i, rxr_idx);
-			rxr_idx++;
-			rxr_remaining--;
-		}
-	}
-	for (i = v_start; i < q_vectors; i++) {
-		tqpv = DIV_ROUND_UP(txr_remaining, q_vectors - i);
-		for (j = 0; j < tqpv; j++) {
-			map_vector_to_txq(adapter, i, txr_idx);
-			txr_idx++;
-			txr_remaining--;
-		}
-	}
-
-	return 0;
-}
-
 /**
  * ixgbevf_request_msix_irqs - Initialize MSI-X interrupts
  * @adapter: board private structure
@@ -1421,20 +1342,6 @@ free_queue_irqs:
 	return err;
 }
 
-static inline void ixgbevf_reset_q_vectors(struct ixgbevf_adapter *adapter)
-{
-	int i, q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
-
-	for (i = 0; i < q_vectors; i++) {
-		struct ixgbevf_q_vector *q_vector = adapter->q_vector[i];
-
-		q_vector->rx.ring = NULL;
-		q_vector->tx.ring = NULL;
-		q_vector->rx.count = 0;
-		q_vector->tx.count = 0;
-	}
-}
-
 /**
  * ixgbevf_request_irq - initialize interrupts
  * @adapter: board private structure
@@ -1474,8 +1381,6 @@ static void ixgbevf_free_irq(struct ixgbevf_adapter *adapter)
 		free_irq(adapter->msix_entries[i].vector,
 			 adapter->q_vector[i]);
 	}
-
-	ixgbevf_reset_q_vectors(adapter);
 }
 
 /**
@@ -2457,63 +2362,6 @@ static void ixgbevf_set_num_queues(struct ixgbevf_adapter *adapter)
 }
 
 /**
- * ixgbevf_alloc_queues - Allocate memory for all rings
- * @adapter: board private structure to initialize
- *
- * We allocate one ring per queue at run-time since we don't know the
- * number of queues at compile-time.  The polling_netdev array is
- * intended for Multiqueue, but should work fine with a single queue.
- **/
-static int ixgbevf_alloc_queues(struct ixgbevf_adapter *adapter)
-{
-	struct ixgbevf_ring *ring;
-	int rx = 0, tx = 0;
-
-	for (; tx < adapter->num_tx_queues; tx++) {
-		ring = kzalloc(sizeof(*ring), GFP_KERNEL);
-		if (!ring)
-			goto err_allocation;
-
-		ring->dev = &adapter->pdev->dev;
-		ring->netdev = adapter->netdev;
-		ring->count = adapter->tx_ring_count;
-		ring->queue_index = tx;
-		ring->reg_idx = tx;
-
-		adapter->tx_ring[tx] = ring;
-	}
-
-	for (; rx < adapter->num_rx_queues; rx++) {
-		ring = kzalloc(sizeof(*ring), GFP_KERNEL);
-		if (!ring)
-			goto err_allocation;
-
-		ring->dev = &adapter->pdev->dev;
-		ring->netdev = adapter->netdev;
-
-		ring->count = adapter->rx_ring_count;
-		ring->queue_index = rx;
-		ring->reg_idx = rx;
-
-		adapter->rx_ring[rx] = ring;
-	}
-
-	return 0;
-
-err_allocation:
-	while (tx) {
-		kfree(adapter->tx_ring[--tx]);
-		adapter->tx_ring[tx] = NULL;
-	}
-
-	while (rx) {
-		kfree(adapter->rx_ring[--rx]);
-		adapter->rx_ring[rx] = NULL;
-	}
-	return -ENOMEM;
-}
-
-/**
  * ixgbevf_set_interrupt_capability - set MSI-X or FAIL if not supported
  * @adapter: board private structure to initialize
  *
@@ -2522,8 +2370,6 @@ err_allocation:
  **/
 static int ixgbevf_set_interrupt_capability(struct ixgbevf_adapter *adapter)
 {
-	struct net_device *netdev = adapter->netdev;
-	int err;
 	int vector, v_budget;
 
 	/* It's easy to be greedy for MSI-X vectors, but it really
@@ -2536,9 +2382,6 @@ static int ixgbevf_set_interrupt_capability(struct ixgbevf_adapter *adapter)
 	v_budget = min_t(int, v_budget, num_online_cpus());
 	v_budget += NON_Q_VECTORS;
 
-	/* A failure in MSI-X entry allocation isn't fatal, but it does
-	 * mean we disable MSI-X capabilities of the adapter.
-	 */
 	adapter->msix_entries = kcalloc(v_budget,
 					sizeof(struct msix_entry), GFP_KERNEL);
 	if (!adapter->msix_entries)
@@ -2547,15 +2390,143 @@ static int ixgbevf_set_interrupt_capability(struct ixgbevf_adapter *adapter)
 	for (vector = 0; vector < v_budget; vector++)
 		adapter->msix_entries[vector].entry = vector;
 
-	err = ixgbevf_acquire_msix_vectors(adapter, v_budget);
-	if (err)
-		return err;
+	/* A failure in MSI-X entry allocation isn't fatal, but the VF driver
+	 * does not support any other modes, so we will simply fail here. Note
+	 * that we clean up the msix_entries pointer else-where.
+	 */
+	return ixgbevf_acquire_msix_vectors(adapter, v_budget);
+}
 
-	err = netif_set_real_num_tx_queues(netdev, adapter->num_tx_queues);
-	if (err)
-		return err;
+static void ixgbevf_add_ring(struct ixgbevf_ring *ring,
+			     struct ixgbevf_ring_container *head)
+{
+	ring->next = head->ring;
+	head->ring = ring;
+	head->count++;
+}
 
-	return netif_set_real_num_rx_queues(netdev, adapter->num_rx_queues);
+/**
+ * ixgbevf_alloc_q_vector - Allocate memory for a single interrupt vector
+ * @adapter: board private structure to initialize
+ * @v_idx: index of vector in adapter struct
+ * @txr_count: number of Tx rings for q vector
+ * @txr_idx: index of first Tx ring to assign
+ * @rxr_count: number of Rx rings for q vector
+ * @rxr_idx: index of first Rx ring to assign
+ *
+ * We allocate one q_vector.  If allocation fails we return -ENOMEM.
+ **/
+static int ixgbevf_alloc_q_vector(struct ixgbevf_adapter *adapter, int v_idx,
+				  int txr_count, int txr_idx,
+				  int rxr_count, int rxr_idx)
+{
+	struct ixgbevf_q_vector *q_vector;
+	struct ixgbevf_ring *ring;
+	int ring_count, size;
+
+	ring_count = txr_count + rxr_count;
+	size = sizeof(*q_vector) + (sizeof(*ring) * ring_count);
+
+	/* allocate q_vector and rings */
+	q_vector = kzalloc(size, GFP_KERNEL);
+	if (!q_vector)
+		return -ENOMEM;
+
+	/* initialize NAPI */
+	netif_napi_add(adapter->netdev, &q_vector->napi, ixgbevf_poll, 64);
+
+	/* tie q_vector and adapter together */
+	adapter->q_vector[v_idx] = q_vector;
+	q_vector->adapter = adapter;
+	q_vector->v_idx = v_idx;
+
+	/* initialize pointer to rings */
+	ring = q_vector->ring;
+
+	while (txr_count) {
+		/* assign generic ring traits */
+		ring->dev = &adapter->pdev->dev;
+		ring->netdev = adapter->netdev;
+
+		/* configure backlink on ring */
+		ring->q_vector = q_vector;
+
+		/* update q_vector Tx values */
+		ixgbevf_add_ring(ring, &q_vector->tx);
+
+		/* apply Tx specific ring traits */
+		ring->count = adapter->tx_ring_count;
+		ring->queue_index = txr_idx;
+		ring->reg_idx = txr_idx;
+
+		/* assign ring to adapter */
+		 adapter->tx_ring[txr_idx] = ring;
+
+		/* update count and index */
+		txr_count--;
+		txr_idx++;
+
+		/* push pointer to next ring */
+		ring++;
+	}
+
+	while (rxr_count) {
+		/* assign generic ring traits */
+		ring->dev = &adapter->pdev->dev;
+		ring->netdev = adapter->netdev;
+
+		/* configure backlink on ring */
+		ring->q_vector = q_vector;
+
+		/* update q_vector Rx values */
+		ixgbevf_add_ring(ring, &q_vector->rx);
+
+		/* apply Rx specific ring traits */
+		ring->count = adapter->rx_ring_count;
+		ring->queue_index = rxr_idx;
+		ring->reg_idx = rxr_idx;
+
+		/* assign ring to adapter */
+		adapter->rx_ring[rxr_idx] = ring;
+
+		/* update count and index */
+		rxr_count--;
+		rxr_idx++;
+
+		/* push pointer to next ring */
+		ring++;
+	}
+
+	return 0;
+}
+
+/**
+ * ixgbevf_free_q_vector - Free memory allocated for specific interrupt vector
+ * @adapter: board private structure to initialize
+ * @v_idx: index of vector in adapter struct
+ *
+ * This function frees the memory allocated to the q_vector.  In addition if
+ * NAPI is enabled it will delete any references to the NAPI struct prior
+ * to freeing the q_vector.
+ **/
+static void ixgbevf_free_q_vector(struct ixgbevf_adapter *adapter, int v_idx)
+{
+	struct ixgbevf_q_vector *q_vector = adapter->q_vector[v_idx];
+	struct ixgbevf_ring *ring;
+
+	ixgbevf_for_each_ring(ring, q_vector->tx)
+		adapter->tx_ring[ring->queue_index] = NULL;
+
+	ixgbevf_for_each_ring(ring, q_vector->rx)
+		adapter->rx_ring[ring->queue_index] = NULL;
+
+	adapter->q_vector[v_idx] = NULL;
+	netif_napi_del(&q_vector->napi);
+
+	/* ixgbevf_get_stats() might access the rings on this vector,
+	 * we must wait a grace period before freeing it.
+	 */
+	kfree_rcu(q_vector, rcu);
 }
 
 /**
@@ -2567,35 +2538,53 @@ static int ixgbevf_set_interrupt_capability(struct ixgbevf_adapter *adapter)
  **/
 static int ixgbevf_alloc_q_vectors(struct ixgbevf_adapter *adapter)
 {
-	int q_idx, num_q_vectors;
-	struct ixgbevf_q_vector *q_vector;
+	int q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+	int rxr_remaining = adapter->num_rx_queues;
+	int txr_remaining = adapter->num_tx_queues;
+	int rxr_idx = 0, txr_idx = 0, v_idx = 0;
+	int err;
 
-	num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+	if (q_vectors >= (rxr_remaining + txr_remaining)) {
+		for (; rxr_remaining; v_idx++, q_vectors--) {
+			int rqpv = DIV_ROUND_UP(rxr_remaining, q_vectors);
 
-	for (q_idx = 0; q_idx < num_q_vectors; q_idx++) {
-		q_vector = kzalloc(sizeof(struct ixgbevf_q_vector), GFP_KERNEL);
-		if (!q_vector)
+			err = ixgbevf_alloc_q_vector(adapter, v_idx,
+						     0, 0, rqpv, rxr_idx);
+			if (err)
+				goto err_out;
+
+			/* update counts and index */
+			rxr_remaining -= rqpv;
+			rxr_idx += rqpv;
+		}
+	}
+
+	for (; q_vectors; v_idx++, q_vectors--) {
+		int rqpv = DIV_ROUND_UP(rxr_remaining, q_vectors);
+		int tqpv = DIV_ROUND_UP(txr_remaining, q_vectors);
+
+		err = ixgbevf_alloc_q_vector(adapter, v_idx,
+					     tqpv, txr_idx,
+					     rqpv, rxr_idx);
+
+		if (err)
 			goto err_out;
-		q_vector->adapter = adapter;
-		q_vector->v_idx = q_idx;
-		netif_napi_add(adapter->netdev, &q_vector->napi,
-			       ixgbevf_poll, 64);
-		adapter->q_vector[q_idx] = q_vector;
+
+		/* update counts and index */
+		rxr_remaining -= rqpv;
+		rxr_idx += rqpv;
+		txr_remaining -= tqpv;
+		txr_idx += tqpv;
 	}
 
 	return 0;
 
 err_out:
-	while (q_idx) {
-		q_idx--;
-		q_vector = adapter->q_vector[q_idx];
-#ifdef CONFIG_NET_RX_BUSY_POLL
-		napi_hash_del(&q_vector->napi);
-#endif
-		netif_napi_del(&q_vector->napi);
-		kfree(q_vector);
-		adapter->q_vector[q_idx] = NULL;
+	while (v_idx) {
+		v_idx--;
+		ixgbevf_free_q_vector(adapter, v_idx);
 	}
+
 	return -ENOMEM;
 }
 
@@ -2609,17 +2598,11 @@ err_out:
  **/
 static void ixgbevf_free_q_vectors(struct ixgbevf_adapter *adapter)
 {
-	int q_idx, num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+	int q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 
-	for (q_idx = 0; q_idx < num_q_vectors; q_idx++) {
-		struct ixgbevf_q_vector *q_vector = adapter->q_vector[q_idx];
-
-		adapter->q_vector[q_idx] = NULL;
-#ifdef CONFIG_NET_RX_BUSY_POLL
-		napi_hash_del(&q_vector->napi);
-#endif
-		netif_napi_del(&q_vector->napi);
-		kfree(q_vector);
+	while (q_vectors) {
+		q_vectors--;
+		ixgbevf_free_q_vector(adapter, q_vectors);
 	}
 }
 
@@ -2663,12 +2646,6 @@ static int ixgbevf_init_interrupt_scheme(struct ixgbevf_adapter *adapter)
 		goto err_alloc_q_vectors;
 	}
 
-	err = ixgbevf_alloc_queues(adapter);
-	if (err) {
-		pr_err("Unable to allocate memory for queues\n");
-		goto err_alloc_queues;
-	}
-
 	hw_dbg(&adapter->hw, "Multiqueue %s: Rx Queue count = %u, Tx Queue count = %u\n",
 	       (adapter->num_rx_queues > 1) ? "Enabled" :
 	       "Disabled", adapter->num_rx_queues, adapter->num_tx_queues);
@@ -2676,8 +2653,6 @@ static int ixgbevf_init_interrupt_scheme(struct ixgbevf_adapter *adapter)
 	set_bit(__IXGBEVF_DOWN, &adapter->state);
 
 	return 0;
-err_alloc_queues:
-	ixgbevf_free_q_vectors(adapter);
 err_alloc_q_vectors:
 	ixgbevf_reset_interrupt_capability(adapter);
 err_set_interrupt:
@@ -2693,17 +2668,6 @@ err_set_interrupt:
  **/
 static void ixgbevf_clear_interrupt_scheme(struct ixgbevf_adapter *adapter)
 {
-	int i;
-
-	for (i = 0; i < adapter->num_tx_queues; i++) {
-		kfree(adapter->tx_ring[i]);
-		adapter->tx_ring[i] = NULL;
-	}
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		kfree(adapter->rx_ring[i]);
-		adapter->rx_ring[i] = NULL;
-	}
-
 	adapter->num_tx_queues = 0;
 	adapter->num_rx_queues = 0;
 
@@ -3306,12 +3270,6 @@ int ixgbevf_open(struct net_device *netdev)
 		goto err_setup_rx;
 
 	ixgbevf_configure(adapter);
-
-	/* Map the Tx/Rx rings to the vectors we were allotted.
-	 * if request_irq will be called in this function map_rings
-	 * must be called *before* up_complete
-	 */
-	ixgbevf_map_rings_to_vectors(adapter);
 
 	err = ixgbevf_request_irq(adapter);
 	if (err)
@@ -4042,6 +4000,7 @@ static void ixgbevf_get_stats(struct net_device *netdev,
 
 	stats->multicast = adapter->stats.vfmprc - adapter->stats.base_vfmprc;
 
+	rcu_read_lock();
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		ring = adapter->rx_ring[i];
 		do {
@@ -4063,6 +4022,7 @@ static void ixgbevf_get_stats(struct net_device *netdev,
 		stats->tx_bytes += bytes;
 		stats->tx_packets += packets;
 	}
+	rcu_read_unlock();
 }
 
 #define IXGBEVF_MAX_MAC_HDR_LEN		127

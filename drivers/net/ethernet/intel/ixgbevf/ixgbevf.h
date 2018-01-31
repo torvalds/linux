@@ -97,6 +97,7 @@ enum ixgbevf_ring_state_t {
 
 struct ixgbevf_ring {
 	struct ixgbevf_ring *next;
+	struct ixgbevf_q_vector *q_vector;	/* backpointer to q_vector */
 	struct net_device *netdev;
 	struct device *dev;
 	void *desc;			/* descriptor ring memory */
@@ -128,7 +129,7 @@ struct ixgbevf_ring {
 	 */
 	u16 reg_idx;
 	int queue_index; /* needed for multiqueue queue management */
-};
+} ____cacheline_internodealigned_in_smp;
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define IXGBEVF_RX_BUFFER_WRITE	16	/* Must be power of 2 */
@@ -241,7 +242,11 @@ struct ixgbevf_q_vector {
 	u16 itr; /* Interrupt throttle rate written to EITR */
 	struct napi_struct napi;
 	struct ixgbevf_ring_container rx, tx;
+	struct rcu_head rcu;    /* to avoid race with update stats on free */
 	char name[IFNAMSIZ + 9];
+
+	/* for dynamic allocation of rings associated with this q_vector */
+	struct ixgbevf_ring ring[0] ____cacheline_internodealigned_in_smp;
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned int state;
 #define IXGBEVF_QV_STATE_IDLE		0
