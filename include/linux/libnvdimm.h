@@ -47,6 +47,11 @@ enum {
 
 	/* region flag indicating to direct-map persistent memory by default */
 	ND_REGION_PAGEMAP = 0,
+	/*
+	 * Platform ensures entire CPU store data path is flushed to pmem on
+	 * system power loss.
+	 */
+	ND_REGION_PERSIST_CACHE = 1,
 
 	/* mark newly adjusted resources as requiring a label update */
 	DPA_RESOURCE_ADJUSTED = 1 << 0,
