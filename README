@@ -1,18 +1,10 @@
-Linux kernel
-============
+Beowulf Project
+======================
 
-This file was moved to Documentation/admin-guide/README.rst
+I copied this version of Linux from Linus Torvalds.
 
-Please notice that there are several guides for kernel developers and users.
-These guides can be rendered in a number of formats, like HTML and PDF.
+Now I'm completely new to github and I'm not particlarly experienced with programming 
+yet. But with this in mind I'm planning on building a Beowulf server out of 2, maybe 
+3, computers. 
 
-In order to build the documentation, use ``make htmldocs`` or
-``make pdfdocs``.
-
-There are various text files in the Documentation/ subdirectory,
-several of them using the Restructured Text markup notation.
-See Documentation/00-INDEX for a list of what is contained in each file.
-
-Please read the Documentation/process/changes.rst file, as it contains the
-requirements for building and running the kernel, and information about
-the problems which may result by upgrading your kernel.
+This is my first project that I am attempting so this will be interesting.
