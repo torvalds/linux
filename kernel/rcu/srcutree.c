@@ -579,6 +579,9 @@ static void srcu_gp_end(struct srcu_struct *sp)
 				if (ULONG_CMP_GE(gpseq,
 						 sdp->srcu_gp_seq_needed + 100))
 					sdp->srcu_gp_seq_needed = gpseq;
+				if (ULONG_CMP_GE(gpseq,
+						 sdp->srcu_gp_seq_needed_exp + 100))
+					sdp->srcu_gp_seq_needed_exp = gpseq;
 				spin_unlock_irqrestore_rcu_node(sdp, flags);
 			}
 	}
