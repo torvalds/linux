@@ -34,6 +34,8 @@
 
 #define OV5640_DEFAULT_SLAVE_ID 0x3c
 
+#define OV5640_REG_SYS_RESET02		0x3002
+#define OV5640_REG_SYS_CLOCK_ENABLE02	0x3006
 #define OV5640_REG_SYS_CTRL0		0x3008
 #define OV5640_REG_CHIP_ID		0x300a
 #define OV5640_REG_IO_MIPI_CTRL00	0x300e
@@ -114,6 +116,7 @@ struct ov5640_pixfmt {
 };
 
 static const struct ov5640_pixfmt ov5640_formats[] = {
+	{ MEDIA_BUS_FMT_JPEG_1X8, V4L2_COLORSPACE_JPEG, },
 	{ MEDIA_BUS_FMT_UYVY8_2X8, V4L2_COLORSPACE_SRGB, },
 	{ MEDIA_BUS_FMT_YUYV8_2X8, V4L2_COLORSPACE_SRGB, },
 	{ MEDIA_BUS_FMT_RGB565_2X8_LE, V4L2_COLORSPACE_SRGB, },
@@ -1915,6 +1918,7 @@ static int ov5640_set_framefmt(struct ov5640_dev *sensor,
 {
 	int ret = 0;
 	bool is_rgb = false;
+	bool is_jpeg = false;
 	u8 val;
 
 	switch (format->code) {
@@ -1936,6 +1940,11 @@ static int ov5640_set_framefmt(struct ov5640_dev *sensor,
 		val = 0x61;
 		is_rgb = true;
 		break;
+	case MEDIA_BUS_FMT_JPEG_1X8:
+		/* YUV422, YUYV */
+		val = 0x30;
+		is_jpeg = true;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1946,8 +1955,40 @@ static int ov5640_set_framefmt(struct ov5640_dev *sensor,
 		return ret;
 
 	/* FORMAT MUX CONTROL: ISP YUV or RGB */
-	return ov5640_write_reg(sensor, OV5640_REG_ISP_FORMAT_MUX_CTRL,
-				is_rgb ? 0x01 : 0x00);
+	ret = ov5640_write_reg(sensor, OV5640_REG_ISP_FORMAT_MUX_CTRL,
+			       is_rgb ? 0x01 : 0x00);
+	if (ret)
+		return ret;
+
+	/*
+	 * TIMING TC REG21:
+	 * - [5]:	JPEG enable
+	 */
+	ret = ov5640_mod_reg(sensor, OV5640_REG_TIMING_TC_REG21,
+			     BIT(5), is_jpeg ? BIT(5) : 0);
+	if (ret)
+		return ret;
+
+	/*
+	 * SYSTEM RESET02:
+	 * - [4]:	Reset JFIFO
+	 * - [3]:	Reset SFIFO
+	 * - [2]:	Reset JPEG
+	 */
+	ret = ov5640_mod_reg(sensor, OV5640_REG_SYS_RESET02,
+			     BIT(4) | BIT(3) | BIT(2),
+			     is_jpeg ? 0 : (BIT(4) | BIT(3) | BIT(2)));
+	if (ret)
+		return ret;
+
+	/*
+	 * CLOCK ENABLE02:
+	 * - [5]:	Enable JPEG 2x clock
+	 * - [3]:	Enable JPEG clock
+	 */
+	return ov5640_mod_reg(sensor, OV5640_REG_SYS_CLOCK_ENABLE02,
+			      BIT(5) | BIT(3),
+			      is_jpeg ? (BIT(5) | BIT(3)) : 0);
 }
 
 /*
