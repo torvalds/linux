@@ -550,10 +550,12 @@ static int __init mlxplat_init(void)
 	regcache_mark_dirty(mlxplat_hotplug->regmap);
 	err = regcache_sync(mlxplat_hotplug->regmap);
 	if (err)
-		goto fail_platform_mux_register;
+		goto fail_platform_hotplug_register;
 
 	return 0;
 
+fail_platform_hotplug_register:
+	platform_device_unregister(priv->pdev_hotplug);
 fail_platform_mux_register:
 	while (--i >= 0)
 		platform_device_unregister(priv->pdev_mux[i]);
