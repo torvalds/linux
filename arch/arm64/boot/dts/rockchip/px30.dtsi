@@ -902,7 +902,7 @@
 		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>, <&cru SCLK_CORE_VPU>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
 		resets = <&cru SRST_VPU_A>, <&cru SRST_VPU_H>,
-			<&cru SRST_IVPU_NIU_A>, <&cru SRST_VPU_NIU_H>;
+			<&cru SRST_VPU_NIU_A>, <&cru SRST_VPU_NIU_H>;
 		reset-names = "video_a", "video_h", "niu_a", "niu_h";
 		mode_bit = <15>;
 		mode_ctrl = <0x410>;

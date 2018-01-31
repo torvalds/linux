@@ -218,12 +218,13 @@
 #define SRST_CORE2_DBG		10
 #define SRST_CORE3_DBG		11
 #define SRST_TOPDBG		12
-#define SRST_CORE_NIU		13
+#define SRST_CORE_NOC		13
 #define SRST_STRC_A		14
 #define SRST_L2C		15
 
 #define SRST_DAP		16
-#define SRST_GPU_A		18
+#define SRST_CORE_PVTM		17
+#define SRST_GPU		18
 #define SRST_GPU_NIU		19
 #define SRST_UPCTL2		20
 #define SRST_UPCTL2_A		21
@@ -241,9 +242,8 @@
 #define SRST_DDRPHY		32
 #define SRST_DDRPHYDIV		33
 #define SRST_DDRPHY_P		34
-#define SRST_MSCH_SRV_p		35
 #define SRST_VPU_A		36
-#define SRST_IVPU_NIU_A		37
+#define SRST_VPU_NIU_A		37
 #define SRST_VPU_H		38
 #define SRST_VPU_NIU_H		39
 #define SRST_VI_NIU_A		40
@@ -258,18 +258,19 @@
 #define SRST_VO_NIU_A		48
 #define SRST_VO_NIU_H		49
 #define SRST_VO_NIU_P		50
-#define SRST_VOPM_A		51
-#define SRST_VOPM_H		52
-#define SRST_VOPM		53
-#define SRST_PWM_VOPM		54
-#define SRST_VOPS_A		55
-#define SRST_VOPS_H		56
-#define SRST_VOPS		57
+#define SRST_VOPB_A		51
+#define SRST_VOPB_H		52
+#define SRST_VOPB		53
+#define SRST_PWM_VOPB		54
+#define SRST_VOPL_A		55
+#define SRST_VOPL_H		56
+#define SRST_VOPL		57
 #define SRST_RGA_A		58
 #define SRST_RGA_H		59
 #define SRST_RGA		60
 #define SRST_MIPIDSI_HOST_P	61
 #define SRST_MIPIDSIPHY_P	62
+#define SRST_VPU_CORE		63
 
 #define SRST_PERI_NIU_A		64
 #define SRST_USB_NIU_H		65
@@ -294,7 +295,7 @@
 #define SRST_SFC_H		83
 #define SRST_SFC		84
 #define SRST_SDCARD_NIU_H	85
-#define SRST_SDCARD_H		86
+#define SRST_SDMMC_H		86
 #define SRST_NANDC_H		89
 #define SRST_NANDC		90
 #define SRST_GMAC_NIU_A		92
@@ -311,6 +312,12 @@
 #define SRST_PMU_CRU_P		103
 #define SRST_PMU_PVTM		104
 #define SRST_PMU_UART		105
+#define SRST_PMU_NIU_H		106
+#define SRST_PMU_DDR_FAIL_SAVE	107
+#define SRST_PMU_CORE_PERF_A	108
+#define SRST_PMU_CORE_GRF_P	109
+#define SRST_PMU_GPU_PERF_A	110
+#define SRST_PMU_GPU_GRF_P	111
 
 #define SRST_CRYPTO_NIU_A	112
 #define SRST_CRYPTO_NIU_H	113
@@ -323,7 +330,6 @@
 #define SRST_BUS_TOP_NIU_P	122
 #define SRST_INTMEM_A		123
 #define SRST_GIC_A		124
-#define SRST_DMAC_A		125
 #define SRST_ROM_H		126
 #define SRST_DCF_A		127
 
@@ -331,7 +337,7 @@
 #define SRST_PDM_H		129
 #define SRST_PDM		130
 #define SRST_I2S0_H		131
-#define SRST_I2S0		132
+#define SRST_I2S0_TX		132
 #define SRST_I2S1_H		133
 #define SRST_I2S1		134
 #define SRST_I2S2_H		135
@@ -355,8 +361,6 @@
 #define SRST_I2C2		152
 #define SRST_I2C3_P		153
 #define SRST_I2C3		154
-#define SRST_I2C4_P		155
-#define SRST_I2C4		156
 #define SRST_PWM0_P		157
 #define SRST_PWM0		158
 #define SRST_PWM1_P		159
@@ -387,6 +391,8 @@
 #define SRST_GPIO1_P		182
 #define SRST_GPIO2_P		183
 #define SRST_GPIO3_P		184
+#define SRST_SGRF_P		185
 #define SRST_GRF_P		186
+#define SRST_I2S0_RX		191
 
 #endif
