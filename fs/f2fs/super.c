@@ -691,6 +691,9 @@ static int parse_options(struct super_block *sb, char *options)
 			} else if (strlen(name) == 3 &&
 					!strncmp(name, "off", 3)) {
 				sbi->whint_mode = WHINT_MODE_OFF;
+			} else if (strlen(name) == 8 &&
+					!strncmp(name, "fs-based", 8)) {
+				sbi->whint_mode = WHINT_MODE_FS;
 			} else {
 				kfree(name);
 				return -EINVAL;
@@ -1259,6 +1262,8 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 	f2fs_show_quota_options(seq, sbi->sb);
 	if (sbi->whint_mode == WHINT_MODE_USER)
 		seq_printf(seq, ",whint_mode=%s", "user-based");
+	else if (sbi->whint_mode == WHINT_MODE_FS)
+		seq_printf(seq, ",whint_mode=%s", "fs-based");
 
 	return 0;
 }

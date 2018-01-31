@@ -1104,6 +1104,7 @@ enum {
 enum {
 	WHINT_MODE_OFF,		/* not pass down write hints */
 	WHINT_MODE_USER,	/* try to pass down hints given by users */
+	WHINT_MODE_FS,		/* pass down hints with F2FS policy */
 };
 
 struct f2fs_sb_info {
