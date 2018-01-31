@@ -3862,6 +3862,9 @@ enum nl80211_bss_scan_width {
  *	@NL80211_BSS_PARENT_BSSID. (u64).
  * @NL80211_BSS_PARENT_BSSID: the BSS according to which @NL80211_BSS_PARENT_TSF
  *	is set.
+ * @NL80211_BSS_CHAIN_SIGNAL: per-chain signal strength of last BSS update.
+ *	Contains a nested array of signal strength attributes (u8, dBm),
+ *	using the nesting index as the antenna number.
  * @__NL80211_BSS_AFTER_LAST: internal
  * @NL80211_BSS_MAX: highest BSS attribute
  */
@@ -3885,6 +3888,7 @@ enum nl80211_bss {
 	NL80211_BSS_PAD,
 	NL80211_BSS_PARENT_TSF,
 	NL80211_BSS_PARENT_BSSID,
+	NL80211_BSS_CHAIN_SIGNAL,
 
 	/* keep last */
 	__NL80211_BSS_AFTER_LAST,

@@ -4634,8 +4634,7 @@ int be_update_queues(struct be_adapter *adapter)
 
 	be_schedule_worker(adapter);
 
-	/*
-	 * The IF was destroyed and re-created. We need to clear
+	/* The IF was destroyed and re-created. We need to clear
 	 * all promiscuous flags valid for the destroyed IF.
 	 * Without this promisc mode is not restored during
 	 * be_open() because the driver thinks that it is

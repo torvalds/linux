@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -36,6 +36,10 @@ struct ath10k_ce_pipe;
 
 #define CE_DESC_FLAGS_GATHER         (1 << 0)
 #define CE_DESC_FLAGS_BYTE_SWAP      (1 << 1)
+#define CE_WCN3990_DESC_FLAGS_GATHER BIT(31)
+
+#define CE_DESC_FLAGS_GET_MASK		GENMASK(4, 0)
+#define CE_DESC_37BIT_ADDR_MASK		GENMASK_ULL(37, 0)
 
 /* Following desc flags are used in QCA99X0 */
 #define CE_DESC_FLAGS_HOST_INT_DIS	(1 << 2)
@@ -49,6 +53,16 @@ struct ce_desc {
 	__le16 nbytes;
 	__le16 flags; /* %CE_DESC_FLAGS_ */
 };
+
+struct ce_desc_64 {
+	__le64 addr;
+	__le16 nbytes; /* length in register map */
+	__le16 flags; /* fw_metadata_high */
+	__le32 toeplitz_hash_result;
+};
+
+#define CE_DESC_SIZE sizeof(struct ce_desc)
+#define CE_DESC_SIZE_64 sizeof(struct ce_desc_64)
 
 struct ath10k_ce_ring {
 	/* Number of entries in this ring; must be power of 2 */
@@ -117,6 +131,7 @@ struct ath10k_ce_pipe {
 	unsigned int src_sz_max;
 	struct ath10k_ce_ring *src_ring;
 	struct ath10k_ce_ring *dest_ring;
+	const struct ath10k_ce_ops *ops;
 };
 
 /* Copy Engine settable attributes */
@@ -160,7 +175,7 @@ struct ath10k_ce {
  */
 int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 		   void *per_transfer_send_context,
-		   u32 buffer,
+		   dma_addr_t buffer,
 		   unsigned int nbytes,
 		   /* 14 bits */
 		   unsigned int transfer_id,
@@ -168,7 +183,7 @@ int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 
 int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
 			  void *per_transfer_context,
-			  u32 buffer,
+			  dma_addr_t buffer,
 			  unsigned int nbytes,
 			  unsigned int transfer_id,
 			  unsigned int flags);
@@ -180,8 +195,8 @@ int ath10k_ce_num_free_src_entries(struct ath10k_ce_pipe *pipe);
 /*==================Recv=======================*/
 
 int __ath10k_ce_rx_num_free_bufs(struct ath10k_ce_pipe *pipe);
-int __ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr);
-int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr);
+int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx,
+			  dma_addr_t paddr);
 void ath10k_ce_rx_update_write_idx(struct ath10k_ce_pipe *pipe, u32 nentries);
 
 /* recv flags */
@@ -222,7 +237,7 @@ void ath10k_ce_free_pipe(struct ath10k *ar, int ce_id);
  */
 int ath10k_ce_revoke_recv_next(struct ath10k_ce_pipe *ce_state,
 			       void **per_transfer_contextp,
-			       u32 *bufferp);
+			       dma_addr_t *bufferp);
 
 int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
 					 void **per_transfer_contextp,
@@ -235,7 +250,7 @@ int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
  */
 int ath10k_ce_cancel_send_next(struct ath10k_ce_pipe *ce_state,
 			       void **per_transfer_contextp,
-			       u32 *bufferp,
+			       dma_addr_t *bufferp,
 			       unsigned int *nbytesp,
 			       unsigned int *transfer_idp);
 
@@ -281,6 +296,32 @@ struct ce_attr {
 	void (*recv_cb)(struct ath10k_ce_pipe *);
 };
 
+struct ath10k_ce_ops {
+	struct ath10k_ce_ring *(*ce_alloc_src_ring)(struct ath10k *ar,
+						    u32 ce_id,
+						    const struct ce_attr *attr);
+	struct ath10k_ce_ring *(*ce_alloc_dst_ring)(struct ath10k *ar,
+						    u32 ce_id,
+						    const struct ce_attr *attr);
+	int (*ce_rx_post_buf)(struct ath10k_ce_pipe *pipe, void *ctx,
+			      dma_addr_t paddr);
+	int (*ce_completed_recv_next_nolock)(struct ath10k_ce_pipe *ce_state,
+					     void **per_transfer_contextp,
+					     u32 *nbytesp);
+	int (*ce_revoke_recv_next)(struct ath10k_ce_pipe *ce_state,
+				   void **per_transfer_contextp,
+				   dma_addr_t *nbytesp);
+	void (*ce_extract_desc_data)(struct ath10k *ar,
+				     struct ath10k_ce_ring *src_ring,
+				     u32 sw_index, dma_addr_t *bufferp,
+				     u32 *nbytesp, u32 *transfer_idp);
+	void (*ce_free_pipe)(struct ath10k *ar, int ce_id);
+	int (*ce_send_nolock)(struct ath10k_ce_pipe *pipe,
+			      void *per_transfer_context,
+			      dma_addr_t buffer, u32 nbytes,
+			      u32 transfer_id, u32 flags);
+};
+
 static inline u32 ath10k_ce_base_address(struct ath10k *ar, unsigned int ce_id)
 {
 	return CE0_BASE_ADDRESS + (CE1_BASE_ADDRESS - CE0_BASE_ADDRESS) * ce_id;
@@ -291,6 +332,12 @@ static inline u32 ath10k_ce_base_address(struct ath10k *ar, unsigned int ce_id)
 
 #define CE_DEST_RING_TO_DESC(baddr, idx) \
 	(&(((struct ce_desc *)baddr)[idx]))
+
+#define CE_SRC_RING_TO_DESC_64(baddr, idx) \
+	(&(((struct ce_desc_64 *)baddr)[idx]))
+
+#define CE_DEST_RING_TO_DESC_64(baddr, idx) \
+	(&(((struct ce_desc_64 *)baddr)[idx]))
 
 /* Ring arithmetic (modulus number of entries in ring, which is a pwr of 2). */
 #define CE_RING_DELTA(nentries_mask, fromidx, toidx) \

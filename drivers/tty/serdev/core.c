@@ -252,6 +252,18 @@ void serdev_device_set_flow_control(struct serdev_device *serdev, bool enable)
 }
 EXPORT_SYMBOL_GPL(serdev_device_set_flow_control);
 
+int serdev_device_set_parity(struct serdev_device *serdev,
+			     enum serdev_parity parity)
+{
+	struct serdev_controller *ctrl = serdev->ctrl;
+
+	if (!ctrl || !ctrl->ops->set_parity)
+		return -ENOTSUPP;
+
+	return ctrl->ops->set_parity(ctrl, parity);
+}
+EXPORT_SYMBOL_GPL(serdev_device_set_parity);
+
 void serdev_device_wait_until_sent(struct serdev_device *serdev, long timeout)
 {
 	struct serdev_controller *ctrl = serdev->ctrl;

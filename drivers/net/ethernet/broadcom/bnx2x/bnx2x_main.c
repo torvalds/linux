@@ -12409,8 +12409,8 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 
 	/* Set TPA flags */
 	if (bp->disable_tpa) {
-		bp->dev->hw_features &= ~NETIF_F_LRO;
-		bp->dev->features &= ~NETIF_F_LRO;
+		bp->dev->hw_features &= ~(NETIF_F_LRO | NETIF_F_GRO_HW);
+		bp->dev->features &= ~(NETIF_F_LRO | NETIF_F_GRO_HW);
 	}
 
 	if (CHIP_IS_E1(bp))
@@ -13282,7 +13282,7 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 
 	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		NETIF_F_TSO | NETIF_F_TSO_ECN | NETIF_F_TSO6 |
-		NETIF_F_RXCSUM | NETIF_F_LRO | NETIF_F_GRO |
+		NETIF_F_RXCSUM | NETIF_F_LRO | NETIF_F_GRO | NETIF_F_GRO_HW |
 		NETIF_F_RXHASH | NETIF_F_HW_VLAN_CTAG_TX;
 	if (!chip_is_e1x) {
 		dev->hw_features |= NETIF_F_GSO_GRE | NETIF_F_GSO_GRE_CSUM |
@@ -13318,6 +13318,8 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 
 	dev->features |= dev->hw_features | NETIF_F_HW_VLAN_CTAG_RX;
 	dev->features |= NETIF_F_HIGHDMA;
+	if (dev->features & NETIF_F_LRO)
+		dev->features &= ~NETIF_F_GRO_HW;
 
 	/* Add Loopback capability to the device */
 	dev->hw_features |= NETIF_F_LOOPBACK;

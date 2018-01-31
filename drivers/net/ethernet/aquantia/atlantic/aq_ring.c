@@ -279,10 +279,10 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 
 		skb_record_rx_queue(skb, self->idx);
 
-		napi_gro_receive(napi, skb);
-
 		++self->stats.rx.packets;
 		self->stats.rx.bytes += skb->len;
+
+		napi_gro_receive(napi, skb);
 	}
 
 err_exit:

@@ -310,8 +310,32 @@ struct mlxsw_afa_block {
 	struct mlxsw_afa_set *first_set;
 	struct mlxsw_afa_set *cur_set;
 	unsigned int cur_act_index; /* In current set. */
-	struct list_head fwd_entry_ref_list;
+	struct list_head resource_list; /* List of resources held by actions
+					 * in this block.
+					 */
 };
+
+struct mlxsw_afa_resource {
+	struct list_head list;
+	void (*destructor)(struct mlxsw_afa_block *block,
+			   struct mlxsw_afa_resource *resource);
+};
+
+static void mlxsw_afa_resource_add(struct mlxsw_afa_block *block,
+				   struct mlxsw_afa_resource *resource)
+{
+	list_add(&resource->list, &block->resource_list);
+}
+
+static void mlxsw_afa_resources_destroy(struct mlxsw_afa_block *block)
+{
+	struct mlxsw_afa_resource *resource, *tmp;
+
+	list_for_each_entry_safe(resource, tmp, &block->resource_list, list) {
+		list_del(&resource->list);
+		resource->destructor(block, resource);
+	}
+}
 
 struct mlxsw_afa_block *mlxsw_afa_block_create(struct mlxsw_afa *mlxsw_afa)
 {
@@ -320,7 +344,7 @@ struct mlxsw_afa_block *mlxsw_afa_block_create(struct mlxsw_afa *mlxsw_afa)
 	block = kzalloc(sizeof(*block), GFP_KERNEL);
 	if (!block)
 		return NULL;
-	INIT_LIST_HEAD(&block->fwd_entry_ref_list);
+	INIT_LIST_HEAD(&block->resource_list);
 	block->afa = mlxsw_afa;
 
 	/* At least one action set is always present, so just create it here */
@@ -336,8 +360,6 @@ err_first_set_create:
 }
 EXPORT_SYMBOL(mlxsw_afa_block_create);
 
-static void mlxsw_afa_fwd_entry_refs_destroy(struct mlxsw_afa_block *block);
-
 void mlxsw_afa_block_destroy(struct mlxsw_afa_block *block)
 {
 	struct mlxsw_afa_set *set = block->first_set;
@@ -348,7 +370,7 @@ void mlxsw_afa_block_destroy(struct mlxsw_afa_block *block)
 		mlxsw_afa_set_put(block->afa, set);
 		set = next_set;
 	} while (set);
-	mlxsw_afa_fwd_entry_refs_destroy(block);
+	mlxsw_afa_resources_destroy(block);
 	kfree(block);
 }
 EXPORT_SYMBOL(mlxsw_afa_block_destroy);
@@ -489,9 +511,28 @@ static void mlxsw_afa_fwd_entry_put(struct mlxsw_afa *mlxsw_afa,
 }
 
 struct mlxsw_afa_fwd_entry_ref {
-	struct list_head list;
+	struct mlxsw_afa_resource resource;
 	struct mlxsw_afa_fwd_entry *fwd_entry;
 };
+
+static void
+mlxsw_afa_fwd_entry_ref_destroy(struct mlxsw_afa_block *block,
+				struct mlxsw_afa_fwd_entry_ref *fwd_entry_ref)
+{
+	mlxsw_afa_fwd_entry_put(block->afa, fwd_entry_ref->fwd_entry);
+	kfree(fwd_entry_ref);
+}
+
+static void
+mlxsw_afa_fwd_entry_ref_destructor(struct mlxsw_afa_block *block,
+				   struct mlxsw_afa_resource *resource)
+{
+	struct mlxsw_afa_fwd_entry_ref *fwd_entry_ref;
+
+	fwd_entry_ref = container_of(resource, struct mlxsw_afa_fwd_entry_ref,
+				     resource);
+	mlxsw_afa_fwd_entry_ref_destroy(block, fwd_entry_ref);
+}
 
 static struct mlxsw_afa_fwd_entry_ref *
 mlxsw_afa_fwd_entry_ref_create(struct mlxsw_afa_block *block, u8 local_port)
@@ -509,7 +550,8 @@ mlxsw_afa_fwd_entry_ref_create(struct mlxsw_afa_block *block, u8 local_port)
 		goto err_fwd_entry_get;
 	}
 	fwd_entry_ref->fwd_entry = fwd_entry;
-	list_add(&fwd_entry_ref->list, &block->fwd_entry_ref_list);
+	fwd_entry_ref->resource.destructor = mlxsw_afa_fwd_entry_ref_destructor;
+	mlxsw_afa_resource_add(block, &fwd_entry_ref->resource);
 	return fwd_entry_ref;
 
 err_fwd_entry_get:
@@ -517,23 +559,51 @@ err_fwd_entry_get:
 	return ERR_PTR(err);
 }
 
+struct mlxsw_afa_counter {
+	struct mlxsw_afa_resource resource;
+	u32 counter_index;
+};
+
 static void
-mlxsw_afa_fwd_entry_ref_destroy(struct mlxsw_afa_block *block,
-				struct mlxsw_afa_fwd_entry_ref *fwd_entry_ref)
+mlxsw_afa_counter_destroy(struct mlxsw_afa_block *block,
+			  struct mlxsw_afa_counter *counter)
 {
-	list_del(&fwd_entry_ref->list);
-	mlxsw_afa_fwd_entry_put(block->afa, fwd_entry_ref->fwd_entry);
-	kfree(fwd_entry_ref);
+	block->afa->ops->counter_index_put(block->afa->ops_priv,
+					   counter->counter_index);
+	kfree(counter);
 }
 
-static void mlxsw_afa_fwd_entry_refs_destroy(struct mlxsw_afa_block *block)
+static void
+mlxsw_afa_counter_destructor(struct mlxsw_afa_block *block,
+			     struct mlxsw_afa_resource *resource)
 {
-	struct mlxsw_afa_fwd_entry_ref *fwd_entry_ref;
-	struct mlxsw_afa_fwd_entry_ref *tmp;
+	struct mlxsw_afa_counter *counter;
 
-	list_for_each_entry_safe(fwd_entry_ref, tmp,
-				 &block->fwd_entry_ref_list, list)
-		mlxsw_afa_fwd_entry_ref_destroy(block, fwd_entry_ref);
+	counter = container_of(resource, struct mlxsw_afa_counter, resource);
+	mlxsw_afa_counter_destroy(block, counter);
+}
+
+static struct mlxsw_afa_counter *
+mlxsw_afa_counter_create(struct mlxsw_afa_block *block)
+{
+	struct mlxsw_afa_counter *counter;
+	int err;
+
+	counter = kzalloc(sizeof(*counter), GFP_KERNEL);
+	if (!counter)
+		return ERR_PTR(-ENOMEM);
+
+	err = block->afa->ops->counter_index_get(block->afa->ops_priv,
+						 &counter->counter_index);
+	if (err)
+		goto err_counter_index_get;
+	counter->resource.destructor = mlxsw_afa_counter_destructor;
+	mlxsw_afa_resource_add(block, &counter->resource);
+	return counter;
+
+err_counter_index_get:
+	kfree(counter);
+	return ERR_PTR(err);
 }
 
 #define MLXSW_AFA_ONE_ACTION_LEN 32
@@ -690,6 +760,16 @@ MLXSW_ITEM32(afa, trapdisc, forward_action, 0x00, 0, 4);
  */
 MLXSW_ITEM32(afa, trapdisc, trap_id, 0x04, 0, 9);
 
+/* afa_trapdisc_mirror_agent
+ * Mirror agent.
+ */
+MLXSW_ITEM32(afa, trapdisc, mirror_agent, 0x08, 29, 3);
+
+/* afa_trapdisc_mirror_enable
+ * Mirror enable.
+ */
+MLXSW_ITEM32(afa, trapdisc, mirror_enable, 0x08, 24, 1);
+
 static inline void
 mlxsw_afa_trapdisc_pack(char *payload,
 			enum mlxsw_afa_trapdisc_trap_action trap_action,
@@ -699,6 +779,14 @@ mlxsw_afa_trapdisc_pack(char *payload,
 	mlxsw_afa_trapdisc_trap_action_set(payload, trap_action);
 	mlxsw_afa_trapdisc_forward_action_set(payload, forward_action);
 	mlxsw_afa_trapdisc_trap_id_set(payload, trap_id);
+}
+
+static inline void
+mlxsw_afa_trapdisc_mirror_pack(char *payload, bool mirror_enable,
+			       u8 mirror_agent)
+{
+	mlxsw_afa_trapdisc_mirror_enable_set(payload, mirror_enable);
+	mlxsw_afa_trapdisc_mirror_agent_set(payload, mirror_agent);
 }
 
 int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block)
@@ -745,6 +833,104 @@ int mlxsw_afa_block_append_trap_and_forward(struct mlxsw_afa_block *block,
 	return 0;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_trap_and_forward);
+
+struct mlxsw_afa_mirror {
+	struct mlxsw_afa_resource resource;
+	int span_id;
+	u8 local_in_port;
+	u8 local_out_port;
+	bool ingress;
+};
+
+static void
+mlxsw_afa_mirror_destroy(struct mlxsw_afa_block *block,
+			 struct mlxsw_afa_mirror *mirror)
+{
+	block->afa->ops->mirror_del(block->afa->ops_priv,
+				    mirror->local_in_port,
+				    mirror->local_out_port,
+				    mirror->ingress);
+	kfree(mirror);
+}
+
+static void
+mlxsw_afa_mirror_destructor(struct mlxsw_afa_block *block,
+			    struct mlxsw_afa_resource *resource)
+{
+	struct mlxsw_afa_mirror *mirror;
+
+	mirror = container_of(resource, struct mlxsw_afa_mirror, resource);
+	mlxsw_afa_mirror_destroy(block, mirror);
+}
+
+static struct mlxsw_afa_mirror *
+mlxsw_afa_mirror_create(struct mlxsw_afa_block *block,
+			u8 local_in_port, u8 local_out_port,
+			bool ingress)
+{
+	struct mlxsw_afa_mirror *mirror;
+	int err;
+
+	mirror = kzalloc(sizeof(*mirror), GFP_KERNEL);
+	if (!mirror)
+		return ERR_PTR(-ENOMEM);
+
+	err = block->afa->ops->mirror_add(block->afa->ops_priv,
+					  local_in_port, local_out_port,
+					  ingress, &mirror->span_id);
+	if (err)
+		goto err_mirror_add;
+
+	mirror->ingress = ingress;
+	mirror->local_out_port = local_out_port;
+	mirror->local_in_port = local_in_port;
+	mirror->resource.destructor = mlxsw_afa_mirror_destructor;
+	mlxsw_afa_resource_add(block, &mirror->resource);
+	return mirror;
+
+err_mirror_add:
+	kfree(mirror);
+	return ERR_PTR(err);
+}
+
+static int
+mlxsw_afa_block_append_allocated_mirror(struct mlxsw_afa_block *block,
+					u8 mirror_agent)
+{
+	char *act = mlxsw_afa_block_append_action(block,
+						  MLXSW_AFA_TRAPDISC_CODE,
+						  MLXSW_AFA_TRAPDISC_SIZE);
+	if (!act)
+		return -ENOBUFS;
+	mlxsw_afa_trapdisc_pack(act, MLXSW_AFA_TRAPDISC_TRAP_ACTION_NOP,
+				MLXSW_AFA_TRAPDISC_FORWARD_ACTION_FORWARD, 0);
+	mlxsw_afa_trapdisc_mirror_pack(act, true, mirror_agent);
+	return 0;
+}
+
+int
+mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block,
+			      u8 local_in_port, u8 local_out_port, bool ingress)
+{
+	struct mlxsw_afa_mirror *mirror;
+	int err;
+
+	mirror = mlxsw_afa_mirror_create(block, local_in_port, local_out_port,
+					 ingress);
+	if (IS_ERR(mirror))
+		return PTR_ERR(mirror);
+
+	err = mlxsw_afa_block_append_allocated_mirror(block, mirror->span_id);
+	if (err)
+		goto err_append_allocated_mirror;
+
+	return 0;
+
+err_append_allocated_mirror:
+	mlxsw_afa_mirror_destroy(block, mirror);
+	return err;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_mirror);
 
 /* Forwarding Action
  * -----------------
@@ -853,17 +1039,42 @@ mlxsw_afa_polcnt_pack(char *payload,
 	mlxsw_afa_polcnt_counter_index_set(payload, counter_index);
 }
 
-int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
-				   u32 counter_index)
+int mlxsw_afa_block_append_allocated_counter(struct mlxsw_afa_block *block,
+					     u32 counter_index)
 {
-	char *act = mlxsw_afa_block_append_action(block,
-						  MLXSW_AFA_POLCNT_CODE,
+	char *act = mlxsw_afa_block_append_action(block, MLXSW_AFA_POLCNT_CODE,
 						  MLXSW_AFA_POLCNT_SIZE);
 	if (!act)
 		return -ENOBUFS;
 	mlxsw_afa_polcnt_pack(act, MLXSW_AFA_POLCNT_COUNTER_SET_TYPE_PACKETS_BYTES,
 			      counter_index);
 	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_allocated_counter);
+
+int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
+				   u32 *p_counter_index)
+{
+	struct mlxsw_afa_counter *counter;
+	u32 counter_index;
+	int err;
+
+	counter = mlxsw_afa_counter_create(block);
+	if (IS_ERR(counter))
+		return PTR_ERR(counter);
+	counter_index = counter->counter_index;
+
+	err = mlxsw_afa_block_append_allocated_counter(block, counter_index);
+	if (err)
+		goto err_append_allocated_counter;
+
+	if (p_counter_index)
+		*p_counter_index = counter_index;
+	return 0;
+
+err_append_allocated_counter:
+	mlxsw_afa_counter_destroy(block, counter);
+	return err;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_counter);
 

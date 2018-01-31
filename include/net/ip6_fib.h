@@ -129,6 +129,8 @@ struct rt6_exception {
 
 struct rt6_info {
 	struct dst_entry		dst;
+	struct rt6_info __rcu		*rt6_next;
+	struct rt6_info			*from;
 
 	/*
 	 * Tail elements of dst_entry (__refcnt etc.)
@@ -147,6 +149,7 @@ struct rt6_info {
 	 */
 	struct list_head		rt6i_siblings;
 	unsigned int			rt6i_nsiblings;
+	atomic_t			rt6i_nh_upper_bound;
 
 	atomic_t			rt6i_ref;
 
@@ -168,19 +171,21 @@ struct rt6_info {
 	u32				rt6i_metric;
 	u32				rt6i_pmtu;
 	/* more non-fragment space at head required */
+	int				rt6i_nh_weight;
 	unsigned short			rt6i_nfheader_len;
 	u8				rt6i_protocol;
 	u8				exception_bucket_flushed:1,
-					unused:7;
+					should_flush:1,
+					unused:6;
 };
 
 #define for_each_fib6_node_rt_rcu(fn)					\
 	for (rt = rcu_dereference((fn)->leaf); rt;			\
-	     rt = rcu_dereference(rt->dst.rt6_next))
+	     rt = rcu_dereference(rt->rt6_next))
 
 #define for_each_fib6_walker_rt(w)					\
 	for (rt = (w)->leaf; rt;					\
-	     rt = rcu_dereference_protected(rt->dst.rt6_next, 1))
+	     rt = rcu_dereference_protected(rt->rt6_next, 1))
 
 static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
 {
@@ -203,11 +208,9 @@ static inline void rt6_update_expires(struct rt6_info *rt0, int timeout)
 {
 	struct rt6_info *rt;
 
-	for (rt = rt0; rt && !(rt->rt6i_flags & RTF_EXPIRES);
-	     rt = (struct rt6_info *)rt->dst.from);
+	for (rt = rt0; rt && !(rt->rt6i_flags & RTF_EXPIRES); rt = rt->from);
 	if (rt && rt != rt0)
 		rt0->dst.expires = rt->dst.expires;
-
 	dst_set_expires(&rt0->dst, timeout);
 	rt0->rt6i_flags |= RTF_EXPIRES;
 }
@@ -242,8 +245,8 @@ static inline u32 rt6_get_cookie(const struct rt6_info *rt)
 	u32 cookie = 0;
 
 	if (rt->rt6i_flags & RTF_PCPU ||
-	    (unlikely(!list_empty(&rt->rt6i_uncached)) && rt->dst.from))
-		rt = (struct rt6_info *)(rt->dst.from);
+	    (unlikely(!list_empty(&rt->rt6i_uncached)) && rt->from))
+		rt = rt->from;
 
 	rt6_get_cookie_safe(rt, &cookie);
 
@@ -404,6 +407,7 @@ unsigned int fib6_tables_seq_read(struct net *net);
 int fib6_tables_dump(struct net *net, struct notifier_block *nb);
 
 void fib6_update_sernum(struct rt6_info *rt);
+void fib6_update_sernum_upto_root(struct net *net, struct rt6_info *rt);
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 int fib6_rules_init(void);

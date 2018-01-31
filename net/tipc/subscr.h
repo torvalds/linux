@@ -71,7 +71,7 @@ int tipc_subscrp_check_overlap(struct tipc_name_seq *seq, u32 found_lower,
 			       u32 found_upper);
 void tipc_subscrp_report_overlap(struct tipc_subscription *sub,
 				 u32 found_lower, u32 found_upper, u32 event,
-				 u32 port_ref, u32 node, int must);
+				 u32 port_ref, u32 node, u32 scope, int must);
 void tipc_subscrp_convert_seq(struct tipc_name_seq *in, int swap,
 			      struct tipc_name_seq *out);
 u32 tipc_subscrp_convert_seq_type(u32 type, int swap);

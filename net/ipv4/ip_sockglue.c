@@ -808,6 +808,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 	{
 		struct net_device *dev = NULL;
 		int ifindex;
+		int midx;
 
 		if (optlen != sizeof(int))
 			goto e_inval;
@@ -823,10 +824,13 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		err = -EADDRNOTAVAIL;
 		if (!dev)
 			break;
+
+		midx = l3mdev_master_ifindex(dev);
 		dev_put(dev);
 
 		err = -EINVAL;
-		if (sk->sk_bound_dev_if)
+		if (sk->sk_bound_dev_if &&
+		    (!midx || midx != sk->sk_bound_dev_if))
 			break;
 
 		inet->uc_index = ifindex;

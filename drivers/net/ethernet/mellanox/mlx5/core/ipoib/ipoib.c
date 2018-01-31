@@ -41,7 +41,6 @@
 static int mlx5i_open(struct net_device *netdev);
 static int mlx5i_close(struct net_device *netdev);
 static int mlx5i_change_mtu(struct net_device *netdev, int new_mtu);
-static int mlx5i_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 
 static const struct net_device_ops mlx5i_netdev_ops = {
 	.ndo_open                = mlx5i_open,
@@ -242,7 +241,8 @@ static void mlx5i_cleanup_tx(struct mlx5e_priv *priv)
 
 static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
 {
-	int err;
+	struct ttc_params ttc_params = {};
+	int tt, err;
 
 	priv->fs.ns = mlx5_get_flow_namespace(priv->mdev,
 					       MLX5_FLOW_NAMESPACE_KERNEL);
@@ -257,14 +257,23 @@ static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
 		priv->netdev->hw_features &= ~NETIF_F_NTUPLE;
 	}
 
-	err = mlx5e_create_inner_ttc_table(priv);
+	mlx5e_set_ttc_basic_params(priv, &ttc_params);
+	mlx5e_set_inner_ttc_ft_params(&ttc_params);
+	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
+		ttc_params.indir_tirn[tt] = priv->inner_indir_tir[tt].tirn;
+
+	err = mlx5e_create_inner_ttc_table(priv, &ttc_params, &priv->fs.inner_ttc);
 	if (err) {
 		netdev_err(priv->netdev, "Failed to create inner ttc table, err=%d\n",
 			   err);
 		goto err_destroy_arfs_tables;
 	}
 
-	err = mlx5e_create_ttc_table(priv);
+	mlx5e_set_ttc_ft_params(&ttc_params);
+	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
+		ttc_params.indir_tirn[tt] = priv->indir_tir[tt].tirn;
+
+	err = mlx5e_create_ttc_table(priv, &ttc_params, &priv->fs.ttc);
 	if (err) {
 		netdev_err(priv->netdev, "Failed to create ttc table, err=%d\n",
 			   err);
@@ -274,7 +283,7 @@ static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
 	return 0;
 
 err_destroy_inner_ttc_table:
-	mlx5e_destroy_inner_ttc_table(priv);
+	mlx5e_destroy_inner_ttc_table(priv, &priv->fs.inner_ttc);
 err_destroy_arfs_tables:
 	mlx5e_arfs_destroy_tables(priv);
 
@@ -283,8 +292,8 @@ err_destroy_arfs_tables:
 
 static void mlx5i_destroy_flow_steering(struct mlx5e_priv *priv)
 {
-	mlx5e_destroy_ttc_table(priv);
-	mlx5e_destroy_inner_ttc_table(priv);
+	mlx5e_destroy_ttc_table(priv, &priv->fs.ttc);
+	mlx5e_destroy_inner_ttc_table(priv, &priv->fs.inner_ttc);
 	mlx5e_arfs_destroy_tables(priv);
 }
 
@@ -398,7 +407,7 @@ int mlx5i_dev_init(struct net_device *dev)
 	return 0;
 }
 
-static int mlx5i_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+int mlx5i_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(dev);
 
@@ -486,7 +495,7 @@ static int mlx5i_close(struct net_device *netdev)
 	mlx5_fs_remove_rx_underlay_qpn(mdev, ipriv->qp.qpn);
 	mlx5i_uninit_underlay_qp(epriv);
 	mlx5e_deactivate_priv_channels(epriv);
-	mlx5e_close_channels(&epriv->channels);;
+	mlx5e_close_channels(&epriv->channels);
 unlock:
 	mutex_unlock(&epriv->state_lock);
 	return 0;

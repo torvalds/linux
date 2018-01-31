@@ -18,11 +18,14 @@
 #include "t4_regs.h"
 #include "cxgb4.h"
 #include "cxgb4_cudbg.h"
-#include "cudbg_entity.h"
+#include "cudbg_zlib.h"
 
 static const struct cxgb4_collect_entity cxgb4_collect_mem_dump[] = {
 	{ CUDBG_EDC0, cudbg_collect_edc0_meminfo },
 	{ CUDBG_EDC1, cudbg_collect_edc1_meminfo },
+	{ CUDBG_MC0, cudbg_collect_mc0_meminfo },
+	{ CUDBG_MC1, cudbg_collect_mc1_meminfo },
+	{ CUDBG_HMA, cudbg_collect_hma_meminfo },
 };
 
 static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
@@ -53,6 +56,7 @@ static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_SGE_INDIRECT, cudbg_collect_sge_indirect },
 	{ CUDBG_ULPRX_LA, cudbg_collect_ulprx_la },
 	{ CUDBG_TP_LA, cudbg_collect_tp_la },
+	{ CUDBG_MEMINFO, cudbg_collect_meminfo },
 	{ CUDBG_CIM_PIF_LA, cudbg_collect_cim_pif_la },
 	{ CUDBG_CLK, cudbg_collect_clk_info },
 	{ CUDBG_CIM_OBQ_RXQ0, cudbg_collect_obq_sge_rx_q0 },
@@ -60,6 +64,7 @@ static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_PCIE_INDIRECT, cudbg_collect_pcie_indirect },
 	{ CUDBG_PM_INDIRECT, cudbg_collect_pm_indirect },
 	{ CUDBG_TID_INFO, cudbg_collect_tid },
+	{ CUDBG_PCIE_CONFIG, cudbg_collect_pcie_config },
 	{ CUDBG_DUMP_CONTEXT, cudbg_collect_dump_context },
 	{ CUDBG_MPS_TCAM, cudbg_collect_mps_tcam },
 	{ CUDBG_VPD_DATA, cudbg_collect_vpd_data },
@@ -158,8 +163,24 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		}
 		len = cudbg_mbytes_to_bytes(len);
 		break;
+	case CUDBG_MC0:
+		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
+		if (value & EXT_MEM0_ENABLE_F) {
+			value = t4_read_reg(adap, MA_EXT_MEMORY0_BAR_A);
+			len = EXT_MEM0_SIZE_G(value);
+		}
+		len = cudbg_mbytes_to_bytes(len);
+		break;
+	case CUDBG_MC1:
+		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
+		if (value & EXT_MEM1_ENABLE_F) {
+			value = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
+			len = EXT_MEM1_SIZE_G(value);
+		}
+		len = cudbg_mbytes_to_bytes(len);
+		break;
 	case CUDBG_RSS:
-		len = RSS_NENTRIES * sizeof(u16);
+		len = t4_chip_rss_size(adap) * sizeof(u16);
 		break;
 	case CUDBG_RSS_VF_CONF:
 		len = adap->params.arch.vfcount *
@@ -201,6 +222,9 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 	case CUDBG_TP_LA:
 		len = sizeof(struct cudbg_tp_la) + TPLA_SIZE * sizeof(u64);
 		break;
+	case CUDBG_MEMINFO:
+		len = sizeof(struct cudbg_meminfo);
+		break;
 	case CUDBG_CIM_PIF_LA:
 		len = sizeof(struct cudbg_cim_pif_la);
 		len += 2 * CIM_PIFLA_SIZE * 6 * sizeof(u32);
@@ -218,6 +242,9 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		break;
 	case CUDBG_TID_INFO:
 		len = sizeof(struct cudbg_tid_info_region_rev1);
+		break;
+	case CUDBG_PCIE_CONFIG:
+		len = sizeof(u32) * CUDBG_NUM_PCIE_CONFIG_REGS;
 		break;
 	case CUDBG_DUMP_CONTEXT:
 		len = cudbg_dump_context_size(adap);
@@ -248,7 +275,13 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		len = sizeof(struct cudbg_ulptx_la);
 		break;
 	case CUDBG_UP_CIM_INDIRECT:
-		n = sizeof(t5_up_cim_reg_array) / (IREG_NUM_ELEM * sizeof(u32));
+		n = 0;
+		if (is_t5(adap->params.chip))
+			n = sizeof(t5_up_cim_reg_array) /
+			    ((IREG_NUM_ELEM + 1) * sizeof(u32));
+		else if (is_t6(adap->params.chip))
+			n = sizeof(t6_up_cim_reg_array) /
+			    ((IREG_NUM_ELEM + 1) * sizeof(u32));
 		len = sizeof(struct ireg_buf) * n;
 		break;
 	case CUDBG_PBT_TABLE:
@@ -264,6 +297,17 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 			len = sizeof(struct ireg_buf) * n;
 		}
 		break;
+	case CUDBG_HMA:
+		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
+		if (value & HMA_MUX_F) {
+			/* In T6, there's no MC1.  So, HMA shares MC1
+			 * address space.
+			 */
+			value = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
+			len = EXT_MEM1_SIZE_G(value);
+		}
+		len = cudbg_mbytes_to_bytes(len);
+		break;
 	default:
 		break;
 	}
@@ -275,6 +319,7 @@ u32 cxgb4_get_dump_length(struct adapter *adap, u32 flag)
 {
 	u32 i, entity;
 	u32 len = 0;
+	u32 wsize;
 
 	if (flag & CXGB4_ETH_DUMP_HW) {
 		for (i = 0; i < ARRAY_SIZE(cxgb4_collect_hw_dump); i++) {
@@ -290,6 +335,11 @@ u32 cxgb4_get_dump_length(struct adapter *adap, u32 flag)
 		}
 	}
 
+	/* If compression is enabled, a smaller destination buffer is enough */
+	wsize = cudbg_get_workspace_size();
+	if (wsize && len > CUDBG_DUMP_BUFF_SIZE)
+		len = CUDBG_DUMP_BUFF_SIZE;
+
 	return len;
 }
 
@@ -298,21 +348,13 @@ static void cxgb4_cudbg_collect_entity(struct cudbg_init *pdbg_init,
 				       const struct cxgb4_collect_entity *e_arr,
 				       u32 arr_size, void *buf, u32 *tot_size)
 {
-	struct adapter *adap = pdbg_init->adap;
 	struct cudbg_error cudbg_err = { 0 };
 	struct cudbg_entity_hdr *entity_hdr;
-	u32 entity_size, i;
-	u32 total_size = 0;
+	u32 i, total_size = 0;
 	int ret;
 
 	for (i = 0; i < arr_size; i++) {
 		const struct cxgb4_collect_entity *e = &e_arr[i];
-
-		/* Skip entities that won't fit in output buffer */
-		entity_size = cxgb4_get_entity_length(adap, e->entity);
-		if (entity_size >
-		    pdbg_init->outbuf_size - *tot_size - total_size)
-			continue;
 
 		entity_hdr = cudbg_get_entity_hdr(buf, e->entity);
 		entity_hdr->entity_type = e->entity;
@@ -339,16 +381,40 @@ static void cxgb4_cudbg_collect_entity(struct cudbg_init *pdbg_init,
 	*tot_size += total_size;
 }
 
+static int cudbg_alloc_compress_buff(struct cudbg_init *pdbg_init)
+{
+	u32 workspace_size;
+
+	workspace_size = cudbg_get_workspace_size();
+	pdbg_init->compress_buff = vzalloc(CUDBG_COMPRESS_BUFF_SIZE +
+					   workspace_size);
+	if (!pdbg_init->compress_buff)
+		return -ENOMEM;
+
+	pdbg_init->compress_buff_size = CUDBG_COMPRESS_BUFF_SIZE;
+	pdbg_init->workspace = (u8 *)pdbg_init->compress_buff +
+			       CUDBG_COMPRESS_BUFF_SIZE - workspace_size;
+	return 0;
+}
+
+static void cudbg_free_compress_buff(struct cudbg_init *pdbg_init)
+{
+	if (pdbg_init->compress_buff)
+		vfree(pdbg_init->compress_buff);
+}
+
 int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 			u32 flag)
 {
-	struct cudbg_init cudbg_init = { 0 };
 	struct cudbg_buffer dbg_buff = { 0 };
 	u32 size, min_size, total_size = 0;
+	struct cudbg_init cudbg_init;
 	struct cudbg_hdr *cudbg_hdr;
+	int rc;
 
 	size = *buf_size;
 
+	memset(&cudbg_init, 0, sizeof(struct cudbg_init));
 	cudbg_init.adap = adap;
 	cudbg_init.outbuf = buf;
 	cudbg_init.outbuf_size = size;
@@ -365,7 +431,6 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 	cudbg_hdr->max_entities = CUDBG_MAX_ENTITY;
 	cudbg_hdr->chip_ver = adap->params.chip;
 	cudbg_hdr->dump_type = CUDBG_DUMP_TYPE_MINI;
-	cudbg_hdr->compress_type = CUDBG_COMPRESSION_NONE;
 
 	min_size = sizeof(struct cudbg_hdr) +
 		   sizeof(struct cudbg_entity_hdr) *
@@ -373,6 +438,24 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 	if (size < min_size)
 		return -ENOMEM;
 
+	rc = cudbg_get_workspace_size();
+	if (rc) {
+		/* Zlib available.  So, use zlib deflate */
+		cudbg_init.compress_type = CUDBG_COMPRESSION_ZLIB;
+		rc = cudbg_alloc_compress_buff(&cudbg_init);
+		if (rc) {
+			/* Ignore error and continue without compression. */
+			dev_warn(adap->pdev_dev,
+				 "Fail allocating compression buffer ret: %d.  Continuing without compression.\n",
+				 rc);
+			cudbg_init.compress_type = CUDBG_COMPRESSION_NONE;
+			rc = 0;
+		}
+	} else {
+		cudbg_init.compress_type = CUDBG_COMPRESSION_NONE;
+	}
+
+	cudbg_hdr->compress_type = cudbg_init.compress_type;
 	dbg_buff.offset += min_size;
 	total_size = dbg_buff.offset;
 
@@ -390,8 +473,12 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 					   buf,
 					   &total_size);
 
+	cudbg_free_compress_buff(&cudbg_init);
 	cudbg_hdr->data_len = total_size;
-	*buf_size = total_size;
+	if (cudbg_init.compress_type != CUDBG_COMPRESSION_NONE)
+		*buf_size = size;
+	else
+		*buf_size = total_size;
 	return 0;
 }
 

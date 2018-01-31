@@ -59,6 +59,7 @@
 #include <linux/mm.h>
 #include <linux/ethtool.h>
 #include <linux/proc_fs.h>
+#include <linux/if_arp.h>
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -1177,6 +1178,9 @@ static int build_hdr_data(u8 hdr_field, struct sk_buff *skb,
 			hdr_len[2] = tcp_hdrlen(skb);
 		else if (ipv6_hdr(skb)->nexthdr == IPPROTO_UDP)
 			hdr_len[2] = sizeof(struct udphdr);
+	} else if (skb->protocol == htons(ETH_P_ARP)) {
+		hdr_len[1] = arp_hdr_len(skb->dev);
+		hdr_len[2] = 0;
 	}
 
 	memset(hdr_data, 0, 120);
@@ -1412,7 +1416,8 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	/* determine if l2/3/4 headers are sent to firmware */
 	if ((*hdrs >> 7) & 1 &&
 	    (skb->protocol == htons(ETH_P_IP) ||
-	     skb->protocol == htons(ETH_P_IPV6))) {
+	     skb->protocol == htons(ETH_P_IPV6) ||
+	     skb->protocol == htons(ETH_P_ARP))) {
 		build_hdr_descs_arr(tx_buff, &num_entries, *hdrs);
 		tx_crq.v1.n_crq_elem = num_entries;
 		tx_buff->indir_arr[0] = tx_crq;
@@ -1543,15 +1548,19 @@ static int __ibmvnic_set_mac(struct net_device *netdev, struct sockaddr *p)
 	crq.change_mac_addr.first = IBMVNIC_CRQ_CMD;
 	crq.change_mac_addr.cmd = CHANGE_MAC_ADDR;
 	ether_addr_copy(&crq.change_mac_addr.mac_addr[0], addr->sa_data);
+
+	init_completion(&adapter->fw_done);
 	ibmvnic_send_crq(adapter, &crq);
+	wait_for_completion(&adapter->fw_done);
 	/* netdev->dev_addr is changed in handle_change_mac_rsp function */
-	return 0;
+	return adapter->fw_done_rc ? -EIO : 0;
 }
 
 static int ibmvnic_set_mac(struct net_device *netdev, void *p)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	struct sockaddr *addr = p;
+	int rc;
 
 	if (adapter->state == VNIC_PROBED) {
 		memcpy(&adapter->desired.mac, addr, sizeof(struct sockaddr));
@@ -1559,9 +1568,9 @@ static int ibmvnic_set_mac(struct net_device *netdev, void *p)
 		return 0;
 	}
 
-	__ibmvnic_set_mac(netdev, addr);
+	rc = __ibmvnic_set_mac(netdev, addr);
 
-	return 0;
+	return rc;
 }
 
 /**
@@ -2483,6 +2492,12 @@ static irqreturn_t ibmvnic_interrupt_rx(int irq, void *instance)
 {
 	struct ibmvnic_sub_crq_queue *scrq = instance;
 	struct ibmvnic_adapter *adapter = scrq->adapter;
+
+	/* When booting a kdump kernel we can hit pending interrupts
+	 * prior to completing driver initialization.
+	 */
+	if (unlikely(adapter->state != VNIC_OPEN))
+		return IRQ_NONE;
 
 	adapter->rx_stats_buffers[scrq->scrq_num].interrupts++;
 
@@ -3558,8 +3573,8 @@ static void handle_error_indication(union ibmvnic_crq *crq,
 		ibmvnic_reset(adapter, VNIC_RESET_NON_FATAL);
 }
 
-static void handle_change_mac_rsp(union ibmvnic_crq *crq,
-				  struct ibmvnic_adapter *adapter)
+static int handle_change_mac_rsp(union ibmvnic_crq *crq,
+				 struct ibmvnic_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct device *dev = &adapter->vdev->dev;
@@ -3568,10 +3583,13 @@ static void handle_change_mac_rsp(union ibmvnic_crq *crq,
 	rc = crq->change_mac_addr_rsp.rc.code;
 	if (rc) {
 		dev_err(dev, "Error %ld in CHANGE_MAC_ADDR_RSP\n", rc);
-		return;
+		goto out;
 	}
 	memcpy(netdev->dev_addr, &crq->change_mac_addr_rsp.mac_addr[0],
 	       ETH_ALEN);
+out:
+	complete(&adapter->fw_done);
+	return rc;
 }
 
 static void handle_request_cap_rsp(union ibmvnic_crq *crq,
@@ -4031,7 +4049,7 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 		break;
 	case CHANGE_MAC_ADDR_RSP:
 		netdev_dbg(netdev, "Got MAC address change Response\n");
-		handle_change_mac_rsp(crq, adapter);
+		adapter->fw_done_rc = handle_change_mac_rsp(crq, adapter);
 		break;
 	case ERROR_INDICATION:
 		netdev_dbg(netdev, "Got Error Indication\n");
@@ -4335,7 +4353,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	}
 
 	netdev = alloc_etherdev_mq(sizeof(struct ibmvnic_adapter),
-				   IBMVNIC_MAX_TX_QUEUES);
+				   IBMVNIC_MAX_QUEUES);
 	if (!netdev)
 		return -ENOMEM;
 

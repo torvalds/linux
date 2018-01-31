@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Qualcomm Atheros, Inc. All rights reserved.
+ * Copyright (c) 2016-2017 Qualcomm Atheros, Inc. All rights reserved.
  * Copyright (c) 2015 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any

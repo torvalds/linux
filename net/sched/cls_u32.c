@@ -87,6 +87,7 @@ struct tc_u_hnode {
 	unsigned int		divisor;
 	struct idr		handle_idr;
 	struct rcu_head		rcu;
+	u32			flags;
 	/* The 'ht' field MUST be the last field in structure to allow for
 	 * more entries allocated at end of structure.
 	 */
@@ -486,12 +487,13 @@ static int u32_delete_key(struct tcf_proto *tp, struct tc_u_knode *key)
 	return 0;
 }
 
-static void u32_clear_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h)
+static void u32_clear_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
+			       struct netlink_ext_ack *extack)
 {
 	struct tcf_block *block = tp->chain->block;
 	struct tc_cls_u32_offload cls_u32 = {};
 
-	tc_cls_common_offload_init(&cls_u32.common, tp);
+	tc_cls_common_offload_init(&cls_u32.common, tp, h->flags, extack);
 	cls_u32.command = TC_CLSU32_DELETE_HNODE;
 	cls_u32.hnode.divisor = h->divisor;
 	cls_u32.hnode.handle = h->handle;
@@ -501,7 +503,7 @@ static void u32_clear_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h)
 }
 
 static int u32_replace_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
-				u32 flags)
+				u32 flags, struct netlink_ext_ack *extack)
 {
 	struct tcf_block *block = tp->chain->block;
 	struct tc_cls_u32_offload cls_u32 = {};
@@ -509,7 +511,7 @@ static int u32_replace_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
 	bool offloaded = false;
 	int err;
 
-	tc_cls_common_offload_init(&cls_u32.common, tp);
+	tc_cls_common_offload_init(&cls_u32.common, tp, flags, extack);
 	cls_u32.command = TC_CLSU32_NEW_HNODE;
 	cls_u32.hnode.divisor = h->divisor;
 	cls_u32.hnode.handle = h->handle;
@@ -517,7 +519,7 @@ static int u32_replace_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
 
 	err = tc_setup_cb_call(block, NULL, TC_SETUP_CLSU32, &cls_u32, skip_sw);
 	if (err < 0) {
-		u32_clear_hw_hnode(tp, h);
+		u32_clear_hw_hnode(tp, h, NULL);
 		return err;
 	} else if (err > 0) {
 		offloaded = true;
@@ -529,27 +531,29 @@ static int u32_replace_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
 	return 0;
 }
 
-static void u32_remove_hw_knode(struct tcf_proto *tp, u32 handle)
+static void u32_remove_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
+				struct netlink_ext_ack *extack)
 {
 	struct tcf_block *block = tp->chain->block;
 	struct tc_cls_u32_offload cls_u32 = {};
 
-	tc_cls_common_offload_init(&cls_u32.common, tp);
+	tc_cls_common_offload_init(&cls_u32.common, tp, n->flags, extack);
 	cls_u32.command = TC_CLSU32_DELETE_KNODE;
-	cls_u32.knode.handle = handle;
+	cls_u32.knode.handle = n->handle;
 
 	tc_setup_cb_call(block, NULL, TC_SETUP_CLSU32, &cls_u32, false);
+	tcf_block_offload_dec(block, &n->flags);
 }
 
 static int u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
-				u32 flags)
+				u32 flags, struct netlink_ext_ack *extack)
 {
 	struct tcf_block *block = tp->chain->block;
 	struct tc_cls_u32_offload cls_u32 = {};
 	bool skip_sw = tc_skip_sw(flags);
 	int err;
 
-	tc_cls_common_offload_init(&cls_u32.common, tp);
+	tc_cls_common_offload_init(&cls_u32.common, tp, flags, extack);
 	cls_u32.command = TC_CLSU32_REPLACE_KNODE;
 	cls_u32.knode.handle = n->handle;
 	cls_u32.knode.fshift = n->fshift;
@@ -567,10 +571,10 @@ static int u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 
 	err = tc_setup_cb_call(block, NULL, TC_SETUP_CLSU32, &cls_u32, skip_sw);
 	if (err < 0) {
-		u32_remove_hw_knode(tp, n->handle);
+		u32_remove_hw_knode(tp, n, NULL);
 		return err;
 	} else if (err > 0) {
-		n->flags |= TCA_CLS_FLAGS_IN_HW;
+		tcf_block_offload_inc(block, &n->flags);
 	}
 
 	if (skip_sw && !(n->flags & TCA_CLS_FLAGS_IN_HW))
@@ -579,7 +583,8 @@ static int u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 	return 0;
 }
 
-static void u32_clear_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht)
+static void u32_clear_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht,
+			    struct netlink_ext_ack *extack)
 {
 	struct tc_u_knode *n;
 	unsigned int h;
@@ -589,7 +594,7 @@ static void u32_clear_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht)
 			RCU_INIT_POINTER(ht->ht[h],
 					 rtnl_dereference(n->next));
 			tcf_unbind_filter(tp, &n->res);
-			u32_remove_hw_knode(tp, n->handle);
+			u32_remove_hw_knode(tp, n, extack);
 			idr_remove_ext(&ht->handle_idr, n->handle);
 			if (tcf_exts_get_net(&n->exts))
 				call_rcu(&n->rcu, u32_delete_key_freepf_rcu);
@@ -599,7 +604,8 @@ static void u32_clear_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht)
 	}
 }
 
-static int u32_destroy_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht)
+static int u32_destroy_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht,
+			     struct netlink_ext_ack *extack)
 {
 	struct tc_u_common *tp_c = tp->data;
 	struct tc_u_hnode __rcu **hn;
@@ -607,14 +613,14 @@ static int u32_destroy_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht)
 
 	WARN_ON(ht->refcnt);
 
-	u32_clear_hnode(tp, ht);
+	u32_clear_hnode(tp, ht, extack);
 
 	hn = &tp_c->hlist;
 	for (phn = rtnl_dereference(*hn);
 	     phn;
 	     hn = &phn->next, phn = rtnl_dereference(*hn)) {
 		if (phn == ht) {
-			u32_clear_hw_hnode(tp, ht);
+			u32_clear_hw_hnode(tp, ht, extack);
 			idr_destroy(&ht->handle_idr);
 			idr_remove_ext(&tp_c->handle_idr, ht->handle);
 			RCU_INIT_POINTER(*hn, ht->next);
@@ -637,7 +643,7 @@ static bool ht_empty(struct tc_u_hnode *ht)
 	return true;
 }
 
-static void u32_destroy(struct tcf_proto *tp)
+static void u32_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct tc_u_common *tp_c = tp->data;
 	struct tc_u_hnode *root_ht = rtnl_dereference(tp->root);
@@ -645,7 +651,7 @@ static void u32_destroy(struct tcf_proto *tp)
 	WARN_ON(root_ht == NULL);
 
 	if (root_ht && --root_ht->refcnt == 0)
-		u32_destroy_hnode(tp, root_ht);
+		u32_destroy_hnode(tp, root_ht, extack);
 
 	if (--tp_c->refcnt == 0) {
 		struct tc_u_hnode *ht;
@@ -656,7 +662,7 @@ static void u32_destroy(struct tcf_proto *tp)
 		     ht;
 		     ht = rtnl_dereference(ht->next)) {
 			ht->refcnt--;
-			u32_clear_hnode(tp, ht);
+			u32_clear_hnode(tp, ht, extack);
 		}
 
 		while ((ht = rtnl_dereference(tp_c->hlist)) != NULL) {
@@ -671,7 +677,8 @@ static void u32_destroy(struct tcf_proto *tp)
 	tp->data = NULL;
 }
 
-static int u32_delete(struct tcf_proto *tp, void *arg, bool *last)
+static int u32_delete(struct tcf_proto *tp, void *arg, bool *last,
+		      struct netlink_ext_ack *extack)
 {
 	struct tc_u_hnode *ht = arg;
 	struct tc_u_hnode *root_ht = rtnl_dereference(tp->root);
@@ -682,18 +689,21 @@ static int u32_delete(struct tcf_proto *tp, void *arg, bool *last)
 		goto out;
 
 	if (TC_U32_KEY(ht->handle)) {
-		u32_remove_hw_knode(tp, ht->handle);
+		u32_remove_hw_knode(tp, (struct tc_u_knode *)ht, extack);
 		ret = u32_delete_key(tp, (struct tc_u_knode *)ht);
 		goto out;
 	}
 
-	if (root_ht == ht)
+	if (root_ht == ht) {
+		NL_SET_ERR_MSG_MOD(extack, "Not allowed to delete root node");
 		return -EINVAL;
+	}
 
 	if (ht->refcnt == 1) {
 		ht->refcnt--;
-		u32_destroy_hnode(tp, ht);
+		u32_destroy_hnode(tp, ht, extack);
 	} else {
+		NL_SET_ERR_MSG_MOD(extack, "Can not delete in-use filter");
 		return -EBUSY;
 	}
 
@@ -764,11 +774,12 @@ static const struct nla_policy u32_policy[TCA_U32_MAX + 1] = {
 static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 			 unsigned long base, struct tc_u_hnode *ht,
 			 struct tc_u_knode *n, struct nlattr **tb,
-			 struct nlattr *est, bool ovr)
+			 struct nlattr *est, bool ovr,
+			 struct netlink_ext_ack *extack)
 {
 	int err;
 
-	err = tcf_exts_validate(net, tp, tb, est, &n->exts, ovr);
+	err = tcf_exts_validate(net, tp, tb, est, &n->exts, ovr, extack);
 	if (err < 0)
 		return err;
 
@@ -776,14 +787,18 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 		u32 handle = nla_get_u32(tb[TCA_U32_LINK]);
 		struct tc_u_hnode *ht_down = NULL, *ht_old;
 
-		if (TC_U32_KEY(handle))
+		if (TC_U32_KEY(handle)) {
+			NL_SET_ERR_MSG_MOD(extack, "u32 Link handle must be a hash table");
 			return -EINVAL;
+		}
 
 		if (handle) {
 			ht_down = u32_lookup_ht(ht->tp_c, handle);
 
-			if (ht_down == NULL)
+			if (!ht_down) {
+				NL_SET_ERR_MSG_MOD(extack, "Link hash table not found");
 				return -EINVAL;
+			}
 			ht_down->refcnt++;
 		}
 
@@ -801,7 +816,7 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 #ifdef CONFIG_NET_CLS_IND
 	if (tb[TCA_U32_INDEV]) {
 		int ret;
-		ret = tcf_change_indev(net, tb[TCA_U32_INDEV]);
+		ret = tcf_change_indev(net, tb[TCA_U32_INDEV], extack);
 		if (ret < 0)
 			return -EINVAL;
 		n->ifindex = ret;
@@ -892,7 +907,8 @@ static struct tc_u_knode *u32_init_knode(struct tcf_proto *tp,
 
 static int u32_change(struct net *net, struct sk_buff *in_skb,
 		      struct tcf_proto *tp, unsigned long base, u32 handle,
-		      struct nlattr **tca, void **arg, bool ovr)
+		      struct nlattr **tca, void **arg, bool ovr,
+		      struct netlink_ext_ack *extack)
 {
 	struct tc_u_common *tp_c = tp->data;
 	struct tc_u_hnode *ht;
@@ -906,28 +922,40 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	size_t size;
 #endif
 
-	if (opt == NULL)
-		return handle ? -EINVAL : 0;
+	if (!opt) {
+		if (handle) {
+			NL_SET_ERR_MSG_MOD(extack, "Filter handle requires options");
+			return -EINVAL;
+		} else {
+			return 0;
+		}
+	}
 
-	err = nla_parse_nested(tb, TCA_U32_MAX, opt, u32_policy, NULL);
+	err = nla_parse_nested(tb, TCA_U32_MAX, opt, u32_policy, extack);
 	if (err < 0)
 		return err;
 
 	if (tb[TCA_U32_FLAGS]) {
 		flags = nla_get_u32(tb[TCA_U32_FLAGS]);
-		if (!tc_flags_valid(flags))
+		if (!tc_flags_valid(flags)) {
+			NL_SET_ERR_MSG_MOD(extack, "Invalid filter flags");
 			return -EINVAL;
+		}
 	}
 
 	n = *arg;
 	if (n) {
 		struct tc_u_knode *new;
 
-		if (TC_U32_KEY(n->handle) == 0)
+		if (TC_U32_KEY(n->handle) == 0) {
+			NL_SET_ERR_MSG_MOD(extack, "Key node id cannot be zero");
 			return -EINVAL;
+		}
 
-		if (n->flags != flags)
+		if (n->flags != flags) {
+			NL_SET_ERR_MSG_MOD(extack, "Key node flags do not match passed flags");
 			return -EINVAL;
+		}
 
 		new = u32_init_knode(tp, n);
 		if (!new)
@@ -935,14 +963,14 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 
 		err = u32_set_parms(net, tp, base,
 				    rtnl_dereference(n->ht_up), new, tb,
-				    tca[TCA_RATE], ovr);
+				    tca[TCA_RATE], ovr, extack);
 
 		if (err) {
 			u32_destroy_key(tp, new, false);
 			return err;
 		}
 
-		err = u32_replace_hw_knode(tp, new, flags);
+		err = u32_replace_hw_knode(tp, new, flags, extack);
 		if (err) {
 			u32_destroy_key(tp, new, false);
 			return err;
@@ -961,10 +989,14 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	if (tb[TCA_U32_DIVISOR]) {
 		unsigned int divisor = nla_get_u32(tb[TCA_U32_DIVISOR]);
 
-		if (--divisor > 0x100)
+		if (--divisor > 0x100) {
+			NL_SET_ERR_MSG_MOD(extack, "Exceeded maximum 256 hash buckets");
 			return -EINVAL;
-		if (TC_U32_KEY(handle))
+		}
+		if (TC_U32_KEY(handle)) {
+			NL_SET_ERR_MSG_MOD(extack, "Divisor can only be used on a hash table");
 			return -EINVAL;
+		}
 		ht = kzalloc(sizeof(*ht) + divisor*sizeof(void *), GFP_KERNEL);
 		if (ht == NULL)
 			return -ENOBUFS;
@@ -988,8 +1020,9 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		ht->handle = handle;
 		ht->prio = tp->prio;
 		idr_init(&ht->handle_idr);
+		ht->flags = flags;
 
-		err = u32_replace_hw_hnode(tp, ht, flags);
+		err = u32_replace_hw_hnode(tp, ht, flags, extack);
 		if (err) {
 			idr_remove_ext(&tp_c->handle_idr, handle);
 			kfree(ht);
@@ -1010,20 +1043,26 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 			htid = ht->handle;
 		} else {
 			ht = u32_lookup_ht(tp->data, TC_U32_HTID(htid));
-			if (ht == NULL)
+			if (!ht) {
+				NL_SET_ERR_MSG_MOD(extack, "Specified hash table not found");
 				return -EINVAL;
+			}
 		}
 	} else {
 		ht = rtnl_dereference(tp->root);
 		htid = ht->handle;
 	}
 
-	if (ht->divisor < TC_U32_HASH(htid))
+	if (ht->divisor < TC_U32_HASH(htid)) {
+		NL_SET_ERR_MSG_MOD(extack, "Specified hash table buckets exceed configured value");
 		return -EINVAL;
+	}
 
 	if (handle) {
-		if (TC_U32_HTID(handle) && TC_U32_HTID(handle^htid))
+		if (TC_U32_HTID(handle) && TC_U32_HTID(handle ^ htid)) {
+			NL_SET_ERR_MSG_MOD(extack, "Handle specified hash table address mismatch");
 			return -EINVAL;
+		}
 		handle = htid | TC_U32_NODE(handle);
 		err = idr_alloc_ext(&ht->handle_idr, NULL, NULL,
 				    handle, handle + 1,
@@ -1034,6 +1073,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		handle = gen_new_kid(ht, htid);
 
 	if (tb[TCA_U32_SEL] == NULL) {
+		NL_SET_ERR_MSG_MOD(extack, "Selector not specified");
 		err = -EINVAL;
 		goto erridr;
 	}
@@ -1082,12 +1122,13 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	}
 #endif
 
-	err = u32_set_parms(net, tp, base, ht, n, tb, tca[TCA_RATE], ovr);
+	err = u32_set_parms(net, tp, base, ht, n, tb, tca[TCA_RATE], ovr,
+			    extack);
 	if (err == 0) {
 		struct tc_u_knode __rcu **ins;
 		struct tc_u_knode *pins;
 
-		err = u32_replace_hw_knode(tp, n, flags);
+		err = u32_replace_hw_knode(tp, n, flags, extack);
 		if (err)
 			goto errhw;
 

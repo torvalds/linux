@@ -271,16 +271,33 @@ static int rds_tcp_laddr_check(struct net *net, __be32 addr)
 	return -EADDRNOTAVAIL;
 }
 
+static void rds_tcp_conn_free(void *arg)
+{
+	struct rds_tcp_connection *tc = arg;
+	unsigned long flags;
+
+	rdsdebug("freeing tc %p\n", tc);
+
+	spin_lock_irqsave(&rds_tcp_conn_lock, flags);
+	if (!tc->t_tcp_node_detached)
+		list_del(&tc->t_tcp_node);
+	spin_unlock_irqrestore(&rds_tcp_conn_lock, flags);
+
+	kmem_cache_free(rds_tcp_conn_slab, tc);
+}
+
 static int rds_tcp_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 {
 	struct rds_tcp_connection *tc;
-	int i;
+	int i, j;
+	int ret = 0;
 
 	for (i = 0; i < RDS_MPATH_WORKERS; i++) {
 		tc = kmem_cache_alloc(rds_tcp_conn_slab, gfp);
-		if (!tc)
-			return -ENOMEM;
-
+		if (!tc) {
+			ret = -ENOMEM;
+			break;
+		}
 		mutex_init(&tc->t_conn_path_lock);
 		tc->t_sock = NULL;
 		tc->t_tinc = NULL;
@@ -291,26 +308,17 @@ static int rds_tcp_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 		tc->t_cpath = &conn->c_path[i];
 
 		spin_lock_irq(&rds_tcp_conn_lock);
+		tc->t_tcp_node_detached = false;
 		list_add_tail(&tc->t_tcp_node, &rds_tcp_conn_list);
 		spin_unlock_irq(&rds_tcp_conn_lock);
 		rdsdebug("rds_conn_path [%d] tc %p\n", i,
 			 conn->c_path[i].cp_transport_data);
 	}
-
-	return 0;
-}
-
-static void rds_tcp_conn_free(void *arg)
-{
-	struct rds_tcp_connection *tc = arg;
-	unsigned long flags;
-	rdsdebug("freeing tc %p\n", tc);
-
-	spin_lock_irqsave(&rds_tcp_conn_lock, flags);
-	list_del(&tc->t_tcp_node);
-	spin_unlock_irqrestore(&rds_tcp_conn_lock, flags);
-
-	kmem_cache_free(rds_tcp_conn_slab, tc);
+	if (ret) {
+		for (j = 0; j < i; j++)
+			rds_tcp_conn_free(conn->c_path[j].cp_transport_data);
+	}
+	return ret;
 }
 
 static bool list_has_conn(struct list_head *list, struct rds_connection *conn)
@@ -496,27 +504,6 @@ static struct pernet_operations rds_tcp_net_ops = {
 	.size = sizeof(struct rds_tcp_net),
 };
 
-/* explicitly send a RST on each socket, thereby releasing any socket refcnts
- * that may otherwise hold up netns deletion.
- */
-static void rds_tcp_conn_paths_destroy(struct rds_connection *conn)
-{
-	struct rds_conn_path *cp;
-	struct rds_tcp_connection *tc;
-	int i;
-	struct sock *sk;
-
-	for (i = 0; i < RDS_MPATH_WORKERS; i++) {
-		cp = &conn->c_path[i];
-		tc = cp->cp_transport_data;
-		if (!tc->t_sock)
-			continue;
-		sk = tc->t_sock->sk;
-		sk->sk_prot->disconnect(sk, 0);
-		tcp_done(sk);
-	}
-}
-
 static void rds_tcp_kill_sock(struct net *net)
 {
 	struct rds_tcp_connection *tc, *_tc;
@@ -528,18 +515,20 @@ static void rds_tcp_kill_sock(struct net *net)
 	rds_tcp_listen_stop(lsock, &rtn->rds_tcp_accept_w);
 	spin_lock_irq(&rds_tcp_conn_lock);
 	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
-		struct net *c_net = tc->t_cpath->cp_conn->c_net;
+		struct net *c_net = read_pnet(&tc->t_cpath->cp_conn->c_net);
 
 		if (net != c_net || !tc->t_sock)
 			continue;
-		if (!list_has_conn(&tmp_list, tc->t_cpath->cp_conn))
+		if (!list_has_conn(&tmp_list, tc->t_cpath->cp_conn)) {
 			list_move_tail(&tc->t_tcp_node, &tmp_list);
+		} else {
+			list_del(&tc->t_tcp_node);
+			tc->t_tcp_node_detached = true;
+		}
 	}
 	spin_unlock_irq(&rds_tcp_conn_lock);
-	list_for_each_entry_safe(tc, _tc, &tmp_list, t_tcp_node) {
-		rds_tcp_conn_paths_destroy(tc->t_cpath->cp_conn);
+	list_for_each_entry_safe(tc, _tc, &tmp_list, t_tcp_node)
 		rds_conn_destroy(tc->t_cpath->cp_conn);
-	}
 }
 
 void *rds_tcp_listen_sock_def_readable(struct net *net)
@@ -587,7 +576,7 @@ static void rds_tcp_sysctl_reset(struct net *net)
 
 	spin_lock_irq(&rds_tcp_conn_lock);
 	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
-		struct net *c_net = tc->t_cpath->cp_conn->c_net;
+		struct net *c_net = read_pnet(&tc->t_cpath->cp_conn->c_net);
 
 		if (net != c_net || !tc->t_sock)
 			continue;

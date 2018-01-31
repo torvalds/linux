@@ -39,13 +39,17 @@ match_set(ip_set_id_t index, const struct sk_buff *skb,
 	return inv;
 }
 
-#define ADT_OPT(n, f, d, fs, cfs, t)	\
-struct ip_set_adt_opt n = {		\
-	.family	= f,			\
-	.dim = d,			\
-	.flags = fs,			\
-	.cmdflags = cfs,		\
-	.ext.timeout = t,		\
+#define ADT_OPT(n, f, d, fs, cfs, t, p, b, po, bo)	\
+struct ip_set_adt_opt n = {				\
+	.family	= f,					\
+	.dim = d,					\
+	.flags = fs,					\
+	.cmdflags = cfs,				\
+	.ext.timeout = t,				\
+	.ext.packets = p,				\
+	.ext.bytes = b,					\
+	.ext.packets_op = po,				\
+	.ext.bytes_op = bo,				\
 }
 
 /* Revision 0 interface: backward compatible with netfilter/iptables */
@@ -56,7 +60,8 @@ set_match_v0(const struct sk_buff *skb, struct xt_action_param *par)
 	const struct xt_set_info_match_v0 *info = par->matchinfo;
 
 	ADT_OPT(opt, xt_family(par), info->match_set.u.compat.dim,
-		info->match_set.u.compat.flags, 0, UINT_MAX);
+		info->match_set.u.compat.flags, 0, UINT_MAX,
+		0, 0, 0, 0);
 
 	return match_set(info->match_set.index, skb, par, &opt,
 			 info->match_set.u.compat.flags & IPSET_INV_MATCH);
@@ -119,7 +124,8 @@ set_match_v1(const struct sk_buff *skb, struct xt_action_param *par)
 	const struct xt_set_info_match_v1 *info = par->matchinfo;
 
 	ADT_OPT(opt, xt_family(par), info->match_set.dim,
-		info->match_set.flags, 0, UINT_MAX);
+		info->match_set.flags, 0, UINT_MAX,
+		0, 0, 0, 0);
 
 	if (opt.flags & IPSET_RETURN_NOMATCH)
 		opt.cmdflags |= IPSET_FLAG_RETURN_NOMATCH;
@@ -161,45 +167,21 @@ set_match_v1_destroy(const struct xt_mtdtor_param *par)
 /* Revision 3 match */
 
 static bool
-match_counter0(u64 counter, const struct ip_set_counter_match0 *info)
-{
-	switch (info->op) {
-	case IPSET_COUNTER_NONE:
-		return true;
-	case IPSET_COUNTER_EQ:
-		return counter == info->value;
-	case IPSET_COUNTER_NE:
-		return counter != info->value;
-	case IPSET_COUNTER_LT:
-		return counter < info->value;
-	case IPSET_COUNTER_GT:
-		return counter > info->value;
-	}
-	return false;
-}
-
-static bool
 set_match_v3(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_set_info_match_v3 *info = par->matchinfo;
-	int ret;
 
 	ADT_OPT(opt, xt_family(par), info->match_set.dim,
-		info->match_set.flags, info->flags, UINT_MAX);
+		info->match_set.flags, info->flags, UINT_MAX,
+		info->packets.value, info->bytes.value,
+		info->packets.op, info->bytes.op);
 
 	if (info->packets.op != IPSET_COUNTER_NONE ||
 	    info->bytes.op != IPSET_COUNTER_NONE)
 		opt.cmdflags |= IPSET_FLAG_MATCH_COUNTERS;
 
-	ret = match_set(info->match_set.index, skb, par, &opt,
-			info->match_set.flags & IPSET_INV_MATCH);
-
-	if (!(ret && opt.cmdflags & IPSET_FLAG_MATCH_COUNTERS))
-		return ret;
-
-	if (!match_counter0(opt.ext.packets, &info->packets))
-		return false;
-	return match_counter0(opt.ext.bytes, &info->bytes);
+	return match_set(info->match_set.index, skb, par, &opt,
+			 info->match_set.flags & IPSET_INV_MATCH);
 }
 
 #define set_match_v3_checkentry	set_match_v1_checkentry
@@ -208,45 +190,21 @@ set_match_v3(const struct sk_buff *skb, struct xt_action_param *par)
 /* Revision 4 match */
 
 static bool
-match_counter(u64 counter, const struct ip_set_counter_match *info)
-{
-	switch (info->op) {
-	case IPSET_COUNTER_NONE:
-		return true;
-	case IPSET_COUNTER_EQ:
-		return counter == info->value;
-	case IPSET_COUNTER_NE:
-		return counter != info->value;
-	case IPSET_COUNTER_LT:
-		return counter < info->value;
-	case IPSET_COUNTER_GT:
-		return counter > info->value;
-	}
-	return false;
-}
-
-static bool
 set_match_v4(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_set_info_match_v4 *info = par->matchinfo;
-	int ret;
 
 	ADT_OPT(opt, xt_family(par), info->match_set.dim,
-		info->match_set.flags, info->flags, UINT_MAX);
+		info->match_set.flags, info->flags, UINT_MAX,
+		info->packets.value, info->bytes.value,
+		info->packets.op, info->bytes.op);
 
 	if (info->packets.op != IPSET_COUNTER_NONE ||
 	    info->bytes.op != IPSET_COUNTER_NONE)
 		opt.cmdflags |= IPSET_FLAG_MATCH_COUNTERS;
 
-	ret = match_set(info->match_set.index, skb, par, &opt,
-			info->match_set.flags & IPSET_INV_MATCH);
-
-	if (!(ret && opt.cmdflags & IPSET_FLAG_MATCH_COUNTERS))
-		return ret;
-
-	if (!match_counter(opt.ext.packets, &info->packets))
-		return false;
-	return match_counter(opt.ext.bytes, &info->bytes);
+	return match_set(info->match_set.index, skb, par, &opt,
+			 info->match_set.flags & IPSET_INV_MATCH);
 }
 
 #define set_match_v4_checkentry	set_match_v1_checkentry
@@ -260,9 +218,11 @@ set_target_v0(struct sk_buff *skb, const struct xt_action_param *par)
 	const struct xt_set_info_target_v0 *info = par->targinfo;
 
 	ADT_OPT(add_opt, xt_family(par), info->add_set.u.compat.dim,
-		info->add_set.u.compat.flags, 0, UINT_MAX);
+		info->add_set.u.compat.flags, 0, UINT_MAX,
+		0, 0, 0, 0);
 	ADT_OPT(del_opt, xt_family(par), info->del_set.u.compat.dim,
-		info->del_set.u.compat.flags, 0, UINT_MAX);
+		info->del_set.u.compat.flags, 0, UINT_MAX,
+		0, 0, 0, 0);
 
 	if (info->add_set.index != IPSET_INVALID_ID)
 		ip_set_add(info->add_set.index, skb, par, &add_opt);
@@ -333,9 +293,11 @@ set_target_v1(struct sk_buff *skb, const struct xt_action_param *par)
 	const struct xt_set_info_target_v1 *info = par->targinfo;
 
 	ADT_OPT(add_opt, xt_family(par), info->add_set.dim,
-		info->add_set.flags, 0, UINT_MAX);
+		info->add_set.flags, 0, UINT_MAX,
+		0, 0, 0, 0);
 	ADT_OPT(del_opt, xt_family(par), info->del_set.dim,
-		info->del_set.flags, 0, UINT_MAX);
+		info->del_set.flags, 0, UINT_MAX,
+		0, 0, 0, 0);
 
 	if (info->add_set.index != IPSET_INVALID_ID)
 		ip_set_add(info->add_set.index, skb, par, &add_opt);
@@ -402,9 +364,11 @@ set_target_v2(struct sk_buff *skb, const struct xt_action_param *par)
 	const struct xt_set_info_target_v2 *info = par->targinfo;
 
 	ADT_OPT(add_opt, xt_family(par), info->add_set.dim,
-		info->add_set.flags, info->flags, info->timeout);
+		info->add_set.flags, info->flags, info->timeout,
+		0, 0, 0, 0);
 	ADT_OPT(del_opt, xt_family(par), info->del_set.dim,
-		info->del_set.flags, 0, UINT_MAX);
+		info->del_set.flags, 0, UINT_MAX,
+		0, 0, 0, 0);
 
 	/* Normalize to fit into jiffies */
 	if (add_opt.ext.timeout != IPSET_NO_TIMEOUT &&
@@ -432,11 +396,14 @@ set_target_v3(struct sk_buff *skb, const struct xt_action_param *par)
 	int ret;
 
 	ADT_OPT(add_opt, xt_family(par), info->add_set.dim,
-		info->add_set.flags, info->flags, info->timeout);
+		info->add_set.flags, info->flags, info->timeout,
+		0, 0, 0, 0);
 	ADT_OPT(del_opt, xt_family(par), info->del_set.dim,
-		info->del_set.flags, 0, UINT_MAX);
+		info->del_set.flags, 0, UINT_MAX,
+		0, 0, 0, 0);
 	ADT_OPT(map_opt, xt_family(par), info->map_set.dim,
-		info->map_set.flags, 0, UINT_MAX);
+		info->map_set.flags, 0, UINT_MAX,
+		0, 0, 0, 0);
 
 	/* Normalize to fit into jiffies */
 	if (add_opt.ext.timeout != IPSET_NO_TIMEOUT &&

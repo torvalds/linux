@@ -2766,7 +2766,6 @@ static int ath6kl_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_mgmt *mgmt;
 	bool hidden = false;
 	u8 *ies;
-	int ies_len;
 	struct wmi_connect_cmd p;
 	int res;
 	int i, ret;
@@ -2804,7 +2803,6 @@ static int ath6kl_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	ies = mgmt->u.beacon.variable;
 	if (ies > info->beacon.head + info->beacon.head_len)
 		return -EINVAL;
-	ies_len = info->beacon.head + info->beacon.head_len - ies;
 
 	if (info->ssid == NULL)
 		return -EINVAL;

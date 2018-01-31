@@ -176,8 +176,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 			/* If interface is set while binding, indices
 			 * must coincide.
 			 */
-			if (sk->sk_bound_dev_if &&
-			    sk->sk_bound_dev_if != usin->sin6_scope_id)
+			if (!sk_dev_equal_l3scope(sk, usin->sin6_scope_id))
 				return -EINVAL;
 
 			sk->sk_bound_dev_if = usin->sin6_scope_id;
@@ -1795,7 +1794,7 @@ static void get_tcp6_sock(struct seq_file *seq, struct sock *sp, int i)
 		timer_expires = jiffies;
 	}
 
-	state = sk_state_load(sp);
+	state = inet_sk_state_load(sp);
 	if (state == TCP_LISTEN)
 		rx_queue = sp->sk_ack_backlog;
 	else
@@ -1884,7 +1883,6 @@ out:
 }
 
 static const struct file_operations tcp6_afinfo_seq_fops = {
-	.owner   = THIS_MODULE,
 	.open    = tcp_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,

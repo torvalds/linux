@@ -19,6 +19,7 @@
 #include <linux/jump_label.h>
 #include <linux/export.h>
 #include <linux/rbtree_latch.h>
+#include <linux/error-injection.h>
 
 #include <linux/percpu.h>
 #include <asm/module.h>
@@ -474,6 +475,11 @@ struct module {
 	/* Constructor functions. */
 	ctor_fn_t *ctors;
 	unsigned int num_ctors;
+#endif
+
+#ifdef CONFIG_FUNCTION_ERROR_INJECTION
+	struct error_injection_entry *ei_funcs;
+	unsigned int num_ei_funcs;
 #endif
 } ____cacheline_aligned __randomize_layout;
 #ifndef MODULE_ARCH_INIT

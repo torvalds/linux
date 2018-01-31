@@ -4287,7 +4287,7 @@ static int sky2_vpd_wait(const struct sky2_hw *hw, int cap, u16 busy)
 			dev_err(&hw->pdev->dev, "VPD cycle timed out\n");
 			return -ETIMEDOUT;
 		}
-		mdelay(1);
+		msleep(1);
 	}
 
 	return 0;

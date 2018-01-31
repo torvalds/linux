@@ -89,6 +89,7 @@ struct sctp_stream;
 #include <net/sctp/tsnmap.h>
 #include <net/sctp/ulpevent.h>
 #include <net/sctp/ulpqueue.h>
+#include <net/sctp/stream_interleave.h>
 
 /* Structures useful for managing bind/connect. */
 
@@ -217,6 +218,7 @@ struct sctp_sock {
 		disable_fragments:1,
 		v4mapped:1,
 		frag_interleave:1,
+		strm_interleave:1,
 		recvrcvinfo:1,
 		recvnxtinfo:1,
 		data_ready_signalled:1;
@@ -397,6 +399,28 @@ void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new);
 #define sctp_ssn_skip(stream, type, sid, ssn) \
 	((stream)->type[sid].ssn = ssn + 1)
 
+/* What is the current MID number for this stream? */
+#define sctp_mid_peek(stream, type, sid) \
+	((stream)->type[sid].mid)
+
+/* Return the next MID number for this stream.  */
+#define sctp_mid_next(stream, type, sid) \
+	((stream)->type[sid].mid++)
+
+/* Skip over this mid and all below. */
+#define sctp_mid_skip(stream, type, sid, mid) \
+	((stream)->type[sid].mid = mid + 1)
+
+#define sctp_stream_in(asoc, sid) (&(asoc)->stream.in[sid])
+
+/* What is the current MID_uo number for this stream? */
+#define sctp_mid_uo_peek(stream, type, sid) \
+	((stream)->type[sid].mid_uo)
+
+/* Return the next MID_uo number for this stream.  */
+#define sctp_mid_uo_next(stream, type, sid) \
+	((stream)->type[sid].mid_uo++)
+
 /*
  * Pointers to address related SCTP functions.
  * (i.e. things that depend on the address family.)
@@ -574,6 +598,8 @@ struct sctp_chunk {
 		struct sctp_addiphdr *addip_hdr;
 		struct sctp_fwdtsn_hdr *fwdtsn_hdr;
 		struct sctp_authhdr *auth_hdr;
+		struct sctp_idatahdr *idata_hdr;
+		struct sctp_ifwdtsn_hdr *ifwdtsn_hdr;
 	} subh;
 
 	__u8 *chunk_end;
@@ -620,6 +646,7 @@ struct sctp_chunk {
 	__u16	rtt_in_progress:1,	/* This chunk used for RTT calc? */
 		has_tsn:1,		/* Does this chunk have a TSN yet? */
 		has_ssn:1,		/* Does this chunk have a SSN yet? */
+#define has_mid has_ssn
 		singleton:1,		/* Only chunk in the packet? */
 		end_of_packet:1,	/* Last chunk in the packet? */
 		ecn_ce_done:1,		/* Have we processed the ECN CE bit? */
@@ -1073,6 +1100,7 @@ void sctp_retransmit_mark(struct sctp_outq *, struct sctp_transport *, __u8);
 void sctp_outq_uncork(struct sctp_outq *, gfp_t gfp);
 void sctp_prsctp_prune(struct sctp_association *asoc,
 		       struct sctp_sndrcvinfo *sinfo, int msg_len);
+void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 sack_ctsn);
 /* Uncork and flush an outqueue.  */
 static inline void sctp_outq_cork(struct sctp_outq *q)
 {
@@ -1357,13 +1385,25 @@ struct sctp_stream_out_ext {
 };
 
 struct sctp_stream_out {
-	__u16	ssn;
-	__u8	state;
+	union {
+		__u32 mid;
+		__u16 ssn;
+	};
+	__u32 mid_uo;
 	struct sctp_stream_out_ext *ext;
+	__u8 state;
 };
 
 struct sctp_stream_in {
-	__u16	ssn;
+	union {
+		__u32 mid;
+		__u16 ssn;
+	};
+	__u32 mid_uo;
+	__u32 fsn;
+	__u32 fsn_uo;
+	char pd_mode;
+	char pd_mode_uo;
 };
 
 struct sctp_stream {
@@ -1387,10 +1427,31 @@ struct sctp_stream {
 			struct sctp_stream_out_ext *rr_next;
 		};
 	};
+	struct sctp_stream_interleave *si;
 };
 
 #define SCTP_STREAM_CLOSED		0x00
 #define SCTP_STREAM_OPEN		0x01
+
+static inline __u16 sctp_datachk_len(const struct sctp_stream *stream)
+{
+	return stream->si->data_chunk_len;
+}
+
+static inline __u16 sctp_datahdr_len(const struct sctp_stream *stream)
+{
+	return stream->si->data_chunk_len - sizeof(struct sctp_chunkhdr);
+}
+
+static inline __u16 sctp_ftsnchk_len(const struct sctp_stream *stream)
+{
+	return stream->si->ftsn_chunk_len;
+}
+
+static inline __u16 sctp_ftsnhdr_len(const struct sctp_stream *stream)
+{
+	return stream->si->ftsn_chunk_len - sizeof(struct sctp_chunkhdr);
+}
 
 /* SCTP_GET_ASSOC_STATS counters */
 struct sctp_priv_assoc_stats {
@@ -1940,6 +2001,7 @@ struct sctp_association {
 	__u8 need_ecne:1,	/* Need to send an ECNE Chunk? */
 	     temp:1,		/* Is it a temporary association? */
 	     force_delay:1,
+	     intl_enable:1,
 	     prsctp_enable:1,
 	     reconf_enable:1;
 

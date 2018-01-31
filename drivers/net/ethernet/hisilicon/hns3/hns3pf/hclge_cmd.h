@@ -102,6 +102,10 @@ enum hclge_opcode_type {
 	HCLGE_OPC_STATS_64_BIT		= 0x0030,
 	HCLGE_OPC_STATS_32_BIT		= 0x0031,
 	HCLGE_OPC_STATS_MAC		= 0x0032,
+
+	HCLGE_OPC_QUERY_REG_NUM		= 0x0040,
+	HCLGE_OPC_QUERY_32_BIT_REG	= 0x0041,
+	HCLGE_OPC_QUERY_64_BIT_REG	= 0x0042,
 	/* Device management command */
 
 	/* MAC commond */
@@ -111,6 +115,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QUERY_LINK_STATUS	= 0x0307,
 	HCLGE_OPC_CONFIG_MAX_FRM_SIZE	= 0x0308,
 	HCLGE_OPC_CONFIG_SPEED_DUP	= 0x0309,
+	HCLGE_OPC_STATS_MAC_TRAFFIC	= 0x0314,
 	/* MACSEC command */
 
 	/* PFC/Pause CMD*/
@@ -180,6 +185,10 @@ enum hclge_opcode_type {
 	/* Promisuous mode command */
 	HCLGE_OPC_CFG_PROMISC_MODE	= 0x0E01,
 
+	/* Vlan offload command */
+	HCLGE_OPC_VLAN_PORT_TX_CFG	= 0x0F01,
+	HCLGE_OPC_VLAN_PORT_RX_CFG	= 0x0F02,
+
 	/* Interrupts cmd */
 	HCLGE_OPC_ADD_RING_TO_VECTOR	= 0x1503,
 	HCLGE_OPC_DEL_RING_TO_VECTOR	= 0x1504,
@@ -191,6 +200,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_MAC_VLAN_INSERT	    = 0x1003,
 	HCLGE_OPC_MAC_ETHTYPE_ADD	    = 0x1010,
 	HCLGE_OPC_MAC_ETHTYPE_REMOVE	= 0x1011,
+	HCLGE_OPC_MAC_VLAN_MASK_SET	= 0x1012,
 
 	/* Multicast linear table cmd */
 	HCLGE_OPC_MTA_MAC_MODE_CFG	    = 0x1020,
@@ -218,6 +228,9 @@ enum hclge_opcode_type {
 
 	/* Mailbox cmd */
 	HCLGEVF_OPC_MBX_PF_TO_VF	= 0x2000,
+
+	/* Led command */
+	HCLGE_OPC_LED_STATUS_CFG	= 0xB000,
 };
 
 #define HCLGE_TQP_REG_OFFSET		0x80000
@@ -399,6 +412,8 @@ struct hclge_pf_res_cmd {
 #define HCLGE_CFG_MAC_ADDR_H_M	GENMASK(15, 0)
 #define HCLGE_CFG_DEFAULT_SPEED_S	16
 #define HCLGE_CFG_DEFAULT_SPEED_M	GENMASK(23, 16)
+#define HCLGE_CFG_RSS_SIZE_S	24
+#define HCLGE_CFG_RSS_SIZE_M	GENMASK(31, 24)
 
 struct hclge_cfg_param_cmd {
 	__le32 offset;
@@ -549,8 +564,6 @@ struct hclge_config_auto_neg_cmd {
 	u8      rsv[20];
 };
 
-#define HCLGE_MAC_MIN_MTU		64
-#define HCLGE_MAC_MAX_MTU		9728
 #define HCLGE_MAC_UPLINK_PORT		0x100
 
 struct hclge_config_max_frm_size_cmd {
@@ -585,6 +598,37 @@ struct hclge_mac_vlan_tbl_entry_cmd {
 	__le16  egress_port;
 	__le16  egress_queue;
 	u8      rsv2[6];
+};
+
+#define HCLGE_VLAN_MASK_EN_B		0x0
+struct hclge_mac_vlan_mask_entry_cmd {
+	u8 rsv0[2];
+	u8 vlan_mask;
+	u8 rsv1;
+	u8 mac_mask[6];
+	u8 rsv2[14];
+};
+
+#define HCLGE_MAC_MGR_MASK_VLAN_B		BIT(0)
+#define HCLGE_MAC_MGR_MASK_MAC_B		BIT(1)
+#define HCLGE_MAC_MGR_MASK_ETHERTYPE_B		BIT(2)
+#define HCLGE_MAC_ETHERTYPE_LLDP		0x88cc
+
+struct hclge_mac_mgr_tbl_entry_cmd {
+	u8      flags;
+	u8      resp_code;
+	__le16  vlan_tag;
+	__le32  mac_addr_hi32;
+	__le16  mac_addr_lo16;
+	__le16  rsv1;
+	__le16  ethter_type;
+	__le16  egress_port;
+	__le16  egress_queue;
+	u8      sw_port_id_aware;
+	u8      rsv2;
+	u8      i_port_bitmap;
+	u8      i_port_direction;
+	u8      rsv3[2];
 };
 
 #define HCLGE_CFG_MTA_MAC_SEL_S		0x0
@@ -658,6 +702,47 @@ struct hclge_vlan_filter_vf_cfg_cmd {
 	u8  vf_bitmap[16];
 };
 
+#define HCLGE_ACCEPT_TAG_B		0
+#define HCLGE_ACCEPT_UNTAG_B		1
+#define HCLGE_PORT_INS_TAG1_EN_B	2
+#define HCLGE_PORT_INS_TAG2_EN_B	3
+#define HCLGE_CFG_NIC_ROCE_SEL_B	4
+struct hclge_vport_vtag_tx_cfg_cmd {
+	u8 vport_vlan_cfg;
+	u8 vf_offset;
+	u8 rsv1[2];
+	__le16 def_vlan_tag1;
+	__le16 def_vlan_tag2;
+	u8 vf_bitmap[8];
+	u8 rsv2[8];
+};
+
+#define HCLGE_REM_TAG1_EN_B		0
+#define HCLGE_REM_TAG2_EN_B		1
+#define HCLGE_SHOW_TAG1_EN_B		2
+#define HCLGE_SHOW_TAG2_EN_B		3
+struct hclge_vport_vtag_rx_cfg_cmd {
+	u8 vport_vlan_cfg;
+	u8 vf_offset;
+	u8 rsv1[6];
+	u8 vf_bitmap[8];
+	u8 rsv2[8];
+};
+
+struct hclge_tx_vlan_type_cfg_cmd {
+	__le16 ot_vlan_type;
+	__le16 in_vlan_type;
+	u8 rsv[20];
+};
+
+struct hclge_rx_vlan_type_cfg_cmd {
+	__le16 ot_fst_vlan_type;
+	__le16 ot_sec_vlan_type;
+	__le16 in_fst_vlan_type;
+	__le16 in_sec_vlan_type;
+	u8 rsv[16];
+};
+
 struct hclge_cfg_com_tqp_queue_cmd {
 	__le16 tqp_id;
 	__le16 stream_id;
@@ -725,6 +810,23 @@ struct hclge_reset_cmd {
 #define HCLGE_NIC_CMQ_ENABLE		BIT(HCLGE_NIC_CMQ_EN_B)
 #define HCLGE_NIC_CMQ_DESC_NUM		1024
 #define HCLGE_NIC_CMQ_DESC_NUM_S	3
+
+#define HCLGE_LED_PORT_SPEED_STATE_S	0
+#define HCLGE_LED_PORT_SPEED_STATE_M	GENMASK(5, 0)
+#define HCLGE_LED_ACTIVITY_STATE_S	0
+#define HCLGE_LED_ACTIVITY_STATE_M	GENMASK(1, 0)
+#define HCLGE_LED_LINK_STATE_S		0
+#define HCLGE_LED_LINK_STATE_M		GENMASK(1, 0)
+#define HCLGE_LED_LOCATE_STATE_S	0
+#define HCLGE_LED_LOCATE_STATE_M	GENMASK(1, 0)
+
+struct hclge_set_led_state_cmd {
+	u8 port_speed_led_config;
+	u8 link_led_config;
+	u8 activity_led_config;
+	u8 locate_led_config;
+	u8 rsv[20];
+};
 
 int hclge_cmd_init(struct hclge_dev *hdev);
 static inline void hclge_write_reg(void __iomem *base, u32 reg, u32 value)

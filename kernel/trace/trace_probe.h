@@ -252,6 +252,8 @@ struct symbol_cache;
 unsigned long update_symbol_cache(struct symbol_cache *sc);
 void free_symbol_cache(struct symbol_cache *sc);
 struct symbol_cache *alloc_symbol_cache(const char *sym, long offset);
+bool trace_kprobe_on_func_entry(struct trace_event_call *call);
+bool trace_kprobe_error_injectable(struct trace_event_call *call);
 #else
 /* uprobes do not support symbol fetch methods */
 #define fetch_symbol_u8			NULL
@@ -276,6 +278,16 @@ static inline struct symbol_cache * __used
 alloc_symbol_cache(const char *sym, long offset)
 {
 	return NULL;
+}
+
+static inline bool trace_kprobe_on_func_entry(struct trace_event_call *call)
+{
+	return false;
+}
+
+static inline bool trace_kprobe_error_injectable(struct trace_event_call *call)
+{
+	return false;
 }
 #endif /* CONFIG_KPROBE_EVENTS */
 

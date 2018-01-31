@@ -730,5 +730,41 @@
 					<0000 0 0 3 &gic GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>,
 					<0000 0 0 4 &gic GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
 		};
+
+		can0: can@2a70000 {
+			compatible = "fsl,ls1021ar2-flexcan";
+			reg = <0x0 0x2a70000 0x0 0x1000>;
+			interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clockgen 4 1>, <&clockgen 4 1>;
+			clock-names = "ipg", "per";
+			big-endian;
+		};
+
+		can1: can@2a80000 {
+			compatible = "fsl,ls1021ar2-flexcan";
+			reg = <0x0 0x2a80000 0x0 0x1000>;
+			interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clockgen 4 1>, <&clockgen 4 1>;
+			clock-names = "ipg", "per";
+			big-endian;
+		};
+
+		can2: can@2a90000 {
+			compatible = "fsl,ls1021ar2-flexcan";
+			reg = <0x0 0x2a90000 0x0 0x1000>;
+			interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clockgen 4 1>, <&clockgen 4 1>;
+			clock-names = "ipg", "per";
+			big-endian;
+		};
+
+		can3: can@2aa0000 {
+			compatible = "fsl,ls1021ar2-flexcan";
+			reg = <0x0 0x2aa0000 0x0 0x1000>;
+			interrupts = <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clockgen 4 1>, <&clockgen 4 1>;
+			clock-names = "ipg", "per";
+			big-endian;
+		};
 	};
 };

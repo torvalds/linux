@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2010-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
@@ -35,10 +36,23 @@ struct net_device;
  */
 #define BATADV_SYSFS_VLAN_SUBDIR_PREFIX "vlan"
 
+/**
+ * struct batadv_attribute - sysfs export helper for batman-adv attributes
+ */
 struct batadv_attribute {
+	/** @attr: sysfs attribute file */
 	struct attribute attr;
+
+	/**
+	 * @show: function to export the current attribute's content to sysfs
+	 */
 	ssize_t (*show)(struct kobject *kobj, struct attribute *attr,
 			char *buf);
+
+	/**
+	 * @store: function to load new value from character buffer and save it
+	 * in batman-adv attribute
+	 */
 	ssize_t (*store)(struct kobject *kobj, struct attribute *attr,
 			 char *buf, size_t count);
 };

@@ -1348,8 +1348,10 @@ T:	git git://github.com/ulli-kroll/linux.git
 S:	Maintained
 F:	Documentation/devicetree/bindings/arm/gemini.txt
 F:	Documentation/devicetree/bindings/pinctrl/cortina,gemini-pinctrl.txt
+F:	Documentation/devicetree/bindings/net/cortina,gemini-ethernet.txt
 F:	Documentation/devicetree/bindings/rtc/faraday,ftrtc010.txt
 F:	arch/arm/mach-gemini/
+F:	drivers/net/ethernet/cortina/gemini/*
 F:	drivers/pinctrl/pinctrl-gemini.c
 F:	drivers/rtc/rtc-ftrtc010.c
 
@@ -2579,6 +2581,7 @@ S:	Maintained
 F:	Documentation/ABI/testing/sysfs-class-net-batman-adv
 F:	Documentation/ABI/testing/sysfs-class-net-mesh
 F:	Documentation/networking/batman-adv.rst
+F:	include/uapi/linux/batadv_packet.h
 F:	include/uapi/linux/batman_adv.h
 F:	net/batman-adv/
 
@@ -2702,7 +2705,6 @@ F:	drivers/mtd/devices/block2mtd.c
 
 BLUETOOTH DRIVERS
 M:	Marcel Holtmann <marcel@holtmann.org>
-M:	Gustavo Padovan <gustavo@padovan.org>
 M:	Johan Hedberg <johan.hedberg@gmail.com>
 L:	linux-bluetooth@vger.kernel.org
 W:	http://www.bluez.org/
@@ -2713,7 +2715,6 @@ F:	drivers/bluetooth/
 
 BLUETOOTH SUBSYSTEM
 M:	Marcel Holtmann <marcel@holtmann.org>
-M:	Gustavo Padovan <gustavo@padovan.org>
 M:	Johan Hedberg <johan.hedberg@gmail.com>
 L:	linux-bluetooth@vger.kernel.org
 W:	http://www.bluez.org/
@@ -2738,12 +2739,16 @@ M:	Alexei Starovoitov <ast@kernel.org>
 M:	Daniel Borkmann <daniel@iogearbox.net>
 L:	netdev@vger.kernel.org
 L:	linux-kernel@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf-next.git
 S:	Supported
 F:	arch/x86/net/bpf_jit*
 F:	Documentation/networking/filter.txt
 F:	Documentation/bpf/
 F:	include/linux/bpf*
 F:	include/linux/filter.h
+F:	include/trace/events/bpf.h
+F:	include/trace/events/xdp.h
 F:	include/uapi/linux/bpf*
 F:	include/uapi/linux/filter.h
 F:	kernel/bpf/
@@ -3208,7 +3213,7 @@ W:	https://github.com/linux-can
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkl/linux-can.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkl/linux-can-next.git
 S:	Maintained
-F:	Documentation/networking/can.txt
+F:	Documentation/networking/can.rst
 F:	net/can/
 F:	include/linux/can/core.h
 F:	include/uapi/linux/can.h
@@ -4955,6 +4960,11 @@ M:	Jason Baron <jbaron@akamai.com>
 S:	Maintained
 F:	lib/dynamic_debug.c
 F:	include/linux/dynamic_debug.h
+
+DYNAMIC INTERRUPT MODERATION
+M:	Tal Gilboa <talgi@mellanox.com>
+S:	Maintained
+F:	include/linux/net_dim.h
 
 DZ DECSTATION DZ11 SERIAL DRIVER
 M:	"Maciej W. Rozycki" <macro@linux-mips.org>
@@ -8743,6 +8753,13 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/mediatek/
 
+MEDIATEK SWITCH DRIVER
+M:	Sean Wang <sean.wang@mediatek.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/dsa/mt7530.*
+F:	net/dsa/tag_mtk.c
+
 MEDIATEK JPEG DRIVER
 M:	Rick Chang <rick.chang@mediatek.com>
 M:	Bin Liu <bin.liu@mediatek.com>
@@ -9627,6 +9644,11 @@ F:	include/net/tls.h
 NETWORKING [WIRELESS]
 L:	linux-wireless@vger.kernel.org
 Q:	http://patchwork.kernel.org/project/linux-wireless/list/
+
+NETDEVSIM
+M:	Jakub Kicinski <jakub.kicinski@netronome.com>
+S:	Maintained
+F:	drivers/net/netdevsim/*
 
 NETXEN (1/10) GbE SUPPORT
 M:	Manish Chopra <manish.chopra@cavium.com>
@@ -11792,15 +11814,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.g
 S:	Maintained
 F:	drivers/net/wireless/realtek/rtl818x/rtl8187/
 
-RTL8192CE WIRELESS DRIVER
-M:	Larry Finger <Larry.Finger@lwfinger.net>
-M:	Chaoming Li <chaoming_li@realsil.com.cn>
+REALTEK WIRELESS DRIVER (rtlwifi family)
+M:	Ping-Ke Shih <pkshih@realtek.com>
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Maintained
 F:	drivers/net/wireless/realtek/rtlwifi/
-F:	drivers/net/wireless/realtek/rtlwifi/rtl8192ce/
 
 RTL8XXXU WIRELESS DRIVER (rtl8xxxu)
 M:	Jes Sorensen <Jes.Sorensen@gmail.com>
@@ -12683,6 +12703,13 @@ F:	drivers/md/md*
 F:	drivers/md/raid*
 F:	include/linux/raid/
 F:	include/uapi/linux/raid/
+
+SOCIONEXT (SNI) NETSEC NETWORK DRIVER
+M:	Jassi Brar <jaswinder.singh@linaro.org>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/socionext/netsec.c
+F:	Documentation/devicetree/bindings/net/socionext-netsec.txt
 
 SONIC NETWORK DRIVER
 M:	Thomas Bogendoerfer <tsbogend@alpha.franken.de>
@@ -14822,9 +14849,9 @@ S:	Maintained
 F:	drivers/hid/hid-wiimote*
 
 WILOCITY WIL6210 WIRELESS DRIVER
-M:	Maya Erez <qca_merez@qca.qualcomm.com>
+M:	Maya Erez <merez@codeaurora.org>
 L:	linux-wireless@vger.kernel.org
-L:	wil6210@qca.qualcomm.com
+L:	wil6210@qti.qualcomm.com
 S:	Supported
 W:	http://wireless.kernel.org/en/users/Drivers/wil6210
 F:	drivers/net/wireless/ath/wil6210/

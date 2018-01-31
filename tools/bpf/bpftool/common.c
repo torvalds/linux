@@ -34,6 +34,7 @@
 /* Author: Jakub Kicinski <kubakici@wp.pl> */
 
 #include <errno.h>
+#include <fcntl.h>
 #include <fts.h>
 #include <libgen.h>
 #include <mntent.h>
@@ -44,7 +45,9 @@
 #include <unistd.h>
 #include <linux/limits.h>
 #include <linux/magic.h>
+#include <net/if.h>
 #include <sys/mount.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
 
@@ -163,13 +166,49 @@ int open_obj_pinned_any(char *path, enum bpf_obj_type exp_type)
 	return fd;
 }
 
-int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
+int do_pin_fd(int fd, const char *name)
 {
 	char err_str[ERR_MAX_LEN];
-	unsigned int id;
-	char *endptr;
 	char *file;
 	char *dir;
+	int err = 0;
+
+	err = bpf_obj_pin(fd, name);
+	if (!err)
+		goto out;
+
+	file = malloc(strlen(name) + 1);
+	strcpy(file, name);
+	dir = dirname(file);
+
+	if (errno != EPERM || is_bpffs(dir)) {
+		p_err("can't pin the object (%s): %s", name, strerror(errno));
+		goto out_free;
+	}
+
+	/* Attempt to mount bpffs, then retry pinning. */
+	err = mnt_bpffs(dir, err_str, ERR_MAX_LEN);
+	if (!err) {
+		err = bpf_obj_pin(fd, name);
+		if (err)
+			p_err("can't pin the object (%s): %s", name,
+			      strerror(errno));
+	} else {
+		err_str[ERR_MAX_LEN - 1] = '\0';
+		p_err("can't mount BPF file system to pin the object (%s): %s",
+		      name, err_str);
+	}
+
+out_free:
+	free(file);
+out:
+	return err;
+}
+
+int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
+{
+	unsigned int id;
+	char *endptr;
 	int err;
 	int fd;
 
@@ -195,35 +234,8 @@ int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
 		return -1;
 	}
 
-	err = bpf_obj_pin(fd, *argv);
-	if (!err)
-		goto out_close;
+	err = do_pin_fd(fd, *argv);
 
-	file = malloc(strlen(*argv) + 1);
-	strcpy(file, *argv);
-	dir = dirname(file);
-
-	if (errno != EPERM || is_bpffs(dir)) {
-		p_err("can't pin the object (%s): %s", *argv, strerror(errno));
-		goto out_free;
-	}
-
-	/* Attempt to mount bpffs, then retry pinning. */
-	err = mnt_bpffs(dir, err_str, ERR_MAX_LEN);
-	if (!err) {
-		err = bpf_obj_pin(fd, *argv);
-		if (err)
-			p_err("can't pin the object (%s): %s", *argv,
-			      strerror(errno));
-	} else {
-		err_str[ERR_MAX_LEN - 1] = '\0';
-		p_err("can't mount BPF file system to pin the object (%s): %s",
-		      *argv, err_str);
-	}
-
-out_free:
-	free(file);
-out_close:
 	close(fd);
 	return err;
 }
@@ -402,4 +414,125 @@ void delete_pinned_obj_table(struct pinned_obj_table *tab)
 		free(obj->path);
 		free(obj);
 	}
+}
+
+static char *
+ifindex_to_name_ns(__u32 ifindex, __u32 ns_dev, __u32 ns_ino, char *buf)
+{
+	struct stat st;
+	int err;
+
+	err = stat("/proc/self/ns/net", &st);
+	if (err) {
+		p_err("Can't stat /proc/self: %s", strerror(errno));
+		return NULL;
+	}
+
+	if (st.st_dev != ns_dev || st.st_ino != ns_ino)
+		return NULL;
+
+	return if_indextoname(ifindex, buf);
+}
+
+static int read_sysfs_hex_int(char *path)
+{
+	char vendor_id_buf[8];
+	int len;
+	int fd;
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		p_err("Can't open %s: %s", path, strerror(errno));
+		return -1;
+	}
+
+	len = read(fd, vendor_id_buf, sizeof(vendor_id_buf));
+	close(fd);
+	if (len < 0) {
+		p_err("Can't read %s: %s", path, strerror(errno));
+		return -1;
+	}
+	if (len >= (int)sizeof(vendor_id_buf)) {
+		p_err("Value in %s too long", path);
+		return -1;
+	}
+
+	vendor_id_buf[len] = 0;
+
+	return strtol(vendor_id_buf, NULL, 0);
+}
+
+static int read_sysfs_netdev_hex_int(char *devname, const char *entry_name)
+{
+	char full_path[64];
+
+	snprintf(full_path, sizeof(full_path), "/sys/class/net/%s/device/%s",
+		 devname, entry_name);
+
+	return read_sysfs_hex_int(full_path);
+}
+
+const char *ifindex_to_bfd_name_ns(__u32 ifindex, __u64 ns_dev, __u64 ns_ino)
+{
+	char devname[IF_NAMESIZE];
+	int vendor_id;
+	int device_id;
+
+	if (!ifindex_to_name_ns(ifindex, ns_dev, ns_ino, devname)) {
+		p_err("Can't get net device name for ifindex %d: %s", ifindex,
+		      strerror(errno));
+		return NULL;
+	}
+
+	vendor_id = read_sysfs_netdev_hex_int(devname, "vendor");
+	if (vendor_id < 0) {
+		p_err("Can't get device vendor id for %s", devname);
+		return NULL;
+	}
+
+	switch (vendor_id) {
+	case 0x19ee:
+		device_id = read_sysfs_netdev_hex_int(devname, "device");
+		if (device_id != 0x4000 &&
+		    device_id != 0x6000 &&
+		    device_id != 0x6003)
+			p_info("Unknown NFP device ID, assuming it is NFP-6xxx arch");
+		return "NFP-6xxx";
+	default:
+		p_err("Can't get bfd arch name for device vendor id 0x%04x",
+		      vendor_id);
+		return NULL;
+	}
+}
+
+void print_dev_plain(__u32 ifindex, __u64 ns_dev, __u64 ns_inode)
+{
+	char name[IF_NAMESIZE];
+
+	if (!ifindex)
+		return;
+
+	printf(" dev ");
+	if (ifindex_to_name_ns(ifindex, ns_dev, ns_inode, name))
+		printf("%s", name);
+	else
+		printf("ifindex %u ns_dev %llu ns_ino %llu",
+		       ifindex, ns_dev, ns_inode);
+}
+
+void print_dev_json(__u32 ifindex, __u64 ns_dev, __u64 ns_inode)
+{
+	char name[IF_NAMESIZE];
+
+	if (!ifindex)
+		return;
+
+	jsonw_name(json_wtr, "dev");
+	jsonw_start_object(json_wtr);
+	jsonw_uint_field(json_wtr, "ifindex", ifindex);
+	jsonw_uint_field(json_wtr, "ns_dev", ns_dev);
+	jsonw_uint_field(json_wtr, "ns_inode", ns_inode);
+	if (ifindex_to_name_ns(ifindex, ns_dev, ns_inode, name))
+		jsonw_string_field(json_wtr, "ifname", name);
+	jsonw_end_object(json_wtr);
 }

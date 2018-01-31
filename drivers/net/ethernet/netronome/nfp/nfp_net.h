@@ -47,6 +47,7 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/io-64-nonatomic-hi-lo.h>
+#include <net/xdp.h>
 
 #include "nfp_net_ctrl.h"
 
@@ -350,6 +351,7 @@ struct nfp_net_rx_buf {
  * @rxds:       Virtual address of FL/RX ring in host memory
  * @dma:        DMA address of the FL/RX ring
  * @size:       Size, in bytes, of the FL/RX ring (needed to free)
+ * @xdp_rxq:    RX-ring info avail for XDP
  */
 struct nfp_net_rx_ring {
 	struct nfp_net_r_vector *r_vec;
@@ -361,13 +363,14 @@ struct nfp_net_rx_ring {
 	u32 idx;
 
 	int fl_qcidx;
+	unsigned int size;
 	u8 __iomem *qcp_fl;
 
 	struct nfp_net_rx_buf *rxbufs;
 	struct nfp_net_rx_desc *rxds;
 
 	dma_addr_t dma;
-	unsigned int size;
+	struct xdp_rxq_info xdp_rxq;
 } ____cacheline_aligned;
 
 /**
@@ -548,6 +551,8 @@ struct nfp_net_dp {
  * @max_r_vecs:		Number of allocated interrupt vectors for RX/TX
  * @max_tx_rings:       Maximum number of TX rings supported by the Firmware
  * @max_rx_rings:       Maximum number of RX rings supported by the Firmware
+ * @stride_rx:		Queue controller RX queue spacing
+ * @stride_tx:		Queue controller TX queue spacing
  * @r_vecs:             Pre-allocated array of ring vectors
  * @irq_entries:        Pre-allocated array of MSI-X entries
  * @lsc_handler:        Handler for Link State Change interrupt
@@ -573,6 +578,7 @@ struct nfp_net_dp {
  * @qcp_cfg:            Pointer to QCP queue used for configuration notification
  * @tx_bar:             Pointer to mapped TX queues
  * @rx_bar:             Pointer to mapped FL/RX queues
+ * @tlv_caps:		Parsed TLV capabilities
  * @debugfs_dir:	Device directory in debugfs
  * @vnic_list:		Entry on device vNIC list
  * @pdev:		Backpointer to PCI device
@@ -638,6 +644,8 @@ struct nfp_net {
 
 	u8 __iomem *tx_bar;
 	u8 __iomem *rx_bar;
+
+	struct nfp_net_tlv_caps tlv_caps;
 
 	struct dentry *debugfs_dir;
 
@@ -832,6 +840,18 @@ static inline bool nfp_net_running(struct nfp_net *nn)
 static inline const char *nfp_net_name(struct nfp_net *nn)
 {
 	return nn->dp.netdev ? nn->dp.netdev->name : "ctrl";
+}
+
+static inline void nfp_ctrl_lock(struct nfp_net *nn)
+	__acquires(&nn->r_vecs[0].lock)
+{
+	spin_lock_bh(&nn->r_vecs[0].lock);
+}
+
+static inline void nfp_ctrl_unlock(struct nfp_net *nn)
+	__releases(&nn->r_vecs[0].lock)
+{
+	spin_unlock_bh(&nn->r_vecs[0].lock);
 }
 
 /* Globals */

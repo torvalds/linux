@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 #include <linux/vmalloc.h>
+#include <linux/bootmem.h>
 
 #include <net/addrconf.h>
 #include <net/inet_connection_sock.h>
@@ -168,6 +169,60 @@ int __inet_inherit_port(const struct sock *sk, struct sock *child)
 }
 EXPORT_SYMBOL_GPL(__inet_inherit_port);
 
+static struct inet_listen_hashbucket *
+inet_lhash2_bucket_sk(struct inet_hashinfo *h, struct sock *sk)
+{
+	u32 hash;
+
+#if IS_ENABLED(CONFIG_IPV6)
+	if (sk->sk_family == AF_INET6)
+		hash = ipv6_portaddr_hash(sock_net(sk),
+					  &sk->sk_v6_rcv_saddr,
+					  inet_sk(sk)->inet_num);
+	else
+#endif
+		hash = ipv4_portaddr_hash(sock_net(sk),
+					  inet_sk(sk)->inet_rcv_saddr,
+					  inet_sk(sk)->inet_num);
+	return inet_lhash2_bucket(h, hash);
+}
+
+static void inet_hash2(struct inet_hashinfo *h, struct sock *sk)
+{
+	struct inet_listen_hashbucket *ilb2;
+
+	if (!h->lhash2)
+		return;
+
+	ilb2 = inet_lhash2_bucket_sk(h, sk);
+
+	spin_lock(&ilb2->lock);
+	if (sk->sk_reuseport && sk->sk_family == AF_INET6)
+		hlist_add_tail_rcu(&inet_csk(sk)->icsk_listen_portaddr_node,
+				   &ilb2->head);
+	else
+		hlist_add_head_rcu(&inet_csk(sk)->icsk_listen_portaddr_node,
+				   &ilb2->head);
+	ilb2->count++;
+	spin_unlock(&ilb2->lock);
+}
+
+static void inet_unhash2(struct inet_hashinfo *h, struct sock *sk)
+{
+	struct inet_listen_hashbucket *ilb2;
+
+	if (!h->lhash2 ||
+	    WARN_ON_ONCE(hlist_unhashed(&inet_csk(sk)->icsk_listen_portaddr_node)))
+		return;
+
+	ilb2 = inet_lhash2_bucket_sk(h, sk);
+
+	spin_lock(&ilb2->lock);
+	hlist_del_init_rcu(&inet_csk(sk)->icsk_listen_portaddr_node);
+	ilb2->count--;
+	spin_unlock(&ilb2->lock);
+}
+
 static inline int compute_score(struct sock *sk, struct net *net,
 				const unsigned short hnum, const __be32 daddr,
 				const int dif, const int sdif, bool exact_dif)
@@ -207,6 +262,40 @@ static inline int compute_score(struct sock *sk, struct net *net,
  */
 
 /* called with rcu_read_lock() : No refcount taken on the socket */
+static struct sock *inet_lhash2_lookup(struct net *net,
+				struct inet_listen_hashbucket *ilb2,
+				struct sk_buff *skb, int doff,
+				const __be32 saddr, __be16 sport,
+				const __be32 daddr, const unsigned short hnum,
+				const int dif, const int sdif)
+{
+	bool exact_dif = inet_exact_dif_match(net, skb);
+	struct inet_connection_sock *icsk;
+	struct sock *sk, *result = NULL;
+	int score, hiscore = 0;
+	u32 phash = 0;
+
+	inet_lhash2_for_each_icsk_rcu(icsk, &ilb2->head) {
+		sk = (struct sock *)icsk;
+		score = compute_score(sk, net, hnum, daddr,
+				      dif, sdif, exact_dif);
+		if (score > hiscore) {
+			if (sk->sk_reuseport) {
+				phash = inet_ehashfn(net, daddr, hnum,
+						     saddr, sport);
+				result = reuseport_select_sock(sk, phash,
+							       skb, doff);
+				if (result)
+					return result;
+			}
+			result = sk;
+			hiscore = score;
+		}
+	}
+
+	return result;
+}
+
 struct sock *__inet_lookup_listener(struct net *net,
 				    struct inet_hashinfo *hashinfo,
 				    struct sk_buff *skb, int doff,
@@ -216,32 +305,57 @@ struct sock *__inet_lookup_listener(struct net *net,
 {
 	unsigned int hash = inet_lhashfn(net, hnum);
 	struct inet_listen_hashbucket *ilb = &hashinfo->listening_hash[hash];
-	int score, hiscore = 0, matches = 0, reuseport = 0;
 	bool exact_dif = inet_exact_dif_match(net, skb);
+	struct inet_listen_hashbucket *ilb2;
 	struct sock *sk, *result = NULL;
+	int score, hiscore = 0;
+	unsigned int hash2;
 	u32 phash = 0;
 
+	if (ilb->count <= 10 || !hashinfo->lhash2)
+		goto port_lookup;
+
+	/* Too many sk in the ilb bucket (which is hashed by port alone).
+	 * Try lhash2 (which is hashed by port and addr) instead.
+	 */
+
+	hash2 = ipv4_portaddr_hash(net, daddr, hnum);
+	ilb2 = inet_lhash2_bucket(hashinfo, hash2);
+	if (ilb2->count > ilb->count)
+		goto port_lookup;
+
+	result = inet_lhash2_lookup(net, ilb2, skb, doff,
+				    saddr, sport, daddr, hnum,
+				    dif, sdif);
+	if (result)
+		return result;
+
+	/* Lookup lhash2 with INADDR_ANY */
+
+	hash2 = ipv4_portaddr_hash(net, htonl(INADDR_ANY), hnum);
+	ilb2 = inet_lhash2_bucket(hashinfo, hash2);
+	if (ilb2->count > ilb->count)
+		goto port_lookup;
+
+	return inet_lhash2_lookup(net, ilb2, skb, doff,
+				  saddr, sport, daddr, hnum,
+				  dif, sdif);
+
+port_lookup:
 	sk_for_each_rcu(sk, &ilb->head) {
 		score = compute_score(sk, net, hnum, daddr,
 				      dif, sdif, exact_dif);
 		if (score > hiscore) {
-			reuseport = sk->sk_reuseport;
-			if (reuseport) {
+			if (sk->sk_reuseport) {
 				phash = inet_ehashfn(net, daddr, hnum,
 						     saddr, sport);
 				result = reuseport_select_sock(sk, phash,
 							       skb, doff);
 				if (result)
 					return result;
-				matches = 1;
 			}
 			result = sk;
 			hiscore = score;
-		} else if (score == hiscore && reuseport) {
-			matches++;
-			if (reciprocal_scale(phash, matches) == 0)
-				result = sk;
-			phash = next_pseudo_random32(phash);
 		}
 	}
 	return result;
@@ -430,7 +544,7 @@ bool inet_ehash_nolisten(struct sock *sk, struct sock *osk)
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	} else {
 		percpu_counter_inc(sk->sk_prot->orphan_count);
-		sk->sk_state = TCP_CLOSE;
+		inet_sk_set_state(sk, TCP_CLOSE);
 		sock_set_flag(sk, SOCK_DEAD);
 		inet_csk_destroy_sock(sk);
 	}
@@ -483,6 +597,8 @@ int __inet_hash(struct sock *sk, struct sock *osk)
 		hlist_add_tail_rcu(&sk->sk_node, &ilb->head);
 	else
 		hlist_add_head_rcu(&sk->sk_node, &ilb->head);
+	inet_hash2(hashinfo, sk);
+	ilb->count++;
 	sock_set_flag(sk, SOCK_RCU_FREE);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 unlock:
@@ -509,28 +625,35 @@ EXPORT_SYMBOL_GPL(inet_hash);
 void inet_unhash(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
+	struct inet_listen_hashbucket *ilb;
 	spinlock_t *lock;
 	bool listener = false;
-	int done;
 
 	if (sk_unhashed(sk))
 		return;
 
 	if (sk->sk_state == TCP_LISTEN) {
-		lock = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)].lock;
+		ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
+		lock = &ilb->lock;
 		listener = true;
 	} else {
 		lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
 	}
 	spin_lock_bh(lock);
+	if (sk_unhashed(sk))
+		goto unlock;
+
 	if (rcu_access_pointer(sk->sk_reuseport_cb))
 		reuseport_detach_sock(sk);
-	if (listener)
-		done = __sk_del_node_init(sk);
-	else
-		done = __sk_nulls_del_node_init_rcu(sk);
-	if (done)
-		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
+	if (listener) {
+		inet_unhash2(hashinfo, sk);
+		 __sk_del_node_init(sk);
+		 ilb->count--;
+	} else {
+		__sk_nulls_del_node_init_rcu(sk);
+	}
+	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
+unlock:
 	spin_unlock_bh(lock);
 }
 EXPORT_SYMBOL_GPL(inet_unhash);
@@ -665,9 +788,36 @@ void inet_hashinfo_init(struct inet_hashinfo *h)
 	for (i = 0; i < INET_LHTABLE_SIZE; i++) {
 		spin_lock_init(&h->listening_hash[i].lock);
 		INIT_HLIST_HEAD(&h->listening_hash[i].head);
+		h->listening_hash[i].count = 0;
 	}
+
+	h->lhash2 = NULL;
 }
 EXPORT_SYMBOL_GPL(inet_hashinfo_init);
+
+void __init inet_hashinfo2_init(struct inet_hashinfo *h, const char *name,
+				unsigned long numentries, int scale,
+				unsigned long low_limit,
+				unsigned long high_limit)
+{
+	unsigned int i;
+
+	h->lhash2 = alloc_large_system_hash(name,
+					    sizeof(*h->lhash2),
+					    numentries,
+					    scale,
+					    0,
+					    NULL,
+					    &h->lhash2_mask,
+					    low_limit,
+					    high_limit);
+
+	for (i = 0; i <= h->lhash2_mask; i++) {
+		spin_lock_init(&h->lhash2[i].lock);
+		INIT_HLIST_HEAD(&h->lhash2[i].head);
+		h->lhash2[i].count = 0;
+	}
+}
 
 int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo)
 {

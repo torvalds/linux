@@ -420,7 +420,7 @@ static ssize_t sta_vht_capa_read(struct file *file, char __user *userbuf,
 		default:
 			p += scnprintf(p, sizeof(buf) + buf - p,
 				       "\t\tMAX-MPDU-UNKNOWN\n");
-		};
+		}
 		switch (vhtc->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) {
 		case 0:
 			p += scnprintf(p, sizeof(buf) + buf - p,
@@ -438,7 +438,7 @@ static ssize_t sta_vht_capa_read(struct file *file, char __user *userbuf,
 			p += scnprintf(p, sizeof(buf) + buf - p,
 				       "\t\tUNKNOWN-MHZ: 0x%x\n",
 				       (vhtc->cap >> 2) & 0x3);
-		};
+		}
 		PFLAG(RXLDPC, "RXLDPC");
 		PFLAG(SHORT_GI_80, "SHORT-GI-80");
 		PFLAG(SHORT_GI_160, "SHORT-GI-160");

@@ -1266,14 +1266,14 @@ static int parse_nat(const struct nlattr *attr,
 		/* Do not allow flags if no type is given. */
 		if (info->range.flags) {
 			OVS_NLERR(log,
-				  "NAT flags may be given only when NAT range (SRC or DST) is also specified.\n"
+				  "NAT flags may be given only when NAT range (SRC or DST) is also specified."
 				  );
 			return -EINVAL;
 		}
 		info->nat = OVS_CT_NAT;   /* NAT existing connections. */
 	} else if (!info->commit) {
 		OVS_NLERR(log,
-			  "NAT attributes may be specified only when CT COMMIT flag is also specified.\n"
+			  "NAT attributes may be specified only when CT COMMIT flag is also specified."
 			  );
 		return -EINVAL;
 	}

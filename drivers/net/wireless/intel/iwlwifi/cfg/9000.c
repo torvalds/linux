@@ -55,7 +55,7 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL9000_UCODE_API_MAX	34
+#define IWL9000_UCODE_API_MAX	36
 
 /* Lowest firmware API version supported */
 #define IWL9000_UCODE_API_MIN	30

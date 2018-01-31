@@ -433,12 +433,16 @@ void i40evf_add_ether_addrs(struct i40evf_adapter *adapter)
 			adapter->current_op);
 		return;
 	}
+
+	spin_lock_bh(&adapter->mac_vlan_list_lock);
+
 	list_for_each_entry(f, &adapter->mac_filter_list, list) {
 		if (f->add)
 			count++;
 	}
 	if (!count) {
 		adapter->aq_required &= ~I40EVF_FLAG_AQ_ADD_MAC_FILTER;
+		spin_unlock_bh(&adapter->mac_vlan_list_lock);
 		return;
 	}
 	adapter->current_op = VIRTCHNL_OP_ADD_ETH_ADDR;
@@ -456,8 +460,10 @@ void i40evf_add_ether_addrs(struct i40evf_adapter *adapter)
 	}
 
 	veal = kzalloc(len, GFP_KERNEL);
-	if (!veal)
+	if (!veal) {
+		spin_unlock_bh(&adapter->mac_vlan_list_lock);
 		return;
+	}
 
 	veal->vsi_id = adapter->vsi_res->vsi_id;
 	veal->num_elements = count;
@@ -472,6 +478,9 @@ void i40evf_add_ether_addrs(struct i40evf_adapter *adapter)
 	}
 	if (!more)
 		adapter->aq_required &= ~I40EVF_FLAG_AQ_ADD_MAC_FILTER;
+
+	spin_unlock_bh(&adapter->mac_vlan_list_lock);
+
 	i40evf_send_pf_msg(adapter, VIRTCHNL_OP_ADD_ETH_ADDR,
 			   (u8 *)veal, len);
 	kfree(veal);
@@ -498,12 +507,16 @@ void i40evf_del_ether_addrs(struct i40evf_adapter *adapter)
 			adapter->current_op);
 		return;
 	}
+
+	spin_lock_bh(&adapter->mac_vlan_list_lock);
+
 	list_for_each_entry(f, &adapter->mac_filter_list, list) {
 		if (f->remove)
 			count++;
 	}
 	if (!count) {
 		adapter->aq_required &= ~I40EVF_FLAG_AQ_DEL_MAC_FILTER;
+		spin_unlock_bh(&adapter->mac_vlan_list_lock);
 		return;
 	}
 	adapter->current_op = VIRTCHNL_OP_DEL_ETH_ADDR;
@@ -520,8 +533,10 @@ void i40evf_del_ether_addrs(struct i40evf_adapter *adapter)
 		more = true;
 	}
 	veal = kzalloc(len, GFP_KERNEL);
-	if (!veal)
+	if (!veal) {
+		spin_unlock_bh(&adapter->mac_vlan_list_lock);
 		return;
+	}
 
 	veal->vsi_id = adapter->vsi_res->vsi_id;
 	veal->num_elements = count;
@@ -537,6 +552,9 @@ void i40evf_del_ether_addrs(struct i40evf_adapter *adapter)
 	}
 	if (!more)
 		adapter->aq_required &= ~I40EVF_FLAG_AQ_DEL_MAC_FILTER;
+
+	spin_unlock_bh(&adapter->mac_vlan_list_lock);
+
 	i40evf_send_pf_msg(adapter, VIRTCHNL_OP_DEL_ETH_ADDR,
 			   (u8 *)veal, len);
 	kfree(veal);
@@ -564,12 +582,15 @@ void i40evf_add_vlans(struct i40evf_adapter *adapter)
 		return;
 	}
 
+	spin_lock_bh(&adapter->mac_vlan_list_lock);
+
 	list_for_each_entry(f, &adapter->vlan_filter_list, list) {
 		if (f->add)
 			count++;
 	}
 	if (!count) {
 		adapter->aq_required &= ~I40EVF_FLAG_AQ_ADD_VLAN_FILTER;
+		spin_unlock_bh(&adapter->mac_vlan_list_lock);
 		return;
 	}
 	adapter->current_op = VIRTCHNL_OP_ADD_VLAN;
@@ -586,8 +607,10 @@ void i40evf_add_vlans(struct i40evf_adapter *adapter)
 		more = true;
 	}
 	vvfl = kzalloc(len, GFP_KERNEL);
-	if (!vvfl)
+	if (!vvfl) {
+		spin_unlock_bh(&adapter->mac_vlan_list_lock);
 		return;
+	}
 
 	vvfl->vsi_id = adapter->vsi_res->vsi_id;
 	vvfl->num_elements = count;
@@ -602,6 +625,9 @@ void i40evf_add_vlans(struct i40evf_adapter *adapter)
 	}
 	if (!more)
 		adapter->aq_required &= ~I40EVF_FLAG_AQ_ADD_VLAN_FILTER;
+
+	spin_unlock_bh(&adapter->mac_vlan_list_lock);
+
 	i40evf_send_pf_msg(adapter, VIRTCHNL_OP_ADD_VLAN, (u8 *)vvfl, len);
 	kfree(vvfl);
 }
@@ -628,12 +654,15 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter)
 		return;
 	}
 
+	spin_lock_bh(&adapter->mac_vlan_list_lock);
+
 	list_for_each_entry(f, &adapter->vlan_filter_list, list) {
 		if (f->remove)
 			count++;
 	}
 	if (!count) {
 		adapter->aq_required &= ~I40EVF_FLAG_AQ_DEL_VLAN_FILTER;
+		spin_unlock_bh(&adapter->mac_vlan_list_lock);
 		return;
 	}
 	adapter->current_op = VIRTCHNL_OP_DEL_VLAN;
@@ -650,8 +679,10 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter)
 		more = true;
 	}
 	vvfl = kzalloc(len, GFP_KERNEL);
-	if (!vvfl)
+	if (!vvfl) {
+		spin_unlock_bh(&adapter->mac_vlan_list_lock);
 		return;
+	}
 
 	vvfl->vsi_id = adapter->vsi_res->vsi_id;
 	vvfl->num_elements = count;
@@ -667,6 +698,9 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter)
 	}
 	if (!more)
 		adapter->aq_required &= ~I40EVF_FLAG_AQ_DEL_VLAN_FILTER;
+
+	spin_unlock_bh(&adapter->mac_vlan_list_lock);
+
 	i40evf_send_pf_msg(adapter, VIRTCHNL_OP_DEL_VLAN, (u8 *)vvfl, len);
 	kfree(vvfl);
 }
@@ -705,8 +739,10 @@ void i40evf_set_promiscuous(struct i40evf_adapter *adapter, int flags)
 	}
 
 	if (!flags) {
-		adapter->flags &= ~I40EVF_FLAG_PROMISC_ON;
-		adapter->aq_required &= ~I40EVF_FLAG_AQ_RELEASE_PROMISC;
+		adapter->flags &= ~(I40EVF_FLAG_PROMISC_ON |
+				    I40EVF_FLAG_ALLMULTI_ON);
+		adapter->aq_required &= ~(I40EVF_FLAG_AQ_RELEASE_PROMISC |
+					  I40EVF_FLAG_AQ_RELEASE_ALLMULTI);
 		dev_info(&adapter->pdev->dev, "Leaving promiscuous mode\n");
 	}
 
@@ -965,23 +1001,34 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 	if (v_opcode == VIRTCHNL_OP_EVENT) {
 		struct virtchnl_pf_event *vpe =
 			(struct virtchnl_pf_event *)msg;
+		bool link_up = vpe->event_data.link_event.link_status;
 		switch (vpe->event) {
 		case VIRTCHNL_EVENT_LINK_CHANGE:
 			adapter->link_speed =
 				vpe->event_data.link_event.link_speed;
-			if (adapter->link_up !=
-			    vpe->event_data.link_event.link_status) {
-				adapter->link_up =
-					vpe->event_data.link_event.link_status;
-				if (adapter->link_up) {
-					netif_tx_start_all_queues(netdev);
-					netif_carrier_on(netdev);
-				} else {
-					netif_tx_stop_all_queues(netdev);
-					netif_carrier_off(netdev);
-				}
-				i40evf_print_link_message(adapter);
+
+			/* we've already got the right link status, bail */
+			if (adapter->link_up == link_up)
+				break;
+
+			/* If we get link up message and start queues before
+			 * our queues are configured it will trigger a TX hang.
+			 * In that case, just ignore the link status message,
+			 * we'll get another one after we enable queues and
+			 * actually prepared to send traffic.
+			 */
+			if (link_up && adapter->state != __I40EVF_RUNNING)
+				break;
+
+			adapter->link_up = link_up;
+			if (link_up) {
+				netif_tx_start_all_queues(netdev);
+				netif_carrier_on(netdev);
+			} else {
+				netif_tx_stop_all_queues(netdev);
+				netif_carrier_off(netdev);
 			}
+			i40evf_print_link_message(adapter);
 			break;
 		case VIRTCHNL_EVENT_RESET_IMPENDING:
 			dev_info(&adapter->pdev->dev, "PF reset warning received\n");

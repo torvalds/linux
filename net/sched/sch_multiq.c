@@ -180,7 +180,8 @@ multiq_destroy(struct Qdisc *sch)
 	kfree(q->queues);
 }
 
-static int multiq_tune(struct Qdisc *sch, struct nlattr *opt)
+static int multiq_tune(struct Qdisc *sch, struct nlattr *opt,
+		       struct netlink_ext_ack *extack)
 {
 	struct multiq_sched_data *q = qdisc_priv(sch);
 	struct tc_multiq_qopt *qopt;
@@ -215,7 +216,7 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt)
 			child = qdisc_create_dflt(sch->dev_queue,
 						  &pfifo_qdisc_ops,
 						  TC_H_MAKE(sch->handle,
-							    i + 1));
+							    i + 1), extack);
 			if (child) {
 				sch_tree_lock(sch);
 				old = q->queues[i];
@@ -236,17 +237,18 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt)
 	return 0;
 }
 
-static int multiq_init(struct Qdisc *sch, struct nlattr *opt)
+static int multiq_init(struct Qdisc *sch, struct nlattr *opt,
+		       struct netlink_ext_ack *extack)
 {
 	struct multiq_sched_data *q = qdisc_priv(sch);
 	int i, err;
 
 	q->queues = NULL;
 
-	if (opt == NULL)
+	if (!opt)
 		return -EINVAL;
 
-	err = tcf_block_get(&q->block, &q->filter_list, sch);
+	err = tcf_block_get(&q->block, &q->filter_list, sch, extack);
 	if (err)
 		return err;
 
@@ -258,7 +260,7 @@ static int multiq_init(struct Qdisc *sch, struct nlattr *opt)
 	for (i = 0; i < q->max_bands; i++)
 		q->queues[i] = &noop_qdisc;
 
-	return multiq_tune(sch, opt);
+	return multiq_tune(sch, opt, extack);
 }
 
 static int multiq_dump(struct Qdisc *sch, struct sk_buff *skb)
@@ -281,7 +283,7 @@ nla_put_failure:
 }
 
 static int multiq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
-		      struct Qdisc **old)
+			struct Qdisc **old, struct netlink_ext_ack *extack)
 {
 	struct multiq_sched_data *q = qdisc_priv(sch);
 	unsigned long band = arg - 1;
@@ -369,7 +371,8 @@ static void multiq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 	}
 }
 
-static struct tcf_block *multiq_tcf_block(struct Qdisc *sch, unsigned long cl)
+static struct tcf_block *multiq_tcf_block(struct Qdisc *sch, unsigned long cl,
+					  struct netlink_ext_ack *extack)
 {
 	struct multiq_sched_data *q = qdisc_priv(sch);
 

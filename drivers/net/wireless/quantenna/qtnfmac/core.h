@@ -88,6 +88,9 @@ struct qtnf_vif {
 	struct work_struct reset_work;
 	struct qtnf_sta_list sta_list;
 	unsigned long cons_tx_timeout_cnt;
+	int generation;
+
+	struct pcpu_sw_netstats __percpu *stats64;
 };
 
 struct qtnf_mac_info {
@@ -102,10 +105,14 @@ struct qtnf_mac_info {
 	u8 sretry_limit;
 	u8 coverage_class;
 	u8 radar_detect_widths;
+	u32 max_acl_mac_addrs;
 	struct ieee80211_ht_cap ht_cap_mod_mask;
 	struct ieee80211_vht_cap vht_cap_mod_mask;
-	struct ieee80211_iface_limit *limits;
-	size_t n_limits;
+	struct ieee80211_iface_combination *if_comb;
+	size_t n_if_comb;
+	u8 *extended_capabilities;
+	u8 *extended_capabilities_mask;
+	u8 extended_capabilities_len;
 };
 
 struct qtnf_chan_stats {
@@ -126,7 +133,7 @@ struct qtnf_wmac {
 	struct qtnf_vif iflist[QTNF_MAX_INTF];
 	struct cfg80211_scan_request *scan_req;
 	struct mutex mac_lock;	/* lock during wmac speicific ops */
-	struct timer_list scan_timeout;
+	struct delayed_work scan_timeout;
 };
 
 struct qtnf_hw_info {
@@ -138,14 +145,16 @@ struct qtnf_hw_info {
 	struct ieee80211_regdomain *rd;
 	u8 total_tx_chain;
 	u8 total_rx_chain;
+	char fw_version[ETHTOOL_FWVERS_LEN];
+	u32 hw_version;
 };
 
 struct qtnf_vif *qtnf_mac_get_free_vif(struct qtnf_wmac *mac);
 struct qtnf_vif *qtnf_mac_get_base_vif(struct qtnf_wmac *mac);
+void qtnf_mac_iface_comb_free(struct qtnf_wmac *mac);
 struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus);
 int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *priv,
-			 const char *name, unsigned char name_assign_type,
-			 enum nl80211_iftype iftype);
+			 const char *name, unsigned char name_assign_type);
 void qtnf_main_work_queue(struct work_struct *work);
 int qtnf_cmd_send_update_phy_params(struct qtnf_wmac *mac, u32 changed);
 int qtnf_cmd_send_get_phy_params(struct qtnf_wmac *mac);
@@ -153,9 +162,13 @@ int qtnf_cmd_send_get_phy_params(struct qtnf_wmac *mac);
 struct qtnf_wmac *qtnf_core_get_mac(const struct qtnf_bus *bus, u8 macid);
 struct net_device *qtnf_classify_skb(struct qtnf_bus *bus, struct sk_buff *skb);
 void qtnf_wake_all_queues(struct net_device *ndev);
+void qtnf_update_rx_stats(struct net_device *ndev, const struct sk_buff *skb);
+void qtnf_update_tx_stats(struct net_device *ndev, const struct sk_buff *skb);
+
 void qtnf_virtual_intf_cleanup(struct net_device *ndev);
 
 void qtnf_netdev_updown(struct net_device *ndev, bool up);
+void qtnf_scan_done(struct qtnf_wmac *mac, bool aborted);
 
 static inline struct qtnf_vif *qtnf_netdev_get_priv(struct net_device *dev)
 {

@@ -212,9 +212,7 @@ static int pasemi_get_mac_addr(struct pasemi_mac *mac)
 		return -ENOENT;
 	}
 
-	if (sscanf(maddr, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-		   &addr[0], &addr[1], &addr[2], &addr[3], &addr[4], &addr[5])
-	    != ETH_ALEN) {
+	if (!mac_pton(maddr, addr)) {
 		dev_warn(&pdev->dev,
 			 "can't parse mac address, not configuring\n");
 		return -EINVAL;

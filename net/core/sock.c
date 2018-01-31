@@ -145,6 +145,8 @@
 static DEFINE_MUTEX(proto_list_mutex);
 static LIST_HEAD(proto_list);
 
+static void sock_inuse_add(struct net *net, int val);
+
 /**
  * sk_ns_capable - General socket capability test
  * @sk: Socket to use a capability on or through
@@ -1531,8 +1533,11 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		sk->sk_kern_sock = kern;
 		sock_lock_init(sk);
 		sk->sk_net_refcnt = kern ? 0 : 1;
-		if (likely(sk->sk_net_refcnt))
+		if (likely(sk->sk_net_refcnt)) {
 			get_net(net);
+			sock_inuse_add(net, 1);
+		}
+
 		sock_net_set(sk, net);
 		refcount_set(&sk->sk_wmem_alloc, 1);
 
@@ -1595,6 +1600,9 @@ void sk_destruct(struct sock *sk)
 
 static void __sk_free(struct sock *sk)
 {
+	if (likely(sk->sk_net_refcnt))
+		sock_inuse_add(sock_net(sk), -1);
+
 	if (unlikely(sock_diag_has_destroy_listeners(sk) && sk->sk_net_refcnt))
 		sock_diag_broadcast_destroy(sk);
 	else
@@ -1716,6 +1724,8 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		newsk->sk_priority = 0;
 		newsk->sk_incoming_cpu = raw_smp_processor_id();
 		atomic64_set(&newsk->sk_cookie, 0);
+		if (likely(newsk->sk_net_refcnt))
+			sock_inuse_add(sock_net(newsk), 1);
 
 		/*
 		 * Before updating sk_refcnt, we must commit prior changes to memory
@@ -3045,7 +3055,7 @@ static DECLARE_BITMAP(proto_inuse_idx, PROTO_INUSE_NR);
 
 void sock_prot_inuse_add(struct net *net, struct proto *prot, int val)
 {
-	__this_cpu_add(net->core.inuse->val[prot->inuse_idx], val);
+	__this_cpu_add(net->core.prot_inuse->val[prot->inuse_idx], val);
 }
 EXPORT_SYMBOL_GPL(sock_prot_inuse_add);
 
@@ -3055,21 +3065,50 @@ int sock_prot_inuse_get(struct net *net, struct proto *prot)
 	int res = 0;
 
 	for_each_possible_cpu(cpu)
-		res += per_cpu_ptr(net->core.inuse, cpu)->val[idx];
+		res += per_cpu_ptr(net->core.prot_inuse, cpu)->val[idx];
 
 	return res >= 0 ? res : 0;
 }
 EXPORT_SYMBOL_GPL(sock_prot_inuse_get);
 
+static void sock_inuse_add(struct net *net, int val)
+{
+	this_cpu_add(*net->core.sock_inuse, val);
+}
+
+int sock_inuse_get(struct net *net)
+{
+	int cpu, res = 0;
+
+	for_each_possible_cpu(cpu)
+		res += *per_cpu_ptr(net->core.sock_inuse, cpu);
+
+	return res;
+}
+
+EXPORT_SYMBOL_GPL(sock_inuse_get);
+
 static int __net_init sock_inuse_init_net(struct net *net)
 {
-	net->core.inuse = alloc_percpu(struct prot_inuse);
-	return net->core.inuse ? 0 : -ENOMEM;
+	net->core.prot_inuse = alloc_percpu(struct prot_inuse);
+	if (net->core.prot_inuse == NULL)
+		return -ENOMEM;
+
+	net->core.sock_inuse = alloc_percpu(int);
+	if (net->core.sock_inuse == NULL)
+		goto out;
+
+	return 0;
+
+out:
+	free_percpu(net->core.prot_inuse);
+	return -ENOMEM;
 }
 
 static void __net_exit sock_inuse_exit_net(struct net *net)
 {
-	free_percpu(net->core.inuse);
+	free_percpu(net->core.prot_inuse);
+	free_percpu(net->core.sock_inuse);
 }
 
 static struct pernet_operations net_inuse_ops = {
@@ -3110,6 +3149,10 @@ static inline void assign_proto_idx(struct proto *prot)
 }
 
 static inline void release_proto_idx(struct proto *prot)
+{
+}
+
+static void sock_inuse_add(struct net *net, int val)
 {
 }
 #endif
@@ -3319,7 +3362,6 @@ static int proto_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations proto_seq_fops = {
-	.owner		= THIS_MODULE,
 	.open		= proto_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

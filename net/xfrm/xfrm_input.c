@@ -257,7 +257,6 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 
 		if (xo && (xo->flags & CRYPTO_DONE)) {
 			crypto_done = true;
-			x = xfrm_input_state(skb);
 			family = XFRM_SPI_SKB_CB(skb)->family;
 
 			if (!(xo->status & CRYPTO_SUCCESS)) {

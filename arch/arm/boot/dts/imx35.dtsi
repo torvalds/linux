@@ -303,7 +303,7 @@
 			};
 
 			can1: can@53fe4000 {
-				compatible = "fsl,imx35-flexcan", "fsl,p1010-flexcan";
+				compatible = "fsl,imx35-flexcan";
 				reg = <0x53fe4000 0x1000>;
 				clocks = <&clks 33>, <&clks 33>;
 				clock-names = "ipg", "per";
@@ -312,7 +312,7 @@
 			};
 
 			can2: can@53fe8000 {
-				compatible = "fsl,imx35-flexcan", "fsl,p1010-flexcan";
+				compatible = "fsl,imx35-flexcan";
 				reg = <0x53fe8000 0x1000>;
 				clocks = <&clks 34>, <&clks 34>;
 				clock-names = "ipg", "per";

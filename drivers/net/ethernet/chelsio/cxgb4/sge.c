@@ -761,12 +761,19 @@ static inline unsigned int flits_to_desc(unsigned int n)
  *	Returns whether an Ethernet packet is small enough to fit as
  *	immediate data. Return value corresponds to headroom required.
  */
-static inline int is_eth_imm(const struct sk_buff *skb)
+static inline int is_eth_imm(const struct sk_buff *skb, unsigned int chip_ver)
 {
-	int hdrlen = skb_shinfo(skb)->gso_size ?
-			sizeof(struct cpl_tx_pkt_lso_core) : 0;
+	int hdrlen = 0;
 
-	hdrlen += sizeof(struct cpl_tx_pkt);
+	if (skb->encapsulation && skb_shinfo(skb)->gso_size &&
+	    chip_ver > CHELSIO_T5) {
+		hdrlen = sizeof(struct cpl_tx_tnl_lso);
+		hdrlen += sizeof(struct cpl_tx_pkt_core);
+	} else {
+		hdrlen = skb_shinfo(skb)->gso_size ?
+			 sizeof(struct cpl_tx_pkt_lso_core) : 0;
+		hdrlen += sizeof(struct cpl_tx_pkt);
+	}
 	if (skb->len <= MAX_IMM_TX_PKT_LEN - hdrlen)
 		return hdrlen;
 	return 0;
@@ -779,10 +786,11 @@ static inline int is_eth_imm(const struct sk_buff *skb)
  *	Returns the number of flits needed for a Tx WR for the given Ethernet
  *	packet, including the needed WR and CPL headers.
  */
-static inline unsigned int calc_tx_flits(const struct sk_buff *skb)
+static inline unsigned int calc_tx_flits(const struct sk_buff *skb,
+					 unsigned int chip_ver)
 {
 	unsigned int flits;
-	int hdrlen = is_eth_imm(skb);
+	int hdrlen = is_eth_imm(skb, chip_ver);
 
 	/* If the skb is small enough, we can pump it out as a work request
 	 * with only immediate data.  In that case we just have to have the
@@ -801,13 +809,20 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb)
 	 * with an embedded TX Packet Write CPL message.
 	 */
 	flits = sgl_len(skb_shinfo(skb)->nr_frags + 1);
-	if (skb_shinfo(skb)->gso_size)
+	if (skb_shinfo(skb)->gso_size) {
+		if (skb->encapsulation && chip_ver > CHELSIO_T5)
+			hdrlen = sizeof(struct fw_eth_tx_pkt_wr) +
+				 sizeof(struct cpl_tx_tnl_lso);
+		else
+			hdrlen = sizeof(struct fw_eth_tx_pkt_wr) +
+				 sizeof(struct cpl_tx_pkt_lso_core);
+
+		hdrlen += sizeof(struct cpl_tx_pkt_core);
+		flits += (hdrlen / sizeof(__be64));
+	} else {
 		flits += (sizeof(struct fw_eth_tx_pkt_wr) +
-			  sizeof(struct cpl_tx_pkt_lso_core) +
 			  sizeof(struct cpl_tx_pkt_core)) / sizeof(__be64);
-	else
-		flits += (sizeof(struct fw_eth_tx_pkt_wr) +
-			  sizeof(struct cpl_tx_pkt_core)) / sizeof(__be64);
+	}
 	return flits;
 }
 
@@ -818,9 +833,10 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb)
  *	Returns the number of Tx descriptors needed for the given Ethernet
  *	packet, including the needed WR and CPL headers.
  */
-static inline unsigned int calc_tx_descs(const struct sk_buff *skb)
+static inline unsigned int calc_tx_descs(const struct sk_buff *skb,
+					 unsigned int chip_ver)
 {
-	return flits_to_desc(calc_tx_flits(skb));
+	return flits_to_desc(calc_tx_flits(skb, chip_ver));
 }
 
 /**
@@ -1148,6 +1164,105 @@ cxgb_fcoe_offload(struct sk_buff *skb, struct adapter *adap,
 }
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 
+/* Returns tunnel type if hardware supports offloading of the same.
+ * It is called only for T5 and onwards.
+ */
+enum cpl_tx_tnl_lso_type cxgb_encap_offload_supported(struct sk_buff *skb)
+{
+	u8 l4_hdr = 0;
+	enum cpl_tx_tnl_lso_type tnl_type = TX_TNL_TYPE_OPAQUE;
+	struct port_info *pi = netdev_priv(skb->dev);
+	struct adapter *adapter = pi->adapter;
+
+	if (skb->inner_protocol_type != ENCAP_TYPE_ETHER ||
+	    skb->inner_protocol != htons(ETH_P_TEB))
+		return tnl_type;
+
+	switch (vlan_get_protocol(skb)) {
+	case htons(ETH_P_IP):
+		l4_hdr = ip_hdr(skb)->protocol;
+		break;
+	case htons(ETH_P_IPV6):
+		l4_hdr = ipv6_hdr(skb)->nexthdr;
+		break;
+	default:
+		return tnl_type;
+	}
+
+	switch (l4_hdr) {
+	case IPPROTO_UDP:
+		if (adapter->vxlan_port == udp_hdr(skb)->dest)
+			tnl_type = TX_TNL_TYPE_VXLAN;
+		else if (adapter->geneve_port == udp_hdr(skb)->dest)
+			tnl_type = TX_TNL_TYPE_GENEVE;
+		break;
+	default:
+		return tnl_type;
+	}
+
+	return tnl_type;
+}
+
+static inline void t6_fill_tnl_lso(struct sk_buff *skb,
+				   struct cpl_tx_tnl_lso *tnl_lso,
+				   enum cpl_tx_tnl_lso_type tnl_type)
+{
+	u32 val;
+	int in_eth_xtra_len;
+	int l3hdr_len = skb_network_header_len(skb);
+	int eth_xtra_len = skb_network_offset(skb) - ETH_HLEN;
+	const struct skb_shared_info *ssi = skb_shinfo(skb);
+	bool v6 = (ip_hdr(skb)->version == 6);
+
+	val = CPL_TX_TNL_LSO_OPCODE_V(CPL_TX_TNL_LSO) |
+	      CPL_TX_TNL_LSO_FIRST_F |
+	      CPL_TX_TNL_LSO_LAST_F |
+	      (v6 ? CPL_TX_TNL_LSO_IPV6OUT_F : 0) |
+	      CPL_TX_TNL_LSO_ETHHDRLENOUT_V(eth_xtra_len / 4) |
+	      CPL_TX_TNL_LSO_IPHDRLENOUT_V(l3hdr_len / 4) |
+	      (v6 ? 0 : CPL_TX_TNL_LSO_IPHDRCHKOUT_F) |
+	      CPL_TX_TNL_LSO_IPLENSETOUT_F |
+	      (v6 ? 0 : CPL_TX_TNL_LSO_IPIDINCOUT_F);
+	tnl_lso->op_to_IpIdSplitOut = htonl(val);
+
+	tnl_lso->IpIdOffsetOut = 0;
+
+	/* Get the tunnel header length */
+	val = skb_inner_mac_header(skb) - skb_mac_header(skb);
+	in_eth_xtra_len = skb_inner_network_header(skb) -
+			  skb_inner_mac_header(skb) - ETH_HLEN;
+
+	switch (tnl_type) {
+	case TX_TNL_TYPE_VXLAN:
+	case TX_TNL_TYPE_GENEVE:
+		tnl_lso->UdpLenSetOut_to_TnlHdrLen =
+			htons(CPL_TX_TNL_LSO_UDPCHKCLROUT_F |
+			CPL_TX_TNL_LSO_UDPLENSETOUT_F);
+		break;
+	default:
+		tnl_lso->UdpLenSetOut_to_TnlHdrLen = 0;
+		break;
+	}
+
+	tnl_lso->UdpLenSetOut_to_TnlHdrLen |=
+		 htons(CPL_TX_TNL_LSO_TNLHDRLEN_V(val) |
+		       CPL_TX_TNL_LSO_TNLTYPE_V(tnl_type));
+
+	tnl_lso->r1 = 0;
+
+	val = CPL_TX_TNL_LSO_ETHHDRLEN_V(in_eth_xtra_len / 4) |
+	      CPL_TX_TNL_LSO_IPV6_V(inner_ip_hdr(skb)->version == 6) |
+	      CPL_TX_TNL_LSO_IPHDRLEN_V(skb_inner_network_header_len(skb) / 4) |
+	      CPL_TX_TNL_LSO_TCPHDRLEN_V(inner_tcp_hdrlen(skb) / 4);
+	tnl_lso->Flow_to_TcpHdrLen = htonl(val);
+
+	tnl_lso->IpIdOffset = htons(0);
+
+	tnl_lso->IpIdSplit_to_Mss = htons(CPL_TX_TNL_LSO_MSS_V(ssi->gso_size));
+	tnl_lso->TCPSeqOffset = htonl(0);
+	tnl_lso->EthLenOffset_Size = htonl(CPL_TX_TNL_LSO_SIZE_V(skb->len));
+}
+
 /**
  *	t4_eth_xmit - add a packet to an Ethernet Tx queue
  *	@skb: the packet
@@ -1171,6 +1286,9 @@ netdev_tx_t t4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	bool immediate = false;
 	int len, max_pkt_len;
 	bool ptp_enabled = is_ptp_enabled(skb, dev);
+	unsigned int chip_ver;
+	enum cpl_tx_tnl_lso_type tnl_type = TX_TNL_TYPE_OPAQUE;
+
 #ifdef CONFIG_CHELSIO_T4_FCOE
 	int err;
 #endif /* CONFIG_CHELSIO_T4_FCOE */
@@ -1227,7 +1345,8 @@ out_free:	dev_kfree_skb_any(skb);
 	}
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 
-	flits = calc_tx_flits(skb);
+	chip_ver = CHELSIO_CHIP_VERSION(adap->params.chip);
+	flits = calc_tx_flits(skb, chip_ver);
 	ndesc = flits_to_desc(flits);
 	credits = txq_avail(&q->q) - ndesc;
 
@@ -1241,8 +1360,11 @@ out_free:	dev_kfree_skb_any(skb);
 		return NETDEV_TX_BUSY;
 	}
 
-	if (is_eth_imm(skb))
+	if (is_eth_imm(skb, chip_ver))
 		immediate = true;
+
+	if (skb->encapsulation && chip_ver > CHELSIO_T5)
+		tnl_type = cxgb_encap_offload_supported(skb);
 
 	if (!immediate &&
 	    unlikely(cxgb4_map_skb(adap->pdev_dev, skb, addr) < 0)) {
@@ -1269,33 +1391,58 @@ out_free:	dev_kfree_skb_any(skb);
 		bool v6 = (ssi->gso_type & SKB_GSO_TCPV6) != 0;
 		int l3hdr_len = skb_network_header_len(skb);
 		int eth_xtra_len = skb_network_offset(skb) - ETH_HLEN;
+		struct cpl_tx_tnl_lso *tnl_lso = (void *)(wr + 1);
 
-		len += sizeof(*lso);
+		if (tnl_type)
+			len += sizeof(*tnl_lso);
+		else
+			len += sizeof(*lso);
+
 		wr->op_immdlen = htonl(FW_WR_OP_V(FW_ETH_TX_PKT_WR) |
 				       FW_WR_IMMDLEN_V(len));
-		lso->c.lso_ctrl = htonl(LSO_OPCODE_V(CPL_TX_PKT_LSO) |
-					LSO_FIRST_SLICE_F | LSO_LAST_SLICE_F |
-					LSO_IPV6_V(v6) |
-					LSO_ETHHDR_LEN_V(eth_xtra_len / 4) |
-					LSO_IPHDR_LEN_V(l3hdr_len / 4) |
-					LSO_TCPHDR_LEN_V(tcp_hdr(skb)->doff));
-		lso->c.ipid_ofst = htons(0);
-		lso->c.mss = htons(ssi->gso_size);
-		lso->c.seqno_offset = htonl(0);
-		if (is_t4(adap->params.chip))
-			lso->c.len = htonl(skb->len);
-		else
-			lso->c.len = htonl(LSO_T5_XFER_SIZE_V(skb->len));
-		cpl = (void *)(lso + 1);
+		if (tnl_type) {
+			struct iphdr *iph = ip_hdr(skb);
 
-		if (CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5)
-			cntrl =	TXPKT_ETHHDR_LEN_V(eth_xtra_len);
-		else
-			cntrl = T6_TXPKT_ETHHDR_LEN_V(eth_xtra_len);
+			t6_fill_tnl_lso(skb, tnl_lso, tnl_type);
+			cpl = (void *)(tnl_lso + 1);
+			/* Driver is expected to compute partial checksum that
+			 * does not include the IP Total Length.
+			 */
+			if (iph->version == 4) {
+				iph->check = 0;
+				iph->tot_len = 0;
+				iph->check = (u16)(~ip_fast_csum((u8 *)iph,
+								 iph->ihl));
+			}
+			if (skb->ip_summed == CHECKSUM_PARTIAL)
+				cntrl = hwcsum(adap->params.chip, skb);
+		} else {
+			lso->c.lso_ctrl = htonl(LSO_OPCODE_V(CPL_TX_PKT_LSO) |
+					  LSO_FIRST_SLICE_F | LSO_LAST_SLICE_F |
+					  LSO_IPV6_V(v6) |
+					  LSO_ETHHDR_LEN_V(eth_xtra_len / 4) |
+					  LSO_IPHDR_LEN_V(l3hdr_len / 4) |
+					  LSO_TCPHDR_LEN_V(tcp_hdr(skb)->doff));
+			lso->c.ipid_ofst = htons(0);
+			lso->c.mss = htons(ssi->gso_size);
+			lso->c.seqno_offset = htonl(0);
+			if (is_t4(adap->params.chip))
+				lso->c.len = htonl(skb->len);
+			else
+				lso->c.len =
+					htonl(LSO_T5_XFER_SIZE_V(skb->len));
+			cpl = (void *)(lso + 1);
 
-		cntrl |= TXPKT_CSUM_TYPE_V(v6 ?
-					   TX_CSUM_TCPIP6 : TX_CSUM_TCPIP) |
-			 TXPKT_IPHDR_LEN_V(l3hdr_len);
+			if (CHELSIO_CHIP_VERSION(adap->params.chip)
+			    <= CHELSIO_T5)
+				cntrl =	TXPKT_ETHHDR_LEN_V(eth_xtra_len);
+			else
+				cntrl = T6_TXPKT_ETHHDR_LEN_V(eth_xtra_len);
+
+			cntrl |= TXPKT_CSUM_TYPE_V(v6 ?
+				 TX_CSUM_TCPIP6 : TX_CSUM_TCPIP) |
+				 TXPKT_IPHDR_LEN_V(l3hdr_len);
+		}
 		q->tso++;
 		q->tx_cso += ssi->gso_segs;
 	} else {

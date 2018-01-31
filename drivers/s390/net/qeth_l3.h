@@ -29,7 +29,7 @@ struct qeth_ipaddr {
 	 */
 	int  ref_counter;
 	enum qeth_prot_versions proto;
-	unsigned char mac[OSA_ADDR_LEN];
+	unsigned char mac[ETH_ALEN];
 	union {
 		struct {
 			unsigned int addr;
@@ -69,19 +69,20 @@ struct qeth_ipato_entry {
 extern const struct attribute_group *qeth_l3_attr_groups[];
 
 void qeth_l3_ipaddr_to_string(enum qeth_prot_versions, const __u8 *, char *);
-int qeth_l3_string_to_ipaddr(const char *, enum qeth_prot_versions, __u8 *);
 int qeth_l3_create_device_attributes(struct device *);
 void qeth_l3_remove_device_attributes(struct device *);
 int qeth_l3_setrouting_v4(struct qeth_card *);
 int qeth_l3_setrouting_v6(struct qeth_card *);
 int qeth_l3_add_ipato_entry(struct qeth_card *, struct qeth_ipato_entry *);
-void qeth_l3_del_ipato_entry(struct qeth_card *, enum qeth_prot_versions,
-			u8 *, int);
+int qeth_l3_del_ipato_entry(struct qeth_card *card,
+			    enum qeth_prot_versions proto, u8 *addr,
+			    int mask_bits);
 int qeth_l3_add_vipa(struct qeth_card *, enum qeth_prot_versions, const u8 *);
-void qeth_l3_del_vipa(struct qeth_card *, enum qeth_prot_versions, const u8 *);
+int qeth_l3_del_vipa(struct qeth_card *card, enum qeth_prot_versions proto,
+		     const u8 *addr);
 int qeth_l3_add_rxip(struct qeth_card *, enum qeth_prot_versions, const u8 *);
-void qeth_l3_del_rxip(struct qeth_card *card, enum qeth_prot_versions,
-			const u8 *);
+int qeth_l3_del_rxip(struct qeth_card *card, enum qeth_prot_versions proto,
+		     const u8 *addr);
 void qeth_l3_update_ipato(struct qeth_card *card);
 struct qeth_ipaddr *qeth_l3_get_addr_buffer(enum qeth_prot_versions);
 int qeth_l3_add_ip(struct qeth_card *, struct qeth_ipaddr *);

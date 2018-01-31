@@ -617,8 +617,21 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 			ipc.oif = inet->mc_index;
 		if (!saddr)
 			saddr = inet->mc_addr;
-	} else if (!ipc.oif)
+	} else if (!ipc.oif) {
 		ipc.oif = inet->uc_index;
+	} else if (ipv4_is_lbcast(daddr) && inet->uc_index) {
+		/* oif is set, packet is to local broadcast and
+		 * and uc_index is set. oif is most likely set
+		 * by sk_bound_dev_if. If uc_index != oif check if the
+		 * oif is an L3 master and uc_index is an L3 slave.
+		 * If so, we want to allow the send using the uc_index.
+		 */
+		if (ipc.oif != inet->uc_index &&
+		    ipc.oif == l3mdev_master_ifindex_by_index(sock_net(sk),
+							      inet->uc_index)) {
+			ipc.oif = inet->uc_index;
+		}
+	}
 
 	flowi4_init_output(&fl4, ipc.oif, sk->sk_mark, tos,
 			   RT_SCOPE_UNIVERSE,
@@ -1119,7 +1132,6 @@ static int raw_v4_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations raw_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = raw_v4_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,

@@ -259,8 +259,6 @@ static struct phy_driver lxt97x_driver[] = {
 	.features	= PHY_BASIC_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= lxt970_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
 	.ack_interrupt	= lxt970_ack_interrupt,
 	.config_intr	= lxt970_config_intr,
 }, {
@@ -269,8 +267,6 @@ static struct phy_driver lxt97x_driver[] = {
 	.phy_id_mask	= 0xfffffff0,
 	.features	= PHY_BASIC_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
 	.ack_interrupt	= lxt971_ack_interrupt,
 	.config_intr	= lxt971_config_intr,
 }, {
@@ -290,7 +286,6 @@ static struct phy_driver lxt97x_driver[] = {
 	.flags		= 0,
 	.probe		= lxt973_probe,
 	.config_aneg	= lxt973_config_aneg,
-	.read_status	= genphy_read_status,
 } };
 
 module_phy_driver(lxt97x_driver);

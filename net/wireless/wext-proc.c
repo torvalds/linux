@@ -133,7 +133,6 @@ static int seq_open_wireless(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations wireless_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open    = seq_open_wireless,
 	.read    = seq_read,
 	.llseek  = seq_lseek,

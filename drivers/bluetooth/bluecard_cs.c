@@ -302,9 +302,7 @@ static void bluecard_write_wakeup(struct bluecard_info *info)
 			}
 
 			/* Wait until the command reaches the baseband */
-			prepare_to_wait(&wq, &wait, TASK_INTERRUPTIBLE);
-			schedule_timeout(HZ/10);
-			finish_wait(&wq, &wait);
+			mdelay(100);
 
 			/* Set baud on baseband */
 			info->ctrl_reg &= ~0x03;
@@ -316,9 +314,7 @@ static void bluecard_write_wakeup(struct bluecard_info *info)
 			outb(info->ctrl_reg, iobase + REG_CONTROL);
 
 			/* Wait before the next HCI packet can be send */
-			prepare_to_wait(&wq, &wait, TASK_INTERRUPTIBLE);
-			schedule_timeout(HZ);
-			finish_wait(&wq, &wait);
+			mdelay(1000);
 		}
 
 		if (len == skb->len) {

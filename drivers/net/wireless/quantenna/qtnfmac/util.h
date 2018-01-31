@@ -26,9 +26,9 @@ struct qtnf_sta_node *qtnf_sta_list_lookup(struct qtnf_sta_list *list,
 					   const u8 *mac);
 struct qtnf_sta_node *qtnf_sta_list_lookup_index(struct qtnf_sta_list *list,
 						 size_t index);
-struct qtnf_sta_node *qtnf_sta_list_add(struct qtnf_sta_list *list,
+struct qtnf_sta_node *qtnf_sta_list_add(struct qtnf_vif *vif,
 					const u8 *mac);
-bool qtnf_sta_list_del(struct qtnf_sta_list *list, const u8 *mac);
+bool qtnf_sta_list_del(struct qtnf_vif *vif, const u8 *mac);
 
 void qtnf_sta_list_free(struct qtnf_sta_list *list);
 

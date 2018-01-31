@@ -247,12 +247,13 @@ static int packet_direct_xmit(struct sk_buff *skb)
 	struct sk_buff *orig_skb = skb;
 	struct netdev_queue *txq;
 	int ret = NETDEV_TX_BUSY;
+	bool again = false;
 
 	if (unlikely(!netif_running(dev) ||
 		     !netif_carrier_ok(dev)))
 		goto drop;
 
-	skb = validate_xmit_skb_list(skb, dev);
+	skb = validate_xmit_skb_list(skb, dev, &again);
 	if (skb != orig_skb)
 		goto drop;
 
@@ -4530,7 +4531,6 @@ static int packet_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations packet_seq_fops = {
-	.owner		= THIS_MODULE,
 	.open		= packet_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

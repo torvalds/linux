@@ -387,7 +387,7 @@ out_nlmsg_trim:
 }
 
 /* under ife->tcf_lock */
-static void _tcf_ife_cleanup(struct tc_action *a, int bind)
+static void _tcf_ife_cleanup(struct tc_action *a)
 {
 	struct tcf_ife_info *ife = to_ife(a);
 	struct tcf_meta_info *e, *n;
@@ -405,13 +405,13 @@ static void _tcf_ife_cleanup(struct tc_action *a, int bind)
 	}
 }
 
-static void tcf_ife_cleanup(struct tc_action *a, int bind)
+static void tcf_ife_cleanup(struct tc_action *a)
 {
 	struct tcf_ife_info *ife = to_ife(a);
 	struct tcf_ife_params *p;
 
 	spin_lock_bh(&ife->tcf_lock);
-	_tcf_ife_cleanup(a, bind);
+	_tcf_ife_cleanup(a);
 	spin_unlock_bh(&ife->tcf_lock);
 
 	p = rcu_dereference_protected(ife->params, 1);
@@ -546,7 +546,7 @@ metadata_parse_err:
 			if (exists)
 				tcf_idr_release(*a, bind);
 			if (ret == ACT_P_CREATED)
-				_tcf_ife_cleanup(*a, bind);
+				_tcf_ife_cleanup(*a);
 
 			if (exists)
 				spin_unlock_bh(&ife->tcf_lock);
@@ -567,7 +567,7 @@ metadata_parse_err:
 		err = use_all_metadata(ife);
 		if (err) {
 			if (ret == ACT_P_CREATED)
-				_tcf_ife_cleanup(*a, bind);
+				_tcf_ife_cleanup(*a);
 
 			if (exists)
 				spin_unlock_bh(&ife->tcf_lock);
@@ -858,16 +858,14 @@ static __net_init int ife_init_net(struct net *net)
 	return tc_action_net_init(tn, &act_ife_ops);
 }
 
-static void __net_exit ife_exit_net(struct net *net)
+static void __net_exit ife_exit_net(struct list_head *net_list)
 {
-	struct tc_action_net *tn = net_generic(net, ife_net_id);
-
-	tc_action_net_exit(tn);
+	tc_action_net_exit(net_list, ife_net_id);
 }
 
 static struct pernet_operations ife_net_ops = {
 	.init = ife_init_net,
-	.exit = ife_exit_net,
+	.exit_batch = ife_exit_net,
 	.id   = &ife_net_id,
 	.size = sizeof(struct tc_action_net),
 };

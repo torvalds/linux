@@ -190,6 +190,29 @@ static void ttyport_set_flow_control(struct serdev_controller *ctrl, bool enable
 	tty_set_termios(tty, &ktermios);
 }
 
+static int ttyport_set_parity(struct serdev_controller *ctrl,
+			      enum serdev_parity parity)
+{
+	struct serport *serport = serdev_controller_get_drvdata(ctrl);
+	struct tty_struct *tty = serport->tty;
+	struct ktermios ktermios = tty->termios;
+
+	ktermios.c_cflag &= ~(PARENB | PARODD | CMSPAR);
+	if (parity != SERDEV_PARITY_NONE) {
+		ktermios.c_cflag |= PARENB;
+		if (parity == SERDEV_PARITY_ODD)
+			ktermios.c_cflag |= PARODD;
+	}
+
+	tty_set_termios(tty, &ktermios);
+
+	if ((tty->termios.c_cflag & (PARENB | PARODD | CMSPAR)) !=
+	    (ktermios.c_cflag & (PARENB | PARODD | CMSPAR)))
+		return -EINVAL;
+
+	return 0;
+}
+
 static void ttyport_wait_until_sent(struct serdev_controller *ctrl, long timeout)
 {
 	struct serport *serport = serdev_controller_get_drvdata(ctrl);
@@ -227,6 +250,7 @@ static const struct serdev_controller_ops ctrl_ops = {
 	.open = ttyport_open,
 	.close = ttyport_close,
 	.set_flow_control = ttyport_set_flow_control,
+	.set_parity = ttyport_set_parity,
 	.set_baudrate = ttyport_set_baudrate,
 	.wait_until_sent = ttyport_wait_until_sent,
 	.get_tiocm = ttyport_get_tiocm,

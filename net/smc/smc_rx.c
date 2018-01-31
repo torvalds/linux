@@ -65,7 +65,6 @@ static int smc_rx_wait_data(struct smc_sock *smc, long *timeo)
 	rc = sk_wait_event(sk, timeo,
 			   sk->sk_err ||
 			   sk->sk_shutdown & RCV_SHUTDOWN ||
-			   sock_flag(sk, SOCK_DONE) ||
 			   atomic_read(&conn->bytes_to_rcv) ||
 			   smc_cdc_rxed_any_close_or_senddone(conn),
 			   &wait);
@@ -116,7 +115,7 @@ int smc_rx_recvmsg(struct smc_sock *smc, struct msghdr *msg, size_t len,
 		if (read_done) {
 			if (sk->sk_err ||
 			    sk->sk_state == SMC_CLOSED ||
-			    (sk->sk_shutdown & RCV_SHUTDOWN) ||
+			    sk->sk_shutdown & RCV_SHUTDOWN ||
 			    !timeo ||
 			    signal_pending(current) ||
 			    smc_cdc_rxed_any_close_or_senddone(conn) ||
@@ -124,8 +123,6 @@ int smc_rx_recvmsg(struct smc_sock *smc, struct msghdr *msg, size_t len,
 			    peer_conn_abort)
 				break;
 		} else {
-			if (sock_flag(sk, SOCK_DONE))
-				break;
 			if (sk->sk_err) {
 				read_done = sock_error(sk);
 				break;

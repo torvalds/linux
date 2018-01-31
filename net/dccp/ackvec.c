@@ -228,7 +228,7 @@ static void dccp_ackvec_add_new(struct dccp_ackvec *av, u32 num_packets,
 	}
 
 	if (num_cells + dccp_ackvec_buflen(av) >= DCCPAV_MAX_ACKVEC_LEN) {
-		DCCP_CRIT("Ack Vector buffer overflow: dropping old entries\n");
+		DCCP_CRIT("Ack Vector buffer overflow: dropping old entries");
 		av->av_overflow = true;
 	}
 

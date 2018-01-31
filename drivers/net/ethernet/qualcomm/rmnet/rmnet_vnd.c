@@ -185,6 +185,13 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 	if (ep->egress_dev)
 		return -EINVAL;
 
+	if (rmnet_get_endpoint(port, id))
+		return -EBUSY;
+
+	rmnet_dev->hw_features = NETIF_F_RXCSUM;
+	rmnet_dev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	rmnet_dev->hw_features |= NETIF_F_SG;
+
 	rc = register_netdevice(rmnet_dev);
 	if (!rc) {
 		ep->egress_dev = rmnet_dev;

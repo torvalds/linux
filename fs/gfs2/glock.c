@@ -1549,16 +1549,13 @@ static void glock_hash_walk(glock_examiner examiner, const struct gfs2_sbd *sdp)
 	rhashtable_walk_enter(&gl_hash_table, &iter);
 
 	do {
-		gl = ERR_PTR(rhashtable_walk_start(&iter));
-		if (IS_ERR(gl))
-			goto walk_stop;
+		rhashtable_walk_start(&iter);
 
 		while ((gl = rhashtable_walk_next(&iter)) && !IS_ERR(gl))
 			if (gl->gl_name.ln_sbd == sdp &&
 			    lockref_get_not_dead(&gl->gl_lockref))
 				examiner(gl);
 
-walk_stop:
 		rhashtable_walk_stop(&iter);
 	} while (cond_resched(), gl == ERR_PTR(-EAGAIN));
 
@@ -1947,7 +1944,7 @@ static void *gfs2_glock_seq_start(struct seq_file *seq, loff_t *pos)
 	loff_t n = *pos;
 
 	rhashtable_walk_enter(&gl_hash_table, &gi->hti);
-	if (rhashtable_walk_start(&gi->hti) != 0)
+	if (rhashtable_walk_start_check(&gi->hti) != 0)
 		return NULL;
 
 	do {
