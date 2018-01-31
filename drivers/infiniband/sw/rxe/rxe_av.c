@@ -52,14 +52,13 @@ int rxe_av_chk_attr(struct rxe_dev *rxe, struct rdma_ah_attr *attr)
 	return 0;
 }
 
-int rxe_av_from_attr(u8 port_num, struct rxe_av *av,
+void rxe_av_from_attr(u8 port_num, struct rxe_av *av,
 		     struct rdma_ah_attr *attr)
 {
 	memset(av, 0, sizeof(*av));
 	memcpy(&av->grh, rdma_ah_read_grh(attr),
 	       sizeof(*rdma_ah_read_grh(attr)));
 	av->port_num = port_num;
-	return 0;
 }
 
 int rxe_av_to_attr(struct rxe_dev *rxe, struct rxe_av *av,
