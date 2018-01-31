@@ -97,9 +97,9 @@ enum visorinput_dev_type {
 };
 
 /*
- * This is the private data that we store for each device.
- * A pointer to this struct is maintained via
- * dev_get_drvdata() / dev_set_drvdata() for each struct device.
+ * This is the private data that we store for each device. A pointer to this
+ * struct is maintained via dev_get_drvdata() / dev_set_drvdata() for each
+ * struct device.
  */
 struct visorinput_devdata {
 	struct visor_device *dev;
@@ -270,10 +270,9 @@ static int visorinput_open(struct input_dev *visorinput_dev)
 	dev_dbg(&visorinput_dev->dev, "%s opened\n", __func__);
 
 	/*
-	 * If we're not paused, really enable interrupts.
-	 * Regardless of whether we are paused, set a flag indicating
-	 * interrupts should be enabled so when we resume, interrupts
-	 * will really be enabled.
+	 * If we're not paused, really enable interrupts. Regardless of whether
+	 * we are paused, set a flag indicating interrupts should be enabled so
+	 * when we resume, interrupts will really be enabled.
 	 */
 	mutex_lock(&devdata->lock_visor_dev);
 	devdata->interrupts_enabled = true;
@@ -299,10 +298,9 @@ static void visorinput_close(struct input_dev *visorinput_dev)
 	dev_dbg(&visorinput_dev->dev, "%s closed\n", __func__);
 
 	/*
-	 * If we're not paused, really disable interrupts.
-	 * Regardless of whether we are paused, set a flag indicating
-	 * interrupts should be disabled so when we resume we will
-	 * not re-enable them.
+	 * If we're not paused, really disable interrupts. Regardless of
+	 * whether we are paused, set a flag indicating interrupts should be
+	 * disabled so when we resume we will not re-enable them.
 	 */
 	mutex_lock(&devdata->lock_visor_dev);
 	devdata->interrupts_enabled = false;
@@ -315,9 +313,9 @@ out_unlock:
 }
 
 /*
- * setup_client_keyboard() initializes and returns a Linux input node that
- * we can use to deliver keyboard inputs to Linux.  We of course do this when
- * we see keyboard inputs coming in on a keyboard channel.
+ * setup_client_keyboard() initializes and returns a Linux input node that we
+ * can use to deliver keyboard inputs to Linux.  We of course do this when we
+ * see keyboard inputs coming in on a keyboard channel.
  */
 static struct input_dev *setup_client_keyboard(void *devdata,
 					       unsigned char *keycode_table)
@@ -424,9 +422,9 @@ static struct visorinput_devdata *devdata_create(struct visor_device *dev,
 	devdata->paused = true;
 
 	/*
-	 * This is an input device in a client guest partition,
-	 * so we need to create whatever input nodes are necessary to
-	 * deliver our inputs to the guest OS.
+	 * This is an input device in a client guest partition, so we need to
+	 * create whatever input nodes are necessary to deliver our inputs to
+	 * the guest OS.
 	 */
 	switch (dtype) {
 	case visorinput_keyboard:
@@ -463,10 +461,9 @@ static struct visorinput_devdata *devdata_create(struct visor_device *dev,
 
 	/*
 	 * Device struct is completely set up now, with the exception of
-	 * visorinput_dev being registered.
-	 * We need to unlock before we register the device, because this
-	 * can cause an on-stack call of visorinput_open(), which would
-	 * deadlock if we had the lock.
+	 * visorinput_dev being registered. We need to unlock before we
+	 * register the device, because this can cause an on-stack call of
+	 * visorinput_open(), which would deadlock if we had the lock.
 	 */
 	if (input_register_device(devdata->visorinput_dev)) {
 		input_free_device(devdata->visorinput_dev);
@@ -475,9 +472,9 @@ static struct visorinput_devdata *devdata_create(struct visor_device *dev,
 
 	mutex_lock(&devdata->lock_visor_dev);
 	/*
-	 * Establish calls to visorinput_channel_interrupt() if that is
-	 * the desired state that we've kept track of in interrupts_enabled
-	 * while the device was being created.
+	 * Establish calls to visorinput_channel_interrupt() if that is the
+	 * desired state that we've kept track of in interrupts_enabled while
+	 * the device was being created.
 	 */
 	devdata->paused = false;
 	if (devdata->interrupts_enabled)
@@ -528,8 +525,8 @@ static void visorinput_remove(struct visor_device *dev)
 	visorbus_disable_channel_interrupts(dev);
 
 	/*
-	 * due to above, at this time no thread of execution will be
-	 * in visorinput_channel_interrupt()
+	 * due to above, at this time no thread of execution will be in
+	 * visorinput_channel_interrupt()
 	 */
 
 	dev_set_drvdata(&dev->device, NULL);
@@ -572,9 +569,8 @@ static void handle_locking_key(struct input_dev *visorinput_dev, int keycode,
 }
 
 /*
- * <scancode> is either a 1-byte scancode, or an extended 16-bit scancode
- * with 0xE0 in the low byte and the extended scancode value in the next
- * higher byte.
+ * <scancode> is either a 1-byte scancode, or an extended 16-bit scancode with
+ * 0xE0 in the low byte and the extended scancode value in the next higher byte.
  */
 static int scancode_to_keycode(int scancode)
 {
@@ -715,8 +711,8 @@ static int visorinput_pause(struct visor_device *dev,
 		visorbus_disable_channel_interrupts(dev);
 
 	/*
-	 * due to above, at this time no thread of execution will be
-	 * in visorinput_channel_interrupt()
+	 * due to above, at this time no thread of execution will be in
+	 * visorinput_channel_interrupt()
 	 */
 	devdata->paused = true;
 	complete_func(dev, 0);
@@ -746,9 +742,9 @@ static int visorinput_resume(struct visor_device *dev,
 	complete_func(dev, 0);
 
 	/*
-	 * Re-establish calls to visorinput_channel_interrupt() if that is
-	 * the desired state that we've kept track of in interrupts_enabled
-	 * while the device was paused.
+	 * Re-establish calls to visorinput_channel_interrupt() if that is the
+	 * desired state that we've kept track of in interrupts_enabled while
+	 * the device was paused.
 	 */
 	if (devdata->interrupts_enabled)
 		visorbus_enable_channel_interrupts(dev);
