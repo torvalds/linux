@@ -826,10 +826,8 @@ int btrfs_quota_enable(struct btrfs_trans_handle *trans,
 	int slot;
 
 	mutex_lock(&fs_info->qgroup_ioctl_lock);
-	if (fs_info->quota_root) {
-		set_bit(BTRFS_FS_QUOTA_ENABLING, &fs_info->flags);
+	if (fs_info->quota_root)
 		goto out;
-	}
 
 	fs_info->qgroup_ulist = ulist_alloc(GFP_KERNEL);
 	if (!fs_info->qgroup_ulist) {
@@ -923,8 +921,15 @@ out_add_root:
 	}
 	spin_lock(&fs_info->qgroup_lock);
 	fs_info->quota_root = quota_root;
-	set_bit(BTRFS_FS_QUOTA_ENABLING, &fs_info->flags);
+	set_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags);
 	spin_unlock(&fs_info->qgroup_lock);
+	ret = qgroup_rescan_init(fs_info, 0, 1);
+	if (!ret) {
+	        qgroup_rescan_zero_tracking(fs_info);
+	        btrfs_queue_work(fs_info->qgroup_rescan_workers,
+	                         &fs_info->qgroup_rescan_work);
+	}
+
 out_free_path:
 	btrfs_free_path(path);
 out_free_root:
@@ -2080,17 +2085,9 @@ int btrfs_run_qgroups(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_root *quota_root = fs_info->quota_root;
 	int ret = 0;
-	int start_rescan_worker = 0;
 
 	if (!quota_root)
-		goto out;
-
-	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags) &&
-	    test_bit(BTRFS_FS_QUOTA_ENABLING, &fs_info->flags))
-		start_rescan_worker = 1;
-
-	if (test_and_clear_bit(BTRFS_FS_QUOTA_ENABLING, &fs_info->flags))
-		set_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags);
+		return ret;
 
 	spin_lock(&fs_info->qgroup_lock);
 	while (!list_empty(&fs_info->dirty_qgroups)) {
@@ -2118,18 +2115,6 @@ int btrfs_run_qgroups(struct btrfs_trans_handle *trans,
 	ret = update_qgroup_status_item(trans, fs_info, quota_root);
 	if (ret)
 		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
-
-	if (!ret && start_rescan_worker) {
-		ret = qgroup_rescan_init(fs_info, 0, 1);
-		if (!ret) {
-			qgroup_rescan_zero_tracking(fs_info);
-			btrfs_queue_work(fs_info->qgroup_rescan_workers,
-					 &fs_info->qgroup_rescan_work);
-		}
-		ret = 0;
-	}
-
-out:
 
 	return ret;
 }
