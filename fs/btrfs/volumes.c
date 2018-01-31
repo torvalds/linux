@@ -4837,13 +4837,12 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	/* round down to number of usable stripes */
 	ndevs = round_down(ndevs, devs_increment);
 
-	if (ndevs < devs_increment * sub_stripes || ndevs < devs_min) {
+	if (ndevs < devs_min) {
 		ret = -ENOSPC;
 		if (btrfs_test_opt(info, ENOSPC_DEBUG)) {
 			btrfs_debug(info,
 	"%s: not enough devices with free space: have=%d minimum required=%d",
-				    __func__, ndevs, min(devs_min,
-				    devs_increment * sub_stripes));
+				    __func__, ndevs, devs_min);
 		}
 		goto error;
 	}
