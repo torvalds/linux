@@ -39,18 +39,21 @@
 
 
 static void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
-				   unsigned int from, unsigned int to)
+				   unsigned int from, unsigned int len)
 {
 	struct buffer_head *head = page_buffers(page);
 	unsigned int bsize = head->b_size;
 	struct buffer_head *bh;
+	unsigned int to = from + len;
 	unsigned int start, end;
 
 	for (bh = head, start = 0; bh != head || !start;
 	     bh = bh->b_this_page, start = end) {
 		end = start + bsize;
-		if (end <= from || start >= to)
+		if (end <= from)
 			continue;
+		if (start >= to)
+			break;
 		if (gfs2_is_jdata(ip))
 			set_buffer_uptodate(bh);
 		gfs2_trans_add_data(ip->i_gl, bh);
@@ -189,7 +192,7 @@ static int __gfs2_jdata_writepage(struct page *page, struct writeback_control *w
 			create_empty_buffers(page, inode->i_sb->s_blocksize,
 					     BIT(BH_Dirty)|BIT(BH_Uptodate));
 		}
-		gfs2_page_add_databufs(ip, page, 0, sdp->sd_vfs->s_blocksize-1);
+		gfs2_page_add_databufs(ip, page, 0, sdp->sd_vfs->s_blocksize);
 	}
 	return gfs2_write_full_page(page, gfs2_get_block_noalloc, wbc);
 }
@@ -255,7 +258,6 @@ static int gfs2_writepages(struct address_space *mapping,
  * @wbc: The writeback control
  * @pvec: The vector of pages
  * @nr_pages: The number of pages to write
- * @end: End position
  * @done_index: Page index
  *
  * Returns: non-zero if loop should terminate, zero otherwise
@@ -264,7 +266,7 @@ static int gfs2_writepages(struct address_space *mapping,
 static int gfs2_write_jdata_pagevec(struct address_space *mapping,
 				    struct writeback_control *wbc,
 				    struct pagevec *pvec,
-				    int nr_pages, pgoff_t end,
+				    int nr_pages,
 				    pgoff_t *done_index)
 {
 	struct inode *inode = mapping->host;
@@ -402,7 +404,7 @@ retry:
 		if (nr_pages == 0)
 			break;
 
-		ret = gfs2_write_jdata_pagevec(mapping, wbc, &pvec, nr_pages, end, &done_index);
+		ret = gfs2_write_jdata_pagevec(mapping, wbc, &pvec, nr_pages, &done_index);
 		if (ret)
 			done = 1;
 		if (ret > 0)
@@ -446,7 +448,8 @@ static int gfs2_jdata_writepages(struct address_space *mapping,
 
 	ret = gfs2_write_cache_jdata(mapping, wbc);
 	if (ret == 0 && wbc->sync_mode == WB_SYNC_ALL) {
-		gfs2_log_flush(sdp, ip->i_gl, NORMAL_FLUSH);
+		gfs2_log_flush(sdp, ip->i_gl, GFS2_LOG_HEAD_FLUSH_NORMAL |
+			       GFS2_LFC_JDATA_WPAGES);
 		ret = gfs2_write_cache_jdata(mapping, wbc);
 	}
 	return ret;
@@ -483,8 +486,8 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 		return error;
 
 	kaddr = kmap_atomic(page);
-	if (dsize > (dibh->b_size - sizeof(struct gfs2_dinode)))
-		dsize = (dibh->b_size - sizeof(struct gfs2_dinode));
+	if (dsize > gfs2_max_stuffed_size(ip))
+		dsize = gfs2_max_stuffed_size(ip);
 	memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode), dsize);
 	memset(kaddr + dsize, 0, PAGE_SIZE - dsize);
 	kunmap_atomic(kaddr);
@@ -501,10 +504,9 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
  * @file: The file to read a page for
  * @page: The page to read
  *
- * This is the core of gfs2's readpage. Its used by the internal file
- * reading code as in that case we already hold the glock. Also its
+ * This is the core of gfs2's readpage. It's used by the internal file
+ * reading code as in that case we already hold the glock. Also it's
  * called by gfs2_readpage() once the required lock has been granted.
- *
  */
 
 static int __gfs2_readpage(void *file, struct page *page)
@@ -725,7 +727,7 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 
 	if (gfs2_is_stuffed(ip)) {
 		error = 0;
-		if (pos + len > sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode)) {
+		if (pos + len > gfs2_max_stuffed_size(ip)) {
 			error = gfs2_unstuff_dinode(ip, page);
 			if (error == 0)
 				goto prepare_write;
@@ -832,7 +834,8 @@ static int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
 	void *kaddr;
 	unsigned char *buf = dibh->b_data + sizeof(struct gfs2_dinode);
 
-	BUG_ON((pos + len) > (dibh->b_size - sizeof(struct gfs2_dinode)));
+	BUG_ON(pos + len > gfs2_max_stuffed_size(ip));
+
 	kaddr = kmap_atomic(page);
 	memcpy(buf + pos, kaddr + pos, copied);
 	flush_dcache_page(page);
@@ -890,8 +893,6 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
 	struct buffer_head *dibh;
-	unsigned int from = pos & (PAGE_SIZE - 1);
-	unsigned int to = from + len;
 	int ret;
 	struct gfs2_trans *tr = current->journal_info;
 	BUG_ON(!tr);
@@ -909,7 +910,7 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 		return gfs2_stuffed_write_end(inode, dibh, pos, len, copied, page);
 
 	if (!gfs2_is_writeback(ip))
-		gfs2_page_add_databufs(ip, page, from, to);
+		gfs2_page_add_databufs(ip, page, pos & ~PAGE_MASK, len);
 
 	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
 	if (tr->tr_num_buf_new)
