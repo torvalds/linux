@@ -597,11 +597,11 @@ static int iproute_modify(int cmd, unsigned int flags, int ifindex, int af,
 		int rmbit = route_masklen%8;
 
 		for (i = 0; i < rmbyte; i++)
-			netaddr.in6_u.u6_addr8[16-i] = 0;
-		netaddr.in6_u.u6_addr8[16-rmbyte] =
-			(netaddr.in6_u.u6_addr8[16-rmbyte] >> rmbit);
-		netaddr.in6_u.u6_addr8[16-rmbyte] =
-			(netaddr.in6_u.u6_addr8[16-rmbyte] << rmbit);
+			netaddr.in6_u.u6_addr8[15-i] = 0;
+		netaddr.in6_u.u6_addr8[15-rmbyte] =
+			(netaddr.in6_u.u6_addr8[15-rmbyte] >> rmbit);
+		netaddr.in6_u.u6_addr8[15-rmbyte] =
+			(netaddr.in6_u.u6_addr8[15-rmbyte] << rmbit);
 		*(struct lkl_in6_addr *)route_addr = netaddr;
 		req.r.rtm_dst_len = route_masklen;
 		addattr_l(&req.n, sizeof(req), LKL_RTA_DST,
