@@ -400,9 +400,9 @@ xlog_recover_iodone(
 	 * On v5 supers, a bli could be attached to update the metadata LSN.
 	 * Clean it up.
 	 */
-	if (bp->b_fspriv)
+	if (bp->b_log_item)
 		xfs_buf_item_relse(bp);
-	ASSERT(bp->b_fspriv == NULL);
+	ASSERT(bp->b_log_item == NULL);
 
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp);
@@ -2218,7 +2218,7 @@ xlog_recover_do_inode_buffer(
 				next_unlinked_offset - reg_buf_offset;
 		if (unlikely(*logged_nextp == 0)) {
 			xfs_alert(mp,
-		"Bad inode buffer log record (ptr = 0x%p, bp = 0x%p). "
+		"Bad inode buffer log record (ptr = "PTR_FMT", bp = "PTR_FMT"). "
 		"Trying to replay bad (0) inode di_next_unlinked field.",
 				item, bp);
 			XFS_ERROR_REPORT("xlog_recover_do_inode_buf",
@@ -2630,7 +2630,7 @@ xlog_recover_validate_buf_type(
 		ASSERT(!bp->b_iodone || bp->b_iodone == xlog_recover_iodone);
 		bp->b_iodone = xlog_recover_iodone;
 		xfs_buf_item_init(bp, mp);
-		bip = bp->b_fspriv;
+		bip = bp->b_log_item;
 		bip->bli_item.li_lsn = current_lsn;
 	}
 }
@@ -2652,7 +2652,7 @@ xlog_recover_do_reg_buffer(
 	int			i;
 	int			bit;
 	int			nbits;
-	int                     error;
+	xfs_failaddr_t		fa;
 
 	trace_xfs_log_recover_buf_reg_buf(mp->m_log, buf_f);
 
@@ -2687,7 +2687,7 @@ xlog_recover_do_reg_buffer(
 		 * the first dquot in the buffer should do. XXXThis is
 		 * probably a good thing to do for other buf types also.
 		 */
-		error = 0;
+		fa = NULL;
 		if (buf_f->blf_flags &
 		   (XFS_BLF_UDQUOT_BUF|XFS_BLF_PDQUOT_BUF|XFS_BLF_GDQUOT_BUF)) {
 			if (item->ri_buf[i].i_addr == NULL) {
@@ -2701,11 +2701,14 @@ xlog_recover_do_reg_buffer(
 					item->ri_buf[i].i_len, __func__);
 				goto next;
 			}
-			error = xfs_dqcheck(mp, item->ri_buf[i].i_addr,
-					       -1, 0, XFS_QMOPT_DOWARN,
-					       "dquot_buf_recover");
-			if (error)
+			fa = xfs_dquot_verify(mp, item->ri_buf[i].i_addr,
+					       -1, 0, 0);
+			if (fa) {
+				xfs_alert(mp,
+	"dquot corrupt at %pS trying to replay into block 0x%llx",
+					fa, bp->b_bn);
 				goto next;
+			}
 		}
 
 		memcpy(xfs_buf_offset(bp,
@@ -2957,6 +2960,10 @@ xfs_recover_inode_owner_change(
 	if (error)
 		goto out_free_ip;
 
+	if (!xfs_inode_verify_forks(ip)) {
+		error = -EFSCORRUPTED;
+		goto out_free_ip;
+	}
 
 	if (in_f->ilf_fields & XFS_ILOG_DOWNER) {
 		ASSERT(in_f->ilf_fields & XFS_ILOG_DBROOT);
@@ -3042,7 +3049,7 @@ xlog_recover_inode_pass2(
 	 */
 	if (unlikely(dip->di_magic != cpu_to_be16(XFS_DINODE_MAGIC))) {
 		xfs_alert(mp,
-	"%s: Bad inode magic number, dip = 0x%p, dino bp = 0x%p, ino = %Ld",
+	"%s: Bad inode magic number, dip = "PTR_FMT", dino bp = "PTR_FMT", ino = %Ld",
 			__func__, dip, bp, in_f->ilf_ino);
 		XFS_ERROR_REPORT("xlog_recover_inode_pass2(1)",
 				 XFS_ERRLEVEL_LOW, mp);
@@ -3052,7 +3059,7 @@ xlog_recover_inode_pass2(
 	ldip = item->ri_buf[1].i_addr;
 	if (unlikely(ldip->di_magic != XFS_DINODE_MAGIC)) {
 		xfs_alert(mp,
-			"%s: Bad inode log record, rec ptr 0x%p, ino %Ld",
+			"%s: Bad inode log record, rec ptr "PTR_FMT", ino %Ld",
 			__func__, item, in_f->ilf_ino);
 		XFS_ERROR_REPORT("xlog_recover_inode_pass2(2)",
 				 XFS_ERRLEVEL_LOW, mp);
@@ -3110,8 +3117,8 @@ xlog_recover_inode_pass2(
 			XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(3)",
 					 XFS_ERRLEVEL_LOW, mp, ldip);
 			xfs_alert(mp,
-		"%s: Bad regular inode log record, rec ptr 0x%p, "
-		"ino ptr = 0x%p, ino bp = 0x%p, ino %Ld",
+		"%s: Bad regular inode log record, rec ptr "PTR_FMT", "
+		"ino ptr = "PTR_FMT", ino bp = "PTR_FMT", ino %Ld",
 				__func__, item, dip, bp, in_f->ilf_ino);
 			error = -EFSCORRUPTED;
 			goto out_release;
@@ -3123,8 +3130,8 @@ xlog_recover_inode_pass2(
 			XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(4)",
 					     XFS_ERRLEVEL_LOW, mp, ldip);
 			xfs_alert(mp,
-		"%s: Bad dir inode log record, rec ptr 0x%p, "
-		"ino ptr = 0x%p, ino bp = 0x%p, ino %Ld",
+		"%s: Bad dir inode log record, rec ptr "PTR_FMT", "
+		"ino ptr = "PTR_FMT", ino bp = "PTR_FMT", ino %Ld",
 				__func__, item, dip, bp, in_f->ilf_ino);
 			error = -EFSCORRUPTED;
 			goto out_release;
@@ -3134,8 +3141,8 @@ xlog_recover_inode_pass2(
 		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(5)",
 				     XFS_ERRLEVEL_LOW, mp, ldip);
 		xfs_alert(mp,
-	"%s: Bad inode log record, rec ptr 0x%p, dino ptr 0x%p, "
-	"dino bp 0x%p, ino %Ld, total extents = %d, nblocks = %Ld",
+	"%s: Bad inode log record, rec ptr "PTR_FMT", dino ptr "PTR_FMT", "
+	"dino bp "PTR_FMT", ino %Ld, total extents = %d, nblocks = %Ld",
 			__func__, item, dip, bp, in_f->ilf_ino,
 			ldip->di_nextents + ldip->di_anextents,
 			ldip->di_nblocks);
@@ -3146,8 +3153,8 @@ xlog_recover_inode_pass2(
 		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(6)",
 				     XFS_ERRLEVEL_LOW, mp, ldip);
 		xfs_alert(mp,
-	"%s: Bad inode log record, rec ptr 0x%p, dino ptr 0x%p, "
-	"dino bp 0x%p, ino %Ld, forkoff 0x%x", __func__,
+	"%s: Bad inode log record, rec ptr "PTR_FMT", dino ptr "PTR_FMT", "
+	"dino bp "PTR_FMT", ino %Ld, forkoff 0x%x", __func__,
 			item, dip, bp, in_f->ilf_ino, ldip->di_forkoff);
 		error = -EFSCORRUPTED;
 		goto out_release;
@@ -3157,7 +3164,7 @@ xlog_recover_inode_pass2(
 		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(7)",
 				     XFS_ERRLEVEL_LOW, mp, ldip);
 		xfs_alert(mp,
-			"%s: Bad inode log record length %d, rec ptr 0x%p",
+			"%s: Bad inode log record length %d, rec ptr "PTR_FMT,
 			__func__, item->ri_buf[1].i_len, item);
 		error = -EFSCORRUPTED;
 		goto out_release;
@@ -3303,6 +3310,7 @@ xlog_recover_dquot_pass2(
 	xfs_mount_t		*mp = log->l_mp;
 	xfs_buf_t		*bp;
 	struct xfs_disk_dquot	*ddq, *recddq;
+	xfs_failaddr_t		fa;
 	int			error;
 	xfs_dq_logformat_t	*dq_f;
 	uint			type;
@@ -3345,10 +3353,12 @@ xlog_recover_dquot_pass2(
 	 */
 	dq_f = item->ri_buf[0].i_addr;
 	ASSERT(dq_f);
-	error = xfs_dqcheck(mp, recddq, dq_f->qlf_id, 0, XFS_QMOPT_DOWARN,
-			   "xlog_recover_dquot_pass2 (log copy)");
-	if (error)
+	fa = xfs_dquot_verify(mp, recddq, dq_f->qlf_id, 0, 0);
+	if (fa) {
+		xfs_alert(mp, "corrupt dquot ID 0x%x in log at %pS",
+				dq_f->qlf_id, fa);
 		return -EIO;
+	}
 	ASSERT(dq_f->qlf_len == 1);
 
 	/*

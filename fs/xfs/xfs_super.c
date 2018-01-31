@@ -1153,6 +1153,14 @@ xfs_fs_statfs(
 	    ((mp->m_qflags & (XFS_PQUOTA_ACCT|XFS_PQUOTA_ENFD))) ==
 			      (XFS_PQUOTA_ACCT|XFS_PQUOTA_ENFD))
 		xfs_qm_statvfs(ip, statp);
+
+	if (XFS_IS_REALTIME_MOUNT(mp) &&
+	    (ip->i_d.di_flags & (XFS_DIFLAG_RTINHERIT | XFS_DIFLAG_REALTIME))) {
+		statp->f_blocks = sbp->sb_rblocks;
+		statp->f_bavail = statp->f_bfree =
+			sbp->sb_frextents * sbp->sb_rextsize;
+	}
+
 	return 0;
 }
 
@@ -1660,7 +1668,7 @@ xfs_fs_fill_super(
 		}
 		if (xfs_sb_version_hasreflink(&mp->m_sb))
 			xfs_alert(mp,
-		"DAX and reflink have not been tested together!");
+		"DAX and reflink cannot be used together!");
 	}
 
 	if (mp->m_flags & XFS_MOUNT_DISCARD) {
@@ -1683,10 +1691,6 @@ xfs_fs_fill_super(
 		xfs_alert(mp,
 	"EXPERIMENTAL reverse mapping btree feature enabled. Use at your own risk!");
 	}
-
-	if (xfs_sb_version_hasreflink(&mp->m_sb))
-		xfs_alert(mp,
-	"EXPERIMENTAL reflink feature enabled. Use at your own risk!");
 
 	error = xfs_mountfs(mp);
 	if (error)

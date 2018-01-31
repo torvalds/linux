@@ -423,7 +423,8 @@ void		xfs_iunpin_wait(xfs_inode_t *);
 #define xfs_ipincount(ip)	((unsigned int) atomic_read(&ip->i_pincount))
 
 int		xfs_iflush(struct xfs_inode *, struct xfs_buf **);
-void		xfs_lock_two_inodes(xfs_inode_t *, xfs_inode_t *, uint);
+void		xfs_lock_two_inodes(struct xfs_inode *ip0, uint ip0_mode,
+				struct xfs_inode *ip1, uint ip1_mode);
 
 xfs_extlen_t	xfs_get_extsz_hint(struct xfs_inode *ip);
 xfs_extlen_t	xfs_get_cowextsz_hint(struct xfs_inode *ip);
@@ -490,5 +491,7 @@ extern struct kmem_zone	*xfs_inode_zone;
 
 /* The default CoW extent size hint. */
 #define XFS_DEFAULT_COWEXTSZ_HINT 32
+
+bool xfs_inode_verify_forks(struct xfs_inode *ip);
 
 #endif	/* __XFS_INODE_H__ */

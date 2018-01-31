@@ -26,8 +26,17 @@
 bool xfs_scrub_btree_process_error(struct xfs_scrub_context *sc,
 		struct xfs_btree_cur *cur, int level, int *error);
 
+/* Check for btree xref operation errors. */
+bool xfs_scrub_btree_xref_process_error(struct xfs_scrub_context *sc,
+				struct xfs_btree_cur *cur, int level,
+				int *error);
+
 /* Check for btree corruption. */
 void xfs_scrub_btree_set_corrupt(struct xfs_scrub_context *sc,
+		struct xfs_btree_cur *cur, int level);
+
+/* Check for btree xref discrepancies. */
+void xfs_scrub_btree_xref_set_corrupt(struct xfs_scrub_context *sc,
 		struct xfs_btree_cur *cur, int level);
 
 struct xfs_scrub_btree;
