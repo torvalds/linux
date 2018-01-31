@@ -1314,7 +1314,7 @@ int bnxt_re_destroy_srq(struct ib_srq *ib_srq)
 		return rc;
 	}
 
-	if (srq->umem && !IS_ERR(srq->umem))
+	if (srq->umem)
 		ib_umem_release(srq->umem);
 	kfree(srq);
 	atomic_dec(&rdev->srq_count);
@@ -1430,11 +1430,8 @@ struct ib_srq *bnxt_re_create_srq(struct ib_pd *ib_pd,
 	return &srq->ib_srq;
 
 fail:
-	if (udata && srq->umem && !IS_ERR(srq->umem)) {
+	if (srq->umem)
 		ib_umem_release(srq->umem);
-		srq->umem = NULL;
-	}
-
 	kfree(srq);
 exit:
 	return ERR_PTR(rc);
