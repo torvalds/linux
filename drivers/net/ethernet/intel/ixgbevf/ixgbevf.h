@@ -89,16 +89,10 @@ struct ixgbevf_rx_queue_stats {
 };
 
 enum ixgbevf_ring_state_t {
+	__IXGBEVF_RX_3K_BUFFER,
 	__IXGBEVF_TX_DETECT_HANG,
 	__IXGBEVF_HANG_CHECK_ARMED,
 };
-
-#define check_for_tx_hang(ring) \
-	test_bit(__IXGBEVF_TX_DETECT_HANG, &(ring)->state)
-#define set_check_for_tx_hang(ring) \
-	set_bit(__IXGBEVF_TX_DETECT_HANG, &(ring)->state)
-#define clear_check_for_tx_hang(ring) \
-	clear_bit(__IXGBEVF_TX_DETECT_HANG, &(ring)->state)
 
 struct ixgbevf_ring {
 	struct ixgbevf_ring *next;
@@ -156,11 +150,19 @@ struct ixgbevf_ring {
 /* Supported Rx Buffer Sizes */
 #define IXGBEVF_RXBUFFER_256	256    /* Used for packet split */
 #define IXGBEVF_RXBUFFER_2048	2048
+#define IXGBEVF_RXBUFFER_3072	3072
 
 #define IXGBEVF_RX_HDR_SIZE	IXGBEVF_RXBUFFER_256
-#define IXGBEVF_RX_BUFSZ	IXGBEVF_RXBUFFER_2048
 
 #define MAXIMUM_ETHERNET_VLAN_SIZE (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)
+
+#define IXGBEVF_SKB_PAD		(NET_SKB_PAD + NET_IP_ALIGN)
+#if (PAGE_SIZE < 8192)
+#define IXGBEVF_MAX_FRAME_BUILD_SKB \
+	(SKB_WITH_OVERHEAD(IXGBEVF_RXBUFFER_2048) - IXGBEVF_SKB_PAD)
+#else
+#define IXGBEVF_MAX_FRAME_BUILD_SKB	IXGBEVF_RXBUFFER_2048
+#endif
 
 #define IXGBE_TX_FLAGS_CSUM		BIT(0)
 #define IXGBE_TX_FLAGS_VLAN		BIT(1)
@@ -169,6 +171,40 @@ struct ixgbevf_ring {
 #define IXGBE_TX_FLAGS_VLAN_MASK	0xffff0000
 #define IXGBE_TX_FLAGS_VLAN_PRIO_MASK	0x0000e000
 #define IXGBE_TX_FLAGS_VLAN_SHIFT	16
+
+#define ring_uses_large_buffer(ring) \
+	test_bit(__IXGBEVF_RX_3K_BUFFER, &(ring)->state)
+#define set_ring_uses_large_buffer(ring) \
+	set_bit(__IXGBEVF_RX_3K_BUFFER, &(ring)->state)
+#define clear_ring_uses_large_buffer(ring) \
+	clear_bit(__IXGBEVF_RX_3K_BUFFER, &(ring)->state)
+
+static inline unsigned int ixgbevf_rx_bufsz(struct ixgbevf_ring *ring)
+{
+#if (PAGE_SIZE < 8192)
+	if (ring_uses_large_buffer(ring))
+		return IXGBEVF_RXBUFFER_3072;
+#endif
+	return IXGBEVF_RXBUFFER_2048;
+}
+
+static inline unsigned int ixgbevf_rx_pg_order(struct ixgbevf_ring *ring)
+{
+#if (PAGE_SIZE < 8192)
+	if (ring_uses_large_buffer(ring))
+		return 1;
+#endif
+	return 0;
+}
+
+#define ixgbevf_rx_pg_size(_ring) (PAGE_SIZE << ixgbevf_rx_pg_order(_ring))
+
+#define check_for_tx_hang(ring) \
+	test_bit(__IXGBEVF_TX_DETECT_HANG, &(ring)->state)
+#define set_check_for_tx_hang(ring) \
+	set_bit(__IXGBEVF_TX_DETECT_HANG, &(ring)->state)
+#define clear_check_for_tx_hang(ring) \
+	clear_bit(__IXGBEVF_TX_DETECT_HANG, &(ring)->state)
 
 struct ixgbevf_ring_container {
 	struct ixgbevf_ring *ring;	/* pointer to linked list of rings */
