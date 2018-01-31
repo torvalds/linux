@@ -248,12 +248,22 @@ static int amdgpu_vmid_grab_idle(struct amdgpu_vm *vm,
 	return 0;
 }
 
-/* idr_mgr->lock must be held */
-static int amdgpu_vmid_grab_reserved_locked(struct amdgpu_vm *vm,
-					    struct amdgpu_ring *ring,
-					    struct amdgpu_sync *sync,
-					    struct dma_fence *fence,
-					    struct amdgpu_job *job)
+/**
+ * amdgpu_vm_grab_reserved - try to assign reserved VMID
+ *
+ * @vm: vm to allocate id for
+ * @ring: ring we want to submit job to
+ * @sync: sync object where we add dependencies
+ * @fence: fence protecting ID from reuse
+ * @job: job who wants to use the VMID
+ *
+ * Try to assign a reserved VMID.
+ */
+static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
+				     struct amdgpu_ring *ring,
+				     struct amdgpu_sync *sync,
+				     struct dma_fence *fence,
+				     struct amdgpu_job *job)
 {
 	struct amdgpu_device *adev = ring->adev;
 	unsigned vmhub = ring->funcs->vmhub;
@@ -261,18 +271,21 @@ static int amdgpu_vmid_grab_reserved_locked(struct amdgpu_vm *vm,
 	struct amdgpu_vmid *id = vm->reserved_vmid[vmhub];
 	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
 	struct dma_fence *updates = sync->last_vm_update;
-	int r = 0;
-	struct dma_fence *flushed, *tmp;
 	bool needs_flush = vm->use_cpu_for_update;
+	int r = 0;
 
-	flushed  = id->flushed_updates;
-	if ((id->owner != vm->entity.fence_context) ||
-	    (job->vm_pd_addr != id->pd_gpu_addr) ||
-	    (updates && (!flushed || updates->context != flushed->context ||
-			dma_fence_is_later(updates, flushed))) ||
-	    (!id->last_flush || (id->last_flush->context != fence_context &&
-				 !dma_fence_is_signaled(id->last_flush)))) {
-		needs_flush = true;
+	if (updates && id->flushed_updates &&
+	    updates->context == id->flushed_updates->context &&
+	    !dma_fence_is_later(updates, id->flushed_updates))
+	    updates = NULL;
+
+	if (id->owner != vm->entity.fence_context ||
+	    job->vm_pd_addr != id->pd_gpu_addr ||
+	    updates || !id->last_flush ||
+	    (id->last_flush->context != fence_context &&
+	     !dma_fence_is_signaled(id->last_flush))) {
+		struct dma_fence *tmp;
+
 		/* to prevent one context starved by another context */
 		id->pd_gpu_addr = 0;
 		tmp = amdgpu_sync_peek_fence(&id->active, ring);
@@ -280,6 +293,7 @@ static int amdgpu_vmid_grab_reserved_locked(struct amdgpu_vm *vm,
 			r = amdgpu_sync_fence(adev, sync, tmp, false);
 			return r;
 		}
+		needs_flush = true;
 	}
 
 	/* Good we can use this VMID. Remember this submission as
@@ -287,10 +301,9 @@ static int amdgpu_vmid_grab_reserved_locked(struct amdgpu_vm *vm,
 	*/
 	r = amdgpu_sync_fence(ring->adev, &id->active, fence, false);
 	if (r)
-		goto out;
+		return r;
 
-	if (updates && (!flushed || updates->context != flushed->context ||
-			dma_fence_is_later(updates, flushed))) {
+	if (updates) {
 		dma_fence_put(id->flushed_updates);
 		id->flushed_updates = dma_fence_get(updates);
 	}
@@ -304,8 +317,7 @@ static int amdgpu_vmid_grab_reserved_locked(struct amdgpu_vm *vm,
 	job->vmid = id - id_mgr->ids;
 	job->pasid = vm->pasid;
 	trace_amdgpu_vm_grab_id(vm, ring, job);
-out:
-	return r;
+	return 0;
 }
 
 /**
@@ -315,6 +327,7 @@ out:
  * @ring: ring we want to submit job to
  * @sync: sync object where we add dependencies
  * @fence: fence protecting ID from reuse
+ * @job: job who wants to use the VMID
  *
  * Allocate an id for the vm, adding fences to the sync obj as necessary.
  */
@@ -336,8 +349,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		goto error;
 
 	if (vm->reserved_vmid[vmhub]) {
-		r = amdgpu_vmid_grab_reserved_locked(vm, ring, sync,
-						     fence, job);
+		r = amdgpu_vmid_grab_reserved(vm, ring, sync, fence, job);
 		mutex_unlock(&id_mgr->lock);
 		return r;
 	}
