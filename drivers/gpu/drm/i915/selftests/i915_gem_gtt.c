@@ -885,6 +885,84 @@ static int shrink_hole(struct drm_i915_private *i915,
 	return err;
 }
 
+static int shrink_boom(struct drm_i915_private *i915,
+		       struct i915_address_space *vm,
+		       u64 hole_start, u64 hole_end,
+		       unsigned long end_time)
+{
+	unsigned int sizes[] = { SZ_2M, SZ_1G };
+	struct drm_i915_gem_object *purge;
+	struct drm_i915_gem_object *explode;
+	int err;
+	int i;
+
+	/*
+	 * Catch the case which shrink_hole seems to miss. The setup here
+	 * requires invoking the shrinker as we do the alloc_pt/alloc_pd, while
+	 * ensuring that all vma assiocated with the respective pd/pdp are
+	 * unpinned at the time.
+	 */
+
+	for (i = 0; i < ARRAY_SIZE(sizes); ++i) {
+		unsigned int flags = PIN_USER | PIN_OFFSET_FIXED;
+		unsigned int size = sizes[i];
+		struct i915_vma *vma;
+
+		purge = fake_dma_object(i915, size);
+		if (IS_ERR(purge))
+			return PTR_ERR(purge);
+
+		vma = i915_vma_instance(purge, vm, NULL);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			goto err_purge;
+		}
+
+		err = i915_vma_pin(vma, 0, 0, flags);
+		if (err)
+			goto err_purge;
+
+		/* Should now be ripe for purging */
+		i915_vma_unpin(vma);
+
+		explode = fake_dma_object(i915, size);
+		if (IS_ERR(explode)) {
+			err = PTR_ERR(purge);
+			goto err_purge;
+		}
+
+		vm->fault_attr.probability = 100;
+		vm->fault_attr.interval = 1;
+		atomic_set(&vm->fault_attr.times, -1);
+
+		vma = i915_vma_instance(explode, vm, NULL);
+		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
+			goto err_explode;
+		}
+
+		err = i915_vma_pin(vma, 0, 0, flags | size);
+		if (err)
+			goto err_explode;
+
+		i915_vma_unpin(vma);
+
+		i915_gem_object_put(purge);
+		i915_gem_object_put(explode);
+
+		memset(&vm->fault_attr, 0, sizeof(vm->fault_attr));
+	}
+
+	return 0;
+
+err_explode:
+	i915_gem_object_put(explode);
+err_purge:
+	i915_gem_object_put(purge);
+	memset(&vm->fault_attr, 0, sizeof(vm->fault_attr));
+	return err;
+}
+
 static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 			  int (*func)(struct drm_i915_private *i915,
 				      struct i915_address_space *vm,
@@ -951,6 +1029,11 @@ static int igt_ppgtt_lowlevel(void *arg)
 static int igt_ppgtt_shrink(void *arg)
 {
 	return exercise_ppgtt(arg, shrink_hole);
+}
+
+static int igt_ppgtt_shrink_boom(void *arg)
+{
+	return exercise_ppgtt(arg, shrink_boom);
 }
 
 static int sort_holes(void *priv, struct list_head *A, struct list_head *B)
@@ -1577,6 +1660,7 @@ int i915_gem_gtt_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_ppgtt_pot),
 		SUBTEST(igt_ppgtt_fill),
 		SUBTEST(igt_ppgtt_shrink),
+		SUBTEST(igt_ppgtt_shrink_boom),
 		SUBTEST(igt_ggtt_lowlevel),
 		SUBTEST(igt_ggtt_drunk),
 		SUBTEST(igt_ggtt_walk),
