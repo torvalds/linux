@@ -666,8 +666,8 @@ endif # NF_TABLES
 
 config NF_FLOW_TABLE_INET
 	tristate "Netfilter flow table mixed IPv4/IPv6 module"
-	depends on NF_FLOW_TABLE_IPV4 && NF_FLOW_TABLE_IPV6
-	select NF_FLOW_TABLE
+	depends on NF_FLOW_TABLE_IPV4
+	depends on NF_FLOW_TABLE_IPV6
 	help
           This option adds the flow table mixed IPv4/IPv6 support.
 
@@ -675,7 +675,9 @@ config NF_FLOW_TABLE_INET
 
 config NF_FLOW_TABLE
 	tristate "Netfilter flow table module"
-	depends on NF_CONNTRACK && NF_TABLES
+	depends on NETFILTER_INGRESS
+	depends on NF_CONNTRACK
+	depends on NF_TABLES
 	help
 	  This option adds the flow table core infrastructure.
 
