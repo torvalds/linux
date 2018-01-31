@@ -1359,15 +1359,18 @@ static int gen8_ppgtt_alloc_pd(struct i915_address_space *vm,
 		int count = gen8_pte_count(start, length);
 
 		if (pt == vm->scratch_pt) {
+			pd->used_pdes++;
+
 			pt = alloc_pt(vm);
-			if (IS_ERR(pt))
+			if (IS_ERR(pt)) {
+				pd->used_pdes--;
 				goto unwind;
+			}
 
 			if (count < GEN8_PTES || intel_vgpu_active(vm->i915))
 				gen8_initialize_pt(vm, pt);
 
 			gen8_ppgtt_set_pde(vm, pd, pt, pde);
-			pd->used_pdes++;
 			GEM_BUG_ON(pd->used_pdes > I915_PDES);
 		}
 
@@ -1391,13 +1394,16 @@ static int gen8_ppgtt_alloc_pdp(struct i915_address_space *vm,
 
 	gen8_for_each_pdpe(pd, pdp, start, length, pdpe) {
 		if (pd == vm->scratch_pd) {
+			pdp->used_pdpes++;
+
 			pd = alloc_pd(vm);
-			if (IS_ERR(pd))
+			if (IS_ERR(pd)) {
+				pdp->used_pdpes--;
 				goto unwind;
+			}
 
 			gen8_initialize_pd(vm, pd);
 			gen8_ppgtt_set_pdpe(vm, pdp, pd, pdpe);
-			pdp->used_pdpes++;
 			GEM_BUG_ON(pdp->used_pdpes > i915_pdpes_per_pdp(vm));
 
 			mark_tlbs_dirty(i915_vm_to_ppgtt(vm));
