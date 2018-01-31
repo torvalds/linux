@@ -3518,7 +3518,7 @@ out:
 
 	if (rc != IO_OK)
 		hpsa_show_dev_msg(KERN_INFO, h, encl_dev,
-			"Error, could not get enclosure information\n");
+			"Error, could not get enclosure information");
 }
 
 static u64 hpsa_get_sas_address_from_report_physical(struct ctlr_info *h,
@@ -4619,21 +4619,13 @@ sglist_finished:
 	return 0;
 }
 
-#define BUFLEN 128
 static inline void warn_zero_length_transfer(struct ctlr_info *h,
 						u8 *cdb, int cdb_len,
 						const char *func)
 {
-	char buf[BUFLEN];
-	int outlen;
-	int i;
-
-	outlen = scnprintf(buf, BUFLEN,
-				"%s: Blocking zero-length request: CDB:", func);
-	for (i = 0; i < cdb_len; i++)
-		outlen += scnprintf(buf+outlen, BUFLEN - outlen,
-					"%02hhx", cdb[i]);
-	dev_warn(&h->pdev->dev, "%s\n", buf);
+	dev_warn(&h->pdev->dev,
+		 "%s: Blocking zero-length request: CDB:%*phN\n",
+		 func, cdb_len, cdb);
 }
 
 #define IO_ACCEL_INELIGIBLE 1
@@ -8222,8 +8214,6 @@ static void hpsa_set_ioaccel_status(struct ctlr_info *h)
 		device = h->dev[i];
 
 		if (!device)
-			continue;
-		if (!device->scsi3addr)
 			continue;
 		if (!hpsa_vpd_page_supported(h, device->scsi3addr,
 						HPSA_VPD_LV_IOACCEL_STATUS))

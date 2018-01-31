@@ -471,6 +471,7 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 				"Parse GID_FTrsp: did:x%x flg:x%x x%x",
 				Did, ndlp->nlp_flag, vport->fc_flag);
 
+			ndlp->nlp_fc4_type &= ~(NLP_FC4_FCP | NLP_FC4_NVME);
 			/* By default, the driver expects to support FCP FC4 */
 			if (fc4_type == FC_TYPE_FCP)
 				ndlp->nlp_fc4_type |= NLP_FC4_FCP;
@@ -685,6 +686,25 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			lpfc_els_flush_rscn(vport);
 		goto out;
 	}
+
+	spin_lock_irq(shost->host_lock);
+	if (vport->fc_flag & FC_RSCN_DEFERRED) {
+		vport->fc_flag &= ~FC_RSCN_DEFERRED;
+		spin_unlock_irq(shost->host_lock);
+
+		/*
+		 * Skip processing the NS response
+		 * Re-issue the NS cmd
+		 */
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+				 "0151 Process Deferred RSCN Data: x%x x%x\n",
+				 vport->fc_flag, vport->fc_rscn_id_cnt);
+		lpfc_els_handle_rscn(vport);
+
+		goto out;
+	}
+	spin_unlock_irq(shost->host_lock);
+
 	if (irsp->ulpStatus) {
 		/* Check for retry */
 		if (vport->fc_ns_retry < LPFC_MAX_NS_RETRY) {
