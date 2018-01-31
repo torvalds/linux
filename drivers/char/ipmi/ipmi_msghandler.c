@@ -84,7 +84,7 @@ static int panic_op_write_handler(const char *val,
 	char valcp[16];
 	char *s;
 
-	strncpy(valcp, val, 16);
+	strncpy(valcp, val, 15);
 	valcp[15] = '\0';
 
 	s = strstrip(valcp);

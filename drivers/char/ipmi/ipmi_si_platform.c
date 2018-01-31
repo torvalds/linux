@@ -40,7 +40,7 @@ MODULE_PARM_DESC(tryacpi, "Setting this to zero will disable the"
 #endif
 #ifdef CONFIG_OF
 module_param_named(tryopenfirmware, si_tryopenfirmware, bool, 0);
-MODULE_PARM_DESC(tryacpi, "Setting this to zero will disable the"
+MODULE_PARM_DESC(tryopenfirmware, "Setting this to zero will disable the"
 		 " default scan of the interfaces identified via OpenFirmware");
 #endif
 #ifdef CONFIG_DMI
