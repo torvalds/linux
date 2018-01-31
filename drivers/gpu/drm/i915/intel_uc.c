@@ -27,6 +27,8 @@
 #include "intel_guc.h"
 #include "i915_drv.h"
 
+static void guc_free_load_err_log(struct intel_guc *guc);
+
 /* Reset GuC providing us with fresh state for both GuC and HuC.
  */
 static int __intel_uc_reset_hw(struct drm_i915_private *dev_priv)
@@ -183,6 +185,8 @@ void intel_uc_fini_fw(struct drm_i915_private *dev_priv)
 
 	if (USES_HUC(dev_priv))
 		intel_uc_fw_fini(&dev_priv->huc.fw);
+
+	guc_free_load_err_log(&dev_priv->guc);
 }
 
 /**
@@ -427,8 +431,6 @@ err_out:
 void intel_uc_fini_hw(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
-
-	guc_free_load_err_log(guc);
 
 	if (!USES_GUC(dev_priv))
 		return;
