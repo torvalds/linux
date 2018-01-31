@@ -100,6 +100,9 @@ struct sw_event_regs {
 	u32 gpio_interrupt_hdr;
 	u32 gpio_interrupt_data;
 	u32 reserved16[4];
+	u32 gfms_event_hdr;
+	u32 gfms_event_data;
+	u32 reserved17[4];
 } __packed;
 
 enum {
