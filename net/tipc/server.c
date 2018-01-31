@@ -264,8 +264,8 @@ static int tipc_receive_from_sock(struct tipc_conn *con)
 	iov.iov_base = buf;
 	iov.iov_len = s->max_rcvbuf_size;
 	msg.msg_name = &addr;
-	ret = kernel_recvmsg(con->sock, &msg, &iov, 1, iov.iov_len,
-			     MSG_DONTWAIT);
+	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &iov, 1, iov.iov_len);
+	ret = sock_recvmsg(con->sock, &msg, MSG_DONTWAIT);
 	if (ret <= 0) {
 		kmem_cache_free(s->rcvbuf_cache, buf);
 		goto out_close;
