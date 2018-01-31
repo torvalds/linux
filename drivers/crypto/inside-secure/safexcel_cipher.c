@@ -27,7 +27,6 @@ struct safexcel_cipher_ctx {
 	struct safexcel_context base;
 	struct safexcel_crypto_priv *priv;
 
-	enum safexcel_cipher_direction direction;
 	u32 mode;
 
 	__le32 key[8];
@@ -35,6 +34,7 @@ struct safexcel_cipher_ctx {
 };
 
 struct safexcel_cipher_req {
+	enum safexcel_cipher_direction direction;
 	bool needs_inv;
 };
 
@@ -69,6 +69,7 @@ static int safexcel_aes_setkey(struct crypto_skcipher *ctfm, const u8 *key,
 {
 	struct crypto_tfm *tfm = crypto_skcipher_tfm(ctfm);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct safexcel_crypto_priv *priv = ctx->priv;
 	struct crypto_aes_ctx aes;
 	int ret, i;
 
@@ -78,10 +79,12 @@ static int safexcel_aes_setkey(struct crypto_skcipher *ctfm, const u8 *key,
 		return ret;
 	}
 
-	for (i = 0; i < len / sizeof(u32); i++) {
-		if (ctx->key[i] != cpu_to_le32(aes.key_enc[i])) {
-			ctx->base.needs_inv = true;
-			break;
+	if (priv->version == EIP197 && ctx->base.ctxr_dma) {
+		for (i = 0; i < len / sizeof(u32); i++) {
+			if (ctx->key[i] != cpu_to_le32(aes.key_enc[i])) {
+				ctx->base.needs_inv = true;
+				break;
+			}
 		}
 	}
 
@@ -95,12 +98,15 @@ static int safexcel_aes_setkey(struct crypto_skcipher *ctfm, const u8 *key,
 }
 
 static int safexcel_context_control(struct safexcel_cipher_ctx *ctx,
+				    struct crypto_async_request *async,
 				    struct safexcel_command_desc *cdesc)
 {
 	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct skcipher_request *req = skcipher_request_cast(async);
+	struct safexcel_cipher_req *sreq = skcipher_request_ctx(req);
 	int ctrl_size;
 
-	if (ctx->direction == SAFEXCEL_ENCRYPT)
+	if (sreq->direction == SAFEXCEL_ENCRYPT)
 		cdesc->control_data.control0 |= CONTEXT_CONTROL_TYPE_CRYPTO_OUT;
 	else
 		cdesc->control_data.control0 |= CONTEXT_CONTROL_TYPE_CRYPTO_IN;
@@ -243,7 +249,7 @@ static int safexcel_aes_send(struct crypto_async_request *async,
 		n_cdesc++;
 
 		if (n_cdesc == 1) {
-			safexcel_context_control(ctx, cdesc);
+			safexcel_context_control(ctx, async, cdesc);
 			safexcel_cipher_token(ctx, async, cdesc, req->cryptlen);
 		}
 
@@ -353,8 +359,8 @@ static int safexcel_handle_inv_result(struct safexcel_crypto_priv *priv,
 	if (enq_ret != -EINPROGRESS)
 		*ret = enq_ret;
 
-	if (!priv->ring[ring].need_dequeue)
-		safexcel_dequeue(priv, ring);
+	queue_work(priv->ring[ring].workqueue,
+		   &priv->ring[ring].work_data.work);
 
 	*should_complete = false;
 
@@ -390,7 +396,7 @@ static int safexcel_cipher_send_inv(struct crypto_async_request *async,
 	struct safexcel_crypto_priv *priv = ctx->priv;
 	int ret;
 
-	ret = safexcel_invalidate_cache(async, &ctx->base, priv,
+	ret = safexcel_invalidate_cache(async, priv,
 					ctx->base.ctxr_dma, ring, request);
 	if (unlikely(ret))
 		return ret;
@@ -406,8 +412,12 @@ static int safexcel_send(struct crypto_async_request *async,
 			 int *commands, int *results)
 {
 	struct skcipher_request *req = skcipher_request_cast(async);
+	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	struct safexcel_cipher_req *sreq = skcipher_request_ctx(req);
+	struct safexcel_crypto_priv *priv = ctx->priv;
 	int ret;
+
+	BUG_ON(priv->version == EIP97 && sreq->needs_inv);
 
 	if (sreq->needs_inv)
 		ret = safexcel_cipher_send_inv(async, ring, request,
@@ -443,8 +453,8 @@ static int safexcel_cipher_exit_inv(struct crypto_tfm *tfm)
 	crypto_enqueue_request(&priv->ring[ring].queue, &req->base);
 	spin_unlock_bh(&priv->ring[ring].queue_lock);
 
-	if (!priv->ring[ring].need_dequeue)
-		safexcel_dequeue(priv, ring);
+	queue_work(priv->ring[ring].workqueue,
+		   &priv->ring[ring].work_data.work);
 
 	wait_for_completion_interruptible(&result.completion);
 
@@ -467,11 +477,11 @@ static int safexcel_aes(struct skcipher_request *req,
 	int ret, ring;
 
 	sreq->needs_inv = false;
-	ctx->direction = dir;
+	sreq->direction = dir;
 	ctx->mode = mode;
 
 	if (ctx->base.ctxr) {
-		if (ctx->base.needs_inv) {
+		if (priv->version == EIP197 && ctx->base.needs_inv) {
 			sreq->needs_inv = true;
 			ctx->base.needs_inv = false;
 		}
@@ -490,8 +500,8 @@ static int safexcel_aes(struct skcipher_request *req,
 	ret = crypto_enqueue_request(&priv->ring[ring].queue, &req->base);
 	spin_unlock_bh(&priv->ring[ring].queue_lock);
 
-	if (!priv->ring[ring].need_dequeue)
-		safexcel_dequeue(priv, ring);
+	queue_work(priv->ring[ring].workqueue,
+		   &priv->ring[ring].work_data.work);
 
 	return ret;
 }
@@ -539,9 +549,14 @@ static void safexcel_skcipher_cra_exit(struct crypto_tfm *tfm)
 
 	memzero_explicit(ctx->base.ctxr->data, 8 * sizeof(u32));
 
-	ret = safexcel_cipher_exit_inv(tfm);
-	if (ret)
-		dev_warn(priv->dev, "cipher: invalidation error %d\n", ret);
+	if (priv->version == EIP197) {
+		ret = safexcel_cipher_exit_inv(tfm);
+		if (ret)
+			dev_warn(priv->dev, "cipher: invalidation error %d\n", ret);
+	} else {
+		dma_pool_free(priv->context_pool, ctx->base.ctxr,
+			      ctx->base.ctxr_dma);
+	}
 }
 
 struct safexcel_alg_template safexcel_alg_ecb_aes = {

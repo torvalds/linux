@@ -181,9 +181,8 @@ static int cbc_init(struct crypto_tfm *tfm)
 	struct aesbs_cbc_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	ctx->enc_tfm = crypto_alloc_cipher("aes", 0, 0);
-	if (IS_ERR(ctx->enc_tfm))
-		return PTR_ERR(ctx->enc_tfm);
-	return 0;
+
+	return PTR_ERR_OR_ZERO(ctx->enc_tfm);
 }
 
 static void cbc_exit(struct crypto_tfm *tfm)
@@ -258,9 +257,8 @@ static int xts_init(struct crypto_tfm *tfm)
 	struct aesbs_xts_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	ctx->tweak_tfm = crypto_alloc_cipher("aes", 0, 0);
-	if (IS_ERR(ctx->tweak_tfm))
-		return PTR_ERR(ctx->tweak_tfm);
-	return 0;
+
+	return PTR_ERR_OR_ZERO(ctx->tweak_tfm);
 }
 
 static void xts_exit(struct crypto_tfm *tfm)

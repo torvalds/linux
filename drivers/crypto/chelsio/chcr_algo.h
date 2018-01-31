@@ -226,15 +226,6 @@
 #define SPACE_LEFT(len) \
 	((SGE_MAX_WR_LEN - WR_MIN_LEN - (len)))
 
-unsigned int sgl_ent_len[] = {0, 0, 16, 24, 40, 48, 64, 72, 88,
-				96, 112, 120, 136, 144, 160, 168, 184,
-				192, 208, 216, 232, 240, 256, 264, 280,
-				288, 304, 312, 328, 336, 352, 360, 376};
-unsigned int dsgl_ent_len[] = {0, 32, 32, 48, 48, 64, 64, 80, 80,
-				112, 112, 128, 128, 144, 144, 160, 160,
-				192, 192, 208, 208, 224, 224, 240, 240,
-				272, 272, 288, 288, 304, 304, 320, 320};
-
 struct algo_param {
 	unsigned int auth_mode;
 	unsigned int mk_size;
@@ -403,11 +394,5 @@ static inline u32 aes_ks_subword(const u32 w)
 	bytes[3] = aes_sbox[bytes[3]];
 	return *(u32 *)(&bytes[0]);
 }
-
-static u32 round_constant[11] = {
-	0x01000000, 0x02000000, 0x04000000, 0x08000000,
-	0x10000000, 0x20000000, 0x40000000, 0x80000000,
-	0x1B000000, 0x36000000, 0x6C000000
-};
 
 #endif /* __CHCR_ALGO_H__ */

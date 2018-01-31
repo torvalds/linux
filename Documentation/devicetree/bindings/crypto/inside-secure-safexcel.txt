@@ -1,7 +1,8 @@
 Inside Secure SafeXcel cryptographic engine
 
 Required properties:
-- compatible: Should be "inside-secure,safexcel-eip197".
+- compatible: Should be "inside-secure,safexcel-eip197" or
+              "inside-secure,safexcel-eip97".
 - reg: Base physical address of the engine and length of memory mapped region.
 - interrupts: Interrupt numbers for the rings and engine.
 - interrupt-names: Should be "ring0", "ring1", "ring2", "ring3", "eip", "mem".

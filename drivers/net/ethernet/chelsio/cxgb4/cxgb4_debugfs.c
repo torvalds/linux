@@ -3096,6 +3096,8 @@ static int chcr_show(struct seq_file *seq, void *v)
 		   atomic_read(&adap->chcr_stats.error));
 	seq_printf(seq, "Fallback: %10u \n",
 		   atomic_read(&adap->chcr_stats.fallback));
+	seq_printf(seq, "IPSec PDU: %10u\n",
+		   atomic_read(&adap->chcr_stats.ipsec_cnt));
 	return 0;
 }
 
