@@ -634,7 +634,7 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 				  rdma_ah_read_grh(&attr->ah_attr)->sgid_index,
 				  &sgid, &sgid_attr);
 		rxe_av_from_attr(attr->port_num, &qp->pri_av, &attr->ah_attr);
-		rxe_av_fill_ip_info(rxe, &qp->pri_av, &attr->ah_attr,
+		rxe_av_fill_ip_info(&qp->pri_av, &attr->ah_attr,
 				    &sgid_attr, &sgid);
 		if (sgid_attr.ndev)
 			dev_put(sgid_attr.ndev);
@@ -649,7 +649,7 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 
 		rxe_av_from_attr(attr->alt_port_num, &qp->alt_av,
 				 &attr->alt_ah_attr);
-		rxe_av_fill_ip_info(rxe, &qp->alt_av, &attr->alt_ah_attr,
+		rxe_av_fill_ip_info(&qp->alt_av, &attr->alt_ah_attr,
 				    &sgid_attr, &sgid);
 		if (sgid_attr.ndev)
 			dev_put(sgid_attr.ndev);

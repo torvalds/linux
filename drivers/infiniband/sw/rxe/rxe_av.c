@@ -69,8 +69,7 @@ void rxe_av_to_attr(struct rxe_av *av, struct rdma_ah_attr *attr)
 	rdma_ah_set_port_num(attr, av->port_num);
 }
 
-void rxe_av_fill_ip_info(struct rxe_dev *rxe,
-			struct rxe_av *av,
+void rxe_av_fill_ip_info(struct rxe_av *av,
 			struct rdma_ah_attr *attr,
 			struct ib_gid_attr *sgid_attr,
 			union ib_gid *sgid)
