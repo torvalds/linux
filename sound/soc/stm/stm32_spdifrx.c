@@ -858,8 +858,8 @@ static const struct of_device_id stm32_spdifrx_ids[] = {
 	{}
 };
 
-static int stm_spdifrx_parse_of(struct platform_device *pdev,
-				struct stm32_spdifrx_data *spdifrx)
+static int stm32_spdifrx_parse_of(struct platform_device *pdev,
+				  struct stm32_spdifrx_data *spdifrx)
 {
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *of_id;
@@ -914,7 +914,7 @@ static int stm32_spdifrx_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, spdifrx);
 
-	ret = stm_spdifrx_parse_of(pdev, spdifrx);
+	ret = stm32_spdifrx_parse_of(pdev, spdifrx);
 	if (ret)
 		return ret;
 
