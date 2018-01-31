@@ -1957,6 +1957,15 @@ static int validate_retpoline(struct objtool_file *file)
 		if (insn->retpoline_safe)
 			continue;
 
+		/*
+		 * .init.text code is ran before userspace and thus doesn't
+		 * strictly need retpolines, except for modules which are
+		 * loaded late, they very much do need retpoline in their
+		 * .init.text
+		 */
+		if (!strcmp(insn->sec->name, ".init.text") && !module)
+			continue;
+
 		WARN_FUNC("indirect %s found in RETPOLINE build",
 			  insn->sec, insn->offset,
 			  insn->type == INSN_JUMP_DYNAMIC ? "jump" : "call");
