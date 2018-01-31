@@ -28,7 +28,6 @@
 
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
-#include <asm/pmc_core.h>
 
 #include "intel_pmc_core.h"
 
