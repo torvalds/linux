@@ -175,7 +175,7 @@ err_out:
  */
 int ima_get_action(struct inode *inode, int mask, enum ima_hooks func, int *pcr)
 {
-	int flags = IMA_MEASURE | IMA_AUDIT | IMA_APPRAISE;
+	int flags = IMA_MEASURE | IMA_AUDIT | IMA_APPRAISE | IMA_HASH;
 
 	flags &= ima_policy_flag;
 
