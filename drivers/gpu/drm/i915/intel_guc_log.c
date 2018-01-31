@@ -185,6 +185,8 @@ static int guc_log_relay_file_create(struct intel_guc *guc)
 		goto out_unlock;
 	}
 
+	ret = 0;
+
 out_unlock:
 	mutex_unlock(&guc->log.runtime.relay_lock);
 	return ret;
