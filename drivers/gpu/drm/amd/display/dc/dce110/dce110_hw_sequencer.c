@@ -1481,7 +1481,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 
 	struct dc_link *edp_link = get_link_for_edp(dc);
 	if (dcb->funcs->get_vga_enabled_displays(dc->ctx->dc_bios) != 0) {
-		if (edp_link_to_turnoff) {
+		if (edp_link) {
 			/*we need turn off backlight before DP_blank and encoder powered down, todo add optimization*/
 			dc->hwss.edp_backlight_control(edp_link, false);
 		}
