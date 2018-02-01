@@ -974,6 +974,8 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 		}
 	} else {
 		retval = uart_startup(tty, state, 1);
+		if (retval == 0)
+			tty_port_set_initialized(port, true);
 		if (retval > 0)
 			retval = 0;
 	}
@@ -1955,9 +1957,10 @@ EXPORT_SYMBOL_GPL(uart_parse_earlycon);
  *	eg: 115200n8r
  */
 void
-uart_parse_options(char *options, int *baud, int *parity, int *bits, int *flow)
+uart_parse_options(const char *options, int *baud, int *parity,
+		   int *bits, int *flow)
 {
-	char *s = options;
+	const char *s = options;
 
 	*baud = simple_strtoul(s, NULL, 10);
 	while (*s >= '0' && *s <= '9')
@@ -3013,19 +3016,20 @@ EXPORT_SYMBOL(uart_add_one_port);
 EXPORT_SYMBOL(uart_remove_one_port);
 
 /**
- * of_get_rs485_mode() - Implement parsing rs485 properties
- * @np: uart node
+ * uart_get_rs485_mode() - retrieve rs485 properties for given uart
+ * @dev: uart device
  * @rs485conf: output parameter
  *
  * This function implements the device tree binding described in
  * Documentation/devicetree/bindings/serial/rs485.txt.
  */
-void of_get_rs485_mode(struct device_node *np, struct serial_rs485 *rs485conf)
+void uart_get_rs485_mode(struct device *dev, struct serial_rs485 *rs485conf)
 {
 	u32 rs485_delay[2];
 	int ret;
 
-	ret = of_property_read_u32_array(np, "rs485-rts-delay", rs485_delay, 2);
+	ret = device_property_read_u32_array(dev, "rs485-rts-delay",
+					     rs485_delay, 2);
 	if (!ret) {
 		rs485conf->delay_rts_before_send = rs485_delay[0];
 		rs485conf->delay_rts_after_send = rs485_delay[1];
@@ -3035,18 +3039,25 @@ void of_get_rs485_mode(struct device_node *np, struct serial_rs485 *rs485conf)
 	}
 
 	/*
-	 * clear full-duplex and enabled flags to get to a defined state with
-	 * the two following properties.
+	 * Clear full-duplex and enabled flags, set RTS polarity to active high
+	 * to get to a defined state with the following properties:
 	 */
-	rs485conf->flags &= ~(SER_RS485_RX_DURING_TX | SER_RS485_ENABLED);
+	rs485conf->flags &= ~(SER_RS485_RX_DURING_TX | SER_RS485_ENABLED |
+			      SER_RS485_RTS_AFTER_SEND);
+	rs485conf->flags |= SER_RS485_RTS_ON_SEND;
 
-	if (of_property_read_bool(np, "rs485-rx-during-tx"))
+	if (device_property_read_bool(dev, "rs485-rx-during-tx"))
 		rs485conf->flags |= SER_RS485_RX_DURING_TX;
 
-	if (of_property_read_bool(np, "linux,rs485-enabled-at-boot-time"))
+	if (device_property_read_bool(dev, "linux,rs485-enabled-at-boot-time"))
 		rs485conf->flags |= SER_RS485_ENABLED;
+
+	if (device_property_read_bool(dev, "rs485-rts-active-low")) {
+		rs485conf->flags &= ~SER_RS485_RTS_ON_SEND;
+		rs485conf->flags |= SER_RS485_RTS_AFTER_SEND;
+	}
 }
-EXPORT_SYMBOL_GPL(of_get_rs485_mode);
+EXPORT_SYMBOL_GPL(uart_get_rs485_mode);
 
 MODULE_DESCRIPTION("Serial driver core");
 MODULE_LICENSE("GPL");

@@ -13181,6 +13181,11 @@ S:	Supported
 F:	drivers/reset/reset-axs10x.c
 F:	Documentation/devicetree/bindings/reset/snps,axs10x-reset.txt
 
+SYNOPSYS DESIGNWARE 8250 UART DRIVER
+R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+S:	Maintained
+F:	drivers/tty/serial/8250/8250_dw.c
+
 SYNOPSYS DESIGNWARE APB GPIO DRIVER
 M:	Hoan Tran <hotran@apm.com>
 L:	linux-gpio@vger.kernel.org
