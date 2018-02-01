@@ -1954,6 +1954,7 @@ void hfi1_verbs_unregister_sysfs(struct hfi1_devdata *dd);
 int qsfp_dump(struct hfi1_pportdata *ppd, char *buf, int len);
 
 int hfi1_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent);
+void hfi1_clean_up_interrupts(struct hfi1_devdata *dd);
 void hfi1_pcie_cleanup(struct pci_dev *pdev);
 int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev);
 void hfi1_pcie_ddcleanup(struct hfi1_devdata *);
