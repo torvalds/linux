@@ -3905,7 +3905,7 @@ in userspace.
 	__u64 kvm_dirty_regs;
 	union {
 		struct kvm_sync_regs regs;
-		char padding[1024];
+		char padding[SYNC_REGS_SIZE_BYTES];
 	} s;
 
 If KVM_CAP_SYNC_REGS is defined, these fields allow userspace to access
