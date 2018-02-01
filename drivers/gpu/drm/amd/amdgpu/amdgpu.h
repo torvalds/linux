@@ -1657,6 +1657,8 @@ void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v);
 bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type);
 bool amdgpu_device_has_dc_support(struct amdgpu_device *adev);
 
+int emu_soc_asic_init(struct amdgpu_device *adev);
+
 /*
  * Registers read & write functions.
  */

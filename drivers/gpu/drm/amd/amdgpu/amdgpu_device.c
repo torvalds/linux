@@ -1311,19 +1311,6 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 		}
 		adev->ip_blocks[i].status.sw = true;
 
-		if (amdgpu_emu_mode == 1) {
-			/* Need to do common hw init first on emulation  */
-			if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_COMMON) {
-				r = adev->ip_blocks[i].version->funcs->hw_init((void *)adev);
-				if (r) {
-					DRM_ERROR("hw_init of IP block <%s> failed %d\n",
-						adev->ip_blocks[i].version->funcs->name, r);
-					return r;
-				}
-				adev->ip_blocks[i].status.hw = true;
-			}
-		}
-
 		/* need to do gmc hw init early so we can allocate gpu mem */
 		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC) {
 			r = amdgpu_device_vram_scratch_init(adev);
@@ -1902,8 +1889,11 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	if (runtime)
 		vga_switcheroo_init_domain_pm_ops(adev->dev, &adev->vga_pm_domain);
 
-	if (amdgpu_emu_mode == 1)
+	if (amdgpu_emu_mode == 1) {
+		/* post the asic on emulation mode */
+		emu_soc_asic_init(adev);
 		goto fence_driver_init;
+	}
 
 	/* Read BIOS */
 	if (!amdgpu_get_bios(adev)) {
