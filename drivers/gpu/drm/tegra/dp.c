@@ -33,6 +33,8 @@ void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
 
 static void drm_dp_link_reset(struct drm_dp_link *link)
 {
+	unsigned int i;
+
 	if (!link)
 		return;
 
@@ -47,6 +49,111 @@ static void drm_dp_link_reset(struct drm_dp_link *link)
 
 	link->rate = 0;
 	link->lanes = 0;
+
+	for (i = 0; i < DP_MAX_SUPPORTED_RATES; i++)
+		link->rates[i] = 0;
+
+	link->num_rates = 0;
+}
+
+/**
+ * drm_dp_link_add_rate() - add a rate to the list of supported rates
+ * @link: the link to add the rate to
+ * @rate: the rate to add
+ *
+ * Add a link rate to the list of supported link rates.
+ *
+ * Returns:
+ * 0 on success or one of the following negative error codes on failure:
+ * - ENOSPC if the maximum number of supported rates has been reached
+ * - EEXISTS if the link already supports this rate
+ *
+ * See also:
+ * drm_dp_link_remove_rate()
+ */
+int drm_dp_link_add_rate(struct drm_dp_link *link, unsigned long rate)
+{
+	unsigned int i, pivot;
+
+	if (link->num_rates == DP_MAX_SUPPORTED_RATES)
+		return -ENOSPC;
+
+	for (pivot = 0; pivot < link->num_rates; pivot++)
+		if (rate <= link->rates[pivot])
+			break;
+
+	if (pivot != link->num_rates && rate == link->rates[pivot])
+		return -EEXIST;
+
+	for (i = link->num_rates; i > pivot; i--)
+		link->rates[i] = link->rates[i - 1];
+
+	link->rates[pivot] = rate;
+	link->num_rates++;
+
+	return 0;
+}
+
+/**
+ * drm_dp_link_remove_rate() - remove a rate from the list of supported rates
+ * @link: the link from which to remove the rate
+ * @rate: the rate to remove
+ *
+ * Removes a link rate from the list of supported link rates.
+ *
+ * Returns:
+ * 0 on success or one of the following negative error codes on failure:
+ * - EINVAL if the specified rate is not among the supported rates
+ *
+ * See also:
+ * drm_dp_link_add_rate()
+ */
+int drm_dp_link_remove_rate(struct drm_dp_link *link, unsigned long rate)
+{
+	unsigned int i;
+
+	for (i = 0; i < link->num_rates; i++)
+		if (rate == link->rates[i])
+			break;
+
+	if (i == link->num_rates)
+		return -EINVAL;
+
+	link->num_rates--;
+
+	while (i < link->num_rates) {
+		link->rates[i] = link->rates[i + 1];
+		i++;
+	}
+
+	return 0;
+}
+
+/**
+ * drm_dp_link_update_rates() - normalize the supported link rates array
+ * @link: the link for which to normalize the supported link rates
+ *
+ * Users should call this function after they've manually modified the array
+ * of supported link rates. This function removes any stale entries, compacts
+ * the array and updates the supported link rate count. Note that calling the
+ * drm_dp_link_remove_rate() function already does this janitorial work.
+ *
+ * See also:
+ * drm_dp_link_add_rate(), drm_dp_link_remove_rate()
+ */
+void drm_dp_link_update_rates(struct drm_dp_link *link)
+{
+	unsigned int i, count = 0;
+
+	for (i = 0; i < link->num_rates; i++) {
+		if (link->rates[i] != 0)
+			link->rates[count++] = link->rates[i];
+	}
+
+	for (i = count; i < link->num_rates; i++)
+		link->rates[i] = 0;
+
+	link->num_rates = count;
 }
 
 /**
@@ -124,6 +231,26 @@ int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link)
 
 	link->rate = link->max_rate;
 	link->lanes = link->max_lanes;
+
+	/* Parse SUPPORTED_LINK_RATES from eDP 1.4 */
+	if (link->edp >= 0x14) {
+		u8 supported_rates[DP_MAX_SUPPORTED_RATES * 2];
+		unsigned int i;
+		u16 rate;
+
+		err = drm_dp_dpcd_read(aux, DP_SUPPORTED_LINK_RATES,
+				       supported_rates,
+				       sizeof(supported_rates));
+		if (err < 0)
+			return err;
+
+		for (i = 0; i < DP_MAX_SUPPORTED_RATES; i++) {
+			rate = supported_rates[i * 2 + 1] << 8 |
+			       supported_rates[i * 2 + 0];
+
+			drm_dp_link_add_rate(link, rate * 200);
+		}
+	}
 
 	return 0;
 }

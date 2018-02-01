@@ -66,6 +66,8 @@ void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
  * @edp: eDP revision (0x11: eDP 1.1, 0x12: eDP 1.2, ...)
  * @rate: currently configured link rate
  * @lanes: currently configured number of lanes
+ * @rates: additional supported link rates in kHz (eDP 1.4)
+ * @num_rates: number of additional supported link rates (eDP 1.4)
  */
 struct drm_dp_link {
 	unsigned char revision;
@@ -87,7 +89,14 @@ struct drm_dp_link {
 
 	unsigned int rate;
 	unsigned int lanes;
+
+	unsigned long rates[DP_MAX_SUPPORTED_RATES];
+	unsigned int num_rates;
 };
+
+int drm_dp_link_add_rate(struct drm_dp_link *link, unsigned long rate);
+int drm_dp_link_remove_rate(struct drm_dp_link *link, unsigned long rate);
+void drm_dp_link_update_rates(struct drm_dp_link *link);
 
 int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link);
 int drm_dp_link_power_up(struct drm_dp_aux *aux, struct drm_dp_link *link);
