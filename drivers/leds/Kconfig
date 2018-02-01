@@ -69,7 +69,7 @@ config LEDS_APU
 	  module will be called leds-apu.
 
 config LEDS_AS3645A
-	tristate "AS3645A LED flash controller support"
+	tristate "AS3645A and LM3555 LED flash controllers support"
 	depends on I2C && LEDS_CLASS_FLASH
 	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
 	help
@@ -594,12 +594,12 @@ config LEDS_MAX8997
 	  MAXIM MAX8997 PMIC.
 
 config LEDS_LM355x
-	tristate "LED support for LM355x Chips, LM3554 and LM3556"
+	tristate "LED support for LM3554 and LM3556 chips"
 	depends on LEDS_CLASS && I2C
 	select REGMAP_I2C
 	help
-	  This option enables support for LEDs connected to LM355x.
-	  LM355x includes Torch, Flash and Indicator functions.
+	  This option enables support for LEDs connected to LM3554
+	  and LM3556. It includes Torch, Flash and Indicator functions.
 
 config LEDS_OT200
 	tristate "LED support for the Bachmann OT200"
