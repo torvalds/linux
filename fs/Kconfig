@@ -167,17 +167,13 @@ config TMPFS_POSIX_ACL
 	  files for sound to work properly.  In short, if you're not sure,
 	  say Y.
 
-	  To learn more about Access Control Lists, visit the POSIX ACLs for
-	  Linux website <http://acl.bestbits.at/>.
-
 config TMPFS_XATTR
 	bool "Tmpfs extended attributes"
 	depends on TMPFS
 	default n
 	help
 	  Extended attributes are name:value pairs associated with inodes by
-	  the kernel or by users (see the attr(5) manual page, or visit
-	  <http://acl.bestbits.at/> for details).
+	  the kernel or by users (see the attr(5) manual page for details).
 
 	  Currently this enables support for the trusted.* and
 	  security.* namespaces.
