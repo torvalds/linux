@@ -1301,3 +1301,12 @@ set_result:
 	kvm_hv_hypercall_set_result(vcpu, ret);
 	return 1;
 }
+
+void kvm_hv_init_vm(struct kvm *kvm)
+{
+	mutex_init(&kvm->arch.hyperv.hv_lock);
+}
+
+void kvm_hv_destroy_vm(struct kvm *kvm)
+{
+}
