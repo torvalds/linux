@@ -10181,7 +10181,8 @@ F:	fs/ocfs2/
 
 ORANGEFS FILESYSTEM
 M:	Mike Marshall <hubcap@omnibond.com>
-L:	pvfs2-developers@beowulf-underground.org (subscribers-only)
+R:	Martin Brandenburg <martin@omnibond.com>
+L:	devel@lists.orangefs.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hubcap/linux.git
 S:	Supported
 F:	fs/orangefs/
