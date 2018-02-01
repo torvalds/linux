@@ -26,6 +26,8 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
+#include <linux/devfreq.h>
+#include <linux/devfreq_cooling.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/hwmon.h>
@@ -53,6 +55,8 @@ struct gpio_fan_data {
 	bool			pwm_enable;
 	struct gpio_fan_alarm	*alarm;
 	struct work_struct	alarm_work;
+	struct devfreq *devfreq;
+	struct thermal_cooling_device *devfreq_cooling;
 };
 
 /*
@@ -537,11 +541,128 @@ static const struct of_device_id of_gpio_fan_match[] = {
 MODULE_DEVICE_TABLE(of, of_gpio_fan_match);
 #endif /* CONFIG_OF_GPIO */
 
+static inline void reset_last_status(struct devfreq *devfreq)
+{
+	devfreq->last_status.total_time = 1;
+	devfreq->last_status.busy_time = 1;
+}
+
+static int rockchip_fanfreq_target(struct device *dev, unsigned long *freq,
+				   u32 flags)
+{
+	struct gpio_fan_data *fan_data = dev_get_drvdata(dev);
+	struct dev_pm_opp *opp;
+	struct devfreq_dev_profile *devp;
+	int i = 0;
+	int speed_index = 0;
+
+	if (!fan_data || IS_ERR_OR_NULL(fan_data->devfreq))
+		return 0;
+
+	devp = fan_data->devfreq->profile;
+
+	rcu_read_lock();
+	opp = devfreq_recommended_opp(dev, freq, flags);
+	if (IS_ERR(opp)) {
+		rcu_read_unlock();
+		return PTR_ERR(opp);
+	}
+	*freq = dev_pm_opp_get_freq(opp);
+	rcu_read_unlock();
+
+	for (i = 0; i < devp->max_state; i++) {
+		if (*freq < devp->freq_table[i])
+			break;
+	}
+
+	speed_index = devp->max_state - i;
+
+	set_fan_speed(fan_data, speed_index);
+
+	fan_data->devfreq->last_status.current_frequency = *freq;
+
+	return 0;
+}
+
+static int rockchip_fanfreq_get_dev_status(struct device *dev,
+					   struct devfreq_dev_status *stat)
+{
+	stat->busy_time = 1;
+	stat->total_time = 1;
+	return 0;
+}
+
+static int rockchip_fanfreq_get_cur_freq(struct device *dev,
+					 unsigned long *freq)
+{
+	struct gpio_fan_data *fan_data = dev_get_drvdata(dev);
+
+	if (!fan_data || IS_ERR_OR_NULL(fan_data->devfreq))
+		return 0;
+
+	*freq = fan_data->devfreq->last_status.current_frequency;
+
+	return 0;
+}
+
+static struct devfreq_dev_profile rockchip_devfreq_fan_profile = {
+	.polling_ms = 2000,
+	.target = rockchip_fanfreq_target,
+	.get_dev_status = rockchip_fanfreq_get_dev_status,
+	.get_cur_freq = rockchip_fanfreq_get_cur_freq,
+};
+
+static struct devfreq_cooling_power fan_cooling_power_data = {
+	.dyn_power_coeff = 120,
+};
+
+static int rockchip_fanfreq_init_freq_table(struct device *dev,
+					    struct devfreq_dev_profile *devp)
+{
+	int count;
+	int i = 0;
+	unsigned long freq = 0;
+	struct dev_pm_opp *opp;
+
+	rcu_read_lock();
+	count = dev_pm_opp_get_opp_count(dev);
+	if (count < 0) {
+		rcu_read_unlock();
+		return count;
+	}
+	rcu_read_unlock();
+
+	devp->freq_table =
+	    devm_kmalloc_array(dev, count, sizeof(devp->freq_table[0]),
+			       GFP_KERNEL);
+	if (!devp->freq_table)
+		return -ENOMEM;
+
+	rcu_read_lock();
+	for (i = 0; i < count; i++, freq++) {
+		opp = dev_pm_opp_find_freq_ceil(dev, &freq);
+		if (IS_ERR(opp))
+			break;
+
+		devp->freq_table[i] = freq;
+	}
+	rcu_read_unlock();
+
+	if (count != i)
+		dev_warn(dev, "Unable to enumerate all OPPs (%d!=%d)\n",
+			 count, i);
+
+	devp->max_state = i;
+	return 0;
+}
+
 static int gpio_fan_probe(struct platform_device *pdev)
 {
 	int err;
 	struct gpio_fan_data *fan_data;
 	struct gpio_fan_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct devfreq_dev_profile *devp = &rockchip_devfreq_fan_profile;
+	struct device *dev = &pdev->dev;
 
 	fan_data = devm_kzalloc(&pdev->dev, sizeof(struct gpio_fan_data),
 				GFP_KERNEL);
@@ -592,17 +713,39 @@ static int gpio_fan_probe(struct platform_device *pdev)
 						       gpio_fan_groups);
 	if (IS_ERR(fan_data->hwmon_dev))
 		return PTR_ERR(fan_data->hwmon_dev);
-#ifdef CONFIG_OF_GPIO
-	/* Optional cooling device register for Device tree platforms */
-	fan_data->cdev = thermal_of_cooling_device_register(pdev->dev.of_node,
-							    "gpio-fan",
-							    fan_data,
-							    &gpio_fan_cool_ops);
-#else /* CONFIG_OF_GPIO */
-	/* Optional cooling device register for non Device tree platforms */
-	fan_data->cdev = thermal_cooling_device_register("gpio-fan", fan_data,
-							 &gpio_fan_cool_ops);
-#endif /* CONFIG_OF_GPIO */
+
+	if (dev_pm_opp_of_add_table(dev)) {
+		dev_err(dev, "Invalid operating-points\n");
+		return -EINVAL;
+	}
+
+	if (rockchip_fanfreq_init_freq_table(dev, devp))
+		return -EFAULT;
+
+	fan_data->devfreq = devm_devfreq_add_device(dev, devp,
+						    "performance", NULL);
+	if (IS_ERR(fan_data->devfreq))
+		return PTR_ERR(fan_data->devfreq);
+
+	devm_devfreq_register_opp_notifier(dev, fan_data->devfreq);
+
+	fan_data->devfreq->min_freq = devp->freq_table[0];
+	fan_data->devfreq->max_freq =
+	    devp->freq_table[devp->max_state ? devp->max_state - 1 : 0];
+	fan_data->devfreq->last_status.current_frequency =
+	    fan_data->devfreq->max_freq;
+	devp->initial_freq = fan_data->devfreq->max_freq;
+
+	reset_last_status(fan_data->devfreq);
+
+	fan_data->devfreq_cooling =
+	    of_devfreq_cooling_register_power(dev->of_node,
+					      fan_data->devfreq,
+					      &fan_cooling_power_data);
+	if (IS_ERR_OR_NULL(fan_data->devfreq_cooling)) {
+		err = PTR_ERR(fan_data->devfreq_cooling);
+		dev_err(dev, "Failed to register cooling device (%d)\n", err);
+	}
 
 	dev_info(&pdev->dev, "GPIO fan initialized\n");
 
