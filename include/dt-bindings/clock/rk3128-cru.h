@@ -75,6 +75,7 @@
 #define SCLK_CIF_OUT		152
 #define SCLK_SFC		153
 #define SCLK_USB480M		154
+#define SCLK_HSADC_TSP		155
 
 /* dclk gates */
 #define DCLK_VOP		190

@@ -448,6 +448,8 @@ static struct rockchip_clk_branch common_clk_branches[] __initdata = {
 	COMPOSITE(SCLK_TSP, "sclk_tsp", mux_pll_src_3plls_p, 0,
 			RK2928_CLKSEL_CON(4), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK2928_CLKGATE_CON(1), 14, GFLAGS),
+	GATE(SCLK_HSADC_TSP, "sclk_hsadc_tsp", "ext_hsadc_tsp", 0,
+			RK2928_CLKGATE_CON(10), 13, GFLAGS),
 
 	COMPOSITE(SCLK_NANDC, "sclk_nandc", mux_pll_src_3plls_p, 0,
 			RK2928_CLKSEL_CON(2), 14, 2, MFLAGS, 8, 5, DFLAGS,
