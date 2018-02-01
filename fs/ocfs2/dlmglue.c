@@ -2546,13 +2546,18 @@ int ocfs2_inode_lock_with_page(struct inode *inode,
 
 int ocfs2_inode_lock_atime(struct inode *inode,
 			  struct vfsmount *vfsmnt,
-			  int *level)
+			  int *level, int wait)
 {
 	int ret;
 
-	ret = ocfs2_inode_lock(inode, NULL, 0);
+	if (wait)
+		ret = ocfs2_inode_lock(inode, NULL, 0);
+	else
+		ret = ocfs2_try_inode_lock(inode, NULL, 0);
+
 	if (ret < 0) {
-		mlog_errno(ret);
+		if (ret != -EAGAIN)
+			mlog_errno(ret);
 		return ret;
 	}
 
@@ -2564,9 +2569,14 @@ int ocfs2_inode_lock_atime(struct inode *inode,
 		struct buffer_head *bh = NULL;
 
 		ocfs2_inode_unlock(inode, 0);
-		ret = ocfs2_inode_lock(inode, &bh, 1);
+		if (wait)
+			ret = ocfs2_inode_lock(inode, &bh, 1);
+		else
+			ret = ocfs2_try_inode_lock(inode, &bh, 1);
+
 		if (ret < 0) {
-			mlog_errno(ret);
+			if (ret != -EAGAIN)
+				mlog_errno(ret);
 			return ret;
 		}
 		*level = 1;

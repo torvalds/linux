@@ -146,7 +146,7 @@ int ocfs2_try_open_lock(struct inode *inode, int write);
 void ocfs2_open_unlock(struct inode *inode);
 int ocfs2_inode_lock_atime(struct inode *inode,
 			  struct vfsmount *vfsmnt,
-			  int *level);
+			  int *level, int wait);
 int ocfs2_inode_lock_full_nested(struct inode *inode,
 			 struct buffer_head **ret_bh,
 			 int ex,
