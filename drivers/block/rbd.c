@@ -258,7 +258,6 @@ struct rbd_obj_request {
 	/* links for img_request->obj_requests list */
 	struct list_head	links;
 
-	enum obj_request_type	type;
 	union {
 		struct ceph_bio_iter	bio_pos;
 		struct {
@@ -285,6 +284,7 @@ enum img_req_flags {
 struct rbd_img_request {
 	struct rbd_device	*rbd_dev;
 	enum obj_operation_type	op_type;
+	enum obj_request_type	data_type;
 	u64			offset;	/* starting image byte offset */
 	u64			length;	/* byte count from offset */
 	unsigned long		flags;
@@ -1270,7 +1270,7 @@ static void zero_bvecs(struct ceph_bvec_iter *bvec_pos, u32 off, u32 bytes)
 static void rbd_obj_zero_range(struct rbd_obj_request *obj_req, u32 off,
 			       u32 bytes)
 {
-	switch (obj_req->type) {
+	switch (obj_req->img_request->data_type) {
 	case OBJ_REQUEST_BIO:
 		zero_bios(&obj_req->bio_pos, off, bytes);
 		break;
@@ -1348,20 +1348,7 @@ static inline void rbd_img_obj_request_del(struct rbd_img_request *img_request,
 	rbd_assert(img_request->obj_request_count > 0);
 	img_request->obj_request_count--;
 	rbd_assert(obj_request->img_request == img_request);
-	obj_request->img_request = NULL;
 	rbd_obj_request_put(obj_request);
-}
-
-static bool obj_request_type_valid(enum obj_request_type type)
-{
-	switch (type) {
-	case OBJ_REQUEST_NODATA:
-	case OBJ_REQUEST_BIO:
-	case OBJ_REQUEST_BVECS:
-		return true;
-	default:
-		return false;
-	}
 }
 
 static void rbd_obj_request_submit(struct rbd_obj_request *obj_request)
@@ -1524,18 +1511,14 @@ static void rbd_osd_req_destroy(struct ceph_osd_request *osd_req)
 	ceph_osdc_put_request(osd_req);
 }
 
-static struct rbd_obj_request *
-rbd_obj_request_create(enum obj_request_type type)
+static struct rbd_obj_request *rbd_obj_request_create(void)
 {
 	struct rbd_obj_request *obj_request;
-
-	rbd_assert(obj_request_type_valid(type));
 
 	obj_request = kmem_cache_zalloc(rbd_obj_request_cache, GFP_NOIO);
 	if (!obj_request)
 		return NULL;
 
-	obj_request->type = type;
 	INIT_LIST_HEAD(&obj_request->links);
 	kref_init(&obj_request->kref);
 
@@ -1552,12 +1535,10 @@ static void rbd_obj_request_destroy(struct kref *kref)
 
 	dout("%s: obj %p\n", __func__, obj_request);
 
-	rbd_assert(obj_request->img_request == NULL);
-
 	if (obj_request->osd_req)
 		rbd_osd_req_destroy(obj_request->osd_req);
 
-	switch (obj_request->type) {
+	switch (obj_request->img_request->data_type) {
 	case OBJ_REQUEST_NODATA:
 	case OBJ_REQUEST_BIO:
 	case OBJ_REQUEST_BVECS:
@@ -1742,7 +1723,7 @@ static void rbd_parent_request_destroy(struct kref *kref)
 
 static void rbd_osd_req_setup_data(struct rbd_obj_request *obj_req, u32 which)
 {
-	switch (obj_req->type) {
+	switch (obj_req->img_request->data_type) {
 	case OBJ_REQUEST_BIO:
 		osd_req_op_extent_osd_data_bio(obj_req->osd_req, which,
 					       &obj_req->bio_pos,
@@ -1979,7 +1960,7 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 		u64 offset = rbd_segment_offset(rbd_dev, img_offset);
 		u64 length = rbd_segment_length(rbd_dev, img_offset, resid);
 
-		obj_request = rbd_obj_request_create(type);
+		obj_request = rbd_obj_request_create();
 		if (!obj_request)
 			goto out_unwind;
 
@@ -2008,6 +1989,7 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 		resid -= length;
 	}
 
+	img_request->data_type = type;
 	return __rbd_img_fill_request(img_request);
 
 out_unwind:
@@ -2042,7 +2024,7 @@ static int rbd_obj_read_from_parent(struct rbd_obj_request *obj_req,
 		return -ENOMEM;
 
 	if (!rbd_img_is_write(img_req)) {
-		switch (obj_req->type) {
+		switch (img_req->data_type) {
 		case OBJ_REQUEST_BIO:
 			ret = rbd_img_request_fill(child_img_req,
 						   OBJ_REQUEST_BIO,
