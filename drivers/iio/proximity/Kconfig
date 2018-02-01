@@ -58,6 +58,8 @@ config SX9500
 
 config SRF08
 	tristate "Devantech SRF02/SRF08/SRF10 ultrasonic ranger sensor"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	depends on I2C
 	help
 	  Say Y here to build a driver for Devantech SRF02/SRF08/SRF10
