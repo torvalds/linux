@@ -276,7 +276,7 @@ int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem,
 	if (ttm->state == tt_bound)
 		return 0;
 
-	ret = ttm->bdev->driver->ttm_tt_populate(ttm, ctx);
+	ret = ttm_tt_populate(ttm, ctx);
 	if (ret)
 		return ret;
 
@@ -390,6 +390,14 @@ out_err:
 		fput(swap_storage);
 
 	return ret;
+}
+
+int ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
+{
+	if (ttm->state != tt_unpopulated)
+		return 0;
+
+	return ttm->bdev->driver->ttm_tt_populate(ttm, ctx);
 }
 
 static void ttm_tt_clear_mapping(struct ttm_tt *ttm)

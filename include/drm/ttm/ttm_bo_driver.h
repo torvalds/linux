@@ -701,6 +701,15 @@ int ttm_tt_set_placement_caching(struct ttm_tt *ttm, uint32_t placement);
 int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage);
 
 /**
+ * ttm_tt_populate - allocate pages for a ttm
+ *
+ * @ttm: Pointer to the ttm_tt structure
+ *
+ * Calls the driver method to allocate pages for a ttm
+ */
+int ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx);
+
+/**
  * ttm_tt_unpopulate - free pages from a ttm
  *
  * @ttm: Pointer to the ttm_tt structure

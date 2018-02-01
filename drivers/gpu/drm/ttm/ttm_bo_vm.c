@@ -234,7 +234,7 @@ static int ttm_bo_vm_fault(struct vm_fault *vmf)
 						cvma.vm_page_prot);
 
 		/* Allocate all page at once, most common usage */
-		if (ttm->bdev->driver->ttm_tt_populate(ttm, &ctx)) {
+		if (ttm_tt_populate(ttm, &ctx)) {
 			ret = VM_FAULT_OOM;
 			goto out_io_unlock;
 		}
