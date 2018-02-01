@@ -2598,10 +2598,7 @@ static void ocfs2_unlink_subtree(handle_t *handle,
 	int i;
 	struct buffer_head *root_bh = left_path->p_node[subtree_index].bh;
 	struct ocfs2_extent_list *root_el = left_path->p_node[subtree_index].el;
-	struct ocfs2_extent_list *el;
 	struct ocfs2_extent_block *eb;
-
-	el = path_leaf_el(left_path);
 
 	eb = (struct ocfs2_extent_block *)right_path->p_node[subtree_index + 1].bh->b_data;
 
@@ -3938,7 +3935,7 @@ static void ocfs2_adjust_rightmost_records(handle_t *handle,
 					   struct ocfs2_path *path,
 					   struct ocfs2_extent_rec *insert_rec)
 {
-	int ret, i, next_free;
+	int i, next_free;
 	struct buffer_head *bh;
 	struct ocfs2_extent_list *el;
 	struct ocfs2_extent_rec *rec;
@@ -3955,7 +3952,6 @@ static void ocfs2_adjust_rightmost_records(handle_t *handle,
 			ocfs2_error(ocfs2_metadata_cache_get_super(et->et_ci),
 				    "Owner %llu has a bad extent list\n",
 				    (unsigned long long)ocfs2_metadata_cache_owner(et->et_ci));
-			ret = -EIO;
 			return;
 		}
 
@@ -5057,7 +5053,6 @@ int ocfs2_split_extent(handle_t *handle,
 	struct buffer_head *last_eb_bh = NULL;
 	struct ocfs2_extent_rec *rec = &el->l_recs[split_index];
 	struct ocfs2_merge_ctxt ctxt;
-	struct ocfs2_extent_list *rightmost_el;
 
 	if (le32_to_cpu(rec->e_cpos) > le32_to_cpu(split_rec->e_cpos) ||
 	    ((le32_to_cpu(rec->e_cpos) + le16_to_cpu(rec->e_leaf_clusters)) <
@@ -5093,9 +5088,7 @@ int ocfs2_split_extent(handle_t *handle,
 		}
 
 		eb = (struct ocfs2_extent_block *) last_eb_bh->b_data;
-		rightmost_el = &eb->h_list;
-	} else
-		rightmost_el = path_root_el(path);
+	}
 
 	if (rec->e_cpos == split_rec->e_cpos &&
 	    rec->e_leaf_clusters == split_rec->e_leaf_clusters)
