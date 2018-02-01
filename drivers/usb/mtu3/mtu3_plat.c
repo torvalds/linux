@@ -282,8 +282,10 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 
 	/* if host role is supported */
 	ret = ssusb_wakeup_of_property_parse(ssusb, node);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "failed to parse uwk property\n");
 		return ret;
+	}
 
 	/* optional property, ignore the error if it does not exist */
 	of_property_read_u32(node, "mediatek,u3p-dis-msk",
@@ -308,7 +310,7 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 		otg_sx->edev = extcon_get_edev_by_phandle(ssusb->dev, 0);
 		if (IS_ERR(otg_sx->edev)) {
 			dev_err(ssusb->dev, "couldn't get extcon device\n");
-			return -EPROBE_DEFER;
+			return PTR_ERR(otg_sx->edev);
 		}
 	}
 
@@ -457,7 +459,7 @@ static int __maybe_unused mtu3_suspend(struct device *dev)
 	ssusb_host_disable(ssusb, true);
 	ssusb_phy_power_off(ssusb);
 	ssusb_clks_disable(ssusb);
-	ssusb_wakeup_enable(ssusb);
+	ssusb_wakeup_set(ssusb, true);
 
 	return 0;
 }
@@ -473,7 +475,7 @@ static int __maybe_unused mtu3_resume(struct device *dev)
 	if (!ssusb->is_host)
 		return 0;
 
-	ssusb_wakeup_disable(ssusb);
+	ssusb_wakeup_set(ssusb, false);
 	ret = ssusb_clks_enable(ssusb);
 	if (ret)
 		goto clks_err;

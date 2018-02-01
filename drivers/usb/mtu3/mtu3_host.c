@@ -18,66 +18,77 @@
 #include "mtu3.h"
 #include "mtu3_dr.h"
 
-#define PERI_WK_CTRL1		0x404
-#define UWK_CTL1_IS_C(x)	(((x) & 0xf) << 26)
-#define UWK_CTL1_IS_E		BIT(25)
-#define UWK_CTL1_IDDIG_C(x)	(((x) & 0xf) << 11)  /* cycle debounce */
-#define UWK_CTL1_IDDIG_E	BIT(10) /* enable debounce */
-#define UWK_CTL1_IDDIG_P	BIT(9)  /* polarity */
-#define UWK_CTL1_IS_P		BIT(6)  /* polarity for ip sleep */
+/* mt8173 etc */
+#define PERI_WK_CTRL1	0x4
+#define WC1_IS_C(x)	(((x) & 0xf) << 26)  /* cycle debounce */
+#define WC1_IS_EN	BIT(25)
+#define WC1_IS_P	BIT(6)  /* polarity for ip sleep */
+
+/* mt2712 etc */
+#define PERI_SSUSB_SPM_CTRL	0x0
+#define SSC_IP_SLEEP_EN	BIT(4)
+#define SSC_SPM_INT_EN		BIT(1)
+
+enum ssusb_uwk_vers {
+	SSUSB_UWK_V1 = 1,
+	SSUSB_UWK_V2,
+};
 
 /*
  * ip-sleep wakeup mode:
  * all clocks can be turn off, but power domain should be kept on
  */
-static void ssusb_wakeup_ip_sleep_en(struct ssusb_mtk *ssusb)
+static void ssusb_wakeup_ip_sleep_set(struct ssusb_mtk *ssusb, bool enable)
 {
-	u32 tmp;
-	struct regmap *pericfg = ssusb->pericfg;
+	u32 reg, msk, val;
 
-	regmap_read(pericfg, PERI_WK_CTRL1, &tmp);
-	tmp &= ~UWK_CTL1_IS_P;
-	tmp &= ~(UWK_CTL1_IS_C(0xf));
-	tmp |= UWK_CTL1_IS_C(0x8);
-	regmap_write(pericfg, PERI_WK_CTRL1, tmp);
-	regmap_write(pericfg, PERI_WK_CTRL1, tmp | UWK_CTL1_IS_E);
-
-	regmap_read(pericfg, PERI_WK_CTRL1, &tmp);
-	dev_dbg(ssusb->dev, "%s(): WK_CTRL1[P6,E25,C26:29]=%#x\n",
-		__func__, tmp);
-}
-
-static void ssusb_wakeup_ip_sleep_dis(struct ssusb_mtk *ssusb)
-{
-	u32 tmp;
-
-	regmap_read(ssusb->pericfg, PERI_WK_CTRL1, &tmp);
-	tmp &= ~UWK_CTL1_IS_E;
-	regmap_write(ssusb->pericfg, PERI_WK_CTRL1, tmp);
+	switch (ssusb->uwk_vers) {
+	case SSUSB_UWK_V1:
+		reg = ssusb->uwk_reg_base + PERI_WK_CTRL1;
+		msk = WC1_IS_EN | WC1_IS_C(0xf) | WC1_IS_P;
+		val = enable ? (WC1_IS_EN | WC1_IS_C(0x8)) : 0;
+		break;
+	case SSUSB_UWK_V2:
+		reg = ssusb->uwk_reg_base + PERI_SSUSB_SPM_CTRL;
+		msk = SSC_IP_SLEEP_EN | SSC_SPM_INT_EN;
+		val = enable ? msk : 0;
+		break;
+	default:
+		return;
+	}
+	regmap_update_bits(ssusb->uwk, reg, msk, val);
 }
 
 int ssusb_wakeup_of_property_parse(struct ssusb_mtk *ssusb,
 				struct device_node *dn)
 {
-	struct device *dev = ssusb->dev;
+	struct of_phandle_args args;
+	int ret;
 
-	/*
-	 * Wakeup function is optional, so it is not an error if this property
-	 * does not exist, and in such case, no need to get relative
-	 * properties anymore.
-	 */
-	ssusb->wakeup_en = of_property_read_bool(dn, "mediatek,enable-wakeup");
-	if (!ssusb->wakeup_en)
+	/* wakeup function is optional */
+	ssusb->uwk_en = of_property_read_bool(dn, "wakeup-source");
+	if (!ssusb->uwk_en)
 		return 0;
 
-	ssusb->pericfg = syscon_regmap_lookup_by_phandle(dn,
-						"mediatek,syscon-wakeup");
-	if (IS_ERR(ssusb->pericfg)) {
-		dev_err(dev, "fail to get pericfg regs\n");
-		return PTR_ERR(ssusb->pericfg);
-	}
+	ret = of_parse_phandle_with_fixed_args(dn,
+				"mediatek,syscon-wakeup", 2, 0, &args);
+	if (ret)
+		return ret;
 
-	return 0;
+	ssusb->uwk_reg_base = args.args[0];
+	ssusb->uwk_vers = args.args[1];
+	ssusb->uwk = syscon_node_to_regmap(args.np);
+	of_node_put(args.np);
+	dev_info(ssusb->dev, "uwk - reg:0x%x, version:%d\n",
+			ssusb->uwk_reg_base, ssusb->uwk_vers);
+
+	return PTR_ERR_OR_ZERO(ssusb->uwk);
+}
+
+void ssusb_wakeup_set(struct ssusb_mtk *ssusb, bool enable)
+{
+	if (ssusb->uwk_en)
+		ssusb_wakeup_ip_sleep_set(ssusb, enable);
 }
 
 static void host_ports_num_get(struct ssusb_mtk *ssusb)
@@ -234,18 +245,4 @@ void ssusb_host_exit(struct ssusb_mtk *ssusb)
 {
 	of_platform_depopulate(ssusb->dev);
 	ssusb_host_cleanup(ssusb);
-}
-
-int ssusb_wakeup_enable(struct ssusb_mtk *ssusb)
-{
-	if (ssusb->wakeup_en)
-		ssusb_wakeup_ip_sleep_en(ssusb);
-
-	return 0;
-}
-
-void ssusb_wakeup_disable(struct ssusb_mtk *ssusb)
-{
-	if (ssusb->wakeup_en)
-		ssusb_wakeup_ip_sleep_dis(ssusb);
 }
