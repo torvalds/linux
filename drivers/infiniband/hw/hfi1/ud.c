@@ -340,15 +340,15 @@ void hfi1_make_ud_req_9B(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	extra_bytes = -wqe->length & 3;
 	nwords = ((wqe->length + extra_bytes) >> 2) + SIZE_OF_CRC;
 	/* header size in dwords LRH+BTH+DETH = (8+12+8)/4. */
-	qp->s_hdrwords = 7;
+	ps->s_txreq->hdr_dwords = 7;
 	if (wqe->wr.opcode == IB_WR_SEND_WITH_IMM)
-		qp->s_hdrwords++;
+		ps->s_txreq->hdr_dwords++;
 
 	if (rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH) {
 		grh = &ps->s_txreq->phdr.hdr.ibh.u.l.grh;
-		qp->s_hdrwords += hfi1_make_grh(ibp, grh,
-						rdma_ah_read_grh(ah_attr),
-						qp->s_hdrwords - 2, nwords);
+		ps->s_txreq->hdr_dwords +=
+			hfi1_make_grh(ibp, grh, rdma_ah_read_grh(ah_attr),
+				      ps->s_txreq->hdr_dwords - 2, nwords);
 		lrh0 = HFI1_LRH_GRH;
 		ohdr = &ps->s_txreq->phdr.hdr.ibh.u.l.oth;
 	} else {
@@ -381,7 +381,7 @@ void hfi1_make_ud_req_9B(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		}
 	}
 	hfi1_make_bth_deth(qp, wqe, ohdr, &pkey, extra_bytes, false);
-	len = qp->s_hdrwords + nwords;
+	len = ps->s_txreq->hdr_dwords + nwords;
 
 	/* Setup the packet */
 	ps->s_txreq->phdr.hdr.hdr_type = HFI1_PKT_TYPE_9B;
@@ -405,12 +405,12 @@ void hfi1_make_ud_req_16B(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	ppd = ppd_from_ibp(ibp);
 	ah_attr = &ibah_to_rvtah(wqe->ud_wr.ah)->attr;
 	/* header size in dwords 16B LRH+BTH+DETH = (16+12+8)/4. */
-	qp->s_hdrwords = 9;
+	ps->s_txreq->hdr_dwords = 9;
 	if (wqe->wr.opcode == IB_WR_SEND_WITH_IMM)
-		qp->s_hdrwords++;
+		ps->s_txreq->hdr_dwords++;
 
 	/* SW provides space for CRC and LT for bypass packets. */
-	extra_bytes = hfi1_get_16b_padding((qp->s_hdrwords << 2),
+	extra_bytes = hfi1_get_16b_padding((ps->s_txreq->hdr_dwords << 2),
 					   wqe->length);
 	nwords = ((wqe->length + extra_bytes + SIZE_OF_LT) >> 2) + SIZE_OF_CRC;
 
@@ -428,8 +428,8 @@ void hfi1_make_ud_req_16B(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			grd->sgid_index = 0;
 		}
 		grh = &ps->s_txreq->phdr.hdr.opah.u.l.grh;
-		qp->s_hdrwords += hfi1_make_grh(ibp, grh, grd,
-					qp->s_hdrwords - 4, nwords);
+		ps->s_txreq->hdr_dwords += hfi1_make_grh(ibp, grh, grd,
+					ps->s_txreq->hdr_dwords - 4, nwords);
 		ohdr = &ps->s_txreq->phdr.hdr.opah.u.l.oth;
 		l4 = OPA_16B_L4_IB_GLOBAL;
 	} else {
@@ -452,7 +452,7 @@ void hfi1_make_ud_req_16B(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 
 	hfi1_make_bth_deth(qp, wqe, ohdr, &pkey, extra_bytes, true);
 	/* Convert dwords to flits */
-	len = (qp->s_hdrwords + nwords) >> 1;
+	len = (ps->s_txreq->hdr_dwords + nwords) >> 1;
 
 	/* Setup the packet */
 	ps->s_txreq->phdr.hdr.hdr_type = HFI1_PKT_TYPE_16B;
@@ -564,8 +564,6 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	priv->s_ahg->ahgcount = 0;
 	priv->s_ahg->ahgidx = 0;
 	priv->s_ahg->tx_flags = 0;
-	/* pbc */
-	ps->s_txreq->hdr_dwords = qp->s_hdrwords + 2;
 
 	return 1;
 
@@ -580,7 +578,6 @@ bail:
 bail_no_tx:
 	ps->s_txreq = NULL;
 	qp->s_flags &= ~RVT_S_BUSY;
-	qp->s_hdrwords = 0;
 	return 0;
 }
 

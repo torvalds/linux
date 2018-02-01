@@ -246,17 +246,6 @@ static inline struct rvt_qp *iowait_to_qp(struct  iowait *s_iowait)
 }
 
 /*
- * Send if not busy or waiting for I/O and either
- * a RC response is pending or we can process send work requests.
- */
-static inline int hfi1_send_ok(struct rvt_qp *qp)
-{
-	return !(qp->s_flags & (RVT_S_BUSY | RVT_S_ANY_WAIT_IO)) &&
-		(qp->s_hdrwords || (qp->s_flags & RVT_S_RESP_PENDING) ||
-		 !(qp->s_flags & RVT_S_ANY_WAIT_SEND));
-}
-
-/*
  * This must be called with s_lock held.
  */
 void hfi1_bad_pkey(struct hfi1_ibport *ibp, u32 key, u32 sl,

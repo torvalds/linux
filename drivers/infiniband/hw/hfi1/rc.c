@@ -226,12 +226,10 @@ normal:
 		bth2 = mask_psn(qp->s_ack_psn);
 	}
 	qp->s_rdma_ack_cnt++;
-	qp->s_hdrwords = hwords;
 	ps->s_txreq->sde = priv->s_sde;
 	ps->s_txreq->s_cur_size = len;
+	ps->s_txreq->hdr_dwords = hwords;
 	hfi1_make_ruc_header(qp, ohdr, bth0, bth2, middle, ps);
-	/* pbc */
-	ps->s_txreq->hdr_dwords = qp->s_hdrwords + 2;
 	return 1;
 
 bail:
@@ -387,7 +385,6 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 						       : IB_WC_SUCCESS);
 				if (local_ops)
 					atomic_dec(&qp->local_ops_pending);
-				qp->s_hdrwords = 0;
 				goto done_free_tx;
 			}
 
@@ -690,7 +687,7 @@ no_flow_control:
 		bth2 |= IB_BTH_REQ_ACK;
 	}
 	qp->s_len -= len;
-	qp->s_hdrwords = hwords;
+	ps->s_txreq->hdr_dwords = hwords;
 	ps->s_txreq->sde = priv->s_sde;
 	ps->s_txreq->ss = ss;
 	ps->s_txreq->s_cur_size = len;
@@ -701,8 +698,6 @@ no_flow_control:
 		bth2,
 		middle,
 		ps);
-	/* pbc */
-	ps->s_txreq->hdr_dwords = qp->s_hdrwords + 2;
 	return 1;
 
 done_free_tx:
@@ -716,7 +711,6 @@ bail:
 bail_no_tx:
 	ps->s_txreq = NULL;
 	qp->s_flags &= ~RVT_S_BUSY;
-	qp->s_hdrwords = 0;
 	return 0;
 }
 
