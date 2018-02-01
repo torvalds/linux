@@ -293,7 +293,7 @@ int page_group_by_mobility_disabled __read_mostly;
 #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
 
 /*
- * Determine how many pages need to be initialized durig early boot
+ * Determine how many pages need to be initialized during early boot
  * (non-deferred initialization).
  * The value of first_deferred_pfn will be set later, once non-deferred pages
  * are initialized, but for now set it ULONG_MAX.
@@ -344,7 +344,7 @@ static inline bool update_defer_init(pg_data_t *pgdat,
 				unsigned long pfn, unsigned long zone_end,
 				unsigned long *nr_initialised)
 {
-	/* Always populate low zones for address-contrained allocations */
+	/* Always populate low zones for address-constrained allocations */
 	if (zone_end < pgdat_end_pfn(pgdat))
 		return true;
 	(*nr_initialised)++;
@@ -3397,7 +3397,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 	if (gfp_mask & __GFP_THISNODE)
 		goto out;
 
-	/* Exhausted what can be done so it's blamo time */
+	/* Exhausted what can be done so it's blame time */
 	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
 		*did_some_progress = 1;
 
