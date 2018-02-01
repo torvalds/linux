@@ -320,6 +320,11 @@ enum vbt_gmbus_ddi {
 	DDC_BUS_DDI_F,
 };
 
+#define VBT_DP_MAX_LINK_RATE_HBR3	0
+#define VBT_DP_MAX_LINK_RATE_HBR2	1
+#define VBT_DP_MAX_LINK_RATE_HBR	2
+#define VBT_DP_MAX_LINK_RATE_LBR	3
+
 /*
  * The child device config, aka the display device data structure, provides a
  * description of a port and its configuration on the platform.

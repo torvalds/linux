@@ -1274,6 +1274,27 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		DRM_DEBUG_KMS("VBT HDMI boost level for port %c: %d\n",
 			      port_name(port), info->hdmi_boost_level);
 	}
+
+	/* DP max link rate for CNL+ */
+	if (bdb_version >= 216) {
+		switch (child->dp_max_link_rate) {
+		default:
+		case VBT_DP_MAX_LINK_RATE_HBR3:
+			info->dp_max_link_rate = 810000;
+			break;
+		case VBT_DP_MAX_LINK_RATE_HBR2:
+			info->dp_max_link_rate = 540000;
+			break;
+		case VBT_DP_MAX_LINK_RATE_HBR:
+			info->dp_max_link_rate = 270000;
+			break;
+		case VBT_DP_MAX_LINK_RATE_LBR:
+			info->dp_max_link_rate = 162000;
+			break;
+		}
+		DRM_DEBUG_KMS("VBT DP max link rate for port %c: %d\n",
+			      port_name(port), info->dp_max_link_rate);
+	}
 }
 
 static void parse_ddi_ports(struct drm_i915_private *dev_priv, u8 bdb_version)

@@ -1282,6 +1282,7 @@ struct ddi_vbt_port_info {
 
 	uint8_t dp_boost_level;
 	uint8_t hdmi_boost_level;
+	int dp_max_link_rate;		/* 0 for not limited by VBT */
 };
 
 enum psr_lines_to_wait {

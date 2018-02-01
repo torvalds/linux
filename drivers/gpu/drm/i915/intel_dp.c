@@ -268,8 +268,10 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	const struct ddi_vbt_port_info *info =
+		&dev_priv->vbt.ddi_port_info[dig_port->base.port];
 	const int *source_rates;
-	int size, max_rate = 0;
+	int size, max_rate = 0, vbt_max_rate = info->dp_max_link_rate;
 
 	/* This should only be done once */
 	WARN_ON(intel_dp->source_rates || intel_dp->num_source_rates);
@@ -292,6 +294,11 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 		source_rates = default_rates;
 		size = ARRAY_SIZE(default_rates) - 1;
 	}
+
+	if (max_rate && vbt_max_rate)
+		max_rate = min(max_rate, vbt_max_rate);
+	else if (vbt_max_rate)
+		max_rate = vbt_max_rate;
 
 	if (max_rate)
 		size = intel_dp_rate_limit_len(source_rates, size, max_rate);
