@@ -1157,6 +1157,7 @@ static struct page *alloc_fresh_gigantic_page_node(struct hstate *h, int nid)
 	if (page) {
 		prep_compound_gigantic_page(page, huge_page_order(h));
 		prep_new_huge_page(h, page, nid);
+		put_page(page); /* free it into the hugepage allocator */
 	}
 
 	return page;
@@ -1304,7 +1305,6 @@ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
 	h->nr_huge_pages++;
 	h->nr_huge_pages_node[nid]++;
 	spin_unlock(&hugetlb_lock);
-	put_page(page); /* free it into the hugepage allocator */
 }
 
 static void prep_compound_gigantic_page(struct page *page, unsigned int order)
@@ -1381,41 +1381,49 @@ pgoff_t __basepage_index(struct page *page)
 	return (index << compound_order(page_head)) + compound_idx;
 }
 
-static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
+static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
+		gfp_t gfp_mask, int nid, nodemask_t *nmask)
 {
+	int order = huge_page_order(h);
 	struct page *page;
 
-	page = __alloc_pages_node(nid,
-		htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|
-						__GFP_RETRY_MAYFAIL|__GFP_NOWARN,
-		huge_page_order(h));
-	if (page) {
-		prep_new_huge_page(h, page, nid);
-	}
+	gfp_mask |= __GFP_COMP|__GFP_RETRY_MAYFAIL|__GFP_NOWARN;
+	if (nid == NUMA_NO_NODE)
+		nid = numa_mem_id();
+	page = __alloc_pages_nodemask(gfp_mask, order, nid, nmask);
+	if (page)
+		__count_vm_event(HTLB_BUDDY_PGALLOC);
+	else
+		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
 
 	return page;
 }
 
+/*
+ * Allocates a fresh page to the hugetlb allocator pool in the node interleaved
+ * manner.
+ */
 static int alloc_fresh_huge_page(struct hstate *h, nodemask_t *nodes_allowed)
 {
 	struct page *page;
 	int nr_nodes, node;
-	int ret = 0;
+	gfp_t gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
 
 	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {
-		page = alloc_fresh_huge_page_node(h, node);
-		if (page) {
-			ret = 1;
+		page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask,
+				node, nodes_allowed);
+		if (page)
 			break;
-		}
+
 	}
 
-	if (ret)
-		count_vm_event(HTLB_BUDDY_PGALLOC);
-	else
-		count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
+	if (!page)
+		return 0;
 
-	return ret;
+	prep_new_huge_page(h, page, page_to_nid(page));
+	put_page(page); /* free it into the hugepage allocator */
+
+	return 1;
 }
 
 /*
@@ -1523,17 +1531,6 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
 	return rc;
 }
 
-static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
-		gfp_t gfp_mask, int nid, nodemask_t *nmask)
-{
-	int order = huge_page_order(h);
-
-	gfp_mask |= __GFP_COMP|__GFP_RETRY_MAYFAIL|__GFP_NOWARN;
-	if (nid == NUMA_NO_NODE)
-		nid = numa_mem_id();
-	return __alloc_pages_nodemask(gfp_mask, order, nid, nmask);
-}
-
 static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
 		int nid, nodemask_t *nmask)
 {
@@ -1589,11 +1586,9 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
 		 */
 		h->nr_huge_pages_node[r_nid]++;
 		h->surplus_huge_pages_node[r_nid]++;
-		__count_vm_event(HTLB_BUDDY_PGALLOC);
 	} else {
 		h->nr_huge_pages--;
 		h->surplus_huge_pages--;
-		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
 	}
 	spin_unlock(&hugetlb_lock);
 
@@ -2148,6 +2143,8 @@ static void __init gather_bootmem_prealloc(void)
 		prep_compound_huge_page(page, h->order);
 		WARN_ON(PageReserved(page));
 		prep_new_huge_page(h, page, page_to_nid(page));
+		put_page(page); /* free it into the hugepage allocator */
+
 		/*
 		 * If we had gigantic hugepages allocated at boot time, we need
 		 * to restore the 'stolen' pages to totalram_pages in order to
