@@ -12,23 +12,29 @@ Required properties:
   - "fsl,imx53-ecspi" for SPI compatible with the one integrated on i.MX53 and later Soc
 - reg : Offset and length of the register set for the device
 - interrupts : Should contain CSPI/eCSPI interrupt
-- cs-gpios : Specifies the gpio pins to be used for chipselects.
 - clocks : Clock specifiers for both ipg and per clocks.
 - clock-names : Clock names should include both "ipg" and "per"
 See the clock consumer binding,
 	Documentation/devicetree/bindings/clock/clock-bindings.txt
-- dmas: DMA specifiers for tx and rx dma. See the DMA client binding,
-		Documentation/devicetree/bindings/dma/dma.txt
-- dma-names: DMA request names should include "tx" and "rx" if present.
 
-Obsolete properties:
-- fsl,spi-num-chipselects : Contains the number of the chipselect
+Recommended properties:
+- cs-gpios : GPIOs to use as chip selects, see spi-bus.txt.  While the native chip
+select lines can be used, they appear to always generate a pulse between each
+word of a transfer.  Most use cases will require GPIO based chip selects to
+generate a valid transaction.
 
 Optional properties:
+- num-cs :  Number of total chip selects, see spi-bus.txt.
+- dmas: DMA specifiers for tx and rx dma. See the DMA client binding,
+Documentation/devicetree/bindings/dma/dma.txt.
+- dma-names: DMA request names, if present, should include "tx" and "rx".
 - fsl,spi-rdy-drctl: Integer, representing the value of DRCTL, the register
 controlling the SPI_READY handling. Note that to enable the DRCTL consideration,
 the SPI_READY mode-flag needs to be set too.
 Valid values are: 0 (disabled), 1 (edge-triggered burst) and 2 (level-triggered burst).
+
+Obsolete properties:
+- fsl,spi-num-chipselects : Contains the number of the chipselect
 
 Example:
 

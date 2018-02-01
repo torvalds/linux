@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Definitions for MCT (Magic Control Technology) USB-RS232 Converter Driver
  *
  *   Copyright (C) 2000 Wolfgang Grandegger (wolfgang@ces.ch)
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
  *
  * This driver is for the device MCT USB-RS232 Converter (25 pin, Model No.
  * U232-P25) from Magic Control Technology Corp. (there is also a 9 pin

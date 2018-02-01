@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    Copyright IBM Corp. 2007
  *    Author(s): Utz Bacher <utz.bacher@de.ibm.com>,
@@ -475,10 +476,8 @@ static ssize_t qeth_dev_isolation_store(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
-	/* check for unknown, too, in case we do not yet know who we are */
 	if (card->info.type != QETH_CARD_TYPE_OSD &&
-	    card->info.type != QETH_CARD_TYPE_OSX &&
-	    card->info.type != QETH_CARD_TYPE_UNKNOWN) {
+	    card->info.type != QETH_CARD_TYPE_OSX) {
 		rc = -EOPNOTSUPP;
 		dev_err(&card->gdev->dev, "Adapter does not "
 			"support QDIO data connection isolation\n");

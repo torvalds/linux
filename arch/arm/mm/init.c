@@ -580,16 +580,6 @@ void __init mem_init(void)
 	BUILD_BUG_ON(PKMAP_BASE + LAST_PKMAP * PAGE_SIZE > PAGE_OFFSET);
 	BUG_ON(PKMAP_BASE + LAST_PKMAP * PAGE_SIZE	> PAGE_OFFSET);
 #endif
-
-	if (PAGE_SIZE >= 16384 && get_num_physpages() <= 128) {
-		extern int sysctl_overcommit_memory;
-		/*
-		 * On a machine this small we won't get
-		 * anywhere without overcommit, so turn
-		 * it on by default.
-		 */
-		sysctl_overcommit_memory = OVERCOMMIT_ALWAYS;
-	}
 }
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
@@ -639,8 +629,8 @@ static struct section_perm ro_perms[] = {
 		.start  = (unsigned long)_stext,
 		.end    = (unsigned long)__init_begin,
 #ifdef CONFIG_ARM_LPAE
-		.mask   = ~L_PMD_SECT_RDONLY,
-		.prot   = L_PMD_SECT_RDONLY,
+		.mask   = ~(L_PMD_SECT_RDONLY | PMD_SECT_AP2),
+		.prot   = L_PMD_SECT_RDONLY | PMD_SECT_AP2,
 #else
 		.mask   = ~(PMD_SECT_APX | PMD_SECT_AP_WRITE),
 		.prot   = PMD_SECT_APX | PMD_SECT_AP_WRITE,

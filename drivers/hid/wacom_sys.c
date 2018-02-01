@@ -196,6 +196,13 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 		kfree(data);
 		break;
 	}
+
+	if (hdev->vendor == USB_VENDOR_ID_WACOM &&
+	    hdev->product == 0x4200 /* Dell Canvas 27 */ &&
+	    field->application == HID_UP_MSVENDOR) {
+		wacom->wacom_wac.mode_report = field->report->id;
+		wacom->wacom_wac.mode_value = 2;
+	}
 }
 
 /*

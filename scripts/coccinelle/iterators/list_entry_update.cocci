@@ -15,7 +15,7 @@ virtual context
 virtual org
 virtual report
 
-@r@
+@r exists@
 iterator name list_for_each_entry;
 expression x,E;
 position p1,p2;

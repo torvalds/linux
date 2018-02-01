@@ -536,7 +536,20 @@ struct kvm_vcpu_arch {
 	struct kvm_mmu_memory_cache mmu_page_cache;
 	struct kvm_mmu_memory_cache mmu_page_header_cache;
 
+	/*
+	 * QEMU userspace and the guest each have their own FPU state.
+	 * In vcpu_run, we switch between the user and guest FPU contexts.
+	 * While running a VCPU, the VCPU thread will have the guest FPU
+	 * context.
+	 *
+	 * Note that while the PKRU state lives inside the fpu registers,
+	 * it is switched out separately at VMENTER and VMEXIT time. The
+	 * "guest_fpu" state here contains the guest FPU context, with the
+	 * host PRKU bits.
+	 */
+	struct fpu user_fpu;
 	struct fpu guest_fpu;
+
 	u64 xcr0;
 	u64 guest_supported_xcr0;
 	u32 guest_xstate_size;
@@ -1061,6 +1074,11 @@ struct kvm_x86_ops {
 	void (*cancel_hv_timer)(struct kvm_vcpu *vcpu);
 
 	void (*setup_mce)(struct kvm_vcpu *vcpu);
+
+	int (*smi_allowed)(struct kvm_vcpu *vcpu);
+	int (*pre_enter_smm)(struct kvm_vcpu *vcpu, char *smstate);
+	int (*pre_leave_smm)(struct kvm_vcpu *vcpu, u64 smbase);
+	int (*enable_smi_window)(struct kvm_vcpu *vcpu);
 };
 
 struct kvm_arch_async_pf {
@@ -1156,7 +1174,8 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu, unsigned long cr2,
 static inline int emulate_instruction(struct kvm_vcpu *vcpu,
 			int emulation_type)
 {
-	return x86_emulate_instruction(vcpu, 0, emulation_type, NULL, 0);
+	return x86_emulate_instruction(vcpu, 0,
+			emulation_type | EMULTYPE_NO_REEXECUTE, NULL, 0);
 }
 
 void kvm_enable_efer_bits(u64);
@@ -1419,11 +1438,17 @@ static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}
 static inline int kvm_cpu_get_apicid(int mps_cpu)
 {
 #ifdef CONFIG_X86_LOCAL_APIC
-	return __default_cpu_present_to_apicid(mps_cpu);
+	return default_cpu_present_to_apicid(mps_cpu);
 #else
 	WARN_ON_ONCE(1);
 	return BAD_APICID;
 #endif
 }
+
+#define put_smstate(type, buf, offset, val)                      \
+	*(type *)((buf) + (offset) - 0x7e00) = val
+
+void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+		unsigned long start, unsigned long end);
 
 #endif /* _ASM_X86_KVM_HOST_H */

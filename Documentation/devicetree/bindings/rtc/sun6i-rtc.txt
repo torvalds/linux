@@ -17,7 +17,7 @@ Required properties for new device trees
 
 Example:
 
-rtc: rtc@01f00000 {
+rtc: rtc@1f00000 {
 	compatible = "allwinner,sun6i-a31-rtc";
 	reg = <0x01f00000 0x54>;
 	interrupts = <0 40 4>, <0 41 4>;

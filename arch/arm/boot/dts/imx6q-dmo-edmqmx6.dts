@@ -139,7 +139,7 @@
 		     &pinctrl_pfuze>;
 	status = "okay";
 
-	pmic: pfuze100@08 {
+	pmic: pfuze100@8 {
 		compatible = "fsl,pfuze100";
 		reg = <0x08>;
 		interrupt-parent = <&gpio3>;

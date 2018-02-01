@@ -332,8 +332,8 @@ References
 [5] "MBIM (Mobile Broadband Interface Model) Registry"
        - http://compliance.usb.org/mbim/
 
-[6] "/dev/bus/usb filesystem output"
-       - Documentation/usb/proc_usb_info.txt
+[6] "/sys/kernel/debug/usb/devices output format"
+       - Documentation/driver-api/usb/usb.rst
 
 [7] "/sys/bus/usb/devices/.../descriptors"
        - Documentation/ABI/stable/sysfs-bus-usb

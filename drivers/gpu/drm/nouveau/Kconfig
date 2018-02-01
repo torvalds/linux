@@ -56,6 +56,13 @@ config NOUVEAU_DEBUG_DEFAULT
 	help
 	  Selects the default debug level
 
+config NOUVEAU_DEBUG_MMU
+	bool "Enable additional MMU debugging"
+	depends on DRM_NOUVEAU
+	default n
+	help
+	  Say Y here if you want to enable verbose MMU debug output.
+
 config DRM_NOUVEAU_BACKLIGHT
 	bool "Support for backlight control"
 	depends on DRM_NOUVEAU

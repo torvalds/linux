@@ -689,7 +689,7 @@ enum bfqq_expiration {
 };
 
 struct bfqg_stats {
-#ifdef CONFIG_BFQ_GROUP_IOSCHED
+#if defined(CONFIG_BFQ_GROUP_IOSCHED) && defined(CONFIG_DEBUG_BLK_CGROUP)
 	/* number of ios merged */
 	struct blkg_rwstat		merged;
 	/* total time spent on device in ns, may not be accurate w/ queueing */
@@ -717,7 +717,7 @@ struct bfqg_stats {
 	uint64_t			start_idle_time;
 	uint64_t			start_empty_time;
 	uint16_t			flags;
-#endif	/* CONFIG_BFQ_GROUP_IOSCHED */
+#endif	/* CONFIG_BFQ_GROUP_IOSCHED && CONFIG_DEBUG_BLK_CGROUP */
 };
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED

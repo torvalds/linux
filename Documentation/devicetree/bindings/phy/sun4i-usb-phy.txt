@@ -45,7 +45,7 @@ Optional properties:
 - usb3_vbus-supply : regulator phandle for controller usb3 vbus
 
 Example:
-	usbphy: phy@0x01c13400 {
+	usbphy: phy@01c13400 {
 		#phy-cells = <1>;
 		compatible = "allwinner,sun4i-a10-usb-phy";
 		/* phy base regs, phy1 pmu reg, phy2 pmu reg */

@@ -33,7 +33,7 @@
 
  \return none, GDC[ID].lut[0...3][0...HRT_GDC_N-1] = data
  */
-STORAGE_CLASS_EXTERN void gdc_lut_store(
+extern void gdc_lut_store(
 	const gdc_ID_t		ID,
 	const int			data[4][HRT_GDC_N]);
 
@@ -43,7 +43,7 @@ STORAGE_CLASS_EXTERN void gdc_lut_store(
  \param in_lut[in]			The data matrix to be converted
  \param out_lut[out]			The data matrix as the output of conversion
  */
-STORAGE_CLASS_EXTERN void gdc_lut_convert_to_isp_format(
+extern void gdc_lut_convert_to_isp_format(
 	const int in_lut[4][HRT_GDC_N],
 	int out_lut[4][HRT_GDC_N]);
 
@@ -53,7 +53,7 @@ STORAGE_CLASS_EXTERN void gdc_lut_convert_to_isp_format(
 
  \return unity
  */
-STORAGE_CLASS_EXTERN int gdc_get_unity(
+extern int gdc_get_unity(
 	const gdc_ID_t		ID);
 
 #endif /* __GDC_PUBLIC_H_INCLUDED__ */

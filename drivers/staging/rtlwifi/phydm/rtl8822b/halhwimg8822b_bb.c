@@ -26,6 +26,7 @@
 /*Image2HeaderVersion: 3.2*/
 #include "../mp_precomp.h"
 #include "../phydm_precomp.h"
+#include <linux/kernel.h>
 
 static bool check_positive(struct phy_dm_struct *dm, const u32 condition1,
 			   const u32 condition2, const u32 condition3,
@@ -1350,7 +1351,6 @@ void odm_read_and_config_mp_8822b_agc_tab(struct phy_dm_struct *dm)
 	u32 i = 0;
 	u8 c_cond;
 	bool is_matched = true, is_skipped = false;
-	u32 array_len = sizeof(array_mp_8822b_agc_tab) / sizeof(u32);
 	u32 *array = array_mp_8822b_agc_tab;
 
 	u32 v1 = 0, v2 = 0, pre_v1 = 0, pre_v2 = 0;
@@ -1358,7 +1358,7 @@ void odm_read_and_config_mp_8822b_agc_tab(struct phy_dm_struct *dm)
 	ODM_RT_TRACE(dm, ODM_COMP_INIT,
 		     "===> %s\n", __func__);
 
-	for (; (i + 1) < array_len; i = i + 2) {
+	for (; (i + 1) < ARRAY_SIZE(array_mp_8822b_agc_tab); i = i + 2) {
 		v1 = array[i];
 		v2 = array[i + 1];
 
@@ -1843,7 +1843,6 @@ void odm_read_and_config_mp_8822b_phy_reg(struct phy_dm_struct *dm)
 	u32 i = 0;
 	u8 c_cond;
 	bool is_matched = true, is_skipped = false;
-	u32 array_len = sizeof(array_mp_8822b_phy_reg) / sizeof(u32);
 	u32 *array = array_mp_8822b_phy_reg;
 
 	u32 v1 = 0, v2 = 0, pre_v1 = 0, pre_v2 = 0;
@@ -1851,7 +1850,7 @@ void odm_read_and_config_mp_8822b_phy_reg(struct phy_dm_struct *dm)
 	ODM_RT_TRACE(dm, ODM_COMP_INIT,
 		     "===> %s\n", __func__);
 
-	for (; (i + 1) < array_len; i = i + 2) {
+	for (; (i + 1) < ARRAY_SIZE(array_mp_8822b_phy_reg); i = i + 2) {
 		v1 = array[i];
 		v2 = array[i + 1];
 
@@ -1947,7 +1946,6 @@ static u32 array_mp_8822b_phy_reg_pg[] = {
 void odm_read_and_config_mp_8822b_phy_reg_pg(struct phy_dm_struct *dm)
 {
 	u32 i = 0;
-	u32 array_len = sizeof(array_mp_8822b_phy_reg_pg) / sizeof(u32);
 	u32 *array = array_mp_8822b_phy_reg_pg;
 
 	ODM_RT_TRACE(dm, ODM_COMP_INIT,
@@ -1956,7 +1954,7 @@ void odm_read_and_config_mp_8822b_phy_reg_pg(struct phy_dm_struct *dm)
 	dm->phy_reg_pg_version = 1;
 	dm->phy_reg_pg_value_type = PHY_REG_PG_EXACT_VALUE;
 
-	for (i = 0; i < array_len; i += 6) {
+	for (i = 0; i < ARRAY_SIZE(array_mp_8822b_phy_reg_pg); i += 6) {
 		u32 v1 = array[i];
 		u32 v2 = array[i + 1];
 		u32 v3 = array[i + 2];

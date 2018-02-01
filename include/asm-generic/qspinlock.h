@@ -121,6 +121,5 @@ static __always_inline bool virt_spin_lock(struct qspinlock *lock)
 #define arch_spin_lock(l)		queued_spin_lock(l)
 #define arch_spin_trylock(l)		queued_spin_trylock(l)
 #define arch_spin_unlock(l)		queued_spin_unlock(l)
-#define arch_spin_lock_flags(l, f)	queued_spin_lock(l)
 
 #endif /* __ASM_GENERIC_QSPINLOCK_H */

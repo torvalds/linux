@@ -1245,14 +1245,16 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		u8 *func = ((u8 *)__bpf_call_base) + imm;
 
 		ctx->saw_call = true;
+		if (ctx->saw_ld_abs_ind && bpf_helper_changes_pkt_data(func))
+			emit_reg_move(bpf2sparc[BPF_REG_1], L7, ctx);
 
 		emit_call((u32 *)func, ctx);
 		emit_nop(ctx);
 
 		emit_reg_move(O0, bpf2sparc[BPF_REG_0], ctx);
 
-		if (bpf_helper_changes_pkt_data(func) && ctx->saw_ld_abs_ind)
-			load_skb_regs(ctx, bpf2sparc[BPF_REG_6]);
+		if (ctx->saw_ld_abs_ind && bpf_helper_changes_pkt_data(func))
+			load_skb_regs(ctx, L7);
 		break;
 	}
 

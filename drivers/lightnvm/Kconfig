@@ -4,7 +4,8 @@
 
 menuconfig NVM
 	bool "Open-Channel SSD target support"
-	depends on BLOCK && HAS_DMA
+	depends on BLOCK && HAS_DMA && PCI
+	select BLK_DEV_NVME
 	help
 	  Say Y here to get to enable Open-channel SSDs.
 

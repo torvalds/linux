@@ -230,7 +230,7 @@ skip:
 			goto bad_desc;
 	}
 
-	if (header.usb_cdc_ether_desc) {
+	if (header.usb_cdc_ether_desc && info->ether->wMaxSegmentSize) {
 		dev->hard_mtu = le16_to_cpu(info->ether->wMaxSegmentSize);
 		/* because of Zaurus, we may be ignoring the host
 		 * side link address we were given.

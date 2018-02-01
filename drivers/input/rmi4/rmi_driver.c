@@ -230,8 +230,10 @@ static irqreturn_t rmi_irq_fn(int irq, void *dev_id)
 		rmi_dbg(RMI_DEBUG_CORE, &rmi_dev->dev,
 			"Failed to process interrupt request: %d\n", ret);
 
-	if (count)
+	if (count) {
 		kfree(attn_data.data);
+		attn_data.data = NULL;
+	}
 
 	if (!kfifo_is_empty(&drvdata->attn_fifo))
 		return rmi_irq_fn(irq, dev_id);

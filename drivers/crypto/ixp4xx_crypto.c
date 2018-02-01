@@ -534,7 +534,6 @@ static void release_ixp_crypto(struct device *dev)
 			NPE_QLEN_TOTAL * sizeof( struct crypt_ctl),
 			crypt_virt, crypt_phys);
 	}
-	return;
 }
 
 static void reset_sa_dir(struct ix_sa_dir *dir)

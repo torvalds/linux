@@ -249,7 +249,6 @@ static int da9150_gpadc_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info da9150_gpadc_info = {
 	.read_raw = &da9150_gpadc_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #define DA9150_GPADC_CHANNEL(_id, _hw_id, _type, chan_info,	\

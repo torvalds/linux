@@ -35,6 +35,7 @@ config DRM_OMAP_CONNECTOR_ANALOG_TV
 
 config DRM_OMAP_PANEL_DPI
 	tristate "Generic DPI panel"
+	depends on BACKLIGHT_CLASS_DEVICE
 	help
 	  Driver for generic DPI panels.
 

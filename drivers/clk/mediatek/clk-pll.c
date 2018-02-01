@@ -47,6 +47,7 @@ struct mtk_clk_pll {
 	void __iomem	*pd_addr;
 	void __iomem	*pwr_addr;
 	void __iomem	*tuner_addr;
+	void __iomem	*tuner_en_addr;
 	void __iomem	*pcw_addr;
 	const struct mtk_pll_data *data;
 };
@@ -227,7 +228,10 @@ static int mtk_pll_prepare(struct clk_hw *hw)
 	r |= pll->data->en_mask;
 	writel(r, pll->base_addr + REG_CON0);
 
-	if (pll->tuner_addr) {
+	if (pll->tuner_en_addr) {
+		r = readl(pll->tuner_en_addr) | BIT(pll->data->tuner_en_bit);
+		writel(r, pll->tuner_en_addr);
+	} else if (pll->tuner_addr) {
 		r = readl(pll->tuner_addr) | AUDPLL_TUNER_EN;
 		writel(r, pll->tuner_addr);
 	}
@@ -254,7 +258,10 @@ static void mtk_pll_unprepare(struct clk_hw *hw)
 		writel(r, pll->base_addr + REG_CON0);
 	}
 
-	if (pll->tuner_addr) {
+	if (pll->tuner_en_addr) {
+		r = readl(pll->tuner_en_addr) & ~BIT(pll->data->tuner_en_bit);
+		writel(r, pll->tuner_en_addr);
+	} else if (pll->tuner_addr) {
 		r = readl(pll->tuner_addr) & ~AUDPLL_TUNER_EN;
 		writel(r, pll->tuner_addr);
 	}
@@ -297,13 +304,18 @@ static struct clk *mtk_clk_register_pll(const struct mtk_pll_data *data,
 	pll->pcw_addr = base + data->pcw_reg;
 	if (data->tuner_reg)
 		pll->tuner_addr = base + data->tuner_reg;
+	if (data->tuner_en_reg)
+		pll->tuner_en_addr = base + data->tuner_en_reg;
 	pll->hw.init = &init;
 	pll->data = data;
 
 	init.name = data->name;
 	init.flags = (data->flags & PLL_AO) ? CLK_IS_CRITICAL : 0;
 	init.ops = &mtk_pll_ops;
-	init.parent_names = &parent_name;
+	if (data->parent_name)
+		init.parent_names = &data->parent_name;
+	else
+		init.parent_names = &parent_name;
 	init.num_parents = 1;
 
 	clk = clk_register(NULL, &pll->hw);

@@ -48,7 +48,7 @@ Required properties:
 
 Example:
 
-esai: esai@02024000 {
+esai: esai@2024000 {
 	compatible = "fsl,imx35-esai";
 	reg = <0x02024000 0x4000>;
 	interrupts = <0 51 0x04>;

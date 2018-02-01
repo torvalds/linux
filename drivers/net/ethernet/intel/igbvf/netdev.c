@@ -810,7 +810,7 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 			break;
 
 		/* prevent any other reads prior to eop_desc */
-		read_barrier_depends();
+		smp_rmb();
 
 		/* if DD is not set pending work has not been completed */
 		if (!(eop_desc->wb.status & cpu_to_le32(E1000_TXD_STAT_DD)))
@@ -1915,9 +1915,9 @@ static bool igbvf_has_link(struct igbvf_adapter *adapter)
  * igbvf_watchdog - Timer Call-back
  * @data: pointer to adapter cast into an unsigned long
  **/
-static void igbvf_watchdog(unsigned long data)
+static void igbvf_watchdog(struct timer_list *t)
 {
-	struct igbvf_adapter *adapter = (struct igbvf_adapter *)data;
+	struct igbvf_adapter *adapter = from_timer(adapter, t, watchdog_timer);
 
 	/* Do the rest outside of interrupt context */
 	schedule_work(&adapter->watchdog_task);
@@ -2878,8 +2878,7 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		       netdev->addr_len);
 	}
 
-	setup_timer(&adapter->watchdog_timer, &igbvf_watchdog,
-		    (unsigned long)adapter);
+	timer_setup(&adapter->watchdog_timer, igbvf_watchdog, 0);
 
 	INIT_WORK(&adapter->reset_task, igbvf_reset_task);
 	INIT_WORK(&adapter->watchdog_task, igbvf_watchdog_task);

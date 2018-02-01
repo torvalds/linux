@@ -292,7 +292,6 @@ void mips_cm_lock_other(unsigned int cluster, unsigned int core,
 				  *this_cpu_ptr(&cm_core_lock_flags));
 	} else {
 		WARN_ON(cluster != 0);
-		WARN_ON(vp != 0);
 		WARN_ON(block != CM_GCR_Cx_OTHER_BLOCK_LOCAL);
 
 		/*

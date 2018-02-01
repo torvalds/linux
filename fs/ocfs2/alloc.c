@@ -3585,8 +3585,6 @@ static int ocfs2_merge_rec_left(struct ocfs2_path *right_path,
 		 * The easy case - we can just plop the record right in.
 		 */
 		*left_rec = *split_rec;
-
-		has_empty_extent = 0;
 	} else
 		le16_add_cpu(&left_rec->e_leaf_clusters, split_clusters);
 

@@ -49,7 +49,7 @@ static inline unsigned gtod_read_begin(const struct vsyscall_gtod_data *s)
 	unsigned ret;
 
 repeat:
-	ret = ACCESS_ONCE(s->seq);
+	ret = READ_ONCE(s->seq);
 	if (unlikely(ret & 1)) {
 		cpu_relax();
 		goto repeat;

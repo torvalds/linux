@@ -313,7 +313,7 @@ static void mousevsc_on_receive(struct hv_device *device,
 
 		break;
 	default:
-		pr_err("unsupported hid msg type - type %d len %d",
+		pr_err("unsupported hid msg type - type %d len %d\n",
 		       hid_msg->header.type, hid_msg->header.size);
 		break;
 	}

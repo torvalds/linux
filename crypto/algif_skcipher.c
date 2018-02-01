@@ -72,6 +72,12 @@ static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 	int err = 0;
 	size_t len = 0;
 
+	if (!ctx->used) {
+		err = af_alg_wait_for_data(sk, flags);
+		if (err)
+			return err;
+	}
+
 	/* Allocate cipher request for current operation. */
 	areq = af_alg_alloc_areq(sk, sizeof(struct af_alg_async_req) +
 				     crypto_skcipher_reqsize(tfm));
@@ -117,39 +123,39 @@ static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 
 	if (msg->msg_iocb && !is_sync_kiocb(msg->msg_iocb)) {
 		/* AIO operation */
+		sock_hold(sk);
 		areq->iocb = msg->msg_iocb;
+
+		/* Remember output size that will be generated. */
+		areq->outlen = len;
+
 		skcipher_request_set_callback(&areq->cra_u.skcipher_req,
 					      CRYPTO_TFM_REQ_MAY_SLEEP,
 					      af_alg_async_cb, areq);
 		err = ctx->enc ?
 			crypto_skcipher_encrypt(&areq->cra_u.skcipher_req) :
 			crypto_skcipher_decrypt(&areq->cra_u.skcipher_req);
+
+		/* AIO operation in progress */
+		if (err == -EINPROGRESS || err == -EBUSY)
+			return -EIOCBQUEUED;
+
+		sock_put(sk);
 	} else {
 		/* Synchronous operation */
 		skcipher_request_set_callback(&areq->cra_u.skcipher_req,
 					      CRYPTO_TFM_REQ_MAY_SLEEP |
 					      CRYPTO_TFM_REQ_MAY_BACKLOG,
-					      af_alg_complete,
-					      &ctx->completion);
-		err = af_alg_wait_for_completion(ctx->enc ?
+					      crypto_req_done, &ctx->wait);
+		err = crypto_wait_req(ctx->enc ?
 			crypto_skcipher_encrypt(&areq->cra_u.skcipher_req) :
 			crypto_skcipher_decrypt(&areq->cra_u.skcipher_req),
-						 &ctx->completion);
+						 &ctx->wait);
 	}
 
-	/* AIO operation in progress */
-	if (err == -EINPROGRESS) {
-		sock_hold(sk);
-
-		/* Remember output size that will be generated. */
-		areq->outlen = len;
-
-		return -EIOCBQUEUED;
-	}
 
 free:
-	af_alg_free_areq_sgls(areq);
-	sock_kfree_s(sk, areq, areq->areqlen);
+	af_alg_free_resources(areq);
 
 	return err ? err : len;
 }
@@ -384,11 +390,11 @@ static int skcipher_accept_parent_nokey(void *private, struct sock *sk)
 	INIT_LIST_HEAD(&ctx->tsgl_list);
 	ctx->len = len;
 	ctx->used = 0;
-	ctx->rcvused = 0;
+	atomic_set(&ctx->rcvused, 0);
 	ctx->more = 0;
 	ctx->merge = 0;
 	ctx->enc = 0;
-	af_alg_init_completion(&ctx->completion);
+	crypto_init_wait(&ctx->wait);
 
 	ask->private = ctx;
 

@@ -144,7 +144,7 @@ static unsigned switch_region_table_read(struct switch_ctx *sctx, unsigned long 
 
 	switch_get_position(sctx, region_nr, &region_index, &bit);
 
-	return (ACCESS_ONCE(sctx->region_table[region_index]) >> bit) &
+	return (READ_ONCE(sctx->region_table[region_index]) >> bit) &
 		((1 << sctx->region_table_entry_bits) - 1);
 }
 

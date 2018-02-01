@@ -75,7 +75,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		a9pll: arm_clk@00000 {
+		a9pll: arm_clk@0 {
 			#clock-cells = <0>;
 			compatible = "brcm,nsp-armpll";
 			clocks = <&osc>;
@@ -85,7 +85,7 @@
 		timer@20200 {
 			compatible = "arm,cortex-a9-global-timer";
 			reg = <0x20200 0x100>;
-			interrupts = <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_PPI 11 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&periph_clk>;
 		};
 
@@ -93,7 +93,7 @@
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0x20600 0x20>;
 			interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) |
-						  IRQ_TYPE_LEVEL_HIGH)>;
+						  IRQ_TYPE_EDGE_RISING)>;
 			clocks = <&periph_clk>;
 		};
 
@@ -164,7 +164,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		gpioa: gpio@0020 {
+		gpioa: gpio@20 {
 			compatible = "brcm,nsp-gpio-a";
 			reg = <0x0020 0x70>,
 			      <0x3f1c4 0x1c>;
@@ -176,7 +176,7 @@
 			gpio-ranges = <&pinctrl 0 0 32>;
 		};
 
-		uart0: serial@0300 {
+		uart0: serial@300 {
 			compatible = "ns16550a";
 			reg = <0x0300 0x100>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
@@ -184,7 +184,7 @@
 			status = "disabled";
 		};
 
-		uart1: serial@0400 {
+		uart1: serial@400 {
 			compatible = "ns16550a";
 			reg = <0x0400 0x100>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;

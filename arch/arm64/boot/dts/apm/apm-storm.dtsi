@@ -19,7 +19,7 @@
 		#address-cells = <2>;
 		#size-cells = <0>;
 
-		cpu@000 {
+		cpu@0 {
 			device_type = "cpu";
 			compatible = "apm,potenza", "arm,armv8";
 			reg = <0x0 0x000>;
@@ -27,7 +27,7 @@
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_0>;
 		};
-		cpu@001 {
+		cpu@1 {
 			device_type = "cpu";
 			compatible = "apm,potenza", "arm,armv8";
 			reg = <0x0 0x001>;

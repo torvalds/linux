@@ -29,14 +29,19 @@
 #include "peak_canfd_user.h"
 
 MODULE_AUTHOR("Stephane Grosjean <s.grosjean@peak-system.com>");
-MODULE_DESCRIPTION("Socket-CAN driver for PEAK PCAN PCIe FD family cards");
-MODULE_SUPPORTED_DEVICE("PEAK PCAN PCIe FD CAN cards");
+MODULE_DESCRIPTION("Socket-CAN driver for PEAK PCAN PCIe/M.2 FD family cards");
+MODULE_SUPPORTED_DEVICE("PEAK PCAN PCIe/M.2 FD CAN cards");
 MODULE_LICENSE("GPL v2");
 
 #define PCIEFD_DRV_NAME		"peak_pciefd"
 
 #define PEAK_PCI_VENDOR_ID	0x001c	/* The PCI device and vendor IDs */
 #define PEAK_PCIEFD_ID		0x0013	/* for PCIe slot cards */
+#define PCAN_CPCIEFD_ID		0x0014	/* for Compact-PCI Serial slot cards */
+#define PCAN_PCIE104FD_ID	0x0017	/* for PCIe-104 Express slot cards */
+#define PCAN_MINIPCIEFD_ID      0x0018	/* for mini-PCIe slot cards */
+#define PCAN_PCIEFD_OEM_ID      0x0019	/* for PCIe slot OEM cards */
+#define PCAN_M2_ID		0x001a	/* for M2 slot cards */
 
 /* PEAK PCIe board access description */
 #define PCIEFD_BAR0_SIZE		(64 * 1024)
@@ -203,6 +208,11 @@ struct pciefd_board {
 /* supported device ids. */
 static const struct pci_device_id peak_pciefd_tbl[] = {
 	{PEAK_PCI_VENDOR_ID, PEAK_PCIEFD_ID, PCI_ANY_ID, PCI_ANY_ID,},
+	{PEAK_PCI_VENDOR_ID, PCAN_CPCIEFD_ID, PCI_ANY_ID, PCI_ANY_ID,},
+	{PEAK_PCI_VENDOR_ID, PCAN_PCIE104FD_ID, PCI_ANY_ID, PCI_ANY_ID,},
+	{PEAK_PCI_VENDOR_ID, PCAN_MINIPCIEFD_ID, PCI_ANY_ID, PCI_ANY_ID,},
+	{PEAK_PCI_VENDOR_ID, PCAN_PCIEFD_OEM_ID, PCI_ANY_ID, PCI_ANY_ID,},
+	{PEAK_PCI_VENDOR_ID, PCAN_M2_ID, PCI_ANY_ID, PCI_ANY_ID,},
 	{0,}
 };
 
@@ -815,7 +825,10 @@ err_release_regions:
 err_disable_pci:
 	pci_disable_device(pdev);
 
-	return err;
+	/* pci_xxx_config_word() return positive PCIBIOS_xxx error codes while
+	 * the probe() function must return a negative errno in case of failure
+	 * (err is unchanged if negative) */
+	return pcibios_err_to_errno(err);
 }
 
 /* free the board structure object, as well as its resources: */

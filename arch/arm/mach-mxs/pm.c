@@ -30,7 +30,7 @@ static int mxs_suspend_enter(suspend_state_t state)
 	return 0;
 }
 
-static struct platform_suspend_ops mxs_suspend_ops = {
+static const struct platform_suspend_ops mxs_suspend_ops = {
 	.enter = mxs_suspend_enter,
 	.valid = suspend_valid_only_mem,
 };

@@ -15,6 +15,7 @@
  */
 
 #include <asm/unaligned.h>
+#include <linux/kernel.h>
 #include "hw.h"
 #include "ar9003_phy.h"
 #include "ar9003_eeprom.h"
@@ -2946,14 +2947,12 @@ static const struct ar9300_eeprom *ar9300_eep_templates[] = {
 
 static const struct ar9300_eeprom *ar9003_eeprom_struct_find_by_id(int id)
 {
-#define N_LOOP (sizeof(ar9300_eep_templates) / sizeof(ar9300_eep_templates[0]))
 	int it;
 
-	for (it = 0; it < N_LOOP; it++)
+	for (it = 0; it < ARRAY_SIZE(ar9300_eep_templates); it++)
 		if (ar9300_eep_templates[it]->templateVersion == id)
 			return ar9300_eep_templates[it];
 	return NULL;
-#undef N_LOOP
 }
 
 static int ath9k_hw_ar9300_check_eeprom(struct ath_hw *ah)

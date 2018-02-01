@@ -276,7 +276,6 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	if (IS_ERR(ps->s_txreq))
 		goto bail_no_tx;
 
-	ps->s_txreq->phdr.hdr.hdr_type = priv->hdr_type;
 	if (priv->hdr_type == HFI1_PKT_TYPE_9B) {
 		/* header size in 32-bit words LRH+BTH = (8+12)/4. */
 		hwords = 5;
@@ -815,7 +814,7 @@ static inline void hfi1_make_rc_ack_16B(struct rvt_qp *qp,
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct hfi1_16b_header *hdr = &opa_hdr->opah;
 	struct ib_other_headers *ohdr;
-	u32 bth0, bth1;
+	u32 bth0, bth1 = 0;
 	u16 len, pkey;
 	u8 becn = !!is_fecn;
 	u8 l4 = OPA_16B_L4_IB_LOCAL;
@@ -1966,7 +1965,7 @@ static void log_cca_event(struct hfi1_pportdata *ppd, u8 sl, u32 rlid,
 	cc_event->svc_type = svc_type;
 	cc_event->rlid = rlid;
 	/* keep timestamp in units of 1.024 usec */
-	cc_event->timestamp = ktime_to_ns(ktime_get()) / 1024;
+	cc_event->timestamp = ktime_get_ns() / 1024;
 
 	spin_unlock_irqrestore(&ppd->cc_log_lock, flags);
 }
@@ -2175,7 +2174,7 @@ send_middle:
 			goto no_immediate_data;
 		if (opcode == OP(SEND_ONLY_WITH_INVALIDATE))
 			goto send_last_inv;
-		/* FALLTHROUGH for SEND_ONLY_WITH_IMMEDIATE */
+		/* FALLTHROUGH -- for SEND_ONLY_WITH_IMMEDIATE */
 	case OP(SEND_LAST_WITH_IMMEDIATE):
 send_last_imm:
 		wc.ex.imm_data = ohdr->u.imm_data;
@@ -2220,7 +2219,7 @@ send_last:
 			wc.opcode = IB_WC_RECV;
 		wc.qp = &qp->ibqp;
 		wc.src_qp = qp->remote_qpn;
-		wc.slid = rdma_ah_get_dlid(&qp->remote_ah_attr);
+		wc.slid = rdma_ah_get_dlid(&qp->remote_ah_attr) & U16_MAX;
 		/*
 		 * It seems that IB mandates the presence of an SL in a
 		 * work completion only for the UD transport (see section

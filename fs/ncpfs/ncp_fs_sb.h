@@ -150,7 +150,7 @@ extern void ncp_tcp_rcv_proc(struct work_struct *work);
 extern void ncp_tcp_tx_proc(struct work_struct *work);
 extern void ncpdgram_rcv_proc(struct work_struct *work);
 extern void ncpdgram_timeout_proc(struct work_struct *work);
-extern void ncpdgram_timeout_call(unsigned long server);
+extern void ncpdgram_timeout_call(struct timer_list *t);
 extern void ncp_tcp_data_ready(struct sock* sk);
 extern void ncp_tcp_write_space(struct sock* sk);
 extern void ncp_tcp_error_report(struct sock* sk);

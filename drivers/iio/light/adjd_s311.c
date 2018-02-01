@@ -245,7 +245,6 @@ static const struct iio_info adjd_s311_info = {
 	.read_raw = adjd_s311_read_raw,
 	.write_raw = adjd_s311_write_raw,
 	.update_scan_mode = adjd_s311_update_scan_mode,
-	.driver_module = THIS_MODULE,
 };
 
 static int adjd_s311_probe(struct i2c_client *client,

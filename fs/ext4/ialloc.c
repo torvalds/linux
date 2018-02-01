@@ -816,6 +816,8 @@ struct inode *__ext4_new_inode(handle_t *handle, struct inode *dir,
 #ifdef CONFIG_EXT4_FS_POSIX_ACL
 		struct posix_acl *p = get_acl(dir, ACL_TYPE_DEFAULT);
 
+		if (IS_ERR(p))
+			return ERR_CAST(p);
 		if (p) {
 			int acl_size = p->a_count * sizeof(ext4_acl_entry);
 
@@ -1139,9 +1141,7 @@ got:
 			   inode->i_ino);
 		goto out;
 	}
-	spin_lock(&sbi->s_next_gen_lock);
-	inode->i_generation = sbi->s_next_generation++;
-	spin_unlock(&sbi->s_next_gen_lock);
+	inode->i_generation = prandom_u32();
 
 	/* Precompute checksum seed for inode metadata */
 	if (ext4_has_metadata_csum(sb)) {

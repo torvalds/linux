@@ -102,7 +102,7 @@ static inline bool get_down(unsigned long data0, unsigned long data1)
 		!(data1 & S3C2410_ADCDAT0_UPDOWN));
 }
 
-static void touch_timer_fire(unsigned long data)
+static void touch_timer_fire(struct timer_list *unused)
 {
 	unsigned long data0;
 	unsigned long data1;
@@ -145,7 +145,7 @@ static void touch_timer_fire(unsigned long data)
 	}
 }
 
-static DEFINE_TIMER(touch_timer, touch_timer_fire, 0, 0);
+static DEFINE_TIMER(touch_timer, touch_timer_fire);
 
 /**
  * stylus_irq - touchscreen stylus event interrupt

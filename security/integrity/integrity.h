@@ -120,8 +120,6 @@ struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
 int integrity_kernel_read(struct file *file, loff_t offset,
 			  void *addr, unsigned long count);
 
-int __init integrity_read_file(const char *path, char **data);
-
 #define INTEGRITY_KEYRING_EVM		0
 #define INTEGRITY_KEYRING_IMA		1
 #define INTEGRITY_KEYRING_MODULE	2

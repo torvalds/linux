@@ -41,6 +41,9 @@
 #include <net/strparser.h>
 #include <net/tcp.h>
 
+#define SOCK_CREATE_FLAG_MASK \
+	(BPF_F_NUMA_NODE | BPF_F_RDONLY | BPF_F_WRONLY)
+
 struct bpf_stab {
 	struct bpf_map map;
 	struct sock **sock_map;
@@ -122,7 +125,7 @@ static int smap_verdict_func(struct smap_psock *psock, struct sk_buff *skb)
 	 */
 	TCP_SKB_CB(skb)->bpf.map = NULL;
 	skb->sk = psock->sock;
-	bpf_compute_data_end_sk_skb(skb);
+	bpf_compute_data_pointers(skb);
 	preempt_disable();
 	rc = (*prog->bpf_func)(skb, prog->insnsi);
 	preempt_enable();
@@ -385,7 +388,7 @@ static int smap_parse_func_strparser(struct strparser *strp,
 	 * any socket yet.
 	 */
 	skb->sk = psock->sock;
-	bpf_compute_data_end_sk_skb(skb);
+	bpf_compute_data_pointers(skb);
 	rc = (*prog->bpf_func)(skb, prog->insnsi);
 	skb->sk = NULL;
 	rcu_read_unlock();
@@ -508,7 +511,7 @@ static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
 
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 || attr->key_size != 4 ||
-	    attr->value_size != 4 || attr->map_flags & ~BPF_F_NUMA_NODE)
+	    attr->value_size != 4 || attr->map_flags & ~SOCK_CREATE_FLAG_MASK)
 		return ERR_PTR(-EINVAL);
 
 	if (attr->value_size > KMALLOC_MAX_SIZE)
@@ -588,8 +591,15 @@ static void sock_map_free(struct bpf_map *map)
 
 		write_lock_bh(&sock->sk_callback_lock);
 		psock = smap_psock_sk(sock);
-		smap_list_remove(psock, &stab->sock_map[i]);
-		smap_release_sock(psock, sock);
+		/* This check handles a racing sock event that can get the
+		 * sk_callback_lock before this case but after xchg happens
+		 * causing the refcnt to hit zero and sock user data (psock)
+		 * to be null and queued for garbage collection.
+		 */
+		if (likely(psock)) {
+			smap_list_remove(psock, &stab->sock_map[i]);
+			smap_release_sock(psock, sock);
+		}
 		write_unlock_bh(&sock->sk_callback_lock);
 	}
 	rcu_read_unlock();

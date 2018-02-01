@@ -335,7 +335,6 @@ static const struct attribute_group ad7816_event_attribute_group = {
 static const struct iio_info ad7816_info = {
 	.attrs = &ad7816_attribute_group,
 	.event_attrs = &ad7816_event_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 /*

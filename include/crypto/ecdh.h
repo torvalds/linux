@@ -54,7 +54,7 @@ struct ecdh {
  *
  * Return: size of the key in bytes
  */
-int crypto_ecdh_key_len(const struct ecdh *params);
+unsigned int crypto_ecdh_key_len(const struct ecdh *params);
 
 /**
  * crypto_ecdh_encode_key() - encode the private key

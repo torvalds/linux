@@ -10,11 +10,25 @@ void nvkm_bar_ctor(const struct nvkm_bar_func *, struct nvkm_device *,
 struct nvkm_bar_func {
 	void *(*dtor)(struct nvkm_bar *);
 	int (*oneinit)(struct nvkm_bar *);
-	int (*init)(struct nvkm_bar *);
-	struct nvkm_vm *(*kmap)(struct nvkm_bar *);
-	int  (*umap)(struct nvkm_bar *, u64 size, int type, struct nvkm_vma *);
+	void (*init)(struct nvkm_bar *);
+
+	struct {
+		void (*init)(struct nvkm_bar *);
+		void (*fini)(struct nvkm_bar *);
+		void (*wait)(struct nvkm_bar *);
+		struct nvkm_vmm *(*vmm)(struct nvkm_bar *);
+	} bar1, bar2;
+
 	void (*flush)(struct nvkm_bar *);
 };
 
+void nv50_bar_bar1_fini(struct nvkm_bar *);
+void nv50_bar_bar2_fini(struct nvkm_bar *);
+
 void g84_bar_flush(struct nvkm_bar *);
+
+void gf100_bar_bar1_fini(struct nvkm_bar *);
+void gf100_bar_bar2_fini(struct nvkm_bar *);
+
+void gm107_bar_bar1_wait(struct nvkm_bar *);
 #endif

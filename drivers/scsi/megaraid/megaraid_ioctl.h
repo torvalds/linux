@@ -19,6 +19,7 @@
 
 #include <linux/types.h>
 #include <linux/semaphore.h>
+#include <linux/timer.h>
 
 #include "mbox_defs.h"
 
@@ -153,6 +154,11 @@ typedef struct uioc {
 
 } __attribute__ ((aligned(1024),packed)) uioc_t;
 
+/* For on-stack uioc timers. */
+struct uioc_timeout {
+	struct timer_list timer;
+	uioc_t		  *uioc;
+};
 
 /**
  * struct mraid_hba_info - information about the controller

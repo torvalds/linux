@@ -696,14 +696,7 @@ static void qib_clean_part_key(struct qib_ctxtdata *rcd,
 			       struct qib_devdata *dd)
 {
 	int i, j, pchanged = 0;
-	u64 oldpkey;
 	struct qib_pportdata *ppd = rcd->ppd;
-
-	/* for debugging only */
-	oldpkey = (u64) ppd->pkeys[0] |
-		((u64) ppd->pkeys[1] << 16) |
-		((u64) ppd->pkeys[2] << 32) |
-		((u64) ppd->pkeys[3] << 48);
 
 	for (i = 0; i < ARRAY_SIZE(rcd->pkeys); i++) {
 		if (!rcd->pkeys[i])
@@ -1817,7 +1810,6 @@ static int qib_close(struct inode *in, struct file *fp)
 	struct qib_devdata *dd;
 	unsigned long flags;
 	unsigned ctxt;
-	pid_t pid;
 
 	mutex_lock(&qib_mutex);
 
@@ -1859,7 +1851,6 @@ static int qib_close(struct inode *in, struct file *fp)
 	spin_lock_irqsave(&dd->uctxt_lock, flags);
 	ctxt = rcd->ctxt;
 	dd->rcd[ctxt] = NULL;
-	pid = rcd->pid;
 	rcd->pid = 0;
 	spin_unlock_irqrestore(&dd->uctxt_lock, flags);
 

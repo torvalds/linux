@@ -326,7 +326,6 @@ static int vz89x_read_raw(struct iio_dev *indio_dev,
 static const struct iio_info vz89x_info = {
 	.attrs		= &vz89x_attrs_group,
 	.read_raw	= vz89x_read_raw,
-	.driver_module	= THIS_MODULE,
 };
 
 static const struct vz89x_chip_data vz89x_chips[] = {

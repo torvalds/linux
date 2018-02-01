@@ -541,6 +541,7 @@ static char oct_dev_app_str[CVM_DRV_APP_COUNT + 1][32] = {
 
 static struct octeon_device *octeon_device[MAX_OCTEON_DEVICES];
 static atomic_t adapter_refcounts[MAX_OCTEON_DEVICES];
+static atomic_t adapter_fw_states[MAX_OCTEON_DEVICES];
 
 static u32 octeon_device_count;
 /* locks device array (i.e. octeon_device[]) */
@@ -770,6 +771,10 @@ int octeon_register_device(struct octeon_device *oct,
 	oct->adapter_refcount = &adapter_refcounts[oct->octeon_id];
 	atomic_set(oct->adapter_refcount, 0);
 
+	/* Like the reference count, the f/w state is shared 'per-adapter' */
+	oct->adapter_fw_state = &adapter_fw_states[oct->octeon_id];
+	atomic_set(oct->adapter_fw_state, FW_NEEDS_TO_BE_LOADED);
+
 	spin_lock(&octeon_devices_lock);
 	for (idx = (int)oct->octeon_id - 1; idx >= 0; idx--) {
 		if (!octeon_device[idx]) {
@@ -780,11 +785,15 @@ int octeon_register_device(struct octeon_device *oct,
 			atomic_inc(oct->adapter_refcount);
 			return 1; /* here, refcount is guaranteed to be 1 */
 		}
-		/* if another device is at same bus/dev, use its refcounter */
+		/* If another device is at same bus/dev, use its refcounter
+		 * (and f/w state variable).
+		 */
 		if ((octeon_device[idx]->loc.bus == bus) &&
 		    (octeon_device[idx]->loc.dev == dev)) {
 			oct->adapter_refcount =
 				octeon_device[idx]->adapter_refcount;
+			oct->adapter_fw_state =
+				octeon_device[idx]->adapter_fw_state;
 			break;
 		}
 	}
@@ -1171,6 +1180,10 @@ octeon_register_dispatch_fn(struct octeon_device *oct,
 		spin_unlock_bh(&oct->dispatch.lock);
 
 	} else {
+		if (pfn == fn &&
+		    octeon_get_dispatch_arg(oct, opcode, subcode) == fn_arg)
+			return 0;
+
 		dev_err(&oct->pci_dev->dev,
 			"Found previously registered dispatch fn for opcode/subcode: %x/%x\n",
 			opcode, subcode);

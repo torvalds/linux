@@ -14,7 +14,7 @@ Optional properties:
 
 Example:
 
-timer@01c60000 {
+timer@1c60000 {
 	compatible = "allwinner,sun7i-a20-hstimer";
 	reg = <0x01c60000 0x1000>;
 	interrupts = <0 51 1>,

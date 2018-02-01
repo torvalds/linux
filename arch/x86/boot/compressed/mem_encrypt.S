@@ -1,0 +1,120 @@
+/*
+ * AMD Memory Encryption Support
+ *
+ * Copyright (C) 2017 Advanced Micro Devices, Inc.
+ *
+ * Author: Tom Lendacky <thomas.lendacky@amd.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include <linux/linkage.h>
+
+#include <asm/processor-flags.h>
+#include <asm/msr.h>
+#include <asm/asm-offsets.h>
+
+	.text
+	.code32
+ENTRY(get_sev_encryption_bit)
+	xor	%eax, %eax
+
+#ifdef CONFIG_AMD_MEM_ENCRYPT
+	push	%ebx
+	push	%ecx
+	push	%edx
+	push	%edi
+
+	/*
+	 * RIP-relative addressing is needed to access the encryption bit
+	 * variable. Since we are running in 32-bit mode we need this call/pop
+	 * sequence to get the proper relative addressing.
+	 */
+	call	1f
+1:	popl	%edi
+	subl	$1b, %edi
+
+	movl	enc_bit(%edi), %eax
+	cmpl	$0, %eax
+	jge	.Lsev_exit
+
+	/* Check if running under a hypervisor */
+	movl	$1, %eax
+	cpuid
+	bt	$31, %ecx		/* Check the hypervisor bit */
+	jnc	.Lno_sev
+
+	movl	$0x80000000, %eax	/* CPUID to check the highest leaf */
+	cpuid
+	cmpl	$0x8000001f, %eax	/* See if 0x8000001f is available */
+	jb	.Lno_sev
+
+	/*
+	 * Check for the SEV feature:
+	 *   CPUID Fn8000_001F[EAX] - Bit 1
+	 *   CPUID Fn8000_001F[EBX] - Bits 5:0
+	 *     Pagetable bit position used to indicate encryption
+	 */
+	movl	$0x8000001f, %eax
+	cpuid
+	bt	$1, %eax		/* Check if SEV is available */
+	jnc	.Lno_sev
+
+	movl	$MSR_AMD64_SEV, %ecx	/* Read the SEV MSR */
+	rdmsr
+	bt	$MSR_AMD64_SEV_ENABLED_BIT, %eax	/* Check if SEV is active */
+	jnc	.Lno_sev
+
+	movl	%ebx, %eax
+	andl	$0x3f, %eax		/* Return the encryption bit location */
+	movl	%eax, enc_bit(%edi)
+	jmp	.Lsev_exit
+
+.Lno_sev:
+	xor	%eax, %eax
+	movl	%eax, enc_bit(%edi)
+
+.Lsev_exit:
+	pop	%edi
+	pop	%edx
+	pop	%ecx
+	pop	%ebx
+
+#endif	/* CONFIG_AMD_MEM_ENCRYPT */
+
+	ret
+ENDPROC(get_sev_encryption_bit)
+
+	.code64
+ENTRY(get_sev_encryption_mask)
+	xor	%rax, %rax
+
+#ifdef CONFIG_AMD_MEM_ENCRYPT
+	push	%rbp
+	push	%rdx
+
+	movq	%rsp, %rbp		/* Save current stack pointer */
+
+	call	get_sev_encryption_bit	/* Get the encryption bit position */
+	testl	%eax, %eax
+	jz	.Lno_sev_mask
+
+	xor	%rdx, %rdx
+	bts	%rax, %rdx		/* Create the encryption mask */
+	mov	%rdx, %rax		/* ... and return it */
+
+.Lno_sev_mask:
+	movq	%rbp, %rsp		/* Restore original stack pointer */
+
+	pop	%rdx
+	pop	%rbp
+#endif
+
+	ret
+ENDPROC(get_sev_encryption_mask)
+
+	.data
+enc_bit:
+	.int	0xffffffff

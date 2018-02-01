@@ -221,6 +221,7 @@ enum {
 };
 
 enum {
+	MLX5_ETH_WQE_SVLAN              = 1 << 0,
 	MLX5_ETH_WQE_INSERT_VLAN        = 1 << 15,
 };
 

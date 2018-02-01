@@ -556,11 +556,8 @@ int srp_reconnect_rport(struct srp_rport *rport)
 		 */
 		shost_for_each_device(sdev, shost) {
 			mutex_lock(&sdev->state_mutex);
-			if (sdev->sdev_state == SDEV_OFFLINE) {
+			if (sdev->sdev_state == SDEV_OFFLINE)
 				sdev->sdev_state = SDEV_RUNNING;
-				sysfs_notify(&sdev->sdev_gendev.kobj,
-					     NULL, "state");
-			}
 			mutex_unlock(&sdev->state_mutex);
 		}
 	} else if (rport->state == SRP_RPORT_RUNNING) {

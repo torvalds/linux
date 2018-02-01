@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 
+#include <linux/capability.h>
 #include <linux/if.h>
 #include <linux/inetdevice.h>
 #include <linux/ip.h>
@@ -70,6 +71,9 @@ static int xt_osf_add_callback(struct net *net, struct sock *ctnl,
 	struct xt_osf_finger *kf = NULL, *sf;
 	int err = 0;
 
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	if (!osf_attrs[OSF_ATTR_FINGER])
 		return -EINVAL;
 
@@ -114,6 +118,9 @@ static int xt_osf_remove_callback(struct net *net, struct sock *ctnl,
 	struct xt_osf_user_finger *f;
 	struct xt_osf_finger *sf;
 	int err = -ENOENT;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
 
 	if (!osf_attrs[OSF_ATTR_FINGER])
 		return -EINVAL;

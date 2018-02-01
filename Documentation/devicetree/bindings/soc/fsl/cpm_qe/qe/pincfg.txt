@@ -26,7 +26,7 @@ Required properties:
     interrupts.
 
 Example:
-     ucc_pin@01 {
+     ucc_pin@1 {
 	pio-map = <
 	/* port  pin  dir  open_drain  assignment  has_irq */
 		0  3  1  0  1  0 	/* TxD0 */

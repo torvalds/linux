@@ -69,7 +69,8 @@ static int __init init_ras_IRQ(void)
 	/* Hotplug Events */
 	np = of_find_node_by_path("/event-sources/hot-plug-events");
 	if (np != NULL) {
-		request_event_sources_irqs(np, ras_hotplug_interrupt,
+		if (dlpar_workqueue_init() == 0)
+			request_event_sources_irqs(np, ras_hotplug_interrupt,
 					   "RAS_HOTPLUG");
 		of_node_put(np);
 	}

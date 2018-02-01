@@ -509,7 +509,7 @@ static struct shash_alg sha256_alg_nano = {
 	}
 };
 
-static struct x86_cpu_id padlock_sha_ids[] = {
+static const struct x86_cpu_id padlock_sha_ids[] = {
 	X86_FEATURE_MATCH(X86_FEATURE_PHE),
 	{}
 };

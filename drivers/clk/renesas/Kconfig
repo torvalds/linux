@@ -15,6 +15,7 @@ config CLK_RENESAS
 	select CLK_R8A7794 if ARCH_R8A7794
 	select CLK_R8A7795 if ARCH_R8A7795
 	select CLK_R8A7796 if ARCH_R8A7796
+	select CLK_R8A77970 if ARCH_R8A77970
 	select CLK_R8A77995 if ARCH_R8A77995
 	select CLK_SH73A0 if ARCH_SH73A0
 
@@ -93,6 +94,10 @@ config CLK_R8A7795
 
 config CLK_R8A7796
 	bool "R-Car M3-W clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_R8A77970
+	bool "R-Car V3M clock support" if COMPILE_TEST
 	select CLK_RCAR_GEN3_CPG
 
 config CLK_R8A77995

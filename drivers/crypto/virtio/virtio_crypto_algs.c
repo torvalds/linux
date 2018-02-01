@@ -319,7 +319,7 @@ static int virtio_crypto_ablkcipher_setkey(struct crypto_ablkcipher *tfm,
 		struct virtio_crypto *vcrypto =
 				      virtcrypto_get_dev_node(node);
 		if (!vcrypto) {
-			pr_err("virtio_crypto: Could not find a virtio device in the system");
+			pr_err("virtio_crypto: Could not find a virtio device in the system\n");
 			return -ENODEV;
 		}
 

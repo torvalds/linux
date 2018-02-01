@@ -373,26 +373,22 @@ static irqreturn_t ad7606_interrupt(int irq, void *dev_id)
 };
 
 static const struct iio_info ad7606_info_no_os_or_range = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &ad7606_read_raw,
 };
 
 static const struct iio_info ad7606_info_os_and_range = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &ad7606_read_raw,
 	.write_raw = &ad7606_write_raw,
 	.attrs = &ad7606_attribute_group_os_and_range,
 };
 
 static const struct iio_info ad7606_info_os = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &ad7606_read_raw,
 	.write_raw = &ad7606_write_raw,
 	.attrs = &ad7606_attribute_group_os,
 };
 
 static const struct iio_info ad7606_info_range = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &ad7606_read_raw,
 	.write_raw = &ad7606_write_raw,
 	.attrs = &ad7606_attribute_group_range,
