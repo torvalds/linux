@@ -256,7 +256,12 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 	u32 mlid_base;
 	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	struct hfi1_devdata *dd = ppd->dd;
-	struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
+	struct hfi1_ibdev *verbs_dev = &dd->verbs_dev;
+	struct rvt_dev_info *rdi = &verbs_dev->rdi;
+
+	if ((packet->rhf & RHF_DC_ERR) &&
+	    hfi1_dbg_fault_suppress_err(verbs_dev))
+		return;
 
 	if (packet->rhf & (RHF_VCRC_ERR | RHF_ICRC_ERR))
 		return;
@@ -1552,19 +1557,7 @@ int process_receive_ib(struct hfi1_packet *packet)
 	if (hfi1_setup_9B_packet(packet))
 		return RHF_RCV_CONTINUE;
 
-	trace_hfi1_rcvhdr(packet->rcd->ppd->dd,
-			  packet->rcd->ctxt,
-			  rhf_err_flags(packet->rhf),
-			  RHF_RCV_TYPE_IB,
-			  packet->hlen,
-			  packet->tlen,
-			  packet->updegr,
-			  rhf_egr_index(packet->rhf));
-
-	if (unlikely(
-		 (hfi1_dbg_fault_suppress_err(&packet->rcd->dd->verbs_dev) &&
-		 (packet->rhf & RHF_DC_ERR))))
-		return RHF_RCV_CONTINUE;
+	trace_hfi1_rcvhdr(packet, RHF_RCV_TYPE_IB);
 
 	if (unlikely(rhf_err_flags(packet->rhf))) {
 		handle_eflags(packet);
