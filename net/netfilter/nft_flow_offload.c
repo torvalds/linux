@@ -247,14 +247,8 @@ register_expr:
 
 static void __exit nft_flow_offload_module_exit(void)
 {
-	struct net *net;
-
 	nft_unregister_expr(&nft_flow_offload_type);
 	unregister_netdevice_notifier(&flow_offload_netdev_notifier);
-	rtnl_lock();
-	for_each_net(net)
-		nft_flow_table_iterate(net, nft_flow_offload_iterate_cleanup, NULL);
-	rtnl_unlock();
 }
 
 module_init(nft_flow_offload_module_init);
