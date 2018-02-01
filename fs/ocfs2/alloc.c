@@ -7561,6 +7561,7 @@ int ocfs2_trim_fs(struct super_block *sb, struct fstrim_range *range)
 	struct buffer_head *gd_bh = NULL;
 	struct ocfs2_dinode *main_bm;
 	struct ocfs2_group_desc *gd = NULL;
+	struct ocfs2_trim_fs_info info, *pinfo = NULL;
 
 	start = range->start >> osb->s_clustersize_bits;
 	len = range->len >> osb->s_clustersize_bits;
@@ -7597,6 +7598,42 @@ int ocfs2_trim_fs(struct super_block *sb, struct fstrim_range *range)
 		len = le32_to_cpu(main_bm->i_clusters) - start;
 
 	trace_ocfs2_trim_fs(start, len, minlen);
+
+	ocfs2_trim_fs_lock_res_init(osb);
+	ret = ocfs2_trim_fs_lock(osb, NULL, 1);
+	if (ret < 0) {
+		if (ret != -EAGAIN) {
+			mlog_errno(ret);
+			ocfs2_trim_fs_lock_res_uninit(osb);
+			goto out_unlock;
+		}
+
+		mlog(ML_NOTICE, "Wait for trim on device (%s) to "
+		     "finish, which is running from another node.\n",
+		     osb->dev_str);
+		ret = ocfs2_trim_fs_lock(osb, &info, 0);
+		if (ret < 0) {
+			mlog_errno(ret);
+			ocfs2_trim_fs_lock_res_uninit(osb);
+			goto out_unlock;
+		}
+
+		if (info.tf_valid && info.tf_success &&
+		    info.tf_start == start && info.tf_len == len &&
+		    info.tf_minlen == minlen) {
+			/* Avoid sending duplicated trim to a shared device */
+			mlog(ML_NOTICE, "The same trim on device (%s) was "
+			     "just done from node (%u), return.\n",
+			     osb->dev_str, info.tf_nodenum);
+			range->len = info.tf_trimlen;
+			goto out_trimunlock;
+		}
+	}
+
+	info.tf_nodenum = osb->node_num;
+	info.tf_start = start;
+	info.tf_len = len;
+	info.tf_minlen = minlen;
 
 	/* Determine first and last group to examine based on start and len */
 	first_group = ocfs2_which_cluster_group(main_bm_inode, start);
@@ -7642,6 +7679,13 @@ int ocfs2_trim_fs(struct super_block *sb, struct fstrim_range *range)
 			group += ocfs2_clusters_to_blocks(sb, osb->bitmap_cpg);
 	}
 	range->len = trimmed * sb->s_blocksize;
+
+	info.tf_trimlen = range->len;
+	info.tf_success = (ret ? 0 : 1);
+	pinfo = &info;
+out_trimunlock:
+	ocfs2_trim_fs_unlock(osb, pinfo);
+	ocfs2_trim_fs_lock_res_uninit(osb);
 out_unlock:
 	ocfs2_inode_unlock(main_bm_inode, 0);
 	brelse(main_bm_bh);
