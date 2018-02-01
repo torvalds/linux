@@ -18,8 +18,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ * this program.
  *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
@@ -37,6 +36,7 @@
 #include "iwl-io.h"
 #include "internal.h"
 #include "iwl-op-mode.h"
+#include "iwl-context-info-gen3.h"
 
 /******************************************************************************
  *
@@ -2009,7 +2009,8 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 
 	/* Error detected by uCode */
 	if ((inta_fh & MSIX_FH_INT_CAUSES_FH_ERR) ||
-	    (inta_hw & MSIX_HW_INT_CAUSES_REG_SW_ERR)) {
+	    (inta_hw & MSIX_HW_INT_CAUSES_REG_SW_ERR) ||
+	    (inta_hw & MSIX_HW_INT_CAUSES_REG_SW_ERR_V2)) {
 		IWL_ERR(trans,
 			"Microcode SW error detected. Restarting 0x%X.\n",
 			inta_fh);
@@ -2034,8 +2035,18 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 		}
 	}
 
-	/* uCode wakes up after power-down sleep */
-	if (inta_hw & MSIX_HW_INT_CAUSES_REG_WAKEUP) {
+	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560 &&
+	    inta_hw & MSIX_HW_INT_CAUSES_REG_IPC) {
+		/* Reflect IML transfer status */
+		int res = iwl_read32(trans, CSR_IML_RESP_ADDR);
+
+		IWL_DEBUG_ISR(trans, "IML transfer status: %d\n", res);
+		if (res == IWL_IMAGE_RESP_FAIL) {
+			isr_stats->sw++;
+			iwl_pcie_irq_handle_error(trans);
+		}
+	} else if (inta_hw & MSIX_HW_INT_CAUSES_REG_WAKEUP) {
+		/* uCode wakes up after power-down sleep */
 		IWL_DEBUG_ISR(trans, "Wakeup interrupt\n");
 		iwl_pcie_rxq_check_wrptr(trans);
 		iwl_pcie_txq_check_wrptrs(trans);

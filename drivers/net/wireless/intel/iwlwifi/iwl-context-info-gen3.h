@@ -57,6 +57,7 @@
 #define CSR_CTXT_INFO_ADDR              0x118
 #define CSR_IML_DATA_ADDR               0x120
 #define CSR_IML_SIZE_ADDR               0x128
+#define CSR_IML_RESP_ADDR               0x12c
 
 /* Set bit for enabling automatic function boot */
 #define CSR_AUTO_FUNC_BOOT_ENA          BIT(1)

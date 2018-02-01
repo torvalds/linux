@@ -324,6 +324,18 @@ enum iwl_shared_irq_flags {
 };
 
 /**
+ * enum iwl_image_response_code - image response values
+ * @IWL_IMAGE_RESP_DEF: the default value of the register
+ * @IWL_IMAGE_RESP_SUCCESS: iml was read successfully
+ * @IWL_IMAGE_RESP_FAIL: iml reading failed
+ */
+enum iwl_image_response_code {
+	IWL_IMAGE_RESP_DEF		= 0,
+	IWL_IMAGE_RESP_SUCCESS		= 1,
+	IWL_IMAGE_RESP_FAIL		= 2,
+};
+
+/**
  * struct iwl_dram_data
  * @physical: page phy pointer
  * @block: pointer to the allocated block/page
