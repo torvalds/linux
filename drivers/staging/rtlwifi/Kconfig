@@ -7,6 +7,6 @@ config R8822BE
 	wireless network adapters.
 
 config RTLWIFI_DEBUG_ST
-	boolean
+	bool
 	depends on R8822BE
 	default y
