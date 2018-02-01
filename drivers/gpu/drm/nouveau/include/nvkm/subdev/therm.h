@@ -46,6 +46,16 @@ enum nvkm_therm_attr_type {
 	NVKM_THERM_ATTR_THRS_SHUTDOWN_HYST = 17,
 };
 
+struct nvkm_therm_clkgate_init {
+	u32 addr;
+	u8  count;
+	u32 data;
+};
+
+struct nvkm_therm_clkgate_pack {
+	const struct nvkm_therm_clkgate_init *init;
+};
+
 struct nvkm_therm {
 	const struct nvkm_therm_func *func;
 	struct nvkm_subdev subdev;
@@ -92,6 +102,8 @@ struct nvkm_therm {
 int nvkm_therm_temp_get(struct nvkm_therm *);
 int nvkm_therm_fan_sense(struct nvkm_therm *);
 int nvkm_therm_cstate(struct nvkm_therm *, int, int);
+void nvkm_therm_clkgate_init(struct nvkm_therm *,
+			     const struct nvkm_therm_clkgate_pack *);
 void nvkm_therm_clkgate_enable(struct nvkm_therm *);
 void nvkm_therm_clkgate_fini(struct nvkm_therm *, bool);
 

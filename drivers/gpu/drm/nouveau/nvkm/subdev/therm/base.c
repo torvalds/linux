@@ -391,6 +391,16 @@ nvkm_therm_init(struct nvkm_subdev *subdev)
 	return 0;
 }
 
+void
+nvkm_therm_clkgate_init(struct nvkm_therm *therm,
+			const struct nvkm_therm_clkgate_pack *p)
+{
+	if (!therm->func->clkgate_init || !therm->clkgating_enabled)
+		return;
+
+	therm->func->clkgate_init(therm, p);
+}
+
 static void *
 nvkm_therm_dtor(struct nvkm_subdev *subdev)
 {

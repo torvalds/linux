@@ -100,6 +100,7 @@ gk104_therm_func = {
 	.temp_get = g84_temp_get,
 	.fan_sense = gt215_therm_fan_sense,
 	.program_alarms = nvkm_therm_program_alarms_polling,
+	.clkgate_init = gf100_clkgate_init,
 	.clkgate_enable = gk104_clkgate_enable,
 	.clkgate_fini = gk104_clkgate_fini,
 };
