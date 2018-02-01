@@ -1389,7 +1389,8 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 		    num_engines, descq_cnt);
 
 	/* alloc memory for array of send engines */
-	dd->per_sdma = kcalloc(num_engines, sizeof(*dd->per_sdma), GFP_KERNEL);
+	dd->per_sdma = kcalloc_node(num_engines, sizeof(*dd->per_sdma),
+				    GFP_KERNEL, dd->node);
 	if (!dd->per_sdma)
 		return ret;
 
