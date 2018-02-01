@@ -392,12 +392,28 @@ out_err:
 	return ret;
 }
 
+static void ttm_tt_add_mapping(struct ttm_tt *ttm)
+{
+	pgoff_t i;
+
+	if (ttm->page_flags & TTM_PAGE_FLAG_SG)
+		return;
+
+	for (i = 0; i < ttm->num_pages; ++i)
+		ttm->pages[i]->mapping = ttm->bdev->dev_mapping;
+}
+
 int ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
+	int ret;
+
 	if (ttm->state != tt_unpopulated)
 		return 0;
 
-	return ttm->bdev->driver->ttm_tt_populate(ttm, ctx);
+	ret = ttm->bdev->driver->ttm_tt_populate(ttm, ctx);
+	if (!ret)
+		ttm_tt_add_mapping(ttm);
+	return ret;
 }
 
 static void ttm_tt_clear_mapping(struct ttm_tt *ttm)

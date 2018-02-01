@@ -257,7 +257,6 @@ static int ttm_bo_vm_fault(struct vm_fault *vmf)
 			} else if (unlikely(!page)) {
 				break;
 			}
-			page->mapping = vma->vm_file->f_mapping;
 			page->index = drm_vma_node_start(&bo->vma_node) +
 				page_offset;
 			pfn = page_to_pfn(page);
