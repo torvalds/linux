@@ -391,6 +391,9 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	GATE(0, "clk_ddrmon", "clk_ddrphy1x", CLK_IGNORE_UNUSED,
 			PX30_CLKGATE_CON(1), 11, GFLAGS),
 
+	GATE(0, "clk_ddrmon_timer", "xin24m", CLK_IGNORE_UNUSED,
+			PX30_CLKGATE_CON(0), 15, GFLAGS),
+
 	COMPOSITE_NOMUX(PCLK_DDR, "pclk_ddr", "gpll", CLK_IGNORE_UNUSED,
 			PX30_CLKSEL_CON(2), 8, 5, DFLAGS,
 			PX30_CLKGATE_CON(1), 1, GFLAGS),
