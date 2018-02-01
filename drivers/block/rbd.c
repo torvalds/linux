@@ -327,6 +327,7 @@ struct rbd_img_request {
 	int			result;	/* first nonzero obj_request result */
 
 	u32			obj_request_count;
+	u32			pending_count;
 	struct list_head	obj_requests;	/* rbd_obj_request structs */
 
 	struct kref		kref;
@@ -1406,6 +1407,7 @@ static inline void rbd_img_obj_request_add(struct rbd_img_request *img_request,
 	obj_request_img_data_set(obj_request);
 	rbd_assert(obj_request->which != BAD_WHICH);
 	img_request->obj_request_count++;
+	img_request->pending_count++;
 	list_add_tail(&obj_request->links, &img_request->obj_requests);
 	dout("%s: img %p obj %p w=%u\n", __func__, img_request, obj_request,
 		obj_request->which);
@@ -1451,10 +1453,6 @@ static void rbd_obj_request_submit(struct rbd_obj_request *obj_request)
 	dout("%s %p object_no %016llx %llu~%llu osd_req %p\n", __func__,
 	     obj_request, obj_request->object_no, obj_request->offset,
 	     obj_request->length, osd_req);
-	if (obj_request_img_data_test(obj_request)) {
-		WARN_ON(obj_request->callback != rbd_img_obj_callback);
-		rbd_img_request_get(obj_request->img_request);
-	}
 	ceph_osdc_start_request(osd_req->r_osdc, osd_req, false);
 }
 
@@ -2236,8 +2234,6 @@ static void rbd_img_request_submit(struct rbd_img_request *img_request)
 	rbd_img_request_put(img_request);
 }
 
-static void rbd_img_end_child_request(struct rbd_img_request *img_req);
-
 static int rbd_obj_read_from_parent(struct rbd_obj_request *obj_req,
 				    u64 img_offset, u32 bytes)
 {
@@ -2248,8 +2244,6 @@ static int rbd_obj_read_from_parent(struct rbd_obj_request *obj_req,
 	child_img_req = rbd_parent_request_create(obj_req, img_offset, bytes);
 	if (!child_img_req)
 		return -ENOMEM;
-
-	child_img_req->callback = rbd_img_end_child_request;
 
 	if (!rbd_img_is_write(img_req)) {
 		switch (obj_req->type) {
@@ -2386,8 +2380,6 @@ static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 	}
 
 	rbd_obj_request_submit(obj_req);
-	/* FIXME: in lieu of rbd_img_obj_callback() */
-	rbd_img_request_put(obj_req->img_request);
 	return 0;
 }
 
@@ -2540,6 +2532,29 @@ static bool __rbd_obj_handle_request(struct rbd_obj_request *obj_req)
 	}
 }
 
+static void rbd_obj_end_request(struct rbd_obj_request *obj_req)
+{
+	struct rbd_img_request *img_req = obj_req->img_request;
+
+	rbd_assert((!obj_req->result &&
+		    obj_req->xferred == obj_req->length) ||
+		   (obj_req->result < 0 && !obj_req->xferred));
+	if (!obj_req->result) {
+		img_req->xferred += obj_req->xferred;
+		return;
+	}
+
+	rbd_warn(img_req->rbd_dev,
+		 "%s at objno %llu %llu~%llu result %d xferred %llu",
+		 obj_op_name(img_req->op_type), obj_req->object_no,
+		 obj_req->offset, obj_req->length, obj_req->result,
+		 obj_req->xferred);
+	if (!img_req->result) {
+		img_req->result = obj_req->result;
+		img_req->xferred = 0;
+	}
+}
+
 static void rbd_img_end_child_request(struct rbd_img_request *img_req)
 {
 	struct rbd_obj_request *obj_req = img_req->obj_request;
@@ -2549,17 +2564,44 @@ static void rbd_img_end_child_request(struct rbd_img_request *img_req)
 	obj_req->result = img_req->result;
 	obj_req->xferred = img_req->xferred;
 	rbd_img_request_put(img_req);
+}
 
-	rbd_obj_handle_request(obj_req);
+static void rbd_img_end_request(struct rbd_img_request *img_req)
+{
+	rbd_assert(!test_bit(IMG_REQ_CHILD, &img_req->flags));
+	rbd_assert((!img_req->result &&
+		    img_req->xferred == blk_rq_bytes(img_req->rq)) ||
+		   (img_req->result < 0 && !img_req->xferred));
+
+	blk_mq_end_request(img_req->rq,
+			   errno_to_blk_status(img_req->result));
+	rbd_img_request_put(img_req);
 }
 
 static void rbd_obj_handle_request(struct rbd_obj_request *obj_req)
 {
+	struct rbd_img_request *img_req;
+
+again:
 	if (!__rbd_obj_handle_request(obj_req))
 		return;
 
-	obj_request_done_set(obj_req);
-	rbd_obj_request_complete(obj_req);
+	img_req = obj_req->img_request;
+	spin_lock(&img_req->completion_lock);
+	rbd_obj_end_request(obj_req);
+	rbd_assert(img_req->pending_count);
+	if (--img_req->pending_count) {
+		spin_unlock(&img_req->completion_lock);
+		return;
+	}
+
+	spin_unlock(&img_req->completion_lock);
+	if (test_bit(IMG_REQ_CHILD, &img_req->flags)) {
+		obj_req = img_req->obj_request;
+		rbd_img_end_child_request(img_req);
+		goto again;
+	}
+	rbd_img_end_request(img_req);
 }
 
 static const struct rbd_client_id rbd_empty_cid;
