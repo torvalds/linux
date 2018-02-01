@@ -16,7 +16,7 @@
 #include <linux/delay.h>
 #include <linux/percpu.h>
 #include <linux/cpumask.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/kvm_book3s.h>
 #include <asm/kvm_ppc.h>
 #include <asm/hvcall.h>
