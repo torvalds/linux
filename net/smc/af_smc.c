@@ -1141,7 +1141,7 @@ out:
 static __poll_t smc_accept_poll(struct sock *parent)
 {
 	struct smc_sock *isk = smc_sk(parent);
-	int mask = 0;
+	__poll_t mask = 0;
 
 	spin_lock(&isk->accept_q_lock);
 	if (!list_empty(&isk->accept_q))
