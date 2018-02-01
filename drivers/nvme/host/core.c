@@ -518,9 +518,11 @@ static blk_status_t nvme_setup_discard(struct nvme_ns *ns, struct request *req,
 		u64 slba = nvme_block_nr(ns, bio->bi_iter.bi_sector);
 		u32 nlb = bio->bi_iter.bi_size >> ns->lba_shift;
 
-		range[n].cattr = cpu_to_le32(0);
-		range[n].nlb = cpu_to_le32(nlb);
-		range[n].slba = cpu_to_le64(slba);
+		if (n < segments) {
+			range[n].cattr = cpu_to_le32(0);
+			range[n].nlb = cpu_to_le32(nlb);
+			range[n].slba = cpu_to_le64(slba);
+		}
 		n++;
 	}
 
