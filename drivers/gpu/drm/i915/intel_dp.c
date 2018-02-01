@@ -155,6 +155,28 @@ static void intel_dp_set_sink_rates(struct intel_dp *intel_dp)
 	intel_dp->num_sink_rates = i;
 }
 
+/* Get length of rates array potentially limited by max_rate. */
+static int intel_dp_rate_limit_len(const int *rates, int len, int max_rate)
+{
+	int i;
+
+	/* Limit results by potentially reduced max rate */
+	for (i = 0; i < len; i++) {
+		if (rates[len - i - 1] <= max_rate)
+			return len - i;
+	}
+
+	return 0;
+}
+
+/* Get length of common rates array potentially limited by max_rate. */
+static int intel_dp_common_len_rate_limit(const struct intel_dp *intel_dp,
+					  int max_rate)
+{
+	return intel_dp_rate_limit_len(intel_dp->common_rates,
+				       intel_dp->num_common_rates, max_rate);
+}
+
 /* Theoretical max between source and sink */
 static int intel_dp_max_common_rate(struct intel_dp *intel_dp)
 {
@@ -324,22 +346,6 @@ static void intel_dp_set_common_rates(struct intel_dp *intel_dp)
 		intel_dp->common_rates[0] = default_rates[0];
 		intel_dp->num_common_rates = 1;
 	}
-}
-
-/* get length of common rates potentially limited by max_rate */
-static int intel_dp_common_len_rate_limit(struct intel_dp *intel_dp,
-					  int max_rate)
-{
-	const int *common_rates = intel_dp->common_rates;
-	int i, common_len = intel_dp->num_common_rates;
-
-	/* Limit results by potentially reduced max rate */
-	for (i = 0; i < common_len; i++) {
-		if (common_rates[common_len - i - 1] <= max_rate)
-			return common_len - i;
-	}
-
-	return 0;
 }
 
 static bool intel_dp_link_params_valid(struct intel_dp *intel_dp, int link_rate,
