@@ -668,7 +668,6 @@ static int xgene_pcie_probe(struct platform_device *pdev)
 
 	bus = bridge->bus;
 
-	pci_scan_child_bus(bus);
 	pci_assign_unassigned_bus_resources(bus);
 	list_for_each_entry(child, &bus->children, node)
 		pcie_bus_configure_settings(child);
