@@ -131,6 +131,7 @@ int amdgpu_job_hang_limit = 0;
 int amdgpu_lbpw = -1;
 int amdgpu_compute_multipipe = -1;
 int amdgpu_gpu_recovery = -1; /* auto */
+int amdgpu_emu_mode = 0;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -285,6 +286,9 @@ module_param_named(compute_multipipe, amdgpu_compute_multipipe, int, 0444);
 
 MODULE_PARM_DESC(gpu_recovery, "Enable GPU recovery mechanism, (1 = enable, 0 = disable, -1 = auto");
 module_param_named(gpu_recovery, amdgpu_gpu_recovery, int, 0444);
+
+MODULE_PARM_DESC(emu_mode, "Emulation mode, (1 = enable, 0 = disable");
+module_param_named(emu_mode, amdgpu_emu_mode, int, 0444);
 
 #ifdef CONFIG_DRM_AMDGPU_SI
 
