@@ -873,10 +873,12 @@ static __maybe_unused int rockchip_dmcfreq_suspend(struct device *dev)
 	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	int ret = 0;
 
-	ret = devfreq_event_disable_edev(dmcfreq->edev);
-	if (ret < 0) {
-		dev_err(dev, "failed to disable the devfreq-event devices\n");
-		return ret;
+	if (dmcfreq->edev) {
+		ret = devfreq_event_disable_edev(dmcfreq->edev);
+		if (ret < 0) {
+			dev_err(dev, "failed to disable the devfreq-event devices\n");
+			return ret;
+		}
 	}
 
 	ret = devfreq_suspend_device(dmcfreq->devfreq);
@@ -893,10 +895,12 @@ static __maybe_unused int rockchip_dmcfreq_resume(struct device *dev)
 	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	int ret = 0;
 
-	ret = devfreq_event_enable_edev(dmcfreq->edev);
-	if (ret < 0) {
-		dev_err(dev, "failed to enable the devfreq-event devices\n");
-		return ret;
+	if (dmcfreq->edev) {
+		ret = devfreq_event_enable_edev(dmcfreq->edev);
+		if (ret < 0) {
+			dev_err(dev, "failed to enable the devfreq-event devices\n");
+			return ret;
+		}
 	}
 
 	ret = devfreq_resume_device(dmcfreq->devfreq);
@@ -1757,7 +1761,6 @@ static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
 						   void *ptr)
 {
 	struct rockchip_dmcfreq *dmcfreq = system_status_to_dmcfreq(nb);
-	struct devfreq *df = dmcfreq->devfreq;
 	unsigned long target_rate = 0;
 	unsigned int refresh = false;
 	bool is_dualview = false;
@@ -1821,7 +1824,7 @@ static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
 
 next:
 
-	dev_dbg(&df->dev, "status=0x%x\n", (unsigned int)status);
+	dev_dbg(&dmcfreq->devfreq->dev, "status=0x%x\n", (unsigned int)status);
 	dmcfreq->refresh = refresh;
 	dmcfreq->is_dualview = is_dualview;
 	dmcfreq->status_rate = target_rate;
@@ -2130,11 +2133,11 @@ static int devfreq_dmc_ondemand_func(struct devfreq *df,
 	int err;
 	struct devfreq_dev_status *stat;
 	unsigned long long a, b;
-	struct devfreq_simple_ondemand_data *data = df->data;
-	unsigned int upthreshold = data->upthreshold;
-	unsigned int downdifferential = data->downdifferential;
 	unsigned long max_freq = (df->max_freq) ? df->max_freq : UINT_MAX;
 	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(df->dev.parent);
+	struct devfreq_simple_ondemand_data *data = &dmcfreq->ondemand_data;
+	unsigned int upthreshold = data->upthreshold;
+	unsigned int downdifferential = data->downdifferential;
 	unsigned long target_freq = 0;
 
 	if (dmcfreq->auto_freq_en && !dmcfreq->is_dualview) {
@@ -2223,10 +2226,11 @@ static int devfreq_dmc_ondemand_handler(struct devfreq *devfreq,
 {
 	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(devfreq->dev.parent);
 
+	if (!dmcfreq->auto_freq_en)
+		return 0;
+
 	switch (event) {
 	case DEVFREQ_GOV_START:
-		if (!devfreq->data)
-			devfreq->data = &dmcfreq->ondemand_data;
 		devfreq_monitor_start(devfreq);
 		break;
 
@@ -2361,7 +2365,7 @@ static int ddr_power_model_simple_init(struct rockchip_dmcfreq *dmcfreq)
 static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *events_np, *np = pdev->dev.of_node;
 	struct rockchip_dmcfreq *data;
 	struct devfreq_dev_profile *devp = &rockchip_devfreq_dmc_profile;
 	const struct of_device_id *match;
@@ -2369,6 +2373,7 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 		    struct rockchip_dmcfreq *data);
 #define MAX_PROP_NAME_LEN	3
 	char name[MAX_PROP_NAME_LEN];
+	bool is_events_available = false;
 	int lkg_volt_sel;
 	int ret;
 
@@ -2391,14 +2396,19 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 		return PTR_ERR(data->dmc_clk);
 	}
 
-	data->edev = devfreq_event_get_edev_by_phandle(dev, 0);
-	if (IS_ERR(data->edev))
-		return -EPROBE_DEFER;
+	events_np = of_parse_phandle(np, "devfreq-events", 0);
+	if (events_np && of_device_is_available(events_np)) {
+		of_node_put(events_np);
+		data->edev = devfreq_event_get_edev_by_phandle(dev, 0);
+		if (IS_ERR(data->edev))
+			return -EPROBE_DEFER;
 
-	ret = devfreq_event_enable_edev(data->edev);
-	if (ret < 0) {
-		dev_err(dev, "failed to enable devfreq-event devices\n");
-		return ret;
+		ret = devfreq_event_enable_edev(data->edev);
+		if (ret < 0) {
+			dev_err(dev, "failed to enable devfreq-event devices\n");
+			return ret;
+		}
+		is_events_available = true;
 	}
 
 	match = of_match_node(rockchip_dmcfreq_of_match, pdev->dev.of_node);
@@ -2439,6 +2449,10 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	if (rockchip_get_system_status_rate(np, "system-status-freq", data))
 		dev_err(dev, "failed to get system status rate\n");
 	of_property_read_u32(np, "auto-freq-en", &data->auto_freq_en);
+	if (!is_events_available && data->auto_freq_en) {
+		dev_warn(dev, "events isn't available, close auto freq\n");
+		data->auto_freq_en = 0;
+	}
 	of_property_read_u32(np, "auto-min-freq", (u32 *)&data->auto_min_rate);
 	data->auto_min_rate *= 1000;
 	if (rockchip_get_freq_map_talbe(np, "vop-bw-dmc-freq",
@@ -2456,6 +2470,9 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	data->dev = dev;
+	platform_set_drvdata(pdev, data);
+
 	data->devfreq = devm_devfreq_add_device(dev, devp,
 						"dmc_ondemand",
 						&data->ondemand_data);
@@ -2470,9 +2487,6 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	data->devfreq->max_freq = data->max;
 	data->devfreq->last_status.current_frequency = data->rate;
 	reset_last_status(data->devfreq);
-
-	data->dev = dev;
-	platform_set_drvdata(pdev, data);
 
 	if (rockchip_drm_register_notifier_to_dmc(data->devfreq))
 		dev_err(dev, "drm fail to register notifier to dmc\n");
