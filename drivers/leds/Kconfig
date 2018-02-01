@@ -688,7 +688,7 @@ config LEDS_PM8058
 
 config LEDS_MLXCPLD
 	tristate "LED support for the Mellanox boards"
-	depends on X86_64 && DMI
+	depends on X86 && DMI
 	depends on LEDS_CLASS
 	help
 	  This option enabled support for the LEDs on the Mellanox
