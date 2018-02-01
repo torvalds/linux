@@ -59,8 +59,6 @@ qla2x00_sp_timeout(struct timer_list *t)
 	req->outstanding_cmds[sp->handle] = NULL;
 	iocb = &sp->u.iocb_cmd;
 	iocb->timeout(sp);
-	if (sp->type != SRB_ELS_DCMD)
-		sp->free(sp);
 	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
 }
 
@@ -102,7 +100,6 @@ qla2x00_async_iocb_timeout(void *data)
 	srb_t *sp = data;
 	fc_port_t *fcport = sp->fcport;
 	struct srb_iocb *lio = &sp->u.iocb_cmd;
-	struct event_arg ea;
 
 	if (fcport) {
 		ql_dbg(ql_dbg_disc, fcport->vha, 0x2071,
@@ -117,25 +114,13 @@ qla2x00_async_iocb_timeout(void *data)
 
 	switch (sp->type) {
 	case SRB_LOGIN_CMD:
-		if (!fcport)
-			break;
 		/* Retry as needed. */
 		lio->u.logio.data[0] = MBS_COMMAND_ERROR;
 		lio->u.logio.data[1] = lio->u.logio.flags & SRB_LOGIN_RETRIED ?
 			QLA_LOGIO_LOGIN_RETRIED : 0;
-		memset(&ea, 0, sizeof(ea));
-		ea.event = FCME_PLOGI_DONE;
-		ea.fcport = sp->fcport;
-		ea.data[0] = lio->u.logio.data[0];
-		ea.data[1] = lio->u.logio.data[1];
-		ea.sp = sp;
-		qla24xx_handle_plogi_done_event(fcport->vha, &ea);
+		sp->done(sp, QLA_FUNCTION_TIMEOUT);
 		break;
 	case SRB_LOGOUT_CMD:
-		if (!fcport)
-			break;
-		qlt_logo_completion_handler(fcport, QLA_FUNCTION_TIMEOUT);
-		break;
 	case SRB_CT_PTHRU_CMD:
 	case SRB_MB_IOCB:
 	case SRB_NACK_PLOGI:
@@ -235,12 +220,10 @@ static void
 qla2x00_async_logout_sp_done(void *ptr, int res)
 {
 	srb_t *sp = ptr;
-	struct srb_iocb *lio = &sp->u.iocb_cmd;
 
 	sp->fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
-	if (!test_bit(UNLOADING, &sp->vha->dpc_flags))
-		qla2x00_post_async_logout_done_work(sp->vha, sp->fcport,
-		    lio->u.logio.data);
+	sp->fcport->login_gen++;
+	qlt_logo_completion_handler(sp->fcport, res);
 	sp->free(sp);
 }
 
