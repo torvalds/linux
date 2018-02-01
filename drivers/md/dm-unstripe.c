@@ -195,13 +195,7 @@ static struct target_type unstripe_target = {
 
 static int __init dm_unstripe_init(void)
 {
-	int r;
-
-	r = dm_register_target(&unstripe_target);
-	if (r < 0)
-		DMERR("target registration failed");
-
-	return r;
+	return dm_register_target(&unstripe_target);
 }
 
 static void __exit dm_unstripe_exit(void)
