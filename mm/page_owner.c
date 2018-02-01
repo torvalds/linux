@@ -635,9 +635,7 @@ static int __init pageowner_init(void)
 
 	dentry = debugfs_create_file("page_owner", S_IRUSR, NULL,
 			NULL, &proc_page_owner_operations);
-	if (IS_ERR(dentry))
-		return PTR_ERR(dentry);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(dentry);
 }
 late_initcall(pageowner_init)
