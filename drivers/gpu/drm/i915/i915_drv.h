@@ -104,9 +104,13 @@
 #define I915_STATE_WARN_ON(x)						\
 	I915_STATE_WARN((x), "%s", "WARN_ON(" __stringify(x) ")")
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 bool __i915_inject_load_failure(const char *func, int line);
 #define i915_inject_load_failure() \
 	__i915_inject_load_failure(__func__, __LINE__)
+#else
+#define i915_inject_load_failure() false
+#endif
 
 typedef struct {
 	uint32_t val;

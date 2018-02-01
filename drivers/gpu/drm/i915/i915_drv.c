@@ -55,6 +55,7 @@
 
 static struct drm_driver driver;
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 static unsigned int i915_load_fail_count;
 
 bool __i915_inject_load_failure(const char *func, int line)
@@ -70,6 +71,7 @@ bool __i915_inject_load_failure(const char *func, int line)
 
 	return false;
 }
+#endif
 
 #define FDO_BUG_URL "https://bugs.freedesktop.org/enter_bug.cgi?product=DRI"
 #define FDO_BUG_MSG "Please file a bug at " FDO_BUG_URL " against DRM/Intel " \
@@ -107,8 +109,12 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 
 static bool i915_error_injected(struct drm_i915_private *dev_priv)
 {
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 	return i915_modparams.inject_load_failure &&
 	       i915_load_fail_count == i915_modparams.inject_load_failure;
+#else
+	return false;
+#endif
 }
 
 #define i915_load_error(dev_priv, fmt, ...)				     \

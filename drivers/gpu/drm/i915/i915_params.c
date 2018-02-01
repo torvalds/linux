@@ -167,8 +167,10 @@ i915_param_named_unsafe(huc_firmware_path, charp, 0400,
 i915_param_named_unsafe(enable_dp_mst, bool, 0600,
 	"Enable multi-stream transport (MST) for new DisplayPort sinks. (default: true)");
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 i915_param_named_unsafe(inject_load_failure, uint, 0400,
 	"Force an error after a number of failure check points (0:disabled (default), N:force failure at the Nth failure check point)");
+#endif
 
 i915_param_named(enable_dpcd_backlight, bool, 0600,
 	"Enable support for DPCD backlight control (default:false)");
