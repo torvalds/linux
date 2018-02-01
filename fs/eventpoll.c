@@ -661,12 +661,13 @@ static inline void ep_pm_stay_awake_rcu(struct epitem *epi)
  *
  * Returns: The same integer error code returned by the @sproc callback.
  */
-static int ep_scan_ready_list(struct eventpoll *ep,
-			      int (*sproc)(struct eventpoll *,
+static __poll_t ep_scan_ready_list(struct eventpoll *ep,
+			      __poll_t (*sproc)(struct eventpoll *,
 					   struct list_head *, void *),
 			      void *priv, int depth, bool ep_locked)
 {
-	int error, pwake = 0;
+	__poll_t res;
+	int pwake = 0;
 	unsigned long flags;
 	struct epitem *epi, *nepi;
 	LIST_HEAD(txlist);
@@ -695,7 +696,7 @@ static int ep_scan_ready_list(struct eventpoll *ep,
 	/*
 	 * Now call the callback function.
 	 */
-	error = (*sproc)(ep, &txlist, priv);
+	res = (*sproc)(ep, &txlist, priv);
 
 	spin_lock_irqsave(&ep->lock, flags);
 	/*
@@ -748,7 +749,7 @@ static int ep_scan_ready_list(struct eventpoll *ep,
 	if (pwake)
 		ep_poll_safewake(&ep->poll_wait);
 
-	return error;
+	return res;
 }
 
 static void epi_rcu_free(struct rcu_head *head)
@@ -865,7 +866,7 @@ static int ep_eventpoll_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int ep_read_events_proc(struct eventpoll *ep, struct list_head *head,
+static __poll_t ep_read_events_proc(struct eventpoll *ep, struct list_head *head,
 			       void *priv);
 static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
 				 poll_table *pt);
@@ -875,7 +876,7 @@ static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
  * the ep->mtx so we need to start from depth=1, such that mutex_lock_nested()
  * is correctly annotated.
  */
-static unsigned int ep_item_poll(const struct epitem *epi, poll_table *pt,
+static __poll_t ep_item_poll(const struct epitem *epi, poll_table *pt,
 				 int depth)
 {
 	struct eventpoll *ep;
@@ -895,7 +896,7 @@ static unsigned int ep_item_poll(const struct epitem *epi, poll_table *pt,
 				  locked) & epi->event.events;
 }
 
-static int ep_read_events_proc(struct eventpoll *ep, struct list_head *head,
+static __poll_t ep_read_events_proc(struct eventpoll *ep, struct list_head *head,
 			       void *priv)
 {
 	struct epitem *epi, *tmp;
@@ -1415,7 +1416,8 @@ static noinline void ep_destroy_wakeup_source(struct epitem *epi)
 static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 		     struct file *tfile, int fd, int full_check)
 {
-	int error, revents, pwake = 0;
+	int error, pwake = 0;
+	__poll_t revents;
 	unsigned long flags;
 	long user_watches;
 	struct epitem *epi;
@@ -1613,11 +1615,11 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi,
 	return 0;
 }
 
-static int ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
+static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
 			       void *priv)
 {
 	struct ep_send_events_data *esed = priv;
-	unsigned int revents;
+	__poll_t revents;
 	struct epitem *epi;
 	struct epoll_event __user *uevent;
 	struct wakeup_source *ws;
