@@ -997,9 +997,6 @@ static int amdgpu_ttm_tt_populate(struct ttm_tt *ttm,
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
 
-	if (ttm->state != tt_unpopulated)
-		return 0;
-
 	if (gtt && gtt->userptr) {
 		ttm->sg = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
 		if (!ttm->sg)
