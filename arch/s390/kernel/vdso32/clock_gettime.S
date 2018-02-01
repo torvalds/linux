@@ -9,14 +9,17 @@
 #include <asm/vdso.h>
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
+#include <asm/dwarf.h>
 
 	.text
 	.align 4
 	.globl __kernel_clock_gettime
 	.type  __kernel_clock_gettime,@function
 __kernel_clock_gettime:
-	.cfi_startproc
+	CFI_STARTPROC
 	ahi	%r15,-16
+	CFI_DEF_CFA_OFFSET 176
+	CFI_VAL_OFFSET 15, -160
 	basr	%r5,0
 0:	al	%r5,21f-0b(%r5)			/* get &_vdso_data */
 	chi	%r2,__CLOCK_REALTIME_COARSE
@@ -69,9 +72,13 @@ __kernel_clock_gettime:
 	st	%r1,4(%r3)			/* store tp->tv_nsec */
 	lhi	%r2,0
 	ahi	%r15,16
+	CFI_DEF_CFA_OFFSET 160
+	CFI_RESTORE 15
 	br	%r14
 
 	/* CLOCK_MONOTONIC_COARSE */
+	CFI_DEF_CFA_OFFSET 176
+	CFI_VAL_OFFSET 15, -160
 9:	l	%r4,__VDSO_UPD_COUNT+4(%r5)	/* load update counter */
 	tml	%r4,0x0001			/* pending update ? loop */
 	jnz	9b
@@ -151,15 +158,21 @@ __kernel_clock_gettime:
 	st	%r1,4(%r3)			/* store tp->tv_nsec */
 	lhi	%r2,0
 	ahi	%r15,16
+	CFI_DEF_CFA_OFFSET 160
+	CFI_RESTORE 15
 	br	%r14
 
 	/* Fallback to system call */
+	CFI_DEF_CFA_OFFSET 176
+	CFI_VAL_OFFSET 15, -160
 19:	lhi	%r1,__NR_clock_gettime
 	svc	0
 	ahi	%r15,16
+	CFI_DEF_CFA_OFFSET 160
+	CFI_RESTORE 15
 	br	%r14
+	CFI_ENDPROC
 
 20:	.long	1000000000
 21:	.long	_vdso_data - 0b
-	.cfi_endproc
 	.size	__kernel_clock_gettime,.-__kernel_clock_gettime

@@ -9,13 +9,14 @@
 #include <asm/vdso.h>
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
+#include <asm/dwarf.h>
 
 	.text
 	.align 4
 	.globl __kernel_clock_getres
 	.type  __kernel_clock_getres,@function
 __kernel_clock_getres:
-	.cfi_startproc
+	CFI_STARTPROC
 	larl	%r1,4f
 	cghi	%r2,__CLOCK_REALTIME_COARSE
 	je	0f
@@ -43,7 +44,7 @@ __kernel_clock_getres:
 2:	lghi	%r1,__NR_clock_getres		/* fallback to svc */
 	svc	0
 	br	%r14
+	CFI_ENDPROC
 3:	.quad	__CLOCK_REALTIME_RES
 4:	.quad	__CLOCK_COARSE_RES
-	.cfi_endproc
 	.size	__kernel_clock_getres,.-__kernel_clock_getres
