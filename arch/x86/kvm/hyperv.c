@@ -29,6 +29,7 @@
 #include <linux/kvm_host.h>
 #include <linux/highmem.h>
 #include <linux/sched/cputime.h>
+#include <linux/eventfd.h>
 
 #include <asm/apicdef.h>
 #include <trace/events/kvm.h>
@@ -1226,6 +1227,43 @@ static int kvm_hv_hypercall_complete_userspace(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
+static u16 kvm_hvcall_signal_event(struct kvm_vcpu *vcpu, bool fast, u64 param)
+{
+	struct eventfd_ctx *eventfd;
+
+	if (unlikely(!fast)) {
+		int ret;
+		gpa_t gpa = param;
+
+		if ((gpa & (__alignof__(param) - 1)) ||
+		    offset_in_page(gpa) + sizeof(param) > PAGE_SIZE)
+			return HV_STATUS_INVALID_ALIGNMENT;
+
+		ret = kvm_vcpu_read_guest(vcpu, gpa, &param, sizeof(param));
+		if (ret < 0)
+			return HV_STATUS_INVALID_ALIGNMENT;
+	}
+
+	/*
+	 * Per spec, bits 32-47 contain the extra "flag number".  However, we
+	 * have no use for it, and in all known usecases it is zero, so just
+	 * report lookup failure if it isn't.
+	 */
+	if (param & 0xffff00000000ULL)
+		return HV_STATUS_INVALID_PORT_ID;
+	/* remaining bits are reserved-zero */
+	if (param & ~KVM_HYPERV_CONN_ID_MASK)
+		return HV_STATUS_INVALID_HYPERCALL_INPUT;
+
+	/* conn_to_evt is protected by vcpu->kvm->srcu */
+	eventfd = idr_find(&vcpu->kvm->arch.hyperv.conn_to_evt, param);
+	if (!eventfd)
+		return HV_STATUS_INVALID_PORT_ID;
+
+	eventfd_signal(eventfd, 1);
+	return HV_STATUS_SUCCESS;
+}
+
 int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 {
 	u64 param, ingpa, outgpa, ret;
@@ -1276,8 +1314,12 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 	case HVCALL_NOTIFY_LONG_SPIN_WAIT:
 		kvm_vcpu_on_spin(vcpu, true);
 		break;
-	case HVCALL_POST_MESSAGE:
 	case HVCALL_SIGNAL_EVENT:
+		res = kvm_hvcall_signal_event(vcpu, fast, ingpa);
+		if (res != HV_STATUS_INVALID_PORT_ID)
+			break;
+		/* maybe userspace knows this conn_id: fall through */
+	case HVCALL_POST_MESSAGE:
 		/* don't bother userspace if it has no way to handle it */
 		if (!vcpu_to_synic(vcpu)->active) {
 			res = HV_STATUS_INVALID_HYPERCALL_CODE;
@@ -1305,8 +1347,67 @@ set_result:
 void kvm_hv_init_vm(struct kvm *kvm)
 {
 	mutex_init(&kvm->arch.hyperv.hv_lock);
+	idr_init(&kvm->arch.hyperv.conn_to_evt);
 }
 
 void kvm_hv_destroy_vm(struct kvm *kvm)
 {
+	struct eventfd_ctx *eventfd;
+	int i;
+
+	idr_for_each_entry(&kvm->arch.hyperv.conn_to_evt, eventfd, i)
+		eventfd_ctx_put(eventfd);
+	idr_destroy(&kvm->arch.hyperv.conn_to_evt);
+}
+
+static int kvm_hv_eventfd_assign(struct kvm *kvm, u32 conn_id, int fd)
+{
+	struct kvm_hv *hv = &kvm->arch.hyperv;
+	struct eventfd_ctx *eventfd;
+	int ret;
+
+	eventfd = eventfd_ctx_fdget(fd);
+	if (IS_ERR(eventfd))
+		return PTR_ERR(eventfd);
+
+	mutex_lock(&hv->hv_lock);
+	ret = idr_alloc(&hv->conn_to_evt, eventfd, conn_id, conn_id + 1,
+			GFP_KERNEL);
+	mutex_unlock(&hv->hv_lock);
+
+	if (ret >= 0)
+		return 0;
+
+	if (ret == -ENOSPC)
+		ret = -EEXIST;
+	eventfd_ctx_put(eventfd);
+	return ret;
+}
+
+static int kvm_hv_eventfd_deassign(struct kvm *kvm, u32 conn_id)
+{
+	struct kvm_hv *hv = &kvm->arch.hyperv;
+	struct eventfd_ctx *eventfd;
+
+	mutex_lock(&hv->hv_lock);
+	eventfd = idr_remove(&hv->conn_to_evt, conn_id);
+	mutex_unlock(&hv->hv_lock);
+
+	if (!eventfd)
+		return -ENOENT;
+
+	synchronize_srcu(&kvm->srcu);
+	eventfd_ctx_put(eventfd);
+	return 0;
+}
+
+int kvm_vm_ioctl_hv_eventfd(struct kvm *kvm, struct kvm_hyperv_eventfd *args)
+{
+	if ((args->flags & ~KVM_HYPERV_EVENTFD_DEASSIGN) ||
+	    (args->conn_id & ~KVM_HYPERV_CONN_ID_MASK))
+		return -EINVAL;
+
+	if (args->flags == KVM_HYPERV_EVENTFD_DEASSIGN)
+		return kvm_hv_eventfd_deassign(kvm, args->conn_id);
+	return kvm_hv_eventfd_assign(kvm, args->conn_id, args->fd);
 }

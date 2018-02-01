@@ -90,5 +90,6 @@ void kvm_hv_setup_tsc_page(struct kvm *kvm,
 
 void kvm_hv_init_vm(struct kvm *kvm);
 void kvm_hv_destroy_vm(struct kvm *kvm);
+int kvm_vm_ioctl_hv_eventfd(struct kvm *kvm, struct kvm_hyperv_eventfd *args);
 
 #endif

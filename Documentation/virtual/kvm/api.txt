@@ -3516,6 +3516,38 @@ Returns: 0 on success; -1 on error
 This ioctl can be used to unregister the guest memory region registered
 with KVM_MEMORY_ENCRYPT_REG_REGION ioctl above.
 
+4.113 KVM_HYPERV_EVENTFD
+
+Capability: KVM_CAP_HYPERV_EVENTFD
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_hyperv_eventfd (in)
+
+This ioctl (un)registers an eventfd to receive notifications from the guest on
+the specified Hyper-V connection id through the SIGNAL_EVENT hypercall, without
+causing a user exit.  SIGNAL_EVENT hypercall with non-zero event flag number
+(bits 24-31) still triggers a KVM_EXIT_HYPERV_HCALL user exit.
+
+struct kvm_hyperv_eventfd {
+	__u32 conn_id;
+	__s32 fd;
+	__u32 flags;
+	__u32 padding[3];
+};
+
+The conn_id field should fit within 24 bits:
+
+#define KVM_HYPERV_CONN_ID_MASK		0x00ffffff
+
+The acceptable values for the flags field are:
+
+#define KVM_HYPERV_EVENTFD_DEASSIGN	(1 << 0)
+
+Returns: 0 on success,
+	-EINVAL if conn_id or flags is outside the allowed range
+	-ENOENT on deassign if the conn_id isn't registered
+	-EEXIST on assign if the conn_id is already registered
+
 
 5. The kvm_run structure
 ------------------------
