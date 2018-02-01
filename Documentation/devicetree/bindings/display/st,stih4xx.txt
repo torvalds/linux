@@ -119,7 +119,7 @@ Example:
 / {
 	...
 
-	vtg_main_slave: sti-vtg-main-slave@fe85A800 {
+	vtg_main_slave: sti-vtg-main-slave@fe85a800 {
 		compatible	= "st,vtg";
 		reg		= <0xfe85A800 0x300>;
 		interrupts	= <GIC_SPI 175 IRQ_TYPE_NONE>;

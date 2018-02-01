@@ -138,7 +138,7 @@ from the corresponding HW reg.
 
 Example for aemif, davinci nand and nor flash chip select shown below.
 
-memory-controller@21000A00 {
+memory-controller@21000a00 {
 	compatible = "ti,davinci-aemif";
 	#address-cells = <2>;
 	#size-cells = <1>;

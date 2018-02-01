@@ -8,7 +8,7 @@ Required properties:
 
 Example:
 
-asc1: serial@E100C00 {
+asc1: serial@e100c00 {
 	compatible = "lantiq,asc";
 	reg = <0xE100C00 0x400>;
 	interrupt-parent = <&icu0>;
