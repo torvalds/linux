@@ -245,7 +245,7 @@ int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev)
 
 	force_state = MLX5_GET(teardown_hca_out, out, force_state);
 	if (force_state == MLX5_TEARDOWN_HCA_OUT_FORCE_STATE_FAIL) {
-		mlx5_core_err(dev, "teardown with force mode failed\n");
+		mlx5_core_warn(dev, "teardown with force mode failed, doing normal teardown\n");
 		return -EIO;
 	}
 
