@@ -349,6 +349,14 @@
 	};
 };
 
+&secure_memory {
+	/*
+	 * enable like this:
+	 * reg = <0x0 0x20000000 0x0 0x10000000>;
+	 */
+	reg = <0x0 0x20000000 0x0 0x0>;
+};
+
 &h265e {
 	status = "okay";
 };

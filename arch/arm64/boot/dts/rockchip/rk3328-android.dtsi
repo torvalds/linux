@@ -54,6 +54,11 @@
 			reg = <0x0 0x0 0x0 0x0>;
 		};
 
+		secure_memory: secure-memory@20000000 {
+			compatible = "rockchip,secure-memory";
+			reg = <0x0 0x20000000 0x0 0x0>;
+		};
+
 		ramoops_mem: ramoops@68000000 {
 			reg = <0x0 0x110000 0x0 0xf0000>;
 		};
@@ -72,7 +77,7 @@
 &display_subsystem {
 	logo-memory-region = <&drm_logo>;
 	status = "okay";
-
+	secure-memory-region = <&secure_memory>;
 	route {
 		route_hdmi: route-hdmi {
 			status = "okay";
