@@ -138,7 +138,7 @@ static inline int map_signal_num(int sig)
 	if (sig > SIGRTMAX)
 		return SIGUNKNOWN;
 	else if (sig >= SIGRTMIN)
-		return sig - SIGRTMIN + 128;	/* rt sigs mapped to 128 */
+		return sig - SIGRTMIN + SIGRT_BASE;
 	else if (sig < MAXMAPPED_SIG)
 		return sig_map[sig];
 	return SIGUNKNOWN;
@@ -174,11 +174,14 @@ static void audit_signal_cb(struct audit_buffer *ab, void *va)
 			audit_signal_mask(ab, aad(sa)->denied);
 		}
 	}
-	if (aad(sa)->signal < MAXMAPPED_SIGNAME)
+	if (aad(sa)->signal == SIGUNKNOWN)
+		audit_log_format(ab, "signal=unknown(%d)",
+				 aad(sa)->unmappedsig);
+	else if (aad(sa)->signal < MAXMAPPED_SIGNAME)
 		audit_log_format(ab, " signal=%s", sig_names[aad(sa)->signal]);
 	else
 		audit_log_format(ab, " signal=rtmin+%d",
-				 aad(sa)->signal - 128);
+				 aad(sa)->signal - SIGRT_BASE);
 	audit_log_format(ab, " peer=");
 	aa_label_xaudit(ab, labels_ns(aad(sa)->label), aad(sa)->peer,
 			FLAGS_NONE, GFP_ATOMIC);
@@ -211,6 +214,7 @@ int aa_may_signal(struct aa_label *sender, struct aa_label *target, int sig)
 	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, OP_SIGNAL);
 
 	aad(&sa)->signal = map_signal_num(sig);
+	aad(&sa)->unmappedsig = sig;
 	return xcheck_labels(sender, target, profile,
 			profile_signal_perm(profile, target, MAY_WRITE, &sa),
 			profile_signal_perm(profile, sender, MAY_READ, &sa));

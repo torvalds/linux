@@ -3,6 +3,7 @@
 #define SIGUNKNOWN 0
 #define MAXMAPPED_SIG 35
 #define MAXMAPPED_SIGNAME (MAXMAPPED_SIG + 1)
+#define SIGRT_BASE 128
 
 /* provide a mapping of arch signal to internal signal # for mediation
  * those that are always an alias SIGCLD for SIGCLHD and SIGPOLL for SIGIO
