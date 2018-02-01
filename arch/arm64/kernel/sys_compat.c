@@ -27,6 +27,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/cacheflush.h>
+#include <asm/system_misc.h>
 #include <asm/unistd.h>
 
 static long
@@ -67,6 +68,7 @@ do_compat_cache_op(unsigned long start, unsigned long end, int flags)
  */
 long compat_arm_syscall(struct pt_regs *regs)
 {
+	siginfo_t info;
 	unsigned int no = regs->regs[7];
 
 	switch (no) {
@@ -99,6 +101,23 @@ long compat_arm_syscall(struct pt_regs *regs)
 		return 0;
 
 	default:
-		return -ENOSYS;
+		/*
+		 * Calls 9f00xx..9f07ff are defined to return -ENOSYS
+		 * if not implemented, rather than raising SIGILL. This
+		 * way the calling program can gracefully determine whether
+		 * a feature is supported.
+		 */
+		if ((no & 0xffff) <= 0x7ff)
+			return -ENOSYS;
+		break;
 	}
+
+	info.si_signo = SIGILL;
+	info.si_errno = 0;
+	info.si_code  = ILL_ILLTRP;
+	info.si_addr  = (void __user *)instruction_pointer(regs) -
+			 (compat_thumb_mode(regs) ? 2 : 4);
+
+	arm64_notify_die("Oops - bad compat syscall(2)", regs, &info, no);
+	return 0;
 }
