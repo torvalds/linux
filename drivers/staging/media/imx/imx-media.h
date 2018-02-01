@@ -280,7 +280,7 @@ int imx_media_pipeline_set_stream(struct imx_media_dev *imxmd,
 
 /* imx-media-fim.c */
 struct imx_media_fim;
-void imx_media_fim_eof_monitor(struct imx_media_fim *fim, struct timespec *ts);
+void imx_media_fim_eof_monitor(struct imx_media_fim *fim, ktime_t timestamp);
 int imx_media_fim_set_stream(struct imx_media_fim *fim,
 			     const struct v4l2_fract *frame_interval,
 			     bool on);

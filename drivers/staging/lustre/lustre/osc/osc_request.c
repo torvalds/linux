@@ -2844,7 +2844,9 @@ static int __init osc_init(void)
 	if (rc)
 		goto out_kmem;
 
-	register_shrinker(&osc_cache_shrinker);
+	rc = register_shrinker(&osc_cache_shrinker);
+	if (rc)
+		goto out_type;
 
 	/* This is obviously too much memory, only prevent overflow here */
 	if (osc_reqpool_mem_max >= 1 << 12 || osc_reqpool_mem_max == 0) {

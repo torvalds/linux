@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * VMEbus User access driver
  *
@@ -7,12 +8,6 @@
  * Based on work by:
  *   Tom Armistead and Ajit Prem
  *     Copyright 2004 Motorola Inc.
- *
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -573,7 +568,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 		 * by all windows.
 		 */
 		image[i].resource = vme_slave_request(vme_user_bridge,
-			VME_A24, VME_SCT);
+						      VME_A24, VME_SCT);
 		if (!image[i].resource) {
 			dev_warn(&vdev->dev,
 				 "Unable to allocate slave resource\n");
@@ -582,7 +577,8 @@ static int vme_user_probe(struct vme_dev *vdev)
 		}
 		image[i].size_buf = PCI_BUF_SIZE;
 		image[i].kern_buf = vme_alloc_consistent(image[i].resource,
-			image[i].size_buf, &image[i].pci_buf);
+							 image[i].size_buf,
+							 &image[i].pci_buf);
 		if (!image[i].kern_buf) {
 			dev_warn(&vdev->dev,
 				 "Unable to allocate memory for buffer\n");
@@ -600,7 +596,8 @@ static int vme_user_probe(struct vme_dev *vdev)
 	for (i = MASTER_MINOR; i < (MASTER_MAX + 1); i++) {
 		/* XXX Need to properly request attributes */
 		image[i].resource = vme_master_request(vme_user_bridge,
-			VME_A32, VME_SCT, VME_D32);
+						       VME_A32, VME_SCT,
+						       VME_D32);
 		if (!image[i].resource) {
 			dev_warn(&vdev->dev,
 				 "Unable to allocate master resource\n");
@@ -645,7 +642,8 @@ static int vme_user_probe(struct vme_dev *vdev)
 
 		num = (type[i] == SLAVE_MINOR) ? i - (MASTER_MAX + 1) : i;
 		image[i].device = device_create(vme_user_sysfs_class, NULL,
-					MKDEV(VME_MAJOR, i), NULL, name, num);
+						MKDEV(VME_MAJOR, i), NULL,
+						name, num);
 		if (IS_ERR(image[i].device)) {
 			dev_info(&vdev->dev, "Error creating sysfs device\n");
 			err = PTR_ERR(image[i].device);

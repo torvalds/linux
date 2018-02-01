@@ -114,23 +114,27 @@ static inline void handle_pairwise_key(struct sta_info *psta,
 static inline void handle_group_key(struct ieee_param *param,
 				    struct _adapter *padapter)
 {
+	union Keytype *gk = padapter->securitypriv.XGrpKey;
+	union Keytype *gtk = padapter->securitypriv.XGrptxmickey;
+	union Keytype *grk = padapter->securitypriv.XGrprxmickey;
+
 	if (param->u.crypt.idx > 0 &&
 	    param->u.crypt.idx < 3) {
 		/* group key idx is 1 or 2 */
-		memcpy(padapter->securitypriv.XGrpKey[param->u.crypt.
-			idx - 1].skey, param->u.crypt.key,
-			(param->u.crypt.key_len > 16 ? 16 :
-			 param->u.crypt.key_len));
-		memcpy(padapter->securitypriv.XGrptxmickey[param->
-			u.crypt.idx - 1].skey, &(param->u.crypt.key[16]), 8);
-		memcpy(padapter->securitypriv. XGrprxmickey[param->
-			u.crypt.idx - 1].skey, &(param->u.crypt.key[24]), 8);
+		memcpy(gk[param->u.crypt.idx - 1].skey,
+		       param->u.crypt.key,
+		       (param->u.crypt.key_len > 16 ? 16 :
+			param->u.crypt.key_len));
+		memcpy(gtk[param->u.crypt.idx - 1].skey,
+		       &param->u.crypt.key[16], 8);
+		memcpy(grk[param->u.crypt.idx - 1].skey,
+		       &param->u.crypt.key[24], 8);
 		padapter->securitypriv.binstallGrpkey = true;
 		r8712_set_key(padapter, &padapter->securitypriv,
 			param->u.crypt.idx);
 		if (padapter->registrypriv.power_mgnt > PS_MODE_ACTIVE) {
-			if (padapter->registrypriv.power_mgnt != padapter->
-			    pwrctrlpriv.pwr_mode)
+			if (padapter->registrypriv.power_mgnt !=
+			    padapter->pwrctrlpriv.pwr_mode)
 				mod_timer(&padapter->mlmepriv.dhcp_timer,
 					  jiffies + msecs_to_jiffies(60000));
 		}
@@ -216,9 +220,9 @@ static noinline_for_stack char *translate_scan(struct _adapter *padapter,
 
 		if (dsconfig >= 1 && dsconfig <= sizeof(
 		    ieee80211_wlan_frequencies) / sizeof(long))
-			iwe.u.freq.m = (s32)(ieee80211_wlan_frequencies[
-				       pnetwork->network.Configuration.
-				       DSConfig - 1] * 100000);
+			iwe.u.freq.m =
+				(s32)(ieee80211_wlan_frequencies
+				      [dsconfig - 1] * 100000);
 		else
 			iwe.u.freq.m = 0;
 	}
@@ -425,9 +429,9 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 				ret = -EOPNOTSUPP;
 				goto exit;
 			}
-			memcpy(&(psecuritypriv->DefKey[wep_key_idx].
-				skey[0]), pwep->KeyMaterial,
-				pwep->KeyLength);
+			memcpy(&psecuritypriv->DefKey[wep_key_idx].skey[0],
+			       pwep->KeyMaterial,
+			       pwep->KeyLength);
 			psecuritypriv->DefKeylen[wep_key_idx] =
 				pwep->KeyLength;
 			r8712_set_key(padapter, psecuritypriv, wep_key_idx);
@@ -437,6 +441,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 	if (padapter->securitypriv.AuthAlgrthm == 2) { /* 802_1x */
 		struct sta_info *psta, *pbcmc_sta;
 		struct sta_priv *pstapriv = &padapter->stapriv;
+		struct security_priv *spriv = &padapter->securitypriv;
 
 		if (check_fwstate(pmlmepriv, WIFI_STATION_STATE |
 		    WIFI_MP_STATE)) { /* sta mode */
@@ -444,12 +449,11 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 						 get_bssid(pmlmepriv));
 			if (psta) {
 				psta->ieee8021x_blocked = false;
-				if ((padapter->securitypriv.ndisencryptstatus ==
-				    Ndis802_11Encryption2Enabled) ||
-				    (padapter->securitypriv.ndisencryptstatus ==
-				    Ndis802_11Encryption3Enabled))
-					psta->XPrivacy = padapter->
-					    securitypriv.PrivacyAlgrthm;
+				if (spriv->ndisencryptstatus ==
+				    Ndis802_11Encryption2Enabled ||
+				    spriv->ndisencryptstatus ==
+				    Ndis802_11Encryption3Enabled)
+					psta->XPrivacy = spriv->PrivacyAlgrthm;
 				if (param->u.crypt.set_tx == 1)
 					handle_pairwise_key(psta, param,
 							    padapter);
@@ -459,13 +463,12 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 			pbcmc_sta = r8712_get_bcmc_stainfo(padapter);
 			if (pbcmc_sta) {
 				pbcmc_sta->ieee8021x_blocked = false;
-				if ((padapter->securitypriv.ndisencryptstatus ==
-				    Ndis802_11Encryption2Enabled) ||
-				    (padapter->securitypriv.ndisencryptstatus ==
-				    Ndis802_11Encryption3Enabled))
+				if (spriv->ndisencryptstatus ==
+				    Ndis802_11Encryption2Enabled ||
+				    spriv->ndisencryptstatus ==
+				    Ndis802_11Encryption3Enabled)
 					pbcmc_sta->XPrivacy =
-					  padapter->securitypriv.
-					  PrivacyAlgrthm;
+						spriv->PrivacyAlgrthm;
 			}
 		}
 	}
@@ -763,6 +766,7 @@ static int r871x_wx_set_pmkid(struct net_device *dev,
 	struct _adapter *padapter = netdev_priv(dev);
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	struct iw_pmksa *pPMK = (struct iw_pmksa *) extra;
+	struct RT_PMKID_LIST *pl = psecuritypriv->PMKIDList;
 	u8 strZeroMacAddress[ETH_ALEN] = {0x00};
 	u8 strIssueBssid[ETH_ALEN] = {0x00};
 	u8 j, blInserted = false;
@@ -787,16 +791,14 @@ static int r871x_wx_set_pmkid(struct net_device *dev,
 		blInserted = false;
 		/* overwrite PMKID */
 		for (j = 0; j < NUM_PMKID_CACHE; j++) {
-			if (!memcmp(psecuritypriv->PMKIDList[j].Bssid,
-			    strIssueBssid, ETH_ALEN)) {
+			if (!memcmp(pl[j].Bssid, strIssueBssid, ETH_ALEN)) {
 				/* BSSID is matched, the same AP => rewrite
 				 * with new PMKID.
 				 */
 				netdev_info(dev, "r8712u: %s: BSSID exists in the PMKList.\n",
 					    __func__);
-				memcpy(psecuritypriv->PMKIDList[j].PMKID,
-					pPMK->pmkid, IW_PMKID_LEN);
-				psecuritypriv->PMKIDList[j].bUsed = true;
+				memcpy(pl[j].PMKID, pPMK->pmkid, IW_PMKID_LEN);
+				pl[j].bUsed = true;
 				psecuritypriv->PMKIDIndex = j + 1;
 				blInserted = true;
 				break;
@@ -806,12 +808,11 @@ static int r871x_wx_set_pmkid(struct net_device *dev,
 			/* Find a new entry */
 			netdev_info(dev, "r8712u: %s: Use the new entry index = %d for this PMKID.\n",
 				    __func__, psecuritypriv->PMKIDIndex);
-			memcpy(psecuritypriv->PMKIDList[psecuritypriv->
-				PMKIDIndex].Bssid, strIssueBssid, ETH_ALEN);
-			memcpy(psecuritypriv->PMKIDList[psecuritypriv->
-				PMKIDIndex].PMKID, pPMK->pmkid, IW_PMKID_LEN);
-			psecuritypriv->PMKIDList[psecuritypriv->PMKIDIndex].
-				bUsed = true;
+			memcpy(pl[psecuritypriv->PMKIDIndex].Bssid,
+			       strIssueBssid, ETH_ALEN);
+			memcpy(pl[psecuritypriv->PMKIDIndex].PMKID,
+			       pPMK->pmkid, IW_PMKID_LEN);
+			pl[psecuritypriv->PMKIDIndex].bUsed = true;
 			psecuritypriv->PMKIDIndex++;
 			if (psecuritypriv->PMKIDIndex == NUM_PMKID_CACHE)
 				psecuritypriv->PMKIDIndex = 0;
@@ -820,13 +821,12 @@ static int r871x_wx_set_pmkid(struct net_device *dev,
 	case IW_PMKSA_REMOVE:
 		intReturn = true;
 		for (j = 0; j < NUM_PMKID_CACHE; j++) {
-			if (!memcmp(psecuritypriv->PMKIDList[j].Bssid,
-			    strIssueBssid, ETH_ALEN)) {
+			if (!memcmp(pl[j].Bssid, strIssueBssid, ETH_ALEN)) {
 				/* BSSID is matched, the same AP => Remove
 				 * this PMKID information and reset it.
 				 */
-				eth_zero_addr(psecuritypriv->PMKIDList[j].Bssid);
-				psecuritypriv->PMKIDList[j].bUsed = false;
+				eth_zero_addr(pl[j].Bssid);
+				pl[j].bUsed = false;
 				break;
 			}
 		}
@@ -1598,6 +1598,7 @@ static int r8711_wx_get_enc(struct net_device *dev,
 	struct _adapter *padapter = netdev_priv(dev);
 	struct iw_point *erq = &(wrqu->encoding);
 	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
+	union Keytype *dk = padapter->securitypriv.DefKey;
 
 	if (!check_fwstate(pmlmepriv, _FW_LINKED)) {
 		if (!check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) {
@@ -1624,9 +1625,8 @@ static int r8711_wx_get_enc(struct net_device *dev,
 	case Ndis802_11Encryption1Enabled:
 		erq->length = padapter->securitypriv.DefKeylen[key];
 		if (erq->length) {
-			memcpy(keybuf, padapter->securitypriv.DefKey[
-				key].skey, padapter->securitypriv.
-				DefKeylen[key]);
+			memcpy(keybuf, dk[key].skey,
+			       padapter->securitypriv.DefKeylen[key]);
 			erq->flags |= IW_ENCODE_ENABLED;
 			if (padapter->securitypriv.ndisauthtype ==
 			    Ndis802_11AuthModeOpen)
@@ -1719,12 +1719,12 @@ static int r871x_wx_set_auth(struct net_device *dev,
 		 */
 		if (padapter->securitypriv.ndisencryptstatus ==
 		    Ndis802_11Encryption1Enabled) {
-				/* it means init value, or using wep,
-				 * ndisencryptstatus =
-				 *	Ndis802_11Encryption1Enabled,
-				 * then it needn't reset it;
-				 */
-				break;
+			/* it means init value, or using wep,
+			 * ndisencryptstatus =
+			 *	Ndis802_11Encryption1Enabled,
+			 * then it needn't reset it;
+			 */
+			break;
 		}
 
 		if (paramval) {
@@ -1853,7 +1853,7 @@ static int dummy(struct net_device *dev,
 		struct iw_request_info *a,
 		union iwreq_data *wrqu, char *b)
 {
-	return -ENOSYS;
+	return -EINVAL;
 }
 
 static int r8711_drvext_hdl(struct net_device *dev,

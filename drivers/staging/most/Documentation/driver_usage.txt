@@ -23,20 +23,29 @@ audio/video streaming. Therefore, the driver perfectly fits to the mission
 of Automotive Grade Linux to create open source software solutions for
 automotive applications.
 
-The driver consists basically of three layers. The hardware layer, the
-core layer and the application layer. The core layer consists of the core
-module only. This module handles the communication flow through all three
-layers, the configuration of the driver, the configuration interface
-representation in sysfs, and the buffer management.
-For each of the other two layers a selection of modules is provided. These
-modules can arbitrarily be combined to meet the needs of the desired
-system architecture. A module of the hardware layer is referred to as an
-HDM (hardware dependent module). Each module of this layer handles exactly
-one of the peripheral interfaces of a network interface controller (e.g.
-USB, MediaLB, I2C). A module of the application layer is referred to as an
-AIM (application interfacing module). The modules of this layer give access
-to MOST via one the following ways: character devices, ALSA, Networking or
-V4L2.
+The MOST driver uses module stacking to divide the associated modules into
+three layers. From bottom up these layers are: the adapter layer, the core
+layer and the application layer. The core layer implements the MOST
+subsystem and consists basically of the module core.c and its API. It
+registers the MOST bus with the kernel's device model, handles the data
+routing through all three layers, the configuration of the driver, the
+representation of the configuration interface in sysfs and the buffer
+management.
+
+For each of the other two layers a set of modules is provided. Those can be
+arbitrarily combined with the core to meet the connectivity of the desired
+system architecture.
+
+A module of the adapter layer is basically a device driver for a different
+subsystem. It is registered with the core to connect the MOST subsystem to
+the attached network interface controller hardware. Hence, a given module
+of this layer is designed to handle exactly one of the peripheral
+interfaces (e.g. USB, MediaLB, I2C) the hardware provides.
+
+A module of the application layer is referred to as a core comoponent,
+which kind of extends the core by providing connectivity to the user space.
+Applications, then, can access a MOST network via character devices, an
+ALSA soundcard, a Network adapter or a V4L2 capture device.
 
 To physically access MOST, an Intelligent Network Interface Controller
 (INIC) is needed. For more information on available controllers visit:
@@ -44,15 +53,14 @@ www.microchip.com
 
 
 
-		Section 1.1 Hardware Layer
+		Section 1.1 Adapter Layer
 
-The hardware layer contains so called hardware dependent modules (HDM). For each
-peripheral interface the hardware supports the driver has a suitable module
-that handles the interface.
-
-The HDMs encapsulate the peripheral interface specific knowledge of the driver
-and provides an easy way of extending the number of supported interfaces.
-Currently the following HDMs are available:
+The adapter layer contains a pool of device drivers. For each peripheral
+interface the hardware supports there is one suitable module that handles
+the interface. Adapter drivers encapsulate the peripheral interface
+specific knowledge of the MOST driver stack and provide an easy way of
+extending the number of supported interfaces. Currently the following
+interfaces are available:
 
 	1) MediaLB (DIM2)
 	   Host wants to communicate with hardware via MediaLB.
@@ -63,26 +71,34 @@ Currently the following HDMs are available:
 	3) USB
 	   Host wants to communicate with the hardware via USB.
 
+Once an adapter driver recognizes a MOST device being attached, it
+registers it with the core, which, in turn, assigns the necessary members
+of the embedded struct device (e.g. the bus this device belongs to and
+attribute groups) and registers it with the kernel's device model.
+
 
 		Section 1.2 Core Layer
 
-The core layer contains the mostcore module only, which processes the driver
-configuration via sysfs, buffer management and data forwarding.
+This layer implements the MOST subsystem. It contains the core module and
+the header file most.h that exposes the API of the core. When inserted in
+the kernel, it registers the MOST bus_type with the kernel's device model
+and registers itself as a device driver for this bus. Besides these meta
+tasks the core populates the configuration directory for a registered MOST
+device (represented by struct most_interface) in sysfs and processes the
+configuration of the device's interface. The core layer also handles the
+buffer management and the data/message routing.
 
 
+		Section 1.3 Application Layer
 
-		Section 1.2 Application Layer
-
-The application layer contains so called application interfacing modules (AIM).
-Depending on how the driver should interface to the application, one or more
-suitable modules can be selected.
-
-The AIMs encapsulate the application interface specific knowledge of the driver
-and provides access to user space or other kernel subsystems.
-Currently the following AIMs are available
+This layer contains a pool of device drivers that are components of the
+core designed to make up the userspace experience of the MOST driver stack.
+Depending on how an application is meant to interface the driver, one or
+more modules of this pool can be registered with the core. Currently the
+following components are available
 
 	1) Character Device
-	   Applications can access the driver by means of character devices.
+	   Userspace can access the driver by means of character devices.
 
 	2) Networking
 	   Standard networking applications (e.g. iperf) can by used to access
@@ -97,26 +113,62 @@ Currently the following AIMs are available
 	   used to access the driver via the ALSA subsystem.
 
 
+		Section 2 Usage of the MOST Driver
 
-		Section 2 Configuration
+		Section 2.1 Configuration
 
-See ABI/sysfs-class-most.txt
+See ABI/sysfs-bus-most.txt
+
+
+		Section 2.2 Routing Channels
+
+To connect a configured channel to a certain core component and make it
+accessible for user space applications, the driver attribute 'add_link' is
+used. The configuration string passed to it has the following format:
+
+	"device_name:channel_name:component_name:link_name[.param]"
+
+It is the concatenation of up to four substrings separated by a colon. The
+substrings contain the names of the MOST interface, the channel, the
+component driver and a custom name with which the link is going to be
+referenced with. Since some components need additional information, the
+link name can be extended with a component-specific parameter (separated by
+a dot). In case the character device component is loaded, the handle would
+also appear as a device node in the /dev directory.
+
+Cdev component example:
+        $ echo "mdev0:ep_81:cdev:my_rx_channel" >$(DRV_DIR)/add_link
+
+
+Sound component example:
+
+The sound component needs an additional parameter to determine the audio
+resolution that is going to be used. The following formats are available:
+
+	- "1x8" (Mono)
+	- "2x16" (16-bit stereo)
+	- "2x24" (24-bit stereo)
+	- "2x32" (32-bit stereo)
+	- "6x16" (16-bit surround 5.1)
+
+        $ echo "mdev0:ep_81:sound:most51_playback.6x16" >$(DRV_DIR)/add_link
 
 
 
-		Section 3 USB Padding
+		Section 2.3 USB Padding
 
-When transceiving synchronous or isochronous data, the number of packets per USB
-transaction and the sub-buffer size need to be configured. These values
-are needed for the driver to process buffer padding, as expected by hardware,
-which is for performance optimization purposes of the USB transmission.
+When transceiving synchronous or isochronous data, the number of packets
+per USB transaction and the sub-buffer size need to be configured. These
+values are needed for the driver to process buffer padding, as expected by
+hardware, which is for performance optimization purposes of the USB
+transmission.
 
 When transmitting synchronous data the allocated channel width needs to be
-written to 'set_subbuffer_size'. Additionally, the number of MOST frames that
-should travel to the host within one USB transaction need to be written to
-'packets_per_xact'.
+written to 'set_subbuffer_size'. Additionally, the number of MOST frames
+that should travel to the host within one USB transaction need to be
+written to 'packets_per_xact'.
 
-Internally the synchronous threshold is calculated as follows:
+The driver, then, calculates the synchronous threshold as follows:
 
 	frame_size = set_subbuffer_size * packets_per_xact
 
@@ -126,55 +178,21 @@ USB full packet.
 
 	frame_size = floor(MTU_USB / bandwidth_sync) * bandwidth_sync
 
-This frame_size is the number of synchronous data within an USB transaction,
-which renders MTU_USB - frame_size bytes for padding.
+This frame_size is the number of synchronous data within an USB
+transaction, which renders MTU_USB - frame_size bytes for padding.
 
 When transmitting isochronous AVP data the desired packet size needs to be
-written to 'set_subbuffer_size' and hardware will always expect two isochronous
-packets within one USB transaction. This renders
+written to 'set_subbuffer_size' and hardware will always expect two
+isochronous packets within one USB transaction. This renders
 
 	MTU_USB - (2 * set_subbuffer_size)
 
 bytes for padding.
 
-Note that at least 2 times set_subbuffer_size bytes for isochronous data or
-set_subbuffer_size times packts_per_xact bytes for synchronous data need to be
-put in the transmission buffer and passed to the driver.
+Note that at least (2 * set_subbuffer_size) bytes for isochronous data or
+(set_subbuffer_size * packts_per_xact) bytes for synchronous data need to
+be put in the transmission buffer and passed to the driver.
 
-Since HDMs are allowed to change a chosen configuration to best fit its
-constraints, it is recommended to always double check the configuration and read
-back the previously written files.
-
-
-
-		Section 4 Routing Channels
-
-To connect a channel that has been configured as outlined above to an AIM and
-make it accessible to user space applications, the attribute file 'add_link' is
-used. To actually bind a channel to the AIM a string needs to be written to the
-file that complies with the following syntax:
-
-	"most_device:channel_name:link_name[.param]"
-
-The example above links the channel "channel_name" of the device "most_device"
-to the AIM. In case the AIM interfaces the VFS this would also create a device
-node "link_name" in the /dev directory. The parameter "param" is an AIM dependent
-string, which can be omitted in case the used AIM does not make any use of it.
-
-Cdev AIM example:
-        $ echo "mdev0:ep_81:my_rx_channel" >add_link
-        $ echo "mdev0:ep_81" >add_link
-
-
-Sound/ALSA AIM example:
-
-The sound/ALSA AIM needs an additional parameter to determine the audio resolution
-that is going to be used. The following strings can be used:
-
-	- "1x8" (Mono)
-	- "2x16" (16-bit stereo)
-	- "2x24" (24-bit stereo)
-	- "2x32" (32-bit stereo)
-
-        $ echo "mdev0:ep_81:audio_rx.2x16" >add_link
-        $ echo "mdev0:ep_81" >add_link
+Since adapter drivers are allowed to change a chosen configuration to best
+fit its constraints, it is recommended to always double check the
+configuration and read back the previously written files.

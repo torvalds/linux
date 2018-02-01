@@ -46,7 +46,7 @@ ksocknal_alloc_tx(int type, int size)
 	}
 
 	if (!tx)
-		LIBCFS_ALLOC(tx, size);
+		tx = kzalloc(size, GFP_NOFS);
 
 	if (!tx)
 		return NULL;
@@ -102,7 +102,7 @@ ksocknal_free_tx(struct ksock_tx *tx)
 
 		spin_unlock(&ksocknal_data.ksnd_tx_lock);
 	} else {
-		LIBCFS_FREE(tx, tx->tx_desc_size);
+		kfree(tx);
 	}
 }
 
@@ -2117,7 +2117,7 @@ ksocknal_connd(void *arg)
 			ksocknal_create_conn(cr->ksncr_ni, NULL,
 					     cr->ksncr_sock, SOCKLND_CONN_NONE);
 			lnet_ni_decref(cr->ksncr_ni);
-			LIBCFS_FREE(cr, sizeof(*cr));
+			kfree(cr);
 
 			spin_lock_bh(connd_lock);
 		}

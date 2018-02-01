@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2012 - 2015 UNISYS CORPORATION
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
  */
 
 /* This driver lives in a spar partition, and registers to ethernet io
@@ -25,8 +16,8 @@
 #include <linux/kthread.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
+#include <linux/visorbus.h>
 
-#include "visorbus.h"
 #include "iochannel.h"
 
 #define VISORNIC_INFINITE_RSP_WAIT 0

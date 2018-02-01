@@ -213,19 +213,18 @@ static inline void fld_cache_entry_add(struct fld_cache *cache,
  */
 static int fld_cache_shrink(struct fld_cache *cache)
 {
-	struct fld_cache_entry *flde;
-	struct list_head *curr;
 	int num = 0;
 
 	if (cache->fci_cache_count < cache->fci_cache_size)
 		return 0;
 
-	curr = cache->fci_lru.prev;
-
 	while (cache->fci_cache_count + cache->fci_threshold >
-	       cache->fci_cache_size && curr != &cache->fci_lru) {
-		flde = list_entry(curr, struct fld_cache_entry, fce_lru);
-		curr = curr->prev;
+	       cache->fci_cache_size &&
+	       !list_empty(&cache->fci_lru)) {
+		struct fld_cache_entry *flde =
+			list_last_entry(&cache->fci_lru,
+					struct fld_cache_entry, fce_lru);
+
 		fld_cache_entry_delete(cache, flde);
 		num++;
 	}

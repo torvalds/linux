@@ -202,7 +202,7 @@ struct host_if_msg {
 };
 
 struct join_bss_param {
-	BSSTYPE_T bss_type;
+	enum bss_types bss_type;
 	u8 dtim_period;
 	u16 beacon_period;
 	u16 cap_info;
@@ -394,7 +394,7 @@ static void handle_set_operation_mode(struct wilc_vif *vif,
 	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				   wilc_get_vif_idx(vif));
 
-	if ((hif_op_mode->mode) == IDLE_MODE)
+	if (hif_op_mode->mode == IDLE_MODE)
 		complete(&hif_driver_comp);
 
 	if (ret)
@@ -760,8 +760,8 @@ static s32 handle_scan(struct wilc_vif *vif, struct scan_attr *scan_info)
 	hif_drv->usr_scan_req.scan_result = scan_info->result;
 	hif_drv->usr_scan_req.arg = scan_info->arg;
 
-	if ((hif_drv->hif_state >= HOST_IF_SCANNING) &&
-	    (hif_drv->hif_state < HOST_IF_CONNECTED)) {
+	if (hif_drv->hif_state >= HOST_IF_SCANNING &&
+	    hif_drv->hif_state < HOST_IF_CONNECTED) {
 		netdev_err(vif->ndev, "Already scan\n");
 		result = -EBUSY;
 		goto ERRORHANDLER;
@@ -1025,7 +1025,7 @@ static s32 Handle_Connect(struct wilc_vif *vif,
 	pu8CurrByte += MAX_SSID_LEN;
 	*(pu8CurrByte++) = INFRASTRUCTURE;
 
-	if ((pstrHostIFconnectAttr->ch >= 1) && (pstrHostIFconnectAttr->ch <= 14)) {
+	if (pstrHostIFconnectAttr->ch >= 1 && pstrHostIFconnectAttr->ch <= 14) {
 		*(pu8CurrByte++) = pstrHostIFconnectAttr->ch;
 	} else {
 		netdev_err(vif->ndev, "Channel out of range\n");
@@ -1258,8 +1258,8 @@ static s32 Handle_RcvdNtwrkInfo(struct wilc_vif *vif,
 
 	if (hif_drv->usr_scan_req.scan_result) {
 		wilc_parse_network_info(pstrRcvdNetworkInfo->buffer, &pstrNetworkInfo);
-		if ((!pstrNetworkInfo) ||
-		    (!hif_drv->usr_scan_req.scan_result)) {
+		if (!pstrNetworkInfo ||
+		    !hif_drv->usr_scan_req.scan_result) {
 			netdev_err(vif->ndev, "driver is null\n");
 			result = -EINVAL;
 			goto done;
@@ -1340,8 +1340,8 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 		return -ENODEV;
 	}
 
-	if ((hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) ||
-	    (hif_drv->hif_state == HOST_IF_CONNECTED) ||
+	if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP ||
+	    hif_drv->hif_state == HOST_IF_CONNECTED ||
 	    hif_drv->usr_scan_req.scan_result) {
 		if (!pstrRcvdGnrlAsyncInfo->buffer ||
 		    !hif_drv->usr_conn_req.conn_result) {
@@ -1400,8 +1400,8 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 				}
 			}
 
-			if ((u8MacStatus == MAC_CONNECTED) &&
-			    (strConnectInfo.status != SUCCESSFUL_STATUSCODE))	{
+			if (u8MacStatus == MAC_CONNECTED &&
+			    strConnectInfo.status != SUCCESSFUL_STATUSCODE)	{
 				netdev_err(vif->ndev, "Received MAC status is MAC_CONNECTED while the received status code in Asoc Resp is not SUCCESSFUL_STATUSCODE\n");
 				eth_zero_addr(wilc_connected_ssid);
 			} else if (u8MacStatus == MAC_DISCONNECTED)    {
@@ -1412,8 +1412,8 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 			if (hif_drv->usr_conn_req.bssid) {
 				memcpy(strConnectInfo.bssid, hif_drv->usr_conn_req.bssid, 6);
 
-				if ((u8MacStatus == MAC_CONNECTED) &&
-				    (strConnectInfo.status == SUCCESSFUL_STATUSCODE))	{
+				if (u8MacStatus == MAC_CONNECTED &&
+				    strConnectInfo.status == SUCCESSFUL_STATUSCODE)	{
 					memcpy(hif_drv->assoc_bssid,
 					       hif_drv->usr_conn_req.bssid, ETH_ALEN);
 				}
@@ -1434,8 +1434,8 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 							  NULL,
 							  hif_drv->usr_conn_req.arg);
 
-			if ((u8MacStatus == MAC_CONNECTED) &&
-			    (strConnectInfo.status == SUCCESSFUL_STATUSCODE))	{
+			if (u8MacStatus == MAC_CONNECTED &&
+			    strConnectInfo.status == SUCCESSFUL_STATUSCODE)	{
 				wilc_set_power_mgmt(vif, 0, 0);
 
 				hif_drv->hif_state = HOST_IF_CONNECTED;
@@ -1864,8 +1864,8 @@ void wilc_resolve_disconnect_aberration(struct wilc_vif *vif)
 {
 	if (!vif->hif_drv)
 		return;
-	if ((vif->hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) ||
-	    (vif->hif_drv->hif_state == HOST_IF_CONNECTING))
+	if (vif->hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP ||
+	    vif->hif_drv->hif_state == HOST_IF_CONNECTING)
 		wilc_disconnect(vif, 1);
 }
 
@@ -2414,7 +2414,7 @@ static void Handle_SetMulticastFilter(struct wilc_vif *vif,
 
 	wid.id = (u16)WID_SETUP_MULTICAST_FILTER;
 	wid.type = WID_BIN;
-	wid.size = sizeof(struct set_multicast) + ((strHostIfSetMulti->cnt) * ETH_ALEN);
+	wid.size = sizeof(struct set_multicast) + (strHostIfSetMulti->cnt * ETH_ALEN);
 	wid.val = kmalloc(wid.size, GFP_KERNEL);
 	if (!wid.val)
 		goto ERRORHANDLER;
@@ -3730,8 +3730,8 @@ int wilc_add_station(struct wilc_vif *vif, struct add_sta_param *sta_param)
 	memcpy(add_sta_info, sta_param, sizeof(struct add_sta_param));
 	if (add_sta_info->rates_len > 0) {
 		add_sta_info->rates = kmemdup(sta_param->rates,
-				      add_sta_info->rates_len,
-				      GFP_KERNEL);
+					      add_sta_info->rates_len,
+					      GFP_KERNEL);
 		if (!add_sta_info->rates)
 			return -ENOMEM;
 	}

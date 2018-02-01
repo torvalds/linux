@@ -69,8 +69,8 @@ PI433_IOC_WR_TX_CFG - set the transmission parameters
 PI433_IOC_RD_RX_CFG - get the receiving parameters from the driver
 PI433_IOC_WR_RX_CFG - set the receiving parameters
 
-The tx configuration is transfered via struct pi433_tx_cfg, the parameterset for transmission.
-It is devided into two sections: rf parameters and packet format.
+The tx configuration is transferred via struct pi433_tx_cfg, the parameterset for transmission.
+It is divided into two sections: rf parameters and packet format.
 
 rf params:
 	frequency
@@ -110,9 +110,9 @@ rf params:
 		ramp12		- amp ramps up in 12us
 		ramp10		- amp ramps up in 10us
 	tx_start_condition
-		fifoLevel	- transmission starts, if fifo is filled to
+		fifo_level	- transmission starts, if fifo is filled to
 				  threshold level
-		fifoNotEmpty	- transmission starts, as soon as there is one
+		fifo_not_empty	- transmission starts, as soon as there is one
 				  byte in internal fifo
 	repetitions
 		This gives the option, to send a telegram multiple times. Default: 1
@@ -200,11 +200,11 @@ rf params:
 		sets the gain of the low noise amp
 		automatic	- lna gain is determined by an agc
 		max		- lna gain is set to maximum
-		maxMinus6	- lna gain is set to  6db below max
-		maxMinus12	- lna gain is set to 12db below max
-		maxMinus24	- lna gain is set to 24db below max
-		maxMinus36	- lna gain is set to 36db below max
-		maxMinus48	- lna gain is set to 48db below max
+		max_minus_6	- lna gain is set to  6db below max
+		max_minus_12	- lna gain is set to 12db below max
+		max_minus_24	- lna gain is set to 24db below max
+		max_minus_36	- lna gain is set to 36db below max
+		max_minus_48	- lna gain is set to 48db below max
 	bw_mantisse
 		sets the bandwidth of the channel filter - part one: mantisse.
 		mantisse16	- mantisse is set to 16

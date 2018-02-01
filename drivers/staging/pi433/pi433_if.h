@@ -34,8 +34,10 @@
 
 /*---------------------------------------------------------------------------*/
 
-
-/*---------------------------------------------------------------------------*/
+enum option_on_off {
+	OPTION_OFF,
+	OPTION_ON
+};
 
 /* IOCTL structs and commands */
 
@@ -57,14 +59,13 @@
  *
  * NOTE: struct layout is the same in 64bit and 32bit userspace.
  */
-#define PI433_TX_CFG_IOCTL_NR 	0
-struct pi433_tx_cfg
-{
+#define PI433_TX_CFG_IOCTL_NR	0
+struct pi433_tx_cfg {
 	__u32			frequency;
 	__u16			bit_rate;
 	__u32			dev_frequency;
 	enum modulation		modulation;
-	enum modShaping		modShaping;
+	enum mod_shaping	mod_shaping;
 
 	enum paRamp		pa_ramp;
 
@@ -72,13 +73,12 @@ struct pi433_tx_cfg
 
 	__u16			repetitions;
 
-
 	/* packet format */
-	enum optionOnOff	enable_preamble;
-	enum optionOnOff	enable_sync;
-	enum optionOnOff	enable_length_byte;
-	enum optionOnOff	enable_address_byte;
-	enum optionOnOff	enable_crc;
+	enum option_on_off	enable_preamble;
+	enum option_on_off	enable_sync;
+	enum option_on_off	enable_length_byte;
+	enum option_on_off	enable_address_byte;
+	enum option_on_off	enable_crc;
 
 	__u16			preamble_length;
 	__u8			sync_length;
@@ -87,7 +87,6 @@ struct pi433_tx_cfg
 	__u8			sync_pattern[8];
 	__u8			address_byte;
 };
-
 
 /**
  * struct pi433_rx_config - describes the configuration of the radio module for sending
@@ -107,7 +106,7 @@ struct pi433_tx_cfg
  *
  * NOTE: struct layout is the same in 64bit and 32bit userspace.
  */
-#define PI433_RX_CFG_IOCTL_NR 	1
+#define PI433_RX_CFG_IOCTL_NR	1
 struct pi433_rx_cfg {
 	__u32			frequency;
 	__u16			bit_rate;
@@ -116,20 +115,18 @@ struct pi433_rx_cfg {
 	enum modulation		modulation;
 
 	__u8			rssi_threshold;
-	enum thresholdDecrement	thresholdDecrement;
+	enum thresholdDecrement	threshold_decrement;
 	enum antennaImpedance	antenna_impedance;
 	enum lnaGain		lna_gain;
 	enum mantisse		bw_mantisse;	/* normal: 0x50 */
 	__u8			bw_exponent;	/* during AFC: 0x8b */
 	enum dagc		dagc;
 
-
-
 	/* packet format */
-	enum optionOnOff	enable_sync;
-	enum optionOnOff	enable_length_byte;	  /* should be used in combination with sync, only */
+	enum option_on_off	enable_sync;
+	enum option_on_off	enable_length_byte;	  /* should be used in combination with sync, only */
 	enum addressFiltering	enable_address_filtering; /* operational with sync, only */
-	enum optionOnOff	enable_crc;		  /* only operational, if sync on and fixed length or length byte is used */
+	enum option_on_off	enable_crc;		  /* only operational, if sync on and fixed length or length byte is used */
 
 	__u8			sync_length;
 	__u8			fixed_message_length;
@@ -139,7 +136,6 @@ struct pi433_rx_cfg {
 	__u8			node_address;
 	__u8			broadcast_address;
 };
-
 
 #define PI433_IOC_MAGIC			'r'
 

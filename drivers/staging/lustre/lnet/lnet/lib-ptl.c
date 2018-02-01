@@ -771,11 +771,11 @@ lnet_ptl_cleanup(struct lnet_portal *ptl)
 						struct lnet_me, me_list);
 				CERROR("Active ME %p on exit\n", me);
 				list_del(&me->me_list);
-				lnet_me_free(me);
+				kfree(me);
 			}
 		}
 		/* the extra entry is for MEs with ignore bits */
-		LIBCFS_FREE(mhash, sizeof(*mhash) * (LNET_MT_HASH_SIZE + 1));
+		kvfree(mhash);
 	}
 
 	cfs_percpt_free(ptl->ptl_mtables);
@@ -803,8 +803,8 @@ lnet_ptl_setup(struct lnet_portal *ptl, int index)
 	spin_lock_init(&ptl->ptl_lock);
 	cfs_percpt_for_each(mtable, i, ptl->ptl_mtables) {
 		/* the extra entry is for MEs with ignore bits */
-		LIBCFS_CPT_ALLOC(mhash, lnet_cpt_table(), i,
-				 sizeof(*mhash) * (LNET_MT_HASH_SIZE + 1));
+		mhash = kvzalloc_cpt(sizeof(*mhash) * (LNET_MT_HASH_SIZE + 1),
+				     GFP_KERNEL, i);
 		if (!mhash) {
 			CERROR("Failed to create match hash for portal %d\n",
 			       index);

@@ -207,13 +207,9 @@ static irqreturn_t csi_idmac_eof_interrupt(int irq, void *dev_id)
 		goto unlock;
 	}
 
-	if (priv->fim) {
-		struct timespec cur_ts;
-
-		ktime_get_ts(&cur_ts);
+	if (priv->fim)
 		/* call frame interval monitor */
-		imx_media_fim_eof_monitor(priv->fim, &cur_ts);
-	}
+		imx_media_fim_eof_monitor(priv->fim, ktime_get());
 
 	csi_vb2_buf_done(priv);
 

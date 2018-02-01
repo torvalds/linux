@@ -145,7 +145,7 @@ static unsigned int ffaddr2pipehdl(struct dvobj_priv *pdvobj, u32 addr)
 			break;
 		}
 	} else {
-	   pipe = 0;
+		pipe = 0;
 	}
 	return pipe;
 }
