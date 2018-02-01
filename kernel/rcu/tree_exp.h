@@ -32,7 +32,7 @@ static void rcu_exp_gp_seq_start(struct rcu_state *rsp)
  * Return then value that expedited-grace-period counter will have
  * at the end of the current grace period.
  */
-static unsigned long rcu_exp_gp_seq_endval(struct rcu_state *rsp)
+static __maybe_unused unsigned long rcu_exp_gp_seq_endval(struct rcu_state *rsp)
 {
 	return rcu_seq_endval(&rsp->expedited_sequence);
 }
@@ -428,6 +428,7 @@ retry_ipi:
 			    (rnp->expmask & mask)) {
 				/* Online, so delay for a bit and try again. */
 				raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+				trace_rcu_exp_grace_period(rsp->name, rcu_exp_gp_seq_endval(rsp), TPS("selectofl"));
 				schedule_timeout_uninterruptible(1);
 				goto retry_ipi;
 			}

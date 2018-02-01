@@ -181,6 +181,7 @@ TRACE_EVENT(rcu_grace_period_init,
  *	"start": Started a real expedited grace period.
  *	"reset": Started resetting the tree
  *	"select": Started selecting the CPUs to wait on.
+ *	"selectofl": Selected CPU partially offline.
  *	"startwait": Started waiting on selected CPUs.
  *	"end": Ended a real expedited grace period.
  *	"endwake": Woke piggybackers up.
