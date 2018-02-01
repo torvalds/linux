@@ -191,9 +191,6 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 	if (!atomic_inc_not_zero(&dd->user_refcount))
 		return -ENXIO;
 
-	/* Just take a ref now. Not all opens result in a context assign */
-	kobject_get(&dd->kobj);
-
 	/* The real work is performed later in assign_ctxt() */
 
 	fd = kzalloc(sizeof(*fd), GFP_KERNEL);
@@ -203,6 +200,7 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 		fd->mm = current->mm;
 		mmgrab(fd->mm);
 		fd->dd = dd;
+		kobject_get(&fd->dd->kobj);
 		fp->private_data = fd;
 	} else {
 		fp->private_data = NULL;
