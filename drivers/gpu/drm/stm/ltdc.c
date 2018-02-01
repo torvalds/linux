@@ -703,6 +703,11 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 	if (!fb->format->has_alpha)
 		val = BF1_CA | BF2_1CA;
 
+	/* Manage hw-specific capabilities */
+	if (ldev->caps.non_alpha_only_l1 &&
+	    plane->type != DRM_PLANE_TYPE_PRIMARY)
+		val = BF1_PAXCA | BF2_1PAXCA;
+
 	reg_update_bits(ldev->regs, LTDC_L1BFCR + lofs,
 			LXBFCR_BF2 | LXBFCR_BF1, val);
 
@@ -785,6 +790,12 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
 		drm_fmt_no_alpha = get_pixelformat_without_alpha(drm_fmt);
 		if (!drm_fmt_no_alpha)
 			continue;
+
+		/* Manage hw-specific capabilities */
+		if (ldev->caps.non_alpha_only_l1 &&
+		    type != DRM_PLANE_TYPE_PRIMARY)
+			continue;
+
 		formats[nb_fmt++] = drm_fmt_no_alpha;
 	}
 
@@ -913,10 +924,19 @@ static int ltdc_get_caps(struct drm_device *ddev)
 	case HWVER_10300:
 		ldev->caps.reg_ofs = REG_OFS_NONE;
 		ldev->caps.pix_fmt_hw = ltdc_pix_fmt_a0;
+		/*
+		 * Hw older versions support non-alpha color formats derived
+		 * from native alpha color formats only on the primary layer.
+		 * For instance, RG16 native format without alpha works fine
+		 * on 2nd layer but XR24 (derived color format from AR24)
+		 * does not work on 2nd layer.
+		 */
+		ldev->caps.non_alpha_only_l1 = true;
 		break;
 	case HWVER_20101:
 		ldev->caps.reg_ofs = REG_OFS_4;
 		ldev->caps.pix_fmt_hw = ltdc_pix_fmt_a1;
+		ldev->caps.non_alpha_only_l1 = false;
 		break;
 	default:
 		return -ENODEV;
