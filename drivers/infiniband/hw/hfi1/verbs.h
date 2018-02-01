@@ -105,6 +105,11 @@ enum {
 	HFI1_HAS_GRH = (1 << 0),
 };
 
+#define LRH_16B_BYTES (FIELD_SIZEOF(struct hfi1_16b_header, lrh))
+#define LRH_16B_DWORDS (LRH_16B_BYTES / sizeof(u32))
+#define LRH_9B_BYTES (FIELD_SIZEOF(struct ib_header, lrh))
+#define LRH_9B_DWORDS (LRH_9B_BYTES / sizeof(u32))
+
 struct hfi1_16b_header {
 	u32 lrh[4];
 	union {

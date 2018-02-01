@@ -758,8 +758,6 @@ static inline void hfi1_make_ruc_header_16B(struct rvt_qp *qp,
 		struct ib_grh *grh;
 		struct ib_global_route *grd =
 			rdma_ah_retrieve_grh(&qp->remote_ah_attr);
-		int hdrwords;
-
 		/*
 		 * Ensure OPA GIDs are transformed to IB gids
 		 * before creating the GRH.
@@ -768,9 +766,10 @@ static inline void hfi1_make_ruc_header_16B(struct rvt_qp *qp,
 			grd->sgid_index = 0;
 		grh = &ps->s_txreq->phdr.hdr.opah.u.l.grh;
 		l4 = OPA_16B_L4_IB_GLOBAL;
-		hdrwords = ps->s_txreq->hdr_dwords - 4;
-		ps->s_txreq->hdr_dwords += hfi1_make_grh(ibp, grh, grd,
-							 hdrwords, nwords);
+		ps->s_txreq->hdr_dwords +=
+			hfi1_make_grh(ibp, grh, grd,
+				      ps->s_txreq->hdr_dwords - LRH_16B_DWORDS,
+				      nwords);
 		middle = 0;
 	}
 
@@ -824,13 +823,13 @@ static inline void hfi1_make_ruc_header_9B(struct rvt_qp *qp,
 
 	if (unlikely(rdma_ah_get_ah_flags(&qp->remote_ah_attr) & IB_AH_GRH)) {
 		struct ib_grh *grh = &ps->s_txreq->phdr.hdr.ibh.u.l.grh;
-		int hdrwords = ps->s_txreq->hdr_dwords - 2;
 
 		lrh0 = HFI1_LRH_GRH;
 		ps->s_txreq->hdr_dwords +=
 			hfi1_make_grh(ibp, grh,
 				      rdma_ah_read_grh(&qp->remote_ah_attr),
-				      hdrwords, nwords);
+				      ps->s_txreq->hdr_dwords - LRH_9B_DWORDS,
+				      nwords);
 		middle = 0;
 	}
 	lrh0 |= (priv->s_sc & 0xf) << 12 |

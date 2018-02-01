@@ -348,7 +348,8 @@ void hfi1_make_ud_req_9B(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		grh = &ps->s_txreq->phdr.hdr.ibh.u.l.grh;
 		ps->s_txreq->hdr_dwords +=
 			hfi1_make_grh(ibp, grh, rdma_ah_read_grh(ah_attr),
-				      ps->s_txreq->hdr_dwords - 2, nwords);
+				      ps->s_txreq->hdr_dwords - LRH_9B_DWORDS,
+				      nwords);
 		lrh0 = HFI1_LRH_GRH;
 		ohdr = &ps->s_txreq->phdr.hdr.ibh.u.l.oth;
 	} else {
@@ -428,8 +429,10 @@ void hfi1_make_ud_req_16B(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			grd->sgid_index = 0;
 		}
 		grh = &ps->s_txreq->phdr.hdr.opah.u.l.grh;
-		ps->s_txreq->hdr_dwords += hfi1_make_grh(ibp, grh, grd,
-					ps->s_txreq->hdr_dwords - 4, nwords);
+		ps->s_txreq->hdr_dwords += hfi1_make_grh(
+			ibp, grh, grd,
+			ps->s_txreq->hdr_dwords - LRH_16B_DWORDS,
+			nwords);
 		ohdr = &ps->s_txreq->phdr.hdr.opah.u.l.oth;
 		l4 = OPA_16B_L4_IB_GLOBAL;
 	} else {
@@ -648,7 +651,8 @@ void return_cnp_16B(struct hfi1_ibport *ibp, struct rvt_qp *qp,
 		struct ib_grh *grh = &hdr.u.l.grh;
 
 		grh->version_tclass_flow = old_grh->version_tclass_flow;
-		grh->paylen = cpu_to_be16((hwords - 4 + nwords) << 2);
+		grh->paylen = cpu_to_be16(
+			(hwords - LRH_16B_DWORDS + nwords) << 2);
 		grh->hop_limit = 0xff;
 		grh->sgid = old_grh->dgid;
 		grh->dgid = old_grh->sgid;
@@ -702,7 +706,8 @@ void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
 		struct ib_grh *grh = &hdr.u.l.grh;
 
 		grh->version_tclass_flow = old_grh->version_tclass_flow;
-		grh->paylen = cpu_to_be16((hwords - 2 + SIZE_OF_CRC) << 2);
+		grh->paylen = cpu_to_be16(
+			(hwords - LRH_9B_DWORDS + SIZE_OF_CRC) << 2);
 		grh->hop_limit = 0xff;
 		grh->sgid = old_grh->dgid;
 		grh->dgid = old_grh->sgid;

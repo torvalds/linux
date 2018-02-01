@@ -1499,8 +1499,10 @@ static int hfi1_setup_bypass_packet(struct hfi1_packet *packet)
 
 	/* Query commonly used fields from packet header */
 	packet->opcode = ib_bth_get_opcode(packet->ohdr);
-	packet->hlen = hdr_len_by_opcode[packet->opcode] + 8 + grh_len;
-	packet->payload = packet->ebuf + packet->hlen - (4 * sizeof(u32));
+	/* hdr_len_by_opcode already has an IB LRH factored in */
+	packet->hlen = hdr_len_by_opcode[packet->opcode] +
+		(LRH_16B_BYTES - LRH_9B_BYTES) + grh_len;
+	packet->payload = packet->ebuf + packet->hlen - LRH_16B_BYTES;
 	packet->slid = hfi1_16B_get_slid(packet->hdr);
 	packet->dlid = hfi1_16B_get_dlid(packet->hdr);
 	if (unlikely(hfi1_is_16B_mcast(packet->dlid)))
