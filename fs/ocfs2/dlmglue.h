@@ -70,6 +70,29 @@ struct ocfs2_orphan_scan_lvb {
 	__be32	lvb_os_seqno;
 };
 
+#define OCFS2_TRIMFS_LVB_VERSION 1
+
+struct ocfs2_trim_fs_lvb {
+	__u8	lvb_version;
+	__u8	lvb_success;
+	__u8	lvb_reserved[2];
+	__be32	lvb_nodenum;
+	__be64	lvb_start;
+	__be64	lvb_len;
+	__be64	lvb_minlen;
+	__be64	lvb_trimlen;
+};
+
+struct ocfs2_trim_fs_info {
+	u8	tf_valid;	/* lvb is valid, or not */
+	u8	tf_success;	/* trim is successful, or not */
+	u32	tf_nodenum;	/* osb node number */
+	u64	tf_start;	/* trim start offset in clusters */
+	u64	tf_len;		/* trim end offset in clusters */
+	u64	tf_minlen;	/* trim minimum contiguous free clusters */
+	u64	tf_trimlen;	/* trimmed length in bytes */
+};
+
 struct ocfs2_lock_holder {
 	struct list_head oh_list;
 	struct pid *oh_owner_pid;
@@ -153,6 +176,12 @@ int ocfs2_rename_lock(struct ocfs2_super *osb);
 void ocfs2_rename_unlock(struct ocfs2_super *osb);
 int ocfs2_nfs_sync_lock(struct ocfs2_super *osb, int ex);
 void ocfs2_nfs_sync_unlock(struct ocfs2_super *osb, int ex);
+void ocfs2_trim_fs_lock_res_init(struct ocfs2_super *osb);
+void ocfs2_trim_fs_lock_res_uninit(struct ocfs2_super *osb);
+int ocfs2_trim_fs_lock(struct ocfs2_super *osb,
+		       struct ocfs2_trim_fs_info *info, int trylock);
+void ocfs2_trim_fs_unlock(struct ocfs2_super *osb,
+			  struct ocfs2_trim_fs_info *info);
 int ocfs2_dentry_lock(struct dentry *dentry, int ex);
 void ocfs2_dentry_unlock(struct dentry *dentry, int ex);
 int ocfs2_file_lock(struct file *file, int ex, int trylock);
