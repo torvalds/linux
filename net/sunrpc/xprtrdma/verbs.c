@@ -83,7 +83,7 @@ rpcrdma_alloc_wq(void)
 	struct workqueue_struct *recv_wq;
 
 	recv_wq = alloc_workqueue("xprtrdma_receive",
-				  WQ_MEM_RECLAIM | WQ_UNBOUND | WQ_HIGHPRI,
+				  WQ_MEM_RECLAIM | WQ_HIGHPRI,
 				  0);
 	if (!recv_wq)
 		return -ENOMEM;

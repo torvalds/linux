@@ -39,6 +39,34 @@ typedef u8 __bitwise blk_status_t;
 
 #define BLK_STS_AGAIN		((__force blk_status_t)12)
 
+/**
+ * blk_path_error - returns true if error may be path related
+ * @error: status the request was completed with
+ *
+ * Description:
+ *     This classifies block error status into non-retryable errors and ones
+ *     that may be successful if retried on a failover path.
+ *
+ * Return:
+ *     %false - retrying failover path will not help
+ *     %true  - may succeed if retried
+ */
+static inline bool blk_path_error(blk_status_t error)
+{
+	switch (error) {
+	case BLK_STS_NOTSUPP:
+	case BLK_STS_NOSPC:
+	case BLK_STS_TARGET:
+	case BLK_STS_NEXUS:
+	case BLK_STS_MEDIUM:
+	case BLK_STS_PROTECTION:
+		return false;
+	}
+
+	/* Anything else could be a path failure, so should be retried */
+	return true;
+}
+
 struct blk_issue_stat {
 	u64 stat;
 };
@@ -50,8 +78,6 @@ struct blk_issue_stat {
 struct bio {
 	struct bio		*bi_next;	/* request queue link */
 	struct gendisk		*bi_disk;
-	u8			bi_partno;
-	blk_status_t		bi_status;
 	unsigned int		bi_opf;		/* bottom bits req flags,
 						 * top bits REQ_OP. Use
 						 * accessors.
@@ -59,8 +85,8 @@ struct bio {
 	unsigned short		bi_flags;	/* status, etc and bvec pool number */
 	unsigned short		bi_ioprio;
 	unsigned short		bi_write_hint;
-
-	struct bvec_iter	bi_iter;
+	blk_status_t		bi_status;
+	u8			bi_partno;
 
 	/* Number of segments in this BIO after
 	 * physical address coalescing is performed.
@@ -74,8 +100,9 @@ struct bio {
 	unsigned int		bi_seg_front_size;
 	unsigned int		bi_seg_back_size;
 
-	atomic_t		__bi_remaining;
+	struct bvec_iter	bi_iter;
 
+	atomic_t		__bi_remaining;
 	bio_end_io_t		*bi_end_io;
 
 	void			*bi_private;

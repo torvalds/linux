@@ -300,6 +300,29 @@ static inline void bio_get_last_bvec(struct bio *bio, struct bio_vec *bv)
 		bv->bv_len = iter.bi_bvec_done;
 }
 
+static inline unsigned bio_pages_all(struct bio *bio)
+{
+	WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED));
+	return bio->bi_vcnt;
+}
+
+static inline struct bio_vec *bio_first_bvec_all(struct bio *bio)
+{
+	WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED));
+	return bio->bi_io_vec;
+}
+
+static inline struct page *bio_first_page_all(struct bio *bio)
+{
+	return bio_first_bvec_all(bio)->bv_page;
+}
+
+static inline struct bio_vec *bio_last_bvec_all(struct bio *bio)
+{
+	WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED));
+	return &bio->bi_io_vec[bio->bi_vcnt - 1];
+}
+
 enum bip_flags {
 	BIP_BLOCK_INTEGRITY	= 1 << 0, /* block layer owns integrity data */
 	BIP_MAPPED_INTEGRITY	= 1 << 1, /* ref tag has been remapped */
@@ -477,7 +500,6 @@ static inline void bio_flush_dcache_pages(struct bio *bi)
 #endif
 
 extern void bio_copy_data(struct bio *dst, struct bio *src);
-extern int bio_alloc_pages(struct bio *bio, gfp_t gfp);
 extern void bio_free_pages(struct bio *bio);
 
 extern struct bio *bio_copy_user_iov(struct request_queue *,
@@ -492,6 +514,8 @@ extern unsigned int bvec_nr_vecs(unsigned short idx);
 
 #define bio_set_dev(bio, bdev) 			\
 do {						\
+	if ((bio)->bi_disk != (bdev)->bd_disk)	\
+		bio_clear_flag(bio, BIO_THROTTLED);\
 	(bio)->bi_disk = (bdev)->bd_disk;	\
 	(bio)->bi_partno = (bdev)->bd_partno;	\
 } while (0)

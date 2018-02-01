@@ -99,6 +99,7 @@ static void perf_top__resize(struct perf_top *top)
 
 static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 {
+	struct perf_evsel *evsel = hists_to_evsel(he->hists);
 	struct symbol *sym;
 	struct annotation *notes;
 	struct map *map;
@@ -137,7 +138,7 @@ static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 		return err;
 	}
 
-	err = symbol__disassemble(sym, map, NULL, 0, NULL, NULL);
+	err = symbol__annotate(sym, map, evsel, 0, NULL);
 	if (err == 0) {
 out_assign:
 		top->sym_filter_entry = he;
@@ -229,6 +230,7 @@ static void perf_top__record_precise_ip(struct perf_top *top,
 static void perf_top__show_details(struct perf_top *top)
 {
 	struct hist_entry *he = top->sym_filter_entry;
+	struct perf_evsel *evsel = hists_to_evsel(he->hists);
 	struct annotation *notes;
 	struct symbol *symbol;
 	int more;
@@ -240,6 +242,8 @@ static void perf_top__show_details(struct perf_top *top)
 	notes = symbol__annotation(symbol);
 
 	pthread_mutex_lock(&notes->lock);
+
+	symbol__calc_percent(symbol, evsel);
 
 	if (notes->src == NULL)
 		goto out_unlock;
@@ -412,7 +416,7 @@ static void perf_top__print_mapped_keys(struct perf_top *top)
 	fprintf(stdout, "\t[S]     stop annotation.\n");
 
 	fprintf(stdout,
-		"\t[K]     hide kernel_symbols symbols.     \t(%s)\n",
+		"\t[K]     hide kernel symbols.             \t(%s)\n",
 		top->hide_kernel_symbols ? "yes" : "no");
 	fprintf(stdout,
 		"\t[U]     hide user symbols.               \t(%s)\n",
@@ -903,7 +907,7 @@ try_again:
 		}
 	}
 
-	if (perf_evlist__mmap(evlist, opts->mmap_pages, false) < 0) {
+	if (perf_evlist__mmap(evlist, opts->mmap_pages) < 0) {
 		ui__error("Failed to mmap with %d (%s)\n",
 			    errno, str_error_r(errno, msg, sizeof(msg)));
 		goto out_err;

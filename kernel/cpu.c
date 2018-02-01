@@ -80,19 +80,19 @@ static struct lockdep_map cpuhp_state_down_map =
 	STATIC_LOCKDEP_MAP_INIT("cpuhp_state-down", &cpuhp_state_down_map);
 
 
-static void inline cpuhp_lock_acquire(bool bringup)
+static inline void cpuhp_lock_acquire(bool bringup)
 {
 	lock_map_acquire(bringup ? &cpuhp_state_up_map : &cpuhp_state_down_map);
 }
 
-static void inline cpuhp_lock_release(bool bringup)
+static inline void cpuhp_lock_release(bool bringup)
 {
 	lock_map_release(bringup ? &cpuhp_state_up_map : &cpuhp_state_down_map);
 }
 #else
 
-static void inline cpuhp_lock_acquire(bool bringup) { }
-static void inline cpuhp_lock_release(bool bringup) { }
+static inline void cpuhp_lock_acquire(bool bringup) { }
+static inline void cpuhp_lock_release(bool bringup) { }
 
 #endif
 
@@ -1277,9 +1277,9 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 	 * before blk_mq_queue_reinit_notify() from notify_dead(),
 	 * otherwise a RCU stall occurs.
 	 */
-	[CPUHP_TIMERS_DEAD] = {
+	[CPUHP_TIMERS_PREPARE] = {
 		.name			= "timers:dead",
-		.startup.single		= NULL,
+		.startup.single		= timers_prepare_cpu,
 		.teardown.single	= timers_dead_cpu,
 	},
 	/* Kicks the plugged cpu into life */

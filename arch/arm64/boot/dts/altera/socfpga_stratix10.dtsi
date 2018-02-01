@@ -66,6 +66,7 @@
 				     <&cpu1>,
 				     <&cpu2>,
 				     <&cpu3>;
+		interrupt-parent = <&intc>;
 	};
 
 	psci {

@@ -79,7 +79,7 @@ struct ap_dump_action action_table[AP_MAX_ACTIONS];
 u32 current_action = 0;
 
 #define AP_UTILITY_NAME             "ACPI Binary Table Dump Utility"
-#define AP_SUPPORTED_OPTIONS        "?a:bc:f:hn:o:r:svxz"
+#define AP_SUPPORTED_OPTIONS        "?a:bc:f:hn:o:r:sv^xz"
 
 /******************************************************************************
  *
@@ -100,6 +100,7 @@ static void ap_display_usage(void)
 	ACPI_OPTION("-r <Address>", "Dump tables from specified RSDP");
 	ACPI_OPTION("-s", "Print table summaries only");
 	ACPI_OPTION("-v", "Display version information");
+	ACPI_OPTION("-vd", "Display build date and time");
 	ACPI_OPTION("-z", "Verbose mode");
 
 	ACPI_USAGE_TEXT("\nTable Options:\n");
@@ -231,10 +232,29 @@ static int ap_do_options(int argc, char **argv)
 			}
 			continue;
 
-		case 'v':	/* Revision/version */
+		case 'v':	/* -v: (Version): signon already emitted, just exit */
 
-			acpi_os_printf(ACPI_COMMON_SIGNON(AP_UTILITY_NAME));
-			return (1);
+			switch (acpi_gbl_optarg[0]) {
+			case '^':	/* -v: (Version) */
+
+				fprintf(stderr,
+					ACPI_COMMON_SIGNON(AP_UTILITY_NAME));
+				return (1);
+
+			case 'd':
+
+				fprintf(stderr,
+					ACPI_COMMON_SIGNON(AP_UTILITY_NAME));
+				printf(ACPI_COMMON_BUILD_TIME);
+				return (1);
+
+			default:
+
+				printf("Unknown option: -v%s\n",
+				       acpi_gbl_optarg);
+				return (-1);
+			}
+			break;
 
 		case 'z':	/* Verbose mode */
 

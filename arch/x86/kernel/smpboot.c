@@ -75,7 +75,6 @@
 #include <asm/uv/uv.h>
 #include <linux/mc146818rtc.h>
 #include <asm/i8259.h>
-#include <asm/realmode.h>
 #include <asm/misc.h>
 #include <asm/qspinlock.h>
 
@@ -106,7 +105,7 @@ EXPORT_SYMBOL(__max_logical_packages);
 static unsigned int logical_packages __read_mostly;
 
 /* Maximum number of SMT threads on any online core */
-int __max_smt_threads __read_mostly;
+int __read_mostly __max_smt_threads = 1;
 
 /* Flag to indicate if a complete sched domain rebuild is required */
 bool x86_topology_update;
@@ -126,24 +125,15 @@ static inline void smpboot_setup_warm_reset_vector(unsigned long start_eip)
 	spin_lock_irqsave(&rtc_lock, flags);
 	CMOS_WRITE(0xa, 0xf);
 	spin_unlock_irqrestore(&rtc_lock, flags);
-	local_flush_tlb();
-	pr_debug("1.\n");
 	*((volatile unsigned short *)phys_to_virt(TRAMPOLINE_PHYS_HIGH)) =
 							start_eip >> 4;
-	pr_debug("2.\n");
 	*((volatile unsigned short *)phys_to_virt(TRAMPOLINE_PHYS_LOW)) =
 							start_eip & 0xf;
-	pr_debug("3.\n");
 }
 
 static inline void smpboot_restore_warm_reset_vector(void)
 {
 	unsigned long flags;
-
-	/*
-	 * Install writable page 0 entry to set BIOS data area.
-	 */
-	local_flush_tlb();
 
 	/*
 	 * Paranoid:  Set warm reset code and vector here back
@@ -932,12 +922,8 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle,
 	initial_code = (unsigned long)start_secondary;
 	initial_stack  = idle->thread.sp;
 
-	/*
-	 * Enable the espfix hack for this CPU
-	*/
-#ifdef CONFIG_X86_ESPFIX64
+	/* Enable the espfix hack for this CPU */
 	init_espfix_ap(cpu);
-#endif
 
 	/* So we see what's up */
 	announce_cpu(cpu, apicid);
@@ -947,7 +933,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle,
 	 * the targeted processor.
 	 */
 
-	if (get_uv_system_type() != UV_NON_UNIQUE_APIC) {
+	if (x86_platform.legacy.warm_reset) {
 
 		pr_debug("Setting warm reset code and vector.\n");
 
@@ -1019,7 +1005,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle,
 	/* mark "stuck" area as not stuck */
 	*trampoline_status = 0;
 
-	if (get_uv_system_type() != UV_NON_UNIQUE_APIC) {
+	if (x86_platform.legacy.warm_reset) {
 		/*
 		 * Cleanup possible dangling ends...
 		 */
@@ -1304,7 +1290,7 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 	 * Today neither Intel nor AMD support heterogenous systems so
 	 * extrapolate the boot cpu's data to all packages.
 	 */
-	ncpus = cpu_data(0).booted_cores * smp_num_siblings;
+	ncpus = cpu_data(0).booted_cores * topology_max_smt_threads();
 	__max_logical_packages = DIV_ROUND_UP(nr_cpu_ids, ncpus);
 	pr_info("Max logical packages: %u\n", __max_logical_packages);
 

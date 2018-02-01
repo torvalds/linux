@@ -1,19 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
-ifeq ($(srctree),)
-srctree := $(patsubst %/,%,$(dir $(CURDIR)))
-srctree := $(patsubst %/,%,$(dir $(srctree)))
-srctree := $(patsubst %/,%,$(dir $(srctree)))
-srctree := $(patsubst %/,%,$(dir $(srctree)))
-endif
-include $(srctree)/tools/scripts/Makefile.arch
-
-$(call detected_var,SRCARCH)
-
 LIBDIR := ../../../lib
 BPFDIR := $(LIBDIR)/bpf
 APIDIR := ../../../include/uapi
-ASMDIR:= ../../../arch/$(ARCH)/include/uapi
 GENDIR := ../../../../include/generated
 GENHDR := $(GENDIR)/autoconf.h
 
@@ -21,8 +10,8 @@ ifneq ($(wildcard $(GENHDR)),)
   GENFLAGS := -DHAVE_GENHDR
 endif
 
-CFLAGS += -Wall -O2 -I$(APIDIR) -I$(ASMDIR) -I$(LIBDIR) -I$(GENDIR) $(GENFLAGS) -I../../../include
-LDLIBS += -lcap -lelf
+CFLAGS += -Wall -O2 -I$(APIDIR) -I$(LIBDIR) -I$(GENDIR) $(GENFLAGS) -I../../../include
+LDLIBS += -lcap -lelf -lrt
 
 TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_lpm_map test_progs \
 	test_align test_verifier_log test_dev_cgroup
@@ -50,7 +39,7 @@ $(BPFOBJ): force
 CLANG ?= clang
 LLC   ?= llc
 
-PROBE := $(shell llc -march=bpf -mcpu=probe -filetype=null /dev/null 2>&1)
+PROBE := $(shell $(LLC) -march=bpf -mcpu=probe -filetype=null /dev/null 2>&1)
 
 # Let newer LLVM versions transparently probe the kernel for availability
 # of full BPF instruction set.

@@ -60,6 +60,9 @@ enum ftr_type {
 #define FTR_VISIBLE	true	/* Feature visible to the user space */
 #define FTR_HIDDEN	false	/* Feature is hidden from the user */
 
+#define FTR_VISIBLE_IF_IS_ENABLED(config)		\
+	(IS_ENABLED(config) ? FTR_VISIBLE : FTR_HIDDEN)
+
 struct arm64_ftr_bits {
 	bool		sign;	/* Value is signed ? */
 	bool		visible;

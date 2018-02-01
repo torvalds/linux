@@ -32,7 +32,7 @@ static inline void
 nv50_vmm_pgt_pte(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
 		 u32 ptei, u32 ptes, struct nvkm_vmm_map *map, u64 addr)
 {
-	u64 next = addr | map->type, data;
+	u64 next = addr + map->type, data;
 	u32 pten;
 	int log2blk;
 
@@ -69,7 +69,7 @@ nv50_vmm_pgt_dma(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
 		VMM_SPAM(vmm, "DMAA %08x %08x PTE(s)", ptei, ptes);
 		nvkm_kmap(pt->memory);
 		while (ptes--) {
-			const u64 data = *map->dma++ | map->type;
+			const u64 data = *map->dma++ + map->type;
 			VMM_WO064(pt, vmm, ptei++ * 8, data);
 			map->type += map->ctag;
 		}
@@ -163,21 +163,21 @@ nv50_vmm_pgd = {
 	.pde = nv50_vmm_pgd_pde,
 };
 
-static const struct nvkm_vmm_desc
+const struct nvkm_vmm_desc
 nv50_vmm_desc_12[] = {
 	{ PGT, 17, 8, 0x1000, &nv50_vmm_pgt },
 	{ PGD, 11, 0, 0x0000, &nv50_vmm_pgd },
 	{}
 };
 
-static const struct nvkm_vmm_desc
+const struct nvkm_vmm_desc
 nv50_vmm_desc_16[] = {
 	{ PGT, 13, 8, 0x1000, &nv50_vmm_pgt },
 	{ PGD, 11, 0, 0x0000, &nv50_vmm_pgd },
 	{}
 };
 
-static void
+void
 nv50_vmm_flush(struct nvkm_vmm *vmm, int level)
 {
 	struct nvkm_subdev *subdev = &vmm->mmu->subdev;
@@ -223,7 +223,7 @@ nv50_vmm_flush(struct nvkm_vmm *vmm, int level)
 	mutex_unlock(&subdev->mutex);
 }
 
-static int
+int
 nv50_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	       struct nvkm_vmm_map *map)
 {
@@ -321,7 +321,7 @@ nv50_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	return 0;
 }
 
-static void
+void
 nv50_vmm_part(struct nvkm_vmm *vmm, struct nvkm_memory *inst)
 {
 	struct nvkm_vmm_join *join;
@@ -335,7 +335,7 @@ nv50_vmm_part(struct nvkm_vmm *vmm, struct nvkm_memory *inst)
 	}
 }
 
-static int
+int
 nv50_vmm_join(struct nvkm_vmm *vmm, struct nvkm_memory *inst)
 {
 	const u32 pd_offset = vmm->mmu->func->vmm.pd_offset;

@@ -134,7 +134,7 @@ static int ib_device_check_mandatory(struct ib_device *device)
 	return 0;
 }
 
-struct ib_device *__ib_device_get_by_index(u32 index)
+static struct ib_device *__ib_device_get_by_index(u32 index)
 {
 	struct ib_device *device;
 
@@ -143,6 +143,22 @@ struct ib_device *__ib_device_get_by_index(u32 index)
 			return device;
 
 	return NULL;
+}
+
+/*
+ * Caller is responsible to return refrerence count by calling put_device()
+ */
+struct ib_device *ib_device_get_by_index(u32 index)
+{
+	struct ib_device *device;
+
+	down_read(&lists_rwsem);
+	device = __ib_device_get_by_index(index);
+	if (device)
+		get_device(&device->dev);
+
+	up_read(&lists_rwsem);
+	return device;
 }
 
 static struct ib_device *__ib_device_get_by_name(const char *name)
@@ -1146,7 +1162,7 @@ struct net_device *ib_get_net_dev_by_params(struct ib_device *dev,
 }
 EXPORT_SYMBOL(ib_get_net_dev_by_params);
 
-static const struct rdma_nl_cbs ibnl_ls_cb_table[] = {
+static const struct rdma_nl_cbs ibnl_ls_cb_table[RDMA_NL_LS_NUM_OPS] = {
 	[RDMA_NL_LS_OP_RESOLVE] = {
 		.doit = ib_nl_handle_resolve_resp,
 		.flags = RDMA_NL_ADMIN_PERM,

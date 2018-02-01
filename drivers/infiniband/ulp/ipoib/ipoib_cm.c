@@ -1145,6 +1145,7 @@ static int ipoib_cm_tx_init(struct ipoib_cm_tx *p, u32 qpn,
 	noio_flag = memalloc_noio_save();
 	p->tx_ring = vzalloc(ipoib_sendq_size * sizeof(*p->tx_ring));
 	if (!p->tx_ring) {
+		memalloc_noio_restore(noio_flag);
 		ret = -ENOMEM;
 		goto err_tx;
 	}
@@ -1455,8 +1456,7 @@ void ipoib_cm_skb_too_long(struct net_device *dev, struct sk_buff *skb,
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	int e = skb_queue_empty(&priv->cm.skb_queue);
 
-	if (skb_dst(skb))
-		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
+	skb_dst_update_pmtu(skb, mtu);
 
 	skb_queue_tail(&priv->cm.skb_queue, skb);
 	if (e)

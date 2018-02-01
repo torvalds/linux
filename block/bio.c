@@ -599,6 +599,8 @@ void __bio_clone_fast(struct bio *bio, struct bio *bio_src)
 	bio->bi_disk = bio_src->bi_disk;
 	bio->bi_partno = bio_src->bi_partno;
 	bio_set_flag(bio, BIO_CLONED);
+	if (bio_flagged(bio_src, BIO_THROTTLED))
+		bio_set_flag(bio, BIO_THROTTLED);
 	bio->bi_opf = bio_src->bi_opf;
 	bio->bi_write_hint = bio_src->bi_write_hint;
 	bio->bi_iter = bio_src->bi_iter;
@@ -967,34 +969,6 @@ void bio_advance(struct bio *bio, unsigned bytes)
 	bio_advance_iter(bio, &bio->bi_iter, bytes);
 }
 EXPORT_SYMBOL(bio_advance);
-
-/**
- * bio_alloc_pages - allocates a single page for each bvec in a bio
- * @bio: bio to allocate pages for
- * @gfp_mask: flags for allocation
- *
- * Allocates pages up to @bio->bi_vcnt.
- *
- * Returns 0 on success, -ENOMEM on failure. On failure, any allocated pages are
- * freed.
- */
-int bio_alloc_pages(struct bio *bio, gfp_t gfp_mask)
-{
-	int i;
-	struct bio_vec *bv;
-
-	bio_for_each_segment_all(bv, bio, i) {
-		bv->bv_page = alloc_page(gfp_mask);
-		if (!bv->bv_page) {
-			while (--bv >= bio->bi_io_vec)
-				__free_page(bv->bv_page);
-			return -ENOMEM;
-		}
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(bio_alloc_pages);
 
 /**
  * bio_copy_data - copy contents of data buffers from one chain of bios to
@@ -1836,7 +1810,7 @@ struct bio *bio_split(struct bio *bio, int sectors,
 	bio_advance(bio, split->bi_iter.bi_size);
 
 	if (bio_flagged(bio, BIO_TRACE_COMPLETION))
-		bio_set_flag(bio, BIO_TRACE_COMPLETION);
+		bio_set_flag(split, BIO_TRACE_COMPLETION);
 
 	return split;
 }

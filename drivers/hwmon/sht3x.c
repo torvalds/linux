@@ -732,6 +732,13 @@ static int sht3x_probe(struct i2c_client *client,
 	mutex_init(&data->i2c_lock);
 	mutex_init(&data->data_lock);
 
+	/*
+	 * An attempt to read limits register too early
+	 * causes a NACK response from the chip.
+	 * Waiting for an empirical delay of 500 us solves the issue.
+	 */
+	usleep_range(500, 600);
+
 	ret = limits_update(data);
 	if (ret)
 		return ret;

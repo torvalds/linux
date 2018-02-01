@@ -4458,7 +4458,7 @@ out:
 	return skb->len;
 }
 
-static const struct rdma_nl_cbs cma_cb_table[] = {
+static const struct rdma_nl_cbs cma_cb_table[RDMA_NL_RDMA_CM_NUM_OPS] = {
 	[RDMA_NL_RDMA_CM_ID_STATS] = { .dump = cma_get_id_stats},
 };
 

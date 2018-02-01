@@ -1044,7 +1044,7 @@ static void gc_worker(struct work_struct *work)
 		 * we will just continue with next hash slot.
 		 */
 		rcu_read_unlock();
-		cond_resched_rcu_qs();
+		cond_resched();
 	} while (++buckets < goal);
 
 	if (gc_work->exiting)

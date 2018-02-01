@@ -93,10 +93,14 @@ static irqreturn_t kvm_arch_timer_handler(int irq, void *dev_id)
 	struct kvm_vcpu *vcpu = *(struct kvm_vcpu **)dev_id;
 	struct arch_timer_context *vtimer;
 
-	if (!vcpu) {
-		pr_warn_once("Spurious arch timer IRQ on non-VCPU thread\n");
-		return IRQ_NONE;
-	}
+	/*
+	 * We may see a timer interrupt after vcpu_put() has been called which
+	 * sets the CPU's vcpu pointer to NULL, because even though the timer
+	 * has been disabled in vtimer_save_state(), the hardware interrupt
+	 * signal may not have been retired from the interrupt controller yet.
+	 */
+	if (!vcpu)
+		return IRQ_HANDLED;
 
 	vtimer = vcpu_vtimer(vcpu);
 	if (kvm_timer_should_fire(vtimer))
@@ -368,6 +372,7 @@ static void vtimer_save_state(struct kvm_vcpu *vcpu)
 
 	/* Disable the virtual timer */
 	write_sysreg_el0(0, cntv_ctl);
+	isb();
 
 	vtimer->loaded = false;
 out:
@@ -705,7 +710,7 @@ static int kvm_timer_dying_cpu(unsigned int cpu)
 	return 0;
 }
 
-int kvm_timer_hyp_init(void)
+int kvm_timer_hyp_init(bool has_gic)
 {
 	struct arch_timer_kvm_info *info;
 	int err;
@@ -741,10 +746,13 @@ int kvm_timer_hyp_init(void)
 		return err;
 	}
 
-	err = irq_set_vcpu_affinity(host_vtimer_irq, kvm_get_running_vcpus());
-	if (err) {
-		kvm_err("kvm_arch_timer: error setting vcpu affinity\n");
-		goto out_free_irq;
+	if (has_gic) {
+		err = irq_set_vcpu_affinity(host_vtimer_irq,
+					    kvm_get_running_vcpus());
+		if (err) {
+			kvm_err("kvm_arch_timer: error setting vcpu affinity\n");
+			goto out_free_irq;
+		}
 	}
 
 	kvm_info("virtual timer IRQ%d\n", host_vtimer_irq);
@@ -834,10 +842,7 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 no_vgic:
 	preempt_disable();
 	timer->enabled = 1;
-	if (!irqchip_in_kernel(vcpu->kvm))
-		kvm_timer_vcpu_load_user(vcpu);
-	else
-		kvm_timer_vcpu_load_vgic(vcpu);
+	kvm_timer_vcpu_load(vcpu);
 	preempt_enable();
 
 	return 0;

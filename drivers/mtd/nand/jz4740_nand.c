@@ -313,6 +313,7 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 	uint32_t ctrl;
 	struct nand_chip *chip = &nand->chip;
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	u8 id[2];
 
 	/* Request I/O resource. */
 	sprintf(res_name, "bank%d", bank);
@@ -335,17 +336,16 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 
 		/* Retrieve the IDs from the first chip. */
 		chip->select_chip(mtd, 0);
-		chip->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
-		chip->cmdfunc(mtd, NAND_CMD_READID, 0x00, -1);
-		*nand_maf_id = chip->read_byte(mtd);
-		*nand_dev_id = chip->read_byte(mtd);
+		nand_reset_op(chip);
+		nand_readid_op(chip, 0, id, sizeof(id));
+		*nand_maf_id = id[0];
+		*nand_dev_id = id[1];
 	} else {
 		/* Detect additional chip. */
 		chip->select_chip(mtd, chipnr);
-		chip->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
-		chip->cmdfunc(mtd, NAND_CMD_READID, 0x00, -1);
-		if (*nand_maf_id != chip->read_byte(mtd)
-		 || *nand_dev_id != chip->read_byte(mtd)) {
+		nand_reset_op(chip);
+		nand_readid_op(chip, 0, id, sizeof(id));
+		if (*nand_maf_id != id[0] || *nand_dev_id != id[1]) {
 			ret = -ENODEV;
 			goto notfound_id;
 		}

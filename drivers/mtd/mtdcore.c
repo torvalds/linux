@@ -503,6 +503,11 @@ int add_mtd_device(struct mtd_info *mtd)
 		return -EEXIST;
 
 	BUG_ON(mtd->writesize == 0);
+
+	if (WARN_ON((!mtd->erasesize || !mtd->_erase) &&
+		    !(mtd->flags & MTD_NO_ERASE)))
+		return -EINVAL;
+
 	mutex_lock(&mtd_table_mutex);
 
 	i = idr_alloc(&mtd_idr, mtd, 0, 0, GFP_KERNEL);
@@ -1053,7 +1058,20 @@ int mtd_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 	 * representing the maximum number of bitflips that were corrected on
 	 * any one ecc region (if applicable; zero otherwise).
 	 */
-	ret_code = mtd->_read(mtd, from, len, retlen, buf);
+	if (mtd->_read) {
+		ret_code = mtd->_read(mtd, from, len, retlen, buf);
+	} else if (mtd->_read_oob) {
+		struct mtd_oob_ops ops = {
+			.len = len,
+			.datbuf = buf,
+		};
+
+		ret_code = mtd->_read_oob(mtd, from, &ops);
+		*retlen = ops.retlen;
+	} else {
+		return -ENOTSUPP;
+	}
+
 	if (unlikely(ret_code < 0))
 		return ret_code;
 	if (mtd->ecc_strength == 0)
@@ -1068,11 +1086,25 @@ int mtd_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 	*retlen = 0;
 	if (to < 0 || to >= mtd->size || len > mtd->size - to)
 		return -EINVAL;
-	if (!mtd->_write || !(mtd->flags & MTD_WRITEABLE))
+	if ((!mtd->_write && !mtd->_write_oob) ||
+	    !(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
 	if (!len)
 		return 0;
 	ledtrig_mtd_activity();
+
+	if (!mtd->_write) {
+		struct mtd_oob_ops ops = {
+			.len = len,
+			.datbuf = (u8 *)buf,
+		};
+		int ret;
+
+		ret = mtd->_write_oob(mtd, to, &ops);
+		*retlen = ops.retlen;
+		return ret;
+	}
+
 	return mtd->_write(mtd, to, len, retlen, buf);
 }
 EXPORT_SYMBOL_GPL(mtd_write);
@@ -1114,7 +1146,7 @@ static int mtd_check_oob_ops(struct mtd_info *mtd, loff_t offs,
 	if (!ops->oobbuf)
 		ops->ooblen = 0;
 
-	if (offs < 0 || offs + ops->len >= mtd->size)
+	if (offs < 0 || offs + ops->len > mtd->size)
 		return -EINVAL;
 
 	if (ops->ooblen) {

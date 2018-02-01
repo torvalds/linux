@@ -1043,7 +1043,7 @@ void fpsimd_update_current_state(struct fpsimd_state *state)
 
 	local_bh_disable();
 
-	current->thread.fpsimd_state = *state;
+	current->thread.fpsimd_state.user_fpsimd = state->user_fpsimd;
 	if (system_supports_sve() && test_thread_flag(TIF_SVE))
 		fpsimd_to_sve(current);
 

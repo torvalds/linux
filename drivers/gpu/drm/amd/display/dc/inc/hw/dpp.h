@@ -64,7 +64,7 @@ struct dpp_funcs {
 
 	void (*opp_set_csc_default)(
 		struct dpp *dpp,
-		const struct default_adjustment *default_adjust);
+		enum dc_color_space colorspace);
 
 	void (*opp_set_csc_adjustment)(
 		struct dpp *dpp,

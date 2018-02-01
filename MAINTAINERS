@@ -62,7 +62,15 @@ trivial patch so apply some common sense.
 
 7.	When sending security related changes or reports to a maintainer
 	please Cc: security@kernel.org, especially if the maintainer
-	does not respond.
+	does not respond. Please keep in mind that the security team is
+	a small set of people who can be efficient only when working on
+	verified bugs. Please only Cc: this list when you have identified
+	that the bug would present a short-term risk to other users if it
+	were publicly disclosed. For example, reports of address leaks do
+	not represent an immediate threat and are better handled publicly,
+	and ideally, should come with a patch proposal. Please do not send
+	automated reports to this list either. Such bugs will be handled
+	better and faster in the usual public places.
 
 8.	Happy hacking.
 
@@ -321,7 +329,7 @@ F:	drivers/acpi/apei/
 
 ACPI COMPONENT ARCHITECTURE (ACPICA)
 M:	Robert Moore <robert.moore@intel.com>
-M:	Lv Zheng <lv.zheng@intel.com>
+M:	Erik Schmauss <erik.schmauss@intel.com>
 M:	"Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
 L:	linux-acpi@vger.kernel.org
 L:	devel@acpica.org
@@ -867,6 +875,12 @@ S:	Supported
 F:	drivers/android/
 F:	drivers/staging/android/
 
+ANDROID GOLDFISH PIC DRIVER
+M:	Miodrag Dinic <miodrag.dinic@mips.com>
+S:	Supported
+F:	Documentation/devicetree/bindings/interrupt-controller/google,goldfish-pic.txt
+F:	drivers/irqchip/irq-goldfish-pic.c
+
 ANDROID GOLDFISH RTC DRIVER
 M:	Miodrag Dinic <miodrag.dinic@mips.com>
 S:	Supported
@@ -1313,7 +1327,8 @@ F:	tools/perf/arch/arm/util/pmu.c
 F:	tools/perf/arch/arm/util/auxtrace.c
 F:	tools/perf/arch/arm/util/cs-etm.c
 F:	tools/perf/arch/arm/util/cs-etm.h
-F:	tools/perf/util/cs-etm.h
+F:	tools/perf/util/cs-etm.*
+F:	tools/perf/util/cs-etm-decoder/*
 
 ARM/CORGI MACHINE SUPPORT
 M:	Richard Purdie <rpurdie@rpsys.net>
@@ -1583,6 +1598,7 @@ F:	arch/arm/boot/dts/kirkwood*
 F:	arch/arm/configs/mvebu_*_defconfig
 F:	arch/arm/mach-mvebu/
 F:	arch/arm64/boot/dts/marvell/armada*
+F:	drivers/cpufreq/armada-37xx-cpufreq.c
 F:	drivers/cpufreq/mvebu-cpufreq.c
 F:	drivers/irqchip/irq-armada-370-xp.c
 F:	drivers/irqchip/irq-mvebu-*
@@ -2383,13 +2399,6 @@ F:	Documentation/devicetree/bindings/input/atmel,maxtouch.txt
 F:	drivers/input/touchscreen/atmel_mxt_ts.c
 F:	include/linux/platform_data/atmel_mxt_ts.h
 
-ATMEL NAND DRIVER
-M:	Wenyou Yang <wenyou.yang@atmel.com>
-M:	Josh Wu <rainyfeeling@outlook.com>
-L:	linux-mtd@lists.infradead.org
-S:	Supported
-F:	drivers/mtd/nand/atmel/*
-
 ATMEL SAMA5D2 ADC DRIVER
 M:	Ludovic Desroches <ludovic.desroches@microchip.com>
 L:	linux-iio@vger.kernel.org
@@ -2621,24 +2630,22 @@ F:	fs/bfs/
 F:	include/uapi/linux/bfs_fs.h
 
 BLACKFIN ARCHITECTURE
-M:	Steven Miao <realmz6@gmail.com>
 L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
 T:	git git://git.code.sf.net/p/adi-linux/code
 W:	http://blackfin.uclinux.org
-S:	Supported
+S:	Orphan
 F:	arch/blackfin/
 
 BLACKFIN EMAC DRIVER
 L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://blackfin.uclinux.org
-S:	Supported
+S:	Orphan
 F:	drivers/net/ethernet/adi/
 
 BLACKFIN MEDIA DRIVER
-M:	Scott Jiang <scott.jiang.linux@gmail.com>
 L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://blackfin.uclinux.org/
-S:	Supported
+S:	Orphan
 F:	drivers/media/platform/blackfin/
 F:	drivers/media/i2c/adv7183*
 F:	drivers/media/i2c/vs6624*
@@ -2646,25 +2653,25 @@ F:	drivers/media/i2c/vs6624*
 BLACKFIN RTC DRIVER
 L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://blackfin.uclinux.org
-S:	Supported
+S:	Orphan
 F:	drivers/rtc/rtc-bfin.c
 
 BLACKFIN SDH DRIVER
 L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://blackfin.uclinux.org
-S:	Supported
+S:	Orphan
 F:	drivers/mmc/host/bfin_sdh.c
 
 BLACKFIN SERIAL DRIVER
 L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://blackfin.uclinux.org
-S:	Supported
+S:	Orphan
 F:	drivers/tty/serial/bfin_uart.c
 
 BLACKFIN WATCHDOG DRIVER
 L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://blackfin.uclinux.org
-S:	Supported
+S:	Orphan
 F:	drivers/watchdog/bfin_wdt.c
 
 BLINKM RGB LED DRIVER
@@ -5141,6 +5148,12 @@ L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/skx_edac.c
 
+EDAC-TI
+M:	Tero Kristo <t-kristo@ti.com>
+L:	linux-edac@vger.kernel.org
+S:	Maintained
+F:	drivers/edac/ti_edac.c
+
 EDIROL UA-101/UA-1000 DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
@@ -5151,15 +5164,15 @@ F:	sound/usb/misc/ua101.c
 EFI TEST DRIVER
 L:	linux-efi@vger.kernel.org
 M:	Ivan Hu <ivan.hu@canonical.com>
-M:	Matt Fleming <matt@codeblueprint.co.uk>
+M:	Ard Biesheuvel <ard.biesheuvel@linaro.org>
 S:	Maintained
 F:	drivers/firmware/efi/test/
 
 EFI VARIABLE FILESYSTEM
 M:	Matthew Garrett <matthew.garrett@nebula.com>
 M:	Jeremy Kerr <jk@ozlabs.org>
-M:	Matt Fleming <matt@codeblueprint.co.uk>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfleming/efi.git
+M:	Ard Biesheuvel <ard.biesheuvel@linaro.org>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/efi/efi.git
 L:	linux-efi@vger.kernel.org
 S:	Maintained
 F:	fs/efivarfs/
@@ -5320,7 +5333,6 @@ S:	Supported
 F:	security/integrity/evm/
 
 EXTENSIBLE FIRMWARE INTERFACE (EFI)
-M:	Matt Fleming <matt@codeblueprint.co.uk>
 M:	Ard Biesheuvel <ard.biesheuvel@linaro.org>
 L:	linux-efi@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/efi/efi.git
@@ -5431,7 +5443,7 @@ F:	drivers/media/tuners/fc2580*
 
 FCOE SUBSYSTEM (libfc, libfcoe, fcoe)
 M:	Johannes Thumshirn <jth@kernel.org>
-L:	fcoe-devel@open-fcoe.org
+L:	linux-scsi@vger.kernel.org
 W:	www.Open-FCoE.org
 S:	Supported
 F:	drivers/scsi/libfc/
@@ -6611,16 +6623,6 @@ M:	Jean Delvare <jdelvare@suse.com>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/i2c-stub.c
-
-i386 BOOT CODE
-M:	"H. Peter Anvin" <hpa@zytor.com>
-S:	Maintained
-F:	arch/x86/boot/
-
-i386 SETUP CODE / CPU ERRATA WORKAROUNDS
-M:	"H. Peter Anvin" <hpa@zytor.com>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hpa/linux-2.6-x86setup.git
-S:	Maintained
 
 IA64 (Itanium) PLATFORM
 M:	Tony Luck <tony.luck@intel.com>
@@ -8197,6 +8199,7 @@ F:	arch/*/include/asm/rwsem.h
 F:	include/linux/seqlock.h
 F:	lib/locking*.[ch]
 F:	kernel/locking/
+X:	kernel/locking/locktorture.c
 
 LOGICAL DISK MANAGER SUPPORT (LDM, Windows 2000/XP/Vista Dynamic Disks)
 M:	"Richard Russon (FlatCap)" <ldm@flatcap.org>
@@ -8411,6 +8414,13 @@ M:	Lennert Buytenhek <buytenh@wantstofly.org>
 L:	linux-wireless@vger.kernel.org
 S:	Odd Fixes
 F:	drivers/net/wireless/marvell/mwl8k.c
+
+MARVELL NAND CONTROLLER DRIVER
+M:	Miquel Raynal <miquel.raynal@free-electrons.com>
+L:	linux-mtd@lists.infradead.org
+S:	Maintained
+F:	drivers/mtd/nand/marvell_nand.c
+F:	Documentation/devicetree/bindings/mtd/marvell-nand.txt
 
 MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
@@ -8959,7 +8969,7 @@ L:	linux-mtd@lists.infradead.org
 W:	http://www.linux-mtd.infradead.org/
 Q:	http://patchwork.ozlabs.org/project/linux-mtd/list/
 T:	git git://git.infradead.org/linux-mtd.git master
-T:	git git://git.infradead.org/l2-mtd.git master
+T:	git git://git.infradead.org/linux-mtd.git mtd/next
 S:	Maintained
 F:	Documentation/devicetree/bindings/mtd/
 F:	drivers/mtd/
@@ -9048,6 +9058,14 @@ F:	drivers/media/platform/atmel/atmel-isc.c
 F:	drivers/media/platform/atmel/atmel-isc-regs.h
 F:	devicetree/bindings/media/atmel-isc.txt
 
+MICROCHIP / ATMEL NAND DRIVER
+M:	Wenyou Yang <wenyou.yang@microchip.com>
+M:	Josh Wu <rainyfeeling@outlook.com>
+L:	linux-mtd@lists.infradead.org
+S:	Supported
+F:	drivers/mtd/nand/atmel/*
+F:	Documentation/devicetree/bindings/mtd/atmel-nand.txt
+
 MICROCHIP KSZ SERIES ETHERNET SWITCH DRIVER
 M:	Woojung Huh <Woojung.Huh@microchip.com>
 M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
@@ -9090,6 +9108,7 @@ F:	drivers/usb/image/microtek.*
 
 MIPS
 M:	Ralf Baechle <ralf@linux-mips.org>
+M:	James Hogan <jhogan@kernel.org>
 L:	linux-mips@linux-mips.org
 W:	http://www.linux-mips.org/
 T:	git git://git.linux-mips.org/pub/scm/ralf/linux.git
@@ -9347,7 +9366,7 @@ L:	linux-mtd@lists.infradead.org
 W:	http://www.linux-mtd.infradead.org/
 Q:	http://patchwork.ozlabs.org/project/linux-mtd/list/
 T:	git git://git.infradead.org/linux-mtd.git nand/fixes
-T:	git git://git.infradead.org/l2-mtd.git nand/next
+T:	git git://git.infradead.org/linux-mtd.git nand/next
 S:	Maintained
 F:	drivers/mtd/nand/
 F:	include/linux/mtd/*nand*.h
@@ -9643,8 +9662,8 @@ F:	include/uapi/linux/sunrpc/
 NILFS2 FILESYSTEM
 M:	Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>
 L:	linux-nilfs@vger.kernel.org
-W:	http://nilfs.sourceforge.net/
-W:	http://nilfs.osdn.jp/
+W:	https://nilfs.sourceforge.io/
+W:	https://nilfs.osdn.jp/
 T:	git git://github.com/konis/nilfs2.git
 S:	Supported
 F:	Documentation/filesystems/nilfs2.txt
@@ -9748,6 +9767,15 @@ S:	Supported
 F:	Documentation/filesystems/ntfs.txt
 F:	fs/ntfs/
 
+NUBUS SUBSYSTEM
+M:	Finn Thain <fthain@telegraphics.com.au>
+L:	linux-m68k@lists.linux-m68k.org
+S:	Maintained
+F:	arch/*/include/asm/nubus.h
+F:	drivers/nubus/
+F:	include/linux/nubus.h
+F:	include/uapi/linux/nubus.h
+
 NVIDIA (rivafb and nvidiafb) FRAMEBUFFER DRIVER
 M:	Antonino Daplas <adaplas@gmail.com>
 L:	linux-fbdev@vger.kernel.org
@@ -9808,6 +9836,7 @@ NXP TFA9879 DRIVER
 M:	Peter Rosin <peda@axentia.se>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
+F:	Documentation/devicetree/bindings/sound/tfa9879.txt
 F:	sound/soc/codecs/tfa9879*
 
 NXP-NCI NFC DRIVER
@@ -10139,7 +10168,7 @@ F:	drivers/irqchip/irq-ompic.c
 F:	drivers/irqchip/irq-or1k-*
 
 OPENVSWITCH
-M:	Pravin Shelar <pshelar@nicira.com>
+M:	Pravin B Shelar <pshelar@ovn.org>
 L:	netdev@vger.kernel.org
 L:	dev@openvswitch.org
 W:	http://openvswitch.org
@@ -10894,6 +10923,7 @@ F:	include/linux/pm.h
 F:	include/linux/pm_*
 F:	include/linux/powercap.h
 F:	drivers/powercap/
+F:	kernel/configs/nopm.config
 
 POWER STATE COORDINATION INTERFACE (PSCI)
 M:	Mark Rutland <mark.rutland@arm.com>
@@ -11454,15 +11484,6 @@ L:	linux-wireless@vger.kernel.org
 S:	Orphan
 F:	drivers/net/wireless/ray*
 
-RCUTORTURE MODULE
-M:	Josh Triplett <josh@joshtriplett.org>
-M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-L:	linux-kernel@vger.kernel.org
-S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-rcu.git
-F:	Documentation/RCU/torture.txt
-F:	kernel/rcu/rcutorture.c
-
 RCUTORTURE TEST FRAMEWORK
 M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 M:	Josh Triplett <josh@joshtriplett.org>
@@ -11655,8 +11676,8 @@ F:	drivers/mtd/nand/r852.h
 RISC-V ARCHITECTURE
 M:	Palmer Dabbelt <palmer@sifive.com>
 M:	Albert Ou <albert@sifive.com>
-L:	patches@groups.riscv.org
-T:	git https://github.com/riscv/riscv-linux
+L:	linux-riscv@lists.infradead.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/palmer/riscv-linux.git
 S:	Supported
 F:	arch/riscv/
 K:	riscv
@@ -12238,7 +12259,7 @@ M:	Security Officers <security@kernel.org>
 S:	Supported
 
 SECURITY SUBSYSTEM
-M:	James Morris <james.l.morris@oracle.com>
+M:	James Morris <jmorris@namei.org>
 M:	"Serge E. Hallyn" <serge@hallyn.com>
 L:	linux-security-module@vger.kernel.org (suggested Cc:)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jmorris/linux-security.git
@@ -12597,6 +12618,12 @@ F:	include/media/soc*
 F:	drivers/media/i2c/soc_camera/
 F:	drivers/media/platform/soc_camera/
 
+SOCIONEXT UNIPHIER SOUND DRIVER
+M:	Katsuhiro Suzuki <suzuki.katsuhiro@socionext.com>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+S:	Maintained
+F:	sound/soc/uniphier/
+
 SOEKRIS NET48XX LED SUPPORT
 M:	Chris Boot <bootc@bootc.net>
 S:	Maintained
@@ -12785,7 +12812,7 @@ L:	linux-mtd@lists.infradead.org
 W:	http://www.linux-mtd.infradead.org/
 Q:	http://patchwork.ozlabs.org/project/linux-mtd/list/
 T:	git git://git.infradead.org/linux-mtd.git spi-nor/fixes
-T:	git git://git.infradead.org/l2-mtd.git spi-nor/next
+T:	git git://git.infradead.org/linux-mtd.git spi-nor/next
 S:	Maintained
 F:	drivers/mtd/spi-nor/
 F:	include/linux/mtd/spi-nor.h
@@ -13120,6 +13147,7 @@ F:	drivers/dma/dw/
 
 SYNOPSYS DESIGNWARE ENTERPRISE ETHERNET DRIVER
 M:	Jie Deng <jiedeng@synopsys.com>
+M:	Jose Abreu <Jose.Abreu@synopsys.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/synopsys/
@@ -13495,6 +13523,7 @@ M:	Mika Westerberg <mika.westerberg@linux.intel.com>
 M:	Yehezkel Bernat <yehezkel.bernat@intel.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/westeri/thunderbolt.git
 S:	Maintained
+F:	Documentation/admin-guide/thunderbolt.rst
 F:	drivers/thunderbolt/
 F:	include/linux/thunderbolt.h
 
@@ -13770,6 +13799,18 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/topstar-laptop.c
 
+TORTURE-TEST MODULES
+M:	Davidlohr Bueso <dave@stgolabs.net>
+M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+M:	Josh Triplett <josh@joshtriplett.org>
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-rcu.git
+F:	Documentation/RCU/torture.txt
+F:	kernel/torture.c
+F:	kernel/rcu/rcutorture.c
+F:	kernel/locking/locktorture.c
+
 TOSHIBA ACPI EXTRAS DRIVER
 M:	Azael Avalos <coproscefalo@gmail.com>
 L:	platform-driver-x86@vger.kernel.org
@@ -13852,6 +13893,13 @@ M:	Jiri Kosina <trivial@kernel.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/trivial.git
 S:	Maintained
 K:	^Subject:.*(?i)trivial
+
+TEMPO SEMICONDUCTOR DRIVERS
+M:	Steven Eckhoff <steven.eckhoff.opensource@gmail.com>
+S:	Maintained
+F:	sound/soc/codecs/tscs*.c
+F:	sound/soc/codecs/tscs*.h
+F:	Documentation/devicetree/bindings/sound/tscs*.txt
 
 TTY LAYER
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
@@ -14651,6 +14699,7 @@ W:	http://www.slimlogic.co.uk/?p=48
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/regulator.git
 S:	Supported
 F:	Documentation/devicetree/bindings/regulator/
+F:	Documentation/power/regulator/
 F:	drivers/regulator/
 F:	include/dt-bindings/regulator/
 F:	include/linux/regulator/
@@ -14861,7 +14910,7 @@ F:	net/x25/
 X86 ARCHITECTURE (32-BIT AND 64-BIT)
 M:	Thomas Gleixner <tglx@linutronix.de>
 M:	Ingo Molnar <mingo@redhat.com>
-M:	"H. Peter Anvin" <hpa@zytor.com>
+R:	"H. Peter Anvin" <hpa@zytor.com>
 M:	x86@kernel.org
 L:	linux-kernel@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git x86/core

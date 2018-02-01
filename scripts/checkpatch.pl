@@ -5586,6 +5586,12 @@ sub process {
 			}
 		}
 
+# check for smp_read_barrier_depends and read_barrier_depends
+		if (!$file && $line =~ /\b(smp_|)read_barrier_depends\s*\(/) {
+			WARN("READ_BARRIER_DEPENDS",
+			     "$1read_barrier_depends should only be used in READ_ONCE or DEC Alpha code\n" . $herecurr);
+		}
+
 # check of hardware specific defines
 		if ($line =~ m@^.\s*\#\s*if.*\b(__i386__|__powerpc64__|__sun__|__s390x__)\b@ && $realfile !~ m@include/asm-@) {
 			CHK("ARCH_DEFINES",
@@ -6230,28 +6236,6 @@ sub process {
 			} elsif ($realfile !~ m@^kernel/@) {
 				WARN("IN_ATOMIC",
 				     "use of in_atomic() is incorrect outside core kernel code\n" . $herecurr);
-			}
-		}
-
-# whine about ACCESS_ONCE
-		if ($^V && $^V ge 5.10.0 &&
-		    $line =~ /\bACCESS_ONCE\s*$balanced_parens\s*(=(?!=))?\s*($FuncArg)?/) {
-			my $par = $1;
-			my $eq = $2;
-			my $fun = $3;
-			$par =~ s/^\(\s*(.*)\s*\)$/$1/;
-			if (defined($eq)) {
-				if (WARN("PREFER_WRITE_ONCE",
-					 "Prefer WRITE_ONCE(<FOO>, <BAR>) over ACCESS_ONCE(<FOO>) = <BAR>\n" . $herecurr) &&
-				    $fix) {
-					$fixed[$fixlinenr] =~ s/\bACCESS_ONCE\s*\(\s*\Q$par\E\s*\)\s*$eq\s*\Q$fun\E/WRITE_ONCE($par, $fun)/;
-				}
-			} else {
-				if (WARN("PREFER_READ_ONCE",
-					 "Prefer READ_ONCE(<FOO>) over ACCESS_ONCE(<FOO>)\n" . $herecurr) &&
-				    $fix) {
-					$fixed[$fixlinenr] =~ s/\bACCESS_ONCE\s*\(\s*\Q$par\E\s*\)/READ_ONCE($par)/;
-				}
 			}
 		}
 

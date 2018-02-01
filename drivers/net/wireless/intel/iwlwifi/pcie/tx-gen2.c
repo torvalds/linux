@@ -171,8 +171,6 @@ static void iwl_pcie_gen2_tfd_unmap(struct iwl_trans *trans,
 
 static void iwl_pcie_gen2_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-
 	/* rd_ptr is bounded by TFD_QUEUE_SIZE_MAX and
 	 * idx is bounded by n_window
 	 */
@@ -181,7 +179,7 @@ static void iwl_pcie_gen2_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 	lockdep_assert_held(&txq->lock);
 
 	iwl_pcie_gen2_tfd_unmap(trans, &txq->entries[idx].meta,
-				iwl_pcie_get_tfd(trans_pcie, txq, idx));
+				iwl_pcie_get_tfd(trans, txq, idx));
 
 	/* free SKB */
 	if (txq->entries) {
@@ -364,11 +362,9 @@ struct iwl_tfh_tfd *iwl_pcie_gen2_build_tfd(struct iwl_trans *trans,
 					    struct sk_buff *skb,
 					    struct iwl_cmd_meta *out_meta)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	int idx = iwl_pcie_get_cmd_index(txq, txq->write_ptr);
-	struct iwl_tfh_tfd *tfd =
-		iwl_pcie_get_tfd(trans_pcie, txq, idx);
+	struct iwl_tfh_tfd *tfd = iwl_pcie_get_tfd(trans, txq, idx);
 	dma_addr_t tb_phys;
 	bool amsdu;
 	int i, len, tb1_len, tb2_len, hdr_len;
@@ -565,8 +561,7 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 	u8 group_id = iwl_cmd_groupid(cmd->id);
 	const u8 *cmddata[IWL_MAX_CMD_TBS_PER_TFD];
 	u16 cmdlen[IWL_MAX_CMD_TBS_PER_TFD];
-	struct iwl_tfh_tfd *tfd =
-		iwl_pcie_get_tfd(trans_pcie, txq, txq->write_ptr);
+	struct iwl_tfh_tfd *tfd = iwl_pcie_get_tfd(trans, txq, txq->write_ptr);
 
 	memset(tfd, 0, sizeof(*tfd));
 

@@ -44,6 +44,8 @@
 #define __access_ok(addr, size) (__kernel_ok || __user_ok((addr), (size)))
 #define access_ok(type, addr, size) __access_ok((unsigned long)(addr), (size))
 
+#define user_addr_max() (uaccess_kernel() ? ~0UL : TASK_SIZE)
+
 /*
  * These are the main single-value transfer routines.  They
  * automatically use the right size if we just have the right pointer
@@ -261,7 +263,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 static inline unsigned long
 __xtensa_clear_user(void *addr, unsigned long size)
 {
-	if ( ! memset(addr, 0, size) )
+	if (!__memset(addr, 0, size))
 		return size;
 	return 0;
 }
@@ -277,6 +279,8 @@ clear_user(void *addr, unsigned long size)
 #define __clear_user  __xtensa_clear_user
 
 
+#ifndef CONFIG_GENERIC_STRNCPY_FROM_USER
+
 extern long __strncpy_user(char *, const char *, long);
 
 static inline long
@@ -286,6 +290,9 @@ strncpy_from_user(char *dst, const char *src, long count)
 		return __strncpy_user(dst, src, count);
 	return -EFAULT;
 }
+#else
+long strncpy_from_user(char *dst, const char *src, long count);
+#endif
 
 /*
  * Return the size of a string (including the ending 0!)

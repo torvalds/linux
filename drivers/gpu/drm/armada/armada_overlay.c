@@ -99,6 +99,7 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 {
 	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
+	const struct drm_format_info *format;
 	struct drm_rect src = {
 		.x1 = src_x,
 		.y1 = src_y,
@@ -117,7 +118,7 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	};
 	uint32_t val, ctrl0;
 	unsigned idx = 0;
-	bool visible;
+	bool visible, fb_changed;
 	int ret;
 
 	trace_armada_ovl_plane_update(plane, crtc, fb,
@@ -138,6 +139,18 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (!visible)
 		ctrl0 &= ~CFG_DMA_ENA;
 
+	/*
+	 * Shifting a YUV packed format image by one pixel causes the U/V
+	 * planes to swap.  Compensate for it by also toggling the UV swap.
+	 */
+	format = fb->format;
+	if (format->num_planes == 1 && src.x1 >> 16 & (format->hsub - 1))
+		ctrl0 ^= CFG_DMA_MOD(CFG_SWAPUV);
+
+	fb_changed = plane->fb != fb ||
+		     dplane->base.state.src_x != src.x1 >> 16 ||
+	             dplane->base.state.src_y != src.y1 >> 16;
+
 	if (!dcrtc->plane) {
 		dcrtc->plane = plane;
 		armada_ovl_update_attr(&dplane->prop, dcrtc);
@@ -145,7 +158,7 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	/* FIXME: overlay on an interlaced display */
 	/* Just updating the position/size? */
-	if (plane->fb == fb && dplane->base.state.ctrl0 == ctrl0) {
+	if (!fb_changed && dplane->base.state.ctrl0 == ctrl0) {
 		val = (drm_rect_height(&src) & 0xffff0000) |
 		      drm_rect_width(&src) >> 16;
 		dplane->base.state.src_hw = val;
@@ -169,9 +182,8 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (armada_drm_plane_work_wait(&dplane->base, HZ / 25) == 0)
 		armada_drm_plane_work_cancel(dcrtc, &dplane->base);
 
-	if (plane->fb != fb) {
-		u32 addrs[3], pixel_format;
-		int num_planes, hsub;
+	if (fb_changed) {
+		u32 addrs[3];
 
 		/*
 		 * Take a reference on the new framebuffer - we want to
@@ -182,22 +194,10 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		if (plane->fb)
 			armada_ovl_retire_fb(dplane, plane->fb);
 
-		src_y = src.y1 >> 16;
-		src_x = src.x1 >> 16;
+		dplane->base.state.src_y = src_y = src.y1 >> 16;
+		dplane->base.state.src_x = src_x = src.x1 >> 16;
 
 		armada_drm_plane_calc_addrs(addrs, fb, src_x, src_y);
-
-		pixel_format = fb->format->format;
-		hsub = drm_format_horz_chroma_subsampling(pixel_format);
-		num_planes = fb->format->num_planes;
-
-		/*
-		 * Annoyingly, shifting a YUYV-format image by one pixel
-		 * causes the U/V planes to toggle.  Toggle the UV swap.
-		 * (Unfortunately, this causes momentary colour flickering.)
-		 */
-		if (src_x & (hsub - 1) && num_planes == 1)
-			ctrl0 ^= CFG_DMA_MOD(CFG_SWAPUV);
 
 		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[0],
 				     LCD_SPU_DMA_START_ADDR_Y0);

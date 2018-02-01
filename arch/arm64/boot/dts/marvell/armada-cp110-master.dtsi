@@ -63,8 +63,10 @@
 			cpm_ethernet: ethernet@0 {
 				compatible = "marvell,armada-7k-pp22";
 				reg = <0x0 0x100000>, <0x129000 0xb000>;
-				clocks = <&cpm_clk 1 3>, <&cpm_clk 1 9>, <&cpm_clk 1 5>;
-				clock-names = "pp_clk", "gop_clk", "mg_clk";
+				clocks = <&cpm_clk 1 3>, <&cpm_clk 1 9>,
+					 <&cpm_clk 1 5>, <&cpm_clk 1 18>;
+				clock-names = "pp_clk", "gop_clk",
+					      "mg_clk","axi_clk";
 				marvell,system-controller = <&cpm_syscon0>;
 				status = "disabled";
 				dma-coherent;
@@ -155,7 +157,8 @@
 				#size-cells = <0>;
 				compatible = "marvell,orion-mdio";
 				reg = <0x12a200 0x10>;
-				clocks = <&cpm_clk 1 9>, <&cpm_clk 1 5>;
+				clocks = <&cpm_clk 1 9>, <&cpm_clk 1 5>,
+					 <&cpm_clk 1 6>, <&cpm_clk 1 18>;
 				status = "disabled";
 			};
 
@@ -338,8 +341,8 @@
 				compatible = "marvell,armada-cp110-sdhci";
 				reg = <0x780000 0x300>;
 				interrupts = <ICU_GRP_NSR 27 IRQ_TYPE_LEVEL_HIGH>;
-				clock-names = "core";
-				clocks = <&cpm_clk 1 4>;
+				clock-names = "core","axi";
+				clocks = <&cpm_clk 1 4>, <&cpm_clk 1 18>;
 				dma-coherent;
 				status = "disabled";
 			};

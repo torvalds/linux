@@ -2921,6 +2921,9 @@ nvme_fc_delete_association(struct nvme_fc_ctrl *ctrl)
 	__nvme_fc_delete_hw_queue(ctrl, &ctrl->queues[0], 0);
 	nvme_fc_free_queue(&ctrl->queues[0]);
 
+	/* re-enable the admin_q so anything new can fast fail */
+	blk_mq_unquiesce_queue(ctrl->ctrl.admin_q);
+
 	nvme_fc_ctlr_inactive_on_rport(ctrl);
 }
 
@@ -2935,6 +2938,9 @@ nvme_fc_delete_ctrl(struct nvme_ctrl *nctrl)
 	 * waiting for io to terminate
 	 */
 	nvme_fc_delete_association(ctrl);
+
+	/* resume the io queues so that things will fast fail */
+	nvme_start_queues(nctrl);
 }
 
 static void
@@ -3221,7 +3227,6 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 		/* initiate nvme ctrl ref counting teardown */
 		nvme_uninit_ctrl(&ctrl->ctrl);
-		nvme_put_ctrl(&ctrl->ctrl);
 
 		/* Remove core ctrl ref. */
 		nvme_put_ctrl(&ctrl->ctrl);
@@ -3381,6 +3386,7 @@ nvme_fc_create_ctrl(struct device *dev, struct nvmf_ctrl_options *opts)
 
 static struct nvmf_transport_ops nvme_fc_transport = {
 	.name		= "fc",
+	.module		= THIS_MODULE,
 	.required_opts	= NVMF_OPT_TRADDR | NVMF_OPT_HOST_TRADDR,
 	.allowed_opts	= NVMF_OPT_RECONNECT_DELAY | NVMF_OPT_CTRL_LOSS_TMO,
 	.create_ctrl	= nvme_fc_create_ctrl,

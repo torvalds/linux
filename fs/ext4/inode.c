@@ -39,6 +39,7 @@
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/iomap.h>
+#include <linux/iversion.h>
 
 #include "ext4_jbd2.h"
 #include "xattr.h"
@@ -149,6 +150,15 @@ static int ext4_meta_trans_blocks(struct inode *inode, int lblocks,
  */
 int ext4_inode_is_fast_symlink(struct inode *inode)
 {
+	if (!(EXT4_I(inode)->i_flags & EXT4_EA_INODE_FL)) {
+		int ea_blocks = EXT4_I(inode)->i_file_acl ?
+				EXT4_CLUSTER_SIZE(inode->i_sb) >> 9 : 0;
+
+		if (ext4_has_inline_data(inode))
+			return 0;
+
+		return (S_ISLNK(inode->i_mode) && inode->i_blocks - ea_blocks == 0);
+	}
 	return S_ISLNK(inode->i_mode) && inode->i_size &&
 	       (inode->i_size < EXT4_N_BLOCKS * 4);
 }
@@ -4873,12 +4883,14 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 	EXT4_EINODE_GET_XTIME(i_crtime, ei, raw_inode);
 
 	if (likely(!test_opt2(inode->i_sb, HURD_COMPAT))) {
-		inode->i_version = le32_to_cpu(raw_inode->i_disk_version);
+		u64 ivers = le32_to_cpu(raw_inode->i_disk_version);
+
 		if (EXT4_INODE_SIZE(inode->i_sb) > EXT4_GOOD_OLD_INODE_SIZE) {
 			if (EXT4_FITS_IN_INODE(raw_inode, ei, i_version_hi))
-				inode->i_version |=
+				ivers |=
 		    (__u64)(le32_to_cpu(raw_inode->i_version_hi)) << 32;
 		}
+		inode_set_iversion_queried(inode, ivers);
 	}
 
 	ret = 0;
@@ -5164,11 +5176,13 @@ static int ext4_do_update_inode(handle_t *handle,
 	}
 
 	if (likely(!test_opt2(inode->i_sb, HURD_COMPAT))) {
-		raw_inode->i_disk_version = cpu_to_le32(inode->i_version);
+		u64 ivers = inode_peek_iversion(inode);
+
+		raw_inode->i_disk_version = cpu_to_le32(ivers);
 		if (ei->i_extra_isize) {
 			if (EXT4_FITS_IN_INODE(raw_inode, ei, i_version_hi))
 				raw_inode->i_version_hi =
-					cpu_to_le32(inode->i_version >> 32);
+					cpu_to_le32(ivers >> 32);
 			raw_inode->i_extra_isize =
 				cpu_to_le16(ei->i_extra_isize);
 		}

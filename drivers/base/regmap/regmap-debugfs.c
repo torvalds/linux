@@ -529,6 +529,18 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 	struct regmap_range_node *range_node;
 	const char *devname = "dummy";
 
+	/*
+	 * Userspace can initiate reads from the hardware over debugfs.
+	 * Normally internal regmap structures and buffers are protected with
+	 * a mutex or a spinlock, but if the regmap owner decided to disable
+	 * all locking mechanisms, this is no longer the case. For safety:
+	 * don't create the debugfs entries if locking is disabled.
+	 */
+	if (map->debugfs_disable) {
+		dev_dbg(map->dev, "regmap locking disabled - not creating debugfs entries\n");
+		return;
+	}
+
 	/* If we don't have the debugfs root yet, postpone init */
 	if (!regmap_debugfs_root) {
 		struct regmap_debugfs_node *node;

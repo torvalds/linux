@@ -86,6 +86,7 @@ static const struct tctl_offset tctl_offset_table[] = {
 	{ 0x17, "AMD Ryzen 7 1800X", 20000 },
 	{ 0x17, "AMD Ryzen Threadripper 1950X", 27000 },
 	{ 0x17, "AMD Ryzen Threadripper 1920X", 27000 },
+	{ 0x17, "AMD Ryzen Threadripper 1900X", 27000 },
 	{ 0x17, "AMD Ryzen Threadripper 1950", 10000 },
 	{ 0x17, "AMD Ryzen Threadripper 1920", 10000 },
 	{ 0x17, "AMD Ryzen Threadripper 1910", 10000 },

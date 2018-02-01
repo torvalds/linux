@@ -143,6 +143,7 @@ static int hwmon_thermal_add_sensor(struct device *dev,
 				    struct hwmon_device *hwdev, int index)
 {
 	struct hwmon_thermal_data *tdata;
+	struct thermal_zone_device *tzd;
 
 	tdata = devm_kzalloc(dev, sizeof(*tdata), GFP_KERNEL);
 	if (!tdata)
@@ -151,8 +152,14 @@ static int hwmon_thermal_add_sensor(struct device *dev,
 	tdata->hwdev = hwdev;
 	tdata->index = index;
 
-	devm_thermal_zone_of_sensor_register(&hwdev->dev, index, tdata,
-					     &hwmon_thermal_ops);
+	tzd = devm_thermal_zone_of_sensor_register(&hwdev->dev, index, tdata,
+						   &hwmon_thermal_ops);
+	/*
+	 * If CONFIG_THERMAL_OF is disabled, this returns -ENODEV,
+	 * so ignore that error but forward any other error.
+	 */
+	if (IS_ERR(tzd) && (PTR_ERR(tzd) != -ENODEV))
+		return PTR_ERR(tzd);
 
 	return 0;
 }
@@ -621,14 +628,20 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 				if (!chip->ops->is_visible(drvdata, hwmon_temp,
 							   hwmon_temp_input, j))
 					continue;
-				if (info[i]->config[j] & HWMON_T_INPUT)
-					hwmon_thermal_add_sensor(dev, hwdev, j);
+				if (info[i]->config[j] & HWMON_T_INPUT) {
+					err = hwmon_thermal_add_sensor(dev,
+								hwdev, j);
+					if (err)
+						goto free_device;
+				}
 			}
 		}
 	}
 
 	return hdev;
 
+free_device:
+	device_unregister(hdev);
 free_hwmon:
 	kfree(hwdev);
 ida_remove:
@@ -665,7 +678,7 @@ EXPORT_SYMBOL_GPL(hwmon_device_register_with_groups);
  * @dev: the parent device
  * @name: hwmon name attribute
  * @drvdata: driver data to attach to created device
- * @info: pointer to hwmon chip information
+ * @chip: pointer to hwmon chip information
  * @extra_groups: pointer to list of additional non-standard attribute groups
  *
  * hwmon_device_unregister() must be called when the device is no
@@ -772,11 +785,11 @@ EXPORT_SYMBOL_GPL(devm_hwmon_device_register_with_groups);
 
 /**
  * devm_hwmon_device_register_with_info - register w/ hwmon
- * @dev: the parent device
- * @name: hwmon name attribute
- * @drvdata: driver data to attach to created device
- * @info: Pointer to hwmon chip information
- * @groups - pointer to list of driver specific attribute groups
+ * @dev:	the parent device
+ * @name:	hwmon name attribute
+ * @drvdata:	driver data to attach to created device
+ * @chip:	pointer to hwmon chip information
+ * @groups:	pointer to list of driver specific attribute groups
  *
  * Returns the pointer to the new device. The new device is automatically
  * unregistered with the parent device.

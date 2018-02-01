@@ -1446,7 +1446,6 @@ static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone)
 	bio_for_each_segment_all(bv, clone, i) {
 		BUG_ON(!bv->bv_page);
 		mempool_free(bv->bv_page, cc->page_pool);
-		bv->bv_page = NULL;
 	}
 }
 
@@ -1954,10 +1953,15 @@ static int crypt_setkey(struct crypt_config *cc)
 	/* Ignore extra keys (which are used for IV etc) */
 	subkey_size = crypt_subkey_size(cc);
 
-	if (crypt_integrity_hmac(cc))
+	if (crypt_integrity_hmac(cc)) {
+		if (subkey_size < cc->key_mac_size)
+			return -EINVAL;
+
 		crypt_copy_authenckey(cc->authenc_key, cc->key,
 				      subkey_size - cc->key_mac_size,
 				      cc->key_mac_size);
+	}
+
 	for (i = 0; i < cc->tfms_count; i++) {
 		if (crypt_integrity_hmac(cc))
 			r = crypto_aead_setkey(cc->cipher_tfm.tfms_aead[i],
@@ -2052,9 +2056,6 @@ static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string
 	clear_bit(DM_CRYPT_KEY_VALID, &cc->flags);
 
 	ret = crypt_setkey(cc);
-
-	/* wipe the kernel key payload copy in each case */
-	memset(cc->key, 0, cc->key_size * sizeof(u8));
 
 	if (!ret) {
 		set_bit(DM_CRYPT_KEY_VALID, &cc->flags);
@@ -2523,6 +2524,10 @@ static int crypt_ctr_cipher(struct dm_target *ti, char *cipher_in, char *key)
 		}
 	}
 
+	/* wipe the kernel key payload copy */
+	if (cc->key_string)
+		memset(cc->key, 0, cc->key_size * sizeof(u8));
+
 	return ret;
 }
 
@@ -2740,6 +2745,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 			cc->tag_pool_max_sectors * cc->on_disk_tag_size);
 		if (!cc->tag_pool) {
 			ti->error = "Cannot allocate integrity tags mempool";
+			ret = -ENOMEM;
 			goto bad;
 		}
 
@@ -2961,6 +2967,9 @@ static int crypt_message(struct dm_target *ti, unsigned argc, char **argv)
 				return ret;
 			if (cc->iv_gen_ops && cc->iv_gen_ops->init)
 				ret = cc->iv_gen_ops->init(cc);
+			/* wipe the kernel key payload copy */
+			if (cc->key_string)
+				memset(cc->key, 0, cc->key_size * sizeof(u8));
 			return ret;
 		}
 		if (argc == 2 && !strcasecmp(argv[1], "wipe")) {
@@ -3007,7 +3016,7 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version = {1, 18, 0},
+	.version = {1, 18, 1},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,

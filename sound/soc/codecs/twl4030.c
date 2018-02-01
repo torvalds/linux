@@ -232,7 +232,7 @@ static struct twl4030_codec_data *twl4030_get_pdata(struct snd_soc_codec *codec)
 	struct twl4030_codec_data *pdata = dev_get_platdata(codec->dev);
 	struct device_node *twl4030_codec_node = NULL;
 
-	twl4030_codec_node = of_find_node_by_name(codec->dev->parent->of_node,
+	twl4030_codec_node = of_get_child_by_name(codec->dev->parent->of_node,
 						  "codec");
 
 	if (!pdata && twl4030_codec_node) {
@@ -240,10 +240,11 @@ static struct twl4030_codec_data *twl4030_get_pdata(struct snd_soc_codec *codec)
 				     sizeof(struct twl4030_codec_data),
 				     GFP_KERNEL);
 		if (!pdata) {
-			dev_err(codec->dev, "Can not allocate memory\n");
+			of_node_put(twl4030_codec_node);
 			return NULL;
 		}
 		twl4030_setup_pdata_of(pdata, twl4030_codec_node);
+		of_node_put(twl4030_codec_node);
 	}
 
 	return pdata;
@@ -849,14 +850,14 @@ static int snd_soc_get_volsw_twl4030(struct snd_kcontrol *kcontrol,
 	int mask = (1 << fls(max)) - 1;
 
 	ucontrol->value.integer.value[0] =
-		(snd_soc_read(codec, reg) >> shift) & mask;
+		(twl4030_read(codec, reg) >> shift) & mask;
 	if (ucontrol->value.integer.value[0])
 		ucontrol->value.integer.value[0] =
 			max + 1 - ucontrol->value.integer.value[0];
 
 	if (shift != rshift) {
 		ucontrol->value.integer.value[1] =
-			(snd_soc_read(codec, reg) >> rshift) & mask;
+			(twl4030_read(codec, reg) >> rshift) & mask;
 		if (ucontrol->value.integer.value[1])
 			ucontrol->value.integer.value[1] =
 				max + 1 - ucontrol->value.integer.value[1];
@@ -907,9 +908,9 @@ static int snd_soc_get_volsw_r2_twl4030(struct snd_kcontrol *kcontrol,
 	int mask = (1<<fls(max))-1;
 
 	ucontrol->value.integer.value[0] =
-		(snd_soc_read(codec, reg) >> shift) & mask;
+		(twl4030_read(codec, reg) >> shift) & mask;
 	ucontrol->value.integer.value[1] =
-		(snd_soc_read(codec, reg2) >> shift) & mask;
+		(twl4030_read(codec, reg2) >> shift) & mask;
 
 	if (ucontrol->value.integer.value[0])
 		ucontrol->value.integer.value[0] =
@@ -2194,8 +2195,6 @@ static int twl4030_soc_remove(struct snd_soc_codec *codec)
 static const struct snd_soc_codec_driver soc_codec_dev_twl4030 = {
 	.probe = twl4030_soc_probe,
 	.remove = twl4030_soc_remove,
-	.read = twl4030_read,
-	.write = twl4030_write,
 	.set_bias_level = twl4030_set_bias_level,
 	.idle_bias_off = true,
 

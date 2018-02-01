@@ -1445,10 +1445,8 @@ do {									\
 } while (0)
 
 #ifdef CONFIG_LOCKDEP
-static inline bool lockdep_sock_is_held(const struct sock *csk)
+static inline bool lockdep_sock_is_held(const struct sock *sk)
 {
-	struct sock *sk = (struct sock *)csk;
-
 	return lockdep_is_held(&sk->sk_lock) ||
 	       lockdep_is_held(&sk->sk_lock.slock);
 }
@@ -1511,6 +1509,11 @@ static inline void sock_owned_by_me(const struct sock *sk)
 static inline bool sock_owned_by_user(const struct sock *sk)
 {
 	sock_owned_by_me(sk);
+	return sk->sk_lock.owned;
+}
+
+static inline bool sock_owned_by_user_nocheck(const struct sock *sk)
+{
 	return sk->sk_lock.owned;
 }
 
