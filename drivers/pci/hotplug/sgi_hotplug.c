@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
  * Copyright (C) 2005-2006 Silicon Graphics, Inc. All rights reserved.
  *
  * This work was based on the 2.4/2.6 kernel development by Dick Reigner.

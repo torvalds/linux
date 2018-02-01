@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PCIe host controller driver for Texas Instruments Keystone SoCs
  *
@@ -6,10 +7,6 @@
  *
  * Author: Murali Karicheri <m-karicheri2@ti.com>
  * Implementation based on pci-exynos.c and pcie-designware.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/irqchip/chained_irq.h>

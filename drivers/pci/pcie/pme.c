@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PCIe Native PME support
  *
  * Copyright (C) 2007 - 2009 Intel Corp
  * Copyright (C) 2007 - 2009 Shaohua Li <shaohua.li@intel.com>
  * Copyright (C) 2009 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License V2.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #include <linux/pci.h>
