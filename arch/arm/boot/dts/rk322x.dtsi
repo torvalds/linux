@@ -285,6 +285,29 @@
 		status = "disabled";
 	};
 
+	tsp: tsp@100f0000 {
+		compatible = "rockchip,rk3228-tsp";
+		reg = <0x100f0000 0x10000>;
+		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_tsp";
+		clocks = <&cru SCLK_TSP>, <&cru HCLK_TSP>, <&cru SCLK_HSADC>;
+		clock-names = "clk_tsp", "hclk_tsp", "aclk_tsp";
+		pinctrl-names = "default";
+		pinctrl-0 = <&tsp_d0
+			     &tsp_d1
+			     &tsp_d2
+			     &tsp_d3
+			     &tsp_d4
+			     &tsp_d5
+			     &tsp_d6
+			     &tsp_d7
+			     &tsp_sync
+			     &tsp_clk
+			     &tsp_fail
+			     &tsp_valid>;
+		status = "disabled";
+	};
+
 	grf: syscon@11000000 {
 		compatible = "rockchip,rk3228-grf", "syscon", "simple-mfd";
 		reg = <0x11000000 0x1000>;
@@ -1336,6 +1359,45 @@
 			i2c3_xfer: i2c3-xfer {
 				rockchip,pins = <0 6 RK_FUNC_1 &pcfg_pull_none>,
 						<0 7 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		tsp {
+			tsp_d0: tsp-d0 {
+				rockchip,pins = <2 19 RK_FUNC_2 &pcfg_pull_none>;
+			};
+			tsp_d1: tsp-d1 {
+				rockchip,pins = <2 18 RK_FUNC_2 &pcfg_pull_none>;
+			};
+			tsp_d2: tsp-d2 {
+				rockchip,pins = <2 17 RK_FUNC_2 &pcfg_pull_none>;
+			};
+			tsp_d3: tsp-d3 {
+				rockchip,pins = <2 16 RK_FUNC_2 &pcfg_pull_none>;
+			};
+			tsp_d4: tsp-d4 {
+				rockchip,pins = <2 25 RK_FUNC_2 &pcfg_pull_none>;
+			};
+			tsp_d5: tsp-d5 {
+				rockchip,pins = <2 24 RK_FUNC_2 &pcfg_pull_none>;
+			};
+			tsp_d6: tsp-d6 {
+				rockchip,pins = <2 15 RK_FUNC_2 &pcfg_pull_none>;
+			};
+			tsp_d7: tsp-d7 {
+				rockchip,pins = <2 13 RK_FUNC_2 &pcfg_pull_none>;
+			};
+			tsp_sync: tsp-sync {
+				rockchip,pins = <2 12 RK_FUNC_2 &pcfg_pull_none>;
+			};
+			tsp_clk: tsp-clk {
+				rockchip,pins = <2 11 RK_FUNC_2 &pcfg_pull_none>;
+			};
+			tsp_fail: tsp-fail {
+				rockchip,pins = <2 10 RK_FUNC_2 &pcfg_pull_none>;
+			};
+			tsp_valid: tsp-valid {
+				rockchip,pins = <2 9 RK_FUNC_2 &pcfg_pull_none>;
 			};
 		};
 
