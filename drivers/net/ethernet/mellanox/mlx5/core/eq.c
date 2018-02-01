@@ -393,6 +393,51 @@ static void general_event_handler(struct mlx5_core_dev *dev,
 	}
 }
 
+/* caller must eventually call mlx5_cq_put on the returned cq */
+static struct mlx5_core_cq *mlx5_eq_cq_get(struct mlx5_eq *eq, u32 cqn)
+{
+	struct mlx5_cq_table *table = &eq->cq_table;
+	struct mlx5_core_cq *cq = NULL;
+
+	spin_lock(&table->lock);
+	cq = radix_tree_lookup(&table->tree, cqn);
+	if (likely(cq))
+		mlx5_cq_hold(cq);
+	spin_unlock(&table->lock);
+
+	return cq;
+}
+
+static void mlx5_eq_cq_completion(struct mlx5_eq *eq, u32 cqn)
+{
+	struct mlx5_core_cq *cq = mlx5_eq_cq_get(eq, cqn);
+
+	if (unlikely(!cq)) {
+		mlx5_core_warn(eq->dev, "Completion event for bogus CQ 0x%x\n", cqn);
+		return;
+	}
+
+	++cq->arm_sn;
+
+	cq->comp(cq);
+
+	mlx5_cq_put(cq);
+}
+
+static void mlx5_eq_cq_event(struct mlx5_eq *eq, u32 cqn, int event_type)
+{
+	struct mlx5_core_cq *cq = mlx5_eq_cq_get(eq, cqn);
+
+	if (unlikely(!cq)) {
+		mlx5_core_warn(eq->dev, "Async event for bogus CQ 0x%x\n", cqn);
+		return;
+	}
+
+	cq->event(cq, event_type);
+
+	mlx5_cq_put(cq);
+}
+
 static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 {
 	struct mlx5_eq *eq = eq_ptr;
@@ -415,7 +460,7 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 		switch (eqe->type) {
 		case MLX5_EVENT_TYPE_COMP:
 			cqn = be32_to_cpu(eqe->data.comp.cqn) & 0xffffff;
-			mlx5_cq_completion(eq, cqn);
+			mlx5_eq_cq_completion(eq, cqn);
 			break;
 		case MLX5_EVENT_TYPE_DCT_DRAINED:
 			rsn = be32_to_cpu(eqe->data.dct.dctn) & 0xffffff;
@@ -472,7 +517,7 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 			cqn = be32_to_cpu(eqe->data.cq_err.cqn) & 0xffffff;
 			mlx5_core_warn(dev, "CQ error on CQN 0x%x, syndrome 0x%x\n",
 				       cqn, eqe->data.cq_err.syndrome);
-			mlx5_cq_event(eq, cqn, eqe->type);
+			mlx5_eq_cq_event(eq, cqn, eqe->type);
 			break;
 
 		case MLX5_EVENT_TYPE_PAGE_REQUEST:
