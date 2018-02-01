@@ -688,7 +688,14 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
 
 static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
 
-void lru_add_drain_all_cpuslocked(void)
+/*
+ * Doesn't need any cpu hotplug locking because we do rely on per-cpu
+ * kworkers being shut down before our page_alloc_cpu_dead callback is
+ * executed on the offlined cpu.
+ * Calling this function with cpu hotplug locks held can actually lead
+ * to obscure indirect dependencies via WQ context.
+ */
+void lru_add_drain_all(void)
 {
 	static DEFINE_MUTEX(lock);
 	static struct cpumask has_work;
@@ -722,13 +729,6 @@ void lru_add_drain_all_cpuslocked(void)
 		flush_work(&per_cpu(lru_add_drain_work, cpu));
 
 	mutex_unlock(&lock);
-}
-
-void lru_add_drain_all(void)
-{
-	get_online_cpus();
-	lru_add_drain_all_cpuslocked();
-	put_online_cpus();
 }
 
 /**

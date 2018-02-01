@@ -1637,7 +1637,7 @@ repeat:
 		goto failed_removal;
 
 	cond_resched();
-	lru_add_drain_all_cpuslocked();
+	lru_add_drain_all();
 	drain_all_pages(zone);
 
 	pfn = scan_movable_pages(start_pfn, end_pfn);
