@@ -21,6 +21,7 @@ struct zpool {
 	struct zpool_driver *driver;
 	void *pool;
 	const struct zpool_ops *ops;
+	bool evictable;
 
 	struct list_head list;
 };
@@ -142,7 +143,7 @@ EXPORT_SYMBOL(zpool_has_pool);
  *
  * This creates a new zpool of the specified type.  The gfp flags will be
  * used when allocating memory, if the implementation supports it.  If the
- * ops param is NULL, then the created zpool will not be shrinkable.
+ * ops param is NULL, then the created zpool will not be evictable.
  *
  * Implementations must guarantee this to be thread-safe.
  *
@@ -180,6 +181,7 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
 	zpool->driver = driver;
 	zpool->pool = driver->create(name, gfp, ops, zpool);
 	zpool->ops = ops;
+	zpool->evictable = driver->shrink && ops && ops->evict;
 
 	if (!zpool->pool) {
 		pr_err("couldn't create %s pool\n", type);
@@ -296,7 +298,8 @@ void zpool_free(struct zpool *zpool, unsigned long handle)
 int zpool_shrink(struct zpool *zpool, unsigned int pages,
 			unsigned int *reclaimed)
 {
-	return zpool->driver->shrink(zpool->pool, pages, reclaimed);
+	return zpool->driver->shrink ?
+	       zpool->driver->shrink(zpool->pool, pages, reclaimed) : -EINVAL;
 }
 
 /**
@@ -353,6 +356,24 @@ void zpool_unmap_handle(struct zpool *zpool, unsigned long handle)
 u64 zpool_get_total_size(struct zpool *zpool)
 {
 	return zpool->driver->total_size(zpool->pool);
+}
+
+/**
+ * zpool_evictable() - Test if zpool is potentially evictable
+ * @pool	The zpool to test
+ *
+ * Zpool is only potentially evictable when it's created with struct
+ * zpool_ops.evict and its driver implements struct zpool_driver.shrink.
+ *
+ * However, it doesn't necessarily mean driver will use zpool_ops.evict
+ * in its implementation of zpool_driver.shrink. It could do internal
+ * defragmentation instead.
+ *
+ * Returns: true if potentially evictable; false otherwise.
+ */
+bool zpool_evictable(struct zpool *zpool)
+{
+	return zpool->evictable;
 }
 
 MODULE_LICENSE("GPL");

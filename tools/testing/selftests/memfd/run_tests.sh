@@ -60,6 +60,7 @@ fi
 # Run the hugetlbfs test
 #
 ./memfd_test hugetlbfs
+./run_fuse_test.sh hugetlbfs
 
 #
 # Give back any huge pages allocated for the test

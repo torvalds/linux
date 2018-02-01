@@ -1449,20 +1449,22 @@ DEFINE_OCFS2_ULL_ULL_ULL_EVENT(ocfs2_remove_inode_range);
 
 TRACE_EVENT(ocfs2_prepare_inode_for_write,
 	TP_PROTO(unsigned long long ino, unsigned long long saved_pos,
-		 unsigned long count),
-	TP_ARGS(ino, saved_pos, count),
+		 unsigned long count, int wait),
+	TP_ARGS(ino, saved_pos, count, wait),
 	TP_STRUCT__entry(
 		__field(unsigned long long, ino)
 		__field(unsigned long long, saved_pos)
 		__field(unsigned long, count)
+		__field(int, wait)
 	),
 	TP_fast_assign(
 		__entry->ino = ino;
 		__entry->saved_pos = saved_pos;
 		__entry->count = count;
+		__entry->wait = wait;
 	),
-	TP_printk("%llu %llu %lu", __entry->ino,
-		  __entry->saved_pos, __entry->count)
+	TP_printk("%llu %llu %lu %d", __entry->ino,
+		  __entry->saved_pos, __entry->count, __entry->wait)
 );
 
 DEFINE_OCFS2_INT_EVENT(generic_file_aio_read_ret);

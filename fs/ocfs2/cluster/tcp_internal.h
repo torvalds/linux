@@ -196,7 +196,7 @@ struct o2net_msg_handler {
 	u32			nh_msg_type;
 	u32			nh_key;
 	o2net_msg_handler_func	*nh_func;
-	o2net_msg_handler_func	*nh_func_data;
+	void			*nh_func_data;
 	o2net_post_msg_handler_func
 				*nh_post_func;
 	struct kref		nh_kref;
