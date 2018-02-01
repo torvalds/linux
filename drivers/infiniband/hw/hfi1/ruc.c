@@ -225,19 +225,8 @@ int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_packet *packet)
 	u32 dlid = packet->dlid;
 	u32 slid = packet->slid;
 	u32 sl = packet->sl;
-	int migrated;
-	u32 bth0, bth1;
-	u16 pkey;
-
-	bth0 = be32_to_cpu(packet->ohdr->bth[0]);
-	bth1 = be32_to_cpu(packet->ohdr->bth[1]);
-	if (packet->etype == RHF_RCV_TYPE_BYPASS) {
-		pkey = hfi1_16B_get_pkey(packet->hdr);
-		migrated = bth1 & OPA_BTH_MIG_REQ;
-	} else {
-		pkey = ib_bth_get_pkey(packet->ohdr);
-		migrated = bth0 & IB_BTH_MIG_REQ;
-	}
+	bool migrated = packet->migrated;
+	u16 pkey = packet->pkey;
 
 	if (qp->s_mig_state == IB_MIG_ARMED && migrated) {
 		if (!packet->grh) {

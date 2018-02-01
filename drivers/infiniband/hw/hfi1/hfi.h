@@ -341,6 +341,7 @@ struct hfi1_packet {
 	u32 slid;
 	u16 tlen;
 	s16 etail;
+	u16 pkey;
 	u8 hlen;
 	u8 numpkt;
 	u8 rsize;
@@ -353,6 +354,7 @@ struct hfi1_packet {
 	u8 opcode;
 	bool becn;
 	bool fecn;
+	bool migrated;
 };
 
 /* Packet types */

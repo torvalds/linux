@@ -1440,6 +1440,8 @@ static int hfi1_setup_9B_packet(struct hfi1_packet *packet)
 	packet->extra_byte = 0;
 	packet->fecn = ib_bth_get_fecn(packet->ohdr);
 	packet->becn = ib_bth_get_becn(packet->ohdr);
+	packet->pkey = ib_bth_get_pkey(packet->ohdr);
+	packet->migrated = ib_bth_is_migration(packet->ohdr);
 
 	return 0;
 drop:
@@ -1506,6 +1508,8 @@ static int hfi1_setup_bypass_packet(struct hfi1_packet *packet)
 	packet->extra_byte = SIZE_OF_LT;
 	packet->fecn = hfi1_16B_get_fecn(packet->hdr);
 	packet->becn = hfi1_16B_get_becn(packet->hdr);
+	packet->pkey = hfi1_16B_get_pkey(packet->hdr);
+	packet->migrated = opa_bth_is_migration(packet->ohdr);
 
 	if (hfi1_bypass_ingress_pkt_check(packet))
 		goto drop;

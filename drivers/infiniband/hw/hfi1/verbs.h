@@ -405,6 +405,11 @@ static inline void cacheless_memcpy(void *dst, void *src, size_t n)
 	__copy_user_nocache(dst, (void __user *)src, n, 0);
 }
 
+static inline bool opa_bth_is_migration(struct ib_other_headers *ohdr)
+{
+	return ohdr->bth[1] & cpu_to_be32(OPA_BTH_MIG_REQ);
+}
+
 extern const enum ib_wc_opcode ib_hfi1_wc_opcode[];
 
 extern const u8 hdr_len_by_opcode[];
