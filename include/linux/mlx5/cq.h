@@ -172,6 +172,17 @@ static inline void mlx5_cq_arm(struct mlx5_core_cq *cq, u32 cmd,
 	mlx5_write64(doorbell, uar_page + MLX5_CQ_DOORBELL, NULL);
 }
 
+static inline void mlx5_cq_hold(struct mlx5_core_cq *cq)
+{
+	refcount_inc(&cq->refcount);
+}
+
+static inline void mlx5_cq_put(struct mlx5_core_cq *cq)
+{
+	if (refcount_dec_and_test(&cq->refcount))
+		complete(&cq->free);
+}
+
 int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 			u32 *in, int inlen);
 int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);

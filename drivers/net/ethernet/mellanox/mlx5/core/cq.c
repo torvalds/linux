@@ -58,8 +58,7 @@ void mlx5_cq_tasklet_cb(unsigned long data)
 				 tasklet_ctx.list) {
 		list_del_init(&mcq->tasklet_ctx.list);
 		mcq->tasklet_ctx.comp(mcq);
-		if (refcount_dec_and_test(&mcq->refcount))
-			complete(&mcq->free);
+		mlx5_cq_put(mcq);
 		if (time_after(jiffies, end))
 			break;
 	}
@@ -80,22 +79,30 @@ static void mlx5_add_cq_to_tasklet(struct mlx5_core_cq *cq)
 	 * still arrive.
 	 */
 	if (list_empty_careful(&cq->tasklet_ctx.list)) {
-		refcount_inc(&cq->refcount);
+		mlx5_cq_hold(cq);
 		list_add_tail(&cq->tasklet_ctx.list, &tasklet_ctx->list);
 	}
 	spin_unlock_irqrestore(&tasklet_ctx->lock, flags);
 }
 
-void mlx5_cq_completion(struct mlx5_eq *eq, u32 cqn)
+/* caller must eventually call mlx5_cq_put on the returned cq */
+static struct mlx5_core_cq *mlx5_eq_cq_get(struct mlx5_eq *eq, u32 cqn)
 {
 	struct mlx5_cq_table *table = &eq->cq_table;
-	struct mlx5_core_cq *cq;
+	struct mlx5_core_cq *cq = NULL;
 
 	spin_lock(&table->lock);
 	cq = radix_tree_lookup(&table->tree, cqn);
 	if (likely(cq))
-		refcount_inc(&cq->refcount);
+		mlx5_cq_hold(cq);
 	spin_unlock(&table->lock);
+
+	return cq;
+}
+
+void mlx5_cq_completion(struct mlx5_eq *eq, u32 cqn)
+{
+	struct mlx5_core_cq *cq = mlx5_eq_cq_get(eq, cqn);
 
 	if (unlikely(!cq)) {
 		mlx5_core_warn(eq->dev, "Completion event for bogus CQ 0x%x\n", cqn);
@@ -106,22 +113,12 @@ void mlx5_cq_completion(struct mlx5_eq *eq, u32 cqn)
 
 	cq->comp(cq);
 
-	if (refcount_dec_and_test(&cq->refcount))
-		complete(&cq->free);
+	mlx5_cq_put(cq);
 }
 
 void mlx5_cq_event(struct mlx5_eq *eq, u32 cqn, int event_type)
 {
-	struct mlx5_cq_table *table = &eq->cq_table;
-	struct mlx5_core_cq *cq;
-
-	spin_lock(&table->lock);
-
-	cq = radix_tree_lookup(&table->tree, cqn);
-	if (likely(cq))
-		refcount_inc(&cq->refcount);
-
-	spin_unlock(&table->lock);
+	struct mlx5_core_cq *cq = mlx5_eq_cq_get(eq, cqn);
 
 	if (unlikely(!cq)) {
 		mlx5_core_warn(eq->dev, "Async event for bogus CQ 0x%x\n", cqn);
@@ -130,8 +127,7 @@ void mlx5_cq_event(struct mlx5_eq *eq, u32 cqn, int event_type)
 
 	cq->event(cq, event_type);
 
-	if (refcount_dec_and_test(&cq->refcount))
-		complete(&cq->free);
+	mlx5_cq_put(cq);
 }
 
 int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
@@ -158,7 +154,8 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 	cq->cons_index = 0;
 	cq->arm_sn     = 0;
 	cq->eq         = eq;
-	refcount_set(&cq->refcount, 1);
+	refcount_set(&cq->refcount, 0);
+	mlx5_cq_hold(cq);
 	init_completion(&cq->free);
 	if (!cq->comp)
 		cq->comp = mlx5_add_cq_to_tasklet;
@@ -221,8 +218,7 @@ int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq)
 	synchronize_irq(cq->irqn);
 
 	mlx5_debug_cq_remove(dev, cq);
-	if (refcount_dec_and_test(&cq->refcount))
-		complete(&cq->free);
+	mlx5_cq_put(cq);
 	wait_for_completion(&cq->free);
 
 	return 0;
