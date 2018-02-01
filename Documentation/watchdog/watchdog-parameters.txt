@@ -157,11 +157,6 @@ testmode: Watchdog test mode (1 = no reboot), default=0
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
 -------------------------------------------------
-ixp2000_wdt:
-heartbeat: Watchdog heartbeat in seconds (default 60s)
-nowayout: Watchdog cannot be stopped once started
-	(default=kernel config parameter)
--------------------------------------------------
 ixp4xx_wdt:
 heartbeat: Watchdog heartbeat in seconds (default 60s)
 nowayout: Watchdog cannot be stopped once started
