@@ -20,6 +20,7 @@
 #include <unistd.h>
 
 #define MEMFD_STR	"memfd:"
+#define MEMFD_HUGE_STR	"memfd-hugetlb:"
 #define SHARED_FT_STR	"(shared file-table)"
 
 #define MFD_DEF_SIZE 8192
@@ -30,6 +31,7 @@
  */
 static int hugetlbfs_test;
 static size_t mfd_def_size = MFD_DEF_SIZE;
+static const char *memfd_str = MEMFD_STR;
 
 /*
  * Copied from mlock2-tests.c
@@ -606,7 +608,7 @@ static void test_create(void)
 	char buf[2048];
 	int fd;
 
-	printf("%s CREATE\n", MEMFD_STR);
+	printf("%s CREATE\n", memfd_str);
 
 	/* test NULL name */
 	mfd_fail_new(NULL, 0);
@@ -652,7 +654,7 @@ static void test_basic(void)
 {
 	int fd;
 
-	printf("%s BASIC\n", MEMFD_STR);
+	printf("%s BASIC\n", memfd_str);
 
 	fd = mfd_assert_new("kern_memfd_basic",
 			    mfd_def_size,
@@ -704,7 +706,7 @@ static void test_seal_write(void)
 {
 	int fd;
 
-	printf("%s SEAL-WRITE\n", MEMFD_STR);
+	printf("%s SEAL-WRITE\n", memfd_str);
 
 	fd = mfd_assert_new("kern_memfd_seal_write",
 			    mfd_def_size,
@@ -730,7 +732,7 @@ static void test_seal_shrink(void)
 {
 	int fd;
 
-	printf("%s SEAL-SHRINK\n", MEMFD_STR);
+	printf("%s SEAL-SHRINK\n", memfd_str);
 
 	fd = mfd_assert_new("kern_memfd_seal_shrink",
 			    mfd_def_size,
@@ -756,7 +758,7 @@ static void test_seal_grow(void)
 {
 	int fd;
 
-	printf("%s SEAL-GROW\n", MEMFD_STR);
+	printf("%s SEAL-GROW\n", memfd_str);
 
 	fd = mfd_assert_new("kern_memfd_seal_grow",
 			    mfd_def_size,
@@ -782,7 +784,7 @@ static void test_seal_resize(void)
 {
 	int fd;
 
-	printf("%s SEAL-RESIZE\n", MEMFD_STR);
+	printf("%s SEAL-RESIZE\n", memfd_str);
 
 	fd = mfd_assert_new("kern_memfd_seal_resize",
 			    mfd_def_size,
@@ -808,7 +810,7 @@ static void test_share_dup(char *banner, char *b_suffix)
 {
 	int fd, fd2;
 
-	printf("%s %s %s\n", MEMFD_STR, banner, b_suffix);
+	printf("%s %s %s\n", memfd_str, banner, b_suffix);
 
 	fd = mfd_assert_new("kern_memfd_share_dup",
 			    mfd_def_size,
@@ -850,7 +852,7 @@ static void test_share_mmap(char *banner, char *b_suffix)
 	int fd;
 	void *p;
 
-	printf("%s %s %s\n", MEMFD_STR,  banner, b_suffix);
+	printf("%s %s %s\n", memfd_str,  banner, b_suffix);
 
 	fd = mfd_assert_new("kern_memfd_share_mmap",
 			    mfd_def_size,
@@ -884,7 +886,7 @@ static void test_share_open(char *banner, char *b_suffix)
 {
 	int fd, fd2;
 
-	printf("%s %s %s\n", MEMFD_STR, banner, b_suffix);
+	printf("%s %s %s\n", memfd_str, banner, b_suffix);
 
 	fd = mfd_assert_new("kern_memfd_share_open",
 			    mfd_def_size,
@@ -927,7 +929,7 @@ static void test_share_fork(char *banner, char *b_suffix)
 	int fd;
 	pid_t pid;
 
-	printf("%s %s %s\n", MEMFD_STR, banner, b_suffix);
+	printf("%s %s %s\n", memfd_str, banner, b_suffix);
 
 	fd = mfd_assert_new("kern_memfd_share_fork",
 			    mfd_def_size,
@@ -963,7 +965,11 @@ int main(int argc, char **argv)
 			}
 
 			hugetlbfs_test = 1;
+			memfd_str = MEMFD_HUGE_STR;
 			mfd_def_size = hpage_size * 2;
+		} else {
+			printf("Unknown option: %s\n", argv[1]);
+			abort();
 		}
 	}
 
