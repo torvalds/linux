@@ -85,17 +85,22 @@ struct nvkm_therm {
 
 	int (*attr_get)(struct nvkm_therm *, enum nvkm_therm_attr_type);
 	int (*attr_set)(struct nvkm_therm *, enum nvkm_therm_attr_type, int);
+
+	bool clkgating_enabled;
 };
 
 int nvkm_therm_temp_get(struct nvkm_therm *);
 int nvkm_therm_fan_sense(struct nvkm_therm *);
 int nvkm_therm_cstate(struct nvkm_therm *, int, int);
+void nvkm_therm_clkgate_enable(struct nvkm_therm *);
+void nvkm_therm_clkgate_fini(struct nvkm_therm *, bool);
 
 int nv40_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
 int nv50_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
 int g84_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
 int gt215_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
 int gf119_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
+int gk104_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
 int gm107_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
 int gm200_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
 int gp100_therm_new(struct nvkm_device *, int, struct nvkm_therm **);

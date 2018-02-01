@@ -28,6 +28,7 @@
 #include <core/option.h>
 
 #include <subdev/bios.h>
+#include <subdev/therm.h>
 
 static DEFINE_MUTEX(nv_devices_mutex);
 static LIST_HEAD(nv_devices);
@@ -1682,7 +1683,7 @@ nve4_chipset = {
 	.mxm = nv50_mxm_new,
 	.pci = gk104_pci_new,
 	.pmu = gk104_pmu_new,
-	.therm = gf119_therm_new,
+	.therm = gk104_therm_new,
 	.timer = nv41_timer_new,
 	.top = gk104_top_new,
 	.volt = gk104_volt_new,
@@ -1721,7 +1722,7 @@ nve6_chipset = {
 	.mxm = nv50_mxm_new,
 	.pci = gk104_pci_new,
 	.pmu = gk104_pmu_new,
-	.therm = gf119_therm_new,
+	.therm = gk104_therm_new,
 	.timer = nv41_timer_new,
 	.top = gk104_top_new,
 	.volt = gk104_volt_new,
@@ -1760,7 +1761,7 @@ nve7_chipset = {
 	.mxm = nv50_mxm_new,
 	.pci = gk104_pci_new,
 	.pmu = gk104_pmu_new,
-	.therm = gf119_therm_new,
+	.therm = gk104_therm_new,
 	.timer = nv41_timer_new,
 	.top = gk104_top_new,
 	.volt = gk104_volt_new,
@@ -1824,7 +1825,7 @@ nvf0_chipset = {
 	.mxm = nv50_mxm_new,
 	.pci = gk104_pci_new,
 	.pmu = gk110_pmu_new,
-	.therm = gf119_therm_new,
+	.therm = gk104_therm_new,
 	.timer = nv41_timer_new,
 	.top = gk104_top_new,
 	.volt = gk104_volt_new,
@@ -1862,7 +1863,7 @@ nvf1_chipset = {
 	.mxm = nv50_mxm_new,
 	.pci = gk104_pci_new,
 	.pmu = gk110_pmu_new,
-	.therm = gf119_therm_new,
+	.therm = gk104_therm_new,
 	.timer = nv41_timer_new,
 	.top = gk104_top_new,
 	.volt = gk104_volt_new,
@@ -1900,7 +1901,7 @@ nv106_chipset = {
 	.mxm = nv50_mxm_new,
 	.pci = gk104_pci_new,
 	.pmu = gk208_pmu_new,
-	.therm = gf119_therm_new,
+	.therm = gk104_therm_new,
 	.timer = nv41_timer_new,
 	.top = gk104_top_new,
 	.volt = gk104_volt_new,
@@ -1938,7 +1939,7 @@ nv108_chipset = {
 	.mxm = nv50_mxm_new,
 	.pci = gk104_pci_new,
 	.pmu = gk208_pmu_new,
-	.therm = gf119_therm_new,
+	.therm = gk104_therm_new,
 	.timer = nv41_timer_new,
 	.top = gk104_top_new,
 	.volt = gk104_volt_new,
@@ -2513,6 +2514,7 @@ nvkm_device_fini(struct nvkm_device *device, bool suspend)
 		}
 	}
 
+	nvkm_therm_clkgate_fini(device->therm, suspend);
 
 	if (device->func->fini)
 		device->func->fini(device, suspend);
@@ -2602,6 +2604,7 @@ nvkm_device_init(struct nvkm_device *device)
 	}
 
 	nvkm_acpi_init(device);
+	nvkm_therm_clkgate_enable(device->therm);
 
 	time = ktime_to_us(ktime_get()) - time;
 	nvdev_trace(device, "init completed in %lldus\n", time);
