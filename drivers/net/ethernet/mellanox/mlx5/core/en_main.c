@@ -3728,21 +3728,11 @@ static netdev_features_t mlx5e_features_check(struct sk_buff *skb,
 static bool mlx5e_tx_timeout_eq_recover(struct net_device *dev,
 					struct mlx5e_txqsq *sq)
 {
-	struct mlx5e_priv *priv = netdev_priv(dev);
-	struct mlx5_core_dev *mdev = priv->mdev;
-	int irqn_not_used, eqn;
-	struct mlx5_eq *eq;
+	struct mlx5_eq *eq = sq->cq.mcq.eq;
 	u32 eqe_count;
 
-	if (mlx5_vector2eqn(mdev, sq->cq.mcq.vector, &eqn, &irqn_not_used))
-		return false;
-
-	eq = mlx5_eqn2eq(mdev, eqn);
-	if (IS_ERR(eq))
-		return false;
-
 	netdev_err(dev, "EQ 0x%x: Cons = 0x%x, irqn = 0x%x\n",
-		   eqn, eq->cons_index, eq->irqn);
+		   eq->eqn, eq->cons_index, eq->irqn);
 
 	eqe_count = mlx5_eq_poll_irq_disabled(eq);
 	if (!eqe_count)
