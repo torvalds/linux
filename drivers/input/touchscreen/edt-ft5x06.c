@@ -511,6 +511,12 @@ static int edt_ft5x06_factory_mode(struct edt_ft5x06_ts_data *tsdata)
 	int ret;
 	int error;
 
+	if (tsdata->version != EDT_M06) {
+		dev_err(&client->dev,
+			"No factory mode support for non-M06 devices\n");
+		return -EINVAL;
+	}
+
 	disable_irq(client->irq);
 
 	if (!tsdata->raw_buffer) {
@@ -524,9 +530,6 @@ static int edt_ft5x06_factory_mode(struct edt_ft5x06_ts_data *tsdata)
 	}
 
 	/* mode register is 0x3c when in the work mode */
-	if (tsdata->version != EDT_M06)
-		goto m09_out;
-
 	error = edt_ft5x06_register_write(tsdata, WORK_REGISTER_OPMODE, 0x03);
 	if (error) {
 		dev_err(&client->dev,
@@ -559,11 +562,6 @@ err_out:
 	enable_irq(client->irq);
 
 	return error;
-
-m09_out:
-	dev_err(&client->dev, "No factory mode support for M09/M12/GENERIC_FT\n");
-	return -EINVAL;
-
 }
 
 static int edt_ft5x06_work_mode(struct edt_ft5x06_ts_data *tsdata)
