@@ -371,19 +371,6 @@ timeout: Watchdog timeout in seconds. 1 <= timeout <= 255, default=60.
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
 -------------------------------------------------
-w83697hf_wdt:
-wdt_io: w83697hf/hg WDT io port (default 0x2e, 0 = autodetect)
-timeout: Watchdog timeout in seconds. 1<= timeout <=255 (default=60)
-nowayout: Watchdog cannot be stopped once started
-	(default=kernel config parameter)
-early_disable: Watchdog gets disabled at boot time (default=1)
--------------------------------------------------
-w83697ug_wdt:
-wdt_io: w83697ug/uf WDT io port (default 0x2e)
-timeout: Watchdog timeout in seconds. 1<= timeout <=255 (default=60)
-nowayout: Watchdog cannot be stopped once started
-	(default=kernel config parameter)
--------------------------------------------------
 w83877f_wdt:
 timeout: Watchdog timeout in seconds. (1<=timeout<=3600, default=30)
 nowayout: Watchdog cannot be stopped once started
