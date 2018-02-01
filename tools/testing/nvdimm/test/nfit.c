@@ -27,6 +27,7 @@
 #include <nfit.h>
 #include <nd.h>
 #include "nfit_test.h"
+#include "../watermark.h"
 
 /*
  * Generate an NFIT table to describe the following topology:
@@ -2544,6 +2545,11 @@ static struct platform_driver nfit_test_driver = {
 static __init int nfit_test_init(void)
 {
 	int rc, i;
+
+	pmem_test();
+	libnvdimm_test();
+	acpi_nfit_test();
+	device_dax_test();
 
 	nfit_test_setup(nfit_test_lookup, nfit_test_evaluate_dsm);
 
