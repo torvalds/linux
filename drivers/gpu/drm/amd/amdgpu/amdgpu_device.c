@@ -1036,7 +1036,7 @@ int amdgpu_device_ip_block_add(struct amdgpu_device *adev,
 	if (!ip_block_version)
 		return -EINVAL;
 
-	DRM_DEBUG("add ip block number %d <%s>\n", adev->num_ip_blocks,
+	DRM_INFO("add ip block number %d <%s>\n", adev->num_ip_blocks,
 		  ip_block_version->funcs->name);
 
 	adev->ip_blocks[adev->num_ip_blocks++].version = ip_block_version;
