@@ -8264,8 +8264,8 @@ static irqreturn_t sdma_interrupt(int irq, void *data)
 		/* handle the interrupt(s) */
 		sdma_engine_interrupt(sde, status);
 	} else {
-		dd_dev_err_ratelimited(dd, "SDMA engine %u interrupt, but no status bits set\n",
-				       sde->this_idx);
+		dd_dev_info_ratelimited(dd, "SDMA engine %u interrupt, but no status bits set\n",
+					sde->this_idx);
 	}
 	return IRQ_HANDLED;
 }
@@ -12960,7 +12960,14 @@ static void disable_intx(struct pci_dev *pdev)
 	pci_intx(pdev, 0);
 }
 
-static void clean_up_interrupts(struct hfi1_devdata *dd)
+/**
+ * hfi1_clean_up_interrupts() - Free all IRQ resources
+ * @dd: valid device data data structure
+ *
+ * Free the MSI or INTx IRQs and assoicated PCI resources,
+ * if they have been allocated.
+ */
+void hfi1_clean_up_interrupts(struct hfi1_devdata *dd)
 {
 	int i;
 
@@ -13321,7 +13328,7 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
 	return 0;
 
 fail:
-	clean_up_interrupts(dd);
+	hfi1_clean_up_interrupts(dd);
 	return ret;
 }
 
@@ -14748,7 +14755,6 @@ void hfi1_start_cleanup(struct hfi1_devdata *dd)
 	aspm_exit(dd);
 	free_cntrs(dd);
 	free_rcverr(dd);
-	clean_up_interrupts(dd);
 	finish_chip_resources(dd);
 }
 
@@ -15204,7 +15210,7 @@ bail_free_rcverr:
 bail_free_cntrs:
 	free_cntrs(dd);
 bail_clear_intr:
-	clean_up_interrupts(dd);
+	hfi1_clean_up_interrupts(dd);
 bail_cleanup:
 	hfi1_pcie_ddcleanup(dd);
 bail_free:
