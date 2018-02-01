@@ -123,15 +123,12 @@ reset_set(void *data, u64 val)
 
 	mutex_lock(&dev->struct_mutex);
 
-	if (adreno_gpu->pm4) {
-		release_firmware(adreno_gpu->pm4);
-		adreno_gpu->pm4 = NULL;
-	}
+	release_firmware(adreno_gpu->fw[ADRENO_FW_PM4]);
+	adreno_gpu->fw[ADRENO_FW_PM4] = NULL;
 
-	if (adreno_gpu->pfp) {
-		release_firmware(adreno_gpu->pfp);
-		adreno_gpu->pfp = NULL;
-	}
+	release_firmware(adreno_gpu->fw[ADRENO_FW_PFP]);
+	adreno_gpu->fw[ADRENO_FW_PFP] = NULL;
+
 	if (a5xx_gpu->pm4_bo) {
 		if (a5xx_gpu->pm4_iova)
 			msm_gem_put_iova(a5xx_gpu->pm4_bo, gpu->aspace);

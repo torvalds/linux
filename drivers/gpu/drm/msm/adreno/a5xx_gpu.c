@@ -523,8 +523,8 @@ static int a5xx_ucode_init(struct msm_gpu *gpu)
 	int ret;
 
 	if (!a5xx_gpu->pm4_bo) {
-		a5xx_gpu->pm4_bo = a5xx_ucode_load_bo(gpu, adreno_gpu->pm4,
-			&a5xx_gpu->pm4_iova);
+		a5xx_gpu->pm4_bo = a5xx_ucode_load_bo(gpu,
+			adreno_gpu->fw[ADRENO_FW_PM4], &a5xx_gpu->pm4_iova);
 
 		if (IS_ERR(a5xx_gpu->pm4_bo)) {
 			ret = PTR_ERR(a5xx_gpu->pm4_bo);
@@ -536,8 +536,8 @@ static int a5xx_ucode_init(struct msm_gpu *gpu)
 	}
 
 	if (!a5xx_gpu->pfp_bo) {
-		a5xx_gpu->pfp_bo = a5xx_ucode_load_bo(gpu, adreno_gpu->pfp,
-			&a5xx_gpu->pfp_iova);
+		a5xx_gpu->pfp_bo = a5xx_ucode_load_bo(gpu,
+			adreno_gpu->fw[ADRENO_FW_PFP], &a5xx_gpu->pfp_iova);
 
 		if (IS_ERR(a5xx_gpu->pfp_bo)) {
 			ret = PTR_ERR(a5xx_gpu->pfp_bo);

@@ -48,6 +48,13 @@ enum adreno_regs {
 	REG_ADRENO_REGISTER_MAX,
 };
 
+enum {
+	ADRENO_FW_PM4 = 0,
+	ADRENO_FW_PFP = 1,
+	ADRENO_FW_GPMU = 2,
+	ADRENO_FW_MAX,
+};
+
 enum adreno_quirks {
 	ADRENO_QUIRK_TWO_PASS_USE_WFI = 1,
 	ADRENO_QUIRK_FAULT_DETECT_MASK = 2,
@@ -72,8 +79,7 @@ struct adreno_info {
 	struct adreno_rev rev;
 	uint32_t revn;
 	const char *name;
-	const char *pm4fw, *pfpfw;
-	const char *powerfw;
+	const char *fw[ADRENO_FW_MAX];
 	uint32_t gmem;
 	enum adreno_quirks quirks;
 	struct msm_gpu *(*init)(struct drm_device *dev);
@@ -115,7 +121,7 @@ struct adreno_gpu {
 	} fwloc;
 
 	/* firmware: */
-	const struct firmware *pm4, *pfp;
+	const struct firmware *fw[ADRENO_FW_MAX];
 
 	/*
 	 * Register offsets are different between some GPUs.
