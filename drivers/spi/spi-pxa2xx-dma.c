@@ -191,7 +191,7 @@ int pxa2xx_spi_dma_setup(struct driver_data *drv_data)
 {
 	struct pxa2xx_spi_master *pdata = drv_data->master_info;
 	struct device *dev = &drv_data->pdev->dev;
-	struct spi_master *master = drv_data->master;
+	struct spi_controller *master = drv_data->master;
 	dma_cap_mask_t mask;
 
 	dma_cap_zero(mask);
@@ -215,7 +215,7 @@ int pxa2xx_spi_dma_setup(struct driver_data *drv_data)
 
 void pxa2xx_spi_dma_release(struct driver_data *drv_data)
 {
-	struct spi_master *master = drv_data->master;
+	struct spi_controller *master = drv_data->master;
 
 	if (master->dma_rx) {
 		dmaengine_terminate_sync(master->dma_rx);
