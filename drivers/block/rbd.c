@@ -222,10 +222,6 @@ enum obj_operation_type {
 	OBJ_OP_DISCARD,
 };
 
-enum obj_req_flags {
-	OBJ_REQ_IMG_DATA,	/* object usage: standalone = 0, image = 1 */
-};
-
 /*
  * Writes go through the following state machine to deal with
  * layering:
@@ -252,16 +248,11 @@ struct rbd_obj_request {
 	u64			object_no;
 	u64			offset;		/* object start byte */
 	u64			length;		/* bytes from offset */
-	unsigned long		flags;
 	union {
 		bool			tried_parent;	/* for reads */
 		enum rbd_obj_write_state write_state;	/* for writes */
 	};
 
-	/*
-	 * An object request associated with an image will have its
-	 * img_data flag set; a standalone object request will not.
-	 */
 	struct rbd_img_request	*img_request;
 	u64			img_offset;
 	/* links for img_request->obj_requests list */
@@ -1291,28 +1282,6 @@ static void rbd_obj_zero_range(struct rbd_obj_request *obj_req, u32 off,
 	}
 }
 
-/*
- * The default/initial value for all object request flags is 0.  For
- * each flag, once its value is set to 1 it is never reset to 0
- * again.
- */
-static void obj_request_img_data_set(struct rbd_obj_request *obj_request)
-{
-	if (test_and_set_bit(OBJ_REQ_IMG_DATA, &obj_request->flags)) {
-		struct rbd_device *rbd_dev;
-
-		rbd_dev = obj_request->img_request->rbd_dev;
-		rbd_warn(rbd_dev, "obj_request %p already marked img_data",
-			obj_request);
-	}
-}
-
-static bool obj_request_img_data_test(struct rbd_obj_request *obj_request)
-{
-	smp_mb();
-	return test_bit(OBJ_REQ_IMG_DATA, &obj_request->flags) != 0;
-}
-
 static bool obj_request_overlaps_parent(struct rbd_obj_request *obj_request)
 {
 	struct rbd_device *rbd_dev = obj_request->img_request->rbd_dev;
@@ -1365,8 +1334,6 @@ static inline void rbd_img_obj_request_add(struct rbd_img_request *img_request,
 
 	/* Image request now owns object's original reference */
 	obj_request->img_request = img_request;
-	rbd_assert(!obj_request_img_data_test(obj_request));
-	obj_request_img_data_set(obj_request);
 	img_request->obj_request_count++;
 	img_request->pending_count++;
 	list_add_tail(&obj_request->links, &img_request->obj_requests);
@@ -1380,7 +1347,6 @@ static inline void rbd_img_obj_request_del(struct rbd_img_request *img_request,
 	list_del(&obj_request->links);
 	rbd_assert(img_request->obj_request_count > 0);
 	img_request->obj_request_count--;
-	rbd_assert(obj_request_img_data_test(obj_request));
 	rbd_assert(obj_request->img_request == img_request);
 	obj_request->img_request = NULL;
 	rbd_obj_request_put(obj_request);
@@ -1506,7 +1472,6 @@ static void rbd_osd_req_format_read(struct rbd_obj_request *obj_request)
 {
 	struct ceph_osd_request *osd_req = obj_request->osd_req;
 
-	rbd_assert(obj_request_img_data_test(obj_request));
 	osd_req->r_flags = CEPH_OSD_FLAG_READ;
 	osd_req->r_snapid = obj_request->img_request->snap_id;
 }
