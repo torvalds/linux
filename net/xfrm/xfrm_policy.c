@@ -1891,7 +1891,7 @@ static void xfrm_policy_queue_process(struct timer_list *t)
 	spin_unlock(&pq->hold_queue.lock);
 
 	dst_hold(xfrm_dst_path(dst));
-	dst = xfrm_lookup(net, xfrm_dst_path(dst), &fl, sk, 0);
+	dst = xfrm_lookup(net, xfrm_dst_path(dst), &fl, sk, XFRM_LOOKUP_QUEUE);
 	if (IS_ERR(dst))
 		goto purge_queue;
 
