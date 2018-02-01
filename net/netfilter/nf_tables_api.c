@@ -5006,13 +5006,13 @@ void nft_flow_table_iterate(struct net *net,
 	struct nft_flowtable *flowtable;
 	const struct nft_table *table;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(table, &net->nft.tables, list) {
-		list_for_each_entry_rcu(flowtable, &table->flowtables, list) {
+	nfnl_lock(NFNL_SUBSYS_NFTABLES);
+	list_for_each_entry(table, &net->nft.tables, list) {
+		list_for_each_entry(flowtable, &table->flowtables, list) {
 			iter(&flowtable->data, data);
 		}
 	}
-	rcu_read_unlock();
+	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 }
 EXPORT_SYMBOL_GPL(nft_flow_table_iterate);
 

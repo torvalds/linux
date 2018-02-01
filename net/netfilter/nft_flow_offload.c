@@ -208,6 +208,7 @@ static void nft_flow_offload_iterate_cleanup(struct nf_flowtable *flowtable,
 					     void *data)
 {
 	nf_flow_table_iterate(flowtable, flow_offload_iterate_cleanup, data);
+	flush_delayed_work(&flowtable->gc_work);
 }
 
 static int flow_offload_netdev_event(struct notifier_block *this,
