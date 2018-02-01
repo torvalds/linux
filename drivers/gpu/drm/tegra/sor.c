@@ -605,6 +605,30 @@ static struct clk *tegra_clk_sor_pad_register(struct tegra_sor *sor,
 	return clk;
 }
 
+static void tegra_sor_filter_rates(struct tegra_sor *sor)
+{
+	struct drm_dp_link *link = &sor->link;
+	unsigned int i;
+
+	/* Tegra only supports RBR, HBR and HBR2 */
+	for (i = 0; i < link->num_rates; i++) {
+		switch (link->rates[i]) {
+		case 1620000:
+		case 2700000:
+		case 5400000:
+			break;
+
+		default:
+			DRM_DEBUG_KMS("link rate %lu kHz not supported\n",
+				      link->rates[i]);
+			link->rates[i] = 0;
+			break;
+		}
+	}
+
+	drm_dp_link_update_rates(link);
+}
+
 static int tegra_sor_power_up_lanes(struct tegra_sor *sor, unsigned int lanes)
 {
 	unsigned long timeout;
@@ -1896,6 +1920,8 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	err = drm_dp_link_probe(sor->aux, &sor->link);
 	if (err < 0)
 		dev_err(sor->dev, "failed to probe eDP link: %d\n", err);
+
+	tegra_sor_filter_rates(sor);
 
 	err = drm_dp_link_choose(&sor->link, mode, info);
 	if (err < 0)
