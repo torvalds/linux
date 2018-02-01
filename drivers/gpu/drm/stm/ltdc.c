@@ -328,6 +328,26 @@ static inline u32 to_drm_pixelformat(enum ltdc_pix_fmt pf)
 	}
 }
 
+static inline u32 get_pixelformat_without_alpha(u32 drm)
+{
+	switch (drm) {
+	case DRM_FORMAT_ARGB4444:
+		return DRM_FORMAT_XRGB4444;
+	case DRM_FORMAT_RGBA4444:
+		return DRM_FORMAT_RGBX4444;
+	case DRM_FORMAT_ARGB1555:
+		return DRM_FORMAT_XRGB1555;
+	case DRM_FORMAT_RGBA5551:
+		return DRM_FORMAT_RGBX5551;
+	case DRM_FORMAT_ARGB8888:
+		return DRM_FORMAT_XRGB8888;
+	case DRM_FORMAT_RGBA8888:
+		return DRM_FORMAT_RGBX8888;
+	default:
+		return 0;
+	}
+}
+
 static irqreturn_t ltdc_irq_thread(int irq, void *arg)
 {
 	struct drm_device *ddev = arg;
@@ -680,6 +700,9 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 
 	/* Specifies the blending factors */
 	val = BF1_PAXCA | BF2_1PAXCA;
+	if (!fb->format->has_alpha)
+		val = BF1_CA | BF2_1CA;
+
 	reg_update_bits(ldev->regs, LTDC_L1BFCR + lofs,
 			LXBFCR_BF2 | LXBFCR_BF1, val);
 
@@ -747,8 +770,8 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
 	struct device *dev = ddev->dev;
 	struct drm_plane *plane;
 	unsigned int i, nb_fmt = 0;
-	u32 formats[NB_PF];
-	u32 drm_fmt;
+	u32 formats[NB_PF * 2];
+	u32 drm_fmt, drm_fmt_no_alpha;
 	int ret;
 
 	/* Get supported pixel formats */
@@ -757,6 +780,12 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
 		if (!drm_fmt)
 			continue;
 		formats[nb_fmt++] = drm_fmt;
+
+		/* Add the no-alpha related format if any & supported */
+		drm_fmt_no_alpha = get_pixelformat_without_alpha(drm_fmt);
+		if (!drm_fmt_no_alpha)
+			continue;
+		formats[nb_fmt++] = drm_fmt_no_alpha;
 	}
 
 	plane = devm_kzalloc(dev, sizeof(*plane), GFP_KERNEL);
