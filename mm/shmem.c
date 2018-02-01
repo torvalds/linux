@@ -2722,7 +2722,7 @@ continue_resched:
 		     F_SEAL_GROW | \
 		     F_SEAL_WRITE)
 
-static int shmem_add_seals(struct file *file, unsigned int seals)
+static int memfd_add_seals(struct file *file, unsigned int seals)
 {
 	struct inode *inode = file_inode(file);
 	struct shmem_inode_info *info = SHMEM_I(inode);
@@ -2792,7 +2792,7 @@ unlock:
 	return error;
 }
 
-static int shmem_get_seals(struct file *file)
+static int memfd_get_seals(struct file *file)
 {
 	if (file->f_op != &shmem_file_operations)
 		return -EINVAL;
@@ -2800,7 +2800,7 @@ static int shmem_get_seals(struct file *file)
 	return SHMEM_I(file_inode(file))->seals;
 }
 
-long shmem_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
+long memfd_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long error;
 
@@ -2810,10 +2810,10 @@ long shmem_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (arg > UINT_MAX)
 			return -EINVAL;
 
-		error = shmem_add_seals(file, arg);
+		error = memfd_add_seals(file, arg);
 		break;
 	case F_GET_SEALS:
-		error = shmem_get_seals(file);
+		error = memfd_get_seals(file);
 		break;
 	default:
 		error = -EINVAL;
