@@ -260,6 +260,7 @@ struct ep_pqueue {
 struct ep_send_events_data {
 	int maxevents;
 	struct epoll_event __user *events;
+	int res;
 };
 
 /*
@@ -1616,7 +1617,6 @@ static int ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
 			       void *priv)
 {
 	struct ep_send_events_data *esed = priv;
-	int eventcnt;
 	unsigned int revents;
 	struct epitem *epi;
 	struct epoll_event __user *uevent;
@@ -1630,8 +1630,8 @@ static int ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
 	 * Items cannot vanish during the loop because ep_scan_ready_list() is
 	 * holding "mtx" during this call.
 	 */
-	for (eventcnt = 0, uevent = esed->events;
-	     !list_empty(head) && eventcnt < esed->maxevents;) {
+	for (esed->res = 0, uevent = esed->events;
+	     !list_empty(head) && esed->res < esed->maxevents;) {
 		epi = list_first_entry(head, struct epitem, rdllink);
 
 		/*
@@ -1665,9 +1665,11 @@ static int ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
 			    __put_user(epi->event.data, &uevent->data)) {
 				list_add(&epi->rdllink, head);
 				ep_pm_stay_awake(epi);
-				return eventcnt ? eventcnt : -EFAULT;
+				if (!esed->res)
+					esed->res = -EFAULT;
+				return 0;
 			}
-			eventcnt++;
+			esed->res++;
 			uevent++;
 			if (epi->event.events & EPOLLONESHOT)
 				epi->event.events &= EP_PRIVATE_BITS;
@@ -1689,7 +1691,7 @@ static int ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
 		}
 	}
 
-	return eventcnt;
+	return 0;
 }
 
 static int ep_send_events(struct eventpoll *ep,
@@ -1700,7 +1702,8 @@ static int ep_send_events(struct eventpoll *ep,
 	esed.maxevents = maxevents;
 	esed.events = events;
 
-	return ep_scan_ready_list(ep, ep_send_events_proc, &esed, 0, false);
+	ep_scan_ready_list(ep, ep_send_events_proc, &esed, 0, false);
+	return esed.res;
 }
 
 static inline struct timespec64 ep_set_mstimeout(long ms)
