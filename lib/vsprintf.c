@@ -2517,29 +2517,34 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
 {
 	struct printf_spec spec = {0};
 	char *str, *end;
+	int width;
 
 	str = (char *)bin_buf;
 	end = (char *)(bin_buf + size);
 
 #define save_arg(type)							\
-do {									\
+({									\
+	unsigned long long value;					\
 	if (sizeof(type) == 8) {					\
-		unsigned long long value;				\
+		unsigned long long val8;				\
 		str = PTR_ALIGN(str, sizeof(u32));			\
-		value = va_arg(args, unsigned long long);		\
+		val8 = va_arg(args, unsigned long long);		\
 		if (str + sizeof(type) <= end) {			\
-			*(u32 *)str = *(u32 *)&value;			\
-			*(u32 *)(str + 4) = *((u32 *)&value + 1);	\
+			*(u32 *)str = *(u32 *)&val8;			\
+			*(u32 *)(str + 4) = *((u32 *)&val8 + 1);	\
 		}							\
+		value = val8;						\
 	} else {							\
-		unsigned long value;					\
+		unsigned int val4;					\
 		str = PTR_ALIGN(str, sizeof(type));			\
-		value = va_arg(args, int);				\
+		val4 = va_arg(args, int);				\
 		if (str + sizeof(type) <= end)				\
-			*(typeof(type) *)str = (type)value;		\
+			*(typeof(type) *)str = (type)(long)val4;	\
+		value = (unsigned long long)val4;			\
 	}								\
 	str += sizeof(type);						\
-} while (0)
+	value;								\
+})
 
 	while (*fmt) {
 		int read = format_decode(fmt, &spec);
@@ -2555,7 +2560,10 @@ do {									\
 
 		case FORMAT_TYPE_WIDTH:
 		case FORMAT_TYPE_PRECISION:
-			save_arg(int);
+			width = (int)save_arg(int);
+			/* Pointers may require the width */
+			if (*fmt == 'p')
+				set_field_width(&spec, width);
 			break;
 
 		case FORMAT_TYPE_CHAR:
@@ -2577,7 +2585,27 @@ do {									\
 		}
 
 		case FORMAT_TYPE_PTR:
-			save_arg(void *);
+			/* Dereferenced pointers must be done now */
+			switch (*fmt) {
+			/* Dereference of functions is still OK */
+			case 'S':
+			case 's':
+			case 'F':
+			case 'f':
+				save_arg(void *);
+				break;
+			default:
+				if (!isalnum(*fmt)) {
+					save_arg(void *);
+					break;
+				}
+				str = pointer(fmt, str, end, va_arg(args, void *),
+					      spec);
+				if (str + 1 < end)
+					*str++ = '\0';
+				else
+					end[-1] = '\0'; /* Must be nul terminated */
+			}
 			/* skip all alphanumeric pointer suffixes */
 			while (isalnum(*fmt))
 				fmt++;
@@ -2729,11 +2757,39 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 			break;
 		}
 
-		case FORMAT_TYPE_PTR:
-			str = pointer(fmt, str, end, get_arg(void *), spec);
+		case FORMAT_TYPE_PTR: {
+			bool process = false;
+			int copy, len;
+			/* Non function dereferences were already done */
+			switch (*fmt) {
+			case 'S':
+			case 's':
+			case 'F':
+			case 'f':
+				process = true;
+				break;
+			default:
+				if (!isalnum(*fmt)) {
+					process = true;
+					break;
+				}
+				/* Pointer dereference was already processed */
+				if (str < end) {
+					len = copy = strlen(args);
+					if (copy > end - str)
+						copy = end - str;
+					memcpy(str, args, copy);
+					str += len;
+					args += len;
+				}
+			}
+			if (process)
+				str = pointer(fmt, str, end, get_arg(void *), spec);
+
 			while (isalnum(*fmt))
 				fmt++;
 			break;
+		}
 
 		case FORMAT_TYPE_PERCENT_CHAR:
 			if (str < end)
