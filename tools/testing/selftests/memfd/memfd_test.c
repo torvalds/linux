@@ -19,6 +19,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "common.h"
+
 #define MEMFD_STR	"memfd:"
 #define MEMFD_HUGE_STR	"memfd-hugetlb:"
 #define SHARED_FT_STR	"(shared file-table)"
@@ -29,42 +31,8 @@
 /*
  * Default is not to test hugetlbfs
  */
-static int hugetlbfs_test;
 static size_t mfd_def_size = MFD_DEF_SIZE;
 static const char *memfd_str = MEMFD_STR;
-
-/*
- * Copied from mlock2-tests.c
- */
-static unsigned long default_huge_page_size(void)
-{
-	unsigned long hps = 0;
-	char *line = NULL;
-	size_t linelen = 0;
-	FILE *f = fopen("/proc/meminfo", "r");
-
-	if (!f)
-		return 0;
-	while (getline(&line, &linelen, f) > 0) {
-		if (sscanf(line, "Hugepagesize:       %lu kB", &hps) == 1) {
-			hps <<= 10;
-			break;
-		}
-	}
-
-	free(line);
-	fclose(f);
-	return hps;
-}
-
-static int sys_memfd_create(const char *name,
-			    unsigned int flags)
-{
-	if (hugetlbfs_test)
-		flags |= MFD_HUGETLB;
-
-	return syscall(__NR_memfd_create, name, flags);
-}
 
 static int mfd_assert_new(const char *name, loff_t sz, unsigned int flags)
 {

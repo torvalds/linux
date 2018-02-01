@@ -33,14 +33,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "common.h"
+
 #define MFD_DEF_SIZE 8192
 #define STACK_SIZE 65536
-
-static int sys_memfd_create(const char *name,
-			    unsigned int flags)
-{
-	return syscall(__NR_memfd_create, name, flags);
-}
 
 static int mfd_assert_new(const char *name, loff_t sz, unsigned int flags)
 {
