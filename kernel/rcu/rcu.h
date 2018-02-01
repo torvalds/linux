@@ -301,9 +301,19 @@ static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
  * Iterate over all possible CPUs in a leaf RCU node.
  */
 #define for_each_leaf_node_possible_cpu(rnp, cpu) \
-	for ((cpu) = cpumask_next(rnp->grplo - 1, cpu_possible_mask); \
-	     cpu <= rnp->grphi; \
-	     cpu = cpumask_next((cpu), cpu_possible_mask))
+	for ((cpu) = cpumask_next((rnp)->grplo - 1, cpu_possible_mask); \
+	     (cpu) <= rnp->grphi; \
+	     (cpu) = cpumask_next((cpu), cpu_possible_mask))
+
+/*
+ * Iterate over all CPUs in a leaf RCU node's specified mask.
+ */
+#define rcu_find_next_bit(rnp, cpu, mask) \
+	((rnp)->grplo + find_next_bit(&(mask), BITS_PER_LONG, (cpu)))
+#define for_each_leaf_node_cpu_mask(rnp, cpu, mask) \
+	for ((cpu) = rcu_find_next_bit((rnp), 0, (mask)); \
+	     (cpu) <= rnp->grphi; \
+	     (cpu) = rcu_find_next_bit((rnp), (cpu) + 1 - (rnp->grplo), (mask)))
 
 /*
  * Wrappers for the rcu_node::lock acquire and release.
