@@ -638,6 +638,19 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 	    dev->chip_id == CHIP_ID_EM28174 ||
 	    dev->chip_id == CHIP_ID_EM28178) {
 		/* The Transport Stream Enable Register moved in em2874 */
+		if (dev->dvb_xfer_bulk) {
+			/* Max Tx Size = 188 * 256 = 48128 - LCM(188,512) * 2 */
+			em28xx_write_reg(dev, (dev->ts == PRIMARY_TS) ?
+					EM2874_R5D_TS1_PKT_SIZE :
+					EM2874_R5E_TS2_PKT_SIZE,
+					0xFF);
+		} else {
+			/* ISOC Maximum Transfer Size = 188 * 5 */
+			em28xx_write_reg(dev, (dev->ts == PRIMARY_TS) ?
+					EM2874_R5D_TS1_PKT_SIZE :
+					EM2874_R5E_TS2_PKT_SIZE,
+					dev->dvb_max_pkt_size_isoc / 188);
+		}
 		if (dev->ts == PRIMARY_TS)
 			rc = em28xx_write_reg_bits(dev,
 				EM2874_R5F_TS_ENABLE,
