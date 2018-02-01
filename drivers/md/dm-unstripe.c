@@ -213,5 +213,6 @@ module_init(dm_unstripe_init);
 module_exit(dm_unstripe_exit);
 
 MODULE_DESCRIPTION(DM_NAME " unstriped target");
+MODULE_ALIAS("dm-unstriped");
 MODULE_AUTHOR("Scott Bauer <scott.bauer@intel.com>");
 MODULE_LICENSE("GPL");
