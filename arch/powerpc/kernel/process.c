@@ -867,8 +867,7 @@ static inline bool tm_enabled(struct task_struct *tsk)
 	return tsk && tsk->thread.regs && (tsk->thread.regs->msr & MSR_TM);
 }
 
-static void tm_reclaim_thread(struct thread_struct *thr,
-			      struct thread_info *ti, uint8_t cause)
+static void tm_reclaim_thread(struct thread_struct *thr, uint8_t cause)
 {
 	/*
 	 * Use the current MSR TM suspended bit to track if we have
@@ -915,7 +914,7 @@ static void tm_reclaim_thread(struct thread_struct *thr,
 void tm_reclaim_current(uint8_t cause)
 {
 	tm_enable();
-	tm_reclaim_thread(&current->thread, current_thread_info(), cause);
+	tm_reclaim_thread(&current->thread, cause);
 }
 
 static inline void tm_reclaim_task(struct task_struct *tsk)
@@ -946,7 +945,7 @@ static inline void tm_reclaim_task(struct task_struct *tsk)
 		 thr->regs->ccr, thr->regs->msr,
 		 thr->regs->trap);
 
-	tm_reclaim_thread(thr, task_thread_info(tsk), TM_CAUSE_RESCHED);
+	tm_reclaim_thread(thr, TM_CAUSE_RESCHED);
 
 	TM_DEBUG("--- tm_reclaim on pid %d complete\n",
 		 tsk->pid);
