@@ -313,16 +313,14 @@ static inline u32 ib_bth_get_qpn(struct ib_other_headers *ohdr)
 	return (u32)((be32_to_cpu(ohdr->bth[1])) & IB_QPN_MASK);
 }
 
-static inline u8 ib_bth_get_becn(struct ib_other_headers *ohdr)
+static inline bool ib_bth_get_becn(struct ib_other_headers *ohdr)
 {
-	return (u8)((be32_to_cpu(ohdr->bth[1]) >> IB_BECN_SHIFT) &
-		     IB_BECN_MASK);
+	return (ohdr->bth[1]) & cpu_to_be32(IB_BECN_SMASK);
 }
 
-static inline u8 ib_bth_get_fecn(struct ib_other_headers *ohdr)
+static inline bool ib_bth_get_fecn(struct ib_other_headers *ohdr)
 {
-	return (u8)((be32_to_cpu(ohdr->bth[1]) >> IB_FECN_SHIFT) &
-		    IB_FECN_MASK);
+	return (ohdr->bth[1]) & cpu_to_be32(IB_FECN_SMASK);
 }
 
 static inline u8 ib_bth_get_tver(struct ib_other_headers *ohdr)

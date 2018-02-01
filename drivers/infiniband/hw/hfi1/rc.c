@@ -814,7 +814,7 @@ static inline void hfi1_make_rc_ack_16B(struct hfi1_packet *packet,
 	struct ib_other_headers *ohdr;
 	u32 bth0, bth1 = 0;
 	u16 len, pkey;
-	u8 becn = !!is_fecn;
+	bool becn = is_fecn;
 	u8 l4 = OPA_16B_L4_IB_LOCAL;
 	u8 extra_bytes;
 

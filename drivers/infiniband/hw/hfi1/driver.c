@@ -1440,8 +1440,6 @@ static int hfi1_setup_9B_packet(struct hfi1_packet *packet)
 	packet->sc = hfi1_9B_get_sc5(hdr, packet->rhf);
 	packet->pad = ib_bth_get_pad(packet->ohdr);
 	packet->extra_byte = 0;
-	packet->fecn = ib_bth_get_fecn(packet->ohdr);
-	packet->becn = ib_bth_get_becn(packet->ohdr);
 	packet->pkey = ib_bth_get_pkey(packet->ohdr);
 	packet->migrated = ib_bth_is_migration(packet->ohdr);
 
@@ -1508,8 +1506,6 @@ static int hfi1_setup_bypass_packet(struct hfi1_packet *packet)
 	packet->sl = ibp->sc_to_sl[packet->sc];
 	packet->pad = hfi1_16B_bth_get_pad(packet->ohdr);
 	packet->extra_byte = SIZE_OF_LT;
-	packet->fecn = hfi1_16B_get_fecn(packet->hdr);
-	packet->becn = hfi1_16B_get_becn(packet->hdr);
 	packet->pkey = hfi1_16B_get_pkey(packet->hdr);
 	packet->migrated = opa_bth_is_migration(packet->ohdr);
 

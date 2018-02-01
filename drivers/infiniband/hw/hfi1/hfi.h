@@ -352,8 +352,6 @@ struct hfi1_packet {
 	u8 sc;
 	u8 sl;
 	u8 opcode;
-	bool becn;
-	bool fecn;
 	bool migrated;
 };
 
@@ -1781,19 +1779,15 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,
 			       bool do_cnp)
 {
-	struct ib_other_headers *ohdr = pkt->ohdr;
-
-	u32 bth1;
-	bool becn = false;
-	bool fecn = false;
+	bool becn;
+	bool fecn;
 
 	if (pkt->etype == RHF_RCV_TYPE_BYPASS) {
 		fecn = hfi1_16B_get_fecn(pkt->hdr);
 		becn = hfi1_16B_get_becn(pkt->hdr);
 	} else {
-		bth1 = be32_to_cpu(ohdr->bth[1]);
-		fecn = bth1 & IB_FECN_SMASK;
-		becn = bth1 & IB_BECN_SMASK;
+		fecn = ib_bth_get_fecn(pkt->ohdr);
+		becn = ib_bth_get_becn(pkt->ohdr);
 	}
 	if (unlikely(fecn || becn)) {
 		hfi1_process_ecn_slowpath(qp, pkt, do_cnp);
@@ -2419,7 +2413,7 @@ static inline void hfi1_make_ib_hdr(struct ib_header *hdr,
 static inline void hfi1_make_16b_hdr(struct hfi1_16b_header *hdr,
 				     u32 slid, u32 dlid,
 				     u16 len, u16 pkey,
-				     u8 becn, u8 fecn, u8 l4,
+				     bool becn, bool fecn, u8 l4,
 				     u8 sc)
 {
 	u32 lrh0 = 0;

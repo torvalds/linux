@@ -751,7 +751,7 @@ static inline void hfi1_make_ruc_header_16B(struct rvt_qp *qp,
 				ps->s_txreq->s_cur_size);
 	u32 nwords = SIZE_OF_CRC + ((ps->s_txreq->s_cur_size +
 				 extra_bytes + SIZE_OF_LT) >> 2);
-	u8 becn = 0;
+	bool becn = false;
 
 	if (unlikely(rdma_ah_get_ah_flags(&qp->remote_ah_attr) & IB_AH_GRH) &&
 	    hfi1_check_mcast(rdma_ah_get_dlid(&qp->remote_ah_attr))) {
@@ -789,7 +789,7 @@ static inline void hfi1_make_ruc_header_16B(struct rvt_qp *qp,
 	if (qp->s_flags & RVT_S_ECN) {
 		qp->s_flags &= ~RVT_S_ECN;
 		/* we recently received a FECN, so return a BECN */
-		becn = 1;
+		becn = true;
 	}
 	hfi1_make_ruc_bth(qp, ohdr, bth0, bth1, bth2);
 
