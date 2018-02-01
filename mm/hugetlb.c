@@ -1675,16 +1675,15 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
 }
 
 /* mempolicy aware migration callback */
-struct page *alloc_huge_page_vma(struct vm_area_struct *vma, unsigned long address)
+struct page *alloc_huge_page_vma(struct hstate *h, struct vm_area_struct *vma,
+		unsigned long address)
 {
 	struct mempolicy *mpol;
 	nodemask_t *nodemask;
 	struct page *page;
-	struct hstate *h;
 	gfp_t gfp_mask;
 	int node;
 
-	h = hstate_vma(vma);
 	gfp_mask = htlb_alloc_mask(h);
 	node = huge_node(vma, address, gfp_mask, &mpol, &nodemask);
 	page = alloc_huge_page_nodemask(h, node, nodemask);
