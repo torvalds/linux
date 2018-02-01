@@ -38,6 +38,7 @@
 #include <linux/sched.h>
 #include <linux/if_link.h>
 #include <linux/firmware.h>
+#include <linux/mlx5/cq.h>
 
 #define DRIVER_NAME "mlx5_core"
 #define DRIVER_VERSION "5.0-0"
@@ -115,6 +116,9 @@ int mlx5_destroy_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
 					u32 element_id);
 int mlx5_wait_for_vf_pages(struct mlx5_core_dev *dev);
 u64 mlx5_read_internal_timer(struct mlx5_core_dev *dev);
+
+int mlx5_eq_add_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq);
+int mlx5_eq_del_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq);
 struct mlx5_eq *mlx5_eqn2eq(struct mlx5_core_dev *dev, int eqn);
 u32 mlx5_eq_poll_irq_disabled(struct mlx5_eq *eq);
 void mlx5_cq_tasklet_cb(unsigned long data);

@@ -704,6 +704,40 @@ int mlx5_destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 }
 EXPORT_SYMBOL_GPL(mlx5_destroy_unmap_eq);
 
+int mlx5_eq_add_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq)
+{
+	struct mlx5_cq_table *table = &eq->cq_table;
+	int err;
+
+	spin_lock_irq(&table->lock);
+	err = radix_tree_insert(&table->tree, cq->cqn, cq);
+	spin_unlock_irq(&table->lock);
+
+	return err;
+}
+
+int mlx5_eq_del_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq)
+{
+	struct mlx5_cq_table *table = &eq->cq_table;
+	struct mlx5_core_cq *tmp;
+
+	spin_lock_irq(&table->lock);
+	tmp = radix_tree_delete(&table->tree, cq->cqn);
+	spin_unlock_irq(&table->lock);
+
+	if (!tmp) {
+		mlx5_core_warn(eq->dev, "cq 0x%x not found in eq 0x%x tree\n", eq->eqn, cq->cqn);
+		return -ENOENT;
+	}
+
+	if (tmp != cq) {
+		mlx5_core_warn(eq->dev, "corruption on cqn 0x%x in eq 0x%x\n", eq->eqn, cq->cqn);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int mlx5_eq_init(struct mlx5_core_dev *dev)
 {
 	int err;
