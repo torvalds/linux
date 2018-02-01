@@ -75,6 +75,7 @@ int mcp89_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gf100_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gf108_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gk104_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gk110_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gk20a_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gm107_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gm200_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
