@@ -19,6 +19,7 @@
 
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
+#include <linux/cpufreq_times.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/init.h>
@@ -349,6 +350,7 @@ static void cpufreq_notify_transition(struct cpufreq_policy *policy,
 		}
 
 		cpufreq_stats_record_transition(policy, freqs->new);
+		cpufreq_times_record_transition(freqs);
 		policy->cur = freqs->new;
 	}
 }
@@ -1295,6 +1297,7 @@ static int cpufreq_online(unsigned int cpu)
 			goto out_destroy_policy;
 
 		cpufreq_stats_create_table(policy);
+		cpufreq_times_create_policy(policy);
 
 		write_lock_irqsave(&cpufreq_driver_lock, flags);
 		list_add(&policy->policy_list, &cpufreq_policy_list);
