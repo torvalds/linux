@@ -428,10 +428,10 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	GATE(SCLK_I2S_2CH, "sclk_i2s_2ch", "i2s_2ch_pre", CLK_SET_RATE_PARENT,
 	     RK3368_CLKGATE_CON(5), 15, GFLAGS),
 
-	COMPOSITE(0, "sclk_tsp", mux_pll_src_cpll_gpll_npll_p, 0,
+	COMPOSITE(SCLK_TSP, "sclk_tsp", mux_pll_src_cpll_gpll_npll_p, 0,
 			RK3368_CLKSEL_CON(46), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3368_CLKGATE_CON(6), 12, GFLAGS),
-	GATE(0, "sclk_hsadc_tsp", "ext_hsadc_tsp", 0,
+	GATE(SCLK_HSADC_TSP, "sclk_hsadc_tsp", "ext_hsadc_tsp", 0,
 			RK3368_CLKGATE_CON(13), 7, GFLAGS),
 
 	MUX(0, "uart_src", mux_pll_src_cpll_gpll_p, 0,
