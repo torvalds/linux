@@ -434,7 +434,9 @@ nvkm_therm_ctor(struct nvkm_therm *therm, struct nvkm_device *device,
 	therm->attr_get = nvkm_therm_attr_get;
 	therm->attr_set = nvkm_therm_attr_set;
 	therm->mode = therm->suspend = -1; /* undefined */
-	therm->clkgating_enabled = false;
+
+	therm->clkgating_enabled = nvkm_boolopt(device->cfgopt,
+						"NvPmEnableGating", false);
 }
 
 int
