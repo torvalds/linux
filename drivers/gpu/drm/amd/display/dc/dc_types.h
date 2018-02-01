@@ -195,6 +195,7 @@ union display_content_support {
 
 struct dc_panel_patch {
 	unsigned int disconnect_delay;
+	unsigned int dppowerup_delay;
 };
 
 struct dc_edid_caps {

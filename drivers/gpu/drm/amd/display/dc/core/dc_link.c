@@ -1260,6 +1260,12 @@ static enum dc_status enable_link_dp(
 		pipe_ctx->clock_source->id,
 		&link_settings);
 
+	if (stream->sink->edid_caps.panel_patch.dppowerup_delay > 0) {
+		int delay_dp_power_up_in_ms = stream->sink->edid_caps.panel_patch.dppowerup_delay;
+
+		msleep(delay_dp_power_up_in_ms);
+	}
+
 	panel_mode = dp_get_panel_mode(link);
 	dpcd_configure_panel_mode(link, panel_mode);
 
