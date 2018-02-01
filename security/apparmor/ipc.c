@@ -174,7 +174,7 @@ static void audit_signal_cb(struct audit_buffer *ab, void *va)
 			audit_signal_mask(ab, aad(sa)->denied);
 		}
 	}
-	if (aad(sa)->signal < MAXMAPPED_SIG)
+	if (aad(sa)->signal < MAXMAPPED_SIGNAME)
 		audit_log_format(ab, " signal=%s", sig_names[aad(sa)->signal]);
 	else
 		audit_log_format(ab, " signal=rtmin+%d",
