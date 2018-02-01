@@ -2554,14 +2554,14 @@ static ssize_t wwid_show(struct device *dev, struct device_attribute *attr,
 		serial_len, subsys->serial, model_len, subsys->model,
 		head->ns_id);
 }
-static DEVICE_ATTR(wwid, S_IRUGO, wwid_show, NULL);
+static DEVICE_ATTR_RO(wwid);
 
 static ssize_t nguid_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	return sprintf(buf, "%pU\n", dev_to_ns_head(dev)->ids.nguid);
 }
-static DEVICE_ATTR(nguid, S_IRUGO, nguid_show, NULL);
+static DEVICE_ATTR_RO(nguid);
 
 static ssize_t uuid_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -2578,21 +2578,21 @@ static ssize_t uuid_show(struct device *dev, struct device_attribute *attr,
 	}
 	return sprintf(buf, "%pU\n", &ids->uuid);
 }
-static DEVICE_ATTR(uuid, S_IRUGO, uuid_show, NULL);
+static DEVICE_ATTR_RO(uuid);
 
 static ssize_t eui_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	return sprintf(buf, "%8ph\n", dev_to_ns_head(dev)->ids.eui64);
 }
-static DEVICE_ATTR(eui, S_IRUGO, eui_show, NULL);
+static DEVICE_ATTR_RO(eui);
 
 static ssize_t nsid_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	return sprintf(buf, "%d\n", dev_to_ns_head(dev)->ns_id);
 }
-static DEVICE_ATTR(nsid, S_IRUGO, nsid_show, NULL);
+static DEVICE_ATTR_RO(nsid);
 
 static struct attribute *nvme_ns_id_attrs[] = {
 	&dev_attr_wwid.attr,

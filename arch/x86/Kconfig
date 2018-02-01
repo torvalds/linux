@@ -1265,9 +1265,9 @@ config MICROCODE
 	  CONFIG_BLK_DEV_INITRD in order for the loader to be able to scan the
 	  initrd for microcode blobs.
 
-	  In addition, you can build-in the microcode into the kernel. For that you
-	  need to enable FIRMWARE_IN_KERNEL and add the vendor-supplied microcode
-	  to the CONFIG_EXTRA_FIRMWARE config option.
+	  In addition, you can build the microcode into the kernel. For that you
+	  need to add the vendor-supplied microcode to the CONFIG_EXTRA_FIRMWARE
+	  config option.
 
 config MICROCODE_INTEL
 	bool "Intel microcode loading support"

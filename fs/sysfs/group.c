@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * fs/sysfs/group.c - Operations for adding/removing multiple files at once.
  *
@@ -5,9 +6,6 @@
  * Copyright (c) 2003 Open Source Development Lab
  * Copyright (c) 2013 Greg Kroah-Hartman
  * Copyright (c) 2013 The Linux Foundation
- *
- * This file is released undert the GPL v2.
- *
  */
 
 #include <linux/kobject.h>
@@ -406,6 +404,6 @@ int __compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
 
 	kernfs_put(entry);
 	kernfs_put(target);
-	return IS_ERR(link) ? PTR_ERR(link) : 0;
+	return PTR_ERR_OR_ZERO(link);
 }
 EXPORT_SYMBOL_GPL(__compat_only_sysfs_link_entry_to_kobj);

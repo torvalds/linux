@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * property.c - Unified device property interface.
  *
  * Copyright (C) 2014, Intel Corporation
  * Authors: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/acpi.h>
@@ -699,6 +696,23 @@ int fwnode_property_get_reference_args(const struct fwnode_handle *fwnode,
 }
 EXPORT_SYMBOL_GPL(fwnode_property_get_reference_args);
 
+static void property_entry_free_data(const struct property_entry *p)
+{
+	size_t i, nval;
+
+	if (p->is_array) {
+		if (p->is_string && p->pointer.str) {
+			nval = p->length / sizeof(const char *);
+			for (i = 0; i < nval; i++)
+				kfree(p->pointer.str[i]);
+		}
+		kfree(p->pointer.raw_data);
+	} else if (p->is_string) {
+		kfree(p->value.str);
+	}
+	kfree(p->name);
+}
+
 static int property_copy_string_array(struct property_entry *dst,
 				      const struct property_entry *src)
 {
@@ -729,34 +743,24 @@ static int property_entry_copy_data(struct property_entry *dst,
 {
 	int error;
 
-	dst->name = kstrdup(src->name, GFP_KERNEL);
-	if (!dst->name)
-		return -ENOMEM;
-
 	if (src->is_array) {
-		if (!src->length) {
-			error = -ENODATA;
-			goto out_free_name;
-		}
+		if (!src->length)
+			return -ENODATA;
 
 		if (src->is_string) {
 			error = property_copy_string_array(dst, src);
 			if (error)
-				goto out_free_name;
+				return error;
 		} else {
 			dst->pointer.raw_data = kmemdup(src->pointer.raw_data,
 							src->length, GFP_KERNEL);
-			if (!dst->pointer.raw_data) {
-				error = -ENOMEM;
-				goto out_free_name;
-			}
+			if (!dst->pointer.raw_data)
+				return -ENOMEM;
 		}
 	} else if (src->is_string) {
 		dst->value.str = kstrdup(src->value.str, GFP_KERNEL);
-		if (!dst->value.str && src->value.str) {
-			error = -ENOMEM;
-			goto out_free_name;
-		}
+		if (!dst->value.str && src->value.str)
+			return -ENOMEM;
 	} else {
 		dst->value.raw_data = src->value.raw_data;
 	}
@@ -765,28 +769,15 @@ static int property_entry_copy_data(struct property_entry *dst,
 	dst->is_array = src->is_array;
 	dst->is_string = src->is_string;
 
+	dst->name = kstrdup(src->name, GFP_KERNEL);
+	if (!dst->name)
+		goto out_free_data;
+
 	return 0;
 
-out_free_name:
-	kfree(dst->name);
-	return error;
-}
-
-static void property_entry_free_data(const struct property_entry *p)
-{
-	size_t i, nval;
-
-	if (p->is_array) {
-		if (p->is_string && p->pointer.str) {
-			nval = p->length / sizeof(const char *);
-			for (i = 0; i < nval; i++)
-				kfree(p->pointer.str[i]);
-		}
-		kfree(p->pointer.raw_data);
-	} else if (p->is_string) {
-		kfree(p->value.str);
-	}
-	kfree(p->name);
+out_free_data:
+	property_entry_free_data(dst);
+	return -ENOMEM;
 }
 
 /**

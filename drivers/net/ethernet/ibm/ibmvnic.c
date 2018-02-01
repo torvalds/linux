@@ -4479,7 +4479,7 @@ static ssize_t failover_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(failover, 0200, NULL, failover_store);
+static DEVICE_ATTR_WO(failover);
 
 static unsigned long ibmvnic_get_desired_dma(struct vio_dev *vdev)
 {

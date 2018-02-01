@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * device.h - generic, centralized driver model
  *
  * Copyright (c) 2001-2003 Patrick Mochel <mochel@osdl.org>
  * Copyright (c) 2004-2009 Greg Kroah-Hartman <gregkh@suse.de>
  * Copyright (c) 2008-2009 Novell Inc.
- *
- * This file is released under the GPLv2
  *
  * See Documentation/driver-model/ for more information.
  */
@@ -288,6 +287,7 @@ struct device_driver {
 	const struct attribute_group **groups;
 
 	const struct dev_pm_ops *pm;
+	int (*coredump) (struct device *dev);
 
 	struct driver_private *p;
 };
@@ -300,7 +300,6 @@ extern struct device_driver *driver_find(const char *name,
 					 struct bus_type *bus);
 extern int driver_probe_done(void);
 extern void wait_for_device_probe(void);
-
 
 /* sysfs interface for exporting driver attributes */
 
