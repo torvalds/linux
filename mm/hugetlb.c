@@ -1674,6 +1674,25 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
 	return alloc_migrate_huge_page(h, gfp_mask, preferred_nid, nmask);
 }
 
+/* mempolicy aware migration callback */
+struct page *alloc_huge_page_vma(struct vm_area_struct *vma, unsigned long address)
+{
+	struct mempolicy *mpol;
+	nodemask_t *nodemask;
+	struct page *page;
+	struct hstate *h;
+	gfp_t gfp_mask;
+	int node;
+
+	h = hstate_vma(vma);
+	gfp_mask = htlb_alloc_mask(h);
+	node = huge_node(vma, address, gfp_mask, &mpol, &nodemask);
+	page = alloc_huge_page_nodemask(h, node, nodemask);
+	mpol_cond_put(mpol);
+
+	return page;
+}
+
 /*
  * Increase the hugetlb pool such that it can accommodate a reservation
  * of size 'delta'.
@@ -2077,20 +2096,6 @@ out_subpool_put:
 		hugepage_subpool_put_pages(spool, 1);
 	vma_end_reservation(h, vma, addr);
 	return ERR_PTR(-ENOSPC);
-}
-
-/*
- * alloc_huge_page()'s wrapper which simply returns the page if allocation
- * succeeds, otherwise NULL. This function is called from new_vma_page(),
- * where no ERR_VALUE is expected to be returned.
- */
-struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
-				unsigned long addr, int avoid_reserve)
-{
-	struct page *page = alloc_huge_page(vma, addr, avoid_reserve);
-	if (IS_ERR(page))
-		page = NULL;
-	return page;
 }
 
 int alloc_bootmem_huge_page(struct hstate *h)

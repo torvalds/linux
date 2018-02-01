@@ -1121,8 +1121,7 @@ static struct page *new_page(struct page *page, unsigned long start, int **x)
 	}
 
 	if (PageHuge(page)) {
-		BUG_ON(!vma);
-		return alloc_huge_page_noerr(vma, address, 1);
+		return alloc_huge_page_vma(vma, address);
 	} else if (thp_migration_supported() && PageTransHuge(page)) {
 		struct page *thp;
 
