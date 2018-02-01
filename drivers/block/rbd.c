@@ -209,12 +209,6 @@ struct rbd_client {
 };
 
 struct rbd_img_request;
-typedef void (*rbd_img_callback_t)(struct rbd_img_request *);
-
-#define	BAD_WHICH	U32_MAX		/* Good which or bad which, which? */
-
-struct rbd_obj_request;
-typedef void (*rbd_obj_callback_t)(struct rbd_obj_request *);
 
 enum obj_request_type {
 	OBJ_REQUEST_NODATA = 1,
@@ -229,7 +223,6 @@ enum obj_operation_type {
 };
 
 enum obj_req_flags {
-	OBJ_REQ_DONE,		/* completion flag: not done = 0, done = 1 */
 	OBJ_REQ_IMG_DATA,	/* object usage: standalone = 0, image = 1 */
 };
 
@@ -268,17 +261,11 @@ struct rbd_obj_request {
 	/*
 	 * An object request associated with an image will have its
 	 * img_data flag set; a standalone object request will not.
-	 *
-	 * Finally, an object request for rbd image data will have
-	 * which != BAD_WHICH, and will have a non-null img_request
-	 * pointer.  The value of which will be in the range
-	 * 0..(img_request->obj_request_count-1).
 	 */
 	struct rbd_img_request	*img_request;
 	u64			img_offset;
 	/* links for img_request->obj_requests list */
 	struct list_head	links;
-	u32			which;		/* posn image request list */
 
 	enum obj_request_type	type;
 	union {
@@ -295,8 +282,6 @@ struct rbd_obj_request {
 
 	u64			xferred;	/* bytes transferred */
 	int			result;
-
-	rbd_obj_callback_t	callback;
 
 	struct kref		kref;
 };
@@ -320,9 +305,7 @@ struct rbd_img_request {
 		struct request		*rq;		/* block request */
 		struct rbd_obj_request	*obj_request;	/* obj req initiator */
 	};
-	spinlock_t		completion_lock;/* protects next_completion */
-	u32			next_completion;
-	rbd_img_callback_t	callback;
+	spinlock_t		completion_lock;
 	u64			xferred;/* aggregate bytes transferred */
 	int			result;	/* first nonzero obj_request result */
 
@@ -335,8 +318,6 @@ struct rbd_img_request {
 
 #define for_each_obj_request(ireq, oreq) \
 	list_for_each_entry(oreq, &(ireq)->obj_requests, links)
-#define for_each_obj_request_from(ireq, oreq) \
-	list_for_each_entry_from(oreq, &(ireq)->obj_requests, links)
 #define for_each_obj_request_safe(ireq, oreq, n) \
 	list_for_each_entry_safe_reverse(oreq, n, &(ireq)->obj_requests, links)
 
@@ -1332,24 +1313,6 @@ static bool obj_request_img_data_test(struct rbd_obj_request *obj_request)
 	return test_bit(OBJ_REQ_IMG_DATA, &obj_request->flags) != 0;
 }
 
-static void obj_request_done_set(struct rbd_obj_request *obj_request)
-{
-	if (test_and_set_bit(OBJ_REQ_DONE, &obj_request->flags)) {
-		struct rbd_device *rbd_dev = NULL;
-
-		if (obj_request_img_data_test(obj_request))
-			rbd_dev = obj_request->img_request->rbd_dev;
-		rbd_warn(rbd_dev, "obj_request %p already marked done",
-			obj_request);
-	}
-}
-
-static bool obj_request_done_test(struct rbd_obj_request *obj_request)
-{
-	smp_mb();
-	return test_bit(OBJ_REQ_DONE, &obj_request->flags) != 0;
-}
-
 static bool obj_request_overlaps_parent(struct rbd_obj_request *obj_request)
 {
 	struct rbd_device *rbd_dev = obj_request->img_request->rbd_dev;
@@ -1402,33 +1365,24 @@ static inline void rbd_img_obj_request_add(struct rbd_img_request *img_request,
 
 	/* Image request now owns object's original reference */
 	obj_request->img_request = img_request;
-	obj_request->which = img_request->obj_request_count;
 	rbd_assert(!obj_request_img_data_test(obj_request));
 	obj_request_img_data_set(obj_request);
-	rbd_assert(obj_request->which != BAD_WHICH);
 	img_request->obj_request_count++;
 	img_request->pending_count++;
 	list_add_tail(&obj_request->links, &img_request->obj_requests);
-	dout("%s: img %p obj %p w=%u\n", __func__, img_request, obj_request,
-		obj_request->which);
+	dout("%s: img %p obj %p\n", __func__, img_request, obj_request);
 }
 
 static inline void rbd_img_obj_request_del(struct rbd_img_request *img_request,
 					struct rbd_obj_request *obj_request)
 {
-	rbd_assert(obj_request->which != BAD_WHICH);
-
-	dout("%s: img %p obj %p w=%u\n", __func__, img_request, obj_request,
-		obj_request->which);
+	dout("%s: img %p obj %p\n", __func__, img_request, obj_request);
 	list_del(&obj_request->links);
 	rbd_assert(img_request->obj_request_count > 0);
 	img_request->obj_request_count--;
-	rbd_assert(obj_request->which == img_request->obj_request_count);
-	obj_request->which = BAD_WHICH;
 	rbd_assert(obj_request_img_data_test(obj_request));
 	rbd_assert(obj_request->img_request == img_request);
 	obj_request->img_request = NULL;
-	obj_request->callback = NULL;
 	rbd_obj_request_put(obj_request);
 }
 
@@ -1444,8 +1398,6 @@ static bool obj_request_type_valid(enum obj_request_type type)
 	}
 }
 
-static void rbd_img_obj_callback(struct rbd_obj_request *obj_request);
-
 static void rbd_obj_request_submit(struct rbd_obj_request *obj_request)
 {
 	struct ceph_osd_request *osd_req = obj_request->osd_req;
@@ -1454,32 +1406,6 @@ static void rbd_obj_request_submit(struct rbd_obj_request *obj_request)
 	     obj_request, obj_request->object_no, obj_request->offset,
 	     obj_request->length, osd_req);
 	ceph_osdc_start_request(osd_req->r_osdc, osd_req, false);
-}
-
-static void rbd_img_request_complete(struct rbd_img_request *img_request)
-{
-
-	dout("%s: img %p\n", __func__, img_request);
-
-	/*
-	 * If no error occurred, compute the aggregate transfer
-	 * count for the image request.  We could instead use
-	 * atomic64_cmpxchg() to update it as each object request
-	 * completes; not clear which way is better off hand.
-	 */
-	if (!img_request->result) {
-		struct rbd_obj_request *obj_request;
-		u64 xferred = 0;
-
-		for_each_obj_request(img_request, obj_request)
-			xferred += obj_request->xferred;
-		img_request->xferred = xferred;
-	}
-
-	if (img_request->callback)
-		img_request->callback(img_request);
-	else
-		rbd_img_request_put(img_request);
 }
 
 /*
@@ -1550,13 +1476,6 @@ static bool rbd_img_is_write(struct rbd_img_request *img_req)
 	default:
 		rbd_assert(0);
 	}
-}
-
-static void rbd_obj_request_complete(struct rbd_obj_request *obj_request)
-{
-	dout("%s: obj %p cb %p\n", __func__, obj_request,
-		obj_request->callback);
-	obj_request->callback(obj_request);
 }
 
 static void rbd_obj_handle_request(struct rbd_obj_request *obj_req);
@@ -1651,7 +1570,6 @@ rbd_obj_request_create(enum obj_request_type type)
 	if (!obj_request)
 		return NULL;
 
-	obj_request->which = BAD_WHICH;
 	obj_request->type = type;
 	INIT_LIST_HEAD(&obj_request->links);
 	kref_init(&obj_request->kref);
@@ -1670,7 +1588,6 @@ static void rbd_obj_request_destroy(struct kref *kref)
 	dout("%s: obj %p\n", __func__, obj_request);
 
 	rbd_assert(obj_request->img_request == NULL);
-	rbd_assert(obj_request->which == BAD_WHICH);
 
 	if (obj_request->osd_req)
 		rbd_osd_req_destroy(obj_request->osd_req);
@@ -1856,91 +1773,6 @@ static void rbd_parent_request_destroy(struct kref *kref)
 	img_request_child_clear(parent_request);
 
 	rbd_img_request_destroy(kref);
-}
-
-static bool rbd_img_obj_end_request(struct rbd_obj_request *obj_request)
-{
-	struct rbd_img_request *img_request;
-	unsigned int xferred;
-	int result;
-	bool more;
-
-	rbd_assert(obj_request_img_data_test(obj_request));
-	img_request = obj_request->img_request;
-
-	rbd_assert(obj_request->xferred <= (u64)UINT_MAX);
-	xferred = (unsigned int)obj_request->xferred;
-	result = obj_request->result;
-	if (result) {
-		struct rbd_device *rbd_dev = img_request->rbd_dev;
-
-		rbd_warn(rbd_dev, "%s %llx at %llx (%llx)",
-			obj_op_name(img_request->op_type), obj_request->length,
-			obj_request->img_offset, obj_request->offset);
-		rbd_warn(rbd_dev, "  result %d xferred %x",
-			result, xferred);
-		if (!img_request->result)
-			img_request->result = result;
-		/*
-		 * Need to end I/O on the entire obj_request worth of
-		 * bytes in case of error.
-		 */
-		xferred = obj_request->length;
-	}
-
-	if (img_request_child_test(img_request)) {
-		rbd_assert(img_request->obj_request != NULL);
-		more = obj_request->which < img_request->obj_request_count - 1;
-	} else {
-		blk_status_t status = errno_to_blk_status(result);
-
-		rbd_assert(img_request->rq != NULL);
-
-		more = blk_update_request(img_request->rq, status, xferred);
-		if (!more)
-			__blk_mq_end_request(img_request->rq, status);
-	}
-
-	return more;
-}
-
-static void rbd_img_obj_callback(struct rbd_obj_request *obj_request)
-{
-	struct rbd_img_request *img_request;
-	u32 which = obj_request->which;
-	bool more = true;
-
-	rbd_assert(obj_request_img_data_test(obj_request));
-	img_request = obj_request->img_request;
-
-	dout("%s: img %p obj %p\n", __func__, img_request, obj_request);
-	rbd_assert(img_request != NULL);
-	rbd_assert(img_request->obj_request_count > 0);
-	rbd_assert(which != BAD_WHICH);
-	rbd_assert(which < img_request->obj_request_count);
-
-	spin_lock_irq(&img_request->completion_lock);
-	if (which != img_request->next_completion)
-		goto out;
-
-	for_each_obj_request_from(img_request, obj_request) {
-		rbd_assert(more);
-		rbd_assert(which < img_request->obj_request_count);
-
-		if (!obj_request_done_test(obj_request))
-			break;
-		more = rbd_img_obj_end_request(obj_request);
-		which++;
-	}
-
-	rbd_assert(more ^ (which == img_request->obj_request_count));
-	img_request->next_completion = which;
-out:
-	spin_unlock_irq(&img_request->completion_lock);
-	rbd_img_request_put(img_request);
-
-	if (!more)
-		rbd_img_request_complete(img_request);
 }
 
 static void rbd_osd_req_setup_data(struct rbd_obj_request *obj_req, u32 which)
@@ -2205,7 +2037,6 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 			ceph_bvec_iter_advance(&bvec_it, length);
 		}
 
-		obj_request->callback = rbd_img_obj_callback;
 		obj_request->img_offset = img_offset;
 
 		img_offset += length;
