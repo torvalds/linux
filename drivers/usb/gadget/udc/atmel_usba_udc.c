@@ -23,7 +23,8 @@
 #include <linux/usb/atmel_usba_udc.h>
 #include <linux/delay.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
+#include <linux/irq.h>
+#include <linux/gpio/consumer.h>
 
 #include "atmel_usba_udc.h"
 #define USBA_VBUS_IRQFLAGS (IRQF_ONESHOT \
@@ -415,8 +416,8 @@ static inline void usba_int_enb_set(struct usba_udc *udc, u32 val)
 
 static int vbus_is_present(struct usba_udc *udc)
 {
-	if (gpio_is_valid(udc->vbus_pin))
-		return gpio_get_value(udc->vbus_pin) ^ udc->vbus_pin_inverted;
+	if (udc->vbus_pin)
+		return gpiod_get_value(udc->vbus_pin) ^ udc->vbus_pin_inverted;
 
 	/* No Vbus detection: Assume always present */
 	return 1;
@@ -1975,8 +1976,8 @@ static int atmel_usba_start(struct usb_gadget *gadget,
 
 	mutex_lock(&udc->vbus_mutex);
 
-	if (gpio_is_valid(udc->vbus_pin))
-		enable_irq(gpio_to_irq(udc->vbus_pin));
+	if (udc->vbus_pin)
+		enable_irq(gpiod_to_irq(udc->vbus_pin));
 
 	/* If Vbus is present, enable the controller and wait for reset */
 	udc->vbus_prev = vbus_is_present(udc);
@@ -1990,8 +1991,8 @@ static int atmel_usba_start(struct usb_gadget *gadget,
 	return 0;
 
 err:
-	if (gpio_is_valid(udc->vbus_pin))
-		disable_irq(gpio_to_irq(udc->vbus_pin));
+	if (udc->vbus_pin)
+		disable_irq(gpiod_to_irq(udc->vbus_pin));
 
 	mutex_unlock(&udc->vbus_mutex);
 
@@ -2006,8 +2007,8 @@ static int atmel_usba_stop(struct usb_gadget *gadget)
 {
 	struct usba_udc *udc = container_of(gadget, struct usba_udc, gadget);
 
-	if (gpio_is_valid(udc->vbus_pin))
-		disable_irq(gpio_to_irq(udc->vbus_pin));
+	if (udc->vbus_pin)
+		disable_irq(gpiod_to_irq(udc->vbus_pin));
 
 	if (fifo_mode == 0)
 		udc->configured_ep = 1;
@@ -2054,7 +2055,6 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 {
 	u32 val;
 	const char *name;
-	enum of_gpio_flags flags;
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
 	struct device_node *pp;
@@ -2074,9 +2074,9 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 
 	udc->num_ep = 0;
 
-	udc->vbus_pin = of_get_named_gpio_flags(np, "atmel,vbus-gpio", 0,
-						&flags);
-	udc->vbus_pin_inverted = (flags & OF_GPIO_ACTIVE_LOW) ? 1 : 0;
+	udc->vbus_pin = devm_gpiod_get_optional(&pdev->dev, "atmel,vbus",
+						GPIOD_IN);
+	udc->vbus_pin_inverted = gpiod_is_active_low(udc->vbus_pin);
 
 	if (fifo_mode == 0) {
 		pp = NULL;
@@ -2247,7 +2247,6 @@ static int usba_udc_probe(struct platform_device *pdev)
 	udc->pdev = pdev;
 	udc->pclk = pclk;
 	udc->hclk = hclk;
-	udc->vbus_pin = -ENODEV;
 
 	platform_set_drvdata(pdev, udc);
 
@@ -2277,24 +2276,18 @@ static int usba_udc_probe(struct platform_device *pdev)
 	}
 	udc->irq = irq;
 
-	if (gpio_is_valid(udc->vbus_pin)) {
-		if (!devm_gpio_request(&pdev->dev, udc->vbus_pin, "atmel_usba_udc")) {
-			irq_set_status_flags(gpio_to_irq(udc->vbus_pin),
-					IRQ_NOAUTOEN);
-			ret = devm_request_threaded_irq(&pdev->dev,
-					gpio_to_irq(udc->vbus_pin), NULL,
+	if (udc->vbus_pin) {
+		irq_set_status_flags(gpiod_to_irq(udc->vbus_pin), IRQ_NOAUTOEN);
+		ret = devm_request_threaded_irq(&pdev->dev,
+					gpiod_to_irq(udc->vbus_pin), NULL,
 					usba_vbus_irq_thread, USBA_VBUS_IRQFLAGS,
 					"atmel_usba_udc", udc);
 			if (ret) {
-				udc->vbus_pin = -ENODEV;
+				udc->vbus_pin = NULL;
 				dev_warn(&udc->pdev->dev,
 					 "failed to request vbus irq; "
 					 "assuming always on\n");
 			}
-		} else {
-			/* gpio_request fail so use -EINVAL for gpio_is_valid */
-			udc->vbus_pin = -EINVAL;
-		}
 	}
 
 	ret = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
@@ -2346,9 +2339,9 @@ static int usba_udc_suspend(struct device *dev)
 	 * Device may wake up. We stay clocked if we failed
 	 * to request vbus irq, assuming always on.
 	 */
-	if (gpio_is_valid(udc->vbus_pin)) {
+	if (udc->vbus_pin) {
 		usba_stop(udc);
-		enable_irq_wake(gpio_to_irq(udc->vbus_pin));
+		enable_irq_wake(gpiod_to_irq(udc->vbus_pin));
 	}
 
 out:
@@ -2364,8 +2357,8 @@ static int usba_udc_resume(struct device *dev)
 	if (!udc->driver)
 		return 0;
 
-	if (device_may_wakeup(dev) && gpio_is_valid(udc->vbus_pin))
-		disable_irq_wake(gpio_to_irq(udc->vbus_pin));
+	if (device_may_wakeup(dev) && udc->vbus_pin)
+		disable_irq_wake(gpiod_to_irq(udc->vbus_pin));
 
 	/* If Vbus is present, enable the controller and wait for reset */
 	mutex_lock(&udc->vbus_mutex);
