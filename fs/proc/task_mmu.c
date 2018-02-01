@@ -982,14 +982,14 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
 static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
 		unsigned long addr, pmd_t *pmdp)
 {
-	pmd_t pmd = *pmdp;
+	pmd_t old, pmd = *pmdp;
 
 	if (pmd_present(pmd)) {
 		/* See comment in change_huge_pmd() */
-		pmdp_invalidate(vma, addr, pmdp);
-		if (pmd_dirty(*pmdp))
+		old = pmdp_invalidate(vma, addr, pmdp);
+		if (pmd_dirty(old))
 			pmd = pmd_mkdirty(pmd);
-		if (pmd_young(*pmdp))
+		if (pmd_young(old))
 			pmd = pmd_mkyoung(pmd);
 
 		pmd = pmd_wrprotect(pmd);

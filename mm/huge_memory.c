@@ -1910,17 +1910,7 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 	 * pmdp_invalidate() is required to make sure we don't miss
 	 * dirty/young flags set by hardware.
 	 */
-	entry = *pmd;
-	pmdp_invalidate(vma, addr, pmd);
-
-	/*
-	 * Recover dirty/young flags.  It relies on pmdp_invalidate to not
-	 * corrupt them.
-	 */
-	if (pmd_dirty(*pmd))
-		entry = pmd_mkdirty(entry);
-	if (pmd_young(*pmd))
-		entry = pmd_mkyoung(entry);
+	entry = pmdp_invalidate(vma, addr, pmd);
 
 	entry = pmd_modify(entry, newprot);
 	if (preserve_write)
@@ -2073,8 +2063,8 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 	struct mm_struct *mm = vma->vm_mm;
 	struct page *page;
 	pgtable_t pgtable;
-	pmd_t _pmd;
-	bool young, write, dirty, soft_dirty, pmd_migration = false;
+	pmd_t old, _pmd;
+	bool young, write, soft_dirty, pmd_migration = false;
 	unsigned long addr;
 	int i;
 
@@ -2130,7 +2120,6 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 	page_ref_add(page, HPAGE_PMD_NR - 1);
 	write = pmd_write(*pmd);
 	young = pmd_young(*pmd);
-	dirty = pmd_dirty(*pmd);
 	soft_dirty = pmd_soft_dirty(*pmd);
 
 	pmdp_huge_split_prepare(vma, haddr, pmd);
@@ -2160,8 +2149,6 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 			if (soft_dirty)
 				entry = pte_mksoft_dirty(entry);
 		}
-		if (dirty)
-			SetPageDirty(page + i);
 		pte = pte_offset_map(&_pmd, addr);
 		BUG_ON(!pte_none(*pte));
 		set_pte_at(mm, addr, pte, entry);
@@ -2209,7 +2196,15 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 	 * for this pmd), then we flush the SMP TLB and finally we write the
 	 * non-huge version of the pmd entry with pmd_populate.
 	 */
-	pmdp_invalidate(vma, haddr, pmd);
+	old = pmdp_invalidate(vma, haddr, pmd);
+
+	/*
+	 * Transfer dirty bit using value returned by pmd_invalidate() to be
+	 * sure we don't race with CPU that can set the bit under us.
+	 */
+	if (pmd_dirty(old))
+		SetPageDirty(page);
+
 	pmd_populate(mm, pmd, pgtable);
 
 	if (freeze) {
