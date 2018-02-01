@@ -179,6 +179,9 @@ TRACE_EVENT(rcu_grace_period_init,
  *
  *	"snap": Captured snapshot of expedited grace period sequence number.
  *	"start": Started a real expedited grace period.
+ *	"reset": Started resetting the tree
+ *	"select": Started selecting the CPUs to wait on.
+ *	"startwait": Started waiting on selected CPUs.
  *	"end": Ended a real expedited grace period.
  *	"endwake": Woke piggybackers up.
  *	"done": Someone else did the expedited grace period for us.

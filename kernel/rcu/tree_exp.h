@@ -29,6 +29,15 @@ static void rcu_exp_gp_seq_start(struct rcu_state *rsp)
 }
 
 /*
+ * Return then value that expedited-grace-period counter will have
+ * at the end of the current grace period.
+ */
+static unsigned long rcu_exp_gp_seq_endval(struct rcu_state *rsp)
+{
+	return rcu_seq_endval(&rsp->expedited_sequence);
+}
+
+/*
  * Record the end of an expedited grace period.
  */
 static void rcu_exp_gp_seq_end(struct rcu_state *rsp)
@@ -366,7 +375,9 @@ static void sync_rcu_exp_select_cpus(struct rcu_state *rsp,
 	int ret;
 	struct rcu_node *rnp;
 
+	trace_rcu_exp_grace_period(rsp->name, rcu_exp_gp_seq_endval(rsp), TPS("reset"));
 	sync_exp_reset_tree(rsp);
+	trace_rcu_exp_grace_period(rsp->name, rcu_exp_gp_seq_endval(rsp), TPS("select"));
 	rcu_for_each_leaf_node(rsp, rnp) {
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 
@@ -443,6 +454,7 @@ static void synchronize_sched_expedited_wait(struct rcu_state *rsp)
 	struct rcu_node *rnp_root = rcu_get_root(rsp);
 	int ret;
 
+	trace_rcu_exp_grace_period(rsp->name, rcu_exp_gp_seq_endval(rsp), TPS("startwait"));
 	jiffies_stall = rcu_jiffies_till_stall_check();
 	jiffies_start = jiffies;
 

@@ -77,12 +77,18 @@ static inline void rcu_seq_start(unsigned long *sp)
 	WARN_ON_ONCE(rcu_seq_state(*sp) != 1);
 }
 
+/* Compute the end-of-grace-period value for the specified sequence number. */
+static inline unsigned long rcu_seq_endval(unsigned long *sp)
+{
+	return (*sp | RCU_SEQ_STATE_MASK) + 1;
+}
+
 /* Adjust sequence number for end of update-side operation. */
 static inline void rcu_seq_end(unsigned long *sp)
 {
 	smp_mb(); /* Ensure update-side operation before counter increment. */
 	WARN_ON_ONCE(!rcu_seq_state(*sp));
-	WRITE_ONCE(*sp, (*sp | RCU_SEQ_STATE_MASK) + 1);
+	WRITE_ONCE(*sp, rcu_seq_endval(sp));
 }
 
 /* Take a snapshot of the update side's sequence number. */
