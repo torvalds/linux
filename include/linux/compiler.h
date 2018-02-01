@@ -238,6 +238,7 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  * required ordering.
  */
 #include <asm/barrier.h>
+#include <linux/kasan-checks.h>
 
 #define __READ_ONCE(x, check)						\
 ({									\
@@ -256,6 +257,13 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  * to hide memory access from KASAN.
  */
 #define READ_ONCE_NOCHECK(x) __READ_ONCE(x, 0)
+
+static __no_kasan_or_inline
+unsigned long read_word_at_a_time(const void *addr)
+{
+	kasan_check_read(addr, 1);
+	return *(unsigned long *)addr;
+}
 
 #define WRITE_ONCE(x, val) \
 ({							\
