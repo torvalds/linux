@@ -2273,6 +2273,9 @@ static struct net_device *ipoib_add_port(const char *format,
 			      priv->ca, ipoib_event);
 	ib_register_event_handler(&priv->event_handler);
 
+	/* call event handler to ensure pkey in sync */
+	queue_work(ipoib_workqueue, &priv->flush_heavy);
+
 	result = register_netdev(priv->dev);
 	if (result) {
 		printk(KERN_WARNING "%s: couldn't register ipoib port %d; error %d\n",
