@@ -593,25 +593,20 @@ struct acpi_namespace_node *acpi_ns_validate_handle(acpi_handle handle)
 void acpi_ns_terminate(void)
 {
 	acpi_status status;
+	union acpi_operand_object *prev;
+	union acpi_operand_object *next;
 
 	ACPI_FUNCTION_TRACE(ns_terminate);
 
-#ifdef ACPI_EXEC_APP
-	{
-		union acpi_operand_object *prev;
-		union acpi_operand_object *next;
+	/* Delete any module-level code blocks */
 
-		/* Delete any module-level code blocks */
-
-		next = acpi_gbl_module_code_list;
-		while (next) {
-			prev = next;
-			next = next->method.mutex;
-			prev->method.mutex = NULL;	/* Clear the Mutex (cheated) field */
-			acpi_ut_remove_reference(prev);
-		}
+	next = acpi_gbl_module_code_list;
+	while (next) {
+		prev = next;
+		next = next->method.mutex;
+		prev->method.mutex = NULL;	/* Clear the Mutex (cheated) field */
+		acpi_ut_remove_reference(prev);
 	}
-#endif
 
 	/*
 	 * Free the entire namespace -- all nodes and all objects

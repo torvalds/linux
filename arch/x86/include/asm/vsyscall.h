@@ -13,6 +13,7 @@ extern void map_vsyscall(void);
  */
 extern bool emulate_vsyscall(struct pt_regs *regs, unsigned long address);
 extern bool vsyscall_enabled(void);
+extern unsigned long vsyscall_pgprot;
 #else
 static inline void map_vsyscall(void) {}
 static inline bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
