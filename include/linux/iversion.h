@@ -45,7 +45,7 @@
  *
  * With this implementation, the value should always appear to observers to
  * increase over time if the file has changed. It's recommended to use
- * inode_cmp_iversion() helper to compare values.
+ * inode_eq_iversion() helper to compare values.
  *
  * Note that some filesystems (e.g. NFS and AFS) just use the field to store
  * a server-provided value (for the most part). For that reason, those
@@ -305,33 +305,33 @@ inode_query_iversion(struct inode *inode)
 }
 
 /**
- * inode_cmp_iversion_raw - check whether the raw i_version counter has changed
+ * inode_eq_iversion_raw - check whether the raw i_version counter has changed
  * @inode: inode to check
  * @old: old value to check against its i_version
  *
- * Compare the current raw i_version counter with a previous one. Returns false
- * if they are the same or true if they are different.
+ * Compare the current raw i_version counter with a previous one. Returns true
+ * if they are the same or false if they are different.
  */
 static inline bool
-inode_cmp_iversion_raw(const struct inode *inode, u64 old)
+inode_eq_iversion_raw(const struct inode *inode, u64 old)
 {
-	return inode_peek_iversion_raw(inode) != old;
+	return inode_peek_iversion_raw(inode) == old;
 }
 
 /**
- * inode_cmp_iversion - check whether the i_version counter has changed
+ * inode_eq_iversion - check whether the i_version counter has changed
  * @inode: inode to check
  * @old: old value to check against its i_version
  *
- * Compare an i_version counter with a previous one. Returns false if they are
- * the same, and true if they are different.
+ * Compare an i_version counter with a previous one. Returns true if they are
+ * the same, and false if they are different.
  *
  * Note that we don't need to set the QUERIED flag in this case, as the value
  * in the inode is not being recorded for later use.
  */
 static inline bool
-inode_cmp_iversion(const struct inode *inode, u64 old)
+inode_eq_iversion(const struct inode *inode, u64 old)
 {
-	return inode_peek_iversion(inode) != old;
+	return inode_peek_iversion(inode) == old;
 }
 #endif
