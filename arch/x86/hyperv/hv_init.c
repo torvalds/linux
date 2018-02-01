@@ -239,17 +239,24 @@ void hyperv_report_panic(struct pt_regs *regs, long err)
 }
 EXPORT_SYMBOL_GPL(hyperv_report_panic);
 
-bool hv_is_hypercall_page_setup(void)
+bool hv_is_hyperv_initialized(void)
 {
 	union hv_x64_msr_hypercall_contents hypercall_msr;
 
-	/* Check if the hypercall page is setup */
+	/*
+	 * Ensure that we're really on Hyper-V, and not a KVM or Xen
+	 * emulation of Hyper-V
+	 */
+	if (x86_hyper_type != X86_HYPER_MS_HYPERV)
+		return false;
+
+	/*
+	 * Verify that earlier initialization succeeded by checking
+	 * that the hypercall page is setup
+	 */
 	hypercall_msr.as_uint64 = 0;
 	rdmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
 
-	if (!hypercall_msr.enable)
-		return false;
-
-	return true;
+	return hypercall_msr.enable;
 }
-EXPORT_SYMBOL_GPL(hv_is_hypercall_page_setup);
+EXPORT_SYMBOL_GPL(hv_is_hyperv_initialized);

@@ -96,7 +96,7 @@ static struct crashpoint crashpoints[] = {
 	CRASHPOINT("DIRECT",		 NULL),
 #ifdef CONFIG_KPROBES
 	CRASHPOINT("INT_HARDWARE_ENTRY", "do_IRQ"),
-	CRASHPOINT("INT_HW_IRQ_EN",	 "handle_IRQ_event"),
+	CRASHPOINT("INT_HW_IRQ_EN",	 "handle_irq_event"),
 	CRASHPOINT("INT_TASKLET_ENTRY",	 "tasklet_action"),
 	CRASHPOINT("FS_DEVRW",		 "ll_rw_block"),
 	CRASHPOINT("MEM_SWAPOUT",	 "shrink_inactive_list"),

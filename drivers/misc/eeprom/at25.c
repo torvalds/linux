@@ -276,6 +276,9 @@ static int at25_fw_to_chip(struct device *dev, struct spi_eeprom *chip)
 			return -ENODEV;
 		}
 		switch (val) {
+		case 9:
+			chip->flags |= EE_INSTR_BIT3_IS_ADDR;
+			/* fall through */
 		case 8:
 			chip->flags |= EE_ADDR1;
 			break;
