@@ -2222,9 +2222,7 @@ static void unfreeze_partials(struct kmem_cache *s,
 
 /*
  * Put a page that was just frozen (in __slab_free) into a partial page
- * slot if available. This is done without interrupts disabled and without
- * preemption disabled. The cmpxchg is racy and may put the partial page
- * onto a random cpus partial slot.
+ * slot if available.
  *
  * If we did not find a slot then simply move all the partials to the
  * per node partial list.
