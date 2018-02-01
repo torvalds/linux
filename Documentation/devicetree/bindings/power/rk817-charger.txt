@@ -1,0 +1,37 @@
+rk817-charger
+~~~~~~~~~~
+
+Required properties :
+ - compatible: "rk817,charger"
+ - min_input_voltage: minimum voltage from adapter
+ - max_input_current: maximum current from adapter
+ - max_chrg_current: maximum current for battery charge
+ - max_chrg_voltage: maximum charge voltage for battery
+ - chrg_finish_cur: charging termination current
+
+Optional properties :
+ - virtual_power: test mode for none battery
+ - power_dc2otg: dc can provide supply for otg 5v
+ - dc_det_adc: dc detect by saradc
+
+Example:
+
+rk817: pmic@20 {
+	compatible = "rockchip,rk817";
+	reg = <0x20>;
+
+	......
+
+	charger {
+		compatible = "rk817,charger";
+		min_input_voltage = <4500>;
+		max_input_current = <1500>;
+		max_chrg_current = <1300>;
+		max_chrg_voltage = <4200>;
+		chrg_finish_cur = <300>;
+		virtual_power = <0>;
+		dc_det_adc = <0>;
+	};
+
+	......
+};

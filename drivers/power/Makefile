@@ -41,6 +41,7 @@ obj-$(CONFIG_BATTERY_MAX17040)	+= max17040_battery.o
 obj-$(CONFIG_BATTERY_MAX17042)	+= max17042_battery.o
 obj-$(CONFIG_BATTERY_Z2)	+= z2_battery.o
 obj-$(CONFIG_BATTERY_RK816)	+= rk816_battery.o
+obj-$(CONFIG_CHARGER_RK817)	+= rk817_charger.o
 obj-$(CONFIG_BATTERY_RK818)	+= rk818_battery.o
 obj-$(CONFIG_CHARGER_RK818)	+= rk818_charger.o
 obj-$(CONFIG_BATTERY_RT5033)	+= rt5033_battery.o
