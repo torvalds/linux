@@ -63,8 +63,8 @@ __print_symbolic(type,                       \
 #define TRACE_SYSTEM hfi1_rx
 
 TRACE_EVENT(hfi1_rcvhdr,
-	    TP_PROTO(struct hfi1_packet *packet, u32 etype),
-	    TP_ARGS(packet, etype),
+	    TP_PROTO(struct hfi1_packet *packet),
+	    TP_ARGS(packet),
 	    TP_STRUCT__entry(DD_DEV_ENTRY(packet->rcd->dd)
 			     __field(u64, eflags)
 			     __field(u32, ctxt)
@@ -77,7 +77,7 @@ TRACE_EVENT(hfi1_rcvhdr,
 	     TP_fast_assign(DD_DEV_ASSIGN(packet->rcd->dd);
 			    __entry->eflags = rhf_err_flags(packet->rhf);
 			    __entry->ctxt = packet->rcd->ctxt;
-			    __entry->etype = etype;
+			    __entry->etype = packet->etype;
 			    __entry->hlen = packet->hlen;
 			    __entry->tlen = packet->tlen;
 			    __entry->updegr = packet->updegr;

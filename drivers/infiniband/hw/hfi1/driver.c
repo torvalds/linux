@@ -1559,7 +1559,7 @@ int process_receive_ib(struct hfi1_packet *packet)
 	if (hfi1_setup_9B_packet(packet))
 		return RHF_RCV_CONTINUE;
 
-	trace_hfi1_rcvhdr(packet, RHF_RCV_TYPE_IB);
+	trace_hfi1_rcvhdr(packet);
 
 	if (unlikely(rhf_err_flags(packet->rhf))) {
 		handle_eflags(packet);
@@ -1594,6 +1594,8 @@ int process_receive_bypass(struct hfi1_packet *packet)
 
 	if (hfi1_setup_bypass_packet(packet))
 		return RHF_RCV_CONTINUE;
+
+	trace_hfi1_rcvhdr(packet);
 
 	if (unlikely(rhf_err_flags(packet->rhf))) {
 		handle_eflags(packet);
