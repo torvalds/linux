@@ -4110,6 +4110,46 @@ Once this is done the KVM_REG_MIPS_VEC_* and KVM_REG_MIPS_MSA_* registers can be
 accessed, and the Config5.MSAEn bit is accessible via the KVM API and also from
 the guest.
 
+6.74 KVM_CAP_SYNC_REGS
+Architectures: s390, x86
+Target: s390: always enabled, x86: vcpu
+Parameters: none
+Returns: x86: KVM_CHECK_EXTENSION returns a bit-array indicating which register
+sets are supported (bitfields defined in arch/x86/include/uapi/asm/kvm.h).
+
+As described above in the kvm_sync_regs struct info in section 5 (kvm_run):
+KVM_CAP_SYNC_REGS "allow[s] userspace to access certain guest registers
+without having to call SET/GET_*REGS". This reduces overhead by eliminating
+repeated ioctl calls for setting and/or getting register values. This is
+particularly important when userspace is making synchronous guest state
+modifications, e.g. when emulating and/or intercepting instructions in
+userspace.
+
+For s390 specifics, please refer to the source code.
+
+For x86:
+- the register sets to be copied out to kvm_run are selectable
+  by userspace (rather that all sets being copied out for every exit).
+- vcpu_events are available in addition to regs and sregs.
+
+For x86, the 'kvm_valid_regs' field of struct kvm_run is overloaded to
+function as an input bit-array field set by userspace to indicate the
+specific register sets to be copied out on the next exit.
+
+To indicate when userspace has modified values that should be copied into
+the vCPU, the all architecture bitarray field, 'kvm_dirty_regs' must be set.
+This is done using the same bitflags as for the 'kvm_valid_regs' field.
+If the dirty bit is not set, then the register set values will not be copied
+into the vCPU even if they've been modified.
+
+Unused bitfields in the bitarrays must be set to zero.
+
+struct kvm_sync_regs {
+        struct kvm_regs regs;
+        struct kvm_sregs sregs;
+        struct kvm_vcpu_events events;
+};
+
 7. Capabilities that can be enabled on VMs
 ------------------------------------------
 
