@@ -95,6 +95,7 @@ struct dc_surface_dcc_cap {
 };
 
 struct dc_static_screen_events {
+	bool force_trigger;
 	bool cursor_update;
 	bool surface_update;
 	bool overlay_update;

@@ -2144,6 +2144,8 @@ static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
 		value |= 0x80;
 	if (events->cursor_update)
 		value |= 0x2;
+	if (events->force_trigger)
+		value |= 0x1;
 
 	for (i = 0; i < num_pipes; i++)
 		pipe_ctx[i]->stream_res.tg->funcs->

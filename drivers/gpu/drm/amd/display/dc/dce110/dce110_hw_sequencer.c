@@ -1625,6 +1625,8 @@ static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
 		value |= 0x80;
 	if (events->cursor_update)
 		value |= 0x2;
+	if (events->force_trigger)
+		value |= 0x1;
 
 #if defined(CONFIG_DRM_AMD_DC_FBC)
 	value |= 0x84;
