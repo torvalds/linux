@@ -84,6 +84,7 @@ static const struct of_device_id ranchu_of_match[] __initconst = {
 	{
 		.compatible = "mti,ranchu",
 	},
+	{}
 };
 
 MIPS_MACHINE(ranchu) = {
