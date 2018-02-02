@@ -448,7 +448,7 @@ static __inline__ int NCR53c406a_pio_write(unsigned char *request, unsigned int 
 }
 #endif				/* USE_PIO */
 
-static int __init NCR53c406a_detect(struct scsi_host_template * tpnt)
+static int NCR53c406a_detect(struct scsi_host_template * tpnt)
 {
 	int present = 0;
 	struct Scsi_Host *shpnt = NULL;
