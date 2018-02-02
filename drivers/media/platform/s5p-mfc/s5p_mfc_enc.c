@@ -813,6 +813,11 @@ static int enc_post_seq_start(struct s5p_mfc_ctx *ctx)
 				get_enc_dpb_count, dev);
 		if (ctx->pb_count < enc_pb_count)
 			ctx->pb_count = enc_pb_count;
+		if (FW_HAS_E_MIN_SCRATCH_BUF(dev)) {
+			ctx->scratch_buf_size = s5p_mfc_hw_call(dev->mfc_ops,
+					get_e_min_scratch_buf_size, dev);
+			ctx->bank1.size += ctx->scratch_buf_size;
+		}
 		ctx->state = MFCINST_HEAD_PRODUCED;
 	}
 

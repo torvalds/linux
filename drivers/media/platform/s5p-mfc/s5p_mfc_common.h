@@ -716,6 +716,7 @@ void s5p_mfc_cleanup_queue(struct list_head *lh, struct vb2_queue *vq);
 #define IS_MFCV7_PLUS(dev)	(dev->variant->version >= 0x70 ? 1 : 0)
 #define IS_MFCV8_PLUS(dev)	(dev->variant->version >= 0x80 ? 1 : 0)
 #define IS_MFCV10(dev)		(dev->variant->version >= 0xA0 ? 1 : 0)
+#define FW_HAS_E_MIN_SCRATCH_BUF(dev) (IS_MFCV10(dev))
 
 #define MFC_V5_BIT	BIT(0)
 #define MFC_V6_BIT	BIT(1)
