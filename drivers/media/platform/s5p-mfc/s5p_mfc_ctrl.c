@@ -399,7 +399,7 @@ int s5p_mfc_wakeup(struct s5p_mfc_dev *dev)
 	s5p_mfc_clear_cmds(dev);
 	s5p_mfc_clean_dev_int_flags(dev);
 	/* 3. Send MFC wakeup command and wait for completion*/
-	if (IS_MFCV8(dev))
+	if (IS_MFCV8_PLUS(dev))
 		ret = s5p_mfc_v8_wait_wakeup(dev);
 	else
 		ret = s5p_mfc_wait_wakeup(dev);

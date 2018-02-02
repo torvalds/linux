@@ -1177,7 +1177,7 @@ void s5p_mfc_dec_init(struct s5p_mfc_ctx *ctx)
 	struct v4l2_format f;
 	f.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_H264;
 	ctx->src_fmt = find_format(&f, MFC_FMT_DEC);
-	if (IS_MFCV8(ctx->dev))
+	if (IS_MFCV8_PLUS(ctx->dev))
 		f.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M;
 	else if (IS_MFCV6_PLUS(ctx->dev))
 		f.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12MT_16X16;
