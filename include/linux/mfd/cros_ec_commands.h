@@ -291,6 +291,9 @@ enum host_event_code {
 	/* EC desires to change state of host-controlled USB mux */
 	EC_HOST_EVENT_USB_MUX = 28,
 
+	/* EC RTC event occurred */
+	EC_HOST_EVENT_RTC = 26,
+
 	/*
 	 * The high bit of the event mask is not used as a host event code.  If
 	 * it reads back as set, then the entire event mask should be
@@ -799,6 +802,8 @@ enum ec_feature_code {
 	EC_FEATURE_USB_MUX = 23,
 	/* Motion Sensor code has an internal software FIFO */
 	EC_FEATURE_MOTION_SENSE_FIFO = 24,
+	/* EC has RTC feature that can be controlled by host commands */
+	EC_FEATURE_RTC = 27,
 };
 
 #define EC_FEATURE_MASK_0(event_code) (1UL << (event_code % 32))
@@ -1708,6 +1713,9 @@ struct ec_response_rtc {
 /* These all use ec_params_rtc */
 #define EC_CMD_RTC_SET_VALUE 0x46
 #define EC_CMD_RTC_SET_ALARM 0x47
+
+/* Pass as param to SET_ALARM to clear the current alarm */
+#define EC_RTC_ALARM_CLEAR 0
 
 /*****************************************************************************/
 /* Port80 log access */
