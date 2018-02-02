@@ -90,6 +90,7 @@
 #define MLXPLAT_CPLD_LPC_MUX_DEVS		2
 
 /* Hotplug devices adapter numbers */
+#define MLXPLAT_CPLD_NR_NONE			-1
 #define MLXPLAT_CPLD_PSU_DEFAULT_NR		10
 #define MLXPLAT_CPLD_FAN1_DEFAULT_NR		11
 #define MLXPLAT_CPLD_FAN2_DEFAULT_NR		12
