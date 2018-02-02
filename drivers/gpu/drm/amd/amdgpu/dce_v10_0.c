@@ -193,7 +193,7 @@ static void dce_v10_0_audio_endpt_wreg(struct amdgpu_device *adev,
 static bool dce_v10_0_is_in_vblank(struct amdgpu_device *adev, int crtc)
 {
 	if (RREG32(mmCRTC_STATUS + crtc_offsets[crtc]) &
-			CRTC_V_BLANK_START_END__CRTC_V_BLANK_START_MASK)
+	    CRTC_STATUS__CRTC_V_BLANK_MASK)
 		return true;
 	else
 		return false;
