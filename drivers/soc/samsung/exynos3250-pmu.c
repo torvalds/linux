@@ -1,13 +1,9 @@
-/*
- * Copyright (c) 2011-2015 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
- *
- * EXYNOS3250 - CPU PMU (Power Management Unit) support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2011-2015 Samsung Electronics Co., Ltd.
+//		http://www.samsung.com/
+//
+// EXYNOS3250 - CPU PMU (Power Management Unit) support
 
 #include <linux/soc/samsung/exynos-regs-pmu.h>
 #include <linux/soc/samsung/exynos-pmu.h>

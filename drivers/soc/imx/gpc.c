@@ -273,7 +273,15 @@ static struct imx_pm_domain imx_gpc_domains[] = {
 		},
 		.reg_offs = 0x240,
 		.cntr_pdn_bit = 4,
-	}
+	}, {
+		.base = {
+			.name = "PCI",
+			.power_off = imx6_pm_domain_power_off,
+			.power_on = imx6_pm_domain_power_on,
+		},
+		.reg_offs = 0x200,
+		.cntr_pdn_bit = 6,
+	},
 };
 
 struct imx_gpc_dt_data {
@@ -296,10 +304,16 @@ static const struct imx_gpc_dt_data imx6sl_dt_data = {
 	.err009619_present = false,
 };
 
+static const struct imx_gpc_dt_data imx6sx_dt_data = {
+	.num_domains = 4,
+	.err009619_present = false,
+};
+
 static const struct of_device_id imx_gpc_dt_ids[] = {
 	{ .compatible = "fsl,imx6q-gpc", .data = &imx6q_dt_data },
 	{ .compatible = "fsl,imx6qp-gpc", .data = &imx6qp_dt_data },
 	{ .compatible = "fsl,imx6sl-gpc", .data = &imx6sl_dt_data },
+	{ .compatible = "fsl,imx6sx-gpc", .data = &imx6sx_dt_data },
 	{ }
 };
 
