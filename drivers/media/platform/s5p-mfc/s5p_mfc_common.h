@@ -61,7 +61,7 @@
 #define MFC_ENC_CAP_PLANE_COUNT	1
 #define MFC_ENC_OUT_PLANE_COUNT	2
 #define STUFF_BYTE		4
-#define MFC_MAX_CTRLS		77
+#define MFC_MAX_CTRLS		128
 
 #define S5P_MFC_CODEC_NONE		-1
 #define S5P_MFC_CODEC_H264_DEC		0
@@ -80,6 +80,7 @@
 #define S5P_MFC_CODEC_MPEG4_ENC		22
 #define S5P_MFC_CODEC_H263_ENC		23
 #define S5P_MFC_CODEC_VP8_ENC		24
+#define S5P_MFC_CODEC_HEVC_ENC		26
 
 #define S5P_MFC_R2H_CMD_EMPTY			0
 #define S5P_MFC_R2H_CMD_SYS_INIT_RET		1
@@ -215,6 +216,7 @@ struct s5p_mfc_buf_size_v6 {
 	unsigned int h264_dec_ctx;
 	unsigned int other_dec_ctx;
 	unsigned int h264_enc_ctx;
+	unsigned int hevc_enc_ctx;
 	unsigned int other_enc_ctx;
 };
 
@@ -432,6 +434,55 @@ struct s5p_mfc_vp8_enc_params {
 	u8 profile;
 };
 
+struct s5p_mfc_hevc_enc_params {
+	enum v4l2_mpeg_video_hevc_profile profile;
+	int level;
+	enum v4l2_mpeg_video_h264_level level_v4l2;
+	u8 tier;
+	u32 rc_framerate;
+	u8 rc_min_qp;
+	u8 rc_max_qp;
+	u8 rc_lcu_dark;
+	u8 rc_lcu_smooth;
+	u8 rc_lcu_static;
+	u8 rc_lcu_activity;
+	u8 rc_frame_qp;
+	u8 rc_p_frame_qp;
+	u8 rc_b_frame_qp;
+	u8 max_partition_depth;
+	u8 num_refs_for_p;
+	u8 refreshtype;
+	u16 refreshperiod;
+	s32 lf_beta_offset_div2;
+	s32 lf_tc_offset_div2;
+	u8 loopfilter;
+	u8 loopfilter_disable;
+	u8 loopfilter_across;
+	u8 nal_control_length_filed;
+	u8 nal_control_user_ref;
+	u8 nal_control_store_ref;
+	u8 const_intra_period_enable;
+	u8 lossless_cu_enable;
+	u8 wavefront_enable;
+	u8 enable_ltr;
+	u8 hier_qp_enable;
+	enum v4l2_mpeg_video_hevc_hier_coding_type hier_qp_type;
+	u8 num_hier_layer;
+	u8 hier_qp_layer[7];
+	u32 hier_bit_layer[7];
+	u8 sign_data_hiding;
+	u8 general_pb_enable;
+	u8 temporal_id_enable;
+	u8 strong_intra_smooth;
+	u8 intra_pu_split_disable;
+	u8 tmv_prediction_disable;
+	u8 max_num_merge_mv;
+	u8 eco_mode_enable;
+	u8 encoding_nostartcode_enable;
+	u8 size_of_length_field;
+	u8 prepend_sps_pps_to_idr;
+};
+
 /**
  * struct s5p_mfc_enc_params - general encoding parameters
  */
@@ -469,6 +520,7 @@ struct s5p_mfc_enc_params {
 		struct s5p_mfc_h264_enc_params h264;
 		struct s5p_mfc_mpeg4_enc_params mpeg4;
 		struct s5p_mfc_vp8_enc_params vp8;
+		struct s5p_mfc_hevc_enc_params hevc;
 	} codec;
 
 };

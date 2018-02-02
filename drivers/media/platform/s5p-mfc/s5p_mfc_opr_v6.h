@@ -46,6 +46,14 @@
 #define ENC_MPEG4_VOP_TIME_RES_MAX	((1 << 16) - 1)
 #define FRAME_DELTA_H264_H263		1
 #define TIGHT_CBR_MAX			10
+#define ENC_HEVC_RC_FRAME_RATE_MAX	((1 << 16) - 1)
+#define ENC_HEVC_QP_INDEX_MIN		-12
+#define ENC_HEVC_QP_INDEX_MAX		12
+#define ENC_HEVC_LOOP_FILTER_MIN	-12
+#define ENC_HEVC_LOOP_FILTER_MAX	12
+#define ENC_HEVC_LEVEL_MAX		62
+
+#define FRAME_DELTA_DEFAULT		1
 
 struct s5p_mfc_hw_ops *s5p_mfc_init_hw_ops_v6(void);
 const struct s5p_mfc_regs *s5p_mfc_init_regs_v6_plus(struct s5p_mfc_dev *dev);

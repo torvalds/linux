@@ -272,6 +272,14 @@ struct s5p_mfc_regs {
 	void __iomem *e_vp8_hierarchical_qp_layer1;/* v7 and v8 */
 	void __iomem *e_vp8_hierarchical_qp_layer2;/* v7 and v8 */
 	void __iomem *e_min_scratch_buffer_size; /* v10 */
+	void __iomem *e_num_t_layer; /* v10 */
+	void __iomem *e_hier_qp_layer0; /* v10 */
+	void __iomem *e_hier_bit_rate_layer0; /* v10 */
+	void __iomem *e_hevc_options; /* v10 */
+	void __iomem *e_hevc_refresh_period; /* v10 */
+	void __iomem *e_hevc_lf_beta_offset_div2; /* v10 */
+	void __iomem *e_hevc_lf_tc_offset_div2; /* v10 */
+	void __iomem *e_hevc_nal_control; /* v10 */
 };
 
 struct s5p_mfc_hw_ops {
