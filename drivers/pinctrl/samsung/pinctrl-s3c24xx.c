@@ -1,17 +1,12 @@
-/*
- * S3C24XX specific support for Samsung pinctrl/gpiolib driver.
- *
- * Copyright (c) 2013 Heiko Stuebner <heiko@sntech.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This file contains the SamsungS3C24XX specific information required by the
- * Samsung pinctrl/gpiolib driver. It also includes the implementation of
- * external gpio and wakeup interrupt support.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// S3C24XX specific support for Samsung pinctrl/gpiolib driver.
+//
+// Copyright (c) 2013 Heiko Stuebner <heiko@sntech.de>
+//
+// This file contains the SamsungS3C24XX specific information required by the
+// Samsung pinctrl/gpiolib driver. It also includes the implementation of
+// external gpio and wakeup interrupt support.
 
 #include <linux/init.h>
 #include <linux/device.h>

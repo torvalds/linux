@@ -1012,10 +1012,8 @@ static int palmas_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	pci = devm_kzalloc(&pdev->dev, sizeof(*pci), GFP_KERNEL);
-	if (!pci) {
-		dev_err(&pdev->dev, "Malloc for pci failed\n");
+	if (!pci)
 		return -ENOMEM;
-	}
 
 	pci->dev = &pdev->dev;
 	pci->palmas = dev_get_drvdata(pdev->dev.parent);

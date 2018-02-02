@@ -83,10 +83,8 @@ int pinctrl_utils_add_map_configs(struct pinctrl_dev *pctldev,
 
 	dup_configs = kmemdup(configs, num_configs * sizeof(*dup_configs),
 			      GFP_KERNEL);
-	if (!dup_configs) {
-		dev_err(pctldev->dev, "kmemdup(configs) failed\n");
+	if (!dup_configs)
 		return -ENOMEM;
-	}
 
 	(*map)[*num_maps].type = type;
 	(*map)[*num_maps].data.configs.group_or_pin = group;

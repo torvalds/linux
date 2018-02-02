@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Exynos specific definitions for Samsung pinctrl and gpiolib driver.
  *
@@ -10,11 +11,6 @@
  * pinctrl/gpiolib interface drivers.
  *
  * Author: Thomas Abraham <thomas.ab@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __PINCTRL_SAMSUNG_EXYNOS_H
