@@ -3290,6 +3290,7 @@ static int wait_dev_supers(struct btrfs_device *device, int max_mirrors)
 	struct buffer_head *bh;
 	int i;
 	int errors = 0;
+	bool primary_failed = false;
 	u64 bytenr;
 
 	if (max_mirrors == 0)
@@ -3306,17 +3307,29 @@ static int wait_dev_supers(struct btrfs_device *device, int max_mirrors)
 				      BTRFS_SUPER_INFO_SIZE);
 		if (!bh) {
 			errors++;
+			if (i == 0)
+				primary_failed = true;
 			continue;
 		}
 		wait_on_buffer(bh);
-		if (!buffer_uptodate(bh))
+		if (!buffer_uptodate(bh)) {
 			errors++;
+			if (i == 0)
+				primary_failed = true;
+		}
 
 		/* drop our reference */
 		brelse(bh);
 
 		/* drop the reference from the writing run */
 		brelse(bh);
+	}
+
+	/* log error, force error return */
+	if (primary_failed) {
+		btrfs_err(device->fs_info, "error writing primary super block to device %llu",
+			  device->devid);
+		return -1;
 	}
 
 	return errors < i ? 0 : -1;
