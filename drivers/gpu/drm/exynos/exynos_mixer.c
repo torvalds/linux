@@ -482,6 +482,7 @@ static void vp_video_buffer(struct mixer_context *ctx,
 
 	spin_lock_irqsave(&ctx->reg_slock, flags);
 
+	vp_reg_write(ctx, VP_SHADOW_UPDATE, 1);
 	/* interlace or progressive scan mode */
 	val = (test_bit(MXR_BIT_INTERLACE, &ctx->flags) ? ~0 : 0);
 	vp_reg_writemask(ctx, VP_MODE, val, VP_MODE_LINE_SKIP);
@@ -699,6 +700,15 @@ static irqreturn_t mixer_irq_handler(int irq, void *arg)
 
 		/* interlace scan need to check shadow register */
 		if (test_bit(MXR_BIT_INTERLACE, &ctx->flags)) {
+			if (test_bit(MXR_BIT_VP_ENABLED, &ctx->flags) &&
+			    vp_reg_read(ctx, VP_SHADOW_UPDATE))
+				goto out;
+
+			base = mixer_reg_read(ctx, MXR_CFG);
+			shadow = mixer_reg_read(ctx, MXR_CFG_S);
+			if (base != shadow)
+				goto out;
+
 			base = mixer_reg_read(ctx, MXR_GRAPHIC_BASE(0));
 			shadow = mixer_reg_read(ctx, MXR_GRAPHIC_BASE_S(0));
 			if (base != shadow)
