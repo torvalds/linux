@@ -894,7 +894,7 @@ intel_check_sprite_plane(struct intel_plane *plane,
 	/* setup can_scale, min_scale, max_scale */
 	if (INTEL_GEN(dev_priv) >= 9) {
 		/* use scaler when colorkey is not required */
-		if (state->ckey.flags == I915_SET_COLORKEY_NONE) {
+		if (!state->ckey.flags) {
 			can_scale = 1;
 			min_scale = 1;
 			max_scale = skl_max_scale(crtc, crtc_state);
@@ -1069,6 +1069,9 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 	struct drm_atomic_state *state;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
+
+	/* ignore the pointless "none" flag */
+	set->flags &= ~I915_SET_COLORKEY_NONE;
 
 	/* Make sure we don't try to enable both src & dest simultaneously */
 	if ((set->flags & (I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE)) == (I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE))
