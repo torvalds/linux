@@ -356,6 +356,7 @@ static int calc_plane(int width, int height)
 
 static void s5p_mfc_dec_calc_dpb_size_v6(struct s5p_mfc_ctx *ctx)
 {
+	struct s5p_mfc_dev *dev = ctx->dev;
 	ctx->buf_width = ALIGN(ctx->img_width, S5P_FIMV_NV12MT_HALIGN_V6);
 	ctx->buf_height = ALIGN(ctx->img_height, S5P_FIMV_NV12MT_VALIGN_V6);
 	mfc_debug(2, "SEQ Done: Movie dimensions %dx%d,\n"
@@ -372,8 +373,12 @@ static void s5p_mfc_dec_calc_dpb_size_v6(struct s5p_mfc_ctx *ctx)
 
 	if (ctx->codec_mode == S5P_MFC_CODEC_H264_DEC ||
 			ctx->codec_mode == S5P_MFC_CODEC_H264_MVC_DEC) {
-		ctx->mv_size = S5P_MFC_DEC_MV_SIZE_V6(ctx->img_width,
-				ctx->img_height);
+		if (IS_MFCV10(dev))
+			ctx->mv_size = S5P_MFC_DEC_MV_SIZE_V10(ctx->img_width,
+					ctx->img_height);
+		else
+			ctx->mv_size = S5P_MFC_DEC_MV_SIZE_V6(ctx->img_width,
+					ctx->img_height);
 		ctx->mv_size = ALIGN(ctx->mv_size, 16);
 	} else {
 		ctx->mv_size = 0;
