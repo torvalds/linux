@@ -2650,8 +2650,6 @@ dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
 		if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
 			vmode->mtmdsclock /= 2;
 
-		hdmi->phy.enabled = true;
-		hdmi->bridge_is_on = true;
 		if (in_bus_format != hdmi->hdmi_data.enc_in_bus_format ||
 		    out_bus_format != hdmi->hdmi_data.enc_out_bus_format)
 			hdmi->hdmi_data.update = true;
@@ -3599,8 +3597,12 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 		 hdmi->phy.name);
 
 	ret = hdmi_readb(hdmi, HDMI_PHY_STAT0);
-	if (ret & (HDMI_PHY_TX_PHY_LOCK | HDMI_PHY_HPD))
+	if (ret & (HDMI_PHY_TX_PHY_LOCK | HDMI_PHY_HPD)) {
 		hdmi->mc_clkdis = hdmi_readb(hdmi, HDMI_MC_CLKDIS);
+		hdmi->disabled = false;
+		hdmi->bridge_is_on = true;
+		hdmi->phy.enabled = true;
+	}
 	init_hpd_work(hdmi);
 	initialize_hdmi_ih_mutes(hdmi);
 
