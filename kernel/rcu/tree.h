@@ -58,6 +58,14 @@ struct rcu_dynticks {
 #endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
 };
 
+/* Communicate arguments to a workqueue handler. */
+struct rcu_exp_work {
+	smp_call_func_t rew_func;
+	struct rcu_state *rew_rsp;
+	unsigned long rew_s;
+	struct work_struct rew_work;
+};
+
 /* RCU's kthread states for tracing. */
 #define RCU_KTHREAD_STOPPED  0
 #define RCU_KTHREAD_RUNNING  1
@@ -157,6 +165,8 @@ struct rcu_node {
 	spinlock_t exp_lock ____cacheline_internodealigned_in_smp;
 	unsigned long exp_seq_rq;
 	wait_queue_head_t exp_wq[4];
+	struct rcu_exp_work rew;
+	bool exp_need_flush;	/* Need to flush workitem? */
 } ____cacheline_internodealigned_in_smp;
 
 /*
