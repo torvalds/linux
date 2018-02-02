@@ -2375,8 +2375,8 @@ static int switch_log_sprint(struct spu_context *ctx, char *tbuf, int n)
 
 	p = ctx->switch_log->log + ctx->switch_log->tail % SWITCH_LOG_BUFSIZE;
 
-	return snprintf(tbuf, n, "%u.%09u %d %u %u %llu\n",
-			(unsigned int) p->tstamp.tv_sec,
+	return snprintf(tbuf, n, "%llu.%09u %d %u %u %llu\n",
+			(unsigned long long) p->tstamp.tv_sec,
 			(unsigned int) p->tstamp.tv_nsec,
 			p->spu_id,
 			(unsigned int) p->type,
@@ -2499,7 +2499,7 @@ void spu_switch_log_notify(struct spu *spu, struct spu_context *ctx,
 		struct switch_log_entry *p;
 
 		p = ctx->switch_log->log + ctx->switch_log->head;
-		ktime_get_ts(&p->tstamp);
+		ktime_get_ts64(&p->tstamp);
 		p->timebase = get_tb();
 		p->spu_id = spu ? spu->number : -1;
 		p->type = type;

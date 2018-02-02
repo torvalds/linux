@@ -273,6 +273,7 @@ SECTIONS
 #ifdef CONFIG_PPC32
 	.data : AT(ADDR(.data) - LOAD_OFFSET) {
 		DATA_DATA
+		*(.data.rel*)
 		*(.sdata)
 		*(.sdata2)
 		*(.got.plt) *(.got)

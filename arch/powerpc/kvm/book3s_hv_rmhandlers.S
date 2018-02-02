@@ -1908,16 +1908,17 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	bne	27f
 	bl	kvmppc_realmode_hmi_handler
 	nop
+	cmpdi	r3, 0
 	li	r12, BOOK3S_INTERRUPT_HMI
 	/*
-	 * At this point kvmppc_realmode_hmi_handler would have resync-ed
-	 * the TB. Hence it is not required to subtract guest timebase
-	 * offset from timebase. So, skip it.
+	 * At this point kvmppc_realmode_hmi_handler may have resync-ed
+	 * the TB, and if it has, we must not subtract the guest timebase
+	 * offset from the timebase. So, skip it.
 	 *
 	 * Also, do not call kvmppc_subcore_exit_guest() because it has
 	 * been invoked as part of kvmppc_realmode_hmi_handler().
 	 */
-	b	30f
+	beq	30f
 
 27:
 	/* Subtract timebase offset from timebase */
@@ -3248,7 +3249,7 @@ kvmppc_bad_host_intr:
 	mfctr	r4
 #endif
 	mfxer	r5
-	lbz	r6, PACASOFTIRQEN(r13)
+	lbz	r6, PACAIRQSOFTMASK(r13)
 	std	r3, _LINK(r1)
 	std	r4, _CTR(r1)
 	std	r5, _XER(r1)

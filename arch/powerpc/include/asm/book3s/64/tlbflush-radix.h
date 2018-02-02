@@ -11,6 +11,12 @@ static inline int mmu_get_ap(int psize)
 	return mmu_psize_defs[psize].ap;
 }
 
+#ifdef CONFIG_PPC_RADIX_MMU
+extern void radix__tlbiel_all(unsigned int action);
+#else
+static inline void radix__tlbiel_all(unsigned int action) { WARN_ON(1); };
+#endif
+
 extern void radix__flush_hugetlb_tlb_range(struct vm_area_struct *vma,
 					   unsigned long start, unsigned long end);
 extern void radix__flush_tlb_range_psize(struct mm_struct *mm, unsigned long start,
@@ -47,4 +53,5 @@ extern void radix__flush_tlb_lpid(unsigned long lpid);
 extern void radix__flush_tlb_all(void);
 extern void radix__flush_tlb_pte_p9_dd1(unsigned long old_pte, struct mm_struct *mm,
 					unsigned long address);
+
 #endif

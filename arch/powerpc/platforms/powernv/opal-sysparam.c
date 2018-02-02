@@ -260,13 +260,13 @@ void __init opal_sys_param_init(void)
 		/* If the parameter is read-only or read-write */
 		switch (perm[i] & 3) {
 		case OPAL_SYSPARAM_READ:
-			attr[i].kobj_attr.attr.mode = S_IRUGO;
+			attr[i].kobj_attr.attr.mode = 0444;
 			break;
 		case OPAL_SYSPARAM_WRITE:
-			attr[i].kobj_attr.attr.mode = S_IWUSR;
+			attr[i].kobj_attr.attr.mode = 0200;
 			break;
 		case OPAL_SYSPARAM_RW:
-			attr[i].kobj_attr.attr.mode = S_IRUGO | S_IWUSR;
+			attr[i].kobj_attr.attr.mode = 0644;
 			break;
 		default:
 			break;

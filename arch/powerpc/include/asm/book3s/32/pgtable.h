@@ -311,6 +311,29 @@ static inline int pte_present(pte_t pte)
 	return pte_val(pte) & _PAGE_PRESENT;
 }
 
+/*
+ * We only find page table entry in the last level
+ * Hence no need for other accessors
+ */
+#define pte_access_permitted pte_access_permitted
+static inline bool pte_access_permitted(pte_t pte, bool write)
+{
+	unsigned long pteval = pte_val(pte);
+	/*
+	 * A read-only access is controlled by _PAGE_USER bit.
+	 * We have _PAGE_READ set for WRITE and EXECUTE
+	 */
+	unsigned long need_pte_bits = _PAGE_PRESENT | _PAGE_USER;
+
+	if (write)
+		need_pte_bits |= _PAGE_WRITE;
+
+	if ((pteval & need_pte_bits) != need_pte_bits)
+		return false;
+
+	return true;
+}
+
 /* Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
  *

@@ -93,10 +93,10 @@
 static DECLARE_BITMAP(default_enabled_hcalls, MAX_HCALL_OPCODE/4 + 1);
 
 static int dynamic_mt_modes = 6;
-module_param(dynamic_mt_modes, int, S_IRUGO | S_IWUSR);
+module_param(dynamic_mt_modes, int, 0644);
 MODULE_PARM_DESC(dynamic_mt_modes, "Set of allowed dynamic micro-threading modes: 0 (= none), 2, 4, or 6 (= 2 or 4)");
 static int target_smt_mode;
-module_param(target_smt_mode, int, S_IRUGO | S_IWUSR);
+module_param(target_smt_mode, int, 0644);
 MODULE_PARM_DESC(target_smt_mode, "Target threads per core (0 = max)");
 
 static bool indep_threads_mode = true;
@@ -109,12 +109,10 @@ static struct kernel_param_ops module_param_ops = {
 	.get = param_get_int,
 };
 
-module_param_cb(kvm_irq_bypass, &module_param_ops, &kvm_irq_bypass,
-							S_IRUGO | S_IWUSR);
+module_param_cb(kvm_irq_bypass, &module_param_ops, &kvm_irq_bypass, 0644);
 MODULE_PARM_DESC(kvm_irq_bypass, "Bypass passthrough interrupt optimization");
 
-module_param_cb(h_ipi_redirect, &module_param_ops, &h_ipi_redirect,
-							S_IRUGO | S_IWUSR);
+module_param_cb(h_ipi_redirect, &module_param_ops, &h_ipi_redirect, 0644);
 MODULE_PARM_DESC(h_ipi_redirect, "Redirect H_IPI wakeup to a free host core");
 #endif
 

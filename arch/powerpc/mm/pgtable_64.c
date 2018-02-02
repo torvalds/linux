@@ -244,20 +244,8 @@ void __iomem * ioremap_prot(phys_addr_t addr, unsigned long size,
 	/*
 	 * Force kernel mapping.
 	 */
-#if defined(CONFIG_PPC_BOOK3S_64)
-	flags |= _PAGE_PRIVILEGED;
-#else
 	flags &= ~_PAGE_USER;
-#endif
-
-
-#ifdef _PAGE_BAP_SR
-	/* _PAGE_USER contains _PAGE_BAP_SR on BookE using the new PTE format
-	 * which means that we just cleared supervisor access... oops ;-) This
-	 * restores it
-	 */
-	flags |= _PAGE_BAP_SR;
-#endif
+	flags |= _PAGE_PRIVILEGED;
 
 	if (ppc_md.ioremap)
 		return ppc_md.ioremap(addr, size, flags, caller);

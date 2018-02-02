@@ -40,12 +40,12 @@
 			compatible = "intel,JS28F128", "cfi-flash";
 			bank-width = <4>;
 			device-width = <1>;
-			partition@0x0 {
+			partition@0 {
 				label = "space";
 				/* FC000000 -> FFEFFFFF */
 				reg = <0x00000000 0x03f00000>;
 			};
-			partition@0x03f00000 {
+			partition@3f00000 {
 				label = "bootloader";
 				/* FFF00000 -> FFFFFFFF */
 				reg = <0x03f00000 0x00100000>;
@@ -95,12 +95,12 @@
 			reg = <0x6 0x0 0x800000>;
 			bank-width = <1>;
 			device-width = <1>;
-			partition@0x0 {
+			partition@0 {
 				label = "space";
 				/* EF800000 -> EFF9FFFF */
 				reg = <0x00000000 0x007a0000>;
 			};
-			partition@0x7a0000 {
+			partition@7a0000 {
 				label = "bootloader";
 				/* EFFA0000 -> EFFFFFFF */
 				reg = <0x007a0000 0x00060000>;

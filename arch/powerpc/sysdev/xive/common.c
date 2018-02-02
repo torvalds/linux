@@ -367,7 +367,8 @@ static void xive_irq_eoi(struct irq_data *d)
 	 * EOI the source if it hasn't been disabled and hasn't
 	 * been passed-through to a KVM guest
 	 */
-	if (!irqd_irq_disabled(d) && !irqd_is_forwarded_to_vcpu(d))
+	if (!irqd_irq_disabled(d) && !irqd_is_forwarded_to_vcpu(d) &&
+	    !(xd->flags & XIVE_IRQ_NO_EOI))
 		xive_do_source_eoi(irqd_to_hwirq(d), xd);
 
 	/*
@@ -1268,11 +1269,6 @@ static int xive_prepare_cpu(unsigned int cpu)
 static void xive_setup_cpu(void)
 {
 	struct xive_cpu *xc = __this_cpu_read(xive_cpu);
-
-	/* Debug: Dump the TM state */
-	pr_devel("CPU %d [HW 0x%02x] VT=%02x\n",
-	    smp_processor_id(), hard_smp_processor_id(),
-	    in_8(xive_tima + xive_tima_offset + TM_WORD2));
 
 	/* The backend might have additional things to do */
 	if (xive_ops->setup_cpu)

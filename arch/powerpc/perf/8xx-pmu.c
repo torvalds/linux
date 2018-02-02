@@ -18,6 +18,7 @@
 #include <asm/machdep.h>
 #include <asm/firmware.h>
 #include <asm/ptrace.h>
+#include <asm/code-patching.h>
 
 #define PERF_8xx_ID_CPU_CYCLES		1
 #define PERF_8xx_ID_HW_INSTRUCTIONS	2
@@ -30,8 +31,13 @@
 
 extern unsigned long itlb_miss_counter, dtlb_miss_counter;
 extern atomic_t instruction_counter;
+extern unsigned int itlb_miss_perf, dtlb_miss_perf;
+extern unsigned int itlb_miss_exit_1, itlb_miss_exit_2;
+extern unsigned int dtlb_miss_exit_1, dtlb_miss_exit_2, dtlb_miss_exit_3;
 
 static atomic_t insn_ctr_ref;
+static atomic_t itlb_miss_ref;
+static atomic_t dtlb_miss_ref;
 
 static s64 get_insn_ctr(void)
 {
@@ -96,9 +102,24 @@ static int mpc8xx_pmu_add(struct perf_event *event, int flags)
 		val = get_insn_ctr();
 		break;
 	case PERF_8xx_ID_ITLB_LOAD_MISS:
+		if (atomic_inc_return(&itlb_miss_ref) == 1) {
+			unsigned long target = (unsigned long)&itlb_miss_perf;
+
+			patch_branch(&itlb_miss_exit_1, target, 0);
+#ifndef CONFIG_PIN_TLB_TEXT
+			patch_branch(&itlb_miss_exit_2, target, 0);
+#endif
+		}
 		val = itlb_miss_counter;
 		break;
 	case PERF_8xx_ID_DTLB_LOAD_MISS:
+		if (atomic_inc_return(&dtlb_miss_ref) == 1) {
+			unsigned long target = (unsigned long)&dtlb_miss_perf;
+
+			patch_branch(&dtlb_miss_exit_1, target, 0);
+			patch_branch(&dtlb_miss_exit_2, target, 0);
+			patch_branch(&dtlb_miss_exit_3, target, 0);
+		}
 		val = dtlb_miss_counter;
 		break;
 	}
@@ -143,13 +164,36 @@ static void mpc8xx_pmu_read(struct perf_event *event)
 
 static void mpc8xx_pmu_del(struct perf_event *event, int flags)
 {
+	/* mfspr r10, SPRN_SPRG_SCRATCH0 */
+	unsigned int insn = PPC_INST_MFSPR | __PPC_RS(R10) |
+			    __PPC_SPR(SPRN_SPRG_SCRATCH0);
+
 	mpc8xx_pmu_read(event);
-	if (event_type(event) != PERF_8xx_ID_HW_INSTRUCTIONS)
-		return;
 
 	/* If it was the last user, stop counting to avoid useles overhead */
-	if (atomic_dec_return(&insn_ctr_ref) == 0)
-		mtspr(SPRN_ICTRL, 7);
+	switch (event_type(event)) {
+	case PERF_8xx_ID_CPU_CYCLES:
+		break;
+	case PERF_8xx_ID_HW_INSTRUCTIONS:
+		if (atomic_dec_return(&insn_ctr_ref) == 0)
+			mtspr(SPRN_ICTRL, 7);
+		break;
+	case PERF_8xx_ID_ITLB_LOAD_MISS:
+		if (atomic_dec_return(&itlb_miss_ref) == 0) {
+			patch_instruction(&itlb_miss_exit_1, insn);
+#ifndef CONFIG_PIN_TLB_TEXT
+			patch_instruction(&itlb_miss_exit_2, insn);
+#endif
+		}
+		break;
+	case PERF_8xx_ID_DTLB_LOAD_MISS:
+		if (atomic_dec_return(&dtlb_miss_ref) == 0) {
+			patch_instruction(&dtlb_miss_exit_1, insn);
+			patch_instruction(&dtlb_miss_exit_2, insn);
+			patch_instruction(&dtlb_miss_exit_3, insn);
+		}
+		break;
+	}
 }
 
 static struct pmu mpc8xx_pmu = {

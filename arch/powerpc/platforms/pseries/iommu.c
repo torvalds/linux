@@ -816,15 +816,15 @@ static void remove_ddw(struct device_node *np, bool remove_prop)
 	ret = tce_clearrange_multi_pSeriesLP(0,
 		1ULL << (be32_to_cpu(dwp->window_shift) - PAGE_SHIFT), dwp);
 	if (ret)
-		pr_warning("%pOF failed to clear tces in window.\n",
-			 np);
+		pr_warn("%pOF failed to clear tces in window.\n",
+			np);
 	else
 		pr_debug("%pOF successfully cleared tces in window.\n",
 			 np);
 
 	ret = rtas_call(ddw_avail[2], 1, 1, NULL, liobn);
 	if (ret)
-		pr_warning("%pOF: failed to remove direct window: rtas returned "
+		pr_warn("%pOF: failed to remove direct window: rtas returned "
 			"%d to ibm,remove-pe-dma-window(%x) %llx\n",
 			np, ret, ddw_avail[2], liobn);
 	else
@@ -836,7 +836,7 @@ delprop:
 	if (remove_prop)
 		ret = of_remove_property(np, win64);
 	if (ret)
-		pr_warning("%pOF: failed to remove direct window property: %d\n",
+		pr_warn("%pOF: failed to remove direct window property: %d\n",
 			np, ret);
 }
 

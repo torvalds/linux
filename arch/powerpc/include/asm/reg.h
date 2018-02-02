@@ -312,7 +312,6 @@
 				 DSISR_BAD_EXT_CTRL)
 #define	  DSISR_BAD_FAULT_64S	(DSISR_BAD_FAULT_32S	| \
 				 DSISR_ATTR_CONFLICT	| \
-				 DSISR_KEYFAULT		| \
 				 DSISR_UNSUPP_MMU	| \
 				 DSISR_PRTABLE_FAULT	| \
 				 DSISR_ICSWX_NO_CT	| \
@@ -432,8 +431,9 @@
 #define SPRN_LPID	0x13F	/* Logical Partition Identifier */
 #endif
 #define   LPID_RSVD	0x3ff		/* Reserved LPID for partn switching */
-#define	SPRN_HMER	0x150	/* Hardware m? error recovery */
-#define	SPRN_HMEER	0x151	/* Hardware m? enable error recovery */
+#define	SPRN_HMER	0x150	/* Hypervisor maintenance exception reg */
+#define   HMER_DEBUG_TRIG	(1ul << (63 - 17)) /* Debug trigger */
+#define	SPRN_HMEER	0x151	/* Hyp maintenance exception enable reg */
 #define SPRN_PCR	0x152	/* Processor compatibility register */
 #define   PCR_VEC_DIS	(1ul << (63-0))	/* Vec. disable (bit NA since POWER8) */
 #define   PCR_VSX_DIS	(1ul << (63-1))	/* VSX disable (bit NA since POWER8) */
