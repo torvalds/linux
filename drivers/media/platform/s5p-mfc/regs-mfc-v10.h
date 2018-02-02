@@ -32,6 +32,7 @@
 #define MFC_NUM_PORTS_V10	1
 
 /* MFCv10 codec defines*/
+#define S5P_FIMV_CODEC_HEVC_DEC		17
 #define S5P_FIMV_CODEC_HEVC_ENC         26
 
 /* Encoder buffer size for MFC v10.0 */
