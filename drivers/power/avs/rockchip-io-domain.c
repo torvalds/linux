@@ -40,8 +40,8 @@
 #define MAX_VOLTAGE_3_3		3600000
 
 #define PX30_IO_VSEL			0x180
-#define PX30_IO_VSEL_VCCIO0_SRC		BIT(0)
-#define PX30_IO_VSEL_VCCIO0_SUPPLY_NUM	1
+#define PX30_IO_VSEL_VCCIO6_SRC		BIT(0)
+#define PX30_IO_VSEL_VCCIO6_SUPPLY_NUM	1
 
 #define RK3288_SOC_CON2			0x24c
 #define RK3288_SOC_CON2_FLASH0		BIT(7)
@@ -165,14 +165,14 @@ static void px30_iodomain_init(struct rockchip_iodomain *iod)
 	u32 val;
 
 	/* if no VCCIO0 supply we should leave things alone */
-	if (!iod->supplies[PX30_IO_VSEL_VCCIO0_SUPPLY_NUM].reg)
+	if (!iod->supplies[PX30_IO_VSEL_VCCIO6_SUPPLY_NUM].reg)
 		return;
 
 	/*
 	 * set vccio0 iodomain to also use this framework
 	 * instead of a special gpio.
 	 */
-	val = PX30_IO_VSEL_VCCIO0_SRC | (PX30_IO_VSEL_VCCIO0_SRC << 16);
+	val = PX30_IO_VSEL_VCCIO6_SRC | (PX30_IO_VSEL_VCCIO6_SRC << 16);
 	ret = regmap_write(iod->grf, PX30_IO_VSEL, val);
 	if (ret < 0)
 		dev_warn(iod->dev, "couldn't update vccio0 ctrl\n");
@@ -277,7 +277,7 @@ static const struct rockchip_iodomain_soc_data soc_data_px30 = {
 	.grf_offset = 0x180,
 	.supply_names = {
 		NULL,
-		"vccio0",
+		"vccio6",
 		"vccio1",
 		"vccio2",
 		"vccio3",
