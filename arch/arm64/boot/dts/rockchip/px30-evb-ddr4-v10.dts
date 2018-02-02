@@ -94,6 +94,27 @@
 		default-brightness-level = <200>;
 	};
 
+	rk809-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "rockchip,rk809-codec";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,widgets =
+			"Microphone", "Mic Jack",
+			"Headphone", "Headphone Jack";
+		simple-audio-card,routing =
+			"Mic Jack", "MICBIAS1",
+			"IN1P", "Mic Jack",
+			"Headphone Jack", "HPOL",
+			"Headphone Jack", "HPOR";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s1_2ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&rk809_codec>;
+		};
+	};
+
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		/*clocks = <&rk809 1>;*/
@@ -497,6 +518,18 @@
 				regulator-name = "vcc5v0_host";
 			};
 		};
+
+		rk809_codec: codec {
+			#sound-dai-cells = <0>;
+			compatible = "rockchip,rk809-codec", "rockchip,rk817-codec";
+			clocks = <&cru SCLK_I2S1_OUT>;
+			clock-names = "mclk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2s1_2ch_mclk>;
+			hp-volume = <20>;
+			spk-volume = <3>;
+			status = "okay";
+		};
 	};
 };
 
@@ -541,6 +574,11 @@
 	vccio3-supply = <&vcc_3v0>;
 	vccio4-supply = <&vcc3v0_pmu>;
 	vccio5-supply = <&vcc_3v0>;
+};
+
+&i2s1_2ch {
+	status = "okay";
+	#sound-dai-cells = <0>;
 };
 
 &mipi_dphy {
