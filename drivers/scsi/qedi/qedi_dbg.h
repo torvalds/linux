@@ -134,7 +134,7 @@ struct qedi_debugfs_ops {
 }
 
 void qedi_dbg_host_init(struct qedi_dbg_ctx *qedi,
-			struct qedi_debugfs_ops *dops,
+			const struct qedi_debugfs_ops *dops,
 			const struct file_operations *fops);
 void qedi_dbg_host_exit(struct qedi_dbg_ctx *qedi);
 void qedi_dbg_init(char *drv_name);
