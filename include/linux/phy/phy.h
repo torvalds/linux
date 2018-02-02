@@ -81,7 +81,8 @@ struct phy_attrs {
  * @mutex: mutex to protect phy_ops
  * @init_count: used to protect when the PHY is used by multiple consumers
  * @power_count: used to protect when the PHY is used by multiple consumers
- * @phy_attrs: used to specify PHY specific attributes
+ * @attrs: used to specify PHY specific attributes
+ * @pwr: power regulator associated with the phy
  */
 struct phy {
 	struct device		dev;
@@ -97,9 +98,10 @@ struct phy {
 /**
  * struct phy_provider - represents the phy provider
  * @dev: phy provider device
+ * @children: can be used to override the default (dev->of_node) child node
  * @owner: the module owner having of_xlate
- * @of_xlate: function pointer to obtain phy instance from phy pointer
  * @list: to maintain a linked list of PHY providers
+ * @of_xlate: function pointer to obtain phy instance from phy pointer
  */
 struct phy_provider {
 	struct device		*dev;
@@ -110,6 +112,13 @@ struct phy_provider {
 		struct of_phandle_args *args);
 };
 
+/**
+ * struct phy_lookup - PHY association in list of phys managed by the phy driver
+ * @node: list node
+ * @dev_id: the device of the association
+ * @con_id: connection ID string on device
+ * @phy: the phy of the association
+ */
 struct phy_lookup {
 	struct list_head node;
 	const char *dev_id;
