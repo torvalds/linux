@@ -474,6 +474,8 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		DRM_DEBUG_DRIVER("amdgpu: freesync_module init done %p.\n",
 				adev->dm.freesync_module);
 
+	amdgpu_dm_init_color_mod();
+
 	if (amdgpu_dm_initialize_drm_device(adev)) {
 		DRM_ERROR(
 		"amdgpu: failed to initialize sw for display support.\n");
@@ -1953,32 +1955,6 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 
 }
 
-static void fill_gamma_from_crtc_state(const struct drm_crtc_state *crtc_state,
-				       struct dc_plane_state *plane_state)
-{
-	int i;
-	struct dc_gamma *gamma;
-	struct drm_color_lut *lut =
-			(struct drm_color_lut *) crtc_state->gamma_lut->data;
-
-	gamma = dc_create_gamma();
-
-	if (gamma == NULL) {
-		WARN_ON(1);
-		return;
-	}
-
-	gamma->type = GAMMA_RGB_256;
-	gamma->num_entries = GAMMA_RGB_256_ENTRIES;
-	for (i = 0; i < GAMMA_RGB_256_ENTRIES; i++) {
-		gamma->entries.red[i] = dal_fixed31_32_from_int(lut[i].red);
-		gamma->entries.green[i] = dal_fixed31_32_from_int(lut[i].green);
-		gamma->entries.blue[i] = dal_fixed31_32_from_int(lut[i].blue);
-	}
-
-	plane_state->gamma_correction = gamma;
-}
-
 static int fill_plane_attributes(struct amdgpu_device *adev,
 				 struct dc_plane_state *dc_plane_state,
 				 struct drm_plane_state *plane_state,
@@ -2006,14 +1982,13 @@ static int fill_plane_attributes(struct amdgpu_device *adev,
 	if (input_tf == NULL)
 		return -ENOMEM;
 
-	input_tf->type = TF_TYPE_PREDEFINED;
-	input_tf->tf = TRANSFER_FUNCTION_SRGB;
-
 	dc_plane_state->in_transfer_func = input_tf;
 
-	/* In case of gamma set, update gamma value */
-	if (crtc_state->gamma_lut)
-		fill_gamma_from_crtc_state(crtc_state, dc_plane_state);
+	/*
+	 * Always set input transfer function, since plane state is refreshed
+	 * every time.
+	 */
+	ret = amdgpu_dm_set_degamma_lut(crtc_state, dc_plane_state);
 
 	return ret;
 }
@@ -3227,6 +3202,7 @@ static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 	acrtc->base.enabled = false;
 
 	dm->adev->mode_info.crtcs[crtc_index] = acrtc;
+	drm_crtc_enable_color_mgmt(&acrtc->base, 256, true, 256);
 	drm_mode_crtc_set_gamma_size(&acrtc->base, 256);
 
 	return 0;
@@ -4640,6 +4616,30 @@ next_crtc:
 		/* Release extra reference */
 		if (new_stream)
 			 dc_stream_release(new_stream);
+
+		/*
+		 * We want to do dc stream updates that do not require a
+		 * full modeset below.
+		 */
+		if (!enable || !aconnector || modereset_required(new_crtc_state))
+			continue;
+		/*
+		 * Given above conditions, the dc state cannot be NULL because:
+		 * 1. We're attempting to enable a CRTC. Which has a...
+		 * 2. Valid connector attached, and
+		 * 3. User does not want to reset it (disable or mark inactive,
+		 *    which can happen on a CRTC that's already disabled).
+		 * => It currently exists.
+		 */
+		BUG_ON(dm_new_crtc_state->stream == NULL);
+
+		/* Color managment settings */
+		if (dm_new_crtc_state->base.color_mgmt_changed) {
+			ret = amdgpu_dm_set_regamma_lut(dm_new_crtc_state);
+			if (ret)
+				goto fail;
+			amdgpu_dm_set_ctm(dm_new_crtc_state);
+		}
 	}
 
 	return ret;
@@ -4747,7 +4747,6 @@ static int dm_update_planes_state(struct dc *dc,
 				new_crtc_state);
 			if (ret)
 				return ret;
-
 
 			if (!dc_add_plane_to_context(
 					dc,

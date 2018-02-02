@@ -27,6 +27,17 @@
 #include "amdgpu_dm.h"
 #include "modules/color/color_gamma.h"
 
+/*
+ * Initialize the color module.
+ *
+ * We're not using the full color module, only certain components.
+ * Only call setup functions for components that we need.
+ */
+void amdgpu_dm_init_color_mod(void)
+{
+	setup_x_points_distribution();
+}
+
 
 #define MAX_LUT_ENTRIES 256
 
