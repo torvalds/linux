@@ -276,7 +276,7 @@ static blk_status_t virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 		/* Out of mem doesn't actually happen, since we fall back
 		 * to direct descriptors */
 		if (err == -ENOMEM || err == -ENOSPC)
-			return BLK_STS_RESOURCE;
+			return BLK_STS_DEV_RESOURCE;
 		return BLK_STS_IOERR;
 	}
 
