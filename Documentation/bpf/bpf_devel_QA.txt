@@ -516,4 +516,35 @@ A: LLVM has a -mcpu selector for the BPF back end in order to allow the
    By the way, the BPF kernel selftests run with -mcpu=probe for better
    test coverage.
 
+Q: In some cases clang flag "-target bpf" is used but in other cases the
+   default clang target, which matches the underlying architecture, is used.
+   What is the difference and when I should use which?
+
+A: Although LLVM IR generation and optimization try to stay architecture
+   independent, "-target <arch>" still has some impact on generated code:
+
+     - BPF program may recursively include header file(s) with file scope
+       inline assembly codes. The default target can handle this well,
+       while bpf target may fail if bpf backend assembler does not
+       understand these assembly codes, which is true in most cases.
+
+     - When compiled without -g, additional elf sections, e.g.,
+       .eh_frame and .rela.eh_frame, may be present in the object file
+       with default target, but not with bpf target.
+
+     - The default target may turn a C switch statement into a switch table
+       lookup and jump operation. Since the switch table is placed
+       in the global readonly section, the bpf program will fail to load.
+       The bpf target does not support switch table optimization.
+       The clang option "-fno-jump-tables" can be used to disable
+       switch table generation.
+
+   You should use default target when:
+
+     - Your program includes a header file, e.g., ptrace.h, which eventually
+       pulls in some header files containing file scope host assembly codes.
+     - You can add "-fno-jump-tables" to work around the switch table issue.
+
+   Otherwise, you can use bpf target.
+
 Happy BPF hacking!
