@@ -9,6 +9,6 @@ tests/valgrind*.xml
 tests/net-test
 tests/disk
 Makefile.conf
-include/autoconf.h
+include/lkl_autoconf.h
 tests/autoconf.sh
 *.pyc
