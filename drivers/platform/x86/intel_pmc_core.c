@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/uaccess.h>
 
 #include <asm/cpu_device_id.h>
@@ -537,6 +538,11 @@ static const struct x86_cpu_id intel_pmc_core_ids[] = {
 
 MODULE_DEVICE_TABLE(x86cpu, intel_pmc_core_ids);
 
+static const struct pci_device_id pmc_pci_ids[] = {
+	{ PCI_VDEVICE(INTEL, SPT_PMC_PCI_DEVICE_ID), 0},
+	{ 0, },
+};
+
 static int __init pmc_core_probe(void)
 {
 	struct pmc_dev *pmcdev = &pmc;
@@ -549,6 +555,14 @@ static int __init pmc_core_probe(void)
 		return -ENODEV;
 
 	pmcdev->map = (struct pmc_reg_map *)cpu_id->driver_data;
+
+	/*
+	 * Coffeelake has CPU ID of Kabylake and Cannonlake PCH. So here
+	 * Sunrisepoint PCH regmap can't be used. Use Cannonlake PCH regmap
+	 * in this case.
+	 */
+	if (!pci_dev_present(pmc_pci_ids))
+		pmcdev->map = &cnp_reg_map;
 
 	if (lpit_read_residency_count_address(&slp_s0_addr))
 		pmcdev->base_addr = PMC_BASE_ADDR_DEFAULT;
