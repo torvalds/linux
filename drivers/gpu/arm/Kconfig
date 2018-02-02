@@ -26,3 +26,5 @@ config MALI_MIDGARD_FOR_LINUX
 endchoice
 
 source "drivers/gpu/arm/midgard/Kconfig"
+
+source "drivers/gpu/arm/bifrost/Kconfig"
