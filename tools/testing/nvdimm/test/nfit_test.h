@@ -86,6 +86,7 @@ struct nd_cmd_ars_err_inj_stat {
 
 #define ND_INTEL_SMART			 1
 #define ND_INTEL_SMART_THRESHOLD	 2
+#define ND_INTEL_ENABLE_LSS_STATUS	10
 #define ND_INTEL_FW_GET_INFO		12
 #define ND_INTEL_FW_START_UPDATE	13
 #define ND_INTEL_FW_SEND_DATA		14
@@ -210,6 +211,11 @@ struct nd_intel_fw_finish_query {
 	__u32 context;
 	__u32 status;
 	__u64 updated_fw_rev;
+} __packed;
+
+struct nd_intel_lss {
+	__u8 enable;
+	__u32 status;
 } __packed;
 
 union acpi_object;

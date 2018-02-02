@@ -821,6 +821,35 @@ static int nfit_test_cmd_ars_inject_status(struct nfit_test *t,
 	return 0;
 }
 
+static int nd_intel_test_cmd_set_lss_status(struct nfit_test *t,
+		struct nd_intel_lss *nd_cmd, unsigned int buf_len)
+{
+	struct device *dev = &t->pdev.dev;
+
+	if (buf_len < sizeof(*nd_cmd))
+		return -EINVAL;
+
+	switch (nd_cmd->enable) {
+	case 0:
+		nd_cmd->status = 0;
+		dev_dbg(dev, "%s: Latch System Shutdown Status disabled\n",
+				__func__);
+		break;
+	case 1:
+		nd_cmd->status = 0;
+		dev_dbg(dev, "%s: Latch System Shutdown Status enabled\n",
+				__func__);
+		break;
+	default:
+		dev_warn(dev, "Unknown enable value: %#x\n", nd_cmd->enable);
+		nd_cmd->status = 0x3;
+		break;
+	}
+
+
+	return 0;
+}
+
 static int get_dimm(struct nfit_mem *nfit_mem, unsigned int func)
 {
 	int i;
@@ -872,6 +901,9 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 				return i;
 
 			switch (func) {
+			case ND_INTEL_ENABLE_LSS_STATUS:
+				return nd_intel_test_cmd_set_lss_status(t,
+						buf, buf_len);
 			case ND_INTEL_FW_GET_INFO:
 				return nd_intel_test_get_fw_info(t, buf,
 						buf_len, i - t->dcr_idx);
@@ -1997,6 +2029,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	set_bit(ND_INTEL_FW_SEND_DATA, &acpi_desc->dimm_cmd_force_en);
 	set_bit(ND_INTEL_FW_FINISH_UPDATE, &acpi_desc->dimm_cmd_force_en);
 	set_bit(ND_INTEL_FW_FINISH_QUERY, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_INTEL_ENABLE_LSS_STATUS, &acpi_desc->dimm_cmd_force_en);
 }
 
 static void nfit_test1_setup(struct nfit_test *t)
@@ -2094,6 +2127,7 @@ static void nfit_test1_setup(struct nfit_test *t)
 	set_bit(ND_CMD_ARS_START, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_CMD_ARS_STATUS, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_CMD_CLEAR_ERROR, &acpi_desc->bus_cmd_force_en);
+	set_bit(ND_INTEL_ENABLE_LSS_STATUS, &acpi_desc->dimm_cmd_force_en);
 }
 
 static int nfit_test_blk_do_io(struct nd_blk_region *ndbr, resource_size_t dpa,
