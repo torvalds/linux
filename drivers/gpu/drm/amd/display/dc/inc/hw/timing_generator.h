@@ -26,6 +26,8 @@
 #ifndef __DAL_TIMING_GENERATOR_TYPES_H__
 #define __DAL_TIMING_GENERATOR_TYPES_H__
 
+#include "hw_shared.h"
+
 struct dc_bios;
 
 /* Contains CRTC vertical/horizontal pixel counters */
@@ -40,6 +42,19 @@ struct dcp_gsl_params {
 	int gsl_master;
 };
 
+struct gsl_params {
+	int gsl0_en;
+	int gsl1_en;
+	int gsl2_en;
+	int gsl_master_en;
+	int gsl_master_mode;
+	int master_update_lock_gsl_en;
+	int gsl_window_start_x;
+	int gsl_window_end_x;
+	int gsl_window_start_y;
+	int gsl_window_end_y;
+};
+
 /* define the structure of Dynamic Refresh Mode */
 struct drr_params {
 	uint32_t vertical_total_min;
@@ -49,43 +64,6 @@ struct drr_params {
 
 #define LEFT_EYE_3D_PRIMARY_SURFACE 1
 #define RIGHT_EYE_3D_PRIMARY_SURFACE 0
-
-enum test_pattern_dyn_range {
-	TEST_PATTERN_DYN_RANGE_VESA = 0,
-	TEST_PATTERN_DYN_RANGE_CEA
-};
-
-enum test_pattern_mode {
-	TEST_PATTERN_MODE_COLORSQUARES_RGB = 0,
-	TEST_PATTERN_MODE_COLORSQUARES_YCBCR601,
-	TEST_PATTERN_MODE_COLORSQUARES_YCBCR709,
-	TEST_PATTERN_MODE_VERTICALBARS,
-	TEST_PATTERN_MODE_HORIZONTALBARS,
-	TEST_PATTERN_MODE_SINGLERAMP_RGB,
-	TEST_PATTERN_MODE_DUALRAMP_RGB
-};
-
-enum test_pattern_color_format {
-	TEST_PATTERN_COLOR_FORMAT_BPC_6 = 0,
-	TEST_PATTERN_COLOR_FORMAT_BPC_8,
-	TEST_PATTERN_COLOR_FORMAT_BPC_10,
-	TEST_PATTERN_COLOR_FORMAT_BPC_12
-};
-
-enum controller_dp_test_pattern {
-	CONTROLLER_DP_TEST_PATTERN_D102 = 0,
-	CONTROLLER_DP_TEST_PATTERN_SYMBOLERROR,
-	CONTROLLER_DP_TEST_PATTERN_PRBS7,
-	CONTROLLER_DP_TEST_PATTERN_COLORSQUARES,
-	CONTROLLER_DP_TEST_PATTERN_VERTICALBARS,
-	CONTROLLER_DP_TEST_PATTERN_HORIZONTALBARS,
-	CONTROLLER_DP_TEST_PATTERN_COLORRAMP,
-	CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
-	CONTROLLER_DP_TEST_PATTERN_RESERVED_8,
-	CONTROLLER_DP_TEST_PATTERN_RESERVED_9,
-	CONTROLLER_DP_TEST_PATTERN_RESERVED_A,
-	CONTROLLER_DP_TEST_PATTERN_COLORSQUARES_CEA
-};
 
 enum crtc_state {
 	CRTC_STATE_VBLANK = 0,
@@ -98,6 +76,12 @@ struct _dlg_otg_param {
 	int vupdate_width;
 	int vready_offset;
 	enum signal_type signal;
+};
+
+struct vupdate_keepout_params {
+	int start_offset;
+	int end_offset;
+	int enable;
 };
 
 struct crtc_stereo_flags {
@@ -158,7 +142,11 @@ struct timing_generator_funcs {
 							const struct dcp_gsl_params *gsl_params);
 	void (*unlock)(struct timing_generator *tg);
 	void (*lock)(struct timing_generator *tg);
-	void (*enable_reset_trigger)(struct timing_generator *tg, int source_tg_inst);
+	void (*enable_reset_trigger)(struct timing_generator *tg,
+				     int source_tg_inst);
+	void (*enable_crtc_reset)(struct timing_generator *tg,
+				  int source_tg_inst,
+				  struct crtc_trigger_info *crtc_tp);
 	void (*disable_reset_trigger)(struct timing_generator *tg);
 	void (*tear_down_global_swap_lock)(struct timing_generator *tg);
 	void (*enable_advanced_request)(struct timing_generator *tg,
@@ -178,6 +166,13 @@ struct timing_generator_funcs {
 	void (*program_stereo)(struct timing_generator *tg,
 		const struct dc_crtc_timing *timing, struct crtc_stereo_flags *flags);
 	bool (*is_stereo_left_eye)(struct timing_generator *tg);
+
+	void (*set_blank_data_double_buffer)(struct timing_generator *tg, bool enable);
+
+	void (*tg_init)(struct timing_generator *tg);
+	bool (*is_tg_enabled)(struct timing_generator *tg);
+	bool (*is_optc_underflow_occurred)(struct timing_generator *tg);
+	void (*clear_optc_underflow)(struct timing_generator *tg);
 };
 
 #endif

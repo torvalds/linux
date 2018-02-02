@@ -44,6 +44,9 @@ static void dce_virtual_set_display_funcs(struct amdgpu_device *adev);
 static void dce_virtual_set_irq_funcs(struct amdgpu_device *adev);
 static int dce_virtual_connector_encoder_init(struct amdgpu_device *adev,
 					      int index);
+static void dce_virtual_set_crtc_vblank_interrupt_state(struct amdgpu_device *adev,
+							int crtc,
+							enum amdgpu_interrupt_state state);
 
 /**
  * dce_virtual_vblank_wait - vblank wait asic callback.
@@ -437,6 +440,8 @@ static int dce_virtual_sw_fini(void *handle)
 	drm_kms_helper_poll_fini(adev->ddev);
 
 	drm_mode_config_cleanup(adev->ddev);
+	/* clear crtcs pointer to avoid dce irq finish routine access freed data */
+	memset(adev->mode_info.crtcs, 0, sizeof(adev->mode_info.crtcs[0]) * AMDGPU_MAX_CRTCS);
 	adev->mode_info.mode_config_initialized = false;
 	return 0;
 }
@@ -489,6 +494,13 @@ static int dce_virtual_hw_init(void *handle)
 
 static int dce_virtual_hw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int i = 0;
+
+	for (i = 0; i<adev->mode_info.num_crtc; i++)
+		if (adev->mode_info.crtcs[i])
+			dce_virtual_set_crtc_vblank_interrupt_state(adev, i, AMDGPU_IRQ_STATE_DISABLE);
+
 	return 0;
 }
 
@@ -723,7 +735,7 @@ static void dce_virtual_set_crtc_vblank_interrupt_state(struct amdgpu_device *ad
 							int crtc,
 							enum amdgpu_interrupt_state state)
 {
-	if (crtc >= adev->mode_info.num_crtc) {
+	if (crtc >= adev->mode_info.num_crtc || !adev->mode_info.crtcs[crtc]) {
 		DRM_DEBUG("invalid crtc %d\n", crtc);
 		return;
 	}

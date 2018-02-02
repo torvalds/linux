@@ -48,6 +48,10 @@ Required properties:
   Documentation/devicetree/bindings/reset/reset.txt,
   the reset-names should be "hdmitx_apb", "hdmitx", "hdmitx_phy"
 
+Optional properties:
+- hdmi-supply: Optional phandle to an external 5V regulator to power the HDMI
+  logic, as described in the file ../regulator/regulator.txt
+
 Required nodes:
 
 The connections to the HDMI ports are modeled using the OF graph

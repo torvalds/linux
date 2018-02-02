@@ -107,19 +107,6 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 static const struct drm_ioctl_desc psb_ioctls[] = {
 };
 
-static void psb_driver_lastclose(struct drm_device *dev)
-{
-	int ret;
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_fbdev *fbdev = dev_priv->fbdev;
-
-	ret = drm_fb_helper_restore_fbdev_mode_unlocked(&fbdev->psb_fb_helper);
-	if (ret)
-		DRM_DEBUG("failed to restore crtc mode\n");
-
-	return;
-}
-
 static int psb_do_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -479,7 +466,7 @@ static struct drm_driver driver = {
 			   DRIVER_MODESET | DRIVER_GEM,
 	.load = psb_driver_load,
 	.unload = psb_driver_unload,
-	.lastclose = psb_driver_lastclose,
+	.lastclose = drm_fb_helper_lastclose,
 
 	.num_ioctls = ARRAY_SIZE(psb_ioctls),
 	.irq_preinstall = psb_irq_preinstall,
@@ -527,4 +514,4 @@ module_exit(psb_exit);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE(DRIVER_LICENSE);
+MODULE_LICENSE("GPL");

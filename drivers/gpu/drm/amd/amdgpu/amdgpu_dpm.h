@@ -360,6 +360,12 @@ enum amdgpu_pcie_gen {
 		((adev)->powerplay.pp_funcs->set_clockgating_by_smu(\
 			(adev)->powerplay.pp_handle, msg_id))
 
+#define amdgpu_dpm_notify_smu_memory_info(adev, virtual_addr_low, \
+			virtual_addr_hi, mc_addr_low, mc_addr_hi, size) \
+		((adev)->powerplay.pp_funcs->notify_smu_memory_info)( \
+			(adev)->powerplay.pp_handle, virtual_addr_low, \
+			virtual_addr_hi, mc_addr_low, mc_addr_hi, size)
+
 struct amdgpu_dpm {
 	struct amdgpu_ps        *ps;
 	/* number of valid power states */

@@ -28,15 +28,32 @@
 
 #include "mem_input.h"
 
+
+enum cursor_pitch {
+	CURSOR_PITCH_64_PIXELS = 0,
+	CURSOR_PITCH_128_PIXELS,
+	CURSOR_PITCH_256_PIXELS
+};
+
+enum cursor_lines_per_chunk {
+	CURSOR_LINE_PER_CHUNK_2 = 1,
+	CURSOR_LINE_PER_CHUNK_4,
+	CURSOR_LINE_PER_CHUNK_8,
+	CURSOR_LINE_PER_CHUNK_16
+};
+
 struct hubp {
 	struct hubp_funcs *funcs;
 	struct dc_context *ctx;
 	struct dc_plane_address request_address;
 	struct dc_plane_address current_address;
 	int inst;
+
+	/* run time states */
 	int opp_id;
 	int mpcc_id;
 	struct dc_cursor_attributes curs_attr;
+	bool power_gated;
 };
 
 
@@ -99,6 +116,8 @@ struct hubp_funcs {
 			struct hubp *hubp,
 			const struct dc_cursor_position *pos,
 			const struct dc_cursor_mi_param *param);
+
+	void (*hubp_disconnect)(struct hubp *hubp);
 
 };
 

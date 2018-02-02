@@ -1234,6 +1234,30 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		info->hdmi_level_shift = hdmi_level_shift;
 	}
 
+	if (bdb_version >= 204) {
+		int max_tmds_clock;
+
+		switch (child->hdmi_max_data_rate) {
+		default:
+			MISSING_CASE(child->hdmi_max_data_rate);
+			/* fall through */
+		case HDMI_MAX_DATA_RATE_PLATFORM:
+			max_tmds_clock = 0;
+			break;
+		case HDMI_MAX_DATA_RATE_297:
+			max_tmds_clock = 297000;
+			break;
+		case HDMI_MAX_DATA_RATE_165:
+			max_tmds_clock = 165000;
+			break;
+		}
+
+		if (max_tmds_clock)
+			DRM_DEBUG_KMS("VBT HDMI max TMDS clock for port %c: %d kHz\n",
+				      port_name(port), max_tmds_clock);
+		info->max_tmds_clock = max_tmds_clock;
+	}
+
 	/* Parse the I_boost config for SKL and above */
 	if (bdb_version >= 196 && child->iboost) {
 		info->dp_boost_level = translate_iboost(child->dp_iboost_level);

@@ -37,6 +37,9 @@
 #include "gmc/gmc_8_1_d.h"
 #include "vi.h"
 
+/* Polaris10/11/12 firmware version */
+#define FW_1_130_16 ((1 << 24) | (130 << 16) | (16 << 8))
+
 static void uvd_v6_0_set_ring_funcs(struct amdgpu_device *adev);
 static void uvd_v6_0_set_enc_ring_funcs(struct amdgpu_device *adev);
 
@@ -58,7 +61,9 @@ static void uvd_v6_0_enable_mgcg(struct amdgpu_device *adev,
 */
 static inline bool uvd_v6_0_enc_support(struct amdgpu_device *adev)
 {
-	return ((adev->asic_type >= CHIP_POLARIS10) && (adev->asic_type <= CHIP_POLARIS12));
+	return ((adev->asic_type >= CHIP_POLARIS10) &&
+			(adev->asic_type <= CHIP_POLARIS12) &&
+			(!adev->uvd.fw_version || adev->uvd.fw_version >= FW_1_130_16));
 }
 
 /**
@@ -184,7 +189,7 @@ static int uvd_v6_0_enc_ring_test_ring(struct amdgpu_ring *ring)
 	}
 
 	if (i < adev->usec_timeout) {
-		DRM_INFO("ring test on %d succeeded in %d usecs\n",
+		DRM_DEBUG("ring test on %d succeeded in %d usecs\n",
 			 ring->idx, i);
 	} else {
 		DRM_ERROR("amdgpu: ring %d test failed\n",
@@ -360,7 +365,7 @@ static int uvd_v6_0_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	} else if (r < 0) {
 		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
 	} else {
-		DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
+		DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
 		r = 0;
 	}
 error:
@@ -411,12 +416,20 @@ static int uvd_v6_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	if (uvd_v6_0_enc_support(adev)) {
-		struct amd_sched_rq *rq;
+	if (!uvd_v6_0_enc_support(adev)) {
+		for (i = 0; i < adev->uvd.num_enc_rings; ++i)
+			adev->uvd.ring_enc[i].funcs = NULL;
+
+		adev->uvd.irq.num_types = 1;
+		adev->uvd.num_enc_rings = 0;
+
+		DRM_INFO("UVD ENC is disabled\n");
+	} else {
+		struct drm_sched_rq *rq;
 		ring = &adev->uvd.ring_enc[0];
-		rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_NORMAL];
-		r = amd_sched_entity_init(&ring->sched, &adev->uvd.entity_enc,
-					  rq, amdgpu_sched_jobs);
+		rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
+		r = drm_sched_entity_init(&ring->sched, &adev->uvd.entity_enc,
+					  rq, amdgpu_sched_jobs, NULL);
 		if (r) {
 			DRM_ERROR("Failed setting up UVD ENC run queue.\n");
 			return r;
@@ -456,7 +469,7 @@ static int uvd_v6_0_sw_fini(void *handle)
 		return r;
 
 	if (uvd_v6_0_enc_support(adev)) {
-		amd_sched_entity_fini(&adev->uvd.ring_enc[0].sched, &adev->uvd.entity_enc);
+		drm_sched_entity_fini(&adev->uvd.ring_enc[0].sched, &adev->uvd.entity_enc);
 
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i)
 			amdgpu_ring_fini(&adev->uvd.ring_enc[i]);
@@ -603,7 +616,7 @@ static void uvd_v6_0_mc_resume(struct amdgpu_device *adev)
 			upper_32_bits(adev->uvd.gpu_addr));
 
 	offset = AMDGPU_UVD_FIRMWARE_OFFSET;
-	size = AMDGPU_GPU_PAGE_ALIGN(adev->uvd.fw->size + 4);
+	size = AMDGPU_UVD_FIRMWARE_SIZE(adev);
 	WREG32(mmUVD_VCPU_CACHE_OFFSET0, offset >> 3);
 	WREG32(mmUVD_VCPU_CACHE_SIZE0, size);
 
@@ -1008,7 +1021,7 @@ static int uvd_v6_0_ring_test_ring(struct amdgpu_ring *ring)
 	}
 
 	if (i < adev->usec_timeout) {
-		DRM_INFO("ring test on %d succeeded in %d usecs\n",
+		DRM_DEBUG("ring test on %d succeeded in %d usecs\n",
 			 ring->idx, i);
 	} else {
 		DRM_ERROR("amdgpu: ring %d test failed (0x%08X)\n",
@@ -1028,10 +1041,10 @@ static int uvd_v6_0_ring_test_ring(struct amdgpu_ring *ring)
  */
 static void uvd_v6_0_ring_emit_ib(struct amdgpu_ring *ring,
 				  struct amdgpu_ib *ib,
-				  unsigned vm_id, bool ctx_switch)
+				  unsigned vmid, bool ctx_switch)
 {
 	amdgpu_ring_write(ring, PACKET0(mmUVD_LMI_RBC_IB_VMID, 0));
-	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, vmid);
 
 	amdgpu_ring_write(ring, PACKET0(mmUVD_LMI_RBC_IB_64BIT_BAR_LOW, 0));
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));
@@ -1050,24 +1063,24 @@ static void uvd_v6_0_ring_emit_ib(struct amdgpu_ring *ring,
  * Write enc ring commands to execute the indirect buffer
  */
 static void uvd_v6_0_enc_ring_emit_ib(struct amdgpu_ring *ring,
-		struct amdgpu_ib *ib, unsigned int vm_id, bool ctx_switch)
+		struct amdgpu_ib *ib, unsigned int vmid, bool ctx_switch)
 {
 	amdgpu_ring_write(ring, HEVC_ENC_CMD_IB_VM);
-	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, vmid);
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));
 	amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr));
 	amdgpu_ring_write(ring, ib->length_dw);
 }
 
 static void uvd_v6_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
-					 unsigned vm_id, uint64_t pd_addr)
+					 unsigned vmid, uint64_t pd_addr)
 {
 	uint32_t reg;
 
-	if (vm_id < 8)
-		reg = mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vm_id;
+	if (vmid < 8)
+		reg = mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vmid;
 	else
-		reg = mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vm_id - 8;
+		reg = mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vmid - 8;
 
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA0, 0));
 	amdgpu_ring_write(ring, reg << 2);
@@ -1079,7 +1092,7 @@ static void uvd_v6_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA0, 0));
 	amdgpu_ring_write(ring, mmVM_INVALIDATE_REQUEST << 2);
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA1, 0));
-	amdgpu_ring_write(ring, 1 << vm_id);
+	amdgpu_ring_write(ring, 1 << vmid);
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD, 0));
 	amdgpu_ring_write(ring, 0x8);
 
@@ -1088,7 +1101,7 @@ static void uvd_v6_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA1, 0));
 	amdgpu_ring_write(ring, 0);
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GP_SCRATCH8, 0));
-	amdgpu_ring_write(ring, 1 << vm_id); /* mask */
+	amdgpu_ring_write(ring, 1 << vmid); /* mask */
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD, 0));
 	amdgpu_ring_write(ring, 0xC);
 }
@@ -1127,14 +1140,14 @@ static void uvd_v6_0_enc_ring_insert_end(struct amdgpu_ring *ring)
 }
 
 static void uvd_v6_0_enc_ring_emit_vm_flush(struct amdgpu_ring *ring,
-        unsigned int vm_id, uint64_t pd_addr)
+        unsigned int vmid, uint64_t pd_addr)
 {
 	amdgpu_ring_write(ring, HEVC_ENC_CMD_UPDATE_PTB);
-	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, vmid);
 	amdgpu_ring_write(ring, pd_addr >> 12);
 
 	amdgpu_ring_write(ring, HEVC_ENC_CMD_FLUSH_TLB);
-	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, vmid);
 }
 
 static bool uvd_v6_0_is_idle(void *handle)

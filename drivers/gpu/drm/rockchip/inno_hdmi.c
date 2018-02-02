@@ -282,6 +282,7 @@ static int inno_hdmi_config_video_vsi(struct inno_hdmi *hdmi,
 	int rc;
 
 	rc = drm_hdmi_vendor_infoframe_from_display_mode(&frame.vendor.hdmi,
+							 &hdmi->connector,
 							 mode);
 
 	return inno_hdmi_upload_frame(hdmi, rc, &frame, INFOFRAME_VSI,

@@ -189,12 +189,40 @@ struct drm_private_state_funcs {
 				     struct drm_private_state *state);
 };
 
+/**
+ * struct drm_private_obj - base struct for driver private atomic object
+ *
+ * A driver private object is initialized by calling
+ * drm_atomic_private_obj_init() and cleaned up by calling
+ * drm_atomic_private_obj_fini().
+ *
+ * Currently only tracks the state update functions and the opaque driver
+ * private state itself, but in the future might also track which
+ * &drm_modeset_lock is required to duplicate and update this object's state.
+ */
 struct drm_private_obj {
+	/**
+	 * @state: Current atomic state for this driver private object.
+	 */
 	struct drm_private_state *state;
 
+	/**
+	 * @funcs:
+	 *
+	 * Functions to manipulate the state of this driver private object, see
+	 * &drm_private_state_funcs.
+	 */
 	const struct drm_private_state_funcs *funcs;
 };
 
+/**
+ * struct drm_private_state - base struct for driver private object state
+ * @state: backpointer to global drm_atomic_state
+ *
+ * Currently only contains a backpointer to the overall atomic update, but in
+ * the future also might hold synchronization information similar to e.g.
+ * &drm_crtc.commit.
+ */
 struct drm_private_state {
 	struct drm_atomic_state *state;
 };
@@ -218,6 +246,10 @@ struct __drm_private_objs_state {
  * @num_private_objs: size of the @private_objs array
  * @private_objs: pointer to array of private object pointers
  * @acquire_ctx: acquire context for this atomic modeset state update
+ *
+ * States are added to an atomic update by calling drm_atomic_get_crtc_state(),
+ * drm_atomic_get_plane_state(), drm_atomic_get_connector_state(), or for
+ * private state structures, drm_atomic_get_private_obj_state().
  */
 struct drm_atomic_state {
 	struct kref ref;

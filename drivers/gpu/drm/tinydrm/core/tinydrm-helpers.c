@@ -414,11 +414,9 @@ tinydrm_dbg_spi_print(struct spi_device *spi, struct spi_transfer *tr,
 void _tinydrm_dbg_spi_message(struct spi_device *spi, struct spi_message *m)
 {
 	struct spi_transfer *tmp;
-	struct list_head *pos;
 	int i = 0;
 
-	list_for_each(pos, &m->transfers) {
-		tmp = list_entry(pos, struct spi_transfer, transfer_list);
+	list_for_each_entry(tmp, &m->transfers, transfer_list) {
 
 		if (tmp->tx_buf)
 			tinydrm_dbg_spi_print(spi, tmp, tmp->tx_buf, i, true);

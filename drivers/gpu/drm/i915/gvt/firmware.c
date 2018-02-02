@@ -66,20 +66,23 @@ static struct bin_attribute firmware_attr = {
 	.mmap = NULL,
 };
 
-static int expose_firmware_sysfs(struct intel_gvt *gvt)
+static int mmio_snapshot_handler(struct intel_gvt *gvt, u32 offset, void *data)
 {
 	struct drm_i915_private *dev_priv = gvt->dev_priv;
+
+	*(u32 *)(data + offset) = I915_READ_NOTRACE(_MMIO(offset));
+	return 0;
+}
+
+static int expose_firmware_sysfs(struct intel_gvt *gvt)
+{
 	struct intel_gvt_device_info *info = &gvt->device_info;
 	struct pci_dev *pdev = gvt->dev_priv->drm.pdev;
-	struct intel_gvt_mmio_info *e;
-	struct gvt_mmio_block *block = gvt->mmio.mmio_block;
-	int num = gvt->mmio.num_mmio_block;
 	struct gvt_firmware_header *h;
 	void *firmware;
 	void *p;
 	unsigned long size, crc32_start;
-	int i, j;
-	int ret;
+	int i, ret;
 
 	size = sizeof(*h) + info->mmio_size + info->cfg_space_size;
 	firmware = vzalloc(size);
@@ -104,15 +107,8 @@ static int expose_firmware_sysfs(struct intel_gvt *gvt)
 
 	p = firmware + h->mmio_offset;
 
-	hash_for_each(gvt->mmio.mmio_info_table, i, e, node)
-		*(u32 *)(p + e->offset) = I915_READ_NOTRACE(_MMIO(e->offset));
-
-	for (i = 0; i < num; i++, block++) {
-		for (j = 0; j < block->size; j += 4)
-			*(u32 *)(p + INTEL_GVT_MMIO_OFFSET(block->offset) + j) =
-				I915_READ_NOTRACE(_MMIO(INTEL_GVT_MMIO_OFFSET(
-							block->offset) + j));
-	}
+	/* Take a snapshot of hw mmio registers. */
+	intel_gvt_for_each_tracked_mmio(gvt, mmio_snapshot_handler, p);
 
 	memcpy(gvt->firmware.mmio, p, info->mmio_size);
 

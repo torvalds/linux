@@ -4486,6 +4486,12 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/tve200/
 
+DRM DRIVER FOR ILITEK ILI9225 PANELS
+M:	David Lechner <david@lechnology.com>
+S:	Maintained
+F:	drivers/gpu/drm/tinydrm/ili9225.c
+F:	Documentation/devicetree/bindings/display/ili9225.txt
+
 DRM DRIVER FOR INTEL I810 VIDEO CARDS
 S:	Orphan / Obsolete
 F:	drivers/gpu/drm/i810/
@@ -4572,6 +4578,12 @@ S:	Maintained
 F:	drivers/gpu/drm/tinydrm/st7586.c
 F:	Documentation/devicetree/bindings/display/st7586.txt
 
+DRM DRIVER FOR SITRONIX ST7735R PANELS
+M:	David Lechner <david@lechnology.com>
+S:	Maintained
+F:	drivers/gpu/drm/tinydrm/st7735r.c
+F:	Documentation/devicetree/bindings/display/st7735r.txt
+
 DRM DRIVER FOR TDFX VIDEO CARDS
 S:	Orphan / Obsolete
 F:	drivers/gpu/drm/tdfx/
@@ -4611,7 +4623,7 @@ F:	include/linux/vga*
 
 DRM DRIVERS AND MISC GPU PATCHES
 M:	Daniel Vetter <daniel.vetter@intel.com>
-M:	Jani Nikula <jani.nikula@linux.intel.com>
+M:	Gustavo Padovan <gustavo@padovan.org>
 M:	Sean Paul <seanpaul@chromium.org>
 W:	https://01.org/linuxgraphics/gfx-docs/maintainer-tools/drm-misc.html
 S:	Maintained
@@ -4740,7 +4752,8 @@ F:	Documentation/devicetree/bindings/display/bridge/renesas,dw-hdmi.txt
 F:	Documentation/devicetree/bindings/display/renesas,du.txt
 
 DRM DRIVERS FOR ROCKCHIP
-M:	Mark Yao <mark.yao@rock-chips.com>
+M:	Sandy Huang <hjc@rock-chips.com>
+M:	Heiko Stübner <heiko@sntech.de>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 F:	drivers/gpu/drm/rockchip/
@@ -4827,6 +4840,15 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/tinydrm/
 F:	include/drm/tinydrm/
+
+DRM TTM SUBSYSTEM
+M:	Christian Koenig <christian.koenig@amd.com>
+M:	Roger He <Hongbo.He@amd.com>
+T:	git git://people.freedesktop.org/~agd5f/linux
+S:	Maintained
+L:	dri-devel@lists.freedesktop.org
+F:	include/drm/ttm/
+F:	drivers/gpu/drm/ttm/
 
 DSBR100 USB FM RADIO DRIVER
 M:	Alexey Klimov <klimov.linux@gmail.com>
@@ -7056,7 +7078,7 @@ M:	Zhi Wang <zhi.a.wang@intel.com>
 L:	intel-gvt-dev@lists.freedesktop.org
 L:	intel-gfx@lists.freedesktop.org
 W:	https://01.org/igvt-g
-T:	git https://github.com/01org/gvt-linux.git
+T:	git https://github.com/intel/gvt-linux.git
 S:	Supported
 F:	drivers/gpu/drm/i915/gvt/
 
@@ -11426,6 +11448,7 @@ F:	drivers/net/wireless/quantenna
 RADEON and AMDGPU DRM DRIVERS
 M:	Alex Deucher <alexander.deucher@amd.com>
 M:	Christian König <christian.koenig@amd.com>
+M:	David (ChunMing) Zhou <David1.Zhou@amd.com>
 L:	amd-gfx@lists.freedesktop.org
 T:	git git://people.freedesktop.org/~agd5f/linux
 S:	Supported

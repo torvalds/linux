@@ -1068,6 +1068,9 @@ static void notify_ring(struct intel_engine_cs *engine)
 	struct drm_i915_gem_request *rq = NULL;
 	struct intel_wait *wait;
 
+	if (!engine->breadcrumbs.irq_armed)
+		return;
+
 	atomic_inc(&engine->irq_count);
 	set_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted);
 
@@ -1101,7 +1104,8 @@ static void notify_ring(struct intel_engine_cs *engine)
 		if (wakeup)
 			wake_up_process(wait->tsk);
 	} else {
-		__intel_engine_disarm_breadcrumbs(engine);
+		if (engine->breadcrumbs.irq_armed)
+			__intel_engine_disarm_breadcrumbs(engine);
 	}
 	spin_unlock(&engine->breadcrumbs.irq_lock);
 
@@ -1396,11 +1400,11 @@ gen8_cs_irq_handler(struct intel_engine_cs *engine, u32 iir, int test_shift)
 
 	if (iir & (GT_RENDER_USER_INTERRUPT << test_shift)) {
 		notify_ring(engine);
-		tasklet |= i915_modparams.enable_guc_submission;
+		tasklet |= USES_GUC_SUBMISSION(engine->i915);
 	}
 
 	if (tasklet)
-		tasklet_hi_schedule(&execlists->irq_tasklet);
+		tasklet_hi_schedule(&execlists->tasklet);
 }
 
 static irqreturn_t gen8_gt_irq_ack(struct drm_i915_private *dev_priv,
@@ -3064,7 +3068,7 @@ static void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 	i9xx_pipestat_irq_reset(dev_priv);
 
 	GEN3_IRQ_RESET(VLV_);
-	dev_priv->irq_mask = ~0;
+	dev_priv->irq_mask = ~0u;
 }
 
 static void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -3089,7 +3093,7 @@ static void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 		enable_mask |= I915_DISPLAY_PIPE_C_EVENT_INTERRUPT |
 			I915_LPE_PIPE_C_INTERRUPT;
 
-	WARN_ON(dev_priv->irq_mask != ~0);
+	WARN_ON(dev_priv->irq_mask != ~0u);
 
 	dev_priv->irq_mask = ~enable_mask;
 

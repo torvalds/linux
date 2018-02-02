@@ -78,6 +78,16 @@ used for panels that implement compatible control signals.
   while active. Active high reset signals can be supported by inverting the
   GPIO specifier polarity flag.
 
+Power
+-----
+
+- power-supply: display panels require power to be supplied. While several
+  panels need more than one power supply with panel-specific constraints
+  governing the order and timings of the power supplies, in many cases a single
+  power supply is sufficient, either because the panel has a single power rail,
+  or because all its power rails can be driven by the same supply. In that case
+  the power-supply property specifies the supply powering the panel as a phandle
+  to a regulator.
 
 Backlight
 ---------

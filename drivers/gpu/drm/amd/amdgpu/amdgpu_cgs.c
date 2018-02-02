@@ -801,6 +801,11 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				else
 					strcpy(fw_name, "amdgpu/vega10_smc.bin");
 				break;
+			case CHIP_CARRIZO:
+			case CHIP_STONEY:
+			case CHIP_RAVEN:
+				adev->pm.fw_version = info->version;
+				return 0;
 			default:
 				DRM_ERROR("SMC firmware not supported\n");
 				return -EINVAL;
@@ -948,7 +953,6 @@ static int amdgpu_cgs_get_active_displays_info(struct cgs_device *cgs_device,
 								(amdgpu_crtc->v_border * 2);
 					mode_info->vblank_time_us = vblank_lines * line_time_us;
 					mode_info->refresh_rate = drm_mode_vrefresh(&amdgpu_crtc->hw_mode);
-					mode_info->ref_clock = adev->clock.spll.reference_freq;
 					mode_info = NULL;
 				}
 			}
@@ -958,7 +962,6 @@ static int amdgpu_cgs_get_active_displays_info(struct cgs_device *cgs_device,
 		if (mode_info != NULL) {
 			mode_info->vblank_time_us = adev->pm.pm_display_cfg.min_vblank_time;
 			mode_info->refresh_rate = adev->pm.pm_display_cfg.vrefresh;
-			mode_info->ref_clock = adev->clock.spll.reference_freq;
 		}
 	}
 	return 0;

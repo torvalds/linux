@@ -37,10 +37,6 @@
 
 struct execlist_ctx_descriptor_format {
 	union {
-		u32 udw;
-		u32 context_id;
-	};
-	union {
 		u32 ldw;
 		struct {
 			u32 valid                  : 1;
@@ -53,6 +49,10 @@ struct execlist_ctx_descriptor_format {
 			u32 reserved               : 3;
 			u32 lrca                   : 20;
 		};
+	};
+	union {
+		u32 udw;
+		u32 context_id;
 	};
 };
 

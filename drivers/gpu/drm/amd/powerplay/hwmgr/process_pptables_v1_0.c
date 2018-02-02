@@ -523,8 +523,7 @@ static int get_pcie_table(
 		if ((uint32_t)atom_pcie_table->ucNumEntries <= pcie_count)
 			pcie_count = (uint32_t)atom_pcie_table->ucNumEntries;
 		else
-			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
-			Disregarding the excess entries... \n");
+			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! Disregarding the excess entries...\n");
 
 		pcie_table->count = pcie_count;
 		for (i = 0; i < pcie_count; i++) {
@@ -563,8 +562,7 @@ static int get_pcie_table(
 		if ((uint32_t)atom_pcie_table->ucNumEntries <= pcie_count)
 			pcie_count = (uint32_t)atom_pcie_table->ucNumEntries;
 		else
-			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
-			Disregarding the excess entries... \n");
+			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! Disregarding the excess entries...\n");
 
 		pcie_table->count = pcie_count;
 

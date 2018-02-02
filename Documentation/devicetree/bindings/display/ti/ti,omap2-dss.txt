@@ -28,6 +28,10 @@ Required properties:
 - ti,hwmods: "dss_dispc"
 - interrupts: the DISPC interrupt
 
+Optional properties:
+- max-memory-bandwidth: Input memory (from main memory to dispc) bandwidth limit
+			in bytes per second
+
 
 RFBI
 ----

@@ -255,7 +255,7 @@ enum dpcd_downstream_port_detailed_type {
 	DOWN_STREAM_DETAILED_DP_PLUS_PLUS
 };
 
-union dwnstream_port_caps_byte1 {
+union dwnstream_port_caps_byte2 {
 	struct {
 		uint8_t MAX_BITS_PER_COLOR_COMPONENT:2;
 		uint8_t RESERVED:6;
@@ -298,6 +298,32 @@ union dwnstream_port_caps_byte3_hdmi {
 
 /*4-byte structure for detailed capabilities of a down-stream port
 (DP-to-TMDS converter).*/
+union dwnstream_portxcaps {
+	struct {
+		union dwnstream_port_caps_byte0 byte0;
+		unsigned char max_TMDS_clock;   //byte1
+		union dwnstream_port_caps_byte2 byte2;
+
+		union {
+			union dwnstream_port_caps_byte3_dvi byteDVI;
+			union dwnstream_port_caps_byte3_hdmi byteHDMI;
+		} byte3;
+	} bytes;
+
+	unsigned char raw[4];
+};
+
+union downstream_port {
+	struct {
+		unsigned char   present:1;
+		unsigned char   type:2;
+		unsigned char   format_conv:1;
+		unsigned char   detailed_caps:1;
+		unsigned char   reserved:3;
+	} bits;
+	unsigned char raw;
+};
+
 
 union sink_status {
 	struct {

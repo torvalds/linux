@@ -36,7 +36,6 @@
 #include "mmu.h"
 
 #define DRIVER_AUTHOR "Alan Cox <alan@linux.intel.com> and others"
-#define DRIVER_LICENSE "GPL"
 
 #define DRIVER_NAME "gma500"
 #define DRIVER_DESC "DRM driver for the Intel GMA500, GMA600, GMA3600, GMA3650"
