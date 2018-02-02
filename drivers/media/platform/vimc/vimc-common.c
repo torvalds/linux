@@ -434,7 +434,9 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 	v4l2_set_subdevdata(sd, ved);
 
 	/* Expose this subdev to user space */
-	sd->flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	if (sd->ctrl_handler)
+		sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	/* Initialize the media entity */
 	ret = media_entity_pads_init(&sd->entity, num_pads, ved->pads);
