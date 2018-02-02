@@ -462,6 +462,8 @@ struct mddev {
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
 	struct md_cluster_info		*cluster_info;
 	unsigned int			good_device_nr;	/* good device num within cluster raid */
+
+	bool	has_superblocks:1;
 };
 
 enum recovery_flags {
