@@ -1088,10 +1088,8 @@ static int ssi_protocol_probe(struct device *dev)
 	int err;
 
 	ssi = kzalloc(sizeof(*ssi), GFP_KERNEL);
-	if (!ssi) {
-		dev_err(dev, "No memory for ssi protocol\n");
+	if (!ssi)
 		return -ENOMEM;
-	}
 
 	spin_lock_init(&ssi->lock);
 	timer_setup(&ssi->rx_wd, ssip_rx_wd, TIMER_DEFERRABLE);
