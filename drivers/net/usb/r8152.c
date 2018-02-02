@@ -1848,11 +1848,9 @@ static u8 r8152_rx_csum(struct r8152 *tp, struct rx_desc *rx_desc)
 	if (opts2 & RD_IPV4_CS) {
 		if (opts3 & IPF)
 			checksum = CHECKSUM_NONE;
-		else if ((opts2 & RD_UDP_CS) && (opts3 & UDPF))
-			checksum = CHECKSUM_NONE;
-		else if ((opts2 & RD_TCP_CS) && (opts3 & TCPF))
-			checksum = CHECKSUM_NONE;
-		else
+		else if ((opts2 & RD_UDP_CS) && !(opts3 & UDPF))
+			checksum = CHECKSUM_UNNECESSARY;
+		else if ((opts2 & RD_TCP_CS) && !(opts3 & TCPF))
 			checksum = CHECKSUM_UNNECESSARY;
 	} else if (opts2 & RD_IPV6_CS) {
 		if ((opts2 & RD_UDP_CS) && !(opts3 & UDPF))
