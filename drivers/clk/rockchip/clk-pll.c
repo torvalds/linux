@@ -428,7 +428,7 @@ static int rockchip_rk3036_pll_set_params(struct rockchip_clk_pll *pll,
 		do {
 			ret = readl_relaxed(pll->reg_base +
 					    PX30_BOOST_FSM_STATUS);
-		} while (ret & PX30_BOOST_BUSY_STATE);
+		} while (!(ret & PX30_BOOST_BUSY_STATE));
 		writel_relaxed(HIWORD_UPDATE(1, PX30_BOOST_SW_CTRL_MASK,
 					     PX30_BOOST_SW_CTRL_SHIFT) |
 			       HIWORD_UPDATE(1, PX30_BOOST_LOW_FREQ_EN_MASK,
