@@ -494,6 +494,7 @@
 	pwm3: pwm@110b0030 {
 		compatible = "rockchip,rk3288-pwm";
 		reg = <0x110b0030 0x10>;
+		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		clocks = <&cru PCLK_PWM>;
 		clock-names = "pwm";
