@@ -226,6 +226,12 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 			ctx->scratch_buf_size +
 			(ctx->mv_count * ctx->mv_size);
 		break;
+	case S5P_MFC_CODEC_VP9_DEC:
+		mfc_debug(2, "Use min scratch buffer size\n");
+		ctx->bank1.size =
+			ctx->scratch_buf_size +
+			DEC_VP9_STATIC_BUFFER_SIZE;
+		break;
 	case S5P_MFC_CODEC_H264_ENC:
 		if (IS_MFCV10(dev)) {
 			mfc_debug(2, "Use min scratch buffer size\n");
@@ -336,6 +342,7 @@ static int s5p_mfc_alloc_instance_buffer_v6(struct s5p_mfc_ctx *ctx)
 	case S5P_MFC_CODEC_VC1_DEC:
 	case S5P_MFC_CODEC_MPEG2_DEC:
 	case S5P_MFC_CODEC_VP8_DEC:
+	case S5P_MFC_CODEC_VP9_DEC:
 		ctx->ctx.size = buf_size->other_dec_ctx;
 		break;
 	case S5P_MFC_CODEC_H264_ENC:
@@ -565,6 +572,13 @@ static int s5p_mfc_set_dec_frame_buffer_v6(struct s5p_mfc_ctx *ctx)
 			buf_addr1 += frame_size_mv;
 			buf_size1 -= frame_size_mv;
 		}
+	}
+	if (ctx->codec_mode == S5P_FIMV_CODEC_VP9_DEC) {
+		writel(buf_addr1, mfc_regs->d_static_buffer_addr);
+		writel(DEC_VP9_STATIC_BUFFER_SIZE,
+				mfc_regs->d_static_buffer_size);
+		buf_addr1 += DEC_VP9_STATIC_BUFFER_SIZE;
+		buf_size1 -= DEC_VP9_STATIC_BUFFER_SIZE;
 	}
 
 	mfc_debug(2, "Buf1: %zx, buf_size1: %d (frames %d)\n",
@@ -2271,6 +2285,18 @@ const struct s5p_mfc_regs *s5p_mfc_init_regs_v6_plus(struct s5p_mfc_dev *dev)
 	R(e_extended_sar, S5P_FIMV_E_EXTENDED_SAR_V8);
 	R(e_h264_options, S5P_FIMV_E_H264_OPTIONS_V8);
 	R(e_min_scratch_buffer_size, S5P_FIMV_E_MIN_SCRATCH_BUFFER_SIZE_V8);
+
+	if (!IS_MFCV10(dev))
+		goto done;
+
+	/* Initialize registers used in MFC v10 only.
+	 * Also, over-write the registers which have
+	 * a different offset for MFC v10.
+	 */
+
+	/* decoder registers */
+	R(d_static_buffer_addr, S5P_FIMV_D_STATIC_BUFFER_ADDR_V10);
+	R(d_static_buffer_size, S5P_FIMV_D_STATIC_BUFFER_SIZE_V10);
 
 done:
 	return &mfc_regs;

@@ -104,6 +104,9 @@ static int s5p_mfc_open_inst_cmd_v6(struct s5p_mfc_ctx *ctx)
 	case S5P_MFC_CODEC_HEVC_DEC:
 		codec_type = S5P_FIMV_CODEC_HEVC_DEC;
 		break;
+	case S5P_MFC_CODEC_VP9_DEC:
+		codec_type = S5P_FIMV_CODEC_VP9_DEC;
+		break;
 	case S5P_MFC_CODEC_H264_ENC:
 		codec_type = S5P_FIMV_CODEC_H264_ENC_V6;
 		break;

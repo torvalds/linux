@@ -17,6 +17,8 @@
 /* MFCv10 register definitions*/
 #define S5P_FIMV_MFC_CLOCK_OFF_V10			0x7120
 #define S5P_FIMV_MFC_STATE_V10				0x7124
+#define S5P_FIMV_D_STATIC_BUFFER_ADDR_V10		0xF570
+#define S5P_FIMV_D_STATIC_BUFFER_SIZE_V10		0xF574
 
 /* MFCv10 Context buffer sizes */
 #define MFC_CTX_BUF_SIZE_V10		(30 * SZ_1K)
@@ -33,7 +35,11 @@
 
 /* MFCv10 codec defines*/
 #define S5P_FIMV_CODEC_HEVC_DEC		17
+#define S5P_FIMV_CODEC_VP9_DEC		18
 #define S5P_FIMV_CODEC_HEVC_ENC         26
+
+/* Decoder buffer size for MFC v10 */
+#define DEC_VP9_STATIC_BUFFER_SIZE	20480
 
 /* Encoder buffer size for MFC v10.0 */
 #define ENC_V100_BASE_SIZE(x, y) \

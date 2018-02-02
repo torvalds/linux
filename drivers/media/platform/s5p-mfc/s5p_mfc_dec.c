@@ -151,6 +151,13 @@ static struct s5p_mfc_fmt formats[] = {
 		.num_planes	= 1,
 		.versions	= MFC_V10_BIT,
 	},
+	{
+		.fourcc		= V4L2_PIX_FMT_VP9,
+		.codec_mode	= S5P_FIMV_CODEC_VP9_DEC,
+		.type		= MFC_FMT_DEC,
+		.num_planes	= 1,
+		.versions	= MFC_V10_BIT,
+	},
 };
 
 #define NUM_FORMATS ARRAY_SIZE(formats)

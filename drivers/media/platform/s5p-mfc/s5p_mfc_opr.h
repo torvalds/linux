@@ -170,6 +170,8 @@ struct s5p_mfc_regs {
 	void __iomem *d_used_dpb_flag_upper;/* v7 and v8 */
 	void __iomem *d_used_dpb_flag_lower;/* v7 and v8 */
 	void __iomem *d_min_scratch_buffer_size; /* v10 */
+	void __iomem *d_static_buffer_addr; /* v10 */
+	void __iomem *d_static_buffer_size; /* v10 */
 
 	/* encoder registers */
 	void __iomem *e_frame_width;
