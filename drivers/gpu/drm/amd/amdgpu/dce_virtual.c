@@ -48,19 +48,6 @@ static void dce_virtual_set_crtc_vblank_interrupt_state(struct amdgpu_device *ad
 							int crtc,
 							enum amdgpu_interrupt_state state);
 
-/**
- * dce_virtual_vblank_wait - vblank wait asic callback.
- *
- * @adev: amdgpu_device pointer
- * @crtc: crtc to wait for vblank on
- *
- * Wait for vblank on the requested crtc (evergreen+).
- */
-static void dce_virtual_vblank_wait(struct amdgpu_device *adev, int crtc)
-{
-	return;
-}
-
 static u32 dce_virtual_vblank_get_counter(struct amdgpu_device *adev, int crtc)
 {
 	return 0;
@@ -654,7 +641,6 @@ static int dce_virtual_connector_encoder_init(struct amdgpu_device *adev,
 static const struct amdgpu_display_funcs dce_virtual_display_funcs = {
 	.bandwidth_update = &dce_virtual_bandwidth_update,
 	.vblank_get_counter = &dce_virtual_vblank_get_counter,
-	.vblank_wait = &dce_virtual_vblank_wait,
 	.backlight_set_level = NULL,
 	.backlight_get_level = NULL,
 	.hpd_sense = &dce_virtual_hpd_sense,
