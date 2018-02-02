@@ -44,17 +44,17 @@ static DEFINE_PER_CPU(struct perf_event *, bp_on_reg[ARM_MAX_BRP]);
 static DEFINE_PER_CPU(struct perf_event *, wp_on_reg[ARM_MAX_WRP]);
 
 /* Number of BRP/WRP registers on this CPU. */
-static int core_num_brps;
-static int core_num_wrps;
+static int core_num_brps __ro_after_init;
+static int core_num_wrps __ro_after_init;
 
 /* Debug architecture version. */
-static u8 debug_arch;
+static u8 debug_arch __ro_after_init;
 
 /* Does debug architecture support OS Save and Restore? */
-static bool has_ossr;
+static bool has_ossr __ro_after_init;
 
 /* Maximum supported watchpoint length. */
-static u8 max_watchpoint_len;
+static u8 max_watchpoint_len __ro_after_init;
 
 #define READ_WB_REG_CASE(OP2, M, VAL)			\
 	case ((OP2 << 4) + M):				\
