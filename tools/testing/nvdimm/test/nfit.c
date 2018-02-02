@@ -137,6 +137,14 @@ static u32 handle[] = {
 
 static unsigned long dimm_fail_cmd_flags[NUM_DCR];
 
+struct nfit_test_fw {
+	enum intel_fw_update_state state;
+	u32 context;
+	u64 version;
+	u32 size_received;
+	u64 end_time;
+};
+
 struct nfit_test {
 	struct acpi_nfit_desc acpi_desc;
 	struct platform_device pdev;
@@ -172,6 +180,7 @@ struct nfit_test {
 	struct nd_intel_smart_threshold *smart_threshold;
 	struct badrange badrange;
 	struct work_struct work;
+	struct nfit_test_fw *fw;
 };
 
 static struct workqueue_struct *nfit_wq;
@@ -181,6 +190,226 @@ static struct nfit_test *to_nfit_test(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 
 	return container_of(pdev, struct nfit_test, pdev);
+}
+
+static int nd_intel_test_get_fw_info(struct nfit_test *t,
+		struct nd_intel_fw_info *nd_cmd, unsigned int buf_len,
+		int idx)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_fw *fw = &t->fw[idx];
+
+	dev_dbg(dev, "%s(nfit_test: %p nd_cmd: %p, buf_len: %u, idx: %d\n",
+			__func__, t, nd_cmd, buf_len, idx);
+
+	if (buf_len < sizeof(*nd_cmd))
+		return -EINVAL;
+
+	nd_cmd->status = 0;
+	nd_cmd->storage_size = INTEL_FW_STORAGE_SIZE;
+	nd_cmd->max_send_len = INTEL_FW_MAX_SEND_LEN;
+	nd_cmd->query_interval = INTEL_FW_QUERY_INTERVAL;
+	nd_cmd->max_query_time = INTEL_FW_QUERY_MAX_TIME;
+	nd_cmd->update_cap = 0;
+	nd_cmd->fis_version = INTEL_FW_FIS_VERSION;
+	nd_cmd->run_version = 0;
+	nd_cmd->updated_version = fw->version;
+
+	return 0;
+}
+
+static int nd_intel_test_start_update(struct nfit_test *t,
+		struct nd_intel_fw_start *nd_cmd, unsigned int buf_len,
+		int idx)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_fw *fw = &t->fw[idx];
+
+	dev_dbg(dev, "%s(nfit_test: %p nd_cmd: %p buf_len: %u idx: %d)\n",
+			__func__, t, nd_cmd, buf_len, idx);
+
+	if (buf_len < sizeof(*nd_cmd))
+		return -EINVAL;
+
+	if (fw->state != FW_STATE_NEW) {
+		/* extended status, FW update in progress */
+		nd_cmd->status = 0x10007;
+		return 0;
+	}
+
+	fw->state = FW_STATE_IN_PROGRESS;
+	fw->context++;
+	fw->size_received = 0;
+	nd_cmd->status = 0;
+	nd_cmd->context = fw->context;
+
+	dev_dbg(dev, "%s: context issued: %#x\n", __func__, nd_cmd->context);
+
+	return 0;
+}
+
+static int nd_intel_test_send_data(struct nfit_test *t,
+		struct nd_intel_fw_send_data *nd_cmd, unsigned int buf_len,
+		int idx)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_fw *fw = &t->fw[idx];
+	u32 *status = (u32 *)&nd_cmd->data[nd_cmd->length];
+
+	dev_dbg(dev, "%s(nfit_test: %p nd_cmd: %p buf_len: %u idx: %d)\n",
+			__func__, t, nd_cmd, buf_len, idx);
+
+	if (buf_len < sizeof(*nd_cmd))
+		return -EINVAL;
+
+
+	dev_dbg(dev, "%s: cmd->status: %#x\n", __func__, *status);
+	dev_dbg(dev, "%s: cmd->data[0]: %#x\n", __func__, nd_cmd->data[0]);
+	dev_dbg(dev, "%s: cmd->data[%u]: %#x\n", __func__, nd_cmd->length-1,
+			nd_cmd->data[nd_cmd->length-1]);
+
+	if (fw->state != FW_STATE_IN_PROGRESS) {
+		dev_dbg(dev, "%s: not in IN_PROGRESS state\n", __func__);
+		*status = 0x5;
+		return 0;
+	}
+
+	if (nd_cmd->context != fw->context) {
+		dev_dbg(dev, "%s: incorrect context: in: %#x correct: %#x\n",
+				__func__, nd_cmd->context, fw->context);
+		*status = 0x10007;
+		return 0;
+	}
+
+	/*
+	 * check offset + len > size of fw storage
+	 * check length is > max send length
+	 */
+	if (nd_cmd->offset + nd_cmd->length > INTEL_FW_STORAGE_SIZE ||
+			nd_cmd->length > INTEL_FW_MAX_SEND_LEN) {
+		*status = 0x3;
+		dev_dbg(dev, "%s: buffer boundary violation\n", __func__);
+		return 0;
+	}
+
+	fw->size_received += nd_cmd->length;
+	dev_dbg(dev, "%s: copying %u bytes, %u bytes so far\n",
+			__func__, nd_cmd->length, fw->size_received);
+	*status = 0;
+	return 0;
+}
+
+static int nd_intel_test_finish_fw(struct nfit_test *t,
+		struct nd_intel_fw_finish_update *nd_cmd,
+		unsigned int buf_len, int idx)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_fw *fw = &t->fw[idx];
+
+	dev_dbg(dev, "%s(nfit_test: %p nd_cmd: %p buf_len: %u idx: %d)\n",
+			__func__, t, nd_cmd, buf_len, idx);
+
+	if (fw->state == FW_STATE_UPDATED) {
+		/* update already done, need cold boot */
+		nd_cmd->status = 0x20007;
+		return 0;
+	}
+
+	dev_dbg(dev, "%s: context: %#x  ctrl_flags: %#x\n",
+			__func__, nd_cmd->context, nd_cmd->ctrl_flags);
+
+	switch (nd_cmd->ctrl_flags) {
+	case 0: /* finish */
+		if (nd_cmd->context != fw->context) {
+			dev_dbg(dev, "%s: incorrect context: in: %#x correct: %#x\n",
+					__func__, nd_cmd->context,
+					fw->context);
+			nd_cmd->status = 0x10007;
+			return 0;
+		}
+		nd_cmd->status = 0;
+		fw->state = FW_STATE_VERIFY;
+		/* set 1 second of time for firmware "update" */
+		fw->end_time = jiffies + HZ;
+		break;
+
+	case 1: /* abort */
+		fw->size_received = 0;
+		/* successfully aborted status */
+		nd_cmd->status = 0x40007;
+		fw->state = FW_STATE_NEW;
+		dev_dbg(dev, "%s: abort successful\n", __func__);
+		break;
+
+	default: /* bad control flag */
+		dev_warn(dev, "%s: unknown control flag: %#x\n",
+				__func__, nd_cmd->ctrl_flags);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int nd_intel_test_finish_query(struct nfit_test *t,
+		struct nd_intel_fw_finish_query *nd_cmd,
+		unsigned int buf_len, int idx)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_fw *fw = &t->fw[idx];
+
+	dev_dbg(dev, "%s(nfit_test: %p nd_cmd: %p buf_len: %u idx: %d)\n",
+			__func__, t, nd_cmd, buf_len, idx);
+
+	if (buf_len < sizeof(*nd_cmd))
+		return -EINVAL;
+
+	if (nd_cmd->context != fw->context) {
+		dev_dbg(dev, "%s: incorrect context: in: %#x correct: %#x\n",
+				__func__, nd_cmd->context, fw->context);
+		nd_cmd->status = 0x10007;
+		return 0;
+	}
+
+	dev_dbg(dev, "%s context: %#x\n", __func__, nd_cmd->context);
+
+	switch (fw->state) {
+	case FW_STATE_NEW:
+		nd_cmd->updated_fw_rev = 0;
+		nd_cmd->status = 0;
+		dev_dbg(dev, "%s: new state\n", __func__);
+		break;
+
+	case FW_STATE_IN_PROGRESS:
+		/* sequencing error */
+		nd_cmd->status = 0x40007;
+		nd_cmd->updated_fw_rev = 0;
+		dev_dbg(dev, "%s: sequence error\n", __func__);
+		break;
+
+	case FW_STATE_VERIFY:
+		if (time_is_after_jiffies64(fw->end_time)) {
+			nd_cmd->updated_fw_rev = 0;
+			nd_cmd->status = 0x20007;
+			dev_dbg(dev, "%s: still verifying\n", __func__);
+			break;
+		}
+
+		dev_dbg(dev, "%s: transition out verify\n", __func__);
+		fw->state = FW_STATE_UPDATED;
+		/* we are going to fall through if it's "done" */
+	case FW_STATE_UPDATED:
+		nd_cmd->status = 0;
+		/* bogus test version */
+		fw->version = nd_cmd->updated_fw_rev =
+			INTEL_FW_FAKE_VERSION;
+		dev_dbg(dev, "%s: updated\n", __func__);
+		break;
+
+	default: /* we should never get here */
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int nfit_test_cmd_get_config_size(struct nd_cmd_get_config_size *nd_cmd,
@@ -592,6 +821,23 @@ static int nfit_test_cmd_ars_inject_status(struct nfit_test *t,
 	return 0;
 }
 
+static int get_dimm(struct nfit_mem *nfit_mem, unsigned int func)
+{
+	int i;
+
+	/* lookup per-dimm data */
+	for (i = 0; i < ARRAY_SIZE(handle); i++)
+		if (__to_nfit_memdev(nfit_mem)->device_handle == handle[i])
+			break;
+	if (i >= ARRAY_SIZE(handle))
+		return -ENXIO;
+
+	if ((1 << func) & dimm_fail_cmd_flags[i])
+		return -EIO;
+
+	return i;
+}
+
 static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
 		unsigned int buf_len, int *cmd_rc)
@@ -620,22 +866,54 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 			func = call_pkg->nd_command;
 			if (call_pkg->nd_family != nfit_mem->family)
 				return -ENOTTY;
+
+			i = get_dimm(nfit_mem, func);
+			if (i < 0)
+				return i;
+
+			switch (func) {
+			case ND_INTEL_FW_GET_INFO:
+				return nd_intel_test_get_fw_info(t, buf,
+						buf_len, i - t->dcr_idx);
+			case ND_INTEL_FW_START_UPDATE:
+				return nd_intel_test_start_update(t, buf,
+						buf_len, i - t->dcr_idx);
+			case ND_INTEL_FW_SEND_DATA:
+				return nd_intel_test_send_data(t, buf,
+						buf_len, i - t->dcr_idx);
+			case ND_INTEL_FW_FINISH_UPDATE:
+				return nd_intel_test_finish_fw(t, buf,
+						buf_len, i - t->dcr_idx);
+			case ND_INTEL_FW_FINISH_QUERY:
+				return nd_intel_test_finish_query(t, buf,
+						buf_len, i - t->dcr_idx);
+			case ND_INTEL_SMART:
+				return nfit_test_cmd_smart(buf, buf_len,
+						&t->smart[i - t->dcr_idx]);
+			case ND_INTEL_SMART_THRESHOLD:
+				return nfit_test_cmd_smart_threshold(buf,
+						buf_len,
+						&t->smart_threshold[i -
+							t->dcr_idx]);
+			case ND_INTEL_SMART_SET_THRESHOLD:
+				return nfit_test_cmd_smart_set_threshold(buf,
+						buf_len,
+						&t->smart_threshold[i -
+							t->dcr_idx],
+						&t->smart[i - t->dcr_idx],
+						&t->pdev.dev, t->dimm_dev[i]);
+			default:
+				return -ENOTTY;
+			}
 		}
 
 		if (!test_bit(cmd, &cmd_mask)
 				|| !test_bit(func, &nfit_mem->dsm_mask))
 			return -ENOTTY;
 
-		/* lookup per-dimm data */
-		for (i = 0; i < ARRAY_SIZE(handle); i++)
-			if (__to_nfit_memdev(nfit_mem)->device_handle ==
-					handle[i])
-				break;
-		if (i >= ARRAY_SIZE(handle))
-			return -ENXIO;
-
-		if ((1 << func) & dimm_fail_cmd_flags[i])
-			return -EIO;
+		i = get_dimm(nfit_mem, func);
+		if (i < 0)
+			return i;
 
 		switch (func) {
 		case ND_CMD_GET_CONFIG_SIZE:
@@ -648,20 +926,6 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		case ND_CMD_SET_CONFIG_DATA:
 			rc = nfit_test_cmd_set_config_data(buf, buf_len,
 				t->label[i - t->dcr_idx]);
-			break;
-		case ND_INTEL_SMART:
-			rc = nfit_test_cmd_smart(buf, buf_len,
-					&t->smart[i - t->dcr_idx]);
-			break;
-		case ND_INTEL_SMART_THRESHOLD:
-			rc = nfit_test_cmd_smart_threshold(buf, buf_len,
-					&t->smart_threshold[i - t->dcr_idx]);
-			break;
-		case ND_INTEL_SMART_SET_THRESHOLD:
-			rc = nfit_test_cmd_smart_set_threshold(buf, buf_len,
-					&t->smart_threshold[i - t->dcr_idx],
-					&t->smart[i - t->dcr_idx],
-					&t->pdev.dev, t->dimm_dev[i]);
 			break;
 		default:
 			return -ENOTTY;
@@ -1728,6 +1992,11 @@ static void nfit_test0_setup(struct nfit_test *t)
 	set_bit(NFIT_CMD_ARS_INJECT_SET, &acpi_desc->bus_nfit_cmd_force_en);
 	set_bit(NFIT_CMD_ARS_INJECT_CLEAR, &acpi_desc->bus_nfit_cmd_force_en);
 	set_bit(NFIT_CMD_ARS_INJECT_GET, &acpi_desc->bus_nfit_cmd_force_en);
+	set_bit(ND_INTEL_FW_GET_INFO, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_INTEL_FW_START_UPDATE, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_INTEL_FW_SEND_DATA, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_INTEL_FW_FINISH_UPDATE, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_INTEL_FW_FINISH_QUERY, &acpi_desc->dimm_cmd_force_en);
 }
 
 static void nfit_test1_setup(struct nfit_test *t)
@@ -2134,10 +2403,13 @@ static int nfit_test_probe(struct platform_device *pdev)
 		nfit_test->smart_threshold = devm_kcalloc(dev, num,
 				sizeof(struct nd_intel_smart_threshold),
 				GFP_KERNEL);
+		nfit_test->fw = devm_kcalloc(dev, num,
+				sizeof(struct nfit_test_fw), GFP_KERNEL);
 		if (nfit_test->dimm && nfit_test->dimm_dma && nfit_test->label
 				&& nfit_test->label_dma && nfit_test->dcr
 				&& nfit_test->dcr_dma && nfit_test->flush
-				&& nfit_test->flush_dma)
+				&& nfit_test->flush_dma
+				&& nfit_test->fw)
 			/* pass */;
 		else
 			return -ENOMEM;
