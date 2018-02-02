@@ -1413,37 +1413,25 @@ gen8_cs_irq_handler(struct intel_engine_cs *engine, u32 iir, int test_shift)
 		tasklet_hi_schedule(&execlists->tasklet);
 }
 
-static irqreturn_t gen8_gt_irq_ack(struct drm_i915_private *dev_priv,
-				   u32 master_ctl,
-				   u32 gt_iir[4])
+static void gen8_gt_irq_ack(struct drm_i915_private *dev_priv,
+			    u32 master_ctl, u32 gt_iir[4])
 {
-	irqreturn_t ret = IRQ_NONE;
-
 	if (master_ctl & (GEN8_GT_RCS_IRQ | GEN8_GT_BCS_IRQ)) {
 		gt_iir[0] = I915_READ_FW(GEN8_GT_IIR(0));
-		if (gt_iir[0]) {
+		if (gt_iir[0])
 			I915_WRITE_FW(GEN8_GT_IIR(0), gt_iir[0]);
-			ret = IRQ_HANDLED;
-		} else
-			DRM_ERROR("The master control interrupt lied (GT0)!\n");
 	}
 
 	if (master_ctl & (GEN8_GT_VCS1_IRQ | GEN8_GT_VCS2_IRQ)) {
 		gt_iir[1] = I915_READ_FW(GEN8_GT_IIR(1));
-		if (gt_iir[1]) {
+		if (gt_iir[1])
 			I915_WRITE_FW(GEN8_GT_IIR(1), gt_iir[1]);
-			ret = IRQ_HANDLED;
-		} else
-			DRM_ERROR("The master control interrupt lied (GT1)!\n");
 	}
 
 	if (master_ctl & GEN8_GT_VECS_IRQ) {
 		gt_iir[3] = I915_READ_FW(GEN8_GT_IIR(3));
-		if (gt_iir[3]) {
+		if (gt_iir[3])
 			I915_WRITE_FW(GEN8_GT_IIR(3), gt_iir[3]);
-			ret = IRQ_HANDLED;
-		} else
-			DRM_ERROR("The master control interrupt lied (GT3)!\n");
 	}
 
 	if (master_ctl & (GEN8_GT_PM_IRQ | GEN8_GT_GUC_IRQ)) {
@@ -1453,12 +1441,8 @@ static irqreturn_t gen8_gt_irq_ack(struct drm_i915_private *dev_priv,
 			I915_WRITE_FW(GEN8_GT_IIR(2),
 				      gt_iir[2] & (dev_priv->pm_rps_events |
 						   dev_priv->pm_guc_events));
-			ret = IRQ_HANDLED;
-		} else
-			DRM_ERROR("The master control interrupt lied (PM)!\n");
+		}
 	}
-
-	return ret;
 }
 
 static void gen8_gt_irq_handler(struct drm_i915_private *dev_priv,
@@ -2695,7 +2679,6 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 master_ctl;
 	u32 gt_iir[4] = {};
-	irqreturn_t ret;
 
 	if (!intel_irqs_enabled(dev_priv))
 		return IRQ_NONE;
@@ -2711,16 +2694,16 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	disable_rpm_wakeref_asserts(dev_priv);
 
 	/* Find, clear, then process each source of interrupt */
-	ret = gen8_gt_irq_ack(dev_priv, master_ctl, gt_iir);
+	gen8_gt_irq_ack(dev_priv, master_ctl, gt_iir);
 	gen8_gt_irq_handler(dev_priv, gt_iir);
-	ret |= gen8_de_irq_handler(dev_priv, master_ctl);
+	gen8_de_irq_handler(dev_priv, master_ctl);
 
 	I915_WRITE_FW(GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
 	POSTING_READ_FW(GEN8_MASTER_IRQ);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 
-	return ret;
+	return IRQ_HANDLED;
 }
 
 struct wedge_me {
