@@ -49,6 +49,10 @@ static int intel_hdcp_load_keys(struct drm_i915_private *dev_priv)
 	int ret;
 	u32 val;
 
+	val = I915_READ(HDCP_KEY_STATUS);
+	if ((val & HDCP_KEY_LOAD_DONE) && (val & HDCP_KEY_LOAD_STATUS))
+		return 0;
+
 	/*
 	 * On HSW and BDW HW loads the HDCP1.4 Key when Display comes
 	 * out of reset. So if Key is not already loaded, its an error state.
@@ -541,8 +545,6 @@ static int _intel_hdcp_disable(struct intel_connector *connector)
 		DRM_ERROR("Failed to disable HDCP, timeout clearing status\n");
 		return -ETIMEDOUT;
 	}
-
-	intel_hdcp_clear_keys(dev_priv);
 
 	ret = connector->hdcp_shim->toggle_signalling(intel_dig_port, false);
 	if (ret) {
