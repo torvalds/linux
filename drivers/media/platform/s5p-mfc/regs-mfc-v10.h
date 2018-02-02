@@ -31,5 +31,24 @@
 #define MFC_VERSION_V10		0xA0
 #define MFC_NUM_PORTS_V10	1
 
+/* MFCv10 codec defines*/
+#define S5P_FIMV_CODEC_HEVC_ENC         26
+
+/* Encoder buffer size for MFC v10.0 */
+#define ENC_V100_BASE_SIZE(x, y) \
+	(((x + 3) * (y + 3) * 8) \
+	+  ((y * 64) + 1280) * DIV_ROUND_UP(x, 8))
+
+#define ENC_V100_H264_ME_SIZE(x, y) \
+	(ENC_V100_BASE_SIZE(x, y) \
+	+ (DIV_ROUND_UP(x * y, 64) * 32))
+
+#define ENC_V100_MPEG4_ME_SIZE(x, y) \
+	(ENC_V100_BASE_SIZE(x, y) \
+	+ (DIV_ROUND_UP(x * y, 128) * 16))
+
+#define ENC_V100_VP8_ME_SIZE(x, y) \
+	ENC_V100_BASE_SIZE(x, y)
+
 #endif /*_REGS_MFC_V10_H*/
 
