@@ -786,7 +786,7 @@
 		status = "disabled";
 	};
 
-	display-subsystem {
+	display_subsystem: display-subsystem {
 		compatible = "rockchip,display-subsystem";
 		ports = <&vop_out>;
 	};
