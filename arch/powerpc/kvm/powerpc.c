@@ -633,8 +633,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = 1;
 		break;
 	case KVM_CAP_SPAPR_RESIZE_HPT:
-		/* Disable this on POWER9 until code handles new HPTE format */
-		r = !!hv_enabled && !cpu_has_feature(CPU_FTR_ARCH_300);
+		r = !!hv_enabled;
 		break;
 #endif
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
