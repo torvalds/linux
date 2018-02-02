@@ -369,6 +369,10 @@ struct intel_hdcp_shim {
 
 	/* Ensures the link is still protected */
 	bool (*check_link)(struct intel_digital_port *intel_dig_port);
+
+	/* Detects panel's hdcp capability. This is optional for HDMI. */
+	int (*hdcp_capable)(struct intel_digital_port *intel_dig_port,
+			    bool *hdcp_capable);
 };
 
 struct intel_connector {

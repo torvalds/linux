@@ -414,11 +414,27 @@ static int intel_hdcp_auth(struct intel_digital_port *intel_dig_port,
 		u32 reg;
 		u8 shim[DRM_HDCP_RI_LEN];
 	} ri;
-	bool repeater_present;
+	bool repeater_present, hdcp_capable;
 
 	dev_priv = intel_dig_port->base.base.dev->dev_private;
 
 	port = intel_dig_port->base.port;
+
+	/*
+	 * Detects whether the display is HDCP capable. Although we check for
+	 * valid Bksv below, the HDCP over DP spec requires that we check
+	 * whether the display supports HDCP before we write An. For HDMI
+	 * displays, this is not necessary.
+	 */
+	if (shim->hdcp_capable) {
+		ret = shim->hdcp_capable(intel_dig_port, &hdcp_capable);
+		if (ret)
+			return ret;
+		if (!hdcp_capable) {
+			DRM_ERROR("Panel is not HDCP capable\n");
+			return -EINVAL;
+		}
+	}
 
 	/* Initialize An with 2 random values and acquire it */
 	for (i = 0; i < 2; i++)
