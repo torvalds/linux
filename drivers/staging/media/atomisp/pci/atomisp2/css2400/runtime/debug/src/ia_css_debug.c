@@ -2858,13 +2858,7 @@ ia_css_debug_pipe_graph_dump_stage(
 			if (l && enable_info[l-1] == ',')
 				enable_info[--l] = '\0';
 
-			if (l <= ENABLE_LINE_MAX_LENGTH) {
-				/* It fits on one line, copy string and init */
-				/* other helper strings with empty string */
-				strcpy_s(enable_info,
-					sizeof(enable_info),
-					ei);
-			} else {
+			if (l > ENABLE_LINE_MAX_LENGTH) {
 				/* Too big for one line, find last comma */
 				p = ENABLE_LINE_MAX_LENGTH;
 				while (ei[p] != ',')
