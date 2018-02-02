@@ -343,11 +343,8 @@ struct omap_hwmod_class_sysconfig {
 /**
  * struct omap_hwmod_omap2_prcm - OMAP2/3-specific PRCM data
  * @module_offs: PRCM submodule offset from the start of the PRM/CM
- * @prcm_reg_id: PRCM register ID (e.g., 3 for CM_AUTOIDLE3)
- * @module_bit: register bit shift for AUTOIDLE, WKST, WKEN, GRPSEL regs
  * @idlest_reg_id: IDLEST register ID (e.g., 3 for CM_IDLEST3)
  * @idlest_idle_bit: register bit shift for CM_IDLEST slave idle bit
- * @idlest_stdby_bit: register bit shift for CM_IDLEST master standby bit
  *
  * @prcm_reg_id and @module_bit are specific to the AUTOIDLE, WKST,
  * WKEN, GRPSEL registers.  In an ideal world, no extra information
@@ -357,11 +354,8 @@ struct omap_hwmod_class_sysconfig {
  */
 struct omap_hwmod_omap2_prcm {
 	s16 module_offs;
-	u8 prcm_reg_id;
-	u8 module_bit;
 	u8 idlest_reg_id;
 	u8 idlest_idle_bit;
-	u8 idlest_stdby_bit;
 };
 
 /*

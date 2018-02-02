@@ -17,11 +17,12 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 #include <linux/platform_data/pca953x.h>
 #include <linux/gpio.h>
 
 #include "pxa300.h"
+#include "devices.h"
 #include "zylonite.h"
 
 #include "generic.h"

@@ -32,7 +32,7 @@
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_gpio.h>
 #include <linux/lis3lv02d.h>

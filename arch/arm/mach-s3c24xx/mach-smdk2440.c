@@ -1,17 +1,12 @@
-/* linux/arch/arm/mach-s3c2440/mach-smdk2440.c
- *
- * Copyright (c) 2004-2005 Simtec Electronics
- *	Ben Dooks <ben@simtec.co.uk>
- *
- * http://www.fluff.org/ben/smdk2440/
- *
- * Thanks to Dimity Andric and TomTom for the loan of an SMDK2440.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
-*/
+// SPDX-License-Identifier: GPL-2.0
+// linux/arch/arm/mach-s3c2440/mach-smdk2440.c
+//
+// Copyright (c) 2004-2005 Simtec Electronics
+//	Ben Dooks <ben@simtec.co.uk>
+//
+// http://www.fluff.org/ben/smdk2440/
+//
+// Thanks to Dimity Andric and TomTom for the loan of an SMDK2440.
 
 #include <linux/kernel.h>
 #include <linux/types.h>
