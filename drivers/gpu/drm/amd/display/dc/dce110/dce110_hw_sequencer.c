@@ -409,7 +409,7 @@ static bool convert_to_custom_float(struct pwl_result_data *rgb_resulted,
 	return true;
 }
 
-#define MAX_LOW_POINT      11
+#define MAX_LOW_POINT      25
 #define NUMBER_REGIONS     16
 #define NUMBER_SW_SEGMENTS 16
 
@@ -443,8 +443,8 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 		/* 16 segments
 		 * segments are from 2^-11 to 2^5
 		 */
-		region_start = -MAX_LOW_POINT;
-		region_end = NUMBER_REGIONS - MAX_LOW_POINT;
+		region_start = -11;
+		region_end = region_start + NUMBER_REGIONS;
 
 		for (i = 0; i < NUMBER_REGIONS; i++)
 			seg_distr[i] = 4;
