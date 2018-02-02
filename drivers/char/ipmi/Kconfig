@@ -96,6 +96,9 @@ config IPMI_POWEROFF
 
 endif # IPMI_HANDLER
 
+config IPMI_KCS_BMC
+	tristate
+
 config ASPEED_BT_IPMI_BMC
 	depends on ARCH_ASPEED || COMPILE_TEST
        depends on REGMAP && REGMAP_MMIO && MFD_SYSCON
