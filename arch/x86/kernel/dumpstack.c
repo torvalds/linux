@@ -109,7 +109,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	struct stack_info stack_info = {0};
 	unsigned long visit_mask = 0;
 	int graph_idx = 0;
-	bool partial;
+	bool partial = false;
 
 	printk("%sCall Trace:\n", log_lvl);
 
