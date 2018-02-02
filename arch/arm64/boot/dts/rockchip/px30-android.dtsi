@@ -6,7 +6,7 @@
 
 / {
 	chosen {
-		bootargs = "earlyprintk=uart8250,mmio32,0xff160000 swiotlb=1";
+		bootargs = "earlyprintk=uart8250,mmio32,0xff160000 swiotlb=1 console=ttyFIQ0 androidboot.baseband=N/A androidboot.selinux=permissive androidboot.veritymode=/dev/block/by-name/metadata androidboot.hardware=rk30board androidboot.console=ttyFIQ0 init=/init";
 	};
 
 	fiq-debugger {
