@@ -121,6 +121,17 @@ enum ppfear_regs {
 #define SPT_PMC_BIT_MPHY_CMN_LANE2		BIT(2)
 #define SPT_PMC_BIT_MPHY_CMN_LANE3		BIT(3)
 
+/* Cannonlake Power Management Controller register offsets */
+#define CNP_PMC_SLP_S0_RES_COUNTER_OFFSET      0x193C
+#define CNP_PMC_LTR_IGNORE_OFFSET              0x1B0C
+#define CNP_PMC_PM_CFG_OFFSET                  0x1818
+/* Cannonlake: PGD PFET Enable Ack Status Register(s) start */
+#define CNP_PMC_HOST_PPFEAR0A                  0x1D90
+
+#define CNP_PMC_MMIO_REG_LEN                   0x2000
+#define CNP_PPFEAR_NUM_ENTRIES                 8
+#define CNP_PMC_READ_DISABLE_BIT               22
+
 struct pmc_bit_map {
 	const char *name;
 	u32 bit_mask;
