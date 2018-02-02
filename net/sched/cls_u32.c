@@ -544,6 +544,7 @@ static void u32_remove_hw_knode(struct tcf_proto *tp, u32 handle)
 static int u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 				u32 flags)
 {
+	struct tc_u_hnode *ht = rtnl_dereference(n->ht_down);
 	struct tcf_block *block = tp->chain->block;
 	struct tc_cls_u32_offload cls_u32 = {};
 	bool skip_sw = tc_skip_sw(flags);
@@ -563,7 +564,7 @@ static int u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 	cls_u32.knode.sel = &n->sel;
 	cls_u32.knode.exts = &n->exts;
 	if (n->ht_down)
-		cls_u32.knode.link_handle = n->ht_down->handle;
+		cls_u32.knode.link_handle = ht->handle;
 
 	err = tc_setup_cb_call(block, NULL, TC_SETUP_CLSU32, &cls_u32, skip_sw);
 	if (err < 0) {
@@ -840,8 +841,9 @@ static void u32_replace_knode(struct tcf_proto *tp, struct tc_u_common *tp_c,
 static struct tc_u_knode *u32_init_knode(struct tcf_proto *tp,
 					 struct tc_u_knode *n)
 {
-	struct tc_u_knode *new;
+	struct tc_u_hnode *ht = rtnl_dereference(n->ht_down);
 	struct tc_u32_sel *s = &n->sel;
+	struct tc_u_knode *new;
 
 	new = kzalloc(sizeof(*n) + s->nkeys*sizeof(struct tc_u32_key),
 		      GFP_KERNEL);
@@ -859,11 +861,11 @@ static struct tc_u_knode *u32_init_knode(struct tcf_proto *tp,
 	new->fshift = n->fshift;
 	new->res = n->res;
 	new->flags = n->flags;
-	RCU_INIT_POINTER(new->ht_down, n->ht_down);
+	RCU_INIT_POINTER(new->ht_down, ht);
 
 	/* bump reference count as long as we hold pointer to structure */
-	if (new->ht_down)
-		new->ht_down->refcnt++;
+	if (ht)
+		ht->refcnt++;
 
 #ifdef CONFIG_CLS_U32_PERF
 	/* Statistics may be incremented by readers during update
