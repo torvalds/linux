@@ -473,7 +473,7 @@ static void vp_video_buffer(struct mixer_context *ctx,
 			chroma_addr[1] = chroma_addr[0] + 0x40;
 		} else {
 			luma_addr[1] = luma_addr[0] + fb->pitches[0];
-			chroma_addr[1] = chroma_addr[0] + fb->pitches[0];
+			chroma_addr[1] = chroma_addr[0] + fb->pitches[1];
 		}
 	} else {
 		luma_addr[1] = 0;
@@ -496,21 +496,23 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	vp_reg_write(ctx, VP_IMG_SIZE_Y, VP_IMG_HSIZE(fb->pitches[0]) |
 		VP_IMG_VSIZE(fb->height));
 	/* chroma plane for NV12/NV21 is half the height of the luma plane */
-	vp_reg_write(ctx, VP_IMG_SIZE_C, VP_IMG_HSIZE(fb->pitches[0]) |
+	vp_reg_write(ctx, VP_IMG_SIZE_C, VP_IMG_HSIZE(fb->pitches[1]) |
 		VP_IMG_VSIZE(fb->height / 2));
 
 	vp_reg_write(ctx, VP_SRC_WIDTH, state->src.w);
-	vp_reg_write(ctx, VP_SRC_HEIGHT, state->src.h);
 	vp_reg_write(ctx, VP_SRC_H_POSITION,
 			VP_SRC_H_POSITION_VAL(state->src.x));
-	vp_reg_write(ctx, VP_SRC_V_POSITION, state->src.y);
-
 	vp_reg_write(ctx, VP_DST_WIDTH, state->crtc.w);
 	vp_reg_write(ctx, VP_DST_H_POSITION, state->crtc.x);
+
 	if (test_bit(MXR_BIT_INTERLACE, &ctx->flags)) {
+		vp_reg_write(ctx, VP_SRC_HEIGHT, state->src.h / 2);
+		vp_reg_write(ctx, VP_SRC_V_POSITION, state->src.y / 2);
 		vp_reg_write(ctx, VP_DST_HEIGHT, state->crtc.h / 2);
 		vp_reg_write(ctx, VP_DST_V_POSITION, state->crtc.y / 2);
 	} else {
+		vp_reg_write(ctx, VP_SRC_HEIGHT, state->src.h);
+		vp_reg_write(ctx, VP_SRC_V_POSITION, state->src.y);
 		vp_reg_write(ctx, VP_DST_HEIGHT, state->crtc.h);
 		vp_reg_write(ctx, VP_DST_V_POSITION, state->crtc.y);
 	}
