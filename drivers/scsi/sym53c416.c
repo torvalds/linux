@@ -608,7 +608,7 @@ static void sym53c416_probe(void)
 	}
 }
 
-int __init sym53c416_detect(struct scsi_host_template *tpnt)
+int sym53c416_detect(struct scsi_host_template *tpnt)
 {
 	unsigned long flags;
 	struct Scsi_Host * shpnt = NULL;
