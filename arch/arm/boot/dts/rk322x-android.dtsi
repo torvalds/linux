@@ -82,6 +82,30 @@
 		};
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		drm_logo: drm-logo@00000000 {
+			compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0>;
+		};
+
+		ramoops_mem: ramoops@68000000 {
+			reg = <0x68000000 0xf0000>;
+		};
+	};
+
+	ramoops {
+		compatible = "ramoops";
+		record-size = <0x0 0x20000>;
+		console-size = <0x0 0x80000>;
+		ftrace-size = <0x0 0x00000>;
+		pmsg-size = <0x0 0x50000>;
+		memory-region = <&ramoops_mem>;
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
