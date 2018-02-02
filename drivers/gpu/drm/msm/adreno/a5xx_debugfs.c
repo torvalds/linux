@@ -159,12 +159,14 @@ DEFINE_SIMPLE_ATTRIBUTE(reset_fops, NULL, reset_set, "%llx\n");
 
 int a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_minor *minor)
 {
-	struct drm_device *dev = minor->dev;
+	struct drm_device *dev;
 	struct dentry *ent;
 	int ret;
 
 	if (!minor)
 		return 0;
+
+	dev = minor->dev;
 
 	ret = drm_debugfs_create_files(a5xx_debugfs_list,
 			ARRAY_SIZE(a5xx_debugfs_list),
