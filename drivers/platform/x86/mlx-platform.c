@@ -89,6 +89,13 @@
 /* Number of LPC attached MUX platform devices */
 #define MLXPLAT_CPLD_LPC_MUX_DEVS		2
 
+/* Hotplug devices adapter numbers */
+#define MLXPLAT_CPLD_PSU_DEFAULT_NR		10
+#define MLXPLAT_CPLD_FAN1_DEFAULT_NR		11
+#define MLXPLAT_CPLD_FAN2_DEFAULT_NR		12
+#define MLXPLAT_CPLD_FAN3_DEFAULT_NR		13
+#define MLXPLAT_CPLD_FAN4_DEFAULT_NR		14
+
 /* mlxplat_priv - platform private data
  * @pdev_i2c - i2c controller platform device
  * @pdev_mux - array of mux platform devices
@@ -190,14 +197,14 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_psu_items_data[] = {
 		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
 		.mask = BIT(0),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_psu[0],
-		.hpdev.nr = 10,
+		.hpdev.nr = MLXPLAT_CPLD_PSU_DEFAULT_NR,
 	},
 	{
 		.label = "psu2",
 		.reg = MLXPLAT_CPLD_LPC_REG_PSU_OFFSET,
 		.mask = BIT(1),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_psu[1],
-		.hpdev.nr = 10,
+		.hpdev.nr = MLXPLAT_CPLD_PSU_DEFAULT_NR,
 	},
 };
 
@@ -207,14 +214,14 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_pwr_items_data[] = {
 		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFFSET,
 		.mask = BIT(0),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_pwr[0],
-		.hpdev.nr = 10,
+		.hpdev.nr = MLXPLAT_CPLD_PSU_DEFAULT_NR,
 	},
 	{
 		.label = "pwr2",
 		.reg = MLXPLAT_CPLD_LPC_REG_PWR_OFFSET,
 		.mask = BIT(1),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_pwr[1],
-		.hpdev.nr = 10,
+		.hpdev.nr = MLXPLAT_CPLD_PSU_DEFAULT_NR,
 	},
 };
 
@@ -224,28 +231,28 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_fan_items_data[] = {
 		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFFSET,
 		.mask = BIT(0),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_fan[0],
-		.hpdev.nr = 11,
+		.hpdev.nr = MLXPLAT_CPLD_FAN1_DEFAULT_NR,
 	},
 	{
 		.label = "fan2",
 		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFFSET,
 		.mask = BIT(1),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_fan[1],
-		.hpdev.nr = 12,
+		.hpdev.nr = MLXPLAT_CPLD_FAN2_DEFAULT_NR,
 	},
 	{
 		.label = "fan3",
 		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFFSET,
 		.mask = BIT(2),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_fan[2],
-		.hpdev.nr = 13,
+		.hpdev.nr = MLXPLAT_CPLD_FAN3_DEFAULT_NR,
 	},
 	{
 		.label = "fan4",
 		.reg = MLXPLAT_CPLD_LPC_REG_FAN_OFFSET,
 		.mask = BIT(3),
 		.hpdev.brdinfo = &mlxplat_mlxcpld_fan[3],
-		.hpdev.nr = 14,
+		.hpdev.nr = MLXPLAT_CPLD_FAN4_DEFAULT_NR,
 	},
 };
 
