@@ -268,6 +268,11 @@ void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc);
 #define amdgpu_dm_crtc_handle_crc_irq(x)
 #endif
 
+int amdgpu_dm_set_degamma_lut(struct drm_crtc_state *crtc_state,
+			      struct dc_plane_state *dc_plane_state);
+void amdgpu_dm_set_ctm(struct dm_crtc_state *crtc);
+int amdgpu_dm_set_regamma_lut(struct dm_crtc_state *crtc);
+
 extern const struct drm_encoder_helper_funcs amdgpu_dm_encoder_helper_funcs;
 
 #endif /* __AMDGPU_DM_H__ */
