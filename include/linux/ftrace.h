@@ -223,7 +223,6 @@ extern enum ftrace_tracing_type_t ftrace_tracing_type;
  */
 int register_ftrace_function(struct ftrace_ops *ops);
 int unregister_ftrace_function(struct ftrace_ops *ops);
-void clear_ftrace_function(void);
 
 extern void ftrace_stub(unsigned long a0, unsigned long a1,
 			struct ftrace_ops *op, struct pt_regs *regs);
@@ -239,7 +238,6 @@ static inline int ftrace_nr_registered_ops(void)
 {
 	return 0;
 }
-static inline void clear_ftrace_function(void) { }
 static inline void ftrace_kill(void) { }
 static inline void ftrace_free_init_mem(void) { }
 static inline void ftrace_free_mem(struct module *mod, void *start, void *end) { }
