@@ -180,7 +180,7 @@ invalid:
 	goto out;
 }
 
-struct dentry *ovl_decode_fh(struct ovl_fh *fh, struct vfsmount *mnt)
+struct dentry *ovl_decode_real_fh(struct ovl_fh *fh, struct vfsmount *mnt)
 {
 	struct dentry *real;
 	int bytes;
@@ -326,7 +326,7 @@ int ovl_check_origin_fh(struct ovl_fs *ofs, struct ovl_fh *fh,
 	int i;
 
 	for (i = 0; i < ofs->numlower; i++) {
-		origin = ovl_decode_fh(fh, ofs->lower_layers[i].mnt);
+		origin = ovl_decode_real_fh(fh, ofs->lower_layers[i].mnt);
 		if (origin)
 			break;
 	}
@@ -424,7 +424,7 @@ int ovl_verify_set_fh(struct dentry *dentry, const char *name,
 	struct ovl_fh *fh;
 	int err;
 
-	fh = ovl_encode_fh(real, is_upper);
+	fh = ovl_encode_real_fh(real, is_upper);
 	err = PTR_ERR(fh);
 	if (IS_ERR(fh))
 		goto fail;
@@ -460,7 +460,7 @@ struct dentry *ovl_index_upper(struct ovl_fs *ofs, struct dentry *index)
 	if (IS_ERR_OR_NULL(fh))
 		return ERR_CAST(fh);
 
-	upper = ovl_decode_fh(fh, ofs->upper_mnt);
+	upper = ovl_decode_real_fh(fh, ofs->upper_mnt);
 	kfree(fh);
 
 	if (IS_ERR_OR_NULL(upper))
@@ -628,7 +628,7 @@ int ovl_get_index_name(struct dentry *origin, struct qstr *name)
 	struct ovl_fh *fh;
 	int err;
 
-	fh = ovl_encode_fh(origin, false);
+	fh = ovl_encode_real_fh(origin, false);
 	if (IS_ERR(fh))
 		return PTR_ERR(fh);
 

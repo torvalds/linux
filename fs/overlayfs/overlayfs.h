@@ -266,7 +266,7 @@ static inline bool ovl_is_impuredir(struct dentry *dentry)
 
 /* namei.c */
 int ovl_check_fh_len(struct ovl_fh *fh, int fh_len);
-struct dentry *ovl_decode_fh(struct ovl_fh *fh, struct vfsmount *mnt);
+struct dentry *ovl_decode_real_fh(struct ovl_fh *fh, struct vfsmount *mnt);
 int ovl_check_origin_fh(struct ovl_fs *ofs, struct ovl_fh *fh,
 			struct dentry *upperdentry, struct ovl_path **stackp);
 int ovl_verify_set_fh(struct dentry *dentry, const char *name,
@@ -361,7 +361,7 @@ int ovl_copy_up(struct dentry *dentry);
 int ovl_copy_up_flags(struct dentry *dentry, int flags);
 int ovl_copy_xattr(struct dentry *old, struct dentry *new);
 int ovl_set_attr(struct dentry *upper, struct kstat *stat);
-struct ovl_fh *ovl_encode_fh(struct dentry *real, bool is_upper);
+struct ovl_fh *ovl_encode_real_fh(struct dentry *real, bool is_upper);
 int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
 		   struct dentry *upper);
 

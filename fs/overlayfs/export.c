@@ -228,8 +228,8 @@ static int ovl_d_to_fh(struct dentry *dentry, char *buf, int buflen)
 		goto fail;
 
 	/* Encode an upper or lower file handle */
-	fh = ovl_encode_fh(enc_lower ? ovl_dentry_lower(dentry) :
-				       ovl_dentry_upper(dentry), !enc_lower);
+	fh = ovl_encode_real_fh(enc_lower ? ovl_dentry_lower(dentry) :
+				ovl_dentry_upper(dentry), !enc_lower);
 	err = PTR_ERR(fh);
 	if (IS_ERR(fh))
 		goto fail;
@@ -267,8 +267,8 @@ static int ovl_dentry_to_fh(struct dentry *dentry, u32 *fid, int *max_len)
 	return OVL_FILEID;
 }
 
-static int ovl_encode_inode_fh(struct inode *inode, u32 *fid, int *max_len,
-			       struct inode *parent)
+static int ovl_encode_fh(struct inode *inode, u32 *fid, int *max_len,
+			 struct inode *parent)
 {
 	struct dentry *dentry;
 	int type;
@@ -685,7 +685,7 @@ static struct dentry *ovl_upper_fh_to_d(struct super_block *sb,
 	if (!ofs->upper_mnt)
 		return ERR_PTR(-EACCES);
 
-	upper = ovl_decode_fh(fh, ofs->upper_mnt);
+	upper = ovl_decode_real_fh(fh, ofs->upper_mnt);
 	if (IS_ERR_OR_NULL(upper))
 		return upper;
 
@@ -829,7 +829,7 @@ static struct dentry *ovl_get_parent(struct dentry *dentry)
 }
 
 const struct export_operations ovl_export_operations = {
-	.encode_fh	= ovl_encode_inode_fh,
+	.encode_fh	= ovl_encode_fh,
 	.fh_to_dentry	= ovl_fh_to_dentry,
 	.fh_to_parent	= ovl_fh_to_parent,
 	.get_name	= ovl_get_name,
