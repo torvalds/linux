@@ -37,7 +37,7 @@ nvif_vmm_map(struct nvif_vmm *vmm, u64 addr, u64 size, void *argv, u32 argc,
 	     struct nvif_mem *mem, u64 offset)
 {
 	struct nvif_vmm_map_v0 *args;
-	u8 stack[16];
+	u8 stack[48];
 	int ret;
 
 	if (sizeof(*args) + argc > sizeof(stack)) {
