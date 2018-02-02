@@ -529,10 +529,15 @@ static const struct snd_kcontrol_new sgtl5000_snd_controls[] = {
 static int sgtl5000_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	u16 adcdac_ctrl = SGTL5000_DAC_MUTE_LEFT | SGTL5000_DAC_MUTE_RIGHT;
+	u16 i2s_pwr = SGTL5000_I2S_IN_POWERUP;
 
-	snd_soc_update_bits(codec, SGTL5000_CHIP_ADCDAC_CTRL,
-			adcdac_ctrl, mute ? adcdac_ctrl : 0);
+	/*
+	 * During 'digital mute' do not mute DAC
+	 * because LINE_IN would be muted aswell. We want to mute
+	 * only I2S block - this can be done by powering it off
+	 */
+	snd_soc_update_bits(codec, SGTL5000_CHIP_DIG_POWER,
+			i2s_pwr, mute ? 0 : i2s_pwr);
 
 	return 0;
 }
@@ -1236,6 +1241,10 @@ static int sgtl5000_probe(struct snd_soc_codec *codec)
 	 * Enable DAP in kcontrol and dapm.
 	 */
 	snd_soc_write(codec, SGTL5000_DAP_CTRL, 0);
+
+	/* Unmute DAC after start */
+	snd_soc_update_bits(codec, SGTL5000_CHIP_ADCDAC_CTRL,
+		SGTL5000_DAC_MUTE_LEFT | SGTL5000_DAC_MUTE_RIGHT, 0);
 
 	return 0;
 
