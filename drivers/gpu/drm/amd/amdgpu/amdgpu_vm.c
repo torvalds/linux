@@ -336,6 +336,11 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 
 	amdgpu_bo_fence(bo, fence, true);
 	dma_fence_put(fence);
+
+	if (bo->shadow)
+		return amdgpu_vm_clear_bo(adev, vm, bo->shadow,
+					  level, pte_support_ats);
+
 	return 0;
 
 error_free:
