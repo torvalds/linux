@@ -562,6 +562,9 @@ static int _intel_hdcp_enable(struct intel_connector *connector)
 			      connector->hdcp_shim);
 	if (ret) {
 		DRM_ERROR("Failed to authenticate HDCP (%d)\n", ret);
+
+		/* Ensuring HDCP encryption and signalling are stopped. */
+		_intel_hdcp_disable(connector);
 		return ret;
 	}
 
