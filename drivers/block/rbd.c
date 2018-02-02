@@ -32,6 +32,7 @@
 #include <linux/ceph/osd_client.h>
 #include <linux/ceph/mon_client.h>
 #include <linux/ceph/cls_lock_client.h>
+#include <linux/ceph/striper.h>
 #include <linux/ceph/decode.h>
 #include <linux/parser.h>
 #include <linux/bsearch.h>
@@ -245,9 +246,7 @@ enum rbd_obj_write_state {
 };
 
 struct rbd_obj_request {
-	u64			object_no;
-	u64			offset;		/* object start byte */
-	u64			length;		/* bytes from offset */
+	struct ceph_object_extent ex;
 	union {
 		bool			tried_parent;	/* for reads */
 		enum rbd_obj_write_state write_state;	/* for writes */
@@ -255,8 +254,6 @@ struct rbd_obj_request {
 
 	struct rbd_img_request	*img_request;
 	u64			img_offset;
-	/* links for img_request->obj_requests list */
-	struct list_head	links;
 
 	union {
 		struct ceph_bio_iter	bio_pos;
@@ -300,17 +297,17 @@ struct rbd_img_request {
 	u64			xferred;/* aggregate bytes transferred */
 	int			result;	/* first nonzero obj_request result */
 
+	struct list_head	object_extents;	/* obj_req.ex structs */
 	u32			obj_request_count;
 	u32			pending_count;
-	struct list_head	obj_requests;	/* rbd_obj_request structs */
 
 	struct kref		kref;
 };
 
 #define for_each_obj_request(ireq, oreq) \
-	list_for_each_entry(oreq, &(ireq)->obj_requests, links)
+	list_for_each_entry(oreq, &(ireq)->object_extents, ex.oe_item)
 #define for_each_obj_request_safe(ireq, oreq, n) \
-	list_for_each_entry_safe_reverse(oreq, n, &(ireq)->obj_requests, links)
+	list_for_each_entry_safe(oreq, n, &(ireq)->object_extents, ex.oe_item)
 
 enum rbd_watch_state {
 	RBD_WATCH_STATE_UNREGISTERED,
@@ -1336,7 +1333,7 @@ static inline void rbd_img_obj_request_add(struct rbd_img_request *img_request,
 	obj_request->img_request = img_request;
 	img_request->obj_request_count++;
 	img_request->pending_count++;
-	list_add_tail(&obj_request->links, &img_request->obj_requests);
+	list_add_tail(&obj_request->ex.oe_item, &img_request->object_extents);
 	dout("%s: img %p obj %p\n", __func__, img_request, obj_request);
 }
 
@@ -1344,7 +1341,7 @@ static inline void rbd_img_obj_request_del(struct rbd_img_request *img_request,
 					struct rbd_obj_request *obj_request)
 {
 	dout("%s: img %p obj %p\n", __func__, img_request, obj_request);
-	list_del(&obj_request->links);
+	list_del(&obj_request->ex.oe_item);
 	rbd_assert(img_request->obj_request_count > 0);
 	img_request->obj_request_count--;
 	rbd_assert(obj_request->img_request == img_request);
@@ -1356,8 +1353,8 @@ static void rbd_obj_request_submit(struct rbd_obj_request *obj_request)
 	struct ceph_osd_request *osd_req = obj_request->osd_req;
 
 	dout("%s %p object_no %016llx %llu~%llu osd_req %p\n", __func__,
-	     obj_request, obj_request->object_no, obj_request->offset,
-	     obj_request->length, osd_req);
+	     obj_request, obj_request->ex.oe_objno, obj_request->ex.oe_off,
+	     obj_request->ex.oe_len, osd_req);
 	ceph_osdc_start_request(osd_req->r_osdc, osd_req, false);
 }
 
@@ -1406,15 +1403,15 @@ static bool rbd_obj_is_entire(struct rbd_obj_request *obj_req)
 {
 	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
 
-	return !obj_req->offset &&
-	       obj_req->length == rbd_dev->layout.object_size;
+	return !obj_req->ex.oe_off &&
+	       obj_req->ex.oe_len == rbd_dev->layout.object_size;
 }
 
 static bool rbd_obj_is_tail(struct rbd_obj_request *obj_req)
 {
 	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
 
-	return obj_req->offset + obj_req->length ==
+	return obj_req->ex.oe_off + obj_req->ex.oe_len ==
 					rbd_dev->layout.object_size;
 }
 
@@ -1469,7 +1466,7 @@ static void rbd_osd_req_format_write(struct rbd_obj_request *obj_request)
 
 	osd_req->r_flags = CEPH_OSD_FLAG_WRITE;
 	ktime_get_real_ts(&osd_req->r_mtime);
-	osd_req->r_data_offset = obj_request->offset;
+	osd_req->r_data_offset = obj_request->ex.oe_off;
 }
 
 static struct ceph_osd_request *
@@ -1493,7 +1490,7 @@ rbd_osd_req_create(struct rbd_obj_request *obj_req, unsigned int num_ops)
 
 	req->r_base_oloc.pool = rbd_dev->layout.pool_id;
 	if (ceph_oid_aprintf(&req->r_base_oid, GFP_NOIO, name_format,
-			rbd_dev->header.object_prefix, obj_req->object_no))
+			rbd_dev->header.object_prefix, obj_req->ex.oe_objno))
 		goto err_req;
 
 	if (ceph_osdc_alloc_messages(req, GFP_NOIO))
@@ -1519,7 +1516,7 @@ static struct rbd_obj_request *rbd_obj_request_create(void)
 	if (!obj_request)
 		return NULL;
 
-	INIT_LIST_HEAD(&obj_request->links);
+	ceph_object_extent_init(&obj_request->ex);
 	kref_init(&obj_request->kref);
 
 	dout("%s %p\n", __func__, obj_request);
@@ -1650,7 +1647,7 @@ static struct rbd_img_request *rbd_img_request_create(
 		img_request_layered_set(img_request);
 
 	spin_lock_init(&img_request->completion_lock);
-	INIT_LIST_HEAD(&img_request->obj_requests);
+	INIT_LIST_HEAD(&img_request->object_extents);
 	kref_init(&img_request->kref);
 
 	dout("%s: rbd_dev %p %s %llu/%llu -> img %p\n", __func__, rbd_dev,
@@ -1727,11 +1724,11 @@ static void rbd_osd_req_setup_data(struct rbd_obj_request *obj_req, u32 which)
 	case OBJ_REQUEST_BIO:
 		osd_req_op_extent_osd_data_bio(obj_req->osd_req, which,
 					       &obj_req->bio_pos,
-					       obj_req->length);
+					       obj_req->ex.oe_len);
 		break;
 	case OBJ_REQUEST_BVECS:
 		rbd_assert(obj_req->bvec_pos.iter.bi_size ==
-							obj_req->length);
+							obj_req->ex.oe_len);
 		osd_req_op_extent_osd_data_bvec_pos(obj_req->osd_req, which,
 						    &obj_req->bvec_pos);
 		break;
@@ -1747,7 +1744,7 @@ static int rbd_obj_setup_read(struct rbd_obj_request *obj_req)
 		return -ENOMEM;
 
 	osd_req_op_extent_init(obj_req->osd_req, 0, CEPH_OSD_OP_READ,
-			       obj_req->offset, obj_req->length, 0, 0);
+			       obj_req->ex.oe_off, obj_req->ex.oe_len, 0, 0);
 	rbd_osd_req_setup_data(obj_req, 0);
 
 	rbd_osd_req_format_read(obj_req);
@@ -1794,7 +1791,7 @@ static void __rbd_obj_setup_write(struct rbd_obj_request *obj_req,
 		opcode = CEPH_OSD_OP_WRITE;
 
 	osd_req_op_extent_init(obj_req->osd_req, which, opcode,
-			       obj_req->offset, obj_req->length, 0, 0);
+			       obj_req->ex.oe_off, obj_req->ex.oe_len, 0, 0);
 	rbd_osd_req_setup_data(obj_req, which++);
 
 	rbd_assert(which == obj_req->osd_req->r_num_ops);
@@ -1849,7 +1846,7 @@ static void __rbd_obj_setup_discard(struct rbd_obj_request *obj_req,
 
 	if (opcode)
 		osd_req_op_extent_init(obj_req->osd_req, which++, opcode,
-				       obj_req->offset, obj_req->length,
+				       obj_req->ex.oe_off, obj_req->ex.oe_len,
 				       0, 0);
 
 	rbd_assert(which == obj_req->osd_req->r_num_ops);
@@ -1964,9 +1961,9 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 		if (!obj_request)
 			goto out_unwind;
 
-		obj_request->object_no = object_no;
-		obj_request->offset = offset;
-		obj_request->length = length;
+		obj_request->ex.oe_objno = object_no;
+		obj_request->ex.oe_off = offset;
+		obj_request->ex.oe_len = length;
 
 		/*
 		 * set obj_request->img_request before creating the
@@ -2064,7 +2061,7 @@ static bool rbd_obj_handle_read(struct rbd_obj_request *obj_req)
 	if (obj_req->result == -ENOENT &&
 	    obj_req->img_offset < rbd_dev->parent_overlap &&
 	    !obj_req->tried_parent) {
-		u64 obj_overlap = min(obj_req->length,
+		u64 obj_overlap = min(obj_req->ex.oe_len,
 			      rbd_dev->parent_overlap - obj_req->img_offset);
 
 		obj_req->tried_parent = true;
@@ -2084,12 +2081,12 @@ static bool rbd_obj_handle_read(struct rbd_obj_request *obj_req)
 	 * count to indicate the whole request was satisfied.
 	 */
 	if (obj_req->result == -ENOENT ||
-	    (!obj_req->result && obj_req->xferred < obj_req->length)) {
+	    (!obj_req->result && obj_req->xferred < obj_req->ex.oe_len)) {
 		rbd_assert(!obj_req->xferred || !obj_req->result);
 		rbd_obj_zero_range(obj_req, obj_req->xferred,
-				   obj_req->length - obj_req->xferred);
+				   obj_req->ex.oe_len - obj_req->xferred);
 		obj_req->result = 0;
-		obj_req->xferred = obj_req->length;
+		obj_req->xferred = obj_req->ex.oe_len;
 	}
 
 	return true;
@@ -2214,7 +2211,7 @@ static int rbd_obj_handle_write_guard(struct rbd_obj_request *obj_req)
 	 * Determine the byte range covered by the object in the
 	 * child image to which the original request was to be sent.
 	 */
-	img_offset = obj_req->img_offset - obj_req->offset;
+	img_offset = obj_req->img_offset - obj_req->ex.oe_off;
 	obj_overlap = rbd_dev->layout.object_size;
 
 	/*
@@ -2263,7 +2260,7 @@ again:
 			 * There is no such thing as a successful short
 			 * write -- indicate the whole request was satisfied.
 			 */
-			obj_req->xferred = obj_req->length;
+			obj_req->xferred = obj_req->ex.oe_len;
 		return true;
 	case RBD_OBJ_WRITE_COPYUP:
 		obj_req->write_state = RBD_OBJ_WRITE_GUARD;
@@ -2300,7 +2297,7 @@ static bool __rbd_obj_handle_request(struct rbd_obj_request *obj_req)
 			 */
 			if (obj_req->result == -ENOENT) {
 				obj_req->result = 0;
-				obj_req->xferred = obj_req->length;
+				obj_req->xferred = obj_req->ex.oe_len;
 			}
 			return true;
 		}
@@ -2315,7 +2312,7 @@ static void rbd_obj_end_request(struct rbd_obj_request *obj_req)
 	struct rbd_img_request *img_req = obj_req->img_request;
 
 	rbd_assert((!obj_req->result &&
-		    obj_req->xferred == obj_req->length) ||
+		    obj_req->xferred == obj_req->ex.oe_len) ||
 		   (obj_req->result < 0 && !obj_req->xferred));
 	if (!obj_req->result) {
 		img_req->xferred += obj_req->xferred;
@@ -2324,8 +2321,8 @@ static void rbd_obj_end_request(struct rbd_obj_request *obj_req)
 
 	rbd_warn(img_req->rbd_dev,
 		 "%s at objno %llu %llu~%llu result %d xferred %llu",
-		 obj_op_name(img_req->op_type), obj_req->object_no,
-		 obj_req->offset, obj_req->length, obj_req->result,
+		 obj_op_name(img_req->op_type), obj_req->ex.oe_objno,
+		 obj_req->ex.oe_off, obj_req->ex.oe_len, obj_req->result,
 		 obj_req->xferred);
 	if (!img_req->result) {
 		img_req->result = obj_req->result;
