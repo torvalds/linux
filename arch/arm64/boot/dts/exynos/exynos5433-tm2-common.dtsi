@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SAMSUNG Exynos5433 TM2 board device tree source
  *
@@ -5,10 +6,6 @@
  *
  * Common device tree source file for Samsung's TM2 and TM2E boards
  * which are based on Samsung Exynos5433 SoC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /dts-v1/;
@@ -741,6 +738,19 @@
 	};
 };
 
+&hsi2c_4 {
+	status = "okay";
+
+	s3fwrn5: nfc@27 {
+		compatible = "samsung,s3fwrn5-i2c";
+		reg = <0x27>;
+		interrupt-parent = <&gpa1>;
+		interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+		s3fwrn5,en-gpios = <&gpf1 4 GPIO_ACTIVE_HIGH>;
+		s3fwrn5,fw-gpios = <&gpj0 2 GPIO_ACTIVE_HIGH>;
+	};
+};
+
 &hsi2c_5 {
 	status = "okay";
 
@@ -756,6 +766,7 @@
 
 &hsi2c_7 {
 	status = "okay";
+	clock-frequency = <1000000>;
 
 	sii8620@39 {
 		reg = <0x39>;

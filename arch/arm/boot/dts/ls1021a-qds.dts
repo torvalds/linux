@@ -239,6 +239,11 @@
 		device-width = <1>;
 	};
 
+	nand@2,0 {
+		compatible = "fsl,ifc-nand";
+		reg = <0x2 0x0 0x10000>;
+	};
+
 	fpga: board-control@3,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;

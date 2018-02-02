@@ -37,6 +37,18 @@
 				status = "okay";
 			};
 
+			tcb0: timer@fff7c000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>, <1>;
+				};
+
+				timer@2 {
+					compatible = "atmel,tcb-timer";
+					reg = <2>;
+				};
+			};
+
 			usart0: serial@fff8c000 {
 				pinctrl-0 = <
 					&pinctrl_usart0
@@ -95,7 +107,7 @@
 			};
 		};
 
-		fb0: fb@0x00700000 {
+		fb0: fb@700000 {
 			display = <&display0>;
 			status = "okay";
 

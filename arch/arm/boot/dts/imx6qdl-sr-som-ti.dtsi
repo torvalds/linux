@@ -39,75 +39,71 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <dt-bindings/gpio/gpio.h>
+
 / {
-	clk_sdio: sdio-clock {
+	nvcc_sd1: regulator-nvcc-sd1 {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-name = "nvcc_sd1";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_3v3>;
+	};
+
+	clk_ti_wifi: ti-wifi-clock {
+		/* This is a hack around the kernel - using "fixed clock"
+		 * results in the "pinctrl" properties being ignored, and
+		 * the clock not being output.  Instead, use a gated clock
+		 * and the unrouted WL_XTAL_PU gpio.
+		 */
 		compatible = "gpio-gate-clock";
 		#clock-cells = <0>;
+		clock-frequency = <32768>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_microsom_brcm_osc>;
+		pinctrl-0 = <&pinctrl_microsom_ti_clk>;
 		enable-gpios = <&gpio5 5 GPIO_ACTIVE_HIGH>;
 	};
 
-	regulators {
-		compatible = "simple-bus";
-
-		reg_brcm: brcm-reg {
-			compatible = "regulator-fixed";
-			enable-active-high;
-			gpio = <&gpio3 19 0>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_microsom_brcm_reg>;
-			regulator-name = "brcm_reg";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			startup-delay-us = <200000>;
-		};
-	};
-
-	usdhc1_pwrseq: usdhc1_pwrseq {
+	pwrseq_ti_wifi: ti-wifi-pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		reset-gpios = <&gpio5 26 GPIO_ACTIVE_LOW>,
-			      <&gpio6 0 GPIO_ACTIVE_LOW>;
-		clocks = <&clk_sdio>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_microsom_ti_wifi_en>;
+		reset-gpios = <&gpio5 26 GPIO_ACTIVE_LOW>;
+		post-power-on-delay-ms = <200>;
+		clocks = <&clk_ti_wifi>;
 		clock-names = "ext_clock";
 	};
 };
 
 &iomuxc {
 	microsom {
-		pinctrl_microsom_brcm_bt: microsom-brcm-bt {
+		pinctrl_microsom_ti_bt: microsom-ti-bt {
 			fsl,pins = <
+				/* BT_EN_SOC */
 				MX6QDL_PAD_CSI0_DAT14__GPIO6_IO00	0x40013070
-				MX6QDL_PAD_CSI0_DAT15__GPIO6_IO01	0x40013070
-				MX6QDL_PAD_CSI0_DAT18__GPIO6_IO04	0x40013070
 			>;
 		};
 
-		pinctrl_microsom_brcm_osc: microsom-brcm-osc {
+		pinctrl_microsom_ti_clk: microsom-ti-clk {
 			fsl,pins = <
-				MX6QDL_PAD_DISP0_DAT11__GPIO5_IO05	0x40013070
-			>;
-		};
-
-		pinctrl_microsom_brcm_reg: microsom-brcm-reg {
-			fsl,pins = <
-				MX6QDL_PAD_EIM_D19__GPIO3_IO19		0x40013070
-			>;
-		};
-
-		pinctrl_microsom_brcm_wifi: microsom-brcm-wifi {
-			fsl,pins = <
+				/* EXT_32K */
 				MX6QDL_PAD_GPIO_8__XTALOSC_REF_CLK_32K	0x1b0b0
-				MX6QDL_PAD_CSI0_DATA_EN__GPIO5_IO20	0x40013070
-				MX6QDL_PAD_CSI0_DAT8__GPIO5_IO26	0x40013070
-				MX6QDL_PAD_CSI0_DAT9__GPIO5_IO27	0x40013070
+				/* WL_XTAL_PU (unrouted) */
+				MX6QDL_PAD_DISP0_DAT11__GPIO5_IO05 0x40013070
 			>;
 		};
 
-		pinctrl_microsom_uart1: microsom-uart1 {
+		pinctrl_microsom_ti_wifi_en: microsom-ti-wifi-en {
 			fsl,pins = <
-				MX6QDL_PAD_CSI0_DAT10__UART1_TX_DATA	0x1b0b1
-				MX6QDL_PAD_CSI0_DAT11__UART1_RX_DATA	0x1b0b1
+				/* WLAN_EN_SOC */
+				MX6QDL_PAD_CSI0_DAT8__GPIO5_IO26	0x40013070
+			>;
+		};
+
+		pinctrl_microsom_ti_wifi_irq: microsom-ti-wifi-irq {
+			fsl,pins = <
+				/* WLAN_IRQ */
+				MX6QDL_PAD_CSI0_DAT18__GPIO6_IO04	0x40013070
 			>;
 		};
 
@@ -133,29 +129,42 @@
 	};
 };
 
-&uart1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_microsom_uart1>;
-	status = "okay";
-};
-
-/* UART4 - Connected to optional BRCM Wifi/BT/FM */
+/* UART4 - Connected to optional TI Wi-Fi/BT/FM */
 &uart4 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_microsom_brcm_bt &pinctrl_microsom_uart4>;
+	pinctrl-0 = <&pinctrl_microsom_uart4>;
 	uart-has-rtscts;
 	status = "okay";
+
+	bluetooth {
+		compatible = "ti,wl1837-st";
+		clocks = <&clk_ti_wifi>;
+		clock-names = "ext_clock";
+		enable-gpios = <&gpio6 0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_microsom_ti_bt>;
+	};
 };
 
-/* USDHC1 - Connected to optional BRCM Wifi/BT/FM */
+/* USDHC1 - Connected to optional TI Wi-Fi/BT/FM */
 &usdhc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_microsom_brcm_wifi &pinctrl_microsom_usdhc1>;
+	pinctrl-0 = <&pinctrl_microsom_usdhc1>;
 	bus-width = <4>;
-	mmc-pwrseq = <&usdhc1_pwrseq>;
 	keep-power-in-suspend;
-	no-1-8-v;
+	mmc-pwrseq = <&pwrseq_ti_wifi>;
 	non-removable;
-	vmmc-supply = <&reg_brcm>;
+	vmmc-supply = <&vcc_3v3>;
+	/* vqmmc-supply = <&nvcc_sd1>; - MMC layer doesn't like it! */
 	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	wlcore@2 {
+		compatible = "ti,wl1837";
+		reg = <2>;
+		interrupts-extended = <&gpio6 4 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_microsom_ti_wifi_irq>;
+	};
 };

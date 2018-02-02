@@ -116,6 +116,28 @@
 		};
 	};
 
+	pmu {
+		compatible = "arm,cortex-a8-pmu";
+		interrupt-parent = <&tzic>;
+		interrupts = <77>;
+	};
+
+	usbphy0: usbphy-0 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX5_CLK_USB_PHY1_GATE>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
+		status = "okay";
+	};
+
+	usbphy1: usbphy-1 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX5_CLK_USB_PHY2_GATE>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
+		status = "okay";
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -299,20 +321,6 @@
 				reg = <0x53f00000 0x60>;
 			};
 
-			usbphy0: usbphy-0 {
-				compatible = "usb-nop-xceiv";
-				clocks = <&clks IMX5_CLK_USB_PHY1_GATE>;
-				clock-names = "main_clk";
-				status = "okay";
-			};
-
-			usbphy1: usbphy-1 {
-				compatible = "usb-nop-xceiv";
-				clocks = <&clks IMX5_CLK_USB_PHY2_GATE>;
-				clock-names = "main_clk";
-				status = "okay";
-			};
-
 			usbotg: usb@53f80000 {
 				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
 				reg = <0x53f80000 0x0200>;
@@ -431,6 +439,13 @@
 				clocks = <&clks IMX5_CLK_GPT_IPG_GATE>,
 					 <&clks IMX5_CLK_GPT_HF_GATE>;
 				clock-names = "ipg", "per";
+			};
+
+			srtc: rtc@53fa4000 {
+				compatible = "fsl,imx53-rtc";
+				reg = <0x53fa4000 0x4000>;
+				interrupts = <24>;
+				clocks = <&clks IMX5_CLK_SRTC_GATE>;
 			};
 
 			iomuxc: iomuxc@53fa8000 {
@@ -812,11 +827,6 @@
 			compatible = "mmio-sram";
 			reg = <0xf8000000 0x20000>;
 			clocks = <&clks IMX5_CLK_OCRAM>;
-		};
-
-		pmu {
-			compatible = "arm,cortex-a8-pmu";
-			interrupts = <77>;
 		};
 	};
 };

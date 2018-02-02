@@ -1224,14 +1224,6 @@ ccd_exit:
 	return 0;
 }
 
-u32 clkdm_xlate_address(struct clockdomain *clkdm)
-{
-	if (arch_clkdm->clkdm_xlate_address)
-		return arch_clkdm->clkdm_xlate_address(clkdm);
-
-	return 0;
-}
-
 /**
  * clkdm_hwmod_enable - add an enabled downstream hwmod to this clkdm
  * @clkdm: struct clockdomain *

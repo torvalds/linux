@@ -108,25 +108,77 @@ void __init ti_dt_clocks_register(struct ti_dt_clk oclks[])
 	struct device_node *node;
 	struct clk *clk;
 	struct of_phandle_args clkspec;
+	char buf[64];
+	char *ptr;
+	char *tags[2];
+	int i;
+	int num_args;
+	int ret;
+	static bool clkctrl_nodes_missing;
+	static bool has_clkctrl_data;
 
 	for (c = oclks; c->node_name != NULL; c++) {
-		node = of_find_node_by_name(NULL, c->node_name);
+		strcpy(buf, c->node_name);
+		ptr = buf;
+		for (i = 0; i < 2; i++)
+			tags[i] = NULL;
+		num_args = 0;
+		while (*ptr) {
+			if (*ptr == ':') {
+				if (num_args >= 2) {
+					pr_warn("Bad number of tags on %s\n",
+						c->node_name);
+					return;
+				}
+				tags[num_args++] = ptr + 1;
+				*ptr = 0;
+			}
+			ptr++;
+		}
+
+		if (num_args && clkctrl_nodes_missing)
+			continue;
+
+		node = of_find_node_by_name(NULL, buf);
+		if (num_args)
+			node = of_find_node_by_name(node, "clk");
 		clkspec.np = node;
+		clkspec.args_count = num_args;
+		for (i = 0; i < num_args; i++) {
+			ret = kstrtoint(tags[i], i ? 10 : 16, clkspec.args + i);
+			if (ret) {
+				pr_warn("Bad tag in %s at %d: %s\n",
+					c->node_name, i, tags[i]);
+				return;
+			}
+		}
 		clk = of_clk_get_from_provider(&clkspec);
 
 		if (!IS_ERR(clk)) {
 			c->lk.clk = clk;
 			clkdev_add(&c->lk);
 		} else {
-			pr_warn("failed to lookup clock node %s\n",
-				c->node_name);
+			if (num_args && !has_clkctrl_data) {
+				if (of_find_compatible_node(NULL, NULL,
+							    "ti,clkctrl")) {
+					has_clkctrl_data = true;
+				} else {
+					clkctrl_nodes_missing = true;
+
+					pr_warn("missing clkctrl nodes, please update your dts.\n");
+					continue;
+				}
+			}
+
+			pr_warn("failed to lookup clock node %s, ret=%ld\n",
+				c->node_name, PTR_ERR(clk));
 		}
 	}
 }
 
 struct clk_init_item {
 	struct device_node *node;
-	struct clk_hw *hw;
+	void *user;
 	ti_of_clk_init_cb_t func;
 	struct list_head link;
 };
@@ -136,14 +188,14 @@ static LIST_HEAD(retry_list);
 /**
  * ti_clk_retry_init - retries a failed clock init at later phase
  * @node: device not for the clock
- * @hw: partially initialized clk_hw struct for the clock
+ * @user: user data pointer
  * @func: init function to be called for the clock
  *
  * Adds a failed clock init to the retry list. The retry list is parsed
  * once all the other clocks have been initialized.
  */
-int __init ti_clk_retry_init(struct device_node *node, struct clk_hw *hw,
-			      ti_of_clk_init_cb_t func)
+int __init ti_clk_retry_init(struct device_node *node, void *user,
+			     ti_of_clk_init_cb_t func)
 {
 	struct clk_init_item *retry;
 
@@ -154,7 +206,7 @@ int __init ti_clk_retry_init(struct device_node *node, struct clk_hw *hw,
 
 	retry->node = node;
 	retry->func = func;
-	retry->hw = hw;
+	retry->user = user;
 	list_add(&retry->link, &retry_list);
 
 	return 0;
@@ -276,7 +328,7 @@ void ti_dt_clk_init_retry_clks(void)
 	while (!list_empty(&retry_list) && retries) {
 		list_for_each_entry_safe(retry, tmp, &retry_list, link) {
 			pr_debug("retry-init: %s\n", retry->node->name);
-			retry->func(retry->hw, retry->node);
+			retry->func(retry->user, retry->node);
 			list_del(&retry->link);
 			kfree(retry);
 		}

@@ -25,18 +25,41 @@
 		reg = <0x90000000 0x20000000>;
 	};
 
-	clocks {
-		ckih1 {
-			clock-frequency = <22579200>;
-		};
+	ckih1 {
+		clock-frequency = <22579200>;
+	};
 
-		clk_26M: codec_clock {
-			compatible = "fixed-clock";
-			reg=<0>;
-			#clock-cells = <0>;
-			clock-frequency = <26000000>;
-			gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
-		};
+	clk_osc: clk-osc {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+
+	clk_osc_gate: clk-osc-gate {
+		compatible = "gpio-gate-clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_clk26mhz_osc>;
+		clocks = <&clk_osc>;
+		#clock-cells = <0>;
+		enable-gpios = <&gpio3 1 GPIO_ACTIVE_HIGH>;
+	};
+
+	clk_audio: clk-audio {
+		compatible = "gpio-gate-clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_clk26mhz_audio>;
+		clocks = <&clk_osc_gate>;
+		#clock-cells = <0>;
+		enable-gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
+	};
+
+	clk_usb: clk-usb {
+		compatible = "gpio-gate-clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_clk26mhz_usb>;
+		clocks = <&clk_osc_gate>;
+		#clock-cells = <0>;
+		enable-gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
 	};
 
 	display1: disp1 {
@@ -162,9 +185,11 @@
 		usbh1phy: usbh1phy@0 {
 			compatible = "usb-nop-xceiv";
 			reg = <0>;
-			clocks = <&clks IMX5_CLK_DUMMY>;
+			clocks = <&clk_usb>;
 			clock-names = "main_clk";
 			reset-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>;
+			vcc-supply = <&vusb_reg>;
+			#phy-cells = <0>;
 		};
 	};
 };
@@ -238,6 +263,10 @@
 			vsd_reg: vsd {
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3150000>;
+			};
+
+			vusb_reg: vusb {
+				regulator-boot-on;
 			};
 
 			vusb2_reg: vusb2 {
@@ -339,10 +368,8 @@
 
 	sgtl5000: codec@a {
 		compatible = "fsl,sgtl5000";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_clkcodec>;
 		reg = <0x0a>;
-		clocks = <&clk_26M>;
+		clocks = <&clk_audio>;
 		VDDA-supply = <&vdig_reg>;
 		VDDIO-supply = <&vvideo_reg>;
 	};
@@ -413,6 +440,10 @@
 	status = "okay";
 };
 
+&usbphy0 {
+	vcc-supply = <&vusb_reg>;
+};
+
 &usbotg {
 	dr_mode = "otg";
 	disable-over-current;
@@ -431,9 +462,21 @@
 			>;
 		};
 
-		pinctrl_clkcodec: clkcodecgrp {
+		pinctrl_clk26mhz_audio: clk26mhzaudiocgrp {
 			fsl,pins = <
-				MX51_PAD_CSPI1_RDY__GPIO4_26		0x80000000
+				MX51_PAD_CSPI1_RDY__GPIO4_26		0x85
+			>;
+		};
+
+		pinctrl_clk26mhz_osc: clk26mhzoscgrp {
+			fsl,pins = <
+				MX51_PAD_DI1_PIN12__GPIO3_1		0x85
+			>;
+		};
+
+		pinctrl_clk26mhz_usb: clk26mhzusbgrp {
+			fsl,pins = <
+				MX51_PAD_EIM_D17__GPIO2_1		0x85
 			>;
 		};
 
