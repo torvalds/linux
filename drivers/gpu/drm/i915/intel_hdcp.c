@@ -166,10 +166,16 @@ int intel_hdcp_auth_downstream(struct intel_digital_port *intel_dig_port,
 		return -EPERM;
 	}
 
-	/* If there are no downstream devices, we're all done. */
+	/*
+	 * When repeater reports 0 device count, HDCP1.4 spec allows disabling
+	 * the HDCP encryption. That implies that repeater can't have its own
+	 * display. As there is no consumption of encrypted content in the
+	 * repeater with 0 downstream devices, we are failing the
+	 * authentication.
+	 */
 	num_downstream = DRM_HDCP_NUM_DOWNSTREAM(bstatus[0]);
 	if (num_downstream == 0)
-		return 0;
+		return -EINVAL;
 
 	ksv_fifo = kzalloc(num_downstream * DRM_HDCP_KSV_LEN, GFP_KERNEL);
 	if (!ksv_fifo)
