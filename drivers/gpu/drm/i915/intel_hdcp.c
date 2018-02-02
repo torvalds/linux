@@ -575,7 +575,7 @@ static int _intel_hdcp_disable(struct intel_connector *connector)
 static int _intel_hdcp_enable(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = connector->base.dev->dev_private;
-	int i, ret;
+	int i, ret, tries = 3;
 
 	DRM_DEBUG_KMS("[%s:%d] HDCP is being enabled...\n",
 		      connector->base.name, connector->base.base.id);
@@ -596,17 +596,21 @@ static int _intel_hdcp_enable(struct intel_connector *connector)
 		return ret;
 	}
 
-	ret = intel_hdcp_auth(conn_to_dig_port(connector),
-			      connector->hdcp_shim);
-	if (ret) {
-		DRM_ERROR("Failed to authenticate HDCP (%d)\n", ret);
+	/* Incase of authentication failures, HDCP spec expects reauth. */
+	for (i = 0; i < tries; i++) {
+		ret = intel_hdcp_auth(conn_to_dig_port(connector),
+				      connector->hdcp_shim);
+		if (!ret)
+			return 0;
+
+		DRM_DEBUG_KMS("HDCP Auth failure (%d)\n", ret);
 
 		/* Ensuring HDCP encryption and signalling are stopped. */
 		_intel_hdcp_disable(connector);
-		return ret;
 	}
 
-	return 0;
+	DRM_ERROR("HDCP authentication failed (%d tries/%d)\n", tries, ret);
+	return ret;
 }
 
 static void intel_hdcp_check_work(struct work_struct *work)
