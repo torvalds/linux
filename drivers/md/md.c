@@ -8522,6 +8522,10 @@ static int remove_and_add_spares(struct mddev *mddev,
 	int removed = 0;
 	bool remove_some = false;
 
+	if (this && test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
+		/* Mustn't remove devices when resync thread is running */
+		return 0;
+
 	rdev_for_each(rdev, mddev) {
 		if ((this == NULL || rdev == this) &&
 		    rdev->raid_disk >= 0 &&
