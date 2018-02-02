@@ -1527,6 +1527,7 @@ static int gen9_init_render_ring(struct intel_engine_cs *engine)
 static void reset_irq(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
+	int i;
 
 	/*
 	 * Clear any pending interrupt state.
@@ -1535,10 +1536,14 @@ static void reset_irq(struct intel_engine_cs *engine)
 	 * buffered, and if we only reset it once there may still be
 	 * an interrupt pending.
 	 */
-	I915_WRITE(GEN8_GT_IIR(gtiir[engine->id]),
-		   GT_CONTEXT_SWITCH_INTERRUPT << engine->irq_shift);
-	I915_WRITE(GEN8_GT_IIR(gtiir[engine->id]),
-		   GT_CONTEXT_SWITCH_INTERRUPT << engine->irq_shift);
+	for (i = 0; i < 2; i++) {
+		I915_WRITE(GEN8_GT_IIR(gtiir[engine->id]),
+			   GT_CONTEXT_SWITCH_INTERRUPT << engine->irq_shift);
+		POSTING_READ(GEN8_GT_IIR(gtiir[engine->id]));
+	}
+	GEM_BUG_ON(I915_READ(GEN8_GT_IIR(gtiir[engine->id])) &
+		   (GT_CONTEXT_SWITCH_INTERRUPT << engine->irq_shift));
+
 	clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
 }
 
