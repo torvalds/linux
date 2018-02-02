@@ -848,6 +848,9 @@ static int camsys_release(struct inode *inode, struct file *file)
 {
 	camsys_dev_t *camsys_dev = (camsys_dev_t *)file->private_data;
 	unsigned int i, phycnt;
+	camsys_sysctrl_t devctl;
+	camsys_iommu_t *iommu_par;
+	int index;
 
 	camsys_irq_disconnect(NULL, camsys_dev, true);
 
@@ -860,6 +863,21 @@ static int camsys_release(struct inode *inode, struct file *file)
 			}
 		}
 	}
+	/*
+	 * iommu resource might not been released when mediaserver process
+	 * died unexpectly, so we force to release the iommu resource here
+	 */
+	devctl.dev_mask = camsys_dev->dev_id;
+	devctl.ops = CamSys_IOMMU;
+	devctl.on = 0;
+	iommu_par = (camsys_iommu_t *)(devctl.rev);
+	/* used as force release flag */
+	iommu_par->client_fd = -1;
+	for (index = 0; index < CAMSYS_DMA_BUF_MAX_NUM ; index++) {
+		if (camsys_dev->iommu_cb(camsys_dev, &devctl) != 0)
+			break;
+	}
+
 	atomic_dec(&camsys_dev->refcount);
 	camsys_trace(1,
 		"%s(%p) is closed",
