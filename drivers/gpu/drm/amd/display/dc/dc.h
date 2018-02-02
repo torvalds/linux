@@ -257,6 +257,8 @@ struct dc {
 
 	bool optimized_required;
 
+	bool apply_edp_fast_boot_optimization;
+
 	/* FBC compressor */
 #if defined(CONFIG_DRM_AMD_DC_FBC)
 	struct compressor *fbc_compressor;

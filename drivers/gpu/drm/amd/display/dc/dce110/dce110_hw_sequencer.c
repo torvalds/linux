@@ -57,6 +57,8 @@
 #include "dce/dce_11_0_sh_mask.h"
 #include "custom_float.h"
 
+#include "atomfirmware.h"
+
 /*
  * All values are in milliseconds;
  * For eDP, after power-up/power/down,
@@ -1425,23 +1427,6 @@ static void disable_vga_and_power_gate_all_controllers(
 	}
 }
 
-static struct dc_link *get_link_for_edp(
-		struct dc *dc)
-{
-	int i;
-	struct dc_link *link = NULL;
-
-	/* check if there is an eDP panel not in use */
-	for (i = 0; i < dc->link_count; i++) {
-		if (dc->links[i]->local_sink &&
-			dc->links[i]->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
-			link = dc->links[i];
-			break;
-		}
-	}
-
-	return link;
-}
 static struct dc_link *get_link_for_edp_not_in_use(
 		struct dc *dc,
 		struct dc_state *context)
@@ -1477,13 +1462,27 @@ static struct dc_link *get_link_for_edp_not_in_use(
 void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 {
 	struct dc_bios *dcb = dc->ctx->dc_bios;
-	struct dc_link *edp_link_to_turnoff = get_link_for_edp_not_in_use(dc, context);
 
-	struct dc_link *edp_link = get_link_for_edp(dc);
-	if (dcb->funcs->get_vga_enabled_displays(dc->ctx->dc_bios) != 0) {
-		if (edp_link) {
-			/*we need turn off backlight before DP_blank and encoder powered down, todo add optimization*/
-			dc->hwss.edp_backlight_control(edp_link, false);
+	/* vbios already light up eDP, so we can leverage vbios and skip eDP
+	 * programming
+	 */
+	bool can_eDP_fast_boot_optimize =
+			(dcb->funcs->get_vga_enabled_displays(dc->ctx->dc_bios) == ATOM_DISPLAY_LCD1_ACTIVE);
+
+	/* if OS doesn't light up eDP and eDP link is available, we want to disable */
+	struct dc_link *edp_link_to_turnoff = NULL;
+
+	if (can_eDP_fast_boot_optimize) {
+		edp_link_to_turnoff = get_link_for_edp_not_in_use(dc, context);
+
+		if (!edp_link_to_turnoff)
+			dc->apply_edp_fast_boot_optimization = true;
+	}
+
+	if (!dc->apply_edp_fast_boot_optimization) {
+		if (edp_link_to_turnoff) {
+			/*turn off backlight before DP_blank and encoder powered down*/
+			dc->hwss.edp_backlight_control(edp_link_to_turnoff, false);
 		}
 		/*resume from S3, no vbios posting, no need to power down again*/
 		power_down_all_hw_blocks(dc);

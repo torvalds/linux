@@ -2296,7 +2296,16 @@ void core_link_enable_stream(
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 
-	enum dc_status status = enable_link(state, pipe_ctx);
+	enum dc_status status;
+
+	/* eDP lit up by bios already, no need to enable again. */
+	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&
+		core_dc->apply_edp_fast_boot_optimization) {
+		core_dc->apply_edp_fast_boot_optimization = false;
+		return;
+	}
+
+	status = enable_link(state, pipe_ctx);
 
 	if (status != DC_OK) {
 			dm_logger_write(pipe_ctx->stream->ctx->logger,
