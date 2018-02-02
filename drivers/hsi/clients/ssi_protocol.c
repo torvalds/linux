@@ -993,8 +993,8 @@ static int ssip_pn_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto inc_dropped;
 
 	/*
-	 * Modem sends Phonet messages over SSI with its own endianess...
-	 * Assume that modem has the same endianess as we do.
+	 * Modem sends Phonet messages over SSI with its own endianness.
+	 * Assume that modem has the same endianness as we do.
 	 */
 	if (skb_cow_head(skb, 0))
 		goto drop;
