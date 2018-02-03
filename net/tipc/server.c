@@ -313,6 +313,7 @@ static int tipc_accept_from_sock(struct tipc_conn *con)
 	newcon->usr_data = s->tipc_conn_new(newcon->conid);
 	if (!newcon->usr_data) {
 		sock_release(newsock);
+		conn_put(newcon);
 		return -ENOMEM;
 	}
 

@@ -2143,13 +2143,6 @@ static int super_load(struct md_rdev *rdev, struct md_rdev *refdev)
 	struct dm_raid_superblock *refsb;
 	uint64_t events_sb, events_refsb;
 
-	rdev->sb_start = 0;
-	rdev->sb_size = bdev_logical_block_size(rdev->meta_bdev);
-	if (rdev->sb_size < sizeof(*sb) || rdev->sb_size > PAGE_SIZE) {
-		DMERR("superblock size of a logical block is no longer valid");
-		return -EINVAL;
-	}
-
 	r = read_disk_sb(rdev, rdev->sb_size, false);
 	if (r)
 		return r;
@@ -2494,6 +2487,17 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 		if (test_bit(Journal, &rdev->flags))
 			continue;
 
+		if (!rdev->meta_bdev)
+			continue;
+
+		/* Set superblock offset/size for metadata device. */
+		rdev->sb_start = 0;
+		rdev->sb_size = bdev_logical_block_size(rdev->meta_bdev);
+		if (rdev->sb_size < sizeof(struct dm_raid_superblock) || rdev->sb_size > PAGE_SIZE) {
+			DMERR("superblock size of a logical block is no longer valid");
+			return -EINVAL;
+		}
+
 		/*
 		 * Skipping super_load due to CTR_FLAG_SYNC will cause
 		 * the array to undergo initialization again as
@@ -2504,9 +2508,6 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 		 * that the "sync" directive is disallowed during the reshape.
 		 */
 		if (test_bit(__CTR_FLAG_SYNC, &rs->ctr_flags))
-			continue;
-
-		if (!rdev->meta_bdev)
 			continue;
 
 		r = super_load(rdev, freshest);
