@@ -866,7 +866,8 @@ static bool vc4_dsi_encoder_mode_fixup(struct drm_encoder *encoder,
 	adjusted_mode->clock = pixel_clock_hz / 1000 + 1;
 
 	/* Given the new pixel clock, adjust HFP to keep vrefresh the same. */
-	adjusted_mode->htotal = pixel_clock_hz / (mode->vrefresh * mode->vtotal);
+	adjusted_mode->htotal = adjusted_mode->clock * mode->htotal /
+				mode->clock;
 	adjusted_mode->hsync_end += adjusted_mode->htotal - mode->htotal;
 	adjusted_mode->hsync_start += adjusted_mode->htotal - mode->htotal;
 

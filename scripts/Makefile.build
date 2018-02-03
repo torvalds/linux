@@ -259,7 +259,7 @@ ifneq ($(SKIP_STACK_VALIDATION),1)
 
 __objtool_obj := $(objtree)/tools/objtool/objtool
 
-objtool_args = $(if $(CONFIG_ORC_UNWINDER),orc generate,check)
+objtool_args = $(if $(CONFIG_UNWINDER_ORC),orc generate,check)
 
 ifndef CONFIG_FRAME_POINTER
 objtool_args += --no-fp

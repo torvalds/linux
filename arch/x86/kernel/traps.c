@@ -141,8 +141,7 @@ void ist_begin_non_atomic(struct pt_regs *regs)
 	 * will catch asm bugs and any attempt to use ist_preempt_enable
 	 * from double_fault.
 	 */
-	BUG_ON((unsigned long)(current_top_of_stack() -
-			       current_stack_pointer) >= THREAD_SIZE);
+	BUG_ON(!on_thread_stack());
 
 	preempt_enable_no_resched();
 }
@@ -349,9 +348,15 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 
 	/*
 	 * If IRET takes a non-IST fault on the espfix64 stack, then we
-	 * end up promoting it to a doublefault.  In that case, modify
-	 * the stack to make it look like we just entered the #GP
-	 * handler from user space, similar to bad_iret.
+	 * end up promoting it to a doublefault.  In that case, take
+	 * advantage of the fact that we're not using the normal (TSS.sp0)
+	 * stack right now.  We can write a fake #GP(0) frame at TSS.sp0
+	 * and then modify our own IRET frame so that, when we return,
+	 * we land directly at the #GP(0) vector with the stack already
+	 * set up according to its expectations.
+	 *
+	 * The net result is that our #GP handler will think that we
+	 * entered from usermode with the bad user context.
 	 *
 	 * No need for ist_enter here because we don't use RCU.
 	 */
@@ -359,13 +364,26 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 		regs->cs == __KERNEL_CS &&
 		regs->ip == (unsigned long)native_irq_return_iret)
 	{
-		struct pt_regs *normal_regs = task_pt_regs(current);
+		struct pt_regs *gpregs = (struct pt_regs *)this_cpu_read(cpu_tss_rw.x86_tss.sp0) - 1;
 
-		/* Fake a #GP(0) from userspace. */
-		memmove(&normal_regs->ip, (void *)regs->sp, 5*8);
-		normal_regs->orig_ax = 0;  /* Missing (lost) #GP error code */
+		/*
+		 * regs->sp points to the failing IRET frame on the
+		 * ESPFIX64 stack.  Copy it to the entry stack.  This fills
+		 * in gpregs->ss through gpregs->ip.
+		 *
+		 */
+		memmove(&gpregs->ip, (void *)regs->sp, 5*8);
+		gpregs->orig_ax = 0;  /* Missing (lost) #GP error code */
+
+		/*
+		 * Adjust our frame so that we return straight to the #GP
+		 * vector with the expected RSP value.  This is safe because
+		 * we won't enable interupts or schedule before we invoke
+		 * general_protection, so nothing will clobber the stack
+		 * frame we just set up.
+		 */
 		regs->ip = (unsigned long)general_protection;
-		regs->sp = (unsigned long)&normal_regs->orig_ax;
+		regs->sp = (unsigned long)&gpregs->orig_ax;
 
 		return;
 	}
@@ -390,7 +408,7 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 	 *
 	 *   Processors update CR2 whenever a page fault is detected. If a
 	 *   second page fault occurs while an earlier page fault is being
-	 *   deliv- ered, the faulting linear address of the second fault will
+	 *   delivered, the faulting linear address of the second fault will
 	 *   overwrite the contents of CR2 (replacing the previous
 	 *   address). These updates to CR2 occur even if the page fault
 	 *   results in a double fault or occurs during the delivery of a
@@ -601,14 +619,15 @@ NOKPROBE_SYMBOL(do_int3);
 
 #ifdef CONFIG_X86_64
 /*
- * Help handler running on IST stack to switch off the IST stack if the
- * interrupted code was in user mode. The actual stack switch is done in
- * entry_64.S
+ * Help handler running on a per-cpu (IST or entry trampoline) stack
+ * to switch to the normal thread stack if the interrupted code was in
+ * user mode. The actual stack switch is done in entry_64.S
  */
 asmlinkage __visible notrace struct pt_regs *sync_regs(struct pt_regs *eregs)
 {
-	struct pt_regs *regs = task_pt_regs(current);
-	*regs = *eregs;
+	struct pt_regs *regs = (struct pt_regs *)this_cpu_read(cpu_current_top_of_stack) - 1;
+	if (regs != eregs)
+		*regs = *eregs;
 	return regs;
 }
 NOKPROBE_SYMBOL(sync_regs);
@@ -624,13 +643,13 @@ struct bad_iret_stack *fixup_bad_iret(struct bad_iret_stack *s)
 	/*
 	 * This is called from entry_64.S early in handling a fault
 	 * caused by a bad iret to user mode.  To handle the fault
-	 * correctly, we want move our stack frame to task_pt_regs
-	 * and we want to pretend that the exception came from the
-	 * iret target.
+	 * correctly, we want to move our stack frame to where it would
+	 * be had we entered directly on the entry stack (rather than
+	 * just below the IRET frame) and we want to pretend that the
+	 * exception came from the IRET target.
 	 */
 	struct bad_iret_stack *new_stack =
-		container_of(task_pt_regs(current),
-			     struct bad_iret_stack, regs);
+		(struct bad_iret_stack *)this_cpu_read(cpu_tss_rw.x86_tss.sp0) - 1;
 
 	/* Copy the IRET target to the new stack. */
 	memmove(&new_stack->regs.ip, (void *)s->regs.sp, 5*8);
@@ -795,14 +814,6 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	debug_stack_usage_dec();
 
 exit:
-#if defined(CONFIG_X86_32)
-	/*
-	 * This is the most likely code path that involves non-trivial use
-	 * of the SYSENTER stack.  Check that we haven't overrun it.
-	 */
-	WARN(this_cpu_read(cpu_tss.SYSENTER_stack_canary) != STACK_END_MAGIC,
-	     "Overran or corrupted SYSENTER stack\n");
-#endif
 	ist_exit(regs);
 }
 NOKPROBE_SYMBOL(do_debug);
@@ -929,6 +940,9 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 
 void __init trap_init(void)
 {
+	/* Init cpu_entry_area before IST entries are set up */
+	setup_cpu_entry_areas();
+
 	idt_setup_traps();
 
 	/*

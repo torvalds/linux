@@ -47,13 +47,8 @@ void foo(void)
 	BLANK();
 
 	/* Offset from the sysenter stack to tss.sp0 */
-	DEFINE(TSS_sysenter_sp0, offsetof(struct tss_struct, x86_tss.sp0) -
-	       offsetofend(struct tss_struct, SYSENTER_stack));
-
-	/* Offset from cpu_tss to SYSENTER_stack */
-	OFFSET(CPU_TSS_SYSENTER_stack, tss_struct, SYSENTER_stack);
-	/* Size of SYSENTER_stack */
-	DEFINE(SIZEOF_SYSENTER_stack, sizeof(((struct tss_struct *)0)->SYSENTER_stack));
+	DEFINE(TSS_sysenter_sp0, offsetof(struct cpu_entry_area, tss.x86_tss.sp0) -
+	       offsetofend(struct cpu_entry_area, SYSENTER_stack_page.stack));
 
 #ifdef CONFIG_CC_STACKPROTECTOR
 	BLANK();

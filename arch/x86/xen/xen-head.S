@@ -10,6 +10,7 @@
 #include <asm/boot.h>
 #include <asm/asm.h>
 #include <asm/page_types.h>
+#include <asm/unwind_hints.h>
 
 #include <xen/interface/elfnote.h>
 #include <xen/interface/features.h>
@@ -20,6 +21,7 @@
 #ifdef CONFIG_XEN_PV
 	__INIT
 ENTRY(startup_xen)
+	UNWIND_HINT_EMPTY
 	cld
 
 	/* Clear .bss */
@@ -34,21 +36,24 @@ ENTRY(startup_xen)
 	mov $init_thread_union+THREAD_SIZE, %_ASM_SP
 
 	jmp xen_start_kernel
-
+END(startup_xen)
 	__FINIT
 #endif
 
 .pushsection .text
 	.balign PAGE_SIZE
 ENTRY(hypercall_page)
-	.skip PAGE_SIZE
+	.rept (PAGE_SIZE / 32)
+		UNWIND_HINT_EMPTY
+		.skip 32
+	.endr
 
 #define HYPERCALL(n) \
 	.equ xen_hypercall_##n, hypercall_page + __HYPERVISOR_##n * 32; \
 	.type xen_hypercall_##n, @function; .size xen_hypercall_##n, 32
 #include <asm/xen-hypercalls.h>
 #undef HYPERCALL
-
+END(hypercall_page)
 .popsection
 
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz "linux")

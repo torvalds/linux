@@ -404,6 +404,8 @@ void *rxe_alloc(struct rxe_pool *pool)
 	elem = kmem_cache_zalloc(pool_cache(pool),
 				 (pool->flags & RXE_POOL_ATOMIC) ?
 				 GFP_ATOMIC : GFP_KERNEL);
+	if (!elem)
+		return NULL;
 
 	elem->pool = pool;
 	kref_init(&elem->ref_cnt);

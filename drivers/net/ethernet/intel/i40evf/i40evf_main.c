@@ -546,6 +546,7 @@ i40evf_request_traffic_irqs(struct i40evf_adapter *adapter, char *basename)
 	unsigned int vector, q_vectors;
 	unsigned int rx_int_idx = 0, tx_int_idx = 0;
 	int irq_num, err;
+	int cpu;
 
 	i40evf_irq_disable(adapter);
 	/* Decrement for Other and TCP Timer vectors */
@@ -584,10 +585,12 @@ i40evf_request_traffic_irqs(struct i40evf_adapter *adapter, char *basename)
 		q_vector->affinity_notify.release =
 						   i40evf_irq_affinity_release;
 		irq_set_affinity_notifier(irq_num, &q_vector->affinity_notify);
-		/* get_cpu_mask returns a static constant mask with
-		 * a permanent lifetime so it's ok to use here.
+		/* Spread the IRQ affinity hints across online CPUs. Note that
+		 * get_cpu_mask returns a mask with a permanent lifetime so
+		 * it's safe to use as a hint for irq_set_affinity_hint.
 		 */
-		irq_set_affinity_hint(irq_num, get_cpu_mask(q_vector->v_idx));
+		cpu = cpumask_local_spread(q_vector->v_idx, -1);
+		irq_set_affinity_hint(irq_num, get_cpu_mask(cpu));
 	}
 
 	return 0;
