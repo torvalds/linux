@@ -20,7 +20,6 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/mutex.h>
-#include <linux/pinctrl/devinfo.h>
 #include <linux/pm.h>
 #include <linux/atomic.h>
 #include <linux/ratelimit.h>
@@ -41,6 +40,7 @@ struct fwnode_handle;
 struct iommu_ops;
 struct iommu_group;
 struct iommu_fwspec;
+struct dev_pin_info;
 
 struct bus_attribute {
 	struct attribute	attr;
