@@ -38,7 +38,8 @@
  *	  6) Support low-overhead kernel-based filtering to minimize the
  *	     information that must be passed to user-space.
  *
- * Example user-space utilities: http://people.redhat.com/sgrubb/audit/
+ * Audit userspace, documentation, tests, and bug/issue trackers:
+ * 	https://github.com/linux-audit
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
