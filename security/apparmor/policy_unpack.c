@@ -164,8 +164,9 @@ static void do_loaddata_free(struct work_struct *work)
 	}
 
 	kzfree(d->hash);
-	kfree(d->name);
-	kvfree(d);
+	kzfree(d->name);
+	kvfree(d->data);
+	kzfree(d);
 }
 
 void aa_loaddata_kref(struct kref *kref)
@@ -180,10 +181,16 @@ void aa_loaddata_kref(struct kref *kref)
 
 struct aa_loaddata *aa_loaddata_alloc(size_t size)
 {
-	struct aa_loaddata *d = kvzalloc(sizeof(*d) + size, GFP_KERNEL);
+	struct aa_loaddata *d;
 
+	d = kzalloc(sizeof(*d), GFP_KERNEL);
 	if (d == NULL)
 		return ERR_PTR(-ENOMEM);
+	d->data = kvzalloc(size, GFP_KERNEL);
+	if (!d->data) {
+		kfree(d);
+		return ERR_PTR(-ENOMEM);
+	}
 	kref_init(&d->count);
 	INIT_LIST_HEAD(&d->list);
 
