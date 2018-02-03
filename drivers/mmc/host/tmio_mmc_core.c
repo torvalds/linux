@@ -1113,8 +1113,11 @@ static int tmio_mmc_init_ocr(struct tmio_mmc_host *host)
 {
 	struct tmio_mmc_data *pdata = host->pdata;
 	struct mmc_host *mmc = host->mmc;
+	int err;
 
-	mmc_regulator_get_supply(mmc);
+	err = mmc_regulator_get_supply(mmc);
+	if (err)
+		return err;
 
 	/* use ocr_mask if no regulator */
 	if (!mmc->ocr_avail)

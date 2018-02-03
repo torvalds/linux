@@ -113,6 +113,7 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 		if (!perf_mem_events[j].supported) {
 			pr_err("failed: event '%s' not supported\n",
 			       perf_mem_events__name(j));
+			free(rec_argv);
 			return -1;
 		}
 

@@ -625,7 +625,7 @@ re_read:
 		err = read_sb_page(bitmap->mddev,
 				   offset,
 				   sb_page,
-				   0, PAGE_SIZE);
+				   0, sizeof(bitmap_super_t));
 	}
 	if (err)
 		return err;
@@ -1816,6 +1816,12 @@ struct bitmap *bitmap_create(struct mddev *mddev, int slot)
 
 	BUG_ON(file && mddev->bitmap_info.offset);
 
+	if (test_bit(MD_HAS_JOURNAL, &mddev->flags)) {
+		pr_notice("md/raid:%s: array with journal cannot have bitmap\n",
+			  mdname(mddev));
+		return ERR_PTR(-EBUSY);
+	}
+
 	bitmap = kzalloc(sizeof(*bitmap), GFP_KERNEL);
 	if (!bitmap)
 		return ERR_PTR(-ENOMEM);
@@ -2123,7 +2129,7 @@ int bitmap_resize(struct bitmap *bitmap, sector_t blocks,
 	if (store.sb_page && bitmap->storage.sb_page)
 		memcpy(page_address(store.sb_page),
 		       page_address(bitmap->storage.sb_page),
-		       PAGE_SIZE);
+		       sizeof(bitmap_super_t));
 	bitmap_file_unmap(&bitmap->storage);
 	bitmap->storage = store;
 

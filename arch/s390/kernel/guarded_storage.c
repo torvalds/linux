@@ -14,9 +14,11 @@
 
 void exit_thread_gs(void)
 {
+	preempt_disable();
 	kfree(current->thread.gs_cb);
 	kfree(current->thread.gs_bc_cb);
 	current->thread.gs_cb = current->thread.gs_bc_cb = NULL;
+	preempt_enable();
 }
 
 static int gs_enable(void)

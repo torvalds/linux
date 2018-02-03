@@ -335,6 +335,13 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 						    struct fsnotify_mark, obj_list);
 			vfsmount_group = vfsmount_mark->group;
 		}
+		/*
+		 * Need to protect both marks against freeing so that we can
+		 * continue iteration from this place, regardless of which mark
+		 * we actually happen to send an event for.
+		 */
+		iter_info.inode_mark = inode_mark;
+		iter_info.vfsmount_mark = vfsmount_mark;
 
 		if (inode_group && vfsmount_group) {
 			int cmp = fsnotify_compare_groups(inode_group,
@@ -347,9 +354,6 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 				vfsmount_mark = NULL;
 			}
 		}
-
-		iter_info.inode_mark = inode_mark;
-		iter_info.vfsmount_mark = vfsmount_mark;
 
 		ret = send_to_group(to_tell, inode_mark, vfsmount_mark, mask,
 				    data, data_is, cookie, file_name,

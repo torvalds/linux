@@ -189,7 +189,7 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_err(&port->dev,
 			"%s - failed submitting interrupt in urb, error code=%d\n",
 			__func__, result);
-		goto exit;
+		return result;
 	}
 
 	/* Send activate cmd to device */
@@ -198,9 +198,14 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_err(&port->dev,
 			"%s - failed to configure device, error code=%d\n",
 			__func__, result);
-		goto exit;
+		goto err_kill_urb;
 	}
-exit:
+
+	return 0;
+
+err_kill_urb:
+	usb_kill_urb(port->interrupt_in_urb);
+
 	return result;
 }
 

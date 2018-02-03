@@ -311,8 +311,8 @@ u32 drm_crtc_accurate_vblank_count(struct drm_crtc *crtc)
 	u32 vblank;
 	unsigned long flags;
 
-	WARN(!dev->driver->get_vblank_timestamp,
-	     "This function requires support for accurate vblank timestamps.");
+	WARN_ONCE(drm_debug & DRM_UT_VBL && !dev->driver->get_vblank_timestamp,
+		  "This function requires support for accurate vblank timestamps.");
 
 	spin_lock_irqsave(&dev->vblank_time_lock, flags);
 
@@ -869,7 +869,7 @@ void drm_crtc_arm_vblank_event(struct drm_crtc *crtc,
 	assert_spin_locked(&dev->event_lock);
 
 	e->pipe = pipe;
-	e->event.sequence = drm_vblank_count(dev, pipe);
+	e->event.sequence = drm_crtc_accurate_vblank_count(crtc) + 1;
 	e->event.crtc_id = crtc->base.id;
 	list_add_tail(&e->base.link, &dev->vblank_event_list);
 }

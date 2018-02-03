@@ -410,11 +410,8 @@ int fscrypt_initialize(unsigned int cop_flags)
 {
 	int i, res = -ENOMEM;
 
-	/*
-	 * No need to allocate a bounce page pool if there already is one or
-	 * this FS won't use it.
-	 */
-	if (cop_flags & FS_CFLG_OWN_PAGES || fscrypt_bounce_page_pool)
+	/* No need to allocate a bounce page pool if this FS won't use it. */
+	if (cop_flags & FS_CFLG_OWN_PAGES)
 		return 0;
 
 	mutex_lock(&fscrypt_init_mutex);

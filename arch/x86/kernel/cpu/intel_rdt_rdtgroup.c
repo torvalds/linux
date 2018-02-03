@@ -1081,6 +1081,7 @@ static struct dentry *rdt_mount(struct file_system_type *fs_type,
 	struct dentry *dentry;
 	int ret;
 
+	cpus_read_lock();
 	mutex_lock(&rdtgroup_mutex);
 	/*
 	 * resctrl file system can only be mounted once.
@@ -1130,12 +1131,12 @@ static struct dentry *rdt_mount(struct file_system_type *fs_type,
 		goto out_mondata;
 
 	if (rdt_alloc_capable)
-		static_branch_enable(&rdt_alloc_enable_key);
+		static_branch_enable_cpuslocked(&rdt_alloc_enable_key);
 	if (rdt_mon_capable)
-		static_branch_enable(&rdt_mon_enable_key);
+		static_branch_enable_cpuslocked(&rdt_mon_enable_key);
 
 	if (rdt_alloc_capable || rdt_mon_capable)
-		static_branch_enable(&rdt_enable_key);
+		static_branch_enable_cpuslocked(&rdt_enable_key);
 
 	if (is_mbm_enabled()) {
 		r = &rdt_resources_all[RDT_RESOURCE_L3];
@@ -1157,6 +1158,7 @@ out_cdp:
 	cdp_disable();
 out:
 	mutex_unlock(&rdtgroup_mutex);
+	cpus_read_unlock();
 
 	return dentry;
 }

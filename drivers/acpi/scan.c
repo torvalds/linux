@@ -1024,6 +1024,9 @@ static void acpi_device_get_busid(struct acpi_device *device)
 	case ACPI_BUS_TYPE_SLEEP_BUTTON:
 		strcpy(device->pnp.bus_id, "SLPF");
 		break;
+	case ACPI_BUS_TYPE_ECDT_EC:
+		strcpy(device->pnp.bus_id, "ECDT");
+		break;
 	default:
 		acpi_get_name(device->handle, ACPI_SINGLE_NAME, &buffer);
 		/* Clean up trailing underscores (if any) */
@@ -1303,6 +1306,9 @@ static void acpi_set_pnp_ids(acpi_handle handle, struct acpi_device_pnp *pnp,
 		break;
 	case ACPI_BUS_TYPE_SLEEP_BUTTON:
 		acpi_add_id(pnp, ACPI_BUTTON_HID_SLEEPF);
+		break;
+	case ACPI_BUS_TYPE_ECDT_EC:
+		acpi_add_id(pnp, ACPI_ECDT_HID);
 		break;
 	}
 }
@@ -2048,6 +2054,21 @@ void acpi_bus_trim(struct acpi_device *adev)
 	acpi_device_clear_enumerated(adev);
 }
 EXPORT_SYMBOL_GPL(acpi_bus_trim);
+
+int acpi_bus_register_early_device(int type)
+{
+	struct acpi_device *device = NULL;
+	int result;
+
+	result = acpi_add_single_object(&device, NULL,
+					type, ACPI_STA_DEFAULT);
+	if (result)
+		return result;
+
+	device->flags.match_driver = true;
+	return device_attach(&device->dev);
+}
+EXPORT_SYMBOL_GPL(acpi_bus_register_early_device);
 
 static int acpi_bus_scan_fixed(void)
 {

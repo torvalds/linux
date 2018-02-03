@@ -1201,6 +1201,18 @@ static void background_work_end(struct cache *cache)
 
 /*----------------------------------------------------------------*/
 
+static bool bio_writes_complete_block(struct cache *cache, struct bio *bio)
+{
+	return (bio_data_dir(bio) == WRITE) &&
+		(bio->bi_iter.bi_size == (cache->sectors_per_block << SECTOR_SHIFT));
+}
+
+static bool optimisable_bio(struct cache *cache, struct bio *bio, dm_oblock_t block)
+{
+	return writeback_mode(&cache->features) &&
+		(is_discarded_oblock(cache, block) || bio_writes_complete_block(cache, bio));
+}
+
 static void quiesce(struct dm_cache_migration *mg,
 		    void (*continuation)(struct work_struct *))
 {
@@ -1474,12 +1486,50 @@ static void mg_upgrade_lock(struct work_struct *ws)
 	}
 }
 
+static void mg_full_copy(struct work_struct *ws)
+{
+	struct dm_cache_migration *mg = ws_to_mg(ws);
+	struct cache *cache = mg->cache;
+	struct policy_work *op = mg->op;
+	bool is_policy_promote = (op->op == POLICY_PROMOTE);
+
+	if ((!is_policy_promote && !is_dirty(cache, op->cblock)) ||
+	    is_discarded_oblock(cache, op->oblock)) {
+		mg_upgrade_lock(ws);
+		return;
+	}
+
+	init_continuation(&mg->k, mg_upgrade_lock);
+
+	if (copy(mg, is_policy_promote)) {
+		DMERR_LIMIT("%s: migration copy failed", cache_device_name(cache));
+		mg->k.input = BLK_STS_IOERR;
+		mg_complete(mg, false);
+	}
+}
+
 static void mg_copy(struct work_struct *ws)
 {
-	int r;
 	struct dm_cache_migration *mg = ws_to_mg(ws);
 
 	if (mg->overwrite_bio) {
+		/*
+		 * No exclusive lock was held when we last checked if the bio
+		 * was optimisable.  So we have to check again in case things
+		 * have changed (eg, the block may no longer be discarded).
+		 */
+		if (!optimisable_bio(mg->cache, mg->overwrite_bio, mg->op->oblock)) {
+			/*
+			 * Fallback to a real full copy after doing some tidying up.
+			 */
+			bool rb = bio_detain_shared(mg->cache, mg->op->oblock, mg->overwrite_bio);
+			BUG_ON(rb); /* An exclussive lock must _not_ be held for this block */
+			mg->overwrite_bio = NULL;
+			inc_io_migrations(mg->cache);
+			mg_full_copy(ws);
+			return;
+		}
+
 		/*
 		 * It's safe to do this here, even though it's new data
 		 * because all IO has been locked out of the block.
@@ -1489,26 +1539,8 @@ static void mg_copy(struct work_struct *ws)
 		 */
 		overwrite(mg, mg_update_metadata_after_copy);
 
-	} else {
-		struct cache *cache = mg->cache;
-		struct policy_work *op = mg->op;
-		bool is_policy_promote = (op->op == POLICY_PROMOTE);
-
-		if ((!is_policy_promote && !is_dirty(cache, op->cblock)) ||
-		    is_discarded_oblock(cache, op->oblock)) {
-			mg_upgrade_lock(ws);
-			return;
-		}
-
-		init_continuation(&mg->k, mg_upgrade_lock);
-
-		r = copy(mg, is_policy_promote);
-		if (r) {
-			DMERR_LIMIT("%s: migration copy failed", cache_device_name(cache));
-			mg->k.input = BLK_STS_IOERR;
-			mg_complete(mg, false);
-		}
-	}
+	} else
+		mg_full_copy(ws);
 }
 
 static int mg_lock_writes(struct dm_cache_migration *mg)
@@ -1747,18 +1779,6 @@ static void inc_miss_counter(struct cache *cache, struct bio *bio)
 }
 
 /*----------------------------------------------------------------*/
-
-static bool bio_writes_complete_block(struct cache *cache, struct bio *bio)
-{
-	return (bio_data_dir(bio) == WRITE) &&
-		(bio->bi_iter.bi_size == (cache->sectors_per_block << SECTOR_SHIFT));
-}
-
-static bool optimisable_bio(struct cache *cache, struct bio *bio, dm_oblock_t block)
-{
-	return writeback_mode(&cache->features) &&
-		(is_discarded_oblock(cache, block) || bio_writes_complete_block(cache, bio));
-}
 
 static int map_bio(struct cache *cache, struct bio *bio, dm_oblock_t block,
 		   bool *commit_needed)

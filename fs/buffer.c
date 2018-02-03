@@ -3055,8 +3055,16 @@ void guard_bio_eod(int op, struct bio *bio)
 	sector_t maxsector;
 	struct bio_vec *bvec = &bio->bi_io_vec[bio->bi_vcnt - 1];
 	unsigned truncated_bytes;
+	struct hd_struct *part;
 
-	maxsector = get_capacity(bio->bi_disk);
+	rcu_read_lock();
+	part = __disk_get_part(bio->bi_disk, bio->bi_partno);
+	if (part)
+		maxsector = part_nr_sects_read(part);
+	else
+		maxsector = get_capacity(bio->bi_disk);
+	rcu_read_unlock();
+
 	if (!maxsector)
 		return;
 

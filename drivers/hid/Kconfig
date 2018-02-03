@@ -230,7 +230,7 @@ config HID_CMEDIA
 
 config HID_CP2112
 	tristate "Silicon Labs CP2112 HID USB-to-SMBus Bridge support"
-	depends on USB_HID && I2C && GPIOLIB
+	depends on USB_HID && HIDRAW && I2C && GPIOLIB
 	select GPIOLIB_IRQCHIP
 	---help---
 	Support for Silicon Labs CP2112 HID USB to SMBus Master Bridge.

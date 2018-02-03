@@ -365,7 +365,8 @@ static ssize_t at24_eeprom_read_mac(struct at24_data *at24, char *buf,
 	memset(msg, 0, sizeof(msg));
 	msg[0].addr = client->addr;
 	msg[0].buf = addrbuf;
-	addrbuf[0] = 0x90 + offset;
+	/* EUI-48 starts from 0x9a, EUI-64 from 0x98 */
+	addrbuf[0] = 0xa0 - at24->chip.byte_len + offset;
 	msg[0].len = 1;
 	msg[1].addr = client->addr;
 	msg[1].flags = I2C_M_RD;
@@ -506,6 +507,9 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 	if (unlikely(!count))
 		return count;
 
+	if (off + count > at24->chip.byte_len)
+		return -EINVAL;
+
 	/*
 	 * Read data from chip, protecting against concurrent updates
 	 * from this host, but not from other I2C masters.
@@ -536,6 +540,9 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 	char *buf = val;
 
 	if (unlikely(!count))
+		return -EINVAL;
+
+	if (off + count > at24->chip.byte_len)
 		return -EINVAL;
 
 	/*
@@ -630,6 +637,16 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (!is_power_of_2(chip.page_size))
 		dev_warn(&client->dev,
 			"page_size looks suspicious (no power of 2)!\n");
+
+	/*
+	 * REVISIT: the size of the EUI-48 byte array is 6 in at24mac402, while
+	 * the call to ilog2() in AT24_DEVICE_MAGIC() rounds it down to 4.
+	 *
+	 * Eventually we'll get rid of the magic values altoghether in favor of
+	 * real structs, but for now just manually set the right size.
+	 */
+	if (chip.flags & AT24_FLAG_MAC && chip.byte_len == 4)
+		chip.byte_len = 6;
 
 	/* Use I2C operations unless we're stuck with SMBus extensions. */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {

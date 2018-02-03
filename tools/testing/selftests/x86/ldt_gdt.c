@@ -115,7 +115,15 @@ static void check_valid_segment(uint16_t index, int ldt,
 		return;
 	}
 
-	if (ar != expected_ar) {
+	/* The SDM says "bits 19:16 are undefined".  Thanks. */
+	ar &= ~0xF0000;
+
+	/*
+	 * NB: Different Linux versions do different things with the
+	 * accessed bit in set_thread_area().
+	 */
+	if (ar != expected_ar &&
+	    (ldt || ar != (expected_ar | AR_ACCESSED))) {
 		printf("[FAIL]\t%s entry %hu has AR 0x%08X but expected 0x%08X\n",
 		       (ldt ? "LDT" : "GDT"), index, ar, expected_ar);
 		nerrs++;
@@ -367,9 +375,24 @@ static void do_simple_tests(void)
 	install_invalid(&desc, false);
 
 	desc.seg_not_present = 0;
-	desc.read_exec_only = 0;
 	desc.seg_32bit = 1;
+	desc.read_exec_only = 0;
+	desc.limit = 0xfffff;
+
 	install_valid(&desc, AR_DPL3 | AR_TYPE_RWDATA | AR_S | AR_P | AR_DB);
+
+	desc.limit_in_pages = 1;
+
+	install_valid(&desc, AR_DPL3 | AR_TYPE_RWDATA | AR_S | AR_P | AR_DB | AR_G);
+	desc.read_exec_only = 1;
+	install_valid(&desc, AR_DPL3 | AR_TYPE_RODATA | AR_S | AR_P | AR_DB | AR_G);
+	desc.contents = 1;
+	desc.read_exec_only = 0;
+	install_valid(&desc, AR_DPL3 | AR_TYPE_RWDATA_EXPDOWN | AR_S | AR_P | AR_DB | AR_G);
+	desc.read_exec_only = 1;
+	install_valid(&desc, AR_DPL3 | AR_TYPE_RODATA_EXPDOWN | AR_S | AR_P | AR_DB | AR_G);
+
+	desc.limit = 0;
 	install_invalid(&desc, true);
 }
 

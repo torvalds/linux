@@ -1830,6 +1830,9 @@ static void kvm_setup_pvclock_page(struct kvm_vcpu *v)
 	 */
 	BUILD_BUG_ON(offsetof(struct pvclock_vcpu_time_info, version) != 0);
 
+	if (guest_hv_clock.version & 1)
+		++guest_hv_clock.version;  /* first time write, random junk */
+
 	vcpu->hv_clock.version = guest_hv_clock.version + 1;
 	kvm_write_guest_cached(v->kvm, &vcpu->pv_time,
 				&vcpu->hv_clock,
@@ -5704,6 +5707,8 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 				return EMULATE_FAIL;
 			if (reexecute_instruction(vcpu, cr2, write_fault_to_spt,
 						emulation_type))
+				return EMULATE_DONE;
+			if (ctxt->have_exception && inject_emulated_exception(vcpu))
 				return EMULATE_DONE;
 			if (emulation_type & EMULTYPE_SKIP)
 				return EMULATE_FAIL;

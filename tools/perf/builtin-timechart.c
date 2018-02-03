@@ -1732,8 +1732,10 @@ static int timechart__io_record(int argc, const char **argv)
 	if (rec_argv == NULL)
 		return -ENOMEM;
 
-	if (asprintf(&filter, "common_pid != %d", getpid()) < 0)
+	if (asprintf(&filter, "common_pid != %d", getpid()) < 0) {
+		free(rec_argv);
 		return -ENOMEM;
+	}
 
 	p = rec_argv;
 	for (i = 0; i < common_args_nr; i++)

@@ -13074,7 +13074,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 	first_sdma = last_general;
 	last_sdma = first_sdma + dd->num_sdma;
 	first_rx = last_sdma;
-	last_rx = first_rx + dd->n_krcv_queues + HFI1_NUM_VNIC_CTXT;
+	last_rx = first_rx + dd->n_krcv_queues + dd->num_vnic_contexts;
 
 	/* VNIC MSIx interrupts get mapped when VNIC contexts are created */
 	dd->first_dyn_msix_idx = first_rx + dd->n_krcv_queues;
@@ -13294,8 +13294,9 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
 	 *		slow source, SDMACleanupDone)
 	 *	N interrupts - one per used SDMA engine
 	 *	M interrupt - one per kernel receive context
+	 *	V interrupt - one for each VNIC context
 	 */
-	total = 1 + dd->num_sdma + dd->n_krcv_queues + HFI1_NUM_VNIC_CTXT;
+	total = 1 + dd->num_sdma + dd->n_krcv_queues + dd->num_vnic_contexts;
 
 	/* ask for MSI-X interrupts */
 	request = request_msix(dd, total);
@@ -13356,10 +13357,12 @@ fail:
  *                             in array of contexts
  *	freectxts  - number of free user contexts
  *	num_send_contexts - number of PIO send contexts being used
+ *	num_vnic_contexts - number of contexts reserved for VNIC
  */
 static int set_up_context_variables(struct hfi1_devdata *dd)
 {
 	unsigned long num_kernel_contexts;
+	u16 num_vnic_contexts = HFI1_NUM_VNIC_CTXT;
 	int total_contexts;
 	int ret;
 	unsigned ngroups;
@@ -13393,6 +13396,14 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 			   num_kernel_contexts);
 		num_kernel_contexts = dd->chip_send_contexts - num_vls - 1;
 	}
+
+	/* Accommodate VNIC contexts if possible */
+	if ((num_kernel_contexts + num_vnic_contexts) > dd->chip_rcv_contexts) {
+		dd_dev_err(dd, "No receive contexts available for VNIC\n");
+		num_vnic_contexts = 0;
+	}
+	total_contexts = num_kernel_contexts + num_vnic_contexts;
+
 	/*
 	 * User contexts:
 	 *	- default to 1 user context per real (non-HT) CPU core if
@@ -13402,19 +13413,16 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 		num_user_contexts =
 			cpumask_weight(&node_affinity.real_cpu_mask);
 
-	total_contexts = num_kernel_contexts + num_user_contexts;
-
 	/*
 	 * Adjust the counts given a global max.
 	 */
-	if (total_contexts > dd->chip_rcv_contexts) {
+	if (total_contexts + num_user_contexts > dd->chip_rcv_contexts) {
 		dd_dev_err(dd,
 			   "Reducing # user receive contexts to: %d, from %d\n",
-			   (int)(dd->chip_rcv_contexts - num_kernel_contexts),
+			   (int)(dd->chip_rcv_contexts - total_contexts),
 			   (int)num_user_contexts);
-		num_user_contexts = dd->chip_rcv_contexts - num_kernel_contexts;
 		/* recalculate */
-		total_contexts = num_kernel_contexts + num_user_contexts;
+		num_user_contexts = dd->chip_rcv_contexts - total_contexts;
 	}
 
 	/* each user context requires an entry in the RMT */
@@ -13427,25 +13435,24 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 			   user_rmt_reduced);
 		/* recalculate */
 		num_user_contexts = user_rmt_reduced;
-		total_contexts = num_kernel_contexts + num_user_contexts;
 	}
 
-	/* Accommodate VNIC contexts */
-	if ((total_contexts + HFI1_NUM_VNIC_CTXT) <= dd->chip_rcv_contexts)
-		total_contexts += HFI1_NUM_VNIC_CTXT;
+	total_contexts += num_user_contexts;
 
 	/* the first N are kernel contexts, the rest are user/vnic contexts */
 	dd->num_rcv_contexts = total_contexts;
 	dd->n_krcv_queues = num_kernel_contexts;
 	dd->first_dyn_alloc_ctxt = num_kernel_contexts;
+	dd->num_vnic_contexts = num_vnic_contexts;
 	dd->num_user_contexts = num_user_contexts;
 	dd->freectxts = num_user_contexts;
 	dd_dev_info(dd,
-		    "rcv contexts: chip %d, used %d (kernel %d, user %d)\n",
+		    "rcv contexts: chip %d, used %d (kernel %d, vnic %u, user %u)\n",
 		    (int)dd->chip_rcv_contexts,
 		    (int)dd->num_rcv_contexts,
 		    (int)dd->n_krcv_queues,
-		    (int)dd->num_rcv_contexts - dd->n_krcv_queues);
+		    dd->num_vnic_contexts,
+		    dd->num_user_contexts);
 
 	/*
 	 * Receive array allocation:
