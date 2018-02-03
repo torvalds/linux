@@ -210,12 +210,12 @@ static int btt_map_read(struct arena_info *arena, u32 lba, u32 *mapping,
 	return ret;
 }
 
-static int btt_log_read_pair(struct arena_info *arena, u32 lane,
-			struct log_entry *ent)
+static int btt_log_group_read(struct arena_info *arena, u32 lane,
+			struct log_group *log)
 {
 	return arena_read_bytes(arena,
-			arena->logoff + (2 * lane * LOG_ENT_SIZE), ent,
-			2 * LOG_ENT_SIZE, 0);
+			arena->logoff + (lane * LOG_GRP_SIZE), log,
+			LOG_GRP_SIZE, 0);
 }
 
 static struct dentry *debugfs_root;
@@ -255,6 +255,8 @@ static void arena_debugfs_init(struct arena_info *a, struct dentry *parent,
 	debugfs_create_x64("logoff", S_IRUGO, d, &a->logoff);
 	debugfs_create_x64("info2off", S_IRUGO, d, &a->info2off);
 	debugfs_create_x32("flags", S_IRUGO, d, &a->flags);
+	debugfs_create_u32("log_index_0", S_IRUGO, d, &a->log_index[0]);
+	debugfs_create_u32("log_index_1", S_IRUGO, d, &a->log_index[1]);
 }
 
 static void btt_debugfs_init(struct btt *btt)
@@ -273,6 +275,11 @@ static void btt_debugfs_init(struct btt *btt)
 	}
 }
 
+static u32 log_seq(struct log_group *log, int log_idx)
+{
+	return le32_to_cpu(log->ent[log_idx].seq);
+}
+
 /*
  * This function accepts two log entries, and uses the
  * sequence number to find the 'older' entry.
@@ -282,8 +289,10 @@ static void btt_debugfs_init(struct btt *btt)
  *
  * TODO The logic feels a bit kludge-y. make it better..
  */
-static int btt_log_get_old(struct log_entry *ent)
+static int btt_log_get_old(struct arena_info *a, struct log_group *log)
 {
+	int idx0 = a->log_index[0];
+	int idx1 = a->log_index[1];
 	int old;
 
 	/*
@@ -291,23 +300,23 @@ static int btt_log_get_old(struct log_entry *ent)
 	 * the next time, the following logic works out to put this
 	 * (next) entry into [1]
 	 */
-	if (ent[0].seq == 0) {
-		ent[0].seq = cpu_to_le32(1);
+	if (log_seq(log, idx0) == 0) {
+		log->ent[idx0].seq = cpu_to_le32(1);
 		return 0;
 	}
 
-	if (ent[0].seq == ent[1].seq)
+	if (log_seq(log, idx0) == log_seq(log, idx1))
 		return -EINVAL;
-	if (le32_to_cpu(ent[0].seq) + le32_to_cpu(ent[1].seq) > 5)
+	if (log_seq(log, idx0) + log_seq(log, idx1) > 5)
 		return -EINVAL;
 
-	if (le32_to_cpu(ent[0].seq) < le32_to_cpu(ent[1].seq)) {
-		if (le32_to_cpu(ent[1].seq) - le32_to_cpu(ent[0].seq) == 1)
+	if (log_seq(log, idx0) < log_seq(log, idx1)) {
+		if ((log_seq(log, idx1) - log_seq(log, idx0)) == 1)
 			old = 0;
 		else
 			old = 1;
 	} else {
-		if (le32_to_cpu(ent[0].seq) - le32_to_cpu(ent[1].seq) == 1)
+		if ((log_seq(log, idx0) - log_seq(log, idx1)) == 1)
 			old = 1;
 		else
 			old = 0;
@@ -327,17 +336,18 @@ static int btt_log_read(struct arena_info *arena, u32 lane,
 {
 	int ret;
 	int old_ent, ret_ent;
-	struct log_entry log[2];
+	struct log_group log;
 
-	ret = btt_log_read_pair(arena, lane, log);
+	ret = btt_log_group_read(arena, lane, &log);
 	if (ret)
 		return -EIO;
 
-	old_ent = btt_log_get_old(log);
+	old_ent = btt_log_get_old(arena, &log);
 	if (old_ent < 0 || old_ent > 1) {
 		dev_err(to_dev(arena),
 				"log corruption (%d): lane %d seq [%d, %d]\n",
-			old_ent, lane, log[0].seq, log[1].seq);
+				old_ent, lane, log.ent[arena->log_index[0]].seq,
+				log.ent[arena->log_index[1]].seq);
 		/* TODO set error state? */
 		return -EIO;
 	}
@@ -345,7 +355,7 @@ static int btt_log_read(struct arena_info *arena, u32 lane,
 	ret_ent = (old_flag ? old_ent : (1 - old_ent));
 
 	if (ent != NULL)
-		memcpy(ent, &log[ret_ent], LOG_ENT_SIZE);
+		memcpy(ent, &log.ent[arena->log_index[ret_ent]], LOG_ENT_SIZE);
 
 	return ret_ent;
 }
@@ -359,17 +369,13 @@ static int __btt_log_write(struct arena_info *arena, u32 lane,
 			u32 sub, struct log_entry *ent, unsigned long flags)
 {
 	int ret;
-	/*
-	 * Ignore the padding in log_entry for calculating log_half.
-	 * The entry is 'committed' when we write the sequence number,
-	 * and we want to ensure that that is the last thing written.
-	 * We don't bother writing the padding as that would be extra
-	 * media wear and write amplification
-	 */
-	unsigned int log_half = (LOG_ENT_SIZE - 2 * sizeof(u64)) / 2;
-	u64 ns_off = arena->logoff + (((2 * lane) + sub) * LOG_ENT_SIZE);
+	u32 group_slot = arena->log_index[sub];
+	unsigned int log_half = LOG_ENT_SIZE / 2;
 	void *src = ent;
+	u64 ns_off;
 
+	ns_off = arena->logoff + (lane * LOG_GRP_SIZE) +
+		(group_slot * LOG_ENT_SIZE);
 	/* split the 16B write into atomic, durable halves */
 	ret = arena_write_bytes(arena, ns_off, src, log_half, flags);
 	if (ret)
@@ -452,7 +458,7 @@ static int btt_log_init(struct arena_info *arena)
 {
 	size_t logsize = arena->info2off - arena->logoff;
 	size_t chunk_size = SZ_4K, offset = 0;
-	struct log_entry log;
+	struct log_entry ent;
 	void *zerobuf;
 	int ret;
 	u32 i;
@@ -484,11 +490,11 @@ static int btt_log_init(struct arena_info *arena)
 	}
 
 	for (i = 0; i < arena->nfree; i++) {
-		log.lba = cpu_to_le32(i);
-		log.old_map = cpu_to_le32(arena->external_nlba + i);
-		log.new_map = cpu_to_le32(arena->external_nlba + i);
-		log.seq = cpu_to_le32(LOG_SEQ_INIT);
-		ret = __btt_log_write(arena, i, 0, &log, 0);
+		ent.lba = cpu_to_le32(i);
+		ent.old_map = cpu_to_le32(arena->external_nlba + i);
+		ent.new_map = cpu_to_le32(arena->external_nlba + i);
+		ent.seq = cpu_to_le32(LOG_SEQ_INIT);
+		ret = __btt_log_write(arena, i, 0, &ent, 0);
 		if (ret)
 			goto free;
 	}
@@ -593,6 +599,123 @@ static int btt_freelist_init(struct arena_info *arena)
 	return 0;
 }
 
+static bool ent_is_padding(struct log_entry *ent)
+{
+	return (ent->lba == 0) && (ent->old_map == 0) && (ent->new_map == 0)
+		&& (ent->seq == 0);
+}
+
+/*
+ * Detecting valid log indices: We read a log group (see the comments in btt.h
+ * for a description of a 'log_group' and its 'slots'), and iterate over its
+ * four slots. We expect that a padding slot will be all-zeroes, and use this
+ * to detect a padding slot vs. an actual entry.
+ *
+ * If a log_group is in the initial state, i.e. hasn't been used since the
+ * creation of this BTT layout, it will have three of the four slots with
+ * zeroes. We skip over these log_groups for the detection of log_index. If
+ * all log_groups are in the initial state (i.e. the BTT has never been
+ * written to), it is safe to assume the 'new format' of log entries in slots
+ * (0, 1).
+ */
+static int log_set_indices(struct arena_info *arena)
+{
+	bool idx_set = false, initial_state = true;
+	int ret, log_index[2] = {-1, -1};
+	u32 i, j, next_idx = 0;
+	struct log_group log;
+	u32 pad_count = 0;
+
+	for (i = 0; i < arena->nfree; i++) {
+		ret = btt_log_group_read(arena, i, &log);
+		if (ret < 0)
+			return ret;
+
+		for (j = 0; j < 4; j++) {
+			if (!idx_set) {
+				if (ent_is_padding(&log.ent[j])) {
+					pad_count++;
+					continue;
+				} else {
+					/* Skip if index has been recorded */
+					if ((next_idx == 1) &&
+						(j == log_index[0]))
+						continue;
+					/* valid entry, record index */
+					log_index[next_idx] = j;
+					next_idx++;
+				}
+				if (next_idx == 2) {
+					/* two valid entries found */
+					idx_set = true;
+				} else if (next_idx > 2) {
+					/* too many valid indices */
+					return -ENXIO;
+				}
+			} else {
+				/*
+				 * once the indices have been set, just verify
+				 * that all subsequent log groups are either in
+				 * their initial state or follow the same
+				 * indices.
+				 */
+				if (j == log_index[0]) {
+					/* entry must be 'valid' */
+					if (ent_is_padding(&log.ent[j]))
+						return -ENXIO;
+				} else if (j == log_index[1]) {
+					;
+					/*
+					 * log_index[1] can be padding if the
+					 * lane never got used and it is still
+					 * in the initial state (three 'padding'
+					 * entries)
+					 */
+				} else {
+					/* entry must be invalid (padding) */
+					if (!ent_is_padding(&log.ent[j]))
+						return -ENXIO;
+				}
+			}
+		}
+		/*
+		 * If any of the log_groups have more than one valid,
+		 * non-padding entry, then the we are no longer in the
+		 * initial_state
+		 */
+		if (pad_count < 3)
+			initial_state = false;
+		pad_count = 0;
+	}
+
+	if (!initial_state && !idx_set)
+		return -ENXIO;
+
+	/*
+	 * If all the entries in the log were in the initial state,
+	 * assume new padding scheme
+	 */
+	if (initial_state)
+		log_index[1] = 1;
+
+	/*
+	 * Only allow the known permutations of log/padding indices,
+	 * i.e. (0, 1), and (0, 2)
+	 */
+	if ((log_index[0] == 0) && ((log_index[1] == 1) || (log_index[1] == 2)))
+		; /* known index possibilities */
+	else {
+		dev_err(to_dev(arena), "Found an unknown padding scheme\n");
+		return -ENXIO;
+	}
+
+	arena->log_index[0] = log_index[0];
+	arena->log_index[1] = log_index[1];
+	dev_dbg(to_dev(arena), "log_index_0 = %d\n", log_index[0]);
+	dev_dbg(to_dev(arena), "log_index_1 = %d\n", log_index[1]);
+	return 0;
+}
+
 static int btt_rtt_init(struct arena_info *arena)
 {
 	arena->rtt = kcalloc(arena->nfree, sizeof(u32), GFP_KERNEL);
@@ -649,8 +772,7 @@ static struct arena_info *alloc_arena(struct btt *btt, size_t size,
 	available -= 2 * BTT_PG_SIZE;
 
 	/* The log takes a fixed amount of space based on nfree */
-	logsize = roundup(2 * arena->nfree * sizeof(struct log_entry),
-				BTT_PG_SIZE);
+	logsize = roundup(arena->nfree * LOG_GRP_SIZE, BTT_PG_SIZE);
 	available -= logsize;
 
 	/* Calculate optimal split between map and data area */
@@ -667,6 +789,10 @@ static struct arena_info *alloc_arena(struct btt *btt, size_t size,
 	arena->mapoff = arena->dataoff + datasize;
 	arena->logoff = arena->mapoff + mapsize;
 	arena->info2off = arena->logoff + logsize;
+
+	/* Default log indices are (0,1) */
+	arena->log_index[0] = 0;
+	arena->log_index[1] = 1;
 	return arena;
 }
 
@@ -756,6 +882,13 @@ static int discover_arenas(struct btt *btt)
 
 		arena->external_lba_start = cur_nlba;
 		parse_arena_meta(arena, super, cur_off);
+
+		ret = log_set_indices(arena);
+		if (ret) {
+			dev_err(to_dev(arena),
+				"Unable to deduce log/padding indices\n");
+			goto out;
+		}
 
 		mutex_init(&arena->err_lock);
 		ret = btt_freelist_init(arena);

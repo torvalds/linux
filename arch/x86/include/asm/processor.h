@@ -336,12 +336,12 @@ struct x86_hw_tss {
 #define IO_BITMAP_OFFSET		(offsetof(struct tss_struct, io_bitmap) - offsetof(struct tss_struct, x86_tss))
 #define INVALID_IO_BITMAP_OFFSET	0x8000
 
-struct SYSENTER_stack {
+struct entry_stack {
 	unsigned long		words[64];
 };
 
-struct SYSENTER_stack_page {
-	struct SYSENTER_stack stack;
+struct entry_stack_page {
+	struct entry_stack stack;
 } __aligned(PAGE_SIZE);
 
 struct tss_struct {

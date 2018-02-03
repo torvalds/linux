@@ -1457,6 +1457,11 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 				dev_name(&adev_dimm->dev));
 		return -ENXIO;
 	}
+	/*
+	 * Record nfit_mem for the notification path to track back to
+	 * the nfit sysfs attributes for this dimm device object.
+	 */
+	dev_set_drvdata(&adev_dimm->dev, nfit_mem);
 
 	/*
 	 * Until standardization materializes we need to consider 4
@@ -1516,9 +1521,11 @@ static void shutdown_dimm_notify(void *data)
 			sysfs_put(nfit_mem->flags_attr);
 			nfit_mem->flags_attr = NULL;
 		}
-		if (adev_dimm)
+		if (adev_dimm) {
 			acpi_remove_notify_handler(adev_dimm->handle,
 					ACPI_DEVICE_NOTIFY, acpi_nvdimm_notify);
+			dev_set_drvdata(&adev_dimm->dev, NULL);
+		}
 	}
 	mutex_unlock(&acpi_desc->init_mutex);
 }

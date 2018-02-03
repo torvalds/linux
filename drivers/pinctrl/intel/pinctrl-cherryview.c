@@ -1620,6 +1620,22 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 			clear_bit(i, chip->irq_valid_mask);
 	}
 
+	/*
+	 * The same set of machines in chv_no_valid_mask[] have incorrectly
+	 * configured GPIOs that generate spurious interrupts so we use
+	 * this same list to apply another quirk for them.
+	 *
+	 * See also https://bugzilla.kernel.org/show_bug.cgi?id=197953.
+	 */
+	if (!need_valid_mask) {
+		/*
+		 * Mask all interrupts the community is able to generate
+		 * but leave the ones that can only generate GPEs unmasked.
+		 */
+		chv_writel(GENMASK(31, pctrl->community->nirqs),
+			   pctrl->regs + CHV_INTMASK);
+	}
+
 	/* Clear all interrupts */
 	chv_writel(0xffff, pctrl->regs + CHV_INTSTAT);
 

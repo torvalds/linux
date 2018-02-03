@@ -44,10 +44,12 @@ struct addr_marker {
 	unsigned long max_lines;
 };
 
-/* indices for address_markers; keep sync'd w/ address_markers below */
+/* Address space markers hints */
+
+#ifdef CONFIG_X86_64
+
 enum address_markers_idx {
 	USER_SPACE_NR = 0,
-#ifdef CONFIG_X86_64
 	KERNEL_SPACE_NR,
 	LOW_KERNEL_NR,
 	VMALLOC_START_NR,
@@ -56,55 +58,73 @@ enum address_markers_idx {
 	KASAN_SHADOW_START_NR,
 	KASAN_SHADOW_END_NR,
 #endif
-# ifdef CONFIG_X86_ESPFIX64
+	CPU_ENTRY_AREA_NR,
+#ifdef CONFIG_X86_ESPFIX64
 	ESPFIX_START_NR,
-# endif
+#endif
+#ifdef CONFIG_EFI
+	EFI_END_NR,
+#endif
 	HIGH_KERNEL_NR,
 	MODULES_VADDR_NR,
 	MODULES_END_NR,
-#else
+	FIXADDR_START_NR,
+	END_OF_SPACE_NR,
+};
+
+static struct addr_marker address_markers[] = {
+	[USER_SPACE_NR]		= { 0,			"User Space" },
+	[KERNEL_SPACE_NR]	= { (1UL << 63),	"Kernel Space" },
+	[LOW_KERNEL_NR]		= { 0UL,		"Low Kernel Mapping" },
+	[VMALLOC_START_NR]	= { 0UL,		"vmalloc() Area" },
+	[VMEMMAP_START_NR]	= { 0UL,		"Vmemmap" },
+#ifdef CONFIG_KASAN
+	[KASAN_SHADOW_START_NR]	= { KASAN_SHADOW_START,	"KASAN shadow" },
+	[KASAN_SHADOW_END_NR]	= { KASAN_SHADOW_END,	"KASAN shadow end" },
+#endif
+	[CPU_ENTRY_AREA_NR]	= { CPU_ENTRY_AREA_BASE,"CPU entry Area" },
+#ifdef CONFIG_X86_ESPFIX64
+	[ESPFIX_START_NR]	= { ESPFIX_BASE_ADDR,	"ESPfix Area", 16 },
+#endif
+#ifdef CONFIG_EFI
+	[EFI_END_NR]		= { EFI_VA_END,		"EFI Runtime Services" },
+#endif
+	[HIGH_KERNEL_NR]	= { __START_KERNEL_map,	"High Kernel Mapping" },
+	[MODULES_VADDR_NR]	= { MODULES_VADDR,	"Modules" },
+	[MODULES_END_NR]	= { MODULES_END,	"End Modules" },
+	[FIXADDR_START_NR]	= { FIXADDR_START,	"Fixmap Area" },
+	[END_OF_SPACE_NR]	= { -1,			NULL }
+};
+
+#else /* CONFIG_X86_64 */
+
+enum address_markers_idx {
+	USER_SPACE_NR = 0,
 	KERNEL_SPACE_NR,
 	VMALLOC_START_NR,
 	VMALLOC_END_NR,
-# ifdef CONFIG_HIGHMEM
+#ifdef CONFIG_HIGHMEM
 	PKMAP_BASE_NR,
-# endif
-	FIXADDR_START_NR,
 #endif
+	CPU_ENTRY_AREA_NR,
+	FIXADDR_START_NR,
+	END_OF_SPACE_NR,
 };
 
-/* Address space markers hints */
 static struct addr_marker address_markers[] = {
-	{ 0, "User Space" },
-#ifdef CONFIG_X86_64
-	{ 0x8000000000000000UL, "Kernel Space" },
-	{ 0/* PAGE_OFFSET */,   "Low Kernel Mapping" },
-	{ 0/* VMALLOC_START */, "vmalloc() Area" },
-	{ 0/* VMEMMAP_START */, "Vmemmap" },
-#ifdef CONFIG_KASAN
-	{ KASAN_SHADOW_START,	"KASAN shadow" },
-	{ KASAN_SHADOW_END,	"KASAN shadow end" },
+	[USER_SPACE_NR]		= { 0,			"User Space" },
+	[KERNEL_SPACE_NR]	= { PAGE_OFFSET,	"Kernel Mapping" },
+	[VMALLOC_START_NR]	= { 0UL,		"vmalloc() Area" },
+	[VMALLOC_END_NR]	= { 0UL,		"vmalloc() End" },
+#ifdef CONFIG_HIGHMEM
+	[PKMAP_BASE_NR]		= { 0UL,		"Persistent kmap() Area" },
 #endif
-# ifdef CONFIG_X86_ESPFIX64
-	{ ESPFIX_BASE_ADDR,	"ESPfix Area", 16 },
-# endif
-# ifdef CONFIG_EFI
-	{ EFI_VA_END,		"EFI Runtime Services" },
-# endif
-	{ __START_KERNEL_map,   "High Kernel Mapping" },
-	{ MODULES_VADDR,        "Modules" },
-	{ MODULES_END,          "End Modules" },
-#else
-	{ PAGE_OFFSET,          "Kernel Mapping" },
-	{ 0/* VMALLOC_START */, "vmalloc() Area" },
-	{ 0/*VMALLOC_END*/,     "vmalloc() End" },
-# ifdef CONFIG_HIGHMEM
-	{ 0/*PKMAP_BASE*/,      "Persistent kmap() Area" },
-# endif
-	{ 0/*FIXADDR_START*/,   "Fixmap Area" },
-#endif
-	{ -1, NULL }		/* End of list */
+	[CPU_ENTRY_AREA_NR]	= { 0UL,		"CPU entry area" },
+	[FIXADDR_START_NR]	= { 0UL,		"Fixmap area" },
+	[END_OF_SPACE_NR]	= { -1,			NULL }
 };
+
+#endif /* !CONFIG_X86_64 */
 
 /* Multipliers for offsets within the PTEs */
 #define PTE_LEVEL_MULT (PAGE_SIZE)
@@ -140,7 +160,7 @@ static void printk_prot(struct seq_file *m, pgprot_t prot, int level, bool dmsg)
 	static const char * const level_name[] =
 		{ "cr3", "pgd", "p4d", "pud", "pmd", "pte" };
 
-	if (!pgprot_val(prot)) {
+	if (!(pr & _PAGE_PRESENT)) {
 		/* Not present */
 		pt_dump_cont_printf(m, dmsg, "                              ");
 	} else {
@@ -525,8 +545,8 @@ static int __init pt_dump_init(void)
 	address_markers[PKMAP_BASE_NR].start_address = PKMAP_BASE;
 # endif
 	address_markers[FIXADDR_START_NR].start_address = FIXADDR_START;
+	address_markers[CPU_ENTRY_AREA_NR].start_address = CPU_ENTRY_AREA_BASE;
 #endif
-
 	return 0;
 }
 __initcall(pt_dump_init);
