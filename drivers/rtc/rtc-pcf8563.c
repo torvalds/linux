@@ -422,7 +422,7 @@ static unsigned long pcf8563_clkout_recalc_rate(struct clk_hw *hw,
 		return 0;
 
 	buf &= PCF8563_REG_CLKO_F_MASK;
-	return clkout_rates[ret];
+	return clkout_rates[buf];
 }
 
 static long pcf8563_clkout_round_rate(struct clk_hw *hw, unsigned long rate,

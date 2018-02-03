@@ -3469,6 +3469,7 @@ static int add_smi(struct smi_info *new_smi)
 				 ipmi_addr_src_to_str(new_smi->addr_source),
 				 si_to_str[new_smi->si_type]);
 			rv = -EBUSY;
+			kfree(new_smi);
 			goto out_err;
 		}
 	}

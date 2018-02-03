@@ -3155,7 +3155,7 @@ static void amd_iommu_apply_resv_region(struct device *dev,
 	unsigned long start, end;
 
 	start = IOVA_PFN(region->start);
-	end   = IOVA_PFN(region->start + region->length);
+	end   = IOVA_PFN(region->start + region->length - 1);
 
 	WARN_ON_ONCE(reserve_iova(&dma_dom->iovad, start, end) == NULL);
 }

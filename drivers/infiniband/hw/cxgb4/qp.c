@@ -868,7 +868,12 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 	qhp = to_c4iw_qp(ibqp);
 	spin_lock_irqsave(&qhp->lock, flag);
-	if (t4_wq_in_error(&qhp->wq)) {
+
+	/*
+	 * If the qp has been flushed, then just insert a special
+	 * drain cqe.
+	 */
+	if (qhp->wq.flushed) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
 		complete_sq_drain_wr(qhp, wr);
 		return err;
@@ -1012,7 +1017,12 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 	qhp = to_c4iw_qp(ibqp);
 	spin_lock_irqsave(&qhp->lock, flag);
-	if (t4_wq_in_error(&qhp->wq)) {
+
+	/*
+	 * If the qp has been flushed, then just insert a special
+	 * drain cqe.
+	 */
+	if (qhp->wq.flushed) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
 		complete_rq_drain_wr(qhp, wr);
 		return err;

@@ -1309,12 +1309,12 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 			sigset_t full, old;
 			prepare_to_wait(&conf->wait_barrier,
 					&w, TASK_INTERRUPTIBLE);
-			if (bio_end_sector(bio) <= mddev->suspend_lo ||
-			    bio->bi_iter.bi_sector >= mddev->suspend_hi ||
-			    (mddev_is_clustered(mddev) &&
+			if ((bio_end_sector(bio) <= mddev->suspend_lo ||
+			     bio->bi_iter.bi_sector >= mddev->suspend_hi) &&
+			    (!mddev_is_clustered(mddev) ||
 			     !md_cluster_ops->area_resyncing(mddev, WRITE,
-				     bio->bi_iter.bi_sector,
-				     bio_end_sector(bio))))
+							bio->bi_iter.bi_sector,
+							bio_end_sector(bio))))
 				break;
 			sigfillset(&full);
 			sigprocmask(SIG_BLOCK, &full, &old);

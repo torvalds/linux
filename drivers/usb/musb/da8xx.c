@@ -305,7 +305,15 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			portstate(musb->port1_status |= USB_PORT_STAT_POWER);
 			del_timer(&otg_workaround);
-		} else {
+		} else if (!(musb->int_usb & MUSB_INTR_BABBLE)){
+			/*
+			 * When babble condition happens, drvvbus interrupt
+			 * is also generated. Ignore this drvvbus interrupt
+			 * and let babble interrupt handler recovers the
+			 * controller; otherwise, the host-mode flag is lost
+			 * due to the MUSB_DEV_MODE() call below and babble
+			 * recovery logic will not called.
+			 */
 			musb->is_active = 0;
 			MUSB_DEV_MODE(musb);
 			otg->default_a = 0;

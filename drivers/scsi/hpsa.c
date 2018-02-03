@@ -8684,6 +8684,8 @@ static void hpsa_remove_one(struct pci_dev *pdev)
 	destroy_workqueue(h->rescan_ctlr_wq);
 	destroy_workqueue(h->resubmit_wq);
 
+	hpsa_delete_sas_host(h);
+
 	/*
 	 * Call before disabling interrupts.
 	 * scsi_remove_host can trigger I/O operations especially
@@ -8717,8 +8719,6 @@ static void hpsa_remove_one(struct pci_dev *pdev)
 	free_percpu(h->lockup_detected);		/* init_one 2 */
 	h->lockup_detected = NULL;			/* init_one 2 */
 	/* (void) pci_disable_pcie_error_reporting(pdev); */	/* init_one 1 */
-
-	hpsa_delete_sas_host(h);
 
 	kfree(h);					/* init_one 1 */
 }
@@ -9207,9 +9207,9 @@ static void hpsa_free_sas_phy(struct hpsa_sas_phy *hpsa_sas_phy)
 	struct sas_phy *phy = hpsa_sas_phy->phy;
 
 	sas_port_delete_phy(hpsa_sas_phy->parent_port->port, phy);
-	sas_phy_free(phy);
 	if (hpsa_sas_phy->added_to_port)
 		list_del(&hpsa_sas_phy->phy_list_entry);
+	sas_phy_delete(phy);
 	kfree(hpsa_sas_phy);
 }
 

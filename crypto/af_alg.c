@@ -699,14 +699,15 @@ void af_alg_free_areq_sgls(struct af_alg_async_req *areq)
 	}
 
 	tsgl = areq->tsgl;
-	for_each_sg(tsgl, sg, areq->tsgl_entries, i) {
-		if (!sg_page(sg))
-			continue;
-		put_page(sg_page(sg));
-	}
+	if (tsgl) {
+		for_each_sg(tsgl, sg, areq->tsgl_entries, i) {
+			if (!sg_page(sg))
+				continue;
+			put_page(sg_page(sg));
+		}
 
-	if (areq->tsgl && areq->tsgl_entries)
 		sock_kfree_s(sk, tsgl, areq->tsgl_entries * sizeof(*tsgl));
+	}
 }
 EXPORT_SYMBOL_GPL(af_alg_free_areq_sgls);
 

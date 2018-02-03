@@ -154,7 +154,7 @@ void hfi1_trace_parse_9b_bth(struct ib_other_headers *ohdr,
 	*opcode = ib_bth_get_opcode(ohdr);
 	*tver = ib_bth_get_tver(ohdr);
 	*pkey = ib_bth_get_pkey(ohdr);
-	*psn = ib_bth_get_psn(ohdr);
+	*psn = mask_psn(ib_bth_get_psn(ohdr));
 	*qpn = ib_bth_get_qpn(ohdr);
 }
 
@@ -169,7 +169,7 @@ void hfi1_trace_parse_16b_bth(struct ib_other_headers *ohdr,
 	*pad = ib_bth_get_pad(ohdr);
 	*se = ib_bth_get_se(ohdr);
 	*tver = ib_bth_get_tver(ohdr);
-	*psn = ib_bth_get_psn(ohdr);
+	*psn = mask_psn(ib_bth_get_psn(ohdr));
 	*qpn = ib_bth_get_qpn(ohdr);
 }
 

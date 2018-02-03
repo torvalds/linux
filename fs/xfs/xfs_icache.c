@@ -610,7 +610,7 @@ again:
 	} else {
 		rcu_read_unlock();
 		if (flags & XFS_IGET_INCORE) {
-			error = -ENOENT;
+			error = -ENODATA;
 			goto out_error_or_again;
 		}
 		XFS_STATS_INC(mp, xs_ig_missed);

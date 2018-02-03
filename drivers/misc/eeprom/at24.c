@@ -776,7 +776,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	at24->nvmem_config.reg_read = at24_read;
 	at24->nvmem_config.reg_write = at24_write;
 	at24->nvmem_config.priv = at24;
-	at24->nvmem_config.stride = 4;
+	at24->nvmem_config.stride = 1;
 	at24->nvmem_config.word_size = 1;
 	at24->nvmem_config.size = chip.byte_len;
 

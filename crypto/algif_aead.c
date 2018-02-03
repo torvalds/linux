@@ -503,6 +503,7 @@ static void aead_release(void *private)
 	struct aead_tfm *tfm = private;
 
 	crypto_free_aead(tfm->aead);
+	crypto_put_default_null_skcipher2();
 	kfree(tfm);
 }
 
@@ -535,7 +536,6 @@ static void aead_sock_destruct(struct sock *sk)
 	unsigned int ivlen = crypto_aead_ivsize(tfm);
 
 	af_alg_pull_tsgl(sk, ctx->used, NULL, 0);
-	crypto_put_default_null_skcipher2();
 	sock_kzfree_s(sk, ctx->iv, ivlen);
 	sock_kfree_s(sk, ctx, ctx->len);
 	af_alg_release_parent(sk);

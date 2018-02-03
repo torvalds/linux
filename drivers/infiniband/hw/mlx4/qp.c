@@ -2182,11 +2182,6 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 	context->flags = cpu_to_be32((to_mlx4_state(new_state) << 28) |
 				     (to_mlx4_st(dev, qp->mlx4_ib_qp_type) << 16));
 
-	if (rwq_ind_tbl) {
-		fill_qp_rss_context(context, qp);
-		context->flags |= cpu_to_be32(1 << MLX4_RSS_QPC_FLAG_OFFSET);
-	}
-
 	if (!(attr_mask & IB_QP_PATH_MIG_STATE))
 		context->flags |= cpu_to_be32(MLX4_QP_PM_MIGRATED << 11);
 	else {
@@ -2387,6 +2382,7 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 	context->pd = cpu_to_be32(pd->pdn);
 
 	if (!rwq_ind_tbl) {
+		context->params1 = cpu_to_be32(MLX4_IB_ACK_REQ_FREQ << 28);
 		get_cqs(qp, src_type, &send_cq, &recv_cq);
 	} else { /* Set dummy CQs to be compatible with HV and PRM */
 		send_cq = to_mcq(rwq_ind_tbl->ind_tbl[0]->cq);
@@ -2394,7 +2390,6 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 	}
 	context->cqn_send = cpu_to_be32(send_cq->mcq.cqn);
 	context->cqn_recv = cpu_to_be32(recv_cq->mcq.cqn);
-	context->params1  = cpu_to_be32(MLX4_IB_ACK_REQ_FREQ << 28);
 
 	/* Set "fast registration enabled" for all kernel QPs */
 	if (!ibuobject)
@@ -2513,7 +2508,7 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 					MLX4_IB_LINK_TYPE_ETH;
 		if (dev->dev->caps.tunnel_offload_mode ==  MLX4_TUNNEL_OFFLOAD_MODE_VXLAN) {
 			/* set QP to receive both tunneled & non-tunneled packets */
-			if (!(context->flags & cpu_to_be32(1 << MLX4_RSS_QPC_FLAG_OFFSET)))
+			if (!rwq_ind_tbl)
 				context->srqn = cpu_to_be32(7 << 28);
 		}
 	}
@@ -2560,6 +2555,13 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 
 			stamp_send_wqe(qp, i, 1 << qp->sq.wqe_shift);
 		}
+	}
+
+	if (rwq_ind_tbl	&&
+	    cur_state == IB_QPS_RESET &&
+	    new_state == IB_QPS_INIT) {
+		fill_qp_rss_context(context, qp);
+		context->flags |= cpu_to_be32(1 << MLX4_RSS_QPC_FLAG_OFFSET);
 	}
 
 	err = mlx4_qp_modify(dev->dev, &qp->mtt, to_mlx4_state(cur_state),

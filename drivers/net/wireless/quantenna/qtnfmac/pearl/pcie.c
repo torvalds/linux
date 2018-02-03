@@ -643,11 +643,11 @@ static int qtnf_tx_queue_ready(struct qtnf_pcie_bus_priv *priv)
 {
 	if (!CIRC_SPACE(priv->tx_bd_w_index, priv->tx_bd_r_index,
 			priv->tx_bd_num)) {
-		pr_err_ratelimited("reclaim full Tx queue\n");
 		qtnf_pcie_data_tx_reclaim(priv);
 
 		if (!CIRC_SPACE(priv->tx_bd_w_index, priv->tx_bd_r_index,
 				priv->tx_bd_num)) {
+			pr_warn_ratelimited("reclaim full Tx queue\n");
 			priv->tx_full_count++;
 			return 0;
 		}

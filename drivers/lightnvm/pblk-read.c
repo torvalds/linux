@@ -238,7 +238,7 @@ static int pblk_fill_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
 		kunmap_atomic(src_p);
 		kunmap_atomic(dst_p);
 
-		mempool_free(src_bv.bv_page, pblk->page_pool);
+		mempool_free(src_bv.bv_page, pblk->page_bio_pool);
 
 		hole = find_next_zero_bit(read_bitmap, nr_secs, hole + 1);
 	} while (hole < nr_secs);
@@ -499,7 +499,7 @@ int pblk_submit_read_gc(struct pblk *pblk, u64 *lba_list, void *data,
 
 	data_len = (*secs_to_gc) * geo->sec_size;
 	bio = pblk_bio_map_addr(pblk, data, *secs_to_gc, data_len,
-						PBLK_KMALLOC_META, GFP_KERNEL);
+						PBLK_VMALLOC_META, GFP_KERNEL);
 	if (IS_ERR(bio)) {
 		pr_err("pblk: could not allocate GC bio (%lu)\n", PTR_ERR(bio));
 		goto err_free_dma;
@@ -519,7 +519,7 @@ int pblk_submit_read_gc(struct pblk *pblk, u64 *lba_list, void *data,
 	if (ret) {
 		bio_endio(bio);
 		pr_err("pblk: GC read request failed\n");
-		goto err_free_dma;
+		goto err_free_bio;
 	}
 
 	if (!wait_for_completion_io_timeout(&wait,
@@ -541,10 +541,13 @@ int pblk_submit_read_gc(struct pblk *pblk, u64 *lba_list, void *data,
 	atomic_long_sub(*secs_to_gc, &pblk->inflight_reads);
 #endif
 
+	bio_put(bio);
 out:
 	nvm_dev_dma_free(dev->parent, rqd.meta_list, rqd.dma_meta_list);
 	return NVM_IO_OK;
 
+err_free_bio:
+	bio_put(bio);
 err_free_dma:
 	nvm_dev_dma_free(dev->parent, rqd.meta_list, rqd.dma_meta_list);
 	return NVM_IO_ERR;

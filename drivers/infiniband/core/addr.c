@@ -852,7 +852,7 @@ static struct notifier_block nb = {
 
 int addr_init(void)
 {
-	addr_wq = alloc_ordered_workqueue("ib_addr", WQ_MEM_RECLAIM);
+	addr_wq = alloc_ordered_workqueue("ib_addr", 0);
 	if (!addr_wq)
 		return -ENOMEM;
 

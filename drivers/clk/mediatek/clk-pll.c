@@ -303,7 +303,10 @@ static struct clk *mtk_clk_register_pll(const struct mtk_pll_data *data,
 	init.name = data->name;
 	init.flags = (data->flags & PLL_AO) ? CLK_IS_CRITICAL : 0;
 	init.ops = &mtk_pll_ops;
-	init.parent_names = &parent_name;
+	if (data->parent_name)
+		init.parent_names = &data->parent_name;
+	else
+		init.parent_names = &parent_name;
 	init.num_parents = 1;
 
 	clk = clk_register(NULL, &pll->hw);

@@ -120,10 +120,10 @@ static int ttyport_open(struct serdev_controller *ctrl)
 		return PTR_ERR(tty);
 	serport->tty = tty;
 
-	if (tty->ops->open)
-		tty->ops->open(serport->tty, NULL);
-	else
-		tty_port_open(serport->port, tty, NULL);
+	if (!tty->ops->open)
+		goto err_unlock;
+
+	tty->ops->open(serport->tty, NULL);
 
 	/* Bring the UART into a known 8 bits no parity hw fc state */
 	ktermios = tty->termios;
@@ -140,6 +140,12 @@ static int ttyport_open(struct serdev_controller *ctrl)
 
 	tty_unlock(serport->tty);
 	return 0;
+
+err_unlock:
+	tty_unlock(tty);
+	tty_release_struct(tty, serport->tty_idx);
+
+	return -ENODEV;
 }
 
 static void ttyport_close(struct serdev_controller *ctrl)

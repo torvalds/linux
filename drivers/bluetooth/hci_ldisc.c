@@ -510,12 +510,12 @@ static void hci_uart_tty_close(struct tty_struct *tty)
 	if (hdev)
 		hci_uart_close(hdev);
 
-	cancel_work_sync(&hu->write_work);
-
 	if (test_bit(HCI_UART_PROTO_READY, &hu->flags)) {
 		write_lock_irqsave(&hu->proto_lock, flags);
 		clear_bit(HCI_UART_PROTO_READY, &hu->flags);
 		write_unlock_irqrestore(&hu->proto_lock, flags);
+
+		cancel_work_sync(&hu->write_work);
 
 		if (hdev) {
 			if (test_bit(HCI_UART_REGISTERED, &hu->flags))

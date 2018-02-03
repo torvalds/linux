@@ -486,10 +486,10 @@ void pblk_gc_should_start(struct pblk *pblk)
 {
 	struct pblk_gc *gc = &pblk->gc;
 
-	if (gc->gc_enabled && !gc->gc_active)
+	if (gc->gc_enabled && !gc->gc_active) {
 		pblk_gc_start(pblk);
-
-	pblk_gc_kick(pblk);
+		pblk_gc_kick(pblk);
+	}
 }
 
 /*
@@ -628,7 +628,8 @@ void pblk_gc_exit(struct pblk *pblk)
 	flush_workqueue(gc->gc_reader_wq);
 	flush_workqueue(gc->gc_line_reader_wq);
 
-	del_timer(&gc->gc_timer);
+	gc->gc_enabled = 0;
+	del_timer_sync(&gc->gc_timer);
 	pblk_gc_stop(pblk, 1);
 
 	if (gc->gc_ts)

@@ -375,6 +375,9 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 			break;
 		}
 
+		if (!cmd->base.autoneg)
+			advertised_caps &= ~HNS3_LM_AUTONEG_BIT;
+
 		/* now, map driver link modes to ethtool link modes */
 		hns3_driv_to_eth_caps(supported_caps, cmd, false);
 		hns3_driv_to_eth_caps(advertised_caps, cmd, true);

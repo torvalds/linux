@@ -2566,8 +2566,8 @@ static int tegra210_enable_pllu(void)
 	reg |= PLL_ENABLE;
 	writel(reg, clk_base + PLLU_BASE);
 
-	readl_relaxed_poll_timeout(clk_base + PLLU_BASE, reg,
-				   reg & PLL_BASE_LOCK, 2, 1000);
+	readl_relaxed_poll_timeout_atomic(clk_base + PLLU_BASE, reg,
+					  reg & PLL_BASE_LOCK, 2, 1000);
 	if (!(reg & PLL_BASE_LOCK)) {
 		pr_err("Timed out waiting for PLL_U to lock\n");
 		return -ETIMEDOUT;

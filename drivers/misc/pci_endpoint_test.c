@@ -533,6 +533,7 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 
 	test->base = test->bar[test_reg_bar];
 	if (!test->base) {
+		err = -ENOMEM;
 		dev_err(dev, "Cannot perform PCI test without BAR%d\n",
 			test_reg_bar);
 		goto err_iounmap;
@@ -542,6 +543,7 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 
 	id = ida_simple_get(&pci_endpoint_test_ida, 0, 0, GFP_KERNEL);
 	if (id < 0) {
+		err = id;
 		dev_err(dev, "unable to get id\n");
 		goto err_iounmap;
 	}
@@ -587,6 +589,8 @@ static void pci_endpoint_test_remove(struct pci_dev *pdev)
 	struct miscdevice *misc_device = &test->miscdev;
 
 	if (sscanf(misc_device->name, DRV_MODULE_NAME ".%d", &id) != 1)
+		return;
+	if (id < 0)
 		return;
 
 	misc_deregister(&test->miscdev);

@@ -2974,6 +2974,7 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	if (IS_ERR(mlxsw_sp_port_vlan)) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to create VID 1\n",
 			mlxsw_sp_port->local_port);
+		err = PTR_ERR(mlxsw_sp_port_vlan);
 		goto err_port_vlan_get;
 	}
 

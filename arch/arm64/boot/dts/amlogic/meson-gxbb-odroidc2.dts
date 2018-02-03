@@ -301,6 +301,7 @@
 
 &usb1_phy {
 	status = "okay";
+	phy-supply = <&usb_otg_pwr>;
 };
 
 &usb0 {

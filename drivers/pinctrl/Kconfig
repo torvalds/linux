@@ -33,7 +33,8 @@ config DEBUG_PINCTRL
 
 config PINCTRL_ADI2
 	bool "ADI pin controller driver"
-	depends on BLACKFIN
+	depends on (BF54x || BF60x)
+	depends on !GPIO_ADI
 	select PINMUX
 	select IRQ_DOMAIN
 	help

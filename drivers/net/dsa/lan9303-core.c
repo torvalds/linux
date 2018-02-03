@@ -569,7 +569,7 @@ static int lan9303_disable_processing(struct lan9303 *chip)
 {
 	int p;
 
-	for (p = 0; p < LAN9303_NUM_PORTS; p++) {
+	for (p = 1; p < LAN9303_NUM_PORTS; p++) {
 		int ret = lan9303_disable_processing_port(chip, p);
 
 		if (ret)

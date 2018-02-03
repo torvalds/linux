@@ -9952,7 +9952,7 @@ int hfi1_get_ib_cfg(struct hfi1_pportdata *ppd, int which)
 		goto unimplemented;
 
 	case HFI1_IB_CFG_OP_VLS:
-		val = ppd->vls_operational;
+		val = ppd->actual_vls_operational;
 		break;
 	case HFI1_IB_CFG_VL_HIGH_CAP: /* VL arb high priority table size */
 		val = VL_ARB_HIGH_PRIO_TABLE_SIZE;

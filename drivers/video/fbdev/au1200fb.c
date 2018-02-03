@@ -1681,8 +1681,10 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 
 		fbi = framebuffer_alloc(sizeof(struct au1200fb_device),
 					&dev->dev);
-		if (!fbi)
+		if (!fbi) {
+			ret = -ENOMEM;
 			goto failed;
+		}
 
 		_au1200fb_infos[plane] = fbi;
 		fbdev = fbi->par;
@@ -1701,7 +1703,8 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 		if (!fbdev->fb_mem) {
 			print_err("fail to allocate frambuffer (size: %dK))",
 				  fbdev->fb_len / 1024);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto failed;
 		}
 
 		/*

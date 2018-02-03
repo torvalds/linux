@@ -721,7 +721,7 @@ static void hns3_set_txbd_baseinfo(u16 *bdtp_fe_sc_vld_ra_ri, int frag_end)
 		       HNS3_TXD_BDTYPE_M, 0);
 	hnae_set_bit(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_FE_B, !!frag_end);
 	hnae_set_bit(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_VLD_B, 1);
-	hnae_set_field(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_SC_M, HNS3_TXD_SC_S, 1);
+	hnae_set_field(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_SC_M, HNS3_TXD_SC_S, 0);
 }
 
 static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
@@ -1546,7 +1546,7 @@ static int hns3_reserve_buffer_map(struct hns3_enet_ring *ring,
 	return 0;
 
 out_with_buf:
-	hns3_free_buffers(ring);
+	hns3_free_buffer(ring, cb);
 out:
 	return ret;
 }
@@ -1586,7 +1586,7 @@ out_buffer_fail:
 static void hns3_replace_buffer(struct hns3_enet_ring *ring, int i,
 				struct hns3_desc_cb *res_cb)
 {
-	hns3_map_buffer(ring, &ring->desc_cb[i]);
+	hns3_unmap_buffer(ring, &ring->desc_cb[i]);
 	ring->desc_cb[i] = *res_cb;
 	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma);
 }
@@ -2460,9 +2460,8 @@ static int hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 			(void)irq_set_affinity_hint(
 				priv->tqp_vector[i].vector_irq,
 						    NULL);
-			devm_free_irq(&pdev->dev,
-				      priv->tqp_vector[i].vector_irq,
-				      &priv->tqp_vector[i]);
+			free_irq(priv->tqp_vector[i].vector_irq,
+				 &priv->tqp_vector[i]);
 		}
 
 		priv->ring_data[i].ring->irq_init_flag = HNS3_VECTOR_NOT_INITED;
@@ -2489,15 +2488,15 @@ static int hns3_ring_get_cfg(struct hnae3_queue *q, struct hns3_nic_priv *priv,
 
 	if (ring_type == HNAE3_RING_TYPE_TX) {
 		ring_data[q->tqp_index].ring = ring;
+		ring_data[q->tqp_index].queue_index = q->tqp_index;
 		ring->io_base = (u8 __iomem *)q->io_base + HNS3_TX_REG_OFFSET;
 	} else {
 		ring_data[q->tqp_index + queue_num].ring = ring;
+		ring_data[q->tqp_index + queue_num].queue_index = q->tqp_index;
 		ring->io_base = q->io_base;
 	}
 
 	hnae_set_bit(ring->flag, HNAE3_RING_TYPE_B, ring_type);
-
-	ring_data[q->tqp_index].queue_index = q->tqp_index;
 
 	ring->tqp = q;
 	ring->desc = NULL;

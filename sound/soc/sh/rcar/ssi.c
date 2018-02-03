@@ -198,10 +198,15 @@ static u32 rsnd_ssi_run_mods(struct rsnd_dai_stream *io)
 {
 	struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
 	struct rsnd_mod *ssi_parent_mod = rsnd_io_to_mod_ssip(io);
+	u32 mods;
 
-	return rsnd_ssi_multi_slaves_runtime(io) |
-		1 << rsnd_mod_id(ssi_mod) |
-		1 << rsnd_mod_id(ssi_parent_mod);
+	mods = rsnd_ssi_multi_slaves_runtime(io) |
+		1 << rsnd_mod_id(ssi_mod);
+
+	if (ssi_parent_mod)
+		mods |= 1 << rsnd_mod_id(ssi_parent_mod);
+
+	return mods;
 }
 
 u32 rsnd_ssi_multi_slaves_runtime(struct rsnd_dai_stream *io)

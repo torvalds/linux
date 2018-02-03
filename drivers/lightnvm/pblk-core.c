@@ -193,7 +193,7 @@ void pblk_bio_free_pages(struct pblk *pblk, struct bio *bio, int off,
 	bio_advance(bio, off * PBLK_EXPOSED_PAGE_SIZE);
 	for (i = off; i < nr_pages + off; i++) {
 		bv = bio->bi_io_vec[i];
-		mempool_free(bv.bv_page, pblk->page_pool);
+		mempool_free(bv.bv_page, pblk->page_bio_pool);
 	}
 }
 
@@ -205,14 +205,14 @@ int pblk_bio_add_pages(struct pblk *pblk, struct bio *bio, gfp_t flags,
 	int i, ret;
 
 	for (i = 0; i < nr_pages; i++) {
-		page = mempool_alloc(pblk->page_pool, flags);
+		page = mempool_alloc(pblk->page_bio_pool, flags);
 		if (!page)
 			goto err;
 
 		ret = bio_add_pc_page(q, bio, page, PBLK_EXPOSED_PAGE_SIZE, 0);
 		if (ret != PBLK_EXPOSED_PAGE_SIZE) {
 			pr_err("pblk: could not add page to bio\n");
-			mempool_free(page, pblk->page_pool);
+			mempool_free(page, pblk->page_bio_pool);
 			goto err;
 		}
 	}
@@ -486,12 +486,14 @@ void pblk_dealloc_page(struct pblk *pblk, struct pblk_line *line, int nr_secs)
 	u64 addr;
 	int i;
 
+	spin_lock(&line->lock);
 	addr = find_next_zero_bit(line->map_bitmap,
 					pblk->lm.sec_per_line, line->cur_sec);
 	line->cur_sec = addr - nr_secs;
 
 	for (i = 0; i < nr_secs; i++, line->cur_sec--)
 		WARN_ON(!test_and_clear_bit(line->cur_sec, line->map_bitmap));
+	spin_unlock(&line->lock);
 }
 
 u64 __pblk_alloc_page(struct pblk *pblk, struct pblk_line *line, int nr_secs)

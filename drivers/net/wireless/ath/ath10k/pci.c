@@ -2577,9 +2577,13 @@ void ath10k_pci_hif_power_down(struct ath10k *ar)
 	 */
 }
 
-#ifdef CONFIG_PM
-
 static int ath10k_pci_hif_suspend(struct ath10k *ar)
+{
+	/* Nothing to do; the important stuff is in the driver suspend. */
+	return 0;
+}
+
+static int ath10k_pci_suspend(struct ath10k *ar)
 {
 	/* The grace timer can still be counting down and ar->ps_awake be true.
 	 * It is known that the device may be asleep after resuming regardless
@@ -2592,6 +2596,12 @@ static int ath10k_pci_hif_suspend(struct ath10k *ar)
 }
 
 static int ath10k_pci_hif_resume(struct ath10k *ar)
+{
+	/* Nothing to do; the important stuff is in the driver resume. */
+	return 0;
+}
+
+static int ath10k_pci_resume(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct pci_dev *pdev = ar_pci->pdev;
@@ -2615,7 +2625,6 @@ static int ath10k_pci_hif_resume(struct ath10k *ar)
 
 	return ret;
 }
-#endif
 
 static bool ath10k_pci_validate_cal(void *data, size_t size)
 {
@@ -2770,10 +2779,8 @@ static const struct ath10k_hif_ops ath10k_pci_hif_ops = {
 	.power_down		= ath10k_pci_hif_power_down,
 	.read32			= ath10k_pci_read32,
 	.write32		= ath10k_pci_write32,
-#ifdef CONFIG_PM
 	.suspend		= ath10k_pci_hif_suspend,
 	.resume			= ath10k_pci_hif_resume,
-#endif
 	.fetch_cal_eeprom	= ath10k_pci_hif_fetch_cal_eeprom,
 };
 
@@ -3401,11 +3408,7 @@ static __maybe_unused int ath10k_pci_pm_suspend(struct device *dev)
 	struct ath10k *ar = dev_get_drvdata(dev);
 	int ret;
 
-	if (test_bit(ATH10K_FW_FEATURE_WOWLAN_SUPPORT,
-		     ar->running_fw->fw_file.fw_features))
-		return 0;
-
-	ret = ath10k_hif_suspend(ar);
+	ret = ath10k_pci_suspend(ar);
 	if (ret)
 		ath10k_warn(ar, "failed to suspend hif: %d\n", ret);
 
@@ -3417,11 +3420,7 @@ static __maybe_unused int ath10k_pci_pm_resume(struct device *dev)
 	struct ath10k *ar = dev_get_drvdata(dev);
 	int ret;
 
-	if (test_bit(ATH10K_FW_FEATURE_WOWLAN_SUPPORT,
-		     ar->running_fw->fw_file.fw_features))
-		return 0;
-
-	ret = ath10k_hif_resume(ar);
+	ret = ath10k_pci_resume(ar);
 	if (ret)
 		ath10k_warn(ar, "failed to resume hif: %d\n", ret);
 
