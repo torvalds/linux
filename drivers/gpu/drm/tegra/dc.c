@@ -1359,7 +1359,7 @@ static u32 tegra_dc_get_vblank_counter(struct drm_crtc *crtc)
 		return host1x_syncpt_read(dc->syncpt);
 
 	/* fallback to software emulated VBLANK counter */
-	return drm_crtc_vblank_count(&dc->base);
+	return (u32)drm_crtc_vblank_count(&dc->base);
 }
 
 static int tegra_dc_enable_vblank(struct drm_crtc *crtc)
