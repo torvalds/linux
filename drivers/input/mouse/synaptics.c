@@ -174,6 +174,8 @@ static const char * const smbus_pnp_ids[] = {
 	"LEN004a", /* W541 */
 	"LEN0072", /* X1 Carbon Gen 5 (2017) - Elan/ALPS trackpoint */
 	"LEN0073", /* X1 Carbon G5 (Elantech) */
+	"LEN0092", /* X1 Carbon 6 */
+	"LEN0096", /* X280 */
 	"LEN200f", /* T450s */
 	NULL
 };
