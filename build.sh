@@ -93,9 +93,11 @@ then
 
   if [[ -z "$action" ]];
   then
+    kernver=$(make kernelversion)
+    gitbranch=$(git rev-parse --abbrev-ref HEAD)
  #   set -x
     exec 3> >(tee build.log)
-	export LOCALVERSION=
+	export LOCALVERSION="-${gitbranch}"
 #    make --debug && make modules_install
     make ${CFLAGS} 2>&3 #&& make modules_install 2>&3
     ret=$?
@@ -103,8 +105,6 @@ then
     exec 3>&-
     if [[ $ret == 0 ]];
     then
-      kernver=$(make kernelversion)
-      gitbranch=$(git rev-parse --abbrev-ref HEAD)
       cat arch/arm/boot/zImage arch/arm/boot/dts/mt7623n-bananapi-bpi-r2.dtb > arch/arm/boot/zImage-dtb
       mkimage -A arm -O linux -T kernel -C none -a 80008000 -e 80008000 -n "Linux Kernel $kernver-$gitbranch" -d arch/arm/boot/zImage-dtb ./uImage
       echo "==========================================="
