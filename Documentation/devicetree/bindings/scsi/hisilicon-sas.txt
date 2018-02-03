@@ -8,7 +8,10 @@ Main node required properties:
 	(b) "hisilicon,hip06-sas-v2" for v2 hw in hip06 chipset
 	(c) "hisilicon,hip07-sas-v2" for v2 hw in hip07 chipset
   - sas-addr : array of 8 bytes for host SAS address
-  - reg : Address and length of the SAS register
+  - reg : Contains two regions. The first is the address and length of the SAS
+          register. The second is the address and length of CPLD register for
+          SGPIO control. The second is optional, and should be set only when
+          we use a CPLD for directly attached disk LED control.
   - hisilicon,sas-syscon: phandle of syscon used for sas control
   - ctrl-reset-reg : offset to controller reset register in ctrl reg
   - ctrl-reset-sts-reg : offset to controller reset status register in ctrl reg

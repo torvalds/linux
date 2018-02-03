@@ -418,15 +418,13 @@ again:
 		}
 
 		if (!pte_present(pte)) {
-			swp_entry_t entry;
+			swp_entry_t entry = pte_to_swp_entry(pte);
 
 			if (!non_swap_entry(entry)) {
 				if (hmm_vma_walk->fault)
 					goto fault;
 				continue;
 			}
-
-			entry = pte_to_swp_entry(pte);
 
 			/*
 			 * This is a special swap entry, ignore migration, use

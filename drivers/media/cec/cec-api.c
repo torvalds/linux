@@ -43,13 +43,13 @@ static inline struct cec_devnode *cec_devnode_data(struct file *filp)
 
 /* CEC file operations */
 
-static unsigned int cec_poll(struct file *filp,
+static __poll_t cec_poll(struct file *filp,
 			     struct poll_table_struct *poll)
 {
 	struct cec_devnode *devnode = cec_devnode_data(filp);
 	struct cec_fh *fh = filp->private_data;
 	struct cec_adapter *adap = fh->adap;
-	unsigned int res = 0;
+	__poll_t res = 0;
 
 	if (!devnode->registered)
 		return POLLERR | POLLHUP;

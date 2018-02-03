@@ -23,13 +23,13 @@ cat /sys/kernel/debug/ci_hdrc.0/registers
 2) Connect 2 boards with usb cable with one end is micro A plug, the other end
    is micro B plug.
 
-   The A-device(with micro A plug inserted) should enumrate B-device.
+   The A-device(with micro A plug inserted) should enumerate B-device.
 
 3) Role switch
    On B-device:
    echo 1 > /sys/bus/platform/devices/ci_hdrc.0/inputs/b_bus_req
 
-   B-device should take host role and enumrate A-device.
+   B-device should take host role and enumerate A-device.
 
 4) A-device switch back to host.
    On B-device:
@@ -40,13 +40,13 @@ cat /sys/kernel/debug/ci_hdrc.0/registers
    side by answering the polling from B-Host, this can be done on A-device:
    echo 1 > /sys/bus/platform/devices/ci_hdrc.0/inputs/a_bus_req
 
-   A-device should switch back to host and enumrate B-device.
+   A-device should switch back to host and enumerate B-device.
 
 5) Remove B-device(unplug micro B plug) and insert again in 10 seconds,
-   A-device should enumrate B-device again.
+   A-device should enumerate B-device again.
 
 6) Remove B-device(unplug micro B plug) and insert again after 10 seconds,
-   A-device should NOT enumrate B-device.
+   A-device should NOT enumerate B-device.
 
    if A-device wants to use bus:
    On A-device:
@@ -67,7 +67,7 @@ cat /sys/kernel/debug/ci_hdrc.0/registers
    On B-device:
    echo 1 > /sys/bus/platform/devices/ci_hdrc.0/inputs/b_bus_req
 
-   A-device should resume usb bus and enumrate B-device.
+   A-device should resume usb bus and enumerate B-device.
 
 1.3 Reference document
 ----------------------

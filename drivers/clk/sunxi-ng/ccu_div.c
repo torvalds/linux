@@ -71,7 +71,7 @@ static unsigned long ccu_div_recalc_rate(struct clk_hw *hw,
 						  parent_rate);
 
 	val = divider_recalc_rate(hw, parent_rate, val, cd->div.table,
-				  cd->div.flags);
+				  cd->div.flags, cd->div.width);
 
 	if (cd->common.features & CCU_FEATURE_FIXED_POSTDIV)
 		val /= cd->fixed_post_div;

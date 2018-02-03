@@ -88,7 +88,7 @@
 			};
 
 			i2c1: i2c@f0018000 {
-				ov2640: camera@0x30 {
+				ov2640: camera@30 {
 					compatible = "ovti,ov2640";
 					reg = <0x30>;
 					pinctrl-names = "default";

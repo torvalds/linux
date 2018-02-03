@@ -1027,7 +1027,7 @@ void xt_free_table_info(struct xt_table_info *info)
 }
 EXPORT_SYMBOL(xt_free_table_info);
 
-/* Find table by name, grabs mutex & ref.  Returns NULL on error. */
+/* Find table by name, grabs mutex & ref.  Returns ERR_PTR on error. */
 struct xt_table *xt_find_table_lock(struct net *net, u_int8_t af,
 				    const char *name)
 {
@@ -1043,17 +1043,17 @@ struct xt_table *xt_find_table_lock(struct net *net, u_int8_t af,
 
 	/* Table doesn't exist in this netns, re-try init */
 	list_for_each_entry(t, &init_net.xt.tables[af], list) {
+		int err;
+
 		if (strcmp(t->name, name))
 			continue;
-		if (!try_module_get(t->me)) {
-			mutex_unlock(&xt[af].mutex);
-			return NULL;
-		}
-
+		if (!try_module_get(t->me))
+			goto out;
 		mutex_unlock(&xt[af].mutex);
-		if (t->table_init(net) != 0) {
+		err = t->table_init(net);
+		if (err < 0) {
 			module_put(t->me);
-			return NULL;
+			return ERR_PTR(err);
 		}
 
 		found = t;
@@ -1073,9 +1073,27 @@ struct xt_table *xt_find_table_lock(struct net *net, u_int8_t af,
 	module_put(found->me);
  out:
 	mutex_unlock(&xt[af].mutex);
-	return NULL;
+	return ERR_PTR(-ENOENT);
 }
 EXPORT_SYMBOL_GPL(xt_find_table_lock);
+
+struct xt_table *xt_request_find_table_lock(struct net *net, u_int8_t af,
+					    const char *name)
+{
+	struct xt_table *t = xt_find_table_lock(net, af, name);
+
+#ifdef CONFIG_MODULES
+	if (IS_ERR(t)) {
+		int err = request_module("%stable_%s", xt_prefix[af], name);
+		if (err < 0)
+			return ERR_PTR(err);
+		t = xt_find_table_lock(net, af, name);
+	}
+#endif
+
+	return t;
+}
+EXPORT_SYMBOL_GPL(xt_request_find_table_lock);
 
 void xt_table_unlock(struct xt_table *table)
 {
@@ -1344,7 +1362,6 @@ static int xt_table_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations xt_table_ops = {
-	.owner	 = THIS_MODULE,
 	.open	 = xt_table_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -1397,7 +1414,7 @@ static void *xt_mttg_seq_next(struct seq_file *seq, void *v, loff_t *ppos,
 		trav->curr = trav->curr->next;
 		if (trav->curr != trav->head)
 			break;
-		/* fallthru, _stop will unlock */
+		/* fall through */
 	default:
 		return NULL;
 	}
@@ -1480,7 +1497,6 @@ static int xt_match_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations xt_match_ops = {
-	.owner	 = THIS_MODULE,
 	.open	 = xt_match_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -1533,7 +1549,6 @@ static int xt_target_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations xt_target_ops = {
-	.owner	 = THIS_MODULE,
 	.open	 = xt_target_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,

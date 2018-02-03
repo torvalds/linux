@@ -75,6 +75,9 @@ static struct workqueue_struct *ena_wq;
 MODULE_DEVICE_TABLE(pci, ena_pci_tbl);
 
 static int ena_rss_init_default(struct ena_adapter *adapter);
+static void check_for_admin_com_state(struct ena_adapter *adapter);
+static void ena_destroy_device(struct ena_adapter *adapter);
+static int ena_restore_device(struct ena_adapter *adapter);
 
 static void ena_tx_timeout(struct net_device *dev)
 {
@@ -158,6 +161,8 @@ static void ena_init_io_rings_common(struct ena_adapter *adapter,
 	ring->per_napi_packets = 0;
 	ring->per_napi_bytes = 0;
 	ring->cpu = 0;
+	ring->first_interrupt = false;
+	ring->no_interrupt_event_cnt = 0;
 	u64_stats_init(&ring->syncp);
 }
 
@@ -1274,6 +1279,9 @@ static irqreturn_t ena_intr_msix_io(int irq, void *data)
 {
 	struct ena_napi *ena_napi = data;
 
+	ena_napi->tx_ring->first_interrupt = true;
+	ena_napi->rx_ring->first_interrupt = true;
+
 	napi_schedule_irqoff(&ena_napi->napi);
 
 	return IRQ_HANDLED;
@@ -1565,7 +1573,7 @@ static int ena_rss_configure(struct ena_adapter *adapter)
 
 static int ena_up_complete(struct ena_adapter *adapter)
 {
-	int rc, i;
+	int rc;
 
 	rc = ena_rss_configure(adapter);
 	if (rc)
@@ -1583,17 +1591,6 @@ static int ena_up_complete(struct ena_adapter *adapter)
 	ena_restore_ethtool_params(adapter);
 
 	ena_napi_enable_all(adapter);
-
-	/* Enable completion queues interrupt */
-	for (i = 0; i < adapter->num_queues; i++)
-		ena_unmask_interrupt(&adapter->tx_ring[i],
-				     &adapter->rx_ring[i]);
-
-	/* schedule napi in case we had pending packets
-	 * from the last time we disable napi
-	 */
-	for (i = 0; i < adapter->num_queues; i++)
-		napi_schedule(&adapter->ena_napi[i].napi);
 
 	return 0;
 }
@@ -1731,7 +1728,7 @@ create_err:
 
 static int ena_up(struct ena_adapter *adapter)
 {
-	int rc;
+	int rc, i;
 
 	netdev_dbg(adapter->netdev, "%s\n", __func__);
 
@@ -1773,6 +1770,17 @@ static int ena_up(struct ena_adapter *adapter)
 	u64_stats_update_end(&adapter->syncp);
 
 	set_bit(ENA_FLAG_DEV_UP, &adapter->flags);
+
+	/* Enable completion queues interrupt */
+	for (i = 0; i < adapter->num_queues; i++)
+		ena_unmask_interrupt(&adapter->tx_ring[i],
+				     &adapter->rx_ring[i]);
+
+	/* schedule napi in case we had pending packets
+	 * from the last time we disable napi
+	 */
+	for (i = 0; i < adapter->num_queues; i++)
+		napi_schedule(&adapter->ena_napi[i].napi);
 
 	return rc;
 
@@ -1883,6 +1891,17 @@ static int ena_close(struct net_device *netdev)
 
 	if (test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
 		ena_down(adapter);
+
+	/* Check for device status and issue reset if needed*/
+	check_for_admin_com_state(adapter);
+	if (unlikely(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
+		netif_err(adapter, ifdown, adapter->netdev,
+			  "Destroy failure, restarting device\n");
+		ena_dump_stats_to_dmesg(adapter);
+		/* rtnl lock already obtained in dev_ioctl() layer */
+		ena_destroy_device(adapter);
+		ena_restore_device(adapter);
+	}
 
 	return 0;
 }
@@ -2544,11 +2563,12 @@ static void ena_destroy_device(struct ena_adapter *adapter)
 
 	ena_com_set_admin_running_state(ena_dev, false);
 
-	ena_close(netdev);
+	if (test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
+		ena_down(adapter);
 
 	/* Before releasing the ENA resources, a device reset is required.
 	 * (to prevent the device from accessing them).
-	 * In case the reset flag is set and the device is up, ena_close
+	 * In case the reset flag is set and the device is up, ena_down()
 	 * already perform the reset, so it can be skipped.
 	 */
 	if (!(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags) && dev_up))
@@ -2648,8 +2668,32 @@ static void ena_fw_reset_device(struct work_struct *work)
 	rtnl_unlock();
 }
 
-static int check_missing_comp_in_queue(struct ena_adapter *adapter,
-				       struct ena_ring *tx_ring)
+static int check_for_rx_interrupt_queue(struct ena_adapter *adapter,
+					struct ena_ring *rx_ring)
+{
+	if (likely(rx_ring->first_interrupt))
+		return 0;
+
+	if (ena_com_cq_empty(rx_ring->ena_com_io_cq))
+		return 0;
+
+	rx_ring->no_interrupt_event_cnt++;
+
+	if (rx_ring->no_interrupt_event_cnt == ENA_MAX_NO_INTERRUPT_ITERATIONS) {
+		netif_err(adapter, rx_err, adapter->netdev,
+			  "Potential MSIX issue on Rx side Queue = %d. Reset the device\n",
+			  rx_ring->qid);
+		adapter->reset_reason = ENA_REGS_RESET_MISS_INTERRUPT;
+		smp_mb__before_atomic();
+		set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
+					  struct ena_ring *tx_ring)
 {
 	struct ena_tx_buffer *tx_buf;
 	unsigned long last_jiffies;
@@ -2659,8 +2703,27 @@ static int check_missing_comp_in_queue(struct ena_adapter *adapter,
 	for (i = 0; i < tx_ring->ring_size; i++) {
 		tx_buf = &tx_ring->tx_buffer_info[i];
 		last_jiffies = tx_buf->last_jiffies;
-		if (unlikely(last_jiffies &&
-			     time_is_before_jiffies(last_jiffies + adapter->missing_tx_completion_to))) {
+
+		if (last_jiffies == 0)
+			/* no pending Tx at this location */
+			continue;
+
+		if (unlikely(!tx_ring->first_interrupt && time_is_before_jiffies(last_jiffies +
+			     2 * adapter->missing_tx_completion_to))) {
+			/* If after graceful period interrupt is still not
+			 * received, we schedule a reset
+			 */
+			netif_err(adapter, tx_err, adapter->netdev,
+				  "Potential MSIX issue on Tx side Queue = %d. Reset the device\n",
+				  tx_ring->qid);
+			adapter->reset_reason = ENA_REGS_RESET_MISS_INTERRUPT;
+			smp_mb__before_atomic();
+			set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+			return -EIO;
+		}
+
+		if (unlikely(time_is_before_jiffies(last_jiffies +
+				adapter->missing_tx_completion_to))) {
 			if (!tx_buf->print_once)
 				netif_notice(adapter, tx_err, adapter->netdev,
 					     "Found a Tx that wasn't completed on time, qid %d, index %d.\n",
@@ -2689,9 +2752,10 @@ static int check_missing_comp_in_queue(struct ena_adapter *adapter,
 	return rc;
 }
 
-static void check_for_missing_tx_completions(struct ena_adapter *adapter)
+static void check_for_missing_completions(struct ena_adapter *adapter)
 {
 	struct ena_ring *tx_ring;
+	struct ena_ring *rx_ring;
 	int i, budget, rc;
 
 	/* Make sure the driver doesn't turn the device in other process */
@@ -2710,8 +2774,13 @@ static void check_for_missing_tx_completions(struct ena_adapter *adapter)
 
 	for (i = adapter->last_monitored_tx_qid; i < adapter->num_queues; i++) {
 		tx_ring = &adapter->tx_ring[i];
+		rx_ring = &adapter->rx_ring[i];
 
-		rc = check_missing_comp_in_queue(adapter, tx_ring);
+		rc = check_missing_comp_in_tx_queue(adapter, tx_ring);
+		if (unlikely(rc))
+			return;
+
+		rc = check_for_rx_interrupt_queue(adapter, rx_ring);
 		if (unlikely(rc))
 			return;
 
@@ -2870,7 +2939,7 @@ static void ena_timer_service(struct timer_list *t)
 
 	check_for_admin_com_state(adapter);
 
-	check_for_missing_tx_completions(adapter);
+	check_for_missing_completions(adapter);
 
 	check_for_empty_rx_ring(adapter);
 

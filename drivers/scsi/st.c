@@ -4712,7 +4712,7 @@ static ssize_t read_byte_cnt_show(struct device *dev,
 static DEVICE_ATTR_RO(read_byte_cnt);
 
 /**
- * read_us_show - return read us - overall time spent waiting on reads in ns.
+ * read_ns_show - return read ns - overall time spent waiting on reads in ns.
  * @dev: struct device
  * @attr: attribute structure
  * @buf: buffer to return formatted data in

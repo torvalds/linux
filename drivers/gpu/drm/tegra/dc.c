@@ -19,55 +19,12 @@
 #include "dc.h"
 #include "drm.h"
 #include "gem.h"
+#include "hub.h"
+#include "plane.h"
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
-
-struct tegra_plane {
-	struct drm_plane base;
-	unsigned int index;
-};
-
-static inline struct tegra_plane *to_tegra_plane(struct drm_plane *plane)
-{
-	return container_of(plane, struct tegra_plane, base);
-}
-
-struct tegra_dc_state {
-	struct drm_crtc_state base;
-
-	struct clk *clk;
-	unsigned long pclk;
-	unsigned int div;
-
-	u32 planes;
-};
-
-static inline struct tegra_dc_state *to_dc_state(struct drm_crtc_state *state)
-{
-	if (state)
-		return container_of(state, struct tegra_dc_state, base);
-
-	return NULL;
-}
-
-struct tegra_plane_state {
-	struct drm_plane_state base;
-
-	struct tegra_bo_tiling tiling;
-	u32 format;
-	u32 swap;
-};
-
-static inline struct tegra_plane_state *
-to_tegra_plane_state(struct drm_plane_state *state)
-{
-	if (state)
-		return container_of(state, struct tegra_plane_state, base);
-
-	return NULL;
-}
 
 static void tegra_dc_stats_reset(struct tegra_dc_stats *stats)
 {
@@ -77,24 +34,64 @@ static void tegra_dc_stats_reset(struct tegra_dc_stats *stats)
 	stats->overflow = 0;
 }
 
-/*
- * Reads the active copy of a register. This takes the dc->lock spinlock to
- * prevent races with the VBLANK processing which also needs access to the
- * active copy of some registers.
- */
+/* Reads the active copy of a register. */
 static u32 tegra_dc_readl_active(struct tegra_dc *dc, unsigned long offset)
 {
-	unsigned long flags;
 	u32 value;
-
-	spin_lock_irqsave(&dc->lock, flags);
 
 	tegra_dc_writel(dc, READ_MUX, DC_CMD_STATE_ACCESS);
 	value = tegra_dc_readl(dc, offset);
 	tegra_dc_writel(dc, 0, DC_CMD_STATE_ACCESS);
 
-	spin_unlock_irqrestore(&dc->lock, flags);
 	return value;
+}
+
+static inline unsigned int tegra_plane_offset(struct tegra_plane *plane,
+					      unsigned int offset)
+{
+	if (offset >= 0x500 && offset <= 0x638) {
+		offset = 0x000 + (offset - 0x500);
+		return plane->offset + offset;
+	}
+
+	if (offset >= 0x700 && offset <= 0x719) {
+		offset = 0x180 + (offset - 0x700);
+		return plane->offset + offset;
+	}
+
+	if (offset >= 0x800 && offset <= 0x839) {
+		offset = 0x1c0 + (offset - 0x800);
+		return plane->offset + offset;
+	}
+
+	dev_WARN(plane->dc->dev, "invalid offset: %x\n", offset);
+
+	return plane->offset + offset;
+}
+
+static inline u32 tegra_plane_readl(struct tegra_plane *plane,
+				    unsigned int offset)
+{
+	return tegra_dc_readl(plane->dc, tegra_plane_offset(plane, offset));
+}
+
+static inline void tegra_plane_writel(struct tegra_plane *plane, u32 value,
+				      unsigned int offset)
+{
+	tegra_dc_writel(plane->dc, value, tegra_plane_offset(plane, offset));
+}
+
+bool tegra_dc_has_output(struct tegra_dc *dc, struct device *dev)
+{
+	struct device_node *np = dc->dev->of_node;
+	struct of_phandle_iterator it;
+	int err;
+
+	of_for_each_phandle(&it, err, np, "nvidia,outputs", NULL, 0)
+		if (it.node == dev->of_node)
+			return true;
+
+	return false;
 }
 
 /*
@@ -113,81 +110,6 @@ void tegra_dc_commit(struct tegra_dc *dc)
 {
 	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
 	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
-}
-
-static int tegra_dc_format(u32 fourcc, u32 *format, u32 *swap)
-{
-	/* assume no swapping of fetched data */
-	if (swap)
-		*swap = BYTE_SWAP_NOSWAP;
-
-	switch (fourcc) {
-	case DRM_FORMAT_XBGR8888:
-		*format = WIN_COLOR_DEPTH_R8G8B8A8;
-		break;
-
-	case DRM_FORMAT_XRGB8888:
-		*format = WIN_COLOR_DEPTH_B8G8R8A8;
-		break;
-
-	case DRM_FORMAT_RGB565:
-		*format = WIN_COLOR_DEPTH_B5G6R5;
-		break;
-
-	case DRM_FORMAT_UYVY:
-		*format = WIN_COLOR_DEPTH_YCbCr422;
-		break;
-
-	case DRM_FORMAT_YUYV:
-		if (swap)
-			*swap = BYTE_SWAP_SWAP2;
-
-		*format = WIN_COLOR_DEPTH_YCbCr422;
-		break;
-
-	case DRM_FORMAT_YUV420:
-		*format = WIN_COLOR_DEPTH_YCbCr420P;
-		break;
-
-	case DRM_FORMAT_YUV422:
-		*format = WIN_COLOR_DEPTH_YCbCr422P;
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static bool tegra_dc_format_is_yuv(unsigned int format, bool *planar)
-{
-	switch (format) {
-	case WIN_COLOR_DEPTH_YCbCr422:
-	case WIN_COLOR_DEPTH_YUV422:
-		if (planar)
-			*planar = false;
-
-		return true;
-
-	case WIN_COLOR_DEPTH_YCbCr420P:
-	case WIN_COLOR_DEPTH_YUV420P:
-	case WIN_COLOR_DEPTH_YCbCr422P:
-	case WIN_COLOR_DEPTH_YUV422P:
-	case WIN_COLOR_DEPTH_YCbCr422R:
-	case WIN_COLOR_DEPTH_YUV422R:
-	case WIN_COLOR_DEPTH_YCbCr422RA:
-	case WIN_COLOR_DEPTH_YUV422RA:
-		if (planar)
-			*planar = true;
-
-		return true;
-	}
-
-	if (planar)
-		*planar = false;
-
-	return false;
 }
 
 static inline u32 compute_dda_inc(unsigned int in, unsigned int out, bool v,
@@ -230,36 +152,104 @@ static inline u32 compute_initial_dda(unsigned int in)
 	return dfixed_frac(inf);
 }
 
-static void tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
+static void tegra_plane_setup_blending_legacy(struct tegra_plane *plane)
+{
+	u32 background[3] = {
+		BLEND_WEIGHT1(0) | BLEND_WEIGHT0(0) | BLEND_COLOR_KEY_NONE,
+		BLEND_WEIGHT1(0) | BLEND_WEIGHT0(0) | BLEND_COLOR_KEY_NONE,
+		BLEND_WEIGHT1(0) | BLEND_WEIGHT0(0) | BLEND_COLOR_KEY_NONE,
+	};
+	u32 foreground = BLEND_WEIGHT1(255) | BLEND_WEIGHT0(255) |
+			 BLEND_COLOR_KEY_NONE;
+	u32 blendnokey = BLEND_WEIGHT1(255) | BLEND_WEIGHT0(255);
+	struct tegra_plane_state *state;
+	unsigned int i;
+
+	state = to_tegra_plane_state(plane->base.state);
+
+	/* alpha contribution is 1 minus sum of overlapping windows */
+	for (i = 0; i < 3; i++) {
+		if (state->dependent[i])
+			background[i] |= BLEND_CONTROL_DEPENDENT;
+	}
+
+	/* enable alpha blending if pixel format has an alpha component */
+	if (!state->opaque)
+		foreground |= BLEND_CONTROL_ALPHA;
+
+	/*
+	 * Disable blending and assume Window A is the bottom-most window,
+	 * Window C is the top-most window and Window B is in the middle.
+	 */
+	tegra_plane_writel(plane, blendnokey, DC_WIN_BLEND_NOKEY);
+	tegra_plane_writel(plane, foreground, DC_WIN_BLEND_1WIN);
+
+	switch (plane->index) {
+	case 0:
+		tegra_plane_writel(plane, background[0], DC_WIN_BLEND_2WIN_X);
+		tegra_plane_writel(plane, background[1], DC_WIN_BLEND_2WIN_Y);
+		tegra_plane_writel(plane, background[2], DC_WIN_BLEND_3WIN_XY);
+		break;
+
+	case 1:
+		tegra_plane_writel(plane, foreground, DC_WIN_BLEND_2WIN_X);
+		tegra_plane_writel(plane, background[1], DC_WIN_BLEND_2WIN_Y);
+		tegra_plane_writel(plane, background[2], DC_WIN_BLEND_3WIN_XY);
+		break;
+
+	case 2:
+		tegra_plane_writel(plane, foreground, DC_WIN_BLEND_2WIN_X);
+		tegra_plane_writel(plane, foreground, DC_WIN_BLEND_2WIN_Y);
+		tegra_plane_writel(plane, foreground, DC_WIN_BLEND_3WIN_XY);
+		break;
+	}
+}
+
+static void tegra_plane_setup_blending(struct tegra_plane *plane,
+				       const struct tegra_dc_window *window)
+{
+	u32 value;
+
+	value = BLEND_FACTOR_DST_ALPHA_ZERO | BLEND_FACTOR_SRC_ALPHA_K2 |
+		BLEND_FACTOR_DST_COLOR_NEG_K1_TIMES_SRC |
+		BLEND_FACTOR_SRC_COLOR_K1_TIMES_SRC;
+	tegra_plane_writel(plane, value, DC_WIN_BLEND_MATCH_SELECT);
+
+	value = BLEND_FACTOR_DST_ALPHA_ZERO | BLEND_FACTOR_SRC_ALPHA_K2 |
+		BLEND_FACTOR_DST_COLOR_NEG_K1_TIMES_SRC |
+		BLEND_FACTOR_SRC_COLOR_K1_TIMES_SRC;
+	tegra_plane_writel(plane, value, DC_WIN_BLEND_NOMATCH_SELECT);
+
+	value = K2(255) | K1(255) | WINDOW_LAYER_DEPTH(255 - window->zpos);
+	tegra_plane_writel(plane, value, DC_WIN_BLEND_LAYER_CONTROL);
+}
+
+static void tegra_dc_setup_window(struct tegra_plane *plane,
 				  const struct tegra_dc_window *window)
 {
 	unsigned h_offset, v_offset, h_size, v_size, h_dda, v_dda, bpp;
-	unsigned long value, flags;
+	struct tegra_dc *dc = plane->dc;
 	bool yuv, planar;
+	u32 value;
 
 	/*
 	 * For YUV planar modes, the number of bytes per pixel takes into
 	 * account only the luma component and therefore is 1.
 	 */
-	yuv = tegra_dc_format_is_yuv(window->format, &planar);
+	yuv = tegra_plane_format_is_yuv(window->format, &planar);
 	if (!yuv)
 		bpp = window->bits_per_pixel / 8;
 	else
 		bpp = planar ? 1 : 2;
 
-	spin_lock_irqsave(&dc->lock, flags);
-
-	value = WINDOW_A_SELECT << index;
-	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_WINDOW_HEADER);
-
-	tegra_dc_writel(dc, window->format, DC_WIN_COLOR_DEPTH);
-	tegra_dc_writel(dc, window->swap, DC_WIN_BYTE_SWAP);
+	tegra_plane_writel(plane, window->format, DC_WIN_COLOR_DEPTH);
+	tegra_plane_writel(plane, window->swap, DC_WIN_BYTE_SWAP);
 
 	value = V_POSITION(window->dst.y) | H_POSITION(window->dst.x);
-	tegra_dc_writel(dc, value, DC_WIN_POSITION);
+	tegra_plane_writel(plane, value, DC_WIN_POSITION);
 
 	value = V_SIZE(window->dst.h) | H_SIZE(window->dst.w);
-	tegra_dc_writel(dc, value, DC_WIN_SIZE);
+	tegra_plane_writel(plane, value, DC_WIN_SIZE);
 
 	h_offset = window->src.x * bpp;
 	v_offset = window->src.y;
@@ -267,7 +257,7 @@ static void tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 	v_size = window->src.h;
 
 	value = V_PRESCALED_SIZE(v_size) | H_PRESCALED_SIZE(h_size);
-	tegra_dc_writel(dc, value, DC_WIN_PRESCALED_SIZE);
+	tegra_plane_writel(plane, value, DC_WIN_PRESCALED_SIZE);
 
 	/*
 	 * For DDA computations the number of bytes per pixel for YUV planar
@@ -280,33 +270,33 @@ static void tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 	v_dda = compute_dda_inc(window->src.h, window->dst.h, true, bpp);
 
 	value = V_DDA_INC(v_dda) | H_DDA_INC(h_dda);
-	tegra_dc_writel(dc, value, DC_WIN_DDA_INC);
+	tegra_plane_writel(plane, value, DC_WIN_DDA_INC);
 
 	h_dda = compute_initial_dda(window->src.x);
 	v_dda = compute_initial_dda(window->src.y);
 
-	tegra_dc_writel(dc, h_dda, DC_WIN_H_INITIAL_DDA);
-	tegra_dc_writel(dc, v_dda, DC_WIN_V_INITIAL_DDA);
+	tegra_plane_writel(plane, h_dda, DC_WIN_H_INITIAL_DDA);
+	tegra_plane_writel(plane, v_dda, DC_WIN_V_INITIAL_DDA);
 
-	tegra_dc_writel(dc, 0, DC_WIN_UV_BUF_STRIDE);
-	tegra_dc_writel(dc, 0, DC_WIN_BUF_STRIDE);
+	tegra_plane_writel(plane, 0, DC_WIN_UV_BUF_STRIDE);
+	tegra_plane_writel(plane, 0, DC_WIN_BUF_STRIDE);
 
-	tegra_dc_writel(dc, window->base[0], DC_WINBUF_START_ADDR);
+	tegra_plane_writel(plane, window->base[0], DC_WINBUF_START_ADDR);
 
 	if (yuv && planar) {
-		tegra_dc_writel(dc, window->base[1], DC_WINBUF_START_ADDR_U);
-		tegra_dc_writel(dc, window->base[2], DC_WINBUF_START_ADDR_V);
+		tegra_plane_writel(plane, window->base[1], DC_WINBUF_START_ADDR_U);
+		tegra_plane_writel(plane, window->base[2], DC_WINBUF_START_ADDR_V);
 		value = window->stride[1] << 16 | window->stride[0];
-		tegra_dc_writel(dc, value, DC_WIN_LINE_STRIDE);
+		tegra_plane_writel(plane, value, DC_WIN_LINE_STRIDE);
 	} else {
-		tegra_dc_writel(dc, window->stride[0], DC_WIN_LINE_STRIDE);
+		tegra_plane_writel(plane, window->stride[0], DC_WIN_LINE_STRIDE);
 	}
 
 	if (window->bottom_up)
 		v_offset += window->src.h - 1;
 
-	tegra_dc_writel(dc, h_offset, DC_WINBUF_ADDR_H_OFFSET);
-	tegra_dc_writel(dc, v_offset, DC_WINBUF_ADDR_V_OFFSET);
+	tegra_plane_writel(plane, h_offset, DC_WINBUF_ADDR_H_OFFSET);
+	tegra_plane_writel(plane, v_offset, DC_WINBUF_ADDR_V_OFFSET);
 
 	if (dc->soc->supports_block_linear) {
 		unsigned long height = window->tiling.value;
@@ -326,7 +316,7 @@ static void tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 			break;
 		}
 
-		tegra_dc_writel(dc, value, DC_WINBUF_SURFACE_KIND);
+		tegra_plane_writel(plane, value, DC_WINBUF_SURFACE_KIND);
 	} else {
 		switch (window->tiling.mode) {
 		case TEGRA_BO_TILING_MODE_PITCH:
@@ -347,21 +337,21 @@ static void tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 			break;
 		}
 
-		tegra_dc_writel(dc, value, DC_WIN_BUFFER_ADDR_MODE);
+		tegra_plane_writel(plane, value, DC_WIN_BUFFER_ADDR_MODE);
 	}
 
 	value = WIN_ENABLE;
 
 	if (yuv) {
 		/* setup default colorspace conversion coefficients */
-		tegra_dc_writel(dc, 0x00f0, DC_WIN_CSC_YOF);
-		tegra_dc_writel(dc, 0x012a, DC_WIN_CSC_KYRGB);
-		tegra_dc_writel(dc, 0x0000, DC_WIN_CSC_KUR);
-		tegra_dc_writel(dc, 0x0198, DC_WIN_CSC_KVR);
-		tegra_dc_writel(dc, 0x039b, DC_WIN_CSC_KUG);
-		tegra_dc_writel(dc, 0x032f, DC_WIN_CSC_KVG);
-		tegra_dc_writel(dc, 0x0204, DC_WIN_CSC_KUB);
-		tegra_dc_writel(dc, 0x0000, DC_WIN_CSC_KVB);
+		tegra_plane_writel(plane, 0x00f0, DC_WIN_CSC_YOF);
+		tegra_plane_writel(plane, 0x012a, DC_WIN_CSC_KYRGB);
+		tegra_plane_writel(plane, 0x0000, DC_WIN_CSC_KUR);
+		tegra_plane_writel(plane, 0x0198, DC_WIN_CSC_KVR);
+		tegra_plane_writel(plane, 0x039b, DC_WIN_CSC_KUG);
+		tegra_plane_writel(plane, 0x032f, DC_WIN_CSC_KVG);
+		tegra_plane_writel(plane, 0x0204, DC_WIN_CSC_KUB);
+		tegra_plane_writel(plane, 0x0000, DC_WIN_CSC_KVB);
 
 		value |= CSC_ENABLE;
 	} else if (window->bits_per_pixel < 24) {
@@ -371,137 +361,74 @@ static void tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 	if (window->bottom_up)
 		value |= V_DIRECTION;
 
-	tegra_dc_writel(dc, value, DC_WIN_WIN_OPTIONS);
+	tegra_plane_writel(plane, value, DC_WIN_WIN_OPTIONS);
 
-	/*
-	 * Disable blending and assume Window A is the bottom-most window,
-	 * Window C is the top-most window and Window B is in the middle.
-	 */
-	tegra_dc_writel(dc, 0xffff00, DC_WIN_BLEND_NOKEY);
-	tegra_dc_writel(dc, 0xffff00, DC_WIN_BLEND_1WIN);
-
-	switch (index) {
-	case 0:
-		tegra_dc_writel(dc, 0x000000, DC_WIN_BLEND_2WIN_X);
-		tegra_dc_writel(dc, 0x000000, DC_WIN_BLEND_2WIN_Y);
-		tegra_dc_writel(dc, 0x000000, DC_WIN_BLEND_3WIN_XY);
-		break;
-
-	case 1:
-		tegra_dc_writel(dc, 0xffff00, DC_WIN_BLEND_2WIN_X);
-		tegra_dc_writel(dc, 0x000000, DC_WIN_BLEND_2WIN_Y);
-		tegra_dc_writel(dc, 0x000000, DC_WIN_BLEND_3WIN_XY);
-		break;
-
-	case 2:
-		tegra_dc_writel(dc, 0xffff00, DC_WIN_BLEND_2WIN_X);
-		tegra_dc_writel(dc, 0xffff00, DC_WIN_BLEND_2WIN_Y);
-		tegra_dc_writel(dc, 0xffff00, DC_WIN_BLEND_3WIN_XY);
-		break;
-	}
-
-	spin_unlock_irqrestore(&dc->lock, flags);
+	if (dc->soc->supports_blending)
+		tegra_plane_setup_blending(plane, window);
+	else
+		tegra_plane_setup_blending_legacy(plane);
 }
 
-static void tegra_plane_destroy(struct drm_plane *plane)
-{
-	struct tegra_plane *p = to_tegra_plane(plane);
-
-	drm_plane_cleanup(plane);
-	kfree(p);
-}
-
-static const u32 tegra_primary_plane_formats[] = {
+static const u32 tegra20_primary_formats[] = {
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGBA5551,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_ARGB8888,
+	/* non-native formats */
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGBX5551,
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_XRGB8888,
+};
+
+static const u32 tegra114_primary_formats[] = {
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGBA5551,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_ARGB8888,
+	/* new on Tegra114 */
+	DRM_FORMAT_ABGR4444,
+	DRM_FORMAT_ABGR1555,
+	DRM_FORMAT_BGRA5551,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGBX5551,
+	DRM_FORMAT_XBGR1555,
+	DRM_FORMAT_BGRX5551,
+	DRM_FORMAT_BGR565,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
 };
 
-static void tegra_primary_plane_destroy(struct drm_plane *plane)
-{
-	tegra_plane_destroy(plane);
-}
-
-static void tegra_plane_reset(struct drm_plane *plane)
-{
-	struct tegra_plane_state *state;
-
-	if (plane->state)
-		__drm_atomic_helper_plane_destroy_state(plane->state);
-
-	kfree(plane->state);
-	plane->state = NULL;
-
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (state) {
-		plane->state = &state->base;
-		plane->state->plane = plane;
-	}
-}
-
-static struct drm_plane_state *tegra_plane_atomic_duplicate_state(struct drm_plane *plane)
-{
-	struct tegra_plane_state *state = to_tegra_plane_state(plane->state);
-	struct tegra_plane_state *copy;
-
-	copy = kmalloc(sizeof(*copy), GFP_KERNEL);
-	if (!copy)
-		return NULL;
-
-	__drm_atomic_helper_plane_duplicate_state(plane, &copy->base);
-	copy->tiling = state->tiling;
-	copy->format = state->format;
-	copy->swap = state->swap;
-
-	return &copy->base;
-}
-
-static void tegra_plane_atomic_destroy_state(struct drm_plane *plane,
-					     struct drm_plane_state *state)
-{
-	__drm_atomic_helper_plane_destroy_state(state);
-	kfree(state);
-}
-
-static const struct drm_plane_funcs tegra_primary_plane_funcs = {
-	.update_plane = drm_atomic_helper_update_plane,
-	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = tegra_primary_plane_destroy,
-	.reset = tegra_plane_reset,
-	.atomic_duplicate_state = tegra_plane_atomic_duplicate_state,
-	.atomic_destroy_state = tegra_plane_atomic_destroy_state,
+static const u32 tegra124_primary_formats[] = {
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGBA5551,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_ARGB8888,
+	/* new on Tegra114 */
+	DRM_FORMAT_ABGR4444,
+	DRM_FORMAT_ABGR1555,
+	DRM_FORMAT_BGRA5551,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGBX5551,
+	DRM_FORMAT_XBGR1555,
+	DRM_FORMAT_BGRX5551,
+	DRM_FORMAT_BGR565,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	/* new on Tegra124 */
+	DRM_FORMAT_RGBX8888,
+	DRM_FORMAT_BGRX8888,
 };
-
-static int tegra_plane_state_add(struct tegra_plane *plane,
-				 struct drm_plane_state *state)
-{
-	struct drm_crtc_state *crtc_state;
-	struct tegra_dc_state *tegra;
-	struct drm_rect clip;
-	int err;
-
-	/* Propagate errors from allocation or locking failures. */
-	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
-	if (IS_ERR(crtc_state))
-		return PTR_ERR(crtc_state);
-
-	clip.x1 = 0;
-	clip.y1 = 0;
-	clip.x2 = crtc_state->mode.hdisplay;
-	clip.y2 = crtc_state->mode.vdisplay;
-
-	/* Check plane state for visibility and calculate clipping bounds */
-	err = drm_plane_helper_check_state(state, &clip, 0, INT_MAX,
-					   true, true);
-	if (err < 0)
-		return err;
-
-	tegra = to_dc_state(crtc_state);
-
-	tegra->planes |= WIN_A_ACT_REQ << plane->index;
-
-	return 0;
-}
 
 static int tegra_plane_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *state)
@@ -510,16 +437,39 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 	struct tegra_bo_tiling *tiling = &plane_state->tiling;
 	struct tegra_plane *tegra = to_tegra_plane(plane);
 	struct tegra_dc *dc = to_tegra_dc(state->crtc);
+	unsigned int format;
 	int err;
 
 	/* no need for further checks if the plane is being disabled */
 	if (!state->crtc)
 		return 0;
 
-	err = tegra_dc_format(state->fb->format->format, &plane_state->format,
-			      &plane_state->swap);
+	err = tegra_plane_format(state->fb->format->format, &format,
+				 &plane_state->swap);
 	if (err < 0)
 		return err;
+
+	/*
+	 * Tegra20 and Tegra30 are special cases here because they support
+	 * only variants of specific formats with an alpha component, but not
+	 * the corresponding opaque formats. However, the opaque formats can
+	 * be emulated by disabling alpha blending for the plane.
+	 */
+	if (!dc->soc->supports_blending) {
+		if (!tegra_plane_format_has_alpha(format)) {
+			err = tegra_plane_format_get_alpha(format, &format);
+			if (err < 0)
+				return err;
+
+			plane_state->opaque = true;
+		} else {
+			plane_state->opaque = false;
+		}
+
+		tegra_plane_check_dependent(tegra, plane_state);
+	}
+
+	plane_state->format = format;
 
 	err = tegra_fb_get_tiling(state->fb, tiling);
 	if (err < 0)
@@ -553,32 +503,22 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 static void tegra_plane_atomic_disable(struct drm_plane *plane,
 				       struct drm_plane_state *old_state)
 {
-	struct tegra_dc *dc = to_tegra_dc(old_state->crtc);
 	struct tegra_plane *p = to_tegra_plane(plane);
-	unsigned long flags;
 	u32 value;
 
 	/* rien ne va plus */
 	if (!old_state || !old_state->crtc)
 		return;
 
-	spin_lock_irqsave(&dc->lock, flags);
-
-	value = WINDOW_A_SELECT << p->index;
-	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_WINDOW_HEADER);
-
-	value = tegra_dc_readl(dc, DC_WIN_WIN_OPTIONS);
+	value = tegra_plane_readl(p, DC_WIN_WIN_OPTIONS);
 	value &= ~WIN_ENABLE;
-	tegra_dc_writel(dc, value, DC_WIN_WIN_OPTIONS);
-
-	spin_unlock_irqrestore(&dc->lock, flags);
+	tegra_plane_writel(p, value, DC_WIN_WIN_OPTIONS);
 }
 
 static void tegra_plane_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
 	struct tegra_plane_state *state = to_tegra_plane_state(plane->state);
-	struct tegra_dc *dc = to_tegra_dc(plane->state->crtc);
 	struct drm_framebuffer *fb = plane->state->fb;
 	struct tegra_plane *p = to_tegra_plane(plane);
 	struct tegra_dc_window window;
@@ -604,6 +544,7 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 	window.bottom_up = tegra_fb_is_bottom_up(fb);
 
 	/* copy from state */
+	window.zpos = plane->state->normalized_zpos;
 	window.tiling = state->tiling;
 	window.format = state->format;
 	window.swap = state->swap;
@@ -622,7 +563,7 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 			window.stride[i] = fb->pitches[i];
 	}
 
-	tegra_dc_setup_window(dc, p->index, &window);
+	tegra_dc_setup_window(p, &window);
 }
 
 static const struct drm_plane_helper_funcs tegra_plane_helper_funcs = {
@@ -631,8 +572,7 @@ static const struct drm_plane_helper_funcs tegra_plane_helper_funcs = {
 	.atomic_update = tegra_plane_atomic_update,
 };
 
-static struct drm_plane *tegra_dc_primary_plane_create(struct drm_device *drm,
-						       struct tegra_dc *dc)
+static unsigned long tegra_plane_get_possible_crtcs(struct drm_device *drm)
 {
 	/*
 	 * Ideally this would use drm_crtc_mask(), but that would require the
@@ -646,7 +586,14 @@ static struct drm_plane *tegra_dc_primary_plane_create(struct drm_device *drm,
 	 * of CRTCs that have been registered, and should therefore always be
 	 * the same as drm_crtc_index() after registration.
 	 */
-	unsigned long possible_crtcs = 1 << drm->mode_config.num_crtc;
+	return 1 << drm->mode_config.num_crtc;
+}
+
+static struct drm_plane *tegra_primary_plane_create(struct drm_device *drm,
+						    struct tegra_dc *dc)
+{
+	unsigned long possible_crtcs = tegra_plane_get_possible_crtcs(drm);
+	enum drm_plane_type type = DRM_PLANE_TYPE_PRIMARY;
 	struct tegra_plane *plane;
 	unsigned int num_formats;
 	const u32 *formats;
@@ -656,19 +603,26 @@ static struct drm_plane *tegra_dc_primary_plane_create(struct drm_device *drm,
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
 
-	num_formats = ARRAY_SIZE(tegra_primary_plane_formats);
-	formats = tegra_primary_plane_formats;
+	/* Always use window A as primary window */
+	plane->offset = 0xa00;
+	plane->index = 0;
+	plane->dc = dc;
+
+	num_formats = dc->soc->num_primary_formats;
+	formats = dc->soc->primary_formats;
 
 	err = drm_universal_plane_init(drm, &plane->base, possible_crtcs,
-				       &tegra_primary_plane_funcs, formats,
-				       num_formats, NULL,
-				       DRM_PLANE_TYPE_PRIMARY, NULL);
+				       &tegra_plane_funcs, formats,
+				       num_formats, NULL, type, NULL);
 	if (err < 0) {
 		kfree(plane);
 		return ERR_PTR(err);
 	}
 
 	drm_plane_helper_add(&plane->base, &tegra_plane_helper_funcs);
+
+	if (dc->soc->supports_blending)
+		drm_plane_create_zpos_property(&plane->base, 0, 0, 255);
 
 	return &plane->base;
 }
@@ -786,15 +740,6 @@ static void tegra_cursor_atomic_disable(struct drm_plane *plane,
 	tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
 }
 
-static const struct drm_plane_funcs tegra_cursor_plane_funcs = {
-	.update_plane = drm_atomic_helper_update_plane,
-	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = tegra_plane_destroy,
-	.reset = tegra_plane_reset,
-	.atomic_duplicate_state = tegra_plane_atomic_duplicate_state,
-	.atomic_destroy_state = tegra_plane_atomic_destroy_state,
-};
-
 static const struct drm_plane_helper_funcs tegra_cursor_plane_helper_funcs = {
 	.atomic_check = tegra_cursor_atomic_check,
 	.atomic_update = tegra_cursor_atomic_update,
@@ -804,6 +749,7 @@ static const struct drm_plane_helper_funcs tegra_cursor_plane_helper_funcs = {
 static struct drm_plane *tegra_dc_cursor_plane_create(struct drm_device *drm,
 						      struct tegra_dc *dc)
 {
+	unsigned long possible_crtcs = tegra_plane_get_possible_crtcs(drm);
 	struct tegra_plane *plane;
 	unsigned int num_formats;
 	const u32 *formats;
@@ -821,12 +767,13 @@ static struct drm_plane *tegra_dc_cursor_plane_create(struct drm_device *drm,
 	 * need to special-casing the cursor plane.
 	 */
 	plane->index = 6;
+	plane->dc = dc;
 
 	num_formats = ARRAY_SIZE(tegra_cursor_plane_formats);
 	formats = tegra_cursor_plane_formats;
 
-	err = drm_universal_plane_init(drm, &plane->base, 1 << dc->pipe,
-				       &tegra_cursor_plane_funcs, formats,
+	err = drm_universal_plane_init(drm, &plane->base, possible_crtcs,
+				       &tegra_plane_funcs, formats,
 				       num_formats, NULL,
 				       DRM_PLANE_TYPE_CURSOR, NULL);
 	if (err < 0) {
@@ -839,24 +786,76 @@ static struct drm_plane *tegra_dc_cursor_plane_create(struct drm_device *drm,
 	return &plane->base;
 }
 
-static void tegra_overlay_plane_destroy(struct drm_plane *plane)
-{
-	tegra_plane_destroy(plane);
-}
-
-static const struct drm_plane_funcs tegra_overlay_plane_funcs = {
-	.update_plane = drm_atomic_helper_update_plane,
-	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = tegra_overlay_plane_destroy,
-	.reset = tegra_plane_reset,
-	.atomic_duplicate_state = tegra_plane_atomic_duplicate_state,
-	.atomic_destroy_state = tegra_plane_atomic_destroy_state,
-};
-
-static const uint32_t tegra_overlay_plane_formats[] = {
+static const u32 tegra20_overlay_formats[] = {
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGBA5551,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_ARGB8888,
+	/* non-native formats */
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGBX5551,
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_XRGB8888,
+	/* planar formats */
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_YUV420,
+	DRM_FORMAT_YUV422,
+};
+
+static const u32 tegra114_overlay_formats[] = {
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGBA5551,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_ARGB8888,
+	/* new on Tegra114 */
+	DRM_FORMAT_ABGR4444,
+	DRM_FORMAT_ABGR1555,
+	DRM_FORMAT_BGRA5551,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGBX5551,
+	DRM_FORMAT_XBGR1555,
+	DRM_FORMAT_BGRX5551,
+	DRM_FORMAT_BGR565,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	/* planar formats */
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_YUV420,
+	DRM_FORMAT_YUV422,
+};
+
+static const u32 tegra124_overlay_formats[] = {
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGBA5551,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_ARGB8888,
+	/* new on Tegra114 */
+	DRM_FORMAT_ABGR4444,
+	DRM_FORMAT_ABGR1555,
+	DRM_FORMAT_BGRA5551,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGBX5551,
+	DRM_FORMAT_XBGR1555,
+	DRM_FORMAT_BGRX5551,
+	DRM_FORMAT_BGR565,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	/* new on Tegra124 */
+	DRM_FORMAT_RGBX8888,
+	DRM_FORMAT_BGRX8888,
+	/* planar formats */
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YUV420,
@@ -867,6 +866,7 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 						       struct tegra_dc *dc,
 						       unsigned int index)
 {
+	unsigned long possible_crtcs = tegra_plane_get_possible_crtcs(drm);
 	struct tegra_plane *plane;
 	unsigned int num_formats;
 	const u32 *formats;
@@ -876,13 +876,15 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
 
+	plane->offset = 0xa00 + 0x200 * index;
 	plane->index = index;
+	plane->dc = dc;
 
-	num_formats = ARRAY_SIZE(tegra_overlay_plane_formats);
-	formats = tegra_overlay_plane_formats;
+	num_formats = dc->soc->num_overlay_formats;
+	formats = dc->soc->overlay_formats;
 
-	err = drm_universal_plane_init(drm, &plane->base, 1 << dc->pipe,
-				       &tegra_overlay_plane_funcs, formats,
+	err = drm_universal_plane_init(drm, &plane->base, possible_crtcs,
+				       &tegra_plane_funcs, formats,
 				       num_formats, NULL,
 				       DRM_PLANE_TYPE_OVERLAY, NULL);
 	if (err < 0) {
@@ -892,97 +894,71 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 
 	drm_plane_helper_add(&plane->base, &tegra_plane_helper_funcs);
 
+	if (dc->soc->supports_blending)
+		drm_plane_create_zpos_property(&plane->base, 0, 0, 255);
+
 	return &plane->base;
 }
 
-static int tegra_dc_add_planes(struct drm_device *drm, struct tegra_dc *dc)
+static struct drm_plane *tegra_dc_add_shared_planes(struct drm_device *drm,
+						    struct tegra_dc *dc)
 {
-	struct drm_plane *plane;
+	struct drm_plane *plane, *primary = NULL;
+	unsigned int i, j;
+
+	for (i = 0; i < dc->soc->num_wgrps; i++) {
+		const struct tegra_windowgroup_soc *wgrp = &dc->soc->wgrps[i];
+
+		if (wgrp->dc == dc->pipe) {
+			for (j = 0; j < wgrp->num_windows; j++) {
+				unsigned int index = wgrp->windows[j];
+
+				plane = tegra_shared_plane_create(drm, dc,
+								  wgrp->index,
+								  index);
+				if (IS_ERR(plane))
+					return plane;
+
+				/*
+				 * Choose the first shared plane owned by this
+				 * head as the primary plane.
+				 */
+				if (!primary) {
+					plane->type = DRM_PLANE_TYPE_PRIMARY;
+					primary = plane;
+				}
+			}
+		}
+	}
+
+	return primary;
+}
+
+static struct drm_plane *tegra_dc_add_planes(struct drm_device *drm,
+					     struct tegra_dc *dc)
+{
+	struct drm_plane *planes[2], *primary;
 	unsigned int i;
+	int err;
+
+	primary = tegra_primary_plane_create(drm, dc);
+	if (IS_ERR(primary))
+		return primary;
 
 	for (i = 0; i < 2; i++) {
-		plane = tegra_dc_overlay_plane_create(drm, dc, 1 + i);
-		if (IS_ERR(plane))
-			return PTR_ERR(plane);
+		planes[i] = tegra_dc_overlay_plane_create(drm, dc, 1 + i);
+		if (IS_ERR(planes[i])) {
+			err = PTR_ERR(planes[i]);
+
+			while (i--)
+				tegra_plane_funcs.destroy(planes[i]);
+
+			tegra_plane_funcs.destroy(primary);
+			return ERR_PTR(err);
+		}
 	}
 
-	return 0;
-}
-
-static u32 tegra_dc_get_vblank_counter(struct drm_crtc *crtc)
-{
-	struct tegra_dc *dc = to_tegra_dc(crtc);
-
-	if (dc->syncpt)
-		return host1x_syncpt_read(dc->syncpt);
-
-	/* fallback to software emulated VBLANK counter */
-	return drm_crtc_vblank_count(&dc->base);
-}
-
-static int tegra_dc_enable_vblank(struct drm_crtc *crtc)
-{
-	struct tegra_dc *dc = to_tegra_dc(crtc);
-	unsigned long value, flags;
-
-	spin_lock_irqsave(&dc->lock, flags);
-
-	value = tegra_dc_readl(dc, DC_CMD_INT_MASK);
-	value |= VBLANK_INT;
-	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
-
-	spin_unlock_irqrestore(&dc->lock, flags);
-
-	return 0;
-}
-
-static void tegra_dc_disable_vblank(struct drm_crtc *crtc)
-{
-	struct tegra_dc *dc = to_tegra_dc(crtc);
-	unsigned long value, flags;
-
-	spin_lock_irqsave(&dc->lock, flags);
-
-	value = tegra_dc_readl(dc, DC_CMD_INT_MASK);
-	value &= ~VBLANK_INT;
-	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
-
-	spin_unlock_irqrestore(&dc->lock, flags);
-}
-
-static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
-{
-	struct drm_device *drm = dc->base.dev;
-	struct drm_crtc *crtc = &dc->base;
-	unsigned long flags, base;
-	struct tegra_bo *bo;
-
-	spin_lock_irqsave(&drm->event_lock, flags);
-
-	if (!dc->event) {
-		spin_unlock_irqrestore(&drm->event_lock, flags);
-		return;
-	}
-
-	bo = tegra_fb_get_plane(crtc->primary->fb, 0);
-
-	spin_lock(&dc->lock);
-
-	/* check if new start address has been latched */
-	tegra_dc_writel(dc, WINDOW_A_SELECT, DC_CMD_DISPLAY_WINDOW_HEADER);
-	tegra_dc_writel(dc, READ_MUX, DC_CMD_STATE_ACCESS);
-	base = tegra_dc_readl(dc, DC_WINBUF_START_ADDR);
-	tegra_dc_writel(dc, 0, DC_CMD_STATE_ACCESS);
-
-	spin_unlock(&dc->lock);
-
-	if (base == bo->paddr + crtc->primary->fb->offsets[0]) {
-		drm_crtc_send_vblank_event(crtc, dc->event);
-		drm_crtc_vblank_put(crtc);
-		dc->event = NULL;
-	}
-
-	spin_unlock_irqrestore(&drm->event_lock, flags);
+	return primary;
 }
 
 static void tegra_dc_destroy(struct drm_crtc *crtc)
@@ -1035,6 +1011,379 @@ static void tegra_crtc_atomic_destroy_state(struct drm_crtc *crtc,
 	kfree(state);
 }
 
+#define DEBUGFS_REG32(_name) { .name = #_name, .offset = _name }
+
+static const struct debugfs_reg32 tegra_dc_regs[] = {
+	DEBUGFS_REG32(DC_CMD_GENERAL_INCR_SYNCPT),
+	DEBUGFS_REG32(DC_CMD_GENERAL_INCR_SYNCPT_CNTRL),
+	DEBUGFS_REG32(DC_CMD_GENERAL_INCR_SYNCPT_ERROR),
+	DEBUGFS_REG32(DC_CMD_WIN_A_INCR_SYNCPT),
+	DEBUGFS_REG32(DC_CMD_WIN_A_INCR_SYNCPT_CNTRL),
+	DEBUGFS_REG32(DC_CMD_WIN_A_INCR_SYNCPT_ERROR),
+	DEBUGFS_REG32(DC_CMD_WIN_B_INCR_SYNCPT),
+	DEBUGFS_REG32(DC_CMD_WIN_B_INCR_SYNCPT_CNTRL),
+	DEBUGFS_REG32(DC_CMD_WIN_B_INCR_SYNCPT_ERROR),
+	DEBUGFS_REG32(DC_CMD_WIN_C_INCR_SYNCPT),
+	DEBUGFS_REG32(DC_CMD_WIN_C_INCR_SYNCPT_CNTRL),
+	DEBUGFS_REG32(DC_CMD_WIN_C_INCR_SYNCPT_ERROR),
+	DEBUGFS_REG32(DC_CMD_CONT_SYNCPT_VSYNC),
+	DEBUGFS_REG32(DC_CMD_DISPLAY_COMMAND_OPTION0),
+	DEBUGFS_REG32(DC_CMD_DISPLAY_COMMAND),
+	DEBUGFS_REG32(DC_CMD_SIGNAL_RAISE),
+	DEBUGFS_REG32(DC_CMD_DISPLAY_POWER_CONTROL),
+	DEBUGFS_REG32(DC_CMD_INT_STATUS),
+	DEBUGFS_REG32(DC_CMD_INT_MASK),
+	DEBUGFS_REG32(DC_CMD_INT_ENABLE),
+	DEBUGFS_REG32(DC_CMD_INT_TYPE),
+	DEBUGFS_REG32(DC_CMD_INT_POLARITY),
+	DEBUGFS_REG32(DC_CMD_SIGNAL_RAISE1),
+	DEBUGFS_REG32(DC_CMD_SIGNAL_RAISE2),
+	DEBUGFS_REG32(DC_CMD_SIGNAL_RAISE3),
+	DEBUGFS_REG32(DC_CMD_STATE_ACCESS),
+	DEBUGFS_REG32(DC_CMD_STATE_CONTROL),
+	DEBUGFS_REG32(DC_CMD_DISPLAY_WINDOW_HEADER),
+	DEBUGFS_REG32(DC_CMD_REG_ACT_CONTROL),
+	DEBUGFS_REG32(DC_COM_CRC_CONTROL),
+	DEBUGFS_REG32(DC_COM_CRC_CHECKSUM),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_ENABLE(0)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_ENABLE(1)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_ENABLE(2)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_ENABLE(3)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_POLARITY(0)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_POLARITY(1)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_POLARITY(2)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_POLARITY(3)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_DATA(0)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_DATA(1)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_DATA(2)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_DATA(3)),
+	DEBUGFS_REG32(DC_COM_PIN_INPUT_ENABLE(0)),
+	DEBUGFS_REG32(DC_COM_PIN_INPUT_ENABLE(1)),
+	DEBUGFS_REG32(DC_COM_PIN_INPUT_ENABLE(2)),
+	DEBUGFS_REG32(DC_COM_PIN_INPUT_ENABLE(3)),
+	DEBUGFS_REG32(DC_COM_PIN_INPUT_DATA(0)),
+	DEBUGFS_REG32(DC_COM_PIN_INPUT_DATA(1)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_SELECT(0)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_SELECT(1)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_SELECT(2)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_SELECT(3)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_SELECT(4)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_SELECT(5)),
+	DEBUGFS_REG32(DC_COM_PIN_OUTPUT_SELECT(6)),
+	DEBUGFS_REG32(DC_COM_PIN_MISC_CONTROL),
+	DEBUGFS_REG32(DC_COM_PIN_PM0_CONTROL),
+	DEBUGFS_REG32(DC_COM_PIN_PM0_DUTY_CYCLE),
+	DEBUGFS_REG32(DC_COM_PIN_PM1_CONTROL),
+	DEBUGFS_REG32(DC_COM_PIN_PM1_DUTY_CYCLE),
+	DEBUGFS_REG32(DC_COM_SPI_CONTROL),
+	DEBUGFS_REG32(DC_COM_SPI_START_BYTE),
+	DEBUGFS_REG32(DC_COM_HSPI_WRITE_DATA_AB),
+	DEBUGFS_REG32(DC_COM_HSPI_WRITE_DATA_CD),
+	DEBUGFS_REG32(DC_COM_HSPI_CS_DC),
+	DEBUGFS_REG32(DC_COM_SCRATCH_REGISTER_A),
+	DEBUGFS_REG32(DC_COM_SCRATCH_REGISTER_B),
+	DEBUGFS_REG32(DC_COM_GPIO_CTRL),
+	DEBUGFS_REG32(DC_COM_GPIO_DEBOUNCE_COUNTER),
+	DEBUGFS_REG32(DC_COM_CRC_CHECKSUM_LATCHED),
+	DEBUGFS_REG32(DC_DISP_DISP_SIGNAL_OPTIONS0),
+	DEBUGFS_REG32(DC_DISP_DISP_SIGNAL_OPTIONS1),
+	DEBUGFS_REG32(DC_DISP_DISP_WIN_OPTIONS),
+	DEBUGFS_REG32(DC_DISP_DISP_MEM_HIGH_PRIORITY),
+	DEBUGFS_REG32(DC_DISP_DISP_MEM_HIGH_PRIORITY_TIMER),
+	DEBUGFS_REG32(DC_DISP_DISP_TIMING_OPTIONS),
+	DEBUGFS_REG32(DC_DISP_REF_TO_SYNC),
+	DEBUGFS_REG32(DC_DISP_SYNC_WIDTH),
+	DEBUGFS_REG32(DC_DISP_BACK_PORCH),
+	DEBUGFS_REG32(DC_DISP_ACTIVE),
+	DEBUGFS_REG32(DC_DISP_FRONT_PORCH),
+	DEBUGFS_REG32(DC_DISP_H_PULSE0_CONTROL),
+	DEBUGFS_REG32(DC_DISP_H_PULSE0_POSITION_A),
+	DEBUGFS_REG32(DC_DISP_H_PULSE0_POSITION_B),
+	DEBUGFS_REG32(DC_DISP_H_PULSE0_POSITION_C),
+	DEBUGFS_REG32(DC_DISP_H_PULSE0_POSITION_D),
+	DEBUGFS_REG32(DC_DISP_H_PULSE1_CONTROL),
+	DEBUGFS_REG32(DC_DISP_H_PULSE1_POSITION_A),
+	DEBUGFS_REG32(DC_DISP_H_PULSE1_POSITION_B),
+	DEBUGFS_REG32(DC_DISP_H_PULSE1_POSITION_C),
+	DEBUGFS_REG32(DC_DISP_H_PULSE1_POSITION_D),
+	DEBUGFS_REG32(DC_DISP_H_PULSE2_CONTROL),
+	DEBUGFS_REG32(DC_DISP_H_PULSE2_POSITION_A),
+	DEBUGFS_REG32(DC_DISP_H_PULSE2_POSITION_B),
+	DEBUGFS_REG32(DC_DISP_H_PULSE2_POSITION_C),
+	DEBUGFS_REG32(DC_DISP_H_PULSE2_POSITION_D),
+	DEBUGFS_REG32(DC_DISP_V_PULSE0_CONTROL),
+	DEBUGFS_REG32(DC_DISP_V_PULSE0_POSITION_A),
+	DEBUGFS_REG32(DC_DISP_V_PULSE0_POSITION_B),
+	DEBUGFS_REG32(DC_DISP_V_PULSE0_POSITION_C),
+	DEBUGFS_REG32(DC_DISP_V_PULSE1_CONTROL),
+	DEBUGFS_REG32(DC_DISP_V_PULSE1_POSITION_A),
+	DEBUGFS_REG32(DC_DISP_V_PULSE1_POSITION_B),
+	DEBUGFS_REG32(DC_DISP_V_PULSE1_POSITION_C),
+	DEBUGFS_REG32(DC_DISP_V_PULSE2_CONTROL),
+	DEBUGFS_REG32(DC_DISP_V_PULSE2_POSITION_A),
+	DEBUGFS_REG32(DC_DISP_V_PULSE3_CONTROL),
+	DEBUGFS_REG32(DC_DISP_V_PULSE3_POSITION_A),
+	DEBUGFS_REG32(DC_DISP_M0_CONTROL),
+	DEBUGFS_REG32(DC_DISP_M1_CONTROL),
+	DEBUGFS_REG32(DC_DISP_DI_CONTROL),
+	DEBUGFS_REG32(DC_DISP_PP_CONTROL),
+	DEBUGFS_REG32(DC_DISP_PP_SELECT_A),
+	DEBUGFS_REG32(DC_DISP_PP_SELECT_B),
+	DEBUGFS_REG32(DC_DISP_PP_SELECT_C),
+	DEBUGFS_REG32(DC_DISP_PP_SELECT_D),
+	DEBUGFS_REG32(DC_DISP_DISP_CLOCK_CONTROL),
+	DEBUGFS_REG32(DC_DISP_DISP_INTERFACE_CONTROL),
+	DEBUGFS_REG32(DC_DISP_DISP_COLOR_CONTROL),
+	DEBUGFS_REG32(DC_DISP_SHIFT_CLOCK_OPTIONS),
+	DEBUGFS_REG32(DC_DISP_DATA_ENABLE_OPTIONS),
+	DEBUGFS_REG32(DC_DISP_SERIAL_INTERFACE_OPTIONS),
+	DEBUGFS_REG32(DC_DISP_LCD_SPI_OPTIONS),
+	DEBUGFS_REG32(DC_DISP_BORDER_COLOR),
+	DEBUGFS_REG32(DC_DISP_COLOR_KEY0_LOWER),
+	DEBUGFS_REG32(DC_DISP_COLOR_KEY0_UPPER),
+	DEBUGFS_REG32(DC_DISP_COLOR_KEY1_LOWER),
+	DEBUGFS_REG32(DC_DISP_COLOR_KEY1_UPPER),
+	DEBUGFS_REG32(DC_DISP_CURSOR_FOREGROUND),
+	DEBUGFS_REG32(DC_DISP_CURSOR_BACKGROUND),
+	DEBUGFS_REG32(DC_DISP_CURSOR_START_ADDR),
+	DEBUGFS_REG32(DC_DISP_CURSOR_START_ADDR_NS),
+	DEBUGFS_REG32(DC_DISP_CURSOR_POSITION),
+	DEBUGFS_REG32(DC_DISP_CURSOR_POSITION_NS),
+	DEBUGFS_REG32(DC_DISP_INIT_SEQ_CONTROL),
+	DEBUGFS_REG32(DC_DISP_SPI_INIT_SEQ_DATA_A),
+	DEBUGFS_REG32(DC_DISP_SPI_INIT_SEQ_DATA_B),
+	DEBUGFS_REG32(DC_DISP_SPI_INIT_SEQ_DATA_C),
+	DEBUGFS_REG32(DC_DISP_SPI_INIT_SEQ_DATA_D),
+	DEBUGFS_REG32(DC_DISP_DC_MCCIF_FIFOCTRL),
+	DEBUGFS_REG32(DC_DISP_MCCIF_DISPLAY0A_HYST),
+	DEBUGFS_REG32(DC_DISP_MCCIF_DISPLAY0B_HYST),
+	DEBUGFS_REG32(DC_DISP_MCCIF_DISPLAY1A_HYST),
+	DEBUGFS_REG32(DC_DISP_MCCIF_DISPLAY1B_HYST),
+	DEBUGFS_REG32(DC_DISP_DAC_CRT_CTRL),
+	DEBUGFS_REG32(DC_DISP_DISP_MISC_CONTROL),
+	DEBUGFS_REG32(DC_DISP_SD_CONTROL),
+	DEBUGFS_REG32(DC_DISP_SD_CSC_COEFF),
+	DEBUGFS_REG32(DC_DISP_SD_LUT(0)),
+	DEBUGFS_REG32(DC_DISP_SD_LUT(1)),
+	DEBUGFS_REG32(DC_DISP_SD_LUT(2)),
+	DEBUGFS_REG32(DC_DISP_SD_LUT(3)),
+	DEBUGFS_REG32(DC_DISP_SD_LUT(4)),
+	DEBUGFS_REG32(DC_DISP_SD_LUT(5)),
+	DEBUGFS_REG32(DC_DISP_SD_LUT(6)),
+	DEBUGFS_REG32(DC_DISP_SD_LUT(7)),
+	DEBUGFS_REG32(DC_DISP_SD_LUT(8)),
+	DEBUGFS_REG32(DC_DISP_SD_FLICKER_CONTROL),
+	DEBUGFS_REG32(DC_DISP_DC_PIXEL_COUNT),
+	DEBUGFS_REG32(DC_DISP_SD_HISTOGRAM(0)),
+	DEBUGFS_REG32(DC_DISP_SD_HISTOGRAM(1)),
+	DEBUGFS_REG32(DC_DISP_SD_HISTOGRAM(2)),
+	DEBUGFS_REG32(DC_DISP_SD_HISTOGRAM(3)),
+	DEBUGFS_REG32(DC_DISP_SD_HISTOGRAM(4)),
+	DEBUGFS_REG32(DC_DISP_SD_HISTOGRAM(5)),
+	DEBUGFS_REG32(DC_DISP_SD_HISTOGRAM(6)),
+	DEBUGFS_REG32(DC_DISP_SD_HISTOGRAM(7)),
+	DEBUGFS_REG32(DC_DISP_SD_BL_TF(0)),
+	DEBUGFS_REG32(DC_DISP_SD_BL_TF(1)),
+	DEBUGFS_REG32(DC_DISP_SD_BL_TF(2)),
+	DEBUGFS_REG32(DC_DISP_SD_BL_TF(3)),
+	DEBUGFS_REG32(DC_DISP_SD_BL_CONTROL),
+	DEBUGFS_REG32(DC_DISP_SD_HW_K_VALUES),
+	DEBUGFS_REG32(DC_DISP_SD_MAN_K_VALUES),
+	DEBUGFS_REG32(DC_DISP_CURSOR_START_ADDR_HI),
+	DEBUGFS_REG32(DC_DISP_BLEND_CURSOR_CONTROL),
+	DEBUGFS_REG32(DC_WIN_WIN_OPTIONS),
+	DEBUGFS_REG32(DC_WIN_BYTE_SWAP),
+	DEBUGFS_REG32(DC_WIN_BUFFER_CONTROL),
+	DEBUGFS_REG32(DC_WIN_COLOR_DEPTH),
+	DEBUGFS_REG32(DC_WIN_POSITION),
+	DEBUGFS_REG32(DC_WIN_SIZE),
+	DEBUGFS_REG32(DC_WIN_PRESCALED_SIZE),
+	DEBUGFS_REG32(DC_WIN_H_INITIAL_DDA),
+	DEBUGFS_REG32(DC_WIN_V_INITIAL_DDA),
+	DEBUGFS_REG32(DC_WIN_DDA_INC),
+	DEBUGFS_REG32(DC_WIN_LINE_STRIDE),
+	DEBUGFS_REG32(DC_WIN_BUF_STRIDE),
+	DEBUGFS_REG32(DC_WIN_UV_BUF_STRIDE),
+	DEBUGFS_REG32(DC_WIN_BUFFER_ADDR_MODE),
+	DEBUGFS_REG32(DC_WIN_DV_CONTROL),
+	DEBUGFS_REG32(DC_WIN_BLEND_NOKEY),
+	DEBUGFS_REG32(DC_WIN_BLEND_1WIN),
+	DEBUGFS_REG32(DC_WIN_BLEND_2WIN_X),
+	DEBUGFS_REG32(DC_WIN_BLEND_2WIN_Y),
+	DEBUGFS_REG32(DC_WIN_BLEND_3WIN_XY),
+	DEBUGFS_REG32(DC_WIN_HP_FETCH_CONTROL),
+	DEBUGFS_REG32(DC_WINBUF_START_ADDR),
+	DEBUGFS_REG32(DC_WINBUF_START_ADDR_NS),
+	DEBUGFS_REG32(DC_WINBUF_START_ADDR_U),
+	DEBUGFS_REG32(DC_WINBUF_START_ADDR_U_NS),
+	DEBUGFS_REG32(DC_WINBUF_START_ADDR_V),
+	DEBUGFS_REG32(DC_WINBUF_START_ADDR_V_NS),
+	DEBUGFS_REG32(DC_WINBUF_ADDR_H_OFFSET),
+	DEBUGFS_REG32(DC_WINBUF_ADDR_H_OFFSET_NS),
+	DEBUGFS_REG32(DC_WINBUF_ADDR_V_OFFSET),
+	DEBUGFS_REG32(DC_WINBUF_ADDR_V_OFFSET_NS),
+	DEBUGFS_REG32(DC_WINBUF_UFLOW_STATUS),
+	DEBUGFS_REG32(DC_WINBUF_AD_UFLOW_STATUS),
+	DEBUGFS_REG32(DC_WINBUF_BD_UFLOW_STATUS),
+	DEBUGFS_REG32(DC_WINBUF_CD_UFLOW_STATUS),
+};
+
+static int tegra_dc_show_regs(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct tegra_dc *dc = node->info_ent->data;
+	unsigned int i;
+	int err = 0;
+
+	drm_modeset_lock(&dc->base.mutex, NULL);
+
+	if (!dc->base.state->active) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(tegra_dc_regs); i++) {
+		unsigned int offset = tegra_dc_regs[i].offset;
+
+		seq_printf(s, "%-40s %#05x %08x\n", tegra_dc_regs[i].name,
+			   offset, tegra_dc_readl(dc, offset));
+	}
+
+unlock:
+	drm_modeset_unlock(&dc->base.mutex);
+	return err;
+}
+
+static int tegra_dc_show_crc(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct tegra_dc *dc = node->info_ent->data;
+	int err = 0;
+	u32 value;
+
+	drm_modeset_lock(&dc->base.mutex, NULL);
+
+	if (!dc->base.state->active) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
+	value = DC_COM_CRC_CONTROL_ACTIVE_DATA | DC_COM_CRC_CONTROL_ENABLE;
+	tegra_dc_writel(dc, value, DC_COM_CRC_CONTROL);
+	tegra_dc_commit(dc);
+
+	drm_crtc_wait_one_vblank(&dc->base);
+	drm_crtc_wait_one_vblank(&dc->base);
+
+	value = tegra_dc_readl(dc, DC_COM_CRC_CHECKSUM);
+	seq_printf(s, "%08x\n", value);
+
+	tegra_dc_writel(dc, 0, DC_COM_CRC_CONTROL);
+
+unlock:
+	drm_modeset_unlock(&dc->base.mutex);
+	return err;
+}
+
+static int tegra_dc_show_stats(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct tegra_dc *dc = node->info_ent->data;
+
+	seq_printf(s, "frames: %lu\n", dc->stats.frames);
+	seq_printf(s, "vblank: %lu\n", dc->stats.vblank);
+	seq_printf(s, "underflow: %lu\n", dc->stats.underflow);
+	seq_printf(s, "overflow: %lu\n", dc->stats.overflow);
+
+	return 0;
+}
+
+static struct drm_info_list debugfs_files[] = {
+	{ "regs", tegra_dc_show_regs, 0, NULL },
+	{ "crc", tegra_dc_show_crc, 0, NULL },
+	{ "stats", tegra_dc_show_stats, 0, NULL },
+};
+
+static int tegra_dc_late_register(struct drm_crtc *crtc)
+{
+	unsigned int i, count = ARRAY_SIZE(debugfs_files);
+	struct drm_minor *minor = crtc->dev->primary;
+	struct dentry *root;
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+	int err;
+
+#ifdef CONFIG_DEBUG_FS
+	root = crtc->debugfs_entry;
+#else
+	root = NULL;
+#endif
+
+	dc->debugfs_files = kmemdup(debugfs_files, sizeof(debugfs_files),
+				    GFP_KERNEL);
+	if (!dc->debugfs_files)
+		return -ENOMEM;
+
+	for (i = 0; i < count; i++)
+		dc->debugfs_files[i].data = dc;
+
+	err = drm_debugfs_create_files(dc->debugfs_files, count, root, minor);
+	if (err < 0)
+		goto free;
+
+	return 0;
+
+free:
+	kfree(dc->debugfs_files);
+	dc->debugfs_files = NULL;
+
+	return err;
+}
+
+static void tegra_dc_early_unregister(struct drm_crtc *crtc)
+{
+	unsigned int count = ARRAY_SIZE(debugfs_files);
+	struct drm_minor *minor = crtc->dev->primary;
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+
+	drm_debugfs_remove_files(dc->debugfs_files, count, minor);
+	kfree(dc->debugfs_files);
+	dc->debugfs_files = NULL;
+}
+
+static u32 tegra_dc_get_vblank_counter(struct drm_crtc *crtc)
+{
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+
+	/* XXX vblank syncpoints don't work with nvdisplay yet */
+	if (dc->syncpt && !dc->soc->has_nvdisplay)
+		return host1x_syncpt_read(dc->syncpt);
+
+	/* fallback to software emulated VBLANK counter */
+	return drm_crtc_vblank_count(&dc->base);
+}
+
+static int tegra_dc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+	u32 value;
+
+	value = tegra_dc_readl(dc, DC_CMD_INT_MASK);
+	value |= VBLANK_INT;
+	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
+
+	return 0;
+}
+
+static void tegra_dc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+	u32 value;
+
+	value = tegra_dc_readl(dc, DC_CMD_INT_MASK);
+	value &= ~VBLANK_INT;
+	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
+}
+
 static const struct drm_crtc_funcs tegra_crtc_funcs = {
 	.page_flip = drm_atomic_helper_page_flip,
 	.set_config = drm_atomic_helper_set_config,
@@ -1042,6 +1391,8 @@ static const struct drm_crtc_funcs tegra_crtc_funcs = {
 	.reset = tegra_crtc_reset,
 	.atomic_duplicate_state = tegra_crtc_atomic_duplicate_state,
 	.atomic_destroy_state = tegra_crtc_atomic_destroy_state,
+	.late_register = tegra_dc_late_register,
+	.early_unregister = tegra_dc_early_unregister,
 	.get_vblank_counter = tegra_dc_get_vblank_counter,
 	.enable_vblank = tegra_dc_enable_vblank,
 	.disable_vblank = tegra_dc_disable_vblank,
@@ -1054,10 +1405,12 @@ static int tegra_dc_set_timings(struct tegra_dc *dc,
 	unsigned int v_ref_to_sync = 1;
 	unsigned long value;
 
-	tegra_dc_writel(dc, 0x0, DC_DISP_DISP_TIMING_OPTIONS);
+	if (!dc->soc->has_nvdisplay) {
+		tegra_dc_writel(dc, 0x0, DC_DISP_DISP_TIMING_OPTIONS);
 
-	value = (v_ref_to_sync << 16) | h_ref_to_sync;
-	tegra_dc_writel(dc, value, DC_DISP_REF_TO_SYNC);
+		value = (v_ref_to_sync << 16) | h_ref_to_sync;
+		tegra_dc_writel(dc, value, DC_DISP_REF_TO_SYNC);
+	}
 
 	value = ((mode->vsync_end - mode->vsync_start) << 16) |
 		((mode->hsync_end - mode->hsync_start) <<  0);
@@ -1136,8 +1489,10 @@ static void tegra_dc_commit_state(struct tegra_dc *dc,
 		      state->div);
 	DRM_DEBUG_KMS("pclk: %lu\n", state->pclk);
 
-	value = SHIFT_CLK_DIVIDER(state->div) | PIXEL_CLK_DIVIDER_PCD1;
-	tegra_dc_writel(dc, value, DC_DISP_DISP_CLOCK_CONTROL);
+	if (!dc->soc->has_nvdisplay) {
+		value = SHIFT_CLK_DIVIDER(state->div) | PIXEL_CLK_DIVIDER_PCD1;
+		tegra_dc_writel(dc, value, DC_DISP_DISP_CLOCK_CONTROL);
+	}
 
 	err = clk_set_rate(dc->clk, state->pclk);
 	if (err < 0)
@@ -1223,6 +1578,15 @@ static void tegra_crtc_atomic_disable(struct drm_crtc *crtc,
 	tegra_dc_stats_reset(&dc->stats);
 	drm_crtc_vblank_off(crtc);
 
+	spin_lock_irq(&crtc->dev->event_lock);
+
+	if (crtc->state->event) {
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		crtc->state->event = NULL;
+	}
+
+	spin_unlock_irq(&crtc->dev->event_lock);
+
 	pm_runtime_put_sync(dc->dev);
 }
 
@@ -1238,41 +1602,70 @@ static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	/* initialize display controller */
 	if (dc->syncpt) {
-		u32 syncpt = host1x_syncpt_id(dc->syncpt);
+		u32 syncpt = host1x_syncpt_id(dc->syncpt), enable;
+
+		if (dc->soc->has_nvdisplay)
+			enable = 1 << 31;
+		else
+			enable = 1 << 8;
 
 		value = SYNCPT_CNTRL_NO_STALL;
 		tegra_dc_writel(dc, value, DC_CMD_GENERAL_INCR_SYNCPT_CNTRL);
 
-		value = SYNCPT_VSYNC_ENABLE | syncpt;
+		value = enable | syncpt;
 		tegra_dc_writel(dc, value, DC_CMD_CONT_SYNCPT_VSYNC);
 	}
 
-	value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
-		WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT;
-	tegra_dc_writel(dc, value, DC_CMD_INT_TYPE);
+	if (dc->soc->has_nvdisplay) {
+		value = DSC_TO_UF_INT | DSC_BBUF_UF_INT | DSC_RBUF_UF_INT |
+			DSC_OBUF_UF_INT;
+		tegra_dc_writel(dc, value, DC_CMD_INT_TYPE);
 
-	value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
-		WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT;
-	tegra_dc_writel(dc, value, DC_CMD_INT_POLARITY);
+		value = DSC_TO_UF_INT | DSC_BBUF_UF_INT | DSC_RBUF_UF_INT |
+			DSC_OBUF_UF_INT | SD3_BUCKET_WALK_DONE_INT |
+			HEAD_UF_INT | MSF_INT | REG_TMOUT_INT |
+			REGION_CRC_INT | V_PULSE2_INT | V_PULSE3_INT |
+			VBLANK_INT | FRAME_END_INT;
+		tegra_dc_writel(dc, value, DC_CMD_INT_POLARITY);
 
-	/* initialize timer */
-	value = CURSOR_THRESHOLD(0) | WINDOW_A_THRESHOLD(0x20) |
-		WINDOW_B_THRESHOLD(0x20) | WINDOW_C_THRESHOLD(0x20);
-	tegra_dc_writel(dc, value, DC_DISP_DISP_MEM_HIGH_PRIORITY);
+		value = SD3_BUCKET_WALK_DONE_INT | HEAD_UF_INT | VBLANK_INT |
+			FRAME_END_INT;
+		tegra_dc_writel(dc, value, DC_CMD_INT_ENABLE);
 
-	value = CURSOR_THRESHOLD(0) | WINDOW_A_THRESHOLD(1) |
-		WINDOW_B_THRESHOLD(1) | WINDOW_C_THRESHOLD(1);
-	tegra_dc_writel(dc, value, DC_DISP_DISP_MEM_HIGH_PRIORITY_TIMER);
+		value = HEAD_UF_INT | REG_TMOUT_INT | FRAME_END_INT;
+		tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
 
-	value = VBLANK_INT | WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
-		WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT;
-	tegra_dc_writel(dc, value, DC_CMD_INT_ENABLE);
+		tegra_dc_writel(dc, READ_MUX, DC_CMD_STATE_ACCESS);
+	} else {
+		value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
+			WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT;
+		tegra_dc_writel(dc, value, DC_CMD_INT_TYPE);
 
-	value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
-		WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT;
-	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
+		value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
+			WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT;
+		tegra_dc_writel(dc, value, DC_CMD_INT_POLARITY);
 
-	if (dc->soc->supports_border_color)
+		/* initialize timer */
+		value = CURSOR_THRESHOLD(0) | WINDOW_A_THRESHOLD(0x20) |
+			WINDOW_B_THRESHOLD(0x20) | WINDOW_C_THRESHOLD(0x20);
+		tegra_dc_writel(dc, value, DC_DISP_DISP_MEM_HIGH_PRIORITY);
+
+		value = CURSOR_THRESHOLD(0) | WINDOW_A_THRESHOLD(1) |
+			WINDOW_B_THRESHOLD(1) | WINDOW_C_THRESHOLD(1);
+		tegra_dc_writel(dc, value, DC_DISP_DISP_MEM_HIGH_PRIORITY_TIMER);
+
+		value = VBLANK_INT | WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
+			WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT;
+		tegra_dc_writel(dc, value, DC_CMD_INT_ENABLE);
+
+		value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
+			WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT;
+		tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
+	}
+
+	if (dc->soc->supports_background_color)
+		tegra_dc_writel(dc, 0, DC_DISP_BLEND_BACKGROUND_COLOR);
+	else
 		tegra_dc_writel(dc, 0, DC_DISP_BORDER_COLOR);
 
 	/* apply PLL and pixel clock changes */
@@ -1293,10 +1686,18 @@ static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
 	value |= DISP_CTRL_MODE_C_DISPLAY;
 	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_COMMAND);
 
-	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_POWER_CONTROL);
-	value |= PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
-		 PW4_ENABLE | PM0_ENABLE | PM1_ENABLE;
-	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
+	if (!dc->soc->has_nvdisplay) {
+		value = tegra_dc_readl(dc, DC_CMD_DISPLAY_POWER_CONTROL);
+		value |= PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
+			 PW4_ENABLE | PM0_ENABLE | PM1_ENABLE;
+		tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
+	}
+
+	/* enable underflow reporting and display red for missing pixels */
+	if (dc->soc->has_nvdisplay) {
+		value = UNDERFLOW_MODE_RED | UNDERFLOW_REPORT_ENABLE;
+		tegra_dc_writel(dc, value, DC_COM_RG_UNDERFLOW);
+	}
 
 	tegra_dc_commit(dc);
 
@@ -1306,20 +1707,43 @@ static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
 static int tegra_crtc_atomic_check(struct drm_crtc *crtc,
 				   struct drm_crtc_state *state)
 {
+	struct tegra_atomic_state *s = to_tegra_atomic_state(state->state);
+	struct tegra_dc_state *tegra = to_dc_state(state);
+
+	/*
+	 * The display hub display clock needs to be fed by the display clock
+	 * with the highest frequency to ensure proper functioning of all the
+	 * displays.
+	 *
+	 * Note that this isn't used before Tegra186, but it doesn't hurt and
+	 * conditionalizing it would make the code less clean.
+	 */
+	if (state->active) {
+		if (!s->clk_disp || tegra->pclk > s->rate) {
+			s->dc = to_tegra_dc(crtc);
+			s->clk_disp = s->dc->clk;
+			s->rate = tegra->pclk;
+		}
+	}
+
 	return 0;
 }
 
 static void tegra_crtc_atomic_begin(struct drm_crtc *crtc,
 				    struct drm_crtc_state *old_crtc_state)
 {
-	struct tegra_dc *dc = to_tegra_dc(crtc);
+	unsigned long flags;
 
 	if (crtc->state->event) {
-		crtc->state->event->pipe = drm_crtc_index(crtc);
+		spin_lock_irqsave(&crtc->dev->event_lock, flags);
 
-		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
+		if (drm_crtc_vblank_get(crtc) != 0)
+			drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		else
+			drm_crtc_arm_vblank_event(crtc, crtc->state->event);
 
-		dc->event = crtc->state->event;
+		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
 		crtc->state->event = NULL;
 	}
 }
@@ -1329,9 +1753,15 @@ static void tegra_crtc_atomic_flush(struct drm_crtc *crtc,
 {
 	struct tegra_dc_state *state = to_dc_state(crtc->state);
 	struct tegra_dc *dc = to_tegra_dc(crtc);
+	u32 value;
 
-	tegra_dc_writel(dc, state->planes << 8, DC_CMD_STATE_CONTROL);
-	tegra_dc_writel(dc, state->planes, DC_CMD_STATE_CONTROL);
+	value = state->planes << 8 | GENERAL_UPDATE;
+	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
+	value = tegra_dc_readl(dc, DC_CMD_STATE_CONTROL);
+
+	value = state->planes | GENERAL_ACT_REQ;
+	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
+	value = tegra_dc_readl(dc, DC_CMD_STATE_CONTROL);
 }
 
 static const struct drm_crtc_helper_funcs tegra_crtc_helper_funcs = {
@@ -1362,7 +1792,6 @@ static irqreturn_t tegra_dc_irq(int irq, void *data)
 		dev_dbg(dc->dev, "%s(): vertical blank\n", __func__);
 		*/
 		drm_crtc_handle_vblank(&dc->base);
-		tegra_dc_finish_page_flip(dc);
 		dc->stats.vblank++;
 	}
 
@@ -1380,357 +1809,18 @@ static irqreturn_t tegra_dc_irq(int irq, void *data)
 		dc->stats.overflow++;
 	}
 
+	if (status & HEAD_UF_INT) {
+		dev_dbg_ratelimited(dc->dev, "%s(): head underflow\n", __func__);
+		dc->stats.underflow++;
+	}
+
 	return IRQ_HANDLED;
-}
-
-static int tegra_dc_show_regs(struct seq_file *s, void *data)
-{
-	struct drm_info_node *node = s->private;
-	struct tegra_dc *dc = node->info_ent->data;
-	int err = 0;
-
-	drm_modeset_lock(&dc->base.mutex, NULL);
-
-	if (!dc->base.state->active) {
-		err = -EBUSY;
-		goto unlock;
-	}
-
-#define DUMP_REG(name)						\
-	seq_printf(s, "%-40s %#05x %08x\n", #name, name,	\
-		   tegra_dc_readl(dc, name))
-
-	DUMP_REG(DC_CMD_GENERAL_INCR_SYNCPT);
-	DUMP_REG(DC_CMD_GENERAL_INCR_SYNCPT_CNTRL);
-	DUMP_REG(DC_CMD_GENERAL_INCR_SYNCPT_ERROR);
-	DUMP_REG(DC_CMD_WIN_A_INCR_SYNCPT);
-	DUMP_REG(DC_CMD_WIN_A_INCR_SYNCPT_CNTRL);
-	DUMP_REG(DC_CMD_WIN_A_INCR_SYNCPT_ERROR);
-	DUMP_REG(DC_CMD_WIN_B_INCR_SYNCPT);
-	DUMP_REG(DC_CMD_WIN_B_INCR_SYNCPT_CNTRL);
-	DUMP_REG(DC_CMD_WIN_B_INCR_SYNCPT_ERROR);
-	DUMP_REG(DC_CMD_WIN_C_INCR_SYNCPT);
-	DUMP_REG(DC_CMD_WIN_C_INCR_SYNCPT_CNTRL);
-	DUMP_REG(DC_CMD_WIN_C_INCR_SYNCPT_ERROR);
-	DUMP_REG(DC_CMD_CONT_SYNCPT_VSYNC);
-	DUMP_REG(DC_CMD_DISPLAY_COMMAND_OPTION0);
-	DUMP_REG(DC_CMD_DISPLAY_COMMAND);
-	DUMP_REG(DC_CMD_SIGNAL_RAISE);
-	DUMP_REG(DC_CMD_DISPLAY_POWER_CONTROL);
-	DUMP_REG(DC_CMD_INT_STATUS);
-	DUMP_REG(DC_CMD_INT_MASK);
-	DUMP_REG(DC_CMD_INT_ENABLE);
-	DUMP_REG(DC_CMD_INT_TYPE);
-	DUMP_REG(DC_CMD_INT_POLARITY);
-	DUMP_REG(DC_CMD_SIGNAL_RAISE1);
-	DUMP_REG(DC_CMD_SIGNAL_RAISE2);
-	DUMP_REG(DC_CMD_SIGNAL_RAISE3);
-	DUMP_REG(DC_CMD_STATE_ACCESS);
-	DUMP_REG(DC_CMD_STATE_CONTROL);
-	DUMP_REG(DC_CMD_DISPLAY_WINDOW_HEADER);
-	DUMP_REG(DC_CMD_REG_ACT_CONTROL);
-	DUMP_REG(DC_COM_CRC_CONTROL);
-	DUMP_REG(DC_COM_CRC_CHECKSUM);
-	DUMP_REG(DC_COM_PIN_OUTPUT_ENABLE(0));
-	DUMP_REG(DC_COM_PIN_OUTPUT_ENABLE(1));
-	DUMP_REG(DC_COM_PIN_OUTPUT_ENABLE(2));
-	DUMP_REG(DC_COM_PIN_OUTPUT_ENABLE(3));
-	DUMP_REG(DC_COM_PIN_OUTPUT_POLARITY(0));
-	DUMP_REG(DC_COM_PIN_OUTPUT_POLARITY(1));
-	DUMP_REG(DC_COM_PIN_OUTPUT_POLARITY(2));
-	DUMP_REG(DC_COM_PIN_OUTPUT_POLARITY(3));
-	DUMP_REG(DC_COM_PIN_OUTPUT_DATA(0));
-	DUMP_REG(DC_COM_PIN_OUTPUT_DATA(1));
-	DUMP_REG(DC_COM_PIN_OUTPUT_DATA(2));
-	DUMP_REG(DC_COM_PIN_OUTPUT_DATA(3));
-	DUMP_REG(DC_COM_PIN_INPUT_ENABLE(0));
-	DUMP_REG(DC_COM_PIN_INPUT_ENABLE(1));
-	DUMP_REG(DC_COM_PIN_INPUT_ENABLE(2));
-	DUMP_REG(DC_COM_PIN_INPUT_ENABLE(3));
-	DUMP_REG(DC_COM_PIN_INPUT_DATA(0));
-	DUMP_REG(DC_COM_PIN_INPUT_DATA(1));
-	DUMP_REG(DC_COM_PIN_OUTPUT_SELECT(0));
-	DUMP_REG(DC_COM_PIN_OUTPUT_SELECT(1));
-	DUMP_REG(DC_COM_PIN_OUTPUT_SELECT(2));
-	DUMP_REG(DC_COM_PIN_OUTPUT_SELECT(3));
-	DUMP_REG(DC_COM_PIN_OUTPUT_SELECT(4));
-	DUMP_REG(DC_COM_PIN_OUTPUT_SELECT(5));
-	DUMP_REG(DC_COM_PIN_OUTPUT_SELECT(6));
-	DUMP_REG(DC_COM_PIN_MISC_CONTROL);
-	DUMP_REG(DC_COM_PIN_PM0_CONTROL);
-	DUMP_REG(DC_COM_PIN_PM0_DUTY_CYCLE);
-	DUMP_REG(DC_COM_PIN_PM1_CONTROL);
-	DUMP_REG(DC_COM_PIN_PM1_DUTY_CYCLE);
-	DUMP_REG(DC_COM_SPI_CONTROL);
-	DUMP_REG(DC_COM_SPI_START_BYTE);
-	DUMP_REG(DC_COM_HSPI_WRITE_DATA_AB);
-	DUMP_REG(DC_COM_HSPI_WRITE_DATA_CD);
-	DUMP_REG(DC_COM_HSPI_CS_DC);
-	DUMP_REG(DC_COM_SCRATCH_REGISTER_A);
-	DUMP_REG(DC_COM_SCRATCH_REGISTER_B);
-	DUMP_REG(DC_COM_GPIO_CTRL);
-	DUMP_REG(DC_COM_GPIO_DEBOUNCE_COUNTER);
-	DUMP_REG(DC_COM_CRC_CHECKSUM_LATCHED);
-	DUMP_REG(DC_DISP_DISP_SIGNAL_OPTIONS0);
-	DUMP_REG(DC_DISP_DISP_SIGNAL_OPTIONS1);
-	DUMP_REG(DC_DISP_DISP_WIN_OPTIONS);
-	DUMP_REG(DC_DISP_DISP_MEM_HIGH_PRIORITY);
-	DUMP_REG(DC_DISP_DISP_MEM_HIGH_PRIORITY_TIMER);
-	DUMP_REG(DC_DISP_DISP_TIMING_OPTIONS);
-	DUMP_REG(DC_DISP_REF_TO_SYNC);
-	DUMP_REG(DC_DISP_SYNC_WIDTH);
-	DUMP_REG(DC_DISP_BACK_PORCH);
-	DUMP_REG(DC_DISP_ACTIVE);
-	DUMP_REG(DC_DISP_FRONT_PORCH);
-	DUMP_REG(DC_DISP_H_PULSE0_CONTROL);
-	DUMP_REG(DC_DISP_H_PULSE0_POSITION_A);
-	DUMP_REG(DC_DISP_H_PULSE0_POSITION_B);
-	DUMP_REG(DC_DISP_H_PULSE0_POSITION_C);
-	DUMP_REG(DC_DISP_H_PULSE0_POSITION_D);
-	DUMP_REG(DC_DISP_H_PULSE1_CONTROL);
-	DUMP_REG(DC_DISP_H_PULSE1_POSITION_A);
-	DUMP_REG(DC_DISP_H_PULSE1_POSITION_B);
-	DUMP_REG(DC_DISP_H_PULSE1_POSITION_C);
-	DUMP_REG(DC_DISP_H_PULSE1_POSITION_D);
-	DUMP_REG(DC_DISP_H_PULSE2_CONTROL);
-	DUMP_REG(DC_DISP_H_PULSE2_POSITION_A);
-	DUMP_REG(DC_DISP_H_PULSE2_POSITION_B);
-	DUMP_REG(DC_DISP_H_PULSE2_POSITION_C);
-	DUMP_REG(DC_DISP_H_PULSE2_POSITION_D);
-	DUMP_REG(DC_DISP_V_PULSE0_CONTROL);
-	DUMP_REG(DC_DISP_V_PULSE0_POSITION_A);
-	DUMP_REG(DC_DISP_V_PULSE0_POSITION_B);
-	DUMP_REG(DC_DISP_V_PULSE0_POSITION_C);
-	DUMP_REG(DC_DISP_V_PULSE1_CONTROL);
-	DUMP_REG(DC_DISP_V_PULSE1_POSITION_A);
-	DUMP_REG(DC_DISP_V_PULSE1_POSITION_B);
-	DUMP_REG(DC_DISP_V_PULSE1_POSITION_C);
-	DUMP_REG(DC_DISP_V_PULSE2_CONTROL);
-	DUMP_REG(DC_DISP_V_PULSE2_POSITION_A);
-	DUMP_REG(DC_DISP_V_PULSE3_CONTROL);
-	DUMP_REG(DC_DISP_V_PULSE3_POSITION_A);
-	DUMP_REG(DC_DISP_M0_CONTROL);
-	DUMP_REG(DC_DISP_M1_CONTROL);
-	DUMP_REG(DC_DISP_DI_CONTROL);
-	DUMP_REG(DC_DISP_PP_CONTROL);
-	DUMP_REG(DC_DISP_PP_SELECT_A);
-	DUMP_REG(DC_DISP_PP_SELECT_B);
-	DUMP_REG(DC_DISP_PP_SELECT_C);
-	DUMP_REG(DC_DISP_PP_SELECT_D);
-	DUMP_REG(DC_DISP_DISP_CLOCK_CONTROL);
-	DUMP_REG(DC_DISP_DISP_INTERFACE_CONTROL);
-	DUMP_REG(DC_DISP_DISP_COLOR_CONTROL);
-	DUMP_REG(DC_DISP_SHIFT_CLOCK_OPTIONS);
-	DUMP_REG(DC_DISP_DATA_ENABLE_OPTIONS);
-	DUMP_REG(DC_DISP_SERIAL_INTERFACE_OPTIONS);
-	DUMP_REG(DC_DISP_LCD_SPI_OPTIONS);
-	DUMP_REG(DC_DISP_BORDER_COLOR);
-	DUMP_REG(DC_DISP_COLOR_KEY0_LOWER);
-	DUMP_REG(DC_DISP_COLOR_KEY0_UPPER);
-	DUMP_REG(DC_DISP_COLOR_KEY1_LOWER);
-	DUMP_REG(DC_DISP_COLOR_KEY1_UPPER);
-	DUMP_REG(DC_DISP_CURSOR_FOREGROUND);
-	DUMP_REG(DC_DISP_CURSOR_BACKGROUND);
-	DUMP_REG(DC_DISP_CURSOR_START_ADDR);
-	DUMP_REG(DC_DISP_CURSOR_START_ADDR_NS);
-	DUMP_REG(DC_DISP_CURSOR_POSITION);
-	DUMP_REG(DC_DISP_CURSOR_POSITION_NS);
-	DUMP_REG(DC_DISP_INIT_SEQ_CONTROL);
-	DUMP_REG(DC_DISP_SPI_INIT_SEQ_DATA_A);
-	DUMP_REG(DC_DISP_SPI_INIT_SEQ_DATA_B);
-	DUMP_REG(DC_DISP_SPI_INIT_SEQ_DATA_C);
-	DUMP_REG(DC_DISP_SPI_INIT_SEQ_DATA_D);
-	DUMP_REG(DC_DISP_DC_MCCIF_FIFOCTRL);
-	DUMP_REG(DC_DISP_MCCIF_DISPLAY0A_HYST);
-	DUMP_REG(DC_DISP_MCCIF_DISPLAY0B_HYST);
-	DUMP_REG(DC_DISP_MCCIF_DISPLAY1A_HYST);
-	DUMP_REG(DC_DISP_MCCIF_DISPLAY1B_HYST);
-	DUMP_REG(DC_DISP_DAC_CRT_CTRL);
-	DUMP_REG(DC_DISP_DISP_MISC_CONTROL);
-	DUMP_REG(DC_DISP_SD_CONTROL);
-	DUMP_REG(DC_DISP_SD_CSC_COEFF);
-	DUMP_REG(DC_DISP_SD_LUT(0));
-	DUMP_REG(DC_DISP_SD_LUT(1));
-	DUMP_REG(DC_DISP_SD_LUT(2));
-	DUMP_REG(DC_DISP_SD_LUT(3));
-	DUMP_REG(DC_DISP_SD_LUT(4));
-	DUMP_REG(DC_DISP_SD_LUT(5));
-	DUMP_REG(DC_DISP_SD_LUT(6));
-	DUMP_REG(DC_DISP_SD_LUT(7));
-	DUMP_REG(DC_DISP_SD_LUT(8));
-	DUMP_REG(DC_DISP_SD_FLICKER_CONTROL);
-	DUMP_REG(DC_DISP_DC_PIXEL_COUNT);
-	DUMP_REG(DC_DISP_SD_HISTOGRAM(0));
-	DUMP_REG(DC_DISP_SD_HISTOGRAM(1));
-	DUMP_REG(DC_DISP_SD_HISTOGRAM(2));
-	DUMP_REG(DC_DISP_SD_HISTOGRAM(3));
-	DUMP_REG(DC_DISP_SD_HISTOGRAM(4));
-	DUMP_REG(DC_DISP_SD_HISTOGRAM(5));
-	DUMP_REG(DC_DISP_SD_HISTOGRAM(6));
-	DUMP_REG(DC_DISP_SD_HISTOGRAM(7));
-	DUMP_REG(DC_DISP_SD_BL_TF(0));
-	DUMP_REG(DC_DISP_SD_BL_TF(1));
-	DUMP_REG(DC_DISP_SD_BL_TF(2));
-	DUMP_REG(DC_DISP_SD_BL_TF(3));
-	DUMP_REG(DC_DISP_SD_BL_CONTROL);
-	DUMP_REG(DC_DISP_SD_HW_K_VALUES);
-	DUMP_REG(DC_DISP_SD_MAN_K_VALUES);
-	DUMP_REG(DC_DISP_CURSOR_START_ADDR_HI);
-	DUMP_REG(DC_DISP_BLEND_CURSOR_CONTROL);
-	DUMP_REG(DC_WIN_WIN_OPTIONS);
-	DUMP_REG(DC_WIN_BYTE_SWAP);
-	DUMP_REG(DC_WIN_BUFFER_CONTROL);
-	DUMP_REG(DC_WIN_COLOR_DEPTH);
-	DUMP_REG(DC_WIN_POSITION);
-	DUMP_REG(DC_WIN_SIZE);
-	DUMP_REG(DC_WIN_PRESCALED_SIZE);
-	DUMP_REG(DC_WIN_H_INITIAL_DDA);
-	DUMP_REG(DC_WIN_V_INITIAL_DDA);
-	DUMP_REG(DC_WIN_DDA_INC);
-	DUMP_REG(DC_WIN_LINE_STRIDE);
-	DUMP_REG(DC_WIN_BUF_STRIDE);
-	DUMP_REG(DC_WIN_UV_BUF_STRIDE);
-	DUMP_REG(DC_WIN_BUFFER_ADDR_MODE);
-	DUMP_REG(DC_WIN_DV_CONTROL);
-	DUMP_REG(DC_WIN_BLEND_NOKEY);
-	DUMP_REG(DC_WIN_BLEND_1WIN);
-	DUMP_REG(DC_WIN_BLEND_2WIN_X);
-	DUMP_REG(DC_WIN_BLEND_2WIN_Y);
-	DUMP_REG(DC_WIN_BLEND_3WIN_XY);
-	DUMP_REG(DC_WIN_HP_FETCH_CONTROL);
-	DUMP_REG(DC_WINBUF_START_ADDR);
-	DUMP_REG(DC_WINBUF_START_ADDR_NS);
-	DUMP_REG(DC_WINBUF_START_ADDR_U);
-	DUMP_REG(DC_WINBUF_START_ADDR_U_NS);
-	DUMP_REG(DC_WINBUF_START_ADDR_V);
-	DUMP_REG(DC_WINBUF_START_ADDR_V_NS);
-	DUMP_REG(DC_WINBUF_ADDR_H_OFFSET);
-	DUMP_REG(DC_WINBUF_ADDR_H_OFFSET_NS);
-	DUMP_REG(DC_WINBUF_ADDR_V_OFFSET);
-	DUMP_REG(DC_WINBUF_ADDR_V_OFFSET_NS);
-	DUMP_REG(DC_WINBUF_UFLOW_STATUS);
-	DUMP_REG(DC_WINBUF_AD_UFLOW_STATUS);
-	DUMP_REG(DC_WINBUF_BD_UFLOW_STATUS);
-	DUMP_REG(DC_WINBUF_CD_UFLOW_STATUS);
-
-#undef DUMP_REG
-
-unlock:
-	drm_modeset_unlock(&dc->base.mutex);
-	return err;
-}
-
-static int tegra_dc_show_crc(struct seq_file *s, void *data)
-{
-	struct drm_info_node *node = s->private;
-	struct tegra_dc *dc = node->info_ent->data;
-	int err = 0;
-	u32 value;
-
-	drm_modeset_lock(&dc->base.mutex, NULL);
-
-	if (!dc->base.state->active) {
-		err = -EBUSY;
-		goto unlock;
-	}
-
-	value = DC_COM_CRC_CONTROL_ACTIVE_DATA | DC_COM_CRC_CONTROL_ENABLE;
-	tegra_dc_writel(dc, value, DC_COM_CRC_CONTROL);
-	tegra_dc_commit(dc);
-
-	drm_crtc_wait_one_vblank(&dc->base);
-	drm_crtc_wait_one_vblank(&dc->base);
-
-	value = tegra_dc_readl(dc, DC_COM_CRC_CHECKSUM);
-	seq_printf(s, "%08x\n", value);
-
-	tegra_dc_writel(dc, 0, DC_COM_CRC_CONTROL);
-
-unlock:
-	drm_modeset_unlock(&dc->base.mutex);
-	return err;
-}
-
-static int tegra_dc_show_stats(struct seq_file *s, void *data)
-{
-	struct drm_info_node *node = s->private;
-	struct tegra_dc *dc = node->info_ent->data;
-
-	seq_printf(s, "frames: %lu\n", dc->stats.frames);
-	seq_printf(s, "vblank: %lu\n", dc->stats.vblank);
-	seq_printf(s, "underflow: %lu\n", dc->stats.underflow);
-	seq_printf(s, "overflow: %lu\n", dc->stats.overflow);
-
-	return 0;
-}
-
-static struct drm_info_list debugfs_files[] = {
-	{ "regs", tegra_dc_show_regs, 0, NULL },
-	{ "crc", tegra_dc_show_crc, 0, NULL },
-	{ "stats", tegra_dc_show_stats, 0, NULL },
-};
-
-static int tegra_dc_debugfs_init(struct tegra_dc *dc, struct drm_minor *minor)
-{
-	unsigned int i;
-	char *name;
-	int err;
-
-	name = kasprintf(GFP_KERNEL, "dc.%d", dc->pipe);
-	dc->debugfs = debugfs_create_dir(name, minor->debugfs_root);
-	kfree(name);
-
-	if (!dc->debugfs)
-		return -ENOMEM;
-
-	dc->debugfs_files = kmemdup(debugfs_files, sizeof(debugfs_files),
-				    GFP_KERNEL);
-	if (!dc->debugfs_files) {
-		err = -ENOMEM;
-		goto remove;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(debugfs_files); i++)
-		dc->debugfs_files[i].data = dc;
-
-	err = drm_debugfs_create_files(dc->debugfs_files,
-				       ARRAY_SIZE(debugfs_files),
-				       dc->debugfs, minor);
-	if (err < 0)
-		goto free;
-
-	dc->minor = minor;
-
-	return 0;
-
-free:
-	kfree(dc->debugfs_files);
-	dc->debugfs_files = NULL;
-remove:
-	debugfs_remove(dc->debugfs);
-	dc->debugfs = NULL;
-
-	return err;
-}
-
-static int tegra_dc_debugfs_exit(struct tegra_dc *dc)
-{
-	drm_debugfs_remove_files(dc->debugfs_files, ARRAY_SIZE(debugfs_files),
-				 dc->minor);
-	dc->minor = NULL;
-
-	kfree(dc->debugfs_files);
-	dc->debugfs_files = NULL;
-
-	debugfs_remove(dc->debugfs);
-	dc->debugfs = NULL;
-
-	return 0;
 }
 
 static int tegra_dc_init(struct host1x_client *client)
 {
 	struct drm_device *drm = dev_get_drvdata(client->parent);
+	struct iommu_group *group = iommu_group_get(client->dev);
 	unsigned long flags = HOST1X_SYNCPT_CLIENT_MANAGED;
 	struct tegra_dc *dc = host1x_client_to_dc(client);
 	struct tegra_drm *tegra = drm->dev_private;
@@ -1742,18 +1832,27 @@ static int tegra_dc_init(struct host1x_client *client)
 	if (!dc->syncpt)
 		dev_warn(dc->dev, "failed to allocate syncpoint\n");
 
-	if (tegra->domain) {
-		err = iommu_attach_device(tegra->domain, dc->dev);
-		if (err < 0) {
-			dev_err(dc->dev, "failed to attach to domain: %d\n",
-				err);
-			return err;
+	if (group && tegra->domain) {
+		if (group != tegra->group) {
+			err = iommu_attach_group(tegra->domain, group);
+			if (err < 0) {
+				dev_err(dc->dev,
+					"failed to attach to domain: %d\n",
+					err);
+				return err;
+			}
+
+			tegra->group = group;
 		}
 
 		dc->domain = tegra->domain;
 	}
 
-	primary = tegra_dc_primary_plane_create(drm, dc);
+	if (dc->soc->wgrps)
+		primary = tegra_dc_add_shared_planes(drm, dc);
+	else
+		primary = tegra_dc_add_planes(drm, dc);
+
 	if (IS_ERR(primary)) {
 		err = PTR_ERR(primary);
 		goto cleanup;
@@ -1787,16 +1886,6 @@ static int tegra_dc_init(struct host1x_client *client)
 		goto cleanup;
 	}
 
-	err = tegra_dc_add_planes(drm, dc);
-	if (err < 0)
-		goto cleanup;
-
-	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-		err = tegra_dc_debugfs_init(dc, drm->primary);
-		if (err < 0)
-			dev_err(dc->dev, "debugfs setup failed: %d\n", err);
-	}
-
 	err = devm_request_irq(dc->dev, dc->irq, tegra_dc_irq, 0,
 			       dev_name(dc->dev), dc);
 	if (err < 0) {
@@ -1808,14 +1897,14 @@ static int tegra_dc_init(struct host1x_client *client)
 	return 0;
 
 cleanup:
-	if (cursor)
+	if (!IS_ERR_OR_NULL(cursor))
 		drm_plane_cleanup(cursor);
 
-	if (primary)
+	if (!IS_ERR(primary))
 		drm_plane_cleanup(primary);
 
-	if (tegra->domain) {
-		iommu_detach_device(tegra->domain, dc->dev);
+	if (group && tegra->domain) {
+		iommu_detach_group(tegra->domain, group);
 		dc->domain = NULL;
 	}
 
@@ -1824,16 +1913,11 @@ cleanup:
 
 static int tegra_dc_exit(struct host1x_client *client)
 {
+	struct iommu_group *group = iommu_group_get(client->dev);
 	struct tegra_dc *dc = host1x_client_to_dc(client);
 	int err;
 
 	devm_free_irq(dc->dev, dc->irq, dc);
-
-	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-		err = tegra_dc_debugfs_exit(dc);
-		if (err < 0)
-			dev_err(dc->dev, "debugfs cleanup failed: %d\n", err);
-	}
 
 	err = tegra_dc_rgb_exit(dc);
 	if (err) {
@@ -1841,8 +1925,8 @@ static int tegra_dc_exit(struct host1x_client *client)
 		return err;
 	}
 
-	if (dc->domain) {
-		iommu_detach_device(dc->domain, dc->dev);
+	if (group && dc->domain) {
+		iommu_detach_group(dc->domain, group);
 		dc->domain = NULL;
 	}
 
@@ -1857,57 +1941,138 @@ static const struct host1x_client_ops dc_client_ops = {
 };
 
 static const struct tegra_dc_soc_info tegra20_dc_soc_info = {
-	.supports_border_color = true,
+	.supports_background_color = false,
 	.supports_interlacing = false,
 	.supports_cursor = false,
 	.supports_block_linear = false,
+	.supports_blending = false,
 	.pitch_align = 8,
 	.has_powergate = false,
-	.broken_reset = true,
+	.coupled_pm = true,
+	.has_nvdisplay = false,
+	.num_primary_formats = ARRAY_SIZE(tegra20_primary_formats),
+	.primary_formats = tegra20_primary_formats,
+	.num_overlay_formats = ARRAY_SIZE(tegra20_overlay_formats),
+	.overlay_formats = tegra20_overlay_formats,
 };
 
 static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
-	.supports_border_color = true,
+	.supports_background_color = false,
 	.supports_interlacing = false,
 	.supports_cursor = false,
 	.supports_block_linear = false,
+	.supports_blending = false,
 	.pitch_align = 8,
 	.has_powergate = false,
-	.broken_reset = false,
+	.coupled_pm = false,
+	.has_nvdisplay = false,
+	.num_primary_formats = ARRAY_SIZE(tegra20_primary_formats),
+	.primary_formats = tegra20_primary_formats,
+	.num_overlay_formats = ARRAY_SIZE(tegra20_overlay_formats),
+	.overlay_formats = tegra20_overlay_formats,
 };
 
 static const struct tegra_dc_soc_info tegra114_dc_soc_info = {
-	.supports_border_color = true,
+	.supports_background_color = false,
 	.supports_interlacing = false,
 	.supports_cursor = false,
 	.supports_block_linear = false,
+	.supports_blending = false,
 	.pitch_align = 64,
 	.has_powergate = true,
-	.broken_reset = false,
+	.coupled_pm = false,
+	.has_nvdisplay = false,
+	.num_primary_formats = ARRAY_SIZE(tegra114_primary_formats),
+	.primary_formats = tegra114_primary_formats,
+	.num_overlay_formats = ARRAY_SIZE(tegra114_overlay_formats),
+	.overlay_formats = tegra114_overlay_formats,
 };
 
 static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
-	.supports_border_color = false,
+	.supports_background_color = true,
 	.supports_interlacing = true,
 	.supports_cursor = true,
 	.supports_block_linear = true,
+	.supports_blending = true,
 	.pitch_align = 64,
 	.has_powergate = true,
-	.broken_reset = false,
+	.coupled_pm = false,
+	.has_nvdisplay = false,
+	.num_primary_formats = ARRAY_SIZE(tegra124_primary_formats),
+	.primary_formats = tegra114_primary_formats,
+	.num_overlay_formats = ARRAY_SIZE(tegra124_overlay_formats),
+	.overlay_formats = tegra114_overlay_formats,
 };
 
 static const struct tegra_dc_soc_info tegra210_dc_soc_info = {
-	.supports_border_color = false,
+	.supports_background_color = true,
 	.supports_interlacing = true,
 	.supports_cursor = true,
 	.supports_block_linear = true,
+	.supports_blending = true,
 	.pitch_align = 64,
 	.has_powergate = true,
-	.broken_reset = false,
+	.coupled_pm = false,
+	.has_nvdisplay = false,
+	.num_primary_formats = ARRAY_SIZE(tegra114_primary_formats),
+	.primary_formats = tegra114_primary_formats,
+	.num_overlay_formats = ARRAY_SIZE(tegra114_overlay_formats),
+	.overlay_formats = tegra114_overlay_formats,
+};
+
+static const struct tegra_windowgroup_soc tegra186_dc_wgrps[] = {
+	{
+		.index = 0,
+		.dc = 0,
+		.windows = (const unsigned int[]) { 0 },
+		.num_windows = 1,
+	}, {
+		.index = 1,
+		.dc = 1,
+		.windows = (const unsigned int[]) { 1 },
+		.num_windows = 1,
+	}, {
+		.index = 2,
+		.dc = 1,
+		.windows = (const unsigned int[]) { 2 },
+		.num_windows = 1,
+	}, {
+		.index = 3,
+		.dc = 2,
+		.windows = (const unsigned int[]) { 3 },
+		.num_windows = 1,
+	}, {
+		.index = 4,
+		.dc = 2,
+		.windows = (const unsigned int[]) { 4 },
+		.num_windows = 1,
+	}, {
+		.index = 5,
+		.dc = 2,
+		.windows = (const unsigned int[]) { 5 },
+		.num_windows = 1,
+	},
+};
+
+static const struct tegra_dc_soc_info tegra186_dc_soc_info = {
+	.supports_background_color = true,
+	.supports_interlacing = true,
+	.supports_cursor = true,
+	.supports_block_linear = true,
+	.supports_blending = true,
+	.pitch_align = 64,
+	.has_powergate = false,
+	.coupled_pm = false,
+	.has_nvdisplay = true,
+	.wgrps = tegra186_dc_wgrps,
+	.num_wgrps = ARRAY_SIZE(tegra186_dc_wgrps),
 };
 
 static const struct of_device_id tegra_dc_of_match[] = {
 	{
+		.compatible = "nvidia,tegra186-dc",
+		.data = &tegra186_dc_soc_info,
+	}, {
 		.compatible = "nvidia,tegra210-dc",
 		.data = &tegra210_dc_soc_info,
 	}, {
@@ -1965,6 +2130,43 @@ static int tegra_dc_parse_dt(struct tegra_dc *dc)
 	return 0;
 }
 
+static int tegra_dc_match_by_pipe(struct device *dev, void *data)
+{
+	struct tegra_dc *dc = dev_get_drvdata(dev);
+	unsigned int pipe = (unsigned long)data;
+
+	return dc->pipe == pipe;
+}
+
+static int tegra_dc_couple(struct tegra_dc *dc)
+{
+	/*
+	 * On Tegra20, DC1 requires DC0 to be taken out of reset in order to
+	 * be enabled, otherwise CPU hangs on writing to CMD_DISPLAY_COMMAND /
+	 * POWER_CONTROL registers during CRTC enabling.
+	 */
+	if (dc->soc->coupled_pm && dc->pipe == 1) {
+		u32 flags = DL_FLAG_PM_RUNTIME | DL_FLAG_AUTOREMOVE;
+		struct device_link *link;
+		struct device *partner;
+
+		partner = driver_find_device(dc->dev->driver, NULL, 0,
+					     tegra_dc_match_by_pipe);
+		if (!partner)
+			return -EPROBE_DEFER;
+
+		link = device_link_add(dc->dev, partner, flags);
+		if (!link) {
+			dev_err(dc->dev, "failed to link controllers\n");
+			return -EINVAL;
+		}
+
+		dev_dbg(dc->dev, "coupled to %s\n", dev_name(partner));
+	}
+
+	return 0;
+}
+
 static int tegra_dc_probe(struct platform_device *pdev)
 {
 	struct resource *regs;
@@ -1977,11 +2179,14 @@ static int tegra_dc_probe(struct platform_device *pdev)
 
 	dc->soc = of_device_get_match_data(&pdev->dev);
 
-	spin_lock_init(&dc->lock);
 	INIT_LIST_HEAD(&dc->list);
 	dc->dev = &pdev->dev;
 
 	err = tegra_dc_parse_dt(dc);
+	if (err < 0)
+		return err;
+
+	err = tegra_dc_couple(dc);
 	if (err < 0)
 		return err;
 
@@ -1998,21 +2203,19 @@ static int tegra_dc_probe(struct platform_device *pdev)
 	}
 
 	/* assert reset and disable clock */
-	if (!dc->soc->broken_reset) {
-		err = clk_prepare_enable(dc->clk);
-		if (err < 0)
-			return err;
+	err = clk_prepare_enable(dc->clk);
+	if (err < 0)
+		return err;
 
-		usleep_range(2000, 4000);
+	usleep_range(2000, 4000);
 
-		err = reset_control_assert(dc->rst);
-		if (err < 0)
-			return err;
+	err = reset_control_assert(dc->rst);
+	if (err < 0)
+		return err;
 
-		usleep_range(2000, 4000);
+	usleep_range(2000, 4000);
 
-		clk_disable_unprepare(dc->clk);
-	}
+	clk_disable_unprepare(dc->clk);
 
 	if (dc->soc->has_powergate) {
 		if (dc->pipe == 0)
@@ -2086,12 +2289,10 @@ static int tegra_dc_suspend(struct device *dev)
 	struct tegra_dc *dc = dev_get_drvdata(dev);
 	int err;
 
-	if (!dc->soc->broken_reset) {
-		err = reset_control_assert(dc->rst);
-		if (err < 0) {
-			dev_err(dev, "failed to assert reset: %d\n", err);
-			return err;
-		}
+	err = reset_control_assert(dc->rst);
+	if (err < 0) {
+		dev_err(dev, "failed to assert reset: %d\n", err);
+		return err;
 	}
 
 	if (dc->soc->has_powergate)
@@ -2121,13 +2322,10 @@ static int tegra_dc_resume(struct device *dev)
 			return err;
 		}
 
-		if (!dc->soc->broken_reset) {
-			err = reset_control_deassert(dc->rst);
-			if (err < 0) {
-				dev_err(dev,
-					"failed to deassert reset: %d\n", err);
-				return err;
-			}
+		err = reset_control_deassert(dc->rst);
+		if (err < 0) {
+			dev_err(dev, "failed to deassert reset: %d\n", err);
+			return err;
 		}
 	}
 

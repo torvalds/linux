@@ -67,13 +67,6 @@ xfs_scrub_setup_quota(
 {
 	uint				dqtype;
 
-	/*
-	 * If userspace gave us an AG number or inode data, they don't
-	 * know what they're doing.  Get out.
-	 */
-	if (sc->sm->sm_agno || sc->sm->sm_ino || sc->sm->sm_gen)
-		return -EINVAL;
-
 	dqtype = xfs_scrub_quota_to_dqtype(sc);
 	if (dqtype == 0)
 		return -EINVAL;

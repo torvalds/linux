@@ -607,8 +607,8 @@ static int dma_ioc0_map_pages(struct ps3_dma_region *r, unsigned long phys_addr,
 				       r->ioid,
 				       iopte_flag);
 		if (result) {
-			pr_warning("%s:%d: lv1_put_iopte failed: %s\n",
-				   __func__, __LINE__, ps3_result(result));
+			pr_warn("%s:%d: lv1_put_iopte failed: %s\n",
+				__func__, __LINE__, ps3_result(result));
 			goto fail_map;
 		}
 		DBG("%s: pg=%d bus=%#lx, lpar=%#lx, ioid=%#x\n", __func__,

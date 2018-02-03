@@ -15,6 +15,7 @@ Required properties:
  * "ti,bq27520g2" - BQ27520-g2
  * "ti,bq27520g3" - BQ27520-g3
  * "ti,bq27520g4" - BQ27520-g4
+ * "ti,bq27521" - BQ27521
  * "ti,bq27530" - BQ27530
  * "ti,bq27531" - BQ27531
  * "ti,bq27541" - BQ27541

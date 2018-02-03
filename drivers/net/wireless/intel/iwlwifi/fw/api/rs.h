@@ -62,6 +62,267 @@
 
 #include "mac.h"
 
+/**
+ * enum iwl_tlc_mng_cfg_flags_enum - options for TLC config flags
+ * @IWL_TLC_MNG_CFG_FLAGS_CCK_MSK: CCK support
+ * @IWL_TLC_MNG_CFG_FLAGS_DD_MSK: enable DD
+ * @IWL_TLC_MNG_CFG_FLAGS_STBC_MSK: enable STBC
+ * @IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK: enable LDPC
+ * @IWL_TLC_MNG_CFG_FLAGS_BF_MSK: enable BFER
+ * @IWL_TLC_MNG_CFG_FLAGS_DCM_MSK: enable DCM
+ */
+enum iwl_tlc_mng_cfg_flags {
+	IWL_TLC_MNG_CFG_FLAGS_CCK_MSK	= BIT(0),
+	IWL_TLC_MNG_CFG_FLAGS_DD_MSK	= BIT(1),
+	IWL_TLC_MNG_CFG_FLAGS_STBC_MSK	= BIT(2),
+	IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK	= BIT(3),
+	IWL_TLC_MNG_CFG_FLAGS_BF_MSK	= BIT(4),
+	IWL_TLC_MNG_CFG_FLAGS_DCM_MSK	= BIT(5),
+};
+
+/**
+ * enum iwl_tlc_mng_cfg_cw - channel width options
+ * @IWL_TLC_MNG_MAX_CH_WIDTH_20MHZ: 20MHZ channel
+ * @IWL_TLC_MNG_MAX_CH_WIDTH_40MHZ: 40MHZ channel
+ * @IWL_TLC_MNG_MAX_CH_WIDTH_80MHZ: 80MHZ channel
+ * @IWL_TLC_MNG_MAX_CH_WIDTH_160MHZ: 160MHZ channel
+ * @IWL_TLC_MNG_MAX_CH_WIDTH_LAST: maximum value
+ */
+enum iwl_tlc_mng_cfg_cw {
+	IWL_TLC_MNG_MAX_CH_WIDTH_20MHZ,
+	IWL_TLC_MNG_MAX_CH_WIDTH_40MHZ,
+	IWL_TLC_MNG_MAX_CH_WIDTH_80MHZ,
+	IWL_TLC_MNG_MAX_CH_WIDTH_160MHZ,
+	IWL_TLC_MNG_MAX_CH_WIDTH_LAST = IWL_TLC_MNG_MAX_CH_WIDTH_160MHZ,
+};
+
+/**
+ * enum iwl_tlc_mng_cfg_chains - possible chains
+ * @IWL_TLC_MNG_CHAIN_A_MSK: chain A
+ * @IWL_TLC_MNG_CHAIN_B_MSK: chain B
+ * @IWL_TLC_MNG_CHAIN_C_MSK: chain C
+ */
+enum iwl_tlc_mng_cfg_chains {
+	IWL_TLC_MNG_CHAIN_A_MSK = BIT(0),
+	IWL_TLC_MNG_CHAIN_B_MSK = BIT(1),
+	IWL_TLC_MNG_CHAIN_C_MSK = BIT(2),
+};
+
+/**
+ * enum iwl_tlc_mng_cfg_gi - guard interval options
+ * @IWL_TLC_MNG_SGI_20MHZ_MSK: enable short GI for 20MHZ
+ * @IWL_TLC_MNG_SGI_40MHZ_MSK: enable short GI for 40MHZ
+ * @IWL_TLC_MNG_SGI_80MHZ_MSK: enable short GI for 80MHZ
+ * @IWL_TLC_MNG_SGI_160MHZ_MSK: enable short GI for 160MHZ
+ */
+enum iwl_tlc_mng_cfg_gi {
+	IWL_TLC_MNG_SGI_20MHZ_MSK  = BIT(0),
+	IWL_TLC_MNG_SGI_40MHZ_MSK  = BIT(1),
+	IWL_TLC_MNG_SGI_80MHZ_MSK  = BIT(2),
+	IWL_TLC_MNG_SGI_160MHZ_MSK = BIT(3),
+};
+
+/**
+ * enum iwl_tlc_mng_cfg_mode - supported modes
+ * @IWL_TLC_MNG_MODE_CCK: enable CCK
+ * @IWL_TLC_MNG_MODE_OFDM_NON_HT: enable OFDM (non HT)
+ * @IWL_TLC_MNG_MODE_NON_HT: enable non HT
+ * @IWL_TLC_MNG_MODE_HT: enable HT
+ * @IWL_TLC_MNG_MODE_VHT: enable VHT
+ * @IWL_TLC_MNG_MODE_HE: enable HE
+ * @IWL_TLC_MNG_MODE_INVALID: invalid value
+ * @IWL_TLC_MNG_MODE_NUM: a count of possible modes
+ */
+enum iwl_tlc_mng_cfg_mode {
+	IWL_TLC_MNG_MODE_CCK = 0,
+	IWL_TLC_MNG_MODE_OFDM_NON_HT = IWL_TLC_MNG_MODE_CCK,
+	IWL_TLC_MNG_MODE_NON_HT = IWL_TLC_MNG_MODE_CCK,
+	IWL_TLC_MNG_MODE_HT,
+	IWL_TLC_MNG_MODE_VHT,
+	IWL_TLC_MNG_MODE_HE,
+	IWL_TLC_MNG_MODE_INVALID,
+	IWL_TLC_MNG_MODE_NUM = IWL_TLC_MNG_MODE_INVALID,
+};
+
+/**
+ * enum iwl_tlc_mng_vht_he_types - VHT HE types
+ * @IWL_TLC_MNG_VALID_VHT_HE_TYPES_SU: VHT HT single user
+ * @IWL_TLC_MNG_VALID_VHT_HE_TYPES_SU_EXT: VHT HT single user extended
+ * @IWL_TLC_MNG_VALID_VHT_HE_TYPES_MU: VHT HT multiple users
+ * @IWL_TLC_MNG_VALID_VHT_HE_TYPES_TRIG_BASED: trigger based
+ * @IWL_TLC_MNG_VALID_VHT_HE_TYPES_NUM: a count of possible types
+ */
+enum iwl_tlc_mng_vht_he_types {
+	IWL_TLC_MNG_VALID_VHT_HE_TYPES_SU = 0,
+	IWL_TLC_MNG_VALID_VHT_HE_TYPES_SU_EXT,
+	IWL_TLC_MNG_VALID_VHT_HE_TYPES_MU,
+	IWL_TLC_MNG_VALID_VHT_HE_TYPES_TRIG_BASED,
+	IWL_TLC_MNG_VALID_VHT_HE_TYPES_NUM =
+		IWL_TLC_MNG_VALID_VHT_HE_TYPES_TRIG_BASED,
+
+};
+
+/**
+ * enum iwl_tlc_mng_ht_rates - HT/VHT rates
+ * @IWL_TLC_MNG_HT_RATE_MCS0: index of MCS0
+ * @IWL_TLC_MNG_HT_RATE_MCS1: index of MCS1
+ * @IWL_TLC_MNG_HT_RATE_MCS2: index of MCS2
+ * @IWL_TLC_MNG_HT_RATE_MCS3: index of MCS3
+ * @IWL_TLC_MNG_HT_RATE_MCS4: index of MCS4
+ * @IWL_TLC_MNG_HT_RATE_MCS5: index of MCS5
+ * @IWL_TLC_MNG_HT_RATE_MCS6: index of MCS6
+ * @IWL_TLC_MNG_HT_RATE_MCS7: index of MCS7
+ * @IWL_TLC_MNG_HT_RATE_MCS8: index of MCS8
+ * @IWL_TLC_MNG_HT_RATE_MCS9: index of MCS9
+ * @IWL_TLC_MNG_HT_RATE_MAX: maximal rate for HT/VHT
+ */
+enum iwl_tlc_mng_ht_rates {
+	IWL_TLC_MNG_HT_RATE_MCS0 = 0,
+	IWL_TLC_MNG_HT_RATE_MCS1,
+	IWL_TLC_MNG_HT_RATE_MCS2,
+	IWL_TLC_MNG_HT_RATE_MCS3,
+	IWL_TLC_MNG_HT_RATE_MCS4,
+	IWL_TLC_MNG_HT_RATE_MCS5,
+	IWL_TLC_MNG_HT_RATE_MCS6,
+	IWL_TLC_MNG_HT_RATE_MCS7,
+	IWL_TLC_MNG_HT_RATE_MCS8,
+	IWL_TLC_MNG_HT_RATE_MCS9,
+	IWL_TLC_MNG_HT_RATE_MAX = IWL_TLC_MNG_HT_RATE_MCS9,
+};
+
+/* Maximum supported tx antennas number */
+#define MAX_RS_ANT_NUM 3
+
+/**
+ * struct tlc_config_cmd - TLC configuration
+ * @sta_id: station id
+ * @reserved1: reserved
+ * @max_supp_ch_width: channel width
+ * @flags: bitmask of &enum iwl_tlc_mng_cfg_flags
+ * @chains: bitmask of &enum iwl_tlc_mng_cfg_chains
+ * @max_supp_ss: valid values are 0-3, 0 - spatial streams are not supported
+ * @valid_vht_he_types: bitmap of &enum iwl_tlc_mng_vht_he_types
+ * @non_ht_supp_rates: bitmap of supported legacy rates
+ * @ht_supp_rates: bitmap of supported HT/VHT rates, valid bits are 0-9
+ * @mode: &enum iwl_tlc_mng_cfg_mode
+ * @reserved2: reserved
+ * @he_supp_rates: bitmap of supported HE rates
+ * @sgi_ch_width_supp: bitmap of SGI support per channel width
+ * @he_gi_support: 11ax HE guard interval
+ * @max_ampdu_cnt: max AMPDU size (frames count)
+ */
+struct iwl_tlc_config_cmd {
+	u8 sta_id;
+	u8 reserved1[3];
+	u8 max_supp_ch_width;
+	u8 chains;
+	u8 max_supp_ss;
+	u8 valid_vht_he_types;
+	__le16 flags;
+	__le16 non_ht_supp_rates;
+	__le16 ht_supp_rates[MAX_RS_ANT_NUM];
+	u8 mode;
+	u8 reserved2;
+	__le16 he_supp_rates;
+	u8 sgi_ch_width_supp;
+	u8 he_gi_support;
+	__le32 max_ampdu_cnt;
+} __packed; /* TLC_MNG_CONFIG_CMD_API_S_VER_1 */
+
+#define IWL_TLC_NOTIF_INIT_RATE_POS 0
+#define IWL_TLC_NOTIF_INIT_RATE_MSK BIT(IWL_TLC_NOTIF_INIT_RATE_POS)
+#define IWL_TLC_NOTIF_REQ_INTERVAL (500)
+
+/**
+ * struct iwl_tlc_notif_req_config_cmd - request notif on specific changes
+ * @sta_id: relevant station
+ * @reserved1: reserved
+ * @flags: bitmap of requested notifications %IWL_TLC_NOTIF_INIT_\*
+ * @interval: minimum time between notifications from TLC to the driver (msec)
+ * @reserved2: reserved
+ */
+struct iwl_tlc_notif_req_config_cmd {
+	u8 sta_id;
+	u8 reserved1;
+	__le16 flags;
+	__le16 interval;
+	__le16 reserved2;
+} __packed; /* TLC_MNG_NOTIF_REQ_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_tlc_update_notif - TLC notification from FW
+ * @sta_id: station id
+ * @reserved: reserved
+ * @flags: bitmap of notifications reported
+ * @values: field per flag in struct iwl_tlc_notif_req_config_cmd
+ */
+struct iwl_tlc_update_notif {
+	u8 sta_id;
+	u8 reserved;
+	__le16 flags;
+	__le32 values[16];
+} __packed; /* TLC_MNG_UPDATE_NTFY_API_S_VER_1 */
+
+/**
+ * enum iwl_tlc_debug_flags - debug options
+ * @IWL_TLC_DEBUG_FIXED_RATE: set fixed rate for rate scaling
+ * @IWL_TLC_DEBUG_STATS_TH: threshold for sending statistics to the driver, in
+ *	frames
+ * @IWL_TLC_DEBUG_STATS_TIME_TH: threshold for sending statistics to the
+ *	driver, in msec
+ * @IWL_TLC_DEBUG_AGG_TIME_LIM: time limit for a BA session
+ * @IWL_TLC_DEBUG_AGG_DIS_START_TH: frame with try-count greater than this
+ *	threshold should not start an aggregation session
+ * @IWL_TLC_DEBUG_AGG_FRAME_CNT_LIM: set max number of frames in an aggregation
+ * @IWL_TLC_DEBUG_RENEW_ADDBA_DELAY: delay between retries of ADD BA
+ * @IWL_TLC_DEBUG_START_AC_RATE_IDX: frames per second to start a BA session
+ * @IWL_TLC_DEBUG_NO_FAR_RANGE_TWEAK: disable BW scaling
+ */
+enum iwl_tlc_debug_flags {
+	IWL_TLC_DEBUG_FIXED_RATE,
+	IWL_TLC_DEBUG_STATS_TH,
+	IWL_TLC_DEBUG_STATS_TIME_TH,
+	IWL_TLC_DEBUG_AGG_TIME_LIM,
+	IWL_TLC_DEBUG_AGG_DIS_START_TH,
+	IWL_TLC_DEBUG_AGG_FRAME_CNT_LIM,
+	IWL_TLC_DEBUG_RENEW_ADDBA_DELAY,
+	IWL_TLC_DEBUG_START_AC_RATE_IDX,
+	IWL_TLC_DEBUG_NO_FAR_RANGE_TWEAK,
+}; /* TLC_MNG_DEBUG_FLAGS_API_E_VER_1 */
+
+/**
+ * struct iwl_dhc_tlc_dbg - fixed debug config
+ * @sta_id: bit 0 - enable/disable, bits 1 - 7 hold station id
+ * @reserved1: reserved
+ * @flags: bitmap of %IWL_TLC_DEBUG_\*
+ * @fixed_rate: rate value
+ * @stats_threshold: if number of tx-ed frames is greater, send statistics
+ * @time_threshold: statistics threshold in usec
+ * @agg_time_lim: max agg time
+ * @agg_dis_start_threshold: frames with try-cont greater than this count will
+ *			     not be aggregated
+ * @agg_frame_count_lim: agg size
+ * @addba_retry_delay: delay between retries of ADD BA
+ * @start_ac_rate_idx: frames per second to start a BA session
+ * @no_far_range_tweak: disable BW scaling
+ * @reserved2: reserved
+ */
+struct iwl_dhc_tlc_cmd {
+	u8 sta_id;
+	u8 reserved1[3];
+	__le32 flags;
+	__le32 fixed_rate;
+	__le16 stats_threshold;
+	__le16 time_threshold;
+	__le16 agg_time_lim;
+	__le16 agg_dis_start_threshold;
+	__le16 agg_frame_count_lim;
+	__le16 addba_retry_delay;
+	u8 start_ac_rate_idx[IEEE80211_NUM_ACS];
+	u8 no_far_range_tweak;
+	u8 reserved2[3];
+} __packed;
+
 /*
  * These serve as indexes into
  * struct iwl_rate_info fw_rate_idx_to_plcp[IWL_RATE_COUNT];
@@ -253,7 +514,6 @@ enum {
 #define RATE_MCS_ANT_ABC_MSK		(RATE_MCS_ANT_AB_MSK | \
 					 RATE_MCS_ANT_C_MSK)
 #define RATE_MCS_ANT_MSK		RATE_MCS_ANT_ABC_MSK
-#define RATE_MCS_ANT_NUM 3
 
 /* Bit 17: (0) SS, (1) SS*2 */
 #define RATE_MCS_STBC_POS		17

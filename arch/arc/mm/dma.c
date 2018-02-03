@@ -60,7 +60,7 @@ static void *arc_dma_alloc(struct device *dev, size_t size,
 	/* This is linear addr (0x8000_0000 based) */
 	paddr = page_to_phys(page);
 
-	*dma_handle = plat_phys_to_dma(dev, paddr);
+	*dma_handle = paddr;
 
 	/* This is kernel Virtual address (0x7000_0000 based) */
 	if (need_kvaddr) {
@@ -92,7 +92,7 @@ static void *arc_dma_alloc(struct device *dev, size_t size,
 static void arc_dma_free(struct device *dev, size_t size, void *vaddr,
 		dma_addr_t dma_handle, unsigned long attrs)
 {
-	phys_addr_t paddr = plat_dma_to_phys(dev, dma_handle);
+	phys_addr_t paddr = dma_handle;
 	struct page *page = virt_to_page(paddr);
 	int is_non_coh = 1;
 
@@ -111,7 +111,7 @@ static int arc_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 {
 	unsigned long user_count = vma_pages(vma);
 	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
-	unsigned long pfn = __phys_to_pfn(plat_dma_to_phys(dev, dma_addr));
+	unsigned long pfn = __phys_to_pfn(dma_addr);
 	unsigned long off = vma->vm_pgoff;
 	int ret = -ENXIO;
 
@@ -175,7 +175,7 @@ static dma_addr_t arc_dma_map_page(struct device *dev, struct page *page,
 	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
 		_dma_cache_sync(paddr, size, dir);
 
-	return plat_phys_to_dma(dev, paddr);
+	return paddr;
 }
 
 /*
@@ -190,7 +190,7 @@ static void arc_dma_unmap_page(struct device *dev, dma_addr_t handle,
 			       size_t size, enum dma_data_direction dir,
 			       unsigned long attrs)
 {
-	phys_addr_t paddr = plat_dma_to_phys(dev, handle);
+	phys_addr_t paddr = handle;
 
 	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
 		_dma_cache_sync(paddr, size, dir);
@@ -224,13 +224,13 @@ static void arc_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 static void arc_dma_sync_single_for_cpu(struct device *dev,
 		dma_addr_t dma_handle, size_t size, enum dma_data_direction dir)
 {
-	_dma_cache_sync(plat_dma_to_phys(dev, dma_handle), size, DMA_FROM_DEVICE);
+	_dma_cache_sync(dma_handle, size, DMA_FROM_DEVICE);
 }
 
 static void arc_dma_sync_single_for_device(struct device *dev,
 		dma_addr_t dma_handle, size_t size, enum dma_data_direction dir)
 {
-	_dma_cache_sync(plat_dma_to_phys(dev, dma_handle), size, DMA_TO_DEVICE);
+	_dma_cache_sync(dma_handle, size, DMA_TO_DEVICE);
 }
 
 static void arc_dma_sync_sg_for_cpu(struct device *dev,

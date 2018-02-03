@@ -137,13 +137,15 @@ static unsigned long ac100_clkout_recalc_rate(struct clk_hw *hw,
 		div = (reg >> AC100_CLKOUT_PRE_DIV_SHIFT) &
 			((1 << AC100_CLKOUT_PRE_DIV_WIDTH) - 1);
 		prate = divider_recalc_rate(hw, prate, div,
-					    ac100_clkout_prediv, 0);
+					    ac100_clkout_prediv, 0,
+					    AC100_CLKOUT_PRE_DIV_WIDTH);
 	}
 
 	div = (reg >> AC100_CLKOUT_DIV_SHIFT) &
 		(BIT(AC100_CLKOUT_DIV_WIDTH) - 1);
 	return divider_recalc_rate(hw, prate, div, NULL,
-				   CLK_DIVIDER_POWER_OF_TWO);
+				   CLK_DIVIDER_POWER_OF_TWO,
+				   AC100_CLKOUT_DIV_WIDTH);
 }
 
 static long ac100_clkout_round_rate(struct clk_hw *hw, unsigned long rate,

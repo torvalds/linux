@@ -116,6 +116,43 @@ static void fixdesc(char *s)
 		*e = 0;
 }
 
+/* Add escapes for '\' so they are proper C strings. */
+static char *fixregex(char *s)
+{
+	int len = 0;
+	int esc_count = 0;
+	char *fixed = NULL;
+	char *p, *q;
+
+	/* Count the number of '\' in string */
+	for (p = s; *p; p++) {
+		++len;
+		if (*p == '\\')
+			++esc_count;
+	}
+
+	if (esc_count == 0)
+		return s;
+
+	/* allocate space for a new string */
+	fixed = (char *) malloc(len + 1);
+	if (!fixed)
+		return NULL;
+
+	/* copy over the characters */
+	q = fixed;
+	for (p = s; *p; p++) {
+		if (*p == '\\') {
+			*q = '\\';
+			++q;
+		}
+		*q = *p;
+		++q;
+	}
+	*q = '\0';
+	return fixed;
+}
+
 static struct msrmap {
 	const char *num;
 	const char *pname;
@@ -648,7 +685,7 @@ static int process_mapfile(FILE *outfp, char *fpath)
 		}
 		line[strlen(line)-1] = '\0';
 
-		cpuid = strtok_r(p, ",", &save);
+		cpuid = fixregex(strtok_r(p, ",", &save));
 		version = strtok_r(NULL, ",", &save);
 		fname = strtok_r(NULL, ",", &save);
 		type = strtok_r(NULL, ",", &save);

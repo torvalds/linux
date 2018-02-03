@@ -64,8 +64,28 @@ static bool bnxt_qplib_is_atomic_cap(struct bnxt_qplib_rcfw *rcfw)
 	return !!(pcie_ctl2 & PCI_EXP_DEVCTL2_ATOMIC_REQ);
 }
 
+static void bnxt_qplib_query_version(struct bnxt_qplib_rcfw *rcfw,
+				     char *fw_ver)
+{
+	struct cmdq_query_version req;
+	struct creq_query_version_resp resp;
+	u16 cmd_flags = 0;
+	int rc = 0;
+
+	RCFW_CMD_PREP(req, QUERY_VERSION, cmd_flags);
+
+	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
+					  (void *)&resp, NULL, 0);
+	if (rc)
+		return;
+	fw_ver[0] = resp.fw_maj;
+	fw_ver[1] = resp.fw_minor;
+	fw_ver[2] = resp.fw_bld;
+	fw_ver[3] = resp.fw_rsvd;
+}
+
 int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
-			    struct bnxt_qplib_dev_attr *attr)
+			    struct bnxt_qplib_dev_attr *attr, bool vf)
 {
 	struct cmdq_query_func req;
 	struct creq_query_func_resp resp;
@@ -95,7 +115,8 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	/* Extract the context from the side buffer */
 	attr->max_qp = le32_to_cpu(sb->max_qp);
 	/* max_qp value reported by FW for PF doesn't include the QP1 for PF */
-	attr->max_qp += 1;
+	if (!vf)
+		attr->max_qp += 1;
 	attr->max_qp_rd_atom =
 		sb->max_qp_rd_atom > BNXT_QPLIB_MAX_OUT_RD_ATOM ?
 		BNXT_QPLIB_MAX_OUT_RD_ATOM : sb->max_qp_rd_atom;
@@ -133,7 +154,7 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	attr->l2_db_size = (sb->l2_db_space_size + 1) * PAGE_SIZE;
 	attr->max_sgid = le32_to_cpu(sb->max_gid);
 
-	strlcpy(attr->fw_ver, "20.6.28.0", sizeof(attr->fw_ver));
+	bnxt_qplib_query_version(rcfw, attr->fw_ver);
 
 	for (i = 0; i < MAX_TQM_ALLOC_REQ / 4; i++) {
 		temp = le32_to_cpu(sb->tqm_alloc_reqs[i]);
@@ -147,6 +168,38 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	attr->is_atomic = bnxt_qplib_is_atomic_cap(rcfw);
 bail:
 	bnxt_qplib_rcfw_free_sbuf(rcfw, sbuf);
+	return rc;
+}
+
+int bnxt_qplib_set_func_resources(struct bnxt_qplib_res *res,
+				  struct bnxt_qplib_rcfw *rcfw,
+				  struct bnxt_qplib_ctx *ctx)
+{
+	struct cmdq_set_func_resources req;
+	struct creq_set_func_resources_resp resp;
+	u16 cmd_flags = 0;
+	int rc = 0;
+
+	RCFW_CMD_PREP(req, SET_FUNC_RESOURCES, cmd_flags);
+
+	req.number_of_qp = cpu_to_le32(ctx->qpc_count);
+	req.number_of_mrw = cpu_to_le32(ctx->mrw_count);
+	req.number_of_srq =  cpu_to_le32(ctx->srqc_count);
+	req.number_of_cq = cpu_to_le32(ctx->cq_count);
+
+	req.max_qp_per_vf = cpu_to_le32(ctx->vf_res.max_qp_per_vf);
+	req.max_mrw_per_vf = cpu_to_le32(ctx->vf_res.max_mrw_per_vf);
+	req.max_srq_per_vf = cpu_to_le32(ctx->vf_res.max_srq_per_vf);
+	req.max_cq_per_vf = cpu_to_le32(ctx->vf_res.max_cq_per_vf);
+	req.max_gid_per_vf = cpu_to_le32(ctx->vf_res.max_gid_per_vf);
+
+	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
+					  (void *)&resp,
+					  NULL, 0);
+	if (rc) {
+		dev_err(&res->pdev->dev,
+			"QPLIB: Failed to set function resources");
+	}
 	return rc;
 }
 
@@ -604,7 +657,7 @@ int bnxt_qplib_dereg_mrw(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mrw,
 }
 
 int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
-		      u64 *pbl_tbl, int num_pbls, bool block)
+		      u64 *pbl_tbl, int num_pbls, bool block, u32 buf_pg_size)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_register_mr req;
@@ -615,6 +668,9 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 	u32 pg_size;
 
 	if (num_pbls) {
+		/* Allocate memory for the non-leaf pages to store buf ptrs.
+		 * Non-leaf pages always uses system PAGE_SIZE
+		 */
 		pg_ptrs = roundup_pow_of_two(num_pbls);
 		pages = pg_ptrs >> MAX_PBL_LVL_1_PGS_SHIFT;
 		if (!pages)
@@ -632,6 +688,7 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 			bnxt_qplib_free_hwq(res->pdev, &mr->hwq);
 
 		mr->hwq.max_elements = pages;
+		/* Use system PAGE_SIZE */
 		rc = bnxt_qplib_alloc_init_hwq(res->pdev, &mr->hwq, NULL, 0,
 					       &mr->hwq.max_elements,
 					       PAGE_SIZE, 0, PAGE_SIZE,
@@ -652,18 +709,22 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 
 	/* Configure the request */
 	if (mr->hwq.level == PBL_LVL_MAX) {
+		/* No PBL provided, just use system PAGE_SIZE */
 		level = 0;
 		req.pbl = 0;
 		pg_size = PAGE_SIZE;
 	} else {
 		level = mr->hwq.level + 1;
 		req.pbl = cpu_to_le64(mr->hwq.pbl[PBL_LVL_0].pg_map_arr[0]);
-		pg_size = mr->hwq.pbl[PBL_LVL_0].pg_size;
 	}
+	pg_size = buf_pg_size ? buf_pg_size : PAGE_SIZE;
 	req.log2_pg_size_lvl = (level << CMDQ_REGISTER_MR_LVL_SFT) |
 			       ((ilog2(pg_size) <<
 				 CMDQ_REGISTER_MR_LOG2_PG_SIZE_SFT) &
 				CMDQ_REGISTER_MR_LOG2_PG_SIZE_MASK);
+	req.log2_pbl_pg_size = cpu_to_le16(((ilog2(PAGE_SIZE) <<
+				 CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_SFT) &
+				CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_MASK));
 	req.access = (mr->flags & 0xFFFF);
 	req.va = cpu_to_le64(mr->va);
 	req.key = cpu_to_le32(mr->lkey);
@@ -728,4 +789,74 @@ int bnxt_qplib_map_tc2cos(struct bnxt_qplib_res *res, u16 *cids)
 	bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp, NULL,
 				     0);
 	return 0;
+}
+
+int bnxt_qplib_get_roce_stats(struct bnxt_qplib_rcfw *rcfw,
+			      struct bnxt_qplib_roce_stats *stats)
+{
+	struct cmdq_query_roce_stats req;
+	struct creq_query_roce_stats_resp resp;
+	struct bnxt_qplib_rcfw_sbuf *sbuf;
+	struct creq_query_roce_stats_resp_sb *sb;
+	u16 cmd_flags = 0;
+	int rc = 0;
+
+	RCFW_CMD_PREP(req, QUERY_ROCE_STATS, cmd_flags);
+
+	sbuf = bnxt_qplib_rcfw_alloc_sbuf(rcfw, sizeof(*sb));
+	if (!sbuf) {
+		dev_err(&rcfw->pdev->dev,
+			"QPLIB: SP: QUERY_ROCE_STATS alloc side buffer failed");
+		return -ENOMEM;
+	}
+
+	sb = sbuf->sb;
+	req.resp_size = sizeof(*sb) / BNXT_QPLIB_CMDQE_UNITS;
+	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp,
+					  (void *)sbuf, 0);
+	if (rc)
+		goto bail;
+	/* Extract the context from the side buffer */
+	stats->to_retransmits = le64_to_cpu(sb->to_retransmits);
+	stats->seq_err_naks_rcvd = le64_to_cpu(sb->seq_err_naks_rcvd);
+	stats->max_retry_exceeded = le64_to_cpu(sb->max_retry_exceeded);
+	stats->rnr_naks_rcvd = le64_to_cpu(sb->rnr_naks_rcvd);
+	stats->missing_resp = le64_to_cpu(sb->missing_resp);
+	stats->unrecoverable_err = le64_to_cpu(sb->unrecoverable_err);
+	stats->bad_resp_err = le64_to_cpu(sb->bad_resp_err);
+	stats->local_qp_op_err = le64_to_cpu(sb->local_qp_op_err);
+	stats->local_protection_err = le64_to_cpu(sb->local_protection_err);
+	stats->mem_mgmt_op_err = le64_to_cpu(sb->mem_mgmt_op_err);
+	stats->remote_invalid_req_err = le64_to_cpu(sb->remote_invalid_req_err);
+	stats->remote_access_err = le64_to_cpu(sb->remote_access_err);
+	stats->remote_op_err = le64_to_cpu(sb->remote_op_err);
+	stats->dup_req = le64_to_cpu(sb->dup_req);
+	stats->res_exceed_max = le64_to_cpu(sb->res_exceed_max);
+	stats->res_length_mismatch = le64_to_cpu(sb->res_length_mismatch);
+	stats->res_exceeds_wqe = le64_to_cpu(sb->res_exceeds_wqe);
+	stats->res_opcode_err = le64_to_cpu(sb->res_opcode_err);
+	stats->res_rx_invalid_rkey = le64_to_cpu(sb->res_rx_invalid_rkey);
+	stats->res_rx_domain_err = le64_to_cpu(sb->res_rx_domain_err);
+	stats->res_rx_no_perm = le64_to_cpu(sb->res_rx_no_perm);
+	stats->res_rx_range_err = le64_to_cpu(sb->res_rx_range_err);
+	stats->res_tx_invalid_rkey = le64_to_cpu(sb->res_tx_invalid_rkey);
+	stats->res_tx_domain_err = le64_to_cpu(sb->res_tx_domain_err);
+	stats->res_tx_no_perm = le64_to_cpu(sb->res_tx_no_perm);
+	stats->res_tx_range_err = le64_to_cpu(sb->res_tx_range_err);
+	stats->res_irrq_oflow = le64_to_cpu(sb->res_irrq_oflow);
+	stats->res_unsup_opcode = le64_to_cpu(sb->res_unsup_opcode);
+	stats->res_unaligned_atomic = le64_to_cpu(sb->res_unaligned_atomic);
+	stats->res_rem_inv_err = le64_to_cpu(sb->res_rem_inv_err);
+	stats->res_mem_error = le64_to_cpu(sb->res_mem_error);
+	stats->res_srq_err = le64_to_cpu(sb->res_srq_err);
+	stats->res_cmp_err = le64_to_cpu(sb->res_cmp_err);
+	stats->res_invalid_dup_rkey = le64_to_cpu(sb->res_invalid_dup_rkey);
+	stats->res_wqe_format_err = le64_to_cpu(sb->res_wqe_format_err);
+	stats->res_cq_load_err = le64_to_cpu(sb->res_cq_load_err);
+	stats->res_srq_load_err = le64_to_cpu(sb->res_srq_load_err);
+	stats->res_tx_pci_err = le64_to_cpu(sb->res_tx_pci_err);
+	stats->res_rx_pci_err = le64_to_cpu(sb->res_rx_pci_err);
+bail:
+	bnxt_qplib_rcfw_free_sbuf(rcfw, sbuf);
+	return rc;
 }

@@ -1655,8 +1655,6 @@ static void mld_sendpack(struct sk_buff *skb)
 	if (err)
 		goto err_out;
 
-	payload_len = skb->len;
-
 	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT,
 		      net, net->ipv6.igmp_sk, skb, NULL, skb->dev,
 		      dst_output);
@@ -2758,7 +2756,6 @@ static int igmp6_mc_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations igmp6_mc_seq_fops = {
-	.owner		=	THIS_MODULE,
 	.open		=	igmp6_mc_seq_open,
 	.read		=	seq_read,
 	.llseek		=	seq_lseek,
@@ -2913,7 +2910,6 @@ static int igmp6_mcf_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations igmp6_mcf_seq_fops = {
-	.owner		=	THIS_MODULE,
 	.open		=	igmp6_mcf_seq_open,
 	.read		=	seq_read,
 	.llseek		=	seq_lseek,

@@ -658,23 +658,20 @@ static inline void iwl_enable_fw_load_int(struct iwl_trans *trans)
 	}
 }
 
-static inline void iwl_pcie_sw_reset(struct iwl_trans *trans)
-{
-	/* Reset entire device - do controller reset (results in SHRD_HW_RST) */
-	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-	usleep_range(5000, 6000);
-}
-
 static inline u8 iwl_pcie_get_cmd_index(struct iwl_txq *q, u32 index)
 {
 	return index & (q->n_window - 1);
 }
 
-static inline void *iwl_pcie_get_tfd(struct iwl_trans_pcie *trans_pcie,
+static inline void *iwl_pcie_get_tfd(struct iwl_trans *trans,
 				     struct iwl_txq *txq, int idx)
 {
-	return txq->tfds + trans_pcie->tfd_size * iwl_pcie_get_cmd_index(txq,
-									 idx);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	if (trans->cfg->use_tfh)
+		idx = iwl_pcie_get_cmd_index(txq, idx);
+
+	return txq->tfds + trans_pcie->tfd_size * idx;
 }
 
 static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)

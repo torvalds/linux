@@ -735,7 +735,7 @@ TBIRES fpe_handler(TBIRES State, int SigNum, int Triggers, int Inst, PTBI pTBI)
 	else if (error_state & TXSTAT_FPE_INEXACT_BIT)
 		info.si_code = FPE_FLTRES;
 	else
-		info.si_code = 0;
+		info.si_code = FPE_FIXME;
 	info.si_errno = 0;
 	info.si_addr = (__force void __user *)regs->ctx.CurrPC;
 	force_sig_info(SIGFPE, &info, current);

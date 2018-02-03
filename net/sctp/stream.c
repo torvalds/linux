@@ -156,9 +156,9 @@ int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 	sctp_stream_outq_migrate(stream, NULL, outcnt);
 	sched->sched_all(stream);
 
-	i = sctp_stream_alloc_out(stream, outcnt, gfp);
-	if (i)
-		return i;
+	ret = sctp_stream_alloc_out(stream, outcnt, gfp);
+	if (ret)
+		goto out;
 
 	stream->outcnt = outcnt;
 	for (i = 0; i < stream->outcnt; i++)
@@ -167,22 +167,21 @@ int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 	sched->init(stream);
 
 in:
+	sctp_stream_interleave_init(stream);
 	if (!incnt)
 		goto out;
 
-	i = sctp_stream_alloc_in(stream, incnt, gfp);
-	if (i) {
-		ret = -ENOMEM;
-		goto free;
+	ret = sctp_stream_alloc_in(stream, incnt, gfp);
+	if (ret) {
+		sched->free(stream);
+		kfree(stream->out);
+		stream->out = NULL;
+		stream->outcnt = 0;
+		goto out;
 	}
 
 	stream->incnt = incnt;
-	goto out;
 
-free:
-	sched->free(stream);
-	kfree(stream->out);
-	stream->out = NULL;
 out:
 	return ret;
 }
@@ -215,11 +214,13 @@ void sctp_stream_clear(struct sctp_stream *stream)
 {
 	int i;
 
-	for (i = 0; i < stream->outcnt; i++)
-		stream->out[i].ssn = 0;
+	for (i = 0; i < stream->outcnt; i++) {
+		stream->out[i].mid = 0;
+		stream->out[i].mid_uo = 0;
+	}
 
 	for (i = 0; i < stream->incnt; i++)
-		stream->in[i].ssn = 0;
+		stream->in[i].mid = 0;
 }
 
 void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new)
@@ -606,10 +607,10 @@ struct sctp_chunk *sctp_process_strreset_outreq(
 		}
 
 		for (i = 0; i < nums; i++)
-			stream->in[ntohs(str_p[i])].ssn = 0;
+			stream->in[ntohs(str_p[i])].mid = 0;
 	} else {
 		for (i = 0; i < stream->incnt; i++)
-			stream->in[i].ssn = 0;
+			stream->in[i].mid = 0;
 	}
 
 	result = SCTP_STRRESET_PERFORMED;
@@ -753,8 +754,7 @@ struct sctp_chunk *sctp_process_strreset_tsnreq(
 	 *     performed.
 	 */
 	max_tsn_seen = sctp_tsnmap_get_max_tsn_seen(&asoc->peer.tsn_map);
-	sctp_ulpq_reasm_flushtsn(&asoc->ulpq, max_tsn_seen);
-	sctp_ulpq_abort_pd(&asoc->ulpq, GFP_ATOMIC);
+	asoc->stream.si->report_ftsn(&asoc->ulpq, max_tsn_seen);
 
 	/* G1: Compute an appropriate value for the Receiver's Next TSN -- the
 	 *     TSN that the peer should use to send the next DATA chunk.  The
@@ -783,10 +783,12 @@ struct sctp_chunk *sctp_process_strreset_tsnreq(
 	/* G5:  The next expected and outgoing SSNs MUST be reset to 0 for all
 	 *      incoming and outgoing streams.
 	 */
-	for (i = 0; i < stream->outcnt; i++)
-		stream->out[i].ssn = 0;
+	for (i = 0; i < stream->outcnt; i++) {
+		stream->out[i].mid = 0;
+		stream->out[i].mid_uo = 0;
+	}
 	for (i = 0; i < stream->incnt; i++)
-		stream->in[i].ssn = 0;
+		stream->in[i].mid = 0;
 
 	result = SCTP_STRRESET_PERFORMED;
 
@@ -976,11 +978,15 @@ struct sctp_chunk *sctp_process_strreset_resp(
 
 		if (result == SCTP_STRRESET_PERFORMED) {
 			if (nums) {
-				for (i = 0; i < nums; i++)
-					stream->out[ntohs(str_p[i])].ssn = 0;
+				for (i = 0; i < nums; i++) {
+					stream->out[ntohs(str_p[i])].mid = 0;
+					stream->out[ntohs(str_p[i])].mid_uo = 0;
+				}
 			} else {
-				for (i = 0; i < stream->outcnt; i++)
-					stream->out[i].ssn = 0;
+				for (i = 0; i < stream->outcnt; i++) {
+					stream->out[i].mid = 0;
+					stream->out[i].mid_uo = 0;
+				}
 			}
 
 			flags = SCTP_STREAM_RESET_OUTGOING_SSN;
@@ -1023,8 +1029,7 @@ struct sctp_chunk *sctp_process_strreset_resp(
 						&asoc->peer.tsn_map);
 			LIST_HEAD(temp);
 
-			sctp_ulpq_reasm_flushtsn(&asoc->ulpq, mtsn);
-			sctp_ulpq_abort_pd(&asoc->ulpq, GFP_ATOMIC);
+			asoc->stream.si->report_ftsn(&asoc->ulpq, mtsn);
 
 			sctp_tsnmap_init(&asoc->peer.tsn_map,
 					 SCTP_TSN_MAP_INITIAL,
@@ -1042,10 +1047,12 @@ struct sctp_chunk *sctp_process_strreset_resp(
 			asoc->ctsn_ack_point = asoc->next_tsn - 1;
 			asoc->adv_peer_ack_point = asoc->ctsn_ack_point;
 
-			for (i = 0; i < stream->outcnt; i++)
-				stream->out[i].ssn = 0;
+			for (i = 0; i < stream->outcnt; i++) {
+				stream->out[i].mid = 0;
+				stream->out[i].mid_uo = 0;
+			}
 			for (i = 0; i < stream->incnt; i++)
-				stream->in[i].ssn = 0;
+				stream->in[i].mid = 0;
 		}
 
 		for (i = 0; i < stream->outcnt; i++)

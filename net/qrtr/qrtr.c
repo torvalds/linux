@@ -1116,9 +1116,13 @@ static int __init qrtr_proto_init(void)
 		return rc;
 	}
 
-	rtnl_register(PF_QIPCRTR, RTM_NEWADDR, qrtr_addr_doit, NULL, 0);
+	rc = rtnl_register_module(THIS_MODULE, PF_QIPCRTR, RTM_NEWADDR, qrtr_addr_doit, NULL, 0);
+	if (rc) {
+		sock_unregister(qrtr_family.family);
+		proto_unregister(&qrtr_proto);
+	}
 
-	return 0;
+	return rc;
 }
 postcore_initcall(qrtr_proto_init);
 

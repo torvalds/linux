@@ -2205,8 +2205,7 @@ out_dma_free:
 	if (chip_id != RCAR_GEN2)
 		ravb_ptp_stop(ndev);
 out_release:
-	if (ndev)
-		free_netdev(ndev);
+	free_netdev(ndev);
 
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);

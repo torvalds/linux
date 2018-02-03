@@ -1312,8 +1312,6 @@ void free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
 		unsigned long end, unsigned long floor, unsigned long ceiling);
 int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
 			struct vm_area_struct *vma);
-void unmap_mapping_range(struct address_space *mapping,
-		loff_t const holebegin, loff_t const holelen, int even_cows);
 int follow_pte_pmd(struct mm_struct *mm, unsigned long address,
 			     unsigned long *start, unsigned long *end,
 			     pte_t **ptepp, pmd_t **pmdpp, spinlock_t **ptlp);
@@ -1323,12 +1321,6 @@ int follow_phys(struct vm_area_struct *vma, unsigned long address,
 		unsigned int flags, unsigned long *prot, resource_size_t *phys);
 int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
 			void *buf, int len, int write);
-
-static inline void unmap_shared_mapping_range(struct address_space *mapping,
-		loff_t const holebegin, loff_t const holelen)
-{
-	unmap_mapping_range(mapping, holebegin, holelen, 0);
-}
 
 extern void truncate_pagecache(struct inode *inode, loff_t new);
 extern void truncate_setsize(struct inode *inode, loff_t newsize);
@@ -1344,6 +1336,10 @@ extern int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 extern int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
 			    unsigned long address, unsigned int fault_flags,
 			    bool *unlocked);
+void unmap_mapping_pages(struct address_space *mapping,
+		pgoff_t start, pgoff_t nr, bool even_cows);
+void unmap_mapping_range(struct address_space *mapping,
+		loff_t const holebegin, loff_t const holelen, int even_cows);
 #else
 static inline int handle_mm_fault(struct vm_area_struct *vma,
 		unsigned long address, unsigned int flags)
@@ -1360,10 +1356,20 @@ static inline int fixup_user_fault(struct task_struct *tsk,
 	BUG();
 	return -EFAULT;
 }
+static inline void unmap_mapping_pages(struct address_space *mapping,
+		pgoff_t start, pgoff_t nr, bool even_cows) { }
+static inline void unmap_mapping_range(struct address_space *mapping,
+		loff_t const holebegin, loff_t const holelen, int even_cows) { }
 #endif
 
-extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, int len,
-		unsigned int gup_flags);
+static inline void unmap_shared_mapping_range(struct address_space *mapping,
+		loff_t const holebegin, loff_t const holelen)
+{
+	unmap_mapping_range(mapping, holebegin, holelen, 0);
+}
+
+extern int access_process_vm(struct task_struct *tsk, unsigned long addr,
+		void *buf, int len, unsigned int gup_flags);
 extern int access_remote_vm(struct mm_struct *mm, unsigned long addr,
 		void *buf, int len, unsigned int gup_flags);
 extern int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
@@ -2570,8 +2576,8 @@ enum mf_flags {
 	MF_MUST_KILL = 1 << 2,
 	MF_SOFT_OFFLINE = 1 << 3,
 };
-extern int memory_failure(unsigned long pfn, int trapno, int flags);
-extern void memory_failure_queue(unsigned long pfn, int trapno, int flags);
+extern int memory_failure(unsigned long pfn, int flags);
+extern void memory_failure_queue(unsigned long pfn, int flags);
 extern int unpoison_memory(unsigned long pfn);
 extern int get_hwpoison_page(struct page *page);
 #define put_hwpoison_page(page)	put_page(page)

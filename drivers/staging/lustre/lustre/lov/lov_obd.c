@@ -828,11 +828,9 @@ out:
 static int lov_cleanup(struct obd_device *obd)
 {
 	struct lov_obd *lov = &obd->u.lov;
-	struct list_head *pos, *tmp;
-	struct pool_desc *pool;
+	struct pool_desc *pool, *tmp;
 
-	list_for_each_safe(pos, tmp, &lov->lov_pool_list) {
-		pool = list_entry(pos, struct pool_desc, pool_list);
+	list_for_each_entry_safe(pool, tmp, &lov->lov_pool_list, pool_list) {
 		/* free pool structs */
 		CDEBUG(D_INFO, "delete pool %p\n", pool);
 		/* In the function below, .hs_keycmp resolves to

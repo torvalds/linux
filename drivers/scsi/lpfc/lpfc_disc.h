@@ -134,6 +134,8 @@ struct lpfc_nodelist {
 	struct lpfc_scsicmd_bkt *lat_data;	/* Latency data */
 	uint32_t fc4_prli_sent;
 	uint32_t upcall_flags;
+#define NLP_WAIT_FOR_UNREG    0x1
+
 	uint32_t nvme_fb_size; /* NVME target's supported byte cnt */
 #define NVME_FB_BIT_SHIFT 9    /* PRLI Rsp first burst in 512B units. */
 };

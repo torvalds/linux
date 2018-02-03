@@ -57,7 +57,7 @@ lnet_fail_nid(lnet_nid_t nid, unsigned int threshold)
 	/* NB: use lnet_net_lock(0) to serialize operations on test peers */
 	if (threshold) {
 		/* Adding a new entry */
-		LIBCFS_ALLOC(tp, sizeof(*tp));
+		tp = kzalloc(sizeof(*tp), GFP_NOFS);
 		if (!tp)
 			return -ENOMEM;
 
@@ -90,7 +90,7 @@ lnet_fail_nid(lnet_nid_t nid, unsigned int threshold)
 
 	list_for_each_entry_safe(tp, temp, &cull, tp_list) {
 		list_del(&tp->tp_list);
-		LIBCFS_FREE(tp, sizeof(*tp));
+		kfree(tp);
 	}
 	return 0;
 }
@@ -149,7 +149,7 @@ fail_peer(lnet_nid_t nid, int outgoing)
 	list_for_each_entry_safe(tp, temp, &cull, tp_list) {
 		list_del(&tp->tp_list);
 
-		LIBCFS_FREE(tp, sizeof(*tp));
+		kfree(tp);
 	}
 
 	return fail;
@@ -1769,7 +1769,7 @@ lnet_parse(struct lnet_ni *ni, struct lnet_hdr *hdr, lnet_nid_t from_nid,
 		goto drop;
 	}
 
-	msg = lnet_msg_alloc();
+	msg = kzalloc(sizeof(*msg), GFP_NOFS);
 	if (!msg) {
 		CERROR("%s, src %s: Dropping %s (out of memory)\n",
 		       libcfs_nid2str(from_nid), libcfs_nid2str(src_nid),
@@ -1777,7 +1777,7 @@ lnet_parse(struct lnet_ni *ni, struct lnet_hdr *hdr, lnet_nid_t from_nid,
 		goto drop;
 	}
 
-	/* msg zeroed in lnet_msg_alloc;
+	/* msg zeroed by kzalloc()
 	 * i.e. flags all clear, pointers NULL etc
 	 */
 	msg->msg_type = type;
@@ -1812,7 +1812,7 @@ lnet_parse(struct lnet_ni *ni, struct lnet_hdr *hdr, lnet_nid_t from_nid,
 		CERROR("%s, src %s: Dropping %s (error %d looking up sender)\n",
 		       libcfs_nid2str(from_nid), libcfs_nid2str(src_nid),
 		       lnet_msgtyp2str(type), rc);
-		lnet_msg_free(msg);
+		kfree(msg);
 		if (rc == -ESHUTDOWN)
 			/* We are shutting down. Don't do anything more */
 			return 0;
@@ -2010,7 +2010,7 @@ LNetPut(lnet_nid_t self, struct lnet_handle_md mdh, enum lnet_ack_req ack,
 		return -EIO;
 	}
 
-	msg = lnet_msg_alloc();
+	msg = kzalloc(sizeof(*msg), GFP_NOFS);
 	if (!msg) {
 		CERROR("Dropping PUT to %s: ENOMEM on struct lnet_msg\n",
 		       libcfs_id2str(target));
@@ -2031,7 +2031,7 @@ LNetPut(lnet_nid_t self, struct lnet_handle_md mdh, enum lnet_ack_req ack,
 			       md->md_me->me_portal);
 		lnet_res_unlock(cpt);
 
-		lnet_msg_free(msg);
+		kfree(msg);
 		return -ENOENT;
 	}
 
@@ -2086,7 +2086,7 @@ lnet_create_reply_msg(struct lnet_ni *ni, struct lnet_msg *getmsg)
 	 * CAVEAT EMPTOR: 'getmsg' is the original GET, which is freed when
 	 * lnet_finalize() is called on it, so the LND must call this first
 	 */
-	struct lnet_msg *msg = lnet_msg_alloc();
+	struct lnet_msg *msg = kzalloc(sizeof(*msg), GFP_NOFS);
 	struct lnet_libmd *getmd = getmsg->msg_md;
 	struct lnet_process_id peer_id = getmsg->msg_target;
 	int cpt;
@@ -2146,8 +2146,7 @@ lnet_create_reply_msg(struct lnet_ni *ni, struct lnet_msg *getmsg)
 	the_lnet.ln_counters[cpt]->drop_length += getmd->md_length;
 	lnet_net_unlock(cpt);
 
-	if (msg)
-		lnet_msg_free(msg);
+	kfree(msg);
 
 	return NULL;
 }
@@ -2215,7 +2214,7 @@ LNetGet(lnet_nid_t self, struct lnet_handle_md mdh,
 		return -EIO;
 	}
 
-	msg = lnet_msg_alloc();
+	msg = kzalloc(sizeof(*msg), GFP_NOFS);
 	if (!msg) {
 		CERROR("Dropping GET to %s: ENOMEM on struct lnet_msg\n",
 		       libcfs_id2str(target));
@@ -2236,7 +2235,7 @@ LNetGet(lnet_nid_t self, struct lnet_handle_md mdh,
 
 		lnet_res_unlock(cpt);
 
-		lnet_msg_free(msg);
+		kfree(msg);
 		return -ENOENT;
 	}
 

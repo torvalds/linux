@@ -153,14 +153,12 @@ static void init_once(void *foo)
 	struct integrity_iint_cache *iint = foo;
 
 	memset(iint, 0, sizeof(*iint));
-	iint->version = 0;
-	iint->flags = 0UL;
 	iint->ima_file_status = INTEGRITY_UNKNOWN;
 	iint->ima_mmap_status = INTEGRITY_UNKNOWN;
 	iint->ima_bprm_status = INTEGRITY_UNKNOWN;
 	iint->ima_read_status = INTEGRITY_UNKNOWN;
 	iint->evm_status = INTEGRITY_UNKNOWN;
-	iint->measured_pcrs = 0;
+	mutex_init(&iint->mutex);
 }
 
 static int __init integrity_iintcache_init(void)

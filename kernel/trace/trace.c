@@ -530,8 +530,6 @@ int trace_pid_write(struct trace_pid_list *filtered_pids,
 		ubuf += ret;
 		cnt -= ret;
 
-		parser.buffer[parser.idx] = 0;
-
 		ret = -EINVAL;
 		if (kstrtoul(parser.buffer, 0, &val))
 			break;
@@ -1236,18 +1234,18 @@ int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 			cnt--;
 		}
 
+		parser->idx = 0;
+
 		/* only spaces were written */
-		if (isspace(ch)) {
+		if (isspace(ch) || !ch) {
 			*ppos += read;
 			ret = read;
 			goto out;
 		}
-
-		parser->idx = 0;
 	}
 
 	/* read the non-space input */
-	while (cnt && !isspace(ch)) {
+	while (cnt && !isspace(ch) && ch) {
 		if (parser->idx < parser->size - 1)
 			parser->buffer[parser->idx++] = ch;
 		else {
@@ -1262,12 +1260,14 @@ int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 	}
 
 	/* We either got finished input or we have to wait for another call. */
-	if (isspace(ch)) {
+	if (isspace(ch) || !ch) {
 		parser->buffer[parser->idx] = 0;
 		parser->cont = false;
 	} else if (parser->idx < parser->size - 1) {
 		parser->cont = true;
 		parser->buffer[parser->idx++] = ch;
+		/* Make sure the parsed string always terminates with '\0'. */
+		parser->buffer[parser->idx] = 0;
 	} else {
 		ret = -EINVAL;
 		goto out;
@@ -2374,6 +2374,15 @@ void trace_event_buffer_commit(struct trace_event_buffer *fbuffer)
 }
 EXPORT_SYMBOL_GPL(trace_event_buffer_commit);
 
+/*
+ * Skip 3:
+ *
+ *   trace_buffer_unlock_commit_regs()
+ *   trace_event_buffer_commit()
+ *   trace_event_raw_event_xxx()
+*/
+# define STACK_SKIP 3
+
 void trace_buffer_unlock_commit_regs(struct trace_array *tr,
 				     struct ring_buffer *buffer,
 				     struct ring_buffer_event *event,
@@ -2383,16 +2392,12 @@ void trace_buffer_unlock_commit_regs(struct trace_array *tr,
 	__buffer_unlock_commit(buffer, event);
 
 	/*
-	 * If regs is not set, then skip the following callers:
-	 *   trace_buffer_unlock_commit_regs
-	 *   event_trigger_unlock_commit
-	 *   trace_event_buffer_commit
-	 *   trace_event_raw_event_sched_switch
+	 * If regs is not set, then skip the necessary functions.
 	 * Note, we can still get here via blktrace, wakeup tracer
 	 * and mmiotrace, but that's ok if they lose a function or
-	 * two. They are that meaningful.
+	 * two. They are not that meaningful.
 	 */
-	ftrace_trace_stack(tr, buffer, flags, regs ? 0 : 4, pc, regs);
+	ftrace_trace_stack(tr, buffer, flags, regs ? 0 : STACK_SKIP, pc, regs);
 	ftrace_trace_userstack(buffer, flags, pc);
 }
 
@@ -2579,11 +2584,13 @@ static void __ftrace_trace_stack(struct ring_buffer *buffer,
 	trace.skip		= skip;
 
 	/*
-	 * Add two, for this function and the call to save_stack_trace()
+	 * Add one, for this function and the call to save_stack_trace()
 	 * If regs is set, then these functions will not be in the way.
 	 */
+#ifndef CONFIG_UNWINDER_ORC
 	if (!regs)
-		trace.skip += 2;
+		trace.skip++;
+#endif
 
 	/*
 	 * Since events can happen in NMIs there's no safe way to
@@ -2682,17 +2689,6 @@ void __trace_stack(struct trace_array *tr, unsigned long flags, int skip,
 	if (unlikely(in_nmi()))
 		return;
 
-	/*
-	 * It is possible that a function is being traced in a
-	 * location that RCU is not watching. A call to
-	 * rcu_irq_enter() will make sure that it is, but there's
-	 * a few internal rcu functions that could be traced
-	 * where that wont work either. In those cases, we just
-	 * do nothing.
-	 */
-	if (unlikely(rcu_irq_enter_disabled()))
-		return;
-
 	rcu_irq_enter_irqson();
 	__ftrace_trace_stack(buffer, flags, skip, pc, NULL);
 	rcu_irq_exit_irqson();
@@ -2711,11 +2707,10 @@ void trace_dump_stack(int skip)
 
 	local_save_flags(flags);
 
-	/*
-	 * Skip 3 more, seems to get us at the caller of
-	 * this function.
-	 */
-	skip += 3;
+#ifndef CONFIG_UNWINDER_ORC
+	/* Skip 1 to skip this function. */
+	skip++;
+#endif
 	__ftrace_trace_stack(global_trace.trace_buffer.buffer,
 			     flags, skip, preempt_count(), NULL);
 }
@@ -5621,7 +5616,7 @@ static int tracing_release_pipe(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static unsigned int
+static __poll_t
 trace_poll(struct trace_iterator *iter, struct file *filp, poll_table *poll_table)
 {
 	struct trace_array *tr = iter->tr;
@@ -5640,7 +5635,7 @@ trace_poll(struct trace_iterator *iter, struct file *filp, poll_table *poll_tabl
 					     filp, poll_table);
 }
 
-static unsigned int
+static __poll_t
 tracing_poll_pipe(struct file *filp, poll_table *poll_table)
 {
 	struct trace_iterator *iter = filp->private_data;
@@ -6594,7 +6589,7 @@ static int tracing_buffers_open(struct inode *inode, struct file *filp)
 	return ret;
 }
 
-static unsigned int
+static __poll_t
 tracing_buffers_poll(struct file *filp, poll_table *poll_table)
 {
 	struct ftrace_buffer_info *info = filp->private_data;

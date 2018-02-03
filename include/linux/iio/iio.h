@@ -20,34 +20,6 @@
  * Currently assumes nano seconds.
  */
 
-enum iio_chan_info_enum {
-	IIO_CHAN_INFO_RAW = 0,
-	IIO_CHAN_INFO_PROCESSED,
-	IIO_CHAN_INFO_SCALE,
-	IIO_CHAN_INFO_OFFSET,
-	IIO_CHAN_INFO_CALIBSCALE,
-	IIO_CHAN_INFO_CALIBBIAS,
-	IIO_CHAN_INFO_PEAK,
-	IIO_CHAN_INFO_PEAK_SCALE,
-	IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW,
-	IIO_CHAN_INFO_AVERAGE_RAW,
-	IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY,
-	IIO_CHAN_INFO_HIGH_PASS_FILTER_3DB_FREQUENCY,
-	IIO_CHAN_INFO_SAMP_FREQ,
-	IIO_CHAN_INFO_FREQUENCY,
-	IIO_CHAN_INFO_PHASE,
-	IIO_CHAN_INFO_HARDWAREGAIN,
-	IIO_CHAN_INFO_HYSTERESIS,
-	IIO_CHAN_INFO_INT_TIME,
-	IIO_CHAN_INFO_ENABLE,
-	IIO_CHAN_INFO_CALIBHEIGHT,
-	IIO_CHAN_INFO_CALIBWEIGHT,
-	IIO_CHAN_INFO_DEBOUNCE_COUNT,
-	IIO_CHAN_INFO_DEBOUNCE_TIME,
-	IIO_CHAN_INFO_CALIBEMISSIVITY,
-	IIO_CHAN_INFO_OVERSAMPLING_RATIO,
-};
-
 enum iio_shared_by {
 	IIO_SEPARATE,
 	IIO_SHARED_BY_TYPE,
@@ -606,8 +578,8 @@ const struct iio_chan_spec
  * iio_device_register() - register a device with the IIO subsystem
  * @indio_dev:		Device structure filled by the device driver
  **/
-#define iio_device_register(iio_dev) \
-	__iio_device_register((iio_dev), THIS_MODULE)
+#define iio_device_register(indio_dev) \
+	__iio_device_register((indio_dev), THIS_MODULE)
 int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod);
 void iio_device_unregister(struct iio_dev *indio_dev);
 /**

@@ -30,31 +30,8 @@
 #define RCU_TRACE(stmt)
 #endif /* #else #ifdef CONFIG_RCU_TRACE */
 
-/*
- * Process-level increment to ->dynticks_nesting field.  This allows for
- * architectures that use half-interrupts and half-exceptions from
- * process context.
- *
- * DYNTICK_TASK_NEST_MASK defines a field of width DYNTICK_TASK_NEST_WIDTH
- * that counts the number of process-based reasons why RCU cannot
- * consider the corresponding CPU to be idle, and DYNTICK_TASK_NEST_VALUE
- * is the value used to increment or decrement this field.
- *
- * The rest of the bits could in principle be used to count interrupts,
- * but this would mean that a negative-one value in the interrupt
- * field could incorrectly zero out the DYNTICK_TASK_NEST_MASK field.
- * We therefore provide a two-bit guard field defined by DYNTICK_TASK_MASK
- * that is set to DYNTICK_TASK_FLAG upon initial exit from idle.
- * The DYNTICK_TASK_EXIT_IDLE value is thus the combined value used upon
- * initial exit from idle.
- */
-#define DYNTICK_TASK_NEST_WIDTH 7
-#define DYNTICK_TASK_NEST_VALUE ((LLONG_MAX >> DYNTICK_TASK_NEST_WIDTH) + 1)
-#define DYNTICK_TASK_NEST_MASK  (LLONG_MAX - DYNTICK_TASK_NEST_VALUE + 1)
-#define DYNTICK_TASK_FLAG	   ((DYNTICK_TASK_NEST_VALUE / 8) * 2)
-#define DYNTICK_TASK_MASK	   ((DYNTICK_TASK_NEST_VALUE / 8) * 3)
-#define DYNTICK_TASK_EXIT_IDLE	   (DYNTICK_TASK_NEST_VALUE + \
-				    DYNTICK_TASK_FLAG)
+/* Offset to allow for unmatched rcu_irq_{enter,exit}(). */
+#define DYNTICK_IRQ_NONIDLE	((LONG_MAX / 2) + 1)
 
 
 /*

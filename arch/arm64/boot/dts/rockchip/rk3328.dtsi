@@ -514,7 +514,7 @@
 	tsadc: tsadc@ff250000 {
 		compatible = "rockchip,rk3328-tsadc";
 		reg = <0x0 0xff250000 0x0 0x100>;
-		interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 		assigned-clocks = <&cru SCLK_TSADC>;
 		assigned-clock-rates = <50000>;
 		clocks = <&cru SCLK_TSADC>, <&cru PCLK_TSADC>;
@@ -531,6 +531,31 @@
 		status = "disabled";
 	};
 
+	efuse: efuse@ff260000 {
+		compatible = "rockchip,rk3328-efuse";
+		reg = <0x0 0xff260000 0x0 0x50>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		clocks = <&cru SCLK_EFUSE>;
+		clock-names = "pclk_efuse";
+		rockchip,efuse-size = <0x20>;
+
+		/* Data cells */
+		efuse_id: id@7 {
+			reg = <0x07 0x10>;
+		};
+		cpu_leakage: cpu-leakage@17 {
+			reg = <0x17 0x1>;
+		};
+		logic_leakage: logic-leakage@19 {
+			reg = <0x19 0x1>;
+		};
+		efuse_cpu_version: cpu-version@1a {
+			reg = <0x1a 0x1>;
+			bits = <3 3>;
+		};
+	};
+
 	saradc: adc@ff280000 {
 		compatible = "rockchip,rk3328-saradc", "rockchip,rk3399-saradc";
 		reg = <0x0 0xff280000 0x0 0x100>;
@@ -541,6 +566,28 @@
 		resets = <&cru SRST_SARADC_P>;
 		reset-names = "saradc-apb";
 		status = "disabled";
+	};
+
+	gpu: gpu@ff300000 {
+		compatible = "rockchip,rk3328-mali", "arm,mali-450";
+		reg = <0x0 0xff300000 0x0 0x40000>;
+		interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "gp",
+				  "gpmmu",
+				  "pp",
+				  "pp0",
+				  "ppmmu0",
+				  "pp1",
+				  "ppmmu1";
+		clocks = <&cru ACLK_GPU>, <&cru ACLK_GPU>;
+		clock-names = "bus", "core";
+		resets = <&cru SRST_GPU_A>;
 	};
 
 	h265e_mmu: iommu@ff330200 {

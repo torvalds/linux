@@ -96,14 +96,6 @@ static inline struct smap_psock *smap_psock_sk(const struct sock *sk)
 	return rcu_dereference_sk_user_data(sk);
 }
 
-/* compute the linear packet data range [data, data_end) for skb when
- * sk_skb type programs are in use.
- */
-static inline void bpf_compute_data_end_sk_skb(struct sk_buff *skb)
-{
-	TCP_SKB_CB(skb)->bpf.data_end = skb->data + skb_headlen(skb);
-}
-
 enum __sk_action {
 	__SK_DROP = 0,
 	__SK_PASS,
@@ -521,13 +513,7 @@ static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
 	if (!stab)
 		return ERR_PTR(-ENOMEM);
 
-	/* mandatory map attributes */
-	stab->map.map_type = attr->map_type;
-	stab->map.key_size = attr->key_size;
-	stab->map.value_size = attr->value_size;
-	stab->map.max_entries = attr->max_entries;
-	stab->map.map_flags = attr->map_flags;
-	stab->map.numa_node = bpf_map_attr_numa_node(attr);
+	bpf_map_init_from_attr(&stab->map, attr);
 
 	/* make sure page count doesn't overflow */
 	cost = (u64) stab->map.max_entries * sizeof(struct sock *);
@@ -591,8 +577,15 @@ static void sock_map_free(struct bpf_map *map)
 
 		write_lock_bh(&sock->sk_callback_lock);
 		psock = smap_psock_sk(sock);
-		smap_list_remove(psock, &stab->sock_map[i]);
-		smap_release_sock(psock, sock);
+		/* This check handles a racing sock event that can get the
+		 * sk_callback_lock before this case but after xchg happens
+		 * causing the refcnt to hit zero and sock user data (psock)
+		 * to be null and queued for garbage collection.
+		 */
+		if (likely(psock)) {
+			smap_list_remove(psock, &stab->sock_map[i]);
+			smap_release_sock(psock, sock);
+		}
 		write_unlock_bh(&sock->sk_callback_lock);
 	}
 	rcu_read_unlock();

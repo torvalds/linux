@@ -1211,6 +1211,11 @@ static inline bool skb_flow_dissect_flow_keys_buf(struct flow_keys *flow,
 				  data, proto, nhoff, hlen, flags);
 }
 
+void
+skb_flow_dissect_tunnel_info(const struct sk_buff *skb,
+			     struct flow_dissector *flow_dissector,
+			     void *target_container);
+
 static inline __u32 skb_get_hash(struct sk_buff *skb)
 {
 	if (!skb->l4_hash && !skb->sw_hash)
@@ -3241,7 +3246,7 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned flags,
 				    int *peeked, int *off, int *err);
 struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned flags, int noblock,
 				  int *err);
-unsigned int datagram_poll(struct file *file, struct socket *sock,
+__poll_t datagram_poll(struct file *file, struct socket *sock,
 			   struct poll_table_struct *wait);
 int skb_copy_datagram_iter(const struct sk_buff *from, int offset,
 			   struct iov_iter *to, int size);

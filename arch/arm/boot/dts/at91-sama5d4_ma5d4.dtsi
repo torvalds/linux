@@ -89,6 +89,18 @@
 				};
 			};
 
+			tcb2: timer@fc024000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>;
+				};
+
+				timer@1 {
+					compatible = "atmel,tcb-timer";
+					reg = <1>;
+				};
+			};
+
 			adc0: adc@fc034000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <

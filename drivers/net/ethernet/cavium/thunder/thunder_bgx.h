@@ -122,6 +122,8 @@
 #define  SPU_DBG_CTL_AN_NONCE_MCT_DIS		BIT_ULL(29)
 
 #define BGX_SMUX_RX_INT			0x20000
+#define BGX_SMUX_RX_FRM_CTL		0x20020
+#define  BGX_PKT_RX_PTP_EN			BIT_ULL(12)
 #define BGX_SMUX_RX_JABBER		0x20030
 #define BGX_SMUX_RX_CTL			0x20048
 #define  SMU_RX_CTL_STATUS			(3ull << 0)
@@ -172,6 +174,7 @@
 #define  GMI_PORT_CFG_SPEED_MSB			BIT_ULL(8)
 #define  GMI_PORT_CFG_RX_IDLE			BIT_ULL(12)
 #define  GMI_PORT_CFG_TX_IDLE			BIT_ULL(13)
+#define BGX_GMP_GMI_RXX_FRM_CTL		0x38028
 #define BGX_GMP_GMI_RXX_JABBER		0x38038
 #define BGX_GMP_GMI_TXX_THRESH		0x38210
 #define BGX_GMP_GMI_TXX_APPEND		0x38218
@@ -223,6 +226,7 @@ void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const u8 *mac);
 void bgx_get_lmac_link_state(int node, int bgx_idx, int lmacid, void *status);
 void bgx_lmac_internal_loopback(int node, int bgx_idx,
 				int lmac_idx, bool enable);
+void bgx_config_timestamping(int node, int bgx_idx, int lmacid, bool enable);
 void bgx_lmac_get_pfc(int node, int bgx_idx, int lmacid, void *pause);
 void bgx_lmac_set_pfc(int node, int bgx_idx, int lmacid, void *pause);
 

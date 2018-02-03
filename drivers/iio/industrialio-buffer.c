@@ -169,7 +169,7 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
  * Return: (POLLIN | POLLRDNORM) if data is available for reading
  *	   or 0 for other cases
  */
-unsigned int iio_buffer_poll(struct file *filp,
+__poll_t iio_buffer_poll(struct file *filp,
 			     struct poll_table_struct *wait)
 {
 	struct iio_dev *indio_dev = filp->private_data;
@@ -1198,6 +1198,18 @@ out:
 	return ret ? ret : len;
 }
 
+static ssize_t iio_dma_show_data_available(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	size_t bytes;
+
+	bytes = iio_buffer_data_available(indio_dev->buffer);
+
+	return sprintf(buf, "%zu\n", bytes);
+}
+
 static DEVICE_ATTR(length, S_IRUGO | S_IWUSR, iio_buffer_read_length,
 		   iio_buffer_write_length);
 static struct device_attribute dev_attr_length_ro = __ATTR(length,
@@ -1208,11 +1220,14 @@ static DEVICE_ATTR(watermark, S_IRUGO | S_IWUSR,
 		   iio_buffer_show_watermark, iio_buffer_store_watermark);
 static struct device_attribute dev_attr_watermark_ro = __ATTR(watermark,
 	S_IRUGO, iio_buffer_show_watermark, NULL);
+static DEVICE_ATTR(data_available, S_IRUGO,
+		iio_dma_show_data_available, NULL);
 
 static struct attribute *iio_buffer_attrs[] = {
 	&dev_attr_length.attr,
 	&dev_attr_enable.attr,
 	&dev_attr_watermark.attr,
+	&dev_attr_data_available.attr,
 };
 
 int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)

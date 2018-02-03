@@ -901,7 +901,6 @@ static int nr_node_info_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations nr_nodes_fops = {
-	.owner = THIS_MODULE,
 	.open = nr_node_info_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -968,7 +967,6 @@ static int nr_neigh_info_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations nr_neigh_fops = {
-	.owner = THIS_MODULE,
 	.open = nr_neigh_info_open,
 	.read = seq_read,
 	.llseek = seq_lseek,

@@ -28,8 +28,6 @@
 #include <asm/coprocessor.h>
 #include <asm/unistd.h>
 
-#define DEBUG_SIG  0
-
 extern struct task_struct *coproc_owners[];
 
 struct rt_sigframe
@@ -399,10 +397,8 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	regs->areg[8] = (unsigned long) &frame->uc;
 	regs->threadptr = tp;
 
-#if DEBUG_SIG
-	printk("SIG rt deliver (%s:%d): signal=%d sp=%p pc=%08x\n",
-		current->comm, current->pid, sig, frame, regs->pc);
-#endif
+	pr_debug("SIG rt deliver (%s:%d): signal=%d sp=%p pc=%08lx\n",
+		 current->comm, current->pid, sig, frame, regs->pc);
 
 	return 0;
 }

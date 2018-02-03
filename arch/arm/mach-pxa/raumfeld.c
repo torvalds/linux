@@ -32,7 +32,7 @@
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_gpio.h>
 #include <linux/lis3lv02d.h>
@@ -506,11 +506,16 @@ static void w1_enable_external_pullup(int enable)
 	msleep(100);
 }
 
+static struct gpiod_lookup_table raumfeld_w1_gpiod_table = {
+	.dev_id = "w1-gpio",
+	.table = {
+		GPIO_LOOKUP_IDX("gpio-pxa", GPIO_ONE_WIRE, NULL, 0,
+				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+	},
+};
+
 static struct w1_gpio_platform_data w1_gpio_platform_data = {
-	.pin			= GPIO_ONE_WIRE,
-	.is_open_drain		= 0,
-	.enable_external_pullup	= w1_enable_external_pullup,
-	.ext_pullup_enable_pin	= -EINVAL,
+	.enable_external_pullup = w1_enable_external_pullup,
 };
 
 static struct platform_device raumfeld_w1_gpio_device = {
@@ -523,13 +528,14 @@ static struct platform_device raumfeld_w1_gpio_device = {
 static void __init raumfeld_w1_init(void)
 {
 	int ret = gpio_request(GPIO_W1_PULLUP_ENABLE,
-				"W1 external pullup enable");
+			        "W1 external pullup enable");
 
 	if (ret < 0)
 		pr_warn("Unable to request GPIO_W1_PULLUP_ENABLE\n");
 	else
 		gpio_direction_output(GPIO_W1_PULLUP_ENABLE, 0);
 
+	gpiod_add_lookup_table(&raumfeld_w1_gpiod_table);
 	platform_device_register(&raumfeld_w1_gpio_device);
 }
 

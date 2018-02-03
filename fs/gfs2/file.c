@@ -246,7 +246,9 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	}
 	if ((flags ^ new_flags) & GFS2_DIF_JDATA) {
 		if (new_flags & GFS2_DIF_JDATA)
-			gfs2_log_flush(sdp, ip->i_gl, NORMAL_FLUSH);
+			gfs2_log_flush(sdp, ip->i_gl,
+				       GFS2_LOG_HEAD_FLUSH_NORMAL |
+				       GFS2_LFC_SET_FLAGS);
 		error = filemap_fdatawrite(inode->i_mapping);
 		if (error)
 			goto out;
@@ -924,7 +926,7 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t le
 	struct gfs2_holder gh;
 	int ret;
 
-	if (mode & ~FALLOC_FL_KEEP_SIZE)
+	if (mode & ~(FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE))
 		return -EOPNOTSUPP;
 	/* fallocate is needed by gfs2_grow to reserve space in the rindex */
 	if (gfs2_is_jdata(ip) && inode != sdp->sd_rindex)
@@ -948,13 +950,18 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t le
 	if (ret)
 		goto out_unlock;
 
-	ret = gfs2_rsqa_alloc(ip);
-	if (ret)
-		goto out_putw;
+	if (mode & FALLOC_FL_PUNCH_HOLE) {
+		ret = __gfs2_punch_hole(file, offset, len);
+	} else {
+		ret = gfs2_rsqa_alloc(ip);
+		if (ret)
+			goto out_putw;
 
-	ret = __gfs2_fallocate(file, mode, offset, len);
-	if (ret)
-		gfs2_rs_deltree(&ip->i_res);
+		ret = __gfs2_fallocate(file, mode, offset, len);
+
+		if (ret)
+			gfs2_rs_deltree(&ip->i_res);
+	}
 
 out_putw:
 	put_write_access(inode);

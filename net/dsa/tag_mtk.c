@@ -13,10 +13,13 @@
  */
 
 #include <linux/etherdevice.h>
+#include <linux/if_vlan.h>
 
 #include "dsa_priv.h"
 
 #define MTK_HDR_LEN		4
+#define MTK_HDR_XMIT_UNTAGGED		0
+#define MTK_HDR_XMIT_TAGGED_TPID_8100	1
 #define MTK_HDR_RECV_SOURCE_PORT_MASK	GENMASK(2, 0)
 #define MTK_HDR_XMIT_DP_BIT_MASK	GENMASK(5, 0)
 
@@ -25,20 +28,37 @@ static struct sk_buff *mtk_tag_xmit(struct sk_buff *skb,
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	u8 *mtk_tag;
+	bool is_vlan_skb = true;
 
-	if (skb_cow_head(skb, MTK_HDR_LEN) < 0)
-		return NULL;
+	/* Build the special tag after the MAC Source Address. If VLAN header
+	 * is present, it's required that VLAN header and special tag is
+	 * being combined. Only in this way we can allow the switch can parse
+	 * the both special and VLAN tag at the same time and then look up VLAN
+	 * table with VID.
+	 */
+	if (!skb_vlan_tagged(skb)) {
+		if (skb_cow_head(skb, MTK_HDR_LEN) < 0)
+			return NULL;
 
-	skb_push(skb, MTK_HDR_LEN);
+		skb_push(skb, MTK_HDR_LEN);
+		memmove(skb->data, skb->data + MTK_HDR_LEN, 2 * ETH_ALEN);
+		is_vlan_skb = false;
+	}
 
-	memmove(skb->data, skb->data + MTK_HDR_LEN, 2 * ETH_ALEN);
-
-	/* Build the tag after the MAC Source Address */
 	mtk_tag = skb->data + 2 * ETH_ALEN;
-	mtk_tag[0] = 0;
+
+	/* Mark tag attribute on special tag insertion to notify hardware
+	 * whether that's a combined special tag with 802.1Q header.
+	 */
+	mtk_tag[0] = is_vlan_skb ? MTK_HDR_XMIT_TAGGED_TPID_8100 :
+		     MTK_HDR_XMIT_UNTAGGED;
 	mtk_tag[1] = (1 << dp->index) & MTK_HDR_XMIT_DP_BIT_MASK;
-	mtk_tag[2] = 0;
-	mtk_tag[3] = 0;
+
+	/* Tag control information is kept for 802.1Q */
+	if (!is_vlan_skb) {
+		mtk_tag[2] = 0;
+		mtk_tag[3] = 0;
+	}
 
 	return skb;
 }

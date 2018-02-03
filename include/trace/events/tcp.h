@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM tcp
 
@@ -8,22 +9,7 @@
 #include <linux/tcp.h>
 #include <linux/tracepoint.h>
 #include <net/ipv6.h>
-
-#define tcp_state_name(state)	{ state, #state }
-#define show_tcp_state_name(val)			\
-	__print_symbolic(val,				\
-		tcp_state_name(TCP_ESTABLISHED),	\
-		tcp_state_name(TCP_SYN_SENT),		\
-		tcp_state_name(TCP_SYN_RECV),		\
-		tcp_state_name(TCP_FIN_WAIT1),		\
-		tcp_state_name(TCP_FIN_WAIT2),		\
-		tcp_state_name(TCP_TIME_WAIT),		\
-		tcp_state_name(TCP_CLOSE),		\
-		tcp_state_name(TCP_CLOSE_WAIT),		\
-		tcp_state_name(TCP_LAST_ACK),		\
-		tcp_state_name(TCP_LISTEN),		\
-		tcp_state_name(TCP_CLOSING),		\
-		tcp_state_name(TCP_NEW_SYN_RECV))
+#include <net/tcp.h>
 
 #define TP_STORE_V4MAPPED(__entry, saddr, daddr)		\
 	do {							\
@@ -268,6 +254,64 @@ TRACE_EVENT(tcp_retransmit_synack,
 		  __entry->sport, __entry->dport,
 		  __entry->saddr, __entry->daddr,
 		  __entry->saddr_v6, __entry->daddr_v6)
+);
+
+#include <trace/events/net_probe_common.h>
+
+TRACE_EVENT(tcp_probe,
+
+	TP_PROTO(struct sock *sk, struct sk_buff *skb),
+
+	TP_ARGS(sk, skb),
+
+	TP_STRUCT__entry(
+		/* sockaddr_in6 is always bigger than sockaddr_in */
+		__array(__u8, saddr, sizeof(struct sockaddr_in6))
+		__array(__u8, daddr, sizeof(struct sockaddr_in6))
+		__field(__u16, sport)
+		__field(__u16, dport)
+		__field(__u32, mark)
+		__field(__u16, length)
+		__field(__u32, snd_nxt)
+		__field(__u32, snd_una)
+		__field(__u32, snd_cwnd)
+		__field(__u32, ssthresh)
+		__field(__u32, snd_wnd)
+		__field(__u32, srtt)
+		__field(__u32, rcv_wnd)
+	),
+
+	TP_fast_assign(
+		const struct tcp_sock *tp = tcp_sk(sk);
+		const struct inet_sock *inet = inet_sk(sk);
+
+		memset(__entry->saddr, 0, sizeof(struct sockaddr_in6));
+		memset(__entry->daddr, 0, sizeof(struct sockaddr_in6));
+
+		TP_STORE_ADDR_PORTS(__entry, inet, sk);
+
+		/* For filtering use */
+		__entry->sport = ntohs(inet->inet_sport);
+		__entry->dport = ntohs(inet->inet_dport);
+		__entry->mark = skb->mark;
+
+		__entry->length = skb->len;
+		__entry->snd_nxt = tp->snd_nxt;
+		__entry->snd_una = tp->snd_una;
+		__entry->snd_cwnd = tp->snd_cwnd;
+		__entry->snd_wnd = tp->snd_wnd;
+		__entry->rcv_wnd = tp->rcv_wnd;
+		__entry->ssthresh = tcp_current_ssthresh(sk);
+		__entry->srtt = tp->srtt_us >> 3;
+	),
+
+	TP_printk("src=%pISpc dest=%pISpc mark=%#x length=%d snd_nxt=%#x "
+		  "snd_una=%#x snd_cwnd=%u ssthresh=%u snd_wnd=%u srtt=%u "
+		  "rcv_wnd=%u",
+		  __entry->saddr, __entry->daddr, __entry->mark,
+		  __entry->length, __entry->snd_nxt, __entry->snd_una,
+		  __entry->snd_cwnd, __entry->ssthresh, __entry->snd_wnd,
+		  __entry->srtt, __entry->rcv_wnd)
 );
 
 #endif /* _TRACE_TCP_H */

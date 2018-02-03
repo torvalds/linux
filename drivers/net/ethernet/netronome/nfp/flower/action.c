@@ -81,6 +81,9 @@ static bool nfp_fl_netdev_is_tunnel_type(struct net_device *out_dev,
 	if (!strcmp(out_dev->rtnl_link_ops->kind, "vxlan"))
 		return tun_type == NFP_FL_TUNNEL_VXLAN;
 
+	if (!strcmp(out_dev->rtnl_link_ops->kind, "geneve"))
+		return tun_type == NFP_FL_TUNNEL_GENEVE;
+
 	return false;
 }
 
@@ -93,13 +96,11 @@ nfp_fl_output(struct nfp_fl_output *output, const struct tc_action *action,
 	size_t act_size = sizeof(struct nfp_fl_output);
 	struct net_device *out_dev;
 	u16 tmp_flags;
-	int ifindex;
 
 	output->head.jump_id = NFP_FL_ACTION_OPCODE_OUTPUT;
 	output->head.len_lw = act_size >> NFP_FL_LW_SIZ;
 
-	ifindex = tcf_mirred_ifindex(action);
-	out_dev = __dev_get_by_index(dev_net(in_dev), ifindex);
+	out_dev = tcf_mirred_dev(action);
 	if (!out_dev)
 		return -EOPNOTSUPP;
 
@@ -138,11 +139,23 @@ nfp_fl_output(struct nfp_fl_output *output, const struct tc_action *action,
 	return 0;
 }
 
-static bool nfp_fl_supported_tun_port(const struct tc_action *action)
+static enum nfp_flower_tun_type
+nfp_fl_get_tun_from_act_l4_port(struct nfp_app *app,
+				const struct tc_action *action)
 {
 	struct ip_tunnel_info *tun = tcf_tunnel_info(action);
+	struct nfp_flower_priv *priv = app->priv;
 
-	return tun->key.tp_dst == htons(NFP_FL_VXLAN_PORT);
+	switch (tun->key.tp_dst) {
+	case htons(NFP_FL_VXLAN_PORT):
+		return NFP_FL_TUNNEL_VXLAN;
+	case htons(NFP_FL_GENEVE_PORT):
+		if (priv->flower_ext_feats & NFP_FL_FEATS_GENEVE)
+			return NFP_FL_TUNNEL_GENEVE;
+		/* FALLTHROUGH */
+	default:
+		return NFP_FL_TUNNEL_NONE;
+	}
 }
 
 static struct nfp_fl_pre_tunnel *nfp_fl_pre_tunnel(char *act_data, int act_len)
@@ -167,38 +180,33 @@ static struct nfp_fl_pre_tunnel *nfp_fl_pre_tunnel(char *act_data, int act_len)
 }
 
 static int
-nfp_fl_set_vxlan(struct nfp_fl_set_vxlan *set_vxlan,
-		 const struct tc_action *action,
-		 struct nfp_fl_pre_tunnel *pre_tun)
+nfp_fl_set_ipv4_udp_tun(struct nfp_fl_set_ipv4_udp_tun *set_tun,
+			const struct tc_action *action,
+			struct nfp_fl_pre_tunnel *pre_tun,
+			enum nfp_flower_tun_type tun_type)
 {
-	struct ip_tunnel_info *vxlan = tcf_tunnel_info(action);
-	size_t act_size = sizeof(struct nfp_fl_set_vxlan);
-	u32 tmp_set_vxlan_type_index = 0;
+	size_t act_size = sizeof(struct nfp_fl_set_ipv4_udp_tun);
+	struct ip_tunnel_info *ip_tun = tcf_tunnel_info(action);
+	u32 tmp_set_ip_tun_type_index = 0;
 	/* Currently support one pre-tunnel so index is always 0. */
 	int pretun_idx = 0;
 
-	if (vxlan->options_len) {
-		/* Do not support options e.g. vxlan gpe. */
+	if (ip_tun->options_len)
 		return -EOPNOTSUPP;
-	}
 
-	set_vxlan->head.jump_id = NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL;
-	set_vxlan->head.len_lw = act_size >> NFP_FL_LW_SIZ;
+	set_tun->head.jump_id = NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL;
+	set_tun->head.len_lw = act_size >> NFP_FL_LW_SIZ;
 
 	/* Set tunnel type and pre-tunnel index. */
-	tmp_set_vxlan_type_index |=
-		FIELD_PREP(NFP_FL_IPV4_TUNNEL_TYPE, NFP_FL_TUNNEL_VXLAN) |
+	tmp_set_ip_tun_type_index |=
+		FIELD_PREP(NFP_FL_IPV4_TUNNEL_TYPE, tun_type) |
 		FIELD_PREP(NFP_FL_IPV4_PRE_TUN_INDEX, pretun_idx);
 
-	set_vxlan->tun_type_index = cpu_to_be32(tmp_set_vxlan_type_index);
-
-	set_vxlan->tun_id = vxlan->key.tun_id;
-	set_vxlan->tun_flags = vxlan->key.tun_flags;
-	set_vxlan->ipv4_ttl = vxlan->key.ttl;
-	set_vxlan->ipv4_tos = vxlan->key.tos;
+	set_tun->tun_type_index = cpu_to_be32(tmp_set_ip_tun_type_index);
+	set_tun->tun_id = ip_tun->key.tun_id;
 
 	/* Complete pre_tunnel action. */
-	pre_tun->ipv4_dst = vxlan->key.u.ipv4.dst;
+	pre_tun->ipv4_dst = ip_tun->key.u.ipv4.dst;
 
 	return 0;
 }
@@ -435,8 +443,8 @@ nfp_flower_loop_action(const struct tc_action *a,
 		       struct net_device *netdev,
 		       enum nfp_flower_tun_type *tun_type, int *tun_out_cnt)
 {
+	struct nfp_fl_set_ipv4_udp_tun *set_tun;
 	struct nfp_fl_pre_tunnel *pre_tun;
-	struct nfp_fl_set_vxlan *s_vxl;
 	struct nfp_fl_push_vlan *psh_v;
 	struct nfp_fl_pop_vlan *pop_v;
 	struct nfp_fl_output *output;
@@ -484,26 +492,29 @@ nfp_flower_loop_action(const struct tc_action *a,
 
 		nfp_fl_push_vlan(psh_v, a);
 		*a_len += sizeof(struct nfp_fl_push_vlan);
-	} else if (is_tcf_tunnel_set(a) && nfp_fl_supported_tun_port(a)) {
+	} else if (is_tcf_tunnel_set(a)) {
+		struct nfp_repr *repr = netdev_priv(netdev);
+		*tun_type = nfp_fl_get_tun_from_act_l4_port(repr->app, a);
+		if (*tun_type == NFP_FL_TUNNEL_NONE)
+			return -EOPNOTSUPP;
+
 		/* Pre-tunnel action is required for tunnel encap.
 		 * This checks for next hop entries on NFP.
 		 * If none, the packet falls back before applying other actions.
 		 */
 		if (*a_len + sizeof(struct nfp_fl_pre_tunnel) +
-		    sizeof(struct nfp_fl_set_vxlan) > NFP_FL_MAX_A_SIZ)
+		    sizeof(struct nfp_fl_set_ipv4_udp_tun) > NFP_FL_MAX_A_SIZ)
 			return -EOPNOTSUPP;
 
-		*tun_type = NFP_FL_TUNNEL_VXLAN;
 		pre_tun = nfp_fl_pre_tunnel(nfp_fl->action_data, *a_len);
 		nfp_fl->meta.shortcut = cpu_to_be32(NFP_FL_SC_ACT_NULL);
 		*a_len += sizeof(struct nfp_fl_pre_tunnel);
 
-		s_vxl = (struct nfp_fl_set_vxlan *)&nfp_fl->action_data[*a_len];
-		err = nfp_fl_set_vxlan(s_vxl, a, pre_tun);
+		set_tun = (void *)&nfp_fl->action_data[*a_len];
+		err = nfp_fl_set_ipv4_udp_tun(set_tun, a, pre_tun, *tun_type);
 		if (err)
 			return err;
-
-		*a_len += sizeof(struct nfp_fl_set_vxlan);
+		*a_len += sizeof(struct nfp_fl_set_ipv4_udp_tun);
 	} else if (is_tcf_tunnel_release(a)) {
 		/* Tunnel decap is handled by default so accept action. */
 		return 0;

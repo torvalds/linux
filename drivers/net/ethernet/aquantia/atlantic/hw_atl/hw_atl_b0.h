@@ -16,19 +16,27 @@
 
 #include "../aq_common.h"
 
-#ifndef PCI_VENDOR_ID_AQUANTIA
+extern const struct aq_hw_caps_s hw_atl_b0_caps_aqc100;
+extern const struct aq_hw_caps_s hw_atl_b0_caps_aqc107;
+extern const struct aq_hw_caps_s hw_atl_b0_caps_aqc108;
+extern const struct aq_hw_caps_s hw_atl_b0_caps_aqc109;
 
-#define PCI_VENDOR_ID_AQUANTIA  0x1D6A
-#define HW_ATL_DEVICE_ID_0001   0x0001
-#define HW_ATL_DEVICE_ID_D100   0xD100
-#define HW_ATL_DEVICE_ID_D107   0xD107
-#define HW_ATL_DEVICE_ID_D108   0xD108
-#define HW_ATL_DEVICE_ID_D109   0xD109
+#define hw_atl_b0_caps_aqc111 hw_atl_b0_caps_aqc108
+#define hw_atl_b0_caps_aqc112 hw_atl_b0_caps_aqc109
 
-#define HW_ATL_NIC_NAME "aQuantia AQtion 5Gbit Network Adapter"
+#define hw_atl_b0_caps_aqc100s hw_atl_b0_caps_aqc100
+#define hw_atl_b0_caps_aqc107s hw_atl_b0_caps_aqc107
+#define hw_atl_b0_caps_aqc108s hw_atl_b0_caps_aqc108
+#define hw_atl_b0_caps_aqc109s hw_atl_b0_caps_aqc109
 
-#endif
+#define hw_atl_b0_caps_aqc111s hw_atl_b0_caps_aqc108
+#define hw_atl_b0_caps_aqc112s hw_atl_b0_caps_aqc109
 
-struct aq_hw_ops *hw_atl_b0_get_ops_by_id(struct pci_dev *pdev);
+#define hw_atl_b0_caps_aqc111e hw_atl_b0_caps_aqc108
+#define hw_atl_b0_caps_aqc112e hw_atl_b0_caps_aqc109
+
+extern const struct aq_hw_ops hw_atl_ops_b0;
+
+#define hw_atl_ops_b1 hw_atl_ops_b0
 
 #endif /* HW_ATL_B0_H */

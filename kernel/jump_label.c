@@ -79,7 +79,7 @@ int static_key_count(struct static_key *key)
 }
 EXPORT_SYMBOL_GPL(static_key_count);
 
-static void static_key_slow_inc_cpuslocked(struct static_key *key)
+void static_key_slow_inc_cpuslocked(struct static_key *key)
 {
 	int v, v1;
 
@@ -180,7 +180,7 @@ void static_key_disable(struct static_key *key)
 }
 EXPORT_SYMBOL_GPL(static_key_disable);
 
-static void static_key_slow_dec_cpuslocked(struct static_key *key,
+static void __static_key_slow_dec_cpuslocked(struct static_key *key,
 					   unsigned long rate_limit,
 					   struct delayed_work *work)
 {
@@ -211,7 +211,7 @@ static void __static_key_slow_dec(struct static_key *key,
 				  struct delayed_work *work)
 {
 	cpus_read_lock();
-	static_key_slow_dec_cpuslocked(key, rate_limit, work);
+	__static_key_slow_dec_cpuslocked(key, rate_limit, work);
 	cpus_read_unlock();
 }
 
@@ -228,6 +228,12 @@ void static_key_slow_dec(struct static_key *key)
 	__static_key_slow_dec(key, 0, NULL);
 }
 EXPORT_SYMBOL_GPL(static_key_slow_dec);
+
+void static_key_slow_dec_cpuslocked(struct static_key *key)
+{
+	STATIC_KEY_CHECK_USE(key);
+	__static_key_slow_dec_cpuslocked(key, 0, NULL);
+}
 
 void static_key_slow_dec_deferred(struct static_key_deferred *key)
 {

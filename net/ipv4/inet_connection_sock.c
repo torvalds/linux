@@ -685,7 +685,7 @@ static void reqsk_timer_handler(struct timer_list *t)
 	int max_retries, thresh;
 	u8 defer_accept;
 
-	if (sk_state_load(sk_listener) != TCP_LISTEN)
+	if (inet_sk_state_load(sk_listener) != TCP_LISTEN)
 		goto drop;
 
 	max_retries = icsk->icsk_syn_retries ? : net->ipv4.sysctl_tcp_synack_retries;
@@ -783,7 +783,7 @@ struct sock *inet_csk_clone_lock(const struct sock *sk,
 	if (newsk) {
 		struct inet_connection_sock *newicsk = inet_csk(newsk);
 
-		newsk->sk_state = TCP_SYN_RECV;
+		inet_sk_set_state(newsk, TCP_SYN_RECV);
 		newicsk->icsk_bind_hash = NULL;
 
 		inet_sk(newsk)->inet_dport = inet_rsk(req)->ir_rmt_port;
@@ -877,7 +877,7 @@ int inet_csk_listen_start(struct sock *sk, int backlog)
 	 * It is OK, because this socket enters to hash table only
 	 * after validation is complete.
 	 */
-	sk_state_store(sk, TCP_LISTEN);
+	inet_sk_state_store(sk, TCP_LISTEN);
 	if (!sk->sk_prot->get_port(sk, inet->inet_num)) {
 		inet->inet_sport = htons(inet->inet_num);
 
@@ -888,7 +888,7 @@ int inet_csk_listen_start(struct sock *sk, int backlog)
 			return 0;
 	}
 
-	sk->sk_state = TCP_CLOSE;
+	inet_sk_set_state(sk, TCP_CLOSE);
 	return err;
 }
 EXPORT_SYMBOL_GPL(inet_csk_listen_start);

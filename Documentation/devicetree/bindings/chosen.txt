@@ -120,3 +120,18 @@ e.g.
 While this property does not represent a real hardware, the address
 and the size are expressed in #address-cells and #size-cells,
 respectively, of the root node.
+
+linux,initrd-start and linux,initrd-end
+---------------------------------------
+
+These properties hold the physical start and end address of an initrd that's
+loaded by the bootloader. Note that linux,initrd-start is inclusive, but
+linux,initrd-end is exclusive.
+e.g.
+
+/ {
+	chosen {
+		linux,initrd-start = <0x82000000>;
+		linux,initrd-end = <0x82800000>;
+	};
+};

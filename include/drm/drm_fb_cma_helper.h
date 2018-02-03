@@ -16,6 +16,13 @@ struct drm_mode_fb_cmd2;
 struct drm_plane;
 struct drm_plane_state;
 
+int drm_fb_cma_fbdev_init_with_funcs(struct drm_device *dev,
+	unsigned int preferred_bpp, unsigned int max_conn_count,
+	const struct drm_framebuffer_funcs *funcs);
+int drm_fb_cma_fbdev_init(struct drm_device *dev, unsigned int preferred_bpp,
+			  unsigned int max_conn_count);
+void drm_fb_cma_fbdev_fini(struct drm_device *dev);
+
 struct drm_fbdev_cma *drm_fbdev_cma_init_with_funcs(struct drm_device *dev,
 	unsigned int preferred_bpp, unsigned int max_conn_count,
 	const struct drm_framebuffer_funcs *funcs);
@@ -35,12 +42,6 @@ struct drm_gem_cma_object *drm_fb_cma_get_gem_obj(struct drm_framebuffer *fb,
 dma_addr_t drm_fb_cma_get_gem_addr(struct drm_framebuffer *fb,
 				   struct drm_plane_state *state,
 				   unsigned int plane);
-
-#ifdef CONFIG_DEBUG_FS
-struct seq_file;
-
-int drm_fb_cma_debugfs_show(struct seq_file *m, void *arg);
-#endif
 
 #endif
 

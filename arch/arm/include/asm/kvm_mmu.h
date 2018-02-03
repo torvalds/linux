@@ -211,6 +211,11 @@ static inline bool __kvm_cpu_uses_extended_idmap(void)
 	return false;
 }
 
+static inline unsigned long __kvm_idmap_ptrs_per_pgd(void)
+{
+	return PTRS_PER_PGD;
+}
+
 static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
 				       pgd_t *hyp_pgd,
 				       pgd_t *merged_hyp_pgd,
@@ -220,6 +225,18 @@ static inline unsigned int kvm_get_vmid_bits(void)
 {
 	return 8;
 }
+
+static inline void *kvm_get_hyp_vector(void)
+{
+	return kvm_ksym_ref(__kvm_hyp_vector);
+}
+
+static inline int kvm_map_vectors(void)
+{
+	return 0;
+}
+
+#define kvm_phys_to_vttbr(addr)		(addr)
 
 #endif	/* !__ASSEMBLY__ */
 

@@ -20,12 +20,20 @@
 #include <soc/tegra/ahb.h>
 #include <soc/tegra/mc.h>
 
+struct tegra_smmu_group {
+	struct list_head list;
+	const struct tegra_smmu_group_soc *soc;
+	struct iommu_group *group;
+};
+
 struct tegra_smmu {
 	void __iomem *regs;
 	struct device *dev;
 
 	struct tegra_mc *mc;
 	const struct tegra_smmu_soc *soc;
+
+	struct list_head groups;
 
 	unsigned long pfn_mask;
 	unsigned long tlb_mask;
@@ -703,19 +711,47 @@ static struct tegra_smmu *tegra_smmu_find(struct device_node *np)
 	return mc->smmu;
 }
 
+static int tegra_smmu_configure(struct tegra_smmu *smmu, struct device *dev,
+				struct of_phandle_args *args)
+{
+	const struct iommu_ops *ops = smmu->iommu.ops;
+	int err;
+
+	err = iommu_fwspec_init(dev, &dev->of_node->fwnode, ops);
+	if (err < 0) {
+		dev_err(dev, "failed to initialize fwspec: %d\n", err);
+		return err;
+	}
+
+	err = ops->of_xlate(dev, args);
+	if (err < 0) {
+		dev_err(dev, "failed to parse SW group ID: %d\n", err);
+		iommu_fwspec_free(dev);
+		return err;
+	}
+
+	return 0;
+}
+
 static int tegra_smmu_add_device(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
+	struct tegra_smmu *smmu = NULL;
 	struct iommu_group *group;
 	struct of_phandle_args args;
 	unsigned int index = 0;
+	int err;
 
 	while (of_parse_phandle_with_args(np, "iommus", "#iommu-cells", index,
 					  &args) == 0) {
-		struct tegra_smmu *smmu;
-
 		smmu = tegra_smmu_find(args.np);
 		if (smmu) {
+			err = tegra_smmu_configure(smmu, dev, &args);
+			of_node_put(args.np);
+
+			if (err < 0)
+				return err;
+
 			/*
 			 * Only a single IOMMU master interface is currently
 			 * supported by the Linux kernel, so abort after the
@@ -728,8 +764,12 @@ static int tegra_smmu_add_device(struct device *dev)
 			break;
 		}
 
+		of_node_put(args.np);
 		index++;
 	}
+
+	if (!smmu)
+		return -ENODEV;
 
 	group = iommu_group_get_for_dev(dev);
 	if (IS_ERR(group))
@@ -751,6 +791,80 @@ static void tegra_smmu_remove_device(struct device *dev)
 	iommu_group_remove_device(dev);
 }
 
+static const struct tegra_smmu_group_soc *
+tegra_smmu_find_group(struct tegra_smmu *smmu, unsigned int swgroup)
+{
+	unsigned int i, j;
+
+	for (i = 0; i < smmu->soc->num_groups; i++)
+		for (j = 0; j < smmu->soc->groups[i].num_swgroups; j++)
+			if (smmu->soc->groups[i].swgroups[j] == swgroup)
+				return &smmu->soc->groups[i];
+
+	return NULL;
+}
+
+static struct iommu_group *tegra_smmu_group_get(struct tegra_smmu *smmu,
+						unsigned int swgroup)
+{
+	const struct tegra_smmu_group_soc *soc;
+	struct tegra_smmu_group *group;
+
+	soc = tegra_smmu_find_group(smmu, swgroup);
+	if (!soc)
+		return NULL;
+
+	mutex_lock(&smmu->lock);
+
+	list_for_each_entry(group, &smmu->groups, list)
+		if (group->soc == soc) {
+			mutex_unlock(&smmu->lock);
+			return group->group;
+		}
+
+	group = devm_kzalloc(smmu->dev, sizeof(*group), GFP_KERNEL);
+	if (!group) {
+		mutex_unlock(&smmu->lock);
+		return NULL;
+	}
+
+	INIT_LIST_HEAD(&group->list);
+	group->soc = soc;
+
+	group->group = iommu_group_alloc();
+	if (IS_ERR(group->group)) {
+		devm_kfree(smmu->dev, group);
+		mutex_unlock(&smmu->lock);
+		return NULL;
+	}
+
+	list_add_tail(&group->list, &smmu->groups);
+	mutex_unlock(&smmu->lock);
+
+	return group->group;
+}
+
+static struct iommu_group *tegra_smmu_device_group(struct device *dev)
+{
+	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+	struct tegra_smmu *smmu = dev->archdata.iommu;
+	struct iommu_group *group;
+
+	group = tegra_smmu_group_get(smmu, fwspec->ids[0]);
+	if (!group)
+		group = generic_device_group(dev);
+
+	return group;
+}
+
+static int tegra_smmu_of_xlate(struct device *dev,
+			       struct of_phandle_args *args)
+{
+	u32 id = args->args[0];
+
+	return iommu_fwspec_add_ids(dev, &id, 1);
+}
+
 static const struct iommu_ops tegra_smmu_ops = {
 	.capable = tegra_smmu_capable,
 	.domain_alloc = tegra_smmu_domain_alloc,
@@ -759,12 +873,12 @@ static const struct iommu_ops tegra_smmu_ops = {
 	.detach_dev = tegra_smmu_detach_dev,
 	.add_device = tegra_smmu_add_device,
 	.remove_device = tegra_smmu_remove_device,
-	.device_group = generic_device_group,
+	.device_group = tegra_smmu_device_group,
 	.map = tegra_smmu_map,
 	.unmap = tegra_smmu_unmap,
 	.map_sg = default_iommu_map_sg,
 	.iova_to_phys = tegra_smmu_iova_to_phys,
-
+	.of_xlate = tegra_smmu_of_xlate,
 	.pgsize_bitmap = SZ_4K,
 };
 
@@ -913,6 +1027,7 @@ struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 	if (!smmu->asids)
 		return ERR_PTR(-ENOMEM);
 
+	INIT_LIST_HEAD(&smmu->groups);
 	mutex_init(&smmu->lock);
 
 	smmu->regs = mc->regs;
@@ -954,6 +1069,7 @@ struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 		return ERR_PTR(err);
 
 	iommu_device_set_ops(&smmu->iommu, &tegra_smmu_ops);
+	iommu_device_set_fwnode(&smmu->iommu, dev->fwnode);
 
 	err = iommu_device_register(&smmu->iommu);
 	if (err) {

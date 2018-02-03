@@ -622,7 +622,7 @@ static ssize_t usb_device_read(struct file *file, char __user *buf,
 }
 
 /* Kernel lock for "lastev" protection */
-static unsigned int usb_device_poll(struct file *file,
+static __poll_t usb_device_poll(struct file *file,
 				    struct poll_table_struct *wait)
 {
 	unsigned int event_count;

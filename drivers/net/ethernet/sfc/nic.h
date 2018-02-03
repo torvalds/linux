@@ -325,6 +325,30 @@ enum {
 	EF10_STAT_tx_bad,
 	EF10_STAT_tx_bad_bytes,
 	EF10_STAT_tx_overflow,
+	EF10_STAT_V1_COUNT,
+	EF10_STAT_fec_uncorrected_errors = EF10_STAT_V1_COUNT,
+	EF10_STAT_fec_corrected_errors,
+	EF10_STAT_fec_corrected_symbols_lane0,
+	EF10_STAT_fec_corrected_symbols_lane1,
+	EF10_STAT_fec_corrected_symbols_lane2,
+	EF10_STAT_fec_corrected_symbols_lane3,
+	EF10_STAT_ctpio_dmabuf_start,
+	EF10_STAT_ctpio_vi_busy_fallback,
+	EF10_STAT_ctpio_long_write_success,
+	EF10_STAT_ctpio_missing_dbell_fail,
+	EF10_STAT_ctpio_overflow_fail,
+	EF10_STAT_ctpio_underflow_fail,
+	EF10_STAT_ctpio_timeout_fail,
+	EF10_STAT_ctpio_noncontig_wr_fail,
+	EF10_STAT_ctpio_frm_clobber_fail,
+	EF10_STAT_ctpio_invalid_wr_fail,
+	EF10_STAT_ctpio_vi_clobber_fallback,
+	EF10_STAT_ctpio_unqualified_fallback,
+	EF10_STAT_ctpio_runt_fallback,
+	EF10_STAT_ctpio_success,
+	EF10_STAT_ctpio_fallback,
+	EF10_STAT_ctpio_poison,
+	EF10_STAT_ctpio_erase,
 	EF10_STAT_COUNT
 };
 
@@ -416,6 +440,7 @@ struct efx_ef10_nic_data {
 	struct efx_udp_tunnel udp_tunnels[16];
 	bool udp_tunnels_dirty;
 	struct mutex udp_tunnels_lock;
+	u64 licensed_features;
 };
 
 int efx_init_sriov(void);
@@ -424,6 +449,7 @@ void efx_fini_sriov(void);
 struct ethtool_ts_info;
 int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel);
 void efx_ptp_defer_probe_with_channel(struct efx_nic *efx);
+struct efx_channel *efx_ptp_channel(struct efx_nic *efx);
 void efx_ptp_remove(struct efx_nic *efx);
 int efx_ptp_set_ts_config(struct efx_nic *efx, struct ifreq *ifr);
 int efx_ptp_get_ts_config(struct efx_nic *efx, struct ifreq *ifr);
@@ -447,6 +473,8 @@ static inline void efx_rx_skb_attach_timestamp(struct efx_channel *channel,
 }
 void efx_ptp_start_datapath(struct efx_nic *efx);
 void efx_ptp_stop_datapath(struct efx_nic *efx);
+bool efx_ptp_use_mac_tx_timestamps(struct efx_nic *efx);
+ktime_t efx_ptp_nic_to_kernel_time(struct efx_tx_queue *tx_queue);
 
 extern const struct efx_nic_type falcon_a1_nic_type;
 extern const struct efx_nic_type falcon_b0_nic_type;

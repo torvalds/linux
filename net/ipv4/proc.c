@@ -83,7 +83,6 @@ static int sockstat_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations sockstat_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = sockstat_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -467,7 +466,6 @@ static int snmp_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations snmp_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = snmp_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -515,7 +513,6 @@ static int netstat_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations netstat_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = netstat_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,

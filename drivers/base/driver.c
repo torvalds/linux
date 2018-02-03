@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * driver.c - centralized device driver management
  *
@@ -5,9 +6,6 @@
  * Copyright (c) 2002-3 Open Source Development Labs
  * Copyright (c) 2007 Greg Kroah-Hartman <gregkh@suse.de>
  * Copyright (c) 2007 Novell Inc.
- *
- * This file is released under the GPLv2
- *
  */
 
 #include <linux/device.h>
@@ -52,7 +50,7 @@ int driver_for_each_device(struct device_driver *drv, struct device *start,
 
 	klist_iter_init_node(&drv->p->klist_devices, &i,
 			     start ? &start->p->knode_driver : NULL);
-	while ((dev = next_device(&i)) && !error)
+	while (!error && (dev = next_device(&i)))
 		error = fn(dev, data);
 	klist_iter_exit(&i);
 	return error;

@@ -417,7 +417,11 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 			cqn = be32_to_cpu(eqe->data.comp.cqn) & 0xffffff;
 			mlx5_cq_completion(dev, cqn);
 			break;
-
+		case MLX5_EVENT_TYPE_DCT_DRAINED:
+			rsn = be32_to_cpu(eqe->data.dct.dctn) & 0xffffff;
+			rsn |= (MLX5_RES_DCT << MLX5_USER_INDEX_LEN);
+			mlx5_rsc_event(dev, rsn, eqe->type);
+			break;
 		case MLX5_EVENT_TYPE_PATH_MIG:
 		case MLX5_EVENT_TYPE_COMM_EST:
 		case MLX5_EVENT_TYPE_SQ_DRAINED:
@@ -528,6 +532,24 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 		tasklet_schedule(&eq->tasklet_ctx.task);
 
 	return IRQ_HANDLED;
+}
+
+/* Some architectures don't latch interrupts when they are disabled, so using
+ * mlx5_eq_poll_irq_disabled could end up losing interrupts while trying to
+ * avoid losing them.  It is not recommended to use it, unless this is the last
+ * resort.
+ */
+u32 mlx5_eq_poll_irq_disabled(struct mlx5_eq *eq)
+{
+	u32 count_eqe;
+
+	disable_irq(eq->irqn);
+	count_eqe = eq->cons_index;
+	mlx5_eq_int(eq->irqn, eq);
+	count_eqe = eq->cons_index - count_eqe;
+	enable_irq(eq->irqn);
+
+	return count_eqe;
 }
 
 static void init_eq_buf(struct mlx5_eq *eq)
@@ -715,6 +737,9 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 
 	if (MLX5_CAP_GEN(dev, fpga))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_FPGA_ERROR);
+	if (MLX5_CAP_GEN_MAX(dev, dct))
+		async_event_mask |= (1ull << MLX5_EVENT_TYPE_DCT_DRAINED);
+
 
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD,

@@ -21,6 +21,7 @@
 #include <linux/ethtool.h>
 #include <linux/hashtable.h>
 #include <linux/ip.h>
+#include <linux/refcount.h>
 
 #include <net/ipv6.h>
 #include <net/if_inet6.h>
@@ -296,8 +297,23 @@ struct qeth_hdr_layer3 {
 	__u8  ext_flags;
 	__u16 vlan_id;
 	__u16 frame_offset;
-	__u8  dest_addr[16];
-} __attribute__ ((packed));
+	union {
+		/* TX: */
+		u8 ipv6_addr[16];
+		struct ipv4 {
+			u8 res[12];
+			u32 addr;
+		} ipv4;
+		/* RX: */
+		struct rx {
+			u8 res1[2];
+			u8 src_mac[6];
+			u8 res2[4];
+			u16 vlan_id;
+			u8 res3[2];
+		} rx;
+	} next_hop;
+};
 
 struct qeth_hdr_layer2 {
 	__u8 id;
@@ -504,12 +520,6 @@ struct qeth_qdio_info {
 	int default_out_queue;
 };
 
-#define QETH_ETH_MAC_V4      0x0100 /* like v4 */
-#define QETH_ETH_MAC_V6      0x3333 /* like v6 */
-/* tr mc mac is longer, but that will be enough to detect mc frames */
-#define QETH_TR_MAC_NC       0xc000 /* non-canonical */
-#define QETH_TR_MAC_C        0x0300 /* canonical */
-
 /**
  * buffer stuff for read channel
  */
@@ -632,7 +642,7 @@ struct qeth_reply {
 	int rc;
 	void *param;
 	struct qeth_card *card;
-	atomic_t refcnt;
+	refcount_t refcnt;
 };
 
 struct qeth_card_blkt {
@@ -846,14 +856,16 @@ static inline int qeth_get_micros(void)
 
 static inline int qeth_get_ip_version(struct sk_buff *skb)
 {
-	__be16 *p = &((struct ethhdr *)skb->data)->h_proto;
+	struct vlan_ethhdr *veth = vlan_eth_hdr(skb);
+	__be16 prot = veth->h_vlan_proto;
 
-	if (be16_to_cpu(*p) == ETH_P_8021Q)
-		p += 2;
-	switch (be16_to_cpu(*p)) {
-	case ETH_P_IPV6:
+	if (prot == htons(ETH_P_8021Q))
+		prot = veth->h_vlan_encapsulated_proto;
+
+	switch (prot) {
+	case htons(ETH_P_IPV6):
 		return 6;
-	case ETH_P_IP:
+	case htons(ETH_P_IP):
 		return 4;
 	default:
 		return 0;

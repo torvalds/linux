@@ -73,6 +73,7 @@ static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN]
 	[NETIF_F_LLTX_BIT] =             "tx-lockless",
 	[NETIF_F_NETNS_LOCAL_BIT] =      "netns-local",
 	[NETIF_F_GRO_BIT] =              "rx-gro",
+	[NETIF_F_GRO_HW_BIT] =           "rx-gro-hw",
 	[NETIF_F_LRO_BIT] =              "rx-lro",
 
 	[NETIF_F_TSO_BIT] =              "tx-tcp-segmentation",
@@ -770,15 +771,6 @@ static int ethtool_set_link_ksettings(struct net_device *dev,
 	return dev->ethtool_ops->set_link_ksettings(dev, &link_ksettings);
 }
 
-static void
-warn_incomplete_ethtool_legacy_settings_conversion(const char *details)
-{
-	char name[sizeof(current->comm)];
-
-	pr_info_once("warning: `%s' uses legacy ethtool link settings API, %s\n",
-		     get_task_comm(name, current), details);
-}
-
 /* Query device for its ethtool_cmd settings.
  *
  * Backward compatibility note: for compatibility with legacy ethtool,
@@ -805,10 +797,8 @@ static int ethtool_get_settings(struct net_device *dev, void __user *useraddr)
 							   &link_ksettings);
 		if (err < 0)
 			return err;
-		if (!convert_link_ksettings_to_legacy_settings(&cmd,
-							       &link_ksettings))
-			warn_incomplete_ethtool_legacy_settings_conversion(
-				"link modes are only partially reported");
+		convert_link_ksettings_to_legacy_settings(&cmd,
+							  &link_ksettings);
 
 		/* send a sensible cmd tag back to user */
 		cmd.cmd = ETHTOOL_GSET;
@@ -1703,13 +1693,22 @@ static int ethtool_get_ringparam(struct net_device *dev, void __user *useraddr)
 
 static int ethtool_set_ringparam(struct net_device *dev, void __user *useraddr)
 {
-	struct ethtool_ringparam ringparam;
+	struct ethtool_ringparam ringparam, max = { .cmd = ETHTOOL_GRINGPARAM };
 
-	if (!dev->ethtool_ops->set_ringparam)
+	if (!dev->ethtool_ops->set_ringparam || !dev->ethtool_ops->get_ringparam)
 		return -EOPNOTSUPP;
 
 	if (copy_from_user(&ringparam, useraddr, sizeof(ringparam)))
 		return -EFAULT;
+
+	dev->ethtool_ops->get_ringparam(dev, &max);
+
+	/* ensure new ring parameters are within the maximums */
+	if (ringparam.rx_pending > max.rx_max_pending ||
+	    ringparam.rx_mini_pending > max.rx_mini_max_pending ||
+	    ringparam.rx_jumbo_pending > max.rx_jumbo_max_pending ||
+	    ringparam.tx_pending > max.tx_max_pending)
+		return -EINVAL;
 
 	return dev->ethtool_ops->set_ringparam(dev, &ringparam);
 }

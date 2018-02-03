@@ -61,7 +61,7 @@ file.
 
 Examples:
 
-	mac: ethernet@4A100000 {
+	mac: ethernet@4a100000 {
 		compatible = "ti,cpsw";
 		reg = <0x4A100000 0x1000>;
 		interrupts = <55 0x4>;
@@ -91,7 +91,7 @@ Examples:
 	};
 
 (or)
-	mac: ethernet@4A100000 {
+	mac: ethernet@4a100000 {
 		compatible = "ti,cpsw";
 		ti,hwmods = "cpgmac0";
 		cpdma_channels = <8>;

@@ -414,7 +414,7 @@ static void omap_8250_set_termios(struct uart_port *port,
 	/* Up to here it was mostly serial8250_do_set_termios() */
 
 	/*
-	 * We enable TRIG_GRANU for RX and TX and additionaly we set
+	 * We enable TRIG_GRANU for RX and TX and additionally we set
 	 * SCR_TX_EMPTY bit. The result is the following:
 	 * - RX_TRIGGER amount of bytes in the FIFO will cause an interrupt.
 	 * - less than RX_TRIGGER number of bytes will also cause an interrupt

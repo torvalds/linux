@@ -127,7 +127,6 @@ extern int fixup_exception(struct pt_regs *state);
  * call.
  */
 
-#ifdef CONFIG_MMU
 #define __get_user_asm(insn, x, ptr, err)			\
 do {								\
 	uintptr_t __tmp;					\
@@ -153,13 +152,11 @@ do {								\
 	__disable_user_access();				\
 	(x) = __x;						\
 } while (0)
-#endif /* CONFIG_MMU */
 
 #ifdef CONFIG_64BIT
 #define __get_user_8(x, ptr, err) \
 	__get_user_asm("ld", x, ptr, err)
 #else /* !CONFIG_64BIT */
-#ifdef CONFIG_MMU
 #define __get_user_8(x, ptr, err)				\
 do {								\
 	u32 __user *__ptr = (u32 __user *)(ptr);		\
@@ -193,7 +190,6 @@ do {								\
 	(x) = (__typeof__(x))((__typeof__((x)-(x)))(		\
 		(((u64)__hi << 32) | __lo)));			\
 } while (0)
-#endif /* CONFIG_MMU */
 #endif /* CONFIG_64BIT */
 
 
@@ -267,8 +263,6 @@ do {								\
 		((x) = 0, -EFAULT);				\
 })
 
-
-#ifdef CONFIG_MMU
 #define __put_user_asm(insn, x, ptr, err)			\
 do {								\
 	uintptr_t __tmp;					\
@@ -292,14 +286,11 @@ do {								\
 		: "rJ" (__x), "i" (-EFAULT));			\
 	__disable_user_access();				\
 } while (0)
-#endif /* CONFIG_MMU */
-
 
 #ifdef CONFIG_64BIT
 #define __put_user_8(x, ptr, err) \
 	__put_user_asm("sd", x, ptr, err)
 #else /* !CONFIG_64BIT */
-#ifdef CONFIG_MMU
 #define __put_user_8(x, ptr, err)				\
 do {								\
 	u32 __user *__ptr = (u32 __user *)(ptr);		\
@@ -329,7 +320,6 @@ do {								\
 		: "rJ" (__x), "rJ" (__x >> 32), "i" (-EFAULT));	\
 	__disable_user_access();				\
 } while (0)
-#endif /* CONFIG_MMU */
 #endif /* CONFIG_64BIT */
 
 
@@ -438,7 +428,6 @@ unsigned long __must_check clear_user(void __user *to, unsigned long n)
  * will set "err" to -EFAULT, while successful accesses return the previous
  * value.
  */
-#ifdef CONFIG_MMU
 #define __cmpxchg_user(ptr, old, new, err, size, lrb, scb)	\
 ({								\
 	__typeof__(ptr) __ptr = (ptr);				\
@@ -508,6 +497,5 @@ unsigned long __must_check clear_user(void __user *to, unsigned long n)
 	(err) = __err;						\
 	__ret;							\
 })
-#endif /* CONFIG_MMU */
 
 #endif /* _ASM_RISCV_UACCESS_H */

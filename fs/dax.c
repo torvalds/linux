@@ -44,6 +44,7 @@
 
 /* The 'colour' (ie low bits) within a PMD of a page offset.  */
 #define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
+#define PG_PMD_NR	(PMD_SIZE >> PAGE_SHIFT)
 
 static wait_queue_head_t wait_table[DAX_WAIT_TABLE_ENTRIES];
 
@@ -375,8 +376,8 @@ restart:
 		 * unmapped.
 		 */
 		if (pmd_downgrade && dax_is_zero_entry(entry))
-			unmap_mapping_range(mapping,
-				(index << PAGE_SHIFT) & PMD_MASK, PMD_SIZE, 0);
+			unmap_mapping_pages(mapping, index & ~PG_PMD_COLOUR,
+							PG_PMD_NR, false);
 
 		err = radix_tree_preload(
 				mapping_gfp_mask(mapping) & ~__GFP_HIGHMEM);
@@ -538,12 +539,10 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
 	if (dax_is_zero_entry(entry) && !(flags & RADIX_DAX_ZERO_PAGE)) {
 		/* we are replacing a zero page with block mapping */
 		if (dax_is_pmd_entry(entry))
-			unmap_mapping_range(mapping,
-					(vmf->pgoff << PAGE_SHIFT) & PMD_MASK,
-					PMD_SIZE, 0);
+			unmap_mapping_pages(mapping, index & ~PG_PMD_COLOUR,
+							PG_PMD_NR, false);
 		else /* pte entry */
-			unmap_mapping_range(mapping, vmf->pgoff << PAGE_SHIFT,
-					PAGE_SIZE, 0);
+			unmap_mapping_pages(mapping, vmf->pgoff, 1, false);
 	}
 
 	spin_lock_irq(&mapping->tree_lock);
@@ -636,8 +635,8 @@ static void dax_mapping_entry_mkclean(struct address_space *mapping,
 			pmd = pmd_mkclean(pmd);
 			set_pmd_at(vma->vm_mm, address, pmdp, pmd);
 unlock_pmd:
-			spin_unlock(ptl);
 #endif
+			spin_unlock(ptl);
 		} else {
 			if (pfn != pte_pfn(*ptep))
 				goto unlock_pte;
@@ -1269,12 +1268,6 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 }
 
 #ifdef CONFIG_FS_DAX_PMD
-/*
- * The 'colour' (ie low bits) within a PMD of a page offset.  This comes up
- * more often than one might expect in the below functions.
- */
-#define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
-
 static int dax_pmd_load_hole(struct vm_fault *vmf, struct iomap *iomap,
 		void *entry)
 {

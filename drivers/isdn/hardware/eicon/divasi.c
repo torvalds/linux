@@ -74,7 +74,7 @@ static ssize_t um_idi_read(struct file *file, char __user *buf, size_t count,
 			   loff_t *offset);
 static ssize_t um_idi_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *offset);
-static unsigned int um_idi_poll(struct file *file, poll_table *wait);
+static __poll_t um_idi_poll(struct file *file, poll_table *wait);
 static int um_idi_open(struct inode *inode, struct file *file);
 static int um_idi_release(struct inode *inode, struct file *file);
 static int remove_entity(void *entity);
@@ -365,7 +365,7 @@ um_idi_write(struct file *file, const char __user *buf, size_t count,
 	return (ret);
 }
 
-static unsigned int um_idi_poll(struct file *file, poll_table *wait)
+static __poll_t um_idi_poll(struct file *file, poll_table *wait)
 {
 	diva_um_idi_os_context_t *p_os;
 

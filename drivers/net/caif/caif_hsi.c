@@ -264,7 +264,6 @@ static int cfhsi_tx_frm(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 	}
 
 	/* Create payload CAIF frames. */
-	pfrm = desc->emb_frm + CFHSI_MAX_EMB_FRM_SZ;
 	while (nfrms < CFHSI_MAX_PKTS) {
 		struct caif_payload_info *info;
 		int hpad;

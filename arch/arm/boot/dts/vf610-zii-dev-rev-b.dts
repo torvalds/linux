@@ -255,16 +255,19 @@
 					port@0 {
 						reg = <0>;
 						label = "lan6";
+						phy-handle = <&switch2phy0>;
 					};
 
 					port@1 {
 						reg = <1>;
 						label = "lan7";
+						phy-handle = <&switch2phy1>;
 					};
 
 					port@2 {
 						reg = <2>;
 						label = "lan8";
+						phy-handle = <&switch2phy2>;
 					};
 
 					port@3 {
@@ -302,6 +305,20 @@
 							speed = <1000>;
 							full-duplex;
 						};
+					};
+				};
+				mdio {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					switch2phy0: phy@0 {
+						reg = <0>;
+					};
+					switch2phy1: phy@1 {
+						reg = <1>;
+					};
+					switch2phy2: phy@2 {
+						reg = <2>;
 					};
 				};
 			};
@@ -371,7 +388,8 @@
 		reg = <0x22>;
 		gpio-controller;
 		#gpio-cells = <2>;
-		interrupt-parent = <&gpio2>;
+		interrupt-controller;
+		interrupt-parent = <&gpio3>;
 		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 	};
 };

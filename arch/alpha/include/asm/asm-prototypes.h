@@ -4,7 +4,7 @@
 #include <asm/console.h>
 #include <asm/page.h>
 #include <asm/string.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <asm-generic/asm-prototypes.h>
 

@@ -1,5 +1,5 @@
-generic-y += clkdev.h
 generic-y += current.h
+generic-y += dma-mapping.h
 generic-y += exec.h
 generic-y += extable.h
 generic-y += irq_work.h

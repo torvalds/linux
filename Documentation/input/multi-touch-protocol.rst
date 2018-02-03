@@ -269,10 +269,11 @@ ABS_MT_ORIENTATION
     The orientation of the touching ellipse. The value should describe a signed
     quarter of a revolution clockwise around the touch center. The signed value
     range is arbitrary, but zero should be returned for an ellipse aligned with
-    the Y axis of the surface, a negative value when the ellipse is turned to
-    the left, and a positive value when the ellipse is turned to the
-    right. When completely aligned with the X axis, the range max should be
-    returned.
+    the Y axis (north) of the surface, a negative value when the ellipse is
+    turned to the left, and a positive value when the ellipse is turned to the
+    right. When aligned with the X axis in the positive direction, the range
+    max should be returned; when aligned with the X axis in the negative
+    direction, the range -max should be returned.
 
     Touch ellipsis are symmetrical by default. For devices capable of true 360
     degree orientation, the reported orientation must exceed the range max to

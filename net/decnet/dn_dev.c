@@ -1389,7 +1389,6 @@ static int dn_dev_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations dn_dev_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = dn_dev_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -1418,9 +1417,12 @@ void __init dn_dev_init(void)
 
 	dn_dev_devices_on();
 
-	rtnl_register(PF_DECnet, RTM_NEWADDR, dn_nl_newaddr, NULL, 0);
-	rtnl_register(PF_DECnet, RTM_DELADDR, dn_nl_deladdr, NULL, 0);
-	rtnl_register(PF_DECnet, RTM_GETADDR, NULL, dn_nl_dump_ifaddr, 0);
+	rtnl_register_module(THIS_MODULE, PF_DECnet, RTM_NEWADDR,
+			     dn_nl_newaddr, NULL, 0);
+	rtnl_register_module(THIS_MODULE, PF_DECnet, RTM_DELADDR,
+			     dn_nl_deladdr, NULL, 0);
+	rtnl_register_module(THIS_MODULE, PF_DECnet, RTM_GETADDR,
+			     NULL, dn_nl_dump_ifaddr, 0);
 
 	proc_create("decnet_dev", S_IRUGO, init_net.proc_net, &dn_dev_seq_fops);
 

@@ -8,10 +8,14 @@
 
 #include "sfp.h"
 
+/**
+ * struct sfp_bus - internal representation of a sfp bus
+ */
 struct sfp_bus {
+	/* private: */
 	struct kref kref;
 	struct list_head node;
-	struct device_node *device_node;
+	struct fwnode_handle *fwnode;
 
 	const struct sfp_socket_ops *socket_ops;
 	struct device *sfp_dev;
@@ -26,6 +30,20 @@ struct sfp_bus {
 	bool started;
 };
 
+/**
+ * sfp_parse_port() - Parse the EEPROM base ID, setting the port type
+ * @bus: a pointer to the &struct sfp_bus structure for the sfp module
+ * @id: a pointer to the module's &struct sfp_eeprom_id
+ * @support: optional pointer to an array of unsigned long for the
+ *   ethtool support mask
+ *
+ * Parse the EEPROM identification given in @id, and return one of
+ * %PORT_TP, %PORT_FIBRE or %PORT_OTHER. If @support is non-%NULL,
+ * also set the ethtool %ETHTOOL_LINK_MODE_xxx_BIT corresponding with
+ * the connector type.
+ *
+ * If the port type is not known, returns %PORT_OTHER.
+ */
 int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		   unsigned long *support)
 {
@@ -39,21 +57,19 @@ int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	case SFP_CONNECTOR_MT_RJ:
 	case SFP_CONNECTOR_MU:
 	case SFP_CONNECTOR_OPTICAL_PIGTAIL:
-		if (support)
-			phylink_set(support, FIBRE);
 		port = PORT_FIBRE;
 		break;
 
 	case SFP_CONNECTOR_RJ45:
-		if (support)
-			phylink_set(support, TP);
 		port = PORT_TP;
+		break;
+
+	case SFP_CONNECTOR_COPPER_PIGTAIL:
+		port = PORT_DA;
 		break;
 
 	case SFP_CONNECTOR_UNSPEC:
 		if (id->base.e1000_base_t) {
-			if (support)
-				phylink_set(support, TP);
 			port = PORT_TP;
 			break;
 		}
@@ -62,7 +78,6 @@ int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	case SFP_CONNECTOR_MPO_1X12:
 	case SFP_CONNECTOR_MPO_2X16:
 	case SFP_CONNECTOR_HSSDC_II:
-	case SFP_CONNECTOR_COPPER_PIGTAIL:
 	case SFP_CONNECTOR_NOSEPARATE:
 	case SFP_CONNECTOR_MXC_2X16:
 		port = PORT_OTHER;
@@ -74,10 +89,40 @@ int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		break;
 	}
 
+	if (support) {
+		switch (port) {
+		case PORT_FIBRE:
+			phylink_set(support, FIBRE);
+			break;
+
+		case PORT_TP:
+			phylink_set(support, TP);
+			break;
+		}
+	}
+
 	return port;
 }
 EXPORT_SYMBOL_GPL(sfp_parse_port);
 
+/**
+ * sfp_parse_interface() - Parse the phy_interface_t
+ * @bus: a pointer to the &struct sfp_bus structure for the sfp module
+ * @id: a pointer to the module's &struct sfp_eeprom_id
+ *
+ * Derive the phy_interface_t mode for the information found in the
+ * module's identifying EEPROM. There is no standard or defined way
+ * to derive this information, so we use some heuristics.
+ *
+ * If the encoding is 64b66b, then the module must be >= 10G, so
+ * return %PHY_INTERFACE_MODE_10GKR.
+ *
+ * If it's 8b10b, then it's 1G or slower. If it's definitely a fibre
+ * module, return %PHY_INTERFACE_MODE_1000BASEX mode, otherwise return
+ * %PHY_INTERFACE_MODE_SGMII mode.
+ *
+ * If the encoding is not known, return %PHY_INTERFACE_MODE_NA.
+ */
 phy_interface_t sfp_parse_interface(struct sfp_bus *bus,
 				    const struct sfp_eeprom_id *id)
 {
@@ -107,6 +152,11 @@ phy_interface_t sfp_parse_interface(struct sfp_bus *bus,
 		break;
 
 	default:
+		if (id->base.e1000_base_cx) {
+			iface = PHY_INTERFACE_MODE_1000BASEX;
+			break;
+		}
+
 		iface = PHY_INTERFACE_MODE_NA;
 		dev_err(bus->sfp_dev,
 			"SFP module encoding does not support 8b10b nor 64b66b\n");
@@ -117,12 +167,37 @@ phy_interface_t sfp_parse_interface(struct sfp_bus *bus,
 }
 EXPORT_SYMBOL_GPL(sfp_parse_interface);
 
+/**
+ * sfp_parse_support() - Parse the eeprom id for supported link modes
+ * @bus: a pointer to the &struct sfp_bus structure for the sfp module
+ * @id: a pointer to the module's &struct sfp_eeprom_id
+ * @support: pointer to an array of unsigned long for the ethtool support mask
+ *
+ * Parse the EEPROM identification information and derive the supported
+ * ethtool link modes for the module.
+ */
 void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		       unsigned long *support)
 {
+	unsigned int br_min, br_nom, br_max;
+
 	phylink_set(support, Autoneg);
 	phylink_set(support, Pause);
 	phylink_set(support, Asym_Pause);
+
+	/* Decode the bitrate information to MBd */
+	br_min = br_nom = br_max = 0;
+	if (id->base.br_nominal) {
+		if (id->base.br_nominal != 255) {
+			br_nom = id->base.br_nominal * 100;
+			br_min = br_nom + id->base.br_nominal * id->ext.br_min;
+			br_max = br_nom + id->base.br_nominal * id->ext.br_max;
+		} else if (id->ext.br_max) {
+			br_nom = 250 * id->ext.br_max;
+			br_max = br_nom + br_nom * id->ext.br_min / 100;
+			br_min = br_nom - br_nom * id->ext.br_min / 100;
+		}
+	}
 
 	/* Set ethtool support from the compliance fields. */
 	if (id->base.e10g_base_sr)
@@ -140,6 +215,34 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	if (id->base.e1000_base_t) {
 		phylink_set(support, 1000baseT_Half);
 		phylink_set(support, 1000baseT_Full);
+	}
+
+	/* 1000Base-PX or 1000Base-BX10 */
+	if ((id->base.e_base_px || id->base.e_base_bx10) &&
+	    br_min <= 1300 && br_max >= 1200)
+		phylink_set(support, 1000baseX_Full);
+
+	/* For active or passive cables, select the link modes
+	 * based on the bit rates and the cable compliance bytes.
+	 */
+	if ((id->base.sfp_ct_passive || id->base.sfp_ct_active) && br_nom) {
+		/* This may look odd, but some manufacturers use 12000MBd */
+		if (br_min <= 12000 && br_max >= 10300)
+			phylink_set(support, 10000baseCR_Full);
+		if (br_min <= 3200 && br_max >= 3100)
+			phylink_set(support, 2500baseX_Full);
+		if (br_min <= 1300 && br_max >= 1200)
+			phylink_set(support, 1000baseX_Full);
+	}
+	if (id->base.sfp_ct_passive) {
+		if (id->base.passive.sff8431_app_e)
+			phylink_set(support, 10000baseCR_Full);
+	}
+	if (id->base.sfp_ct_active) {
+		if (id->base.active.sff8431_app_e ||
+		    id->base.active.sff8431_lim) {
+			phylink_set(support, 10000baseCR_Full);
+		}
 	}
 
 	switch (id->base.extended_cc) {
@@ -175,35 +278,6 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		if (id->base.br_nominal >= 12)
 			phylink_set(support, 1000baseX_Full);
 	}
-
-	switch (id->base.connector) {
-	case SFP_CONNECTOR_SC:
-	case SFP_CONNECTOR_FIBERJACK:
-	case SFP_CONNECTOR_LC:
-	case SFP_CONNECTOR_MT_RJ:
-	case SFP_CONNECTOR_MU:
-	case SFP_CONNECTOR_OPTICAL_PIGTAIL:
-		break;
-
-	case SFP_CONNECTOR_UNSPEC:
-		if (id->base.e1000_base_t)
-			break;
-
-	case SFP_CONNECTOR_SG: /* guess */
-	case SFP_CONNECTOR_MPO_1X12:
-	case SFP_CONNECTOR_MPO_2X16:
-	case SFP_CONNECTOR_HSSDC_II:
-	case SFP_CONNECTOR_COPPER_PIGTAIL:
-	case SFP_CONNECTOR_NOSEPARATE:
-	case SFP_CONNECTOR_MXC_2X16:
-	default:
-		/* a guess at the supported link modes */
-		dev_warn(bus->sfp_dev,
-			 "Guessing link modes, please report...\n");
-		phylink_set(support, 1000baseT_Half);
-		phylink_set(support, 1000baseT_Full);
-		break;
-	}
 }
 EXPORT_SYMBOL_GPL(sfp_parse_support);
 
@@ -215,7 +289,7 @@ static const struct sfp_upstream_ops *sfp_get_upstream_ops(struct sfp_bus *bus)
 	return bus->registered ? bus->upstream_ops : NULL;
 }
 
-static struct sfp_bus *sfp_bus_get(struct device_node *np)
+static struct sfp_bus *sfp_bus_get(struct fwnode_handle *fwnode)
 {
 	struct sfp_bus *sfp, *new, *found = NULL;
 
@@ -224,7 +298,7 @@ static struct sfp_bus *sfp_bus_get(struct device_node *np)
 	mutex_lock(&sfp_mutex);
 
 	list_for_each_entry(sfp, &sfp_buses, node) {
-		if (sfp->device_node == np) {
+		if (sfp->fwnode == fwnode) {
 			kref_get(&sfp->kref);
 			found = sfp;
 			break;
@@ -233,7 +307,7 @@ static struct sfp_bus *sfp_bus_get(struct device_node *np)
 
 	if (!found && new) {
 		kref_init(&new->kref);
-		new->device_node = np;
+		new->fwnode = fwnode;
 		list_add(&new->node, &sfp_buses);
 		found = new;
 		new = NULL;
@@ -246,7 +320,7 @@ static struct sfp_bus *sfp_bus_get(struct device_node *np)
 	return found;
 }
 
-static void sfp_bus_release(struct kref *kref) __releases(sfp_mutex)
+static void sfp_bus_release(struct kref *kref)
 {
 	struct sfp_bus *bus = container_of(kref, struct sfp_bus, kref);
 
@@ -293,6 +367,16 @@ static void sfp_unregister_bus(struct sfp_bus *bus)
 	bus->registered = false;
 }
 
+/**
+ * sfp_get_module_info() - Get the ethtool_modinfo for a SFP module
+ * @bus: a pointer to the &struct sfp_bus structure for the sfp module
+ * @modinfo: a &struct ethtool_modinfo
+ *
+ * Fill in the type and eeprom_len parameters in @modinfo for a module on
+ * the sfp bus specified by @bus.
+ *
+ * Returns 0 on success or a negative errno number.
+ */
 int sfp_get_module_info(struct sfp_bus *bus, struct ethtool_modinfo *modinfo)
 {
 	if (!bus->registered)
@@ -301,6 +385,17 @@ int sfp_get_module_info(struct sfp_bus *bus, struct ethtool_modinfo *modinfo)
 }
 EXPORT_SYMBOL_GPL(sfp_get_module_info);
 
+/**
+ * sfp_get_module_eeprom() - Read the SFP module EEPROM
+ * @bus: a pointer to the &struct sfp_bus structure for the sfp module
+ * @ee: a &struct ethtool_eeprom
+ * @data: buffer to contain the EEPROM data (must be at least @ee->len bytes)
+ *
+ * Read the EEPROM as specified by the supplied @ee. See the documentation
+ * for &struct ethtool_eeprom for the region to be read.
+ *
+ * Returns 0 on success or a negative errno number.
+ */
 int sfp_get_module_eeprom(struct sfp_bus *bus, struct ethtool_eeprom *ee,
 			  u8 *data)
 {
@@ -310,6 +405,15 @@ int sfp_get_module_eeprom(struct sfp_bus *bus, struct ethtool_eeprom *ee,
 }
 EXPORT_SYMBOL_GPL(sfp_get_module_eeprom);
 
+/**
+ * sfp_upstream_start() - Inform the SFP that the network device is up
+ * @bus: a pointer to the &struct sfp_bus structure for the sfp module
+ *
+ * Inform the SFP socket that the network device is now up, so that the
+ * module can be enabled by allowing TX_DISABLE to be deasserted. This
+ * should be called from the network device driver's &struct net_device_ops
+ * ndo_open() method.
+ */
 void sfp_upstream_start(struct sfp_bus *bus)
 {
 	if (bus->registered)
@@ -318,6 +422,15 @@ void sfp_upstream_start(struct sfp_bus *bus)
 }
 EXPORT_SYMBOL_GPL(sfp_upstream_start);
 
+/**
+ * sfp_upstream_stop() - Inform the SFP that the network device is down
+ * @bus: a pointer to the &struct sfp_bus structure for the sfp module
+ *
+ * Inform the SFP socket that the network device is now up, so that the
+ * module can be disabled by asserting TX_DISABLE, disabling the laser
+ * in optical modules. This should be called from the network device
+ * driver's &struct net_device_ops ndo_stop() method.
+ */
 void sfp_upstream_stop(struct sfp_bus *bus)
 {
 	if (bus->registered)
@@ -326,11 +439,24 @@ void sfp_upstream_stop(struct sfp_bus *bus)
 }
 EXPORT_SYMBOL_GPL(sfp_upstream_stop);
 
-struct sfp_bus *sfp_register_upstream(struct device_node *np,
+/**
+ * sfp_register_upstream() - Register the neighbouring device
+ * @fwnode: firmware node for the SFP bus
+ * @ndev: network device associated with the interface
+ * @upstream: the upstream private data
+ * @ops: the upstream's &struct sfp_upstream_ops
+ *
+ * Register the upstream device (eg, PHY) with the SFP bus. MAC drivers
+ * should use phylink, which will call this function for them. Returns
+ * a pointer to the allocated &struct sfp_bus.
+ *
+ * On error, returns %NULL.
+ */
+struct sfp_bus *sfp_register_upstream(struct fwnode_handle *fwnode,
 				      struct net_device *ndev, void *upstream,
 				      const struct sfp_upstream_ops *ops)
 {
-	struct sfp_bus *bus = sfp_bus_get(np);
+	struct sfp_bus *bus = sfp_bus_get(fwnode);
 	int ret = 0;
 
 	if (bus) {
@@ -353,10 +479,18 @@ struct sfp_bus *sfp_register_upstream(struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(sfp_register_upstream);
 
+/**
+ * sfp_unregister_upstream() - Unregister sfp bus
+ * @bus: a pointer to the &struct sfp_bus structure for the sfp module
+ *
+ * Unregister a previously registered upstream connection for the SFP
+ * module. @bus is returned from sfp_register_upstream().
+ */
 void sfp_unregister_upstream(struct sfp_bus *bus)
 {
 	rtnl_lock();
-	sfp_unregister_bus(bus);
+	if (bus->sfp)
+		sfp_unregister_bus(bus);
 	bus->upstream = NULL;
 	bus->netdev = NULL;
 	rtnl_unlock();
@@ -433,7 +567,7 @@ EXPORT_SYMBOL_GPL(sfp_module_remove);
 struct sfp_bus *sfp_register_socket(struct device *dev, struct sfp *sfp,
 				    const struct sfp_socket_ops *ops)
 {
-	struct sfp_bus *bus = sfp_bus_get(dev->of_node);
+	struct sfp_bus *bus = sfp_bus_get(dev->fwnode);
 	int ret = 0;
 
 	if (bus) {
@@ -459,7 +593,8 @@ EXPORT_SYMBOL_GPL(sfp_register_socket);
 void sfp_unregister_socket(struct sfp_bus *bus)
 {
 	rtnl_lock();
-	sfp_unregister_bus(bus);
+	if (bus->netdev)
+		sfp_unregister_bus(bus);
 	bus->sfp_dev = NULL;
 	bus->sfp = NULL;
 	bus->socket_ops = NULL;

@@ -1,7 +1,7 @@
 Fault injection capabilities infrastructure
 ===========================================
 
-See also drivers/md/faulty.c and "every_nth" module option for scsi_debug.
+See also drivers/md/md-faulty.c and "every_nth" module option for scsi_debug.
 
 
 Available fault injection capabilities
@@ -29,6 +29,12 @@ o fail_mmc_request
 
   injects MMC data errors on devices permitted by setting
   debugfs entries under /sys/kernel/debug/mmc0/fail_mmc_request
+
+o fail_function
+
+  injects error return on specific functions, which are marked by
+  ALLOW_ERROR_INJECTION() macro, by setting debugfs entries
+  under /sys/kernel/debug/fail_function. No boot option supported.
 
 Configure fault-injection capabilities behavior
 -----------------------------------------------
@@ -122,6 +128,29 @@ configuration of fault-injection capabilities.
 	Format: { 'Y' | 'N' }
 	default is 'N', setting it to 'Y' will disable failure injections
 	when dealing with private (address space) futexes.
+
+- /sys/kernel/debug/fail_function/inject:
+
+	Format: { 'function-name' | '!function-name' | '' }
+	specifies the target function of error injection by name.
+	If the function name leads '!' prefix, given function is
+	removed from injection list. If nothing specified ('')
+	injection list is cleared.
+
+- /sys/kernel/debug/fail_function/injectable:
+
+	(read only) shows error injectable functions and what type of
+	error values can be specified. The error type will be one of
+	below;
+	- NULL:	retval must be 0.
+	- ERRNO: retval must be -1 to -MAX_ERRNO (-4096).
+	- ERR_NULL: retval must be 0 or -1 to -MAX_ERRNO (-4096).
+
+- /sys/kernel/debug/fail_function/<functiuon-name>/retval:
+
+	specifies the "error" return value to inject to the given
+	function for given function. This will be created when
+	user specifies new injection entry.
 
 o Boot option
 
@@ -267,6 +296,45 @@ trap "echo 0 > /sys/kernel/debug/$FAILTYPE/probability" SIGINT SIGTERM EXIT
 
 echo "Injecting errors into the module $module... (interrupt to stop)"
 sleep 1000000
+
+------------------------------------------------------------------------------
+
+o Inject open_ctree error while btrfs mount
+
+#!/bin/bash
+
+rm -f testfile.img
+dd if=/dev/zero of=testfile.img bs=1M seek=1000 count=1
+DEVICE=$(losetup --show -f testfile.img)
+mkfs.btrfs -f $DEVICE
+mkdir -p tmpmnt
+
+FAILTYPE=fail_function
+FAILFUNC=open_ctree
+echo $FAILFUNC > /sys/kernel/debug/$FAILTYPE/inject
+echo -12 > /sys/kernel/debug/$FAILTYPE/$FAILFUNC/retval
+echo N > /sys/kernel/debug/$FAILTYPE/task-filter
+echo 100 > /sys/kernel/debug/$FAILTYPE/probability
+echo 0 > /sys/kernel/debug/$FAILTYPE/interval
+echo -1 > /sys/kernel/debug/$FAILTYPE/times
+echo 0 > /sys/kernel/debug/$FAILTYPE/space
+echo 1 > /sys/kernel/debug/$FAILTYPE/verbose
+
+mount -t btrfs $DEVICE tmpmnt
+if [ $? -ne 0 ]
+then
+	echo "SUCCESS!"
+else
+	echo "FAILED!"
+	umount tmpmnt
+fi
+
+echo > /sys/kernel/debug/$FAILTYPE/inject
+
+rmdir tmpmnt
+losetup -d $DEVICE
+rm testfile.img
+
 
 Tool to run command with failslab or fail_page_alloc
 ----------------------------------------------------

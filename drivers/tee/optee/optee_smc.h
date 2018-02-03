@@ -222,6 +222,13 @@ struct optee_smc_get_shm_config_result {
 #define OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM	BIT(0)
 /* Secure world can communicate via previously unregistered shared memory */
 #define OPTEE_SMC_SEC_CAP_UNREGISTERED_SHM	BIT(1)
+
+/*
+ * Secure world supports commands "register/unregister shared memory",
+ * secure world accepts command buffers located in any parts of non-secure RAM
+ */
+#define OPTEE_SMC_SEC_CAP_DYNAMIC_SHM		BIT(2)
+
 #define OPTEE_SMC_FUNCID_EXCHANGE_CAPABILITIES	9
 #define OPTEE_SMC_EXCHANGE_CAPABILITIES \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_EXCHANGE_CAPABILITIES)

@@ -3993,6 +3993,8 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	unsigned int reg;
 	int ret, i;
 
+	snd_soc_codec_init_regmap(codec, control->regmap);
+
 	wm8994->hubs.codec = codec;
 
 	mutex_init(&wm8994->accdet_lock);
@@ -4434,19 +4436,11 @@ static int wm8994_codec_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct regmap *wm8994_get_regmap(struct device *dev)
-{
-	struct wm8994 *control = dev_get_drvdata(dev->parent);
-
-	return control->regmap;
-}
-
 static const struct snd_soc_codec_driver soc_codec_dev_wm8994 = {
 	.probe =	wm8994_codec_probe,
 	.remove =	wm8994_codec_remove,
 	.suspend =	wm8994_codec_suspend,
 	.resume =	wm8994_codec_resume,
-	.get_regmap =   wm8994_get_regmap,
 	.set_bias_level = wm8994_set_bias_level,
 };
 

@@ -387,8 +387,8 @@ static unsigned int __init get_fifo_size(struct device_node *np,
 	if (fp)
 		return *fp;
 
-	pr_warning("no %s property in %pOF node, defaulting to %d\n",
-		   prop_name, np, DEFAULT_FIFO_SIZE);
+	pr_warn("no %s property in %pOF node, defaulting to %d\n",
+		prop_name, np, DEFAULT_FIFO_SIZE);
 
 	return DEFAULT_FIFO_SIZE;
 }

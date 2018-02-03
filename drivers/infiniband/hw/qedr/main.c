@@ -264,7 +264,7 @@ static int qedr_register_device(struct qedr_dev *dev)
 static int qedr_alloc_mem_sb(struct qedr_dev *dev,
 			     struct qed_sb_info *sb_info, u16 sb_id)
 {
-	struct status_block *sb_virt;
+	struct status_block_e4 *sb_virt;
 	dma_addr_t sb_phys;
 	int rc;
 

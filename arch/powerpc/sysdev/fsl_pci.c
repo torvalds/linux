@@ -118,7 +118,7 @@ static void setup_swiotlb_ops(struct pci_controller *hose)
 {
 	if (ppc_swiotlb_enable) {
 		hose->controller_ops.dma_dev_setup = pci_dma_dev_setup_swiotlb;
-		set_pci_dma_ops(&swiotlb_dma_ops);
+		set_pci_dma_ops(&powerpc_swiotlb_dma_ops);
 	}
 }
 #else
@@ -135,7 +135,7 @@ static int fsl_pci_dma_set_mask(struct device *dev, u64 dma_mask)
 	 * mapping that allows addressing any RAM address from across PCI.
 	 */
 	if (dev_is_pci(dev) && dma_mask >= pci64_dma_offset * 2 - 1) {
-		set_dma_ops(dev, &dma_direct_ops);
+		set_dma_ops(dev, &dma_nommu_ops);
 		set_dma_offset(dev, pci64_dma_offset);
 	}
 
@@ -448,7 +448,7 @@ static void setup_pci_atmu(struct pci_controller *hose)
 #endif
 		/* adjusting outbound windows could reclaim space in mem map */
 		if (paddr_hi < 0xffffffffull)
-			pr_warning("%pOF: WARNING: Outbound window cfg leaves "
+			pr_warn("%pOF: WARNING: Outbound window cfg leaves "
 				"gaps in memory map. Adjusting the memory map "
 				"could reduce unnecessary bounce buffering.\n",
 				hose->dn);
@@ -531,7 +531,7 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 	dev = pdev->dev.of_node;
 
 	if (!of_device_is_available(dev)) {
-		pr_warning("%pOF: disabled\n", dev);
+		pr_warn("%pOF: disabled\n", dev);
 		return -ENODEV;
 	}
 
@@ -808,8 +808,8 @@ int __init mpc83xx_add_bridge(struct device_node *dev)
 	is_mpc83xx_pci = 1;
 
 	if (!of_device_is_available(dev)) {
-		pr_warning("%pOF: disabled by the firmware.\n",
-			   dev);
+		pr_warn("%pOF: disabled by the firmware.\n",
+			dev);
 		return -ENODEV;
 	}
 	pr_debug("Adding PCI host bridge %pOF\n", dev);
@@ -1070,7 +1070,7 @@ int fsl_pci_mcheck_exception(struct pt_regs *regs)
 	if (is_in_pci_mem_space(addr)) {
 		if (user_mode(regs)) {
 			pagefault_disable();
-			ret = get_user(regs->nip, &inst);
+			ret = get_user(inst, (__u32 __user *)regs->nip);
 			pagefault_enable();
 		} else {
 			ret = probe_kernel_address((void *)regs->nip, inst);
@@ -1304,10 +1304,8 @@ static int add_err_dev(struct platform_device *pdev)
 						   pdev->resource,
 						   pdev->num_resources,
 						   &pd, sizeof(pd));
-	if (IS_ERR(errdev))
-		return PTR_ERR(errdev);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(errdev);
 }
 
 static int fsl_pci_probe(struct platform_device *pdev)

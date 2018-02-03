@@ -176,11 +176,6 @@ static unsigned int ipv6_conntrack_local(void *priv,
 					 struct sk_buff *skb,
 					 const struct nf_hook_state *state)
 {
-	/* root is playing with raw sockets. */
-	if (skb->len < sizeof(struct ipv6hdr)) {
-		net_notice_ratelimited("ipv6_conntrack_local: packet too short\n");
-		return NF_ACCEPT;
-	}
 	return nf_conntrack_in(state->net, PF_INET6, state->hook, skb);
 }
 
@@ -368,7 +363,7 @@ static struct nf_sockopt_ops so_getorigdst6 = {
 	.owner		= THIS_MODULE,
 };
 
-static struct nf_conntrack_l4proto *builtin_l4proto6[] = {
+static const struct nf_conntrack_l4proto * const builtin_l4proto6[] = {
 	&nf_conntrack_l4proto_tcp6,
 	&nf_conntrack_l4proto_udp6,
 	&nf_conntrack_l4proto_icmpv6,

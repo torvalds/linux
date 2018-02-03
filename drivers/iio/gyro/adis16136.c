@@ -124,7 +124,7 @@ static int adis16136_show_product_id(void *arg, u64 *val)
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(adis16136_product_id_fops,
+DEFINE_DEBUGFS_ATTRIBUTE(adis16136_product_id_fops,
 	adis16136_show_product_id, NULL, "%llu\n");
 
 static int adis16136_show_flash_count(void *arg, u64 *val)
@@ -142,18 +142,21 @@ static int adis16136_show_flash_count(void *arg, u64 *val)
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(adis16136_flash_count_fops,
+DEFINE_DEBUGFS_ATTRIBUTE(adis16136_flash_count_fops,
 	adis16136_show_flash_count, NULL, "%lld\n");
 
 static int adis16136_debugfs_init(struct iio_dev *indio_dev)
 {
 	struct adis16136 *adis16136 = iio_priv(indio_dev);
 
-	debugfs_create_file("serial_number", 0400, indio_dev->debugfs_dentry,
-		adis16136, &adis16136_serial_fops);
-	debugfs_create_file("product_id", 0400, indio_dev->debugfs_dentry,
+	debugfs_create_file_unsafe("serial_number", 0400,
+		indio_dev->debugfs_dentry, adis16136,
+		&adis16136_serial_fops);
+	debugfs_create_file_unsafe("product_id", 0400,
+		indio_dev->debugfs_dentry,
 		adis16136, &adis16136_product_id_fops);
-	debugfs_create_file("flash_count", 0400, indio_dev->debugfs_dentry,
+	debugfs_create_file_unsafe("flash_count", 0400,
+		indio_dev->debugfs_dentry,
 		adis16136, &adis16136_flash_count_fops);
 
 	return 0;

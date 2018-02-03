@@ -180,7 +180,7 @@ static inline int addrconf_finite_timeout(unsigned long timeout)
  */
 int ipv6_addr_label_init(void);
 void ipv6_addr_label_cleanup(void);
-void ipv6_addr_label_rtnl_register(void);
+int ipv6_addr_label_rtnl_register(void);
 u32 ipv6_addr_label(struct net *net, const struct in6_addr *addr,
 		    int type, int ifindex);
 

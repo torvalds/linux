@@ -114,8 +114,9 @@ struct emac_tpd {
 #define TPD_INSTC_SET(tpd, val)		BITS_SET((tpd)->word[3], 17, 17, val)
 /* High-14bit Buffer Address, So, the 64b-bit address is
  * {DESC_CTRL_11_TX_DATA_HIADDR[17:0],(register) BUFFER_ADDR_H, BUFFER_ADDR_L}
+ * Extend TPD_BUFFER_ADDR_H to [31, 18], because we never enable timestamping.
  */
-#define TPD_BUFFER_ADDR_H_SET(tpd, val)	BITS_SET((tpd)->word[3], 18, 30, val)
+#define TPD_BUFFER_ADDR_H_SET(tpd, val)	BITS_SET((tpd)->word[3], 18, 31, val)
 /* Format D. Word offset from the 1st byte of this packet to start to calculate
  * the custom checksum.
  */

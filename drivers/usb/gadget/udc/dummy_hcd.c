@@ -925,20 +925,8 @@ static void dummy_udc_set_speed(struct usb_gadget *_gadget,
 	struct dummy	*dum;
 
 	dum = gadget_dev_to_dummy(&_gadget->dev);
-
-	 if (mod_data.is_super_speed)
-		 dum->gadget.speed = min_t(u8, USB_SPEED_SUPER, speed);
-	 else if (mod_data.is_high_speed)
-		 dum->gadget.speed = min_t(u8, USB_SPEED_HIGH, speed);
-	 else
-		 dum->gadget.speed = USB_SPEED_FULL;
-
+	dum->gadget.speed = speed;
 	dummy_udc_update_ep0(dum);
-
-	if (dum->gadget.speed < speed)
-		dev_dbg(udc_dev(dum), "This device can perform faster"
-			" if you connect it to a %s port...\n",
-			usb_speed_string(speed));
 }
 
 static int dummy_udc_start(struct usb_gadget *g,
@@ -2193,8 +2181,6 @@ static int dummy_hub_control(
 							USB_PORT_STAT_LOW_SPEED;
 						break;
 					default:
-						dum_hcd->dum->gadget.speed =
-							USB_SPEED_FULL;
 						break;
 					}
 				}

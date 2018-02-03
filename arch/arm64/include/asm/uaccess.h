@@ -105,17 +105,23 @@ static inline void set_fs(mm_segment_t fs)
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 static inline void __uaccess_ttbr0_disable(void)
 {
-	unsigned long ttbr;
+	unsigned long flags, ttbr;
 
-	/* reserved_ttbr0 placed at the end of swapper_pg_dir */
-	ttbr = read_sysreg(ttbr1_el1) + SWAPPER_DIR_SIZE;
-	write_sysreg(ttbr, ttbr0_el1);
+	local_irq_save(flags);
+	ttbr = read_sysreg(ttbr1_el1);
+	ttbr &= ~TTBR_ASID_MASK;
+	/* reserved_ttbr0 placed before swapper_pg_dir */
+	write_sysreg(ttbr - RESERVED_TTBR0_SIZE, ttbr0_el1);
 	isb();
+	/* Set reserved ASID */
+	write_sysreg(ttbr, ttbr1_el1);
+	isb();
+	local_irq_restore(flags);
 }
 
 static inline void __uaccess_ttbr0_enable(void)
 {
-	unsigned long flags;
+	unsigned long flags, ttbr0, ttbr1;
 
 	/*
 	 * Disable interrupts to avoid preemption between reading the 'ttbr0'
@@ -123,7 +129,17 @@ static inline void __uaccess_ttbr0_enable(void)
 	 * roll-over and an update of 'ttbr0'.
 	 */
 	local_irq_save(flags);
-	write_sysreg(current_thread_info()->ttbr0, ttbr0_el1);
+	ttbr0 = READ_ONCE(current_thread_info()->ttbr0);
+
+	/* Restore active ASID */
+	ttbr1 = read_sysreg(ttbr1_el1);
+	ttbr1 &= ~TTBR_ASID_MASK;		/* safety measure */
+	ttbr1 |= ttbr0 & TTBR_ASID_MASK;
+	write_sysreg(ttbr1, ttbr1_el1);
+	isb();
+
+	/* Restore user page table */
+	write_sysreg(ttbr0, ttbr0_el1);
 	isb();
 	local_irq_restore(flags);
 }
@@ -154,6 +170,18 @@ static inline bool uaccess_ttbr0_enable(void)
 	return false;
 }
 #endif
+
+static inline void __uaccess_disable_hw_pan(void)
+{
+	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(0), ARM64_HAS_PAN,
+			CONFIG_ARM64_PAN));
+}
+
+static inline void __uaccess_enable_hw_pan(void)
+{
+	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(1), ARM64_HAS_PAN,
+			CONFIG_ARM64_PAN));
+}
 
 #define __uaccess_disable(alt)						\
 do {									\

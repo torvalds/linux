@@ -221,6 +221,7 @@ static struct snd_seq_client *seq_create_client1(int client_index, int poolsize)
 	rwlock_init(&client->ports_lock);
 	mutex_init(&client->ports_mutex);
 	INIT_LIST_HEAD(&client->ports_list_head);
+	mutex_init(&client->ioctl_mutex);
 
 	/* find free slot in the client table */
 	spin_lock_irqsave(&clients_lock, flags);
@@ -1086,10 +1087,10 @@ static ssize_t snd_seq_write(struct file *file, const char __user *buf,
 /*
  * handle polling
  */
-static unsigned int snd_seq_poll(struct file *file, poll_table * wait)
+static __poll_t snd_seq_poll(struct file *file, poll_table * wait)
 {
 	struct snd_seq_client *client = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	/* check client structures are in place */
 	if (snd_BUG_ON(!client))
@@ -2130,7 +2131,9 @@ static long snd_seq_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 	}
 
+	mutex_lock(&client->ioctl_mutex);
 	err = handler->func(client, &buf);
+	mutex_unlock(&client->ioctl_mutex);
 	if (err >= 0) {
 		/* Some commands includes a bug in 'dir' field. */
 		if (handler->cmd == SNDRV_SEQ_IOCTL_SET_QUEUE_CLIENT ||

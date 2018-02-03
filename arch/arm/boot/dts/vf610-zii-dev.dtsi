@@ -96,6 +96,10 @@
 	status = "okay";
 };
 
+&edma1 {
+	status = "okay";
+};
+
 &esdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;

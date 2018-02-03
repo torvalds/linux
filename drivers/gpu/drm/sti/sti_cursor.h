@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) STMicroelectronics SA 2013
  * Authors: Vincent Abriou <vincent.abriou@st.com> for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #ifndef _STI_CURSOR_H_

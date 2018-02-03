@@ -29,6 +29,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 
 #include <nvif/class.h>
 
@@ -292,7 +293,7 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 
 static const struct drm_mode_config_funcs nouveau_mode_config_funcs = {
 	.fb_create = nouveau_user_framebuffer_create,
-	.output_poll_changed = nouveau_fbcon_output_poll_changed,
+	.output_poll_changed = drm_fb_helper_output_poll_changed,
 };
 
 

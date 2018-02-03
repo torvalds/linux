@@ -76,6 +76,8 @@ static int snooze_loop(struct cpuidle_device *dev,
 	ppc64_runlatch_on();
 	clear_thread_flag(TIF_POLLING_NRFLAG);
 
+	local_irq_disable();
+
 	return index;
 }
 

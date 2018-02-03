@@ -1097,3 +1097,24 @@ xfs_verify_rtbno(
 {
 	return rtbno < mp->m_sb.sb_rblocks;
 }
+
+/* Is the given extent all free? */
+int
+xfs_rtalloc_extent_is_free(
+	struct xfs_mount		*mp,
+	struct xfs_trans		*tp,
+	xfs_rtblock_t			start,
+	xfs_extlen_t			len,
+	bool				*is_free)
+{
+	xfs_rtblock_t			end;
+	int				matches;
+	int				error;
+
+	error = xfs_rtcheck_range(mp, tp, start, len, 1, &end, &matches);
+	if (error)
+		return error;
+
+	*is_free = matches;
+	return 0;
+}

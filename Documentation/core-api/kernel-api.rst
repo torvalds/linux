@@ -139,6 +139,21 @@ Division Functions
 .. kernel-doc:: lib/gcd.c
    :export:
 
+Sorting
+-------
+
+.. kernel-doc:: lib/sort.c
+   :export:
+
+.. kernel-doc:: lib/list_sort.c
+   :export:
+
+UUID/GUID
+---------
+
+.. kernel-doc:: lib/uuid.c
+   :export:
+
 Memory Management in Linux
 ==========================
 

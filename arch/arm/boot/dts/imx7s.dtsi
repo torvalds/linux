@@ -116,6 +116,66 @@
 		clock-output-names = "osc";
 	};
 
+	usbphynop1: usbphynop1 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX7D_USB_PHY1_CLK>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
+	};
+
+	usbphynop3: usbphynop3 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX7D_USB_HSIC_ROOT_CLK>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
+	};
+
+
+	replicator {
+		/*
+		 * non-configurable replicators don't show up on the
+		 * AMBA bus.  As such no need to add "arm,primecell"
+		 */
+		compatible = "arm,coresight-replicator";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+				/* replicator output ports */
+			port@0 {
+				reg = <0>;
+				replicator_out_port0: endpoint {
+					remote-endpoint = <&tpiu_in_port>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				replicator_out_port1: endpoint {
+					remote-endpoint = <&etr_in_port>;
+				};
+			};
+
+			/* replicator input port */
+			port@2 {
+				reg = <0>;
+				replicator_in_port0: endpoint {
+					slave-mode;
+					remote-endpoint = <&etf_out_port>;
+				};
+			};
+		};
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupt-parent = <&intc>;
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -260,43 +320,6 @@
 			};
 		};
 
-		replicator {
-			/*
-			 * non-configurable replicators don't show up on the
-			 * AMBA bus.  As such no need to add "arm,primecell"
-			 */
-			compatible = "arm,coresight-replicator";
-
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				/* replicator output ports */
-				port@0 {
-					reg = <0>;
-					replicator_out_port0: endpoint {
-						remote-endpoint = <&tpiu_in_port>;
-					};
-				};
-
-				port@1 {
-					reg = <1>;
-					replicator_out_port1: endpoint {
-						remote-endpoint = <&etr_in_port>;
-					};
-				};
-
-				/* replicator input port */
-				port@2 {
-					reg = <0>;
-					replicator_in_port0: endpoint {
-						slave-mode;
-						remote-endpoint = <&etf_out_port>;
-					};
-				};
-			};
-		};
-
 		intc: interrupt-controller@31001000 {
 			compatible = "arm,cortex-a7-gic";
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
@@ -307,15 +330,6 @@
 			      <0x31002000 0x2000>,
 			      <0x31004000 0x2000>,
 			      <0x31006000 0x2000>;
-		};
-
-		timer {
-			compatible = "arm,armv7-timer";
-			interrupt-parent = <&intc>;
-			interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-				     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-				     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-				     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 		};
 
 		aips1: aips-bus@30000000 {
@@ -508,8 +522,11 @@
 				reg = <0x30360000 0x10000>;
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-				reg_1p0d: regulator-vdd1p0d {
+				reg_1p0d: regulator-vdd1p0d@30360210 {
+					reg = <0x30360210>;
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vdd1p0d";
 					regulator-min-microvolt = <800000>;
@@ -583,9 +600,9 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					pgc_pcie_phy: pgc-power-domain@IMX7_POWER_DOMAIN_PCIE_PHY {
+					pgc_pcie_phy: pgc-power-domain@1 {
 						#power-domain-cells = <0>;
-						reg = <IMX7_POWER_DOMAIN_PCIE_PHY>;
+						reg = <1>;
 						power-supply = <&reg_1p0d>;
 					};
 				};
@@ -945,18 +962,6 @@
 				reg = <0x30b30200 0x200>;
 			};
 
-			usbphynop1: usbphynop1 {
-				compatible = "usb-nop-xceiv";
-				clocks = <&clks IMX7D_USB_PHY1_CLK>;
-				clock-names = "main_clk";
-			};
-
-			usbphynop3: usbphynop3 {
-				compatible = "usb-nop-xceiv";
-				clocks = <&clks IMX7D_USB_HSIC_ROOT_CLK>;
-				clock-names = "main_clk";
-			};
-
 			usdhc1: usdhc@30b40000 {
 				compatible = "fsl,imx7d-usdhc", "fsl,imx6sl-usdhc";
 				reg = <0x30b40000 0x10000>;
@@ -1007,9 +1012,11 @@
 			fec1: ethernet@30be0000 {
 				compatible = "fsl,imx7d-fec", "fsl,imx6sx-fec";
 				reg = <0x30be0000 0x10000>;
-				interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
+				interrupt-names = "int0", "int1", "int2", "pps";
+				interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+					<GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX7D_ENET_AXI_ROOT_CLK>,
 					<&clks IMX7D_ENET_AXI_ROOT_CLK>,
 					<&clks IMX7D_ENET1_TIME_ROOT_CLK>,

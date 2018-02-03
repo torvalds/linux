@@ -20,19 +20,20 @@ options.
 
 The /proc/meminfo file provides information about the total number of
 persistent hugetlb pages in the kernel's huge page pool.  It also displays
-information about the number of free, reserved and surplus huge pages and the
-default huge page size.  The huge page size is needed for generating the
-proper alignment and size of the arguments to system calls that map huge page
-regions.
+default huge page size and information about the number of free, reserved
+and surplus huge pages in the pool of huge pages of default size.
+The huge page size is needed for generating the proper alignment and
+size of the arguments to system calls that map huge page regions.
 
 The output of "cat /proc/meminfo" will include lines like:
 
 .....
-HugePages_Total: vvv
-HugePages_Free:  www
-HugePages_Rsvd:  xxx
-HugePages_Surp:  yyy
-Hugepagesize:    zzz kB
+HugePages_Total: uuu
+HugePages_Free:  vvv
+HugePages_Rsvd:  www
+HugePages_Surp:  xxx
+Hugepagesize:    yyy kB
+Hugetlb:         zzz kB
 
 where:
 HugePages_Total is the size of the pool of huge pages.
@@ -47,6 +48,14 @@ HugePages_Surp  is short for "surplus," and is the number of huge pages in
                 the pool above the value in /proc/sys/vm/nr_hugepages. The
                 maximum number of surplus huge pages is controlled by
                 /proc/sys/vm/nr_overcommit_hugepages.
+Hugepagesize    is the default hugepage size (in Kb).
+Hugetlb         is the total amount of memory (in kB), consumed by huge
+                pages of all sizes.
+                If huge pages of different sizes are in use, this number
+                will exceed HugePages_Total * Hugepagesize. To get more
+                detailed information, please, refer to
+                /sys/kernel/mm/hugepages (described below).
+
 
 /proc/filesystems should also show a filesystem of type "hugetlbfs" configured
 in the kernel.

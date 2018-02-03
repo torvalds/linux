@@ -377,7 +377,11 @@ typedef int __bitwise __kernel_rwf_t;
 /* per-IO, return -EAGAIN if operation would block */
 #define RWF_NOWAIT	((__force __kernel_rwf_t)0x00000008)
 
+/* per-IO O_APPEND */
+#define RWF_APPEND	((__force __kernel_rwf_t)0x00000010)
+
 /* mask of flags supported by the kernel */
-#define RWF_SUPPORTED	(RWF_HIPRI | RWF_DSYNC | RWF_SYNC | RWF_NOWAIT)
+#define RWF_SUPPORTED	(RWF_HIPRI | RWF_DSYNC | RWF_SYNC | RWF_NOWAIT |\
+			 RWF_APPEND)
 
 #endif /* _UAPI_LINUX_FS_H */

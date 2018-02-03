@@ -553,7 +553,6 @@ static void sdma_hw_clean_up_task(unsigned long opaque)
 
 static inline struct sdma_txreq *get_txhead(struct sdma_engine *sde)
 {
-	smp_read_barrier_depends(); /* see sdma_update_tail() */
 	return sde->tx_ring[sde->tx_head & sde->sdma_mask];
 }
 

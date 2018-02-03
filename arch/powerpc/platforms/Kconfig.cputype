@@ -33,7 +33,6 @@ config PPC_85xx
 config PPC_8xx
 	bool "Freescale 8xx"
 	select FSL_SOC
-	select PPC_LIB_RHEAP
 	select SYS_SUPPORTS_HUGETLBFS
 
 config 40x
@@ -167,13 +166,6 @@ config PPC_E500MC
 config PPC_FPU
 	bool
 	default y if PPC64
-
-config PPC_8xx_PERF_EVENT
-	bool "PPC 8xx perf events"
-	depends on PPC_8xx && PERF_EVENTS
-	help
-	  This is Performance Events support for PPC 8xx. The 8xx doesn't
-	  have a PMU but some events are emulated using 8xx features.
 
 config FSL_EMB_PERFMON
 	bool "Freescale Embedded Perfmon"

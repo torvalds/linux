@@ -42,6 +42,8 @@
 #include <linux/completion.h>
 #include <linux/mm.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_cmnd.h>
 
 #include "aacraid.h"
 
@@ -284,6 +286,38 @@ static void aac_queue_init(struct aac_dev * dev, struct aac_queue * q, u32 *mem,
 	q->entries = qsize;
 }
 
+static void aac_wait_for_io_completion(struct aac_dev *aac)
+{
+	unsigned long flagv = 0;
+	int i = 0;
+
+	for (i = 60; i; --i) {
+		struct scsi_device *dev;
+		struct scsi_cmnd *command;
+		int active = 0;
+
+		__shost_for_each_device(dev, aac->scsi_host_ptr) {
+			spin_lock_irqsave(&dev->list_lock, flagv);
+			list_for_each_entry(command, &dev->cmd_list, list) {
+				if (command->SCp.phase == AAC_OWNER_FIRMWARE) {
+					active++;
+					break;
+				}
+			}
+			spin_unlock_irqrestore(&dev->list_lock, flagv);
+			if (active)
+				break;
+
+		}
+		/*
+		 * We can exit If all the commands are complete
+		 */
+		if (active == 0)
+			break;
+		ssleep(1);
+	}
+}
+
 /**
  *	aac_send_shutdown		-	shutdown an adapter
  *	@dev: Adapter to shutdown
@@ -295,18 +329,23 @@ int aac_send_shutdown(struct aac_dev * dev)
 {
 	struct fib * fibctx;
 	struct aac_close *cmd;
-	int status;
+	int status = 0;
 
-	fibctx = aac_fib_alloc(dev);
-	if (!fibctx)
-		return -ENOMEM;
-	aac_fib_init(fibctx);
+	if (aac_adapter_check_health(dev))
+		return status;
 
 	if (!dev->adapter_shutdown) {
 		mutex_lock(&dev->ioctl_mutex);
 		dev->adapter_shutdown = 1;
 		mutex_unlock(&dev->ioctl_mutex);
 	}
+
+	aac_wait_for_io_completion(dev);
+
+	fibctx = aac_fib_alloc(dev);
+	if (!fibctx)
+		return -ENOMEM;
+	aac_fib_init(fibctx);
 
 	cmd = (struct aac_close *) fib_data(fibctx);
 	cmd->command = cpu_to_le32(VM_CloseAll);

@@ -269,7 +269,7 @@ no_qp_table:
 
 /**
  * free_all_qps - check for QPs still in use
- * @qpt: the QP table to empty
+ * @rdi: rvt device info structure
  *
  * There should not be any QPs still in use.
  * Free memory for table.
@@ -335,9 +335,9 @@ static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
 /**
  * alloc_qpn - Allocate the next available qpn or zero/one for QP type
  *	       IB_QPT_SMI/IB_QPT_GSI
- *@rdi:	rvt device info structure
- *@qpt: queue pair number table pointer
- *@port_num: IB port number, 1 based, comes from core
+ * @rdi: rvt device info structure
+ * @qpt: queue pair number table pointer
+ * @port_num: IB port number, 1 based, comes from core
  *
  * Return: The queue pair number
  */
@@ -1650,9 +1650,9 @@ static inline int rvt_qp_valid_operation(
 
 /**
  * rvt_qp_is_avail - determine queue capacity
- * @qp - the qp
- * @rdi - the rdmavt device
- * @reserved_op - is reserved operation
+ * @qp: the qp
+ * @rdi: the rdmavt device
+ * @reserved_op: is reserved operation
  *
  * This assumes the s_hlock is held but the s_last
  * qp variable is uncontrolled.
@@ -1684,7 +1684,6 @@ static inline int rvt_qp_is_avail(
 	/* non-reserved operations */
 	if (likely(qp->s_avail))
 		return 0;
-	smp_read_barrier_depends(); /* see rc.c */
 	slast = READ_ONCE(qp->s_last);
 	if (qp->s_head >= slast)
 		avail = qp->s_size - (qp->s_head - slast);
@@ -2075,6 +2074,7 @@ void rvt_add_rnr_timer(struct rvt_qp *qp, u32 aeth)
 	lockdep_assert_held(&qp->s_lock);
 	qp->s_flags |= RVT_S_WAIT_RNR;
 	to = rvt_aeth_to_usec(aeth);
+	trace_rvt_rnrnak_add(qp, to);
 	hrtimer_start(&qp->s_rnr_timer,
 		      ns_to_ktime(1000 * to), HRTIMER_MODE_REL);
 }
@@ -2104,17 +2104,14 @@ EXPORT_SYMBOL(rvt_stop_rc_timers);
  * stop an rnr timer and return if the timer
  * had been pending.
  */
-static int rvt_stop_rnr_timer(struct rvt_qp *qp)
+static void rvt_stop_rnr_timer(struct rvt_qp *qp)
 {
-	int rval = 0;
-
 	lockdep_assert_held(&qp->s_lock);
 	/* Remove QP from rnr timer */
 	if (qp->s_flags & RVT_S_WAIT_RNR) {
 		qp->s_flags &= ~RVT_S_WAIT_RNR;
-		rval = hrtimer_try_to_cancel(&qp->s_rnr_timer);
+		trace_rvt_rnrnak_stop(qp, 0);
 	}
-	return rval;
 }
 
 /**
@@ -2167,6 +2164,7 @@ enum hrtimer_restart rvt_rc_rnr_retry(struct hrtimer *t)
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 	rvt_stop_rnr_timer(qp);
+	trace_rvt_rnrnak_timeout(qp, 0);
 	rdi->driver_f.schedule_send(qp);
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 	return HRTIMER_NORESTART;
@@ -2175,8 +2173,8 @@ EXPORT_SYMBOL(rvt_rc_rnr_retry);
 
 /**
  * rvt_qp_iter_init - initial for QP iteration
- * @rdi - rvt devinfo
- * @v - u64 value
+ * @rdi: rvt devinfo
+ * @v: u64 value
  *
  * This returns an iterator suitable for iterating QPs
  * in the system.

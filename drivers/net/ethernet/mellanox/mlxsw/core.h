@@ -66,8 +66,9 @@ void mlxsw_core_driver_unregister(struct mlxsw_driver *mlxsw_driver);
 
 int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 				   const struct mlxsw_bus *mlxsw_bus,
-				   void *bus_priv);
-void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core);
+				   void *bus_priv, bool reload,
+				   struct devlink *devlink);
+void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core, bool reload);
 
 struct mlxsw_tx_info {
 	u8 local_port;
@@ -308,9 +309,19 @@ struct mlxsw_driver {
 				       u32 *p_cur, u32 *p_max);
 	void (*txhdr_construct)(struct sk_buff *skb,
 				const struct mlxsw_tx_info *tx_info);
+	int (*resources_register)(struct mlxsw_core *mlxsw_core);
+	int (*kvd_sizes_get)(struct mlxsw_core *mlxsw_core,
+			     const struct mlxsw_config_profile *profile,
+			     u64 *p_single_size, u64 *p_double_size,
+			     u64 *p_linear_size);
 	u8 txhdr_len;
 	const struct mlxsw_config_profile *profile;
 };
+
+int mlxsw_core_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
+			     const struct mlxsw_config_profile *profile,
+			     u64 *p_single_size, u64 *p_double_size,
+			     u64 *p_linear_size);
 
 bool mlxsw_core_res_valid(struct mlxsw_core *mlxsw_core,
 			  enum mlxsw_res_id res_id);
@@ -332,6 +343,7 @@ struct mlxsw_bus {
 		    const struct mlxsw_config_profile *profile,
 		    struct mlxsw_res *res);
 	void (*fini)(void *bus_priv);
+	void (*reset)(void *bus_priv);
 	bool (*skb_transmit_busy)(void *bus_priv,
 				  const struct mlxsw_tx_info *tx_info);
 	int (*skb_transmit)(void *bus_priv, struct sk_buff *skb,

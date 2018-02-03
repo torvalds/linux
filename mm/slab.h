@@ -78,9 +78,6 @@ extern const struct kmalloc_info_struct {
 	unsigned long size;
 } kmalloc_info[];
 
-unsigned long calculate_alignment(slab_flags_t flags,
-		unsigned long align, unsigned long size);
-
 #ifndef CONFIG_SLOB
 /* Kmalloc array related functions */
 void setup_kmalloc_cache_index_table(void);

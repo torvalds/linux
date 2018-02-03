@@ -730,7 +730,7 @@ static int vpfe_mmap(struct file *file, struct vm_area_struct *vma)
 /*
  * vpfe_poll: It is used for select/poll system call
  */
-static unsigned int vpfe_poll(struct file *file, poll_table *wait)
+static __poll_t vpfe_poll(struct file *file, poll_table *wait)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 

@@ -604,12 +604,11 @@ static struct qedr_pbl *qedr_alloc_pbl_tbl(struct qedr_dev *dev,
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < pbl_info->num_pbls; i++) {
-		va = dma_alloc_coherent(&pdev->dev, pbl_info->pbl_size,
-					&pa, flags);
+		va = dma_zalloc_coherent(&pdev->dev, pbl_info->pbl_size,
+					 &pa, flags);
 		if (!va)
 			goto err;
 
-		memset(va, 0, pbl_info->pbl_size);
 		pbl_table[i].va = va;
 		pbl_table[i].pa = pa;
 	}
@@ -3040,7 +3039,7 @@ static int __qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		swqe->wqe_size = 2;
 		swqe2 = qed_chain_produce(&qp->sq.pbl);
 
-		swqe->inv_key_or_imm_data = cpu_to_le32(wr->ex.imm_data);
+		swqe->inv_key_or_imm_data = cpu_to_le32(be32_to_cpu(wr->ex.imm_data));
 		length = qedr_prepare_sq_send_data(dev, qp, swqe, swqe2,
 						   wr, bad_wr);
 		swqe->length = cpu_to_le32(length);
@@ -3471,9 +3470,9 @@ static int qedr_poll_cq_req(struct qedr_dev *dev,
 		break;
 	case RDMA_CQE_REQ_STS_WORK_REQUEST_FLUSHED_ERR:
 		if (qp->state != QED_ROCE_QP_STATE_ERR)
-			DP_ERR(dev,
-			       "Error: POLL CQ with RDMA_CQE_REQ_STS_WORK_REQUEST_FLUSHED_ERR. CQ icid=0x%x, QP icid=0x%x\n",
-			       cq->icid, qp->icid);
+			DP_DEBUG(dev, QEDR_MSG_CQ,
+				 "Error: POLL CQ with RDMA_CQE_REQ_STS_WORK_REQUEST_FLUSHED_ERR. CQ icid=0x%x, QP icid=0x%x\n",
+				 cq->icid, qp->icid);
 		cnt = process_req(dev, qp, cq, num_entries, wc, req->sq_cons,
 				  IB_WC_WR_FLUSH_ERR, 1);
 		break;
@@ -3591,7 +3590,7 @@ static inline int qedr_set_ok_cqe_resp_wc(struct rdma_cqe_responder *resp,
 	wc->byte_len = le32_to_cpu(resp->length);
 
 	if (resp->flags & QEDR_RESP_IMM) {
-		wc->ex.imm_data = le32_to_cpu(resp->imm_data_or_inv_r_Key);
+		wc->ex.imm_data = cpu_to_be32(le32_to_cpu(resp->imm_data_or_inv_r_Key));
 		wc->wc_flags |= IB_WC_WITH_IMM;
 
 		if (resp->flags & QEDR_RESP_RDMA)

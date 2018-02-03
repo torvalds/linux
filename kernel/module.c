@@ -2863,6 +2863,15 @@ static int check_modinfo_livepatch(struct module *mod, struct load_info *info)
 }
 #endif /* CONFIG_LIVEPATCH */
 
+static void check_modinfo_retpoline(struct module *mod, struct load_info *info)
+{
+	if (retpoline_module_ok(get_modinfo(info, "retpoline")))
+		return;
+
+	pr_warn("%s: loading module not compiled with retpoline compiler.\n",
+		mod->name);
+}
+
 /* Sets info->hdr and info->len. */
 static int copy_module_from_user(const void __user *umod, unsigned long len,
 				  struct load_info *info)
@@ -3029,6 +3038,8 @@ static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 		add_taint_module(mod, TAINT_OOT_MODULE, LOCKDEP_STILL_OK);
 	}
 
+	check_modinfo_retpoline(mod, info);
+
 	if (get_modinfo(info, "staging")) {
 		add_taint_module(mod, TAINT_CRAP, LOCKDEP_STILL_OK);
 		pr_warn("%s: module is from the staging directory, the quality "
@@ -3118,7 +3129,11 @@ static int find_module_sections(struct module *mod, struct load_info *info)
 					     sizeof(*mod->ftrace_callsites),
 					     &mod->num_ftrace_callsites);
 #endif
-
+#ifdef CONFIG_FUNCTION_ERROR_INJECTION
+	mod->ei_funcs = section_objs(info, "_error_injection_whitelist",
+					    sizeof(*mod->ei_funcs),
+					    &mod->num_ei_funcs);
+#endif
 	mod->extable = section_objs(info, "__ex_table",
 				    sizeof(*mod->extable), &mod->num_exentries);
 
@@ -3936,6 +3951,12 @@ static const char *get_ksymbol(struct module *mod,
 	if (offset)
 		*offset = addr - kallsyms->symtab[best].st_value;
 	return symname(kallsyms, best);
+}
+
+void * __weak dereference_module_function_descriptor(struct module *mod,
+						     void *ptr)
+{
+	return ptr;
 }
 
 /* For kallsyms to ask for address resolution.  NULL means not found.  Careful

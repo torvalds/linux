@@ -979,8 +979,6 @@ static int write_fifo(struct pxa_ep *ep, struct pxa27x_request *req)
 
 	max = ep->fifo_size;
 	do {
-		is_short = 0;
-
 		udccsr = udc_ep_readl(ep, UDCCSR);
 		if (udccsr & UDCCSR_PC) {
 			ep_vdbg(ep, "Clearing Transmit Complete, udccsr=%x\n",
@@ -1134,7 +1132,6 @@ static int pxa_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 	if (unlikely(!_ep))
 		return -EINVAL;
 
-	dev = udc_usb_ep->dev;
 	ep = udc_usb_ep->pxa_ep;
 	if (unlikely(!ep))
 		return -EINVAL;

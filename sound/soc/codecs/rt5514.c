@@ -295,6 +295,33 @@ static int rt5514_dsp_voice_wake_up_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int rt5514_calibration(struct rt5514_priv *rt5514, bool on)
+{
+	if (on) {
+		regmap_write(rt5514->regmap, RT5514_ANA_CTRL_PLL3, 0x0000000a);
+		regmap_update_bits(rt5514->regmap, RT5514_PLL_SOURCE_CTRL, 0xf,
+			0xa);
+		regmap_update_bits(rt5514->regmap, RT5514_PWR_ANA1, 0x301,
+			0x301);
+		regmap_write(rt5514->regmap, RT5514_PLL3_CALIB_CTRL4,
+			0x80000000 | rt5514->pll3_cal_value);
+		regmap_write(rt5514->regmap, RT5514_PLL3_CALIB_CTRL1,
+			0x8bb80800);
+		regmap_update_bits(rt5514->regmap, RT5514_PLL3_CALIB_CTRL5,
+			0xc0000000, 0x80000000);
+		regmap_update_bits(rt5514->regmap, RT5514_PLL3_CALIB_CTRL5,
+			0xc0000000, 0xc0000000);
+	} else {
+		regmap_update_bits(rt5514->regmap, RT5514_PLL3_CALIB_CTRL5,
+			0xc0000000, 0x40000000);
+		regmap_update_bits(rt5514->regmap, RT5514_PWR_ANA1, 0x301, 0);
+		regmap_update_bits(rt5514->regmap, RT5514_PLL_SOURCE_CTRL, 0xf,
+			0x4);
+	}
+
+	return 0;
+}
+
 static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
@@ -302,6 +329,7 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 	struct rt5514_priv *rt5514 = snd_soc_component_get_drvdata(component);
 	struct snd_soc_codec *codec = rt5514->codec;
 	const struct firmware *fw = NULL;
+	u8 buf[8];
 
 	if (ucontrol->value.integer.value[0] == rt5514->dsp_enabled)
 		return 0;
@@ -310,6 +338,35 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 		rt5514->dsp_enabled = ucontrol->value.integer.value[0];
 
 		if (rt5514->dsp_enabled) {
+			if (rt5514->pdata.dsp_calib_clk_name &&
+				!IS_ERR(rt5514->dsp_calib_clk)) {
+				if (clk_set_rate(rt5514->dsp_calib_clk,
+					rt5514->pdata.dsp_calib_clk_rate))
+					dev_err(codec->dev,
+						"Can't set rate for mclk");
+
+				if (clk_prepare_enable(rt5514->dsp_calib_clk))
+					dev_err(codec->dev,
+						"Can't enable dsp_calib_clk");
+
+				rt5514_calibration(rt5514, true);
+
+				msleep(20);
+#if IS_ENABLED(CONFIG_SND_SOC_RT5514_SPI)
+				rt5514_spi_burst_read(RT5514_PLL3_CALIB_CTRL6 |
+					RT5514_DSP_MAPPING,
+					(u8 *)&buf, sizeof(buf));
+#else
+				dev_err(codec->dev, "There is no SPI driver for"
+					" loading the firmware\n");
+#endif
+				rt5514->pll3_cal_value = buf[0] | buf[1] << 8 |
+					buf[2] << 16 | buf[3] << 24;
+
+				rt5514_calibration(rt5514, false);
+				clk_disable_unprepare(rt5514->dsp_calib_clk);
+			}
+
 			rt5514_enable_dsp_prepare(rt5514);
 
 			request_firmware(&fw, RT5514_FIRMWARE1, codec->dev);
@@ -341,6 +398,20 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 			/* DSP run */
 			regmap_write(rt5514->i2c_regmap, 0x18002f00,
 				0x00055148);
+
+			if (rt5514->pdata.dsp_calib_clk_name &&
+				!IS_ERR(rt5514->dsp_calib_clk)) {
+				msleep(20);
+
+				regmap_write(rt5514->i2c_regmap, 0x1800211c,
+					rt5514->pll3_cal_value);
+				regmap_write(rt5514->i2c_regmap, 0x18002124,
+					0x00220012);
+				regmap_write(rt5514->i2c_regmap, 0x18002124,
+					0x80220042);
+				regmap_write(rt5514->i2c_regmap, 0x18002124,
+					0xe0220042);
+			}
 		} else {
 			regmap_multi_reg_write(rt5514->i2c_regmap,
 				rt5514_i2c_patch, ARRAY_SIZE(rt5514_i2c_patch));
@@ -1024,12 +1095,22 @@ static int rt5514_set_bias_level(struct snd_soc_codec *codec,
 static int rt5514_probe(struct snd_soc_codec *codec)
 {
 	struct rt5514_priv *rt5514 = snd_soc_codec_get_drvdata(codec);
+	struct platform_device *pdev = container_of(codec->dev,
+						   struct platform_device, dev);
 
 	rt5514->mclk = devm_clk_get(codec->dev, "mclk");
 	if (PTR_ERR(rt5514->mclk) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
+	if (rt5514->pdata.dsp_calib_clk_name) {
+		rt5514->dsp_calib_clk = devm_clk_get(&pdev->dev,
+				rt5514->pdata.dsp_calib_clk_name);
+		if (PTR_ERR(rt5514->dsp_calib_clk) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+	}
+
 	rt5514->codec = codec;
+	rt5514->pll3_cal_value = 0x0078b000;
 
 	return 0;
 }
@@ -1147,6 +1228,10 @@ static int rt5514_parse_dp(struct rt5514_priv *rt5514, struct device *dev)
 {
 	device_property_read_u32(dev, "realtek,dmic-init-delay-ms",
 		&rt5514->pdata.dmic_init_delay);
+	device_property_read_string(dev, "realtek,dsp-calib-clk-name",
+		&rt5514->pdata.dsp_calib_clk_name);
+	device_property_read_u32(dev, "realtek,dsp-calib-clk-rate",
+		&rt5514->pdata.dsp_calib_clk_rate);
 
 	return 0;
 }

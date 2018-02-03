@@ -321,15 +321,23 @@ void irq_matrix_remove_reserved(struct irq_matrix *m)
 int irq_matrix_alloc(struct irq_matrix *m, const struct cpumask *msk,
 		     bool reserved, unsigned int *mapped_cpu)
 {
-	unsigned int cpu;
+	unsigned int cpu, best_cpu, maxavl = 0;
+	struct cpumap *cm;
+	unsigned int bit;
 
+	best_cpu = UINT_MAX;
 	for_each_cpu(cpu, msk) {
-		struct cpumap *cm = per_cpu_ptr(m->maps, cpu);
-		unsigned int bit;
+		cm = per_cpu_ptr(m->maps, cpu);
 
-		if (!cm->online)
+		if (!cm->online || cm->available <= maxavl)
 			continue;
 
+		best_cpu = cpu;
+		maxavl = cm->available;
+	}
+
+	if (maxavl) {
+		cm = per_cpu_ptr(m->maps, best_cpu);
 		bit = matrix_alloc_area(m, cm, 1, false);
 		if (bit < m->alloc_end) {
 			cm->allocated++;
@@ -338,8 +346,8 @@ int irq_matrix_alloc(struct irq_matrix *m, const struct cpumask *msk,
 			m->global_available--;
 			if (reserved)
 				m->global_reserved--;
-			*mapped_cpu = cpu;
-			trace_irq_matrix_alloc(bit, cpu, m, cm);
+			*mapped_cpu = best_cpu;
+			trace_irq_matrix_alloc(bit, best_cpu, m, cm);
 			return bit;
 		}
 	}

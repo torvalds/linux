@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics 2016
  *
  * Author: Benjamin Gaignard <benjamin.gaignard@st.com>
  *
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/iio/iio.h>

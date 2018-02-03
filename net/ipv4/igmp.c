@@ -332,7 +332,7 @@ static __be32 igmpv3_get_srcaddr(struct net_device *dev,
 		return htonl(INADDR_ANY);
 
 	for_ifa(in_dev) {
-		if (inet_ifa_match(fl4->saddr, ifa))
+		if (fl4->saddr == ifa->ifa_local)
 			return fl4->saddr;
 	} endfor_ifa(in_dev);
 
@@ -2832,7 +2832,6 @@ static int igmp_mc_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations igmp_mc_seq_fops = {
-	.owner		=	THIS_MODULE,
 	.open		=	igmp_mc_seq_open,
 	.read		=	seq_read,
 	.llseek		=	seq_lseek,
@@ -2979,7 +2978,6 @@ static int igmp_mcf_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations igmp_mcf_seq_fops = {
-	.owner		=	THIS_MODULE,
 	.open		=	igmp_mcf_seq_open,
 	.read		=	seq_read,
 	.llseek		=	seq_lseek,

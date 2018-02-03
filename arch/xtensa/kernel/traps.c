@@ -33,6 +33,7 @@
 #include <linux/kallsyms.h>
 #include <linux/delay.h>
 #include <linux/hardirq.h>
+#include <linux/ratelimit.h>
 
 #include <asm/stacktrace.h>
 #include <asm/ptrace.h>
@@ -158,8 +159,7 @@ COPROCESSOR(7),
  * 2. it is a temporary memory buffer for the exception handlers.
  */
 
-DEFINE_PER_CPU(unsigned long, exc_table[EXC_TABLE_SIZE/4]);
-
+DEFINE_PER_CPU(struct exc_table, exc_table);
 DEFINE_PER_CPU(struct debug_table, debug_table);
 
 void die(const char*, struct pt_regs*, long);
@@ -178,13 +178,14 @@ __die_if_kernel(const char *str, struct pt_regs *regs, long err)
 void do_unhandled(struct pt_regs *regs, unsigned long exccause)
 {
 	__die_if_kernel("Caught unhandled exception - should not happen",
-	    		regs, SIGKILL);
+			regs, SIGKILL);
 
 	/* If in user mode, send SIGILL signal to current process */
-	printk("Caught unhandled exception in '%s' "
-	       "(pid = %d, pc = %#010lx) - should not happen\n"
-	       "\tEXCCAUSE is %ld\n",
-	       current->comm, task_pid_nr(current), regs->pc, exccause);
+	pr_info_ratelimited("Caught unhandled exception in '%s' "
+			    "(pid = %d, pc = %#010lx) - should not happen\n"
+			    "\tEXCCAUSE is %ld\n",
+			    current->comm, task_pid_nr(current), regs->pc,
+			    exccause);
 	force_sig(SIGILL, current);
 }
 
@@ -305,8 +306,8 @@ do_illegal_instruction(struct pt_regs *regs)
 
 	/* If in user mode, send SIGILL signal to current process. */
 
-	printk("Illegal Instruction in '%s' (pid = %d, pc = %#010lx)\n",
-	    current->comm, task_pid_nr(current), regs->pc);
+	pr_info_ratelimited("Illegal Instruction in '%s' (pid = %d, pc = %#010lx)\n",
+			    current->comm, task_pid_nr(current), regs->pc);
 	force_sig(SIGILL, current);
 }
 
@@ -325,13 +326,14 @@ do_unaligned_user (struct pt_regs *regs)
 	siginfo_t info;
 
 	__die_if_kernel("Unhandled unaligned exception in kernel",
-	    		regs, SIGKILL);
+			regs, SIGKILL);
 
 	current->thread.bad_vaddr = regs->excvaddr;
 	current->thread.error_code = -3;
-	printk("Unaligned memory access to %08lx in '%s' "
-	       "(pid = %d, pc = %#010lx)\n",
-	       regs->excvaddr, current->comm, task_pid_nr(current), regs->pc);
+	pr_info_ratelimited("Unaligned memory access to %08lx in '%s' "
+			    "(pid = %d, pc = %#010lx)\n",
+			    regs->excvaddr, current->comm,
+			    task_pid_nr(current), regs->pc);
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRALN;
@@ -365,28 +367,28 @@ do_debug(struct pt_regs *regs)
 }
 
 
-static void set_handler(int idx, void *handler)
-{
-	unsigned int cpu;
-
-	for_each_possible_cpu(cpu)
-		per_cpu(exc_table, cpu)[idx] = (unsigned long)handler;
-}
+#define set_handler(type, cause, handler)				\
+	do {								\
+		unsigned int cpu;					\
+									\
+		for_each_possible_cpu(cpu)				\
+			per_cpu(exc_table, cpu).type[cause] = (handler);\
+	} while (0)
 
 /* Set exception C handler - for temporary use when probing exceptions */
 
 void * __init trap_set_handler(int cause, void *handler)
 {
-	void *previous = (void *)per_cpu(exc_table, 0)[
-		EXC_TABLE_DEFAULT / 4 + cause];
-	set_handler(EXC_TABLE_DEFAULT / 4 + cause, handler);
+	void *previous = per_cpu(exc_table, 0).default_handler[cause];
+
+	set_handler(default_handler, cause, handler);
 	return previous;
 }
 
 
 static void trap_init_excsave(void)
 {
-	unsigned long excsave1 = (unsigned long)this_cpu_ptr(exc_table);
+	unsigned long excsave1 = (unsigned long)this_cpu_ptr(&exc_table);
 	__asm__ __volatile__("wsr  %0, excsave1\n" : : "a" (excsave1));
 }
 
@@ -418,10 +420,10 @@ void __init trap_init(void)
 
 	/* Setup default vectors. */
 
-	for(i = 0; i < 64; i++) {
-		set_handler(EXC_TABLE_FAST_USER/4   + i, user_exception);
-		set_handler(EXC_TABLE_FAST_KERNEL/4 + i, kernel_exception);
-		set_handler(EXC_TABLE_DEFAULT/4 + i, do_unhandled);
+	for (i = 0; i < EXCCAUSE_N; i++) {
+		set_handler(fast_user_handler, i, user_exception);
+		set_handler(fast_kernel_handler, i, kernel_exception);
+		set_handler(default_handler, i, do_unhandled);
 	}
 
 	/* Setup specific handlers. */
@@ -433,11 +435,11 @@ void __init trap_init(void)
 		void *handler = dispatch_init_table[i].handler;
 
 		if (fast == 0)
-			set_handler (EXC_TABLE_DEFAULT/4 + cause, handler);
+			set_handler(default_handler, cause, handler);
 		if (fast && fast & USER)
-			set_handler (EXC_TABLE_FAST_USER/4 + cause, handler);
+			set_handler(fast_user_handler, cause, handler);
 		if (fast && fast & KRNL)
-			set_handler (EXC_TABLE_FAST_KERNEL/4 + cause, handler);
+			set_handler(fast_kernel_handler, cause, handler);
 	}
 
 	/* Initialize EXCSAVE_1 to hold the address of the exception table. */

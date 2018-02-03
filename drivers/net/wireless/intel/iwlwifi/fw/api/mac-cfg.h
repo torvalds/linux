@@ -68,6 +68,10 @@
  */
 enum iwl_mac_conf_subcmd_ids {
 	/**
+	 * @LOW_LATENCY_CMD: &struct iwl_mac_low_latency_cmd
+	 */
+	LOW_LATENCY_CMD = 0x3,
+	/**
 	 * @CHANNEL_SWITCH_NOA_NOTIF: &struct iwl_channel_switch_noa_notif
 	 */
 	CHANNEL_SWITCH_NOA_NOTIF = 0xFF,
@@ -81,5 +85,20 @@ enum iwl_mac_conf_subcmd_ids {
 struct iwl_channel_switch_noa_notif {
 	__le32 id_and_color;
 } __packed; /* CHANNEL_SWITCH_START_NTFY_API_S_VER_1 */
+
+/**
+ * struct iwl_mac_low_latency_cmd - set/clear mac to 'low-latency mode'
+ *
+ * @mac_id: MAC ID to whom to apply the low-latency configurations
+ * @low_latency_rx: 1/0 to set/clear Rx low latency direction
+ * @low_latency_tx: 1/0 to set/clear Tx low latency direction
+ * @reserved: reserved for alignment purposes
+ */
+struct iwl_mac_low_latency_cmd {
+	__le32 mac_id;
+	u8 low_latency_rx;
+	u8 low_latency_tx;
+	__le16 reserved;
+} __packed; /* MAC_LOW_LATENCY_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_mac_cfg_h__ */

@@ -1,15 +1,9 @@
-/* linux/arch/arm/mach-s3c2416/mach-hanlin_v3c.c
- *
- * Copyright (c) 2009 Yauhen Kharuzhy <jekhor@gmail.com>,
- *	as part of OpenInkpot project
- * Copyright (c) 2009 Promwad Innovation Company
- *	Yauhen Kharuzhy <yauhen.kharuzhy@promwad.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2009 Yauhen Kharuzhy <jekhor@gmail.com>,
+//	as part of OpenInkpot project
+// Copyright (c) 2009 Promwad Innovation Company
+//	Yauhen Kharuzhy <yauhen.kharuzhy@promwad.com>
 
 #include <linux/kernel.h>
 #include <linux/types.h>

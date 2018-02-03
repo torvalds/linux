@@ -20,7 +20,6 @@
 
 static void conf(struct menu *menu);
 static void check_conf(struct menu *menu);
-static void xfgets(char *str, int size, FILE *in);
 
 enum input_mode {
 	oldaskconfig,
@@ -35,7 +34,8 @@ enum input_mode {
 	savedefconfig,
 	listnewconfig,
 	olddefconfig,
-} input_mode = oldaskconfig;
+};
+static enum input_mode input_mode = oldaskconfig;
 
 static int indent = 1;
 static int tty_stdio;
@@ -80,6 +80,13 @@ static void check_stdin(void)
 		printf(_("Run 'make oldconfig' to update configuration.\n\n"));
 		exit(1);
 	}
+}
+
+/* Helper function to facilitate fgets() by Jean Sacren. */
+static void xfgets(char *str, int size, FILE *in)
+{
+	if (!fgets(str, size, in))
+		fprintf(stderr, "\nError in reading or end of file.\n");
 }
 
 static int conf_askvalue(struct symbol *sym, const char *def)
@@ -477,8 +484,9 @@ static void conf_usage(const char *progname)
 	printf("  --listnewconfig         List new options\n");
 	printf("  --oldaskconfig          Start a new configuration using a line-oriented program\n");
 	printf("  --oldconfig             Update a configuration using a provided .config as base\n");
-	printf("  --silentoldconfig       Same as oldconfig, but quietly, additionally update deps\n");
-	printf("  --olddefconfig          Same as silentoldconfig but sets new symbols to their default value\n");
+	printf("  --silentoldconfig       Similar to oldconfig but generates configuration in\n"
+	       "                          include/{generated/,config/} (oldconfig used to be more verbose)\n");
+	printf("  --olddefconfig          Same as oldconfig but sets new symbols to their default value\n");
 	printf("  --oldnoconfig           An alias of olddefconfig\n");
 	printf("  --defconfig <file>      New config with default defined in <file>\n");
 	printf("  --savedefconfig <file>  Save the minimal current configuration to <file>\n");
@@ -711,13 +719,4 @@ int main(int ac, char **av)
 		}
 	}
 	return 0;
-}
-
-/*
- * Helper function to facilitate fgets() by Jean Sacren.
- */
-void xfgets(char *str, int size, FILE *in)
-{
-	if (fgets(str, size, in) == NULL)
-		fprintf(stderr, "\nError in reading or end of file.\n");
 }

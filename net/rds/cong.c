@@ -219,7 +219,11 @@ void rds_cong_queue_updates(struct rds_cong_map *map)
 	spin_lock_irqsave(&rds_cong_lock, flags);
 
 	list_for_each_entry(conn, &map->m_conn_list, c_map_item) {
-		if (!test_and_set_bit(0, &conn->c_map_queued)) {
+		struct rds_conn_path *cp = &conn->c_path[0];
+
+		rcu_read_lock();
+		if (!test_and_set_bit(0, &conn->c_map_queued) &&
+		    !test_bit(RDS_DESTROY_PENDING, &cp->cp_flags)) {
 			rds_stats_inc(s_cong_update_queued);
 			/* We cannot inline the call to rds_send_xmit() here
 			 * for two reasons (both pertaining to a TCP transport):
@@ -235,9 +239,9 @@ void rds_cong_queue_updates(struct rds_cong_map *map)
 			 *    therefore trigger warnings.
 			 * Defer the xmit to rds_send_worker() instead.
 			 */
-			queue_delayed_work(rds_wq,
-					   &conn->c_path[0].cp_send_w, 0);
+			queue_delayed_work(rds_wq, &cp->cp_send_w, 0);
 		}
+		rcu_read_unlock();
 	}
 
 	spin_unlock_irqrestore(&rds_cong_lock, flags);

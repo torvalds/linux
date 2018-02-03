@@ -988,14 +988,14 @@ static int s5p_mfc_release(struct file *file)
 }
 
 /* Poll */
-static unsigned int s5p_mfc_poll(struct file *file,
+static __poll_t s5p_mfc_poll(struct file *file,
 				 struct poll_table_struct *wait)
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(file->private_data);
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct vb2_queue *src_q, *dst_q;
 	struct vb2_buffer *src_vb = NULL, *dst_vb = NULL;
-	unsigned int rc = 0;
+	__poll_t rc = 0;
 	unsigned long flags;
 
 	mutex_lock(&dev->mfc_mutex);

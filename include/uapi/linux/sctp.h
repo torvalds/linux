@@ -125,6 +125,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_SOCKOPT_PEELOFF_FLAGS 122
 #define SCTP_STREAM_SCHEDULER	123
 #define SCTP_STREAM_SCHEDULER_VALUE	124
+#define SCTP_INTERLEAVING_SUPPORTED	125
 
 /* PR-SCTP policies */
 #define SCTP_PR_SCTP_NONE	0x0000
@@ -459,6 +460,8 @@ struct sctp_pdapi_event {
 	__u32 pdapi_length;
 	__u32 pdapi_indication;
 	sctp_assoc_t pdapi_assoc_id;
+	__u32 pdapi_stream;
+	__u32 pdapi_seq;
 };
 
 enum { SCTP_PARTIAL_DELIVERY_ABORTED=0, };

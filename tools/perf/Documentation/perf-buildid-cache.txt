@@ -24,6 +24,9 @@ OPTIONS
 -a::
 --add=::
         Add specified file to the cache.
+-f::
+--force::
+	Don't complain, do it.
 -k::
 --kcore::
         Add specified kcore file to the cache. For the current host that is

@@ -169,9 +169,9 @@ xfs_scrub_parent_validate(
 	 * immediate inactive cleanup of the inode.
 	 */
 	error = xfs_iget(mp, sc->tp, dnum, 0, 0, &dp);
-	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
+	if (!xfs_scrub_fblock_xref_process_error(sc, XFS_DATA_FORK, 0, &error))
 		goto out;
-	if (dp == sc->ip) {
+	if (dp == sc->ip || !S_ISDIR(VFS_I(dp)->i_mode)) {
 		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		goto out_rele;
 	}
@@ -185,7 +185,7 @@ xfs_scrub_parent_validate(
 	 */
 	if (xfs_ilock_nowait(dp, XFS_IOLOCK_SHARED)) {
 		error = xfs_scrub_parent_count_parent_dentries(sc, dp, &nlink);
-		if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0,
+		if (!xfs_scrub_fblock_xref_process_error(sc, XFS_DATA_FORK, 0,
 				&error))
 			goto out_unlock;
 		if (nlink != expected_nlink)
@@ -205,7 +205,7 @@ xfs_scrub_parent_validate(
 
 	/* Go looking for our dentry. */
 	error = xfs_scrub_parent_count_parent_dentries(sc, dp, &nlink);
-	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
+	if (!xfs_scrub_fblock_xref_process_error(sc, XFS_DATA_FORK, 0, &error))
 		goto out_unlock;
 
 	/* Drop the parent lock, relock this inode. */

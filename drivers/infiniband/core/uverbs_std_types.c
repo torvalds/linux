@@ -35,6 +35,7 @@
 #include <rdma/ib_verbs.h>
 #include <linux/bug.h>
 #include <linux/file.h>
+#include <rdma/restrack.h>
 #include "rdma_core.h"
 #include "uverbs.h"
 
@@ -319,6 +320,8 @@ static int uverbs_create_cq_handler(struct ib_device *ib_dev,
 	obj->uobject.object = cq;
 	obj->uobject.user_handle = user_handle;
 	atomic_set(&cq->usecnt, 0);
+	cq->res.type = RDMA_RESTRACK_CQ;
+	rdma_restrack_add(&cq->res);
 
 	ret = uverbs_copy_to(attrs, CREATE_CQ_RESP_CQE, &cq->cqe);
 	if (ret)

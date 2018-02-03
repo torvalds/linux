@@ -154,11 +154,6 @@ static unsigned int ipv4_conntrack_local(void *priv,
 					 struct sk_buff *skb,
 					 const struct nf_hook_state *state)
 {
-	/* root is playing with raw sockets. */
-	if (skb->len < sizeof(struct iphdr) ||
-	    ip_hdrlen(skb) < sizeof(struct iphdr))
-		return NF_ACCEPT;
-
 	if (ip_is_fragment(ip_hdr(skb))) /* IP_NODEFRAG setsockopt set */
 		return NF_ACCEPT;
 
@@ -368,7 +363,7 @@ MODULE_ALIAS("nf_conntrack-" __stringify(AF_INET));
 MODULE_ALIAS("ip_conntrack");
 MODULE_LICENSE("GPL");
 
-static struct nf_conntrack_l4proto *builtin_l4proto4[] = {
+static const struct nf_conntrack_l4proto * const builtin_l4proto4[] = {
 	&nf_conntrack_l4proto_tcp4,
 	&nf_conntrack_l4proto_udp4,
 	&nf_conntrack_l4proto_icmp,

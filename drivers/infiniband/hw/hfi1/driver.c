@@ -159,22 +159,6 @@ static int hfi1_caps_get(char *buffer, const struct kernel_param *kp)
 	return scnprintf(buffer, PAGE_SIZE, "0x%lx", cap_mask);
 }
 
-const char *get_unit_name(int unit)
-{
-	static char iname[16];
-
-	snprintf(iname, sizeof(iname), DRIVER_NAME "_%u", unit);
-	return iname;
-}
-
-const char *get_card_name(struct rvt_dev_info *rdi)
-{
-	struct hfi1_ibdev *ibdev = container_of(rdi, struct hfi1_ibdev, rdi);
-	struct hfi1_devdata *dd = container_of(ibdev,
-					       struct hfi1_devdata, verbs_dev);
-	return get_unit_name(dd->unit);
-}
-
 struct pci_dev *get_pci_dev(struct rvt_dev_info *rdi)
 {
 	struct hfi1_ibdev *ibdev = container_of(rdi, struct hfi1_ibdev, rdi);

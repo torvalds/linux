@@ -103,14 +103,14 @@ slow:
 	goto got_it;
 }
 
-void *ns_get_path(struct path *path, struct task_struct *task,
-			const struct proc_ns_operations *ns_ops)
+void *ns_get_path_cb(struct path *path, ns_get_path_helper_t *ns_get_cb,
+		     void *private_data)
 {
 	struct ns_common *ns;
 	void *ret;
 
 again:
-	ns = ns_ops->get(task);
+	ns = ns_get_cb(private_data);
 	if (!ns)
 		return ERR_PTR(-ENOENT);
 
@@ -118,6 +118,29 @@ again:
 	if (IS_ERR(ret) && PTR_ERR(ret) == -EAGAIN)
 		goto again;
 	return ret;
+}
+
+struct ns_get_path_task_args {
+	const struct proc_ns_operations *ns_ops;
+	struct task_struct *task;
+};
+
+static struct ns_common *ns_get_path_task(void *private_data)
+{
+	struct ns_get_path_task_args *args = private_data;
+
+	return args->ns_ops->get(args->task);
+}
+
+void *ns_get_path(struct path *path, struct task_struct *task,
+		  const struct proc_ns_operations *ns_ops)
+{
+	struct ns_get_path_task_args args = {
+		.ns_ops	= ns_ops,
+		.task	= task,
+	};
+
+	return ns_get_path_cb(path, ns_get_path_task, &args);
 }
 
 int open_related_ns(struct ns_common *ns,

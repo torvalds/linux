@@ -122,6 +122,8 @@ struct ip_set_ext {
 	u64 bytes;
 	char *comment;
 	u32 timeout;
+	u8 packets_op;
+	u8 bytes_op;
 };
 
 struct ip_set;
@@ -339,6 +341,10 @@ extern int ip_set_get_extensions(struct ip_set *set, struct nlattr *tb[],
 				 struct ip_set_ext *ext);
 extern int ip_set_put_extensions(struct sk_buff *skb, const struct ip_set *set,
 				 const void *e, bool active);
+extern bool ip_set_match_extensions(struct ip_set *set,
+				    const struct ip_set_ext *ext,
+				    struct ip_set_ext *mext,
+				    u32 flags, void *data);
 
 static inline int
 ip_set_get_hostipaddr4(struct nlattr *nla, u32 *ipaddr)

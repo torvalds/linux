@@ -25,7 +25,6 @@
 #include <linux/spinlock.h>
 #include <linux/bootmem.h>
 #include <linux/ioport.h>
-#include <linux/init.h>
 #include <linux/mc146818rtc.h>
 #include <linux/efi.h>
 #include <linux/uaccess.h>
@@ -135,7 +134,9 @@ pgd_t * __init efi_call_phys_prolog(void)
 				pud[j] = *pud_offset(p4d_k, vaddr);
 			}
 		}
+		pgd_offset_k(pgd * PGDIR_SIZE)->pgd &= ~_PAGE_NX;
 	}
+
 out:
 	__flush_tlb_all();
 

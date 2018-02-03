@@ -753,7 +753,7 @@ unlock:
 	return ret ? ret : count;
 }
 
-static unsigned int uhid_char_poll(struct file *file, poll_table *wait)
+static __poll_t uhid_char_poll(struct file *file, poll_table *wait)
 {
 	struct uhid_device *uhid = file->private_data;
 

@@ -216,7 +216,8 @@ static int prelim_ref_compare(struct prelim_ref *ref1,
 	return 0;
 }
 
-void update_share_count(struct share_check *sc, int oldcount, int newcount)
+static void update_share_count(struct share_check *sc, int oldcount,
+			       int newcount)
 {
 	if ((!sc) || (oldcount == 0 && newcount < 1))
 		return;

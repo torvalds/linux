@@ -37,16 +37,16 @@
 #define I915_CSR_GLK "i915/glk_dmc_ver1_04.bin"
 #define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
 
-#define I915_CSR_CNL "i915/cnl_dmc_ver1_04.bin"
-#define CNL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
+#define I915_CSR_CNL "i915/cnl_dmc_ver1_06.bin"
+#define CNL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 6)
 
-#define I915_CSR_KBL "i915/kbl_dmc_ver1_01.bin"
+#define I915_CSR_KBL "i915/kbl_dmc_ver1_04.bin"
 MODULE_FIRMWARE(I915_CSR_KBL);
-#define KBL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 1)
+#define KBL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
 
-#define I915_CSR_SKL "i915/skl_dmc_ver1_26.bin"
+#define I915_CSR_SKL "i915/skl_dmc_ver1_27.bin"
 MODULE_FIRMWARE(I915_CSR_SKL);
-#define SKL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 26)
+#define SKL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 27)
 
 #define I915_CSR_BXT "i915/bxt_dmc_ver1_07.bin"
 MODULE_FIRMWARE(I915_CSR_BXT);
@@ -198,6 +198,7 @@ intel_get_stepping_info(struct drm_i915_private *dev_priv)
 		si = bxt_stepping_info;
 	} else {
 		size = 0;
+		si = NULL;
 	}
 
 	if (INTEL_REVID(dev_priv) < size)

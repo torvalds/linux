@@ -249,7 +249,7 @@ config HIGHMEM
 
 	  If unsure, say "true".
 
-config ZONE_DMA
+config ZONE_DMA32
 	def_bool y
 
 config IOMMU_HELPER
@@ -261,6 +261,7 @@ config NEED_SG_DMA_LENGTH
 config SWIOTLB
 	bool
 	default TILEGX
+	select DMA_DIRECT_OPS
 	select IOMMU_HELPER
 	select NEED_SG_DMA_LENGTH
 	select ARCH_HAS_DMA_SET_COHERENT_MASK

@@ -86,6 +86,18 @@
 #define ESR_ELx_WNR_SHIFT	(6)
 #define ESR_ELx_WNR		(UL(1) << ESR_ELx_WNR_SHIFT)
 
+/* Asynchronous Error Type */
+#define ESR_ELx_IDS_SHIFT	(24)
+#define ESR_ELx_IDS		(UL(1) << ESR_ELx_IDS_SHIFT)
+#define ESR_ELx_AET_SHIFT	(10)
+#define ESR_ELx_AET		(UL(0x7) << ESR_ELx_AET_SHIFT)
+
+#define ESR_ELx_AET_UC		(UL(0) << ESR_ELx_AET_SHIFT)
+#define ESR_ELx_AET_UEU		(UL(1) << ESR_ELx_AET_SHIFT)
+#define ESR_ELx_AET_UEO		(UL(2) << ESR_ELx_AET_SHIFT)
+#define ESR_ELx_AET_UER		(UL(3) << ESR_ELx_AET_SHIFT)
+#define ESR_ELx_AET_CE		(UL(6) << ESR_ELx_AET_SHIFT)
+
 /* Shared ISS field definitions for Data/Instruction aborts */
 #define ESR_ELx_SET_SHIFT	(11)
 #define ESR_ELx_SET_MASK	(UL(3) << ESR_ELx_SET_SHIFT)
@@ -100,6 +112,7 @@
 #define ESR_ELx_FSC		(0x3F)
 #define ESR_ELx_FSC_TYPE	(0x3C)
 #define ESR_ELx_FSC_EXTABT	(0x10)
+#define ESR_ELx_FSC_SERROR	(0x11)
 #define ESR_ELx_FSC_ACCESS	(0x08)
 #define ESR_ELx_FSC_FAULT	(0x04)
 #define ESR_ELx_FSC_PERM	(0x0C)
@@ -126,6 +139,13 @@
 #define ESR_ELx_COND_MASK	(UL(0xF) << ESR_ELx_COND_SHIFT)
 #define ESR_ELx_WFx_ISS_WFE	(UL(1) << 0)
 #define ESR_ELx_xVC_IMM_MASK	((1UL << 16) - 1)
+
+#define DISR_EL1_IDS		(UL(1) << 24)
+/*
+ * DISR_EL1 and ESR_ELx share the bottom 13 bits, but the RES0 bits may mean
+ * different things in the future...
+ */
+#define DISR_EL1_ESR_MASK	(ESR_ELx_AET | ESR_ELx_EA | ESR_ELx_FSC)
 
 /* ESR value templates for specific events */
 

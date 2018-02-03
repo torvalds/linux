@@ -49,6 +49,10 @@
 #define IPU_PRE_TPR_CTRL				0x070
 #define  IPU_PRE_TPR_CTRL_TILE_FORMAT(v)		((v & 0xff) << 0)
 #define  IPU_PRE_TPR_CTRL_TILE_FORMAT_MASK		0xff
+#define  IPU_PRE_TPR_CTRL_TILE_FORMAT_16_BIT		(1 << 0)
+#define  IPU_PRE_TPR_CTRL_TILE_FORMAT_SPLIT_BUF		(1 << 4)
+#define  IPU_PRE_TPR_CTRL_TILE_FORMAT_SINGLE_BUF	(1 << 5)
+#define  IPU_PRE_TPR_CTRL_TILE_FORMAT_SUPER_TILED	(1 << 6)
 
 #define IPU_PRE_PREFETCH_ENG_CTRL			0x080
 #define  IPU_PRE_PREF_ENG_CTRL_PREFETCH_EN		(1 << 0)
@@ -147,7 +151,7 @@ int ipu_pre_get(struct ipu_pre *pre)
 	val = IPU_PRE_CTRL_HANDSHAKE_ABORT_SKIP_EN |
 	      IPU_PRE_CTRL_HANDSHAKE_EN |
 	      IPU_PRE_CTRL_TPR_REST_SEL |
-	      IPU_PRE_CTRL_BLOCK_16 | IPU_PRE_CTRL_SDW_UPDATE;
+	      IPU_PRE_CTRL_SDW_UPDATE;
 	writel(val, pre->regs + IPU_PRE_CTRL);
 
 	pre->in_use = true;
@@ -163,14 +167,17 @@ void ipu_pre_put(struct ipu_pre *pre)
 
 void ipu_pre_configure(struct ipu_pre *pre, unsigned int width,
 		       unsigned int height, unsigned int stride, u32 format,
-		       unsigned int bufaddr)
+		       uint64_t modifier, unsigned int bufaddr)
 {
 	const struct drm_format_info *info = drm_format_info(format);
 	u32 active_bpp = info->cpp[0] >> 1;
 	u32 val;
 
 	/* calculate safe window for ctrl register updates */
-	pre->safe_window_end = height - 2;
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		pre->safe_window_end = height - 2;
+	else
+		pre->safe_window_end = DIV_ROUND_UP(height, 4) - 1;
 
 	writel(bufaddr, pre->regs + IPU_PRE_CUR_BUF);
 	writel(bufaddr, pre->regs + IPU_PRE_NEXT_BUF);
@@ -203,9 +210,25 @@ void ipu_pre_configure(struct ipu_pre *pre, unsigned int width,
 
 	writel(pre->buffer_paddr, pre->regs + IPU_PRE_STORE_ENG_ADDR);
 
+	val = readl(pre->regs + IPU_PRE_TPR_CTRL);
+	val &= ~IPU_PRE_TPR_CTRL_TILE_FORMAT_MASK;
+	if (modifier != DRM_FORMAT_MOD_LINEAR) {
+		/* only support single buffer formats for now */
+		val |= IPU_PRE_TPR_CTRL_TILE_FORMAT_SINGLE_BUF;
+		if (modifier == DRM_FORMAT_MOD_VIVANTE_SUPER_TILED)
+			val |= IPU_PRE_TPR_CTRL_TILE_FORMAT_SUPER_TILED;
+		if (info->cpp[0] == 2)
+			val |= IPU_PRE_TPR_CTRL_TILE_FORMAT_16_BIT;
+	}
+	writel(val, pre->regs + IPU_PRE_TPR_CTRL);
+
 	val = readl(pre->regs + IPU_PRE_CTRL);
 	val |= IPU_PRE_CTRL_EN_REPEAT | IPU_PRE_CTRL_ENABLE |
 	       IPU_PRE_CTRL_SDW_UPDATE;
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		val &= ~IPU_PRE_CTRL_BLOCK_EN;
+	else
+		val |= IPU_PRE_CTRL_BLOCK_EN;
 	writel(val, pre->regs + IPU_PRE_CTRL);
 }
 

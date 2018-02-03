@@ -772,20 +772,17 @@ struct chain_tracker {
 /**
  * struct scsiio_tracker - scsi mf request tracker
  * @smid: system message id
- * @scmd: scsi request pointer
  * @cb_idx: callback index
  * @direct_io: To indicate whether I/O is direct (WARPDRIVE)
- * @tracker_list: list of free request (ioc->free_list)
+ * @chain_list: list of associated firmware chain tracker
  * @msix_io: IO's msix
  */
 struct scsiio_tracker {
 	u16	smid;
-	struct scsi_cmnd *scmd;
 	u8	cb_idx;
 	u8	direct_io;
 	struct pcie_sg_list pcie_sg_list;
 	struct list_head chain_list;
-	struct list_head tracker_list;
 	u16     msix_io;
 };
 
@@ -1248,10 +1245,8 @@ struct MPT3SAS_ADAPTER {
 	u8		*request;
 	dma_addr_t	request_dma;
 	u32		request_dma_sz;
-	struct scsiio_tracker *scsi_lookup;
-	ulong		scsi_lookup_pages;
+	struct pcie_sg_list *pcie_sg_lookup;
 	spinlock_t	scsi_lookup_lock;
-	struct list_head free_list;
 	int		pending_io_count;
 	wait_queue_head_t reset_wq;
 
@@ -1270,6 +1265,7 @@ struct MPT3SAS_ADAPTER {
 	u16		chains_needed_per_io;
 	u32		chain_depth;
 	u16		chain_segment_sz;
+	u16		chains_per_prp_buffer;
 
 	/* hi-priority queue */
 	u16		hi_priority_smid;
@@ -1401,7 +1397,9 @@ void mpt3sas_base_sync_reply_irqs(struct MPT3SAS_ADAPTER *ioc);
 /* hi-priority queue */
 u16 mpt3sas_base_get_smid_hpr(struct MPT3SAS_ADAPTER *ioc, u8 cb_idx);
 u16 mpt3sas_base_get_smid_scsiio(struct MPT3SAS_ADAPTER *ioc, u8 cb_idx,
-	struct scsi_cmnd *scmd);
+		struct scsi_cmnd *scmd);
+void mpt3sas_base_clear_st(struct MPT3SAS_ADAPTER *ioc,
+		struct scsiio_tracker *st);
 
 u16 mpt3sas_base_get_smid(struct MPT3SAS_ADAPTER *ioc, u8 cb_idx);
 void mpt3sas_base_free_smid(struct MPT3SAS_ADAPTER *ioc, u16 smid);
@@ -1437,16 +1435,16 @@ int mpt3sas_port_enable(struct MPT3SAS_ADAPTER *ioc);
 
 
 /* scsih shared API */
+struct scsi_cmnd *mpt3sas_scsih_scsi_lookup_get(struct MPT3SAS_ADAPTER *ioc,
+	u16 smid);
 u8 mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 	u32 reply);
 void mpt3sas_scsih_reset_handler(struct MPT3SAS_ADAPTER *ioc, int reset_phase);
 
 int mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle,
-	uint channel, uint id, uint lun, u8 type, u16 smid_task,
-	ulong timeout);
+	u64 lun, u8 type, u16 smid_task, u16 msix_task, ulong timeout);
 int mpt3sas_scsih_issue_locked_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle,
-	uint channel, uint id, uint lun, u8 type, u16 smid_task,
-	ulong timeout);
+	u64 lun, u8 type, u16 smid_task, u16 msix_task, ulong timeout);
 
 void mpt3sas_scsih_set_tm_flag(struct MPT3SAS_ADAPTER *ioc, u16 handle);
 void mpt3sas_scsih_clear_tm_flag(struct MPT3SAS_ADAPTER *ioc, u16 handle);
@@ -1613,14 +1611,9 @@ void mpt3sas_trigger_mpi(struct MPT3SAS_ADAPTER *ioc, u16 ioc_status,
 u8 mpt3sas_get_num_volumes(struct MPT3SAS_ADAPTER *ioc);
 void mpt3sas_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
 	struct _raid_device *raid_device);
-u8
-mpt3sas_scsi_direct_io_get(struct MPT3SAS_ADAPTER *ioc, u16 smid);
-void
-mpt3sas_scsi_direct_io_set(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 direct_io);
 void
 mpt3sas_setup_direct_io(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
-	struct _raid_device *raid_device, Mpi25SCSIIORequest_t *mpi_request,
-	u16 smid);
+	struct _raid_device *raid_device, Mpi25SCSIIORequest_t *mpi_request);
 
 /* NCQ Prio Handling Check */
 bool scsih_ncq_prio_supp(struct scsi_device *sdev);

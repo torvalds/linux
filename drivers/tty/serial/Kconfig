@@ -761,24 +761,30 @@ config SERIAL_SH_SCI
 	select SERIAL_MCTRL_GPIO if GPIOLIB
 
 config SERIAL_SH_SCI_NR_UARTS
-	int "Maximum number of SCI(F) serial ports"
+	int "Maximum number of SCI(F) serial ports" if EXPERT
 	depends on SERIAL_SH_SCI
+	default "3" if H8300
+	default "10" if SUPERH
+	default "18" if ARCH_RENESAS
 	default "2"
 
 config SERIAL_SH_SCI_CONSOLE
-	bool "Support for console on SuperH SCI(F)"
+	bool "Support for console on SuperH SCI(F)" if EXPERT
 	depends on SERIAL_SH_SCI=y
 	select SERIAL_CORE_CONSOLE
+	default y
 
 config SERIAL_SH_SCI_EARLYCON
-	bool "Support for early console on SuperH SCI(F)"
+	bool "Support for early console on SuperH SCI(F)" if EXPERT
 	depends on SERIAL_SH_SCI=y
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
+	default ARCH_RENESAS || H8300
 
 config SERIAL_SH_SCI_DMA
-	bool "DMA support"
+	bool "DMA support" if EXPERT
 	depends on SERIAL_SH_SCI && DMA_ENGINE
+	default ARCH_RENESAS
 
 config SERIAL_PNX8XXX
 	bool "Enable PNX8XXX SoCs' UART Support"

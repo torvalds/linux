@@ -16,8 +16,8 @@
  * are not supported on any CPU using the idmap tables as its current
  * page tables.
  */
-pgd_t *idmap_pgd;
-long long arch_phys_to_idmap_offset;
+pgd_t *idmap_pgd __ro_after_init;
+long long arch_phys_to_idmap_offset __ro_after_init;
 
 #ifdef CONFIG_ARM_LPAE
 static void idmap_add_pmd(pud_t *pud, unsigned long addr, unsigned long end,

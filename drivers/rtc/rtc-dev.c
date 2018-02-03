@@ -194,7 +194,7 @@ rtc_dev_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	return ret;
 }
 
-static unsigned int rtc_dev_poll(struct file *file, poll_table *wait)
+static __poll_t rtc_dev_poll(struct file *file, poll_table *wait)
 {
 	struct rtc_device *rtc = file->private_data;
 	unsigned long data;

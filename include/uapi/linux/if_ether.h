@@ -23,6 +23,7 @@
 #define _UAPI_LINUX_IF_ETHER_H
 
 #include <linux/types.h>
+#include <linux/libc-compat.h>
 
 /*
  *	IEEE 802.3 Ethernet magic constants.  The frame sizes omit the preamble
@@ -47,6 +48,7 @@
 #define ETH_P_PUP	0x0200		/* Xerox PUP packet		*/
 #define ETH_P_PUPAT	0x0201		/* Xerox PUP Addr Trans packet	*/
 #define ETH_P_TSN	0x22F0		/* TSN (IEEE 1722) packet	*/
+#define ETH_P_ERSPAN2	0x22EB		/* ERSPAN version 2 (type III)	*/
 #define ETH_P_IP	0x0800		/* Internet Protocol packet	*/
 #define ETH_P_X25	0x0805		/* CCITT X.25			*/
 #define ETH_P_ARP	0x0806		/* Address Resolution packet	*/
@@ -149,11 +151,13 @@
  *	This is an Ethernet frame header.
  */
 
+#if __UAPI_DEF_ETHHDR
 struct ethhdr {
 	unsigned char	h_dest[ETH_ALEN];	/* destination eth addr	*/
 	unsigned char	h_source[ETH_ALEN];	/* source ether addr	*/
 	__be16		h_proto;		/* packet type ID field	*/
 } __attribute__((packed));
+#endif
 
 
 #endif /* _UAPI_LINUX_IF_ETHER_H */

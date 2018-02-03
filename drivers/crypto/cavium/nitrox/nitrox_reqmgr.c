@@ -6,7 +6,6 @@
 #include "nitrox_dev.h"
 #include "nitrox_req.h"
 #include "nitrox_csr.h"
-#include "nitrox_req.h"
 
 /* SLC_STORE_INFO */
 #define MIN_UDD_LEN 16

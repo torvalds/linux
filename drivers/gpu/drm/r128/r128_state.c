@@ -982,25 +982,14 @@ static int r128_cce_dispatch_write_pixels(struct drm_device *dev,
 
 	xbuf_size = count * sizeof(*x);
 	ybuf_size = count * sizeof(*y);
-	x = kmalloc(xbuf_size, GFP_KERNEL);
-	if (x == NULL)
-		return -ENOMEM;
-	y = kmalloc(ybuf_size, GFP_KERNEL);
-	if (y == NULL) {
+	x = memdup_user(depth->x, xbuf_size);
+	if (IS_ERR(x))
+		return PTR_ERR(x);
+	y = memdup_user(depth->y, ybuf_size);
+	if (IS_ERR(y)) {
 		kfree(x);
-		return -ENOMEM;
+		return PTR_ERR(y);
 	}
-	if (copy_from_user(x, depth->x, xbuf_size)) {
-		kfree(x);
-		kfree(y);
-		return -EFAULT;
-	}
-	if (copy_from_user(y, depth->y, xbuf_size)) {
-		kfree(x);
-		kfree(y);
-		return -EFAULT;
-	}
-
 	buffer_size = depth->n * sizeof(u32);
 	buffer = memdup_user(depth->buffer, buffer_size);
 	if (IS_ERR(buffer)) {

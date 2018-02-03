@@ -66,6 +66,12 @@ static inline bool rt6_need_strict(const struct in6_addr *daddr)
 		(IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL | IPV6_ADDR_LOOPBACK);
 }
 
+static inline bool rt6_qualify_for_ecmp(const struct rt6_info *rt)
+{
+	return (rt->rt6i_flags & (RTF_GATEWAY|RTF_ADDRCONF|RTF_DYNAMIC)) ==
+	       RTF_GATEWAY;
+}
+
 void ip6_route_input(struct sk_buff *skb);
 struct dst_entry *ip6_route_input_lookup(struct net *net,
 					 struct net_device *dev,
@@ -165,10 +171,13 @@ struct rt6_rtnl_dump_arg {
 };
 
 int rt6_dump_route(struct rt6_info *rt, void *p_arg);
-void rt6_ifdown(struct net *net, struct net_device *dev);
 void rt6_mtu_change(struct net_device *dev, unsigned int mtu);
 void rt6_remove_prefsrc(struct inet6_ifaddr *ifp);
 void rt6_clean_tohost(struct net *net, struct in6_addr *gateway);
+void rt6_sync_up(struct net_device *dev, unsigned int nh_flags);
+void rt6_disable_ip(struct net_device *dev, unsigned long event);
+void rt6_sync_down_dev(struct net_device *dev, unsigned long event);
+void rt6_multipath_rebalance(struct rt6_info *rt);
 
 static inline const struct rt6_info *skb_rt6_info(const struct sk_buff *skb)
 {

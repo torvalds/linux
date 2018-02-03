@@ -18,6 +18,7 @@
 #include <linux/if_alg.h>
 #include <linux/scatterlist.h>
 #include <linux/types.h>
+#include <linux/atomic.h>
 #include <net/sock.h>
 
 #include <crypto/aead.h>
@@ -150,7 +151,7 @@ struct af_alg_ctx {
 	struct crypto_wait wait;
 
 	size_t used;
-	size_t rcvused;
+	atomic_t rcvused;
 
 	bool more;
 	bool merge;
@@ -215,7 +216,7 @@ static inline int af_alg_rcvbuf(struct sock *sk)
 	struct af_alg_ctx *ctx = ask->private;
 
 	return max_t(int, max_t(int, sk->sk_rcvbuf & PAGE_MASK, PAGE_SIZE) -
-			  ctx->rcvused, 0);
+		     atomic_read(&ctx->rcvused), 0);
 }
 
 /**
@@ -244,7 +245,7 @@ ssize_t af_alg_sendpage(struct socket *sock, struct page *page,
 			int offset, size_t size, int flags);
 void af_alg_free_resources(struct af_alg_async_req *areq);
 void af_alg_async_cb(struct crypto_async_request *_req, int err);
-unsigned int af_alg_poll(struct file *file, struct socket *sock,
+__poll_t af_alg_poll(struct file *file, struct socket *sock,
 			 poll_table *wait);
 struct af_alg_async_req *af_alg_alloc_areq(struct sock *sk,
 					   unsigned int areqlen);

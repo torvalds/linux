@@ -776,7 +776,6 @@ static ssize_t clusterip_proc_write(struct file *file, const char __user *input,
 }
 
 static const struct file_operations clusterip_proc_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = clusterip_proc_open,
 	.read	 = seq_read,
 	.write	 = clusterip_proc_write,

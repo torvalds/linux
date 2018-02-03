@@ -20,7 +20,7 @@ Optional properties:
 
 Example : NoC Probe nodes in Device Tree are listed below.
 
-	nocp_mem0_0: nocp@10CA1000 {
+	nocp_mem0_0: nocp@10ca1000 {
 		compatible = "samsung,exynos5420-nocp";
 		reg = <0x10CA1000 0x200>;
 	};

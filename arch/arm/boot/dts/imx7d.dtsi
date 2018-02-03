@@ -63,6 +63,13 @@
 		};
 	};
 
+	usbphynop2: usbphynop2 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX7D_USB_PHY2_CLK>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
+	};
+
 	soc {
 		etm@3007d000 {
 			compatible = "arm,coresight-etm3x", "arm,primecell";
@@ -105,18 +112,14 @@
 		reg = <0x30b20200 0x200>;
 	};
 
-	usbphynop2: usbphynop2 {
-		compatible = "usb-nop-xceiv";
-		clocks = <&clks IMX7D_USB_PHY2_CLK>;
-		clock-names = "main_clk";
-	};
-
 	fec2: ethernet@30bf0000 {
 		compatible = "fsl,imx7d-fec", "fsl,imx6sx-fec";
 		reg = <0x30bf0000 0x10000>;
-		interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
+		interrupt-names = "int0", "int1", "int2", "pps";
+		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
-			<GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+			<GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clks IMX7D_ENET_AXI_ROOT_CLK>,
 			<&clks IMX7D_ENET_AXI_ROOT_CLK>,
 			<&clks IMX7D_ENET2_TIME_ROOT_CLK>,
@@ -129,7 +132,7 @@
 		status = "disabled";
 	};
 
-	pcie: pcie@0x33800000 {
+	pcie: pcie@33800000 {
 		compatible = "fsl,imx7d-pcie", "snps,dw-pcie";
 		reg = <0x33800000 0x4000>,
 		      <0x4ff00000 0x80000>;
@@ -137,6 +140,7 @@
 		#address-cells = <3>;
 		#size-cells = <2>;
 		device_type = "pci";
+		bus-range = <0x00 0xff>;
 		ranges = <0x81000000 0 0          0x4ff80000 0 0x00010000   /* downstream I/O */
 			  0x82000000 0 0x40000000 0x40000000 0 0x0ff00000>; /* non-prefetchable memory */
 		num-lanes = <1>;

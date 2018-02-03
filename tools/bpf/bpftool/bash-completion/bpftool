@@ -197,7 +197,7 @@ _bpftool()
 
             local PROG_TYPE='id pinned tag'
             case $command in
-                show)
+                show|list)
                     [[ $prev != "$command" ]] && return 0
                     COMPREPLY=( $( compgen -W "$PROG_TYPE" -- "$cur" ) )
                     return 0
@@ -232,7 +232,7 @@ _bpftool()
                     ;;
                 *)
                     [[ $prev == $object ]] && \
-                        COMPREPLY=( $( compgen -W 'dump help pin show' -- \
+                        COMPREPLY=( $( compgen -W 'dump help pin show list' -- \
                             "$cur" ) )
                     ;;
             esac
@@ -240,7 +240,7 @@ _bpftool()
         map)
             local MAP_TYPE='id pinned'
             case $command in
-                show|dump)
+                show|list|dump)
                     case $prev in
                         $command)
                             COMPREPLY=( $( compgen -W "$MAP_TYPE" -- "$cur" ) )
@@ -343,7 +343,7 @@ _bpftool()
                 *)
                     [[ $prev == $object ]] && \
                         COMPREPLY=( $( compgen -W 'delete dump getnext help \
-                            lookup pin show update' -- "$cur" ) )
+                            lookup pin show list update' -- "$cur" ) )
                     ;;
             esac
             ;;

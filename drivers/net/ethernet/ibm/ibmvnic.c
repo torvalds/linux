@@ -59,6 +59,7 @@
 #include <linux/mm.h>
 #include <linux/ethtool.h>
 #include <linux/proc_fs.h>
+#include <linux/if_arp.h>
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -410,6 +411,10 @@ static int reset_rx_pools(struct ibmvnic_adapter *adapter)
 	struct ibmvnic_rx_pool *rx_pool;
 	int rx_scrqs;
 	int i, j, rc;
+	u64 *size_array;
+
+	size_array = (u64 *)((u8 *)(adapter->login_rsp_buf) +
+		be32_to_cpu(adapter->login_rsp_buf->off_rxadd_buff_size));
 
 	rx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
 	for (i = 0; i < rx_scrqs; i++) {
@@ -417,7 +422,17 @@ static int reset_rx_pools(struct ibmvnic_adapter *adapter)
 
 		netdev_dbg(adapter->netdev, "Re-setting rx_pool[%d]\n", i);
 
-		rc = reset_long_term_buff(adapter, &rx_pool->long_term_buff);
+		if (rx_pool->buff_size != be64_to_cpu(size_array[i])) {
+			free_long_term_buff(adapter, &rx_pool->long_term_buff);
+			rx_pool->buff_size = be64_to_cpu(size_array[i]);
+			alloc_long_term_buff(adapter, &rx_pool->long_term_buff,
+					     rx_pool->size *
+					     rx_pool->buff_size);
+		} else {
+			rc = reset_long_term_buff(adapter,
+						  &rx_pool->long_term_buff);
+		}
+
 		if (rc)
 			return rc;
 
@@ -439,14 +454,12 @@ static int reset_rx_pools(struct ibmvnic_adapter *adapter)
 static void release_rx_pools(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_rx_pool *rx_pool;
-	int rx_scrqs;
 	int i, j;
 
 	if (!adapter->rx_pool)
 		return;
 
-	rx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
-	for (i = 0; i < rx_scrqs; i++) {
+	for (i = 0; i < adapter->num_active_rx_pools; i++) {
 		rx_pool = &adapter->rx_pool[i];
 
 		netdev_dbg(adapter->netdev, "Releasing rx_pool[%d]\n", i);
@@ -469,6 +482,7 @@ static void release_rx_pools(struct ibmvnic_adapter *adapter)
 
 	kfree(adapter->rx_pool);
 	adapter->rx_pool = NULL;
+	adapter->num_active_rx_pools = 0;
 }
 
 static int init_rx_pools(struct net_device *netdev)
@@ -492,6 +506,8 @@ static int init_rx_pools(struct net_device *netdev)
 		dev_err(dev, "Failed to allocate rx pools\n");
 		return -1;
 	}
+
+	adapter->num_active_rx_pools = 0;
 
 	for (i = 0; i < rxadd_subcrqs; i++) {
 		rx_pool = &adapter->rx_pool[i];
@@ -535,6 +551,8 @@ static int init_rx_pools(struct net_device *netdev)
 		rx_pool->next_alloc = 0;
 		rx_pool->next_free = 0;
 	}
+
+	adapter->num_active_rx_pools = rxadd_subcrqs;
 
 	return 0;
 }
@@ -586,13 +604,12 @@ static void release_vpd_data(struct ibmvnic_adapter *adapter)
 static void release_tx_pools(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_tx_pool *tx_pool;
-	int i, tx_scrqs;
+	int i;
 
 	if (!adapter->tx_pool)
 		return;
 
-	tx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
-	for (i = 0; i < tx_scrqs; i++) {
+	for (i = 0; i < adapter->num_active_tx_pools; i++) {
 		netdev_dbg(adapter->netdev, "Releasing tx_pool[%d]\n", i);
 		tx_pool = &adapter->tx_pool[i];
 		kfree(tx_pool->tx_buff);
@@ -603,6 +620,7 @@ static void release_tx_pools(struct ibmvnic_adapter *adapter)
 
 	kfree(adapter->tx_pool);
 	adapter->tx_pool = NULL;
+	adapter->num_active_tx_pools = 0;
 }
 
 static int init_tx_pools(struct net_device *netdev)
@@ -618,6 +636,8 @@ static int init_tx_pools(struct net_device *netdev)
 				   sizeof(struct ibmvnic_tx_pool), GFP_KERNEL);
 	if (!adapter->tx_pool)
 		return -1;
+
+	adapter->num_active_tx_pools = 0;
 
 	for (i = 0; i < tx_subcrqs; i++) {
 		tx_pool = &adapter->tx_pool[i];
@@ -665,6 +685,8 @@ static int init_tx_pools(struct net_device *netdev)
 		tx_pool->consumer_index = 0;
 		tx_pool->producer_index = 0;
 	}
+
+	adapter->num_active_tx_pools = tx_subcrqs;
 
 	return 0;
 }
@@ -755,6 +777,12 @@ static int ibmvnic_login(struct net_device *netdev)
 			return -1;
 		}
 	} while (adapter->renegotiate);
+
+	/* handle pending MAC address changes after successful login */
+	if (adapter->mac_change_pending) {
+		__ibmvnic_set_mac(netdev, &adapter->desired.mac);
+		adapter->mac_change_pending = false;
+	}
 
 	return 0;
 }
@@ -854,7 +882,7 @@ static int ibmvnic_get_vpd(struct ibmvnic_adapter *adapter)
 	if (adapter->vpd->buff)
 		len = adapter->vpd->len;
 
-	reinit_completion(&adapter->fw_done);
+	init_completion(&adapter->fw_done);
 	crq.get_vpd_size.first = IBMVNIC_CRQ_CMD;
 	crq.get_vpd_size.cmd = GET_VPD_SIZE;
 	ibmvnic_send_crq(adapter, &crq);
@@ -915,6 +943,13 @@ static int init_resources(struct ibmvnic_adapter *adapter)
 	adapter->vpd = kzalloc(sizeof(*adapter->vpd), GFP_KERNEL);
 	if (!adapter->vpd)
 		return -ENOMEM;
+
+	/* Vital Product Data (VPD) */
+	rc = ibmvnic_get_vpd(adapter);
+	if (rc) {
+		netdev_err(netdev, "failed to initialize Vital Product Data (VPD)\n");
+		return rc;
+	}
 
 	adapter->map_id = 1;
 	adapter->napi = kcalloc(adapter->req_rx_queues,
@@ -989,14 +1024,9 @@ static int __ibmvnic_open(struct net_device *netdev)
 static int ibmvnic_open(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
-	int rc, vpd;
+	int rc;
 
 	mutex_lock(&adapter->reset_lock);
-
-	if (adapter->mac_change_pending) {
-		__ibmvnic_set_mac(netdev, &adapter->desired.mac);
-		adapter->mac_change_pending = false;
-	}
 
 	if (adapter->state != VNIC_CLOSED) {
 		rc = ibmvnic_login(netdev);
@@ -1016,11 +1046,6 @@ static int ibmvnic_open(struct net_device *netdev)
 
 	rc = __ibmvnic_open(netdev);
 	netif_carrier_on(netdev);
-
-	/* Vital Product Data (VPD) */
-	vpd = ibmvnic_get_vpd(adapter);
-	if (vpd)
-		netdev_err(netdev, "failed to initialize Vital Product Data (VPD)\n");
 
 	mutex_unlock(&adapter->reset_lock);
 
@@ -1153,6 +1178,9 @@ static int build_hdr_data(u8 hdr_field, struct sk_buff *skb,
 			hdr_len[2] = tcp_hdrlen(skb);
 		else if (ipv6_hdr(skb)->nexthdr == IPPROTO_UDP)
 			hdr_len[2] = sizeof(struct udphdr);
+	} else if (skb->protocol == htons(ETH_P_ARP)) {
+		hdr_len[1] = arp_hdr_len(skb->dev);
+		hdr_len[2] = 0;
 	}
 
 	memset(hdr_data, 0, 120);
@@ -1275,6 +1303,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	unsigned char *dst;
 	u64 *handle_array;
 	int index = 0;
+	u8 proto = 0;
 	int ret = 0;
 
 	if (adapter->resetting) {
@@ -1363,16 +1392,17 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	if (skb->protocol == htons(ETH_P_IP)) {
-		if (ip_hdr(skb)->version == 4)
-			tx_crq.v1.flags1 |= IBMVNIC_TX_PROT_IPV4;
-		else if (ip_hdr(skb)->version == 6)
-			tx_crq.v1.flags1 |= IBMVNIC_TX_PROT_IPV6;
-
-		if (ip_hdr(skb)->protocol == IPPROTO_TCP)
-			tx_crq.v1.flags1 |= IBMVNIC_TX_PROT_TCP;
-		else if (ip_hdr(skb)->protocol != IPPROTO_TCP)
-			tx_crq.v1.flags1 |= IBMVNIC_TX_PROT_UDP;
+		tx_crq.v1.flags1 |= IBMVNIC_TX_PROT_IPV4;
+		proto = ip_hdr(skb)->protocol;
+	} else if (skb->protocol == htons(ETH_P_IPV6)) {
+		tx_crq.v1.flags1 |= IBMVNIC_TX_PROT_IPV6;
+		proto = ipv6_hdr(skb)->nexthdr;
 	}
+
+	if (proto == IPPROTO_TCP)
+		tx_crq.v1.flags1 |= IBMVNIC_TX_PROT_TCP;
+	else if (proto == IPPROTO_UDP)
+		tx_crq.v1.flags1 |= IBMVNIC_TX_PROT_UDP;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		tx_crq.v1.flags1 |= IBMVNIC_TX_CHKSUM_OFFLOAD;
@@ -1386,7 +1416,8 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	/* determine if l2/3/4 headers are sent to firmware */
 	if ((*hdrs >> 7) & 1 &&
 	    (skb->protocol == htons(ETH_P_IP) ||
-	     skb->protocol == htons(ETH_P_IPV6))) {
+	     skb->protocol == htons(ETH_P_IPV6) ||
+	     skb->protocol == htons(ETH_P_ARP))) {
 		build_hdr_descs_arr(tx_buff, &num_entries, *hdrs);
 		tx_crq.v1.n_crq_elem = num_entries;
 		tx_buff->indir_arr[0] = tx_crq;
@@ -1517,25 +1548,29 @@ static int __ibmvnic_set_mac(struct net_device *netdev, struct sockaddr *p)
 	crq.change_mac_addr.first = IBMVNIC_CRQ_CMD;
 	crq.change_mac_addr.cmd = CHANGE_MAC_ADDR;
 	ether_addr_copy(&crq.change_mac_addr.mac_addr[0], addr->sa_data);
+
+	init_completion(&adapter->fw_done);
 	ibmvnic_send_crq(adapter, &crq);
+	wait_for_completion(&adapter->fw_done);
 	/* netdev->dev_addr is changed in handle_change_mac_rsp function */
-	return 0;
+	return adapter->fw_done_rc ? -EIO : 0;
 }
 
 static int ibmvnic_set_mac(struct net_device *netdev, void *p)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	struct sockaddr *addr = p;
+	int rc;
 
-	if (adapter->state != VNIC_OPEN) {
+	if (adapter->state == VNIC_PROBED) {
 		memcpy(&adapter->desired.mac, addr, sizeof(struct sockaddr));
 		adapter->mac_change_pending = true;
 		return 0;
 	}
 
-	__ibmvnic_set_mac(netdev, addr);
+	rc = __ibmvnic_set_mac(netdev, addr);
 
-	return 0;
+	return rc;
 }
 
 /**
@@ -1545,6 +1580,7 @@ static int ibmvnic_set_mac(struct net_device *netdev, void *p)
 static int do_reset(struct ibmvnic_adapter *adapter,
 		    struct ibmvnic_rwi *rwi, u32 reset_state)
 {
+	u64 old_num_rx_queues, old_num_tx_queues;
 	struct net_device *netdev = adapter->netdev;
 	int i, rc;
 
@@ -1553,6 +1589,9 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 
 	netif_carrier_off(netdev);
 	adapter->reset_reason = rwi->reset_reason;
+
+	old_num_rx_queues = adapter->req_rx_queues;
+	old_num_tx_queues = adapter->req_tx_queues;
 
 	if (rwi->reset_reason == VNIC_RESET_MOBILITY) {
 		rc = ibmvnic_reenable_crq_queue(adapter);
@@ -1598,6 +1637,12 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 			rc = init_resources(adapter);
 			if (rc)
 				return rc;
+		} else if (adapter->req_rx_queues != old_num_rx_queues ||
+			   adapter->req_tx_queues != old_num_tx_queues) {
+			release_rx_pools(adapter);
+			release_tx_pools(adapter);
+			init_rx_pools(netdev);
+			init_tx_pools(netdev);
 		} else {
 			rc = reset_tx_pools(adapter);
 			if (rc)
@@ -2447,6 +2492,12 @@ static irqreturn_t ibmvnic_interrupt_rx(int irq, void *instance)
 {
 	struct ibmvnic_sub_crq_queue *scrq = instance;
 	struct ibmvnic_adapter *adapter = scrq->adapter;
+
+	/* When booting a kdump kernel we can hit pending interrupts
+	 * prior to completing driver initialization.
+	 */
+	if (unlikely(adapter->state != VNIC_OPEN))
+		return IRQ_NONE;
 
 	adapter->rx_stats_buffers[scrq->scrq_num].interrupts++;
 
@@ -3345,7 +3396,11 @@ static void handle_query_ip_offload_rsp(struct ibmvnic_adapter *adapter)
 		return;
 	}
 
+	adapter->ip_offload_ctrl.len =
+	    cpu_to_be32(sizeof(adapter->ip_offload_ctrl));
 	adapter->ip_offload_ctrl.version = cpu_to_be32(INITIAL_VERSION_IOB);
+	adapter->ip_offload_ctrl.ipv4_chksum = buf->ipv4_chksum;
+	adapter->ip_offload_ctrl.ipv6_chksum = buf->ipv6_chksum;
 	adapter->ip_offload_ctrl.tcp_ipv4_chksum = buf->tcp_ipv4_chksum;
 	adapter->ip_offload_ctrl.udp_ipv4_chksum = buf->udp_ipv4_chksum;
 	adapter->ip_offload_ctrl.tcp_ipv6_chksum = buf->tcp_ipv6_chksum;
@@ -3518,8 +3573,8 @@ static void handle_error_indication(union ibmvnic_crq *crq,
 		ibmvnic_reset(adapter, VNIC_RESET_NON_FATAL);
 }
 
-static void handle_change_mac_rsp(union ibmvnic_crq *crq,
-				  struct ibmvnic_adapter *adapter)
+static int handle_change_mac_rsp(union ibmvnic_crq *crq,
+				 struct ibmvnic_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct device *dev = &adapter->vdev->dev;
@@ -3528,10 +3583,13 @@ static void handle_change_mac_rsp(union ibmvnic_crq *crq,
 	rc = crq->change_mac_addr_rsp.rc.code;
 	if (rc) {
 		dev_err(dev, "Error %ld in CHANGE_MAC_ADDR_RSP\n", rc);
-		return;
+		goto out;
 	}
 	memcpy(netdev->dev_addr, &crq->change_mac_addr_rsp.mac_addr[0],
 	       ETH_ALEN);
+out:
+	complete(&adapter->fw_done);
+	return rc;
 }
 
 static void handle_request_cap_rsp(union ibmvnic_crq *crq,
@@ -3585,7 +3643,17 @@ static void handle_request_cap_rsp(union ibmvnic_crq *crq,
 			 *req_value,
 			 (long int)be64_to_cpu(crq->request_capability_rsp.
 					       number), name);
-		*req_value = be64_to_cpu(crq->request_capability_rsp.number);
+
+		if (be16_to_cpu(crq->request_capability_rsp.capability) ==
+		    REQ_MTU) {
+			pr_err("mtu of %llu is not supported. Reverting.\n",
+			       *req_value);
+			*req_value = adapter->fallback.mtu;
+		} else {
+			*req_value =
+				be64_to_cpu(crq->request_capability_rsp.number);
+		}
+
 		ibmvnic_send_req_caps(adapter, 1);
 		return;
 	default:
@@ -3981,7 +4049,7 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 		break;
 	case CHANGE_MAC_ADDR_RSP:
 		netdev_dbg(netdev, "Got MAC address change Response\n");
-		handle_change_mac_rsp(crq, adapter);
+		adapter->fw_done_rc = handle_change_mac_rsp(crq, adapter);
 		break;
 	case ERROR_INDICATION:
 		netdev_dbg(netdev, "Got Error Indication\n");
@@ -4285,7 +4353,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	}
 
 	netdev = alloc_etherdev_mq(sizeof(struct ibmvnic_adapter),
-				   IBMVNIC_MAX_TX_QUEUES);
+				   IBMVNIC_MAX_QUEUES);
 	if (!netdev)
 		return -ENOMEM;
 
@@ -4411,7 +4479,7 @@ static ssize_t failover_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(failover, 0200, NULL, failover_store);
+static DEVICE_ATTR_WO(failover);
 
 static unsigned long ibmvnic_get_desired_dma(struct vio_dev *vdev)
 {

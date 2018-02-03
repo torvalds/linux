@@ -159,7 +159,7 @@ static int axp20x_ac_power_probe(struct platform_device *pdev)
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
 	struct power_supply_config psy_cfg = {};
 	struct axp20x_ac_power *power;
-	struct axp_data *axp_data;
+	const struct axp_data *axp_data;
 	static const char * const irq_names[] = { "ACIN_PLUGIN", "ACIN_REMOVAL",
 		NULL };
 	int i, irq, ret;
@@ -176,7 +176,7 @@ static int axp20x_ac_power_probe(struct platform_device *pdev)
 	if (!power)
 		return -ENOMEM;
 
-	axp_data = (struct axp_data *)of_device_get_match_data(&pdev->dev);
+	axp_data = of_device_get_match_data(&pdev->dev);
 
 	if (axp_data->acin_adc) {
 		power->acin_v = devm_iio_channel_get(&pdev->dev, "acin_v");
@@ -230,10 +230,10 @@ static int axp20x_ac_power_probe(struct platform_device *pdev)
 static const struct of_device_id axp20x_ac_power_match[] = {
 	{
 		.compatible = "x-powers,axp202-ac-power-supply",
-		.data = (void *)&axp20x_data,
+		.data = &axp20x_data,
 	}, {
 		.compatible = "x-powers,axp221-ac-power-supply",
-		.data = (void *)&axp22x_data,
+		.data = &axp22x_data,
 	}, { /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, axp20x_ac_power_match);

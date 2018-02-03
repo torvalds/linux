@@ -850,6 +850,19 @@ static void ipvlan_del_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
 	return ipvlan_del_addr(ipvlan, ip6_addr, true);
 }
 
+static bool ipvlan_is_valid_dev(const struct net_device *dev)
+{
+	struct ipvl_dev *ipvlan = netdev_priv(dev);
+
+	if (!netif_is_ipvlan(dev))
+		return false;
+
+	if (!ipvlan || !ipvlan->port)
+		return false;
+
+	return true;
+}
+
 static int ipvlan_addr6_event(struct notifier_block *unused,
 			      unsigned long event, void *ptr)
 {
@@ -857,10 +870,7 @@ static int ipvlan_addr6_event(struct notifier_block *unused,
 	struct net_device *dev = (struct net_device *)if6->idev->dev;
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 
-	if (!netif_is_ipvlan(dev))
-		return NOTIFY_DONE;
-
-	if (!ipvlan || !ipvlan->port)
+	if (!ipvlan_is_valid_dev(dev))
 		return NOTIFY_DONE;
 
 	switch (event) {
@@ -888,10 +898,7 @@ static int ipvlan_addr6_validator_event(struct notifier_block *unused,
 	if (in_softirq())
 		return NOTIFY_DONE;
 
-	if (!netif_is_ipvlan(dev))
-		return NOTIFY_DONE;
-
-	if (!ipvlan || !ipvlan->port)
+	if (!ipvlan_is_valid_dev(dev))
 		return NOTIFY_DONE;
 
 	switch (event) {
@@ -932,10 +939,7 @@ static int ipvlan_addr4_event(struct notifier_block *unused,
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 	struct in_addr ip4_addr;
 
-	if (!netif_is_ipvlan(dev))
-		return NOTIFY_DONE;
-
-	if (!ipvlan || !ipvlan->port)
+	if (!ipvlan_is_valid_dev(dev))
 		return NOTIFY_DONE;
 
 	switch (event) {
@@ -961,10 +965,7 @@ static int ipvlan_addr4_validator_event(struct notifier_block *unused,
 	struct net_device *dev = (struct net_device *)ivi->ivi_dev->dev;
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 
-	if (!netif_is_ipvlan(dev))
-		return NOTIFY_DONE;
-
-	if (!ipvlan || !ipvlan->port)
+	if (!ipvlan_is_valid_dev(dev))
 		return NOTIFY_DONE;
 
 	switch (event) {

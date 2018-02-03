@@ -1156,6 +1156,7 @@ static bool construct(
 	dc->caps.max_downscale_ratio = 150;
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.max_cursor_size = 128;
+	dc->caps.is_apu = true;
 
 	/*************************************************
 	 *  Create resources                             *

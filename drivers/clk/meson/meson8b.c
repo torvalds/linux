@@ -32,7 +32,7 @@
 #include "clkc.h"
 #include "meson8b.h"
 
-static DEFINE_SPINLOCK(clk_lock);
+static DEFINE_SPINLOCK(meson_clk_lock);
 
 static void __iomem *clk_base;
 
@@ -136,7 +136,7 @@ static struct meson_clk_pll meson8b_fixed_pll = {
 		.shift   = 16,
 		.width   = 2,
 	},
-	.lock = &clk_lock,
+	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "fixed_pll",
 		.ops = &meson_clk_pll_ro_ops,
@@ -162,7 +162,7 @@ static struct meson_clk_pll meson8b_vid_pll = {
 		.shift   = 16,
 		.width   = 2,
 	},
-	.lock = &clk_lock,
+	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "vid_pll",
 		.ops = &meson_clk_pll_ro_ops,
@@ -190,7 +190,7 @@ static struct meson_clk_pll meson8b_sys_pll = {
 	},
 	.rate_table = sys_pll_rate_table,
 	.rate_count = ARRAY_SIZE(sys_pll_rate_table),
-	.lock = &clk_lock,
+	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_pll",
 		.ops = &meson_clk_pll_ops,
@@ -281,7 +281,7 @@ static struct meson_clk_mpll meson8b_mpll0 = {
 		.shift   = 25,
 		.width   = 1,
 	},
-	.lock = &clk_lock,
+	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll0",
 		.ops = &meson_clk_mpll_ops,
@@ -311,7 +311,7 @@ static struct meson_clk_mpll meson8b_mpll1 = {
 		.shift   = 14,
 		.width   = 1,
 	},
-	.lock = &clk_lock,
+	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll1",
 		.ops = &meson_clk_mpll_ops,
@@ -341,7 +341,7 @@ static struct meson_clk_mpll meson8b_mpll2 = {
 		.shift   = 14,
 		.width   = 1,
 	},
-	.lock = &clk_lock,
+	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll2",
 		.ops = &meson_clk_mpll_ops,
@@ -375,7 +375,7 @@ struct clk_mux meson8b_mpeg_clk_sel = {
 	.shift = 12,
 	.flags = CLK_MUX_READ_ONLY,
 	.table = mux_table_clk81,
-	.lock = &clk_lock,
+	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpeg_clk_sel",
 		.ops = &clk_mux_ro_ops,
@@ -395,7 +395,7 @@ struct clk_divider meson8b_mpeg_clk_div = {
 	.reg = (void *)HHI_MPEG_CLK_CNTL,
 	.shift = 0,
 	.width = 7,
-	.lock = &clk_lock,
+	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpeg_clk_div",
 		.ops = &clk_divider_ops,
@@ -408,7 +408,7 @@ struct clk_divider meson8b_mpeg_clk_div = {
 struct clk_gate meson8b_clk81 = {
 	.reg = (void *)HHI_MPEG_CLK_CNTL,
 	.bit_idx = 7,
-	.lock = &clk_lock,
+	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "clk81",
 		.ops = &clk_gate_ops,
@@ -773,7 +773,7 @@ static int meson8b_clk_reset_update(struct reset_controller_dev *rcdev,
 
 	reset = &meson8b_clk_reset_bits[id];
 
-	spin_lock_irqsave(&clk_lock, flags);
+	spin_lock_irqsave(&meson_clk_lock, flags);
 
 	val = readl(meson8b_clk_reset->base + reset->reg);
 	if (assert)
@@ -782,7 +782,7 @@ static int meson8b_clk_reset_update(struct reset_controller_dev *rcdev,
 		val &= ~BIT(reset->bit_idx);
 	writel(val, meson8b_clk_reset->base + reset->reg);
 
-	spin_unlock_irqrestore(&clk_lock, flags);
+	spin_unlock_irqrestore(&meson_clk_lock, flags);
 
 	return 0;
 }

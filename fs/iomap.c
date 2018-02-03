@@ -65,6 +65,8 @@ iomap_apply(struct inode *inode, loff_t pos, loff_t length, unsigned flags,
 		return ret;
 	if (WARN_ON(iomap.offset > pos))
 		return -EIO;
+	if (WARN_ON(iomap.length == 0))
+		return -EIO;
 
 	/*
 	 * Cut down the length to the one actually provided by the filesystem,
@@ -753,7 +755,8 @@ static ssize_t iomap_dio_complete(struct iomap_dio *dio)
 		err = invalidate_inode_pages2_range(inode->i_mapping,
 				offset >> PAGE_SHIFT,
 				(offset + dio->size - 1) >> PAGE_SHIFT);
-		WARN_ON_ONCE(err);
+		if (err)
+			dio_warn_stale_pagecache(iocb->ki_filp);
 	}
 
 	inode_dio_end(file_inode(iocb->ki_filp));
@@ -1018,9 +1021,16 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	if (ret)
 		goto out_free_dio;
 
+	/*
+	 * Try to invalidate cache pages for the range we're direct
+	 * writing.  If this invalidation fails, tough, the write will
+	 * still work, but racing two incompatible write paths is a
+	 * pretty crazy thing to do, so we don't support it 100%.
+	 */
 	ret = invalidate_inode_pages2_range(mapping,
 			start >> PAGE_SHIFT, end >> PAGE_SHIFT);
-	WARN_ON_ONCE(ret);
+	if (ret)
+		dio_warn_stale_pagecache(iocb->ki_filp);
 	ret = 0;
 
 	if (iov_iter_rw(iter) == WRITE && !is_sync_kiocb(iocb) &&

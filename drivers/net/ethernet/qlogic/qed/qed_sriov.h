@@ -274,6 +274,23 @@ enum qed_iov_wq_flag {
 
 #ifdef CONFIG_QED_SRIOV
 /**
+ * @brief Check if given VF ID @vfid is valid
+ *        w.r.t. @b_enabled_only value
+ *        if b_enabled_only = true - only enabled VF id is valid
+ *        else any VF id less than max_vfs is valid
+ *
+ * @param p_hwfn
+ * @param rel_vf_id - Relative VF ID
+ * @param b_enabled_only - consider only enabled VF
+ * @param b_non_malicious - true iff we want to validate vf isn't malicious.
+ *
+ * @return bool - true for valid VF ID
+ */
+bool qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
+			   int rel_vf_id,
+			   bool b_enabled_only, bool b_non_malicious);
+
+/**
  * @brief - Given a VF index, return index of next [including that] active VF.
  *
  * @param p_hwfn
@@ -376,6 +393,13 @@ void qed_vf_start_iov_wq(struct qed_dev *cdev);
 int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled);
 void qed_inform_vf_link_state(struct qed_hwfn *hwfn);
 #else
+static inline bool
+qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
+		      int rel_vf_id, bool b_enabled_only, bool b_non_malicious)
+{
+	return false;
+}
+
 static inline u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn,
 					     u16 rel_vf_id)
 {

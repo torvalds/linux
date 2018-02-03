@@ -62,7 +62,12 @@ struct ixgbevf_tx_buffer {
 struct ixgbevf_rx_buffer {
 	dma_addr_t dma;
 	struct page *page;
-	unsigned int page_offset;
+#if (BITS_PER_LONG > 32) || (PAGE_SIZE >= 65536)
+	__u32 page_offset;
+#else
+	__u16 page_offset;
+#endif
+	__u16 pagecnt_bias;
 };
 
 struct ixgbevf_stats {
@@ -79,6 +84,7 @@ struct ixgbevf_tx_queue_stats {
 struct ixgbevf_rx_queue_stats {
 	u64 alloc_rx_page_failed;
 	u64 alloc_rx_buff_failed;
+	u64 alloc_rx_page;
 	u64 csum_err;
 };
 
@@ -260,6 +266,9 @@ static inline void ixgbevf_write_tail(struct ixgbevf_ring *ring, u32 value)
 #define MIN_MSIX_Q_VECTORS	1
 #define MIN_MSIX_COUNT		(MIN_MSIX_Q_VECTORS + NON_Q_VECTORS)
 
+#define IXGBEVF_RX_DMA_ATTR \
+	(DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING)
+
 /* board specific private data structure */
 struct ixgbevf_adapter {
 	/* this field must be first, see ixgbevf_process_skb_fields */
@@ -287,8 +296,9 @@ struct ixgbevf_adapter {
 	u64 hw_csum_rx_error;
 	u64 hw_rx_no_dma_resources;
 	int num_msix_vectors;
-	u32 alloc_rx_page_failed;
-	u32 alloc_rx_buff_failed;
+	u64 alloc_rx_page_failed;
+	u64 alloc_rx_buff_failed;
+	u64 alloc_rx_page;
 
 	struct msix_entry *msix_entries;
 

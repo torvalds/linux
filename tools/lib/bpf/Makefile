@@ -93,7 +93,6 @@ export prefix libdir src obj
 # Shell quotes
 libdir_SQ = $(subst ','\'',$(libdir))
 libdir_relative_SQ = $(subst ','\'',$(libdir_relative))
-plugin_dir_SQ = $(subst ','\'',$(plugin_dir))
 
 LIB_FILE = libbpf.a libbpf.so
 
@@ -150,7 +149,7 @@ CMD_TARGETS = $(LIB_FILE)
 
 TARGETS = $(CMD_TARGETS)
 
-all: fixdep $(VERSION_FILES) all_cmd
+all: fixdep all_cmd
 
 all_cmd: $(CMD_TARGETS)
 
@@ -169,21 +168,11 @@ $(OUTPUT)libbpf.so: $(BPF_IN)
 $(OUTPUT)libbpf.a: $(BPF_IN)
 	$(QUIET_LINK)$(RM) $@; $(AR) rcs $@ $^
 
-define update_dir
-  (echo $1 > $@.tmp;				\
-   if [ -r $@ ] && cmp -s $@ $@.tmp; then	\
-     rm -f $@.tmp;				\
-   else						\
-     echo '  UPDATE                 $@';	\
-     mv -f $@.tmp $@;				\
-   fi);
-endef
-
 define do_install
 	if [ ! -d '$(DESTDIR_SQ)$2' ]; then		\
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$2';	\
 	fi;						\
-	$(INSTALL) $1 '$(DESTDIR_SQ)$2'
+	$(INSTALL) $1 $(if $3,-m $3,) '$(DESTDIR_SQ)$2'
 endef
 
 install_lib: all_cmd
@@ -192,7 +181,8 @@ install_lib: all_cmd
 
 install_headers:
 	$(call QUIET_INSTALL, headers) \
-		$(call do_install,bpf.h,$(prefix)/include/bpf,644)
+		$(call do_install,bpf.h,$(prefix)/include/bpf,644); \
+		$(call do_install,libbpf.h,$(prefix)/include/bpf,644);
 
 install: install_lib
 
@@ -203,7 +193,7 @@ config-clean:
 	$(Q)$(MAKE) -C $(srctree)/tools/build/feature/ clean >/dev/null
 
 clean:
-	$(call QUIET_CLEAN, libbpf) $(RM) *.o *~ $(TARGETS) *.a *.so $(VERSION_FILES) .*.d .*.cmd \
+	$(call QUIET_CLEAN, libbpf) $(RM) *.o *~ $(TARGETS) *.a *.so .*.d .*.cmd \
 		$(RM) LIBBPF-CFLAGS
 	$(call QUIET_CLEAN, core-gen) $(RM) $(OUTPUT)FEATURE-DUMP.libbpf
 
@@ -213,10 +203,10 @@ PHONY += force elfdep bpfdep
 force:
 
 elfdep:
-	@if [ "$(feature-libelf)" != "1" ]; then echo "No libelf found"; exit -1 ; fi
+	@if [ "$(feature-libelf)" != "1" ]; then echo "No libelf found"; exit 1 ; fi
 
 bpfdep:
-	@if [ "$(feature-bpf)" != "1" ]; then echo "BPF API too old"; exit -1 ; fi
+	@if [ "$(feature-bpf)" != "1" ]; then echo "BPF API too old"; exit 1 ; fi
 
 # Declare the contents of the .PHONY variable as phony.  We keep that
 # information in a variable so we can use it in if_changed and friends.

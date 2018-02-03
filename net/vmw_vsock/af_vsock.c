@@ -850,11 +850,11 @@ static int vsock_shutdown(struct socket *sock, int mode)
 	return err;
 }
 
-static unsigned int vsock_poll(struct file *file, struct socket *sock,
+static __poll_t vsock_poll(struct file *file, struct socket *sock,
 			       poll_table *wait)
 {
 	struct sock *sk;
-	unsigned int mask;
+	__poll_t mask;
 	struct vsock_sock *vsk;
 
 	sk = sock->sk;
@@ -951,7 +951,7 @@ static unsigned int vsock_poll(struct file *file, struct socket *sock,
 		 * POLLOUT|POLLWRNORM when peer is closed and nothing to read,
 		 * but local send is not shutdown.
 		 */
-		if (sk->sk_state == TCP_CLOSE) {
+		if (sk->sk_state == TCP_CLOSE || sk->sk_state == TCP_CLOSING) {
 			if (!(sk->sk_shutdown & SEND_SHUTDOWN))
 				mask |= POLLOUT | POLLWRNORM;
 

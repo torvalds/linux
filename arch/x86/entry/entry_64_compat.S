@@ -190,8 +190,13 @@ ENTRY(entry_SYSCALL_compat)
 	/* Interrupts are off on entry. */
 	swapgs
 
-	/* Stash user ESP and switch to the kernel stack. */
+	/* Stash user ESP */
 	movl	%esp, %r8d
+
+	/* Use %rsp as scratch reg. User ESP is stashed in r8 */
+	SWITCH_TO_KERNEL_CR3 scratch_reg=%rsp
+
+	/* Switch to the kernel stack */
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
 	/* Construct struct pt_regs on stack */
@@ -218,12 +223,6 @@ GLOBAL(entry_SYSCALL_compat_after_hwframe)
 	pushq   $0			/* pt_regs->r13 = 0 */
 	pushq   $0			/* pt_regs->r14 = 0 */
 	pushq   $0			/* pt_regs->r15 = 0 */
-
-	/*
-	 * We just saved %rdi so it is safe to clobber.  It is not
-	 * preserved during the C calls inside TRACE_IRQS_OFF anyway.
-	 */
-	SWITCH_TO_KERNEL_CR3 scratch_reg=%rdi
 
 	/*
 	 * User mode is traced as though IRQs are on, and SYSENTER

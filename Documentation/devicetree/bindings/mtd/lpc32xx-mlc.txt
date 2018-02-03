@@ -23,7 +23,7 @@ Optional subnodes:
 
 Example:
 
-	mlc: flash@200A8000 {
+	mlc: flash@200a8000 {
 		compatible = "nxp,lpc3220-mlc";
 		reg = <0x200A8000 0x11000>;
 		interrupts = <11 0>;

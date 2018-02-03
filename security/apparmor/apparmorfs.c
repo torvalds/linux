@@ -571,10 +571,10 @@ static int ns_revision_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static unsigned int ns_revision_poll(struct file *file, poll_table *pt)
+static __poll_t ns_revision_poll(struct file *file, poll_table *pt)
 {
 	struct aa_revision *rev = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	if (rev) {
 		mutex_lock_nested(&rev->ns->lock, rev->ns->level);

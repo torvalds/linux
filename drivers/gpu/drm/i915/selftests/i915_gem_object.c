@@ -317,6 +317,7 @@ static int igt_partial_tiling(void *arg)
 	}
 
 	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
 
 	if (1) {
 		IGT_TIMEOUT(end);
@@ -418,6 +419,7 @@ next_tiling: ;
 	}
 
 out_unlock:
+	intel_runtime_pm_put(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	i915_gem_object_unpin_pages(obj);
 out:

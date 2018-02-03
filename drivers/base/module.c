@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * module.c - module sysfs fun for drivers
- *
- * This file is released under the GPLv2
- *
  */
 #include <linux/device.h>
 #include <linux/module.h>

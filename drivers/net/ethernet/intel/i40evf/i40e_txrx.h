@@ -260,7 +260,7 @@ static inline unsigned int i40e_txd_use_count(unsigned int size)
 }
 
 /* Tx Descriptors needed, worst case */
-#define DESC_NEEDED (MAX_SKB_FRAGS + 4)
+#define DESC_NEEDED (MAX_SKB_FRAGS + 6)
 #define I40E_MIN_DESC_PENDING	4
 
 #define I40E_TX_FLAGS_HW_VLAN		BIT(1)
@@ -313,6 +313,7 @@ struct i40e_tx_queue_stats {
 	u64 tx_done_old;
 	u64 tx_linearize;
 	u64 tx_force_wb;
+	int prev_pkt_ctr;
 	u64 tx_lost_interrupt;
 };
 
@@ -467,6 +468,7 @@ void i40evf_free_rx_resources(struct i40e_ring *rx_ring);
 int i40evf_napi_poll(struct napi_struct *napi, int budget);
 void i40evf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector);
 u32 i40evf_get_tx_pending(struct i40e_ring *ring, bool in_sw);
+void i40evf_detect_recover_hung(struct i40e_vsi *vsi);
 int __i40evf_maybe_stop_tx(struct i40e_ring *tx_ring, int size);
 bool __i40evf_chk_linearize(struct sk_buff *skb);
 

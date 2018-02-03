@@ -1272,6 +1272,8 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 			       "Could not allocate unit ID: error %d\n", -ret);
 		goto bail;
 	}
+	rvt_set_ibdev_name(&dd->verbs_dev.rdi, "%s_%d", class_name(), dd->unit);
+
 	/*
 	 * Initialize all locks for the device. This needs to be as early as
 	 * possible so locks are usable.

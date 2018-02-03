@@ -306,7 +306,7 @@ void relay_signal(int sig, struct siginfo *si, struct uml_pt_regs *regs)
 
 	arch_examine_signal(sig, regs);
 
-	memset(&clean_si, 0, sizeof(clean_si));
+	clear_siginfo(&clean_si);
 	clean_si.si_signo = si->si_signo;
 	clean_si.si_errno = si->si_errno;
 	clean_si.si_code = si->si_code;

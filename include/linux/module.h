@@ -19,6 +19,7 @@
 #include <linux/jump_label.h>
 #include <linux/export.h>
 #include <linux/rbtree_latch.h>
+#include <linux/error-injection.h>
 
 #include <linux/percpu.h>
 #include <asm/module.h>
@@ -475,6 +476,11 @@ struct module {
 	ctor_fn_t *ctors;
 	unsigned int num_ctors;
 #endif
+
+#ifdef CONFIG_FUNCTION_ERROR_INJECTION
+	struct error_injection_entry *ei_funcs;
+	unsigned int num_ei_funcs;
+#endif
 } ____cacheline_aligned __randomize_layout;
 #ifndef MODULE_ARCH_INIT
 #define MODULE_ARCH_INIT {}
@@ -605,6 +611,9 @@ int ref_module(struct module *a, struct module *b);
 	struct module *__mod = (mod);		\
 	__mod ? __mod->name : "kernel";		\
 })
+
+/* Dereference module function descriptor */
+void *dereference_module_function_descriptor(struct module *mod, void *ptr);
 
 /* For kallsyms to ask for address resolution.  namebuf should be at
  * least KSYM_NAME_LEN long: a pointer to namebuf is returned if
@@ -760,6 +769,13 @@ static inline bool is_module_sig_enforced(void)
 	return false;
 }
 
+/* Dereference module function descriptor */
+static inline
+void *dereference_module_function_descriptor(struct module *mod, void *ptr)
+{
+	return ptr;
+}
+
 #endif /* CONFIG_MODULES */
 
 #ifdef CONFIG_SYSFS
@@ -800,6 +816,15 @@ static inline void module_bug_finalize(const Elf_Ehdr *hdr,
 }
 static inline void module_bug_cleanup(struct module *mod) {}
 #endif	/* CONFIG_GENERIC_BUG */
+
+#ifdef RETPOLINE
+extern bool retpoline_module_ok(bool has_retpoline);
+#else
+static inline bool retpoline_module_ok(bool has_retpoline)
+{
+	return true;
+}
+#endif
 
 #ifdef CONFIG_MODULE_SIG
 static inline bool module_sig_ok(struct module *module)

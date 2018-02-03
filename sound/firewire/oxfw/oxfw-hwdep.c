@@ -52,11 +52,11 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf,  long count,
 	return count;
 }
 
-static unsigned int hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
+static __poll_t hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
 			       poll_table *wait)
 {
 	struct snd_oxfw *oxfw = hwdep->private_data;
-	unsigned int events;
+	__poll_t events;
 
 	poll_wait(file, &oxfw->hwdep_wait, wait);
 

@@ -123,7 +123,8 @@ enum mac8390_access {
 };
 
 extern int mac8390_memtest(struct net_device *dev);
-static int mac8390_initdev(struct net_device *dev, struct nubus_dev *ndev,
+static int mac8390_initdev(struct net_device *dev,
+			   struct nubus_rsrc *ndev,
 			   enum mac8390_type type);
 
 static int mac8390_open(struct net_device *dev);
@@ -169,11 +170,11 @@ static void word_memcpy_tocard(unsigned long tp, const void *fp, int count);
 static void word_memcpy_fromcard(void *tp, unsigned long fp, int count);
 static u32 mac8390_msg_enable;
 
-static enum mac8390_type __init mac8390_ident(struct nubus_dev *dev)
+static enum mac8390_type __init mac8390_ident(struct nubus_rsrc *fres)
 {
-	switch (dev->dr_sw) {
+	switch (fres->dr_sw) {
 	case NUBUS_DRSW_3COM:
-		switch (dev->dr_hw) {
+		switch (fres->dr_hw) {
 		case NUBUS_DRHW_APPLE_SONIC_NB:
 		case NUBUS_DRHW_APPLE_SONIC_LC:
 		case NUBUS_DRHW_SONNET:
@@ -184,7 +185,7 @@ static enum mac8390_type __init mac8390_ident(struct nubus_dev *dev)
 		break;
 
 	case NUBUS_DRSW_APPLE:
-		switch (dev->dr_hw) {
+		switch (fres->dr_hw) {
 		case NUBUS_DRHW_ASANTE_LC:
 			return MAC8390_NONE;
 		case NUBUS_DRHW_CABLETRON:
@@ -201,7 +202,7 @@ static enum mac8390_type __init mac8390_ident(struct nubus_dev *dev)
 	case NUBUS_DRSW_TECHWORKS:
 	case NUBUS_DRSW_DAYNA2:
 	case NUBUS_DRSW_DAYNA_LC:
-		if (dev->dr_hw == NUBUS_DRHW_CABLETRON)
+		if (fres->dr_hw == NUBUS_DRHW_CABLETRON)
 			return MAC8390_CABLETRON;
 		else
 			return MAC8390_APPLE;
@@ -212,7 +213,7 @@ static enum mac8390_type __init mac8390_ident(struct nubus_dev *dev)
 		break;
 
 	case NUBUS_DRSW_KINETICS:
-		switch (dev->dr_hw) {
+		switch (fres->dr_hw) {
 		case NUBUS_DRHW_INTERLAN:
 			return MAC8390_INTERLAN;
 		default:
@@ -225,8 +226,8 @@ static enum mac8390_type __init mac8390_ident(struct nubus_dev *dev)
 		 * These correspond to Dayna Sonic cards
 		 * which use the macsonic driver
 		 */
-		if (dev->dr_hw == NUBUS_DRHW_SMC9194 ||
-		    dev->dr_hw == NUBUS_DRHW_INTERLAN)
+		if (fres->dr_hw == NUBUS_DRHW_SMC9194 ||
+		    fres->dr_hw == NUBUS_DRHW_INTERLAN)
 			return MAC8390_NONE;
 		else
 			return MAC8390_DAYNA;
@@ -289,7 +290,8 @@ static int __init mac8390_memsize(unsigned long membase)
 	return i * 0x1000;
 }
 
-static bool __init mac8390_init(struct net_device *dev, struct nubus_dev *ndev,
+static bool __init mac8390_init(struct net_device *dev,
+				struct nubus_rsrc *ndev,
 				enum mac8390_type cardtype)
 {
 	struct nubus_dir dir;
@@ -394,7 +396,7 @@ static bool __init mac8390_init(struct net_device *dev, struct nubus_dev *ndev,
 struct net_device * __init mac8390_probe(int unit)
 {
 	struct net_device *dev;
-	struct nubus_dev *ndev = NULL;
+	struct nubus_rsrc *ndev = NULL;
 	int err = -ENODEV;
 	struct ei_device *ei_local;
 
@@ -414,8 +416,11 @@ struct net_device * __init mac8390_probe(int unit)
 	if (unit >= 0)
 		sprintf(dev->name, "eth%d", unit);
 
-	while ((ndev = nubus_find_type(NUBUS_CAT_NETWORK, NUBUS_TYPE_ETHERNET,
-				       ndev))) {
+	for_each_func_rsrc(ndev) {
+		if (ndev->category != NUBUS_CAT_NETWORK ||
+		    ndev->type != NUBUS_TYPE_ETHERNET)
+			continue;
+
 		/* Have we seen it already? */
 		if (slots & (1 << ndev->board->slot))
 			continue;
@@ -489,7 +494,7 @@ static const struct net_device_ops mac8390_netdev_ops = {
 };
 
 static int __init mac8390_initdev(struct net_device *dev,
-				  struct nubus_dev *ndev,
+				  struct nubus_rsrc *ndev,
 				  enum mac8390_type type)
 {
 	static u32 fwrd4_offsets[16] = {

@@ -32,14 +32,11 @@
 #include <linux/swap.h>
 #include <linux/bootmem.h>
 #include <linux/fs_struct.h>
-#include <linux/hardirq.h>
 #include <linux/bit_spinlock.h>
 #include <linux/rculist_bl.h>
 #include <linux/prefetch.h>
 #include <linux/ratelimit.h>
 #include <linux/list_lru.h>
-#include <linux/kasan.h>
-
 #include "internal.h"
 #include "mount.h"
 
@@ -49,8 +46,8 @@
  *   - i_dentry, d_u.d_alias, d_inode of aliases
  * dcache_hash_bucket lock protects:
  *   - the dcache hash table
- * s_anon bl list spinlock protects:
- *   - the s_anon list (see __d_drop)
+ * s_roots bl list spinlock protects:
+ *   - the s_roots list (see __d_drop)
  * dentry->d_sb->s_dentry_lru_lock protects:
  *   - the dcache lru lists and counters
  * d_lock protects:
@@ -68,7 +65,7 @@
  *   dentry->d_lock
  *     dentry->d_sb->s_dentry_lru_lock
  *     dcache_hash_bucket lock
- *     s_anon lock
+ *     s_roots lock
  *
  * If there is an ancestor relationship:
  * dentry->d_parent->...->d_parent->d_lock
@@ -104,14 +101,13 @@ EXPORT_SYMBOL(slash_name);
  * information, yet avoid using a prime hash-size or similar.
  */
 
-static unsigned int d_hash_mask __read_mostly;
 static unsigned int d_hash_shift __read_mostly;
 
 static struct hlist_bl_head *dentry_hashtable __read_mostly;
 
 static inline struct hlist_bl_head *d_hash(unsigned int hash)
 {
-	return dentry_hashtable + (hash >> (32 - d_hash_shift));
+	return dentry_hashtable + (hash >> d_hash_shift);
 }
 
 #define IN_LOOKUP_SHIFT 10
@@ -195,7 +191,7 @@ static inline int dentry_string_cmp(const unsigned char *cs, const unsigned char
 	unsigned long a,b,mask;
 
 	for (;;) {
-		a = *(unsigned long *)cs;
+		a = read_word_at_a_time(cs);
 		b = load_unaligned_zeropad(ct);
 		if (tcount < sizeof(unsigned long))
 			break;
@@ -468,29 +464,36 @@ static void dentry_lru_add(struct dentry *dentry)
  * d_drop() is used mainly for stuff that wants to invalidate a dentry for some
  * reason (NFS timeouts or autofs deletes).
  *
- * __d_drop requires dentry->d_lock.
+ * __d_drop requires dentry->d_lock
+ * ___d_drop doesn't mark dentry as "unhashed"
+ *   (dentry->d_hash.pprev will be LIST_POISON2, not NULL).
  */
-void __d_drop(struct dentry *dentry)
+static void ___d_drop(struct dentry *dentry)
 {
 	if (!d_unhashed(dentry)) {
 		struct hlist_bl_head *b;
 		/*
 		 * Hashed dentries are normally on the dentry hashtable,
 		 * with the exception of those newly allocated by
-		 * d_obtain_alias, which are always IS_ROOT:
+		 * d_obtain_root, which are always IS_ROOT:
 		 */
 		if (unlikely(IS_ROOT(dentry)))
-			b = &dentry->d_sb->s_anon;
+			b = &dentry->d_sb->s_roots;
 		else
 			b = d_hash(dentry->d_name.hash);
 
 		hlist_bl_lock(b);
 		__hlist_bl_del(&dentry->d_hash);
-		dentry->d_hash.pprev = NULL;
 		hlist_bl_unlock(b);
 		/* After this call, in-progress rcu-walk path lookup will fail. */
 		write_seqcount_invalidate(&dentry->d_seq);
 	}
+}
+
+void __d_drop(struct dentry *dentry)
+{
+	___d_drop(dentry);
+	dentry->d_hash.pprev = NULL;
 }
 EXPORT_SYMBOL(__d_drop);
 
@@ -1500,8 +1503,8 @@ void shrink_dcache_for_umount(struct super_block *sb)
 	sb->s_root = NULL;
 	do_one_tree(dentry);
 
-	while (!hlist_bl_empty(&sb->s_anon)) {
-		dentry = dget(hlist_bl_entry(hlist_bl_first(&sb->s_anon), struct dentry, d_hash));
+	while (!hlist_bl_empty(&sb->s_roots)) {
+		dentry = dget(hlist_bl_entry(hlist_bl_first(&sb->s_roots), struct dentry, d_hash));
 		do_one_tree(dentry);
 	}
 }
@@ -1623,9 +1626,6 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 		}
 		atomic_set(&p->u.count, 1);
 		dname = p->name;
-		if (IS_ENABLED(CONFIG_DCACHE_WORD_ACCESS))
-			kasan_unpoison_shadow(dname,
-				round_up(name->len + 1,	sizeof(unsigned long)));
 	} else  {
 		dname = dentry->d_iname;
 	}	
@@ -1636,8 +1636,7 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 	dname[name->len] = 0;
 
 	/* Make sure we always see the terminating NUL character */
-	smp_wmb();
-	dentry->d_name.name = dname;
+	smp_store_release(&dentry->d_name.name, dname); /* ^^^ */
 
 	dentry->d_lockref.count = 1;
 	dentry->d_flags = 0;
@@ -1965,9 +1964,11 @@ static struct dentry *__d_obtain_alias(struct inode *inode, int disconnected)
 	spin_lock(&tmp->d_lock);
 	__d_set_inode_and_type(tmp, inode, add_flags);
 	hlist_add_head(&tmp->d_u.d_alias, &inode->i_dentry);
-	hlist_bl_lock(&tmp->d_sb->s_anon);
-	hlist_bl_add_head(&tmp->d_hash, &tmp->d_sb->s_anon);
-	hlist_bl_unlock(&tmp->d_sb->s_anon);
+	if (!disconnected) {
+		hlist_bl_lock(&tmp->d_sb->s_roots);
+		hlist_bl_add_head(&tmp->d_hash, &tmp->d_sb->s_roots);
+		hlist_bl_unlock(&tmp->d_sb->s_roots);
+	}
 	spin_unlock(&tmp->d_lock);
 	spin_unlock(&inode->i_lock);
 
@@ -2381,7 +2382,7 @@ EXPORT_SYMBOL(d_delete);
 static void __d_rehash(struct dentry *entry)
 {
 	struct hlist_bl_head *b = d_hash(entry->d_name.hash);
-	BUG_ON(!d_unhashed(entry));
+
 	hlist_bl_lock(b);
 	hlist_bl_add_head_rcu(&entry->d_hash, b);
 	hlist_bl_unlock(b);
@@ -2816,9 +2817,9 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 	write_seqcount_begin_nested(&target->d_seq, DENTRY_D_LOCK_NESTED);
 
 	/* unhash both */
-	/* __d_drop does write_seqcount_barrier, but they're OK to nest. */
-	__d_drop(dentry);
-	__d_drop(target);
+	/* ___d_drop does write_seqcount_barrier, but they're OK to nest. */
+	___d_drop(dentry);
+	___d_drop(target);
 
 	/* Switch the names.. */
 	if (exchange)
@@ -2830,6 +2831,8 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 	__d_rehash(dentry);
 	if (exchange)
 		__d_rehash(target);
+	else
+		target->d_hash.pprev = NULL;
 
 	/* ... and switch them in the tree */
 	if (IS_ROOT(dentry)) {
@@ -3047,16 +3050,13 @@ static int prepend(char **buffer, int *buflen, const char *str, int namelen)
  * retry it again when a d_move() does happen. So any garbage in the buffer
  * due to mismatched pointer and length will be discarded.
  *
- * Data dependency barrier is needed to make sure that we see that terminating
- * NUL.  Alpha strikes again, film at 11...
+ * Load acquire is needed to make sure that we see that terminating NUL.
  */
 static int prepend_name(char **buffer, int *buflen, const struct qstr *name)
 {
-	const char *dname = READ_ONCE(name->name);
+	const char *dname = smp_load_acquire(&name->name); /* ^^^ */
 	u32 dlen = READ_ONCE(name->len);
 	char *p;
-
-	smp_read_barrier_depends();
 
 	*buflen -= dlen + 1;
 	if (*buflen < 0)
@@ -3589,9 +3589,10 @@ static void __init dcache_init_early(void)
 					13,
 					HASH_EARLY | HASH_ZERO,
 					&d_hash_shift,
-					&d_hash_mask,
+					NULL,
 					0,
 					0);
+	d_hash_shift = 32 - d_hash_shift;
 }
 
 static void __init dcache_init(void)
@@ -3615,9 +3616,10 @@ static void __init dcache_init(void)
 					13,
 					HASH_ZERO,
 					&d_hash_shift,
-					&d_hash_mask,
+					NULL,
 					0,
 					0);
+	d_hash_shift = 32 - d_hash_shift;
 }
 
 /* SLAB cache for __getname() consumers */

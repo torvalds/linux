@@ -188,7 +188,6 @@ struct exynos_drm_g2d_private {
 
 struct drm_exynos_file_private {
 	struct exynos_drm_g2d_private	*g2d_priv;
-	struct device			*ipp_dev;
 };
 
 /*
@@ -291,6 +290,5 @@ extern struct platform_driver g2d_driver;
 extern struct platform_driver fimc_driver;
 extern struct platform_driver rotator_driver;
 extern struct platform_driver gsc_driver;
-extern struct platform_driver ipp_driver;
 extern struct platform_driver mic_driver;
 #endif
