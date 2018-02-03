@@ -263,6 +263,19 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			return -EPERM;
 		return v4l2_subdev_call(sd, core, s_register, p);
 	}
+	case VIDIOC_DBG_G_CHIP_INFO:
+	{
+		struct v4l2_dbg_chip_info *p = arg;
+
+		if (p->match.type != V4L2_CHIP_MATCH_SUBDEV || p->match.addr)
+			return -EINVAL;
+		if (sd->ops->core && sd->ops->core->s_register)
+			p->flags |= V4L2_CHIP_FL_WRITABLE;
+		if (sd->ops->core && sd->ops->core->g_register)
+			p->flags |= V4L2_CHIP_FL_READABLE;
+		strlcpy(p->name, sd->name, sizeof(p->name));
+		return 0;
+	}
 #endif
 
 	case VIDIOC_LOG_STATUS: {
