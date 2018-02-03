@@ -14,6 +14,8 @@ struct ovl_config {
 	char *workdir;
 	bool default_permissions;
 	bool redirect_dir;
+	bool redirect_follow;
+	const char *redirect_mode;
 	bool index;
 };
 

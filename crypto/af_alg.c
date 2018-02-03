@@ -672,14 +672,15 @@ void af_alg_free_areq_sgls(struct af_alg_async_req *areq)
 	}
 
 	tsgl = areq->tsgl;
-	for_each_sg(tsgl, sg, areq->tsgl_entries, i) {
-		if (!sg_page(sg))
-			continue;
-		put_page(sg_page(sg));
-	}
+	if (tsgl) {
+		for_each_sg(tsgl, sg, areq->tsgl_entries, i) {
+			if (!sg_page(sg))
+				continue;
+			put_page(sg_page(sg));
+		}
 
-	if (areq->tsgl && areq->tsgl_entries)
 		sock_kfree_s(sk, tsgl, areq->tsgl_entries * sizeof(*tsgl));
+	}
 }
 EXPORT_SYMBOL_GPL(af_alg_free_areq_sgls);
 
@@ -1136,12 +1137,6 @@ int af_alg_get_rsgl(struct sock *sk, struct msghdr *msg, int flags,
 		/* limit the amount of readable buffers */
 		if (!af_alg_readable(sk))
 			break;
-
-		if (!ctx->used) {
-			err = af_alg_wait_for_data(sk, flags);
-			if (err)
-				return err;
-		}
 
 		seglen = min_t(size_t, (maxsize - len),
 			       msg_data_left(msg));

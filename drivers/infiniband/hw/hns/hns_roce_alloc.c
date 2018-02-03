@@ -162,14 +162,10 @@ void hns_roce_buf_free(struct hns_roce_dev *hr_dev, u32 size,
 {
 	int i;
 	struct device *dev = hr_dev->dev;
-	u32 bits_per_long = BITS_PER_LONG;
 
 	if (buf->nbufs == 1) {
 		dma_free_coherent(dev, size, buf->direct.buf, buf->direct.map);
 	} else {
-		if (bits_per_long == 64 && buf->page_shift == PAGE_SHIFT)
-			vunmap(buf->direct.buf);
-
 		for (i = 0; i < buf->nbufs; ++i)
 			if (buf->page_list[i].buf)
 				dma_free_coherent(dev, 1 << buf->page_shift,
@@ -185,9 +181,7 @@ int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 {
 	int i = 0;
 	dma_addr_t t;
-	struct page **pages;
 	struct device *dev = hr_dev->dev;
-	u32 bits_per_long = BITS_PER_LONG;
 	u32 page_size = 1 << page_shift;
 	u32 order;
 
@@ -235,23 +229,6 @@ int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 
 			buf->page_list[i].map = t;
 			memset(buf->page_list[i].buf, 0, page_size);
-		}
-		if (bits_per_long == 64 && page_shift == PAGE_SHIFT) {
-			pages = kmalloc_array(buf->nbufs, sizeof(*pages),
-					      GFP_KERNEL);
-			if (!pages)
-				goto err_free;
-
-			for (i = 0; i < buf->nbufs; ++i)
-				pages[i] = virt_to_page(buf->page_list[i].buf);
-
-			buf->direct.buf = vmap(pages, buf->nbufs, VM_MAP,
-					       PAGE_KERNEL);
-			kfree(pages);
-			if (!buf->direct.buf)
-				goto err_free;
-		} else {
-			buf->direct.buf = NULL;
 		}
 	}
 

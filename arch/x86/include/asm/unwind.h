@@ -7,6 +7,9 @@
 #include <asm/ptrace.h>
 #include <asm/stacktrace.h>
 
+#define IRET_FRAME_OFFSET (offsetof(struct pt_regs, ip))
+#define IRET_FRAME_SIZE   (sizeof(struct pt_regs) - IRET_FRAME_OFFSET)
+
 struct unwind_state {
 	struct stack_info stack_info;
 	unsigned long stack_mask;
@@ -52,6 +55,10 @@ void unwind_start(struct unwind_state *state, struct task_struct *task,
 }
 
 #if defined(CONFIG_UNWINDER_ORC) || defined(CONFIG_UNWINDER_FRAME_POINTER)
+/*
+ * WARNING: The entire pt_regs may not be safe to dereference.  In some cases,
+ * only the iret frame registers are accessible.  Use with caution!
+ */
 static inline struct pt_regs *unwind_get_entry_regs(struct unwind_state *state)
 {
 	if (unwind_done(state))

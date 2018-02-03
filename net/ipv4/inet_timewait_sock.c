@@ -93,7 +93,7 @@ static void inet_twsk_add_bind_node(struct inet_timewait_sock *tw,
 }
 
 /*
- * Enter the time wait state.
+ * Enter the time wait state. This is called with locally disabled BH.
  * Essentially we whip up a timewait bucket, copy the relevant info into it
  * from the SK, and mess with hash chains and list linkage.
  */
@@ -111,7 +111,7 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	 */
 	bhead = &hashinfo->bhash[inet_bhashfn(twsk_net(tw), inet->inet_num,
 			hashinfo->bhash_size)];
-	spin_lock_bh(&bhead->lock);
+	spin_lock(&bhead->lock);
 	tw->tw_tb = icsk->icsk_bind_hash;
 	WARN_ON(!icsk->icsk_bind_hash);
 	inet_twsk_add_bind_node(tw, &tw->tw_tb->owners);
@@ -137,7 +137,7 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	if (__sk_nulls_del_node_init_rcu(sk))
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 
-	spin_unlock_bh(lock);
+	spin_unlock(lock);
 }
 EXPORT_SYMBOL_GPL(__inet_twsk_hashdance);
 

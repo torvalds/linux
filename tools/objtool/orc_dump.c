@@ -76,7 +76,8 @@ int orc_dump(const char *_objname)
 	int fd, nr_entries, i, *orc_ip = NULL, orc_size = 0;
 	struct orc_entry *orc = NULL;
 	char *name;
-	unsigned long nr_sections, orc_ip_addr = 0;
+	size_t nr_sections;
+	Elf64_Addr orc_ip_addr = 0;
 	size_t shstrtab_idx;
 	Elf *elf;
 	Elf_Scn *scn;
@@ -187,10 +188,10 @@ int orc_dump(const char *_objname)
 				return -1;
 			}
 
-			printf("%s+%lx:", name, rela.r_addend);
+			printf("%s+%llx:", name, (unsigned long long)rela.r_addend);
 
 		} else {
-			printf("%lx:", orc_ip_addr + (i * sizeof(int)) + orc_ip[i]);
+			printf("%llx:", (unsigned long long)(orc_ip_addr + (i * sizeof(int)) + orc_ip[i]));
 		}
 
 

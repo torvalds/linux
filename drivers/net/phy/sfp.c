@@ -351,17 +351,34 @@ static void sfp_sm_link_check_los(struct sfp *sfp)
 {
 	unsigned int los = sfp->state & SFP_F_LOS;
 
-	/* FIXME: what if neither SFP_OPTIONS_LOS_INVERTED nor
-	 * SFP_OPTIONS_LOS_NORMAL are set?  For now, we assume
-	 * the same as SFP_OPTIONS_LOS_NORMAL set.
+	/* If neither SFP_OPTIONS_LOS_INVERTED nor SFP_OPTIONS_LOS_NORMAL
+	 * are set, we assume that no LOS signal is available.
 	 */
-	if (sfp->id.ext.options & SFP_OPTIONS_LOS_INVERTED)
+	if (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_INVERTED))
 		los ^= SFP_F_LOS;
+	else if (!(sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_NORMAL)))
+		los = 0;
 
 	if (los)
 		sfp_sm_next(sfp, SFP_S_WAIT_LOS, 0);
 	else
 		sfp_sm_link_up(sfp);
+}
+
+static bool sfp_los_event_active(struct sfp *sfp, unsigned int event)
+{
+	return (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_INVERTED) &&
+		event == SFP_E_LOS_LOW) ||
+	       (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_NORMAL) &&
+		event == SFP_E_LOS_HIGH);
+}
+
+static bool sfp_los_event_inactive(struct sfp *sfp, unsigned int event)
+{
+	return (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_INVERTED) &&
+		event == SFP_E_LOS_HIGH) ||
+	       (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_NORMAL) &&
+		event == SFP_E_LOS_LOW);
 }
 
 static void sfp_sm_fault(struct sfp *sfp, bool warn)
@@ -469,6 +486,11 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 			sfp->id.base.phys_id, sfp->id.base.phys_ext_id);
 		return -EINVAL;
 	}
+
+	/* If the module requires address swap mode, warn about it */
+	if (sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE)
+		dev_warn(sfp->dev,
+			 "module address swap to access page 0xA2 is not supported.\n");
 
 	return sfp_module_insert(sfp->sfp_bus, &sfp->id);
 }
@@ -581,9 +603,7 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 	case SFP_S_WAIT_LOS:
 		if (event == SFP_E_TX_FAULT)
 			sfp_sm_fault(sfp, true);
-		else if (event ==
-			 (sfp->id.ext.options & SFP_OPTIONS_LOS_INVERTED ?
-			  SFP_E_LOS_HIGH : SFP_E_LOS_LOW))
+		else if (sfp_los_event_inactive(sfp, event))
 			sfp_sm_link_up(sfp);
 		break;
 
@@ -591,9 +611,7 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 		if (event == SFP_E_TX_FAULT) {
 			sfp_sm_link_down(sfp);
 			sfp_sm_fault(sfp, true);
-		} else if (event ==
-			   (sfp->id.ext.options & SFP_OPTIONS_LOS_INVERTED ?
-			    SFP_E_LOS_LOW : SFP_E_LOS_HIGH)) {
+		} else if (sfp_los_event_active(sfp, event)) {
 			sfp_sm_link_down(sfp);
 			sfp_sm_next(sfp, SFP_S_WAIT_LOS, 0);
 		}
@@ -639,7 +657,8 @@ static int sfp_module_info(struct sfp *sfp, struct ethtool_modinfo *modinfo)
 {
 	/* locking... and check module is present */
 
-	if (sfp->id.ext.sff8472_compliance) {
+	if (sfp->id.ext.sff8472_compliance &&
+	    !(sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE)) {
 		modinfo->type = ETH_MODULE_SFF_8472;
 		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
 	} else {

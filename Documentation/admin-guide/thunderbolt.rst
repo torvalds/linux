@@ -230,7 +230,7 @@ If supported by your machine this will be exposed by the WMI bus with
 a sysfs attribute called "force_power".
 
 For example the intel-wmi-thunderbolt driver exposes this attribute in:
-  /sys/devices/platform/PNP0C14:00/wmi_bus/wmi_bus-PNP0C14:00/86CCFD48-205E-4A77-9C48-2021CBEDE341/force_power
+  /sys/bus/wmi/devices/86CCFD48-205E-4A77-9C48-2021CBEDE341/force_power
 
   To force the power to on, write 1 to this attribute file.
   To disable force power, write 0 to this attribute file.

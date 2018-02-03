@@ -159,11 +159,10 @@ bool dpp_get_optimal_number_of_taps(
 			scl_data->taps.h_taps = 1;
 		if (IDENTITY_RATIO(scl_data->ratios.vert))
 			scl_data->taps.v_taps = 1;
-		/*
-		 * Spreadsheet doesn't handle taps_c is one properly,
-		 * need to force Chroma to always be scaled to pass
-		 * bandwidth validation.
-		 */
+		if (IDENTITY_RATIO(scl_data->ratios.horz_c))
+			scl_data->taps.h_taps_c = 1;
+		if (IDENTITY_RATIO(scl_data->ratios.vert_c))
+			scl_data->taps.v_taps_c = 1;
 	}
 
 	return true;

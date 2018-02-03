@@ -15,7 +15,7 @@
 #ifndef __IA_CSS_IRQ_H
 #define __IA_CSS_IRQ_H
 
-/** @file
+/* @file
  * This file contains information for Interrupts/IRQs from CSS
  */
 
@@ -23,14 +23,14 @@
 #include "ia_css_pipe_public.h"
 #include "ia_css_input_port.h"
 
-/** Interrupt types, these enumerate all supported interrupt types.
+/* Interrupt types, these enumerate all supported interrupt types.
  */
 enum ia_css_irq_type {
-	IA_CSS_IRQ_TYPE_EDGE,  /**< Edge (level) sensitive interrupt */
-	IA_CSS_IRQ_TYPE_PULSE  /**< Pulse-shaped interrupt */
+	IA_CSS_IRQ_TYPE_EDGE,  /** Edge (level) sensitive interrupt */
+	IA_CSS_IRQ_TYPE_PULSE  /** Pulse-shaped interrupt */
 };
 
-/** Interrupt request type.
+/* Interrupt request type.
  *  When the CSS hardware generates an interrupt, a function in this API
  *  needs to be called to retrieve information about the interrupt.
  *  This interrupt type is part of this information and indicates what
@@ -46,55 +46,55 @@ enum ia_css_irq_type {
  */
 enum ia_css_irq_info {
 	IA_CSS_IRQ_INFO_CSS_RECEIVER_ERROR            = 1 << 0,
-	/**< the css receiver has encountered an error */
+	/** the css receiver has encountered an error */
 	IA_CSS_IRQ_INFO_CSS_RECEIVER_FIFO_OVERFLOW    = 1 << 1,
-	/**< the FIFO in the csi receiver has overflown */
+	/** the FIFO in the csi receiver has overflown */
 	IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF              = 1 << 2,
-	/**< the css receiver received the start of frame */
+	/** the css receiver received the start of frame */
 	IA_CSS_IRQ_INFO_CSS_RECEIVER_EOF              = 1 << 3,
-	/**< the css receiver received the end of frame */
+	/** the css receiver received the end of frame */
 	IA_CSS_IRQ_INFO_CSS_RECEIVER_SOL              = 1 << 4,
-	/**< the css receiver received the start of line */
+	/** the css receiver received the start of line */
 	IA_CSS_IRQ_INFO_PSYS_EVENTS_READY             = 1 << 5,
-	/**< One or more events are available in the PSYS event queue */
+	/** One or more events are available in the PSYS event queue */
 	IA_CSS_IRQ_INFO_EVENTS_READY = IA_CSS_IRQ_INFO_PSYS_EVENTS_READY,
-	/**< deprecated{obsolete version of IA_CSS_IRQ_INFO_PSYS_EVENTS_READY,
+	/** deprecated{obsolete version of IA_CSS_IRQ_INFO_PSYS_EVENTS_READY,
 	 * same functionality.} */
 	IA_CSS_IRQ_INFO_CSS_RECEIVER_EOL              = 1 << 6,
-	/**< the css receiver received the end of line */
+	/** the css receiver received the end of line */
 	IA_CSS_IRQ_INFO_CSS_RECEIVER_SIDEBAND_CHANGED = 1 << 7,
-	/**< the css receiver received a change in side band signals */
+	/** the css receiver received a change in side band signals */
 	IA_CSS_IRQ_INFO_CSS_RECEIVER_GEN_SHORT_0      = 1 << 8,
-	/**< generic short packets (0) */
+	/** generic short packets (0) */
 	IA_CSS_IRQ_INFO_CSS_RECEIVER_GEN_SHORT_1      = 1 << 9,
-	/**< generic short packets (1) */
+	/** generic short packets (1) */
 	IA_CSS_IRQ_INFO_IF_PRIM_ERROR                 = 1 << 10,
-	/**< the primary input formatter (A) has encountered an error */
+	/** the primary input formatter (A) has encountered an error */
 	IA_CSS_IRQ_INFO_IF_PRIM_B_ERROR               = 1 << 11,
-	/**< the primary input formatter (B) has encountered an error */
+	/** the primary input formatter (B) has encountered an error */
 	IA_CSS_IRQ_INFO_IF_SEC_ERROR                  = 1 << 12,
-	/**< the secondary input formatter has encountered an error */
+	/** the secondary input formatter has encountered an error */
 	IA_CSS_IRQ_INFO_STREAM_TO_MEM_ERROR           = 1 << 13,
-	/**< the stream-to-memory device has encountered an error */
+	/** the stream-to-memory device has encountered an error */
 	IA_CSS_IRQ_INFO_SW_0                          = 1 << 14,
-	/**< software interrupt 0 */
+	/** software interrupt 0 */
 	IA_CSS_IRQ_INFO_SW_1                          = 1 << 15,
-	/**< software interrupt 1 */
+	/** software interrupt 1 */
 	IA_CSS_IRQ_INFO_SW_2                          = 1 << 16,
-	/**< software interrupt 2 */
+	/** software interrupt 2 */
 	IA_CSS_IRQ_INFO_ISP_BINARY_STATISTICS_READY   = 1 << 17,
-	/**< ISP binary statistics are ready */
+	/** ISP binary statistics are ready */
 	IA_CSS_IRQ_INFO_INPUT_SYSTEM_ERROR            = 1 << 18,
-	/**< the input system in in error */
+	/** the input system in in error */
 	IA_CSS_IRQ_INFO_IF_ERROR                      = 1 << 19,
-	/**< the input formatter in in error */
+	/** the input formatter in in error */
 	IA_CSS_IRQ_INFO_DMA_ERROR                     = 1 << 20,
-	/**< the dma in in error */
+	/** the dma in in error */
 	IA_CSS_IRQ_INFO_ISYS_EVENTS_READY             = 1 << 21,
-	/**< end-of-frame events are ready in the isys_event queue */
+	/** end-of-frame events are ready in the isys_event queue */
 };
 
-/** CSS receiver error types. Whenever the CSS receiver has encountered
+/* CSS receiver error types. Whenever the CSS receiver has encountered
  *  an error, this enumeration is used to indicate which errors have occurred.
  *
  *  Note that multiple error flags can be enabled at once and that this is in
@@ -105,39 +105,39 @@ enum ia_css_irq_info {
  * different receiver types, or possibly none in case of tests systems.
  */
 enum ia_css_rx_irq_info {
-	IA_CSS_RX_IRQ_INFO_BUFFER_OVERRUN   = 1U << 0, /**< buffer overrun */
-	IA_CSS_RX_IRQ_INFO_ENTER_SLEEP_MODE = 1U << 1, /**< entering sleep mode */
-	IA_CSS_RX_IRQ_INFO_EXIT_SLEEP_MODE  = 1U << 2, /**< exited sleep mode */
-	IA_CSS_RX_IRQ_INFO_ECC_CORRECTED    = 1U << 3, /**< ECC corrected */
+	IA_CSS_RX_IRQ_INFO_BUFFER_OVERRUN   = 1U << 0, /** buffer overrun */
+	IA_CSS_RX_IRQ_INFO_ENTER_SLEEP_MODE = 1U << 1, /** entering sleep mode */
+	IA_CSS_RX_IRQ_INFO_EXIT_SLEEP_MODE  = 1U << 2, /** exited sleep mode */
+	IA_CSS_RX_IRQ_INFO_ECC_CORRECTED    = 1U << 3, /** ECC corrected */
 	IA_CSS_RX_IRQ_INFO_ERR_SOT          = 1U << 4,
-						/**< Start of transmission */
-	IA_CSS_RX_IRQ_INFO_ERR_SOT_SYNC     = 1U << 5, /**< SOT sync (??) */
-	IA_CSS_RX_IRQ_INFO_ERR_CONTROL      = 1U << 6, /**< Control (??) */
-	IA_CSS_RX_IRQ_INFO_ERR_ECC_DOUBLE   = 1U << 7, /**< Double ECC */
-	IA_CSS_RX_IRQ_INFO_ERR_CRC          = 1U << 8, /**< CRC error */
-	IA_CSS_RX_IRQ_INFO_ERR_UNKNOWN_ID   = 1U << 9, /**< Unknown ID */
-	IA_CSS_RX_IRQ_INFO_ERR_FRAME_SYNC   = 1U << 10,/**< Frame sync error */
-	IA_CSS_RX_IRQ_INFO_ERR_FRAME_DATA   = 1U << 11,/**< Frame data error */
-	IA_CSS_RX_IRQ_INFO_ERR_DATA_TIMEOUT = 1U << 12,/**< Timeout occurred */
-	IA_CSS_RX_IRQ_INFO_ERR_UNKNOWN_ESC  = 1U << 13,/**< Unknown escape seq. */
-	IA_CSS_RX_IRQ_INFO_ERR_LINE_SYNC    = 1U << 14,/**< Line Sync error */
+						/** Start of transmission */
+	IA_CSS_RX_IRQ_INFO_ERR_SOT_SYNC     = 1U << 5, /** SOT sync (??) */
+	IA_CSS_RX_IRQ_INFO_ERR_CONTROL      = 1U << 6, /** Control (??) */
+	IA_CSS_RX_IRQ_INFO_ERR_ECC_DOUBLE   = 1U << 7, /** Double ECC */
+	IA_CSS_RX_IRQ_INFO_ERR_CRC          = 1U << 8, /** CRC error */
+	IA_CSS_RX_IRQ_INFO_ERR_UNKNOWN_ID   = 1U << 9, /** Unknown ID */
+	IA_CSS_RX_IRQ_INFO_ERR_FRAME_SYNC   = 1U << 10,/** Frame sync error */
+	IA_CSS_RX_IRQ_INFO_ERR_FRAME_DATA   = 1U << 11,/** Frame data error */
+	IA_CSS_RX_IRQ_INFO_ERR_DATA_TIMEOUT = 1U << 12,/** Timeout occurred */
+	IA_CSS_RX_IRQ_INFO_ERR_UNKNOWN_ESC  = 1U << 13,/** Unknown escape seq. */
+	IA_CSS_RX_IRQ_INFO_ERR_LINE_SYNC    = 1U << 14,/** Line Sync error */
 	IA_CSS_RX_IRQ_INFO_INIT_TIMEOUT     = 1U << 15,
 };
 
-/** Interrupt info structure. This structure contains information about an
+/* Interrupt info structure. This structure contains information about an
  *  interrupt. This needs to be used after an interrupt is received on the IA
  *  to perform the correct action.
  */
 struct ia_css_irq {
-	enum ia_css_irq_info type; /**< Interrupt type. */
-	unsigned int sw_irq_0_val; /**< In case of SW interrupt 0, value. */
-	unsigned int sw_irq_1_val; /**< In case of SW interrupt 1, value. */
-	unsigned int sw_irq_2_val; /**< In case of SW interrupt 2, value. */
+	enum ia_css_irq_info type; /** Interrupt type. */
+	unsigned int sw_irq_0_val; /** In case of SW interrupt 0, value. */
+	unsigned int sw_irq_1_val; /** In case of SW interrupt 1, value. */
+	unsigned int sw_irq_2_val; /** In case of SW interrupt 2, value. */
 	struct ia_css_pipe *pipe;
-	/**< The image pipe that generated the interrupt. */
+	/** The image pipe that generated the interrupt. */
 };
 
-/** @brief Obtain interrupt information.
+/* @brief Obtain interrupt information.
  *
  * @param[out] info	Pointer to the interrupt info. The interrupt
  *			information wil be written to this info.
@@ -154,7 +154,7 @@ struct ia_css_irq {
 enum ia_css_err
 ia_css_irq_translate(unsigned int *info);
 
-/** @brief Get CSI receiver error info.
+/* @brief Get CSI receiver error info.
  *
  * @param[out] irq_bits	Pointer to the interrupt bits. The interrupt
  *			bits will be written this info.
@@ -172,7 +172,7 @@ ia_css_irq_translate(unsigned int *info);
 void
 ia_css_rx_get_irq_info(unsigned int *irq_bits);
 
-/** @brief Get CSI receiver error info.
+/* @brief Get CSI receiver error info.
  *
  * @param[in]  port     Input port identifier.
  * @param[out] irq_bits	Pointer to the interrupt bits. The interrupt
@@ -188,7 +188,7 @@ ia_css_rx_get_irq_info(unsigned int *irq_bits);
 void
 ia_css_rx_port_get_irq_info(enum ia_css_csi2_port port, unsigned int *irq_bits);
 
-/** @brief Clear CSI receiver error info.
+/* @brief Clear CSI receiver error info.
  *
  * @param[in] irq_bits	The bits that should be cleared from the CSI receiver
  *			interrupt bits register.
@@ -205,7 +205,7 @@ ia_css_rx_port_get_irq_info(enum ia_css_csi2_port port, unsigned int *irq_bits);
 void
 ia_css_rx_clear_irq_info(unsigned int irq_bits);
 
-/** @brief Clear CSI receiver error info.
+/* @brief Clear CSI receiver error info.
  *
  * @param[in] port      Input port identifier.
  * @param[in] irq_bits	The bits that should be cleared from the CSI receiver
@@ -220,7 +220,7 @@ ia_css_rx_clear_irq_info(unsigned int irq_bits);
 void
 ia_css_rx_port_clear_irq_info(enum ia_css_csi2_port port, unsigned int irq_bits);
 
-/** @brief Enable or disable specific interrupts.
+/* @brief Enable or disable specific interrupts.
  *
  * @param[in] type	The interrupt type that will be enabled/disabled.
  * @param[in] enable	enable or disable.

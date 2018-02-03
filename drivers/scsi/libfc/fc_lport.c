@@ -904,10 +904,14 @@ static void fc_lport_recv_els_req(struct fc_lport *lport,
 		case ELS_FLOGI:
 			if (!lport->point_to_multipoint)
 				fc_lport_recv_flogi_req(lport, fp);
+			else
+				fc_rport_recv_req(lport, fp);
 			break;
 		case ELS_LOGO:
 			if (fc_frame_sid(fp) == FC_FID_FLOGI)
 				fc_lport_recv_logo_req(lport, fp);
+			else
+				fc_rport_recv_req(lport, fp);
 			break;
 		case ELS_RSCN:
 			lport->tt.disc_recv_req(lport, fp);
