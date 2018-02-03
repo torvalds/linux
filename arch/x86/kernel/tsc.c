@@ -602,7 +602,6 @@ unsigned long native_calibrate_tsc(void)
 		case INTEL_FAM6_KABYLAKE_DESKTOP:
 			crystal_khz = 24000;	/* 24.0 MHz */
 			break;
-		case INTEL_FAM6_SKYLAKE_X:
 		case INTEL_FAM6_ATOM_DENVERTON:
 			crystal_khz = 25000;	/* 25.0 MHz */
 			break;
@@ -612,6 +611,8 @@ unsigned long native_calibrate_tsc(void)
 		}
 	}
 
+	if (crystal_khz == 0)
+		return 0;
 	/*
 	 * TSC frequency determined by CPUID is a "hardware reported"
 	 * frequency and is the most accurate one so far we have. This

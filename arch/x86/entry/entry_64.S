@@ -487,6 +487,17 @@ ENTRY(__switch_to_asm)
 	movq	%rbx, PER_CPU_VAR(irq_stack_union)+stack_canary_offset
 #endif
 
+#ifdef CONFIG_RETPOLINE
+	/*
+	 * When switching from a shallower to a deeper call stack
+	 * the RSB may either underflow or use entries populated
+	 * with userspace addresses. On CPUs where those concerns
+	 * exist, overwrite the RSB with entries which capture
+	 * speculative execution to prevent attack.
+	 */
+	FILL_RETURN_BUFFER %r12, RSB_CLEAR_LOOPS, X86_FEATURE_RSB_CTXSW
+#endif
+
 	/* restore callee-saved registers */
 	popq	%r15
 	popq	%r14
@@ -1247,7 +1258,7 @@ idtentry async_page_fault	do_async_page_fault	has_error_code=1
 #endif
 
 #ifdef CONFIG_X86_MCE
-idtentry machine_check					has_error_code=0	paranoid=1 do_sym=*machine_check_vector(%rip)
+idtentry machine_check		do_mce			has_error_code=0	paranoid=1
 #endif
 
 /*

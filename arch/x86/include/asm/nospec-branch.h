@@ -11,7 +11,7 @@
  * Fill the CPU return stack buffer.
  *
  * Each entry in the RSB, if used for a speculative 'ret', contains an
- * infinite 'pause; jmp' loop to capture speculative execution.
+ * infinite 'pause; lfence; jmp' loop to capture speculative execution.
  *
  * This is required in various cases for retpoline and IBRS-based
  * mitigations for the Spectre variant 2 vulnerability. Sometimes to
@@ -38,11 +38,13 @@
 	call	772f;				\
 773:	/* speculation trap */			\
 	pause;					\
+	lfence;					\
 	jmp	773b;				\
 772:						\
 	call	774f;				\
 775:	/* speculation trap */			\
 	pause;					\
+	lfence;					\
 	jmp	775b;				\
 774:						\
 	dec	reg;				\
@@ -73,6 +75,7 @@
 	call	.Ldo_rop_\@
 .Lspec_trap_\@:
 	pause
+	lfence
 	jmp	.Lspec_trap_\@
 .Ldo_rop_\@:
 	mov	\reg, (%_ASM_SP)
@@ -165,6 +168,7 @@
 	"       .align 16\n"					\
 	"901:	call   903f;\n"					\
 	"902:	pause;\n"					\
+	"    	lfence;\n"					\
 	"       jmp    902b;\n"					\
 	"       .align 16\n"					\
 	"903:	addl   $4, %%esp;\n"				\
@@ -190,6 +194,9 @@ enum spectre_v2_mitigation {
 	SPECTRE_V2_IBRS,
 };
 
+extern char __indirect_thunk_start[];
+extern char __indirect_thunk_end[];
+
 /*
  * On VMEXIT we must ensure that no RSB predictions learned in the guest
  * can be followed in the host, by overwriting the RSB completely. Both
@@ -199,16 +206,17 @@ enum spectre_v2_mitigation {
 static inline void vmexit_fill_RSB(void)
 {
 #ifdef CONFIG_RETPOLINE
-	unsigned long loops = RSB_CLEAR_LOOPS / 2;
+	unsigned long loops;
 
 	asm volatile (ANNOTATE_NOSPEC_ALTERNATIVE
 		      ALTERNATIVE("jmp 910f",
 				  __stringify(__FILL_RETURN_BUFFER(%0, RSB_CLEAR_LOOPS, %1)),
 				  X86_FEATURE_RETPOLINE)
 		      "910:"
-		      : "=&r" (loops), ASM_CALL_CONSTRAINT
-		      : "r" (loops) : "memory" );
+		      : "=r" (loops), ASM_CALL_CONSTRAINT
+		      : : "memory" );
 #endif
 }
+
 #endif /* __ASSEMBLY__ */
 #endif /* __NOSPEC_BRANCH_H__ */
