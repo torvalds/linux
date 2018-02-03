@@ -12,6 +12,7 @@
 
 #include <linux/linkage.h>
 #include <asm/frame.h>
+#include <asm/nospec-branch.h>
 
 #define CAMELLIA_TABLE_BYTE_LEN 272
 
@@ -1343,7 +1344,7 @@ camellia_xts_crypt_32way:
 	vpxor 14 * 32(%rax), %ymm15, %ymm14;
 	vpxor 15 * 32(%rax), %ymm15, %ymm15;
 
-	call *%r9;
+	CALL_NOSPEC %r9;
 
 	addq $(16 * 32), %rsp;
 

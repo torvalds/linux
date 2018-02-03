@@ -2536,7 +2536,7 @@ static void __mlxsw_sp_nexthop_neigh_update(struct mlxsw_sp_nexthop *nh,
 {
 	if (!removing)
 		nh->should_offload = 1;
-	else if (nh->offloaded)
+	else
 		nh->should_offload = 0;
 	nh->update = 1;
 }

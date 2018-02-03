@@ -65,11 +65,17 @@ struct kvm_resize_hpt {
 	u32 order;
 
 	/* These fields protected by kvm->lock */
-	int error;
-	bool prepare_done;
 
-	/* Private to the work thread, until prepare_done is true,
-	 * then protected by kvm->resize_hpt_sem */
+	/* Possible values and their usage:
+	 *  <0     an error occurred during allocation,
+	 *  -EBUSY allocation is in the progress,
+	 *  0      allocation made successfuly.
+	 */
+	int error;
+
+	/* Private to the work thread, until error != -EBUSY,
+	 * then protected by kvm->lock.
+	 */
 	struct kvm_hpt_info hpt;
 };
 
@@ -159,8 +165,6 @@ long kvmppc_alloc_reset_hpt(struct kvm *kvm, int order)
 		 * Reset all the reverse-mapping chains for all memslots
 		 */
 		kvmppc_rmap_reset(kvm);
-		/* Ensure that each vcpu will flush its TLB on next entry. */
-		cpumask_setall(&kvm->arch.need_tlb_flush);
 		err = 0;
 		goto out;
 	}
@@ -176,6 +180,10 @@ long kvmppc_alloc_reset_hpt(struct kvm *kvm, int order)
 	kvmppc_set_hpt(kvm, &info);
 
 out:
+	if (err == 0)
+		/* Ensure that each vcpu will flush its TLB on next entry. */
+		cpumask_setall(&kvm->arch.need_tlb_flush);
+
 	mutex_unlock(&kvm->lock);
 	return err;
 }
@@ -1424,16 +1432,20 @@ static void resize_hpt_pivot(struct kvm_resize_hpt *resize)
 
 static void resize_hpt_release(struct kvm *kvm, struct kvm_resize_hpt *resize)
 {
-	BUG_ON(kvm->arch.resize_hpt != resize);
+	if (WARN_ON(!mutex_is_locked(&kvm->lock)))
+		return;
 
 	if (!resize)
 		return;
 
-	if (resize->hpt.virt)
-		kvmppc_free_hpt(&resize->hpt);
+	if (resize->error != -EBUSY) {
+		if (resize->hpt.virt)
+			kvmppc_free_hpt(&resize->hpt);
+		kfree(resize);
+	}
 
-	kvm->arch.resize_hpt = NULL;
-	kfree(resize);
+	if (kvm->arch.resize_hpt == resize)
+		kvm->arch.resize_hpt = NULL;
 }
 
 static void resize_hpt_prepare_work(struct work_struct *work)
@@ -1442,17 +1454,41 @@ static void resize_hpt_prepare_work(struct work_struct *work)
 						     struct kvm_resize_hpt,
 						     work);
 	struct kvm *kvm = resize->kvm;
-	int err;
+	int err = 0;
 
-	resize_hpt_debug(resize, "resize_hpt_prepare_work(): order = %d\n",
-			 resize->order);
-
-	err = resize_hpt_allocate(resize);
+	if (WARN_ON(resize->error != -EBUSY))
+		return;
 
 	mutex_lock(&kvm->lock);
 
+	/* Request is still current? */
+	if (kvm->arch.resize_hpt == resize) {
+		/* We may request large allocations here:
+		 * do not sleep with kvm->lock held for a while.
+		 */
+		mutex_unlock(&kvm->lock);
+
+		resize_hpt_debug(resize, "resize_hpt_prepare_work(): order = %d\n",
+				 resize->order);
+
+		err = resize_hpt_allocate(resize);
+
+		/* We have strict assumption about -EBUSY
+		 * when preparing for HPT resize.
+		 */
+		if (WARN_ON(err == -EBUSY))
+			err = -EINPROGRESS;
+
+		mutex_lock(&kvm->lock);
+		/* It is possible that kvm->arch.resize_hpt != resize
+		 * after we grab kvm->lock again.
+		 */
+	}
+
 	resize->error = err;
-	resize->prepare_done = true;
+
+	if (kvm->arch.resize_hpt != resize)
+		resize_hpt_release(kvm, resize);
 
 	mutex_unlock(&kvm->lock);
 }
@@ -1477,14 +1513,12 @@ long kvm_vm_ioctl_resize_hpt_prepare(struct kvm *kvm,
 
 	if (resize) {
 		if (resize->order == shift) {
-			/* Suitable resize in progress */
-			if (resize->prepare_done) {
-				ret = resize->error;
-				if (ret != 0)
-					resize_hpt_release(kvm, resize);
-			} else {
+			/* Suitable resize in progress? */
+			ret = resize->error;
+			if (ret == -EBUSY)
 				ret = 100; /* estimated time in ms */
-			}
+			else if (ret)
+				resize_hpt_release(kvm, resize);
 
 			goto out;
 		}
@@ -1504,6 +1538,8 @@ long kvm_vm_ioctl_resize_hpt_prepare(struct kvm *kvm,
 		ret = -ENOMEM;
 		goto out;
 	}
+
+	resize->error = -EBUSY;
 	resize->order = shift;
 	resize->kvm = kvm;
 	INIT_WORK(&resize->work, resize_hpt_prepare_work);
@@ -1558,16 +1594,12 @@ long kvm_vm_ioctl_resize_hpt_commit(struct kvm *kvm,
 	if (!resize || (resize->order != shift))
 		goto out;
 
-	ret = -EBUSY;
-	if (!resize->prepare_done)
-		goto out;
-
 	ret = resize->error;
-	if (ret != 0)
+	if (ret)
 		goto out;
 
 	ret = resize_hpt_rehash(resize);
-	if (ret != 0)
+	if (ret)
 		goto out;
 
 	resize_hpt_pivot(resize);

@@ -359,7 +359,8 @@ EXPORT_SYMBOL_GPL(sfp_register_upstream);
 void sfp_unregister_upstream(struct sfp_bus *bus)
 {
 	rtnl_lock();
-	sfp_unregister_bus(bus);
+	if (bus->sfp)
+		sfp_unregister_bus(bus);
 	bus->upstream = NULL;
 	bus->netdev = NULL;
 	rtnl_unlock();
@@ -464,7 +465,8 @@ EXPORT_SYMBOL_GPL(sfp_register_socket);
 void sfp_unregister_socket(struct sfp_bus *bus)
 {
 	rtnl_lock();
-	sfp_unregister_bus(bus);
+	if (bus->netdev)
+		sfp_unregister_bus(bus);
 	bus->sfp_dev = NULL;
 	bus->sfp = NULL;
 	bus->socket_ops = NULL;

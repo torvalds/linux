@@ -132,6 +132,25 @@ static int v_recv_cmd_submit(struct vudc *udc,
 	urb_p->new = 1;
 	urb_p->seqnum = pdu->base.seqnum;
 
+	if (urb_p->ep->type == USB_ENDPOINT_XFER_ISOC) {
+		/* validate packet size and number of packets */
+		unsigned int maxp, packets, bytes;
+
+		maxp = usb_endpoint_maxp(urb_p->ep->desc);
+		maxp *= usb_endpoint_maxp_mult(urb_p->ep->desc);
+		bytes = pdu->u.cmd_submit.transfer_buffer_length;
+		packets = DIV_ROUND_UP(bytes, maxp);
+
+		if (pdu->u.cmd_submit.number_of_packets < 0 ||
+		    pdu->u.cmd_submit.number_of_packets > packets) {
+			dev_err(&udc->gadget.dev,
+				"CMD_SUBMIT: isoc invalid num packets %d\n",
+				pdu->u.cmd_submit.number_of_packets);
+			ret = -EMSGSIZE;
+			goto free_urbp;
+		}
+	}
+
 	ret = alloc_urb_from_cmd(&urb_p->urb, pdu, urb_p->ep->type);
 	if (ret) {
 		usbip_event_add(&udc->ud, VUDC_EVENT_ERROR_MALLOC);

@@ -197,6 +197,11 @@ struct t4_cqe {
 #define CQE_SWCQE_G(x)    ((((x) >> CQE_SWCQE_S)) & CQE_SWCQE_M)
 #define CQE_SWCQE_V(x)	  ((x)<<CQE_SWCQE_S)
 
+#define CQE_DRAIN_S       10
+#define CQE_DRAIN_M       0x1
+#define CQE_DRAIN_G(x)    ((((x) >> CQE_DRAIN_S)) & CQE_DRAIN_M)
+#define CQE_DRAIN_V(x)	  ((x)<<CQE_DRAIN_S)
+
 #define CQE_STATUS_S      5
 #define CQE_STATUS_M      0x1F
 #define CQE_STATUS_G(x)   ((((x) >> CQE_STATUS_S)) & CQE_STATUS_M)
@@ -213,6 +218,7 @@ struct t4_cqe {
 #define CQE_OPCODE_V(x)   ((x)<<CQE_OPCODE_S)
 
 #define SW_CQE(x)         (CQE_SWCQE_G(be32_to_cpu((x)->header)))
+#define DRAIN_CQE(x)      (CQE_DRAIN_G(be32_to_cpu((x)->header)))
 #define CQE_QPID(x)       (CQE_QPID_G(be32_to_cpu((x)->header)))
 #define CQE_TYPE(x)       (CQE_TYPE_G(be32_to_cpu((x)->header)))
 #define SQ_TYPE(x)	  (CQE_TYPE((x)))
