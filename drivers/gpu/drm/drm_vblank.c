@@ -271,7 +271,7 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	store_vblank(dev, pipe, diff, t_vblank, cur_vblank);
 }
 
-static u32 drm_vblank_count(struct drm_device *dev, unsigned int pipe)
+static u64 drm_vblank_count(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 
@@ -292,11 +292,11 @@ static u32 drm_vblank_count(struct drm_device *dev, unsigned int pipe)
  * This is mostly useful for hardware that can obtain the scanout position, but
  * doesn't have a hardware frame counter.
  */
-u32 drm_crtc_accurate_vblank_count(struct drm_crtc *crtc)
+u64 drm_crtc_accurate_vblank_count(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = drm_crtc_index(crtc);
-	u32 vblank;
+	u64 vblank;
 	unsigned long flags;
 
 	WARN_ONCE(drm_debug & DRM_UT_VBL && !dev->driver->get_vblank_timestamp,
@@ -1055,7 +1055,7 @@ void drm_wait_one_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	int ret;
-	u32 last;
+	u64 last;
 
 	if (WARN_ON(pipe >= dev->num_crtcs))
 		return;
