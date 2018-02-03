@@ -3836,7 +3836,7 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 
 
 	/* Prepare wait for target vblank early - before the fence-waits */
-	target_vblank = target - drm_crtc_vblank_count(crtc) +
+	target_vblank = target - (uint32_t)drm_crtc_vblank_count(crtc) +
 			amdgpu_get_vblank_counter_kms(crtc->dev, acrtc->crtc_id);
 
 	/* TODO This might fail and hence better not used, wait
@@ -3982,7 +3982,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			amdgpu_dm_do_flip(
 				crtc,
 				fb,
-				drm_crtc_vblank_count(crtc) + *wait_for_vblank,
+				(uint32_t)drm_crtc_vblank_count(crtc) + *wait_for_vblank,
 				dm_state->context);
 		}
 

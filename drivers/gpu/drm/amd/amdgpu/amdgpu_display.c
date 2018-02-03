@@ -207,7 +207,7 @@ int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
 	amdgpu_bo_unreserve(new_abo);
 
 	work->base = base;
-	work->target_vblank = target - drm_crtc_vblank_count(crtc) +
+	work->target_vblank = target - (uint32_t)drm_crtc_vblank_count(crtc) +
 		amdgpu_get_vblank_counter_kms(dev, work->crtc_id);
 
 	/* we borrow the event spin lock for protecting flip_wrok */
