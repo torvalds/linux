@@ -37,7 +37,7 @@ static void int_exit(int sig)
 	int i = 0;
 
 	for (i = 0; i < total_ifindex; i++)
-		set_link_xdp_fd(ifindex_list[i], -1, flags);
+		bpf_set_link_xdp_fd(ifindex_list[i], -1, flags);
 	exit(0);
 }
 
@@ -49,7 +49,7 @@ static void close_and_exit(int sig)
 	close(sock_arp);
 
 	for (i = 0; i < total_ifindex; i++)
-		set_link_xdp_fd(ifindex_list[i], -1, flags);
+		bpf_set_link_xdp_fd(ifindex_list[i], -1, flags);
 	exit(0);
 }
 
@@ -183,7 +183,7 @@ static void read_route(struct nlmsghdr *nh, int nll)
 			int i = 0;
 
 			for (i = 0; i < total_ifindex; i++)
-				set_link_xdp_fd(ifindex_list[i], -1, flags);
+				bpf_set_link_xdp_fd(ifindex_list[i], -1, flags);
 			exit(0);
 		}
 		assert(bpf_map_update_elem(map_fd[4], &route.iface, &route.iface, 0) == 0);
@@ -633,12 +633,12 @@ int main(int ac, char **argv)
 		}
 	}
 	for (i = 0; i < total_ifindex; i++) {
-		if (set_link_xdp_fd(ifindex_list[i], prog_fd[0], flags) < 0) {
+		if (bpf_set_link_xdp_fd(ifindex_list[i], prog_fd[0], flags) < 0) {
 			printf("link set xdp fd failed\n");
 			int recovery_index = i;
 
 			for (i = 0; i < recovery_index; i++)
-				set_link_xdp_fd(ifindex_list[i], -1, flags);
+				bpf_set_link_xdp_fd(ifindex_list[i], -1, flags);
 
 			return 1;
 		}
