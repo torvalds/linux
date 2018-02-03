@@ -347,23 +347,25 @@ void drm_vblank_disable_and_save(struct drm_device *dev, unsigned int pipe)
 	spin_lock_irqsave(&dev->vblank_time_lock, irqflags);
 
 	/*
-	 * Only disable vblank interrupts if they're enabled. This avoids
-	 * calling the ->disable_vblank() operation in atomic context with the
-	 * hardware potentially runtime suspended.
+	 * Update vblank count and disable vblank interrupts only if the
+	 * interrupts were enabled. This avoids calling the ->disable_vblank()
+	 * operation in atomic context with the hardware potentially runtime
+	 * suspended.
 	 */
-	if (vblank->enabled) {
-		__disable_vblank(dev, pipe);
-		vblank->enabled = false;
-	}
+	if (!vblank->enabled)
+		goto out;
 
 	/*
-	 * Always update the count and timestamp to maintain the
+	 * Update the count and timestamp to maintain the
 	 * appearance that the counter has been ticking all along until
 	 * this time. This makes the count account for the entire time
 	 * between drm_crtc_vblank_on() and drm_crtc_vblank_off().
 	 */
 	drm_update_vblank_count(dev, pipe, false);
+	__disable_vblank(dev, pipe);
+	vblank->enabled = false;
 
+out:
 	spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);
 }
 
