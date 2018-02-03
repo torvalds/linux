@@ -2393,13 +2393,14 @@ int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
 						   struct nlmsghdr *,
 						   struct netlink_ext_ack *))
 {
-	struct netlink_ext_ack extack = {};
+	struct netlink_ext_ack extack;
 	struct nlmsghdr *nlh;
 	int err;
 
 	while (skb->len >= nlmsg_total_size(0)) {
 		int msglen;
 
+		memset(&extack, 0, sizeof(extack));
 		nlh = nlmsg_hdr(skb);
 		err = 0;
 

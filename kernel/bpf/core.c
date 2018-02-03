@@ -760,6 +760,7 @@ noinline u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 }
 EXPORT_SYMBOL_GPL(__bpf_call_base);
 
+#ifndef CONFIG_BPF_JIT_ALWAYS_ON
 /**
  *	__bpf_prog_run - run eBPF program on a given context
  *	@ctx: is the data we are operating on
@@ -948,7 +949,7 @@ select_insn:
 		DST = tmp;
 		CONT;
 	ALU_MOD_X:
-		if (unlikely(SRC == 0))
+		if (unlikely((u32)SRC == 0))
 			return 0;
 		tmp = (u32) DST;
 		DST = do_div(tmp, (u32) SRC);
@@ -967,7 +968,7 @@ select_insn:
 		DST = div64_u64(DST, SRC);
 		CONT;
 	ALU_DIV_X:
-		if (unlikely(SRC == 0))
+		if (unlikely((u32)SRC == 0))
 			return 0;
 		tmp = (u32) DST;
 		do_div(tmp, (u32) SRC);
@@ -1310,6 +1311,14 @@ EVAL6(PROG_NAME_LIST, 224, 256, 288, 320, 352, 384)
 EVAL4(PROG_NAME_LIST, 416, 448, 480, 512)
 };
 
+#else
+static unsigned int __bpf_prog_ret0(const void *ctx,
+				    const struct bpf_insn *insn)
+{
+	return 0;
+}
+#endif
+
 bool bpf_prog_array_compatible(struct bpf_array *array,
 			       const struct bpf_prog *fp)
 {
@@ -1357,9 +1366,13 @@ static int bpf_check_tail_call(const struct bpf_prog *fp)
  */
 struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 {
+#ifndef CONFIG_BPF_JIT_ALWAYS_ON
 	u32 stack_depth = max_t(u32, fp->aux->stack_depth, 1);
 
 	fp->bpf_func = interpreters[(round_up(stack_depth, 32) / 32) - 1];
+#else
+	fp->bpf_func = __bpf_prog_ret0;
+#endif
 
 	/* eBPF JITs can rewrite the program in case constant
 	 * blinding is active. However, in case of error during
@@ -1368,6 +1381,12 @@ struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 	 * be JITed, but falls back to the interpreter.
 	 */
 	fp = bpf_int_jit_compile(fp);
+#ifdef CONFIG_BPF_JIT_ALWAYS_ON
+	if (!fp->jited) {
+		*err = -ENOTSUPP;
+		return fp;
+	}
+#endif
 	bpf_prog_lock_ro(fp);
 
 	/* The tail call compatibility check can only be done at
