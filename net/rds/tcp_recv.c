@@ -323,7 +323,7 @@ void rds_tcp_data_ready(struct sock *sk)
 
 	if (rds_tcp_read_sock(cp, GFP_ATOMIC) == -ENOMEM) {
 		rcu_read_lock();
-		if (!test_bit(RDS_DESTROY_PENDING, &cp->cp_flags))
+		if (!rds_destroy_pending(cp->cp_conn))
 			queue_delayed_work(rds_wq, &cp->cp_recv_w, 0);
 		rcu_read_unlock();
 	}
