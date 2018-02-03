@@ -26,11 +26,6 @@ static u16 dmi_num;
 static u8 smbios_entry_point[32];
 static int smbios_entry_point_size;
 
-/*
- * Catch too early calls to dmi_check_system():
- */
-static int dmi_initialized;
-
 /* DMI system identification string used during boot */
 static char dmi_ids_string[128] __initdata;
 
@@ -633,7 +628,7 @@ void __init dmi_scan_machine(void)
 
 			if (!dmi_smbios3_present(buf)) {
 				dmi_available = 1;
-				goto out;
+				return;
 			}
 		}
 		if (efi.smbios == EFI_INVALID_TABLE_ADDR)
@@ -651,7 +646,7 @@ void __init dmi_scan_machine(void)
 
 		if (!dmi_present(buf)) {
 			dmi_available = 1;
-			goto out;
+			return;
 		}
 	} else if (IS_ENABLED(CONFIG_DMI_SCAN_MACHINE_NON_EFI_FALLBACK)) {
 		p = dmi_early_remap(0xF0000, 0x10000);
@@ -668,7 +663,7 @@ void __init dmi_scan_machine(void)
 			if (!dmi_smbios3_present(buf)) {
 				dmi_available = 1;
 				dmi_early_unmap(p, 0x10000);
-				goto out;
+				return;
 			}
 			memcpy(buf, buf + 16, 16);
 		}
@@ -686,7 +681,7 @@ void __init dmi_scan_machine(void)
 			if (!dmi_present(buf)) {
 				dmi_available = 1;
 				dmi_early_unmap(p, 0x10000);
-				goto out;
+				return;
 			}
 			memcpy(buf, buf + 16, 16);
 		}
@@ -694,8 +689,6 @@ void __init dmi_scan_machine(void)
 	}
  error:
 	pr_info("DMI not present or invalid.\n");
- out:
-	dmi_initialized = 1;
 }
 
 static ssize_t raw_table_read(struct file *file, struct kobject *kobj,
@@ -827,13 +820,13 @@ static bool dmi_is_end_of_table(const struct dmi_system_id *dmi)
  *	Walk the blacklist table running matching functions until someone
  *	returns non zero or we hit the end. Callback function is called for
  *	each successful match. Returns the number of matches.
+ *
+ *	dmi_scan_machine must be called before this function is called.
  */
 int dmi_check_system(const struct dmi_system_id *list)
 {
 	int count = 0;
 	const struct dmi_system_id *d;
-
-	WARN(!dmi_initialized, KERN_ERR "dmi check: not initialized yet.\n");
 
 	for (d = list; !dmi_is_end_of_table(d); d++)
 		if (dmi_matches(d)) {
@@ -857,6 +850,8 @@ EXPORT_SYMBOL(dmi_check_system);
  *
  *	Walk the blacklist table until the first match is found.  Return the
  *	pointer to the matching entry or NULL if there's no match.
+ *
+ *	dmi_scan_machine must be called before this function is called.
  */
 const struct dmi_system_id *dmi_first_match(const struct dmi_system_id *list)
 {
