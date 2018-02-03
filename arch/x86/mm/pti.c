@@ -367,7 +367,8 @@ static void __init pti_setup_espfix64(void)
 static void __init pti_clone_entry_text(void)
 {
 	pti_clone_pmds((unsigned long) __entry_text_start,
-			(unsigned long) __irqentry_text_end, _PAGE_RW);
+			(unsigned long) __irqentry_text_end,
+		       _PAGE_RW | _PAGE_GLOBAL);
 }
 
 /*
