@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
+
 /*
  * media_device_test.c - Media Controller Device ioctl loop Test
  *
  * Copyright (c) 2016 Shuah Khan <shuahkh@osg.samsung.com>
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *
- * This file is released under the GPLv2.
  */
 
 /*
