@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/ext4/super.c
  *
@@ -743,6 +744,7 @@ __acquires(bitlock)
 	}
 
 	ext4_unlock_group(sb, grp);
+	ext4_commit_super(sb, 1);
 	ext4_handle_error(sb);
 	/*
 	 * We only get here in the ERRORS_RO case; relocking the group
@@ -871,7 +873,6 @@ static void ext4_put_super(struct super_block *sb)
 	ext4_unregister_li_request(sb);
 	ext4_quota_off_umount(sb);
 
-	flush_workqueue(sbi->rsv_conversion_wq);
 	destroy_workqueue(sbi->rsv_conversion_wq);
 
 	if (sbi->s_journal) {
@@ -2677,7 +2678,7 @@ static ext4_fsblk_t descriptor_loc(struct super_block *sb,
 	 * compensate.
 	 */
 	if (sb->s_blocksize == 1024 && nr == 0 &&
-	    le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block) == 0)
+	    le32_to_cpu(sbi->s_es->s_first_data_block) == 0)
 		has_super++;
 
 	return (has_super + ext4_group_first_block_no(sb, bg));
@@ -3122,7 +3123,7 @@ int ext4_register_li_request(struct super_block *sb,
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_li_request *elr = NULL;
-	ext4_group_t ngroups = EXT4_SB(sb)->s_groups_count;
+	ext4_group_t ngroups = sbi->s_groups_count;
 	int ret = 0;
 
 	mutex_lock(&ext4_li_mtx);
@@ -4837,7 +4838,7 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
 	bool needs_barrier = false;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
-	if (unlikely(ext4_forced_shutdown(EXT4_SB(sb))))
+	if (unlikely(ext4_forced_shutdown(sbi)))
 		return 0;
 
 	trace_ext4_sync_fs(sb, wait);
