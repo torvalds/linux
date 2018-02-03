@@ -644,18 +644,6 @@ amdgpu_dm_find_first_crtc_matching_connector(struct drm_atomic_state *state,
 static int dm_resume(void *handle)
 {
 	struct amdgpu_device *adev = handle;
-	struct amdgpu_display_manager *dm = &adev->dm;
-	int ret = 0;
-
-	/* power on hardware */
-	dc_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D0);
-
-	ret = amdgpu_dm_display_resume(adev);
-	return ret;
-}
-
-int amdgpu_dm_display_resume(struct amdgpu_device *adev)
-{
 	struct drm_device *ddev = adev->ddev;
 	struct amdgpu_display_manager *dm = &adev->dm;
 	struct amdgpu_dm_connector *aconnector;
@@ -666,9 +654,11 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 	struct drm_plane *plane;
 	struct drm_plane_state *new_plane_state;
 	struct dm_plane_state *dm_new_plane_state;
-
-	int ret = 0;
+	int ret;
 	int i;
+
+	/* power on hardware */
+	dc_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D0);
 
 	/* program HPD filter */
 	dc_resume(dm->dc);
@@ -683,8 +673,7 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 	amdgpu_dm_irq_resume_early(adev);
 
 	/* Do detection*/
-	list_for_each_entry(connector,
-			&ddev->mode_config.connector_list, head) {
+	list_for_each_entry(connector, &ddev->mode_config.connector_list, head) {
 		aconnector = to_amdgpu_dm_connector(connector);
 
 		/*
@@ -706,7 +695,7 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 	}
 
 	/* Force mode set in atomic comit */
-	for_each_new_crtc_in_state(adev->dm.cached_state, crtc, new_crtc_state, i)
+	for_each_new_crtc_in_state(dm->cached_state, crtc, new_crtc_state, i)
 		new_crtc_state->active_changed = true;
 
 	/*
@@ -714,7 +703,7 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 	 * them here, since they were duplicated as part of the suspend
 	 * procedure.
 	 */
-	for_each_new_crtc_in_state(adev->dm.cached_state, crtc, new_crtc_state, i) {
+	for_each_new_crtc_in_state(dm->cached_state, crtc, new_crtc_state, i) {
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 		if (dm_new_crtc_state->stream) {
 			WARN_ON(kref_read(&dm_new_crtc_state->stream->refcount) > 1);
@@ -723,7 +712,7 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 		}
 	}
 
-	for_each_new_plane_in_state(adev->dm.cached_state, plane, new_plane_state, i) {
+	for_each_new_plane_in_state(dm->cached_state, plane, new_plane_state, i) {
 		dm_new_plane_state = to_dm_plane_state(new_plane_state);
 		if (dm_new_plane_state->dc_state) {
 			WARN_ON(kref_read(&dm_new_plane_state->dc_state->refcount) > 1);
@@ -732,9 +721,9 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 		}
 	}
 
-	ret = drm_atomic_helper_resume(ddev, adev->dm.cached_state);
+	ret = drm_atomic_helper_resume(ddev, dm->cached_state);
 
-	adev->dm.cached_state = NULL;
+	dm->cached_state = NULL;
 
 	amdgpu_dm_irq_resume_late(adev);
 
