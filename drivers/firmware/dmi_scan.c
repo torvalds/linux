@@ -704,10 +704,8 @@ static int __init dmi_init(void)
 	u8 *dmi_table;
 	int ret = -ENOMEM;
 
-	if (!dmi_available) {
-		ret = -ENODATA;
-		goto err;
-	}
+	if (!dmi_available)
+		return 0;
 
 	/*
 	 * Set up dmi directory at /sys/firmware/dmi. This entry should stay
