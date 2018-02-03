@@ -1232,12 +1232,11 @@ static int ipsec_esp(struct talitos_edesc *edesc, struct aead_request *areq,
 			sg_link_tbl_len += authsize;
 	}
 
-	sg_count = talitos_sg_map(dev, areq->src, cryptlen, edesc,
-				  &desc->ptr[4], sg_count, areq->assoclen,
-				  tbl_off);
+	ret = talitos_sg_map(dev, areq->src, sg_link_tbl_len, edesc,
+			     &desc->ptr[4], sg_count, areq->assoclen, tbl_off);
 
-	if (sg_count > 1) {
-		tbl_off += sg_count;
+	if (ret > 1) {
+		tbl_off += ret;
 		sync_needed = true;
 	}
 
@@ -1248,14 +1247,15 @@ static int ipsec_esp(struct talitos_edesc *edesc, struct aead_request *areq,
 			dma_map_sg(dev, areq->dst, sg_count, DMA_FROM_DEVICE);
 	}
 
-	sg_count = talitos_sg_map(dev, areq->dst, cryptlen, edesc,
-				  &desc->ptr[5], sg_count, areq->assoclen,
-				  tbl_off);
+	ret = talitos_sg_map(dev, areq->dst, cryptlen, edesc, &desc->ptr[5],
+			     sg_count, areq->assoclen, tbl_off);
 
 	if (desc->hdr & DESC_HDR_TYPE_IPSEC_ESP)
 		to_talitos_ptr_ext_or(&desc->ptr[5], authsize, is_sec1);
 
-	if (sg_count > 1) {
+	/* ICV data */
+	if (ret > 1) {
+		tbl_off += ret;
 		edesc->icv_ool = true;
 		sync_needed = true;
 
@@ -1265,9 +1265,7 @@ static int ipsec_esp(struct talitos_edesc *edesc, struct aead_request *areq,
 				     sizeof(struct talitos_ptr) + authsize;
 
 			/* Add an entry to the link table for ICV data */
-			tbl_ptr += sg_count - 1;
-			to_talitos_ptr_ext_set(tbl_ptr, 0, is_sec1);
-			tbl_ptr++;
+			to_talitos_ptr_ext_set(tbl_ptr - 1, 0, is_sec1);
 			to_talitos_ptr_ext_set(tbl_ptr, DESC_PTR_LNKTBL_RETURN,
 					       is_sec1);
 			to_talitos_ptr_len(tbl_ptr, authsize, is_sec1);
@@ -1275,16 +1273,31 @@ static int ipsec_esp(struct talitos_edesc *edesc, struct aead_request *areq,
 			/* icv data follows link tables */
 			to_talitos_ptr(tbl_ptr, edesc->dma_link_tbl + offset,
 				       is_sec1);
+		} else {
+			dma_addr_t addr = edesc->dma_link_tbl;
+
+			if (is_sec1)
+				addr += areq->assoclen + cryptlen;
+			else
+				addr += sizeof(struct talitos_ptr) * tbl_off;
+
+			to_talitos_ptr(&desc->ptr[6], addr, is_sec1);
+			to_talitos_ptr_len(&desc->ptr[6], authsize, is_sec1);
+		}
+	} else if (!(desc->hdr & DESC_HDR_TYPE_IPSEC_ESP)) {
+		ret = talitos_sg_map(dev, areq->dst, authsize, edesc,
+				     &desc->ptr[6], sg_count, areq->assoclen +
+							      cryptlen,
+				     tbl_off);
+		if (ret > 1) {
+			tbl_off += ret;
+			edesc->icv_ool = true;
+			sync_needed = true;
+		} else {
+			edesc->icv_ool = false;
 		}
 	} else {
 		edesc->icv_ool = false;
-	}
-
-	/* ICV data */
-	if (!(desc->hdr & DESC_HDR_TYPE_IPSEC_ESP)) {
-		to_talitos_ptr_len(&desc->ptr[6], authsize, is_sec1);
-		to_talitos_ptr(&desc->ptr[6], edesc->dma_link_tbl +
-			       areq->assoclen + cryptlen, is_sec1);
 	}
 
 	/* iv out */
@@ -1494,9 +1507,17 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *cipher,
 			     const u8 *key, unsigned int keylen)
 {
 	struct talitos_ctx *ctx = crypto_ablkcipher_ctx(cipher);
+	u32 tmp[DES_EXPKEY_WORDS];
 
 	if (keylen > TALITOS_MAX_KEY_SIZE) {
 		crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		return -EINVAL;
+	}
+
+	if (unlikely(crypto_ablkcipher_get_flags(cipher) &
+		     CRYPTO_TFM_REQ_WEAK_KEY) &&
+	    !des_ekey(tmp, key)) {
+		crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_WEAK_KEY);
 		return -EINVAL;
 	}
 
@@ -2614,7 +2635,7 @@ static struct talitos_alg_template driver_algs[] = {
 				.ivsize = AES_BLOCK_SIZE,
 			}
 		},
-		.desc_hdr_template = DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU |
+		.desc_hdr_template = DESC_HDR_TYPE_AESU_CTR_NONSNOOP |
 				     DESC_HDR_SEL0_AESU |
 				     DESC_HDR_MODE0_AESU_CTR,
 	},
@@ -3047,6 +3068,11 @@ static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
 		t_alg->algt.alg.aead.setkey = aead_setkey;
 		t_alg->algt.alg.aead.encrypt = aead_encrypt;
 		t_alg->algt.alg.aead.decrypt = aead_decrypt;
+		if (!(priv->features & TALITOS_FTR_SHA224_HWINIT) &&
+		    !strncmp(alg->cra_name, "authenc(hmac(sha224)", 20)) {
+			kfree(t_alg);
+			return ERR_PTR(-ENOTSUPP);
+		}
 		break;
 	case CRYPTO_ALG_TYPE_AHASH:
 		alg = &t_alg->algt.alg.hash.halg.base;

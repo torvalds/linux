@@ -632,9 +632,8 @@ COMPAT_SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		if (err)
 			break;
 		err = fixup_compat_flock(&flock);
-		if (err)
-			return err;
-		err = put_compat_flock(&flock, compat_ptr(arg));
+		if (!err)
+			err = put_compat_flock(&flock, compat_ptr(arg));
 		break;
 	case F_GETLK64:
 	case F_OFD_GETLK:

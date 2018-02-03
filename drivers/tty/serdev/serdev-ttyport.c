@@ -35,23 +35,41 @@ static int ttyport_receive_buf(struct tty_port *port, const unsigned char *cp,
 {
 	struct serdev_controller *ctrl = port->client_data;
 	struct serport *serport = serdev_controller_get_drvdata(ctrl);
+	int ret;
 
 	if (!test_bit(SERPORT_ACTIVE, &serport->flags))
 		return 0;
 
-	return serdev_controller_receive_buf(ctrl, cp, count);
+	ret = serdev_controller_receive_buf(ctrl, cp, count);
+
+	dev_WARN_ONCE(&ctrl->dev, ret < 0 || ret > count,
+				"receive_buf returns %d (count = %zu)\n",
+				ret, count);
+	if (ret < 0)
+		return 0;
+	else if (ret > count)
+		return count;
+
+	return ret;
 }
 
 static void ttyport_write_wakeup(struct tty_port *port)
 {
 	struct serdev_controller *ctrl = port->client_data;
 	struct serport *serport = serdev_controller_get_drvdata(ctrl);
+	struct tty_struct *tty;
 
-	if (test_and_clear_bit(TTY_DO_WRITE_WAKEUP, &port->tty->flags) &&
+	tty = tty_port_tty_get(port);
+	if (!tty)
+		return;
+
+	if (test_and_clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags) &&
 	    test_bit(SERPORT_ACTIVE, &serport->flags))
 		serdev_controller_write_wakeup(ctrl);
 
-	wake_up_interruptible_poll(&port->tty->write_wait, POLLOUT);
+	wake_up_interruptible_poll(&tty->write_wait, POLLOUT);
+
+	tty_kref_put(tty);
 }
 
 static const struct tty_port_client_operations client_ops = {
@@ -131,8 +149,10 @@ static void ttyport_close(struct serdev_controller *ctrl)
 
 	clear_bit(SERPORT_ACTIVE, &serport->flags);
 
+	tty_lock(tty);
 	if (tty->ops->close)
 		tty->ops->close(tty, NULL);
+	tty_unlock(tty);
 
 	tty_release_struct(tty, serport->tty_idx);
 }
