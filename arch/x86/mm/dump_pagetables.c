@@ -61,10 +61,10 @@ enum address_markers_idx {
 	KASAN_SHADOW_START_NR,
 	KASAN_SHADOW_END_NR,
 #endif
+	CPU_ENTRY_AREA_NR,
 #if defined(CONFIG_MODIFY_LDT_SYSCALL) && !defined(CONFIG_X86_5LEVEL)
 	LDT_NR,
 #endif
-	CPU_ENTRY_AREA_NR,
 #ifdef CONFIG_X86_ESPFIX64
 	ESPFIX_START_NR,
 #endif

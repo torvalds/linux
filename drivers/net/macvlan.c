@@ -1444,9 +1444,14 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 	return 0;
 
 unregister_netdev:
+	/* macvlan_uninit would free the macvlan port */
 	unregister_netdevice(dev);
+	return err;
 destroy_macvlan_port:
-	if (create)
+	/* the macvlan port may be freed by macvlan_uninit when fail to register.
+	 * so we destroy the macvlan port only when it's valid.
+	 */
+	if (create && macvlan_port_get_rtnl(dev))
 		macvlan_port_destroy(port->dev);
 	return err;
 }

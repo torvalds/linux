@@ -5,6 +5,7 @@
 
 #include <asm/cpu_entry_area.h>
 #include <asm/perf_event.h>
+#include <asm/tlbflush.h>
 #include <asm/insn.h>
 
 #include "../perf_event.h"
@@ -283,20 +284,35 @@ static DEFINE_PER_CPU(void *, insn_buffer);
 
 static void ds_update_cea(void *cea, void *addr, size_t size, pgprot_t prot)
 {
+	unsigned long start = (unsigned long)cea;
 	phys_addr_t pa;
 	size_t msz = 0;
 
 	pa = virt_to_phys(addr);
+
+	preempt_disable();
 	for (; msz < size; msz += PAGE_SIZE, pa += PAGE_SIZE, cea += PAGE_SIZE)
 		cea_set_pte(cea, pa, prot);
+
+	/*
+	 * This is a cross-CPU update of the cpu_entry_area, we must shoot down
+	 * all TLB entries for it.
+	 */
+	flush_tlb_kernel_range(start, start + size);
+	preempt_enable();
 }
 
 static void ds_clear_cea(void *cea, size_t size)
 {
+	unsigned long start = (unsigned long)cea;
 	size_t msz = 0;
 
+	preempt_disable();
 	for (; msz < size; msz += PAGE_SIZE, cea += PAGE_SIZE)
 		cea_set_pte(cea, 0, PAGE_NONE);
+
+	flush_tlb_kernel_range(start, start + size);
+	preempt_enable();
 }
 
 static void *dsalloc_pages(size_t size, gfp_t flags, int cpu)

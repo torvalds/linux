@@ -13,7 +13,6 @@
 
 #include <linux/linkage.h>
 #include <asm/unistd.h>
-#include <asm/vdso-syscalls.h>
 
 	.text
 /* int __vdso_flush_icache(void *start, void *end, unsigned long flags); */

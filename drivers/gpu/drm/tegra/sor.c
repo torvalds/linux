@@ -2656,6 +2656,9 @@ static int tegra_sor_probe(struct platform_device *pdev)
 				name, err);
 			goto remove;
 		}
+	} else {
+		/* fall back to the module clock on SOR0 (eDP/LVDS only) */
+		sor->clk_out = sor->clk;
 	}
 
 	sor->clk_parent = devm_clk_get(&pdev->dev, "parent");

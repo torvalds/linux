@@ -1543,6 +1543,9 @@ static void rtsx_pci_shutdown(struct pci_dev *pcidev)
 	rtsx_pci_power_off(pcr, HOST_ENTER_S1);
 
 	pci_disable_device(pcidev);
+	free_irq(pcr->irq, (void *)pcr);
+	if (pcr->msi_en)
+		pci_disable_msi(pcr->pci);
 }
 
 #else /* CONFIG_PM */
