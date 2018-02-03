@@ -1237,6 +1237,65 @@ void drm_crtc_vblank_on(struct drm_crtc *crtc)
 }
 EXPORT_SYMBOL(drm_crtc_vblank_on);
 
+/**
+ * drm_vblank_restore - estimated vblanks using timestamps and update it.
+ *
+ * Power manamement features can cause frame counter resets between vblank
+ * disable and enable. Drivers can then use this function in their
+ * &drm_crtc_funcs.enable_vblank implementation to estimate the vblanks since
+ * the last &drm_crtc_funcs.disable_vblank.
+ *
+ * This function is the legacy version of drm_crtc_vblank_restore().
+ */
+void drm_vblank_restore(struct drm_device *dev, unsigned int pipe)
+{
+	ktime_t t_vblank;
+	struct drm_vblank_crtc *vblank;
+	int framedur_ns;
+	u64 diff_ns;
+	u32 cur_vblank, diff = 1;
+	int count = DRM_TIMESTAMP_MAXRETRIES;
+
+	if (WARN_ON(pipe >= dev->num_crtcs))
+		return;
+
+	assert_spin_locked(&dev->vbl_lock);
+	assert_spin_locked(&dev->vblank_time_lock);
+
+	vblank = &dev->vblank[pipe];
+	WARN_ONCE((drm_debug & DRM_UT_VBL) && !vblank->framedur_ns,
+		  "Cannot compute missed vblanks without frame duration\n");
+	framedur_ns = vblank->framedur_ns;
+
+	do {
+		cur_vblank = __get_vblank_counter(dev, pipe);
+		drm_get_last_vbltimestamp(dev, pipe, &t_vblank, false);
+	} while (cur_vblank != __get_vblank_counter(dev, pipe) && --count > 0);
+
+	diff_ns = ktime_to_ns(ktime_sub(t_vblank, vblank->time));
+	if (framedur_ns)
+		diff = DIV_ROUND_CLOSEST_ULL(diff_ns, framedur_ns);
+
+
+	DRM_DEBUG_VBL("missed %d vblanks in %lld ns, frame duration=%d ns, hw_diff=%d\n",
+		      diff, diff_ns, framedur_ns, cur_vblank - vblank->last);
+	store_vblank(dev, pipe, diff, t_vblank, cur_vblank);
+}
+EXPORT_SYMBOL(drm_vblank_restore);
+
+/**
+ * drm_crtc_vblank_restore - estimate vblanks using timestamps and update it.
+ * Power manamement features can cause frame counter resets between vblank
+ * disable and enable. Drivers can then use this function in their
+ * &drm_crtc_funcs.enable_vblank implementation to estimate the vblanks since
+ * the last &drm_crtc_funcs.disable_vblank.
+ */
+void drm_crtc_vblank_restore(struct drm_crtc *crtc)
+{
+	drm_vblank_restore(crtc->dev, drm_crtc_index(crtc));
+}
+EXPORT_SYMBOL(drm_crtc_vblank_restore);
+
 static void drm_legacy_vblank_pre_modeset(struct drm_device *dev,
 					  unsigned int pipe)
 {
