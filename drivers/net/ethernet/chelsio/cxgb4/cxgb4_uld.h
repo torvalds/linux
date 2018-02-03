@@ -355,7 +355,7 @@ struct cxgb4_lld_info {
 };
 
 struct cxgb4_uld_info {
-	const char *name;
+	char name[IFNAMSIZ];
 	void *handle;
 	unsigned int nrxq;
 	unsigned int rxq_size;

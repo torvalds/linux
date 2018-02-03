@@ -993,7 +993,7 @@ int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 int br_fdb_sync_static(struct net_bridge *br, struct net_bridge_port *p)
 {
 	struct net_bridge_fdb_entry *f, *tmp;
-	int err;
+	int err = 0;
 
 	ASSERT_RTNL();
 
