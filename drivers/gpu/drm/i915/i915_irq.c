@@ -2951,6 +2951,12 @@ static int ironlake_enable_vblank(struct drm_device *dev, unsigned int pipe)
 	ilk_enable_display_irq(dev_priv, bit);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
+	/* Even though there is no DMC, frame counter can get stuck when
+	 * PSR is active as no frames are generated.
+	 */
+	if (HAS_PSR(dev_priv))
+		drm_vblank_restore(dev, pipe);
+
 	return 0;
 }
 
@@ -2962,6 +2968,12 @@ static int gen8_enable_vblank(struct drm_device *dev, unsigned int pipe)
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	bdw_enable_pipe_irq(dev_priv, pipe, GEN8_PIPE_VBLANK);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+
+	/* Even if there is no DMC, frame counter can get stuck when
+	 * PSR is active as no frames are generated, so check only for PSR.
+	 */
+	if (HAS_PSR(dev_priv))
+		drm_vblank_restore(dev, pipe);
 
 	return 0;
 }
