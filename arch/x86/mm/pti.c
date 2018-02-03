@@ -56,13 +56,13 @@
 
 static void __init pti_print_if_insecure(const char *reason)
 {
-	if (boot_cpu_has_bug(X86_BUG_CPU_INSECURE))
+	if (boot_cpu_has_bug(X86_BUG_CPU_MELTDOWN))
 		pr_info("%s\n", reason);
 }
 
 static void __init pti_print_if_secure(const char *reason)
 {
-	if (!boot_cpu_has_bug(X86_BUG_CPU_INSECURE))
+	if (!boot_cpu_has_bug(X86_BUG_CPU_MELTDOWN))
 		pr_info("%s\n", reason);
 }
 
@@ -96,7 +96,7 @@ void __init pti_check_boottime_disable(void)
 	}
 
 autosel:
-	if (!boot_cpu_has_bug(X86_BUG_CPU_INSECURE))
+	if (!boot_cpu_has_bug(X86_BUG_CPU_MELTDOWN))
 		return;
 enable:
 	setup_force_cpu_cap(X86_FEATURE_PTI);

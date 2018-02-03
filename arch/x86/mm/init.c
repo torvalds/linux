@@ -870,7 +870,7 @@ __visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = {
 	.next_asid = 1,
 	.cr4 = ~0UL,	/* fail hard if we screw up cr4 shadow initialization */
 };
-EXPORT_SYMBOL_GPL(cpu_tlbstate);
+EXPORT_PER_CPU_SYMBOL(cpu_tlbstate);
 
 void update_cache_mode_entry(unsigned entry, enum page_cache_mode cache)
 {
