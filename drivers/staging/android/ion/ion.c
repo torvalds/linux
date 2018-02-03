@@ -348,7 +348,7 @@ static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 	mutex_lock(&buffer->lock);
 	list_for_each_entry(a, &buffer->attachments, list) {
 		dma_sync_sg_for_cpu(a->dev, a->table->sgl, a->table->nents,
-				    DMA_BIDIRECTIONAL);
+				    direction);
 	}
 	mutex_unlock(&buffer->lock);
 
@@ -370,7 +370,7 @@ static int ion_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 	mutex_lock(&buffer->lock);
 	list_for_each_entry(a, &buffer->attachments, list) {
 		dma_sync_sg_for_device(a->dev, a->table->sgl, a->table->nents,
-				       DMA_BIDIRECTIONAL);
+				       direction);
 	}
 	mutex_unlock(&buffer->lock);
 

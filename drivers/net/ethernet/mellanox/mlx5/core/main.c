@@ -316,9 +316,6 @@ static int mlx5_alloc_irq_vectors(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 	struct mlx5_eq_table *table = &priv->eq_table;
-	struct irq_affinity irqdesc = {
-		.pre_vectors = MLX5_EQ_VEC_COMP_BASE,
-	};
 	int num_eqs = 1 << MLX5_CAP_GEN(dev, log_max_eq);
 	int nvec;
 
@@ -332,10 +329,9 @@ static int mlx5_alloc_irq_vectors(struct mlx5_core_dev *dev)
 	if (!priv->irq_info)
 		goto err_free_msix;
 
-	nvec = pci_alloc_irq_vectors_affinity(dev->pdev,
+	nvec = pci_alloc_irq_vectors(dev->pdev,
 			MLX5_EQ_VEC_COMP_BASE + 1, nvec,
-			PCI_IRQ_MSIX | PCI_IRQ_AFFINITY,
-			&irqdesc);
+			PCI_IRQ_MSIX);
 	if (nvec < 0)
 		return nvec;
 
@@ -619,6 +615,63 @@ u64 mlx5_read_internal_timer(struct mlx5_core_dev *dev)
 		timer_l = ioread32be(&dev->iseg->internal_timer_l);
 
 	return (u64)timer_l | (u64)timer_h1 << 32;
+}
+
+static int mlx5_irq_set_affinity_hint(struct mlx5_core_dev *mdev, int i)
+{
+	struct mlx5_priv *priv  = &mdev->priv;
+	int irq = pci_irq_vector(mdev->pdev, MLX5_EQ_VEC_COMP_BASE + i);
+
+	if (!zalloc_cpumask_var(&priv->irq_info[i].mask, GFP_KERNEL)) {
+		mlx5_core_warn(mdev, "zalloc_cpumask_var failed");
+		return -ENOMEM;
+	}
+
+	cpumask_set_cpu(cpumask_local_spread(i, priv->numa_node),
+			priv->irq_info[i].mask);
+
+	if (IS_ENABLED(CONFIG_SMP) &&
+	    irq_set_affinity_hint(irq, priv->irq_info[i].mask))
+		mlx5_core_warn(mdev, "irq_set_affinity_hint failed, irq 0x%.4x", irq);
+
+	return 0;
+}
+
+static void mlx5_irq_clear_affinity_hint(struct mlx5_core_dev *mdev, int i)
+{
+	struct mlx5_priv *priv  = &mdev->priv;
+	int irq = pci_irq_vector(mdev->pdev, MLX5_EQ_VEC_COMP_BASE + i);
+
+	irq_set_affinity_hint(irq, NULL);
+	free_cpumask_var(priv->irq_info[i].mask);
+}
+
+static int mlx5_irq_set_affinity_hints(struct mlx5_core_dev *mdev)
+{
+	int err;
+	int i;
+
+	for (i = 0; i < mdev->priv.eq_table.num_comp_vectors; i++) {
+		err = mlx5_irq_set_affinity_hint(mdev, i);
+		if (err)
+			goto err_out;
+	}
+
+	return 0;
+
+err_out:
+	for (i--; i >= 0; i--)
+		mlx5_irq_clear_affinity_hint(mdev, i);
+
+	return err;
+}
+
+static void mlx5_irq_clear_affinity_hints(struct mlx5_core_dev *mdev)
+{
+	int i;
+
+	for (i = 0; i < mdev->priv.eq_table.num_comp_vectors; i++)
+		mlx5_irq_clear_affinity_hint(mdev, i);
 }
 
 int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
@@ -1093,6 +1146,12 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_stop_eqs;
 	}
 
+	err = mlx5_irq_set_affinity_hints(dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to alloc affinity hint cpumask\n");
+		goto err_affinity_hints;
+	}
+
 	err = mlx5_init_fs(dev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to init flow steering\n");
@@ -1150,6 +1209,9 @@ err_sriov:
 	mlx5_cleanup_fs(dev);
 
 err_fs:
+	mlx5_irq_clear_affinity_hints(dev);
+
+err_affinity_hints:
 	free_comp_eqs(dev);
 
 err_stop_eqs:
@@ -1218,6 +1280,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 
 	mlx5_sriov_detach(dev);
 	mlx5_cleanup_fs(dev);
+	mlx5_irq_clear_affinity_hints(dev);
 	free_comp_eqs(dev);
 	mlx5_stop_eqs(dev);
 	mlx5_put_uars_page(dev, priv->uar);

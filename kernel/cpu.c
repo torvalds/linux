@@ -1277,9 +1277,9 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 	 * before blk_mq_queue_reinit_notify() from notify_dead(),
 	 * otherwise a RCU stall occurs.
 	 */
-	[CPUHP_TIMERS_DEAD] = {
+	[CPUHP_TIMERS_PREPARE] = {
 		.name			= "timers:dead",
-		.startup.single		= NULL,
+		.startup.single		= timers_prepare_cpu,
 		.teardown.single	= timers_dead_cpu,
 	},
 	/* Kicks the plugged cpu into life */

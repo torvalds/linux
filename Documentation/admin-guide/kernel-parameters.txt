@@ -2685,6 +2685,8 @@
 			steal time is computed, but won't influence scheduler
 			behaviour
 
+	nopti		[X86-64] Disable kernel page table isolation
+
 	nolapic		[X86-32,APIC] Do not enable or use the local APIC.
 
 	nolapic_timer	[X86-32,APIC] Do not use the local APIC timer.
@@ -3252,6 +3254,12 @@
 
 	pt.		[PARIDE]
 			See Documentation/blockdev/paride.txt.
+
+	pti=		[X86_64]
+			Control user/kernel address space isolation:
+			on - enable
+			off - disable
+			auto - default setting
 
 	pty.legacy_count=
 			[KNL] Number of legacy pty's. Overwrites compiled-in

@@ -59,11 +59,12 @@ static int ingress_init(struct Qdisc *sch, struct nlattr *opt)
 	struct net_device *dev = qdisc_dev(sch);
 	int err;
 
+	net_inc_ingress_queue();
+
 	err = tcf_block_get(&q->block, &dev->ingress_cl_list);
 	if (err)
 		return err;
 
-	net_inc_ingress_queue();
 	sch->flags |= TCQ_F_CPUSTATS;
 
 	return 0;
@@ -153,6 +154,9 @@ static int clsact_init(struct Qdisc *sch, struct nlattr *opt)
 	struct net_device *dev = qdisc_dev(sch);
 	int err;
 
+	net_inc_ingress_queue();
+	net_inc_egress_queue();
+
 	err = tcf_block_get(&q->ingress_block, &dev->ingress_cl_list);
 	if (err)
 		return err;
@@ -160,9 +164,6 @@ static int clsact_init(struct Qdisc *sch, struct nlattr *opt)
 	err = tcf_block_get(&q->egress_block, &dev->egress_cl_list);
 	if (err)
 		return err;
-
-	net_inc_ingress_queue();
-	net_inc_egress_queue();
 
 	sch->flags |= TCQ_F_CPUSTATS;
 

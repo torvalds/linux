@@ -525,6 +525,7 @@ struct phylink *phylink_create(struct net_device *ndev, struct device_node *np,
 	pl->link_config.pause = MLO_PAUSE_AN;
 	pl->link_config.speed = SPEED_UNKNOWN;
 	pl->link_config.duplex = DUPLEX_UNKNOWN;
+	pl->link_config.an_enabled = true;
 	pl->ops = ops;
 	__set_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
 
@@ -948,6 +949,7 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 	mutex_lock(&pl->state_mutex);
 	/* Configure the MAC to match the new settings */
 	linkmode_copy(pl->link_config.advertising, our_kset.link_modes.advertising);
+	pl->link_config.interface = config.interface;
 	pl->link_config.speed = our_kset.base.speed;
 	pl->link_config.duplex = our_kset.base.duplex;
 	pl->link_config.an_enabled = our_kset.base.autoneg != AUTONEG_DISABLE;

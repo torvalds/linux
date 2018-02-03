@@ -24,6 +24,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/ldt.h>
+#include <asm/tlb.h>
 #include <asm/desc.h>
 #include <asm/mmu_context.h>
 #include <asm/syscalls.h>
@@ -51,13 +52,11 @@ static void refresh_ldt_segments(void)
 static void flush_ldt(void *__mm)
 {
 	struct mm_struct *mm = __mm;
-	mm_context_t *pc;
 
 	if (this_cpu_read(cpu_tlbstate.loaded_mm) != mm)
 		return;
 
-	pc = &mm->context;
-	set_ldt(pc->ldt->entries, pc->ldt->nr_entries);
+	load_mm_ldt(mm);
 
 	refresh_ldt_segments();
 }
@@ -94,8 +93,124 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
 		return NULL;
 	}
 
+	/* The new LDT isn't aliased for PTI yet. */
+	new_ldt->slot = -1;
+
 	new_ldt->nr_entries = num_entries;
 	return new_ldt;
+}
+
+/*
+ * If PTI is enabled, this maps the LDT into the kernelmode and
+ * usermode tables for the given mm.
+ *
+ * There is no corresponding unmap function.  Even if the LDT is freed, we
+ * leave the PTEs around until the slot is reused or the mm is destroyed.
+ * This is harmless: the LDT is always in ordinary memory, and no one will
+ * access the freed slot.
+ *
+ * If we wanted to unmap freed LDTs, we'd also need to do a flush to make
+ * it useful, and the flush would slow down modify_ldt().
+ */
+static int
+map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
+{
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
+	bool is_vmalloc, had_top_level_entry;
+	unsigned long va;
+	spinlock_t *ptl;
+	pgd_t *pgd;
+	int i;
+
+	if (!static_cpu_has(X86_FEATURE_PTI))
+		return 0;
+
+	/*
+	 * Any given ldt_struct should have map_ldt_struct() called at most
+	 * once.
+	 */
+	WARN_ON(ldt->slot != -1);
+
+	/*
+	 * Did we already have the top level entry allocated?  We can't
+	 * use pgd_none() for this because it doens't do anything on
+	 * 4-level page table kernels.
+	 */
+	pgd = pgd_offset(mm, LDT_BASE_ADDR);
+	had_top_level_entry = (pgd->pgd != 0);
+
+	is_vmalloc = is_vmalloc_addr(ldt->entries);
+
+	for (i = 0; i * PAGE_SIZE < ldt->nr_entries * LDT_ENTRY_SIZE; i++) {
+		unsigned long offset = i << PAGE_SHIFT;
+		const void *src = (char *)ldt->entries + offset;
+		unsigned long pfn;
+		pte_t pte, *ptep;
+
+		va = (unsigned long)ldt_slot_va(slot) + offset;
+		pfn = is_vmalloc ? vmalloc_to_pfn(src) :
+			page_to_pfn(virt_to_page(src));
+		/*
+		 * Treat the PTI LDT range as a *userspace* range.
+		 * get_locked_pte() will allocate all needed pagetables
+		 * and account for them in this mm.
+		 */
+		ptep = get_locked_pte(mm, va, &ptl);
+		if (!ptep)
+			return -ENOMEM;
+		/*
+		 * Map it RO so the easy to find address is not a primary
+		 * target via some kernel interface which misses a
+		 * permission check.
+		 */
+		pte = pfn_pte(pfn, __pgprot(__PAGE_KERNEL_RO & ~_PAGE_GLOBAL));
+		set_pte_at(mm, va, ptep, pte);
+		pte_unmap_unlock(ptep, ptl);
+	}
+
+	if (mm->context.ldt) {
+		/*
+		 * We already had an LDT.  The top-level entry should already
+		 * have been allocated and synchronized with the usermode
+		 * tables.
+		 */
+		WARN_ON(!had_top_level_entry);
+		if (static_cpu_has(X86_FEATURE_PTI))
+			WARN_ON(!kernel_to_user_pgdp(pgd)->pgd);
+	} else {
+		/*
+		 * This is the first time we're mapping an LDT for this process.
+		 * Sync the pgd to the usermode tables.
+		 */
+		WARN_ON(had_top_level_entry);
+		if (static_cpu_has(X86_FEATURE_PTI)) {
+			WARN_ON(kernel_to_user_pgdp(pgd)->pgd);
+			set_pgd(kernel_to_user_pgdp(pgd), *pgd);
+		}
+	}
+
+	va = (unsigned long)ldt_slot_va(slot);
+	flush_tlb_mm_range(mm, va, va + LDT_SLOT_STRIDE, 0);
+
+	ldt->slot = slot;
+#endif
+	return 0;
+}
+
+static void free_ldt_pgtables(struct mm_struct *mm)
+{
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
+	struct mmu_gather tlb;
+	unsigned long start = LDT_BASE_ADDR;
+	unsigned long end = start + (1UL << PGDIR_SHIFT);
+
+	if (!static_cpu_has(X86_FEATURE_PTI))
+		return;
+
+	tlb_gather_mmu(&tlb, mm, start, end);
+	free_pgd_range(&tlb, start, end, start, end);
+	tlb_finish_mmu(&tlb, start, end);
+#endif
 }
 
 /* After calling this, the LDT is immutable. */
@@ -156,6 +271,12 @@ int ldt_dup_context(struct mm_struct *old_mm, struct mm_struct *mm)
 	       new_ldt->nr_entries * LDT_ENTRY_SIZE);
 	finalize_ldt_struct(new_ldt);
 
+	retval = map_ldt_struct(mm, new_ldt, 0);
+	if (retval) {
+		free_ldt_pgtables(mm);
+		free_ldt_struct(new_ldt);
+		goto out_unlock;
+	}
 	mm->context.ldt = new_ldt;
 
 out_unlock:
@@ -172,6 +293,11 @@ void destroy_context_ldt(struct mm_struct *mm)
 {
 	free_ldt_struct(mm->context.ldt);
 	mm->context.ldt = NULL;
+}
+
+void ldt_arch_exit_mmap(struct mm_struct *mm)
+{
+	free_ldt_pgtables(mm);
 }
 
 static int read_ldt(void __user *ptr, unsigned long bytecount)
@@ -286,6 +412,25 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 
 	new_ldt->entries[ldt_info.entry_number] = ldt;
 	finalize_ldt_struct(new_ldt);
+
+	/*
+	 * If we are using PTI, map the new LDT into the userspace pagetables.
+	 * If there is already an LDT, use the other slot so that other CPUs
+	 * will continue to use the old LDT until install_ldt() switches
+	 * them over to the new LDT.
+	 */
+	error = map_ldt_struct(mm, new_ldt, old_ldt ? !old_ldt->slot : 0);
+	if (error) {
+		/*
+		 * This only can fail for the first LDT setup. If an LDT is
+		 * already installed then the PTE page is already
+		 * populated. Mop up a half populated page table.
+		 */
+		if (!WARN_ON_ONCE(old_ldt))
+			free_ldt_pgtables(mm);
+		free_ldt_struct(new_ldt);
+		goto out_unlock;
+	}
 
 	install_ldt(mm, new_ldt);
 	free_ldt_struct(old_ldt);

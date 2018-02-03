@@ -2085,8 +2085,8 @@ int ib_uverbs_ex_modify_qp(struct ib_uverbs_file *file,
 		return -EOPNOTSUPP;
 
 	if (ucore->inlen > sizeof(cmd)) {
-		if (ib_is_udata_cleared(ucore, sizeof(cmd),
-					ucore->inlen - sizeof(cmd)))
+		if (!ib_is_udata_cleared(ucore, sizeof(cmd),
+					 ucore->inlen - sizeof(cmd)))
 			return -EOPNOTSUPP;
 	}
 
