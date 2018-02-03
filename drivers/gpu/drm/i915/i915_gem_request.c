@@ -445,7 +445,10 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	spin_lock_irq(&request->lock);
 	if (request->waitboost)
 		atomic_dec(&request->i915->gt_pm.rps.num_waiters);
-	dma_fence_signal_locked(&request->fence);
+	if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &request->fence.flags))
+		dma_fence_signal_locked(&request->fence);
+	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &request->fence.flags))
+		intel_engine_cancel_signaling(request);
 	spin_unlock_irq(&request->lock);
 
 	i915_priotree_fini(request->i915, &request->priotree);
@@ -744,6 +747,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 
 	/* No zalloc, must clear what we need by hand */
 	req->global_seqno = 0;
+	req->signaling.wait.seqno = 0;
 	req->file_priv = NULL;
 	req->batch = NULL;
 	req->capture_list = NULL;
