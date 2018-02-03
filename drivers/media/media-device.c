@@ -190,6 +190,7 @@ static long media_device_enum_links(struct media_device *mdev,
 			ulink_desc++;
 		}
 	}
+	memset(links->reserved, 0, sizeof(links->reserved));
 
 	return 0;
 }
@@ -217,6 +218,8 @@ static long media_device_setup_link(struct media_device *mdev,
 				      &sink->pads[linkd->sink.index]);
 	if (link == NULL)
 		return -EINVAL;
+
+	memset(linkd->reserved, 0, sizeof(linkd->reserved));
 
 	/* Setup the link on both entities. */
 	return __media_entity_setup_link(link, linkd->flags);
