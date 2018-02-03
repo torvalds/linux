@@ -723,7 +723,7 @@ struct intel_fbc {
 
 	struct intel_fbc_work {
 		bool scheduled;
-		u32 scheduled_vblank;
+		u64 scheduled_vblank;
 		struct work_struct work;
 	} work;
 

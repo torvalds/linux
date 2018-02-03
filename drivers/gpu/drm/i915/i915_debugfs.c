@@ -1593,7 +1593,7 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 		seq_printf(m, "FBC disabled: %s\n", fbc->no_fbc_reason);
 
 	if (fbc->work.scheduled)
-		seq_printf(m, "FBC worker scheduled on vblank %u, now %llu\n",
+		seq_printf(m, "FBC worker scheduled on vblank %llu, now %llu\n",
 			   fbc->work.scheduled_vblank,
 			   drm_crtc_vblank_count(&fbc->crtc->base));
 
