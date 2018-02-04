@@ -569,7 +569,7 @@ static int ath3k_probe(struct usb_interface *intf,
 
 static void ath3k_disconnect(struct usb_interface *intf)
 {
-	BT_DBG("ath3k_disconnect intf %p", intf);
+	BT_DBG("%s intf %p", __func__, intf);
 }
 
 static struct usb_driver ath3k_driver = {
