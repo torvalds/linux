@@ -1225,8 +1225,12 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 	struct iwl_txq *txq = trans_pcie->txq[txq_id];
 	unsigned long flags;
 	int nfreed = 0;
+	u16 r;
 
 	lockdep_assert_held(&txq->lock);
+
+	idx = iwl_pcie_get_cmd_index(txq, idx);
+	r = iwl_pcie_get_cmd_index(txq, txq->read_ptr);
 
 	if ((idx >= TFD_QUEUE_SIZE_MAX) || (!iwl_queue_used(txq, idx))) {
 		IWL_ERR(trans,
@@ -1236,12 +1240,13 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 		return;
 	}
 
-	for (idx = iwl_queue_inc_wrap(idx); txq->read_ptr != idx;
-	     txq->read_ptr = iwl_queue_inc_wrap(txq->read_ptr)) {
+	for (idx = iwl_queue_inc_wrap(idx); r != idx;
+	     r = iwl_queue_inc_wrap(r)) {
+		txq->read_ptr = iwl_queue_inc_wrap(txq->read_ptr);
 
 		if (nfreed++ > 0) {
 			IWL_ERR(trans, "HCMD skipped: index (%d) %d %d\n",
-				idx, txq->write_ptr, txq->read_ptr);
+				idx, txq->write_ptr, r);
 			iwl_force_nmi(trans);
 		}
 	}

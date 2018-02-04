@@ -749,7 +749,7 @@ static inline void iwl_enable_fw_load_int(struct iwl_trans *trans)
 	}
 }
 
-static inline u8 iwl_pcie_get_cmd_index(struct iwl_txq *q, u32 index)
+static inline u8 iwl_pcie_get_cmd_index(const struct iwl_txq *q, u32 index)
 {
 	return index & (q->n_window - 1);
 }
@@ -819,9 +819,13 @@ static inline void iwl_stop_queue(struct iwl_trans *trans,
 
 static inline bool iwl_queue_used(const struct iwl_txq *q, int i)
 {
-	return q->write_ptr >= q->read_ptr ?
-		(i >= q->read_ptr && i < q->write_ptr) :
-		!(i < q->read_ptr && i >= q->write_ptr);
+	int index = iwl_pcie_get_cmd_index(q, i);
+	int r = iwl_pcie_get_cmd_index(q, q->read_ptr);
+	int w = iwl_pcie_get_cmd_index(q, q->write_ptr);
+
+	return w >= r ?
+		(index >= r && index < w) :
+		!(index < r && index >= w);
 }
 
 static inline bool iwl_is_rfkill_set(struct iwl_trans *trans)
