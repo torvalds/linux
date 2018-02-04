@@ -54,7 +54,10 @@ struct amdgpu_gmc_funcs {
 			      uint32_t vmid);
 	/* flush the vm tlb via ring */
 	uint64_t (*emit_flush_gpu_tlb)(struct amdgpu_ring *ring, unsigned vmid,
-				       unsigned pasid, uint64_t pd_addr);
+				       uint64_t pd_addr);
+	/* Change the VMID -> PASID mapping */
+	void (*emit_pasid_mapping)(struct amdgpu_ring *ring, unsigned vmid,
+				   unsigned pasid);
 	/* write pte/pde updates using the cpu */
 	int (*set_pte_pde)(struct amdgpu_device *adev,
 			   void *cpu_pt_addr, /* cpu addr of page table */

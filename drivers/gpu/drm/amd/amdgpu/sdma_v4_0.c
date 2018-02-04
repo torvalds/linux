@@ -1123,10 +1123,9 @@ static void sdma_v4_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
  * using sDMA (VEGA10).
  */
 static void sdma_v4_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
-					 unsigned vmid, unsigned pasid,
-					 uint64_t pd_addr)
+					 unsigned vmid, uint64_t pd_addr)
 {
-	amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pasid, pd_addr);
+	amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
 }
 
 static void sdma_v4_0_ring_emit_wreg(struct amdgpu_ring *ring,

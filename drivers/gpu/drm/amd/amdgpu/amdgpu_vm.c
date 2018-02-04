@@ -612,8 +612,11 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job, bool need_
 		struct dma_fence *fence;
 
 		trace_amdgpu_vm_flush(ring, job->vmid, job->vm_pd_addr);
-		amdgpu_ring_emit_vm_flush(ring, job->vmid, job->pasid,
-					  job->vm_pd_addr);
+		amdgpu_ring_emit_vm_flush(ring, job->vmid, job->vm_pd_addr);
+		if (adev->gmc.gmc_funcs->emit_pasid_mapping &&
+		    ring->funcs->emit_wreg)
+			amdgpu_gmc_emit_pasid_mapping(ring, job->vmid,
+						      job->pasid);
 
 		r = amdgpu_fence_emit(ring, &fence);
 		if (r)

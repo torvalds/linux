@@ -612,8 +612,7 @@ static void gmc_v8_0_flush_gpu_tlb(struct amdgpu_device *adev,
 }
 
 static uint64_t gmc_v8_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
-					    unsigned vmid, unsigned pasid,
-					    uint64_t pd_addr)
+					    unsigned vmid, uint64_t pd_addr)
 {
 	uint32_t reg;
 
@@ -623,12 +622,16 @@ static uint64_t gmc_v8_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 		reg = mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vmid - 8;
 	amdgpu_ring_emit_wreg(ring, reg, pd_addr >> 12);
 
-	amdgpu_ring_emit_wreg(ring, mmIH_VMID_0_LUT + vmid, pasid);
-
 	/* bits 0-15 are the VM contexts0-15 */
 	amdgpu_ring_emit_wreg(ring, mmVM_INVALIDATE_REQUEST, 1 << vmid);
 
 	return pd_addr;
+}
+
+static void gmc_v8_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid,
+					unsigned pasid)
+{
+	amdgpu_ring_emit_wreg(ring, mmIH_VMID_0_LUT + vmid, pasid);
 }
 
 /**
@@ -1662,6 +1665,7 @@ static const struct amd_ip_funcs gmc_v8_0_ip_funcs = {
 static const struct amdgpu_gmc_funcs gmc_v8_0_gmc_funcs = {
 	.flush_gpu_tlb = gmc_v8_0_flush_gpu_tlb,
 	.emit_flush_gpu_tlb = gmc_v8_0_emit_flush_gpu_tlb,
+	.emit_pasid_mapping = gmc_v8_0_emit_pasid_mapping,
 	.set_pte_pde = gmc_v8_0_set_pte_pde,
 	.set_prt = gmc_v8_0_set_prt,
 	.get_vm_pte_flags = gmc_v8_0_get_vm_pte_flags,

@@ -873,13 +873,12 @@ static void cik_sdma_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
  * using sDMA (CIK).
  */
 static void cik_sdma_ring_emit_vm_flush(struct amdgpu_ring *ring,
-					unsigned vmid, unsigned pasid,
-					uint64_t pd_addr)
+					unsigned vmid, uint64_t pd_addr)
 {
 	u32 extra_bits = (SDMA_POLL_REG_MEM_EXTRA_OP(0) |
 			  SDMA_POLL_REG_MEM_EXTRA_FUNC(0)); /* always */
 
-	amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pasid, pd_addr);
+	amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
 
 	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_POLL_REG_MEM, 0, extra_bits));
 	amdgpu_ring_write(ring, mmVM_INVALIDATE_REQUEST << 2);

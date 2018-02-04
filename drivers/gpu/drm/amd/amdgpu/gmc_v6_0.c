@@ -363,8 +363,7 @@ static void gmc_v6_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid)
 }
 
 static uint64_t gmc_v6_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
-					    unsigned vmid, unsigned pasid,
-					    uint64_t pd_addr)
+					    unsigned vmid, uint64_t pd_addr)
 {
 	uint32_t reg;
 
