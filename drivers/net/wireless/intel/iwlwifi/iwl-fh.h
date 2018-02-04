@@ -434,13 +434,15 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  * RXF to DRAM.
  * Once the RXF-to-DRAM DMA is active, this flag is immediately turned off.
  */
-#define RFH_GEN_STATUS 0xA09808
+#define RFH_GEN_STATUS		0xA09808
+#define RFH_GEN_STATUS_GEN3	0xA07824
 #define RBD_FETCH_IDLE	BIT(29)
 #define SRAM_DMA_IDLE	BIT(30)
 #define RXF_DMA_IDLE	BIT(31)
 
 /* DMA configuration */
-#define RFH_RXF_DMA_CFG 0xA09820
+#define RFH_RXF_DMA_CFG		0xA09820
+#define RFH_RXF_DMA_CFG_GEN3	0xA07880
 /* RB size */
 #define RFH_RXF_DMA_RB_SIZE_MASK (0x000F0000) /* bits 16-19 */
 #define RFH_RXF_DMA_RB_SIZE_POS 16

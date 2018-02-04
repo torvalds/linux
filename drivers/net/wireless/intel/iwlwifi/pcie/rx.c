@@ -167,7 +167,12 @@ static inline __le32 iwl_pcie_dma_addr2rbd_ptr(dma_addr_t dma_addr)
  */
 int iwl_pcie_rx_stop(struct iwl_trans *trans)
 {
-	if (trans->cfg->mq_rx_supported) {
+	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
+		/* TODO: remove this for 22560 once fw does it */
+		iwl_write_prph(trans, RFH_RXF_DMA_CFG_GEN3, 0);
+		return iwl_poll_prph_bit(trans, RFH_GEN_STATUS_GEN3,
+					 RXF_DMA_IDLE, RXF_DMA_IDLE, 1000);
+	} else if (trans->cfg->mq_rx_supported) {
 		iwl_write_prph(trans, RFH_RXF_DMA_CFG, 0);
 		return iwl_poll_prph_bit(trans, RFH_GEN_STATUS,
 					   RXF_DMA_IDLE, RXF_DMA_IDLE, 1000);
