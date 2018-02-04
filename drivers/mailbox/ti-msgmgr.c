@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Texas Instruments' Message Manager Driver
  *
- * Copyright (C) 2015-2016 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2015-2017 Texas Instruments Incorporated - http://www.ti.com/
  *	Nishanth Menon
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
@@ -291,7 +283,7 @@ static int ti_msgmgr_send_data(struct mbox_chan *chan, void *data)
 	desc = inst->desc;
 
 	if (desc->max_message_size < message->len) {
-		dev_err(dev, "Queue %s message length %d > max %d\n",
+		dev_err(dev, "Queue %s message length %zu > max %d\n",
 			qinst->name, message->len, desc->max_message_size);
 		return -EINVAL;
 	}
