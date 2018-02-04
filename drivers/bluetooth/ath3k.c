@@ -203,6 +203,12 @@ static const struct usb_device_id ath3k_blist_tbl[] = {
 	{ }	/* Terminating entry */
 };
 
+static inline void ath3k_log_failed_loading(int err, int len, int size)
+{
+	BT_ERR("Error in firmware loading err = %d, len = %d, size = %d",
+			err, len, size);
+}
+
 #define USB_REQ_DFU_DNLOAD	1
 #define BULK_SIZE		4096
 #define FW_HDR_SIZE		20
@@ -251,8 +257,7 @@ static int ath3k_load_firmware(struct usb_device *udev,
 					&len, 3000);
 
 		if (err || (len != size)) {
-			BT_ERR("Error in firmware loading err = %d,"
-				"len = %d, size = %d", err, len, size);
+			ath3k_log_failed_loading(err, len, size);
 			goto error;
 		}
 
@@ -351,8 +356,7 @@ static int ath3k_load_fwfile(struct usb_device *udev,
 		err = usb_bulk_msg(udev, pipe, send_buf, size,
 					&len, 3000);
 		if (err || (len != size)) {
-			BT_ERR("Error in firmware loading err = %d,"
-				"len = %d, size = %d", err, len, size);
+			ath3k_log_failed_loading(err, len, size);
 			kfree(send_buf);
 			return err;
 		}
