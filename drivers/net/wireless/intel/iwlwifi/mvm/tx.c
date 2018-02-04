@@ -484,13 +484,15 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	/* Make sure we zero enough of dev_cmd */
 	BUILD_BUG_ON(sizeof(struct iwl_tx_cmd_gen2) > sizeof(*tx_cmd));
+	BUILD_BUG_ON(sizeof(struct iwl_tx_cmd_gen3) > sizeof(*tx_cmd));
 
 	memset(dev_cmd, 0, sizeof(dev_cmd->hdr) + sizeof(*tx_cmd));
 	dev_cmd->hdr.cmd = TX_CMD;
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
-		struct iwl_tx_cmd_gen2 *cmd = (void *)dev_cmd->payload;
 		u16 offload_assist = 0;
+		u32 rate_n_flags = 0;
+		u16 flags = 0;
 
 		if (ieee80211_is_data_qos(hdr->frame_control)) {
 			u8 *qc = ieee80211_get_qos_ctl(hdr);
@@ -507,25 +509,43 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 		    !(offload_assist & BIT(TX_CMD_OFFLD_AMSDU)))
 			offload_assist |= BIT(TX_CMD_OFFLD_PAD);
 
-		cmd->offload_assist |= cpu_to_le16(offload_assist);
-
-		/* Total # bytes to be transmitted */
-		cmd->len = cpu_to_le16((u16)skb->len);
-
-		/* Copy MAC header from skb into command buffer */
-		memcpy(cmd->hdr, hdr, hdrlen);
-
 		if (!info->control.hw_key)
-			cmd->flags |= cpu_to_le32(IWL_TX_FLAGS_ENCRYPT_DIS);
+			flags |= IWL_TX_FLAGS_ENCRYPT_DIS;
 
 		/* For data packets rate info comes from the fw */
-		if (ieee80211_is_data(hdr->frame_control) && sta)
-			goto out;
+		if (!(ieee80211_is_data(hdr->frame_control) && sta)) {
+			flags |= IWL_TX_FLAGS_CMD_RATE;
+			rate_n_flags = iwl_mvm_get_tx_rate(mvm, info, sta);
+		}
 
-		cmd->flags |= cpu_to_le32(IWL_TX_FLAGS_CMD_RATE);
-		cmd->rate_n_flags =
-			cpu_to_le32(iwl_mvm_get_tx_rate(mvm, info, sta));
+		if (mvm->trans->cfg->device_family >=
+		    IWL_DEVICE_FAMILY_22560) {
+			struct iwl_tx_cmd_gen3 *cmd = (void *)dev_cmd->payload;
 
+			cmd->offload_assist |= cpu_to_le32(offload_assist);
+
+			/* Total # bytes to be transmitted */
+			cmd->len = cpu_to_le16((u16)skb->len);
+
+			/* Copy MAC header from skb into command buffer */
+			memcpy(cmd->hdr, hdr, hdrlen);
+
+			cmd->flags = cpu_to_le16(flags);
+			cmd->rate_n_flags = cpu_to_le32(rate_n_flags);
+		} else {
+			struct iwl_tx_cmd_gen2 *cmd = (void *)dev_cmd->payload;
+
+			cmd->offload_assist |= cpu_to_le16(offload_assist);
+
+			/* Total # bytes to be transmitted */
+			cmd->len = cpu_to_le16((u16)skb->len);
+
+			/* Copy MAC header from skb into command buffer */
+			memcpy(cmd->hdr, hdr, hdrlen);
+
+			cmd->flags = cpu_to_le32(flags);
+			cmd->rate_n_flags = cpu_to_le32(rate_n_flags);
+		}
 		goto out;
 	}
 
