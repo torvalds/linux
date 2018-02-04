@@ -1217,6 +1217,30 @@ static const struct panel_desc innolux_zj070na_01p = {
 	},
 };
 
+static const struct display_timing koe_tx31d200vm0baa_timing = {
+	.pixelclock = { 39600000, 43200000, 48000000 },
+	.hactive = { 1280, 1280, 1280 },
+	.hfront_porch = { 16, 36, 56 },
+	.hback_porch = { 16, 36, 56 },
+	.hsync_len = { 8, 8, 8 },
+	.vactive = { 480, 480, 480 },
+	.vfront_porch = { 6, 21, 33.5 },
+	.vback_porch = { 6, 21, 33.5 },
+	.vsync_len = { 8, 8, 8 },
+	.flags = DISPLAY_FLAGS_DE_HIGH,
+};
+
+static const struct panel_desc koe_tx31d200vm0baa = {
+	.timings = &koe_tx31d200vm0baa_timing,
+	.num_timings = 1,
+	.bpc = 6,
+	.size = {
+		.width = 292,
+		.height = 109,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,
+};
+
 static const struct display_timing kyo_tcg121xglp_timing = {
 	.pixelclock = { 52000000, 65000000, 71000000 },
 	.hactive = { 1024, 1024, 1024 },
@@ -2122,6 +2146,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "innolux,zj070na-01p",
 		.data = &innolux_zj070na_01p,
+	}, {
+		.compatible = "koe,tx31d200vm0baa",
+		.data = &koe_tx31d200vm0baa,
 	}, {
 		.compatible = "kyo,tcg121xglp",
 		.data = &kyo_tcg121xglp,
