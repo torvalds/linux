@@ -399,7 +399,7 @@ static int ath3k_set_normal_mode(struct usb_device *udev)
 static int ath3k_load_patch(struct usb_device *udev)
 {
 	unsigned char fw_state;
-	char filename[ATH3K_NAME_LEN] = {0};
+	char filename[ATH3K_NAME_LEN];
 	const struct firmware *firmware;
 	struct ath3k_version fw_version;
 	__u32 pt_rom_version, pt_build_version;
@@ -452,7 +452,7 @@ static int ath3k_load_patch(struct usb_device *udev)
 static int ath3k_load_syscfg(struct usb_device *udev)
 {
 	unsigned char fw_state;
-	char filename[ATH3K_NAME_LEN] = {0};
+	char filename[ATH3K_NAME_LEN];
 	const struct firmware *firmware;
 	struct ath3k_version fw_version;
 	int clk_value, ret;
