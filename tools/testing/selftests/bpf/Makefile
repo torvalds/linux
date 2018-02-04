@@ -27,7 +27,7 @@ TEST_PROGS := test_kmod.sh test_xdp_redirect.sh test_xdp_meta.sh \
 
 include ../lib.mk
 
-BPFOBJ := $(OUTPUT)/libbpf.a $(OUTPUT)/cgroup_helpers.c
+BPFOBJ := $(OUTPUT)/libbpf.a cgroup_helpers.c
 
 $(TEST_GEN_PROGS): $(BPFOBJ)
 
@@ -58,7 +58,7 @@ CLANG_FLAGS = -I. -I./include/uapi -I../../../include/uapi \
 $(OUTPUT)/test_l4lb_noinline.o: CLANG_FLAGS += -fno-inline
 $(OUTPUT)/test_xdp_noinline.o: CLANG_FLAGS += -fno-inline
 
-%.o: %.c
+$(OUTPUT)/%.o: %.c
 	$(CLANG) $(CLANG_FLAGS) \
 		 -O2 -target bpf -emit-llvm -c $< -o - |      \
 	$(LLC) -march=bpf -mcpu=$(CPU) -filetype=obj -o $@
