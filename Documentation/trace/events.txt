@@ -294,7 +294,7 @@ PID listed in the set_event_pid file.
 
 # cd /sys/kernel/debug/tracing
 # echo $$ > set_event_pid
-# echo 1 > events/enabled
+# echo 1 > events/enable
 
 Will only trace events for the current task.
 
