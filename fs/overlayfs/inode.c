@@ -669,38 +669,59 @@ struct inode *ovl_lookup_inode(struct super_block *sb, struct dentry *real,
 	return inode;
 }
 
+/*
+ * Does overlay inode need to be hashed by lower inode?
+ */
+static bool ovl_hash_bylower(struct super_block *sb, struct dentry *upper,
+			     struct dentry *lower, struct dentry *index)
+{
+	struct ovl_fs *ofs = sb->s_fs_info;
+
+	/* No, if pure upper */
+	if (!lower)
+		return false;
+
+	/* Yes, if already indexed */
+	if (index)
+		return true;
+
+	/* Yes, if won't be copied up */
+	if (!ofs->upper_mnt)
+		return true;
+
+	/* No, if lower hardlink is or will be broken on copy up */
+	if ((upper || !ovl_indexdir(sb)) &&
+	    !d_is_dir(lower) && d_inode(lower)->i_nlink > 1)
+		return false;
+
+	/* No, if non-indexed upper with NFS export */
+	if (sb->s_export_op && upper)
+		return false;
+
+	/* Otherwise, hash by lower inode for fsnotify */
+	return true;
+}
+
 struct inode *ovl_get_inode(struct super_block *sb, struct dentry *upperdentry,
 			    struct dentry *lowerdentry, struct dentry *index,
 			    unsigned int numlower)
 {
-	struct ovl_fs *ofs = sb->s_fs_info;
 	struct inode *realinode = upperdentry ? d_inode(upperdentry) : NULL;
 	struct inode *inode;
-	/* Already indexed or could be indexed on copy up? */
-	bool indexed = (index || (ovl_indexdir(sb) && !upperdentry));
-	struct dentry *origin = indexed ? lowerdentry : NULL;
+	bool bylower = ovl_hash_bylower(sb, upperdentry, lowerdentry, index);
 	bool is_dir;
-
-	if (WARN_ON(upperdentry && indexed && !lowerdentry))
-		return ERR_PTR(-EIO);
 
 	if (!realinode)
 		realinode = d_inode(lowerdentry);
 
 	/*
-	 * Copy up origin (lower) may exist for non-indexed non-dir upper, but
-	 * we must not use lower as hash key in that case.
-	 * Hash non-dir that is or could be indexed by origin inode.
-	 * Hash dir that is or could be merged by origin inode.
-	 * Hash pure upper and non-indexed non-dir by upper inode.
-	 * Hash non-indexed dir by upper inode for NFS export.
+	 * Copy up origin (lower) may exist for non-indexed upper, but we must
+	 * not use lower as hash key if this is a broken hardlink.
 	 */
 	is_dir = S_ISDIR(realinode->i_mode);
-	if (is_dir && (indexed || !sb->s_export_op || !ofs->upper_mnt))
-		origin = lowerdentry;
-
-	if (upperdentry || origin) {
-		struct inode *key = d_inode(origin ?: upperdentry);
+	if (upperdentry || bylower) {
+		struct inode *key = d_inode(bylower ? lowerdentry :
+						      upperdentry);
 		unsigned int nlink = is_dir ? 1 : realinode->i_nlink;
 
 		inode = iget5_locked(sb, (unsigned long) key,
@@ -728,6 +749,7 @@ struct inode *ovl_get_inode(struct super_block *sb, struct dentry *upperdentry,
 			nlink = ovl_get_nlink(lowerdentry, upperdentry, nlink);
 		set_nlink(inode, nlink);
 	} else {
+		/* Lower hardlink that will be broken on copy up */
 		inode = new_inode(sb);
 		if (!inode)
 			goto out_nomem;
