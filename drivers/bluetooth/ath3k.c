@@ -227,15 +227,16 @@ static int ath3k_load_firmware(struct usb_device *udev,
 		return -ENOMEM;
 	}
 
-	memcpy(send_buf, firmware->data, 20);
+	memcpy(send_buf, firmware->data, FW_HDR_SIZE);
 	err = usb_control_msg(udev, pipe, USB_REQ_DFU_DNLOAD, USB_TYPE_VENDOR,
-			      0, 0, send_buf, 20, USB_CTRL_SET_TIMEOUT);
+			      0, 0, send_buf, FW_HDR_SIZE,
+			      USB_CTRL_SET_TIMEOUT);
 	if (err < 0) {
 		BT_ERR("Can't change to loading configuration err");
 		goto error;
 	}
-	sent += 20;
-	count -= 20;
+	sent += FW_HDR_SIZE;
+	count -= FW_HDR_SIZE;
 
 	pipe = usb_sndbulkpipe(udev, 0x02);
 
