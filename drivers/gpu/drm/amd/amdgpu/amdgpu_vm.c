@@ -329,6 +329,11 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 
 	WARN_ON(job->ibs[0].length_dw > 64);
+	r = amdgpu_sync_resv(adev, &job->sync, bo->tbo.resv,
+			     AMDGPU_FENCE_OWNER_UNDEFINED, false);
+	if (r)
+		goto error_free;
+
 	r = amdgpu_job_submit(job, ring, &vm->entity,
 			      AMDGPU_FENCE_OWNER_UNDEFINED, &fence);
 	if (r)
