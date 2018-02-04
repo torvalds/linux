@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,9 +19,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
+ * along with this program.
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -33,6 +32,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -643,10 +643,13 @@ struct iwl_rb_status {
 
 
 #define TFD_QUEUE_SIZE_MAX      (256)
+#define TFD_QUEUE_SIZE_MAX_GEN3 (65536)
 /* cb size is the exponent - 3 */
 #define TFD_QUEUE_CB_SIZE(x)	(ilog2(x) - 3)
 #define TFD_QUEUE_SIZE_BC_DUP	(64)
 #define TFD_QUEUE_BC_SIZE	(TFD_QUEUE_SIZE_MAX + TFD_QUEUE_SIZE_BC_DUP)
+#define TFD_QUEUE_BC_SIZE_GEN3	(TFD_QUEUE_SIZE_MAX_GEN3 + \
+				 TFD_QUEUE_SIZE_BC_DUP)
 #define IWL_TX_DMA_MASK        DMA_BIT_MASK(36)
 #define IWL_NUM_OF_TBS		20
 #define IWL_TFH_NUM_TBS		25
@@ -753,13 +756,24 @@ struct iwl_tfh_tfd {
  * For devices up to 22000:
  * @tfd_offset  0-12 - tx command byte count
  *		12-16 - station index
- * For 22000 and on:
+ * For 22000:
  * @tfd_offset  0-12 - tx command byte count
  *		12-13 - number of 64 byte chunks
  *		14-16 - reserved
  */
 struct iwlagn_scd_bc_tbl {
 	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];
+} __packed;
+
+/**
+ * struct iwl_gen3_bc_tbl scheduler byte count table gen3
+ * For 22560 and on:
+ * @tfd_offset: 0-12 - tx command byte count
+ *		12-13 - number of 64 byte chunks
+ *		14-16 - reserved
+ */
+struct iwl_gen3_bc_tbl {
+	__le16 tfd_offset[TFD_QUEUE_BC_SIZE_GEN3];
 } __packed;
 
 #endif /* !__iwl_fh_h__ */

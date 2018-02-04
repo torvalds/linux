@@ -91,6 +91,8 @@ static void iwl_pcie_gen2_update_byte_tbl(struct iwl_trans_pcie *trans_pcie,
 					  int num_tbs)
 {
 	struct iwlagn_scd_bc_tbl *scd_bc_tbl = txq->bc_tbl.addr;
+	struct iwl_trans *trans = iwl_trans_pcie_get_trans(trans_pcie);
+	struct iwl_gen3_bc_tbl *scd_bc_tbl_gen3 = txq->bc_tbl.addr;
 	int idx = iwl_pcie_get_cmd_index(txq, txq->write_ptr);
 	u8 filled_tfd_size, num_fetch_chunks;
 	u16 len = byte_cnt;
@@ -115,7 +117,10 @@ static void iwl_pcie_gen2_update_byte_tbl(struct iwl_trans_pcie *trans_pcie,
 	num_fetch_chunks = DIV_ROUND_UP(filled_tfd_size, 64) - 1;
 
 	bc_ent = cpu_to_le16(len | (num_fetch_chunks << 12));
-	scd_bc_tbl->tfd_offset[idx] = bc_ent;
+	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
+		scd_bc_tbl_gen3->tfd_offset[idx] = bc_ent;
+	else
+		scd_bc_tbl->tfd_offset[idx] = bc_ent;
 }
 
 /*
@@ -492,11 +497,11 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	spin_lock(&txq->lock);
 
-	if (iwl_queue_space(txq) < txq->high_mark) {
+	if (iwl_queue_space(trans, txq) < txq->high_mark) {
 		iwl_stop_queue(trans, txq);
 
 		/* don't put the packet on the ring, if there is no room */
-		if (unlikely(iwl_queue_space(txq) < 3)) {
+		if (unlikely(iwl_queue_space(trans, txq) < 3)) {
 			struct iwl_device_cmd **dev_cmd_ptr;
 
 			dev_cmd_ptr = (void *)((u8 *)skb->cb +
@@ -542,7 +547,7 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	}
 
 	/* Tell device the write index *just past* this latest filled TFD */
-	txq->write_ptr = iwl_queue_inc_wrap(txq->write_ptr);
+	txq->write_ptr = iwl_queue_inc_wrap(trans, txq->write_ptr);
 	iwl_pcie_gen2_txq_inc_wr_ptr(trans, txq);
 	/*
 	 * At this point the frame is "transmitted" successfully
@@ -654,7 +659,7 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 	tfd = iwl_pcie_get_tfd(trans, txq, txq->write_ptr);
 	memset(tfd, 0, sizeof(*tfd));
 
-	if (iwl_queue_space(txq) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
+	if (iwl_queue_space(trans, txq) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
 		spin_unlock_bh(&txq->lock);
 
 		IWL_ERR(trans, "No space in command queue\n");
@@ -791,7 +796,7 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 		iwl_trans_ref(trans);
 	}
 	/* Increment and update queue's write index */
-	txq->write_ptr = iwl_queue_inc_wrap(txq->write_ptr);
+	txq->write_ptr = iwl_queue_inc_wrap(trans, txq->write_ptr);
 	iwl_pcie_gen2_txq_inc_wr_ptr(trans, txq);
 	spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
 
@@ -958,7 +963,7 @@ void iwl_pcie_gen2_txq_unmap(struct iwl_trans *trans, int txq_id)
 			iwl_pcie_free_tso_page(trans_pcie, skb);
 		}
 		iwl_pcie_gen2_free_tfd(trans, txq);
-		txq->read_ptr = iwl_queue_inc_wrap(txq->read_ptr);
+		txq->read_ptr = iwl_queue_inc_wrap(trans, txq->read_ptr);
 
 		if (txq->read_ptr == txq->write_ptr) {
 			unsigned long flags;
@@ -1066,6 +1071,9 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 	if (!txq)
 		return -ENOMEM;
 	ret = iwl_pcie_alloc_dma_ptr(trans, &txq->bc_tbl,
+				     (trans->cfg->device_family >=
+				      IWL_DEVICE_FAMILY_22560) ?
+				     sizeof(struct iwl_gen3_bc_tbl) :
 				     sizeof(struct iwlagn_scd_bc_tbl));
 	if (ret) {
 		IWL_ERR(trans, "Scheduler BC Table allocation failed\n");
@@ -1117,7 +1125,7 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 
 	txq->id = qid;
 	trans_pcie->txq[qid] = txq;
-	wr_ptr &= (TFD_QUEUE_SIZE_MAX - 1);
+	wr_ptr &= (trans->cfg->base_params->max_tfd_queue_size - 1);
 
 	/* Place first TFD at index corresponding to start sequence number */
 	txq->read_ptr = wr_ptr;

@@ -2259,9 +2259,9 @@ void iwl_trans_pcie_log_scd_error(struct iwl_trans *trans, struct iwl_txq *txq)
 		jiffies_to_msecs(txq->wd_timeout),
 		txq->read_ptr, txq->write_ptr,
 		iwl_read_prph(trans, SCD_QUEUE_RDPTR(txq_id)) &
-			(TFD_QUEUE_SIZE_MAX - 1),
+			(trans->cfg->base_params->max_tfd_queue_size - 1),
 		iwl_read_prph(trans, SCD_QUEUE_WRPTR(txq_id)) &
-			(TFD_QUEUE_SIZE_MAX - 1),
+			(trans->cfg->base_params->max_tfd_queue_size - 1),
 		iwl_read_direct32(trans, FH_TX_TRB_REG(fifo)));
 }
 
@@ -3080,7 +3080,7 @@ static struct iwl_trans_dump_data
 			txcmd = (void *)((u8 *)txcmd->data + caplen);
 		}
 
-		ptr = iwl_queue_dec_wrap(ptr);
+		ptr = iwl_queue_dec_wrap(trans, ptr);
 	}
 	spin_unlock_bh(&cmdq->lock);
 

@@ -102,6 +102,19 @@
 static const struct iwl_base_params iwl_22000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_FAMILY_22000,
 	.num_of_queues = 512,
+	.max_tfd_queue_size = 256,
+	.shadow_ram_support = true,
+	.led_compensation = 57,
+	.wd_timeout = IWL_LONG_WD_TIMEOUT,
+	.max_event_log_size = 512,
+	.shadow_reg_enable = true,
+	.pcie_l1_allowed = true,
+};
+
+static const struct iwl_base_params iwl_22560_base_params = {
+	.eeprom_size = OTP_LOW_IMAGE_SIZE_FAMILY_22000,
+	.num_of_queues = 512,
+	.max_tfd_queue_size = 65536,
 	.shadow_ram_support = true,
 	.led_compensation = 57,
 	.wd_timeout = IWL_LONG_WD_TIMEOUT,
@@ -119,7 +132,6 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 #define IWL_DEVICE_22000_COMMON						\
 	.ucode_api_max = IWL_22000_UCODE_API_MAX,			\
 	.ucode_api_min = IWL_22000_UCODE_API_MIN,			\
-	.base_params = &iwl_22000_base_params,				\
 	.led_mode = IWL_LED_RF_STATE,					\
 	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_22000,		\
 	.non_shared_ant = ANT_A,					\
@@ -148,11 +160,13 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 #define IWL_DEVICE_22500						\
 	IWL_DEVICE_22000_COMMON,					\
 	.device_family = IWL_DEVICE_FAMILY_22000,			\
+	.base_params = &iwl_22000_base_params,				\
 	.csr = &iwl_csr_v1
 
 #define IWL_DEVICE_22560						\
 	IWL_DEVICE_22000_COMMON,					\
 	.device_family = IWL_DEVICE_FAMILY_22560,			\
+	.base_params = &iwl_22560_base_params,				\
 	.csr = &iwl_csr_v2
 
 const struct iwl_cfg iwl22000_2ac_cfg_hr = {

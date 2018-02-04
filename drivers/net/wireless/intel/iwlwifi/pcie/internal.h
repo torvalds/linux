@@ -184,18 +184,18 @@ struct iwl_dma_ptr {
  * iwl_queue_inc_wrap - increment queue index, wrap back to beginning
  * @index -- current index
  */
-static inline int iwl_queue_inc_wrap(int index)
+static inline int iwl_queue_inc_wrap(struct iwl_trans *trans, int index)
 {
-	return ++index & (TFD_QUEUE_SIZE_MAX - 1);
+	return ++index & (trans->cfg->base_params->max_tfd_queue_size - 1);
 }
 
 /**
  * iwl_queue_dec_wrap - decrement queue index, wrap back to end
  * @index -- current index
  */
-static inline int iwl_queue_dec_wrap(int index)
+static inline int iwl_queue_dec_wrap(struct iwl_trans *trans, int index)
 {
-	return --index & (TFD_QUEUE_SIZE_MAX - 1);
+	return --index & (trans->cfg->base_params->max_tfd_queue_size - 1);
 }
 
 struct iwl_cmd_meta {
@@ -749,7 +749,7 @@ static inline void iwl_enable_fw_load_int(struct iwl_trans *trans)
 	}
 }
 
-static inline u8 iwl_pcie_get_cmd_index(const struct iwl_txq *q, u32 index)
+static inline u16 iwl_pcie_get_cmd_index(const struct iwl_txq *q, u32 index)
 {
 	return index & (q->n_window - 1);
 }
@@ -894,7 +894,7 @@ bool iwl_pcie_check_hw_rf_kill(struct iwl_trans *trans);
 void iwl_trans_pcie_handle_stop_rfkill(struct iwl_trans *trans,
 				       bool was_in_rfkill);
 void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq);
-int iwl_queue_space(const struct iwl_txq *q);
+int iwl_queue_space(struct iwl_trans *trans, const struct iwl_txq *q);
 void iwl_pcie_apm_stop_master(struct iwl_trans *trans);
 void iwl_pcie_conf_msix_hw(struct iwl_trans_pcie *trans_pcie);
 int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
