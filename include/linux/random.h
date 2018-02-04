@@ -85,10 +85,8 @@ static inline unsigned long get_random_canary(void)
 static inline int get_random_bytes_wait(void *buf, int nbytes)
 {
 	int ret = wait_for_random_bytes();
-	if (unlikely(ret))
-		return ret;
 	get_random_bytes(buf, nbytes);
-	return 0;
+	return ret;
 }
 
 #define declare_get_random_var_wait(var) \
