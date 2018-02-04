@@ -430,6 +430,13 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 		else
 			vht_cap->cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895;
 		break;
+	case IWL_AMSDU_2K:
+		if (cfg->mq_rx_supported)
+			vht_cap->cap |=
+				IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454;
+		else
+			WARN(1, "RB size of 2K is not supported by this device\n");
+		break;
 	case IWL_AMSDU_4K:
 		vht_cap->cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895;
 		break;

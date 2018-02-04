@@ -858,6 +858,9 @@ static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 	int i;
 
 	switch (trans_pcie->rx_buf_size) {
+	case IWL_AMSDU_2K:
+		rb_size = RFH_RXF_DMA_RB_SIZE_2K;
+		break;
 	case IWL_AMSDU_4K:
 		rb_size = RFH_RXF_DMA_RB_SIZE_4K;
 		break;
