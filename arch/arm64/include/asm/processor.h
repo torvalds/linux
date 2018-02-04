@@ -113,6 +113,16 @@ struct thread_struct {
 	struct debug_info	debug;		/* debugging */
 };
 
+/*
+ * Everything usercopied to/from thread_struct is statically-sized, so
+ * no hardened usercopy whitelist is needed.
+ */
+static inline void arch_thread_struct_whitelist(unsigned long *offset,
+						unsigned long *size)
+{
+	*offset = *size = 0;
+}
+
 #ifdef CONFIG_COMPAT
 #define task_user_tls(t)						\
 ({									\

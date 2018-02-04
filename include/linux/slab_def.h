@@ -85,6 +85,9 @@ struct kmem_cache {
 	unsigned int *random_seq;
 #endif
 
+	size_t useroffset;		/* Usercopy region offset */
+	size_t usersize;		/* Usercopy region size */
+
 	struct kmem_cache_node *node[MAX_NUMNODES];
 };
 
