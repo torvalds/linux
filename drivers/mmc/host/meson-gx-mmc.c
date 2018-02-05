@@ -37,6 +37,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/bitfield.h>
+#include <linux/pinctrl/consumer.h>
 
 #define DRIVER_NAME "meson-gx-mmc"
 
