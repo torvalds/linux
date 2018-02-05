@@ -1,5 +1,5 @@
 #
-# Copyright 2017 Advanced Micro Devices, Inc.
+# Copyright 2018 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -20,25 +20,12 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 #
 #
-# Makefile for the DAL (Display Abstract Layer), which is a  sub-component
-# of the AMDGPU drm driver.
-# It provides the HW control for display related functionalities.
+# Makefile for the color sub-module of DAL.
+#
 
-AMDDALPATH = $(RELATIVE_AMD_DISPLAY_PATH)
+MOD_COLOR = color_gamma.o
 
-subdir-ccflags-y += -I$(AMDDALPATH)/ -I$(AMDDALPATH)/include
+AMD_DAL_MOD_COLOR = $(addprefix $(AMDDALPATH)/modules/color/,$(MOD_COLOR))
+#$(info ************  DAL COLOR MODULE MAKEFILE ************)
 
-subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/inc/
-subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/inc/hw
-subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/inc
-subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/freesync
-subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/color
-
-#TODO: remove when Timing Sync feature is complete
-subdir-ccflags-y += -DBUILD_FEATURE_TIMING_SYNC=0
-
-DAL_LIBS = amdgpu_dm dc	modules/freesync modules/color
-
-AMD_DAL = $(addsuffix /Makefile, $(addprefix $(FULL_AMD_DISPLAY_PATH)/,$(DAL_LIBS)))
-
-include $(AMD_DAL)
+AMD_DISPLAY_FILES += $(AMD_DAL_MOD_COLOR)
