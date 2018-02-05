@@ -620,7 +620,7 @@ static struct dentry *ovl_lookup_real(struct super_block *sb,
 			if (err == -ECHILD) {
 				this = ovl_lookup_real_ancestor(sb, real,
 								layer);
-				err = IS_ERR(this) ? PTR_ERR(this) : 0;
+				err = PTR_ERR_OR_ZERO(this);
 			}
 			if (!err) {
 				dput(connected);
