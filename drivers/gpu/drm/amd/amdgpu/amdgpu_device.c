@@ -1391,6 +1391,9 @@ static int amdgpu_device_ip_late_set_cg_state(struct amdgpu_device *adev)
 {
 	int i = 0, r;
 
+	if (amdgpu_emu_mode == 1)
+		return 0;
+
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.valid)
 			continue;

@@ -298,6 +298,11 @@ void get_local_mem_info(struct kgd_dev *kgd,
 			mem_info->local_mem_size_public,
 			mem_info->local_mem_size_private);
 
+	if (amdgpu_emu_mode == 1) {
+		mem_info->mem_clk_max = 100;
+		return;
+	}
+
 	if (amdgpu_sriov_vf(adev))
 		mem_info->mem_clk_max = adev->clock.default_mclk / 100;
 	else
@@ -318,6 +323,9 @@ uint32_t get_max_engine_clock_in_mhz(struct kgd_dev *kgd)
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
 	/* the sclk is in quantas of 10kHz */
+	if (amdgpu_emu_mode == 1)
+		return 100;
+
 	if (amdgpu_sriov_vf(adev))
 		return adev->clock.default_sclk / 100;
 
