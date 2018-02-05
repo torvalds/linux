@@ -17,7 +17,6 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/perf/arm_pmu.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/sched/clock.h>
 #include <linux/spinlock.h>
@@ -320,17 +319,9 @@ validate_group(struct perf_event *event)
 	return 0;
 }
 
-static struct arm_pmu_platdata *armpmu_get_platdata(struct arm_pmu *armpmu)
-{
-	struct platform_device *pdev = armpmu->plat_device;
-
-	return pdev ? dev_get_platdata(&pdev->dev) : NULL;
-}
-
 static irqreturn_t armpmu_dispatch_irq(int irq, void *dev)
 {
 	struct arm_pmu *armpmu;
-	struct arm_pmu_platdata *plat;
 	int ret;
 	u64 start_clock, finish_clock;
 
@@ -342,13 +333,8 @@ static irqreturn_t armpmu_dispatch_irq(int irq, void *dev)
 	 */
 	armpmu = *(void **)dev;
 
-	plat = armpmu_get_platdata(armpmu);
-
 	start_clock = sched_clock();
-	if (plat && plat->handle_irq)
-		ret = plat->handle_irq(irq, armpmu, armpmu->handle_irq);
-	else
-		ret = armpmu->handle_irq(irq, armpmu);
+	ret = armpmu->handle_irq(irq, armpmu);
 	finish_clock = sched_clock();
 
 	perf_sample_event_took(finish_clock - start_clock);
@@ -578,7 +564,6 @@ int armpmu_request_irq(struct arm_pmu *armpmu, int cpu)
 			goto err_out;
 		}
 	} else {
-		struct arm_pmu_platdata *platdata = armpmu_get_platdata(armpmu);
 		unsigned long irq_flags;
 
 		err = irq_force_affinity(irq, cpumask_of(cpu));
@@ -589,13 +574,9 @@ int armpmu_request_irq(struct arm_pmu *armpmu, int cpu)
 			goto err_out;
 		}
 
-		if (platdata && platdata->irq_flags) {
-			irq_flags = platdata->irq_flags;
-		} else {
-			irq_flags = IRQF_PERCPU |
-				    IRQF_NOBALANCING |
-				    IRQF_NO_THREAD;
-		}
+		irq_flags = IRQF_PERCPU |
+			    IRQF_NOBALANCING |
+			    IRQF_NO_THREAD;
 
 		err = request_irq(irq, handler, irq_flags, "arm-pmu",
 				  per_cpu_ptr(&hw_events->percpu_pmu, cpu));

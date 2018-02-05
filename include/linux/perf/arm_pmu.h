@@ -17,23 +17,6 @@
 #include <linux/sysfs.h>
 #include <asm/cputype.h>
 
-/*
- * struct arm_pmu_platdata - ARM PMU platform data
- *
- * @handle_irq: an optional handler which will be called from the
- *	interrupt and passed the address of the low level handler,
- *	and can be used to implement any platform specific handling
- *	before or after calling it.
- *
- * @irq_flags: if non-zero, these flags will be passed to request_irq
- *             when requesting interrupts for this PMU device.
- */
-struct arm_pmu_platdata {
-	irqreturn_t (*handle_irq)(int irq, void *dev,
-				  irq_handler_t pmu_handler);
-	unsigned long irq_flags;
-};
-
 #ifdef CONFIG_ARM_PMU
 
 /*
