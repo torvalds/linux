@@ -3644,7 +3644,7 @@ static int wait_for_engines(struct drm_i915_private *i915)
 
 			for_each_engine(engine, i915, id)
 				intel_engine_dump(engine, &p,
-						  "%s", engine->name);
+						  "%s\n", engine->name);
 		}
 
 		i915_gem_set_wedged(i915);
