@@ -257,6 +257,7 @@ static int sdhci_omap_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	u32 start_window = 0, max_window = 0;
 	u8 cur_match, prev_match = 0;
 	u32 length = 0, max_len = 0;
+	u32 ier = host->ier;
 	u32 phase_delay = 0;
 	int ret = 0;
 	u32 reg;
@@ -276,6 +277,16 @@ static int sdhci_omap_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	reg = sdhci_omap_readl(omap_host, SDHCI_OMAP_DLL);
 	reg |= DLL_SWT;
 	sdhci_omap_writel(omap_host, SDHCI_OMAP_DLL, reg);
+
+	/*
+	 * OMAP5/DRA74X/DRA72x Errata i802:
+	 * DCRC error interrupts (MMCHS_STAT[21] DCRC=0x1) can occur
+	 * during the tuning procedure. So disable it during the
+	 * tuning procedure.
+	 */
+	ier &= ~SDHCI_INT_DATA_CRC;
+	sdhci_writel(host, ier, SDHCI_INT_ENABLE);
+	sdhci_writel(host, ier, SDHCI_SIGNAL_ENABLE);
 
 	while (phase_delay <= MAX_PHASE_DELAY) {
 		sdhci_omap_set_dll(omap_host, phase_delay);
@@ -322,6 +333,8 @@ tuning_error:
 
 ret:
 	sdhci_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
+	sdhci_writel(host, host->ier, SDHCI_INT_ENABLE);
+	sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
 	return ret;
 }
 
