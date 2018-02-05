@@ -173,7 +173,16 @@
 		>;
 		dram_freq = <786000000>;
 		rockchip,dram_timing = <&dram_timing>;
+		#cooling-cells = <2>;
 		status = "disabled";
+
+		ddr_power_model: ddr_power_model {
+			compatible = "ddr_power_model";
+			dynamic-power-coefficient = <120>;
+			static-power-coefficient = <200>;
+			ts = <32000 4700 (-80) 2>;
+			thermal-zone = "soc-thermal";
+		};
 	};
 
 	dmc_opp_table: dmc-opp-table {
@@ -615,6 +624,12 @@
 					trip = <&target>;
 					cooling-device =
 					<&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
+				};
+				map2 {
+					trip = <&target>;
+					cooling-device =
+					<&dmc THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 					contribution = <1024>;
 				};
 			};
