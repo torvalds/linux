@@ -526,6 +526,13 @@ config BATTERY_RK816
 	  If you say yes here you will get support for the battery of RK816 PMIC.
 	  This driver can give support for Rk816 Battery Charge Interface.
 
+config BATTERY_RK817
+	bool "RK817 Battery driver"
+	depends on MFD_RK808
+	help
+	  If you say yes here you will get support for the battery of RK817 PMIC.
+	  This driver can give support for Rk817 Battery Interface.
+
 config CHARGER_RK817
 	bool "RK817 Charger driver"
 	depends on MFD_RK808
