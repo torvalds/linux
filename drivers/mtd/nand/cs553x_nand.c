@@ -1,6 +1,4 @@
 /*
- * drivers/mtd/nand/cs553x_nand.c
- *
  * (C) 2005, 2006 Red Hat Inc.
  *
  * Author: David Woodhouse <dwmw2@infradead.org>

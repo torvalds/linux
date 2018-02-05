@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/mtd/nand/cmx270-nand.c
- *
  *  Copyright (C) 2006 Compulab, Ltd.
  *  Mike Rapoport <mike@compulab.co.il>
  *

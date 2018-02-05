@@ -1,6 +1,4 @@
 /*
- * drivers/mtd/nand/fsmc_nand.c
- *
  * ST Microelectronics
  * Flexible Static Memory Controller (FSMC)
  * Driver for NAND portions

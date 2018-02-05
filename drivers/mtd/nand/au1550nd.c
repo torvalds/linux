@@ -1,6 +1,4 @@
 /*
- *  drivers/mtd/nand/au1550nd.c
- *
  *  Copyright (C) 2004 Embedded Edge, LLC
  *
  * This program is free software; you can redistribute it and/or modify

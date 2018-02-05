@@ -1,6 +1,4 @@
 /*
- * drivers/mtd/nand/orion_nand.c
- *
  * NAND support for Marvell Orion SoC platforms
  *
  * Tzachi Perelstein <tzachi@marvell.com>

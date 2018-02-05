@@ -1,6 +1,4 @@
 /*
- * drivers/mtd/nand/socrates_nand.c
- *
  *  Copyright © 2008 Ilya Yanok, Emcraft Systems
  *
  *

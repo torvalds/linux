@@ -1,6 +1,4 @@
 /*
- * drivers/mtd/nand/gpio.c
- *
  * Updated, and converted to generic GPIO based driver by Russell King.
  *
  * Written by Ben Dooks <ben@simtec.co.uk>

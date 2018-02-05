@@ -1,6 +1,4 @@
 /*
- * drivers/mtd/nand/sharpsl.c
- *
  *  Copyright (C) 2004 Richard Purdie
  *  Copyright (C) 2008 Dmitry Baryshkov
  *

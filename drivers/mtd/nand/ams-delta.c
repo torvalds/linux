@@ -1,6 +1,4 @@
 /*
- *  drivers/mtd/nand/ams-delta.c
- *
  *  Copyright (C) 2006 Jonathan McDowell <noodles@earth.li>
  *
  *  Derived from drivers/mtd/toto.c

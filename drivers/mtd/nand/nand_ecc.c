@@ -2,8 +2,6 @@
  * This file contains an ECC algorithm that detects and corrects 1 bit
  * errors in a 256 byte block of data.
  *
- * drivers/mtd/nand/nand_ecc.c
- *
  * Copyright © 2008 Koninklijke Philips Electronics NV.
  *                  Author: Frans Meulenbroeks
  *

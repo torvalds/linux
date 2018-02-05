@@ -1,6 +1,4 @@
 /*
- * drivers/mtd/nand/diskonchip.c
- *
  * (C) 2003 Red Hat, Inc.
  * (C) 2004 Dan Brown <dan_brown@ieee.org>
  * (C) 2004 Kalev Lember <kalev@smartlink.ee>
