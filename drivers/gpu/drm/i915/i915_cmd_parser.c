@@ -1032,7 +1032,7 @@ find_reg(const struct intel_engine_cs *engine, bool is_master, u32 addr)
 	const struct drm_i915_reg_table *table = engine->reg_tables;
 	int count = engine->reg_table_count;
 
-	do {
+	for (; count > 0; ++table, --count) {
 		if (!table->master || is_master) {
 			const struct drm_i915_reg_descriptor *reg;
 
@@ -1040,7 +1040,7 @@ find_reg(const struct intel_engine_cs *engine, bool is_master, u32 addr)
 			if (reg != NULL)
 				return reg;
 		}
-	} while (table++, --count);
+	}
 
 	return NULL;
 }
