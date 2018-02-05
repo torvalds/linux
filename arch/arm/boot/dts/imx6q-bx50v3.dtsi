@@ -353,6 +353,10 @@
 	};
 };
 
+&pmu {
+	secure-reg-access;
+};
+
 &usdhc2 {
 	status = "disabled";
 };
