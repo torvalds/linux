@@ -222,15 +222,12 @@ static struct rockchip_clk_branch rk3228_clk_branches[] __initdata = {
 			RK2928_CLKSEL_CON(4), 8, 5, DFLAGS),
 
 	/* PD_DDR */
-	COMPOSITE(0, "clk_ddrphy_src", mux_ddrphy_p, CLK_IGNORE_UNUSED,
-			RK2928_CLKSEL_CON(26), 8, 2, MFLAGS, 0, 2, DFLAGS | CLK_DIVIDER_POWER_OF_TWO,
-			RK2928_CLKGATE_CON(0), 2, GFLAGS),
-	GATE(0, "ddrphy4x", "clk_ddrphy_src", CLK_IGNORE_UNUSED,
+	COMPOSITE_DDRCLK(SCLK_DDRC, "clk_ddrc", mux_ddrphy_p, 0,
+			 RK2928_CLKSEL_CON(26), 8, 2, 0, 2,
+			 ROCKCHIP_DDRCLK_SIP_V2),
+	FACTOR(0, "clk_ddrphy", "clk_ddrc", 0, 1, 4),
+	GATE(0, "ddrphy4x", "clk_ddrc", CLK_IGNORE_UNUSED,
 			RK2928_CLKGATE_CON(7), 1, GFLAGS),
-	FACTOR_GATE(0, "ddrc", "clk_ddrphy_src", CLK_IGNORE_UNUSED, 1, 4,
-			RK2928_CLKGATE_CON(8), 5, GFLAGS),
-	FACTOR_GATE(0, "ddrphy", "clk_ddrphy_src", CLK_IGNORE_UNUSED, 1, 4,
-			RK2928_CLKGATE_CON(7), 0, GFLAGS),
 
 	/* PD_CORE */
 	GATE(0, "apll_core", "apll", CLK_IGNORE_UNUSED,

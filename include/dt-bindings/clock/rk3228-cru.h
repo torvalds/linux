@@ -73,6 +73,7 @@
 #define SCLK_WIFI		141
 #define SCLK_OTGPHY0		142
 #define SCLK_OTGPHY1		143
+#define SCLK_DDRC		144
 
 /* dclk gates */
 #define DCLK_VOP		190
