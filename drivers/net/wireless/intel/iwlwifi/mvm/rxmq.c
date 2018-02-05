@@ -215,15 +215,14 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 }
 
 static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
-					struct iwl_rx_mpdu_desc *desc,
-					struct ieee80211_rx_status *rx_status)
+					struct ieee80211_rx_status *rx_status,
+					u32 rate_n_flags, int energy_a,
+					int energy_b)
 {
-	int energy_a, energy_b, max_energy;
-	u32 rate_flags = le32_to_cpu(desc->rate_n_flags);
+	int max_energy;
+	u32 rate_flags = rate_n_flags;
 
-	energy_a = desc->energy_a;
 	energy_a = energy_a ? -energy_a : S8_MIN;
-	energy_b = desc->energy_b;
 	energy_b = energy_b ? -energy_b : S8_MIN;
 	max_energy = max(energy_a, energy_b);
 
@@ -368,7 +367,8 @@ static bool iwl_mvm_is_dup(struct ieee80211_sta *sta, int queue,
 		tid = IWL_MAX_TID_COUNT;
 
 	/* If this wasn't a part of an A-MSDU the sub-frame index will be 0 */
-	sub_frame_idx = desc->amsdu_info & IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK;
+	sub_frame_idx = desc->amsdu_info &
+		IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK;
 
 	if (unlikely(ieee80211_has_retry(hdr->frame_control) &&
 		     dup_data->last_seq[tid] == hdr->seq_ctrl &&
@@ -862,23 +862,41 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct ieee80211_rx_status *rx_status;
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_rx_mpdu_desc *desc = (void *)pkt->data;
-	struct ieee80211_hdr *hdr = (void *)(pkt->data + sizeof(*desc));
+	struct ieee80211_hdr *hdr;
 	u32 len = le16_to_cpu(desc->mpdu_len);
-	u32 rate_n_flags = le32_to_cpu(desc->rate_n_flags);
+	u32 rate_n_flags, gp2_on_air_rise;
 	u16 phy_info = le16_to_cpu(desc->phy_info);
 	struct ieee80211_sta *sta = NULL;
 	struct sk_buff *skb;
-	u8 crypt_len = 0;
+	u8 crypt_len = 0, channel, energy_a, energy_b;
 	struct ieee80211_radiotap_he *he = NULL;
 	struct ieee80211_radiotap_he_mu *he_mu = NULL;
 	u32 he_type = 0xffffffff;
 	/* this is invalid e.g. because puncture type doesn't allow 0b11 */
 #define HE_PHY_DATA_INVAL ((u64)-1)
 	u64 he_phy_data = HE_PHY_DATA_INVAL;
+	size_t desc_size;
 
 	if (unlikely(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)))
 		return;
 
+	if (mvm->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
+		rate_n_flags = le32_to_cpu(desc->v3.rate_n_flags);
+		channel = desc->v3.channel;
+		gp2_on_air_rise = le32_to_cpu(desc->v3.gp2_on_air_rise);
+		energy_a = desc->v3.energy_a;
+		energy_b = desc->v3.energy_b;
+		desc_size = sizeof(*desc);
+	} else {
+		rate_n_flags = le32_to_cpu(desc->v1.rate_n_flags);
+		channel = desc->v1.channel;
+		gp2_on_air_rise = le32_to_cpu(desc->v1.gp2_on_air_rise);
+		energy_a = desc->v1.energy_a;
+		energy_b = desc->v1.energy_b;
+		desc_size = IWL_RX_DESC_SIZE_V1;
+	}
+
+	hdr = (void *)(pkt->data + desc_size);
 	/* Dont use dev_alloc_skb(), we'll have enough headroom once
 	 * ieee80211_hdr pulled.
 	 */
@@ -925,8 +943,11 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		he_type = rate_n_flags & RATE_MCS_HE_TYPE_MSK;
 
 		if (phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD) {
-			he_phy_data =
-				le64_to_cpu(desc->he_phy_data);
+			if (mvm->trans->cfg->device_family >=
+			    IWL_DEVICE_FAMILY_22560)
+				he_phy_data = le64_to_cpu(desc->v3.he_phy_data);
+			else
+				he_phy_data = le64_to_cpu(desc->v1.he_phy_data);
 
 			if (he_type == RATE_MCS_HE_TYPE_MU) {
 				he_mu = skb_put_data(skb, &mu_known,
@@ -939,6 +960,8 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		/* temporarily hide the radiotap data */
 		__skb_pull(skb, radiotap_len);
 	}
+
+	rx_status = IEEE80211_SKB_RXCB(skb);
 
 	if (iwl_mvm_rx_crypto(mvm, hdr, rx_status, phy_info, desc,
 			      le32_to_cpu(pkt->len_n_flags), queue,
@@ -962,14 +985,28 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		rx_status->enc_flags |= RX_ENC_FLAG_SHORTPRE;
 
 	if (likely(!(phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD))) {
-		rx_status->mactime = le64_to_cpu(desc->tsf_on_air_rise);
+		u64 tsf_on_air_rise;
+
+		if (mvm->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
+			tsf_on_air_rise = le64_to_cpu(desc->v3.tsf_on_air_rise);
+		else
+			tsf_on_air_rise = le64_to_cpu(desc->v1.tsf_on_air_rise);
+
+		rx_status->mactime = tsf_on_air_rise;
 		/* TSF as indicated by the firmware is at INA time */
 		rx_status->flag |= RX_FLAG_MACTIME_PLCP_START;
 	} else if (he_type == RATE_MCS_HE_TYPE_SU) {
+		u64 he_phy_data;
+
+		if (mvm->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
+			he_phy_data = le64_to_cpu(desc->v3.he_phy_data);
+		else
+			he_phy_data = le64_to_cpu(desc->v1.he_phy_data);
+
 		he->data1 |=
 			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_UL_DL_KNOWN);
 		if (FIELD_GET(IWL_RX_HE_PHY_UPLINK,
-			      le64_to_cpu(desc->he_phy_data)))
+			      he_phy_data))
 			he->data3 |=
 				cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA3_UL_DL);
 
@@ -980,7 +1017,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			rx_status->flag |= RX_FLAG_AMPDU_DETAILS;
 			rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT_KNOWN;
 			if (FIELD_GET(IWL_RX_HE_PHY_DELIM_EOF,
-				      le64_to_cpu(desc->he_phy_data)))
+				      he_phy_data))
 				rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT;
 		}
 	} else if (he_mu && he_phy_data != HE_PHY_DATA_INVAL) {
@@ -1005,16 +1042,23 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 						   he_phy_data),
 					 IEEE80211_RADIOTAP_HE_MU_FLAGS2_PUNC_FROM_SIG_A_BW);
 	}
-	rx_status->device_timestamp = le32_to_cpu(desc->gp2_on_air_rise);
-	rx_status->band = desc->channel > 14 ? NL80211_BAND_5GHZ :
-					       NL80211_BAND_2GHZ;
-	rx_status->freq = ieee80211_channel_to_frequency(desc->channel,
+	rx_status->device_timestamp = gp2_on_air_rise;
+	rx_status->band = channel > 14 ? NL80211_BAND_5GHZ :
+		NL80211_BAND_2GHZ;
+	rx_status->freq = ieee80211_channel_to_frequency(channel,
 							 rx_status->band);
-	iwl_mvm_get_signal_strength(mvm, desc, rx_status);
+	iwl_mvm_get_signal_strength(mvm, rx_status, rate_n_flags, energy_a,
+				    energy_b);
 
 	/* update aggregation data for monitor sake on default queue */
 	if (!queue && (phy_info & IWL_RX_MPDU_PHY_AMPDU)) {
 		bool toggle_bit = phy_info & IWL_RX_MPDU_PHY_AMPDU_TOGGLE;
+		u64 he_phy_data;
+
+		if (mvm->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
+			he_phy_data = le64_to_cpu(desc->v3.he_phy_data);
+		else
+			he_phy_data = le64_to_cpu(desc->v1.he_phy_data);
 
 		rx_status->flag |= RX_FLAG_AMPDU_DETAILS;
 		rx_status->ampdu_reference = mvm->ampdu_ref;
@@ -1027,7 +1071,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			    he_type == RATE_MCS_HE_TYPE_MU) {
 				rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT_KNOWN;
 				if (FIELD_GET(IWL_RX_HE_PHY_DELIM_EOF,
-					      le64_to_cpu(desc->he_phy_data)))
+					      he_phy_data))
 					rx_status->flag |=
 						RX_FLAG_AMPDU_EOF_BIT;
 			}
@@ -1327,12 +1371,19 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			break;
 		case RATE_MCS_HE_TYPE_MU: {
 			u16 val;
+			u64 he_phy_data;
+
+			if (mvm->trans->cfg->device_family >=
+			    IWL_DEVICE_FAMILY_22560)
+				he_phy_data = le64_to_cpu(desc->v3.he_phy_data);
+			else
+				he_phy_data = le64_to_cpu(desc->v1.he_phy_data);
 
 			if (he_phy_data == HE_PHY_DATA_INVAL)
 				break;
 
 			val = FIELD_GET(IWL_RX_HE_PHY_HE_LTF_NUM_MASK,
-					le64_to_cpu(desc->he_phy_data));
+					he_phy_data);
 
 			he->data2 |=
 				cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_NUM_LTF_SYMS_KNOWN);
