@@ -3286,7 +3286,7 @@ static void handle_vpd_rsp(union ibmvnic_crq *crq,
 			   struct ibmvnic_adapter *adapter)
 {
 	struct device *dev = &adapter->vdev->dev;
-	unsigned char *substr = NULL, *ptr = NULL;
+	unsigned char *substr = NULL;
 	u8 fw_level_len = 0;
 
 	memset(adapter->fw_version, 0, 32);
@@ -3306,10 +3306,6 @@ static void handle_vpd_rsp(union ibmvnic_crq *crq,
 	substr = strnstr(adapter->vpd->buff, "RM", adapter->vpd->len);
 	if (!substr) {
 		dev_info(dev, "Warning - No FW level has been provided in the VPD buffer by the VIOS Server\n");
-		ptr = strncpy((char *)adapter->fw_version, "N/A",
-			      3 * sizeof(char));
-		if (!ptr)
-			dev_err(dev, "Failed to inform that firmware version is unavailable to the adapter\n");
 		goto complete;
 	}
 
@@ -3324,16 +3320,14 @@ static void handle_vpd_rsp(union ibmvnic_crq *crq,
 	/* copy firmware version string from vpd into adapter */
 	if ((substr + 3 + fw_level_len) <
 	    (adapter->vpd->buff + adapter->vpd->len)) {
-		ptr = strncpy((char *)adapter->fw_version,
-			      substr + 3, fw_level_len);
-
-		if (!ptr)
-			dev_err(dev, "Failed to isolate FW level string\n");
+		strncpy((char *)adapter->fw_version, substr + 3, fw_level_len);
 	} else {
 		dev_info(dev, "FW substr extrapolated VPD buff\n");
 	}
 
 complete:
+	if (adapter->fw_version[0] == '\0')
+		strncpy((char *)adapter->fw_version, "N/A", 3 * sizeof(char));
 	complete(&adapter->fw_done);
 }
 
