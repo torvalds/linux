@@ -195,7 +195,7 @@
 		#size-cells = <0>;
 	};
 
-	camera {
+	camera: camera {
 		compatible = "samsung,fimc", "simple-bus";
 		status = "disabled";
 		#address-cells = <1>;
@@ -718,6 +718,10 @@
 	};
 
 	tmu: tmu@100c0000 {
+		interrupt-parent = <&combiner>;
+		reg = <0x100C0000 0x100>;
+		interrupts = <2 4>;
+		status = "disabled";
 		#include "exynos4412-tmu-sensor-conf.dtsi"
 	};
 
