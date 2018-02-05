@@ -192,6 +192,16 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 	}
 }
 
+static bool intel_is_virt_pch(unsigned short id,
+			      unsigned short svendor, unsigned short sdevice)
+{
+	return (id == INTEL_PCH_P2X_DEVICE_ID_TYPE ||
+		id == INTEL_PCH_P3X_DEVICE_ID_TYPE ||
+		(id == INTEL_PCH_QEMU_DEVICE_ID_TYPE &&
+		 svendor == PCI_SUBVENDOR_ID_REDHAT_QUMRANET &&
+		 sdevice == PCI_SUBDEVICE_ID_QEMU));
+}
+
 static enum intel_pch intel_virt_detect_pch(struct drm_i915_private *dev_priv)
 {
 	enum intel_pch ret = PCH_NOP;
@@ -264,13 +274,8 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 		pch_type = intel_pch_type(dev_priv, id);
 		if (pch_type != PCH_NONE) {
 			dev_priv->pch_type = pch_type;
-		} else if (id == INTEL_PCH_P2X_DEVICE_ID_TYPE ||
-			   id == INTEL_PCH_P3X_DEVICE_ID_TYPE ||
-			   (id == INTEL_PCH_QEMU_DEVICE_ID_TYPE &&
-			    pch->subsystem_vendor ==
-			    PCI_SUBVENDOR_ID_REDHAT_QUMRANET &&
-			    pch->subsystem_device ==
-			    PCI_SUBDEVICE_ID_QEMU)) {
+		} else if (intel_is_virt_pch(id, pch->subsystem_vendor,
+					     pch->subsystem_device)) {
 			dev_priv->pch_type = intel_virt_detect_pch(dev_priv);
 		} else {
 			continue;
