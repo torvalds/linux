@@ -815,13 +815,11 @@ i40evf_mac_filter *i40evf_add_filter(struct i40evf_adapter *adapter,
 	if (!macaddr)
 		return NULL;
 
-	spin_lock_bh(&adapter->mac_vlan_list_lock);
-
 	f = i40evf_find_filter(adapter, macaddr);
 	if (!f) {
 		f = kzalloc(sizeof(*f), GFP_ATOMIC);
 		if (!f)
-			goto clearout;
+			return f;
 
 		ether_addr_copy(f->macaddr, macaddr);
 
@@ -832,8 +830,6 @@ i40evf_mac_filter *i40evf_add_filter(struct i40evf_adapter *adapter,
 		f->remove = false;
 	}
 
-clearout:
-	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 	return f;
 }
 
@@ -868,9 +864,10 @@ static int i40evf_set_mac(struct net_device *netdev, void *p)
 		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_MAC_FILTER;
 	}
 
+	f = i40evf_add_filter(adapter, addr->sa_data);
+
 	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 
-	f = i40evf_add_filter(adapter, addr->sa_data);
 	if (f) {
 		ether_addr_copy(hw->mac.addr, addr->sa_data);
 		ether_addr_copy(netdev->dev_addr, adapter->hw.mac.addr);
@@ -3040,7 +3037,12 @@ static int i40evf_open(struct net_device *netdev)
 	if (err)
 		goto err_req_irq;
 
+	spin_lock_bh(&adapter->mac_vlan_list_lock);
+
 	i40evf_add_filter(adapter, adapter->hw.mac.addr);
+
+	spin_unlock_bh(&adapter->mac_vlan_list_lock);
+
 	i40evf_configure(adapter);
 
 	i40evf_up_complete(adapter);
