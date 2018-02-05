@@ -194,7 +194,7 @@ sh_css_pipe_start(struct ia_css_stream *stream);
  * @param[in] stream	Point to the target "ia_css_stream" instance.
  *
  * @return
- * - IA_CSS_SUCCESS, if the "stop" requests have been sucessfully sent out.
+ * - IA_CSS_SUCCESS, if the "stop" requests have been successfully sent out.
  * - CSS error code, otherwise.
  *
  *
@@ -1054,7 +1054,7 @@ sh_css_config_input_network(struct ia_css_stream *stream)
 		if (stream->last_pipe->config.mode == IA_CSS_PIPE_MODE_CAPTURE) {
 			/*
 			 * We need to poll the ISYS HW in capture_indication itself
-			 * for "non-continous" capture usecase for getting accurate
+			 * for "non-continuous" capture usecase for getting accurate
 			 * isys frame capture timestamps.
 			 * This is because the capturepipe propcessing takes longer
 			 * to execute than the input system frame capture.
@@ -3657,7 +3657,7 @@ static enum ia_css_err create_host_video_pipeline(struct ia_css_pipe *pipe)
 		in_frame = me->stages->args.out_frame[0];
 	} else if (pipe->stream->config.continuous) {
 #ifdef USE_INPUT_SYSTEM_VERSION_2401
-		/* When continous is enabled, configure in_frame with the
+		/* When continuous is enabled, configure in_frame with the
 		 * last pipe, which is the copy pipe.
 		 */
 		in_frame = pipe->stream->last_pipe->continuous_frames[0];
@@ -3854,7 +3854,7 @@ create_host_preview_pipeline(struct ia_css_pipe *pipe)
 	 * - Direct Sensor Mode Online Preview
 	 * - Buffered Sensor Mode Online Preview
 	 * - Direct Sensor Mode Continuous Preview
-	 * - Buffered Sensor Mode Continous Preview
+	 * - Buffered Sensor Mode Continuous Preview
 	 */
 	sensor = (pipe->stream->config.mode == IA_CSS_INPUT_MODE_SENSOR);
 	buffered_sensor = (pipe->stream->config.mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR);
@@ -4715,7 +4715,7 @@ ia_css_dequeue_psys_event(struct ia_css_event *event)
 			event->timer_subcode = payload[2];
 		}
 		/* It's a non timer event. So clear first half of the timer event data.
-		* If the second part of the TIMER event is not recieved, we discard
+		* If the second part of the TIMER event is not received, we discard
 		* the first half of the timer data and process the non timer event without
 		* affecting the flow. So the non timer event falls through
 		* the code. */
@@ -7610,7 +7610,7 @@ create_host_yuvpp_pipeline(struct ia_css_pipe *pipe)
 	 * except for the following:
 	 * - Direct Sensor Mode Online Capture
 	 * - Direct Sensor Mode Continuous Capture
-	 * - Buffered Sensor Mode Continous Capture
+	 * - Buffered Sensor Mode Continuous Capture
 	 */
 	sensor = pipe->stream->config.mode == IA_CSS_INPUT_MODE_SENSOR;
 	buffered_sensor = pipe->stream->config.mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR;
@@ -7950,7 +7950,7 @@ create_host_regular_capture_pipeline(struct ia_css_pipe *pipe)
 	 * - Direct Sensor Mode Online Capture
 	 * - Direct Sensor Mode Online Capture
 	 * - Direct Sensor Mode Continuous Capture
-	 * - Buffered Sensor Mode Continous Capture
+	 * - Buffered Sensor Mode Continuous Capture
 	 */
 	sensor = (pipe->stream->config.mode == IA_CSS_INPUT_MODE_SENSOR);
 	buffered_sensor = (pipe->stream->config.mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR);
@@ -8915,7 +8915,7 @@ ia_css_pipe_create(const struct ia_css_pipe_config *config,
 	err = ia_css_pipe_create_extra(config, NULL, pipe);
 
 	if(err == IA_CSS_SUCCESS) {
-		IA_CSS_LOG("pipe created successfuly = %p", *pipe);
+		IA_CSS_LOG("pipe created successfully = %p", *pipe);
 	}
 
 	IA_CSS_LEAVE_ERR_PRIVATE(err);
