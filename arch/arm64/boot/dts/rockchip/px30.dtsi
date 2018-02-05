@@ -10,7 +10,9 @@
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/power/px30-power.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
+#include <dt-bindings/soc/rockchip-system-status.h>
 #include <dt-bindings/thermal/thermal.h>
+#include "px30-dram-default-timing.dtsi"
 
 / {
 	compatible = "rockchip,px30";
@@ -1235,6 +1237,113 @@
 	qos_vpu_r128: qos@ff558080 {
 		compatible = "syscon";
 		reg = <0x0 0xff558080 0x0 0x20>;
+	};
+
+	dfi: dfi@ff610000 {
+		reg = <0x00 0xff610000 0x00 0x400>;
+		compatible = "rockchip,px30-dfi";
+		rockchip,pmugrf = <&pmugrf>;
+		status = "disabled";
+	};
+
+	dmc: dmc {
+		compatible = "rockchip,px30-dmc";
+		interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "complete_irq";
+		devfreq-events = <&dfi>;
+		clocks = <&cru SCLK_DDRCLK>;
+		clock-names = "dmc_clk";
+		operating-points-v2 = <&dmc_opp_table>;
+		ddr_timing = <&ddr_timing>;
+		upthreshold = <40>;
+		downdifferential = <20>;
+		system-status-freq = <
+			/*system status         freq(KHz)*/
+			SYS_STATUS_NORMAL       528000
+			SYS_STATUS_REBOOT       450000
+			SYS_STATUS_SUSPEND      194000
+			SYS_STATUS_VIDEO_1080P  450000
+			SYS_STATUS_BOOST        528000
+			SYS_STATUS_ISP          666000
+			SYS_STATUS_PERFORMANCE  666000
+		>;
+		auto-min-freq = <328000>;
+		auto-freq-en = <1>;
+		#cooling-cells = <2>;
+		status = "disabled";
+
+		ddr_power_model: ddr_power_model {
+			compatible = "ddr_power_model";
+			dynamic-power-coefficient = <120>;
+			static-power-coefficient = <200>;
+			ts = <32000 4700 (-80) 2>;
+			thermal-zone = "soc-thermal";
+		};
+	};
+
+	dmc_opp_table: dmc-opp-table {
+		compatible = "operating-points-v2";
+
+		rockchip,max-volt = <1150000>;
+		rockchip,evb-irdrop = <25000>;
+
+		rockchip,pvtm-voltage-sel = <
+			0        50000   0
+			50001    54000   1
+			54001    60000   2
+			60001    99999   3
+		>;
+		rockchip,pvtm-ch = <0 0>;
+
+		opp-194000000 {
+			opp-hz = /bits/ 64 <194000000>;
+			opp-microvolt = <950000>;
+			opp-microvolt-L0 = <950000>;
+			opp-microvolt-L1 = <950000>;
+			opp-microvolt-L2 = <950000>;
+			opp-microvolt-L3 = <950000>;
+		};
+		opp-328000000 {
+			opp-hz = /bits/ 64 <328000000>;
+			opp-microvolt = <950000>;
+			opp-microvolt-L0 = <950000>;
+			opp-microvolt-L1 = <950000>;
+			opp-microvolt-L2 = <950000>;
+			opp-microvolt-L3 = <950000>;
+		};
+		opp-450000000 {
+			opp-hz = /bits/ 64 <450000000>;
+			opp-microvolt = <950000>;
+			opp-microvolt-L0 = <950000>;
+			opp-microvolt-L1 = <950000>;
+			opp-microvolt-L2 = <950000>;
+			opp-microvolt-L3 = <950000>;
+		};
+		opp-528000000 {
+			opp-hz = /bits/ 64 <528000000>;
+			opp-microvolt = <975000>;
+			opp-microvolt-L0 = <975000>;
+			opp-microvolt-L1 = <975000>;
+			opp-microvolt-L2 = <950000>;
+			opp-microvolt-L3 = <950000>;
+		};
+		opp-666000000 {
+			opp-hz = /bits/ 64 <666000000>;
+			opp-microvolt = <1050000>;
+			opp-microvolt-L0 = <1050000>;
+			opp-microvolt-L1 = <1000000>;
+			opp-microvolt-L2 = <975000>;
+			opp-microvolt-L3 = <950000>;
+		};
+		opp-786000000 {
+			opp-hz = /bits/ 64 <786000000>;
+			opp-microvolt = <1100000>;
+			opp-microvolt-L0 = <1100000>;
+			opp-microvolt-L1 = <1050000>;
+			opp-microvolt-L2 = <1025000>;
+			opp-microvolt-L3 = <1000000>;
+			status = "disabled";
+		};
 	};
 
 	pinctrl: pinctrl {
