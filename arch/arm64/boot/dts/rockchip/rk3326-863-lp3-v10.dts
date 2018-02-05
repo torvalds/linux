@@ -77,6 +77,27 @@
 		default-brightness-level = <200>;
 	};
 
+	rk817-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "rockchip,rk817-codec";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,widgets =
+			"Microphone", "Mic Jack",
+			"Headphone", "Headphone Jack";
+		simple-audio-card,routing =
+			"Mic Jack", "MICBIAS1",
+			"IN1P", "Mic Jack",
+			"Headphone Jack", "HPOL",
+			"Headphone Jack", "HPOR";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s1_2ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&rk817_codec>;
+		};
+	};
+
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		clocks = <&cru SCLK_WIFI_PMU>;
@@ -455,6 +476,16 @@
 			virtual_power = <0>;
 			dc_det_adc = <0>;
 		};
+
+		rk817_codec: rk817-codec {
+			#sound-dai-cells = <0>;
+			compatible = "rockchip,rk817-codec";
+			clocks = <&cru SCLK_I2S1_OUT>;
+			clock-names = "mclk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2s1_2ch_mclk>;
+			status = "okay";
+		};
 	};
 };
 
@@ -484,6 +515,11 @@
 
 &i2c2 {
 	status = "okay";
+};
+
+&i2s1_2ch {
+	status = "okay";
+	#sound-dai-cells = <0>;
 };
 
 &io_domains {
