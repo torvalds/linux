@@ -386,7 +386,11 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, unsigned int mtu)
 	pip->frag_off = htons(IP_DF);
 	pip->ttl      = 1;
 	pip->daddr    = fl4.daddr;
+
+	rcu_read_lock();
 	pip->saddr    = igmpv3_get_srcaddr(dev, &fl4);
+	rcu_read_unlock();
+
 	pip->protocol = IPPROTO_IGMP;
 	pip->tot_len  = 0;	/* filled in later */
 	ip_select_ident(net, skb, NULL);
@@ -2832,7 +2836,6 @@ static int igmp_mc_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations igmp_mc_seq_fops = {
-	.owner		=	THIS_MODULE,
 	.open		=	igmp_mc_seq_open,
 	.read		=	seq_read,
 	.llseek		=	seq_lseek,
@@ -2979,7 +2982,6 @@ static int igmp_mcf_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations igmp_mcf_seq_fops = {
-	.owner		=	THIS_MODULE,
 	.open		=	igmp_mcf_seq_open,
 	.read		=	seq_read,
 	.llseek		=	seq_lseek,

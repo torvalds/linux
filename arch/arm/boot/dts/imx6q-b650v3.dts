@@ -111,3 +111,55 @@
 	fsl,tx-cal-45-dp-ohms = <55>;
 	fsl,tx-d-cal = <100>;
 };
+
+&pci_root {
+	/* Intel Corporation I210 Gigabit Network Connection */
+	switch_nic: ethernet@3,0 {
+		compatible = "pci8086,1533";
+		reg = <0x00010000 0 0 0 0>;
+	};
+};
+
+&switch_ports {
+	port@0 {
+		reg = <0>;
+		label = "enacq";
+		phy-handle = <&switchphy0>;
+	};
+
+	port@1 {
+		reg = <1>;
+		label = "eneport1";
+		phy-handle = <&switchphy1>;
+	};
+
+	port@2 {
+		reg = <2>;
+		label = "enix";
+		phy-handle = <&switchphy2>;
+	};
+
+	port@3 {
+		reg = <3>;
+		label = "enid";
+		phy-handle = <&switchphy3>;
+	};
+
+	port@4 {
+		reg = <4>;
+		label = "cpu";
+		ethernet = <&switch_nic>;
+		phy-handle = <&switchphy4>;
+	};
+
+	port@5 {
+		reg = <5>;
+		label = "enembc";
+
+		/* connected to Ethernet MAC of AT91RM9200 in MII mode */
+		fixed-link {
+			speed = <100>;
+			full-duplex;
+		};
+	};
+};

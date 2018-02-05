@@ -72,7 +72,7 @@ struct cfs_cpt_data {
 	/* mutex to protect cpt_cpumask */
 	struct mutex		cpt_mutex;
 	/* scratch buffer for set/unset_node */
-	cpumask_t		*cpt_cpumask;
+	cpumask_var_t		cpt_cpumask;
 };
 
 static struct cfs_cpt_data	cpt_data;
@@ -93,35 +93,21 @@ cfs_cpt_table_free(struct cfs_cpt_table *cptab)
 {
 	int i;
 
-	if (cptab->ctb_cpu2cpt) {
-		LIBCFS_FREE(cptab->ctb_cpu2cpt,
-			    num_possible_cpus() *
-			    sizeof(cptab->ctb_cpu2cpt[0]));
-	}
+	kvfree(cptab->ctb_cpu2cpt);
 
 	for (i = 0; cptab->ctb_parts && i < cptab->ctb_nparts; i++) {
 		struct cfs_cpu_partition *part = &cptab->ctb_parts[i];
 
-		if (part->cpt_nodemask) {
-			LIBCFS_FREE(part->cpt_nodemask,
-				    sizeof(*part->cpt_nodemask));
-		}
-
-		if (part->cpt_cpumask)
-			LIBCFS_FREE(part->cpt_cpumask, cpumask_size());
+		kfree(part->cpt_nodemask);
+		free_cpumask_var(part->cpt_cpumask);
 	}
 
-	if (cptab->ctb_parts) {
-		LIBCFS_FREE(cptab->ctb_parts,
-			    cptab->ctb_nparts * sizeof(cptab->ctb_parts[0]));
-	}
+	kvfree(cptab->ctb_parts);
 
-	if (cptab->ctb_nodemask)
-		LIBCFS_FREE(cptab->ctb_nodemask, sizeof(*cptab->ctb_nodemask));
-	if (cptab->ctb_cpumask)
-		LIBCFS_FREE(cptab->ctb_cpumask, cpumask_size());
+	kfree(cptab->ctb_nodemask);
+	free_cpumask_var(cptab->ctb_cpumask);
 
-	LIBCFS_FREE(cptab, sizeof(*cptab));
+	kfree(cptab);
 }
 EXPORT_SYMBOL(cfs_cpt_table_free);
 
@@ -131,36 +117,39 @@ cfs_cpt_table_alloc(unsigned int ncpt)
 	struct cfs_cpt_table *cptab;
 	int i;
 
-	LIBCFS_ALLOC(cptab, sizeof(*cptab));
+	cptab = kzalloc(sizeof(*cptab), GFP_NOFS);
 	if (!cptab)
 		return NULL;
 
 	cptab->ctb_nparts = ncpt;
 
-	LIBCFS_ALLOC(cptab->ctb_cpumask, cpumask_size());
-	LIBCFS_ALLOC(cptab->ctb_nodemask, sizeof(*cptab->ctb_nodemask));
-
-	if (!cptab->ctb_cpumask || !cptab->ctb_nodemask)
+	cptab->ctb_nodemask = kzalloc(sizeof(*cptab->ctb_nodemask),
+				      GFP_NOFS);
+	if (!zalloc_cpumask_var(&cptab->ctb_cpumask, GFP_NOFS) ||
+	    !cptab->ctb_nodemask)
 		goto failed;
 
-	LIBCFS_ALLOC(cptab->ctb_cpu2cpt,
-		     num_possible_cpus() * sizeof(cptab->ctb_cpu2cpt[0]));
+	cptab->ctb_cpu2cpt = kvmalloc_array(num_possible_cpus(),
+					    sizeof(cptab->ctb_cpu2cpt[0]),
+					    GFP_KERNEL);
 	if (!cptab->ctb_cpu2cpt)
 		goto failed;
 
 	memset(cptab->ctb_cpu2cpt, -1,
 	       num_possible_cpus() * sizeof(cptab->ctb_cpu2cpt[0]));
 
-	LIBCFS_ALLOC(cptab->ctb_parts, ncpt * sizeof(cptab->ctb_parts[0]));
+	cptab->ctb_parts = kvmalloc_array(ncpt, sizeof(cptab->ctb_parts[0]),
+					  GFP_KERNEL);
 	if (!cptab->ctb_parts)
 		goto failed;
 
 	for (i = 0; i < ncpt; i++) {
 		struct cfs_cpu_partition *part = &cptab->ctb_parts[i];
 
-		LIBCFS_ALLOC(part->cpt_cpumask, cpumask_size());
-		LIBCFS_ALLOC(part->cpt_nodemask, sizeof(*part->cpt_nodemask));
-		if (!part->cpt_cpumask || !part->cpt_nodemask)
+		part->cpt_nodemask = kzalloc(sizeof(*part->cpt_nodemask),
+					     GFP_NOFS);
+		if (!zalloc_cpumask_var(&part->cpt_cpumask, GFP_NOFS) ||
+		    !part->cpt_nodemask)
 			goto failed;
 	}
 
@@ -251,13 +240,13 @@ cfs_cpt_online(struct cfs_cpt_table *cptab, int cpt)
 }
 EXPORT_SYMBOL(cfs_cpt_online);
 
-cpumask_t *
+cpumask_var_t *
 cfs_cpt_cpumask(struct cfs_cpt_table *cptab, int cpt)
 {
 	LASSERT(cpt == CFS_CPT_ANY || (cpt >= 0 && cpt < cptab->ctb_nparts));
 
 	return cpt == CFS_CPT_ANY ?
-	       cptab->ctb_cpumask : cptab->ctb_parts[cpt].cpt_cpumask;
+	       &cptab->ctb_cpumask : &cptab->ctb_parts[cpt].cpt_cpumask;
 }
 EXPORT_SYMBOL(cfs_cpt_cpumask);
 
@@ -405,7 +394,6 @@ EXPORT_SYMBOL(cfs_cpt_unset_cpumask);
 int
 cfs_cpt_set_node(struct cfs_cpt_table *cptab, int cpt, int node)
 {
-	cpumask_t *mask;
 	int rc;
 
 	if (node < 0 || node >= MAX_NUMNODES) {
@@ -416,10 +404,9 @@ cfs_cpt_set_node(struct cfs_cpt_table *cptab, int cpt, int node)
 
 	mutex_lock(&cpt_data.cpt_mutex);
 
-	mask = cpt_data.cpt_cpumask;
-	cfs_node_to_cpumask(node, mask);
+	cfs_node_to_cpumask(node, cpt_data.cpt_cpumask);
 
-	rc = cfs_cpt_set_cpumask(cptab, cpt, mask);
+	rc = cfs_cpt_set_cpumask(cptab, cpt, cpt_data.cpt_cpumask);
 
 	mutex_unlock(&cpt_data.cpt_mutex);
 
@@ -430,8 +417,6 @@ EXPORT_SYMBOL(cfs_cpt_set_node);
 void
 cfs_cpt_unset_node(struct cfs_cpt_table *cptab, int cpt, int node)
 {
-	cpumask_t *mask;
-
 	if (node < 0 || node >= MAX_NUMNODES) {
 		CDEBUG(D_INFO,
 		       "Invalid NUMA id %d for CPU partition %d\n", node, cpt);
@@ -440,10 +425,9 @@ cfs_cpt_unset_node(struct cfs_cpt_table *cptab, int cpt, int node)
 
 	mutex_lock(&cpt_data.cpt_mutex);
 
-	mask = cpt_data.cpt_cpumask;
-	cfs_node_to_cpumask(node, mask);
+	cfs_node_to_cpumask(node, cpt_data.cpt_cpumask);
 
-	cfs_cpt_unset_cpumask(cptab, cpt, mask);
+	cfs_cpt_unset_cpumask(cptab, cpt, cpt_data.cpt_cpumask);
 
 	mutex_unlock(&cpt_data.cpt_mutex);
 }
@@ -529,19 +513,20 @@ EXPORT_SYMBOL(cfs_cpt_spread_node);
 int
 cfs_cpt_current(struct cfs_cpt_table *cptab, int remap)
 {
-	int cpu = smp_processor_id();
-	int cpt = cptab->ctb_cpu2cpt[cpu];
+	int cpu;
+	int cpt;
 
-	if (cpt < 0) {
-		if (!remap)
-			return cpt;
+	preempt_disable();
+	cpu = smp_processor_id();
+	cpt = cptab->ctb_cpu2cpt[cpu];
 
+	if (cpt < 0 && remap) {
 		/* don't return negative value for safety of upper layer,
 		 * instead we shadow the unknown cpu to a valid partition ID
 		 */
 		cpt = cpu % cptab->ctb_nparts;
 	}
-
+	preempt_enable();
 	return cpt;
 }
 EXPORT_SYMBOL(cfs_cpt_current);
@@ -558,7 +543,7 @@ EXPORT_SYMBOL(cfs_cpt_of_cpu);
 int
 cfs_cpt_bind(struct cfs_cpt_table *cptab, int cpt)
 {
-	cpumask_t *cpumask;
+	cpumask_var_t *cpumask;
 	nodemask_t *nodemask;
 	int rc;
 	int i;
@@ -566,24 +551,24 @@ cfs_cpt_bind(struct cfs_cpt_table *cptab, int cpt)
 	LASSERT(cpt == CFS_CPT_ANY || (cpt >= 0 && cpt < cptab->ctb_nparts));
 
 	if (cpt == CFS_CPT_ANY) {
-		cpumask = cptab->ctb_cpumask;
+		cpumask = &cptab->ctb_cpumask;
 		nodemask = cptab->ctb_nodemask;
 	} else {
-		cpumask = cptab->ctb_parts[cpt].cpt_cpumask;
+		cpumask = &cptab->ctb_parts[cpt].cpt_cpumask;
 		nodemask = cptab->ctb_parts[cpt].cpt_nodemask;
 	}
 
-	if (cpumask_any_and(cpumask, cpu_online_mask) >= nr_cpu_ids) {
+	if (cpumask_any_and(*cpumask, cpu_online_mask) >= nr_cpu_ids) {
 		CERROR("No online CPU found in CPU partition %d, did someone do CPU hotplug on system? You might need to reload Lustre modules to keep system working well.\n",
 		       cpt);
 		return -EINVAL;
 	}
 
 	for_each_online_cpu(i) {
-		if (cpumask_test_cpu(i, cpumask))
+		if (cpumask_test_cpu(i, *cpumask))
 			continue;
 
-		rc = set_cpus_allowed_ptr(current, cpumask);
+		rc = set_cpus_allowed_ptr(current, *cpumask);
 		set_mems_allowed(*nodemask);
 		if (!rc)
 			schedule(); /* switch to allowed CPU */
@@ -604,8 +589,8 @@ static int
 cfs_cpt_choose_ncpus(struct cfs_cpt_table *cptab, int cpt,
 		     cpumask_t *node, int number)
 {
-	cpumask_t *socket = NULL;
-	cpumask_t *core = NULL;
+	cpumask_var_t socket;
+	cpumask_var_t core;
 	int rc = 0;
 	int cpu;
 
@@ -623,13 +608,17 @@ cfs_cpt_choose_ncpus(struct cfs_cpt_table *cptab, int cpt,
 		return 0;
 	}
 
-	/* allocate scratch buffer */
-	LIBCFS_ALLOC(socket, cpumask_size());
-	LIBCFS_ALLOC(core, cpumask_size());
-	if (!socket || !core) {
+	/*
+	 * Allocate scratch buffers
+	 * As we cannot initialize a cpumask_var_t, we need
+	 * to alloc both before we can risk trying to free either
+	 */
+	if (!zalloc_cpumask_var(&socket, GFP_NOFS))
 		rc = -ENOMEM;
+	if (!zalloc_cpumask_var(&core, GFP_NOFS))
+		rc = -ENOMEM;
+	if (rc)
 		goto out;
-	}
 
 	while (!cpumask_empty(node)) {
 		cpu = cpumask_first(node);
@@ -667,10 +656,8 @@ cfs_cpt_choose_ncpus(struct cfs_cpt_table *cptab, int cpt,
 	}
 
 out:
-	if (socket)
-		LIBCFS_FREE(socket, cpumask_size());
-	if (core)
-		LIBCFS_FREE(core, cpumask_size());
+	free_cpumask_var(socket);
+	free_cpumask_var(core);
 	return rc;
 }
 
@@ -723,7 +710,7 @@ static struct cfs_cpt_table *
 cfs_cpt_table_create(int ncpt)
 {
 	struct cfs_cpt_table *cptab = NULL;
-	cpumask_t *mask = NULL;
+	cpumask_var_t mask;
 	int cpt = 0;
 	int num;
 	int rc;
@@ -756,8 +743,7 @@ cfs_cpt_table_create(int ncpt)
 		goto failed;
 	}
 
-	LIBCFS_ALLOC(mask, cpumask_size());
-	if (!mask) {
+	if (!zalloc_cpumask_var(&mask, GFP_NOFS)){
 		CERROR("Failed to allocate scratch cpumask\n");
 		goto failed;
 	}
@@ -784,7 +770,7 @@ cfs_cpt_table_create(int ncpt)
 
 			rc = cfs_cpt_choose_ncpus(cptab, cpt, mask, n);
 			if (rc < 0)
-				goto failed;
+				goto failed_mask;
 
 			LASSERT(num >= cpumask_weight(part->cpt_cpumask));
 			if (num == cpumask_weight(part->cpt_cpumask))
@@ -797,19 +783,18 @@ cfs_cpt_table_create(int ncpt)
 		CERROR("Expect %d(%d) CPU partitions but got %d(%d), CPU hotplug/unplug while setting?\n",
 		       cptab->ctb_nparts, num, cpt,
 		       cpumask_weight(cptab->ctb_parts[ncpt - 1].cpt_cpumask));
-		goto failed;
+		goto failed_mask;
 	}
 
-	LIBCFS_FREE(mask, cpumask_size());
+	free_cpumask_var(mask);
 
 	return cptab;
 
+ failed_mask:
+	free_cpumask_var(mask);
  failed:
 	CERROR("Failed to setup CPU-partition-table with %d CPU-partitions, online HW nodes: %d, HW cpus: %d.\n",
 	       ncpt, num_online_nodes(), num_online_cpus());
-
-	if (mask)
-		LIBCFS_FREE(mask, cpumask_size());
 
 	if (cptab)
 		cfs_cpt_table_free(cptab);
@@ -830,7 +815,7 @@ cfs_cpt_table_create_pattern(char *pattern)
 	int c;
 	int i;
 
-	str = cfs_trimwhite(pattern);
+	str = strim(pattern);
 	if (*str == 'n' || *str == 'N') {
 		pattern = str + 1;
 		if (*pattern != '\0') {
@@ -882,7 +867,7 @@ cfs_cpt_table_create_pattern(char *pattern)
 
 	high = node ? MAX_NUMNODES - 1 : nr_cpu_ids - 1;
 
-	for (str = cfs_trimwhite(pattern), c = 0;; c++) {
+	for (str = strim(pattern), c = 0;; c++) {
 		struct cfs_range_expr *range;
 		struct cfs_expr_list *el;
 		char *bracket = strchr(str, '[');
@@ -917,7 +902,7 @@ cfs_cpt_table_create_pattern(char *pattern)
 			goto failed;
 		}
 
-		str = cfs_trimwhite(str + n);
+		str = strim(str + n);
 		if (str != bracket) {
 			CERROR("Invalid pattern %s\n", str);
 			goto failed;
@@ -957,7 +942,7 @@ cfs_cpt_table_create_pattern(char *pattern)
 			goto failed;
 		}
 
-		str = cfs_trimwhite(bracket + 1);
+		str = strim(bracket + 1);
 	}
 
 	return cptab;
@@ -1013,8 +998,7 @@ cfs_cpu_fini(void)
 		cpuhp_remove_state_nocalls(lustre_cpu_online);
 	cpuhp_remove_state_nocalls(CPUHP_LUSTRE_CFS_DEAD);
 #endif
-	if (cpt_data.cpt_cpumask)
-		LIBCFS_FREE(cpt_data.cpt_cpumask, cpumask_size());
+	free_cpumask_var(cpt_data.cpt_cpumask);
 }
 
 int
@@ -1026,8 +1010,7 @@ cfs_cpu_init(void)
 
 	memset(&cpt_data, 0, sizeof(cpt_data));
 
-	LIBCFS_ALLOC(cpt_data.cpt_cpumask, cpumask_size());
-	if (!cpt_data.cpt_cpumask) {
+	if (!zalloc_cpumask_var(&cpt_data.cpt_cpumask, GFP_NOFS)) {
 		CERROR("Failed to allocate scratch buffer\n");
 		return -1;
 	}

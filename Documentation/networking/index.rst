@@ -7,6 +7,7 @@ Contents:
    :maxdepth: 2
 
    batman-adv
+   can
    kapi
    z8530book
    msg_zerocopy

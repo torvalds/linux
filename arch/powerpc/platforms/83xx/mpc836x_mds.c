@@ -83,7 +83,7 @@ static void __init mpc836x_mds_setup_arch(void)
 		par_io_init(np);
 		of_node_put(np);
 
-		for (np = NULL; (np = of_find_node_by_name(np, "ucc")) != NULL;)
+		for_each_node_by_name(np, "ucc")
 			par_io_of_config(np);
 #ifdef CONFIG_QE_USB
 		/* Must fixup Par IO before QE GPIO chips are registered. */

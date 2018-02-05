@@ -344,4 +344,4 @@ the following:
 	   characters in the final slot are set to Unicode 0xFFFF.
 
 Finally, note that the extended name is stored in Unicode.  Each Unicode
-character takes two bytes.
+character takes either two or four bytes, UTF-16LE encoded.

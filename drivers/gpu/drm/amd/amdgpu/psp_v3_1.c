@@ -31,12 +31,11 @@
 #include "soc15_common.h"
 #include "psp_v3_1.h"
 
-#include "vega10/soc15ip.h"
-#include "vega10/MP/mp_9_0_offset.h"
-#include "vega10/MP/mp_9_0_sh_mask.h"
-#include "vega10/GC/gc_9_0_offset.h"
-#include "vega10/SDMA0/sdma0_4_0_offset.h"
-#include "vega10/NBIO/nbio_6_1_offset.h"
+#include "mp/mp_9_0_offset.h"
+#include "mp/mp_9_0_sh_mask.h"
+#include "gc/gc_9_0_offset.h"
+#include "sdma0/sdma0_4_0_offset.h"
+#include "nbio/nbio_6_1_offset.h"
 
 MODULE_FIRMWARE("amdgpu/vega10_sos.bin");
 MODULE_FIRMWARE("amdgpu/vega10_asd.bin");
@@ -410,9 +409,10 @@ int psp_v3_1_cmd_submit(struct psp_context *psp,
 }
 
 static int
-psp_v3_1_sram_map(unsigned int *sram_offset, unsigned int *sram_addr_reg_offset,
-		  unsigned int *sram_data_reg_offset,
-		  enum AMDGPU_UCODE_ID ucode_id)
+psp_v3_1_sram_map(struct amdgpu_device *adev,
+		unsigned int *sram_offset, unsigned int *sram_addr_reg_offset,
+		unsigned int *sram_data_reg_offset,
+		enum AMDGPU_UCODE_ID ucode_id)
 {
 	int ret = 0;
 
@@ -507,7 +507,7 @@ bool psp_v3_1_compare_sram_data(struct psp_context *psp,
 	uint32_t *ucode_mem = NULL;
 	struct amdgpu_device *adev = psp->adev;
 
-	err = psp_v3_1_sram_map(&fw_sram_reg_val, &fw_sram_addr_reg_offset,
+	err = psp_v3_1_sram_map(adev, &fw_sram_reg_val, &fw_sram_addr_reg_offset,
 				&fw_sram_data_reg_offset, ucode_type);
 	if (err)
 		return false;

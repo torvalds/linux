@@ -229,7 +229,10 @@ struct otg_switch_mtk {
  * @u3p_dis_msk: mask of disabling usb3 ports, for example, bit0==1 to
  *		disable u3port0, bit1==1 to disable u3port1,... etc
  * @dbgfs_root: only used when supports manual dual-role switch via debugfs
- * @wakeup_en: it's true when supports remote wakeup in host mode
+ * @uwk_en: it's true when supports remote wakeup in host mode
+ * @uwk: syscon including usb wakeup glue layer between SSUSB IP and SPM
+ * @uwk_reg_base: the base address of the wakeup glue layer in @uwk
+ * @uwk_vers: the version of the wakeup glue layer
  */
 struct ssusb_mtk {
 	struct device *dev;
@@ -253,8 +256,10 @@ struct ssusb_mtk {
 	int u3p_dis_msk;
 	struct dentry *dbgfs_root;
 	/* usb wakeup for host mode */
-	bool wakeup_en;
-	struct regmap *pericfg;
+	bool uwk_en;
+	struct regmap *uwk;
+	u32 uwk_reg_base;
+	u32 uwk_vers;
 };
 
 /**

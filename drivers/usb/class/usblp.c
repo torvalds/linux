@@ -1066,7 +1066,7 @@ static struct usb_class_driver usblp_class = {
 	.minor_base =	USBLP_MINOR_BASE,
 };
 
-static ssize_t usblp_show_ieee1284_id(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t ieee1284_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct usblp *usblp = usb_get_intfdata(intf);
@@ -1078,7 +1078,7 @@ static ssize_t usblp_show_ieee1284_id(struct device *dev, struct device_attribut
 	return sprintf(buf, "%s", usblp->device_id_string+2);
 }
 
-static DEVICE_ATTR(ieee1284_id, S_IRUGO, usblp_show_ieee1284_id, NULL);
+static DEVICE_ATTR_RO(ieee1284_id);
 
 static int usblp_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)

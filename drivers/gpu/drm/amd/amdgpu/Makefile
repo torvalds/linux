@@ -52,7 +52,8 @@ amdgpu-y += amdgpu_device.o amdgpu_kms.o \
 	amdgpu_prime.o amdgpu_vm.o amdgpu_ib.o amdgpu_pll.o \
 	amdgpu_ucode.o amdgpu_bo_list.o amdgpu_ctx.o amdgpu_sync.o \
 	amdgpu_gtt_mgr.o amdgpu_vram_mgr.o amdgpu_virt.o amdgpu_atomfirmware.o \
-	amdgpu_queue_mgr.o amdgpu_vf_error.o amdgpu_sched.o
+	amdgpu_queue_mgr.o amdgpu_vf_error.o amdgpu_sched.o amdgpu_debugfs.o \
+	amdgpu_ids.o
 
 # add asic specific block
 amdgpu-$(CONFIG_DRM_AMDGPU_CIK)+= cik.o cik_ih.o kv_smc.o kv_dpm.o \
@@ -62,7 +63,7 @@ amdgpu-$(CONFIG_DRM_AMDGPU_CIK)+= cik.o cik_ih.o kv_smc.o kv_dpm.o \
 amdgpu-$(CONFIG_DRM_AMDGPU_SI)+= si.o gmc_v6_0.o gfx_v6_0.o si_ih.o si_dma.o dce_v6_0.o si_dpm.o si_smc.o
 
 amdgpu-y += \
-	vi.o mxgpu_vi.o nbio_v6_1.o soc15.o mxgpu_ai.o nbio_v7_0.o
+	vi.o mxgpu_vi.o nbio_v6_1.o soc15.o mxgpu_ai.o nbio_v7_0.o vega10_reg_init.o
 
 # add GMC block
 amdgpu-y += \
@@ -135,10 +136,7 @@ amdgpu-y += \
 amdgpu-y += amdgpu_cgs.o
 
 # GPU scheduler
-amdgpu-y += \
-	../scheduler/gpu_scheduler.o \
-	../scheduler/sched_fence.o \
-	amdgpu_job.o
+amdgpu-y += amdgpu_job.o
 
 # ACP componet
 ifneq ($(CONFIG_DRM_AMD_ACP),)

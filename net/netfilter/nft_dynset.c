@@ -164,7 +164,7 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 	}
 
 	priv->sreg_key = nft_parse_register(tb[NFTA_DYNSET_SREG_KEY]);
-	err = nft_validate_register_load(priv->sreg_key, set->klen);;
+	err = nft_validate_register_load(priv->sreg_key, set->klen);
 	if (err < 0)
 		return err;
 
@@ -184,7 +184,7 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 	if (tb[NFTA_DYNSET_EXPR] != NULL) {
 		if (!(set->flags & NFT_SET_EVAL))
 			return -EINVAL;
-		if (!(set->flags & NFT_SET_ANONYMOUS))
+		if (!nft_set_is_anonymous(set))
 			return -EOPNOTSUPP;
 
 		priv->expr = nft_expr_init(ctx, tb[NFTA_DYNSET_EXPR]);

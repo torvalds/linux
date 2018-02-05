@@ -232,7 +232,7 @@ static int set_param_str(const char *val, const struct kernel_param *kp)
 	char       valcp[16];
 	char       *s;
 
-	strncpy(valcp, val, 16);
+	strncpy(valcp, val, 15);
 	valcp[15] = '\0';
 
 	s = strstrip(valcp);
@@ -298,7 +298,7 @@ module_param(pretimeout, timeout, 0644);
 MODULE_PARM_DESC(pretimeout, "Pretimeout value in seconds.");
 
 module_param(panic_wdt_timeout, timeout, 0644);
-MODULE_PARM_DESC(timeout, "Timeout value on kernel panic in seconds.");
+MODULE_PARM_DESC(panic_wdt_timeout, "Timeout value on kernel panic in seconds.");
 
 module_param_cb(action, &param_ops_str, action_op, 0644);
 MODULE_PARM_DESC(action, "Timeout action. One of: "

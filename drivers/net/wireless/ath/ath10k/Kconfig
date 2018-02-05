@@ -47,11 +47,18 @@ config ATH10K_DEBUG
 config ATH10K_DEBUGFS
 	bool "Atheros ath10k debugfs support"
 	depends on ATH10K && DEBUG_FS
-	select RELAY
 	---help---
 	  Enabled debugfs support
 
 	  If unsure, say Y to make it easier to debug problems.
+
+config ATH10K_SPECTRAL
+	bool "Atheros ath10k spectral scan support"
+	depends on ATH10K_DEBUGFS
+	select RELAY
+	default n
+	---help---
+	  Say Y to enable access to the FFT/spectral data via debugfs.
 
 config ATH10K_TRACING
 	bool "Atheros ath10k tracing support"

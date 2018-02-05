@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/rculist.h>
+#include <linux/error-injection.h>
 
 #include "trace_probe.h"
 
@@ -41,7 +42,6 @@ struct trace_kprobe {
 #define SIZEOF_TRACE_KPROBE(n)				\
 	(offsetof(struct trace_kprobe, tp.args) +	\
 	(sizeof(struct probe_arg) * (n)))
-
 
 static nokprobe_inline bool trace_kprobe_is_return(struct trace_kprobe *tk)
 {
@@ -85,6 +85,30 @@ static nokprobe_inline unsigned long trace_kprobe_nhit(struct trace_kprobe *tk)
 		nhit += *per_cpu_ptr(tk->nhit, cpu);
 
 	return nhit;
+}
+
+bool trace_kprobe_on_func_entry(struct trace_event_call *call)
+{
+	struct trace_kprobe *tk = (struct trace_kprobe *)call->data;
+
+	return kprobe_on_func_entry(tk->rp.kp.addr,
+			tk->rp.kp.addr ? NULL : tk->rp.kp.symbol_name,
+			tk->rp.kp.addr ? 0 : tk->rp.kp.offset);
+}
+
+bool trace_kprobe_error_injectable(struct trace_event_call *call)
+{
+	struct trace_kprobe *tk = (struct trace_kprobe *)call->data;
+	unsigned long addr;
+
+	if (tk->symbol) {
+		addr = (unsigned long)
+			kallsyms_lookup_name(trace_kprobe_symbol(tk));
+		addr += tk->rp.kp.offset;
+	} else {
+		addr = (unsigned long)tk->rp.kp.addr;
+	}
+	return within_error_injection_list(addr);
 }
 
 static int register_kprobe_event(struct trace_kprobe *tk);
@@ -1170,7 +1194,7 @@ static int kretprobe_event_define_fields(struct trace_event_call *event_call)
 #ifdef CONFIG_PERF_EVENTS
 
 /* Kprobe profile handler */
-static void
+static int
 kprobe_perf_func(struct trace_kprobe *tk, struct pt_regs *regs)
 {
 	struct trace_event_call *call = &tk->tp.call;
@@ -1179,12 +1203,31 @@ kprobe_perf_func(struct trace_kprobe *tk, struct pt_regs *regs)
 	int size, __size, dsize;
 	int rctx;
 
-	if (bpf_prog_array_valid(call) && !trace_call_bpf(call, regs))
-		return;
+	if (bpf_prog_array_valid(call)) {
+		unsigned long orig_ip = instruction_pointer(regs);
+		int ret;
+
+		ret = trace_call_bpf(call, regs);
+
+		/*
+		 * We need to check and see if we modified the pc of the
+		 * pt_regs, and if so clear the kprobe and return 1 so that we
+		 * don't do the single stepping.
+		 * The ftrace kprobe handler leaves it up to us to re-enable
+		 * preemption here before returning if we've modified the ip.
+		 */
+		if (orig_ip != instruction_pointer(regs)) {
+			reset_current_kprobe();
+			preempt_enable_no_resched();
+			return 1;
+		}
+		if (!ret)
+			return 0;
+	}
 
 	head = this_cpu_ptr(call->perf_events);
 	if (hlist_empty(head))
-		return;
+		return 0;
 
 	dsize = __get_data_size(&tk->tp, regs);
 	__size = sizeof(*entry) + tk->tp.size + dsize;
@@ -1193,13 +1236,14 @@ kprobe_perf_func(struct trace_kprobe *tk, struct pt_regs *regs)
 
 	entry = perf_trace_buf_alloc(size, NULL, &rctx);
 	if (!entry)
-		return;
+		return 0;
 
 	entry->ip = (unsigned long)tk->rp.kp.addr;
 	memset(&entry[1], 0, dsize);
 	store_trace_args(sizeof(*entry), &tk->tp, regs, (u8 *)&entry[1], dsize);
 	perf_trace_buf_submit(entry, size, rctx, call->event.type, 1, regs,
 			      head, NULL);
+	return 0;
 }
 NOKPROBE_SYMBOL(kprobe_perf_func);
 
@@ -1275,6 +1319,7 @@ static int kprobe_register(struct trace_event_call *event,
 static int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs)
 {
 	struct trace_kprobe *tk = container_of(kp, struct trace_kprobe, rp.kp);
+	int ret = 0;
 
 	raw_cpu_inc(*tk->nhit);
 
@@ -1282,9 +1327,9 @@ static int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs)
 		kprobe_trace_func(tk, regs);
 #ifdef CONFIG_PERF_EVENTS
 	if (tk->tp.flags & TP_FLAG_PROFILE)
-		kprobe_perf_func(tk, regs);
+		ret = kprobe_perf_func(tk, regs);
 #endif
-	return 0;	/* We don't tweek kernel, so just return 0 */
+	return ret;
 }
 NOKPROBE_SYMBOL(kprobe_dispatcher);
 

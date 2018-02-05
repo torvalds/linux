@@ -107,7 +107,7 @@ static s32
 brcmf_fil_cmd_data(struct brcmf_if *ifp, u32 cmd, void *data, u32 len, bool set)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
-	s32 err;
+	s32 err, fwerr;
 
 	if (drvr->bus_if->state != BRCMF_BUS_UP) {
 		brcmf_err("bus is down. we have nothing to do.\n");
@@ -117,16 +117,20 @@ brcmf_fil_cmd_data(struct brcmf_if *ifp, u32 cmd, void *data, u32 len, bool set)
 	if (data != NULL)
 		len = min_t(uint, len, BRCMF_DCMD_MAXLEN);
 	if (set)
-		err = brcmf_proto_set_dcmd(drvr, ifp->ifidx, cmd, data, len);
+		err = brcmf_proto_set_dcmd(drvr, ifp->ifidx, cmd,
+					   data, len, &fwerr);
 	else
-		err = brcmf_proto_query_dcmd(drvr, ifp->ifidx, cmd, data, len);
+		err = brcmf_proto_query_dcmd(drvr, ifp->ifidx, cmd,
+					     data, len, &fwerr);
 
-	if (err >= 0)
-		return 0;
-
-	brcmf_dbg(FIL, "Failed: %s (%d)\n",
-		  brcmf_fil_get_errstr((u32)(-err)), err);
-
+	if (err) {
+		brcmf_dbg(FIL, "Failed: %s (%d)\n",
+			  brcmf_fil_get_errstr((u32)(-err)), err);
+	} else if (fwerr < 0) {
+		brcmf_dbg(FIL, "Firmware error: %s (%d)\n",
+			  brcmf_fil_get_errstr((u32)(-fwerr)), fwerr);
+		err = -EBADE;
+	}
 	return err;
 }
 

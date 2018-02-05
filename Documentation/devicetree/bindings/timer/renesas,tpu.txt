@@ -1,4 +1,4 @@
-* Renesas H8/300 Timer Pluse Unit
+* Renesas H8/300 Timer Pulse Unit
 
 The TPU is a 16bit timer/counter with configurable clock inputs and
 programmable compare match.

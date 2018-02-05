@@ -768,13 +768,30 @@ static void path_rec_completion(int status,
 	if (!status) {
 		struct rdma_ah_attr av;
 
-		if (!ib_init_ah_from_path(priv->ca, priv->port, pathrec, &av))
+		if (!ib_init_ah_attr_from_path(priv->ca, priv->port,
+					       pathrec, &av))
 			ah = ipoib_create_ah(dev, priv->pd, &av);
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
 
 	if (!IS_ERR_OR_NULL(ah)) {
+		/*
+		 * pathrec.dgid is used as the database key from the LLADDR,
+		 * it must remain unchanged even if the SA returns a different
+		 * GID to use in the AH.
+		 */
+		if (memcmp(pathrec->dgid.raw, path->pathrec.dgid.raw,
+			   sizeof(union ib_gid))) {
+			ipoib_dbg(
+				priv,
+				"%s got PathRec for gid %pI6 while asked for %pI6\n",
+				dev->name, pathrec->dgid.raw,
+				path->pathrec.dgid.raw);
+			memcpy(pathrec->dgid.raw, path->pathrec.dgid.raw,
+			       sizeof(union ib_gid));
+		}
+
 		path->pathrec = *pathrec;
 
 		old_ah   = path->ah;
@@ -840,6 +857,23 @@ static void path_rec_completion(int status,
 	}
 }
 
+static void init_path_rec(struct ipoib_dev_priv *priv, struct ipoib_path *path,
+			  void *gid)
+{
+	path->dev = priv->dev;
+
+	if (rdma_cap_opa_ah(priv->ca, priv->port))
+		path->pathrec.rec_type = SA_PATH_REC_TYPE_OPA;
+	else
+		path->pathrec.rec_type = SA_PATH_REC_TYPE_IB;
+
+	memcpy(path->pathrec.dgid.raw, gid, sizeof(union ib_gid));
+	path->pathrec.sgid	    = priv->local_gid;
+	path->pathrec.pkey	    = cpu_to_be16(priv->pkey);
+	path->pathrec.numb_path     = 1;
+	path->pathrec.traffic_class = priv->broadcast->mcmember.traffic_class;
+}
+
 static struct ipoib_path *path_rec_create(struct net_device *dev, void *gid)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
@@ -852,21 +886,11 @@ static struct ipoib_path *path_rec_create(struct net_device *dev, void *gid)
 	if (!path)
 		return NULL;
 
-	path->dev = dev;
-
 	skb_queue_head_init(&path->queue);
 
 	INIT_LIST_HEAD(&path->neigh_list);
 
-	if (rdma_cap_opa_ah(priv->ca, priv->port))
-		path->pathrec.rec_type = SA_PATH_REC_TYPE_OPA;
-	else
-		path->pathrec.rec_type = SA_PATH_REC_TYPE_IB;
-	memcpy(path->pathrec.dgid.raw, gid, sizeof (union ib_gid));
-	path->pathrec.sgid	    = priv->local_gid;
-	path->pathrec.pkey	    = cpu_to_be16(priv->pkey);
-	path->pathrec.numb_path     = 1;
-	path->pathrec.traffic_class = priv->broadcast->mcmember.traffic_class;
+	init_path_rec(priv, path, gid);
 
 	return path;
 }
@@ -1005,6 +1029,10 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 
 	spin_lock_irqsave(&priv->lock, flags);
 
+	/* no broadcast means that all paths are (going to be) not valid */
+	if (!priv->broadcast)
+		goto drop_and_unlock;
+
 	path = __path_find(dev, phdr->hwaddr + 4);
 	if (!path || !path->valid) {
 		int new_path = 0;
@@ -1014,6 +1042,10 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 			new_path = 1;
 		}
 		if (path) {
+			if (!new_path)
+				/* make sure there is no changes in the existing path record */
+				init_path_rec(priv, path, phdr->hwaddr + 4);
+
 			if (skb_queue_len(&path->queue) < IPOIB_MAX_PATH_REC_QUEUE) {
 				push_pseudo_header(skb, phdr->hwaddr);
 				__skb_queue_tail(&path->queue, skb);
@@ -1030,8 +1062,7 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 			} else
 				__path_add(dev, path);
 		} else {
-			++dev->stats.tx_dropped;
-			dev_kfree_skb_any(skb);
+			goto drop_and_unlock;
 		}
 
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -1051,10 +1082,15 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 		push_pseudo_header(skb, phdr->hwaddr);
 		__skb_queue_tail(&path->queue, skb);
 	} else {
-		++dev->stats.tx_dropped;
-		dev_kfree_skb_any(skb);
+		goto drop_and_unlock;
 	}
 
+	spin_unlock_irqrestore(&priv->lock, flags);
+	return;
+
+drop_and_unlock:
+	++dev->stats.tx_dropped;
+	dev_kfree_skb_any(skb);
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
@@ -1674,8 +1710,8 @@ static int ipoib_dev_init_default(struct net_device *dev)
 
 	priv->tx_ring = vzalloc(ipoib_sendq_size * sizeof *priv->tx_ring);
 	if (!priv->tx_ring) {
-		printk(KERN_WARNING "%s: failed to allocate TX ring (%d entries)\n",
-		       priv->ca->name, ipoib_sendq_size);
+		pr_warn("%s: failed to allocate TX ring (%d entries)\n",
+			priv->ca->name, ipoib_sendq_size);
 		goto out_rx_ring_cleanup;
 	}
 
@@ -2207,16 +2243,17 @@ static struct net_device *ipoib_add_port(const char *format,
 	int result = -ENOMEM;
 
 	priv = ipoib_intf_alloc(hca, port, format);
-	if (!priv)
+	if (!priv) {
+		pr_warn("%s, %d: ipoib_intf_alloc failed\n", hca->name, port);
 		goto alloc_mem_failed;
+	}
 
 	SET_NETDEV_DEV(priv->dev, hca->dev.parent);
 	priv->dev->dev_id = port - 1;
 
 	result = ib_query_port(hca, port, &attr);
 	if (result) {
-		printk(KERN_WARNING "%s: ib_query_port %d failed\n",
-		       hca->name, port);
+		pr_warn("%s: ib_query_port %d failed\n", hca->name, port);
 		goto device_init_failed;
 	}
 
@@ -2231,8 +2268,8 @@ static struct net_device *ipoib_add_port(const char *format,
 
 	result = ib_query_pkey(hca, port, 0, &priv->pkey);
 	if (result) {
-		printk(KERN_WARNING "%s: ib_query_pkey port %d failed (ret = %d)\n",
-		       hca->name, port, result);
+		pr_warn("%s: ib_query_pkey port %d failed (ret = %d)\n",
+			hca->name, port, result);
 		goto device_init_failed;
 	}
 
@@ -2249,8 +2286,8 @@ static struct net_device *ipoib_add_port(const char *format,
 
 	result = ib_query_gid(hca, port, 0, &priv->local_gid, NULL);
 	if (result) {
-		printk(KERN_WARNING "%s: ib_query_gid port %d failed (ret = %d)\n",
-		       hca->name, port, result);
+		pr_warn("%s: ib_query_gid port %d failed (ret = %d)\n",
+			hca->name, port, result);
 		goto device_init_failed;
 	}
 
@@ -2260,8 +2297,8 @@ static struct net_device *ipoib_add_port(const char *format,
 
 	result = ipoib_dev_init(priv->dev, hca, port);
 	if (result) {
-		printk(KERN_WARNING "%s: failed to initialize port %d (ret = %d)\n",
-		       hca->name, port, result);
+		pr_warn("%s: failed to initialize port %d (ret = %d)\n",
+			hca->name, port, result);
 		goto device_init_failed;
 	}
 
@@ -2271,8 +2308,8 @@ static struct net_device *ipoib_add_port(const char *format,
 
 	result = register_netdev(priv->dev);
 	if (result) {
-		printk(KERN_WARNING "%s: couldn't register ipoib port %d; error %d\n",
-		       hca->name, port, result);
+		pr_warn("%s: couldn't register ipoib port %d; error %d\n",
+			hca->name, port, result);
 		goto register_failed;
 	}
 
@@ -2337,8 +2374,7 @@ static void ipoib_add_one(struct ib_device *device)
 	}
 
 	if (!count) {
-		pr_err("Failed to init port, removing it\n");
-		ipoib_remove_one(device, dev_list);
+		kfree(dev_list);
 		return;
 	}
 

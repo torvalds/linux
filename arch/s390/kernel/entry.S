@@ -1392,7 +1392,7 @@ cleanup_critical:
 #define SYSCALL(esame,emu)	.long esame
 	.globl	sys_call_table
 sys_call_table:
-#include "syscalls.S"
+#include "asm/syscall_table.h"
 #undef SYSCALL
 
 #ifdef CONFIG_COMPAT
@@ -1400,6 +1400,6 @@ sys_call_table:
 #define SYSCALL(esame,emu)	.long emu
 	.globl	sys_call_table_emu
 sys_call_table_emu:
-#include "syscalls.S"
+#include "asm/syscall_table.h"
 #undef SYSCALL
 #endif

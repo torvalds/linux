@@ -75,16 +75,15 @@ enum phy_event {
 	PHYE_OOB_ERROR,
 	PHYE_SPINUP_HOLD,             /* hot plug SATA, no COMWAKE sent */
 	PHYE_RESUME_TIMEOUT,
+	PHYE_SHUTDOWN,
 	PHY_NUM_EVENTS,
 };
 
 enum discover_event {
 	DISCE_DISCOVER_DOMAIN   = 0U,
 	DISCE_REVALIDATE_DOMAIN,
-	DISCE_PROBE,
 	DISCE_SUSPEND,
 	DISCE_RESUME,
-	DISCE_DESTRUCT,
 	DISC_NUM_EVENTS,
 };
 
@@ -261,6 +260,7 @@ struct asd_sas_port {
 	struct list_head dev_list;
 	struct list_head disco_list;
 	struct list_head destroy_list;
+	struct list_head sas_port_del_list;
 	enum   sas_linkrate linkrate;
 
 	struct sas_work work;
@@ -292,6 +292,7 @@ struct asd_sas_port {
 struct asd_sas_event {
 	struct sas_work work;
 	struct asd_sas_phy *phy;
+	int event;
 };
 
 static inline struct asd_sas_event *to_asd_sas_event(struct work_struct *work)
@@ -301,17 +302,24 @@ static inline struct asd_sas_event *to_asd_sas_event(struct work_struct *work)
 	return ev;
 }
 
+static inline void INIT_SAS_EVENT(struct asd_sas_event *ev,
+		void (*fn)(struct work_struct *),
+		struct asd_sas_phy *phy, int event)
+{
+	INIT_SAS_WORK(&ev->work, fn);
+	ev->phy = phy;
+	ev->event = event;
+}
+
+#define SAS_PHY_SHUTDOWN_THRES   1024
+
 /* The phy pretty much is controlled by the LLDD.
  * The class only reads those fields.
  */
 struct asd_sas_phy {
 /* private: */
-	struct asd_sas_event   port_events[PORT_NUM_EVENTS];
-	struct asd_sas_event   phy_events[PHY_NUM_EVENTS];
-
-	unsigned long port_events_pending;
-	unsigned long phy_events_pending;
-
+	atomic_t event_nr;
+	int in_shutdown;
 	int error;
 	int suspended;
 
@@ -380,6 +388,9 @@ struct sas_ha_struct {
 	struct device *dev;	  /* should be set */
 	struct module *lldd_module; /* should be set */
 
+	struct workqueue_struct *event_q;
+	struct workqueue_struct *disco_q;
+
 	u8 *sas_addr;		  /* must be set */
 	u8 hashed_sas_addr[HASHED_SAS_ADDR_SIZE];
 
@@ -399,6 +410,8 @@ struct sas_ha_struct {
 
 	struct list_head eh_done_q;  /* complete via scsi_eh_flush_done_q */
 	struct list_head eh_ata_q; /* scmds to promote from sas to ata eh */
+
+	int event_thres;
 };
 
 #define SHOST_TO_SAS_HA(_shost) (*(struct sas_ha_struct **)(_shost)->hostdata)
@@ -670,6 +683,7 @@ extern int sas_bios_param(struct scsi_device *,
 			  sector_t capacity, int *hsc);
 extern struct scsi_transport_template *
 sas_domain_attach_transport(struct sas_domain_function_template *);
+extern struct device_attribute dev_attr_phy_event_threshold;
 
 int  sas_discover_root_expander(struct domain_device *);
 

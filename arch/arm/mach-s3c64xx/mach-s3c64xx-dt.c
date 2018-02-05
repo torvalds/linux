@@ -1,12 +1,8 @@
-/*
- * Samsung's S3C64XX flattened device tree enabled machine
- *
- * Copyright (c) 2013 Tomasz Figa <tomasz.figa@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Samsung's S3C64XX flattened device tree enabled machine
+//
+// Copyright (c) 2013 Tomasz Figa <tomasz.figa@gmail.com>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

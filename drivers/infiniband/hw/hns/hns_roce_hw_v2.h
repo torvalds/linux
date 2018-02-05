@@ -53,6 +53,10 @@
 #define HNS_ROCE_V2_MAX_SQ_INLINE		0x20
 #define HNS_ROCE_V2_UAR_NUM			256
 #define HNS_ROCE_V2_PHY_UAR_NUM			1
+#define HNS_ROCE_V2_MAX_IRQ_NUM			65
+#define HNS_ROCE_V2_COMP_VEC_NUM		63
+#define HNS_ROCE_V2_AEQE_VEC_NUM		1
+#define HNS_ROCE_V2_ABNORMAL_VEC_NUM		1
 #define HNS_ROCE_V2_MAX_MTPT_NUM		0x8000
 #define HNS_ROCE_V2_MAX_MTT_SEGS		0x1000000
 #define HNS_ROCE_V2_MAX_CQE_SEGS		0x1000000
@@ -78,6 +82,8 @@
 #define HNS_ROCE_MTT_HOP_NUM			1
 #define HNS_ROCE_CQE_HOP_NUM			1
 #define HNS_ROCE_PBL_HOP_NUM			2
+#define HNS_ROCE_EQE_HOP_NUM			2
+
 #define HNS_ROCE_V2_GID_INDEX_NUM		256
 
 #define HNS_ROCE_V2_TABLE_CHUNK_SIZE		(1 << 18)
@@ -104,6 +110,12 @@
 	((step_idx == 0 && hop_num == HNS_ROCE_HOP_NUM_0) || \
 	(step_idx == 1 && hop_num == 1) || \
 	(step_idx == 2 && hop_num == 2))
+
+enum {
+	NO_ARMED = 0x0,
+	REG_NXT_CEQE = 0x2,
+	REG_NXT_SE_CEQE = 0x3
+};
 
 #define V2_CQ_DB_REQ_NOT_SOL			0
 #define V2_CQ_DB_REQ_NOT			1
@@ -229,6 +241,9 @@ struct hns_roce_v2_cq_context {
 	u32	cqe_report_timer;
 	u32	byte_64_se_cqe_idx;
 };
+#define HNS_ROCE_V2_CQ_DEFAULT_BURST_NUM 0x0
+#define HNS_ROCE_V2_CQ_DEFAULT_INTERVAL	0x0
+
 #define	V2_CQC_BYTE_4_CQ_ST_S 0
 #define V2_CQC_BYTE_4_CQ_ST_M GENMASK(1, 0)
 
@@ -747,11 +762,14 @@ struct hns_roce_v2_qp_context {
 
 struct hns_roce_v2_cqe {
 	u32	byte_4;
-	u32	rkey_immtdata;
+	union {
+		__le32 rkey;
+		__be32 immtdata;
+	};
 	u32	byte_12;
 	u32	byte_16;
 	u32	byte_cnt;
-	u32	smac;
+	u8	smac[4];
 	u32	byte_28;
 	u32	byte_32;
 };
@@ -900,6 +918,90 @@ struct hns_roce_v2_cq_db {
 #define V2_CQ_DB_PARAMETER_CMD_SN_M GENMASK(26, 25)
 
 #define V2_CQ_DB_PARAMETER_NOTIFY_S 24
+
+struct hns_roce_v2_ud_send_wqe {
+	u32	byte_4;
+	u32	msg_len;
+	u32	immtdata;
+	u32	byte_16;
+	u32	byte_20;
+	u32	byte_24;
+	u32	qkey;
+	u32	byte_32;
+	u32	byte_36;
+	u32	byte_40;
+	u32	dmac;
+	u32	byte_48;
+	u8	dgid[GID_LEN_V2];
+
+};
+#define	V2_UD_SEND_WQE_BYTE_4_OPCODE_S 0
+#define V2_UD_SEND_WQE_BYTE_4_OPCODE_M GENMASK(4, 0)
+
+#define	V2_UD_SEND_WQE_BYTE_4_OWNER_S 7
+
+#define	V2_UD_SEND_WQE_BYTE_4_CQE_S 8
+
+#define	V2_UD_SEND_WQE_BYTE_4_SE_S 11
+
+#define	V2_UD_SEND_WQE_BYTE_16_PD_S 0
+#define V2_UD_SEND_WQE_BYTE_16_PD_M GENMASK(23, 0)
+
+#define	V2_UD_SEND_WQE_BYTE_16_SGE_NUM_S 24
+#define V2_UD_SEND_WQE_BYTE_16_SGE_NUM_M GENMASK(31, 24)
+
+#define	V2_UD_SEND_WQE_BYTE_20_MSG_START_SGE_IDX_S 0
+#define V2_UD_SEND_WQE_BYTE_20_MSG_START_SGE_IDX_M GENMASK(23, 0)
+
+#define	V2_UD_SEND_WQE_BYTE_24_UDPSPN_S 16
+#define V2_UD_SEND_WQE_BYTE_24_UDPSPN_M GENMASK(31, 16)
+
+#define	V2_UD_SEND_WQE_BYTE_32_DQPN_S 0
+#define V2_UD_SEND_WQE_BYTE_32_DQPN_M GENMASK(23, 0)
+
+#define	V2_UD_SEND_WQE_BYTE_36_VLAN_S 0
+#define V2_UD_SEND_WQE_BYTE_36_VLAN_M GENMASK(15, 0)
+
+#define	V2_UD_SEND_WQE_BYTE_36_HOPLIMIT_S 16
+#define V2_UD_SEND_WQE_BYTE_36_HOPLIMIT_M GENMASK(23, 16)
+
+#define	V2_UD_SEND_WQE_BYTE_36_TCLASS_S 24
+#define V2_UD_SEND_WQE_BYTE_36_TCLASS_M GENMASK(31, 24)
+
+#define	V2_UD_SEND_WQE_BYTE_40_FLOW_LABEL_S 0
+#define V2_UD_SEND_WQE_BYTE_40_FLOW_LABEL_M GENMASK(19, 0)
+
+#define	V2_UD_SEND_WQE_BYTE_40_SL_S 20
+#define V2_UD_SEND_WQE_BYTE_40_SL_M GENMASK(23, 20)
+
+#define	V2_UD_SEND_WQE_BYTE_40_PORTN_S 24
+#define V2_UD_SEND_WQE_BYTE_40_PORTN_M GENMASK(26, 24)
+
+#define	V2_UD_SEND_WQE_BYTE_40_LBI_S 31
+
+#define	V2_UD_SEND_WQE_DMAC_0_S 0
+#define V2_UD_SEND_WQE_DMAC_0_M GENMASK(7, 0)
+
+#define	V2_UD_SEND_WQE_DMAC_1_S 8
+#define V2_UD_SEND_WQE_DMAC_1_M GENMASK(15, 8)
+
+#define	V2_UD_SEND_WQE_DMAC_2_S 16
+#define V2_UD_SEND_WQE_DMAC_2_M GENMASK(23, 16)
+
+#define	V2_UD_SEND_WQE_DMAC_3_S 24
+#define V2_UD_SEND_WQE_DMAC_3_M GENMASK(31, 24)
+
+#define	V2_UD_SEND_WQE_BYTE_48_DMAC_4_S 0
+#define V2_UD_SEND_WQE_BYTE_48_DMAC_4_M GENMASK(7, 0)
+
+#define	V2_UD_SEND_WQE_BYTE_48_DMAC_5_S 8
+#define V2_UD_SEND_WQE_BYTE_48_DMAC_5_M GENMASK(15, 8)
+
+#define	V2_UD_SEND_WQE_BYTE_48_SGID_INDX_S 16
+#define V2_UD_SEND_WQE_BYTE_48_SGID_INDX_M GENMASK(23, 16)
+
+#define	V2_UD_SEND_WQE_BYTE_48_SMAC_INDX_S 24
+#define V2_UD_SEND_WQE_BYTE_48_SMAC_INDX_M GENMASK(31, 24)
 
 struct hns_roce_v2_rc_send_wqe {
 	u32		byte_4;
@@ -1129,9 +1231,6 @@ struct hns_roce_cmq_desc {
 	u32 data[6];
 };
 
-#define ROCEE_VF_MB_CFG0_REG		0x40
-#define ROCEE_VF_MB_STATUS_REG		0x58
-
 #define HNS_ROCE_V2_GO_BIT_TIMEOUT_MSECS	10000
 
 #define HNS_ROCE_HW_RUN_BIT_SHIFT	31
@@ -1173,5 +1272,179 @@ struct hns_roce_v2_cmq {
 struct hns_roce_v2_priv {
 	struct hns_roce_v2_cmq cmq;
 };
+
+struct hns_roce_eq_context {
+	u32	byte_4;
+	u32	byte_8;
+	u32	byte_12;
+	u32	eqe_report_timer;
+	u32	eqe_ba0;
+	u32	eqe_ba1;
+	u32	byte_28;
+	u32	byte_32;
+	u32	byte_36;
+	u32	nxt_eqe_ba0;
+	u32	nxt_eqe_ba1;
+	u32	rsv[5];
+};
+
+#define HNS_ROCE_AEQ_DEFAULT_BURST_NUM	0x0
+#define HNS_ROCE_AEQ_DEFAULT_INTERVAL	0x0
+#define HNS_ROCE_CEQ_DEFAULT_BURST_NUM	0x0
+#define HNS_ROCE_CEQ_DEFAULT_INTERVAL	0x0
+
+#define HNS_ROCE_V2_EQ_STATE_INVALID		0
+#define HNS_ROCE_V2_EQ_STATE_VALID		1
+#define HNS_ROCE_V2_EQ_STATE_OVERFLOW		2
+#define HNS_ROCE_V2_EQ_STATE_FAILURE		3
+
+#define HNS_ROCE_V2_EQ_OVER_IGNORE_0		0
+#define HNS_ROCE_V2_EQ_OVER_IGNORE_1		1
+
+#define HNS_ROCE_V2_EQ_COALESCE_0		0
+#define HNS_ROCE_V2_EQ_COALESCE_1		1
+
+#define HNS_ROCE_V2_EQ_FIRED			0
+#define HNS_ROCE_V2_EQ_ARMED			1
+#define HNS_ROCE_V2_EQ_ALWAYS_ARMED		3
+
+#define HNS_ROCE_EQ_INIT_EQE_CNT		0
+#define HNS_ROCE_EQ_INIT_PROD_IDX		0
+#define HNS_ROCE_EQ_INIT_REPORT_TIMER		0
+#define HNS_ROCE_EQ_INIT_MSI_IDX		0
+#define HNS_ROCE_EQ_INIT_CONS_IDX		0
+#define HNS_ROCE_EQ_INIT_NXT_EQE_BA		0
+
+#define HNS_ROCE_V2_CEQ_CEQE_OWNER_S		31
+#define HNS_ROCE_V2_AEQ_AEQE_OWNER_S		31
+
+#define HNS_ROCE_V2_COMP_EQE_NUM		0x1000
+#define HNS_ROCE_V2_ASYNC_EQE_NUM		0x1000
+
+#define HNS_ROCE_V2_VF_INT_ST_AEQ_OVERFLOW_S	0
+#define HNS_ROCE_V2_VF_INT_ST_BUS_ERR_S		1
+#define HNS_ROCE_V2_VF_INT_ST_OTHER_ERR_S	2
+
+#define HNS_ROCE_EQ_DB_CMD_AEQ			0x0
+#define HNS_ROCE_EQ_DB_CMD_AEQ_ARMED		0x1
+#define HNS_ROCE_EQ_DB_CMD_CEQ			0x2
+#define HNS_ROCE_EQ_DB_CMD_CEQ_ARMED		0x3
+
+#define EQ_ENABLE				1
+#define EQ_DISABLE				0
+
+#define EQ_REG_OFFSET				0x4
+
+#define HNS_ROCE_INT_NAME_LEN			32
+#define HNS_ROCE_V2_EQN_M GENMASK(23, 0)
+
+#define HNS_ROCE_V2_CONS_IDX_M GENMASK(23, 0)
+
+#define HNS_ROCE_V2_VF_ABN_INT_EN_S 0
+#define HNS_ROCE_V2_VF_ABN_INT_EN_M GENMASK(0, 0)
+#define HNS_ROCE_V2_VF_ABN_INT_ST_M GENMASK(2, 0)
+#define HNS_ROCE_V2_VF_ABN_INT_CFG_M GENMASK(2, 0)
+#define HNS_ROCE_V2_VF_EVENT_INT_EN_M GENMASK(0, 0)
+
+/* WORD0 */
+#define HNS_ROCE_EQC_EQ_ST_S 0
+#define HNS_ROCE_EQC_EQ_ST_M GENMASK(1, 0)
+
+#define HNS_ROCE_EQC_HOP_NUM_S 2
+#define HNS_ROCE_EQC_HOP_NUM_M GENMASK(3, 2)
+
+#define HNS_ROCE_EQC_OVER_IGNORE_S 4
+#define HNS_ROCE_EQC_OVER_IGNORE_M GENMASK(4, 4)
+
+#define HNS_ROCE_EQC_COALESCE_S 5
+#define HNS_ROCE_EQC_COALESCE_M GENMASK(5, 5)
+
+#define HNS_ROCE_EQC_ARM_ST_S 6
+#define HNS_ROCE_EQC_ARM_ST_M GENMASK(7, 6)
+
+#define HNS_ROCE_EQC_EQN_S 8
+#define HNS_ROCE_EQC_EQN_M GENMASK(15, 8)
+
+#define HNS_ROCE_EQC_EQE_CNT_S 16
+#define HNS_ROCE_EQC_EQE_CNT_M GENMASK(31, 16)
+
+/* WORD1 */
+#define HNS_ROCE_EQC_BA_PG_SZ_S 0
+#define HNS_ROCE_EQC_BA_PG_SZ_M GENMASK(3, 0)
+
+#define HNS_ROCE_EQC_BUF_PG_SZ_S 4
+#define HNS_ROCE_EQC_BUF_PG_SZ_M GENMASK(7, 4)
+
+#define HNS_ROCE_EQC_PROD_INDX_S 8
+#define HNS_ROCE_EQC_PROD_INDX_M GENMASK(31, 8)
+
+/* WORD2 */
+#define HNS_ROCE_EQC_MAX_CNT_S 0
+#define HNS_ROCE_EQC_MAX_CNT_M GENMASK(15, 0)
+
+#define HNS_ROCE_EQC_PERIOD_S 16
+#define HNS_ROCE_EQC_PERIOD_M GENMASK(31, 16)
+
+/* WORD3 */
+#define HNS_ROCE_EQC_REPORT_TIMER_S 0
+#define HNS_ROCE_EQC_REPORT_TIMER_M GENMASK(31, 0)
+
+/* WORD4 */
+#define HNS_ROCE_EQC_EQE_BA_L_S 0
+#define HNS_ROCE_EQC_EQE_BA_L_M GENMASK(31, 0)
+
+/* WORD5 */
+#define HNS_ROCE_EQC_EQE_BA_H_S 0
+#define HNS_ROCE_EQC_EQE_BA_H_M GENMASK(28, 0)
+
+/* WORD6 */
+#define HNS_ROCE_EQC_SHIFT_S 0
+#define HNS_ROCE_EQC_SHIFT_M GENMASK(7, 0)
+
+#define HNS_ROCE_EQC_MSI_INDX_S 8
+#define HNS_ROCE_EQC_MSI_INDX_M GENMASK(15, 8)
+
+#define HNS_ROCE_EQC_CUR_EQE_BA_L_S 16
+#define HNS_ROCE_EQC_CUR_EQE_BA_L_M GENMASK(31, 16)
+
+/* WORD7 */
+#define HNS_ROCE_EQC_CUR_EQE_BA_M_S 0
+#define HNS_ROCE_EQC_CUR_EQE_BA_M_M GENMASK(31, 0)
+
+/* WORD8 */
+#define HNS_ROCE_EQC_CUR_EQE_BA_H_S 0
+#define HNS_ROCE_EQC_CUR_EQE_BA_H_M GENMASK(3, 0)
+
+#define HNS_ROCE_EQC_CONS_INDX_S 8
+#define HNS_ROCE_EQC_CONS_INDX_M GENMASK(31, 8)
+
+/* WORD9 */
+#define HNS_ROCE_EQC_NXT_EQE_BA_L_S 0
+#define HNS_ROCE_EQC_NXT_EQE_BA_L_M GENMASK(31, 0)
+
+/* WORD10 */
+#define HNS_ROCE_EQC_NXT_EQE_BA_H_S 0
+#define HNS_ROCE_EQC_NXT_EQE_BA_H_M GENMASK(19, 0)
+
+#define HNS_ROCE_V2_CEQE_COMP_CQN_S 0
+#define HNS_ROCE_V2_CEQE_COMP_CQN_M GENMASK(23, 0)
+
+#define HNS_ROCE_V2_AEQE_EVENT_TYPE_S 0
+#define HNS_ROCE_V2_AEQE_EVENT_TYPE_M GENMASK(7, 0)
+
+#define HNS_ROCE_V2_AEQE_SUB_TYPE_S 8
+#define HNS_ROCE_V2_AEQE_SUB_TYPE_M GENMASK(15, 8)
+
+#define HNS_ROCE_V2_EQ_DB_CMD_S	16
+#define HNS_ROCE_V2_EQ_DB_CMD_M	GENMASK(17, 16)
+
+#define HNS_ROCE_V2_EQ_DB_TAG_S	0
+#define HNS_ROCE_V2_EQ_DB_TAG_M	GENMASK(7, 0)
+
+#define HNS_ROCE_V2_EQ_DB_PARA_S 0
+#define HNS_ROCE_V2_EQ_DB_PARA_M GENMASK(23, 0)
+
+#define HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_S 0
+#define HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_M GENMASK(23, 0)
 
 #endif

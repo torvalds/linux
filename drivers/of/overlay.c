@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Functions for working with device tree overlays
  *
  * Copyright (C) 2012 Pantelis Antoniou <panto@antoniou-consulting.com>
  * Copyright (C) 2012 Texas Instruments Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt)	"OF: overlay: " fmt

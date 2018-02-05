@@ -2193,6 +2193,8 @@ static void crypt_dtr(struct dm_target *ti)
 	kzfree(cc->cipher_auth);
 	kzfree(cc->authenc_key);
 
+	mutex_destroy(&cc->bio_alloc_lock);
+
 	/* Must zero key material before freeing */
 	kzfree(cc);
 }
@@ -2702,8 +2704,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	cc->bs = bioset_create(MIN_IOS, 0, (BIOSET_NEED_BVECS |
-					    BIOSET_NEED_RESCUER));
+	cc->bs = bioset_create(MIN_IOS, 0, BIOSET_NEED_BVECS);
 	if (!cc->bs) {
 		ti->error = "Cannot allocate crypt bioset";
 		goto bad;

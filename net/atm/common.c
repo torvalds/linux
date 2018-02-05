@@ -14,7 +14,7 @@
 #include <linux/capability.h>
 #include <linux/mm.h>
 #include <linux/sched/signal.h>
-#include <linux/time.h>		/* struct timeval */
+#include <linux/time64.h>	/* 64-bit time for seconds */
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
 #include <linux/init.h>

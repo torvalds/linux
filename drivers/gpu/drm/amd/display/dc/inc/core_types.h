@@ -139,6 +139,7 @@ struct resource_pool {
 	struct timing_generator *timing_generators[MAX_PIPES];
 	struct stream_encoder *stream_enc[MAX_PIPES * 2];
 
+	struct hubbub *hubbub;
 	struct mpc *mpc;
 	struct pp_smu_funcs_rv *pp_smu;
 	struct pp_smu_display_requirement_rv pp_smu_req;
@@ -211,7 +212,6 @@ struct pipe_ctx {
 	struct _vcs_dpi_display_rq_regs_st rq_regs;
 	struct _vcs_dpi_display_pipe_dest_params_st pipe_dlg_param;
 #endif
-	struct dwbc *dwbc;
 };
 
 struct resource_context {
@@ -240,6 +240,7 @@ struct dce_bw_output {
 
 struct dcn_bw_clocks {
 	int dispclk_khz;
+	int dppclk_khz;
 	bool dppclk_div;
 	int dcfclk_khz;
 	int dcfclk_deep_sleep_khz;

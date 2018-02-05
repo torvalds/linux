@@ -225,19 +225,6 @@ enum fcoe_cqe_type {
 	MAX_FCOE_CQE_TYPE
 };
 
-
-/*
- * FCoE device type
- */
-enum fcoe_device_type {
-	FCOE_TASK_DEV_TYPE_DISK,
-	FCOE_TASK_DEV_TYPE_TAPE,
-	MAX_FCOE_DEVICE_TYPE
-};
-
-
-
-
 /*
  * FCoE fast path error codes
  */
@@ -332,31 +319,6 @@ enum fcoe_sp_error_code {
 	MAX_FCOE_SP_ERROR_CODE
 };
 
-
-/*
- * FCoE SQE request type
- */
-enum fcoe_sqe_request_type {
-	SEND_FCOE_CMD,
-	SEND_FCOE_MIDPATH,
-	SEND_FCOE_ABTS_REQUEST,
-	FCOE_EXCHANGE_CLEANUP,
-	FCOE_SEQUENCE_RECOVERY,
-	SEND_FCOE_XFER_RDY,
-	SEND_FCOE_RSP,
-	SEND_FCOE_RSP_WITH_SENSE_DATA,
-	SEND_FCOE_TARGET_DATA,
-	SEND_FCOE_INITIATOR_DATA,
-	/*
-	 * Xfer Continuation (==1) ready to be sent. Previous XFERs data
-	 * received successfully.
-	 */
-	SEND_FCOE_XFER_CONTINUATION_RDY,
-	SEND_FCOE_TARGET_ABTS_RSP,
-	MAX_FCOE_SQE_REQUEST_TYPE
-};
-
-
 /*
  * FCoE task TX state
  */
@@ -387,36 +349,6 @@ enum fcoe_task_tx_state {
 	/* Updated by TX path during sequence recovery procedure */
 	FCOE_TASK_TX_STATE_SEQRECOVERY,
 	MAX_FCOE_TASK_TX_STATE
-};
-
-
-/*
- * FCoE task type
- */
-enum fcoe_task_type {
-	FCOE_TASK_TYPE_WRITE_INITIATOR,
-	FCOE_TASK_TYPE_READ_INITIATOR,
-	FCOE_TASK_TYPE_MIDPATH,
-	FCOE_TASK_TYPE_UNSOLICITED,
-	FCOE_TASK_TYPE_ABTS,
-	FCOE_TASK_TYPE_EXCHANGE_CLEANUP,
-	FCOE_TASK_TYPE_SEQUENCE_CLEANUP,
-	FCOE_TASK_TYPE_WRITE_TARGET,
-	FCOE_TASK_TYPE_READ_TARGET,
-	FCOE_TASK_TYPE_RSP,
-	FCOE_TASK_TYPE_RSP_SENSE_DATA,
-	FCOE_TASK_TYPE_ABTS_TARGET,
-	FCOE_TASK_TYPE_ENUM_SIZE,
-	MAX_FCOE_TASK_TYPE
-};
-
-struct scsi_glbl_queue_entry {
-	/* Start physical address for the RQ (receive queue) PBL. */
-	struct regpair rq_pbl_addr;
-	/* Start physical address for the CQ (completion queue) PBL. */
-	struct regpair cq_pbl_addr;
-	/* Start physical address for the CMDQ (command queue) PBL. */
-	struct regpair cmdq_pbl_addr;
 };
 
 #endif /* __QEDF_HSI__ */

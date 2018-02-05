@@ -42,72 +42,93 @@ Contact:	K. Y. Srinivasan <kys@microsoft.com>
 Description:	The 16 bit vendor ID of the device
 Users:		tools/hv/lsvmbus and user level RDMA libraries
 
-What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/cpu
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/NN
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Directory for per-channel information
+		NN is the VMBUS relid associtated with the channel.
+
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/NN/cpu
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	VCPU (sub)channel is affinitized to
-Users:		tools/hv/lsvmbus and other debuggig tools
+Users:		tools/hv/lsvmbus and other debugging tools
 
-What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/cpu
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/NN/cpu
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	VCPU (sub)channel is affinitized to
-Users:		tools/hv/lsvmbus and other debuggig tools
+Users:		tools/hv/lsvmbus and other debugging tools
 
-What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/in_mask
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/NN/in_mask
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
-Description:	Inbound channel signaling state
+Description:	Host to guest channel interrupt mask
 Users:		Debugging tools
 
-What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/latency
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/NN/latency
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	Channel signaling latency
 Users:		Debugging tools
 
-What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/out_mask
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/NN/out_mask
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
-Description:	Outbound channel signaling state
+Description:	Guest to host channel interrupt mask
 Users:		Debugging tools
 
-What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/pending
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/NN/pending
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	Channel interrupt pending state
 Users:		Debugging tools
 
-What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/read_avail
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/NN/read_avail
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
-Description:	Bytes availabble to read
+Description:	Bytes available to read
 Users:		Debugging tools
 
-What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/write_avail
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/NN/write_avail
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
-Description:	Bytes availabble to write
+Description:	Bytes available to write
 Users:		Debugging tools
 
-What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/events
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/NN/events
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	Number of times we have signaled the host
 Users:		Debugging tools
 
-What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/interrupts
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/NN/interrupts
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	Number of times we have taken an interrupt (incoming)
 Users:		Debugging tools
+
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/NN/subchannel_id
+Date:		January. 2018
+KernelVersion:	4.16
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Subchannel ID associated with VMBUS channel
+Users:		Debugging tools and userspace drivers
+
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/NN/monitor_id
+Date:		January. 2018
+KernelVersion:	4.16
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Monitor bit associated with channel
+Users:		Debugging tools and userspace drivers

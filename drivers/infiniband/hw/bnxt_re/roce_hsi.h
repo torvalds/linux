@@ -954,6 +954,7 @@ struct cmdq_base {
 	#define CMDQ_BASE_OPCODE_QUERY_VERSION			   0x8bUL
 	#define CMDQ_BASE_OPCODE_MODIFY_CC			   0x8cUL
 	#define CMDQ_BASE_OPCODE_QUERY_CC			   0x8dUL
+	#define CMDQ_BASE_OPCODE_QUERY_ROCE_STATS	   0x8eUL
 	u8 cmd_size;
 	__le16 flags;
 	__le16 cookie;
@@ -1383,8 +1384,20 @@ struct cmdq_register_mr {
 	#define CMDQ_REGISTER_MR_LVL_LVL_0			   0x0UL
 	#define CMDQ_REGISTER_MR_LVL_LVL_1			   0x1UL
 	#define CMDQ_REGISTER_MR_LVL_LVL_2			   0x2UL
+	#define CMDQ_REGISTER_MR_LVL_LAST             CMDQ_REGISTER_MR_LVL_LVL_2
 	#define CMDQ_REGISTER_MR_LOG2_PG_SIZE_MASK		    0x7cUL
 	#define CMDQ_REGISTER_MR_LOG2_PG_SIZE_SFT		    2
+	#define CMDQ_REGISTER_MR_LOG2_PG_SIZE_PG_4K    (0xcUL << 2)
+	#define CMDQ_REGISTER_MR_LOG2_PG_SIZE_PG_8K    (0xdUL << 2)
+	#define CMDQ_REGISTER_MR_LOG2_PG_SIZE_PG_64K   (0x10UL << 2)
+	#define CMDQ_REGISTER_MR_LOG2_PG_SIZE_PG_256K  (0x12UL << 2)
+	#define CMDQ_REGISTER_MR_LOG2_PG_SIZE_PG_1M    (0x14UL << 2)
+	#define CMDQ_REGISTER_MR_LOG2_PG_SIZE_PG_2M    (0x15UL << 2)
+	#define CMDQ_REGISTER_MR_LOG2_PG_SIZE_PG_4M    (0x16UL << 2)
+	#define CMDQ_REGISTER_MR_LOG2_PG_SIZE_PG_1G    (0x1eUL << 2)
+	#define CMDQ_REGISTER_MR_LOG2_PG_SIZE_LAST	\
+					CMDQ_REGISTER_MR_LOG2_PG_SIZE_PG_1G
+	#define CMDQ_REGISTER_MR_UNUSED1             0x80UL
 	u8 access;
 	#define CMDQ_REGISTER_MR_ACCESS_LOCAL_WRITE		    0x1UL
 	#define CMDQ_REGISTER_MR_ACCESS_REMOTE_READ		    0x2UL
@@ -1392,7 +1405,21 @@ struct cmdq_register_mr {
 	#define CMDQ_REGISTER_MR_ACCESS_REMOTE_ATOMIC		    0x8UL
 	#define CMDQ_REGISTER_MR_ACCESS_MW_BIND		    0x10UL
 	#define CMDQ_REGISTER_MR_ACCESS_ZERO_BASED		    0x20UL
-	__le16 unused_1;
+	__le16	log2_pbl_pg_size;
+	#define CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_MASK   0x1fUL
+	#define CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_SFT    0
+	#define CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_4K    0xcUL
+	#define CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_8K    0xdUL
+	#define CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_64K   0x10UL
+	#define CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_256K  0x12UL
+	#define CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_1M    0x14UL
+	#define CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_2M    0x15UL
+	#define CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_4M    0x16UL
+	#define CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_1G    0x1eUL
+	#define CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_LAST    \
+				CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_1G
+	#define CMDQ_REGISTER_MR_UNUSED11_MASK           0xffe0UL
+	#define CMDQ_REGISTER_MR_UNUSED11_SFT            5
 	__le32 key;
 	__le64 pbl;
 	__le64 va;
@@ -1799,6 +1826,16 @@ struct cmdq_set_func_resources {
 	u8 resp_size;
 	u8 reserved8;
 	__le64 resp_addr;
+	__le32 number_of_qp;
+	__le32 number_of_mrw;
+	__le32 number_of_srq;
+	__le32 number_of_cq;
+	__le32 max_qp_per_vf;
+	__le32 max_mrw_per_vf;
+	__le32 max_srq_per_vf;
+	__le32 max_cq_per_vf;
+	__le32 max_gid_per_vf;
+	__le32 stat_ctx_id;
 };
 
 /* Read hardware resource context command (24 bytes) */
@@ -2011,6 +2048,20 @@ struct creq_modify_qp_resp {
 	u8 event;
 	#define CREQ_MODIFY_QP_RESP_EVENT_MODIFY_QP		   0x3UL
 	__le16 reserved48[3];
+};
+
+/* cmdq_query_roce_stats (size:128b/16B) */
+struct cmdq_query_roce_stats {
+	u8	opcode;
+	#define CMDQ_QUERY_ROCE_STATS_OPCODE_QUERY_ROCE_STATS 0x8eUL
+	#define CMDQ_QUERY_ROCE_STATS_OPCODE_LAST	\
+				CMDQ_QUERY_ROCE_STATS_OPCODE_QUERY_ROCE_STATS
+	u8	cmd_size;
+	__le16	flags;
+	__le16	cookie;
+	u8	resp_size;
+	u8	reserved8;
+	__le64	resp_addr;
 };
 
 /* Query QP command response (16 bytes) */
@@ -2781,6 +2832,80 @@ struct creq_query_cc_resp_sb {
 	#define CREQ_QUERY_CC_RESP_SB_TOS_DSCP_SFT		    2
 	__le64 reserved64;
 	__le64 reserved64_1;
+};
+
+/* creq_query_roce_stats_resp (size:128b/16B) */
+struct creq_query_roce_stats_resp {
+	u8	type;
+	#define CREQ_QUERY_ROCE_STATS_RESP_TYPE_MASK    0x3fUL
+	#define CREQ_QUERY_ROCE_STATS_RESP_TYPE_SFT     0
+	#define CREQ_QUERY_ROCE_STATS_RESP_TYPE_QP_EVENT  0x38UL
+	#define CREQ_QUERY_ROCE_STATS_RESP_TYPE_LAST	\
+				CREQ_QUERY_ROCE_STATS_RESP_TYPE_QP_EVENT
+	u8	status;
+	__le16	cookie;
+	__le32	size;
+	u8	v;
+	#define CREQ_QUERY_ROCE_STATS_RESP_V     0x1UL
+	u8	event;
+	#define CREQ_QUERY_ROCE_STATS_RESP_EVENT_QUERY_ROCE_STATS 0x8eUL
+	#define CREQ_QUERY_ROCE_STATS_RESP_EVENT_LAST	\
+			CREQ_QUERY_ROCE_STATS_RESP_EVENT_QUERY_ROCE_STATS
+	u8	reserved48[6];
+};
+
+/* creq_query_roce_stats_resp_sb (size:2624b/328B) */
+struct creq_query_roce_stats_resp_sb {
+	u8	opcode;
+	#define CREQ_QUERY_ROCE_STATS_RESP_SB_OPCODE_QUERY_ROCE_STATS 0x8eUL
+	#define CREQ_QUERY_ROCE_STATS_RESP_SB_OPCODE_LAST \
+			CREQ_QUERY_ROCE_STATS_RESP_SB_OPCODE_QUERY_ROCE_STATS
+	u8	status;
+	__le16	cookie;
+	__le16	flags;
+	u8	resp_size;
+	u8	rsvd;
+	__le32	num_counters;
+	__le32	rsvd1;
+	__le64	to_retransmits;
+	__le64	seq_err_naks_rcvd;
+	__le64	max_retry_exceeded;
+	__le64	rnr_naks_rcvd;
+	__le64	missing_resp;
+	__le64	unrecoverable_err;
+	__le64	bad_resp_err;
+	__le64	local_qp_op_err;
+	__le64	local_protection_err;
+	__le64	mem_mgmt_op_err;
+	__le64	remote_invalid_req_err;
+	__le64	remote_access_err;
+	__le64	remote_op_err;
+	__le64	dup_req;
+	__le64	res_exceed_max;
+	__le64	res_length_mismatch;
+	__le64	res_exceeds_wqe;
+	__le64	res_opcode_err;
+	__le64	res_rx_invalid_rkey;
+	__le64	res_rx_domain_err;
+	__le64	res_rx_no_perm;
+	__le64	res_rx_range_err;
+	__le64	res_tx_invalid_rkey;
+	__le64	res_tx_domain_err;
+	__le64	res_tx_no_perm;
+	__le64	res_tx_range_err;
+	__le64	res_irrq_oflow;
+	__le64	res_unsup_opcode;
+	__le64	res_unaligned_atomic;
+	__le64	res_rem_inv_err;
+	__le64	res_mem_error;
+	__le64	res_srq_err;
+	__le64	res_cmp_err;
+	__le64	res_invalid_dup_rkey;
+	__le64	res_wqe_format_err;
+	__le64	res_cq_load_err;
+	__le64	res_srq_load_err;
+	__le64	res_tx_pci_err;
+	__le64	res_rx_pci_err;
 };
 
 /* QP error notification event (16 bytes) */

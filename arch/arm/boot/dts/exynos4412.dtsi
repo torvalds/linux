@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's Exynos4412 SoC device tree source
  *
@@ -11,11 +12,7 @@
  * Note: This file does not include device nodes for all the controllers in
  * Exynos4412 SoC. As device tree coverage for Exynos4412 increases, additional
  * nodes can be added to this file.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #include "exynos4.dtsi"
 #include "exynos4412-pinctrl.dtsi"
@@ -38,7 +35,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu0: cpu@A00 {
+		cpu0: cpu@a00 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0xA00>;
@@ -50,21 +47,21 @@
 			#cooling-cells = <2>; /* min followed by max */
 		};
 
-		cpu@A01 {
+		cpu@a01 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0xA01>;
 			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
-		cpu@A02 {
+		cpu@a02 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0xA02>;
 			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
-		cpu@A03 {
+		cpu@a03 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0xA03>;
@@ -168,7 +165,7 @@
 		};
 	};
 
-	pd_isp: isp-power-domain@10023CA0 {
+	pd_isp: isp-power-domain@10023ca0 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023CA0 0x20>;
 		#power-domain-cells = <0>;
@@ -191,8 +188,17 @@
 
 	clock: clock-controller@10030000 {
 		compatible = "samsung,exynos4412-clock";
-		reg = <0x10030000 0x20000>;
+		reg = <0x10030000 0x18000>;
 		#clock-cells = <1>;
+	};
+
+	isp_clock: clock-controller@10048000 {
+		compatible = "samsung,exynos4412-isp-clock";
+		reg = <0x10048000 0x1000>;
+		#clock-cells = <1>;
+		power-domains = <&pd_isp>;
+		clocks = <&clock CLK_ACLK200>, <&clock CLK_ACLK400_MCUISP>;
+		clock-names = "aclk200", "aclk400_mcuisp";
 	};
 
 	mct@10050000 {
@@ -224,7 +230,7 @@
 		samsung,syscon-phandle = <&pmu_system_controller>;
 	};
 
-	adc: adc@126C0000 {
+	adc: adc@126c0000 {
 		compatible = "samsung,exynos-adc-v1";
 		reg = <0x126C0000 0x100>;
 		interrupt-parent = <&combiner>;
@@ -257,18 +263,18 @@
 			reg = <0x12390000 0x1000>;
 			interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&pd_isp>;
-			clocks = <&clock CLK_FIMC_LITE0>;
+			clocks = <&isp_clock CLK_ISP_FIMC_LITE0>;
 			clock-names = "flite";
 			iommus = <&sysmmu_fimc_lite0>;
 			status = "disabled";
 		};
 
-		fimc_lite_1: fimc-lite@123A0000 {
+		fimc_lite_1: fimc-lite@123a0000 {
 			compatible = "samsung,exynos4212-fimc-lite";
 			reg = <0x123A0000 0x1000>;
 			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&pd_isp>;
-			clocks = <&clock CLK_FIMC_LITE1>;
+			clocks = <&isp_clock CLK_ISP_FIMC_LITE1>;
 			clock-names = "flite";
 			iommus = <&sysmmu_fimc_lite1>;
 			status = "disabled";
@@ -280,29 +286,35 @@
 			interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&pd_isp>;
-			clocks = <&clock CLK_FIMC_LITE0>,
-				 <&clock CLK_FIMC_LITE1>, <&clock CLK_PPMUISPX>,
-				 <&clock CLK_PPMUISPMX>,
+			clocks = <&isp_clock CLK_ISP_FIMC_LITE0>,
+				 <&isp_clock CLK_ISP_FIMC_LITE1>,
+				 <&isp_clock CLK_ISP_PPMUISPX>,
+				 <&isp_clock CLK_ISP_PPMUISPMX>,
+				 <&isp_clock CLK_ISP_FIMC_ISP>,
+				 <&isp_clock CLK_ISP_FIMC_DRC>,
+				 <&isp_clock CLK_ISP_FIMC_FD>,
+				 <&isp_clock CLK_ISP_MCUISP>,
+				 <&isp_clock CLK_ISP_GICISP>,
+				 <&isp_clock CLK_ISP_MCUCTL_ISP>,
+				 <&isp_clock CLK_ISP_PWM_ISP>,
+				 <&isp_clock CLK_ISP_DIV_ISP0>,
+				 <&isp_clock CLK_ISP_DIV_ISP1>,
+				 <&isp_clock CLK_ISP_DIV_MCUISP0>,
+				 <&isp_clock CLK_ISP_DIV_MCUISP1>,
 				 <&clock CLK_MOUT_MPLL_USER_T>,
-				 <&clock CLK_FIMC_ISP>, <&clock CLK_FIMC_DRC>,
-				 <&clock CLK_FIMC_FD>, <&clock CLK_MCUISP>,
-				 <&clock CLK_GICISP>, <&clock CLK_MCUCTL_ISP>,
-				 <&clock CLK_PWM_ISP>,
-				 <&clock CLK_DIV_ISP0>, <&clock CLK_DIV_ISP1>,
-				 <&clock CLK_DIV_MCUISP0>,
-				 <&clock CLK_DIV_MCUISP1>,
-				 <&clock CLK_UART_ISP_SCLK>,
-				 <&clock CLK_ACLK200>, <&clock CLK_DIV_ACLK200>,
+				 <&clock CLK_ACLK200>,
 				 <&clock CLK_ACLK400_MCUISP>,
-				 <&clock CLK_DIV_ACLK400_MCUISP>;
+				 <&clock CLK_DIV_ACLK200>,
+				 <&clock CLK_DIV_ACLK400_MCUISP>,
+				 <&clock CLK_UART_ISP_SCLK>;
 			clock-names = "lite0", "lite1", "ppmuispx",
-				      "ppmuispmx", "mpll", "isp",
+				      "ppmuispmx", "isp",
 				      "drc", "fd", "mcuisp",
 				      "gicisp", "mcuctl_isp", "pwm_isp",
 				      "ispdiv0", "ispdiv1", "mcuispdiv0",
-				      "mcuispdiv1", "uart", "aclk200",
-				      "div_aclk200", "aclk400mcuisp",
-				      "div_aclk400mcuisp";
+				      "mcuispdiv1", "mpll", "aclk200",
+				      "aclk400mcuisp", "div_aclk200",
+				      "div_aclk400mcuisp", "uart";
 			iommus = <&sysmmu_fimc_isp>, <&sysmmu_fimc_drc>,
 				 <&sysmmu_fimc_fd>, <&sysmmu_fimc_mcuctl>;
 			iommu-names = "isp", "drc", "fd", "mcuctl";
@@ -318,7 +330,7 @@
 			i2c1_isp: i2c-isp@12140000 {
 				compatible = "samsung,exynos4212-i2c-isp";
 				reg = <0x12140000 0x100>;
-				clocks = <&clock CLK_I2C1_ISP>;
+				clocks = <&isp_clock CLK_ISP_I2C1_ISP>;
 				clock-names = "i2c_isp";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -355,7 +367,7 @@
 		interrupts = <16 2>;
 		power-domains = <&pd_isp>;
 		clock-names = "sysmmu";
-		clocks = <&clock CLK_SMMU_ISP>;
+		clocks = <&isp_clock CLK_ISP_SMMU_ISP>;
 		#iommu-cells = <0>;
 	};
 
@@ -366,51 +378,53 @@
 		interrupts = <16 3>;
 		power-domains = <&pd_isp>;
 		clock-names = "sysmmu";
-		clocks = <&clock CLK_SMMU_DRC>;
+		clocks = <&isp_clock CLK_ISP_SMMU_DRC>;
 		#iommu-cells = <0>;
 	};
 
-	sysmmu_fimc_fd: sysmmu@122A0000 {
+	sysmmu_fimc_fd: sysmmu@122a0000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x122A0000 0x1000>;
 		interrupt-parent = <&combiner>;
 		interrupts = <16 4>;
 		power-domains = <&pd_isp>;
 		clock-names = "sysmmu";
-		clocks = <&clock CLK_SMMU_FD>;
+		clocks = <&isp_clock CLK_ISP_SMMU_FD>;
 		#iommu-cells = <0>;
 	};
 
-	sysmmu_fimc_mcuctl: sysmmu@122B0000 {
+	sysmmu_fimc_mcuctl: sysmmu@122b0000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x122B0000 0x1000>;
 		interrupt-parent = <&combiner>;
 		interrupts = <16 5>;
 		power-domains = <&pd_isp>;
 		clock-names = "sysmmu";
-		clocks = <&clock CLK_SMMU_ISPCX>;
+		clocks = <&isp_clock CLK_ISP_SMMU_ISPCX>;
 		#iommu-cells = <0>;
 	};
 
-	sysmmu_fimc_lite0: sysmmu@123B0000 {
+	sysmmu_fimc_lite0: sysmmu@123b0000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x123B0000 0x1000>;
 		interrupt-parent = <&combiner>;
 		interrupts = <16 0>;
 		power-domains = <&pd_isp>;
 		clock-names = "sysmmu", "master";
-		clocks = <&clock CLK_SMMU_LITE0>, <&clock CLK_FIMC_LITE0>;
+		clocks = <&isp_clock CLK_ISP_SMMU_LITE0>,
+			 <&isp_clock CLK_ISP_FIMC_LITE0>;
 		#iommu-cells = <0>;
 	};
 
-	sysmmu_fimc_lite1: sysmmu@123C0000 {
+	sysmmu_fimc_lite1: sysmmu@123c0000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x123C0000 0x1000>;
 		interrupt-parent = <&combiner>;
 		interrupts = <16 1>;
 		power-domains = <&pd_isp>;
 		clock-names = "sysmmu", "master";
-		clocks = <&clock CLK_SMMU_LITE1>, <&clock CLK_FIMC_LITE1>;
+		clocks = <&isp_clock CLK_ISP_SMMU_LITE1>,
+			 <&isp_clock CLK_ISP_FIMC_LITE1>;
 		#iommu-cells = <0>;
 	};
 

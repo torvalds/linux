@@ -40,15 +40,12 @@ typedef struct {
 struct thread_struct { };
 #define INIT_THREAD  { }
 
-/* Return saved PC of a blocked thread.  */
-struct task_struct;
-extern unsigned long thread_saved_pc(struct task_struct *);
-
 /* Do necessary setup to start up a newly executed thread.  */
 struct pt_regs;
 extern void start_thread(struct pt_regs *, unsigned long, unsigned long);
 
 /* Free all resources held by a thread. */
+struct task_struct;
 extern void release_thread(struct task_struct *);
 
 unsigned long get_wchan(struct task_struct *p);

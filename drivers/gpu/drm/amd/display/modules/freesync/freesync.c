@@ -132,14 +132,6 @@ struct core_freesync {
 #define MOD_FREESYNC_TO_CORE(mod_freesync)\
 		container_of(mod_freesync, struct core_freesync, public)
 
-static bool check_dc_support(const struct dc *dc)
-{
-	if (dc->stream_funcs.adjust_vmin_vmax == NULL)
-		return false;
-
-	return true;
-}
-
 struct mod_freesync *mod_freesync_create(struct dc *dc)
 {
 	struct core_freesync *core_freesync =
@@ -168,9 +160,6 @@ struct mod_freesync *mod_freesync_create(struct dc *dc)
 		goto fail_construct;
 
 	core_freesync->dc = dc;
-
-	if (!check_dc_support(dc))
-		goto fail_construct;
 
 	/* Create initial module folder in registry for freesync enable data */
 	flag.save_per_edid = true;
@@ -599,10 +588,9 @@ static bool set_freesync_on_streams(struct core_freesync *core_freesync,
 				update_stream_freesync_context(core_freesync,
 						streams[stream_idx]);
 
-				core_freesync->dc->stream_funcs.
-				adjust_vmin_vmax(core_freesync->dc, streams,
-						num_streams, v_total_min,
-						v_total_max);
+				dc_stream_adjust_vmin_vmax(core_freesync->dc, streams,
+							   num_streams, v_total_min,
+							   v_total_max);
 
 				return true;
 
@@ -625,8 +613,7 @@ static bool set_freesync_on_streams(struct core_freesync *core_freesync,
 						core_freesync,
 						streams[stream_idx]);
 
-					core_freesync->dc->stream_funcs.
-					adjust_vmin_vmax(
+					dc_stream_adjust_vmin_vmax(
 						core_freesync->dc, streams,
 						num_streams, v_total_nominal,
 						v_total_nominal);
@@ -645,11 +632,9 @@ static bool set_freesync_on_streams(struct core_freesync *core_freesync,
 					core_freesync,
 					streams[stream_idx]);
 
-				core_freesync->dc->stream_funcs.
-						adjust_vmin_vmax(
-						core_freesync->dc, streams,
-						num_streams, v_total_nominal,
-						v_total_nominal);
+				dc_stream_adjust_vmin_vmax(core_freesync->dc, streams,
+							   num_streams, v_total_nominal,
+							   v_total_nominal);
 
 				/* Reset the cached variables */
 				reset_freesync_state_variables(state);
@@ -665,11 +650,9 @@ static bool set_freesync_on_streams(struct core_freesync *core_freesync,
 			 * not support freesync because a former stream has
 			 * be programmed
 			 */
-			core_freesync->dc->stream_funcs.
-					adjust_vmin_vmax(
-					core_freesync->dc, streams,
-					num_streams, v_total_nominal,
-					v_total_nominal);
+			dc_stream_adjust_vmin_vmax(core_freesync->dc, streams,
+						   num_streams, v_total_nominal,
+						   v_total_nominal);
 			/* Reset the cached variables */
 			reset_freesync_state_variables(state);
 		}
@@ -786,9 +769,8 @@ void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 			vmin = inserted_frame_v_total;
 
 			/* Program V_TOTAL */
-			core_freesync->dc->stream_funcs.adjust_vmin_vmax(
-				core_freesync->dc, streams,
-				num_streams, vmin, vmax);
+			dc_stream_adjust_vmin_vmax(core_freesync->dc, streams,
+						   num_streams, vmin, vmax);
 		}
 
 		if (state->btr.frame_counter > 0)
@@ -822,17 +804,15 @@ void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 		update_stream_freesync_context(core_freesync, streams[0]);
 
 		/* Program static screen ramp values */
-		core_freesync->dc->stream_funcs.adjust_vmin_vmax(
-					core_freesync->dc, streams,
-					num_streams, v_total,
-					v_total);
+		dc_stream_adjust_vmin_vmax(core_freesync->dc, streams,
+					   num_streams, v_total,
+					   v_total);
 
 		triggers.overlay_update = true;
 		triggers.surface_update = true;
 
-		core_freesync->dc->stream_funcs.set_static_screen_events(
-					core_freesync->dc, streams,	num_streams,
-					&triggers);
+		dc_stream_set_static_screen_events(core_freesync->dc, streams,
+						   num_streams, &triggers);
 	}
 }
 
@@ -916,9 +896,8 @@ void mod_freesync_update_state(struct mod_freesync *mod_freesync,
 	triggers.overlay_update = true;
 	triggers.surface_update = true;
 
-	core_freesync->dc->stream_funcs.set_static_screen_events(
-		core_freesync->dc, streams, num_streams,
-		&triggers);
+	dc_stream_set_static_screen_events(core_freesync->dc, streams,
+					   num_streams, &triggers);
 
 	if (freesync_program_required)
 		/* Program freesync according to current state*/
@@ -1084,10 +1063,9 @@ bool mod_freesync_override_min_max(struct mod_freesync *mod_freesync,
 				max_refresh);
 
 		/* Program vtotal min/max */
-		core_freesync->dc->stream_funcs.adjust_vmin_vmax(
-			core_freesync->dc, &streams, 1,
-			state->freesync_range.vmin,
-			state->freesync_range.vmax);
+		dc_stream_adjust_vmin_vmax(core_freesync->dc, &streams, 1,
+					   state->freesync_range.vmin,
+					   state->freesync_range.vmax);
 	}
 
 	if (min_refresh != 0 &&
@@ -1163,9 +1141,9 @@ bool mod_freesync_get_v_position(struct mod_freesync *mod_freesync,
 	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
 	index = map_index_from_stream(core_freesync, stream);
 
-	if (core_freesync->dc->stream_funcs.get_crtc_position(
-			core_freesync->dc, &stream, 1,
-			&position.vertical_count, &position.nominal_vcount)) {
+	if (dc_stream_get_crtc_position(core_freesync->dc, &stream, 1,
+					&position.vertical_count,
+					&position.nominal_vcount)) {
 
 		*nom_v_pos = position.nominal_vcount;
 		*v_pos = position.vertical_count;
@@ -1223,9 +1201,9 @@ void mod_freesync_notify_mode_change(struct mod_freesync *mod_freesync,
 			triggers.overlay_update = true;
 			triggers.surface_update = true;
 
-			core_freesync->dc->stream_funcs.set_static_screen_events(
-				core_freesync->dc, streams, num_streams,
-				&triggers);
+			dc_stream_set_static_screen_events(core_freesync->dc,
+							   streams, num_streams,
+							   &triggers);
 		}
 	}
 
@@ -1424,10 +1402,8 @@ static void apply_fixed_refresh(struct core_freesync *core_freesync,
 
 		vmax = vmin;
 
-		core_freesync->dc->stream_funcs.adjust_vmin_vmax(
-				core_freesync->dc, &stream,
-				1, vmin,
-				vmax);
+		dc_stream_adjust_vmin_vmax(core_freesync->dc, &stream,
+					   1, vmin, vmax);
 	}
 }
 

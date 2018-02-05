@@ -115,14 +115,6 @@ static void set_eit_vector_entries(void)
 	_flush_cache_copyback_all();
 }
 
-void abort(void)
-{
-	BUG();
-
-	/* if that doesn't kill us, halt */
-	panic("Oops failed to kill thread");
-}
-
 void __init trap_init(void)
 {
 	set_eit_vector_entries();

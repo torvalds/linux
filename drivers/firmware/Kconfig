@@ -10,7 +10,7 @@ config ARM_PSCI_FW
 
 config ARM_PSCI_CHECKER
 	bool "ARM PSCI checker"
-	depends on ARM_PSCI_FW && HOTPLUG_CPU && !TORTURE_TEST
+	depends on ARM_PSCI_FW && HOTPLUG_CPU && CPU_IDLE && !TORTURE_TEST
 	help
 	  Run the PSCI checker during startup. This checks that hotplug and
 	  suspend operations work correctly when using PSCI.

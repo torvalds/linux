@@ -39,8 +39,7 @@
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/unwinder.h>
-
-extern char _etext, _stext;
+#include <asm/sections.h>
 
 int kstack_depth_to_print = 0x180;
 int lwa_flag;

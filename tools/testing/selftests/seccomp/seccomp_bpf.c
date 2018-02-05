@@ -1717,7 +1717,7 @@ void tracer_ptrace(struct __test_metadata *_metadata, pid_t tracee,
 
 	if (nr == __NR_getpid)
 		change_syscall(_metadata, tracee, __NR_getppid);
-	if (nr == __NR_open)
+	if (nr == __NR_openat)
 		change_syscall(_metadata, tracee, -1);
 }
 
@@ -1792,7 +1792,7 @@ TEST_F(TRACE_syscall, ptrace_syscall_dropped)
 					   true);
 
 	/* Tracer should skip the open syscall, resulting in EPERM. */
-	EXPECT_SYSCALL_RETURN(EPERM, syscall(__NR_open));
+	EXPECT_SYSCALL_RETURN(EPERM, syscall(__NR_openat));
 }
 
 TEST_F(TRACE_syscall, syscall_allowed)

@@ -128,8 +128,8 @@ static void print_facility_lists(void)
 
 int main(int argc, char **argv)
 {
-	printf("#ifndef __ASM_S390_FACILITIES__\n");
-	printf("#define __ASM_S390_FACILITIES__\n");
+	printf("#ifndef __ASM_S390_FACILITY_DEFS__\n");
+	printf("#define __ASM_S390_FACILITY_DEFS__\n");
 	printf("/*\n");
 	printf(" * DO NOT MODIFY.\n");
 	printf(" *\n");

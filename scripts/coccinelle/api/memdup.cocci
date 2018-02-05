@@ -49,7 +49,6 @@ statement S;
 @@
 
 *  to = \(kmalloc@p\|kzalloc@p\)(size,flag);
-   to = kmemdup(from,size,flag);
    if (to==NULL || ...) S
 *  memcpy(to, from, size);
 

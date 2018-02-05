@@ -116,7 +116,7 @@ extern struct percpu_counter sctp_sockets_allocated;
 int sctp_asconf_mgmt(struct sctp_sock *, struct sctp_sockaddr_entry *);
 struct sk_buff *sctp_skb_recv_datagram(struct sock *, int, int, int *);
 
-int sctp_transport_walk_start(struct rhashtable_iter *iter);
+void sctp_transport_walk_start(struct rhashtable_iter *iter);
 void sctp_transport_walk_stop(struct rhashtable_iter *iter);
 struct sctp_transport *sctp_transport_get_next(struct net *net,
 			struct rhashtable_iter *iter);
@@ -444,13 +444,13 @@ static inline int sctp_frag_point(const struct sctp_association *asoc, int pmtu)
 	int frag = pmtu;
 
 	frag -= sp->pf->af->net_header_len;
-	frag -= sizeof(struct sctphdr) + sizeof(struct sctp_data_chunk);
+	frag -= sizeof(struct sctphdr) + sctp_datachk_len(&asoc->stream);
 
 	if (asoc->user_frag)
 		frag = min_t(int, frag, asoc->user_frag);
 
 	frag = SCTP_TRUNC4(min_t(int, frag, SCTP_MAX_CHUNK_LEN -
-					    sizeof(struct sctp_data_chunk)));
+					    sctp_datachk_len(&asoc->stream)));
 
 	return frag;
 }

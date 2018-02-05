@@ -665,6 +665,7 @@ static int __init aes_init(void)
 
 unregister_simds:
 	aes_exit();
+	return err;
 unregister_ciphers:
 	crypto_unregister_skciphers(aes_algs, ARRAY_SIZE(aes_algs));
 	return err;

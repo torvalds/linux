@@ -20,7 +20,6 @@
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
 #include <linux/screen_info.h>
-#include <linux/bootmem.h>
 #include <linux/kernel.h>
 #include <linux/percpu.h>
 #include <linux/cpu.h>
@@ -219,17 +218,6 @@ static int __init xtensa_dt_io_area(unsigned long node, const char *uname,
 	return 1;
 }
 #endif
-
-void __init early_init_dt_add_memory_arch(u64 base, u64 size)
-{
-	size &= PAGE_MASK;
-	memblock_add(base, size);
-}
-
-void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
-{
-	return __alloc_bootmem(size, align, 0);
-}
 
 void __init early_init_devtree(void *params)
 {

@@ -702,11 +702,9 @@ static struct octeon_device *octeon_allocate_device_mem(u32 pci_id,
 	size = octdevsize + priv_size + configsize +
 		(sizeof(struct octeon_dispatch) * DISPATCH_LIST_SIZE);
 
-	buf = vmalloc(size);
+	buf = vzalloc(size);
 	if (!buf)
 		return NULL;
-
-	memset(buf, 0, size);
 
 	oct = (struct octeon_device *)buf;
 	oct->priv = (void *)(buf + octdevsize);
@@ -840,10 +838,9 @@ octeon_allocate_ioq_vector(struct octeon_device  *oct)
 
 	size = sizeof(struct octeon_ioq_vector) * num_ioqs;
 
-	oct->ioq_vector = vmalloc(size);
+	oct->ioq_vector = vzalloc(size);
 	if (!oct->ioq_vector)
 		return 1;
-	memset(oct->ioq_vector, 0, size);
 	for (i = 0; i < num_ioqs; i++) {
 		ioq_vector		= &oct->ioq_vector[i];
 		ioq_vector->oct_dev	= oct;

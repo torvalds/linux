@@ -355,7 +355,8 @@
 	};
 
 	sdhi0: sd@ffe4c000 {
-		compatible = "renesas,sdhi-r8a7779";
+		compatible = "renesas,sdhi-r8a7779",
+			     "renesas,rcar-gen1-sdhi";
 		reg = <0xffe4c000 0x100>;
 		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A7779_CLK_SDHI0>;
@@ -364,7 +365,8 @@
 	};
 
 	sdhi1: sd@ffe4d000 {
-		compatible = "renesas,sdhi-r8a7779";
+		compatible = "renesas,sdhi-r8a7779",
+			     "renesas,rcar-gen1-sdhi";
 		reg = <0xffe4d000 0x100>;
 		interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A7779_CLK_SDHI1>;
@@ -373,7 +375,8 @@
 	};
 
 	sdhi2: sd@ffe4e000 {
-		compatible = "renesas,sdhi-r8a7779";
+		compatible = "renesas,sdhi-r8a7779",
+			     "renesas,rcar-gen1-sdhi";
 		reg = <0xffe4e000 0x100>;
 		interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A7779_CLK_SDHI2>;
@@ -382,7 +385,8 @@
 	};
 
 	sdhi3: sd@ffe4f000 {
-		compatible = "renesas,sdhi-r8a7779";
+		compatible = "renesas,sdhi-r8a7779",
+			     "renesas,rcar-gen1-sdhi";
 		reg = <0xffe4f000 0x100>;
 		interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A7779_CLK_SDHI3>;

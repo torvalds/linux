@@ -209,6 +209,8 @@ static const struct intel_device_info intel_gm45_info __initconst = {
 	.has_hotplug = 1, \
 	.ring_mask = RENDER_RING | BSD_RING, \
 	.has_snoop = true, \
+	/* ilk does support rc6, but we do not implement [power] contexts */ \
+	.has_rc6 = 0, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	GEN_DEFAULT_PAGE_SIZES, \
 	CURSOR_OFFSETS
@@ -631,6 +633,8 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_CFL_S_GT1_IDS(&intel_coffeelake_gt1_info),
 	INTEL_CFL_S_GT2_IDS(&intel_coffeelake_gt2_info),
 	INTEL_CFL_H_GT2_IDS(&intel_coffeelake_gt2_info),
+	INTEL_CFL_U_GT1_IDS(&intel_coffeelake_gt1_info),
+	INTEL_CFL_U_GT2_IDS(&intel_coffeelake_gt2_info),
 	INTEL_CFL_U_GT3_IDS(&intel_coffeelake_gt3_info),
 	INTEL_CNL_U_GT2_IDS(&intel_cannonlake_gt2_info),
 	INTEL_CNL_Y_GT2_IDS(&intel_cannonlake_gt2_info),
