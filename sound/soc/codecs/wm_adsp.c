@@ -1237,9 +1237,16 @@ static int wm_coeff_init_control_caches(struct wm_adsp *dsp)
 		if (ctl->flags & WMFW_CTL_FLAG_VOLATILE)
 			continue;
 
-		ret = wm_coeff_read_control(ctl, ctl->cache, ctl->len);
-		if (ret < 0)
-			return ret;
+		/*
+		 * For readable controls populate the cache from the DSP memory.
+		 * For non-readable controls the cache was zero-filled when
+		 * created so we don't need to do anything.
+		 */
+		if (!ctl->flags || (ctl->flags & WMFW_CTL_FLAG_READABLE)) {
+			ret = wm_coeff_read_control(ctl, ctl->cache, ctl->len);
+			if (ret < 0)
+				return ret;
+		}
 	}
 
 	return 0;
