@@ -68,14 +68,14 @@
 
 	/delete-node/ sdmmc-regulator;
 
-	vdd_log: vdd-center {
+	vdd_log: vdd-logic {
 		compatible = "pwm-regulator";
 		rockchip,pwm_id = <1>;
 		rockchip,pwm_voltage = <1100000>;
 		pwms = <&pwm1 0 25000 1>;
 		regulator-name = "vcc_log";
-		regulator-min-microvolt = <800000>;
-		regulator-max-microvolt = <1400000>;
+		regulator-min-microvolt = <860000>;
+		regulator-max-microvolt = <1360000>;
 		regulator-always-on;
 		regulator-boot-on;
 	};
@@ -142,6 +142,10 @@
 &gpu {
 	status = "okay";
 	mali-supply = <&vdd_gpu>;
+};
+
+&gmac {
+	max-speed = <1000>;
 };
 
 &hdmi_analog_sound {
@@ -407,6 +411,11 @@
 
 &rockchip_suspend {
 	status = "okay";
+	rockchip,pwm-regulator-config = <
+	(0
+	| PWM1_REGULATOR_EN
+	)
+	>;
 };
 
 &pwm1 {
