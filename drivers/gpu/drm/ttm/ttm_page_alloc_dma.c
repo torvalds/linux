@@ -940,6 +940,9 @@ int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev,
 	if (ttm->state != tt_unpopulated)
 		return 0;
 
+	if (ttm_check_under_lowerlimit(mem_glob, num_pages, ctx))
+		return -ENOMEM;
+
 	INIT_LIST_HEAD(&ttm_dma->pages_list);
 	i = 0;
 

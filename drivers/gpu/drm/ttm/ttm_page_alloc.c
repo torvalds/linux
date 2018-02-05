@@ -1100,6 +1100,9 @@ int ttm_pool_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 	if (ttm->state != tt_unpopulated)
 		return 0;
 
+	if (ttm_check_under_lowerlimit(mem_glob, ttm->num_pages, ctx))
+		return -ENOMEM;
+
 	ret = ttm_get_pages(ttm->pages, ttm->num_pages, ttm->page_flags,
 			    ttm->caching_state);
 	if (unlikely(ret != 0)) {
