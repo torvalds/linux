@@ -2458,34 +2458,26 @@ static int __init aa_create_aafs(void)
 
 	dent = securityfs_create_file(".load", 0666, aa_sfs_entry.dentry,
 				      NULL, &aa_fs_profile_load);
-	if (IS_ERR(dent)) {
-		error = PTR_ERR(dent);
-		goto error;
-	}
+	if (IS_ERR(dent))
+		goto dent_error;
 	ns_subload(root_ns) = dent;
 
 	dent = securityfs_create_file(".replace", 0666, aa_sfs_entry.dentry,
 				      NULL, &aa_fs_profile_replace);
-	if (IS_ERR(dent)) {
-		error = PTR_ERR(dent);
-		goto error;
-	}
+	if (IS_ERR(dent))
+		goto dent_error;
 	ns_subreplace(root_ns) = dent;
 
 	dent = securityfs_create_file(".remove", 0666, aa_sfs_entry.dentry,
 				      NULL, &aa_fs_profile_remove);
-	if (IS_ERR(dent)) {
-		error = PTR_ERR(dent);
-		goto error;
-	}
+	if (IS_ERR(dent))
+		goto dent_error;
 	ns_subremove(root_ns) = dent;
 
 	dent = securityfs_create_file("revision", 0444, aa_sfs_entry.dentry,
 				      NULL, &aa_fs_ns_revision_fops);
-	if (IS_ERR(dent)) {
-		error = PTR_ERR(dent);
-		goto error;
-	}
+	if (IS_ERR(dent))
+		goto dent_error;
 	ns_subrevision(root_ns) = dent;
 
 	/* policy tree referenced by magic policy symlink */
@@ -2499,10 +2491,8 @@ static int __init aa_create_aafs(void)
 	/* magic symlink similar to nsfs redirects based on task policy */
 	dent = securityfs_create_symlink("policy", aa_sfs_entry.dentry,
 					 NULL, &policy_link_iops);
-	if (IS_ERR(dent)) {
-		error = PTR_ERR(dent);
-		goto error;
-	}
+	if (IS_ERR(dent))
+		goto dent_error;
 
 	error = aa_mk_null_file(aa_sfs_entry.dentry);
 	if (error)
@@ -2514,6 +2504,8 @@ static int __init aa_create_aafs(void)
 	aa_info_message("AppArmor Filesystem Enabled");
 	return 0;
 
+dent_error:
+	error = PTR_ERR(dent);
 error:
 	aa_destroy_aafs();
 	AA_ERROR("Error creating AppArmor securityfs\n");
