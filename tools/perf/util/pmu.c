@@ -542,12 +542,12 @@ static bool pmu_is_uncore(const char *name)
  * Each architecture should provide a more precise id string that
  * can be use to match the architecture's "mapfile".
  */
-char * __weak get_cpuid_str(void)
+char * __weak get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
 {
 	return NULL;
 }
 
-static char *perf_pmu__getcpuid(void)
+static char *perf_pmu__getcpuid(struct perf_pmu *pmu)
 {
 	char *cpuid;
 	static bool printed;
@@ -556,7 +556,7 @@ static char *perf_pmu__getcpuid(void)
 	if (cpuid)
 		cpuid = strdup(cpuid);
 	if (!cpuid)
-		cpuid = get_cpuid_str();
+		cpuid = get_cpuid_str(pmu);
 	if (!cpuid)
 		return NULL;
 
@@ -567,10 +567,10 @@ static char *perf_pmu__getcpuid(void)
 	return cpuid;
 }
 
-struct pmu_events_map *perf_pmu__find_map(void)
+struct pmu_events_map *perf_pmu__find_map(struct perf_pmu *pmu)
 {
 	struct pmu_events_map *map;
-	char *cpuid = perf_pmu__getcpuid();
+	char *cpuid = perf_pmu__getcpuid(pmu);
 	int i;
 
 	i = 0;
@@ -593,13 +593,14 @@ struct pmu_events_map *perf_pmu__find_map(void)
  * to the current running CPU. Then, add all PMU events from that table
  * as aliases.
  */
-static void pmu_add_cpu_aliases(struct list_head *head, const char *name)
+static void pmu_add_cpu_aliases(struct list_head *head, struct perf_pmu *pmu)
 {
 	int i;
 	struct pmu_events_map *map;
 	struct pmu_event *pe;
+	const char *name = pmu->name;
 
-	map = perf_pmu__find_map();
+	map = perf_pmu__find_map(pmu);
 	if (!map)
 		return;
 
@@ -661,21 +662,20 @@ static struct perf_pmu *pmu_lookup(const char *name)
 	if (pmu_aliases(name, &aliases))
 		return NULL;
 
-	pmu_add_cpu_aliases(&aliases, name);
 	pmu = zalloc(sizeof(*pmu));
 	if (!pmu)
 		return NULL;
 
 	pmu->cpus = pmu_cpumask(name);
-
+	pmu->name = strdup(name);
+	pmu->type = type;
 	pmu->is_uncore = pmu_is_uncore(name);
+	pmu_add_cpu_aliases(&aliases, pmu);
 
 	INIT_LIST_HEAD(&pmu->format);
 	INIT_LIST_HEAD(&pmu->aliases);
 	list_splice(&format, &pmu->format);
 	list_splice(&aliases, &pmu->aliases);
-	pmu->name = strdup(name);
-	pmu->type = type;
 	list_add_tail(&pmu->list, &pmus);
 
 	pmu->default_config = perf_pmu__get_default_config(pmu);
