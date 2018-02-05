@@ -38,7 +38,11 @@ do_steps: &do_steps
       name: build DPDK
       command: |
         if [ "$MKARG" = "dpdk=yes" ]; then
-          sudo apt-get update && sudo apt-get install -y linux-headers-$(uname -r)
+          sudo apt-get update
+          if ! sudo apt-get install -y linux-headers-$(uname -r) ; then
+             cd /lib/modules && sudo ln -sf 4.4.0-97-generic `uname -r` && \
+               cd /home/ubuntu/project
+          fi
           cd tools/lkl && ./scripts/dpdk-sdk-build.sh;
         fi
   - run:
