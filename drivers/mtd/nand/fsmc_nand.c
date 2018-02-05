@@ -8,6 +8,8 @@
  * Ashish Priyadarshi
  *
  * Based on drivers/mtd/nand/nomadik_nand.c (removed in v3.8)
+ *  Copyright © 2007 STMicroelectronics Pvt. Ltd.
+ *  Copyright © 2009 Alessandro Rubini
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
