@@ -591,13 +591,23 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job, bool need_
 		id->oa_base != job->oa_base ||
 		id->oa_size != job->oa_size);
 	bool vm_flush_needed = job->vm_needs_flush;
+	bool pasid_mapping_needed = id->pasid != job->pasid ||
+		!id->pasid_mapping ||
+		!dma_fence_is_signaled(id->pasid_mapping);
+	struct dma_fence *fence = NULL;
 	unsigned patch_offset = 0;
 	int r;
 
 	if (amdgpu_vmid_had_gpu_reset(adev, id)) {
 		gds_switch_needed = true;
 		vm_flush_needed = true;
+		pasid_mapping_needed = true;
 	}
+
+	gds_switch_needed &= !!ring->funcs->emit_gds_switch;
+	vm_flush_needed &= !!ring->funcs->emit_vm_flush;
+	pasid_mapping_needed &= adev->gmc.gmc_funcs->emit_pasid_mapping &&
+		ring->funcs->emit_wreg;
 
 	if (!vm_flush_needed && !gds_switch_needed && !need_pipe_sync)
 		return 0;
@@ -608,26 +618,35 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job, bool need_
 	if (need_pipe_sync)
 		amdgpu_ring_emit_pipeline_sync(ring);
 
-	if (ring->funcs->emit_vm_flush && vm_flush_needed) {
-		struct dma_fence *fence;
-
+	if (vm_flush_needed) {
 		trace_amdgpu_vm_flush(ring, job->vmid, job->vm_pd_addr);
 		amdgpu_ring_emit_vm_flush(ring, job->vmid, job->vm_pd_addr);
-		if (adev->gmc.gmc_funcs->emit_pasid_mapping &&
-		    ring->funcs->emit_wreg)
-			amdgpu_gmc_emit_pasid_mapping(ring, job->vmid,
-						      job->pasid);
+	}
 
+	if (pasid_mapping_needed)
+		amdgpu_gmc_emit_pasid_mapping(ring, job->vmid, job->pasid);
+
+	if (vm_flush_needed || pasid_mapping_needed) {
 		r = amdgpu_fence_emit(ring, &fence);
 		if (r)
 			return r;
+	}
 
+	if (vm_flush_needed) {
 		mutex_lock(&id_mgr->lock);
 		dma_fence_put(id->last_flush);
-		id->last_flush = fence;
-		id->current_gpu_reset_count = atomic_read(&adev->gpu_reset_counter);
+		id->last_flush = dma_fence_get(fence);
+		id->current_gpu_reset_count =
+			atomic_read(&adev->gpu_reset_counter);
 		mutex_unlock(&id_mgr->lock);
 	}
+
+	if (pasid_mapping_needed) {
+		id->pasid = job->pasid;
+		dma_fence_put(id->pasid_mapping);
+		id->pasid_mapping = dma_fence_get(fence);
+	}
+	dma_fence_put(fence);
 
 	if (ring->funcs->emit_gds_switch && gds_switch_needed) {
 		id->gds_base = job->gds_base;

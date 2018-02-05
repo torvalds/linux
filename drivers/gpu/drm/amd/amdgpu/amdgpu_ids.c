@@ -607,6 +607,7 @@ void amdgpu_vmid_mgr_fini(struct amdgpu_device *adev)
 			amdgpu_sync_free(&id->active);
 			dma_fence_put(id->flushed_updates);
 			dma_fence_put(id->last_flush);
+			dma_fence_put(id->pasid_mapping);
 		}
 	}
 }
