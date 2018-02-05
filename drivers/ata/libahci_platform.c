@@ -340,7 +340,7 @@ static int ahci_platform_get_regulator(struct ahci_host_priv *hpriv, u32 port,
  * 2) regulator for controlling the targets power (optional)
  * 3) 0 - AHCI_MAX_CLKS clocks, as specified in the devs devicetree node,
  *    or for non devicetree enabled platforms a single clock
- *	4) phys (optional)
+ * 4) phys (optional)
  *
  * RETURNS:
  * The allocated ahci_host_priv on success, otherwise an ERR_PTR value
