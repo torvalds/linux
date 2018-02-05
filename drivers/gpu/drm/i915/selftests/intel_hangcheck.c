@@ -33,6 +33,7 @@ struct hang {
 	struct drm_i915_private *i915;
 	struct drm_i915_gem_object *hws;
 	struct drm_i915_gem_object *obj;
+	struct i915_gem_context *ctx;
 	u32 *seqno;
 	u32 *batch;
 };
@@ -45,9 +46,15 @@ static int hang_init(struct hang *h, struct drm_i915_private *i915)
 	memset(h, 0, sizeof(*h));
 	h->i915 = i915;
 
+	h->ctx = kernel_context(i915);
+	if (IS_ERR(h->ctx))
+		return PTR_ERR(h->ctx);
+
 	h->hws = i915_gem_object_create_internal(i915, PAGE_SIZE);
-	if (IS_ERR(h->hws))
-		return PTR_ERR(h->hws);
+	if (IS_ERR(h->hws)) {
+		err = PTR_ERR(h->hws);
+		goto err_ctx;
+	}
 
 	h->obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 	if (IS_ERR(h->obj)) {
@@ -79,6 +86,8 @@ err_obj:
 	i915_gem_object_put(h->obj);
 err_hws:
 	i915_gem_object_put(h->hws);
+err_ctx:
+	kernel_context_close(h->ctx);
 	return err;
 }
 
@@ -196,9 +205,7 @@ unpin_vma:
 }
 
 static struct drm_i915_gem_request *
-hang_create_request(struct hang *h,
-		    struct intel_engine_cs *engine,
-		    struct i915_gem_context *ctx)
+hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *rq;
 	int err;
@@ -225,7 +232,7 @@ hang_create_request(struct hang *h,
 		h->batch = vaddr;
 	}
 
-	rq = i915_gem_request_alloc(engine, ctx);
+	rq = i915_gem_request_alloc(engine, h->ctx);
 	if (IS_ERR(rq))
 		return rq;
 
@@ -307,6 +314,8 @@ static void hang_fini(struct hang *h)
 	i915_gem_object_unpin_map(h->hws);
 	i915_gem_object_put(h->hws);
 
+	kernel_context_close(h->ctx);
+
 	flush_test(h->i915, I915_WAIT_LOCKED);
 }
 
@@ -342,7 +351,7 @@ static int igt_hang_sanitycheck(void *arg)
 		if (!intel_engine_can_store_dword(engine))
 			continue;
 
-		rq = hang_create_request(&h, engine, i915->kernel_context);
+		rq = hang_create_request(&h, engine);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			pr_err("Failed to create request for %s, err=%d\n",
@@ -479,8 +488,7 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 				struct drm_i915_gem_request *rq;
 
 				mutex_lock(&i915->drm.struct_mutex);
-				rq = hang_create_request(&h, engine,
-							 i915->kernel_context);
+				rq = hang_create_request(&h, engine);
 				if (IS_ERR(rq)) {
 					err = PTR_ERR(rq);
 					mutex_unlock(&i915->drm.struct_mutex);
@@ -687,8 +695,7 @@ static int __igt_reset_engine_others(struct drm_i915_private *i915,
 				struct drm_i915_gem_request *rq;
 
 				mutex_lock(&i915->drm.struct_mutex);
-				rq = hang_create_request(&h, engine,
-							 i915->kernel_context);
+				rq = hang_create_request(&h, engine);
 				if (IS_ERR(rq)) {
 					err = PTR_ERR(rq);
 					mutex_unlock(&i915->drm.struct_mutex);
@@ -843,7 +850,7 @@ static int igt_wait_reset(void *arg)
 	if (err)
 		goto unlock;
 
-	rq = hang_create_request(&h, i915->engine[RCS], i915->kernel_context);
+	rq = hang_create_request(&h, i915->engine[RCS]);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto fini;
@@ -922,7 +929,7 @@ static int igt_reset_queue(void *arg)
 		if (!intel_engine_can_store_dword(engine))
 			continue;
 
-		prev = hang_create_request(&h, engine, i915->kernel_context);
+		prev = hang_create_request(&h, engine);
 		if (IS_ERR(prev)) {
 			err = PTR_ERR(prev);
 			goto fini;
@@ -936,9 +943,7 @@ static int igt_reset_queue(void *arg)
 			struct drm_i915_gem_request *rq;
 			unsigned int reset_count;
 
-			rq = hang_create_request(&h,
-						 engine,
-						 i915->kernel_context);
+			rq = hang_create_request(&h, engine);
 			if (IS_ERR(rq)) {
 				err = PTR_ERR(rq);
 				goto fini;
@@ -1049,7 +1054,7 @@ static int igt_handle_error(void *arg)
 	if (err)
 		goto err_unlock;
 
-	rq = hang_create_request(&h, engine, i915->kernel_context);
+	rq = hang_create_request(&h, engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_fini;
