@@ -1906,6 +1906,11 @@ enum i915_power_well_id {
 #define   CL_POWER_DOWN_ENABLE		(1 << 4)
 #define   SUS_CLOCK_CONFIG		(3 << 0)
 
+#define _ICL_PORT_CL_DW5_A	0x162014
+#define _ICL_PORT_CL_DW5_B	0x6C014
+#define ICL_PORT_CL_DW5(port)	_MMIO_PORT(port, _ICL_PORT_CL_DW5_A, \
+						 _ICL_PORT_CL_DW5_B)
+
 #define _PORT_CL1CM_DW9_A		0x162024
 #define _PORT_CL1CM_DW9_BC		0x6C024
 #define   IREF0RC_OFFSET_SHIFT		8
@@ -7168,8 +7173,9 @@ enum {
 #define  RESET_PCH_HANDSHAKE_ENABLE	(1<<4)
 
 #define GEN8_CHICKEN_DCPR_1		_MMIO(0x46430)
-#define   SKL_SELECT_ALTERNATE_DC_EXIT	(1<<30)
-#define   MASK_WAKEMEM			(1<<13)
+#define   SKL_SELECT_ALTERNATE_DC_EXIT	(1 << 30)
+#define   MASK_WAKEMEM			(1 << 13)
+#define   CNL_DDI_CLOCK_REG_ACCESS_ON	(1 << 7)
 
 #define SKL_DFSM			_MMIO(0x51000)
 #define SKL_DFSM_CDCLK_LIMIT_MASK	(3 << 23)
@@ -9657,5 +9663,11 @@ enum skl_power_gate {
 #define MMCD_MISC_CTRL		_MMIO(0x4ddc) /* skl+ */
 #define  MMCD_PCLA		(1 << 31)
 #define  MMCD_HOTSPOT_EN	(1 << 27)
+
+#define _ICL_PHY_MISC_A		0x64C00
+#define _ICL_PHY_MISC_B		0x64C04
+#define ICL_PHY_MISC(port)	_MMIO_PORT(port, _ICL_PHY_MISC_A, \
+						 _ICL_PHY_MISC_B)
+#define  ICL_PHY_MISC_DE_IO_COMP_PWR_DOWN	(1 << 23)
 
 #endif /* _I915_REG_H_ */

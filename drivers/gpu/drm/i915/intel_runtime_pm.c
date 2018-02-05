@@ -2919,6 +2919,80 @@ static void cnl_display_core_uninit(struct drm_i915_private *dev_priv)
 	I915_WRITE(CHICKEN_MISC_2, val);
 }
 
+static void icl_display_core_init(struct drm_i915_private *dev_priv,
+				  bool resume)
+{
+	enum port port;
+	u32 val;
+
+	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+
+	/* 1. Enable PCH reset handshake. */
+	val = I915_READ(HSW_NDE_RSTWRN_OPT);
+	val |= RESET_PCH_HANDSHAKE_ENABLE;
+	I915_WRITE(HSW_NDE_RSTWRN_OPT, val);
+
+	for (port = PORT_A; port <= PORT_B; port++) {
+		/* 2. Enable DDI combo PHY comp. */
+		val = I915_READ(ICL_PHY_MISC(port));
+		val &= ~ICL_PHY_MISC_DE_IO_COMP_PWR_DOWN;
+		I915_WRITE(ICL_PHY_MISC(port), val);
+
+		cnl_set_procmon_ref_values(dev_priv, port);
+
+		val = I915_READ(ICL_PORT_COMP_DW0(port));
+		val |= COMP_INIT;
+		I915_WRITE(ICL_PORT_COMP_DW0(port), val);
+
+		/* 3. Set power down enable. */
+		val = I915_READ(ICL_PORT_CL_DW5(port));
+		val |= CL_POWER_DOWN_ENABLE;
+		I915_WRITE(ICL_PORT_CL_DW5(port), val);
+	}
+
+	/* 4. Enable power well 1 (PG1) and aux IO power. */
+	/* FIXME: ICL power wells code not here yet. */
+
+	/* 5. Enable CDCLK. */
+	icl_init_cdclk(dev_priv);
+
+	/* 6. Enable DBUF. */
+	gen9_dbuf_enable(dev_priv);
+
+	/* 7. Setup MBUS. */
+	/* FIXME: MBUS code not here yet. */
+
+	/* 8. CHICKEN_DCPR_1 */
+	I915_WRITE(GEN8_CHICKEN_DCPR_1, I915_READ(GEN8_CHICKEN_DCPR_1) |
+					CNL_DDI_CLOCK_REG_ACCESS_ON);
+}
+
+static void icl_display_core_uninit(struct drm_i915_private *dev_priv)
+{
+	enum port port;
+	u32 val;
+
+	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+
+	/* 1. Disable all display engine functions -> aready done */
+
+	/* 2. Disable DBUF */
+	gen9_dbuf_disable(dev_priv);
+
+	/* 3. Disable CD clock */
+	icl_uninit_cdclk(dev_priv);
+
+	/* 4. Disable Power Well 1 (PG1) and Aux IO Power */
+	/* FIXME: ICL power wells code not here yet. */
+
+	/* 5. Disable Comp */
+	for (port = PORT_A; port <= PORT_B; port++) {
+		val = I915_READ(ICL_PHY_MISC(port));
+		val |= ICL_PHY_MISC_DE_IO_COMP_PWR_DOWN;
+		I915_WRITE(ICL_PHY_MISC(port), val);
+	}
+}
+
 static void chv_phy_control_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_well *cmn_bc =
@@ -3051,7 +3125,9 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 
 	power_domains->initializing = true;
 
-	if (IS_CANNONLAKE(dev_priv)) {
+	if (IS_ICELAKE(dev_priv)) {
+		icl_display_core_init(dev_priv, resume);
+	} else if (IS_CANNONLAKE(dev_priv)) {
 		cnl_display_core_init(dev_priv, resume);
 	} else if (IS_GEN9_BC(dev_priv)) {
 		skl_display_core_init(dev_priv, resume);
@@ -3092,7 +3168,9 @@ void intel_power_domains_suspend(struct drm_i915_private *dev_priv)
 	if (!i915_modparams.disable_power_well)
 		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 
-	if (IS_CANNONLAKE(dev_priv))
+	if (IS_ICELAKE(dev_priv))
+		icl_display_core_uninit(dev_priv);
+	else if (IS_CANNONLAKE(dev_priv))
 		cnl_display_core_uninit(dev_priv);
 	else if (IS_GEN9_BC(dev_priv))
 		skl_display_core_uninit(dev_priv);
