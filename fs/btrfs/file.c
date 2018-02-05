@@ -1997,8 +1997,6 @@ int btrfs_release_file(struct inode *inode, struct file *filp)
 {
 	struct btrfs_file_private *private = filp->private_data;
 
-	if (private && private->trans)
-		btrfs_ioctl_trans_end(filp);
 	if (private && private->filldir_buf)
 		kfree(private->filldir_buf);
 	kfree(private);
@@ -2188,12 +2186,6 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		inode_unlock(inode);
 		goto out;
 	}
-
-	/*
-	 * ok we haven't committed the transaction yet, lets do a commit
-	 */
-	if (file->private_data)
-		btrfs_ioctl_trans_end(file);
 
 	/*
 	 * We use start here because we will need to wait on the IO to complete
