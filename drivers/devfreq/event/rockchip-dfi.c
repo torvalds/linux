@@ -26,6 +26,8 @@
 #include <linux/list.h>
 #include <linux/of.h>
 
+#define PX30_PMUGRF_OS_REG2		0x208
+
 #define RK3128_GRF_SOC_CON0		0x140
 #define RK3128_GRF_OS_REG1		0x1cc
 #define RK3128_GRF_DFI_WRNUM		0x220
@@ -62,7 +64,7 @@
 #define DDR4_EN				(0x10001 << 5)
 #define LPDDR4_EN			(0x10001 << 4)
 #define HARDWARE_EN			(0x10001 << 3)
-#define LPDDR3_EN			(0x10001 << 2)
+#define LPDDR2_3_EN			(0x10001 << 2)
 #define SOFTWARE_EN			(0x10001 << 1)
 #define SOFTWARE_DIS			(0x10000 << 1)
 #define TIME_CNT_EN			(0x10001 << 0)
@@ -78,6 +80,7 @@
 enum {
 	DDR4 = 0,
 	DDR3 = 3,
+	LPDDR2 = 5,
 	LPDDR3 = 6,
 	LPDDR4 = 7,
 	UNUSED = 0xFF
@@ -101,6 +104,7 @@ struct rockchip_dfi {
 	void __iomem *regs;
 	struct regmap *regmap_pmu;
 	struct regmap *regmap_grf;
+	struct regmap *regmap_pmugrf;
 	struct clk *clk;
 	u32 dram_type;
 	/*
@@ -344,8 +348,8 @@ static void rockchip_dfi_start_hardware_counter(struct devfreq_event_dev *edev)
 	writel_relaxed(CLR_DDRMON_CTRL, dfi_regs + DDRMON_CTRL);
 
 	/* set ddr type to dfi */
-	if (info->dram_type == LPDDR3)
-		writel_relaxed(LPDDR3_EN, dfi_regs + DDRMON_CTRL);
+	if (info->dram_type == LPDDR3 || info->dram_type == LPDDR2)
+		writel_relaxed(LPDDR2_3_EN, dfi_regs + DDRMON_CTRL);
 	else if (info->dram_type == LPDDR4)
 		writel_relaxed(LPDDR4_EN, dfi_regs + DDRMON_CTRL);
 	else if (info->dram_type == DDR4)
@@ -448,6 +452,36 @@ static const struct devfreq_event_ops rockchip_dfi_ops = {
 	.get_event = rockchip_dfi_get_event,
 	.set_event = rockchip_dfi_set_event,
 };
+
+static __init int px30_dfi_init(struct platform_device *pdev,
+				  struct rockchip_dfi *data,
+				  struct devfreq_event_desc *desc)
+{
+	struct device_node *np = pdev->dev.of_node, *node;
+	struct resource *res;
+	u32 val;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	data->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(data->regs))
+		return PTR_ERR(data->regs);
+
+	node = of_parse_phandle(np, "rockchip,pmugrf", 0);
+	if (node) {
+		data->regmap_pmugrf = syscon_node_to_regmap(node);
+		if (IS_ERR(data->regmap_pmugrf))
+			return PTR_ERR(data->regmap_pmugrf);
+	}
+
+	regmap_read(data->regmap_pmugrf, PX30_PMUGRF_OS_REG2, &val);
+	data->dram_type = READ_DRAMTYPE_INFO(val);
+	data->ch_msk = 1;
+	data->clk = NULL;
+
+	desc->ops = &rockchip_dfi_ops;
+
+	return 0;
+}
 
 static __init int rk3128_dfi_init(struct platform_device *pdev,
 				  struct rockchip_dfi *data,
@@ -590,6 +624,7 @@ static __init int rk3328_dfi_init(struct platform_device *pdev,
 }
 
 static const struct of_device_id rockchip_dfi_id_match[] = {
+	{ .compatible = "rockchip,px30-dfi", .data = px30_dfi_init },
 	{ .compatible = "rockchip,rk3128-dfi", .data = rk3128_dfi_init },
 	{ .compatible = "rockchip,rk3288-dfi", .data = rk3288_dfi_init },
 	{ .compatible = "rockchip,rk3328-dfi", .data = rk3328_dfi_init },
