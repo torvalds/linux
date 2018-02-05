@@ -15,6 +15,7 @@
 #include <uapi/linux/tcp.h>
 #include <uapi/linux/filter.h>
 #include <uapi/linux/pkt_cls.h>
+#include <uapi/linux/erspan.h>
 #include <net/ipv6.h>
 #include "bpf_helpers.h"
 #include "bpf_endian.h"
@@ -35,22 +36,8 @@ struct geneve_opt {
 	u8	opt_data[8]; /* hard-coded to 8 byte */
 };
 
-struct erspan_md2 {
-	__be32 timestamp;
-	__be16 sgt;
-	__be16 flags;
-};
-
 struct vxlan_metadata {
 	u32     gbp;
-};
-
-struct erspan_metadata {
-	union {
-		__be32 index;
-		struct erspan_md2 md2;
-	} u;
-	int version;
 };
 
 SEC("gre_set_tunnel")
@@ -156,13 +143,15 @@ int _erspan_set_tunnel(struct __sk_buff *skb)
 	__builtin_memset(&md, 0, sizeof(md));
 #ifdef ERSPAN_V1
 	md.version = 1;
-	md.u.index = htonl(123);
+	md.u.index = bpf_htonl(123);
 #else
 	u8 direction = 1;
-	u16 hwid = 7;
+	u8 hwid = 7;
 
 	md.version = 2;
-	md.u.md2.flags = htons((direction << 3) | (hwid << 4));
+	md.u.md2.dir = direction;
+	md.u.md2.hwid = hwid & 0xf;
+	md.u.md2.hwid_upper = (hwid >> 4) & 0x3;
 #endif
 
 	ret = bpf_skb_set_tunnel_opt(skb, &md, sizeof(md));
@@ -207,9 +196,9 @@ int _erspan_get_tunnel(struct __sk_buff *skb)
 	char fmt2[] = "\tdirection %d hwid %x timestamp %u\n";
 
 	bpf_trace_printk(fmt2, sizeof(fmt2),
-		(ntohs(md.u.md2.flags) >> 3) & 0x1,
-		(ntohs(md.u.md2.flags) >> 4) & 0x3f,
-		bpf_ntohl(md.u.md2.timestamp));
+			 md.u.md2.dir,
+			 (md.u.md2.hwid_upper << 4) + md.u.md2.hwid,
+			 bpf_ntohl(md.u.md2.timestamp));
 #endif
 
 	return TC_ACT_OK;
@@ -242,10 +231,12 @@ int _ip4ip6erspan_set_tunnel(struct __sk_buff *skb)
 	md.version = 1;
 #else
 	u8 direction = 0;
-	u16 hwid = 17;
+	u8 hwid = 17;
 
 	md.version = 2;
-	md.u.md2.flags = htons((direction << 3) | (hwid << 4));
+	md.u.md2.dir = direction;
+	md.u.md2.hwid = hwid & 0xf;
+	md.u.md2.hwid_upper = (hwid >> 4) & 0x3;
 #endif
 
 	ret = bpf_skb_set_tunnel_opt(skb, &md, sizeof(md));
@@ -290,9 +281,9 @@ int _ip4ip6erspan_get_tunnel(struct __sk_buff *skb)
 	char fmt2[] = "\tdirection %d hwid %x timestamp %u\n";
 
 	bpf_trace_printk(fmt2, sizeof(fmt2),
-		(ntohs(md.u.md2.flags) >> 3) & 0x1,
-		(ntohs(md.u.md2.flags) >> 4) & 0x3f,
-		bpf_ntohl(md.u.md2.timestamp));
+			 md.u.md2.dir,
+			 (md.u.md2.hwid_upper << 4) + md.u.md2.hwid,
+			 bpf_ntohl(md.u.md2.timestamp));
 #endif
 
 	return TC_ACT_OK;
