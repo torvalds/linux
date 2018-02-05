@@ -2,7 +2,7 @@
  *  Copyright (C) 2006 Compulab, Ltd.
  *  Mike Rapoport <mike@compulab.co.il>
  *
- *  Derived from drivers/mtd/nand/h1910.c
+ *  Derived from drivers/mtd/nand/h1910.c (removed in v3.10)
  *       Copyright (C) 2002 Marius Gröger (mag@sysgo.de)
  *       Copyright (c) 2001 Thomas Gleixner (gleixner@autronix.de)
  *

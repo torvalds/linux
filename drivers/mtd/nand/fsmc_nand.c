@@ -7,7 +7,7 @@
  * Vipin Kumar <vipin.kumar@st.com>
  * Ashish Priyadarshi
  *
- * Based on drivers/mtd/nand/nomadik_nand.c
+ * Based on drivers/mtd/nand/nomadik_nand.c (removed in v3.8)
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any

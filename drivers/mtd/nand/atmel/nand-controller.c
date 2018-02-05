@@ -9,10 +9,10 @@
  *
  *   Copyright 2003 Rick Bronson
  *
- *   Derived from drivers/mtd/nand/autcpu12.c
+ *   Derived from drivers/mtd/nand/autcpu12.c (removed in v3.8)
  *	Copyright 2001 Thomas Gleixner (gleixner@autronix.de)
  *
- *   Derived from drivers/mtd/spia.c
+ *   Derived from drivers/mtd/spia.c (removed in v3.8)
  *	Copyright 2000 Steven J. Hill (sjhill@cotw.com)
  *
  *
