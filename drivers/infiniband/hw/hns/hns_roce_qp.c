@@ -512,9 +512,9 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	hr_qp->ibqp.qp_type = init_attr->qp_type;
 
 	if (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR)
-		hr_qp->sq_signal_bits = IB_SIGNAL_ALL_WR;
+		hr_qp->sq_signal_bits = cpu_to_le32(IB_SIGNAL_ALL_WR);
 	else
-		hr_qp->sq_signal_bits = IB_SIGNAL_REQ_WR;
+		hr_qp->sq_signal_bits = cpu_to_le32(IB_SIGNAL_REQ_WR);
 
 	ret = hns_roce_set_rq_size(hr_dev, &init_attr->cap, !!ib_pd->uobject,
 				   !!init_attr->srq, hr_qp);
@@ -936,20 +936,6 @@ void hns_roce_unlock_cqs(struct hns_roce_cq *send_cq,
 	}
 }
 EXPORT_SYMBOL_GPL(hns_roce_unlock_cqs);
-
-__be32 send_ieth(struct ib_send_wr *wr)
-{
-	switch (wr->opcode) {
-	case IB_WR_SEND_WITH_IMM:
-	case IB_WR_RDMA_WRITE_WITH_IMM:
-		return cpu_to_le32(wr->ex.imm_data);
-	case IB_WR_SEND_WITH_INV:
-		return cpu_to_le32(wr->ex.invalidate_rkey);
-	default:
-		return 0;
-	}
-}
-EXPORT_SYMBOL_GPL(send_ieth);
 
 static void *get_wqe(struct hns_roce_qp *hr_qp, int offset)
 {

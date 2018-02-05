@@ -466,7 +466,7 @@ struct hns_roce_qp {
 	struct ib_qp		ibqp;
 	struct hns_roce_buf	hr_buf;
 	struct hns_roce_wq	rq;
-	__le64			doorbell_qpn;
+	u32			doorbell_qpn;
 	__le32			sq_signal_bits;
 	u32			sq_next_wqe;
 	int			sq_max_wqes_per_wr;
