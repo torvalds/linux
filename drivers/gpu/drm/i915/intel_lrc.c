@@ -1462,6 +1462,9 @@ static void enable_execlists(struct intel_engine_cs *engine)
 	I915_WRITE(RING_HWS_PGA(engine->mmio_base),
 		   engine->status_page.ggtt_offset);
 	POSTING_READ(RING_HWS_PGA(engine->mmio_base));
+
+	/* Following the reset, we need to reload the CSB read/write pointers */
+	engine->execlists.csb_head = -1;
 }
 
 static int gen8_init_common_ring(struct intel_engine_cs *engine)
@@ -1477,11 +1480,6 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 	intel_engine_init_hangcheck(engine);
 
 	enable_execlists(engine);
-
-	GEM_BUG_ON(engine->id >= ARRAY_SIZE(gtiir));
-
-	execlists->csb_head = -1;
-	execlists->active = 0;
 
 	/* After a GPU reset, we may have requests to replay */
 	if (execlists->first)
@@ -1527,6 +1525,8 @@ static void reset_irq(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	int i;
+
+	GEM_BUG_ON(engine->id >= ARRAY_SIZE(gtiir));
 
 	/*
 	 * Clear any pending interrupt state.
@@ -1575,6 +1575,9 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	__unwind_incomplete_requests(engine);
 
 	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+
+	/* Mark all CS interrupts as complete */
+	execlists->active = 0;
 
 	/* If the request was innocent, we leave the request in the ELSP
 	 * and will try to replay it on restarting. The context image may
