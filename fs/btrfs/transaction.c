@@ -37,22 +37,16 @@
 
 static const unsigned int btrfs_blocked_trans_types[TRANS_STATE_MAX] = {
 	[TRANS_STATE_RUNNING]		= 0U,
-	[TRANS_STATE_BLOCKED]		= (__TRANS_USERSPACE |
-					   __TRANS_START),
-	[TRANS_STATE_COMMIT_START]	= (__TRANS_USERSPACE |
-					   __TRANS_START |
-					   __TRANS_ATTACH),
-	[TRANS_STATE_COMMIT_DOING]	= (__TRANS_USERSPACE |
-					   __TRANS_START |
+	[TRANS_STATE_BLOCKED]		=  __TRANS_START,
+	[TRANS_STATE_COMMIT_START]	= (__TRANS_START | __TRANS_ATTACH),
+	[TRANS_STATE_COMMIT_DOING]	= (__TRANS_START |
 					   __TRANS_ATTACH |
 					   __TRANS_JOIN),
-	[TRANS_STATE_UNBLOCKED]		= (__TRANS_USERSPACE |
-					   __TRANS_START |
+	[TRANS_STATE_UNBLOCKED]		= (__TRANS_START |
 					   __TRANS_ATTACH |
 					   __TRANS_JOIN |
 					   __TRANS_JOIN_NOLOCK),
-	[TRANS_STATE_COMPLETED]		= (__TRANS_USERSPACE |
-					   __TRANS_START |
+	[TRANS_STATE_COMPLETED]		= (__TRANS_START |
 					   __TRANS_ATTACH |
 					   __TRANS_JOIN |
 					   __TRANS_JOIN_NOLOCK),
@@ -449,9 +443,6 @@ static int may_wait_transaction(struct btrfs_fs_info *fs_info, int type)
 	if (test_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags))
 		return 0;
 
-	if (type == TRANS_USERSPACE)
-		return 1;
-
 	if (type == TRANS_START &&
 	    !atomic_read(&fs_info->open_ioctl_trans))
 		return 1;
@@ -593,7 +584,7 @@ again:
 got_it:
 	btrfs_record_root_in_trans(h, root);
 
-	if (!current->journal_info && type != TRANS_USERSPACE)
+	if (!current->journal_info)
 		current->journal_info = h;
 	return h;
 
@@ -667,12 +658,6 @@ struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root)
 struct btrfs_trans_handle *btrfs_join_transaction_nolock(struct btrfs_root *root)
 {
 	return start_transaction(root, 0, TRANS_JOIN_NOLOCK,
-				 BTRFS_RESERVE_NO_FLUSH, true);
-}
-
-struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *root)
-{
-	return start_transaction(root, 0, TRANS_USERSPACE,
 				 BTRFS_RESERVE_NO_FLUSH, true);
 }
 
