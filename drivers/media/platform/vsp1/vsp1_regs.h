@@ -225,7 +225,7 @@
 #define VI6_RPF_MULT_ALPHA_P_MMD_RATIO	(1 << 8)
 #define VI6_RPF_MULT_ALPHA_P_MMD_IMAGE	(2 << 8)
 #define VI6_RPF_MULT_ALPHA_P_MMD_BOTH	(3 << 8)
-#define VI6_RPF_MULT_ALPHA_RATIO_MASK	(0xff < 0)
+#define VI6_RPF_MULT_ALPHA_RATIO_MASK	(0xff << 0)
 #define VI6_RPF_MULT_ALPHA_RATIO_SHIFT	0
 
 /* -----------------------------------------------------------------------------
