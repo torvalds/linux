@@ -4,7 +4,7 @@
  *
  */
 #include <linux/kernel.h>
-#include "../include/mc.h"
+#include <linux/fsl/mc.h>
 #include "../include/dpbp.h"
 
 #include "dpbp-cmd.h"

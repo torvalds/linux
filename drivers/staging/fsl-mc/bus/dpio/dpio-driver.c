@@ -14,7 +14,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 
-#include "../../include/mc.h"
+#include <linux/fsl/mc.h>
 #include "../../include/dpaa2-io.h"
 
 #include "qbman-portal.h"

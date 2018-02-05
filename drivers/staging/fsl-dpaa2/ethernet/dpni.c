@@ -32,7 +32,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include "../../fsl-mc/include/mc.h"
+#include <linux/fsl/mc.h>
 #include "dpni.h"
 #include "dpni-cmd.h"
 

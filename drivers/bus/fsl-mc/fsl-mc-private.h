@@ -8,7 +8,7 @@
 #ifndef _FSL_MC_PRIVATE_H_
 #define _FSL_MC_PRIVATE_H_
 
-#include "../include/mc.h"
+#include <linux/fsl/mc.h>
 #include <linux/mutex.h>
 
 /*
