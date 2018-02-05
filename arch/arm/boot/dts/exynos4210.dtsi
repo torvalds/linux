@@ -17,7 +17,6 @@
  */
 
 #include "exynos4.dtsi"
-#include "exynos4210-pinctrl.dtsi"
 #include "exynos4-cpu-thermal.dtsi"
 
 / {
@@ -468,3 +467,5 @@
 &sysmmu_rotator {
 	power-domains = <&pd_lcd0>;
 };
+
+#include "exynos4210-pinctrl.dtsi"
