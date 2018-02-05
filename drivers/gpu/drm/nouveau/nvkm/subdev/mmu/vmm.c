@@ -642,7 +642,7 @@ nvkm_vmm_ptes_sparse(struct nvkm_vmm *vmm, u64 addr, u64 size, bool ref)
 			else
 				block = (size >> page[i].shift) << page[i].shift;
 		} else {
-			block = (size >> page[i].shift) << page[i].shift;;
+			block = (size >> page[i].shift) << page[i].shift;
 		}
 
 		/* Perform operation. */
