@@ -3199,6 +3199,13 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
+	if (drm_debug & DRM_UT_DRIVER) {
+		struct drm_printer p = drm_debug_printer(__func__);
+
+		for_each_engine(engine, i915, id)
+			intel_engine_dump(engine, &p, "%s\n", engine->name);
+	}
+
 	/*
 	 * First, stop submission to hw, but do not yet complete requests by
 	 * rolling the global seqno forward (since this would complete requests
