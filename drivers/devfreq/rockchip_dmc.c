@@ -1337,6 +1337,17 @@ static int rk3128_dmc_init(struct platform_device *pdev,
 	return 0;
 }
 
+static int rk3228_dmc_init(struct platform_device *pdev,
+			   struct rockchip_dmcfreq *dmcfreq)
+{
+	/*
+	 * dmc_init have been done in uboot.
+	 */
+	dmcfreq->set_auto_self_refresh = rockchip_ddr_set_auto_self_refresh;
+
+	return 0;
+}
+
 static int rk3288_dmc_init(struct platform_device *pdev,
 			   struct rockchip_dmcfreq *dmcfreq)
 {
@@ -1596,6 +1607,7 @@ static int rk3399_dmc_init(struct platform_device *pdev)
 
 static const struct of_device_id rockchip_dmcfreq_of_match[] = {
 	{ .compatible = "rockchip,rk3128-dmc", .data = rk3128_dmc_init },
+	{ .compatible = "rockchip,rk3228-dmc", .data = rk3228_dmc_init },
 	{ .compatible = "rockchip,rk3288-dmc", .data = rk3288_dmc_init },
 	{ .compatible = "rockchip,rk3328-dmc", .data = rk3328_dmc_init },
 	{ .compatible = "rockchip,rk3368-dmc", .data = rk3368_dmc_init },
