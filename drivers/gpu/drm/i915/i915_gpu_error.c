@@ -396,6 +396,11 @@ static void error_print_instdone(struct drm_i915_error_state_buf *m,
 			   ee->instdone.row[slice][subslice]);
 }
 
+static const char *bannable(const struct drm_i915_error_context *ctx)
+{
+	return ctx->bannable ? "" : " (unbannable)";
+}
+
 static void error_print_request(struct drm_i915_error_state_buf *m,
 				const char *prefix,
 				const struct drm_i915_error_request *erq)
@@ -414,9 +419,10 @@ static void error_print_context(struct drm_i915_error_state_buf *m,
 				const char *header,
 				const struct drm_i915_error_context *ctx)
 {
-	err_printf(m, "%s%s[%d] user_handle %d hw_id %d, prio %d, ban score %d guilty %d active %d\n",
+	err_printf(m, "%s%s[%d] user_handle %d hw_id %d, prio %d, ban score %d%s guilty %d active %d\n",
 		   header, ctx->comm, ctx->pid, ctx->handle, ctx->hw_id,
-		   ctx->priority, ctx->ban_score, ctx->guilty, ctx->active);
+		   ctx->priority, ctx->ban_score, bannable(ctx),
+		   ctx->guilty, ctx->active);
 }
 
 static void error_print_engine(struct drm_i915_error_state_buf *m,
@@ -644,11 +650,12 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
 		if (error->engine[i].hangcheck_stalled &&
 		    error->engine[i].context.pid) {
-			err_printf(m, "Active process (on ring %s): %s [%d], score %d\n",
+			err_printf(m, "Active process (on ring %s): %s [%d], score %d%s\n",
 				   engine_name(m->i915, i),
 				   error->engine[i].context.comm,
 				   error->engine[i].context.pid,
-				   error->engine[i].context.ban_score);
+				   error->engine[i].context.ban_score,
+				   bannable(&error->engine[i].context));
 		}
 	}
 	err_printf(m, "Reset count: %u\n", error->reset_count);
@@ -736,12 +743,13 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		if (obj) {
 			err_puts(m, dev_priv->engine[i]->name);
 			if (ee->context.pid)
-				err_printf(m, " (submitted by %s [%d], ctx %d [%d], score %d)",
+				err_printf(m, " (submitted by %s [%d], ctx %d [%d], score %d%s)",
 					   ee->context.comm,
 					   ee->context.pid,
 					   ee->context.handle,
 					   ee->context.hw_id,
-					   ee->context.ban_score);
+					   ee->context.ban_score,
+					   bannable(&ee->context));
 			err_printf(m, " --- gtt_offset = 0x%08x %08x\n",
 				   upper_32_bits(obj->gtt_offset),
 				   lower_32_bits(obj->gtt_offset));
@@ -1383,6 +1391,7 @@ static void record_context(struct drm_i915_error_context *e,
 	e->hw_id = ctx->hw_id;
 	e->priority = ctx->priority;
 	e->ban_score = atomic_read(&ctx->ban_score);
+	e->bannable = i915_gem_context_is_bannable(ctx);
 	e->guilty = atomic_read(&ctx->guilty_count);
 	e->active = atomic_read(&ctx->active_count);
 }

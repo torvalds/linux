@@ -555,6 +555,7 @@ struct i915_gpu_state {
 			int ban_score;
 			int active;
 			int guilty;
+			bool bannable;
 		} context;
 
 		struct drm_i915_error_object {
