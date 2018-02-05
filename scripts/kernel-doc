@@ -1780,6 +1780,21 @@ sub process_export_file($) {
     close(IN);
 }
 
+#
+# Parsers for the various processing states.
+#
+# STATE_NORMAL: looking for the /** to begin everything.
+#
+sub process_normal() {
+    if (/$doc_start/o) {
+	$state = STATE_NAME;	# next line is always the function name
+	$in_doc_sect = 0;
+	$declaration_start_line = $. + 1;
+    }
+}
+
+
+
 sub process_file($) {
     my $file;
     my $identifier;
@@ -1807,11 +1822,7 @@ sub process_file($) {
 	# Replace tabs by spaces
         while ($_ =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {};
 	if ($state == STATE_NORMAL) {
-	    if (/$doc_start/o) {
-		$state = STATE_NAME;	# next line is always the function name
-		$in_doc_sect = 0;
-		$declaration_start_line = $. + 1;
-	    }
+	    process_normal();
 	} elsif ($state == STATE_NAME) {# this line is the function name (always)
 	    if (/$doc_block/o) {
 		$state = STATE_DOCBLOCK;
