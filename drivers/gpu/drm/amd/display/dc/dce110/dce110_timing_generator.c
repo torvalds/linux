@@ -2091,8 +2091,8 @@ static bool dce110_is_tg_enabled(struct timing_generator *tg)
 	return field == 1;
 }
 
-static bool dce110_configure_crc(struct timing_generator *tg,
-				 const struct crc_params *params)
+bool dce110_configure_crc(struct timing_generator *tg,
+			  const struct crc_params *params)
 {
 	uint32_t cntl_addr = 0;
 	uint32_t addr = 0;
@@ -2168,8 +2168,8 @@ static bool dce110_configure_crc(struct timing_generator *tg,
 	return true;
 }
 
-static bool dce110_get_crc(struct timing_generator *tg,
-			   uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
+bool dce110_get_crc(struct timing_generator *tg,
+		    uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
 {
 	uint32_t addr = 0;
 	uint32_t value = 0;

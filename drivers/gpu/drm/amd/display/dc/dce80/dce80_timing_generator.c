@@ -212,6 +212,8 @@ static const struct timing_generator_funcs dce80_tg_funcs = {
 		/* DCE8.0 overrides */
 		.enable_advanced_request =
 				dce80_timing_generator_enable_advanced_request,
+		.configure_crc = dce110_configure_crc,
+		.get_crc = dce110_get_crc,
 };
 
 void dce80_timing_generator_construct(
