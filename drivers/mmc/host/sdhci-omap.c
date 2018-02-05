@@ -244,6 +244,12 @@ static int sdhci_omap_start_signal_voltage_switch(struct mmc_host *mmc,
 	return 0;
 }
 
+static void sdhci_omap_set_power_mode(struct sdhci_omap_host *omap_host,
+				      u8 power_mode)
+{
+	omap_host->power_mode = power_mode;
+}
+
 static void sdhci_omap_set_bus_mode(struct sdhci_omap_host *omap_host,
 				    unsigned int mode)
 {
@@ -273,6 +279,7 @@ static void sdhci_omap_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	sdhci_omap_set_bus_mode(omap_host, ios->bus_mode);
 	sdhci_set_ios(mmc, ios);
+	sdhci_omap_set_power_mode(omap_host, ios->power_mode);
 }
 
 static u16 sdhci_omap_calc_divisor(struct sdhci_pltfm_host *host,
@@ -401,8 +408,6 @@ static void sdhci_omap_init_74_clocks(struct sdhci_host *host, u8 power_mode)
 	sdhci_omap_writel(omap_host, SDHCI_OMAP_STAT, INT_CC_EN);
 
 	enable_irq(host->irq);
-
-	omap_host->power_mode = power_mode;
 }
 
 static struct sdhci_ops sdhci_omap_ops = {
@@ -504,6 +509,7 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 	omap_host->host = host;
 	omap_host->base = host->ioaddr;
 	omap_host->dev = dev;
+	omap_host->power_mode = MMC_POWER_UNDEFINED;
 	host->ioaddr += offset;
 
 	mmc = host->mmc;
