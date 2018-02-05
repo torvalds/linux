@@ -312,8 +312,8 @@ _GLOBAL(tm_reclaim)
 	blr
 
 
-	/* void __tm_recheckpoint(struct thread_struct *thread,
-	 *			  unsigned long orig_msr)
+       /*
+	 * void __tm_recheckpoint(struct thread_struct *thread)
 	 *	- Restore the checkpointed register state saved by tm_reclaim
 	 *	  when we switch_to a process.
 	 *
