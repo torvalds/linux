@@ -322,15 +322,6 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 			info = &tun_dst->u.tun_info;
 			info->key.tun_flags |= TUNNEL_ERSPAN_OPT;
 			info->options_len = sizeof(*md);
-		} else {
-			tunnel->erspan_ver = ver;
-			if (ver == 1) {
-				tunnel->index = ntohl(pkt_md->u.index);
-			} else {
-				tunnel->dir = pkt_md->u.md2.dir;
-				tunnel->hwid = get_hwid(&pkt_md->u.md2);
-			}
-
 		}
 
 		skb_reset_mac_header(skb);

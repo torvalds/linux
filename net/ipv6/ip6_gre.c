@@ -562,15 +562,6 @@ static int ip6erspan_rcv(struct sk_buff *skb, int gre_hdr_len,
 			ip6_tnl_rcv(tunnel, skb, tpi, tun_dst, log_ecn_error);
 
 		} else {
-			tunnel->parms.erspan_ver = ver;
-
-			if (ver == 1) {
-				tunnel->parms.index = ntohl(pkt_md->u.index);
-			} else {
-				tunnel->parms.dir = pkt_md->u.md2.dir;
-				tunnel->parms.hwid = get_hwid(&pkt_md->u.md2);
-			}
-
 			ip6_tnl_rcv(tunnel, skb, tpi, NULL, log_ecn_error);
 		}
 
