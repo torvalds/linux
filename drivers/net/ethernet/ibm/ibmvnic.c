@@ -3305,7 +3305,11 @@ static void handle_vpd_rsp(union ibmvnic_crq *crq,
 	 */
 	substr = strnstr(adapter->vpd->buff, "RM", adapter->vpd->len);
 	if (!substr) {
-		dev_info(dev, "No FW level provided by VPD\n");
+		dev_info(dev, "Warning - No FW level has been provided in the VPD buffer by the VIOS Server\n");
+		ptr = strncpy((char *)adapter->fw_version, "N/A",
+			      3 * sizeof(char));
+		if (!ptr)
+			dev_err(dev, "Failed to inform that firmware version is unavailable to the adapter\n");
 		goto complete;
 	}
 

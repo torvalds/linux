@@ -581,7 +581,7 @@ static int __init rtas_init(void)
 	if (!rtas_log_buf)
 		return -ENODEV;
 
-	entry = proc_create("powerpc/rtas/error_log", S_IRUSR, NULL,
+	entry = proc_create("powerpc/rtas/error_log", 0400, NULL,
 			    &proc_rtas_log_operations);
 	if (!entry)
 		printk(KERN_ERR "Failed to create error_log proc entry\n");

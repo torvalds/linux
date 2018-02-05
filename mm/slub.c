@@ -3813,13 +3813,15 @@ EXPORT_SYMBOL(__kmalloc_node);
 
 #ifdef CONFIG_HARDENED_USERCOPY
 /*
- * Rejects objects that are incorrectly sized.
+ * Rejects incorrectly sized objects and objects that are to be copied
+ * to/from userspace but do not fall entirely within the containing slab
+ * cache's usercopy region.
  *
  * Returns NULL if check passes, otherwise const char * to name of cache
  * to indicate an error.
  */
-const char *__check_heap_object(const void *ptr, unsigned long n,
-				struct page *page)
+void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
+			 bool to_user)
 {
 	struct kmem_cache *s;
 	unsigned long offset;
@@ -3827,11 +3829,11 @@ const char *__check_heap_object(const void *ptr, unsigned long n,
 
 	/* Find object and usable object size. */
 	s = page->slab_cache;
-	object_size = slab_ksize(s);
 
 	/* Reject impossible pointers. */
 	if (ptr < page_address(page))
-		return s->name;
+		usercopy_abort("SLUB object not in SLUB page?!", NULL,
+			       to_user, 0, n);
 
 	/* Find offset within object. */
 	offset = (ptr - page_address(page)) % s->size;
@@ -3839,15 +3841,31 @@ const char *__check_heap_object(const void *ptr, unsigned long n,
 	/* Adjust for redzone and reject if within the redzone. */
 	if (kmem_cache_debug(s) && s->flags & SLAB_RED_ZONE) {
 		if (offset < s->red_left_pad)
-			return s->name;
+			usercopy_abort("SLUB object in left red zone",
+				       s->name, to_user, offset, n);
 		offset -= s->red_left_pad;
 	}
 
-	/* Allow address range falling entirely within object size. */
-	if (offset <= object_size && n <= object_size - offset)
-		return NULL;
+	/* Allow address range falling entirely within usercopy region. */
+	if (offset >= s->useroffset &&
+	    offset - s->useroffset <= s->usersize &&
+	    n <= s->useroffset - offset + s->usersize)
+		return;
 
-	return s->name;
+	/*
+	 * If the copy is still within the allocated object, produce
+	 * a warning instead of rejecting the copy. This is intended
+	 * to be a temporary method to find any missing usercopy
+	 * whitelists.
+	 */
+	object_size = slab_ksize(s);
+	if (usercopy_fallback &&
+	    offset <= object_size && n <= object_size - offset) {
+		usercopy_warn("SLUB object", s->name, to_user, offset, n);
+		return;
+	}
+
+	usercopy_abort("SLUB object", s->name, to_user, offset, n);
 }
 #endif /* CONFIG_HARDENED_USERCOPY */
 
@@ -4181,7 +4199,7 @@ void __init kmem_cache_init(void)
 	kmem_cache = &boot_kmem_cache;
 
 	create_boot_cache(kmem_cache_node, "kmem_cache_node",
-		sizeof(struct kmem_cache_node), SLAB_HWCACHE_ALIGN);
+		sizeof(struct kmem_cache_node), SLAB_HWCACHE_ALIGN, 0, 0);
 
 	register_hotmemory_notifier(&slab_memory_callback_nb);
 
@@ -4191,7 +4209,7 @@ void __init kmem_cache_init(void)
 	create_boot_cache(kmem_cache, "kmem_cache",
 			offsetof(struct kmem_cache, node) +
 				nr_node_ids * sizeof(struct kmem_cache_node *),
-		       SLAB_HWCACHE_ALIGN);
+		       SLAB_HWCACHE_ALIGN, 0, 0);
 
 	kmem_cache = bootstrap(&boot_kmem_cache);
 
@@ -5061,6 +5079,12 @@ static ssize_t cache_dma_show(struct kmem_cache *s, char *buf)
 SLAB_ATTR_RO(cache_dma);
 #endif
 
+static ssize_t usersize_show(struct kmem_cache *s, char *buf)
+{
+	return sprintf(buf, "%zu\n", s->usersize);
+}
+SLAB_ATTR_RO(usersize);
+
 static ssize_t destroy_by_rcu_show(struct kmem_cache *s, char *buf)
 {
 	return sprintf(buf, "%d\n", !!(s->flags & SLAB_TYPESAFE_BY_RCU));
@@ -5435,6 +5459,7 @@ static struct attribute *slab_attrs[] = {
 #ifdef CONFIG_FAILSLAB
 	&failslab_attr.attr,
 #endif
+	&usersize_attr.attr,
 
 	NULL
 };

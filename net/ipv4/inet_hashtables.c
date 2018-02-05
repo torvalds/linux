@@ -625,9 +625,8 @@ EXPORT_SYMBOL_GPL(inet_hash);
 void inet_unhash(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
-	struct inet_listen_hashbucket *ilb;
+	struct inet_listen_hashbucket *ilb = NULL;
 	spinlock_t *lock;
-	bool listener = false;
 
 	if (sk_unhashed(sk))
 		return;
@@ -635,7 +634,6 @@ void inet_unhash(struct sock *sk)
 	if (sk->sk_state == TCP_LISTEN) {
 		ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
 		lock = &ilb->lock;
-		listener = true;
 	} else {
 		lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
 	}
@@ -645,7 +643,7 @@ void inet_unhash(struct sock *sk)
 
 	if (rcu_access_pointer(sk->sk_reuseport_cb))
 		reuseport_detach_sock(sk);
-	if (listener) {
+	if (ilb) {
 		inet_unhash2(hashinfo, sk);
 		 __sk_del_node_init(sk);
 		 ilb->count--;

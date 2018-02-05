@@ -73,6 +73,8 @@ extern void kexec_smp_wait(void);	/* get and clear naca physid, wait for
 					  master to copy new code to 0 */
 extern int crashing_cpu;
 extern void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *));
+extern void crash_ipi_callback(struct pt_regs *);
+extern int crash_wake_offline;
 
 struct kimage;
 struct pt_regs;

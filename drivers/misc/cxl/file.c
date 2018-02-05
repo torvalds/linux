@@ -173,7 +173,7 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 	 * flags are set it's invalid
 	 */
 	if (work.reserved1 || work.reserved2 || work.reserved3 ||
-	    work.reserved4 || work.reserved5 || work.reserved6 ||
+	    work.reserved4 || work.reserved5 ||
 	    (work.flags & ~CXL_START_WORK_ALL)) {
 		rc = -EINVAL;
 		goto out;
@@ -186,11 +186,15 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 		rc =  -EINVAL;
 		goto out;
 	}
+
 	if ((rc = afu_register_irqs(ctx, work.num_interrupts)))
 		goto out;
 
 	if (work.flags & CXL_START_WORK_AMR)
 		amr = work.amr & mfspr(SPRN_UAMOR);
+
+	if (work.flags & CXL_START_WORK_TID)
+		ctx->assign_tidr = true;
 
 	ctx->mmio_err_ff = !!(work.flags & CXL_START_WORK_ERR_FF);
 
@@ -263,8 +267,15 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 		goto out;
 	}
 
-	ctx->status = STARTED;
 	rc = 0;
+	if (work.flags & CXL_START_WORK_TID) {
+		work.tid = ctx->tidr;
+		if (copy_to_user(uwork, &work, sizeof(work)))
+			rc = -EFAULT;
+	}
+
+	ctx->status = STARTED;
+
 out:
 	mutex_unlock(&ctx->status_mutex);
 	return rc;

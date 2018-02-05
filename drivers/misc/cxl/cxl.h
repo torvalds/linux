@@ -630,6 +630,9 @@ struct cxl_context {
 	struct list_head extra_irq_contexts;
 
 	struct mm_struct *mm;
+
+	u16 tidr;
+	bool assign_tidr;
 };
 
 struct cxl_irq_info;

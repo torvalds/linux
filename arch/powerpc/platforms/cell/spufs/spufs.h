@@ -69,7 +69,7 @@ struct switch_log {
 	unsigned long		head;
 	unsigned long		tail;
 	struct switch_log_entry {
-		struct timespec	tstamp;
+		struct timespec64 tstamp;
 		s32		spu_id;
 		u32		type;
 		u32		val;

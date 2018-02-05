@@ -3649,10 +3649,8 @@ static u32 qed_grc_dump_big_ram(struct qed_hwfn *p_hwfn,
 		     BIT(big_ram->is_256b_bit_offset[dev_data->chip_id]) ? 256
 									 : 128;
 
-	strncpy(type_name, big_ram->instance_name,
-		strlen(big_ram->instance_name));
-	strncpy(mem_name, big_ram->instance_name,
-		strlen(big_ram->instance_name));
+	strscpy(type_name, big_ram->instance_name, sizeof(type_name));
+	strscpy(mem_name, big_ram->instance_name, sizeof(mem_name));
 
 	/* Dump memory header */
 	offset += qed_grc_dump_mem_hdr(p_hwfn,

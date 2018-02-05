@@ -65,7 +65,7 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 		u32 hdr = readl(data);
 
 		length = FIELD_GET(NFP_NET_CFG_TLV_HEADER_LENGTH, hdr);
-		offset = data - ctrl_mem + NFP_NET_CFG_TLV_BASE;
+		offset = data - ctrl_mem;
 
 		/* Advance past the header */
 		data += 4;
