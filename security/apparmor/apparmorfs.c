@@ -119,9 +119,7 @@ static int aafs_count;
 
 static int aafs_show_path(struct seq_file *seq, struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
-
-	seq_printf(seq, "%s:[%lu]", AAFS_NAME, inode->i_ino);
+	seq_printf(seq, "%s:[%lu]", AAFS_NAME, d_inode(dentry)->i_ino);
 	return 0;
 }
 
@@ -2392,29 +2390,18 @@ static const char *policy_get_link(struct dentry *dentry,
 	return NULL;
 }
 
-static int ns_get_name(char *buf, size_t size, struct aa_ns *ns,
-		       struct inode *inode)
-{
-	int res = snprintf(buf, size, "%s:[%lu]", AAFS_NAME, inode->i_ino);
-
-	if (res < 0 || res >= size)
-		res = -ENOENT;
-
-	return res;
-}
-
 static int policy_readlink(struct dentry *dentry, char __user *buffer,
 			   int buflen)
 {
-	struct aa_ns *ns;
 	char name[32];
 	int res;
 
-	ns = aa_get_current_ns();
-	res = ns_get_name(name, sizeof(name), ns, d_inode(dentry));
-	if (res >= 0)
+	res = snprintf(name, sizeof(name), "%s:[%lu]", AAFS_NAME,
+		       d_inode(dentry)->i_ino);
+	if (res > 0 && res < sizeof(name))
 		res = readlink_copy(buffer, buflen, name);
-	aa_put_ns(ns);
+	else
+		res = -ENOENT;
 
 	return res;
 }
