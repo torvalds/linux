@@ -532,6 +532,18 @@
 				regulator-name = "otg_switch";
 			};
 		};
+
+		charger {
+			compatible = "rk817,charger";
+			min_input_voltage = <4500>;
+			max_input_current = <1500>;
+			max_chrg_current = <1300>;
+			max_chrg_voltage = <4200>;
+			chrg_term_mode = <1>;
+			chrg_finish_cur = <300>;
+			virtual_power = <0>;
+			dc_det_adc = <0>;
+		};
 	};
 };
 
