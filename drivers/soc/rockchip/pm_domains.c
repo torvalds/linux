@@ -72,6 +72,7 @@ struct rockchip_pm_domain {
 	struct regmap **qos_regmap;
 	u32 *qos_save_regs[MAX_QOS_REGS_NUM];
 	int num_clks;
+	bool is_ignore_pwr;
 	struct clk *clks[];
 };
 
@@ -400,12 +401,18 @@ static int rockchip_pd_power_on(struct generic_pm_domain *domain)
 {
 	struct rockchip_pm_domain *pd = to_rockchip_pd(domain);
 
+	if (pd->is_ignore_pwr)
+		return 0;
+
 	return rockchip_pd_power(pd, true);
 }
 
 static int rockchip_pd_power_off(struct generic_pm_domain *domain)
 {
 	struct rockchip_pm_domain *pd = to_rockchip_pd(domain);
+
+	if (pd->is_ignore_pwr)
+		return 0;
 
 	return rockchip_pd_power(pd, false);
 }
@@ -501,6 +508,8 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 
 	pd->info = pd_info;
 	pd->pmu = pmu;
+	if (!pd_info->pwr_mask)
+		pd->is_ignore_pwr = true;
 
 	for (i = 0; i < clk_cnt; i++) {
 		clk = of_clk_get(node, i);
@@ -643,6 +652,7 @@ static int rockchip_pm_add_subdomain(struct rockchip_pmu *pmu,
 {
 	struct device_node *np;
 	struct generic_pm_domain *child_domain, *parent_domain;
+	struct rockchip_pm_domain *child_pd, *parent_pd;
 	int error;
 
 	for_each_child_of_node(parent, np) {
@@ -682,6 +692,17 @@ static int rockchip_pm_add_subdomain(struct rockchip_pmu *pmu,
 			dev_dbg(pmu->dev, "%s add subdomain: %s\n",
 				parent_domain->name, child_domain->name);
 		}
+
+		/*
+		 * If child_pd doesn't do idle request or power on/off,
+		 * parent_pd may fail to do power on/off, so if parent_pd
+		 * need to power on/off, child_pd can't ignore to do idle
+		 * request and power on/off.
+		 */
+		child_pd = to_rockchip_pd(child_domain);
+		parent_pd = to_rockchip_pd(parent_domain);
+		if (!parent_pd->is_ignore_pwr)
+			child_pd->is_ignore_pwr = false;
 
 		rockchip_pm_add_subdomain(pmu, np);
 	}
