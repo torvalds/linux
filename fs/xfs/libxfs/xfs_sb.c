@@ -118,8 +118,8 @@ xfs_mount_validate_sb(
 	bool		check_inprogress,
 	bool		check_version)
 {
-	u32		agcount = 0;
-	u32		rem;
+	uint32_t	agcount = 0;
+	uint32_t	rem;
 
 	if (sbp->sb_magicnum != XFS_SB_MAGIC) {
 		xfs_warn(mp, "bad magic number");
