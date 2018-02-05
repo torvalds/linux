@@ -2794,12 +2794,19 @@ static const struct cnl_procmon {
 		{ .dw1 = 0x00440000, .dw9 = 0x9A00AB25, .dw10 = 0x8AE38FF1, },
 };
 
-static void cnl_set_procmon_ref_values(struct drm_i915_private *dev_priv)
+/*
+ * CNL has just one set of registers, while ICL has two sets: one for port A and
+ * the other for port B. The CNL registers are equivalent to the ICL port A
+ * registers, that's why we call the ICL macros even though the function has CNL
+ * on its name.
+ */
+static void cnl_set_procmon_ref_values(struct drm_i915_private *dev_priv,
+				       enum port port)
 {
 	const struct cnl_procmon *procmon;
 	u32 val;
 
-	val = I915_READ(CNL_PORT_COMP_DW3);
+	val = I915_READ(ICL_PORT_COMP_DW3(port));
 	switch (val & (PROCESS_INFO_MASK | VOLTAGE_INFO_MASK)) {
 	default:
 		MISSING_CASE(val);
@@ -2820,13 +2827,13 @@ static void cnl_set_procmon_ref_values(struct drm_i915_private *dev_priv)
 		break;
 	}
 
-	val = I915_READ(CNL_PORT_COMP_DW1);
+	val = I915_READ(ICL_PORT_COMP_DW1(port));
 	val &= ~((0xff << 16) | 0xff);
 	val |= procmon->dw1;
-	I915_WRITE(CNL_PORT_COMP_DW1, val);
+	I915_WRITE(ICL_PORT_COMP_DW1(port), val);
 
-	I915_WRITE(CNL_PORT_COMP_DW9, procmon->dw9);
-	I915_WRITE(CNL_PORT_COMP_DW10, procmon->dw10);
+	I915_WRITE(ICL_PORT_COMP_DW9(port), procmon->dw9);
+	I915_WRITE(ICL_PORT_COMP_DW10(port), procmon->dw10);
 }
 
 static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume)
@@ -2847,7 +2854,8 @@ static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume
 	val &= ~CNL_COMP_PWR_DOWN;
 	I915_WRITE(CHICKEN_MISC_2, val);
 
-	cnl_set_procmon_ref_values(dev_priv);
+	/* Dummy PORT_A to get the correct CNL register from the ICL macro */
+	cnl_set_procmon_ref_values(dev_priv, PORT_A);
 
 	val = I915_READ(CNL_PORT_COMP_DW0);
 	val |= COMP_INIT;

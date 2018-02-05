@@ -2104,6 +2104,28 @@ enum i915_power_well_id {
 #define CNL_PORT_COMP_DW9		_MMIO(0x162124)
 #define CNL_PORT_COMP_DW10		_MMIO(0x162128)
 
+#define _ICL_PORT_COMP_DW0_A		0x162100
+#define _ICL_PORT_COMP_DW0_B		0x6C100
+#define ICL_PORT_COMP_DW0(port)		_MMIO_PORT(port, _ICL_PORT_COMP_DW0_A, \
+							 _ICL_PORT_COMP_DW0_B)
+#define _ICL_PORT_COMP_DW1_A		0x162104
+#define _ICL_PORT_COMP_DW1_B		0x6C104
+#define ICL_PORT_COMP_DW1(port)		_MMIO_PORT(port, _ICL_PORT_COMP_DW1_A, \
+							 _ICL_PORT_COMP_DW1_B)
+#define _ICL_PORT_COMP_DW3_A		0x16210C
+#define _ICL_PORT_COMP_DW3_B		0x6C10C
+#define ICL_PORT_COMP_DW3(port)		_MMIO_PORT(port, _ICL_PORT_COMP_DW3_A, \
+							 _ICL_PORT_COMP_DW3_B)
+#define _ICL_PORT_COMP_DW9_A		0x162124
+#define _ICL_PORT_COMP_DW9_B		0x6C124
+#define ICL_PORT_COMP_DW9(port)		_MMIO_PORT(port, _ICL_PORT_COMP_DW9_A, \
+							 _ICL_PORT_COMP_DW9_B)
+#define _ICL_PORT_COMP_DW10_A		0x162128
+#define _ICL_PORT_COMP_DW10_B		0x6C128
+#define ICL_PORT_COMP_DW10(port)	_MMIO_PORT(port, \
+						   _ICL_PORT_COMP_DW10_A, \
+						   _ICL_PORT_COMP_DW10_B)
+
 /* BXT PHY Ref registers */
 #define _PORT_REF_DW3_A			0x16218C
 #define _PORT_REF_DW3_BC		0x6C18C
