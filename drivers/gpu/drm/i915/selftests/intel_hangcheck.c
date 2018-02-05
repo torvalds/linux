@@ -244,6 +244,58 @@ static u32 hws_seqno(const struct hang *h,
 	return READ_ONCE(h->seqno[rq->fence.context % (PAGE_SIZE/sizeof(u32))]);
 }
 
+struct wedge_me {
+	struct delayed_work work;
+	struct drm_i915_private *i915;
+	const void *symbol;
+};
+
+static void wedge_me(struct work_struct *work)
+{
+	struct wedge_me *w = container_of(work, typeof(*w), work.work);
+
+	pr_err("%pS timed out, cancelling all further testing.\n",
+	       w->symbol);
+	i915_gem_set_wedged(w->i915);
+}
+
+static void __init_wedge(struct wedge_me *w,
+			 struct drm_i915_private *i915,
+			 long timeout,
+			 const void *symbol)
+{
+	w->i915 = i915;
+	w->symbol = symbol;
+
+	INIT_DELAYED_WORK_ONSTACK(&w->work, wedge_me);
+	schedule_delayed_work(&w->work, timeout);
+}
+
+static void __fini_wedge(struct wedge_me *w)
+{
+	cancel_delayed_work_sync(&w->work);
+	destroy_delayed_work_on_stack(&w->work);
+	w->i915 = NULL;
+}
+
+#define wedge_on_timeout(W, DEV, TIMEOUT)				\
+	for (__init_wedge((W), (DEV), (TIMEOUT), __builtin_return_address(0)); \
+	     (W)->i915;							\
+	     __fini_wedge((W)))
+
+static noinline int
+flush_test(struct drm_i915_private *i915, unsigned int flags)
+{
+	struct wedge_me w;
+
+	cond_resched();
+
+	wedge_on_timeout(&w, i915, HZ)
+		i915_gem_wait_for_idle(i915, flags);
+
+	return i915_terminally_wedged(&i915->gpu_error) ? -EIO : 0;
+}
+
 static void hang_fini(struct hang *h)
 {
 	*h->batch = MI_BATCH_BUFFER_END;
@@ -255,7 +307,7 @@ static void hang_fini(struct hang *h)
 	i915_gem_object_unpin_map(h->hws);
 	i915_gem_object_put(h->hws);
 
-	i915_gem_wait_for_idle(h->i915, I915_WAIT_LOCKED);
+	flush_test(h->i915, I915_WAIT_LOCKED);
 }
 
 static bool wait_for_hang(struct hang *h, struct drm_i915_gem_request *rq)
@@ -487,7 +539,9 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 		if (err)
 			break;
 
-		cond_resched();
+		err = flush_test(i915, 0);
+		if (err)
+			break;
 	}
 
 	if (i915_terminally_wedged(&i915->gpu_error))
@@ -726,7 +780,9 @@ unwind:
 		if (err)
 			break;
 
-		cond_resched();
+		err = flush_test(i915, 0);
+		if (err)
+			break;
 	}
 
 	if (i915_terminally_wedged(&i915->gpu_error))
@@ -952,6 +1008,10 @@ static int igt_reset_queue(void *arg)
 		i915_gem_chipset_flush(i915);
 
 		i915_gem_request_put(prev);
+
+		err = flush_test(i915, I915_WAIT_LOCKED);
+		if (err)
+			break;
 	}
 
 fini:
