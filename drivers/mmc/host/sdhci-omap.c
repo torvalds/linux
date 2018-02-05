@@ -711,8 +711,8 @@ static const struct sdhci_pltfm_data sdhci_omap_pdata = {
 		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
 		  SDHCI_QUIRK_NO_HISPD_BIT |
 		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC,
-	.quirks2 = SDHCI_QUIRK2_NO_1_8_V |
-		   SDHCI_QUIRK2_ACMD23_BROKEN |
+	.quirks2 = SDHCI_QUIRK2_ACMD23_BROKEN |
+		   SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
 		   SDHCI_QUIRK2_RSP_136_HAS_CRC,
 	.ops = &sdhci_omap_ops,
 };
