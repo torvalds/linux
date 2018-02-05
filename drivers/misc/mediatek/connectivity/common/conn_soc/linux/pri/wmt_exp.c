@@ -62,7 +62,7 @@ wmt_wlan_bus_cnt_clr_cb mtk_wcn_wlan_bus_tx_cnt_clr = NULL;
 OSAL_BIT_OP_VAR gBtWifiGpsState;
 OSAL_BIT_OP_VAR gGpsFmState;
 UINT32 gWifiProbed = 0;
-UINT32 gWmtDbgLvl = WMT_LOG_DBG;
+UINT32 gWmtDbgLvl = WMT_LOG_ERR;
 MTK_WCN_BOOL g_pwr_off_flag = MTK_WCN_BOOL_TRUE;
 /*******************************************************************************
 *                           P R I V A T E   D A T A
