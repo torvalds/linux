@@ -328,10 +328,11 @@ my $lineprefix="";
 use constant {
     STATE_NORMAL        => 0, # normal code
     STATE_NAME          => 1, # looking for function name
-    STATE_FIELD         => 2, # scanning field start
-    STATE_PROTO         => 3, # scanning prototype
-    STATE_DOCBLOCK      => 4, # documentation block
-    STATE_INLINE        => 5, # gathering documentation outside main block
+    STATE_BODY_MAYBE    => 2, # body - or maybe more description
+    STATE_BODY          => 3, # the body of the comment
+    STATE_PROTO         => 4, # scanning prototype
+    STATE_DOCBLOCK      => 5, # documentation block
+    STATE_INLINE        => 6, # gathering documentation outside main block
 };
 my $state;
 my $in_doc_sect;
@@ -1784,7 +1785,6 @@ sub process_file($) {
     my $identifier;
     my $func;
     my $descr;
-    my $in_purpose = 0;
     my $initial_section_counter = $section_counter;
     my ($orig_file) = @_;
     my $leading_space;
@@ -1830,7 +1830,7 @@ sub process_file($) {
 		    $identifier = $1;
 		}
 
-		$state = STATE_FIELD;
+		$state = STATE_BODY;
 		# if there's no @param blocks need to set up default section
 		# here
 		$contents = "";
@@ -1843,7 +1843,7 @@ sub process_file($) {
 		    $descr =~ s/\s*$//;
 		    $descr =~ s/\s+/ /g;
 		    $declaration_purpose = $descr;
-		    $in_purpose = 1;
+		    $state = STATE_BODY_MAYBE;
 		} else {
 		    $declaration_purpose = "";
 		}
@@ -1875,7 +1875,7 @@ sub process_file($) {
 		++$warnings;
 		$state = STATE_NORMAL;
 	    }
-	} elsif ($state == STATE_FIELD) {	# look for head: lines, and include content
+	} elsif ($state == STATE_BODY || $state == STATE_BODY_MAYBE) {
 	    if (/$doc_sect/i) { # case insensitive for supported section names
 		$newsection = $1;
 		$newcontents = $2;
@@ -1902,7 +1902,7 @@ sub process_file($) {
 		}
 
 		$in_doc_sect = 1;
-		$in_purpose = 0;
+		$state = STATE_BODY;
 		$contents = $newcontents;
                 $new_start_line = $.;
 		while (substr($contents, 0, 1) eq " ") {
@@ -1941,8 +1941,8 @@ sub process_file($) {
 		    } else {
 			$contents .= "\n";
 		    }
-		    $in_purpose = 0;
-		} elsif ($in_purpose == 1) {
+		    $state = STATE_BODY;
+		} elsif ($state == STATE_BODY_MAYBE) {
 		    # Continued declaration purpose
 		    chomp($declaration_purpose);
 		    $declaration_purpose .= " " . $1;
