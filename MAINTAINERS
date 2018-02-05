@@ -1710,7 +1710,7 @@ F:	drivers/input/keyboard/w90p910_keypad.c
 F:	drivers/input/touchscreen/w90p910_ts.c
 F:	drivers/watchdog/nuc900_wdt.c
 F:	drivers/net/ethernet/nuvoton/w90p910_ether.c
-F:	drivers/mtd/nand/nuc900_nand.c
+F:	drivers/mtd/nand/raw/nuc900_nand.c
 F:	drivers/rtc/rtc-nuc900.c
 F:	drivers/spi/spi-nuc900.c
 F:	drivers/usb/host/ehci-w90x900.c
@@ -3014,7 +3014,7 @@ M:	Kamal Dasu <kdasu.kdev@gmail.com>
 L:	linux-mtd@lists.infradead.org
 L:	bcm-kernel-feedback-list@broadcom.com
 S:	Maintained
-F:	drivers/mtd/nand/brcmnand/
+F:	drivers/mtd/nand/raw/brcmnand/
 
 BROADCOM STB DPFE DRIVER
 M:	Markus Mayer <mmayer@broadcom.com>
@@ -4116,7 +4116,7 @@ DENALI NAND DRIVER
 M:	Masahiro Yamada <yamada.masahiro@socionext.com>
 L:	linux-mtd@lists.infradead.org
 S:	Supported
-F:	drivers/mtd/nand/denali*
+F:	drivers/mtd/nand/raw/denali*
 
 DESIGNWARE USB2 DRD IP DRIVER
 M:	John Youn <johnyoun@synopsys.com>
@@ -5646,7 +5646,7 @@ FREESCALE GPMI NAND DRIVER
 M:	Han Xu <han.xu@nxp.com>
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
-F:	drivers/mtd/nand/gpmi-nand/*
+F:	drivers/mtd/nand/raw/gpmi-nand/*
 
 FREESCALE I2C CPM DRIVER
 M:	Jochen Friedrich <jochen@scram.de>
@@ -6955,7 +6955,7 @@ INGENIC JZ4780 NAND DRIVER
 M:	Harvey Hunt <harveyhuntnexus@gmail.com>
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
-F:	drivers/mtd/nand/jz4780_*
+F:	drivers/mtd/nand/raw/jz4780_*
 
 INOTIFY
 M:	Jan Kara <jack@suse.cz>
@@ -8474,7 +8474,7 @@ MARVELL NAND CONTROLLER DRIVER
 M:	Miquel Raynal <miquel.raynal@free-electrons.com>
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
-F:	drivers/mtd/nand/marvell_nand.c
+F:	drivers/mtd/nand/raw/marvell_nand.c
 F:	Documentation/devicetree/bindings/mtd/marvell-nand.txt
 
 MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
@@ -9136,7 +9136,7 @@ M:	Wenyou Yang <wenyou.yang@microchip.com>
 M:	Josh Wu <rainyfeeling@outlook.com>
 L:	linux-mtd@lists.infradead.org
 S:	Supported
-F:	drivers/mtd/nand/atmel/*
+F:	drivers/mtd/nand/raw/atmel/*
 F:	Documentation/devicetree/bindings/mtd/atmel-nand.txt
 
 MICROCHIP KSZ SERIES ETHERNET SWITCH DRIVER
@@ -11331,7 +11331,7 @@ PXA3xx NAND FLASH DRIVER
 M:	Ezequiel Garcia <ezequiel.garcia@free-electrons.com>
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
-F:	drivers/mtd/nand/pxa3xx_nand.c
+F:	drivers/mtd/nand/raw/pxa3xx_nand.c
 
 QAT DRIVER
 M:	Giovanni Cabiddu <giovanni.cabiddu@intel.com>
@@ -11815,8 +11815,8 @@ F:	drivers/memstick/host/r592.*
 RICOH SMARTMEDIA/XD DRIVER
 M:	Maxim Levitsky <maximlevitsky@gmail.com>
 S:	Maintained
-F:	drivers/mtd/nand/r852.c
-F:	drivers/mtd/nand/r852.h
+F:	drivers/mtd/nand/raw/r852.c
+F:	drivers/mtd/nand/raw/r852.h
 
 RISC-V ARCHITECTURE
 M:	Palmer Dabbelt <palmer@sifive.com>
@@ -14635,7 +14635,7 @@ VF610 NAND DRIVER
 M:	Stefan Agner <stefan@agner.ch>
 L:	linux-mtd@lists.infradead.org
 S:	Supported
-F:	drivers/mtd/nand/vf610_nfc.c
+F:	drivers/mtd/nand/raw/vf610_nfc.c
 
 VFAT/FAT/MSDOS FILESYSTEM
 M:	OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
