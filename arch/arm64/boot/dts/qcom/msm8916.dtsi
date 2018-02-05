@@ -326,6 +326,12 @@
 			status = "disabled";
 		};
 
+		a53pll: clock@b016000 {
+			compatible = "qcom,msm8916-a53pll";
+			reg = <0xb016000 0x40>;
+			#clock-cells = <0>;
+		};
+
 		apcs: syscon@b011000 {
 			compatible = "syscon";
 			reg = <0x0b011000 0x1000>;
