@@ -533,6 +533,25 @@
 			};
 		};
 
+		battery {
+			compatible = "rk817,battery";
+			ocv_table = <3500 3625 3685 3697 3718 3735 3748
+			3760 3774 3788 3802 3816 3834 3853
+			3877 3908 3946 3975 4018 4071 4106>;
+			design_capacity = <2500>;
+			design_qmax = <2750>;
+			bat_res = <100>;
+			sleep_enter_current = <300>;
+			sleep_exit_current = <300>;
+			sleep_filter_current = <100>;
+			power_off_thresd = <3500>;
+			zero_algorithm_vol = <3850>;
+			max_soc_offset = <60>;
+			monitor_sec = <5>;
+			sample_res = <10>;
+			virtual_power = <1>;
+		};
+
 		charger {
 			compatible = "rk817,charger";
 			min_input_voltage = <4500>;
