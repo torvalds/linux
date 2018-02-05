@@ -1084,9 +1084,15 @@ class Tui(object):
         self.screen.clrtobot()
         stats = self.stats.get(self._display_guests)
         total = 0.
+        ctotal = 0.
         for key, values in stats.items():
             if key.find('(') == -1:
                 total += values.value
+            else:
+                ctotal += values.value
+        if total == 0.:
+            # we don't have any fields, or all non-child events are filtered
+            total = ctotal
 
         if self._sorting == SORT_DEFAULT:
             def sortkey((_k, v)):
