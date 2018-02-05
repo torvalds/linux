@@ -23,6 +23,7 @@
 #include <linux/reset.h>
 #include <linux/tcp.h>
 #include <linux/interrupt.h>
+#include <linux/pinctrl/devinfo.h>
 
 #include "mtk_eth_soc.h"
 
