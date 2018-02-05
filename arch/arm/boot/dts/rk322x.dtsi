@@ -1043,17 +1043,17 @@
 
 	qos_vpu: qos@31040000 {
 		compatible = "syscon";
-		reg = <0x0 0x31040000 0x0 0x20>;
+		reg = <0x31040000 0x20>;
 	};
 
 	qos_rkvdec_r: qos@31070000 {
 		compatible = "syscon";
-		reg = <0x0 0x31070000 0x0 0x20>;
+		reg = <0x31070000 0x20>;
 	};
 
 	qos_rkvdec_w: qos@31070080 {
 		compatible = "syscon";
-		reg = <0x0 0x31070080 0x0 0x20>;
+		reg = <0x31070080 0x20>;
 	};
 
 	gic: interrupt-controller@32010000 {
