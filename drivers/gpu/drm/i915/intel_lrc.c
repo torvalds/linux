@@ -1477,7 +1477,6 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 	intel_engine_init_hangcheck(engine);
 
 	enable_execlists(engine);
-	DRM_DEBUG_DRIVER("Execlists enabled for %s\n", engine->name);
 
 	GEM_BUG_ON(engine->id >= ARRAY_SIZE(gtiir));
 
