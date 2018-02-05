@@ -545,7 +545,8 @@ static void __init kvm_guest_init(void)
 		pv_time_ops.steal_clock = kvm_steal_clock;
 	}
 
-	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH))
+	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH) &&
+	    !kvm_para_has_feature(KVM_FEATURE_STEAL_TIME))
 		pv_mmu_ops.flush_tlb_others = kvm_flush_tlb_others;
 
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
@@ -633,7 +634,8 @@ static __init int kvm_setup_pv_tlb_flush(void)
 {
 	int cpu;
 
-	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH)) {
+	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH) &&
+	    !kvm_para_has_feature(KVM_FEATURE_STEAL_TIME)) {
 		for_each_possible_cpu(cpu) {
 			zalloc_cpumask_var_node(per_cpu_ptr(&__pv_tlb_mask, cpu),
 				GFP_KERNEL, cpu_to_node(cpu));
