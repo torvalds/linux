@@ -42,11 +42,14 @@ static struct debug_obj		obj_static_pool[ODEBUG_POOL_SIZE] __initdata;
 static DEFINE_RAW_SPINLOCK(pool_lock);
 
 static HLIST_HEAD(obj_pool);
+static HLIST_HEAD(obj_to_free);
 
 static int			obj_pool_min_free = ODEBUG_POOL_SIZE;
 static int			obj_pool_free = ODEBUG_POOL_SIZE;
 static int			obj_pool_used;
 static int			obj_pool_max_used;
+/* The number of objs on the global free list */
+static int			obj_nr_tofree;
 static struct kmem_cache	*obj_cache;
 
 static int			debug_objects_maxchain __read_mostly;
@@ -97,11 +100,31 @@ static const char *obj_states[ODEBUG_STATE_MAX] = {
 static void fill_pool(void)
 {
 	gfp_t gfp = GFP_ATOMIC | __GFP_NORETRY | __GFP_NOWARN;
-	struct debug_obj *new;
+	struct debug_obj *new, *obj;
 	unsigned long flags;
 
 	if (likely(obj_pool_free >= debug_objects_pool_min_level))
 		return;
+
+	/*
+	 * Reuse objs from the global free list; they will be reinitialized
+	 * when allocating.
+	 */
+	while (obj_nr_tofree && (obj_pool_free < obj_pool_min_free)) {
+		raw_spin_lock_irqsave(&pool_lock, flags);
+		/*
+		 * Recheck with the lock held as the worker thread might have
+		 * won the race and freed the global free list already.
+		 */
+		if (obj_nr_tofree) {
+			obj = hlist_entry(obj_to_free.first, typeof(*obj), node);
+			hlist_del(&obj->node);
+			obj_nr_tofree--;
+			hlist_add_head(&obj->node, &obj_pool);
+			obj_pool_free++;
+		}
+		raw_spin_unlock_irqrestore(&pool_lock, flags);
+	}
 
 	if (unlikely(!obj_cache))
 		return;
@@ -186,11 +209,38 @@ alloc_object(void *addr, struct debug_bucket *b, struct debug_obj_descr *descr)
 static void free_obj_work(struct work_struct *work)
 {
 	struct debug_obj *objs[ODEBUG_FREE_BATCH];
+	struct hlist_node *tmp;
+	struct debug_obj *obj;
 	unsigned long flags;
 	int i;
+	HLIST_HEAD(tofree);
 
 	if (!raw_spin_trylock_irqsave(&pool_lock, flags))
 		return;
+
+	/*
+	 * The objs on the pool list might be allocated before the work is
+	 * run, so recheck if pool list it full or not, if not fill pool
+	 * list from the global free list
+	 */
+	while (obj_nr_tofree && obj_pool_free < debug_objects_pool_size) {
+		obj = hlist_entry(obj_to_free.first, typeof(*obj), node);
+		hlist_del(&obj->node);
+		hlist_add_head(&obj->node, &obj_pool);
+		obj_pool_free++;
+		obj_nr_tofree--;
+	}
+
+	/*
+	 * Pool list is already full and there are still objs on the free
+	 * list. Move remaining free objs to a temporary list to free the
+	 * memory outside the pool_lock held region.
+	 */
+	if (obj_nr_tofree) {
+		hlist_move_list(&obj_to_free, &tofree);
+		obj_nr_tofree = 0;
+	}
+
 	while (obj_pool_free >= debug_objects_pool_size + ODEBUG_FREE_BATCH) {
 		for (i = 0; i < ODEBUG_FREE_BATCH; i++) {
 			objs[i] = hlist_entry(obj_pool.first,
@@ -211,6 +261,11 @@ static void free_obj_work(struct work_struct *work)
 			return;
 	}
 	raw_spin_unlock_irqrestore(&pool_lock, flags);
+
+	hlist_for_each_entry_safe(obj, tmp, &tofree, node) {
+		hlist_del(&obj->node);
+		kmem_cache_free(obj_cache, obj);
+	}
 }
 
 /*
@@ -793,6 +848,7 @@ static int debug_stats_show(struct seq_file *m, void *v)
 	seq_printf(m, "pool_min_free :%d\n", obj_pool_min_free);
 	seq_printf(m, "pool_used     :%d\n", obj_pool_used);
 	seq_printf(m, "pool_max_used :%d\n", obj_pool_max_used);
+	seq_printf(m, "on_free_list  :%d\n", obj_nr_tofree);
 	seq_printf(m, "objs_allocated:%d\n", debug_objects_allocated);
 	seq_printf(m, "objs_freed    :%d\n", debug_objects_freed);
 	return 0;
