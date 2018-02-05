@@ -2823,24 +2823,23 @@ i915_gem_object_pwrite_gtt(struct drm_i915_gem_object *obj,
 	return 0;
 }
 
-static bool ban_context(const struct i915_gem_context *ctx,
-			unsigned int score)
-{
-	return (i915_gem_context_is_bannable(ctx) &&
-		score >= CONTEXT_SCORE_BAN_THRESHOLD);
-}
-
 static void i915_gem_context_mark_guilty(struct i915_gem_context *ctx)
 {
-	unsigned int score;
 	bool banned;
 
 	atomic_inc(&ctx->guilty_count);
 
-	score = atomic_add_return(CONTEXT_SCORE_GUILTY, &ctx->ban_score);
-	banned = ban_context(ctx, score);
-	DRM_DEBUG_DRIVER("context %s marked guilty (score %d) banned? %s\n",
-			 ctx->name, score, yesno(banned));
+	banned = false;
+	if (i915_gem_context_is_bannable(ctx)) {
+		unsigned int score;
+
+		score = atomic_add_return(CONTEXT_SCORE_GUILTY,
+					  &ctx->ban_score);
+		banned = score >= CONTEXT_SCORE_BAN_THRESHOLD;
+
+		DRM_DEBUG_DRIVER("context %s marked guilty (score %d) banned? %s\n",
+				 ctx->name, score, yesno(banned));
+	}
 	if (!banned)
 		return;
 
