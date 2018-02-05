@@ -534,14 +534,6 @@ void armpmu_free_irq(struct arm_pmu *armpmu, int cpu)
 	free_irq(irq, per_cpu_ptr(&hw_events->percpu_pmu, cpu));
 }
 
-void armpmu_free_irqs(struct arm_pmu *armpmu)
-{
-	int cpu;
-
-	for_each_cpu(cpu, &armpmu->supported_cpus)
-		armpmu_free_irq(armpmu, cpu);
-}
-
 int armpmu_request_irq(struct arm_pmu *armpmu, int cpu)
 {
 	int err = 0;
@@ -590,19 +582,6 @@ int armpmu_request_irq(struct arm_pmu *armpmu, int cpu)
 
 err_out:
 	pr_err("unable to request IRQ%d for ARM PMU counters\n", irq);
-	return err;
-}
-
-int armpmu_request_irqs(struct arm_pmu *armpmu)
-{
-	int cpu, err;
-
-	for_each_cpu(cpu, &armpmu->supported_cpus) {
-		err = armpmu_request_irq(armpmu, cpu);
-		if (err)
-			break;
-	}
-
 	return err;
 }
 

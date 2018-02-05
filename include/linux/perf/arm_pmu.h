@@ -159,8 +159,6 @@ static inline int arm_pmu_acpi_probe(armpmu_init_fn init_fn) { return 0; }
 struct arm_pmu *armpmu_alloc(void);
 void armpmu_free(struct arm_pmu *pmu);
 int armpmu_register(struct arm_pmu *pmu);
-int armpmu_request_irqs(struct arm_pmu *armpmu);
-void armpmu_free_irqs(struct arm_pmu *armpmu);
 int armpmu_request_irq(struct arm_pmu *armpmu, int cpu);
 void armpmu_free_irq(struct arm_pmu *armpmu, int cpu);
 
