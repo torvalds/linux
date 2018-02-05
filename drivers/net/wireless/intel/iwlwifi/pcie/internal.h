@@ -72,6 +72,7 @@ struct iwl_host_cmd;
  * @page: driver's pointer to the rxb page
  * @invalid: rxb is in driver ownership - not owned by HW
  * @vid: index of this rxb in the global table
+ * @size: size used from the buffer
  */
 struct iwl_rx_mem_buffer {
 	dma_addr_t page_dma;
@@ -79,6 +80,7 @@ struct iwl_rx_mem_buffer {
 	u16 vid;
 	bool invalid;
 	struct list_head list;
+	u32 size;
 };
 
 /**
@@ -159,8 +161,10 @@ enum iwl_completion_desc_wifi_status {
 	IWL_CD_STTS_REPLAY_ERR,
 };
 
-#define IWL_RX_TD_TYPE		0xff000000
-#define IWL_RX_TD_SIZE		0x00ffffff
+#define IWL_RX_TD_TYPE_MSK	0xff000000
+#define IWL_RX_TD_SIZE_MSK	0x00ffffff
+#define IWL_RX_TD_SIZE_2K	BIT(11)
+#define IWL_RX_TD_TYPE		0
 
 /**
  * struct iwl_rx_transfer_desc - transfer descriptor
@@ -204,6 +208,7 @@ struct iwl_rx_completion_desc {
  * @id: queue index
  * @bd: driver's pointer to buffer of receive buffer descriptors (rbd).
  *	Address size is 32 bit in pre-9000 devices and 64 bit in 9000 devices.
+ *	In 22560 devices it is a pointer to a list of iwl_rx_transfer_desc's
  * @bd_dma: bus address of buffer of receive buffer descriptors (rbd)
  * @ubd: driver's pointer to buffer of used receive buffer descriptors (rbd)
  * @ubd_dma: physical address of buffer of used receive buffer descriptors (rbd)
@@ -230,7 +235,7 @@ struct iwl_rxq {
 	int id;
 	void *bd;
 	dma_addr_t bd_dma;
-	__le32 *used_bd;
+	void *used_bd;
 	dma_addr_t used_bd_dma;
 	__le16 *tr_tail;
 	dma_addr_t tr_tail_dma;
@@ -245,7 +250,7 @@ struct iwl_rxq {
 	struct list_head rx_free;
 	struct list_head rx_used;
 	bool need_update;
-	struct iwl_rb_status *rb_stts;
+	void *rb_stts;
 	dma_addr_t rb_stts_dma;
 	spinlock_t lock;
 	struct napi_struct napi;
@@ -287,6 +292,24 @@ struct iwl_dma_ptr {
 static inline int iwl_queue_inc_wrap(struct iwl_trans *trans, int index)
 {
 	return ++index & (trans->cfg->base_params->max_tfd_queue_size - 1);
+}
+
+/**
+ * iwl_get_closed_rb_stts - get closed rb stts from different structs
+ * @rxq - the rxq to get the rb stts from
+ */
+static inline __le16 iwl_get_closed_rb_stts(struct iwl_trans *trans,
+					    struct iwl_rxq *rxq)
+{
+	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
+		__le16 *rb_stts = rxq->rb_stts;
+
+		return READ_ONCE(*rb_stts);
+	} else {
+		struct iwl_rb_status *rb_stts = rxq->rb_stts;
+
+		return READ_ONCE(rb_stts->closed_rb_num);
+	}
 }
 
 /**
