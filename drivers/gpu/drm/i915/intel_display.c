@@ -5418,6 +5418,20 @@ static void glk_pipe_scaler_clock_gating_wa(struct drm_i915_private *dev_priv,
 	I915_WRITE(CLKGATE_DIS_PSL(pipe), val);
 }
 
+static void icl_pipe_mbus_enable(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	uint32_t val;
+
+	val = MBUS_DBOX_BW_CREDIT(1) | MBUS_DBOX_A_CREDIT(2);
+
+	/* Program B credit equally to all pipes */
+	val |= MBUS_DBOX_B_CREDIT(24 / INTEL_INFO(dev_priv)->num_pipes);
+
+	I915_WRITE(PIPE_MBUS_DBOX_CTL(pipe), val);
+}
+
 static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 				struct drm_atomic_state *old_state)
 {
@@ -5494,6 +5508,9 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	if (dev_priv->display.initial_watermarks != NULL)
 		dev_priv->display.initial_watermarks(old_intel_state, pipe_config);
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		icl_pipe_mbus_enable(intel_crtc);
 
 	/* XXX: Do the pipe assertions at the right place for BXT DSI. */
 	if (!transcoder_is_dsi(cpu_transcoder))
