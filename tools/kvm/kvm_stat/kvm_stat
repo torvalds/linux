@@ -1176,6 +1176,7 @@ class Tui(object):
         Asks for a valid regex and sets the fields filter accordingly.
 
         """
+        msg = ''
         while True:
             self.screen.erase()
             self.screen.addstr(0, 0,
@@ -1184,6 +1185,7 @@ class Tui(object):
             self.screen.addstr(2, 0,
                                "Current regex: {0}"
                                .format(self.stats.fields_filter))
+            self.screen.addstr(5, 0, msg)
             self.screen.addstr(3, 0, "New regex: ")
             curses.echo()
             regex = self.screen.getstr().decode(ENCODING)
@@ -1198,6 +1200,7 @@ class Tui(object):
                 self.refresh_header()
                 return
             except re.error:
+                msg = '"' + regex + '": Not a valid regular expression'
                 continue
 
     def show_vm_selection_by_pid(self):
