@@ -139,7 +139,7 @@ static const struct rockchip_cpuclk_reg_data rk3228_cpuclk_data = {
 PNAME(mux_pll_p)		= { "clk_24m", "xin24m" };
 
 PNAME(mux_ddrphy_p)		= { "dpll", "gpll", "apll" };
-PNAME(mux_armclk_p)		= { "apll", "gpll", "dpll" };
+PNAME(mux_armclk_p)		= { "apll_core", "gpll_core", "dpll_core" };
 PNAME(mux_usb480m_phy_p)	= { "usb480m_phy0", "usb480m_phy1" };
 PNAME(mux_usb480m_p)		= { "usb480m_phy", "xin24m" };
 PNAME(mux_hdmiphy_p)		= { "hdmiphy_phy", "xin24m" };
@@ -233,6 +233,12 @@ static struct rockchip_clk_branch rk3228_clk_branches[] __initdata = {
 			RK2928_CLKGATE_CON(7), 0, GFLAGS),
 
 	/* PD_CORE */
+	GATE(0, "apll_core", "apll", CLK_IGNORE_UNUSED,
+			PX30_CLKGATE_CON(0), 6, GFLAGS),
+	GATE(0, "gpll_core", "gpll", CLK_IGNORE_UNUSED,
+			PX30_CLKGATE_CON(0), 6, GFLAGS),
+	GATE(0, "dpll_core", "dpll", CLK_IGNORE_UNUSED,
+			PX30_CLKGATE_CON(0), 6, GFLAGS),
 	COMPOSITE_NOMUX(0, "pclk_dbg", "armclk", CLK_IGNORE_UNUSED,
 			RK2928_CLKSEL_CON(1), 0, 4, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK2928_CLKGATE_CON(4), 1, GFLAGS),
