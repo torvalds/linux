@@ -16,17 +16,27 @@ MED_ATTRS(ipc_kobject) {
 
 int ipc_kern2kobj(struct ipc_kobject * ipck, struct kern_ipc_perm * ipcp)
 {
+	if(!ipcp){
+		printk("IPCP is NULL\n");	
+		return -1;
+	}
 	struct medusa_l1_ipc_s* security_s;
 	security_s = (struct medusa_l1_ipc_s*) ipcp->security;
-
+	printk("ipc kern2kobj 1\n");
         memset(ipck, '\0', sizeof(struct ipc_kobject));
 	
+	printk("ipc kern2kobj 2\n");
 	if(!security_s)
 		return -1;
+	
+	printk("ipc kern2kobj 3\n");
 	ipck->id = ipcp->id;
 	ipck->ipc_class = security_s->ipc_class;
-//	COPY_MEDUSA_SUBJECT_VARS(ipck, security_s);
-//	COPY_MEDUSA_OBJECT_VARS(ipck, security_s);
+	printk("ipc kern2kobj 4\n");
+	COPY_MEDUSA_SUBJECT_VARS(ipck, security_s);
+	COPY_MEDUSA_OBJECT_VARS(ipck, security_s);
+	printk("ipc kern2kobj 5\n");
+
 	return 0;
 }
 
@@ -47,16 +57,18 @@ static struct ipc_kobject storage;
 static struct medusa_kobject_s * ipc_fetch(struct medusa_kobject_s * kobj)
 {
 	struct ipc_kobject * ipc_kobj;
-	struct kern_ipc_perm * ipcp;
+	struct kern_ipc_perm *ipcp;
 	ipc_kobj = (struct ipc_kobject *)kobj;
 	
 	if (!ipc_kobj)
 		goto out_err;
 
-	if(medusa_ipc_info_lock(ipc_kobj->id, ipc_kobj->ipc_class, ipcp) != 0)
+	ipcp = medusa_ipc_info_lock(ipc_kobj->id, ipc_kobj->ipc_class);
+	if(!ipcp)
 		goto out_err;
+
+	printk("MEDUSAAAA: id from object 2: %d\n", ipcp->id);
 	ipc_kern2kobj(&storage, ipcp);
-	medusa_ipc_info_unlock(ipcp);
 	return (struct medusa_kobject_s *)&storage;
 out_err:
 	return (struct medusa_kobject_s *)kobj;

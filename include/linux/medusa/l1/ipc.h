@@ -13,6 +13,8 @@
 #include <linux/medusa/l3/model.h>
 #include <linux/medusa/l3/constants.h>
 
+#pragma GCC optimize ("Og")
+
 extern medusa_answer_t medusa_ipc_perm(struct kern_ipc_perm *ipcp, u32 perms);
 
 #define MED_IPC_SEM 0

@@ -32,7 +32,9 @@ medusa_answer_t medusa_ipc_perm(struct kern_ipc_perm *ipcp, u32 perms)
 	INIT_MEDUSA_SUBJECT_VARS((struct medusa_l1_ipc_s*)ipcp->security);
 	if (MEDUSA_MONITORED_ACCESS_O(ipc_access, (struct medusa_l1_ipc_s*)ipcp->security)) {
 		ipc_kern2kobj(&sender, ipcp);
+		printk("medusa_ipc_perm before decide\n");
 		retval = MED_DECIDE(ipc_access, &access, &sender, &sender);
+		printk("medusa_ipc_perm after decide\n");
 		if (retval == MED_ERR)
 			retval = MED_OK;
 	}

@@ -10,22 +10,19 @@
 #define sem_ids(ns)	((ns)->ids[IPC_SEM_IDS])
 #define msg_ids(ns)	((ns)->ids[IPC_MSG_IDS])
 
-void medusa_ipc_info_unlock(struct kern_ipc_perm * ipcp)
-{
-	ipc_unlock(ipcp);
-}
 
-int medusa_ipc_info_lock(int id, unsigned int ipc_class, struct kern_ipc_perm * ipcp)
+struct kern_ipc_perm * medusa_ipc_info_lock(int id, unsigned int ipc_class)
 {
 	struct ipc_namespace *ns;
+	struct kern_ipc_perm *ipcp;
 	struct ipc_ids *ids;
 	
 	if (id < 0)
 	{
-		printk("kern_ipc_perm FAILED 0");
-		goto out_err;		
+		printk("kern_ipc_perm FAILED 0\n");
+		return -EINVAL;		
 	}
-	printk("MEDUSAAAA: id: %d, class: %d", id, ipc_class);
+	printk("MEDUSAAAA: id: %d, class: %d\n", id, ipc_class);
 	ns = current->nsproxy->ipc_ns;
 
 	switch(ipc_class){
@@ -42,21 +39,35 @@ int medusa_ipc_info_lock(int id, unsigned int ipc_class, struct kern_ipc_perm * 
 			break;
 		}
 		default: {
-			printk("kern_ipc_perm FAILED 1");
-			goto out_err;		
+			printk("kern_ipc_perm FAILED 1\n");
+			return -EINVAL;		
 		}
 	}
-	ipcp = ipc_lock(ids, id);
+
+	printk("kern_ipc_perm - before rcu read lock\n");
+	rcu_read_lock();
+	printk("kern_ipc_perm - before obtain\n");
+	ipcp = ipc_obtain_object_check(ids, id);
+	printk("kern_ipc_perm - after ipc obtain\n");
 
 	if (IS_ERR(ipcp))
 	{
-		printk("kern_ipc_perm FAILED 2");
+		printk("kern_ipc_perm FAILED 2\n");
 		goto out_err;
 	}
-	printk("kern_ipc_perm SUCCESS");
-	return 0;
+	if (!ipcp)
+	{
+		printk("kern_ipc_perm FAILED 3 - it is null probably\n");
+	}
 
+	printk("MEDUSAAAA: id from object: %d\n", ipcp->id);
+
+	printk("kern_ipc_perm SUCCESS  - before locks\n");
+	rcu_read_unlock();
+	printk("kern_ipc_perm SUCCESS - after locks\n");
+	return ipcp;
 out_err:
-	printk("kern_ipc_perm FAILED");
-	return -EINVAL;
+	printk("kern_ipc_perm FAILED\n");
+	rcu_read_unlock();
+	return NULL;
 }
