@@ -1965,6 +1965,32 @@ sub process_body($$) {
 }
 
 
+#
+# STATE_PROTO: reading a function/whatever prototype.
+#
+sub process_proto($$) {
+    my $file = shift;
+
+    if (/$doc_inline_oneline/) {
+	$section = $1;
+	$contents = $2;
+	if ($contents ne "") {
+	    $contents .= "\n";
+	    dump_section($file, $section, $contents);
+	    $section = $section_default;
+	    $contents = "";
+	}
+    } elsif (/$doc_inline_start/) {
+	$state = STATE_INLINE;
+	$inline_doc_state = STATE_INLINE_NAME;
+    } elsif ($decl_type eq 'function') {
+	process_proto_function($_, $file);
+    } else {
+	process_proto_type($_, $file);
+    }
+}
+
+
 sub process_file($) {
     my $file;
     my $func;
@@ -2031,24 +2057,8 @@ sub process_file($) {
 		    ++$warnings;
 		}
 	    }
-	} elsif ($state == STATE_PROTO) {	# scanning for function '{' (end of prototype)
-	    if (/$doc_inline_oneline/) {
-		$section = $1;
-		$contents = $2;
-		if ($contents ne "") {
-		    $contents .= "\n";
-		    dump_section($file, $section, $contents);
-		    $section = $section_default;
-		    $contents = "";
-		}
-	    } elsif (/$doc_inline_start/) {
-		$state = STATE_INLINE;
-		$inline_doc_state = STATE_INLINE_NAME;
-	    } elsif ($decl_type eq 'function') {
-		process_proto_function($_, $file);
-	    } else {
-		process_proto_type($_, $file);
-	    }
+	} elsif ($state == STATE_PROTO) {
+	    process_proto($file, $_);
 	} elsif ($state == STATE_DOCBLOCK) {
 		if (/$doc_end/)
 		{
