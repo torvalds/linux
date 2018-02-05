@@ -715,4 +715,36 @@ struct iwl_ba_window_status_notif {
 	__le16 mpdu_rx_count[BA_WINDOW_STREAMS_MAX];
 } __packed; /* BA_WINDOW_STATUS_NTFY_API_S_VER_1 */
 
+/**
+ * struct iwl_rfh_queue_config - RX queue configuration
+ * @q_num: Q num
+ * @enable: enable queue
+ * @reserved: alignment
+ * @urbd_stts_wrptr: DMA address of urbd_stts_wrptr
+ * @fr_bd_cb: DMA address of freeRB table
+ * @ur_bd_cb: DMA address of used RB table
+ * @fr_bd_wid: Initial index of the free table
+ */
+struct iwl_rfh_queue_data {
+	u8 q_num;
+	u8 enable;
+	__le16 reserved;
+	__le64 urbd_stts_wrptr;
+	__le64 fr_bd_cb;
+	__le64 ur_bd_cb;
+	__le32 fr_bd_wid;
+} __packed; /* RFH_QUEUE_CONFIG_S_VER_1 */
+
+/**
+ * struct iwl_rfh_queue_config - RX queue configuration
+ * @num_queues: number of queues configured
+ * @reserved: alignment
+ * @data: DMA addresses per-queue
+ */
+struct iwl_rfh_queue_config {
+	u8 num_queues;
+	u8 reserved[3];
+	struct iwl_rfh_queue_data data[];
+} __packed; /* RFH_QUEUE_CONFIG_API_S_VER_1 */
+
 #endif /* __iwl_fw_api_rx_h__ */
