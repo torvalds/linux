@@ -201,18 +201,13 @@ alloc_object(void *addr, struct debug_bucket *b, struct debug_obj_descr *descr)
  * workqueue function to free objects.
  *
  * To reduce contention on the global pool_lock, the actual freeing of
- * debug objects will be delayed if the pool_lock is busy. We also free
- * the objects in a batch of 4 for each lock/unlock cycle.
+ * debug objects will be delayed if the pool_lock is busy.
  */
-#define ODEBUG_FREE_BATCH	4
-
 static void free_obj_work(struct work_struct *work)
 {
-	struct debug_obj *objs[ODEBUG_FREE_BATCH];
 	struct hlist_node *tmp;
 	struct debug_obj *obj;
 	unsigned long flags;
-	int i;
 	HLIST_HEAD(tofree);
 
 	if (!raw_spin_trylock_irqsave(&pool_lock, flags))
@@ -240,26 +235,6 @@ static void free_obj_work(struct work_struct *work)
 		hlist_move_list(&obj_to_free, &tofree);
 		obj_nr_tofree = 0;
 	}
-
-	while (obj_pool_free >= debug_objects_pool_size + ODEBUG_FREE_BATCH) {
-		for (i = 0; i < ODEBUG_FREE_BATCH; i++) {
-			objs[i] = hlist_entry(obj_pool.first,
-					      typeof(*objs[0]), node);
-			hlist_del(&objs[i]->node);
-		}
-
-		obj_pool_free -= ODEBUG_FREE_BATCH;
-		debug_objects_freed += ODEBUG_FREE_BATCH;
-		/*
-		 * We release pool_lock across kmem_cache_free() to
-		 * avoid contention on pool_lock.
-		 */
-		raw_spin_unlock_irqrestore(&pool_lock, flags);
-		for (i = 0; i < ODEBUG_FREE_BATCH; i++)
-			kmem_cache_free(obj_cache, objs[i]);
-		if (!raw_spin_trylock_irqsave(&pool_lock, flags))
-			return;
-	}
 	raw_spin_unlock_irqrestore(&pool_lock, flags);
 
 	hlist_for_each_entry_safe(obj, tmp, &tofree, node) {
@@ -268,27 +243,33 @@ static void free_obj_work(struct work_struct *work)
 	}
 }
 
+static bool __free_object(struct debug_obj *obj)
+{
+	unsigned long flags;
+	bool work;
+
+	raw_spin_lock_irqsave(&pool_lock, flags);
+	work = (obj_pool_free > debug_objects_pool_size) && obj_cache;
+	obj_pool_used--;
+
+	if (work) {
+		obj_nr_tofree++;
+		hlist_add_head(&obj->node, &obj_to_free);
+	} else {
+		obj_pool_free++;
+		hlist_add_head(&obj->node, &obj_pool);
+	}
+	raw_spin_unlock_irqrestore(&pool_lock, flags);
+	return work;
+}
+
 /*
  * Put the object back into the pool and schedule work to free objects
  * if necessary.
  */
 static void free_object(struct debug_obj *obj)
 {
-	unsigned long flags;
-	int sched = 0;
-
-	raw_spin_lock_irqsave(&pool_lock, flags);
-	/*
-	 * schedule work when the pool is filled and the cache is
-	 * initialized:
-	 */
-	if (obj_pool_free > debug_objects_pool_size && obj_cache)
-		sched = 1;
-	hlist_add_head(&obj->node, &obj_pool);
-	obj_pool_free++;
-	obj_pool_used--;
-	raw_spin_unlock_irqrestore(&pool_lock, flags);
-	if (sched)
+	if (__free_object(obj))
 		schedule_work(&debug_obj_work);
 }
 
