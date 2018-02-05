@@ -7,7 +7,6 @@ config MIPS
 	select ARCH_DISCARD_MEMBLOCK
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
-	select ARCH_MIGHT_HAVE_PC_SERIO
 	select ARCH_SUPPORTS_UPROBES
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF if 64BIT
@@ -341,6 +340,7 @@ config MACH_DECSTATION
 config MACH_JAZZ
 	bool "Jazz family of machines"
 	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select FW_ARC
 	select FW_ARC32
 	select ARCH_MAY_HAVE_PC_FDC
@@ -475,6 +475,7 @@ config MIPS_MALTA
 	bool "MIPS Malta board"
 	select ARCH_MAY_HAVE_PC_FDC
 	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select BOOT_ELF32
 	select BOOT_RAW
 	select BUILTIN_DTB
@@ -611,6 +612,7 @@ config SGI_IP22
 	bool "SGI IP22 (Indy/Indigo2)"
 	select FW_ARC
 	select FW_ARC32
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select BOOT_ELF32
 	select CEVT_R4K
 	select CSRC_R4K
@@ -673,6 +675,7 @@ config SGI_IP28
 	bool "SGI IP28 (Indigo2 R10k)"
 	select FW_ARC
 	select FW_ARC64
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select BOOT_ELF64
 	select CEVT_R4K
 	select CSRC_R4K
@@ -823,6 +826,7 @@ config SNI_RM
 	select FW_SNIPROM if CPU_BIG_ENDIAN
 	select ARCH_MAY_HAVE_PC_FDC
 	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select BOOT_ELF32
 	select CEVT_R4K
 	select CSRC_R4K
