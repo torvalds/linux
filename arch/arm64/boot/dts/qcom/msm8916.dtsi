@@ -332,9 +332,10 @@
 			#clock-cells = <0>;
 		};
 
-		apcs: syscon@b011000 {
-			compatible = "syscon";
-			reg = <0x0b011000 0x1000>;
+		apcs: mailbox@b011000 {
+			compatible = "qcom,msm8916-apcs-kpss-global", "syscon";
+			reg = <0xb011000 0x1000>;
+			#mbox-cells = <1>;
 		};
 
 		blsp1_uart2: serial@78b0000 {
