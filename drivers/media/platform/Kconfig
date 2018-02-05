@@ -591,7 +591,7 @@ config CEC_GPIO
 
 config VIDEO_SAMSUNG_S5P_CEC
        tristate "Samsung S5P CEC driver"
-       depends on PLAT_S5P || ARCH_EXYNOS || COMPILE_TEST
+       depends on ARCH_EXYNOS || COMPILE_TEST
        select CEC_CORE
        select CEC_NOTIFIER
        ---help---
