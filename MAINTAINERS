@@ -4442,6 +4442,13 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Supported
 F:	drivers/gpu/drm/pl111/
 
+DRM DRIVER FOR ARM VERSATILE TFT PANELS
+M:	Linus Walleij <linus.walleij@linaro.org>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+S:	Maintained
+F:	drivers/gpu/drm/panel/panel-arm-versatile.c
+F:	Documentation/devicetree/bindings/display/panel/arm,versatile-tft-panel.txt
+
 DRM DRIVER FOR AST SERVER GRAPHICS CHIPS
 M:	Dave Airlie <airlied@redhat.com>
 S:	Odd Fixes
