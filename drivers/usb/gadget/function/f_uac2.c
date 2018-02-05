@@ -216,7 +216,7 @@ static struct uac2_ac_header_descriptor ac_hdr_desc = {
 	.bDescriptorSubtype = UAC_MS_HEADER,
 	.bcdADC = cpu_to_le16(0x200),
 	.bCategory = UAC2_FUNCTION_IO_BOX,
-	.wTotalLength = cpu_to_le16(sizeof in_clk_src_desc
+	.wTotalLength = cpu_to_le16(sizeof ac_hdr_desc + sizeof in_clk_src_desc
 			+ sizeof out_clk_src_desc + sizeof usb_out_it_desc
 			+ sizeof io_in_it_desc + sizeof usb_in_ot_desc
 			+ sizeof io_out_ot_desc),
