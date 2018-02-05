@@ -13,6 +13,7 @@ static void drm_dp_link_caps_reset(struct drm_dp_link_caps *caps)
 	caps->enhanced_framing = false;
 	caps->tps3_supported = false;
 	caps->fast_training = false;
+	caps->channel_coding = false;
 }
 
 void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
@@ -21,6 +22,7 @@ void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
 	dest->enhanced_framing = src->enhanced_framing;
 	dest->tps3_supported = src->tps3_supported;
 	dest->fast_training = src->fast_training;
+	dest->channel_coding = src->channel_coding;
 }
 
 static void drm_dp_link_reset(struct drm_dp_link *link)
@@ -67,6 +69,7 @@ int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link)
 	link->caps.enhanced_framing = drm_dp_enhanced_frame_cap(dpcd);
 	link->caps.tps3_supported = drm_dp_tps3_supported(dpcd);
 	link->caps.fast_training = drm_dp_fast_training_cap(dpcd);
+	link->caps.channel_coding = drm_dp_channel_coding_supported(dpcd);
 
 	link->rate = link->max_rate;
 	link->lanes = link->max_lanes;

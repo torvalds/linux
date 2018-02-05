@@ -35,6 +35,13 @@ struct drm_dp_link_caps {
 	 * AUX CH handshake not required for link training
 	 */
 	bool fast_training;
+
+	/**
+	 * @channel_coding:
+	 *
+	 * ANSI 8B/10B channel coding capability
+	 */
+	bool channel_coding;
 };
 
 void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
