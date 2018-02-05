@@ -469,7 +469,7 @@ config	SOC_IMX53
 
 config SOC_IMX6
 	bool
-	select ARM_CPU_SUSPEND if PM
+	select ARM_CPU_SUSPEND if (PM || CPU_IDLE)
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
 	select ARM_GIC
