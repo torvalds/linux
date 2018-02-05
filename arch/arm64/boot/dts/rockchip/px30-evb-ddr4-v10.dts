@@ -235,6 +235,34 @@
 	};
 };
 
+&dsi_in_vopl {
+	status = "disabled";
+};
+
+&emmc {
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
+	supports-emmc;
+	disable-wp;
+	non-removable;
+	num-slots = <1>;
+	status = "okay";
+};
+
+&gmac {
+	phy-supply = <&vcc_phy>;
+	clock_in_out = "output";
+	snps,reset-gpio = <&gpio2 13 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 50000 50000>;
+	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+};
+
 &i2c0 {
 	rk809: pmic@20 {
 		compatible = "rockchip,rk809";
@@ -499,6 +527,14 @@
 		reprobe_en = <1>;
 	};
 
+	ts@40 {
+		status = "okay";
+		compatible = "GT1X";
+		reg = <0x14>;
+		irq_gpio_number = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
+		rst_gpio_number = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
+	};
+
 	sensor@4c {
 		status = "okay";
 		compatible = "gs_mma7660";
@@ -519,58 +555,6 @@
 	vccio3-supply = <&vcc_3v0>;
 	vccio4-supply = <&vcc3v0_pmu>;
 	vccio5-supply = <&vcc_3v0>;
-};
-
-&dsi_in_vopl {
-	status = "disabled";
-};
-
-&emmc {
-	bus-width = <8>;
-	cap-mmc-highspeed;
-	mmc-hs200-1_8v;
-	supports-emmc;
-	disable-wp;
-	non-removable;
-	num-slots = <1>;
-	status = "okay";
-};
-
-&gmac {
-	phy-supply = <&vcc_phy>;
-	clock_in_out = "output";
-	snps,reset-gpio = <&gpio2 13 GPIO_ACTIVE_LOW>;
-	snps,reset-active-low;
-	snps,reset-delays-us = <0 50000 50000>;
-	status = "okay";
-};
-
-&gpu {
-	status = "okay";
-};
-
-&i2c1 {
-	status = "okay";
-
-	ts@40 {
-		status = "okay";
-		compatible = "GT1X";
-		reg = <0x14>;
-		irq_gpio_number = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
-		rst_gpio_number = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
-	};
-
-	sensor@4c {
-		status = "okay";
-		compatible = "gs_mma7660";
-		reg = <0x4c>;
-		type = <SENSOR_TYPE_ACCEL>;
-		irq-gpio = <&gpio0 RK_PB5 IRQ_TYPE_LEVEL_LOW>;
-		irq_enable = <0>;
-		poll_delay_ms = <30>;
-		layout = <6>;
-		reprobe_en = <1>;
-	};
 };
 
 &mipi_dphy {
