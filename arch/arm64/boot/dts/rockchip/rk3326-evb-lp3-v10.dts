@@ -666,6 +666,18 @@
 	status = "okay";
 };
 
+&route_dsi {
+	status = "okay";
+};
+
+&rk_rga {
+	status = "okay";
+};
+
+&route_lvds {
+	status = "disabled";
+};
+
 &saradc {
 	status = "okay";
 };
@@ -692,16 +704,8 @@
 	status = "okay";
 };
 
-&route_dsi {
+&tsadc {
 	status = "okay";
-};
-
-&rk_rga {
-	status = "okay";
-};
-
-&route_lvds {
-	status = "disabled";
 };
 
 &u2phy {
