@@ -31,10 +31,16 @@
 #define SDHCI_OMAP_CON		0x12c
 #define CON_DW8			BIT(5)
 #define CON_DMA_MASTER		BIT(20)
+#define CON_CLKEXTFREE		BIT(16)
+#define CON_PADEN		BIT(15)
 #define CON_INIT		BIT(1)
 #define CON_OD			BIT(0)
 
 #define SDHCI_OMAP_CMD		0x20c
+
+#define SDHCI_OMAP_PSTATE	0x0224
+#define PSTATE_DLEV_DAT0	BIT(20)
+#define PSTATE_DATI		BIT(1)
 
 #define SDHCI_OMAP_HCTL		0x228
 #define HCTL_SDBP		BIT(8)
@@ -189,6 +195,51 @@ static void sdhci_omap_conf_bus_power(struct sdhci_omap_host *omap_host,
 			return;
 		usleep_range(5, 10);
 	}
+}
+
+static int sdhci_omap_card_busy(struct mmc_host *mmc)
+{
+	u32 reg, ac12;
+	int ret = false;
+	struct sdhci_host *host = mmc_priv(mmc);
+	struct sdhci_pltfm_host *pltfm_host;
+	struct sdhci_omap_host *omap_host;
+	u32 ier = host->ier;
+
+	pltfm_host = sdhci_priv(host);
+	omap_host = sdhci_pltfm_priv(pltfm_host);
+
+	reg = sdhci_omap_readl(omap_host, SDHCI_OMAP_CON);
+	ac12 = sdhci_omap_readl(omap_host, SDHCI_OMAP_AC12);
+	reg &= ~CON_CLKEXTFREE;
+	if (ac12 & AC12_V1V8_SIGEN)
+		reg |= CON_CLKEXTFREE;
+	reg |= CON_PADEN;
+	sdhci_omap_writel(omap_host, SDHCI_OMAP_CON, reg);
+
+	disable_irq(host->irq);
+	ier |= SDHCI_INT_CARD_INT;
+	sdhci_writel(host, ier, SDHCI_INT_ENABLE);
+	sdhci_writel(host, ier, SDHCI_SIGNAL_ENABLE);
+
+	/*
+	 * Delay is required for PSTATE to correctly reflect
+	 * DLEV/CLEV values after PADEN is set.
+	 */
+	usleep_range(50, 100);
+	reg = sdhci_omap_readl(omap_host, SDHCI_OMAP_PSTATE);
+	if ((reg & PSTATE_DATI) || !(reg & PSTATE_DLEV_DAT0))
+		ret = true;
+
+	reg = sdhci_omap_readl(omap_host, SDHCI_OMAP_CON);
+	reg &= ~(CON_CLKEXTFREE | CON_PADEN);
+	sdhci_omap_writel(omap_host, SDHCI_OMAP_CON, reg);
+
+	sdhci_writel(host, host->ier, SDHCI_INT_ENABLE);
+	sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
+	enable_irq(host->irq);
+
+	return ret;
 }
 
 static int sdhci_omap_start_signal_voltage_switch(struct mmc_host *mmc,
@@ -562,6 +613,7 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 	host->mmc_host_ops.start_signal_voltage_switch =
 					sdhci_omap_start_signal_voltage_switch;
 	host->mmc_host_ops.set_ios = sdhci_omap_set_ios;
+	host->mmc_host_ops.card_busy = sdhci_omap_card_busy;
 
 	sdhci_read_caps(host);
 	host->caps |= SDHCI_CAN_DO_ADMA2;
