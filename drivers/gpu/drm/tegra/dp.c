@@ -14,6 +14,7 @@ static void drm_dp_link_caps_reset(struct drm_dp_link_caps *caps)
 	caps->tps3_supported = false;
 	caps->fast_training = false;
 	caps->channel_coding = false;
+	caps->alternate_scrambler_reset = false;
 }
 
 void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
@@ -23,6 +24,7 @@ void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
 	dest->tps3_supported = src->tps3_supported;
 	dest->fast_training = src->fast_training;
 	dest->channel_coding = src->channel_coding;
+	dest->alternate_scrambler_reset = src->alternate_scrambler_reset;
 }
 
 static void drm_dp_link_reset(struct drm_dp_link *link)
@@ -70,6 +72,9 @@ int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link)
 	link->caps.tps3_supported = drm_dp_tps3_supported(dpcd);
 	link->caps.fast_training = drm_dp_fast_training_cap(dpcd);
 	link->caps.channel_coding = drm_dp_channel_coding_supported(dpcd);
+
+	if (drm_dp_alternate_scrambler_reset_cap(dpcd))
+		link->caps.alternate_scrambler_reset = true;
 
 	link->rate = link->max_rate;
 	link->lanes = link->max_lanes;

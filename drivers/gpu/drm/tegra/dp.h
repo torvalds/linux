@@ -42,6 +42,13 @@ struct drm_dp_link_caps {
 	 * ANSI 8B/10B channel coding capability
 	 */
 	bool channel_coding;
+
+	/**
+	 * @alternate_scrambler_reset:
+	 *
+	 * eDP alternate scrambler reset capability
+	 */
+	bool alternate_scrambler_reset;
 };
 
 void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
