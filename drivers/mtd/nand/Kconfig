@@ -1,1 +1,4 @@
+config MTD_NAND_CORE
+	tristate
+
 source "drivers/mtd/nand/raw/Kconfig"
