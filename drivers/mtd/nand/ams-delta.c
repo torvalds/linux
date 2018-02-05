@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2006 Jonathan McDowell <noodles@earth.li>
  *
- *  Derived from drivers/mtd/toto.c
+ *  Derived from drivers/mtd/nand/toto.c
  *  Converted to platform driver by Janusz Krzysztofik <jkrzyszt@tis.icnet.pl>
  *  Partially stolen from plat_nand.c
  *
