@@ -1793,13 +1793,81 @@ sub process_normal() {
     }
 }
 
+#
+# STATE_NAME: Looking for the "name - description" line
+#
+sub process_name($$) {
+    my $file = shift;
+    my $identifier;
+    my $descr;
 
+    if (/$doc_block/o) {
+	$state = STATE_DOCBLOCK;
+	$contents = "";
+	$new_start_line = $. + 1;
+
+	if ( $1 eq "" ) {
+	    $section = $section_intro;
+	} else {
+	    $section = $1;
+	}
+    }
+    elsif (/$doc_decl/o) {
+	$identifier = $1;
+	if (/\s*([\w\s]+?)\s*-/) {
+	    $identifier = $1;
+	}
+
+	$state = STATE_BODY;
+	# if there's no @param blocks need to set up default section
+	# here
+	$contents = "";
+	$section = $section_default;
+	$new_start_line = $. + 1;
+	if (/-(.*)/) {
+	    # strip leading/trailing/multiple spaces
+	    $descr= $1;
+	    $descr =~ s/^\s*//;
+	    $descr =~ s/\s*$//;
+	    $descr =~ s/\s+/ /g;
+	    $declaration_purpose = $descr;
+	    $state = STATE_BODY_MAYBE;
+	} else {
+	    $declaration_purpose = "";
+	}
+
+	if (($declaration_purpose eq "") && $verbose) {
+	    print STDERR "${file}:$.: warning: missing initial short description on line:\n";
+	    print STDERR $_;
+	    ++$warnings;
+	}
+
+	if ($identifier =~ m/^struct/) {
+	    $decl_type = 'struct';
+	} elsif ($identifier =~ m/^union/) {
+	    $decl_type = 'union';
+	} elsif ($identifier =~ m/^enum/) {
+	    $decl_type = 'enum';
+	} elsif ($identifier =~ m/^typedef/) {
+	    $decl_type = 'typedef';
+	} else {
+	    $decl_type = 'function';
+	}
+
+	if ($verbose) {
+	    print STDERR "${file}:$.: info: Scanning doc for $identifier\n";
+	}
+    } else {
+	print STDERR "${file}:$.: warning: Cannot understand $_ on line $.",
+	    " - I thought it was a doc line\n";
+	++$warnings;
+	$state = STATE_NORMAL;
+    }
+}
 
 sub process_file($) {
     my $file;
-    my $identifier;
     my $func;
-    my $descr;
     my $initial_section_counter = $section_counter;
     my ($orig_file) = @_;
     my $leading_space;
@@ -1823,69 +1891,8 @@ sub process_file($) {
         while ($_ =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {};
 	if ($state == STATE_NORMAL) {
 	    process_normal();
-	} elsif ($state == STATE_NAME) {# this line is the function name (always)
-	    if (/$doc_block/o) {
-		$state = STATE_DOCBLOCK;
-		$contents = "";
-                $new_start_line = $. + 1;
-
-		if ( $1 eq "" ) {
-			$section = $section_intro;
-		} else {
-			$section = $1;
-		}
-	    }
-	    elsif (/$doc_decl/o) {
-		$identifier = $1;
-		if (/\s*([\w\s]+?)\s*-/) {
-		    $identifier = $1;
-		}
-
-		$state = STATE_BODY;
-		# if there's no @param blocks need to set up default section
-		# here
-		$contents = "";
-		$section = $section_default;
-		$new_start_line = $. + 1;
-		if (/-(.*)/) {
-		    # strip leading/trailing/multiple spaces
-		    $descr= $1;
-		    $descr =~ s/^\s*//;
-		    $descr =~ s/\s*$//;
-		    $descr =~ s/\s+/ /g;
-		    $declaration_purpose = $descr;
-		    $state = STATE_BODY_MAYBE;
-		} else {
-		    $declaration_purpose = "";
-		}
-
-		if (($declaration_purpose eq "") && $verbose) {
-			print STDERR "${file}:$.: warning: missing initial short description on line:\n";
-			print STDERR $_;
-			++$warnings;
-		}
-
-		if ($identifier =~ m/^struct/) {
-		    $decl_type = 'struct';
-		} elsif ($identifier =~ m/^union/) {
-		    $decl_type = 'union';
-		} elsif ($identifier =~ m/^enum/) {
-		    $decl_type = 'enum';
-		} elsif ($identifier =~ m/^typedef/) {
-		    $decl_type = 'typedef';
-		} else {
-		    $decl_type = 'function';
-		}
-
-		if ($verbose) {
-		    print STDERR "${file}:$.: info: Scanning doc for $identifier\n";
-		}
-	    } else {
-		print STDERR "${file}:$.: warning: Cannot understand $_ on line $.",
-		" - I thought it was a doc line\n";
-		++$warnings;
-		$state = STATE_NORMAL;
-	    }
+	} elsif ($state == STATE_NAME) {
+	    process_name($file, $_);
 	} elsif ($state == STATE_BODY || $state == STATE_BODY_MAYBE) {
 	    if (/$doc_sect/i) { # case insensitive for supported section names
 		$newsection = $1;
