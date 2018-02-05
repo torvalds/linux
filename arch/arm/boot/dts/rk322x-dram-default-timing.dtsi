@@ -1,0 +1,35 @@
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ */
+
+#include <dt-bindings/clock/rockchip-ddr.h>
+#include <dt-bindings/dram/rockchip,rk322x.h>
+
+/ {
+	dram_timing: dram_timing {
+		compatible = "rockchip,dram-timing";
+		dram_spd_bin = <DDR3_DEFAULT>;
+		sr_idle = <0x18>;
+		pd_idle = <0x20>;
+		dram_dll_disb_freq = <300>;
+		phy_dll_disb_freq = <400>;
+		dram_odt_disb_freq = <333>;
+		phy_odt_disb_freq = <333>;
+		ddr3_drv = <DDR3_DS_40ohm>;
+		ddr3_odt = <DDR3_ODT_120ohm>;
+		lpddr3_drv = <LP3_DS_34ohm>;
+		lpddr3_odt = <LP3_ODT_240ohm>;
+		lpddr2_drv = <LP2_DS_34ohm>;
+		/* lpddr2 not supported odt */
+		phy_ddr3_clk_drv = <PHY_DDR3_RON_RTT_45ohm>;
+		phy_ddr3_cmd_drv = <PHY_DDR3_RON_RTT_45ohm>;
+		phy_ddr3_dqs_drv = <PHY_DDR3_RON_RTT_34ohm>;
+		phy_ddr3_odt = <PHY_DDR3_RON_RTT_225ohm>;
+		phy_lp23_clk_drv = <PHY_LP23_RON_RTT_43ohm>;
+		phy_lp23_cmd_drv = <PHY_LP23_RON_RTT_34ohm>;
+		phy_lp23_dqs_drv = <PHY_LP23_RON_RTT_34ohm>;
+		phy_lp3_odt = <PHY_LP23_RON_RTT_240ohm>;
+	};
+};

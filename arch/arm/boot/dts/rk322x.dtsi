@@ -47,6 +47,8 @@
 #include <dt-bindings/suspend/rockchip-rk322x.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/thermal/thermal.h>
+#include <dt-bindings/soc/rockchip-system-status.h>
+#include <rk322x-dram-default-timing.dtsi>
 #include "skeleton.dtsi"
 
 / {
@@ -156,6 +158,51 @@
 			     <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
+	};
+
+	dmc: dmc {
+		compatible = "rockchip,rk3228-dmc", "rockchip,rk322x-dram";
+		clocks = <&cru SCLK_DDRC>;
+		clock-names = "dmc_clk";
+		operating-points-v2 = <&dmc_opp_table>;
+		system-status-freq = <
+			/*system status         freq(KHz)*/
+			SYS_STATUS_NORMAL       400000
+			SYS_STATUS_VIDEO_4K	600000
+			SYS_STATUS_VIDEO_4K_10B 786000
+		>;
+		dram_freq = <786000000>;
+		rockchip,dram_timing = <&dram_timing>;
+		status = "disabled";
+	};
+
+	dmc_opp_table: dmc-opp-table {
+		compatible = "operating-points-v2";
+
+		opp-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <1050000>;
+		};
+		opp-400000000 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <1050000>;
+		};
+		opp-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <1050000>;
+		};
+		opp-700000000 {
+			opp-hz = /bits/ 64 <700000000>;
+			opp-microvolt = <1100000>;
+		};
+		opp-786000000 {
+			opp-hz = /bits/ 64 <786000000>;
+			opp-microvolt = <1150000>;
+		};
+		opp-800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <1150000>;
+		};
 	};
 
 	timer {
