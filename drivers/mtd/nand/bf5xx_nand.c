@@ -5,10 +5,10 @@
  *
  * Blackfin BF5xx on-chip NAND flash controller driver
  *
- * Derived from drivers/mtd/nand/s3c2410.c
+ * Derived from s3c2410.c
  * Copyright (c) 2007 Ben Dooks <ben@simtec.co.uk>
  *
- * Derived from drivers/mtd/nand/cafe.c
+ * Derived from cafe.c
  * Copyright © 2006 Red Hat, Inc.
  * Copyright © 2006 David Woodhouse <dwmw2@infradead.org>
  *

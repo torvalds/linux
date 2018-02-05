@@ -6,9 +6,8 @@
  * by OSADL membership fees in 2009;  for details see www.osadl.org.
  *
  * Based on original driver from Freescale Semiconductor
- * written by John Rigby <jrigby@freescale.com> on basis
- * of drivers/mtd/nand/mxc_nand.c. Reworked and extended
- * Piotr Ziecik <kosmo@semihalf.com>.
+ * written by John Rigby <jrigby@freescale.com> on basis of mxc_nand.c.
+ * Reworked and extended by Piotr Ziecik <kosmo@semihalf.com>.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

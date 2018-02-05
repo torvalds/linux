@@ -3,7 +3,7 @@
  *
  *  Derived from drivers/mtd/toto.c
  *  Converted to platform driver by Janusz Krzysztofik <jkrzyszt@tis.icnet.pl>
- *  Partially stolen from drivers/mtd/nand/plat_nand.c
+ *  Partially stolen from plat_nand.c
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
