@@ -127,7 +127,7 @@ static struct arm_pmu *arm_pmu_acpi_find_alloc_pmu(void)
 		return pmu;
 	}
 
-	pmu = armpmu_alloc();
+	pmu = armpmu_alloc_atomic();
 	if (!pmu) {
 		pr_warn("Unable to allocate PMU for CPU%d\n",
 			smp_processor_id());

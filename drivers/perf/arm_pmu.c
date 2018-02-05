@@ -760,18 +760,18 @@ static void cpu_pmu_destroy(struct arm_pmu *cpu_pmu)
 					    &cpu_pmu->node);
 }
 
-struct arm_pmu *armpmu_alloc(void)
+static struct arm_pmu *__armpmu_alloc(gfp_t flags)
 {
 	struct arm_pmu *pmu;
 	int cpu;
 
-	pmu = kzalloc(sizeof(*pmu), GFP_KERNEL);
+	pmu = kzalloc(sizeof(*pmu), flags);
 	if (!pmu) {
 		pr_info("failed to allocate PMU device!\n");
 		goto out;
 	}
 
-	pmu->hw_events = alloc_percpu(struct pmu_hw_events);
+	pmu->hw_events = alloc_percpu_gfp(struct pmu_hw_events, flags);
 	if (!pmu->hw_events) {
 		pr_info("failed to allocate per-cpu PMU data.\n");
 		goto out_free_pmu;
@@ -816,6 +816,17 @@ out_free_pmu:
 out:
 	return NULL;
 }
+
+struct arm_pmu *armpmu_alloc(void)
+{
+	return __armpmu_alloc(GFP_KERNEL);
+}
+
+struct arm_pmu *armpmu_alloc_atomic(void)
+{
+	return __armpmu_alloc(GFP_ATOMIC);
+}
+
 
 void armpmu_free(struct arm_pmu *pmu)
 {
