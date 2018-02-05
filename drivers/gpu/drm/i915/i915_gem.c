@@ -3133,7 +3133,7 @@ void i915_gem_reset(struct drm_i915_private *dev_priv)
 		 * an incoherent read by the CS (presumably stale TLB). An
 		 * empty request appears sufficient to paper over the glitch.
 		 */
-		if (list_empty(&engine->timeline->requests)) {
+		if (intel_engine_is_idle(engine)) {
 			struct drm_i915_gem_request *rq;
 
 			rq = i915_gem_request_alloc(engine,
