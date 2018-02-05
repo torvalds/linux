@@ -64,22 +64,6 @@ static inline const char *intf_type(struct media_interface *intf)
 		return "v4l-swradio";
 	case MEDIA_INTF_T_V4L_TOUCH:
 		return "v4l-touch";
-	case MEDIA_INTF_T_ALSA_PCM_CAPTURE:
-		return "alsa-pcm-capture";
-	case MEDIA_INTF_T_ALSA_PCM_PLAYBACK:
-		return "alsa-pcm-playback";
-	case MEDIA_INTF_T_ALSA_CONTROL:
-		return "alsa-control";
-	case MEDIA_INTF_T_ALSA_COMPRESS:
-		return "alsa-compress";
-	case MEDIA_INTF_T_ALSA_RAWMIDI:
-		return "alsa-rawmidi";
-	case MEDIA_INTF_T_ALSA_HWDEP:
-		return "alsa-hwdep";
-	case MEDIA_INTF_T_ALSA_SEQUENCER:
-		return "alsa-sequencer";
-	case MEDIA_INTF_T_ALSA_TIMER:
-		return "alsa-timer";
 	default:
 		return "unknown-intf";
 	}
