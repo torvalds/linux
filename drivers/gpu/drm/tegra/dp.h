@@ -11,6 +11,13 @@ struct drm_dp_aux;
 
 #define DP_LINK_CAP_ENHANCED_FRAMING (1 << 0)
 
+/**
+ * struct drm_dp_link - DP link capabilities
+ * @revision: DP specification revision supported on the link
+ * @rate: maximum clock rate supported on the link
+ * @num_lanes: maximum number of lanes supported on the link
+ * @capabilities: bitmask of capabilities supported on the link
+ */
 struct drm_dp_link {
 	unsigned char revision;
 	unsigned int rate;
