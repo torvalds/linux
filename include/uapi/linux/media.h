@@ -136,7 +136,7 @@ struct media_device_info {
  * with the legacy v1 API.The number range is out of range by purpose:
  * several previously reserved numbers got excluded from this range.
  *
- * Subdevs are initialized with MEDIA_ENT_T_V4L2_SUBDEV_UNKNOWN,
+ * Subdevs are initialized with MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN,
  * in order to preserve backward compatibility.
  * Drivers must change to the proper subdev type before
  * registering the entity.
