@@ -2873,11 +2873,6 @@ static const struct snd_soc_dapm_route rt5659_dapm_routes[] = {
 	{ "I2S2", NULL, "I2S2 ASRC" },
 	{ "I2S3", NULL, "I2S3 ASRC" },
 
-	{ "IN1P", NULL, "LDO2" },
-	{ "IN2P", NULL, "LDO2" },
-	{ "IN3P", NULL, "LDO2" },
-	{ "IN4P", NULL, "LDO2" },
-
 	{ "DMIC1", NULL, "DMIC L1" },
 	{ "DMIC1", NULL, "DMIC R1" },
 	{ "DMIC2", NULL, "DMIC L2" },
