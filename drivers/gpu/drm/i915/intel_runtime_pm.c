@@ -2646,6 +2646,36 @@ static void gen9_dbuf_disable(struct drm_i915_private *dev_priv)
 		DRM_ERROR("DBuf power disable timeout!\n");
 }
 
+/*
+ * TODO: we shouldn't always enable DBUF_CTL_S2, we should only enable it when
+ * needed and keep it disabled as much as possible.
+ */
+static void icl_dbuf_enable(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE(DBUF_CTL_S1, I915_READ(DBUF_CTL_S1) | DBUF_POWER_REQUEST);
+	I915_WRITE(DBUF_CTL_S2, I915_READ(DBUF_CTL_S2) | DBUF_POWER_REQUEST);
+	POSTING_READ(DBUF_CTL_S2);
+
+	udelay(10);
+
+	if (!(I915_READ(DBUF_CTL_S1) & DBUF_POWER_STATE) ||
+	    !(I915_READ(DBUF_CTL_S2) & DBUF_POWER_STATE))
+		DRM_ERROR("DBuf power enable timeout\n");
+}
+
+static void icl_dbuf_disable(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE(DBUF_CTL_S1, I915_READ(DBUF_CTL_S1) & ~DBUF_POWER_REQUEST);
+	I915_WRITE(DBUF_CTL_S2, I915_READ(DBUF_CTL_S2) & ~DBUF_POWER_REQUEST);
+	POSTING_READ(DBUF_CTL_S2);
+
+	udelay(10);
+
+	if ((I915_READ(DBUF_CTL_S1) & DBUF_POWER_STATE) ||
+	    (I915_READ(DBUF_CTL_S2) & DBUF_POWER_STATE))
+		DRM_ERROR("DBuf power disable timeout!\n");
+}
+
 static void skl_display_core_init(struct drm_i915_private *dev_priv,
 				   bool resume)
 {
@@ -2957,7 +2987,7 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 	icl_init_cdclk(dev_priv);
 
 	/* 6. Enable DBUF. */
-	gen9_dbuf_enable(dev_priv);
+	icl_dbuf_enable(dev_priv);
 
 	/* 7. Setup MBUS. */
 	/* FIXME: MBUS code not here yet. */
@@ -2977,7 +3007,7 @@ static void icl_display_core_uninit(struct drm_i915_private *dev_priv)
 	/* 1. Disable all display engine functions -> aready done */
 
 	/* 2. Disable DBUF */
-	gen9_dbuf_disable(dev_priv);
+	icl_dbuf_disable(dev_priv);
 
 	/* 3. Disable CD clock */
 	icl_uninit_cdclk(dev_priv);

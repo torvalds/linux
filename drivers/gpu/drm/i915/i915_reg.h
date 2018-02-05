@@ -7164,6 +7164,8 @@ enum {
 #define  DISP_DATA_PARTITION_5_6	(1<<6)
 #define  DISP_IPC_ENABLE		(1<<3)
 #define DBUF_CTL	_MMIO(0x45008)
+#define DBUF_CTL_S1	_MMIO(0x45008)
+#define DBUF_CTL_S2	_MMIO(0x44FE8)
 #define  DBUF_POWER_REQUEST		(1<<31)
 #define  DBUF_POWER_STATE		(1<<30)
 #define GEN7_MSG_CTL	_MMIO(0x45010)
