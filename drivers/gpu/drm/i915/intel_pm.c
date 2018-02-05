@@ -4596,7 +4596,8 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		min_disp_buf_needed = res_blocks;
 	}
 
-	if (res_blocks >= ddb_allocation || res_lines > 31 ||
+	if ((level > 0 && res_lines > 31) ||
+	    res_blocks >= ddb_allocation ||
 	    min_disp_buf_needed >= ddb_allocation) {
 		*enabled = false;
 
@@ -4617,8 +4618,9 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		}
 	}
 
+	/* The number of lines are ignored for the level 0 watermark. */
+	*out_lines = level ? res_lines : 0;
 	*out_blocks = res_blocks;
-	*out_lines = res_lines;
 	*enabled = true;
 
 	return 0;
