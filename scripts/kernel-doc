@@ -1990,10 +1990,80 @@ sub process_proto($$) {
     }
 }
 
+#
+# STATE_DOCBLOCK: within a DOC: block.
+#
+sub process_docblock($$) {
+    my $file = shift;
+
+    if (/$doc_end/) {
+	dump_doc_section($file, $section, $contents);
+	$section = $section_default;
+	$contents = "";
+	$function = "";
+	%parameterdescs = ();
+	%parametertypes = ();
+	@parameterlist = ();
+	%sections = ();
+	@sectionlist = ();
+	$prototype = "";
+	$state = STATE_NORMAL;
+    } elsif (/$doc_content/) {
+	if ( $1 eq "" )	{
+	    $contents .= $blankline;
+	} else {
+	    $contents .= $1 . "\n";
+	}
+    }
+}
+
+#
+# STATE_INLINE: docbook comments within a prototype.
+#
+sub process_inline($$) {
+    my $file = shift;
+
+    # First line (state 1) needs to be a @parameter
+    if ($inline_doc_state == STATE_INLINE_NAME && /$doc_inline_sect/o) {
+	$section = $1;
+	$contents = $2;
+	$new_start_line = $.;
+	if ($contents ne "") {
+	    while (substr($contents, 0, 1) eq " ") {
+		$contents = substr($contents, 1);
+	    }
+	    $contents .= "\n";
+	}
+	$inline_doc_state = STATE_INLINE_TEXT;
+	# Documentation block end */
+    } elsif (/$doc_inline_end/) {
+	if (($contents ne "") && ($contents ne "\n")) {
+	    dump_section($file, $section, $contents);
+	    $section = $section_default;
+	    $contents = "";
+	}
+	$state = STATE_PROTO;
+	$inline_doc_state = STATE_INLINE_NA;
+	# Regular text
+    } elsif (/$doc_content/) {
+	if ($inline_doc_state == STATE_INLINE_TEXT) {
+	    $contents .= $1 . "\n";
+	    # nuke leading blank lines
+	    if ($contents =~ /^\s*$/) {
+		$contents = "";
+	    }
+	} elsif ($inline_doc_state == STATE_INLINE_NAME) {
+	    $inline_doc_state = STATE_INLINE_ERROR;
+	    print STDERR "${file}:$.: warning: ";
+	    print STDERR "Incorrect use of kernel-doc format: $_";
+	    ++$warnings;
+	}
+    }
+}
+
 
 sub process_file($) {
     my $file;
-    my $func;
     my $initial_section_counter = $section_counter;
     my ($orig_file) = @_;
 
@@ -2014,6 +2084,8 @@ sub process_file($) {
 	}
 	# Replace tabs by spaces
         while ($_ =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {};
+
+	# Hand this line to the appropriate state handler
 	if ($state == STATE_NORMAL) {
 	    process_normal();
 	} elsif ($state == STATE_NAME) {
@@ -2021,72 +2093,15 @@ sub process_file($) {
 	} elsif ($state == STATE_BODY || $state == STATE_BODY_MAYBE) {
 	    process_body($file, $_);
 	} elsif ($state == STATE_INLINE) { # scanning for inline parameters
-	    # First line (state 1) needs to be a @parameter
-	    if ($inline_doc_state == STATE_INLINE_NAME && /$doc_inline_sect/o) {
-		$section = $1;
-		$contents = $2;
-                $new_start_line = $.;
-		if ($contents ne "") {
-		    while (substr($contents, 0, 1) eq " ") {
-			$contents = substr($contents, 1);
-		    }
-		    $contents .= "\n";
-		}
-		$inline_doc_state = STATE_INLINE_TEXT;
-	    # Documentation block end */
-	    } elsif (/$doc_inline_end/) {
-		if (($contents ne "") && ($contents ne "\n")) {
-		    dump_section($file, $section, $contents);
-		    $section = $section_default;
-		    $contents = "";
-		}
-		$state = STATE_PROTO;
-		$inline_doc_state = STATE_INLINE_NA;
-	    # Regular text
-	    } elsif (/$doc_content/) {
-		if ($inline_doc_state == STATE_INLINE_TEXT) {
-		    $contents .= $1 . "\n";
-		    # nuke leading blank lines
-		    if ($contents =~ /^\s*$/) {
-			$contents = "";
-		    }
-		} elsif ($inline_doc_state == STATE_INLINE_NAME) {
-		    $inline_doc_state = STATE_INLINE_ERROR;
-		    print STDERR "${file}:$.: warning: ";
-		    print STDERR "Incorrect use of kernel-doc format: $_";
-		    ++$warnings;
-		}
-	    }
+	    process_inline($file, $_);
 	} elsif ($state == STATE_PROTO) {
 	    process_proto($file, $_);
 	} elsif ($state == STATE_DOCBLOCK) {
-		if (/$doc_end/)
-		{
-			dump_doc_section($file, $section, $contents);
-			$section = $section_default;
-			$contents = "";
-			$function = "";
-			%parameterdescs = ();
-			%parametertypes = ();
-			@parameterlist = ();
-			%sections = ();
-			@sectionlist = ();
-			$prototype = "";
-			$state = STATE_NORMAL;
-		}
-		elsif (/$doc_content/)
-		{
-			if ( $1 eq "" )
-			{
-				$contents .= $blankline;
-			}
-			else
-			{
-				$contents .= $1 . "\n";
-			}
-		}
+	    process_docblock($file, $_);
 	}
     }
+
+    # Make sure we got something interesting.
     if ($initial_section_counter == $section_counter) {
 	if ($output_mode ne "none") {
 	    print STDERR "${file}:1: warning: no structured comments found\n";
