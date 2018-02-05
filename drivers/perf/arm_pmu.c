@@ -558,6 +558,7 @@ int armpmu_request_irq(struct arm_pmu *armpmu, int cpu)
 			    IRQF_NOBALANCING |
 			    IRQF_NO_THREAD;
 
+		irq_set_status_flags(irq, IRQ_NOAUTOEN);
 		err = request_irq(irq, handler, irq_flags, "arm-pmu",
 				  per_cpu_ptr(&hw_events->percpu_pmu, cpu));
 	} else if (cpumask_empty(&armpmu->active_irqs)) {
@@ -600,10 +601,10 @@ static int arm_perf_starting_cpu(unsigned int cpu, struct hlist_node *node)
 
 	irq = armpmu_get_cpu_irq(pmu, cpu);
 	if (irq) {
-		if (irq_is_percpu_devid(irq)) {
+		if (irq_is_percpu_devid(irq))
 			enable_percpu_irq(irq, IRQ_TYPE_NONE);
-			return 0;
-		}
+		else
+			enable_irq(irq);
 	}
 
 	return 0;
@@ -618,8 +619,12 @@ static int arm_perf_teardown_cpu(unsigned int cpu, struct hlist_node *node)
 		return 0;
 
 	irq = armpmu_get_cpu_irq(pmu, cpu);
-	if (irq && irq_is_percpu_devid(irq))
-		disable_percpu_irq(irq);
+	if (irq) {
+		if (irq_is_percpu_devid(irq))
+			disable_percpu_irq(irq);
+		else
+			disable_irq(irq);
+	}
 
 	return 0;
 }
