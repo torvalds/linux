@@ -3323,16 +3323,15 @@ i915_gem_retire_work_handler(struct work_struct *work)
 		mutex_unlock(&dev->struct_mutex);
 	}
 
-	/* Keep the retire handler running until we are finally idle.
+	/*
+	 * Keep the retire handler running until we are finally idle.
 	 * We do not need to do this test under locking as in the worst-case
 	 * we queue the retire worker once too often.
 	 */
-	if (READ_ONCE(dev_priv->gt.awake)) {
-		i915_queue_hangcheck(dev_priv);
+	if (READ_ONCE(dev_priv->gt.awake))
 		queue_delayed_work(dev_priv->wq,
 				   &dev_priv->gt.retire_work,
 				   round_jiffies_up_relative(HZ));
-	}
 }
 
 static inline bool
@@ -5282,6 +5281,8 @@ err_ggtt:
 err_unlock:
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
+
+	intel_uc_fini_wq(dev_priv);
 
 	if (ret != -EIO)
 		i915_gem_cleanup_userptr(dev_priv);

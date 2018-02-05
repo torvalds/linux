@@ -258,6 +258,8 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 
 	intel_gvt_debugfs_remove_vgpu(vgpu);
 	idr_remove(&gvt->vgpu_idr, vgpu->id);
+	if (idr_is_empty(&gvt->vgpu_idr))
+		intel_gvt_clean_irq(gvt);
 	intel_vgpu_clean_sched_policy(vgpu);
 	intel_vgpu_clean_submission(vgpu);
 	intel_vgpu_clean_display(vgpu);
