@@ -397,7 +397,7 @@ static int intel_hdcp_auth(struct intel_digital_port *intel_dig_port,
 	struct drm_i915_private *dev_priv;
 	enum port port;
 	unsigned long r0_prime_gen_start;
-	int ret, i;
+	int ret, i, tries = 2;
 	union {
 		u32 reg[2];
 		u8 shim[DRM_HDCP_AN_LEN];
@@ -438,11 +438,19 @@ static int intel_hdcp_auth(struct intel_digital_port *intel_dig_port,
 	r0_prime_gen_start = jiffies;
 
 	memset(&bksv, 0, sizeof(bksv));
-	ret = shim->read_bksv(intel_dig_port, bksv.shim);
-	if (ret)
-		return ret;
-	else if (!intel_hdcp_is_ksv_valid(bksv.shim))
+
+	/* HDCP spec states that we must retry the bksv if it is invalid */
+	for (i = 0; i < tries; i++) {
+		ret = shim->read_bksv(intel_dig_port, bksv.shim);
+		if (ret)
+			return ret;
+		if (intel_hdcp_is_ksv_valid(bksv.shim))
+			break;
+	}
+	if (i == tries) {
+		DRM_ERROR("HDCP failed, Bksv is invalid\n");
 		return -ENODEV;
+	}
 
 	I915_WRITE(PORT_HDCP_BKSVLO(port), bksv.reg[0]);
 	I915_WRITE(PORT_HDCP_BKSVHI(port), bksv.reg[1]);
