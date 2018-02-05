@@ -236,6 +236,14 @@
 	#sound-dai-cells = <0>;
 };
 
+&iep {
+	status = "okay";
+};
+
+&iep_mmu {
+	status = "okay";
+};
+
 &pinctrl {
 	keys {
 		pwr_key: pwr-key {
