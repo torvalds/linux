@@ -11,6 +11,8 @@
 #include <linux/acpi.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>
+#include <linux/irq.h>
+#include <linux/irqdesc.h>
 #include <linux/percpu.h>
 #include <linux/perf/arm_pmu.h>
 
@@ -140,6 +142,35 @@ static struct arm_pmu *arm_pmu_acpi_find_alloc_pmu(void)
 }
 
 /*
+ * Check whether the new IRQ is compatible with those already associated with
+ * the PMU (e.g. we don't have mismatched PPIs).
+ */
+static bool pmu_irq_matches(struct arm_pmu *pmu, int irq)
+{
+	struct pmu_hw_events __percpu *hw_events = pmu->hw_events;
+	int cpu;
+
+	if (!irq)
+		return true;
+
+	for_each_cpu(cpu, &pmu->supported_cpus) {
+		int other_irq = per_cpu(hw_events->irq, cpu);
+		if (!other_irq)
+			continue;
+
+		if (irq == other_irq)
+			continue;
+		if (!irq_is_percpu_devid(irq) && !irq_is_percpu_devid(other_irq))
+			continue;
+
+		pr_warn("mismatched PPIs detected\n");
+		return false;
+	}
+
+	return true;
+}
+
+/*
  * This must run before the common arm_pmu hotplug logic, so that we can
  * associate a CPU and its interrupt before the common code tries to manage the
  * affinity and so on.
@@ -164,9 +195,14 @@ static int arm_pmu_acpi_cpu_starting(unsigned int cpu)
 	if (!pmu)
 		return -ENOMEM;
 
-	cpumask_set_cpu(cpu, &pmu->supported_cpus);
-
 	per_cpu(probed_pmus, cpu) = pmu;
+
+	if (pmu_irq_matches(pmu, irq)) {
+		hw_events = pmu->hw_events;
+		per_cpu(hw_events->irq, cpu) = irq;
+	}
+
+	cpumask_set_cpu(cpu, &pmu->supported_cpus);
 
 	/*
 	 * Log and request the IRQ so the core arm_pmu code can manage it.  In
@@ -174,8 +210,6 @@ static int arm_pmu_acpi_cpu_starting(unsigned int cpu)
 	 * IRQ. However, it may be too late for us to do anything about it.
 	 * The common ARM PMU code will log a warning in this case.
 	 */
-	hw_events = pmu->hw_events;
-	per_cpu(hw_events->irq, cpu) = irq;
 	armpmu_request_irq(pmu, cpu);
 
 	/*

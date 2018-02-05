@@ -543,19 +543,7 @@ int armpmu_request_irq(struct arm_pmu *armpmu, int cpu)
 	if (!irq)
 		return 0;
 
-	if (irq_is_percpu_devid(irq) && cpumask_empty(&armpmu->active_irqs)) {
-		err = request_percpu_irq(irq, handler, "arm-pmu",
-					 &hw_events->percpu_pmu);
-	} else if (irq_is_percpu_devid(irq)) {
-		int other_cpu = cpumask_first(&armpmu->active_irqs);
-		int other_irq = per_cpu(hw_events->irq, other_cpu);
-
-		if (irq != other_irq) {
-			pr_warn("mismatched PPIs detected.\n");
-			err = -EINVAL;
-			goto err_out;
-		}
-	} else {
+	if (!irq_is_percpu_devid(irq)) {
 		unsigned long irq_flags;
 
 		err = irq_force_affinity(irq, cpumask_of(cpu));
@@ -572,6 +560,9 @@ int armpmu_request_irq(struct arm_pmu *armpmu, int cpu)
 
 		err = request_irq(irq, handler, irq_flags, "arm-pmu",
 				  per_cpu_ptr(&hw_events->percpu_pmu, cpu));
+	} else if (cpumask_empty(&armpmu->active_irqs)) {
+		err = request_percpu_irq(irq, handler, "arm-pmu",
+					 &hw_events->percpu_pmu);
 	}
 
 	if (err)

@@ -127,13 +127,6 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 			pdev->dev.of_node);
 	}
 
-	/*
-	 * Some platforms have all PMU IRQs OR'd into a single IRQ, with a
-	 * special platdata function that attempts to demux them.
-	 */
-	if (dev_get_platdata(&pdev->dev))
-		cpumask_setall(&pmu->supported_cpus);
-
 	for (i = 0; i < num_irqs; i++) {
 		int cpu, irq;
 
