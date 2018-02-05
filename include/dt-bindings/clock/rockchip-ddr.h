@@ -16,6 +16,8 @@
 #ifndef _DT_BINDINGS_CLOCK_ROCKCHIP_DDR_H
 #define _DT_BINDINGS_CLOCK_ROCKCHIP_DDR_H
 
+#define DDR2_DEFAULT	(0)
+
 #define DDR3_800D	(0)	/* 5-5-5 */
 #define DDR3_800E	(1)	/* 6-6-6 */
 #define DDR3_1066E	(2)	/* 6-6-6 */
