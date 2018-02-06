@@ -17,11 +17,11 @@ static const char *proc_self_get_link(struct dentry *dentry,
 
 	if (!tgid)
 		return ERR_PTR(-ENOENT);
-	/* 11 for max length of signed int in decimal + NULL term */
-	name = kmalloc(12, dentry ? GFP_KERNEL : GFP_ATOMIC);
+	/* max length of unsigned int in decimal + NULL term */
+	name = kmalloc(10 + 1, dentry ? GFP_KERNEL : GFP_ATOMIC);
 	if (unlikely(!name))
 		return dentry ? ERR_PTR(-ENOMEM) : ERR_PTR(-ECHILD);
-	sprintf(name, "%d", tgid);
+	sprintf(name, "%u", tgid);
 	set_delayed_call(done, kfree_link, name);
 	return name;
 }
