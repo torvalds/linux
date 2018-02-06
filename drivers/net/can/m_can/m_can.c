@@ -246,7 +246,7 @@ enum m_can_mram_cfg {
 
 /* Rx FIFO 0/1 Configuration (RXF0C/RXF1C) */
 #define RXFC_FWM_SHIFT	24
-#define RXFC_FWM_MASK	(0x7f < RXFC_FWM_SHIFT)
+#define RXFC_FWM_MASK	(0x7f << RXFC_FWM_SHIFT)
 #define RXFC_FS_SHIFT	16
 #define RXFC_FS_MASK	(0x7f << RXFC_FS_SHIFT)
 
