@@ -10513,6 +10513,13 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/pci/pci-armada8k.txt
 F:	drivers/pci/dwc/pcie-armada8k.c
 
+PCI DRIVER FOR CADENCE PCIE IP
+M:	Alan Douglas <adouglas@cadence.com>
+L:	linux-pci@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/pci/cdns,*.txt
+F:	drivers/pci/cadence/pcie-cadence*
+
 PCI DRIVER FOR FREESCALE LAYERSCAPE
 M:	Minghuan Lian <minghuan.Lian@freescale.com>
 M:	Mingkai Hu <mingkai.hu@freescale.com>
@@ -10663,8 +10670,12 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/helgaas/pci.git
 S:	Supported
 F:	Documentation/devicetree/bindings/pci/
 F:	Documentation/PCI/
+F:	drivers/acpi/pci*
 F:	drivers/pci/
+F:	include/asm-generic/pci*
 F:	include/linux/pci*
+F:	include/uapi/linux/pci*
+F:	lib/pci*
 F:	arch/x86/pci/
 F:	arch/x86/kernel/quirks.c
 

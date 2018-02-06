@@ -362,8 +362,7 @@ struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
  */
 static int pci_read_irq_line(struct pci_dev *pci_dev)
 {
-	struct of_phandle_args oirq;
-	unsigned int virq;
+	unsigned int virq = 0;
 
 	pr_debug("PCI: Try to map irq for %s...\n", pci_name(pci_dev));
 
@@ -371,7 +370,7 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 	memset(&oirq, 0xff, sizeof(oirq));
 #endif
 	/* Try to get a mapping from the device-tree */
-	if (of_irq_parse_pci(pci_dev, &oirq)) {
+	if (!of_irq_parse_and_map_pci(pci_dev, 0, 0)) {
 		u8 line, pin;
 
 		/* If that fails, lets fallback to what is in the config
@@ -395,11 +394,6 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 		virq = irq_create_mapping(NULL, line);
 		if (virq)
 			irq_set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
-	} else {
-		pr_debug(" Got one, spec %d cells (0x%08x 0x%08x...) on %pOF\n",
-			 oirq.args_count, oirq.args[0], oirq.args[1], oirq.np);
-
-		virq = irq_create_of_mapping(&oirq);
 	}
 
 	if (!virq) {
