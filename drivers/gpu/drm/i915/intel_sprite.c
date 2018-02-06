@@ -1073,6 +1073,9 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 	/* ignore the pointless "none" flag */
 	set->flags &= ~I915_SET_COLORKEY_NONE;
 
+	if (set->flags & ~(I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE))
+		return -EINVAL;
+
 	/* Make sure we don't try to enable both src & dest simultaneously */
 	if ((set->flags & (I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE)) == (I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE))
 		return -EINVAL;
