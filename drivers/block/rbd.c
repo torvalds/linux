@@ -1257,13 +1257,6 @@ static void rbd_obj_zero_range(struct rbd_obj_request *obj_req, u32 off,
 	}
 }
 
-static void rbd_obj_request_get(struct rbd_obj_request *obj_request)
-{
-	dout("%s: obj %p (was %d)\n", __func__, obj_request,
-		kref_read(&obj_request->kref));
-	kref_get(&obj_request->kref);
-}
-
 static void rbd_obj_request_destroy(struct kref *kref);
 static void rbd_obj_request_put(struct rbd_obj_request *obj_request)
 {
@@ -1280,18 +1273,13 @@ static void rbd_img_request_get(struct rbd_img_request *img_request)
 	kref_get(&img_request->kref);
 }
 
-static bool img_request_child_test(struct rbd_img_request *img_request);
-static void rbd_parent_request_destroy(struct kref *kref);
 static void rbd_img_request_destroy(struct kref *kref);
 static void rbd_img_request_put(struct rbd_img_request *img_request)
 {
 	rbd_assert(img_request != NULL);
 	dout("%s: img %p (was %d)\n", __func__, img_request,
 		kref_read(&img_request->kref));
-	if (img_request_child_test(img_request))
-		kref_put(&img_request->kref, rbd_parent_request_destroy);
-	else
-		kref_put(&img_request->kref, rbd_img_request_destroy);
+	kref_put(&img_request->kref, rbd_img_request_destroy);
 }
 
 static inline void rbd_img_obj_request_add(struct rbd_img_request *img_request,
@@ -1332,24 +1320,6 @@ static void rbd_obj_request_submit(struct rbd_obj_request *obj_request)
  * is conditionally set to 1 at image request initialization time
  * and currently never change thereafter.
  */
-static void img_request_child_set(struct rbd_img_request *img_request)
-{
-	set_bit(IMG_REQ_CHILD, &img_request->flags);
-	smp_mb();
-}
-
-static void img_request_child_clear(struct rbd_img_request *img_request)
-{
-	clear_bit(IMG_REQ_CHILD, &img_request->flags);
-	smp_mb();
-}
-
-static bool img_request_child_test(struct rbd_img_request *img_request)
-{
-	smp_mb();
-	return test_bit(IMG_REQ_CHILD, &img_request->flags) != 0;
-}
-
 static void img_request_layered_set(struct rbd_img_request *img_request)
 {
 	set_bit(IMG_REQ_LAYERED, &img_request->flags);
@@ -1651,42 +1621,6 @@ static void rbd_img_request_destroy(struct kref *kref)
 		ceph_put_snap_context(img_request->snapc);
 
 	kmem_cache_free(rbd_img_request_cache, img_request);
-}
-
-static struct rbd_img_request *
-rbd_parent_request_create(struct rbd_obj_request *obj_request)
-{
-	struct rbd_img_request *parent_request;
-	struct rbd_device *rbd_dev;
-
-	rbd_assert(obj_request->img_request);
-	rbd_dev = obj_request->img_request->rbd_dev;
-
-	parent_request = rbd_img_request_create(rbd_dev->parent, OBJ_OP_READ,
-						NULL);
-	if (!parent_request)
-		return NULL;
-
-	img_request_child_set(parent_request);
-	rbd_obj_request_get(obj_request);
-	parent_request->obj_request = obj_request;
-
-	return parent_request;
-}
-
-static void rbd_parent_request_destroy(struct kref *kref)
-{
-	struct rbd_img_request *parent_request;
-	struct rbd_obj_request *orig_request;
-
-	parent_request = container_of(kref, struct rbd_img_request, kref);
-	orig_request = parent_request->obj_request;
-
-	parent_request->obj_request = NULL;
-	rbd_obj_request_put(orig_request);
-	img_request_child_clear(parent_request);
-
-	rbd_img_request_destroy(kref);
 }
 
 static void prune_extents(struct ceph_file_extent *img_extents,
@@ -2120,9 +2054,13 @@ static int rbd_obj_read_from_parent(struct rbd_obj_request *obj_req)
 	struct rbd_img_request *child_img_req;
 	int ret;
 
-	child_img_req = rbd_parent_request_create(obj_req);
+	child_img_req = rbd_img_request_create(img_req->rbd_dev->parent,
+					       OBJ_OP_READ, NULL);
 	if (!child_img_req)
 		return -ENOMEM;
+
+	__set_bit(IMG_REQ_CHILD, &child_img_req->flags);
+	child_img_req->obj_request = obj_req;
 
 	if (!rbd_img_is_write(img_req)) {
 		switch (img_req->data_type) {
