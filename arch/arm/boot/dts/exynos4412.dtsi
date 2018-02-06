@@ -546,10 +546,6 @@
 			opp-hz = /bits/ 64 <100000000>;
 		};
 	};
-
-	pmu {
-		interrupts = <2 2>, <3 2>, <18 2>, <19 2>;
-	};
 };
 
 &combiner {
@@ -724,6 +720,9 @@
 		 <&clock CLK_SCLK_HDMI>, <&clock CLK_VP>;
 };
 
+&pmu {
+	interrupts = <2 2>, <3 2>, <18 2>, <19 2>;
+};
 
 &pmu_system_controller {
 	compatible = "samsung,exynos4412-pmu", "syscon";
