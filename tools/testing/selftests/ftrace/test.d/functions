@@ -37,6 +37,9 @@ reset_ftrace_filter() { # reset all triggers in set_ftrace_filter
 	if [ "$tr" = "" ]; then
 	    continue
 	fi
+	if ! grep -q "$t" set_ftrace_filter; then
+		continue;
+	fi
 	name=`echo $t | cut -d: -f1 | cut -d' ' -f1`
 	if [ $tr = "enable_event" -o $tr = "disable_event" ]; then
 	    tr=`echo $t | cut -d: -f2-4`
