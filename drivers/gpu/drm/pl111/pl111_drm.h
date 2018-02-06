@@ -36,12 +36,15 @@ struct drm_minor;
  * struct pl111_variant_data - encodes IP differences
  * @name: the name of this variant
  * @is_pl110: this is the early PL110 variant
+ * @external_bgr: this is the Versatile Pl110 variant with external
+ *	BGR/RGB routing
  * @formats: array of supported pixel formats on this variant
  * @nformats: the length of the array of supported pixel formats
  */
 struct pl111_variant_data {
 	const char *name;
 	bool is_pl110;
+	bool external_bgr;
 	const u32 *formats;
 	unsigned int nformats;
 };

@@ -193,7 +193,7 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 {
 	struct device *dev = &amba_dev->dev;
 	struct pl111_drm_dev_private *priv;
-	struct pl111_variant_data *variant = id->data;
+	const struct pl111_variant_data *variant = id->data;
 	struct drm_device *drm;
 	int ret;
 
@@ -209,27 +209,10 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	drm->dev_private = priv;
 	priv->variant = variant;
 
-	/*
-	 * The PL110 and PL111 variants have two registers
-	 * swapped: interrupt enable and control. For this reason
-	 * we use offsets that we can change per variant.
-	 */
+	/* The two variants swap this register */
 	if (variant->is_pl110) {
-		/*
-		 * The ARM Versatile boards are even more special:
-		 * their PrimeCell ID say they are PL110 but the
-		 * control and interrupt enable registers are anyway
-		 * swapped to the PL111 order so they are not following
-		 * the PL110 datasheet.
-		 */
-		if (of_machine_is_compatible("arm,versatile-ab") ||
-		    of_machine_is_compatible("arm,versatile-pb")) {
-			priv->ienb = CLCD_PL111_IENB;
-			priv->ctrl = CLCD_PL111_CNTL;
-		} else {
-			priv->ienb = CLCD_PL110_IENB;
-			priv->ctrl = CLCD_PL110_CNTL;
-		}
+		priv->ienb = CLCD_PL110_IENB;
+		priv->ctrl = CLCD_PL110_CNTL;
 	} else {
 		priv->ienb = CLCD_PL111_IENB;
 		priv->ctrl = CLCD_PL111_CNTL;
@@ -241,6 +224,11 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 		return PTR_ERR(priv->regs);
 	}
 
+	/* This may override some variant settings */
+	ret = pl111_versatile_init(dev, priv);
+	if (ret)
+		goto dev_unref;
+
 	/* turn off interrupts before requesting the irq */
 	writel(0, priv->regs + priv->ienb);
 
@@ -250,10 +238,6 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 		dev_err(dev, "%s failed irq %d\n", __func__, ret);
 		return ret;
 	}
-
-	ret = pl111_versatile_init(dev, priv);
-	if (ret)
-		goto dev_unref;
 
 	ret = pl111_modeset_init(drm);
 	if (ret != 0)
@@ -286,8 +270,7 @@ static int pl111_amba_remove(struct amba_device *amba_dev)
 }
 
 /*
- * This variant exist in early versions like the ARM Integrator
- * and this version lacks the 565 and 444 pixel formats.
+ * This early variant lacks the 565 and 444 pixel formats.
  */
 static const u32 pl110_pixel_formats[] = {
 	DRM_FORMAT_ABGR8888,
