@@ -523,6 +523,16 @@ alternative_endif
 #endif
 	.endm
 
+	.macro	pte_to_phys, phys, pte
+#ifdef CONFIG_ARM64_PA_BITS_52
+	ubfiz	\phys, \pte, #(48 - 16 - 12), #16
+	bfxil	\phys, \pte, #16, #32
+	lsl	\phys, \phys, #16
+#else
+	and	\phys, \pte, #PTE_ADDR_MASK
+#endif
+	.endm
+
 /**
  * Errata workaround prior to disable MMU. Insert an ISB immediately prior
  * to executing the MSR that will change SCTLR_ELn[M] from a value of 1 to 0.
