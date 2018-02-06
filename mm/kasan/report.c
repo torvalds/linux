@@ -326,12 +326,12 @@ static void print_shadow_for_address(const void *addr)
 	}
 }
 
-void kasan_report_invalid_free(void *object, void *ip)
+void kasan_report_invalid_free(void *object, unsigned long ip)
 {
 	unsigned long flags;
 
 	kasan_start_report(&flags);
-	pr_err("BUG: KASAN: double-free or invalid-free in %pS\n", ip);
+	pr_err("BUG: KASAN: double-free or invalid-free in %pS\n", (void *)ip);
 	pr_err("\n");
 	print_address_description(object);
 	pr_err("\n");
