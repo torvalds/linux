@@ -1370,7 +1370,7 @@ static ssize_t proc_fail_nth_write(struct file *file, const char __user *buf,
 	task = get_proc_task(file_inode(file));
 	if (!task)
 		return -ESRCH;
-	WRITE_ONCE(task->fail_nth, n);
+	task->fail_nth = n;
 	put_task_struct(task);
 
 	return count;
@@ -1386,8 +1386,7 @@ static ssize_t proc_fail_nth_read(struct file *file, char __user *buf,
 	task = get_proc_task(file_inode(file));
 	if (!task)
 		return -ESRCH;
-	len = snprintf(numbuf, sizeof(numbuf), "%u\n",
-			READ_ONCE(task->fail_nth));
+	len = snprintf(numbuf, sizeof(numbuf), "%u\n", task->fail_nth);
 	len = simple_read_from_buffer(buf, count, ppos, numbuf, len);
 	put_task_struct(task);
 
