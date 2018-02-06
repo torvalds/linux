@@ -138,6 +138,9 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 	tim2 = readl(priv->regs + CLCD_TIM2);
 	tim2 &= (TIM2_BCD | TIM2_PCD_LO_MASK | TIM2_PCD_HI_MASK);
 
+	if (priv->variant->broken_clockdivider)
+		tim2 |= TIM2_BCD;
+
 	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
 		tim2 |= TIM2_IHS;
 
@@ -454,6 +457,11 @@ pl111_init_clock_divider(struct drm_device *drm)
 	if (IS_ERR(parent)) {
 		dev_err(drm->dev, "CLCD: unable to get clcdclk.\n");
 		return PTR_ERR(parent);
+	}
+	/* If the clock divider is broken, use the parent directly */
+	if (priv->variant->broken_clockdivider) {
+		priv->clk = parent;
+		return 0;
 	}
 	parent_name = __clk_get_name(parent);
 
