@@ -1641,7 +1641,10 @@ config DMA_API_DEBUG
 
 	  If unsure, say N.
 
-menu "Runtime Testing"
+menuconfig RUNTIME_TESTING_MENU
+	bool "Runtime Testing"
+
+if RUNTIME_TESTING_MENU
 
 config LKDTM
 	tristate "Linux Kernel Dump Test Tool Module"
@@ -1929,7 +1932,7 @@ config TEST_DEBUG_VIRTUAL
 
 	  If unsure, say N.
 
-endmenu # runtime tests
+endif # RUNTIME_TESTING_MENU
 
 config MEMTEST
 	bool "Memtest"
