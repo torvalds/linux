@@ -917,7 +917,7 @@ qedf_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc_cmd)
 	struct qedf_ctx *qedf = lport_priv(lport);
 	struct fc_rport *rport = starget_to_rport(scsi_target(sc_cmd->device));
 	struct fc_rport_libfc_priv *rp = rport->dd_data;
-	struct qedf_rport *fcport = rport->dd_data;
+	struct qedf_rport *fcport;
 	struct qedf_ioreq *io_req;
 	int rc = 0;
 	int rval;
