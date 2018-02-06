@@ -315,12 +315,8 @@ int filename__read_int(const char *filename, int *value)
 	return err;
 }
 
-/*
- * Parses @value out of @filename with strtoull.
- * By using 0 for base, the strtoull detects the
- * base automatically (see man strtoull).
- */
-int filename__read_ull(const char *filename, unsigned long long *value)
+static int filename__read_ull_base(const char *filename,
+				   unsigned long long *value, int base)
 {
 	char line[64];
 	int fd = open(filename, O_RDONLY), err = -1;
@@ -329,13 +325,32 @@ int filename__read_ull(const char *filename, unsigned long long *value)
 		return -1;
 
 	if (read(fd, line, sizeof(line)) > 0) {
-		*value = strtoull(line, NULL, 0);
+		*value = strtoull(line, NULL, base);
 		if (*value != ULLONG_MAX)
 			err = 0;
 	}
 
 	close(fd);
 	return err;
+}
+
+/*
+ * Parses @value out of @filename with strtoull.
+ * By using 16 for base to treat the number as hex.
+ */
+int filename__read_xll(const char *filename, unsigned long long *value)
+{
+	return filename__read_ull_base(filename, value, 16);
+}
+
+/*
+ * Parses @value out of @filename with strtoull.
+ * By using 0 for base, the strtoull detects the
+ * base automatically (see man strtoull).
+ */
+int filename__read_ull(const char *filename, unsigned long long *value)
+{
+	return filename__read_ull_base(filename, value, 0);
 }
 
 #define STRERR_BUFSIZE  128     /* For the buffer size of strerror_r */
