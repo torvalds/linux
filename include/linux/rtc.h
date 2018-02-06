@@ -211,10 +211,6 @@ void rtc_aie_update_irq(void *private);
 void rtc_uie_update_irq(void *private);
 enum hrtimer_restart rtc_pie_update_irq(struct hrtimer *timer);
 
-int rtc_register(rtc_task_t *task);
-int rtc_unregister(rtc_task_t *task);
-int rtc_control(rtc_task_t *t, unsigned int cmd, unsigned long arg);
-
 void rtc_timer_init(struct rtc_timer *timer, void (*f)(void *p), void *data);
 int rtc_timer_start(struct rtc_device *rtc, struct rtc_timer *timer,
 		    ktime_t expires, ktime_t period);
