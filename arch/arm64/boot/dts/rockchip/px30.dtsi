@@ -908,8 +908,30 @@
 
 		clocks = <&cru ACLK_GPU>;
 		clock-names = "clk_mali";
+		operating-points-v2 = <&gpu_opp_table>;
 
 		status = "disabled";
+	};
+
+	gpu_opp_table: gpu-opp-table {
+		compatible = "operating-points-v2";
+
+		opp-200000000 {
+			opp-hz = /bits/ 64 <200000000>;
+			opp-microvolt = <1025000>;
+		};
+		opp-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <1075000>;
+		};
+		opp-400000000 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <1150000>;
+		};
+		opp-500000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <1225000>;
+		};
 	};
 
 	hevc: hevc_service@ff440000 {
