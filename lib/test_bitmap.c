@@ -105,6 +105,35 @@ __check_eq_u32_array(const char *srcfile, unsigned int line,
 #define expect_eq_pbl(...)		__expect_eq(pbl, ##__VA_ARGS__)
 #define expect_eq_u32_array(...)	__expect_eq(u32_array, ##__VA_ARGS__)
 
+static void __init test_zero_clear(void)
+{
+	DECLARE_BITMAP(bmap, 1024);
+
+	/* Known way to set all bits */
+	memset(bmap, 0xff, 128);
+
+	expect_eq_pbl("0-22", bmap, 23);
+	expect_eq_pbl("0-1023", bmap, 1024);
+
+	/* single-word bitmaps */
+	bitmap_clear(bmap, 0, 9);
+	expect_eq_pbl("9-1023", bmap, 1024);
+
+	bitmap_zero(bmap, 35);
+	expect_eq_pbl("64-1023", bmap, 1024);
+
+	/* cross boundaries operations */
+	bitmap_clear(bmap, 79, 19);
+	expect_eq_pbl("64-78,98-1023", bmap, 1024);
+
+	bitmap_zero(bmap, 115);
+	expect_eq_pbl("128-1023", bmap, 1024);
+
+	/* Zeroing entire area */
+	bitmap_zero(bmap, 1024);
+	expect_eq_pbl("", bmap, 1024);
+}
+
 static void __init test_zero_fill_copy(void)
 {
 	DECLARE_BITMAP(bmap1, 1024);
@@ -309,6 +338,7 @@ static void noinline __init test_mem_optimisations(void)
 
 static int __init test_bitmap_init(void)
 {
+	test_zero_clear();
 	test_zero_fill_copy();
 	test_bitmap_arr32();
 	test_bitmap_parselist();
