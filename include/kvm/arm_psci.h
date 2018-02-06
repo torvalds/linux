@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 - ARM Ltd
+ * Copyright (C) 2012,2013 - ARM Ltd
  * Author: Marc Zyngier <marc.zyngier@arm.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __ARM_KVM_PSCI_H__
-#define __ARM_KVM_PSCI_H__
+#ifndef __KVM_ARM_PSCI_H__
+#define __KVM_ARM_PSCI_H__
 
 #define KVM_ARM_PSCI_0_1	1
 #define KVM_ARM_PSCI_0_2	2
@@ -24,4 +24,4 @@
 int kvm_psci_version(struct kvm_vcpu *vcpu);
 int kvm_psci_call(struct kvm_vcpu *vcpu);
 
-#endif /* __ARM_KVM_PSCI_H__ */
+#endif /* __KVM_ARM_PSCI_H__ */
