@@ -23,7 +23,7 @@
 
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
-#include "dvb_ca_en50221.h"
+#include <media/dvb_ca_en50221.h>
 
 enum mantis_sbuf_status {
 	MANTIS_SBUF_DATA_AVAIL		= 1,

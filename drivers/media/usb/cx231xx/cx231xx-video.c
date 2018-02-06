@@ -39,7 +39,7 @@
 #include <media/drv-intf/msp3400.h>
 #include <media/tuner.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "cx231xx-vbi.h"
 
@@ -1756,6 +1756,8 @@ static int cx231xx_v4l2_open(struct file *filp)
 	case VFL_TYPE_RADIO:
 		radio = 1;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	cx231xx_videodbg("open dev=%s type=%s users=%d\n",

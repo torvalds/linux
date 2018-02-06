@@ -69,8 +69,9 @@ static int sn9c2028_command(struct gspca_dev *gspca_dev, u8 *command)
 {
 	int rc;
 
-	PDEBUG(D_USBO, "sending command %02x%02x%02x%02x%02x%02x", command[0],
-	       command[1], command[2], command[3], command[4], command[5]);
+	gspca_dbg(gspca_dev, D_USBO, "sending command %02x%02x%02x%02x%02x%02x\n",
+		  command[0], command[1], command[2],
+		  command[3], command[4], command[5]);
 
 	memcpy(gspca_dev->usb_buf, command, 6);
 	rc = usb_control_msg(gspca_dev->dev,
@@ -100,7 +101,8 @@ static int sn9c2028_read1(struct gspca_dev *gspca_dev)
 		pr_err("read1 error %d\n", rc);
 		return (rc < 0) ? rc : -EIO;
 	}
-	PDEBUG(D_USBI, "read1 response %02x", gspca_dev->usb_buf[0]);
+	gspca_dbg(gspca_dev, D_USBI, "read1 response %02x\n",
+		  gspca_dev->usb_buf[0]);
 	return gspca_dev->usb_buf[0];
 }
 
@@ -117,8 +119,8 @@ static int sn9c2028_read4(struct gspca_dev *gspca_dev, u8 *reading)
 		return (rc < 0) ? rc : -EIO;
 	}
 	memcpy(reading, gspca_dev->usb_buf, 4);
-	PDEBUG(D_USBI, "read4 response %02x%02x%02x%02x", reading[0],
-	       reading[1], reading[2], reading[3]);
+	gspca_dbg(gspca_dev, D_USBI, "read4 response %02x%02x%02x%02x\n",
+		  reading[0], reading[1], reading[2], reading[3]);
 	return rc;
 }
 
@@ -175,32 +177,32 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam = &gspca_dev->cam;
 
-	PDEBUG(D_PROBE, "SN9C2028 camera detected (vid/pid 0x%04X:0x%04X)",
-	       id->idVendor, id->idProduct);
+	gspca_dbg(gspca_dev, D_PROBE, "SN9C2028 camera detected (vid/pid 0x%04X:0x%04X)\n",
+		  id->idVendor, id->idProduct);
 
 	sd->model = id->idProduct;
 
 	switch (sd->model) {
 	case 0x7005:
-		PDEBUG(D_PROBE, "Genius Smart 300 camera");
+		gspca_dbg(gspca_dev, D_PROBE, "Genius Smart 300 camera\n");
 		break;
 	case 0x7003:
-		PDEBUG(D_PROBE, "Genius Videocam Live v2");
+		gspca_dbg(gspca_dev, D_PROBE, "Genius Videocam Live v2\n");
 		break;
 	case 0x8000:
-		PDEBUG(D_PROBE, "DC31VC");
+		gspca_dbg(gspca_dev, D_PROBE, "DC31VC\n");
 		break;
 	case 0x8001:
-		PDEBUG(D_PROBE, "Spy camera");
+		gspca_dbg(gspca_dev, D_PROBE, "Spy camera\n");
 		break;
 	case 0x8003:
-		PDEBUG(D_PROBE, "CIF camera");
+		gspca_dbg(gspca_dev, D_PROBE, "CIF camera\n");
 		break;
 	case 0x8008:
-		PDEBUG(D_PROBE, "Mini-Shotz ms-350 camera");
+		gspca_dbg(gspca_dev, D_PROBE, "Mini-Shotz ms-350 camera\n");
 		break;
 	case 0x800a:
-		PDEBUG(D_PROBE, "Vivitar 3350b type camera");
+		gspca_dbg(gspca_dev, D_PROBE, "Vivitar 3350b type camera\n");
 		cam->input_flags = V4L2_IN_ST_VFLIP | V4L2_IN_ST_HFLIP;
 		break;
 	}
@@ -849,13 +851,13 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 
 	result = sn9c2028_read1(gspca_dev);
 	if (result < 0)
-		PERR("Camera Stop read failed");
+		gspca_err(gspca_dev, "Camera Stop read failed\n");
 
 	memset(data, 0, 6);
 	data[0] = 0x14;
 	result = sn9c2028_command(gspca_dev, data);
 	if (result < 0)
-		PERR("Camera Stop command failed");
+		gspca_err(gspca_dev, "Camera Stop command failed\n");
 }
 
 static void do_autogain(struct gspca_dev *gspca_dev, int avg_lum)

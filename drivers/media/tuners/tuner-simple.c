@@ -53,7 +53,7 @@ MODULE_PARM_DESC(dtv_input, "specify dtv rf input, 0 for autoselect");
 /* tv tuner system standard selection for Philips FQ1216ME
    this value takes the low bits of control byte 2
    from datasheet "1999 Nov 16" (supersedes "1999 Mar 23")
-     standard 		BG	DK	I	L	L`
+     standard		BG	DK	I	L	L`
      picture carrier	38.90	38.90	38.90	38.90	33.95
      colour		34.47	34.47	34.47	34.47	38.38
      sound 1		33.40	32.40	32.90	32.40	40.45

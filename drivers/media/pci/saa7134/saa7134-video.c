@@ -1531,6 +1531,8 @@ int saa7134_querycap(struct file *file, void *priv,
 	case VFL_TYPE_VBI:
 		cap->device_caps |= vbi_caps;
 		break;
+	default:
+		return -EINVAL;
 	}
 	cap->capabilities = radio_caps | video_caps | vbi_caps |
 		cap->device_caps | V4L2_CAP_DEVICE_CAPS;
@@ -2041,14 +2043,14 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 struct video_device saa7134_video_template = {
 	.name				= "saa7134-video",
 	.fops				= &video_fops,
-	.ioctl_ops 			= &video_ioctl_ops,
+	.ioctl_ops			= &video_ioctl_ops,
 	.tvnorms			= SAA7134_NORMS,
 };
 
 struct video_device saa7134_radio_template = {
 	.name			= "saa7134-radio",
 	.fops			= &radio_fops,
-	.ioctl_ops 		= &radio_ioctl_ops,
+	.ioctl_ops		= &radio_ioctl_ops,
 };
 
 static const struct v4l2_ctrl_ops saa7134_ctrl_ops = {

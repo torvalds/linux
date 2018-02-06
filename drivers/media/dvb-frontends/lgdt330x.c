@@ -37,8 +37,8 @@
 #include <linux/slab.h>
 #include <asm/byteorder.h>
 
-#include "dvb_frontend.h"
-#include "dvb_math.h"
+#include <media/dvb_frontend.h>
+#include <media/dvb_math.h>
 #include "lgdt330x_priv.h"
 #include "lgdt330x.h"
 
