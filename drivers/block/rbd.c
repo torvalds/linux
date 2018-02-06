@@ -253,7 +253,8 @@ struct rbd_obj_request {
 	};
 
 	struct rbd_img_request	*img_request;
-	u64			img_offset;
+	struct ceph_file_extent	*img_extents;
+	u32			num_img_extents;
 
 	union {
 		struct ceph_bio_iter	bio_pos;
@@ -1279,14 +1280,6 @@ static void rbd_obj_zero_range(struct rbd_obj_request *obj_req, u32 off,
 	}
 }
 
-static bool obj_request_overlaps_parent(struct rbd_obj_request *obj_request)
-{
-	struct rbd_device *rbd_dev = obj_request->img_request->rbd_dev;
-
-	return obj_request->img_offset <
-	    round_up(rbd_dev->parent_overlap, rbd_obj_bytes(&rbd_dev->header));
-}
-
 static void rbd_obj_request_get(struct rbd_obj_request *obj_request)
 {
 	dout("%s: obj %p (was %d)\n", __func__, obj_request,
@@ -1413,6 +1406,12 @@ static bool rbd_obj_is_tail(struct rbd_obj_request *obj_req)
 
 	return obj_req->ex.oe_off + obj_req->ex.oe_len ==
 					rbd_dev->layout.object_size;
+}
+
+static u64 rbd_obj_img_extents_bytes(struct rbd_obj_request *obj_req)
+{
+	return ceph_file_extents_bytes(obj_req->img_extents,
+				       obj_req->num_img_extents);
 }
 
 static bool rbd_img_is_write(struct rbd_img_request *img_req)
@@ -1544,6 +1543,7 @@ static void rbd_obj_request_destroy(struct kref *kref)
 		rbd_assert(0);
 	}
 
+	kfree(obj_request->img_extents);
 	if (obj_request->copyup_bvecs) {
 		for (i = 0; i < obj_request->copyup_bvec_count; i++) {
 			if (obj_request->copyup_bvecs[i].bv_page)
@@ -1718,6 +1718,53 @@ static void rbd_parent_request_destroy(struct kref *kref)
 	rbd_img_request_destroy(kref);
 }
 
+static void prune_extents(struct ceph_file_extent *img_extents,
+			  u32 *num_img_extents, u64 overlap)
+{
+	u32 cnt = *num_img_extents;
+
+	/* drop extents completely beyond the overlap */
+	while (cnt && img_extents[cnt - 1].fe_off >= overlap)
+		cnt--;
+
+	if (cnt) {
+		struct ceph_file_extent *ex = &img_extents[cnt - 1];
+
+		/* trim final overlapping extent */
+		if (ex->fe_off + ex->fe_len > overlap)
+			ex->fe_len = overlap - ex->fe_off;
+	}
+
+	*num_img_extents = cnt;
+}
+
+/*
+ * Determine the byte range(s) covered by either just the object extent
+ * or the entire object in the parent image.
+ */
+static int rbd_obj_calc_img_extents(struct rbd_obj_request *obj_req,
+				    bool entire)
+{
+	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
+	int ret;
+
+	if (!rbd_dev->parent_overlap)
+		return 0;
+
+	ret = ceph_extent_to_file(&rbd_dev->layout, obj_req->ex.oe_objno,
+				  entire ? 0 : obj_req->ex.oe_off,
+				  entire ? rbd_dev->layout.object_size :
+							obj_req->ex.oe_len,
+				  &obj_req->img_extents,
+				  &obj_req->num_img_extents);
+	if (ret)
+		return ret;
+
+	prune_extents(obj_req->img_extents, &obj_req->num_img_extents,
+		      rbd_dev->parent_overlap);
+	return 0;
+}
+
 static void rbd_osd_req_setup_data(struct rbd_obj_request *obj_req, u32 which)
 {
 	switch (obj_req->img_request->data_type) {
@@ -1803,7 +1850,12 @@ static int rbd_obj_setup_write(struct rbd_obj_request *obj_req)
 	unsigned int num_osd_ops, which = 0;
 	int ret;
 
-	if (obj_request_overlaps_parent(obj_req)) {
+	/* reverse map the entire object onto the parent */
+	ret = rbd_obj_calc_img_extents(obj_req, true);
+	if (ret)
+		return ret;
+
+	if (obj_req->num_img_extents) {
 		obj_req->write_state = RBD_OBJ_WRITE_GUARD;
 		num_osd_ops = 3; /* stat + setallochint + write/writefull */
 	} else {
@@ -1815,7 +1867,7 @@ static int rbd_obj_setup_write(struct rbd_obj_request *obj_req)
 	if (!obj_req->osd_req)
 		return -ENOMEM;
 
-	if (obj_request_overlaps_parent(obj_req)) {
+	if (obj_req->num_img_extents) {
 		ret = __rbd_obj_setup_stat(obj_req, which++);
 		if (ret)
 			return ret;
@@ -1831,7 +1883,7 @@ static void __rbd_obj_setup_discard(struct rbd_obj_request *obj_req,
 	u16 opcode;
 
 	if (rbd_obj_is_entire(obj_req)) {
-		if (obj_request_overlaps_parent(obj_req)) {
+		if (obj_req->num_img_extents) {
 			opcode = CEPH_OSD_OP_TRUNCATE;
 		} else {
 			osd_req_op_init(obj_req->osd_req, which++,
@@ -1858,11 +1910,16 @@ static int rbd_obj_setup_discard(struct rbd_obj_request *obj_req)
 	unsigned int num_osd_ops, which = 0;
 	int ret;
 
+	/* reverse map the entire object onto the parent */
+	ret = rbd_obj_calc_img_extents(obj_req, true);
+	if (ret)
+		return ret;
+
 	if (rbd_obj_is_entire(obj_req)) {
 		obj_req->write_state = RBD_OBJ_WRITE_FLAT;
 		num_osd_ops = 1; /* truncate/delete */
 	} else {
-		if (obj_request_overlaps_parent(obj_req)) {
+		if (obj_req->num_img_extents) {
 			obj_req->write_state = RBD_OBJ_WRITE_GUARD;
 			num_osd_ops = 2; /* stat + truncate/zero */
 		} else {
@@ -1875,8 +1932,7 @@ static int rbd_obj_setup_discard(struct rbd_obj_request *obj_req)
 	if (!obj_req->osd_req)
 		return -ENOMEM;
 
-	if (!rbd_obj_is_entire(obj_req) &&
-	    obj_request_overlaps_parent(obj_req)) {
+	if (!rbd_obj_is_entire(obj_req) && obj_req->num_img_extents) {
 		ret = __rbd_obj_setup_stat(obj_req, which++);
 		if (ret)
 			return ret;
@@ -1980,8 +2036,6 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 			ceph_bvec_iter_advance(&bvec_it, length);
 		}
 
-		obj_request->img_offset = img_offset;
-
 		img_offset += length;
 		resid -= length;
 	}
@@ -2009,14 +2063,15 @@ static void rbd_img_request_submit(struct rbd_img_request *img_request)
 	rbd_img_request_put(img_request);
 }
 
-static int rbd_obj_read_from_parent(struct rbd_obj_request *obj_req,
-				    u64 img_offset, u32 bytes)
+static int rbd_obj_read_from_parent(struct rbd_obj_request *obj_req)
 {
 	struct rbd_img_request *img_req = obj_req->img_request;
 	struct rbd_img_request *child_img_req;
 	int ret;
 
-	child_img_req = rbd_parent_request_create(obj_req, img_offset, bytes);
+	child_img_req = rbd_parent_request_create(obj_req,
+					obj_req->img_extents[0].fe_off,
+					obj_req->img_extents[0].fe_len);
 	if (!child_img_req)
 		return -ENOMEM;
 
@@ -2038,7 +2093,7 @@ static int rbd_obj_read_from_parent(struct rbd_obj_request *obj_req,
 	} else {
 		struct ceph_bvec_iter it = {
 			.bvecs = obj_req->copyup_bvecs,
-			.iter = { .bi_size = bytes },
+			.iter = { .bi_size = obj_req->img_extents[0].fe_len },
 		};
 
 		ret = rbd_img_request_fill(child_img_req, OBJ_REQUEST_BVECS,
@@ -2059,19 +2114,23 @@ static bool rbd_obj_handle_read(struct rbd_obj_request *obj_req)
 	int ret;
 
 	if (obj_req->result == -ENOENT &&
-	    obj_req->img_offset < rbd_dev->parent_overlap &&
-	    !obj_req->tried_parent) {
-		u64 obj_overlap = min(obj_req->ex.oe_len,
-			      rbd_dev->parent_overlap - obj_req->img_offset);
-
-		obj_req->tried_parent = true;
-		ret = rbd_obj_read_from_parent(obj_req, obj_req->img_offset,
-					       obj_overlap);
+	    rbd_dev->parent_overlap && !obj_req->tried_parent) {
+		/* reverse map this object extent onto the parent */
+		ret = rbd_obj_calc_img_extents(obj_req, false);
 		if (ret) {
 			obj_req->result = ret;
 			return true;
 		}
-		return false;
+
+		if (obj_req->num_img_extents) {
+			obj_req->tried_parent = true;
+			ret = rbd_obj_read_from_parent(obj_req);
+			if (ret) {
+				obj_req->result = ret;
+				return true;
+			}
+			return false;
+		}
 	}
 
 	/*
@@ -2189,11 +2248,12 @@ static int setup_copyup_bvecs(struct rbd_obj_request *obj_req, u64 obj_overlap)
 static int rbd_obj_handle_write_guard(struct rbd_obj_request *obj_req)
 {
 	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
-	u64 img_offset;
-	u64 obj_overlap;
 	int ret;
 
-	if (!obj_request_overlaps_parent(obj_req)) {
+	rbd_assert(obj_req->num_img_extents);
+	prune_extents(obj_req->img_extents, &obj_req->num_img_extents,
+		      rbd_dev->parent_overlap);
+	if (!obj_req->num_img_extents) {
 		/*
 		 * The overlap has become 0 (most likely because the
 		 * image has been flattened).  Use rbd_obj_issue_copyup()
@@ -2207,29 +2267,12 @@ static int rbd_obj_handle_write_guard(struct rbd_obj_request *obj_req)
 		return rbd_obj_issue_copyup(obj_req, 0);
 	}
 
-	/*
-	 * Determine the byte range covered by the object in the
-	 * child image to which the original request was to be sent.
-	 */
-	img_offset = obj_req->img_offset - obj_req->ex.oe_off;
-	obj_overlap = rbd_dev->layout.object_size;
-
-	/*
-	 * There is no defined parent data beyond the parent
-	 * overlap, so limit what we read at that boundary if
-	 * necessary.
-	 */
-	if (img_offset + obj_overlap > rbd_dev->parent_overlap) {
-		rbd_assert(img_offset < rbd_dev->parent_overlap);
-		obj_overlap = rbd_dev->parent_overlap - img_offset;
-	}
-
-	ret = setup_copyup_bvecs(obj_req, obj_overlap);
+	ret = setup_copyup_bvecs(obj_req, rbd_obj_img_extents_bytes(obj_req));
 	if (ret)
 		return ret;
 
 	obj_req->write_state = RBD_OBJ_WRITE_COPYUP;
-	return rbd_obj_read_from_parent(obj_req, img_offset, obj_overlap);
+	return rbd_obj_read_from_parent(obj_req);
 }
 
 static bool rbd_obj_handle_write(struct rbd_obj_request *obj_req)
@@ -2335,6 +2378,9 @@ static void rbd_img_end_child_request(struct rbd_img_request *img_req)
 	struct rbd_obj_request *obj_req = img_req->obj_request;
 
 	rbd_assert(test_bit(IMG_REQ_CHILD, &img_req->flags));
+	rbd_assert((!img_req->result &&
+		    img_req->xferred == rbd_obj_img_extents_bytes(obj_req)) ||
+		   (img_req->result < 0 && !img_req->xferred));
 
 	obj_req->result = img_req->result;
 	obj_req->xferred = img_req->xferred;
