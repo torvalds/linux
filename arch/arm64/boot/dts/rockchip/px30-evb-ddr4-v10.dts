@@ -273,6 +273,7 @@
 };
 
 &gpu {
+	mali-supply = <&vdd_logic>;
 	status = "okay";
 };
 
