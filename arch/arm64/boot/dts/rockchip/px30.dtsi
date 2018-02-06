@@ -270,7 +270,7 @@
 		compatible = "rockchip,px30-uart", "snps,dw-apb-uart";
 		reg = <0x0 0xff030000 0x0 0x100>;
 		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru SCLK_UART0_PMU>, <&cru PCLK_UART0_PMU>;
+		clocks = <&pmucru SCLK_UART0_PMU>, <&pmucru PCLK_UART0_PMU>;
 		clock-names = "baudclk", "apb_pclk";
 		reg-shift = <2>;
 		reg-io-width = <4>;
@@ -715,7 +715,7 @@
 			compatible = "rockchip,px30-usb2phy",
 				     "rockchip,rk3328-usb2phy";
 			reg = <0x100 0x10>;
-			clocks = <&cru SCLK_USBPHY_REF>;
+			clocks = <&pmucru SCLK_USBPHY_REF>;
 			clock-names = "phyclk";
 			#clock-cells = <0>;
 			assigned-clocks = <&cru USB480M>;
@@ -745,7 +745,7 @@
 	mipi_dphy: mipi-dphy@ff2e0000 {
 		compatible = "rockchip,px30-mipi-dphy";
 		reg = <0x0 0xff2e0000 0x0 0x10000>;
-		clocks = <&cru SCLK_MIPIDSIPHY_REF>, <&cru PCLK_MIPIDSIPHY>;
+		clocks = <&pmucru SCLK_MIPIDSIPHY_REF>, <&cru PCLK_MIPIDSIPHY>;
 		clock-names = "ref", "pclk";
 		clock-output-names = "mipi_dphy_pll";
 		#clock-cells = <0>;
@@ -1290,7 +1290,7 @@
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0xff040000 0x0 0x100>;
 			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cru PCLK_GPIO0_PMU>;
+			clocks = <&pmucru PCLK_GPIO0_PMU>;
 			gpio-controller;
 			#gpio-cells = <2>;
 
