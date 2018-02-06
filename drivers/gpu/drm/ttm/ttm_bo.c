@@ -730,7 +730,8 @@ static bool ttm_bo_evict_swapout_allowable(struct ttm_buffer_object *bo,
 	*locked = false;
 	if (bo->resv == ctx->resv) {
 		reservation_object_assert_held(bo->resv);
-		if (ctx->allow_reserved_eviction || !list_empty(&bo->ddestroy))
+		if (ctx->flags & TTM_OPT_FLAG_ALLOW_RES_EVICT
+		    || !list_empty(&bo->ddestroy))
 			ret = true;
 	} else {
 		*locked = reservation_object_trylock(bo->resv);

@@ -341,8 +341,8 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 	struct ttm_operation_ctx ctx = {
 		.interruptible = !kernel,
 		.no_wait_gpu = false,
-		.allow_reserved_eviction = true,
-		.resv = resv
+		.resv = resv,
+		.flags = TTM_OPT_FLAG_ALLOW_RES_EVICT
 	};
 	struct amdgpu_bo *bo;
 	enum ttm_bo_type type;

@@ -346,8 +346,8 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
 		.no_wait_gpu = false,
-		.allow_reserved_eviction = false,
-		.resv = bo->tbo.resv
+		.resv = bo->tbo.resv,
+		.flags = 0
 	};
 	uint32_t domain;
 	int r;
