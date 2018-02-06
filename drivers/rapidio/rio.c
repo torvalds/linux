@@ -110,9 +110,8 @@ EXPORT_SYMBOL(rio_query_mport);
  */
 struct rio_net *rio_alloc_net(struct rio_mport *mport)
 {
-	struct rio_net *net;
+	struct rio_net *net = kzalloc(sizeof(*net), GFP_KERNEL);
 
-	net = kzalloc(sizeof(struct rio_net), GFP_KERNEL);
 	if (net) {
 		INIT_LIST_HEAD(&net->node);
 		INIT_LIST_HEAD(&net->devices);
@@ -246,8 +245,7 @@ int rio_request_inb_mbox(struct rio_mport *mport,
 	if (!mport->ops->open_inb_mbox)
 		goto out;
 
-	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
-
+	res = kzalloc(sizeof(*res), GFP_KERNEL);
 	if (res) {
 		rio_init_mbox_res(res, mbox, mbox);
 
@@ -329,8 +327,7 @@ int rio_request_outb_mbox(struct rio_mport *mport,
 	if (!mport->ops->open_outb_mbox)
 		goto out;
 
-	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
-
+	res = kzalloc(sizeof(*res), GFP_KERNEL);
 	if (res) {
 		rio_init_mbox_res(res, mbox, mbox);
 
@@ -445,8 +442,7 @@ int rio_request_inb_dbell(struct rio_mport *mport,
 					u16 dst, u16 info))
 {
 	int rc = 0;
-
-	struct resource *res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
 
 	if (res) {
 		rio_init_dbell_res(res, start, end);
@@ -568,9 +564,8 @@ int rio_add_mport_pw_handler(struct rio_mport *mport, void *context,
 			     void *context, union rio_pw_msg *msg, int step))
 {
 	int rc = 0;
-	struct rio_pwrite *pwrite;
+	struct rio_pwrite *pwrite = kzalloc(sizeof(*pwrite), GFP_KERNEL);
 
-	pwrite = kzalloc(sizeof(struct rio_pwrite), GFP_KERNEL);
 	if (!pwrite) {
 		rc = -ENOMEM;
 		goto out;
