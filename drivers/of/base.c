@@ -1027,6 +1027,26 @@ const struct of_device_id *of_match_node(const struct of_device_id *matches,
 EXPORT_SYMBOL(of_match_node);
 
 /**
+ * of_get_match_data - Get the matching device_node data pointer
+ * 	@matches:	array of of device match structures to search in
+ * 	@node:		the of device structure to match against
+ *
+ * 	Low level utility function used to get the device matching data pointer.
+ */
+const void *of_get_match_data(const struct of_device_id *matches,
+			      const struct device_node *node)
+{
+	const struct of_device_id *match;
+
+	match = of_match_node(matches, node);
+	if (!match)
+		return NULL;
+
+	return match->data;
+}
+EXPORT_SYMBOL(of_get_match_data);
+
+/**
  *	of_find_matching_node_and_match - Find a node based on an of_device_id
  *					  match table.
  *	@from:		The node to start searching from or NULL, the node
