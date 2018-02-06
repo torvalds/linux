@@ -4526,7 +4526,9 @@ sub process {
 		}
 
 # check for unnecessary parentheses around comparisons in if uses
-		if ($^V && $^V ge 5.10.0 && defined($stat) &&
+# when !drivers/staging or command-line uses --strict
+		if (($realfile !~ m@^(?:drivers/staging/)@ || $check_orig) &&
+		    $^V && $^V ge 5.10.0 && defined($stat) &&
 		    $stat =~ /(^.\s*if\s*($balanced_parens))/) {
 			my $if_stat = $1;
 			my $test = substr($2, 1, -1);
