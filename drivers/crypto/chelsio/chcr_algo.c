@@ -2636,10 +2636,10 @@ static void fill_sec_cpl_for_aead(struct cpl_tx_sec_pdu *sec_cpl,
 					0, dst_size);
 }
 
-int aead_ccm_validate_input(unsigned short op_type,
-			    struct aead_request *req,
-			    struct chcr_aead_ctx *aeadctx,
-			    unsigned int sub_type)
+static int aead_ccm_validate_input(unsigned short op_type,
+				   struct aead_request *req,
+				   struct chcr_aead_ctx *aeadctx,
+				   unsigned int sub_type)
 {
 	if (sub_type != CRYPTO_ALG_SUB_TYPE_AEAD_RFC4309) {
 		if (crypto_ccm_check_iv(req->iv)) {
