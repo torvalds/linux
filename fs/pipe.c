@@ -1022,20 +1022,14 @@ const struct file_operations pipefifo_fops = {
  */
 unsigned int round_pipe_size(unsigned long size)
 {
-	unsigned long nr_pages;
-
-	if (size > UINT_MAX)
+	if (size > (1U << 31))
 		return 0;
 
 	/* Minimum pipe size, as required by POSIX */
 	if (size < PAGE_SIZE)
-		size = PAGE_SIZE;
+		return PAGE_SIZE;
 
-	nr_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	if (nr_pages == 0)
-		return 0;
-
-	return roundup_pow_of_two(nr_pages) << PAGE_SHIFT;
+	return roundup_pow_of_two(size);
 }
 
 /*
@@ -1050,8 +1044,6 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	long ret = 0;
 
 	size = round_pipe_size(arg);
-	if (size == 0)
-		return -EINVAL;
 	nr_pages = size >> PAGE_SHIFT;
 
 	if (!nr_pages)
