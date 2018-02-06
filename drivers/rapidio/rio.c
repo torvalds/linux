@@ -81,6 +81,7 @@ u16 rio_local_get_device_id(struct rio_mport *port)
 
 	return (RIO_GET_DID(port->sys_size, result));
 }
+EXPORT_SYMBOL_GPL(rio_local_get_device_id);
 
 /**
  * rio_query_mport - Query mport device attributes
@@ -275,6 +276,7 @@ int rio_request_inb_mbox(struct rio_mport *mport,
       out:
 	return rc;
 }
+EXPORT_SYMBOL_GPL(rio_request_inb_mbox);
 
 /**
  * rio_release_inb_mbox - release inbound mailbox message service
@@ -303,6 +305,7 @@ int rio_release_inb_mbox(struct rio_mport *mport, int mbox)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rio_release_inb_mbox);
 
 /**
  * rio_request_outb_mbox - request outbound mailbox service
@@ -357,6 +360,7 @@ int rio_request_outb_mbox(struct rio_mport *mport,
       out:
 	return rc;
 }
+EXPORT_SYMBOL_GPL(rio_request_outb_mbox);
 
 /**
  * rio_release_outb_mbox - release outbound mailbox message service
@@ -385,6 +389,7 @@ int rio_release_outb_mbox(struct rio_mport *mport, int mbox)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rio_release_outb_mbox);
 
 /**
  * rio_setup_inb_dbell - bind inbound doorbell callback
@@ -458,6 +463,7 @@ int rio_request_inb_dbell(struct rio_mport *mport,
       out:
 	return rc;
 }
+EXPORT_SYMBOL_GPL(rio_request_inb_dbell);
 
 /**
  * rio_release_inb_dbell - release inbound doorbell message service
@@ -499,6 +505,7 @@ int rio_release_inb_dbell(struct rio_mport *mport, u16 start, u16 end)
       out:
 	return rc;
 }
+EXPORT_SYMBOL_GPL(rio_release_inb_dbell);
 
 /**
  * rio_request_outb_dbell - request outbound doorbell message range
@@ -527,6 +534,7 @@ struct resource *rio_request_outb_dbell(struct rio_dev *rdev, u16 start,
 
 	return res;
 }
+EXPORT_SYMBOL_GPL(rio_request_outb_dbell);
 
 /**
  * rio_release_outb_dbell - release outbound doorbell message range
@@ -544,6 +552,7 @@ int rio_release_outb_dbell(struct rio_dev *rdev, struct resource *res)
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(rio_release_outb_dbell);
 
 /**
  * rio_add_mport_pw_handler - add port-write message handler into the list
@@ -1450,6 +1459,7 @@ struct rio_dev *rio_get_asm(u16 vid, u16 did,
 	spin_unlock(&rio_global_list_lock);
 	return rdev;
 }
+EXPORT_SYMBOL_GPL(rio_get_asm);
 
 /**
  * rio_get_device - Begin or continue searching for a RIO device by vid/did
@@ -1469,6 +1479,7 @@ struct rio_dev *rio_get_device(u16 vid, u16 did, struct rio_dev *from)
 {
 	return rio_get_asm(vid, did, RIO_ANY_ID, RIO_ANY_ID, from);
 }
+EXPORT_SYMBOL_GPL(rio_get_device);
 
 /**
  * rio_std_route_add_entry - Add switch route table entry using standard
@@ -2203,6 +2214,7 @@ no_disc:
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rio_init_mports);
 
 static int rio_get_hdid(int index)
 {
@@ -2317,16 +2329,3 @@ int rio_unregister_mport(struct rio_mport *port)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rio_unregister_mport);
-
-EXPORT_SYMBOL_GPL(rio_local_get_device_id);
-EXPORT_SYMBOL_GPL(rio_get_device);
-EXPORT_SYMBOL_GPL(rio_get_asm);
-EXPORT_SYMBOL_GPL(rio_request_inb_dbell);
-EXPORT_SYMBOL_GPL(rio_release_inb_dbell);
-EXPORT_SYMBOL_GPL(rio_request_outb_dbell);
-EXPORT_SYMBOL_GPL(rio_release_outb_dbell);
-EXPORT_SYMBOL_GPL(rio_request_inb_mbox);
-EXPORT_SYMBOL_GPL(rio_release_inb_mbox);
-EXPORT_SYMBOL_GPL(rio_request_outb_mbox);
-EXPORT_SYMBOL_GPL(rio_release_outb_mbox);
-EXPORT_SYMBOL_GPL(rio_init_mports);
