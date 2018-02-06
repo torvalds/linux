@@ -298,6 +298,32 @@ static void dpp1_cm_get_reg_field(
 	reg->masks.exp_resion_start_segment = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_START_SEGMENT_B;
 }
 
+static void dpp1_cm_get_degamma_reg_field(
+		struct dcn10_dpp *dpp,
+		struct xfer_func_reg *reg)
+{
+	reg->shifts.exp_region0_lut_offset = dpp->tf_shift->CM_DGAM_RAMA_EXP_REGION0_LUT_OFFSET;
+	reg->masks.exp_region0_lut_offset = dpp->tf_mask->CM_DGAM_RAMA_EXP_REGION0_LUT_OFFSET;
+	reg->shifts.exp_region0_num_segments = dpp->tf_shift->CM_DGAM_RAMA_EXP_REGION0_NUM_SEGMENTS;
+	reg->masks.exp_region0_num_segments = dpp->tf_mask->CM_DGAM_RAMA_EXP_REGION0_NUM_SEGMENTS;
+	reg->shifts.exp_region1_lut_offset = dpp->tf_shift->CM_DGAM_RAMA_EXP_REGION1_LUT_OFFSET;
+	reg->masks.exp_region1_lut_offset = dpp->tf_mask->CM_DGAM_RAMA_EXP_REGION1_LUT_OFFSET;
+	reg->shifts.exp_region1_num_segments = dpp->tf_shift->CM_DGAM_RAMA_EXP_REGION1_NUM_SEGMENTS;
+	reg->masks.exp_region1_num_segments = dpp->tf_mask->CM_DGAM_RAMA_EXP_REGION1_NUM_SEGMENTS;
+
+	reg->shifts.field_region_end = dpp->tf_shift->CM_DGAM_RAMB_EXP_REGION_END_B;
+	reg->masks.field_region_end = dpp->tf_mask->CM_DGAM_RAMB_EXP_REGION_END_B;
+	reg->shifts.field_region_end_slope = dpp->tf_shift->CM_DGAM_RAMB_EXP_REGION_END_SLOPE_B;
+	reg->masks.field_region_end_slope = dpp->tf_mask->CM_DGAM_RAMB_EXP_REGION_END_SLOPE_B;
+	reg->shifts.field_region_end_base = dpp->tf_shift->CM_DGAM_RAMB_EXP_REGION_END_BASE_B;
+	reg->masks.field_region_end_base = dpp->tf_mask->CM_DGAM_RAMB_EXP_REGION_END_BASE_B;
+	reg->shifts.field_region_linear_slope = dpp->tf_shift->CM_DGAM_RAMB_EXP_REGION_LINEAR_SLOPE_B;
+	reg->masks.field_region_linear_slope = dpp->tf_mask->CM_DGAM_RAMB_EXP_REGION_LINEAR_SLOPE_B;
+	reg->shifts.exp_region_start = dpp->tf_shift->CM_DGAM_RAMB_EXP_REGION_START_B;
+	reg->masks.exp_region_start = dpp->tf_mask->CM_DGAM_RAMB_EXP_REGION_START_B;
+	reg->shifts.exp_resion_start_segment = dpp->tf_shift->CM_DGAM_RAMB_EXP_REGION_START_SEGMENT_B;
+	reg->masks.exp_resion_start_segment = dpp->tf_mask->CM_DGAM_RAMB_EXP_REGION_START_SEGMENT_B;
+}
 void dpp1_cm_set_output_csc_adjustment(
 		struct dpp *dpp_base,
 		const uint16_t *regval)
@@ -502,7 +528,7 @@ void dpp1_program_degamma_lutb_settings(
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	struct xfer_func_reg gam_regs;
 
-	dpp1_cm_get_reg_field(dpp, &gam_regs);
+	dpp1_cm_get_degamma_reg_field(dpp, &gam_regs);
 
 	gam_regs.start_cntl_b = REG(CM_DGAM_RAMB_START_CNTL_B);
 	gam_regs.start_cntl_g = REG(CM_DGAM_RAMB_START_CNTL_G);
@@ -531,7 +557,7 @@ void dpp1_program_degamma_luta_settings(
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	struct xfer_func_reg gam_regs;
 
-	dpp1_cm_get_reg_field(dpp, &gam_regs);
+	dpp1_cm_get_degamma_reg_field(dpp, &gam_regs);
 
 	gam_regs.start_cntl_b = REG(CM_DGAM_RAMA_START_CNTL_B);
 	gam_regs.start_cntl_g = REG(CM_DGAM_RAMA_START_CNTL_G);

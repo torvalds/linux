@@ -34,12 +34,20 @@ enum dc_transfer_func_predefined;
 
 void setup_x_points_distribution(void);
 void precompute_pq(void);
+void precompute_de_pq(void);
 
 bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 		const struct dc_gamma *ramp, bool mapUserRamp);
 
+bool mod_color_calculate_degamma_params(struct dc_transfer_func *output_tf,
+		const struct dc_gamma *ramp, bool mapUserRamp);
+
 bool mod_color_calculate_curve(enum dc_transfer_func_predefined  trans,
 		struct dc_transfer_func_distributed_points *points);
+
+bool  mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
+				struct dc_transfer_func_distributed_points *points);
+
 
 
 #endif /* COLOR_MOD_COLOR_GAMMA_H_ */
