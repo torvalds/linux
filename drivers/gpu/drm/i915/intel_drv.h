@@ -1323,6 +1323,8 @@ void cnl_init_cdclk(struct drm_i915_private *dev_priv);
 void cnl_uninit_cdclk(struct drm_i915_private *dev_priv);
 void bxt_init_cdclk(struct drm_i915_private *dev_priv);
 void bxt_uninit_cdclk(struct drm_i915_private *dev_priv);
+void icl_init_cdclk(struct drm_i915_private *dev_priv);
+void icl_uninit_cdclk(struct drm_i915_private *dev_priv);
 void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv);
 void intel_update_max_cdclk(struct drm_i915_private *dev_priv);
 void intel_update_cdclk(struct drm_i915_private *dev_priv);
