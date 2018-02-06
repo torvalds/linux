@@ -588,17 +588,22 @@ void kasan_krealloc(const void *object, size_t size, gfp_t flags)
 		kasan_kmalloc(page->slab_cache, object, size, flags);
 }
 
-void kasan_poison_kfree(void *ptr)
+void kasan_poison_kfree(void *ptr, unsigned long ip)
 {
 	struct page *page;
 
 	page = virt_to_head_page(ptr);
 
-	if (unlikely(!PageSlab(page)))
+	if (unlikely(!PageSlab(page))) {
+		if (ptr != page_address(page)) {
+			kasan_report_invalid_free(ptr, ip);
+			return;
+		}
 		kasan_poison_shadow(ptr, PAGE_SIZE << compound_order(page),
 				KASAN_FREE_PAGE);
-	else
+	} else {
 		kasan_poison_slab_free(page->slab_cache, ptr);
+	}
 }
 
 void kasan_kfree_large(void *ptr, unsigned long ip)
