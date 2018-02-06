@@ -36,8 +36,6 @@ struct rk1000 {
 	struct clk *mclk;
 };
 
-static int cvbsmode = -1;
-
 static const struct mfd_cell rk1000_devs[] = {
 	{
 		.name = "rk1000-tve",
@@ -60,23 +58,11 @@ struct regmap_config rk1000_regmap_config = {
 	.volatile_table = &rk1000_ctl_reg_table,
 };
 
-static int __init bootloader_cvbs_setup(char *str)
-{
-	int ret = 0;
-
-	if (str)
-		ret = kstrtoint(str, 0, &cvbsmode);
-
-	return ret;
-}
-
-early_param("tve.format", bootloader_cvbs_setup);
-
 static int rk1000_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct device_node *rk1000_np;
-	int ret;
+	bool uboot_logo;
+	int ret, val = 0;
 	struct rk1000 *rk1000 = devm_kzalloc(&client->dev, sizeof(*rk1000),
 					     GFP_KERNEL);
 	if (!rk1000)
@@ -84,13 +70,23 @@ static int rk1000_probe(struct i2c_client *client,
 
 	rk1000->client = client;
 	rk1000->dev = &client->dev;
-	rk1000_np = rk1000->dev->of_node;
 
 	rk1000->regmap = devm_regmap_init_i2c(client, &rk1000_regmap_config);
 	if (IS_ERR(rk1000->regmap))
 		return PTR_ERR(rk1000->regmap);
 
-	if (cvbsmode < 0) {
+	ret = regmap_read(rk1000->regmap, CTRL_TVE, &val);
+
+	/*
+	 * If rk1000's registers can be read and rk1000 cvbs output is
+	 * enabled, we think uboot logo is on.
+	 */
+	if (!ret && val & BIT(6))
+		uboot_logo = true;
+	else
+		uboot_logo = false;
+
+	if (!uboot_logo) {
 		/********Get reset pin***********/
 		rk1000->io_reset = devm_gpiod_get_optional(rk1000->dev, "reset",
 							   GPIOD_OUT_LOW);
@@ -121,7 +117,7 @@ static int rk1000_probe(struct i2c_client *client,
 	regmap_write(rk1000->regmap, CTRL_ADC, ADC_OFF);
 	regmap_write(rk1000->regmap, CTRL_CODEC, CODEC_OFF);
 	regmap_write(rk1000->regmap, CTRL_I2C, I2C_TIMEOUT_PERIOD);
-	if (cvbsmode < 0)
+	if (!uboot_logo)
 		regmap_write(rk1000->regmap, CTRL_TVE, TVE_OFF);
 
 	ret = mfd_add_devices(rk1000->dev, -1, rk1000_devs,
