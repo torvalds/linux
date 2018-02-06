@@ -410,6 +410,7 @@
 &mmc2 {
 	status = "okay";
 	vmmc-supply = <&v3_3d>;
+	vqmmc-supply = <&v3_3d>;
 	bus-width = <8>;
 	ti,non-removable;
 	max-frequency = <96000000>;
