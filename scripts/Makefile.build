@@ -272,7 +272,9 @@ else
 objtool_args += $(call cc-ifversion, -lt, 0405, --no-unreachable)
 endif
 ifdef CONFIG_RETPOLINE
+ifneq ($(RETPOLINE_CFLAGS),)
   objtool_args += --retpoline
+endif
 endif
 
 
