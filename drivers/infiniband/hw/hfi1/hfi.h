@@ -341,6 +341,7 @@ struct hfi1_packet {
 	u32 slid;
 	u16 tlen;
 	s16 etail;
+	u16 pkey;
 	u8 hlen;
 	u8 numpkt;
 	u8 rsize;
@@ -351,8 +352,7 @@ struct hfi1_packet {
 	u8 sc;
 	u8 sl;
 	u8 opcode;
-	bool becn;
-	bool fecn;
+	bool migrated;
 };
 
 /* Packet types */
@@ -858,6 +858,13 @@ struct hfi1_pportdata {
 	struct work_struct linkstate_active_work;
 	/* Does this port need to prescan for FECNs */
 	bool cc_prescan;
+	/*
+	 * Sample sendWaitCnt & sendWaitVlCnt during link transition
+	 * and counter request.
+	 */
+	u64 port_vl_xmit_wait_last[C_VL_COUNT + 1];
+	u16 prev_link_width;
+	u64 vl_xmit_flit_cnt[C_VL_COUNT + 1];
 };
 
 typedef int (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
@@ -1779,19 +1786,15 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,
 			       bool do_cnp)
 {
-	struct ib_other_headers *ohdr = pkt->ohdr;
-
-	u32 bth1;
-	bool becn = false;
-	bool fecn = false;
+	bool becn;
+	bool fecn;
 
 	if (pkt->etype == RHF_RCV_TYPE_BYPASS) {
 		fecn = hfi1_16B_get_fecn(pkt->hdr);
 		becn = hfi1_16B_get_becn(pkt->hdr);
 	} else {
-		bth1 = be32_to_cpu(ohdr->bth[1]);
-		fecn = bth1 & IB_FECN_SMASK;
-		becn = bth1 & IB_BECN_SMASK;
+		fecn = ib_bth_get_fecn(pkt->ohdr);
+		becn = ib_bth_get_becn(pkt->ohdr);
 	}
 	if (unlikely(fecn || becn)) {
 		hfi1_process_ecn_slowpath(qp, pkt, do_cnp);
@@ -1957,6 +1960,7 @@ void hfi1_verbs_unregister_sysfs(struct hfi1_devdata *dd);
 int qsfp_dump(struct hfi1_pportdata *ppd, char *buf, int len);
 
 int hfi1_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent);
+void hfi1_clean_up_interrupts(struct hfi1_devdata *dd);
 void hfi1_pcie_cleanup(struct pci_dev *pdev);
 int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev);
 void hfi1_pcie_ddcleanup(struct hfi1_devdata *);
@@ -2416,7 +2420,7 @@ static inline void hfi1_make_ib_hdr(struct ib_header *hdr,
 static inline void hfi1_make_16b_hdr(struct hfi1_16b_header *hdr,
 				     u32 slid, u32 dlid,
 				     u16 len, u16 pkey,
-				     u8 becn, u8 fecn, u8 l4,
+				     bool becn, bool fecn, u8 l4,
 				     u8 sc)
 {
 	u32 lrh0 = 0;

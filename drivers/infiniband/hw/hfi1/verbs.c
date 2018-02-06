@@ -835,7 +835,7 @@ static int build_verbs_tx_desc(
 {
 	int ret = 0;
 	struct hfi1_sdma_header *phdr = &tx->phdr;
-	u16 hdrbytes = tx->hdr_dwords << 2;
+	u16 hdrbytes = (tx->hdr_dwords + sizeof(pbc) / 4) << 2;
 	u8 extra_bytes = 0;
 
 	if (tx->phdr.hdr.hdr_type) {
@@ -901,7 +901,7 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_ahg_info *ahg_info = priv->s_ahg;
-	u32 hdrwords = qp->s_hdrwords;
+	u32 hdrwords = ps->s_txreq->hdr_dwords;
 	u32 len = ps->s_txreq->s_cur_size;
 	u32 plen;
 	struct hfi1_ibdev *dev = ps->dev;
@@ -919,7 +919,7 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	} else {
 		dwords = (len + 3) >> 2;
 	}
-	plen = hdrwords + dwords + 2;
+	plen = hdrwords + dwords + sizeof(pbc) / 4;
 
 	tx = ps->s_txreq;
 	if (!sdma_txreq_built(&tx->txreq)) {
@@ -1038,7 +1038,7 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			u64 pbc)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
-	u32 hdrwords = qp->s_hdrwords;
+	u32 hdrwords = ps->s_txreq->hdr_dwords;
 	struct rvt_sge_state *ss = ps->s_txreq->ss;
 	u32 len = ps->s_txreq->s_cur_size;
 	u32 dwords;
@@ -1064,7 +1064,7 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		dwords = (len + 3) >> 2;
 		hdr = (u32 *)&ps->s_txreq->phdr.hdr.ibh;
 	}
-	plen = hdrwords + dwords + 2;
+	plen = hdrwords + dwords + sizeof(pbc) / 4;
 
 	/* only RC/UC use complete */
 	switch (qp->ibqp.qp_type) {
