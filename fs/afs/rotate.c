@@ -330,27 +330,6 @@ start:
 
 	if (!afs_start_fs_iteration(fc, vnode))
 		goto failed;
-	goto use_server;
-
-next_server:
-	_debug("next");
-	afs_end_cursor(&fc->ac);
-	afs_put_cb_interest(afs_v2net(vnode), fc->cbi);
-	fc->cbi = NULL;
-	fc->index++;
-	if (fc->index >= fc->server_list->nr_servers)
-		fc->index = 0;
-	if (fc->index != fc->start)
-		goto use_server;
-
-	/* That's all the servers poked to no good effect.  Try again if some
-	 * of them were busy.
-	 */
-	if (fc->flags & AFS_FS_CURSOR_VBUSY)
-		goto restart_from_beginning;
-
-	fc->ac.error = -EDESTADDRREQ;
-	goto failed;
 
 use_server:
 	_debug("use");
@@ -401,7 +380,6 @@ use_server:
 
 	fc->ac.start = READ_ONCE(alist->index);
 	fc->ac.index = fc->ac.start;
-	goto iterate_address;
 
 iterate_address:
 	ASSERT(fc->ac.alist);
@@ -414,6 +392,26 @@ iterate_address:
 
 	_leave(" = t");
 	return true;
+
+next_server:
+	_debug("next");
+	afs_end_cursor(&fc->ac);
+	afs_put_cb_interest(afs_v2net(vnode), fc->cbi);
+	fc->cbi = NULL;
+	fc->index++;
+	if (fc->index >= fc->server_list->nr_servers)
+		fc->index = 0;
+	if (fc->index != fc->start)
+		goto use_server;
+
+	/* That's all the servers poked to no good effect.  Try again if some
+	 * of them were busy.
+	 */
+	if (fc->flags & AFS_FS_CURSOR_VBUSY)
+		goto restart_from_beginning;
+
+	fc->ac.error = -EDESTADDRREQ;
+	goto failed;
 
 failed:
 	fc->flags |= AFS_FS_CURSOR_STOP;
