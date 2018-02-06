@@ -75,6 +75,7 @@
 #include <linux/ptrace.h>
 #include <linux/tracehook.h>
 #include <linux/printk.h>
+#include <linux/cache.h>
 #include <linux/cgroup.h>
 #include <linux/cpuset.h>
 #include <linux/audit.h>
@@ -112,8 +113,8 @@
  *	in /proc for a task before it execs a suid executable.
  */
 
-static u8 nlink_tid;
-static u8 nlink_tgid;
+static u8 nlink_tid __ro_after_init;
+static u8 nlink_tgid __ro_after_init;
 
 struct pid_entry {
 	const char *name;

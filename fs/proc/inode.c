@@ -5,6 +5,7 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
+#include <linux/cache.h>
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/kernel.h>
@@ -52,7 +53,7 @@ static void proc_evict_inode(struct inode *inode)
 	}
 }
 
-static struct kmem_cache * proc_inode_cachep;
+static struct kmem_cache *proc_inode_cachep __ro_after_init;
 
 static struct inode *proc_alloc_inode(struct super_block *sb)
 {
