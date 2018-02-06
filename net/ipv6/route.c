@@ -2479,7 +2479,7 @@ static int ip6_route_check_nh_onlink(struct net *net,
 				     struct net_device *dev,
 				     struct netlink_ext_ack *extack)
 {
-	u32 tbid = l3mdev_fib_table(dev) ? : RT_TABLE_LOCAL;
+	u32 tbid = l3mdev_fib_table(dev) ? : RT_TABLE_MAIN;
 	const struct in6_addr *gw_addr = &cfg->fc_gateway;
 	u32 flags = RTF_LOCAL | RTF_ANYCAST | RTF_REJECT;
 	struct rt6_info *grt;
@@ -2490,7 +2490,8 @@ static int ip6_route_check_nh_onlink(struct net *net,
 	if (grt) {
 		if (!grt->dst.error &&
 		    (grt->rt6i_flags & flags || dev != grt->dst.dev)) {
-			NL_SET_ERR_MSG(extack, "Nexthop has invalid gateway");
+			NL_SET_ERR_MSG(extack,
+				       "Nexthop has invalid gateway or device mismatch");
 			err = -EINVAL;
 		}
 
