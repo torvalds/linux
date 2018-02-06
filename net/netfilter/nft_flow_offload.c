@@ -194,23 +194,6 @@ static struct nft_expr_type nft_flow_offload_type __read_mostly = {
 	.owner		= THIS_MODULE,
 };
 
-static void flow_offload_iterate_cleanup(struct flow_offload *flow, void *data)
-{
-	struct net_device *dev = data;
-
-	if (dev && flow->tuplehash[0].tuple.iifidx != dev->ifindex)
-		return;
-
-	flow_offload_dead(flow);
-}
-
-static void nft_flow_offload_iterate_cleanup(struct nf_flowtable *flowtable,
-					     void *data)
-{
-	nf_flow_table_iterate(flowtable, flow_offload_iterate_cleanup, data);
-	flush_delayed_work(&flowtable->gc_work);
-}
-
 static int flow_offload_netdev_event(struct notifier_block *this,
 				     unsigned long event, void *ptr)
 {
@@ -219,7 +202,7 @@ static int flow_offload_netdev_event(struct notifier_block *this,
 	if (event != NETDEV_DOWN)
 		return NOTIFY_DONE;
 
-	nft_flow_table_iterate(dev_net(dev), nft_flow_offload_iterate_cleanup, dev);
+	nf_flow_table_cleanup(dev_net(dev), dev);
 
 	return NOTIFY_DONE;
 }

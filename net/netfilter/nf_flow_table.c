@@ -4,6 +4,7 @@
 #include <linux/netfilter.h>
 #include <linux/rhashtable.h>
 #include <linux/netdevice.h>
+#include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nf_flow_table.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
@@ -424,6 +425,29 @@ int nf_flow_dnat_port(const struct flow_offload *flow,
 	return nf_flow_nat_port(skb, thoff, protocol, port, new_port);
 }
 EXPORT_SYMBOL_GPL(nf_flow_dnat_port);
+
+static void nf_flow_table_do_cleanup(struct flow_offload *flow, void *data)
+{
+	struct net_device *dev = data;
+
+	if (dev && flow->tuplehash[0].tuple.iifidx != dev->ifindex)
+		return;
+
+	flow_offload_dead(flow);
+}
+
+static void nf_flow_table_iterate_cleanup(struct nf_flowtable *flowtable,
+					  void *data)
+{
+	nf_flow_table_iterate(flowtable, nf_flow_table_do_cleanup, data);
+	flush_delayed_work(&flowtable->gc_work);
+}
+
+void nf_flow_table_cleanup(struct net *net, struct net_device *dev)
+{
+	nft_flow_table_iterate(net, nf_flow_table_iterate_cleanup, dev);
+}
+EXPORT_SYMBOL_GPL(nf_flow_table_cleanup);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");

@@ -95,6 +95,9 @@ struct flow_offload_tuple_rhash *flow_offload_lookup(struct nf_flowtable *flow_t
 int nf_flow_table_iterate(struct nf_flowtable *flow_table,
 			  void (*iter)(struct flow_offload *flow, void *data),
 			  void *data);
+
+void nf_flow_table_cleanup(struct net *net, struct net_device *dev);
+
 void nf_flow_offload_work_gc(struct work_struct *work);
 extern const struct rhashtable_params nf_flow_offload_rhash_params;
 
