@@ -3267,45 +3267,20 @@ static inline bool f2fs_bio_encrypted(struct bio *bio)
 	return bio->bi_private != NULL;
 }
 
-static inline int f2fs_sb_has_crypto(struct super_block *sb)
-{
-	return F2FS_HAS_FEATURE(sb, F2FS_FEATURE_ENCRYPT);
+#define F2FS_FEATURE_FUNCS(name, flagname) \
+static inline int f2fs_sb_has_##name(struct super_block *sb) \
+{ \
+	return F2FS_HAS_FEATURE(sb, F2FS_FEATURE_##flagname); \
 }
 
-static inline int f2fs_sb_mounted_blkzoned(struct super_block *sb)
-{
-	return F2FS_HAS_FEATURE(sb, F2FS_FEATURE_BLKZONED);
-}
-
-static inline int f2fs_sb_has_extra_attr(struct super_block *sb)
-{
-	return F2FS_HAS_FEATURE(sb, F2FS_FEATURE_EXTRA_ATTR);
-}
-
-static inline int f2fs_sb_has_project_quota(struct super_block *sb)
-{
-	return F2FS_HAS_FEATURE(sb, F2FS_FEATURE_PRJQUOTA);
-}
-
-static inline int f2fs_sb_has_inode_chksum(struct super_block *sb)
-{
-	return F2FS_HAS_FEATURE(sb, F2FS_FEATURE_INODE_CHKSUM);
-}
-
-static inline int f2fs_sb_has_flexible_inline_xattr(struct super_block *sb)
-{
-	return F2FS_HAS_FEATURE(sb, F2FS_FEATURE_FLEXIBLE_INLINE_XATTR);
-}
-
-static inline int f2fs_sb_has_quota_ino(struct super_block *sb)
-{
-	return F2FS_HAS_FEATURE(sb, F2FS_FEATURE_QUOTA_INO);
-}
-
-static inline int f2fs_sb_has_inode_crtime(struct super_block *sb)
-{
-	return F2FS_HAS_FEATURE(sb, F2FS_FEATURE_INODE_CRTIME);
-}
+F2FS_FEATURE_FUNCS(encrypt, ENCRYPT);
+F2FS_FEATURE_FUNCS(blkzoned, BLKZONED);
+F2FS_FEATURE_FUNCS(extra_attr, EXTRA_ATTR);
+F2FS_FEATURE_FUNCS(project_quota, PRJQUOTA);
+F2FS_FEATURE_FUNCS(inode_chksum, INODE_CHKSUM);
+F2FS_FEATURE_FUNCS(flexible_inline_xattr, FLEXIBLE_INLINE_XATTR);
+F2FS_FEATURE_FUNCS(quota_ino, QUOTA_INO);
+F2FS_FEATURE_FUNCS(inode_crtime, INODE_CRTIME);
 
 #ifdef CONFIG_BLK_DEV_ZONED
 static inline int get_blkz_type(struct f2fs_sb_info *sbi,
@@ -3325,7 +3300,7 @@ static inline bool f2fs_discard_en(struct f2fs_sb_info *sbi)
 {
 	struct request_queue *q = bdev_get_queue(sbi->sb->s_bdev);
 
-	return blk_queue_discard(q) || f2fs_sb_mounted_blkzoned(sbi->sb);
+	return blk_queue_discard(q) || f2fs_sb_has_blkzoned(sbi->sb);
 }
 
 static inline void set_opt_mode(struct f2fs_sb_info *sbi, unsigned int mt)
