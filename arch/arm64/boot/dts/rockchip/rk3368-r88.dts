@@ -474,14 +474,12 @@
 		rockchip,data-width = <24>;
 		rockchip,output = "rgb";
 		rockchip,ctl = <&rk1000_ctl>;
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			tve_in: port@0 {
-				reg = <0>;
-				tve_in_lvds: endpoint {
-					remote-endpoint = <&lvds_out_tve>;
-				};
+		#address-cells = <1>;
+		#size-cells = <0>;
+		tve_in: port@0 {
+			reg = <0>;
+			tve_in_lvds: endpoint {
+				remote-endpoint = <&lvds_out_tve>;
 			};
 		};
 	};
@@ -671,6 +669,10 @@
 };
 
 &route_hdmi {
+	status = "okay";
+};
+
+&route_lvds {
 	status = "okay";
 };
 
