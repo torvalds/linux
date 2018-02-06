@@ -36,7 +36,6 @@ struct idr {
 	.idr_base = (base),						\
 	.idr_next = 0,							\
 }
-#define DEFINE_IDR(name)	struct idr name = IDR_INIT
 
 /**
  * IDR_INIT() - Initialise an IDR.
@@ -44,6 +43,15 @@ struct idr {
  * A freshly-initialised IDR contains no IDs.
  */
 #define IDR_INIT	IDR_INIT_BASE(0)
+
+/**
+ * DEFINE_IDR() - Define a statically-allocated IDR
+ * @name: Name of IDR
+ *
+ * An IDR defined using this macro is ready for use with no additional
+ * initialisation required.  It contains no IDs.
+ */
+#define DEFINE_IDR(name)	struct idr name = IDR_INIT
 
 /**
  * idr_get_cursor - Return the current position of the cyclic allocator
@@ -130,6 +138,12 @@ static inline void idr_init(struct idr *idr)
 	idr_init_base(idr, 0);
 }
 
+/**
+ * idr_is_empty() - Are there any IDs allocated?
+ * @idr: IDR handle.
+ *
+ * Return: %true if any IDs have been allocated from this IDR.
+ */
 static inline bool idr_is_empty(const struct idr *idr)
 {
 	return radix_tree_empty(&idr->idr_rt) &&
