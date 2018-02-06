@@ -1813,7 +1813,6 @@ static struct ctl_table fs_table[] = {
 		.maxlen		= sizeof(pipe_max_size),
 		.mode		= 0644,
 		.proc_handler	= &pipe_proc_fn,
-		.extra1		= &pipe_min_size,
 	},
 	{
 		.procname	= "pipe-user-pages-hard",
@@ -2615,16 +2614,10 @@ int proc_douintvec_minmax(struct ctl_table *table, int write,
 				 do_proc_douintvec_minmax_conv, &param);
 }
 
-struct do_proc_dopipe_max_size_conv_param {
-	unsigned int *min;
-};
-
 static int do_proc_dopipe_max_size_conv(unsigned long *lvalp,
 					unsigned int *valp,
 					int write, void *data)
 {
-	struct do_proc_dopipe_max_size_conv_param *param = data;
-
 	if (write) {
 		unsigned int val;
 
@@ -2634,9 +2627,6 @@ static int do_proc_dopipe_max_size_conv(unsigned long *lvalp,
 		val = round_pipe_size(*lvalp);
 		if (val == 0)
 			return -EINVAL;
-
-		if (param->min && *param->min > val)
-			return -ERANGE;
 
 		*valp = val;
 	} else {
@@ -2650,11 +2640,8 @@ static int do_proc_dopipe_max_size_conv(unsigned long *lvalp,
 int proc_dopipe_max_size(struct ctl_table *table, int write,
 			 void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct do_proc_dopipe_max_size_conv_param param = {
-		.min = (unsigned int *) table->extra1,
-	};
 	return do_proc_douintvec(table, write, buffer, lenp, ppos,
-				 do_proc_dopipe_max_size_conv, &param);
+				 do_proc_dopipe_max_size_conv, NULL);
 }
 
 static void validate_coredump_safety(void)

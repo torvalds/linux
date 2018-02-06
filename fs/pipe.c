@@ -35,11 +35,6 @@
  */
 unsigned int pipe_max_size = 1048576;
 
-/*
- * Minimum pipe size, as required by POSIX
- */
-unsigned int pipe_min_size = PAGE_SIZE;
-
 /* Maximum allocatable pages per user. Hard limit is unset by default, soft
  * matches default values.
  */
@@ -1024,8 +1019,9 @@ unsigned int round_pipe_size(unsigned int size)
 {
 	unsigned long nr_pages;
 
-	if (size < pipe_min_size)
-		size = pipe_min_size;
+	/* Minimum pipe size, as required by POSIX */
+	if (size < PAGE_SIZE)
+		size = PAGE_SIZE;
 
 	nr_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	if (nr_pages == 0)
