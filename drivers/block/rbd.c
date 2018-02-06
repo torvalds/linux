@@ -215,6 +215,7 @@ enum obj_request_type {
 	OBJ_REQUEST_NODATA = 1,
 	OBJ_REQUEST_BIO,	/* pointer into provided bio (list) */
 	OBJ_REQUEST_BVECS,	/* pointer into provided bio_vec array */
+	OBJ_REQUEST_OWN_BVECS,	/* private bio_vec array, doesn't own pages */
 };
 
 enum obj_operation_type {
@@ -261,6 +262,7 @@ struct rbd_obj_request {
 		struct {
 			struct ceph_bvec_iter	bvec_pos;
 			u32			bvec_count;
+			u32			bvec_idx;
 		};
 	};
 	struct bio_vec		*copyup_bvecs;
@@ -1238,7 +1240,7 @@ static void zero_bvecs(struct ceph_bvec_iter *bvec_pos, u32 off, u32 bytes)
 
 /*
  * Zero a range in @obj_req data buffer defined by a bio (list) or
- * bio_vec array.
+ * (private) bio_vec array.
  *
  * @off is relative to the start of the data buffer.
  */
@@ -1250,6 +1252,7 @@ static void rbd_obj_zero_range(struct rbd_obj_request *obj_req, u32 off,
 		zero_bios(&obj_req->bio_pos, off, bytes);
 		break;
 	case OBJ_REQUEST_BVECS:
+	case OBJ_REQUEST_OWN_BVECS:
 		zero_bvecs(&obj_req->bvec_pos, off, bytes);
 		break;
 	default:
@@ -1485,6 +1488,9 @@ static void rbd_obj_request_destroy(struct kref *kref)
 	case OBJ_REQUEST_BIO:
 	case OBJ_REQUEST_BVECS:
 		break;		/* Nothing to do */
+	case OBJ_REQUEST_OWN_BVECS:
+		kfree(obj_request->bvec_pos.bvecs);
+		break;
 	default:
 		rbd_assert(0);
 	}
@@ -1679,8 +1685,10 @@ static void rbd_osd_req_setup_data(struct rbd_obj_request *obj_req, u32 which)
 					       obj_req->ex.oe_len);
 		break;
 	case OBJ_REQUEST_BVECS:
+	case OBJ_REQUEST_OWN_BVECS:
 		rbd_assert(obj_req->bvec_pos.iter.bi_size ==
 							obj_req->ex.oe_len);
+		rbd_assert(obj_req->bvec_idx == obj_req->bvec_count);
 		osd_req_op_extent_osd_data_bvec_pos(obj_req->osd_req, which,
 						    &obj_req->bvec_pos);
 		break;
@@ -1893,6 +1901,8 @@ struct rbd_img_fill_ctx {
 	union rbd_img_fill_iter	*pos;
 	union rbd_img_fill_iter	iter;
 	ceph_object_extent_fn_t	set_pos_fn;
+	ceph_object_extent_fn_t	count_fn;
+	ceph_object_extent_fn_t	copy_fn;
 };
 
 static struct ceph_object_extent *alloc_object_extent(void *arg)
@@ -1909,18 +1919,21 @@ static struct ceph_object_extent *alloc_object_extent(void *arg)
 }
 
 /*
- * Map a list of image extents to a list of object extents, create the
- * corresponding object requests (normally each to a different object,
- * but not always) and add them to @img_req.  For each object request,
- * set up its data descriptor to point to the corresponding chunk of
- * @fctx->pos data buffer.
- *
- * @fctx->pos data buffer is assumed to be large enough.
+ * While su != os && sc == 1 is technically not fancy (it's the same
+ * layout as su == os && sc == 1), we can't use the nocopy path for it
+ * because ->set_pos_fn() should be called only once per object.
+ * ceph_file_to_extents() invokes action_fn once per stripe unit, so
+ * treat su != os && sc == 1 as fancy.
  */
-static int rbd_img_fill_request(struct rbd_img_request *img_req,
-				struct ceph_file_extent *img_extents,
-				u32 num_img_extents,
-				struct rbd_img_fill_ctx *fctx)
+static bool rbd_layout_is_fancy(struct ceph_file_layout *l)
+{
+	return l->stripe_unit != l->object_size;
+}
+
+static int rbd_img_fill_request_nocopy(struct rbd_img_request *img_req,
+				       struct ceph_file_extent *img_extents,
+				       u32 num_img_extents,
+				       struct rbd_img_fill_ctx *fctx)
 {
 	u32 i;
 	int ret;
@@ -1939,6 +1952,81 @@ static int rbd_img_fill_request(struct rbd_img_request *img_req,
 					   &img_req->object_extents,
 					   alloc_object_extent, img_req,
 					   fctx->set_pos_fn, &fctx->iter);
+		if (ret)
+			return ret;
+	}
+
+	return __rbd_img_fill_request(img_req);
+}
+
+/*
+ * Map a list of image extents to a list of object extents, create the
+ * corresponding object requests (normally each to a different object,
+ * but not always) and add them to @img_req.  For each object request,
+ * set up its data descriptor to point to the corresponding chunk(s) of
+ * @fctx->pos data buffer.
+ *
+ * Because ceph_file_to_extents() will merge adjacent object extents
+ * together, each object request's data descriptor may point to multiple
+ * different chunks of @fctx->pos data buffer.
+ *
+ * @fctx->pos data buffer is assumed to be large enough.
+ */
+static int rbd_img_fill_request(struct rbd_img_request *img_req,
+				struct ceph_file_extent *img_extents,
+				u32 num_img_extents,
+				struct rbd_img_fill_ctx *fctx)
+{
+	struct rbd_device *rbd_dev = img_req->rbd_dev;
+	struct rbd_obj_request *obj_req;
+	u32 i;
+	int ret;
+
+	if (fctx->pos_type == OBJ_REQUEST_NODATA ||
+	    !rbd_layout_is_fancy(&rbd_dev->layout))
+		return rbd_img_fill_request_nocopy(img_req, img_extents,
+						   num_img_extents, fctx);
+
+	img_req->data_type = OBJ_REQUEST_OWN_BVECS;
+
+	/*
+	 * Create object requests and determine ->bvec_count for each object
+	 * request.  Note that ->bvec_count sum over all object requests may
+	 * be greater than the number of bio_vecs in the provided bio (list)
+	 * or bio_vec array because when mapped, those bio_vecs can straddle
+	 * stripe unit boundaries.
+	 */
+	fctx->iter = *fctx->pos;
+	for (i = 0; i < num_img_extents; i++) {
+		ret = ceph_file_to_extents(&rbd_dev->layout,
+					   img_extents[i].fe_off,
+					   img_extents[i].fe_len,
+					   &img_req->object_extents,
+					   alloc_object_extent, img_req,
+					   fctx->count_fn, &fctx->iter);
+		if (ret)
+			return ret;
+	}
+
+	for_each_obj_request(img_req, obj_req) {
+		obj_req->bvec_pos.bvecs = kmalloc_array(obj_req->bvec_count,
+					      sizeof(*obj_req->bvec_pos.bvecs),
+					      GFP_NOIO);
+		if (!obj_req->bvec_pos.bvecs)
+			return -ENOMEM;
+	}
+
+	/*
+	 * Fill in each object request's private bio_vec array, splitting and
+	 * rearranging the provided bio_vecs in stripe unit chunks as needed.
+	 */
+	fctx->iter = *fctx->pos;
+	for (i = 0; i < num_img_extents; i++) {
+		ret = ceph_iterate_extents(&rbd_dev->layout,
+					   img_extents[i].fe_off,
+					   img_extents[i].fe_len,
+					   &img_req->object_extents,
+					   fctx->copy_fn, &fctx->iter);
 		if (ret)
 			return ret;
 	}
@@ -1970,6 +2058,32 @@ static void set_bio_pos(struct ceph_object_extent *ex, u32 bytes, void *arg)
 	ceph_bio_iter_advance(it, bytes);
 }
 
+static void count_bio_bvecs(struct ceph_object_extent *ex, u32 bytes, void *arg)
+{
+	struct rbd_obj_request *obj_req =
+	    container_of(ex, struct rbd_obj_request, ex);
+	struct ceph_bio_iter *it = arg;
+
+	dout("%s objno %llu bytes %u\n", __func__, ex->oe_objno, bytes);
+	ceph_bio_iter_advance_step(it, bytes, ({
+		obj_req->bvec_count++;
+	}));
+
+}
+
+static void copy_bio_bvecs(struct ceph_object_extent *ex, u32 bytes, void *arg)
+{
+	struct rbd_obj_request *obj_req =
+	    container_of(ex, struct rbd_obj_request, ex);
+	struct ceph_bio_iter *it = arg;
+
+	dout("%s objno %llu bytes %u\n", __func__, ex->oe_objno, bytes);
+	ceph_bio_iter_advance_step(it, bytes, ({
+		obj_req->bvec_pos.bvecs[obj_req->bvec_idx++] = bv;
+		obj_req->bvec_pos.iter.bi_size += bv.bv_len;
+	}));
+}
+
 static int __rbd_img_fill_from_bio(struct rbd_img_request *img_req,
 				   struct ceph_file_extent *img_extents,
 				   u32 num_img_extents,
@@ -1979,6 +2093,8 @@ static int __rbd_img_fill_from_bio(struct rbd_img_request *img_req,
 		.pos_type = OBJ_REQUEST_BIO,
 		.pos = (union rbd_img_fill_iter *)bio_pos,
 		.set_pos_fn = set_bio_pos,
+		.count_fn = count_bio_bvecs,
+		.copy_fn = copy_bio_bvecs,
 	};
 
 	return rbd_img_fill_request(img_req, img_extents, num_img_extents,
@@ -2005,6 +2121,29 @@ static void set_bvec_pos(struct ceph_object_extent *ex, u32 bytes, void *arg)
 	ceph_bvec_iter_advance(it, bytes);
 }
 
+static void count_bvecs(struct ceph_object_extent *ex, u32 bytes, void *arg)
+{
+	struct rbd_obj_request *obj_req =
+	    container_of(ex, struct rbd_obj_request, ex);
+	struct ceph_bvec_iter *it = arg;
+
+	ceph_bvec_iter_advance_step(it, bytes, ({
+		obj_req->bvec_count++;
+	}));
+}
+
+static void copy_bvecs(struct ceph_object_extent *ex, u32 bytes, void *arg)
+{
+	struct rbd_obj_request *obj_req =
+	    container_of(ex, struct rbd_obj_request, ex);
+	struct ceph_bvec_iter *it = arg;
+
+	ceph_bvec_iter_advance_step(it, bytes, ({
+		obj_req->bvec_pos.bvecs[obj_req->bvec_idx++] = bv;
+		obj_req->bvec_pos.iter.bi_size += bv.bv_len;
+	}));
+}
+
 static int __rbd_img_fill_from_bvecs(struct rbd_img_request *img_req,
 				     struct ceph_file_extent *img_extents,
 				     u32 num_img_extents,
@@ -2014,6 +2153,8 @@ static int __rbd_img_fill_from_bvecs(struct rbd_img_request *img_req,
 		.pos_type = OBJ_REQUEST_BVECS,
 		.pos = (union rbd_img_fill_iter *)bvec_pos,
 		.set_pos_fn = set_bvec_pos,
+		.count_fn = count_bvecs,
+		.copy_fn = copy_bvecs,
 	};
 
 	return rbd_img_fill_request(img_req, img_extents, num_img_extents,
@@ -2071,6 +2212,7 @@ static int rbd_obj_read_from_parent(struct rbd_obj_request *obj_req)
 						      &obj_req->bio_pos);
 			break;
 		case OBJ_REQUEST_BVECS:
+		case OBJ_REQUEST_OWN_BVECS:
 			ret = __rbd_img_fill_from_bvecs(child_img_req,
 						      obj_req->img_extents,
 						      obj_req->num_img_extents,
