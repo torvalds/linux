@@ -1,0 +1,31 @@
+sysfs interface for analog devices adp5520(01) backlight driver
+---------------------------------------------------------------
+
+The backlight brightness control operates at three different levels for the
+adp5520 and adp5501 devices: daylight (level 1), office (level 2) and dark
+(level 3). By default the brightness operates at the daylight brightness level.
+
+What:		/sys/class/backlight/<backlight>/daylight_max
+What:		/sys/class/backlight/<backlight>/office_max
+What:		/sys/class/backlight/<backlight>/dark_max
+Date:		Sep, 2009
+KernelVersion:	v2.6.32
+Contact:	Michael Hennerich <michael.hennerich@analog.com>
+Description:
+		(RW) Maximum current setting for the backlight when brightness
+		is at one of the three levels (daylight, office or dark). This
+		is an input code between 0 and 127, which is transformed to a
+		value between 0 mA and 30 mA using linear or non-linear
+		algorithms.
+
+What:		/sys/class/backlight/<backlight>/daylight_dim
+What:		/sys/class/backlight/<backlight>/office_dim
+What:		/sys/class/backlight/<backlight>/dark_dim
+Date:		Sep, 2009
+KernelVersion:	v2.6.32
+Contact:	Michael Hennerich <michael.hennerich@analog.com>
+Description:
+		(RW) Dim current setting for the backlight when brightness is at
+		one of the three levels (daylight, office or dark). This is an
+		input code between 0 and 127, which is transformed to a value
+		between 0 mA and 30 mA using linear or non-linear algorithms.
