@@ -289,10 +289,8 @@ static struct tilcdc_panel_info *of_get_panel_info(struct device_node *np)
 	}
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info) {
-		of_node_put(info_np);
-		return NULL;
-	}
+	if (!info)
+		goto put_node;
 
 	ret |= of_property_read_u32(info_np, "ac-bias", &info->ac_bias);
 	ret |= of_property_read_u32(info_np, "ac-bias-intrpt", &info->ac_bias_intrpt);
@@ -311,11 +309,11 @@ static struct tilcdc_panel_info *of_get_panel_info(struct device_node *np)
 	if (ret) {
 		pr_err("%s: error reading panel-info properties\n", __func__);
 		kfree(info);
-		of_node_put(info_np);
-		return NULL;
+		info = NULL;
 	}
-	of_node_put(info_np);
 
+put_node:
+	of_node_put(info_np);
 	return info;
 }
 
