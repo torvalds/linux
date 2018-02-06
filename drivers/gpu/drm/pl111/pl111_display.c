@@ -199,10 +199,17 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 		cntl |= CNTL_LCDBPP24 | CNTL_BGR;
 		break;
 	case DRM_FORMAT_BGR565:
-		cntl |= CNTL_LCDBPP16_565;
+		if (priv->variant->is_pl110)
+			cntl |= CNTL_LCDBPP16;
+		else
+			cntl |= CNTL_LCDBPP16_565;
 		break;
 	case DRM_FORMAT_RGB565:
-		cntl |= CNTL_LCDBPP16_565 | CNTL_BGR;
+		if (priv->variant->is_pl110)
+			cntl |= CNTL_LCDBPP16;
+		else
+			cntl |= CNTL_LCDBPP16_565;
+		cntl |= CNTL_BGR;
 		break;
 	case DRM_FORMAT_ABGR1555:
 	case DRM_FORMAT_XBGR1555:
@@ -225,6 +232,10 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 			  fb->format->format);
 		break;
 	}
+
+	/* The PL110 in Integrator/Versatile does the BGR routing externally */
+	if (priv->variant->external_bgr)
+		cntl &= ~CNTL_BGR;
 
 	/* Power sequence: first enable and chill */
 	writel(cntl, priv->regs + priv->ctrl);
