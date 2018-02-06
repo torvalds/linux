@@ -2111,7 +2111,7 @@ enum ieee80211_key_len {
 #define FILS_ERP_MAX_REALM_LEN		253
 #define FILS_ERP_MAX_RRK_LEN		64
 
-#define PMK_MAX_LEN			48
+#define PMK_MAX_LEN			64
 
 /* Public action codes (IEEE Std 802.11-2016, 9.6.8.1, Table 9-307) */
 enum ieee80211_pub_actioncode {
