@@ -94,6 +94,37 @@ static noinline void __init kmalloc_pagealloc_oob_right(void)
 	ptr[size] = 0;
 	kfree(ptr);
 }
+
+static noinline void __init kmalloc_pagealloc_uaf(void)
+{
+	char *ptr;
+	size_t size = KMALLOC_MAX_CACHE_SIZE + 10;
+
+	pr_info("kmalloc pagealloc allocation: use-after-free\n");
+	ptr = kmalloc(size, GFP_KERNEL);
+	if (!ptr) {
+		pr_err("Allocation failed\n");
+		return;
+	}
+
+	kfree(ptr);
+	ptr[0] = 0;
+}
+
+static noinline void __init kmalloc_pagealloc_invalid_free(void)
+{
+	char *ptr;
+	size_t size = KMALLOC_MAX_CACHE_SIZE + 10;
+
+	pr_info("kmalloc pagealloc allocation: invalid-free\n");
+	ptr = kmalloc(size, GFP_KERNEL);
+	if (!ptr) {
+		pr_err("Allocation failed\n");
+		return;
+	}
+
+	kfree(ptr + 1);
+}
 #endif
 
 static noinline void __init kmalloc_large_oob_right(void)
@@ -505,6 +536,8 @@ static int __init kmalloc_tests_init(void)
 	kmalloc_node_oob_right();
 #ifdef CONFIG_SLUB
 	kmalloc_pagealloc_oob_right();
+	kmalloc_pagealloc_uaf();
+	kmalloc_pagealloc_invalid_free();
 #endif
 	kmalloc_large_oob_right();
 	kmalloc_oob_krealloc_more();

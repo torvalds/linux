@@ -511,8 +511,7 @@ bool kasan_slab_free(struct kmem_cache *cache, void *object)
 
 	shadow_byte = READ_ONCE(*(s8 *)kasan_mem_to_shadow(object));
 	if (shadow_byte < 0 || shadow_byte >= KASAN_SHADOW_SCALE_SIZE) {
-		kasan_report_double_free(cache, object,
-				__builtin_return_address(1));
+		kasan_report_invalid_free(object, __builtin_return_address(1));
 		return true;
 	}
 
@@ -602,12 +601,11 @@ void kasan_poison_kfree(void *ptr)
 		kasan_poison_slab_free(page->slab_cache, ptr);
 }
 
-void kasan_kfree_large(const void *ptr)
+void kasan_kfree_large(void *ptr)
 {
-	struct page *page = virt_to_page(ptr);
-
-	kasan_poison_shadow(ptr, PAGE_SIZE << compound_order(page),
-			KASAN_FREE_PAGE);
+	if (ptr != page_address(virt_to_head_page(ptr)))
+		kasan_report_invalid_free(ptr, __builtin_return_address(1));
+	/* The object will be poisoned by page_alloc. */
 }
 
 int kasan_module_alloc(void *addr, size_t size)
