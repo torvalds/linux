@@ -334,6 +334,7 @@ start:
 
 next_server:
 	_debug("next");
+	afs_end_cursor(&fc->ac);
 	afs_put_cb_interest(afs_v2net(vnode), fc->cbi);
 	fc->cbi = NULL;
 	fc->index++;
@@ -410,16 +411,15 @@ iterate_address:
 	/* Iterate over the current server's address list to try and find an
 	 * address on which it will respond to us.
 	 */
-	if (afs_iterate_addresses(&fc->ac)) {
-		_leave(" = t");
-		return true;
-	}
+	if (!afs_iterate_addresses(&fc->ac))
+		goto next_server;
 
-	afs_end_cursor(&fc->ac);
-	goto next_server;
+	_leave(" = t");
+	return true;
 
 failed:
 	fc->flags |= AFS_FS_CURSOR_STOP;
+	afs_end_cursor(&fc->ac);
 	_leave(" = f [failed %d]", fc->ac.error);
 	return false;
 }
