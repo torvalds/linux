@@ -153,10 +153,9 @@ extern bool proc_fill_cache(struct file *, struct dir_context *, const char *, i
  * generic.c
  */
 extern struct dentry *proc_lookup(struct inode *, struct dentry *, unsigned int);
-extern struct dentry *proc_lookup_de(struct proc_dir_entry *, struct inode *,
-				     struct dentry *);
+struct dentry *proc_lookup_de(struct inode *, struct dentry *, struct proc_dir_entry *);
 extern int proc_readdir(struct file *, struct dir_context *);
-extern int proc_readdir_de(struct proc_dir_entry *, struct file *, struct dir_context *);
+int proc_readdir_de(struct file *, struct dir_context *, struct proc_dir_entry *);
 
 static inline struct proc_dir_entry *pde_get(struct proc_dir_entry *pde)
 {
