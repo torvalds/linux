@@ -354,6 +354,8 @@ static void release_stats_buffers(struct ibmvnic_adapter *adapter)
 {
 	kfree(adapter->tx_stats_buffers);
 	kfree(adapter->rx_stats_buffers);
+	adapter->tx_stats_buffers = NULL;
+	adapter->rx_stats_buffers = NULL;
 }
 
 static int init_stats_buffers(struct ibmvnic_adapter *adapter)
@@ -599,6 +601,8 @@ static void release_vpd_data(struct ibmvnic_adapter *adapter)
 
 	kfree(adapter->vpd->buff);
 	kfree(adapter->vpd);
+
+	adapter->vpd = NULL;
 }
 
 static void release_tx_pools(struct ibmvnic_adapter *adapter)
@@ -909,6 +913,7 @@ static int ibmvnic_get_vpd(struct ibmvnic_adapter *adapter)
 	if (dma_mapping_error(dev, adapter->vpd->dma_addr)) {
 		dev_err(dev, "Could not map VPD buffer\n");
 		kfree(adapter->vpd->buff);
+		adapter->vpd->buff = NULL;
 		return -ENOMEM;
 	}
 
