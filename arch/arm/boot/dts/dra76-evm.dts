@@ -322,6 +322,7 @@
 &mmc2 {
 	status = "okay";
 	vmmc-supply = <&vio_1v8>;
+	vqmmc-supply = <&vio_1v8>;
 	bus-width = <8>;
 	pinctrl-names = "default", "hs", "ddr_1_8v", "hs200_1_8v";
 	pinctrl-0 = <&mmc2_pins_default>;
