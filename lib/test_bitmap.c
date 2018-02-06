@@ -163,7 +163,7 @@ static void __init test_fill_set(void)
 	expect_eq_pbl("0-1023", bmap, 1024);
 }
 
-static void __init test_zero_fill_copy(void)
+static void __init test_copy(void)
 {
 	DECLARE_BITMAP(bmap1, 1024);
 	DECLARE_BITMAP(bmap2, 1024);
@@ -172,36 +172,20 @@ static void __init test_zero_fill_copy(void)
 	bitmap_zero(bmap2, 1024);
 
 	/* single-word bitmaps */
-	expect_eq_pbl("", bmap1, 23);
-
-	bitmap_fill(bmap1, 19);
-	expect_eq_pbl("0-18", bmap1, 1024);
-
+	bitmap_set(bmap1, 0, 19);
 	bitmap_copy(bmap2, bmap1, 23);
 	expect_eq_pbl("0-18", bmap2, 1024);
 
-	bitmap_fill(bmap2, 23);
-	expect_eq_pbl("0-22", bmap2, 1024);
-
+	bitmap_set(bmap2, 0, 23);
 	bitmap_copy(bmap2, bmap1, 23);
 	expect_eq_pbl("0-18", bmap2, 1024);
-
-	bitmap_zero(bmap1, 23);
-	expect_eq_pbl("", bmap1, 1024);
 
 	/* multi-word bitmaps */
-	bitmap_zero(bmap1, 1024);
-	expect_eq_pbl("", bmap1, 1024);
-
-	bitmap_fill(bmap1, 109);
-	expect_eq_pbl("0-108", bmap1, 1024);
-
+	bitmap_set(bmap1, 0, 109);
 	bitmap_copy(bmap2, bmap1, 1024);
 	expect_eq_pbl("0-108", bmap2, 1024);
 
 	bitmap_fill(bmap2, 1024);
-	expect_eq_pbl("0-1023", bmap2, 1024);
-
 	bitmap_copy(bmap2, bmap1, 1024);
 	expect_eq_pbl("0-108", bmap2, 1024);
 
@@ -216,9 +200,6 @@ static void __init test_zero_fill_copy(void)
 	bitmap_fill(bmap2, 1024);
 	bitmap_copy(bmap2, bmap1, 97);  /* ... but aligned on word length */
 	expect_eq_pbl("0-108,128-1023", bmap2, 1024);
-
-	bitmap_zero(bmap2, 97);  /* ... but 0-padded til word length */
-	expect_eq_pbl("128-1023", bmap2, 1024);
 }
 
 #define PARSE_TIME 0x1
@@ -369,7 +350,7 @@ static int __init test_bitmap_init(void)
 {
 	test_zero_clear();
 	test_fill_set();
-	test_zero_fill_copy();
+	test_copy();
 	test_bitmap_arr32();
 	test_bitmap_parselist();
 	test_mem_optimisations();
