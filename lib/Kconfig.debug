@@ -1841,7 +1841,7 @@ config TEST_BPF
 
 	  If unsure, say N.
 
-config TEST_FIND_BIT
+config FIND_BIT_BENCHMARK
 	tristate "Test find_bit functions"
 	default n
 	help
