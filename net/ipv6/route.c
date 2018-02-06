@@ -2488,7 +2488,8 @@ static int ip6_route_check_nh_onlink(struct net *net,
 	err = 0;
 	grt = ip6_nh_lookup_table(net, cfg, gw_addr, tbid, 0);
 	if (grt) {
-		if (grt->rt6i_flags & flags || dev != grt->dst.dev) {
+		if (!grt->dst.error &&
+		    (grt->rt6i_flags & flags || dev != grt->dst.dev)) {
 			NL_SET_ERR_MSG(extack, "Nexthop has invalid gateway");
 			err = -EINVAL;
 		}
