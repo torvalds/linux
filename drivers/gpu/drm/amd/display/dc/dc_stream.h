@@ -287,6 +287,9 @@ void dc_stream_set_static_screen_events(struct dc *dc,
 					int num_streams,
 					const struct dc_static_screen_events *events);
 
+void dc_stream_set_dither_option(struct dc_stream_state *stream,
+				 enum dc_dither_option option);
+
 
 bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 				struct dc_stream_state **stream,

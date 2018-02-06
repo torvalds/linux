@@ -300,6 +300,37 @@ bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream,
 	return false;
 }
 
+void dc_stream_set_dither_option(struct dc_stream_state *stream,
+		enum dc_dither_option option)
+{
+	struct bit_depth_reduction_params params;
+	struct dc_link *link = stream->status.link;
+	struct pipe_ctx *pipes = NULL;
+	int i;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (link->dc->current_state->res_ctx.pipe_ctx[i].stream ==
+				stream) {
+			pipes = &link->dc->current_state->res_ctx.pipe_ctx[i];
+			break;
+		}
+	}
+
+	memset(&params, 0, sizeof(params));
+	if (!pipes)
+		return;
+	if (option > DITHER_OPTION_MAX)
+		return;
+
+	stream->dither_option = option;
+
+	resource_build_bit_depth_reduction_params(stream,
+				&params);
+	stream->bit_depth_params = params;
+	pipes->stream_res.opp->funcs->
+		opp_program_bit_depth_reduction(pipes->stream_res.opp, &params);
+}
+
 void dc_stream_set_static_screen_events(struct dc *dc,
 		struct dc_stream_state **streams,
 		int num_streams,
