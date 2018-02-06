@@ -256,7 +256,8 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 	cntl |= CNTL_LCDPWR;
 	writel(cntl, priv->regs + priv->ctrl);
 
-	drm_crtc_vblank_on(crtc);
+	if (!priv->variant->broken_vblank)
+		drm_crtc_vblank_on(crtc);
 }
 
 void pl111_display_disable(struct drm_simple_display_pipe *pipe)
@@ -266,7 +267,8 @@ void pl111_display_disable(struct drm_simple_display_pipe *pipe)
 	struct pl111_drm_dev_private *priv = drm->dev_private;
 	u32 cntl;
 
-	drm_crtc_vblank_off(crtc);
+	if (!priv->variant->broken_vblank)
+		drm_crtc_vblank_off(crtc);
 
 	/* Power Down */
 	cntl = readl(priv->regs + priv->ctrl);

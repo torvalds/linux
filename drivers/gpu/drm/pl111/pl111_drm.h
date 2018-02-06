@@ -40,6 +40,7 @@ struct drm_minor;
  *	BGR/RGB routing
  * @broken_clockdivider: the clock divider is broken and we need to
  *	use the supplied clock directly
+ * @broken_vblank: the vblank IRQ is broken on this variant
  * @formats: array of supported pixel formats on this variant
  * @nformats: the length of the array of supported pixel formats
  */
@@ -48,6 +49,7 @@ struct pl111_variant_data {
 	bool is_pl110;
 	bool external_bgr;
 	bool broken_clockdivider;
+	bool broken_vblank;
 	const u32 *formats;
 	unsigned int nformats;
 };

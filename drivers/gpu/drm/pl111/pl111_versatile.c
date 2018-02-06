@@ -238,6 +238,7 @@ static const struct pl111_variant_data pl110_integrator = {
 	.name = "PL110 Integrator",
 	.is_pl110 = true,
 	.broken_clockdivider = true,
+	.broken_vblank = true,
 	.formats = pl110_integrator_pixel_formats,
 	.nformats = ARRAY_SIZE(pl110_integrator_pixel_formats),
 };

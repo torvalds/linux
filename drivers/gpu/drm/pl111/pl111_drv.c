@@ -132,10 +132,12 @@ static int pl111_modeset_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	ret = drm_vblank_init(dev, 1);
-	if (ret != 0) {
-		dev_err(dev->dev, "Failed to init vblank\n");
-		goto out_bridge;
+	if (!priv->variant->broken_vblank) {
+		ret = drm_vblank_init(dev, 1);
+		if (ret != 0) {
+			dev_err(dev->dev, "Failed to init vblank\n");
+			goto out_bridge;
+		}
 	}
 
 	drm_mode_config_reset(dev);
@@ -172,10 +174,6 @@ static struct drm_driver pl111_drm_driver = {
 	.dumb_create = drm_gem_cma_dumb_create,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
-
-	.enable_vblank = pl111_enable_vblank,
-	.disable_vblank = pl111_disable_vblank,
-
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import = drm_gem_prime_import,
@@ -200,6 +198,11 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	if (!variant->broken_vblank) {
+		pl111_drm_driver.enable_vblank = pl111_enable_vblank;
+		pl111_drm_driver.disable_vblank = pl111_disable_vblank;
+	}
 
 	drm = drm_dev_alloc(&pl111_drm_driver, dev);
 	if (IS_ERR(drm))
