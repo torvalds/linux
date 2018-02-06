@@ -189,6 +189,10 @@
 	status = "okay";
 };
 
+&cpu0 {
+	cpu-supply = <&vdd_arm>;
+};
+
 &display_subsystem {
 	status = "okay";
 };

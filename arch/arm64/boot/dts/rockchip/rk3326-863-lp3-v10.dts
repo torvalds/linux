@@ -189,6 +189,10 @@
 	};
 };
 
+&cpu0 {
+	cpu-supply = <&vdd_arm>;
+};
+
 &dsi_in_vopl {
 	status = "disabled";
 };
