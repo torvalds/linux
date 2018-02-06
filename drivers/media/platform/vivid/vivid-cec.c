@@ -70,8 +70,15 @@ static void vivid_cec_pin_adap_events(struct cec_adapter *adap, ktime_t ts,
 
 	if (adap == NULL)
 		return;
-	ts = ktime_sub_us(ts, (CEC_TIM_START_BIT_TOTAL +
-			       len * 10 * CEC_TIM_DATA_BIT_TOTAL));
+
+	/*
+	 * Suffix ULL on constant 10 makes the expression
+	 * CEC_TIM_START_BIT_TOTAL + 10ULL * len * CEC_TIM_DATA_BIT_TOTAL
+	 * to be evaluated using 64-bit unsigned arithmetic (u64), which
+	 * is what ktime_sub_us expects as second argument.
+	 */
+	ts = ktime_sub_us(ts, CEC_TIM_START_BIT_TOTAL +
+			       10ULL * len * CEC_TIM_DATA_BIT_TOTAL);
 	cec_queue_pin_cec_event(adap, false, ts);
 	ts = ktime_add_us(ts, CEC_TIM_START_BIT_LOW);
 	cec_queue_pin_cec_event(adap, true, ts);
