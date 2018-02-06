@@ -3889,7 +3889,9 @@ static int vega10_get_gpu_power(struct pp_hwmgr *hwmgr,
 			return -EINVAL);
 
 	vega10_read_arg_from_smc(hwmgr, &value);
+
 	/* power value is an integer */
+	memset(query, 0, sizeof *query);
 	query->average_gpu_power = value << 8;
 
 	return 0;
