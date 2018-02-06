@@ -156,7 +156,6 @@
 			#power-domain-cells = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "disabled";
 
 			/* These power domains are grouped by VD_LOGIC */
 			pd_usb@PX30_PD_USB {
@@ -796,6 +795,7 @@
 		interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_OTG>;
 		clock-names = "otg";
+		power-domains = <&power PX30_PD_USB>;
 		dr_mode = "otg";
 		g-np-tx-fifo-size = <16>;
 		g-rx-fifo-size = <275>;
@@ -813,6 +813,7 @@
 		clocks = <&cru HCLK_HOST>, <&cru HCLK_HOST_ARB>,
 			 <&u2phy>;
 		clock-names = "usbhost", "arbiter", "utmi";
+		power-domains = <&power PX30_PD_USB>;
 		phys = <&u2phy_host>;
 		phy-names = "usb";
 		status = "disabled";
@@ -825,6 +826,7 @@
 		clocks = <&cru HCLK_HOST>, <&cru HCLK_HOST_ARB>,
 			 <&u2phy>;
 		clock-names = "usbhost", "arbiter", "utmi";
+		power-domains = <&power PX30_PD_USB>;
 		phys = <&u2phy_host>;
 		phy-names = "usb";
 	};
@@ -858,6 +860,7 @@
 		max-frequency = <150000000>;
 		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>;
 		clock-names = "biu", "ciu";
+		power-domains = <&power PX30_PD_SDCARD>;
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
@@ -870,6 +873,7 @@
 		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>,
 			 <&cru SCLK_SDIO_DRV>, <&cru SCLK_SDIO_SAMPLE>;
 		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
+		power-domains = <&power PX30_PD_MMC_NAND>;
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
@@ -882,6 +886,7 @@
 		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>,
 			 <&cru SCLK_EMMC_DRV>, <&cru SCLK_EMMC_SAMPLE>;
 		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
+		power-domains = <&power PX30_PD_MMC_NAND>;
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
@@ -894,6 +899,7 @@
 		nandc_id = <0>;
 		clocks = <&cru SCLK_NANDC>, <&cru HCLK_NANDC>;
 		clock-names = "clk_nandc", "hclk_nandc";
+		power-domains = <&power PX30_PD_MMC_NAND>;
 		status = "disabled";
 	};
 
@@ -908,6 +914,7 @@
 
 		clocks = <&cru ACLK_GPU>;
 		clock-names = "clk_mali";
+		power-domains = <&power PX30_PD_GPU>;
 		operating-points-v2 = <&gpu_opp_table>;
 
 		status = "disabled";
@@ -971,6 +978,7 @@
 			<&cru SRST_VPU_CORE>;
 		reset-names = "video_a", "video_h", "niu_a", "niu_h",
 			"video_core";
+		power-domains = <&power PX30_PD_VPU>;
 		mode_bit = <15>;
 		mode_ctrl = <0x410>;
 		name = "vpu_combo";
@@ -984,6 +992,7 @@
 		interrupt-names = "hevc_mmu";
 		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
 		clock-names = "aclk", "hclk";
+		power-domains = <&power PX30_PD_VPU>;
 		#iommu-cells = <0>;
 	};
 
@@ -994,6 +1003,7 @@
 		interrupt-names = "vpu_mmu";
 		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
 		clock-names = "aclk", "hclk";
+		power-domains = <&power PX30_PD_VPU>;
 		#iommu-cells = <0>;
 	};
 
@@ -1066,6 +1076,7 @@
 		interrupt-names = "vopb_mmu";
 		clocks = <&cru ACLK_VOPB>, <&cru HCLK_VOPB>;
 		clock-names = "aclk", "hclk";
+		power-domains = <&power PX30_PD_VO>;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
@@ -1105,6 +1116,7 @@
 		interrupt-names = "vopl_mmu";
 		clocks = <&cru ACLK_VOPL>, <&cru HCLK_VOPL>;
 		clock-names = "aclk", "hclk";
+		power-domains = <&power PX30_PD_VO>;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
@@ -1116,6 +1128,7 @@
 		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>;
 		clock-names = "aclk_rga", "hclk_rga";
+		power-domains = <&power PX30_PD_VO>;
 		dma-coherent;
 		status = "disabled";
 	};
@@ -1128,6 +1141,7 @@
 		clock-names = "aclk_cif0", "hclk_cif0", "pclk_cif", "cif0_out";
 		resets = <&cru SRST_CIF_A>, <&cru SRST_CIF_H>, <&cru SRST_CIF_PCLKIN>;
 		reset-names = "rst_cif_a", "rst_cif_h", "rst_cif_pclkin";
+		power-domains = <&power PX30_PD_VI>;
 		pinctrl-names = "cif_pin_all";
 		pinctrl-0 = <&dvp_d2d9_m0>;
 		status = "disabled";
@@ -1140,6 +1154,7 @@
 		interrupt-names = "vip_mmu";
 		clocks = <&cru ACLK_CIF>, <&cru HCLK_CIF>;
 		clock-names = "aclk", "hclk";
+		power-domains = <&power PX30_PD_VI>;
 		rk_iommu,disable_reset_quirk;
 		#iommu-cells = <0>;
 		status = "disabled";
@@ -1155,6 +1170,7 @@
 			"pclkin_isp", "clk_cif_pll", "clk_cif_out", "pclk_dphyrx";
 		resets = <&cru SRST_ISP>, <&cru SRST_MIPICSIPHY_P>;
 		reset-names = "rst_isp", "rst_mipicsiphy";
+		power-domains = <&power PX30_PD_VI>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cif_clkout_m0>;
 		rockchip,isp,mipiphy = <0>;
@@ -1173,6 +1189,7 @@
 		interrupt-names = "isp_mmu";
 		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>;
 		clock-names = "aclk", "hclk";
+		power-domains = <&power PX30_PD_VI>;
 		rk_iommu,disable_reset_quirk;
 		#iommu-cells = <0>;
 		status = "disabled";
