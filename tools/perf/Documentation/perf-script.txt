@@ -303,6 +303,9 @@ OPTIONS
 --show-lost-events
 	Display lost events i.e. events of type PERF_RECORD_LOST.
 
+--show-round-events
+	Display finished round events i.e. events of type PERF_RECORD_FINISHED_ROUND.
+
 --demangle::
 	Demangle symbol names to human readable form. It's enabled by default,
 	disable with --no-demangle.
