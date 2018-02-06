@@ -225,9 +225,9 @@ static int kcov_ioctl_locked(struct kcov *kcov, unsigned int cmd,
 		if (unused != 0 || kcov->mode == KCOV_MODE_DISABLED ||
 		    kcov->area == NULL)
 			return -EINVAL;
-		if (kcov->t != NULL)
-			return -EBUSY;
 		t = current;
+		if (kcov->t != NULL || t->kcov != NULL)
+			return -EBUSY;
 		/* Cache in task struct for performance. */
 		t->kcov_size = kcov->size;
 		t->kcov_area = kcov->area;
