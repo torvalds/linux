@@ -283,8 +283,6 @@ struct rbd_img_request {
 	struct rbd_device	*rbd_dev;
 	enum obj_operation_type	op_type;
 	enum obj_request_type	data_type;
-	u64			offset;	/* starting image byte offset */
-	u64			length;	/* byte count from offset */
 	unsigned long		flags;
 	union {
 		u64			snap_id;	/* for reads */
@@ -1602,7 +1600,6 @@ static bool rbd_dev_parent_get(struct rbd_device *rbd_dev)
  */
 static struct rbd_img_request *rbd_img_request_create(
 					struct rbd_device *rbd_dev,
-					u64 offset, u64 length,
 					enum obj_operation_type op_type,
 					struct ceph_snap_context *snapc)
 {
@@ -1614,8 +1611,6 @@ static struct rbd_img_request *rbd_img_request_create(
 
 	img_request->rbd_dev = rbd_dev;
 	img_request->op_type = op_type;
-	img_request->offset = offset;
-	img_request->length = length;
 	if (!rbd_img_is_write(img_request))
 		img_request->snap_id = rbd_dev->spec->snap_id;
 	else
@@ -1628,9 +1623,8 @@ static struct rbd_img_request *rbd_img_request_create(
 	INIT_LIST_HEAD(&img_request->object_extents);
 	kref_init(&img_request->kref);
 
-	dout("%s: rbd_dev %p %s %llu/%llu -> img %p\n", __func__, rbd_dev,
-		obj_op_name(op_type), offset, length, img_request);
-
+	dout("%s: rbd_dev %p %s -> img %p\n", __func__, rbd_dev,
+	     obj_op_name(op_type), img_request);
 	return img_request;
 }
 
@@ -1659,9 +1653,8 @@ static void rbd_img_request_destroy(struct kref *kref)
 	kmem_cache_free(rbd_img_request_cache, img_request);
 }
 
-static struct rbd_img_request *rbd_parent_request_create(
-					struct rbd_obj_request *obj_request,
-					u64 img_offset, u64 length)
+static struct rbd_img_request *
+rbd_parent_request_create(struct rbd_obj_request *obj_request)
 {
 	struct rbd_img_request *parent_request;
 	struct rbd_device *rbd_dev;
@@ -1669,8 +1662,8 @@ static struct rbd_img_request *rbd_parent_request_create(
 	rbd_assert(obj_request->img_request);
 	rbd_dev = obj_request->img_request->rbd_dev;
 
-	parent_request = rbd_img_request_create(rbd_dev->parent, img_offset,
-						length, OBJ_OP_READ, NULL);
+	parent_request = rbd_img_request_create(rbd_dev->parent, OBJ_OP_READ,
+						NULL);
 	if (!parent_request)
 		return NULL;
 
@@ -2127,9 +2120,7 @@ static int rbd_obj_read_from_parent(struct rbd_obj_request *obj_req)
 	struct rbd_img_request *child_img_req;
 	int ret;
 
-	child_img_req = rbd_parent_request_create(obj_req,
-					obj_req->img_extents[0].fe_off,
-					obj_req->img_extents[0].fe_len);
+	child_img_req = rbd_parent_request_create(obj_req);
 	if (!child_img_req)
 		return -ENOMEM;
 
@@ -3562,8 +3553,7 @@ static void rbd_queue_workfn(struct work_struct *work)
 		}
 	}
 
-	img_request = rbd_img_request_create(rbd_dev, offset, length, op_type,
-					     snapc);
+	img_request = rbd_img_request_create(rbd_dev, op_type, snapc);
 	if (!img_request) {
 		result = -ENOMEM;
 		goto err_unlock;
