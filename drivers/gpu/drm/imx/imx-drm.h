@@ -8,7 +8,6 @@ struct drm_connector;
 struct drm_device;
 struct drm_display_mode;
 struct drm_encoder;
-struct drm_fbdev_cma;
 struct drm_framebuffer;
 struct drm_plane;
 struct imx_drm_crtc;

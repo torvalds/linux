@@ -136,7 +136,7 @@ struct bfa_fcpim_s {
 	struct bfa_fcpim_del_itn_stats_s del_itn_stats;
 	bfa_boolean_t		ioredirect;
 	bfa_boolean_t		io_profile;
-	u32			io_profile_start_time;
+	time64_t		io_profile_start_time;
 	bfa_fcpim_profile_t     profile_comp;
 	bfa_fcpim_profile_t     profile_start;
 };
@@ -310,7 +310,7 @@ bfa_status_t bfa_fcpim_port_iostats(struct bfa_s *bfa,
 			struct bfa_itnim_iostats_s *stats, u8 lp_tag);
 void bfa_fcpim_add_stats(struct bfa_itnim_iostats_s *fcpim_stats,
 			struct bfa_itnim_iostats_s *itnim_stats);
-bfa_status_t bfa_fcpim_profile_on(struct bfa_s *bfa, u32 time);
+bfa_status_t bfa_fcpim_profile_on(struct bfa_s *bfa, time64_t time);
 bfa_status_t bfa_fcpim_profile_off(struct bfa_s *bfa);
 
 #define bfa_fcpim_ioredirect_enabled(__bfa)				\

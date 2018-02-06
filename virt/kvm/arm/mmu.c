@@ -621,7 +621,7 @@ static int create_hyp_pud_mappings(pgd_t *pgd, unsigned long start,
 	return 0;
 }
 
-static int __create_hyp_mappings(pgd_t *pgdp,
+static int __create_hyp_mappings(pgd_t *pgdp, unsigned long ptrs_per_pgd,
 				 unsigned long start, unsigned long end,
 				 unsigned long pfn, pgprot_t prot)
 {
@@ -634,7 +634,7 @@ static int __create_hyp_mappings(pgd_t *pgdp,
 	addr = start & PAGE_MASK;
 	end = PAGE_ALIGN(end);
 	do {
-		pgd = pgdp + pgd_index(addr);
+		pgd = pgdp + ((addr >> PGDIR_SHIFT) & (ptrs_per_pgd - 1));
 
 		if (pgd_none(*pgd)) {
 			pud = pud_alloc_one(NULL, addr);
@@ -697,8 +697,8 @@ int create_hyp_mappings(void *from, void *to, pgprot_t prot)
 		int err;
 
 		phys_addr = kvm_kaddr_to_phys(from + virt_addr - start);
-		err = __create_hyp_mappings(hyp_pgd, virt_addr,
-					    virt_addr + PAGE_SIZE,
+		err = __create_hyp_mappings(hyp_pgd, PTRS_PER_PGD,
+					    virt_addr, virt_addr + PAGE_SIZE,
 					    __phys_to_pfn(phys_addr),
 					    prot);
 		if (err)
@@ -729,7 +729,7 @@ int create_hyp_io_mappings(void *from, void *to, phys_addr_t phys_addr)
 	if (!is_vmalloc_addr(from) || !is_vmalloc_addr(to - 1))
 		return -EINVAL;
 
-	return __create_hyp_mappings(hyp_pgd, start, end,
+	return __create_hyp_mappings(hyp_pgd, PTRS_PER_PGD, start, end,
 				     __phys_to_pfn(phys_addr), PAGE_HYP_DEVICE);
 }
 
@@ -1735,7 +1735,7 @@ static int kvm_map_idmap_text(pgd_t *pgd)
 	int err;
 
 	/* Create the idmap in the boot page tables */
-	err = 	__create_hyp_mappings(pgd,
+	err = 	__create_hyp_mappings(pgd, __kvm_idmap_ptrs_per_pgd(),
 				      hyp_idmap_start, hyp_idmap_end,
 				      __phys_to_pfn(hyp_idmap_start),
 				      PAGE_HYP_EXEC);

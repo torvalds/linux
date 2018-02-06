@@ -15,7 +15,7 @@
  *
  */
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "ec100.h"
 
 struct ec100_state {

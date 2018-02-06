@@ -8,10 +8,8 @@
 struct tcf_mirred {
 	struct tc_action	common;
 	int			tcfm_eaction;
-	int			tcfm_ifindex;
 	bool			tcfm_mac_header_xmit;
 	struct net_device __rcu	*tcfm_dev;
-	struct net		*net;
 	struct list_head	tcfm_list;
 };
 #define to_mirred(a) ((struct tcf_mirred *)a)
@@ -34,9 +32,9 @@ static inline bool is_tcf_mirred_egress_mirror(const struct tc_action *a)
 	return false;
 }
 
-static inline int tcf_mirred_ifindex(const struct tc_action *a)
+static inline struct net_device *tcf_mirred_dev(const struct tc_action *a)
 {
-	return to_mirred(a)->tcfm_ifindex;
+	return rtnl_dereference(to_mirred(a)->tcfm_dev);
 }
 
 #endif /* __NET_TC_MIR_H */

@@ -163,7 +163,7 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 		[3] = 1 - 1,
 		[4] = DP_SET_POWER_D0,
 	};
-	enum port port = dig_port->port;
+	enum port port = dig_port->base.port;
 	u32 aux_ctl;
 	int i;
 
@@ -376,7 +376,7 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 	 * ones. Since by Display design transcoder EDP is tied to port A
 	 * we can safely escape based on the port A.
 	 */
-	if (HAS_DDI(dev_priv) && dig_port->port != PORT_A) {
+	if (HAS_DDI(dev_priv) && dig_port->base.port != PORT_A) {
 		DRM_DEBUG_KMS("PSR condition failed: Port not supported\n");
 		return;
 	}

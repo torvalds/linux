@@ -1311,10 +1311,10 @@ static inline void _scif_poll_wait(struct file *f, wait_queue_head_t *wq,
 	spin_lock(&ep->lock);
 }
 
-unsigned int
+__poll_t
 __scif_pollfd(struct file *f, poll_table *wait, struct scif_endpt *ep)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	dev_dbg(scif_info.mdev.this_device,
 		"SCIFAPI pollfd: ep %p %s\n", ep, scif_ep_states[ep->state]);
@@ -1389,7 +1389,8 @@ scif_poll(struct scif_pollepd *ufds, unsigned int nfds, long timeout_msecs)
 {
 	struct poll_wqueues table;
 	poll_table *pt;
-	int i, mask, count = 0, timed_out = timeout_msecs == 0;
+	int i, count = 0, timed_out = timeout_msecs == 0;
+	__poll_t mask;
 	u64 timeout = timeout_msecs < 0 ? MAX_SCHEDULE_TIMEOUT
 		: msecs_to_jiffies(timeout_msecs);
 

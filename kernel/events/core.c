@@ -4520,11 +4520,11 @@ perf_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	return ret;
 }
 
-static unsigned int perf_poll(struct file *file, poll_table *wait)
+static __poll_t perf_poll(struct file *file, poll_table *wait)
 {
 	struct perf_event *event = file->private_data;
 	struct ring_buffer *rb;
-	unsigned int events = POLLHUP;
+	__poll_t events = POLLHUP;
 
 	poll_wait(file, &event->waitq, wait);
 
@@ -4732,6 +4732,9 @@ static long _perf_ioctl(struct perf_event *event, unsigned int cmd, unsigned lon
 		rcu_read_unlock();
 		return 0;
 	}
+
+	case PERF_EVENT_IOC_QUERY_BPF:
+		return perf_event_query_prog_array(event, (void __user *)arg);
 	default:
 		return -ENOTTY;
 	}
@@ -4913,6 +4916,7 @@ void perf_event_update_userpage(struct perf_event *event)
 unlock:
 	rcu_read_unlock();
 }
+EXPORT_SYMBOL_GPL(perf_event_update_userpage);
 
 static int perf_mmap_fault(struct vm_fault *vmf)
 {
@@ -8095,6 +8099,13 @@ static int perf_event_set_bpf_prog(struct perf_event *event, u32 prog_fd)
 	    (is_tracepoint && prog->type != BPF_PROG_TYPE_TRACEPOINT) ||
 	    (is_syscall_tp && prog->type != BPF_PROG_TYPE_TRACEPOINT)) {
 		/* valid fd, but invalid bpf program type */
+		bpf_prog_put(prog);
+		return -EINVAL;
+	}
+
+	/* Kprobe override only works for kprobes, not uprobes. */
+	if (prog->kprobe_override &&
+	    !(event->tp_event->flags & TRACE_EVENT_FL_KPROBE)) {
 		bpf_prog_put(prog);
 		return -EINVAL;
 	}

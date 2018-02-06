@@ -305,6 +305,14 @@ static int rv_smu_fini(struct pp_hwmgr *hwmgr)
 
 static int rv_start_smu(struct pp_hwmgr *hwmgr)
 {
+	struct cgs_firmware_info info = {0};
+
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetSmuVersion);
+	rv_read_arg_from_smc(hwmgr, &hwmgr->smu_version);
+	info.version = hwmgr->smu_version >> 8;
+
+	cgs_get_firmware_info(hwmgr->device, CGS_UCODE_ID_SMU, &info);
+
 	if (rv_verify_smc_interface(hwmgr))
 		return -EINVAL;
 	if (rv_smc_enable_sdma(hwmgr))

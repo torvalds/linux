@@ -395,6 +395,7 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 
 	if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 ||
 	    ctx->codec->dst_fourcc == V4L2_PIX_FMT_H264 ||
+	    ctx->codec->src_fourcc == V4L2_PIX_FMT_MPEG4 ||
 	    ctx->codec->dst_fourcc == V4L2_PIX_FMT_MPEG4) {
 		width = round_up(q_data->width, 16);
 		height = round_up(q_data->height, 16);
@@ -413,8 +414,10 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 			size = round_up(ysize, 4096) + ysize / 2;
 		else
 			size = ysize + ysize / 2;
-		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 &&
-		    dev->devtype->product != CODA_DX6)
+		/* Add space for mvcol buffers */
+		if (dev->devtype->product != CODA_DX6 &&
+		    (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 ||
+		     (ctx->codec->src_fourcc == V4L2_PIX_FMT_MPEG4 && i == 0)))
 			size += ysize / 4;
 		name = kasprintf(GFP_KERNEL, "fb%d", i);
 		if (!name) {
@@ -452,17 +455,15 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 		coda_parabuf_write(ctx, i * 3 + 1, cb);
 		coda_parabuf_write(ctx, i * 3 + 2, cr);
 
-		/* mvcol buffer for h.264 */
-		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 &&
-		    dev->devtype->product != CODA_DX6)
-			coda_parabuf_write(ctx, 96 + i, mvcol);
-	}
+		if (dev->devtype->product == CODA_DX6)
+			continue;
 
-	/* mvcol buffer for mpeg4 */
-	if ((dev->devtype->product != CODA_DX6) &&
-	    (ctx->codec->src_fourcc == V4L2_PIX_FMT_MPEG4))
-		coda_parabuf_write(ctx, 97, ctx->internal_frames[0].paddr +
-					    ysize + ysize/4 + ysize/4);
+		/* mvcol buffer for h.264 and mpeg4 */
+		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264)
+			coda_parabuf_write(ctx, 96 + i, mvcol);
+		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_MPEG4 && i == 0)
+			coda_parabuf_write(ctx, 97, mvcol);
+	}
 
 	return 0;
 }

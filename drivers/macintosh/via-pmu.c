@@ -1799,7 +1799,7 @@ static int powerbook_sleep_grackle(void)
 	struct adb_request req;
 	struct pci_dev *grackle;
 
-	grackle = pci_get_bus_and_slot(0, 0);
+	grackle = pci_get_domain_bus_and_slot(0, 0, 0);
 	if (!grackle)
 		return -ENODEV;
 
@@ -2157,11 +2157,11 @@ pmu_write(struct file *file, const char __user *buf,
 	return 0;
 }
 
-static unsigned int
+static __poll_t
 pmu_fpoll(struct file *filp, poll_table *wait)
 {
 	struct pmu_private *pp = filp->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	unsigned long flags;
 	
 	if (pp == 0)

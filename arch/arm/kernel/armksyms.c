@@ -92,7 +92,6 @@ EXPORT_SYMBOL(__memset64);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memchr);
-EXPORT_SYMBOL(__memzero);
 
 EXPORT_SYMBOL(mmioset);
 EXPORT_SYMBOL(mmiocpy);

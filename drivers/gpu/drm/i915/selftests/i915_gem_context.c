@@ -158,14 +158,6 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 		goto err_batch;
 	}
 
-	err = engine->emit_flush(rq, EMIT_INVALIDATE);
-	if (err)
-		goto err_request;
-
-	err = i915_switch_context(rq);
-	if (err)
-		goto err_request;
-
 	flags = 0;
 	if (INTEL_GEN(vm->i915) <= 5)
 		flags |= I915_DISPATCH_SECURE;
@@ -272,6 +264,23 @@ out_unmap:
 	return err;
 }
 
+static int file_add_object(struct drm_file *file,
+			    struct drm_i915_gem_object *obj)
+{
+	int err;
+
+	GEM_BUG_ON(obj->base.handle_count);
+
+	/* tie the object to the drm_file for easy reaping */
+	err = idr_alloc(&file->object_idr, &obj->base, 1, 0, GFP_KERNEL);
+	if (err < 0)
+		return  err;
+
+	i915_gem_object_get(obj);
+	obj->base.handle_count++;
+	return 0;
+}
+
 static struct drm_i915_gem_object *
 create_test_object(struct i915_gem_context *ctx,
 		   struct drm_file *file,
@@ -281,7 +290,6 @@ create_test_object(struct i915_gem_context *ctx,
 	struct i915_address_space *vm =
 		ctx->ppgtt ? &ctx->ppgtt->base : &ctx->i915->ggtt.base;
 	u64 size;
-	u32 handle;
 	int err;
 
 	size = min(vm->total / 2, 1024ull * DW_PER_PAGE * PAGE_SIZE);
@@ -291,8 +299,7 @@ create_test_object(struct i915_gem_context *ctx,
 	if (IS_ERR(obj))
 		return obj;
 
-	/* tie the handle to the drm_file for easy reaping */
-	err = drm_gem_handle_create(file, &obj->base, &handle);
+	err = file_add_object(file, obj);
 	i915_gem_object_put(obj);
 	if (err)
 		return ERR_PTR(err);
@@ -325,7 +332,7 @@ static int igt_ctx_exec(void *arg)
 	LIST_HEAD(objects);
 	unsigned long ncontexts, ndwords, dw;
 	bool first_shared_gtt = true;
-	int err;
+	int err = -ENODEV;
 
 	/* Create a few different contexts (with different mm) and write
 	 * through each ctx/mm using the GPU making sure those writes end
@@ -369,7 +376,9 @@ static int igt_ctx_exec(void *arg)
 				}
 			}
 
+			intel_runtime_pm_get(i915);
 			err = gpu_fill(obj, ctx, engine, dw);
+			intel_runtime_pm_put(i915);
 			if (err) {
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),

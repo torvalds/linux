@@ -162,6 +162,12 @@ restart:
 		goto out;
 	}
 
+	if (test_bit(RDS_DESTROY_PENDING, &cp->cp_flags)) {
+		release_in_xmit(cp);
+		ret = -ENETUNREACH; /* dont requeue send work */
+		goto out;
+	}
+
 	/*
 	 * we record the send generation after doing the xmit acquire.
 	 * if someone else manages to jump in and do some work, we'll use
@@ -437,7 +443,12 @@ over_batch:
 		    !list_empty(&cp->cp_send_queue)) && !raced) {
 			if (batch_count < send_batch_count)
 				goto restart;
-			queue_delayed_work(rds_wq, &cp->cp_send_w, 1);
+			rcu_read_lock();
+			if (test_bit(RDS_DESTROY_PENDING, &cp->cp_flags))
+				ret = -ENETUNREACH;
+			else
+				queue_delayed_work(rds_wq, &cp->cp_send_w, 1);
+			rcu_read_unlock();
 		} else if (raced) {
 			rds_stats_inc(s_send_lock_queue_raced);
 		}
@@ -1151,6 +1162,11 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	else
 		cpath = &conn->c_path[0];
 
+	if (test_bit(RDS_DESTROY_PENDING, &cpath->cp_flags)) {
+		ret = -EAGAIN;
+		goto out;
+	}
+
 	rds_conn_path_connect_if_down(cpath);
 
 	ret = rds_cong_wait(conn->c_fcong, dport, nonblock, rs);
@@ -1190,9 +1206,17 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	rds_stats_inc(s_send_queued);
 
 	ret = rds_send_xmit(cpath);
-	if (ret == -ENOMEM || ret == -EAGAIN)
-		queue_delayed_work(rds_wq, &cpath->cp_send_w, 1);
-
+	if (ret == -ENOMEM || ret == -EAGAIN) {
+		ret = 0;
+		rcu_read_lock();
+		if (test_bit(RDS_DESTROY_PENDING, &cpath->cp_flags))
+			ret = -ENETUNREACH;
+		else
+			queue_delayed_work(rds_wq, &cpath->cp_send_w, 1);
+		rcu_read_unlock();
+	}
+	if (ret)
+		goto out;
 	rds_message_put(rm);
 	return payload_len;
 
@@ -1270,7 +1294,10 @@ rds_send_probe(struct rds_conn_path *cp, __be16 sport,
 	rds_stats_inc(s_send_pong);
 
 	/* schedule the send work on rds_wq */
-	queue_delayed_work(rds_wq, &cp->cp_send_w, 1);
+	rcu_read_lock();
+	if (!test_bit(RDS_DESTROY_PENDING, &cp->cp_flags))
+		queue_delayed_work(rds_wq, &cp->cp_send_w, 1);
+	rcu_read_unlock();
 
 	rds_message_put(rm);
 	return 0;

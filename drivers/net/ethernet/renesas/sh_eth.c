@@ -3125,7 +3125,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 	struct sh_eth_private *mdp;
 	struct net_device *ndev;
-	int ret, devno;
+	int ret;
 
 	/* get base addr */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -3136,10 +3136,6 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
-
-	devno = pdev->id;
-	if (devno < 0)
-		devno = 0;
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
@@ -3222,8 +3218,8 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		eth_hw_addr_random(ndev);
 	}
 
-	/* ioremap the TSU registers */
 	if (mdp->cd->tsu) {
+		int port = pdev->id < 0 ? 0 : pdev->id % 2;
 		struct resource *rtsu;
 
 		rtsu = platform_get_resource(pdev, IORESOURCE_MEM, 1);
@@ -3235,7 +3231,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		/* We can only request the  TSU region  for the first port
 		 * of the two  sharing this TSU for the probe to succeed...
 		 */
-		if (devno % 2 == 0 &&
+		if (port == 0 &&
 		    !devm_request_mem_region(&pdev->dev, rtsu->start,
 					     resource_size(rtsu),
 					     dev_name(&pdev->dev))) {
@@ -3243,6 +3239,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 			ret = -EBUSY;
 			goto out_release;
 		}
+		/* ioremap the TSU registers */
 		mdp->tsu_addr = devm_ioremap(&pdev->dev, rtsu->start,
 					     resource_size(rtsu));
 		if (!mdp->tsu_addr) {
@@ -3250,16 +3247,14 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 			ret = -ENOMEM;
 			goto out_release;
 		}
-		mdp->port = devno % 2;
+		mdp->port = port;
 		ndev->features = NETIF_F_HW_VLAN_CTAG_FILTER;
-	}
 
-	/* Need to init only the first port of the two sharing a TSU */
-	if (devno % 2 == 0) {
-		if (mdp->cd->chip_reset)
-			mdp->cd->chip_reset(ndev);
+		/* Need to init only the first port of the two sharing a TSU */
+		if (port == 0) {
+			if (mdp->cd->chip_reset)
+				mdp->cd->chip_reset(ndev);
 
-		if (mdp->cd->tsu) {
 			/* TSU init (Init only)*/
 			sh_eth_tsu_init(mdp);
 		}
@@ -3301,8 +3296,7 @@ out_napi_del:
 
 out_release:
 	/* net_dev free */
-	if (ndev)
-		free_netdev(ndev);
+	free_netdev(ndev);
 
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);

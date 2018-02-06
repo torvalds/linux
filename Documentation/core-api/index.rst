@@ -14,6 +14,7 @@ Core utilities
    kernel-api
    assoc_array
    atomic_ops
+   refcount-vs-atomic
    cpu_hotplug
    local_ops
    workqueue
@@ -21,6 +22,8 @@ Core utilities
    flexible-arrays
    librs
    genalloc
+   errseq
+   printk-formats
 
 Interfaces for kernel debugging
 ===============================

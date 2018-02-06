@@ -60,7 +60,7 @@ static void handle_memory_error_event(struct OpalMemoryErrorData *merr_evt)
 	}
 
 	for (; paddr_start < paddr_end; paddr_start += PAGE_SIZE) {
-		memory_failure(paddr_start >> PAGE_SHIFT, 0, 0);
+		memory_failure(paddr_start >> PAGE_SHIFT, 0);
 	}
 }
 

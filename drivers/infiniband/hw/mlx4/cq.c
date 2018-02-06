@@ -170,7 +170,7 @@ err_buf:
 	return err;
 }
 
-#define CQ_CREATE_FLAGS_SUPPORTED IB_CQ_FLAGS_TIMESTAMP_COMPLETION
+#define CQ_CREATE_FLAGS_SUPPORTED IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION
 struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
 				const struct ib_cq_init_attr *attr,
 				struct ib_ucontext *context,
@@ -246,7 +246,7 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
 
 	err = mlx4_cq_alloc(dev->dev, entries, &cq->buf.mtt, uar,
 			    cq->db.dma, &cq->mcq, vector, 0,
-			    !!(cq->create_flags & IB_CQ_FLAGS_TIMESTAMP_COMPLETION));
+			    !!(cq->create_flags & IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION));
 	if (err)
 		goto err_dbmap;
 

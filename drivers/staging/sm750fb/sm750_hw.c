@@ -185,29 +185,29 @@ int hw_sm750_output_setMode(struct lynxfb_output *output,
 			    struct fb_fix_screeninfo *fix)
 {
 	int ret;
-	disp_output_t dispSet;
+	disp_output_t disp_set;
 	int channel;
 
 	ret = 0;
-	dispSet = 0;
+	disp_set = 0;
 	channel = *output->channel;
 
 	if (sm750_get_chip_type() != SM750LE) {
 		if (channel == sm750_primary) {
 			pr_info("primary channel\n");
 			if (output->paths & sm750_panel)
-				dispSet |= do_LCD1_PRI;
+				disp_set |= do_LCD1_PRI;
 			if (output->paths & sm750_crt)
-				dispSet |= do_CRT_PRI;
+				disp_set |= do_CRT_PRI;
 
 		} else {
 			pr_info("secondary channel\n");
 			if (output->paths & sm750_panel)
-				dispSet |= do_LCD1_SEC;
+				disp_set |= do_LCD1_SEC;
 			if (output->paths & sm750_crt)
-				dispSet |= do_CRT_SEC;
+				disp_set |= do_CRT_SEC;
 		}
-		ddk750_setLogicalDispOut(dispSet);
+		ddk750_setLogicalDispOut(disp_set);
 	} else {
 		/* just open DISPLAY_CONTROL_750LE register bit 3:0 */
 		u32 reg;

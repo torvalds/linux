@@ -239,10 +239,10 @@ out_close_fd:
 }
 
 /* intofiy userspace file descriptor functions */
-static unsigned int fanotify_poll(struct file *file, poll_table *wait)
+static __poll_t fanotify_poll(struct file *file, poll_table *wait)
 {
 	struct fsnotify_group *group = file->private_data;
-	int ret = 0;
+	__poll_t ret = 0;
 
 	poll_wait(file, &group->notification_waitq, wait);
 	spin_lock(&group->notification_lock);

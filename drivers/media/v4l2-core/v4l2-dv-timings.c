@@ -249,7 +249,7 @@ EXPORT_SYMBOL_GPL(v4l2_find_dv_timings_cea861_vic);
  * @t2: with this struct.
  * @pclock_delta: the allowed pixelclock deviation.
  * @match_reduced_fps: if true, then fail if V4L2_DV_FL_REDUCED_FPS does not
- * 	match.
+ *	match.
  *
  * Compare t1 with t2 with a given margin of error for the pixelclock.
  */

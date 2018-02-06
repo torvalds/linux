@@ -147,12 +147,29 @@ int iosf_mbi_register_pmic_bus_access_notifier(struct notifier_block *nb);
 int iosf_mbi_unregister_pmic_bus_access_notifier(struct notifier_block *nb);
 
 /**
+ * iosf_mbi_unregister_pmic_bus_access_notifier_unlocked - Unregister PMIC bus
+ *                                                         notifier, unlocked
+ *
+ * Like iosf_mbi_unregister_pmic_bus_access_notifier(), but for use when the
+ * caller has already called iosf_mbi_punit_acquire() itself.
+ *
+ * @nb: notifier_block to unregister
+ */
+int iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
+	struct notifier_block *nb);
+
+/**
  * iosf_mbi_call_pmic_bus_access_notifier_chain - Call PMIC bus notifier chain
  *
  * @val: action to pass into listener's notifier_call function
  * @v: data pointer to pass into listener's notifier_call function
  */
 int iosf_mbi_call_pmic_bus_access_notifier_chain(unsigned long val, void *v);
+
+/**
+ * iosf_mbi_assert_punit_acquired - Assert that the P-Unit has been acquired.
+ */
+void iosf_mbi_assert_punit_acquired(void);
 
 #else /* CONFIG_IOSF_MBI is not enabled */
 static inline
@@ -197,11 +214,19 @@ int iosf_mbi_unregister_pmic_bus_access_notifier(struct notifier_block *nb)
 	return 0;
 }
 
+static inline int
+iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(struct notifier_block *nb)
+{
+	return 0;
+}
+
 static inline
 int iosf_mbi_call_pmic_bus_access_notifier_chain(unsigned long val, void *v)
 {
 	return 0;
 }
+
+static inline void iosf_mbi_assert_punit_acquired(void) {}
 
 #endif /* CONFIG_IOSF_MBI */
 

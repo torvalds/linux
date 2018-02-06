@@ -29,7 +29,7 @@
 #include "cx18-scb.h"
 #include "cx18-dvb.h"
 
-#define CX18_DSP0_INTERRUPT_MASK     	0xd0004C
+#define CX18_DSP0_INTERRUPT_MASK	0xd0004C
 
 static const struct v4l2_file_operations cx18_v4l2_enc_fops = {
 	.owner = THIS_MODULE,
@@ -116,7 +116,7 @@ static int cx18_prepare_buffer(struct videobuf_queue *q,
 	unsigned int width, unsigned int height,
 	enum v4l2_field field)
 {
-        struct cx18 *cx = s->cx;
+	struct cx18 *cx = s->cx;
 	int rc = 0;
 
 	/* check settings */

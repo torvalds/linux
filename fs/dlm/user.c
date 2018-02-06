@@ -887,7 +887,7 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 	return rv;
 }
 
-static unsigned int device_poll(struct file *file, poll_table *wait)
+static __poll_t device_poll(struct file *file, poll_table *wait)
 {
 	struct dlm_user_proc *proc = file->private_data;
 

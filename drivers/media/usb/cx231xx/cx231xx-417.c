@@ -1812,13 +1812,13 @@ static ssize_t mpeg_read(struct file *file, char __user *data,
 				    file->f_flags & O_NONBLOCK);
 }
 
-static unsigned int mpeg_poll(struct file *file,
+static __poll_t mpeg_poll(struct file *file,
 	struct poll_table_struct *wait)
 {
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct cx231xx_fh *fh = file->private_data;
 	struct cx231xx *dev = fh->dev;
-	unsigned int res = 0;
+	__poll_t res = 0;
 
 	if (v4l2_event_pending(&fh->fh))
 		res |= POLLPRI;

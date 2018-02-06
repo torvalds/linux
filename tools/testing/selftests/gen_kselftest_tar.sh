@@ -1,12 +1,10 @@
 #!/bin/bash
 #
+# SPDX-License-Identifier: GPL-2.0
 # gen_kselftest_tar
 # Generate kselftest tarball
 # Author: Shuah Khan <shuahkh@osg.samsung.com>
 # Copyright (C) 2015 Samsung Electronics Co., Ltd.
-
-# This software may be freely redistributed under the terms of the GNU
-# General Public License (GPLv2).
 
 # main
 main()

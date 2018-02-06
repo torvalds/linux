@@ -81,7 +81,7 @@ config LEDS_TRIGGER_ACTIVITY
 	tristate "LED activity Trigger"
 	depends on LEDS_TRIGGERS
 	help
-	  This allows LEDs to be controlled by a immediate CPU usage.
+	  This allows LEDs to be controlled by an immediate CPU usage.
 	  The flash frequency and duty cycle varies from faint flashes to
 	  intense brightness depending on the instant CPU load.
 	  If unsure, say N.
@@ -133,6 +133,13 @@ config LEDS_TRIGGER_PANIC
 	  Enabling this option will allow to mark certain LEDs as panic indicators,
 	  allowing to blink them on a kernel panic, even if they are set to
 	  a different trigger.
+	  If unsure, say Y.
+
+config LEDS_TRIGGER_NETDEV
+	tristate "LED Netdev Trigger"
+	depends on NET && LEDS_TRIGGERS
+	help
+	  This allows LEDs to be controlled by network device activity.
 	  If unsure, say Y.
 
 endif # LEDS_TRIGGERS

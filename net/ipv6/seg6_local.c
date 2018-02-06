@@ -501,7 +501,7 @@ static struct seg6_action_desc *__get_action_desc(int action)
 	struct seg6_action_desc *desc;
 	int i, count;
 
-	count = sizeof(seg6_action_table) / sizeof(struct seg6_action_desc);
+	count = ARRAY_SIZE(seg6_action_table);
 	for (i = 0; i < count; i++) {
 		desc = &seg6_action_table[i];
 		if (desc->action == action)

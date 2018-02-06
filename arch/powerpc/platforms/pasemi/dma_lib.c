@@ -589,7 +589,7 @@ int pasemi_dma_init(void)
 	pasemi_write_dma_reg(PAS_DMA_COM_RXCMD, 0);
 	while (pasemi_read_dma_reg(PAS_DMA_COM_RXSTA) & 1) {
 		if (time_after(jiffies, timeout)) {
-			pr_warning("Warning: Could not disable RX section\n");
+			pr_warn("Warning: Could not disable RX section\n");
 			break;
 		}
 	}
@@ -598,7 +598,7 @@ int pasemi_dma_init(void)
 	pasemi_write_dma_reg(PAS_DMA_COM_TXCMD, 0);
 	while (pasemi_read_dma_reg(PAS_DMA_COM_TXSTA) & 1) {
 		if (time_after(jiffies, timeout)) {
-			pr_warning("Warning: Could not disable TX section\n");
+			pr_warn("Warning: Could not disable TX section\n");
 			break;
 		}
 	}

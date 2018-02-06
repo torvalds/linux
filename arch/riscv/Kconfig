@@ -83,7 +83,7 @@ config PGTABLE_LEVELS
 config HAVE_KPROBES
 	def_bool n
 
-config DMA_NOOP_OPS
+config DMA_DIRECT_OPS
 	def_bool y
 
 menu "Platform type"

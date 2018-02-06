@@ -23,6 +23,7 @@
 #include <linux/of.h>
 #include <linux/of_net.h>
 #include <linux/relay.h>
+#include <linux/dmi.h>
 #include <net/ieee80211_radiotap.h>
 
 #include "ath9k.h"
@@ -75,6 +76,10 @@ MODULE_PARM_DESC(use_chanctx, "Enable channel context for concurrency");
 
 #endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
 
+int ath9k_use_msi;
+module_param_named(use_msi, ath9k_use_msi, int, 0444);
+MODULE_PARM_DESC(use_msi, "Use MSI instead of INTx if possible");
+
 bool is_ath9k_unloaded;
 
 #ifdef CONFIG_MAC80211_LEDS
@@ -91,6 +96,56 @@ static const struct ieee80211_tpt_blink ath9k_tpt_blink[] = {
 	{ .throughput = 300 * 1024, .blink_time = 50 },
 };
 #endif
+
+static int __init set_use_msi(const struct dmi_system_id *dmi)
+{
+	ath9k_use_msi = 1;
+	return 1;
+}
+
+static const struct dmi_system_id ath9k_quirks[] __initconst = {
+	{
+		.callback = set_use_msi,
+		.ident = "Dell Inspiron 24-3460",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 24-3460"),
+		},
+	},
+	{
+		.callback = set_use_msi,
+		.ident = "Dell Vostro 3262",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 3262"),
+		},
+	},
+	{
+		.callback = set_use_msi,
+		.ident = "Dell Inspiron 3472",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 3472"),
+		},
+	},
+	{
+		.callback = set_use_msi,
+		.ident = "Dell Vostro 15-3572",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 15-3572"),
+		},
+	},
+	{
+		.callback = set_use_msi,
+		.ident = "Dell Inspiron 14-3473",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 14-3473"),
+		},
+	},
+	{}
+};
 
 static void ath9k_deinit_softc(struct ath_softc *sc);
 
@@ -1099,6 +1154,8 @@ static int __init ath9k_init(void)
 		error = -ENODEV;
 		goto err_pci_exit;
 	}
+
+	dmi_check_system(ath9k_quirks);
 
 	return 0;
 

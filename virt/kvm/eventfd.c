@@ -188,7 +188,7 @@ irqfd_wakeup(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 {
 	struct kvm_kernel_irqfd *irqfd =
 		container_of(wait, struct kvm_kernel_irqfd, wait);
-	unsigned long flags = (unsigned long)key;
+	__poll_t flags = key_to_poll(key);
 	struct kvm_kernel_irq_routing_entry irq;
 	struct kvm *kvm = irqfd->kvm;
 	unsigned seq;
@@ -287,7 +287,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 	struct fd f;
 	struct eventfd_ctx *eventfd = NULL, *resamplefd = NULL;
 	int ret;
-	unsigned int events;
+	__poll_t events;
 	int idx;
 
 	if (!kvm_arch_intc_initialized(kvm))

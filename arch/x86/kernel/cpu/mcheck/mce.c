@@ -14,7 +14,6 @@
 #include <linux/capability.h>
 #include <linux/miscdevice.h>
 #include <linux/ratelimit.h>
-#include <linux/kallsyms.h>
 #include <linux/rcupdate.h>
 #include <linux/kobject.h>
 #include <linux/uaccess.h>
@@ -235,7 +234,7 @@ static void __print_mce(struct mce *m)
 			m->cs, m->ip);
 
 		if (m->cs == __KERNEL_CS)
-			print_symbol("{%s}", m->ip);
+			pr_cont("{%pS}", (void *)m->ip);
 		pr_cont("\n");
 	}
 
@@ -591,7 +590,7 @@ static int srao_decode_notifier(struct notifier_block *nb, unsigned long val,
 
 	if (mce_usable_address(mce) && (mce->severity == MCE_AO_SEVERITY)) {
 		pfn = mce->addr >> PAGE_SHIFT;
-		memory_failure(pfn, MCE_VECTOR, 0);
+		memory_failure(pfn, 0);
 	}
 
 	return NOTIFY_OK;
@@ -1055,7 +1054,7 @@ static int do_memory_failure(struct mce *m)
 	pr_err("Uncorrected hardware memory error in user-access at %llx", m->addr);
 	if (!(m->mcgstatus & MCG_STATUS_RIPV))
 		flags |= MF_MUST_KILL;
-	ret = memory_failure(m->addr >> PAGE_SHIFT, MCE_VECTOR, flags);
+	ret = memory_failure(m->addr >> PAGE_SHIFT, flags);
 	if (ret)
 		pr_err("Memory error not recovered");
 	return ret;
@@ -1334,7 +1333,7 @@ out_ist:
 EXPORT_SYMBOL_GPL(do_machine_check);
 
 #ifndef CONFIG_MEMORY_FAILURE
-int memory_failure(unsigned long pfn, int vector, int flags)
+int memory_failure(unsigned long pfn, int flags)
 {
 	/* mce_severity() should not hand us an ACTION_REQUIRED error */
 	BUG_ON(flags & MF_ACTION_REQUIRED);

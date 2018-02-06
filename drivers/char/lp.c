@@ -659,17 +659,31 @@ static int lp_do_ioctl(unsigned int minor, unsigned int cmd,
 	return retval;
 }
 
-static int lp_set_timeout(unsigned int minor, struct timeval *par_timeout)
+static int lp_set_timeout(unsigned int minor, s64 tv_sec, long tv_usec)
 {
 	long to_jiffies;
 
 	/* Convert to jiffies, place in lp_table */
-	if ((par_timeout->tv_sec < 0) ||
-	    (par_timeout->tv_usec < 0)) {
+	if (tv_sec < 0 || tv_usec < 0)
 		return -EINVAL;
+
+	/*
+	 * we used to not check, so let's not make this fatal,
+	 * but deal with user space passing a 32-bit tv_nsec in
+	 * a 64-bit field, capping the timeout to 1 second
+	 * worth of microseconds, and capping the total at
+	 * MAX_JIFFY_OFFSET.
+	 */
+	if (tv_usec > 999999)
+		tv_usec = 999999;
+
+	if (tv_sec >= MAX_SEC_IN_JIFFIES - 1) {
+		to_jiffies = MAX_JIFFY_OFFSET;
+	} else {
+		to_jiffies = DIV_ROUND_UP(tv_usec, 1000000/HZ);
+		to_jiffies += tv_sec * (long) HZ;
 	}
-	to_jiffies = DIV_ROUND_UP(par_timeout->tv_usec, 1000000/HZ);
-	to_jiffies += par_timeout->tv_sec * (long) HZ;
+
 	if (to_jiffies <= 0) {
 		return -EINVAL;
 	}
@@ -677,23 +691,43 @@ static int lp_set_timeout(unsigned int minor, struct timeval *par_timeout)
 	return 0;
 }
 
+static int lp_set_timeout32(unsigned int minor, void __user *arg)
+{
+	s32 karg[2];
+
+	if (copy_from_user(karg, arg, sizeof(karg)))
+		return -EFAULT;
+
+	return lp_set_timeout(minor, karg[0], karg[1]);
+}
+
+static int lp_set_timeout64(unsigned int minor, void __user *arg)
+{
+	s64 karg[2];
+
+	if (copy_from_user(karg, arg, sizeof(karg)))
+		return -EFAULT;
+
+	return lp_set_timeout(minor, karg[0], karg[1]);
+}
+
 static long lp_ioctl(struct file *file, unsigned int cmd,
 			unsigned long arg)
 {
 	unsigned int minor;
-	struct timeval par_timeout;
 	int ret;
 
 	minor = iminor(file_inode(file));
 	mutex_lock(&lp_mutex);
 	switch (cmd) {
-	case LPSETTIMEOUT:
-		if (copy_from_user(&par_timeout, (void __user *)arg,
-					sizeof (struct timeval))) {
-			ret = -EFAULT;
+	case LPSETTIMEOUT_OLD:
+		if (BITS_PER_LONG == 32) {
+			ret = lp_set_timeout32(minor, (void __user *)arg);
 			break;
 		}
-		ret = lp_set_timeout(minor, &par_timeout);
+		/* fallthrough for 64-bit */
+	case LPSETTIMEOUT_NEW:
+		ret = lp_set_timeout64(minor, (void __user *)arg);
 		break;
 	default:
 		ret = lp_do_ioctl(minor, cmd, arg, (void __user *)arg);
@@ -709,18 +743,19 @@ static long lp_compat_ioctl(struct file *file, unsigned int cmd,
 			unsigned long arg)
 {
 	unsigned int minor;
-	struct timeval par_timeout;
 	int ret;
 
 	minor = iminor(file_inode(file));
 	mutex_lock(&lp_mutex);
 	switch (cmd) {
-	case LPSETTIMEOUT:
-		if (compat_get_timeval(&par_timeout, compat_ptr(arg))) {
-			ret = -EFAULT;
+	case LPSETTIMEOUT_OLD:
+		if (!COMPAT_USE_64BIT_TIME) {
+			ret = lp_set_timeout32(minor, (void __user *)arg);
 			break;
 		}
-		ret = lp_set_timeout(minor, &par_timeout);
+		/* fallthrough for x32 mode */
+	case LPSETTIMEOUT_NEW:
+		ret = lp_set_timeout64(minor, (void __user *)arg);
 		break;
 #ifdef LP_STATS
 	case LPGETSTATS:
@@ -865,7 +900,7 @@ static int __init lp_setup (char *str)
 			printk(KERN_INFO "lp: too many ports, %s ignored.\n",
 			       str);
 	} else if (!strcmp(str, "reset")) {
-		reset = 1;
+		reset = true;
 	}
 	return 1;
 }

@@ -523,12 +523,7 @@ Accessing a task's cgroup pointer may be done in the following ways:
 Each subsystem should:
 
 - add an entry in linux/cgroup_subsys.h
-- define a cgroup_subsys object called <name>_subsys
-
-If a subsystem can be compiled as a module, it should also have in its
-module initcall a call to cgroup_load_subsys(), and in its exitcall a
-call to cgroup_unload_subsys(). It should also set its_subsys.module =
-THIS_MODULE in its .c file.
+- define a cgroup_subsys object called <name>_cgrp_subsys
 
 Each subsystem may export the following methods. The only mandatory
 methods are css_alloc/free. Any others that are null are presumed to

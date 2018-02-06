@@ -866,7 +866,7 @@ static s32 fm10k_iov_assign_default_mac_vlan_pf(struct fm10k_hw *hw,
 	/* Determine correct default VLAN ID. The FM10K_VLAN_OVERRIDE bit is
 	 * used here to indicate to the VF that it will not have privilege to
 	 * write VLAN_TABLE. All policy is enforced on the PF but this allows
-	 * the VF to correctly report errors to userspace rqeuests.
+	 * the VF to correctly report errors to userspace requests.
 	 */
 	if (vf_info->pf_vid)
 		vf_vid = vf_info->pf_vid | FM10K_VLAN_OVERRIDE;

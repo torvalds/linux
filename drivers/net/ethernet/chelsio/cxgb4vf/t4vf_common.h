@@ -413,5 +413,6 @@ int t4vf_handle_fw_rpl(struct adapter *, const __be64 *);
 int t4vf_prep_adapter(struct adapter *);
 int t4vf_get_vf_mac_acl(struct adapter *adapter, unsigned int pf,
 			unsigned int *naddr, u8 *addr);
+int t4vf_get_vf_vlan_acl(struct adapter *adapter);
 
 #endif /* __T4VF_COMMON_H__ */

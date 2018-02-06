@@ -309,13 +309,13 @@ inode_query_iversion(struct inode *inode)
  * @inode: inode to check
  * @old: old value to check against its i_version
  *
- * Compare the current raw i_version counter with a previous one. Returns 0 if
- * they are the same or non-zero if they are different.
+ * Compare the current raw i_version counter with a previous one. Returns false
+ * if they are the same or true if they are different.
  */
-static inline s64
+static inline bool
 inode_cmp_iversion_raw(const struct inode *inode, u64 old)
 {
-	return (s64)inode_peek_iversion_raw(inode) - (s64)old;
+	return inode_peek_iversion_raw(inode) != old;
 }
 
 /**
@@ -323,19 +323,15 @@ inode_cmp_iversion_raw(const struct inode *inode, u64 old)
  * @inode: inode to check
  * @old: old value to check against its i_version
  *
- * Compare an i_version counter with a previous one. Returns 0 if they are
- * the same, a positive value if the one in the inode appears newer than @old,
- * and a negative value if @old appears to be newer than the one in the
- * inode.
+ * Compare an i_version counter with a previous one. Returns false if they are
+ * the same, and true if they are different.
  *
  * Note that we don't need to set the QUERIED flag in this case, as the value
  * in the inode is not being recorded for later use.
  */
-
-static inline s64
+static inline bool
 inode_cmp_iversion(const struct inode *inode, u64 old)
 {
-	return (s64)(inode_peek_iversion_raw(inode) & ~I_VERSION_QUERIED) -
-	       (s64)(old << I_VERSION_QUERIED_SHIFT);
+	return inode_peek_iversion(inode) != old;
 }
 #endif

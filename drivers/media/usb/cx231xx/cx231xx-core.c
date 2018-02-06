@@ -56,7 +56,7 @@ MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 			 dev->name, __func__ , ##arg); } while (0)
 
 /*****************************************************************
-*             Device control list functions     				 *
+*             Device control list functions					 *
 ******************************************************************/
 
 LIST_HEAD(cx231xx_devlist);

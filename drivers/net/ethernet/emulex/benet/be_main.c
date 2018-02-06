@@ -991,9 +991,8 @@ static u32 be_xmit_enqueue(struct be_adapter *adapter, struct be_tx_obj *txo,
 {
 	u32 i, copied = 0, wrb_cnt = skb_wrb_cnt(skb);
 	struct device *dev = &adapter->pdev->dev;
-	struct be_queue_info *txq = &txo->q;
 	bool map_single = false;
-	u32 head = txq->head;
+	u32 head;
 	dma_addr_t busaddr;
 	int len;
 
@@ -4634,8 +4633,7 @@ int be_update_queues(struct be_adapter *adapter)
 
 	be_schedule_worker(adapter);
 
-	/*
-	 * The IF was destroyed and re-created. We need to clear
+	/* The IF was destroyed and re-created. We need to clear
 	 * all promiscuous flags valid for the destroyed IF.
 	 * Without this promisc mode is not restored during
 	 * be_open() because the driver thinks that it is

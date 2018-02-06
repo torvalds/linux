@@ -170,7 +170,7 @@ static int vhost_poll_wakeup(wait_queue_entry_t *wait, unsigned mode, int sync,
 {
 	struct vhost_poll *poll = container_of(wait, struct vhost_poll, wait);
 
-	if (!((unsigned long)key & poll->mask))
+	if (!(key_to_poll(key) & poll->mask))
 		return 0;
 
 	vhost_poll_queue(poll);
@@ -187,7 +187,7 @@ EXPORT_SYMBOL_GPL(vhost_work_init);
 
 /* Init poll structure */
 void vhost_poll_init(struct vhost_poll *poll, vhost_work_fn_t fn,
-		     unsigned long mask, struct vhost_dev *dev)
+		     __poll_t mask, struct vhost_dev *dev)
 {
 	init_waitqueue_func_entry(&poll->wait, vhost_poll_wakeup);
 	init_poll_funcptr(&poll->table, vhost_poll_func);
@@ -203,7 +203,7 @@ EXPORT_SYMBOL_GPL(vhost_poll_init);
  * keep a reference to a file until after vhost_poll_stop is called. */
 int vhost_poll_start(struct vhost_poll *poll, struct file *file)
 {
-	unsigned long mask;
+	__poll_t mask;
 	int ret = 0;
 
 	if (poll->wqh)
@@ -211,7 +211,7 @@ int vhost_poll_start(struct vhost_poll *poll, struct file *file)
 
 	mask = file->f_op->poll(file, &poll->table);
 	if (mask)
-		vhost_poll_wakeup(&poll->wait, 0, 0, (void *)mask);
+		vhost_poll_wakeup(&poll->wait, 0, 0, poll_to_key(mask));
 	if (mask & POLLERR) {
 		if (poll->wqh)
 			remove_wait_queue(poll->wqh, &poll->wait);
@@ -1061,10 +1061,10 @@ done:
 }
 EXPORT_SYMBOL(vhost_chr_write_iter);
 
-unsigned int vhost_chr_poll(struct file *file, struct vhost_dev *dev,
+__poll_t vhost_chr_poll(struct file *file, struct vhost_dev *dev,
 			    poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, &dev->wait, wait);
 

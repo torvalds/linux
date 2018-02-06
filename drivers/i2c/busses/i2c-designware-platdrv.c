@@ -202,29 +202,6 @@ static void i2c_dw_configure_slave(struct dw_i2c_dev *dev)
 			 DW_IC_CON_RESTART_EN | DW_IC_CON_STOP_DET_IFADDRESSED;
 
 	dev->mode = DW_IC_SLAVE;
-
-	switch (dev->clk_freq) {
-	case 100000:
-		dev->slave_cfg |= DW_IC_CON_SPEED_STD;
-		break;
-	case 3400000:
-		dev->slave_cfg |= DW_IC_CON_SPEED_HIGH;
-		break;
-	default:
-		dev->slave_cfg |= DW_IC_CON_SPEED_FAST;
-	}
-}
-
-static int i2c_dw_plat_prepare_clk(struct dw_i2c_dev *i_dev, bool prepare)
-{
-	if (IS_ERR(i_dev->clk))
-		return PTR_ERR(i_dev->clk);
-
-	if (prepare)
-		return clk_prepare_enable(i_dev->clk);
-
-	clk_disable_unprepare(i_dev->clk);
-	return 0;
 }
 
 static void dw_i2c_set_fifo_size(struct dw_i2c_dev *dev, int id)
@@ -356,7 +333,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 		i2c_dw_configure_master(dev);
 
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
-	if (!i2c_dw_plat_prepare_clk(dev, true)) {
+	if (!i2c_dw_prepare_clk(dev, true)) {
 		dev->get_clk_rate_khz = i2c_dw_get_clk_rate_khz;
 
 		if (!dev->sda_hold_time && ht)
@@ -472,7 +449,7 @@ static int dw_i2c_plat_suspend(struct device *dev)
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
 	i_dev->disable(i_dev);
-	i2c_dw_plat_prepare_clk(i_dev, false);
+	i2c_dw_prepare_clk(i_dev, false);
 
 	return 0;
 }
@@ -481,7 +458,7 @@ static int dw_i2c_plat_resume(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
-	i2c_dw_plat_prepare_clk(i_dev, true);
+	i2c_dw_prepare_clk(i_dev, true);
 	i_dev->init(i_dev);
 
 	return 0;

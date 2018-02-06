@@ -98,9 +98,9 @@ void diva_os_get_time(dword *sec, dword *usec)
 /*
  * device node operations
  */
-static unsigned int maint_poll(struct file *file, poll_table *wait)
+static __poll_t maint_poll(struct file *file, poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, &msgwaitq, wait);
 	mask = POLLOUT | POLLWRNORM;

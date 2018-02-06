@@ -135,7 +135,7 @@ static ssize_t r3964_write(struct tty_struct *tty, struct file *file,
 static int r3964_ioctl(struct tty_struct *tty, struct file *file,
 		unsigned int cmd, unsigned long arg);
 static void r3964_set_termios(struct tty_struct *tty, struct ktermios *old);
-static unsigned int r3964_poll(struct tty_struct *tty, struct file *file,
+static __poll_t r3964_poll(struct tty_struct *tty, struct file *file,
 		struct poll_table_struct *wait);
 static void r3964_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 		char *fp, int count);
@@ -1216,14 +1216,14 @@ static void r3964_set_termios(struct tty_struct *tty, struct ktermios *old)
 }
 
 /* Called without the kernel lock held - fine */
-static unsigned int r3964_poll(struct tty_struct *tty, struct file *file,
+static __poll_t r3964_poll(struct tty_struct *tty, struct file *file,
 			struct poll_table_struct *wait)
 {
 	struct r3964_info *pInfo = tty->disc_data;
 	struct r3964_client_info *pClient;
 	struct r3964_message *pMsg = NULL;
 	unsigned long flags;
-	int result = POLLOUT;
+	__poll_t result = POLLOUT;
 
 	TRACE_L("POLL");
 

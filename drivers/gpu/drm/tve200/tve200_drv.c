@@ -46,6 +46,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_of.h>
@@ -130,8 +131,7 @@ static int tve200_modeset_init(struct drm_device *dev)
 	 * Passing in 16 here will make the RGB656 mode the default
 	 * Passing in 32 will use XRGB8888 mode
 	 */
-	priv->fbdev = drm_fbdev_cma_init(dev, 16,
-					 dev->mode_config.num_connector);
+	drm_fb_cma_fbdev_init(dev, 16, 0);
 	drm_kms_helper_poll_init(dev);
 
 	goto finish;
@@ -146,17 +146,10 @@ finish:
 
 DEFINE_DRM_GEM_CMA_FOPS(drm_fops);
 
-static void tve200_lastclose(struct drm_device *dev)
-{
-	struct tve200_drm_dev_private *priv = dev->dev_private;
-
-	drm_fbdev_cma_restore_mode(priv->fbdev);
-}
-
 static struct drm_driver tve200_drm_driver = {
 	.driver_features =
 		DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME | DRIVER_ATOMIC,
-	.lastclose = tve200_lastclose,
+	.lastclose = drm_fb_helper_lastclose,
 	.ioctls = NULL,
 	.fops = &drm_fops,
 	.name = "tve200",
@@ -270,8 +263,7 @@ static int tve200_remove(struct platform_device *pdev)
 	struct tve200_drm_dev_private *priv = drm->dev_private;
 
 	drm_dev_unregister(drm);
-	if (priv->fbdev)
-		drm_fbdev_cma_fini(priv->fbdev);
+	drm_fb_cma_fbdev_fini(drm);
 	if (priv->panel)
 		drm_panel_bridge_remove(priv->bridge);
 	drm_mode_config_cleanup(drm);

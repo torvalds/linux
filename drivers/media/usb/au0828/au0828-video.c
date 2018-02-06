@@ -1797,7 +1797,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 static const struct video_device au0828_video_template = {
 	.fops                       = &au0828_v4l_fops,
 	.release                    = video_device_release_empty,
-	.ioctl_ops 		    = &video_ioctl_ops,
+	.ioctl_ops		    = &video_ioctl_ops,
 	.tvnorms                    = V4L2_STD_NTSC_M | V4L2_STD_PAL_M,
 };
 

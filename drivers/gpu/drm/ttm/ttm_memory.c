@@ -211,35 +211,33 @@ static bool ttm_zones_above_swap_target(struct ttm_mem_global *glob,
  */
 
 static void ttm_shrink(struct ttm_mem_global *glob, bool from_wq,
-		       uint64_t extra)
+			uint64_t extra, struct ttm_operation_ctx *ctx)
 {
 	int ret;
-	struct ttm_mem_shrink *shrink;
 
 	spin_lock(&glob->lock);
-	if (glob->shrink == NULL)
-		goto out;
 
 	while (ttm_zones_above_swap_target(glob, from_wq, extra)) {
-		shrink = glob->shrink;
 		spin_unlock(&glob->lock);
-		ret = shrink->do_shrink(shrink);
+		ret = ttm_bo_swapout(glob->bo_glob, ctx);
 		spin_lock(&glob->lock);
 		if (unlikely(ret != 0))
-			goto out;
+			break;
 	}
-out:
+
 	spin_unlock(&glob->lock);
 }
 
-
-
 static void ttm_shrink_work(struct work_struct *work)
 {
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
 	struct ttm_mem_global *glob =
 	    container_of(work, struct ttm_mem_global, work);
 
-	ttm_shrink(glob, true, 0ULL);
+	ttm_shrink(glob, true, 0ULL, &ctx);
 }
 
 static int ttm_mem_init_kernel_zone(struct ttm_mem_global *glob,
@@ -514,7 +512,7 @@ out_unlock:
 static int ttm_mem_global_alloc_zone(struct ttm_mem_global *glob,
 				     struct ttm_mem_zone *single_zone,
 				     uint64_t memory,
-				     bool no_wait, bool interruptible)
+				     struct ttm_operation_ctx *ctx)
 {
 	int count = TTM_MEMORY_ALLOC_RETRIES;
 
@@ -522,33 +520,32 @@ static int ttm_mem_global_alloc_zone(struct ttm_mem_global *glob,
 					       single_zone,
 					       memory, true)
 			!= 0)) {
-		if (no_wait)
+		if (ctx->no_wait_gpu)
 			return -ENOMEM;
 		if (unlikely(count-- == 0))
 			return -ENOMEM;
-		ttm_shrink(glob, false, memory + (memory >> 2) + 16);
+		ttm_shrink(glob, false, memory + (memory >> 2) + 16, ctx);
 	}
 
 	return 0;
 }
 
 int ttm_mem_global_alloc(struct ttm_mem_global *glob, uint64_t memory,
-			 bool no_wait, bool interruptible)
+			 struct ttm_operation_ctx *ctx)
 {
 	/**
 	 * Normal allocations of kernel memory are registered in
 	 * all zones.
 	 */
 
-	return ttm_mem_global_alloc_zone(glob, NULL, memory, no_wait,
-					 interruptible);
+	return ttm_mem_global_alloc_zone(glob, NULL, memory, ctx);
 }
 EXPORT_SYMBOL(ttm_mem_global_alloc);
 
 int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,
-			      struct page *page, uint64_t size)
+			      struct page *page, uint64_t size,
+			      struct ttm_operation_ctx *ctx)
 {
-
 	struct ttm_mem_zone *zone = NULL;
 
 	/**
@@ -563,7 +560,7 @@ int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,
 	if (glob->zone_dma32 && page_to_pfn(page) > 0x00100000UL)
 		zone = glob->zone_kernel;
 #endif
-	return ttm_mem_global_alloc_zone(glob, zone, size, false, false);
+	return ttm_mem_global_alloc_zone(glob, zone, size, ctx);
 }
 
 void ttm_mem_global_free_page(struct ttm_mem_global *glob, struct page *page,

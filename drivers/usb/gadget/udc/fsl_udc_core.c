@@ -1543,7 +1543,7 @@ static void ep0_req_complete(struct fsl_udc *udc, struct fsl_ep *ep0,
 		udc->ep0_state = WAIT_FOR_SETUP;
 		break;
 	case WAIT_FOR_SETUP:
-		ERR("Unexpect ep0 packets\n");
+		ERR("Unexpected ep0 packets\n");
 		break;
 	default:
 		ep0stall(udc);

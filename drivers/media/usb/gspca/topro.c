@@ -1453,7 +1453,7 @@ static void set_dqt(struct gspca_dev *gspca_dev, u8 q)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	/* update the jpeg quantization tables */
-	PDEBUG(D_STREAM, "q %d -> %d", sd->quality, q);
+	gspca_dbg(gspca_dev, D_STREAM, "q %d -> %d\n", sd->quality, q);
 	sd->quality = q;
 	if (q > 16)
 		q = 16;
@@ -4053,7 +4053,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 				ARRAY_SIZE(tp6810_preinit));
 	msleep(15);
 	reg_r(gspca_dev, TP6800_R18_GPIO_DATA);
-	PDEBUG(D_PROBE, "gpio: %02x", gspca_dev->usb_buf[0]);
+	gspca_dbg(gspca_dev, D_PROBE, "gpio: %02x\n", gspca_dev->usb_buf[0]);
 /* values:
  *	0x80: snapshot button
  *	0x40: LED
@@ -4627,7 +4627,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			if (*data == 0xaa || *data == 0x00)
 				return;
 			if (*data > 0xc0) {
-				PDEBUG(D_FRAM, "bad frame");
+				gspca_dbg(gspca_dev, D_FRAM, "bad frame\n");
 				gspca_dev->last_packet_type = DISCARD_PACKET;
 				return;
 			}

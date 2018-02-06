@@ -95,12 +95,12 @@ EXPORT_SYMBOL(iio_push_event);
  * Return: (POLLIN | POLLRDNORM) if data is available for reading
  *	   or a negative error code on failure
  */
-static unsigned int iio_event_poll(struct file *filep,
+static __poll_t iio_event_poll(struct file *filep,
 			     struct poll_table_struct *wait)
 {
 	struct iio_dev *indio_dev = filep->private_data;
 	struct iio_event_interface *ev_int = indio_dev->event_interface;
-	unsigned int events = 0;
+	__poll_t events = 0;
 
 	if (!indio_dev->info)
 		return events;

@@ -202,8 +202,11 @@ void rds_tcp_write_space(struct sock *sk)
 	tc->t_last_seen_una = rds_tcp_snd_una(tc);
 	rds_send_path_drop_acked(cp, rds_tcp_snd_una(tc), rds_tcp_is_acked);
 
-	if ((refcount_read(&sk->sk_wmem_alloc) << 1) <= sk->sk_sndbuf)
+	rcu_read_lock();
+	if ((refcount_read(&sk->sk_wmem_alloc) << 1) <= sk->sk_sndbuf &&
+	    !test_bit(RDS_DESTROY_PENDING, &cp->cp_flags))
 		queue_delayed_work(rds_wq, &cp->cp_send_w, 0);
+	rcu_read_unlock();
 
 out:
 	read_unlock_bh(&sk->sk_callback_lock);

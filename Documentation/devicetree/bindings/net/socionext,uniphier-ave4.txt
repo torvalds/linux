@@ -1,0 +1,48 @@
+* Socionext AVE ethernet controller
+
+This describes the devicetree bindings for AVE ethernet controller
+implemented on Socionext UniPhier SoCs.
+
+Required properties:
+ - compatible: Should be
+	- "socionext,uniphier-pro4-ave4" : for Pro4 SoC
+	- "socionext,uniphier-pxs2-ave4" : for PXs2 SoC
+	- "socionext,uniphier-ld11-ave4" : for LD11 SoC
+	- "socionext,uniphier-ld20-ave4" : for LD20 SoC
+ - reg: Address where registers are mapped and size of region.
+ - interrupts: Should contain the MAC interrupt.
+ - phy-mode: See ethernet.txt in the same directory. Allow to choose
+	"rgmii", "rmii", or "mii" according to the PHY.
+ - phy-handle: Should point to the external phy device.
+	See ethernet.txt file in the same directory.
+ - clocks: A phandle to the clock for the MAC.
+
+Optional properties:
+ - resets: A phandle to the reset control for the MAC.
+ - local-mac-address: See ethernet.txt in the same directory.
+
+Required subnode:
+ - mdio: A container for child nodes representing phy nodes.
+         See phy.txt in the same directory.
+
+Example:
+
+	ether: ethernet@65000000 {
+		compatible = "socionext,uniphier-ld20-ave4";
+		reg = <0x65000000 0x8500>;
+		interrupts = <0 66 4>;
+		phy-mode = "rgmii";
+		phy-handle = <&ethphy>;
+		clocks = <&sys_clk 6>;
+		resets = <&sys_rst 6>;
+		local-mac-address = [00 00 00 00 00 00];
+
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ethphy: ethphy@1 {
+				reg = <1>;
+			};
+		};
+	};

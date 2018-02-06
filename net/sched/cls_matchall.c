@@ -71,28 +71,31 @@ static void mall_destroy_rcu(struct rcu_head *rcu)
 
 static void mall_destroy_hw_filter(struct tcf_proto *tp,
 				   struct cls_mall_head *head,
-				   unsigned long cookie)
+				   unsigned long cookie,
+				   struct netlink_ext_ack *extack)
 {
 	struct tc_cls_matchall_offload cls_mall = {};
 	struct tcf_block *block = tp->chain->block;
 
-	tc_cls_common_offload_init(&cls_mall.common, tp);
+	tc_cls_common_offload_init(&cls_mall.common, tp, head->flags, extack);
 	cls_mall.command = TC_CLSMATCHALL_DESTROY;
 	cls_mall.cookie = cookie;
 
 	tc_setup_cb_call(block, NULL, TC_SETUP_CLSMATCHALL, &cls_mall, false);
+	tcf_block_offload_dec(block, &head->flags);
 }
 
 static int mall_replace_hw_filter(struct tcf_proto *tp,
 				  struct cls_mall_head *head,
-				  unsigned long cookie)
+				  unsigned long cookie,
+				  struct netlink_ext_ack *extack)
 {
 	struct tc_cls_matchall_offload cls_mall = {};
 	struct tcf_block *block = tp->chain->block;
 	bool skip_sw = tc_skip_sw(head->flags);
 	int err;
 
-	tc_cls_common_offload_init(&cls_mall.common, tp);
+	tc_cls_common_offload_init(&cls_mall.common, tp, head->flags, extack);
 	cls_mall.command = TC_CLSMATCHALL_REPLACE;
 	cls_mall.exts = &head->exts;
 	cls_mall.cookie = cookie;
@@ -100,10 +103,10 @@ static int mall_replace_hw_filter(struct tcf_proto *tp,
 	err = tc_setup_cb_call(block, NULL, TC_SETUP_CLSMATCHALL,
 			       &cls_mall, skip_sw);
 	if (err < 0) {
-		mall_destroy_hw_filter(tp, head, cookie);
+		mall_destroy_hw_filter(tp, head, cookie, NULL);
 		return err;
 	} else if (err > 0) {
-		head->flags |= TCA_CLS_FLAGS_IN_HW;
+		tcf_block_offload_inc(block, &head->flags);
 	}
 
 	if (skip_sw && !(head->flags & TCA_CLS_FLAGS_IN_HW))
@@ -112,7 +115,7 @@ static int mall_replace_hw_filter(struct tcf_proto *tp,
 	return 0;
 }
 
-static void mall_destroy(struct tcf_proto *tp)
+static void mall_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct cls_mall_head *head = rtnl_dereference(tp->root);
 
@@ -120,7 +123,7 @@ static void mall_destroy(struct tcf_proto *tp)
 		return;
 
 	if (!tc_skip_hw(head->flags))
-		mall_destroy_hw_filter(tp, head, (unsigned long) head);
+		mall_destroy_hw_filter(tp, head, (unsigned long) head, extack);
 
 	if (tcf_exts_get_net(&head->exts))
 		call_rcu(&head->rcu, mall_destroy_rcu);
@@ -141,11 +144,12 @@ static const struct nla_policy mall_policy[TCA_MATCHALL_MAX + 1] = {
 static int mall_set_parms(struct net *net, struct tcf_proto *tp,
 			  struct cls_mall_head *head,
 			  unsigned long base, struct nlattr **tb,
-			  struct nlattr *est, bool ovr)
+			  struct nlattr *est, bool ovr,
+			  struct netlink_ext_ack *extack)
 {
 	int err;
 
-	err = tcf_exts_validate(net, tp, tb, est, &head->exts, ovr);
+	err = tcf_exts_validate(net, tp, tb, est, &head->exts, ovr, extack);
 	if (err < 0)
 		return err;
 
@@ -159,7 +163,7 @@ static int mall_set_parms(struct net *net, struct tcf_proto *tp,
 static int mall_change(struct net *net, struct sk_buff *in_skb,
 		       struct tcf_proto *tp, unsigned long base,
 		       u32 handle, struct nlattr **tca,
-		       void **arg, bool ovr)
+		       void **arg, bool ovr, struct netlink_ext_ack *extack)
 {
 	struct cls_mall_head *head = rtnl_dereference(tp->root);
 	struct nlattr *tb[TCA_MATCHALL_MAX + 1];
@@ -197,12 +201,14 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 	new->handle = handle;
 	new->flags = flags;
 
-	err = mall_set_parms(net, tp, new, base, tb, tca[TCA_RATE], ovr);
+	err = mall_set_parms(net, tp, new, base, tb, tca[TCA_RATE], ovr,
+			     extack);
 	if (err)
 		goto err_set_parms;
 
 	if (!tc_skip_hw(new->flags)) {
-		err = mall_replace_hw_filter(tp, new, (unsigned long) new);
+		err = mall_replace_hw_filter(tp, new, (unsigned long)new,
+					     extack);
 		if (err)
 			goto err_replace_hw_filter;
 	}
@@ -222,7 +228,8 @@ err_exts_init:
 	return err;
 }
 
-static int mall_delete(struct tcf_proto *tp, void *arg, bool *last)
+static int mall_delete(struct tcf_proto *tp, void *arg, bool *last,
+		       struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }

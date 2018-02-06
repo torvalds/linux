@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * PCI Hot Plug Controller Driver for System z
  *
@@ -5,8 +6,6 @@
  *
  * Author(s):
  *   Jan Glauber <jang@linux.vnet.ibm.com>
- *
- * License: GPL
  */
 
 #define KMSG_COMPONENT "zpci"

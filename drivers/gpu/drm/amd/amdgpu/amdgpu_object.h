@@ -187,7 +187,7 @@ static inline u64 amdgpu_bo_mmap_offset(struct amdgpu_bo *bo)
 static inline bool amdgpu_bo_gpu_accessible(struct amdgpu_bo *bo)
 {
 	switch (bo->tbo.mem.mem_type) {
-	case TTM_PL_TT: return amdgpu_ttm_is_bound(bo->tbo.ttm);
+	case TTM_PL_TT: return amdgpu_gtt_mgr_has_gart_addr(&bo->tbo.mem);
 	case TTM_PL_VRAM: return true;
 	default: return false;
 	}

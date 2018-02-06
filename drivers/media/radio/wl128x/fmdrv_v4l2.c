@@ -102,7 +102,7 @@ static ssize_t fm_v4l2_fops_write(struct file *file, const char __user * buf,
 	return sizeof(rds);
 }
 
-static u32 fm_v4l2_fops_poll(struct file *file, struct poll_table_struct *pts)
+static __poll_t fm_v4l2_fops_poll(struct file *file, struct poll_table_struct *pts)
 {
 	int ret;
 	struct fmdev *fmdev;

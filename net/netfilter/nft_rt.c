@@ -27,7 +27,7 @@ static u16 get_tcpmss(const struct nft_pktinfo *pkt, const struct dst_entry *skb
 {
 	u32 minlen = sizeof(struct ipv6hdr), mtu = dst_mtu(skbdst);
 	const struct sk_buff *skb = pkt->skb;
-	const struct nf_afinfo *ai;
+	struct dst_entry *dst = NULL;
 	struct flowi fl;
 
 	memset(&fl, 0, sizeof(fl));
@@ -43,15 +43,10 @@ static u16 get_tcpmss(const struct nft_pktinfo *pkt, const struct dst_entry *skb
 		break;
 	}
 
-	ai = nf_get_afinfo(nft_pf(pkt));
-	if (ai) {
-		struct dst_entry *dst = NULL;
-
-		ai->route(nft_net(pkt), &dst, &fl, false);
-		if (dst) {
-			mtu = min(mtu, dst_mtu(dst));
-			dst_release(dst);
-		}
+	nf_route(nft_net(pkt), &dst, &fl, false, nft_pf(pkt));
+	if (dst) {
+		mtu = min(mtu, dst_mtu(dst));
+		dst_release(dst);
 	}
 
 	if (mtu <= minlen || mtu > 0xffff)

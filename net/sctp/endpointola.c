@@ -232,7 +232,7 @@ void sctp_endpoint_free(struct sctp_endpoint *ep)
 {
 	ep->base.dead = true;
 
-	ep->base.sk->sk_state = SCTP_SS_CLOSED;
+	inet_sk_set_state(ep->base.sk, SCTP_SS_CLOSED);
 
 	/* Unlink this endpoint, so we can't find it again! */
 	sctp_unhash_endpoint(ep);

@@ -22,7 +22,7 @@
  * Fully tested with the Keene USB FM Transmitter and the v4l2-compliance tool.
  */
 
-#include <linux/module.h>	/* Modules 			*/
+#include <linux/module.h>	/* Modules			*/
 #include <linux/init.h>		/* Initdata			*/
 #include <linux/ioport.h>	/* request_region		*/
 #include <linux/delay.h>	/* udelay			*/
@@ -102,9 +102,9 @@ struct gemtek {
 	u32 bu2614data;
 };
 
-#define BU2614_FREQ_BITS 	16 /* D0..D15, Frequency data		*/
+#define BU2614_FREQ_BITS	16 /* D0..D15, Frequency data		*/
 #define BU2614_PORT_BITS	3 /* P0..P2, Output port control data	*/
-#define BU2614_VOID_BITS	4 /* unused 				*/
+#define BU2614_VOID_BITS	4 /* unused				*/
 #define BU2614_FMES_BITS	1 /* CT, Frequency measurement beginning data */
 #define BU2614_STDF_BITS	3 /* R0..R2, Standard frequency data	*/
 #define BU2614_SWIN_BITS	1 /* S, Switch between FMIN / AMIN	*/
@@ -113,7 +113,7 @@ struct gemtek {
 #define BU2614_FMUN_BITS	1 /* GT, Frequency measurement time & unlock */
 #define BU2614_TEST_BITS	1 /* TS, Test data is input		*/
 
-#define BU2614_FREQ_SHIFT 	0
+#define BU2614_FREQ_SHIFT	0
 #define BU2614_PORT_SHIFT	(BU2614_FREQ_BITS + BU2614_FREQ_SHIFT)
 #define BU2614_VOID_SHIFT	(BU2614_PORT_BITS + BU2614_PORT_SHIFT)
 #define BU2614_FMES_SHIFT	(BU2614_VOID_BITS + BU2614_VOID_SHIFT)

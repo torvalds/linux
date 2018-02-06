@@ -201,8 +201,10 @@ static void __init sun6i_rtc_clk_init(struct device_node *node)
 
 	clk_data = kzalloc(sizeof(*clk_data) + (sizeof(*clk_data->hws) * 2),
 			   GFP_KERNEL);
-	if (!clk_data)
+	if (!clk_data) {
+		kfree(rtc);
 		return;
+	}
 
 	spin_lock_init(&rtc->lock);
 

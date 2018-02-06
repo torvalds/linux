@@ -77,7 +77,7 @@ const char *sym_type_name(enum symbol_type type)
 {
 	switch (type) {
 	case S_BOOLEAN:
-		return "boolean";
+		return "bool";
 	case S_TRISTATE:
 		return "tristate";
 	case S_INT:
@@ -907,6 +907,10 @@ const char *sym_expand_string_value(const char *in)
 	char *res;
 	size_t reslen;
 
+	/*
+	 * Note: 'in' might come from a token that's about to be
+	 * freed, so make sure to always allocate a new string
+	 */
 	reslen = strlen(in) + 1;
 	res = xmalloc(reslen);
 	res[0] = '\0';
@@ -1150,8 +1154,7 @@ static void sym_check_print_recursive(struct symbol *last_sym)
 		if (stack->sym == last_sym)
 			fprintf(stderr, "%s:%d:error: recursive dependency detected!\n",
 				prop->file->name, prop->lineno);
-			fprintf(stderr, "For a resolution refer to Documentation/kbuild/kconfig-language.txt\n");
-			fprintf(stderr, "subsection \"Kconfig recursive dependency limitations\"\n");
+
 		if (stack->expr) {
 			fprintf(stderr, "%s:%d:\tsymbol %s %s value contains %s\n",
 				prop->file->name, prop->lineno,
@@ -1180,6 +1183,11 @@ static void sym_check_print_recursive(struct symbol *last_sym)
 				next_sym->name ? next_sym->name : "<choice>");
 		}
 	}
+
+	fprintf(stderr,
+		"For a resolution refer to Documentation/kbuild/kconfig-language.txt\n"
+		"subsection \"Kconfig recursive dependency limitations\"\n"
+		"\n");
 
 	if (check_top == &cv_stack)
 		dep_stack_remove();

@@ -199,18 +199,18 @@ static void __emac_set_multicast_list(struct emac_instance *dev);
 
 static inline int emac_phy_supports_gige(int phy_mode)
 {
-	return  phy_mode == PHY_MODE_GMII ||
-		phy_mode == PHY_MODE_RGMII ||
-		phy_mode == PHY_MODE_SGMII ||
-		phy_mode == PHY_MODE_TBI ||
-		phy_mode == PHY_MODE_RTBI;
+	return  phy_interface_mode_is_rgmii(phy_mode) ||
+		phy_mode == PHY_INTERFACE_MODE_GMII ||
+		phy_mode == PHY_INTERFACE_MODE_SGMII ||
+		phy_mode == PHY_INTERFACE_MODE_TBI ||
+		phy_mode == PHY_INTERFACE_MODE_RTBI;
 }
 
 static inline int emac_phy_gpcs(int phy_mode)
 {
-	return  phy_mode == PHY_MODE_SGMII ||
-		phy_mode == PHY_MODE_TBI ||
-		phy_mode == PHY_MODE_RTBI;
+	return  phy_mode == PHY_INTERFACE_MODE_SGMII ||
+		phy_mode == PHY_INTERFACE_MODE_TBI ||
+		phy_mode == PHY_INTERFACE_MODE_RTBI;
 }
 
 static inline void emac_tx_enable(struct emac_instance *dev)
@@ -2871,7 +2871,7 @@ static int emac_init_config(struct emac_instance *dev)
 	/* PHY mode needs some decoding */
 	dev->phy_mode = of_get_phy_mode(np);
 	if (dev->phy_mode < 0)
-		dev->phy_mode = PHY_MODE_NA;
+		dev->phy_mode = PHY_INTERFACE_MODE_NA;
 
 	/* Check EMAC version */
 	if (of_device_is_compatible(np, "ibm,emac4sync")) {
@@ -3174,7 +3174,7 @@ static int emac_probe(struct platform_device *ofdev)
 	printk(KERN_INFO "%s: EMAC-%d %pOF, MAC %pM\n",
 	       ndev->name, dev->cell_index, np, ndev->dev_addr);
 
-	if (dev->phy_mode == PHY_MODE_SGMII)
+	if (dev->phy_mode == PHY_INTERFACE_MODE_SGMII)
 		printk(KERN_NOTICE "%s: in SGMII mode\n", ndev->name);
 
 	if (dev->phy.address >= 0)

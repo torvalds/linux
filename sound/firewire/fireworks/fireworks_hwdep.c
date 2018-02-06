@@ -184,11 +184,11 @@ end:
 	return count;
 }
 
-static unsigned int
+static __poll_t
 hwdep_poll(struct snd_hwdep *hwdep, struct file *file, poll_table *wait)
 {
 	struct snd_efw *efw = hwdep->private_data;
-	unsigned int events;
+	__poll_t events;
 
 	poll_wait(file, &efw->hwdep_wait, wait);
 

@@ -878,7 +878,7 @@ received:
 	return ret;
 }
 
-static unsigned int pvcalls_front_poll_passive(struct file *file,
+static __poll_t pvcalls_front_poll_passive(struct file *file,
 					       struct pvcalls_bedata *bedata,
 					       struct sock_mapping *map,
 					       poll_table *wait)
@@ -935,12 +935,12 @@ static unsigned int pvcalls_front_poll_passive(struct file *file,
 	return 0;
 }
 
-static unsigned int pvcalls_front_poll_active(struct file *file,
+static __poll_t pvcalls_front_poll_active(struct file *file,
 					      struct pvcalls_bedata *bedata,
 					      struct sock_mapping *map,
 					      poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	int32_t in_error, out_error;
 	struct pvcalls_data_intf *intf = map->active.ring;
 
@@ -958,12 +958,12 @@ static unsigned int pvcalls_front_poll_active(struct file *file,
 	return mask;
 }
 
-unsigned int pvcalls_front_poll(struct file *file, struct socket *sock,
+__poll_t pvcalls_front_poll(struct file *file, struct socket *sock,
 			       poll_table *wait)
 {
 	struct pvcalls_bedata *bedata;
 	struct sock_mapping *map;
-	int ret;
+	__poll_t ret;
 
 	pvcalls_enter();
 	if (!pvcalls_front_dev) {

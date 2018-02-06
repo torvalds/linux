@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the HP iLO management processor.
  *
  * Copyright (C) 2008 Hewlett-Packard Development Company, L.P.
  *	David Altobelli <david.altobelli@hpe.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -514,7 +511,7 @@ static ssize_t ilo_write(struct file *fp, const char __user *buf,
 	return err ? -EFAULT : len;
 }
 
-static unsigned int ilo_poll(struct file *fp, poll_table *wait)
+static __poll_t ilo_poll(struct file *fp, poll_table *wait)
 {
 	struct ccb_data *data = fp->private_data;
 	struct ccb *driver_ccb = &data->driver_ccb;
