@@ -129,12 +129,12 @@ enum {BIAS = -1U<<31};
 
 static inline int use_pde(struct proc_dir_entry *pde)
 {
-	return atomic_inc_unless_negative(&pde->in_use);
+	return likely(atomic_inc_unless_negative(&pde->in_use));
 }
 
 static void unuse_pde(struct proc_dir_entry *pde)
 {
-	if (atomic_dec_return(&pde->in_use) == BIAS)
+	if (unlikely(atomic_dec_return(&pde->in_use) == BIAS))
 		complete(pde->pde_unload_completion);
 }
 
@@ -167,7 +167,7 @@ static void close_pdeo(struct proc_dir_entry *pde, struct pde_opener *pdeo)
 		spin_lock(&pde->pde_unload_lock);
 		/* After ->release. */
 		list_del(&pdeo->lh);
-		if (pdeo->c)
+		if (unlikely(pdeo->c))
 			complete(pdeo->c);
 		kfree(pdeo);
 	}
@@ -421,7 +421,7 @@ static const char *proc_get_link(struct dentry *dentry,
 				 struct delayed_call *done)
 {
 	struct proc_dir_entry *pde = PDE(inode);
-	if (unlikely(!use_pde(pde)))
+	if (!use_pde(pde))
 		return ERR_PTR(-EINVAL);
 	set_delayed_call(done, proc_put_link, pde);
 	return pde->data;
