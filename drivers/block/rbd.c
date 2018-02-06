@@ -1884,6 +1884,8 @@ static void __rbd_obj_setup_discard(struct rbd_obj_request *obj_req,
 
 	if (rbd_obj_is_entire(obj_req)) {
 		if (obj_req->num_img_extents) {
+			osd_req_op_init(obj_req->osd_req, which++,
+					CEPH_OSD_OP_CREATE, 0);
 			opcode = CEPH_OSD_OP_TRUNCATE;
 		} else {
 			osd_req_op_init(obj_req->osd_req, which++,
@@ -1917,7 +1919,10 @@ static int rbd_obj_setup_discard(struct rbd_obj_request *obj_req)
 
 	if (rbd_obj_is_entire(obj_req)) {
 		obj_req->write_state = RBD_OBJ_WRITE_FLAT;
-		num_osd_ops = 1; /* truncate/delete */
+		if (obj_req->num_img_extents)
+			num_osd_ops = 2; /* create + truncate */
+		else
+			num_osd_ops = 1; /* delete */
 	} else {
 		if (obj_req->num_img_extents) {
 			obj_req->write_state = RBD_OBJ_WRITE_GUARD;
