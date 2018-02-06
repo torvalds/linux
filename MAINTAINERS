@@ -6001,6 +6001,12 @@ L:	linux-input@vger.kernel.org
 S:	Maintained
 F:	drivers/input/touchscreen/goodix.c
 
+GPD POCKET FAN DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/gpd-pocket-fan.c
+
 GPIO ACPI SUPPORT
 M:	Mika Westerberg <mika.westerberg@linux.intel.com>
 M:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
@@ -8939,12 +8945,13 @@ W:	http://www.mellanox.com
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
 F:	drivers/net/ethernet/mellanox/mlxfw/
 
-MELLANOX MLX CPLD HOTPLUG DRIVER
+MELLANOX HARDWARE PLATFORM SUPPORT
+M:	Andy Shevchenko <andy@infradead.org>
+M:	Darren Hart <dvhart@infradead.org>
 M:	Vadim Pasternak <vadimp@mellanox.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Supported
-F:	drivers/platform/x86/mlxcpld-hotplug.c
-F:	include/linux/platform_data/mlxcpld-hotplug.h
+F:	drivers/platform/mellanox/
 
 MELLANOX MLX4 core VPI driver
 M:	Tariq Toukan <tariqt@mellanox.com>
@@ -15134,7 +15141,7 @@ X86 PLATFORM DRIVERS
 M:	Darren Hart <dvhart@infradead.org>
 M:	Andy Shevchenko <andy@infradead.org>
 L:	platform-driver-x86@vger.kernel.org
-T:	git git://git.infradead.org/users/dvhart/linux-platform-drivers-x86.git
+T:	git git://git.infradead.org/linux-platform-drivers-x86.git
 S:	Maintained
 F:	drivers/platform/x86/
 F:	drivers/platform/olpc/

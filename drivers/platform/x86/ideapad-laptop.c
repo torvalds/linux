@@ -124,10 +124,10 @@ static int read_method_int(acpi_handle handle, const char *method, int *val)
 	if (ACPI_FAILURE(status)) {
 		*val = -1;
 		return -1;
-	} else {
-		*val = result;
-		return 0;
 	}
+	*val = result;
+	return 0;
+
 }
 
 static int method_gbmd(acpi_handle handle, unsigned long *ret)
@@ -164,10 +164,10 @@ static int method_vpcr(acpi_handle handle, int cmd, int *ret)
 	if (ACPI_FAILURE(status)) {
 		*ret = -1;
 		return -1;
-	} else {
-		*ret = result;
-		return 0;
 	}
+	*ret = result;
+	return 0;
+
 }
 
 static int method_vpcw(acpi_handle handle, int cmd, int data)
@@ -231,7 +231,7 @@ static int write_ec_cmd(acpi_handle handle, int cmd, unsigned long data)
 		if (val == 0)
 			return 0;
 	}
-	pr_err("timeout in write_ec_cmd\n");
+	pr_err("timeout in %s\n", __func__);
 	return -1;
 }
 
@@ -964,6 +964,13 @@ static void ideapad_wmi_notify(u32 value, void *context)
  */
 static const struct dmi_system_id no_hw_rfkill_list[] = {
 	{
+		.ident = "Lenovo RESCUER R720-15IKBN",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_NAME, "80WW"),
+		},
+	},
+	{
 		.ident = "Lenovo G40-30",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
@@ -1101,6 +1108,13 @@ static const struct dmi_system_id no_hw_rfkill_list[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Y520-15IKBN"),
+		},
+	},
+	{
+		.ident = "Lenovo Legion Y720-15IKB",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Y720-15IKB"),
 		},
 	},
 	{
