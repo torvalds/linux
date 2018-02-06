@@ -125,6 +125,17 @@ config SND_SOC_INTEL_CHT_BSW_MAX98090_TI_MACH
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
+config SND_SOC_INTEL_CHT_BSW_NAU8824_MACH
+	tristate "Cherrytrail & Braswell with NAU88L24 codec"
+	depends on X86_INTEL_LPSS && I2C && ACPI
+	select SND_SOC_ACPI
+	select SND_SOC_NAU8824
+	help
+	  This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
+	  platforms with NAU88L24 audio codec.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
 config SND_SOC_INTEL_BYT_CHT_DA7213_MACH
 	tristate "Baytrail & Cherrytrail with DA7212/7213 codec"
 	depends on X86_INTEL_LPSS && I2C && ACPI
