@@ -5104,9 +5104,12 @@ static netdev_features_t be_features_check(struct sk_buff *skb,
 			features &= ~NETIF_F_TSO6;
 
 		/* Lancer cannot handle the packet with MSS less than 256.
+		 * Also it can't handle a TSO packet with a single segment
 		 * Disable the GSO support in such cases
 		 */
-		if (lancer_chip(adapter) && skb_shinfo(skb)->gso_size < 256)
+		if (lancer_chip(adapter) &&
+		    (skb_shinfo(skb)->gso_size < 256 ||
+		     skb_shinfo(skb)->gso_segs == 1))
 			features &= ~NETIF_F_GSO_MASK;
 	}
 
