@@ -36,6 +36,7 @@ Required properties:
   - "rockchip,rk3188-io-voltage-domain" for rk3188
   - "rockchip,rk322x-io-voltage-domain" for rk3228
   - "rockchip,rk3288-io-voltage-domain" for rk3288
+  - "rockchip,rk3308-io-voltage-domain" for rk3308
   - "rockchip,rk3328-io-voltage-domain" for rk3328
   - "rockchip,rk3366-io-voltage-domain" for rk3366
   - "rockchip,rk3368-io-voltage-domain" for rk3368
