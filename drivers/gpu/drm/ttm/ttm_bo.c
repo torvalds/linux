@@ -1344,7 +1344,11 @@ EXPORT_SYMBOL(ttm_bo_create);
 static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 				   unsigned mem_type)
 {
-	struct ttm_operation_ctx ctx = { false, false };
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false,
+		.flags = TTM_OPT_FLAG_FORCE_ALLOC
+	};
 	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
 	struct ttm_bo_global *glob = bdev->glob;
 	struct dma_fence *fence;
