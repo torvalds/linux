@@ -159,13 +159,13 @@ static inline void erspan_build_header(struct sk_buff *skb,
 	struct ethhdr *eth = (struct ethhdr *)skb->data;
 	enum erspan_encap_type enc_type;
 	struct erspan_base_hdr *ershdr;
-	struct erspan_metadata *ersmd;
 	struct qtag_prefix {
 		__be16 eth_type;
 		__be16 tci;
 	} *qp;
 	u16 vlan_tci = 0;
 	u8 tos;
+	__be32 *idx;
 
 	tos = is_ipv4 ? ip_hdr(skb)->tos :
 			(ipv6_hdr(skb)->priority << 4) +
@@ -195,8 +195,8 @@ static inline void erspan_build_header(struct sk_buff *skb,
 	set_session_id(ershdr, id);
 
 	/* Build metadata */
-	ersmd = (struct erspan_metadata *)(ershdr + 1);
-	ersmd->u.index = htonl(index & INDEX_MASK);
+	idx = (__be32 *)(ershdr + 1);
+	*idx = htonl(index & INDEX_MASK);
 }
 
 /* ERSPAN GRA: timestamp granularity
@@ -225,7 +225,7 @@ static inline void erspan_build_header_v2(struct sk_buff *skb,
 {
 	struct ethhdr *eth = (struct ethhdr *)skb->data;
 	struct erspan_base_hdr *ershdr;
-	struct erspan_metadata *md;
+	struct erspan_md2 *md2;
 	struct qtag_prefix {
 		__be16 eth_type;
 		__be16 tci;
@@ -261,15 +261,15 @@ static inline void erspan_build_header_v2(struct sk_buff *skb,
 	set_session_id(ershdr, id);
 
 	/* Build metadata */
-	md = (struct erspan_metadata *)(ershdr + 1);
-	md->u.md2.timestamp = erspan_get_timestamp();
-	md->u.md2.sgt = htons(sgt);
-	md->u.md2.p = 1;
-	md->u.md2.ft = 0;
-	md->u.md2.dir = direction;
-	md->u.md2.gra = gra;
-	md->u.md2.o = 0;
-	set_hwid(&md->u.md2, hwid);
+	md2 = (struct erspan_md2 *)(ershdr + 1);
+	md2->timestamp = erspan_get_timestamp();
+	md2->sgt = htons(sgt);
+	md2->p = 1;
+	md2->ft = 0;
+	md2->dir = direction;
+	md2->gra = gra;
+	md2->o = 0;
+	set_hwid(md2, hwid);
 }
 
 #endif
