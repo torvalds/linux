@@ -729,6 +729,8 @@ static void nand_blk_unregister(struct nand_blk_ops *nandr)
 {
 	struct list_head *this, *next;
 
+	if (!rk_nand_dev_initialised)
+		return;
 	nandr->quit = 1;
 	wake_up(&nandr->thread_wq);
 	wait_for_completion(&nandr->thread_exit);
@@ -744,6 +746,8 @@ static void nand_blk_unregister(struct nand_blk_ops *nandr)
 
 void rknand_dev_flush(void)
 {
+	if (!rk_nand_dev_initialised)
+		return;
 	rknand_device_lock();
 	rk_ftl_cache_write_back();
 	rknand_device_unlock();
@@ -778,21 +782,23 @@ int __init rknand_dev_init(void)
 
 int rknand_dev_exit(void)
 {
-	if (rk_nand_dev_initialised) {
-		rk_nand_dev_initialised = 0;
-		if (rknand_device_trylock()) {
-			rk_ftl_cache_write_back();
-			rknand_device_unlock();
-		}
-		nand_blk_unregister(&mytr);
-		rk_ftl_de_init();
-		pr_info("nand_blk_dev_exit:OK\n");
+	if (!rk_nand_dev_initialised)
+		return -1;
+	rk_nand_dev_initialised = 0;
+	if (rknand_device_trylock()) {
+		rk_ftl_cache_write_back();
+		rknand_device_unlock();
 	}
+	nand_blk_unregister(&mytr);
+	rk_ftl_de_init();
+	pr_info("nand_blk_dev_exit:OK\n");
 	return 0;
 }
 
 void rknand_dev_suspend(void)
 {
+	if (!rk_nand_dev_initialised)
+		return;
 	pr_info("rk_nand_suspend\n");
 	rk_nand_schedule_enable_config(0);
 	rknand_device_lock();
@@ -801,6 +807,8 @@ void rknand_dev_suspend(void)
 
 void rknand_dev_resume(void)
 {
+	if (!rk_nand_dev_initialised)
+		return;
 	pr_info("rk_nand_resume\n");
 	rk_nand_resume();
 	rknand_device_unlock();
@@ -810,6 +818,8 @@ void rknand_dev_resume(void)
 void rknand_dev_shutdown(void)
 {
 	pr_info("rknand_shutdown...\n");
+	if (!rk_nand_dev_initialised)
+		return;
 	if (mytr.quit == 0) {
 		mytr.quit = 1;
 		wake_up(&mytr.thread_wq);
@@ -818,4 +828,3 @@ void rknand_dev_shutdown(void)
 	}
 	pr_info("rknand_shutdown:OK\n");
 }
-
