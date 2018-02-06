@@ -381,8 +381,8 @@ static int tcf_block_insert(struct tcf_block *block, struct net *net,
 	struct tcf_net *tn = net_generic(net, tcf_net_id);
 	int err;
 
-	err = idr_alloc_ext(&tn->idr, block, NULL, block_index,
-			    block_index + 1, GFP_KERNEL);
+	err = idr_alloc_u32(&tn->idr, block, &block_index, block_index,
+			    GFP_KERNEL);
 	if (err)
 		return err;
 	block->index = block_index;
