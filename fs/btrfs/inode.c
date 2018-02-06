@@ -101,7 +101,7 @@ static const unsigned char btrfs_type_by_mode[S_IFMT >> S_SHIFT] = {
 };
 
 static int btrfs_setsize(struct inode *inode, struct iattr *attr);
-static int btrfs_truncate(struct inode *inode);
+static int btrfs_truncate(struct inode *inode, bool skip_writeback);
 static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent);
 static noinline int cow_file_range(struct inode *inode,
 				   struct page *locked_page,
@@ -3668,7 +3668,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 				goto out;
 			}
 
-			ret = btrfs_truncate(inode);
+			ret = btrfs_truncate(inode, false);
 			if (ret)
 				btrfs_orphan_del(NULL, BTRFS_I(inode));
 		} else {
@@ -5154,7 +5154,7 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 		inode_dio_wait(inode);
 		btrfs_inode_resume_unlocked_dio(BTRFS_I(inode));
 
-		ret = btrfs_truncate(inode);
+		ret = btrfs_truncate(inode, newsize == oldsize);
 		if (ret && inode->i_nlink) {
 			int err;
 
@@ -9136,7 +9136,7 @@ out_noreserve:
 	return ret;
 }
 
-static int btrfs_truncate(struct inode *inode)
+static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -9147,10 +9147,12 @@ static int btrfs_truncate(struct inode *inode)
 	u64 mask = fs_info->sectorsize - 1;
 	u64 min_size = btrfs_calc_trunc_metadata_size(fs_info, 1);
 
-	ret = btrfs_wait_ordered_range(inode, inode->i_size & (~mask),
-				       (u64)-1);
-	if (ret)
-		return ret;
+	if (!skip_writeback) {
+		ret = btrfs_wait_ordered_range(inode, inode->i_size & (~mask),
+					       (u64)-1);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * Yes ladies and gentlemen, this is indeed ugly.  The fact is we have
