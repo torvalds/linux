@@ -311,6 +311,7 @@ static int rk1000_bridge_attach(struct drm_bridge *bridge)
 						bridge->encoder);
 	if (ret)
 		dev_err(rk1000->dev, "rk1000 attach failed ret:%d", ret);
+	rk1000->connector.port = rk1000->dev->of_node;
 
 	return ret;
 }
