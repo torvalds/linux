@@ -134,6 +134,35 @@ static void __init test_zero_clear(void)
 	expect_eq_pbl("", bmap, 1024);
 }
 
+static void __init test_fill_set(void)
+{
+	DECLARE_BITMAP(bmap, 1024);
+
+	/* Known way to clear all bits */
+	memset(bmap, 0x00, 128);
+
+	expect_eq_pbl("", bmap, 23);
+	expect_eq_pbl("", bmap, 1024);
+
+	/* single-word bitmaps */
+	bitmap_set(bmap, 0, 9);
+	expect_eq_pbl("0-8", bmap, 1024);
+
+	bitmap_fill(bmap, 35);
+	expect_eq_pbl("0-63", bmap, 1024);
+
+	/* cross boundaries operations */
+	bitmap_set(bmap, 79, 19);
+	expect_eq_pbl("0-63,79-97", bmap, 1024);
+
+	bitmap_fill(bmap, 115);
+	expect_eq_pbl("0-127", bmap, 1024);
+
+	/* Zeroing entire area */
+	bitmap_fill(bmap, 1024);
+	expect_eq_pbl("0-1023", bmap, 1024);
+}
+
 static void __init test_zero_fill_copy(void)
 {
 	DECLARE_BITMAP(bmap1, 1024);
@@ -339,6 +368,7 @@ static void noinline __init test_mem_optimisations(void)
 static int __init test_bitmap_init(void)
 {
 	test_zero_clear();
+	test_fill_set();
 	test_zero_fill_copy();
 	test_bitmap_arr32();
 	test_bitmap_parselist();
