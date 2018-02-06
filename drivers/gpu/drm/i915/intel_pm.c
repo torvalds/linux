@@ -6374,12 +6374,15 @@ void gen6_rps_boost(struct drm_i915_gem_request *rq,
 	if (!rps->enabled)
 		return;
 
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &rq->fence.flags))
+		return;
+
+	/* Serializes with i915_gem_request_retire() */
 	boost = false;
 	spin_lock_irqsave(&rq->lock, flags);
-	if (!rq->waitboost && !i915_gem_request_completed(rq)) {
-		atomic_inc(&rps->num_waiters);
+	if (!rq->waitboost && !dma_fence_is_signaled_locked(&rq->fence)) {
+		boost = !atomic_fetch_inc(&rps->num_waiters);
 		rq->waitboost = true;
-		boost = true;
 	}
 	spin_unlock_irqrestore(&rq->lock, flags);
 	if (!boost)
