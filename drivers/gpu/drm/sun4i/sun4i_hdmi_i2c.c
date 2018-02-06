@@ -23,7 +23,7 @@ static const struct sun4i_hdmi_i2c_variant sun4i_variant = {
 	.has_legacy_dt		= true,
 	.ddc_parent_clk_name	= NULL,
 	.ddc_clk_reg		= REG_FIELD(SUN4I_HDMI_DDC_CLK_REG, 0, 6),
-	.ddc_clk_pre_divider	= 2,
+	.ddc_clk_pre_divider	= 4,
 	.ddc_clk_m_offset	= 1,
 
 	.field_ddc_en		= REG_FIELD(SUN4I_HDMI_DDC_CTRL_REG, 31, 31),
