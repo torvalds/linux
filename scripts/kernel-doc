@@ -748,14 +748,73 @@ sub output_blockhead_rst(%) {
     }
 }
 
-sub output_highlight_rst {
-    my $contents = join "\n",@_;
-    my $line;
-
+#
+# Apply the RST highlights to a sub-block of text.
+#   
+sub highlight_block($) {
+    # The dohighlight kludge requires the text be called $contents
+    my $contents = shift;
     eval $dohighlight;
     die $@ if $@;
+    return $contents;
+}
 
-    foreach $line (split "\n", $contents) {
+#
+# Regexes used only here.
+#
+my $sphinx_literal = '^[^.].*::$';
+my $sphinx_cblock = '^\.\.\ +code-block::';
+
+sub output_highlight_rst {
+    my $input = join "\n",@_;
+    my $output = "";
+    my $line;
+    my $in_literal = 0;
+    my $litprefix;
+    my $block = "";
+
+    foreach $line (split "\n",$input) {
+	#
+	# If we're in a literal block, see if we should drop out
+	# of it.  Otherwise pass the line straight through unmunged.
+	#
+	if ($in_literal) {
+	    if (! ($line =~ /^\s*$/)) {
+		#
+		# If this is the first non-blank line in a literal
+		# block we need to figure out what the proper indent is.
+		#
+		if ($litprefix eq "") {
+		    $line =~ /^(\s*)/;
+		    $litprefix = '^' . $1;
+		    $output .= $line . "\n";
+		} elsif (! ($line =~ /$litprefix/)) {
+		    $in_literal = 0;
+		} else {
+		    $output .= $line . "\n";
+		}
+	    } else {
+		$output .= $line . "\n";
+	    }
+	}
+	#
+	# Not in a literal block (or just dropped out)
+	#
+	if (! $in_literal) {
+	    $block .= $line . "\n";
+	    if (($line =~ /$sphinx_literal/) || ($line =~ /$sphinx_cblock/)) {
+		$in_literal = 1;
+		$litprefix = "";
+		$output .= highlight_block($block);
+		$block = ""
+	    }
+	}
+    }
+
+    if ($block) {
+	$output .= highlight_block($block);
+    }
+    foreach $line (split "\n", $output) {
 	print $lineprefix . $line . "\n";
     }
 }
