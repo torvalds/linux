@@ -102,6 +102,7 @@ static struct afs_volume *afs_alloc_volume(struct afs_mount_params *params,
 error_2:
 	afs_put_serverlist(params->net, slist);
 error_1:
+	afs_put_cell(params->net, volume->cell);
 	kfree(volume);
 error_0:
 	return ERR_PTR(ret);
