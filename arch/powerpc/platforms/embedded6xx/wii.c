@@ -239,7 +239,7 @@ static int __init wii_device_probe(void)
 	if (!machine_is(wii))
 		return 0;
 
-	of_platform_bus_probe(NULL, wii_of_bus, NULL);
+	of_platform_populate(NULL, wii_of_bus, NULL, NULL);
 	return 0;
 }
 device_initcall(wii_device_probe);
