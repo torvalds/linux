@@ -974,6 +974,7 @@
 		clocks = <&cru ACLK_VOPB>, <&cru DCLK_VOPB>,
 			 <&cru HCLK_VOPB>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		power-domains = <&power PX30_PD_VO>;
 		iommus = <&vopb_mmu>;
 		status = "disabled";
 
@@ -1012,6 +1013,7 @@
 		clocks = <&cru ACLK_VOPL>, <&cru DCLK_VOPL>,
 			 <&cru HCLK_VOPL>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		power-domains = <&power PX30_PD_VO>;
 		iommus = <&vopl_mmu>;
 		status = "disabled";
 
