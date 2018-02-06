@@ -118,8 +118,12 @@ static int orangefs_d_revalidate(struct dentry *dentry, unsigned int flags)
 		return 0;
 
 	/* We do not need to continue with negative dentries. */
-	if (!dentry->d_inode)
-		goto out;
+	if (!dentry->d_inode) {
+		gossip_debug(GOSSIP_DCACHE_DEBUG,
+		    "%s: negative dentry or positive dentry and inode valid.\n",
+		    __func__);
+		return 1;
+	}
 
 	/* Now we must perform a getattr to validate the inode contents. */
 
@@ -129,14 +133,7 @@ static int orangefs_d_revalidate(struct dentry *dentry, unsigned int flags)
 		    __FILE__, __func__, __LINE__);
 		return 0;
 	}
-	if (ret == 0)
-		return 0;
-
-out:
-	gossip_debug(GOSSIP_DCACHE_DEBUG,
-	    "%s: negative dentry or positive dentry and inode valid.\n",
-	    __func__);
-	return 1;
+	return !ret;
 }
 
 const struct dentry_operations orangefs_dentry_operations = {
