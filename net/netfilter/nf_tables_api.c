@@ -5399,17 +5399,12 @@ err:
 	nfnetlink_set_err(ctx->net, ctx->portid, NFNLGRP_NFTABLES, -ENOBUFS);
 }
 
-static void nft_flowtable_destroy(void *ptr, void *arg)
-{
-	kfree(ptr);
-}
-
 static void nf_tables_flowtable_destroy(struct nft_flowtable *flowtable)
 {
 	cancel_delayed_work_sync(&flowtable->data.gc_work);
 	kfree(flowtable->name);
-	rhashtable_free_and_destroy(&flowtable->data.rhashtable,
-				    nft_flowtable_destroy, NULL);
+	flowtable->data.type->free(&flowtable->data);
+	rhashtable_destroy(&flowtable->data.rhashtable);
 	module_put(flowtable->data.type->owner);
 }
 

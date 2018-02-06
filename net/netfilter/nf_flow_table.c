@@ -232,19 +232,16 @@ static inline bool nf_flow_is_dying(const struct flow_offload *flow)
 	return flow->flags & FLOW_OFFLOAD_DYING;
 }
 
-void nf_flow_offload_work_gc(struct work_struct *work)
+static int nf_flow_offload_gc_step(struct nf_flowtable *flow_table)
 {
 	struct flow_offload_tuple_rhash *tuplehash;
-	struct nf_flowtable *flow_table;
 	struct rhashtable_iter hti;
 	struct flow_offload *flow;
 	int err;
 
-	flow_table = container_of(work, struct nf_flowtable, gc_work.work);
-
 	err = rhashtable_walk_init(&flow_table->rhashtable, &hti, GFP_KERNEL);
 	if (err)
-		goto schedule;
+		return 0;
 
 	rhashtable_walk_start(&hti);
 
@@ -270,7 +267,16 @@ void nf_flow_offload_work_gc(struct work_struct *work)
 out:
 	rhashtable_walk_stop(&hti);
 	rhashtable_walk_exit(&hti);
-schedule:
+
+	return 1;
+}
+
+void nf_flow_offload_work_gc(struct work_struct *work)
+{
+	struct nf_flowtable *flow_table;
+
+	flow_table = container_of(work, struct nf_flowtable, gc_work.work);
+	nf_flow_offload_gc_step(flow_table);
 	queue_delayed_work(system_power_efficient_wq, &flow_table->gc_work, HZ);
 }
 EXPORT_SYMBOL_GPL(nf_flow_offload_work_gc);
@@ -448,6 +454,13 @@ void nf_flow_table_cleanup(struct net *net, struct net_device *dev)
 	nft_flow_table_iterate(net, nf_flow_table_iterate_cleanup, dev);
 }
 EXPORT_SYMBOL_GPL(nf_flow_table_cleanup);
+
+void nf_flow_table_free(struct nf_flowtable *flow_table)
+{
+	nf_flow_table_iterate(flow_table, nf_flow_table_do_cleanup, NULL);
+	WARN_ON(!nf_flow_offload_gc_step(flow_table));
+}
+EXPORT_SYMBOL_GPL(nf_flow_table_free);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");

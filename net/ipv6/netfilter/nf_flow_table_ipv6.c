@@ -253,6 +253,7 @@ static struct nf_flowtable_type flowtable_ipv6 = {
 	.family		= NFPROTO_IPV6,
 	.params		= &nf_flow_offload_rhash_params,
 	.gc		= nf_flow_offload_work_gc,
+	.free		= nf_flow_table_free,
 	.hook		= nf_flow_offload_ipv6_hook,
 	.owner		= THIS_MODULE,
 };

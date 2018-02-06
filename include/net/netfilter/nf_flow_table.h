@@ -14,6 +14,7 @@ struct nf_flowtable_type {
 	struct list_head		list;
 	int				family;
 	void				(*gc)(struct work_struct *work);
+	void				(*free)(struct nf_flowtable *ft);
 	const struct rhashtable_params	*params;
 	nf_hookfn			*hook;
 	struct module			*owner;
@@ -98,6 +99,7 @@ int nf_flow_table_iterate(struct nf_flowtable *flow_table,
 
 void nf_flow_table_cleanup(struct net *net, struct net_device *dev);
 
+void nf_flow_table_free(struct nf_flowtable *flow_table);
 void nf_flow_offload_work_gc(struct work_struct *work);
 extern const struct rhashtable_params nf_flow_offload_rhash_params;
 
