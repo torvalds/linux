@@ -101,10 +101,8 @@ static struct drm_encoder *panel_encoder_create(struct drm_device *dev,
 
 	panel_encoder = devm_kzalloc(dev->dev, sizeof(*panel_encoder),
 				     GFP_KERNEL);
-	if (!panel_encoder) {
-		dev_err(dev->dev, "allocation failed\n");
+	if (!panel_encoder)
 		return NULL;
-	}
 
 	panel_encoder->mod = mod;
 
@@ -210,10 +208,8 @@ static struct drm_connector *panel_connector_create(struct drm_device *dev,
 
 	panel_connector = devm_kzalloc(dev->dev, sizeof(*panel_connector),
 				       GFP_KERNEL);
-	if (!panel_connector) {
-		dev_err(dev->dev, "allocation failed\n");
+	if (!panel_connector)
 		return NULL;
-	}
 
 	panel_connector->encoder = encoder;
 	panel_connector->mod = mod;
@@ -294,7 +290,6 @@ static struct tilcdc_panel_info *of_get_panel_info(struct device_node *np)
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		pr_err("%s: allocation failed\n", __func__);
 		of_node_put(info_np);
 		return NULL;
 	}
