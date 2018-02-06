@@ -23,7 +23,7 @@ __check_eq_uint(const char *srcfile, unsigned int line,
 		const unsigned int exp_uint, unsigned int x)
 {
 	if (exp_uint != x) {
-		pr_warn("[%s:%u] expected %u, got %u\n",
+		pr_err("[%s:%u] expected %u, got %u\n",
 			srcfile, line, exp_uint, x);
 		return false;
 	}
@@ -33,19 +33,13 @@ __check_eq_uint(const char *srcfile, unsigned int line,
 
 static bool __init
 __check_eq_bitmap(const char *srcfile, unsigned int line,
-		  const unsigned long *exp_bmap, unsigned int exp_nbits,
-		  const unsigned long *bmap, unsigned int nbits)
+		  const unsigned long *exp_bmap, const unsigned long *bmap,
+		  unsigned int nbits)
 {
-	if (exp_nbits != nbits) {
-		pr_warn("[%s:%u] bitmap length mismatch: expected %u, got %u\n",
-			srcfile, line, exp_nbits, nbits);
-		return false;
-	}
-
 	if (!bitmap_equal(exp_bmap, bmap, nbits)) {
 		pr_warn("[%s:%u] bitmaps contents differ: expected \"%*pbl\", got \"%*pbl\"\n",
 			srcfile, line,
-			exp_nbits, exp_bmap, nbits, bmap);
+			nbits, exp_bmap, nbits, bmap);
 		return false;
 	}
 	return true;
@@ -66,6 +60,10 @@ __check_eq_pbl(const char *srcfile, unsigned int line,
 	return true;
 }
 
+static bool __init
+__check_eq_u32_array(const char *srcfile, unsigned int line,
+		     const u32 *exp_arr, unsigned int exp_len,
+		     const u32 *arr, unsigned int len) __used;
 static bool __init
 __check_eq_u32_array(const char *srcfile, unsigned int line,
 		     const u32 *exp_arr, unsigned int exp_len,
@@ -255,171 +253,29 @@ static void __init test_bitmap_parselist(void)
 	}
 }
 
-static void __init test_bitmap_u32_array_conversions(void)
+static void __init test_bitmap_arr32(void)
 {
-	DECLARE_BITMAP(bmap1, 1024);
-	DECLARE_BITMAP(bmap2, 1024);
-	u32 exp_arr[32], arr[32];
-	unsigned nbits;
+	unsigned int nbits, next_bit, len = sizeof(exp) * 8;
+	u32 arr[sizeof(exp) / 4];
+	DECLARE_BITMAP(bmap2, len);
 
-	for (nbits = 0 ; nbits < 257 ; ++nbits) {
-		const unsigned int used_u32s = DIV_ROUND_UP(nbits, 32);
-		unsigned int i, rv;
+	memset(arr, 0xa5, sizeof(arr));
 
-		bitmap_zero(bmap1, nbits);
-		bitmap_set(bmap1, nbits, 1024 - nbits);  /* garbage */
+	for (nbits = 0; nbits < len; ++nbits) {
+		bitmap_to_arr32(arr, exp, nbits);
+		bitmap_from_arr32(bmap2, arr, nbits);
+		expect_eq_bitmap(bmap2, exp, nbits);
 
-		memset(arr, 0xff, sizeof(arr));
-		rv = bitmap_to_u32array(arr, used_u32s, bmap1, nbits);
-		expect_eq_uint(nbits, rv);
+		next_bit = find_next_bit(bmap2,
+				round_up(nbits, BITS_PER_LONG), nbits);
+		if (next_bit < round_up(nbits, BITS_PER_LONG))
+			pr_err("bitmap_copy_arr32(nbits == %d:"
+				" tail is not safely cleared: %d\n",
+				nbits, next_bit);
 
-		memset(exp_arr, 0xff, sizeof(exp_arr));
-		memset(exp_arr, 0, used_u32s*sizeof(*exp_arr));
-		expect_eq_u32_array(exp_arr, 32, arr, 32);
-
-		bitmap_fill(bmap2, 1024);
-		rv = bitmap_from_u32array(bmap2, nbits, arr, used_u32s);
-		expect_eq_uint(nbits, rv);
-		expect_eq_bitmap(bmap1, 1024, bmap2, 1024);
-
-		for (i = 0 ; i < nbits ; ++i) {
-			/*
-			 * test conversion bitmap -> u32[]
-			 */
-
-			bitmap_zero(bmap1, 1024);
-			__set_bit(i, bmap1);
-			bitmap_set(bmap1, nbits, 1024 - nbits);  /* garbage */
-
-			memset(arr, 0xff, sizeof(arr));
-			rv = bitmap_to_u32array(arr, used_u32s, bmap1, nbits);
-			expect_eq_uint(nbits, rv);
-
-			/* 1st used u32 words contain expected bit set, the
-			 * remaining words are left unchanged (0xff)
-			 */
-			memset(exp_arr, 0xff, sizeof(exp_arr));
-			memset(exp_arr, 0, used_u32s*sizeof(*exp_arr));
-			exp_arr[i/32] = (1U<<(i%32));
-			expect_eq_u32_array(exp_arr, 32, arr, 32);
-
-
-			/* same, with longer array to fill
-			 */
-			memset(arr, 0xff, sizeof(arr));
-			rv = bitmap_to_u32array(arr, 32, bmap1, nbits);
-			expect_eq_uint(nbits, rv);
-
-			/* 1st used u32 words contain expected bit set, the
-			 * remaining words are all 0s
-			 */
-			memset(exp_arr, 0, sizeof(exp_arr));
-			exp_arr[i/32] = (1U<<(i%32));
-			expect_eq_u32_array(exp_arr, 32, arr, 32);
-
-			/*
-			 * test conversion u32[] -> bitmap
-			 */
-
-			/* the 1st nbits of bmap2 are identical to
-			 * bmap1, the remaining bits of bmap2 are left
-			 * unchanged (all 1s)
-			 */
-			bitmap_fill(bmap2, 1024);
-			rv = bitmap_from_u32array(bmap2, nbits,
-						  exp_arr, used_u32s);
-			expect_eq_uint(nbits, rv);
-
-			expect_eq_bitmap(bmap1, 1024, bmap2, 1024);
-
-			/* same, with more bits to fill
-			 */
-			memset(arr, 0xff, sizeof(arr));  /* garbage */
-			memset(arr, 0, used_u32s*sizeof(u32));
-			arr[i/32] = (1U<<(i%32));
-
-			bitmap_fill(bmap2, 1024);
-			rv = bitmap_from_u32array(bmap2, 1024, arr, used_u32s);
-			expect_eq_uint(used_u32s*32, rv);
-
-			/* the 1st nbits of bmap2 are identical to
-			 * bmap1, the remaining bits of bmap2 are cleared
-			 */
-			bitmap_zero(bmap1, 1024);
-			__set_bit(i, bmap1);
-			expect_eq_bitmap(bmap1, 1024, bmap2, 1024);
-
-
-			/*
-			 * test short conversion bitmap -> u32[] (1
-			 * word too short)
-			 */
-			if (used_u32s > 1) {
-				bitmap_zero(bmap1, 1024);
-				__set_bit(i, bmap1);
-				bitmap_set(bmap1, nbits,
-					   1024 - nbits);  /* garbage */
-				memset(arr, 0xff, sizeof(arr));
-
-				rv = bitmap_to_u32array(arr, used_u32s - 1,
-							bmap1, nbits);
-				expect_eq_uint((used_u32s - 1)*32, rv);
-
-				/* 1st used u32 words contain expected
-				 * bit set, the remaining words are
-				 * left unchanged (0xff)
-				 */
-				memset(exp_arr, 0xff, sizeof(exp_arr));
-				memset(exp_arr, 0,
-				       (used_u32s-1)*sizeof(*exp_arr));
-				if ((i/32) < (used_u32s - 1))
-					exp_arr[i/32] = (1U<<(i%32));
-				expect_eq_u32_array(exp_arr, 32, arr, 32);
-			}
-
-			/*
-			 * test short conversion u32[] -> bitmap (3
-			 * bits too short)
-			 */
-			if (nbits > 3) {
-				memset(arr, 0xff, sizeof(arr));  /* garbage */
-				memset(arr, 0, used_u32s*sizeof(*arr));
-				arr[i/32] = (1U<<(i%32));
-
-				bitmap_zero(bmap1, 1024);
-				rv = bitmap_from_u32array(bmap1, nbits - 3,
-							  arr, used_u32s);
-				expect_eq_uint(nbits - 3, rv);
-
-				/* we are expecting the bit < nbits -
-				 * 3 (none otherwise), and the rest of
-				 * bmap1 unchanged (0-filled)
-				 */
-				bitmap_zero(bmap2, 1024);
-				if (i < nbits - 3)
-					__set_bit(i, bmap2);
-				expect_eq_bitmap(bmap2, 1024, bmap1, 1024);
-
-				/* do the same with bmap1 initially
-				 * 1-filled
-				 */
-
-				bitmap_fill(bmap1, 1024);
-				rv = bitmap_from_u32array(bmap1, nbits - 3,
-							 arr, used_u32s);
-				expect_eq_uint(nbits - 3, rv);
-
-				/* we are expecting the bit < nbits -
-				 * 3 (none otherwise), and the rest of
-				 * bmap1 unchanged (1-filled)
-				 */
-				bitmap_zero(bmap2, 1024);
-				if (i < nbits - 3)
-					__set_bit(i, bmap2);
-				bitmap_set(bmap2, nbits-3, 1024 - nbits + 3);
-				expect_eq_bitmap(bmap2, 1024, bmap1, 1024);
-			}
-		}
+		if (nbits < len - 32)
+			expect_eq_uint(arr[DIV_ROUND_UP(nbits, 32)],
+								0xa5a5a5a5);
 	}
 }
 
@@ -454,7 +310,7 @@ static void noinline __init test_mem_optimisations(void)
 static int __init test_bitmap_init(void)
 {
 	test_zero_fill_copy();
-	test_bitmap_u32_array_conversions();
+	test_bitmap_arr32();
 	test_bitmap_parselist();
 	test_mem_optimisations();
 
