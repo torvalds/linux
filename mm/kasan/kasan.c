@@ -495,6 +495,12 @@ static bool __kasan_slab_free(struct kmem_cache *cache, void *object,
 	s8 shadow_byte;
 	unsigned long rounded_up_size;
 
+	if (unlikely(nearest_obj(cache, virt_to_head_page(object), object) !=
+	    object)) {
+		kasan_report_invalid_free(object, ip);
+		return true;
+	}
+
 	/* RCU slabs could be legally used after free within the RCU period */
 	if (unlikely(cache->flags & SLAB_TYPESAFE_BY_RCU))
 		return false;
