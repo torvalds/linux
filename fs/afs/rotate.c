@@ -384,6 +384,7 @@ use_server:
 	afs_get_addrlist(alist);
 	read_unlock(&server->fs_lock);
 
+	memset(&fc->ac, 0, sizeof(fc->ac));
 
 	/* Probe the current fileserver if we haven't done so yet. */
 	if (!test_bit(AFS_SERVER_FL_PROBED, &server->flags)) {
@@ -398,11 +399,8 @@ use_server:
 	else
 		afs_put_addrlist(alist);
 
-	fc->ac.addr  = NULL;
 	fc->ac.start = READ_ONCE(alist->index);
 	fc->ac.index = fc->ac.start;
-	fc->ac.error = 0;
-	fc->ac.begun = false;
 	goto iterate_address;
 
 iterate_address:
@@ -458,12 +456,10 @@ bool afs_select_current_fileserver(struct afs_fs_cursor *fc)
 			return false;
 		}
 
+		memset(&fc->ac, 0, sizeof(fc->ac));
 		fc->ac.alist = alist;
-		fc->ac.addr  = NULL;
 		fc->ac.start = READ_ONCE(alist->index);
 		fc->ac.index = fc->ac.start;
-		fc->ac.error = 0;
-		fc->ac.begun = false;
 		goto iterate_address;
 
 	case 0:
