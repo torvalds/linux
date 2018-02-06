@@ -38,7 +38,8 @@ struct proc_dir_entry {
 	atomic_t in_use;
 	atomic_t count;		/* use count */
 	struct list_head pde_openers;	/* who did ->open, but not ->release */
-	spinlock_t pde_unload_lock; /* proc_fops checks and pde_users bumps */
+	/* protects ->pde_openers and all struct pde_opener instances */
+	spinlock_t pde_unload_lock;
 	struct completion *pde_unload_completion;
 	const struct inode_operations *proc_iops;
 	const struct file_operations *proc_fops;
