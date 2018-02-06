@@ -35,6 +35,7 @@
 #define SPARSE		500
 
 static DECLARE_BITMAP(bitmap, BITMAP_LEN) __initdata;
+static DECLARE_BITMAP(bitmap2, BITMAP_LEN) __initdata;
 
 /*
  * This is Schlemiel the Painter's algorithm. It should be called after
@@ -103,6 +104,22 @@ static int __init test_find_last_bit(const void *bitmap, unsigned long len)
 	return 0;
 }
 
+static int __init test_find_next_and_bit(const void *bitmap,
+		const void *bitmap2, unsigned long len)
+{
+	unsigned long i, cnt;
+	cycles_t cycles;
+
+	cycles = get_cycles();
+	for (cnt = i = 0; i < BITMAP_LEN; cnt++)
+		i = find_next_and_bit(bitmap, bitmap2, BITMAP_LEN, i+1);
+	cycles = get_cycles() - cycles;
+	pr_err("find_next_and_bit:\t\t%llu cycles, %ld iterations\n",
+		(u64)cycles, cnt);
+
+	return 0;
+}
+
 static int __init find_bit_test(void)
 {
 	unsigned long nbits = BITMAP_LEN / SPARSE;
@@ -110,23 +127,29 @@ static int __init find_bit_test(void)
 	pr_err("\nStart testing find_bit() with random-filled bitmap\n");
 
 	get_random_bytes(bitmap, sizeof(bitmap));
+	get_random_bytes(bitmap2, sizeof(bitmap2));
 
 	test_find_next_bit(bitmap, BITMAP_LEN);
 	test_find_next_zero_bit(bitmap, BITMAP_LEN);
 	test_find_last_bit(bitmap, BITMAP_LEN);
 	test_find_first_bit(bitmap, BITMAP_LEN);
+	test_find_next_and_bit(bitmap, bitmap2, BITMAP_LEN);
 
 	pr_err("\nStart testing find_bit() with sparse bitmap\n");
 
 	bitmap_zero(bitmap, BITMAP_LEN);
+	bitmap_zero(bitmap2, BITMAP_LEN);
 
-	while (nbits--)
+	while (nbits--) {
 		__set_bit(prandom_u32() % BITMAP_LEN, bitmap);
+		__set_bit(prandom_u32() % BITMAP_LEN, bitmap2);
+	}
 
 	test_find_next_bit(bitmap, BITMAP_LEN);
 	test_find_next_zero_bit(bitmap, BITMAP_LEN);
 	test_find_last_bit(bitmap, BITMAP_LEN);
 	test_find_first_bit(bitmap, BITMAP_LEN);
+	test_find_next_and_bit(bitmap, bitmap2, BITMAP_LEN);
 
 	/*
 	 * Everything is OK. Return error just to let user run benchmark
