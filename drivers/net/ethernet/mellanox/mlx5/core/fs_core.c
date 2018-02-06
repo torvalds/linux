@@ -1759,8 +1759,11 @@ search_again_locked:
 
 	/* Collect all fgs which has a matching match_criteria */
 	err = build_match_list(&match_head, ft, spec);
-	if (err)
+	if (err) {
+		if (take_write)
+			up_write_ref_node(&ft->node);
 		return ERR_PTR(err);
+	}
 
 	if (!take_write)
 		up_read_ref_node(&ft->node);
@@ -1769,8 +1772,11 @@ search_again_locked:
 				      dest_num, version);
 	free_match_list(&match_head);
 	if (!IS_ERR(rule) ||
-	    (PTR_ERR(rule) != -ENOENT && PTR_ERR(rule) != -EAGAIN))
+	    (PTR_ERR(rule) != -ENOENT && PTR_ERR(rule) != -EAGAIN)) {
+		if (take_write)
+			up_write_ref_node(&ft->node);
 		return rule;
+	}
 
 	if (!take_write) {
 		nested_down_write_ref_node(&ft->node, FS_LOCK_GRANDPARENT);
