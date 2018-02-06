@@ -43,16 +43,15 @@ static DECLARE_BITMAP(bitmap, BITMAP_LEN) __initdata;
 static int __init test_find_first_bit(void *bitmap, unsigned long len)
 {
 	unsigned long i, cnt;
-	cycles_t cycles;
+	ktime_t time;
 
-	cycles = get_cycles();
+	time = ktime_get();
 	for (cnt = i = 0; i < len; cnt++) {
 		i = find_first_bit(bitmap, len);
 		__clear_bit(i, bitmap);
 	}
-	cycles = get_cycles() - cycles;
-	pr_err("find_first_bit:\t\t%llu cycles,\t%ld iterations\n",
-	       (u64)cycles, cnt);
+	time = ktime_get() - time;
+	pr_err("find_first_bit:     %18llu ns, %6ld iterations\n", time, cnt);
 
 	return 0;
 }
@@ -60,14 +59,13 @@ static int __init test_find_first_bit(void *bitmap, unsigned long len)
 static int __init test_find_next_bit(const void *bitmap, unsigned long len)
 {
 	unsigned long i, cnt;
-	cycles_t cycles;
+	ktime_t time;
 
-	cycles = get_cycles();
+	time = ktime_get();
 	for (cnt = i = 0; i < BITMAP_LEN; cnt++)
 		i = find_next_bit(bitmap, BITMAP_LEN, i) + 1;
-	cycles = get_cycles() - cycles;
-	pr_err("find_next_bit:\t\t%llu cycles,\t%ld iterations\n",
-	       (u64)cycles, cnt);
+	time = ktime_get() - time;
+	pr_err("find_next_bit:      %18llu ns, %6ld iterations\n", time, cnt);
 
 	return 0;
 }
@@ -75,14 +73,13 @@ static int __init test_find_next_bit(const void *bitmap, unsigned long len)
 static int __init test_find_next_zero_bit(const void *bitmap, unsigned long len)
 {
 	unsigned long i, cnt;
-	cycles_t cycles;
+	ktime_t time;
 
-	cycles = get_cycles();
+	time = ktime_get();
 	for (cnt = i = 0; i < BITMAP_LEN; cnt++)
 		i = find_next_zero_bit(bitmap, len, i) + 1;
-	cycles = get_cycles() - cycles;
-	pr_err("find_next_zero_bit:\t%llu cycles,\t%ld iterations\n",
-	       (u64)cycles, cnt);
+	time = ktime_get() - time;
+	pr_err("find_next_zero_bit: %18llu ns, %6ld iterations\n", time, cnt);
 
 	return 0;
 }
@@ -90,9 +87,9 @@ static int __init test_find_next_zero_bit(const void *bitmap, unsigned long len)
 static int __init test_find_last_bit(const void *bitmap, unsigned long len)
 {
 	unsigned long l, cnt = 0;
-	cycles_t cycles;
+	ktime_t time;
 
-	cycles = get_cycles();
+	time = ktime_get();
 	do {
 		cnt++;
 		l = find_last_bit(bitmap, len);
@@ -100,9 +97,8 @@ static int __init test_find_last_bit(const void *bitmap, unsigned long len)
 			break;
 		len = l;
 	} while (len);
-	cycles = get_cycles() - cycles;
-	pr_err("find_last_bit:\t\t%llu cycles,\t%ld iterations\n",
-	       (u64)cycles, cnt);
+	time = ktime_get() - time;
+	pr_err("find_last_bit:      %18llu ns, %6ld iterations\n", time, cnt);
 
 	return 0;
 }
@@ -132,13 +128,12 @@ static int __init find_bit_test(void)
 	test_find_last_bit(bitmap, BITMAP_LEN);
 	test_find_first_bit(bitmap, BITMAP_LEN);
 
-	return 0;
+	/*
+	 * Everything is OK. Return error just to let user run benchmark
+	 * again without annoying rmmod.
+	 */
+	return -EINVAL;
 }
 module_init(find_bit_test);
-
-static void __exit test_find_bit_cleanup(void)
-{
-}
-module_exit(test_find_bit_cleanup);
 
 MODULE_LICENSE("GPL");
