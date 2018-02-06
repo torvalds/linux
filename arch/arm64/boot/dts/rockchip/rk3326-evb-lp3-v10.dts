@@ -330,42 +330,8 @@
 		vcc8-supply = <&vccsys>;
 		vcc9-supply = <&dcdc_boost>;
 
-		rk817_pin0_ts: rk817_pin0_ts {
-			pins = "gpio0";
-			function = "pin_fun0";
-		};
-
-		rk817_pin0_gpio: rk817_pin0_gpio {
-			pins = "gpio0";
-			function = "gpio";
-		};
-
-		rk817_pin1_gt: rk817_pin1_gt {
-			pins = "gpio1";
-			function = "pin_fun0";
-		};
-
-		rk817_pin1_gpio: rk817_pin1_gpio {
-			pins = "gpio1";
-			function = "gpio";
-		};
-
 		regulators {
-			vdd_arm: DCDC_REG1 {
-				regulator-always-on;
-				regulator-boot-on;
-				regulator-min-microvolt = <950000>;
-				regulator-max-microvolt = <1350000>;
-				regulator-ramp-delay = <6001>;
-				regulator-initial-mode = <0x1>;
-				regulator-name = "vdd_arm";
-				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <700000>;
-				};
-			};
-
-			vdd_logic: DCDC_REG2 {
+			vdd_logic: DCDC_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <950000>;
@@ -373,6 +339,20 @@
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <0x1>;
 				regulator-name = "vdd_logic";
+				regulator-state-mem {
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <700000>;
+				};
+			};
+
+			vdd_arm: DCDC_REG2 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-min-microvolt = <950000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-ramp-delay = <6001>;
+				regulator-initial-mode = <0x1>;
+				regulator-name = "vdd_arm";
 				regulator-state-mem {
 					regulator-off-in-suspend;
 					regulator-suspend-microvolt = <800000>;
