@@ -37,6 +37,11 @@
 #include "mlx5_core.h"
 
 #define STRINGS_DB_SECTIONS_NUM 8
+#define STRINGS_DB_READ_SIZE_BYTES 256
+#define STRINGS_DB_LEFTOVER_SIZE_BYTES 64
+#define TRACER_BUFFER_PAGE_NUM 64
+#define TRACER_BUFFER_CHUNK 4096
+#define TRACE_BUFFER_SIZE_BYTE (TRACER_BUFFER_PAGE_NUM * TRACER_BUFFER_CHUNK)
 
 struct mlx5_fw_tracer {
 	struct mlx5_core_dev *dev;
@@ -44,6 +49,7 @@ struct mlx5_fw_tracer {
 	u8   trc_ver;
 	struct workqueue_struct *work_queue;
 	struct work_struct ownership_change_work;
+	struct work_struct read_fw_strings_work;
 
 	/* Strings DB */
 	struct {
@@ -52,7 +58,19 @@ struct mlx5_fw_tracer {
 		u32 num_string_db;
 		u32 base_address_out[STRINGS_DB_SECTIONS_NUM];
 		u32 size_out[STRINGS_DB_SECTIONS_NUM];
+		void *buffer[STRINGS_DB_SECTIONS_NUM];
+		bool loaded;
 	} str_db;
+
+	/* Log Buffer */
+	struct {
+		u32 pdn;
+		void *log_buf;
+		dma_addr_t dma;
+		u32 size;
+		struct mlx5_core_mkey mkey;
+
+	} buff;
 };
 
 enum mlx5_fw_tracer_ownership_state {

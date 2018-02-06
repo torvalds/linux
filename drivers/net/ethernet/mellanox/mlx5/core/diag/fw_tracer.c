@@ -119,6 +119,163 @@ static void mlx5_fw_tracer_ownership_release(struct mlx5_fw_tracer *tracer)
 	tracer->owner = false;
 }
 
+static int mlx5_fw_tracer_create_log_buf(struct mlx5_fw_tracer *tracer)
+{
+	struct mlx5_core_dev *dev = tracer->dev;
+	struct device *ddev = &dev->pdev->dev;
+	dma_addr_t dma;
+	void *buff;
+	gfp_t gfp;
+	int err;
+
+	tracer->buff.size = TRACE_BUFFER_SIZE_BYTE;
+
+	gfp = GFP_KERNEL | __GFP_ZERO;
+	buff = (void *)__get_free_pages(gfp,
+					get_order(tracer->buff.size));
+	if (!buff) {
+		err = -ENOMEM;
+		mlx5_core_warn(dev, "FWTracer: Failed to allocate pages, %d\n", err);
+		return err;
+	}
+	tracer->buff.log_buf = buff;
+
+	dma = dma_map_single(ddev, buff, tracer->buff.size, DMA_FROM_DEVICE);
+	if (dma_mapping_error(ddev, dma)) {
+		mlx5_core_warn(dev, "FWTracer: Unable to map DMA: %d\n",
+			       dma_mapping_error(ddev, dma));
+		err = -ENOMEM;
+		goto free_pages;
+	}
+	tracer->buff.dma = dma;
+
+	return 0;
+
+free_pages:
+	free_pages((unsigned long)tracer->buff.log_buf, get_order(tracer->buff.size));
+
+	return err;
+}
+
+static void mlx5_fw_tracer_destroy_log_buf(struct mlx5_fw_tracer *tracer)
+{
+	struct mlx5_core_dev *dev = tracer->dev;
+	struct device *ddev = &dev->pdev->dev;
+
+	if (!tracer->buff.log_buf)
+		return;
+
+	dma_unmap_single(ddev, tracer->buff.dma, tracer->buff.size, DMA_FROM_DEVICE);
+	free_pages((unsigned long)tracer->buff.log_buf, get_order(tracer->buff.size));
+}
+
+static void mlx5_fw_tracer_free_strings_db(struct mlx5_fw_tracer *tracer)
+{
+	u32 num_string_db = tracer->str_db.num_string_db;
+	int i;
+
+	for (i = 0; i < num_string_db; i++) {
+		kfree(tracer->str_db.buffer[i]);
+		tracer->str_db.buffer[i] = NULL;
+	}
+}
+
+static int mlx5_fw_tracer_allocate_strings_db(struct mlx5_fw_tracer *tracer)
+{
+	u32 *string_db_size_out = tracer->str_db.size_out;
+	u32 num_string_db = tracer->str_db.num_string_db;
+	int i;
+
+	for (i = 0; i < num_string_db; i++) {
+		tracer->str_db.buffer[i] = kzalloc(string_db_size_out[i], GFP_KERNEL);
+		if (!tracer->str_db.buffer[i])
+			goto free_strings_db;
+	}
+
+	return 0;
+
+free_strings_db:
+	mlx5_fw_tracer_free_strings_db(tracer);
+	return -ENOMEM;
+}
+
+static void mlx5_tracer_read_strings_db(struct work_struct *work)
+{
+	struct mlx5_fw_tracer *tracer = container_of(work, struct mlx5_fw_tracer,
+						     read_fw_strings_work);
+	u32 num_of_reads, num_string_db = tracer->str_db.num_string_db;
+	struct mlx5_core_dev *dev = tracer->dev;
+	u32 in[MLX5_ST_SZ_DW(mtrc_cap)] = {0};
+	u32 leftovers, offset;
+	int err = 0, i, j;
+	u32 *out, outlen;
+	void *out_value;
+
+	outlen = MLX5_ST_SZ_BYTES(mtrc_stdb) + STRINGS_DB_READ_SIZE_BYTES;
+	out = kzalloc(outlen, GFP_KERNEL);
+	if (!out) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	for (i = 0; i < num_string_db; i++) {
+		offset = 0;
+		MLX5_SET(mtrc_stdb, in, string_db_index, i);
+		num_of_reads = tracer->str_db.size_out[i] /
+				STRINGS_DB_READ_SIZE_BYTES;
+		leftovers = (tracer->str_db.size_out[i] %
+				STRINGS_DB_READ_SIZE_BYTES) /
+					STRINGS_DB_LEFTOVER_SIZE_BYTES;
+
+		MLX5_SET(mtrc_stdb, in, read_size, STRINGS_DB_READ_SIZE_BYTES);
+		for (j = 0; j < num_of_reads; j++) {
+			MLX5_SET(mtrc_stdb, in, start_offset, offset);
+
+			err = mlx5_core_access_reg(dev, in, sizeof(in), out,
+						   outlen, MLX5_REG_MTRC_STDB,
+						   0, 1);
+			if (err) {
+				mlx5_core_dbg(dev, "FWTracer: Failed to read strings DB %d\n",
+					      err);
+				goto out_free;
+			}
+
+			out_value = MLX5_ADDR_OF(mtrc_stdb, out, string_db_data);
+			memcpy(tracer->str_db.buffer[i] + offset, out_value,
+			       STRINGS_DB_READ_SIZE_BYTES);
+			offset += STRINGS_DB_READ_SIZE_BYTES;
+		}
+
+		/* Strings database is aligned to 64, need to read leftovers*/
+		MLX5_SET(mtrc_stdb, in, read_size,
+			 STRINGS_DB_LEFTOVER_SIZE_BYTES);
+		for (j = 0; j < leftovers; j++) {
+			MLX5_SET(mtrc_stdb, in, start_offset, offset);
+
+			err = mlx5_core_access_reg(dev, in, sizeof(in), out,
+						   outlen, MLX5_REG_MTRC_STDB,
+						   0, 1);
+			if (err) {
+				mlx5_core_dbg(dev, "FWTracer: Failed to read strings DB %d\n",
+					      err);
+				goto out_free;
+			}
+
+			out_value = MLX5_ADDR_OF(mtrc_stdb, out, string_db_data);
+			memcpy(tracer->str_db.buffer[i] + offset, out_value,
+			       STRINGS_DB_LEFTOVER_SIZE_BYTES);
+			offset += STRINGS_DB_LEFTOVER_SIZE_BYTES;
+		}
+	}
+
+	tracer->str_db.loaded = true;
+
+out_free:
+	kfree(out);
+out:
+	return;
+}
+
 static void mlx5_fw_tracer_ownership_change(struct work_struct *work)
 {
 	struct mlx5_fw_tracer *tracer = container_of(work, struct mlx5_fw_tracer,
@@ -161,6 +318,7 @@ struct mlx5_fw_tracer *mlx5_fw_tracer_create(struct mlx5_core_dev *dev)
 	tracer->dev = dev;
 
 	INIT_WORK(&tracer->ownership_change_work, mlx5_fw_tracer_ownership_change);
+	INIT_WORK(&tracer->read_fw_strings_work, mlx5_tracer_read_strings_db);
 
 	err = mlx5_query_mtrc_caps(tracer);
 	if (err) {
@@ -168,10 +326,22 @@ struct mlx5_fw_tracer *mlx5_fw_tracer_create(struct mlx5_core_dev *dev)
 		goto destroy_workqueue;
 	}
 
-	mlx5_fw_tracer_ownership_change(&tracer->ownership_change_work);
+	err = mlx5_fw_tracer_create_log_buf(tracer);
+	if (err) {
+		mlx5_core_warn(dev, "FWTracer: Create log buffer failed %d\n", err);
+		goto destroy_workqueue;
+	}
+
+	err = mlx5_fw_tracer_allocate_strings_db(tracer);
+	if (err) {
+		mlx5_core_warn(dev, "FWTracer: Allocate strings database failed %d\n", err);
+		goto free_log_buf;
+	}
 
 	return tracer;
 
+free_log_buf:
+	mlx5_fw_tracer_destroy_log_buf(tracer);
 destroy_workqueue:
 	tracer->dev = NULL;
 	destroy_workqueue(tracer->work_queue);
@@ -180,17 +350,50 @@ free_tracer:
 	return ERR_PTR(err);
 }
 
-void mlx5_fw_tracer_destroy(struct mlx5_fw_tracer *tracer)
+int mlx5_fw_tracer_init(struct mlx5_fw_tracer *tracer)
 {
-	if (!tracer)
+	struct mlx5_core_dev *dev;
+	int err;
+
+	if (IS_ERR_OR_NULL(tracer))
+		return 0;
+
+	dev = tracer->dev;
+
+	if (!tracer->str_db.loaded)
+		queue_work(tracer->work_queue, &tracer->read_fw_strings_work);
+
+	err = mlx5_fw_tracer_ownership_acquire(tracer);
+	if (err) {
+		mlx5_core_dbg(dev, "FWTracer: Ownership was not granted %d\n", err);
+		return 0; /* return 0 since ownership can be acquired on a later FW event */
+	}
+
+	return 0;
+}
+
+void mlx5_fw_tracer_cleanup(struct mlx5_fw_tracer *tracer)
+{
+	if (IS_ERR_OR_NULL(tracer))
 		return;
 
 	cancel_work_sync(&tracer->ownership_change_work);
 
 	if (tracer->owner)
 		mlx5_fw_tracer_ownership_release(tracer);
+}
 
+void mlx5_fw_tracer_destroy(struct mlx5_fw_tracer *tracer)
+{
+	if (IS_ERR_OR_NULL(tracer))
+		return;
+
+	cancel_work_sync(&tracer->read_fw_strings_work);
+	mlx5_fw_tracer_free_strings_db(tracer);
+	mlx5_fw_tracer_destroy_log_buf(tracer);
 	flush_workqueue(tracer->work_queue);
 	destroy_workqueue(tracer->work_queue);
 	kfree(tracer);
 }
+
+EXPORT_TRACEPOINT_SYMBOL(mlx5_fw);
