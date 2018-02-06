@@ -68,7 +68,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c0_default>;
 
-	i2cswitch@74 {
+	i2c-mux@74 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
