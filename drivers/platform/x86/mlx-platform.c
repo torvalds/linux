@@ -522,8 +522,8 @@ static int __init mlxplat_init(void)
 
 	mlxplat_mlxcpld_regmap_ctx.base = devm_ioport_map(&mlxplat_dev->dev,
 			       mlxplat_lpc_resources[1].start, 1);
-	if (IS_ERR(mlxplat_mlxcpld_regmap_ctx.base)) {
-		err = PTR_ERR(mlxplat_mlxcpld_regmap_ctx.base);
+	if (!mlxplat_mlxcpld_regmap_ctx.base) {
+		err = -ENOMEM;
 		goto fail_platform_mux_register;
 	}
 
