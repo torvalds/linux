@@ -567,12 +567,11 @@
 		reprobe_en = <1>;
 	};
 
-	ts@40 {
-		status = "okay";
-		compatible = "GT1X";
-		reg = <0x14>;
-		irq_gpio_number = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
-		rst_gpio_number = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
+	gt1x: gt1x@14 {
+	      compatible = "goodix,gt1x";
+	      reg = <0x14>;
+	      goodix,rst-gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
+	      goodix,irq-gpio = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
 	};
 
 	sensor@4c {
