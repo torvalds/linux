@@ -828,6 +828,30 @@ static bool unmap_kernel_at_el0(const struct arm64_cpu_capabilities *entry,
 						     ID_AA64PFR0_CSV3_SHIFT);
 }
 
+static int kpti_install_ng_mappings(void *__unused)
+{
+	typedef void (kpti_remap_fn)(int, int, phys_addr_t);
+	extern kpti_remap_fn idmap_kpti_install_ng_mappings;
+	kpti_remap_fn *remap_fn;
+
+	static bool kpti_applied = false;
+	int cpu = smp_processor_id();
+
+	if (kpti_applied)
+		return 0;
+
+	remap_fn = (void *)__pa_symbol(idmap_kpti_install_ng_mappings);
+
+	cpu_install_idmap();
+	remap_fn(cpu, num_online_cpus(), __pa_symbol(swapper_pg_dir));
+	cpu_uninstall_idmap();
+
+	if (!cpu)
+		kpti_applied = true;
+
+	return 0;
+}
+
 static int __init parse_kpti(char *str)
 {
 	bool enabled;
@@ -934,6 +958,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_UNMAP_KERNEL_AT_EL0,
 		.def_scope = SCOPE_SYSTEM,
 		.matches = unmap_kernel_at_el0,
+		.enable = kpti_install_ng_mappings,
 	},
 #endif
 	{
