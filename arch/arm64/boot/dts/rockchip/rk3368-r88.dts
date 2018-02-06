@@ -173,6 +173,35 @@
 	};
 };
 
+&dfi {
+	status = "okay";
+};
+
+&dmc {
+	system-status-freq = <
+		/*system status         freq(KHz)*/
+		SYS_STATUS_NORMAL	528000
+		SYS_STATUS_REBOOT	600000
+		SYS_STATUS_SUSPEND	192000
+		SYS_STATUS_VIDEO_1080P	400000
+		SYS_STATUS_VIDEO_4K	800000
+		SYS_STATUS_PERFORMANCE	800000
+		SYS_STATUS_BOOST	400000
+		SYS_STATUS_DUALVIEW	400000
+		SYS_STATUS_ISP		400000
+	>;
+	center-supply = <&vdd_gpu>;
+	auto-freq-en = <0>;
+	status = "okay";
+};
+
+&dmc_opp_table {
+	opp-800000000 {
+		opp-hz = /bits/ 64 <800000000>;
+		opp-microvolt = <1175000>;
+	};
+};
+
 &i2s_8ch {
 	status = "okay";
 	rockchip,i2s-broken-burst-len;
