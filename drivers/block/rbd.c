@@ -1207,27 +1207,6 @@ static void rbd_dev_mapping_clear(struct rbd_device *rbd_dev)
 	rbd_dev->mapping.features = 0;
 }
 
-static u64 rbd_segment_offset(struct rbd_device *rbd_dev, u64 offset)
-{
-	u64 segment_size = rbd_obj_bytes(&rbd_dev->header);
-
-	return offset & (segment_size - 1);
-}
-
-static u64 rbd_segment_length(struct rbd_device *rbd_dev,
-				u64 offset, u64 length)
-{
-	u64 segment_size = rbd_obj_bytes(&rbd_dev->header);
-
-	offset &= segment_size - 1;
-
-	rbd_assert(length <= U64_MAX - offset);
-	if (offset + length > segment_size)
-		length = segment_size - offset;
-
-	return length;
-}
-
 static void zero_bvec(struct bio_vec *bv)
 {
 	void *buf;
@@ -1975,83 +1954,6 @@ static int __rbd_img_fill_request(struct rbd_img_request *img_req)
 	}
 
 	return 0;
-}
-
-/*
- * Split up an image request into one or more object requests, each
- * to a different object.  The "type" parameter indicates whether
- * "data_desc" is the pointer to the head of a list of bio
- * structures, or the base of a page array.  In either case this
- * function assumes data_desc describes memory sufficient to hold
- * all data described by the image request.
- */
-static int rbd_img_request_fill(struct rbd_img_request *img_request,
-					enum obj_request_type type,
-					void *data_desc)
-{
-	struct rbd_device *rbd_dev = img_request->rbd_dev;
-	struct rbd_obj_request *obj_request = NULL;
-	struct rbd_obj_request *next_obj_request;
-	struct ceph_bio_iter bio_it;
-	struct ceph_bvec_iter bvec_it;
-	u64 img_offset;
-	u64 resid;
-
-	dout("%s: img %p type %d data_desc %p\n", __func__, img_request,
-		(int)type, data_desc);
-
-	img_offset = img_request->offset;
-	resid = img_request->length;
-	rbd_assert(resid > 0);
-
-	if (type == OBJ_REQUEST_BIO) {
-		bio_it = *(struct ceph_bio_iter *)data_desc;
-		rbd_assert(img_offset ==
-			   bio_it.iter.bi_sector << SECTOR_SHIFT);
-	} else if (type == OBJ_REQUEST_BVECS) {
-		bvec_it = *(struct ceph_bvec_iter *)data_desc;
-	}
-
-	while (resid) {
-		u64 object_no = img_offset >> rbd_dev->header.obj_order;
-		u64 offset = rbd_segment_offset(rbd_dev, img_offset);
-		u64 length = rbd_segment_length(rbd_dev, img_offset, resid);
-
-		obj_request = rbd_obj_request_create();
-		if (!obj_request)
-			goto out_unwind;
-
-		obj_request->ex.oe_objno = object_no;
-		obj_request->ex.oe_off = offset;
-		obj_request->ex.oe_len = length;
-
-		/*
-		 * set obj_request->img_request before creating the
-		 * osd_request so that it gets the right snapc
-		 */
-		rbd_img_obj_request_add(img_request, obj_request);
-
-		if (type == OBJ_REQUEST_BIO) {
-			obj_request->bio_pos = bio_it;
-			ceph_bio_iter_advance(&bio_it, length);
-		} else if (type == OBJ_REQUEST_BVECS) {
-			obj_request->bvec_pos = bvec_it;
-			ceph_bvec_iter_shorten(&obj_request->bvec_pos, length);
-			ceph_bvec_iter_advance(&bvec_it, length);
-		}
-
-		img_offset += length;
-		resid -= length;
-	}
-
-	img_request->data_type = type;
-	return __rbd_img_fill_request(img_request);
-
-out_unwind:
-	for_each_obj_request_safe(img_request, obj_request, next_obj_request)
-		rbd_img_obj_request_del(img_request, obj_request);
-
-	return -ENOMEM;
 }
 
 union rbd_img_fill_iter {
