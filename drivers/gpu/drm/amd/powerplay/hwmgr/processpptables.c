@@ -1696,9 +1696,6 @@ static int pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 	kfree(hwmgr->dyn_state.vdd_gfx_dependency_on_sclk);
 	hwmgr->dyn_state.vdd_gfx_dependency_on_sclk = NULL;
 
-	kfree(hwmgr->dyn_state.vq_budgeting_table);
-	hwmgr->dyn_state.vq_budgeting_table = NULL;
-
 	return 0;
 }
 
