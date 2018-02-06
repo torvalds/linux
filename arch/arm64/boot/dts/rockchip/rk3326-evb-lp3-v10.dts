@@ -150,6 +150,15 @@
 		reset-gpios = <&gpio0 RK_PA2 GPIO_ACTIVE_LOW>; /* GPIO3_A4 */
 	};
 
+	vccsys: vccsys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v8_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3800000>;
+		regulator-max-microvolt = <3800000>;
+	};
+
 	wireless-wlan {
 		compatible = "wlan-platdata";
 		wifi_chip_type = "AP6210";
@@ -297,6 +306,8 @@
 };
 
 &i2c0 {
+	status = "okay";
+
 	rk817: pmic@20 {
 		compatible = "rockchip,rk817";
 		reg = <0x20>;
@@ -318,15 +329,6 @@
 		vcc7-supply = <&vcc_3v0>;
 		vcc8-supply = <&vccsys>;
 		vcc9-supply = <&dcdc_boost>;
-
-		vccsys: vccsys{
-			compatible = "regulator-fixed";
-			regulator-name = "vcc3v8_sys";
-			regulator-always-on;
-			regulator-boot-on;
-			regulator-min-microvolt = <3800000>;
-			regulator-max-microvolt = <3800000>;
-		};
 
 		rk817_pin0_ts: rk817_pin0_ts {
 			pins = "gpio0";

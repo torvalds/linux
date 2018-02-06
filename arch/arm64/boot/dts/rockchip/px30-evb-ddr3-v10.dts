@@ -116,6 +116,15 @@
 		regulator-boot-on;
 	};
 
+	vcc5v0_sys: vccsys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
 	wireless-wlan {
 		compatible = "wlan-platdata";
 		wifi_chip_type = "AP6210";
@@ -264,6 +273,8 @@
 };
 
 &i2c0 {
+	status = "okay";
+
 	rk809: pmic@20 {
 		compatible = "rockchip,rk809";
 		reg = <0x20>;
@@ -285,15 +296,6 @@
 		vcc7-supply = <&vcc3v3_sys>;
 		vcc8-supply = <&vcc3v3_sys>;
 		vcc9-supply = <&vcc5v0_sys>;
-
-		vcc5v0_sys: vccsys{
-			compatible = "regulator-fixed";
-			regulator-name = "vcc5v0_sys";
-			regulator-always-on;
-			regulator-boot-on;
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-		};
 
 		rk817_pin0_ts: rk817_pin0_ts {
 			pins = "gpio0";
