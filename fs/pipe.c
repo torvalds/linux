@@ -1020,9 +1020,12 @@ const struct file_operations pipefifo_fops = {
  * Currently we rely on the pipe array holding a power-of-2 number
  * of pages. Returns 0 on error.
  */
-unsigned int round_pipe_size(unsigned int size)
+unsigned int round_pipe_size(unsigned long size)
 {
 	unsigned long nr_pages;
+
+	if (size > UINT_MAX)
+		return 0;
 
 	/* Minimum pipe size, as required by POSIX */
 	if (size < PAGE_SIZE)
