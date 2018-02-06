@@ -1,0 +1,54 @@
+device-tree bindings for rockchip Transport Stream Processing Module (TSP)
+
+TSP is designed for processing Transport Stream Packets,
+including receiving TS packets, PID filtering, TS descrambling,
+De-multiplexing and TS outputting.Processed data are transferred to
+memory buffer which are continued to be processing by software.
+
+Required properties:
+- compatible: value should be one of the following
+		"rockchip,rk312x-tsp";
+		"rockchip,rk3228-tsp";
+		"rockchip,rk3288-tsp";
+		"rockchip,rk3328-tsp";
+		"rockchip,rk3368-tsp";
+
+- reg : offset and length of the register set for the device.
+
+- interrupts: TSP interrupt specifier.
+
+- interrupts-name: should be "irq_tsp".
+
+- clocks: phandle to TSP sclk/hclk/aclk clocks
+
+- clock-names: should be "clk_tsp", "hclk_tsp" and "aclk_tsp"
+
+- pinctrl-names: use "default"
+
+- pinctrl-0: pin config for iomux
+
+Example:
+SoC-specific DT entry:
+	tsp: tsp@ff050000 {
+		compatible = "rockchip,rk3328-tsp";
+		reg = <0x0 0xff050000 0x0 0x10000>;
+		rockchip,grf = <&grf>;
+		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_tsp";
+		clocks = <&cru SCLK_TSP>, <&cru ACLK_TSP>, <&cru HCLK_TSP>;
+		clock-names = "clk_tsp", "aclk_tsp", "hclk_tsp";
+		pinctrl-names = "default";
+		pinctrl-0 = <&tsp_d0
+			     &tsp_d1
+			     &tsp_d2
+			     &tsp_d3
+			     &tsp_d4
+			     &tsp_d5
+			     &tsp_d6
+			     &tsp_d7
+			     &tsp_sync
+			     &tsp_clk
+			     &tsp_fail
+			     &tsp_valid>;
+		status = "disabled";
+	};
