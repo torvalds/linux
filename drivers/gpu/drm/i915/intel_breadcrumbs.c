@@ -588,29 +588,16 @@ void intel_engine_remove_wait(struct intel_engine_cs *engine,
 	spin_unlock_irq(&b->rb_lock);
 }
 
-static bool signal_valid(const struct drm_i915_gem_request *request)
-{
-	return intel_wait_check_request(&request->signaling.wait, request);
-}
-
 static bool signal_complete(const struct drm_i915_gem_request *request)
 {
 	if (!request)
 		return false;
 
-	/* If another process served as the bottom-half it may have already
-	 * signalled that this wait is already completed.
-	 */
-	if (intel_wait_complete(&request->signaling.wait))
-		return signal_valid(request);
-
-	/* Carefully check if the request is complete, giving time for the
+	/*
+	 * Carefully check if the request is complete, giving time for the
 	 * seqno to be visible or if the GPU hung.
 	 */
-	if (__i915_request_irq_complete(request))
-		return true;
-
-	return false;
+	return __i915_request_irq_complete(request);
 }
 
 static struct drm_i915_gem_request *to_signaler(struct rb_node *rb)
@@ -712,6 +699,7 @@ static int intel_breadcrumbs_signaler(void *arg)
 				      &request->fence.flags)) {
 				local_bh_disable();
 				dma_fence_signal(&request->fence);
+				GEM_BUG_ON(!i915_gem_request_completed(request));
 				local_bh_enable(); /* kick start the tasklets */
 			}
 
