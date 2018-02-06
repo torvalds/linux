@@ -1235,7 +1235,7 @@ static struct vpu_reg *reg_init(struct vpu_subdev_data *data,
 		vpu_err("error: translate reg address failed, dumping regs\n");
 		for (i = 0; i < size >> 2; i++)
 			dev_err(pservice->dev, "reg[%02d]: %08x\n",
-				i, *((u32 *)src + i));
+				i, reg->reg[i]);
 
 		kfree(reg);
 		return NULL;
