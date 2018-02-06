@@ -754,9 +754,6 @@ static int tsi721_alloc_chan_resources(struct dma_chan *dchan)
 	desc = kcalloc(dma_txqueue_sz, sizeof(struct tsi721_tx_desc),
 			GFP_ATOMIC);
 	if (!desc) {
-		tsi_err(&dchan->dev->device,
-			"DMAC%d Failed to allocate logical descriptors",
-			bdma_chan->id);
 		tsi721_bdma_ch_free(bdma_chan);
 		return -ENOMEM;
 	}
