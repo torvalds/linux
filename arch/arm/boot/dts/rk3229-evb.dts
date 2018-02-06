@@ -24,6 +24,19 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,rk3229";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s1>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&codec>;
+		};
+	};
+
 	ext_gmac: ext_gmac {
 		compatible = "fixed-clock";
 		clock-frequency = <125000000>;
@@ -163,6 +176,16 @@
 	vccio1-supply = <&vccio_3v3>;
 	vccio2-supply = <&vccio_1v8>;
 	vccio4-supply = <&vccio_3v3>;
+};
+
+&i2s1 {
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&codec {
+	#sound-dai-cells = <0>;
+	status = "okay";
 };
 
 &pinctrl {
