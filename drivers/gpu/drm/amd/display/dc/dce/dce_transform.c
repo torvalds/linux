@@ -618,80 +618,48 @@ static void program_bit_depth_reduction(
 	enum dc_color_depth depth,
 	const struct bit_depth_reduction_params *bit_depth_params)
 {
-	enum dcp_bit_depth_reduction_mode depth_reduction_mode;
-	enum dcp_spatial_dither_mode spatial_dither_mode;
-	bool frame_random_enable;
-	bool rgb_random_enable;
-	bool highpass_random_enable;
+	enum dcp_out_trunc_round_depth trunc_round_depth;
+	enum dcp_out_trunc_round_mode trunc_mode;
+	bool spatial_dither_enable;
 
 	ASSERT(depth < COLOR_DEPTH_121212); /* Invalid clamp bit depth */
 
-	if (bit_depth_params->flags.SPATIAL_DITHER_ENABLED) {
-		depth_reduction_mode = DCP_BIT_DEPTH_REDUCTION_MODE_DITHER;
-		frame_random_enable = true;
-		rgb_random_enable = true;
-		highpass_random_enable = true;
+	spatial_dither_enable = bit_depth_params->flags.SPATIAL_DITHER_ENABLED;
+	/* Default to 12 bit truncation without rounding */
+	trunc_round_depth = DCP_OUT_TRUNC_ROUND_DEPTH_12BIT;
+	trunc_mode = DCP_OUT_TRUNC_ROUND_MODE_TRUNCATE;
 
-	} else {
-		depth_reduction_mode = DCP_BIT_DEPTH_REDUCTION_MODE_DISABLED;
-		frame_random_enable = false;
-		rgb_random_enable = false;
-		highpass_random_enable = false;
+	if (bit_depth_params->flags.TRUNCATE_ENABLED) {
+		/* Don't enable dithering if truncation is enabled */
+		spatial_dither_enable = false;
+		trunc_mode = bit_depth_params->flags.TRUNCATE_MODE ?
+			     DCP_OUT_TRUNC_ROUND_MODE_ROUND :
+			     DCP_OUT_TRUNC_ROUND_MODE_TRUNCATE;
+
+		if (bit_depth_params->flags.TRUNCATE_DEPTH == 0 ||
+		    bit_depth_params->flags.TRUNCATE_DEPTH == 1)
+			trunc_round_depth = DCP_OUT_TRUNC_ROUND_DEPTH_8BIT;
+		else if (bit_depth_params->flags.TRUNCATE_DEPTH == 2)
+			trunc_round_depth = DCP_OUT_TRUNC_ROUND_DEPTH_10BIT;
+		else {
+			/*
+			 * Invalid truncate/round depth. Setting here to 12bit
+			 * to prevent use-before-initialize errors.
+			 */
+			trunc_round_depth = DCP_OUT_TRUNC_ROUND_DEPTH_12BIT;
+			BREAK_TO_DEBUGGER();
+		}
 	}
-
-	spatial_dither_mode = DCP_SPATIAL_DITHER_MODE_A_AA_A;
 
 	set_clamp(xfm_dce, depth);
-
-	switch (depth_reduction_mode) {
-	case DCP_BIT_DEPTH_REDUCTION_MODE_DITHER:
-		/*  Spatial Dither: Set round/truncate to bypass (12bit),
-		 *  enable Dither (30bpp) */
-		set_round(xfm_dce,
-			DCP_OUT_TRUNC_ROUND_MODE_TRUNCATE,
-			DCP_OUT_TRUNC_ROUND_DEPTH_12BIT);
-
-		set_dither(xfm_dce, true, spatial_dither_mode,
-			DCP_SPATIAL_DITHER_DEPTH_30BPP, frame_random_enable,
-			rgb_random_enable, highpass_random_enable);
-		break;
-	case DCP_BIT_DEPTH_REDUCTION_MODE_ROUND:
-		/*  Round: Enable round (10bit), disable Dither */
-		set_round(xfm_dce,
-			DCP_OUT_TRUNC_ROUND_MODE_ROUND,
-			DCP_OUT_TRUNC_ROUND_DEPTH_10BIT);
-
-		set_dither(xfm_dce, false, spatial_dither_mode,
-			DCP_SPATIAL_DITHER_DEPTH_30BPP, frame_random_enable,
-			rgb_random_enable, highpass_random_enable);
-		break;
-	case DCP_BIT_DEPTH_REDUCTION_MODE_TRUNCATE: /*  Truncate */
-		/*  Truncate: Enable truncate (10bit), disable Dither */
-		set_round(xfm_dce,
-			DCP_OUT_TRUNC_ROUND_MODE_TRUNCATE,
-			DCP_OUT_TRUNC_ROUND_DEPTH_10BIT);
-
-		set_dither(xfm_dce, false, spatial_dither_mode,
-			DCP_SPATIAL_DITHER_DEPTH_30BPP, frame_random_enable,
-			rgb_random_enable, highpass_random_enable);
-		break;
-
-	case DCP_BIT_DEPTH_REDUCTION_MODE_DISABLED: /*  Disabled */
-		/*  Truncate: Set round/truncate to bypass (12bit),
-		 * disable Dither */
-		set_round(xfm_dce,
-			DCP_OUT_TRUNC_ROUND_MODE_TRUNCATE,
-			DCP_OUT_TRUNC_ROUND_DEPTH_12BIT);
-
-		set_dither(xfm_dce, false, spatial_dither_mode,
-			DCP_SPATIAL_DITHER_DEPTH_30BPP, frame_random_enable,
-			rgb_random_enable, highpass_random_enable);
-		break;
-	default:
-		/* Invalid DCP Depth reduction mode */
-		BREAK_TO_DEBUGGER();
-		break;
-	}
+	set_round(xfm_dce, trunc_mode, trunc_round_depth);
+	set_dither(xfm_dce,
+		   spatial_dither_enable,
+		   DCP_SPATIAL_DITHER_MODE_A_AA_A,
+		   DCP_SPATIAL_DITHER_DEPTH_30BPP,
+		   bit_depth_params->flags.FRAME_RANDOM,
+		   bit_depth_params->flags.RGB_RANDOM,
+		   bit_depth_params->flags.HIGHPASS_RANDOM);
 }
 
 static int dce_transform_get_max_num_of_supported_lines(
