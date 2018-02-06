@@ -2875,6 +2875,7 @@ sub process {
 #	logging functions like pr_info that end in a string
 #	lines with a single string
 #	#defines that are a single string
+#	lines with an RFC3986 like URL
 #
 # There are 3 different line length message types:
 # LONG_LINE_COMMENT	a comment starts before but extends beyond $max_line_length
@@ -2904,6 +2905,10 @@ sub process {
 			# More special cases
 			} elsif ($line =~ /^\+.*\bEFI_GUID\s*\(/ ||
 				 $line =~ /^\+\s*(?:\w+)?\s*DEFINE_PER_CPU/) {
+				$msg_type = "";
+
+			# URL ($rawline is used in case the URL is in a comment)
+			} elsif ($rawline =~ /^\+.*\b[a-z][\w\.\+\-]*:\/\/\S+/i) {
 				$msg_type = "";
 
 			# Otherwise set the alternate message types
