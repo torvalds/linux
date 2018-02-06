@@ -347,6 +347,7 @@ struct pp_hwmgr_func {
 	int (*odn_edit_dpm_table)(struct pp_hwmgr *hwmgr,
 					enum PP_OD_DPM_TABLE_COMMAND type,
 					long *input, uint32_t size);
+	int (*set_mmhub_powergating_by_smu)(struct pp_hwmgr *hwmgr);
 };
 
 struct pp_table_func {
