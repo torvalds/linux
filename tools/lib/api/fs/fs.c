@@ -432,7 +432,8 @@ int procfs__read_str(const char *entry, char **buf, size_t *sizep)
 	return filename__read_str(path, buf, sizep);
 }
 
-int sysfs__read_ull(const char *entry, unsigned long long *value)
+static int sysfs__read_ull_base(const char *entry,
+				unsigned long long *value, int base)
 {
 	char path[PATH_MAX];
 	const char *sysfs = sysfs__mountpoint();
@@ -442,7 +443,17 @@ int sysfs__read_ull(const char *entry, unsigned long long *value)
 
 	snprintf(path, sizeof(path), "%s/%s", sysfs, entry);
 
-	return filename__read_ull(path, value);
+	return filename__read_ull_base(path, value, base);
+}
+
+int sysfs__read_xll(const char *entry, unsigned long long *value)
+{
+	return sysfs__read_ull_base(entry, value, 16);
+}
+
+int sysfs__read_ull(const char *entry, unsigned long long *value)
+{
+	return sysfs__read_ull_base(entry, value, 0);
 }
 
 int sysfs__read_int(const char *entry, int *value)
