@@ -94,6 +94,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_PCM512x_I2C if I2C
 	select SND_SOC_PCM512x_SPI if SPI_MASTER
 	select SND_SOC_RK1000 if I2C
+	select SND_SOC_RK3228
 	select SND_SOC_RK3328
 	select SND_SOC_RT286 if I2C
 	select SND_SOC_RT298 if I2C
@@ -578,6 +579,10 @@ config SND_SOC_RK1000
 config SND_SOC_RK312X
 	select REGMAP_MMIO
 	tristate "Rockchip RK312X CODEC"
+
+config SND_SOC_RK3228
+	select REGMAP_MMIO
+	tristate "Rockchip RK3228 CODEC"
 
 config SND_SOC_RK3328
 	select REGMAP_MMIO

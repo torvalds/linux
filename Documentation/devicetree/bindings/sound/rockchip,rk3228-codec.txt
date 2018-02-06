@@ -1,0 +1,22 @@
+* Rockchip Rk3228 internal codec
+
+Required properties:
+
+- compatible: "rockchip,rk3228-codec"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- clocks: a list of phandle + clock-specifer pairs, one for each entry in clock-names.
+- clock-names: a list of clock names, one for each entry in clocks.
+- spk-en-gpio: speaker enable gpio.
+- spk-depop-time-ms: speaker depop time msec.
+
+Example for rk3228 internal codec:
+
+codec: codec@12010000 {
+	compatible = "rockchip,rk3228-codec";
+	reg = <0x12010000 0x1000>;
+	clocks =  <&cru SCLK_I2S_OUT>, <&cru PCLK_ACODECPHY>, <&cru SCLK_I2S1>;
+	clock-names = "mclk", "pclk", "sclk";
+	spk-en-gpio = <&gpio1 RK_PA3 GPIO_ACTIVE_HIGH>;
+	status = "disabled";
+};
