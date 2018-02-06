@@ -128,7 +128,7 @@ static const struct ov5640_pixfmt ov5640_formats[] = {
  * to set the MIPI CSI-2 virtual channel.
  */
 static unsigned int virtual_channel;
-module_param(virtual_channel, int, 0);
+module_param(virtual_channel, uint, 0444);
 MODULE_PARM_DESC(virtual_channel,
 		 "MIPI CSI-2 virtual channel (0..3), default 0");
 
@@ -1358,11 +1358,16 @@ static int ov5640_binning_on(struct ov5640_dev *sensor)
 
 static int ov5640_set_virtual_channel(struct ov5640_dev *sensor)
 {
+	struct i2c_client *client = sensor->i2c_client;
 	u8 temp, channel = virtual_channel;
 	int ret;
 
-	if (channel > 3)
+	if (channel > 3) {
+		dev_err(&client->dev,
+			"%s: wrong virtual_channel parameter, expected (0..3), got %d\n",
+			__func__, channel);
 		return -EINVAL;
+	}
 
 	ret = ov5640_read_reg(sensor, OV5640_REG_DEBUG_MODE, &temp);
 	if (ret)
