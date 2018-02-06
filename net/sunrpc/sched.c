@@ -1109,7 +1109,7 @@ static int rpciod_start(void)
 		goto out_failed;
 	rpciod_workqueue = wq;
 	/* Note: highpri because network receive is latency sensitive */
-	wq = alloc_workqueue("xprtiod", WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
+	wq = alloc_workqueue("xprtiod", WQ_UNBOUND|WQ_MEM_RECLAIM|WQ_HIGHPRI, 0);
 	if (!wq)
 		goto free_rpciod;
 	xprtiod_workqueue = wq;
