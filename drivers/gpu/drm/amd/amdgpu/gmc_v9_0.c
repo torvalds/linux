@@ -693,10 +693,7 @@ static void gmc_v9_0_vram_gtt_location(struct amdgpu_device *adev,
 	amdgpu_device_vram_location(adev, &adev->gmc, base);
 	amdgpu_device_gart_location(adev, mc);
 	/* base offset of vram pages */
-	if (adev->flags & AMD_IS_APU)
-		adev->vm_manager.vram_base_offset = gfxhub_v1_0_get_mc_fb_offset(adev);
-	else
-		adev->vm_manager.vram_base_offset = 0;
+	adev->vm_manager.vram_base_offset = gfxhub_v1_0_get_mc_fb_offset(adev);
 }
 
 /**
