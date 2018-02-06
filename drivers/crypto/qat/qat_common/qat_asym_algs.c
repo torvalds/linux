@@ -969,7 +969,8 @@ unmap_src:
 	return ret;
 }
 
-int qat_rsa_set_n(struct qat_rsa_ctx *ctx, const char *value, size_t vlen)
+static int qat_rsa_set_n(struct qat_rsa_ctx *ctx, const char *value,
+			 size_t vlen)
 {
 	struct qat_crypto_instance *inst = ctx->inst;
 	struct device *dev = &GET_DEV(inst->accel_dev);
@@ -1000,7 +1001,8 @@ err:
 	return ret;
 }
 
-int qat_rsa_set_e(struct qat_rsa_ctx *ctx, const char *value, size_t vlen)
+static int qat_rsa_set_e(struct qat_rsa_ctx *ctx, const char *value,
+			 size_t vlen)
 {
 	struct qat_crypto_instance *inst = ctx->inst;
 	struct device *dev = &GET_DEV(inst->accel_dev);
@@ -1024,7 +1026,8 @@ int qat_rsa_set_e(struct qat_rsa_ctx *ctx, const char *value, size_t vlen)
 	return 0;
 }
 
-int qat_rsa_set_d(struct qat_rsa_ctx *ctx, const char *value, size_t vlen)
+static int qat_rsa_set_d(struct qat_rsa_ctx *ctx, const char *value,
+			 size_t vlen)
 {
 	struct qat_crypto_instance *inst = ctx->inst;
 	struct device *dev = &GET_DEV(inst->accel_dev);
