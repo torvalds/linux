@@ -705,7 +705,7 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	struct dev_pm_opp *opp;
 	struct cpufreq_policy *policy;
 	unsigned long old_clk_rate = dmcfreq->rate;
-	unsigned long temp_rate, target_volt, target_rate;
+	unsigned long opp_rate, target_volt, target_rate;
 	unsigned int cpu_cur, cpufreq_cur;
 	int err = 0;
 
@@ -716,14 +716,14 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 		rcu_read_unlock();
 		return PTR_ERR(opp);
 	}
-	temp_rate = dev_pm_opp_get_freq(opp);
+	opp_rate = dev_pm_opp_get_freq(opp);
 	target_volt = dev_pm_opp_get_voltage(opp);
 
 	rcu_read_unlock();
 
-	target_rate = clk_round_rate(dmcfreq->dmc_clk, temp_rate);
+	target_rate = clk_round_rate(dmcfreq->dmc_clk, opp_rate);
 	if ((long)target_rate <= 0)
-		target_rate = temp_rate;
+		target_rate = opp_rate;
 
 	if (dmcfreq->rate == target_rate) {
 		if (dmcfreq->volt == target_volt)
@@ -804,7 +804,6 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	 * 2. Ddr frequency scaling sucessful, we get the rate we set.
 	 */
 	dmcfreq->rate = clk_get_rate(dmcfreq->dmc_clk);
-	dmcfreq->devfreq->last_status.current_frequency = dmcfreq->rate;
 
 	/* If get the incorrect rate, set voltage to old value. */
 	if (dmcfreq->rate != target_rate) {
@@ -821,6 +820,8 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 			goto out;
 		}
 	}
+
+	dmcfreq->devfreq->last_status.current_frequency = opp_rate;
 
 	dmcfreq->volt = target_volt;
 out:
@@ -844,7 +845,6 @@ static int rockchip_dmcfreq_get_dev_status(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	stat->current_frequency = dmcfreq->rate;
 	stat->busy_time = edata.load_count;
 	stat->total_time = edata.total_count;
 
