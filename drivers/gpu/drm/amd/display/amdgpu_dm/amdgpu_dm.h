@@ -198,7 +198,7 @@ struct dm_crtc_state {
 	struct drm_crtc_state base;
 	struct dc_stream_state *stream;
 
-	bool crc_first_skipped;
+	int crc_skip_count;
 	bool crc_enabled;
 };
 
