@@ -732,31 +732,31 @@ static struct rockchip_mux_route_data px30_mux_route_data[] = {
 	}, {
 		/* uart2-rxm0 */
 		.bank_num = 1,
-		.pin = 26,
+		.pin = 27,
 		.func = 2,
 		.route_offset = 0x184,
-		.route_val = BIT(16 + 9),
+		.route_val = BIT(16 + 10),
 	}, {
 		/* uart2-rxm1 */
 		.bank_num = 2,
 		.pin = 14,
 		.func = 2,
 		.route_offset = 0x184,
-		.route_val = BIT(16 + 9) | BIT(9),
+		.route_val = BIT(16 + 10) | BIT(10),
 	}, {
 		/* uart3-rxm0 */
 		.bank_num = 0,
 		.pin = 17,
 		.func = 2,
 		.route_offset = 0x184,
-		.route_val = BIT(16 + 10),
+		.route_val = BIT(16 + 9),
 	}, {
 		/* uart3-rxm1 */
 		.bank_num = 1,
-		.pin = 13,
+		.pin = 15,
 		.func = 2,
 		.route_offset = 0x184,
-		.route_val = BIT(16 + 10) | BIT(10),
+		.route_val = BIT(16 + 9) | BIT(9),
 	},
 };
 
