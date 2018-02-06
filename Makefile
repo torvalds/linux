@@ -696,6 +696,12 @@ endif
 ifdef CONFIG_CC_STACKPROTECTOR
   stackp-path := $(srctree)/scripts/gcc-$(SRCARCH)_$(BITS)-has-stack-protector.sh
   stackp-check := $(wildcard $(stackp-path))
+  # If the wildcard test matches a test script, run it to check functionality.
+  ifdef stackp-check
+    ifneq ($(shell $(CONFIG_SHELL) $(stackp-check) $(CC) $(KBUILD_CPPFLAGS) $(biarch)),y)
+      stackp-broken := y
+    endif
+  endif
 endif
 KBUILD_CFLAGS += $(stackp-flag)
 
@@ -1098,11 +1104,9 @@ ifdef stackp-name
   endif
 endif
 # Make sure compiler does not have buggy stack-protector support.
-ifdef stackp-check
-  ifneq ($(shell $(CONFIG_SHELL) $(stackp-check) $(CC) $(KBUILD_CPPFLAGS) $(biarch)),y)
+ifdef stackp-broken
 	@echo Cannot use CONFIG_CC_STACKPROTECTOR_$(stackp-name): \
                   $(stackp-flag) available but compiler is broken >&2 && exit 1
-  endif
 endif
 	@:
 
