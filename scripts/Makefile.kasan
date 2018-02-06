@@ -31,4 +31,7 @@ else
 endif
 
 CFLAGS_KASAN += $(call cc-option, -fsanitize-address-use-after-scope)
+
+CFLAGS_KASAN_NOSANITIZE := -fno-builtin
+
 endif
