@@ -655,6 +655,15 @@
 		status = "disabled";
 	};
 
+	codec: codec@12010000 {
+		compatible = "rockchip,rk3228-codec";
+		reg = <0x12010000 0x1000>;
+		clocks =  <&cru SCLK_I2S_OUT>, <&cru PCLK_ACODECPHY>, <&cru SCLK_I2S1>;
+		clock-names = "mclk", "pclk", "sclk";
+		spk-en-gpio = <&gpio1 RK_PA3 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+	};
+
 	hdmi_phy: hdmi-phy@12030000 {
 		compatible = "rockchip,rk3228-hdmi-phy";
 		reg = <0x12030000 0x10000>;
