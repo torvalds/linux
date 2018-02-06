@@ -348,35 +348,28 @@ static void hotplug_notify_work_func(struct work_struct *work)
 
 #if defined(CONFIG_DRM_AMD_DC_FBC)
 /* Allocate memory for FBC compressed data  */
-static void amdgpu_dm_fbc_init(struct amdgpu_device *adev)
+static void amdgpu_dm_fbc_init(struct drm_connector *connector)
 {
+	struct drm_device *dev = connector->dev;
+	struct amdgpu_device *adev = dev->dev_private;
 	struct dm_comressor_info *compressor = &adev->dm.compressor;
-	struct drm_connector *conn;
-	struct drm_device *dev = adev->ddev;
+	struct amdgpu_dm_connector *aconn = to_amdgpu_dm_connector(connector);
+	struct drm_display_mode *mode;
 	unsigned long max_size = 0;
 
 	if (adev->dm.dc->fbc_compressor == NULL)
 		return;
 
+	if (aconn->dc_link->connector_signal != SIGNAL_TYPE_EDP)
+		return;
+
 	if (compressor->bo_ptr)
 		return;
 
-	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 
-	/* For eDP connector find a mode requiring max size */
-	list_for_each_entry(conn,
-		    &dev->mode_config.connector_list, head) {
-		struct amdgpu_dm_connector *aconn;
-
-		aconn = to_amdgpu_dm_connector(conn);
-		if (aconn->dc_link->connector_signal == SIGNAL_TYPE_EDP) {
-			struct drm_display_mode *mode;
-
-			list_for_each_entry(mode, &conn->modes, head) {
-				if (max_size < mode->hdisplay * mode->vdisplay)
-					max_size = mode->htotal * mode->vtotal;
-			}
-		}
+	list_for_each_entry(mode, &connector->modes, head) {
+		if (max_size < mode->htotal * mode->vtotal)
+			max_size = mode->htotal * mode->vtotal;
 	}
 
 	if (max_size) {
@@ -393,7 +386,6 @@ static void amdgpu_dm_fbc_init(struct amdgpu_device *adev)
 
 	}
 
-	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 }
 #endif
 
@@ -571,9 +563,6 @@ static int dm_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-#if defined(CONFIG_DRM_AMD_DC_FBC)
-	amdgpu_dm_fbc_init(adev);
-#endif
 	return detect_mst_link_for_all_connectors(adev->ddev);
 }
 
@@ -3380,9 +3369,12 @@ static int amdgpu_dm_connector_get_modes(struct drm_connector *connector)
 	struct edid *edid = amdgpu_dm_connector->edid;
 
 	encoder = helper->best_encoder(connector);
-
 	amdgpu_dm_connector_ddc_get_modes(connector, edid);
 	amdgpu_dm_connector_add_common_modes(encoder, connector);
+
+#if defined(CONFIG_DRM_AMD_DC_FBC)
+	amdgpu_dm_fbc_init(connector);
+#endif
 	return amdgpu_dm_connector->num_modes;
 }
 
