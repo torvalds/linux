@@ -1405,13 +1405,23 @@ void aac_src_access_devreg(struct aac_dev *dev, int mode)
 
 static int aac_src_get_sync_status(struct aac_dev *dev)
 {
+	int msix_val = 0;
+	int legacy_val = 0;
 
-	int val;
+	msix_val = src_readl(dev, MUnit.ODR_MSI) & SRC_MSI_READ_MASK ? 1 : 0;
 
-	if (dev->msi_enabled)
-		val = src_readl(dev, MUnit.ODR_MSI) & 0x1000 ? 1 : 0;
-	else
-		val = src_readl(dev, MUnit.ODR_R) >> SRC_ODR_SHIFT;
+	if (!dev->msi_enabled) {
+		/*
+		 * if Legacy int status indicates cmd is not complete
+		 * sample MSIx register to see if it indiactes cmd complete,
+		 * if yes set the controller in MSIx mode and consider cmd
+		 * completed
+		 */
+		legacy_val = src_readl(dev, MUnit.ODR_R) >> SRC_ODR_SHIFT;
+		if (!(legacy_val & 1) && msix_val)
+			dev->msi_enabled = 1;
+		return legacy_val;
+	}
 
-	return val;
+	return msix_val;
 }
