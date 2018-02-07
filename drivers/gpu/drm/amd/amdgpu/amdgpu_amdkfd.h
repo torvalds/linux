@@ -66,6 +66,8 @@ void amdgpu_amdkfd_device_fini(struct amdgpu_device *adev);
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_7_get_functions(void);
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void);
 
+bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid);
+
 /* Shared API */
 int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 			void **mem_obj, uint64_t *gpu_addr,
