@@ -45,7 +45,7 @@ hostprogs-y += xdp_rxq_info
 hostprogs-y += syscall_tp
 
 # Libbpf dependencies
-LIBBPF := ../../tools/lib/bpf/bpf.o
+LIBBPF := ../../tools/lib/bpf/bpf.o ../../tools/lib/bpf/nlattr.o
 CGROUP_HELPERS := ../../tools/testing/selftests/bpf/cgroup_helpers.o
 
 test_lru_dist-objs := test_lru_dist.o $(LIBBPF)

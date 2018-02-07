@@ -505,6 +505,7 @@ static int ip6erspan_rcv(struct sk_buff *skb, int gre_hdr_len,
 	struct erspan_base_hdr *ershdr;
 	struct erspan_metadata *pkt_md;
 	const struct ipv6hdr *ipv6h;
+	struct erspan_md2 *md2;
 	struct ip6_tnl *tunnel;
 	u8 ver;
 
@@ -551,24 +552,16 @@ static int ip6erspan_rcv(struct sk_buff *skb, int gre_hdr_len,
 
 			info = &tun_dst->u.tun_info;
 			md = ip_tunnel_info_opts(info);
-
-			memcpy(md, pkt_md, sizeof(*md));
 			md->version = ver;
+			md2 = &md->u.md2;
+			memcpy(md2, pkt_md, ver == 1 ? ERSPAN_V1_MDSIZE :
+						       ERSPAN_V2_MDSIZE);
 			info->key.tun_flags |= TUNNEL_ERSPAN_OPT;
 			info->options_len = sizeof(*md);
 
 			ip6_tnl_rcv(tunnel, skb, tpi, tun_dst, log_ecn_error);
 
 		} else {
-			tunnel->parms.erspan_ver = ver;
-
-			if (ver == 1) {
-				tunnel->parms.index = ntohl(pkt_md->u.index);
-			} else {
-				tunnel->parms.dir = pkt_md->u.md2.dir;
-				tunnel->parms.hwid = get_hwid(&pkt_md->u.md2);
-			}
-
 			ip6_tnl_rcv(tunnel, skb, tpi, NULL, log_ecn_error);
 		}
 
