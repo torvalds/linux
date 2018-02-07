@@ -181,6 +181,7 @@ struct tun_file {
 	struct tun_struct *detached;
 	struct ptr_ring tx_ring;
 	struct xdp_rxq_info xdp_rxq;
+	int xdp_pending_pkts;
 };
 
 struct tun_flow_entry {
@@ -1665,6 +1666,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 		case XDP_REDIRECT:
 			get_page(alloc_frag->page);
 			alloc_frag->offset += buflen;
+			++tfile->xdp_pending_pkts;
 			err = xdp_do_redirect(tun->dev, &xdp, xdp_prog);
 			if (err)
 				goto err_redirect;
@@ -1985,6 +1987,11 @@ static ssize_t tun_chr_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	result = tun_get_user(tun, tfile, NULL, from,
 			      file->f_flags & O_NONBLOCK, false);
+
+	if (tfile->xdp_pending_pkts) {
+		tfile->xdp_pending_pkts = 0;
+		xdp_do_flush_map();
+	}
 
 	tun_put(tun);
 	return result;
@@ -2322,6 +2329,13 @@ static int tun_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len)
 	ret = tun_get_user(tun, tfile, m->msg_control, &m->msg_iter,
 			   m->msg_flags & MSG_DONTWAIT,
 			   m->msg_flags & MSG_MORE);
+
+	if (tfile->xdp_pending_pkts >= NAPI_POLL_WEIGHT ||
+	    !(m->msg_flags & MSG_MORE)) {
+		tfile->xdp_pending_pkts = 0;
+		xdp_do_flush_map();
+	}
+
 	tun_put(tun);
 	return ret;
 }
@@ -3153,6 +3167,7 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 	sock_set_flag(&tfile->sk, SOCK_ZEROCOPY);
 
 	memset(&tfile->tx_ring, 0, sizeof(tfile->tx_ring));
+	tfile->xdp_pending_pkts = 0;
 
 	return 0;
 }
