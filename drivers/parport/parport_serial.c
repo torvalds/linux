@@ -17,14 +17,14 @@
  *
  */
 
-#include <linux/types.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/parport.h>
 #include <linux/parport_pc.h>
+#include <linux/pci.h>
+#include <linux/slab.h>
+#include <linux/types.h>
+
 #include <linux/8250_pci.h>
 
 enum parport_pc_pci_cards {
