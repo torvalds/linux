@@ -1906,8 +1906,14 @@ static const struct stm32_cryp_caps f7_data = {
 	.padding_wa = true,
 };
 
+static const struct stm32_cryp_caps mp1_data = {
+	.swap_final = false,
+	.padding_wa = false,
+};
+
 static const struct of_device_id stm32_dt_ids[] = {
 	{ .compatible = "st,stm32f756-cryp", .data = &f7_data},
+	{ .compatible = "st,stm32mp1-cryp", .data = &mp1_data},
 	{},
 };
 MODULE_DEVICE_TABLE(of, stm32_dt_ids);
