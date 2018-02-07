@@ -475,7 +475,7 @@
 		irq-gpio = <&gpio0 RK_PB5 IRQ_TYPE_LEVEL_LOW>;
 		irq_enable = <0>;
 		poll_delay_ms = <30>;
-		layout = <6>;
+		layout = <7>;
 		reprobe_en = <1>;
 	};
 };
