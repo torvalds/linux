@@ -3,7 +3,6 @@
 
 #ifdef __MINGW32__
 #define RODATA_SECTION .rdata
-#define RO_AFTER_INIT_DATA
 #endif
 
 #include <asm-generic/vmlinux.lds.h>
