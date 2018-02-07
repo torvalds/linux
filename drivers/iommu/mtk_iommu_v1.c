@@ -103,6 +103,9 @@ struct mtk_iommu_domain {
 	struct mtk_iommu_data		*data;
 };
 
+/* There is only a iommu domain in M4U gen1. */
+static struct mtk_iommu_domain *mtk_domain_v1;
+
 static struct mtk_iommu_domain *to_mtk_domain(struct iommu_domain *dom)
 {
 	return container_of(dom, struct mtk_iommu_domain, domain);
@@ -251,10 +254,15 @@ static struct iommu_domain *mtk_iommu_domain_alloc(unsigned type)
 	if (type != IOMMU_DOMAIN_UNMANAGED)
 		return NULL;
 
+	/* Always return the same domain. */
+	if (mtk_domain_v1)
+		return &mtk_domain_v1->domain;
+
 	dom = kzalloc(sizeof(*dom), GFP_KERNEL);
 	if (!dom)
 		return NULL;
 
+	mtk_domain_v1 = dom;
 	return &dom->domain;
 }
 
@@ -263,6 +271,7 @@ static void mtk_iommu_domain_free(struct iommu_domain *domain)
 	struct mtk_iommu_domain *dom = to_mtk_domain(domain);
 	struct mtk_iommu_data *data = dom->data;
 
+	mtk_domain_v1 = NULL;
 	dma_free_coherent(data->dev, M2701_IOMMU_PGT_SIZE,
 			dom->pgt_va, dom->pgt_pa);
 	kfree(to_mtk_domain(domain));
@@ -418,20 +427,12 @@ static int mtk_iommu_create_mapping(struct device *dev,
 		m4udev->archdata.iommu = mtk_mapping;
 	}
 
-	ret = arm_iommu_attach_device(dev, mtk_mapping);
-	if (ret)
-		goto err_release_mapping;
-
 	return 0;
-
-err_release_mapping:
-	arm_iommu_release_mapping(mtk_mapping);
-	m4udev->archdata.iommu = NULL;
-	return ret;
 }
 
 static int mtk_iommu_add_device(struct device *dev)
 {
+	struct dma_iommu_mapping *mtk_mapping;
 	struct of_phandle_args iommu_spec;
 	struct of_phandle_iterator it;
 	struct mtk_iommu_data *data;
@@ -460,7 +461,9 @@ static int mtk_iommu_add_device(struct device *dev)
 		return PTR_ERR(group);
 
 	iommu_group_put(group);
-	return 0;
+
+	mtk_mapping = data->dev->archdata.iommu;
+	return arm_iommu_attach_device(dev, mtk_mapping);
 }
 
 static void mtk_iommu_remove_device(struct device *dev)
@@ -479,20 +482,13 @@ static void mtk_iommu_remove_device(struct device *dev)
 
 static struct iommu_group *mtk_iommu_device_group(struct device *dev)
 {
-	struct mtk_iommu_data *data = dev->iommu_fwspec->iommu_priv;
+	struct iommu_group *group;
 
-	if (!data)
-		return ERR_PTR(-ENODEV);
+	group = iommu_group_get(dev);
+	if (!group)
+		group = generic_device_group(dev);
 
-	/* All the client devices are in the same m4u iommu-group */
-	if (!data->m4u_group) {
-		data->m4u_group = iommu_group_alloc();
-		if (IS_ERR(data->m4u_group))
-			dev_err(dev, "Failed to allocate M4U IOMMU group\n");
-	} else {
-		iommu_group_ref_get(data->m4u_group);
-	}
-	return data->m4u_group;
+	return group;
 }
 
 static int mtk_iommu_hw_init(const struct mtk_iommu_data *data)
