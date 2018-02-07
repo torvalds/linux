@@ -335,7 +335,11 @@ enum kfd_queue_format {
  * @is_interop: Defines if this is a interop queue. Interop queue means that
  * the queue can access both graphics and compute resources.
  *
- * @is_active: Defines if the queue is active or not.
+ * @is_evicted: Defines if the queue is evicted. Only active queues
+ * are evicted, rendering them inactive.
+ *
+ * @is_active: Defines if the queue is active or not. @is_active and
+ * @is_evicted are protected by the DQM lock.
  *
  * @vmid: If the scheduling mode is no cp scheduling the field defines the vmid
  * of the queue.
@@ -357,6 +361,7 @@ struct queue_properties {
 	uint32_t __iomem *doorbell_ptr;
 	uint32_t doorbell_off;
 	bool is_interop;
+	bool is_evicted;
 	bool is_active;
 	/* Not relevant for user mode queues in cp scheduling */
 	unsigned int vmid;
@@ -460,6 +465,7 @@ struct qcm_process_device {
 	unsigned int queue_count;
 	unsigned int vmid;
 	bool is_debug;
+	unsigned int evicted; /* eviction counter, 0=active */
 
 	/* This flag tells if we should reset all wavefronts on
 	 * process termination
@@ -486,6 +492,17 @@ struct qcm_process_device {
 	uint64_t tma_addr;
 };
 
+/* KFD Memory Eviction */
+
+/* Approx. wait time before attempting to restore evicted BOs */
+#define PROCESS_RESTORE_TIME_MS 100
+/* Approx. back off time if restore fails due to lack of memory */
+#define PROCESS_BACK_OFF_TIME_MS 100
+/* Approx. time before evicting the process again */
+#define PROCESS_ACTIVE_TIME_MS 10
+
+int kgd2kfd_schedule_evict_and_restore_process(struct mm_struct *mm,
+					       struct dma_fence *fence);
 
 enum kfd_pdd_bound {
 	PDD_UNBOUND = 0,
@@ -600,6 +617,16 @@ struct kfd_process {
 	 * during restore
 	 */
 	struct dma_fence *ef;
+
+	/* Work items for evicting and restoring BOs */
+	struct delayed_work eviction_work;
+	struct delayed_work restore_work;
+	/* seqno of the last scheduled eviction */
+	unsigned int last_eviction_seqno;
+	/* Approx. the last timestamp (in jiffies) when the process was
+	 * restored after an eviction
+	 */
+	unsigned long last_restore_timestamp;
 };
 
 #define KFD_PROCESS_TABLE_SIZE 5 /* bits: 32 entries */
@@ -629,7 +656,10 @@ void kfd_process_destroy_wq(void);
 struct kfd_process *kfd_create_process(struct file *filep);
 struct kfd_process *kfd_get_process(const struct task_struct *);
 struct kfd_process *kfd_lookup_process_by_pasid(unsigned int pasid);
+struct kfd_process *kfd_lookup_process_by_mm(const struct mm_struct *mm);
 void kfd_unref_process(struct kfd_process *p);
+void kfd_suspend_all_processes(void);
+int kfd_resume_all_processes(void);
 
 struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
 						struct kfd_process *p);

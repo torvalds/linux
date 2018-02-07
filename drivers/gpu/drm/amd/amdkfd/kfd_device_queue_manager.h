@@ -79,6 +79,10 @@ struct device_process_node {
  *
  * @process_termination: Clears all process queues belongs to that device.
  *
+ * @evict_process_queues: Evict all active queues of a process
+ *
+ * @restore_process_queues: Restore all evicted queues queues of a process
+ *
  */
 
 struct device_queue_manager_ops {
@@ -129,6 +133,11 @@ struct device_queue_manager_ops {
 
 	int (*process_termination)(struct device_queue_manager *dqm,
 			struct qcm_process_device *qpd);
+
+	int (*evict_process_queues)(struct device_queue_manager *dqm,
+				    struct qcm_process_device *qpd);
+	int (*restore_process_queues)(struct device_queue_manager *dqm,
+				      struct qcm_process_device *qpd);
 };
 
 struct device_queue_manager_asic_ops {

@@ -33,6 +33,7 @@
 #include "kfd_iommu.h"
 
 #define MQD_SIZE_ALIGNED 768
+static atomic_t kfd_device_suspended = ATOMIC_INIT(0);
 
 #ifdef KFD_SUPPORT_IOMMU_V2
 static const struct kfd_device_info kaveri_device_info = {
@@ -469,6 +470,10 @@ void kgd2kfd_suspend(struct kfd_dev *kfd)
 	if (!kfd->init_complete)
 		return;
 
+	/* For first KFD device suspend all the KFD processes */
+	if (atomic_inc_return(&kfd_device_suspended) == 1)
+		kfd_suspend_all_processes();
+
 	kfd->dqm->ops.stop(kfd->dqm);
 
 	kfd_iommu_suspend(kfd);
@@ -476,11 +481,21 @@ void kgd2kfd_suspend(struct kfd_dev *kfd)
 
 int kgd2kfd_resume(struct kfd_dev *kfd)
 {
+	int ret, count;
+
 	if (!kfd->init_complete)
 		return 0;
 
-	return kfd_resume(kfd);
+	ret = kfd_resume(kfd);
+	if (ret)
+		return ret;
 
+	count = atomic_dec_return(&kfd_device_suspended);
+	WARN_ONCE(count < 0, "KFD suspend / resume ref. error");
+	if (count == 0)
+		ret = kfd_resume_all_processes();
+
+	return ret;
 }
 
 static int kfd_resume(struct kfd_dev *kfd)
@@ -524,6 +539,54 @@ void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 		queue_work(kfd->ih_wq, &kfd->interrupt_work);
 
 	spin_unlock(&kfd->interrupt_lock);
+}
+
+/** kgd2kfd_schedule_evict_and_restore_process - Schedules work queue that will
+ *   prepare for safe eviction of KFD BOs that belong to the specified
+ *   process.
+ *
+ * @mm: mm_struct that identifies the specified KFD process
+ * @fence: eviction fence attached to KFD process BOs
+ *
+ */
+int kgd2kfd_schedule_evict_and_restore_process(struct mm_struct *mm,
+					       struct dma_fence *fence)
+{
+	struct kfd_process *p;
+	unsigned long active_time;
+	unsigned long delay_jiffies = msecs_to_jiffies(PROCESS_ACTIVE_TIME_MS);
+
+	if (!fence)
+		return -EINVAL;
+
+	if (dma_fence_is_signaled(fence))
+		return 0;
+
+	p = kfd_lookup_process_by_mm(mm);
+	if (!p)
+		return -ENODEV;
+
+	if (fence->seqno == p->last_eviction_seqno)
+		goto out;
+
+	p->last_eviction_seqno = fence->seqno;
+
+	/* Avoid KFD process starvation. Wait for at least
+	 * PROCESS_ACTIVE_TIME_MS before evicting the process again
+	 */
+	active_time = get_jiffies_64() - p->last_restore_timestamp;
+	if (delay_jiffies > active_time)
+		delay_jiffies -= active_time;
+	else
+		delay_jiffies = 0;
+
+	/* During process initialization eviction_work.dwork is initialized
+	 * to kfd_evict_bo_worker
+	 */
+	schedule_delayed_work(&p->eviction_work, delay_jiffies);
+out:
+	kfd_unref_process(p);
+	return 0;
 }
 
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
