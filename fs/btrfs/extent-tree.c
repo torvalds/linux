@@ -4994,7 +4994,7 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 			ret = PTR_ERR(trans);
 			break;
 		}
-		ret = btrfs_run_delayed_items_nr(trans, fs_info, nr);
+		ret = btrfs_run_delayed_items_nr(trans, nr);
 		btrfs_end_transaction(trans);
 		break;
 	case FLUSH_DELALLOC:

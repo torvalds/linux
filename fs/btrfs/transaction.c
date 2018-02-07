@@ -1530,7 +1530,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	 * otherwise we corrupt the FS during
 	 * snapshot
 	 */
-	ret = btrfs_run_delayed_items(trans, fs_info);
+	ret = btrfs_run_delayed_items(trans);
 	if (ret) {	/* Transaction aborted */
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
@@ -2067,7 +2067,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	if (ret)
 		goto cleanup_transaction;
 
-	ret = btrfs_run_delayed_items(trans, fs_info);
+	ret = btrfs_run_delayed_items(trans);
 	if (ret)
 		goto cleanup_transaction;
 
@@ -2075,7 +2075,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 		   extwriter_counter_read(cur_trans) == 0);
 
 	/* some pending stuffs might be added after the previous flush. */
-	ret = btrfs_run_delayed_items(trans, fs_info);
+	ret = btrfs_run_delayed_items(trans);
 	if (ret)
 		goto cleanup_transaction;
 
@@ -2128,7 +2128,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	 * because all the tree which are snapshoted will be forced to COW
 	 * the nodes and leaves.
 	 */
-	ret = btrfs_run_delayed_items(trans, fs_info);
+	ret = btrfs_run_delayed_items(trans);
 	if (ret) {
 		mutex_unlock(&fs_info->reloc_mutex);
 		goto scrub_continue;

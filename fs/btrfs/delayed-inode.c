@@ -1162,14 +1162,12 @@ static int __btrfs_run_delayed_items(struct btrfs_trans_handle *trans, int nr)
 	return ret;
 }
 
-int btrfs_run_delayed_items(struct btrfs_trans_handle *trans,
-			    struct btrfs_fs_info *fs_info)
+int btrfs_run_delayed_items(struct btrfs_trans_handle *trans)
 {
 	return __btrfs_run_delayed_items(trans, -1);
 }
 
-int btrfs_run_delayed_items_nr(struct btrfs_trans_handle *trans,
-			       struct btrfs_fs_info *fs_info, int nr)
+int btrfs_run_delayed_items_nr(struct btrfs_trans_handle *trans, int nr)
 {
 	return __btrfs_run_delayed_items(trans, nr);
 }
