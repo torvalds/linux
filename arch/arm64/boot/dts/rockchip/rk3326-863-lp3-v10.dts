@@ -105,6 +105,7 @@
 		compatible = "wlan-platdata";
 		wifi_chip_type = "rtl8723cs";
 		WIFI,host_wake_irq = <&gpio0 RK_PB2 GPIO_ACTIVE_HIGH>;
+		WIFI,vbat_gpio = <&gpio3 RK_PB6 GPIO_ACTIVE_LOW>;
 		status = "okay";
 	};
 
