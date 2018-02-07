@@ -2208,9 +2208,9 @@ static int rk_camera_get_formats(struct soc_camera_device *icd, unsigned int idx
 		return 0;
 	}
 
-    ret = rk_camera_try_bus_param(icd, fmt->bits_per_sample);
-    if (ret < 0)
-        return 0;
+	ret = rk_camera_try_bus_param(icd, fmt->bits_per_sample);
+	if (ret < 0)
+		return 0;
 
 	switch (code) {
 		case MEDIA_BUS_FMT_UYVY8_2X8:
