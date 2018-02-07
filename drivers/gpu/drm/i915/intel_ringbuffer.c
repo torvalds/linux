@@ -453,13 +453,13 @@ static int init_ring_common(struct intel_engine_cs *engine)
 
 	if (!stop_ring(engine)) {
 		/* G45 ring initialization often fails to reset head to zero */
-		DRM_DEBUG_KMS("%s head not reset to zero "
-			      "ctl %08x head %08x tail %08x start %08x\n",
-			      engine->name,
-			      I915_READ_CTL(engine),
-			      I915_READ_HEAD(engine),
-			      I915_READ_TAIL(engine),
-			      I915_READ_START(engine));
+		DRM_DEBUG_DRIVER("%s head not reset to zero "
+				"ctl %08x head %08x tail %08x start %08x\n",
+				engine->name,
+				I915_READ_CTL(engine),
+				I915_READ_HEAD(engine),
+				I915_READ_TAIL(engine),
+				I915_READ_START(engine));
 
 		if (!stop_ring(engine)) {
 			DRM_ERROR("failed to set %s head to zero "
@@ -492,8 +492,8 @@ static int init_ring_common(struct intel_engine_cs *engine)
 
 	/* WaClearRingBufHeadRegAtInit:ctg,elk */
 	if (I915_READ_HEAD(engine))
-		DRM_DEBUG("%s initialization failed [head=%08x], fudging\n",
-			  engine->name, I915_READ_HEAD(engine));
+		DRM_DEBUG_DRIVER("%s initialization failed [head=%08x], fudging\n",
+				 engine->name, I915_READ_HEAD(engine));
 
 	intel_ring_update_space(ring);
 	I915_WRITE_HEAD(engine, ring->head);

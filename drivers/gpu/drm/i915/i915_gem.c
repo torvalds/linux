@@ -5065,8 +5065,11 @@ static int __i915_gem_restart_engines(void *data)
 
 	for_each_engine(engine, i915, id) {
 		err = engine->init_hw(engine);
-		if (err)
+		if (err) {
+			DRM_ERROR("Failed to restart %s (%d)\n",
+				  engine->name, err);
 			return err;
+		}
 	}
 
 	return 0;
@@ -5118,14 +5121,16 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 
 	ret = i915_ppgtt_init_hw(dev_priv);
 	if (ret) {
-		DRM_ERROR("PPGTT enable HW failed %d\n", ret);
+		DRM_ERROR("Enabling PPGTT failed (%d)\n", ret);
 		goto out;
 	}
 
 	/* We can't enable contexts until all firmware is loaded */
 	ret = intel_uc_init_hw(dev_priv);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("Enabling uc failed (%d)\n", ret);
 		goto out;
+	}
 
 	intel_mocs_init_l3cc_table(dev_priv);
 
