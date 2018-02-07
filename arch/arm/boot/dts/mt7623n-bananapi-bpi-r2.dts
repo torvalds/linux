@@ -96,6 +96,13 @@
 	memory@80000000 {
 		reg = <0 0x80000000 0 0x40000000>;
 	};
+
+	vdd_fixed_vgpu_reg: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_fixed_vgpu";
+		regulator-min-microvolt = <1150000>;
+		regulator-max-microvolt = <1150000>;
+	};
 };
 
 &cir {
@@ -183,6 +190,14 @@
 	};
 };
 
+&hdmi0 {
+	status = "okay";
+};
+
+&hdmi_phy {
+	status = "okay";
+};
+
 &i2c0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_pins_a>;
@@ -192,6 +207,11 @@
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins_a>;
+	status = "okay";
+};
+
+&mali {
+	vdd_g3d-supply = <&vdd_fixed_vgpu_reg>;
 	status = "okay";
 };
 
@@ -475,6 +495,18 @@
 				<MT7623_PIN_71_WB_CRTL5_FUNC_WB_CRTL5>;
 			bias-disable;
 		};
+	};
+
+	mipi_dsi_pin: mipi_dsi_pin {
+                pins_cmd_dat {
+                      pinmux = <MT7623_PIN_100_MIPI_TDP0_FUNC_TDP0>,
+                               <MT7623_PIN_99_MIPI_TDN0_FUNC_TDN0>,
+                               <MT7623_PIN_98_MIPI_TDP1_FUNC_TDP1>,
+                               <MT7623_PIN_97_MIPI_TDN1_FUNC_TDN1>,
+                               <MT7623_PIN_96_MIPI_TCP_FUNC_TCP>,
+                               <MT7623_PIN_95_MIPI_TCN_FUNC_TCN>;
+               };
+
 	};
 };
 
@@ -792,3 +824,8 @@
 	status = "okay";
 };
 
+&mipi_tx0 {
+        pinctrl-names = "default";
+        pinctrl-0 = <&mipi_dsi_pin>;
+        status = "okay";
+};
