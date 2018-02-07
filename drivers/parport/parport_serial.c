@@ -571,10 +571,9 @@ static int parport_register(struct pci_dev *dev, const struct pci_device_id *id)
 		int irq;
 
 		if (priv->num_par == ARRAY_SIZE (priv->port)) {
-			printk (KERN_WARNING
-				"parport_serial: %s: only %zu parallel ports "
-				"supported (%d reported)\n", pci_name (dev),
-				ARRAY_SIZE(priv->port), card->numports);
+			dev_warn(&dev->dev,
+				 "only %zu parallel ports supported (%d reported)\n",
+				 ARRAY_SIZE(priv->port), card->numports);
 			break;
 		}
 
@@ -590,12 +589,12 @@ static int parport_register(struct pci_dev *dev, const struct pci_device_id *id)
 		irq = dev->irq;
 		if (irq == IRQ_NONE) {
 			dev_dbg(&dev->dev,
-			"PCI parallel port detected: I/O at %#lx(%#lx)\n",
+				"PCI parallel port detected: I/O at %#lx(%#lx)\n",
 				io_lo, io_hi);
 			irq = PARPORT_IRQ_NONE;
 		} else {
 			dev_dbg(&dev->dev,
-		"PCI parallel port detected: I/O at %#lx(%#lx), IRQ %d\n",
+				"PCI parallel port detected: I/O at %#lx(%#lx), IRQ %d\n",
 				io_lo, io_hi, irq);
 		}
 		port = parport_pc_probe_port (io_lo, io_hi, irq,
