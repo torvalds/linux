@@ -294,7 +294,7 @@ ext2_readdir(struct file *file, struct dir_context *ctx)
 	unsigned long npages = dir_pages(inode);
 	unsigned chunk_mask = ~(ext2_chunk_size(inode)-1);
 	unsigned char *types = NULL;
-	bool need_revalidate = inode_cmp_iversion(inode, file->f_version);
+	bool need_revalidate = !inode_eq_iversion(inode, file->f_version);
 
 	if (pos > inode->i_size - EXT2_DIR_REC_LEN(1))
 		return 0;
