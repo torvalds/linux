@@ -2291,6 +2291,28 @@ void intel_gvt_clean_gtt(struct intel_gvt *gvt)
 }
 
 /**
+ * intel_vgpu_invalidate_ppgtt - invalidate PPGTT instances
+ * @vgpu: a vGPU
+ *
+ * This function is called when invalidate all PPGTT instances of a vGPU.
+ *
+ */
+void intel_vgpu_invalidate_ppgtt(struct intel_vgpu *vgpu)
+{
+	struct list_head *pos, *n;
+	struct intel_vgpu_mm *mm;
+
+	list_for_each_safe(pos, n, &vgpu->gtt.ppgtt_mm_list_head) {
+		mm = container_of(pos, struct intel_vgpu_mm, ppgtt_mm.list);
+		if (mm->type == INTEL_GVT_MM_PPGTT) {
+			list_del_init(&mm->ppgtt_mm.lru_list);
+			if (mm->ppgtt_mm.shadowed)
+				invalidate_ppgtt_mm(mm);
+		}
+	}
+}
+
+/**
  * intel_vgpu_reset_ggtt - reset the GGTT entry
  * @vgpu: a vGPU
  *
