@@ -620,27 +620,23 @@ static int parport_serial_pci_probe(struct pci_dev *dev,
 	struct parport_serial_private *priv;
 	int err;
 
-	priv = kzalloc (sizeof *priv, GFP_KERNEL);
+	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
 	pci_set_drvdata (dev, priv);
 
-	err = pci_enable_device (dev);
-	if (err) {
-		kfree (priv);
+	err = pcim_enable_device(dev);
+	if (err)
 		return err;
-	}
 
-	if (parport_register (dev, id)) {
-		kfree (priv);
+	if (parport_register(dev, id))
 		return -ENODEV;
-	}
 
 	if (serial_register (dev, id)) {
 		int i;
 		for (i = 0; i < priv->num_par; i++)
 			parport_pc_unregister_port (priv->port[i]);
-		kfree (priv);
 		return -ENODEV;
 	}
 
@@ -660,7 +656,6 @@ static void parport_serial_pci_remove(struct pci_dev *dev)
 	for (i = 0; i < priv->num_par; i++)
 		parport_pc_unregister_port (priv->port[i]);
 
-	kfree (priv);
 	return;
 }
 
