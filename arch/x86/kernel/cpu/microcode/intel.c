@@ -39,6 +39,9 @@
 #include <asm/setup.h>
 #include <asm/msr.h>
 
+/* last level cache size per core */
+static int llc_size_per_core;
+
 static unsigned long mc_saved_in_initrd[MAX_UCODE_COUNT];
 static struct mc_saved_data {
 	unsigned int mc_saved_count;
@@ -996,15 +999,18 @@ static bool is_blacklisted(unsigned int cpu)
 
 	/*
 	 * Late loading on model 79 with microcode revision less than 0x0b000021
-	 * may result in a system hang. This behavior is documented in item
-	 * BDF90, #334165 (Intel Xeon Processor E7-8800/4800 v4 Product Family).
+	 * and LLC size per core bigger than 2.5MB may result in a system hang.
+	 * This behavior is documented in item BDF90, #334165 (Intel Xeon
+	 * Processor E7-8800/4800 v4 Product Family).
 	 */
 	if (c->x86 == 6 &&
 	    c->x86_model == 79 &&
 	    c->x86_mask == 0x01 &&
+	    llc_size_per_core > 2621440 &&
 	    c->microcode < 0x0b000021) {
 		pr_err_once("Erratum BDF90: late loading with revision < 0x0b000021 (0x%x) disabled.\n", c->microcode);
 		pr_err_once("Please consider either early loading through initrd/built-in or a potential BIOS update.\n");
+		return true;
 	}
 
 	return false;
@@ -1067,6 +1073,15 @@ static struct microcode_ops microcode_intel_ops = {
 	.microcode_fini_cpu               = microcode_fini_cpu,
 };
 
+static int __init calc_llc_size_per_core(struct cpuinfo_x86 *c)
+{
+	u64 llc_size = c->x86_cache_size * 1024;
+
+	do_div(llc_size, c->x86_max_cores);
+
+	return (int)llc_size;
+}
+
 struct microcode_ops * __init init_intel_microcode(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
@@ -1076,6 +1091,8 @@ struct microcode_ops * __init init_intel_microcode(void)
 		pr_err("Intel CPU family 0x%x not supported\n", c->x86);
 		return NULL;
 	}
+
+	llc_size_per_core = calc_llc_size_per_core(c);
 
 	return &microcode_intel_ops;
 }

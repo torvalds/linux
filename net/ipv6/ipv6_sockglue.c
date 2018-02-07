@@ -1313,7 +1313,7 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case IPV6_AUTOFLOWLABEL:
-		val = np->autoflowlabel;
+		val = ip6_autoflowlabel(sock_net(sk), np);
 		break;
 
 	default:

@@ -338,7 +338,7 @@ static __be32 igmpv3_get_srcaddr(struct net_device *dev,
 		return htonl(INADDR_ANY);
 
 	for_ifa(in_dev) {
-		if (inet_ifa_match(fl4->saddr, ifa))
+		if (fl4->saddr == ifa->ifa_local)
 			return fl4->saddr;
 	} endfor_ifa(in_dev);
 

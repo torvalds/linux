@@ -46,6 +46,7 @@ static enum { EMULATE, NATIVE, NONE } vsyscall_mode =
 #else
 	EMULATE;
 #endif
+unsigned long vsyscall_pgprot = __PAGE_KERNEL_VSYSCALL;
 
 static int __init vsyscall_setup(char *str)
 {
@@ -336,11 +337,11 @@ void __init map_vsyscall(void)
 	extern char __vsyscall_page;
 	unsigned long physaddr_vsyscall = __pa_symbol(&__vsyscall_page);
 
+	if (vsyscall_mode != NATIVE)
+		vsyscall_pgprot = __PAGE_KERNEL_VVAR;
 	if (vsyscall_mode != NONE)
 		__set_fixmap(VSYSCALL_PAGE, physaddr_vsyscall,
-			     vsyscall_mode == NATIVE
-			     ? PAGE_KERNEL_VSYSCALL
-			     : PAGE_KERNEL_VVAR);
+			     __pgprot(vsyscall_pgprot));
 
 	BUILD_BUG_ON((unsigned long)__fix_to_virt(VSYSCALL_PAGE) !=
 		     (unsigned long)VSYSCALL_ADDR);

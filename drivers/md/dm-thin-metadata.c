@@ -81,10 +81,14 @@
 #define SECTOR_TO_BLOCK_SHIFT 3
 
 /*
+ * For btree insert:
  *  3 for btree insert +
  *  2 for btree lookup used within space map
+ * For btree remove:
+ *  2 for shadow spine +
+ *  4 for rebalance 3 child node
  */
-#define THIN_MAX_CONCURRENT_LOCKS 5
+#define THIN_MAX_CONCURRENT_LOCKS 6
 
 /* This should be plenty */
 #define SPACE_MAP_ROOT_SIZE 128

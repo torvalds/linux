@@ -539,6 +539,13 @@ static int delete_from_lru_cache(struct page *p)
 		 */
 		ClearPageActive(p);
 		ClearPageUnevictable(p);
+
+		/*
+		 * Poisoned page might never drop its ref count to 0 so we have
+		 * to uncharge it manually from its memcg.
+		 */
+		mem_cgroup_uncharge(p);
+
 		/*
 		 * drop the page count elevated by isolate_lru_page()
 		 */

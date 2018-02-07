@@ -4143,6 +4143,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=121671
 	 */
 	{ "LITEON CX1-JB*-HP",	NULL,		ATA_HORKAGE_MAX_SEC_1024 },
+	{ "LITEON EP1-*",	NULL,		ATA_HORKAGE_MAX_SEC_1024 },
 
 	/* Devices we expect to fail diagnostics */
 

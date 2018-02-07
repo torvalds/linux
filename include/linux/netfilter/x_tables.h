@@ -243,6 +243,10 @@ int xt_check_entry_offsets(const void *base, const char *elems,
 			   unsigned int target_offset,
 			   unsigned int next_offset);
 
+unsigned int *xt_alloc_entry_offsets(unsigned int size);
+bool xt_find_jump_offset(const unsigned int *offsets,
+			 unsigned int target, unsigned int size);
+
 int xt_check_match(struct xt_mtchk_param *, unsigned int size, u_int8_t proto,
 		   bool inv_proto);
 int xt_check_target(struct xt_tgchk_param *, unsigned int size, u_int8_t proto,
@@ -377,16 +381,16 @@ static inline unsigned long ifname_compare_aligned(const char *_a,
  * allows us to return 0 for single core systems without forcing
  * callers to deal with SMP vs. NONSMP issues.
  */
-static inline u64 xt_percpu_counter_alloc(void)
+static inline unsigned long xt_percpu_counter_alloc(void)
 {
 	if (nr_cpu_ids > 1) {
 		void __percpu *res = __alloc_percpu(sizeof(struct xt_counters),
 						    sizeof(struct xt_counters));
 
 		if (res == NULL)
-			return (u64) -ENOMEM;
+			return -ENOMEM;
 
-		return (u64) (__force unsigned long) res;
+		return (__force unsigned long) res;
 	}
 
 	return 0;

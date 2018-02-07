@@ -71,10 +71,11 @@ static void vhci_recv_ret_submit(struct vhci_device *vdev,
 {
 	struct usbip_device *ud = &vdev->ud;
 	struct urb *urb;
+	unsigned long flags;
 
-	spin_lock(&vdev->priv_lock);
+	spin_lock_irqsave(&vdev->priv_lock, flags);
 	urb = pickup_urb_and_free_priv(vdev, pdu->base.seqnum);
-	spin_unlock(&vdev->priv_lock);
+	spin_unlock_irqrestore(&vdev->priv_lock, flags);
 
 	if (!urb) {
 		pr_err("cannot find a urb of seqnum %u max seqnum %d\n",
@@ -103,9 +104,9 @@ static void vhci_recv_ret_submit(struct vhci_device *vdev,
 
 	usbip_dbg_vhci_rx("now giveback urb %u\n", pdu->base.seqnum);
 
-	spin_lock(&the_controller->lock);
+	spin_lock_irqsave(&the_controller->lock, flags);
 	usb_hcd_unlink_urb_from_ep(vhci_to_hcd(the_controller), urb);
-	spin_unlock(&the_controller->lock);
+	spin_unlock_irqrestore(&the_controller->lock, flags);
 
 	usb_hcd_giveback_urb(vhci_to_hcd(the_controller), urb, urb->status);
 
@@ -116,8 +117,9 @@ static struct vhci_unlink *dequeue_pending_unlink(struct vhci_device *vdev,
 						  struct usbip_header *pdu)
 {
 	struct vhci_unlink *unlink, *tmp;
+	unsigned long flags;
 
-	spin_lock(&vdev->priv_lock);
+	spin_lock_irqsave(&vdev->priv_lock, flags);
 
 	list_for_each_entry_safe(unlink, tmp, &vdev->unlink_rx, list) {
 		pr_info("unlink->seqnum %lu\n", unlink->seqnum);
@@ -126,12 +128,12 @@ static struct vhci_unlink *dequeue_pending_unlink(struct vhci_device *vdev,
 					  unlink->seqnum);
 			list_del(&unlink->list);
 
-			spin_unlock(&vdev->priv_lock);
+			spin_unlock_irqrestore(&vdev->priv_lock, flags);
 			return unlink;
 		}
 	}
 
-	spin_unlock(&vdev->priv_lock);
+	spin_unlock_irqrestore(&vdev->priv_lock, flags);
 
 	return NULL;
 }
@@ -141,6 +143,7 @@ static void vhci_recv_ret_unlink(struct vhci_device *vdev,
 {
 	struct vhci_unlink *unlink;
 	struct urb *urb;
+	unsigned long flags;
 
 	usbip_dump_header(pdu);
 
@@ -151,9 +154,9 @@ static void vhci_recv_ret_unlink(struct vhci_device *vdev,
 		return;
 	}
 
-	spin_lock(&vdev->priv_lock);
+	spin_lock_irqsave(&vdev->priv_lock, flags);
 	urb = pickup_urb_and_free_priv(vdev, unlink->unlink_seqnum);
-	spin_unlock(&vdev->priv_lock);
+	spin_unlock_irqrestore(&vdev->priv_lock, flags);
 
 	if (!urb) {
 		/*
@@ -170,9 +173,9 @@ static void vhci_recv_ret_unlink(struct vhci_device *vdev,
 		urb->status = pdu->u.ret_unlink.status;
 		pr_info("urb->status %d\n", urb->status);
 
-		spin_lock(&the_controller->lock);
+		spin_lock_irqsave(&the_controller->lock, flags);
 		usb_hcd_unlink_urb_from_ep(vhci_to_hcd(the_controller), urb);
-		spin_unlock(&the_controller->lock);
+		spin_unlock_irqrestore(&the_controller->lock, flags);
 
 		usb_hcd_giveback_urb(vhci_to_hcd(the_controller), urb,
 				     urb->status);
@@ -184,10 +187,11 @@ static void vhci_recv_ret_unlink(struct vhci_device *vdev,
 static int vhci_priv_tx_empty(struct vhci_device *vdev)
 {
 	int empty = 0;
+	unsigned long flags;
 
-	spin_lock(&vdev->priv_lock);
+	spin_lock_irqsave(&vdev->priv_lock, flags);
 	empty = list_empty(&vdev->priv_rx);
-	spin_unlock(&vdev->priv_lock);
+	spin_unlock_irqrestore(&vdev->priv_lock, flags);
 
 	return empty;
 }
