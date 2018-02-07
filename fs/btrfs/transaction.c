@@ -1161,9 +1161,9 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
  * failures will cause the file system to go offline. We still need
  * to clean up the delayed refs.
  */
-static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
-					 struct btrfs_fs_info *fs_info)
+static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct list_head *dirty_bgs = &trans->transaction->dirty_bgs;
 	struct list_head *io_bgs = &trans->transaction->io_bgs;
 	struct list_head *next;
@@ -1403,7 +1403,7 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	 * like chunk and root tree, as they won't affect qgroup.
 	 * And we don't write super to avoid half committed status.
 	 */
-	ret = commit_cowonly_roots(trans, fs_info);
+	ret = commit_cowonly_roots(trans);
 	if (ret)
 		goto out;
 	switch_commit_roots(trans->transaction, fs_info);
@@ -2203,7 +2203,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 		goto scrub_continue;
 	}
 
-	ret = commit_cowonly_roots(trans, fs_info);
+	ret = commit_cowonly_roots(trans);
 	if (ret) {
 		mutex_unlock(&fs_info->tree_log_mutex);
 		mutex_unlock(&fs_info->reloc_mutex);
