@@ -30,6 +30,7 @@
 
 #include <linux/types.h>
 #include <linux/bitmap.h>
+#include <linux/dma-fence.h>
 
 struct pci_dev;
 
@@ -286,6 +287,9 @@ struct kfd2kgd_calls {
  *
  * @resume: Notifies amdkfd about a resume action done to a kgd device
  *
+ * @schedule_evict_and_restore_process: Schedules work queue that will prepare
+ * for safe eviction of KFD BOs that belong to the specified process.
+ *
  * This structure contains function callback pointers so the kgd driver
  * will notify to the amdkfd about certain status changes.
  *
@@ -300,6 +304,8 @@ struct kgd2kfd_calls {
 	void (*interrupt)(struct kfd_dev *kfd, const void *ih_ring_entry);
 	void (*suspend)(struct kfd_dev *kfd);
 	int (*resume)(struct kfd_dev *kfd);
+	int (*schedule_evict_and_restore_process)(struct mm_struct *mm,
+			struct dma_fence *fence);
 };
 
 int kgd2kfd_init(unsigned interface_version,

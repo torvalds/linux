@@ -46,6 +46,7 @@
 #include "amdgpu.h"
 #include "amdgpu_object.h"
 #include "amdgpu_trace.h"
+#include "amdgpu_amdkfd.h"
 #include "bif/bif_4_1_d.h"
 
 #define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
@@ -1171,6 +1172,23 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 {
 	unsigned long num_pages = bo->mem.num_pages;
 	struct drm_mm_node *node = bo->mem.mm_node;
+	struct reservation_object_list *flist;
+	struct dma_fence *f;
+	int i;
+
+	/* If bo is a KFD BO, check if the bo belongs to the current process.
+	 * If true, then return false as any KFD process needs all its BOs to
+	 * be resident to run successfully
+	 */
+	flist = reservation_object_get_list(bo->resv);
+	if (flist) {
+		for (i = 0; i < flist->shared_count; ++i) {
+			f = rcu_dereference_protected(flist->shared[i],
+				reservation_object_held(bo->resv));
+			if (amdkfd_fence_check_mm(f, current->mm))
+				return false;
+		}
+	}
 
 	switch (bo->mem.mem_type) {
 	case TTM_PL_TT:

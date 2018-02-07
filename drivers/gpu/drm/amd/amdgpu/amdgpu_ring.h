@@ -36,8 +36,9 @@
 #define AMDGPU_MAX_UVD_ENC_RINGS	2
 
 /* some special values for the owner field */
-#define AMDGPU_FENCE_OWNER_UNDEFINED	((void*)0ul)
-#define AMDGPU_FENCE_OWNER_VM		((void*)1ul)
+#define AMDGPU_FENCE_OWNER_UNDEFINED	((void *)0ul)
+#define AMDGPU_FENCE_OWNER_VM		((void *)1ul)
+#define AMDGPU_FENCE_OWNER_KFD		((void *)2ul)
 
 #define AMDGPU_FENCE_FLAG_64BIT         (1 << 0)
 #define AMDGPU_FENCE_FLAG_INT           (1 << 1)
