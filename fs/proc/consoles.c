@@ -55,8 +55,7 @@ static int show_console_dev(struct seq_file *m, void *v)
 	if (dev)
 		seq_printf(m, " %4d:%d", MAJOR(dev), MINOR(dev));
 
-	seq_printf(m, "\n");
-
+	seq_putc(m, '\n');
 	return 0;
 }
 

@@ -616,18 +616,15 @@ static int load_link_ksettings_from_user(struct ethtool_link_ksettings *to,
 		return -EFAULT;
 
 	memcpy(&to->base, &link_usettings.base, sizeof(to->base));
-	bitmap_from_u32array(to->link_modes.supported,
-			     __ETHTOOL_LINK_MODE_MASK_NBITS,
-			     link_usettings.link_modes.supported,
-			     __ETHTOOL_LINK_MODE_MASK_NU32);
-	bitmap_from_u32array(to->link_modes.advertising,
-			     __ETHTOOL_LINK_MODE_MASK_NBITS,
-			     link_usettings.link_modes.advertising,
-			     __ETHTOOL_LINK_MODE_MASK_NU32);
-	bitmap_from_u32array(to->link_modes.lp_advertising,
-			     __ETHTOOL_LINK_MODE_MASK_NBITS,
-			     link_usettings.link_modes.lp_advertising,
-			     __ETHTOOL_LINK_MODE_MASK_NU32);
+	bitmap_from_arr32(to->link_modes.supported,
+			  link_usettings.link_modes.supported,
+			  __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_from_arr32(to->link_modes.advertising,
+			  link_usettings.link_modes.advertising,
+			  __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_from_arr32(to->link_modes.lp_advertising,
+			  link_usettings.link_modes.lp_advertising,
+			  __ETHTOOL_LINK_MODE_MASK_NBITS);
 
 	return 0;
 }
@@ -643,18 +640,15 @@ store_link_ksettings_for_user(void __user *to,
 	struct ethtool_link_usettings link_usettings;
 
 	memcpy(&link_usettings.base, &from->base, sizeof(link_usettings));
-	bitmap_to_u32array(link_usettings.link_modes.supported,
-			   __ETHTOOL_LINK_MODE_MASK_NU32,
-			   from->link_modes.supported,
-			   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_to_u32array(link_usettings.link_modes.advertising,
-			   __ETHTOOL_LINK_MODE_MASK_NU32,
-			   from->link_modes.advertising,
-			   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_to_u32array(link_usettings.link_modes.lp_advertising,
-			   __ETHTOOL_LINK_MODE_MASK_NU32,
-			   from->link_modes.lp_advertising,
-			   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_to_arr32(link_usettings.link_modes.supported,
+			from->link_modes.supported,
+			__ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_to_arr32(link_usettings.link_modes.advertising,
+			from->link_modes.advertising,
+			__ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_to_arr32(link_usettings.link_modes.lp_advertising,
+			from->link_modes.lp_advertising,
+			__ETHTOOL_LINK_MODE_MASK_NBITS);
 
 	if (copy_to_user(to, &link_usettings, sizeof(link_usettings)))
 		return -EFAULT;
@@ -2358,10 +2352,8 @@ static int ethtool_get_per_queue_coalesce(struct net_device *dev,
 
 	useraddr += sizeof(*per_queue_opt);
 
-	bitmap_from_u32array(queue_mask,
-			     MAX_NUM_QUEUE,
-			     per_queue_opt->queue_mask,
-			     DIV_ROUND_UP(MAX_NUM_QUEUE, 32));
+	bitmap_from_arr32(queue_mask, per_queue_opt->queue_mask,
+			  MAX_NUM_QUEUE);
 
 	for_each_set_bit(bit, queue_mask, MAX_NUM_QUEUE) {
 		struct ethtool_coalesce coalesce = { .cmd = ETHTOOL_GCOALESCE };
@@ -2393,10 +2385,7 @@ static int ethtool_set_per_queue_coalesce(struct net_device *dev,
 
 	useraddr += sizeof(*per_queue_opt);
 
-	bitmap_from_u32array(queue_mask,
-			     MAX_NUM_QUEUE,
-			     per_queue_opt->queue_mask,
-			     DIV_ROUND_UP(MAX_NUM_QUEUE, 32));
+	bitmap_from_arr32(queue_mask, per_queue_opt->queue_mask, MAX_NUM_QUEUE);
 	n_queue = bitmap_weight(queue_mask, MAX_NUM_QUEUE);
 	tmp = backup = kmalloc_array(n_queue, sizeof(*backup), GFP_KERNEL);
 	if (!backup)
