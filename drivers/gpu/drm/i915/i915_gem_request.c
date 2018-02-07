@@ -1077,6 +1077,26 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	local_bh_disable();
 	i915_sw_fence_commit(&request->submit);
 	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */
+
+	/*
+	 * In typical scenarios, we do not expect the previous request on
+	 * the timeline to be still tracked by timeline->last_request if it
+	 * has been completed. If the completed request is still here, that
+	 * implies that request retirement is a long way behind submission,
+	 * suggesting that we haven't been retiring frequently enough from
+	 * the combination of retire-before-alloc, waiters and the background
+	 * retirement worker. So if the last request on this timeline was
+	 * already completed, do a catch up pass, flushing the retirement queue
+	 * up to this client. Since we have now moved the heaviest operations
+	 * during retirement onto secondary workers, such as freeing objects
+	 * or contexts, retiring a bunch of requests is mostly list management
+	 * (and cache misses), and so we should not be overly penalizing this
+	 * client by performing excess work, though we may still performing
+	 * work on behalf of others -- but instead we should benefit from
+	 * improved resource management. (Well, that's the theory at least.)
+	 */
+	if (prev && i915_gem_request_completed(prev))
+		i915_gem_request_retire_upto(prev);
 }
 
 static unsigned long local_clock_us(unsigned int *cpu)
