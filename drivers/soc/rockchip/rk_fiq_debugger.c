@@ -466,6 +466,8 @@ void rk_serial_debug_init(void __iomem *base, phys_addr_t phy_base,
 		goto out3;
 	}
 
+	/* clear busy interrupt, make sure all interrupts are disabled */
+	rk_fiq_read(t, UART_USR);
 #ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
 	if ((signal_irq > 0) && (serial_hwirq > 0)) {
 		ret = fiq_debugger_bind_sip_smc(t, phy_base, serial_hwirq,
