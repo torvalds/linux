@@ -490,7 +490,7 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
 
 	/* while holding I_WB_SWITCH, no one else can update the association */
 	spin_lock(&inode->i_lock);
-	if (!(inode->i_sb->s_flags & MS_ACTIVE) ||
+	if (!(inode->i_sb->s_flags & SB_ACTIVE) ||
 	    inode->i_state & (I_WB_SWITCH | I_FREEING) ||
 	    inode_to_wb(inode) == isw->new_wb) {
 		spin_unlock(&inode->i_lock);

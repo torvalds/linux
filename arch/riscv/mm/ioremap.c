@@ -85,7 +85,7 @@ EXPORT_SYMBOL(ioremap);
  *
  * Caller must ensure there is only one unmapping for the same pointer.
  */
-void iounmap(void __iomem *addr)
+void iounmap(volatile void __iomem *addr)
 {
 	vunmap((void *)((unsigned long)addr & PAGE_MASK));
 }

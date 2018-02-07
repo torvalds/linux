@@ -195,6 +195,11 @@ void sctp_remaddr_proc_exit(struct net *net);
 int sctp_offload_init(void);
 
 /*
+ * sctp/stream_sched.c
+ */
+void sctp_sched_ops_init(void);
+
+/*
  * sctp/stream.c
  */
 int sctp_send_reset_streams(struct sctp_association *asoc,

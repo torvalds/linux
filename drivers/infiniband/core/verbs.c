@@ -1438,7 +1438,8 @@ int ib_close_qp(struct ib_qp *qp)
 	spin_unlock_irqrestore(&real_qp->device->event_handler_lock, flags);
 
 	atomic_dec(&real_qp->usecnt);
-	ib_close_shared_qp_security(qp->qp_sec);
+	if (qp->qp_sec)
+		ib_close_shared_qp_security(qp->qp_sec);
 	kfree(qp);
 
 	return 0;

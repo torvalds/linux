@@ -24,6 +24,7 @@
 #include <linux/sched.h>
 #include <linux/moduleparam.h>
 #include <linux/device.h>
+#include <linux/printk.h>
 #include "kfd_priv.h"
 
 #define KFD_DRIVER_AUTHOR	"AMD Inc. and others"
@@ -132,7 +133,7 @@ static void __exit kfd_module_exit(void)
 	kfd_process_destroy_wq();
 	kfd_topology_shutdown();
 	kfd_chardev_exit();
-	dev_info(kfd_device, "Removed module\n");
+	pr_info("amdkfd: Removed module\n");
 }
 
 module_init(kfd_module_init);

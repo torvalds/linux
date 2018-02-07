@@ -303,7 +303,7 @@ out:	cb->args[0] = idx;
 	return skb->len;
 }
 
-static const struct rdma_nl_cbs nldev_cb_table[] = {
+static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
 	[RDMA_NLDEV_CMD_GET] = {
 		.doit = nldev_get_doit,
 		.dump = nldev_get_dumpit,

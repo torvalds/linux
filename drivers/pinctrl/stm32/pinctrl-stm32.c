@@ -290,7 +290,7 @@ static int stm32_gpio_domain_translate(struct irq_domain *d,
 }
 
 static int stm32_gpio_domain_activate(struct irq_domain *d,
-				      struct irq_data *irq_data, bool early)
+				      struct irq_data *irq_data, bool reserve)
 {
 	struct stm32_gpio_bank *bank = d->host_data;
 	struct stm32_pinctrl *pctl = dev_get_drvdata(bank->gpio_chip.parent);

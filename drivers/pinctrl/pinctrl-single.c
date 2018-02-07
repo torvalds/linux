@@ -222,6 +222,9 @@ static enum pin_config_param pcs_bias[] = {
  */
 static struct lock_class_key pcs_lock_class;
 
+/* Class for the IRQ request mutex */
+static struct lock_class_key pcs_request_class;
+
 /*
  * REVISIT: Reads and writes could eventually use regmap or something
  * generic. But at least on omaps, some mux registers are performance
@@ -1486,7 +1489,7 @@ static int pcs_irqdomain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, pcs_soc);
 	irq_set_chip_and_handler(irq, &pcs->chip,
 				 handle_level_irq);
-	irq_set_lockdep_class(irq, &pcs_lock_class);
+	irq_set_lockdep_class(irq, &pcs_lock_class, &pcs_request_class);
 	irq_set_noprobe(irq);
 
 	return 0;

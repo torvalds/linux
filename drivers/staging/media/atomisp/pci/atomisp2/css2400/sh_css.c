@@ -176,7 +176,7 @@ static struct sh_css_hmm_buffer_record hmm_buffer_record[MAX_HMM_BUFFER_NUM];
 
 static bool fw_explicitly_loaded = false;
 
-/**
+/*
  * Local prototypes
  */
 
@@ -187,7 +187,7 @@ static enum ia_css_err
 sh_css_pipe_start(struct ia_css_stream *stream);
 
 #ifdef ISP2401
-/**
+/*
  * @brief Stop all "ia_css_pipe" instances in the target
  * "ia_css_stream" instance.
  *
@@ -207,7 +207,7 @@ sh_css_pipe_start(struct ia_css_stream *stream);
 static enum ia_css_err
 sh_css_pipes_stop(struct ia_css_stream *stream);
 
-/**
+/*
  * @brief Check if all "ia_css_pipe" instances in the target
  * "ia_css_stream" instance have stopped.
  *
@@ -1649,7 +1649,7 @@ ia_css_init(const struct ia_css_env *env,
 	void (*flush_func)(struct ia_css_acc_fw *fw);
 	hrt_data select, enable;
 
-	/**
+	/*
 	 * The C99 standard does not specify the exact object representation of structs;
 	 * the representation is compiler dependent.
 	 *
@@ -4617,23 +4617,23 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
  * 4) "enum ia_css_event_type convert_event_sp_to_host_domain"	(sh_css.c)
  */
 static enum ia_css_event_type convert_event_sp_to_host_domain[] = {
-	IA_CSS_EVENT_TYPE_OUTPUT_FRAME_DONE,	/**< Output frame ready. */
-	IA_CSS_EVENT_TYPE_SECOND_OUTPUT_FRAME_DONE,	/**< Second output frame ready. */
-	IA_CSS_EVENT_TYPE_VF_OUTPUT_FRAME_DONE,	/**< Viewfinder Output frame ready. */
-	IA_CSS_EVENT_TYPE_SECOND_VF_OUTPUT_FRAME_DONE,	/**< Second viewfinder Output frame ready. */
-	IA_CSS_EVENT_TYPE_3A_STATISTICS_DONE,	/**< Indication that 3A statistics are available. */
-	IA_CSS_EVENT_TYPE_DIS_STATISTICS_DONE,	/**< Indication that DIS statistics are available. */
-	IA_CSS_EVENT_TYPE_PIPELINE_DONE,	/**< Pipeline Done event, sent after last pipeline stage. */
-	IA_CSS_EVENT_TYPE_FRAME_TAGGED,		/**< Frame tagged. */
-	IA_CSS_EVENT_TYPE_INPUT_FRAME_DONE,	/**< Input frame ready. */
-	IA_CSS_EVENT_TYPE_METADATA_DONE,	/**< Metadata ready. */
-	IA_CSS_EVENT_TYPE_LACE_STATISTICS_DONE,	/**< Indication that LACE statistics are available. */
-	IA_CSS_EVENT_TYPE_ACC_STAGE_COMPLETE,	/**< Extension stage executed. */
-	IA_CSS_EVENT_TYPE_TIMER,		/**< Timing measurement data. */
-	IA_CSS_EVENT_TYPE_PORT_EOF,		/**< End Of Frame event, sent when in buffered sensor mode. */
-	IA_CSS_EVENT_TYPE_FW_WARNING,		/**< Performance warning encountered by FW */
-	IA_CSS_EVENT_TYPE_FW_ASSERT,		/**< Assertion hit by FW */
-	0,					/** error if sp passes  SH_CSS_SP_EVENT_NR_OF_TYPES as a valid event. */
+	IA_CSS_EVENT_TYPE_OUTPUT_FRAME_DONE,	/** Output frame ready. */
+	IA_CSS_EVENT_TYPE_SECOND_OUTPUT_FRAME_DONE,	/** Second output frame ready. */
+	IA_CSS_EVENT_TYPE_VF_OUTPUT_FRAME_DONE,	/** Viewfinder Output frame ready. */
+	IA_CSS_EVENT_TYPE_SECOND_VF_OUTPUT_FRAME_DONE,	/** Second viewfinder Output frame ready. */
+	IA_CSS_EVENT_TYPE_3A_STATISTICS_DONE,	/** Indication that 3A statistics are available. */
+	IA_CSS_EVENT_TYPE_DIS_STATISTICS_DONE,	/** Indication that DIS statistics are available. */
+	IA_CSS_EVENT_TYPE_PIPELINE_DONE,	/** Pipeline Done event, sent after last pipeline stage. */
+	IA_CSS_EVENT_TYPE_FRAME_TAGGED,		/** Frame tagged. */
+	IA_CSS_EVENT_TYPE_INPUT_FRAME_DONE,	/** Input frame ready. */
+	IA_CSS_EVENT_TYPE_METADATA_DONE,	/** Metadata ready. */
+	IA_CSS_EVENT_TYPE_LACE_STATISTICS_DONE,	/** Indication that LACE statistics are available. */
+	IA_CSS_EVENT_TYPE_ACC_STAGE_COMPLETE,	/** Extension stage executed. */
+	IA_CSS_EVENT_TYPE_TIMER,		/** Timing measurement data. */
+	IA_CSS_EVENT_TYPE_PORT_EOF,		/** End Of Frame event, sent when in buffered sensor mode. */
+	IA_CSS_EVENT_TYPE_FW_WARNING,		/** Performance warning encountered by FW */
+	IA_CSS_EVENT_TYPE_FW_ASSERT,		/** Assertion hit by FW */
+	0,					/* error if sp passes  SH_CSS_SP_EVENT_NR_OF_TYPES as a valid event. */
 };
 
 enum ia_css_err
@@ -5028,7 +5028,7 @@ sh_css_enable_cont_capt(bool enable, bool stop_copy_preview)
 bool
 sh_css_continuous_is_enabled(uint8_t pipe_num)
 #else
-/**
+/*
  * @brief Stop all "ia_css_pipe" instances in the target
  * "ia_css_stream" instance.
  *
@@ -5107,7 +5107,7 @@ ia_css_stream_set_buffer_depth(struct ia_css_stream *stream, int buffer_depth)
 	return IA_CSS_SUCCESS;
 }
 #else
-	/**
+	/*
 	 * Stop all "ia_css_pipe" instances in this target
 	 * "ia_css_stream" instance.
 	 */
@@ -5146,7 +5146,7 @@ ia_css_stream_get_buffer_depth(struct ia_css_stream *stream, int *buffer_depth)
 		}
 	}
 
-	/**
+	/*
 	 * In the CSS firmware use scenario "Continuous Preview"
 	 * as well as "Continuous Video", the "ia_css_pipe" instance
 	 * "Copy Pipe" is activated. This "Copy Pipe" is private to
@@ -5183,7 +5183,7 @@ ERR:
 	return err;
 }
 
-/**
+/*
  * @brief Check if all "ia_css_pipe" instances in the target
  * "ia_css_stream" instance have stopped.
  *
@@ -5218,7 +5218,7 @@ sh_css_pipes_have_stopped(struct ia_css_stream *stream)
 	main_pipe_id = main_pipe->mode;
 	IA_CSS_ENTER_PRIVATE("main_pipe_id=%d", main_pipe_id);
 
-	/**
+	/*
 	 * Check if every "ia_css_pipe" instance in this target
 	 * "ia_css_stream" instance has stopped.
 	 */
@@ -5229,7 +5229,7 @@ sh_css_pipes_have_stopped(struct ia_css_stream *stream)
 				rval);
 	}
 
-	/**
+	/*
 	 * In the CSS firmware use scenario "Continuous Preview"
 	 * as well as "Continuous Video", the "ia_css_pipe" instance
 	 * "Copy Pipe" is activated. This "Copy Pipe" is private to
@@ -5474,7 +5474,7 @@ ERR:
 }
 
 #ifdef ISP2401
-/**
+/*
  * @brief Check if a format is supported by the pipe.
  *
  */
@@ -8626,7 +8626,7 @@ sh_css_pipeline_add_acc_stage(struct ia_css_pipeline *pipeline,
 	return err;
 }
 
-/**
+/*
  * @brief Tag a specific frame in continuous capture.
  * Refer to "sh_css_internal.h" for details.
  */
@@ -8666,7 +8666,7 @@ enum ia_css_err ia_css_stream_capture_frame(struct ia_css_stream *stream,
 	return err;
 }
 
-/**
+/*
  * @brief Configure the continuous capture.
  * Refer to "sh_css_internal.h" for details.
  */
@@ -8822,7 +8822,7 @@ sh_css_init_host_sp_control_vars(void)
 		"sh_css_init_host_sp_control_vars() leave: return_void\n");
 }
 
-/**
+/*
  * create the internal structures and fill in the configuration data
  */
 void ia_css_pipe_config_defaults(struct ia_css_pipe_config *pipe_config)
@@ -10435,7 +10435,7 @@ ia_css_start_sp(void)
 	return err;
 }
 
-/**
+/*
  *	Time to wait SP for termincate. Only condition when this can happen
  *	is a fatal hw failure, but we must be able to detect this and emit
  *	a proper error trace.
@@ -10713,7 +10713,7 @@ ia_css_unlock_raw_frame(struct ia_css_stream *stream, uint32_t exp_id)
 	return ret;
 }
 
-/** @brief	Set the state (Enable or Disable) of the Extension stage in the
+/* @brief	Set the state (Enable or Disable) of the Extension stage in the
  * 		given pipe.
  */
 enum ia_css_err
@@ -10758,7 +10758,7 @@ ia_css_pipe_set_qos_ext_state(struct ia_css_pipe *pipe, uint32_t fw_handle, bool
 	return err;
 }
 
-/**	@brief	Get the state (Enable or Disable) of the Extension stage in the
+/*	@brief	Get the state (Enable or Disable) of the Extension stage in the
  *	given pipe.
  */
 enum ia_css_err

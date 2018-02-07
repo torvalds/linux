@@ -22,7 +22,6 @@
 #include <net/pkt_sched.h>
 #include <uapi/linux/tc_act/tc_ife.h>
 #include <net/tc_act/tc_ife.h>
-#include <linux/rtnetlink.h>
 
 static int skbtcindex_encode(struct sk_buff *skb, void *skbdata,
 			     struct tcf_meta_info *e)

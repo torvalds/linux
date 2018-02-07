@@ -913,8 +913,8 @@ static int fsl_soc_dma_probe(struct platform_device *pdev)
 	dma->dai.pcm_free = fsl_dma_free_dma_buffers;
 
 	/* Store the SSI-specific information that we need */
-	dma->ssi_stx_phys = res.start + CCSR_SSI_STX0;
-	dma->ssi_srx_phys = res.start + CCSR_SSI_SRX0;
+	dma->ssi_stx_phys = res.start + REG_SSI_STX0;
+	dma->ssi_srx_phys = res.start + REG_SSI_SRX0;
 
 	iprop = of_get_property(ssi_np, "fsl,fifo-depth", NULL);
 	if (iprop)

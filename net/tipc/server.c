@@ -314,6 +314,7 @@ static int tipc_accept_from_sock(struct tipc_conn *con)
 	newcon->usr_data = s->tipc_conn_new(newcon->conid);
 	if (!newcon->usr_data) {
 		sock_release(newsock);
+		conn_put(newcon);
 		return -ENOMEM;
 	}
 
@@ -511,7 +512,7 @@ bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type,
 	s = con->server;
 	scbr = s->tipc_conn_new(*conid);
 	if (!scbr) {
-		tipc_close_conn(con);
+		conn_put(con);
 		return false;
 	}
 

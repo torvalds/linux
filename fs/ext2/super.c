@@ -75,7 +75,7 @@ void ext2_error(struct super_block *sb, const char *function,
 	if (test_opt(sb, ERRORS_RO)) {
 		ext2_msg(sb, KERN_CRIT,
 			     "error: remounting filesystem read-only");
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 	}
 }
 
@@ -656,7 +656,7 @@ static int ext2_setup_super (struct super_block * sb,
 		ext2_msg(sb, KERN_ERR,
 			"error: revision level too high, "
 			"forcing read-only mode");
-		res = MS_RDONLY;
+		res = SB_RDONLY;
 	}
 	if (read_only)
 		return res;
@@ -924,9 +924,9 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_resuid = opts.s_resuid;
 	sbi->s_resgid = opts.s_resgid;
 
-	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
+	sb->s_flags = (sb->s_flags & ~SB_POSIXACL) |
 		((EXT2_SB(sb)->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ?
-		 MS_POSIXACL : 0);
+		 SB_POSIXACL : 0);
 	sb->s_iflags |= SB_I_CGROUPWB;
 
 	if (le32_to_cpu(es->s_rev_level) == EXT2_GOOD_OLD_REV &&
@@ -1178,7 +1178,7 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 		ext2_msg(sb, KERN_WARNING,
 			"warning: mounting ext3 filesystem as ext2");
 	if (ext2_setup_super (sb, es, sb_rdonly(sb)))
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 	ext2_write_super(sb);
 	return 0;
 
@@ -1341,9 +1341,9 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 			 "dax flag with busy inodes while remounting");
 		new_opts.s_mount_opt ^= EXT2_MOUNT_DAX;
 	}
-	if ((bool)(*flags & MS_RDONLY) == sb_rdonly(sb))
+	if ((bool)(*flags & SB_RDONLY) == sb_rdonly(sb))
 		goto out_set;
-	if (*flags & MS_RDONLY) {
+	if (*flags & SB_RDONLY) {
 		if (le16_to_cpu(es->s_state) & EXT2_VALID_FS ||
 		    !(sbi->s_mount_state & EXT2_VALID_FS))
 			goto out_set;
@@ -1379,7 +1379,7 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 		 */
 		sbi->s_mount_state = le16_to_cpu(es->s_state);
 		if (!ext2_setup_super (sb, es, 0))
-			sb->s_flags &= ~MS_RDONLY;
+			sb->s_flags &= ~SB_RDONLY;
 		spin_unlock(&sbi->s_lock);
 
 		ext2_write_super(sb);
@@ -1392,8 +1392,8 @@ out_set:
 	sbi->s_mount_opt = new_opts.s_mount_opt;
 	sbi->s_resuid = new_opts.s_resuid;
 	sbi->s_resgid = new_opts.s_resgid;
-	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
-		((sbi->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ? MS_POSIXACL : 0);
+	sb->s_flags = (sb->s_flags & ~SB_POSIXACL) |
+		((sbi->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ? SB_POSIXACL : 0);
 	spin_unlock(&sbi->s_lock);
 
 	return 0;

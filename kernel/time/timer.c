@@ -823,11 +823,10 @@ static inline struct timer_base *get_timer_cpu_base(u32 tflags, u32 cpu)
 	struct timer_base *base = per_cpu_ptr(&timer_bases[BASE_STD], cpu);
 
 	/*
-	 * If the timer is deferrable and nohz is active then we need to use
-	 * the deferrable base.
+	 * If the timer is deferrable and NO_HZ_COMMON is set then we need
+	 * to use the deferrable base.
 	 */
-	if (IS_ENABLED(CONFIG_NO_HZ_COMMON) && base->nohz_active &&
-	    (tflags & TIMER_DEFERRABLE))
+	if (IS_ENABLED(CONFIG_NO_HZ_COMMON) && (tflags & TIMER_DEFERRABLE))
 		base = per_cpu_ptr(&timer_bases[BASE_DEF], cpu);
 	return base;
 }
@@ -837,11 +836,10 @@ static inline struct timer_base *get_timer_this_cpu_base(u32 tflags)
 	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
 
 	/*
-	 * If the timer is deferrable and nohz is active then we need to use
-	 * the deferrable base.
+	 * If the timer is deferrable and NO_HZ_COMMON is set then we need
+	 * to use the deferrable base.
 	 */
-	if (IS_ENABLED(CONFIG_NO_HZ_COMMON) && base->nohz_active &&
-	    (tflags & TIMER_DEFERRABLE))
+	if (IS_ENABLED(CONFIG_NO_HZ_COMMON) && (tflags & TIMER_DEFERRABLE))
 		base = this_cpu_ptr(&timer_bases[BASE_DEF]);
 	return base;
 }
@@ -1009,8 +1007,6 @@ __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int option
 	if (!ret && (options & MOD_TIMER_PENDING_ONLY))
 		goto out_unlock;
 
-	debug_activate(timer, expires);
-
 	new_base = get_target_base(base, timer->flags);
 
 	if (base != new_base) {
@@ -1033,6 +1029,8 @@ __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int option
 			forward_timer_base(base);
 		}
 	}
+
+	debug_activate(timer, expires);
 
 	timer->expires = expires;
 	/*
@@ -1684,7 +1682,7 @@ static __latent_entropy void run_timer_softirq(struct softirq_action *h)
 	base->must_forward_clk = false;
 
 	__run_timers(base);
-	if (IS_ENABLED(CONFIG_NO_HZ_COMMON) && base->nohz_active)
+	if (IS_ENABLED(CONFIG_NO_HZ_COMMON))
 		__run_timers(this_cpu_ptr(&timer_bases[BASE_DEF]));
 }
 
@@ -1853,6 +1851,21 @@ static void migrate_timer_list(struct timer_base *new_base, struct hlist_head *h
 		timer->flags = (timer->flags & ~TIMER_BASEMASK) | cpu;
 		internal_add_timer(new_base, timer);
 	}
+}
+
+int timers_prepare_cpu(unsigned int cpu)
+{
+	struct timer_base *base;
+	int b;
+
+	for (b = 0; b < NR_BASES; b++) {
+		base = per_cpu_ptr(&timer_bases[b], cpu);
+		base->clk = jiffies;
+		base->next_expiry = base->clk + NEXT_TIMER_MAX_DELTA;
+		base->is_idle = false;
+		base->must_forward_clk = true;
+	}
+	return 0;
 }
 
 int timers_dead_cpu(unsigned int cpu)

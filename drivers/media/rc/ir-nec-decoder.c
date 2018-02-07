@@ -41,7 +41,7 @@ enum nec_state {
 /**
  * ir_nec_decode() - Decode one NEC pulse or space
  * @dev:	the struct rc_dev descriptor of the device
- * @duration:	the struct ir_raw_event descriptor of the pulse/space
+ * @ev:		the struct ir_raw_event descriptor of the pulse/space
  *
  * This function returns -EINVAL if the pulse violates the state machine
  */
@@ -183,7 +183,6 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
  * ir_nec_scancode_to_raw() - encode an NEC scancode ready for modulation.
  * @protocol:	specific protocol to use
  * @scancode:	a single NEC scancode.
- * @raw:	raw data to be modulated.
  */
 static u32 ir_nec_scancode_to_raw(enum rc_proto protocol, u32 scancode)
 {

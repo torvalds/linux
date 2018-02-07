@@ -808,8 +808,7 @@ static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
 			 val, reg);
 
 	if (gmac->variant->soc_has_internal_phy) {
-		if (of_property_read_bool(priv->plat->phy_node,
-					  "allwinner,leds-active-low"))
+		if (of_property_read_bool(node, "allwinner,leds-active-low"))
 			reg |= H3_EPHY_LED_POL;
 		else
 			reg &= ~H3_EPHY_LED_POL;

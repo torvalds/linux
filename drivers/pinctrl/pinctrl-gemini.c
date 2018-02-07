@@ -2322,7 +2322,7 @@ static const struct gemini_pin_conf *gemini_get_pin_conf(struct gemini_pmx *pmx,
 	int i;
 
 	for (i = 0; i < pmx->nconfs; i++) {
-		retconf = &gemini_confs_3516[i];
+		retconf = &pmx->confs[i];
 		if (retconf->pin == pin)
 			return retconf;
 	}

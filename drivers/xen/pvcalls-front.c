@@ -805,7 +805,7 @@ int pvcalls_front_accept(struct socket *sock, struct socket *newsock, int flags)
 		pvcalls_exit();
 		return ret;
 	}
-	map2 = kzalloc(sizeof(*map2), GFP_KERNEL);
+	map2 = kzalloc(sizeof(*map2), GFP_ATOMIC);
 	if (map2 == NULL) {
 		clear_bit(PVCALLS_FLAG_ACCEPT_INFLIGHT,
 			  (void *)&map->passive.flags);
@@ -1103,7 +1103,7 @@ static int pvcalls_front_remove(struct xenbus_device *dev)
 			kfree(map);
 		}
 	}
-	if (bedata->ref >= 0)
+	if (bedata->ref != -1)
 		gnttab_end_foreign_access(bedata->ref, 0, 0);
 	kfree(bedata->ring.sring);
 	kfree(bedata);
@@ -1128,6 +1128,8 @@ static int pvcalls_front_probe(struct xenbus_device *dev,
 	}
 
 	versions = xenbus_read(XBT_NIL, dev->otherend, "versions", &len);
+	if (IS_ERR(versions))
+		return PTR_ERR(versions);
 	if (!len)
 		return -EINVAL;
 	if (strcmp(versions, "1")) {

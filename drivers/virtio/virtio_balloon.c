@@ -174,13 +174,12 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
 	while ((page = balloon_page_pop(&pages))) {
 		balloon_page_enqueue(&vb->vb_dev_info, page);
 
-		vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE;
-
 		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
 		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
 		if (!virtio_has_feature(vb->vdev,
 					VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
 			adjust_managed_page_count(page, -1);
+		vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE;
 	}
 
 	num_allocated_pages = vb->num_pfns;

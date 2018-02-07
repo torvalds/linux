@@ -83,8 +83,6 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 
 	/* upgrade should only happen from 3 to 4, 3 to 5, or 4 to 5 levels */
 	VM_BUG_ON(mm->context.asce_limit < _REGION2_SIZE);
-	if (end >= TASK_SIZE_MAX)
-		return -ENOMEM;
 	rc = 0;
 	notify = 0;
 	while (mm->context.asce_limit < end) {

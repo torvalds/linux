@@ -40,7 +40,6 @@
 };
 
 &ethsc {
-	interrupt-parent = <&gpio>;
 	interrupts = <0 8>;
 };
 

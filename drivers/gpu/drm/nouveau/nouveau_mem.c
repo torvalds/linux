@@ -103,10 +103,10 @@ nouveau_mem_host(struct ttm_mem_reg *reg, struct ttm_dma_tt *tt)
 	u8 type;
 	int ret;
 
-	if (mmu->type[drm->ttm.type_host].type & NVIF_MEM_UNCACHED)
-		type = drm->ttm.type_ncoh;
+	if (!nouveau_drm_use_coherent_gpu_mapping(drm))
+		type = drm->ttm.type_ncoh[!!mem->kind];
 	else
-		type = drm->ttm.type_host;
+		type = drm->ttm.type_host[0];
 
 	if (mem->kind && !(mmu->type[type].type & NVIF_MEM_KIND))
 		mem->comp = mem->kind = 0;

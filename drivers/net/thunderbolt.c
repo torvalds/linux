@@ -335,7 +335,7 @@ static void tbnet_free_buffers(struct tbnet_ring *ring)
 		if (ring->ring->is_tx) {
 			dir = DMA_TO_DEVICE;
 			order = 0;
-			size = tbnet_frame_size(tf);
+			size = TBNET_FRAME_SIZE;
 		} else {
 			dir = DMA_FROM_DEVICE;
 			order = TBNET_RX_PAGE_ORDER;
@@ -512,6 +512,7 @@ err_free:
 static struct tbnet_frame *tbnet_get_tx_buffer(struct tbnet *net)
 {
 	struct tbnet_ring *ring = &net->tx_ring;
+	struct device *dma_dev = tb_ring_dma_device(ring->ring);
 	struct tbnet_frame *tf;
 	unsigned int index;
 
@@ -522,7 +523,9 @@ static struct tbnet_frame *tbnet_get_tx_buffer(struct tbnet *net)
 
 	tf = &ring->frames[index];
 	tf->frame.size = 0;
-	tf->frame.buffer_phy = 0;
+
+	dma_sync_single_for_cpu(dma_dev, tf->frame.buffer_phy,
+				tbnet_frame_size(tf), DMA_TO_DEVICE);
 
 	return tf;
 }
@@ -531,12 +534,7 @@ static void tbnet_tx_callback(struct tb_ring *ring, struct ring_frame *frame,
 			      bool canceled)
 {
 	struct tbnet_frame *tf = container_of(frame, typeof(*tf), frame);
-	struct device *dma_dev = tb_ring_dma_device(ring);
 	struct tbnet *net = netdev_priv(tf->dev);
-
-	dma_unmap_page(dma_dev, tf->frame.buffer_phy, tbnet_frame_size(tf),
-		       DMA_TO_DEVICE);
-	tf->frame.buffer_phy = 0;
 
 	/* Return buffer to the ring */
 	net->tx_ring.prod++;
@@ -548,10 +546,12 @@ static void tbnet_tx_callback(struct tb_ring *ring, struct ring_frame *frame,
 static int tbnet_alloc_tx_buffers(struct tbnet *net)
 {
 	struct tbnet_ring *ring = &net->tx_ring;
+	struct device *dma_dev = tb_ring_dma_device(ring->ring);
 	unsigned int i;
 
 	for (i = 0; i < TBNET_RING_SIZE; i++) {
 		struct tbnet_frame *tf = &ring->frames[i];
+		dma_addr_t dma_addr;
 
 		tf->page = alloc_page(GFP_KERNEL);
 		if (!tf->page) {
@@ -559,7 +559,17 @@ static int tbnet_alloc_tx_buffers(struct tbnet *net)
 			return -ENOMEM;
 		}
 
+		dma_addr = dma_map_page(dma_dev, tf->page, 0, TBNET_FRAME_SIZE,
+					DMA_TO_DEVICE);
+		if (dma_mapping_error(dma_dev, dma_addr)) {
+			__free_page(tf->page);
+			tf->page = NULL;
+			tbnet_free_buffers(ring);
+			return -ENOMEM;
+		}
+
 		tf->dev = net->dev;
+		tf->frame.buffer_phy = dma_addr;
 		tf->frame.callback = tbnet_tx_callback;
 		tf->frame.sof = TBIP_PDF_FRAME_START;
 		tf->frame.eof = TBIP_PDF_FRAME_END;
@@ -881,19 +891,6 @@ static int tbnet_stop(struct net_device *dev)
 	return 0;
 }
 
-static bool tbnet_xmit_map(struct device *dma_dev, struct tbnet_frame *tf)
-{
-	dma_addr_t dma_addr;
-
-	dma_addr = dma_map_page(dma_dev, tf->page, 0, tbnet_frame_size(tf),
-				DMA_TO_DEVICE);
-	if (dma_mapping_error(dma_dev, dma_addr))
-		return false;
-
-	tf->frame.buffer_phy = dma_addr;
-	return true;
-}
-
 static bool tbnet_xmit_csum_and_map(struct tbnet *net, struct sk_buff *skb,
 	struct tbnet_frame **frames, u32 frame_count)
 {
@@ -908,13 +905,14 @@ static bool tbnet_xmit_csum_and_map(struct tbnet *net, struct sk_buff *skb,
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
 		/* No need to calculate checksum so we just update the
-		 * total frame count and map the frames for DMA.
+		 * total frame count and sync the frames for DMA.
 		 */
 		for (i = 0; i < frame_count; i++) {
 			hdr = page_address(frames[i]->page);
 			hdr->frame_count = cpu_to_le32(frame_count);
-			if (!tbnet_xmit_map(dma_dev, frames[i]))
-				goto err_unmap;
+			dma_sync_single_for_device(dma_dev,
+				frames[i]->frame.buffer_phy,
+				tbnet_frame_size(frames[i]), DMA_TO_DEVICE);
 		}
 
 		return true;
@@ -983,21 +981,14 @@ static bool tbnet_xmit_csum_and_map(struct tbnet *net, struct sk_buff *skb,
 	*tucso = csum_fold(wsum);
 
 	/* Checksum is finally calculated and we don't touch the memory
-	 * anymore, so DMA map the frames now.
+	 * anymore, so DMA sync the frames now.
 	 */
 	for (i = 0; i < frame_count; i++) {
-		if (!tbnet_xmit_map(dma_dev, frames[i]))
-			goto err_unmap;
+		dma_sync_single_for_device(dma_dev, frames[i]->frame.buffer_phy,
+			tbnet_frame_size(frames[i]), DMA_TO_DEVICE);
 	}
 
 	return true;
-
-err_unmap:
-	while (i--)
-		dma_unmap_page(dma_dev, frames[i]->frame.buffer_phy,
-			       tbnet_frame_size(frames[i]), DMA_TO_DEVICE);
-
-	return false;
 }
 
 static void *tbnet_kmap_frag(struct sk_buff *skb, unsigned int frag_num,

@@ -249,7 +249,7 @@ static enum bp_result bios_parser_get_dst_obj(struct dc_bios *dcb,
 	struct graphics_object_id *dest_object_id)
 {
 	uint32_t number;
-	uint16_t *id;
+	uint16_t *id = NULL;
 	ATOM_OBJECT *object;
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 
@@ -260,7 +260,7 @@ static enum bp_result bios_parser_get_dst_obj(struct dc_bios *dcb,
 
 	number = get_dest_obj_list(bp, object, &id);
 
-	if (number <= index)
+	if (number <= index || !id)
 		return BP_RESULT_BADINPUT;
 
 	*dest_object_id = object_id_from_bios_object_id(id[index]);

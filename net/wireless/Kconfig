@@ -20,6 +20,10 @@ config CFG80211
 	tristate "cfg80211 - wireless configuration API"
 	depends on RFKILL || !RFKILL
 	select FW_LOADER
+	# may need to update this when certificates are changed and are
+	# using a different algorithm, though right now they shouldn't
+	# (this is here rather than below to allow it to be a module)
+	select CRYPTO_SHA256 if CFG80211_USE_KERNEL_REGDB_KEYS
 	---help---
 	  cfg80211 is the Linux wireless LAN (802.11) configuration API.
 	  Enable this if you have a wireless device.
@@ -112,6 +116,9 @@ config CFG80211_EXTRA_REGDB_KEYDIR
 	  If selected, point to a directory with DER-encoded X.509
 	  certificates like in the kernel sources (net/wireless/certs/)
 	  that shall be accepted for a signed regulatory database.
+
+	  Note that you need to also select the correct CRYPTO_<hash> modules
+	  for your certificates, and if cfg80211 is built-in they also must be.
 
 config CFG80211_REG_CELLULAR_HINTS
 	bool "cfg80211 regulatory support for cellular base station hints"

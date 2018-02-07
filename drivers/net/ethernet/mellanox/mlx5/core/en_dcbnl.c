@@ -274,6 +274,7 @@ int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets)
 static int mlx5e_dbcnl_validate_ets(struct net_device *netdev,
 				    struct ieee_ets *ets)
 {
+	bool have_ets_tc = false;
 	int bw_sum = 0;
 	int i;
 
@@ -288,11 +289,14 @@ static int mlx5e_dbcnl_validate_ets(struct net_device *netdev,
 	}
 
 	/* Validate Bandwidth Sum */
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
-		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_ETS)
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_ETS) {
+			have_ets_tc = true;
 			bw_sum += ets->tc_tx_bw[i];
+		}
+	}
 
-	if (bw_sum != 0 && bw_sum != 100) {
+	if (have_ets_tc && bw_sum != 100) {
 		netdev_err(netdev,
 			   "Failed to validate ETS: BW sum is illegal\n");
 		return -EINVAL;

@@ -339,7 +339,7 @@ static void img_ir_decoder_preprocess(struct img_ir_decoder *decoder)
 /**
  * img_ir_decoder_convert() - Generate internal timings in decoder.
  * @decoder:	Decoder to be converted to internal timings.
- * @timings:	Timing register values.
+ * @reg_timings: Timing register values.
  * @clock_hz:	IR clock rate in Hz.
  *
  * Fills out the repeat timings and timing register values for a specific clock

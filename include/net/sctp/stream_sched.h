@@ -69,4 +69,9 @@ void sctp_sched_dequeue_common(struct sctp_outq *q, struct sctp_chunk *ch);
 int sctp_sched_init_sid(struct sctp_stream *stream, __u16 sid, gfp_t gfp);
 struct sctp_sched_ops *sctp_sched_ops_from_stream(struct sctp_stream *stream);
 
+void sctp_sched_ops_register(enum sctp_sched_type sched,
+			     struct sctp_sched_ops *sched_ops);
+void sctp_sched_ops_prio_init(void);
+void sctp_sched_ops_rr_init(void);
+
 #endif /* __sctp_stream_sched_h__ */

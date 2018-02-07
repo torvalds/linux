@@ -20,10 +20,6 @@
 
 #define NO_FURTHER_WRITE_ACTION -1
 
-#ifndef phys_to_page
-#define phys_to_page(x)		pfn_to_page((x) >> PAGE_SHIFT)
-#endif
-
 /**
  * efi_free_all_buff_pages - free all previous allocated buffer pages
  * @cap_info: pointer to current instance of capsule_info structure
@@ -35,7 +31,7 @@
 static void efi_free_all_buff_pages(struct capsule_info *cap_info)
 {
 	while (cap_info->index > 0)
-		__free_page(phys_to_page(cap_info->pages[--cap_info->index]));
+		__free_page(cap_info->pages[--cap_info->index]);
 
 	cap_info->index = NO_FURTHER_WRITE_ACTION;
 }
@@ -71,6 +67,14 @@ int __efi_capsule_setup_info(struct capsule_info *cap_info)
 
 	cap_info->pages = temp_page;
 
+	temp_page = krealloc(cap_info->phys,
+			     pages_needed * sizeof(phys_addr_t *),
+			     GFP_KERNEL | __GFP_ZERO);
+	if (!temp_page)
+		return -ENOMEM;
+
+	cap_info->phys = temp_page;
+
 	return 0;
 }
 
@@ -105,9 +109,24 @@ int __weak efi_capsule_setup_info(struct capsule_info *cap_info, void *kbuff,
  **/
 static ssize_t efi_capsule_submit_update(struct capsule_info *cap_info)
 {
+	bool do_vunmap = false;
 	int ret;
 
-	ret = efi_capsule_update(&cap_info->header, cap_info->pages);
+	/*
+	 * cap_info->capsule may have been assigned already by a quirk
+	 * handler, so only overwrite it if it is NULL
+	 */
+	if (!cap_info->capsule) {
+		cap_info->capsule = vmap(cap_info->pages, cap_info->index,
+					 VM_MAP, PAGE_KERNEL);
+		if (!cap_info->capsule)
+			return -ENOMEM;
+		do_vunmap = true;
+	}
+
+	ret = efi_capsule_update(cap_info->capsule, cap_info->phys);
+	if (do_vunmap)
+		vunmap(cap_info->capsule);
 	if (ret) {
 		pr_err("capsule update failed\n");
 		return ret;
@@ -165,10 +184,12 @@ static ssize_t efi_capsule_write(struct file *file, const char __user *buff,
 			goto failed;
 		}
 
-		cap_info->pages[cap_info->index++] = page_to_phys(page);
+		cap_info->pages[cap_info->index] = page;
+		cap_info->phys[cap_info->index] = page_to_phys(page);
 		cap_info->page_bytes_remain = PAGE_SIZE;
+		cap_info->index++;
 	} else {
-		page = phys_to_page(cap_info->pages[cap_info->index - 1]);
+		page = cap_info->pages[cap_info->index - 1];
 	}
 
 	kbuff = kmap(page);
@@ -252,6 +273,7 @@ static int efi_capsule_release(struct inode *inode, struct file *file)
 	struct capsule_info *cap_info = file->private_data;
 
 	kfree(cap_info->pages);
+	kfree(cap_info->phys);
 	kfree(file->private_data);
 	file->private_data = NULL;
 	return 0;
@@ -277,6 +299,13 @@ static int efi_capsule_open(struct inode *inode, struct file *file)
 
 	cap_info->pages = kzalloc(sizeof(void *), GFP_KERNEL);
 	if (!cap_info->pages) {
+		kfree(cap_info);
+		return -ENOMEM;
+	}
+
+	cap_info->phys = kzalloc(sizeof(void *), GFP_KERNEL);
+	if (!cap_info->phys) {
+		kfree(cap_info->pages);
 		kfree(cap_info);
 		return -ENOMEM;
 	}

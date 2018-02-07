@@ -1,5 +1,5 @@
 /*
-* Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -1037,11 +1037,13 @@ static bool underlay_create(struct dc_context *ctx, struct resource_pool *pool)
 	struct dce110_opp *dce110_oppv = kzalloc(sizeof(*dce110_oppv),
 						 GFP_KERNEL);
 
-	if ((dce110_tgv == NULL) ||
-		(dce110_xfmv == NULL) ||
-		(dce110_miv == NULL) ||
-		(dce110_oppv == NULL))
-			return false;
+	if (!dce110_tgv || !dce110_xfmv || !dce110_miv || !dce110_oppv) {
+		kfree(dce110_tgv);
+		kfree(dce110_xfmv);
+		kfree(dce110_miv);
+		kfree(dce110_oppv);
+		return false;
+	}
 
 	dce110_opp_v_construct(dce110_oppv, ctx);
 

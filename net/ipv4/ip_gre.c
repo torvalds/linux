@@ -266,7 +266,7 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	len = gre_hdr_len + sizeof(*ershdr);
 
 	if (unlikely(!pskb_may_pull(skb, len)))
-		return -ENOMEM;
+		return PACKET_REJECT;
 
 	iph = ip_hdr(skb);
 	ershdr = (struct erspanhdr *)(skb->data + gre_hdr_len);
@@ -1310,6 +1310,7 @@ static const struct net_device_ops erspan_netdev_ops = {
 static void ipgre_tap_setup(struct net_device *dev)
 {
 	ether_setup(dev);
+	dev->max_mtu = 0;
 	dev->netdev_ops	= &gre_tap_netdev_ops;
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->priv_flags	|= IFF_LIVE_ADDR_CHANGE;

@@ -5136,7 +5136,7 @@ __xfs_bunmapi(
 	 * blowing out the transaction with a mix of EFIs and reflink
 	 * adjustments.
 	 */
-	if (xfs_is_reflink_inode(ip) && whichfork == XFS_DATA_FORK)
+	if (tp && xfs_is_reflink_inode(ip) && whichfork == XFS_DATA_FORK)
 		max_len = min(len, xfs_refcount_max_unmap(tp->t_log_res));
 	else
 		max_len = len;
@@ -5662,7 +5662,8 @@ xfs_bmap_collapse_extents(
 		*done = true;
 		goto del_cursor;
 	}
-	XFS_WANT_CORRUPTED_RETURN(mp, !isnullstartblock(got.br_startblock));
+	XFS_WANT_CORRUPTED_GOTO(mp, !isnullstartblock(got.br_startblock),
+				del_cursor);
 
 	new_startoff = got.br_startoff - offset_shift_fsb;
 	if (xfs_iext_peek_prev_extent(ifp, &icur, &prev)) {
@@ -5767,7 +5768,8 @@ xfs_bmap_insert_extents(
 			goto del_cursor;
 		}
 	}
-	XFS_WANT_CORRUPTED_RETURN(mp, !isnullstartblock(got.br_startblock));
+	XFS_WANT_CORRUPTED_GOTO(mp, !isnullstartblock(got.br_startblock),
+				del_cursor);
 
 	if (stop_fsb >= got.br_startoff + got.br_blockcount) {
 		error = -EIO;

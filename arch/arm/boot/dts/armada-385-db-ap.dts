@@ -236,6 +236,7 @@
 	usb3_phy: usb3_phy {
 		compatible = "usb-nop-xceiv";
 		vcc-supply = <&reg_xhci0_vbus>;
+		#phy-cells = <0>;
 	};
 
 	reg_xhci0_vbus: xhci0-vbus {

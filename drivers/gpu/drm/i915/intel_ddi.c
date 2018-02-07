@@ -2128,9 +2128,12 @@ static void intel_ddi_clk_select(struct intel_encoder *encoder,
 	if (WARN_ON(!pll))
 		return;
 
+	 mutex_lock(&dev_priv->dpll_lock);
+
 	if (IS_CANNONLAKE(dev_priv)) {
 		/* Configure DPCLKA_CFGCR0 to map the DPLL to the DDI. */
 		val = I915_READ(DPCLKA_CFGCR0);
+		val &= ~DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
 		val |= DPCLKA_CFGCR0_DDI_CLK_SEL(pll->id, port);
 		I915_WRITE(DPCLKA_CFGCR0, val);
 
@@ -2156,6 +2159,8 @@ static void intel_ddi_clk_select(struct intel_encoder *encoder,
 	} else if (INTEL_INFO(dev_priv)->gen < 9) {
 		I915_WRITE(PORT_CLK_SEL(port), hsw_pll_to_ddi_pll_sel(pll));
 	}
+
+	mutex_unlock(&dev_priv->dpll_lock);
 }
 
 static void intel_ddi_clk_disable(struct intel_encoder *encoder)

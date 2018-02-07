@@ -419,6 +419,8 @@ static inline int bpf_map_attr_numa_node(const union bpf_attr *attr)
 		attr->numa_node : NUMA_NO_NODE;
 }
 
+struct bpf_prog *bpf_prog_get_type_path(const char *name, enum bpf_prog_type type);
+
 #else /* !CONFIG_BPF_SYSCALL */
 static inline struct bpf_prog *bpf_prog_get(u32 ufd)
 {
@@ -506,6 +508,12 @@ static inline int cpu_map_enqueue(struct bpf_cpu_map_entry *rcpu,
 {
 	return 0;
 }
+
+static inline struct bpf_prog *bpf_prog_get_type_path(const char *name,
+				enum bpf_prog_type type)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
 #endif /* CONFIG_BPF_SYSCALL */
 
 static inline struct bpf_prog *bpf_prog_get_type(u32 ufd,
@@ -513,6 +521,8 @@ static inline struct bpf_prog *bpf_prog_get_type(u32 ufd,
 {
 	return bpf_prog_get_type_dev(ufd, type, false);
 }
+
+bool bpf_prog_get_ok(struct bpf_prog *, enum bpf_prog_type *, bool);
 
 int bpf_prog_offload_compile(struct bpf_prog *prog);
 void bpf_prog_offload_destroy(struct bpf_prog *prog);

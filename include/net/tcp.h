@@ -844,12 +844,11 @@ static inline int tcp_v6_sdif(const struct sk_buff *skb)
 }
 #endif
 
-/* TCP_SKB_CB reference means this can not be used from early demux */
 static inline bool inet_exact_dif_match(struct net *net, struct sk_buff *skb)
 {
 #if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
 	if (!net->ipv4.sysctl_tcp_l3mdev_accept &&
-	    skb && ipv4_l3mdev_skb(TCP_SKB_CB(skb)->header.h4.flags))
+	    skb && ipv4_l3mdev_skb(IPCB(skb)->flags))
 		return true;
 #endif
 	return false;
@@ -1056,7 +1055,7 @@ void tcp_rate_skb_sent(struct sock *sk, struct sk_buff *skb);
 void tcp_rate_skb_delivered(struct sock *sk, struct sk_buff *skb,
 			    struct rate_sample *rs);
 void tcp_rate_gen(struct sock *sk, u32 delivered, u32 lost,
-		  struct rate_sample *rs);
+		  bool is_sack_reneg, struct rate_sample *rs);
 void tcp_rate_check_app_limited(struct sock *sk);
 
 /* These functions determine how the current flow behaves in respect of SACK

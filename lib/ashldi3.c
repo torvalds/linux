@@ -16,7 +16,7 @@
 
 #include <linux/export.h>
 
-#include <lib/libgcc.h>
+#include <linux/libgcc.h>
 
 long long notrace __ashldi3(long long u, word_type b)
 {

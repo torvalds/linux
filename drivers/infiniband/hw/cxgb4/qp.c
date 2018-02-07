@@ -790,21 +790,57 @@ static int ring_kernel_rq_db(struct c4iw_qp *qhp, u16 inc)
 	return 0;
 }
 
-static void complete_sq_drain_wr(struct c4iw_qp *qhp, struct ib_send_wr *wr)
+static int ib_to_fw_opcode(int ib_opcode)
+{
+	int opcode;
+
+	switch (ib_opcode) {
+	case IB_WR_SEND_WITH_INV:
+		opcode = FW_RI_SEND_WITH_INV;
+		break;
+	case IB_WR_SEND:
+		opcode = FW_RI_SEND;
+		break;
+	case IB_WR_RDMA_WRITE:
+		opcode = FW_RI_RDMA_WRITE;
+		break;
+	case IB_WR_RDMA_READ:
+	case IB_WR_RDMA_READ_WITH_INV:
+		opcode = FW_RI_READ_REQ;
+		break;
+	case IB_WR_REG_MR:
+		opcode = FW_RI_FAST_REGISTER;
+		break;
+	case IB_WR_LOCAL_INV:
+		opcode = FW_RI_LOCAL_INV;
+		break;
+	default:
+		opcode = -EINVAL;
+	}
+	return opcode;
+}
+
+static int complete_sq_drain_wr(struct c4iw_qp *qhp, struct ib_send_wr *wr)
 {
 	struct t4_cqe cqe = {};
 	struct c4iw_cq *schp;
 	unsigned long flag;
 	struct t4_cq *cq;
+	int opcode;
 
 	schp = to_c4iw_cq(qhp->ibqp.send_cq);
 	cq = &schp->cq;
 
+	opcode = ib_to_fw_opcode(wr->opcode);
+	if (opcode < 0)
+		return opcode;
+
 	cqe.u.drain_cookie = wr->wr_id;
 	cqe.header = cpu_to_be32(CQE_STATUS_V(T4_ERR_SWFLUSH) |
-				 CQE_OPCODE_V(C4IW_DRAIN_OPCODE) |
+				 CQE_OPCODE_V(opcode) |
 				 CQE_TYPE_V(1) |
 				 CQE_SWCQE_V(1) |
+				 CQE_DRAIN_V(1) |
 				 CQE_QPID_V(qhp->wq.sq.qid));
 
 	spin_lock_irqsave(&schp->lock, flag);
@@ -819,6 +855,23 @@ static void complete_sq_drain_wr(struct c4iw_qp *qhp, struct ib_send_wr *wr)
 					   schp->ibcq.cq_context);
 		spin_unlock_irqrestore(&schp->comp_handler_lock, flag);
 	}
+	return 0;
+}
+
+static int complete_sq_drain_wrs(struct c4iw_qp *qhp, struct ib_send_wr *wr,
+				struct ib_send_wr **bad_wr)
+{
+	int ret = 0;
+
+	while (wr) {
+		ret = complete_sq_drain_wr(qhp, wr);
+		if (ret) {
+			*bad_wr = wr;
+			break;
+		}
+		wr = wr->next;
+	}
+	return ret;
 }
 
 static void complete_rq_drain_wr(struct c4iw_qp *qhp, struct ib_recv_wr *wr)
@@ -833,9 +886,10 @@ static void complete_rq_drain_wr(struct c4iw_qp *qhp, struct ib_recv_wr *wr)
 
 	cqe.u.drain_cookie = wr->wr_id;
 	cqe.header = cpu_to_be32(CQE_STATUS_V(T4_ERR_SWFLUSH) |
-				 CQE_OPCODE_V(C4IW_DRAIN_OPCODE) |
+				 CQE_OPCODE_V(FW_RI_SEND) |
 				 CQE_TYPE_V(0) |
 				 CQE_SWCQE_V(1) |
+				 CQE_DRAIN_V(1) |
 				 CQE_QPID_V(qhp->wq.sq.qid));
 
 	spin_lock_irqsave(&rchp->lock, flag);
@@ -849,6 +903,14 @@ static void complete_rq_drain_wr(struct c4iw_qp *qhp, struct ib_recv_wr *wr)
 		(*rchp->ibcq.comp_handler)(&rchp->ibcq,
 					   rchp->ibcq.cq_context);
 		spin_unlock_irqrestore(&rchp->comp_handler_lock, flag);
+	}
+}
+
+static void complete_rq_drain_wrs(struct c4iw_qp *qhp, struct ib_recv_wr *wr)
+{
+	while (wr) {
+		complete_rq_drain_wr(qhp, wr);
+		wr = wr->next;
 	}
 }
 
@@ -868,9 +930,14 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 	qhp = to_c4iw_qp(ibqp);
 	spin_lock_irqsave(&qhp->lock, flag);
-	if (t4_wq_in_error(&qhp->wq)) {
+
+	/*
+	 * If the qp has been flushed, then just insert a special
+	 * drain cqe.
+	 */
+	if (qhp->wq.flushed) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
-		complete_sq_drain_wr(qhp, wr);
+		err = complete_sq_drain_wrs(qhp, wr, bad_wr);
 		return err;
 	}
 	num_wrs = t4_sq_avail(&qhp->wq);
@@ -1011,9 +1078,14 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 	qhp = to_c4iw_qp(ibqp);
 	spin_lock_irqsave(&qhp->lock, flag);
-	if (t4_wq_in_error(&qhp->wq)) {
+
+	/*
+	 * If the qp has been flushed, then just insert a special
+	 * drain cqe.
+	 */
+	if (qhp->wq.flushed) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
-		complete_rq_drain_wr(qhp, wr);
+		complete_rq_drain_wrs(qhp, wr);
 		return err;
 	}
 	num_wrs = t4_rq_avail(&qhp->wq);
@@ -1285,21 +1357,21 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 	spin_unlock_irqrestore(&rchp->lock, flag);
 
 	if (schp == rchp) {
-		if (t4_clear_cq_armed(&rchp->cq) &&
-		    (rq_flushed || sq_flushed)) {
+		if ((rq_flushed || sq_flushed) &&
+		    t4_clear_cq_armed(&rchp->cq)) {
 			spin_lock_irqsave(&rchp->comp_handler_lock, flag);
 			(*rchp->ibcq.comp_handler)(&rchp->ibcq,
 						   rchp->ibcq.cq_context);
 			spin_unlock_irqrestore(&rchp->comp_handler_lock, flag);
 		}
 	} else {
-		if (t4_clear_cq_armed(&rchp->cq) && rq_flushed) {
+		if (rq_flushed && t4_clear_cq_armed(&rchp->cq)) {
 			spin_lock_irqsave(&rchp->comp_handler_lock, flag);
 			(*rchp->ibcq.comp_handler)(&rchp->ibcq,
 						   rchp->ibcq.cq_context);
 			spin_unlock_irqrestore(&rchp->comp_handler_lock, flag);
 		}
-		if (t4_clear_cq_armed(&schp->cq) && sq_flushed) {
+		if (sq_flushed && t4_clear_cq_armed(&schp->cq)) {
 			spin_lock_irqsave(&schp->comp_handler_lock, flag);
 			(*schp->ibcq.comp_handler)(&schp->ibcq,
 						   schp->ibcq.cq_context);

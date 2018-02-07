@@ -441,7 +441,7 @@ struct dasd_profile_info {
 	unsigned int dasd_io_nr_req[32]; /* hist. of # of requests in chanq */
 
 	/* new data */
-	struct timespec starttod;	   /* time of start or last reset */
+	struct timespec64 starttod;	   /* time of start or last reset */
 	unsigned int dasd_io_alias;	   /* requests using an alias */
 	unsigned int dasd_io_tpm;	   /* requests using transport mode */
 	unsigned int dasd_read_reqs;	   /* total number of read  requests */

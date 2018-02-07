@@ -17,7 +17,7 @@ Optional properties:
 
 Example:
 
-gsc_0:  gsc@0x13e00000 {
+gsc_0:  gsc@13e00000 {
 	compatible = "samsung,exynos5250-gsc";
 	reg = <0x13e00000 0x1000>;
 	interrupts = <0 85 0>;

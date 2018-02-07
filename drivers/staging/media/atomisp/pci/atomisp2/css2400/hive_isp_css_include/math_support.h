@@ -168,7 +168,7 @@ static inline unsigned int round_half_down_mul(unsigned int a, unsigned int b)
 }
 #endif
 
-/** @brief Next Power of Two
+/* @brief Next Power of Two
  *
  *  @param[in] unsigned number
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * A generic FSM based on fsm used in isdn4linux
  *

@@ -814,7 +814,7 @@ static bool batadv_v_gw_is_eligible(struct batadv_priv *bat_priv,
 	}
 
 	orig_gw = batadv_gw_node_get(bat_priv, orig_node);
-	if (!orig_node)
+	if (!orig_gw)
 		goto out;
 
 	if (batadv_v_gw_throughput_get(orig_gw, &orig_throughput) < 0)

@@ -146,6 +146,7 @@
 	status = "okay";
 
 	axp81x: pmic@3a3 {
+		compatible = "x-powers,axp813";
 		reg = <0x3a3>;
 		interrupt-parent = <&r_intc>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;

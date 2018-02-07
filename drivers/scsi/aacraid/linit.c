@@ -1037,7 +1037,7 @@ static int aac_eh_bus_reset(struct scsi_cmnd* cmd)
 			info = &aac->hba_map[bus][cid];
 			if (bus >= AAC_MAX_BUSES || cid >= AAC_MAX_TARGETS ||
 			    info->devtype != AAC_DEVTYPE_NATIVE_RAW) {
-				fib->flags |= FIB_CONTEXT_FLAG_TIMED_OUT;
+				fib->flags |= FIB_CONTEXT_FLAG_EH_RESET;
 				cmd->SCp.phase = AAC_OWNER_ERROR_HANDLER;
 			}
 		}
@@ -1679,6 +1679,9 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	aac->id = shost->unique_id;
 	aac->cardtype = index;
 	INIT_LIST_HEAD(&aac->entry);
+
+	if (aac_reset_devices || reset_devices)
+		aac->init_reset = true;
 
 	aac->fibs = kzalloc(sizeof(struct fib) * (shost->can_queue + AAC_NUM_MGT_FIB), GFP_KERNEL);
 	if (!aac->fibs)

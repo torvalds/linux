@@ -222,7 +222,7 @@ int videobuf_queue_is_busy(struct videobuf_queue *q)
 }
 EXPORT_SYMBOL_GPL(videobuf_queue_is_busy);
 
-/**
+/*
  * __videobuf_free() - free all the buffers and their control structures
  *
  * This function can only be called if streaming/reading is off, i.e. no buffers

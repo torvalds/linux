@@ -262,7 +262,7 @@ static struct attribute *arm_ccn_pmu_format_attrs[] = {
 	NULL
 };
 
-static struct attribute_group arm_ccn_pmu_format_attr_group = {
+static const struct attribute_group arm_ccn_pmu_format_attr_group = {
 	.name = "format",
 	.attrs = arm_ccn_pmu_format_attrs,
 };
@@ -451,7 +451,7 @@ static struct arm_ccn_pmu_event arm_ccn_pmu_events[] = {
 static struct attribute
 		*arm_ccn_pmu_events_attrs[ARRAY_SIZE(arm_ccn_pmu_events) + 1];
 
-static struct attribute_group arm_ccn_pmu_events_attr_group = {
+static const struct attribute_group arm_ccn_pmu_events_attr_group = {
 	.name = "events",
 	.is_visible = arm_ccn_pmu_events_is_visible,
 	.attrs = arm_ccn_pmu_events_attrs,
@@ -548,7 +548,7 @@ static struct attribute *arm_ccn_pmu_cmp_mask_attrs[] = {
 	NULL
 };
 
-static struct attribute_group arm_ccn_pmu_cmp_mask_attr_group = {
+static const struct attribute_group arm_ccn_pmu_cmp_mask_attr_group = {
 	.name = "cmp_mask",
 	.attrs = arm_ccn_pmu_cmp_mask_attrs,
 };
@@ -569,7 +569,7 @@ static struct attribute *arm_ccn_pmu_cpumask_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group arm_ccn_pmu_cpumask_attr_group = {
+static const struct attribute_group arm_ccn_pmu_cpumask_attr_group = {
 	.attrs = arm_ccn_pmu_cpumask_attrs,
 };
 
@@ -1268,10 +1268,12 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 	if (ccn->dt.id == 0) {
 		name = "ccn";
 	} else {
-		int len = snprintf(NULL, 0, "ccn_%d", ccn->dt.id);
-
-		name = devm_kzalloc(ccn->dev, len + 1, GFP_KERNEL);
-		snprintf(name, len + 1, "ccn_%d", ccn->dt.id);
+		name = devm_kasprintf(ccn->dev, GFP_KERNEL, "ccn_%d",
+				      ccn->dt.id);
+		if (!name) {
+			err = -ENOMEM;
+			goto error_choose_name;
+		}
 	}
 
 	/* Perf driver registration */
@@ -1298,7 +1300,7 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 	}
 
 	/* Pick one CPU which we will use to collect data from CCN... */
-	cpumask_set_cpu(smp_processor_id(), &ccn->dt.cpu);
+	cpumask_set_cpu(get_cpu(), &ccn->dt.cpu);
 
 	/* Also make sure that the overflow interrupt is handled by this CPU */
 	if (ccn->irq) {
@@ -1315,10 +1317,13 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 
 	cpuhp_state_add_instance_nocalls(CPUHP_AP_PERF_ARM_CCN_ONLINE,
 					 &ccn->dt.node);
+	put_cpu();
 	return 0;
 
 error_pmu_register:
 error_set_affinity:
+	put_cpu();
+error_choose_name:
 	ida_simple_remove(&arm_ccn_pmu_ida, ccn->dt.id);
 	for (i = 0; i < ccn->num_xps; i++)
 		writel(0, ccn->xp[i].base + CCN_XP_DT_CONTROL);
@@ -1581,8 +1586,8 @@ static int __init arm_ccn_init(void)
 
 static void __exit arm_ccn_exit(void)
 {
-	cpuhp_remove_multi_state(CPUHP_AP_PERF_ARM_CCN_ONLINE);
 	platform_driver_unregister(&arm_ccn_driver);
+	cpuhp_remove_multi_state(CPUHP_AP_PERF_ARM_CCN_ONLINE);
 }
 
 module_init(arm_ccn_init);

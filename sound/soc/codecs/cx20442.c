@@ -26,7 +26,7 @@
 
 
 struct cx20442_priv {
-	void *control_data;
+	struct tty_struct *tty;
 	struct regulator *por;
 };
 
@@ -88,17 +88,6 @@ static const struct snd_soc_dapm_route cx20442_audio_map[] = {
 	{"ADC", NULL, "Input Mixer"},
 };
 
-static unsigned int cx20442_read_reg_cache(struct snd_soc_codec *codec,
-							unsigned int reg)
-{
-	u8 *reg_cache = codec->reg_cache;
-
-	if (reg >= codec->driver->reg_cache_size)
-		return -EINVAL;
-
-	return reg_cache[reg];
-}
-
 enum v253_vls {
 	V253_VLS_NONE = 0,
 	V253_VLS_T,
@@ -123,6 +112,8 @@ enum v253_vls {
 	V253_VLS_TEST,
 };
 
+#if 0
+/* FIXME : these function will be re-used */
 static int cx20442_pm_to_v253_vls(u8 value)
 {
 	switch (value & ~(1 << CX20442_AGC)) {
@@ -163,9 +154,9 @@ static int cx20442_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (reg >= codec->driver->reg_cache_size)
 		return -EINVAL;
 
-	/* hw_write and control_data pointers required for talking to the modem
+	/* tty and write pointers required for talking to the modem
 	 * are expected to be set by the line discipline initialization code */
-	if (!codec->hw_write || !cx20442->control_data)
+	if (!cx20442->tty || !cx20442->tty->ops->write)
 		return -EIO;
 
 	old = reg_cache[reg];
@@ -194,12 +185,12 @@ static int cx20442_write(struct snd_soc_codec *codec, unsigned int reg,
 		return -ENOMEM;
 
 	dev_dbg(codec->dev, "%s: %s\n", __func__, buf);
-	if (codec->hw_write(cx20442->control_data, buf, len) != len)
+	if (cx20442->tty->ops->write(cx20442->tty, buf, len) != len)
 		return -EIO;
 
 	return 0;
 }
-
+#endif
 
 /*
  * Line discpline related code
@@ -252,8 +243,7 @@ static void v253_close(struct tty_struct *tty)
 	cx20442 = snd_soc_codec_get_drvdata(codec);
 
 	/* Prevent the codec driver from further accessing the modem */
-	codec->hw_write = NULL;
-	cx20442->control_data = NULL;
+	cx20442->tty = NULL;
 	codec->component.card->pop_time = 0;
 }
 
@@ -276,12 +266,11 @@ static void v253_receive(struct tty_struct *tty,
 
 	cx20442 = snd_soc_codec_get_drvdata(codec);
 
-	if (!cx20442->control_data) {
+	if (!cx20442->tty) {
 		/* First modem response, complete setup procedure */
 
 		/* Set up codec driver access to modem controls */
-		cx20442->control_data = tty;
-		codec->hw_write = (hw_write_t)tty->ops->write;
+		cx20442->tty = tty;
 		codec->component.card->pop_time = 1;
 	}
 }
@@ -367,10 +356,9 @@ static int cx20442_codec_probe(struct snd_soc_codec *codec)
 	cx20442->por = regulator_get(codec->dev, "POR");
 	if (IS_ERR(cx20442->por))
 		dev_warn(codec->dev, "failed to get the regulator");
-	cx20442->control_data = NULL;
+	cx20442->tty = NULL;
 
 	snd_soc_codec_set_drvdata(codec, cx20442);
-	codec->hw_write = NULL;
 	codec->component.card->pop_time = 0;
 
 	return 0;
@@ -381,8 +369,8 @@ static int cx20442_codec_remove(struct snd_soc_codec *codec)
 {
 	struct cx20442_priv *cx20442 = snd_soc_codec_get_drvdata(codec);
 
-	if (cx20442->control_data) {
-		struct tty_struct *tty = cx20442->control_data;
+	if (cx20442->tty) {
+		struct tty_struct *tty = cx20442->tty;
 		tty_hangup(tty);
 	}
 
@@ -402,11 +390,7 @@ static const struct snd_soc_codec_driver cx20442_codec_dev = {
 	.probe = 	cx20442_codec_probe,
 	.remove = 	cx20442_codec_remove,
 	.set_bias_level = cx20442_set_bias_level,
-	.reg_cache_default = &cx20442_reg,
-	.reg_cache_size = 1,
-	.reg_word_size = sizeof(u8),
-	.read = cx20442_read_reg_cache,
-	.write = cx20442_write,
+
 	.component_driver = {
 		.dapm_widgets		= cx20442_dapm_widgets,
 		.num_dapm_widgets	= ARRAY_SIZE(cx20442_dapm_widgets),

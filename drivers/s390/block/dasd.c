@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
@@ -758,7 +759,7 @@ static void dasd_profile_end_add_data(struct dasd_profile_info *data,
 	/* in case of an overflow, reset the whole profile */
 	if (data->dasd_io_reqs == UINT_MAX) {
 			memset(data, 0, sizeof(*data));
-			getnstimeofday(&data->starttod);
+			ktime_get_real_ts64(&data->starttod);
 	}
 	data->dasd_io_reqs++;
 	data->dasd_io_sects += sectors;
@@ -893,7 +894,7 @@ void dasd_profile_reset(struct dasd_profile *profile)
 		return;
 	}
 	memset(data, 0, sizeof(*data));
-	getnstimeofday(&data->starttod);
+	ktime_get_real_ts64(&data->starttod);
 	spin_unlock_bh(&profile->lock);
 }
 
@@ -910,7 +911,7 @@ int dasd_profile_on(struct dasd_profile *profile)
 		kfree(data);
 		return 0;
 	}
-	getnstimeofday(&data->starttod);
+	ktime_get_real_ts64(&data->starttod);
 	profile->data = data;
 	spin_unlock_bh(&profile->lock);
 	return 0;
@@ -994,8 +995,8 @@ static void dasd_stats_array(struct seq_file *m, unsigned int *array)
 static void dasd_stats_seq_print(struct seq_file *m,
 				 struct dasd_profile_info *data)
 {
-	seq_printf(m, "start_time %ld.%09ld\n",
-		   data->starttod.tv_sec, data->starttod.tv_nsec);
+	seq_printf(m, "start_time %lld.%09ld\n",
+		   (s64)data->starttod.tv_sec, data->starttod.tv_nsec);
 	seq_printf(m, "total_requests %u\n", data->dasd_io_reqs);
 	seq_printf(m, "total_sectors %u\n", data->dasd_io_sects);
 	seq_printf(m, "total_pav %u\n", data->dasd_io_alias);

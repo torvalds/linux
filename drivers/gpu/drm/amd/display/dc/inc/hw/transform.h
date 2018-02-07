@@ -259,13 +259,6 @@ struct transform_funcs {
 			struct transform *xfm_base,
 			const struct dc_cursor_attributes *attr);
 
-	void (*set_cursor_position)(
-			struct transform *xfm_base,
-			const struct dc_cursor_position *pos,
-			const struct dc_cursor_mi_param *param,
-			uint32_t width
-			);
-
 };
 
 const uint16_t *get_filter_2tap_16p(void);

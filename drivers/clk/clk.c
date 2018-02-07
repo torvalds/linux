@@ -220,7 +220,8 @@ static bool clk_core_is_enabled(struct clk_core *core)
 
 	ret = core->ops->is_enabled(core->hw);
 done:
-	clk_pm_runtime_put(core);
+	if (core->dev)
+		pm_runtime_put(core->dev);
 
 	return ret;
 }
@@ -1564,6 +1565,9 @@ static void clk_change_rate(struct clk_core *core)
 		best_parent_rate = core->parent->rate;
 	}
 
+	if (clk_pm_runtime_get(core))
+		return;
+
 	if (core->flags & CLK_SET_RATE_UNGATE) {
 		unsigned long flags;
 
@@ -1634,6 +1638,8 @@ static void clk_change_rate(struct clk_core *core)
 	/* handle the new child who might not be in core->children yet */
 	if (core->new_child)
 		clk_change_rate(core->new_child);
+
+	clk_pm_runtime_put(core);
 }
 
 static int clk_core_set_rate_nolock(struct clk_core *core,

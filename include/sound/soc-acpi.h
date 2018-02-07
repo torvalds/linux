@@ -17,6 +17,7 @@
 
 #include <linux/stddef.h>
 #include <linux/acpi.h>
+#include <linux/mod_devicetable.h>
 
 struct snd_soc_acpi_package_context {
 	char *name;           /* package name */
@@ -48,9 +49,6 @@ snd_soc_acpi_find_package_from_hid(const u8 hid[ACPI_ID_LEN],
 /* acpi match */
 struct snd_soc_acpi_mach *
 snd_soc_acpi_find_machine(struct snd_soc_acpi_mach *machines);
-
-/* acpi check hid */
-bool snd_soc_acpi_check_hid(const u8 hid[ACPI_ID_LEN]);
 
 /**
  * snd_soc_acpi_mach: ACPI-based machine descriptor. Most of the fields are

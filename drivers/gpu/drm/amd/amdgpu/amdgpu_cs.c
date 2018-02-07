@@ -409,6 +409,10 @@ static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
 		if (candidate->robj == validated)
 			break;
 
+		/* We can't move pinned BOs here */
+		if (bo->pin_count)
+			continue;
+
 		other = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
 
 		/* Check if this BO is in one of the domains we need space for */

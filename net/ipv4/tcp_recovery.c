@@ -55,7 +55,8 @@ static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 	 * to queuing or delayed ACKs.
 	 */
 	reo_wnd = 1000;
-	if ((tp->rack.reord || !tp->lost_out) && min_rtt != ~0U) {
+	if ((tp->rack.reord || inet_csk(sk)->icsk_ca_state < TCP_CA_Recovery) &&
+	    min_rtt != ~0U) {
 		reo_wnd = max((min_rtt >> 2) * tp->rack.reo_wnd_steps, reo_wnd);
 		reo_wnd = min(reo_wnd, tp->srtt_us >> 3);
 	}
@@ -79,12 +80,12 @@ static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 		 */
 		remaining = tp->rack.rtt_us + reo_wnd -
 			    tcp_stamp_us_delta(tp->tcp_mstamp, skb->skb_mstamp);
-		if (remaining < 0) {
+		if (remaining <= 0) {
 			tcp_rack_mark_skb_lost(sk, skb);
 			list_del_init(&skb->tcp_tsorted_anchor);
 		} else {
-			/* Record maximum wait time (+1 to avoid 0) */
-			*reo_timeout = max_t(u32, *reo_timeout, 1 + remaining);
+			/* Record maximum wait time */
+			*reo_timeout = max_t(u32, *reo_timeout, remaining);
 		}
 	}
 }
@@ -116,13 +117,8 @@ void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 {
 	u32 rtt_us;
 
-	if (tp->rack.mstamp &&
-	    !tcp_rack_sent_after(xmit_time, tp->rack.mstamp,
-				 end_seq, tp->rack.end_seq))
-		return;
-
 	rtt_us = tcp_stamp_us_delta(tp->tcp_mstamp, xmit_time);
-	if (sacked & TCPCB_RETRANS) {
+	if (rtt_us < tcp_min_rtt(tp) && (sacked & TCPCB_RETRANS)) {
 		/* If the sacked packet was retransmitted, it's ambiguous
 		 * whether the retransmission or the original (or the prior
 		 * retransmission) was sacked.
@@ -133,13 +129,15 @@ void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 		 * so it's at least one RTT (i.e., retransmission is at least
 		 * an RTT later).
 		 */
-		if (rtt_us < tcp_min_rtt(tp))
-			return;
+		return;
 	}
-	tp->rack.rtt_us = rtt_us;
-	tp->rack.mstamp = xmit_time;
-	tp->rack.end_seq = end_seq;
 	tp->rack.advanced = 1;
+	tp->rack.rtt_us = rtt_us;
+	if (tcp_rack_sent_after(xmit_time, tp->rack.mstamp,
+				end_seq, tp->rack.end_seq)) {
+		tp->rack.mstamp = xmit_time;
+		tp->rack.end_seq = end_seq;
+	}
 }
 
 /* We have waited long enough to accommodate reordering. Mark the expired

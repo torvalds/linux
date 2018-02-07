@@ -983,7 +983,7 @@ static void piix4_adap_remove(struct i2c_adapter *adap)
 
 	if (adapdata->smba) {
 		i2c_del_adapter(adap);
-		if (adapdata->port == (0 << 1)) {
+		if (adapdata->port == (0 << piix4_port_shift_sb800)) {
 			release_region(adapdata->smba, SMBIOSIZE);
 			if (adapdata->sb800_main)
 				release_region(SB800_PIIX4_SMB_IDX, 2);

@@ -87,6 +87,7 @@ static struct btrfs_delayed_node *btrfs_get_delayed_node(
 
 	spin_lock(&root->inode_lock);
 	node = radix_tree_lookup(&root->delayed_nodes_tree, ino);
+
 	if (node) {
 		if (btrfs_inode->delayed_node) {
 			refcount_inc(&node->refs);	/* can be accessed */
@@ -94,9 +95,30 @@ static struct btrfs_delayed_node *btrfs_get_delayed_node(
 			spin_unlock(&root->inode_lock);
 			return node;
 		}
-		btrfs_inode->delayed_node = node;
-		/* can be accessed and cached in the inode */
-		refcount_add(2, &node->refs);
+
+		/*
+		 * It's possible that we're racing into the middle of removing
+		 * this node from the radix tree.  In this case, the refcount
+		 * was zero and it should never go back to one.  Just return
+		 * NULL like it was never in the radix at all; our release
+		 * function is in the process of removing it.
+		 *
+		 * Some implementations of refcount_inc refuse to bump the
+		 * refcount once it has hit zero.  If we don't do this dance
+		 * here, refcount_inc() may decide to just WARN_ONCE() instead
+		 * of actually bumping the refcount.
+		 *
+		 * If this node is properly in the radix, we want to bump the
+		 * refcount twice, once for the inode and once for this get
+		 * operation.
+		 */
+		if (refcount_inc_not_zero(&node->refs)) {
+			refcount_inc(&node->refs);
+			btrfs_inode->delayed_node = node;
+		} else {
+			node = NULL;
+		}
+
 		spin_unlock(&root->inode_lock);
 		return node;
 	}
@@ -254,17 +276,18 @@ static void __btrfs_release_delayed_node(
 	mutex_unlock(&delayed_node->mutex);
 
 	if (refcount_dec_and_test(&delayed_node->refs)) {
-		bool free = false;
 		struct btrfs_root *root = delayed_node->root;
+
 		spin_lock(&root->inode_lock);
-		if (refcount_read(&delayed_node->refs) == 0) {
-			radix_tree_delete(&root->delayed_nodes_tree,
-					  delayed_node->inode_id);
-			free = true;
-		}
+		/*
+		 * Once our refcount goes to zero, nobody is allowed to bump it
+		 * back up.  We can delete it now.
+		 */
+		ASSERT(refcount_read(&delayed_node->refs) == 0);
+		radix_tree_delete(&root->delayed_nodes_tree,
+				  delayed_node->inode_id);
 		spin_unlock(&root->inode_lock);
-		if (free)
-			kmem_cache_free(delayed_node_cache, delayed_node);
+		kmem_cache_free(delayed_node_cache, delayed_node);
 	}
 }
 

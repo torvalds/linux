@@ -94,7 +94,7 @@ struct pvrdma_cq {
 	u32 cq_handle;
 	bool is_kernel;
 	atomic_t refcnt;
-	wait_queue_head_t wait;
+	struct completion free;
 };
 
 struct pvrdma_id_table {
@@ -175,7 +175,7 @@ struct pvrdma_srq {
 	u32 srq_handle;
 	int npages;
 	refcount_t refcnt;
-	wait_queue_head_t wait;
+	struct completion free;
 };
 
 struct pvrdma_qp {
@@ -197,7 +197,7 @@ struct pvrdma_qp {
 	bool is_kernel;
 	struct mutex mutex; /* QP state mutex. */
 	atomic_t refcnt;
-	wait_queue_head_t wait;
+	struct completion free;
 };
 
 struct pvrdma_dev {

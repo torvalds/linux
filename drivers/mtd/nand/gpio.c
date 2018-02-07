@@ -253,9 +253,9 @@ static int gpio_nand_probe(struct platform_device *pdev)
 		goto out_ce;
 	}
 
-	gpiomtd->nwp = devm_gpiod_get(dev, "ale", GPIOD_OUT_LOW);
-	if (IS_ERR(gpiomtd->nwp)) {
-		ret = PTR_ERR(gpiomtd->nwp);
+	gpiomtd->ale = devm_gpiod_get(dev, "ale", GPIOD_OUT_LOW);
+	if (IS_ERR(gpiomtd->ale)) {
+		ret = PTR_ERR(gpiomtd->ale);
 		goto out_ce;
 	}
 

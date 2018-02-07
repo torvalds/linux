@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * dcssblk.c -- the S/390 block driver for dcss memory
  *

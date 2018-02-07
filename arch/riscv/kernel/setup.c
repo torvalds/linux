@@ -38,10 +38,6 @@
 #include <asm/tlbflush.h>
 #include <asm/thread_info.h>
 
-#ifdef CONFIG_HVC_RISCV_SBI
-#include <asm/hvc_riscv_sbi.h>
-#endif
-
 #ifdef CONFIG_DUMMY_CONSOLE
 struct screen_info screen_info = {
 	.orig_video_lines	= 30,
@@ -58,7 +54,12 @@ static char __initdata builtin_cmdline[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
 #endif /* CONFIG_CMDLINE_BOOL */
 
 unsigned long va_pa_offset;
+EXPORT_SYMBOL(va_pa_offset);
 unsigned long pfn_base;
+EXPORT_SYMBOL(pfn_base);
+
+unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)] __page_aligned_bss;
+EXPORT_SYMBOL(empty_zero_page);
 
 /* The lucky hart to first increment this variable will boot the other cores */
 atomic_t hart_lottery;
@@ -207,13 +208,6 @@ static void __init setup_bootmem(void)
 
 void __init setup_arch(char **cmdline_p)
 {
-#if defined(CONFIG_HVC_RISCV_SBI)
-	if (likely(early_console == NULL)) {
-		early_console = &riscv_sbi_early_console_dev;
-		register_console(early_console);
-	}
-#endif
-
 #ifdef CONFIG_CMDLINE_BOOL
 #ifdef CONFIG_CMDLINE_OVERRIDE
 	strlcpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);

@@ -1651,6 +1651,14 @@ static const struct user_regset s390_compat_regsets[] = {
 		.set = s390_gs_cb_set,
 	},
 	{
+		.core_note_type = NT_S390_GS_BC,
+		.n = sizeof(struct gs_cb) / sizeof(__u64),
+		.size = sizeof(__u64),
+		.align = sizeof(__u64),
+		.get = s390_gs_bc_get,
+		.set = s390_gs_bc_set,
+	},
+	{
 		.core_note_type = NT_S390_RI_CB,
 		.n = sizeof(struct runtime_instr_cb) / sizeof(__u64),
 		.size = sizeof(__u64),

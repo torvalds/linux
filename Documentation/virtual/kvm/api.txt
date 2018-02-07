@@ -2901,13 +2901,18 @@ userspace buffer and its length:
 
 struct kvm_s390_irq_state {
 	__u64 buf;
-	__u32 flags;
+	__u32 flags;        /* will stay unused for compatibility reasons */
 	__u32 len;
-	__u32 reserved[4];
+	__u32 reserved[4];  /* will stay unused for compatibility reasons */
 };
 
 Userspace passes in the above struct and for each pending interrupt a
 struct kvm_s390_irq is copied to the provided buffer.
+
+The structure contains a flags and a reserved field for future extensions. As
+the kernel never checked for flags == 0 and QEMU never pre-zeroed flags and
+reserved, these fields can not be used in the future without breaking
+compatibility.
 
 If -ENOBUFS is returned the buffer provided was too small and userspace
 may retry with a bigger buffer.
@@ -2932,9 +2937,13 @@ containing a struct kvm_s390_irq_state:
 
 struct kvm_s390_irq_state {
 	__u64 buf;
+	__u32 flags;        /* will stay unused for compatibility reasons */
 	__u32 len;
-	__u32 pad;
+	__u32 reserved[4];  /* will stay unused for compatibility reasons */
 };
+
+The restrictions for flags and reserved apply as well.
+(see KVM_S390_GET_IRQ_STATE)
 
 The userspace memory referenced by buf contains a struct kvm_s390_irq
 for each interrupt to be injected into the guest.

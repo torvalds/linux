@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Default keymap for 3270 (ebcdic codepage 037).
 keymaps 0-1,4-5
 

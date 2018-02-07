@@ -3776,7 +3776,7 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
 	 * tmpfs instance, limiting inodes to one per page of lowmem;
 	 * but the internal instance is left unlimited.
 	 */
-	if (!(sb->s_flags & MS_KERNMOUNT)) {
+	if (!(sb->s_flags & SB_KERNMOUNT)) {
 		sbinfo->max_blocks = shmem_default_max_blocks();
 		sbinfo->max_inodes = shmem_default_max_inodes();
 		if (shmem_parse_options(data, sbinfo, false)) {
@@ -3784,12 +3784,12 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
 			goto failed;
 		}
 	} else {
-		sb->s_flags |= MS_NOUSER;
+		sb->s_flags |= SB_NOUSER;
 	}
 	sb->s_export_op = &shmem_export_ops;
-	sb->s_flags |= MS_NOSEC;
+	sb->s_flags |= SB_NOSEC;
 #else
-	sb->s_flags |= MS_NOUSER;
+	sb->s_flags |= SB_NOUSER;
 #endif
 
 	spin_lock_init(&sbinfo->stat_lock);
@@ -3809,7 +3809,7 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_xattr = shmem_xattr_handlers;
 #endif
 #ifdef CONFIG_TMPFS_POSIX_ACL
-	sb->s_flags |= MS_POSIXACL;
+	sb->s_flags |= SB_POSIXACL;
 #endif
 	uuid_gen(&sb->s_uuid);
 

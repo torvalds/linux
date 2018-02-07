@@ -15,11 +15,11 @@
 #ifndef __IA_CSS_PRBS_H
 #define __IA_CSS_PRBS_H
 
-/** @file
+/* @file
  * This file contains support for Pseudo Random Bit Sequence (PRBS) inputs
  */
 
-/** Enumerate the PRBS IDs.
+/* Enumerate the PRBS IDs.
  */
 enum ia_css_prbs_id {
 	IA_CSS_PRBS_ID0,
@@ -44,10 +44,10 @@ enum ia_css_prbs_id {
  */
 struct ia_css_prbs_config {
 	enum ia_css_prbs_id	id;
-	unsigned int		h_blank;	/**< horizontal blank */
-	unsigned int		v_blank;	/**< vertical blank */
-	int			seed;	/**< random seed for the 1st 2-pixel-components/clock */
-	int			seed1;	/**< random seed for the 2nd 2-pixel-components/clock */
+	unsigned int		h_blank;	/** horizontal blank */
+	unsigned int		v_blank;	/** vertical blank */
+	int			seed;	/** random seed for the 1st 2-pixel-components/clock */
+	int			seed1;	/** random seed for the 2nd 2-pixel-components/clock */
 };
 
 #endif /* __IA_CSS_PRBS_H */

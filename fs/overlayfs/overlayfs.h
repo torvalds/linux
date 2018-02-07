@@ -180,7 +180,7 @@ static inline int ovl_do_whiteout(struct inode *dir, struct dentry *dentry)
 static inline struct dentry *ovl_do_tmpfile(struct dentry *dentry, umode_t mode)
 {
 	struct dentry *ret = vfs_tmpfile(dentry, mode, 0);
-	int err = IS_ERR(ret) ? PTR_ERR(ret) : 0;
+	int err = PTR_ERR_OR_ZERO(ret);
 
 	pr_debug("tmpfile(%pd2, 0%o) = %i\n", dentry, mode, err);
 	return ret;

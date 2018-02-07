@@ -5,7 +5,6 @@ How to get printk format specifiers right
 :Author: Randy Dunlap <rdunlap@infradead.org>
 :Author: Andrew Murray <amurray@mpc-data.co.uk>
 
-
 Integer types
 =============
 
@@ -44,6 +43,18 @@ return from vsnprintf.
 
 Raw pointer value SHOULD be printed with %p. The kernel supports
 the following extended format specifiers for pointer types:
+
+Pointer Types
+=============
+
+Pointers printed without a specifier extension (i.e unadorned %p) are
+hashed to give a unique identifier without leaking kernel addresses to user
+space. On 64 bit machines the first 32 bits are zeroed. If you _really_
+want the address see %px below.
+
+::
+
+	%p	abcdef12 or 00000000abcdef12
 
 Symbols/Function Pointers
 =========================
@@ -85,17 +96,31 @@ Examples::
 	printk("Faulted at %pS\n", (void *)regs->ip);
 	printk(" %s%pB\n", (reliable ? "" : "? "), (void *)*stack);
 
-
 Kernel Pointers
 ===============
 
 ::
 
-	%pK	0x01234567 or 0x0123456789abcdef
+	%pK	01234567 or 0123456789abcdef
 
 For printing kernel pointers which should be hidden from unprivileged
 users. The behaviour of ``%pK`` depends on the ``kptr_restrict sysctl`` - see
 Documentation/sysctl/kernel.txt for more details.
+
+Unmodified Addresses
+====================
+
+::
+
+	%px	01234567 or 0123456789abcdef
+
+For printing pointers when you _really_ want to print the address. Please
+consider whether or not you are leaking sensitive information about the
+Kernel layout in memory before printing pointers with %px. %px is
+functionally equivalent to %lx. %px is preferred to %lx because it is more
+uniquely grep'able. If, in the future, we need to modify the way the Kernel
+handles printing pointers it will be nice to be able to find the call
+sites.
 
 Struct Resources
 ================

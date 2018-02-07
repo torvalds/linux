@@ -67,7 +67,7 @@
 		: "memory");
 
 #define __test_and_op_bit(op, mod, nr, addr) 			\
-	__test_and_op_bit_ord(op, mod, nr, addr, )
+	__test_and_op_bit_ord(op, mod, nr, addr, .aqrl)
 #define __op_bit(op, mod, nr, addr)				\
 	__op_bit_ord(op, mod, nr, addr, )
 

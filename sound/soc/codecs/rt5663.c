@@ -1560,6 +1560,10 @@ static int rt5663_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 			RT5663_IRQ_POW_SAV_MASK, RT5663_IRQ_POW_SAV_EN);
 		snd_soc_update_bits(codec, RT5663_IRQ_1,
 			RT5663_EN_IRQ_JD1_MASK, RT5663_EN_IRQ_JD1_EN);
+		snd_soc_update_bits(codec, RT5663_EM_JACK_TYPE_1,
+			RT5663_EM_JD_MASK, RT5663_EM_JD_RST);
+		snd_soc_update_bits(codec, RT5663_EM_JACK_TYPE_1,
+			RT5663_EM_JD_MASK, RT5663_EM_JD_NOR);
 
 		while (true) {
 			regmap_read(rt5663->regmap, RT5663_INT_ST_2, &val);

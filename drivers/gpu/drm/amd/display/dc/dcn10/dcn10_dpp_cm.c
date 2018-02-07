@@ -225,14 +225,13 @@ void dpp1_cm_set_gamut_remap(
 
 void dpp1_cm_set_output_csc_default(
 		struct dpp *dpp_base,
-		const struct default_adjustment *default_adjust)
+		enum dc_color_space colorspace)
 {
 
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	uint32_t ocsc_mode = 0;
 
-	if (default_adjust != NULL) {
-		switch (default_adjust->out_color_space) {
+	switch (colorspace) {
 		case COLOR_SPACE_SRGB:
 		case COLOR_SPACE_2020_RGB_FULLRANGE:
 			ocsc_mode = 0;
@@ -253,7 +252,6 @@ void dpp1_cm_set_output_csc_default(
 		case COLOR_SPACE_UNKNOWN:
 		default:
 			break;
-		}
 	}
 
 	REG_SET(CM_OCSC_CONTROL, 0, CM_OCSC_MODE, ocsc_mode);

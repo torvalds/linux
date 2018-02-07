@@ -180,6 +180,7 @@ extern void kvm_spapr_tce_release_iommu_group(struct kvm *kvm,
 		struct iommu_group *grp);
 extern int kvmppc_switch_mmu_to_hpt(struct kvm *kvm);
 extern int kvmppc_switch_mmu_to_radix(struct kvm *kvm);
+extern void kvmppc_setup_partition_table(struct kvm *kvm);
 
 extern long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 				struct kvm_create_spapr_tce_64 *args);

@@ -558,8 +558,7 @@ int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 		if (!asd)
 			continue;
 
-		ret = v4l2_async_match_notify(notifier, notifier->v4l2_dev, sd,
-					      asd);
+		ret = v4l2_async_match_notify(notifier, v4l2_dev, sd, asd);
 		if (ret)
 			goto err_unbind;
 

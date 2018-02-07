@@ -3141,9 +3141,6 @@ void dump_stack_print_info(const char *log_lvl)
 void show_regs_print_info(const char *log_lvl)
 {
 	dump_stack_print_info(log_lvl);
-
-	printk("%stask: %p task.stack: %p\n",
-	       log_lvl, current, task_stack_page(current));
 }
 
 #endif

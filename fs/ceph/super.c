@@ -331,11 +331,11 @@ static int parse_fsopt_token(char *c, void *private)
 		break;
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	case Opt_acl:
-		fsopt->sb_flags |= MS_POSIXACL;
+		fsopt->sb_flags |= SB_POSIXACL;
 		break;
 #endif
 	case Opt_noacl:
-		fsopt->sb_flags &= ~MS_POSIXACL;
+		fsopt->sb_flags &= ~SB_POSIXACL;
 		break;
 	default:
 		BUG_ON(token);
@@ -520,7 +520,7 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",nopoolperm");
 
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
-	if (fsopt->sb_flags & MS_POSIXACL)
+	if (fsopt->sb_flags & SB_POSIXACL)
 		seq_puts(m, ",acl");
 	else
 		seq_puts(m, ",noacl");
@@ -988,7 +988,7 @@ static struct dentry *ceph_mount(struct file_system_type *fs_type,
 	dout("ceph_mount\n");
 
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
-	flags |= MS_POSIXACL;
+	flags |= SB_POSIXACL;
 #endif
 	err = parse_mount_options(&fsopt, &opt, flags, data, dev_name);
 	if (err < 0) {

@@ -1001,6 +1001,7 @@ void xprt_transmit(struct rpc_task *task)
 {
 	struct rpc_rqst	*req = task->tk_rqstp;
 	struct rpc_xprt	*xprt = req->rq_xprt;
+	unsigned int connect_cookie;
 	int status, numreqs;
 
 	dprintk("RPC: %5u xprt_transmit(%u)\n", task->tk_pid, req->rq_slen);
@@ -1024,6 +1025,7 @@ void xprt_transmit(struct rpc_task *task)
 	} else if (!req->rq_bytes_sent)
 		return;
 
+	connect_cookie = xprt->connect_cookie;
 	req->rq_xtime = ktime_get();
 	status = xprt->ops->send_request(task);
 	trace_xprt_transmit(xprt, req->rq_xid, status);
@@ -1047,20 +1049,28 @@ void xprt_transmit(struct rpc_task *task)
 	xprt->stat.bklog_u += xprt->backlog.qlen;
 	xprt->stat.sending_u += xprt->sending.qlen;
 	xprt->stat.pending_u += xprt->pending.qlen;
-
-	/* Don't race with disconnect */
-	if (!xprt_connected(xprt))
-		task->tk_status = -ENOTCONN;
-	else {
-		/*
-		 * Sleep on the pending queue since
-		 * we're expecting a reply.
-		 */
-		if (!req->rq_reply_bytes_recvd && rpc_reply_expected(task))
-			rpc_sleep_on(&xprt->pending, task, xprt_timer);
-		req->rq_connect_cookie = xprt->connect_cookie;
-	}
 	spin_unlock_bh(&xprt->transport_lock);
+
+	req->rq_connect_cookie = connect_cookie;
+	if (rpc_reply_expected(task) && !READ_ONCE(req->rq_reply_bytes_recvd)) {
+		/*
+		 * Sleep on the pending queue if we're expecting a reply.
+		 * The spinlock ensures atomicity between the test of
+		 * req->rq_reply_bytes_recvd, and the call to rpc_sleep_on().
+		 */
+		spin_lock(&xprt->recv_lock);
+		if (!req->rq_reply_bytes_recvd) {
+			rpc_sleep_on(&xprt->pending, task, xprt_timer);
+			/*
+			 * Send an extra queue wakeup call if the
+			 * connection was dropped in case the call to
+			 * rpc_sleep_on() raced.
+			 */
+			if (!xprt_connected(xprt))
+				xprt_wake_pending_tasks(xprt, -ENOTCONN);
+		}
+		spin_unlock(&xprt->recv_lock);
+	}
 }
 
 static void xprt_add_backlog(struct rpc_xprt *xprt, struct rpc_task *task)

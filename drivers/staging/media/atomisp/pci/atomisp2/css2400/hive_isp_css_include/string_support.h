@@ -23,7 +23,7 @@
  */
 
 
-/** @brief Copy from src_buf to dest_buf.
+/* @brief Copy from src_buf to dest_buf.
  *
  * @param[out] dest_buf. Destination buffer to copy to
  * @param[in]  dest_size. The size of the destination buffer in bytes
@@ -53,7 +53,7 @@ static inline int memcpy_s(
 	return 0;
 }
 
-/** @brief Get the length of the string, excluding the null terminator
+/* @brief Get the length of the string, excluding the null terminator
  *
  * @param[in]  src_str. The source string
  * @param[in]  max_len. Look only for max_len bytes in the string
@@ -78,7 +78,7 @@ static size_t strnlen_s(
 	return ix;
 }
 
-/** @brief Copy string from src_str to dest_str
+/* @brief Copy string from src_str to dest_str
  *
  * @param[out] dest_str. Destination buffer to copy to
  * @param[in]  dest_size. The size of the destination buffer in bytes
@@ -120,7 +120,7 @@ static inline int strncpy_s(
 	return 0;
 }
 
-/** @brief Copy string from src_str to dest_str
+/* @brief Copy string from src_str to dest_str
  *
  * @param[out] dest_str. Destination buffer to copy to
  * @param[in]  dest_size. The size of the destination buffer in bytes

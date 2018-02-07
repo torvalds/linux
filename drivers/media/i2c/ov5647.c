@@ -428,8 +428,8 @@ static int ov5647_sensor_set_register(struct v4l2_subdev *sd,
 }
 #endif
 
-/**
- * @short Subdev core operations registration
+/*
+ * Subdev core operations registration
  */
 static const struct v4l2_subdev_core_ops ov5647_subdev_core_ops = {
 	.s_power		= ov5647_sensor_power,

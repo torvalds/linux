@@ -131,6 +131,20 @@ static inline bool is_gvt_request(struct drm_i915_gem_request *req)
 	return i915_gem_context_force_single_submission(req->ctx);
 }
 
+static void save_ring_hw_state(struct intel_vgpu *vgpu, int ring_id)
+{
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	u32 ring_base = dev_priv->engine[ring_id]->mmio_base;
+	i915_reg_t reg;
+
+	reg = RING_INSTDONE(ring_base);
+	vgpu_vreg(vgpu, i915_mmio_reg_offset(reg)) = I915_READ_FW(reg);
+	reg = RING_ACTHD(ring_base);
+	vgpu_vreg(vgpu, i915_mmio_reg_offset(reg)) = I915_READ_FW(reg);
+	reg = RING_ACTHD_UDW(ring_base);
+	vgpu_vreg(vgpu, i915_mmio_reg_offset(reg)) = I915_READ_FW(reg);
+}
+
 static int shadow_context_status_change(struct notifier_block *nb,
 		unsigned long action, void *data)
 {
@@ -140,9 +154,10 @@ static int shadow_context_status_change(struct notifier_block *nb,
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	enum intel_engine_id ring_id = req->engine->id;
 	struct intel_vgpu_workload *workload;
+	unsigned long flags;
 
 	if (!is_gvt_request(req)) {
-		spin_lock_bh(&scheduler->mmio_context_lock);
+		spin_lock_irqsave(&scheduler->mmio_context_lock, flags);
 		if (action == INTEL_CONTEXT_SCHEDULE_IN &&
 		    scheduler->engine_owner[ring_id]) {
 			/* Switch ring from vGPU to host. */
@@ -150,7 +165,7 @@ static int shadow_context_status_change(struct notifier_block *nb,
 					      NULL, ring_id);
 			scheduler->engine_owner[ring_id] = NULL;
 		}
-		spin_unlock_bh(&scheduler->mmio_context_lock);
+		spin_unlock_irqrestore(&scheduler->mmio_context_lock, flags);
 
 		return NOTIFY_OK;
 	}
@@ -161,7 +176,7 @@ static int shadow_context_status_change(struct notifier_block *nb,
 
 	switch (action) {
 	case INTEL_CONTEXT_SCHEDULE_IN:
-		spin_lock_bh(&scheduler->mmio_context_lock);
+		spin_lock_irqsave(&scheduler->mmio_context_lock, flags);
 		if (workload->vgpu != scheduler->engine_owner[ring_id]) {
 			/* Switch ring from host to vGPU or vGPU to vGPU. */
 			intel_gvt_switch_mmio(scheduler->engine_owner[ring_id],
@@ -170,12 +185,15 @@ static int shadow_context_status_change(struct notifier_block *nb,
 		} else
 			gvt_dbg_sched("skip ring %d mmio switch for vgpu%d\n",
 				      ring_id, workload->vgpu->id);
-		spin_unlock_bh(&scheduler->mmio_context_lock);
+		spin_unlock_irqrestore(&scheduler->mmio_context_lock, flags);
 		atomic_set(&workload->shadow_ctx_active, 1);
 		break;
 	case INTEL_CONTEXT_SCHEDULE_OUT:
-	case INTEL_CONTEXT_SCHEDULE_PREEMPTED:
+		save_ring_hw_state(workload->vgpu, ring_id);
 		atomic_set(&workload->shadow_ctx_active, 0);
+		break;
+	case INTEL_CONTEXT_SCHEDULE_PREEMPTED:
+		save_ring_hw_state(workload->vgpu, ring_id);
 		break;
 	default:
 		WARN_ON(1);
@@ -253,7 +271,6 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 	struct i915_gem_context *shadow_ctx = workload->vgpu->shadow_ctx;
 	struct drm_i915_private *dev_priv = workload->vgpu->gvt->dev_priv;
 	struct intel_engine_cs *engine = dev_priv->engine[ring_id];
-	struct drm_i915_gem_request *rq;
 	struct intel_vgpu *vgpu = workload->vgpu;
 	struct intel_ring *ring;
 	int ret;
@@ -299,6 +316,26 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 	ret = populate_shadow_context(workload);
 	if (ret)
 		goto err_unpin;
+	workload->shadowed = true;
+	return 0;
+
+err_unpin:
+	engine->context_unpin(engine, shadow_ctx);
+err_shadow:
+	release_shadow_wa_ctx(&workload->wa_ctx);
+err_scan:
+	return ret;
+}
+
+int intel_gvt_generate_request(struct intel_vgpu_workload *workload)
+{
+	int ring_id = workload->ring_id;
+	struct drm_i915_private *dev_priv = workload->vgpu->gvt->dev_priv;
+	struct intel_engine_cs *engine = dev_priv->engine[ring_id];
+	struct drm_i915_gem_request *rq;
+	struct intel_vgpu *vgpu = workload->vgpu;
+	struct i915_gem_context *shadow_ctx = vgpu->shadow_ctx;
+	int ret;
 
 	rq = i915_gem_request_alloc(dev_priv->engine[ring_id], shadow_ctx);
 	if (IS_ERR(rq)) {
@@ -313,14 +350,11 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 	ret = copy_workload_to_ring_buffer(workload);
 	if (ret)
 		goto err_unpin;
-	workload->shadowed = true;
 	return 0;
 
 err_unpin:
 	engine->context_unpin(engine, shadow_ctx);
-err_shadow:
 	release_shadow_wa_ctx(&workload->wa_ctx);
-err_scan:
 	return ret;
 }
 
@@ -722,6 +756,9 @@ int intel_vgpu_init_gvt_context(struct intel_vgpu *vgpu)
 			&vgpu->gvt->dev_priv->drm);
 	if (IS_ERR(vgpu->shadow_ctx))
 		return PTR_ERR(vgpu->shadow_ctx);
+
+	if (INTEL_INFO(vgpu->gvt->dev_priv)->has_logical_ring_preemption)
+		vgpu->shadow_ctx->priority = INT_MAX;
 
 	vgpu->shadow_ctx->engine[RCS].initialised = true;
 

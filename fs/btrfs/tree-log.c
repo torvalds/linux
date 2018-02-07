@@ -4102,7 +4102,7 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 
 	if (ordered_io_err) {
 		ctx->io_err = -EIO;
-		return 0;
+		return ctx->io_err;
 	}
 
 	btrfs_init_map_token(&token);

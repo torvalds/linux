@@ -625,7 +625,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	bcm_sf2_cfp_slice_ipv6(priv, v6_spec->ip6src, v6_spec->psrc,
 				slice_num, false);
 	bcm_sf2_cfp_slice_ipv6(priv, v6_m_spec->ip6src, v6_m_spec->psrc,
-				slice_num, true);
+				SLICE_NUM_MASK, true);
 
 	/* Insert into TCAM now because we need to insert a second rule */
 	bcm_sf2_cfp_rule_addr_set(priv, rule_index[0]);
@@ -699,7 +699,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	/* Insert into Action and policer RAMs now, set chain ID to
 	 * the one we are chained to
 	 */
-	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index[0], port_num,
+	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index[1], port_num,
 				      queue_num, true);
 	if (ret)
 		goto out_err;

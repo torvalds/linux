@@ -25,8 +25,11 @@
 #include <sound/hdaudio_ext.h>
 #include <sound/soc.h>
 #include "skl-nhlt.h"
+#include "skl-ssp-clk.h"
 
 #define SKL_SUSPEND_DELAY 2000
+
+#define SKL_MAX_ASTATE_CFG		3
 
 #define AZX_PCIREG_PGCTL		0x44
 #define AZX_PGCTL_LSRMD_MASK		(1 << 4)
@@ -45,6 +48,20 @@ struct skl_dsp_resource {
 
 struct skl_debug;
 
+struct skl_astate_param {
+	u32 kcps;
+	u32 clk_src;
+};
+
+struct skl_astate_config {
+	u32 count;
+	struct skl_astate_param astate_table[0];
+};
+
+struct skl_fw_config {
+	struct skl_astate_config *astate_cfg;
+};
+
 struct skl {
 	struct hdac_ext_bus ebus;
 	struct pci_dev *pci;
@@ -52,6 +69,7 @@ struct skl {
 	unsigned int init_done:1; /* delayed init status */
 	struct platform_device *dmic_dev;
 	struct platform_device *i2s_dev;
+	struct platform_device *clk_dev;
 	struct snd_soc_platform *platform;
 	struct snd_soc_dai_driver *dais;
 
@@ -75,6 +93,8 @@ struct skl {
 	u8 nr_modules;
 	struct skl_module **modules;
 	bool use_tplg_pcm;
+	struct skl_fw_config cfg;
+	struct snd_soc_acpi_mach *mach;
 };
 
 #define skl_to_ebus(s)	(&(s)->ebus)
@@ -125,6 +145,8 @@ const struct skl_dsp_ops *skl_get_dsp_ops(int pci_id);
 void skl_update_d0i3c(struct device *dev, bool enable);
 int skl_nhlt_create_sysfs(struct skl *skl);
 void skl_nhlt_remove_sysfs(struct skl *skl);
+void skl_get_clks(struct skl *skl, struct skl_ssp_clk *ssp_clks);
+struct skl_clk_parent_src *skl_get_parent_clk(u8 clk_id);
 
 struct skl_module_cfg;
 

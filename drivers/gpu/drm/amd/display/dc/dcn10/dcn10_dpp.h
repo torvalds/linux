@@ -1360,7 +1360,7 @@ void dpp1_cm_set_output_csc_adjustment(
 
 void dpp1_cm_set_output_csc_default(
 		struct dpp *dpp_base,
-		const struct default_adjustment *default_adjust);
+		enum dc_color_space colorspace);
 
 void dpp1_cm_set_gamut_remap(
 	struct dpp *dpp,

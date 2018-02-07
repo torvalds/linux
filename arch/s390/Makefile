@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # s390/Makefile
 #
@@ -5,10 +6,6 @@
 # architecture-specific flags and dependencies. Remember to do have actions
 # for "archclean" and "archdep" for cleaning up and making dependencies for
 # this architecture
-#
-# This file is subject to the terms and conditions of the GNU General Public
-# License.  See the file "COPYING" in the main directory of this archive
-# for more details.
 #
 # Copyright (C) 1994 by Linus Torvalds
 #

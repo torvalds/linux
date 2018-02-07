@@ -26,6 +26,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/if_vlan.h>
+#include <linux/if_macvlan.h>
 #include <net/sch_generic.h>
 #include <net/pkt_sched.h>
 #include <net/dst.h>
@@ -277,6 +278,8 @@ unsigned long dev_trans_start(struct net_device *dev)
 
 	if (is_vlan_dev(dev))
 		dev = vlan_dev_real_dev(dev);
+	else if (netif_is_macvlan(dev))
+		dev = macvlan_dev_real_dev(dev);
 	res = netdev_get_tx_queue(dev, 0)->trans_start;
 	for (i = 1; i < dev->num_tx_queues; i++) {
 		val = netdev_get_tx_queue(dev, i)->trans_start;
@@ -1037,6 +1040,8 @@ void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
 
 	if (!tp_head) {
 		RCU_INIT_POINTER(*miniqp->p_miniq, NULL);
+		/* Wait for flying RCU callback before it is freed. */
+		rcu_barrier_bh();
 		return;
 	}
 
@@ -1052,7 +1057,7 @@ void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
 	rcu_assign_pointer(*miniqp->p_miniq, miniq);
 
 	if (miniq_old)
-		/* This is counterpart of the rcu barrier above. We need to
+		/* This is counterpart of the rcu barriers above. We need to
 		 * block potential new user of miniq_old until all readers
 		 * are not seeing it.
 		 */

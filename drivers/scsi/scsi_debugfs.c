@@ -8,9 +8,11 @@ void scsi_show_rq(struct seq_file *m, struct request *rq)
 {
 	struct scsi_cmnd *cmd = container_of(scsi_req(rq), typeof(*cmd), req);
 	int msecs = jiffies_to_msecs(jiffies - cmd->jiffies_at_alloc);
-	char buf[80];
+	const u8 *const cdb = READ_ONCE(cmd->cmnd);
+	char buf[80] = "(?)";
 
-	__scsi_format_command(buf, sizeof(buf), cmd->cmnd, cmd->cmd_len);
+	if (cdb)
+		__scsi_format_command(buf, sizeof(buf), cdb, cmd->cmd_len);
 	seq_printf(m, ", .cmd=%s, .retries=%d, allocated %d.%03d s ago", buf,
 		   cmd->retries, msecs / 1000, msecs % 1000);
 }

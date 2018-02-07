@@ -70,7 +70,7 @@ void perf_mmap__read_catchup(struct perf_mmap *md);
 static inline u64 perf_mmap__read_head(struct perf_mmap *mm)
 {
 	struct perf_event_mmap_page *pc = mm->base;
-	u64 head = ACCESS_ONCE(pc->data_head);
+	u64 head = READ_ONCE(pc->data_head);
 	rmb();
 	return head;
 }

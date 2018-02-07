@@ -198,8 +198,8 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-ranges = <&pinctrl 0 0 0>,
-				      <&pinctrl 96 0 0>,
-				      <&pinctrl 160 0 0>;
+				      <&pinctrl 104 0 0>,
+				      <&pinctrl 168 0 0>;
 			gpio-ranges-group-names = "gpio_range0",
 						  "gpio_range1",
 						  "gpio_range2";

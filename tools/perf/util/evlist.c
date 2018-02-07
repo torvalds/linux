@@ -257,7 +257,7 @@ int perf_evlist__add_dummy(struct perf_evlist *evlist)
 		.config = PERF_COUNT_SW_DUMMY,
 		.size	= sizeof(attr), /* to capture ABI version */
 	};
-	struct perf_evsel *evsel = perf_evsel__new(&attr);
+	struct perf_evsel *evsel = perf_evsel__new_idx(&attr, evlist->nr_entries);
 
 	if (evsel == NULL)
 		return -ENOMEM;
@@ -1785,4 +1785,16 @@ void perf_evlist__toggle_bkw_mmap(struct perf_evlist *evlist,
 
 state_err:
 	return;
+}
+
+bool perf_evlist__exclude_kernel(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (!evsel->attr.exclude_kernel)
+			return false;
+	}
+
+	return true;
 }

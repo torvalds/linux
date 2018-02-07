@@ -1289,8 +1289,7 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 	unsigned int reg;
 	u32 val32;
 
-	cs42l73 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs42l73_private),
-			       GFP_KERNEL);
+	cs42l73 = devm_kzalloc(&i2c_client->dev, sizeof(*cs42l73), GFP_KERNEL);
 	if (!cs42l73)
 		return -ENOMEM;
 
@@ -1304,13 +1303,11 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 	if (pdata) {
 		cs42l73->pdata = *pdata;
 	} else {
-		pdata = devm_kzalloc(&i2c_client->dev,
-				     sizeof(struct cs42l73_platform_data),
-				GFP_KERNEL);
-		if (!pdata) {
-			dev_err(&i2c_client->dev, "could not allocate pdata\n");
+		pdata = devm_kzalloc(&i2c_client->dev, sizeof(*pdata),
+				     GFP_KERNEL);
+		if (!pdata)
 			return -ENOMEM;
-		}
+
 		if (i2c_client->dev.of_node) {
 			if (of_property_read_u32(i2c_client->dev.of_node,
 				"chgfreq", &val32) >= 0)

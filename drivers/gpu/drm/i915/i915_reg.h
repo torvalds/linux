@@ -2951,9 +2951,6 @@ enum i915_power_well_id {
 #define ILK_DPFC_CHICKEN	_MMIO(0x43224)
 #define   ILK_DPFC_DISABLE_DUMMY0 (1<<8)
 #define   ILK_DPFC_NUKE_ON_ANY_MODIFICATION	(1<<23)
-#define   GLK_SKIP_SEG_EN		(1<<12)
-#define   GLK_SKIP_SEG_COUNT_MASK	(3<<10)
-#define   GLK_SKIP_SEG_COUNT(x)		((x)<<10)
 #define ILK_FBC_RT_BASE		_MMIO(0x2128)
 #define   ILK_FBC_RT_VALID	(1<<0)
 #define   SNB_FBC_FRONT_BUFFER	(1<<1)
@@ -6980,6 +6977,7 @@ enum {
 #define  RESET_PCH_HANDSHAKE_ENABLE	(1<<4)
 
 #define GEN8_CHICKEN_DCPR_1		_MMIO(0x46430)
+#define   SKL_SELECT_ALTERNATE_DC_EXIT	(1<<30)
 #define   MASK_WAKEMEM			(1<<13)
 
 #define SKL_DFSM			_MMIO(0x51000)
@@ -8525,6 +8523,7 @@ enum skl_power_gate {
 #define  BXT_CDCLK_CD2X_DIV_SEL_2	(2<<22)
 #define  BXT_CDCLK_CD2X_DIV_SEL_4	(3<<22)
 #define  BXT_CDCLK_CD2X_PIPE(pipe)	((pipe)<<20)
+#define  CDCLK_DIVMUX_CD_OVERRIDE	(1<<19)
 #define  BXT_CDCLK_CD2X_PIPE_NONE	BXT_CDCLK_CD2X_PIPE(3)
 #define  BXT_CDCLK_SSA_PRECHARGE_ENABLE	(1<<16)
 #define  CDCLK_FREQ_DECIMAL_MASK	(0x7ff)

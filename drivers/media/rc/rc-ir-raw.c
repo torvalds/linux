@@ -128,7 +128,7 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);
 /**
  * ir_raw_event_store_with_filter() - pass next pulse/space to decoders with some processing
  * @dev:	the struct rc_dev device descriptor
- * @type:	the type of the event that has occurred
+ * @ev:		the event that has occurred
  *
  * This routine (which may be called from an interrupt context) works
  * in similar manner to ir_raw_event_store_edge.

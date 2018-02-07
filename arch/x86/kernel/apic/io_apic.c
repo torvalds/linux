@@ -2988,7 +2988,7 @@ void mp_irqdomain_free(struct irq_domain *domain, unsigned int virq,
 }
 
 int mp_irqdomain_activate(struct irq_domain *domain,
-			  struct irq_data *irq_data, bool early)
+			  struct irq_data *irq_data, bool reserve)
 {
 	unsigned long flags;
 

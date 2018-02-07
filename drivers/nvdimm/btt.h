@@ -27,6 +27,7 @@
 #define MAP_ERR_MASK (1 << MAP_ERR_SHIFT)
 #define MAP_LBA_MASK (~((1 << MAP_TRIM_SHIFT) | (1 << MAP_ERR_SHIFT)))
 #define MAP_ENT_NORMAL 0xC0000000
+#define LOG_GRP_SIZE sizeof(struct log_group)
 #define LOG_ENT_SIZE sizeof(struct log_entry)
 #define ARENA_MIN_SIZE (1UL << 24)	/* 16 MB */
 #define ARENA_MAX_SIZE (1ULL << 39)	/* 512 GB */
@@ -50,12 +51,52 @@ enum btt_init_state {
 	INIT_READY
 };
 
+/*
+ * A log group represents one log 'lane', and consists of four log entries.
+ * Two of the four entries are valid entries, and the remaining two are
+ * padding. Due to an old bug in the padding location, we need to perform a
+ * test to determine the padding scheme being used, and use that scheme
+ * thereafter.
+ *
+ * In kernels prior to 4.15, 'log group' would have actual log entries at
+ * indices (0, 2) and padding at indices (1, 3), where as the correct/updated
+ * format has log entries at indices (0, 1) and padding at indices (2, 3).
+ *
+ * Old (pre 4.15) format:
+ * +-----------------+-----------------+
+ * |      ent[0]     |      ent[1]     |
+ * |       16B       |       16B       |
+ * | lba/old/new/seq |       pad       |
+ * +-----------------------------------+
+ * |      ent[2]     |      ent[3]     |
+ * |       16B       |       16B       |
+ * | lba/old/new/seq |       pad       |
+ * +-----------------+-----------------+
+ *
+ * New format:
+ * +-----------------+-----------------+
+ * |      ent[0]     |      ent[1]     |
+ * |       16B       |       16B       |
+ * | lba/old/new/seq | lba/old/new/seq |
+ * +-----------------------------------+
+ * |      ent[2]     |      ent[3]     |
+ * |       16B       |       16B       |
+ * |       pad       |       pad       |
+ * +-----------------+-----------------+
+ *
+ * We detect during start-up which format is in use, and set
+ * arena->log_index[(0, 1)] with the detected format.
+ */
+
 struct log_entry {
 	__le32 lba;
 	__le32 old_map;
 	__le32 new_map;
 	__le32 seq;
-	__le64 padding[2];
+};
+
+struct log_group {
+	struct log_entry ent[4];
 };
 
 struct btt_sb {
@@ -125,6 +166,8 @@ struct aligned_lock {
  * @list:		List head for list of arenas
  * @debugfs_dir:	Debugfs dentry
  * @flags:		Arena flags - may signify error states.
+ * @err_lock:		Mutex for synchronizing error clearing.
+ * @log_index:		Indices of the valid log entries in a log_group
  *
  * arena_info is a per-arena handle. Once an arena is narrowed down for an
  * IO, this struct is passed around for the duration of the IO.
@@ -157,6 +200,7 @@ struct arena_info {
 	/* Arena flags */
 	u32 flags;
 	struct mutex err_lock;
+	int log_index[2];
 };
 
 /**
@@ -176,6 +220,7 @@ struct arena_info {
  * @init_lock:		Mutex used for the BTT initialization
  * @init_state:		Flag describing the initialization state for the BTT
  * @num_arenas:		Number of arenas in the BTT instance
+ * @phys_bb:		Pointer to the namespace's badblocks structure
  */
 struct btt {
 	struct gendisk *btt_disk;

@@ -95,6 +95,7 @@ config NO_HZ_FULL
 	select RCU_NOCB_CPU
 	select VIRT_CPU_ACCOUNTING_GEN
 	select IRQ_WORK
+	select CPU_ISOLATION
 	help
 	 Adaptively try to shutdown the tick whenever possible, even when
 	 the CPU is running tasks. Typically this requires running a single

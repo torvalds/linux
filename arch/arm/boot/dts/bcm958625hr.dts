@@ -177,10 +177,6 @@
 	status = "okay";
 };
 
-&sata {
-	status = "okay";
-};
-
 &srab {
 	compatible = "brcm,bcm58625-srab", "brcm,nsp-srab";
 	status = "okay";

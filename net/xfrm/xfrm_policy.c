@@ -1168,9 +1168,15 @@ static struct xfrm_policy *xfrm_sk_policy_lookup(const struct sock *sk, int dir,
  again:
 	pol = rcu_dereference(sk->sk_policy[dir]);
 	if (pol != NULL) {
-		bool match = xfrm_selector_match(&pol->selector, fl, family);
+		bool match;
 		int err = 0;
 
+		if (pol->family != family) {
+			pol = NULL;
+			goto out;
+		}
+
+		match = xfrm_selector_match(&pol->selector, fl, family);
 		if (match) {
 			if ((sk->sk_mark & pol->mark.m) != pol->mark.v) {
 				pol = NULL;
@@ -1833,6 +1839,7 @@ xfrm_resolve_and_create_bundle(struct xfrm_policy **pols, int num_pols,
 		   sizeof(struct xfrm_policy *) * num_pols) == 0 &&
 	    xfrm_xdst_can_reuse(xdst, xfrm, err)) {
 		dst_hold(&xdst->u.dst);
+		xfrm_pols_put(pols, num_pols);
 		while (err > 0)
 			xfrm_state_put(xfrm[--err]);
 		return xdst;

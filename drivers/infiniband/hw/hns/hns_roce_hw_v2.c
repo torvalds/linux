@@ -1126,9 +1126,11 @@ static int hns_roce_v2_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
 {
 	struct hns_roce_v2_mpt_entry *mpt_entry;
 	struct scatterlist *sg;
+	u64 page_addr;
 	u64 *pages;
+	int i, j;
+	int len;
 	int entry;
-	int i;
 
 	mpt_entry = mb_buf;
 	memset(mpt_entry, 0, sizeof(*mpt_entry));
@@ -1186,14 +1188,20 @@ static int hns_roce_v2_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
 
 	i = 0;
 	for_each_sg(mr->umem->sg_head.sgl, sg, mr->umem->nmap, entry) {
-		pages[i] = ((u64)sg_dma_address(sg)) >> 6;
+		len = sg_dma_len(sg) >> PAGE_SHIFT;
+		for (j = 0; j < len; ++j) {
+			page_addr = sg_dma_address(sg) +
+				    (j << mr->umem->page_shift);
+			pages[i] = page_addr >> 6;
 
-		/* Record the first 2 entry directly to MTPT table */
-		if (i >= HNS_ROCE_V2_MAX_INNER_MTPT_NUM - 1)
-			break;
-		i++;
+			/* Record the first 2 entry directly to MTPT table */
+			if (i >= HNS_ROCE_V2_MAX_INNER_MTPT_NUM - 1)
+				goto found;
+			i++;
+		}
 	}
 
+found:
 	mpt_entry->pa0_l = cpu_to_le32(lower_32_bits(pages[0]));
 	roce_set_field(mpt_entry->byte_56_pa0_h, V2_MPT_BYTE_56_PA0_H_M,
 		       V2_MPT_BYTE_56_PA0_H_S,

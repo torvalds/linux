@@ -629,6 +629,18 @@ config SPEAR_ADC
 	  To compile this driver as a module, choose M here: the
 	  module will be called spear_adc.
 
+config SD_ADC_MODULATOR
+	tristate "Generic sigma delta modulator"
+	depends on OF
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Select this option to enables sigma delta modulator. This driver can
+	  support generic sigma delta modulators.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called sd_adc_modulator.
+
 config STM32_ADC_CORE
 	tristate "STMicroelectronics STM32 adc core"
 	depends on ARCH_STM32 || COMPILE_TEST
@@ -655,6 +667,31 @@ config STM32_ADC
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called stm32-adc.
+
+config STM32_DFSDM_CORE
+	tristate "STMicroelectronics STM32 DFSDM core"
+	depends on (ARCH_STM32 && OF) || COMPILE_TEST
+	select REGMAP
+	select REGMAP_MMIO
+	help
+	  Select this option to enable the  driver for STMicroelectronics
+	  STM32 digital filter for sigma delta converter.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called stm32-dfsdm-core.
+
+config STM32_DFSDM_ADC
+	tristate "STMicroelectronics STM32 dfsdm adc"
+	depends on (ARCH_STM32 && OF) || COMPILE_TEST
+	select STM32_DFSDM_CORE
+	select REGMAP_MMIO
+	select IIO_BUFFER_HW_CONSUMER
+	help
+	  Select this option to support ADCSigma delta modulator for
+	  STMicroelectronics STM32 digital filter for sigma delta converter.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called stm32-dfsdm-adc.
 
 config STX104
 	tristate "Apex Embedded Systems STX104 driver"

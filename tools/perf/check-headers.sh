@@ -21,6 +21,7 @@ arch/x86/include/asm/cpufeatures.h
 arch/arm/include/uapi/asm/perf_regs.h
 arch/arm64/include/uapi/asm/perf_regs.h
 arch/powerpc/include/uapi/asm/perf_regs.h
+arch/s390/include/uapi/asm/perf_regs.h
 arch/x86/include/uapi/asm/perf_regs.h
 arch/x86/include/uapi/asm/kvm.h
 arch/x86/include/uapi/asm/kvm_perf.h
@@ -30,6 +31,7 @@ arch/x86/include/uapi/asm/vmx.h
 arch/powerpc/include/uapi/asm/kvm.h
 arch/s390/include/uapi/asm/kvm.h
 arch/s390/include/uapi/asm/kvm_perf.h
+arch/s390/include/uapi/asm/ptrace.h
 arch/s390/include/uapi/asm/sie.h
 arch/arm/include/uapi/asm/kvm.h
 arch/arm64/include/uapi/asm/kvm.h

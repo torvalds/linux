@@ -39,27 +39,23 @@
 #define smp_wmb()	RISCV_FENCE(w,w)
 
 /*
- * These fences exist to enforce ordering around the relaxed AMOs.  The
- * documentation defines that
- * "
- *     atomic_fetch_add();
- *   is equivalent to:
- *     smp_mb__before_atomic();
- *     atomic_fetch_add_relaxed();
- *     smp_mb__after_atomic();
- * "
- * So we emit full fences on both sides.
+ * This is a very specific barrier: it's currently only used in two places in
+ * the kernel, both in the scheduler.  See include/linux/spinlock.h for the two
+ * orderings it guarantees, but the "critical section is RCsc" guarantee
+ * mandates a barrier on RISC-V.  The sequence looks like:
+ *
+ *    lr.aq lock
+ *    sc    lock <= LOCKED
+ *    smp_mb__after_spinlock()
+ *    // critical section
+ *    lr    lock
+ *    sc.rl lock <= UNLOCKED
+ *
+ * The AQ/RL pair provides a RCpc critical section, but there's not really any
+ * way we can take advantage of that here because the ordering is only enforced
+ * on that one lock.  Thus, we're just doing a full fence.
  */
-#define __smb_mb__before_atomic()	smp_mb()
-#define __smb_mb__after_atomic()	smp_mb()
-
-/*
- * These barriers prevent accesses performed outside a spinlock from being moved
- * inside a spinlock.  Since RISC-V sets the aq/rl bits on our spinlock only
- * enforce release consistency, we need full fences here.
- */
-#define smb_mb__before_spinlock()	smp_mb()
-#define smb_mb__after_spinlock()	smp_mb()
+#define smp_mb__after_spinlock()	RISCV_FENCE(rw,rw)
 
 #include <asm-generic/barrier.h>
 

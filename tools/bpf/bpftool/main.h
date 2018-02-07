@@ -41,6 +41,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <linux/bpf.h>
+#include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/hashtable.h>
 
@@ -50,7 +51,7 @@
 
 #define NEXT_ARG()	({ argc--; argv++; if (argc < 0) usage(); })
 #define NEXT_ARGP()	({ (*argc)--; (*argv)++; if (*argc < 0) usage(); })
-#define BAD_ARG()	({ p_err("what is '%s'?\n", *argv); -1; })
+#define BAD_ARG()	({ p_err("what is '%s'?", *argv); -1; })
 
 #define ERR_MAX_LEN	1024
 
@@ -80,7 +81,7 @@ void p_info(const char *fmt, ...);
 
 bool is_prefix(const char *pfx, const char *str);
 void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep);
-void usage(void) __attribute__((noreturn));
+void usage(void) __noreturn;
 
 struct pinned_obj_table {
 	DECLARE_HASHTABLE(table, 16);

@@ -285,6 +285,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   bool upgrade)
 {
 	struct rxrpc_conn_parameters cp;
+	struct rxrpc_call_params p;
 	struct rxrpc_call *call;
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 	int ret;
@@ -302,6 +303,10 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	if (key && !key->payload.data[0])
 		key = NULL; /* a no-security key */
 
+	memset(&p, 0, sizeof(p));
+	p.user_call_ID = user_call_ID;
+	p.tx_total_len = tx_total_len;
+
 	memset(&cp, 0, sizeof(cp));
 	cp.local		= rx->local;
 	cp.key			= key;
@@ -309,8 +314,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	cp.exclusive		= false;
 	cp.upgrade		= upgrade;
 	cp.service_id		= srx->srx_service;
-	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, tx_total_len,
-				     gfp);
+	call = rxrpc_new_client_call(rx, &cp, srx, &p, gfp);
 	/* The socket has been unlocked. */
 	if (!IS_ERR(call)) {
 		call->notify_rx = notify_rx;
@@ -856,12 +860,26 @@ static void rxrpc_sock_destructor(struct sock *sk)
 static int rxrpc_release_sock(struct sock *sk)
 {
 	struct rxrpc_sock *rx = rxrpc_sk(sk);
+	struct rxrpc_net *rxnet = rxrpc_net(sock_net(&rx->sk));
 
 	_enter("%p{%d,%d}", sk, sk->sk_state, refcount_read(&sk->sk_refcnt));
 
 	/* declare the socket closed for business */
 	sock_orphan(sk);
 	sk->sk_shutdown = SHUTDOWN_MASK;
+
+	/* We want to kill off all connections from a service socket
+	 * as fast as possible because we can't share these; client
+	 * sockets, on the other hand, can share an endpoint.
+	 */
+	switch (sk->sk_state) {
+	case RXRPC_SERVER_BOUND:
+	case RXRPC_SERVER_BOUND2:
+	case RXRPC_SERVER_LISTENING:
+	case RXRPC_SERVER_LISTEN_DISABLED:
+		rx->local->service_closed = true;
+		break;
+	}
 
 	spin_lock_bh(&sk->sk_receive_queue.lock);
 	sk->sk_state = RXRPC_CLOSE;
@@ -878,6 +896,8 @@ static int rxrpc_release_sock(struct sock *sk)
 	rxrpc_release_calls_on_socket(rx);
 	flush_workqueue(rxrpc_workqueue);
 	rxrpc_purge_queue(&sk->sk_receive_queue);
+	rxrpc_queue_work(&rxnet->service_conn_reaper);
+	rxrpc_queue_work(&rxnet->client_conn_reaper);
 
 	rxrpc_put_local(rx->local);
 	rx->local = NULL;

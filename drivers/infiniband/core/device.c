@@ -1146,7 +1146,7 @@ struct net_device *ib_get_net_dev_by_params(struct ib_device *dev,
 }
 EXPORT_SYMBOL(ib_get_net_dev_by_params);
 
-static const struct rdma_nl_cbs ibnl_ls_cb_table[] = {
+static const struct rdma_nl_cbs ibnl_ls_cb_table[RDMA_NL_LS_NUM_OPS] = {
 	[RDMA_NL_LS_OP_RESOLVE] = {
 		.doit = ib_nl_handle_resolve_resp,
 		.flags = RDMA_NL_ADMIN_PERM,
@@ -1253,5 +1253,5 @@ static void __exit ib_core_cleanup(void)
 
 MODULE_ALIAS_RDMA_NETLINK(RDMA_NL_LS, 4);
 
-module_init(ib_core_init);
+subsys_initcall(ib_core_init);
 module_exit(ib_core_cleanup);

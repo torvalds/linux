@@ -135,6 +135,8 @@ extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
 	set_bit(bit, (unsigned long *)cpu_caps_set);	\
 } while (0)
 
+#define setup_force_cpu_bug(bit) setup_force_cpu_cap(bit)
+
 #if defined(CC_HAVE_ASM_GOTO) && defined(CONFIG_X86_FAST_FEATURE_TESTS)
 /*
  * Static testing of CPU features.  Used the same as boot_cpu_has().

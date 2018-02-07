@@ -5753,7 +5753,7 @@ sub process {
 		        for (my $count = $linenr; $count <= $lc; $count++) {
 				my $fmt = get_quoted_string($lines[$count - 1], raw_line($count, 0));
 				$fmt =~ s/%%//g;
-				if ($fmt =~ /(\%[\*\d\.]*p(?![\WFfSsBKRraEhMmIiUDdgVCbGNO]).)/) {
+				if ($fmt =~ /(\%[\*\d\.]*p(?![\WFfSsBKRraEhMmIiUDdgVCbGNOx]).)/) {
 					$bad_extension = $1;
 					last;
 				}
@@ -6230,28 +6230,6 @@ sub process {
 			} elsif ($realfile !~ m@^kernel/@) {
 				WARN("IN_ATOMIC",
 				     "use of in_atomic() is incorrect outside core kernel code\n" . $herecurr);
-			}
-		}
-
-# whine about ACCESS_ONCE
-		if ($^V && $^V ge 5.10.0 &&
-		    $line =~ /\bACCESS_ONCE\s*$balanced_parens\s*(=(?!=))?\s*($FuncArg)?/) {
-			my $par = $1;
-			my $eq = $2;
-			my $fun = $3;
-			$par =~ s/^\(\s*(.*)\s*\)$/$1/;
-			if (defined($eq)) {
-				if (WARN("PREFER_WRITE_ONCE",
-					 "Prefer WRITE_ONCE(<FOO>, <BAR>) over ACCESS_ONCE(<FOO>) = <BAR>\n" . $herecurr) &&
-				    $fix) {
-					$fixed[$fixlinenr] =~ s/\bACCESS_ONCE\s*\(\s*\Q$par\E\s*\)\s*$eq\s*\Q$fun\E/WRITE_ONCE($par, $fun)/;
-				}
-			} else {
-				if (WARN("PREFER_READ_ONCE",
-					 "Prefer READ_ONCE(<FOO>) over ACCESS_ONCE(<FOO>)\n" . $herecurr) &&
-				    $fix) {
-					$fixed[$fixlinenr] =~ s/\bACCESS_ONCE\s*\(\s*\Q$par\E\s*\)/READ_ONCE($par)/;
-				}
 			}
 		}
 

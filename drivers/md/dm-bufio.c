@@ -1611,7 +1611,8 @@ static unsigned long __scan(struct dm_bufio_client *c, unsigned long nr_to_scan,
 	int l;
 	struct dm_buffer *b, *tmp;
 	unsigned long freed = 0;
-	unsigned long count = nr_to_scan;
+	unsigned long count = c->n_buffers[LIST_CLEAN] +
+			      c->n_buffers[LIST_DIRTY];
 	unsigned long retain_target = get_retain_buffers(c);
 
 	for (l = 0; l < LIST_SIZE; l++) {
@@ -1647,8 +1648,11 @@ static unsigned long
 dm_bufio_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 {
 	struct dm_bufio_client *c = container_of(shrink, struct dm_bufio_client, shrinker);
+	unsigned long count = READ_ONCE(c->n_buffers[LIST_CLEAN]) +
+			      READ_ONCE(c->n_buffers[LIST_DIRTY]);
+	unsigned long retain_target = get_retain_buffers(c);
 
-	return READ_ONCE(c->n_buffers[LIST_CLEAN]) + READ_ONCE(c->n_buffers[LIST_DIRTY]);
+	return (count < retain_target) ? 0 : (count - retain_target);
 }
 
 /*
