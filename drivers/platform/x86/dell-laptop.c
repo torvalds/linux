@@ -636,19 +636,7 @@ static int dell_debugfs_show(struct seq_file *s, void *data)
 
 	return 0;
 }
-
-static int dell_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, dell_debugfs_show, inode->i_private);
-}
-
-static const struct file_operations dell_debugfs_fops = {
-	.owner = THIS_MODULE,
-	.open = dell_debugfs_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dell_debugfs);
 
 static void dell_update_rfkill(struct work_struct *ignored)
 {
