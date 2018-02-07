@@ -120,6 +120,8 @@
 #define MPT3SAS_NVME_QUEUE_DEPTH	128
 #define MPT_NAME_LENGTH			32	/* generic length of strings */
 #define MPT_STRING_LENGTH		64
+#define MPI_FRAME_START_OFFSET		256
+#define REPLY_FREE_POOL_SIZE		512 /*(32 maxcredix *4)*(4 times)*/
 
 #define MPT_MAX_CALLBACKS		32
 

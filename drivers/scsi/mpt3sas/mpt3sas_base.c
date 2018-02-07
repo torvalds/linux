@@ -126,6 +126,99 @@ module_param_call(mpt3sas_fwfault_debug, _scsih_set_fwfault_debug,
 	param_get_int, &mpt3sas_fwfault_debug, 0644);
 
 /**
+ * _base_get_chain - Calculates and Returns virtual chain address
+ *			 for the provided smid in BAR0 space.
+ *
+ * @ioc: per adapter object
+ * @smid: system request message index
+ * @sge_chain_count: Scatter gather chain count.
+ *
+ * @Return: chain address.
+ */
+static inline void __iomem*
+_base_get_chain(struct MPT3SAS_ADAPTER *ioc, u16 smid,
+		u8 sge_chain_count)
+{
+	void __iomem *base_chain, *chain_virt;
+	u16 cmd_credit = ioc->facts.RequestCredit + 1;
+
+	base_chain  = (void __iomem *)ioc->chip + MPI_FRAME_START_OFFSET +
+		(cmd_credit * ioc->request_sz) +
+		REPLY_FREE_POOL_SIZE;
+	chain_virt = base_chain + (smid * ioc->facts.MaxChainDepth *
+			ioc->request_sz) + (sge_chain_count * ioc->request_sz);
+	return chain_virt;
+}
+
+/**
+ * _base_get_chain_phys - Calculates and Returns physical address
+ *			in BAR0 for scatter gather chains, for
+ *			the provided smid.
+ *
+ * @ioc: per adapter object
+ * @smid: system request message index
+ * @sge_chain_count: Scatter gather chain count.
+ *
+ * @Return - Physical chain address.
+ */
+static inline void *
+_base_get_chain_phys(struct MPT3SAS_ADAPTER *ioc, u16 smid,
+		u8 sge_chain_count)
+{
+	void *base_chain_phys, *chain_phys;
+	u16 cmd_credit = ioc->facts.RequestCredit + 1;
+
+	base_chain_phys  = (void *)ioc->chip_phys + MPI_FRAME_START_OFFSET +
+		(cmd_credit * ioc->request_sz) +
+		REPLY_FREE_POOL_SIZE;
+	chain_phys = base_chain_phys + (smid * ioc->facts.MaxChainDepth *
+			ioc->request_sz) + (sge_chain_count * ioc->request_sz);
+	return chain_phys;
+}
+
+/**
+ * _base_get_buffer_bar0 - Calculates and Returns BAR0 mapped Host
+ *			buffer address for the provided smid.
+ *			(Each smid can have 64K starts from 17024)
+ *
+ * @ioc: per adapter object
+ * @smid: system request message index
+ *
+ * @Returns - Pointer to buffer location in BAR0.
+ */
+
+static void __iomem *
+_base_get_buffer_bar0(struct MPT3SAS_ADAPTER *ioc, u16 smid)
+{
+	u16 cmd_credit = ioc->facts.RequestCredit + 1;
+	// Added extra 1 to reach end of chain.
+	void __iomem *chain_end = _base_get_chain(ioc,
+			cmd_credit + 1,
+			ioc->facts.MaxChainDepth);
+	return chain_end + (smid * 64 * 1024);
+}
+
+/**
+ * _base_get_buffer_phys_bar0 - Calculates and Returns BAR0 mapped
+ *		Host buffer Physical address for the provided smid.
+ *		(Each smid can have 64K starts from 17024)
+ *
+ * @ioc: per adapter object
+ * @smid: system request message index
+ *
+ * @Returns - Pointer to buffer location in BAR0.
+ */
+static void *
+_base_get_buffer_phys_bar0(struct MPT3SAS_ADAPTER *ioc, u16 smid)
+{
+	u16 cmd_credit = ioc->facts.RequestCredit + 1;
+	void *chain_end_phys = _base_get_chain_phys(ioc,
+			cmd_credit + 1,
+			ioc->facts.MaxChainDepth);
+	return chain_end_phys + (smid * 64 * 1024);
+}
+
+/**
  *  mpt3sas_remove_dead_ioc_func - kthread context to remove dead ioc
  * @arg: input argument, used to derive ioc
  *
