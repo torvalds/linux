@@ -1293,6 +1293,7 @@ static int netsec_netdev_open(struct net_device *ndev)
 				    netsec_phy_adjust_link, 0,
 				    priv->phy_interface)) {
 			netif_err(priv, link, priv->ndev, "missing PHY\n");
+			ret = -ENODEV;
 			goto err3;
 		}
 	} else {
