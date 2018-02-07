@@ -10521,26 +10521,34 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->transportt = mpt3sas_transport_template;
 	shost->unique_id = ioc->id;
 
-	if (max_sectors != 0xFFFF) {
-		if (max_sectors < 64) {
-			shost->max_sectors = 64;
-			pr_warn(MPT3SAS_FMT "Invalid value %d passed " \
-			    "for max_sectors, range is 64 to 32767. Assigning "
-			    "value of 64.\n", ioc->name, max_sectors);
-		} else if (max_sectors > 32767) {
-			shost->max_sectors = 32767;
-			pr_warn(MPT3SAS_FMT "Invalid value %d passed " \
-			    "for max_sectors, range is 64 to 32767. Assigning "
-			    "default value of 32767.\n", ioc->name,
-			    max_sectors);
-		} else {
-			shost->max_sectors = max_sectors & 0xFFFE;
-			pr_info(MPT3SAS_FMT
+	if (ioc->is_mcpu_endpoint) {
+		/* mCPU MPI support 64K max IO */
+		shost->max_sectors = 128;
+		pr_info(MPT3SAS_FMT
 				"The max_sectors value is set to %d\n",
 				ioc->name, shost->max_sectors);
+	} else {
+		if (max_sectors != 0xFFFF) {
+			if (max_sectors < 64) {
+				shost->max_sectors = 64;
+				pr_warn(MPT3SAS_FMT "Invalid value %d passed " \
+				    "for max_sectors, range is 64 to 32767. " \
+				    "Assigning value of 64.\n", \
+				    ioc->name, max_sectors);
+			} else if (max_sectors > 32767) {
+				shost->max_sectors = 32767;
+				pr_warn(MPT3SAS_FMT "Invalid value %d passed " \
+				    "for max_sectors, range is 64 to 32767." \
+				    "Assigning default value of 32767.\n", \
+				    ioc->name, max_sectors);
+			} else {
+				shost->max_sectors = max_sectors & 0xFFFE;
+				pr_info(MPT3SAS_FMT
+					"The max_sectors value is set to %d\n",
+					ioc->name, shost->max_sectors);
+			}
 		}
 	}
-
 	/* register EEDP capabilities with SCSI layer */
 	if (prot_mask > 0)
 		scsi_host_set_prot(shost, prot_mask);

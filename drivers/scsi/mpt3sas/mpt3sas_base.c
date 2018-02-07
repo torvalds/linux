@@ -2214,6 +2214,9 @@ _base_config_dma_addressing(struct MPT3SAS_ADAPTER *ioc, struct pci_dev *pdev)
 	struct sysinfo s;
 	u64 consistent_dma_mask;
 
+	if (ioc->is_mcpu_endpoint)
+		goto try_32bit;
+
 	if (ioc->dma_mask)
 		consistent_dma_mask = DMA_BIT_MASK(64);
 	else
@@ -2232,6 +2235,7 @@ _base_config_dma_addressing(struct MPT3SAS_ADAPTER *ioc, struct pci_dev *pdev)
 		}
 	}
 
+ try_32bit:
 	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))
 	    && !pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		ioc->base_add_sg_single = &_base_add_sg_single_32;
@@ -3887,17 +3891,21 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		sg_tablesize = min_t(unsigned short, sg_tablesize,
 		   MPT_KDUMP_MIN_PHYS_SEGMENTS);
 
-	if (sg_tablesize < MPT_MIN_PHYS_SEGMENTS)
-		sg_tablesize = MPT_MIN_PHYS_SEGMENTS;
-	else if (sg_tablesize > MPT_MAX_PHYS_SEGMENTS) {
-		sg_tablesize = min_t(unsigned short, sg_tablesize,
-				      SG_MAX_SEGMENTS);
-		pr_warn(MPT3SAS_FMT
-		 "sg_tablesize(%u) is bigger than kernel"
-		 " defined SG_CHUNK_SIZE(%u)\n", ioc->name,
-		 sg_tablesize, MPT_MAX_PHYS_SEGMENTS);
+	if (ioc->is_mcpu_endpoint)
+		ioc->shost->sg_tablesize = MPT_MIN_PHYS_SEGMENTS;
+	else {
+		if (sg_tablesize < MPT_MIN_PHYS_SEGMENTS)
+			sg_tablesize = MPT_MIN_PHYS_SEGMENTS;
+		else if (sg_tablesize > MPT_MAX_PHYS_SEGMENTS) {
+			sg_tablesize = min_t(unsigned short, sg_tablesize,
+					SG_MAX_SEGMENTS);
+			pr_warn(MPT3SAS_FMT
+				"sg_tablesize(%u) is bigger than kernel "
+				"defined SG_CHUNK_SIZE(%u)\n", ioc->name,
+				sg_tablesize, MPT_MAX_PHYS_SEGMENTS);
+		}
+		ioc->shost->sg_tablesize = sg_tablesize;
 	}
-	ioc->shost->sg_tablesize = sg_tablesize;
 
 	ioc->internal_depth = min_t(int, (facts->HighPriorityCredit + (5)),
 		(facts->RequestCredit / 4));
@@ -3982,13 +3990,18 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	/* reply free queue sizing - taking into account for 64 FW events */
 	ioc->reply_free_queue_depth = ioc->hba_queue_depth + 64;
 
-	/* calculate reply descriptor post queue depth */
-	ioc->reply_post_queue_depth = ioc->hba_queue_depth +
-				ioc->reply_free_queue_depth +  1 ;
-	/* align the reply post queue on the next 16 count boundary */
-	if (ioc->reply_post_queue_depth % 16)
-		ioc->reply_post_queue_depth += 16 -
-		(ioc->reply_post_queue_depth % 16);
+	/* mCPU manage single counters for simplicity */
+	if (ioc->is_mcpu_endpoint)
+		ioc->reply_post_queue_depth = ioc->reply_free_queue_depth;
+	else {
+		/* calculate reply descriptor post queue depth */
+		ioc->reply_post_queue_depth = ioc->hba_queue_depth +
+			ioc->reply_free_queue_depth +  1;
+		/* align the reply post queue on the next 16 count boundary */
+		if (ioc->reply_post_queue_depth % 16)
+			ioc->reply_post_queue_depth += 16 -
+				(ioc->reply_post_queue_depth % 16);
+	}
 
 	if (ioc->reply_post_queue_depth >
 	    facts->MaxReplyDescriptorPostQueueDepth) {
