@@ -461,6 +461,18 @@ static void rpc_wake_up_task_queue_locked(struct rpc_wait_queue *queue, struct r
 /*
  * Wake up a task on a specific queue
  */
+void rpc_wake_up_queued_task_on_wq(struct workqueue_struct *wq,
+		struct rpc_wait_queue *queue,
+		struct rpc_task *task)
+{
+	spin_lock_bh(&queue->lock);
+	rpc_wake_up_task_on_wq_queue_locked(wq, queue, task);
+	spin_unlock_bh(&queue->lock);
+}
+
+/*
+ * Wake up a task on a specific queue
+ */
 void rpc_wake_up_queued_task(struct rpc_wait_queue *queue, struct rpc_task *task)
 {
 	spin_lock_bh(&queue->lock);
