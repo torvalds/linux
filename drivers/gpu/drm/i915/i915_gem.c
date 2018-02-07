@@ -4885,10 +4885,8 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	 * it may impact the display and we are uncertain about the stability
 	 * of the reset, so this could be applied to even earlier gen.
 	 */
-	if (INTEL_GEN(i915) >= 5) {
-		int reset = intel_gpu_reset(i915, ALL_ENGINES);
-		WARN_ON(reset && reset != -ENODEV);
-	}
+	if (INTEL_GEN(i915) >= 5 && intel_has_gpu_reset(i915))
+		WARN_ON(intel_gpu_reset(i915, ALL_ENGINES));
 }
 
 int i915_gem_suspend(struct drm_i915_private *dev_priv)
