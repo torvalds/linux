@@ -97,7 +97,7 @@
 	panel {
 		compatible = "auo,b101ew05", "simple-panel";
 		backlight = <&backlight>;
-		enable-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
 		disable-delay-ms = <10>;
 		bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
 		width-mm = <217>;
@@ -204,7 +204,7 @@
 		compatible = "sitronix,st7703", "simple-panel-dsi";
 		reg = <0>;
 		backlight = <&backlight>;
-		enable-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
 		prepare-delay-ms = <2>;
 		reset-delay-ms = <1>;
 		init-delay-ms = <20>;
@@ -272,7 +272,7 @@
 			native-mode = <&st7703_timing>;
 
 			st7703_timing: timing0 {
-				clock-frequency = <64000000>;
+				clock-frequency = <66000000>;
 				hactive = <720>;
 				vactive = <1280>;
 				hfront-porch = <40>;
@@ -654,7 +654,7 @@
 };
 
 &route_dsi {
-	status = "okay";
+	status = "disabled";
 };
 
 &rk_rga {
