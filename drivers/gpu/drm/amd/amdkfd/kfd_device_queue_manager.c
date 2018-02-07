@@ -129,6 +129,15 @@ static int allocate_vmid(struct device_queue_manager *dqm,
 	set_pasid_vmid_mapping(dqm, q->process->pasid, q->properties.vmid);
 	program_sh_mem_settings(dqm, qpd);
 
+	/* qpd->page_table_base is set earlier when register_process()
+	 * is called, i.e. when the first queue is created.
+	 */
+	dqm->dev->kfd2kgd->set_vm_context_page_table_base(dqm->dev->kgd,
+			qpd->vmid,
+			qpd->page_table_base);
+	/* invalidate the VM context after pasid and vmid mapping is set up */
+	kfd_flush_tlb(qpd_to_pdd(qpd));
+
 	return 0;
 }
 
@@ -137,6 +146,8 @@ static void deallocate_vmid(struct device_queue_manager *dqm,
 				struct queue *q)
 {
 	int bit = qpd->vmid - dqm->dev->vm_info.first_vmid_kfd;
+
+	kfd_flush_tlb(qpd_to_pdd(qpd));
 
 	/* Release the vmid mapping */
 	set_pasid_vmid_mapping(dqm, 0, qpd->vmid);
@@ -450,6 +461,8 @@ static int register_process(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
 	struct device_process_node *n;
+	struct kfd_process_device *pdd;
+	uint32_t pd_base;
 	int retval;
 
 	n = kzalloc(sizeof(*n), GFP_KERNEL);
@@ -458,8 +471,15 @@ static int register_process(struct device_queue_manager *dqm,
 
 	n->qpd = qpd;
 
+	pdd = qpd_to_pdd(qpd);
+	/* Retrieve PD base */
+	pd_base = dqm->dev->kfd2kgd->get_process_page_dir(pdd->vm);
+
 	mutex_lock(&dqm->lock);
 	list_add(&n->list, &dqm->queues);
+
+	/* Update PD Base in QPD */
+	qpd->page_table_base = pd_base;
 
 	retval = dqm->asic_ops.update_qpd(dqm, qpd);
 

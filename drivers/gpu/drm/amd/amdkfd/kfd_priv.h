@@ -518,6 +518,9 @@ struct kfd_process_device {
 	uint64_t scratch_base;
 	uint64_t scratch_limit;
 
+	/* VM context for GPUVM allocations */
+	void *vm;
+
 	/* Flag used to tell the pdd has dequeued from the dqm.
 	 * This is used to prevent dev->dqm->ops.process_termination() from
 	 * being called twice when it is already called in IOMMU callback
@@ -589,6 +592,14 @@ struct kfd_process {
 	size_t signal_mapped_size;
 	size_t signal_event_count;
 	bool signal_event_limit_reached;
+
+	/* Information used for memory eviction */
+	void *kgd_process_info;
+	/* Eviction fence that is attached to all the BOs of this process. The
+	 * fence will be triggered during eviction and new one will be created
+	 * during restore
+	 */
+	struct dma_fence *ef;
 };
 
 #define KFD_PROCESS_TABLE_SIZE 5 /* bits: 32 entries */
@@ -801,6 +812,8 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 		     uint32_t *event_id, uint32_t *event_trigger_data,
 		     uint64_t *event_page_offset, uint32_t *event_slot_index);
 int kfd_event_destroy(struct kfd_process *p, uint32_t event_id);
+
+void kfd_flush_tlb(struct kfd_process_device *pdd);
 
 int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p);
 

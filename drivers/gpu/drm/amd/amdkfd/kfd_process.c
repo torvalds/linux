@@ -34,6 +34,7 @@
 struct mm_struct;
 
 #include "kfd_priv.h"
+#include "kfd_device_queue_manager.h"
 #include "kfd_dbgmgr.h"
 #include "kfd_iommu.h"
 
@@ -154,6 +155,10 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 		pr_debug("Releasing pdd (topology id %d) for process (pasid %d)\n",
 				pdd->dev->id, p->pasid);
 
+		if (pdd->vm)
+			pdd->dev->kfd2kgd->destroy_process_vm(
+				pdd->dev->kgd, pdd->vm);
+
 		list_del(&pdd->per_device_list);
 
 		if (pdd->qpd.cwsr_kaddr)
@@ -177,6 +182,7 @@ static void kfd_process_wq_release(struct work_struct *work)
 	kfd_iommu_unbind_process(p);
 
 	kfd_process_destroy_pdds(p);
+	dma_fence_put(p->ef);
 
 	kfd_event_free_process(p);
 
@@ -401,7 +407,18 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 	pdd->already_dequeued = false;
 	list_add(&pdd->per_device_list, &p->per_device_data);
 
+	/* Create the GPUVM context for this specific device */
+	if (dev->kfd2kgd->create_process_vm(dev->kgd, &pdd->vm,
+					    &p->kgd_process_info, &p->ef)) {
+		pr_err("Failed to create process VM object\n");
+		goto err_create_pdd;
+	}
 	return pdd;
+
+err_create_pdd:
+	list_del(&pdd->per_device_list);
+	kfree(pdd);
+	return NULL;
 }
 
 /*
@@ -505,6 +522,22 @@ int kfd_reserved_mem_mmap(struct kfd_process *process,
 	return remap_pfn_range(vma, vma->vm_start,
 			       PFN_DOWN(__pa(qpd->cwsr_kaddr)),
 			       KFD_CWSR_TBA_TMA_SIZE, vma->vm_page_prot);
+}
+
+void kfd_flush_tlb(struct kfd_process_device *pdd)
+{
+	struct kfd_dev *dev = pdd->dev;
+	const struct kfd2kgd_calls *f2g = dev->kfd2kgd;
+
+	if (dev->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS) {
+		/* Nothing to flush until a VMID is assigned, which
+		 * only happens when the first queue is created.
+		 */
+		if (pdd->qpd.vmid)
+			f2g->invalidate_tlbs_vmid(dev->kgd, pdd->qpd.vmid);
+	} else {
+		f2g->invalidate_tlbs(dev->kgd, pdd->process->pasid);
+	}
 }
 
 #if defined(CONFIG_DEBUG_FS)
