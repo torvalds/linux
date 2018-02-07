@@ -126,9 +126,9 @@ static void clear_btree_io_tree(struct extent_io_tree *tree)
 	spin_unlock(&tree->lock);
 }
 
-static noinline void switch_commit_roots(struct btrfs_transaction *trans,
-					 struct btrfs_fs_info *fs_info)
+static noinline void switch_commit_roots(struct btrfs_transaction *trans)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_root *root, *tmp;
 
 	down_write(&fs_info->commit_root_sem);
@@ -1406,7 +1406,7 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	ret = commit_cowonly_roots(trans);
 	if (ret)
 		goto out;
-	switch_commit_roots(trans->transaction, fs_info);
+	switch_commit_roots(trans->transaction);
 	ret = btrfs_write_and_wait_transaction(trans, fs_info);
 	if (ret)
 		btrfs_handle_fs_error(fs_info, ret,
@@ -2234,7 +2234,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	list_add_tail(&fs_info->chunk_root->dirty_list,
 		      &cur_trans->switch_commits);
 
-	switch_commit_roots(cur_trans, fs_info);
+	switch_commit_roots(cur_trans);
 
 	ASSERT(list_empty(&cur_trans->dirty_bgs));
 	ASSERT(list_empty(&cur_trans->io_bgs));
