@@ -240,6 +240,10 @@ struct tile_config {
  *
  * @invalidate_tlbs_vmid: Invalidate TLBs for a specific VMID
  *
+ * @submit_ib: Submits an IB to the engine specified by inserting the
+ * IB to the corresponding ring (ring type). The IB is executed with the
+ * specified VMID in a user mode context.
+ *
  * This structure contains function pointers to services that the kgd driver
  * provides to amdkfd driver.
  *
@@ -352,6 +356,10 @@ struct kfd2kgd_calls {
 
 	int (*invalidate_tlbs)(struct kgd_dev *kgd, uint16_t pasid);
 	int (*invalidate_tlbs_vmid)(struct kgd_dev *kgd, uint16_t vmid);
+
+	int (*submit_ib)(struct kgd_dev *kgd, enum kgd_engine_type engine,
+			uint32_t vmid, uint64_t gpu_addr,
+			uint32_t *ib_cmd, uint32_t ib_len);
 };
 
 /**
