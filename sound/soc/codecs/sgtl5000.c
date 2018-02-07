@@ -1392,7 +1392,7 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 
 		ana_pwr |= SGTL5000_LINEREG_D_POWERUP;
 		dev_info(&client->dev,
-			 "Using internal LDO instead of VDDD: check ER1\n");
+			 "Using internal LDO instead of VDDD: check ER1 erratum\n");
 	} else {
 		/* using external LDO for VDDD
 		 * Clear startup powerup and simple powerup
