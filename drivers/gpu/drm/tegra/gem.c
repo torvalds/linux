@@ -459,8 +459,7 @@ const struct vm_operations_struct tegra_bo_vm_ops = {
 	.close = drm_gem_vm_close,
 };
 
-static int tegra_gem_mmap(struct drm_gem_object *gem,
-			  struct vm_area_struct *vma)
+int __tegra_gem_mmap(struct drm_gem_object *gem, struct vm_area_struct *vma)
 {
 	struct tegra_bo *bo = to_tegra_bo(gem);
 
@@ -507,7 +506,7 @@ int tegra_drm_mmap(struct file *file, struct vm_area_struct *vma)
 
 	gem = vma->vm_private_data;
 
-	return tegra_gem_mmap(gem, vma);
+	return __tegra_gem_mmap(gem, vma);
 }
 
 static struct sg_table *
@@ -600,7 +599,7 @@ static int tegra_gem_prime_mmap(struct dma_buf *buf, struct vm_area_struct *vma)
 	if (err < 0)
 		return err;
 
-	return tegra_gem_mmap(gem, vma);
+	return __tegra_gem_mmap(gem, vma);
 }
 
 static void *tegra_gem_prime_vmap(struct dma_buf *buf)
