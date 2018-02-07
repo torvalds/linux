@@ -407,7 +407,17 @@ static int of_thermal_get_trip_temp(struct thermal_zone_device *tz, int trip,
 	if (trip >= data->ntrips || trip < 0)
 		return -EDOM;
 
-	*temp = data->trips[trip].temperature;
+	if (data->senps && data->senps->ops &&
+	    data->senps->ops->get_trip_temp) {
+		int ret;
+
+		ret = data->senps->ops->get_trip_temp(data->senps->sensor_data,
+						      trip, temp);
+		if (ret)
+			return ret;
+	} else {
+		*temp = data->trips[trip].temperature;
+	}
 
 	return 0;
 }

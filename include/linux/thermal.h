@@ -367,6 +367,8 @@ struct thermal_genl_event {
  *		   temperature.
  * @set_trip_temp: a pointer to a function that sets the trip temperature on
  *		   hardware.
+ * @get_trip_temp: a pointer to a function that gets the trip temperature on
+ *		   hardware.
  */
 struct thermal_zone_of_device_ops {
 	int (*get_temp)(void *, int *);
@@ -374,6 +376,7 @@ struct thermal_zone_of_device_ops {
 	int (*set_trips)(void *, int, int);
 	int (*set_emul_temp)(void *, int);
 	int (*set_trip_temp)(void *, int, int);
+	int (*get_trip_temp)(void *, int, int *);
 };
 
 /**
