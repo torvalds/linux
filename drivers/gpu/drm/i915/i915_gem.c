@@ -3205,6 +3205,9 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 			intel_engine_dump(engine, &p, "%s\n", engine->name);
 	}
 
+	set_bit(I915_WEDGED, &i915->gpu_error.flags);
+	smp_mb__after_atomic();
+
 	/*
 	 * First, stop submission to hw, but do not yet complete requests by
 	 * rolling the global seqno forward (since this would complete requests
@@ -3244,7 +3247,8 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 	for_each_engine(engine, i915, id) {
 		unsigned long flags;
 
-		/* Mark all pending requests as complete so that any concurrent
+		/*
+		 * Mark all pending requests as complete so that any concurrent
 		 * (lockless) lookup doesn't try and wait upon the request as we
 		 * reset it.
 		 */
@@ -3254,7 +3258,6 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 		spin_unlock_irqrestore(&engine->timeline->lock, flags);
 	}
 
-	set_bit(I915_WEDGED, &i915->gpu_error.flags);
 	wake_up_all(&i915->gpu_error.reset_queue);
 }
 
