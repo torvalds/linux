@@ -807,7 +807,7 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 
 			if (args->size)
 				ret = -EINVAL;
-			else if (!to_i915(dev)->engine[RCS]->schedule)
+			else if (!(to_i915(dev)->caps.scheduler & I915_SCHEDULER_CAP_PRIORITY))
 				ret = -ENODEV;
 			else if (priority > I915_CONTEXT_MAX_USER_PRIORITY ||
 				 priority < I915_CONTEXT_MIN_USER_PRIORITY)

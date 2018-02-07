@@ -381,13 +381,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = i915_gem_mmap_gtt_version();
 		break;
 	case I915_PARAM_HAS_SCHEDULER:
-		value = 0;
-		if (dev_priv->engine[RCS] && dev_priv->engine[RCS]->schedule) {
-			value |= I915_SCHEDULER_CAP_ENABLED;
-			value |= I915_SCHEDULER_CAP_PRIORITY;
-			if (HAS_LOGICAL_RING_PREEMPTION(dev_priv))
-				value |= I915_SCHEDULER_CAP_PREEMPTION;
-		}
+		value = dev_priv->caps.scheduler;
 		break;
 
 	case I915_PARAM_MMAP_VERSION:

@@ -1963,6 +1963,12 @@ static void execlists_set_default_submission(struct intel_engine_cs *engine)
 	engine->unpark = NULL;
 
 	engine->flags |= I915_ENGINE_SUPPORTS_STATS;
+
+	engine->i915->caps.scheduler =
+		I915_SCHEDULER_CAP_ENABLED |
+		I915_SCHEDULER_CAP_PRIORITY;
+	if (HAS_LOGICAL_RING_PREEMPTION(engine->i915))
+		engine->i915->caps.scheduler |= I915_SCHEDULER_CAP_PREEMPTION;
 }
 
 static void

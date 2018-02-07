@@ -49,6 +49,7 @@ static int i915_capabilities(struct seq_file *m, void *data)
 
 	intel_device_info_dump_flags(info, &p);
 	intel_device_info_dump_runtime(info, &p);
+	intel_driver_caps_print(&dev_priv->caps, &p);
 
 	kernel_param_lock(THIS_MODULE);
 	i915_params_dump(&i915_modparams, &p);

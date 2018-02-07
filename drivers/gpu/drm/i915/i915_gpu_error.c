@@ -579,11 +579,13 @@ static void print_error_obj(struct drm_i915_error_state_buf *m,
 }
 
 static void err_print_capabilities(struct drm_i915_error_state_buf *m,
-				   const struct intel_device_info *info)
+				   const struct intel_device_info *info,
+				   const struct intel_driver_caps *caps)
 {
 	struct drm_printer p = i915_error_printer(m);
 
 	intel_device_info_dump_flags(info, &p);
+	intel_driver_caps_print(caps, &p);
 }
 
 static void err_print_params(struct drm_i915_error_state_buf *m,
@@ -808,7 +810,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	if (error->display)
 		intel_display_print_error_state(m, error->display);
 
-	err_print_capabilities(m, &error->device_info);
+	err_print_capabilities(m, &error->device_info, &error->driver_caps);
 	err_print_params(m, &error->params);
 	err_print_uc(m, &error->uc);
 
@@ -1740,6 +1742,7 @@ static void i915_capture_gen_state(struct drm_i915_private *dev_priv,
 	memcpy(&error->device_info,
 	       INTEL_INFO(dev_priv),
 	       sizeof(error->device_info));
+	error->driver_caps = dev_priv->caps;
 }
 
 static __always_inline void dup_param(const char *type, void *x)

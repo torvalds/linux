@@ -3229,7 +3229,10 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 		 * start to complete all requests.
 		 */
 		engine->submit_request = nop_complete_submit_request;
+		engine->schedule = NULL;
 	}
+
+	i915->caps.scheduler = 0;
 
 	/*
 	 * Make sure no request can slip through without getting completed by
