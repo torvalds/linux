@@ -95,14 +95,16 @@
 	};
 
 	panel {
-		compatible = "auo,b101ew05", "simple-panel";
+		compatible = "samsung,lsl070nl01", "simple-panel";
 		backlight = <&backlight>;
 		enable-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
-		disable-delay-ms = <10>;
-		bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
+		enable-delay-ms = <20>;
+		prepare-delay-ms = <20>;
+		unprepare-delay-ms = <20>;
+		disable-delay-ms = <20>;
 		width-mm = <217>;
 		height-mm = <136>;
-		rockchip,data-mapping = "jeida";
+		rockchip,data-mapping = "vesa";
 		rockchip,data-width = <24>;
 		rockchip,output = "lvds";
 		status = "disabled";
@@ -111,15 +113,15 @@
 			native-mode = <&b101ew05_timing>;
 
 			b101ew05_timing: timing0 {
-				clock-frequency = <74250000>;
-				hactive = <1280>;
-				vactive = <800>;
-				hback-porch = <220>;
-				hfront-porch = <110>;
-				vback-porch = <20>;
-				vfront-porch = <5>;
-				hsync-len = <40>;
-				vsync-len = <5>;
+				clock-frequency = <49500000>;
+				hactive = <1024>;
+				vactive = <600>;
+				hback-porch = <90>;
+				hfront-porch = <90>;
+				vback-porch = <10>;
+				vfront-porch = <10>;
+				hsync-len = <90>;
+				vsync-len = <10>;
 				hsync-active = <0>;
 				vsync-active = <0>;
 				de-active = <0>;
@@ -598,9 +600,6 @@
 };
 
 &lvds {
-	//pinctrl-names = "lcdc";
-	//pinctrl-0 = <&lcdc_rgb_dclk_pin &lcdc_rgb_m0_den_pin &lcdc_rgb_m0_hsync_pin &lcdc_rgb_m0_vsync_pin &lcdc_rgb666_m0_data_pins>;
-	//pinctrl-0 = <&lcdc_rgb_dclk_pin &lcdc_rgb666_m1_data_pins>;
 	status = "disabled";
 
 	ports {
