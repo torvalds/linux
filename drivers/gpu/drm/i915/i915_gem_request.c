@@ -993,7 +993,8 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
 	trace_i915_gem_request_add(request);
 
-	/* Make sure that no request gazumped us - if it was allocated after
+	/*
+	 * Make sure that no request gazumped us - if it was allocated after
 	 * our i915_gem_request_alloc() and called __i915_add_request() before
 	 * us, the timeline will hold its seqno which is later than ours.
 	 */
@@ -1020,7 +1021,8 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 		WARN(err, "engine->emit_flush() failed: %d!\n", err);
 	}
 
-	/* Record the position of the start of the breadcrumb so that
+	/*
+	 * Record the position of the start of the breadcrumb so that
 	 * should we detect the updated seqno part-way through the
 	 * GPU processing the request, we never over-estimate the
 	 * position of the ring's HEAD.
@@ -1029,7 +1031,8 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	GEM_BUG_ON(IS_ERR(cs));
 	request->postfix = intel_ring_offset(request, cs);
 
-	/* Seal the request and mark it as pending execution. Note that
+	/*
+	 * Seal the request and mark it as pending execution. Note that
 	 * we may inspect this state, without holding any locks, during
 	 * hangcheck. Hence we apply the barrier to ensure that we do not
 	 * see a more recent value in the hws than we are tracking.
@@ -1037,7 +1040,7 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 
 	prev = i915_gem_active_raw(&timeline->last_request,
 				   &request->i915->drm.struct_mutex);
-	if (prev) {
+	if (prev && !i915_gem_request_completed(prev)) {
 		i915_sw_fence_await_sw_fence(&request->submit, &prev->submit,
 					     &request->submitq);
 		if (engine->schedule)
@@ -1057,7 +1060,8 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	list_add_tail(&request->ring_link, &ring->request_list);
 	request->emitted_jiffies = jiffies;
 
-	/* Let the backend know a new request has arrived that may need
+	/*
+	 * Let the backend know a new request has arrived that may need
 	 * to adjust the existing execution schedule due to a high priority
 	 * request - i.e. we may want to preempt the current request in order
 	 * to run a high priority dependency chain *before* we can execute this
