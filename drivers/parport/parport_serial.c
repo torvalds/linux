@@ -664,57 +664,41 @@ static void parport_serial_pci_remove(struct pci_dev *dev)
 	return;
 }
 
-#ifdef CONFIG_PM
-static int parport_serial_pci_suspend(struct pci_dev *dev, pm_message_t state)
+static int __maybe_unused parport_serial_pci_suspend(struct device *dev)
 {
-	struct parport_serial_private *priv = pci_get_drvdata(dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct parport_serial_private *priv = pci_get_drvdata(pdev);
 
 	if (priv->serial)
 		pciserial_suspend_ports(priv->serial);
 
 	/* FIXME: What about parport? */
-
-	pci_save_state(dev);
-	pci_set_power_state(dev, pci_choose_state(dev, state));
 	return 0;
 }
 
-static int parport_serial_pci_resume(struct pci_dev *dev)
+static int __maybe_unused parport_serial_pci_resume(struct device *dev)
 {
-	struct parport_serial_private *priv = pci_get_drvdata(dev);
-	int err;
-
-	pci_set_power_state(dev, PCI_D0);
-	pci_restore_state(dev);
-
-	/*
-	 * The device may have been disabled.  Re-enable it.
-	 */
-	err = pci_enable_device(dev);
-	if (err) {
-		printk(KERN_ERR "parport_serial: %s: error enabling "
-			"device for resume (%d)\n", pci_name(dev), err);
-		return err;
-	}
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct parport_serial_private *priv = pci_get_drvdata(pdev);
 
 	if (priv->serial)
 		pciserial_resume_ports(priv->serial);
 
 	/* FIXME: What about parport? */
-
 	return 0;
 }
-#endif
+
+static SIMPLE_DEV_PM_OPS(parport_serial_pm_ops,
+			 parport_serial_pci_suspend, parport_serial_pci_resume);
 
 static struct pci_driver parport_serial_pci_driver = {
 	.name		= "parport_serial",
 	.id_table	= parport_serial_pci_tbl,
 	.probe		= parport_serial_pci_probe,
 	.remove		= parport_serial_pci_remove,
-#ifdef CONFIG_PM
-	.suspend	= parport_serial_pci_suspend,
-	.resume		= parport_serial_pci_resume,
-#endif
+	.driver         = {
+		.pm     = &parport_serial_pm_ops,
+	},
 };
 
 
