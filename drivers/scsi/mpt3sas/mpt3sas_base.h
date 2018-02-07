@@ -95,6 +95,8 @@
 #define MPT_MIN_PHYS_SEGMENTS	16
 #define MPT_KDUMP_MIN_PHYS_SEGMENTS	32
 
+#define MCPU_MAX_CHAINS_PER_IO	3
+
 #ifdef CONFIG_SCSI_MPT3SAS_MAX_SGE
 #define MPT3SAS_SG_DEPTH		CONFIG_SCSI_MPT3SAS_MAX_SGE
 #else
@@ -1238,6 +1240,7 @@ struct MPT3SAS_ADAPTER {
 	u16		config_page_sz;
 	void		*config_page;
 	dma_addr_t	config_page_dma;
+	void		*config_vaddr;
 
 	/* scsiio request */
 	u16		hba_queue_depth;

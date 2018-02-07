@@ -126,6 +126,24 @@ module_param_call(mpt3sas_fwfault_debug, _scsih_set_fwfault_debug,
 	param_get_int, &mpt3sas_fwfault_debug, 0644);
 
 /**
+ * _base_clone_to_sys_mem - Writes/copies data to system/BAR0 region
+ *
+ * @dst_iomem: Pointer to the destination location in BAR0 space.
+ * @src: Pointer to the Source data.
+ * @size: Size of data to be copied.
+ */
+static void
+_base_clone_to_sys_mem(void __iomem *dst_iomem, void *src, u32 size)
+{
+	int i;
+	u32 *src_virt_mem = (u32 *)(src);
+
+	for (i = 0; i < size/4; i++)
+		writel((u32)src_virt_mem[i],
+			(void __iomem *)dst_iomem + (i * 4));
+}
+
+/**
  * _base_get_chain - Calculates and Returns virtual chain address
  *			 for the provided smid in BAR0 space.
  *
@@ -216,6 +234,201 @@ _base_get_buffer_phys_bar0(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 			cmd_credit + 1,
 			ioc->facts.MaxChainDepth);
 	return chain_end_phys + (smid * 64 * 1024);
+}
+
+/**
+ * _base_get_chain_buffer_dma_to_chain_buffer - Iterates chain
+ *			lookup list and Provides chain_buffer
+ *			address for the matching dma address.
+ *			(Each smid can have 64K starts from 17024)
+ *
+ * @ioc: per adapter object
+ * @chain_buffer_dma: Chain buffer dma address.
+ *
+ * @Returns - Pointer to chain buffer. Or Null on Failure.
+ */
+static void *
+_base_get_chain_buffer_dma_to_chain_buffer(struct MPT3SAS_ADAPTER *ioc,
+		dma_addr_t chain_buffer_dma)
+{
+	u16 index;
+
+	for (index = 0; index < ioc->chain_depth; index++) {
+		if (ioc->chain_lookup[index].chain_buffer_dma ==
+				chain_buffer_dma)
+			return ioc->chain_lookup[index].chain_buffer;
+	}
+	pr_info(MPT3SAS_FMT
+	    "Provided chain_buffer_dma address is not in the lookup list\n",
+	    ioc->name);
+	return NULL;
+}
+
+/**
+ * _clone_sg_entries -	MPI EP's scsiio and config requests
+ *			are handled here. Base function for
+ *			double buffering, before submitting
+ *			the requests.
+ *
+ * @ioc: per adapter object.
+ * @mpi_request: mf request pointer.
+ * @smid: system request message index.
+ *
+ * @Returns: Nothing.
+ */
+static void _clone_sg_entries(struct MPT3SAS_ADAPTER *ioc,
+		void *mpi_request, u16 smid)
+{
+	Mpi2SGESimple32_t *sgel, *sgel_next;
+	u32  sgl_flags, sge_chain_count = 0;
+	bool is_write = 0;
+	u16 i = 0;
+	void __iomem *buffer_iomem;
+	void  *buffer_iomem_phys;
+	void __iomem *buff_ptr;
+	void *buff_ptr_phys;
+	void __iomem *dst_chain_addr[MCPU_MAX_CHAINS_PER_IO];
+	void *src_chain_addr[MCPU_MAX_CHAINS_PER_IO], *dst_addr_phys;
+	MPI2RequestHeader_t *request_hdr;
+	struct scsi_cmnd *scmd;
+	struct scatterlist *sg_scmd = NULL;
+	int is_scsiio_req = 0;
+
+	request_hdr = (MPI2RequestHeader_t *) mpi_request;
+
+	if (request_hdr->Function == MPI2_FUNCTION_SCSI_IO_REQUEST) {
+		Mpi25SCSIIORequest_t *scsiio_request =
+			(Mpi25SCSIIORequest_t *)mpi_request;
+		sgel = (Mpi2SGESimple32_t *) &scsiio_request->SGL;
+		is_scsiio_req = 1;
+	} else if (request_hdr->Function == MPI2_FUNCTION_CONFIG) {
+		Mpi2ConfigRequest_t  *config_req =
+			(Mpi2ConfigRequest_t *)mpi_request;
+		sgel = (Mpi2SGESimple32_t *) &config_req->PageBufferSGE;
+	} else
+		return;
+
+	/* From smid we can get scsi_cmd, once we have sg_scmd,
+	 * we just need to get sg_virt and sg_next to get virual
+	 * address associated with sgel->Address.
+	 */
+
+	if (is_scsiio_req) {
+		/* Get scsi_cmd using smid */
+		scmd = mpt3sas_scsih_scsi_lookup_get(ioc, smid);
+		if (scmd == NULL) {
+			pr_err(MPT3SAS_FMT "scmd is NULL\n", ioc->name);
+			return;
+		}
+
+		/* Get sg_scmd from scmd provided */
+		sg_scmd = scsi_sglist(scmd);
+	}
+
+	/*
+	 * 0 - 255	System register
+	 * 256 - 4352	MPI Frame. (This is based on maxCredit 32)
+	 * 4352 - 4864	Reply_free pool (512 byte is reserved
+	 *		considering maxCredit 32. Reply need extra
+	 *		room, for mCPU case kept four times of
+	 *		maxCredit).
+	 * 4864 - 17152	SGE chain element. (32cmd * 3 chain of
+	 *		128 byte size = 12288)
+	 * 17152 - x	Host buffer mapped with smid.
+	 *		(Each smid can have 64K Max IO.)
+	 * BAR0+Last 1K MSIX Addr and Data
+	 * Total size in use 2113664 bytes of 4MB BAR0
+	 */
+
+	buffer_iomem = _base_get_buffer_bar0(ioc, smid);
+	buffer_iomem_phys = _base_get_buffer_phys_bar0(ioc, smid);
+
+	buff_ptr = buffer_iomem;
+	buff_ptr_phys = buffer_iomem_phys;
+
+	if (sgel->FlagsLength &
+			(MPI2_SGE_FLAGS_HOST_TO_IOC << MPI2_SGE_FLAGS_SHIFT))
+		is_write = 1;
+
+	for (i = 0; i < MPT_MIN_PHYS_SEGMENTS + ioc->facts.MaxChainDepth; i++) {
+
+		sgl_flags = (sgel->FlagsLength >> MPI2_SGE_FLAGS_SHIFT);
+
+		switch (sgl_flags & MPI2_SGE_FLAGS_ELEMENT_MASK) {
+		case MPI2_SGE_FLAGS_CHAIN_ELEMENT:
+			/*
+			 * Helper function which on passing
+			 * chain_buffer_dma returns chain_buffer. Get
+			 * the virtual address for sgel->Address
+			 */
+			sgel_next =
+				_base_get_chain_buffer_dma_to_chain_buffer(ioc,
+						sgel->Address);
+			if (sgel_next == NULL)
+				return;
+			/*
+			 * This is coping 128 byte chain
+			 * frame (not a host buffer)
+			 */
+			dst_chain_addr[sge_chain_count] =
+				_base_get_chain(ioc,
+					smid, sge_chain_count);
+			src_chain_addr[sge_chain_count] =
+						(void *) sgel_next;
+			dst_addr_phys =
+				_base_get_chain_phys(ioc,
+						smid, sge_chain_count);
+			sgel->Address = (dma_addr_t)dst_addr_phys;
+			sgel = sgel_next;
+			sge_chain_count++;
+			break;
+		case MPI2_SGE_FLAGS_SIMPLE_ELEMENT:
+			if (is_write) {
+				if (is_scsiio_req) {
+					_base_clone_to_sys_mem(buff_ptr,
+					    sg_virt(sg_scmd),
+					    (sgel->FlagsLength & 0x00ffffff));
+					sgel->Address =
+						(dma_addr_t)buff_ptr_phys;
+				} else {
+					_base_clone_to_sys_mem(buff_ptr,
+					    ioc->config_vaddr,
+					    (sgel->FlagsLength & 0x00ffffff));
+					sgel->Address =
+					    (dma_addr_t)buff_ptr_phys;
+				}
+			}
+			buff_ptr += (sgel->FlagsLength & 0x00ffffff);
+			buff_ptr_phys += (sgel->FlagsLength & 0x00ffffff);
+			if ((sgel->FlagsLength &
+			    (MPI2_SGE_FLAGS_END_OF_BUFFER
+					<< MPI2_SGE_FLAGS_SHIFT)))
+				goto eob_clone_chain;
+			else {
+				/*
+				 * Every single element in MPT will have
+				 * associated sg_next. Better to sanity that
+				 * sg_next is not NULL, but it will be a bug
+				 * if it is null.
+				 */
+				if (is_scsiio_req) {
+					sg_scmd = sg_next(sg_scmd);
+					if (sg_scmd)
+						sgel++;
+					else
+						goto eob_clone_chain;
+				}
+			}
+			break;
+		}
+	}
+
+eob_clone_chain:
+	for (i = 0; i < sge_chain_count; i++) {
+		if (is_scsiio_req)
+			_base_clone_to_sys_mem(dst_chain_addr[i],
+				src_chain_addr[i], ioc->request_sz);
+	}
 }
 
 /**
@@ -3295,7 +3508,7 @@ _base_put_smid_nvme_encap_atomic(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 
 /**
  * _base_put_smid_default - Default, primarily used for config pages
- * use Atomic Request Descriptor
+ *				use Atomic Request Descriptor
  * @ioc: per adapter object
  * @smid: system request message index
  *

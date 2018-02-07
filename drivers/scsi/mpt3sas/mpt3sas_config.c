@@ -219,6 +219,7 @@ _config_alloc_config_dma_memory(struct MPT3SAS_ADAPTER *ioc,
 		mem->page = ioc->config_page;
 		mem->page_dma = ioc->config_page_dma;
 	}
+	ioc->config_vaddr = mem->page;
 	return r;
 }
 
