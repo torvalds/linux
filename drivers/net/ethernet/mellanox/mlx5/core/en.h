@@ -231,8 +231,6 @@ struct mlx5e_params {
 	u8  log_sq_size;
 	u8  rq_wq_type;
 	u16 rq_headroom;
-	u8  mpwqe_log_stride_sz;
-	u8  mpwqe_log_num_strides;
 	u8  log_rq_size;
 	u16 num_channels;
 	u8  num_tc;
@@ -839,6 +837,11 @@ bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq);
 void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix);
 void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix);
 void mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi);
+
+u8 mlx5e_mpwqe_get_log_stride_size(struct mlx5_core_dev *mdev,
+				   struct mlx5e_params *params);
+u8 mlx5e_mpwqe_get_log_num_strides(struct mlx5_core_dev *mdev,
+				   struct mlx5e_params *params);
 
 void mlx5e_update_stats(struct mlx5e_priv *priv);
 

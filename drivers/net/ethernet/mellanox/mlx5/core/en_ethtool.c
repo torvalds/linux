@@ -231,8 +231,8 @@ static u32 mlx5e_rx_wqes_to_packets(struct mlx5e_priv *priv, int rq_wq_type,
 	if (rq_wq_type != MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ)
 		return num_wqe;
 
-	stride_size = 1 << priv->channels.params.mpwqe_log_stride_sz;
-	num_strides = 1 << priv->channels.params.mpwqe_log_num_strides;
+	stride_size = 1 << mlx5e_mpwqe_get_log_stride_size(priv->mdev, &priv->channels.params);
+	num_strides = 1 << mlx5e_mpwqe_get_log_num_strides(priv->mdev, &priv->channels.params);
 	wqe_size = stride_size * num_strides;
 
 	packets_per_wqe = wqe_size /
@@ -252,8 +252,8 @@ static u32 mlx5e_packets_to_rx_wqes(struct mlx5e_priv *priv, int rq_wq_type,
 	if (rq_wq_type != MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ)
 		return num_packets;
 
-	stride_size = 1 << priv->channels.params.mpwqe_log_stride_sz;
-	num_strides = 1 << priv->channels.params.mpwqe_log_num_strides;
+	stride_size = 1 << mlx5e_mpwqe_get_log_stride_size(priv->mdev, &priv->channels.params);
+	num_strides = 1 << mlx5e_mpwqe_get_log_num_strides(priv->mdev, &priv->channels.params);
 	wqe_size = stride_size * num_strides;
 
 	num_packets = (1 << order_base_2(num_packets));
@@ -1560,11 +1560,6 @@ int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool new_val
 
 	new_channels.params = priv->channels.params;
 	MLX5E_SET_PFLAG(&new_channels.params, MLX5E_PFLAG_RX_CQE_COMPRESS, new_val);
-
-	new_channels.params.mpwqe_log_stride_sz =
-		MLX5E_MPWQE_STRIDE_SZ(priv->mdev, new_val);
-	new_channels.params.mpwqe_log_num_strides =
-		MLX5_MPWRQ_LOG_WQE_SZ - new_channels.params.mpwqe_log_stride_sz;
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		priv->channels.params = new_channels.params;
