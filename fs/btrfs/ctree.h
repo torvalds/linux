@@ -2675,8 +2675,7 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 			 u64 bytenr, u64 num_bytes, u64 parent,
 			 u64 root_objectid, u64 owner, u64 offset);
 
-int btrfs_start_dirty_block_groups(struct btrfs_trans_handle *trans,
-				   struct btrfs_fs_info *fs_info);
+int btrfs_start_dirty_block_groups(struct btrfs_trans_handle *trans);
 int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 				   struct btrfs_fs_info *fs_info);
 int btrfs_setup_space_cache(struct btrfs_trans_handle *trans,

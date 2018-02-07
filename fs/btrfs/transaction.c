@@ -2015,7 +2015,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 		mutex_unlock(&fs_info->ro_block_group_mutex);
 
 		if (run_it)
-			ret = btrfs_start_dirty_block_groups(trans, fs_info);
+			ret = btrfs_start_dirty_block_groups(trans);
 	}
 	if (ret) {
 		btrfs_end_transaction(trans);
