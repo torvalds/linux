@@ -13479,8 +13479,8 @@ enum pipe intel_get_pipe_from_connector(struct intel_connector *connector)
 	return to_intel_crtc(connector->base.state->crtc)->pipe;
 }
 
-int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
-				struct drm_file *file)
+int intel_get_pipe_from_crtc_id_ioctl(struct drm_device *dev, void *data,
+				      struct drm_file *file)
 {
 	struct drm_i915_get_pipe_from_crtc_id *pipe_from_crtc_id = data;
 	struct drm_crtc *drmmode_crtc;

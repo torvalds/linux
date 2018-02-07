@@ -1059,8 +1059,8 @@ intel_check_sprite_plane(struct intel_plane *plane,
 	return 0;
 }
 
-int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv)
+int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
+				    struct drm_file *file_priv)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_intel_sprite_colorkey *set = data;

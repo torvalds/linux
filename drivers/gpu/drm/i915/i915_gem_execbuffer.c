@@ -2463,8 +2463,8 @@ static bool check_buffer_count(size_t count)
  * list array and passes it to the real function.
  */
 int
-i915_gem_execbuffer(struct drm_device *dev, void *data,
-		    struct drm_file *file)
+i915_gem_execbuffer_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *file)
 {
 	struct drm_i915_gem_execbuffer *args = data;
 	struct drm_i915_gem_execbuffer2 exec2;
@@ -2554,8 +2554,8 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 }
 
 int
-i915_gem_execbuffer2(struct drm_device *dev, void *data,
-		     struct drm_file *file)
+i915_gem_execbuffer2_ioctl(struct drm_device *dev, void *data,
+			   struct drm_file *file)
 {
 	struct drm_i915_gem_execbuffer2 *args = data;
 	struct drm_i915_gem_exec_object2 *exec2_list;

@@ -1371,8 +1371,8 @@ struct drm_display_mode *
 intel_encoder_current_mode(struct intel_encoder *encoder);
 
 enum pipe intel_get_pipe_from_connector(struct intel_connector *connector);
-int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
-				struct drm_file *file_priv);
+int intel_get_pipe_from_crtc_id_ioctl(struct drm_device *dev, void *data,
+				      struct drm_file *file_priv);
 enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 					     enum pipe pipe);
 static inline bool
@@ -1924,8 +1924,8 @@ int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			     int usecs);
 struct intel_plane *intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 					      enum pipe pipe, int plane);
-int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv);
+int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
+				    struct drm_file *file_priv);
 void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state);
 void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state);
 void skl_update_plane(struct intel_plane *plane,
