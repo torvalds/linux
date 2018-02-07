@@ -58,6 +58,7 @@ int amdgpu_amdkfd_init(void)
 #else
 	ret = -ENOENT;
 #endif
+	amdgpu_amdkfd_gpuvm_init_mem_limits();
 
 	return ret;
 }

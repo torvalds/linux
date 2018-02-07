@@ -127,6 +127,25 @@ struct tile_config {
 	uint32_t num_ranks;
 };
 
+
+/*
+ * Allocation flag domains
+ */
+#define ALLOC_MEM_FLAGS_VRAM		(1 << 0)
+#define ALLOC_MEM_FLAGS_GTT		(1 << 1)
+#define ALLOC_MEM_FLAGS_USERPTR		(1 << 2) /* TODO */
+#define ALLOC_MEM_FLAGS_DOORBELL	(1 << 3) /* TODO */
+
+/*
+ * Allocation flags attributes/access options.
+ */
+#define ALLOC_MEM_FLAGS_WRITABLE	(1 << 31)
+#define ALLOC_MEM_FLAGS_EXECUTABLE	(1 << 30)
+#define ALLOC_MEM_FLAGS_PUBLIC		(1 << 29)
+#define ALLOC_MEM_FLAGS_NO_SUBSTITUTE	(1 << 28) /* TODO */
+#define ALLOC_MEM_FLAGS_AQL_QUEUE_MEM	(1 << 27)
+#define ALLOC_MEM_FLAGS_COHERENT	(1 << 26) /* For GFXv9 or later */
+
 /**
  * struct kfd2kgd_calls
  *
@@ -185,6 +204,41 @@ struct tile_config {
  * @get_cu_info: Retrieves activated cu info
  *
  * @get_vram_usage: Returns current VRAM usage
+ *
+ * @create_process_vm: Create a VM address space for a given process and GPU
+ *
+ * @destroy_process_vm: Destroy a VM
+ *
+ * @get_process_page_dir: Get physical address of a VM page directory
+ *
+ * @set_vm_context_page_table_base: Program page table base for a VMID
+ *
+ * @alloc_memory_of_gpu: Allocate GPUVM memory
+ *
+ * @free_memory_of_gpu: Free GPUVM memory
+ *
+ * @map_memory_to_gpu: Map GPUVM memory into a specific VM address
+ * space. Allocates and updates page tables and page directories as
+ * needed. This function may return before all page table updates have
+ * completed. This allows multiple map operations (on multiple GPUs)
+ * to happen concurrently. Use sync_memory to synchronize with all
+ * pending updates.
+ *
+ * @unmap_memor_to_gpu: Unmap GPUVM memory from a specific VM address space
+ *
+ * @sync_memory: Wait for pending page table updates to complete
+ *
+ * @map_gtt_bo_to_kernel: Map a GTT BO for kernel access
+ * Pins the BO, maps it to kernel address space. Such BOs are never evicted.
+ * The kernel virtual address remains valid until the BO is freed.
+ *
+ * @restore_process_bos: Restore all BOs that belong to the
+ * process. This is intended for restoring memory mappings after a TTM
+ * eviction.
+ *
+ * @invalidate_tlbs: Invalidate TLBs for a specific PASID
+ *
+ * @invalidate_tlbs_vmid: Invalidate TLBs for a specific VMID
  *
  * This structure contains function pointers to services that the kgd driver
  * provides to amdkfd driver.
@@ -275,6 +329,29 @@ struct kfd2kgd_calls {
 	void (*get_cu_info)(struct kgd_dev *kgd,
 			struct kfd_cu_info *cu_info);
 	uint64_t (*get_vram_usage)(struct kgd_dev *kgd);
+
+	int (*create_process_vm)(struct kgd_dev *kgd, void **vm,
+			void **process_info, struct dma_fence **ef);
+	void (*destroy_process_vm)(struct kgd_dev *kgd, void *vm);
+	uint32_t (*get_process_page_dir)(void *vm);
+	void (*set_vm_context_page_table_base)(struct kgd_dev *kgd,
+			uint32_t vmid, uint32_t page_table_base);
+	int (*alloc_memory_of_gpu)(struct kgd_dev *kgd, uint64_t va,
+			uint64_t size, void *vm,
+			struct kgd_mem **mem, uint64_t *offset,
+			uint32_t flags);
+	int (*free_memory_of_gpu)(struct kgd_dev *kgd, struct kgd_mem *mem);
+	int (*map_memory_to_gpu)(struct kgd_dev *kgd, struct kgd_mem *mem,
+			void *vm);
+	int (*unmap_memory_to_gpu)(struct kgd_dev *kgd, struct kgd_mem *mem,
+			void *vm);
+	int (*sync_memory)(struct kgd_dev *kgd, struct kgd_mem *mem, bool intr);
+	int (*map_gtt_bo_to_kernel)(struct kgd_dev *kgd, struct kgd_mem *mem,
+			void **kptr, uint64_t *size);
+	int (*restore_process_bos)(void *process_info, struct dma_fence **ef);
+
+	int (*invalidate_tlbs)(struct kgd_dev *kgd, uint16_t pasid);
+	int (*invalidate_tlbs_vmid)(struct kgd_dev *kgd, uint16_t vmid);
 };
 
 /**

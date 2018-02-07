@@ -36,6 +36,7 @@
 #include <drm/drm_cache.h>
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
+#include "amdgpu_amdkfd.h"
 
 static bool amdgpu_need_backup(struct amdgpu_device *adev)
 {
@@ -53,6 +54,9 @@ static void amdgpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(tbo->bdev);
 	struct amdgpu_bo *bo = ttm_to_amdgpu_bo(tbo);
+
+	if (bo->kfd_bo)
+		amdgpu_amdkfd_unreserve_system_memory_limit(bo);
 
 	amdgpu_bo_kunmap(bo);
 
