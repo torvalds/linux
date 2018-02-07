@@ -2338,7 +2338,6 @@ static int i915_guc_info(struct seq_file *m, void *data)
 		return -ENODEV;
 
 	GEM_BUG_ON(!guc->execbuf_client);
-	GEM_BUG_ON(!guc->preempt_client);
 
 	seq_printf(m, "Doorbell map:\n");
 	seq_printf(m, "\t%*pb\n", GUC_NUM_DOORBELLS, guc->doorbell_bitmap);
@@ -2346,8 +2345,11 @@ static int i915_guc_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "\nGuC execbuf client @ %p:\n", guc->execbuf_client);
 	i915_guc_client_info(m, dev_priv, guc->execbuf_client);
-	seq_printf(m, "\nGuC preempt client @ %p:\n", guc->preempt_client);
-	i915_guc_client_info(m, dev_priv, guc->preempt_client);
+	if (guc->preempt_client) {
+		seq_printf(m, "\nGuC preempt client @ %p:\n",
+			   guc->preempt_client);
+		i915_guc_client_info(m, dev_priv, guc->preempt_client);
+	}
 
 	i915_guc_log_info(m, dev_priv);
 
