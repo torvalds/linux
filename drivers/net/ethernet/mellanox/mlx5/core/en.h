@@ -457,6 +457,7 @@ struct mlx5e_mpw_info {
 	struct mlx5e_umr_dma_info umr;
 	u16 consumed_strides;
 	u16 skbs_frags[MLX5_MPWRQ_PAGES_PER_WQE];
+	DECLARE_BITMAP(xdp_xmit_bitmap, MLX5_MPWRQ_PAGES_PER_WQE);
 };
 
 /* a single cache unit is capable to serve one napi call (for non-striding rq)

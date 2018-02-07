@@ -349,13 +349,16 @@ mlx5e_copy_skb_header_mpwqe(struct device *pdev,
 
 void mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi)
 {
+	const bool no_xdp_xmit =
+		bitmap_empty(wi->xdp_xmit_bitmap, MLX5_MPWRQ_PAGES_PER_WQE);
 	int pg_strides = mlx5e_mpwqe_strides_per_page(rq);
-	struct mlx5e_dma_info *dma_info = &wi->umr.dma_info[0];
+	struct mlx5e_dma_info *dma_info = wi->umr.dma_info;
 	int i;
 
-	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++, dma_info++) {
-		page_ref_sub(dma_info->page, pg_strides - wi->skbs_frags[i]);
-		mlx5e_page_release(rq, dma_info, true);
+	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++) {
+		page_ref_sub(dma_info[i].page, pg_strides - wi->skbs_frags[i]);
+		if (no_xdp_xmit || !test_bit(i, wi->xdp_xmit_bitmap))
+			mlx5e_page_release(rq, &dma_info[i], true);
 	}
 }
 
@@ -404,6 +407,7 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	}
 
 	memset(wi->skbs_frags, 0, sizeof(*wi->skbs_frags) * MLX5_MPWRQ_PAGES_PER_WQE);
+	bitmap_zero(wi->xdp_xmit_bitmap, MLX5_MPWRQ_PAGES_PER_WQE);
 	wi->consumed_strides = 0;
 
 	rq->mpwqe.umr_in_progress = true;
@@ -1028,18 +1032,30 @@ mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 {
 	struct mlx5e_dma_info *di = &wi->umr.dma_info[page_idx];
 	u16 rx_headroom = rq->buff.headroom;
+	u32 cqe_bcnt32 = cqe_bcnt;
 	struct sk_buff *skb;
 	void *va, *data;
 	u32 frag_size;
+	bool consumed;
 
 	va             = page_address(di->page) + head_offset;
 	data           = va + rx_headroom;
-	frag_size      = MLX5_SKB_FRAG_SZ(rx_headroom + cqe_bcnt);
+	frag_size      = MLX5_SKB_FRAG_SZ(rx_headroom + cqe_bcnt32);
 
 	dma_sync_single_range_for_cpu(rq->pdev, di->addr, head_offset,
 				      frag_size, DMA_FROM_DEVICE);
 	prefetch(data);
-	skb = mlx5e_build_linear_skb(rq, va, frag_size, rx_headroom, cqe_bcnt);
+
+	rcu_read_lock();
+	consumed = mlx5e_xdp_handle(rq, di, va, &rx_headroom, &cqe_bcnt32);
+	rcu_read_unlock();
+	if (consumed) {
+		if (__test_and_clear_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags))
+			__set_bit(page_idx, wi->xdp_xmit_bitmap); /* non-atomic */
+		return NULL; /* page/packet was consumed by XDP */
+	}
+
+	skb = mlx5e_build_linear_skb(rq, va, frag_size, rx_headroom, cqe_bcnt32);
 	if (unlikely(!skb))
 		return NULL;
 
@@ -1078,7 +1094,7 @@ void mlx5e_handle_rx_cqe_mpwrq(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 
 	skb = rq->mpwqe.skb_from_cqe_mpwrq(rq, wi, cqe_bcnt, head_offset,
 					   page_idx);
-	if (unlikely(!skb))
+	if (!skb)
 		goto mpwrq_cqe_out;
 
 	mlx5e_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);

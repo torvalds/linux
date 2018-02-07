@@ -200,7 +200,8 @@ bool mlx5e_striding_rq_possible(struct mlx5_core_dev *mdev,
 				struct mlx5e_params *params)
 {
 	return mlx5e_check_fragmented_striding_rq_cap(mdev) &&
-		!params->xdp_prog && !MLX5_IPSEC_DEV(mdev);
+		!MLX5_IPSEC_DEV(mdev) &&
+		!(params->xdp_prog && !mlx5e_rx_mpwqe_is_linear_skb(mdev, params));
 }
 
 void mlx5e_set_rq_type(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
