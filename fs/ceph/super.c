@@ -314,9 +314,13 @@ static int parse_fsopt_token(char *c, void *private)
 		break;
 	case Opt_fscache:
 		fsopt->flags |= CEPH_MOUNT_OPT_FSCACHE;
+		kfree(fsopt->fscache_uniq);
+		fsopt->fscache_uniq = NULL;
 		break;
 	case Opt_nofscache:
 		fsopt->flags &= ~CEPH_MOUNT_OPT_FSCACHE;
+		kfree(fsopt->fscache_uniq);
+		fsopt->fscache_uniq = NULL;
 		break;
 	case Opt_poolperm:
 		fsopt->flags &= ~CEPH_MOUNT_OPT_NOPOOLPERM;
