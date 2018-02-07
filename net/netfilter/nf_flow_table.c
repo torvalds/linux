@@ -125,7 +125,9 @@ void flow_offload_free(struct flow_offload *flow)
 	dst_release(flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.dst_cache);
 	dst_release(flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.dst_cache);
 	e = container_of(flow, struct flow_offload_entry, flow);
-	kfree(e);
+	nf_ct_delete(e->ct, 0, 0);
+	nf_ct_put(e->ct);
+	kfree_rcu(e, rcu_head);
 }
 EXPORT_SYMBOL_GPL(flow_offload_free);
 
@@ -149,11 +151,9 @@ int flow_offload_add(struct nf_flowtable *flow_table, struct flow_offload *flow)
 }
 EXPORT_SYMBOL_GPL(flow_offload_add);
 
-void flow_offload_del(struct nf_flowtable *flow_table,
-		      struct flow_offload *flow)
+static void flow_offload_del(struct nf_flowtable *flow_table,
+			     struct flow_offload *flow)
 {
-	struct flow_offload_entry *e;
-
 	rhashtable_remove_fast(&flow_table->rhashtable,
 			       &flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].node,
 			       *flow_table->type->params);
@@ -161,10 +161,8 @@ void flow_offload_del(struct nf_flowtable *flow_table,
 			       &flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].node,
 			       *flow_table->type->params);
 
-	e = container_of(flow, struct flow_offload_entry, flow);
-	kfree_rcu(e, rcu_head);
+	flow_offload_free(flow);
 }
-EXPORT_SYMBOL_GPL(flow_offload_del);
 
 struct flow_offload_tuple_rhash *
 flow_offload_lookup(struct nf_flowtable *flow_table,
@@ -174,15 +172,6 @@ flow_offload_lookup(struct nf_flowtable *flow_table,
 				      *flow_table->type->params);
 }
 EXPORT_SYMBOL_GPL(flow_offload_lookup);
-
-static void nf_flow_release_ct(const struct flow_offload *flow)
-{
-	struct flow_offload_entry *e;
-
-	e = container_of(flow, struct flow_offload_entry, flow);
-	nf_ct_delete(e->ct, 0, 0);
-	nf_ct_put(e->ct);
-}
 
 int nf_flow_table_iterate(struct nf_flowtable *flow_table,
 			  void (*iter)(struct flow_offload *flow, void *data),
@@ -259,10 +248,8 @@ static int nf_flow_offload_gc_step(struct nf_flowtable *flow_table)
 		flow = container_of(tuplehash, struct flow_offload, tuplehash[0]);
 
 		if (nf_flow_has_expired(flow) ||
-		    nf_flow_is_dying(flow)) {
+		    nf_flow_is_dying(flow))
 			flow_offload_del(flow_table, flow);
-			nf_flow_release_ct(flow);
-		}
 	}
 out:
 	rhashtable_walk_stop(&hti);

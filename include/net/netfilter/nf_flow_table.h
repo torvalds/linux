@@ -90,7 +90,6 @@ struct flow_offload *flow_offload_alloc(struct nf_conn *ct,
 void flow_offload_free(struct flow_offload *flow);
 
 int flow_offload_add(struct nf_flowtable *flow_table, struct flow_offload *flow);
-void flow_offload_del(struct nf_flowtable *flow_table, struct flow_offload *flow);
 struct flow_offload_tuple_rhash *flow_offload_lookup(struct nf_flowtable *flow_table,
 						     struct flow_offload_tuple *tuple);
 int nf_flow_table_iterate(struct nf_flowtable *flow_table,
