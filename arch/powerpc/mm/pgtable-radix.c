@@ -20,6 +20,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
+#include <asm/mmu_context.h>
 #include <asm/dma.h>
 #include <asm/machdep.h>
 #include <asm/mmu.h>
@@ -333,6 +334,22 @@ static void __init radix_init_pgtable(void)
 		     "r" (TLBIEL_INVAL_SET_LPID), "r" (0));
 	asm volatile("eieio; tlbsync; ptesync" : : : "memory");
 	trace_tlbie(0, 0, TLBIEL_INVAL_SET_LPID, 0, 2, 1, 1);
+
+	/*
+	 * The init_mm context is given the first available (non-zero) PID,
+	 * which is the "guard PID" and contains no page table. PIDR should
+	 * never be set to zero because that duplicates the kernel address
+	 * space at the 0x0... offset (quadrant 0)!
+	 *
+	 * An arbitrary PID that may later be allocated by the PID allocator
+	 * for userspace processes must not be used either, because that
+	 * would cause stale user mappings for that PID on CPUs outside of
+	 * the TLB invalidation scheme (because it won't be in mm_cpumask).
+	 *
+	 * So permanently carve out one PID for the purpose of a guard PID.
+	 */
+	init_mm.context.id = mmu_base_pid;
+	mmu_base_pid++;
 }
 
 static void __init radix_init_partition_table(void)
@@ -579,7 +596,8 @@ void __init radix__early_init_mmu(void)
 
 	radix_init_iamr();
 	radix_init_pgtable();
-
+	/* Switch to the guard PID before turning on MMU */
+	radix__switch_mmu_context(NULL, &init_mm);
 	if (cpu_has_feature(CPU_FTR_HVMODE))
 		tlbiel_all();
 }
@@ -604,6 +622,7 @@ void radix__early_init_mmu_secondary(void)
 	}
 	radix_init_iamr();
 
+	radix__switch_mmu_context(NULL, &init_mm);
 	if (cpu_has_feature(CPU_FTR_HVMODE))
 		tlbiel_all();
 }
