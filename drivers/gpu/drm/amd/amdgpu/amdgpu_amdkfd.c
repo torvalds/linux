@@ -212,10 +212,6 @@ int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 	struct kgd_mem **mem = (struct kgd_mem **) mem_obj;
 	int r;
 
-	BUG_ON(kgd == NULL);
-	BUG_ON(gpu_addr == NULL);
-	BUG_ON(cpu_ptr == NULL);
-
 	*mem = kmalloc(sizeof(struct kgd_mem), GFP_KERNEL);
 	if ((*mem) == NULL)
 		return -ENOMEM;
@@ -268,8 +264,6 @@ allocate_mem_reserve_bo_failed:
 void free_gtt_mem(struct kgd_dev *kgd, void *mem_obj)
 {
 	struct kgd_mem *mem = (struct kgd_mem *) mem_obj;
-
-	BUG_ON(mem == NULL);
 
 	amdgpu_bo_reserve(mem->bo, true);
 	amdgpu_bo_kunmap(mem->bo);

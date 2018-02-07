@@ -775,8 +775,6 @@ static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type)
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
 	const union amdgpu_firmware_header *hdr;
 
-	BUG_ON(kgd == NULL);
-
 	switch (type) {
 	case KGD_ENGINE_PFP:
 		hdr = (const union amdgpu_firmware_header *)
