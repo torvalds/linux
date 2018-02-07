@@ -715,7 +715,7 @@ static int adv748x_probe(struct i2c_client *client,
 	ret = adv748x_identify_chip(state);
 	if (ret) {
 		adv_err(state, "Failed to identify chip");
-		goto err_cleanup_clients;
+		goto err_cleanup_dt;
 	}
 
 	/* Configure remaining pages as I2C clients with regmap access */
