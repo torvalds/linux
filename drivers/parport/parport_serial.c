@@ -539,12 +539,10 @@ static int serial_register(struct pci_dev *dev, const struct pci_device_id *id)
 	struct serial_private *serial;
 
 	board = &pci_parport_serial_boards[id->driver_data];
-
 	if (board->num_ports == 0)
 		return 0;
 
 	serial = pciserial_init_ports(dev, board);
-
 	if (IS_ERR(serial))
 		return PTR_ERR(serial);
 
@@ -630,14 +628,16 @@ static int parport_serial_pci_probe(struct pci_dev *dev,
 	if (err)
 		return err;
 
-	if (parport_register(dev, id))
-		return -ENODEV;
+	err = parport_register(dev, id);
+	if (err)
+		return err;
 
-	if (serial_register (dev, id)) {
+	err = serial_register(dev, id);
+	if (err) {
 		int i;
 		for (i = 0; i < priv->num_par; i++)
 			parport_pc_unregister_port (priv->port[i]);
-		return -ENODEV;
+		return err;
 	}
 
 	return 0;
