@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * (C) 2001 Clemson University and The University of Chicago
+ * Copyright 2018 Omnibond Systems, L.L.C.
  *
  * See COPYING in top-level directory.
  */
@@ -272,8 +273,7 @@ static int orangefs_inode_is_stale(struct inode *inode,
 	return 0;
 }
 
-int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
-    u32 request_mask)
+int orangefs_inode_getattr(struct inode *inode, int flags)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_kernel_op_s *new_op;
@@ -283,16 +283,9 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: called on inode %pU\n", __func__,
 	    get_khandle_from_ino(inode));
 
-	if (!new && !bypass) {
-		/*
-		 * Must have all the attributes in the mask and be within cache
-		 * time.
-		 */
-		if ((request_mask & orangefs_inode->getattr_mask) ==
-		    request_mask &&
-		    time_before(jiffies, orangefs_inode->getattr_time))
-			return 0;
-	}
+	/* Must have all the attributes in the mask and be within cache time. */
+	if (!flags && time_before(jiffies, orangefs_inode->getattr_time))
+		return 0;
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_GETATTR);
 	if (!new_op)
@@ -302,7 +295,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 	 * Size is the hardest attribute to get.  The incremental cost of any
 	 * other attribute is essentially zero.
 	 */
-	if (request_mask & STATX_SIZE || new)
+	if (flags)
 		new_op->upcall.req.getattr.mask = ORANGEFS_ATTR_SYS_ALL_NOHINT;
 	else
 		new_op->upcall.req.getattr.mask =
@@ -313,7 +306,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 	if (ret != 0)
 		goto out;
 
-	if (!new) {
+	if (!(flags & ORANGEFS_GETATTR_NEW)) {
 		ret = orangefs_inode_is_stale(inode,
 		    &new_op->downcall.resp.getattr.attributes,
 		    new_op->downcall.resp.getattr.link_target);
@@ -329,7 +322,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 	case S_IFREG:
 		inode->i_flags = orangefs_inode_flags(&new_op->
 		    downcall.resp.getattr.attributes);
-		if (request_mask & STATX_SIZE || new) {
+		if (flags) {
 			inode_size = (loff_t)new_op->
 			    downcall.resp.getattr.attributes.size;
 			inode->i_size = inode_size;
@@ -343,7 +336,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 		}
 		break;
 	case S_IFDIR:
-		if (request_mask & STATX_SIZE || new) {
+		if (flags) {
 			inode->i_size = PAGE_SIZE;
 			spin_lock(&inode->i_lock);
 			inode_set_bytes(inode, inode->i_size);
@@ -352,7 +345,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 		set_nlink(inode, 1);
 		break;
 	case S_IFLNK:
-		if (new) {
+		if (flags & ORANGEFS_GETATTR_NEW) {
 			inode->i_size = (loff_t)strlen(new_op->
 			    downcall.resp.getattr.link_target);
 			ret = strscpy(orangefs_inode->link_target,
@@ -393,10 +386,6 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 
 	orangefs_inode->getattr_time = jiffies +
 	    orangefs_getattr_timeout_msecs*HZ/1000;
-	if (request_mask & STATX_SIZE || new)
-		orangefs_inode->getattr_mask = STATX_BASIC_STATS;
-	else
-		orangefs_inode->getattr_mask = STATX_BASIC_STATS & ~STATX_SIZE;
 	ret = 0;
 out:
 	op_release(new_op);
