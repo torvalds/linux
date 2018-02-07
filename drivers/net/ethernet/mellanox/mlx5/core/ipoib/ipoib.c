@@ -56,7 +56,8 @@ static void mlx5i_build_nic_params(struct mlx5_core_dev *mdev,
 				   struct mlx5e_params *params)
 {
 	/* Override RQ params as IPoIB supports only LINKED LIST RQ for now */
-	params->rq_wq_type = MLX5_WQ_TYPE_LINKED_LIST;
+	MLX5E_SET_PFLAG(params, MLX5E_PFLAG_RX_STRIDING_RQ, false);
+	mlx5e_set_rq_type(mdev, params);
 	mlx5e_init_rq_type_params(mdev, params);
 
 	/* RQ size in ipoib by default is 512 */

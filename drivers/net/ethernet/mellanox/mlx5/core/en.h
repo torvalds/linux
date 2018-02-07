@@ -205,12 +205,14 @@ static const char mlx5e_priv_flags[][ETH_GSTRING_LEN] = {
 	"rx_cqe_moder",
 	"tx_cqe_moder",
 	"rx_cqe_compress",
+	"rx_striding_rq",
 };
 
 enum mlx5e_priv_flag {
 	MLX5E_PFLAG_RX_CQE_BASED_MODER = (1 << 0),
 	MLX5E_PFLAG_TX_CQE_BASED_MODER = (1 << 1),
 	MLX5E_PFLAG_RX_CQE_COMPRESS = (1 << 2),
+	MLX5E_PFLAG_RX_STRIDING_RQ = (1 << 3),
 };
 
 #define MLX5E_SET_PFLAG(params, pflag, enable)			\
@@ -827,6 +829,10 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq);
 void mlx5e_free_txqsq_descs(struct mlx5e_txqsq *sq);
 void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq);
 
+bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev);
+bool mlx5e_striding_rq_possible(struct mlx5_core_dev *mdev,
+				struct mlx5e_params *params);
+
 void mlx5e_page_release(struct mlx5e_rq *rq, struct mlx5e_dma_info *dma_info,
 			bool recycle);
 void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
@@ -917,6 +923,7 @@ void mlx5e_set_tx_cq_mode_params(struct mlx5e_params *params,
 				 u8 cq_period_mode);
 void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params,
 				 u8 cq_period_mode);
+void mlx5e_set_rq_type(struct mlx5_core_dev *mdev, struct mlx5e_params *params);
 void mlx5e_init_rq_type_params(struct mlx5_core_dev *mdev,
 			       struct mlx5e_params *params);
 

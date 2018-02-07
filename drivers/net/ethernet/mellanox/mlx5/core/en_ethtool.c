@@ -1598,6 +1598,38 @@ static int set_pflag_rx_cqe_compress(struct net_device *netdev,
 	return 0;
 }
 
+static int set_pflag_rx_striding_rq(struct net_device *netdev, bool enable)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_channels new_channels = {};
+	int err;
+
+	if (enable) {
+		if (!mlx5e_check_fragmented_striding_rq_cap(mdev))
+			return -EOPNOTSUPP;
+		if (!mlx5e_striding_rq_possible(mdev, &priv->channels.params))
+			return -EINVAL;
+	}
+
+	new_channels.params = priv->channels.params;
+
+	MLX5E_SET_PFLAG(&new_channels.params, MLX5E_PFLAG_RX_STRIDING_RQ, enable);
+	mlx5e_set_rq_type(mdev, &new_channels.params);
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
+		priv->channels.params = new_channels.params;
+		return 0;
+	}
+
+	err = mlx5e_open_channels(priv, &new_channels);
+	if (err)
+		return err;
+
+	mlx5e_switch_priv_channels(priv, &new_channels, NULL);
+	return 0;
+}
+
 static int mlx5e_handle_pflag(struct net_device *netdev,
 			      u32 wanted_flags,
 			      enum mlx5e_priv_flag flag,
@@ -1643,6 +1675,12 @@ static int mlx5e_set_priv_flags(struct net_device *netdev, u32 pflags)
 	err = mlx5e_handle_pflag(netdev, pflags,
 				 MLX5E_PFLAG_RX_CQE_COMPRESS,
 				 set_pflag_rx_cqe_compress);
+	if (err)
+		goto out;
+
+	err = mlx5e_handle_pflag(netdev, pflags,
+				 MLX5E_PFLAG_RX_STRIDING_RQ,
+				 set_pflag_rx_striding_rq);
 
 out:
 	mutex_unlock(&priv->state_lock);
