@@ -126,6 +126,33 @@ module_param_call(mpt3sas_fwfault_debug, _scsih_set_fwfault_debug,
 	param_get_int, &mpt3sas_fwfault_debug, 0644);
 
 /**
+ * _base_clone_reply_to_sys_mem - copies reply to reply free iomem
+ *				  in BAR0 space.
+ *
+ * @ioc: per adapter object
+ * @reply: reply message frame(lower 32bit addr)
+ * @index: System request message index.
+ *
+ * @Returns - Nothing
+ */
+static void
+_base_clone_reply_to_sys_mem(struct MPT3SAS_ADAPTER *ioc, u32 reply,
+		u32 index)
+{
+	/*
+	 * 256 is offset within sys register.
+	 * 256 offset MPI frame starts. Max MPI frame supported is 32.
+	 * 32 * 128 = 4K. From here, Clone of reply free for mcpu starts
+	 */
+	u16 cmd_credit = ioc->facts.RequestCredit + 1;
+	void __iomem *reply_free_iomem = (void __iomem *)ioc->chip +
+			MPI_FRAME_START_OFFSET +
+			(cmd_credit * ioc->request_sz) + (index * sizeof(u32));
+
+	writel(reply, reply_free_iomem);
+}
+
+/**
  * _base_clone_mpi_to_sys_mem - Writes/copies MPI frames
  *				to system/BAR0 region.
  *
@@ -1400,6 +1427,10 @@ _base_interrupt(int irq, void *bus_id)
 				    0 : ioc->reply_free_host_index + 1;
 				ioc->reply_free[ioc->reply_free_host_index] =
 				    cpu_to_le32(reply);
+				if (ioc->is_mcpu_endpoint)
+					_base_clone_reply_to_sys_mem(ioc,
+						cpu_to_le32(reply),
+						ioc->reply_free_host_index);
 				writel(ioc->reply_free_host_index,
 				    &ioc->chip->ReplyFreeHostIndex);
 			}
@@ -6242,8 +6273,12 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
 	/* initialize Reply Free Queue */
 	for (i = 0, reply_address = (u32)ioc->reply_dma ;
 	    i < ioc->reply_free_queue_depth ; i++, reply_address +=
-	    ioc->reply_sz)
+	    ioc->reply_sz) {
 		ioc->reply_free[i] = cpu_to_le32(reply_address);
+		if (ioc->is_mcpu_endpoint)
+			_base_clone_reply_to_sys_mem(ioc,
+					(__le32)reply_address, i);
+	}
 
 	/* initialize reply queues */
 	if (ioc->is_driver_loading)
