@@ -1336,6 +1336,7 @@ struct MPT3SAS_ADAPTER {
 	u32		ring_buffer_offset;
 	u32		ring_buffer_sz;
 	u8		is_warpdrive;
+	u8		is_mcpu_endpoint;
 	u8		hide_ir_msg;
 	u8		mfg_pg10_hide_flag;
 	u8		hide_drives;
