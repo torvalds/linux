@@ -46,7 +46,7 @@ obj-$(CONFIG_OMAP_WATCHDOG) += omap_wdt.o
 obj-$(CONFIG_TWL4030_WATCHDOG) += twl4030_wdt.o
 obj-$(CONFIG_21285_WATCHDOG) += wdt285.o
 obj-$(CONFIG_977_WATCHDOG) += wdt977.o
-obj-$(CONFIG_GEMINI_WATCHDOG) += gemini_wdt.o
+obj-$(CONFIG_FTWDT010_WATCHDOG) += ftwdt010_wdt.o
 obj-$(CONFIG_IXP4XX_WATCHDOG) += ixp4xx_wdt.o
 obj-$(CONFIG_KS8695_WATCHDOG) += ks8695_wdt.o
 obj-$(CONFIG_S3C2410_WATCHDOG) += s3c2410_wdt.o
@@ -88,9 +88,8 @@ obj-$(CONFIG_ASPEED_WATCHDOG) += aspeed_wdt.o
 obj-$(CONFIG_ZX2967_WATCHDOG) += zx2967_wdt.o
 obj-$(CONFIG_STM32_WATCHDOG) += stm32_iwdg.o
 obj-$(CONFIG_UNIPHIER_WATCHDOG) += uniphier_wdt.o
-
-# AVR32 Architecture
-obj-$(CONFIG_AT32AP700X_WDT) += at32ap700x_wdt.o
+obj-$(CONFIG_RTD119X_WATCHDOG) += rtd119x_wdt.o
+obj-$(CONFIG_SPRD_WATCHDOG) += sprd_wdt.o
 
 # BLACKFIN Architecture
 obj-$(CONFIG_BFIN_WDT) += bfin_wdt.o
