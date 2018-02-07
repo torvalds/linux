@@ -385,8 +385,6 @@ static irqreturn_t dcmi_irq_thread(int irq, void *arg)
 		dcmi->errors_count++;
 		dmaengine_terminate_all(dcmi->dma_chan);
 
-		reg_set(dcmi->regs, DCMI_ICR, IT_FRAME | IT_OVR | IT_ERR);
-
 		dev_dbg(dcmi->dev, "Restarting capture after DCMI error\n");
 
 		if (dcmi_start_capture(dcmi)) {
