@@ -1161,7 +1161,7 @@ static int vdm_send_discoverysvid(struct fusb30x_chip *chip, int evt)
 	switch (chip->vdm_send_state) {
 	case 0:
 		set_vdm_mesg(chip, VDM_DISCOVERY_SVIDS, VDM_TYPE_INIT, 0);
-		memset(chip->vdm_svid, 0, 12);
+		memset(chip->vdm_svid, 0, sizeof(chip->vdm_svid));
 		chip->vdm_svid_num = 0;
 		chip->tx_state = 0;
 		chip->vdm_send_state++;
