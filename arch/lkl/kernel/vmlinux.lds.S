@@ -33,7 +33,10 @@ SECTIONS
 	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
 	VMLINUX_SYMBOL(_edata) = .;
 
+	VMLINUX_SYMBOL(__start_ro_after_init) = .;
+	.data..ro_after_init : { *(.data..ro_after_init)}
 	EXCEPTION_TABLE(16)
+	VMLINUX_SYMBOL(__end_ro_after_init) = .;
 	NOTES
 
 	BSS_SECTION(0, 0, 0)
