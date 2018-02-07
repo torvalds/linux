@@ -888,12 +888,9 @@ static int kvm_s390_set_tod_ext(struct kvm *kvm, struct kvm_device_attr *attr)
 	if (copy_from_user(&gtod, (void __user *)attr->addr, sizeof(gtod)))
 		return -EFAULT;
 
-	if (test_kvm_facility(kvm, 139))
-		kvm_s390_set_tod_clock_ext(kvm, &gtod);
-	else if (gtod.epoch_idx == 0)
-		kvm_s390_set_tod_clock(kvm, gtod.tod);
-	else
+	if (!test_kvm_facility(kvm, 139) && gtod.epoch_idx)
 		return -EINVAL;
+	kvm_s390_set_tod_clock(kvm, &gtod);
 
 	VM_EVENT(kvm, 3, "SET: TOD extension: 0x%x, TOD base: 0x%llx",
 		gtod.epoch_idx, gtod.tod);
@@ -918,13 +915,14 @@ static int kvm_s390_set_tod_high(struct kvm *kvm, struct kvm_device_attr *attr)
 
 static int kvm_s390_set_tod_low(struct kvm *kvm, struct kvm_device_attr *attr)
 {
-	u64 gtod;
+	struct kvm_s390_vm_tod_clock gtod = { 0 };
 
-	if (copy_from_user(&gtod, (void __user *)attr->addr, sizeof(gtod)))
+	if (copy_from_user(&gtod.tod, (void __user *)attr->addr,
+			   sizeof(gtod.tod)))
 		return -EFAULT;
 
-	kvm_s390_set_tod_clock(kvm, gtod);
-	VM_EVENT(kvm, 3, "SET: TOD base: 0x%llx", gtod);
+	kvm_s390_set_tod_clock(kvm, &gtod);
+	VM_EVENT(kvm, 3, "SET: TOD base: 0x%llx", gtod.tod);
 	return 0;
 }
 
@@ -2945,8 +2943,8 @@ retry:
 	return 0;
 }
 
-void kvm_s390_set_tod_clock_ext(struct kvm *kvm,
-				 const struct kvm_s390_vm_tod_clock *gtod)
+void kvm_s390_set_tod_clock(struct kvm *kvm,
+			    const struct kvm_s390_vm_tod_clock *gtod)
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_s390_tod_clock_ext htod;
@@ -2958,10 +2956,12 @@ void kvm_s390_set_tod_clock_ext(struct kvm *kvm,
 	get_tod_clock_ext((char *)&htod);
 
 	kvm->arch.epoch = gtod->tod - htod.tod;
-	kvm->arch.epdx = gtod->epoch_idx - htod.epoch_idx;
-
-	if (kvm->arch.epoch > gtod->tod)
-		kvm->arch.epdx -= 1;
+	kvm->arch.epdx = 0;
+	if (test_kvm_facility(kvm, 139)) {
+		kvm->arch.epdx = gtod->epoch_idx - htod.epoch_idx;
+		if (kvm->arch.epoch > gtod->tod)
+			kvm->arch.epdx -= 1;
+	}
 
 	kvm_s390_vcpu_block_all(kvm);
 	kvm_for_each_vcpu(i, vcpu, kvm) {
@@ -2969,22 +2969,6 @@ void kvm_s390_set_tod_clock_ext(struct kvm *kvm,
 		vcpu->arch.sie_block->epdx  = kvm->arch.epdx;
 	}
 
-	kvm_s390_vcpu_unblock_all(kvm);
-	preempt_enable();
-	mutex_unlock(&kvm->lock);
-}
-
-void kvm_s390_set_tod_clock(struct kvm *kvm, u64 tod)
-{
-	struct kvm_vcpu *vcpu;
-	int i;
-
-	mutex_lock(&kvm->lock);
-	preempt_disable();
-	kvm->arch.epoch = tod - get_tod_clock();
-	kvm_s390_vcpu_block_all(kvm);
-	kvm_for_each_vcpu(i, vcpu, kvm)
-		vcpu->arch.sie_block->epoch = kvm->arch.epoch;
 	kvm_s390_vcpu_unblock_all(kvm);
 	preempt_enable();
 	mutex_unlock(&kvm->lock);
