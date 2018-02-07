@@ -1528,6 +1528,7 @@ struct aac_bus_info_response {
 #define AAC_COMM_MESSAGE_TYPE3		5
 
 #define AAC_EXTOPT_SA_FIRMWARE		cpu_to_le32(1<<1)
+#define AAC_EXTOPT_SOFT_RESET		cpu_to_le32(1<<16)
 
 /* MSIX context */
 struct aac_msix_ctx {
@@ -1662,6 +1663,7 @@ struct aac_dev
 	u8			raw_io_64;
 	u8			printf_enabled;
 	u8			in_reset;
+	u8			in_soft_reset;
 	u8			msi;
 	u8			sa_firmware;
 	int			management_fib_count;
@@ -2504,6 +2506,7 @@ struct aac_hba_info {
 #define RCV_TEMP_READINGS		0x00000025
 #define GET_COMM_PREFERRED_SETTINGS	0x00000026
 #define IOP_RESET_FW_FIB_DUMP		0x00000034
+#define DROP_IO			0x00000035
 #define IOP_RESET			0x00001000
 #define IOP_RESET_ALWAYS		0x00001001
 #define RE_INIT_ADAPTER		0x000000ee
@@ -2539,6 +2542,7 @@ struct aac_hba_info {
 #define	FLASH_UPD_PENDING		0x00002000
 #define	FLASH_UPD_SUCCESS		0x00004000
 #define	FLASH_UPD_FAILED		0x00008000
+#define	INVALID_OMR			0xffffffff
 #define	FWUPD_TIMEOUT			(5 * 60)
 
 /*

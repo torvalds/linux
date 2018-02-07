@@ -255,7 +255,8 @@ static int src_sync_cmd(struct aac_dev *dev, u32 command,
 	 */
 	src_writel(dev, MUnit.IDR, INBOUNDDOORBELL_0 << SRC_IDR_SHIFT);
 
-	if (!dev->sync_mode || command != SEND_SYNCHRONOUS_FIB) {
+	if ((!dev->sync_mode || command != SEND_SYNCHRONOUS_FIB) &&
+		!dev->in_soft_reset) {
 		ok = 0;
 		start = jiffies;
 
@@ -992,6 +993,148 @@ error_iounmap:
 	return -1;
 }
 
+static int aac_src_wait_sync(struct aac_dev *dev, int *status)
+{
+	unsigned long start = jiffies;
+	unsigned long usecs = 0;
+	int delay = 5 * HZ;
+	int rc = 1;
+
+	while (time_before(jiffies, start+delay)) {
+		/*
+		 * Delay 5 microseconds to let Mon960 get info.
+		 */
+		udelay(5);
+
+		/*
+		 * Mon960 will set doorbell0 bit when it has completed the
+		 * command.
+		 */
+		if (aac_src_get_sync_status(dev) & OUTBOUNDDOORBELL_0) {
+			/*
+			 * Clear: the doorbell.
+			 */
+			if (dev->msi_enabled)
+				aac_src_access_devreg(dev, AAC_CLEAR_SYNC_BIT);
+			else
+				src_writel(dev, MUnit.ODR_C,
+					OUTBOUNDDOORBELL_0 << SRC_ODR_SHIFT);
+			rc = 0;
+
+			break;
+		}
+
+		/*
+		 * Yield the processor in case we are slow
+		 */
+		usecs = 1 * USEC_PER_MSEC;
+		usleep_range(usecs, usecs + 50);
+	}
+	/*
+	 * Pull the synch status from Mailbox 0.
+	 */
+	if (status && !rc) {
+		status[0] = readl(&dev->IndexRegs->Mailbox[0]);
+		status[1] = readl(&dev->IndexRegs->Mailbox[1]);
+		status[2] = readl(&dev->IndexRegs->Mailbox[2]);
+		status[3] = readl(&dev->IndexRegs->Mailbox[3]);
+		status[4] = readl(&dev->IndexRegs->Mailbox[4]);
+	}
+
+	return rc;
+}
+
+/**
+ *  aac_src_soft_reset	-	perform soft reset to speed up
+ *  access
+ *
+ *  Assumptions: That the controller is in a state where we can
+ *  bring it back to life with an init struct. We can only use
+ *  fast sync commands, as the timeout is 5 seconds.
+ *
+ *  @dev: device to configure
+ *
+ */
+
+static int aac_src_soft_reset(struct aac_dev *dev)
+{
+	u32 status_omr = src_readl(dev, MUnit.OMR);
+	u32 status[5];
+	int rc = 1;
+	int state = 0;
+	char *state_str[7] = {
+		"GET_ADAPTER_PROPERTIES Failed",
+		"GET_ADAPTER_PROPERTIES timeout",
+		"SOFT_RESET not supported",
+		"DROP_IO Failed",
+		"DROP_IO timeout",
+		"Check Health failed"
+	};
+
+	if (status_omr == INVALID_OMR)
+		return 1;       // pcie hosed
+
+	if (!(status_omr & KERNEL_UP_AND_RUNNING))
+		return 1;       // not up and running
+
+	/*
+	 * We go into soft reset mode to allow us to handle response
+	 */
+	dev->in_soft_reset = 1;
+	dev->msi_enabled = status_omr & AAC_INT_MODE_MSIX;
+
+	/* Get adapter properties */
+	rc = aac_adapter_sync_cmd(dev, GET_ADAPTER_PROPERTIES, 0, 0, 0,
+		0, 0, 0, status+0, status+1, status+2, status+3, status+4);
+	if (rc)
+		goto out;
+
+	state++;
+	if (aac_src_wait_sync(dev, status)) {
+		rc = 1;
+		goto out;
+	}
+
+	state++;
+	if (!(status[1] & le32_to_cpu(AAC_OPT_EXTENDED) &&
+		(status[4] & le32_to_cpu(AAC_EXTOPT_SOFT_RESET)))) {
+		rc = 2;
+		goto out;
+	}
+
+	if ((status[1] & le32_to_cpu(AAC_OPT_EXTENDED)) &&
+		(status[4] & le32_to_cpu(AAC_EXTOPT_SA_FIRMWARE)))
+		dev->sa_firmware = 1;
+
+	state++;
+	rc = aac_adapter_sync_cmd(dev, DROP_IO, 0, 0, 0, 0, 0, 0,
+		 status+0, status+1, status+2, status+3, status+4);
+
+	if (rc)
+		goto out;
+
+	state++;
+	if (aac_src_wait_sync(dev, status)) {
+		rc = 3;
+		goto out;
+	}
+
+	if (status[1])
+		dev_err(&dev->pdev->dev, "%s: %d outstanding I/O pending\n",
+			__func__, status[1]);
+
+	state++;
+	rc = aac_src_check_health(dev);
+
+out:
+	dev->in_soft_reset = 0;
+	dev->msi_enabled = 0;
+	if (rc)
+		dev_err(&dev->pdev->dev, "%s: %s status = %d", __func__,
+			state_str[state], rc);
+
+return rc;
+}
 /**
  *  aac_srcv_init	-	initialize an SRCv card
  *  @dev: device to configure
@@ -1021,8 +1164,10 @@ int aac_srcv_init(struct aac_dev *dev)
 
 	if (dev->init_reset) {
 		dev->init_reset = false;
-		if (!aac_src_restart_adapter(dev, 0, IOP_HWSOFT_RESET))
+		if (aac_src_soft_reset(dev)) {
+			aac_src_restart_adapter(dev, 0, IOP_HWSOFT_RESET);
 			++restart;
+		}
 	}
 
 	/*
@@ -1072,13 +1217,16 @@ int aac_srcv_init(struct aac_dev *dev)
 		printk(KERN_ERR "%s%d: adapter monitor panic.\n", dev->name, instance);
 		goto error_iounmap;
 	}
+
 	start = jiffies;
 	/*
 	 *	Wait for the adapter to be up and running. Wait up to 3 minutes
 	 */
-	while (!((status = src_readl(dev, MUnit.OMR)) &
-		KERNEL_UP_AND_RUNNING) ||
-		status == 0xffffffff) {
+	do {
+		status = src_readl(dev, MUnit.OMR);
+		if (status == INVALID_OMR)
+			status = 0;
+
 		if ((restart &&
 		  (status & (KERNEL_PANIC|SELF_TEST_FAILED|MONITOR_PANIC))) ||
 		  time_after(jiffies, start+HZ*startup_timeout)) {
@@ -1098,7 +1246,8 @@ int aac_srcv_init(struct aac_dev *dev)
 			++restart;
 		}
 		msleep(1);
-	}
+	} while (!(status & KERNEL_UP_AND_RUNNING));
+
 	if (restart && aac_commit)
 		aac_commit = 1;
 	/*
