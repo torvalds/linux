@@ -736,7 +736,7 @@ static void rk817_charge_set_chrg_finish_condition(struct rk817_charger *charge)
 		rk817_charge_set_term_current_digital(charge,
 						      charge->chrg_finish_cur);
 
-		rk817_charge_set_chrg_term_mod(charge, charge->chrg_term_mode);
+	rk817_charge_set_chrg_term_mod(charge, charge->chrg_term_mode);
 }
 
 static int rk817_charge_online(struct rk817_charger *charge)
