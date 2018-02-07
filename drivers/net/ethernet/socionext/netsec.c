@@ -8,6 +8,7 @@
 #include <linux/of_mdio.h>
 #include <linux/etherdevice.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 
 #include <net/tcp.h>
 #include <net/ip6_checksum.h>
