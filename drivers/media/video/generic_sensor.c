@@ -865,7 +865,7 @@ int generic_sensor_init(struct v4l2_subdev *sd, u32 val)
     if (sensor->flash_off_timer.timer.function==NULL)
         sensor->flash_off_timer.timer.function = generic_flash_off_func;
     
-	sensor->info_priv.funmodule_state |= SENSOR_INIT_IS_OK;
+    sensor->info_priv.funmodule_state |= SENSOR_INIT_IS_OK;
     
 	return 0;
 sensor_INIT_ERR:
