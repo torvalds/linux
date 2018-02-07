@@ -545,8 +545,7 @@ static inline void btrfs_dev_stat_reset(struct btrfs_device *dev,
 }
 
 void btrfs_update_commit_device_size(struct btrfs_fs_info *fs_info);
-void btrfs_update_commit_device_bytes_used(struct btrfs_fs_info *fs_info,
-					struct btrfs_transaction *transaction);
+void btrfs_update_commit_device_bytes_used(struct btrfs_transaction *trans);
 
 struct list_head *btrfs_get_fs_uuids(void);
 void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info);

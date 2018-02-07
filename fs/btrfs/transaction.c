@@ -2246,7 +2246,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	       sizeof(*fs_info->super_copy));
 
 	btrfs_update_commit_device_size(fs_info);
-	btrfs_update_commit_device_bytes_used(fs_info, cur_trans);
+	btrfs_update_commit_device_bytes_used(cur_trans);
 
 	clear_bit(BTRFS_FS_LOG1_ERR, &fs_info->flags);
 	clear_bit(BTRFS_FS_LOG2_ERR, &fs_info->flags);

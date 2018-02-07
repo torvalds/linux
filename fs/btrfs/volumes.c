@@ -7345,20 +7345,20 @@ void btrfs_update_commit_device_size(struct btrfs_fs_info *fs_info)
 }
 
 /* Must be invoked during the transaction commit */
-void btrfs_update_commit_device_bytes_used(struct btrfs_fs_info *fs_info,
-					struct btrfs_transaction *transaction)
+void btrfs_update_commit_device_bytes_used(struct btrfs_transaction *trans)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct extent_map *em;
 	struct map_lookup *map;
 	struct btrfs_device *dev;
 	int i;
 
-	if (list_empty(&transaction->pending_chunks))
+	if (list_empty(&trans->pending_chunks))
 		return;
 
 	/* In order to kick the device replace finish process */
 	mutex_lock(&fs_info->chunk_mutex);
-	list_for_each_entry(em, &transaction->pending_chunks, list) {
+	list_for_each_entry(em, &trans->pending_chunks, list) {
 		map = em->map_lookup;
 
 		for (i = 0; i < map->num_stripes; i++) {
