@@ -314,7 +314,7 @@ endef
 
 # List module undefined symbols (or empty line if not enabled)
 ifdef CONFIG_TRIM_UNUSED_KSYMS
-cmd_undef_syms = $(NM) $@ | sed -n 's/^ \+U //p' | xargs echo
+cmd_undef_syms = $(NM) $@ | sed -n 's/^  *U //p' | xargs echo
 else
 cmd_undef_syms = echo
 endif
