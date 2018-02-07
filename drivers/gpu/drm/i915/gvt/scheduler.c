@@ -52,6 +52,29 @@ static void set_context_pdp_root_pointer(
 		pdp_pair[i].val = pdp[7 - i];
 }
 
+static void update_shadow_pdps(struct intel_vgpu_workload *workload)
+{
+	struct intel_vgpu *vgpu = workload->vgpu;
+	int ring_id = workload->ring_id;
+	struct i915_gem_context *shadow_ctx = vgpu->submission.shadow_ctx;
+	struct drm_i915_gem_object *ctx_obj =
+		shadow_ctx->engine[ring_id].state->obj;
+	struct execlist_ring_context *shadow_ring_context;
+	struct page *page;
+
+	if (WARN_ON(!workload->shadow_mm))
+		return;
+
+	if (WARN_ON(!atomic_read(&workload->shadow_mm->pincount)))
+		return;
+
+	page = i915_gem_object_get_page(ctx_obj, LRC_STATE_PN);
+	shadow_ring_context = kmap(page);
+	set_context_pdp_root_pointer(shadow_ring_context,
+			(void *)workload->shadow_mm->ppgtt_mm.shadow_pdps);
+	kunmap(page);
+}
+
 static int populate_shadow_context(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu *vgpu = workload->vgpu;
@@ -111,9 +134,6 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 		COPY_REG(rcs_indirect_ctx_offset);
 	}
 #undef COPY_REG
-
-	set_context_pdp_root_pointer(shadow_ring_context,
-				     (void *)workload->shadow_mm->ppgtt_mm.shadow_pdps);
 
 	intel_gvt_hypervisor_read_gpa(vgpu,
 			workload->ring_context_gpa +
@@ -508,6 +528,8 @@ static int prepare_workload(struct intel_vgpu_workload *workload)
 		gvt_vgpu_err("fail to vgpu pin mm\n");
 		return ret;
 	}
+
+	update_shadow_pdps(workload);
 
 	ret = intel_vgpu_sync_oos_pages(workload->vgpu);
 	if (ret) {
