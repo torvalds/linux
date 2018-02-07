@@ -1091,12 +1091,12 @@ int btrfs_wait_tree_log_extents(struct btrfs_root *log_root, int mark)
  *
  * @trans: transaction whose dirty pages we'd like to write
  */
-static int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
-					    struct btrfs_fs_info *fs_info)
+static int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans)
 {
 	int ret;
 	int ret2;
 	struct extent_io_tree *dirty_pages = &trans->transaction->dirty_pages;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct blk_plug plug;
 
 	blk_start_plug(&plug);
@@ -1407,7 +1407,7 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out;
 	switch_commit_roots(trans->transaction);
-	ret = btrfs_write_and_wait_transaction(trans, fs_info);
+	ret = btrfs_write_and_wait_transaction(trans);
 	if (ret)
 		btrfs_handle_fs_error(fs_info, ret,
 			"Error while writing out transaction for qgroup");
@@ -2261,7 +2261,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 
 	wake_up(&fs_info->transaction_wait);
 
-	ret = btrfs_write_and_wait_transaction(trans, fs_info);
+	ret = btrfs_write_and_wait_transaction(trans);
 	if (ret) {
 		btrfs_handle_fs_error(fs_info, ret,
 				      "Error while writing out transaction");
