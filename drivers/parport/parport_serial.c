@@ -1,20 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Support for common PCI multi-I/O cards (which is most of them)
  *
  * Copyright (C) 2001  Tim Waugh <twaugh@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
- *
  *
  * Multi-function PCI cards are supposed to present separate logical
  * devices on the bus.  A common thing to do seems to be to just use
  * one logical device with lots of base address registers for both
  * parallel ports and serial ports.  This driver is for dealing with
  * that.
- *
  */
 
 #include <linux/interrupt.h>
