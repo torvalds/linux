@@ -3086,7 +3086,7 @@ again:
 
 	if (run_all) {
 		if (!list_empty(&trans->new_bgs))
-			btrfs_create_pending_block_groups(trans, fs_info);
+			btrfs_create_pending_block_groups(trans);
 
 		spin_lock(&delayed_refs->lock);
 		node = rb_first(&delayed_refs->href_root);
@@ -3686,7 +3686,7 @@ again:
 	 * make sure all the block groups on our dirty list actually
 	 * exist
 	 */
-	btrfs_create_pending_block_groups(trans, fs_info);
+	btrfs_create_pending_block_groups(trans);
 
 	if (!path) {
 		path = btrfs_alloc_path();
@@ -4706,7 +4706,7 @@ out:
 	 */
 	if (trans->can_flush_pending_bgs &&
 	    trans->chunk_bytes_reserved >= (u64)SZ_2M) {
-		btrfs_create_pending_block_groups(trans, fs_info);
+		btrfs_create_pending_block_groups(trans);
 		btrfs_trans_release_chunk_metadata(trans);
 	}
 	return ret;
@@ -10151,9 +10151,9 @@ error:
 	return ret;
 }
 
-void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans,
-				       struct btrfs_fs_info *fs_info)
+void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_block_group_cache *block_group, *tmp;
 	struct btrfs_root *extent_root = fs_info->extent_root;
 	struct btrfs_block_group_item item;
