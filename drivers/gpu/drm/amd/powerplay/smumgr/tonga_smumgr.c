@@ -412,7 +412,7 @@ static int tonga_populate_cac_tables(struct pp_hwmgr *hwmgr,
 			convert_to_vid(vddc_lookup_table->entries[index].us_cac_high);
 	}
 
-	if ((data->vdd_gfx_control == SMU7_VOLTAGE_CONTROL_BY_SVID2)) {
+	if (data->vdd_gfx_control == SMU7_VOLTAGE_CONTROL_BY_SVID2) {
 		/* We are populating vddgfx CAC data to BapmVddgfx table in split mode */
 		for (count = 0; count < vddgfx_level_count; count++) {
 			index = phm_get_voltage_index(vddgfx_lookup_table,
