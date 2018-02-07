@@ -518,7 +518,8 @@ static const struct scp_domain_data scp_domain_data_mt2701[] = {
 		.name = "conn",
 		.sta_mask = PWR_STATUS_CONN,
 		.ctl_offs = SPM_CONN_PWR_CON,
-		.bus_prot_mask = 0x0104,
+		.bus_prot_mask = MT2701_TOP_AXI_PROT_EN_CONN_M |
+				 MT2701_TOP_AXI_PROT_EN_CONN_S,
 		.clk_id = {CLK_NONE},
 		.active_wakeup = true,
 	},
@@ -528,7 +529,7 @@ static const struct scp_domain_data scp_domain_data_mt2701[] = {
 		.ctl_offs = SPM_DIS_PWR_CON,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.clk_id = {CLK_MM},
-		.bus_prot_mask = 0x0002,
+		.bus_prot_mask = MT2701_TOP_AXI_PROT_EN_MM_M0,
 		.active_wakeup = true,
 	},
 	[MT2701_POWER_DOMAIN_MFG] = {
