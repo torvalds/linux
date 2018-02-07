@@ -1553,7 +1553,7 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 
 	c->congested_read_threshold_us	= 2000;
 	c->congested_write_threshold_us	= 20000;
-	c->error_limit	= 8 << IO_ERROR_SHIFT;
+	c->error_limit	= DEFAULT_IO_ERROR_LIMIT;
 
 	return c;
 err:

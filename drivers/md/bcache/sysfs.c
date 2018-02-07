@@ -568,7 +568,7 @@ SHOW(__bch_cache_set)
 
 	/* See count_io_errors for why 88 */
 	sysfs_print(io_error_halflife,	c->error_decay * 88);
-	sysfs_print(io_error_limit,	c->error_limit >> IO_ERROR_SHIFT);
+	sysfs_print(io_error_limit,	c->error_limit);
 
 	sysfs_hprint(congested,
 		     ((uint64_t) bch_get_congested(c)) << 9);
@@ -668,7 +668,7 @@ STORE(__bch_cache_set)
 	}
 
 	if (attr == &sysfs_io_error_limit)
-		c->error_limit = strtoul_or_return(buf) << IO_ERROR_SHIFT;
+		c->error_limit = strtoul_or_return(buf);
 
 	/* See count_io_errors() for why 88 */
 	if (attr == &sysfs_io_error_halflife)

@@ -666,6 +666,7 @@ struct cache_set {
 		ON_ERROR_UNREGISTER,
 		ON_ERROR_PANIC,
 	}			on_error;
+#define DEFAULT_IO_ERROR_LIMIT 8
 	unsigned		error_limit;
 	unsigned		error_decay;
 
