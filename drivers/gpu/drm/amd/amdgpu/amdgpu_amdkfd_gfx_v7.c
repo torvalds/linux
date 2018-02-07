@@ -787,7 +787,7 @@ static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
 
 	reg = RREG32(mmATC_VMID0_PASID_MAPPING + vmid);
-	return reg & ATC_VMID0_PASID_MAPPING__VALID_MASK;
+	return reg & ATC_VMID0_PASID_MAPPING__PASID_MASK;
 }
 
 static void write_vmid_invalidate_request(struct kgd_dev *kgd, uint8_t vmid)
