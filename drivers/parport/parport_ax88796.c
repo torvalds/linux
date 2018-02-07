@@ -273,7 +273,7 @@ static int parport_ax88796_probe(struct platform_device *pdev)
 {
 	struct device *_dev = &pdev->dev;
 	struct ax_drvdata *dd;
-	struct parport *pp = NULL;
+	struct parport *pp;
 	struct resource *res;
 	unsigned long size;
 	int spacing;
