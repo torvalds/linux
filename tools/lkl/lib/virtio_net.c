@@ -117,7 +117,7 @@ static int net_enqueue(struct virtio_dev *dev, int q, struct virtio_req *req)
 		header->num_buffers = i;
 
 		if (dev->device_features & BIT(LKL_VIRTIO_NET_F_GUEST_CSUM))
-			header->flags = LKL_VIRTIO_NET_HDR_F_DATA_VALID;
+			header->flags |= LKL_VIRTIO_NET_HDR_F_DATA_VALID;
 	} else {
 		bad_request("tried to push on non-existent queue");
 		return -1;
