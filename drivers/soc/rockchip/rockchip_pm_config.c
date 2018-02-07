@@ -59,7 +59,6 @@ static int __init pm_config_init(struct platform_device *pdev)
 	enum of_gpio_flags flags;
 	int i = 0;
 	int length;
-	int pin_num;
 
 	match_id = of_match_node(pm_match_table, pdev->dev.of_node);
 	if (!match_id)
@@ -105,11 +104,9 @@ static int __init pm_config_init(struct platform_device *pdev)
 							     &flags);
 			if (!gpio_is_valid(gpio_temp[i]))
 				break;
-			/* get the real pin number */
-			pin_num = gpio_temp[i] - ARCH_GPIO_BASE;
 			sip_smc_set_suspend_mode(GPIO_POWER_CONFIG,
 						 i,
-						 pin_num);
+						 gpio_temp[i]);
 		}
 	}
 	sip_smc_set_suspend_mode(GPIO_POWER_CONFIG, i, PM_INVALID_GPIO);
