@@ -139,6 +139,7 @@ config SND_SOC_INTEL_BYT_CHT_DA7213_MACH
 config SND_SOC_INTEL_BYT_CHT_ES8316_MACH
 	tristate "Baytrail & Cherrytrail with ES8316 codec"
 	depends on X86_INTEL_LPSS && I2C && ACPI
+	select SND_SOC_ACPI
 	select SND_SOC_ES8316
 	help
 	  This adds support for ASoC machine driver for Intel(R) Baytrail &
@@ -234,6 +235,7 @@ config SND_SOC_INTEL_KBL_RT5663_MAX98927_MACH
 	select SND_SOC_MAX98927
 	select SND_SOC_DMIC
 	select SND_SOC_HDAC_HDMI
+	select SND_SOC_INTEL_SKYLAKE_SSP_CLK
 	help
 	  This adds support for ASoC Onboard Codec I2S machine driver. This will
 	  create an alsa sound card for RT5663 + MAX98927.

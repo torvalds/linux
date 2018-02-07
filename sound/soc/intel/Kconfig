@@ -77,7 +77,6 @@ config SND_SST_ATOM_HIFI2_PLATFORM_PCI
 	depends on X86 && PCI
 	select SND_SST_IPC_PCI
 	select SND_SOC_COMPRESS
-	select SND_SOC_INTEL_COMMON
 	help
 	  If you have a Intel Medfield or Merrifield/Edison platform, then
 	  enable this option by saying Y or m. Distros will typically not
@@ -97,6 +96,9 @@ config SND_SST_ATOM_HIFI2_PLATFORM
 	  If you have a Intel Baytrail or Cherrytrail platform with an I2S
 	  codec, then enable this option by saying Y or m. This is a
 	  recommended option
+
+config SND_SOC_INTEL_SKYLAKE_SSP_CLK
+	tristate
 
 config SND_SOC_INTEL_SKYLAKE
 	tristate "SKL/BXT/KBL/GLK/CNL... Platforms"
