@@ -50,6 +50,7 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 struct dma_fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,
 				     struct amdgpu_ring *ring);
 struct dma_fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync, bool *explicit);
+int amdgpu_sync_clone(struct amdgpu_sync *source, struct amdgpu_sync *clone);
 int amdgpu_sync_wait(struct amdgpu_sync *sync, bool intr);
 void amdgpu_sync_free(struct amdgpu_sync *sync);
 int amdgpu_sync_init(void);
