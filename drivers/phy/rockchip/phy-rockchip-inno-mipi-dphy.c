@@ -173,6 +173,7 @@ struct inno_video_phy_socdata {
 struct inno_mipi_dphy {
 	struct device *dev;
 	struct clk *ref_clk;
+	struct clk *pclk;
 	struct clk *h2p_clk;
 	struct regmap *regmap;
 	struct reset_control *rst;
@@ -638,6 +639,7 @@ static int inno_mipi_dphy_power_on(struct phy *phy)
 	struct inno_mipi_dphy *inno = phy_get_drvdata(phy);
 
 	clk_prepare_enable(inno->h2p_clk);
+	clk_prepare_enable(inno->pclk);
 	pm_runtime_get_sync(inno->dev);
 	inno_mipi_dphy_pll_enable(inno);
 	inno_mipi_dphy_lane_enable(inno);
@@ -655,6 +657,7 @@ static int inno_mipi_dphy_power_off(struct phy *phy)
 	inno_mipi_dphy_lane_disable(inno);
 	inno_mipi_dphy_pll_disable(inno);
 	pm_runtime_put(inno->dev);
+	clk_disable_unprepare(inno->pclk);
 	clk_disable_unprepare(inno->h2p_clk);
 
 	return 0;
@@ -801,8 +804,8 @@ static int inno_mipi_dphy_probe(struct platform_device *pdev)
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
-	inno->regmap = devm_regmap_init_mmio_clk(dev, "pclk", regs,
-						 &inno_mipi_dphy_regmap_config);
+	inno->regmap = devm_regmap_init_mmio(dev, regs,
+					     &inno_mipi_dphy_regmap_config);
 	if (IS_ERR(inno->regmap)) {
 		ret = PTR_ERR(inno->regmap);
 		dev_err(dev, "failed to init regmap: %d\n", ret);
@@ -813,6 +816,12 @@ static int inno_mipi_dphy_probe(struct platform_device *pdev)
 	if (IS_ERR(inno->ref_clk)) {
 		dev_err(dev, "failed to get reference clock\n");
 		return PTR_ERR(inno->ref_clk);
+	}
+
+	inno->pclk = devm_clk_get(dev, "pclk");
+	if (IS_ERR(inno->pclk)) {
+		dev_err(dev, "failed to get pclk\n");
+		return PTR_ERR(inno->pclk);
 	}
 
 	if (inno->socdata->has_h2p_clk) {
