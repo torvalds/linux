@@ -1466,7 +1466,6 @@ static const struct vop_win_phy px30_win23_data = {
 	.gate = VOP_REG(RK3368_WIN2_CTRL0, 0x1, 0),
 	.enable = VOP_REG(RK3368_WIN2_CTRL0, 0x1, 4),
 	.format = VOP_REG(RK3368_WIN2_CTRL0, 0x3, 5),
-	.ymirror = VOP_REG(RK3368_WIN2_CTRL1, 0x1, 15),
 	.rb_swap = VOP_REG(RK3368_WIN2_CTRL0, 0x1, 20),
 	.dsp_info = VOP_REG(RK3368_WIN2_DSP_INFO0, 0x0fff0fff, 0),
 	.dsp_st = VOP_REG(RK3368_WIN2_DSP_ST0, 0x1fff1fff, 0),
@@ -1475,6 +1474,7 @@ static const struct vop_win_phy px30_win23_data = {
 	.alpha_mode = VOP_REG(RK3368_WIN2_SRC_ALPHA_CTRL, 0x1, 1),
 	.alpha_en = VOP_REG(RK3368_WIN2_SRC_ALPHA_CTRL, 0x1, 0),
 	.global_alpha_val = VOP_REG(RK3368_WIN2_SRC_ALPHA_CTRL, 0xff, 4),
+	.channel = VOP_REG(RK3368_WIN2_CTRL1, 0xff, 8),
 };
 
 static const struct vop_win_data px30_vop_big_win_data[] = {
