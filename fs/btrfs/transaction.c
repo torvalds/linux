@@ -1257,9 +1257,9 @@ void btrfs_add_dead_root(struct btrfs_root *root)
 /*
  * update all the cowonly tree roots on disk
  */
-static noinline int commit_fs_roots(struct btrfs_trans_handle *trans,
-				    struct btrfs_fs_info *fs_info)
+static noinline int commit_fs_roots(struct btrfs_trans_handle *trans)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_root *gang[8];
 	int i;
 	int ret;
@@ -1377,7 +1377,7 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	 */
 	mutex_lock(&fs_info->tree_log_mutex);
 
-	ret = commit_fs_roots(trans, fs_info);
+	ret = commit_fs_roots(trans);
 	if (ret)
 		goto out;
 	ret = btrfs_qgroup_account_extents(trans, fs_info);
@@ -2163,7 +2163,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	 */
 	mutex_lock(&fs_info->tree_log_mutex);
 
-	ret = commit_fs_roots(trans, fs_info);
+	ret = commit_fs_roots(trans);
 	if (ret) {
 		mutex_unlock(&fs_info->tree_log_mutex);
 		mutex_unlock(&fs_info->reloc_mutex);
