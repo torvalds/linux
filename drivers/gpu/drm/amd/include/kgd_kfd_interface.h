@@ -258,8 +258,6 @@ struct kfd2kgd_calls {
 	uint16_t (*get_atc_vmid_pasid_mapping_pasid)(
 					struct kgd_dev *kgd,
 					uint8_t vmid);
-	void (*write_vmid_invalidate_request)(struct kgd_dev *kgd,
-					uint8_t vmid);
 
 	uint16_t (*get_fw_version)(struct kgd_dev *kgd,
 				enum kgd_engine_type type);
