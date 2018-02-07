@@ -144,7 +144,7 @@ bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd)
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
 
-		ignore &= !component->driver->pmdown_time;
+		ignore &= !component->driver->use_pmdown_time;
 	}
 
 	/* this will be removed */
