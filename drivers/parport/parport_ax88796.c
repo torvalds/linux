@@ -280,7 +280,7 @@ static int parport_ax88796_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	dd = kzalloc(sizeof(struct ax_drvdata), GFP_KERNEL);
+	dd = kzalloc(sizeof(*dd), GFP_KERNEL);
 	if (!dd)
 		return -ENOMEM;
 
