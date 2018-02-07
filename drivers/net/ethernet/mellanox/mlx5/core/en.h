@@ -230,7 +230,6 @@ enum mlx5e_priv_flag {
 struct mlx5e_params {
 	u8  log_sq_size;
 	u8  rq_wq_type;
-	u16 rq_headroom;
 	u8  log_rq_size;
 	u16 num_channels;
 	u8  num_tc;

@@ -92,6 +92,19 @@ u8 mlx5e_mpwqe_get_log_num_strides(struct mlx5_core_dev *mdev,
 		mlx5e_mpwqe_get_log_stride_size(mdev, params);
 }
 
+static u16 mlx5e_get_rq_headroom(struct mlx5e_params *params)
+{
+	u16 linear_rq_headroom = params->xdp_prog ?
+		XDP_PACKET_HEADROOM : MLX5_RX_HEADROOM;
+
+	linear_rq_headroom += NET_IP_ALIGN;
+
+	if (params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST)
+		return linear_rq_headroom;
+
+	return 0;
+}
+
 void mlx5e_init_rq_type_params(struct mlx5_core_dev *mdev,
 			       struct mlx5e_params *params, u8 rq_type)
 {
@@ -107,12 +120,9 @@ void mlx5e_init_rq_type_params(struct mlx5_core_dev *mdev,
 		params->log_rq_size = is_kdump_kernel() ?
 			MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE :
 			MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE;
-		params->rq_headroom = params->xdp_prog ?
-			XDP_PACKET_HEADROOM : MLX5_RX_HEADROOM;
-		params->rq_headroom += NET_IP_ALIGN;
 
 		/* Extra room needed for build_skb */
-		params->lro_wqe_sz -= params->rq_headroom +
+		params->lro_wqe_sz -= mlx5e_get_rq_headroom(params) +
 			SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 	}
 
@@ -441,7 +451,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		goto err_rq_wq_destroy;
 
 	rq->buff.map_dir = rq->xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
-	rq->buff.headroom = params->rq_headroom;
+	rq->buff.headroom = mlx5e_get_rq_headroom(params);
 
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
