@@ -694,22 +694,8 @@ static struct pci_driver parport_serial_pci_driver = {
 		.pm     = &parport_serial_pm_ops,
 	},
 };
-
-
-static int __init parport_serial_init (void)
-{
-	return pci_register_driver (&parport_serial_pci_driver);
-}
-
-static void __exit parport_serial_exit (void)
-{
-	pci_unregister_driver (&parport_serial_pci_driver);
-	return;
-}
+module_pci_driver(parport_serial_pci_driver);
 
 MODULE_AUTHOR("Tim Waugh <twaugh@redhat.com>");
 MODULE_DESCRIPTION("Driver for common parallel+serial multi-I/O PCI cards");
 MODULE_LICENSE("GPL");
-
-module_init(parport_serial_init);
-module_exit(parport_serial_exit);
