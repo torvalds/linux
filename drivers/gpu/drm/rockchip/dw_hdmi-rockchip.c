@@ -947,7 +947,6 @@ dw_hdmi_rockchip_attatch_properties(struct drm_connector *connector,
 		if (prop) {
 			hdmi->color_depth_property = prop;
 			drm_object_attach_property(&connector->base, prop, 0);
-			hdmi->colordepth = 8;
 		}
 	}
 
