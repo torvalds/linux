@@ -881,6 +881,13 @@ enum {
 	RK818_ID = 0x8181,
 };
 
+struct rk808_pin_info {
+	struct pinctrl *p;
+	struct pinctrl_state *reset;
+	struct pinctrl_state *power_off;
+	struct pinctrl_state *sleep;
+};
+
 struct rk808 {
 	struct i2c_client		*i2c;
 	struct regmap_irq_chip_data	*irq_data;
@@ -891,5 +898,6 @@ struct rk808 {
 	const struct regmap_irq_chip	*regmap_irq_chip;
 	void				(*pm_pwroff_fn)(void);
 	void				(*pm_pwroff_prep_fn)(void);
+	struct rk808_pin_info *pins;
 };
 #endif /* __LINUX_REGULATOR_RK808_H */

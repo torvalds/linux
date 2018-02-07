@@ -136,11 +136,117 @@ static struct rk805_pin_config rk805_gpio_cfgs[] = {
 	},
 };
 
+enum rk817_pinmux_option {
+	RK817_PINMUX_FUN0 = 0,
+	RK817_PINMUX_FUN1,
+	RK817_PINMUX_FUN2,
+	RK817_PINMUX_FUN3
+};
+
+enum {
+	RK817_GPIO_SLP,
+	RK817_GPIO_TS,
+	RK817_GPIO_GT
+};
+
+/* for rk809 only a sleep pin */
+static const char *const rk817_gpio_groups[] = {
+	"gpio_slp",
+	"gpio_ts",
+	"gpio_gt",
+};
+
+static const struct pinctrl_pin_desc rk817_pins_desc[] = {
+	PINCTRL_PIN(RK817_GPIO_SLP, "gpio_slp"), /* sleep pin */
+	PINCTRL_PIN(RK817_GPIO_TS, "gpio_ts"), /* ts pin */
+	PINCTRL_PIN(RK817_GPIO_GT, "gpio_gt")/* gate pin */
+};
+
+static const struct rk805_pin_function rk817_pin_functions[] = {
+	{
+		.name = "pin_fun0",
+		.groups = rk817_gpio_groups,
+		.ngroups = ARRAY_SIZE(rk817_gpio_groups),
+		.mux_option = RK817_PINMUX_FUN0,
+	},
+	{
+		.name = "pin_fun1",
+		.groups = rk817_gpio_groups,
+		.ngroups = ARRAY_SIZE(rk817_gpio_groups),
+		.mux_option = RK817_PINMUX_FUN1,
+	},
+	{
+		.name = "pin_fun2",
+		.groups = rk817_gpio_groups,
+		.ngroups = ARRAY_SIZE(rk817_gpio_groups),
+		.mux_option = RK817_PINMUX_FUN2,
+	},
+	{
+		.name = "pin_fun3",
+		.groups = rk817_gpio_groups,
+		.ngroups = ARRAY_SIZE(rk817_gpio_groups),
+		.mux_option = RK817_PINMUX_FUN3,
+	},
+};
+
+/* for rk809 only a sleep pin */
+static const struct rk805_pin_group rk817_pin_groups[] = {
+	{
+		.name = "gpio_slp",
+		.pins = { RK817_GPIO_SLP },
+		.npins = 1,
+	},
+	{
+		.name = "gpio_ts",
+		.pins = { RK817_GPIO_TS },
+		.npins = 1,
+	},
+	{
+		.name = "gpio_gt",
+		.pins = { RK817_GPIO_GT },
+		.npins = 1,
+	}
+};
+
+#define RK817_GPIOTS_VAL_MSK	BIT(3)
+#define RK817_GPIOGT_VAL_MSK	BIT(6)
+#define RK817_GPIOTS_FUNC_MSK	BIT(2)
+#define RK817_GPIOGT_FUNC_MSK	BIT(5)
+#define RK817_GPIOTS_DIR_MSK	BIT(4)
+#define RK817_GPIOGT_DIR_MSK	BIT(7)
+
+static struct rk805_pin_config rk817_gpio_cfgs[] = {
+	{
+		.reg = RK817_SYS_CFG(3),
+		.val_msk = 0,
+		.fun_msk = RK817_SLPPIN_FUNC_MSK,
+		.dir_msk = 0
+	},
+	{
+		.reg = RK817_GPIO_INT_CFG,
+		.val_msk = RK817_GPIOTS_VAL_MSK,
+		.fun_msk = RK817_GPIOTS_FUNC_MSK,
+		.dir_msk = RK817_GPIOTS_DIR_MSK
+	},
+	{
+		.reg = RK817_GPIO_INT_CFG,
+		.val_msk = RK817_GPIOGT_VAL_MSK,
+		.fun_msk = RK817_GPIOGT_FUNC_MSK,
+		.dir_msk = RK817_GPIOGT_DIR_MSK
+	}
+};
+
 /* generic gpio chip */
 static int rk805_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct rk805_pctrl_info *pci = gpiochip_get_data(chip);
 	int ret, val;
+
+	if (!pci->pin_cfg[offset].val_msk) {
+		dev_dbg(pci->dev, "getting gpio%d value is not support\n",
+			offset);
+		return -1;
+	}
 
 	ret = regmap_read(pci->rk808->regmap, pci->pin_cfg[offset].reg, &val);
 	if (ret) {
@@ -157,6 +263,9 @@ static void rk805_gpio_set(struct gpio_chip *chip,
 {
 	struct rk805_pctrl_info *pci = gpiochip_get_data(chip);
 	int ret;
+
+	if (!pci->pin_cfg[offset].val_msk)
+		return;
 
 	ret = regmap_update_bits(pci->rk808->regmap,
 				 pci->pin_cfg[offset].reg,
@@ -203,6 +312,20 @@ static int rk805_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 
 static struct gpio_chip rk805_gpio_chip = {
 	.label			= "rk805-gpio",
+	.request		= gpiochip_generic_request,
+	.free			= gpiochip_generic_free,
+	.get_direction		= rk805_gpio_get_direction,
+	.get			= rk805_gpio_get,
+	.set			= rk805_gpio_set,
+	.direction_input	= rk805_gpio_direction_input,
+	.direction_output	= rk805_gpio_direction_output,
+	.can_sleep		= true,
+	.base			= -1,
+	.owner			= THIS_MODULE,
+};
+
+static struct gpio_chip rk817_gpio_chip = {
+	.label			= "rk817-gpio",
 	.request		= gpiochip_generic_request,
 	.free			= gpiochip_generic_free,
 	.get_direction		= rk805_gpio_get_direction,
@@ -290,7 +413,7 @@ static int _rk805_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 	if (!pci->pin_cfg[offset].fun_msk)
 		return 0;
 
-	if (mux == RK805_PINMUX_GPIO) {
+	if (mux == RK805_PINMUX_GPIO)  {
 		ret = regmap_update_bits(pci->rk808->regmap,
 					 pci->pin_cfg[offset].reg,
 					 pci->pin_cfg[offset].fun_msk,
@@ -307,6 +430,27 @@ static int _rk805_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static int _rk817_pinctrl_set_mux(struct pinctrl_dev *pctldev,
+				  unsigned int offset,
+				  int mux)
+{
+	struct rk805_pctrl_info *pci = pinctrl_dev_get_drvdata(pctldev);
+	int ret;
+
+	if (!pci->pin_cfg[offset].fun_msk)
+		return 0;
+
+	mux <<= ffs(pci->pin_cfg[offset].fun_msk) - 1;
+	ret = regmap_update_bits(pci->rk808->regmap,
+				 pci->pin_cfg[offset].reg,
+				 pci->pin_cfg[offset].fun_msk, mux);
+
+	if (ret)
+		dev_err(pci->dev, "set gpio%d func%d failed\n", offset, mux);
+
+	return ret;
+}
+
 static int rk805_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 				 unsigned int function,
 				 unsigned int group)
@@ -315,7 +459,17 @@ static int rk805_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 	int mux = pci->functions[function].mux_option;
 	int offset = group;
 
-	return _rk805_pinctrl_set_mux(pctldev, offset, mux);
+	switch (pci->rk808->variant) {
+	case RK805_ID:
+		return _rk805_pinctrl_set_mux(pctldev, offset, mux);
+
+	case RK809_ID:
+	case RK817_ID:
+		return _rk817_pinctrl_set_mux(pctldev, offset, mux);
+	default:
+		dev_err(pci->dev, "Couldn't find the variant id\n");
+		return -EINVAL;
+	}
 }
 
 static int rk805_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
@@ -324,13 +478,6 @@ static int rk805_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 {
 	struct rk805_pctrl_info *pci = pinctrl_dev_get_drvdata(pctldev);
 	int ret;
-
-	/* switch to gpio function */
-	ret = _rk805_pinctrl_set_mux(pctldev, offset, RK805_PINMUX_GPIO);
-	if (ret) {
-		dev_err(pci->dev, "set gpio%d mux failed\n", offset);
-		return ret;
-	}
 
 	/* set direction */
 	if (!pci->pin_cfg[offset].dir_msk)
@@ -391,8 +538,13 @@ static int rk805_pinconf_set(struct pinctrl_dev *pctldev,
 
 		switch (param) {
 		case PIN_CONFIG_OUTPUT:
-			rk805_gpio_set(&pci->gpio_chip, pin, arg);
 			rk805_pmx_gpio_set_direction(pctldev, NULL, pin, false);
+			rk805_gpio_set(&pci->gpio_chip, pin, arg);
+			break;
+		case PIN_CONFIG_INPUT_ENABLE:
+			if (arg)
+				rk805_pmx_gpio_set_direction(pctldev, NULL,
+							     pin, true);
 			break;
 		default:
 			dev_err(pci->dev, "Properties not supported\n");
@@ -416,9 +568,18 @@ static struct pinctrl_desc rk805_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
+static struct pinctrl_desc rk817_pinctrl_desc = {
+	.name = "rk817-pinctrl",
+	.pctlops = &rk805_pinctrl_ops,
+	.pmxops = &rk805_pinmux_ops,
+	.confops = &rk805_pinconf_ops,
+	.owner = THIS_MODULE,
+};
+
 static int rk805_pinctrl_probe(struct platform_device *pdev)
 {
 	struct rk805_pctrl_info *pci;
+	struct device_node *np;
 	int ret;
 
 	pci = devm_kzalloc(&pdev->dev, sizeof(*pci), GFP_KERNEL);
@@ -426,18 +587,19 @@ static int rk805_pinctrl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	pci->dev = &pdev->dev;
-	pci->dev->of_node = pdev->dev.parent->of_node;
+	np = of_get_child_by_name(pdev->dev.parent->of_node, "pinctrl_rk8xx");
+	if (np)
+		pci->dev->of_node = np;
+	else
+		pci->dev->of_node = pdev->dev.parent->of_node;
 	pci->rk808 = dev_get_drvdata(pdev->dev.parent);
-
-	pci->pinctrl_desc = rk805_pinctrl_desc;
-	pci->gpio_chip = rk805_gpio_chip;
-	pci->gpio_chip.parent = &pdev->dev;
-	pci->gpio_chip.of_node = pdev->dev.parent->of_node;
 
 	platform_set_drvdata(pdev, pci);
 
 	switch (pci->rk808->variant) {
 	case RK805_ID:
+		pci->pinctrl_desc = rk805_pinctrl_desc;
+		pci->gpio_chip = rk805_gpio_chip;
 		pci->pins = rk805_pins_desc;
 		pci->num_pins = ARRAY_SIZE(rk805_pins_desc);
 		pci->functions = rk805_pin_functions;
@@ -449,13 +611,42 @@ static int rk805_pinctrl_probe(struct platform_device *pdev)
 		pci->pin_cfg = rk805_gpio_cfgs;
 		pci->gpio_chip.ngpio = ARRAY_SIZE(rk805_gpio_cfgs);
 		break;
+	case RK809_ID:
+	case RK817_ID:
+		pci->pinctrl_desc = rk817_pinctrl_desc;
+		pci->gpio_chip = rk817_gpio_chip;
+		pci->pins = rk817_pins_desc;
+		pci->num_pins = ARRAY_SIZE(rk817_pins_desc);
+		pci->functions = rk817_pin_functions;
+		pci->num_functions = ARRAY_SIZE(rk817_pin_functions);
+		pci->groups = rk817_pin_groups;
+		pci->num_pin_groups = ARRAY_SIZE(rk817_pin_groups);
+		pci->pinctrl_desc.pins = rk817_pins_desc;
+		pci->pinctrl_desc.npins = ARRAY_SIZE(rk817_pins_desc);
+		pci->pin_cfg = rk817_gpio_cfgs;
+		pci->gpio_chip.ngpio = ARRAY_SIZE(rk817_gpio_cfgs);
+		/* for rk809 only a sleep pin */
+		if (pci->rk808->variant == RK809_ID) {
+			pci->pinctrl_desc.npins = 1;
+			pci->num_pin_groups = 1;
+			pci->num_pins = 1;
+			pci->gpio_chip.ngpio = 1;
+		}
+		break;
 	default:
 		dev_err(&pdev->dev, "unsupported RK805 ID %lu\n",
 			pci->rk808->variant);
 		return -EINVAL;
 	}
 
-	/* Add gpio chip */
+	pci->gpio_chip.parent = &pdev->dev;
+
+	if (np)
+		pci->gpio_chip.of_node = np;
+	else
+		pci->gpio_chip.of_node = pdev->dev.parent->of_node;
+
+	/* Add gpiochip */
 	ret = devm_gpiochip_add_data(&pdev->dev, &pci->gpio_chip, pci);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Couldn't add gpiochip\n");
@@ -486,7 +677,12 @@ static struct platform_driver rk805_pinctrl_driver = {
 		.name = "rk805-pinctrl",
 	},
 };
-module_platform_driver(rk805_pinctrl_driver);
+
+static int __init rk805_pinctrl_driver_register(void)
+{
+	return platform_driver_register(&rk805_pinctrl_driver);
+}
+fs_initcall_sync(rk805_pinctrl_driver_register);
 
 MODULE_DESCRIPTION("RK805 pin control and GPIO driver");
 MODULE_AUTHOR("Joseph Chen <chenjh@rock-chips.com>");
