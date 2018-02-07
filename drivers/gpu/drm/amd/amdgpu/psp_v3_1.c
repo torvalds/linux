@@ -109,6 +109,9 @@ static int psp_v3_1_init_microcode(struct psp_context *psp)
 	case CHIP_VEGA10:
 		chip_name = "vega10";
 		break;
+	case CHIP_VEGA12:
+		chip_name = "vega12";
+		break;
 	default: BUG();
 	}
 
