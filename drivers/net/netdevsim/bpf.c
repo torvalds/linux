@@ -480,8 +480,7 @@ static int
 nsim_bpf_map_alloc(struct netdevsim *ns, struct bpf_offloaded_map *offmap)
 {
 	struct nsim_bpf_bound_map *nmap;
-	unsigned int i;
-	int err;
+	int i, err;
 
 	if (WARN_ON(offmap->map.map_type != BPF_MAP_TYPE_ARRAY &&
 		    offmap->map.map_type != BPF_MAP_TYPE_HASH))
@@ -518,7 +517,7 @@ nsim_bpf_map_alloc(struct netdevsim *ns, struct bpf_offloaded_map *offmap)
 	return 0;
 
 err_free:
-	while (--i) {
+	while (--i >= 0) {
 		kfree(nmap->entry[i].key);
 		kfree(nmap->entry[i].value);
 	}

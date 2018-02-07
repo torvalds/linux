@@ -38,14 +38,12 @@
 
 int rxe_av_chk_attr(struct rxe_dev *rxe, struct rdma_ah_attr *attr);
 
-int rxe_av_from_attr(struct rxe_dev *rxe, u8 port_num,
-		     struct rxe_av *av, struct rdma_ah_attr *attr);
+void rxe_av_from_attr(u8 port_num, struct rxe_av *av,
+		     struct rdma_ah_attr *attr);
 
-int rxe_av_to_attr(struct rxe_dev *rxe, struct rxe_av *av,
-		   struct rdma_ah_attr *attr);
+void rxe_av_to_attr(struct rxe_av *av, struct rdma_ah_attr *attr);
 
-int rxe_av_fill_ip_info(struct rxe_dev *rxe,
-			struct rxe_av *av,
+void rxe_av_fill_ip_info(struct rxe_av *av,
 			struct rdma_ah_attr *attr,
 			struct ib_gid_attr *sgid_attr,
 			union ib_gid *sgid);

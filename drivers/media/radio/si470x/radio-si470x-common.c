@@ -33,18 +33,18 @@
  *		- switched from bit structs to bit masks
  *		- header file cleaned and integrated
  * 2008-01-14	Tobias Lorenz <tobias.lorenz@gmx.net>
- * 		Version 1.0.2
- * 		- hex values are now lower case
- * 		- commented USB ID for ADS/Tech moved on todo list
- * 		- blacklisted si470x in hid-quirks.c
- * 		- rds buffer handling functions integrated into *_work, *_read
- * 		- rds_command in si470x_poll exchanged against simple retval
- * 		- check for firmware version 15
- * 		- code order and prototypes still remain the same
- * 		- spacing and bottom of band codes remain the same
+ *		Version 1.0.2
+ *		- hex values are now lower case
+ *		- commented USB ID for ADS/Tech moved on todo list
+ *		- blacklisted si470x in hid-quirks.c
+ *		- rds buffer handling functions integrated into *_work, *_read
+ *		- rds_command in si470x_poll exchanged against simple retval
+ *		- check for firmware version 15
+ *		- code order and prototypes still remain the same
+ *		- spacing and bottom of band codes remain the same
  * 2008-01-16	Tobias Lorenz <tobias.lorenz@gmx.net>
  *		Version 1.0.3
- * 		- code reordered to avoid function prototypes
+ *		- code reordered to avoid function prototypes
  *		- switch/case defaults are now more user-friendly
  *		- unified comment style
  *		- applied all checkpatch.pl v1.12 suggestions
@@ -88,8 +88,8 @@
  *		- more safety checks, let si470x_get_freq return errno
  *		- vidioc behavior corrected according to v4l2 spec
  * 2008-10-20	Alexey Klimov <klimov.linux@gmail.com>
- * 		- add support for KWorld USB FM Radio FM700
- * 		- blacklisted KWorld radio in hid-core.c and hid-ids.h
+ *		- add support for KWorld USB FM Radio FM700
+ *		- blacklisted KWorld radio in hid-core.c and hid-ids.h
  * 2008-12-03	Mark Lord <mlord@pobox.com>
  *		- add support for DealExtreme USB Radio
  * 2009-01-31	Bob Ross <pigiron@gmx.com>

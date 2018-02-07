@@ -780,6 +780,8 @@
 
 		reset-gpio = <&gpio4 6 GPIO_ACTIVE_HIGH>; /* 102 */
 
+		lens-focus = <&ad5820>;
+
 		port {
 			csi_cam1: endpoint {
 				bus-type = <3>; /* CCP2 */

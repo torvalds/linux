@@ -1211,7 +1211,7 @@ static const struct fimc_drvdata fimc_drvdata_exynos4210 = {
 	.out_buf_count	= 32,
 };
 
-/* EXYNOS4212, EXYNOS4412 */
+/* EXYNOS4412 */
 static const struct fimc_drvdata fimc_drvdata_exynos4x12 = {
 	.num_entities	= 4,
 	.lclk_frequency	= 166000000UL,
@@ -1246,7 +1246,7 @@ static struct platform_driver fimc_driver = {
 	.driver = {
 		.of_match_table = fimc_of_match,
 		.name		= FIMC_DRIVER_NAME,
-		.pm     	= &fimc_pm_ops,
+		.pm		= &fimc_pm_ops,
 	}
 };
 

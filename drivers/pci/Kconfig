@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # PCI configuration
 #
@@ -125,6 +126,7 @@ config PCI_PASID
 
 config PCI_LABEL
 	def_bool y if (DMI || ACPI)
+	depends on PCI
 	select NLS
 
 config PCI_HYPERV
@@ -135,6 +137,7 @@ config PCI_HYPERV
           PCI devices from a PCI backend to support PCI driver domains.
 
 source "drivers/pci/hotplug/Kconfig"
+source "drivers/pci/cadence/Kconfig"
 source "drivers/pci/dwc/Kconfig"
 source "drivers/pci/host/Kconfig"
 source "drivers/pci/endpoint/Kconfig"

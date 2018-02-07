@@ -227,16 +227,14 @@ enum rdma_nldev_command {
 	RDMA_NLDEV_CMD_UNSPEC,
 
 	RDMA_NLDEV_CMD_GET, /* can dump */
-	RDMA_NLDEV_CMD_SET,
-	RDMA_NLDEV_CMD_NEW,
-	RDMA_NLDEV_CMD_DEL,
 
-	RDMA_NLDEV_CMD_PORT_GET, /* can dump */
-	RDMA_NLDEV_CMD_PORT_SET,
-	RDMA_NLDEV_CMD_PORT_NEW,
-	RDMA_NLDEV_CMD_PORT_DEL,
+	/* 2 - 4 are free to use */
 
-	RDMA_NLDEV_CMD_RES_GET, /* can dump */
+	RDMA_NLDEV_CMD_PORT_GET = 5, /* can dump */
+
+	/* 6 - 8 are free to use */
+
+	RDMA_NLDEV_CMD_RES_GET = 9, /* can dump */
 
 	RDMA_NLDEV_CMD_RES_QP_GET, /* can dump */
 

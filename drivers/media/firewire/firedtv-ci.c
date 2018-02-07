@@ -15,7 +15,7 @@
 #include <linux/fs.h>
 #include <linux/module.h>
 
-#include <dvbdev.h>
+#include <media/dvbdev.h>
 
 #include "firedtv.h"
 

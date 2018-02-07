@@ -37,8 +37,8 @@
 #include <linux/sched/signal.h>
 #include <linux/kthread.h>
 
-#include "dvb_ca_en50221.h"
-#include "dvb_ringbuffer.h"
+#include <media/dvb_ca_en50221.h>
+#include <media/dvb_ringbuffer.h>
 
 static int dvb_ca_en50221_debug;
 
@@ -786,7 +786,7 @@ exit:
  * @ca: CA instance.
  * @slot: Slot to write to.
  * @buf: The data in this buffer is treated as a complete link-level packet to
- * 	 be written.
+ *	 be written.
  * @bytes_write: Size of ebuf.
  *
  * return: Number of bytes written, or < 0 on error.
@@ -1473,6 +1473,9 @@ static ssize_t dvb_ca_en50221_io_write(struct file *file,
 		return -EFAULT;
 	buf += 2;
 	count -= 2;
+
+	if (slot >= ca->slot_count)
+		return -EINVAL;
 	sl = &ca->slot_info[slot];
 
 	/* check if the slot is actually running */

@@ -43,15 +43,15 @@
 	__raw_writel((__force u32)cpu_to_le32(value), (addr))
 
 #define roce_get_field(origin, mask, shift) \
-	(((origin) & (mask)) >> (shift))
+	(((le32_to_cpu(origin)) & (mask)) >> (shift))
 
 #define roce_get_bit(origin, shift) \
 	roce_get_field((origin), (1ul << (shift)), (shift))
 
 #define roce_set_field(origin, mask, shift, val) \
 	do { \
-		(origin) &= (~(mask)); \
-		(origin) |= (((u32)(val) << (shift)) & (mask)); \
+		(origin) &= ~cpu_to_le32(mask); \
+		(origin) |= cpu_to_le32(((u32)(val) << (shift)) & (mask)); \
 	} while (0)
 
 #define roce_set_bit(origin, shift, val) \

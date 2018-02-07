@@ -736,8 +736,8 @@ int read_8051_config(struct hfi1_devdata *, u8, u8, u32 *);
 int start_link(struct hfi1_pportdata *ppd);
 int bringup_serdes(struct hfi1_pportdata *ppd);
 void set_intr_state(struct hfi1_devdata *dd, u32 enable);
-void apply_link_downgrade_policy(struct hfi1_pportdata *ppd,
-				 int refresh_widths);
+bool apply_link_downgrade_policy(struct hfi1_pportdata *ppd,
+				 bool refresh_widths);
 void update_usrhead(struct hfi1_ctxtdata *rcd, u32 hd, u32 updegr, u32 egrhd,
 		    u32 intr_adjust, u32 npkts);
 int stop_drain_data_vls(struct hfi1_devdata *dd);

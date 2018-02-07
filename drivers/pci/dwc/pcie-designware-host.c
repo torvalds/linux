@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Synopsys DesignWare PCIe host controller driver
  *
@@ -5,10 +6,6 @@
  *		http://www.samsung.com
  *
  * Author: Jingoo Han <jg1.han@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/irqdomain.h>
@@ -83,10 +80,19 @@ irqreturn_t dw_handle_msi_irq(struct pcie_port *pp)
 
 void dw_pcie_msi_init(struct pcie_port *pp)
 {
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct device *dev = pci->dev;
+	struct page *page;
 	u64 msi_target;
 
-	pp->msi_data = __get_free_pages(GFP_KERNEL, 0);
-	msi_target = virt_to_phys((void *)pp->msi_data);
+	page = alloc_page(GFP_KERNEL);
+	pp->msi_data = dma_map_page(dev, page, 0, PAGE_SIZE, DMA_FROM_DEVICE);
+	if (dma_mapping_error(dev, pp->msi_data)) {
+		dev_err(dev, "failed to map MSI data\n");
+		__free_page(page);
+		return;
+	}
+	msi_target = (u64)pp->msi_data;
 
 	/* program the msi_data */
 	dw_pcie_wr_own_conf(pp, PCIE_MSI_ADDR_LO, 4,
@@ -187,7 +193,7 @@ static void dw_msi_setup_msg(struct pcie_port *pp, unsigned int irq, u32 pos)
 	if (pp->ops->get_msi_addr)
 		msi_target = pp->ops->get_msi_addr(pp);
 	else
-		msi_target = virt_to_phys((void *)pp->msi_data);
+		msi_target = (u64)pp->msi_data;
 
 	msg.address_lo = (u32)(msi_target & 0xffffffff);
 	msg.address_hi = (u32)(msi_target >> 32 & 0xffffffff);

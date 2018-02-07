@@ -238,6 +238,10 @@ vmalloc_fault:
 		 * Do _not_ use "tsk->active_mm->pgd" here.
 		 * We might be inside an interrupt in the middle
 		 * of a task switch.
+		 *
+		 * Note: Use the old spbtr name instead of using the current
+		 * satp name to support binutils 2.29 which doesn't know about
+		 * the privileged ISA 1.10 yet.
 		 */
 		index = pgd_index(addr);
 		pgd = (pgd_t *)pfn_to_virt(csr_read(sptbr)) + index;

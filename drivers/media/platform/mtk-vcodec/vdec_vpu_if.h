@@ -26,7 +26,7 @@
  * @inst_addr	: VPU decoder instance address
  * @signaled    : 1 - Host has received ack message from VPU, 0 - not received
  * @ctx         : context for v4l2 layer integration
- * @dev	        : platform device of VPU
+ * @dev		: platform device of VPU
  * @wq          : wait queue to wait VPU message ack
  * @handler     : ipi handler for each decoder
  */
