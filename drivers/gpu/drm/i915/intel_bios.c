@@ -1107,6 +1107,7 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 }
 
 static const u8 cnp_ddc_pin_map[] = {
+	[0] = 0, /* N/A */
 	[DDC_BUS_DDI_B] = GMBUS_PIN_1_BXT,
 	[DDC_BUS_DDI_C] = GMBUS_PIN_2_BXT,
 	[DDC_BUS_DDI_D] = GMBUS_PIN_4_CNP, /* sic */
@@ -1115,9 +1116,14 @@ static const u8 cnp_ddc_pin_map[] = {
 
 static u8 map_ddc_pin(struct drm_i915_private *dev_priv, u8 vbt_pin)
 {
-	if (HAS_PCH_CNP(dev_priv) &&
-	    vbt_pin > 0 && vbt_pin < ARRAY_SIZE(cnp_ddc_pin_map))
-		return cnp_ddc_pin_map[vbt_pin];
+	if (HAS_PCH_CNP(dev_priv)) {
+		if (vbt_pin < ARRAY_SIZE(cnp_ddc_pin_map)) {
+			return cnp_ddc_pin_map[vbt_pin];
+		} else {
+			DRM_DEBUG_KMS("Ignoring alternate pin: VBT claims DDC pin %d, which is not valid for this platform\n", vbt_pin);
+			return 0;
+		}
+	}
 
 	return vbt_pin;
 }
@@ -1323,11 +1329,13 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 		expected_size = LEGACY_CHILD_DEVICE_CONFIG_SIZE;
 	} else if (bdb->version == 195) {
 		expected_size = 37;
-	} else if (bdb->version <= 197) {
+	} else if (bdb->version <= 215) {
 		expected_size = 38;
+	} else if (bdb->version <= 216) {
+		expected_size = 39;
 	} else {
-		expected_size = 38;
-		BUILD_BUG_ON(sizeof(*child) < 38);
+		expected_size = sizeof(*child);
+		BUILD_BUG_ON(sizeof(*child) < 39);
 		DRM_DEBUG_DRIVER("Expected child device config size for VBT version %u not known; assuming %u\n",
 				 bdb->version, expected_size);
 	}

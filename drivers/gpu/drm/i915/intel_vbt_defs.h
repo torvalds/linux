@@ -412,6 +412,8 @@ struct child_device_config {
 	u16 dp_gpio_pin_num;					/* 195 */
 	u8 dp_iboost_level:4;					/* 196 */
 	u8 hdmi_iboost_level:4;					/* 196 */
+	u8 dp_max_link_rate:2;					/* 216 CNL+ */
+	u8 dp_max_link_rate_reserved:6;				/* 216 */
 } __packed;
 
 struct bdb_general_definitions {
