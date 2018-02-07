@@ -116,10 +116,9 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
 };
 
-#define IWL_DEVICE_22000						\
+#define IWL_DEVICE_22000_COMMON						\
 	.ucode_api_max = IWL_22000_UCODE_API_MAX,			\
 	.ucode_api_min = IWL_22000_UCODE_API_MIN,			\
-	.device_family = IWL_DEVICE_FAMILY_22000,			\
 	.base_params = &iwl_22000_base_params,				\
 	.led_mode = IWL_LED_RF_STATE,					\
 	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_22000,		\
@@ -135,6 +134,10 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.mq_rx_supported = true,					\
 	.vht_mu_mimo_supported = true,					\
 	.mac_addr_from_csr = true,					\
+	.ht_params = &iwl_22000_ht_params,				\
+	.nvm_ver = IWL_22000_NVM_VERSION,				\
+	.nvm_calib_ver = IWL_22000_TX_POWER_VERSION,			\
+	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,		\
 	.use_tfh = true,						\
 	.rf_id = true,							\
 	.gen2 = true,							\
@@ -142,60 +145,51 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.dbgc_supported = true,						\
 	.min_umac_error_event_table = 0x400000
 
+#define IWL_DEVICE_22500						\
+	IWL_DEVICE_22000_COMMON,					\
+	.device_family = IWL_DEVICE_FAMILY_22000,			\
+	.csr = &iwl_csr_v1
+
+#define IWL_DEVICE_22560						\
+	IWL_DEVICE_22000_COMMON,					\
+	.device_family = IWL_DEVICE_FAMILY_22560,			\
+	.csr = &iwl_csr_v2
+
 const struct iwl_cfg iwl22000_2ac_cfg_hr = {
 	.name = "Intel(R) Dual Band Wireless AC 22000",
 	.fw_name_pre = IWL_22000_HR_FW_PRE,
-	IWL_DEVICE_22000,
-	.csr = &iwl_csr_v1,
-	.ht_params = &iwl_22000_ht_params,
-	.nvm_ver = IWL_22000_NVM_VERSION,
-	.nvm_calib_ver = IWL_22000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	IWL_DEVICE_22500,
 };
 
 const struct iwl_cfg iwl22000_2ac_cfg_hr_cdb = {
 	.name = "Intel(R) Dual Band Wireless AC 22000",
 	.fw_name_pre = IWL_22000_HR_CDB_FW_PRE,
-	IWL_DEVICE_22000,
-	.csr = &iwl_csr_v1,
-	.ht_params = &iwl_22000_ht_params,
-	.nvm_ver = IWL_22000_NVM_VERSION,
-	.nvm_calib_ver = IWL_22000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	IWL_DEVICE_22500,
 	.cdb = true,
 };
 
 const struct iwl_cfg iwl22000_2ac_cfg_jf = {
 	.name = "Intel(R) Dual Band Wireless AC 22000",
 	.fw_name_pre = IWL_22000_JF_FW_PRE,
-	IWL_DEVICE_22000,
-	.csr = &iwl_csr_v1,
-	.ht_params = &iwl_22000_ht_params,
-	.nvm_ver = IWL_22000_NVM_VERSION,
-	.nvm_calib_ver = IWL_22000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	IWL_DEVICE_22500,
 };
 
 const struct iwl_cfg iwl22000_2ax_cfg_hr = {
 	.name = "Intel(R) Dual Band Wireless AX 22000",
 	.fw_name_pre = IWL_22000_HR_FW_PRE,
-	IWL_DEVICE_22000,
-	.csr = &iwl_csr_v1,
-	.ht_params = &iwl_22000_ht_params,
-	.nvm_ver = IWL_22000_NVM_VERSION,
-	.nvm_calib_ver = IWL_22000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	IWL_DEVICE_22500,
+	/*
+	 * This device doesn't support receiving BlockAck with a large bitmap
+	 * so we need to restrict the size of transmitted aggregation to the
+	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
+	 */
+	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
 };
 
 const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_a0_f0 = {
 	.name = "Intel(R) Dual Band Wireless AX 22000",
 	.fw_name_pre = IWL_22000_HR_A_F0_FW_PRE,
-	IWL_DEVICE_22000,
-	.csr = &iwl_csr_v1,
-	.ht_params = &iwl_22000_ht_params,
-	.nvm_ver = IWL_22000_NVM_VERSION,
-	.nvm_calib_ver = IWL_22000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	IWL_DEVICE_22500,
 	/*
 	 * This device doesn't support receiving BlockAck with a large bitmap
 	 * so we need to restrict the size of transmitted aggregation to the
@@ -207,45 +201,43 @@ const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_a0_f0 = {
 const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_b0 = {
 	.name = "Intel(R) Dual Band Wireless AX 22000",
 	.fw_name_pre = IWL_22000_HR_B_FW_PRE,
-	IWL_DEVICE_22000,
-	.csr = &iwl_csr_v1,
-	.ht_params = &iwl_22000_ht_params,
-	.nvm_ver = IWL_22000_NVM_VERSION,
-	.nvm_calib_ver = IWL_22000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	IWL_DEVICE_22500,
+	/*
+	 * This device doesn't support receiving BlockAck with a large bitmap
+	 * so we need to restrict the size of transmitted aggregation to the
+	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
+	 */
+	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
 };
 
 const struct iwl_cfg iwl22000_2ax_cfg_qnj_jf_b0 = {
 	.name = "Intel(R) Dual Band Wireless AX 22000",
 	.fw_name_pre = IWL_22000_JF_B0_FW_PRE,
-	IWL_DEVICE_22000,
-	.csr = &iwl_csr_v1,
-	.ht_params = &iwl_22000_ht_params,
-	.nvm_ver = IWL_22000_NVM_VERSION,
-	.nvm_calib_ver = IWL_22000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	IWL_DEVICE_22500,
+	/*
+	 * This device doesn't support receiving BlockAck with a large bitmap
+	 * so we need to restrict the size of transmitted aggregation to the
+	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
+	 */
+	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
 };
 
 const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_a0 = {
 	.name = "Intel(R) Dual Band Wireless AX 22000",
 	.fw_name_pre = IWL_22000_HR_A0_FW_PRE,
-	IWL_DEVICE_22000,
-	.csr = &iwl_csr_v1,
-	.ht_params = &iwl_22000_ht_params,
-	.nvm_ver = IWL_22000_NVM_VERSION,
-	.nvm_calib_ver = IWL_22000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	IWL_DEVICE_22500,
+	/*
+	 * This device doesn't support receiving BlockAck with a large bitmap
+	 * so we need to restrict the size of transmitted aggregation to the
+	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
+	 */
+	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
 };
 
 const struct iwl_cfg iwl22560_2ax_cfg_su_cdb = {
 	.name = "Intel(R) Dual Band Wireless AX 22560",
 	.fw_name_pre = IWL_22000_SU_Z0_FW_PRE,
-	IWL_DEVICE_22000,
-	.csr = &iwl_csr_v2,
-	.ht_params = &iwl_22000_ht_params,
-	.nvm_ver = IWL_22000_NVM_VERSION,
-	.nvm_calib_ver = IWL_22000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	IWL_DEVICE_22560,
 	.cdb = true,
 	/*
 	 * This device doesn't support receiving BlockAck with a large bitmap
