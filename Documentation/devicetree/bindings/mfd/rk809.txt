@@ -41,6 +41,12 @@ number as described in RK808 datasheet.
 		- valid values for n are 1 to 9.
 	- SWITCH_REGn
 		- valid values for n are 1 to 2.
+
+    The gpio_slp pin is for controlling the pmic states, as below:
+        reset
+        power down
+        sleep
+
 Standard regulator bindings are used inside regulator subnodes. Check
   Documentation/devicetree/bindings/regulator/regulator.txt
 for more details
@@ -51,12 +57,16 @@ Example:
 		reg = <0x20>;
 		interrupt-parent = <&gpio0>;
 		interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
-		pinctrl-names = "default";
+		pinctrl-names = "default", "pmic-sleep",
+				"pmic-power-off", "pmic-reset";
 		pinctrl-0 = <&pmic_int>;
+		pinctrl-1 = <&soc_slppin_slp>, <&rk817_slppin_slp>;
+		pinctrl-2 = <&soc_slppin_gpio>, <&rk817_slppin_pwrdn>;
+		pinctrl-3 = <&soc_slppin_rst>, <&rk817_slppin_rst>;
 		rockchip,system-power-controller;
 		wakeup-source;
 		#clock-cells = <1>;
-		clock-output-names = "xin32k", "rk808-clkout2";
+		clock-output-names = "rk808-clkout1", "rk808-clkout2";
 
 		vcc1-supply = <&vcc5v0_sys>;
 		vcc2-supply = <&vcc5v0_sys>;
@@ -68,59 +78,61 @@ Example:
 		vcc8-supply = <&vcc3v3_sys>;
 		vcc9-supply = <&vcc5v0_sys>;
 
-		vcc5v0_sys: vccsys{
-			compatible = "regulator-fixed";
-			regulator-name = "vcc5v0_sys";
-			regulator-always-on;
-			regulator-boot-on;
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
+		pwrkey {
+			status = "okay";
 		};
 
-		rk817_pin0_ts: rk817_pin0_ts {
-			pins = "gpio0";
-			function = "pin_fun0";
-		};
+		pinctrl_rk8xx: pinctrl_rk8xx {
+			gpio-controller;
+			#gpio-cells = <2>;
 
-		rk817_pin0_gpio: rk817_pin0_gpio {
-			pins = "gpio0";
-			function = "gpio";
-		};
+			rk817_slppin_null: rk817_slppin_null {
+				pins = "gpio_slp";
+				function = "pin_fun0";
+			};
 
-		rk817_pin1_gt: rk817_pin1_gt {
-			pins = "gpio1";
-			function = "pin_fun0";
-		};
+			rk817_slppin_slp: rk817_slppin_slp {
+				pins = "gpio_slp";
+				function = "pin_fun1";
+			};
 
-		rk817_pin1_gpio: rk817_pin1_gpio {
-			pins = "gpio1";
-			function = "gpio";
+			rk817_slppin_pwrdn: rk817_slppin_pwrdn {
+				pins = "gpio_slp";
+				function = "pin_fun2";
+			};
+
+			rk817_slppin_rst: rk817_slppin_rst {
+				pins = "gpio_slp";
+				function = "pin_fun3";
+			};
 		};
 
 		regulators {
-			vdd_arm: DCDC_REG1 {
+			vdd_logic: DCDC_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <950000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-ramp-delay = <6001>;
-				regulator-name = "vdd_arm";
+				regulator-initial-mode = <0x1>;
+				regulator-name = "vdd_logic";
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <700000>;
+					regulator-suspend-microvolt = <950000>;
 				};
 			};
 
-			vdd_logic: DCDC_REG2 {
+			vdd_arm: DCDC_REG2 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <950000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-ramp-delay = <6001>;
-				regulator-name = "vdd_logic";
+				regulator-initial-mode = <0x1>;
+				regulator-name = "vdd_arm";
 				regulator-state-mem {
 					regulator-off-in-suspend;
-					regulator-suspend-microvolt = <800000>;
+					regulator-suspend-microvolt = <950000>;
 				};
 			};
 
@@ -128,6 +140,7 @@ Example:
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-name = "vcc_ddr";
+				regulator-initial-mode = <0x1>;
 				regulator-state-mem {
 					regulator-on-in-suspend;
 				};
@@ -138,6 +151,7 @@ Example:
 				regulator-boot-on;
 				regulator-min-microvolt = <3000000>;
 				regulator-max-microvolt = <3000000>;
+				regulator-initial-mode = <0x1>;
 				regulator-name = "vcc_3v0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
@@ -178,7 +192,7 @@ Example:
 
 				regulator-name = "vcc1v0_soc";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <1000000>;
 				};
 			};
@@ -191,7 +205,7 @@ Example:
 
 				regulator-name = "vcc3v0_pmu";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <3000000>;
 
 				};
@@ -276,7 +290,6 @@ Example:
 			};
 
 			vcc3v3_lcd: SWITCH_REG1 {
-				regulator-always-on;
 				regulator-boot-on;
 				regulator-name = "vcc3v3_lcd";
 			};
@@ -287,7 +300,16 @@ Example:
 				regulator-name = "vcc5v0_host";
 			};
 		};
-	};
 
-
-
+		rk809_codec: codec {
+			#sound-dai-cells = <0>;
+			compatible = "rockchip,rk809-codec", "rockchip,rk817-codec";
+			clocks = <&cru SCLK_I2S1_OUT>;
+			clock-names = "mclk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2s1_2ch_mclk>;
+			hp-volume = <20>;
+			spk-volume = <3>;
+			status = "okay";
+		};
+	}

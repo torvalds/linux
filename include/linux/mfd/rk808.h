@@ -814,6 +814,8 @@ enum rk809_reg_id {
 #define RK817_POWER_EN_REG(i)		(0xb1 + (i))
 #define RK817_POWER_SLP_EN_REG(i)	(0xb5 + (i))
 
+#define RK817_POWER_CONFIG		(0xb9)
+
 #define RK817_BUCK_CONFIG_REG(i)	(0xba + (i) * 3)
 
 #define RK817_BUCK1_ON_VSEL_REG		0xBB
@@ -885,6 +887,11 @@ enum rk809_reg_id {
  */
 #define RK817_RTC_CTRL_RSV4		BIT(4)
 
+/* power config 0xb9 */
+#define RK817_BUCK3_FB_RES_MSK		BIT(6)
+#define RK817_BUCK3_FB_RES_INTER	BIT(6)
+#define RK817_BUCK3_FB_RES_EXT		0
+
 /* buck config 0xba */
 #define RK817_RAMP_RATE_OFFSET		6
 #define RK817_RAMP_RATE_MASK		(0x3 << RK817_RAMP_RATE_OFFSET)
@@ -913,8 +920,15 @@ enum rk809_reg_id {
 #define SLPPIN_DN_FUN			(0x2 << 3)
 #define SLPPIN_RST_FUN			(0x3 << 3)
 
+#define RK817_RST_FUNC_MSK		(0x3 << 6)
+#define RK817_RST_FUNC_SFT		(6)
+#define RK817_RST_FUNC_CNT		(3)
+#define RK817_RST_FUNC_DEV		(0) /* reset the dev */
+#define RK817_RST_FUNC_REG		(0x1 << 6) /* reset the reg only */
+
 #define RK817_SLPPOL_MSK		BIT(5)
 #define RK817_SLPPOL_H			BIT(5)
+#define RK817_SLPPOL_L			(0)
 
 /* gpio&int 0xfe */
 #define RK817_INT_POL_MSK		BIT(1)
@@ -944,12 +958,20 @@ enum {
 	BOOST_ILMIN_250MA,
 };
 
+struct rk808_pin_info {
+	struct pinctrl *p;
+	struct pinctrl_state *reset;
+	struct pinctrl_state *power_off;
+	struct pinctrl_state *sleep;
+};
+
 struct rk808 {
 	struct i2c_client *i2c;
 	struct regmap_irq_chip_data *irq_data;
 	struct regmap_irq_chip_data *battery_irq_data;
 	struct regmap *regmap;
 	long variant;
+	struct rk808_pin_info *pins;
 };
 
 enum {

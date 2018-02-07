@@ -40,6 +40,18 @@ number as described in RK808 datasheet.
 	- LDO_REGn
 		- valid values for n are 1 to 9.
 
+There are three pins needed config, named "gpio_ts" "gpio_gt" "gpio_slp".
+    The gpio_gt and gpio_ts pins support the gpio function.
+    For using a gpio function, dtsi need the following info:
+		pinctrl-names = "default";
+		pinctrl-0 = <&rk817_ts_gpio1>, <&rk817_gt_gpio2>;
+		gpios = <&pinctrl_rk8xx 1 GPIO_ACTIVE_HIGH>,
+			<&pinctrl_rk8xx 2 GPIO_ACTIVE_HIGH>;
+    The gpio_slp pin is for controlling the pmic states, as below:
+	reset
+	power down
+	sleep
+
 Standard regulator bindings are used inside regulator subnodes. Check
   Documentation/devicetree/bindings/regulator/regulator.txt
 for more details
@@ -50,12 +62,16 @@ Example:
 		reg = <0x20>;
 		interrupt-parent = <&gpio0>;
 		interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
-		pinctrl-names = "default";
+		pinctrl-names = "default", "pmic-sleep",
+				"pmic-power-off", "pmic-reset";
 		pinctrl-0 = <&pmic_int>;
+		pinctrl-1 = <&soc_slppin_slp>, <&rk817_slppin_slp>;
+		pinctrl-2 = <&soc_slppin_gpio>, <&rk817_slppin_pwrdn>;
+		pinctrl-3 = <&soc_slppin_rst>, <&rk817_slppin_rst>;
 		rockchip,system-power-controller;
 		wakeup-source;
 		#clock-cells = <1>;
-		clock-output-names = "xin32k", "rk808-clkout2";
+		clock-output-names = "rk808-clkout1", "rk808-clkout2";
 
 		vcc1-supply = <&vccsys>;
 		vcc2-supply = <&vccsys>;
@@ -63,75 +79,94 @@ Example:
 		vcc4-supply = <&vccsys>;
 		vcc5-supply = <&vccsys>;
 		vcc6-supply = <&vccsys>;
-		vcc7-supply = <&vccsys>;
+		vcc7-supply = <&vcc_3v0>;
 		vcc8-supply = <&vccsys>;
-		vcc9-supply = <&vccsys>;
-		vcc10-supply = <&vccsys>;
-		vcc11-supply = <&vcc_3v0>;
-		vcc12-supply = <&vcc_3v0>;
-		vcc13-supply = <&vcc_3v0>;
-		vcc14-supply = <&vccsys>;
-		vcc15-supply = <&rk817_boost>;
+		vcc9-supply = <&dcdc_boost>;
 
-		vccsys: vccsys{
-			compatible = "regulator-fixed";
-			regulator-name = "vcc3v8_sys";
-			regulator-always-on;
-			regulator-boot-on;
-			regulator-min-microvolt = <3800000>;
-			regulator-max-microvolt = <3800000>;
+		pwrkey {
+			status = "okay";
 		};
 
-		rk817_pin0_ts: rk817_pin0_ts {
-			pins = "gpio0";
-			function = "pin_fun0";
-		};
+		pinctrl_rk8xx: pinctrl_rk8xx {
+			gpio-controller;
+			#gpio-cells = <2>;
 
-		rk817_pin0_gpio: rk817_pin0_gpio {
-			pins = "gpio0";
-			function = "gpio";
-		};
+			rk817_ts_gpio1: rk817_ts_gpio1 {
+				pins = "gpio_ts";
+				function = "pin_fun1";
+				/* output-low; */
+				/* input-enable; */
+			};
 
-		rk817_pin1_gt: rk817_pin1_gt {
-			pins = "gpio1";
-			function = "pin_fun0";
-		};
+			rk817_gt_gpio2: rk817_gt_gpio2 {
+				pins = "gpio_gt";
+				function = "pin_fun1";
+			};
 
-		rk817_pin1_gpio: rk817_pin1_gpio {
-			pins = "gpio1";
-			function = "gpio";
+			rk817_pin_ts: rk817_pin_ts {
+				pins = "gpio_ts";
+				function = "pin_fun0";
+			};
+
+			rk817_pin_gt: rk817_pin_gt {
+				pins = "gpio_gt";
+				function = "pin_fun0";
+			};
+
+			rk817_slppin_null: rk817_slppin_null {
+				pins = "gpio_slp";
+				function = "pin_fun0";
+			};
+
+			rk817_slppin_slp: rk817_slppin_slp {
+				pins = "gpio_slp";
+				function = "pin_fun1";
+			};
+
+			rk817_slppin_pwrdn: rk817_slppin_pwrdn {
+				pins = "gpio_slp";
+				function = "pin_fun2";
+			};
+
+			rk817_slppin_rst: rk817_slppin_rst {
+				pins = "gpio_slp";
+				function = "pin_fun3";
+			};
 		};
 
 		regulators {
-			vdd_arm: DCDC_REG1 {
+			vdd_logic: DCDC_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <950000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-ramp-delay = <6001>;
-				regulator-name = "vdd_arm";
+				regulator-initial-mode = <0x1>;
+				regulator-name = "vdd_logic";
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <700000>;
+					regulator-suspend-microvolt = <950000>;
 				};
 			};
 
-			vdd_logic: DCDC_REG2 {
+			vdd_arm: DCDC_REG2 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <950000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-ramp-delay = <6001>;
-				regulator-name = "vdd_logic";
+				regulator-initial-mode = <0x1>;
+				regulator-name = "vdd_arm";
 				regulator-state-mem {
 					regulator-off-in-suspend;
-					regulator-suspend-microvolt = <800000>;
+					regulator-suspend-microvolt = <950000>;
 				};
 			};
 
 			vcc_ddr: DCDC_REG3 {
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-initial-mode = <0x1>;
 				regulator-name = "vcc_ddr";
 				regulator-state-mem {
 					regulator-on-in-suspend;
@@ -143,6 +178,7 @@ Example:
 				regulator-boot-on;
 				regulator-min-microvolt = <3000000>;
 				regulator-max-microvolt = <3000000>;
+				regulator-initial-mode = <0x1>;
 				regulator-name = "vcc_3v0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
@@ -175,7 +211,7 @@ Example:
 				};
 			};
 
-			vcc1v0_soc: LDO_REG3 {
+			vdd1v0_soc: LDO_REG3 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <1000000>;
@@ -183,7 +219,7 @@ Example:
 
 				regulator-name = "vcc1v0_soc";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <1000000>;
 				};
 			};
@@ -196,7 +232,7 @@ Example:
 
 				regulator-name = "vcc3v0_pmu";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <3000000>;
 
 				};
@@ -218,7 +254,7 @@ Example:
 			vcc_sd: LDO_REG6 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <3300000>; //??
+				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 
 				regulator-name = "vcc_sd";
@@ -229,46 +265,46 @@ Example:
 				};
 			};
 
-			vcc2v8_cif: LDO_REG7 {
+			vcc2v8_dvp: LDO_REG7 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
 
-				regulator-name = "vcc2v8_cif";
+				regulator-name = "vcc2v8_dvp";
 				regulator-state-mem {
 					regulator-off-in-suspend;
 					regulator-suspend-microvolt = <2800000>;
 				};
 			};
 
-			vcc1v8_cif: LDO_REG8 {
+			vcc1v8_dvp: LDO_REG8 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 
-				regulator-name = "vcc1v8_cif";
+				regulator-name = "vcc1v8_dvp";
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <1800000>;
 				};
 			};
 
-			vcc1v5_dvp: LDO_REG9 {
+			vdd1v5_dvp: LDO_REG9 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <1500000>;
 				regulator-max-microvolt = <1500000>;
 
-				regulator-name = "vcc1v5_dvp";
+				regulator-name = "vdd1v5_dvp";
 				regulator-state-mem {
 					regulator-off-in-suspend;
 					regulator-suspend-microvolt = <1500000>;
 				};
 			};
 
-			boost: BOOST {
+			dcdc_boost: BOOST {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <4700000>;
@@ -277,12 +313,52 @@ Example:
 			};
 
 			otg_switch: OTG_SWITCH {
-				regulator-always-on;
 				regulator-boot-on;
 				regulator-name = "otg_switch";
 			};
 		};
-	};
 
+		battery {
+			compatible = "rk817,battery";
+			ocv_table = <3500 3625 3685 3697 3718 3735 3748
+			3760 3774 3788 3802 3816 3834 3853
+			3877 3908 3946 3975 4018 4071 4106>;
+			design_capacity = <2500>;
+			design_qmax = <2750>;
+			bat_res = <100>;
+			sleep_enter_current = <300>;
+			sleep_exit_current = <300>;
+			sleep_filter_current = <100>;
+			power_off_thresd = <3500>;
+			zero_algorithm_vol = <3850>;
+			max_soc_offset = <60>;
+			monitor_sec = <5>;
+			sample_res = <10>;
+			virtual_power = <1>;
+		};
 
+		charger {
+			compatible = "rk817,charger";
+			min_input_voltage = <4500>;
+			max_input_current = <1500>;
+			max_chrg_current = <1300>;
+			max_chrg_voltage = <4200>;
+			chrg_term_mode = <1>;
+			chrg_finish_cur = <300>;
+			virtual_power = <0>;
+			dc_det_adc = <0>;
+			extcon = <&u2phy>;
+		};
 
+		rk817_codec: codec {
+			#sound-dai-cells = <0>;
+			compatible = "rockchip,rk817-codec";
+			clocks = <&cru SCLK_I2S1_OUT>;
+			clock-names = "mclk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2s1_2ch_mclk>;
+			hp-volume = <20>;
+			spk-volume = <3>;
+			status = "okay";
+		};
+	}
