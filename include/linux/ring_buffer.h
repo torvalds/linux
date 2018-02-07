@@ -117,6 +117,9 @@ int ring_buffer_unlock_commit(struct ring_buffer *buffer,
 int ring_buffer_write(struct ring_buffer *buffer,
 		      unsigned long length, void *data);
 
+void ring_buffer_nest_start(struct ring_buffer *buffer);
+void ring_buffer_nest_end(struct ring_buffer *buffer);
+
 struct ring_buffer_event *
 ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts,
 		 unsigned long *lost_events);
