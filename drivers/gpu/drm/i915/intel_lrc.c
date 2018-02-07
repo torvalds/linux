@@ -161,7 +161,6 @@
 #define EXECLISTS_REQUEST_SIZE 64 /* bytes */
 #define WA_TAIL_DWORDS 2
 #define WA_TAIL_BYTES (sizeof(u32) * WA_TAIL_DWORDS)
-#define PREEMPT_ID 0x1
 
 static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 					    struct intel_engine_cs *engine);
@@ -448,7 +447,8 @@ static void inject_preempt_context(struct intel_engine_cs *engine)
 		&engine->i915->preempt_context->engine[engine->id];
 	unsigned int n;
 
-	GEM_BUG_ON(engine->i915->preempt_context->hw_id != PREEMPT_ID);
+	GEM_BUG_ON(engine->execlists.preempt_complete_status !=
+		   upper_32_bits(ce->lrc_desc));
 	GEM_BUG_ON(!IS_ALIGNED(ce->ring->size, WA_TAIL_BYTES));
 
 	memset(ce->ring->vaddr + ce->ring->tail, 0, WA_TAIL_BYTES);
@@ -528,7 +528,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		if (!execlists_is_active(execlists, EXECLISTS_ACTIVE_HWACK))
 			goto unlock;
 
-		if (HAS_LOGICAL_RING_PREEMPTION(engine->i915) &&
+		if (engine->i915->preempt_context &&
 		    rb_entry(rb, struct i915_priolist, node)->priority >
 		    max(last->priotree.priority, 0)) {
 			/*
@@ -844,7 +844,7 @@ static void execlists_submission_tasklet(unsigned long data)
 			GEM_BUG_ON(status & GEN8_CTX_STATUS_IDLE_ACTIVE);
 
 			if (status & GEN8_CTX_STATUS_COMPLETE &&
-			    buf[2*head + 1] == PREEMPT_ID) {
+			    buf[2*head + 1] == execlists->preempt_complete_status) {
 				GEM_TRACE("%s preempt-idle\n", engine->name);
 
 				execlists_cancel_port_requests(execlists);
@@ -1967,7 +1967,7 @@ static void execlists_set_default_submission(struct intel_engine_cs *engine)
 	engine->i915->caps.scheduler =
 		I915_SCHEDULER_CAP_ENABLED |
 		I915_SCHEDULER_CAP_PRIORITY;
-	if (HAS_LOGICAL_RING_PREEMPTION(engine->i915))
+	if (engine->i915->preempt_context)
 		engine->i915->caps.scheduler |= I915_SCHEDULER_CAP_PREEMPTION;
 }
 
@@ -2044,6 +2044,11 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 
 	engine->execlists.elsp =
 		engine->i915->regs + i915_mmio_reg_offset(RING_ELSP(engine));
+
+	engine->execlists.preempt_complete_status = ~0u;
+	if (engine->i915->preempt_context)
+		engine->execlists.preempt_complete_status =
+			upper_32_bits(engine->i915->preempt_context->engine[engine->id].lrc_desc);
 
 	return 0;
 
@@ -2307,7 +2312,7 @@ populate_lr_context(struct i915_gem_context *ctx,
 	if (!engine->default_state)
 		regs[CTX_CONTEXT_CONTROL + 1] |=
 			_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
-	if (ctx->hw_id == PREEMPT_ID)
+	if (ctx == ctx->i915->preempt_context)
 		regs[CTX_CONTEXT_CONTROL + 1] |=
 			_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
 					   CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT);

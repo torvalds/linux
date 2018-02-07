@@ -449,12 +449,18 @@ destroy_kernel_context(struct i915_gem_context **ctxp)
 	i915_gem_context_free(ctx);
 }
 
+static bool needs_preempt_context(struct drm_i915_private *i915)
+{
+	return HAS_LOGICAL_RING_PREEMPTION(i915);
+}
+
 int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_gem_context *ctx;
-	int err;
 
+	/* Reassure ourselves we are only called once */
 	GEM_BUG_ON(dev_priv->kernel_context);
+	GEM_BUG_ON(dev_priv->preempt_context);
 
 	INIT_LIST_HEAD(&dev_priv->contexts.list);
 	INIT_WORK(&dev_priv->contexts.free_work, contexts_free_worker);
@@ -468,8 +474,7 @@ int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 	ctx = i915_gem_context_create_kernel(dev_priv, I915_PRIORITY_MIN);
 	if (IS_ERR(ctx)) {
 		DRM_ERROR("Failed to create default global context\n");
-		err = PTR_ERR(ctx);
-		goto err;
+		return PTR_ERR(ctx);
 	}
 	/*
 	 * For easy recognisablity, we want the kernel context to be 0 and then
@@ -479,23 +484,18 @@ int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 	dev_priv->kernel_context = ctx;
 
 	/* highest priority; preempting task */
-	ctx = i915_gem_context_create_kernel(dev_priv, INT_MAX);
-	if (IS_ERR(ctx)) {
-		DRM_ERROR("Failed to create default preempt context\n");
-		err = PTR_ERR(ctx);
-		goto err_kernel_context;
+	if (needs_preempt_context(dev_priv)) {
+		ctx = i915_gem_context_create_kernel(dev_priv, INT_MAX);
+		if (!IS_ERR(ctx))
+			dev_priv->preempt_context = ctx;
+		else
+			DRM_ERROR("Failed to create preempt context; disabling preemption\n");
 	}
-	dev_priv->preempt_context = ctx;
 
 	DRM_DEBUG_DRIVER("%s context support initialized\n",
 			 dev_priv->engine[RCS]->context_size ? "logical" :
 			 "fake");
 	return 0;
-
-err_kernel_context:
-	destroy_kernel_context(&dev_priv->kernel_context);
-err:
-	return err;
 }
 
 void i915_gem_contexts_lost(struct drm_i915_private *dev_priv)
@@ -521,7 +521,8 @@ void i915_gem_contexts_fini(struct drm_i915_private *i915)
 {
 	lockdep_assert_held(&i915->drm.struct_mutex);
 
-	destroy_kernel_context(&i915->preempt_context);
+	if (i915->preempt_context)
+		destroy_kernel_context(&i915->preempt_context);
 	destroy_kernel_context(&i915->kernel_context);
 
 	/* Must free all deferred contexts (via flush_workqueue) first */

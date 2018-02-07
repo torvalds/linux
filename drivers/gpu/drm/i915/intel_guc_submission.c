@@ -688,7 +688,7 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 		goto unlock;
 
 	if (port_isset(port)) {
-		if (HAS_LOGICAL_RING_PREEMPTION(engine->i915)) {
+		if (engine->i915->preempt_context) {
 			struct guc_preempt_work *preempt_work =
 				&engine->i915->guc.preempt_work[engine->id];
 
@@ -984,17 +984,19 @@ static int guc_clients_create(struct intel_guc *guc)
 	}
 	guc->execbuf_client = client;
 
-	client = guc_client_alloc(dev_priv,
-				  INTEL_INFO(dev_priv)->ring_mask,
-				  GUC_CLIENT_PRIORITY_KMD_HIGH,
-				  dev_priv->preempt_context);
-	if (IS_ERR(client)) {
-		DRM_ERROR("Failed to create GuC client for preemption!\n");
-		guc_client_free(guc->execbuf_client);
-		guc->execbuf_client = NULL;
-		return PTR_ERR(client);
+	if (dev_priv->preempt_context) {
+		client = guc_client_alloc(dev_priv,
+					  INTEL_INFO(dev_priv)->ring_mask,
+					  GUC_CLIENT_PRIORITY_KMD_HIGH,
+					  dev_priv->preempt_context);
+		if (IS_ERR(client)) {
+			DRM_ERROR("Failed to create GuC client for preemption!\n");
+			guc_client_free(guc->execbuf_client);
+			guc->execbuf_client = NULL;
+			return PTR_ERR(client);
+		}
+		guc->preempt_client = client;
 	}
-	guc->preempt_client = client;
 
 	return 0;
 }

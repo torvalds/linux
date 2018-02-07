@@ -631,7 +631,7 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	 * Similarly the preempt context must always be available so that
 	 * we can interrupt the engine at any time.
 	 */
-	if (HAS_LOGICAL_RING_PREEMPTION(engine->i915)) {
+	if (engine->i915->preempt_context) {
 		ring = engine->context_pin(engine,
 					   engine->i915->preempt_context);
 		if (IS_ERR(ring)) {
@@ -656,7 +656,7 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 err_breadcrumbs:
 	intel_engine_fini_breadcrumbs(engine);
 err_unpin_preempt:
-	if (HAS_LOGICAL_RING_PREEMPTION(engine->i915))
+	if (engine->i915->preempt_context)
 		engine->context_unpin(engine, engine->i915->preempt_context);
 err_unpin_kernel:
 	engine->context_unpin(engine, engine->i915->kernel_context);
@@ -686,7 +686,7 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	if (engine->default_state)
 		i915_gem_object_put(engine->default_state);
 
-	if (HAS_LOGICAL_RING_PREEMPTION(engine->i915))
+	if (engine->i915->preempt_context)
 		engine->context_unpin(engine, engine->i915->preempt_context);
 	engine->context_unpin(engine, engine->i915->kernel_context);
 }

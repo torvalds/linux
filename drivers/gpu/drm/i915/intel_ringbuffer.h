@@ -279,6 +279,11 @@ struct intel_engine_execlists {
 	 * @csb_use_mmio: access csb through mmio, instead of hwsp
 	 */
 	bool csb_use_mmio;
+
+	/**
+	 * @preempt_complete_status: expected CSB upon completing preemption
+	 */
+	u32 preempt_complete_status;
 };
 
 #define INTEL_ENGINE_CS_MAX_NAME 8
