@@ -1115,9 +1115,9 @@ __btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
  * Returns < 0 on error and returns with an aborted transaction with any
  * outstanding delayed items cleaned up.
  */
-static int __btrfs_run_delayed_items(struct btrfs_trans_handle *trans,
-				     struct btrfs_fs_info *fs_info, int nr)
+static int __btrfs_run_delayed_items(struct btrfs_trans_handle *trans, int nr)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_delayed_root *delayed_root;
 	struct btrfs_delayed_node *curr_node, *prev_node;
 	struct btrfs_path *path;
@@ -1165,13 +1165,13 @@ static int __btrfs_run_delayed_items(struct btrfs_trans_handle *trans,
 int btrfs_run_delayed_items(struct btrfs_trans_handle *trans,
 			    struct btrfs_fs_info *fs_info)
 {
-	return __btrfs_run_delayed_items(trans, fs_info, -1);
+	return __btrfs_run_delayed_items(trans, -1);
 }
 
 int btrfs_run_delayed_items_nr(struct btrfs_trans_handle *trans,
 			       struct btrfs_fs_info *fs_info, int nr)
 {
-	return __btrfs_run_delayed_items(trans, fs_info, nr);
+	return __btrfs_run_delayed_items(trans, nr);
 }
 
 int btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
