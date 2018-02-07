@@ -6338,7 +6338,7 @@ void ex_halbtc8723d1ant_periodical(IN struct btc_coexist *btcoexist)
 		if ((coex_sta->specific_pkt_period_cnt == 0) &&
 		    (coex_sta->wifi_is_high_pri_task))
 			coex_sta->wifi_is_high_pri_task = FALSE;
-			special_pkt_finish = TRUE;
+		special_pkt_finish = TRUE;
 	}
 
 	if (!coex_sta->bt_disabled) {

@@ -2639,7 +2639,7 @@ hal_EfusePgPacketWrite1ByteHeader(
 	if (IS_HARDWARE_TYPE_8723BE(pAdapter))
 		efuse_OneByteWrite(pAdapter, 0x1FF, 00, FALSE); /* increase current */
 
-		efuse_OneByteWrite(pAdapter, efuse_addr, pg_header, bPseudoTest);
+	efuse_OneByteWrite(pAdapter, efuse_addr, pg_header, bPseudoTest);
 
 	PHY_SetMacReg(pAdapter, EFUSE_TEST, BIT26, 0); 
 

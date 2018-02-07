@@ -5032,12 +5032,12 @@ u8 SetHwReg8723D(PADAPTER padapter, u8 variable, u8 *val)
 				/* ulContent |= CAM_VALID; */
 			} else
 				ulContent = 0;
-				/* polling bit, and No Write enable, and address */
-				ulCommand = CAM_CONTENT_COUNT * ucIndex + i;
-				ulCommand = ulCommand | CAM_POLLINIG | CAM_WRITE;
-				/* write content 0 is equall to mark invalid */
-				rtw_write32(padapter, WCAMI, ulContent);  /* delay_ms(40); */
-				rtw_write32(padapter, RWCAM, ulCommand);  /* delay_ms(40); */
+			/* polling bit, and No Write enable, and address */
+			ulCommand = CAM_CONTENT_COUNT * ucIndex + i;
+			ulCommand = ulCommand | CAM_POLLINIG | CAM_WRITE;
+			/* write content 0 is equall to mark invalid */
+			rtw_write32(padapter, WCAMI, ulContent);  /* delay_ms(40); */
+			rtw_write32(padapter, RWCAM, ulCommand);  /* delay_ms(40); */
 		}
 	}
 		break;

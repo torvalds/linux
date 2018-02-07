@@ -1735,8 +1735,8 @@ void halbtc8822b2ant_set_ext_ant_switch(IN struct btc_coexist *btcoexist,
 
 	/* Ext switch buffer mux */
 		btcoexist->btc_write_1byte(btcoexist, 0x974, 0xff);
-		btcoexist->btc_write_1byte_bitmask(btcoexist, 0x1991, 0x3, 0x0);
-		btcoexist->btc_write_1byte_bitmask(btcoexist, 0xcbe, 0x8, 0x0);
+	btcoexist->btc_write_1byte_bitmask(btcoexist, 0x1991, 0x3, 0x0);
+	btcoexist->btc_write_1byte_bitmask(btcoexist, 0xcbe, 0x8, 0x0);
 
 
 	switch (ctrl_type) {

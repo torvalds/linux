@@ -5368,11 +5368,11 @@ static int _cfg80211_rtw_mgmt_tx(_adapter *padapter, u8 tx_ch, const u8 *buf, si
 	}else 
 #endif //CONFIG_CONCURRENT_MODE
 	//if (tx_ch != pmlmeext->cur_channel) {
-	if(tx_ch != rtw_get_oper_ch(padapter)) {
-		if (!check_fwstate(&padapter->mlmepriv, _FW_LINKED ))
-			pmlmeext->cur_channel = tx_ch;
-		set_channel_bwmode(padapter, tx_ch, HAL_PRIME_CHNL_OFFSET_DONT_CARE, CHANNEL_WIDTH_20);
-	}
+		if(tx_ch != rtw_get_oper_ch(padapter)) {
+			if (!check_fwstate(&padapter->mlmepriv, _FW_LINKED ))
+				pmlmeext->cur_channel = tx_ch;
+			set_channel_bwmode(padapter, tx_ch, HAL_PRIME_CHNL_OFFSET_DONT_CARE, CHANNEL_WIDTH_20);
+		}
 
 	//starting alloc mgmt frame to dump it
 	if ((pmgntframe = alloc_mgtxmitframe(pxmitpriv)) == NULL)

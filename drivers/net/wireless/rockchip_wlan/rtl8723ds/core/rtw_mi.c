@@ -662,7 +662,7 @@ static void _rtw_mi_stop_drv_threads(_adapter *adapter, bool exclude_self)
 		if ((iface) && (iface->bup == _TRUE))
 			if ((exclude_self) && (iface == adapter))
 				continue;
-			rtw_stop_drv_threads(iface);
+		rtw_stop_drv_threads(iface);
 	}
 }
 void rtw_mi_stop_drv_threads(_adapter *adapter)
