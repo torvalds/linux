@@ -769,8 +769,8 @@ static int hid_report_readreg(struct device *dev, u8 reg, u8 *data, int len)
 	struct hid_device *hid = container_of(dev, struct hid_device, dev);
 	unsigned char report_number = reg;
 	unsigned char report_type = HID_REGR_REPORT;
-	char buf[1 + sizeof(data) * len];
-	int readlen = 1 + sizeof(data) * len;
+	char buf[1 + sizeof(*data) * len];
+	int readlen = 1 + sizeof(*data) * len;
 	int ret;
 
 	ret = hid_hw_raw_request(hid, report_number, (unsigned char *)buf, readlen, report_type, HID_REQ_GET_REPORT);
