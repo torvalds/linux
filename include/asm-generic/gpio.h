@@ -25,8 +25,6 @@
  * actually an estimate of a board-specific value.
  */
 
-#define ARCH_GPIO_BASE		1000
-
 #ifndef ARCH_NR_GPIOS
 #define ARCH_NR_GPIOS		512
 #endif
@@ -42,7 +40,7 @@
 
 static inline bool gpio_is_valid(int number)
 {
-	return number >= ARCH_GPIO_BASE && number < ARCH_NR_GPIOS + ARCH_GPIO_BASE;
+	return number >= 0 && number < ARCH_NR_GPIOS;
 }
 
 struct device;
