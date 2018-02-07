@@ -2914,8 +2914,12 @@ static int ibmvnic_send_crq(struct ibmvnic_adapter *adapter,
 				cpu_to_be64(u64_crq[1]));
 
 	if (rc) {
-		if (rc == H_CLOSED)
+		if (rc == H_CLOSED) {
 			dev_warn(dev, "CRQ Queue closed\n");
+			if (adapter->resetting)
+				ibmvnic_reset(adapter, VNIC_RESET_FATAL);
+		}
+
 		dev_warn(dev, "Send error (rc=%d)\n", rc);
 	}
 
