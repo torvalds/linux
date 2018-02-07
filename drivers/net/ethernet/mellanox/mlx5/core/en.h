@@ -473,6 +473,9 @@ struct mlx5e_page_cache {
 
 struct mlx5e_rq;
 typedef void (*mlx5e_fp_handle_rx_cqe)(struct mlx5e_rq*, struct mlx5_cqe64*);
+typedef struct sk_buff *
+(*mlx5e_fp_skb_from_cqe_mpwrq)(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
+			       u16 cqe_bcnt, u32 head_offset, u32 page_idx);
 typedef bool (*mlx5e_fp_post_rx_wqes)(struct mlx5e_rq *rq);
 typedef void (*mlx5e_fp_dealloc_wqe)(struct mlx5e_rq*, u16);
 
@@ -491,6 +494,7 @@ struct mlx5e_rq {
 		} wqe;
 		struct {
 			struct mlx5e_mpw_info *info;
+			mlx5e_fp_skb_from_cqe_mpwrq skb_from_cqe_mpwrq;
 			u16                    num_strides;
 			u8                     log_stride_sz;
 			bool                   umr_in_progress;
@@ -834,6 +838,12 @@ bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq);
 void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix);
 void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix);
 void mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi);
+struct sk_buff *
+mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
+				u16 cqe_bcnt, u32 head_offset, u32 page_idx);
+struct sk_buff *
+mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
+				   u16 cqe_bcnt, u32 head_offset, u32 page_idx);
 
 void mlx5e_update_stats(struct mlx5e_priv *priv);
 

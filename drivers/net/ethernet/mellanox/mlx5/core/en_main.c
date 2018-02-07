@@ -91,9 +91,14 @@ bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev)
 
 static u32 mlx5e_mpwqe_get_linear_frag_sz(struct mlx5e_params *params)
 {
-	u16 hw_mtu = MLX5E_SW2HW_MTU(params, params->sw_mtu);
+	if (!params->xdp_prog) {
+		u16 hw_mtu = MLX5E_SW2HW_MTU(params, params->sw_mtu);
+		u16 rq_headroom = MLX5_RX_HEADROOM + NET_IP_ALIGN;
 
-	return hw_mtu;
+		return MLX5_SKB_FRAG_SZ(rq_headroom + hw_mtu);
+	}
+
+	return PAGE_SIZE;
 }
 
 static u8 mlx5e_mpwqe_log_pkts_per_wqe(struct mlx5e_params *params)
@@ -101,6 +106,26 @@ static u8 mlx5e_mpwqe_log_pkts_per_wqe(struct mlx5e_params *params)
 	u32 linear_frag_sz = mlx5e_mpwqe_get_linear_frag_sz(params);
 
 	return MLX5_MPWRQ_LOG_WQE_SZ - order_base_2(linear_frag_sz);
+}
+
+static bool mlx5e_rx_mpwqe_is_linear_skb(struct mlx5_core_dev *mdev,
+					 struct mlx5e_params *params)
+{
+	u32 frag_sz = mlx5e_mpwqe_get_linear_frag_sz(params);
+	s8 signed_log_num_strides_param;
+	u8 log_num_strides;
+
+	if (params->lro_en || frag_sz > PAGE_SIZE)
+		return false;
+
+	if (MLX5_CAP_GEN(mdev, ext_stride_num_range))
+		return true;
+
+	log_num_strides = MLX5_MPWRQ_LOG_WQE_SZ - order_base_2(frag_sz);
+	signed_log_num_strides_param =
+		(s8)log_num_strides - MLX5_MPWQE_LOG_NUM_STRIDES_BASE;
+
+	return signed_log_num_strides_param >= 0;
 }
 
 static u8 mlx5e_mpwqe_get_log_rq_size(struct mlx5e_params *params)
@@ -115,6 +140,9 @@ static u8 mlx5e_mpwqe_get_log_rq_size(struct mlx5e_params *params)
 static u8 mlx5e_mpwqe_get_log_stride_size(struct mlx5_core_dev *mdev,
 					  struct mlx5e_params *params)
 {
+	if (mlx5e_rx_mpwqe_is_linear_skb(mdev, params))
+		return order_base_2(mlx5e_mpwqe_get_linear_frag_sz(params));
+
 	return MLX5E_MPWQE_STRIDE_SZ(mdev,
 		MLX5E_GET_PFLAG(params, MLX5E_PFLAG_RX_CQE_COMPRESS));
 }
@@ -126,7 +154,8 @@ static u8 mlx5e_mpwqe_get_log_num_strides(struct mlx5_core_dev *mdev,
 		mlx5e_mpwqe_get_log_stride_size(mdev, params);
 }
 
-static u16 mlx5e_get_rq_headroom(struct mlx5e_params *params)
+static u16 mlx5e_get_rq_headroom(struct mlx5_core_dev *mdev,
+				 struct mlx5e_params *params)
 {
 	u16 linear_rq_headroom = params->xdp_prog ?
 		XDP_PACKET_HEADROOM : MLX5_RX_HEADROOM;
@@ -134,6 +163,9 @@ static u16 mlx5e_get_rq_headroom(struct mlx5e_params *params)
 	linear_rq_headroom += NET_IP_ALIGN;
 
 	if (params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST)
+		return linear_rq_headroom;
+
+	if (mlx5e_rx_mpwqe_is_linear_skb(mdev, params))
 		return linear_rq_headroom;
 
 	return 0;
@@ -151,12 +183,14 @@ void mlx5e_init_rq_type_params(struct mlx5_core_dev *mdev,
 		break;
 	default: /* MLX5_WQ_TYPE_LINKED_LIST */
 		/* Extra room needed for build_skb */
-		params->lro_wqe_sz -= mlx5e_get_rq_headroom(params) +
+		params->lro_wqe_sz -= mlx5e_get_rq_headroom(mdev, params) +
 			SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 	}
 
 	mlx5_core_info(mdev, "MLX5E: StrdRq(%d) RqSz(%ld) StrdSz(%ld) RxCqeCmprss(%d)\n",
 		       params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ,
+		       params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ ?
+		       BIT(mlx5e_mpwqe_get_log_rq_size(params)) :
 		       BIT(params->log_rq_mtu_frames),
 		       BIT(mlx5e_mpwqe_get_log_stride_size(mdev, params)),
 		       MLX5E_GET_PFLAG(params, MLX5E_PFLAG_RX_CQE_COMPRESS));
@@ -400,11 +434,10 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		goto err_rq_wq_destroy;
 
 	rq->buff.map_dir = rq->xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
-	rq->buff.headroom = mlx5e_get_rq_headroom(params);
+	rq->buff.headroom = mlx5e_get_rq_headroom(mdev, params);
 
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
-
 		rq->post_wqes = mlx5e_post_rx_mpwqes;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_mpwqe;
 
@@ -422,6 +455,10 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 			goto err_rq_wq_destroy;
 		}
 
+		rq->mpwqe.skb_from_cqe_mpwrq =
+			mlx5e_rx_mpwqe_is_linear_skb(mdev, params) ?
+			mlx5e_skb_from_cqe_mpwrq_linear :
+			mlx5e_skb_from_cqe_mpwrq_nonlinear;
 		rq->mpwqe.log_stride_sz = mlx5e_mpwqe_get_log_stride_size(mdev, params);
 		rq->mpwqe.num_strides = BIT(mlx5e_mpwqe_get_log_num_strides(mdev, params));
 
@@ -484,7 +521,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		if (rq->wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
 			u64 dma_offset = (u64)mlx5e_get_wqe_mtt_offset(rq, i) << PAGE_SHIFT;
 
-			wqe->data.addr = cpu_to_be64(dma_offset);
+			wqe->data.addr = cpu_to_be64(dma_offset + rq->buff.headroom);
 		}
 
 		wqe->data.byte_count = cpu_to_be32(byte_count);
@@ -1834,9 +1871,11 @@ static void mlx5e_build_rq_param(struct mlx5e_priv *priv,
 	switch (params->rq_wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
 		MLX5_SET(wq, wq, log_wqe_num_of_strides,
-			 mlx5e_mpwqe_get_log_num_strides(mdev, params) - 9);
+			 mlx5e_mpwqe_get_log_num_strides(mdev, params) -
+			 MLX5_MPWQE_LOG_NUM_STRIDES_BASE);
 		MLX5_SET(wq, wq, log_wqe_stride_size,
-			 mlx5e_mpwqe_get_log_stride_size(mdev, params) - 6);
+			 mlx5e_mpwqe_get_log_stride_size(mdev, params) -
+			 MLX5_MPWQE_LOG_STRIDE_SZ_BASE);
 		MLX5_SET(wq, wq, wq_type, MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ);
 		MLX5_SET(wq, wq, log_wq_sz, mlx5e_mpwqe_get_log_rq_size(params));
 		break;
@@ -3193,20 +3232,28 @@ typedef int (*mlx5e_feature_handler)(struct net_device *netdev, bool enable);
 static int set_feature_lro(struct net_device *netdev, bool enable)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_channels new_channels = {};
+	struct mlx5e_params *old_params;
 	int err = 0;
 	bool reset;
 
 	mutex_lock(&priv->state_lock);
 
-	reset = (priv->channels.params.rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST);
-	reset = reset && test_bit(MLX5E_STATE_OPENED, &priv->state);
+	old_params = &priv->channels.params;
+	reset = test_bit(MLX5E_STATE_OPENED, &priv->state);
 
-	new_channels.params = priv->channels.params;
+	new_channels.params = *old_params;
 	new_channels.params.lro_en = enable;
 
+	if (old_params->rq_wq_type != MLX5_WQ_TYPE_LINKED_LIST) {
+		if (mlx5e_rx_mpwqe_is_linear_skb(mdev, old_params) ==
+		    mlx5e_rx_mpwqe_is_linear_skb(mdev, &new_channels.params))
+			reset = false;
+	}
+
 	if (!reset) {
-		priv->channels.params = new_channels.params;
+		*old_params = new_channels.params;
 		err = mlx5e_modify_tirs_lro(priv);
 		goto out;
 	}
@@ -4121,7 +4168,8 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 
 	/* TODO: && MLX5_CAP_ETH(mdev, lro_cap) */
 	if (params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ)
-		params->lro_en = !slow_pci_heuristic(mdev);
+		if (!mlx5e_rx_mpwqe_is_linear_skb(mdev, params))
+			params->lro_en = !slow_pci_heuristic(mdev);
 	params->lro_timeout = mlx5e_choose_lro_timeout(mdev, MLX5E_DEFAULT_LRO_TIMEOUT);
 
 	/* CQ moderation params */
