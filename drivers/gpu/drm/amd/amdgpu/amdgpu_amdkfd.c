@@ -209,15 +209,13 @@ int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 			void **cpu_ptr)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
-	struct kgd_mem **mem = (struct kgd_mem **) mem_obj;
+	struct amdgpu_bo *bo = NULL;
 	int r;
-
-	*mem = kmalloc(sizeof(struct kgd_mem), GFP_KERNEL);
-	if ((*mem) == NULL)
-		return -ENOMEM;
+	uint64_t gpu_addr_tmp = 0;
+	void *cpu_ptr_tmp = NULL;
 
 	r = amdgpu_bo_create(adev, size, PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_GTT,
-			     AMDGPU_GEM_CREATE_CPU_GTT_USWC, NULL, NULL, &(*mem)->bo);
+			AMDGPU_GEM_CREATE_CPU_GTT_USWC, NULL, NULL, &bo);
 	if (r) {
 		dev_err(adev->dev,
 			"failed to allocate BO for amdkfd (%d)\n", r);
@@ -225,52 +223,53 @@ int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 	}
 
 	/* map the buffer */
-	r = amdgpu_bo_reserve((*mem)->bo, true);
+	r = amdgpu_bo_reserve(bo, true);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to reserve bo for amdkfd\n", r);
 		goto allocate_mem_reserve_bo_failed;
 	}
 
-	r = amdgpu_bo_pin((*mem)->bo, AMDGPU_GEM_DOMAIN_GTT,
-				&(*mem)->gpu_addr);
+	r = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT,
+				&gpu_addr_tmp);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to pin bo for amdkfd\n", r);
 		goto allocate_mem_pin_bo_failed;
 	}
-	*gpu_addr = (*mem)->gpu_addr;
 
-	r = amdgpu_bo_kmap((*mem)->bo, &(*mem)->cpu_ptr);
+	r = amdgpu_bo_kmap(bo, &cpu_ptr_tmp);
 	if (r) {
 		dev_err(adev->dev,
 			"(%d) failed to map bo to kernel for amdkfd\n", r);
 		goto allocate_mem_kmap_bo_failed;
 	}
-	*cpu_ptr = (*mem)->cpu_ptr;
 
-	amdgpu_bo_unreserve((*mem)->bo);
+	*mem_obj = bo;
+	*gpu_addr = gpu_addr_tmp;
+	*cpu_ptr = cpu_ptr_tmp;
+
+	amdgpu_bo_unreserve(bo);
 
 	return 0;
 
 allocate_mem_kmap_bo_failed:
-	amdgpu_bo_unpin((*mem)->bo);
+	amdgpu_bo_unpin(bo);
 allocate_mem_pin_bo_failed:
-	amdgpu_bo_unreserve((*mem)->bo);
+	amdgpu_bo_unreserve(bo);
 allocate_mem_reserve_bo_failed:
-	amdgpu_bo_unref(&(*mem)->bo);
+	amdgpu_bo_unref(&bo);
 
 	return r;
 }
 
 void free_gtt_mem(struct kgd_dev *kgd, void *mem_obj)
 {
-	struct kgd_mem *mem = (struct kgd_mem *) mem_obj;
+	struct amdgpu_bo *bo = (struct amdgpu_bo *) mem_obj;
 
-	amdgpu_bo_reserve(mem->bo, true);
-	amdgpu_bo_kunmap(mem->bo);
-	amdgpu_bo_unpin(mem->bo);
-	amdgpu_bo_unreserve(mem->bo);
-	amdgpu_bo_unref(&(mem->bo));
-	kfree(mem);
+	amdgpu_bo_reserve(bo, true);
+	amdgpu_bo_kunmap(bo);
+	amdgpu_bo_unpin(bo);
+	amdgpu_bo_unreserve(bo);
+	amdgpu_bo_unref(&(bo));
 }
 
 void get_local_mem_info(struct kgd_dev *kgd,
