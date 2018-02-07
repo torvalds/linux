@@ -775,14 +775,14 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				lvds_in_vopl: endpoint@0 {
+				lvds_in_vopb: endpoint@0 {
 					reg = <0>;
-					remote-endpoint = <&vopl_out_lvds>;
+					remote-endpoint = <&vopb_out_lvds>;
 				};
 
-				lvds_in_vopb: endpoint@1 {
+				lvds_in_vopl: endpoint@1 {
 					reg = <1>;
-					remote-endpoint = <&vopb_out_lvds>;
+					remote-endpoint = <&vopl_out_lvds>;
 				};
 			};
 		};
@@ -1028,14 +1028,14 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				dsi_in_vopl: endpoint@0 {
+				dsi_in_vopb: endpoint@0 {
 					reg = <0>;
-					remote-endpoint = <&vopl_out_dsi>;
+					remote-endpoint = <&vopb_out_dsi>;
 				};
 
-				dsi_in_vopb: endpoint@1 {
+				dsi_in_vopl: endpoint@1 {
 					reg = <1>;
-					remote-endpoint = <&vopb_out_dsi>;
+					remote-endpoint = <&vopl_out_dsi>;
 				};
 			};
 		};
