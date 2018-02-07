@@ -126,7 +126,7 @@ EXPORT_SYMBOL_GPL(gpiod_to_chip);
 static int gpiochip_find_base(int ngpio)
 {
 	struct gpio_chip *chip;
-	int base = ARCH_NR_GPIOS - ngpio + ARCH_GPIO_BASE;
+	int base = ARCH_NR_GPIOS - ngpio;
 
 	list_for_each_entry_reverse(chip, &gpio_chips, list) {
 		/* found a free space? */
@@ -301,11 +301,8 @@ int gpiochip_add(struct gpio_chip *chip)
 	unsigned long	flags;
 	int		status = 0;
 	unsigned	id;
-	int		base;
+	int		base = chip->base;
 	struct gpio_desc *descs;
-
-	chip->base += ARCH_GPIO_BASE;
-	base = chip->base;
 
 	descs = kcalloc(chip->ngpio, sizeof(descs[0]), GFP_KERNEL);
 	if (!descs)
@@ -313,9 +310,9 @@ int gpiochip_add(struct gpio_chip *chip)
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
-	if (base < ARCH_GPIO_BASE) {
+	if (base < 0) {
 		base = gpiochip_find_base(chip->ngpio);
-		if (base < ARCH_GPIO_BASE) {
+		if (base < 0) {
 			status = base;
 			spin_unlock_irqrestore(&gpio_lock, flags);
 			goto err_free_descs;
