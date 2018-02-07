@@ -26,6 +26,7 @@
 
 #include <drm/amdgpu_drm.h>
 #include <drm/gpu_scheduler.h>
+#include <drm/drm_print.h>
 
 /* max number of rings */
 #define AMDGPU_MAX_RINGS		18
