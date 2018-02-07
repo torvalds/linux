@@ -1550,24 +1550,31 @@ static void i915_stop_engines(struct drm_i915_private *dev_priv,
 		gen3_stop_engine(engine);
 }
 
-static bool i915_reset_complete(struct pci_dev *pdev)
+static bool i915_in_reset(struct pci_dev *pdev)
 {
 	u8 gdrst;
 
 	pci_read_config_byte(pdev, I915_GDRST, &gdrst);
-	return (gdrst & GRDOM_RESET_STATUS) == 0;
+	return gdrst & GRDOM_RESET_STATUS;
 }
 
 static int i915_do_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
+	int err;
 
-	/* assert reset for at least 20 usec */
+	/* Assert reset for at least 20 usec, and wait for acknowledgement. */
 	pci_write_config_byte(pdev, I915_GDRST, GRDOM_RESET_ENABLE);
 	usleep_range(50, 200);
-	pci_write_config_byte(pdev, I915_GDRST, 0);
+	err = wait_for(i915_in_reset(pdev), 500);
 
-	return wait_for(i915_reset_complete(pdev), 500);
+	/* Clear the reset request. */
+	pci_write_config_byte(pdev, I915_GDRST, 0);
+	usleep_range(50, 200);
+	if (!err)
+		err = wait_for(!i915_in_reset(pdev), 500);
+
+	return err;
 }
 
 static bool g4x_reset_complete(struct pci_dev *pdev)
