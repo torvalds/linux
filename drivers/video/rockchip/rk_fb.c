@@ -4002,27 +4002,27 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi)
 			else
 				fb_par->ion_hdl =
 				dev_drv_prmry->win[win_id_prmry]->area[0].ion_hdl;
-				fbi->screen_base =
-					ion_map_kernel(rk_fb->ion_client,
-						       fb_par->ion_hdl);
-				dev_drv->win[win_id]->area[0].ion_hdl =
-					fb_par->ion_hdl;
-				if (dev_drv->mmu_dev)
-					ret = ion_map_iommu(dev_drv->dev,
-							    rk_fb->ion_client,
-							    fb_par->ion_hdl,
-							    (unsigned long *)&phy_addr,
-							    (unsigned long *)&len);
-				else
-					ret = ion_phys(rk_fb->ion_client,
-						       fb_par->ion_hdl,
-						       &phy_addr, &len);
-				if (ret < 0) {
-					dev_err(fbi->dev, "ion map to get phy addr failed\n");
-					return -ENOMEM;
-				}
-				fbi->fix.smem_start = phy_addr;
-				fbi->fix.smem_len = len;
+			fbi->screen_base =
+				ion_map_kernel(rk_fb->ion_client,
+					       fb_par->ion_hdl);
+			dev_drv->win[win_id]->area[0].ion_hdl =
+				fb_par->ion_hdl;
+			if (dev_drv->mmu_dev)
+				ret = ion_map_iommu(dev_drv->dev,
+						    rk_fb->ion_client,
+						    fb_par->ion_hdl,
+						    (unsigned long *)&phy_addr,
+						    (unsigned long *)&len);
+			else
+				ret = ion_phys(rk_fb->ion_client,
+					       fb_par->ion_hdl,
+					       &phy_addr, &len);
+			if (ret < 0) {
+				dev_err(fbi->dev, "ion map to get phy addr failed\n");
+				return -ENOMEM;
+			}
+			fbi->fix.smem_start = phy_addr;
+			fbi->fix.smem_len = len;
 #else
 			fb_mem_virt = dma_alloc_writecombine(fbi->dev,
 							     fb_mem_size,
