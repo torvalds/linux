@@ -680,6 +680,25 @@ void aac_set_intx_mode(struct aac_dev *dev)
 	}
 }
 
+static void aac_clear_omr(struct aac_dev *dev)
+{
+	u32 omr_value = 0;
+
+	omr_value = src_readl(dev, MUnit.OMR);
+
+	/*
+	 * Check for PCI Errors or Kernel Panic
+	 */
+	if ((omr_value == INVALID_OMR) || (omr_value & KERNEL_PANIC))
+		omr_value = 0;
+
+	/*
+	 * Preserve MSIX Value if any
+	 */
+	src_writel(dev, MUnit.OMR, omr_value & AAC_INT_MODE_MSIX);
+	src_readl(dev, MUnit.OMR);
+}
+
 static void aac_dump_fw_fib_iop_reset(struct aac_dev *dev)
 {
 	__le32 supported_options3;
@@ -740,6 +759,8 @@ static void aac_send_iop_reset(struct aac_dev *dev)
 
 	aac_set_intx_mode(dev);
 
+	aac_clear_omr(dev);
+
 	src_writel(dev, MUnit.IDR, IOP_SRC_RESET_MASK);
 
 	msleep(5000);
@@ -749,6 +770,7 @@ static void aac_send_hardware_soft_reset(struct aac_dev *dev)
 {
 	u_int32_t val;
 
+	aac_clear_omr(dev);
 	val = readl(((char *)(dev->base) + IBW_SWR_OFFSET));
 	val |= 0x01;
 	writel(val, ((char *)(dev->base) + IBW_SWR_OFFSET));
