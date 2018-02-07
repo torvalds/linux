@@ -1867,10 +1867,9 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 }
 
 
-static void cleanup_transaction(struct btrfs_trans_handle *trans,
-				struct btrfs_root *root, int err)
+static void cleanup_transaction(struct btrfs_trans_handle *trans, int err)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	DEFINE_WAIT(wait);
 
@@ -1910,7 +1909,7 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans,
 	btrfs_put_transaction(cur_trans);
 	btrfs_put_transaction(cur_trans);
 
-	trace_btrfs_transaction_commit(root);
+	trace_btrfs_transaction_commit(trans->root);
 
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
@@ -2331,7 +2330,7 @@ cleanup_transaction:
 	btrfs_warn(fs_info, "Skipping commit of aborted transaction.");
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
-	cleanup_transaction(trans, trans->root, ret);
+	cleanup_transaction(trans, ret);
 
 	return ret;
 }
