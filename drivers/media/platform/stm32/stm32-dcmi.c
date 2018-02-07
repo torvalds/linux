@@ -255,9 +255,6 @@ static void dcmi_dma_callback(void *param)
 				spin_unlock(&dcmi->irqlock);
 				return;
 			}
-
-			/* Enable capture */
-			reg_set(dcmi->regs, DCMI_CR, CR_CAPTURE);
 		}
 
 		break;
