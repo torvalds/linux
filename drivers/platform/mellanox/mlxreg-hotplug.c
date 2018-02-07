@@ -300,7 +300,7 @@ mlxreg_hotplug_health_work_helper(struct mlxreg_hotplug_priv_data *priv,
 {
 	struct mlxreg_core_data *data = item->data;
 	u32 regval;
-	int i, ret;
+	int i, ret = 0;
 
 	for (i = 0; i < item->count; i++, data++) {
 		/* Mask event. */
