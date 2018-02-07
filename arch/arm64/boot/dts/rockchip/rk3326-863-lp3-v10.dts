@@ -140,7 +140,7 @@
 		compatible = "aoly,sl008pa21y1285-b00", "simple-panel-dsi";
 		reg = <0>;
 		backlight = <&backlight>;
-		enable-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
 		reset-gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_LOW>;
 		prepare-delay-ms = <20>;
 		reset-delay-ms = <20>;
@@ -171,7 +171,7 @@
 			native-mode = <&timing0>;
 
 			timing0: timing0 {
-				clock-frequency = <65000000>;
+				clock-frequency = <66000000>;
 				hactive = <800>;
 				vactive = <1280>;
 				hfront-porch = <2>;
@@ -529,7 +529,7 @@
 };
 
 &route_dsi {
-	status = "okay";
+	status = "disabled";
 };
 
 &saradc {
