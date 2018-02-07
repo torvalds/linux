@@ -4615,9 +4615,6 @@ static int rbd_dev_v2_striping_info(struct rbd_device *rbd_dev)
 	} __attribute__ ((packed)) striping_info_buf = { 0 };
 	size_t size = sizeof (striping_info_buf);
 	void *p;
-	u64 obj_size;
-	u64 stripe_unit;
-	u64 stripe_count;
 	int ret;
 
 	ret = rbd_obj_method_sync(rbd_dev, &rbd_dev->header_oid,
@@ -4629,31 +4626,9 @@ static int rbd_dev_v2_striping_info(struct rbd_device *rbd_dev)
 	if (ret < size)
 		return -ERANGE;
 
-	/*
-	 * We don't actually support the "fancy striping" feature
-	 * (STRIPINGV2) yet, but if the striping sizes are the
-	 * defaults the behavior is the same as before.  So find
-	 * out, and only fail if the image has non-default values.
-	 */
-	ret = -EINVAL;
-	obj_size = rbd_obj_bytes(&rbd_dev->header);
 	p = &striping_info_buf;
-	stripe_unit = ceph_decode_64(&p);
-	if (stripe_unit != obj_size) {
-		rbd_warn(rbd_dev, "unsupported stripe unit "
-				"(got %llu want %llu)",
-				stripe_unit, obj_size);
-		return -EINVAL;
-	}
-	stripe_count = ceph_decode_64(&p);
-	if (stripe_count != 1) {
-		rbd_warn(rbd_dev, "unsupported stripe count "
-				"(got %llu want 1)", stripe_count);
-		return -EINVAL;
-	}
-	rbd_dev->header.stripe_unit = stripe_unit;
-	rbd_dev->header.stripe_count = stripe_count;
-
+	rbd_dev->header.stripe_unit = ceph_decode_64(&p);
+	rbd_dev->header.stripe_count = ceph_decode_64(&p);
 	return 0;
 }
 
