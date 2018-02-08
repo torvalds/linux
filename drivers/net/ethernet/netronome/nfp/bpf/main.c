@@ -182,6 +182,7 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 		return err;
 
 	bv->tc_prog = cls_bpf->prog;
+	nn->port->tc_offload_cnt = !!bv->tc_prog;
 	return 0;
 }
 
@@ -217,13 +218,6 @@ static int nfp_bpf_setup_tc(struct nfp_app *app, struct net_device *netdev,
 	default:
 		return -EOPNOTSUPP;
 	}
-}
-
-static bool nfp_bpf_tc_busy(struct nfp_app *app, struct nfp_net *nn)
-{
-	struct nfp_bpf_vnic *bv = nn->app_priv;
-
-	return !!bv->tc_prog;
 }
 
 static int
@@ -429,7 +423,6 @@ const struct nfp_app_type app_bpf = {
 	.ctrl_msg_rx	= nfp_bpf_ctrl_msg_rx,
 
 	.setup_tc	= nfp_bpf_setup_tc,
-	.tc_busy	= nfp_bpf_tc_busy,
 	.bpf		= nfp_ndo_bpf,
 	.xdp_offload	= nfp_bpf_xdp_offload,
 };
