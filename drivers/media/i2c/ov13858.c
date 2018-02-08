@@ -1355,39 +1355,6 @@ static int ov13858_get_pad_format(struct v4l2_subdev *sd,
 	return ret;
 }
 
-/*
- * Calculate resolution distance
- */
-static int
-ov13858_get_resolution_dist(const struct ov13858_mode *mode,
-			    struct v4l2_mbus_framefmt *framefmt)
-{
-	return abs(mode->width - framefmt->width) +
-	       abs(mode->height - framefmt->height);
-}
-
-/*
- * Find the closest supported resolution to the requested resolution
- */
-static const struct ov13858_mode *
-ov13858_find_best_fit(struct ov13858 *ov13858,
-		      struct v4l2_subdev_format *fmt)
-{
-	int i, dist, cur_best_fit = 0, cur_best_fit_dist = -1;
-	struct v4l2_mbus_framefmt *framefmt = &fmt->format;
-
-	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
-		dist = ov13858_get_resolution_dist(&supported_modes[i],
-						   framefmt);
-		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
-			cur_best_fit_dist = dist;
-			cur_best_fit = i;
-		}
-	}
-
-	return &supported_modes[cur_best_fit];
-}
-
 static int
 ov13858_set_pad_format(struct v4l2_subdev *sd,
 		       struct v4l2_subdev_pad_config *cfg,
@@ -1408,7 +1375,8 @@ ov13858_set_pad_format(struct v4l2_subdev *sd,
 	if (fmt->format.code != MEDIA_BUS_FMT_SGRBG10_1X10)
 		fmt->format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
-	mode = ov13858_find_best_fit(ov13858, fmt);
+	mode = v4l2_find_nearest_size(supported_modes, width, height,
+				      fmt->format.width, fmt->format.height);
 	ov13858_update_pad_format(mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		framefmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
