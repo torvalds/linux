@@ -148,6 +148,12 @@ struct aa_profile {
 	struct aa_policydb policy;
 	struct aa_file_rules file;
 	struct aa_caps caps;
+
+	int xattr_count;
+	char **xattrs;
+	size_t *xattr_lens;
+	char **xattr_values;
+
 	struct aa_rlimit rlimits;
 
 	struct aa_loaddata *rawdata;
