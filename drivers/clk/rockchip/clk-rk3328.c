@@ -663,7 +663,7 @@ static struct rockchip_clk_branch rk3328_clk_branches[] __initdata = {
 
 	/* PD_GMAC */
 	COMPOSITE(ACLK_GMAC, "aclk_gmac", mux_2plls_hdmiphy_p, 0,
-			RK3328_CLKSEL_CON(35), 6, 2, MFLAGS, 0, 5, DFLAGS,
+			RK3328_CLKSEL_CON(25), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3328_CLKGATE_CON(3), 2, GFLAGS),
 	COMPOSITE_NOMUX(PCLK_GMAC, "pclk_gmac", "aclk_gmac", 0,
 			RK3328_CLKSEL_CON(25), 8, 3, DFLAGS,
