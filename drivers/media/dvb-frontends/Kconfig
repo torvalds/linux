@@ -904,6 +904,18 @@ config DVB_HELENE
 	help
 	  Say Y when you want to support this frontend.
 
+comment "Common Interface (EN50221) controller drivers"
+	depends on DVB_CORE
+
+config DVB_CXD2099
+	tristate "CXD2099AR Common Interface driver"
+	depends on DVB_CORE && I2C
+	---help---
+	  A driver for the CI controller currently found mostly on
+	  Digital Devices DuoFlex CI (single) addon modules.
+
+	  Say Y when you want to support these devices.
+
 comment "Tools to develop new frontends"
 
 config DVB_DUMMY_FE
