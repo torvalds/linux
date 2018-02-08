@@ -213,7 +213,7 @@ struct rx_tx_queue_stats {
 struct q_desc_mem {
 	dma_addr_t	dma;
 	u64		size;
-	u16		q_len;
+	u32		q_len;
 	dma_addr_t	phys_base;
 	void		*base;
 	void		*unalign_base;
