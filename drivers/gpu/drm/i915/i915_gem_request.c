@@ -918,9 +918,9 @@ i915_gem_request_await_dma_fence(struct drm_i915_gem_request *req,
 
 /**
  * i915_gem_request_await_object - set this request to (async) wait upon a bo
- *
  * @to: request we are wishing to use
  * @obj: object which may be in use on another ring.
+ * @write: whether the wait is on behalf of a writer
  *
  * This code is meant to abstract object synchronization with the GPU.
  * Conceptually we serialise writes between engines inside the GPU.
