@@ -1,7 +1,7 @@
-Ingenic Watchdog Timer (WDT) Controller for JZ4740
+Ingenic Watchdog Timer (WDT) Controller for JZ4740 & JZ4780
 
 Required properties:
-compatible: "ingenic,jz4740-watchdog"
+compatible: "ingenic,jz4740-watchdog" or "ingenic,jz4780-watchdog"
 reg: Register address and length for watchdog registers
 
 Example:

@@ -705,12 +705,8 @@ static int bnxt_qplib_alloc_dpi_tbl(struct bnxt_qplib_res     *res,
 	dpit->max = dbr_len / PAGE_SIZE;
 
 	dpit->app_tbl = kcalloc(dpit->max, sizeof(void *), GFP_KERNEL);
-	if (!dpit->app_tbl) {
-		pci_iounmap(res->pdev, dpit->dbr_bar_reg_iomem);
-		dev_err(&res->pdev->dev,
-			"QPLIB: DPI app tbl allocation failed");
-		return -ENOMEM;
-	}
+	if (!dpit->app_tbl)
+		goto unmap_io;
 
 	bytes = dpit->max >> 3;
 	if (!bytes)
@@ -718,18 +714,18 @@ static int bnxt_qplib_alloc_dpi_tbl(struct bnxt_qplib_res     *res,
 
 	dpit->tbl = kmalloc(bytes, GFP_KERNEL);
 	if (!dpit->tbl) {
-		pci_iounmap(res->pdev, dpit->dbr_bar_reg_iomem);
 		kfree(dpit->app_tbl);
 		dpit->app_tbl = NULL;
-		dev_err(&res->pdev->dev,
-			"QPLIB: DPI tbl allocation failed for size = %d",
-			bytes);
-		return -ENOMEM;
+		goto unmap_io;
 	}
 
 	memset((u8 *)dpit->tbl, 0xFF, bytes);
 
 	return 0;
+
+unmap_io:
+	pci_iounmap(res->pdev, dpit->dbr_bar_reg_iomem);
+	return -ENOMEM;
 }
 
 /* PKEYs */

@@ -288,13 +288,8 @@ out:
 
 static const struct ir_raw_timings_manchester ir_rc6_timings[4] = {
 	{
-		.leader			= RC6_PREFIX_PULSE,
-		.pulse_space_start	= 0,
-		.clock			= RC6_UNIT,
-		.invert			= 1,
-		.trailer_space		= RC6_PREFIX_SPACE,
-	},
-	{
+		.leader_pulse		= RC6_PREFIX_PULSE,
+		.leader_space		= RC6_PREFIX_SPACE,
 		.clock			= RC6_UNIT,
 		.invert			= 1,
 	},
@@ -329,27 +324,22 @@ static int ir_rc6_encode(enum rc_proto protocol, u32 scancode,
 	struct ir_raw_event *e = events;
 
 	if (protocol == RC_PROTO_RC6_0) {
-		/* Modulate the preamble */
-		ret = ir_raw_gen_manchester(&e, max, &ir_rc6_timings[0], 0, 0);
-		if (ret < 0)
-			return ret;
-
 		/* Modulate the header (Start Bit & Mode-0) */
 		ret = ir_raw_gen_manchester(&e, max - (e - events),
-					    &ir_rc6_timings[1],
+					    &ir_rc6_timings[0],
 					    RC6_HEADER_NBITS, (1 << 3));
 		if (ret < 0)
 			return ret;
 
 		/* Modulate Trailer Bit */
 		ret = ir_raw_gen_manchester(&e, max - (e - events),
-					    &ir_rc6_timings[2], 1, 0);
+					    &ir_rc6_timings[1], 1, 0);
 		if (ret < 0)
 			return ret;
 
 		/* Modulate rest of the data */
 		ret = ir_raw_gen_manchester(&e, max - (e - events),
-					    &ir_rc6_timings[3], RC6_0_NBITS,
+					    &ir_rc6_timings[2], RC6_0_NBITS,
 					    scancode);
 		if (ret < 0)
 			return ret;
@@ -372,27 +362,22 @@ static int ir_rc6_encode(enum rc_proto protocol, u32 scancode,
 			return -EINVAL;
 		}
 
-		/* Modulate the preamble */
-		ret = ir_raw_gen_manchester(&e, max, &ir_rc6_timings[0], 0, 0);
-		if (ret < 0)
-			return ret;
-
 		/* Modulate the header (Start Bit & Header-version 6 */
 		ret = ir_raw_gen_manchester(&e, max - (e - events),
-					    &ir_rc6_timings[1],
+					    &ir_rc6_timings[0],
 					    RC6_HEADER_NBITS, (1 << 3 | 6));
 		if (ret < 0)
 			return ret;
 
 		/* Modulate Trailer Bit */
 		ret = ir_raw_gen_manchester(&e, max - (e - events),
-					    &ir_rc6_timings[2], 1, 0);
+					    &ir_rc6_timings[1], 1, 0);
 		if (ret < 0)
 			return ret;
 
 		/* Modulate rest of the data */
 		ret = ir_raw_gen_manchester(&e, max - (e - events),
-					    &ir_rc6_timings[3],
+					    &ir_rc6_timings[2],
 					    bits,
 					    scancode);
 		if (ret < 0)
@@ -408,6 +393,7 @@ static struct ir_raw_handler rc6_handler = {
 			  RC_PROTO_BIT_RC6_MCE,
 	.decode		= ir_rc6_decode,
 	.encode		= ir_rc6_encode,
+	.carrier	= 36000,
 };
 
 static int __init ir_rc6_decode_init(void)

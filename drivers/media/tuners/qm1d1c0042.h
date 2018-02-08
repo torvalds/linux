@@ -17,7 +17,7 @@
 #ifndef QM1D1C0042_H
 #define QM1D1C0042_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 
 struct qm1d1c0042_config {

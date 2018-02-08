@@ -193,7 +193,8 @@ struct nfp_net_tx_desc {
 
 /**
  * struct nfp_net_tx_buf - software TX buffer descriptor
- * @skb:	sk_buff associated with this buffer
+ * @skb:	normal ring, sk_buff associated with this buffer
+ * @frag:	XDP ring, page frag associated with this buffer
  * @dma_addr:	DMA mapping address of the buffer
  * @fidx:	Fragment index (-1 for the head and [0..nr_frags-1] for frags)
  * @pkt_cnt:	Number of packets to be produced out of the skb associated
@@ -377,6 +378,9 @@ struct nfp_net_rx_ring {
  * struct nfp_net_r_vector - Per ring interrupt vector configuration
  * @nfp_net:        Backpointer to nfp_net structure
  * @napi:           NAPI structure for this ring vec
+ * @tasklet:        ctrl vNIC, tasklet for servicing the r_vec
+ * @queue:          ctrl vNIC, send queue
+ * @lock:           ctrl vNIC, r_vec lock protects @queue
  * @tx_ring:        Pointer to TX ring
  * @rx_ring:        Pointer to RX ring
  * @xdp_ring:	    Pointer to an extra TX ring for XDP

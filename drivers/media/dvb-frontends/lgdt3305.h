@@ -19,7 +19,7 @@
 #define _LGDT3305_H_
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 
 enum lgdt3305_mpeg_mode {

@@ -345,8 +345,8 @@ struct hns_roce_cq {
 	struct hns_roce_cq_buf		hr_buf;
 	spinlock_t			lock;
 	struct ib_umem			*umem;
-	void (*comp)(struct hns_roce_cq *);
-	void (*event)(struct hns_roce_cq *, enum hns_roce_event);
+	void (*comp)(struct hns_roce_cq *cq);
+	void (*event)(struct hns_roce_cq *cq, enum hns_roce_event event_type);
 
 	struct hns_roce_uar		*uar;
 	u32				cq_depth;
@@ -466,7 +466,7 @@ struct hns_roce_qp {
 	struct ib_qp		ibqp;
 	struct hns_roce_buf	hr_buf;
 	struct hns_roce_wq	rq;
-	__le64			doorbell_qpn;
+	u32			doorbell_qpn;
 	__le32			sq_signal_bits;
 	u32			sq_next_wqe;
 	int			sq_max_wqes_per_wr;
@@ -486,8 +486,8 @@ struct hns_roce_qp {
 	u32                     atomic_rd_en;
 	u32			pkey_index;
 	u32			qkey;
-	void			(*event)(struct hns_roce_qp *,
-					 enum hns_roce_event);
+	void			(*event)(struct hns_roce_qp *qp,
+					 enum hns_roce_event event_type);
 	unsigned long		qpn;
 
 	atomic_t		refcount;

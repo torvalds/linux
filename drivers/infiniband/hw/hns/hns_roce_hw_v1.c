@@ -195,23 +195,47 @@ static int hns_roce_v1_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 			memcpy(&ud_sq_wqe->dgid[0], &ah->av.dgid[0], GID_LEN);
 
-			ud_sq_wqe->va0_l = (u32)wr->sg_list[0].addr;
-			ud_sq_wqe->va0_h = (wr->sg_list[0].addr) >> 32;
-			ud_sq_wqe->l_key0 = wr->sg_list[0].lkey;
+			ud_sq_wqe->va0_l =
+				       cpu_to_le32((u32)wr->sg_list[0].addr);
+			ud_sq_wqe->va0_h =
+				       cpu_to_le32((wr->sg_list[0].addr) >> 32);
+			ud_sq_wqe->l_key0 =
+				       cpu_to_le32(wr->sg_list[0].lkey);
 
-			ud_sq_wqe->va1_l = (u32)wr->sg_list[1].addr;
-			ud_sq_wqe->va1_h = (wr->sg_list[1].addr) >> 32;
-			ud_sq_wqe->l_key1 = wr->sg_list[1].lkey;
+			ud_sq_wqe->va1_l =
+				       cpu_to_le32((u32)wr->sg_list[1].addr);
+			ud_sq_wqe->va1_h =
+				       cpu_to_le32((wr->sg_list[1].addr) >> 32);
+			ud_sq_wqe->l_key1 =
+				       cpu_to_le32(wr->sg_list[1].lkey);
 			ind++;
 		} else if (ibqp->qp_type == IB_QPT_RC) {
+			u32 tmp_len = 0;
+
 			ctrl = wqe;
 			memset(ctrl, 0, sizeof(struct hns_roce_wqe_ctrl_seg));
 			for (i = 0; i < wr->num_sge; i++)
-				ctrl->msg_length += wr->sg_list[i].length;
+				tmp_len += wr->sg_list[i].length;
+
+			ctrl->msg_length =
+			  cpu_to_le32(le32_to_cpu(ctrl->msg_length) + tmp_len);
 
 			ctrl->sgl_pa_h = 0;
 			ctrl->flag = 0;
-			ctrl->imm_data = send_ieth(wr);
+
+			switch (wr->opcode) {
+			case IB_WR_SEND_WITH_IMM:
+			case IB_WR_RDMA_WRITE_WITH_IMM:
+				ctrl->imm_data = wr->ex.imm_data;
+				break;
+			case IB_WR_SEND_WITH_INV:
+				ctrl->inv_key =
+					cpu_to_le32(wr->ex.invalidate_rkey);
+				break;
+			default:
+				ctrl->imm_data = 0;
+				break;
+			}
 
 			/*Ctrl field, ctrl set type: sig, solic, imm, fence */
 			/* SO wait for conforming application scenarios */
@@ -258,8 +282,8 @@ static int hns_roce_v1_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 			dseg = wqe;
 			if (wr->send_flags & IB_SEND_INLINE && wr->num_sge) {
-				if (ctrl->msg_length >
-					hr_dev->caps.max_sq_inline) {
+				if (le32_to_cpu(ctrl->msg_length) >
+				    hr_dev->caps.max_sq_inline) {
 					ret = -EINVAL;
 					*bad_wr = wr;
 					dev_err(dev, "inline len(1-%d)=%d, illegal",
@@ -273,7 +297,7 @@ static int hns_roce_v1_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 					       wr->sg_list[i].length);
 					wqe += wr->sg_list[i].length;
 				}
-				ctrl->flag |= HNS_ROCE_WQE_INLINE;
+				ctrl->flag |= cpu_to_le32(HNS_ROCE_WQE_INLINE);
 			} else {
 				/*sqe num is two */
 				for (i = 0; i < wr->num_sge; i++)
@@ -306,8 +330,8 @@ out:
 			       SQ_DOORBELL_U32_8_QPN_S, qp->doorbell_qpn);
 		roce_set_bit(sq_db.u32_8, SQ_DOORBELL_HW_SYNC_S, 1);
 
-		doorbell[0] = sq_db.u32_4;
-		doorbell[1] = sq_db.u32_8;
+		doorbell[0] = le32_to_cpu(sq_db.u32_4);
+		doorbell[1] = le32_to_cpu(sq_db.u32_8);
 
 		hns_roce_write64_k(doorbell, qp->sq.db_reg_l);
 		qp->sq_next_wqe = ind;
@@ -403,8 +427,8 @@ out:
 			roce_set_bit(rq_db.u32_8, RQ_DOORBELL_U32_8_HW_SYNC_S,
 				     1);
 
-			doorbell[0] = rq_db.u32_4;
-			doorbell[1] = rq_db.u32_8;
+			doorbell[0] = le32_to_cpu(rq_db.u32_4);
+			doorbell[1] = le32_to_cpu(rq_db.u32_8);
 
 			hns_roce_write64_k(doorbell, hr_qp->rq.db_reg_l);
 		}
@@ -2261,7 +2285,7 @@ static int hns_roce_v1_poll_one(struct hns_roce_cq *hr_cq,
 						CQE_BYTE_4_WQE_INDEX_M,
 						CQE_BYTE_4_WQE_INDEX_S)&
 						((*cur_qp)->sq.wqe_cnt-1));
-		switch (sq_wqe->flag & HNS_ROCE_WQE_OPCODE_MASK) {
+		switch (le32_to_cpu(sq_wqe->flag) & HNS_ROCE_WQE_OPCODE_MASK) {
 		case HNS_ROCE_WQE_OPCODE_SEND:
 			wc->opcode = IB_WC_SEND;
 			break;
@@ -2282,7 +2306,7 @@ static int hns_roce_v1_poll_one(struct hns_roce_cq *hr_cq,
 			wc->status = IB_WC_GENERAL_ERR;
 			break;
 		}
-		wc->wc_flags = (sq_wqe->flag & HNS_ROCE_WQE_IMM ?
+		wc->wc_flags = (le32_to_cpu(sq_wqe->flag) & HNS_ROCE_WQE_IMM ?
 				IB_WC_WITH_IMM : 0);
 
 		wq = &(*cur_qp)->sq;

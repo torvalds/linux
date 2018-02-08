@@ -56,16 +56,17 @@
 
 /**
  * struct nfp_resource_entry - Resource table entry
- * @owner:		NFP CPP Lock, interface owner
- * @key:		NFP CPP Lock, posix_crc32(name, 8)
- * @region:		Memory region descriptor
- * @name:		ASCII, zero padded name
- * @reserved
- * @cpp_action:		CPP Action
- * @cpp_token:		CPP Token
- * @cpp_target:		CPP Target ID
- * @page_offset:	256-byte page offset into target's CPP address
- * @page_size:		size, in 256-byte pages
+ * @mutex:	NFP CPP Lock
+ * @mutex.owner:	NFP CPP Lock, interface owner
+ * @mutex.key:		NFP CPP Lock, posix_crc32(name, 8)
+ * @region:	Memory region descriptor
+ * @region.name:	ASCII, zero padded name
+ * @region.reserved:	padding
+ * @region.cpp_action:	CPP Action
+ * @region.cpp_token:	CPP Token
+ * @region.cpp_target:	CPP Target ID
+ * @region.page_offset:	256-byte page offset into target's CPP address
+ * @region.page_size:	size, in 256-byte pages
  */
 struct nfp_resource_entry {
 	struct nfp_resource_entry_mutex {

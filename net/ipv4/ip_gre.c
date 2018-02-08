@@ -261,6 +261,7 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	struct ip_tunnel_net *itn;
 	struct ip_tunnel *tunnel;
 	const struct iphdr *iph;
+	struct erspan_md2 *md2;
 	int ver;
 	int len;
 
@@ -313,21 +314,14 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 				return PACKET_REJECT;
 
 			md = ip_tunnel_info_opts(&tun_dst->u.tun_info);
-			memcpy(md, pkt_md, sizeof(*md));
 			md->version = ver;
+			md2 = &md->u.md2;
+			memcpy(md2, pkt_md, ver == 1 ? ERSPAN_V1_MDSIZE :
+						       ERSPAN_V2_MDSIZE);
 
 			info = &tun_dst->u.tun_info;
 			info->key.tun_flags |= TUNNEL_ERSPAN_OPT;
 			info->options_len = sizeof(*md);
-		} else {
-			tunnel->erspan_ver = ver;
-			if (ver == 1) {
-				tunnel->index = ntohl(pkt_md->u.index);
-			} else {
-				tunnel->dir = pkt_md->u.md2.dir;
-				tunnel->hwid = get_hwid(&pkt_md->u.md2);
-			}
-
 		}
 
 		skb_reset_mac_header(skb);

@@ -280,8 +280,8 @@ typedef struct siginfo {
 #define NSIGTRAP	4
 
 /*
- * There are an additional set of SIGTRAP si_codes used by ptrace
- * that of the form: ((PTRACE_EVENT_XXX << 8) | SIGTRAP)
+ * There is an additional set of SIGTRAP si_codes used by ptrace
+ * that are of the form: ((PTRACE_EVENT_XXX << 8) | SIGTRAP)
  */
 
 /*

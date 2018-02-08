@@ -675,6 +675,7 @@ int skl_dsp_set_dma_control(struct skl_sst *ctx, u32 *caps,
 	kfree(dma_ctrl);
 	return err;
 }
+EXPORT_SYMBOL_GPL(skl_dsp_set_dma_control);
 
 static void skl_setup_out_format(struct skl_sst *ctx,
 			struct skl_module_cfg *mconfig,

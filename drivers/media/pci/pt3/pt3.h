@@ -20,9 +20,9 @@
 #include <linux/atomic.h>
 #include <linux/types.h>
 
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dmxdev.h"
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dmxdev.h>
 
 #include "tc90522.h"
 #include "mxl301rf.h"
