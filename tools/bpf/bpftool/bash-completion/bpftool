@@ -230,10 +230,14 @@ _bpftool()
                     fi
                     return 0
                     ;;
+                load)
+                    _filedir
+                    return 0
+                    ;;
                 *)
                     [[ $prev == $object ]] && \
-                        COMPREPLY=( $( compgen -W 'dump help pin show list' -- \
-                            "$cur" ) )
+                        COMPREPLY=( $( compgen -W 'dump help pin load \
+                            show list' -- "$cur" ) )
                     ;;
             esac
             ;;
