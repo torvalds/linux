@@ -9420,15 +9420,16 @@ static u64 vlv_residency_raw(struct drm_i915_private *dev_priv,
 			     const i915_reg_t reg)
 {
 	u32 lower, upper, tmp;
-	unsigned long flags;
 	int loop = 2;
 
-	/* The register accessed do not need forcewake. We borrow
+	/*
+	 * The register accessed do not need forcewake. We borrow
 	 * uncore lock to prevent concurrent access to range reg.
 	 */
-	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
+	lockdep_assert_held(&dev_priv->uncore.lock);
 
-	/* vlv and chv residency counters are 40 bits in width.
+	/*
+	 * vlv and chv residency counters are 40 bits in width.
 	 * With a control bit, we can choose between upper or lower
 	 * 32bit window into this counter.
 	 *
@@ -9452,12 +9453,11 @@ static u64 vlv_residency_raw(struct drm_i915_private *dev_priv,
 		upper = I915_READ_FW(reg);
 	} while (upper != tmp && --loop);
 
-	/* Everywhere else we always use VLV_COUNTER_CONTROL with the
+	/*
+	 * Everywhere else we always use VLV_COUNTER_CONTROL with the
 	 * VLV_COUNT_RANGE_HIGH bit set - so it is safe to leave it set
 	 * now.
 	 */
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, flags);
 
 	return lower | (u64)upper << 8;
 }
@@ -9465,16 +9465,37 @@ static u64 vlv_residency_raw(struct drm_i915_private *dev_priv,
 u64 intel_rc6_residency_ns(struct drm_i915_private *dev_priv,
 			   const i915_reg_t reg)
 {
-	u64 time_hw;
+	u64 time_hw, prev_hw, overflow_hw;
+	unsigned int fw_domains;
+	unsigned long flags;
+	unsigned int i;
 	u32 mul, div;
 
 	if (!HAS_RC6(dev_priv))
 		return 0;
 
+	/*
+	 * Store previous hw counter values for counter wrap-around handling.
+	 *
+	 * There are only four interesting registers and they live next to each
+	 * other so we can use the relative address, compared to the smallest
+	 * one as the index into driver storage.
+	 */
+	i = (i915_mmio_reg_offset(reg) -
+	     i915_mmio_reg_offset(GEN6_GT_GFX_RC6_LOCKED)) / sizeof(u32);
+	if (WARN_ON_ONCE(i >= ARRAY_SIZE(dev_priv->gt_pm.rc6.cur_residency)))
+		return 0;
+
+	fw_domains = intel_uncore_forcewake_for_reg(dev_priv, reg, FW_REG_READ);
+
+	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
+	intel_uncore_forcewake_get__locked(dev_priv, fw_domains);
+
 	/* On VLV and CHV, residency time is in CZ units rather than 1.28us */
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		mul = 1000000;
 		div = dev_priv->czclk_freq;
+		overflow_hw = BIT_ULL(40);
 		time_hw = vlv_residency_raw(dev_priv, reg);
 	} else {
 		/* 833.33ns units on Gen9LP, 1.28us elsewhere. */
@@ -9486,10 +9507,33 @@ u64 intel_rc6_residency_ns(struct drm_i915_private *dev_priv,
 			div = 1;
 		}
 
-		time_hw = I915_READ(reg);
+		overflow_hw = BIT_ULL(32);
+		time_hw = I915_READ_FW(reg);
 	}
 
-	return DIV_ROUND_UP_ULL(time_hw * mul, div);
+	/*
+	 * Counter wrap handling.
+	 *
+	 * But relying on a sufficient frequency of queries otherwise counters
+	 * can still wrap.
+	 */
+	prev_hw = dev_priv->gt_pm.rc6.prev_hw_residency[i];
+	dev_priv->gt_pm.rc6.prev_hw_residency[i] = time_hw;
+
+	/* RC6 delta from last sample. */
+	if (time_hw >= prev_hw)
+		time_hw -= prev_hw;
+	else
+		time_hw += overflow_hw - prev_hw;
+
+	/* Add delta to RC6 extended raw driver copy. */
+	time_hw += dev_priv->gt_pm.rc6.cur_residency[i];
+	dev_priv->gt_pm.rc6.cur_residency[i] = time_hw;
+
+	intel_uncore_forcewake_put__locked(dev_priv, fw_domains);
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, flags);
+
+	return mul_u64_u32_div(time_hw, mul, div);
 }
 
 u32 intel_get_cagf(struct drm_i915_private *dev_priv, u32 rpstat)

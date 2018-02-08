@@ -947,6 +947,8 @@ struct intel_rps {
 
 struct intel_rc6 {
 	bool enabled;
+	u64 prev_hw_residency[4];
+	u64 cur_residency[4];
 };
 
 struct intel_llc_pstate {
