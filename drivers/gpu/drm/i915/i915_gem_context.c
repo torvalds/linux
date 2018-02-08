@@ -338,11 +338,6 @@ static void __destroy_hw_context(struct i915_gem_context *ctx,
 	context_close(ctx);
 }
 
-/**
- * The default context needs to exist per ring that uses contexts. It stores the
- * context state of the GPU for applications that don't utilize HW contexts, as
- * well as an idle case.
- */
 static struct i915_gem_context *
 i915_gem_create_context(struct drm_i915_private *dev_priv,
 			struct drm_i915_file_private *file_priv)
