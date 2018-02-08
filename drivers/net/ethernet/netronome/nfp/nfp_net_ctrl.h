@@ -59,9 +59,12 @@
 #define NFP_NET_RX_OFFSET               32
 
 /**
- * Maximum header size supported for LSO frames
+ * LSO parameters
+ * %NFP_NET_LSO_MAX_HDR_SZ:	Maximum header size supported for LSO frames
+ * %NFP_NET_LSO_MAX_SEGS:	Maximum number of segments LSO frame can produce
  */
 #define NFP_NET_LSO_MAX_HDR_SZ		255
+#define NFP_NET_LSO_MAX_SEGS		64
 
 /**
  * Prepend field types
