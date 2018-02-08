@@ -504,6 +504,7 @@ static struct platform_driver imx6q_cpufreq_platdrv = {
 };
 module_platform_driver(imx6q_cpufreq_platdrv);
 
+MODULE_ALIAS("platform:imx6q-cpufreq");
 MODULE_AUTHOR("Shawn Guo <shawn.guo@linaro.org>");
 MODULE_DESCRIPTION("Freescale i.MX6Q cpufreq driver");
 MODULE_LICENSE("GPL");

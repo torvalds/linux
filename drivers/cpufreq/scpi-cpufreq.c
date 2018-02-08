@@ -145,6 +145,7 @@ static int scpi_cpufreq_init(struct cpufreq_policy *policy)
 	if (IS_ERR(priv->clk)) {
 		dev_err(cpu_dev, "%s: Failed to get clk for cpu: %d\n",
 			__func__, cpu_dev->id);
+		ret = PTR_ERR(priv->clk);
 		goto out_free_cpufreq_table;
 	}
 
@@ -197,11 +198,8 @@ static int scpi_cpufreq_exit(struct cpufreq_policy *policy)
 static void scpi_cpufreq_ready(struct cpufreq_policy *policy)
 {
 	struct scpi_data *priv = policy->driver_data;
-	struct thermal_cooling_device *cdev;
 
-	cdev = of_cpufreq_cooling_register(policy);
-	if (!IS_ERR(cdev))
-		priv->cdev = cdev;
+	priv->cdev = of_cpufreq_cooling_register(policy);
 }
 
 static struct cpufreq_driver scpi_cpufreq_driver = {
