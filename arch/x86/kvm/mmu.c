@@ -3017,7 +3017,7 @@ static int kvm_handle_bad_page(struct kvm_vcpu *vcpu, gfn_t gfn, kvm_pfn_t pfn)
 		return RET_PF_RETRY;
 	}
 
-	return -EFAULT;
+	return RET_PF_EMULATE;
 }
 
 static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu,
