@@ -20,7 +20,7 @@ TEST_GEN_FILES = test_pkt_access.o test_xdp.o test_l4lb.o test_tcp_estats.o test
 	test_pkt_md_access.o test_xdp_redirect.o test_xdp_meta.o sockmap_parse_prog.o     \
 	sockmap_verdict_prog.o dev_cgroup.o sample_ret0.o test_tracepoint.o \
 	test_l4lb_noinline.o test_xdp_noinline.o test_stacktrace_map.o \
-	sample_map_ret0.o test_tcpbpf_kern.o
+	sample_map_ret0.o test_tcpbpf_kern.o test_libbpf_open
 
 TEST_PROGS := test_kmod.sh test_xdp_redirect.sh test_xdp_meta.sh \
 	test_offload.py
