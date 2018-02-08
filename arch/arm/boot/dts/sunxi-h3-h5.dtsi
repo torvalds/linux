@@ -142,7 +142,7 @@
 			/* compatible and clocks are in per SoC .dtsi file */
 			reg = <0x01c0f000 0x1000>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&mmc0_pins_a>;
+			pinctrl-0 = <&mmc0_pins>;
 			resets = <&ccu RST_BUS_MMC0>;
 			reset-names = "ahb";
 			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
@@ -155,7 +155,7 @@
 			/* compatible and clocks are in per SoC .dtsi file */
 			reg = <0x01c10000 0x1000>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&mmc1_pins_a>;
+			pinctrl-0 = <&mmc1_pins>;
 			resets = <&ccu RST_BUS_MMC1>;
 			reset-names = "ahb";
 			interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
@@ -352,7 +352,7 @@
 				function = "i2c2";
 			};
 
-			mmc0_pins_a: mmc0 {
+			mmc0_pins: mmc0 {
 				pins = "PF0", "PF1", "PF2", "PF3",
 				       "PF4", "PF5";
 				function = "mmc0";
@@ -360,7 +360,7 @@
 				bias-pull-up;
 			};
 
-			mmc1_pins_a: mmc1 {
+			mmc1_pins: mmc1 {
 				pins = "PG0", "PG1", "PG2", "PG3",
 				       "PG4", "PG5";
 				function = "mmc1";

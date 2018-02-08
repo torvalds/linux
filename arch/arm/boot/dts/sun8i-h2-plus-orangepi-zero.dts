@@ -134,7 +134,7 @@
 	};
 };
 
-&mmc1_pins_a {
+&mmc1_pins {
 	bias-pull-up;
 };
 
