@@ -137,7 +137,7 @@ gen4_render_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 	return 0;
 }
 
-/**
+/*
  * Emits a PIPE_CONTROL with a non-zero post-sync operation, for
  * implementing two workarounds on gen6.  From section 1.4.7.1
  * "PIPE_CONTROL" of the Sandy Bridge PRM volume 2 part 1:
@@ -729,14 +729,6 @@ static void i9xx_emit_breadcrumb(struct drm_i915_gem_request *req, u32 *cs)
 
 static const int i9xx_emit_breadcrumb_sz = 4;
 
-/**
- * gen6_sema_emit_breadcrumb - Update the semaphore mailbox registers
- *
- * @request - request to write to the ring
- *
- * Update the mailbox registers in the *other* rings with the current seqno.
- * This acts like a signal in the canonical semaphore.
- */
 static void gen6_sema_emit_breadcrumb(struct drm_i915_gem_request *req, u32 *cs)
 {
 	return i9xx_emit_breadcrumb(req,
