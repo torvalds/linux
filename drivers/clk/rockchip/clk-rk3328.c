@@ -148,7 +148,7 @@ static const struct rockchip_cpuclk_reg_data rk3328_cpuclk_data = {
 };
 
 PNAME(mux_pll_p)		= { "xin24m" };
-
+PNAME(mux_hdmiphy_gpll_p)	= { "hdmiphy", "gpll" };
 PNAME(mux_2plls_p)		= { "cpll", "gpll" };
 PNAME(mux_gpll_cpll_p)		= { "gpll", "cpll" };
 PNAME(mux_cpll_gpll_apll_p)	= { "cpll", "gpll", "apll" };
@@ -591,7 +591,7 @@ static struct rockchip_clk_branch rk3328_clk_branches[] __initdata = {
 	GATE(SCLK_HDMI_SFC, "sclk_hdmi_sfc", "xin24m", 0,
 			RK3328_CLKGATE_CON(5), 4, GFLAGS),
 
-	COMPOSITE_NODIV(0, "clk_cif_src", mux_2plls_p, 0,
+	COMPOSITE_NODIV(0, "clk_cif_src", mux_hdmiphy_gpll_p, 0,
 			RK3328_CLKSEL_CON(42), 7, 1, MFLAGS,
 			RK3328_CLKGATE_CON(5), 3, GFLAGS),
 	COMPOSITE_NOGATE(SCLK_CIF_OUT, "clk_cif_out", mux_sclk_cif_p, CLK_SET_RATE_PARENT,
