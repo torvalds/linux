@@ -356,12 +356,6 @@
 				bias-pull-up;
 			};
 
-			mmc0_cd_pin: mmc0_cd_pin {
-				pins = "PF6";
-				function = "gpio_in";
-				bias-pull-up;
-			};
-
 			mmc1_pins_a: mmc1 {
 				pins = "PG0", "PG1", "PG2", "PG3",
 				       "PG4", "PG5";
