@@ -810,10 +810,11 @@ intel_crt_detect(struct drm_connector *connector,
 		else
 			status = connector_status_unknown;
 		intel_release_load_detect_pipe(connector, &tmp, ctx);
-	} else if (ret == 0)
+	} else if (ret == 0) {
 		status = connector_status_unknown;
-	else if (ret < 0)
+	} else {
 		status = ret;
+	}
 
 out:
 	intel_display_power_put(dev_priv, intel_encoder->power_domain);
