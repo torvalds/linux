@@ -9741,7 +9741,7 @@ CONFIG_TRACE_EVAL_MAP_FILE                      flag<DEBUG>
 # Menu: Kernel hacking >> Tracers >> Branch Profiling
 CONFIG_BRANCH_PROFILE_NONE                      policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_PROFILE_ANNOTATED_BRANCHES               policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>
-CONFIG_PROFILE_ALL_BRANCHES                     policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>
+CONFIG_PROFILE_ALL_BRANCHES                     policy<{'armhf': 'n'}>
 
 # Menu: Kernel hacking >> Tracers >> Kernel Function Tracer
 CONFIG_FUNCTION_TRACER                          policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
