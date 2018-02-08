@@ -1259,7 +1259,7 @@ static void smart_init(struct nfit_test *t)
 			| ND_INTEL_SMART_MTEMP_VALID,
 		.health = ND_INTEL_SMART_NON_CRITICAL_HEALTH,
 		.media_temperature = 23 * 16,
-		.ctrl_temperature = 30 * 16,
+		.ctrl_temperature = 25 * 16,
 		.pmic_temperature = 40 * 16,
 		.spares = 75,
 		.alarm_flags = ND_INTEL_SMART_SPARE_TRIP
