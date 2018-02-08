@@ -734,6 +734,15 @@ static void inno_hdmi_phy_rk3328_init(struct inno_hdmi_phy *inno)
 	 */
 	inno_write(inno, 0x01, 0x07);
 	inno_write(inno, 0x02, 0x91);
+
+	/*
+	 * reg0xc8 default value is 0xc0, if phy had been set in uboot,
+	 * the value of bit[7:6] will be zero.
+	 */
+	if ((inno_read(inno, 0xc8) & 0xc0) == 0) {
+		dev_info(inno->dev, "phy had been powered up\n");
+		inno->phy->power_count = 1;
+	}
 }
 
 static int
