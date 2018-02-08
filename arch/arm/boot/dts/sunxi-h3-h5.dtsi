@@ -154,6 +154,8 @@
 		mmc1: mmc@1c10000 {
 			/* compatible and clocks are in per SoC .dtsi file */
 			reg = <0x01c10000 0x1000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmc1_pins_a>;
 			resets = <&ccu RST_BUS_MMC1>;
 			reset-names = "ahb";
 			interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
