@@ -1522,9 +1522,11 @@ static void gen3_stop_engine(struct intel_engine_cs *engine)
 				 engine->name);
 
 	I915_WRITE_FW(RING_HEAD(base), I915_READ_FW(RING_TAIL(base)));
+	POSTING_READ_FW(RING_HEAD(base)); /* paranoia */
 
 	I915_WRITE_FW(RING_HEAD(base), 0);
 	I915_WRITE_FW(RING_TAIL(base), 0);
+	POSTING_READ_FW(RING_TAIL(base));
 
 	/* The ring must be empty before it is disabled */
 	I915_WRITE_FW(RING_CTL(base), 0);
