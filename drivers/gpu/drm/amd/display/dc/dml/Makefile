@@ -24,14 +24,15 @@
 # It provides the general basic services required by other DAL
 # subcomponents.
 
-CFLAGS_display_mode_vba.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_display_mode_lib.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_display_pipe_clocks.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_dml1_display_rq_dlg_calc.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_display_rq_dlg_helpers.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_soc_bounding_box.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_dml_common_defs.o := -mhard-float -msse -mpreferred-stack-boundary=4
+dml_ccflags := -mhard-float -msse -mpreferred-stack-boundary=4
 
+CFLAGS_display_mode_vba.o := $(dml_ccflags)
+CFLAGS_display_mode_lib.o := $(dml_ccflags)
+CFLAGS_display_pipe_clocks.o := $(dml_ccflags)
+CFLAGS_dml1_display_rq_dlg_calc.o := $(dml_ccflags)
+CFLAGS_display_rq_dlg_helpers.o := $(dml_ccflags)
+CFLAGS_soc_bounding_box.o := $(dml_ccflags)
+CFLAGS_dml_common_defs.o := $(dml_ccflags)
 
 DML = display_mode_lib.o display_rq_dlg_helpers.o dml1_display_rq_dlg_calc.o \
 	  soc_bounding_box.o dml_common_defs.o
