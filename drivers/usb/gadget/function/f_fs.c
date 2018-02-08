@@ -2073,17 +2073,11 @@ static int __ffs_data_do_os_desc(enum ffs_os_desc_type type,
 
 		if (len < sizeof(*d) ||
 		    d->bFirstInterfaceNumber >= ffs->interfaces_count ||
-		    d->Reserved1 != 1) {
-			pr_err("%s(): Invalid os_desct_ext_compat\n",
-							__func__);
+		    d->Reserved1)
 			return -EINVAL;
-		}
 		for (i = 0; i < ARRAY_SIZE(d->Reserved2); ++i)
-			if (d->Reserved2[i]) {
-				pr_err("%s(): Invalid Reserved2 of ext_compat\n",
-							__func__);
+			if (d->Reserved2[i])
 				return -EINVAL;
-			}
 
 		length = sizeof(struct usb_ext_compat_desc);
 	}
