@@ -316,23 +316,6 @@ void v4l_bound_align_image(unsigned int *width, unsigned int wmin,
 			   unsigned int salign);
 
 /**
- * v4l2_find_nearest_format - find the nearest format size among a discrete
- *	set of resolutions.
- *
- * @sizes: array of &struct v4l2_frmsize_discrete image sizes.
- * @num_sizes: length of @sizes array.
- * @width: desired width.
- * @height: desired height.
- *
- * Finds the closest resolution to minimize the width and height differences
- * between what requested and the supported resolutions.
- */
-const struct v4l2_frmsize_discrete *
-v4l2_find_nearest_format(const struct v4l2_frmsize_discrete *sizes,
-			  const size_t num_sizes,
-			  s32 width, s32 height);
-
-/**
  * v4l2_find_nearest_size - Find the nearest size among a discrete
  *	set of resolutions contained in an array of a driver specific struct.
  *

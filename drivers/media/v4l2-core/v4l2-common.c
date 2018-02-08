@@ -357,32 +357,6 @@ void v4l_bound_align_image(u32 *w, unsigned int wmin, unsigned int wmax,
 }
 EXPORT_SYMBOL_GPL(v4l_bound_align_image);
 
-const struct v4l2_frmsize_discrete *
-v4l2_find_nearest_format(const struct v4l2_frmsize_discrete *sizes,
-			  size_t num_sizes,
-			  s32 width, s32 height)
-{
-	int i;
-	u32 error, min_error = UINT_MAX;
-	const struct v4l2_frmsize_discrete *size, *best = NULL;
-
-	if (!sizes)
-		return NULL;
-
-	for (i = 0, size = sizes; i < num_sizes; i++, size++) {
-		error = abs(size->width - width) + abs(size->height - height);
-		if (error < min_error) {
-			min_error = error;
-			best = size;
-		}
-		if (!error)
-			break;
-	}
-
-	return best;
-}
-EXPORT_SYMBOL_GPL(v4l2_find_nearest_format);
-
 const void *
 __v4l2_find_nearest_size(const void *array, size_t array_size,
 			 size_t entry_size, size_t width_offset,
