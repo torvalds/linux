@@ -1471,9 +1471,12 @@ static int gen6_drpc_info(struct seq_file *m)
 		gen9_powergate_status = I915_READ(GEN9_PWRGT_DOMAIN_STATUS);
 	}
 
-	mutex_lock(&dev_priv->pcu_lock);
-	sandybridge_pcode_read(dev_priv, GEN6_PCODE_READ_RC6VIDS, &rc6vids);
-	mutex_unlock(&dev_priv->pcu_lock);
+	if (INTEL_GEN(dev_priv) <= 7) {
+		mutex_lock(&dev_priv->pcu_lock);
+		sandybridge_pcode_read(dev_priv, GEN6_PCODE_READ_RC6VIDS,
+				       &rc6vids);
+		mutex_unlock(&dev_priv->pcu_lock);
+	}
 
 	seq_printf(m, "RC1e Enabled: %s\n",
 		   yesno(rcctl1 & GEN6_RC_CTL_RC1e_ENABLE));
@@ -1529,12 +1532,15 @@ static int gen6_drpc_info(struct seq_file *m)
 	print_rc6_res(m, "RC6+ residency since boot:", GEN6_GT_GFX_RC6p);
 	print_rc6_res(m, "RC6++ residency since boot:", GEN6_GT_GFX_RC6pp);
 
-	seq_printf(m, "RC6   voltage: %dmV\n",
-		   GEN6_DECODE_RC6_VID(((rc6vids >> 0) & 0xff)));
-	seq_printf(m, "RC6+  voltage: %dmV\n",
-		   GEN6_DECODE_RC6_VID(((rc6vids >> 8) & 0xff)));
-	seq_printf(m, "RC6++ voltage: %dmV\n",
-		   GEN6_DECODE_RC6_VID(((rc6vids >> 16) & 0xff)));
+	if (INTEL_GEN(dev_priv) <= 7) {
+		seq_printf(m, "RC6   voltage: %dmV\n",
+			   GEN6_DECODE_RC6_VID(((rc6vids >> 0) & 0xff)));
+		seq_printf(m, "RC6+  voltage: %dmV\n",
+			   GEN6_DECODE_RC6_VID(((rc6vids >> 8) & 0xff)));
+		seq_printf(m, "RC6++ voltage: %dmV\n",
+			   GEN6_DECODE_RC6_VID(((rc6vids >> 16) & 0xff)));
+	}
+
 	return i915_forcewake_domains(m, NULL);
 }
 
