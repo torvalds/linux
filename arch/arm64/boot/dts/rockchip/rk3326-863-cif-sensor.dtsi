@@ -12,7 +12,7 @@
 
 		gc2145_b {
 			is_front = <0>;
-			powerdown-gpios = <&gpio2 13 GPIO_ACTIVE_HIGH>;
+			powerdown-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
 			pwdn_active = <gc2145_PWRDN_ACTIVE>;
 			pwr_active = <PWR_ACTIVE_HIGH>;
 			mir = <0>;
@@ -28,7 +28,7 @@
 
 		gc0312_f {
 			is_front = <1>;
-			powerdown-gpios = <&gpio2 14 GPIO_ACTIVE_HIGH>;
+			powerdown-gpios = <&gpio2 RK_PB6 GPIO_ACTIVE_HIGH>;
 			pwdn_active = <gc0312_PWRDN_ACTIVE>;
 			pwr_active = <PWR_ACTIVE_HIGH>;
 			mir = <0>;
