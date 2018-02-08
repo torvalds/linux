@@ -630,6 +630,7 @@ struct ngene_vopen {
 struct ngene_channel {
 	struct device         device;
 	struct i2c_adapter    i2c_adapter;
+	struct i2c_client    *i2c_client[1];
 
 	struct ngene         *dev;
 	int                   number;

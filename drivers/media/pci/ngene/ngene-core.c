@@ -1562,9 +1562,8 @@ static int init_channels(struct ngene *dev)
 	return 0;
 }
 
-static struct cxd2099_cfg cxd_cfg = {
+static const struct cxd2099_cfg cxd_cfgtmpl = {
 	.bitrate = 62000,
-	.adr = 0x40,
 	.polarity = 0,
 	.clock_mode = 0,
 };
@@ -1572,18 +1571,52 @@ static struct cxd2099_cfg cxd_cfg = {
 static void cxd_attach(struct ngene *dev)
 {
 	struct ngene_ci *ci = &dev->ci;
+	struct cxd2099_cfg cxd_cfg = cxd_cfgtmpl;
+	struct i2c_client *client;
+	struct i2c_board_info board_info = {
+		.type = "cxd2099",
+		.addr = 0x40,
+		.platform_data = &cxd_cfg,
+	};
 
-	ci->en = cxd2099_attach(&cxd_cfg, dev, &dev->channel[0].i2c_adapter);
+	cxd_cfg.en = &ci->en;
+
+	request_module(board_info.type);
+
+	client = i2c_new_device(&dev->channel[0].i2c_adapter, &board_info);
+	if (!client || !client->dev.driver)
+		goto err_ret;
+
+	if (!try_module_get(client->dev.driver->owner))
+		goto err_i2c;
+
+	if (!ci->en)
+		goto err_i2c;
+
 	ci->dev = dev;
+	dev->channel[0].i2c_client[0] = client;
+	return;
+
+err_i2c:
+	i2c_unregister_device(client);
+err_ret:
+	printk(KERN_ERR DEVICE_NAME ": CXD2099AR attach failed\n");
 	return;
 }
 
 static void cxd_detach(struct ngene *dev)
 {
 	struct ngene_ci *ci = &dev->ci;
+	struct i2c_client *client;
 
 	dvb_ca_en50221_release(ci->en);
-	kfree(ci->en);
+
+	client = dev->channel[0].i2c_client[0];
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
+
 	ci->en = NULL;
 }
 
