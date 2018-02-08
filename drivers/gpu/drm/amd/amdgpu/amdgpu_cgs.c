@@ -905,6 +905,9 @@ static int amdgpu_cgs_query_system_info(struct cgs_device *cgs_device,
 	case CGS_SYSTEM_INFO_PCIE_BUS_DEVFN:
 		sys_info->value = adev->pdev->devfn;
 		break;
+	case CGS_SYSTEM_INFO_VRAM_WIDTH:
+		sys_info->value = adev->gmc.vram_width;
+		break;
 	default:
 		return -ENODEV;
 	}
