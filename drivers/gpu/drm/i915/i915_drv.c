@@ -873,6 +873,7 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
 /**
  * i915_driver_init_early - setup state not requiring device access
  * @dev_priv: device private
+ * @ent: the matching pci_device_id
  *
  * Initialize everything that is a "SW-only" state, that is state not
  * requiring accessing the device or exposing the driver via kernel internal
