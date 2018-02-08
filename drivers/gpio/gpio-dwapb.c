@@ -53,9 +53,9 @@
 #define GPIO_EXT_PORTD		0x5c
 
 #define DWAPB_MAX_PORTS		4
-#define GPIO_EXT_PORT_SIZE	(GPIO_EXT_PORTB - GPIO_EXT_PORTA)
-#define GPIO_SWPORT_DR_SIZE	(GPIO_SWPORTB_DR - GPIO_SWPORTA_DR)
-#define GPIO_SWPORT_DDR_SIZE	(GPIO_SWPORTB_DDR - GPIO_SWPORTA_DDR)
+#define GPIO_EXT_PORT_STRIDE	0x04 /* register stride 32 bits */
+#define GPIO_SWPORT_DR_STRIDE	0x0c /* register stride 3*32 bits */
+#define GPIO_SWPORT_DDR_STRIDE	0x0c /* register stride 3*32 bits */
 
 #define GPIO_REG_OFFSET_V2	1
 
@@ -476,10 +476,10 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 		return -ENOMEM;
 #endif
 
-	dat = gpio->regs + GPIO_EXT_PORTA + (pp->idx * GPIO_EXT_PORT_SIZE);
-	set = gpio->regs + GPIO_SWPORTA_DR + (pp->idx * GPIO_SWPORT_DR_SIZE);
+	dat = gpio->regs + GPIO_EXT_PORTA + (pp->idx * GPIO_EXT_PORT_STRIDE);
+	set = gpio->regs + GPIO_SWPORTA_DR + (pp->idx * GPIO_SWPORT_DR_STRIDE);
 	dirout = gpio->regs + GPIO_SWPORTA_DDR +
-		(pp->idx * GPIO_SWPORT_DDR_SIZE);
+		(pp->idx * GPIO_SWPORT_DDR_STRIDE);
 
 	err = bgpio_init(&port->gc, gpio->dev, 4, dat, set, NULL, dirout,
 			 NULL, 0);
@@ -710,13 +710,13 @@ static int dwapb_gpio_suspend(struct device *dev)
 
 		BUG_ON(!ctx);
 
-		offset = GPIO_SWPORTA_DDR + idx * GPIO_SWPORT_DDR_SIZE;
+		offset = GPIO_SWPORTA_DDR + idx * GPIO_SWPORT_DDR_STRIDE;
 		ctx->dir = dwapb_read(gpio, offset);
 
-		offset = GPIO_SWPORTA_DR + idx * GPIO_SWPORT_DR_SIZE;
+		offset = GPIO_SWPORTA_DR + idx * GPIO_SWPORT_DR_STRIDE;
 		ctx->data = dwapb_read(gpio, offset);
 
-		offset = GPIO_EXT_PORTA + idx * GPIO_EXT_PORT_SIZE;
+		offset = GPIO_EXT_PORTA + idx * GPIO_EXT_PORT_STRIDE;
 		ctx->ext = dwapb_read(gpio, offset);
 
 		/* Only port A can provide interrupts */
@@ -753,13 +753,13 @@ static int dwapb_gpio_resume(struct device *dev)
 
 		BUG_ON(!ctx);
 
-		offset = GPIO_SWPORTA_DR + idx * GPIO_SWPORT_DR_SIZE;
+		offset = GPIO_SWPORTA_DR + idx * GPIO_SWPORT_DR_STRIDE;
 		dwapb_write(gpio, offset, ctx->data);
 
-		offset = GPIO_SWPORTA_DDR + idx * GPIO_SWPORT_DDR_SIZE;
+		offset = GPIO_SWPORTA_DDR + idx * GPIO_SWPORT_DDR_STRIDE;
 		dwapb_write(gpio, offset, ctx->dir);
 
-		offset = GPIO_EXT_PORTA + idx * GPIO_EXT_PORT_SIZE;
+		offset = GPIO_EXT_PORTA + idx * GPIO_EXT_PORT_STRIDE;
 		dwapb_write(gpio, offset, ctx->ext);
 
 		/* Only port A can provide interrupts */
