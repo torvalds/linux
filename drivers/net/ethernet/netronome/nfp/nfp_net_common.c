@@ -3734,7 +3734,7 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 
 	netdev->features = netdev->hw_features;
 
-	if (nfp_app_has_tc(nn->app))
+	if (nfp_app_has_tc(nn->app) && nn->port)
 		netdev->hw_features |= NETIF_F_HW_TC;
 
 	/* Advertise but disable TSO by default. */
