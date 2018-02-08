@@ -1805,14 +1805,16 @@ i915_capture_gpu_state(struct drm_i915_private *i915)
 
 /**
  * i915_capture_error_state - capture an error record for later analysis
- * @dev: drm device
+ * @i915: i915 device
+ * @engine_mask: the mask of engines triggering the hang
+ * @error_msg: a message to insert into the error capture header
  *
  * Should be called when an error is detected (either a hang or an error
  * interrupt) to capture error state from the time of the error.  Fills
  * out a structure which becomes available in debugfs for user level tools
  * to pick up.
  */
-void i915_capture_error_state(struct drm_i915_private *dev_priv,
+void i915_capture_error_state(struct drm_i915_private *i915,
 			      u32 engine_mask,
 			      const char *error_msg)
 {
@@ -1823,25 +1825,25 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 	if (!i915_modparams.error_capture)
 		return;
 
-	if (READ_ONCE(dev_priv->gpu_error.first_error))
+	if (READ_ONCE(i915->gpu_error.first_error))
 		return;
 
-	error = i915_capture_gpu_state(dev_priv);
+	error = i915_capture_gpu_state(i915);
 	if (!error) {
 		DRM_DEBUG_DRIVER("out of memory, not capturing error state\n");
 		return;
 	}
 
-	i915_error_capture_msg(dev_priv, error, engine_mask, error_msg);
+	i915_error_capture_msg(i915, error, engine_mask, error_msg);
 	DRM_INFO("%s\n", error->error_msg);
 
 	if (!error->simulated) {
-		spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
-		if (!dev_priv->gpu_error.first_error) {
-			dev_priv->gpu_error.first_error = error;
+		spin_lock_irqsave(&i915->gpu_error.lock, flags);
+		if (!i915->gpu_error.first_error) {
+			i915->gpu_error.first_error = error;
 			error = NULL;
 		}
-		spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
+		spin_unlock_irqrestore(&i915->gpu_error.lock, flags);
 	}
 
 	if (error) {
@@ -1856,7 +1858,7 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 		DRM_INFO("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
 		DRM_INFO("The gpu crash dump is required to analyze gpu hangs, so please always attach it.\n");
 		DRM_INFO("GPU crash dump saved to /sys/class/drm/card%d/error\n",
-			 dev_priv->drm.primary->index);
+			 i915->drm.primary->index);
 		warned = true;
 	}
 }
