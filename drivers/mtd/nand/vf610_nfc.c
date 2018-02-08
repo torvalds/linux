@@ -511,21 +511,6 @@ static void vf610_nfc_select_chip(struct mtd_info *mtd, int chip)
 	vf610_nfc_write(nfc, NFC_ROW_ADDR, tmp);
 }
 
-/* Count the number of 0's in buff up to max_bits */
-static inline int count_written_bits(uint8_t *buff, int size, int max_bits)
-{
-	uint32_t *buff32 = (uint32_t *)buff;
-	int k, written_bits = 0;
-
-	for (k = 0; k < (size / 4); k++) {
-		written_bits += hweight32(~buff32[k]);
-		if (unlikely(written_bits > max_bits))
-			break;
-	}
-
-	return written_bits;
-}
-
 static inline int vf610_nfc_correct_data(struct mtd_info *mtd, uint8_t *dat,
 					 uint8_t *oob, int page)
 {
