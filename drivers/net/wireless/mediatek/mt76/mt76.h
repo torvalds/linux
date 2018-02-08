@@ -121,10 +121,17 @@ struct mt76_queue_ops {
 	void (*kick)(struct mt76_dev *dev, struct mt76_queue *q);
 };
 
+enum mt76_wcid_flags {
+	MT_WCID_FLAG_CHECK_PS,
+	MT_WCID_FLAG_PS,
+};
+
 struct mt76_wcid {
 	struct mt76_rx_tid __rcu *aggr[IEEE80211_NUM_TIDS];
 
 	struct work_struct aggr_work;
+
+	unsigned long flags;
 
 	u8 idx;
 	u8 hw_key_idx;
@@ -206,6 +213,9 @@ struct mt76_driver_ops {
 		       struct sk_buff *skb);
 
 	void (*rx_poll_complete)(struct mt76_dev *dev, enum mt76_rxq_id q);
+
+	void (*sta_ps)(struct mt76_dev *dev, struct ieee80211_sta *sta,
+		       bool ps);
 };
 
 struct mt76_channel_state {

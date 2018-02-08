@@ -218,6 +218,8 @@ void mt76x2_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q);
 void mt76x2_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb);
 
+void mt76x2_sta_ps(struct mt76_dev *dev, struct ieee80211_sta *sta, bool ps);
+
 void mt76x2_update_channel(struct mt76_dev *mdev);
 
 s8 mt76x2_tx_get_max_txpwr_adj(struct mt76x2_dev *dev,
