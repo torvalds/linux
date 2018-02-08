@@ -459,8 +459,6 @@ struct thread_struct {
 	unsigned short		gsindex;
 #endif
 
-	u32			status;		/* thread synchronous flags */
-
 #ifdef CONFIG_X86_64
 	unsigned long		fsbase;
 	unsigned long		gsbase;
@@ -970,4 +968,7 @@ bool xen_set_default_idle(void);
 
 void stop_this_cpu(void *dummy);
 void df_debug(struct pt_regs *regs, long error_code);
+
+void __ibp_barrier(void);
+
 #endif /* _ASM_X86_PROCESSOR_H */
