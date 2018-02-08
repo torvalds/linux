@@ -9226,6 +9226,7 @@ CONFIG_SYSFS_DEPRECATED                         mark<ENFORCED> note<ensure nothi
 CONFIG_COMPAT_BRK                               mark<ENFORCED> note<disables brk ASLR>
 CONFIG_JUMP_LABEL                               flag<REVIEW>
 CONFIG_NUMA_BALANCING_DEFAULT_ENABLED           note<LP:1557690>
+CONFIG_BPF_JIT_ALWAYS_ON                        flag<REVIEW>
 CONFIG_STRICT_KERNEL_RWX                        mark<ENFORCED>
 CONFIG_STRICT_MODULE_RWX                        mark<ENFORCED>
 
