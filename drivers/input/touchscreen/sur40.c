@@ -149,6 +149,40 @@ struct sur40_image_header {
 #define SUR40_TOUCH	0x02
 #define SUR40_TAG	0x04
 
+/* video controls */
+#define SUR40_BRIGHTNESS_MAX 0xff
+#define SUR40_BRIGHTNESS_MIN 0x00
+#define SUR40_BRIGHTNESS_DEF 0xff
+
+#define SUR40_CONTRAST_MAX 0x0f
+#define SUR40_CONTRAST_MIN 0x00
+#define SUR40_CONTRAST_DEF 0x0a
+
+#define SUR40_GAIN_MAX 0x09
+#define SUR40_GAIN_MIN 0x00
+#define SUR40_GAIN_DEF 0x08
+
+#define SUR40_BACKLIGHT_MAX 0x01
+#define SUR40_BACKLIGHT_MIN 0x00
+#define SUR40_BACKLIGHT_DEF 0x01
+
+#define sur40_str(s) #s
+#define SUR40_PARAM_RANGE(lo, hi) " (range " sur40_str(lo) "-" sur40_str(hi) ")"
+
+/* module parameters */
+static uint brightness = SUR40_BRIGHTNESS_DEF;
+module_param(brightness, uint, 0644);
+MODULE_PARM_DESC(brightness, "set initial brightness"
+	SUR40_PARAM_RANGE(SUR40_BRIGHTNESS_MIN, SUR40_BRIGHTNESS_MAX));
+static uint contrast = SUR40_CONTRAST_DEF;
+module_param(contrast, uint, 0644);
+MODULE_PARM_DESC(contrast, "set initial contrast"
+	SUR40_PARAM_RANGE(SUR40_CONTRAST_MIN, SUR40_CONTRAST_MAX));
+static uint gain = SUR40_GAIN_DEF;
+module_param(gain, uint, 0644);
+MODULE_PARM_DESC(gain, "set initial gain"
+	SUR40_PARAM_RANGE(SUR40_GAIN_MIN, SUR40_GAIN_MAX));
+
 static const struct v4l2_pix_format sur40_pix_format[] = {
 	{
 		.pixelformat = V4L2_TCH_FMT_TU08,
