@@ -1461,19 +1461,6 @@ static int gen6_drpc_info(struct seq_file *m)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	u32 gt_core_status, rcctl1, rc6vids = 0;
 	u32 gen9_powergate_enable = 0, gen9_powergate_status = 0;
-	unsigned forcewake_count;
-	int count = 0;
-
-	forcewake_count = READ_ONCE(dev_priv->uncore.fw_domain[FW_DOMAIN_ID_RENDER].wake_count);
-	if (forcewake_count) {
-		seq_puts(m, "RC information inaccurate because somebody "
-			    "holds a forcewake reference \n");
-	} else {
-		/* NB: we cannot use forcewake, else we read the wrong values */
-		while (count++ < 50 && (I915_READ_NOTRACE(FORCEWAKE_ACK) & 1))
-			udelay(10);
-		seq_printf(m, "RC information accurate: %s\n", yesno(count < 51));
-	}
 
 	gt_core_status = I915_READ_FW(GEN6_GT_CORE_STATUS);
 	trace_i915_reg_rw(false, GEN6_GT_CORE_STATUS, gt_core_status, 4, true);
