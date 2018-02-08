@@ -711,7 +711,9 @@ static void smart_notify(struct device *bus_dev,
 				>= thresh->media_temperature)
 			|| ((thresh->alarm_control & ND_INTEL_SMART_CTEMP_TRIP)
 				&& smart->ctrl_temperature
-				>= thresh->ctrl_temperature)) {
+				>= thresh->ctrl_temperature)
+			|| (smart->health != ND_INTEL_SMART_NON_CRITICAL_HEALTH)
+			|| (smart->shutdown_state != 0)) {
 		device_lock(bus_dev);
 		__acpi_nvdimm_notify(dimm_dev, 0x81);
 		device_unlock(bus_dev);
@@ -732,6 +734,32 @@ static int nfit_test_cmd_smart_set_threshold(
 		return -EINVAL;
 	memcpy(thresh->data, in, size);
 	in->status = 0;
+	smart_notify(bus_dev, dimm_dev, smart, thresh);
+
+	return 0;
+}
+
+static int nfit_test_cmd_smart_inject(
+		struct nd_intel_smart_inject *inj,
+		unsigned int buf_len,
+		struct nd_intel_smart_threshold *thresh,
+		struct nd_intel_smart *smart,
+		struct device *bus_dev, struct device *dimm_dev)
+{
+	if (buf_len != sizeof(*inj))
+		return -EINVAL;
+
+	if (inj->mtemp_enable)
+		smart->media_temperature = inj->media_temperature;
+	if (inj->spare_enable)
+		smart->spares = inj->spares;
+	if (inj->fatal_enable)
+		smart->health = ND_INTEL_SMART_FATAL_HEALTH;
+	if (inj->unsafe_shutdown_enable) {
+		smart->shutdown_state = 1;
+		smart->shutdown_count++;
+	}
+	inj->status = 0;
 	smart_notify(bus_dev, dimm_dev, smart, thresh);
 
 	return 0;
@@ -932,6 +960,13 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 							t->dcr_idx]);
 			case ND_INTEL_SMART_SET_THRESHOLD:
 				return nfit_test_cmd_smart_set_threshold(buf,
+						buf_len,
+						&t->smart_threshold[i -
+							t->dcr_idx],
+						&t->smart[i - t->dcr_idx],
+						&t->pdev.dev, t->dimm_dev[i]);
+			case ND_INTEL_SMART_INJECT:
+				return nfit_test_cmd_smart_inject(buf,
 						buf_len,
 						&t->smart_threshold[i -
 							t->dcr_idx],
@@ -2066,6 +2101,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	set_bit(ND_INTEL_SMART, &acpi_desc->dimm_cmd_force_en);
 	set_bit(ND_INTEL_SMART_THRESHOLD, &acpi_desc->dimm_cmd_force_en);
 	set_bit(ND_INTEL_SMART_SET_THRESHOLD, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_INTEL_SMART_INJECT, &acpi_desc->dimm_cmd_force_en);
 	set_bit(ND_CMD_ARS_CAP, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_CMD_ARS_START, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_CMD_ARS_STATUS, &acpi_desc->bus_cmd_force_en);
