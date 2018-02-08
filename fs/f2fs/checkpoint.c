@@ -573,13 +573,8 @@ static int recover_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 	struct node_info ni;
 	int err = acquire_orphan_inode(sbi);
 
-	if (err) {
-		set_sbi_flag(sbi, SBI_NEED_FSCK);
-		f2fs_msg(sbi->sb, KERN_WARNING,
-				"%s: orphan failed (ino=%x), run fsck to fix.",
-				__func__, ino);
-		return err;
-	}
+	if (err)
+		goto err_out;
 
 	__add_ino_entry(sbi, ino, 0, ORPHAN_INO);
 
@@ -593,6 +588,11 @@ static int recover_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 		return PTR_ERR(inode);
 	}
 
+	err = dquot_initialize(inode);
+	if (err)
+		goto err_out;
+
+	dquot_initialize(inode);
 	clear_nlink(inode);
 
 	/* truncate all the data during iput */
@@ -602,14 +602,18 @@ static int recover_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 
 	/* ENOMEM was fully retried in f2fs_evict_inode. */
 	if (ni.blk_addr != NULL_ADDR) {
-		set_sbi_flag(sbi, SBI_NEED_FSCK);
-		f2fs_msg(sbi->sb, KERN_WARNING,
-			"%s: orphan failed (ino=%x) by kernel, retry mount.",
-				__func__, ino);
-		return -EIO;
+		err = -EIO;
+		goto err_out;
 	}
 	__remove_ino_entry(sbi, ino, ORPHAN_INO);
 	return 0;
+
+err_out:
+	set_sbi_flag(sbi, SBI_NEED_FSCK);
+	f2fs_msg(sbi->sb, KERN_WARNING,
+			"%s: orphan failed (ino=%x), run fsck to fix.",
+			__func__, ino);
+	return err;
 }
 
 int recover_orphan_inodes(struct f2fs_sb_info *sbi)
