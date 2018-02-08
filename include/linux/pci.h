@@ -2280,41 +2280,9 @@ static inline bool pci_is_thunderbolt_attached(struct pci_dev *pdev)
 	return false;
 }
 
-/**
- * pci_uevent_ers - emit a uevent during recovery path of pci device
- * @pdev: pci device to check
- * @err_type: type of error event
- *
- */
-static inline void pci_uevent_ers(struct pci_dev *pdev,
-				  enum  pci_ers_result err_type)
-{
-	int idx = 0;
-	char *envp[3];
-
-	switch (err_type) {
-	case PCI_ERS_RESULT_NONE:
-	case PCI_ERS_RESULT_CAN_RECOVER:
-		envp[idx++] = "ERROR_EVENT=BEGIN_RECOVERY";
-		envp[idx++] = "DEVICE_ONLINE=0";
-		break;
-	case PCI_ERS_RESULT_RECOVERED:
-		envp[idx++] = "ERROR_EVENT=SUCCESSFUL_RECOVERY";
-		envp[idx++] = "DEVICE_ONLINE=1";
-		break;
-	case PCI_ERS_RESULT_DISCONNECT:
-		envp[idx++] = "ERROR_EVENT=FAILED_RECOVERY";
-		envp[idx++] = "DEVICE_ONLINE=0";
-		break;
-	default:
-		break;
-	}
-
-	if (idx > 0) {
-		envp[idx++] = NULL;
-		kobject_uevent_env(&pdev->dev.kobj, KOBJ_CHANGE, envp);
-	}
-}
+#if defined(CONFIG_PCIEAER) || defined(CONFIG_EEH)
+void pci_uevent_ers(struct pci_dev *pdev, enum  pci_ers_result err_type);
+#endif
 
 /* Provide the legacy pci_dma_* API */
 #include <linux/pci-dma-compat.h>
