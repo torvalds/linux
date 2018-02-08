@@ -460,6 +460,7 @@ void rxrpc_process_connection(struct work_struct *work)
 		case -EKEYEXPIRED:
 		case -EKEYREJECTED:
 			goto protocol_error;
+		case -ENOMEM:
 		case -EAGAIN:
 			goto requeue_and_leave;
 		case -ECONNABORTED:
