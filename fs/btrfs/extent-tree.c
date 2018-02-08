@@ -3741,8 +3741,9 @@ again:
 				should_put = 0;
 
 				/*
-				 * the cache_write_mutex is protecting
-				 * the io_list
+				 * The cache_write_mutex is protecting the
+				 * io_list, also refer to the definition of
+				 * btrfs_transaction::io_bgs for more details
 				 */
 				list_add_tail(&cache->io_list, io);
 			} else {
@@ -3934,6 +3935,10 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 	}
 	spin_unlock(&cur_trans->dirty_bgs_lock);
 
+	/*
+	 * Refer to the definition of io_bgs member for details why it's safe
+	 * to use it without any locking
+	 */
 	while (!list_empty(io)) {
 		cache = list_first_entry(io, struct btrfs_block_group_cache,
 					 io_list);

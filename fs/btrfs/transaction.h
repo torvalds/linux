@@ -69,6 +69,22 @@ struct btrfs_transaction {
 	struct list_head pending_chunks;
 	struct list_head switch_commits;
 	struct list_head dirty_bgs;
+
+	/*
+	 * There is no explicit lock which protects io_bgs, rather its
+	 * consistency is implied by the fact that all the sites which modify
+	 * it do so under some form of transaction critical section, namely:
+	 *
+	 * - btrfs_start_dirty_block_groups - This function can only ever be
+	 *   run by one of the transaction committers. Refer to
+	 *   BTRFS_TRANS_DIRTY_BG_RUN usage in btrfs_commit_transaction
+	 *
+	 * - btrfs_write_dirty_blockgroups - this is called by
+	 *   commit_cowonly_roots from transaction critical section
+	 *   (TRANS_STATE_COMMIT_DOING)
+	 *
+	 * - btrfs_cleanup_dirty_bgs - called on transaction abort
+	 */
 	struct list_head io_bgs;
 	struct list_head dropped_roots;
 
