@@ -9813,6 +9813,7 @@ F:	drivers/nfc/nxp-nci
 
 OBJTOOL
 M:	Josh Poimboeuf <jpoimboe@redhat.com>
+M:	Peter Zijlstra <peterz@infradead.org>
 S:	Supported
 F:	tools/objtool/
 
