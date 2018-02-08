@@ -332,9 +332,6 @@ static irqreturn_t wcnss_fatal_interrupt(int irq, void *dev)
 
 	rproc_report_crash(wcnss->rproc, RPROC_FATAL_ERROR);
 
-	if (!IS_ERR(msg))
-		msg[0] = '\0';
-
 	return IRQ_HANDLED;
 }
 
