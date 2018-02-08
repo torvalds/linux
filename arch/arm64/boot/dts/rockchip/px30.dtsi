@@ -1193,6 +1193,7 @@
 		power-domains = <&power PX30_PD_VI>;
 		pinctrl-names = "cif_pin_all";
 		pinctrl-0 = <&dvp_d2d9_m0>;
+		iommus = <&vip_mmu>;
 		status = "disabled";
 	};
 
