@@ -1637,12 +1637,17 @@ struct dc_sink *dc_link_add_remote_sink(
 			&dc_sink->dc_edid,
 			&dc_sink->edid_caps);
 
-	if (edid_status != EDID_OK)
-		goto fail;
+	/*
+	 * Treat device as no EDID device if EDID
+	 * parsing fails
+	 */
+	if (edid_status != EDID_OK) {
+		dc_sink->dc_edid.length = 0;
+		dm_error("Bad EDID, status%d!\n", edid_status);
+	}
 
 	return dc_sink;
-fail:
-	dc_link_remove_remote_sink(link, dc_sink);
+
 fail_add_sink:
 	dc_sink_release(dc_sink);
 	return NULL;
