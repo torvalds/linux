@@ -70,6 +70,24 @@
 			reg = <0x0>;
 			clocks = <&clockgen 1 0>;
 			#cooling-cells = <2>;
+			cpu-idle-states = <&CPU_PH20>;
+		};
+	};
+
+	idle-states {
+		/*
+		 * PSCI node is not added default, U-boot will add missing
+		 * parts if it determines to use PSCI.
+		 */
+		entry-method = "arm,psci";
+
+		CPU_PH20: cpu-ph20 {
+			compatible = "arm,idle-state";
+			idle-state-name = "PH20";
+			arm,psci-suspend-param = <0x00010000>;
+			entry-latency-us = <1000>;
+			exit-latency-us = <1000>;
+			min-residency-us = <3000>;
 		};
 	};
 
