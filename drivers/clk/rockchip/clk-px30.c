@@ -1016,6 +1016,7 @@ static const char *const px30_critical_clocks[] __initconst = {
 	"hclk_peri_pre",
 	"aclk_gpu_niu",
 	"clk_gpu_divnp5",
+	"pclk_top_pre",
 };
 
 static const char *const px30_pmucru_critical_clocks[] __initconst = {
