@@ -444,6 +444,7 @@ static void vop_disable_allwin(struct vop *vop)
 		struct vop_win *win = &vop->win[i];
 
 		VOP_WIN_SET(vop, win, enable, 0);
+		VOP_WIN_SET(vop, win, gate, 0);
 	}
 }
 
@@ -1319,7 +1320,7 @@ static void vop_initial(struct drm_crtc *crtc)
 			VOP_SCL_SET_EXT(vop, win, cbcr_ver_scl_mode, SCALE_NONE);
 		}
 		VOP_WIN_SET(vop, win, enable, 0);
-		VOP_WIN_SET(vop, win, gate, 1);
+		VOP_WIN_SET(vop, win, gate, 0);
 	}
 	VOP_CTRL_SET(vop, afbdc_en, 0);
 
@@ -1552,6 +1553,8 @@ static void vop_plane_atomic_disable(struct drm_plane *plane,
 		VOP_SCL_SET_EXT(vop, win, cbcr_ver_scl_mode, SCALE_NONE);
 	}
 	VOP_WIN_SET(vop, win, enable, 0);
+	if (win->area_id == 0)
+		VOP_WIN_SET(vop, win, gate, 0);
 
 	spin_unlock(&vop->reg_lock);
 
@@ -1674,6 +1677,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		VOP_WIN_SET_EXT(vop, win, csc, r2y_en, vop_plane_state->r2y_en);
 	}
 	VOP_WIN_SET(vop, win, enable, 1);
+	VOP_WIN_SET(vop, win, gate, 1);
 	spin_unlock(&vop->reg_lock);
 	vop->is_iommu_needed = true;
 }
