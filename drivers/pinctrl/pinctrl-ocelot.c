@@ -462,7 +462,7 @@ static const struct of_device_id ocelot_pinctrl_of_match[] = {
 	{},
 };
 
-int ocelot_pinctrl_probe(struct platform_device *pdev)
+static int ocelot_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ocelot_pinctrl *info;
