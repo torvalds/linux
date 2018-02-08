@@ -4327,11 +4327,6 @@ void btrfs_cleanup_dirty_bgs(struct btrfs_transaction *cur_trans,
 		cache = list_first_entry(&cur_trans->dirty_bgs,
 					 struct btrfs_block_group_cache,
 					 dirty_list);
-		if (!cache) {
-			btrfs_err(fs_info, "orphan block group dirty_bgs list");
-			spin_unlock(&cur_trans->dirty_bgs_lock);
-			return;
-		}
 
 		if (!list_empty(&cache->io_list)) {
 			spin_unlock(&cur_trans->dirty_bgs_lock);
@@ -4355,10 +4350,6 @@ void btrfs_cleanup_dirty_bgs(struct btrfs_transaction *cur_trans,
 		cache = list_first_entry(&cur_trans->io_bgs,
 					 struct btrfs_block_group_cache,
 					 io_list);
-		if (!cache) {
-			btrfs_err(fs_info, "orphan block group on io_bgs list");
-			return;
-		}
 
 		list_del_init(&cache->io_list);
 		spin_lock(&cache->lock);
