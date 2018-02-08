@@ -1915,6 +1915,9 @@ static irqreturn_t e1000_msix_other(int __always_unused irq, void *data)
 	icr = er32(ICR);
 	ew32(ICR, E1000_ICR_OTHER);
 
+	if (icr & adapter->eiac_mask)
+		ew32(ICS, (icr & adapter->eiac_mask));
+
 	if (icr & E1000_ICR_LSC) {
 		ew32(ICR, E1000_ICR_LSC);
 		hw->mac.get_link_status = true;
