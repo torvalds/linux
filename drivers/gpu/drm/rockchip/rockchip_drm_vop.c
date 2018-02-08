@@ -3197,16 +3197,19 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 			enable_irq(vop->irq);
 		}
 		ret = rockchip_drm_dma_attach_device(vop->drm_dev, vop->dev);
-		if (ret)
+		if (ret) {
+			vop->is_iommu_enabled = false;
+			vop_disable_all_planes(vop);
 			dev_err(vop->dev, "failed to attach dma mapping, %d\n",
 				ret);
+		} else {
+			vop->is_iommu_enabled = true;
+		}
 
 		if (need_wait_vblank) {
 			VOP_INTR_SET_TYPE(vop, enable, LINE_FLAG_INTR, 0);
 			drm_crtc_vblank_put(crtc);
 		}
-
-		vop->is_iommu_enabled = true;
 	}
 
 	vop_update_cabc(crtc, old_crtc_state);
