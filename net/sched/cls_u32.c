@@ -927,7 +927,8 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		if (TC_U32_KEY(n->handle) == 0)
 			return -EINVAL;
 
-		if (n->flags != flags)
+		if ((n->flags ^ flags) &
+		    ~(TCA_CLS_FLAGS_IN_HW | TCA_CLS_FLAGS_NOT_IN_HW))
 			return -EINVAL;
 
 		new = u32_init_knode(tp, n);
