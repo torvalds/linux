@@ -129,8 +129,8 @@
 			reg = <0x88000000 0x1800000>;
 		};
 
-		ramoops_mem: ramoops@68000000 {
-			reg = <0x68000000 0xf0000>;
+		ramoops_mem: ramoops@62e00000 {
+			reg = <0x62e00000 0xf0000>;
 		};
 
 		drm_logo: drm-logo@00000000 {
