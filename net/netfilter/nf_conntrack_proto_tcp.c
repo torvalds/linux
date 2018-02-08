@@ -11,7 +11,9 @@
 #include <linux/types.h>
 #include <linux/timer.h>
 #include <linux/module.h>
+#include <linux/inetdevice.h>
 #include <linux/in.h>
+#include <net/ip.h>
 #include <linux/tcp.h>
 #include <linux/spinlock.h>
 #include <linux/skbuff.h>
@@ -49,6 +51,11 @@ static int nf_ct_tcp_max_retrans __read_mostly = 3;
 
   /* FIXME: Examine ipfilter's timeouts and conntrack transitions more
      closely.  They're more complex. --RR */
+
+#ifndef IPV4_DEVCONF_DFLT
+	#define IPV4_DEVCONF_DFLT(net, attr) \
+	IPV4_DEVCONF((*net->ipv4.devconf_dflt), attr)
+#endif
 
 static const char *const tcp_conntrack_names[] = {
 	"NONE",
@@ -504,6 +511,18 @@ static bool tcp_in_window(const struct nf_conn *ct,
 	__u32 seq, ack, sack, end, win, swin;
 	s32 receiver_offset;
 	bool res, in_recv_win;
+
+	if (net) {
+		if ((net->ipv4.devconf_all && net->ipv4.devconf_dflt && net->ipv6.devconf_all) &&
+		    net->ipv6.devconf_dflt) {
+			if ((IPV4_DEVCONF_DFLT(net, FORWARDING) ||
+			     IPV4_DEVCONF_ALL(net, FORWARDING)) ||
+			     (net->ipv6.devconf_all->forwarding ||
+			      net->ipv6.devconf_dflt->forwarding)) {
+				return true;
+			}
+		}
+	}
 
 	/*
 	 * Get the required data from the packet.
