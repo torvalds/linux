@@ -97,7 +97,7 @@ void mlx5_cq_completion(struct mlx5_eq *eq, u32 cqn)
 		refcount_inc(&cq->refcount);
 	spin_unlock(&table->lock);
 
-	if (!cq) {
+	if (unlikely(!cq)) {
 		mlx5_core_warn(eq->dev, "Completion event for bogus CQ 0x%x\n", cqn);
 		return;
 	}
@@ -118,12 +118,12 @@ void mlx5_cq_event(struct mlx5_eq *eq, u32 cqn, int event_type)
 	spin_lock(&table->lock);
 
 	cq = radix_tree_lookup(&table->tree, cqn);
-	if (cq)
+	if (likely(cq))
 		refcount_inc(&cq->refcount);
 
 	spin_unlock(&table->lock);
 
-	if (!cq) {
+	if (unlikely(!cq)) {
 		mlx5_core_warn(eq->dev, "Async event for bogus CQ 0x%x\n", cqn);
 		return;
 	}
