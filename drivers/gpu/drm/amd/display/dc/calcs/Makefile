@@ -24,9 +24,11 @@
 # It calculates Bandwidth and Watermarks values for HW programming
 #
 
-CFLAGS_dcn_calcs.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_dcn_calc_auto.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_dcn_calc_math.o := -mhard-float -msse -mpreferred-stack-boundary=4 -Wno-tautological-compare
+calcs_ccflags := -mhard-float -msse -mpreferred-stack-boundary=4
+
+CFLAGS_dcn_calcs.o := $(calcs_ccflags)
+CFLAGS_dcn_calc_auto.o := $(calcs_ccflags)
+CFLAGS_dcn_calc_math.o := $(calcs_ccflags) -Wno-tautological-compare
 
 BW_CALCS = dce_calcs.o bw_fixed.o custom_float.o
 
