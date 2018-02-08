@@ -1741,23 +1741,22 @@ static const struct panel_desc sharp_lq101k1ly04 = {
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA,
 };
 
-static const struct drm_display_mode sharp_lq123p1jx31_mode = {
-	.clock = 252750,
-	.hdisplay = 2400,
-	.hsync_start = 2400 + 48,
-	.hsync_end = 2400 + 48 + 32,
-	.htotal = 2400 + 48 + 32 + 80,
-	.vdisplay = 1600,
-	.vsync_start = 1600 + 3,
-	.vsync_end = 1600 + 3 + 10,
-	.vtotal = 1600 + 3 + 10 + 33,
-	.vrefresh = 60,
-	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
+static const struct display_timing sharp_lq123p1jx31_timing = {
+	.pixelclock = { 252750000, 252750000, 266604720 },
+	.hactive = { 2400, 2400, 2400 },
+	.hfront_porch = { 48, 48, 48 },
+	.hback_porch = { 80, 80, 84 },
+	.hsync_len = { 32, 32, 32 },
+	.vactive = { 1600, 1600, 1600 },
+	.vfront_porch = { 3, 3, 3 },
+	.vback_porch = { 33, 33, 120 },
+	.vsync_len = { 10, 10, 10 },
+	.flags = DISPLAY_FLAGS_VSYNC_LOW | DISPLAY_FLAGS_HSYNC_LOW,
 };
 
 static const struct panel_desc sharp_lq123p1jx31 = {
-	.modes = &sharp_lq123p1jx31_mode,
-	.num_modes = 1,
+	.timings = &sharp_lq123p1jx31_timing,
+	.num_timings = 1,
 	.bpc = 8,
 	.size = {
 		.width = 259,
