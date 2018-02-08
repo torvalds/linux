@@ -1627,12 +1627,8 @@ static noinline int udf_process_sequence(
 	for (; (!done && block <= lastblock); block++) {
 
 		bh = udf_read_tagged(sb, block, block, &ident);
-		if (!bh) {
-			udf_err(sb,
-				"Block %llu of volume descriptor sequence is corrupted or we could not read it\n",
-				(unsigned long long)block);
-			return -EAGAIN;
-		}
+		if (!bh)
+			break;
 
 		/* Process each descriptor (ISO 13346 3/8.3-8.4) */
 		gd = (struct generic_desc *)bh->b_data;
