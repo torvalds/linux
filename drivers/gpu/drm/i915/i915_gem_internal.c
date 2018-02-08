@@ -167,6 +167,10 @@ static const struct drm_i915_gem_object_ops i915_gem_object_internal_ops = {
 };
 
 /**
+ * i915_gem_object_create_internal: create an object with volatile pages
+ * @i915: the i915 device
+ * @size: the size in bytes of backing storage to allocate for the object
+ *
  * Creates a new object that wraps some internal memory for private use.
  * This object is not backed by swappable storage, and as such its contents
  * are volatile and only valid whilst pinned. If the object is reaped by the
