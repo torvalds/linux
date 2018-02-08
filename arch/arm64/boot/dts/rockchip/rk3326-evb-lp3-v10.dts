@@ -184,14 +184,6 @@
 	};
 };
 
-&cif {
-	status = "okay";
-};
-
-&cif_sensor {
-	status = "okay";
-};
-
 &cpu0 {
 	cpu-supply = <&vdd_arm>;
 };
