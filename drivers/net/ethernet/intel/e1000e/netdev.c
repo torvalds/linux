@@ -1910,16 +1910,12 @@ static irqreturn_t e1000_msix_other(int __always_unused irq, void *data)
 	struct net_device *netdev = data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	u32 icr;
-
-	icr = er32(ICR);
-	ew32(ICR, E1000_ICR_OTHER);
+	u32 icr = er32(ICR);
 
 	if (icr & adapter->eiac_mask)
 		ew32(ICS, (icr & adapter->eiac_mask));
 
 	if (icr & E1000_ICR_LSC) {
-		ew32(ICR, E1000_ICR_LSC);
 		hw->mac.get_link_status = true;
 		/* guard against interrupt when we're going down */
 		if (!test_bit(__E1000_DOWN, &adapter->state))
@@ -1927,7 +1923,7 @@ static irqreturn_t e1000_msix_other(int __always_unused irq, void *data)
 	}
 
 	if (!test_bit(__E1000_DOWN, &adapter->state))
-		ew32(IMS, E1000_IMS_OTHER);
+		ew32(IMS, E1000_IMS_OTHER | IMS_OTHER_MASK);
 
 	return IRQ_HANDLED;
 }
@@ -2254,7 +2250,8 @@ static void e1000_irq_enable(struct e1000_adapter *adapter)
 
 	if (adapter->msix_entries) {
 		ew32(EIAC_82574, adapter->eiac_mask & E1000_EIAC_MASK_82574);
-		ew32(IMS, adapter->eiac_mask | E1000_IMS_OTHER | E1000_IMS_LSC);
+		ew32(IMS, adapter->eiac_mask | E1000_IMS_OTHER |
+		     IMS_OTHER_MASK);
 	} else if (hw->mac.type >= e1000_pch_lpt) {
 		ew32(IMS, IMS_ENABLE_MASK | E1000_IMS_ECCER);
 	} else {
