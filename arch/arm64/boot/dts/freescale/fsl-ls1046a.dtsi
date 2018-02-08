@@ -122,7 +122,7 @@
 		CPU_PH20: cpu-ph20 {
 			compatible = "arm,idle-state";
 			idle-state-name = "PH20";
-			arm,psci-suspend-param = <0x00010000>;
+			arm,psci-suspend-param = <0x0>;
 			entry-latency-us = <1000>;
 			exit-latency-us = <1000>;
 			min-residency-us = <3000>;
