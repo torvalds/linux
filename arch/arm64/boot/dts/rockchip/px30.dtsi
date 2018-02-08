@@ -289,6 +289,19 @@
 		clock-names = "i2s_clk", "i2s_hclk";
 		dmas = <&dmac 16>, <&dmac 17>;
 		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s0_8ch_sclktx
+			     &i2s0_8ch_sclkrx
+			     &i2s0_8ch_lrcktx
+			     &i2s0_8ch_lrckrx
+			     &i2s0_8ch_sdi0
+			     &i2s0_8ch_sdi1
+			     &i2s0_8ch_sdi2
+			     &i2s0_8ch_sdi3
+			     &i2s0_8ch_sdo0
+			     &i2s0_8ch_sdo1
+			     &i2s0_8ch_sdo2
+			     &i2s0_8ch_sdo3>;
 		status = "disabled";
 	};
 
@@ -300,6 +313,11 @@
 		clock-names = "i2s_clk", "i2s_hclk";
 		dmas = <&dmac 18>, <&dmac 19>;
 		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s1_2ch_sclk
+			     &i2s1_2ch_lrck
+			     &i2s1_2ch_sdi
+			     &i2s1_2ch_sdo>;
 		status = "disabled";
 	};
 
@@ -311,6 +329,11 @@
 		clock-names = "i2s_clk", "i2s_hclk";
 		dmas = <&dmac 20>, <&dmac 21>;
 		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s2_2ch_sclk
+			     &i2s2_2ch_lrck
+			     &i2s2_2ch_sdi
+			     &i2s2_2ch_sdo>;
 		status = "disabled";
 	};
 
@@ -321,6 +344,13 @@
 		clock-names = "pdm_clk", "pdm_hclk";
 		dmas = <&dmac 24>;
 		dma-names = "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pdm_clk0m0
+			     &pdm_clk1
+			     &pdm_sdi0m0
+			     &pdm_sdi1
+			     &pdm_sdi2
+			     &pdm_sdi3>;
 		status = "disabled";
 	};
 
@@ -1793,11 +1823,6 @@
 					<3 RK_PB5 RK_FUNC_2 &pcfg_pull_none>;
 			};
 
-			i2s0_8ch_sdo: i2s0-8ch-sdo {
-				rockchip,pins =
-					<3 RK_PD2 RK_FUNC_3 &pcfg_pull_none>;
-			};
-
 			i2s0_8ch_sdo0: i2s0-8ch-sdo0 {
 				rockchip,pins =
 					<3 RK_PC4 RK_FUNC_2 &pcfg_pull_none>;
@@ -1816,11 +1841,6 @@
 			i2s0_8ch_sdo3: i2s0-8ch-sdo3 {
 				rockchip,pins =
 					<3 RK_PB6 RK_FUNC_2 &pcfg_pull_none>;
-			};
-
-			i2s0_8ch_sdi: i2s0-8ch-sdi {
-				rockchip,pins =
-					<3 RK_PD3 RK_FUNC_3 &pcfg_pull_none>;
 			};
 
 			i2s0_8ch_sdi0: i2s0-8ch-sdi0 {
