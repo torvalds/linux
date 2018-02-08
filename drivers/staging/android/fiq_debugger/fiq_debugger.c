@@ -866,8 +866,7 @@ static bool fiq_debugger_handle_uart_interrupt(struct fiq_debugger_state *state,
 	int count = 0;
 	bool signal_helper = false;
 
-	if ((this_cpu != state->current_cpu) &&
-	    (cpu_online(state->current_cpu))) {
+	if (this_cpu != state->current_cpu) {
 		if (state->in_fiq)
 			return false;
 
@@ -881,12 +880,9 @@ static bool fiq_debugger_handle_uart_interrupt(struct fiq_debugger_state *state,
 			this_cpu);
 
 		atomic_set(&state->unhandled_fiq_count, 0);
-		fiq_debugger_switch_cpu(state, this_cpu);
+		state->current_cpu = this_cpu;
 		return false;
 	}
-
-	if (this_cpu != state->current_cpu)
-		state->current_cpu = this_cpu;
 
 	state->in_fiq = true;
 
