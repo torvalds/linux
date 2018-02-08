@@ -781,7 +781,8 @@ struct mlx5e_priv {
 	struct net_device         *netdev;
 	struct mlx5e_stats         stats;
 	struct hwtstamp_config     tstamp;
-	u16 q_counter;
+	u16                        q_counter;
+	u16                        drop_rq_q_counter;
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	struct mlx5e_dcbx          dcbx;
 #endif

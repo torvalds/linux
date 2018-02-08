@@ -97,6 +97,7 @@ struct mlx5e_sw_stats {
 
 struct mlx5e_qcounter_stats {
 	u32 rx_out_of_buffer;
+	u32 rx_if_down_packets;
 };
 
 struct mlx5e_vnic_env_stats {

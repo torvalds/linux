@@ -170,11 +170,24 @@ static const struct counter_desc q_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_qcounter_stats, rx_out_of_buffer) },
 };
 
+static const struct counter_desc drop_rq_stats_desc[] = {
+	{ MLX5E_DECLARE_STAT(struct mlx5e_qcounter_stats, rx_if_down_packets) },
+};
+
 #define NUM_Q_COUNTERS			ARRAY_SIZE(q_stats_desc)
+#define NUM_DROP_RQ_COUNTERS		ARRAY_SIZE(drop_rq_stats_desc)
 
 static int mlx5e_grp_q_get_num_stats(struct mlx5e_priv *priv)
 {
-	return priv->q_counter ? NUM_Q_COUNTERS : 0;
+	int num_stats = 0;
+
+	if (priv->q_counter)
+		num_stats += NUM_Q_COUNTERS;
+
+	if (priv->drop_rq_q_counter)
+		num_stats += NUM_DROP_RQ_COUNTERS;
+
+	return num_stats;
 }
 
 static int mlx5e_grp_q_fill_strings(struct mlx5e_priv *priv, u8 *data, int idx)
@@ -182,7 +195,13 @@ static int mlx5e_grp_q_fill_strings(struct mlx5e_priv *priv, u8 *data, int idx)
 	int i;
 
 	for (i = 0; i < NUM_Q_COUNTERS && priv->q_counter; i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN, q_stats_desc[i].format);
+		strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		       q_stats_desc[i].format);
+
+	for (i = 0; i < NUM_DROP_RQ_COUNTERS && priv->drop_rq_q_counter; i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		       drop_rq_stats_desc[i].format);
+
 	return idx;
 }
 
@@ -191,7 +210,11 @@ static int mlx5e_grp_q_fill_stats(struct mlx5e_priv *priv, u64 *data, int idx)
 	int i;
 
 	for (i = 0; i < NUM_Q_COUNTERS && priv->q_counter; i++)
-		data[idx++] = MLX5E_READ_CTR32_CPU(&priv->stats.qcnt, q_stats_desc, i);
+		data[idx++] = MLX5E_READ_CTR32_CPU(&priv->stats.qcnt,
+						   q_stats_desc, i);
+	for (i = 0; i < NUM_DROP_RQ_COUNTERS && priv->drop_rq_q_counter; i++)
+		data[idx++] = MLX5E_READ_CTR32_CPU(&priv->stats.qcnt,
+						   drop_rq_stats_desc, i);
 	return idx;
 }
 
@@ -199,16 +222,17 @@ static void mlx5e_grp_q_update_stats(struct mlx5e_priv *priv)
 {
 	struct mlx5e_qcounter_stats *qcnt = &priv->stats.qcnt;
 	u32 out[MLX5_ST_SZ_DW(query_q_counter_out)];
-	int err;
 
-	if (!priv->q_counter)
-		return;
-
-	err = mlx5_core_query_q_counter(priv->mdev, priv->q_counter, 0, out, sizeof(out));
-	if (err)
-		return;
-
-	qcnt->rx_out_of_buffer = MLX5_GET(query_q_counter_out, out, out_of_buffer);
+	if (priv->q_counter &&
+	    !mlx5_core_query_q_counter(priv->mdev, priv->q_counter, 0, out,
+				       sizeof(out)))
+		qcnt->rx_out_of_buffer = MLX5_GET(query_q_counter_out,
+						  out, out_of_buffer);
+	if (priv->drop_rq_q_counter &&
+	    !mlx5_core_query_q_counter(priv->mdev, priv->drop_rq_q_counter, 0,
+				       out, sizeof(out)))
+		qcnt->rx_if_down_packets = MLX5_GET(query_q_counter_out, out,
+						    out_of_buffer);
 }
 
 #define VNIC_ENV_OFF(c) MLX5_BYTE_OFF(query_vnic_env_out, c)
