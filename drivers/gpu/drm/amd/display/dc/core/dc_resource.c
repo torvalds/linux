@@ -35,6 +35,7 @@
 #include "core_types.h"
 #include "set_mode_types.h"
 #include "virtual/virtual_stream_encoder.h"
+#include "dpcd_defs.h"
 
 #include "dce80/dce80_resource.h"
 #include "dce100/dce100_resource.h"
@@ -2434,7 +2435,8 @@ static void set_vsc_info_packet(
 	unsigned int vscPacketRevision = 0;
 	unsigned int i;
 
-	if (stream->sink->link->psr_enabled) {
+	/*VSC packet set to 2 when DP revision >= 1.2*/
+	if (stream->sink->link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_12) {
 		vscPacketRevision = 2;
 	}
 
