@@ -917,6 +917,11 @@
 	};
 };
 
+&rwdt {
+	timeout-sec = <60>;
+	status = "okay";
+};
+
 &ssi1 {
 	shared-pin;
 };
