@@ -1503,10 +1503,6 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 	if (I915_SELFTEST_ONLY(engine->breadcrumbs.mock))
 		return true;
 
-	/* Interrupt/tasklet pending? */
-	if (test_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted))
-		return false;
-
 	/* Waiting to drain ELSP? */
 	if (READ_ONCE(engine->execlists.active))
 		return false;
