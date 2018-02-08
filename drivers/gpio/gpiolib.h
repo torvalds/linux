@@ -13,13 +13,13 @@
 #define GPIOLIB_H
 
 #include <linux/gpio/driver.h>
+#include <linux/gpio/consumer.h> /* for enum gpiod_flags */
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/cdev.h>
 
 enum of_gpio_flags;
-enum gpiod_flags;
 enum gpio_lookup_flags;
 struct acpi_device;
 
