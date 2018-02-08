@@ -2374,6 +2374,8 @@ static int ov5640_s_frame_interval(struct v4l2_subdev *sd,
 
 	sensor->current_fr = frame_rate;
 	sensor->frame_interval = fi->interval;
+	sensor->current_mode = ov5640_find_mode(sensor, frame_rate, mode->width,
+						mode->height, true);
 	sensor->pending_mode_change = true;
 out:
 	mutex_unlock(&sensor->lock);
