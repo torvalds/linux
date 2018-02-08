@@ -286,7 +286,6 @@ static int g2d_init_cmdlist(struct g2d_data *g2d)
 
 	node = kcalloc(G2D_CMDLIST_NUM, sizeof(*node), GFP_KERNEL);
 	if (!node) {
-		dev_err(dev, "failed to allocate memory\n");
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -1358,10 +1357,9 @@ int exynos_g2d_exec_ioctl(struct drm_device *drm_dev, void *data,
 		return -EFAULT;
 
 	runqueue_node = kmem_cache_alloc(g2d->runqueue_slab, GFP_KERNEL);
-	if (!runqueue_node) {
-		dev_err(dev, "failed to allocate memory\n");
+	if (!runqueue_node)
 		return -ENOMEM;
-	}
+
 	run_cmdlist = &runqueue_node->run_cmdlist;
 	event_list = &runqueue_node->event_list;
 	INIT_LIST_HEAD(run_cmdlist);
