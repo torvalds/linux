@@ -48,6 +48,18 @@
 /*******************************************************************************
  * Display Core Interfaces
  ******************************************************************************/
+struct dmcu_version {
+	unsigned int date;
+	unsigned int month;
+	unsigned int year;
+	unsigned int interface_version;
+};
+
+struct dc_versions {
+	const char *dc_ver;
+	struct dmcu_version dmcu_version;
+};
+
 struct dc_caps {
 	uint32_t max_streams;
 	uint32_t max_links;
@@ -221,6 +233,7 @@ struct dc_state;
 struct resource_pool;
 struct dce_hwseq;
 struct dc {
+	struct dc_versions versions;
 	struct dc_caps caps;
 	struct dc_cap_funcs cap_funcs;
 	struct dc_config config;

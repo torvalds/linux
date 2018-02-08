@@ -39,6 +39,7 @@
 #include "bios_parser_interface.h"
 #include "include/irq_service_interface.h"
 #include "transform.h"
+#include "dmcu.h"
 #include "dpp.h"
 #include "timing_generator.h"
 #include "virtual/virtual_link_encoder.h"
@@ -608,6 +609,12 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 	dc->caps.max_links = dc->link_count;
 	dc->caps.max_audios = dc->res_pool->audio_count;
 	dc->caps.linear_pitch_alignment = 64;
+
+	/* Populate versioning information */
+	dc->versions.dc_ver = DC_VER;
+
+	if (dc->res_pool->dmcu != NULL)
+		dc->versions.dmcu_version = dc->res_pool->dmcu->dmcu_version;
 
 	dc->config = init_params->flags;
 

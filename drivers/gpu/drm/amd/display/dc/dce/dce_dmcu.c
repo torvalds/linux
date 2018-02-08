@@ -360,7 +360,7 @@ static void dcn10_get_dmcu_version(struct dmcu *dmcu)
 	dmcu->dmcu_version.year = ((REG_READ(DMCU_IRAM_RD_DATA) << 8) |
 						REG_READ(DMCU_IRAM_RD_DATA));
 	dmcu->dmcu_version.month = REG_READ(DMCU_IRAM_RD_DATA);
-	dmcu->dmcu_version.day = REG_READ(DMCU_IRAM_RD_DATA);
+	dmcu->dmcu_version.date = REG_READ(DMCU_IRAM_RD_DATA);
 
 	/* Disable write access to IRAM to allow dynamic sleep state */
 	REG_UPDATE_2(DMCU_RAM_ACCESS_CTRL,
