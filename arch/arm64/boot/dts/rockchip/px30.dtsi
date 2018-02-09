@@ -1217,7 +1217,7 @@
 
 	rk_isp: rk_isp@ff4a0000 {
 		compatible = "rockchip,px30-isp", "rockchip,isp";
-		reg = <0x0 0xff4a0000 0x0 0x4000>;
+		reg = <0x0 0xff4a0000 0x0 0x8000>;
 		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>, <&cru SCLK_ISP>, <&cru SCLK_ISP>,
 			<&cru PCLK_ISP>, <&cru SCLK_CIF_OUT>, <&cru SCLK_CIF_OUT>, <&cru PCLK_MIPICSIPHY>;
