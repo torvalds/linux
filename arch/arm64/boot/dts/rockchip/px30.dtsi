@@ -550,7 +550,7 @@
 		#dma-cells = <2>;
 		dma-names = "tx", "rx";
 		pinctrl-names = "default";
-		pinctrl-0 = <&spi1_clk &spi1_csn &spi1_miso &spi1_mosi>;
+		pinctrl-0 = <&spi1_clk &spi1_csn0 &spi1_csn1 &spi1_miso &spi1_mosi>;
 		status = "disabled";
 	};
 
@@ -1770,9 +1770,14 @@
 					<3 RK_PB7 RK_FUNC_4 &pcfg_pull_up>;
 			};
 
-			spi1_csn: spi1-csn {
+			spi1_csn0: spi1-csn0 {
 				rockchip,pins =
 					<3 RK_PB1 RK_FUNC_4 &pcfg_pull_up>;
+			};
+
+			spi1_csn1: spi1-csn1 {
+				rockchip,pins =
+					<3 RK_PB2 RK_FUNC_2 &pcfg_pull_up>;
 			};
 
 			spi1_miso: spi1-miso {
