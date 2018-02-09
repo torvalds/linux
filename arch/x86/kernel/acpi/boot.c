@@ -36,6 +36,7 @@
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/efi-bgrt.h>
+#include <linux/serial_core.h>
 
 #include <asm/e820/api.h>
 #include <asm/irqdomain.h>
@@ -1625,6 +1626,8 @@ int __init acpi_boot_init(void)
 	if (!acpi_noirq)
 		x86_init.pci.init = pci_acpi_init;
 
+	/* Do not enable ACPI SPCR console by default */
+	acpi_parse_spcr(earlycon_acpi_spcr_enable, false);
 	return 0;
 }
 
