@@ -116,8 +116,6 @@
 				144000	1000000
 				>;
 			#cooling-cells = <2>;
-			cooling-min-level = <0>;
-			cooling-max-level = <6>;
 		};
 
 		cpu@1 {
