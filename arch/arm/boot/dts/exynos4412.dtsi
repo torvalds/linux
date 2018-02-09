@@ -45,8 +45,6 @@
 			clocks = <&clock CLK_ARM_CLK>;
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu0_opp_table>;
-			cooling-min-level = <13>;
-			cooling-max-level = <7>;
 			#cooling-cells = <2>; /* min followed by max */
 		};
 

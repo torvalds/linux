@@ -80,8 +80,6 @@
 				 300000  937500
 				 200000  925000
 			>;
-			cooling-min-level = <15>;
-			cooling-max-level = <9>;
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpu@1 {

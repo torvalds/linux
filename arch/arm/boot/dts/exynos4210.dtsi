@@ -52,8 +52,6 @@
 				400000	975000
 				200000	950000
 			>;
-			cooling-min-level = <4>;
-			cooling-max-level = <2>;
 			#cooling-cells = <2>; /* min followed by max */
 		};
 
