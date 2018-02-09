@@ -60,7 +60,7 @@ static int fd_net_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 		if (errno != EAGAIN) {
 			perror("write to fd netdev fails");
 		} else {
-			char tmp;
+			char tmp = 0;
 
 			nd_fd->poll_tx = 1;
 			if (write(nd_fd->pipe[1], &tmp, 1) <= 0)
@@ -84,7 +84,7 @@ static int fd_net_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 		if (errno != EAGAIN) {
 			perror("virtio net fd read");
 		} else {
-			char tmp;
+			char tmp = 0;
 
 			nd_fd->poll_rx = 1;
 			if (write(nd_fd->pipe[1], &tmp, 1) < 0)

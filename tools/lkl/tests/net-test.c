@@ -217,6 +217,16 @@ static int lkl_test_nd_add(void)
 	return TEST_SUCCESS;
 }
 
+static int lkl_test_nd_remove(void)
+{
+	if (cla.backend == BACKEND_NONE)
+		return TEST_SKIP;
+
+	lkl_netdev_remove(nd_id);
+	lkl_netdev_free(nd);
+	return TEST_SUCCESS;
+}
+
 LKL_TEST_CALL(start_kernel, lkl_start_kernel, 0, &lkl_host_ops,
 	"mem=16M loglevel=8 %s", cla.dhcp ? "ip=dhcp" : "");
 LKL_TEST_CALL(stop_kernel, lkl_sys_halt, 0);
@@ -285,6 +295,7 @@ struct lkl_test tests[] = {
 	LKL_TEST(set_gateway),
 	LKL_TEST(sleep),
 	LKL_TEST(icmp),
+	LKL_TEST(nd_remove),
 	LKL_TEST(stop_kernel),
 };
 
