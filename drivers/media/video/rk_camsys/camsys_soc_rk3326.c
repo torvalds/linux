@@ -194,6 +194,7 @@ int camsys_rk3326_cfg
 	}
 
 	case Isp_SoftRst: {/* ddl@rock-chips.com: v0.d.0 */
+#if 0
 		unsigned long reset;
 
 		reset = (unsigned long)cfg_para;
@@ -206,8 +207,10 @@ int camsys_rk3326_cfg
 			VI_IRCL));
 			camsys_trace(2, "Isp self soft rst: %ld", reset);
 			break;
+#else
+		break;
+#endif
 		}
-
 	default:
 	{
 		camsys_warn("cfg_cmd: 0x%x isn't support", cfg_cmd);
