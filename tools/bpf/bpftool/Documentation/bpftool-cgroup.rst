@@ -26,8 +26,8 @@ MAP COMMANDS
 |	**bpftool** **cgroup help**
 |
 |	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
-|	*ATTACH_TYPE* := { *ingress* | *egress* | *sock_create* | *sock_ops* | *device* }
-|	*ATTACH_FLAGS* := { *multi* | *override* }
+|	*ATTACH_TYPE* := { **ingress** | **egress** | **sock_create** | **sock_ops** | **device** }
+|	*ATTACH_FLAGS* := { **multi** | **override** }
 
 DESCRIPTION
 ===========

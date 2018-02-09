@@ -319,8 +319,8 @@ bpf_program__init(void *data, size_t size, char *section_name, int idx,
 
 	prog->section_name = strdup(section_name);
 	if (!prog->section_name) {
-		pr_warning("failed to alloc name for prog under section %s\n",
-			   section_name);
+		pr_warning("failed to alloc name for prog under section(%d) %s\n",
+			   idx, section_name);
 		goto errout;
 	}
 
@@ -742,6 +742,24 @@ bpf_object__init_maps(struct bpf_object *obj)
 	return 0;
 }
 
+static bool section_have_execinstr(struct bpf_object *obj, int idx)
+{
+	Elf_Scn *scn;
+	GElf_Shdr sh;
+
+	scn = elf_getscn(obj->efile.elf, idx);
+	if (!scn)
+		return false;
+
+	if (gelf_getshdr(scn, &sh) != &sh)
+		return false;
+
+	if (sh.sh_flags & SHF_EXECINSTR)
+		return true;
+
+	return false;
+}
+
 static int bpf_object__elf_collect(struct bpf_object *obj)
 {
 	Elf *elf = obj->efile.elf;
@@ -763,29 +781,29 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 
 		idx++;
 		if (gelf_getshdr(scn, &sh) != &sh) {
-			pr_warning("failed to get section header from %s\n",
-				   obj->path);
+			pr_warning("failed to get section(%d) header from %s\n",
+				   idx, obj->path);
 			err = -LIBBPF_ERRNO__FORMAT;
 			goto out;
 		}
 
 		name = elf_strptr(elf, ep->e_shstrndx, sh.sh_name);
 		if (!name) {
-			pr_warning("failed to get section name from %s\n",
-				   obj->path);
+			pr_warning("failed to get section(%d) name from %s\n",
+				   idx, obj->path);
 			err = -LIBBPF_ERRNO__FORMAT;
 			goto out;
 		}
 
 		data = elf_getdata(scn, 0);
 		if (!data) {
-			pr_warning("failed to get section data from %s(%s)\n",
-				   name, obj->path);
+			pr_warning("failed to get section(%d) data from %s(%s)\n",
+				   idx, name, obj->path);
 			err = -LIBBPF_ERRNO__FORMAT;
 			goto out;
 		}
-		pr_debug("section %s, size %ld, link %d, flags %lx, type=%d\n",
-			 name, (unsigned long)data->d_size,
+		pr_debug("section(%d) %s, size %ld, link %d, flags %lx, type=%d\n",
+			 idx, name, (unsigned long)data->d_size,
 			 (int)sh.sh_link, (unsigned long)sh.sh_flags,
 			 (int)sh.sh_type);
 
@@ -825,6 +843,14 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		} else if (sh.sh_type == SHT_REL) {
 			void *reloc = obj->efile.reloc;
 			int nr_reloc = obj->efile.nr_reloc + 1;
+			int sec = sh.sh_info; /* points to other section */
+
+			/* Only do relo for section with exec instructions */
+			if (!section_have_execinstr(obj, sec)) {
+				pr_debug("skip relo %s(%d) for section(%d)\n",
+					 name, idx, sec);
+				continue;
+			}
 
 			reloc = realloc(reloc,
 					sizeof(*obj->efile.reloc) * nr_reloc);
@@ -840,6 +866,8 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 				obj->efile.reloc[n].shdr = sh;
 				obj->efile.reloc[n].data = data;
 			}
+		} else {
+			pr_debug("skip section(%d) %s\n", idx, name);
 		}
 		if (err)
 			goto out;
@@ -1119,8 +1147,7 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 
 		prog = bpf_object__find_prog_by_idx(obj, idx);
 		if (!prog) {
-			pr_warning("relocation failed: no %d section\n",
-				   idx);
+			pr_warning("relocation failed: no section(%d)\n", idx);
 			return -LIBBPF_ERRNO__RELOC;
 		}
 
@@ -1816,12 +1843,17 @@ static const struct {
 	BPF_PROG_SEC("socket",		BPF_PROG_TYPE_SOCKET_FILTER),
 	BPF_PROG_SEC("kprobe/",		BPF_PROG_TYPE_KPROBE),
 	BPF_PROG_SEC("kretprobe/",	BPF_PROG_TYPE_KPROBE),
+	BPF_PROG_SEC("classifier",	BPF_PROG_TYPE_SCHED_CLS),
+	BPF_PROG_SEC("action",		BPF_PROG_TYPE_SCHED_ACT),
 	BPF_PROG_SEC("tracepoint/",	BPF_PROG_TYPE_TRACEPOINT),
 	BPF_PROG_SEC("xdp",		BPF_PROG_TYPE_XDP),
 	BPF_PROG_SEC("perf_event",	BPF_PROG_TYPE_PERF_EVENT),
 	BPF_PROG_SEC("cgroup/skb",	BPF_PROG_TYPE_CGROUP_SKB),
 	BPF_PROG_SEC("cgroup/sock",	BPF_PROG_TYPE_CGROUP_SOCK),
 	BPF_PROG_SEC("cgroup/dev",	BPF_PROG_TYPE_CGROUP_DEVICE),
+	BPF_PROG_SEC("lwt_in",		BPF_PROG_TYPE_LWT_IN),
+	BPF_PROG_SEC("lwt_out",		BPF_PROG_TYPE_LWT_OUT),
+	BPF_PROG_SEC("lwt_xmit",	BPF_PROG_TYPE_LWT_XMIT),
 	BPF_PROG_SEC("sockops",		BPF_PROG_TYPE_SOCK_OPS),
 	BPF_PROG_SEC("sk_skb",		BPF_PROG_TYPE_SK_SKB),
 };
