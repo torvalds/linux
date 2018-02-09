@@ -380,6 +380,7 @@ struct vop_win_phy {
 	struct vop_reg src_alpha_ctl;
 	struct vop_reg alpha_mode;
 	struct vop_reg alpha_en;
+	struct vop_reg alpha_pre_mul;
 	struct vop_reg global_alpha_val;
 	struct vop_reg key_color;
 	struct vop_reg key_en;
