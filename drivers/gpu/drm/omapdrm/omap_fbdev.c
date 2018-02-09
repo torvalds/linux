@@ -303,7 +303,8 @@ void omap_fbdev_free(struct drm_device *dev)
 	fbdev = to_omap_fbdev(priv->fbdev);
 
 	/* unpin the GEM object pinned in omap_fbdev_create() */
-	omap_gem_unpin(fbdev->bo);
+	if (fbdev->bo)
+		omap_gem_unpin(fbdev->bo);
 
 	/* this will free the backing object */
 	if (fbdev->fb)
