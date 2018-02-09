@@ -562,10 +562,12 @@ static int dwmac4_irq_status(struct mac_device_info *hw,
 			     struct stmmac_extra_stats *x)
 {
 	void __iomem *ioaddr = hw->pcsr;
-	u32 intr_status;
+	u32 intr_status = readl(ioaddr + GMAC_INT_STATUS);
+	u32 intr_enable = readl(ioaddr + GMAC_INT_EN);
 	int ret = 0;
 
-	intr_status = readl(ioaddr + GMAC_INT_STATUS);
+	/* Discard disabled bits */
+	intr_status &= intr_enable;
 
 	/* Not used events (e.g. MMC interrupts) are not handled. */
 	if ((intr_status & mmc_tx_irq))
