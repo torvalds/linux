@@ -120,32 +120,6 @@ void free_initmem(void)
 #define VECTORS	_ramvec
 #endif
 
-void __init print_memmap(void)
-{
-#define UL(x) ((unsigned long) (x))
-#define MLK(b, t) UL(b), UL(t), (UL(t) - UL(b)) >> 10
-#define MLM(b, t) UL(b), UL(t), (UL(t) - UL(b)) >> 20
-#define MLK_ROUNDUP(b, t) b, t, DIV_ROUND_UP(((t) - (b)), 1024)
-
-	pr_notice("Virtual kernel memory layout:\n"
-		"    vector  : 0x%08lx - 0x%08lx   (%4ld KiB)\n"
-		"    kmap    : 0x%08lx - 0x%08lx   (%4ld MiB)\n"
-		"    vmalloc : 0x%08lx - 0x%08lx   (%4ld MiB)\n"
-		"    lowmem  : 0x%08lx - 0x%08lx   (%4ld MiB)\n"
-		"      .init : 0x%p" " - 0x%p" "   (%4d KiB)\n"
-		"      .text : 0x%p" " - 0x%p" "   (%4d KiB)\n"
-		"      .data : 0x%p" " - 0x%p" "   (%4d KiB)\n"
-		"      .bss  : 0x%p" " - 0x%p" "   (%4d KiB)\n",
-		MLK(VECTORS, VECTORS + 256),
-		MLM(KMAP_START, KMAP_END),
-		MLM(VMALLOC_START, VMALLOC_END),
-		MLM(PAGE_OFFSET, (unsigned long)high_memory),
-		MLK_ROUNDUP(__init_begin, __init_end),
-		MLK_ROUNDUP(_stext, _etext),
-		MLK_ROUNDUP(_sdata, _edata),
-		MLK_ROUNDUP(__bss_start, __bss_stop));
-}
-
 static inline void init_pointer_tables(void)
 {
 #if defined(CONFIG_MMU) && !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
@@ -170,7 +144,6 @@ void __init mem_init(void)
 	free_all_bootmem();
 	init_pointer_tables();
 	mem_init_print_info(NULL);
-	print_memmap();
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
