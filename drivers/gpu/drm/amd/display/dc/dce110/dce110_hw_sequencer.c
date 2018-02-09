@@ -481,7 +481,7 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 
 	j = 0;
 	for (k = 0; k < (region_end - region_start); k++) {
-		increment = 32 / (1 << seg_distr[k]);
+		increment = NUMBER_SW_SEGMENTS / (1 << seg_distr[k]);
 		start_index = (region_start + k + MAX_LOW_POINT) *
 				NUMBER_SW_SEGMENTS;
 		for (i = start_index; i < start_index + NUMBER_SW_SEGMENTS;
