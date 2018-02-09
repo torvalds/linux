@@ -528,7 +528,7 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 	if ((c != '\n') && priv->esc_seq.len >= 0) {
 		/* yes, let's add this char to the buffer */
 		priv->esc_seq.buf[priv->esc_seq.len++] = c;
-		priv->esc_seq.buf[priv->esc_seq.len] = 0;
+		priv->esc_seq.buf[priv->esc_seq.len] = '\0';
 	} else {
 		/* aborts any previous escape sequence */
 		priv->esc_seq.len = -1;
@@ -537,7 +537,7 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 		case LCD_ESCAPE_CHAR:
 			/* start of an escape sequence */
 			priv->esc_seq.len = 0;
-			priv->esc_seq.buf[priv->esc_seq.len] = 0;
+			priv->esc_seq.buf[priv->esc_seq.len] = '\0';
 			break;
 		case '\b':
 			/* go back one char and clear it */
