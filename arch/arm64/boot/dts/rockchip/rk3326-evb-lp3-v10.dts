@@ -573,6 +573,7 @@
 			chrg_finish_cur = <300>;
 			virtual_power = <0>;
 			dc_det_adc = <0>;
+			extcon = <&u2phy>;
 		};
 
 		rk817_codec: rk817-codec {
