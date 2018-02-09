@@ -1037,6 +1037,10 @@ static void handle_hpd_rx_irq(void *param)
 			!is_mst_root_connector) {
 		/* Downstream Port status changed. */
 		if (dc_link_detect(dc_link, DETECT_REASON_HPDRX)) {
+
+			if (aconnector->fake_enable)
+				aconnector->fake_enable = false;
+
 			amdgpu_dm_update_connector_after_detect(aconnector);
 
 
