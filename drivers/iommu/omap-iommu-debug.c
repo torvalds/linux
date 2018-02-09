@@ -274,8 +274,8 @@ void omap_iommu_debugfs_add(struct omap_iommu *obj)
 	if (!obj->debug_dir)
 		return;
 
-	d = debugfs_create_u8("nr_tlb_entries", 0400, obj->debug_dir,
-			      (u8 *)&obj->nr_tlb_entries);
+	d = debugfs_create_u32("nr_tlb_entries", 0400, obj->debug_dir,
+			       &obj->nr_tlb_entries);
 	if (!d)
 		return;
 

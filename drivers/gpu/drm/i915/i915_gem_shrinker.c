@@ -363,13 +363,13 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 				I915_SHRINK_BOUND |
 				I915_SHRINK_UNBOUND |
 				I915_SHRINK_PURGEABLE);
-	if (freed < sc->nr_to_scan)
+	if (sc->nr_scanned < sc->nr_to_scan)
 		freed += i915_gem_shrink(i915,
 					 sc->nr_to_scan - sc->nr_scanned,
 					 &sc->nr_scanned,
 					 I915_SHRINK_BOUND |
 					 I915_SHRINK_UNBOUND);
-	if (freed < sc->nr_to_scan && current_is_kswapd()) {
+	if (sc->nr_scanned < sc->nr_to_scan && current_is_kswapd()) {
 		intel_runtime_pm_get(i915);
 		freed += i915_gem_shrink(i915,
 					 sc->nr_to_scan - sc->nr_scanned,

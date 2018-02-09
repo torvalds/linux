@@ -63,7 +63,7 @@ __do_hyp_init:
 	cmp	x0, #HVC_STUB_HCALL_NR
 	b.lo	__kvm_handle_stub_hvc
 
-	phys_to_ttbr x0, x4
+	phys_to_ttbr x4, x0
 	msr	ttbr0_el2, x4
 
 	mrs	x4, tcr_el1

@@ -617,7 +617,9 @@ retry:
 		       address, flags);
 		break;
 	default:
-		printk(KERN_ERR "UNKNOWN type=0x%02x]\n", type);
+		printk(KERN_ERR "UNKNOWN type=0x%02x event[0]=0x%08x "
+		       "event[1]=0x%08x event[2]=0x%08x event[3]=0x%08x\n",
+		       type, event[0], event[1], event[2], event[3]);
 	}
 
 	memset(__evt, 0, 4 * sizeof(u32));
@@ -1816,7 +1818,8 @@ static bool dma_ops_domain(struct protection_domain *domain)
 	return domain->flags & PD_DMA_OPS_MASK;
 }
 
-static void set_dte_entry(u16 devid, struct protection_domain *domain, bool ats)
+static void set_dte_entry(u16 devid, struct protection_domain *domain,
+			  bool ats, bool ppr)
 {
 	u64 pte_root = 0;
 	u64 flags = 0;
@@ -1832,6 +1835,13 @@ static void set_dte_entry(u16 devid, struct protection_domain *domain, bool ats)
 
 	if (ats)
 		flags |= DTE_FLAG_IOTLB;
+
+	if (ppr) {
+		struct amd_iommu *iommu = amd_iommu_rlookup_table[devid];
+
+		if (iommu_feature(iommu, FEATURE_EPHSUP))
+			pte_root |= 1ULL << DEV_ENTRY_PPR;
+	}
 
 	if (domain->flags & PD_IOMMUV2_MASK) {
 		u64 gcr3 = iommu_virt_to_phys(domain->gcr3_tbl);
@@ -1895,9 +1905,9 @@ static void do_attach(struct iommu_dev_data *dev_data,
 	domain->dev_cnt                 += 1;
 
 	/* Update device table */
-	set_dte_entry(dev_data->devid, domain, ats);
+	set_dte_entry(dev_data->devid, domain, ats, dev_data->iommu_v2);
 	if (alias != dev_data->devid)
-		set_dte_entry(alias, domain, ats);
+		set_dte_entry(alias, domain, ats, dev_data->iommu_v2);
 
 	device_flush_dte(dev_data);
 }
@@ -2276,13 +2286,15 @@ static void update_device_table(struct protection_domain *domain)
 	struct iommu_dev_data *dev_data;
 
 	list_for_each_entry(dev_data, &domain->dev_list, list) {
-		set_dte_entry(dev_data->devid, domain, dev_data->ats.enabled);
+		set_dte_entry(dev_data->devid, domain, dev_data->ats.enabled,
+			      dev_data->iommu_v2);
 
 		if (dev_data->devid == dev_data->alias)
 			continue;
 
 		/* There is an alias, update device table entry for it */
-		set_dte_entry(dev_data->alias, domain, dev_data->ats.enabled);
+		set_dte_entry(dev_data->alias, domain, dev_data->ats.enabled,
+			      dev_data->iommu_v2);
 	}
 }
 

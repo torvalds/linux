@@ -56,38 +56,6 @@ int intel_vgpu_gpa_to_mmio_offset(struct intel_vgpu *vgpu, u64 gpa)
 	(reg >= gvt->device_info.gtt_start_offset \
 	 && reg < gvt->device_info.gtt_start_offset + gvt_ggtt_sz(gvt))
 
-static bool vgpu_gpa_is_aperture(struct intel_vgpu *vgpu, uint64_t gpa)
-{
-	u64 aperture_gpa = intel_vgpu_get_bar_gpa(vgpu, PCI_BASE_ADDRESS_2);
-	u64 aperture_sz = vgpu_aperture_sz(vgpu);
-
-	return gpa >= aperture_gpa && gpa < aperture_gpa + aperture_sz;
-}
-
-static int vgpu_aperture_rw(struct intel_vgpu *vgpu, uint64_t gpa,
-			    void *pdata, unsigned int size, bool is_read)
-{
-	u64 aperture_gpa = intel_vgpu_get_bar_gpa(vgpu, PCI_BASE_ADDRESS_2);
-	u64 offset = gpa - aperture_gpa;
-
-	if (!vgpu_gpa_is_aperture(vgpu, gpa + size - 1)) {
-		gvt_vgpu_err("Aperture rw out of range, offset %llx, size %d\n",
-			     offset, size);
-		return -EINVAL;
-	}
-
-	if (!vgpu->gm.aperture_va) {
-		gvt_vgpu_err("BAR is not enabled\n");
-		return -ENXIO;
-	}
-
-	if (is_read)
-		memcpy(pdata, vgpu->gm.aperture_va + offset, size);
-	else
-		memcpy(vgpu->gm.aperture_va + offset, pdata, size);
-	return 0;
-}
-
 static void failsafe_emulate_mmio_rw(struct intel_vgpu *vgpu, uint64_t pa,
 		void *p_data, unsigned int bytes, bool read)
 {
@@ -143,11 +111,6 @@ int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, uint64_t pa,
 		return 0;
 	}
 	mutex_lock(&gvt->lock);
-
-	if (vgpu_gpa_is_aperture(vgpu, pa)) {
-		ret = vgpu_aperture_rw(vgpu, pa, p_data, bytes, true);
-		goto out;
-	}
 
 	offset = intel_vgpu_gpa_to_mmio_offset(vgpu, pa);
 
@@ -221,11 +184,6 @@ int intel_vgpu_emulate_mmio_write(struct intel_vgpu *vgpu, uint64_t pa,
 	}
 
 	mutex_lock(&gvt->lock);
-
-	if (vgpu_gpa_is_aperture(vgpu, pa)) {
-		ret = vgpu_aperture_rw(vgpu, pa, p_data, bytes, false);
-		goto out;
-	}
 
 	offset = intel_vgpu_gpa_to_mmio_offset(vgpu, pa);
 

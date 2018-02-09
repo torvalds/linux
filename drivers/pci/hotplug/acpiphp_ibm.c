@@ -385,6 +385,7 @@ static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
 		u32 lvl, void *context, void **rv)
 {
 	acpi_handle *phandle = (acpi_handle *)context;
+	unsigned long long current_status = 0;
 	acpi_status status;
 	struct acpi_device_info *info;
 	int retval = 0;
@@ -396,7 +397,9 @@ static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
 		return retval;
 	}
 
-	if (info->current_status && (info->valid & ACPI_VALID_HID) &&
+	acpi_bus_get_status_handle(handle, &current_status);
+
+	if (current_status && (info->valid & ACPI_VALID_HID) &&
 			(!strcmp(info->hardware_id.string, IBM_HARDWARE_ID1) ||
 			 !strcmp(info->hardware_id.string, IBM_HARDWARE_ID2))) {
 		pr_debug("found hardware: %s, handle: %p\n",

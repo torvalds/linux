@@ -1363,14 +1363,14 @@ nfsd4_layoutget(struct svc_rqst *rqstp,
 	const struct nfsd4_layout_ops *ops;
 	struct nfs4_layout_stateid *ls;
 	__be32 nfserr;
-	int accmode;
+	int accmode = NFSD_MAY_READ_IF_EXEC;
 
 	switch (lgp->lg_seg.iomode) {
 	case IOMODE_READ:
-		accmode = NFSD_MAY_READ;
+		accmode |= NFSD_MAY_READ;
 		break;
 	case IOMODE_RW:
-		accmode = NFSD_MAY_READ | NFSD_MAY_WRITE;
+		accmode |= NFSD_MAY_READ | NFSD_MAY_WRITE;
 		break;
 	default:
 		dprintk("%s: invalid iomode %d\n",
@@ -1702,6 +1702,9 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 	 */
 	status = nfserr_minor_vers_mismatch;
 	if (nfsd_minorversion(args->minorversion, NFSD_TEST) <= 0)
+		goto out;
+	status = nfserr_resource;
+	if (args->opcnt > NFSD_MAX_OPS_PER_COMPOUND)
 		goto out;
 
 	status = nfs41_check_op_ordering(args);

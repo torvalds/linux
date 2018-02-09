@@ -119,7 +119,7 @@ static DEFINE_PER_CPU(struct cpc_desc *, cpc_desc_ptr);
  * to PCC commands. Keeping it high enough to cover emulators where
  * the processors run painfully slow.
  */
-#define NUM_RETRIES 500
+#define NUM_RETRIES 500ULL
 
 struct cppc_attr {
 	struct attribute attr;

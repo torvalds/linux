@@ -84,12 +84,11 @@ void alloc_ring(void)
 		perror("Unable to allocate ring buffer.\n");
 		exit(3);
 	}
-	event = malloc(sizeof *event);
+	event = calloc(1, sizeof(*event));
 	if (!event) {
 		perror("Unable to allocate event buffer.\n");
 		exit(3);
 	}
-	memset(event, 0, sizeof *event);
 	guest.avail_idx = 0;
 	guest.kicked_avail_idx = -1;
 	guest.last_used_idx = 0;
@@ -102,12 +101,11 @@ void alloc_ring(void)
 		ring[i] = desc;
 	}
 	guest.num_free = ring_size;
-	data = malloc(ring_size * sizeof *data);
+	data = calloc(ring_size, sizeof(*data));
 	if (!data) {
 		perror("Unable to allocate data buffer.\n");
 		exit(3);
 	}
-	memset(data, 0, ring_size * sizeof *data);
 }
 
 /* guest side */
@@ -188,16 +186,18 @@ bool enable_call()
 
 void kick_available(void)
 {
+	bool need;
+
 	/* Flush in previous flags write */
 	/* Barrier C (for pairing) */
 	smp_mb();
-	if (!need_event(event->kick_index,
-			guest.avail_idx,
-			guest.kicked_avail_idx))
-		return;
+	need = need_event(event->kick_index,
+			   guest.avail_idx,
+			   guest.kicked_avail_idx);
 
 	guest.kicked_avail_idx = guest.avail_idx;
-	kick();
+	if (need)
+		kick();
 }
 
 /* host side */
@@ -253,14 +253,18 @@ bool use_buf(unsigned *lenp, void **bufp)
 
 void call_used(void)
 {
+	bool need;
+
 	/* Flush in previous flags write */
 	/* Barrier D (for pairing) */
 	smp_mb();
-	if (!need_event(event->call_index,
+
+	need = need_event(event->call_index,
 			host.used_idx,
-			host.called_used_idx))
-		return;
+			host.called_used_idx);
 
 	host.called_used_idx = host.used_idx;
-	call();
+
+	if (need)
+		call();
 }

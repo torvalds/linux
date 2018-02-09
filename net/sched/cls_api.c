@@ -381,8 +381,8 @@ static int tcf_block_insert(struct tcf_block *block, struct net *net,
 	struct tcf_net *tn = net_generic(net, tcf_net_id);
 	int err;
 
-	err = idr_alloc_ext(&tn->idr, block, NULL, block_index,
-			    block_index + 1, GFP_KERNEL);
+	err = idr_alloc_u32(&tn->idr, block, &block_index, block_index,
+			    GFP_KERNEL);
 	if (err)
 		return err;
 	block->index = block_index;
@@ -393,7 +393,7 @@ static void tcf_block_remove(struct tcf_block *block, struct net *net)
 {
 	struct tcf_net *tn = net_generic(net, tcf_net_id);
 
-	idr_remove_ext(&tn->idr, block->index);
+	idr_remove(&tn->idr, block->index);
 }
 
 static struct tcf_block *tcf_block_create(struct net *net, struct Qdisc *q,
@@ -434,7 +434,7 @@ static struct tcf_block *tcf_block_lookup(struct net *net, u32 block_index)
 {
 	struct tcf_net *tn = net_generic(net, tcf_net_id);
 
-	return idr_find_ext(&tn->idr, block_index);
+	return idr_find(&tn->idr, block_index);
 }
 
 static struct tcf_chain *tcf_block_chain_zero(struct tcf_block *block)

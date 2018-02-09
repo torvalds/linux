@@ -20,10 +20,6 @@ typedef void (*vhost_work_fn_t)(struct vhost_work *work);
 struct vhost_work {
 	struct llist_node	  node;
 	vhost_work_fn_t		  fn;
-	wait_queue_head_t	  done;
-	int			  flushing;
-	unsigned		  queue_seq;
-	unsigned		  done_seq;
 	unsigned long		  flags;
 };
 
@@ -96,8 +92,6 @@ struct vhost_virtqueue {
 	struct vring_used __user *used;
 	const struct vhost_umem_node *meta_iotlb[VHOST_NUM_ADDRS];
 	struct file *kick;
-	struct file *call;
-	struct file *error;
 	struct eventfd_ctx *call_ctx;
 	struct eventfd_ctx *error_ctx;
 	struct eventfd_ctx *log_ctx;
@@ -163,7 +157,6 @@ struct vhost_dev {
 	struct mutex mutex;
 	struct vhost_virtqueue **vqs;
 	int nvqs;
-	struct file *log_file;
 	struct eventfd_ctx *log_ctx;
 	struct llist_head work_list;
 	struct task_struct *worker;
@@ -181,7 +174,7 @@ bool vhost_dev_has_owner(struct vhost_dev *dev);
 long vhost_dev_check_owner(struct vhost_dev *);
 struct vhost_umem *vhost_dev_reset_owner_prepare(void);
 void vhost_dev_reset_owner(struct vhost_dev *, struct vhost_umem *);
-void vhost_dev_cleanup(struct vhost_dev *, bool locked);
+void vhost_dev_cleanup(struct vhost_dev *);
 void vhost_dev_stop(struct vhost_dev *);
 long vhost_dev_ioctl(struct vhost_dev *, unsigned int ioctl, void __user *argp);
 long vhost_vring_ioctl(struct vhost_dev *d, int ioctl, void __user *argp);

@@ -118,6 +118,10 @@ static bool pgattr_change_is_safe(u64 old, u64 new)
 	if ((old | new) & PTE_CONT)
 		return false;
 
+	/* Transitioning from Global to Non-Global is safe */
+	if (((old ^ new) == PTE_NG) && (new & PTE_NG))
+		return true;
+
 	return ((old ^ new) & ~mask) == 0;
 }
 

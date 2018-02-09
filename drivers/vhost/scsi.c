@@ -586,8 +586,7 @@ vhost_scsi_get_tag(struct vhost_virtqueue *vq, struct vhost_scsi_tpg *tpg,
 	sg = cmd->tvc_sgl;
 	prot_sg = cmd->tvc_prot_sgl;
 	pages = cmd->tvc_upages;
-	memset(cmd, 0, sizeof(struct vhost_scsi_cmd));
-
+	memset(cmd, 0, sizeof(*cmd));
 	cmd->tvc_sgl = sg;
 	cmd->tvc_prot_sgl = prot_sg;
 	cmd->tvc_upages = pages;
@@ -1420,7 +1419,7 @@ static int vhost_scsi_release(struct inode *inode, struct file *f)
 	mutex_unlock(&vs->dev.mutex);
 	vhost_scsi_clear_endpoint(vs, &t);
 	vhost_dev_stop(&vs->dev);
-	vhost_dev_cleanup(&vs->dev, false);
+	vhost_dev_cleanup(&vs->dev);
 	/* Jobs can re-queue themselves in evt kick handler. Do extra flush. */
 	vhost_scsi_flush(vs);
 	kfree(vs->dev.vqs);
@@ -1725,7 +1724,7 @@ static int vhost_scsi_make_nexus(struct vhost_scsi_tpg *tpg,
 		return -EEXIST;
 	}
 
-	tv_nexus = kzalloc(sizeof(struct vhost_scsi_nexus), GFP_KERNEL);
+	tv_nexus = kzalloc(sizeof(*tv_nexus), GFP_KERNEL);
 	if (!tv_nexus) {
 		mutex_unlock(&tpg->tv_tpg_mutex);
 		pr_err("Unable to allocate struct vhost_scsi_nexus\n");
@@ -1926,7 +1925,7 @@ vhost_scsi_make_tpg(struct se_wwn *wwn,
 	if (kstrtou16(name + 5, 10, &tpgt) || tpgt >= VHOST_SCSI_MAX_TARGET)
 		return ERR_PTR(-EINVAL);
 
-	tpg = kzalloc(sizeof(struct vhost_scsi_tpg), GFP_KERNEL);
+	tpg = kzalloc(sizeof(*tpg), GFP_KERNEL);
 	if (!tpg) {
 		pr_err("Unable to allocate struct vhost_scsi_tpg");
 		return ERR_PTR(-ENOMEM);
@@ -1980,7 +1979,7 @@ vhost_scsi_make_tport(struct target_fabric_configfs *tf,
 	/* if (vhost_scsi_parse_wwn(name, &wwpn, 1) < 0)
 		return ERR_PTR(-EINVAL); */
 
-	tport = kzalloc(sizeof(struct vhost_scsi_tport), GFP_KERNEL);
+	tport = kzalloc(sizeof(*tport), GFP_KERNEL);
 	if (!tport) {
 		pr_err("Unable to allocate struct vhost_scsi_tport");
 		return ERR_PTR(-ENOMEM);
