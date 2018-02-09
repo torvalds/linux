@@ -1018,7 +1018,7 @@ static int amdgpu_ttm_tt_populate(struct ttm_tt *ttm,
 	}
 
 #ifdef CONFIG_SWIOTLB
-	if (swiotlb_nr_tbl()) {
+	if (adev->need_swiotlb && swiotlb_nr_tbl()) {
 		return ttm_dma_populate(&gtt->ttm, adev->dev, ctx);
 	}
 #endif
@@ -1045,7 +1045,7 @@ static void amdgpu_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	adev = amdgpu_ttm_adev(ttm->bdev);
 
 #ifdef CONFIG_SWIOTLB
-	if (swiotlb_nr_tbl()) {
+	if (adev->need_swiotlb && swiotlb_nr_tbl()) {
 		ttm_dma_unpopulate(&gtt->ttm, adev->dev);
 		return;
 	}
@@ -2010,7 +2010,7 @@ static int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 	count = ARRAY_SIZE(amdgpu_ttm_debugfs_list);
 
 #ifdef CONFIG_SWIOTLB
-	if (!swiotlb_nr_tbl())
+	if (!(adev->need_swiotlb && swiotlb_nr_tbl()))
 		--count;
 #endif
 

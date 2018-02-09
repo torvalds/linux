@@ -22,6 +22,7 @@
  */
 #include <linux/firmware.h>
 #include <drm/drmP.h>
+#include <drm/drm_cache.h>
 #include "amdgpu.h"
 #include "cikd.h"
 #include "cik.h"
@@ -999,6 +1000,7 @@ static int gmc_v7_0_sw_init(void *handle)
 		pci_set_consistent_dma_mask(adev->pdev, DMA_BIT_MASK(32));
 		pr_warn("amdgpu: No coherent DMA available\n");
 	}
+	adev->need_swiotlb = drm_get_max_iomem() > ((u64)1 << dma_bits);
 
 	r = gmc_v7_0_init_microcode(adev);
 	if (r) {
