@@ -945,6 +945,10 @@ static int dwc3_rockchip_resume(struct device *dev)
 	struct dwc3_rockchip *rockchip = dev_get_drvdata(dev);
 	struct dwc3 *dwc = rockchip->dwc;
 
+	reset_control_assert(rockchip->otg_rst);
+	udelay(1);
+	reset_control_deassert(rockchip->otg_rst);
+
 	rockchip->suspended = false;
 
 	if (rockchip->edev)
