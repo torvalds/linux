@@ -256,7 +256,7 @@ static int cnl_max_source_rate(struct intel_dp *intel_dp)
 	if (IS_CNL_WITH_PORT_F(dev_priv))
 		return 810000;
 
-	/* For other SKUs, max rate on ports A and B is 5.4G */
+	/* For other SKUs, max rate on ports A and D is 5.4G */
 	if (port == PORT_A || port == PORT_D)
 		return 540000;
 
