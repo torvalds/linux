@@ -363,7 +363,7 @@ void __init kaiser_init(void)
 	kaiser_add_user_map_ptrs_early(__entry_text_start, __entry_text_end,
 				       __PAGE_KERNEL_RX);
 
-#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	kaiser_add_user_map_ptrs_early(__irqentry_text_start,
 				       __irqentry_text_end,
 				       __PAGE_KERNEL_RX);
