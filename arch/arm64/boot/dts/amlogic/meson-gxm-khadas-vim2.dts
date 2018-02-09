@@ -208,14 +208,10 @@
 };
 
 &cpu0 {
-	cooling-min-level = <0>;
-	cooling-max-level = <6>;
 	#cooling-cells = <2>;
 };
 
 &cpu4 {
-	cooling-min-level = <0>;
-	cooling-max-level = <4>;
 	#cooling-cells = <2>;
 };
 
