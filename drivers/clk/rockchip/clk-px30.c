@@ -136,7 +136,6 @@ PNAME(mux_armclk_p)		= { "apll_core", "gpll_core" };
 PNAME(mux_ddrphy_p)		= { "dpll_ddr", "gpll_ddr" };
 PNAME(mux_ddrstdby_p)		= { "clk_ddrphy1x", "clk_stdby_2wrap" };
 PNAME(mux_4plls_p)		= { "gpll", "cpll", "usb480m", "npll" };
-PNAME(mux_clk_gpu_p)		= { "clk_gpu_div", "clk_gpu_divnp5" };
 PNAME(mux_cpll_npll_p)		= { "cpll", "npll" };
 PNAME(mux_gpll_cpll_p)		= { "gpll", "cpll" };
 PNAME(mux_gpll_npll_p)		= { "gpll", "npll" };
@@ -342,16 +341,12 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	COMPOSITE_NODIV(0, "clk_gpu_src", mux_4plls_p, 0,
 			PX30_CLKSEL_CON(1), 6, 2, MFLAGS,
 			PX30_CLKGATE_CON(0), 8, GFLAGS),
-	COMPOSITE_NOMUX(0, "clk_gpu_div", "clk_gpu_src", 0,
+	COMPOSITE_NOMUX(0, "clk_gpu_div", "clk_gpu_src", CLK_SET_RATE_PARENT,
 			PX30_CLKSEL_CON(1), 0, 4, DFLAGS,
 			PX30_CLKGATE_CON(0), 12, GFLAGS),
-	COMPOSITE_NOMUX_DIVTBL(0, "clk_gpu_divnp5", "clk_gpu_src", 0,
-			PX30_CLKSEL_CON(1), 8, 4, DFLAGS | CLK_DIVIDER_ALLOW_ZERO, div_np5_t,
-			PX30_CLKGATE_CON(0), 9, GFLAGS),
-	COMPOSITE_NODIV(0, "clk_gpu_pre", mux_clk_gpu_p,  CLK_SET_RATE_PARENT,
-			PX30_CLKSEL_CON(1), 15, 1, MFLAGS,
+	GATE(ACLK_GPU, "clk_gpu_pre", "clk_gpu_div", 0,
 			PX30_CLKGATE_CON(0), 10, GFLAGS),
-	COMPOSITE_NOMUX(ACLK_GPU, "aclk_gpu", "clk_gpu_pre", CLK_SET_RATE_PARENT,
+	COMPOSITE_NOMUX(0, "aclk_gpu", "clk_gpu_pre", CLK_IGNORE_UNUSED,
 			PX30_CLKSEL_CON(1), 13, 2, DFLAGS,
 			PX30_CLKGATE_CON(17), 10, GFLAGS),
 	GATE(0, "aclk_gpu_niu", "aclk_gpu", CLK_IGNORE_UNUSED,
@@ -1019,7 +1014,6 @@ static const char *const px30_critical_clocks[] __initconst = {
 	"aclk_peri_pre",
 	"hclk_peri_pre",
 	"aclk_gpu_niu",
-	"clk_gpu_divnp5",
 	"pclk_top_pre",
 };
 
