@@ -1419,10 +1419,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		hdrs += 2;
 	}
 	/* determine if l2/3/4 headers are sent to firmware */
-	if ((*hdrs >> 7) & 1 &&
-	    (skb->protocol == htons(ETH_P_IP) ||
-	     skb->protocol == htons(ETH_P_IPV6) ||
-	     skb->protocol == htons(ETH_P_ARP))) {
+	if ((*hdrs >> 7) & 1) {
 		build_hdr_descs_arr(tx_buff, &num_entries, *hdrs);
 		tx_crq.v1.n_crq_elem = num_entries;
 		tx_buff->indir_arr[0] = tx_crq;
