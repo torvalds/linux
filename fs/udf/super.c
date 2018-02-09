@@ -68,9 +68,7 @@ enum {
 	VDS_POS_PRIMARY_VOL_DESC,
 	VDS_POS_UNALLOC_SPACE_DESC,
 	VDS_POS_LOGICAL_VOL_DESC,
-	VDS_POS_PARTITION_DESC,
 	VDS_POS_IMP_USE_VOL_DESC,
-	VDS_POS_TERMINATING_DESC,
 	VDS_POS_LENGTH
 };
 
@@ -1593,18 +1591,57 @@ static void udf_load_logicalvolint(struct super_block *sb, struct kernel_extent_
 	sbi->s_lvid_bh = NULL;
 }
 
-static struct udf_vds_record *get_volume_descriptor_record(
-		struct udf_vds_record *vds, uint16_t ident)
+/*
+ * Step for reallocation of table of partition descriptor sequence numbers.
+ * Must be power of 2.
+ */
+#define PART_DESC_ALLOC_STEP 32
+
+struct desc_seq_scan_data {
+	struct udf_vds_record vds[VDS_POS_LENGTH];
+	unsigned int size_part_descs;
+	struct udf_vds_record *part_descs_loc;
+};
+
+static struct udf_vds_record *handle_partition_descriptor(
+				struct buffer_head *bh,
+				struct desc_seq_scan_data *data)
+{
+	struct partitionDesc *desc = (struct partitionDesc *)bh->b_data;
+	int partnum;
+
+	partnum = le16_to_cpu(desc->partitionNumber);
+	if (partnum >= data->size_part_descs) {
+		struct udf_vds_record *new_loc;
+		unsigned int new_size = ALIGN(partnum, PART_DESC_ALLOC_STEP);
+
+		new_loc = kzalloc(sizeof(*new_loc) * new_size, GFP_KERNEL);
+		if (!new_loc)
+			return ERR_PTR(-ENOMEM);
+		memcpy(new_loc, data->part_descs_loc,
+		       data->size_part_descs * sizeof(*new_loc));
+		kfree(data->part_descs_loc);
+		data->part_descs_loc = new_loc;
+		data->size_part_descs = new_size;
+	}
+	return &(data->part_descs_loc[partnum]);
+}
+
+
+static struct udf_vds_record *get_volume_descriptor_record(uint16_t ident,
+		struct buffer_head *bh, struct desc_seq_scan_data *data)
 {
 	switch (ident) {
 	case TAG_IDENT_PVD: /* ISO 13346 3/10.1 */
-		return &vds[VDS_POS_PRIMARY_VOL_DESC];
+		return &(data->vds[VDS_POS_PRIMARY_VOL_DESC]);
 	case TAG_IDENT_IUVD: /* ISO 13346 3/10.4 */
-		return &vds[VDS_POS_IMP_USE_VOL_DESC];
+		return &(data->vds[VDS_POS_IMP_USE_VOL_DESC]);
 	case TAG_IDENT_LVD: /* ISO 13346 3/10.6 */
-		return &vds[VDS_POS_LOGICAL_VOL_DESC];
+		return &(data->vds[VDS_POS_LOGICAL_VOL_DESC]);
 	case TAG_IDENT_USD: /* ISO 13346 3/10.8 */
-		return &vds[VDS_POS_UNALLOC_SPACE_DESC];
+		return &(data->vds[VDS_POS_UNALLOC_SPACE_DESC]);
+	case TAG_IDENT_PD: /* ISO 13346 3/10.5 */
+		return handle_partition_descriptor(bh, data);
 	}
 	return NULL;
 }
@@ -1624,7 +1661,6 @@ static noinline int udf_process_sequence(
 		struct kernel_lb_addr *fileset)
 {
 	struct buffer_head *bh = NULL;
-	struct udf_vds_record vds[VDS_POS_LENGTH];
 	struct udf_vds_record *curr;
 	struct generic_desc *gd;
 	struct volDescPtr *vdp;
@@ -1633,8 +1669,15 @@ static noinline int udf_process_sequence(
 	uint16_t ident;
 	int ret;
 	unsigned int indirections = 0;
+	struct desc_seq_scan_data data;
+	unsigned int i;
 
-	memset(vds, 0, sizeof(struct udf_vds_record) * VDS_POS_LENGTH);
+	memset(data.vds, 0, sizeof(struct udf_vds_record) * VDS_POS_LENGTH);
+	data.size_part_descs = PART_DESC_ALLOC_STEP;
+	data.part_descs_loc = kzalloc(sizeof(*data.part_descs_loc) *
+					data.size_part_descs, GFP_KERNEL);
+	if (!data.part_descs_loc)
+		return -ENOMEM;
 
 	/*
 	 * Read the main descriptor sequence and find which descriptors
@@ -1672,19 +1715,21 @@ static noinline int udf_process_sequence(
 		case TAG_IDENT_IUVD: /* ISO 13346 3/10.4 */
 		case TAG_IDENT_LVD: /* ISO 13346 3/10.6 */
 		case TAG_IDENT_USD: /* ISO 13346 3/10.8 */
-			curr = get_volume_descriptor_record(vds, ident);
+		case TAG_IDENT_PD: /* ISO 13346 3/10.5 */
+			curr = get_volume_descriptor_record(ident, bh, &data);
+			if (IS_ERR(curr)) {
+				brelse(bh);
+				return PTR_ERR(curr);
+			}
+			/* Descriptor we don't care about? */
+			if (!curr)
+				break;
 			if (vdsn >= curr->volDescSeqNum) {
 				curr->volDescSeqNum = vdsn;
 				curr->block = block;
 			}
 			break;
-		case TAG_IDENT_PD: /* ISO 13346 3/10.5 */
-			curr = &vds[VDS_POS_PARTITION_DESC];
-			if (!curr->block)
-				curr->block = block;
-			break;
 		case TAG_IDENT_TD: /* ISO 13346 3/10.9 */
-			vds[VDS_POS_TERMINATING_DESC].block = block;
 			done = true;
 			break;
 		}
@@ -1694,31 +1739,27 @@ static noinline int udf_process_sequence(
 	 * Now read interesting descriptors again and process them
 	 * in a suitable order
 	 */
-	if (!vds[VDS_POS_PRIMARY_VOL_DESC].block) {
+	if (!data.vds[VDS_POS_PRIMARY_VOL_DESC].block) {
 		udf_err(sb, "Primary Volume Descriptor not found!\n");
 		return -EAGAIN;
 	}
-	ret = udf_load_pvoldesc(sb, vds[VDS_POS_PRIMARY_VOL_DESC].block);
+	ret = udf_load_pvoldesc(sb, data.vds[VDS_POS_PRIMARY_VOL_DESC].block);
 	if (ret < 0)
 		return ret;
 
-	if (vds[VDS_POS_LOGICAL_VOL_DESC].block) {
+	if (data.vds[VDS_POS_LOGICAL_VOL_DESC].block) {
 		ret = udf_load_logicalvol(sb,
-					  vds[VDS_POS_LOGICAL_VOL_DESC].block,
-					  fileset);
+				data.vds[VDS_POS_LOGICAL_VOL_DESC].block,
+				fileset);
 		if (ret < 0)
 			return ret;
 	}
 
-	if (vds[VDS_POS_PARTITION_DESC].block) {
-		/*
-		 * We rescan the whole descriptor sequence to find
-		 * partition descriptor blocks and process them.
-		 */
-		for (block = vds[VDS_POS_PARTITION_DESC].block;
-		     block < vds[VDS_POS_TERMINATING_DESC].block;
-		     block++) {
-			ret = udf_load_partdesc(sb, block);
+	/* Now handle prevailing Partition Descriptors */
+	for (i = 0; i < data.size_part_descs; i++) {
+		if (data.part_descs_loc[i].block) {
+			ret = udf_load_partdesc(sb,
+						data.part_descs_loc[i].block);
 			if (ret < 0)
 				return ret;
 		}
