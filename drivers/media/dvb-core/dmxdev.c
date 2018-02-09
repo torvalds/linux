@@ -128,11 +128,7 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 	struct dvb_device *dvbdev = file->private_data;
 	struct dmxdev *dmxdev = dvbdev->priv;
 	struct dmx_frontend *front;
-#ifndef CONFIG_DVB_MMAP
 	bool need_ringbuffer = false;
-#else
-	const bool need_ringbuffer = true;
-#endif
 
 	dprintk("%s\n", __func__);
 
@@ -144,17 +140,31 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 	}
 
-#ifndef CONFIG_DVB_MMAP
+	dmxdev->may_do_mmap = 0;
+
+	/*
+	 * The logic here is a little tricky due to the ifdef.
+	 *
+	 * The ringbuffer is used for both read and mmap.
+	 *
+	 * It is not needed, however, on two situations:
+	 *	- Write devices (access with O_WRONLY);
+	 *	- For duplex device nodes, opened with O_RDWR.
+	 */
+
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
 		need_ringbuffer = true;
-#else
-	if ((file->f_flags & O_ACCMODE) == O_RDWR) {
+	else if ((file->f_flags & O_ACCMODE) == O_RDWR) {
 		if (!(dmxdev->capabilities & DMXDEV_CAP_DUPLEX)) {
+#ifdef CONFIG_DVB_MMAP
+			dmxdev->may_do_mmap = 1;
+			need_ringbuffer = true;
+#else
 			mutex_unlock(&dmxdev->mutex);
 			return -EOPNOTSUPP;
+#endif
 		}
 	}
-#endif
 
 	if (need_ringbuffer) {
 		void *mem;
@@ -169,8 +179,9 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 			return -ENOMEM;
 		}
 		dvb_ringbuffer_init(&dmxdev->dvr_buffer, mem, DVR_BUFFER_SIZE);
-		dvb_vb2_init(&dmxdev->dvr_vb2_ctx, "dvr",
-			     file->f_flags & O_NONBLOCK);
+		if (dmxdev->may_do_mmap)
+			dvb_vb2_init(&dmxdev->dvr_vb2_ctx, "dvr",
+				     file->f_flags & O_NONBLOCK);
 		dvbdev->readers--;
 	}
 
@@ -200,11 +211,6 @@ static int dvb_dvr_release(struct inode *inode, struct file *file)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dmxdev *dmxdev = dvbdev->priv;
-#ifndef CONFIG_DVB_MMAP
-	bool need_ringbuffer = false;
-#else
-	const bool need_ringbuffer = true;
-#endif
 
 	mutex_lock(&dmxdev->mutex);
 
@@ -213,15 +219,14 @@ static int dvb_dvr_release(struct inode *inode, struct file *file)
 		dmxdev->demux->connect_frontend(dmxdev->demux,
 						dmxdev->dvr_orig_fe);
 	}
-#ifndef CONFIG_DVB_MMAP
-	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
-		need_ringbuffer = true;
-#endif
 
-	if (need_ringbuffer) {
-		if (dvb_vb2_is_streaming(&dmxdev->dvr_vb2_ctx))
-			dvb_vb2_stream_off(&dmxdev->dvr_vb2_ctx);
-		dvb_vb2_release(&dmxdev->dvr_vb2_ctx);
+	if (((file->f_flags & O_ACCMODE) == O_RDONLY) ||
+	    dmxdev->may_do_mmap) {
+		if (dmxdev->may_do_mmap) {
+			if (dvb_vb2_is_streaming(&dmxdev->dvr_vb2_ctx))
+				dvb_vb2_stream_off(&dmxdev->dvr_vb2_ctx);
+			dvb_vb2_release(&dmxdev->dvr_vb2_ctx);
+		}
 		dvbdev->readers++;
 		if (dmxdev->dvr_buffer.data) {
 			void *mem = dmxdev->dvr_buffer.data;
@@ -802,6 +807,12 @@ static int dvb_demux_open(struct inode *inode, struct file *file)
 	mutex_init(&dmxdevfilter->mutex);
 	file->private_data = dmxdevfilter;
 
+#ifdef CONFIG_DVB_MMAP
+	dmxdev->may_do_mmap = 1;
+#else
+	dmxdev->may_do_mmap = 0;
+#endif
+
 	dvb_ringbuffer_init(&dmxdevfilter->buffer, NULL, 8192);
 	dvb_vb2_init(&dmxdevfilter->vb2_ctx, "demux_filter",
 		     file->f_flags & O_NONBLOCK);
@@ -1206,6 +1217,9 @@ static int dvb_demux_mmap(struct file *file, struct vm_area_struct *vma)
 	struct dmxdev *dmxdev = dmxdevfilter->dev;
 	int ret;
 
+	if (!dmxdev->may_do_mmap)
+		return -EOPNOTSUPP;
+
 	if (mutex_lock_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
 
@@ -1322,11 +1336,6 @@ static __poll_t dvb_dvr_poll(struct file *file, poll_table *wait)
 	struct dvb_device *dvbdev = file->private_data;
 	struct dmxdev *dmxdev = dvbdev->priv;
 	__poll_t mask = 0;
-#ifndef CONFIG_DVB_MMAP
-	bool need_ringbuffer = false;
-#else
-	const bool need_ringbuffer = true;
-#endif
 
 	dprintk("%s\n", __func__);
 
@@ -1337,11 +1346,8 @@ static __poll_t dvb_dvr_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &dmxdev->dvr_buffer.queue, wait);
 
-#ifndef CONFIG_DVB_MMAP
-	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
-		need_ringbuffer = true;
-#endif
-	if (need_ringbuffer) {
+	if (((file->f_flags & O_ACCMODE) == O_RDONLY) ||
+	    dmxdev->may_do_mmap) {
 		if (dmxdev->dvr_buffer.error)
 			mask |= (EPOLLIN | EPOLLRDNORM | EPOLLPRI | EPOLLERR);
 
@@ -1359,6 +1365,9 @@ static int dvb_dvr_mmap(struct file *file, struct vm_area_struct *vma)
 	struct dvb_device *dvbdev = file->private_data;
 	struct dmxdev *dmxdev = dvbdev->priv;
 	int ret;
+
+	if (!dmxdev->may_do_mmap)
+		return -EOPNOTSUPP;
 
 	if (dmxdev->exit)
 		return -ENODEV;
