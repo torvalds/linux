@@ -1593,6 +1593,21 @@ static void udf_load_logicalvolint(struct super_block *sb, struct kernel_extent_
 	sbi->s_lvid_bh = NULL;
 }
 
+static struct udf_vds_record *get_volume_descriptor_record(
+		struct udf_vds_record *vds, uint16_t ident)
+{
+	switch (ident) {
+	case TAG_IDENT_PVD: /* ISO 13346 3/10.1 */
+		return &vds[VDS_POS_PRIMARY_VOL_DESC];
+	case TAG_IDENT_IUVD: /* ISO 13346 3/10.4 */
+		return &vds[VDS_POS_IMP_USE_VOL_DESC];
+	case TAG_IDENT_LVD: /* ISO 13346 3/10.6 */
+		return &vds[VDS_POS_LOGICAL_VOL_DESC];
+	case TAG_IDENT_USD: /* ISO 13346 3/10.8 */
+		return &vds[VDS_POS_UNALLOC_SPACE_DESC];
+	}
+	return NULL;
+}
 
 /*
  * Process a main/reserve volume descriptor sequence.
@@ -1635,13 +1650,6 @@ static noinline int udf_process_sequence(
 		gd = (struct generic_desc *)bh->b_data;
 		vdsn = le32_to_cpu(gd->volDescSeqNum);
 		switch (ident) {
-		case TAG_IDENT_PVD: /* ISO 13346 3/10.1 */
-			curr = &vds[VDS_POS_PRIMARY_VOL_DESC];
-			if (vdsn >= curr->volDescSeqNum) {
-				curr->volDescSeqNum = vdsn;
-				curr->block = block;
-			}
-			break;
 		case TAG_IDENT_VDP: /* ISO 13346 3/10.3 */
 			if (++indirections > UDF_MAX_TD_NESTING) {
 				udf_err(sb, "too many Volume Descriptor "
@@ -1660,8 +1668,11 @@ static noinline int udf_process_sequence(
 			/* For loop is going to increment 'block' again */
 			block--;
 			break;
+		case TAG_IDENT_PVD: /* ISO 13346 3/10.1 */
 		case TAG_IDENT_IUVD: /* ISO 13346 3/10.4 */
-			curr = &vds[VDS_POS_IMP_USE_VOL_DESC];
+		case TAG_IDENT_LVD: /* ISO 13346 3/10.6 */
+		case TAG_IDENT_USD: /* ISO 13346 3/10.8 */
+			curr = get_volume_descriptor_record(vds, ident);
 			if (vdsn >= curr->volDescSeqNum) {
 				curr->volDescSeqNum = vdsn;
 				curr->block = block;
@@ -1671,20 +1682,6 @@ static noinline int udf_process_sequence(
 			curr = &vds[VDS_POS_PARTITION_DESC];
 			if (!curr->block)
 				curr->block = block;
-			break;
-		case TAG_IDENT_LVD: /* ISO 13346 3/10.6 */
-			curr = &vds[VDS_POS_LOGICAL_VOL_DESC];
-			if (vdsn >= curr->volDescSeqNum) {
-				curr->volDescSeqNum = vdsn;
-				curr->block = block;
-			}
-			break;
-		case TAG_IDENT_USD: /* ISO 13346 3/10.8 */
-			curr = &vds[VDS_POS_UNALLOC_SPACE_DESC];
-			if (vdsn >= curr->volDescSeqNum) {
-				curr->volDescSeqNum = vdsn;
-				curr->block = block;
-			}
 			break;
 		case TAG_IDENT_TD: /* ISO 13346 3/10.9 */
 			vds[VDS_POS_TERMINATING_DESC].block = block;
