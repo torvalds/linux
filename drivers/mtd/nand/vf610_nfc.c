@@ -767,8 +767,13 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mtd);
 
 	/* Register device in MTD */
-	return mtd_device_register(mtd, NULL, 0);
+	err = mtd_device_register(mtd, NULL, 0);
+	if (err)
+		goto err_cleanup_nand;
+	return 0;
 
+err_cleanup_nand:
+	nand_cleanup(chip);
 err_disable_clk:
 	clk_disable_unprepare(nfc->clk);
 	return err;
