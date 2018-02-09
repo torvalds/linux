@@ -2,14 +2,14 @@
 	- this file
 boot.txt
 	- List of boot protocol versions
-early-microcode.txt
-	- How to load microcode from an initrd-CPIO archive early to fix CPU issues.
 earlyprintk.txt
 	- Using earlyprintk with a USB2 debug port key.
 entry_64.txt
 	- Describe (some of the) kernel entry points for x86.
 exception-tables.txt
 	- why and how Linux kernel uses exception tables on x86
+microcode.txt
+	- How to load microcode from an initrd-CPIO archive early to fix CPU issues.
 mtrr.txt
 	- how to use x86 Memory Type Range Registers to increase performance
 pat.txt
