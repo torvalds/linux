@@ -58,8 +58,6 @@
 				      1 1
 				      2 2
 				      3 3>;
-		cooling-min-level = <0>;
-		cooling-max-level = <3>;
 		#cooling-cells = <2>;
 	};
 
