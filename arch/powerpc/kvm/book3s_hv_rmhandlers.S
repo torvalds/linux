@@ -413,10 +413,11 @@ FTR_SECTION_ELSE
 	/* On P9 we use the split_info for coordinating LPCR changes */
 	lwz	r4, KVM_SPLIT_DO_SET(r6)
 	cmpwi	r4, 0
-	beq	63f
+	beq	1f
 	mr	r3, r6
 	bl	kvmhv_p9_set_lpcr
 	nop
+1:
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 63:
 	/* Order load of vcpu after load of vcore */
