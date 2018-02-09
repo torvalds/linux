@@ -4650,20 +4650,26 @@ static int smu7_set_power_profile_state(struct pp_hwmgr *hwmgr,
 	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_AUTO)
 		return -EINVAL;
 
-	tmp_result = smu7_freeze_sclk_mclk_dpm(hwmgr);
-	PP_ASSERT_WITH_CODE(!tmp_result,
-			"Failed to freeze SCLK MCLK DPM!",
-			result = tmp_result);
+	if (smum_is_dpm_running(hwmgr)) {
+		if (!data->sclk_dpm_key_disabled)
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_FreezeLevel);
+
+		if (!data->mclk_dpm_key_disabled)
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_FreezeLevel);
+	}
 
 	tmp_result = smum_populate_requested_graphic_levels(hwmgr, request);
 	PP_ASSERT_WITH_CODE(!tmp_result,
 			"Failed to populate requested graphic levels!",
 			result = tmp_result);
 
-	tmp_result = smu7_unfreeze_sclk_mclk_dpm(hwmgr);
-	PP_ASSERT_WITH_CODE(!tmp_result,
-			"Failed to unfreeze SCLK MCLK DPM!",
-			result = tmp_result);
+	if (smum_is_dpm_running(hwmgr)) {
+		if (!data->sclk_dpm_key_disabled)
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_UnfreezeLevel);
+
+		if (!data->mclk_dpm_key_disabled)
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_UnfreezeLevel);
+	}
 
 	smu7_find_min_clock_masks(hwmgr, &sclk_mask, &mclk_mask,
 			request->min_sclk, request->min_mclk);
