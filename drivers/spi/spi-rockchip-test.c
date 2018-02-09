@@ -17,6 +17,7 @@
 	spi_test@00 {
 		compatible = "rockchip,spi_test_bus0_cs0";
 		reg = <0>;   //chip select  0:cs0  1:cs1
+		id = <0>;
 		spi-max-frequency = <24000000>;   //spi output clock
 		//spi-cpha;      not support
 		//spi-cpol; 	//if the property is here it is 1:clk is high, else 0:clk is low  when idle
@@ -25,6 +26,7 @@
 	spi_test@01 {
 		compatible = "rockchip,spi_test_bus0_cs1";
 		reg = <1>;
+		id = <1>;
 		spi-max-frequency = <24000000>;
 		spi-cpha;
 		spi-cpol;
@@ -36,6 +38,7 @@
 * echo write 0 10 255 > /dev/spi_misc_test
 * echo write 0 10 255 init.rc > /dev/spi_misc_test
 * echo read 0 10 255 > /dev/spi_misc_test
+* echo loop 0 10 255 > /dev/spi_misc_test
 * echo setspeed 0 1000000 > /dev/spi_misc_test
 */
 
@@ -61,7 +64,6 @@
 #include <linux/platform_data/spi-rockchip.h>
 #include <asm/uaccess.h>
 #include <linux/syscalls.h>
-#include "spi-rockchip-core.h"
 
 #define MAX_SPI_DEV_NUM 6
 #define SPI_MAX_SPEED_HZ	12000000
@@ -314,9 +316,11 @@ static ssize_t spi_test_write(struct file *file,
 		kfree(txbuf);
 		kfree(rxbuf);
 	} else {
+		printk("echo id number size > /dev/spi_misc_test\n");
 		printk("echo write 0 10 255 > /dev/spi_misc_test\n");
 		printk("echo write 0 10 255 init.rc > /dev/spi_misc_test\n");
 		printk("echo read 0 10 255 > /dev/spi_misc_test\n");
+		printk("echo loop 0 10 255 > /dev/spi_misc_test\n");
 		printk("echo setspeed 0 1000000 > /dev/spi_misc_test\n");
 	}
 
@@ -333,60 +337,10 @@ static struct miscdevice spi_test_misc = {
 	.fops = &spi_test_fops,
 };
 
-#ifdef CONFIG_OF
-static struct dw_spi_chip *rockchip_spi_parse_dt(struct device *dev)
-{
-	u32 temp;
-	struct dw_spi_chip *spi_chip_data;
-
-	spi_chip_data = devm_kzalloc(dev, sizeof(*spi_chip_data), GFP_KERNEL);
-	if (!spi_chip_data) {
-		dev_err(dev, "memory allocation for spi_chip_data failed\n");
-		return ERR_PTR(-ENOMEM);
-	}
-
-	if (of_property_read_u32(dev->of_node, "poll_mode", &temp)) {
-		dev_warn(dev, "fail to get poll_mode, default set 0\n");
-		spi_chip_data->poll_mode = 0;
-	} else {
-		spi_chip_data->poll_mode = temp;
-	}
-
-	if (of_property_read_u32(dev->of_node, "type", &temp)) {
-		dev_warn(dev, "fail to get type, default set 0\n");
-		spi_chip_data->type = 0;
-	} else {
-		spi_chip_data->type = temp;
-	}
-
-	if (of_property_read_u32(dev->of_node, "enable_dma", &temp)) {
-		dev_warn(dev, "fail to get enable_dma, default set 0\n");
-		spi_chip_data->enable_dma = 0;
-	} else {
-		spi_chip_data->enable_dma = temp;
-	}
-#if 0
-	if (of_property_read_u32(dev->of_node, "slave-enable", &temp)) {
-		dev_warn(dev, "fail to get slave-enable, default set 0\n");
-		spi_chip_data->slave_enable = 0;
-	} else {
-		spi_chip_data->slave_enable = temp;
-	}
-#endif
-	return spi_chip_data;
-}
-#else
-static struct spi_board_info *rockchip_spi_parse_dt(struct device *dev)
-{
-	return dev->platform_data;
-}
-#endif
-
 static int rockchip_spi_test_probe(struct spi_device *spi)
 {
 	int ret;
 	int id = 0;
-	struct dw_spi_chip *spi_chip_data = NULL;
 	struct spi_test_data *spi_test_data = NULL;
 
 	if (!spi)
@@ -395,17 +349,12 @@ static int rockchip_spi_test_probe(struct spi_device *spi)
 	if (!spi->dev.of_node)
 		return -ENOMEM;
 
-	spi_chip_data = rockchip_spi_parse_dt(&spi->dev);
-	if (IS_ERR(spi_chip_data))
-		return -ENOMEM;
-
 	spi_test_data = (struct spi_test_data *)kzalloc(sizeof(struct spi_test_data), GFP_KERNEL);
 	if (!spi_test_data) {
 		dev_err(&spi->dev, "ERR: no memory for spi_test_data\n");
 		return -ENOMEM;
 	}
 	spi->bits_per_word = 8;
-	spi->controller_data = spi_chip_data;
 
 	spi_test_data->spi = spi;
 	spi_test_data->dev = &spi->dev;
@@ -425,7 +374,6 @@ static int rockchip_spi_test_probe(struct spi_device *spi)
 
 	printk("%s:name=%s,bus_num=%d,cs=%d,mode=%d,speed=%d\n", __func__, spi->modalias, spi->master->bus_num, spi->chip_select, spi->mode, spi->max_speed_hz);
 
-	printk("%s:poll_mode=%d, type=%d, enable_dma=%d\n", __func__, spi_chip_data->poll_mode, spi_chip_data->type, spi_chip_data->enable_dma);
 	return ret;
 }
 
