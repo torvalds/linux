@@ -503,8 +503,12 @@ static int init_implementation_adapter_regs_psl9(struct cxl *adapter,
 	if (cxl_is_power9_dd1()) {
 		/* Disabling deadlock counter CAR */
 		cxl_p1_write(adapter, CXL_PSL9_GP_CT, 0x0020000000000001ULL);
-	} else
-		cxl_p1_write(adapter, CXL_PSL9_DEBUG, 0x4000000000000000ULL);
+		/* Enable NORST */
+		cxl_p1_write(adapter, CXL_PSL9_DEBUG, 0x8000000000000000ULL);
+	} else {
+		/* Enable NORST and DD2 features */
+		cxl_p1_write(adapter, CXL_PSL9_DEBUG, 0xC000000000000000ULL);
+	}
 
 	return 0;
 }
