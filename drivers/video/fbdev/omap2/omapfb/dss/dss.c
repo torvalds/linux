@@ -40,6 +40,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/suspend.h>
 #include <linux/component.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <video/omapfb_dss.h>
 
