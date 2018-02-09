@@ -667,7 +667,7 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 				dev_err(nfc->dev,
 					"Only one NAND chip supported!\n");
 				err = -EINVAL;
-				goto error;
+				goto err_clk;
 			}
 
 			nand_set_flash_node(chip, child);
@@ -697,7 +697,7 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	err = devm_request_irq(nfc->dev, irq, vf610_nfc_irq, 0, DRV_NAME, mtd);
 	if (err) {
 		dev_err(nfc->dev, "Error requesting IRQ!\n");
-		goto error;
+		goto err_clk;
 	}
 
 	vf610_nfc_preinit_controller(nfc);
@@ -705,7 +705,7 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	/* first scan to find the device and get the page size */
 	err = nand_scan_ident(mtd, 1, NULL);
 	if (err)
-		goto error;
+		goto err_clk;
 
 	vf610_nfc_init_controller(nfc);
 
@@ -717,20 +717,20 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	if (mtd->writesize + mtd->oobsize > PAGE_2K + OOB_MAX - 8) {
 		dev_err(nfc->dev, "Unsupported flash page size\n");
 		err = -ENXIO;
-		goto error;
+		goto err_clk;
 	}
 
 	if (chip->ecc.mode == NAND_ECC_HW) {
 		if (mtd->writesize != PAGE_2K && mtd->oobsize < 64) {
 			dev_err(nfc->dev, "Unsupported flash with hwecc\n");
 			err = -ENXIO;
-			goto error;
+			goto err_clk;
 		}
 
 		if (chip->ecc.size != mtd->writesize) {
 			dev_err(nfc->dev, "Step size needs to be page size\n");
 			err = -ENXIO;
-			goto error;
+			goto err_clk;
 		}
 
 		/* Only 64 byte ECC layouts known */
@@ -750,7 +750,7 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 		} else {
 			dev_err(nfc->dev, "Unsupported ECC strength\n");
 			err = -ENXIO;
-			goto error;
+			goto err_clk;
 		}
 
 		chip->ecc.read_page = vf610_nfc_read_page;
@@ -762,15 +762,13 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	/* second phase scan */
 	err = nand_scan_tail(mtd);
 	if (err)
-		goto error;
+		goto err_clk;
 
 	platform_set_drvdata(pdev, mtd);
 
 	/* Register device in MTD */
 	return mtd_device_register(mtd, NULL, 0);
 
-error:
-	of_node_put(nand_get_flash_node(chip));
 err_clk:
 	clk_disable_unprepare(nfc->clk);
 	return err;
