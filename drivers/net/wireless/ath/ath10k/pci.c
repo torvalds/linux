@@ -2221,7 +2221,7 @@ static int ath10k_pci_get_num_banks(struct ath10k *ar)
 		}
 		break;
 	case QCA9377_1_0_DEVICE_ID:
-		return 4;
+		return 9;
 	}
 
 	ath10k_warn(ar, "unknown number of banks, assuming 1\n");
