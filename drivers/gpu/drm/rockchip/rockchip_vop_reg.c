@@ -1231,6 +1231,9 @@ static const int rk3366_vop_lit_intrs[] = {
 	WIN0_EMPTY_INTR,
 	WIN1_EMPTY_INTR,
 	DSP_HOLD_VALID_INTR,
+	DMA_FINISH_INTR,
+	WIN2_EMPTY_INTR,
+	POST_BUF_EMPTY_INTR
 };
 
 static const struct vop_scl_regs rk3366_lit_win_scl = {
