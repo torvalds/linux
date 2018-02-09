@@ -2109,7 +2109,7 @@ static int __hw_ppgtt_init(struct i915_hw_ppgtt *ppgtt,
 	ppgtt->base.i915 = dev_priv;
 	ppgtt->base.dma = &dev_priv->drm.pdev->dev;
 
-	if (INTEL_INFO(dev_priv)->gen < 8)
+	if (INTEL_GEN(dev_priv) < 8)
 		return gen6_ppgtt_init(ppgtt);
 	else
 		return gen8_ppgtt_init(ppgtt);

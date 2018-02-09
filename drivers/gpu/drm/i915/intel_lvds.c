@@ -189,7 +189,7 @@ static void intel_lvds_pps_get_hw_state(struct drm_i915_private *dev_priv,
 	/* Convert from 100ms to 100us units */
 	pps->t4 = val * 1000;
 
-	if (INTEL_INFO(dev_priv)->gen <= 4 &&
+	if (INTEL_GEN(dev_priv) <= 4 &&
 	    pps->t1_t2 == 0 && pps->t5 == 0 && pps->t3 == 0 && pps->tx == 0) {
 		DRM_DEBUG_KMS("Panel power timings uninitialized, "
 			      "setting defaults\n");

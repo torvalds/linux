@@ -497,7 +497,7 @@ static u32 i9xx_get_backlight(struct intel_connector *connector)
 	u32 val;
 
 	val = I915_READ(BLC_PWM_CTL) & BACKLIGHT_DUTY_CYCLE_MASK;
-	if (INTEL_INFO(dev_priv)->gen < 4)
+	if (INTEL_GEN(dev_priv) < 4)
 		val >>= 1;
 
 	if (panel->backlight.combination_mode) {

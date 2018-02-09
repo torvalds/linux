@@ -126,7 +126,7 @@ static void vlv_psr_enable_sink(struct intel_dp *intel_dp)
 static i915_reg_t psr_aux_ctl_reg(struct drm_i915_private *dev_priv,
 				       enum port port)
 {
-	if (INTEL_INFO(dev_priv)->gen >= 9)
+	if (INTEL_GEN(dev_priv) >= 9)
 		return DP_AUX_CH_CTL(port);
 	else
 		return EDP_PSR_AUX_CTL;
@@ -135,7 +135,7 @@ static i915_reg_t psr_aux_ctl_reg(struct drm_i915_private *dev_priv,
 static i915_reg_t psr_aux_data_reg(struct drm_i915_private *dev_priv,
 					enum port port, int index)
 {
-	if (INTEL_INFO(dev_priv)->gen >= 9)
+	if (INTEL_GEN(dev_priv) >= 9)
 		return DP_AUX_CH_DATA(port, index);
 	else
 		return EDP_PSR_AUX_DATA(index);
