@@ -368,7 +368,7 @@ OPTIONS
 	Use the data addresses of samples in addition to instruction addresses
 	to build the histograms.  To generate meaningful output, the perf.data
 	file must have been obtained using perf record -d -W and using a
-	special event -e cpu/mem-loads/ or -e cpu/mem-stores/. See
+	special event -e cpu/mem-loads/p or -e cpu/mem-stores/p. See
 	'perf mem' for simpler access.
 
 --percent-limit::
