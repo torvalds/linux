@@ -1271,7 +1271,7 @@ static int acpi_fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 	return 0;
 }
 
-static void *
+static const void *
 acpi_fwnode_device_get_match_data(const struct fwnode_handle *fwnode,
 				  const struct device *dev)
 {

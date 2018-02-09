@@ -830,7 +830,7 @@ const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
 }
 EXPORT_SYMBOL_GPL(acpi_match_device);
 
-void *acpi_device_get_match_data(const struct device *dev)
+const void *acpi_device_get_match_data(const struct device *dev)
 {
 	const struct acpi_device_id *match;
 
@@ -838,7 +838,7 @@ void *acpi_device_get_match_data(const struct device *dev)
 	if (!match)
 		return NULL;
 
-	return (void *)match->driver_data;
+	return (const void *)match->driver_data;
 }
 EXPORT_SYMBOL_GPL(acpi_device_get_match_data);
 
