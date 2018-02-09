@@ -710,8 +710,8 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned bus,
 		mc_start = (data[1] << 8) + 4;	/* usually 0x0004 */
 
 		dev_info(&dev->intf->dev,
-			 "EEPROM ID = %02x %02x %02x %02x, EEPROM hash = 0x%08lx\n",
-			 data[0], data[1], data[2], data[3], dev->hash);
+			 "EEPROM ID = %4ph, EEPROM hash = 0x%08lx\n",
+			 data, dev->hash);
 		dev_info(&dev->intf->dev,
 			 "EEPROM info:\n");
 		dev_info(&dev->intf->dev,
@@ -776,8 +776,8 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned bus,
 		   data[2] == 0x67 && data[3] == 0x95) {
 		dev->hash = em28xx_hash_mem(data, len, 32);
 		dev_info(&dev->intf->dev,
-			 "EEPROM ID = %02x %02x %02x %02x, EEPROM hash = 0x%08lx\n",
-			 data[0], data[1], data[2], data[3], dev->hash);
+			 "EEPROM ID = %4ph, EEPROM hash = 0x%08lx\n",
+			 data, dev->hash);
 		dev_info(&dev->intf->dev,
 			 "EEPROM info:\n");
 	} else {
