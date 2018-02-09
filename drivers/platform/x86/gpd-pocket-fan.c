@@ -19,12 +19,12 @@
 static int temp_limits[3] = { 55000, 60000, 65000 };
 module_param_array(temp_limits, int, NULL, 0444);
 MODULE_PARM_DESC(temp_limits,
-		 "Milli-celcius values above which the fan speed increases");
+		 "Millicelsius values above which the fan speed increases");
 
 static int hysteresis = 3000;
 module_param(hysteresis, int, 0444);
 MODULE_PARM_DESC(hysteresis,
-		 "Hysteresis in milli-celcius before lowering the fan speed");
+		 "Hysteresis in millicelsius before lowering the fan speed");
 
 static int speed_on_ac = 2;
 module_param(speed_on_ac, int, 0444);
