@@ -556,7 +556,7 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 			/* back one char again */
 			lcd->ops->write_cmd(lcd, LCD_CMD_SHIFT);
 			break;
-		case '\014':
+		case '\f':
 			/* quickly clear the display */
 			charlcd_clear_fast(lcd);
 			break;
