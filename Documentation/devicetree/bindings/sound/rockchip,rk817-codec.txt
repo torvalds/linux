@@ -5,7 +5,29 @@ Required properties:
 - compatible: "rockchip,rk817-codec"
 - clocks: a list of phandle + clock-specifer pairs, one for each entry in clock-names.
 - clock-names: should be "mclk".
-
+- spk-volume: DAC L/R volume digital setting for Speaker
+- hp-volume: DAC L/R volume digital setting for Headphone
+  *
+  * DDAC L/R volume setting
+  * 0db~-95db,0.375db/step,for example:
+  * 0: 0dB
+  * 10: -3.75dB
+  * 125: -46dB
+  * 255: -95dB
+  *
+- capture-volume: ADC L/R volume digital setting for Microphone
+  *
+  * DADC L/R volume setting
+  * 0db~-95db,0.375db/step,for example:
+  * 0: 0dB
+  * 10: -3.75dB
+  * 125: -46dB
+  * 255: -95dB
+  *
+- mic-in-differential:
+  Boolean. Indicate MIC input are differential, rather than single-ended.
+- pdmdata-out-enable:
+  Boolean. Indicate pdmdata output is enable or disable.
 
 Example for rk817 codec:
 
@@ -19,13 +41,17 @@ rk817: pmic@20 {
 
 	........
 
-	rk817_codec: rk817-codec {
+	rk817_codec: codec {
 			#sound-dai-cells = <0>;
 			compatible = "rockchip,rk817-codec";
 			clocks = <&cru SCLK_I2S_8CH_OUT>;
 			clock-names = "mclk";
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2s_8ch_mclk>;
+			hp-volume = <3>;
+			spk-volume = <3>;
+			capture-volume = <0>;
+			mic-in-differential;
 			status = "okay";
 	};
 
