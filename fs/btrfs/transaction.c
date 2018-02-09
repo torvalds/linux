@@ -2013,12 +2013,13 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 			run_it = 1;
 		mutex_unlock(&fs_info->ro_block_group_mutex);
 
-		if (run_it)
+		if (run_it) {
 			ret = btrfs_start_dirty_block_groups(trans);
-	}
-	if (ret) {
-		btrfs_end_transaction(trans);
-		return ret;
+			if (ret) {
+				btrfs_end_transaction(trans);
+				return ret;
+			}
+		}
 	}
 
 	spin_lock(&fs_info->trans_lock);
