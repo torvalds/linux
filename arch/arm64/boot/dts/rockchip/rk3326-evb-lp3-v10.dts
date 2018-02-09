@@ -628,6 +628,10 @@
 	};
 };
 
+&i2c2 {
+	status = "okay";
+};
+
 &i2s1_2ch {
 	status = "okay";
 	#sound-dai-cells = <0>;
@@ -641,6 +645,10 @@
 	vccio3-supply = <&vcc1v8_dvp>;
 	vccio4-supply = <&vcc_3v0>;
 	vccio5-supply = <&vcc_3v0>;
+};
+
+&isp_mmu {
+	status = "okay";
 };
 
 &lvds {
@@ -701,12 +709,16 @@
 	status = "okay";
 };
 
-&route_dsi {
-	status = "disabled";
+&rk_isp {
+	status = "okay";
 };
 
 &rk_rga {
 	status = "okay";
+};
+
+&route_dsi {
+	status = "disabled";
 };
 
 &route_lvds {
