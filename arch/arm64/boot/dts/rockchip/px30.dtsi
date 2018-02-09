@@ -910,6 +910,8 @@
 		power-domains = <&power PX30_PD_SDCARD>;
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd &sdmmc0_det &sdmmc0_bus4>;
 		status = "disabled";
 	};
 
@@ -1996,6 +1998,11 @@
 			sdmmc0_cmd: sdmmc0-cmd {
 				rockchip,pins =
 					<1 RK_PD7 RK_FUNC_1 &pcfg_pull_up_4ma>;
+			};
+
+			sdmmc0_det: sdmmc0-det {
+				rockchip,pins =
+					<0 RK_PA3 RK_FUNC_1 &pcfg_pull_up_4ma>;
 			};
 
 			sdmmc0_bus1: sdmmc0-bus1 {
