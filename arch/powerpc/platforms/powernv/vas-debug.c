@@ -179,6 +179,7 @@ void vas_instance_init_dbgdir(struct vas_instance *vinst)
 {
 	struct dentry *d;
 
+	vas_init_dbgdir();
 	if (!vas_debugfs)
 		return;
 
@@ -201,8 +202,18 @@ free_name:
 	vinst->dbgdir = NULL;
 }
 
+/*
+ * Set up the "root" VAS debugfs dir. Return if we already set it up
+ * (or failed to) in an earlier instance of VAS.
+ */
 void vas_init_dbgdir(void)
 {
+	static bool first_time = true;
+
+	if (!first_time)
+		return;
+
+	first_time = false;
 	vas_debugfs = debugfs_create_dir("vas", NULL);
 	if (IS_ERR(vas_debugfs))
 		vas_debugfs = NULL;
