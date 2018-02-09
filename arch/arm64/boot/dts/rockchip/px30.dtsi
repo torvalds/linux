@@ -2022,38 +2022,33 @@
 			};
 		};
 
-		sdmmc1 {
-			sdmmc1_clk: sdmmc1-clk {
+		sdio {
+			sdio_clk: sdio-clk {
 				rockchip,pins =
-					<1 RK_PC5 RK_FUNC_1 &pcfg_pull_none_8ma>;
+					<1 RK_PC5 RK_FUNC_1 &pcfg_pull_none>;
 			};
 
-			sdmmc1_cmd: sdmmc1-cmd {
+			sdio_cmd: sdio-cmd {
 				rockchip,pins =
-					<1 RK_PC4 RK_FUNC_1 &pcfg_pull_up_8ma>;
+					<1 RK_PC4 RK_FUNC_1 &pcfg_pull_up>;
 			};
 
-			sdmmc1_bus1: sdmmc1-bus1 {
+			sdio_bus4: sdio-bus4 {
 				rockchip,pins =
-					<1 RK_PC6 RK_FUNC_1 &pcfg_pull_up_8ma>;
+					<1 RK_PC6 RK_FUNC_1 &pcfg_pull_up>,
+					<1 RK_PC7 RK_FUNC_1 &pcfg_pull_up>,
+					<1 RK_PD0 RK_FUNC_1 &pcfg_pull_up>,
+					<1 RK_PD1 RK_FUNC_1 &pcfg_pull_up>;
 			};
 
-			sdmmc1_bus4: sdmmc1-bus4 {
+			sdio_gpio: sdio-gpio {
 				rockchip,pins =
-					<1 RK_PC6 RK_FUNC_1 &pcfg_pull_up_8ma>,
-					<1 RK_PC7 RK_FUNC_1 &pcfg_pull_up_8ma>,
-					<1 RK_PD0 RK_FUNC_1 &pcfg_pull_up_8ma>,
-					<1 RK_PD1 RK_FUNC_1 &pcfg_pull_up_8ma>;
-			};
-
-			sdmmc1_gpio: sdmmc1-gpio {
-				rockchip,pins =
-					<1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
-					<1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
-					<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
-					<1 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
-					<1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
-					<1 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up_4ma>;
+					<1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>,
+					<1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>,
+					<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_up>,
+					<1 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>,
+					<1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>,
+					<1 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
 			};
 		};
 
@@ -2452,26 +2447,6 @@
 		isp {
 			isp_prelight: isp-prelight {
 				rockchip,pins = <3 RK_PD1 RK_FUNC_4 &pcfg_pull_none>;/* ISP_PRELIGHTTRIG */
-			};
-		};
-
-		sdio {
-			sdio_bus4: sdio-bus4 {
-				rockchip,pins =
-					<1 RK_PC6 RK_FUNC_1 &pcfg_pull_up>,
-					<1 RK_PC7 RK_FUNC_1 &pcfg_pull_up>,
-					<1 RK_PD0 RK_FUNC_1 &pcfg_pull_up>,
-					<1 RK_PD1 RK_FUNC_1 &pcfg_pull_up>;
-			};
-
-			sdio_cmd: sdio-cmd {
-				rockchip,pins =
-					<1 RK_PC4 RK_FUNC_1 &pcfg_pull_up>;
-			};
-
-			sdio_clk: sdio-clk {
-				rockchip,pins =
-					<1 RK_PC5 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 	};
