@@ -834,12 +834,6 @@ void *acpi_get_match_data(const struct device *dev)
 {
 	const struct acpi_device_id *match;
 
-	if (!dev->driver)
-		return NULL;
-
-	if (!dev->driver->acpi_match_table)
-		return NULL;
-
 	match = acpi_match_device(dev->driver->acpi_match_table, dev);
 	if (!match)
 		return NULL;
