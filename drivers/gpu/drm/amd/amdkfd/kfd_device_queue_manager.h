@@ -33,7 +33,6 @@
 
 #define KFD_UNMAP_LATENCY_MS			(4000)
 #define QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS (2 * KFD_UNMAP_LATENCY_MS + 1000)
-#define KFD_SDMA_QUEUES_PER_ENGINE		(2)
 
 struct device_process_node {
 	struct qcm_process_device *qpd;

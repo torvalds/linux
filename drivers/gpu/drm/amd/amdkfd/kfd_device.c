@@ -53,6 +53,7 @@ static const struct kfd_device_info kaveri_device_info = {
 	.needs_iommu_device = true,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info carrizo_device_info = {
@@ -69,6 +70,7 @@ static const struct kfd_device_info carrizo_device_info = {
 	.needs_iommu_device = true,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info raven_device_info = {
@@ -84,6 +86,7 @@ static const struct kfd_device_info raven_device_info = {
 	.needs_iommu_device = true,
 	.needs_pci_atomics = true,
 	.num_sdma_engines = 1,
+	.num_sdma_queues_per_engine = 2,
 };
 #endif
 
@@ -101,6 +104,7 @@ static const struct kfd_device_info hawaii_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info tonga_device_info = {
@@ -116,6 +120,7 @@ static const struct kfd_device_info tonga_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 	.num_sdma_engines = 2,
+	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info fiji_device_info = {
@@ -131,6 +136,7 @@ static const struct kfd_device_info fiji_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 	.num_sdma_engines = 2,
+	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info fiji_vf_device_info = {
@@ -146,6 +152,7 @@ static const struct kfd_device_info fiji_vf_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_sdma_queues_per_engine = 2,
 };
 
 
@@ -162,6 +169,7 @@ static const struct kfd_device_info polaris10_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 	.num_sdma_engines = 2,
+	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info polaris10_vf_device_info = {
@@ -177,6 +185,7 @@ static const struct kfd_device_info polaris10_vf_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info polaris11_device_info = {
@@ -192,6 +201,7 @@ static const struct kfd_device_info polaris11_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 	.num_sdma_engines = 2,
+	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info vega10_device_info = {
@@ -207,6 +217,7 @@ static const struct kfd_device_info vega10_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_sdma_queues_per_engine = 2,
 };
 
 static const struct kfd_device_info vega10_vf_device_info = {
@@ -222,8 +233,8 @@ static const struct kfd_device_info vega10_vf_device_info = {
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
+	.num_sdma_queues_per_engine = 2,
 };
-
 
 struct kfd_deviceid {
 	unsigned short did;

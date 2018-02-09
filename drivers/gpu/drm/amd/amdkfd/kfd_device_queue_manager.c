@@ -109,7 +109,7 @@ static unsigned int get_num_sdma_engines(struct device_queue_manager *dqm)
 unsigned int get_num_sdma_queues(struct device_queue_manager *dqm)
 {
 	return dqm->dev->device_info->num_sdma_engines
-			* KFD_SDMA_QUEUES_PER_ENGINE;
+			* dqm->dev->device_info->num_sdma_queues_per_engine;
 }
 
 void program_sh_mem_settings(struct device_queue_manager *dqm,
@@ -1843,7 +1843,9 @@ int dqm_debugfs_hqds(struct seq_file *m, void *data)
 	}
 
 	for (pipe = 0; pipe < get_num_sdma_engines(dqm); pipe++) {
-		for (queue = 0; queue < KFD_SDMA_QUEUES_PER_ENGINE; queue++) {
+		for (queue = 0;
+		     queue < dqm->dev->device_info->num_sdma_queues_per_engine;
+		     queue++) {
 			r = dqm->dev->kfd2kgd->hqd_sdma_dump(
 				dqm->dev->kgd, pipe, queue, &dump, &n_regs);
 			if (r)

@@ -176,6 +176,7 @@ struct kfd_device_info {
 	bool needs_iommu_device;
 	bool needs_pci_atomics;
 	unsigned int num_sdma_engines;
+	unsigned int num_sdma_queues_per_engine;
 };
 
 struct kfd_mem_obj {
