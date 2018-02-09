@@ -242,7 +242,7 @@ static struct drm_fb_helper *get_fb(struct fb_info *fbi)
 }
 
 /* initialize fbdev helper */
-struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev)
+void omap_fbdev_init(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_fbdev *fbdev = NULL;
@@ -260,10 +260,8 @@ struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev)
 	drm_fb_helper_prepare(dev, helper, &omap_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, helper, priv->num_connectors);
-	if (ret) {
-		dev_err(dev->dev, "could not init fbdev: ret=%d\n", ret);
+	if (ret)
 		goto fail;
-	}
 
 	ret = drm_fb_helper_single_add_all_connectors(helper);
 	if (ret)
@@ -275,7 +273,7 @@ struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev)
 
 	priv->fbdev = helper;
 
-	return helper;
+	return;
 
 fini:
 	drm_fb_helper_fini(helper);
@@ -283,12 +281,9 @@ fail:
 	kfree(fbdev);
 
 	dev_warn(dev->dev, "omap_fbdev_init failed\n");
-	/* well, limp along without an fbdev.. maybe X11 will work? */
-
-	return NULL;
 }
 
-void omap_fbdev_free(struct drm_device *dev)
+void omap_fbdev_fini(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_fb_helper *helper = priv->fbdev;
@@ -296,11 +291,14 @@ void omap_fbdev_free(struct drm_device *dev)
 
 	DBG();
 
+	if (!helper)
+		return;
+
 	drm_fb_helper_unregister_fbi(helper);
 
 	drm_fb_helper_fini(helper);
 
-	fbdev = to_omap_fbdev(priv->fbdev);
+	fbdev = to_omap_fbdev(helper);
 
 	/* unpin the GEM object pinned in omap_fbdev_create() */
 	if (fbdev->bo)

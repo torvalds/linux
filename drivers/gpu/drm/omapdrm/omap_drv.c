@@ -570,7 +570,7 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 	for (i = 0; i < priv->num_crtcs; i++)
 		drm_crtc_vblank_off(priv->crtcs[i]);
 
-	priv->fbdev = omap_fbdev_init(ddev);
+	omap_fbdev_init(ddev);
 
 	drm_kms_helper_poll_init(ddev);
 	omap_modeset_enable_external_hpd();
@@ -588,8 +588,8 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 err_cleanup_helpers:
 	omap_modeset_disable_external_hpd();
 	drm_kms_helper_poll_fini(ddev);
-	if (priv->fbdev)
-		omap_fbdev_free(ddev);
+
+	omap_fbdev_fini(ddev);
 err_cleanup_modeset:
 	drm_mode_config_cleanup(ddev);
 	omap_drm_irq_uninstall(ddev);
@@ -615,8 +615,7 @@ static void omapdrm_cleanup(struct omap_drm_private *priv)
 	omap_modeset_disable_external_hpd();
 	drm_kms_helper_poll_fini(ddev);
 
-	if (priv->fbdev)
-		omap_fbdev_free(ddev);
+	omap_fbdev_fini(ddev);
 
 	drm_atomic_helper_shutdown(ddev);
 
