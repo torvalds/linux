@@ -6,10 +6,11 @@ and display controllers using the SPI communication interface.
 Required Properties:
 
 - compatible: should be one of the following.
-    "rockchip,rk3036-spi" for rk3036 SoCS.
+    "rockchip,px30-spi"   for px30   SoCs.
+    "rockchip,rk3036-spi" for rk3036 SoCs.
     "rockchip,rk3066-spi" for rk3066 SoCs.
     "rockchip,rk3188-spi" for rk3188 SoCs.
-    "rockchip,rk3228-spi" for rk3228 SoCS.
+    "rockchip,rk3228-spi" for rk3228 SoCs.
     "rockchip,rk3288-spi" for rk3288 SoCs.
     "rockchip,rk3368-spi" for rk3368 SoCs.
     "rockchip,rk3399-spi" for rk3399 SoCs.
