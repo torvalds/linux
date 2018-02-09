@@ -1228,7 +1228,7 @@
 		power-domains = <&power PX30_PD_VI>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cif_clkout_m0>;
-		rockchip,isp,mipiphy = <0>;
+		rockchip,isp,mipiphy = <1>;
 		rockchip,isp,csiphy,reg = <0xff2f0000 0x4000>;
 		rockchip,grf = <&grf>;
 		rockchip,cru = <&cru>;
