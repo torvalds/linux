@@ -167,7 +167,7 @@
 		operating-points-v2 = <&dmc_opp_table>;
 		system-status-freq = <
 			/*system status         freq(KHz)*/
-			SYS_STATUS_NORMAL       400000
+			SYS_STATUS_NORMAL       600000
 			SYS_STATUS_VIDEO_4K	600000
 			SYS_STATUS_VIDEO_4K_10B 786000
 		>;
