@@ -911,7 +911,7 @@
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd &sdmmc0_det &sdmmc0_bus4>;
+		pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_det &sdmmc_bus4>;
 		status = "disabled";
 	};
 
@@ -1989,28 +1989,28 @@
 			};
 		};
 
-		sdmmc0 {
-			sdmmc0_clk: sdmmc0-clk {
+		sdmmc {
+			sdmmc_clk: sdmmc-clk {
 				rockchip,pins =
 					<1 RK_PD6 RK_FUNC_1 &pcfg_pull_none_4ma>;
 			};
 
-			sdmmc0_cmd: sdmmc0-cmd {
+			sdmmc_cmd: sdmmc-cmd {
 				rockchip,pins =
 					<1 RK_PD7 RK_FUNC_1 &pcfg_pull_up_4ma>;
 			};
 
-			sdmmc0_det: sdmmc0-det {
+			sdmmc_det: sdmmc-det {
 				rockchip,pins =
 					<0 RK_PA3 RK_FUNC_1 &pcfg_pull_up_4ma>;
 			};
 
-			sdmmc0_bus1: sdmmc0-bus1 {
+			sdmmc_bus1: sdmmc-bus1 {
 				rockchip,pins =
 					<1 RK_PD2 RK_FUNC_1 &pcfg_pull_up_4ma>;
 			};
 
-			sdmmc0_bus4: sdmmc0-bus4 {
+			sdmmc_bus4: sdmmc-bus4 {
 				rockchip,pins =
 					<1 RK_PD2 RK_FUNC_1 &pcfg_pull_up_4ma>,
 					<1 RK_PD3 RK_FUNC_1 &pcfg_pull_up_4ma>,
@@ -2018,7 +2018,7 @@
 					<1 RK_PD5 RK_FUNC_1 &pcfg_pull_up_4ma>;
 			};
 
-			sdmmc0_gpio: sdmmc0-gpio {
+			sdmmc_gpio: sdmmc-gpio {
 				rockchip,pins =
 					<1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
 					<1 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up_4ma>,
