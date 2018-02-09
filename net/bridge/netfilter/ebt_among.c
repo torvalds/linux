@@ -187,17 +187,17 @@ static int ebt_among_mt_check(const struct xt_mtchk_param *par)
 	expected_length += ebt_mac_wormhash_size(wh_src);
 
 	if (em->match_size != EBT_ALIGN(expected_length)) {
-		pr_info("wrong size: %d against expected %d, rounded to %zd\n",
-			em->match_size, expected_length,
-			EBT_ALIGN(expected_length));
+		pr_err_ratelimited("wrong size: %d against expected %d, rounded to %zd\n",
+				   em->match_size, expected_length,
+				   EBT_ALIGN(expected_length));
 		return -EINVAL;
 	}
 	if (wh_dst && (err = ebt_mac_wormhash_check_integrity(wh_dst))) {
-		pr_info("dst integrity fail: %x\n", -err);
+		pr_err_ratelimited("dst integrity fail: %x\n", -err);
 		return -EINVAL;
 	}
 	if (wh_src && (err = ebt_mac_wormhash_check_integrity(wh_src))) {
-		pr_info("src integrity fail: %x\n", -err);
+		pr_err_ratelimited("src integrity fail: %x\n", -err);
 		return -EINVAL;
 	}
 	return 0;
