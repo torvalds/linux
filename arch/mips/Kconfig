@@ -2028,6 +2028,7 @@ config CPU_MIPSR6
 	select CPU_HAS_RIXI
 	select HAVE_ARCH_BITREVERSE
 	select MIPS_ASID_BITS_VARIABLE
+	select MIPS_CRC_SUPPORT
 	select MIPS_SPRAM
 
 config EVA
@@ -2499,6 +2500,9 @@ config MIPS_ASID_BITS
 	default 8
 
 config MIPS_ASID_BITS_VARIABLE
+	bool
+
+config MIPS_CRC_SUPPORT
 	bool
 
 #

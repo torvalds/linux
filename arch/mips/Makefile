@@ -222,6 +222,8 @@ xpa-cflags-y				:= $(mips-cflags)
 xpa-cflags-$(micromips-ase)		+= -mmicromips -Wa$(comma)-fatal-warnings
 toolchain-xpa				:= $(call cc-option-yn,$(xpa-cflags-y) -mxpa)
 cflags-$(toolchain-xpa)			+= -DTOOLCHAIN_SUPPORTS_XPA
+toolchain-crc				:= $(call cc-option-yn,$(mips-cflags) -Wa$(comma)-mcrc)
+cflags-$(toolchain-crc)			+= -DTOOLCHAIN_SUPPORTS_CRC
 
 #
 # Firmware support
@@ -330,6 +332,7 @@ libs-y			+= arch/mips/math-emu/
 # See arch/mips/Kbuild for content of core part of the kernel
 core-y += arch/mips/
 
+drivers-$(CONFIG_MIPS_CRC_SUPPORT) += arch/mips/crypto/
 drivers-$(CONFIG_OPROFILE)	+= arch/mips/oprofile/
 
 # suspend and hibernation support
