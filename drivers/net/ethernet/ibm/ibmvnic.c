@@ -1644,6 +1644,7 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 				return rc;
 		} else if (adapter->req_rx_queues != old_num_rx_queues ||
 			   adapter->req_tx_queues != old_num_tx_queues) {
+			adapter->map_id = 1;
 			release_rx_pools(adapter);
 			release_tx_pools(adapter);
 			init_rx_pools(netdev);
