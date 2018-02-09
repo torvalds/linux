@@ -111,10 +111,8 @@ static int led_tg_check(const struct xt_tgchk_param *par)
 	struct xt_led_info_internal *ledinternal;
 	int err;
 
-	if (ledinfo->id[0] == '\0') {
-		pr_info("No 'id' parameter given.\n");
+	if (ledinfo->id[0] == '\0')
 		return -EINVAL;
-	}
 
 	mutex_lock(&xt_led_mutex);
 
