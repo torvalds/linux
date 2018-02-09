@@ -103,7 +103,7 @@ static int rpfilter_check(const struct xt_mtchk_param *par)
 	unsigned int options = ~XT_RPFILTER_OPTION_MASK;
 
 	if (info->flags & options) {
-		pr_info("unknown options encountered");
+		pr_info_ratelimited("unknown options\n");
 		return -EINVAL;
 	}
 

@@ -106,7 +106,7 @@ static int ecn_tg_check(const struct xt_tgchk_param *par)
 
 	if ((einfo->operation & (IPT_ECN_OP_SET_ECE|IPT_ECN_OP_SET_CWR)) &&
 	    (e->ip.proto != IPPROTO_TCP || (e->ip.invflags & XT_INV_PROTO))) {
-		pr_info("cannot use TCP operations on a non-tcp rule\n");
+		pr_info_ratelimited("cannot use operation on non-tcp rule\n");
 		return -EINVAL;
 	}
 	return 0;
