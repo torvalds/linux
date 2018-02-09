@@ -1615,7 +1615,6 @@ static noinline int udf_process_sequence(
 	bool done = false;
 	uint32_t vdsn;
 	uint16_t ident;
-	long next_s = 0, next_e = 0;
 	int ret;
 	unsigned int indirections = 0;
 
@@ -1647,19 +1646,22 @@ static noinline int udf_process_sequence(
 			}
 			break;
 		case TAG_IDENT_VDP: /* ISO 13346 3/10.3 */
-			curr = &vds[VDS_POS_VOL_DESC_PTR];
-			if (vdsn >= curr->volDescSeqNum) {
-				curr->volDescSeqNum = vdsn;
-				curr->block = block;
-
-				vdp = (struct volDescPtr *)bh->b_data;
-				next_s = le32_to_cpu(
-					vdp->nextVolDescSeqExt.extLocation);
-				next_e = le32_to_cpu(
-					vdp->nextVolDescSeqExt.extLength);
-				next_e = next_e >> sb->s_blocksize_bits;
-				next_e += next_s - 1;
+			if (++indirections > UDF_MAX_TD_NESTING) {
+				udf_err(sb, "too many Volume Descriptor "
+					"Pointers (max %u supported)\n",
+					UDF_MAX_TD_NESTING);
+				brelse(bh);
+				return -EIO;
 			}
+
+			vdp = (struct volDescPtr *)bh->b_data;
+			block = le32_to_cpu(vdp->nextVolDescSeqExt.extLocation);
+			lastblock = le32_to_cpu(
+				vdp->nextVolDescSeqExt.extLength) >>
+				sb->s_blocksize_bits;
+			lastblock += block - 1;
+			/* For loop is going to increment 'block' again */
+			block--;
 			break;
 		case TAG_IDENT_IUVD: /* ISO 13346 3/10.4 */
 			curr = &vds[VDS_POS_IMP_USE_VOL_DESC];
@@ -1688,19 +1690,8 @@ static noinline int udf_process_sequence(
 			}
 			break;
 		case TAG_IDENT_TD: /* ISO 13346 3/10.9 */
-			if (++indirections > UDF_MAX_TD_NESTING) {
-				udf_err(sb, "too many TDs (max %u supported)\n", UDF_MAX_TD_NESTING);
-				brelse(bh);
-				return -EIO;
-			}
-
 			vds[VDS_POS_TERMINATING_DESC].block = block;
-			if (next_e) {
-				block = next_s;
-				lastblock = next_e;
-				next_s = next_e = 0;
-			} else
-				done = true;
+			done = true;
 			break;
 		}
 		brelse(bh);
