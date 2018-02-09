@@ -476,6 +476,21 @@ define archhelp
 	echo
 	echo '  {micro32,32,64}{r1,r2,r6}{el,}_defconfig <BOARDS="list of boards">'
 	echo
+	echo '  Where BOARDS is some subset of the following:'
+	for board in $(sort $(BOARDS)); do echo "    $${board}"; done
+	echo
+	echo '  Specifically the following generic default configurations are'
+	echo '  supported:'
+	echo
+	$(foreach cfg,$(generic_defconfigs),
+	  printf "  %-24s - Build generic kernel for $(call describe_generic_defconfig,$(cfg))\n" $(cfg);)
+	echo
+	echo '  The following legacy default configurations have been converted to'
+	echo '  generic and can still be used:'
+	echo
+	$(foreach cfg,$(sort $(legacy_defconfigs)),
+	  printf "  %-24s - Build $($(cfg)-y)\n" $(cfg);)
+	echo
 	echo '  Otherwise, the following default configurations are available:'
 endef
 
@@ -509,6 +524,10 @@ endef
 
 $(eval $(call gen_generic_defconfigs,32 64,r1 r2 r6,eb el))
 $(eval $(call gen_generic_defconfigs,micro32,r2,eb el))
+
+define describe_generic_defconfig
+$(subst 32r,MIPS32 r,$(subst 64r,MIPS64 r,$(subst el, little endian,$(patsubst %_defconfig,%,$(1)))))
+endef
 
 .PHONY: $(generic_defconfigs)
 $(generic_defconfigs):
