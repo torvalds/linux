@@ -115,6 +115,8 @@ struct dvb_demux_filter {
  * @pid:	PID to be filtered.
  * @timeout:	feed timeout.
  * @filter:	pointer to &struct dvb_demux_filter.
+ * @buffer_flags: Buffer flags used to report discontinuity users via DVB
+ *		  memory mapped API, as defined by &enum dmx_buffer_flags.
  * @ts_type:	type of TS, as defined by &enum ts_filter_type.
  * @pes_type:	type of PES, as defined by &enum dmx_ts_pes.
  * @cc:		MPEG-TS packet continuity counter
@@ -144,6 +146,8 @@ struct dvb_demux_feed {
 
 	ktime_t timeout;
 	struct dvb_demux_filter *filter;
+
+	u32 buffer_flags;
 
 	enum ts_filter_type ts_type;
 	enum dmx_ts_pes pes_type;

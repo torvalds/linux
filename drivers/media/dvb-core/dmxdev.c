@@ -385,7 +385,8 @@ static void dvb_dmxdev_filter_timer(struct dmxdev_filter *dmxdevfilter)
 
 static int dvb_dmxdev_section_callback(const u8 *buffer1, size_t buffer1_len,
 				       const u8 *buffer2, size_t buffer2_len,
-				       struct dmx_section_filter *filter)
+				       struct dmx_section_filter *filter,
+				       u32 *buffer_flags)
 {
 	struct dmxdev_filter *dmxdevfilter = filter->priv;
 	int ret;
@@ -404,10 +405,12 @@ static int dvb_dmxdev_section_callback(const u8 *buffer1, size_t buffer1_len,
 	dprintk("section callback %*ph\n", 6, buffer1);
 	if (dvb_vb2_is_streaming(&dmxdevfilter->vb2_ctx)) {
 		ret = dvb_vb2_fill_buffer(&dmxdevfilter->vb2_ctx,
-					  buffer1, buffer1_len);
+					  buffer1, buffer1_len,
+					  buffer_flags);
 		if (ret == buffer1_len)
 			ret = dvb_vb2_fill_buffer(&dmxdevfilter->vb2_ctx,
-						  buffer2, buffer2_len);
+						  buffer2, buffer2_len,
+						  buffer_flags);
 	} else {
 		ret = dvb_dmxdev_buffer_write(&dmxdevfilter->buffer,
 					      buffer1, buffer1_len);
@@ -427,7 +430,8 @@ static int dvb_dmxdev_section_callback(const u8 *buffer1, size_t buffer1_len,
 
 static int dvb_dmxdev_ts_callback(const u8 *buffer1, size_t buffer1_len,
 				  const u8 *buffer2, size_t buffer2_len,
-				  struct dmx_ts_feed *feed)
+				  struct dmx_ts_feed *feed,
+				  u32 *buffer_flags)
 {
 	struct dmxdev_filter *dmxdevfilter = feed->priv;
 	struct dvb_ringbuffer *buffer;
@@ -456,9 +460,11 @@ static int dvb_dmxdev_ts_callback(const u8 *buffer1, size_t buffer1_len,
 	}
 
 	if (dvb_vb2_is_streaming(ctx)) {
-		ret = dvb_vb2_fill_buffer(ctx, buffer1, buffer1_len);
+		ret = dvb_vb2_fill_buffer(ctx, buffer1, buffer1_len,
+					  buffer_flags);
 		if (ret == buffer1_len)
-			ret = dvb_vb2_fill_buffer(ctx, buffer2, buffer2_len);
+			ret = dvb_vb2_fill_buffer(ctx, buffer2, buffer2_len,
+						  buffer_flags);
 	} else {
 		if (buffer->error) {
 			spin_unlock(&dmxdevfilter->dev->lock);
@@ -1218,7 +1224,7 @@ static int dvb_demux_mmap(struct file *file, struct vm_area_struct *vma)
 	int ret;
 
 	if (!dmxdev->may_do_mmap)
-		return -EOPNOTSUPP;
+		return -ENOTTY;
 
 	if (mutex_lock_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
@@ -1318,7 +1324,7 @@ static int dvb_dvr_do_ioctl(struct file *file,
 		break;
 #endif
 	default:
-		ret = -EINVAL;
+		ret = -ENOTTY;
 		break;
 	}
 	mutex_unlock(&dmxdev->mutex);
@@ -1367,7 +1373,7 @@ static int dvb_dvr_mmap(struct file *file, struct vm_area_struct *vma)
 	int ret;
 
 	if (!dmxdev->may_do_mmap)
-		return -EOPNOTSUPP;
+		return -ENOTTY;
 
 	if (dmxdev->exit)
 		return -ENODEV;
