@@ -2358,11 +2358,14 @@ void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 	core_dc->hwss.set_avmute(pipe_ctx, enable);
 }
 
-void dc_link_disable_hpd_filter(struct dc_link *link)
+void dc_link_enable_hpd_filter(struct dc_link *link, bool enable)
 {
 	struct gpio *hpd;
 
-	if (!link->is_hpd_filter_disabled) {
+	if (enable) {
+		link->is_hpd_filter_disabled = false;
+		program_hpd_filter(link);
+	} else {
 		link->is_hpd_filter_disabled = true;
 		/* Obtain HPD handle */
 		hpd = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);

@@ -197,7 +197,7 @@ bool dc_link_dp_set_test_pattern(
 	const unsigned char *p_custom_pattern,
 	unsigned int cust_pattern_size);
 
-void dc_link_disable_hpd_filter(struct dc_link *link);
+void dc_link_enable_hpd_filter(struct dc_link *link, bool enable);
 
 /*
  * DPCD access interfaces
