@@ -148,7 +148,7 @@ static int rk817_shutdown_prepare(struct regmap *regmap)
 	/* pmic sleep shutdown function */
 	ret = regmap_update_bits(regmap,
 				 RK817_SYS_CFG(3),
-				 RK817_SLPPIN_FUNC_MSK, SHUTDOWN_FUN);
+				 RK817_SLPPIN_FUNC_MSK, SLPPIN_DN_FUN);
 	return ret;
 }
 
