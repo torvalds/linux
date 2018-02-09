@@ -443,9 +443,9 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 			shift ^= 4;
 			if (*esc >= '0' && *esc <= '9') {
 				value |= (*esc - '0') << shift;
-			} else if (*esc >= 'A' && *esc <= 'Z') {
+			} else if (*esc >= 'A' && *esc <= 'F') {
 				value |= (*esc - 'A' + 10) << shift;
-			} else if (*esc >= 'a' && *esc <= 'z') {
+			} else if (*esc >= 'a' && *esc <= 'f') {
 				value |= (*esc - 'a' + 10) << shift;
 			} else {
 				esc++;
