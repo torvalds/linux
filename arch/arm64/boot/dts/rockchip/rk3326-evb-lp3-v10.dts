@@ -593,6 +593,9 @@
 
 &i2c1 {
 	status = "okay";
+	clock-frequency = <400000>;
+	i2c-scl-rising-time-ns = <275>;
+	i2c-scl-falling-time-ns = <16>;
 
 	sensor@0f {
 		status = "okay";
