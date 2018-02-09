@@ -1920,7 +1920,6 @@ void i915_reset(struct drm_i915_private *i915, unsigned int flags)
 	ret = i915_gem_reset_prepare(i915);
 	if (ret) {
 		dev_err(i915->drm.dev, "GPU recovery failed\n");
-		intel_gpu_reset(i915, ALL_ENGINES);
 		goto taint;
 	}
 
@@ -2003,6 +2002,7 @@ taint:
 error:
 	i915_gem_set_wedged(i915);
 	i915_gem_retire_requests(i915);
+	intel_gpu_reset(i915, ALL_ENGINES);
 	goto finish;
 }
 
