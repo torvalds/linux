@@ -258,6 +258,15 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 	return true;
 }
 
+
+/*
+ * Clear payload allocation table before enable MST DP link.
+ */
+void dm_helpers_dp_mst_clear_payload_allocation_table(
+	struct dc_context *ctx,
+	const struct dc_link *link)
+{}
+
 /*
  * Polls for ACT (allocation change trigger) handled and sends
  * ALLOCATE_PAYLOAD message.
