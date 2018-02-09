@@ -1083,9 +1083,9 @@ static int rk817_charge_host_evt_notifier(struct notifier_block *nb,
 					  unsigned long event, void *ptr)
 {
 	struct rk817_charger *charge =
-		container_of(nb, struct rk817_charger, cable_discnt_nb);
+		container_of(nb, struct rk817_charger, cable_host_nb);
 
-	queue_delayed_work(charge->usb_charger_wq, &charge->discnt_work,
+	queue_delayed_work(charge->usb_charger_wq, &charge->host_work,
 			   msecs_to_jiffies(10));
 
 	return NOTIFY_DONE;
