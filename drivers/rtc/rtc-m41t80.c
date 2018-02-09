@@ -73,7 +73,6 @@
 #define M41T80_FEATURE_WD	BIT(3)	/* Extra watchdog resolution */
 #define M41T80_FEATURE_SQ_ALT	BIT(4)	/* RSx bits are in reg 4 */
 
-static DEFINE_MUTEX(m41t80_rtc_mutex);
 static const struct i2c_device_id m41t80_id[] = {
 	{ "m41t62", M41T80_FEATURE_SQ | M41T80_FEATURE_SQ_ALT },
 	{ "m41t65", M41T80_FEATURE_HT | M41T80_FEATURE_WD },
@@ -598,6 +597,7 @@ static struct clk *m41t80_sqw_register_clk(struct m41t80_data *m41t80)
  *
  *****************************************************************************
  */
+static DEFINE_MUTEX(m41t80_rtc_mutex);
 static struct i2c_client *save_client;
 
 /* Default margin */
