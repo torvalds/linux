@@ -543,18 +543,14 @@ static int add_call_destinations(struct objtool_file *file)
 			dest_off = insn->offset + insn->len + insn->immediate;
 			insn->call_dest = find_symbol_by_offset(insn->sec,
 								dest_off);
-			/*
-			 * FIXME: Thanks to retpolines, it's now considered
-			 * normal for a function to call within itself.  So
-			 * disable this warning for now.
-			 */
-#if 0
-			if (!insn->call_dest) {
-				WARN_FUNC("can't find call dest symbol at offset 0x%lx",
-					  insn->sec, insn->offset, dest_off);
+
+			if (!insn->call_dest && !insn->ignore) {
+				WARN_FUNC("unsupported intra-function call",
+					  insn->sec, insn->offset);
+				WARN("If this is a retpoline, please patch it in with alternatives and annotate it with ANNOTATE_NOSPEC_ALTERNATIVE.");
 				return -1;
 			}
-#endif
+
 		} else if (rela->sym->type == STT_SECTION) {
 			insn->call_dest = find_symbol_by_offset(rela->sym->sec,
 								rela->addend+4);
@@ -598,7 +594,7 @@ static int handle_group_alt(struct objtool_file *file,
 			    struct instruction *orig_insn,
 			    struct instruction **new_insn)
 {
-	struct instruction *last_orig_insn, *last_new_insn, *insn, *fake_jump;
+	struct instruction *last_orig_insn, *last_new_insn, *insn, *fake_jump = NULL;
 	unsigned long dest_off;
 
 	last_orig_insn = NULL;
@@ -614,28 +610,30 @@ static int handle_group_alt(struct objtool_file *file,
 		last_orig_insn = insn;
 	}
 
-	if (!next_insn_same_sec(file, last_orig_insn)) {
-		WARN("%s: don't know how to handle alternatives at end of section",
-		     special_alt->orig_sec->name);
-		return -1;
-	}
+	if (next_insn_same_sec(file, last_orig_insn)) {
+		fake_jump = malloc(sizeof(*fake_jump));
+		if (!fake_jump) {
+			WARN("malloc failed");
+			return -1;
+		}
+		memset(fake_jump, 0, sizeof(*fake_jump));
+		INIT_LIST_HEAD(&fake_jump->alts);
+		clear_insn_state(&fake_jump->state);
 
-	fake_jump = malloc(sizeof(*fake_jump));
-	if (!fake_jump) {
-		WARN("malloc failed");
-		return -1;
+		fake_jump->sec = special_alt->new_sec;
+		fake_jump->offset = -1;
+		fake_jump->type = INSN_JUMP_UNCONDITIONAL;
+		fake_jump->jump_dest = list_next_entry(last_orig_insn, list);
+		fake_jump->ignore = true;
 	}
-	memset(fake_jump, 0, sizeof(*fake_jump));
-	INIT_LIST_HEAD(&fake_jump->alts);
-	clear_insn_state(&fake_jump->state);
-
-	fake_jump->sec = special_alt->new_sec;
-	fake_jump->offset = -1;
-	fake_jump->type = INSN_JUMP_UNCONDITIONAL;
-	fake_jump->jump_dest = list_next_entry(last_orig_insn, list);
-	fake_jump->ignore = true;
 
 	if (!special_alt->new_len) {
+		if (!fake_jump) {
+			WARN("%s: empty alternative at end of section",
+			     special_alt->orig_sec->name);
+			return -1;
+		}
+
 		*new_insn = fake_jump;
 		return 0;
 	}
@@ -648,6 +646,8 @@ static int handle_group_alt(struct objtool_file *file,
 
 		last_new_insn = insn;
 
+		insn->ignore = orig_insn->ignore_alts;
+
 		if (insn->type != INSN_JUMP_CONDITIONAL &&
 		    insn->type != INSN_JUMP_UNCONDITIONAL)
 			continue;
@@ -656,8 +656,14 @@ static int handle_group_alt(struct objtool_file *file,
 			continue;
 
 		dest_off = insn->offset + insn->len + insn->immediate;
-		if (dest_off == special_alt->new_off + special_alt->new_len)
+		if (dest_off == special_alt->new_off + special_alt->new_len) {
+			if (!fake_jump) {
+				WARN("%s: alternative jump to end of section",
+				     special_alt->orig_sec->name);
+				return -1;
+			}
 			insn->jump_dest = fake_jump;
+		}
 
 		if (!insn->jump_dest) {
 			WARN_FUNC("can't find alternative jump destination",
@@ -672,7 +678,8 @@ static int handle_group_alt(struct objtool_file *file,
 		return -1;
 	}
 
-	list_add(&fake_jump->list, &last_new_insn->list);
+	if (fake_jump)
+		list_add(&fake_jump->list, &last_new_insn->list);
 
 	return 0;
 }
@@ -728,10 +735,6 @@ static int add_special_section_alts(struct objtool_file *file)
 			ret = -1;
 			goto out;
 		}
-
-		/* Ignore retpoline alternatives. */
-		if (orig_insn->ignore_alts)
-			continue;
 
 		new_insn = NULL;
 		if (!special_alt->group || special_alt->new_len) {
@@ -1089,11 +1092,11 @@ static int decode_sections(struct objtool_file *file)
 	if (ret)
 		return ret;
 
-	ret = add_call_destinations(file);
+	ret = add_special_section_alts(file);
 	if (ret)
 		return ret;
 
-	ret = add_special_section_alts(file);
+	ret = add_call_destinations(file);
 	if (ret)
 		return ret;
 
@@ -1720,10 +1723,12 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 
 		insn->visited = true;
 
-		list_for_each_entry(alt, &insn->alts, list) {
-			ret = validate_branch(file, alt->insn, state);
-			if (ret)
-				return 1;
+		if (!insn->ignore_alts) {
+			list_for_each_entry(alt, &insn->alts, list) {
+				ret = validate_branch(file, alt->insn, state);
+				if (ret)
+					return 1;
+			}
 		}
 
 		switch (insn->type) {

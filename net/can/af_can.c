@@ -721,20 +721,16 @@ static int can_rcv(struct sk_buff *skb, struct net_device *dev,
 {
 	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
 
-	if (WARN_ONCE(dev->type != ARPHRD_CAN ||
-		      skb->len != CAN_MTU ||
-		      cfd->len > CAN_MAX_DLEN,
-		      "PF_CAN: dropped non conform CAN skbuf: "
-		      "dev type %d, len %d, datalen %d\n",
-		      dev->type, skb->len, cfd->len))
-		goto drop;
+	if (unlikely(dev->type != ARPHRD_CAN || skb->len != CAN_MTU ||
+		     cfd->len > CAN_MAX_DLEN)) {
+		pr_warn_once("PF_CAN: dropped non conform CAN skbuf: dev type %d, len %d, datalen %d\n",
+			     dev->type, skb->len, cfd->len);
+		kfree_skb(skb);
+		return NET_RX_DROP;
+	}
 
 	can_receive(skb, dev);
 	return NET_RX_SUCCESS;
-
-drop:
-	kfree_skb(skb);
-	return NET_RX_DROP;
 }
 
 static int canfd_rcv(struct sk_buff *skb, struct net_device *dev,
@@ -742,20 +738,16 @@ static int canfd_rcv(struct sk_buff *skb, struct net_device *dev,
 {
 	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
 
-	if (WARN_ONCE(dev->type != ARPHRD_CAN ||
-		      skb->len != CANFD_MTU ||
-		      cfd->len > CANFD_MAX_DLEN,
-		      "PF_CAN: dropped non conform CAN FD skbuf: "
-		      "dev type %d, len %d, datalen %d\n",
-		      dev->type, skb->len, cfd->len))
-		goto drop;
+	if (unlikely(dev->type != ARPHRD_CAN || skb->len != CANFD_MTU ||
+		     cfd->len > CANFD_MAX_DLEN)) {
+		pr_warn_once("PF_CAN: dropped non conform CAN FD skbuf: dev type %d, len %d, datalen %d\n",
+			     dev->type, skb->len, cfd->len);
+		kfree_skb(skb);
+		return NET_RX_DROP;
+	}
 
 	can_receive(skb, dev);
 	return NET_RX_SUCCESS;
-
-drop:
-	kfree_skb(skb);
-	return NET_RX_DROP;
 }
 
 /*

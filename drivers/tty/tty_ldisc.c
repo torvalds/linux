@@ -336,7 +336,7 @@ static inline void __tty_ldisc_unlock(struct tty_struct *tty)
 	ldsem_up_write(&tty->ldisc_sem);
 }
 
-static int tty_ldisc_lock(struct tty_struct *tty, unsigned long timeout)
+int tty_ldisc_lock(struct tty_struct *tty, unsigned long timeout)
 {
 	int ret;
 
@@ -347,7 +347,7 @@ static int tty_ldisc_lock(struct tty_struct *tty, unsigned long timeout)
 	return 0;
 }
 
-static void tty_ldisc_unlock(struct tty_struct *tty)
+void tty_ldisc_unlock(struct tty_struct *tty)
 {
 	clear_bit(TTY_LDISC_HALTED, &tty->flags);
 	__tty_ldisc_unlock(tty);

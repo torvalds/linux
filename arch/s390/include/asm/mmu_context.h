@@ -28,7 +28,7 @@ static inline int init_new_context(struct task_struct *tsk,
 #ifdef CONFIG_PGSTE
 	mm->context.alloc_pgste = page_table_allocate_pgste ||
 		test_thread_flag(TIF_PGSTE) ||
-		current->mm->context.alloc_pgste;
+		(current->mm && current->mm->context.alloc_pgste);
 	mm->context.has_pgste = 0;
 	mm->context.use_skey = 0;
 	mm->context.use_cmma = 0;

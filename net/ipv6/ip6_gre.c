@@ -337,10 +337,11 @@ static struct ip6_tnl *ip6gre_tunnel_locate(struct net *net,
 
 	nt->dev = dev;
 	nt->net = dev_net(dev);
-	ip6gre_tnl_link_config(nt, 1);
 
 	if (register_netdevice(dev) < 0)
 		goto failed_free;
+
+	ip6gre_tnl_link_config(nt, 1);
 
 	/* Can use a lockless transmit, unless we generate output sequences */
 	if (!(nt->parms.o_flags & TUNNEL_SEQ))
@@ -1307,7 +1308,6 @@ static void ip6gre_netlink_parms(struct nlattr *data[],
 
 static int ip6gre_tap_init(struct net_device *dev)
 {
-	struct ip6_tnl *tunnel;
 	int ret;
 
 	ret = ip6gre_tunnel_init_common(dev);
@@ -1315,10 +1315,6 @@ static int ip6gre_tap_init(struct net_device *dev)
 		return ret;
 
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
-
-	tunnel = netdev_priv(dev);
-
-	ip6gre_tnl_link_config(tunnel, 1);
 
 	return 0;
 }
@@ -1411,11 +1407,15 @@ static int ip6gre_newlink(struct net *src_net, struct net_device *dev,
 
 	nt->dev = dev;
 	nt->net = dev_net(dev);
-	ip6gre_tnl_link_config(nt, !tb[IFLA_MTU]);
 
 	err = register_netdevice(dev);
 	if (err)
 		goto out;
+
+	ip6gre_tnl_link_config(nt, !tb[IFLA_MTU]);
+
+	if (tb[IFLA_MTU])
+		ip6_tnl_change_mtu(dev, nla_get_u32(tb[IFLA_MTU]));
 
 	dev_hold(dev);
 	ip6gre_tunnel_link(ign, nt);

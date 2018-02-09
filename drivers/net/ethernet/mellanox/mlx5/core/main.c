@@ -577,8 +577,7 @@ static int mlx5_core_set_hca_defaults(struct mlx5_core_dev *dev)
 	int ret = 0;
 
 	/* Disable local_lb by default */
-	if ((MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_ETH) &&
-	    MLX5_CAP_GEN(dev, disable_local_lb))
+	if (MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_ETH)
 		ret = mlx5_nic_vport_update_local_lb(dev, false);
 
 	return ret;

@@ -141,10 +141,12 @@ enum SS4_PACKET_ID {
 #define SS4_TS_Z_V2(_b)		(s8)(_b[4] & 0x7F)
 
 
-#define SS4_MFPACKET_NO_AX	8160	/* X-Coordinate value */
-#define SS4_MFPACKET_NO_AY	4080	/* Y-Coordinate value */
-#define SS4_MFPACKET_NO_AX_BL	8176	/* Buttonless X-Coordinate value */
-#define SS4_MFPACKET_NO_AY_BL	4088	/* Buttonless Y-Coordinate value */
+#define SS4_MFPACKET_NO_AX		8160	/* X-Coordinate value */
+#define SS4_MFPACKET_NO_AY		4080	/* Y-Coordinate value */
+#define SS4_MFPACKET_NO_AX_BL		8176	/* Buttonless X-Coord value */
+#define SS4_MFPACKET_NO_AY_BL		4088	/* Buttonless Y-Coord value */
+#define SS4_PLUS_MFPACKET_NO_AX		4080	/* SS4 PLUS, X */
+#define SS4_PLUS_MFPACKET_NO_AX_BL	4088	/* Buttonless SS4 PLUS, X */
 
 /*
  * enum V7_PACKET_ID - defines the packet type for V7

@@ -148,6 +148,9 @@ static struct sk_buff *esp6_gso_segment(struct sk_buff *skb,
 	if (!xo)
 		goto out;
 
+	if (!(skb_shinfo(skb)->gso_type & SKB_GSO_ESP))
+		goto out;
+
 	seq = xo->seq.low;
 
 	x = skb->sp->xvec[skb->sp->len - 1];

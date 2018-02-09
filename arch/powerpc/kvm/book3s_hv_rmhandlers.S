@@ -78,7 +78,7 @@ _GLOBAL_TOC(kvmppc_hv_entry_trampoline)
 	mtmsrd	r0,1		/* clear RI in MSR */
 	mtsrr0	r5
 	mtsrr1	r6
-	RFI
+	RFI_TO_KERNEL
 
 kvmppc_call_hv_entry:
 	ld	r4, HSTATE_KVM_VCPU(r13)
@@ -187,7 +187,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	mtmsrd	r6, 1			/* Clear RI in MSR */
 	mtsrr0	r8
 	mtsrr1	r7
-	RFI
+	RFI_TO_KERNEL
 
 	/* Virtual-mode return */
 .Lvirt_return:
@@ -1131,8 +1131,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 
 	ld	r0, VCPU_GPR(R0)(r4)
 	ld	r4, VCPU_GPR(R4)(r4)
-
-	hrfid
+	HRFI_TO_GUEST
 	b	.
 
 secondary_too_late:

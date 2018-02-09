@@ -233,29 +233,29 @@ struct kfd_ioctl_wait_events_args {
 };
 
 struct kfd_ioctl_set_scratch_backing_va_args {
-	uint64_t va_addr;	/* to KFD */
-	uint32_t gpu_id;	/* to KFD */
-	uint32_t pad;
+	__u64 va_addr;	/* to KFD */
+	__u32 gpu_id;	/* to KFD */
+	__u32 pad;
 };
 
 struct kfd_ioctl_get_tile_config_args {
 	/* to KFD: pointer to tile array */
-	uint64_t tile_config_ptr;
+	__u64 tile_config_ptr;
 	/* to KFD: pointer to macro tile array */
-	uint64_t macro_tile_config_ptr;
+	__u64 macro_tile_config_ptr;
 	/* to KFD: array size allocated by user mode
 	 * from KFD: array size filled by kernel
 	 */
-	uint32_t num_tile_configs;
+	__u32 num_tile_configs;
 	/* to KFD: array size allocated by user mode
 	 * from KFD: array size filled by kernel
 	 */
-	uint32_t num_macro_tile_configs;
+	__u32 num_macro_tile_configs;
 
-	uint32_t gpu_id;		/* to KFD */
-	uint32_t gb_addr_config;	/* from KFD */
-	uint32_t num_banks;		/* from KFD */
-	uint32_t num_ranks;		/* from KFD */
+	__u32 gpu_id;		/* to KFD */
+	__u32 gb_addr_config;	/* from KFD */
+	__u32 num_banks;		/* from KFD */
+	__u32 num_ranks;		/* from KFD */
 	/* struct size can be extended later if needed
 	 * without breaking ABI compatibility
 	 */

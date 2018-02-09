@@ -1677,28 +1677,18 @@ void btrfs_readdir_put_delayed_items(struct inode *inode,
 int btrfs_should_delete_dir_index(struct list_head *del_list,
 				  u64 index)
 {
-	struct btrfs_delayed_item *curr, *next;
-	int ret;
+	struct btrfs_delayed_item *curr;
+	int ret = 0;
 
-	if (list_empty(del_list))
-		return 0;
-
-	list_for_each_entry_safe(curr, next, del_list, readdir_list) {
+	list_for_each_entry(curr, del_list, readdir_list) {
 		if (curr->key.offset > index)
 			break;
-
-		list_del(&curr->readdir_list);
-		ret = (curr->key.offset == index);
-
-		if (refcount_dec_and_test(&curr->refs))
-			kfree(curr);
-
-		if (ret)
-			return 1;
-		else
-			continue;
+		if (curr->key.offset == index) {
+			ret = 1;
+			break;
+		}
 	}
-	return 0;
+	return ret;
 }
 
 /*

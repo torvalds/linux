@@ -218,8 +218,8 @@ static inline bool zcrypt_queue_compare(struct zcrypt_queue *zq,
 	weight += atomic_read(&zq->load);
 	pref_weight += atomic_read(&pref_zq->load);
 	if (weight == pref_weight)
-		return &zq->queue->total_request_count >
-			&pref_zq->queue->total_request_count;
+		return zq->queue->total_request_count >
+			pref_zq->queue->total_request_count;
 	return weight > pref_weight;
 }
 

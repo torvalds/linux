@@ -25,6 +25,7 @@
 #include <asm/kvm_emulate.h>
 #include <linux/stringify.h>
 #include <asm/debugreg.h>
+#include <asm/nospec-branch.h>
 
 #include "x86.h"
 #include "tss.h"
@@ -1021,8 +1022,8 @@ static __always_inline u8 test_cc(unsigned int condition, unsigned long flags)
 	void (*fop)(void) = (void *)em_setcc + 4 * (condition & 0xf);
 
 	flags = (flags & EFLAGS_MASK) | X86_EFLAGS_IF;
-	asm("push %[flags]; popf; call *%[fastop]"
-	    : "=a"(rc) : [fastop]"r"(fop), [flags]"r"(flags));
+	asm("push %[flags]; popf; " CALL_NOSPEC
+	    : "=a"(rc) : [thunk_target]"r"(fop), [flags]"r"(flags));
 	return rc;
 }
 
@@ -4023,6 +4024,26 @@ static int em_fxsave(struct x86_emulate_ctxt *ctxt)
 		                   fxstate_size(ctxt));
 }
 
+/*
+ * FXRSTOR might restore XMM registers not provided by the guest. Fill
+ * in the host registers (via FXSAVE) instead, so they won't be modified.
+ * (preemption has to stay disabled until FXRSTOR).
+ *
+ * Use noinline to keep the stack for other functions called by callers small.
+ */
+static noinline int fxregs_fixup(struct fxregs_state *fx_state,
+				 const size_t used_size)
+{
+	struct fxregs_state fx_tmp;
+	int rc;
+
+	rc = asm_safe("fxsave %[fx]", , [fx] "+m"(fx_tmp));
+	memcpy((void *)fx_state + used_size, (void *)&fx_tmp + used_size,
+	       __fxstate_size(16) - used_size);
+
+	return rc;
+}
+
 static int em_fxrstor(struct x86_emulate_ctxt *ctxt)
 {
 	struct fxregs_state fx_state;
@@ -4033,18 +4054,18 @@ static int em_fxrstor(struct x86_emulate_ctxt *ctxt)
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
+	size = fxstate_size(ctxt);
+	rc = segmented_read_std(ctxt, ctxt->memop.addr.mem, &fx_state, size);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
 	ctxt->ops->get_fpu(ctxt);
 
-	size = fxstate_size(ctxt);
 	if (size < __fxstate_size(16)) {
-		rc = asm_safe("fxsave %[fx]", , [fx] "+m"(fx_state));
+		rc = fxregs_fixup(&fx_state, size);
 		if (rc != X86EMUL_CONTINUE)
 			goto out;
 	}
-
-	rc = segmented_read_std(ctxt, ctxt->memop.addr.mem, &fx_state, size);
-	if (rc != X86EMUL_CONTINUE)
-		goto out;
 
 	if (fx_state.mxcsr >> 16) {
 		rc = emulate_gp(ctxt, 0);
@@ -5009,6 +5030,8 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 	bool op_prefix = false;
 	bool has_seg_override = false;
 	struct opcode opcode;
+	u16 dummy;
+	struct desc_struct desc;
 
 	ctxt->memop.type = OP_NONE;
 	ctxt->memopp = NULL;
@@ -5027,6 +5050,11 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 	switch (mode) {
 	case X86EMUL_MODE_REAL:
 	case X86EMUL_MODE_VM86:
+		def_op_bytes = def_ad_bytes = 2;
+		ctxt->ops->get_segment(ctxt, &dummy, &desc, NULL, VCPU_SREG_CS);
+		if (desc.d)
+			def_op_bytes = def_ad_bytes = 4;
+		break;
 	case X86EMUL_MODE_PROT16:
 		def_op_bytes = def_ad_bytes = 2;
 		break;
@@ -5323,9 +5351,9 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *))
 	if (!(ctxt->d & ByteOp))
 		fop += __ffs(ctxt->dst.bytes) * FASTOP_SIZE;
 
-	asm("push %[flags]; popf; call *%[fastop]; pushf; pop %[flags]\n"
+	asm("push %[flags]; popf; " CALL_NOSPEC " ; pushf; pop %[flags]\n"
 	    : "+a"(ctxt->dst.val), "+d"(ctxt->src.val), [flags]"+D"(flags),
-	      [fastop]"+S"(fop), ASM_CALL_CONSTRAINT
+	      [thunk_target]"+S"(fop), ASM_CALL_CONSTRAINT
 	    : "c"(ctxt->src2.val));
 
 	ctxt->eflags = (ctxt->eflags & ~EFLAGS_MASK) | (flags & EFLAGS_MASK);

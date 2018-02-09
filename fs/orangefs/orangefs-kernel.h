@@ -566,17 +566,6 @@ do {									\
 	sys_attr.mask = ORANGEFS_ATTR_SYS_ALL_SETABLE;			\
 } while (0)
 
-static inline void orangefs_i_size_write(struct inode *inode, loff_t i_size)
-{
-#if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
-	inode_lock(inode);
-#endif
-	i_size_write(inode, i_size);
-#if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
-	inode_unlock(inode);
-#endif
-}
-
 static inline void orangefs_set_timeout(struct dentry *dentry)
 {
 	unsigned long time = jiffies + orangefs_dcache_timeout_msecs*HZ/1000;

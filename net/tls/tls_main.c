@@ -364,14 +364,16 @@ static int do_tls_setsockopt_tx(struct sock *sk, char __user *optval,
 	crypto_info = &ctx->crypto_send;
 
 	/* Currently we don't support set crypto info more than one time */
-	if (TLS_CRYPTO_INFO_READY(crypto_info))
+	if (TLS_CRYPTO_INFO_READY(crypto_info)) {
+		rc = -EBUSY;
 		goto out;
+	}
 
 	switch (tmp_crypto_info.cipher_type) {
 	case TLS_CIPHER_AES_GCM_128: {
 		if (optlen != sizeof(struct tls12_crypto_info_aes_gcm_128)) {
 			rc = -EINVAL;
-			goto out;
+			goto err_crypto_info;
 		}
 		rc = copy_from_user(
 		  crypto_info,
@@ -386,7 +388,7 @@ static int do_tls_setsockopt_tx(struct sock *sk, char __user *optval,
 	}
 	default:
 		rc = -EINVAL;
-		goto out;
+		goto err_crypto_info;
 	}
 
 	ctx->sk_write_space = sk->sk_write_space;
@@ -443,6 +445,15 @@ static int tls_init(struct sock *sk)
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tls_context *ctx;
 	int rc = 0;
+
+	/* The TLS ulp is currently supported only for TCP sockets
+	 * in ESTABLISHED state.
+	 * Supporting sockets in LISTEN state will require us
+	 * to modify the accept implementation to clone rather then
+	 * share the ulp context.
+	 */
+	if (sk->sk_state != TCP_ESTABLISHED)
+		return -ENOTSUPP;
 
 	/* allocate tls context */
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);

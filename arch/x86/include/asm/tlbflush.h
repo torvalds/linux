@@ -174,6 +174,8 @@ struct tlb_state {
 	struct mm_struct *loaded_mm;
 	u16 loaded_mm_asid;
 	u16 next_asid;
+	/* last user mm's ctx id */
+	u64 last_ctx_id;
 
 	/*
 	 * We can be in one of several states:

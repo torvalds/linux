@@ -371,6 +371,7 @@ static ssize_t config_num_requests_store(struct device *dev,
 	if (test_fw_config->reqs) {
 		pr_err("Must call release_all_firmware prior to changing config\n");
 		rc = -EINVAL;
+		mutex_unlock(&test_fw_mutex);
 		goto out;
 	}
 	mutex_unlock(&test_fw_mutex);

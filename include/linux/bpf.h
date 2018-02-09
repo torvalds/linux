@@ -42,7 +42,14 @@ struct bpf_map_ops {
 };
 
 struct bpf_map {
-	atomic_t refcnt;
+	/* 1st cacheline with read-mostly members of which some
+	 * are also accessed in fast-path (e.g. ops, max_entries).
+	 */
+	const struct bpf_map_ops *ops ____cacheline_aligned;
+	struct bpf_map *inner_map_meta;
+#ifdef CONFIG_SECURITY
+	void *security;
+#endif
 	enum bpf_map_type map_type;
 	u32 key_size;
 	u32 value_size;
@@ -52,11 +59,15 @@ struct bpf_map {
 	u32 id;
 	int numa_node;
 	bool unpriv_array;
-	struct user_struct *user;
-	const struct bpf_map_ops *ops;
-	struct work_struct work;
+	/* 7 bytes hole */
+
+	/* 2nd cacheline with misc members to avoid false sharing
+	 * particularly with refcounting.
+	 */
+	struct user_struct *user ____cacheline_aligned;
+	atomic_t refcnt;
 	atomic_t usercnt;
-	struct bpf_map *inner_map_meta;
+	struct work_struct work;
 };
 
 /* function argument constraints */

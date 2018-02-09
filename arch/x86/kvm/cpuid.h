@@ -44,7 +44,7 @@ static const struct cpuid_reg reverse_cpuid[] = {
 	[CPUID_8086_0001_EDX] = {0x80860001, 0, CPUID_EDX},
 	[CPUID_1_ECX]         = {         1, 0, CPUID_ECX},
 	[CPUID_C000_0001_EDX] = {0xc0000001, 0, CPUID_EDX},
-	[CPUID_8000_0001_ECX] = {0xc0000001, 0, CPUID_ECX},
+	[CPUID_8000_0001_ECX] = {0x80000001, 0, CPUID_ECX},
 	[CPUID_7_0_EBX]       = {         7, 0, CPUID_EBX},
 	[CPUID_D_1_EAX]       = {       0xd, 1, CPUID_EAX},
 	[CPUID_F_0_EDX]       = {       0xf, 0, CPUID_EDX},
@@ -54,6 +54,7 @@ static const struct cpuid_reg reverse_cpuid[] = {
 	[CPUID_8000_000A_EDX] = {0x8000000a, 0, CPUID_EDX},
 	[CPUID_7_ECX]         = {         7, 0, CPUID_ECX},
 	[CPUID_8000_0007_EBX] = {0x80000007, 0, CPUID_EBX},
+	[CPUID_7_EDX]         = {         7, 0, CPUID_EDX},
 };
 
 static __always_inline struct cpuid_reg x86_feature_cpuid(unsigned x86_feature)
