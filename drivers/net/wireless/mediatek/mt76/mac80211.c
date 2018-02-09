@@ -276,6 +276,7 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 	ieee80211_hw_set(hw, TX_AMSDU);
 	ieee80211_hw_set(hw, TX_FRAG_LIST);
 	ieee80211_hw_set(hw, MFP_CAPABLE);
+	ieee80211_hw_set(hw, AP_LINK_PS);
 
 	wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 
@@ -470,6 +471,53 @@ mt76_check_ccmp_pn(struct sk_buff *skb)
 	return 0;
 }
 
+static void
+mt76_check_ps(struct mt76_dev *dev, struct sk_buff *skb)
+{
+	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_sta *sta;
+	struct mt76_wcid *wcid = status->wcid;
+	bool ps;
+
+	if (!wcid || !wcid->sta)
+		return;
+
+	sta = container_of((void *) wcid, struct ieee80211_sta, drv_priv);
+
+	if (!test_bit(MT_WCID_FLAG_CHECK_PS, &wcid->flags))
+		return;
+
+	if (ieee80211_is_pspoll(hdr->frame_control)) {
+		ieee80211_sta_pspoll(sta);
+		return;
+	}
+
+	if (ieee80211_has_morefrags(hdr->frame_control) ||
+		!(ieee80211_is_mgmt(hdr->frame_control) ||
+		  ieee80211_is_data(hdr->frame_control)))
+		return;
+
+	ps = ieee80211_has_pm(hdr->frame_control);
+
+	if (ps && (ieee80211_is_data_qos(hdr->frame_control) ||
+		   ieee80211_is_qos_nullfunc(hdr->frame_control)))
+		ieee80211_sta_uapsd_trigger(sta, status->tid);
+
+	if (!!test_bit(MT_WCID_FLAG_PS, &wcid->flags) == ps)
+		return;
+
+	if (ps) {
+		set_bit(MT_WCID_FLAG_PS, &wcid->flags);
+		mt76_stop_tx_queues(dev, sta, true);
+	} else {
+		clear_bit(MT_WCID_FLAG_PS, &wcid->flags);
+	}
+
+	ieee80211_sta_ps_transition(sta, ps);
+	dev->drv->sta_ps(dev, sta, ps);
+}
+
 void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
 		      int queue)
 {
@@ -498,8 +546,10 @@ void mt76_rx_poll_complete(struct mt76_dev *dev, enum mt76_rxq_id q)
 
 	__skb_queue_head_init(&frames);
 
-	while ((skb = __skb_dequeue(&dev->rx_skb[q])) != NULL)
+	while ((skb = __skb_dequeue(&dev->rx_skb[q])) != NULL) {
+		mt76_check_ps(dev, skb);
 		mt76_rx_aggr_reorder(skb, &frames);
+	}
 
 	mt76_rx_complete(dev, &frames, q);
 }

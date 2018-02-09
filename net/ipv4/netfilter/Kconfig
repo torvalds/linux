@@ -80,8 +80,7 @@ endif # NF_TABLES
 
 config NF_FLOW_TABLE_IPV4
 	tristate "Netfilter flow table IPv4 module"
-	depends on NF_CONNTRACK && NF_TABLES
-	select NF_FLOW_TABLE
+	depends on NF_FLOW_TABLE
 	help
 	  This option adds the flow table IPv4 support.
 

@@ -947,7 +947,8 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 			return -EINVAL;
 		}
 
-		if (n->flags != flags) {
+		if ((n->flags ^ flags) &
+		    ~(TCA_CLS_FLAGS_IN_HW | TCA_CLS_FLAGS_NOT_IN_HW)) {
 			NL_SET_ERR_MSG_MOD(extack, "Key node flags do not match passed flags");
 			return -EINVAL;
 		}

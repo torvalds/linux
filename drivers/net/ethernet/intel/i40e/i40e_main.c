@@ -1785,7 +1785,7 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 	struct i40e_pf *pf = vsi->back;
 	u16 sections = 0;
 	u8 netdev_tc = 0;
-	u16 numtc = 0;
+	u16 numtc = 1;
 	u16 qcount;
 	u8 offset;
 	u16 qmap;
@@ -1795,9 +1795,11 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 	sections = I40E_AQ_VSI_PROP_QUEUE_MAP_VALID;
 	offset = 0;
 
+	/* Number of queues per enabled TC */
+	num_tc_qps = vsi->alloc_queue_pairs;
 	if (enabled_tc && (vsi->back->flags & I40E_FLAG_DCB_ENABLED)) {
 		/* Find numtc from enabled TC bitmap */
-		for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
+		for (i = 0, numtc = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
 			if (enabled_tc & BIT(i)) /* TC is enabled */
 				numtc++;
 		}
@@ -1805,18 +1807,13 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 			dev_warn(&pf->pdev->dev, "DCB is enabled but no TC enabled, forcing TC0\n");
 			numtc = 1;
 		}
-	} else {
-		/* At least TC0 is enabled in non-DCB, non-MQPRIO case */
-		numtc = 1;
+		num_tc_qps = num_tc_qps / numtc;
+		num_tc_qps = min_t(int, num_tc_qps,
+				   i40e_pf_get_max_q_per_tc(pf));
 	}
 
 	vsi->tc_config.numtc = numtc;
 	vsi->tc_config.enabled_tc = enabled_tc ? enabled_tc : 1;
-	/* Number of queues per enabled TC */
-	qcount = vsi->alloc_queue_pairs;
-
-	num_tc_qps = qcount / numtc;
-	num_tc_qps = min_t(int, num_tc_qps, i40e_pf_get_max_q_per_tc(pf));
 
 	/* Do not allow use more TC queue pairs than MSI-X vectors exist */
 	if (pf->flags & I40E_FLAG_MSIX_ENABLED)
@@ -1831,9 +1828,13 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 
 			switch (vsi->type) {
 			case I40E_VSI_MAIN:
-				qcount = min_t(int, pf->alloc_rss_size,
-					       num_tc_qps);
-				break;
+				if (!(pf->flags & (I40E_FLAG_FD_SB_ENABLED |
+				    I40E_FLAG_FD_ATR_ENABLED)) ||
+				    vsi->tc_config.enabled_tc != 1) {
+					qcount = min_t(int, pf->alloc_rss_size,
+						       num_tc_qps);
+					break;
+				}
 			case I40E_VSI_FDIR:
 			case I40E_VSI_SRIOV:
 			case I40E_VSI_VMDQ2:

@@ -223,7 +223,7 @@ void rds_cong_queue_updates(struct rds_cong_map *map)
 
 		rcu_read_lock();
 		if (!test_and_set_bit(0, &conn->c_map_queued) &&
-		    !test_bit(RDS_DESTROY_PENDING, &cp->cp_flags)) {
+		    !rds_destroy_pending(cp->cp_conn)) {
 			rds_stats_inc(s_cong_update_queued);
 			/* We cannot inline the call to rds_send_xmit() here
 			 * for two reasons (both pertaining to a TCP transport):

@@ -354,6 +354,8 @@ static void release_stats_buffers(struct ibmvnic_adapter *adapter)
 {
 	kfree(adapter->tx_stats_buffers);
 	kfree(adapter->rx_stats_buffers);
+	adapter->tx_stats_buffers = NULL;
+	adapter->rx_stats_buffers = NULL;
 }
 
 static int init_stats_buffers(struct ibmvnic_adapter *adapter)
@@ -599,6 +601,8 @@ static void release_vpd_data(struct ibmvnic_adapter *adapter)
 
 	kfree(adapter->vpd->buff);
 	kfree(adapter->vpd);
+
+	adapter->vpd = NULL;
 }
 
 static void release_tx_pools(struct ibmvnic_adapter *adapter)
@@ -909,6 +913,7 @@ static int ibmvnic_get_vpd(struct ibmvnic_adapter *adapter)
 	if (dma_mapping_error(dev, adapter->vpd->dma_addr)) {
 		dev_err(dev, "Could not map VPD buffer\n");
 		kfree(adapter->vpd->buff);
+		adapter->vpd->buff = NULL;
 		return -ENOMEM;
 	}
 
@@ -1414,10 +1419,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		hdrs += 2;
 	}
 	/* determine if l2/3/4 headers are sent to firmware */
-	if ((*hdrs >> 7) & 1 &&
-	    (skb->protocol == htons(ETH_P_IP) ||
-	     skb->protocol == htons(ETH_P_IPV6) ||
-	     skb->protocol == htons(ETH_P_ARP))) {
+	if ((*hdrs >> 7) & 1) {
 		build_hdr_descs_arr(tx_buff, &num_entries, *hdrs);
 		tx_crq.v1.n_crq_elem = num_entries;
 		tx_buff->indir_arr[0] = tx_crq;
@@ -1639,6 +1641,7 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 				return rc;
 		} else if (adapter->req_rx_queues != old_num_rx_queues ||
 			   adapter->req_tx_queues != old_num_tx_queues) {
+			adapter->map_id = 1;
 			release_rx_pools(adapter);
 			release_tx_pools(adapter);
 			init_rx_pools(netdev);
@@ -1831,7 +1834,8 @@ restart_poll:
 		u16 offset;
 		u8 flags = 0;
 
-		if (unlikely(adapter->resetting)) {
+		if (unlikely(adapter->resetting &&
+			     adapter->reset_reason != VNIC_RESET_NON_FATAL)) {
 			enable_scrq_irq(adapter, adapter->rx_scrq[scrq_num]);
 			napi_complete_done(napi, frames_processed);
 			return frames_processed;
@@ -2908,8 +2912,12 @@ static int ibmvnic_send_crq(struct ibmvnic_adapter *adapter,
 				cpu_to_be64(u64_crq[1]));
 
 	if (rc) {
-		if (rc == H_CLOSED)
+		if (rc == H_CLOSED) {
 			dev_warn(dev, "CRQ Queue closed\n");
+			if (adapter->resetting)
+				ibmvnic_reset(adapter, VNIC_RESET_FATAL);
+		}
+
 		dev_warn(dev, "Send error (rc=%d)\n", rc);
 	}
 

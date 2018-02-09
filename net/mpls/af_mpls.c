@@ -8,6 +8,7 @@
 #include <linux/ipv6.h>
 #include <linux/mpls.h>
 #include <linux/netconf.h>
+#include <linux/nospec.h>
 #include <linux/vmalloc.h>
 #include <linux/percpu.h>
 #include <net/ip.h>
@@ -935,24 +936,27 @@ errout:
 	return err;
 }
 
-static bool mpls_label_ok(struct net *net, unsigned int index,
+static bool mpls_label_ok(struct net *net, unsigned int *index,
 			  struct netlink_ext_ack *extack)
 {
+	bool is_ok = true;
+
 	/* Reserved labels may not be set */
-	if (index < MPLS_LABEL_FIRST_UNRESERVED) {
+	if (*index < MPLS_LABEL_FIRST_UNRESERVED) {
 		NL_SET_ERR_MSG(extack,
 			       "Invalid label - must be MPLS_LABEL_FIRST_UNRESERVED or higher");
-		return false;
+		is_ok = false;
 	}
 
 	/* The full 20 bit range may not be supported. */
-	if (index >= net->mpls.platform_labels) {
+	if (is_ok && *index >= net->mpls.platform_labels) {
 		NL_SET_ERR_MSG(extack,
 			       "Label >= configured maximum in platform_labels");
-		return false;
+		is_ok = false;
 	}
 
-	return true;
+	*index = array_index_nospec(*index, net->mpls.platform_labels);
+	return is_ok;
 }
 
 static int mpls_route_add(struct mpls_route_config *cfg,
@@ -975,7 +979,7 @@ static int mpls_route_add(struct mpls_route_config *cfg,
 		index = find_free_label(net);
 	}
 
-	if (!mpls_label_ok(net, index, extack))
+	if (!mpls_label_ok(net, &index, extack))
 		goto errout;
 
 	/* Append makes no sense with mpls */
@@ -1052,7 +1056,7 @@ static int mpls_route_del(struct mpls_route_config *cfg,
 
 	index = cfg->rc_label;
 
-	if (!mpls_label_ok(net, index, extack))
+	if (!mpls_label_ok(net, &index, extack))
 		goto errout;
 
 	mpls_route_update(net, index, NULL, &cfg->rc_nlinfo);
@@ -1810,7 +1814,7 @@ static int rtm_to_route_config(struct sk_buff *skb,
 				goto errout;
 
 			if (!mpls_label_ok(cfg->rc_nlinfo.nl_net,
-					   cfg->rc_label, extack))
+					   &cfg->rc_label, extack))
 				goto errout;
 			break;
 		}
@@ -2137,7 +2141,7 @@ static int mpls_getroute(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 			goto errout;
 		}
 
-		if (!mpls_label_ok(net, in_label, extack)) {
+		if (!mpls_label_ok(net, &in_label, extack)) {
 			err = -EINVAL;
 			goto errout;
 		}

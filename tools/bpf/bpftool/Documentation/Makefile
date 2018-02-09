@@ -23,7 +23,12 @@ DOC_MAN8 = $(addprefix $(OUTPUT),$(_DOC_MAN8))
 man: man8
 man8: $(DOC_MAN8)
 
+RST2MAN_DEP := $(shell command -v rst2man 2>/dev/null)
+
 $(OUTPUT)%.8: %.rst
+ifndef RST2MAN_DEP
+	$(error "rst2man not found, but required to generate man pages")
+endif
 	$(QUIET_GEN)rst2man $< > $@
 
 clean:
