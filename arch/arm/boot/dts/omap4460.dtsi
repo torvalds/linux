@@ -22,8 +22,6 @@
 			clock-latency = <300000>; /* From legacy driver */
 
 			/* cooling options */
-			cooling-min-level = <0>;
-			cooling-max-level = <2>;
 			#cooling-cells = <2>; /* min followed by max */
 		};
 	};
