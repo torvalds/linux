@@ -23,6 +23,11 @@ to use it:
 
   more information: http://www.fw-web.de/dokuwiki/doku.php?id=en/bpi-r2/wlan
 
+  - currently no HDMI is working
+  - hnat also not fully merged
+  - internal Bluetooth not working yet
+  - internal wifi has a bug when hostapd is killed see issue #4
+
 Master-Branch
 
 Linux kernel
