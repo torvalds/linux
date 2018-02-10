@@ -445,7 +445,6 @@ static int ioh_gpio_probe(struct pci_dev *pdev,
 
 	chip_save = kzalloc(sizeof(*chip) * 8, GFP_KERNEL);
 	if (chip_save == NULL) {
-		dev_err(&pdev->dev, "%s : kzalloc failed", __func__);
 		ret = -ENOMEM;
 		goto err_kzalloc;
 	}
