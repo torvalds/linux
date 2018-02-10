@@ -956,11 +956,6 @@
 						nvidia,function = "usb3-ss";
 						status = "okay";
 					};
-
-					pcie-1 {
-						nvidia,function = "usb3-ss";
-						status = "okay";
-					};
 				};
 			};
 		};
