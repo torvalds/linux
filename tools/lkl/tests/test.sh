@@ -77,6 +77,7 @@ lkl_test_run()
 lkl_test_plan()
 {
     echo "1..$1 # $2"
+    export suite_name="${2// /\-}"
 }
 
 lkl_test_exec()
@@ -129,8 +130,9 @@ lkl_test_exec()
         set - -ex "run $args" -ex quit $file
         file=""
     elif [ -n "$VALGRIND" ]; then
-        WRAPPER="valgrind --suppressions=$script_dir/valgrind.supp --leak-check=full \
-                 --show-leak-kinds=all --xml=yes --xml-file=valgrind-$(basename $file)-$$.xml"
+        WRAPPER="valgrind --suppressions=$script_dir/valgrind.supp \
+                  --leak-check=full --show-leak-kinds=all --xml=yes \
+                  --xml-file=valgrind-$suite_name.xml"
     fi
 
     $SUDO $WRAPPER $file "$@"
