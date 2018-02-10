@@ -238,7 +238,7 @@ static int timbgpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	tgpio = devm_kzalloc(dev, sizeof(struct timbgpio), GFP_KERNEL);
+	tgpio = devm_kzalloc(dev, sizeof(*tgpio), GFP_KERNEL);
 	if (!tgpio)
 		return -EINVAL;
 
