@@ -372,8 +372,10 @@ static void check_uboot_logo(struct rockchip_tve *tve)
 
 	vdac = tve_dac_readl(VDAC_VDAC1);
 	/* Whether the dac power has been turned down. */
-	if (vdac & m_DR_PWR_DOWN)
+	if (vdac & m_DR_PWR_DOWN) {
+		tve->connector.dpms = DRM_MODE_DPMS_OFF;
 		return;
+	}
 
 	lumafilter0 = tve_readl(TV_LUMA_FILTER0);
 	lumafilter1 = tve_readl(TV_LUMA_FILTER1);
@@ -385,10 +387,13 @@ static void check_uboot_logo(struct rockchip_tve *tve)
 	 */
 	if (lumafilter0 == tve->lumafilter0 &&
 	    lumafilter1 == tve->lumafilter1 &&
-	    lumafilter2 == tve->lumafilter2)
+	    lumafilter2 == tve->lumafilter2) {
+		tve->connector.dpms = DRM_MODE_DPMS_ON;
 		return;
+	}
 
 	dac_init(tve);
+	tve->connector.dpms = DRM_MODE_DPMS_OFF;
 }
 
 static const struct of_device_id rockchip_tve_dt_ids[] = {
@@ -477,7 +482,6 @@ static int rockchip_tve_bind(struct device *dev, struct device *master,
 	drm_encoder_helper_add(encoder, &rockchip_tve_encoder_helper_funcs);
 
 	connector = &tve->connector;
-	connector->dpms = DRM_MODE_DPMS_OFF;
 	connector->port = dev->of_node;
 	connector->interlace_allowed = 1;
 	ret = drm_connector_init(drm_dev, connector,
