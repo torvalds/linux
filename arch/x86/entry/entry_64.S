@@ -1136,6 +1136,9 @@ apicinterrupt3 HYPERVISOR_CALLBACK_VECTOR \
 #if IS_ENABLED(CONFIG_HYPERV)
 apicinterrupt3 HYPERVISOR_CALLBACK_VECTOR \
 	hyperv_callback_vector hyperv_vector_handler
+
+apicinterrupt3 HYPERV_REENLIGHTENMENT_VECTOR \
+	hyperv_reenlightenment_vector hyperv_reenlightenment_intr
 #endif /* CONFIG_HYPERV */
 
 idtentry debug			do_debug		has_error_code=0	paranoid=1 shift_ist=DEBUG_STACK

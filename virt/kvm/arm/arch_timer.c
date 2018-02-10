@@ -92,7 +92,6 @@ static irqreturn_t kvm_arch_timer_handler(int irq, void *dev_id)
 {
 	struct kvm_vcpu *vcpu = *(struct kvm_vcpu **)dev_id;
 	struct arch_timer_context *vtimer;
-	u32 cnt_ctl;
 
 	/*
 	 * We may see a timer interrupt after vcpu_put() has been called which
@@ -104,15 +103,11 @@ static irqreturn_t kvm_arch_timer_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	vtimer = vcpu_vtimer(vcpu);
-	if (!vtimer->irq.level) {
-		cnt_ctl = read_sysreg_el0(cntv_ctl);
-		cnt_ctl &= ARCH_TIMER_CTRL_ENABLE | ARCH_TIMER_CTRL_IT_STAT |
-			   ARCH_TIMER_CTRL_IT_MASK;
-		if (cnt_ctl == (ARCH_TIMER_CTRL_ENABLE | ARCH_TIMER_CTRL_IT_STAT))
-			kvm_timer_update_irq(vcpu, true, vtimer);
-	}
+	if (kvm_timer_should_fire(vtimer))
+		kvm_timer_update_irq(vcpu, true, vtimer);
 
-	if (unlikely(!irqchip_in_kernel(vcpu->kvm)))
+	if (static_branch_unlikely(&userspace_irqchip_in_use) &&
+	    unlikely(!irqchip_in_kernel(vcpu->kvm)))
 		kvm_vtimer_update_mask_user(vcpu);
 
 	return IRQ_HANDLED;
@@ -238,6 +233,16 @@ static bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx)
 {
 	u64 cval, now;
 
+	if (timer_ctx->loaded) {
+		u32 cnt_ctl;
+
+		/* Only the virtual timer can be loaded so far */
+		cnt_ctl = read_sysreg_el0(cntv_ctl);
+		return  (cnt_ctl & ARCH_TIMER_CTRL_ENABLE) &&
+		        (cnt_ctl & ARCH_TIMER_CTRL_IT_STAT) &&
+		       !(cnt_ctl & ARCH_TIMER_CTRL_IT_MASK);
+	}
+
 	if (!kvm_timer_irq_can_fire(timer_ctx))
 		return false;
 
@@ -252,15 +257,7 @@ bool kvm_timer_is_pending(struct kvm_vcpu *vcpu)
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
 
-	if (vtimer->irq.level || ptimer->irq.level)
-		return true;
-
-	/*
-	 * When this is called from withing the wait loop of kvm_vcpu_block(),
-	 * the software view of the timer state is up to date (timer->loaded
-	 * is false), and so we can simply check if the timer should fire now.
-	 */
-	if (!vtimer->loaded && kvm_timer_should_fire(vtimer))
+	if (kvm_timer_should_fire(vtimer))
 		return true;
 
 	return kvm_timer_should_fire(ptimer);
@@ -278,9 +275,9 @@ void kvm_timer_update_run(struct kvm_vcpu *vcpu)
 	/* Populate the device bitmap with the timer states */
 	regs->device_irq_level &= ~(KVM_ARM_DEV_EL1_VTIMER |
 				    KVM_ARM_DEV_EL1_PTIMER);
-	if (vtimer->irq.level)
+	if (kvm_timer_should_fire(vtimer))
 		regs->device_irq_level |= KVM_ARM_DEV_EL1_VTIMER;
-	if (ptimer->irq.level)
+	if (kvm_timer_should_fire(ptimer))
 		regs->device_irq_level |= KVM_ARM_DEV_EL1_PTIMER;
 }
 
@@ -293,7 +290,8 @@ static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level,
 	trace_kvm_timer_update_irq(vcpu->vcpu_id, timer_ctx->irq.irq,
 				   timer_ctx->irq.level);
 
-	if (likely(irqchip_in_kernel(vcpu->kvm))) {
+	if (!static_branch_unlikely(&userspace_irqchip_in_use) ||
+	    likely(irqchip_in_kernel(vcpu->kvm))) {
 		ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
 					  timer_ctx->irq.irq,
 					  timer_ctx->irq.level,
@@ -331,17 +329,31 @@ static void kvm_timer_update_state(struct kvm_vcpu *vcpu)
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
+	bool level;
 
 	if (unlikely(!timer->enabled))
 		return;
 
-	if (kvm_timer_should_fire(vtimer) != vtimer->irq.level)
-		kvm_timer_update_irq(vcpu, !vtimer->irq.level, vtimer);
+	/*
+	 * The vtimer virtual interrupt is a 'mapped' interrupt, meaning part
+	 * of its lifecycle is offloaded to the hardware, and we therefore may
+	 * not have lowered the irq.level value before having to signal a new
+	 * interrupt, but have to signal an interrupt every time the level is
+	 * asserted.
+	 */
+	level = kvm_timer_should_fire(vtimer);
+	kvm_timer_update_irq(vcpu, level, vtimer);
 
 	if (kvm_timer_should_fire(ptimer) != ptimer->irq.level)
 		kvm_timer_update_irq(vcpu, !ptimer->irq.level, ptimer);
 
 	phys_timer_emulate(vcpu);
+}
+
+static void __timer_snapshot_state(struct arch_timer_context *timer)
+{
+	timer->cnt_ctl = read_sysreg_el0(cntv_ctl);
+	timer->cnt_cval = read_sysreg_el0(cntv_cval);
 }
 
 static void vtimer_save_state(struct kvm_vcpu *vcpu)
@@ -355,10 +367,8 @@ static void vtimer_save_state(struct kvm_vcpu *vcpu)
 	if (!vtimer->loaded)
 		goto out;
 
-	if (timer->enabled) {
-		vtimer->cnt_ctl = read_sysreg_el0(cntv_ctl);
-		vtimer->cnt_cval = read_sysreg_el0(cntv_cval);
-	}
+	if (timer->enabled)
+		__timer_snapshot_state(vtimer);
 
 	/* Disable the virtual timer */
 	write_sysreg_el0(0, cntv_ctl);
@@ -456,8 +466,7 @@ static void kvm_timer_vcpu_load_vgic(struct kvm_vcpu *vcpu)
 	bool phys_active;
 	int ret;
 
-	phys_active = vtimer->irq.level ||
-		      kvm_vgic_map_is_active(vcpu, vtimer->irq.irq);
+	phys_active = kvm_vgic_map_is_active(vcpu, vtimer->irq.irq);
 
 	ret = irq_set_irqchip_state(host_vtimer_irq,
 				    IRQCHIP_STATE_ACTIVE,
@@ -504,8 +513,8 @@ bool kvm_timer_should_notify_user(struct kvm_vcpu *vcpu)
 	vlevel = sregs->device_irq_level & KVM_ARM_DEV_EL1_VTIMER;
 	plevel = sregs->device_irq_level & KVM_ARM_DEV_EL1_PTIMER;
 
-	return vtimer->irq.level != vlevel ||
-	       ptimer->irq.level != plevel;
+	return kvm_timer_should_fire(vtimer) != vlevel ||
+	       kvm_timer_should_fire(ptimer) != plevel;
 }
 
 void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
@@ -537,54 +546,27 @@ void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
 	set_cntvoff(0);
 }
 
-static void unmask_vtimer_irq(struct kvm_vcpu *vcpu)
+/*
+ * With a userspace irqchip we have to check if the guest de-asserted the
+ * timer and if so, unmask the timer irq signal on the host interrupt
+ * controller to ensure that we see future timer signals.
+ */
+static void unmask_vtimer_irq_user(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 
 	if (unlikely(!irqchip_in_kernel(vcpu->kvm))) {
-		kvm_vtimer_update_mask_user(vcpu);
-		return;
-	}
-
-	/*
-	 * If the guest disabled the timer without acking the interrupt, then
-	 * we must make sure the physical and virtual active states are in
-	 * sync by deactivating the physical interrupt, because otherwise we
-	 * wouldn't see the next timer interrupt in the host.
-	 */
-	if (!kvm_vgic_map_is_active(vcpu, vtimer->irq.irq)) {
-		int ret;
-		ret = irq_set_irqchip_state(host_vtimer_irq,
-					    IRQCHIP_STATE_ACTIVE,
-					    false);
-		WARN_ON(ret);
+		__timer_snapshot_state(vtimer);
+		if (!kvm_timer_should_fire(vtimer)) {
+			kvm_timer_update_irq(vcpu, false, vtimer);
+			kvm_vtimer_update_mask_user(vcpu);
+		}
 	}
 }
 
-/**
- * kvm_timer_sync_hwstate - sync timer state from cpu
- * @vcpu: The vcpu pointer
- *
- * Check if any of the timers have expired while we were running in the guest,
- * and inject an interrupt if that was the case.
- */
 void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu)
 {
-	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
-
-	/*
-	 * If we entered the guest with the vtimer output asserted we have to
-	 * check if the guest has modified the timer so that we should lower
-	 * the line at this point.
-	 */
-	if (vtimer->irq.level) {
-		vtimer->cnt_ctl = read_sysreg_el0(cntv_ctl);
-		vtimer->cnt_cval = read_sysreg_el0(cntv_cval);
-		if (!kvm_timer_should_fire(vtimer)) {
-			kvm_timer_update_irq(vcpu, false, vtimer);
-			unmask_vtimer_irq(vcpu);
-		}
-	}
+	unmask_vtimer_irq_user(vcpu);
 }
 
 int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
@@ -818,6 +800,19 @@ static bool timer_irqs_are_valid(struct kvm_vcpu *vcpu)
 	return true;
 }
 
+bool kvm_arch_timer_get_input_level(int vintid)
+{
+	struct kvm_vcpu *vcpu = kvm_arm_get_running_vcpu();
+	struct arch_timer_context *timer;
+
+	if (vintid == vcpu_vtimer(vcpu)->irq.irq)
+		timer = vcpu_vtimer(vcpu);
+	else
+		BUG(); /* We only map the vtimer so far */
+
+	return kvm_timer_should_fire(timer);
+}
+
 int kvm_timer_enable(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
@@ -839,7 +834,8 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 		return -EINVAL;
 	}
 
-	ret = kvm_vgic_map_phys_irq(vcpu, host_vtimer_irq, vtimer->irq.irq);
+	ret = kvm_vgic_map_phys_irq(vcpu, host_vtimer_irq, vtimer->irq.irq,
+				    kvm_arch_timer_get_input_level);
 	if (ret)
 		return ret;
 
