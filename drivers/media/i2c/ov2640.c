@@ -308,8 +308,9 @@ struct ov2640_priv {
 	struct gpio_desc *resetb_gpio;
 	struct gpio_desc *pwdn_gpio;
 
-	struct mutex lock; /* lock to protect streaming */
+	struct mutex lock; /* lock to protect streaming and power_count */
 	bool streaming;
+	int power_count;
 };
 
 /*
@@ -712,8 +713,19 @@ static int ov2640_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct v4l2_subdev *sd =
 		&container_of(ctrl->handler, struct ov2640_priv, hdl)->subdev;
 	struct i2c_client  *client = v4l2_get_subdevdata(sd);
+	struct ov2640_priv *priv = to_ov2640(client);
 	u8 val;
 	int ret;
+
+	/* v4l2_ctrl_lock() locks our own mutex */
+
+	/*
+	 * If the device is not powered up by the host driver, do not apply any
+	 * controls to H/W at this time. Instead the controls will be restored
+	 * when the streaming is started.
+	 */
+	if (!priv->power_count)
+		return 0;
 
 	ret = i2c_smbus_write_byte_data(client, BANK_SEL, BANK_SEL_SENS);
 	if (ret < 0)
@@ -766,12 +778,9 @@ static int ov2640_s_register(struct v4l2_subdev *sd,
 }
 #endif
 
-static int ov2640_s_power(struct v4l2_subdev *sd, int on)
+static void ov2640_set_power(struct ov2640_priv *priv, int on)
 {
 #ifdef CONFIG_GPIOLIB
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ov2640_priv *priv = to_ov2640(client);
-
 	if (priv->pwdn_gpio)
 		gpiod_direction_output(priv->pwdn_gpio, !on);
 	if (on && priv->resetb_gpio) {
@@ -781,6 +790,25 @@ static int ov2640_s_power(struct v4l2_subdev *sd, int on)
 		gpiod_set_value(priv->resetb_gpio, 0);
 	}
 #endif
+}
+
+static int ov2640_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct ov2640_priv *priv = to_ov2640(client);
+
+	mutex_lock(&priv->lock);
+
+	/*
+	 * If the power count is modified from 0 to != 0 or from != 0 to 0,
+	 * update the power state.
+	 */
+	if (priv->power_count == !on)
+		ov2640_set_power(priv, on);
+	priv->power_count += on ? 1 : -1;
+	WARN_ON(priv->power_count < 0);
+	mutex_unlock(&priv->lock);
+
 	return 0;
 }
 
@@ -1005,6 +1033,8 @@ static int ov2640_s_stream(struct v4l2_subdev *sd, int on)
 		if (on) {
 			ret = ov2640_set_params(client, priv->win,
 						priv->cfmt_code);
+			if (!ret)
+				ret = __v4l2_ctrl_handler_setup(&priv->hdl);
 		}
 	}
 	if (!ret)
@@ -1048,8 +1078,6 @@ static int ov2640_video_probe(struct i2c_client *client)
 	dev_info(&client->dev,
 		 "%s Product ID %0x:%0x Manufacturer ID %x:%x\n",
 		 devname, pid, ver, midh, midl);
-
-	ret = v4l2_ctrl_handler_setup(&priv->hdl);
 
 done:
 	ov2640_s_power(&priv->subdev, 0);
@@ -1158,6 +1186,7 @@ static int ov2640_probe(struct i2c_client *client,
 	priv->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	mutex_init(&priv->lock);
 	v4l2_ctrl_handler_init(&priv->hdl, 2);
+	priv->hdl.lock = &priv->lock;
 	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
 			V4L2_CID_VFLIP, 0, 1, 1, 0);
 	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
