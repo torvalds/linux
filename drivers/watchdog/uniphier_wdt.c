@@ -212,11 +212,10 @@ static int uniphier_wdt_probe(struct platform_device *pdev)
 	wdev->wdt_dev.ops = &uniphier_wdt_ops;
 	wdev->wdt_dev.max_timeout = WDT_PERIOD_MAX;
 	wdev->wdt_dev.min_timeout = WDT_PERIOD_MIN;
+	wdev->wdt_dev.timeout = WDT_DEFAULT_TIMEOUT;
 	wdev->wdt_dev.parent = dev;
 
-	if (watchdog_init_timeout(&wdev->wdt_dev, timeout, dev) < 0) {
-		wdev->wdt_dev.timeout = WDT_DEFAULT_TIMEOUT;
-	}
+	watchdog_init_timeout(&wdev->wdt_dev, timeout, dev);
 	watchdog_set_nowayout(&wdev->wdt_dev, nowayout);
 	watchdog_stop_on_reboot(&wdev->wdt_dev);
 
