@@ -947,7 +947,8 @@ static int rk808_probe(struct i2c_client *client,
 	if (!rk808)
 		return -ENOMEM;
 
-	if (of_device_is_compatible(np, "rockchip,rk817")) {
+	if (of_device_is_compatible(np, "rockchip,rk817") ||
+	    of_device_is_compatible(np, "rockchip,rk809")) {
 		pmic_id_msb = RK817_ID_MSB;
 		pmic_id_lsb = RK817_ID_LSB;
 	}
