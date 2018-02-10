@@ -137,7 +137,7 @@ config CFAG12864B_RATE
 config IMG_ASCII_LCD
 	tristate "Imagination Technologies ASCII LCD Display"
 	depends on HAS_IOMEM
-	default y if MIPS_MALTA || MIPS_SEAD3
+	default y if MIPS_MALTA
 	select SYSCON
 	help
 	  Enable this to support the simple ASCII LCD displays found on
