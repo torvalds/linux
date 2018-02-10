@@ -1,2 +1,2 @@
-struct kern_ipc_perm * medusa_ipc_info_lock(int id, unsigned int ipc_class);
-void medusa_ipc_info_unlock(struct kern_ipc_perm * ipcp);
+struct kern_ipc_perm * medusa_get_ipc_perm(unsigned int id, struct ipc_ids *ids);
+struct ipc_ids * medusa_get_ipc_ids(unsigned int ipc_class);

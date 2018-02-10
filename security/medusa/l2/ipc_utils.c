@@ -10,19 +10,15 @@
 #define sem_ids(ns)	((ns)->ids[IPC_SEM_IDS])
 #define msg_ids(ns)	((ns)->ids[IPC_MSG_IDS])
 
-
-struct kern_ipc_perm * medusa_ipc_info_lock(int id, unsigned int ipc_class)
+/**
+ * medusa_get_ipc_ids - retrieve ipc_ids structure from namespace
+ * @ipc_class - type of ipc mechanizme define in l1/ipc.h
+ * Return: ipc_ids or NULL if error
+ */
+struct ipc_ids * medusa_get_ipc_ids(unsigned int ipc_class)
 {
 	struct ipc_namespace *ns;
-	struct kern_ipc_perm *ipcp;
 	struct ipc_ids *ids;
-	
-	if (id < 0)
-	{
-		printk("kern_ipc_perm FAILED 0\n");
-		return -EINVAL;		
-	}
-	printk("MEDUSAAAA: id: %d, class: %d\n", id, ipc_class);
 	ns = current->nsproxy->ipc_ns;
 
 	switch(ipc_class){
@@ -39,35 +35,41 @@ struct kern_ipc_perm * medusa_ipc_info_lock(int id, unsigned int ipc_class)
 			break;
 		}
 		default: {
-			printk("kern_ipc_perm FAILED 1\n");
-			return -EINVAL;		
+			printk("Unkown ipc_class\n");
+			return NULL;		
 		}
 	}
+	return ids;
+}
 
-	printk("kern_ipc_perm - before rcu read lock\n");
-	rcu_read_lock();
-	printk("kern_ipc_perm - before obtain\n");
+/*int medusa_set_ipc(unsigned int id, unsigned int ipc_class, struct kern_ipc_perm new_perm)
+{
+
+}*/
+
+
+/**
+ * medusa_get_ipc - retrieve kernel permission structure for specific ipc object
+ * @id - unique ipc object id
+ * @ipc_ids - namespace ipc structure
+ * 
+ * You need call with rcu_lock
+ *
+ * Return: kern_ipc_perm or NULL if error
+ */
+struct kern_ipc_perm * medusa_get_ipc_perm(unsigned int id, struct ipc_ids *ids)
+{
+	struct kern_ipc_perm *ipcp;
+	
 	ipcp = ipc_obtain_object_check(ids, id);
-	printk("kern_ipc_perm - after ipc obtain\n");
 
 	if (IS_ERR(ipcp))
 	{
-		printk("kern_ipc_perm FAILED 2\n");
 		goto out_err;
 	}
-	if (!ipcp)
-	{
-		printk("kern_ipc_perm FAILED 3 - it is null probably\n");
-	}
 
-	printk("MEDUSAAAA: id from object: %d\n", ipcp->id);
-
-	printk("kern_ipc_perm SUCCESS  - before locks\n");
-	rcu_read_unlock();
-	printk("kern_ipc_perm SUCCESS - after locks\n");
 	return ipcp;
 out_err:
 	printk("kern_ipc_perm FAILED\n");
-	rcu_read_unlock();
 	return NULL;
 }
