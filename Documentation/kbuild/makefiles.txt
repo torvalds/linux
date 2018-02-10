@@ -153,8 +153,14 @@ more details, with real examples.
 	configuration.
 
 	Kbuild compiles all the $(obj-y) files.  It then calls
-	"$(LD) -r" to merge these files into one built-in.o file.
-	built-in.o is later linked into vmlinux by the parent Makefile.
+	"$(AR) rcSTP" to merge these files into one built-in.o file.
+	This is a thin archive without a symbol table, which makes it
+	unsuitable as a linker input.
+
+	The scripts/link-vmlinux.sh script later makes an aggregate
+	built-in.o with "${AR} rcsTP", which creates the thin archive
+	with a symbol table and an index, making it a valid input for
+	the final vmlinux link passes.
 
 	The order of files in $(obj-y) is significant.  Duplicates in
 	the lists are allowed: the first instance will be linked into
