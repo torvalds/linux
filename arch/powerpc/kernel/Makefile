@@ -165,7 +165,7 @@ systbl_chk: $(src)/systbl_chk.sh $(obj)/systbl_chk.i
 	$(call cmd,systbl_chk)
 
 ifeq ($(CONFIG_PPC_OF_BOOT_TRAMPOLINE),y)
-$(obj)/built-in.o:		prom_init_check
+$(obj)/built-in.a:		prom_init_check
 
 quiet_cmd_prom_init_check = CALL    $<
       cmd_prom_init_check = $(CONFIG_SHELL) $< "$(NM)" "$(obj)/prom_init.o"

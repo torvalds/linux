@@ -36,7 +36,7 @@ EXPORT_SYMBOL(memchr);
 /*
  * Because string functions are both inline and exported functions and
  * folder arch/blackfin/lib is configured as a library path in Makefile,
- * symbols exported in folder lib  is not linked into built-in.o but
+ * symbols exported in folder lib  is not linked into built-in.a but
  * inlined only. In order to export string symbols to kernel module
  * properly, they should be exported here.
  */

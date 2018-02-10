@@ -10,7 +10,7 @@
 
   ld -m elf_i386  --format binary --oformat elf32-i386 -r \
   -T initramfs_data.scr initramfs_data.cpio.gz -o initramfs_data.o
-   ld -m elf_i386  -r -o built-in.o initramfs_data.o
+   ld -m elf_i386  -r -o built-in.a initramfs_data.o
 
   For including the .init.ramfs sections, see include/asm-generic/vmlinux.lds.
 

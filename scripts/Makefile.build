@@ -77,7 +77,7 @@ obj-y += $(obj)/lib-ksyms.o
 endif
 
 ifneq ($(strip $(obj-y) $(need-builtin)),)
-builtin-target := $(obj)/built-in.o
+builtin-target := $(obj)/built-in.a
 endif
 
 modorder-target := $(obj)/modules.order
@@ -104,7 +104,7 @@ ifneq ($(KBUILD_ENABLE_EXTRA_GCC_CHECKS),)
   cmd_checkdoc = $(srctree)/scripts/kernel-doc -none $< ;
 endif
 
-# Do section mismatch analysis for each module/built-in.o
+# Do section mismatch analysis for each module/built-in.a
 ifdef CONFIG_DEBUG_SECTION_MISMATCH
   cmd_secanalysis = ; scripts/mod/modpost $@
 endif
@@ -458,15 +458,15 @@ $(sort $(subdir-obj-y)): $(subdir-ym) ;
 #
 ifdef builtin-target
 
-# built-in.o archives are made with no symbol table or index which
+# built-in.a archives are made with no symbol table or index which
 # makes them small and fast, but unable to be used by the linker.
-# scripts/link-vmlinux.sh builds an aggregate built-in.o with a symbol
+# scripts/link-vmlinux.sh builds an aggregate built-in.a with a symbol
 # table and index.
 cmd_make_builtin = rm -f $@; $(AR) rcSTP$(KBUILD_ARFLAGS)
 cmd_make_empty_builtin = rm -f $@; $(AR) rcSTP$(KBUILD_ARFLAGS)
 quiet_cmd_link_o_target = AR      $@
 
-# If the list of objects to link is empty, just create an empty built-in.o
+# If the list of objects to link is empty, just create an empty built-in.a
 cmd_link_o_target = $(if $(strip $(obj-y)),\
 		      $(cmd_make_builtin) $@ $(filter $(obj-y), $^) \
 		      $(cmd_secanalysis),\
