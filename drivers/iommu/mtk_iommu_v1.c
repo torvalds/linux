@@ -103,9 +103,6 @@ struct mtk_iommu_domain {
 	struct mtk_iommu_data		*data;
 };
 
-/* There is only a iommu domain in M4U gen1. */
-static struct mtk_iommu_domain *mtk_domain_v1;
-
 static struct mtk_iommu_domain *to_mtk_domain(struct iommu_domain *dom)
 {
 	return container_of(dom, struct mtk_iommu_domain, domain);
@@ -254,15 +251,10 @@ static struct iommu_domain *mtk_iommu_domain_alloc(unsigned type)
 	if (type != IOMMU_DOMAIN_UNMANAGED)
 		return NULL;
 
-	/* Always return the same domain. */
-	if (mtk_domain_v1)
-		return &mtk_domain_v1->domain;
-
 	dom = kzalloc(sizeof(*dom), GFP_KERNEL);
 	if (!dom)
 		return NULL;
 
-	mtk_domain_v1 = dom;
 	return &dom->domain;
 }
 
@@ -271,7 +263,6 @@ static void mtk_iommu_domain_free(struct iommu_domain *domain)
 	struct mtk_iommu_domain *dom = to_mtk_domain(domain);
 	struct mtk_iommu_data *data = dom->data;
 
-	mtk_domain_v1 = NULL;
 	dma_free_coherent(data->dev, M2701_IOMMU_PGT_SIZE,
 			dom->pgt_va, dom->pgt_pa);
 	kfree(to_mtk_domain(domain));
@@ -453,17 +444,30 @@ static int mtk_iommu_add_device(struct device *dev)
 	if (!dev->iommu_fwspec || dev->iommu_fwspec->ops != &mtk_iommu_ops)
 		return -ENODEV; /* Not a iommu client device */
 
-	data = dev->iommu_fwspec->iommu_priv;
-	iommu_device_link(&data->iommu, dev);
-
-	group = iommu_group_get_for_dev(dev);
+	/*
+	 * This is a short-term bodge because the ARM DMA code doesn't
+	 * understand multi-device groups, but we have to call into it
+	 * successfully (and not just rely on a normal IOMMU API attach
+	 * here) in order to set the correct DMA API ops on @dev.
+	 */
+	group = iommu_group_alloc();
 	if (IS_ERR(group))
 		return PTR_ERR(group);
 
+	err = iommu_group_add_device(group, dev);
 	iommu_group_put(group);
+	if (err)
+		return err;
 
+	data = dev->iommu_fwspec->iommu_priv;
 	mtk_mapping = data->dev->archdata.iommu;
-	return arm_iommu_attach_device(dev, mtk_mapping);
+	err = arm_iommu_attach_device(dev, mtk_mapping);
+	if (err) {
+		iommu_group_remove_device(dev);
+		return err;
+	}
+
+	return iommu_device_link(&data->iommu, dev);;
 }
 
 static void mtk_iommu_remove_device(struct device *dev)
@@ -478,17 +482,6 @@ static void mtk_iommu_remove_device(struct device *dev)
 
 	iommu_group_remove_device(dev);
 	iommu_fwspec_free(dev);
-}
-
-static struct iommu_group *mtk_iommu_device_group(struct device *dev)
-{
-	struct iommu_group *group;
-
-	group = iommu_group_get(dev);
-	if (!group)
-		group = generic_device_group(dev);
-
-	return group;
 }
 
 static int mtk_iommu_hw_init(const struct mtk_iommu_data *data)
@@ -543,7 +536,6 @@ static struct iommu_ops mtk_iommu_ops = {
 	.iova_to_phys	= mtk_iommu_iova_to_phys,
 	.add_device	= mtk_iommu_add_device,
 	.remove_device	= mtk_iommu_remove_device,
-	.device_group	= mtk_iommu_device_group,
 	.pgsize_bitmap	= ~0UL << MT2701_IOMMU_PAGE_SHIFT,
 };
 
