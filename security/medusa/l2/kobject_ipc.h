@@ -4,6 +4,8 @@
 struct ipc_kobject {	
 	unsigned int ipc_class;
 	int id;
+	kuid_t uid;
+	kgid_t gid;
 	MEDUSA_OBJECT_VARS;
 	MEDUSA_SUBJECT_VARS;
 };

@@ -11,6 +11,8 @@
 MED_ATTRS(ipc_kobject) {
 	MED_ATTR_RO		(ipc_kobject, ipc_class, "ipc_class", MED_UNSIGNED),
 	MED_ATTR_RO		(ipc_kobject, id, "id", MED_SIGNED),
+	MED_ATTR		(ipc_kobject, uid, "uid", MED_UNSIGNED),
+	MED_ATTR		(ipc_kobject, gid, "gid", MED_UNSIGNED),
 	MED_ATTR_END
 };
 
@@ -26,6 +28,8 @@ int ipc_kern2kobj(struct ipc_kobject * ipck, struct kern_ipc_perm * ipcp)
 	
 	ipck->id = ipcp->id;
 	ipck->ipc_class = security_s->ipc_class;
+	ipck->uid = ipcp->uid;
+	ipck->gid = ipcp->gid;
 	COPY_MEDUSA_SUBJECT_VARS(ipck, security_s);
 	COPY_MEDUSA_OBJECT_VARS(ipck, security_s);
 	return 0;
@@ -33,16 +37,14 @@ int ipc_kern2kobj(struct ipc_kobject * ipck, struct kern_ipc_perm * ipcp)
 
 medusa_answer_t ipc_kobj2kern(struct ipc_kobject * ipck, struct kern_ipc_perm * ipcp)
 {
-/*	struct medusa_l1_ipc_s* security_s;
+	struct medusa_l1_ipc_s* security_s;
 	security_s = (struct medusa_l1_ipc_s*) ipcp->security;
-	
-	
 
-	security_s->ipc_class = ipck->ipc_class;
+	ipcp->uid = ipck->uid;
+	ipcp->gid = ipck->gid;
 
-	COPY_MEDUSA_SUBJECT_VARS(ipck, security_s);
-	COPY_MEDUSA_OBJECT_VARS(ipck, security_s);
-*/
+	COPY_MEDUSA_SUBJECT_VARS(security_s, ipck);
+	COPY_MEDUSA_OBJECT_VARS(security_s, ipck);
 	return MED_OK;
 }
 
@@ -53,6 +55,7 @@ static struct medusa_kobject_s * ipc_fetch(struct medusa_kobject_s * kobj)
 	struct ipc_kobject * ipc_kobj;
 	struct kern_ipc_perm *ipcp;
 	struct ipc_ids *ids;
+
 	ipc_kobj = (struct ipc_kobject *)kobj;
 	
 	ids = medusa_get_ipc_ids(ipc_kobj->ipc_class);
@@ -86,22 +89,31 @@ static medusa_answer_t ipc_update(struct medusa_kobject_s * kobj)
 	ids = medusa_get_ipc_ids(ipc_kobj->ipc_class);
 	if(!ids)
 		goto out_err;
+	printk("update 1\n");
+	//down_write(&(ids->rwsem));
 	
-	down_write(&(ids->rwsem));
+	printk("update 2\n");
 	rcu_read_lock();
 
+	printk("update 3\n");
 	ipcp = medusa_get_ipc_perm(ipc_kobj->id, ids);
 	if(!ipcp)
 		goto out_err_unlock;
 	
-	ipc_lock_object(ipcp);
+	printk("update 4\n");
+	//ipc_lock_object(ipcp);
+	printk("update 5\n");
 	retval = ipc_kobj2kern(ipc_kobj, ipcp);
-	ipc_unlock_object(ipcp);
-	up_write(&(ids->rwsem));
+	printk("update 6\n");
+	//ipc_unlock_object(ipcp);
+	printk("update 7\n");
+	//up_write(&(ids->rwsem));
+	printk("update 8\n");
 	rcu_read_unlock();
+	printk("update 9\n");
 	return retval;
 out_err_unlock:
-	up_write(&(ids->rwsem));
+	//up_write(&(ids->rwsem));
 	rcu_read_unlock();
 out_err:
 	return MED_ERR;
