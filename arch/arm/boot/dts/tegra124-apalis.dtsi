@@ -1579,7 +1579,7 @@
 	};
 
 	hdmi_ddc: i2c@7000c400 {
-		clock-frequency = <100000>;
+		clock-frequency = <10000>;
 	};
 
 	/* PWR_I2C: power I2C to audio codec, PMIC and temperature sensor */

@@ -56,7 +56,7 @@
 	 */
 	i2c@7000c000 {
 		status = "okay";
-		clock-frequency = <100000>;
+		clock-frequency = <400000>;
 
 		/* M41T0M6 real time clock on carrier board */
 		rtc@68 {

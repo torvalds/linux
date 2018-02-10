@@ -215,7 +215,7 @@
 	};
 
 	hdmiddc: i2c@7000c700 {
-		clock-frequency = <100000>;
+		clock-frequency = <10000>;
 	};
 
 	/*

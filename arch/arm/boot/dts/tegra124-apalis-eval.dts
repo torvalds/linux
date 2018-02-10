@@ -105,7 +105,7 @@
 	 */
 	i2c@7000c000 {
 		status = "okay";
-		clock-frequency = <100000>;
+		clock-frequency = <400000>;
 
 		pcie-switch@58 {
 			compatible = "plx,pex8605";
@@ -124,7 +124,6 @@
 	 */
 	hdmi_ddc: i2c@7000c400 {
 		status = "okay";
-		clock-frequency = <100000>;
 	};
 
 	/*
@@ -133,7 +132,7 @@
 	 */
 	i2c@7000c500 {
 		status = "okay";
-		clock-frequency = <100000>;
+		clock-frequency = <400000>;
 	};
 
 	/* I2C4 (DDC): unused */
