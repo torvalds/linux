@@ -1620,9 +1620,9 @@
 					bias-pull-up;
 				};
 
-				gpio1_3_4_5_6 {
-					pins = "gpio1", "gpio3", "gpio4",
-					       "gpio5", "gpio6";
+				gpio0_1_3_4_5_6 {
+					pins = "gpio0", "gpio1", "gpio3",
+					       "gpio4", "gpio5", "gpio6";
 					bias-high-impedance;
 				};
 			};
