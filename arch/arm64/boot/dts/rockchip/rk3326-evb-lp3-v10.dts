@@ -579,13 +579,15 @@
 			extcon = <&u2phy>;
 		};
 
-		rk817_codec: rk817-codec {
+		rk817_codec: codec {
 			#sound-dai-cells = <0>;
 			compatible = "rockchip,rk817-codec";
 			clocks = <&cru SCLK_I2S1_OUT>;
 			clock-names = "mclk";
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2s1_2ch_mclk>;
+			hp-volume = <20>;
+			spk-volume = <3>;
 			status = "okay";
 		};
 	};
