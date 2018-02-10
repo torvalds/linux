@@ -949,52 +949,66 @@ config MAXSMP
 	  Enable maximum number of CPUS and NUMA Nodes for this architecture.
 	  If unsure, say N.
 
-config RANGE_END_CPUS
+#
+# The maximum number of CPUs supported:
+#
+# The main config value is NR_CPUS, which defaults to NR_CPUS_DEFAULT,
+# and which can be configured interactively in the
+# [NR_CPUS_RANGE_BEGIN ... NR_CPUS_RANGE_END] range.
+#
+# The ranges are different on 32-bit and 64-bit kernels, depending on
+# hardware capabilities and scalability features of the kernel.
+#
+# ( If MAXSMP is enabled we just use the highest possible value and disable
+#   interactive configuration. )
+#
+
+config NR_CPUS_RANGE_BEGIN
+	int
+	default NR_CPUS_RANGE_END if MAXSMP
+	default    1 if !SMP
+	default    2
+
+config NR_CPUS_RANGE_END
 	int
 	depends on X86_32
-	default 8 if SMP && !X86_BIGSMP
-	default 64 if SMP && X86_BIGSMP
-	default 1 if !SMP
+	default   64 if  SMP &&  X86_BIGSMP
+	default    8 if  SMP && !X86_BIGSMP
+	default    1 if !SMP
 
-config RANGE_END_CPUS
+config NR_CPUS_RANGE_END
 	int
 	depends on X86_64
-	default 512 if SMP && !MAXSMP && !CPUMASK_OFFSTACK
-	default 8192 if SMP && (MAXSMP || CPUMASK_OFFSTACK)
-	default 1 if !SMP
+	default 8192 if  SMP && ( MAXSMP ||  CPUMASK_OFFSTACK)
+	default  512 if  SMP && (!MAXSMP && !CPUMASK_OFFSTACK)
+	default    1 if !SMP
 
-config RANGE_BEGIN_CPUS
-	int
-	default 1 if !SMP
-	default RANGE_END_CPUS if MAXSMP
-	default 2
-
-config DEF_CONFIG_CPUS
+config NR_CPUS_DEFAULT
 	int
 	depends on X86_32
-	default 1 if !SMP
-	default 32 if X86_BIGSMP
-	default 8 if SMP
+	default   32 if  X86_BIGSMP
+	default    8 if  SMP
+	default    1 if !SMP
 
-config DEF_CONFIG_CPUS
+config NR_CPUS_DEFAULT
 	int
 	depends on X86_64
-	default 1 if !SMP
-	default 8192 if MAXSMP
-	default 64 if SMP
+	default 8192 if  MAXSMP
+	default   64 if  SMP
+	default    1 if !SMP
 
 config NR_CPUS
 	int "Maximum number of CPUs" if SMP && !MAXSMP
-	range RANGE_BEGIN_CPUS RANGE_END_CPUS
-	default DEF_CONFIG_CPUS
+	range NR_CPUS_RANGE_BEGIN NR_CPUS_RANGE_END
+	default NR_CPUS_DEFAULT
 	---help---
 	  This allows you to specify the maximum number of CPUs which this
 	  kernel will support.  If CPUMASK_OFFSTACK is enabled, the maximum
 	  supported value is 8192, otherwise the maximum value is 512.  The
 	  minimum value which makes sense is 2.
 
-	  This is purely to save memory - each supported CPU adds
-	  approximately eight kilobytes to the kernel image.
+	  This is purely to save memory: each supported CPU adds about 8KB
+	  to the kernel image.
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
