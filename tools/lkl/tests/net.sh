@@ -58,10 +58,6 @@ setup_backend()
     "loopback")
         ;;
     "pipe")
-        if [ -n "$VALGRIND" ]; then
-            echo "pipe test with valgrind takes so long: skip"
-            return $TEST_SKIP
-        fi
         if [ -z $(lkl_test_cmd which mkfifo) ]; then
             echo "no mkfifo command"
             return $TEST_SKIP
@@ -126,14 +122,17 @@ run_tests()
         lkl_test_exec $script_dir/net-test --backend pipe \
                       --ifname "$fifo1|$fifo2" \
                       --ip $(ip_host) --netmask-len $TEST_IP_NETMASK \
-                      --sleep 30 >/dev/null &
+                      --sleep 1800 >/dev/null &
         cp $script_dir/net-test $script_dir/net-test2
+
+        sleep 10
         lkl_test_exec $script_dir/net-test2 --backend pipe \
                       --ifname "$fifo2|$fifo1" \
                       --ip $(ip_lkl) --netmask-len $TEST_IP_NETMASK \
                       --dst $(ip_host)
         rm -f $script_dir/net-test2
-        wait
+        kill $!
+        wait $! 2>/dev/null
         ;;
     "tap")
         lkl_test_exec $script_dir/net-test --backend tap \
