@@ -418,7 +418,7 @@ int ceph_debugfs_client_init(struct ceph_client *client)
 		goto out;
 
 	client->monc.debugfs_file = debugfs_create_file("monc",
-						      0600,
+						      0400,
 						      client->debugfs_dir,
 						      client,
 						      &monc_show_fops);
@@ -426,7 +426,7 @@ int ceph_debugfs_client_init(struct ceph_client *client)
 		goto out;
 
 	client->osdc.debugfs_file = debugfs_create_file("osdc",
-						      0600,
+						      0400,
 						      client->debugfs_dir,
 						      client,
 						      &osdc_show_fops);
@@ -434,7 +434,7 @@ int ceph_debugfs_client_init(struct ceph_client *client)
 		goto out;
 
 	client->debugfs_monmap = debugfs_create_file("monmap",
-					0600,
+					0400,
 					client->debugfs_dir,
 					client,
 					&monmap_show_fops);
@@ -442,7 +442,7 @@ int ceph_debugfs_client_init(struct ceph_client *client)
 		goto out;
 
 	client->debugfs_osdmap = debugfs_create_file("osdmap",
-					0600,
+					0400,
 					client->debugfs_dir,
 					client,
 					&osdmap_show_fops);
@@ -450,7 +450,7 @@ int ceph_debugfs_client_init(struct ceph_client *client)
 		goto out;
 
 	client->debugfs_options = debugfs_create_file("client_options",
-					0600,
+					0400,
 					client->debugfs_dir,
 					client,
 					&client_options_show_fops);
