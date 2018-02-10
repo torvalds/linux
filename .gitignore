@@ -45,6 +45,8 @@ uImage
 build.log
 u-boot/
 uboot/
+cryptodev/*.md5
+tools/spi/include/
 
 #
 # Top-level generic files
