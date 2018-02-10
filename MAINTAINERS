@@ -2487,8 +2487,6 @@ F:	kernel/audit*
 
 AUXILIARY DISPLAY DRIVERS
 M:	Miguel Ojeda Sandonis <miguel.ojeda.sandonis@gmail.com>
-W:	http://miguelojeda.es/auxdisplay.htm
-W:	http://jair.lab.fi.uva.es/~migojed/auxdisplay.htm
 S:	Maintained
 F:	drivers/auxdisplay/
 F:	include/linux/cfag12864b.h
@@ -3376,16 +3374,12 @@ F:	include/linux/usb/wusb*
 
 CFAG12864B LCD DRIVER
 M:	Miguel Ojeda Sandonis <miguel.ojeda.sandonis@gmail.com>
-W:	http://miguelojeda.es/auxdisplay.htm
-W:	http://jair.lab.fi.uva.es/~migojed/auxdisplay.htm
 S:	Maintained
 F:	drivers/auxdisplay/cfag12864b.c
 F:	include/linux/cfag12864b.h
 
 CFAG12864BFB LCD FRAMEBUFFER DRIVER
 M:	Miguel Ojeda Sandonis <miguel.ojeda.sandonis@gmail.com>
-W:	http://miguelojeda.es/auxdisplay.htm
-W:	http://jair.lab.fi.uva.es/~migojed/auxdisplay.htm
 S:	Maintained
 F:	drivers/auxdisplay/cfag12864bfb.c
 F:	include/linux/cfag12864b.h
@@ -7873,8 +7867,6 @@ F:	kernel/kprobes.c
 
 KS0108 LCD CONTROLLER DRIVER
 M:	Miguel Ojeda Sandonis <miguel.ojeda.sandonis@gmail.com>
-W:	http://miguelojeda.es/auxdisplay.htm
-W:	http://jair.lab.fi.uva.es/~migojed/auxdisplay.htm
 S:	Maintained
 F:	Documentation/auxdisplay/ks0108
 F:	drivers/auxdisplay/ks0108.c
