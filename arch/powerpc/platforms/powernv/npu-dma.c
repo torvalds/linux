@@ -724,6 +724,11 @@ struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 		/* No nvlink associated with this GPU device */
 		return ERR_PTR(-ENODEV);
 
+	nvlink_dn = of_parse_phandle(npdev->dev.of_node, "ibm,nvlink", 0);
+	if (WARN_ON(of_property_read_u32(nvlink_dn, "ibm,npu-link-index",
+							&nvlink_index)))
+		return ERR_PTR(-ENODEV);
+
 	if (!mm || mm->context.id == 0) {
 		/*
 		 * Kernel thread contexts are not supported and context id 0 is
@@ -751,25 +756,30 @@ struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 	 */
 	npu_context = mm->context.npu_context;
 	if (!npu_context) {
+		rc = -ENOMEM;
 		npu_context = kzalloc(sizeof(struct npu_context), GFP_KERNEL);
-		if (!npu_context)
-			return ERR_PTR(-ENOMEM);
+		if (npu_context) {
+			kref_init(&npu_context->kref);
+			npu_context->mm = mm;
+			npu_context->mn.ops = &nv_nmmu_notifier_ops;
+			rc = __mmu_notifier_register(&npu_context->mn, mm);
+		}
+
+		if (rc) {
+			kfree(npu_context);
+			opal_npu_destroy_context(nphb->opal_id, mm->context.id,
+					PCI_DEVID(gpdev->bus->number,
+						gpdev->devfn));
+			return ERR_PTR(rc);
+		}
 
 		mm->context.npu_context = npu_context;
-		npu_context->mm = mm;
-		npu_context->mn.ops = &nv_nmmu_notifier_ops;
-		__mmu_notifier_register(&npu_context->mn, mm);
-		kref_init(&npu_context->kref);
 	} else {
-		kref_get(&npu_context->kref);
+		WARN_ON(!kref_get_unless_zero(&npu_context->kref));
 	}
 
 	npu_context->release_cb = cb;
 	npu_context->priv = priv;
-	nvlink_dn = of_parse_phandle(npdev->dev.of_node, "ibm,nvlink", 0);
-	if (WARN_ON(of_property_read_u32(nvlink_dn, "ibm,npu-link-index",
-							&nvlink_index)))
-		return ERR_PTR(-ENODEV);
 
 	/*
 	 * npdev is a pci_dev pointer setup by the PCI code. We assign it to
