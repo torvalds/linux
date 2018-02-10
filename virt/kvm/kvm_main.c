@@ -3173,16 +3173,10 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 		return r;
 	}
 #endif
-	r = get_unused_fd_flags(O_CLOEXEC);
+	r = anon_inode_getfile("kvm-vm", &kvm_vm_fops, kvm, O_RDWR);
 	if (r < 0) {
 		kvm_put_kvm(kvm);
 		return r;
-	}
-	file = anon_inode_getfile("kvm-vm", &kvm_vm_fops, kvm, O_RDWR);
-	if (IS_ERR(file)) {
-		put_unused_fd(r);
-		kvm_put_kvm(kvm);
-		return PTR_ERR(file);
 	}
 
 	/*
@@ -3192,13 +3186,12 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 	 * care of doing kvm_put_kvm(kvm).
 	 */
 	if (kvm_create_vm_debugfs(kvm, r) < 0) {
-		put_unused_fd(r);
-		fput(file);
+		kvm_put_kvm(kvm);
 		return -ENOMEM;
 	}
 	kvm_uevent_notify_change(KVM_EVENT_CREATE_VM, kvm);
 
-	fd_install(r, file);
+	
 	return r;
 }
 
