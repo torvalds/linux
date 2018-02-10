@@ -57,6 +57,8 @@
 
 #define PHY_ABNORMAL_THRESHOLD			15
 
+#define ENABLE_PHY_FIXUP_RESET
+
 struct rk_int_phy_priv {
 	int restore_reg0;
 	int restore_a3_config;
@@ -64,6 +66,8 @@ struct rk_int_phy_priv {
 	int a3_config_set;
 	int txrx_counters_done_count;
 	int last_speed;
+	int last_state;
+	int reset;
 };
 
 static int rockchip_integrated_phy_init_tstmode(struct phy_device *phydev)
@@ -192,34 +196,7 @@ static int rockchip_integrated_phy_adjust_a3_config(struct phy_device *phydev,
 static
 void rockchip_integrated_phy_link_change_notify(struct phy_device *phydev)
 {
-	int speed = SPEED_10;
 	struct rk_int_phy_priv *priv = phydev->priv;
-
-	if (phydev->autoneg == AUTONEG_ENABLE) {
-		int reg = phy_read(phydev, MII_SPECIAL_CONTROL_STATUS);
-
-		if (reg < 0) {
-			phydev_err(phydev, "phy_read err: %d.\n", reg);
-			return;
-		}
-
-		if (reg & MII_SPEED_100)
-			speed = SPEED_100;
-		else if (reg & MII_SPEED_10)
-			speed = SPEED_10;
-	} else {
-		int bmcr = phy_read(phydev, MII_BMCR);
-
-		if (bmcr < 0) {
-			phydev_err(phydev, "phy_read err: %d.\n", bmcr);
-			return;
-		}
-
-		if (bmcr & BMCR_SPEED100)
-			speed = SPEED_100;
-		else
-			speed = SPEED_10;
-	}
 
 	/*
 	 * If mode switch happens from 10BT to 100BT, all DSP/AFE
@@ -227,7 +204,7 @@ void rockchip_integrated_phy_link_change_notify(struct phy_device *phydev)
 	 * registers have to be re-initialized in this case.
 	 */
 	if (phydev->link &&
-	    speed == SPEED_100 &&
+	    phydev->speed == SPEED_100 &&
 	    priv->last_speed == SPEED_10) {
 		int ret = rockchip_integrated_phy_analog_init(phydev);
 
@@ -237,7 +214,7 @@ void rockchip_integrated_phy_link_change_notify(struct phy_device *phydev)
 	}
 
 	if (phydev->link)
-		priv->last_speed = speed;
+		priv->last_speed = phydev->speed;
 }
 
 static int rockchip_set_polarity(struct phy_device *phydev, int polarity)
@@ -398,6 +375,30 @@ static int rockchip_integrated_phy_fixup_100M(struct phy_device *phydev)
 	return 0;
 }
 
+#ifdef ENABLE_PHY_FIXUP_RESET
+static int rockchip_integrated_phy_fixup_reset(struct phy_device *phydev)
+{
+	int ret;
+	struct rk_int_phy_priv *priv = phydev->priv;
+
+	/* reset phy once
+	 * solve failed to linkup for very few chip
+	 * reduce udp package lost rate sometimes
+	 */
+	if (priv->last_state == PHY_NOLINK && phydev->state == PHY_NOLINK) {
+		if (++priv->reset == 2) {
+			phydev_dbg(phydev, "%s\n", __func__);
+			ret = genphy_soft_reset(phydev);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	priv->last_state = phydev->state;
+	return 0;
+}
+#endif
+
 static int rockchip_integrated_phy_read_status(struct phy_device *phydev)
 {
 	int ret;
@@ -413,6 +414,12 @@ static int rockchip_integrated_phy_read_status(struct phy_device *phydev)
 	ret = rockchip_integrated_phy_fixup_100M(phydev);
 	if (ret)
 		return ret;
+
+#ifdef ENABLE_PHY_FIXUP_RESET
+	ret = rockchip_integrated_phy_fixup_reset(phydev);
+	if (ret)
+		return ret;
+#endif
 
 	return 0;
 }
