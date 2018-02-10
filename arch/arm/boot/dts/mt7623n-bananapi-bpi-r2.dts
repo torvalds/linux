@@ -778,6 +778,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0_pins_a>;
 	status = "okay";
+	spidev: spidev@0 {
+		compatible = "rohm,dh2228fv";
+		//compatible = "spidev";
+		spi-max-frequency = <1000000>;
+		reg = <0>;
+	};
 };
 
 &uart0 {
