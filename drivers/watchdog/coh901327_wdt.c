@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * coh901327_wdt.c
  *
  * Copyright (C) 2008-2009 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * Watchdog driver for the ST-Ericsson AB COH 901 327 IP core
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  */
@@ -421,5 +421,5 @@ MODULE_DESCRIPTION("COH 901 327 Watchdog");
 module_param(margin, uint, 0);
 MODULE_PARM_DESC(margin, "Watchdog margin in seconds (default 60s)");
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:coh901327-watchdog");
