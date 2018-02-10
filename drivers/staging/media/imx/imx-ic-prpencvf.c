@@ -923,7 +923,7 @@ static int prp_enum_frame_size(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct prp_priv *priv = sd_to_priv(sd);
-	struct v4l2_subdev_format format = {0};
+	struct v4l2_subdev_format format = {};
 	const struct imx_media_pixfmt *cc;
 	int ret = 0;
 
