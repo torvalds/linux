@@ -351,5 +351,6 @@
 
 #define QTN_PEARL_IPC_IRQ_WORD(irq)	(BIT(irq) | BIT(irq + 16))
 #define QTN_PEARL_LHOST_IPC_IRQ		(6)
+#define QTN_PEARL_LHOST_EP_RESET	(7)
 
 #endif /* __PEARL_PCIE_H */

@@ -162,6 +162,17 @@ static void qtnf_deassert_intx(struct qtnf_pcie_bus_priv *priv)
 	qtnf_non_posted_write(cfg, reg);
 }
 
+static void qtnf_reset_card(struct qtnf_pcie_bus_priv *priv)
+{
+	const u32 data = QTN_PEARL_IPC_IRQ_WORD(QTN_PEARL_LHOST_EP_RESET);
+	void __iomem *reg = priv->sysctl_bar +
+			    QTN_PEARL_SYSCTL_LHOST_IRQ_OFFSET;
+
+	qtnf_non_posted_write(data, reg);
+	msleep(QTN_EP_RESET_WAIT_MS);
+	pci_restore_state(priv->pdev);
+}
+
 static void qtnf_ipc_gen_ep_int(void *arg)
 {
 	const struct qtnf_pcie_bus_priv *priv = arg;
@@ -1308,7 +1319,6 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_base;
 	}
 
-	pcim_pin_device(pdev);
 	pci_set_master(pdev);
 
 	ret = qtnf_pcie_init_irq(pcie_priv);
@@ -1322,6 +1332,8 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pr_err("PCIE memory init failed\n");
 		goto err_base;
 	}
+
+	pci_save_state(pdev);
 
 	ret = qtnf_pcie_init_shm_ipc(pcie_priv);
 	if (ret < 0) {
@@ -1425,6 +1437,7 @@ static void qtnf_pcie_remove(struct pci_dev *pdev)
 	qtnf_debugfs_remove(bus);
 
 	qtnf_pcie_free_shm_ipc(priv);
+	qtnf_reset_card(priv);
 }
 
 #ifdef CONFIG_PM_SLEEP
