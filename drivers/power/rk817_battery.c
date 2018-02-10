@@ -37,7 +37,7 @@
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
 
-static int dbg_enable;
+static int dbg_enable = 1;
 
 module_param_named(dbg_level, dbg_enable, int, 0644);
 
@@ -495,6 +495,19 @@ struct rk817_battery_device {
 	int				zero_linek;
 	u64				zero_drop_sec;
 	u64				shtd_drop_sec;
+
+	int				powerpatch_res;
+	int				zero_voltage_avg;
+	int				zero_current_avg;
+	int				zero_vsys;
+	int				zero_dead_voltage;
+	int				zero_dead_soc;
+	int				zero_dead_cap;
+	int				zero_batvol_to_ocv;
+	int				zero_batocv_to_soc;
+	int				zero_batocv_to_cap;
+	int				zero_xsoc;
+
 	int				sm_remain_cap;
 	int				sm_linek;
 	int				sm_chrg_dsoc;
@@ -1330,16 +1343,27 @@ static void rk817_bat_calc_sm_linek(struct rk817_battery_device *battery)
 {
 	int linek;
 	int diff, delta;
+	int current_avg = rk817_bat_get_avg_current(battery);
 
 	delta = abs(battery->dsoc - battery->rsoc);
 	diff = delta * 3;/* speed:3/4 */
 
-	if (battery->dsoc < battery->rsoc)
-		linek = -1000 * diff / DIV(delta + diff);
-	else if (battery->dsoc > battery->rsoc)
-		linek = -1000 * (delta + diff) / DIV(diff);
-	else
-		linek = -1000;
+	if (current_avg > 0) {
+		if (battery->dsoc < battery->rsoc)
+			linek = 1000 * diff / DIV(delta + diff);
+		else if (battery->dsoc > battery->rsoc)
+			linek = 1000 * (delta + diff) / DIV(diff);
+		else
+			linek = 1000;
+	} else {
+		if (battery->dsoc < battery->rsoc)
+			linek = -1000 * diff / DIV(delta + diff);
+		else if (battery->dsoc > battery->rsoc)
+			linek = -1000 * (delta + diff) / DIV(diff);
+		else
+			linek = -1000;
+	}
+
 	battery->dbg_meet_soc = (battery->dsoc >= battery->rsoc) ?
 		(battery->dsoc - diff) : (battery->rsoc - diff);
 
@@ -1403,6 +1427,7 @@ static void rk817_bat_not_first_pwron(struct rk817_battery_device *battery)
 	battery->is_initialized = is_rk817_bat_initialized(battery);
 	battery->is_ocv_calib = is_rk817_bat_ocv_valid(battery);
 
+	pre_soc *= 1000;
 	if (battery->is_halt) {
 		BAT_INFO("system halt last time... cap: pre=%d, now=%d\n",
 			 pre_cap, now_cap);
@@ -1448,7 +1473,7 @@ static void rk817_bat_not_first_pwron(struct rk817_battery_device *battery)
 		}
 	}
 finish:
-	battery->dsoc = pre_soc * 1000;
+	battery->dsoc = pre_soc;
 	battery->nac = pre_cap;
 	if (battery->nac < 0)
 		battery->nac = 0;
@@ -1784,8 +1809,8 @@ static void rk817_bat_power_supply_changed(struct rk817_battery_device *battery)
 {
 	static int old_soc = -1;
 
-	if (battery->dsoc > 100)
-		battery->dsoc = 100;
+	if (battery->dsoc > 100 * 1000)
+		battery->dsoc = 100 * 1000;
 	else if (battery->dsoc < 0)
 		battery->dsoc = 0;
 
@@ -1828,8 +1853,6 @@ static void rk817_battery_debug_info(struct rk817_battery_device *battery)
 	rk817_bat_get_ocv_current(battery);
 	rk817_bat_get_ocv_current0(battery);
 	rk817_bat_get_pwron_current(battery);
-	rk817_bat_init_coulomb_cap(battery, 500);
-	rk817_bat_update_qmax(battery, 1000);
 	rk817_bat_get_ocv_count(battery);
 	rk817_bat_save_dsoc(battery, battery->dsoc);
 	DBG("capactiy = %d\n", rk817_bat_get_capacity_mah(battery));
@@ -1919,7 +1942,31 @@ static void rk817_bat_calc_smooth_dischrg(struct rk817_battery_device *battery)
 
 static void rk817_bat_smooth_algorithm(struct rk817_battery_device *battery)
 {
-	int ydsoc = 0, delta_cap = 0, old_cap = 0;
+	int ydsoc = 0, delta_cap = 0, old_cap = 0, tmp_soc;
+	int linek;
+	int diff, delta;
+	int current_avg = rk817_bat_get_avg_current(battery);
+
+	delta = abs(battery->dsoc - battery->rsoc);
+	diff = delta * 3;/* speed:3/4 */
+
+	if (current_avg > 0) {
+		if (battery->dsoc < battery->rsoc)
+			linek = 1000 * diff / DIV(delta + diff);
+		else if (battery->dsoc > battery->rsoc)
+			linek = 1000 * (delta + diff) / DIV(diff);
+		else
+			linek = 1000;
+	} else {
+		if (battery->dsoc < battery->rsoc)
+			linek = -1000 * diff / DIV(delta + diff);
+		else if (battery->dsoc > battery->rsoc)
+			linek = -1000 * (delta + diff) / DIV(diff);
+		else
+			linek = -1000;
+	}
+
+	battery->sm_linek = linek;
 
 	battery->remain_cap = rk817_bat_get_capacity_uah(battery);
 
@@ -1931,7 +1978,7 @@ static void rk817_bat_smooth_algorithm(struct rk817_battery_device *battery)
 	/* from charge to discharge:
 	 * remain_cap may be above sm_remain_cap, delta_cap <= 0
 	 */
-	delta_cap =  battery->sm_remain_cap - battery->remain_cap;
+	delta_cap = battery->remain_cap - battery->sm_remain_cap;
 	DBG("smooth: sm_remain_cap = %d, remain_cap = %d\n",
 	    battery->sm_remain_cap, battery->remain_cap);
 	DBG("smooth: delta_cap = %d, dsoc = %d\n",
@@ -1943,7 +1990,7 @@ static void rk817_bat_smooth_algorithm(struct rk817_battery_device *battery)
 	}
 
 	/* discharge: sm_linek < 0, if delate_cap <0, ydsoc > 0 */
-	ydsoc = battery->sm_linek * (delta_cap / DIV(battery->fcc)) / 10;
+	ydsoc = battery->sm_linek * abs(delta_cap / DIV(battery->fcc)) / 10;
 
 	DBG("smooth: ydsoc = %d, fcc = %d\n", ydsoc, battery->fcc);
 	if (ydsoc == 0) {
@@ -1961,8 +2008,26 @@ static void rk817_bat_smooth_algorithm(struct rk817_battery_device *battery)
 	 * from charge status to dischrage
 	 */
 	battery->smooth_soc += ydsoc;
-	if (ydsoc < 0)
+	if (ydsoc < 0) {
 		rk817_bat_calc_smooth_dischrg(battery);
+	} else {
+		if (battery->smooth_soc < 0)
+			battery->smooth_soc = 0;
+
+		tmp_soc = battery->smooth_soc / 1000;
+
+		if (tmp_soc != battery->dsoc / 1000) {
+			if (battery->smooth_soc < battery->dsoc)
+				return;
+			if (battery->smooth_soc > battery->dsoc + 1000)
+				battery->dsoc += 1000;
+			else
+				battery->dsoc = battery->smooth_soc;
+			if (battery->dsoc <= 0)
+				battery->dsoc = 0;
+		}
+	}
+
 	DBG("smooth: smooth_soc = %d, dsoc = %d\n",
 	    battery->smooth_soc, battery->dsoc);
 	DBG("smooth: delta_cap = %d, dsoc = %d\n",
@@ -1990,6 +2055,10 @@ static void rk817_bat_calc_zero_linek(struct rk817_battery_device *battery)
 	vsys = voltage_avg + (current_avg * DEF_PWRPATH_RES) / 1000;
 
 	powerpatch_res = (voltage_avg - vsys) * 1000 / current_avg;
+
+	battery->zero_voltage_avg = voltage_avg;
+	battery->zero_current_avg = current_avg;
+	battery->zero_vsys = vsys;
 
 	DBG("Zero: voltage_avg = %d, Vsys = %d\n", voltage_avg, vsys);
 	DBG("Zero: powerpatch_res = %d\n", powerpatch_res);
@@ -2021,6 +2090,16 @@ static void rk817_bat_calc_zero_linek(struct rk817_battery_device *battery)
 
 	/* xsoc: available rsoc */
 	xsoc = ocv_soc - dead_soc;
+
+	battery->zero_dead_voltage = dead_voltage;
+	battery->zero_dead_soc = dead_soc;
+	battery->zero_dead_cap = dead_cap;
+
+	battery->zero_batvol_to_ocv = ocv_voltage;
+	battery->zero_batocv_to_soc = ocv_soc;
+	battery->zero_batocv_to_cap = ocv_cap;
+
+	battery->zero_xsoc = xsoc;
 
 	DBG("Zero: xsoc = %d\n", xsoc);
 	/* min_gap_xsoc: reserve xsoc */
@@ -2152,6 +2231,20 @@ static void rk817_bat_zero_algo_prepare(struct rk817_battery_device *battery)
 
 static void rk817_bat_calc_zero_algorithm(struct rk817_battery_device *battery)
 {
+	int tmp_soc;
+
+	tmp_soc = battery->zero_dsoc / 1000;
+
+	if (tmp_soc == battery->dsoc / 1000)
+		return;
+
+	if (battery->zero_dsoc > battery->dsoc)
+		return;
+
+	if (battery->zero_dsoc < battery->dsoc - 1000)
+		battery->dsoc -= 1000;
+	else
+		battery->dsoc = battery->zero_dsoc;
 }
 
 static void rk817_bat_zero_algorithm(struct rk817_battery_device *battery)
@@ -2160,12 +2253,34 @@ static void rk817_bat_zero_algorithm(struct rk817_battery_device *battery)
 
 	battery->zero_timeout_cnt++;
 	delta_cap = battery->zero_remain_cap - battery->remain_cap;
-	delta_soc = battery->zero_linek * (delta_cap / DIV(battery->fcc)) / 10;
+	delta_soc = battery->zero_linek * delta_cap / DIV(battery->fcc) / 10;
 
-	DBG("Zero: zero_remain_cap = %d, remain_cap = %d\n",
+	DBG("zero algorithm start\n");
+	DBG("DEAD: dead_voltage: %d\n"
+	    "dead_soc: %d\n"
+	    "dead_cap: %d\n"
+	    "powoff_vol: %d\n",
+	    battery->zero_dead_voltage,
+	    battery->zero_dead_soc,
+	    battery->zero_dead_cap,
+	    battery->pdata->pwroff_vol);
+	DBG("DEAD: bat_voltage: %d\n"
+	    "bat_current: %d\n"
+	    "batvol_to_ocv: %d\n"
+	    "batocv_to_soc: %d\n"
+	    "batocv_to_cap: %d\n",
+	    battery->zero_voltage_avg,
+	    battery->zero_current_avg,
+	    battery->zero_batvol_to_ocv,
+	    battery->zero_batocv_to_soc,
+	    battery->zero_batocv_to_cap);
+	DBG("DEAD: Xsoc: %d, zero_reserve_dsoc: %d\n",
+	    battery->zero_xsoc, battery->pdata->zero_reserve_dsoc);
+	DBG("CAP: zero_remain_cap = %d, remain_cap = %d\n",
 	    battery->zero_remain_cap, battery->remain_cap);
 	DBG("Zero: zero_delta_cap = %d, zero_link = %d, delta_soc = %d\n",
 	    delta_cap, battery->zero_linek, delta_soc);
+	DBG("zero algorithm end\n");
 
 	if ((delta_soc >= MIN_ZERO_DSOC_ACCURACY) ||
 	    (battery->zero_timeout_cnt > MIN_ZERO_OVERCNT) ||
@@ -2174,6 +2289,7 @@ static void rk817_bat_zero_algorithm(struct rk817_battery_device *battery)
 		battery->zero_timeout_cnt = 0;
 		battery->zero_dsoc -= delta_soc;
 		rk817_bat_calc_zero_algorithm(battery);
+		DBG("Zero: dsoc: %d\n", battery->dsoc);
 		rk817_bat_calc_zero_linek(battery);
 	}
 }
@@ -2315,7 +2431,7 @@ static int rk817_battery_probe(struct platform_device *pdev)
 	rk817_battery_debug_info(battery);
 
 	rk817_bat_update_info(battery);
-
+	rk817_bat_output_info(battery);
 	battery->bat_monitor_wq = alloc_ordered_workqueue("%s",
 			WQ_MEM_RECLAIM | WQ_FREEZABLE, "rk817-bat-monitor-wq");
 	INIT_DELAYED_WORK(&battery->bat_delay_work, rk817_battery_work);
