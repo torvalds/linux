@@ -101,42 +101,40 @@ For 32-bit we have the following conventions - kernel is built with
 	addq	$-(15*8), %rsp
 	.endm
 
-	.macro SAVE_REGS offset=0
+	.macro SAVE_AND_CLEAR_REGS offset=0
+	/*
+	 * Save registers and sanitize registers of values that a
+	 * speculation attack might otherwise want to exploit. The
+	 * lower registers are likely clobbered well before they
+	 * could be put to use in a speculative execution gadget.
+	 * Interleave XOR with PUSH for better uop scheduling:
+	 */
 	movq %rdi, 14*8+\offset(%rsp)
 	movq %rsi, 13*8+\offset(%rsp)
 	movq %rdx, 12*8+\offset(%rsp)
 	movq %rcx, 11*8+\offset(%rsp)
 	movq %rax, 10*8+\offset(%rsp)
 	movq %r8,  9*8+\offset(%rsp)
+	xorq %r8, %r8				/* nospec r8 */
 	movq %r9,  8*8+\offset(%rsp)
+	xorq %r9, %r9				/* nospec r9 */
 	movq %r10, 7*8+\offset(%rsp)
+	xorq %r10, %r10				/* nospec r10 */
 	movq %r11, 6*8+\offset(%rsp)
+	xorq %r11, %r11				/* nospec r11 */
 	movq %rbx, 5*8+\offset(%rsp)
+	xorl %ebx, %ebx				/* nospec rbx */
 	movq %rbp, 4*8+\offset(%rsp)
+	xorl %ebp, %ebp				/* nospec rbp */
 	movq %r12, 3*8+\offset(%rsp)
+	xorq %r12, %r12				/* nospec r12 */
 	movq %r13, 2*8+\offset(%rsp)
+	xorq %r13, %r13				/* nospec r13 */
 	movq %r14, 1*8+\offset(%rsp)
+	xorq %r14, %r14				/* nospec r14 */
 	movq %r15, 0*8+\offset(%rsp)
+	xorq %r15, %r15				/* nospec r15 */
 	UNWIND_HINT_REGS offset=\offset
-	.endm
-
-	/*
-	 * Sanitize registers of values that a speculation attack
-	 * might otherwise want to exploit. The lower registers are
-	 * likely clobbered well before they could be put to use in
-	 * a speculative execution gadget:
-	 */
-	.macro CLEAR_REGS_NOSPEC
-	xorl %ebp, %ebp
-	xorl %ebx, %ebx
-	xorq %r8, %r8
-	xorq %r9, %r9
-	xorq %r10, %r10
-	xorq %r11, %r11
-	xorq %r12, %r12
-	xorq %r13, %r13
-	xorq %r14, %r14
-	xorq %r15, %r15
 	.endm
 
 	.macro POP_REGS pop_rdi=1 skip_r11rcx=0
@@ -177,7 +175,7 @@ For 32-bit we have the following conventions - kernel is built with
  * is just setting the LSB, which makes it an invalid stack address and is also
  * a signal to the unwinder that it's a pt_regs pointer in disguise.
  *
- * NOTE: This macro must be used *after* SAVE_REGS because it corrupts
+ * NOTE: This macro must be used *after* SAVE_AND_CLEAR_REGS because it corrupts
  * the original rbp.
  */
 .macro ENCODE_FRAME_POINTER ptregs_offset=0
