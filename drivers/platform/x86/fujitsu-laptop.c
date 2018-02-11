@@ -61,7 +61,6 @@
 #include <linux/kfifo.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
 #include <acpi/video.h>
 
 #define FUJITSU_DRIVER_VERSION "0.6.0"
