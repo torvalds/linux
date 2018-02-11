@@ -201,9 +201,6 @@ static int tfp410_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ddata);
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
-
 	r = tfp410_probe_of(pdev);
 	if (r)
 		return r;

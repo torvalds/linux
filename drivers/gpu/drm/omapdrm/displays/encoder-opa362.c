@@ -179,11 +179,6 @@ static int opa362_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "probe\n");
 
-	if (node == NULL) {
-		dev_err(&pdev->dev, "Unable to find device tree\n");
-		return -EINVAL;
-	}
-
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
 		return -ENOMEM;
