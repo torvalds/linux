@@ -399,16 +399,16 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 	strcpy(acpi_device_class(device), ACPI_FUJITSU_CLASS);
 	device->driver_data = priv;
 
-	ret = acpi_fujitsu_bl_input_setup(device);
-	if (ret)
-		return ret;
-
 	pr_info("ACPI: %s [%s]\n",
 		acpi_device_name(device), acpi_device_bid(device));
 
 	if (get_max_brightness(device) <= 0)
 		priv->max_brightness = FUJITSU_LCD_N_LEVELS;
 	get_lcd_level(device);
+
+	ret = acpi_fujitsu_bl_input_setup(device);
+	if (ret)
+		return ret;
 
 	ret = fujitsu_backlight_register(device);
 	if (ret)
@@ -795,10 +795,6 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 		goto err_stop;
 	}
 
-	ret = acpi_fujitsu_laptop_input_setup(device);
-	if (ret)
-		goto err_free_fifo;
-
 	pr_info("ACPI: %s [%s]\n",
 		acpi_device_name(device), acpi_device_bid(device));
 
@@ -832,6 +828,10 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 		else
 			fujitsu_bl->bl_device->props.power = FB_BLANK_UNBLANK;
 	}
+
+	ret = acpi_fujitsu_laptop_input_setup(device);
+	if (ret)
+		goto err_free_fifo;
 
 	ret = acpi_fujitsu_laptop_leds_register(device);
 	if (ret)
