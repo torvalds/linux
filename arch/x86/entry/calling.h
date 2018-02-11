@@ -101,49 +101,22 @@ For 32-bit we have the following conventions - kernel is built with
 	addq	$-(15*8), %rsp
 	.endm
 
-	.macro SAVE_C_REGS_HELPER offset=0 rax=1 rcx=1 r8910=1 r11=1
-	.if \r11
-	movq %r11, 6*8+\offset(%rsp)
-	.endif
-	.if \r8910
-	movq %r10, 7*8+\offset(%rsp)
-	movq %r9,  8*8+\offset(%rsp)
-	movq %r8,  9*8+\offset(%rsp)
-	.endif
-	.if \rax
-	movq %rax, 10*8+\offset(%rsp)
-	.endif
-	.if \rcx
-	movq %rcx, 11*8+\offset(%rsp)
-	.endif
-	movq %rdx, 12*8+\offset(%rsp)
-	movq %rsi, 13*8+\offset(%rsp)
+	.macro SAVE_REGS offset=0
 	movq %rdi, 14*8+\offset(%rsp)
-	UNWIND_HINT_REGS offset=\offset extra=0
-	.endm
-	.macro SAVE_C_REGS offset=0
-	SAVE_C_REGS_HELPER \offset, 1, 1, 1, 1
-	.endm
-	.macro SAVE_C_REGS_EXCEPT_RAX_RCX offset=0
-	SAVE_C_REGS_HELPER \offset, 0, 0, 1, 1
-	.endm
-	.macro SAVE_C_REGS_EXCEPT_R891011
-	SAVE_C_REGS_HELPER 0, 1, 1, 0, 0
-	.endm
-	.macro SAVE_C_REGS_EXCEPT_RCX_R891011
-	SAVE_C_REGS_HELPER 0, 1, 0, 0, 0
-	.endm
-	.macro SAVE_C_REGS_EXCEPT_RAX_RCX_R11
-	SAVE_C_REGS_HELPER 0, 0, 0, 1, 0
-	.endm
-
-	.macro SAVE_EXTRA_REGS offset=0
-	movq %r15, 0*8+\offset(%rsp)
-	movq %r14, 1*8+\offset(%rsp)
-	movq %r13, 2*8+\offset(%rsp)
-	movq %r12, 3*8+\offset(%rsp)
-	movq %rbp, 4*8+\offset(%rsp)
+	movq %rsi, 13*8+\offset(%rsp)
+	movq %rdx, 12*8+\offset(%rsp)
+	movq %rcx, 11*8+\offset(%rsp)
+	movq %rax, 10*8+\offset(%rsp)
+	movq %r8,  9*8+\offset(%rsp)
+	movq %r9,  8*8+\offset(%rsp)
+	movq %r10, 7*8+\offset(%rsp)
+	movq %r11, 6*8+\offset(%rsp)
 	movq %rbx, 5*8+\offset(%rsp)
+	movq %rbp, 4*8+\offset(%rsp)
+	movq %r12, 3*8+\offset(%rsp)
+	movq %r13, 2*8+\offset(%rsp)
+	movq %r14, 1*8+\offset(%rsp)
+	movq %r15, 0*8+\offset(%rsp)
 	UNWIND_HINT_REGS offset=\offset
 	.endm
 
@@ -197,7 +170,7 @@ For 32-bit we have the following conventions - kernel is built with
  * is just setting the LSB, which makes it an invalid stack address and is also
  * a signal to the unwinder that it's a pt_regs pointer in disguise.
  *
- * NOTE: This macro must be used *after* SAVE_EXTRA_REGS because it corrupts
+ * NOTE: This macro must be used *after* SAVE_REGS because it corrupts
  * the original rbp.
  */
 .macro ENCODE_FRAME_POINTER ptregs_offset=0
