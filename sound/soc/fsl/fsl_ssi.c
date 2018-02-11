@@ -1377,7 +1377,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *of_id;
 	const char *p, *sprop;
-	const uint32_t *iprop;
+	const __be32 *iprop;
 	struct resource *res;
 	void __iomem *iomem;
 	char name[64];
