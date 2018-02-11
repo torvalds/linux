@@ -356,6 +356,12 @@ struct iwl_self_init_dram {
  * @global_table: table mapping received VID from hw to rxb
  * @rba: allocator for RX replenishing
  * @ctxt_info: context information for FW self init
+ * @ctxt_info_gen3: context information for gen3 devices
+ * @prph_info: prph info for self init
+ * @prph_scratch: prph scratch for self init
+ * @ctxt_info_dma_addr: dma addr of context information
+ * @prph_info_dma_addr: dma addr of prph info
+ * @prph_scratch_dma_addr: dma addr of prph scratch
  * @ctxt_info_dma_addr: dma addr of context information
  * @init_dram: DRAM data of firmware image (including paging).
  *	Context information addresses will be taken from here.
@@ -400,8 +406,16 @@ struct iwl_trans_pcie {
 	struct iwl_rx_mem_buffer rx_pool[RX_POOL_SIZE];
 	struct iwl_rx_mem_buffer *global_table[RX_POOL_SIZE];
 	struct iwl_rb_allocator rba;
-	struct iwl_context_info *ctxt_info;
+	union {
+		struct iwl_context_info *ctxt_info;
+		struct iwl_context_info_gen3 *ctxt_info_gen3;
+	};
+	struct iwl_prph_info *prph_info;
+	struct iwl_prph_scratch *prph_scratch;
 	dma_addr_t ctxt_info_dma_addr;
+	dma_addr_t prph_info_dma_addr;
+	dma_addr_t prph_scratch_dma_addr;
+	dma_addr_t iml_dma_addr;
 	struct iwl_self_init_dram init_dram;
 	struct iwl_trans *trans;
 
@@ -595,6 +609,60 @@ static inline void _iwl_disable_interrupts(struct iwl_trans *trans)
 			    trans_pcie->hw_init_mask);
 	}
 	IWL_DEBUG_ISR(trans, "Disabled interrupts\n");
+}
+
+#define IWL_NUM_OF_COMPLETION_RINGS	31
+#define IWL_NUM_OF_TRANSFER_RINGS	527
+
+static inline int iwl_pcie_get_num_sections(const struct fw_img *fw,
+					    int start)
+{
+	int i = 0;
+
+	while (start < fw->num_sec &&
+	       fw->sec[start].offset != CPU1_CPU2_SEPARATOR_SECTION &&
+	       fw->sec[start].offset != PAGING_SEPARATOR_SECTION) {
+		start++;
+		i++;
+	}
+
+	return i;
+}
+
+static inline int iwl_pcie_ctxt_info_alloc_dma(struct iwl_trans *trans,
+					       const struct fw_desc *sec,
+					       struct iwl_dram_data *dram)
+{
+	dram->block = dma_alloc_coherent(trans->dev, sec->len,
+					 &dram->physical,
+					 GFP_KERNEL);
+	if (!dram->block)
+		return -ENOMEM;
+
+	dram->size = sec->len;
+	memcpy(dram->block, sec->data, sec->len);
+
+	return 0;
+}
+
+static inline void iwl_pcie_ctxt_info_free_fw_img(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_self_init_dram *dram = &trans_pcie->init_dram;
+	int i;
+
+	if (!dram->fw) {
+		WARN_ON(dram->fw_cnt);
+		return;
+	}
+
+	for (i = 0; i < dram->fw_cnt; i++)
+		dma_free_coherent(trans->dev, dram->fw[i].size,
+				  dram->fw[i].block, dram->fw[i].physical);
+
+	kfree(dram->fw);
+	dram->fw_cnt = 0;
+	dram->fw = NULL;
 }
 
 static inline void iwl_disable_interrupts(struct iwl_trans *trans)
