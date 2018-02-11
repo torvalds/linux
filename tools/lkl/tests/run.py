@@ -14,6 +14,7 @@ import os
 import subprocess
 import sys
 import tap13
+import xml.etree.ElementTree as ET
 
 from junit_xml import TestSuite, TestCase
 
@@ -112,6 +113,9 @@ tests_total = 0
 tests_not_ok = 0
 tests_ok = 0
 tests_skip = 0
+val_errs = 0
+val_fails = 0
+val_skips = 0
 
 for s in tap.run.suites:
 
@@ -150,7 +154,32 @@ for s in tap.run.suites:
         with open(os.path.join(args.junit_dir, os.path.basename(s.name) + '.xml'), 'w') as f:
             js.to_file(f, [js])
 
+        if os.getenv('VALGRIND') is not None:
+            val_xml = 'valgrind-%s.xml' % os.path.basename(s.name).replace(' ','-')
+            # skipped tests don't generate xml file
+            if os.path.exists(val_xml) is False:
+                continue
+
+            cmd = 'mv %s %s' % (val_xml, args.junit_dir)
+            subprocess.call(cmd, shell=True, )
+
+            cmd = mydir + '/valgrind2xunit.py ' + val_xml
+            subprocess.call(cmd, shell=True, cwd=args.junit_dir)
+
+            # count valgrind results
+            doc = ET.parse(os.path.join(args.junit_dir, 'valgrind-%s_xunit.xml' \
+                                        % (os.path.basename(s.name).replace(' ','-'))))
+            ts = doc.getroot()
+            val_errs += int(ts.get('errors'))
+            val_fails += int(ts.get('failures'))
+            val_skips += int(ts.get('skip'))
+
 print("Summary: %d suites run, %d tests, %d ok, %d not ok, %d skipped" %
       (suites_count, tests_total, tests_ok, tests_not_ok, tests_skip))
+
+if os.getenv('VALGRIND') is not None:
+    print(" valgrind (memcheck): %d failures, %d skipped" % (val_fails, val_skips))
+    if val_errs or val_fails:
+        exit_code = 1
 
 sys.exit(exit_code)

@@ -82,12 +82,6 @@ do_steps: &do_steps
       command: |
         mkdir -p ~/junit
         make -C tools/lkl run-tests tests="--junit-dir ~/junit"
-        # convert valgrind test results
-        if [[ -n "$VALGRIND" ]]; then
-          cd ./tools/lkl/ && find ./ -type f -name "valgrind-*.xml" \
-             -exec ./tests/valgrind2xunit.py {} \;
-          cd ../..
-        fi
         find ./tools/lkl/ -type f -name "*.xml" -exec mv {} ~/junit/ \;
       no_output_timeout: "90m"
   - store_test_results:

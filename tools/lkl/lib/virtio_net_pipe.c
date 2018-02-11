@@ -65,6 +65,7 @@ struct lkl_netdev *lkl_netdev_pipe_create(const char *_ifname, int offload)
 		return NULL;
 	}
 
+	free(ifname);
 	/*
 	 * To avoid mismatch with LKL otherside,
 	 * we always enabled vnet hdr

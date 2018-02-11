@@ -135,6 +135,7 @@ long lkl_sys_halt(void)
 	/* Shutdown the clockevents source. */
 	tick_suspend_local();
 	free_mem();
+	lkl_ops->thread_join(current_thread_info()->tid);
 
 	return 0;
 }

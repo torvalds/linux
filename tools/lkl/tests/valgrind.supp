@@ -1,25 +1,11 @@
 {
-   <unfinished thread>
-   Memcheck:Leak
-   match-leak-kinds: possible
-   ...
-   fun:thread_create
-   fun:copy_thread
-   fun:copy_thread_tls
-   ...
-   fun:kthreadd
-   fun:thread_bootstrap
-   fun:start_thread
-}
-
-{
    <unfinished timer 1>
    Memcheck:Leak
    match-leak-kinds: possible
    ...
    fun:pthread_create@@GLIBC_2.2.5
    fun:__start_helper_thread
-   fun:pthread_once
+   fun:__pthread_once_slow
    fun:timer_create@@GLIBC_2.3.3
    fun:timer_alloc
    fun:clockevent_set_state_oneshot
@@ -31,11 +17,10 @@
 }
 
 {
-   <kernel thread>
+   <pid1 kernel thread>
    Memcheck:Leak
    match-leak-kinds: possible
    ...
-   fun:pthread_create@@GLIBC_2.2.5
    fun:thread_create
    fun:copy_thread
    fun:copy_thread_tls
@@ -46,85 +31,32 @@
 }
 
 {
-   <master thread>
-   Memcheck:Leak
-   match-leak-kinds: definite
-   ...
-   fun:pthread_create@@GLIBC_2.2.5
-   fun:thread_create
-   fun:lkl_start_kernel
-   fun:main
+   <xfs uninitialized buf error: delete this once upstream is fixed>
+   Memcheck:Value8
+   fun:crc32_body
+   fun:crc32_le_generic
+   fun:__crc32c_le
+   fun:chksum_update
+   fun:crypto_shash_update
+   fun:crc32c
+   fun:xlog_cksum
 }
 
 {
-   <master timer thread>
-   Memcheck:Leak
-   match-leak-kinds: possible
-   ...
-   fun:pthread_create@@GLIBC_2.2.5
-   fun:timer_helper_thread
-   ...
-}
-
-{
-   <unfinished timer 2>
-   Memcheck:Leak
-   match-leak-kinds: reachable
-   fun:malloc
-   fun:timer_create@@GLIBC_2.3.3
-   fun:timer_alloc
-   fun:clockevent_set_state_oneshot
-   ...
-   fun:clockevents_switch_state
-   fun:tick_setup_periodic
-   ...
-   fun:tick_check_new_device
-   fun:clockevents_register_device
-   fun:clockevents_config_and_register
-   fun:time_init
-   ...
-}
-
-{
-   <test boot.c ignore 1>
-   Memcheck:Leak
-   match-leak-kinds: reachable
-   fun:malloc
-   fun:lkl_disk_add
-   fun:test_disk_add
-   fun:do_test
-   fun:main
-}
-
-{
-   <test boot.c ignore 2>
-   Memcheck:Leak
-   match-leak-kinds: reachable
-   fun:malloc
-   fun:virtio_dev_setup
-   fun:lkl_disk_add
-   fun:test_disk_add
-   fun:do_test
-   fun:main
-}
-
-{
-   <test boot.c ignore 3>
-   Memcheck:Leak
-   match-leak-kinds: reachable
-   fun:malloc
-   fun:register_iomem
-   fun:virtio_dev_setup
-   fun:lkl_disk_add
-   fun:test_disk_add
-   fun:do_test
-   fun:main
-}
-
-{
-   <test boot.c ignore 4>
+   <xfs pwrite64 issue: delete this once upstream is fixed>
    Memcheck:Param
-   unlink(pathname)
-   fun:unlink
-   fun:main
+   pwrite64(buf)
+   ...
+   fun:blk_request
+   fun:blk_enqueue
+   fun:virtio_process_one
+   fun:virtio_process_queue
+   fun:virtio_write
+   fun:__raw_writel
+   fun:writel
+   fun:vm_notify
+   fun:virtqueue_notify
+   fun:virtio_queue_rq
+   fun:blk_mq_dispatch_rq_list
+   fun:blk_mq_sched_dispatch_requests
 }
