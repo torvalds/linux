@@ -61,7 +61,7 @@ static void mlx5i_build_nic_params(struct mlx5_core_dev *mdev,
 	mlx5e_init_rq_type_params(mdev, params);
 
 	/* RQ size in ipoib by default is 512 */
-	params->log_rq_size = is_kdump_kernel() ?
+	params->log_rq_mtu_frames = is_kdump_kernel() ?
 		MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE :
 		MLX5I_PARAMS_DEFAULT_LOG_RQ_SIZE;
 

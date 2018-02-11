@@ -63,18 +63,6 @@
 #define MLX5E_MAX_DSCP          64
 #define MLX5E_MAX_NUM_TC	8
 
-#define MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE                0x6
-#define MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE                0xa
-#define MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE                0xd
-
-#define MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE                0x1
-#define MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE                0xa
-#define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE                0xd
-
-#define MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE_MPW            0x2
-#define MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE_MPW            0x3
-#define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE_MPW            0x6
-
 #define MLX5_RX_HEADROOM NET_SKB_PAD
 #define MLX5_SKB_FRAG_SZ(len)	(SKB_DATA_ALIGN(len) +	\
 				 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
@@ -95,9 +83,27 @@
 #define MLX5_MPWRQ_PAGES_PER_WQE		BIT(MLX5_MPWRQ_WQE_PAGE_ORDER)
 
 #define MLX5_MTT_OCTW(npages) (ALIGN(npages, 8) / 2)
-#define MLX5E_REQUIRED_MTTS(wqes)		\
-	(wqes * ALIGN(MLX5_MPWRQ_PAGES_PER_WQE, 8))
-#define MLX5E_VALID_NUM_MTTS(num_mtts) (MLX5_MTT_OCTW(num_mtts) - 1 <= U16_MAX)
+#define MLX5E_REQUIRED_WQE_MTTS		(ALIGN(MLX5_MPWRQ_PAGES_PER_WQE, 8))
+#define MLX5E_REQUIRED_MTTS(wqes)	(wqes * MLX5E_REQUIRED_WQE_MTTS)
+#define MLX5E_MAX_RQ_NUM_MTTS	\
+	((1 << 16) * 2) /* So that MLX5_MTT_OCTW(num_mtts) fits into u16 */
+#define MLX5E_ORDER2_MAX_PACKET_MTU (order_base_2(10 * 1024))
+#define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE_MPW	\
+		(ilog2(MLX5E_MAX_RQ_NUM_MTTS / MLX5E_REQUIRED_WQE_MTTS))
+#define MLX5E_LOG_MAX_RQ_NUM_PACKETS_MPW \
+	(MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE_MPW + \
+	 (MLX5_MPWRQ_LOG_WQE_SZ - MLX5E_ORDER2_MAX_PACKET_MTU))
+
+#define MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE                0x6
+#define MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE                0xa
+#define MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE                0xd
+
+#define MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE                0x1
+#define MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE                0xa
+#define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE min_t(u8, 0xd,	\
+					       MLX5E_LOG_MAX_RQ_NUM_PACKETS_MPW)
+
+#define MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE_MPW            0x2
 
 #define MLX5_UMR_ALIGN				(2048)
 #define MLX5_MPWRQ_SMALL_PACKET_THRESHOLD	(256)
@@ -152,26 +158,6 @@ static inline u16 mlx5_min_rx_wqes(int wq_type, u32 wq_size)
 	default:
 		return min_t(u16, MLX5E_PARAMS_DEFAULT_MIN_RX_WQES,
 			     wq_size / 2);
-	}
-}
-
-static inline int mlx5_min_log_rq_size(int wq_type)
-{
-	switch (wq_type) {
-	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
-		return MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE_MPW;
-	default:
-		return MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE;
-	}
-}
-
-static inline int mlx5_max_log_rq_size(int wq_type)
-{
-	switch (wq_type) {
-	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
-		return MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE_MPW;
-	default:
-		return MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE;
 	}
 }
 
@@ -233,7 +219,7 @@ enum mlx5e_priv_flag {
 struct mlx5e_params {
 	u8  log_sq_size;
 	u8  rq_wq_type;
-	u8  log_rq_size;
+	u8  log_rq_mtu_frames;
 	u16 num_channels;
 	u8  num_tc;
 	bool rx_cqe_compress_def;
@@ -848,11 +834,6 @@ bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq);
 void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix);
 void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix);
 void mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi);
-
-u8 mlx5e_mpwqe_get_log_stride_size(struct mlx5_core_dev *mdev,
-				   struct mlx5e_params *params);
-u8 mlx5e_mpwqe_get_log_num_strides(struct mlx5_core_dev *mdev,
-				   struct mlx5e_params *params);
 
 void mlx5e_update_stats(struct mlx5e_priv *priv);
 
