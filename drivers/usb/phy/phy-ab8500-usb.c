@@ -889,7 +889,7 @@ static int abx500_usb_link_status_update(struct ab8500_usb *ab)
 static irqreturn_t ab8500_usb_disconnect_irq(int irq, void *data)
 {
 	struct ab8500_usb *ab = (struct ab8500_usb *) data;
-	enum usb_phy_events event = UX500_MUSB_NONE;
+	enum usb_phy_events event = USB_EVENT_NONE;
 
 	/* Link status will not be updated till phy is disabled. */
 	if (ab->mode == USB_HOST) {
