@@ -200,8 +200,8 @@
 
 	wireless-bluetooth {
 		compatible = "bluetooth-platdata";
-		/*clocks = <&rk817 1>;*/
-		/*clock-names = "ext_clock";*/
+		clocks = <&rk817 1>;
+		clock-names = "ext_clock";
 		uart_rts_gpios = <&gpio1 RK_PC3 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default","rts_gpio";
 		pinctrl-0 = <&uart1_rts>;
