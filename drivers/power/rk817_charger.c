@@ -52,6 +52,8 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define OTG_SLP_DISABLE	0x00
 #define OTG_ENABLE		0x33
 #define OTG_DISABLE		0x30
+#define OTG_MODE		0x03
+#define OTG_MODE_ON		0x03
 #define DEFAULT_INPUT_VOLTAGE	4500
 #define DEFAULT_INPUT_CURRENT	2000
 #define DEFAULT_CHRG_VOLTAGE	4200
@@ -500,7 +502,8 @@ static int rk817_charge_field_write(struct rk817_charger *charge,
 
 static int rk817_charge_get_otg_state(struct rk817_charger *charge)
 {
-	return (rk817_charge_field_read(charge, OTG_EN) & 0x03);
+	return ((rk817_charge_field_read(charge, OTG_EN) &
+		OTG_MODE) == OTG_MODE_ON);
 }
 
 static void rk817_charge_otg_disable(struct rk817_charger *charge)
