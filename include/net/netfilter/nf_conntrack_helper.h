@@ -132,8 +132,7 @@ void nf_conntrack_helper_pernet_fini(struct net *net);
 int nf_conntrack_helper_init(void);
 void nf_conntrack_helper_fini(void);
 
-int nf_conntrack_broadcast_help(struct sk_buff *skb, unsigned int protoff,
-				struct nf_conn *ct,
+int nf_conntrack_broadcast_help(struct sk_buff *skb, struct nf_conn *ct,
 				enum ip_conntrack_info ctinfo,
 				unsigned int timeout);
 
