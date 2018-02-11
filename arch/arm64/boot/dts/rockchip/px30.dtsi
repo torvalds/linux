@@ -1812,7 +1812,7 @@
 
 			pdm_sdi0m0: pdm-sdi0m0 {
 				rockchip,pins =
-					<3 RK_PD3 RK_FUNC_4 &pcfg_pull_none>;
+					<3 RK_PD3 RK_FUNC_2 &pcfg_pull_none>;
 			};
 
 			pdm_sdi0m1: pdm-sdi0m1 {
@@ -1832,7 +1832,7 @@
 
 			pdm_sdi3: pdm-sdi3 {
 				rockchip,pins =
-					<3 RK_PD2 RK_FUNC_4 &pcfg_pull_none>;
+					<3 RK_PD2 RK_FUNC_2 &pcfg_pull_none>;
 			};
 
 			pdm_clk0m0_sleep: pdm-clk0m0-sleep {
