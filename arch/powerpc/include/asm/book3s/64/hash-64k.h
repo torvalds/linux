@@ -45,7 +45,7 @@
  * generic accessors and iterators here
  */
 #define __real_pte __real_pte
-static inline real_pte_t __real_pte(pte_t pte, pte_t *ptep)
+static inline real_pte_t __real_pte(pte_t pte, pte_t *ptep, int offset)
 {
 	real_pte_t rpte;
 	unsigned long *hidxp;
@@ -59,7 +59,7 @@ static inline real_pte_t __real_pte(pte_t pte, pte_t *ptep)
 	 */
 	smp_rmb();
 
-	hidxp = (unsigned long *)(ptep + PTRS_PER_PTE);
+	hidxp = (unsigned long *)(ptep + offset);
 	rpte.hidx = *hidxp;
 	return rpte;
 }
@@ -86,9 +86,10 @@ static inline unsigned long __rpte_to_hidx(real_pte_t rpte, unsigned long index)
  * expected to modify the PTE bits accordingly and commit the PTE to memory.
  */
 static inline unsigned long pte_set_hidx(pte_t *ptep, real_pte_t rpte,
-		unsigned int subpg_index, unsigned long hidx)
+					 unsigned int subpg_index,
+					 unsigned long hidx, int offset)
 {
-	unsigned long *hidxp = (unsigned long *)(ptep + PTRS_PER_PTE);
+	unsigned long *hidxp = (unsigned long *)(ptep + offset);
 
 	rpte.hidx &= ~HIDX_BITS(0xfUL, subpg_index);
 	*hidxp = rpte.hidx  | HIDX_BITS(HIDX_SHIFT_BY_ONE(hidx), subpg_index);

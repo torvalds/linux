@@ -350,7 +350,7 @@ extern unsigned long pci_io_base;
  */
 #ifndef __real_pte
 
-#define __real_pte(e,p)		((real_pte_t){(e)})
+#define __real_pte(e, p, o)		((real_pte_t){(e)})
 #define __rpte_to_pte(r)	((r).pte)
 #define __rpte_to_hidx(r,index)	(pte_val(__rpte_to_pte(r)) >> H_PAGE_F_GIX_SHIFT)
 
