@@ -51,16 +51,25 @@ struct panel_drv_data {
 static int dvic_connect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *in;
 	int r;
 
 	if (omapdss_device_is_connected(dssdev))
 		return 0;
 
-	r = in->ops.dvi->connect(in, dssdev);
-	if (r)
-		return r;
+	in = omapdss_of_find_source_for_first_ep(dssdev->dev->of_node);
+	if (IS_ERR(in)) {
+		dev_err(dssdev->dev, "failed to find video source\n");
+		return PTR_ERR(in);
+	}
 
+	r = in->ops.dvi->connect(in, dssdev);
+	if (r) {
+		omap_dss_put_device(in);
+		return r;
+	}
+
+	ddata->in = in;
 	return 0;
 }
 
@@ -73,6 +82,9 @@ static void dvic_disconnect(struct omap_dss_device *dssdev)
 		return;
 
 	in->ops.dvi->disconnect(in, dssdev);
+
+	omap_dss_put_device(in);
+	ddata->in = NULL;
 }
 
 static int dvic_enable(struct omap_dss_device *dssdev)
@@ -235,17 +247,8 @@ static int dvic_probe_of(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct device_node *node = pdev->dev.of_node;
-	struct omap_dss_device *in;
 	struct device_node *adapter_node;
 	struct i2c_adapter *adapter;
-
-	in = omapdss_of_find_source_for_first_ep(node);
-	if (IS_ERR(in)) {
-		dev_err(&pdev->dev, "failed to find video source\n");
-		return PTR_ERR(in);
-	}
-
-	ddata->in = in;
 
 	adapter_node = of_parse_phandle(node, "ddc-i2c-bus", 0);
 	if (adapter_node) {
@@ -253,7 +256,6 @@ static int dvic_probe_of(struct platform_device *pdev)
 		of_node_put(adapter_node);
 		if (adapter == NULL) {
 			dev_err(&pdev->dev, "failed to parse ddc-i2c-bus\n");
-			omap_dss_put_device(ddata->in);
 			return -EPROBE_DEFER;
 		}
 
@@ -297,8 +299,6 @@ static int dvic_probe(struct platform_device *pdev)
 	return 0;
 
 err_reg:
-	omap_dss_put_device(ddata->in);
-
 	i2c_put_adapter(ddata->i2c_adapter);
 
 	return r;
@@ -308,14 +308,11 @@ static int __exit dvic_remove(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
-	struct omap_dss_device *in = ddata->in;
 
 	omapdss_unregister_display(&ddata->dssdev);
 
 	dvic_disable(dssdev);
 	dvic_disconnect(dssdev);
-
-	omap_dss_put_device(in);
 
 	i2c_put_adapter(ddata->i2c_adapter);
 
