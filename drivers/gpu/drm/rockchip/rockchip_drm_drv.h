@@ -176,6 +176,7 @@ struct rockchip_drm_private {
 	struct drm_property *eotf_prop;
 	struct drm_property *color_space_prop;
 	struct drm_property *global_alpha_prop;
+	struct drm_property *blend_mode_prop;
 	void *backlight;
 	struct drm_fb_helper *fbdev_helper;
 	struct drm_gem_object *fbdev_bo;

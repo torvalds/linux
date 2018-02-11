@@ -1138,6 +1138,12 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 		return -ENOMEM;
 	private->global_alpha_prop = prop;
 
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+					 "BLEND_MODE", 0, 1);
+	if (!prop)
+		return -ENOMEM;
+	private->blend_mode_prop = prop;
+
 	return drm_mode_create_tv_properties(dev, 0, NULL);
 }
 

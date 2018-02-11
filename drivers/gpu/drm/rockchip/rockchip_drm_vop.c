@@ -168,6 +168,7 @@ struct vop_plane_state {
 	unsigned int csc_mode;
 	bool enable;
 	int global_alpha;
+	int blend_mode;
 };
 
 struct vop_win {
@@ -1659,7 +1660,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 			SRC_FACTOR_M0(global_alpha_en ?
 				      ALPHA_SRC_GLOBAL : ALPHA_ONE);
 		VOP_WIN_SET(vop, win, src_alpha_ctl, val);
-		VOP_WIN_SET(vop, win, alpha_pre_mul, 1);
+		VOP_WIN_SET(vop, win, alpha_pre_mul,
+			    vop_plane_state->blend_mode);
 		VOP_WIN_SET(vop, win, alpha_mode, 1);
 		VOP_WIN_SET(vop, win, alpha_en, 1);
 	} else {
@@ -1782,6 +1784,11 @@ static int vop_atomic_plane_set_property(struct drm_plane *plane,
 		return 0;
 	}
 
+	if (property == private->blend_mode_prop) {
+		plane_state->blend_mode = val;
+		return 0;
+	}
+
 	DRM_ERROR("failed to set vop plane property\n");
 	return -EINVAL;
 }
@@ -1817,6 +1824,11 @@ static int vop_atomic_plane_get_property(struct drm_plane *plane,
 
 	if (property == private->global_alpha_prop) {
 		*val = plane_state->global_alpha;
+		return 0;
+	}
+
+	if (property == private->blend_mode_prop) {
+		*val = plane_state->blend_mode;
 		return 0;
 	}
 
@@ -3653,6 +3665,8 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 	if (VOP_WIN_SUPPORT(vop, win, global_alpha_val))
 		drm_object_attach_property(&win->base.base,
 					   private->global_alpha_prop, 0xff);
+	drm_object_attach_property(&win->base.base,
+				   private->blend_mode_prop, 0);
 
 	return 0;
 }
