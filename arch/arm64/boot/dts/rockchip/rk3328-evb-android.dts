@@ -541,7 +541,7 @@
 &spdif {
 	#sound-dai-cells = <0>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&spdifm0_tx>;
+	pinctrl-0 = <&spdifm2_tx>;
 	status = "okay";
 };
 
