@@ -67,7 +67,9 @@
 #define U300_WDOG_IFR_WILL_BARK_IRQ_FORCE_ENABLE			0x0001U
 
 /* Default timeout in seconds = 1 minute */
-static unsigned int margin = 60;
+#define U300_WDOG_DEFAULT_TIMEOUT					60
+
+static unsigned int margin;
 static int irq;
 static void __iomem *virtbase;
 static struct device *parent;
@@ -235,8 +237,9 @@ static struct watchdog_device coh901327_wdt = {
 	 * timeout register is max
 	 * 0x7FFF = 327670ms ~= 327s.
 	 */
-	.min_timeout = 0,
+	.min_timeout = 1,
 	.max_timeout = 327,
+	.timeout = U300_WDOG_DEFAULT_TIMEOUT,
 };
 
 static int __exit coh901327_remove(struct platform_device *pdev)
@@ -315,16 +318,15 @@ static int __init coh901327_probe(struct platform_device *pdev)
 		goto out_no_irq;
 	}
 
-	ret = watchdog_init_timeout(&coh901327_wdt, margin, dev);
-	if (ret < 0)
-		coh901327_wdt.timeout = 60;
+	watchdog_init_timeout(&coh901327_wdt, margin, dev);
 
 	coh901327_wdt.parent = dev;
 	ret = watchdog_register_device(&coh901327_wdt);
 	if (ret)
 		goto out_no_wdog;
 
-	dev_info(dev, "initialized. timer margin=%d sec\n", margin);
+	dev_info(dev, "initialized. (timeout=%d sec)\n",
+			coh901327_wdt.timeout);
 	return 0;
 
 out_no_wdog:
