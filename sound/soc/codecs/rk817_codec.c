@@ -402,16 +402,16 @@ static const char * const rk817_call_path_mode[] = {
 
 static const char * const rk817_modem_input_mode[] = {"OFF", "ON"};
 
-static const SOC_ENUM_SINGLE_DECL(rk817_playback_path_type,
+static SOC_ENUM_SINGLE_DECL(rk817_playback_path_type,
 	0, 0, rk817_playback_path_mode);
 
-static const SOC_ENUM_SINGLE_DECL(rk817_capture_path_type,
+static SOC_ENUM_SINGLE_DECL(rk817_capture_path_type,
 	0, 0, rk817_capture_path_mode);
 
-static const SOC_ENUM_SINGLE_DECL(rk817_call_path_type,
+static SOC_ENUM_SINGLE_DECL(rk817_call_path_type,
 	0, 0, rk817_call_path_mode);
 
-static const SOC_ENUM_SINGLE_DECL(rk817_modem_input_type,
+static SOC_ENUM_SINGLE_DECL(rk817_modem_input_type,
 	0, 0, rk817_modem_input_mode);
 
 static int rk817_playback_path_get(struct snd_kcontrol *kcontrol,
