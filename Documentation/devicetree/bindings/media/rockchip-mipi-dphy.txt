@@ -11,10 +11,12 @@ Required properties:
 
 MIPI RX0 D-PHY use registers in "general register files", it
 should be a child of the GRF.
-MIPI TXRX D-PHY have its own registers, it must have a reg property.
+MIPI TX1RX1 D-PHY have its own registers, it must have a reg property.
 
 Optional properties:
 - reg: offset and length of the register set for the device.
+- rockchip,grf: MIPI TX1RX1 D-PHY not only has its own register but also
+		the GRF, so it is only necessary for MIPI TX1RX1 D-PHY.
 
 port node
 -------------------
