@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/atomic.h>
 #include <linux/device.h>
-#include <asm/poll.h>
+#include <linux/poll.h>
 
 #include "internal.h"
 

@@ -26,7 +26,7 @@
 #include <linux/shmem_fs.h>
 #include <linux/compat.h>
 
-#include <asm/poll.h>
+#include <linux/poll.h>
 #include <asm/siginfo.h>
 #include <linux/uaccess.h>
 
