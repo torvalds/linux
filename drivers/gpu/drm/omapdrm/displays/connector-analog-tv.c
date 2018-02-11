@@ -40,8 +40,6 @@ static const struct videomode tvc_pal_vm = {
 			  DISPLAY_FLAGS_VSYNC_LOW,
 };
 
-static const struct of_device_id tvc_of_match[];
-
 #define to_panel_data(x) container_of(x, struct panel_drv_data, dssdev)
 
 static int tvc_connect(struct omap_dss_device *dssdev)
