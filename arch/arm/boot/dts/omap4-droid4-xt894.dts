@@ -124,13 +124,6 @@
 };
 
 &gpio6 {
-	touchscreen_reset {
-		gpio-hog;
-		gpios = <13 0>;
-		output-high;
-		line-name = "touchscreen-reset";
-	};
-
 	pwm8: dmtimer-pwm-8 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&vibrator_direction_pin>;
@@ -362,22 +355,18 @@
 	};
 };
 
-/*
- * REVISIT: Add gpio173 reset pin handling to the driver, see gpio-hog above.
- * If the GPIO reset is used, we probably need to have /lib/firmware/maxtouch.fw
- * available. See "mxt-app" and "droid4-touchscreen-firmware" tools for more
- * information.
- */
 &i2c2 {
-	tsp@4a {
+	touchscreen@4a {
 		compatible = "atmel,maxtouch";
 		reg = <0x4a>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&touchscreen_pins>;
 
+		reset-gpios = <&gpio6 13 GPIO_ACTIVE_HIGH>; /* gpio173 */
+
 		/* gpio_183 with sys_nirq2 pad as wakeup */
-		interrupts-extended = <&gpio6 23 IRQ_TYPE_EDGE_FALLING
-				       &omap4_pmx_core 0x160>;
+		interrupts-extended = <&gpio6 23 IRQ_TYPE_EDGE_FALLING>,
+				      <&omap4_pmx_core 0x160>;
 		interrupt-names = "irq", "wakeup";
 		wakeup-source;
 	};
@@ -435,6 +424,7 @@
 
 	touchscreen_pins: pinmux_touchscreen_pins {
 		pinctrl-single,pins = <
+		OMAP4_IOPAD(0x180, PIN_OUTPUT | MUX_MODE3)
 		OMAP4_IOPAD(0x1a0, PIN_INPUT_PULLUP | MUX_MODE3)
 		>;
 	};
