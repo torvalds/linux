@@ -113,13 +113,16 @@ void mlx5e_init_rq_type_params(struct mlx5_core_dev *mdev,
 		       MLX5E_GET_PFLAG(params, MLX5E_PFLAG_RX_CQE_COMPRESS));
 }
 
+static bool slow_pci_heuristic(struct mlx5_core_dev *mdev);
+
 static void mlx5e_set_rq_params(struct mlx5_core_dev *mdev,
 				struct mlx5e_params *params)
 {
 	u8 rq_type = mlx5e_check_fragmented_striding_rq_cap(mdev) &&
-		    !params->xdp_prog && !MLX5_IPSEC_DEV(mdev) ?
-		    MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ :
-		    MLX5_WQ_TYPE_LINKED_LIST;
+		!slow_pci_heuristic(mdev) &&
+		!params->xdp_prog && !MLX5_IPSEC_DEV(mdev) ?
+		MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ :
+		MLX5_WQ_TYPE_LINKED_LIST;
 	mlx5e_init_rq_type_params(mdev, params, rq_type);
 }
 
