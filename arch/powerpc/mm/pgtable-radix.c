@@ -553,6 +553,7 @@ void __init radix__early_init_mmu(void)
 	__pmd_index_size = RADIX_PMD_INDEX_SIZE;
 	__pud_index_size = RADIX_PUD_INDEX_SIZE;
 	__pgd_index_size = RADIX_PGD_INDEX_SIZE;
+	__pud_cache_index = RADIX_PUD_INDEX_SIZE;
 	__pmd_cache_index = RADIX_PMD_INDEX_SIZE;
 	__pte_table_size = RADIX_PTE_TABLE_SIZE;
 	__pmd_table_size = RADIX_PMD_TABLE_SIZE;

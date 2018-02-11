@@ -82,6 +82,8 @@ unsigned long __pgd_index_size;
 EXPORT_SYMBOL(__pgd_index_size);
 unsigned long __pmd_cache_index;
 EXPORT_SYMBOL(__pmd_cache_index);
+unsigned long __pud_cache_index;
+EXPORT_SYMBOL(__pud_cache_index);
 unsigned long __pte_table_size;
 EXPORT_SYMBOL(__pte_table_size);
 unsigned long __pmd_table_size;

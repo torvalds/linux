@@ -146,7 +146,12 @@ static inline int hash__remap_4k_pfn(struct vm_area_struct *vma, unsigned long a
 #else
 #define H_PMD_TABLE_SIZE	(sizeof(pmd_t) << PMD_INDEX_SIZE)
 #endif
+#ifdef CONFIG_HUGETLB_PAGE
+#define H_PUD_TABLE_SIZE	((sizeof(pud_t) << PUD_INDEX_SIZE) +	\
+				 (sizeof(unsigned long) << PUD_INDEX_SIZE))
+#else
 #define H_PUD_TABLE_SIZE	(sizeof(pud_t) << PUD_INDEX_SIZE)
+#endif
 #define H_PGD_TABLE_SIZE	(sizeof(pgd_t) << PGD_INDEX_SIZE)
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE

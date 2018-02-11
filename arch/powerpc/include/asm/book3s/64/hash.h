@@ -33,6 +33,16 @@
 #define H_PMD_CACHE_INDEX	H_PMD_INDEX_SIZE
 #endif
 /*
+ * We store the slot details in the second half of page table.
+ * Increase the pud level table so that hugetlb ptes can be stored
+ * at pud level.
+ */
+#if defined(CONFIG_HUGETLB_PAGE) &&  defined(CONFIG_PPC_64K_PAGES)
+#define H_PUD_CACHE_INDEX	(H_PUD_INDEX_SIZE + 1)
+#else
+#define H_PUD_CACHE_INDEX	(H_PUD_INDEX_SIZE)
+#endif
+/*
  * Define the address range of the kernel non-linear virtual area
  */
 #define H_KERN_VIRT_START ASM_CONST(0xD000000000000000)

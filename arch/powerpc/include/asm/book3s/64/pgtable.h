@@ -232,11 +232,13 @@ extern unsigned long __pmd_index_size;
 extern unsigned long __pud_index_size;
 extern unsigned long __pgd_index_size;
 extern unsigned long __pmd_cache_index;
+extern unsigned long __pud_cache_index;
 #define PTE_INDEX_SIZE  __pte_index_size
 #define PMD_INDEX_SIZE  __pmd_index_size
 #define PUD_INDEX_SIZE  __pud_index_size
 #define PGD_INDEX_SIZE  __pgd_index_size
 #define PMD_CACHE_INDEX __pmd_cache_index
+#define PUD_CACHE_INDEX __pud_cache_index
 /*
  * Because of use of pte fragments and THP, size of page table
  * are not always derived out of index size above.
