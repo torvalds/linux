@@ -573,8 +573,7 @@ END(irq_entries_start)
 1:
 
 	ALLOC_PT_GPREGS_ON_STACK
-	SAVE_C_REGS
-	SAVE_EXTRA_REGS
+	SAVE_REGS
 	CLEAR_REGS_NOSPEC
 	ENCODE_FRAME_POINTER
 
@@ -1132,8 +1131,7 @@ ENTRY(xen_failsafe_callback)
 	UNWIND_HINT_IRET_REGS
 	pushq	$-1 /* orig_ax = -1 => not a system call */
 	ALLOC_PT_GPREGS_ON_STACK
-	SAVE_C_REGS
-	SAVE_EXTRA_REGS
+	SAVE_REGS
 	CLEAR_REGS_NOSPEC
 	ENCODE_FRAME_POINTER
 	jmp	error_exit
@@ -1178,8 +1176,7 @@ idtentry machine_check		do_mce			has_error_code=0	paranoid=1
 ENTRY(paranoid_entry)
 	UNWIND_HINT_FUNC
 	cld
-	SAVE_C_REGS 8
-	SAVE_EXTRA_REGS 8
+	SAVE_REGS 8
 	CLEAR_REGS_NOSPEC
 	ENCODE_FRAME_POINTER 8
 	movl	$1, %ebx
@@ -1231,8 +1228,7 @@ END(paranoid_exit)
 ENTRY(error_entry)
 	UNWIND_HINT_FUNC
 	cld
-	SAVE_C_REGS 8
-	SAVE_EXTRA_REGS 8
+	SAVE_REGS 8
 	CLEAR_REGS_NOSPEC
 	ENCODE_FRAME_POINTER 8
 	testb	$3, CS+8(%rsp)
