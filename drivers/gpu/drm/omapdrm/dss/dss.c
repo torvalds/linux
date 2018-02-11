@@ -1299,66 +1299,11 @@ static const struct soc_device_attribute dss_soc_devices[] = {
 
 static int dss_bind(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct resource *dss_mem;
-	u32 rev;
 	int r;
 
-	dss_mem = platform_get_resource(dss.pdev, IORESOURCE_MEM, 0);
-	dss.base = devm_ioremap_resource(&pdev->dev, dss_mem);
-	if (IS_ERR(dss.base))
-		return PTR_ERR(dss.base);
-
-	r = dss_get_clocks();
+	r = component_bind_all(dev, NULL);
 	if (r)
 		return r;
-
-	r = dss_setup_default_clock();
-	if (r)
-		goto err_setup_clocks;
-
-	r = dss_video_pll_probe(pdev);
-	if (r)
-		goto err_pll_init;
-
-	r = dss_init_ports(pdev);
-	if (r)
-		goto err_init_ports;
-
-	pm_runtime_enable(&pdev->dev);
-
-	r = dss_runtime_get();
-	if (r)
-		goto err_runtime_get;
-
-	dss.dss_clk_rate = clk_get_rate(dss.dss_clk);
-
-	/* Select DPLL */
-	REG_FLD_MOD(DSS_CONTROL, 0, 0, 0);
-
-	dss_select_dispc_clk_source(DSS_CLK_SRC_FCK);
-
-#ifdef CONFIG_OMAP2_DSS_VENC
-	REG_FLD_MOD(DSS_CONTROL, 1, 4, 4);	/* venc dac demen */
-	REG_FLD_MOD(DSS_CONTROL, 1, 3, 3);	/* venc clock 4x enable */
-	REG_FLD_MOD(DSS_CONTROL, 0, 2, 2);	/* venc clock mode = normal */
-#endif
-	dss.dsi_clk_source[0] = DSS_CLK_SRC_FCK;
-	dss.dsi_clk_source[1] = DSS_CLK_SRC_FCK;
-	dss.dispc_clk_source = DSS_CLK_SRC_FCK;
-	dss.lcd_clk_source[0] = DSS_CLK_SRC_FCK;
-	dss.lcd_clk_source[1] = DSS_CLK_SRC_FCK;
-
-	rev = dss_read_reg(DSS_REVISION);
-	pr_info("OMAP DSS rev %d.%d\n", FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
-
-	dss_runtime_put();
-
-	r = component_bind_all(&pdev->dev, NULL);
-	if (r)
-		goto err_component;
-
-	dss_debugfs_create_file("dss", dss_dump_regs);
 
 	pm_set_vt_switch(0);
 
@@ -1366,21 +1311,6 @@ static int dss_bind(struct device *dev)
 	omapdss_set_is_initialized(true);
 
 	return 0;
-
-err_component:
-err_runtime_get:
-	pm_runtime_disable(&pdev->dev);
-	dss_uninit_ports(pdev);
-err_init_ports:
-	if (dss.video1_pll)
-		dss_video_pll_uninit(dss.video1_pll);
-
-	if (dss.video2_pll)
-		dss_video_pll_uninit(dss.video2_pll);
-err_pll_init:
-err_setup_clocks:
-	dss_put_clocks();
-	return r;
 }
 
 static void dss_unbind(struct device *dev)
@@ -1390,18 +1320,6 @@ static void dss_unbind(struct device *dev)
 	omapdss_set_is_initialized(false);
 
 	component_unbind_all(&pdev->dev, NULL);
-
-	if (dss.video1_pll)
-		dss_video_pll_uninit(dss.video1_pll);
-
-	if (dss.video2_pll)
-		dss_video_pll_uninit(dss.video2_pll);
-
-	dss_uninit_ports(pdev);
-
-	pm_runtime_disable(&pdev->dev);
-
-	dss_put_clocks();
 }
 
 static const struct component_master_ops dss_component_ops = {
@@ -1433,10 +1351,46 @@ static int dss_add_child_component(struct device *dev, void *data)
 	return 0;
 }
 
+static int dss_probe_hardware(void)
+{
+	u32 rev;
+	int r;
+
+	r = dss_runtime_get();
+	if (r)
+		return r;
+
+	dss.dss_clk_rate = clk_get_rate(dss.dss_clk);
+
+	/* Select DPLL */
+	REG_FLD_MOD(DSS_CONTROL, 0, 0, 0);
+
+	dss_select_dispc_clk_source(DSS_CLK_SRC_FCK);
+
+#ifdef CONFIG_OMAP2_DSS_VENC
+	REG_FLD_MOD(DSS_CONTROL, 1, 4, 4);	/* venc dac demen */
+	REG_FLD_MOD(DSS_CONTROL, 1, 3, 3);	/* venc clock 4x enable */
+	REG_FLD_MOD(DSS_CONTROL, 0, 2, 2);	/* venc clock mode = normal */
+#endif
+	dss.dsi_clk_source[0] = DSS_CLK_SRC_FCK;
+	dss.dsi_clk_source[1] = DSS_CLK_SRC_FCK;
+	dss.dispc_clk_source = DSS_CLK_SRC_FCK;
+	dss.lcd_clk_source[0] = DSS_CLK_SRC_FCK;
+	dss.lcd_clk_source[1] = DSS_CLK_SRC_FCK;
+
+	rev = dss_read_reg(DSS_REVISION);
+	pr_info("OMAP DSS rev %d.%d\n", FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
+
+	dss_runtime_put();
+
+	return 0;
+}
+
 static int dss_probe(struct platform_device *pdev)
 {
 	const struct soc_device_attribute *soc;
 	struct component_match *match = NULL;
+	struct resource *dss_mem;
 	int r;
 
 	dss.pdev = pdev;
@@ -1451,20 +1405,69 @@ static int dss_probe(struct platform_device *pdev)
 	else
 		dss.feat = of_match_device(dss_of_match, &pdev->dev)->data;
 
-	r = dss_initialize_debugfs();
+	/* Map I/O registers, get and setup clocks. */
+	dss_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	dss.base = devm_ioremap_resource(&pdev->dev, dss_mem);
+	if (IS_ERR(dss.base))
+		return PTR_ERR(dss.base);
+
+	r = dss_get_clocks();
 	if (r)
 		return r;
 
-	/* add all the child devices as components */
+	r = dss_setup_default_clock();
+	if (r)
+		goto err_put_clocks;
+
+	/* Setup the video PLLs and the DPI and SDI ports. */
+	r = dss_video_pll_probe(pdev);
+	if (r)
+		goto err_put_clocks;
+
+	r = dss_init_ports(pdev);
+	if (r)
+		goto err_uninit_plls;
+
+	/* Enable runtime PM and probe the hardware. */
+	pm_runtime_enable(&pdev->dev);
+
+	r = dss_probe_hardware();
+	if (r)
+		goto err_pm_runtime_disable;
+
+	/* Initialize debugfs. */
+	r = dss_initialize_debugfs();
+	if (r)
+		goto err_pm_runtime_disable;
+
+	dss_debugfs_create_file("dss", dss_dump_regs);
+
+	/* Add all the child devices as components. */
 	device_for_each_child(&pdev->dev, &match, dss_add_child_component);
 
 	r = component_master_add_with_match(&pdev->dev, &dss_component_ops, match);
-	if (r) {
-		dss_uninitialize_debugfs();
-		return r;
-	}
+	if (r)
+		goto err_uninit_debugfs;
 
 	return 0;
+
+err_uninit_debugfs:
+	dss_uninitialize_debugfs();
+
+err_pm_runtime_disable:
+	pm_runtime_disable(&pdev->dev);
+	dss_uninit_ports(pdev);
+
+err_uninit_plls:
+	if (dss.video1_pll)
+		dss_video_pll_uninit(dss.video1_pll);
+	if (dss.video2_pll)
+		dss_video_pll_uninit(dss.video2_pll);
+
+err_put_clocks:
+	dss_put_clocks();
+
+	return r;
 }
 
 static int dss_remove(struct platform_device *pdev)
@@ -1472,6 +1475,18 @@ static int dss_remove(struct platform_device *pdev)
 	component_master_del(&pdev->dev, &dss_component_ops);
 
 	dss_uninitialize_debugfs();
+
+	pm_runtime_disable(&pdev->dev);
+
+	dss_uninit_ports(pdev);
+
+	if (dss.video1_pll)
+		dss_video_pll_uninit(dss.video1_pll);
+
+	if (dss.video2_pll)
+		dss_video_pll_uninit(dss.video2_pll);
+
+	dss_put_clocks();
 
 	return 0;
 }
