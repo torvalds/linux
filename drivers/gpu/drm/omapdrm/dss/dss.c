@@ -752,20 +752,6 @@ void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select src)
 		REG_FLD_MOD(DSS_CONTROL, src, 15, 15);	/* VENC_HDMI_SWITCH */
 }
 
-enum dss_hdmi_venc_clk_source_select dss_get_hdmi_venc_clk_source(void)
-{
-	enum omap_dss_output_id outputs;
-
-	outputs = dss.feat->outputs[OMAP_DSS_CHANNEL_DIGIT];
-	if ((outputs & OMAP_DSS_OUTPUT_HDMI) == 0)
-		return DSS_VENC_TV_CLK;
-
-	if ((outputs & OMAP_DSS_OUTPUT_VENC) == 0)
-		return DSS_HDMI_M_PCLK;
-
-	return REG_GET(DSS_CONTROL, 15, 15);
-}
-
 static int dss_dpi_select_source_omap2_omap3(int port, enum omap_channel channel)
 {
 	if (channel != OMAP_DSS_CHANNEL_LCD)

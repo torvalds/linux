@@ -270,7 +270,6 @@ unsigned long dss_get_max_fck_rate(void);
 enum omap_dss_output_id dss_get_supported_outputs(enum omap_channel channel);
 int dss_dpi_select_source(int port, enum omap_channel channel);
 void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select);
-enum dss_hdmi_venc_clk_source_select dss_get_hdmi_venc_clk_source(void);
 const char *dss_get_clk_source_name(enum dss_clk_source clk_src);
 
 /* DSS VIDEO PLL */
