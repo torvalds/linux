@@ -336,9 +336,6 @@ static int hdmic_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ddata);
 	ddata->dev = &pdev->dev;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
-
 	r = hdmic_probe_of(pdev);
 	if (r)
 		return r;

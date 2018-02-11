@@ -275,9 +275,6 @@ static int dvic_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ddata);
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
-
 	r = dvic_probe_of(pdev);
 	if (r)
 		return r;
