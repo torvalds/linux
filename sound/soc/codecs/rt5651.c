@@ -348,8 +348,7 @@ static SOC_ENUM_SINGLE_DECL(rt5651_if2_adc_enum, RT5651_DIG_INF_DATA,
 
 static const char * const rt5651_asrc_mode[] = {"Disable", "Enable"};
 
-static const SOC_ENUM_SINGLE_DECL(rt5651_asrc_enum, 0, 0,
-		rt5651_asrc_mode);
+static SOC_ENUM_SINGLE_DECL(rt5651_asrc_enum, 0, 0, rt5651_asrc_mode);
 
 static const struct snd_kcontrol_new rt5651_snd_controls[] = {
 	/* Headphone Output Volume */
