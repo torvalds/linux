@@ -683,8 +683,8 @@ void medusa_l1_ipc_free_security(struct kern_ipc_perm *ipcp)
 
 static int medusa_l1_ipc_permission(struct kern_ipc_perm *ipcp, short flag)
 {
-//	if(medusa_ipc_perm(ipcp, flag) == MED_NO)
-//		return -EPERM;	
+	if(medusa_ipc_perm(ipcp, flag) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
@@ -789,15 +789,13 @@ static void medusa_l1_sem_free_security(struct sem_array *sma)
 
 static int medusa_l1_sem_associate(struct sem_array *sma, int semflg)
 {
-	printk("SMEASSOCi\n");
-	if(medusa_ipc_perm(&sma->sem_perm, semflg) == MED_NO)
-		return -EPERM;	
+	//if(medusa_ipc_perm(&sma->sem_perm, semflg) == MED_NO)
+	//	return -EPERM;	
 	return 0;
 }
 
 static int medusa_l1_sem_semctl(struct sem_array *sma, int cmd)
 {
-	printk("SEMCTL\n");
 /*	if(medusa_ipc_perm(&sma->sem_perm, cmd) == MED_NO)
 		return -EPERM;	*/
 	return 0;
@@ -806,7 +804,6 @@ static int medusa_l1_sem_semctl(struct sem_array *sma, int cmd)
 static int medusa_l1_sem_semop(struct sem_array *sma, struct sembuf *sops,
 			 unsigned nsops, int alter)
 {
-	printk("SEMOP\n");
 /*	if(medusa_ipc_perm(&sma->sem_perm, alter) == MED_NO)
 		return -EPERM;	*/
 	return 0;

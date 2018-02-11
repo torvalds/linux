@@ -4,6 +4,23 @@
 
 static struct medusa_kobject_s storage;
 
+
+int ipc_kern2kobj(struct medusa_kobject_s * ipck, struct kern_ipc_perm * ipcp, unsigned int ipc_class)
+{
+	switch(ipc_class){
+		case MED_IPC_SEM: 
+			return ips_sem_kern2kobj(ipck, ipcp);
+		case MED_IPC_MSG: 
+			return ips_msg_kern2kobj(ipck, ipcp);
+		case MED_IPC_SHM: 
+			return ips_shm_kern2kobj(ipck, ipcp);
+		default: {
+			printk("Unkown ipc_class\n");
+			return NULL;		
+		}
+	}
+}
+
 struct medusa_kobject_s * ipc_fetch(unsigned int id, unsigned int ipc_class, int (*ipc_kern2kobj)(struct medusa_kobject_s *, struct kern_ipc_perm *))
 {
 	struct kern_ipc_perm *ipcp;

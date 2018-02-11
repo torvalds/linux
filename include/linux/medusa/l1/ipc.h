@@ -15,7 +15,7 @@
 
 #pragma GCC optimize ("Og")
 
-extern medusa_answer_t medusa_ipc_perm(struct kern_ipc_perm *ipcp, u32 perms);
+extern medusa_answer_t medusa_ipc_validate(struct kern_ipc_perm *ipcp);
 
 #define MED_IPC_SEM 0
 #define MED_IPC_MSG 1
