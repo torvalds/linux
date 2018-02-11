@@ -609,9 +609,6 @@ int omapdss_output_unset_device(struct omap_dss_device *out);
 
 struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device *dssdev);
 
-void omapdss_default_get_timings(struct omap_dss_device *dssdev,
-				 struct videomode *vm);
-
 typedef void (*omap_dispc_isr_t) (void *arg, u32 mask);
 int omap_dispc_register_isr(omap_dispc_isr_t isr, void *arg, u32 mask);
 int omap_dispc_unregister_isr(omap_dispc_isr_t isr, void *arg, u32 mask);
