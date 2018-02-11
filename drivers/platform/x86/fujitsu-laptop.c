@@ -112,6 +112,10 @@
 #define MAX_HOTKEY_RINGBUFFER_SIZE 100
 #define RINGBUFFERSIZE 40
 
+/* Module parameters */
+static int use_alt_lcd_levels = -1;
+static bool disable_brightness_adjust;
+
 /* Device controlling the backlight and associated keys */
 struct fujitsu_bl {
 	struct input_dev *input;
@@ -122,8 +126,6 @@ struct fujitsu_bl {
 };
 
 static struct fujitsu_bl *fujitsu_bl;
-static int use_alt_lcd_levels = -1;
-static bool disable_brightness_adjust;
 
 /* Device used to access hotkeys and other features on the laptop */
 struct fujitsu_laptop {
