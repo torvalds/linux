@@ -215,9 +215,9 @@ static unsigned int afu_poll(struct file *file, struct poll_table_struct *wait)
 	mutex_unlock(&ctx->status_mutex);
 
 	if (afu_events_pending(ctx))
-		mask = POLLIN | POLLRDNORM;
+		mask = EPOLLIN | EPOLLRDNORM;
 	else if (closed)
-		mask = POLLERR;
+		mask = EPOLLERR;
 
 	return mask;
 }

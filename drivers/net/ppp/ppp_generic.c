@@ -539,11 +539,11 @@ static __poll_t ppp_poll(struct file *file, poll_table *wait)
 	if (!pf)
 		return 0;
 	poll_wait(file, &pf->rwait, wait);
-	mask = POLLOUT | POLLWRNORM;
+	mask = EPOLLOUT | EPOLLWRNORM;
 	if (skb_peek(&pf->rq))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	if (pf->dead)
-		mask |= POLLHUP;
+		mask |= EPOLLHUP;
 	else if (pf->kind == INTERFACE) {
 		/* see comment in ppp_read */
 		struct ppp *ppp = PF_TO_PPP(pf);
@@ -551,7 +551,7 @@ static __poll_t ppp_poll(struct file *file, poll_table *wait)
 		ppp_recv_lock(ppp);
 		if (ppp->n_channels == 0 &&
 		    (ppp->flags & SC_LOOP_TRAFFIC) == 0)
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 		ppp_recv_unlock(ppp);
 	}
 

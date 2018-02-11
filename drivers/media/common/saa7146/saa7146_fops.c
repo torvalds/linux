@@ -332,7 +332,7 @@ static __poll_t __fops_poll(struct file *file, struct poll_table_struct *wait)
 
 	if (vdev->vfl_type == VFL_TYPE_VBI) {
 		if (fh->dev->ext_vv_data->capabilities & V4L2_CAP_SLICED_VBI_OUTPUT)
-			return res | POLLOUT | POLLWRNORM;
+			return res | EPOLLOUT | EPOLLWRNORM;
 		if( 0 == fh->vbi_q.streaming )
 			return res | videobuf_poll_stream(file, &fh->vbi_q, wait);
 		q = &fh->vbi_q;
@@ -346,13 +346,13 @@ static __poll_t __fops_poll(struct file *file, struct poll_table_struct *wait)
 
 	if (!buf) {
 		DEB_D("buf == NULL!\n");
-		return res | POLLERR;
+		return res | EPOLLERR;
 	}
 
 	poll_wait(file, &buf->done, wait);
 	if (buf->state == VIDEOBUF_DONE || buf->state == VIDEOBUF_ERROR) {
 		DEB_D("poll succeeded!\n");
-		return res | POLLIN | POLLRDNORM;
+		return res | EPOLLIN | EPOLLRDNORM;
 	}
 
 	DEB_D("nothing to poll for, buf->state:%d\n", buf->state);

@@ -95,9 +95,9 @@
 /* Epoll private bits inside the event mask */
 #define EP_PRIVATE_BITS (EPOLLWAKEUP | EPOLLONESHOT | EPOLLET | EPOLLEXCLUSIVE)
 
-#define EPOLLINOUT_BITS (POLLIN | POLLOUT)
+#define EPOLLINOUT_BITS (EPOLLIN | EPOLLOUT)
 
-#define EPOLLEXCLUSIVE_OK_BITS (EPOLLINOUT_BITS | POLLERR | POLLHUP | \
+#define EPOLLEXCLUSIVE_OK_BITS (EPOLLINOUT_BITS | EPOLLERR | EPOLLHUP | \
 				EPOLLWAKEUP | EPOLLET | EPOLLEXCLUSIVE)
 
 /* Maximum number of nesting allowed inside epoll sets */
@@ -555,7 +555,7 @@ static int ep_poll_wakeup_proc(void *priv, void *cookie, int call_nests)
 	wait_queue_head_t *wqueue = (wait_queue_head_t *)cookie;
 
 	spin_lock_irqsave_nested(&wqueue->lock, flags, call_nests + 1);
-	wake_up_locked_poll(wqueue, POLLIN);
+	wake_up_locked_poll(wqueue, EPOLLIN);
 	spin_unlock_irqrestore(&wqueue->lock, flags);
 
 	return 0;
@@ -575,7 +575,7 @@ static void ep_poll_safewake(wait_queue_head_t *wq)
 
 static void ep_poll_safewake(wait_queue_head_t *wq)
 {
-	wake_up_poll(wq, POLLIN);
+	wake_up_poll(wq, EPOLLIN);
 }
 
 #endif
@@ -908,7 +908,7 @@ static __poll_t ep_read_events_proc(struct eventpoll *ep, struct list_head *head
 
 	list_for_each_entry_safe(epi, tmp, head, rdllink) {
 		if (ep_item_poll(epi, &pt, depth)) {
-			return POLLIN | POLLRDNORM;
+			return EPOLLIN | EPOLLRDNORM;
 		} else {
 			/*
 			 * Item has been dropped into the ready list by the poll
@@ -1181,12 +1181,12 @@ static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, v
 		if ((epi->event.events & EPOLLEXCLUSIVE) &&
 					!(pollflags & POLLFREE)) {
 			switch (pollflags & EPOLLINOUT_BITS) {
-			case POLLIN:
-				if (epi->event.events & POLLIN)
+			case EPOLLIN:
+				if (epi->event.events & EPOLLIN)
 					ewake = 1;
 				break;
-			case POLLOUT:
-				if (epi->event.events & POLLOUT)
+			case EPOLLOUT:
+				if (epi->event.events & EPOLLOUT)
 					ewake = 1;
 				break;
 			case 0:
@@ -2105,7 +2105,7 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 	switch (op) {
 	case EPOLL_CTL_ADD:
 		if (!epi) {
-			epds.events |= POLLERR | POLLHUP;
+			epds.events |= EPOLLERR | EPOLLHUP;
 			error = ep_insert(ep, &epds, tf.file, fd, full_check);
 		} else
 			error = -EEXIST;
@@ -2121,7 +2121,7 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 	case EPOLL_CTL_MOD:
 		if (epi) {
 			if (!(epi->event.events & EPOLLEXCLUSIVE)) {
-				epds.events |= POLLERR | POLLHUP;
+				epds.events |= EPOLLERR | EPOLLHUP;
 				error = ep_modify(ep, epi, &epds);
 			}
 		} else

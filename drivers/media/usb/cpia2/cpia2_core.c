@@ -2375,7 +2375,7 @@ __poll_t cpia2_poll(struct camera_data *cam, struct file *filp,
 {
 	__poll_t status = v4l2_ctrl_poll(filp, wait);
 
-	if ((poll_requested_events(wait) & (POLLIN | POLLRDNORM)) &&
+	if ((poll_requested_events(wait) & (EPOLLIN | EPOLLRDNORM)) &&
 			!cam->streaming) {
 		/* Start streaming */
 		cpia2_usb_stream_start(cam,
@@ -2385,7 +2385,7 @@ __poll_t cpia2_poll(struct camera_data *cam, struct file *filp,
 	poll_wait(filp, &cam->wq_stream, wait);
 
 	if (cam->curbuff->status == FRAME_READY)
-		status |= POLLIN | POLLRDNORM;
+		status |= EPOLLIN | EPOLLRDNORM;
 
 	return status;
 }

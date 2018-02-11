@@ -414,7 +414,7 @@ static __poll_t hp_sdc_rtc_poll(struct file *file, poll_table *wait)
 
 	l = 0;
         if (l != 0)
-                return POLLIN | POLLRDNORM;
+                return EPOLLIN | EPOLLRDNORM;
         return 0;
 }
 

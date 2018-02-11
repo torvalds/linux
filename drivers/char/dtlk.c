@@ -62,7 +62,7 @@
 #include <linux/uaccess.h>	/* for get_user, etc. */
 #include <linux/wait.h>		/* for wait_queue */
 #include <linux/init.h>		/* for __init, module_{init,exit} */
-#include <linux/poll.h>		/* for POLLIN, etc. */
+#include <linux/poll.h>		/* for EPOLLIN, etc. */
 #include <linux/dtlk.h>		/* local header file for DoubleTalk values */
 
 #ifdef TRACING
@@ -244,11 +244,11 @@ static __poll_t dtlk_poll(struct file *file, poll_table * wait)
 
 	if (dtlk_has_indexing && dtlk_readable()) {
 	        del_timer(&dtlk_timer);
-		mask = POLLIN | POLLRDNORM;
+		mask = EPOLLIN | EPOLLRDNORM;
 	}
 	if (dtlk_writeable()) {
 	        del_timer(&dtlk_timer);
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 	}
 	/* there are no exception conditions */
 

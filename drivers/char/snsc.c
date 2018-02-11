@@ -340,10 +340,10 @@ scdrv_poll(struct file *file, struct poll_table_struct *wait)
 
 	if (status > 0) {
 		if (status & SAL_IROUTER_INTR_RECV) {
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 		}
 		if (status & SAL_IROUTER_INTR_XMIT) {
-			mask |= POLLOUT | POLLWRNORM;
+			mask |= EPOLLOUT | EPOLLWRNORM;
 		}
 	}
 

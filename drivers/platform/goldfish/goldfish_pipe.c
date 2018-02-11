@@ -549,13 +549,13 @@ static __poll_t goldfish_pipe_poll(struct file *filp, poll_table *wait)
 		return -ERESTARTSYS;
 
 	if (status & PIPE_POLL_IN)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	if (status & PIPE_POLL_OUT)
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 	if (status & PIPE_POLL_HUP)
-		mask |= POLLHUP;
+		mask |= EPOLLHUP;
 	if (test_bit(BIT_CLOSED_ON_HOST, &pipe->flags))
-		mask |= POLLERR;
+		mask |= EPOLLERR;
 
 	return mask;
 }

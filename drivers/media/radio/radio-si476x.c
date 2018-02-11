@@ -1158,15 +1158,15 @@ static __poll_t si476x_radio_fops_poll(struct file *file,
 	__poll_t req_events = poll_requested_events(pts);
 	__poll_t err = v4l2_ctrl_poll(file, pts);
 
-	if (req_events & (POLLIN | POLLRDNORM)) {
+	if (req_events & (EPOLLIN | EPOLLRDNORM)) {
 		if (atomic_read(&radio->core->is_alive))
 			poll_wait(file, &radio->core->rds_read_queue, pts);
 
 		if (!atomic_read(&radio->core->is_alive))
-			err = POLLHUP;
+			err = EPOLLHUP;
 
 		if (!kfifo_is_empty(&radio->core->rds_fifo))
-			err = POLLIN | POLLRDNORM;
+			err = EPOLLIN | EPOLLRDNORM;
 	}
 
 	return err;

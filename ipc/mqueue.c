@@ -578,10 +578,10 @@ static __poll_t mqueue_poll_file(struct file *filp, struct poll_table_struct *po
 
 	spin_lock(&info->lock);
 	if (info->attr.mq_curmsgs)
-		retval = POLLIN | POLLRDNORM;
+		retval = EPOLLIN | EPOLLRDNORM;
 
 	if (info->attr.mq_curmsgs < info->attr.mq_maxmsg)
-		retval |= POLLOUT | POLLWRNORM;
+		retval |= EPOLLOUT | EPOLLWRNORM;
 	spin_unlock(&info->lock);
 
 	return retval;

@@ -1679,7 +1679,7 @@ static __poll_t snd_ctl_poll(struct file *file, poll_table * wait)
 
 	mask = 0;
 	if (!list_empty(&ctl->events))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }

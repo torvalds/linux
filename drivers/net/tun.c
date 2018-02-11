@@ -1437,7 +1437,7 @@ static __poll_t tun_chr_poll(struct file *file, poll_table *wait)
 	__poll_t mask = 0;
 
 	if (!tun)
-		return POLLERR;
+		return EPOLLERR;
 
 	sk = tfile->socket.sk;
 
@@ -1446,16 +1446,16 @@ static __poll_t tun_chr_poll(struct file *file, poll_table *wait)
 	poll_wait(file, sk_sleep(sk), wait);
 
 	if (!ptr_ring_empty(&tfile->tx_ring))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	if (tun->dev->flags & IFF_UP &&
 	    (sock_writeable(sk) ||
 	     (!test_and_set_bit(SOCKWQ_ASYNC_NOSPACE, &sk->sk_socket->flags) &&
 	      sock_writeable(sk))))
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 
 	if (tun->dev->reg_state != NETREG_REGISTERED)
-		mask = POLLERR;
+		mask = EPOLLERR;
 
 	tun_put(tun);
 	return mask;
@@ -2310,8 +2310,8 @@ static void tun_sock_write_space(struct sock *sk)
 
 	wqueue = sk_sleep(sk);
 	if (wqueue && waitqueue_active(wqueue))
-		wake_up_interruptible_sync_poll(wqueue, POLLOUT |
-						POLLWRNORM | POLLWRBAND);
+		wake_up_interruptible_sync_poll(wqueue, EPOLLOUT |
+						EPOLLWRNORM | EPOLLWRBAND);
 
 	tfile = container_of(sk, struct tun_file, sk);
 	kill_fasync(&tfile->fasync, SIGIO, POLL_OUT);

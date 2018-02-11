@@ -603,16 +603,16 @@ static __poll_t wdm_poll(struct file *file, struct poll_table_struct *wait)
 
 	spin_lock_irqsave(&desc->iuspin, flags);
 	if (test_bit(WDM_DISCONNECTING, &desc->flags)) {
-		mask = POLLHUP | POLLERR;
+		mask = EPOLLHUP | EPOLLERR;
 		spin_unlock_irqrestore(&desc->iuspin, flags);
 		goto desc_out;
 	}
 	if (test_bit(WDM_READ, &desc->flags))
-		mask = POLLIN | POLLRDNORM;
+		mask = EPOLLIN | EPOLLRDNORM;
 	if (desc->rerr || desc->werr)
-		mask |= POLLERR;
+		mask |= EPOLLERR;
 	if (!test_bit(WDM_IN_USE, &desc->flags))
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 	spin_unlock_irqrestore(&desc->iuspin, flags);
 
 	poll_wait(file, &desc->wait, wait);

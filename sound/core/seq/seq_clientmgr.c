@@ -1101,7 +1101,7 @@ static __poll_t snd_seq_poll(struct file *file, poll_table * wait)
 
 		/* check if data is available in the outqueue */
 		if (snd_seq_fifo_poll_wait(client->data.user.fifo, file, wait))
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 	}
 
 	if (snd_seq_file_flags(file) & SNDRV_SEQ_LFLG_OUTPUT) {
@@ -1109,7 +1109,7 @@ static __poll_t snd_seq_poll(struct file *file, poll_table * wait)
 		/* check if data is available in the pool */
 		if (!snd_seq_write_pool_allocated(client) ||
 		    snd_seq_pool_poll_wait(client->pool, file, wait))
-			mask |= POLLOUT | POLLWRNORM;
+			mask |= EPOLLOUT | EPOLLWRNORM;
 	}
 
 	return mask;

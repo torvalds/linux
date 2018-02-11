@@ -511,15 +511,15 @@ static __poll_t switchtec_dev_poll(struct file *filp, poll_table *wait)
 	poll_wait(filp, &stdev->event_wq, wait);
 
 	if (lock_mutex_and_test_alive(stdev))
-		return POLLIN | POLLRDHUP | POLLOUT | POLLERR | POLLHUP;
+		return EPOLLIN | EPOLLRDHUP | EPOLLOUT | EPOLLERR | EPOLLHUP;
 
 	mutex_unlock(&stdev->mrpc_mutex);
 
 	if (try_wait_for_completion(&stuser->comp))
-		ret |= POLLIN | POLLRDNORM;
+		ret |= EPOLLIN | EPOLLRDNORM;
 
 	if (stuser->event_cnt != atomic_read(&stdev->event_cnt))
-		ret |= POLLPRI | POLLRDBAND;
+		ret |= EPOLLPRI | EPOLLRDBAND;
 
 	return ret;
 }

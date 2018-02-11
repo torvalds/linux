@@ -1010,7 +1010,7 @@ __unlock_ret:
 }
 
 /*
- * We return POLLIN | POLLOUT from poll when new buffers are enqueued, and
+ * We return EPOLLIN | EPOLLOUT from poll when new buffers are enqueued, and
  * not when previously enqueued buffers may be available. This means that
  * in the card->host (TX) path, when userspace is unblocked by poll it
  * must drain all available descriptors or it can stall.
@@ -1022,15 +1022,15 @@ static __poll_t vop_poll(struct file *f, poll_table *wait)
 
 	mutex_lock(&vdev->vdev_mutex);
 	if (vop_vdev_inited(vdev)) {
-		mask = POLLERR;
+		mask = EPOLLERR;
 		goto done;
 	}
 	poll_wait(f, &vdev->waitq, wait);
 	if (vop_vdev_inited(vdev)) {
-		mask = POLLERR;
+		mask = EPOLLERR;
 	} else if (vdev->poll_wake) {
 		vdev->poll_wake = 0;
-		mask = POLLIN | POLLOUT;
+		mask = EPOLLIN | EPOLLOUT;
 	}
 done:
 	mutex_unlock(&vdev->vdev_mutex);

@@ -37,7 +37,7 @@ module_param_named(loop, create_loop_dev, bool, 0644);
 /*
  * Threshold below which the tty is woken for writing
  * - should be equal to WAKEUP_CHARS in drivers/tty/n_tty.c because
- *   even if the writer is woken, n_tty_poll() won't set POLLOUT until
+ *   even if the writer is woken, n_tty_poll() won't set EPOLLOUT until
  *   our fifo is below this level
  */
 #define WAKEUP_CHARS             256

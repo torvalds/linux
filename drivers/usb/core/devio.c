@@ -2578,11 +2578,11 @@ static __poll_t usbdev_poll(struct file *file,
 
 	poll_wait(file, &ps->wait, wait);
 	if (file->f_mode & FMODE_WRITE && !list_empty(&ps->async_completed))
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 	if (!connected(ps))
-		mask |= POLLHUP;
+		mask |= EPOLLHUP;
 	if (list_empty(&ps->list))
-		mask |= POLLERR;
+		mask |= EPOLLERR;
 	return mask;
 }
 

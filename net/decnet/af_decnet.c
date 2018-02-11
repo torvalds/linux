@@ -1216,7 +1216,7 @@ static __poll_t dn_poll(struct file *file, struct socket *sock, poll_table  *wai
 	__poll_t mask = datagram_poll(file, sock, wait);
 
 	if (!skb_queue_empty(&scp->other_receive_queue))
-		mask |= POLLRDBAND;
+		mask |= EPOLLRDBAND;
 
 	return mask;
 }

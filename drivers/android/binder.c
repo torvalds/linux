@@ -4371,7 +4371,7 @@ static int binder_thread_release(struct binder_proc *proc,
 	 */
 	if ((thread->looper & BINDER_LOOPER_STATE_POLL) &&
 	    waitqueue_active(&thread->wait)) {
-		wake_up_poll(&thread->wait, POLLHUP | POLLFREE);
+		wake_up_poll(&thread->wait, EPOLLHUP | POLLFREE);
 	}
 
 	binder_inner_proc_unlock(thread->proc);
@@ -4401,7 +4401,7 @@ static __poll_t binder_poll(struct file *filp,
 	poll_wait(filp, &thread->wait, wait);
 
 	if (binder_has_work(thread, wait_for_proc_work))
-		return POLLIN;
+		return EPOLLIN;
 
 	return 0;
 }

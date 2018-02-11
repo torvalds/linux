@@ -644,7 +644,7 @@ static long ffs_ep0_ioctl(struct file *file, unsigned code, unsigned long value)
 static __poll_t ffs_ep0_poll(struct file *file, poll_table *wait)
 {
 	struct ffs_data *ffs = file->private_data;
-	__poll_t mask = POLLWRNORM;
+	__poll_t mask = EPOLLWRNORM;
 	int ret;
 
 	poll_wait(file, &ffs->ev.waitq, wait);
@@ -656,19 +656,19 @@ static __poll_t ffs_ep0_poll(struct file *file, poll_table *wait)
 	switch (ffs->state) {
 	case FFS_READ_DESCRIPTORS:
 	case FFS_READ_STRINGS:
-		mask |= POLLOUT;
+		mask |= EPOLLOUT;
 		break;
 
 	case FFS_ACTIVE:
 		switch (ffs->setup_state) {
 		case FFS_NO_SETUP:
 			if (ffs->ev.count)
-				mask |= POLLIN;
+				mask |= EPOLLIN;
 			break;
 
 		case FFS_SETUP_PENDING:
 		case FFS_SETUP_CANCELLED:
-			mask |= (POLLIN | POLLOUT);
+			mask |= (EPOLLIN | EPOLLOUT);
 			break;
 		}
 	case FFS_CLOSING:

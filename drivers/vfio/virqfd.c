@@ -48,7 +48,7 @@ static int virqfd_wakeup(wait_queue_entry_t *wait, unsigned mode, int sync, void
 	struct virqfd *virqfd = container_of(wait, struct virqfd, wait);
 	__poll_t flags = key_to_poll(key);
 
-	if (flags & POLLIN) {
+	if (flags & EPOLLIN) {
 		/* An event has been signaled, call function */
 		if ((!virqfd->handler ||
 		     virqfd->handler(virqfd->opaque, virqfd->data)) &&
@@ -56,7 +56,7 @@ static int virqfd_wakeup(wait_queue_entry_t *wait, unsigned mode, int sync, void
 			schedule_work(&virqfd->inject);
 	}
 
-	if (flags & POLLHUP) {
+	if (flags & EPOLLHUP) {
 		unsigned long flags;
 		spin_lock_irqsave(&virqfd_lock, flags);
 
@@ -172,14 +172,14 @@ int vfio_virqfd_enable(void *opaque,
 	 * Check if there was an event already pending on the eventfd
 	 * before we registered and trigger it as if we didn't miss it.
 	 */
-	if (events & POLLIN) {
+	if (events & EPOLLIN) {
 		if ((!handler || handler(opaque, data)) && thread)
 			schedule_work(&virqfd->inject);
 	}
 
 	/*
 	 * Do not drop the file until the irqfd is fully initialized,
-	 * otherwise we might race against the POLLHUP.
+	 * otherwise we might race against the EPOLLHUP.
 	 */
 	fdput(irqfd);
 

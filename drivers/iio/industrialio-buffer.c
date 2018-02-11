@@ -166,7 +166,7 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
  * @wait:	Poll table structure pointer for which the driver adds
  *		a wait queue
  *
- * Return: (POLLIN | POLLRDNORM) if data is available for reading
+ * Return: (EPOLLIN | EPOLLRDNORM) if data is available for reading
  *	   or 0 for other cases
  */
 __poll_t iio_buffer_poll(struct file *filp,
@@ -180,7 +180,7 @@ __poll_t iio_buffer_poll(struct file *filp,
 
 	poll_wait(filp, &rb->pollq, wait);
 	if (iio_buffer_ready(indio_dev, rb, rb->watermark, 0))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }
 
@@ -1396,7 +1396,7 @@ static int iio_push_to_buffer(struct iio_buffer *buffer, const void *data)
 	 * We can't just test for watermark to decide if we wake the poll queue
 	 * because read may request less samples than the watermark.
 	 */
-	wake_up_interruptible_poll(&buffer->pollq, POLLIN | POLLRDNORM);
+	wake_up_interruptible_poll(&buffer->pollq, EPOLLIN | EPOLLRDNORM);
 	return 0;
 }
 

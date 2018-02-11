@@ -69,12 +69,12 @@ static __poll_t hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
 
 	spin_lock_irq(&motu->lock);
 	if (motu->dev_lock_changed || motu->msg)
-		events = POLLIN | POLLRDNORM;
+		events = EPOLLIN | EPOLLRDNORM;
 	else
 		events = 0;
 	spin_unlock_irq(&motu->lock);
 
-	return events | POLLOUT;
+	return events | EPOLLOUT;
 }
 
 static int hwdep_get_info(struct snd_motu *motu, void __user *arg)

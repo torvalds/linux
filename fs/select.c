@@ -432,9 +432,9 @@ get_max:
 	return max;
 }
 
-#define POLLIN_SET (POLLRDNORM | POLLRDBAND | POLLIN | POLLHUP | POLLERR)
-#define POLLOUT_SET (POLLWRBAND | POLLWRNORM | POLLOUT | POLLERR)
-#define POLLEX_SET (POLLPRI)
+#define POLLIN_SET (EPOLLRDNORM | EPOLLRDBAND | EPOLLIN | EPOLLHUP | EPOLLERR)
+#define POLLOUT_SET (EPOLLWRBAND | EPOLLWRNORM | EPOLLOUT | EPOLLERR)
+#define POLLEX_SET (EPOLLPRI)
 
 static inline void wait_key_set(poll_table *wait, unsigned long in,
 				unsigned long out, unsigned long bit,
@@ -814,11 +814,11 @@ static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 	fd = pollfd->fd;
 	if (fd >= 0) {
 		struct fd f = fdget(fd);
-		mask = POLLNVAL;
+		mask = EPOLLNVAL;
 		if (f.file) {
 			/* userland u16 ->events contains POLL... bitmap */
 			__poll_t filter = demangle_poll(pollfd->events) |
-						POLLERR | POLLHUP;
+						EPOLLERR | EPOLLHUP;
 			mask = DEFAULT_POLLMASK;
 			if (f.file->f_op->poll) {
 				pwait->_key = filter;

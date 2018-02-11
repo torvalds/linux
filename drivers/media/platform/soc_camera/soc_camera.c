@@ -809,10 +809,10 @@ static __poll_t soc_camera_poll(struct file *file, poll_table *pt)
 {
 	struct soc_camera_device *icd = file->private_data;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	__poll_t res = POLLERR;
+	__poll_t res = EPOLLERR;
 
 	if (icd->streamer != file)
-		return POLLERR;
+		return EPOLLERR;
 
 	mutex_lock(&ici->host_lock);
 	res = ici->ops->poll(file, pt);

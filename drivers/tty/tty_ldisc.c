@@ -735,8 +735,8 @@ void tty_ldisc_hangup(struct tty_struct *tty, bool reinit)
 		tty_ldisc_deref(ld);
 	}
 
-	wake_up_interruptible_poll(&tty->write_wait, POLLOUT);
-	wake_up_interruptible_poll(&tty->read_wait, POLLIN);
+	wake_up_interruptible_poll(&tty->write_wait, EPOLLOUT);
+	wake_up_interruptible_poll(&tty->read_wait, EPOLLIN);
 
 	/*
 	 * Shutdown the current line discipline, and reset it to
