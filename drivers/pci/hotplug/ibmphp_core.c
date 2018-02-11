@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * IBM Hot Plug Controller Driver
  *
@@ -7,21 +8,6 @@
  * Copyright (C) 2001-2003 IBM Corp.
  *
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send feedback to <gregkh@us.ibm.com>
  *
@@ -603,10 +589,8 @@ int ibmphp_update_slot_info(struct slot *slot_cur)
 	u8 mode;
 
 	info = kmalloc(sizeof(struct hotplug_slot_info), GFP_KERNEL);
-	if (!info) {
-		err("out of system memory\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	info->power_status = SLOT_PWRGD(slot_cur->status);
 	info->attention_status = SLOT_ATTN(slot_cur->status,
@@ -707,7 +691,8 @@ static void ibm_unconfigure_device(struct pci_func *func)
 	pci_lock_rescan_remove();
 
 	for (j = 0; j < 0x08; j++) {
-		temp = pci_get_bus_and_slot(func->busno, (func->device << 3) | j);
+		temp = pci_get_domain_bus_and_slot(0, func->busno,
+						   (func->device << 3) | j);
 		if (temp) {
 			pci_stop_and_remove_bus_device(temp);
 			pci_dev_put(temp);
@@ -734,14 +719,12 @@ static u8 bus_structure_fixup(u8 busno)
 		return 1;
 
 	bus = kmalloc(sizeof(*bus), GFP_KERNEL);
-	if (!bus) {
-		err("%s - out of memory\n", __func__);
+	if (!bus)
 		return 1;
-	}
+
 	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
 		kfree(bus);
-		err("%s - out of memory\n", __func__);
 		return 1;
 	}
 
@@ -780,7 +763,7 @@ static int ibm_configure_device(struct pci_func *func)
 	if (!(bus_structure_fixup(func->busno)))
 		flag = 1;
 	if (func->dev == NULL)
-		func->dev = pci_get_bus_and_slot(func->busno,
+		func->dev = pci_get_domain_bus_and_slot(0, func->busno,
 				PCI_DEVFN(func->device, func->function));
 
 	if (func->dev == NULL) {
@@ -793,7 +776,7 @@ static int ibm_configure_device(struct pci_func *func)
 		if (num)
 			pci_bus_add_devices(bus);
 
-		func->dev = pci_get_bus_and_slot(func->busno,
+		func->dev = pci_get_domain_bus_and_slot(0, func->busno,
 				PCI_DEVFN(func->device, func->function));
 		if (func->dev == NULL) {
 			err("ERROR... : pci_dev still NULL\n");
@@ -1101,7 +1084,6 @@ static int enable_slot(struct hotplug_slot *hs)
 	if (!slot_cur->func) {
 		/* We cannot do update_slot_info here, since no memory for
 		 * kmalloc n.e.ways, and update_slot_info allocates some */
-		err("out of system memory\n");
 		rc = -ENOMEM;
 		goto error_power;
 	}
@@ -1208,7 +1190,6 @@ int ibmphp_do_disable_slot(struct slot *slot_cur)
 		/* We need this for functions that were there on bootup */
 		slot_cur->func = kzalloc(sizeof(struct pci_func), GFP_KERNEL);
 		if (!slot_cur->func) {
-			err("out of system memory\n");
 			rc = -ENOMEM;
 			goto error;
 		}
@@ -1306,7 +1287,6 @@ static int __init ibmphp_init(void)
 
 	ibmphp_pci_bus = kmalloc(sizeof(*ibmphp_pci_bus), GFP_KERNEL);
 	if (!ibmphp_pci_bus) {
-		err("out of memory\n");
 		rc = -ENOMEM;
 		goto exit;
 	}

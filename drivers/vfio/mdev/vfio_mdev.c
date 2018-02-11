@@ -111,19 +111,19 @@ static const struct vfio_device_ops vfio_mdev_dev_ops = {
 	.mmap		= vfio_mdev_mmap,
 };
 
-int vfio_mdev_probe(struct device *dev)
+static int vfio_mdev_probe(struct device *dev)
 {
 	struct mdev_device *mdev = to_mdev_device(dev);
 
 	return vfio_add_group_dev(dev, &vfio_mdev_dev_ops, mdev);
 }
 
-void vfio_mdev_remove(struct device *dev)
+static void vfio_mdev_remove(struct device *dev)
 {
 	vfio_del_group_dev(dev);
 }
 
-struct mdev_driver vfio_mdev_driver = {
+static struct mdev_driver vfio_mdev_driver = {
 	.name	= "vfio_mdev",
 	.probe	= vfio_mdev_probe,
 	.remove	= vfio_mdev_remove,

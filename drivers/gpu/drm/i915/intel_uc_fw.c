@@ -105,7 +105,7 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 	}
 
 	/* now RSA */
-	if (css->key_size_dw != UOS_RSA_SCRATCH_MAX_COUNT) {
+	if (css->key_size_dw != UOS_RSA_SCRATCH_COUNT) {
 		DRM_WARN("%s: Mismatched firmware RSA key size (%u)\n",
 			 intel_uc_fw_type_repr(uc_fw->type), css->key_size_dw);
 		err = -ENOEXEC;
@@ -214,7 +214,7 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);
 
 	if (uc_fw->fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
-		return -EIO;
+		return -ENOEXEC;
 
 	uc_fw->load_status = INTEL_UC_FIRMWARE_PENDING;
 	DRM_DEBUG_DRIVER("%s fw load %s\n",
@@ -299,7 +299,7 @@ void intel_uc_fw_fini(struct intel_uc_fw *uc_fw)
  *
  * Pretty printer for uC firmware.
  */
-void intel_uc_fw_dump(struct intel_uc_fw *uc_fw, struct drm_printer *p)
+void intel_uc_fw_dump(const struct intel_uc_fw *uc_fw, struct drm_printer *p)
 {
 	drm_printf(p, "%s firmware: %s\n",
 		   intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);

@@ -677,10 +677,10 @@ static int iowarrior_release(struct inode *inode, struct file *file)
 	return retval;
 }
 
-static unsigned iowarrior_poll(struct file *file, poll_table * wait)
+static __poll_t iowarrior_poll(struct file *file, poll_table * wait)
 {
 	struct iowarrior *dev = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	if (!dev->present)
 		return POLLERR | POLLHUP;

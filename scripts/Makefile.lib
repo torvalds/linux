@@ -121,7 +121,7 @@ endif
 ifeq ($(CONFIG_KASAN),y)
 _c_flags += $(if $(patsubst n%,, \
 		$(KASAN_SANITIZE_$(basetarget).o)$(KASAN_SANITIZE)y), \
-		$(CFLAGS_KASAN))
+		$(CFLAGS_KASAN), $(CFLAGS_KASAN_NOSANITIZE))
 endif
 
 ifeq ($(CONFIG_UBSAN),y)
@@ -186,38 +186,48 @@ $(foreach m, $(notdir $1), \
 	$(addprefix $(obj)/, $(foreach s, $3, $($(m:%$(strip $2)=%$(s)))))))
 endef
 
-ifdef REGENERATE_PARSERS
-
 # LEX
 # ---------------------------------------------------------------------------
-LEX_PREFIX = $(if $(LEX_PREFIX_${baseprereq}),$(LEX_PREFIX_${baseprereq}),yy)
-
 quiet_cmd_flex = LEX     $@
-      cmd_flex = flex -o$@ -L -P $(LEX_PREFIX) $<
+      cmd_flex = $(LEX) -o$@ -L $<
 
+ifdef REGENERATE_PARSERS
 .PRECIOUS: $(src)/%.lex.c_shipped
 $(src)/%.lex.c_shipped: $(src)/%.l
 	$(call cmd,flex)
+endif
+
+.PRECIOUS: $(obj)/%.lex.c
+$(filter %.lex.c,$(targets)): $(obj)/%.lex.c: $(src)/%.l FORCE
+	$(call if_changed,flex)
 
 # YACC
 # ---------------------------------------------------------------------------
-YACC_PREFIX = $(if $(YACC_PREFIX_${baseprereq}),$(YACC_PREFIX_${baseprereq}),yy)
-
 quiet_cmd_bison = YACC    $@
-      cmd_bison = bison -o$@ -t -l -p $(YACC_PREFIX) $<
+      cmd_bison = $(YACC) -o$@ -t -l $<
 
+ifdef REGENERATE_PARSERS
 .PRECIOUS: $(src)/%.tab.c_shipped
 $(src)/%.tab.c_shipped: $(src)/%.y
 	$(call cmd,bison)
+endif
+
+.PRECIOUS: $(obj)/%.tab.c
+$(filter %.tab.c,$(targets)): $(obj)/%.tab.c: $(src)/%.y FORCE
+	$(call if_changed,bison)
 
 quiet_cmd_bison_h = YACC    $@
       cmd_bison_h = bison -o/dev/null --defines=$@ -t -l -p $(YACC_PREFIX) $<
 
+ifdef REGENERATE_PARSERS
 .PRECIOUS: $(src)/%.tab.h_shipped
 $(src)/%.tab.h_shipped: $(src)/%.y
 	$(call cmd,bison_h)
-
 endif
+
+.PRECIOUS: $(obj)/%.tab.h
+$(filter %.tab.h,$(targets)): $(obj)/%.tab.h: $(src)/%.y FORCE
+	$(call if_changed,bison_h)
 
 # Shipped files
 # ===========================================================================
@@ -264,7 +274,7 @@ cmd_gzip = (cat $(filter-out FORCE,$^) | gzip -n -f -9 > $@) || \
 DTC ?= $(objtree)/scripts/dtc/dtc
 
 # Disable noisy checks by default
-ifeq ($(KBUILD_ENABLE_EXTRA_GCC_CHECKS),)
+ifeq ($(findstring 1,$(KBUILD_ENABLE_EXTRA_GCC_CHECKS)),)
 DTC_FLAGS += -Wno-unit_address_vs_reg \
 	-Wno-simple_bus_reg \
 	-Wno-unit_address_format \
@@ -273,7 +283,7 @@ DTC_FLAGS += -Wno-unit_address_vs_reg \
 	-Wno-pci_device_reg
 endif
 
-ifeq ($(KBUILD_ENABLE_EXTRA_GCC_CHECKS),2)
+ifneq ($(findstring 2,$(KBUILD_ENABLE_EXTRA_GCC_CHECKS)),)
 DTC_FLAGS += -Wnode_name_chars_strict \
 	-Wproperty_name_chars_strict
 endif

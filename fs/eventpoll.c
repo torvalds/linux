@@ -874,7 +874,8 @@ static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
  * the ep->mtx so we need to start from depth=1, such that mutex_lock_nested()
  * is correctly annotated.
  */
-static unsigned int ep_item_poll(struct epitem *epi, poll_table *pt, int depth)
+static unsigned int ep_item_poll(const struct epitem *epi, poll_table *pt,
+				 int depth)
 {
 	struct eventpoll *ep;
 	bool locked;
@@ -920,7 +921,7 @@ static int ep_read_events_proc(struct eventpoll *ep, struct list_head *head,
 	return 0;
 }
 
-static unsigned int ep_eventpoll_poll(struct file *file, poll_table *wait)
+static __poll_t ep_eventpoll_poll(struct file *file, poll_table *wait)
 {
 	struct eventpoll *ep = file->private_data;
 	int depth = 0;
@@ -1117,6 +1118,7 @@ static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, v
 	unsigned long flags;
 	struct epitem *epi = ep_item_from_wait(wait);
 	struct eventpoll *ep = epi->ep;
+	__poll_t pollflags = key_to_poll(key);
 	int ewake = 0;
 
 	spin_lock_irqsave(&ep->lock, flags);
@@ -1138,7 +1140,7 @@ static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, v
 	 * callback. We need to be able to handle both cases here, hence the
 	 * test for "key" != NULL before the event match test.
 	 */
-	if (key && !((unsigned long) key & epi->event.events))
+	if (pollflags && !(pollflags & epi->event.events))
 		goto out_unlock;
 
 	/*
@@ -1175,8 +1177,8 @@ static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, v
 	 */
 	if (waitqueue_active(&ep->wq)) {
 		if ((epi->event.events & EPOLLEXCLUSIVE) &&
-					!((unsigned long)key & POLLFREE)) {
-			switch ((unsigned long)key & EPOLLINOUT_BITS) {
+					!(pollflags & POLLFREE)) {
+			switch (pollflags & EPOLLINOUT_BITS) {
 			case POLLIN:
 				if (epi->event.events & POLLIN)
 					ewake = 1;
@@ -1205,7 +1207,7 @@ out_unlock:
 	if (!(epi->event.events & EPOLLEXCLUSIVE))
 		ewake = 1;
 
-	if ((unsigned long)key & POLLFREE) {
+	if (pollflags & POLLFREE) {
 		/*
 		 * If we race with ep_remove_wait_queue() it can miss
 		 * ->whead = NULL and do another remove_wait_queue() after
@@ -1409,7 +1411,7 @@ static noinline void ep_destroy_wakeup_source(struct epitem *epi)
 /*
  * Must be called with "mtx" held.
  */
-static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
+static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 		     struct file *tfile, int fd, int full_check)
 {
 	int error, revents, pwake = 0;
@@ -1486,7 +1488,7 @@ static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
 	ep_set_busy_poll_napi_id(epi);
 
 	/* If the file is already "ready" we drop it inside the ready list */
-	if ((revents & event->events) && !ep_is_linked(&epi->rdllink)) {
+	if (revents && !ep_is_linked(&epi->rdllink)) {
 		list_add_tail(&epi->rdllink, &ep->rdllist);
 		ep_pm_stay_awake(epi);
 
@@ -1540,10 +1542,10 @@ error_create_wakeup_source:
  * Modify the interest event mask by dropping an event if the new mask
  * has a match in the current file status. Must be called with "mtx" held.
  */
-static int ep_modify(struct eventpoll *ep, struct epitem *epi, struct epoll_event *event)
+static int ep_modify(struct eventpoll *ep, struct epitem *epi,
+		     const struct epoll_event *event)
 {
 	int pwake = 0;
-	unsigned int revents;
 	poll_table pt;
 
 	init_poll_funcptr(&pt, NULL);
@@ -1585,14 +1587,10 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi, struct epoll_even
 	/*
 	 * Get current event bits. We can safely use the file* here because
 	 * its usage count has been increased by the caller of this function.
-	 */
-	revents = ep_item_poll(epi, &pt, 1);
-
-	/*
 	 * If the item is "hot" and it is not registered inside the ready
 	 * list, push it inside.
 	 */
-	if (revents & event->events) {
+	if (ep_item_poll(epi, &pt, 1)) {
 		spin_lock_irq(&ep->lock);
 		if (!ep_is_linked(&epi->rdllink)) {
 			list_add_tail(&epi->rdllink, &ep->rdllist);

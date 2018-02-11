@@ -341,12 +341,12 @@ static int pn_socket_getname(struct socket *sock, struct sockaddr *addr,
 	return 0;
 }
 
-static unsigned int pn_socket_poll(struct file *file, struct socket *sock,
+static __poll_t pn_socket_poll(struct file *file, struct socket *sock,
 					poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct pep_sock *pn = pep_sk(sk);
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, sk_sleep(sk), wait);
 
@@ -635,7 +635,6 @@ static int pn_sock_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations pn_sock_seq_fops = {
-	.owner = THIS_MODULE,
 	.open = pn_sock_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -818,7 +817,6 @@ static int pn_res_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations pn_res_seq_fops = {
-	.owner = THIS_MODULE,
 	.open = pn_res_open,
 	.read = seq_read,
 	.llseek = seq_lseek,

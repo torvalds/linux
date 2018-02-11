@@ -610,13 +610,12 @@ bfad_hal_mem_alloc(struct bfad_s *bfad)
 	/* Iterate through the KVA meminfo queue */
 	list_for_each(km_qe, &kva_info->qe) {
 		kva_elem = (struct bfa_mem_kva_s *) km_qe;
-		kva_elem->kva = vmalloc(kva_elem->mem_len);
+		kva_elem->kva = vzalloc(kva_elem->mem_len);
 		if (kva_elem->kva == NULL) {
 			bfad_hal_mem_release(bfad);
 			rc = BFA_STATUS_ENOMEM;
 			goto ext;
 		}
-		memset(kva_elem->kva, 0, kva_elem->mem_len);
 	}
 
 	/* Iterate through the DMA meminfo queue */
@@ -981,20 +980,20 @@ bfad_start_ops(struct bfad_s *bfad) {
 
 	/* Fill the driver_info info to fcs*/
 	memset(&driver_info, 0, sizeof(driver_info));
-	strncpy(driver_info.version, BFAD_DRIVER_VERSION,
-		sizeof(driver_info.version) - 1);
+	strlcpy(driver_info.version, BFAD_DRIVER_VERSION,
+		sizeof(driver_info.version));
 	if (host_name)
-		strncpy(driver_info.host_machine_name, host_name,
-			sizeof(driver_info.host_machine_name) - 1);
+		strlcpy(driver_info.host_machine_name, host_name,
+			sizeof(driver_info.host_machine_name));
 	if (os_name)
-		strncpy(driver_info.host_os_name, os_name,
-			sizeof(driver_info.host_os_name) - 1);
+		strlcpy(driver_info.host_os_name, os_name,
+			sizeof(driver_info.host_os_name));
 	if (os_patch)
-		strncpy(driver_info.host_os_patch, os_patch,
-			sizeof(driver_info.host_os_patch) - 1);
+		strlcpy(driver_info.host_os_patch, os_patch,
+			sizeof(driver_info.host_os_patch));
 
-	strncpy(driver_info.os_device_name, bfad->pci_name,
-		sizeof(driver_info.os_device_name) - 1);
+	strlcpy(driver_info.os_device_name, bfad->pci_name,
+		sizeof(driver_info.os_device_name));
 
 	/* FCS driver info init */
 	spin_lock_irqsave(&bfad->bfad_lock, flags);

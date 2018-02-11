@@ -92,6 +92,7 @@
  */
 #define MT9M111_OPER_MODE_CTRL		0x106
 #define MT9M111_OUTPUT_FORMAT_CTRL	0x108
+#define MT9M111_TPG_CTRL		0x148
 #define MT9M111_REDUCER_XZOOM_B		0x1a0
 #define MT9M111_REDUCER_XSIZE_B		0x1a1
 #define MT9M111_REDUCER_YZOOM_B		0x1a3
@@ -124,6 +125,7 @@
 #define MT9M111_OUTFMT_AVG_CHROMA	(1 << 2)
 #define MT9M111_OUTFMT_SWAP_YCbCr_C_Y_RGB_EVEN	(1 << 1)
 #define MT9M111_OUTFMT_SWAP_YCbCr_Cb_Cr_RGB_R_B	(1 << 0)
+#define MT9M111_TPG_SEL_MASK		GENMASK(2, 0)
 
 /*
  * Camera control register addresses (0x200..0x2ff not implemented)
@@ -215,6 +217,9 @@ struct mt9m111 {
 	int power_count;
 	const struct mt9m111_datafmt *fmt;
 	int lastpage;	/* PageMap cache value */
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_pad pad;
+#endif
 };
 
 /* Find a data format by a pixel code */
@@ -703,6 +708,25 @@ static int mt9m111_set_autowhitebalance(struct mt9m111 *mt9m111, int on)
 	return reg_clear(OPER_MODE_CTRL, MT9M111_OPMODE_AUTOWHITEBAL_EN);
 }
 
+static const char * const mt9m111_test_pattern_menu[] = {
+	"Disabled",
+	"Vertical monochrome gradient",
+	"Flat color type 1",
+	"Flat color type 2",
+	"Flat color type 3",
+	"Flat color type 4",
+	"Flat color type 5",
+	"Color bar",
+};
+
+static int mt9m111_set_test_pattern(struct mt9m111 *mt9m111, int val)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&mt9m111->subdev);
+
+	return mt9m111_reg_mask(client, MT9M111_TPG_CTRL, val,
+				MT9M111_TPG_SEL_MASK);
+}
+
 static int mt9m111_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct mt9m111 *mt9m111 = container_of(ctrl->handler,
@@ -721,6 +745,8 @@ static int mt9m111_s_ctrl(struct v4l2_ctrl *ctrl)
 		return mt9m111_set_autoexposure(mt9m111, ctrl->val);
 	case V4L2_CID_AUTO_WHITE_BALANCE:
 		return mt9m111_set_autowhitebalance(mt9m111, ctrl->val);
+	case V4L2_CID_TEST_PATTERN:
+		return mt9m111_set_test_pattern(mt9m111, ctrl->val);
 	}
 
 	return -EINVAL;
@@ -951,6 +977,8 @@ static int mt9m111_probe(struct i2c_client *client,
 	mt9m111->ctx = &context_b;
 
 	v4l2_i2c_subdev_init(&mt9m111->subdev, client, &mt9m111_subdev_ops);
+	mt9m111->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+
 	v4l2_ctrl_handler_init(&mt9m111->hdl, 5);
 	v4l2_ctrl_new_std(&mt9m111->hdl, &mt9m111_ctrl_ops,
 			V4L2_CID_VFLIP, 0, 1, 1, 0);
@@ -963,11 +991,23 @@ static int mt9m111_probe(struct i2c_client *client,
 	v4l2_ctrl_new_std_menu(&mt9m111->hdl,
 			&mt9m111_ctrl_ops, V4L2_CID_EXPOSURE_AUTO, 1, 0,
 			V4L2_EXPOSURE_AUTO);
+	v4l2_ctrl_new_std_menu_items(&mt9m111->hdl,
+			&mt9m111_ctrl_ops, V4L2_CID_TEST_PATTERN,
+			ARRAY_SIZE(mt9m111_test_pattern_menu) - 1, 0, 0,
+			mt9m111_test_pattern_menu);
 	mt9m111->subdev.ctrl_handler = &mt9m111->hdl;
 	if (mt9m111->hdl.error) {
 		ret = mt9m111->hdl.error;
 		goto out_clkput;
 	}
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+	mt9m111->pad.flags = MEDIA_PAD_FL_SOURCE;
+	mt9m111->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&mt9m111->subdev.entity, 1, &mt9m111->pad);
+	if (ret < 0)
+		goto out_hdlfree;
+#endif
 
 	/* Second stage probe - when a capture adapter is there */
 	mt9m111->rect.left	= MT9M111_MIN_DARK_COLS;
@@ -980,16 +1020,20 @@ static int mt9m111_probe(struct i2c_client *client,
 
 	ret = mt9m111_video_probe(client);
 	if (ret < 0)
-		goto out_hdlfree;
+		goto out_entityclean;
 
 	mt9m111->subdev.dev = &client->dev;
 	ret = v4l2_async_register_subdev(&mt9m111->subdev);
 	if (ret < 0)
-		goto out_hdlfree;
+		goto out_entityclean;
 
 	return 0;
 
+out_entityclean:
+#ifdef CONFIG_MEDIA_CONTROLLER
+	media_entity_cleanup(&mt9m111->subdev.entity);
 out_hdlfree:
+#endif
 	v4l2_ctrl_handler_free(&mt9m111->hdl);
 out_clkput:
 	v4l2_clk_put(mt9m111->clk);
@@ -1002,6 +1046,7 @@ static int mt9m111_remove(struct i2c_client *client)
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 
 	v4l2_async_unregister_subdev(&mt9m111->subdev);
+	media_entity_cleanup(&mt9m111->subdev.entity);
 	v4l2_clk_put(mt9m111->clk);
 	v4l2_ctrl_handler_free(&mt9m111->hdl);
 

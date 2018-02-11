@@ -25,11 +25,13 @@
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/export.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 
 #include "i2c-designware-core.h"
 
@@ -443,6 +445,7 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	if (!wait_for_completion_timeout(&dev->cmd_complete, adap->timeout)) {
 		dev_err(dev->dev, "controller timed out\n");
 		/* i2c_dw_init implicitly disables the adapter */
+		i2c_recover_bus(&dev->adapter);
 		i2c_dw_init_master(dev);
 		ret = -ETIMEDOUT;
 		goto done;
@@ -613,6 +616,56 @@ static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void i2c_dw_prepare_recovery(struct i2c_adapter *adap)
+{
+	struct dw_i2c_dev *dev = i2c_get_adapdata(adap);
+
+	i2c_dw_disable(dev);
+	reset_control_assert(dev->rst);
+	i2c_dw_prepare_clk(dev, false);
+}
+
+static void i2c_dw_unprepare_recovery(struct i2c_adapter *adap)
+{
+	struct dw_i2c_dev *dev = i2c_get_adapdata(adap);
+
+	i2c_dw_prepare_clk(dev, true);
+	reset_control_deassert(dev->rst);
+	i2c_dw_init_master(dev);
+}
+
+static int i2c_dw_init_recovery_info(struct dw_i2c_dev *dev)
+{
+	struct i2c_bus_recovery_info *rinfo = &dev->rinfo;
+	struct i2c_adapter *adap = &dev->adapter;
+	struct gpio_desc *gpio;
+	int r;
+
+	gpio = devm_gpiod_get(dev->dev, "scl", GPIOD_OUT_HIGH);
+	if (IS_ERR(gpio)) {
+		r = PTR_ERR(gpio);
+		if (r == -ENOENT)
+			return 0;
+		return r;
+	}
+	rinfo->scl_gpiod = gpio;
+
+	gpio = devm_gpiod_get_optional(dev->dev, "sda", GPIOD_IN);
+	if (IS_ERR(gpio))
+		return PTR_ERR(gpio);
+	rinfo->sda_gpiod = gpio;
+
+	rinfo->recover_bus = i2c_generic_scl_recovery;
+	rinfo->prepare_recovery = i2c_dw_prepare_recovery;
+	rinfo->unprepare_recovery = i2c_dw_unprepare_recovery;
+	adap->bus_recovery_info = rinfo;
+
+	dev_info(dev->dev, "running with gpio recovery mode! scl%s",
+		 rinfo->sda_gpiod ? ",sda" : "");
+
+	return 0;
+}
+
 int i2c_dw_probe(struct dw_i2c_dev *dev)
 {
 	struct i2c_adapter *adap = &dev->adapter;
@@ -651,6 +704,10 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 			dev->irq, ret);
 		return ret;
 	}
+
+	ret = i2c_dw_init_recovery_info(dev);
+	if (ret)
+		return ret;
 
 	/*
 	 * Increment PM usage count during adapter registration in order to

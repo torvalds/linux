@@ -335,7 +335,7 @@ static int orangefs_encode_fh(struct inode *inode,
 	struct orangefs_object_kref refn;
 
 	if (*max_len < len) {
-		gossip_lerr("fh buffer is too small for encoding\n");
+		gossip_err("fh buffer is too small for encoding\n");
 		*max_len = len;
 		type = 255;
 		goto out;
@@ -383,7 +383,7 @@ static int orangefs_unmount(int id, __s32 fs_id, const char *devname)
 	op->upcall.req.fs_umount.id = id;
 	op->upcall.req.fs_umount.fs_id = fs_id;
 	strncpy(op->upcall.req.fs_umount.orangefs_config_server,
-	    devname, ORANGEFS_MAX_SERVER_ADDR_LEN);
+	    devname, ORANGEFS_MAX_SERVER_ADDR_LEN - 1);
 	r = service_operation(op, "orangefs_fs_umount", 0);
 	/* Not much to do about an error here. */
 	if (r)
@@ -478,7 +478,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 
 	strncpy(new_op->upcall.req.fs_mount.orangefs_config_server,
 		devname,
-		ORANGEFS_MAX_SERVER_ADDR_LEN);
+		ORANGEFS_MAX_SERVER_ADDR_LEN - 1);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
 		     "Attempting ORANGEFS Mount via host %s\n",
@@ -520,7 +520,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	 */
 	strncpy(ORANGEFS_SB(sb)->devname,
 		devname,
-		ORANGEFS_MAX_SERVER_ADDR_LEN);
+		ORANGEFS_MAX_SERVER_ADDR_LEN - 1);
 
 	/* mount_pending must be cleared */
 	ORANGEFS_SB(sb)->mount_pending = 0;
@@ -610,11 +610,16 @@ void orangefs_kill_sb(struct super_block *sb)
 
 int orangefs_inode_cache_initialize(void)
 {
-	orangefs_inode_cache = kmem_cache_create("orangefs_inode_cache",
-					      sizeof(struct orangefs_inode_s),
-					      0,
-					      ORANGEFS_CACHE_CREATE_FLAGS,
-					      orangefs_inode_cache_ctor);
+	orangefs_inode_cache = kmem_cache_create_usercopy(
+					"orangefs_inode_cache",
+					sizeof(struct orangefs_inode_s),
+					0,
+					ORANGEFS_CACHE_CREATE_FLAGS,
+					offsetof(struct orangefs_inode_s,
+						link_target),
+					sizeof_field(struct orangefs_inode_s,
+						link_target),
+					orangefs_inode_cache_ctor);
 
 	if (!orangefs_inode_cache) {
 		gossip_err("Cannot create orangefs_inode_cache\n");

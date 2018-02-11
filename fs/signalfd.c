@@ -58,10 +58,10 @@ static int signalfd_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static unsigned int signalfd_poll(struct file *file, poll_table *wait)
+static __poll_t signalfd_poll(struct file *file, poll_table *wait)
 {
 	struct signalfd_ctx *ctx = file->private_data;
-	unsigned int events = 0;
+	__poll_t events = 0;
 
 	poll_wait(file, &current->sighand->signalfd_wqh, wait);
 

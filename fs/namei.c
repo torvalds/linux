@@ -391,50 +391,6 @@ static inline int do_inode_permission(struct inode *inode, int mask)
 }
 
 /**
- * __inode_permission - Check for access rights to a given inode
- * @inode: Inode to check permission on
- * @mask: Right to check for (%MAY_READ, %MAY_WRITE, %MAY_EXEC)
- *
- * Check for read/write/execute permissions on an inode.
- *
- * When checking for MAY_APPEND, MAY_WRITE must also be set in @mask.
- *
- * This does not check for a read-only file system.  You probably want
- * inode_permission().
- */
-int __inode_permission(struct inode *inode, int mask)
-{
-	int retval;
-
-	if (unlikely(mask & MAY_WRITE)) {
-		/*
-		 * Nobody gets write access to an immutable file.
-		 */
-		if (IS_IMMUTABLE(inode))
-			return -EPERM;
-
-		/*
-		 * Updating mtime will likely cause i_uid and i_gid to be
-		 * written back improperly if their true value is unknown
-		 * to the vfs.
-		 */
-		if (HAS_UNMAPPED_ID(inode))
-			return -EACCES;
-	}
-
-	retval = do_inode_permission(inode, mask);
-	if (retval)
-		return retval;
-
-	retval = devcgroup_inode_permission(inode, mask);
-	if (retval)
-		return retval;
-
-	return security_inode_permission(inode, mask);
-}
-EXPORT_SYMBOL(__inode_permission);
-
-/**
  * sb_permission - Check superblock-level permissions
  * @sb: Superblock of inode to check permission on
  * @inode: Inode to check permission on
@@ -472,7 +428,32 @@ int inode_permission(struct inode *inode, int mask)
 	retval = sb_permission(inode->i_sb, inode, mask);
 	if (retval)
 		return retval;
-	return __inode_permission(inode, mask);
+
+	if (unlikely(mask & MAY_WRITE)) {
+		/*
+		 * Nobody gets write access to an immutable file.
+		 */
+		if (IS_IMMUTABLE(inode))
+			return -EPERM;
+
+		/*
+		 * Updating mtime will likely cause i_uid and i_gid to be
+		 * written back improperly if their true value is unknown
+		 * to the vfs.
+		 */
+		if (HAS_UNMAPPED_ID(inode))
+			return -EACCES;
+	}
+
+	retval = do_inode_permission(inode, mask);
+	if (retval)
+		return retval;
+
+	retval = devcgroup_inode_permission(inode, mask);
+	if (retval)
+		return retval;
+
+	return security_inode_permission(inode, mask);
 }
 EXPORT_SYMBOL(inode_permission);
 
@@ -1132,9 +1113,6 @@ static int follow_automount(struct path *path, struct nameidata *nd,
 			   LOOKUP_OPEN | LOOKUP_CREATE | LOOKUP_AUTOMOUNT)) &&
 	    path->dentry->d_inode)
 		return -EISDIR;
-
-	if (path->dentry->d_sb->s_user_ns != &init_user_ns)
-		return -EACCES;
 
 	nd->total_link_count++;
 	if (nd->total_link_count >= 40)
@@ -2897,6 +2875,27 @@ int vfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	return error;
 }
 EXPORT_SYMBOL(vfs_create);
+
+int vfs_mkobj(struct dentry *dentry, umode_t mode,
+		int (*f)(struct dentry *, umode_t, void *),
+		void *arg)
+{
+	struct inode *dir = dentry->d_parent->d_inode;
+	int error = may_create(dir, dentry);
+	if (error)
+		return error;
+
+	mode &= S_IALLUGO;
+	mode |= S_IFREG;
+	error = security_inode_create(dir, dentry, mode);
+	if (error)
+		return error;
+	error = f(dentry, mode, arg);
+	if (!error)
+		fsnotify_create(dir, dentry);
+	return error;
+}
+EXPORT_SYMBOL(vfs_mkobj);
 
 bool may_open_dev(const struct path *path)
 {

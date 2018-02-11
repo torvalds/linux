@@ -216,9 +216,9 @@ static int get_port_device_capability(struct pci_dev *dev)
 		return 0;
 
 	cap_mask = PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP
-			| PCIE_PORT_SERVICE_VC | PCIE_PORT_SERVICE_DPC;
+			| PCIE_PORT_SERVICE_VC;
 	if (pci_aer_available())
-		cap_mask |= PCIE_PORT_SERVICE_AER;
+		cap_mask |= PCIE_PORT_SERVICE_AER | PCIE_PORT_SERVICE_DPC;
 
 	if (pcie_ports_auto)
 		pcie_port_platform_notify(dev, &cap_mask);

@@ -38,6 +38,10 @@
 /* D0I3C Register fields */
 #define AZX_REG_VS_D0I3C_CIP      0x1 /* Command in progress */
 #define AZX_REG_VS_D0I3C_I3       0x4 /* D0i3 enable */
+#define SKL_MAX_DMACTRL_CFG	18
+#define DMA_CLK_CONTROLS	1
+#define DMA_TRANSMITION_START	2
+#define DMA_TRANSMITION_STOP	3
 
 struct skl_dsp_resource {
 	u32 max_mcps;
@@ -147,6 +151,8 @@ int skl_nhlt_create_sysfs(struct skl *skl);
 void skl_nhlt_remove_sysfs(struct skl *skl);
 void skl_get_clks(struct skl *skl, struct skl_ssp_clk *ssp_clks);
 struct skl_clk_parent_src *skl_get_parent_clk(u8 clk_id);
+int skl_dsp_set_dma_control(struct skl_sst *ctx, u32 *caps,
+				u32 caps_size, u32 node_id);
 
 struct skl_module_cfg;
 

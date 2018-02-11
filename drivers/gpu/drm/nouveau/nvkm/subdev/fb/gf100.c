@@ -26,6 +26,7 @@
 
 #include <core/memory.h>
 #include <core/option.h>
+#include <subdev/therm.h>
 
 void
 gf100_fb_intr(struct nvkm_fb *base)
@@ -92,6 +93,11 @@ gf100_fb_init(struct nvkm_fb *base)
 
 	if (fb->r100c10_page)
 		nvkm_wr32(device, 0x100c10, fb->r100c10 >> 8);
+
+	if (base->func->clkgate_pack) {
+		nvkm_therm_clkgate_init(device->therm,
+					base->func->clkgate_pack);
+	}
 }
 
 void *

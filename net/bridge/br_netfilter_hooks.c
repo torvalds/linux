@@ -991,7 +991,7 @@ int br_nf_hook_thresh(unsigned int hook, struct net *net,
 	unsigned int i;
 	int ret;
 
-	e = rcu_dereference(net->nf.hooks[NFPROTO_BRIDGE][hook]);
+	e = rcu_dereference(net->nf.hooks_bridge[hook]);
 	if (!e)
 		return okfn(net, sk, skb);
 

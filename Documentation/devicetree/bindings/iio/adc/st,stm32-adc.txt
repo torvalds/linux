@@ -62,6 +62,15 @@ Required properties:
 - st,adc-channels: List of single-ended channels muxed for this ADC.
   It can have up to 16 channels on stm32f4 or 20 channels on stm32h7, numbered
   from 0 to 15 or 19 (resp. for in0..in15 or in0..in19).
+- st,adc-diff-channels: List of differential channels muxed for this ADC.
+  Depending on part used, some channels can be configured as differential
+  instead of single-ended (e.g. stm32h7). List here positive and negative
+  inputs pairs as <vinp vinn>, <vinp vinn>,... vinp and vinn are numbered
+  from 0 to 19 on stm32h7)
+  Note: At least one of "st,adc-channels" or "st,adc-diff-channels" is required.
+  Both properties can be used together. Some channels can be used as
+  single-ended and some other ones as differential (mixed). But channels
+  can't be configured both as single-ended and differential (invalid).
 - #io-channel-cells = <1>: See the IIO bindings section "IIO consumers" in
   Documentation/devicetree/bindings/iio/iio-bindings.txt
 
@@ -110,4 +119,19 @@ Example:
 		};
 		...
 		other adc child nodes follow...
+	};
+
+Example to setup:
+- channel 1 as single-ended
+- channels 2 & 3 as differential (with resp. 6 & 7 negative inputs)
+
+	adc: adc@40022000 {
+		compatible = "st,stm32h7-adc-core";
+		...
+		adc1: adc@0 {
+			compatible = "st,stm32h7-adc";
+			...
+			st,adc-channels = <1>;
+			st,adc-diff-channels = <2 6>, <3 7>;
+		};
 	};

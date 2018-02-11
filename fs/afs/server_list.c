@@ -58,7 +58,8 @@ struct afs_server_list *afs_alloc_server_list(struct afs_cell *cell,
 		server = afs_lookup_server(cell, key, &vldb->fs_server[i]);
 		if (IS_ERR(server)) {
 			ret = PTR_ERR(server);
-			if (ret == -ENOENT)
+			if (ret == -ENOENT ||
+			    ret == -ENOMEDIUM)
 				continue;
 			goto error_2;
 		}

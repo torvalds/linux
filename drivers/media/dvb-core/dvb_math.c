@@ -19,7 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <asm/bug.h>
-#include "dvb_math.h"
+#include <media/dvb_math.h>
 
 static const unsigned short logtable[256] = {
 	0x0000, 0x0171, 0x02e0, 0x044e, 0x05ba, 0x0725, 0x088e, 0x09f7,

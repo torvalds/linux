@@ -615,8 +615,7 @@ static void qtnf_pcie_data_tx_reclaim(struct qtnf_pcie_bus_priv *priv)
 					 PCI_DMA_TODEVICE);
 
 			if (skb->dev) {
-				skb->dev->stats.tx_packets++;
-				skb->dev->stats.tx_bytes += skb->len;
+				qtnf_update_tx_stats(skb->dev, skb);
 				if (unlikely(priv->tx_stopped)) {
 					qtnf_wake_all_queues(skb->dev);
 					priv->tx_stopped = 0;
@@ -855,9 +854,7 @@ static int qtnf_rx_poll(struct napi_struct *napi, int budget)
 			skb_put(skb, psize);
 			ndev = qtnf_classify_skb(bus, skb);
 			if (likely(ndev)) {
-				ndev->stats.rx_packets++;
-				ndev->stats.rx_bytes += skb->len;
-
+				qtnf_update_rx_stats(ndev, skb);
 				skb->protocol = eth_type_trans(skb, ndev);
 				napi_gro_receive(napi, skb);
 			} else {

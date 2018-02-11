@@ -176,7 +176,7 @@ static ssize_t uleds_read(struct file *file, char __user *buffer, size_t count,
 	return retval;
 }
 
-static unsigned int uleds_poll(struct file *file, poll_table *wait)
+static __poll_t uleds_poll(struct file *file, poll_table *wait)
 {
 	struct uleds_device *udev = file->private_data;
 

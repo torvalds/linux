@@ -29,7 +29,6 @@
 #include "fixed32_32.h"
 #include "bios_parser_interface.h"
 #include "dc.h"
-#include "dce_abm.h"
 #include "dmcu.h"
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "dcn_calcs.h"
@@ -384,7 +383,6 @@ static int dce112_set_clock(
 	struct bp_set_dce_clock_parameters dce_clk_params;
 	struct dc_bios *bp = clk->ctx->dc_bios;
 	struct dc *core_dc = clk->ctx->dc;
-	struct abm *abm =  core_dc->res_pool->abm;
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 	int actual_clock = requested_clk_khz;
 	/* Prepare to program display clock*/
@@ -417,7 +415,7 @@ static int dce112_set_clock(
 
 	bp->funcs->set_dce_clock(bp, &dce_clk_params);
 
-	if (abm->funcs->is_dmcu_initialized(abm) && clk_dce->dfs_bypass_disp_clk != actual_clock)
+	if (clk_dce->dfs_bypass_disp_clk != actual_clock)
 		dmcu->funcs->set_psr_wait_loop(dmcu,
 				actual_clock / 1000 / 7);
 	clk_dce->dfs_bypass_disp_clk = actual_clock;

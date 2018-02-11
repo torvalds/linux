@@ -662,7 +662,7 @@ static void submit_io(struct dm_buffer *b, int rw, bio_end_io_t *end_io)
 
 	sector = (b->block << b->c->sectors_per_block_bits) + b->c->start;
 
-	if (rw != WRITE) {
+	if (rw != REQ_OP_WRITE) {
 		n_sectors = 1 << b->c->sectors_per_block_bits;
 		offset = 0;
 	} else {
@@ -740,7 +740,7 @@ static void __write_dirty_buffer(struct dm_buffer *b,
 	b->write_end = b->dirty_end;
 
 	if (!write_list)
-		submit_io(b, WRITE, write_endio);
+		submit_io(b, REQ_OP_WRITE, write_endio);
 	else
 		list_add_tail(&b->write_list, write_list);
 }
@@ -753,7 +753,7 @@ static void __flush_write_list(struct list_head *write_list)
 		struct dm_buffer *b =
 			list_entry(write_list->next, struct dm_buffer, write_list);
 		list_del(&b->write_list);
-		submit_io(b, WRITE, write_endio);
+		submit_io(b, REQ_OP_WRITE, write_endio);
 		cond_resched();
 	}
 	blk_finish_plug(&plug);
@@ -1123,7 +1123,7 @@ static void *new_read(struct dm_bufio_client *c, sector_t block,
 		return NULL;
 
 	if (need_submit)
-		submit_io(b, READ, read_endio);
+		submit_io(b, REQ_OP_READ, read_endio);
 
 	wait_on_bit_io(&b->state, B_READING, TASK_UNINTERRUPTIBLE);
 
@@ -1193,7 +1193,7 @@ void dm_bufio_prefetch(struct dm_bufio_client *c,
 			dm_bufio_unlock(c);
 
 			if (need_submit)
-				submit_io(b, READ, read_endio);
+				submit_io(b, REQ_OP_READ, read_endio);
 			dm_bufio_release(b);
 
 			cond_resched();
@@ -1454,7 +1454,7 @@ retry:
 		old_block = b->block;
 		__unlink_buffer(b);
 		__link_buffer(b, new_block, b->list_mode);
-		submit_io(b, WRITE, write_endio);
+		submit_io(b, REQ_OP_WRITE, write_endio);
 		wait_on_bit_io(&b->state, B_WRITING,
 			       TASK_UNINTERRUPTIBLE);
 		__unlink_buffer(b);
@@ -1716,7 +1716,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 			if (!DM_BUFIO_CACHE_NAME(c)) {
 				r = -ENOMEM;
 				mutex_unlock(&dm_bufio_clients_lock);
-				goto bad_cache;
+				goto bad;
 			}
 		}
 
@@ -1727,7 +1727,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 			if (!DM_BUFIO_CACHE(c)) {
 				r = -ENOMEM;
 				mutex_unlock(&dm_bufio_clients_lock);
-				goto bad_cache;
+				goto bad;
 			}
 		}
 	}
@@ -1738,10 +1738,18 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 
 		if (!b) {
 			r = -ENOMEM;
-			goto bad_buffer;
+			goto bad;
 		}
 		__free_buffer_wake(b);
 	}
+
+	c->shrinker.count_objects = dm_bufio_shrink_count;
+	c->shrinker.scan_objects = dm_bufio_shrink_scan;
+	c->shrinker.seeks = 1;
+	c->shrinker.batch = 0;
+	r = register_shrinker(&c->shrinker);
+	if (r)
+		goto bad;
 
 	mutex_lock(&dm_bufio_clients_lock);
 	dm_bufio_client_count++;
@@ -1749,16 +1757,9 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	__cache_size_refresh();
 	mutex_unlock(&dm_bufio_clients_lock);
 
-	c->shrinker.count_objects = dm_bufio_shrink_count;
-	c->shrinker.scan_objects = dm_bufio_shrink_scan;
-	c->shrinker.seeks = 1;
-	c->shrinker.batch = 0;
-	register_shrinker(&c->shrinker);
-
 	return c;
 
-bad_buffer:
-bad_cache:
+bad:
 	while (!list_empty(&c->reserved_buffers)) {
 		struct dm_buffer *b = list_entry(c->reserved_buffers.next,
 						 struct dm_buffer, lru_list);
@@ -1767,6 +1768,7 @@ bad_cache:
 	}
 	dm_io_client_destroy(c->dm_io);
 bad_dm_io:
+	mutex_destroy(&c->lock);
 	kfree(c);
 bad_client:
 	return ERR_PTR(r);
@@ -1811,6 +1813,7 @@ void dm_bufio_client_destroy(struct dm_bufio_client *c)
 		BUG_ON(c->n_buffers[i]);
 
 	dm_io_client_destroy(c->dm_io);
+	mutex_destroy(&c->lock);
 	kfree(c);
 }
 EXPORT_SYMBOL_GPL(dm_bufio_client_destroy);

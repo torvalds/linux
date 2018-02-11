@@ -2483,17 +2483,16 @@ void rtl8821ae_card_disable(struct ieee80211_hw *hw)
 }
 
 void rtl8821ae_interrupt_recognized(struct ieee80211_hw *hw,
-				    u32 *p_inta, u32 *p_intb,
-				    u32 *p_intc, u32 *p_intd)
+				    struct rtl_int *intvec)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 
-	*p_inta = rtl_read_dword(rtlpriv, ISR) & rtlpci->irq_mask[0];
-	rtl_write_dword(rtlpriv, ISR, *p_inta);
+	intvec->inta = rtl_read_dword(rtlpriv, ISR) & rtlpci->irq_mask[0];
+	rtl_write_dword(rtlpriv, ISR, intvec->inta);
 
-	*p_intb = rtl_read_dword(rtlpriv, REG_HISRE) & rtlpci->irq_mask[1];
-	rtl_write_dword(rtlpriv, REG_HISRE, *p_intb);
+	intvec->intb = rtl_read_dword(rtlpriv, REG_HISRE) & rtlpci->irq_mask[1];
+	rtl_write_dword(rtlpriv, REG_HISRE, intvec->intb);
 }
 
 void rtl8821ae_set_beacon_related_registers(struct ieee80211_hw *hw)

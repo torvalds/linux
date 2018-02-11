@@ -2385,10 +2385,8 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 		goto out_uninit;
 	}
 	if (devm_request_irq(dev, irq, &bcm63xx_udc_ctrl_isr, 0,
-			     dev_name(dev), udc) < 0) {
-		dev_err(dev, "error requesting IRQ #%d\n", irq);
-		goto out_uninit;
-	}
+			     dev_name(dev), udc) < 0)
+		goto report_request_failure;
 
 	/* IRQ resources #1-6: data interrupts for IUDMA channels 0-5 */
 	for (i = 0; i < BCM63XX_NUM_IUDMA; i++) {
@@ -2398,10 +2396,8 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 			goto out_uninit;
 		}
 		if (devm_request_irq(dev, irq, &bcm63xx_udc_data_isr, 0,
-				     dev_name(dev), &udc->iudma[i]) < 0) {
-			dev_err(dev, "error requesting IRQ #%d\n", irq);
-			goto out_uninit;
-		}
+				     dev_name(dev), &udc->iudma[i]) < 0)
+			goto report_request_failure;
 	}
 
 	bcm63xx_udc_init_debugfs(udc);
@@ -2413,6 +2409,10 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 out_uninit:
 	bcm63xx_uninit_udc_hw(udc);
 	return rc;
+
+report_request_failure:
+	dev_err(dev, "error requesting IRQ #%d\n", irq);
+	goto out_uninit;
 }
 
 /**

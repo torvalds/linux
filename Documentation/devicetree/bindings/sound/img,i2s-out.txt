@@ -35,7 +35,7 @@ Optional Properties:
 
 Example:
 
-i2s_out: i2s-out@18100A00 {
+i2s_out: i2s-out@18100a00 {
 	compatible = "img,i2s-out";
 	reg = <0x18100A00 0x200>;
 	interrupts = <GIC_SHARED 13 IRQ_TYPE_LEVEL_HIGH>;

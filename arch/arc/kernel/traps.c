@@ -65,12 +65,14 @@ unhandled_exception(const char *str, struct pt_regs *regs, siginfo_t *info)
 #define DO_ERROR_INFO(signr, str, name, sicode) \
 int name(unsigned long address, struct pt_regs *regs) \
 {						\
-	siginfo_t info = {			\
-		.si_signo = signr,		\
-		.si_errno = 0,			\
-		.si_code  = sicode,		\
-		.si_addr = (void __user *)address,	\
-	};					\
+	siginfo_t info;				\
+						\
+	clear_siginfo(&info);			\
+	info.si_signo = signr;			\
+	info.si_errno = 0;			\
+	info.si_code  = sicode;			\
+	info.si_addr = (void __user *)address;	\
+						\
 	return unhandled_exception(str, regs, &info);\
 }
 

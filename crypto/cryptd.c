@@ -32,7 +32,9 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
-#define CRYPTD_MAX_CPU_QLEN 1000
+static unsigned int cryptd_max_cpu_qlen = 1000;
+module_param(cryptd_max_cpu_qlen, uint, 0);
+MODULE_PARM_DESC(cryptd_max_cpu_qlen, "Set cryptd Max queue depth");
 
 struct cryptd_cpu_queue {
 	struct crypto_queue queue;
@@ -116,6 +118,7 @@ static int cryptd_init_queue(struct cryptd_queue *queue,
 		crypto_init_queue(&cpu_queue->queue, max_cpu_qlen);
 		INIT_WORK(&cpu_queue->work, cryptd_queue_worker);
 	}
+	pr_info("cryptd: max_cpu_qlen set to %d\n", max_cpu_qlen);
 	return 0;
 }
 
@@ -893,10 +896,9 @@ static int cryptd_create_hash(struct crypto_template *tmpl, struct rtattr **tb,
 	if (err)
 		goto out_free_inst;
 
-	type = CRYPTO_ALG_ASYNC;
-	if (alg->cra_flags & CRYPTO_ALG_INTERNAL)
-		type |= CRYPTO_ALG_INTERNAL;
-	inst->alg.halg.base.cra_flags = type;
+	inst->alg.halg.base.cra_flags = CRYPTO_ALG_ASYNC |
+		(alg->cra_flags & (CRYPTO_ALG_INTERNAL |
+				   CRYPTO_ALG_OPTIONAL_KEY));
 
 	inst->alg.halg.digestsize = salg->digestsize;
 	inst->alg.halg.statesize = salg->statesize;
@@ -911,7 +913,8 @@ static int cryptd_create_hash(struct crypto_template *tmpl, struct rtattr **tb,
 	inst->alg.finup  = cryptd_hash_finup_enqueue;
 	inst->alg.export = cryptd_hash_export;
 	inst->alg.import = cryptd_hash_import;
-	inst->alg.setkey = cryptd_hash_setkey;
+	if (crypto_shash_alg_has_setkey(salg))
+		inst->alg.setkey = cryptd_hash_setkey;
 	inst->alg.digest = cryptd_hash_digest_enqueue;
 
 	err = ahash_register_instance(tmpl, inst);
@@ -1372,7 +1375,7 @@ static int __init cryptd_init(void)
 {
 	int err;
 
-	err = cryptd_init_queue(&queue, CRYPTD_MAX_CPU_QLEN);
+	err = cryptd_init_queue(&queue, cryptd_max_cpu_qlen);
 	if (err)
 		return err;
 

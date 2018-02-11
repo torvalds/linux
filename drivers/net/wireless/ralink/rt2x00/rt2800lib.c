@@ -4903,7 +4903,7 @@ void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev)
 		min_sleep = 2000;
 		break;
 	default:
-		WARN_ONCE(1, "Not supported RF chipet %x for VCO recalibration",
+		WARN_ONCE(1, "Not supported RF chipset %x for VCO recalibration",
 			  rt2x00dev->chip.rf);
 		return;
 	}

@@ -469,7 +469,7 @@ static long subdev_compat_ioctl32(struct file *file, unsigned int cmd,
 }
 #endif
 
-static unsigned int subdev_poll(struct file *file, poll_table *wait)
+static __poll_t subdev_poll(struct file *file, poll_table *wait)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);

@@ -9,6 +9,8 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
+#include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 
 #include "chip.h"
 #include "global1.h"
@@ -306,4 +308,89 @@ int mv88e6xxx_g1_atu_remove(struct mv88e6xxx_chip *chip, u16 fid, int port,
 	int to_port = chip->info->atu_move_port_mask;
 
 	return mv88e6xxx_g1_atu_move(chip, fid, from_port, to_port, all);
+}
+
+static irqreturn_t mv88e6xxx_g1_atu_prob_irq_thread_fn(int irq, void *dev_id)
+{
+	struct mv88e6xxx_chip *chip = dev_id;
+	struct mv88e6xxx_atu_entry entry;
+	int err;
+	u16 val;
+
+	mutex_lock(&chip->reg_lock);
+
+	err = mv88e6xxx_g1_atu_op(chip, 0,
+				  MV88E6XXX_G1_ATU_OP_GET_CLR_VIOLATION);
+	if (err)
+		goto out;
+
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_ATU_OP, &val);
+	if (err)
+		goto out;
+
+	err = mv88e6xxx_g1_atu_data_read(chip, &entry);
+	if (err)
+		goto out;
+
+	err = mv88e6xxx_g1_atu_mac_read(chip, &entry);
+	if (err)
+		goto out;
+
+	mutex_unlock(&chip->reg_lock);
+
+	if (val & MV88E6XXX_G1_ATU_OP_AGE_OUT_VIOLATION) {
+		dev_err_ratelimited(chip->dev,
+				    "ATU age out violation for %pM\n",
+				    entry.mac);
+	}
+
+	if (val & MV88E6XXX_G1_ATU_OP_MEMBER_VIOLATION) {
+		dev_err_ratelimited(chip->dev,
+				    "ATU member violation for %pM portvec %x\n",
+				    entry.mac, entry.portvec);
+	}
+
+	if (val & MV88E6XXX_G1_ATU_OP_MEMBER_VIOLATION)
+		dev_err_ratelimited(chip->dev,
+				    "ATU miss violation for %pM portvec %x\n",
+				    entry.mac, entry.portvec);
+
+	if (val & MV88E6XXX_G1_ATU_OP_FULL_VIOLATION)
+		dev_err_ratelimited(chip->dev,
+				    "ATU full violation for %pM portvec %x\n",
+				    entry.mac, entry.portvec);
+
+	return IRQ_HANDLED;
+
+out:
+	mutex_unlock(&chip->reg_lock);
+
+	dev_err(chip->dev, "ATU problem: error %d while handling interrupt\n",
+		err);
+	return IRQ_HANDLED;
+}
+
+int mv88e6xxx_g1_atu_prob_irq_setup(struct mv88e6xxx_chip *chip)
+{
+	int err;
+
+	chip->atu_prob_irq = irq_find_mapping(chip->g1_irq.domain,
+					      MV88E6XXX_G1_STS_IRQ_ATU_PROB);
+	if (chip->atu_prob_irq < 0)
+		return chip->atu_prob_irq;
+
+	err = request_threaded_irq(chip->atu_prob_irq, NULL,
+				   mv88e6xxx_g1_atu_prob_irq_thread_fn,
+				   IRQF_ONESHOT, "mv88e6xxx-g1-atu-prob",
+				   chip);
+	if (err)
+		irq_dispose_mapping(chip->atu_prob_irq);
+
+	return err;
+}
+
+void mv88e6xxx_g1_atu_prob_irq_free(struct mv88e6xxx_chip *chip)
+{
+	free_irq(chip->atu_prob_irq, chip);
+	irq_dispose_mapping(chip->atu_prob_irq);
 }

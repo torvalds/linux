@@ -611,7 +611,6 @@ free_bufs:
 
 	kref_put(&chan->kref, relay_destroy_channel);
 	mutex_unlock(&relay_channels_mutex);
-	kfree(chan);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(relay_open);
@@ -919,9 +918,9 @@ static int relay_file_mmap(struct file *filp, struct vm_area_struct *vma)
  *
  *	Poll implemention.
  */
-static unsigned int relay_file_poll(struct file *filp, poll_table *wait)
+static __poll_t relay_file_poll(struct file *filp, poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	struct rchan_buf *buf = filp->private_data;
 
 	if (buf->finalized)

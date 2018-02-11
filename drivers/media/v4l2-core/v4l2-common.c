@@ -320,20 +320,6 @@ static unsigned int clamp_align(unsigned int x, unsigned int min,
 	return x;
 }
 
-/* Bound an image to have a width between wmin and wmax, and height between
- * hmin and hmax, inclusive.  Additionally, the width will be a multiple of
- * 2^walign, the height will be a multiple of 2^halign, and the overall size
- * (width*height) will be a multiple of 2^salign.  The image may be shrunk
- * or enlarged to fit the alignment constraints.
- *
- * The width or height maximum must not be smaller than the corresponding
- * minimum.  The alignments must not be so high there are no possible image
- * sizes within the allowed bounds.  wmin and hmin must be at least 1
- * (don't use 0).  If you don't care about a certain alignment, specify 0,
- * as 2^0 is 1 and one byte alignment is equivalent to no alignment.  If
- * you only want to adjust downward, specify a maximum that's the same as
- * the initial value.
- */
 void v4l_bound_align_image(u32 *w, unsigned int wmin, unsigned int wmax,
 			   unsigned int walign,
 			   u32 *h, unsigned int hmin, unsigned int hmax,
@@ -371,18 +357,19 @@ void v4l_bound_align_image(u32 *w, unsigned int wmin, unsigned int wmax,
 }
 EXPORT_SYMBOL_GPL(v4l_bound_align_image);
 
-const struct v4l2_frmsize_discrete *v4l2_find_nearest_format(
-		const struct v4l2_discrete_probe *probe,
-		s32 width, s32 height)
+const struct v4l2_frmsize_discrete *
+v4l2_find_nearest_format(const struct v4l2_frmsize_discrete *sizes,
+			  size_t num_sizes,
+			  s32 width, s32 height)
 {
 	int i;
 	u32 error, min_error = UINT_MAX;
 	const struct v4l2_frmsize_discrete *size, *best = NULL;
 
-	if (!probe)
-		return best;
+	if (!sizes)
+		return NULL;
 
-	for (i = 0, size = probe->sizes; i < probe->num_sizes; i++, size++) {
+	for (i = 0, size = sizes; i < num_sizes; i++, size++) {
 		error = abs(size->width - width) + abs(size->height - height);
 		if (error < min_error) {
 			min_error = error;

@@ -198,11 +198,6 @@ static int tcp_write_timeout(struct sock *sk)
 	if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV)) {
 		if (icsk->icsk_retransmits) {
 			dst_negative_advice(sk);
-			if (tp->syn_fastopen || tp->syn_data)
-				tcp_fastopen_cache_set(sk, 0, NULL, true, 0);
-			if (tp->syn_data && icsk->icsk_retransmits == 1)
-				NET_INC_STATS(sock_net(sk),
-					      LINUX_MIB_TCPFASTOPENACTIVEFAIL);
 		} else if (!tp->syn_data && !tp->syn_fastopen) {
 			sk_rethink_txhash(sk);
 		}
@@ -210,17 +205,6 @@ static int tcp_write_timeout(struct sock *sk)
 		expired = icsk->icsk_retransmits >= retry_until;
 	} else {
 		if (retransmits_timed_out(sk, net->ipv4.sysctl_tcp_retries1, 0)) {
-			/* Some middle-boxes may black-hole Fast Open _after_
-			 * the handshake. Therefore we conservatively disable
-			 * Fast Open on this path on recurring timeouts after
-			 * successful Fast Open.
-			 */
-			if (tp->syn_data_acked) {
-				tcp_fastopen_cache_set(sk, 0, NULL, true, 0);
-				if (icsk->icsk_retransmits == net->ipv4.sysctl_tcp_retries1)
-					NET_INC_STATS(sock_net(sk),
-						      LINUX_MIB_TCPFASTOPENACTIVEFAIL);
-			}
 			/* Black hole detection */
 			tcp_mtu_probing(icsk, sk);
 
@@ -243,11 +227,19 @@ static int tcp_write_timeout(struct sock *sk)
 		expired = retransmits_timed_out(sk, retry_until,
 						icsk->icsk_user_timeout);
 	}
+	tcp_fastopen_active_detect_blackhole(sk, expired);
+
+	if (BPF_SOCK_OPS_TEST_FLAG(tp, BPF_SOCK_OPS_RTO_CB_FLAG))
+		tcp_call_bpf_3arg(sk, BPF_SOCK_OPS_RTO_CB,
+				  icsk->icsk_retransmits,
+				  icsk->icsk_rto, (int)expired);
+
 	if (expired) {
 		/* Has it gone just too far? */
 		tcp_write_err(sk);
 		return 1;
 	}
+
 	return 0;
 }
 

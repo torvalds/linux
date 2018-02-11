@@ -44,7 +44,7 @@ struct smc_clc_msg_hdr {	/* header1 of clc messages */
 #if defined(__BIG_ENDIAN_BITFIELD)
 	u8 version : 4,
 	   flag    : 1,
-	   rsvd	   : 3;
+	   rsvd    : 3;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
 	u8 rsvd    : 3,
 	   flag    : 1,
@@ -62,16 +62,30 @@ struct smc_clc_msg_local {	/* header2 of clc messages */
 	u8 mac[6];		/* mac of ib_device port */
 };
 
-struct smc_clc_msg_proposal {	/* clc proposal message */
-	struct smc_clc_msg_hdr hdr;
-	struct smc_clc_msg_local lcl;
-	__be16 iparea_offset;	/* offset to IP address information area */
+struct smc_clc_ipv6_prefix {
+	u8 prefix[4];
+	u8 prefix_len;
+} __packed;
+
+struct smc_clc_msg_proposal_prefix {	/* prefix part of clc proposal message*/
 	__be32 outgoing_subnet;	/* subnet mask */
 	u8 prefix_len;		/* number of significant bits in mask */
 	u8 reserved[2];
 	u8 ipv6_prefixes_cnt;	/* number of IPv6 prefixes in prefix array */
-	struct smc_clc_msg_trail trl; /* eye catcher "SMCR" EBCDIC */
 } __aligned(4);
+
+struct smc_clc_msg_proposal {	/* clc proposal message sent by Linux */
+	struct smc_clc_msg_hdr hdr;
+	struct smc_clc_msg_local lcl;
+	__be16 iparea_offset;	/* offset to IP address information area */
+} __aligned(4);
+
+#define SMC_CLC_PROPOSAL_MAX_OFFSET	0x28
+#define SMC_CLC_PROPOSAL_MAX_PREFIX	(8 * sizeof(struct smc_clc_ipv6_prefix))
+#define SMC_CLC_MAX_LEN		(sizeof(struct smc_clc_msg_proposal) + \
+				 SMC_CLC_PROPOSAL_MAX_OFFSET + \
+				 SMC_CLC_PROPOSAL_MAX_PREFIX + \
+				 sizeof(struct smc_clc_msg_trail))
 
 struct smc_clc_msg_accept_confirm {	/* clc accept / confirm message */
 	struct smc_clc_msg_hdr hdr;
@@ -101,6 +115,14 @@ struct smc_clc_msg_decline {	/* clc decline message */
 	u8 reserved2[4];
 	struct smc_clc_msg_trail trl; /* eye catcher "SMCR" EBCDIC */
 } __aligned(4);
+
+/* determine start of the prefix area within the proposal message */
+static inline struct smc_clc_msg_proposal_prefix *
+smc_clc_proposal_get_prefix(struct smc_clc_msg_proposal *pclc)
+{
+	return (struct smc_clc_msg_proposal_prefix *)
+	       ((u8 *)pclc + sizeof(*pclc) + ntohs(pclc->iparea_offset));
+}
 
 struct smc_sock;
 struct smc_ib_device;

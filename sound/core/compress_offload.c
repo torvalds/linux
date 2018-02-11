@@ -396,7 +396,7 @@ static int snd_compr_mmap(struct file *f, struct vm_area_struct *vma)
 	return -ENXIO;
 }
 
-static inline int snd_compr_get_poll(struct snd_compr_stream *stream)
+static __poll_t snd_compr_get_poll(struct snd_compr_stream *stream)
 {
 	if (stream->direction == SND_COMPRESS_PLAYBACK)
 		return POLLOUT | POLLWRNORM;
@@ -404,12 +404,12 @@ static inline int snd_compr_get_poll(struct snd_compr_stream *stream)
 		return POLLIN | POLLRDNORM;
 }
 
-static unsigned int snd_compr_poll(struct file *f, poll_table *wait)
+static __poll_t snd_compr_poll(struct file *f, poll_table *wait)
 {
 	struct snd_compr_file *data = f->private_data;
 	struct snd_compr_stream *stream;
 	size_t avail;
-	int retval = 0;
+	__poll_t retval = 0;
 
 	if (snd_BUG_ON(!data))
 		return POLLERR;

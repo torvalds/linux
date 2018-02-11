@@ -214,8 +214,7 @@ static ssize_t show_hibernate(struct device *dev,
 	return sprintf(buf, "%d\n", KERN_DT_UPDATE);
 }
 
-static DEVICE_ATTR(hibernate, S_IWUSR | S_IRUGO,
-		   show_hibernate, store_hibernate);
+static DEVICE_ATTR(hibernate, 0644, show_hibernate, store_hibernate);
 
 static struct bus_type suspend_subsys = {
 	.name = "power",

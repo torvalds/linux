@@ -878,4 +878,10 @@
 #define RK3036_HWC_LUT_ADDR		0x800
 /* rk3036 register definition end */
 
+/* rk3126 register definition */
+#define RK3126_WIN1_MST			0x4c
+#define RK3126_WIN1_DSP_INFO		0x50
+#define RK3126_WIN1_DSP_ST		0x54
+/* rk3126 register definition end */
+
 #endif /* _ROCKCHIP_VOP_REG_H */

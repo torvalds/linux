@@ -118,13 +118,13 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 	police = to_police(*a);
 	if (parm->rate.rate) {
 		err = -ENOMEM;
-		R_tab = qdisc_get_rtab(&parm->rate, tb[TCA_POLICE_RATE]);
+		R_tab = qdisc_get_rtab(&parm->rate, tb[TCA_POLICE_RATE], NULL);
 		if (R_tab == NULL)
 			goto failure;
 
 		if (parm->peakrate.rate) {
 			P_tab = qdisc_get_rtab(&parm->peakrate,
-					       tb[TCA_POLICE_PEAKRATE]);
+					       tb[TCA_POLICE_PEAKRATE], NULL);
 			if (P_tab == NULL)
 				goto failure;
 		}
@@ -334,16 +334,14 @@ static __net_init int police_init_net(struct net *net)
 	return tc_action_net_init(tn, &act_police_ops);
 }
 
-static void __net_exit police_exit_net(struct net *net)
+static void __net_exit police_exit_net(struct list_head *net_list)
 {
-	struct tc_action_net *tn = net_generic(net, police_net_id);
-
-	tc_action_net_exit(tn);
+	tc_action_net_exit(net_list, police_net_id);
 }
 
 static struct pernet_operations police_net_ops = {
 	.init = police_init_net,
-	.exit = police_exit_net,
+	.exit_batch = police_exit_net,
 	.id   = &police_net_id,
 	.size = sizeof(struct tc_action_net),
 };

@@ -256,10 +256,10 @@ free_kbuf:
 	return ret < 0 ? ret : len;
 }
 
-static unsigned int rpmsg_eptdev_poll(struct file *filp, poll_table *wait)
+static __poll_t rpmsg_eptdev_poll(struct file *filp, poll_table *wait)
 {
 	struct rpmsg_eptdev *eptdev = filp->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	if (!eptdev->ept)
 		return POLLERR;

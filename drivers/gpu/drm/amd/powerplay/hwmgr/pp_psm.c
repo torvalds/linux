@@ -244,6 +244,10 @@ int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip,
 	}
 
 	phm_notify_smc_display_config_after_ps_adjustment(hwmgr);
+	if (!phm_force_dpm_levels(hwmgr, hwmgr->request_dpm_level))
+		hwmgr->dpm_level = hwmgr->request_dpm_level;
+
+	phm_reset_power_profile_state(hwmgr);
 
 	return 0;
 }

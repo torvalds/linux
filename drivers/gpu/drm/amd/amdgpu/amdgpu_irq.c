@@ -88,7 +88,7 @@ static void amdgpu_irq_reset_work_func(struct work_struct *work)
 						  reset_work);
 
 	if (!amdgpu_sriov_vf(adev))
-		amdgpu_gpu_reset(adev);
+		amdgpu_device_gpu_recover(adev, NULL, false);
 }
 
 /* Disable *all* interrupts */
@@ -232,7 +232,7 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 		int ret = pci_enable_msi(adev->pdev);
 		if (!ret) {
 			adev->irq.msi_enabled = true;
-			dev_info(adev->dev, "amdgpu: using MSI.\n");
+			dev_dbg(adev->dev, "amdgpu: using MSI.\n");
 		}
 	}
 
@@ -262,7 +262,7 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 		return r;
 	}
 
-	DRM_INFO("amdgpu: irq initialized.\n");
+	DRM_DEBUG("amdgpu: irq initialized.\n");
 	return 0;
 }
 

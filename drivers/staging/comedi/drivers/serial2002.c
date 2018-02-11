@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * serial2002.c
  * Comedi driver for serial connected hardware
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2002 Anders Blomdell <anders.blomdell@control.lth.se>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -107,6 +98,7 @@ static long serial2002_tty_ioctl(struct file *f, unsigned int op,
 static int serial2002_tty_write(struct file *f, unsigned char *buf, int count)
 {
 	loff_t pos = 0;
+
 	return kernel_write(f, buf, count, &pos);
 }
 
@@ -119,7 +111,7 @@ static void serial2002_tty_read_poll_wait(struct file *f, int timeout)
 	poll_initwait(&table);
 	while (1) {
 		long elapsed;
-		int mask;
+		__poll_t mask;
 
 		mask = f->f_op->poll(f, &table.pt);
 		if (mask & (POLLRDNORM | POLLRDBAND | POLLIN |

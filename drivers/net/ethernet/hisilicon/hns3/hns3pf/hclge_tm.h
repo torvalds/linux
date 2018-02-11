@@ -18,6 +18,9 @@
 
 #define HCLGE_TM_PORT_BASE_MODE_MSK	BIT(0)
 
+#define HCLGE_DEFAULT_PAUSE_TRANS_GAP	0xFF
+#define HCLGE_DEFAULT_PAUSE_TRANS_TIME	0xFFFF
+
 /* SP or DWRR */
 #define HCLGE_TM_TX_SCHD_DWRR_MSK	BIT(0)
 #define HCLGE_TM_TX_SCHD_SP_MSK		(0xFE)
@@ -99,6 +102,13 @@ struct hclge_pfc_en_cmd {
 	u8 pri_en_bitmap;
 };
 
+struct hclge_cfg_pause_param_cmd {
+	u8 mac_addr[ETH_ALEN];
+	u8 pause_trans_gap;
+	u8 rsvd;
+	__le16 pause_trans_time;
+};
+
 struct hclge_port_shapping_cmd {
 	__le32 port_shapping_para;
 };
@@ -118,4 +128,6 @@ void hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc);
 int hclge_tm_dwrr_cfg(struct hclge_dev *hdev);
 int hclge_tm_map_cfg(struct hclge_dev *hdev);
 int hclge_tm_init_hw(struct hclge_dev *hdev);
+int hclge_mac_pause_en_cfg(struct hclge_dev *hdev, bool tx, bool rx);
+int hclge_mac_pause_addr_cfg(struct hclge_dev *hdev, const u8 *mac_addr);
 #endif

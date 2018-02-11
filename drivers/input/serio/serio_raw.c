@@ -239,11 +239,11 @@ out:
 	return retval;
 }
 
-static unsigned int serio_raw_poll(struct file *file, poll_table *wait)
+static __poll_t serio_raw_poll(struct file *file, poll_table *wait)
 {
 	struct serio_raw_client *client = file->private_data;
 	struct serio_raw *serio_raw = client->serio_raw;
-	unsigned int mask;
+	__poll_t mask;
 
 	poll_wait(file, &serio_raw->wait, wait);
 

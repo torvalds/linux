@@ -418,7 +418,7 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		break;
 	case F_ADD_SEALS:
 	case F_GET_SEALS:
-		err = shmem_fcntl(filp, cmd, arg);
+		err = memfd_fcntl(filp, cmd, arg);
 		break;
 	case F_GET_RW_HINT:
 	case F_SET_RW_HINT:
@@ -690,7 +690,7 @@ COMPAT_SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd,
 
 /* Table to convert sigio signal codes into poll band bitmaps */
 
-static const long band_table[NSIGPOLL] = {
+static const __poll_t band_table[NSIGPOLL] = {
 	POLLIN | POLLRDNORM,			/* POLL_IN */
 	POLLOUT | POLLWRNORM | POLLWRBAND,	/* POLL_OUT */
 	POLLIN | POLLRDNORM | POLLMSG,		/* POLL_MSG */
@@ -737,6 +737,7 @@ static void send_sigio_to_task(struct task_struct *p,
 			   delivered even if we can't queue.  Failure to
 			   queue in this case _should_ be reported; we fall
 			   back to SIGIO in that case. --sct */
+			clear_siginfo(&si);
 			si.si_signo = signum;
 			si.si_errno = 0;
 		        si.si_code  = reason;
@@ -758,7 +759,7 @@ static void send_sigio_to_task(struct task_struct *p,
 			if (reason - POLL_IN >= NSIGPOLL)
 				si.si_band  = ~0L;
 			else
-				si.si_band = band_table[reason - POLL_IN];
+				si.si_band = mangle_poll(band_table[reason - POLL_IN]);
 			si.si_fd    = fd;
 			if (!do_send_sig_info(signum, &si, p, group))
 				break;

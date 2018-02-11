@@ -535,7 +535,7 @@ int smu7_upload_smu_firmware_image(struct pp_hwmgr *hwmgr)
 			smu7_convert_fw_type_to_cgs(UCODE_ID_SMU_SK), &info);
 
 	hwmgr->is_kicker = info.is_kicker;
-
+	hwmgr->smu_version = info.version;
 	result = smu7_upload_smc_firmware_data(hwmgr, info.image_size, (uint32_t *)info.kptr, SMU7_SMC_SIZE);
 
 	return result;
@@ -648,6 +648,12 @@ int smu7_init(struct pp_hwmgr *hwmgr)
 
 int smu7_smu_fini(struct pp_hwmgr *hwmgr)
 {
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
+
+	smu_free_memory(hwmgr->device, (void *) smu_data->header_buffer.handle);
+	if (!cgs_is_virtualization_enabled(hwmgr->device))
+		smu_free_memory(hwmgr->device, (void *) smu_data->smu_buffer.handle);
+
 	kfree(hwmgr->smu_backend);
 	hwmgr->smu_backend = NULL;
 	cgs_rel_firmware(hwmgr->device, CGS_UCODE_ID_SMU);

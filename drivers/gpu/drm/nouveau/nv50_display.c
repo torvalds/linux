@@ -137,8 +137,10 @@ struct nv50_head_atom {
 	} mode;
 
 	struct {
+		bool visible;
 		u32 handle;
 		u64 offset:40;
+		u8  mode:4;
 	} lut;
 
 	struct {
@@ -192,6 +194,7 @@ struct nv50_head_atom {
 
 	union {
 		struct {
+			bool ilut:1;
 			bool core:1;
 			bool curs:1;
 		};
@@ -200,6 +203,7 @@ struct nv50_head_atom {
 
 	union {
 		struct {
+			bool ilut:1;
 			bool core:1;
 			bool curs:1;
 			bool view:1;
@@ -660,6 +664,10 @@ nv50_ovly_create(struct nvif_device *device, struct nvif_object *disp,
 
 struct nv50_head {
 	struct nouveau_crtc base;
+	struct {
+		struct nouveau_bo *nvbo[2];
+		int next;
+	} lut;
 	struct nv50_ovly ovly;
 	struct nv50_oimm oimm;
 };
@@ -1143,10 +1151,11 @@ nv50_curs_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 {
 	int ret;
 
-	ret = drm_plane_helper_check_state(&asyw->state, &asyw->clip,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   true, true);
+	ret = drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
+						  &asyw->clip,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  true, true);
 	asyh->curs.visible = asyw->state.visible;
 	if (ret || !asyh->curs.visible)
 		return ret;
@@ -1432,10 +1441,11 @@ nv50_base_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	if (!fb->format->depth)
 		return -EINVAL;
 
-	ret = drm_plane_helper_check_state(&asyw->state, &asyw->clip,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   false, true);
+	ret = drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
+						  &asyw->clip,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  false, true);
 	if (ret)
 		return ret;
 
@@ -1793,6 +1803,54 @@ nv50_head_lut_clr(struct nv50_head *head)
 }
 
 static void
+nv50_head_lut_load(struct drm_property_blob *blob, int mode,
+		   struct nouveau_bo *nvbo)
+{
+	struct drm_color_lut *in = (struct drm_color_lut *)blob->data;
+	void __iomem *lut = (u8 *)nvbo_kmap_obj_iovirtual(nvbo);
+	const int size = blob->length / sizeof(*in);
+	int bits, shift, i;
+	u16 zero, r, g, b;
+
+	/* This can't happen.. But it shuts the compiler up. */
+	if (WARN_ON(size != 256))
+		return;
+
+	switch (mode) {
+	case 0: /* LORES. */
+	case 1: /* HIRES. */
+		bits = 11;
+		shift = 3;
+		zero = 0x0000;
+		break;
+	case 7: /* INTERPOLATE_257_UNITY_RANGE. */
+		bits = 14;
+		shift = 0;
+		zero = 0x6000;
+		break;
+	default:
+		WARN_ON(1);
+		return;
+	}
+
+	for (i = 0; i < size; i++) {
+		r = (drm_color_lut_extract(in[i].  red, bits) + zero) << shift;
+		g = (drm_color_lut_extract(in[i].green, bits) + zero) << shift;
+		b = (drm_color_lut_extract(in[i]. blue, bits) + zero) << shift;
+		writew(r, lut + (i * 0x08) + 0);
+		writew(g, lut + (i * 0x08) + 2);
+		writew(b, lut + (i * 0x08) + 4);
+	}
+
+	/* INTERPOLATE modes require a "next" entry to interpolate with,
+	 * so we replicate the last entry to deal with this for now.
+	 */
+	writew(r, lut + (i * 0x08) + 0);
+	writew(g, lut + (i * 0x08) + 2);
+	writew(b, lut + (i * 0x08) + 4);
+}
+
+static void
 nv50_head_lut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
@@ -1800,18 +1858,18 @@ nv50_head_lut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((push = evo_wait(core, 7))) {
 		if (core->base.user.oclass < G82_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0840 + (head->base.index * 0x400), 2);
-			evo_data(push, 0xc0000000);
+			evo_data(push, 0x80000000 | asyh->lut.mode << 30);
 			evo_data(push, asyh->lut.offset >> 8);
 		} else
 		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0840 + (head->base.index * 0x400), 2);
-			evo_data(push, 0xc0000000);
+			evo_data(push, 0x80000000 | asyh->lut.mode << 30);
 			evo_data(push, asyh->lut.offset >> 8);
 			evo_mthd(push, 0x085c + (head->base.index * 0x400), 1);
 			evo_data(push, asyh->lut.handle);
 		} else {
 			evo_mthd(push, 0x0440 + (head->base.index * 0x300), 4);
-			evo_data(push, 0x83000000);
+			evo_data(push, 0x80000000 | asyh->lut.mode << 24);
 			evo_data(push, asyh->lut.offset >> 8);
 			evo_data(push, 0x00000000);
 			evo_data(push, 0x00000000);
@@ -1894,7 +1952,7 @@ nv50_head_view(struct nv50_head *head, struct nv50_head_atom *asyh)
 static void
 nv50_head_flush_clr(struct nv50_head *head, struct nv50_head_atom *asyh, bool y)
 {
-	if (asyh->clr.core && (!asyh->set.core || y))
+	if (asyh->clr.ilut && (!asyh->set.ilut || y))
 		nv50_head_lut_clr(head);
 	if (asyh->clr.core && (!asyh->set.core || y))
 		nv50_head_core_clr(head);
@@ -1907,7 +1965,15 @@ nv50_head_flush_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	if (asyh->set.view   ) nv50_head_view    (head, asyh);
 	if (asyh->set.mode   ) nv50_head_mode    (head, asyh);
-	if (asyh->set.core   ) nv50_head_lut_set (head, asyh);
+	if (asyh->set.ilut   ) {
+		struct nouveau_bo *nvbo = head->lut.nvbo[head->lut.next];
+		struct drm_property_blob *blob = asyh->state.gamma_lut;
+		if (blob)
+			nv50_head_lut_load(blob, asyh->lut.mode, nvbo);
+		asyh->lut.offset = nvbo->bo.offset;
+		head->lut.next ^= 1;
+		nv50_head_lut_set(head, asyh);
+	}
 	if (asyh->set.core   ) nv50_head_core_set(head, asyh);
 	if (asyh->set.curs   ) nv50_head_curs_set(head, asyh);
 	if (asyh->set.base   ) nv50_head_base    (head, asyh);
@@ -2042,6 +2108,37 @@ nv50_head_atomic_check_view(struct nv50_head_atom *armh,
 }
 
 static void
+nv50_head_atomic_check_lut(struct nv50_head *head,
+			   struct nv50_head_atom *armh,
+			   struct nv50_head_atom *asyh)
+{
+	struct nv50_disp *disp = nv50_disp(head->base.base.dev);
+
+	/* An I8 surface without an input LUT makes no sense, and
+	 * EVO will throw an error if you try.
+	 *
+	 * Legacy clients actually cause this due to the order in
+	 * which they call ioctls, so we will enable the LUT with
+	 * whatever contents the buffer already contains to avoid
+	 * triggering the error check.
+	 */
+	if (!asyh->state.gamma_lut && asyh->base.cpp != 1) {
+		asyh->lut.handle = 0;
+		asyh->clr.ilut = armh->lut.visible;
+		return;
+	}
+
+	if (disp->disp->oclass < GF110_DISP) {
+		asyh->lut.mode = (asyh->base.cpp == 1) ? 0 : 1;
+		asyh->set.ilut = true;
+	} else {
+		asyh->lut.mode = 7;
+		asyh->set.ilut = asyh->state.color_mgmt_changed;
+	}
+	asyh->lut.handle = disp->mast.base.vram.handle;
+}
+
+static void
 nv50_head_atomic_check_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	struct drm_display_mode *mode = &asyh->state.adjusted_mode;
@@ -2126,6 +2223,11 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 		if (asyh->state.mode_changed)
 			nv50_head_atomic_check_mode(head, asyh);
 
+		if (asyh->state.color_mgmt_changed ||
+		    asyh->base.cpp != armh->base.cpp)
+			nv50_head_atomic_check_lut(head, armh, asyh);
+		asyh->lut.visible = asyh->lut.handle != 0;
+
 		if (asyc) {
 			if (asyc->set.scaler)
 				nv50_head_atomic_check_view(armh, asyh, asyc);
@@ -2141,7 +2243,8 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 			asyh->core.w = asyh->base.w;
 			asyh->core.h = asyh->base.h;
 		} else
-		if ((asyh->core.visible = asyh->curs.visible)) {
+		if ((asyh->core.visible = asyh->curs.visible) ||
+		    (asyh->core.visible = asyh->lut.visible)) {
 			/*XXX: We need to either find some way of having the
 			 *     primary base layer appear black, while still
 			 *     being able to display the other layers, or we
@@ -2159,11 +2262,10 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 		asyh->core.layout = 1;
 		asyh->core.block = 0;
 		asyh->core.pitch = ALIGN(asyh->core.w, 64) * 4;
-		asyh->lut.handle = disp->mast.base.vram.handle;
-		asyh->lut.offset = head->base.lut.nvbo->bo.offset;
 		asyh->set.base = armh->base.cpp != asyh->base.cpp;
 		asyh->set.ovly = armh->ovly.cpp != asyh->ovly.cpp;
 	} else {
+		asyh->lut.visible = false;
 		asyh->core.visible = false;
 		asyh->curs.visible = false;
 		asyh->base.cpp = 0;
@@ -2187,8 +2289,10 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 			asyh->clr.curs = true;
 		}
 	} else {
+		asyh->clr.ilut = armh->lut.visible;
 		asyh->clr.core = armh->core.visible;
 		asyh->clr.curs = armh->curs.visible;
+		asyh->set.ilut = asyh->lut.visible;
 		asyh->set.core = asyh->core.visible;
 		asyh->set.curs = asyh->curs.visible;
 	}
@@ -2198,46 +2302,10 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 	return 0;
 }
 
-static void
-nv50_head_lut_load(struct drm_crtc *crtc)
-{
-	struct nv50_disp *disp = nv50_disp(crtc->dev);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	void __iomem *lut = nvbo_kmap_obj_iovirtual(nv_crtc->lut.nvbo);
-	u16 *r, *g, *b;
-	int i;
-
-	r = crtc->gamma_store;
-	g = r + crtc->gamma_size;
-	b = g + crtc->gamma_size;
-
-	for (i = 0; i < 256; i++) {
-		if (disp->disp->oclass < GF110_DISP) {
-			writew((*r++ >> 2) + 0x0000, lut + (i * 0x08) + 0);
-			writew((*g++ >> 2) + 0x0000, lut + (i * 0x08) + 2);
-			writew((*b++ >> 2) + 0x0000, lut + (i * 0x08) + 4);
-		} else {
-			/* 0x6000 interferes with the 14-bit color??? */
-			writew((*r++ >> 2) + 0x6000, lut + (i * 0x20) + 0);
-			writew((*g++ >> 2) + 0x6000, lut + (i * 0x20) + 2);
-			writew((*b++ >> 2) + 0x6000, lut + (i * 0x20) + 4);
-		}
-	}
-}
-
 static const struct drm_crtc_helper_funcs
 nv50_head_help = {
 	.atomic_check = nv50_head_atomic_check,
 };
-
-static int
-nv50_head_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-		    uint32_t size,
-		    struct drm_modeset_acquire_ctx *ctx)
-{
-	nv50_head_lut_load(crtc);
-	return 0;
-}
 
 static void
 nv50_head_atomic_destroy_state(struct drm_crtc *crtc,
@@ -2294,17 +2362,15 @@ nv50_head_reset(struct drm_crtc *crtc)
 static void
 nv50_head_destroy(struct drm_crtc *crtc)
 {
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nv50_disp *disp = nv50_disp(crtc->dev);
 	struct nv50_head *head = nv50_head(crtc);
+	int i;
 
 	nv50_dmac_destroy(&head->ovly.base, disp->disp);
 	nv50_pioc_destroy(&head->oimm.base);
 
-	nouveau_bo_unmap(nv_crtc->lut.nvbo);
-	if (nv_crtc->lut.nvbo)
-		nouveau_bo_unpin(nv_crtc->lut.nvbo);
-	nouveau_bo_ref(NULL, &nv_crtc->lut.nvbo);
+	for (i = 0; i < ARRAY_SIZE(head->lut.nvbo); i++)
+		nouveau_bo_unmap_unpin_unref(&head->lut.nvbo[i]);
 
 	drm_crtc_cleanup(crtc);
 	kfree(crtc);
@@ -2313,7 +2379,7 @@ nv50_head_destroy(struct drm_crtc *crtc)
 static const struct drm_crtc_funcs
 nv50_head_func = {
 	.reset = nv50_head_reset,
-	.gamma_set = nv50_head_gamma_set,
+	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 	.destroy = nv50_head_destroy,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
@@ -2331,7 +2397,7 @@ nv50_head_create(struct drm_device *dev, int index)
 	struct nv50_base *base;
 	struct nv50_curs *curs;
 	struct drm_crtc *crtc;
-	int ret;
+	int ret, i;
 
 	head = kzalloc(sizeof(*head), GFP_KERNEL);
 	if (!head)
@@ -2353,21 +2419,13 @@ nv50_head_create(struct drm_device *dev, int index)
 	drm_crtc_helper_add(crtc, &nv50_head_help);
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
-	ret = nouveau_bo_new(&drm->client, 8192, 0x100, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, NULL, NULL, &head->base.lut.nvbo);
-	if (!ret) {
-		ret = nouveau_bo_pin(head->base.lut.nvbo, TTM_PL_FLAG_VRAM, true);
-		if (!ret) {
-			ret = nouveau_bo_map(head->base.lut.nvbo);
-			if (ret)
-				nouveau_bo_unpin(head->base.lut.nvbo);
-		}
+	for (i = 0; i < ARRAY_SIZE(head->lut.nvbo); i++) {
+		ret = nouveau_bo_new_pin_map(&drm->client, 1025 * 8, 0x100,
+					     TTM_PL_FLAG_VRAM,
+					     &head->lut.nvbo[i]);
 		if (ret)
-			nouveau_bo_ref(NULL, &head->base.lut.nvbo);
+			goto out;
 	}
-
-	if (ret)
-		goto out;
 
 	/* allocate overlay resources */
 	ret = nv50_oimm_create(device, disp->disp, index, &head->oimm);
@@ -2688,7 +2746,6 @@ nv50_audio_enable(struct drm_encoder *encoder, struct drm_display_mode *mode)
 	if (!drm_detect_monitor_audio(nv_connector->edid))
 		return;
 
-	drm_edid_to_eld(&nv_connector->base, nv_connector->edid);
 	memcpy(args.data, nv_connector->base.eld, sizeof(args.data));
 
 	nvif_mthd(disp->disp, 0, &args,
@@ -2755,7 +2812,8 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct drm_display_mode *mode)
 			= hdmi_infoframe_pack(&avi_frame, args.infoframes, 17);
 	}
 
-	ret = drm_hdmi_vendor_infoframe_from_display_mode(&vendor_frame.vendor.hdmi, mode);
+	ret = drm_hdmi_vendor_infoframe_from_display_mode(&vendor_frame.vendor.hdmi,
+							  &nv_connector->base, mode);
 	if (!ret) {
 		/* We have a Vendor InfoFrame, populate it to the display */
 		args.pwr.vendor_infoframe_length
@@ -3064,10 +3122,8 @@ nv50_mstc_get_modes(struct drm_connector *connector)
 
 	mstc->edid = drm_dp_mst_get_edid(&mstc->connector, mstc->port->mgr, mstc->port);
 	drm_mode_connector_update_edid_property(&mstc->connector, mstc->edid);
-	if (mstc->edid) {
+	if (mstc->edid)
 		ret = drm_add_edid_modes(&mstc->connector, mstc->edid);
-		drm_edid_to_eld(&mstc->connector, mstc->edid);
-	}
 
 	if (!mstc->connector.display_info.bpc)
 		mstc->connector.display_info.bpc = 8;
@@ -4311,7 +4367,7 @@ nv50_disp_atomic_state_alloc(struct drm_device *dev)
 static const struct drm_mode_config_funcs
 nv50_disp_func = {
 	.fb_create = nouveau_user_framebuffer_create,
-	.output_poll_changed = nouveau_fbcon_output_poll_changed,
+	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = nv50_disp_atomic_check,
 	.atomic_commit = nv50_disp_atomic_commit,
 	.atomic_state_alloc = nv50_disp_atomic_state_alloc,
@@ -4350,7 +4406,6 @@ nv50_display_init(struct drm_device *dev)
 {
 	struct drm_encoder *encoder;
 	struct drm_plane *plane;
-	struct drm_crtc *crtc;
 	u32 *push;
 
 	push = evo_wait(nv50_mast(dev), 32);
@@ -4367,10 +4422,6 @@ nv50_display_init(struct drm_device *dev)
 				nouveau_encoder(encoder);
 			nv50_mstm_init(nv_encoder->dp.mstm);
 		}
-	}
-
-	drm_for_each_crtc(crtc, dev) {
-		nv50_head_lut_load(crtc);
 	}
 
 	drm_for_each_plane(plane, dev) {

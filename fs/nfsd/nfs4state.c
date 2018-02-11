@@ -3590,6 +3590,7 @@ nfsd4_verify_open_stid(struct nfs4_stid *s)
 	switch (s->sc_type) {
 	default:
 		break;
+	case 0:
 	case NFS4_CLOSED_STID:
 	case NFS4_CLOSED_DELEG_STID:
 		ret = nfserr_bad_stateid;
@@ -5182,7 +5183,6 @@ nfsd4_free_lock_stateid(stateid_t *stateid, struct nfs4_stid *s)
 			    lockowner(stp->st_stateowner)))
 		goto out;
 
-	stp->st_stid.sc_type = NFS4_CLOSED_STID;
 	release_lock_stateid(stp);
 	ret = nfs_ok;
 
@@ -6078,10 +6078,8 @@ out:
 		 * If this is a new, never-before-used stateid, and we are
 		 * returning an error, then just go ahead and release it.
 		 */
-		if (status && new) {
-			lock_stp->st_stid.sc_type = NFS4_CLOSED_STID;
+		if (status && new)
 			release_lock_stateid(lock_stp);
-		}
 
 		mutex_unlock(&lock_stp->st_mutex);
 

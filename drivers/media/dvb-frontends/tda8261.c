@@ -23,7 +23,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "tda8261.h"
 
 struct tda8261_state {

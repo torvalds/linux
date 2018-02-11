@@ -3,7 +3,7 @@
 #define SI21XX_H
 
 #include <linux/dvb/frontend.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 struct si21xx_config {
 	/* the demodulator's i2c address */

@@ -850,11 +850,11 @@ static int vsock_shutdown(struct socket *sock, int mode)
 	return err;
 }
 
-static unsigned int vsock_poll(struct file *file, struct socket *sock,
+static __poll_t vsock_poll(struct file *file, struct socket *sock,
 			       poll_table *wait)
 {
 	struct sock *sk;
-	unsigned int mask;
+	__poll_t mask;
 	struct vsock_sock *vsk;
 
 	sk = sock->sk;

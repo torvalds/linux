@@ -1893,8 +1893,6 @@ static enum i40iw_status_code i40iw_sc_get_next_aeqe(struct i40iw_sc_aeq *aeq,
 static enum i40iw_status_code i40iw_sc_repost_aeq_entries(struct i40iw_sc_dev *dev,
 							  u32 count)
 {
-	if (count > I40IW_MAX_AEQ_ALLOCATE_COUNT)
-		return I40IW_ERR_INVALID_SIZE;
 
 	if (dev->is_pf)
 		i40iw_wr32(dev->hw, I40E_PFPE_AEQALLOC, count);
@@ -3872,7 +3870,6 @@ enum i40iw_status_code i40iw_config_fpm_values(struct i40iw_sc_dev *dev, u32 qp_
 	struct i40iw_virt_mem virt_mem;
 	u32 i, mem_size;
 	u32 qpwantedoriginal, qpwanted, mrwanted, pblewanted;
-	u32 powerof2;
 	u64 sd_needed;
 	u32 loop_count = 0;
 
@@ -3928,8 +3925,10 @@ enum i40iw_status_code i40iw_config_fpm_values(struct i40iw_sc_dev *dev, u32 qp_
 		hmc_info->hmc_obj[I40IW_HMC_IW_APBVT_ENTRY].cnt = 1;
 		hmc_info->hmc_obj[I40IW_HMC_IW_MR].cnt = mrwanted;
 
-		hmc_info->hmc_obj[I40IW_HMC_IW_XF].cnt = I40IW_MAX_WQ_ENTRIES * qpwanted;
-		hmc_info->hmc_obj[I40IW_HMC_IW_Q1].cnt = 4 * I40IW_MAX_IRD_SIZE * qpwanted;
+		hmc_info->hmc_obj[I40IW_HMC_IW_XF].cnt =
+			roundup_pow_of_two(I40IW_MAX_WQ_ENTRIES * qpwanted);
+		hmc_info->hmc_obj[I40IW_HMC_IW_Q1].cnt =
+			roundup_pow_of_two(2 * I40IW_MAX_IRD_SIZE * qpwanted);
 		hmc_info->hmc_obj[I40IW_HMC_IW_XFFL].cnt =
 			hmc_info->hmc_obj[I40IW_HMC_IW_XF].cnt / hmc_fpm_misc->xf_block_size;
 		hmc_info->hmc_obj[I40IW_HMC_IW_Q1FL].cnt =
@@ -3945,24 +3944,16 @@ enum i40iw_status_code i40iw_config_fpm_values(struct i40iw_sc_dev *dev, u32 qp_
 		if ((loop_count > 1000) ||
 		    ((!(loop_count % 10)) &&
 		    (qpwanted > qpwantedoriginal * 2 / 3))) {
-			if (qpwanted > FPM_MULTIPLIER) {
-				qpwanted -= FPM_MULTIPLIER;
-				powerof2 = 1;
-				while (powerof2 < qpwanted)
-					powerof2 *= 2;
-				powerof2 /= 2;
-				qpwanted = powerof2;
-			} else {
-				qpwanted /= 2;
-			}
+			if (qpwanted > FPM_MULTIPLIER)
+				qpwanted = roundup_pow_of_two(qpwanted -
+							      FPM_MULTIPLIER);
+			qpwanted >>= 1;
 		}
 		if (mrwanted > FPM_MULTIPLIER * 10)
 			mrwanted -= FPM_MULTIPLIER * 10;
 		if (pblewanted > FPM_MULTIPLIER * 1000)
 			pblewanted -= FPM_MULTIPLIER * 1000;
 	} while (sd_needed > hmc_fpm_misc->max_sds && loop_count < 2000);
-
-	sd_needed = i40iw_est_sd(dev, hmc_info);
 
 	i40iw_debug(dev, I40IW_DEBUG_HMC,
 		    "loop_cnt=%d, sd_needed=%lld, qpcnt = %d, cqcnt=%d, mrcnt=%d, pblecnt=%d\n",

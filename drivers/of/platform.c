@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *    Copyright (C) 2006 Benjamin Herrenschmidt, IBM Corp.
  *			 <benh@kernel.crashing.org>
  *    and		 Arnd Bergmann, IBM Corp.
  *    Merged from powerpc/kernel/of_platform.c and
  *    sparc{,64}/kernel/of_device.c by Stephen Rothwell
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
- *
  */
 
 #define pr_fmt(fmt)	"OF: " fmt
@@ -517,6 +512,12 @@ static int __init of_platform_default_populate_init(void)
 	 */
 	for_each_matching_node(node, reserved_mem_matches)
 		of_platform_device_create(node, NULL, NULL);
+
+	node = of_find_node_by_path("/firmware");
+	if (node) {
+		of_platform_populate(node, NULL, NULL, NULL);
+		of_node_put(node);
+	}
 
 	/* Populate everything else. */
 	of_platform_default_populate(NULL, NULL, NULL);

@@ -53,8 +53,13 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <linux/gpio/consumer.h>
+#include <linux/nvmem-consumer.h>
 
 #include "hci_uart.h"
+
+/* Vendor-specific HCI commands */
+#define HCI_VS_WRITE_BD_ADDR			0xfc06
+#define HCI_VS_UPDATE_UART_HCI_BAUDRATE		0xff36
 
 /* HCILL commands */
 #define HCILL_GO_TO_SLEEP_IND	0x30
@@ -86,6 +91,7 @@ struct ll_device {
 	struct serdev_device *serdev;
 	struct gpio_desc *enable_gpio;
 	struct clk *ext_clk;
+	bdaddr_t bdaddr;
 };
 
 struct ll_struct {
@@ -620,7 +626,7 @@ static int download_firmware(struct ll_device *lldev)
 		case ACTION_SEND_COMMAND:	/* action send */
 			bt_dev_dbg(lldev->hu.hdev, "S");
 			cmd = (struct hci_command *)action_ptr;
-			if (cmd->opcode == 0xff36) {
+			if (cmd->opcode == HCI_VS_UPDATE_UART_HCI_BAUDRATE) {
 				/* ignore remote change
 				 * baud rate HCI VS command
 				 */
@@ -628,11 +634,11 @@ static int download_firmware(struct ll_device *lldev)
 				break;
 			}
 			if (cmd->prefix != 1)
-				bt_dev_dbg(lldev->hu.hdev, "command type %d\n", cmd->prefix);
+				bt_dev_dbg(lldev->hu.hdev, "command type %d", cmd->prefix);
 
 			skb = __hci_cmd_sync(lldev->hu.hdev, cmd->opcode, cmd->plen, &cmd->speed, HCI_INIT_TIMEOUT);
 			if (IS_ERR(skb)) {
-				bt_dev_err(lldev->hu.hdev, "send command failed\n");
+				bt_dev_err(lldev->hu.hdev, "send command failed");
 				err = PTR_ERR(skb);
 				goto out_rel_fw;
 			}
@@ -659,6 +665,24 @@ out_rel_fw:
 	return err;
 }
 
+static int ll_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
+{
+	bdaddr_t bdaddr_swapped;
+	struct sk_buff *skb;
+
+	/* HCI_VS_WRITE_BD_ADDR (at least on a CC2560A chip) expects the BD
+	 * address to be MSB first, but bdaddr_t has the convention of being
+	 * LSB first.
+	 */
+	baswap(&bdaddr_swapped, bdaddr);
+	skb = __hci_cmd_sync(hdev, HCI_VS_WRITE_BD_ADDR, sizeof(bdaddr_t),
+			     &bdaddr_swapped, HCI_INIT_TIMEOUT);
+	if (!IS_ERR(skb))
+		kfree_skb(skb);
+
+	return PTR_ERR_OR_ZERO(skb);
+}
+
 static int ll_setup(struct hci_uart *hu)
 {
 	int err, retry = 3;
@@ -671,14 +695,20 @@ static int ll_setup(struct hci_uart *hu)
 
 	lldev = serdev_device_get_drvdata(serdev);
 
+	hu->hdev->set_bdaddr = ll_set_bdaddr;
+
 	serdev_device_set_flow_control(serdev, true);
 
 	do {
-		/* Configure BT_EN to HIGH state */
+		/* Reset the Bluetooth device */
 		gpiod_set_value_cansleep(lldev->enable_gpio, 0);
 		msleep(5);
 		gpiod_set_value_cansleep(lldev->enable_gpio, 1);
-		msleep(100);
+		err = serdev_device_wait_for_cts(serdev, true, 200);
+		if (err) {
+			bt_dev_err(hu->hdev, "Failed to get CTS");
+			return err;
+		}
 
 		err = download_firmware(lldev);
 		if (!err)
@@ -691,6 +721,18 @@ static int ll_setup(struct hci_uart *hu)
 	if (err)
 		return err;
 
+	/* Set BD address if one was specified at probe */
+	if (!bacmp(&lldev->bdaddr, BDADDR_NONE)) {
+		/* This means that there was an error getting the BD address
+		 * during probe, so mark the device as having a bad address.
+		 */
+		set_bit(HCI_QUIRK_INVALID_BDADDR, &hu->hdev->quirks);
+	} else if (bacmp(&lldev->bdaddr, BDADDR_ANY)) {
+		err = ll_set_bdaddr(hu->hdev, &lldev->bdaddr);
+		if (err)
+			set_bit(HCI_QUIRK_INVALID_BDADDR, &hu->hdev->quirks);
+	}
+
 	/* Operational speed if any */
 	if (hu->oper_speed)
 		speed = hu->oper_speed;
@@ -700,7 +742,12 @@ static int ll_setup(struct hci_uart *hu)
 		speed = 0;
 
 	if (speed) {
-		struct sk_buff *skb = __hci_cmd_sync(hu->hdev, 0xff36, sizeof(speed), &speed, HCI_INIT_TIMEOUT);
+		__le32 speed_le = cpu_to_le32(speed);
+		struct sk_buff *skb;
+
+		skb = __hci_cmd_sync(hu->hdev, HCI_VS_UPDATE_UART_HCI_BAUDRATE,
+				     sizeof(speed_le), &speed_le,
+				     HCI_INIT_TIMEOUT);
 		if (!IS_ERR(skb)) {
 			kfree_skb(skb);
 			serdev_device_set_baudrate(serdev, speed);
@@ -716,6 +763,7 @@ static int hci_ti_probe(struct serdev_device *serdev)
 {
 	struct hci_uart *hu;
 	struct ll_device *lldev;
+	struct nvmem_cell *bdaddr_cell;
 	u32 max_speed = 3000000;
 
 	lldev = devm_kzalloc(&serdev->dev, sizeof(struct ll_device), GFP_KERNEL);
@@ -737,6 +785,52 @@ static int hci_ti_probe(struct serdev_device *serdev)
 	of_property_read_u32(serdev->dev.of_node, "max-speed", &max_speed);
 	hci_uart_set_speeds(hu, 115200, max_speed);
 
+	/* optional BD address from nvram */
+	bdaddr_cell = nvmem_cell_get(&serdev->dev, "bd-address");
+	if (IS_ERR(bdaddr_cell)) {
+		int err = PTR_ERR(bdaddr_cell);
+
+		if (err == -EPROBE_DEFER)
+			return err;
+
+		/* ENOENT means there is no matching nvmem cell and ENOSYS
+		 * means that nvmem is not enabled in the kernel configuration.
+		 */
+		if (err != -ENOENT && err != -ENOSYS) {
+			/* If there was some other error, give userspace a
+			 * chance to fix the problem instead of failing to load
+			 * the driver. Using BDADDR_NONE as a flag that is
+			 * tested later in the setup function.
+			 */
+			dev_warn(&serdev->dev,
+				 "Failed to get \"bd-address\" nvmem cell (%d)\n",
+				 err);
+			bacpy(&lldev->bdaddr, BDADDR_NONE);
+		}
+	} else {
+		bdaddr_t *bdaddr;
+		size_t len;
+
+		bdaddr = nvmem_cell_read(bdaddr_cell, &len);
+		nvmem_cell_put(bdaddr_cell);
+		if (IS_ERR(bdaddr)) {
+			dev_err(&serdev->dev, "Failed to read nvmem bd-address\n");
+			return PTR_ERR(bdaddr);
+		}
+		if (len != sizeof(bdaddr_t)) {
+			dev_err(&serdev->dev, "Invalid nvmem bd-address length\n");
+			kfree(bdaddr);
+			return -EINVAL;
+		}
+
+		/* As per the device tree bindings, the value from nvmem is
+		 * expected to be MSB first, but in the kernel it is expected
+		 * that bdaddr_t is LSB first.
+		 */
+		baswap(&lldev->bdaddr, bdaddr);
+		kfree(bdaddr);
+	}
+
 	return hci_uart_register_device(hu, &llp);
 }
 
@@ -748,6 +842,7 @@ static void hci_ti_remove(struct serdev_device *serdev)
 }
 
 static const struct of_device_id hci_ti_of_match[] = {
+	{ .compatible = "ti,cc2560" },
 	{ .compatible = "ti,wl1271-st" },
 	{ .compatible = "ti,wl1273-st" },
 	{ .compatible = "ti,wl1281-st" },
