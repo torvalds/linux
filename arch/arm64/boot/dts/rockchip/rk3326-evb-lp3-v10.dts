@@ -541,7 +541,6 @@
 			};
 
 			otg_switch: OTG_SWITCH {
-				regulator-always-on;
 				regulator-boot-on;
 				regulator-name = "otg_switch";
 			};
