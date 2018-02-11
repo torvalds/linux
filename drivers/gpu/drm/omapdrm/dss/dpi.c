@@ -141,7 +141,7 @@ static enum dss_clk_source dpi_get_clk_src(struct dpi_data *dpi)
 
 struct dpi_clk_calc_ctx {
 	struct dss_pll *pll;
-	unsigned clkout_idx;
+	unsigned int clkout_idx;
 
 	/* inputs */
 

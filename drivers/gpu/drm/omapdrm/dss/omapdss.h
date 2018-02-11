@@ -198,8 +198,8 @@ enum omap_dss_dsi_trans_mode {
 struct omap_dss_dsi_videomode_timings {
 	unsigned long hsclk;
 
-	unsigned ndl;
-	unsigned bitspp;
+	unsigned int ndl;
+	unsigned int bitspp;
 
 	/* pixels */
 	u16 hact;

@@ -969,7 +969,7 @@ static void dispc_ovl_set_pre_mult_alpha(enum omap_plane_id plane,
 static void dispc_ovl_setup_global_alpha(enum omap_plane_id plane,
 		enum omap_overlay_caps caps, u8 global_alpha)
 {
-	static const unsigned shifts[] = { 0, 8, 16, 24, };
+	static const unsigned int shifts[] = { 0, 8, 16, 24, };
 	int shift;
 
 	if ((caps & OMAP_DSS_OVL_CAP_GLOBAL_ALPHA) == 0)
@@ -1197,7 +1197,7 @@ void dispc_wb_set_channel_in(enum dss_writeback_channel channel)
 static void dispc_ovl_set_burst_size(enum omap_plane_id plane,
 		enum omap_burst_size burst_size)
 {
-	static const unsigned shifts[] = { 6, 14, 14, 14, 14, };
+	static const unsigned int shifts[] = { 6, 14, 14, 14, 14, };
 	int shift;
 
 	shift = shifts[plane];
@@ -1285,7 +1285,7 @@ static void dispc_ovl_set_vid_color_conv(enum omap_plane_id plane,
 static void dispc_ovl_enable_replication(enum omap_plane_id plane,
 		enum omap_overlay_caps caps, bool enable)
 {
-	static const unsigned shifts[] = { 5, 10, 10, 10 };
+	static const unsigned int shifts[] = { 5, 10, 10, 10 };
 	int shift;
 
 	if ((caps & OMAP_DSS_OVL_CAP_REPLICATION) == 0)
@@ -1450,9 +1450,8 @@ void dispc_ovl_compute_fifo_thresholds(enum omap_plane_id plane,
 	 * All sizes are in bytes. Both the buffer and burst are made of
 	 * buffer_units, and the fifo thresholds must be buffer_unit aligned.
 	 */
-
-	unsigned buf_unit = dispc.feat->buffer_size_unit;
-	unsigned ovl_fifo_size, total_fifo_size, burst_size;
+	unsigned int buf_unit = dispc.feat->buffer_size_unit;
+	unsigned int ovl_fifo_size, total_fifo_size, burst_size;
 	int i;
 
 	burst_size = dispc_ovl_get_burst_size(plane);
@@ -2006,8 +2005,8 @@ static s32 pixinc(int pixels, u8 ps)
 }
 
 static void calc_offset(u16 screen_width, u16 width,
-		u32 fourcc, bool fieldmode,
-		unsigned int field_offset, unsigned *offset0, unsigned *offset1,
+		u32 fourcc, bool fieldmode, unsigned int field_offset,
+		unsigned int *offset0, unsigned int *offset1,
 		s32 *row_inc, s32 *pix_inc, int x_predecim, int y_predecim,
 		enum omap_dss_rotation_type rotation_type, u8 rotation)
 {
@@ -2477,7 +2476,7 @@ static int dispc_ovl_setup_common(enum omap_plane_id plane,
 	bool five_taps = true;
 	bool fieldmode = false;
 	int r, cconv = 0;
-	unsigned offset0, offset1;
+	unsigned int offset0, offset1;
 	s32 row_inc;
 	s32 pix_inc;
 	u16 frame_width, frame_height;
@@ -3040,7 +3039,7 @@ static int vm_flag_to_int(enum display_flags flags, enum display_flags high,
 static void dispc_mgr_set_timings(enum omap_channel channel,
 			   const struct videomode *vm)
 {
-	unsigned xtot, ytot;
+	unsigned int xtot, ytot;
 	unsigned long ht, vt;
 	struct videomode t = *vm;
 
@@ -3119,7 +3118,7 @@ static unsigned long dispc_fclk_rate(void)
 		r = dss_get_dispc_clk_rate();
 	} else {
 		struct dss_pll *pll;
-		unsigned clkout_idx;
+		unsigned int clkout_idx;
 
 		pll = dss_pll_find_by_src(src);
 		clkout_idx = dss_pll_get_clkout_idx_for_src(src);
@@ -3146,7 +3145,7 @@ static unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 		r = dss_get_dispc_clk_rate();
 	} else {
 		struct dss_pll *pll;
-		unsigned clkout_idx;
+		unsigned int clkout_idx;
 
 		pll = dss_pll_find_by_src(src);
 		clkout_idx = dss_pll_get_clkout_idx_for_src(src);
@@ -3487,7 +3486,7 @@ bool dispc_div_calc(unsigned long dispc_freq,
 	unsigned long pck, lck;
 	unsigned long lck_max;
 	unsigned long pckd_hw_min, pckd_hw_max;
-	unsigned min_fck_per_pck;
+	unsigned int min_fck_per_pck;
 	unsigned long fck;
 
 #ifdef CONFIG_OMAP2_DSS_MIN_FCK_PER_PCK

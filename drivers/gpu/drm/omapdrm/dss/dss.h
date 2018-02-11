@@ -167,10 +167,10 @@ struct dss_pll_ops {
 struct dss_pll_hw {
 	enum dss_pll_type type;
 
-	unsigned n_max;
-	unsigned m_min;
-	unsigned m_max;
-	unsigned mX_max;
+	unsigned int n_max;
+	unsigned int m_min;
+	unsigned int m_max;
+	unsigned int mX_max;
 
 	unsigned long fint_min, fint_max;
 	unsigned long clkdco_min, clkdco_low, clkdco_max;
@@ -390,7 +390,7 @@ int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 		bool mem_to_mem, const struct videomode *vm);
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-static inline void dss_collect_irq_stats(u32 irqstatus, unsigned *irq_arr)
+static inline void dss_collect_irq_stats(u32 irqstatus, unsigned int *irq_arr)
 {
 	int b;
 	for (b = 0; b < 32; ++b) {
@@ -410,7 +410,7 @@ int dss_pll_register(struct dss_pll *pll);
 void dss_pll_unregister(struct dss_pll *pll);
 struct dss_pll *dss_pll_find(const char *name);
 struct dss_pll *dss_pll_find_by_src(enum dss_clk_source src);
-unsigned dss_pll_get_clkout_idx_for_src(enum dss_clk_source src);
+unsigned int dss_pll_get_clkout_idx_for_src(enum dss_clk_source src);
 int dss_pll_enable(struct dss_pll *pll);
 void dss_pll_disable(struct dss_pll *pll);
 int dss_pll_set_config(struct dss_pll *pll,

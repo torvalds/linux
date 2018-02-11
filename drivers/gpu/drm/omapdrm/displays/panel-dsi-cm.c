@@ -86,7 +86,7 @@ struct panel_drv_data {
 	struct workqueue_struct *workqueue;
 
 	bool ulps_enabled;
-	unsigned ulps_timeout;
+	unsigned int ulps_timeout;
 	struct delayed_work ulps_work;
 };
 
@@ -513,7 +513,7 @@ static ssize_t dsicm_show_ulps(struct device *dev,
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	unsigned t;
+	unsigned int t;
 
 	mutex_lock(&ddata->lock);
 	t = ddata->ulps_enabled;
@@ -560,7 +560,7 @@ static ssize_t dsicm_show_ulps_timeout(struct device *dev,
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	unsigned t;
+	unsigned int t;
 
 	mutex_lock(&ddata->lock);
 	t = ddata->ulps_timeout;
@@ -1064,7 +1064,7 @@ static int dsicm_memory_read(struct omap_dss_device *dssdev,
 	int r;
 	int first = 1;
 	int plen;
-	unsigned buf_used = 0;
+	unsigned int buf_used = 0;
 
 	if (size < w * h * 3)
 		return -ENOMEM;

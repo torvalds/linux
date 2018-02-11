@@ -105,7 +105,7 @@ struct dss_pll *dss_pll_find_by_src(enum dss_clk_source src)
 	}
 }
 
-unsigned dss_pll_get_clkout_idx_for_src(enum dss_clk_source src)
+unsigned int dss_pll_get_clkout_idx_for_src(enum dss_clk_source src)
 {
 	switch (src) {
 	case DSS_CLK_SRC_HDMI_PLL:
@@ -277,7 +277,7 @@ bool dss_pll_calc_b(const struct dss_pll *pll, unsigned long clkin,
 	unsigned long fint, clkdco, clkout;
 	unsigned long target_clkdco;
 	unsigned long min_dco;
-	unsigned n, m, mf, m2, sd;
+	unsigned int n, m, mf, m2, sd;
 	const struct dss_pll_hw *hw = pll->hw;
 
 	DSSDBG("clkin %lu, target clkout %lu\n", clkin, target_clkout);

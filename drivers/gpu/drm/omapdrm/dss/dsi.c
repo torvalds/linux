@@ -269,10 +269,10 @@ enum dsi_vc_source {
 
 struct dsi_irq_stats {
 	unsigned long last_reset;
-	unsigned irq_count;
-	unsigned dsi_irqs[32];
-	unsigned vc_irqs[4][32];
-	unsigned cio_irqs[32];
+	unsigned int irq_count;
+	unsigned int dsi_irqs[32];
+	unsigned int vc_irqs[4][32];
+	unsigned int cio_irqs[32];
 };
 
 struct dsi_isr_tables {
@@ -373,7 +373,7 @@ struct dsi_data {
 
 	int update_channel;
 #ifdef DSI_PERF_MEASURE
-	unsigned update_bytes;
+	unsigned int update_bytes;
 #endif
 
 	bool te_enabled;
@@ -406,13 +406,13 @@ struct dsi_data {
 	struct dsi_irq_stats irq_stats;
 #endif
 
-	unsigned num_lanes_supported;
-	unsigned line_buffer_size;
+	unsigned int num_lanes_supported;
+	unsigned int line_buffer_size;
 
 	struct dsi_lane_config lanes[DSI_MAX_NR_LANES];
-	unsigned num_lanes_used;
+	unsigned int num_lanes_used;
 
-	unsigned scp_clk_refcount;
+	unsigned int scp_clk_refcount;
 
 	struct dss_lcd_mgr_config mgr_config;
 	struct videomode vm;
@@ -782,7 +782,7 @@ static void dsi_handle_irq_errors(struct platform_device *dsidev, u32 irqstatus,
 }
 
 static void dsi_call_isrs(struct dsi_isr_data *isr_array,
-		unsigned isr_array_size, u32 irqstatus)
+		unsigned int isr_array_size, u32 irqstatus)
 {
 	struct dsi_isr_data *isr_data;
 	int i;
@@ -891,7 +891,7 @@ static irqreturn_t omap_dsi_irq_handler(int irq, void *arg)
 /* dsi->irq_lock has to be locked by the caller */
 static void _omap_dsi_configure_irqs(struct platform_device *dsidev,
 		struct dsi_isr_data *isr_array,
-		unsigned isr_array_size, u32 default_mask,
+		unsigned int isr_array_size, u32 default_mask,
 		const struct dsi_reg enable_reg,
 		const struct dsi_reg status_reg)
 {
@@ -975,7 +975,7 @@ static void _dsi_initialize_irq(struct platform_device *dsidev)
 }
 
 static int _dsi_register_isr(omap_dsi_isr_t isr, void *arg, u32 mask,
-		struct dsi_isr_data *isr_array, unsigned isr_array_size)
+		struct dsi_isr_data *isr_array, unsigned int isr_array_size)
 {
 	struct dsi_isr_data *isr_data;
 	int free_idx;
@@ -1009,7 +1009,7 @@ static int _dsi_register_isr(omap_dsi_isr_t isr, void *arg, u32 mask,
 }
 
 static int _dsi_unregister_isr(omap_dsi_isr_t isr, void *arg, u32 mask,
-		struct dsi_isr_data *isr_array, unsigned isr_array_size)
+		struct dsi_isr_data *isr_array, unsigned int isr_array_size)
 {
 	struct dsi_isr_data *isr_data;
 	int i;
@@ -1301,7 +1301,7 @@ static int dsi_lp_clock_calc(unsigned long dsi_fclk,
 		unsigned long lp_clk_min, unsigned long lp_clk_max,
 		struct dsi_lp_clock_info *lp_cinfo)
 {
-	unsigned lp_clk_div;
+	unsigned int lp_clk_div;
 	unsigned long lp_clk;
 
 	lp_clk_div = DIV_ROUND_UP(dsi_fclk, lp_clk_max * 2);
@@ -1320,9 +1320,9 @@ static int dsi_set_lp_clk_divisor(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	unsigned long dsi_fclk;
-	unsigned lp_clk_div;
+	unsigned int lp_clk_div;
 	unsigned long lp_clk;
-	unsigned lpdiv_max = dsi->data->max_pll_lpdiv;
+	unsigned int lpdiv_max = dsi->data->max_pll_lpdiv;
 
 
 	lp_clk_div = dsi->user_lp_cinfo.lp_clk_div;
@@ -1798,7 +1798,7 @@ static int dsi_cio_power(struct platform_device *dsidev,
 	return 0;
 }
 
-static unsigned dsi_get_line_buf_size(struct platform_device *dsidev)
+static unsigned int dsi_get_line_buf_size(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int val;
@@ -1850,9 +1850,9 @@ static int dsi_set_lane_config(struct platform_device *dsidev)
 	r = dsi_read_reg(dsidev, DSI_COMPLEXIO_CFG1);
 
 	for (i = 0; i < dsi->num_lanes_used; ++i) {
-		unsigned offset = offsets[i];
-		unsigned polarity, lane_number;
-		unsigned t;
+		unsigned int offset = offsets[i];
+		unsigned int polarity, lane_number;
+		unsigned int t;
 
 		for (t = 0; t < dsi->num_lanes_supported; ++t)
 			if (dsi->lanes[t].function == functions[i])
@@ -1870,7 +1870,7 @@ static int dsi_set_lane_config(struct platform_device *dsidev)
 
 	/* clear the unused lanes */
 	for (; i < dsi->num_lanes_supported; ++i) {
-		unsigned offset = offsets[i];
+		unsigned int offset = offsets[i];
 
 		r = FLD_MOD(r, 0, offset + 2, offset);
 		r = FLD_MOD(r, 0, offset + 3, offset + 3);
@@ -1881,7 +1881,8 @@ static int dsi_set_lane_config(struct platform_device *dsidev)
 	return 0;
 }
 
-static inline unsigned ns2ddr(struct platform_device *dsidev, unsigned ns)
+static inline unsigned int ns2ddr(struct platform_device *dsidev,
+				  unsigned int ns)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
@@ -1890,7 +1891,8 @@ static inline unsigned ns2ddr(struct platform_device *dsidev, unsigned ns)
 	return (ns * (ddr_clk / 1000 / 1000) + 999) / 1000;
 }
 
-static inline unsigned ddr2ns(struct platform_device *dsidev, unsigned ddr)
+static inline unsigned int ddr2ns(struct platform_device *dsidev,
+				  unsigned int ddr)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
@@ -1978,7 +1980,7 @@ static void dsi_cio_timings(struct platform_device *dsidev)
 
 /* lane masks have lane 0 at lsb. mask_p for positive lines, n for negative */
 static void dsi_cio_enable_lane_override(struct platform_device *dsidev,
-		unsigned mask_p, unsigned mask_n)
+		unsigned int mask_p, unsigned int mask_n)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int i;
@@ -1988,7 +1990,7 @@ static void dsi_cio_enable_lane_override(struct platform_device *dsidev,
 	l = 0;
 
 	for (i = 0; i < dsi->num_lanes_supported; ++i) {
-		unsigned p = dsi->lanes[i].polarity;
+		unsigned int p = dsi->lanes[i].polarity;
 
 		if (mask_p & (1 << i))
 			l |= 1 << (i * 2 + (p ? 0 : 1));
@@ -2075,10 +2077,10 @@ static int dsi_cio_wait_tx_clk_esc_reset(struct platform_device *dsidev)
 }
 
 /* return bitmask of enabled lanes, lane0 being the lsb */
-static unsigned dsi_get_lane_mask(struct platform_device *dsidev)
+static unsigned int dsi_get_lane_mask(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	unsigned mask = 0;
+	unsigned int mask = 0;
 	int i;
 
 	for (i = 0; i < dsi->num_lanes_supported; ++i) {
@@ -2204,7 +2206,7 @@ static int dsi_cio_init(struct platform_device *dsidev)
 	dsi_write_reg(dsidev, DSI_TIMING1, l);
 
 	if (dsi->ulps_enabled) {
-		unsigned mask_p;
+		unsigned int mask_p;
 		int i;
 
 		DSSDBG("manual ulps exit\n");
@@ -3223,7 +3225,7 @@ static int dsi_enter_ulps(struct platform_device *dsidev)
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	DECLARE_COMPLETION_ONSTACK(completion);
 	int r, i;
-	unsigned mask;
+	unsigned int mask;
 
 	DSSDBG("Entering ULPS");
 
@@ -3313,7 +3315,7 @@ err:
 }
 
 static void dsi_set_lp_rx_timeout(struct platform_device *dsidev,
-		unsigned ticks, bool x4, bool x16)
+		unsigned int ticks, bool x4, bool x16)
 {
 	unsigned long fck;
 	unsigned long total_ticks;
@@ -3339,8 +3341,8 @@ static void dsi_set_lp_rx_timeout(struct platform_device *dsidev,
 			(total_ticks * 1000) / (fck / 1000 / 1000));
 }
 
-static void dsi_set_ta_timeout(struct platform_device *dsidev, unsigned ticks,
-		bool x8, bool x16)
+static void dsi_set_ta_timeout(struct platform_device *dsidev,
+			       unsigned int ticks, bool x8, bool x16)
 {
 	unsigned long fck;
 	unsigned long total_ticks;
@@ -3367,7 +3369,7 @@ static void dsi_set_ta_timeout(struct platform_device *dsidev, unsigned ticks,
 }
 
 static void dsi_set_stop_state_counter(struct platform_device *dsidev,
-		unsigned ticks, bool x4, bool x16)
+				       unsigned int ticks, bool x4, bool x16)
 {
 	unsigned long fck;
 	unsigned long total_ticks;
@@ -3394,7 +3396,7 @@ static void dsi_set_stop_state_counter(struct platform_device *dsidev,
 }
 
 static void dsi_set_hs_tx_timeout(struct platform_device *dsidev,
-		unsigned ticks, bool x4, bool x16)
+				  unsigned int ticks, bool x4, bool x16)
 {
 	unsigned long fck;
 	unsigned long total_ticks;
@@ -3740,13 +3742,13 @@ static int dsi_proto_config(struct platform_device *dsidev)
 static void dsi_proto_timings(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	unsigned tlpx, tclk_zero, tclk_prepare, tclk_trail;
-	unsigned tclk_pre, tclk_post;
-	unsigned ths_prepare, ths_prepare_ths_zero, ths_zero;
-	unsigned ths_trail, ths_exit;
-	unsigned ddr_clk_pre, ddr_clk_post;
-	unsigned enter_hs_mode_lat, exit_hs_mode_lat;
-	unsigned ths_eot;
+	unsigned int tlpx, tclk_zero, tclk_prepare, tclk_trail;
+	unsigned int tclk_pre, tclk_post;
+	unsigned int ths_prepare, ths_prepare_ths_zero, ths_zero;
+	unsigned int ths_trail, ths_exit;
+	unsigned int ddr_clk_pre, ddr_clk_post;
+	unsigned int enter_hs_mode_lat, exit_hs_mode_lat;
+	unsigned int ths_eot;
 	int ndl = dsi->num_lanes_used - 1;
 	u32 r;
 
@@ -4014,16 +4016,16 @@ static void dsi_update_screen_dispc(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	enum omap_channel dispc_channel = dsi->output.dispc_channel;
-	unsigned bytespp;
-	unsigned bytespl;
-	unsigned bytespf;
-	unsigned total_len;
-	unsigned packet_payload;
-	unsigned packet_len;
+	unsigned int bytespp;
+	unsigned int bytespl;
+	unsigned int bytespf;
+	unsigned int total_len;
+	unsigned int packet_payload;
+	unsigned int packet_len;
 	u32 l;
 	int r;
 	const unsigned channel = dsi->update_channel;
-	const unsigned line_buf_size = dsi->line_buffer_size;
+	const unsigned int line_buf_size = dsi->line_buffer_size;
 	u16 w = dsi->vm.hactive;
 	u16 h = dsi->vm.vactive;
 

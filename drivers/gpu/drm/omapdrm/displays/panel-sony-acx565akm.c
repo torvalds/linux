@@ -289,7 +289,7 @@ static void enable_backlight_ctrl(struct panel_drv_data *ddata, int enable)
 	acx565akm_write(ddata, MIPID_CMD_WRITE_CTRL_DISP, (u8 *)&ctrl, 2);
 }
 
-static void set_cabc_mode(struct panel_drv_data *ddata, unsigned mode)
+static void set_cabc_mode(struct panel_drv_data *ddata, unsigned int mode)
 {
 	u16 cabc_ctrl;
 
@@ -303,12 +303,12 @@ static void set_cabc_mode(struct panel_drv_data *ddata, unsigned mode)
 	acx565akm_write(ddata, MIPID_CMD_WRITE_CABC, (u8 *)&cabc_ctrl, 2);
 }
 
-static unsigned get_cabc_mode(struct panel_drv_data *ddata)
+static unsigned int get_cabc_mode(struct panel_drv_data *ddata)
 {
 	return ddata->cabc_mode;
 }
 
-static unsigned get_hw_cabc_mode(struct panel_drv_data *ddata)
+static unsigned int get_hw_cabc_mode(struct panel_drv_data *ddata)
 {
 	u8 cabc_ctrl;
 

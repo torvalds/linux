@@ -181,8 +181,8 @@ static void dss_restore_context(void)
 
 void dss_ctrl_pll_enable(enum dss_pll_id pll_id, bool enable)
 {
-	unsigned shift;
-	unsigned val;
+	unsigned int shift;
+	unsigned int val;
 
 	if (!dss.syscon_pll_ctrl)
 		return;
@@ -211,7 +211,7 @@ void dss_ctrl_pll_enable(enum dss_pll_id pll_id, bool enable)
 static int dss_ctrl_pll_set_control_mux(enum dss_clk_source clk_src,
 	enum omap_channel channel)
 {
-	unsigned shift, val;
+	unsigned int shift, val;
 
 	if (!dss.syscon_pll_ctrl)
 		return -EINVAL;
@@ -620,12 +620,12 @@ bool dss_div_calc(unsigned long pck, unsigned long fck_min,
 	unsigned long fck_hw_max;
 	unsigned long fckd_hw_max;
 	unsigned long prate;
-	unsigned m;
+	unsigned int m;
 
 	fck_hw_max = dss.feat->fck_freq_max;
 
 	if (dss.parent_clk == NULL) {
-		unsigned pckd;
+		unsigned int pckd;
 
 		pckd = fck_hw_max / pck;
 
@@ -694,7 +694,7 @@ static int dss_setup_default_clock(void)
 {
 	unsigned long max_dss_fck, prate;
 	unsigned long fck;
-	unsigned fck_div;
+	unsigned int fck_div;
 	int r;
 
 	max_dss_fck = dss.feat->fck_freq_max;

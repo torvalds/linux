@@ -175,7 +175,7 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	struct videomode *vm;
 	enum omap_channel channel = dssdev->dispc_channel;
 	struct dss_pll_clock_info hdmi_cinfo = { 0 };
-	unsigned pc;
+	unsigned int pc;
 
 	r = hdmi_power_on_core(dssdev);
 	if (r)
