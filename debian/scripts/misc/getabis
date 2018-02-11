@@ -75,6 +75,11 @@ getall() {
 			else
 				echo -n "NO ABI FILE..."
 			fi
+			if [ -f tmp/boot/retpoline-* ]; then
+				mv tmp/boot/retpoline-* $abidir/$arch/$sub.retpoline
+			else
+				echo -n "NO RETPOLINE FILE..."
+			fi
 			(cd tmp; find lib/modules/$verabi-$sub/kernel -name '*.ko') | \
 				sed -e 's/.*\/\([^\/]*\)\.ko/\1/' | sort > \
 				$abidir/$arch/$sub.modules
