@@ -154,6 +154,7 @@ PNAME(mux_i2s0_rx_out_p)	= { "clk_i2s0_rx", "xin12m", "clk_i2s0_tx"};
 PNAME(mux_i2s1_out_p)		= { "clk_i2s1", "xin12m"};
 PNAME(mux_i2s2_out_p)		= { "clk_i2s2", "xin12m"};
 PNAME(mux_i2s0_tx_rx_p)		= { "clk_i2s0_tx_mux", "clk_i2s0_rx_mux"};
+PNAME(mux_i2s0_rx_tx_p)		= { "clk_i2s0_rx_mux", "clk_i2s0_tx_mux"};
 PNAME(mux_uart_src_p)		= { "gpll", "xin24m", "usb480m", "npll" };
 PNAME(mux_uart1_p)		= { "clk_uart1_src", "clk_uart1_np5", "clk_uart1_frac" };
 PNAME(mux_uart2_p)		= { "clk_uart2_src", "clk_uart2_np5", "clk_uart2_frac" };
@@ -656,7 +657,7 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 			PX30_CLKSEL_CON(59), 0,
 			PX30_CLKGATE_CON(17), 1, GFLAGS,
 			&px30_i2s0_rx_fracmux),
-	COMPOSITE_NODIV(SCLK_I2S0_RX, "clk_i2s0_rx", mux_i2s0_tx_rx_p, CLK_SET_RATE_PARENT,
+	COMPOSITE_NODIV(SCLK_I2S0_RX, "clk_i2s0_rx", mux_i2s0_rx_tx_p, CLK_SET_RATE_PARENT,
 			PX30_CLKSEL_CON(58), 12, 1, MFLAGS,
 			PX30_CLKGATE_CON(17), 2, GFLAGS),
 	COMPOSITE_NODIV(0, "clk_i2s0_rx_out_pre", mux_i2s0_rx_out_p, 0,
