@@ -3912,28 +3912,30 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
-		ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentGfxclkIndex);
-		if (!ret) {
-			vega10_read_arg_from_smc(hwmgr, &sclk_idx);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentGfxclkIndex);
+		vega10_read_arg_from_smc(hwmgr, &sclk_idx);
+		if (sclk_idx <  dpm_table->gfx_table.count) {
 			*((uint32_t *)value) = dpm_table->gfx_table.dpm_levels[sclk_idx].value;
 			*size = 4;
+		} else {
+			ret = -EINVAL;
 		}
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
-		ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentUclkIndex);
-		if (!ret) {
-			vega10_read_arg_from_smc(hwmgr, &mclk_idx);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentUclkIndex);
+		vega10_read_arg_from_smc(hwmgr, &mclk_idx);
+		if (mclk_idx < dpm_table->mem_table.count) {
 			*((uint32_t *)value) = dpm_table->mem_table.dpm_levels[mclk_idx].value;
 			*size = 4;
+		} else {
+			ret = -EINVAL;
 		}
 		break;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		ret = smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetAverageGfxActivity, 0);
-		if (!ret) {
-			vega10_read_arg_from_smc(hwmgr, &activity_percent);
-			*((uint32_t *)value) = activity_percent > 100 ? 100 : activity_percent;
-			*size = 4;
-		}
+		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetAverageGfxActivity, 0);
+		vega10_read_arg_from_smc(hwmgr, &activity_percent);
+		*((uint32_t *)value) = activity_percent > 100 ? 100 : activity_percent;
+		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_TEMP:
 		*((uint32_t *)value) = vega10_thermal_get_temperature(hwmgr);
