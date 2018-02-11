@@ -410,11 +410,7 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 	if (ret)
 		return ret;
 
-	ret = fujitsu_backlight_register(device);
-	if (ret)
-		return ret;
-
-	return 0;
+	return fujitsu_backlight_register(device);
 }
 
 /* Brightness notify */
@@ -790,10 +786,8 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 	spin_lock_init(&priv->fifo_lock);
 	ret = kfifo_alloc(&priv->fifo, RINGBUFFERSIZE * sizeof(int),
 			  GFP_KERNEL);
-	if (ret) {
-		pr_err("kfifo_alloc failed\n");
-		goto err_stop;
-	}
+	if (ret)
+		return ret;
 
 	pr_info("ACPI: %s [%s]\n",
 		acpi_device_name(device), acpi_device_bid(device));
@@ -845,7 +839,7 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 
 err_free_fifo:
 	kfifo_free(&priv->fifo);
-err_stop:
+
 	return ret;
 }
 
