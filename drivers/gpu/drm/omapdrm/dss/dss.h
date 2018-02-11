@@ -356,7 +356,6 @@ void dispc_disable_sidle(void);
 void dispc_lcd_enable_signal(bool enable);
 void dispc_pck_free_enable(bool enable);
 void dispc_enable_fifomerge(bool enable);
-void dispc_enable_gamma_table(bool enable);
 
 typedef bool (*dispc_div_calc_func)(int lckd, int pckd, unsigned long lck,
 		unsigned long pck, void *data);
