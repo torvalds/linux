@@ -93,6 +93,12 @@ static int dwc3_of_simple_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, simple);
 	simple->dev = dev;
 
+	if (of_device_is_compatible(np, "amlogic,meson-axg-dwc3") ||
+	    of_device_is_compatible(np, "amlogic,meson-gxl-dwc3")) {
+		shared_resets = true;
+		simple->pulse_resets = true;
+	}
+
 	simple->resets = of_reset_control_array_get(np, shared_resets, true);
 	if (IS_ERR(simple->resets)) {
 		ret = PTR_ERR(simple->resets);
@@ -207,6 +213,8 @@ static const struct of_device_id of_dwc3_simple_match[] = {
 	{ .compatible = "xlnx,zynqmp-dwc3" },
 	{ .compatible = "cavium,octeon-7130-usb-uctl" },
 	{ .compatible = "sprd,sc9860-dwc3" },
+	{ .compatible = "amlogic,meson-axg-dwc3" },
+	{ .compatible = "amlogic,meson-gxl-dwc3" },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, of_dwc3_simple_match);
