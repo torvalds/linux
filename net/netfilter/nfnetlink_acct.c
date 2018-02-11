@@ -467,8 +467,7 @@ static void nfnl_overquota_report(struct net *net, struct nf_acct *nfacct)
 			  GFP_ATOMIC);
 }
 
-int nfnl_acct_overquota(struct net *net, const struct sk_buff *skb,
-			struct nf_acct *nfacct)
+int nfnl_acct_overquota(struct net *net, struct nf_acct *nfacct)
 {
 	u64 now;
 	u64 *quota;
