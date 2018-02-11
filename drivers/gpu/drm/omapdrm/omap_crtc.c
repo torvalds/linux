@@ -272,7 +272,7 @@ static const struct dss_mgr_ops mgr_ops = {
  * Setup, Flush and Page Flip
  */
 
-void omap_crtc_error_irq(struct drm_crtc *crtc, uint32_t irqstatus)
+void omap_crtc_error_irq(struct drm_crtc *crtc, u32 irqstatus)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 
@@ -492,7 +492,7 @@ static int omap_crtc_atomic_check(struct drm_crtc *crtc,
 	struct drm_plane_state *pri_state;
 
 	if (state->color_mgmt_changed && state->gamma_lut) {
-		uint length = state->gamma_lut->length /
+		unsigned int length = state->gamma_lut->length /
 			sizeof(struct drm_color_lut);
 
 		if (length < 2)
@@ -526,7 +526,7 @@ static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
 
 	if (crtc->state->color_mgmt_changed) {
 		struct drm_color_lut *lut = NULL;
-		uint length = 0;
+		unsigned int length = 0;
 
 		if (crtc->state->gamma_lut) {
 			lut = (struct drm_color_lut *)
@@ -557,7 +557,7 @@ static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
 static int omap_crtc_atomic_set_property(struct drm_crtc *crtc,
 					 struct drm_crtc_state *state,
 					 struct drm_property *property,
-					 uint64_t val)
+					 u64 val)
 {
 	struct omap_drm_private *priv = crtc->dev->dev_private;
 	struct drm_plane_state *plane_state;
@@ -585,7 +585,7 @@ static int omap_crtc_atomic_set_property(struct drm_crtc *crtc,
 static int omap_crtc_atomic_get_property(struct drm_crtc *crtc,
 					 const struct drm_crtc_state *state,
 					 struct drm_property *property,
-					 uint64_t *val)
+					 u64 *val)
 {
 	struct omap_drm_private *priv = crtc->dev->dev_private;
 	struct omap_crtc_state *omap_state = to_omap_crtc_state(state);
@@ -732,7 +732,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	 * gamma table is not supprted.
 	 */
 	if (priv->dispc_ops->mgr_gamma_size(channel)) {
-		uint gamma_lut_size = 256;
+		unsigned int gamma_lut_size = 256;
 
 		drm_crtc_enable_color_mgmt(crtc, 0, false, gamma_lut_size);
 		drm_mode_crtc_set_gamma_size(crtc, gamma_lut_size);

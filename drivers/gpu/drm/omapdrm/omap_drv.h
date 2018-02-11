@@ -46,7 +46,7 @@
 struct omap_drm_usergart;
 
 struct omap_drm_private {
-	uint32_t omaprev;
+	u32 omaprev;
 
 	const struct dispc_ops *dispc_ops;
 
@@ -81,7 +81,7 @@ struct omap_drm_private {
 	/* irq handling: */
 	spinlock_t wait_lock;		/* protects the wait_list */
 	struct list_head wait_list;	/* list of omap_irq_wait */
-	uint32_t irq_mask;		/* enabled irqs in addition to wait_list */
+	u32 irq_mask;			/* enabled irqs in addition to wait_list */
 
 	/* memory bandwidth limit if it is needed on the platform */
 	unsigned int max_bandwidth;

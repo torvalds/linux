@@ -201,7 +201,7 @@ static void omap_plane_reset(struct drm_plane *plane)
 static int omap_plane_atomic_set_property(struct drm_plane *plane,
 					  struct drm_plane_state *state,
 					  struct drm_property *property,
-					  uint64_t val)
+					  u64 val)
 {
 	struct omap_drm_private *priv = plane->dev->dev_private;
 
@@ -216,7 +216,7 @@ static int omap_plane_atomic_set_property(struct drm_plane *plane,
 static int omap_plane_atomic_get_property(struct drm_plane *plane,
 					  const struct drm_plane_state *state,
 					  struct drm_property *property,
-					  uint64_t *val)
+					  u64 *val)
 {
 	struct omap_drm_private *priv = plane->dev->dev_private;
 

@@ -20,7 +20,7 @@
 struct omap_irq_wait {
 	struct list_head node;
 	wait_queue_head_t wq;
-	uint32_t irqmask;
+	u32 irqmask;
 	int count;
 };
 
@@ -29,7 +29,7 @@ static void omap_irq_update(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_irq_wait *wait;
-	uint32_t irqmask = priv->irq_mask;
+	u32 irqmask = priv->irq_mask;
 
 	assert_spin_locked(&priv->wait_lock);
 
@@ -48,7 +48,7 @@ static void omap_irq_wait_handler(struct omap_irq_wait *wait)
 }
 
 struct omap_irq_wait * omap_irq_wait_init(struct drm_device *dev,
-		uint32_t irqmask, int count)
+		u32 irqmask, int count)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_irq_wait *wait = kzalloc(sizeof(*wait), GFP_KERNEL);
