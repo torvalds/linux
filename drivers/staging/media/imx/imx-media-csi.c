@@ -1714,6 +1714,7 @@ static const struct v4l2_subdev_video_ops csi_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops csi_pad_ops = {
+	.init_cfg = imx_media_init_cfg,
 	.enum_mbus_code = csi_enum_mbus_code,
 	.enum_frame_size = csi_enum_frame_size,
 	.enum_frame_interval = csi_enum_frame_interval,
