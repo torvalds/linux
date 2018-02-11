@@ -524,7 +524,7 @@ static void dsi_completion_handler(void *data, u32 mask)
 	complete((struct completion *)data);
 }
 
-static inline int wait_for_bit_change(struct platform_device *dsidev,
+static inline bool wait_for_bit_change(struct platform_device *dsidev,
 		const struct dsi_reg idx, int bitnum, int value)
 {
 	unsigned long timeout;
@@ -535,21 +535,21 @@ static inline int wait_for_bit_change(struct platform_device *dsidev,
 	t = 100;
 	while (t-- > 0) {
 		if (REG_GET(dsidev, idx, bitnum, bitnum) == value)
-			return value;
+			return true;
 	}
 
 	/* then loop for 500ms, sleeping for 1ms in between */
 	timeout = jiffies + msecs_to_jiffies(500);
 	while (time_before(jiffies, timeout)) {
 		if (REG_GET(dsidev, idx, bitnum, bitnum) == value)
-			return value;
+			return true;
 
 		wait = ns_to_ktime(1000 * 1000);
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_hrtimeout(&wait, HRTIMER_MODE_REL);
 	}
 
-	return !value;
+	return false;
 }
 
 static u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
@@ -1252,9 +1252,9 @@ static inline int dsi_if_enable(struct platform_device *dsidev, bool enable)
 	enable = enable ? 1 : 0;
 	REG_FLD_MOD(dsidev, DSI_CTRL, enable, 0, 0); /* IF_EN */
 
-	if (wait_for_bit_change(dsidev, DSI_CTRL, 0, enable) != enable) {
-			DSSERR("Failed to set dsi_if_enable to %d\n", enable);
-			return -EIO;
+	if (!wait_for_bit_change(dsidev, DSI_CTRL, 0, enable)) {
+		DSSERR("Failed to set dsi_if_enable to %d\n", enable);
+		return -EIO;
 	}
 
 	return 0;
@@ -1441,7 +1441,7 @@ static int dsi_pll_enable(struct dss_pll *pll)
 	/* XXX PLL does not come out of reset without this... */
 	dispc_pck_free_enable(1);
 
-	if (wait_for_bit_change(dsidev, DSI_PLL_STATUS, 0, 1) != 1) {
+	if (!wait_for_bit_change(dsidev, DSI_PLL_STATUS, 0, 1)) {
 		DSSERR("PLL not coming out of reset.\n");
 		r = -ENODEV;
 		dispc_pck_free_enable(0);
@@ -2187,7 +2187,7 @@ static int dsi_cio_init(struct platform_device *dsidev)
 	 * I/O. */
 	dsi_read_reg(dsidev, DSI_DSIPHY_CFG5);
 
-	if (wait_for_bit_change(dsidev, DSI_DSIPHY_CFG5, 30, 1) != 1) {
+	if (!wait_for_bit_change(dsidev, DSI_DSIPHY_CFG5, 30, 1)) {
 		DSSERR("CIO SCP Clock domain not coming out of reset.\n");
 		r = -EIO;
 		goto err_scp_clk_dom;
@@ -2235,7 +2235,7 @@ static int dsi_cio_init(struct platform_device *dsidev)
 	if (r)
 		goto err_cio_pwr;
 
-	if (wait_for_bit_change(dsidev, DSI_COMPLEXIO_CFG1, 29, 1) != 1) {
+	if (!wait_for_bit_change(dsidev, DSI_COMPLEXIO_CFG1, 29, 1)) {
 		DSSERR("CIO PWR clock domain not coming out of reset.\n");
 		r = -ENODEV;
 		goto err_cio_pwr_dom;
@@ -2376,7 +2376,7 @@ static int dsi_force_tx_stop_mode_io(struct platform_device *dsidev)
 	r = FLD_MOD(r, 1, 15, 15);	/* FORCE_TX_STOP_MODE_IO */
 	dsi_write_reg(dsidev, DSI_TIMING1, r);
 
-	if (wait_for_bit_change(dsidev, DSI_TIMING1, 15, 0) != 0) {
+	if (!wait_for_bit_change(dsidev, DSI_TIMING1, 15, 0)) {
 		DSSERR("TX_STOP bit not going down\n");
 		return -EIO;
 	}
@@ -2518,10 +2518,9 @@ static int dsi_vc_enable(struct platform_device *dsidev, int channel,
 
 	REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), enable, 0, 0);
 
-	if (wait_for_bit_change(dsidev, DSI_VC_CTRL(channel),
-		0, enable) != enable) {
-			DSSERR("Failed to set dsi_vc_enable to %d\n", enable);
-			return -EIO;
+	if (!wait_for_bit_change(dsidev, DSI_VC_CTRL(channel), 0, enable)) {
+		DSSERR("Failed to set dsi_vc_enable to %d\n", enable);
+		return -EIO;
 	}
 
 	return 0;
@@ -2573,7 +2572,7 @@ static int dsi_vc_config_source(struct platform_device *dsidev, int channel,
 	dsi_vc_enable(dsidev, channel, 0);
 
 	/* VC_BUSY */
-	if (wait_for_bit_change(dsidev, DSI_VC_CTRL(channel), 15, 0) != 0) {
+	if (!wait_for_bit_change(dsidev, DSI_VC_CTRL(channel), 15, 0)) {
 		DSSERR("vc(%d) busy when trying to config for VP\n", channel);
 		return -EIO;
 	}
