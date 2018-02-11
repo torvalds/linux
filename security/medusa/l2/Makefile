@@ -15,7 +15,8 @@ obj-y += kobject_file.o
 obj-y += kobject_printk.o
 obj-y += kobject_fuck.o
 obj-y += ipc_utils.o
-obj-y += kobject_ipc.o
+obj-y += kobject_ipc_common.o
+obj-y += kobject_ipc_sem.o kobject_ipc_msg.o kobject_ipc_shm.o
 #obj-$(CONFIG_MEDUSA_FORCE) += kobject_force.o
 #obj-$(CONFIG_MEDUSA_MEMKOBJECT) += kobject_memory.o kobject_cstrmem.o
 #obj-y += kobject_force.o
@@ -31,11 +32,10 @@ obj-y += acctype_rename.o acctype_rmdir.o
 obj-y += acctype_sendsig.o acctype_setresuid.o acctype_sexec.o
 obj-y += acctype_symlink.o acctype_readlink.o
 obj-y += acctype_truncate.o acctype_unlink.o
-obj-y += acctype_ipc.o
 # arch-dependent files
 obj-y += acctype_ptrace.o 
 #obj-$(CONFIG_MEDUSA_SYSCALL) += acctype_syscall.o
 #obj-y += acctype_syscall.o
 # event types
-obj-y += evtype_getprocess.o evtype_getfile.o evtype_fuck.o
+obj-y += evtype_getprocess.o evtype_getfile.o evtype_fuck.o evtype_ipc.o
 

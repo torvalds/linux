@@ -41,35 +41,3 @@ struct ipc_ids * medusa_get_ipc_ids(unsigned int ipc_class)
 	}
 	return ids;
 }
-
-/*int medusa_set_ipc(unsigned int id, unsigned int ipc_class, struct kern_ipc_perm new_perm)
-{
-
-}*/
-
-
-/**
- * medusa_get_ipc - retrieve kernel permission structure for specific ipc object
- * @id - unique ipc object id
- * @ipc_ids - namespace ipc structure
- * 
- * You need call with rcu_lock
- *
- * Return: kern_ipc_perm or NULL if error
- */
-struct kern_ipc_perm * medusa_get_ipc_perm(unsigned int id, struct ipc_ids *ids)
-{
-	struct kern_ipc_perm *ipcp;
-	
-	ipcp = ipc_obtain_object_check(ids, id);
-
-	if (IS_ERR(ipcp))
-	{
-		goto out_err;
-	}
-
-	return ipcp;
-out_err:
-	printk("kern_ipc_perm FAILED\n");
-	return NULL;
-}
