@@ -362,6 +362,10 @@
 		vcc8-supply = <&vccsys>;
 		vcc9-supply = <&dcdc_boost>;
 
+		pwrkey {
+			status = "okay";
+		};
+
 		regulators {
 			vdd_logic: DCDC_REG1 {
 				regulator-always-on;
