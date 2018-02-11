@@ -1429,7 +1429,8 @@ static bool check_conflicting_actions(u32 action1, u32 action2)
 
 	if (xored_actions & (MLX5_FLOW_CONTEXT_ACTION_DROP  |
 			     MLX5_FLOW_CONTEXT_ACTION_ENCAP |
-			     MLX5_FLOW_CONTEXT_ACTION_DECAP))
+			     MLX5_FLOW_CONTEXT_ACTION_DECAP |
+			     MLX5_FLOW_CONTEXT_ACTION_MOD_HDR))
 		return true;
 
 	return false;
