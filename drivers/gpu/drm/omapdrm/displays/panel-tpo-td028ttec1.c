@@ -404,9 +404,6 @@ static int td028ttec1_panel_probe(struct spi_device *spi)
 
 	ddata->spi_dev = spi;
 
-	if (!spi->dev.of_node)
-		return -ENODEV;
-
 	r = td028ttec1_probe_of(spi);
 	if (r)
 		return r;

@@ -277,9 +277,6 @@ static int nec_8048_probe(struct spi_device *spi)
 
 	ddata->spi = spi;
 
-	if (!spi->dev.of_node)
-		return -ENODEV;
-
 	r = nec_8048_probe_of(spi);
 	if (r)
 		return r;

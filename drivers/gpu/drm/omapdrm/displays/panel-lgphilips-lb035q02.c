@@ -268,9 +268,6 @@ static int lb035q02_panel_spi_probe(struct spi_device *spi)
 
 	ddata->spi = spi;
 
-	if (!spi->dev.of_node)
-		return -ENODEV;
-
 	r = lb035q02_probe_of(spi);
 	if (r)
 		return r;

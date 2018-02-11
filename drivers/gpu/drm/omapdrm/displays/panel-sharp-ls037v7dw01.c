@@ -268,9 +268,6 @@ static int sharp_ls_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ddata);
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
-
 	r = sharp_ls_probe_of(pdev);
 	if (r)
 		return r;
