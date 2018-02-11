@@ -510,16 +510,25 @@ static const struct attribute_group bldev_attr_group = {
 static int acx565akm_connect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *in;
 	int r;
 
 	if (omapdss_device_is_connected(dssdev))
 		return 0;
 
-	r = in->ops.sdi->connect(in, dssdev);
-	if (r)
-		return r;
+	in = omapdss_of_find_source_for_first_ep(dssdev->dev->of_node);
+	if (IS_ERR(in)) {
+		dev_err(dssdev->dev, "failed to find video source\n");
+		return PTR_ERR(in);
+	}
 
+	r = in->ops.sdi->connect(in, dssdev);
+	if (r) {
+		omap_dss_put_device(in);
+		return r;
+	}
+
+	ddata->in = in;
 	return 0;
 }
 
@@ -532,6 +541,9 @@ static void acx565akm_disconnect(struct omap_dss_device *dssdev)
 		return;
 
 	in->ops.sdi->disconnect(in, dssdev);
+
+	omap_dss_put_device(in);
+	ddata->in = NULL;
 }
 
 static int acx565akm_panel_power_on(struct omap_dss_device *dssdev)
@@ -700,12 +712,6 @@ static int acx565akm_probe_of(struct spi_device *spi)
 
 	ddata->reset_gpio = of_get_named_gpio(np, "reset-gpios", 0);
 
-	ddata->in = omapdss_of_find_source_for_first_ep(np);
-	if (IS_ERR(ddata->in)) {
-		dev_err(&spi->dev, "failed to find video source\n");
-		return PTR_ERR(ddata->in);
-	}
-
 	return 0;
 }
 
@@ -823,7 +829,6 @@ err_sysfs:
 err_reg_bl:
 err_detect:
 err_gpio:
-	omap_dss_put_device(ddata->in);
 	return r;
 }
 
@@ -831,7 +836,6 @@ static int acx565akm_remove(struct spi_device *spi)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
-	struct omap_dss_device *in = ddata->in;
 
 	dev_dbg(&ddata->spi->dev, "%s\n", __func__);
 
@@ -842,8 +846,6 @@ static int acx565akm_remove(struct spi_device *spi)
 
 	acx565akm_disable(dssdev);
 	acx565akm_disconnect(dssdev);
-
-	omap_dss_put_device(in);
 
 	return 0;
 }
