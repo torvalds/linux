@@ -3,6 +3,7 @@
  * Copyright(c) 2003 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -17,8 +18,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ * this program.
  *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
@@ -59,6 +59,7 @@
 #define RX_POST_REQ_ALLOC 2
 #define RX_CLAIM_REQ_ALLOC 8
 #define RX_PENDING_WATERMARK 16
+#define FIRST_RX_QUEUE 512
 
 struct iwl_host_cmd;
 
@@ -106,6 +107,10 @@ struct isr_statistics {
  * @bd_dma: bus address of buffer of receive buffer descriptors (rbd)
  * @ubd: driver's pointer to buffer of used receive buffer descriptors (rbd)
  * @ubd_dma: physical address of buffer of used receive buffer descriptors (rbd)
+ * @tr_tail: driver's pointer to the transmission ring tail buffer
+ * @tr_tail_dma: physical address of the buffer for the transmission ring tail
+ * @cr_tail: driver's pointer to the completion ring tail buffer
+ * @cr_tail_dma: physical address of the buffer for the completion ring tail
  * @read: Shared index to newest available Rx buffer
  * @write: Shared index to oldest written Rx packet
  * @free_count: Number of pre-allocated buffers in rx_free
@@ -127,6 +132,10 @@ struct iwl_rxq {
 	dma_addr_t bd_dma;
 	__le32 *used_bd;
 	dma_addr_t used_bd_dma;
+	__le16 *tr_tail;
+	dma_addr_t tr_tail_dma;
+	__le16 *cr_tail;
+	dma_addr_t cr_tail_dma;
 	u32 read;
 	u32 write;
 	u32 free_count;
