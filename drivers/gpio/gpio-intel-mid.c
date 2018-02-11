@@ -361,10 +361,8 @@ static int intel_gpio_probe(struct pci_dev *pdev,
 	pcim_iounmap_regions(pdev, 1 << 1);
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&pdev->dev, "can't allocate chip data\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	priv->reg_base = pcim_iomap_table(pdev)[0];
 	priv->chip.label = dev_name(&pdev->dev);
