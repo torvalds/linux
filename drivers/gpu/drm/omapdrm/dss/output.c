@@ -156,7 +156,6 @@ struct omap_dss_device *omap_dss_find_output_by_port_node(struct device_node *po
 
 	return NULL;
 }
-EXPORT_SYMBOL(omap_dss_find_output_by_port_node);
 
 struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device *dssdev)
 {
