@@ -64,6 +64,11 @@
 		#gpio-cells = <2>;
 	};
 
+	battery_power_supply: battery-power-supply {
+		compatible = "x-powers,axp209-battery-power-supply";
+		status = "disabled";
+	};
+
 	regulators {
 		/* Default work frequency for buck regulators */
 		x-powers,dcdc-freq = <1500>;
@@ -102,7 +107,7 @@
 		};
 	};
 
-	usb_power_supply: usb_power_supply {
+	usb_power_supply: usb-power-supply {
 		compatible = "x-powers,axp202-usb-power-supply";
 		status = "disabled";
 	};

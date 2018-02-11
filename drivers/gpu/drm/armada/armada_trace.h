@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #if !defined(ARMADA_TRACE_H) || defined(TRACE_HEADER_MULTI_READ)
 #define ARMADA_TRACE_H
 
@@ -62,5 +63,5 @@ TRACE_EVENT(armada_ovl_plane_work,
 
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_PATH ../../drivers/gpu/drm/armada
 #include <trace/define_trace.h>

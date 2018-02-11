@@ -61,7 +61,7 @@ static struct scsi_host_template mvs_sht = {
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.eh_device_reset_handler = sas_eh_device_reset_handler,
-	.eh_bus_reset_handler	= sas_eh_bus_reset_handler,
+	.eh_target_reset_handler = sas_eh_target_reset_handler,
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
 	.shost_attrs		= mvst_host_attrs,
@@ -95,7 +95,7 @@ static void mvs_phy_init(struct mvs_info *mvi, int phy_id)
 
 	phy->mvi = mvi;
 	phy->port = NULL;
-	init_timer(&phy->timer);
+	timer_setup(&phy->timer, NULL, 0);
 	sas_phy->enabled = (phy_id < mvi->chip->n_phy) ? 1 : 0;
 	sas_phy->class = SAS;
 	sas_phy->iproto = SAS_PROTOCOL_ALL;
@@ -125,8 +125,7 @@ static void mvs_free(struct mvs_info *mvi)
 	else
 		slot_nr = MVS_CHIP_SLOT_SZ;
 
-	if (mvi->dma_pool)
-		pci_pool_destroy(mvi->dma_pool);
+	dma_pool_destroy(mvi->dma_pool);
 
 	if (mvi->tx)
 		dma_free_coherent(mvi->dev,
@@ -249,7 +248,6 @@ static int mvs_alloc(struct mvs_info *mvi, struct Scsi_Host *shost)
 		mvi->devices[i].dev_type = SAS_PHY_UNUSED;
 		mvi->devices[i].device_id = i;
 		mvi->devices[i].dev_status = MVS_DEV_NORMAL;
-		init_timer(&mvi->devices[i].timer);
 	}
 
 	/*
@@ -296,7 +294,8 @@ static int mvs_alloc(struct mvs_info *mvi, struct Scsi_Host *shost)
 		goto err_out;
 
 	sprintf(pool_name, "%s%d", "mvs_dma_pool", mvi->id);
-	mvi->dma_pool = pci_pool_create(pool_name, mvi->pdev, MVS_SLOT_BUF_SZ, 16, 0);
+	mvi->dma_pool = dma_pool_create(pool_name, &mvi->pdev->dev,
+					MVS_SLOT_BUF_SZ, 16, 0);
 	if (!mvi->dma_pool) {
 			printk(KERN_DEBUG "failed to create dma pool %s.\n", pool_name);
 			goto err_out;
@@ -557,14 +556,14 @@ static int mvs_pci_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 	SHOST_TO_SAS_HA(shost) =
 		kcalloc(1, sizeof(struct sas_ha_struct), GFP_KERNEL);
 	if (!SHOST_TO_SAS_HA(shost)) {
-		kfree(shost);
+		scsi_host_put(shost);
 		rc = -ENOMEM;
 		goto err_out_regions;
 	}
 
 	rc = mvs_prep_sas_ha_init(shost, chip);
 	if (rc) {
-		kfree(shost);
+		scsi_host_put(shost);
 		rc = -ENOMEM;
 		goto err_out_regions;
 	}

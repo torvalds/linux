@@ -321,7 +321,7 @@ static int snd_es968_pnp_resume(struct pnp_card_link *pcard)
 }
 #endif
 
-static struct pnp_card_device_id snd_es968_pnpids[] = {
+static const struct pnp_card_device_id snd_es968_pnpids[] = {
 	{ .id = "ESS0968", .devs = { { "@@@0968" }, } },
 	{ .id = "ESS0968", .devs = { { "ESS0968" }, } },
 	{ .id = "", } /* end */

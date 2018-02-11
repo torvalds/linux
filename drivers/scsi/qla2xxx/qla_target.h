@@ -70,6 +70,16 @@
 
 /* Used to mark CTIO as intermediate */
 #define CTIO_INTERMEDIATE_HANDLE_MARK	BIT_30
+#define QLA_TGT_NULL_HANDLE	0
+
+#define QLA_TGT_HANDLE_MASK  0xF0000000
+#define QLA_QPID_HANDLE_MASK 0x00FF0000 /* qpair id mask */
+#define QLA_CMD_HANDLE_MASK  0x0000FFFF
+#define QLA_TGT_SKIP_HANDLE	(0xFFFFFFFF & ~QLA_TGT_HANDLE_MASK)
+
+#define QLA_QPID_HANDLE_SHIFT 16
+#define GET_QID(_h) ((_h & QLA_QPID_HANDLE_MASK) >> QLA_QPID_HANDLE_SHIFT)
+
 
 #ifndef OF_SS_MODE_0
 /*
@@ -426,7 +436,7 @@ struct ctio7_to_24xx {
 		} status0;
 		struct {
 			uint16_t sense_length;
-			uint16_t flags;
+			__le16 flags;
 			uint32_t residual;
 			__le16 ox_id;
 			uint16_t scsi_status;
@@ -664,6 +674,7 @@ struct abts_resp_from_24xx_fw {
 
 struct qla_tgt_mgmt_cmd;
 struct fc_port;
+struct qla_tgt_cmd;
 
 /*
  * This structure provides a template of function calls that the
@@ -675,7 +686,7 @@ struct qla_tgt_func_tmpl {
 	int (*handle_cmd)(struct scsi_qla_host *, struct qla_tgt_cmd *,
 			unsigned char *, uint32_t, int, int, int);
 	void (*handle_data)(struct qla_tgt_cmd *);
-	int (*handle_tmr)(struct qla_tgt_mgmt_cmd *, uint32_t, uint16_t,
+	int (*handle_tmr)(struct qla_tgt_mgmt_cmd *, u64, uint16_t,
 			uint32_t);
 	void (*free_cmd)(struct qla_tgt_cmd *);
 	void (*free_mcmd)(struct qla_tgt_mgmt_cmd *);
@@ -694,6 +705,7 @@ struct qla_tgt_func_tmpl {
 	int (*get_dif_tags)(struct qla_tgt_cmd *cmd, uint16_t *pfw_prot_opts);
 	int (*chk_dif_tags)(uint32_t tag);
 	void (*add_target)(struct scsi_qla_host *);
+	void (*remove_target)(struct scsi_qla_host *);
 };
 
 int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
@@ -744,11 +756,6 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 #define QLA_TGT_STATE_DATA_IN		2 /* Data arrived + target processing */
 #define QLA_TGT_STATE_PROCESSED		3 /* target done processing */
 
-
-/* Special handles */
-#define QLA_TGT_NULL_HANDLE	0
-#define QLA_TGT_SKIP_HANDLE	(0xFFFFFFFF & ~CTIO_COMPLETION_HANDLE_MARK)
-
 /* ATIO task_codes field */
 #define ATIO_SIMPLE_QUEUE           0
 #define ATIO_HEAD_OF_QUEUE          1
@@ -781,22 +788,28 @@ struct qla_port_24xx_data {
 	uint16_t reserved;
 };
 
+struct qla_qpair_hint {
+	struct list_head hint_elem;
+	struct qla_qpair *qpair;
+	u16 cpuid;
+	uint8_t cmd_cnt;
+};
+
 struct qla_tgt {
 	struct scsi_qla_host *vha;
 	struct qla_hw_data *ha;
-
+	struct btree_head64 lun_qpair_map;
+	struct qla_qpair_hint *qphints;
 	/*
 	 * To sync between IRQ handlers and qlt_target_release(). Needed,
 	 * because req_pkt() can drop/reaquire HW lock inside. Protected by
 	 * HW lock.
 	 */
-	int irq_cmd_count;
 	int atio_irq_cmd_count;
 
-	int datasegs_per_cmd, datasegs_per_cont, sg_tablesize;
+	int sg_tablesize;
 
 	/* Target's flags, serialized by pha->hardware_lock */
-	unsigned int tgt_enable_64bit_addr:1; /* 64-bits PCI addr enabled */
 	unsigned int link_reinit_iocb_pending:1;
 
 	/*
@@ -832,6 +845,7 @@ struct qla_tgt_sess_op {
 	struct work_struct work;
 	struct list_head cmd_list;
 	bool aborted;
+	struct rsp_que *rsp;
 };
 
 enum trace_flags {
@@ -859,10 +873,16 @@ enum trace_flags {
 };
 
 struct qla_tgt_cmd {
+	/*
+	 * Do not move cmd_type field. it needs to line up with srb->cmd_type
+	 */
+	uint8_t cmd_type;
+	uint8_t pad[7];
 	struct se_cmd se_cmd;
 	struct fc_port *sess;
+	struct qla_qpair *qpair;
+	uint32_t reset_count;
 	int state;
-	struct work_struct free_work;
 	struct work_struct work;
 	/* Sense buffer that will be mapped into outgoing status */
 	unsigned char sense_buffer[TRANSPORT_SENSE_BUFFER];
@@ -885,10 +905,10 @@ struct qla_tgt_cmd {
 	int sg_cnt;		/* SG segments count */
 	int bufflen;		/* cmd buffer length */
 	int offset;
-	uint32_t unpacked_lun;
+	u64 unpacked_lun;
 	enum dma_data_direction dma_data_direction;
-	uint32_t reset_count;
 
+	uint16_t vp_idx;
 	uint16_t loop_id;	/* to save extra sess dereferences */
 	struct qla_tgt *tgt;	/* to save extra sess dereferences */
 	struct scsi_qla_host *vha;
@@ -939,6 +959,8 @@ struct qla_tgt_mgmt_cmd {
 	uint16_t tmr_func;
 	uint8_t fc_tm_rsp;
 	struct fc_port *sess;
+	struct qla_qpair *qpair;
+	struct scsi_qla_host *vha;
 	struct se_cmd se_cmd;
 	struct work_struct free_work;
 	unsigned int flags;
@@ -960,7 +982,6 @@ struct qla_tgt_prm {
 	int seg_cnt;
 	int req_cnt;
 	uint16_t rq_result;
-	uint16_t scsi_status;
 	int sense_buffer_len;
 	int residual;
 	int add_status_pkt;
@@ -1040,7 +1061,8 @@ static inline void sid_to_portid(const uint8_t *s_id, port_id_t *p)
 /*
  * Exported symbols from qla_target.c LLD logic used by qla2xxx code..
  */
-extern void qlt_response_pkt_all_vps(struct scsi_qla_host *, response_t *);
+extern void qlt_response_pkt_all_vps(struct scsi_qla_host *, struct rsp_que *,
+	response_t *);
 extern int qlt_rdy_to_xfer(struct qla_tgt_cmd *);
 extern int qlt_xmit_response(struct qla_tgt_cmd *, int, uint8_t);
 extern int qlt_abort_cmd(struct qla_tgt_cmd *);
@@ -1073,11 +1095,13 @@ extern int qlt_stop_phase1(struct qla_tgt *);
 extern void qlt_stop_phase2(struct qla_tgt *);
 extern irqreturn_t qla83xx_msix_atio_q(int, void *);
 extern void qlt_83xx_iospace_config(struct qla_hw_data *);
-extern int qlt_free_qfull_cmds(struct scsi_qla_host *);
+extern int qlt_free_qfull_cmds(struct qla_qpair *);
 extern void qlt_logo_completion_handler(fc_port_t *, int);
 extern void qlt_do_generation_tick(struct scsi_qla_host *, int *);
 
-void qlt_send_resp_ctio(scsi_qla_host_t *, struct qla_tgt_cmd *, uint8_t,
+void qlt_send_resp_ctio(struct qla_qpair *, struct qla_tgt_cmd *, uint8_t,
     uint8_t, uint8_t, uint8_t);
+extern void qlt_abort_cmd_on_host_reset(struct scsi_qla_host *,
+    struct qla_tgt_cmd *);
 
 #endif /* __QLA_TARGET_H */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Definitions for the VTPM proxy driver
  * Copyright (c) 2015, 2016, IBM Corporation
@@ -45,5 +46,9 @@ struct vtpm_proxy_new_dev {
 };
 
 #define VTPM_PROXY_IOC_NEW_DEV	_IOWR(0xa1, 0x00, struct vtpm_proxy_new_dev)
+
+/* vendor specific commands to set locality */
+#define TPM2_CC_SET_LOCALITY	0x20001000
+#define TPM_ORD_SET_LOCALITY	0x20001000
 
 #endif /* _UAPI_LINUX_VTPM_PROXY_H */

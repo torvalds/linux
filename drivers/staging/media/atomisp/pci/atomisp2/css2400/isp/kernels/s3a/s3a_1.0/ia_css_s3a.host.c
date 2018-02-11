@@ -321,7 +321,7 @@ ia_css_s3a_dmem_decode(
 }
 
 /* MW: this is an ISP function */
-STORAGE_CLASS_INLINE int
+static inline int
 merge_hi_lo_14(unsigned short hi, unsigned short lo)
 {
 	int val = (int) ((((unsigned int) hi << 14) & 0xfffc000) |

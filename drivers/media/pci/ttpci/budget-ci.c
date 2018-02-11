@@ -158,14 +158,15 @@ static void msp430_ir_interrupt(unsigned long data)
 		return;
 
 	if (budget_ci->ir.full_rc5) {
-		rc_keydown(dev, RC_TYPE_RC5,
+		rc_keydown(dev, RC_PROTO_RC5,
 			   RC_SCANCODE_RC5(budget_ci->ir.rc5_device, budget_ci->ir.ir_key),
 			   !!(command & 0x20));
 		return;
 	}
 
 	/* FIXME: We should generate complete scancodes for all devices */
-	rc_keydown(dev, RC_TYPE_UNKNOWN, budget_ci->ir.ir_key, !!(command & 0x20));
+	rc_keydown(dev, RC_PROTO_UNKNOWN, budget_ci->ir.ir_key,
+		   !!(command & 0x20));
 }
 
 static int msp430_ir_init(struct budget_ci *budget_ci)
@@ -186,7 +187,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 		 "pci-%s/ir0", pci_name(saa->pci));
 
 	dev->driver_name = MODULE_NAME;
-	dev->input_name = budget_ci->ir.name;
+	dev->device_name = budget_ci->ir.name;
 	dev->input_phys = budget_ci->ir.phys;
 	dev->input_id.bustype = BUS_PCI;
 	dev->input_id.version = 1;
@@ -1538,7 +1539,7 @@ MAKE_BUDGET_INFO(ttc1501, "TT-Budget C-1501 PCI", BUDGET_TT);
 MAKE_BUDGET_INFO(tt3200, "TT-Budget S2-3200 PCI", BUDGET_TT);
 MAKE_BUDGET_INFO(ttbs1500b, "TT-Budget S-1500B PCI", BUDGET_TT);
 
-static struct pci_device_id pci_tbl[] = {
+static const struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbci, 0x13c2, 0x100c),
 	MAKE_EXTENSION_PCI(ttbci, 0x13c2, 0x100f),
 	MAKE_EXTENSION_PCI(ttbcci, 0x13c2, 0x1010),

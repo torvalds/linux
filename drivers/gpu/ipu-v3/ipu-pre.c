@@ -73,6 +73,14 @@
 #define  IPU_PRE_STORE_ENG_CTRL_WR_NUM_BYTES(v)		((v & 0x7) << 1)
 #define  IPU_PRE_STORE_ENG_CTRL_OUTPUT_ACTIVE_BPP(v)	((v & 0x3) << 4)
 
+#define IPU_PRE_STORE_ENG_STATUS			0x120
+#define  IPU_PRE_STORE_ENG_STATUS_STORE_BLOCK_X_MASK	0xffff
+#define  IPU_PRE_STORE_ENG_STATUS_STORE_BLOCK_X_SHIFT	0
+#define  IPU_PRE_STORE_ENG_STATUS_STORE_BLOCK_Y_MASK	0x3fff
+#define  IPU_PRE_STORE_ENG_STATUS_STORE_BLOCK_Y_SHIFT	16
+#define  IPU_PRE_STORE_ENG_STATUS_STORE_FIFO_FULL	(1 << 30)
+#define  IPU_PRE_STORE_ENG_STATUS_STORE_FIELD		(1 << 31)
+
 #define IPU_PRE_STORE_ENG_SIZE				0x130
 #define  IPU_PRE_STORE_ENG_SIZE_INPUT_WIDTH(v)		((v & 0xffff) << 0)
 #define  IPU_PRE_STORE_ENG_SIZE_INPUT_HEIGHT(v)		((v & 0xffff) << 16)
@@ -93,6 +101,7 @@ struct ipu_pre {
 	dma_addr_t		buffer_paddr;
 	void			*buffer_virt;
 	bool			in_use;
+	unsigned int		safe_window_end;
 };
 
 static DEFINE_MUTEX(ipu_pre_list_mutex);
@@ -131,8 +140,6 @@ int ipu_pre_get(struct ipu_pre *pre)
 	if (pre->in_use)
 		return -EBUSY;
 
-	clk_prepare_enable(pre->clk_axi);
-
 	/* first get the engine out of reset and remove clock gating */
 	writel(0, pre->regs + IPU_PRE_CTRL);
 
@@ -149,12 +156,7 @@ int ipu_pre_get(struct ipu_pre *pre)
 
 void ipu_pre_put(struct ipu_pre *pre)
 {
-	u32 val;
-
-	val = IPU_PRE_CTRL_SFTRST | IPU_PRE_CTRL_CLKGATE;
-	writel(val, pre->regs + IPU_PRE_CTRL);
-
-	clk_disable_unprepare(pre->clk_axi);
+	writel(IPU_PRE_CTRL_SFTRST, pre->regs + IPU_PRE_CTRL);
 
 	pre->in_use = false;
 }
@@ -166,6 +168,9 @@ void ipu_pre_configure(struct ipu_pre *pre, unsigned int width,
 	const struct drm_format_info *info = drm_format_info(format);
 	u32 active_bpp = info->cpp[0] >> 1;
 	u32 val;
+
+	/* calculate safe window for ctrl register updates */
+	pre->safe_window_end = height - 2;
 
 	writel(bufaddr, pre->regs + IPU_PRE_CUR_BUF);
 	writel(bufaddr, pre->regs + IPU_PRE_NEXT_BUF);
@@ -206,7 +211,24 @@ void ipu_pre_configure(struct ipu_pre *pre, unsigned int width,
 
 void ipu_pre_update(struct ipu_pre *pre, unsigned int bufaddr)
 {
+	unsigned long timeout = jiffies + msecs_to_jiffies(5);
+	unsigned short current_yblock;
+	u32 val;
+
 	writel(bufaddr, pre->regs + IPU_PRE_NEXT_BUF);
+
+	do {
+		if (time_after(jiffies, timeout)) {
+			dev_warn(pre->dev, "timeout waiting for PRE safe window\n");
+			return;
+		}
+
+		val = readl(pre->regs + IPU_PRE_STORE_ENG_STATUS);
+		current_yblock =
+			(val >> IPU_PRE_STORE_ENG_STATUS_STORE_BLOCK_Y_SHIFT) &
+			IPU_PRE_STORE_ENG_STATUS_STORE_BLOCK_Y_MASK;
+	} while (current_yblock == 0 || current_yblock >= pre->safe_window_end);
+
 	writel(IPU_PRE_CTRL_SDW_UPDATE, pre->regs + IPU_PRE_CTRL_SET);
 }
 
@@ -249,6 +271,8 @@ static int ipu_pre_probe(struct platform_device *pdev)
 	if (!pre->buffer_virt)
 		return -ENOMEM;
 
+	clk_prepare_enable(pre->clk_axi);
+
 	pre->dev = dev;
 	platform_set_drvdata(pdev, pre);
 	mutex_lock(&ipu_pre_list_mutex);
@@ -267,6 +291,8 @@ static int ipu_pre_remove(struct platform_device *pdev)
 	list_del(&pre->list);
 	available_pres--;
 	mutex_unlock(&ipu_pre_list_mutex);
+
+	clk_disable_unprepare(pre->clk_axi);
 
 	if (pre->buffer_virt)
 		gen_pool_free(pre->iram, (unsigned long)pre->buffer_virt,

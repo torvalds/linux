@@ -90,6 +90,14 @@ static unsigned long ccu_nm_recalc_rate(struct clk_hw *hw,
 	if (!m)
 		m++;
 
+	if (ccu_sdm_helper_is_enabled(&nm->common, &nm->sdm)) {
+		unsigned long rate =
+			ccu_sdm_helper_read_rate(&nm->common, &nm->sdm,
+						 m, n);
+		if (rate)
+			return rate;
+	}
+
 	return parent_rate * n / m;
 }
 
@@ -98,6 +106,12 @@ static long ccu_nm_round_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct ccu_nm *nm = hw_to_ccu_nm(hw);
 	struct _ccu_nm _nm;
+
+	if (ccu_frac_helper_has_rate(&nm->common, &nm->frac, rate))
+		return rate;
+
+	if (ccu_sdm_helper_has_rate(&nm->common, &nm->sdm, rate))
+		return rate;
 
 	_nm.min_n = nm->n.min ?: 1;
 	_nm.max_n = nm->n.max ?: 1 << nm->n.width;
@@ -117,17 +131,39 @@ static int ccu_nm_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long flags;
 	u32 reg;
 
-	if (ccu_frac_helper_has_rate(&nm->common, &nm->frac, rate))
-		return ccu_frac_helper_set_rate(&nm->common, &nm->frac, rate);
-	else
+	if (ccu_frac_helper_has_rate(&nm->common, &nm->frac, rate)) {
+		spin_lock_irqsave(nm->common.lock, flags);
+
+		/* most SoCs require M to be 0 if fractional mode is used */
+		reg = readl(nm->common.base + nm->common.reg);
+		reg &= ~GENMASK(nm->m.width + nm->m.shift - 1, nm->m.shift);
+		writel(reg, nm->common.base + nm->common.reg);
+
+		spin_unlock_irqrestore(nm->common.lock, flags);
+
+		ccu_frac_helper_enable(&nm->common, &nm->frac);
+
+		return ccu_frac_helper_set_rate(&nm->common, &nm->frac,
+						rate, nm->lock);
+	} else {
 		ccu_frac_helper_disable(&nm->common, &nm->frac);
+	}
 
 	_nm.min_n = nm->n.min ?: 1;
 	_nm.max_n = nm->n.max ?: 1 << nm->n.width;
 	_nm.min_m = 1;
 	_nm.max_m = nm->m.max ?: 1 << nm->m.width;
 
-	ccu_nm_find_best(parent_rate, rate, &_nm);
+	if (ccu_sdm_helper_has_rate(&nm->common, &nm->sdm, rate)) {
+		ccu_sdm_helper_enable(&nm->common, &nm->sdm, rate);
+
+		/* Sigma delta modulation requires specific N and M factors */
+		ccu_sdm_helper_get_factors(&nm->common, &nm->sdm, rate,
+					   &_nm.m, &_nm.n);
+	} else {
+		ccu_sdm_helper_disable(&nm->common, &nm->sdm);
+		ccu_nm_find_best(parent_rate, rate, &_nm);
+	}
 
 	spin_lock_irqsave(nm->common.lock, flags);
 

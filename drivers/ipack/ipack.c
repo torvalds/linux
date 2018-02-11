@@ -212,7 +212,7 @@ struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
 	int bus_nr;
 	struct ipack_bus_device *bus;
 
-	bus = kzalloc(sizeof(struct ipack_bus_device), GFP_KERNEL);
+	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
 	if (!bus)
 		return NULL;
 
@@ -402,7 +402,6 @@ static int ipack_device_read_id(struct ipack_device *dev)
 	 * ID ROM contents */
 	dev->id = kmalloc(dev->id_avail, GFP_KERNEL);
 	if (!dev->id) {
-		dev_err(&dev->dev, "dev->id alloc failed.\n");
 		ret = -ENOMEM;
 		goto out;
 	}

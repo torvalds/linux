@@ -101,7 +101,7 @@ int superhyway_add_device(unsigned long base, struct superhyway_device *, struct
 int superhyway_add_devices(struct superhyway_bus *bus, struct superhyway_device **devices, int nr_devices);
 
 /* drivers/sh/superhyway/superhyway-sysfs.c */
-extern struct device_attribute superhyway_dev_attrs[];
+extern const struct attribute_group *superhyway_dev_groups[];
 
 #endif /* __LINUX_SUPERHYWAY_H */
 

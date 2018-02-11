@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _BCACHE_BTREE_H
 #define _BCACHE_BTREE_H
 
@@ -207,7 +208,7 @@ void bkey_put(struct cache_set *c, struct bkey *k);
 
 struct btree_op {
 	/* for waiting on btree reserve in btree_split() */
-	wait_queue_t		wait;
+	wait_queue_entry_t		wait;
 
 	/* Btree level at which we start taking write locks */
 	short			lock;
@@ -305,5 +306,5 @@ void bch_keybuf_del(struct keybuf *, struct keybuf_key *);
 struct keybuf_key *bch_keybuf_next(struct keybuf *);
 struct keybuf_key *bch_keybuf_next_rescan(struct cache_set *, struct keybuf *,
 					  struct bkey *, keybuf_pred_fn *);
-
+void bch_update_bucket_in_use(struct cache_set *c, struct gc_stat *stats);
 #endif

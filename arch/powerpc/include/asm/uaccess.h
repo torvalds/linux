@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ARCH_POWERPC_UACCESS_H
 #define _ARCH_POWERPC_UACCESS_H
 
@@ -90,9 +91,6 @@
 #define __put_user_inatomic(x, ptr) \
 	__put_user_nosleep((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 
-#define __get_user_unaligned __get_user
-#define __put_user_unaligned __put_user
-
 extern long __put_user_bad(void);
 
 /*
@@ -175,6 +173,23 @@ do {								\
 
 
 extern long __get_user_bad(void);
+
+/*
+ * This does an atomic 128 byte aligned load from userspace.
+ * Upto caller to do enable_kernel_vmx() before calling!
+ */
+#define __get_user_atomic_128_aligned(kaddr, uaddr, err)		\
+	__asm__ __volatile__(				\
+		"1:	lvx  0,0,%1	# get user\n"	\
+		" 	stvx 0,0,%2	# put kernel\n"	\
+		"2:\n"					\
+		".section .fixup,\"ax\"\n"		\
+		"3:	li %0,%3\n"			\
+		"	b 2b\n"				\
+		".previous\n"				\
+		EX_TABLE(1b, 3b)			\
+		: "=r" (err)			\
+		: "b" (uaddr), "b" (kaddr), "i" (-EFAULT), "0" (err))
 
 #define __get_user_asm(x, addr, err, op)		\
 	__asm__ __volatile__(				\
@@ -267,13 +282,7 @@ do {								\
 extern unsigned long __copy_tofrom_user(void __user *to,
 		const void __user *from, unsigned long size);
 
-#ifndef __powerpc64__
-
-#define INLINE_COPY_FROM_USER
-#define INLINE_COPY_TO_USER
-
-#else /* __powerpc64__ */
-
+#ifdef __powerpc64__
 static inline unsigned long
 raw_copy_in_user(void __user *to, const void __user *from, unsigned long n)
 {
@@ -346,7 +355,11 @@ static inline unsigned long clear_user(void __user *addr, unsigned long size)
 }
 
 extern long strncpy_from_user(char *dst, const char __user *src, long count);
-extern __must_check long strlen_user(const char __user *str);
 extern __must_check long strnlen_user(const char __user *str, long n);
+
+extern long __copy_from_user_flushcache(void *dst, const void __user *src,
+		unsigned size);
+extern void memcpy_page_flushcache(char *to, struct page *page, size_t offset,
+			   size_t len);
 
 #endif	/* _ARCH_POWERPC_UACCESS_H */

@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 if [ `id -u` -ne 0 ]; then
 	echo "$0: must be root to install the selinux policy"
 	exit 1

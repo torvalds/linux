@@ -309,7 +309,7 @@ static void zx_tdm_shutdown(struct snd_pcm_substream *substream,
 	clk_disable_unprepare(zx_tdm->dai_wclk);
 }
 
-static struct snd_soc_dai_ops zx_tdm_dai_ops = {
+static const struct snd_soc_dai_ops zx_tdm_dai_ops = {
 	.trigger	= zx_tdm_trigger,
 	.hw_params	= zx_tdm_hw_params,
 	.set_fmt	= zx_tdm_set_fmt,

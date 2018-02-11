@@ -89,7 +89,7 @@
 &board_soc {
 	i2c@3000 {
 		eeprom@50 {
-			compatible = "st,24c256";
+			compatible = "st,24c256", "atmel,24c256";
 			reg = <0x50>;
 		};
 

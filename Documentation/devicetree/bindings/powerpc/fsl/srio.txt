@@ -72,7 +72,8 @@ the following properties:
 		represents the LIODN associated with maintenance transactions
 		for the port.
 
-Note: All other standard properties (see ePAPR) are allowed but are optional.
+Note: All other standard properties (see the Devicetree Specification)
+are allowed but are optional.
 
 Example:
 

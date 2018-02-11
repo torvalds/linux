@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * spcp8x5 USB to serial adaptor driver
  *
@@ -8,11 +9,6 @@
  * Original driver for 2.6.10 pl2303 driver by
  *   Greg Kroah-Hartman (greg@kroah.com)
  * Changes for 2.6.20 by Harald Klein <hari@vt100.at>
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  */
 #include <linux/kernel.h>
 #include <linux/errno.h>

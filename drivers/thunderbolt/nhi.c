@@ -13,7 +13,7 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/dmi.h>
+#include <linux/delay.h>
 
 #include "nhi.h"
 #include "nhi_regs.h"
@@ -21,6 +21,22 @@
 
 #define RING_TYPE(ring) ((ring)->is_tx ? "TX ring" : "RX ring")
 
+/*
+ * Used to enable end-to-end workaround for missing RX packets. Do not
+ * use this ring for anything else.
+ */
+#define RING_E2E_UNUSED_HOPID	2
+/* HopIDs 0-7 are reserved by the Thunderbolt protocol */
+#define RING_FIRST_USABLE_HOPID	8
+
+/*
+ * Minimal number of vectors when we use MSI-X. Two for control channel
+ * Rx/Tx and the rest four are for cross domain DMA paths.
+ */
+#define MSIX_MIN_VECS		6
+#define MSIX_MAX_VECS		16
+
+#define NHI_MAILBOX_TIMEOUT	500 /* ms */
 
 static int ring_interrupt_index(struct tb_ring *ring)
 {
@@ -42,6 +58,37 @@ static void ring_interrupt_active(struct tb_ring *ring, bool active)
 	int bit = ring_interrupt_index(ring) & 31;
 	int mask = 1 << bit;
 	u32 old, new;
+
+	if (ring->irq > 0) {
+		u32 step, shift, ivr, misc;
+		void __iomem *ivr_base;
+		int index;
+
+		if (ring->is_tx)
+			index = ring->hop;
+		else
+			index = ring->hop + ring->nhi->hop_count;
+
+		/*
+		 * Ask the hardware to clear interrupt status bits automatically
+		 * since we already know which interrupt was triggered.
+		 */
+		misc = ioread32(ring->nhi->iobase + REG_DMA_MISC);
+		if (!(misc & REG_DMA_MISC_INT_AUTO_CLEAR)) {
+			misc |= REG_DMA_MISC_INT_AUTO_CLEAR;
+			iowrite32(misc, ring->nhi->iobase + REG_DMA_MISC);
+		}
+
+		ivr_base = ring->nhi->iobase + REG_INT_VEC_ALLOC_BASE;
+		step = index / REG_INT_VEC_ALLOC_REGS * REG_INT_VEC_ALLOC_BITS;
+		shift = index % REG_INT_VEC_ALLOC_REGS * REG_INT_VEC_ALLOC_BITS;
+		ivr = ioread32(ivr_base + step);
+		ivr &= ~(REG_INT_VEC_ALLOC_MASK << shift);
+		if (active)
+			ivr |= ring->vector << shift;
+		iowrite32(ivr, ivr_base + step);
+	}
+
 	old = ioread32(ring->nhi->iobase + reg);
 	if (active)
 		new = old | mask;
@@ -167,8 +214,10 @@ static void ring_work(struct work_struct *work)
 	struct tb_ring *ring = container_of(work, typeof(*ring), work);
 	struct ring_frame *frame;
 	bool canceled = false;
+	unsigned long flags;
 	LIST_HEAD(done);
-	mutex_lock(&ring->lock);
+
+	spin_lock_irqsave(&ring->lock, flags);
 
 	if (!ring->running) {
 		/*  Move all frames to done and mark them as canceled. */
@@ -190,30 +239,14 @@ static void ring_work(struct work_struct *work)
 			frame->eof = ring->descriptors[ring->tail].eof;
 			frame->sof = ring->descriptors[ring->tail].sof;
 			frame->flags = ring->descriptors[ring->tail].flags;
-			if (frame->sof != 0)
-				dev_WARN(&ring->nhi->pdev->dev,
-					 "%s %d got unexpected SOF: %#x\n",
-					 RING_TYPE(ring), ring->hop,
-					 frame->sof);
-			/*
-			 * known flags:
-			 * raw not enabled, interupt not set: 0x2=0010
-			 * raw enabled: 0xa=1010
-			 * raw not enabled: 0xb=1011
-			 * partial frame (>MAX_FRAME_SIZE): 0xe=1110
-			 */
-			if (frame->flags != 0xa)
-				dev_WARN(&ring->nhi->pdev->dev,
-					 "%s %d got unexpected flags: %#x\n",
-					 RING_TYPE(ring), ring->hop,
-					 frame->flags);
 		}
 		ring->tail = (ring->tail + 1) % ring->size;
 	}
 	ring_write_descriptors(ring);
 
 invoke_callback:
-	mutex_unlock(&ring->lock); /* allow callbacks to schedule new work */
+	/* allow callbacks to schedule new work */
+	spin_unlock_irqrestore(&ring->lock, flags);
 	while (!list_empty(&done)) {
 		frame = list_first_entry(&done, typeof(*frame), list);
 		/*
@@ -221,48 +254,240 @@ invoke_callback:
 		 * Do not hold on to it.
 		 */
 		list_del_init(&frame->list);
-		frame->callback(ring, frame, canceled);
+		if (frame->callback)
+			frame->callback(ring, frame, canceled);
 	}
 }
 
-int __ring_enqueue(struct tb_ring *ring, struct ring_frame *frame)
+int __tb_ring_enqueue(struct tb_ring *ring, struct ring_frame *frame)
 {
+	unsigned long flags;
 	int ret = 0;
-	mutex_lock(&ring->lock);
+
+	spin_lock_irqsave(&ring->lock, flags);
 	if (ring->running) {
 		list_add_tail(&frame->list, &ring->queue);
 		ring_write_descriptors(ring);
 	} else {
 		ret = -ESHUTDOWN;
 	}
-	mutex_unlock(&ring->lock);
+	spin_unlock_irqrestore(&ring->lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(__tb_ring_enqueue);
+
+/**
+ * tb_ring_poll() - Poll one completed frame from the ring
+ * @ring: Ring to poll
+ *
+ * This function can be called when @start_poll callback of the @ring
+ * has been called. It will read one completed frame from the ring and
+ * return it to the caller. Returns %NULL if there is no more completed
+ * frames.
+ */
+struct ring_frame *tb_ring_poll(struct tb_ring *ring)
+{
+	struct ring_frame *frame = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ring->lock, flags);
+	if (!ring->running)
+		goto unlock;
+	if (ring_empty(ring))
+		goto unlock;
+
+	if (ring->descriptors[ring->tail].flags & RING_DESC_COMPLETED) {
+		frame = list_first_entry(&ring->in_flight, typeof(*frame),
+					 list);
+		list_del_init(&frame->list);
+
+		if (!ring->is_tx) {
+			frame->size = ring->descriptors[ring->tail].length;
+			frame->eof = ring->descriptors[ring->tail].eof;
+			frame->sof = ring->descriptors[ring->tail].sof;
+			frame->flags = ring->descriptors[ring->tail].flags;
+		}
+
+		ring->tail = (ring->tail + 1) % ring->size;
+	}
+
+unlock:
+	spin_unlock_irqrestore(&ring->lock, flags);
+	return frame;
+}
+EXPORT_SYMBOL_GPL(tb_ring_poll);
+
+static void __ring_interrupt_mask(struct tb_ring *ring, bool mask)
+{
+	int idx = ring_interrupt_index(ring);
+	int reg = REG_RING_INTERRUPT_BASE + idx / 32 * 4;
+	int bit = idx % 32;
+	u32 val;
+
+	val = ioread32(ring->nhi->iobase + reg);
+	if (mask)
+		val &= ~BIT(bit);
+	else
+		val |= BIT(bit);
+	iowrite32(val, ring->nhi->iobase + reg);
+}
+
+/* Both @nhi->lock and @ring->lock should be held */
+static void __ring_interrupt(struct tb_ring *ring)
+{
+	if (!ring->running)
+		return;
+
+	if (ring->start_poll) {
+		__ring_interrupt_mask(ring, true);
+		ring->start_poll(ring->poll_data);
+	} else {
+		schedule_work(&ring->work);
+	}
+}
+
+/**
+ * tb_ring_poll_complete() - Re-start interrupt for the ring
+ * @ring: Ring to re-start the interrupt
+ *
+ * This will re-start (unmask) the ring interrupt once the user is done
+ * with polling.
+ */
+void tb_ring_poll_complete(struct tb_ring *ring)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ring->nhi->lock, flags);
+	spin_lock(&ring->lock);
+	if (ring->start_poll)
+		__ring_interrupt_mask(ring, false);
+	spin_unlock(&ring->lock);
+	spin_unlock_irqrestore(&ring->nhi->lock, flags);
+}
+EXPORT_SYMBOL_GPL(tb_ring_poll_complete);
+
+static irqreturn_t ring_msix(int irq, void *data)
+{
+	struct tb_ring *ring = data;
+
+	spin_lock(&ring->nhi->lock);
+	spin_lock(&ring->lock);
+	__ring_interrupt(ring);
+	spin_unlock(&ring->lock);
+	spin_unlock(&ring->nhi->lock);
+
+	return IRQ_HANDLED;
+}
+
+static int ring_request_msix(struct tb_ring *ring, bool no_suspend)
+{
+	struct tb_nhi *nhi = ring->nhi;
+	unsigned long irqflags;
+	int ret;
+
+	if (!nhi->pdev->msix_enabled)
+		return 0;
+
+	ret = ida_simple_get(&nhi->msix_ida, 0, MSIX_MAX_VECS, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
+
+	ring->vector = ret;
+
+	ring->irq = pci_irq_vector(ring->nhi->pdev, ring->vector);
+	if (ring->irq < 0)
+		return ring->irq;
+
+	irqflags = no_suspend ? IRQF_NO_SUSPEND : 0;
+	return request_irq(ring->irq, ring_msix, irqflags, "thunderbolt", ring);
+}
+
+static void ring_release_msix(struct tb_ring *ring)
+{
+	if (ring->irq <= 0)
+		return;
+
+	free_irq(ring->irq, ring);
+	ida_simple_remove(&ring->nhi->msix_ida, ring->vector);
+	ring->vector = 0;
+	ring->irq = 0;
+}
+
+static int nhi_alloc_hop(struct tb_nhi *nhi, struct tb_ring *ring)
+{
+	int ret = 0;
+
+	spin_lock_irq(&nhi->lock);
+
+	if (ring->hop < 0) {
+		unsigned int i;
+
+		/*
+		 * Automatically allocate HopID from the non-reserved
+		 * range 8 .. hop_count - 1.
+		 */
+		for (i = RING_FIRST_USABLE_HOPID; i < nhi->hop_count; i++) {
+			if (ring->is_tx) {
+				if (!nhi->tx_rings[i]) {
+					ring->hop = i;
+					break;
+				}
+			} else {
+				if (!nhi->rx_rings[i]) {
+					ring->hop = i;
+					break;
+				}
+			}
+		}
+	}
+
+	if (ring->hop < 0 || ring->hop >= nhi->hop_count) {
+		dev_warn(&nhi->pdev->dev, "invalid hop: %d\n", ring->hop);
+		ret = -EINVAL;
+		goto err_unlock;
+	}
+	if (ring->is_tx && nhi->tx_rings[ring->hop]) {
+		dev_warn(&nhi->pdev->dev, "TX hop %d already allocated\n",
+			 ring->hop);
+		ret = -EBUSY;
+		goto err_unlock;
+	} else if (!ring->is_tx && nhi->rx_rings[ring->hop]) {
+		dev_warn(&nhi->pdev->dev, "RX hop %d already allocated\n",
+			 ring->hop);
+		ret = -EBUSY;
+		goto err_unlock;
+	}
+
+	if (ring->is_tx)
+		nhi->tx_rings[ring->hop] = ring;
+	else
+		nhi->rx_rings[ring->hop] = ring;
+
+err_unlock:
+	spin_unlock_irq(&nhi->lock);
+
 	return ret;
 }
 
-static struct tb_ring *ring_alloc(struct tb_nhi *nhi, u32 hop, int size,
-				  bool transmit)
+static struct tb_ring *tb_ring_alloc(struct tb_nhi *nhi, u32 hop, int size,
+				     bool transmit, unsigned int flags,
+				     u16 sof_mask, u16 eof_mask,
+				     void (*start_poll)(void *),
+				     void *poll_data)
 {
 	struct tb_ring *ring = NULL;
 	dev_info(&nhi->pdev->dev, "allocating %s ring %d of size %d\n",
 		 transmit ? "TX" : "RX", hop, size);
 
-	mutex_lock(&nhi->lock);
-	if (hop >= nhi->hop_count) {
-		dev_WARN(&nhi->pdev->dev, "invalid hop: %d\n", hop);
-		goto err;
-	}
-	if (transmit && nhi->tx_rings[hop]) {
-		dev_WARN(&nhi->pdev->dev, "TX hop %d already allocated\n", hop);
-		goto err;
-	} else if (!transmit && nhi->rx_rings[hop]) {
-		dev_WARN(&nhi->pdev->dev, "RX hop %d already allocated\n", hop);
-		goto err;
-	}
+	/* Tx Ring 2 is reserved for E2E workaround */
+	if (transmit && hop == RING_E2E_UNUSED_HOPID)
+		return NULL;
+
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring)
-		goto err;
+		return NULL;
 
-	mutex_init(&ring->lock);
+	spin_lock_init(&ring->lock);
 	INIT_LIST_HEAD(&ring->queue);
 	INIT_LIST_HEAD(&ring->in_flight);
 	INIT_WORK(&ring->work, ring_work);
@@ -271,49 +496,91 @@ static struct tb_ring *ring_alloc(struct tb_nhi *nhi, u32 hop, int size,
 	ring->hop = hop;
 	ring->is_tx = transmit;
 	ring->size = size;
+	ring->flags = flags;
+	ring->sof_mask = sof_mask;
+	ring->eof_mask = eof_mask;
 	ring->head = 0;
 	ring->tail = 0;
 	ring->running = false;
+	ring->start_poll = start_poll;
+	ring->poll_data = poll_data;
+
 	ring->descriptors = dma_alloc_coherent(&ring->nhi->pdev->dev,
 			size * sizeof(*ring->descriptors),
 			&ring->descriptors_dma, GFP_KERNEL | __GFP_ZERO);
 	if (!ring->descriptors)
-		goto err;
+		goto err_free_ring;
 
-	if (transmit)
-		nhi->tx_rings[hop] = ring;
-	else
-		nhi->rx_rings[hop] = ring;
-	mutex_unlock(&nhi->lock);
+	if (ring_request_msix(ring, flags & RING_FLAG_NO_SUSPEND))
+		goto err_free_descs;
+
+	if (nhi_alloc_hop(nhi, ring))
+		goto err_release_msix;
+
 	return ring;
 
-err:
-	if (ring)
-		mutex_destroy(&ring->lock);
+err_release_msix:
+	ring_release_msix(ring);
+err_free_descs:
+	dma_free_coherent(&ring->nhi->pdev->dev,
+			  ring->size * sizeof(*ring->descriptors),
+			  ring->descriptors, ring->descriptors_dma);
+err_free_ring:
 	kfree(ring);
-	mutex_unlock(&nhi->lock);
+
 	return NULL;
 }
 
-struct tb_ring *ring_alloc_tx(struct tb_nhi *nhi, int hop, int size)
+/**
+ * tb_ring_alloc_tx() - Allocate DMA ring for transmit
+ * @nhi: Pointer to the NHI the ring is to be allocated
+ * @hop: HopID (ring) to allocate
+ * @size: Number of entries in the ring
+ * @flags: Flags for the ring
+ */
+struct tb_ring *tb_ring_alloc_tx(struct tb_nhi *nhi, int hop, int size,
+				 unsigned int flags)
 {
-	return ring_alloc(nhi, hop, size, true);
+	return tb_ring_alloc(nhi, hop, size, true, flags, 0, 0, NULL, NULL);
 }
-
-struct tb_ring *ring_alloc_rx(struct tb_nhi *nhi, int hop, int size)
-{
-	return ring_alloc(nhi, hop, size, false);
-}
+EXPORT_SYMBOL_GPL(tb_ring_alloc_tx);
 
 /**
- * ring_start() - enable a ring
- *
- * Must not be invoked in parallel with ring_stop().
+ * tb_ring_alloc_rx() - Allocate DMA ring for receive
+ * @nhi: Pointer to the NHI the ring is to be allocated
+ * @hop: HopID (ring) to allocate. Pass %-1 for automatic allocation.
+ * @size: Number of entries in the ring
+ * @flags: Flags for the ring
+ * @sof_mask: Mask of PDF values that start a frame
+ * @eof_mask: Mask of PDF values that end a frame
+ * @start_poll: If not %NULL the ring will call this function when an
+ *		interrupt is triggered and masked, instead of callback
+ *		in each Rx frame.
+ * @poll_data: Optional data passed to @start_poll
  */
-void ring_start(struct tb_ring *ring)
+struct tb_ring *tb_ring_alloc_rx(struct tb_nhi *nhi, int hop, int size,
+				 unsigned int flags, u16 sof_mask, u16 eof_mask,
+				 void (*start_poll)(void *), void *poll_data)
 {
-	mutex_lock(&ring->nhi->lock);
-	mutex_lock(&ring->lock);
+	return tb_ring_alloc(nhi, hop, size, false, flags, sof_mask, eof_mask,
+			     start_poll, poll_data);
+}
+EXPORT_SYMBOL_GPL(tb_ring_alloc_rx);
+
+/**
+ * tb_ring_start() - enable a ring
+ *
+ * Must not be invoked in parallel with tb_ring_stop().
+ */
+void tb_ring_start(struct tb_ring *ring)
+{
+	u16 frame_size;
+	u32 flags;
+
+	spin_lock_irq(&ring->nhi->lock);
+	spin_lock(&ring->lock);
+	if (ring->nhi->going_away)
+		goto err;
 	if (ring->running) {
 		dev_WARN(&ring->nhi->pdev->dev, "ring already started\n");
 		goto err;
@@ -321,45 +588,69 @@ void ring_start(struct tb_ring *ring)
 	dev_info(&ring->nhi->pdev->dev, "starting %s %d\n",
 		 RING_TYPE(ring), ring->hop);
 
+	if (ring->flags & RING_FLAG_FRAME) {
+		/* Means 4096 */
+		frame_size = 0;
+		flags = RING_FLAG_ENABLE;
+	} else {
+		frame_size = TB_FRAME_SIZE;
+		flags = RING_FLAG_ENABLE | RING_FLAG_RAW;
+	}
+
+	if (ring->flags & RING_FLAG_E2E && !ring->is_tx) {
+		u32 hop;
+
+		/*
+		 * In order not to lose Rx packets we enable end-to-end
+		 * workaround which transfers Rx credits to an unused Tx
+		 * HopID.
+		 */
+		hop = RING_E2E_UNUSED_HOPID << REG_RX_OPTIONS_E2E_HOP_SHIFT;
+		hop &= REG_RX_OPTIONS_E2E_HOP_MASK;
+		flags |= hop | RING_FLAG_E2E_FLOW_CONTROL;
+	}
+
 	ring_iowrite64desc(ring, ring->descriptors_dma, 0);
 	if (ring->is_tx) {
 		ring_iowrite32desc(ring, ring->size, 12);
 		ring_iowrite32options(ring, 0, 4); /* time releated ? */
-		ring_iowrite32options(ring,
-				      RING_FLAG_ENABLE | RING_FLAG_RAW, 0);
+		ring_iowrite32options(ring, flags, 0);
 	} else {
-		ring_iowrite32desc(ring,
-				   (TB_FRAME_SIZE << 16) | ring->size, 12);
-		ring_iowrite32options(ring, 0xffffffff, 4); /* SOF EOF mask */
-		ring_iowrite32options(ring,
-				      RING_FLAG_ENABLE | RING_FLAG_RAW, 0);
+		u32 sof_eof_mask = ring->sof_mask << 16 | ring->eof_mask;
+
+		ring_iowrite32desc(ring, (frame_size << 16) | ring->size, 12);
+		ring_iowrite32options(ring, sof_eof_mask, 4);
+		ring_iowrite32options(ring, flags, 0);
 	}
 	ring_interrupt_active(ring, true);
 	ring->running = true;
 err:
-	mutex_unlock(&ring->lock);
-	mutex_unlock(&ring->nhi->lock);
+	spin_unlock(&ring->lock);
+	spin_unlock_irq(&ring->nhi->lock);
 }
-
+EXPORT_SYMBOL_GPL(tb_ring_start);
 
 /**
- * ring_stop() - shutdown a ring
+ * tb_ring_stop() - shutdown a ring
  *
  * Must not be invoked from a callback.
  *
- * This method will disable the ring. Further calls to ring_tx/ring_rx will
- * return -ESHUTDOWN until ring_stop has been called.
+ * This method will disable the ring. Further calls to
+ * tb_ring_tx/tb_ring_rx will return -ESHUTDOWN until ring_stop has been
+ * called.
  *
  * All enqueued frames will be canceled and their callbacks will be executed
  * with frame->canceled set to true (on the callback thread). This method
  * returns only after all callback invocations have finished.
  */
-void ring_stop(struct tb_ring *ring)
+void tb_ring_stop(struct tb_ring *ring)
 {
-	mutex_lock(&ring->nhi->lock);
-	mutex_lock(&ring->lock);
+	spin_lock_irq(&ring->nhi->lock);
+	spin_lock(&ring->lock);
 	dev_info(&ring->nhi->pdev->dev, "stopping %s %d\n",
 		 RING_TYPE(ring), ring->hop);
+	if (ring->nhi->going_away)
+		goto err;
 	if (!ring->running) {
 		dev_WARN(&ring->nhi->pdev->dev, "%s %d already stopped\n",
 			 RING_TYPE(ring), ring->hop);
@@ -376,8 +667,8 @@ void ring_stop(struct tb_ring *ring)
 	ring->running = false;
 
 err:
-	mutex_unlock(&ring->lock);
-	mutex_unlock(&ring->nhi->lock);
+	spin_unlock(&ring->lock);
+	spin_unlock_irq(&ring->nhi->lock);
 
 	/*
 	 * schedule ring->work to invoke callbacks on all remaining frames.
@@ -385,9 +676,10 @@ err:
 	schedule_work(&ring->work);
 	flush_work(&ring->work);
 }
+EXPORT_SYMBOL_GPL(tb_ring_stop);
 
 /*
- * ring_free() - free ring
+ * tb_ring_free() - free ring
  *
  * When this method returns all invocations of ring->callback will have
  * finished.
@@ -396,9 +688,9 @@ err:
  *
  * Must NOT be called from ring_frame->callback!
  */
-void ring_free(struct tb_ring *ring)
+void tb_ring_free(struct tb_ring *ring)
 {
-	mutex_lock(&ring->nhi->lock);
+	spin_lock_irq(&ring->nhi->lock);
 	/*
 	 * Dissociate the ring from the NHI. This also ensures that
 	 * nhi_interrupt_work cannot reschedule ring->work.
@@ -412,6 +704,9 @@ void ring_free(struct tb_ring *ring)
 		dev_WARN(&ring->nhi->pdev->dev, "%s %d still running\n",
 			 RING_TYPE(ring), ring->hop);
 	}
+	spin_unlock_irq(&ring->nhi->lock);
+
+	ring_release_msix(ring);
 
 	dma_free_coherent(&ring->nhi->pdev->dev,
 			  ring->size * sizeof(*ring->descriptors),
@@ -426,15 +721,69 @@ void ring_free(struct tb_ring *ring)
 		 RING_TYPE(ring),
 		 ring->hop);
 
-	mutex_unlock(&ring->nhi->lock);
 	/**
-	 * ring->work can no longer be scheduled (it is scheduled only by
-	 * nhi_interrupt_work and ring_stop). Wait for it to finish before
-	 * freeing the ring.
+	 * ring->work can no longer be scheduled (it is scheduled only
+	 * by nhi_interrupt_work, ring_stop and ring_msix). Wait for it
+	 * to finish before freeing the ring.
 	 */
 	flush_work(&ring->work);
-	mutex_destroy(&ring->lock);
 	kfree(ring);
+}
+EXPORT_SYMBOL_GPL(tb_ring_free);
+
+/**
+ * nhi_mailbox_cmd() - Send a command through NHI mailbox
+ * @nhi: Pointer to the NHI structure
+ * @cmd: Command to send
+ * @data: Data to be send with the command
+ *
+ * Sends mailbox command to the firmware running on NHI. Returns %0 in
+ * case of success and negative errno in case of failure.
+ */
+int nhi_mailbox_cmd(struct tb_nhi *nhi, enum nhi_mailbox_cmd cmd, u32 data)
+{
+	ktime_t timeout;
+	u32 val;
+
+	iowrite32(data, nhi->iobase + REG_INMAIL_DATA);
+
+	val = ioread32(nhi->iobase + REG_INMAIL_CMD);
+	val &= ~(REG_INMAIL_CMD_MASK | REG_INMAIL_ERROR);
+	val |= REG_INMAIL_OP_REQUEST | cmd;
+	iowrite32(val, nhi->iobase + REG_INMAIL_CMD);
+
+	timeout = ktime_add_ms(ktime_get(), NHI_MAILBOX_TIMEOUT);
+	do {
+		val = ioread32(nhi->iobase + REG_INMAIL_CMD);
+		if (!(val & REG_INMAIL_OP_REQUEST))
+			break;
+		usleep_range(10, 20);
+	} while (ktime_before(ktime_get(), timeout));
+
+	if (val & REG_INMAIL_OP_REQUEST)
+		return -ETIMEDOUT;
+	if (val & REG_INMAIL_ERROR)
+		return -EIO;
+
+	return 0;
+}
+
+/**
+ * nhi_mailbox_mode() - Return current firmware operation mode
+ * @nhi: Pointer to the NHI structure
+ *
+ * The function reads current firmware operation mode using NHI mailbox
+ * registers and returns it to the caller.
+ */
+enum nhi_fw_mode nhi_mailbox_mode(struct tb_nhi *nhi)
+{
+	u32 val;
+
+	val = ioread32(nhi->iobase + REG_OUTMAIL_CMD);
+	val &= REG_OUTMAIL_CMD_OPMODE_MASK;
+	val >>= REG_OUTMAIL_CMD_OPMODE_SHIFT;
+
+	return (enum nhi_fw_mode)val;
 }
 
 static void nhi_interrupt_work(struct work_struct *work)
@@ -446,7 +795,7 @@ static void nhi_interrupt_work(struct work_struct *work)
 	int type = 0; /* current interrupt type 0: TX, 1: RX, 2: RX overflow */
 	struct tb_ring *ring;
 
-	mutex_lock(&nhi->lock);
+	spin_lock_irq(&nhi->lock);
 
 	/*
 	 * Starting at REG_RING_NOTIFY_BASE there are three status bitfields
@@ -481,10 +830,12 @@ static void nhi_interrupt_work(struct work_struct *work)
 				 hop);
 			continue;
 		}
-		/* we do not check ring->running, this is done in ring->work */
-		schedule_work(&ring->work);
+
+		spin_lock(&ring->lock);
+		__ring_interrupt(ring);
+		spin_unlock(&ring->lock);
 	}
-	mutex_unlock(&nhi->lock);
+	spin_unlock_irq(&nhi->lock);
 }
 
 static irqreturn_t nhi_msi(int irq, void *data)
@@ -498,16 +849,58 @@ static int nhi_suspend_noirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
-	thunderbolt_suspend(tb);
-	return 0;
+
+	return tb_domain_suspend_noirq(tb);
+}
+
+static void nhi_enable_int_throttling(struct tb_nhi *nhi)
+{
+	/* Throttling is specified in 256ns increments */
+	u32 throttle = DIV_ROUND_UP(128 * NSEC_PER_USEC, 256);
+	unsigned int i;
+
+	/*
+	 * Configure interrupt throttling for all vectors even if we
+	 * only use few.
+	 */
+	for (i = 0; i < MSIX_MAX_VECS; i++) {
+		u32 reg = REG_INT_THROTTLING_RATE + i * 4;
+		iowrite32(throttle, nhi->iobase + reg);
+	}
 }
 
 static int nhi_resume_noirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
-	thunderbolt_resume(tb);
-	return 0;
+
+	/*
+	 * Check that the device is still there. It may be that the user
+	 * unplugged last device which causes the host controller to go
+	 * away on PCs.
+	 */
+	if (!pci_device_is_present(pdev))
+		tb->nhi->going_away = true;
+	else
+		nhi_enable_int_throttling(tb->nhi);
+
+	return tb_domain_resume_noirq(tb);
+}
+
+static int nhi_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct tb *tb = pci_get_drvdata(pdev);
+
+	return tb_domain_suspend(tb);
+}
+
+static void nhi_complete(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct tb *tb = pci_get_drvdata(pdev);
+
+	tb_domain_complete(tb);
 }
 
 static void nhi_shutdown(struct tb_nhi *nhi)
@@ -528,9 +921,53 @@ static void nhi_shutdown(struct tb_nhi *nhi)
 	 * We have to release the irq before calling flush_work. Otherwise an
 	 * already executing IRQ handler could call schedule_work again.
 	 */
-	devm_free_irq(&nhi->pdev->dev, nhi->pdev->irq, nhi);
-	flush_work(&nhi->interrupt_work);
-	mutex_destroy(&nhi->lock);
+	if (!nhi->pdev->msix_enabled) {
+		devm_free_irq(&nhi->pdev->dev, nhi->pdev->irq, nhi);
+		flush_work(&nhi->interrupt_work);
+	}
+	ida_destroy(&nhi->msix_ida);
+}
+
+static int nhi_init_msi(struct tb_nhi *nhi)
+{
+	struct pci_dev *pdev = nhi->pdev;
+	int res, irq, nvec;
+
+	/* In case someone left them on. */
+	nhi_disable_interrupts(nhi);
+
+	nhi_enable_int_throttling(nhi);
+
+	ida_init(&nhi->msix_ida);
+
+	/*
+	 * The NHI has 16 MSI-X vectors or a single MSI. We first try to
+	 * get all MSI-X vectors and if we succeed, each ring will have
+	 * one MSI-X. If for some reason that does not work out, we
+	 * fallback to a single MSI.
+	 */
+	nvec = pci_alloc_irq_vectors(pdev, MSIX_MIN_VECS, MSIX_MAX_VECS,
+				     PCI_IRQ_MSIX);
+	if (nvec < 0) {
+		nvec = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
+		if (nvec < 0)
+			return nvec;
+
+		INIT_WORK(&nhi->interrupt_work, nhi_interrupt_work);
+
+		irq = pci_irq_vector(nhi->pdev, 0);
+		if (irq < 0)
+			return irq;
+
+		res = devm_request_irq(&pdev->dev, irq, nhi_msi,
+				       IRQF_NO_SUSPEND, "thunderbolt", nhi);
+		if (res) {
+			dev_err(&pdev->dev, "request_irq failed, aborting\n");
+			return res;
+		}
+	}
+
+	return 0;
 }
 
 static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -542,12 +979,6 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	res = pcim_enable_device(pdev);
 	if (res) {
 		dev_err(&pdev->dev, "cannot enable PCI device, aborting\n");
-		return res;
-	}
-
-	res = pci_enable_msi(pdev);
-	if (res) {
-		dev_err(&pdev->dev, "cannot enable MSI, aborting\n");
 		return res;
 	}
 
@@ -568,7 +999,6 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (nhi->hop_count != 12 && nhi->hop_count != 32)
 		dev_warn(&pdev->dev, "unexpected hop count: %d\n",
 			 nhi->hop_count);
-	INIT_WORK(&nhi->interrupt_work, nhi_interrupt_work);
 
 	nhi->tx_rings = devm_kcalloc(&pdev->dev, nhi->hop_count,
 				     sizeof(*nhi->tx_rings), GFP_KERNEL);
@@ -577,29 +1007,34 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!nhi->tx_rings || !nhi->rx_rings)
 		return -ENOMEM;
 
-	nhi_disable_interrupts(nhi); /* In case someone left them on. */
-	res = devm_request_irq(&pdev->dev, pdev->irq, nhi_msi,
-			       IRQF_NO_SUSPEND, /* must work during _noirq */
-			       "thunderbolt", nhi);
+	res = nhi_init_msi(nhi);
 	if (res) {
-		dev_err(&pdev->dev, "request_irq failed, aborting\n");
+		dev_err(&pdev->dev, "cannot enable MSI, aborting\n");
 		return res;
 	}
 
-	mutex_init(&nhi->lock);
+	spin_lock_init(&nhi->lock);
 
 	pci_set_master(pdev);
 
-	/* magic value - clock related? */
-	iowrite32(3906250 / 10000, nhi->iobase + 0x38c00);
+	tb = icm_probe(nhi);
+	if (!tb)
+		tb = tb_probe(nhi);
+	if (!tb) {
+		dev_err(&nhi->pdev->dev,
+			"failed to determine connection manager, aborting\n");
+		return -ENODEV;
+	}
 
 	dev_info(&nhi->pdev->dev, "NHI initialized, starting thunderbolt\n");
-	tb = thunderbolt_alloc_and_start(nhi);
-	if (!tb) {
+
+	res = tb_domain_add(tb);
+	if (res) {
 		/*
 		 * At this point the RX/TX rings might already have been
 		 * activated. Do a proper shutdown.
 		 */
+		tb_domain_put(tb);
 		nhi_shutdown(nhi);
 		return -EIO;
 	}
@@ -612,7 +1047,8 @@ static void nhi_remove(struct pci_dev *pdev)
 {
 	struct tb *tb = pci_get_drvdata(pdev);
 	struct tb_nhi *nhi = tb->nhi;
-	thunderbolt_shutdown_and_free(tb);
+
+	tb_domain_remove(tb);
 	nhi_shutdown(nhi);
 }
 
@@ -629,6 +1065,10 @@ static const struct dev_pm_ops nhi_pm_ops = {
 					    * pci-tunnels stay alive.
 					    */
 	.restore_noirq = nhi_resume_noirq,
+	.suspend = nhi_suspend,
+	.freeze = nhi_suspend,
+	.poweroff = nhi_suspend,
+	.complete = nhi_complete,
 };
 
 static struct pci_device_id nhi_ids[] = {
@@ -660,6 +1100,17 @@ static struct pci_device_id nhi_ids[] = {
 		.device = PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_NHI,
 		.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID,
 	},
+
+	/* Thunderbolt 3 */
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_2C_NHI) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_4C_NHI) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_USBONLY_NHI) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_NHI) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_USBONLY_NHI) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_NHI) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_NHI) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_USBONLY_NHI) },
+
 	{ 0,}
 };
 
@@ -676,15 +1127,22 @@ static struct pci_driver nhi_driver = {
 
 static int __init nhi_init(void)
 {
-	if (!dmi_match(DMI_BOARD_VENDOR, "Apple Inc."))
-		return -ENOSYS;
-	return pci_register_driver(&nhi_driver);
+	int ret;
+
+	ret = tb_domain_init();
+	if (ret)
+		return ret;
+	ret = pci_register_driver(&nhi_driver);
+	if (ret)
+		tb_domain_exit();
+	return ret;
 }
 
 static void __exit nhi_unload(void)
 {
 	pci_unregister_driver(&nhi_driver);
+	tb_domain_exit();
 }
 
-module_init(nhi_init);
+fs_initcall(nhi_init);
 module_exit(nhi_unload);

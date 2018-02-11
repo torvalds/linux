@@ -112,8 +112,6 @@ struct frag {				/* VBLK Fragment handling */
 
 /* In memory LDM database structures. */
 
-#define GUID_SIZE		16
-
 struct privhead {			/* Offsets and sizes are in sectors. */
 	u16	ver_major;
 	u16	ver_minor;
@@ -121,7 +119,7 @@ struct privhead {			/* Offsets and sizes are in sectors. */
 	u64	logical_disk_size;
 	u64	config_start;
 	u64	config_size;
-	u8	disk_id[GUID_SIZE];
+	uuid_t	disk_id;
 };
 
 struct tocblock {			/* We have exactly two bitmaps. */
@@ -154,7 +152,7 @@ struct vblk_dgrp {			/* VBLK Disk Group */
 };
 
 struct vblk_disk {			/* VBLK Disk */
-	u8	disk_id[GUID_SIZE];
+	uuid_t	disk_id;
 	u8	alt_name[128];
 };
 

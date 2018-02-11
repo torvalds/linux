@@ -63,8 +63,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -78,8 +76,6 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
@@ -92,13 +88,13 @@
 };
 
 &pio {
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
+	usb0_id_detect_pin: usb0-id-detect-pin {
 		pins = "PH4";
 		function = "gpio_in";
 		bias-pull-up;
 	};
 
-	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
+	usb0_vbus_detect_pin: usb0-vbus-detect-pin {
 		pins = "PH5";
 		function = "gpio_in";
 		bias-pull-down;
@@ -116,12 +112,8 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
-};
-
-&usb2_vbus_pin_a {
-	pins = "PH6";
 };
 
 &usb_otg {

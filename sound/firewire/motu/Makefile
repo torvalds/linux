@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 CFLAGS_amdtp-motu.o	:= -I$(src)
 
 snd-firewire-motu-objs := motu.o amdtp-motu.o motu-transaction.o motu-stream.o \

@@ -147,7 +147,7 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info_t *ap_info)
 	/* noise */
 	ap->noise = ap_info->noise;
 	/* capability */
-	ap->capability = ap_info->capability;
+	ap->capability = le16_to_cpu(ap_info->capability);
 	/* rsn */
 	if ((ap_info->rsn_mode & RSN_MODE_WPA2) &&
 	    (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)) {
@@ -233,12 +233,12 @@ int get_ap_information(struct ks_wlan_private *priv, struct ap_info_t *ap_info,
 	/* noise */
 	ap->noise = ap_info->noise;
 	/* capability */
-	ap->capability = ap_info->capability;
+	ap->capability = le16_to_cpu(ap_info->capability);
 	/* channel */
 	ap->channel = ap_info->ch_info;
 
 	bp = ap_info->body;
-	bsize = ap_info->body_size;
+	bsize = le16_to_cpu(ap_info->body_size);
 	offset = 0;
 
 	while (bsize > offset) {
@@ -466,12 +466,12 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 		DPRINTK(4, "SNAP, rx_ind_size = %d\n", rx_ind_size);
 
 		size = ETH_ALEN * 2;
-		memcpy(skb_put(skb, size), priv->rxp, size);
+		skb_put_data(skb, priv->rxp, size);
 
 		/* (SNAP+UI..) skip */
 
 		size = rx_ind_size - (ETH_ALEN * 2);
-		memcpy(skb_put(skb, size), &eth_hdr->h_proto, size);
+		skb_put_data(skb, &eth_hdr->h_proto, size);
 
 		aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + ETHER_HDR_SIZE);
 		break;
@@ -484,14 +484,13 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 		}
 		DPRINTK(3, "NETBEUI/NetBIOS rx_ind_size=%d\n", rx_ind_size);
 
-		memcpy(skb_put(skb, 12), priv->rxp, 12);	/* 8802/FDDI MAC copy */
+		skb_put_data(skb, priv->rxp, 12);	/* 8802/FDDI MAC copy */
 
 		temp[0] = (((rx_ind_size - 12) >> 8) & 0xff);	/* NETBEUI size add */
 		temp[1] = ((rx_ind_size - 12) & 0xff);
-		memcpy(skb_put(skb, 2), temp, 2);
+		skb_put_data(skb, temp, 2);
 
-		memcpy(skb_put(skb, rx_ind_size - 14), priv->rxp + 12,
-		       rx_ind_size - 14);	/* copy after Type */
+		skb_put_data(skb, priv->rxp + 12, rx_ind_size - 14);	/* copy after Type */
 
 		aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + 14);
 		break;
@@ -567,9 +566,9 @@ void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 		break;
 	case LOCAL_GAIN:
 		memcpy(&priv->gain, priv->rxp, sizeof(priv->gain));
-		DPRINTK(3, "TxMode=%d, RxMode=%d, TxGain=%d, RxGain=%d\n",
-			priv->gain.TxMode, priv->gain.RxMode, priv->gain.TxGain,
-			priv->gain.RxGain);
+		DPRINTK(3, "tx_mode=%d, rx_mode=%d, tx_gain=%d, rx_gain=%d\n",
+			priv->gain.tx_mode, priv->gain.rx_mode,
+			priv->gain.tx_gain, priv->gain.rx_gain);
 		break;
 	case LOCAL_EEPROM_SUM:
 		memcpy(&priv->eeprom_sum, priv->rxp, sizeof(priv->eeprom_sum));
@@ -948,18 +947,18 @@ void hostif_associate_indication(struct ks_wlan_private *priv)
 	wrqu.data.length += sizeof(associnfo_leader0) - 1;
 	pbuf += sizeof(associnfo_leader0) - 1;
 
-	for (i = 0; i < assoc_req->reqIEs_size; i++)
+	for (i = 0; i < le16_to_cpu(assoc_req->req_ies_size); i++)
 		pbuf += sprintf(pbuf, "%02x", *(pb + i));
-	wrqu.data.length += (assoc_req->reqIEs_size) * 2;
+	wrqu.data.length += (le16_to_cpu(assoc_req->req_ies_size)) * 2;
 
 	memcpy(pbuf, associnfo_leader1, sizeof(associnfo_leader1) - 1);
 	wrqu.data.length += sizeof(associnfo_leader1) - 1;
 	pbuf += sizeof(associnfo_leader1) - 1;
 
-	pb += assoc_req->reqIEs_size;
-	for (i = 0; i < assoc_resp->respIEs_size; i++)
+	pb += le16_to_cpu(assoc_req->req_ies_size);
+	for (i = 0; i < le16_to_cpu(assoc_resp->resp_ies_size); i++)
 		pbuf += sprintf(pbuf, "%02x", *(pb + i));
-	wrqu.data.length += (assoc_resp->respIEs_size) * 2;
+	wrqu.data.length += (le16_to_cpu(assoc_resp->resp_ies_size)) * 2;
 
 	pbuf += sprintf(pbuf, ")");
 	wrqu.data.length += 1;
@@ -994,22 +993,22 @@ void hostif_phy_information_confirm(struct ks_wlan_private *priv)
 {
 	struct iw_statistics *wstats = &priv->wstats;
 	unsigned char rssi, signal, noise;
-	unsigned char LinkSpeed;
-	unsigned int TransmittedFrameCount, ReceivedFragmentCount;
-	unsigned int FailedCount, FCSErrorCount;
+	unsigned char link_speed;
+	unsigned int transmitted_frame_count, received_fragment_count;
+	unsigned int failed_count, fcs_error_count;
 
 	DPRINTK(3, "\n");
 	rssi = get_BYTE(priv);
 	signal = get_BYTE(priv);
 	noise = get_BYTE(priv);
-	LinkSpeed = get_BYTE(priv);
-	TransmittedFrameCount = get_DWORD(priv);
-	ReceivedFragmentCount = get_DWORD(priv);
-	FailedCount = get_DWORD(priv);
-	FCSErrorCount = get_DWORD(priv);
+	link_speed = get_BYTE(priv);
+	transmitted_frame_count = get_DWORD(priv);
+	received_fragment_count = get_DWORD(priv);
+	failed_count = get_DWORD(priv);
+	fcs_error_count = get_DWORD(priv);
 
 	DPRINTK(4, "phyinfo confirm rssi=%d signal=%d\n", rssi, signal);
-	priv->current_rate = (LinkSpeed & RATE_MASK);
+	priv->current_rate = (link_speed & RATE_MASK);
 	wstats->qual.qual = signal;
 	wstats->qual.level = 256 - rssi;
 	wstats->qual.noise = 0;	/* invalid noise value */
@@ -1017,14 +1016,13 @@ void hostif_phy_information_confirm(struct ks_wlan_private *priv)
 
 	DPRINTK(3, "\n    rssi=%u\n"
 		   "    signal=%u\n"
-		   "    LinkSpeed=%ux500Kbps\n"
-		   "    TransmittedFrameCount=%u\n"
-		   "    ReceivedFragmentCount=%u\n"
-		   "    FailedCount=%u\n"
-		   "    FCSErrorCount=%u\n",
-		rssi, signal, LinkSpeed, TransmittedFrameCount,
-		ReceivedFragmentCount, FailedCount, FCSErrorCount);
-
+		   "    link_speed=%ux500Kbps\n"
+		   "    transmitted_frame_count=%u\n"
+		   "    received_fragment_count=%u\n"
+		   "    failed_count=%u\n"
+		   "    fcs_error_count=%u\n",
+		rssi, signal, link_speed, transmitted_frame_count,
+		received_fragment_count, failed_count, fcs_error_count);
 	/* wake_up_interruptible_all(&priv->confirm_wait); */
 	complete(&priv->confirm_wait);
 }
@@ -1661,12 +1659,12 @@ void hostif_phy_information_request(struct ks_wlan_private *priv)
 static
 void hostif_power_mgmt_request(struct ks_wlan_private *priv,
 			       unsigned long mode, unsigned long wake_up,
-			       unsigned long receiveDTIMs)
+			       unsigned long receive_dtims)
 {
 	struct hostif_power_mgmt_request_t *pp;
 
-	DPRINTK(3, "mode=%lu wake_up=%lu receiveDTIMs=%lu\n", mode, wake_up,
-		receiveDTIMs);
+	DPRINTK(3, "mode=%lu wake_up=%lu receive_dtims=%lu\n", mode, wake_up,
+		receive_dtims);
 
 	pp = hostif_generic_request(sizeof(*pp), HIF_POWER_MGMT_REQ);
 	if (!pp)
@@ -1674,7 +1672,7 @@ void hostif_power_mgmt_request(struct ks_wlan_private *priv,
 
 	pp->mode = cpu_to_le32((uint32_t)mode);
 	pp->wake_up = cpu_to_le32((uint32_t)wake_up);
-	pp->receiveDTIMs = cpu_to_le32((uint32_t)receiveDTIMs);
+	pp->receive_dtims = cpu_to_le32((uint32_t)receive_dtims);
 
 	/* send to device request */
 	ps_confirm_wait_inc(priv);
@@ -1822,7 +1820,7 @@ void hostif_receive(struct ks_wlan_private *priv, unsigned char *p,
 static
 void hostif_sme_set_wep(struct ks_wlan_private *priv, int type)
 {
-	u32 val;
+	__le32 val;
 
 	switch (type) {
 	case SME_WEP_INDEX_REQUEST:
@@ -1871,13 +1869,13 @@ void hostif_sme_set_wep(struct ks_wlan_private *priv, int type)
 }
 
 struct wpa_suite_t {
-	unsigned short size;
+	__le16 size;
 	unsigned char suite[4][CIPHER_ID_LEN];
 } __packed;
 
 struct rsn_mode_t {
-	u32 rsn_mode;
-	u16 rsn_capability;
+	__le32 rsn_mode;
+	__le16 rsn_capability;
 } __packed;
 
 static
@@ -1885,7 +1883,7 @@ void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 {
 	struct wpa_suite_t wpa_suite;
 	struct rsn_mode_t rsn_mode;
-	u32 val;
+	__le32 val;
 
 	memset(&wpa_suite, 0, sizeof(wpa_suite));
 
@@ -1937,7 +1935,8 @@ void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 
 		hostif_mib_set_request(priv, DOT11_RSN_CONFIG_UNICAST_CIPHER,
 				       sizeof(wpa_suite.size) +
-				       CIPHER_ID_LEN * wpa_suite.size,
+				       CIPHER_ID_LEN *
+				       le16_to_cpu(wpa_suite.size),
 				       MIB_VALUE_TYPE_OSTRING, &wpa_suite);
 		break;
 	case SME_RSN_MCAST_REQUEST:
@@ -2029,7 +2028,8 @@ void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 
 		hostif_mib_set_request(priv, DOT11_RSN_CONFIG_AUTH_SUITE,
 				       sizeof(wpa_suite.size) +
-				       KEY_MGMT_ID_LEN * wpa_suite.size,
+				       KEY_MGMT_ID_LEN *
+				       le16_to_cpu(wpa_suite.size),
 				       MIB_VALUE_TYPE_OSTRING, &wpa_suite);
 		break;
 	case SME_RSN_ENABLED_REQUEST:
@@ -2166,7 +2166,7 @@ void hostif_sme_multicast_set(struct ks_wlan_private *priv)
 	int mc_count;
 	struct netdev_hw_addr *ha;
 	char set_address[NIC_MAX_MCAST_LIST * ETH_ALEN];
-	unsigned long filter_type;
+	__le32 filter_type;
 	int i = 0;
 
 	DPRINTK(3, "\n");
@@ -2218,44 +2218,44 @@ spin_unlock:
 static
 void hostif_sme_power_mgmt_set(struct ks_wlan_private *priv)
 {
-	unsigned long mode, wake_up, receiveDTIMs;
+	unsigned long mode, wake_up, receive_dtims;
 
 	DPRINTK(3, "\n");
 	switch (priv->reg.power_mgmt) {
 	case POWER_MGMT_ACTIVE:
 		mode = POWER_ACTIVE;
 		wake_up = 0;
-		receiveDTIMs = 0;
+		receive_dtims = 0;
 		break;
 	case POWER_MGMT_SAVE1:
 		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE) {
 			mode = POWER_SAVE;
 			wake_up = 0;
-			receiveDTIMs = 0;
+			receive_dtims = 0;
 		} else {
 			mode = POWER_ACTIVE;
 			wake_up = 0;
-			receiveDTIMs = 0;
+			receive_dtims = 0;
 		}
 		break;
 	case POWER_MGMT_SAVE2:
 		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE) {
 			mode = POWER_SAVE;
 			wake_up = 0;
-			receiveDTIMs = 1;
+			receive_dtims = 1;
 		} else {
 			mode = POWER_ACTIVE;
 			wake_up = 0;
-			receiveDTIMs = 0;
+			receive_dtims = 0;
 		}
 		break;
 	default:
 		mode = POWER_ACTIVE;
 		wake_up = 0;
-		receiveDTIMs = 0;
+		receive_dtims = 0;
 		break;
 	}
-	hostif_power_mgmt_request(priv, mode, wake_up, receiveDTIMs);
+	hostif_power_mgmt_request(priv, mode, wake_up, receive_dtims);
 }
 
 static
@@ -2277,7 +2277,7 @@ void hostif_sme_sleep_set(struct ks_wlan_private *priv)
 static
 void hostif_sme_set_key(struct ks_wlan_private *priv, int type)
 {
-	u32 val;
+	__le32 val;
 
 	switch (type) {
 	case SME_SET_FLAG:
@@ -2336,7 +2336,7 @@ static
 void hostif_sme_set_pmksa(struct ks_wlan_private *priv)
 {
 	struct pmk_cache_t {
-		u16 size;
+		__le16 size;
 		struct {
 			u8 bssid[ETH_ALEN];
 			u8 pmkid[IW_PMKID_LEN];
@@ -2367,7 +2367,7 @@ void hostif_sme_set_pmksa(struct ks_wlan_private *priv)
 static
 void hostif_sme_execute(struct ks_wlan_private *priv, int event)
 {
-	u32 val;
+	__le32 val;
 
 	DPRINTK(3, "event=%d\n", event);
 	switch (event) {

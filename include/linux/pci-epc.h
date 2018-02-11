@@ -62,11 +62,13 @@ struct pci_epc_ops {
  * @size: the size of the PCI address space
  * @bitmap: bitmap to manage the PCI address space
  * @pages: number of bits representing the address region
+ * @page_size: size of each page
  */
 struct pci_epc_mem {
 	phys_addr_t	phys_base;
 	size_t		size;
 	unsigned long	*bitmap;
+	size_t		page_size;
 	int		pages;
 };
 
@@ -97,6 +99,9 @@ struct pci_epc {
 		__pci_epc_create((dev), (ops), THIS_MODULE)
 #define devm_pci_epc_create(dev, ops)    \
 		__devm_pci_epc_create((dev), (ops), THIS_MODULE)
+
+#define pci_epc_mem_init(epc, phys_addr, size)	\
+		__pci_epc_mem_init((epc), (phys_addr), (size), PAGE_SIZE)
 
 static inline void epc_set_drvdata(struct pci_epc *epc, void *data)
 {
@@ -135,7 +140,8 @@ void pci_epc_stop(struct pci_epc *epc);
 struct pci_epc *pci_epc_get(const char *epc_name);
 void pci_epc_put(struct pci_epc *epc);
 
-int pci_epc_mem_init(struct pci_epc *epc, phys_addr_t phys_addr, size_t size);
+int __pci_epc_mem_init(struct pci_epc *epc, phys_addr_t phys_addr, size_t size,
+		       size_t page_size);
 void pci_epc_mem_exit(struct pci_epc *epc);
 void __iomem *pci_epc_mem_alloc_addr(struct pci_epc *epc,
 				     phys_addr_t *phys_addr, size_t size);

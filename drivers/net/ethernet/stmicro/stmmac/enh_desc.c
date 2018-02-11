@@ -400,7 +400,8 @@ static u64 enh_desc_get_timestamp(void *desc, u32 ats)
 	return ns;
 }
 
-static int enh_desc_get_rx_timestamp_status(void *desc, u32 ats)
+static int enh_desc_get_rx_timestamp_status(void *desc, void *next_desc,
+					    u32 ats)
 {
 	if (ats) {
 		struct dma_extended_desc *p = (struct dma_extended_desc *)desc;

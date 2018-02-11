@@ -92,74 +92,33 @@ static sector_t verity_position_at_level(struct dm_verity *v, sector_t block,
 	return block >> (level * v->hash_per_block_bits);
 }
 
-/*
- * Callback function for asynchrnous crypto API completion notification
- */
-static void verity_op_done(struct crypto_async_request *base, int err)
-{
-	struct verity_result *res = (struct verity_result *)base->data;
-
-	if (err == -EINPROGRESS)
-		return;
-
-	res->err = err;
-	complete(&res->completion);
-}
-
-/*
- * Wait for async crypto API callback
- */
-static inline int verity_complete_op(struct verity_result *res, int ret)
-{
-	switch (ret) {
-	case 0:
-		break;
-
-	case -EINPROGRESS:
-	case -EBUSY:
-		ret = wait_for_completion_interruptible(&res->completion);
-		if (!ret)
-			ret = res->err;
-		reinit_completion(&res->completion);
-		break;
-
-	default:
-		DMERR("verity_wait_hash: crypto op submission failed: %d", ret);
-	}
-
-	if (unlikely(ret < 0))
-		DMERR("verity_wait_hash: crypto op failed: %d", ret);
-
-	return ret;
-}
-
 static int verity_hash_update(struct dm_verity *v, struct ahash_request *req,
 				const u8 *data, size_t len,
-				struct verity_result *res)
+				struct crypto_wait *wait)
 {
 	struct scatterlist sg;
 
 	sg_init_one(&sg, data, len);
 	ahash_request_set_crypt(req, &sg, NULL, len);
 
-	return verity_complete_op(res, crypto_ahash_update(req));
+	return crypto_wait_req(crypto_ahash_update(req), wait);
 }
 
 /*
  * Wrapper for crypto_ahash_init, which handles verity salting.
  */
 static int verity_hash_init(struct dm_verity *v, struct ahash_request *req,
-				struct verity_result *res)
+				struct crypto_wait *wait)
 {
 	int r;
 
 	ahash_request_set_tfm(req, v->tfm);
 	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP |
 					CRYPTO_TFM_REQ_MAY_BACKLOG,
-					verity_op_done, (void *)res);
-	init_completion(&res->completion);
+					crypto_req_done, (void *)wait);
+	crypto_init_wait(wait);
 
-	r = verity_complete_op(res, crypto_ahash_init(req));
+	r = crypto_wait_req(crypto_ahash_init(req), wait);
 
 	if (unlikely(r < 0)) {
 		DMERR("crypto_ahash_init failed: %d", r);
@@ -167,18 +126,18 @@ static int verity_hash_init(struct dm_verity *v, struct ahash_request *req,
 	}
 
 	if (likely(v->salt_size && (v->version >= 1)))
-		r = verity_hash_update(v, req, v->salt, v->salt_size, res);
+		r = verity_hash_update(v, req, v->salt, v->salt_size, wait);
 
 	return r;
 }
 
 static int verity_hash_final(struct dm_verity *v, struct ahash_request *req,
-			     u8 *digest, struct verity_result *res)
+			     u8 *digest, struct crypto_wait *wait)
 {
 	int r;
 
 	if (unlikely(v->salt_size && (!v->version))) {
-		r = verity_hash_update(v, req, v->salt, v->salt_size, res);
+		r = verity_hash_update(v, req, v->salt, v->salt_size, wait);
 
 		if (r < 0) {
 			DMERR("verity_hash_final failed updating salt: %d", r);
@@ -187,7 +146,7 @@ static int verity_hash_final(struct dm_verity *v, struct ahash_request *req,
 	}
 
 	ahash_request_set_crypt(req, NULL, digest, 0);
-	r = verity_complete_op(res, crypto_ahash_final(req));
+	r = crypto_wait_req(crypto_ahash_final(req), wait);
 out:
 	return r;
 }
@@ -196,17 +155,17 @@ int verity_hash(struct dm_verity *v, struct ahash_request *req,
 		const u8 *data, size_t len, u8 *digest)
 {
 	int r;
-	struct verity_result res;
+	struct crypto_wait wait;
 
-	r = verity_hash_init(v, req, &res);
+	r = verity_hash_init(v, req, &wait);
 	if (unlikely(r < 0))
 		goto out;
 
-	r = verity_hash_update(v, req, data, len, &res);
+	r = verity_hash_update(v, req, data, len, &wait);
 	if (unlikely(r < 0))
 		goto out;
 
-	r = verity_hash_final(v, req, digest, &res);
+	r = verity_hash_final(v, req, digest, &wait);
 
 out:
 	return r;
@@ -389,7 +348,7 @@ out:
  * Calculates the digest for the given bio
  */
 int verity_for_io_block(struct dm_verity *v, struct dm_verity_io *io,
-			struct bvec_iter *iter, struct verity_result *res)
+			struct bvec_iter *iter, struct crypto_wait *wait)
 {
 	unsigned int todo = 1 << v->data_dev_block_bits;
 	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
@@ -414,7 +373,7 @@ int verity_for_io_block(struct dm_verity *v, struct dm_verity_io *io,
 		 */
 		sg_set_page(&sg, bv.bv_page, len, bv.bv_offset);
 		ahash_request_set_crypt(req, &sg, NULL, len);
-		r = verity_complete_op(res, crypto_ahash_update(req));
+		r = crypto_wait_req(crypto_ahash_update(req), wait);
 
 		if (unlikely(r < 0)) {
 			DMERR("verity_for_io_block crypto op failed: %d", r);
@@ -482,7 +441,7 @@ static int verity_verify_io(struct dm_verity_io *io)
 	struct dm_verity *v = io->v;
 	struct bvec_iter start;
 	unsigned b;
-	struct verity_result res;
+	struct crypto_wait wait;
 
 	for (b = 0; b < io->n_blocks; b++) {
 		int r;
@@ -507,17 +466,17 @@ static int verity_verify_io(struct dm_verity_io *io)
 			continue;
 		}
 
-		r = verity_hash_init(v, req, &res);
+		r = verity_hash_init(v, req, &wait);
 		if (unlikely(r < 0))
 			return r;
 
 		start = io->iter;
-		r = verity_for_io_block(v, io, &io->iter, &res);
+		r = verity_for_io_block(v, io, &io->iter, &wait);
 		if (unlikely(r < 0))
 			return r;
 
 		r = verity_hash_final(v, req, verity_io_real_digest(v, io),
-					&res);
+					&wait);
 		if (unlikely(r < 0))
 			return r;
 
@@ -538,13 +497,13 @@ static int verity_verify_io(struct dm_verity_io *io)
 /*
  * End one "io" structure with a given error.
  */
-static void verity_finish_io(struct dm_verity_io *io, int error)
+static void verity_finish_io(struct dm_verity_io *io, blk_status_t status)
 {
 	struct dm_verity *v = io->v;
 	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
 
 	bio->bi_end_io = io->orig_bi_end_io;
-	bio->bi_error = error;
+	bio->bi_status = status;
 
 	verity_fec_finish_io(io);
 
@@ -555,15 +514,15 @@ static void verity_work(struct work_struct *w)
 {
 	struct dm_verity_io *io = container_of(w, struct dm_verity_io, work);
 
-	verity_finish_io(io, verity_verify_io(io));
+	verity_finish_io(io, errno_to_blk_status(verity_verify_io(io)));
 }
 
 static void verity_end_io(struct bio *bio)
 {
 	struct dm_verity_io *io = bio->bi_private;
 
-	if (bio->bi_error && !verity_fec_is_enabled(io->v)) {
-		verity_finish_io(io, bio->bi_error);
+	if (bio->bi_status && !verity_fec_is_enabled(io->v)) {
+		verity_finish_io(io, bio->bi_status);
 		return;
 	}
 
@@ -589,7 +548,7 @@ static void verity_prefetch_io(struct work_struct *work)
 		verity_hash_at_level(v, pw->block, i, &hash_block_start, NULL);
 		verity_hash_at_level(v, pw->block + pw->n_blocks - 1, i, &hash_block_end, NULL);
 		if (!i) {
-			unsigned cluster = ACCESS_ONCE(dm_verity_prefetch_cluster);
+			unsigned cluster = READ_ONCE(dm_verity_prefetch_cluster);
 
 			cluster >>= v->data_dev_block_bits;
 			if (unlikely(!cluster))
@@ -637,23 +596,23 @@ static int verity_map(struct dm_target *ti, struct bio *bio)
 	struct dm_verity *v = ti->private;
 	struct dm_verity_io *io;
 
-	bio->bi_bdev = v->data_dev->bdev;
+	bio_set_dev(bio, v->data_dev->bdev);
 	bio->bi_iter.bi_sector = verity_map_sector(v, bio->bi_iter.bi_sector);
 
 	if (((unsigned)bio->bi_iter.bi_sector | bio_sectors(bio)) &
 	    ((1 << (v->data_dev_block_bits - SECTOR_SHIFT)) - 1)) {
 		DMERR_LIMIT("unaligned io");
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 
 	if (bio_end_sector(bio) >>
 	    (v->data_dev_block_bits - SECTOR_SHIFT) > v->data_blocks) {
 		DMERR_LIMIT("io out of range");
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 
 	if (bio_data_dir(bio) == WRITE)
-		return -EIO;
+		return DM_MAPIO_KILL;
 
 	io = dm_per_bio_data(bio, ti->per_io_data_size);
 	io->v = v;
@@ -839,7 +798,7 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v)
 	struct dm_target *ti = v->ti;
 	const char *arg_name;
 
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, DM_VERITY_OPTS_MAX, "Invalid number of feature args"},
 	};
 

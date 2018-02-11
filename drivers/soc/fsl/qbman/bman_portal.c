@@ -91,7 +91,6 @@ static int bman_portal_probe(struct platform_device *pdev)
 	struct device_node *node = dev->of_node;
 	struct bm_portal_config *pcfg;
 	struct resource *addr_phys[2];
-	void __iomem *va;
 	int irq, cpu;
 
 	pcfg = devm_kmalloc(dev, sizeof(*pcfg), GFP_KERNEL);
@@ -103,16 +102,14 @@ static int bman_portal_probe(struct platform_device *pdev)
 	addr_phys[0] = platform_get_resource(pdev, IORESOURCE_MEM,
 					     DPAA_PORTAL_CE);
 	if (!addr_phys[0]) {
-		dev_err(dev, "Can't get %s property 'reg::CE'\n",
-			node->full_name);
+		dev_err(dev, "Can't get %pOF property 'reg::CE'\n", node);
 		return -ENXIO;
 	}
 
 	addr_phys[1] = platform_get_resource(pdev, IORESOURCE_MEM,
 					     DPAA_PORTAL_CI);
 	if (!addr_phys[1]) {
-		dev_err(dev, "Can't get %s property 'reg::CI'\n",
-			node->full_name);
+		dev_err(dev, "Can't get %pOF property 'reg::CI'\n", node);
 		return -ENXIO;
 	}
 
@@ -120,27 +117,25 @@ static int bman_portal_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
-		dev_err(dev, "Can't get %s IRQ'\n", node->full_name);
+		dev_err(dev, "Can't get %pOF IRQ'\n", node);
 		return -ENXIO;
 	}
 	pcfg->irq = irq;
 
-	va = ioremap_prot(addr_phys[0]->start, resource_size(addr_phys[0]), 0);
-	if (!va) {
-		dev_err(dev, "ioremap::CE failed\n");
+	pcfg->addr_virt_ce = memremap(addr_phys[0]->start,
+					resource_size(addr_phys[0]),
+					QBMAN_MEMREMAP_ATTR);
+	if (!pcfg->addr_virt_ce) {
+		dev_err(dev, "memremap::CE failed\n");
 		goto err_ioremap1;
 	}
 
-	pcfg->addr_virt[DPAA_PORTAL_CE] = va;
-
-	va = ioremap_prot(addr_phys[1]->start, resource_size(addr_phys[1]),
-			  _PAGE_GUARDED | _PAGE_NO_CACHE);
-	if (!va) {
+	pcfg->addr_virt_ci = ioremap(addr_phys[1]->start,
+					resource_size(addr_phys[1]));
+	if (!pcfg->addr_virt_ci) {
 		dev_err(dev, "ioremap::CI failed\n");
 		goto err_ioremap2;
 	}
-
-	pcfg->addr_virt[DPAA_PORTAL_CI] = va;
 
 	spin_lock(&bman_lock);
 	cpu = cpumask_next_zero(-1, &portal_cpus);
@@ -166,9 +161,9 @@ static int bman_portal_probe(struct platform_device *pdev)
 	return 0;
 
 err_portal_init:
-	iounmap(pcfg->addr_virt[DPAA_PORTAL_CI]);
+	iounmap(pcfg->addr_virt_ci);
 err_ioremap2:
-	iounmap(pcfg->addr_virt[DPAA_PORTAL_CE]);
+	memunmap(pcfg->addr_virt_ce);
 err_ioremap1:
 	return -ENXIO;
 }

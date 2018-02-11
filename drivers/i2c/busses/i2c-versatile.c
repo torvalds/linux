@@ -55,7 +55,7 @@ static int i2c_versatile_getscl(void *data)
 	return !!(readl(i2c->base + I2C_CONTROL) & SCL);
 }
 
-static struct i2c_algo_bit_data i2c_versatile_algo = {
+static const struct i2c_algo_bit_data i2c_versatile_algo = {
 	.setsda	= i2c_versatile_setsda,
 	.setscl = i2c_versatile_setscl,
 	.getsda	= i2c_versatile_getsda,

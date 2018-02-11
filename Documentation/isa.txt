@@ -1,5 +1,6 @@
+===========
 ISA Drivers
------------
+===========
 
 The following text is adapted from the commit message of the initial
 commit of the ISA bus driver authored by Rene Herman.
@@ -23,17 +24,17 @@ that all device creation has been made internal as well.
 
 The usage model this provides is nice, and has been acked from the ALSA
 side by Takashi Iwai and Jaroslav Kysela. The ALSA driver module_init's
-now (for oldisa-only drivers) become:
+now (for oldisa-only drivers) become::
 
-static int __init alsa_card_foo_init(void)
-{
-	return isa_register_driver(&snd_foo_isa_driver, SNDRV_CARDS);
-}
+	static int __init alsa_card_foo_init(void)
+	{
+		return isa_register_driver(&snd_foo_isa_driver, SNDRV_CARDS);
+	}
 
-static void __exit alsa_card_foo_exit(void)
-{
-	isa_unregister_driver(&snd_foo_isa_driver);
-}
+	static void __exit alsa_card_foo_exit(void)
+	{
+		isa_unregister_driver(&snd_foo_isa_driver);
+	}
 
 Quite like the other bus models therefore. This removes a lot of
 duplicated init code from the ALSA ISA drivers.
@@ -47,11 +48,11 @@ parameter, indicating how many devices to create and call our methods
 with.
 
 The platform_driver callbacks are called with a platform_device param;
-the isa_driver callbacks are being called with a "struct device *dev,
-unsigned int id" pair directly -- with the device creation completely
+the isa_driver callbacks are being called with a ``struct device *dev,
+unsigned int id`` pair directly -- with the device creation completely
 internal to the bus it's much cleaner to not leak isa_dev's by passing
 them in at all. The id is the only thing we ever want other then the
-struct device * anyways, and it makes for nicer code in the callbacks as
+struct device anyways, and it makes for nicer code in the callbacks as
 well.
 
 With this additional .match() callback ISA drivers have all options. If
@@ -75,20 +76,20 @@ This exports only two functions; isa_{,un}register_driver().
 
 isa_register_driver() register's the struct device_driver, and then
 loops over the passed in ndev creating devices and registering them.
-This causes the bus match method to be called for them, which is:
+This causes the bus match method to be called for them, which is::
 
-int isa_bus_match(struct device *dev, struct device_driver *driver)
-{
-          struct isa_driver *isa_driver = to_isa_driver(driver);
+	int isa_bus_match(struct device *dev, struct device_driver *driver)
+	{
+		struct isa_driver *isa_driver = to_isa_driver(driver);
 
-          if (dev->platform_data == isa_driver) {
-                  if (!isa_driver->match ||
-                          isa_driver->match(dev, to_isa_dev(dev)->id))
-                          return 1;
-                  dev->platform_data = NULL;
-          }
-          return 0;
-}
+		if (dev->platform_data == isa_driver) {
+			if (!isa_driver->match ||
+				isa_driver->match(dev, to_isa_dev(dev)->id))
+				return 1;
+			dev->platform_data = NULL;
+		}
+		return 0;
+	}
 
 The first thing this does is check if this device is in fact one of this
 driver's devices by seeing if the device's platform_data pointer is set
@@ -102,7 +103,7 @@ well.
 Then, if the the driver did not provide a .match, it matches. If it did,
 the driver match() method is called to determine a match.
 
-If it did _not_ match, dev->platform_data is reset to indicate this to
+If it did **not** match, dev->platform_data is reset to indicate this to
 isa_register_driver which can then unregister the device again.
 
 If during all this, there's any error, or no devices matched at all

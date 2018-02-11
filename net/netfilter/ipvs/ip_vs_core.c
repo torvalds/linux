@@ -125,14 +125,12 @@ ip_vs_in_stats(struct ip_vs_conn *cp, struct sk_buff *skb)
 		s->cnt.inbytes += skb->len;
 		u64_stats_update_end(&s->syncp);
 
-		rcu_read_lock();
 		svc = rcu_dereference(dest->svc);
 		s = this_cpu_ptr(svc->stats.cpustats);
 		u64_stats_update_begin(&s->syncp);
 		s->cnt.inpkts++;
 		s->cnt.inbytes += skb->len;
 		u64_stats_update_end(&s->syncp);
-		rcu_read_unlock();
 
 		s = this_cpu_ptr(ipvs->tot_stats.cpustats);
 		u64_stats_update_begin(&s->syncp);
@@ -159,14 +157,12 @@ ip_vs_out_stats(struct ip_vs_conn *cp, struct sk_buff *skb)
 		s->cnt.outbytes += skb->len;
 		u64_stats_update_end(&s->syncp);
 
-		rcu_read_lock();
 		svc = rcu_dereference(dest->svc);
 		s = this_cpu_ptr(svc->stats.cpustats);
 		u64_stats_update_begin(&s->syncp);
 		s->cnt.outpkts++;
 		s->cnt.outbytes += skb->len;
 		u64_stats_update_end(&s->syncp);
-		rcu_read_unlock();
 
 		s = this_cpu_ptr(ipvs->tot_stats.cpustats);
 		u64_stats_update_begin(&s->syncp);
@@ -1037,9 +1033,9 @@ static int ip_vs_out_icmp_v6(struct netns_ipvs *ipvs, struct sk_buff *skb,
  */
 static inline int is_sctp_abort(const struct sk_buff *skb, int nh_len)
 {
-	sctp_chunkhdr_t *sch, schunk;
-	sch = skb_header_pointer(skb, nh_len + sizeof(sctp_sctphdr_t),
-			sizeof(schunk), &schunk);
+	struct sctp_chunkhdr *sch, schunk;
+	sch = skb_header_pointer(skb, nh_len + sizeof(struct sctphdr),
+				 sizeof(schunk), &schunk);
 	if (sch == NULL)
 		return 0;
 	if (sch->type == SCTP_CID_ABORT)
@@ -1070,9 +1066,9 @@ static inline bool is_new_conn(const struct sk_buff *skb,
 		return th->syn;
 	}
 	case IPPROTO_SCTP: {
-		sctp_chunkhdr_t *sch, schunk;
+		struct sctp_chunkhdr *sch, schunk;
 
-		sch = skb_header_pointer(skb, iph->len + sizeof(sctp_sctphdr_t),
+		sch = skb_header_pointer(skb, iph->len + sizeof(struct sctphdr),
 					 sizeof(schunk), &schunk);
 		if (sch == NULL)
 			return false;
@@ -1222,7 +1218,6 @@ static struct ip_vs_conn *__ip_vs_rs_conn_out(unsigned int hooknum,
 	if (!pptr)
 		return NULL;
 
-	rcu_read_lock();
 	dest = ip_vs_find_real_service(ipvs, af, iph->protocol,
 				       &iph->saddr, pptr[0]);
 	if (dest) {
@@ -1237,7 +1232,6 @@ static struct ip_vs_conn *__ip_vs_rs_conn_out(unsigned int hooknum,
 						  pptr[0], pptr[1]);
 		}
 	}
-	rcu_read_unlock();
 
 	return cp;
 }
@@ -1689,11 +1683,9 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 			if (dest) {
 				struct ip_vs_dest_dst *dest_dst;
 
-				rcu_read_lock();
 				dest_dst = rcu_dereference(dest->dest_dst);
 				if (dest_dst)
 					mtu = dst_mtu(dest_dst->dst_cache);
-				rcu_read_unlock();
 			}
 			if (mtu > 68 + sizeof(struct iphdr))
 				mtu -= sizeof(struct iphdr);
@@ -2109,7 +2101,7 @@ ip_vs_forward_icmp_v6(void *priv, struct sk_buff *skb,
 #endif
 
 
-static struct nf_hook_ops ip_vs_ops[] __read_mostly = {
+static const struct nf_hook_ops ip_vs_ops[] = {
 	/* After packet filtering, change source only for VS/NAT */
 	{
 		.hook		= ip_vs_reply4,

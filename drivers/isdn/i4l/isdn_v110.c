@@ -421,7 +421,7 @@ isdn_v110_sync(isdn_v110_stream *v)
 	}
 	if ((skb = dev_alloc_skb(v->framelen + v->skbres))) {
 		skb_reserve(skb, v->skbres);
-		memcpy(skb_put(skb, v->framelen), v->OfflineFrame, v->framelen);
+		skb_put_data(skb, v->OfflineFrame, v->framelen);
 	}
 	return skb;
 }
@@ -441,7 +441,7 @@ isdn_v110_idle(isdn_v110_stream *v)
 	}
 	if ((skb = dev_alloc_skb(v->framelen + v->skbres))) {
 		skb_reserve(skb, v->skbres);
-		memcpy(skb_put(skb, v->framelen), v->OnlineFrame, v->framelen);
+		skb_put_data(skb, v->OnlineFrame, v->framelen);
 	}
 	return skb;
 }
@@ -486,7 +486,7 @@ isdn_v110_encode(isdn_v110_stream *v, struct sk_buff *skb)
 	}
 	skb_reserve(nskb, v->skbres + sizeof(int));
 	if (skb->len == 0) {
-		memcpy(skb_put(nskb, v->framelen), v->OnlineFrame, v->framelen);
+		skb_put_data(nskb, v->OnlineFrame, v->framelen);
 		*((int *)skb_push(nskb, sizeof(int))) = 0;
 		return nskb;
 	}

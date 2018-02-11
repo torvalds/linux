@@ -150,6 +150,7 @@ See the include/linux/kmemleak.h header for the functions prototype.
 - ``kmemleak_init``		 - initialize kmemleak
 - ``kmemleak_alloc``		 - notify of a memory block allocation
 - ``kmemleak_alloc_percpu``	 - notify of a percpu memory block allocation
+- ``kmemleak_vmalloc``		 - notify of a vmalloc() memory allocation
 - ``kmemleak_free``		 - notify of a memory block freeing
 - ``kmemleak_free_part``	 - notify of a partial memory block freeing
 - ``kmemleak_free_percpu``	 - notify of a percpu memory block freeing

@@ -4,7 +4,7 @@ menuconfig ARCH_ASPEED
 	select SRAM
 	select WATCHDOG
 	select ASPEED_WATCHDOG
-	select MOXART_TIMER
+	select FTTMR010_TIMER
 	select MFD_SYSCON
 	select PINCTRL
 	help

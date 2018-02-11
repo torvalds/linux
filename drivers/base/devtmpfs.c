@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * devtmpfs - kernel-maintained tmpfs-based /dev
  *

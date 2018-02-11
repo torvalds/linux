@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *	Serial Device Initialisation for Lasi/Asp/Wax/Dino
  *
  *	(c) Copyright Matthew Wilcox <willy@debian.org> 2001-2002
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
  */
 
 #include <linux/errno.h>
@@ -80,7 +76,7 @@ static int __init serial_init_chip(struct parisc_device *dev)
 	return 0;
 }
 
-static struct parisc_device_id serial_tbl[] = {
+static const struct parisc_device_id serial_tbl[] __initconst = {
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x00075 },
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x0008c },
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x0008d },
@@ -94,7 +90,7 @@ static struct parisc_device_id serial_tbl[] = {
  * which only knows about Lasi and then a second which will find all the
  * other serial ports.  HPUX ignores this problem.
  */
-static struct parisc_device_id lasi_tbl[] = {
+static const struct parisc_device_id lasi_tbl[] __initconst = {
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, 0x03B, 0x0008C }, /* C1xx/C1xxL */
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, 0x03C, 0x0008C }, /* B132L */
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, 0x03D, 0x0008C }, /* B160L */
@@ -110,13 +106,13 @@ static struct parisc_device_id lasi_tbl[] = {
 
 MODULE_DEVICE_TABLE(parisc, serial_tbl);
 
-static struct parisc_driver lasi_driver = {
+static struct parisc_driver lasi_driver __refdata = {
 	.name		= "serial_1",
 	.id_table	= lasi_tbl,
 	.probe		= serial_init_chip,
 };
 
-static struct parisc_driver serial_driver = {
+static struct parisc_driver serial_driver __refdata = {
 	.name		= "serial",
 	.id_table	= serial_tbl,
 	.probe		= serial_init_chip,

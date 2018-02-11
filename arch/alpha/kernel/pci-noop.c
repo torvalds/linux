@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	linux/arch/alpha/kernel/pci-noop.c
  *
@@ -42,11 +43,7 @@ alloc_pci_controller(void)
 struct resource * __init
 alloc_resource(void)
 {
-	struct resource *res;
-
-	res = alloc_bootmem(sizeof(*res));
-
-	return res;
+	return alloc_bootmem(sizeof(struct resource));
 }
 
 asmlinkage long

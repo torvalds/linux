@@ -617,28 +617,28 @@ static int mkpdrlist(struct pda *pda)
 		    HFA384x_PDR_NICID) {
 			memcpy(&nicid, &pda->rec[pda->nrec]->data.nicid,
 			       sizeof(nicid));
-			nicid.id = le16_to_cpu(nicid.id);
-			nicid.variant = le16_to_cpu(nicid.variant);
-			nicid.major = le16_to_cpu(nicid.major);
-			nicid.minor = le16_to_cpu(nicid.minor);
+			le16_to_cpus(&nicid.id);
+			le16_to_cpus(&nicid.variant);
+			le16_to_cpus(&nicid.major);
+			le16_to_cpus(&nicid.minor);
 		}
 		if (le16_to_cpu(pda->rec[pda->nrec]->code) ==
 		    HFA384x_PDR_MFISUPRANGE) {
 			memcpy(&rfid, &pda->rec[pda->nrec]->data.mfisuprange,
 			       sizeof(rfid));
-			rfid.id = le16_to_cpu(rfid.id);
-			rfid.variant = le16_to_cpu(rfid.variant);
-			rfid.bottom = le16_to_cpu(rfid.bottom);
-			rfid.top = le16_to_cpu(rfid.top);
+			le16_to_cpus(&rfid.id);
+			le16_to_cpus(&rfid.variant);
+			le16_to_cpus(&rfid.bottom);
+			le16_to_cpus(&rfid.top);
 		}
 		if (le16_to_cpu(pda->rec[pda->nrec]->code) ==
 		    HFA384x_PDR_CFISUPRANGE) {
 			memcpy(&macid, &pda->rec[pda->nrec]->data.cfisuprange,
 			       sizeof(macid));
-			macid.id = le16_to_cpu(macid.id);
-			macid.variant = le16_to_cpu(macid.variant);
-			macid.bottom = le16_to_cpu(macid.bottom);
-			macid.top = le16_to_cpu(macid.top);
+			le16_to_cpus(&macid.id);
+			le16_to_cpus(&macid.variant);
+			le16_to_cpus(&macid.bottom);
+			le16_to_cpus(&macid.top);
 		}
 
 		(pda->nrec)++;
@@ -1016,7 +1016,8 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 		kfree(rstmsg);
 		kfree(rwrmsg);
 		netdev_err(wlandev->netdev,
-			   "writeimage: no memory for firmware download, aborting download\n");
+			   "%s: no memory for firmware download, aborting download\n",
+			   __func__);
 		return -ENOMEM;
 	}
 
@@ -1058,15 +1059,15 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	result = prism2mgmt_ramdl_state(wlandev, rstmsg);
 	if (result) {
 		netdev_err(wlandev->netdev,
-			   "writeimage state enable failed w/ result=%d, aborting download\n",
-			   result);
+			   "%s state enable failed w/ result=%d, aborting download\n",
+			   __func__, result);
 		goto free_result;
 	}
 	resultcode = rstmsg->resultcode.data;
 	if (resultcode != P80211ENUM_resultcode_success) {
 		netdev_err(wlandev->netdev,
-			   "writeimage()->xxxdl_state msg indicates failure, w/ resultcode=%d, aborting download.\n",
-			   resultcode);
+			   "%s()->xxxdl_state msg indicates failure, w/ resultcode=%d, aborting download.\n",
+			   __func__, resultcode);
 		result = 1;
 		goto free_result;
 	}
@@ -1102,14 +1103,14 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 			/* Check the results */
 			if (result) {
 				netdev_err(wlandev->netdev,
-					   "writeimage chunk write failed w/ result=%d, aborting download\n",
-					   result);
+					   "%s chunk write failed w/ result=%d, aborting download\n",
+					   __func__, result);
 				goto free_result;
 			}
 			resultcode = rstmsg->resultcode.data;
 			if (resultcode != P80211ENUM_resultcode_success) {
-				pr_err("writeimage()->xxxdl_write msg indicates failure, w/ resultcode=%d, aborting download.\n",
-				       resultcode);
+				pr_err("%s()->xxxdl_write msg indicates failure, w/ resultcode=%d, aborting download.\n",
+				       __func__, resultcode);
 				result = 1;
 				goto free_result;
 			}
@@ -1124,15 +1125,15 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	result = prism2mgmt_ramdl_state(wlandev, rstmsg);
 	if (result) {
 		netdev_err(wlandev->netdev,
-			   "writeimage state disable failed w/ result=%d, aborting download\n",
-			   result);
+			   "%s state disable failed w/ result=%d, aborting download\n",
+			   __func__, result);
 		goto free_result;
 	}
 	resultcode = rstmsg->resultcode.data;
 	if (resultcode != P80211ENUM_resultcode_success) {
 		netdev_err(wlandev->netdev,
-			   "writeimage()->xxxdl_state msg indicates failure, w/ resultcode=%d, aborting download.\n",
-			   resultcode);
+			   "%s()->xxxdl_state msg indicates failure, w/ resultcode=%d, aborting download.\n",
+			   __func__, resultcode);
 		result = 1;
 		goto free_result;
 	}

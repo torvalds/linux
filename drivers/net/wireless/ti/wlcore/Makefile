@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 wlcore-objs		= main.o cmd.o io.o event.o tx.o rx.o ps.o acx.o \
 			  boot.o init.o debugfs.o scan.o sysfs.o vendor_cmd.o
 

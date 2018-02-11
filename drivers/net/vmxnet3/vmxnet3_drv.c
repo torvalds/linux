@@ -1616,7 +1616,6 @@ static void vmxnet3_rq_destroy(struct vmxnet3_rx_queue *rq,
 					  rq->rx_ring[i].basePA);
 			rq->rx_ring[i].base = NULL;
 		}
-		rq->buf_info[i] = NULL;
 	}
 
 	if (rq->data_ring.base) {
@@ -1638,6 +1637,7 @@ static void vmxnet3_rq_destroy(struct vmxnet3_rx_queue *rq,
 			(rq->rx_ring[0].size + rq->rx_ring[1].size);
 		dma_free_coherent(&adapter->pdev->dev, sz, rq->buf_info[0],
 				  rq->buf_info_pa);
+		rq->buf_info[0] = rq->buf_info[1] = NULL;
 	}
 }
 

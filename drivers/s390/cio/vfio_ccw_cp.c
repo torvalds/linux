@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * channel program interfaces
  *
@@ -105,7 +106,10 @@ static int pfn_array_alloc_pin(struct pfn_array *pa, struct device *mdev,
 {
 	int ret = 0;
 
-	if (!len || pa->pa_nr)
+	if (!len)
+		return 0;
+
+	if (pa->pa_nr)
 		return -EINVAL;
 
 	pa->pa_iova = iova;
@@ -329,6 +333,8 @@ static void ccwchain_cda_free(struct ccwchain *chain, int idx)
 {
 	struct ccw1 *ccw = chain->ch_ccw + idx;
 
+	if (ccw_is_test(ccw) || ccw_is_noop(ccw) || ccw_is_tic(ccw))
+		return;
 	if (!ccw->count)
 		return;
 
@@ -481,7 +487,7 @@ static int ccwchain_fetch_tic(struct ccwchain *chain,
 		ccw_tail = ccw_head + (iter->ch_len - 1) * sizeof(struct ccw1);
 
 		if ((ccw_head <= ccw->cda) && (ccw->cda <= ccw_tail)) {
-			ccw->cda = (__u32) (addr_t) (iter->ch_ccw +
+			ccw->cda = (__u32) (addr_t) (((char *)iter->ch_ccw) +
 						     (ccw->cda - ccw_head));
 			return 0;
 		}
@@ -500,6 +506,16 @@ static int ccwchain_fetch_direct(struct ccwchain *chain,
 	int idaw_nr;
 
 	ccw = chain->ch_ccw + idx;
+
+	if (!ccw->count) {
+		/*
+		 * We just want the translation result of any direct ccw
+		 * to be an IDA ccw, so let's add the IDA flag for it.
+		 * Although the flag will be ignored by firmware.
+		 */
+		ccw->flags |= CCW_FLAG_IDA;
+		return 0;
+	}
 
 	/*
 	 * Pin data page(s) in memory.
@@ -541,6 +557,9 @@ static int ccwchain_fetch_idal(struct ccwchain *chain,
 
 	ccw = chain->ch_ccw + idx;
 
+	if (!ccw->count)
+		return 0;
+
 	/* Calculate size of idaws. */
 	ret = copy_from_iova(cp->mdev, &idaw_iova, ccw->cda, sizeof(idaw_iova));
 	if (ret)
@@ -569,10 +588,6 @@ static int ccwchain_fetch_idal(struct ccwchain *chain,
 
 	for (i = 0; i < idaw_nr; i++) {
 		idaw_iova = *(idaws + i);
-		if (IS_ERR_VALUE(idaw_iova)) {
-			ret = -EFAULT;
-			goto out_free_idaws;
-		}
 
 		ret = pfn_array_alloc_pin(pat->pat_pa + i, cp->mdev,
 					  idaw_iova, 1);

@@ -84,7 +84,7 @@ int cw1200_hw_scan(struct ieee80211_hw *hw,
 		return -ENOMEM;
 
 	if (req->ie_len)
-		memcpy(skb_put(frame.skb, req->ie_len), req->ie, req->ie_len);
+		skb_put_data(frame.skb, req->ie, req->ie_len);
 
 	/* will be unlocked in cw1200_scan_work() */
 	down(&priv->scan.lock);

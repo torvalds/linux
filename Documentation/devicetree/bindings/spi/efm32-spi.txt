@@ -19,7 +19,7 @@ Recommended properties :
 
 Example:
 
-spi1: spi@0x4000c400 { /* USART1 */
+spi1: spi@4000c400 { /* USART1 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 	compatible = "energymicro,efm32-spi";
@@ -28,7 +28,6 @@ spi1: spi@0x4000c400 { /* USART1 */
 	clocks = <&cmu 20>;
 	cs-gpios = <&gpio 51 1>; // D3
 	energymicro,location = <1>;
-	status = "ok";
 
 	ks8851@0 {
 		compatible = "ks8851";
@@ -36,6 +35,5 @@ spi1: spi@0x4000c400 { /* USART1 */
 		reg = <0>;
 		interrupt-parent = <&boardfpga>;
 		interrupts = <4>;
-		status = "ok";
 	};
 };

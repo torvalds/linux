@@ -41,6 +41,8 @@
 
 /* It seems the i2c bus is controlled with these registers */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "stk-webcam.h"
 
 #define STK_IIC_BASE		(0x0200)
@@ -239,8 +241,8 @@ static int stk_sensor_outb(struct stk_camera *dev, u8 reg, u8 val)
 	} while (tmpval == 0 && i < MAX_RETRIES);
 	if (tmpval != STK_IIC_STAT_TX_OK) {
 		if (tmpval)
-			STK_ERROR("stk_sensor_outb failed, status=0x%02x\n",
-				tmpval);
+			pr_err("stk_sensor_outb failed, status=0x%02x\n",
+			       tmpval);
 		return 1;
 	} else
 		return 0;
@@ -262,8 +264,8 @@ static int stk_sensor_inb(struct stk_camera *dev, u8 reg, u8 *val)
 	} while (tmpval == 0 && i < MAX_RETRIES);
 	if (tmpval != STK_IIC_STAT_RX_OK) {
 		if (tmpval)
-			STK_ERROR("stk_sensor_inb failed, status=0x%02x\n",
-				tmpval);
+			pr_err("stk_sensor_inb failed, status=0x%02x\n",
+			       tmpval);
 		return 1;
 	}
 
@@ -366,29 +368,29 @@ int stk_sensor_init(struct stk_camera *dev)
 	if (stk_camera_write_reg(dev, STK_IIC_ENABLE, STK_IIC_ENABLE_YES)
 		|| stk_camera_write_reg(dev, STK_IIC_ADDR, SENSOR_ADDRESS)
 		|| stk_sensor_outb(dev, REG_COM7, COM7_RESET)) {
-		STK_ERROR("Sensor resetting failed\n");
+		pr_err("Sensor resetting failed\n");
 		return -ENODEV;
 	}
 	msleep(10);
 	/* Read the manufacturer ID: ov = 0x7FA2 */
 	if (stk_sensor_inb(dev, REG_MIDH, &idh)
 	    || stk_sensor_inb(dev, REG_MIDL, &idl)) {
-		STK_ERROR("Strange error reading sensor ID\n");
+		pr_err("Strange error reading sensor ID\n");
 		return -ENODEV;
 	}
 	if (idh != 0x7f || idl != 0xa2) {
-		STK_ERROR("Huh? you don't have a sensor from ovt\n");
+		pr_err("Huh? you don't have a sensor from ovt\n");
 		return -ENODEV;
 	}
 	if (stk_sensor_inb(dev, REG_PID, &idh)
 	    || stk_sensor_inb(dev, REG_VER, &idl)) {
-		STK_ERROR("Could not read sensor model\n");
+		pr_err("Could not read sensor model\n");
 		return -ENODEV;
 	}
 	stk_sensor_write_regvals(dev, ov_initvals);
 	msleep(10);
-	STK_INFO("OmniVision sensor detected, id %02X%02X at address %x\n",
-		 idh, idl, SENSOR_ADDRESS);
+	pr_info("OmniVision sensor detected, id %02X%02X at address %x\n",
+		idh, idl, SENSOR_ADDRESS);
 	return 0;
 }
 
@@ -520,7 +522,8 @@ int stk_sensor_configure(struct stk_camera *dev)
 	case MODE_SXGA: com7 = COM7_FMT_SXGA;
 		dummylines = 0;
 		break;
-	default: STK_ERROR("Unsupported mode %d\n", dev->vsettings.mode);
+	default:
+		pr_err("Unsupported mode %d\n", dev->vsettings.mode);
 		return -EFAULT;
 	}
 	switch (dev->vsettings.palette) {
@@ -544,7 +547,8 @@ int stk_sensor_configure(struct stk_camera *dev)
 		com7 |= COM7_PBAYER;
 		rv = ov_fmt_bayer;
 		break;
-	default: STK_ERROR("Unsupported colorspace\n");
+	default:
+		pr_err("Unsupported colorspace\n");
 		return -EFAULT;
 	}
 	/*FIXME sometimes the sensor go to a bad state
@@ -564,7 +568,7 @@ int stk_sensor_configure(struct stk_camera *dev)
 	switch (dev->vsettings.mode) {
 	case MODE_VGA:
 		if (stk_sensor_set_hw(dev, 302, 1582, 6, 486))
-			STK_ERROR("stk_sensor_set_hw failed (VGA)\n");
+			pr_err("stk_sensor_set_hw failed (VGA)\n");
 		break;
 	case MODE_SXGA:
 	case MODE_CIF:
@@ -572,7 +576,7 @@ int stk_sensor_configure(struct stk_camera *dev)
 	case MODE_QCIF:
 		/*FIXME These settings seem ignored by the sensor
 		if (stk_sensor_set_hw(dev, 220, 1500, 10, 1034))
-			STK_ERROR("stk_sensor_set_hw failed (SXGA)\n");
+			pr_err("stk_sensor_set_hw failed (SXGA)\n");
 		*/
 		break;
 	}

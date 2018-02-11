@@ -94,6 +94,15 @@ void dm_bufio_release(struct dm_buffer *b);
 void dm_bufio_mark_buffer_dirty(struct dm_buffer *b);
 
 /*
+ * Mark a part of the buffer dirty.
+ *
+ * The specified part of the buffer is scheduled to be written. dm-bufio may
+ * write the specified part of the buffer or it may write a larger superset.
+ */
+void dm_bufio_mark_partial_buffer_dirty(struct dm_buffer *b,
+					unsigned start, unsigned end);
+
+/*
  * Initiate writing of dirty buffers, without waiting for completion.
  */
 void dm_bufio_write_dirty_buffers_async(struct dm_bufio_client *c);

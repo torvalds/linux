@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef SND_USB_MIXER_QUIRKS_H
 #define SND_USB_MIXER_QUIRKS_H
 

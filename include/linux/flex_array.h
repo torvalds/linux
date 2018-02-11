@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _FLEX_ARRAY_H
 #define _FLEX_ARRAY_H
 

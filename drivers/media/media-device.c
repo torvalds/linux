@@ -69,9 +69,9 @@ static int media_device_get_info(struct media_device *dev,
 	strlcpy(info->serial, dev->serial, sizeof(info->serial));
 	strlcpy(info->bus_info, dev->bus_info, sizeof(info->bus_info));
 
-	info->media_version = MEDIA_API_VERSION;
+	info->media_version = LINUX_VERSION_CODE;
+	info->driver_version = info->media_version;
 	info->hw_revision = dev->hw_revision;
-	info->driver_version = dev->driver_version;
 
 	return 0;
 }
@@ -537,9 +537,9 @@ static DEVICE_ATTR(model, S_IRUGO, show_model, NULL);
  * Registration/unregistration
  */
 
-static void media_device_release(struct media_devnode *mdev)
+static void media_device_release(struct media_devnode *devnode)
 {
-	dev_dbg(mdev->parent, "Media device released\n");
+	dev_dbg(devnode->parent, "Media device released\n");
 }
 
 /**
@@ -591,9 +591,8 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 			       &entity->pads[i].graph_obj);
 
 	/* invoke entity_notify callbacks */
-	list_for_each_entry_safe(notify, next, &mdev->entity_notify, list) {
-		(notify)->notify(entity, notify->notify_data);
-	}
+	list_for_each_entry_safe(notify, next, &mdev->entity_notify, list)
+		notify->notify(entity, notify->notify_data);
 
 	if (mdev->entity_internal_idx_max
 	    >= mdev->pm_count_walk.ent_enum.idx_max) {
@@ -834,8 +833,6 @@ void media_device_pci_init(struct media_device *mdev,
 	mdev->hw_revision = (pci_dev->subsystem_vendor << 16)
 			    | pci_dev->subsystem_device;
 
-	mdev->driver_version = LINUX_VERSION_CODE;
-
 	media_device_init(mdev);
 }
 EXPORT_SYMBOL_GPL(media_device_pci_init);
@@ -863,7 +860,6 @@ void __media_device_usb_init(struct media_device *mdev,
 		strlcpy(mdev->serial, udev->serial, sizeof(mdev->serial));
 	usb_make_path(udev, mdev->bus_info, sizeof(mdev->bus_info));
 	mdev->hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
-	mdev->driver_version = LINUX_VERSION_CODE;
 
 	media_device_init(mdev);
 }

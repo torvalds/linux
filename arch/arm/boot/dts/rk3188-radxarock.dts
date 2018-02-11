@@ -176,6 +176,10 @@
 	cpu0-supply = <&vdd_arm>;
 };
 
+&gpu {
+	status = "okay";
+};
+
 &i2c1 {
 	status = "okay";
 	clock-frequency = <400000>;
@@ -296,7 +300,6 @@
 };
 
 &mmc0 {
-	num-slots = <1>;
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd0_clk>, <&sd0_cmd>, <&sd0_cd>, <&sd0_bus4>;

@@ -29,9 +29,11 @@
 #include "stmmac.h"
 #include "dwmac_dma.h"
 
-#define REG_SPACE_SIZE	0x1054
+#define REG_SPACE_SIZE	0x1060
 #define MAC100_ETHTOOL_NAME	"st_mac100"
 #define GMAC_ETHTOOL_NAME	"st_gmac"
+
+#define ETHTOOL_DMA_OFFSET	55
 
 struct stmmac_stats {
 	char stat_string[ETH_GSTRING_LEN];
@@ -273,7 +275,6 @@ static int stmmac_ethtool_get_link_ksettings(struct net_device *dev,
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	struct phy_device *phy = dev->phydev;
-	int rc;
 
 	if (priv->hw->pcs & STMMAC_PCS_RGMII ||
 	    priv->hw->pcs & STMMAC_PCS_SGMII) {
@@ -364,8 +365,8 @@ static int stmmac_ethtool_get_link_ksettings(struct net_device *dev,
 		"link speed / duplex setting\n", dev->name);
 		return -EBUSY;
 	}
-	rc = phy_ethtool_ksettings_get(phy, cmd);
-	return rc;
+	phy_ethtool_ksettings_get(phy, cmd);
+	return 0;
 }
 
 static int
@@ -443,6 +444,9 @@ static void stmmac_ethtool_gregs(struct net_device *dev,
 
 	priv->hw->mac->dump_regs(priv->hw, reg_space);
 	priv->hw->dma->dump_regs(priv->ioaddr, reg_space);
+	/* Copy DMA registers to where ethtool expects them */
+	memcpy(&reg_space[ETHTOOL_DMA_OFFSET], &reg_space[DMA_BUS_MODE / 4],
+	       NUM_DWMAC1000_DMA_REGS * 4);
 }
 
 static void

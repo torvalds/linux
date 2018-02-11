@@ -1,9 +1,22 @@
 /*
- * stm32_quadspi.c
+ * Driver for stm32 quadspi controller
  *
- * Copyright (C) 2017, Ludovic Barre
+ * Copyright (C) 2017, STMicroelectronics - All Rights Reserved
+ * Author(s): Ludovic Barre author <ludovic.barre@st.com>.
  *
- * License terms: GNU General Public License (GPL), version 2
+ * License terms: GPL V2.0.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 as published by
+ * the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * This program. If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/clk.h>
 #include <linux/errno.h>
@@ -19,6 +32,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
+#include <linux/sizes.h>
 
 #define QUADSPI_CR		0x00
 #define CR_EN			BIT(0)
@@ -112,6 +126,7 @@
 #define STM32_MAX_MMAP_SZ	SZ_256M
 #define STM32_MAX_NORCHIP	2
 
+#define STM32_QSPI_FIFO_SZ	32
 #define STM32_QSPI_FIFO_TIMEOUT_US 30000
 #define STM32_QSPI_BUSY_TIMEOUT_US 100000
 
@@ -123,6 +138,7 @@ struct stm32_qspi_flash {
 	u32 presc;
 	u32 read_mode;
 	bool registered;
+	u32 prefetch_limit;
 };
 
 struct stm32_qspi {
@@ -192,15 +208,15 @@ static void stm32_qspi_set_framemode(struct spi_nor *nor,
 	cmd->framemode = CCR_IMODE_1;
 
 	if (read) {
-		switch (nor->flash_read) {
-		case SPI_NOR_NORMAL:
-		case SPI_NOR_FAST:
+		switch (nor->read_proto) {
+		default:
+		case SNOR_PROTO_1_1_1:
 			dmode = CCR_DMODE_1;
 			break;
-		case SPI_NOR_DUAL:
+		case SNOR_PROTO_1_1_2:
 			dmode = CCR_DMODE_2;
 			break;
-		case SPI_NOR_QUAD:
+		case SNOR_PROTO_1_1_4:
 			dmode = CCR_DMODE_4;
 			break;
 		}
@@ -239,12 +255,12 @@ static int stm32_qspi_tx_poll(struct stm32_qspi *qspi,
 						 STM32_QSPI_FIFO_TIMEOUT_US);
 		if (ret) {
 			dev_err(qspi->dev, "fifo timeout (stat:%#x)\n", sr);
-			break;
+			return ret;
 		}
 		tx_fifo(buf++, qspi->io_base + QUADSPI_DR);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int stm32_qspi_tx_mm(struct stm32_qspi *qspi,
@@ -271,6 +287,7 @@ static int stm32_qspi_send(struct stm32_qspi_flash *flash,
 {
 	struct stm32_qspi *qspi = flash->qspi;
 	u32 ccr, dcr, cr;
+	u32 last_byte;
 	int err;
 
 	err = stm32_qspi_wait_nobusy(qspi);
@@ -313,6 +330,10 @@ static int stm32_qspi_send(struct stm32_qspi_flash *flash,
 		if (err)
 			goto abort;
 		writel_relaxed(FCR_CTCF, qspi->io_base + QUADSPI_FCR);
+	} else {
+		last_byte = cmd->addr + cmd->len;
+		if (last_byte > flash->prefetch_limit)
+			goto abort;
 	}
 
 	return err;
@@ -321,7 +342,9 @@ abort:
 	cr = readl_relaxed(qspi->io_base + QUADSPI_CR) | CR_ABORT;
 	writel_relaxed(cr, qspi->io_base + QUADSPI_CR);
 
-	dev_err(qspi->dev, "%s abort err:%d\n", __func__, err);
+	if (err)
+		dev_err(qspi->dev, "%s abort err:%d\n", __func__, err);
+
 	return err;
 }
 
@@ -375,7 +398,7 @@ static ssize_t stm32_qspi_read(struct spi_nor *nor, loff_t from, size_t len,
 	struct stm32_qspi_cmd cmd;
 	int err;
 
-	dev_dbg(qspi->dev, "read(%#.2x): buf:%p from:%#.8x len:%#x\n",
+	dev_dbg(qspi->dev, "read(%#.2x): buf:%p from:%#.8x len:%#zx\n",
 		nor->read_opcode, buf, (u32)from, len);
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -402,7 +425,7 @@ static ssize_t stm32_qspi_write(struct spi_nor *nor, loff_t to, size_t len,
 	struct stm32_qspi_cmd cmd;
 	int err;
 
-	dev_dbg(dev, "write(%#.2x): buf:%p to:%#.8x len:%#x\n",
+	dev_dbg(dev, "write(%#.2x): buf:%p to:%#.8x len:%#zx\n",
 		nor->program_opcode, buf, (u32)to, len);
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -480,7 +503,12 @@ static void stm32_qspi_unprep(struct spi_nor *nor, enum spi_nor_ops ops)
 static int stm32_qspi_flash_setup(struct stm32_qspi *qspi,
 				  struct device_node *np)
 {
-	u32 width, flash_read, presc, cs_num, max_rate = 0;
+	struct spi_nor_hwcaps hwcaps = {
+		.mask = SNOR_HWCAPS_READ |
+			SNOR_HWCAPS_READ_FAST |
+			SNOR_HWCAPS_PP,
+	};
+	u32 width, presc, cs_num, max_rate = 0;
 	struct stm32_qspi_flash *flash;
 	struct mtd_info *mtd;
 	int ret;
@@ -499,12 +527,10 @@ static int stm32_qspi_flash_setup(struct stm32_qspi *qspi,
 		width = 1;
 
 	if (width == 4)
-		flash_read = SPI_NOR_QUAD;
+		hwcaps.mask |= SNOR_HWCAPS_READ_1_1_4;
 	else if (width == 2)
-		flash_read = SPI_NOR_DUAL;
-	else if (width == 1)
-		flash_read = SPI_NOR_NORMAL;
-	else
+		hwcaps.mask |= SNOR_HWCAPS_READ_1_1_2;
+	else if (width != 1)
 		return -EINVAL;
 
 	flash = &qspi->flash[cs_num];
@@ -539,13 +565,14 @@ static int stm32_qspi_flash_setup(struct stm32_qspi *qspi,
 	 */
 	flash->fsize = FSIZE_VAL(SZ_1K);
 
-	ret = spi_nor_scan(&flash->nor, NULL, flash_read);
+	ret = spi_nor_scan(&flash->nor, NULL, &hwcaps);
 	if (ret) {
 		dev_err(qspi->dev, "device scan failed\n");
 		return ret;
 	}
 
 	flash->fsize = FSIZE_VAL(mtd->size);
+	flash->prefetch_limit = mtd->size - STM32_QSPI_FIFO_SZ;
 
 	flash->read_mode = CCR_FMODE_MM;
 	if (mtd->size > qspi->mm_size)

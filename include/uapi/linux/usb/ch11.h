@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * This file holds Hub protocol constants and data structures that are
  * defined in chapter 11 (Hub Specification) of the USB 2.0 specification.

@@ -1,5 +1,5 @@
 /**
- * Synopsys Designware PCIe Endpoint controller driver
+ * Synopsys DesignWare PCIe Endpoint controller driver
  *
  * Copyright (C) 2017 Texas Instruments
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
@@ -283,7 +283,6 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 {
 	int ret;
 	void *addr;
-	enum pci_barno bar;
 	struct pci_epc *epc;
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct device *dev = pci->dev;
@@ -312,9 +311,6 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 		return -ENOMEM;
 	ep->outbound_addr = addr;
 
-	for (bar = BAR_0; bar <= BAR_5; bar++)
-		dw_pcie_ep_reset_bar(pci, bar);
-
 	if (ep->ops->ep_init)
 		ep->ops->ep_init(ep);
 
@@ -328,7 +324,8 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 	if (ret < 0)
 		epc->max_functions = 1;
 
-	ret = pci_epc_mem_init(epc, ep->phys_base, ep->addr_size);
+	ret = __pci_epc_mem_init(epc, ep->phys_base, ep->addr_size,
+				 ep->page_size);
 	if (ret < 0) {
 		dev_err(dev, "Failed to initialize address space\n");
 		return ret;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef SETUP_H_INCLUDED
 #define SETUP_H_INCLUDED
 

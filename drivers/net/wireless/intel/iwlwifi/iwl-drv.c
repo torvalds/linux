@@ -76,7 +76,7 @@
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
 #include "iwl-agn-hw.h"
-#include "iwl-fw.h"
+#include "fw/img.h"
 #include "iwl-config.h"
 #include "iwl-modparams.h"
 
@@ -215,9 +215,14 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	char tag[8];
 	const char *fw_pre_name;
 
-	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
-	    CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_B_STEP)
-		fw_pre_name = cfg->fw_name_pre_next_step;
+	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_9000 &&
+	    (CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_B_STEP ||
+	     CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_C_STEP))
+		fw_pre_name = cfg->fw_name_pre_b_or_c_step;
+	else if (drv->trans->cfg->integrated &&
+		 CSR_HW_RFID_STEP(drv->trans->hw_rf_id) == SILICON_B_STEP &&
+		 cfg->fw_name_pre_rf_next_step)
+		fw_pre_name = cfg->fw_name_pre_rf_next_step;
 	else
 		fw_pre_name = cfg->fw_name_pre;
 
@@ -474,8 +479,8 @@ static int iwl_set_default_calib(struct iwl_drv *drv, const u8 *data)
 	return 0;
 }
 
-static int iwl_set_ucode_api_flags(struct iwl_drv *drv, const u8 *data,
-				   struct iwl_ucode_capabilities *capa)
+static void iwl_set_ucode_api_flags(struct iwl_drv *drv, const u8 *data,
+				    struct iwl_ucode_capabilities *capa)
 {
 	const struct iwl_ucode_api *ucode_api = (void *)data;
 	u32 api_index = le32_to_cpu(ucode_api->api_index);
@@ -483,23 +488,20 @@ static int iwl_set_ucode_api_flags(struct iwl_drv *drv, const u8 *data,
 	int i;
 
 	if (api_index >= DIV_ROUND_UP(NUM_IWL_UCODE_TLV_API, 32)) {
-		IWL_ERR(drv,
-			"api flags index %d larger than supported by driver\n",
-			api_index);
-		/* don't return an error so we can load FW that has more bits */
-		return 0;
+		IWL_WARN(drv,
+			 "api flags index %d larger than supported by driver\n",
+			 api_index);
+		return;
 	}
 
 	for (i = 0; i < 32; i++) {
 		if (api_flags & BIT(i))
 			__set_bit(i + 32 * api_index, capa->_api);
 	}
-
-	return 0;
 }
 
-static int iwl_set_ucode_capabilities(struct iwl_drv *drv, const u8 *data,
-				      struct iwl_ucode_capabilities *capa)
+static void iwl_set_ucode_capabilities(struct iwl_drv *drv, const u8 *data,
+				       struct iwl_ucode_capabilities *capa)
 {
 	const struct iwl_ucode_capa *ucode_capa = (void *)data;
 	u32 api_index = le32_to_cpu(ucode_capa->api_index);
@@ -507,19 +509,16 @@ static int iwl_set_ucode_capabilities(struct iwl_drv *drv, const u8 *data,
 	int i;
 
 	if (api_index >= DIV_ROUND_UP(NUM_IWL_UCODE_TLV_CAPA, 32)) {
-		IWL_ERR(drv,
-			"capa flags index %d larger than supported by driver\n",
-			api_index);
-		/* don't return an error so we can load FW that has more bits */
-		return 0;
+		IWL_WARN(drv,
+			 "capa flags index %d larger than supported by driver\n",
+			 api_index);
+		return;
 	}
 
 	for (i = 0; i < 32; i++) {
 		if (api_flags & BIT(i))
 			__set_bit(i + 32 * api_index, capa->_capa);
 	}
-
-	return 0;
 }
 
 static int iwl_parse_v1_v2_firmware(struct iwl_drv *drv,
@@ -761,14 +760,12 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		case IWL_UCODE_TLV_API_CHANGES_SET:
 			if (tlv_len != sizeof(struct iwl_ucode_api))
 				goto invalid_tlv_len;
-			if (iwl_set_ucode_api_flags(drv, tlv_data, capa))
-				goto tlv_error;
+			iwl_set_ucode_api_flags(drv, tlv_data, capa);
 			break;
 		case IWL_UCODE_TLV_ENABLED_CAPABILITIES:
 			if (tlv_len != sizeof(struct iwl_ucode_capa))
 				goto invalid_tlv_len;
-			if (iwl_set_ucode_capabilities(drv, tlv_data, capa))
-				goto tlv_error;
+			iwl_set_ucode_capabilities(drv, tlv_data, capa);
 			break;
 		case IWL_UCODE_TLV_INIT_EVTLOG_PTR:
 			if (tlv_len != sizeof(u32))
@@ -835,7 +832,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			capa->standard_phy_calibration_size =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
-		 case IWL_UCODE_TLV_SEC_RT:
+		case IWL_UCODE_TLV_SEC_RT:
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_REGULAR,
 					    tlv_len);
 			drv->fw.type = IWL_FW_MVM;
@@ -867,7 +864,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 						FW_PHY_CFG_RX_CHAIN) >>
 						FW_PHY_CFG_RX_CHAIN_POS;
 			break;
-		 case IWL_UCODE_TLV_SECURE_SEC_RT:
+		case IWL_UCODE_TLV_SECURE_SEC_RT:
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_REGULAR,
 					    tlv_len);
 			drv->fw.type = IWL_FW_MVM;
@@ -1041,12 +1038,6 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			usniffer_img = IWL_UCODE_REGULAR_USNIFFER;
 			drv->fw.img[usniffer_img].paging_mem_size =
 				paging_mem_size;
-			break;
-		case IWL_UCODE_TLV_SDIO_ADMA_ADDR:
-			if (tlv_len != sizeof(u32))
-				goto invalid_tlv_len;
-			drv->fw.sdio_adma_addr =
-				le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_FW_GSCAN_CAPA:
 			/*
@@ -1338,7 +1329,8 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 
 	/* Runtime instructions and 2 copies of data:
 	 * 1) unmodified from disk
-	 * 2) backup cache for save/restore during power-downs */
+	 * 2) backup cache for save/restore during power-downs
+	 */
 	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
 		if (iwl_alloc_ucode(drv, pieces, i))
 			goto out_free_fw;
@@ -1611,11 +1603,11 @@ void iwl_drv_stop(struct iwl_drv *drv)
 
 /* shared module parameters */
 struct iwl_mod_params iwlwifi_mod_params = {
-	.restart_fw = true,
+	.fw_restart = true,
 	.bt_coex_active = true,
 	.power_level = IWL_POWER_INDEX_1,
 	.d0i3_disable = true,
-	.d0i3_entry_delay = 1000,
+	.d0i3_timeout = 1000,
 	.uapsd_disable = IWL_DISABLE_UAPSD_BSS | IWL_DISABLE_UAPSD_P2P_CLIENT,
 	/* the rest are 0 by default */
 };
@@ -1707,7 +1699,7 @@ module_param_named(debug, iwlwifi_mod_params.debug_level, uint,
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif
 
-module_param_named(swcrypto, iwlwifi_mod_params.sw_crypto, int, S_IRUGO);
+module_param_named(swcrypto, iwlwifi_mod_params.swcrypto, int, S_IRUGO);
 MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
 module_param_named(11n_disable, iwlwifi_mod_params.disable_11n, uint, S_IRUGO);
 MODULE_PARM_DESC(11n_disable,
@@ -1716,10 +1708,10 @@ module_param_named(amsdu_size, iwlwifi_mod_params.amsdu_size,
 		   int, S_IRUGO);
 MODULE_PARM_DESC(amsdu_size,
 		 "amsdu size 0: 12K for multi Rx queue devices, 4K for other devices 1:4K 2:8K 3:12K (default 0)");
-module_param_named(fw_restart, iwlwifi_mod_params.restart_fw, bool, S_IRUGO);
+module_param_named(fw_restart, iwlwifi_mod_params.fw_restart, bool, S_IRUGO);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error (default true)");
 
-module_param_named(antenna_coupling, iwlwifi_mod_params.ant_coupling,
+module_param_named(antenna_coupling, iwlwifi_mod_params.antenna_coupling,
 		   int, S_IRUGO);
 MODULE_PARM_DESC(antenna_coupling,
 		 "specify antenna coupling in dB (default: 0 dB)");
@@ -1778,7 +1770,7 @@ module_param_named(fw_monitor, iwlwifi_mod_params.fw_monitor, bool, S_IRUGO);
 MODULE_PARM_DESC(fw_monitor,
 		 "firmware monitor - to debug FW (default: false - needs lots of memory)");
 
-module_param_named(d0i3_timeout, iwlwifi_mod_params.d0i3_entry_delay,
+module_param_named(d0i3_timeout, iwlwifi_mod_params.d0i3_timeout,
 		   uint, S_IRUGO);
 MODULE_PARM_DESC(d0i3_timeout, "Timeout to D0i3 entry when idle (ms)");
 

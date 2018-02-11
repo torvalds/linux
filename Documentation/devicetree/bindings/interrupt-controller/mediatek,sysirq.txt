@@ -1,21 +1,24 @@
-+Mediatek 65xx/67xx/81xx sysirq
++Mediatek MT65xx/MT67xx/MT81xx sysirq
 
 Mediatek SOCs sysirq support controllable irq inverter for each GIC SPI
 interrupt.
 
 Required properties:
-- compatible: should be one of:
-	"mediatek,mt8173-sysirq"
-	"mediatek,mt8135-sysirq"
-	"mediatek,mt8127-sysirq"
-	"mediatek,mt6795-sysirq"
-	"mediatek,mt6755-sysirq"
-	"mediatek,mt6592-sysirq"
-	"mediatek,mt6589-sysirq"
-	"mediatek,mt6582-sysirq"
-	"mediatek,mt6580-sysirq"
-	"mediatek,mt6577-sysirq"
-	"mediatek,mt2701-sysirq"
+- compatible: should be
+	"mediatek,mt8173-sysirq", "mediatek,mt6577-sysirq": for MT8173
+	"mediatek,mt8135-sysirq", "mediatek,mt6577-sysirq": for MT8135
+	"mediatek,mt8127-sysirq", "mediatek,mt6577-sysirq": for MT8127
+	"mediatek,mt7622-sysirq", "mediatek,mt6577-sysirq": for MT7622
+	"mediatek,mt6795-sysirq", "mediatek,mt6577-sysirq": for MT6795
+	"mediatek,mt6797-sysirq", "mediatek,mt6577-sysirq": for MT6797
+	"mediatek,mt6755-sysirq", "mediatek,mt6577-sysirq": for MT6755
+	"mediatek,mt6592-sysirq", "mediatek,mt6577-sysirq": for MT6592
+	"mediatek,mt6589-sysirq", "mediatek,mt6577-sysirq": for MT6589
+	"mediatek,mt6582-sysirq", "mediatek,mt6577-sysirq": for MT6582
+	"mediatek,mt6580-sysirq", "mediatek,mt6577-sysirq": for MT6580
+	"mediatek,mt6577-sysirq": for MT6577
+	"mediatek,mt2712-sysirq", "mediatek,mt6577-sysirq": for MT2712
+	"mediatek,mt2701-sysirq", "mediatek,mt6577-sysirq": for MT2701
 - interrupt-controller : Identifies the node as an interrupt controller
 - #interrupt-cells : Use the same format as specified by GIC in arm,gic.txt.
 - interrupt-parent: phandle of irq parent for sysirq. The parent must

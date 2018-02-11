@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PSYCHO_COMMON_H
 #define _PSYCHO_COMMON_H
 

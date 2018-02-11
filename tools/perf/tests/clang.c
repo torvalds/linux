@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "tests.h"
 #include "debug.h"
 #include "util.h"
@@ -33,12 +34,12 @@ const char *test__clang_subtest_get_desc(int i)
 }
 
 #ifndef HAVE_LIBCLANGLLVM_SUPPORT
-int test__clang(int i __maybe_unused)
+int test__clang(struct test *test __maybe_unused, int i __maybe_unused)
 {
 	return TEST_SKIP;
 }
 #else
-int test__clang(int i)
+int test__clang(struct test *test __maybe_unused, int i)
 {
 	if (i < 0 || i >= (int)ARRAY_SIZE(clang_testcase_table))
 		return TEST_FAIL;

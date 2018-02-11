@@ -368,7 +368,7 @@ struct i5400_error_info {
 
 	/* These registers are input ONLY if there was a Non-Rec Error */
 	u16 nrecmema;		/* Non-Recoverable Mem log A */
-	u16 nrecmemb;		/* Non-Recoverable Mem log B */
+	u32 nrecmemb;		/* Non-Recoverable Mem log B */
 
 };
 
@@ -458,7 +458,7 @@ static void i5400_get_error_info(struct mem_ctl_info *mci,
 				NERR_FAT_FBD, &info->nerr_fat_fbd);
 		pci_read_config_word(pvt->branchmap_werrors,
 				NRECMEMA, &info->nrecmema);
-		pci_read_config_word(pvt->branchmap_werrors,
+		pci_read_config_dword(pvt->branchmap_werrors,
 				NRECMEMB, &info->nrecmemb);
 
 		/* Clear the error bits, by writing them back */
@@ -1315,7 +1315,6 @@ static int i5400_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = "i5400_edac.c";
-	mci->mod_ver = I5400_REVISION;
 	mci->ctl_name = i5400_devs[dev_idx].ctl_name;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	linux/arch/alpha/kernel/pci.c
  *
@@ -196,9 +197,16 @@ pcibios_init(void)
 subsys_initcall(pcibios_init);
 
 #ifdef ALPHA_RESTORE_SRM_SETUP
+/* Store PCI device configuration left by SRM here. */
+struct pdev_srm_saved_conf
+{
+	struct pdev_srm_saved_conf *next;
+	struct pci_dev *dev;
+};
+
 static struct pdev_srm_saved_conf *srm_saved_configs;
 
-void pdev_save_srm_config(struct pci_dev *dev)
+static void pdev_save_srm_config(struct pci_dev *dev)
 {
 	struct pdev_srm_saved_conf *tmp;
 	static int printed = 0;
@@ -238,6 +246,8 @@ pci_restore_srm_config(void)
 		pci_restore_state(tmp->dev);
 	}
 }
+#else
+#define pdev_save_srm_config(dev)	do {} while (0)
 #endif
 
 void pcibios_fixup_bus(struct pci_bus *bus)
@@ -312,8 +322,9 @@ common_init_pci(void)
 {
 	struct pci_controller *hose;
 	struct list_head resources;
+	struct pci_host_bridge *bridge;
 	struct pci_bus *bus;
-	int next_busno;
+	int ret, next_busno;
 	int need_domain_info = 0;
 	u32 pci_mem_end;
 	u32 sg_base;
@@ -336,11 +347,25 @@ common_init_pci(void)
 		pci_add_resource_offset(&resources, hose->mem_space,
 					hose->mem_space->start);
 
-		bus = pci_scan_root_bus(NULL, next_busno, alpha_mv.pci_ops,
-					hose, &resources);
-		if (!bus)
+		bridge = pci_alloc_host_bridge(0);
+		if (!bridge)
 			continue;
-		hose->bus = bus;
+
+		list_splice_init(&resources, &bridge->windows);
+		bridge->dev.parent = NULL;
+		bridge->sysdata = hose;
+		bridge->busnr = next_busno;
+		bridge->ops = alpha_mv.pci_ops;
+		bridge->swizzle_irq = alpha_mv.pci_swizzle;
+		bridge->map_irq = alpha_mv.pci_map_irq;
+
+		ret = pci_scan_root_bus_bridge(bridge);
+		if (ret) {
+			pci_free_host_bridge(bridge);
+			continue;
+		}
+
+		bus = hose->bus = bridge->bus;
 		hose->need_domain_info = need_domain_info;
 		next_busno = bus->busn_res.end + 1;
 		/* Don't allow 8-bit bus number overflow inside the hose -
@@ -354,14 +379,12 @@ common_init_pci(void)
 	pcibios_claim_console_setup();
 
 	pci_assign_unassigned_resources();
-	pci_fixup_irqs(alpha_mv.pci_swizzle, alpha_mv.pci_map_irq);
 	for (hose = hose_head; hose; hose = hose->next) {
 		bus = hose->bus;
 		if (bus)
 			pci_bus_add_devices(bus);
 	}
 }
-
 
 struct pci_controller * __init
 alloc_pci_controller(void)
@@ -379,11 +402,7 @@ alloc_pci_controller(void)
 struct resource * __init
 alloc_resource(void)
 {
-	struct resource *res;
-
-	res = alloc_bootmem(sizeof(*res));
-
-	return res;
+	return alloc_bootmem(sizeof(struct resource));
 }
 
 

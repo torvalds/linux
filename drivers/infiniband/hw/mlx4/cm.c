@@ -323,6 +323,9 @@ int mlx4_ib_multiplex_cm_handler(struct ib_device *ibdev, int port, int slave_id
 			mad->mad_hdr.attr_id == CM_REP_ATTR_ID ||
 			mad->mad_hdr.attr_id == CM_SIDR_REQ_ATTR_ID) {
 		sl_cm_id = get_local_comm_id(mad);
+		id = id_map_get(ibdev, &pv_cm_id, slave_id, sl_cm_id);
+		if (id)
+			goto cont;
 		id = id_map_alloc(ibdev, slave_id, sl_cm_id);
 		if (IS_ERR(id)) {
 			mlx4_ib_warn(ibdev, "%s: id{slave: %d, sl_cm_id: 0x%x} Failed to id_map_alloc\n",
@@ -343,6 +346,7 @@ int mlx4_ib_multiplex_cm_handler(struct ib_device *ibdev, int port, int slave_id
 		return -EINVAL;
 	}
 
+cont:
 	set_local_comm_id(mad, id->pv_cm_id);
 
 	if (mad->mad_hdr.attr_id == CM_DREQ_ATTR_ID)

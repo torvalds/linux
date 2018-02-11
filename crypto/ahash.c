@@ -334,9 +334,7 @@ static int ahash_op_unaligned(struct ahash_request *req,
 		return err;
 
 	err = op(req);
-	if (err == -EINPROGRESS ||
-	    (err == -EBUSY && (ahash_request_flags(req) &
-			       CRYPTO_TFM_REQ_MAY_BACKLOG)))
+	if (err == -EINPROGRESS || err == -EBUSY)
 		return err;
 
 	ahash_restore_req(req, err);
@@ -394,9 +392,7 @@ static int ahash_def_finup_finish1(struct ahash_request *req, int err)
 	req->base.complete = ahash_def_finup_done2;
 
 	err = crypto_ahash_reqtfm(req)->final(req);
-	if (err == -EINPROGRESS ||
-	    (err == -EBUSY && (ahash_request_flags(req) &
-			       CRYPTO_TFM_REQ_MAY_BACKLOG)))
+	if (err == -EINPROGRESS || err == -EBUSY)
 		return err;
 
 out:
@@ -432,9 +428,7 @@ static int ahash_def_finup(struct ahash_request *req)
 		return err;
 
 	err = tfm->update(req);
-	if (err == -EINPROGRESS ||
-	    (err == -EBUSY && (ahash_request_flags(req) &
-			       CRYPTO_TFM_REQ_MAY_BACKLOG)))
+	if (err == -EINPROGRESS || err == -EBUSY)
 		return err;
 
 	return ahash_def_finup_finish1(req, err);
@@ -587,6 +581,35 @@ int crypto_unregister_ahash(struct ahash_alg *alg)
 	return crypto_unregister_alg(&alg->halg.base);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_ahash);
+
+int crypto_register_ahashes(struct ahash_alg *algs, int count)
+{
+	int i, ret;
+
+	for (i = 0; i < count; i++) {
+		ret = crypto_register_ahash(&algs[i]);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	for (--i; i >= 0; --i)
+		crypto_unregister_ahash(&algs[i]);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(crypto_register_ahashes);
+
+void crypto_unregister_ahashes(struct ahash_alg *algs, int count)
+{
+	int i;
+
+	for (i = count - 1; i >= 0; --i)
+		crypto_unregister_ahash(&algs[i]);
+}
+EXPORT_SYMBOL_GPL(crypto_unregister_ahashes);
 
 int ahash_register_instance(struct crypto_template *tmpl,
 			    struct ahash_instance *inst)

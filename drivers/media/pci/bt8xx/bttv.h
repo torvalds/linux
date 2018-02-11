@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
  *  bttv - Bt848 frame grabber driver

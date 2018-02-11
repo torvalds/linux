@@ -15,7 +15,7 @@
 #include <linux/sched.h>
 #include <linux/raid/md_p.h>
 #include "md.h"
-#include "bitmap.h"
+#include "md-bitmap.h"
 #include "md-cluster.h"
 
 #define LVB_SIZE	64
@@ -442,10 +442,11 @@ static void __remove_suspend_info(struct md_cluster_info *cinfo, int slot)
 static void remove_suspend_info(struct mddev *mddev, int slot)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
+	mddev->pers->quiesce(mddev, 1);
 	spin_lock_irq(&cinfo->suspend_lock);
 	__remove_suspend_info(cinfo, slot);
 	spin_unlock_irq(&cinfo->suspend_lock);
-	mddev->pers->quiesce(mddev, 2);
+	mddev->pers->quiesce(mddev, 0);
 }
 
 
@@ -492,13 +493,12 @@ static void process_suspend_info(struct mddev *mddev,
 	s->lo = lo;
 	s->hi = hi;
 	mddev->pers->quiesce(mddev, 1);
-	mddev->pers->quiesce(mddev, 0);
 	spin_lock_irq(&cinfo->suspend_lock);
 	/* Remove existing entry (if exists) before adding */
 	__remove_suspend_info(cinfo, slot);
 	list_add(&s->list, &cinfo->suspend_list);
 	spin_unlock_irq(&cinfo->suspend_lock);
-	mddev->pers->quiesce(mddev, 2);
+	mddev->pers->quiesce(mddev, 0);
 }
 
 static void process_add_new_disk(struct mddev *mddev, struct cluster_msg *cmsg)
@@ -1094,7 +1094,7 @@ static void metadata_update_cancel(struct mddev *mddev)
 /*
  * return 0 if all the bitmaps have the same sync_size
  */
-int cluster_check_sync_size(struct mddev *mddev)
+static int cluster_check_sync_size(struct mddev *mddev)
 {
 	int i, rv;
 	bitmap_super_t *sb;
@@ -1478,7 +1478,7 @@ static struct md_cluster_operations cluster_ops = {
 
 static int __init cluster_init(void)
 {
-	pr_warn("md-cluster: EXPERIMENTAL. Use with caution\n");
+	pr_warn("md-cluster: support raid1 and raid10 (limited support)\n");
 	pr_info("Registering Cluster MD functions\n");
 	register_md_cluster_operations(&cluster_ops, THIS_MODULE);
 	return 0;

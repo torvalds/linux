@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ASCII values for a number of symbolic constants, printing functions,
  * etc.

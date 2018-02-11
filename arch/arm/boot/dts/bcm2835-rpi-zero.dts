@@ -12,7 +12,7 @@
 /dts-v1/;
 #include "bcm2835.dtsi"
 #include "bcm2835-rpi.dtsi"
-#include "bcm283x-rpi-usb-host.dtsi"
+#include "bcm283x-rpi-usb-otg.dtsi"
 
 / {
 	compatible = "raspberrypi,model-zero", "brcm,bcm2835";
@@ -102,4 +102,10 @@
 
 &hdmi {
 	hpd-gpios = <&gpio 46 GPIO_ACTIVE_LOW>;
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_gpio14>;
+	status = "okay";
 };

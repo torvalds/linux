@@ -582,8 +582,6 @@ static int __init pata_s3c_probe(struct platform_device *pdev)
 	/* Set endianness and enable the interface */
 	pata_s3c_hwinit(info, pdata);
 
-	platform_set_drvdata(pdev, host);
-
 	ret = ata_host_activate(host, info->irq,
 				info->irq ? pata_s3c_irq : NULL,
 				0, &pata_s3c_sht);

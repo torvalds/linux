@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Setup routines for AGP 3.5 compliant bridges.
  */

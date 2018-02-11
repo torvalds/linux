@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Driver definitions for the FTDI USB Single Port Serial Converter -
  * known as FTDI_SIO (Serial Input/Output application of the chipset)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ARCH_DOVE_MPP_CODED_H
 #define __ARCH_DOVE_MPP_CODED_H
 

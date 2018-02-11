@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # arch/m32r/platforms/Makefile
 obj-$(CONFIG_PLAT_M32104UT)	+= m32104ut/
 obj-$(CONFIG_PLAT_M32700UT)	+= m32700ut/

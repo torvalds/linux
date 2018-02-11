@@ -145,7 +145,7 @@ static int ns_ioctl(struct atm_dev *dev, unsigned int cmd, void __user * arg);
 #ifdef EXTRA_DEBUG
 static void which_list(ns_dev * card, struct sk_buff *skb);
 #endif
-static void ns_poll(unsigned long arg);
+static void ns_poll(struct timer_list *unused);
 static void ns_phy_put(struct atm_dev *dev, unsigned char value,
 		       unsigned long addr);
 static unsigned char ns_phy_get(struct atm_dev *dev, unsigned long addr);
@@ -154,7 +154,7 @@ static unsigned char ns_phy_get(struct atm_dev *dev, unsigned long addr);
 
 static struct ns_dev *cards[NS_MAX_CARDS];
 static unsigned num_cards;
-static struct atmdev_ops atm_ops = {
+static const struct atmdev_ops atm_ops = {
 	.open = ns_open,
 	.close = ns_close,
 	.ioctl = ns_ioctl,
@@ -253,7 +253,7 @@ static void nicstar_remove_one(struct pci_dev *pcidev)
 	kfree(card);
 }
 
-static struct pci_device_id nicstar_pci_tbl[] = {
+static const struct pci_device_id nicstar_pci_tbl[] = {
 	{ PCI_VDEVICE(IDT, PCI_DEVICE_ID_IDT_IDT77201), 0 },
 	{0,}			/* terminate list */
 };
@@ -284,10 +284,8 @@ static int __init nicstar_init(void)
 	XPRINTK("nicstar: nicstar_init() returned.\n");
 
 	if (!error) {
-		init_timer(&ns_timer);
+		timer_setup(&ns_timer, ns_poll, 0);
 		ns_timer.expires = jiffies + NS_POLL_PERIOD;
-		ns_timer.data = 0UL;
-		ns_timer.function = ns_poll;
 		add_timer(&ns_timer);
 	}
 
@@ -2681,7 +2679,7 @@ static void which_list(ns_dev * card, struct sk_buff *skb)
 }
 #endif /* EXTRA_DEBUG */
 
-static void ns_poll(unsigned long arg)
+static void ns_poll(struct timer_list *unused)
 {
 	int i;
 	ns_dev *card;

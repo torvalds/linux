@@ -506,7 +506,6 @@ struct omap_prcm_irq_setup {
 	u8 nr_irqs;
 	const struct omap_prcm_irq *irqs;
 	int irq;
-	unsigned int (*xlate_irq)(unsigned int);
 	void (*read_pending_irqs)(unsigned long *events);
 	void (*ocp_barrier)(void);
 	void (*save_and_clear_irqen)(u32 *saved_mask);
@@ -526,10 +525,17 @@ struct omap_prcm_irq_setup {
 	.priority = _priority				\
 	}
 
+struct omap_domain_base {
+	u32 pa;
+	void __iomem *va;
+	s16 offset;
+};
+
 /**
  * struct omap_prcm_init_data - PRCM driver init data
  * @index: clock memory mapping index to be used
  * @mem: IO mem pointer for this module
+ * @phys: IO mem physical base address for this module
  * @offset: module base address offset from the IO base
  * @flags: PRCM module init flags
  * @device_inst_offset: device instance offset within the module address space
@@ -539,6 +545,7 @@ struct omap_prcm_irq_setup {
 struct omap_prcm_init_data {
 	int index;
 	void __iomem *mem;
+	u32 phys;
 	s16 offset;
 	u16 flags;
 	s32 device_inst_offset;

@@ -102,8 +102,6 @@
 
 #define	PHY_RSSI_SLID_WIN_MAX			100
 
-#define RTL_IOCTL_WPA_SUPPLICANT		(SIOCIWFIRSTPRIV + 30)
-
 #define TxBBGainTableLength			37
 #define CCKTxBBGainTableLength			23
 
@@ -589,7 +587,7 @@ void rtl92e_tx_enable(struct net_device *);
 void rtl92e_hw_sleep_wq(void *data);
 void rtl92e_commit(struct net_device *dev);
 
-void rtl92e_check_rfctrl_gpio_timer(unsigned long data);
+void rtl92e_check_rfctrl_gpio_timer(struct timer_list *t);
 
 void rtl92e_hw_wakeup_wq(void *data);
 

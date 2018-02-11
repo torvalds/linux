@@ -23,7 +23,7 @@ config IOMMU_IO_PGTABLE
 config IOMMU_IO_PGTABLE_LPAE
 	bool "ARMv7/v8 Long Descriptor Format"
 	select IOMMU_IO_PGTABLE
-	depends on HAS_DMA && (ARM || ARM64 || COMPILE_TEST)
+	depends on HAS_DMA && (ARM || ARM64 || (COMPILE_TEST && !GENERIC_ATOMIC64))
 	help
 	  Enable support for the ARM long descriptor pagetable format.
 	  This allocator supports 4K/2M/1G, 16K/32M and 64K/512M page
@@ -76,6 +76,8 @@ config IOMMU_DMA
 
 config FSL_PAMU
 	bool "Freescale IOMMU support"
+	depends on PCI
+	depends on PHYS_64BIT
 	depends on PPC_E500MC || (COMPILE_TEST && PPC)
 	select IOMMU_API
 	select GENERIC_ALLOCATOR
@@ -219,7 +221,7 @@ config OMAP_IOMMU_DEBUG
 
 config ROCKCHIP_IOMMU
 	bool "Rockchip IOMMU Support"
-	depends on ARM
+	depends on ARM || ARM64
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	select IOMMU_API
 	select ARM_DMA_USE_IOMMU
@@ -253,6 +255,7 @@ config TEGRA_IOMMU_SMMU
 config EXYNOS_IOMMU
 	bool "Exynos IOMMU Support"
 	depends on ARCH_EXYNOS && MMU
+	depends on !CPU_BIG_ENDIAN # revisit driver if we can enable big-endian ptes
 	select IOMMU_API
 	select ARM_DMA_USE_IOMMU
 	help
@@ -274,8 +277,8 @@ config EXYNOS_IOMMU_DEBUG
 
 config IPMMU_VMSA
 	bool "Renesas VMSA-compatible IPMMU"
-	depends on ARM_LPAE
-	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on ARM || IOMMU_DMA
+	depends on ARCH_RENESAS || (COMPILE_TEST && !GENERIC_ATOMIC64)
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_LPAE
 	select ARM_DMA_USE_IOMMU
@@ -366,5 +369,16 @@ config MTK_IOMMU_V1
 	  DMA memory accesses for the multimedia subsystem.
 
 	  if unsure, say N here.
+
+config QCOM_IOMMU
+	# Note: iommu drivers cannot (yet?) be built as modules
+	bool "Qualcomm IOMMU Support"
+	depends on ARCH_QCOM || (COMPILE_TEST && !GENERIC_ATOMIC64)
+	depends on HAS_DMA
+	select IOMMU_API
+	select IOMMU_IO_PGTABLE_LPAE
+	select ARM_DMA_USE_IOMMU
+	help
+	  Support for IOMMU on certain Qualcomm SoCs.
 
 endif # IOMMU_SUPPORT

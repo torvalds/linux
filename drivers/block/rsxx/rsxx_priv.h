@@ -391,7 +391,7 @@ int rsxx_dma_cancel(struct rsxx_dma_ctrl *ctrl);
 void rsxx_dma_cleanup(void);
 void rsxx_dma_queue_reset(struct rsxx_cardinfo *card);
 int rsxx_dma_configure(struct rsxx_cardinfo *card);
-int rsxx_dma_queue_bio(struct rsxx_cardinfo *card,
+blk_status_t rsxx_dma_queue_bio(struct rsxx_cardinfo *card,
 			   struct bio *bio,
 			   atomic_t *n_dmas,
 			   rsxx_dma_cb cb,

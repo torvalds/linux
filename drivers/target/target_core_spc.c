@@ -287,8 +287,8 @@ check_t10_vend_desc:
 		/* Skip over Obsolete field in RTPI payload
 		 * in Table 472 */
 		off += 2;
-		buf[off++] = ((lun->lun_rtpi >> 8) & 0xff);
-		buf[off++] = (lun->lun_rtpi & 0xff);
+		put_unaligned_be16(lun->lun_rtpi, &buf[off]);
+		off += 2;
 		len += 8; /* Header size + Designation descriptor */
 		/*
 		 * Target port group identifier, see spc4r17
@@ -316,8 +316,8 @@ check_t10_vend_desc:
 		off++; /* Skip over Reserved */
 		buf[off++] = 4; /* DESIGNATOR LENGTH */
 		off += 2; /* Skip over Reserved Field */
-		buf[off++] = ((tg_pt_gp_id >> 8) & 0xff);
-		buf[off++] = (tg_pt_gp_id & 0xff);
+		put_unaligned_be16(tg_pt_gp_id, &buf[off]);
+		off += 2;
 		len += 8; /* Header size + Designation descriptor */
 		/*
 		 * Logical Unit Group identifier, see spc4r17
@@ -343,8 +343,8 @@ check_lu_gp:
 		off++; /* Skip over Reserved */
 		buf[off++] = 4; /* DESIGNATOR LENGTH */
 		off += 2; /* Skip over Reserved Field */
-		buf[off++] = ((lu_gp_id >> 8) & 0xff);
-		buf[off++] = (lu_gp_id & 0xff);
+		put_unaligned_be16(lu_gp_id, &buf[off]);
+		off += 2;
 		len += 8; /* Header size + Designation descriptor */
 		/*
 		 * SCSI name string designator, see spc4r17
@@ -431,8 +431,7 @@ check_scsi_name:
 		/* Header size + Designation descriptor */
 		len += (scsi_target_len + 4);
 	}
-	buf[2] = ((len >> 8) & 0xff);
-	buf[3] = (len & 0xff); /* Page Length for VPD 0x83 */
+	put_unaligned_be16(len, &buf[2]); /* Page Length for VPD 0x83 */
 	return 0;
 }
 EXPORT_SYMBOL(spc_emulate_evpd_83);
@@ -1288,7 +1287,7 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		cmd->execute_cmd = spc_emulate_modeselect;
 		break;
 	case MODE_SELECT_10:
-		*size = (cdb[7] << 8) + cdb[8];
+		*size = get_unaligned_be16(&cdb[7]);
 		cmd->execute_cmd = spc_emulate_modeselect;
 		break;
 	case MODE_SENSE:
@@ -1296,25 +1295,25 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		cmd->execute_cmd = spc_emulate_modesense;
 		break;
 	case MODE_SENSE_10:
-		*size = (cdb[7] << 8) + cdb[8];
+		*size = get_unaligned_be16(&cdb[7]);
 		cmd->execute_cmd = spc_emulate_modesense;
 		break;
 	case LOG_SELECT:
 	case LOG_SENSE:
-		*size = (cdb[7] << 8) + cdb[8];
+		*size = get_unaligned_be16(&cdb[7]);
 		break;
 	case PERSISTENT_RESERVE_IN:
-		*size = (cdb[7] << 8) + cdb[8];
+		*size = get_unaligned_be16(&cdb[7]);
 		cmd->execute_cmd = target_scsi3_emulate_pr_in;
 		break;
 	case PERSISTENT_RESERVE_OUT:
-		*size = (cdb[7] << 8) + cdb[8];
+		*size = get_unaligned_be32(&cdb[5]);
 		cmd->execute_cmd = target_scsi3_emulate_pr_out;
 		break;
 	case RELEASE:
 	case RELEASE_10:
 		if (cdb[0] == RELEASE_10)
-			*size = (cdb[7] << 8) | cdb[8];
+			*size = get_unaligned_be16(&cdb[7]);
 		else
 			*size = cmd->data_length;
 
@@ -1327,7 +1326,7 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		 * Assume the passthrough or $FABRIC_MOD will tell us about it.
 		 */
 		if (cdb[0] == RESERVE_10)
-			*size = (cdb[7] << 8) | cdb[8];
+			*size = get_unaligned_be16(&cdb[7]);
 		else
 			*size = cmd->data_length;
 
@@ -1338,7 +1337,7 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		cmd->execute_cmd = spc_emulate_request_sense;
 		break;
 	case INQUIRY:
-		*size = (cdb[3] << 8) + cdb[4];
+		*size = get_unaligned_be16(&cdb[3]);
 
 		/*
 		 * Do implicit HEAD_OF_QUEUE processing for INQUIRY.
@@ -1349,7 +1348,7 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		break;
 	case SECURITY_PROTOCOL_IN:
 	case SECURITY_PROTOCOL_OUT:
-		*size = (cdb[6] << 24) | (cdb[7] << 16) | (cdb[8] << 8) | cdb[9];
+		*size = get_unaligned_be32(&cdb[6]);
 		break;
 	case EXTENDED_COPY:
 		*size = get_unaligned_be32(&cdb[10]);
@@ -1361,19 +1360,18 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		break;
 	case READ_ATTRIBUTE:
 	case WRITE_ATTRIBUTE:
-		*size = (cdb[10] << 24) | (cdb[11] << 16) |
-		       (cdb[12] << 8) | cdb[13];
+		*size = get_unaligned_be32(&cdb[10]);
 		break;
 	case RECEIVE_DIAGNOSTIC:
 	case SEND_DIAGNOSTIC:
-		*size = (cdb[3] << 8) | cdb[4];
+		*size = get_unaligned_be16(&cdb[3]);
 		break;
 	case WRITE_BUFFER:
-		*size = (cdb[6] << 16) + (cdb[7] << 8) + cdb[8];
+		*size = get_unaligned_be24(&cdb[6]);
 		break;
 	case REPORT_LUNS:
 		cmd->execute_cmd = spc_emulate_report_luns;
-		*size = (cdb[6] << 24) | (cdb[7] << 16) | (cdb[8] << 8) | cdb[9];
+		*size = get_unaligned_be32(&cdb[6]);
 		/*
 		 * Do implicit HEAD_OF_QUEUE processing for REPORT_LUNS
 		 * See spc4r17 section 5.3

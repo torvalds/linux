@@ -382,7 +382,7 @@ void odm_DIG(struct odm_dm_struct *pDM_Odm)
 	}
 
 	/* add by Neil Chen to avoid PSD is processing */
-	if (pDM_Odm->bDMInitialGainEnable == false) {
+	if (!pDM_Odm->bDMInitialGainEnable) {
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG() Return: PSD is Processing\n"));
 		return;
 	}

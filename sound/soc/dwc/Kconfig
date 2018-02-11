@@ -4,8 +4,8 @@ config SND_DESIGNWARE_I2S
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
 	 Say Y or M if you want to add support for I2S driver for
-	 Synopsys desigwnware I2S device. The device supports upto
-	 maximum of 8 channels each for play and record.
+	 Synopsys designware I2S device. The device supports up to
+	 a maximum of 8 channels each for play and record.
 
 config SND_DESIGNWARE_PCM
 	bool "PCM PIO extension for I2S driver"

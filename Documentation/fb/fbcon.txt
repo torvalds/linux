@@ -77,8 +77,8 @@ C. Boot options
 1. fbcon=font:<name>
 
         Select the initial font to use. The value 'name' can be any of the
-        compiled-in fonts: VGA8x16, 7x14, 10x18, VGA8x8, MINI4x6, RomanLarge,
-        SUN8x16, SUN12x22, ProFont6x11, Acorn8x8, PEARL8x8.
+        compiled-in fonts: 10x18, 6x10, 7x14, Acorn8x8, MINI4x6,
+        PEARL8x8, ProFont6x11, SUN12x22, SUN8x16, VGA8x16, VGA8x8.
 
 	Note, not all drivers can handle font with widths not divisible by 8,
         such as vga16fb.
@@ -147,6 +147,13 @@ C. Boot options
 	use the framebuffer will remain at their 'normal'orientation.
 	Actually, the underlying fb driver is totally ignorant of console
 	rotation.
+
+5. fbcon=margin:<color>
+
+	This option specifies the color of the margins. The margins are the
+	leftover area at the right and the bottom of the screen that are not
+	used by text. By default, this area will be black. The 'color' value
+	is an integer number that depends on the framebuffer driver being used.
 
 C. Attaching, Detaching and Unloading
 

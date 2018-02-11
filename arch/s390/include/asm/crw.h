@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *   Data definitions for channel report processing
  *    Copyright IBM Corp. 2000, 2009

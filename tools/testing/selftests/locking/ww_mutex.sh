@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # Runs API tests for struct ww_mutex (Wait/Wound mutexes)
 
 if /sbin/modprobe -q test-ww_mutex; then

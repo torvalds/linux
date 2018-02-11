@@ -35,7 +35,6 @@
 
 #include <linux/io.h>
 #include <linux/gpio.h>
-#include <linux/pinctrl/consumer.h>
 
 /* QSPI register offsets */
 #define QSPI_CR      0x0000  /* Control Register */
@@ -275,14 +274,48 @@ static void atmel_qspi_debug_command(struct atmel_qspi *aq,
 
 static int atmel_qspi_run_command(struct atmel_qspi *aq,
 				  const struct atmel_qspi_command *cmd,
-				  u32 ifr_tfrtyp, u32 ifr_width)
+				  u32 ifr_tfrtyp, enum spi_nor_protocol proto)
 {
 	u32 iar, icr, ifr, sr;
 	int err = 0;
 
 	iar = 0;
 	icr = 0;
-	ifr = ifr_tfrtyp | ifr_width;
+	ifr = ifr_tfrtyp;
+
+	/* Set the SPI protocol */
+	switch (proto) {
+	case SNOR_PROTO_1_1_1:
+		ifr |= QSPI_IFR_WIDTH_SINGLE_BIT_SPI;
+		break;
+
+	case SNOR_PROTO_1_1_2:
+		ifr |= QSPI_IFR_WIDTH_DUAL_OUTPUT;
+		break;
+
+	case SNOR_PROTO_1_1_4:
+		ifr |= QSPI_IFR_WIDTH_QUAD_OUTPUT;
+		break;
+
+	case SNOR_PROTO_1_2_2:
+		ifr |= QSPI_IFR_WIDTH_DUAL_IO;
+		break;
+
+	case SNOR_PROTO_1_4_4:
+		ifr |= QSPI_IFR_WIDTH_QUAD_IO;
+		break;
+
+	case SNOR_PROTO_2_2_2:
+		ifr |= QSPI_IFR_WIDTH_DUAL_CMD;
+		break;
+
+	case SNOR_PROTO_4_4_4:
+		ifr |= QSPI_IFR_WIDTH_QUAD_CMD;
+		break;
+
+	default:
+		return -EINVAL;
+	}
 
 	/* Compute instruction parameters */
 	if (cmd->enable.bits.instruction) {
@@ -434,7 +467,7 @@ static int atmel_qspi_read_reg(struct spi_nor *nor, u8 opcode,
 	cmd.rx_buf = buf;
 	cmd.buf_len = len;
 	return atmel_qspi_run_command(aq, &cmd, QSPI_IFR_TFRTYP_TRSFR_READ,
-				      QSPI_IFR_WIDTH_SINGLE_BIT_SPI);
+				      nor->reg_proto);
 }
 
 static int atmel_qspi_write_reg(struct spi_nor *nor, u8 opcode,
@@ -450,7 +483,7 @@ static int atmel_qspi_write_reg(struct spi_nor *nor, u8 opcode,
 	cmd.tx_buf = buf;
 	cmd.buf_len = len;
 	return atmel_qspi_run_command(aq, &cmd, QSPI_IFR_TFRTYP_TRSFR_WRITE,
-				      QSPI_IFR_WIDTH_SINGLE_BIT_SPI);
+				      nor->reg_proto);
 }
 
 static ssize_t atmel_qspi_write(struct spi_nor *nor, loff_t to, size_t len,
@@ -469,7 +502,7 @@ static ssize_t atmel_qspi_write(struct spi_nor *nor, loff_t to, size_t len,
 	cmd.tx_buf = write_buf;
 	cmd.buf_len = len;
 	ret = atmel_qspi_run_command(aq, &cmd, QSPI_IFR_TFRTYP_TRSFR_WRITE_MEM,
-				     QSPI_IFR_WIDTH_SINGLE_BIT_SPI);
+				     nor->write_proto);
 	return (ret < 0) ? ret : len;
 }
 
@@ -484,7 +517,7 @@ static int atmel_qspi_erase(struct spi_nor *nor, loff_t offs)
 	cmd.instruction = nor->erase_opcode;
 	cmd.address = (u32)offs;
 	return atmel_qspi_run_command(aq, &cmd, QSPI_IFR_TFRTYP_TRSFR_WRITE,
-				      QSPI_IFR_WIDTH_SINGLE_BIT_SPI);
+				      nor->reg_proto);
 }
 
 static ssize_t atmel_qspi_read(struct spi_nor *nor, loff_t from, size_t len,
@@ -493,26 +526,7 @@ static ssize_t atmel_qspi_read(struct spi_nor *nor, loff_t from, size_t len,
 	struct atmel_qspi *aq = nor->priv;
 	struct atmel_qspi_command cmd;
 	u8 num_mode_cycles, num_dummy_cycles;
-	u32 ifr_width;
 	ssize_t ret;
-
-	switch (nor->flash_read) {
-	case SPI_NOR_NORMAL:
-	case SPI_NOR_FAST:
-		ifr_width = QSPI_IFR_WIDTH_SINGLE_BIT_SPI;
-		break;
-
-	case SPI_NOR_DUAL:
-		ifr_width = QSPI_IFR_WIDTH_DUAL_OUTPUT;
-		break;
-
-	case SPI_NOR_QUAD:
-		ifr_width = QSPI_IFR_WIDTH_QUAD_OUTPUT;
-		break;
-
-	default:
-		return -EINVAL;
-	}
 
 	if (nor->read_dummy >= 2) {
 		num_mode_cycles = 2;
@@ -536,7 +550,7 @@ static ssize_t atmel_qspi_read(struct spi_nor *nor, loff_t from, size_t len,
 	cmd.rx_buf = read_buf;
 	cmd.buf_len = len;
 	ret = atmel_qspi_run_command(aq, &cmd, QSPI_IFR_TFRTYP_TRSFR_READ_MEM,
-				     ifr_width);
+				     nor->read_proto);
 	return (ret < 0) ? ret : len;
 }
 
@@ -590,6 +604,20 @@ static irqreturn_t atmel_qspi_interrupt(int irq, void *dev_id)
 
 static int atmel_qspi_probe(struct platform_device *pdev)
 {
+	const struct spi_nor_hwcaps hwcaps = {
+		.mask = SNOR_HWCAPS_READ |
+			SNOR_HWCAPS_READ_FAST |
+			SNOR_HWCAPS_READ_1_1_2 |
+			SNOR_HWCAPS_READ_1_2_2 |
+			SNOR_HWCAPS_READ_2_2_2 |
+			SNOR_HWCAPS_READ_1_1_4 |
+			SNOR_HWCAPS_READ_1_4_4 |
+			SNOR_HWCAPS_READ_4_4_4 |
+			SNOR_HWCAPS_PP |
+			SNOR_HWCAPS_PP_1_1_4 |
+			SNOR_HWCAPS_PP_1_4_4 |
+			SNOR_HWCAPS_PP_4_4_4,
+	};
 	struct device_node *child, *np = pdev->dev.of_node;
 	struct atmel_qspi *aq;
 	struct resource *res;
@@ -679,7 +707,7 @@ static int atmel_qspi_probe(struct platform_device *pdev)
 	if (err)
 		goto disable_clk;
 
-	err = spi_nor_scan(nor, NULL, SPI_NOR_QUAD);
+	err = spi_nor_scan(nor, NULL, &hwcaps);
 	if (err)
 		goto disable_clk;
 

@@ -12,7 +12,7 @@ Required properties:
 		second cell holding the request line number.
 
 Example:
-	dma: dma-controller@01c02000 {
+	dma: dma-controller@1c02000 {
 		compatible = "allwinner,sun4i-a10-dma";
 		reg = <0x01c02000 0x1000>;
 		interrupts = <27>;
@@ -32,7 +32,7 @@ The three cells in order are:
 3. The port ID as specified in the datasheet
 
 Example:
-	spi2: spi@01c17000 {
+	spi2: spi@1c17000 {
 		compatible = "allwinner,sun4i-a10-spi";
 		reg = <0x01c17000 0x1000>;
 		interrupts = <0 12 4>;
@@ -40,7 +40,6 @@ Example:
 		clock-names = "ahb", "mod";
 		dmas = <&dma 1 29>, <&dma 1 28>;
 		dma-names = "rx", "tx";
-		status = "disabled";
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};

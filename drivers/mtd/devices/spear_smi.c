@@ -775,6 +775,8 @@ static int spear_smi_probe_config_dt(struct platform_device *pdev,
 	pdata->board_flash_info = devm_kzalloc(&pdev->dev,
 					       sizeof(*pdata->board_flash_info),
 					       GFP_KERNEL);
+	if (!pdata->board_flash_info)
+		return -ENOMEM;
 
 	/* Fill structs for each subnode (flash device) */
 	while ((pp = of_get_next_child(np, pp))) {

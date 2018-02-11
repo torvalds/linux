@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <variant/core.h>
 #include <asm/regs.h>
 #include <asm/asmmacro.h>

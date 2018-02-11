@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 #               Makefile for wm-FPU-emu
 #
@@ -5,8 +6,8 @@
 #DEBUG	= -DDEBUGGING
 DEBUG	=
 PARANOID = -DPARANOID
-EXTRA_CFLAGS	:= $(PARANOID) $(DEBUG) -fno-builtin $(MATH_EMULATION)
-EXTRA_AFLAGS	:= $(PARANOID)
+ccflags-y += $(PARANOID) $(DEBUG) -fno-builtin $(MATH_EMULATION)
+asflags-y += $(PARANOID)
 
 # From 'C' language sources:
 C_OBJS =fpu_entry.o errors.o \

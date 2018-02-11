@@ -38,8 +38,8 @@ enum rt2x00debugfs_entry_flags {
 
 #define RT2X00DEBUGFS_REGISTER_ENTRY(__name, __type)		\
 struct reg##__name {						\
-	void (*read)(struct rt2x00_dev *rt2x00dev,		\
-		     const unsigned int word, __type *data);	\
+	__type (*read)(struct rt2x00_dev *rt2x00dev,		\
+		     const unsigned int word);			\
 	void (*write)(struct rt2x00_dev *rt2x00dev,		\
 		      const unsigned int word, __type data);	\
 								\

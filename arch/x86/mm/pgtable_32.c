@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -9,6 +10,7 @@
 #include <linux/pagemap.h>
 #include <linux/spinlock.h>
 
+#include <asm/cpu_entry_area.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/fixmap.h>

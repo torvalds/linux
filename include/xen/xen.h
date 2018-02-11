@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _XEN_XEN_H
 #define _XEN_XEN_H
 
@@ -13,11 +14,16 @@ extern enum xen_domain_type xen_domain_type;
 #define xen_domain_type		XEN_NATIVE
 #endif
 
+#ifdef CONFIG_XEN_PVH
+extern bool xen_pvh;
+#else
+#define xen_pvh			0
+#endif
+
 #define xen_domain()		(xen_domain_type != XEN_NATIVE)
-#define xen_pv_domain()		(xen_domain() &&			\
-				 xen_domain_type == XEN_PV_DOMAIN)
-#define xen_hvm_domain()	(xen_domain() &&			\
-				 xen_domain_type == XEN_HVM_DOMAIN)
+#define xen_pv_domain()		(xen_domain_type == XEN_PV_DOMAIN)
+#define xen_hvm_domain()	(xen_domain_type == XEN_HVM_DOMAIN)
+#define xen_pvh_domain()	(xen_pvh)
 
 #ifdef CONFIG_XEN_DOM0
 #include <xen/interface/xen.h>
@@ -28,12 +34,5 @@ extern enum xen_domain_type xen_domain_type;
 #else  /* !CONFIG_XEN_DOM0 */
 #define xen_initial_domain()	(0)
 #endif	/* CONFIG_XEN_DOM0 */
-
-#ifdef CONFIG_XEN_PVH
-extern bool xen_pvh;
-#define xen_pvh_domain()	(xen_hvm_domain() && xen_pvh)
-#else
-#define xen_pvh_domain()	(0)
-#endif
 
 #endif	/* _XEN_XEN_H */

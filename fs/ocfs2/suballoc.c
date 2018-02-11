@@ -1147,12 +1147,9 @@ int ocfs2_reserve_cluster_bitmap_bits(struct ocfs2_super *osb,
 					     GLOBAL_BITMAP_SYSTEM_INODE,
 					     OCFS2_INVALID_SLOT, NULL,
 					     ALLOC_NEW_GROUP);
-	if (status < 0 && status != -ENOSPC) {
+	if (status < 0 && status != -ENOSPC)
 		mlog_errno(status);
-		goto bail;
-	}
 
-bail:
 	return status;
 }
 
@@ -2700,7 +2697,7 @@ int ocfs2_lock_allocators(struct inode *inode,
 
 	BUG_ON(clusters_to_add != 0 && data_ac == NULL);
 
-	num_free_extents = ocfs2_num_free_extents(osb, et);
+	num_free_extents = ocfs2_num_free_extents(et);
 	if (num_free_extents < 0) {
 		ret = num_free_extents;
 		mlog_errno(ret);

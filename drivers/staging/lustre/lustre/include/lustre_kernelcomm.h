@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -38,7 +39,7 @@
 #define __LUSTRE_KERNELCOMM_H__
 
 /* For declarations shared with userspace */
-#include "uapi_kernelcomm.h"
+#include <uapi/linux/lustre/lustre_kernelcomm.h>
 
 /* prototype for callback function on kuc groups */
 typedef int (*libcfs_kkuc_cb_t)(void *data, void *cb_arg);

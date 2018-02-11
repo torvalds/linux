@@ -227,7 +227,9 @@ static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
 	len &= ~(call->conn->size_align - 1);
 
 	sg_init_table(sg, nsg);
-	skb_to_sgvec(skb, sg, 0, len);
+	err = skb_to_sgvec(skb, sg, 0, len);
+	if (unlikely(err < 0))
+		goto out;
 	skcipher_request_set_crypt(req, sg, sg, len, iv.x);
 	crypto_skcipher_encrypt(req);
 
@@ -324,7 +326,7 @@ static int rxkad_verify_packet_1(struct rxrpc_call *call, struct sk_buff *skb,
 	bool aborted;
 	u32 data_size, buf;
 	u16 check;
-	int nsg;
+	int nsg, ret;
 
 	_enter("");
 
@@ -342,7 +344,9 @@ static int rxkad_verify_packet_1(struct rxrpc_call *call, struct sk_buff *skb,
 		goto nomem;
 
 	sg_init_table(sg, nsg);
-	skb_to_sgvec(skb, sg, offset, 8);
+	ret = skb_to_sgvec(skb, sg, offset, 8);
+	if (unlikely(ret < 0))
+		return ret;
 
 	/* start the decryption afresh */
 	memset(&iv, 0, sizeof(iv));
@@ -409,7 +413,7 @@ static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
 	bool aborted;
 	u32 data_size, buf;
 	u16 check;
-	int nsg;
+	int nsg, ret;
 
 	_enter(",{%d}", skb->len);
 
@@ -434,7 +438,12 @@ static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
 	}
 
 	sg_init_table(sg, nsg);
-	skb_to_sgvec(skb, sg, offset, len);
+	ret = skb_to_sgvec(skb, sg, offset, len);
+	if (unlikely(ret < 0)) {
+		if (sg != _sg)
+			kfree(sg);
+		return ret;
+	}
 
 	/* decrypt from the session key */
 	token = call->conn->params.key->payload.data[0];
@@ -625,8 +634,8 @@ static int rxkad_issue_challenge(struct rxrpc_connection *conn)
 	challenge.min_level	= htonl(0);
 	challenge.__padding	= 0;
 
-	msg.msg_name	= &conn->params.peer->srx.transport.sin;
-	msg.msg_namelen	= sizeof(conn->params.peer->srx.transport.sin);
+	msg.msg_name	= &conn->params.peer->srx.transport;
+	msg.msg_namelen	= conn->params.peer->srx.transport_len;
 	msg.msg_control	= NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
@@ -640,7 +649,7 @@ static int rxkad_issue_challenge(struct rxrpc_connection *conn)
 	whdr.userStatus	= 0;
 	whdr.securityIndex = conn->security_ix;
 	whdr._rsvd	= 0;
-	whdr.serviceId	= htons(conn->params.service_id);
+	whdr.serviceId	= htons(conn->service_id);
 
 	iov[0].iov_base	= &whdr;
 	iov[0].iov_len	= sizeof(whdr);
@@ -680,8 +689,8 @@ static int rxkad_send_response(struct rxrpc_connection *conn,
 
 	_enter("");
 
-	msg.msg_name	= &conn->params.peer->srx.transport.sin;
-	msg.msg_namelen	= sizeof(conn->params.peer->srx.transport.sin);
+	msg.msg_name	= &conn->params.peer->srx.transport;
+	msg.msg_namelen	= conn->params.peer->srx.transport_len;
 	msg.msg_control	= NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
@@ -845,7 +854,7 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 				struct sk_buff *skb,
 				void *ticket, size_t ticket_len,
 				struct rxrpc_crypt *_session_key,
-				time_t *_expiry,
+				time64_t *_expiry,
 				u32 *_abort_code)
 {
 	struct skcipher_request *req;
@@ -855,7 +864,7 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 	struct in_addr addr;
 	unsigned int life;
 	const char *eproto;
-	time_t issue, now;
+	time64_t issue, now;
 	bool little_endian;
 	int ret;
 	u32 abort_code;
@@ -951,15 +960,15 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 	if (little_endian) {
 		__le32 stamp;
 		memcpy(&stamp, p, 4);
-		issue = le32_to_cpu(stamp);
+		issue = rxrpc_u32_to_time64(le32_to_cpu(stamp));
 	} else {
 		__be32 stamp;
 		memcpy(&stamp, p, 4);
-		issue = be32_to_cpu(stamp);
+		issue = rxrpc_u32_to_time64(be32_to_cpu(stamp));
 	}
 	p += 4;
-	now = get_seconds();
-	_debug("KIV ISSUE: %lx [%lx]", issue, now);
+	now = ktime_get_real_seconds();
+	_debug("KIV ISSUE: %llx [%llx]", issue, now);
 
 	/* check the ticket is in date */
 	if (issue > now) {
@@ -1044,7 +1053,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_crypt session_key;
 	const char *eproto;
-	time_t expiry;
+	time64_t expiry;
 	void *ticket;
 	u32 abort_code, version, kvno, ticket_len, level;
 	__be32 csum;

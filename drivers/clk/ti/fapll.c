@@ -268,7 +268,7 @@ static int ti_fapll_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
-static struct clk_ops ti_fapll_ops = {
+static const struct clk_ops ti_fapll_ops = {
 	.enable = ti_fapll_enable,
 	.disable = ti_fapll_disable,
 	.is_enabled = ti_fapll_is_enabled,
@@ -478,7 +478,7 @@ static int ti_fapll_synth_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
-static struct clk_ops ti_fapll_synt_ops = {
+static const struct clk_ops ti_fapll_synt_ops = {
 	.enable = ti_fapll_synth_enable,
 	.disable = ti_fapll_synth_disable,
 	.is_enabled = ti_fapll_synth_is_enabled,

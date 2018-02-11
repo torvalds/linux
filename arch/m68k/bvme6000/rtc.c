@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	Real Time Clock interface for Linux on the BVME6000
  *

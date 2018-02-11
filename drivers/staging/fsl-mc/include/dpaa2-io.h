@@ -34,6 +34,7 @@
 
 #include <linux/types.h>
 #include <linux/cpumask.h>
+#include <linux/irqreturn.h>
 
 #include "dpaa2-fd.h"
 #include "dpaa2-global.h"
@@ -52,6 +53,8 @@ struct device;
  * as well as producing notification callbacks when data is available
  * for dequeue.
  */
+
+#define DPAA2_IO_ANY_CPU	-1
 
 /**
  * struct dpaa2_io_desc - The DPIO descriptor
@@ -90,8 +93,8 @@ irqreturn_t dpaa2_io_irq(struct dpaa2_io *obj);
  * @cb:           The callback to be invoked when the notification arrives
  * @is_cdan:      Zero for FQDAN, non-zero for CDAN
  * @id:           FQID or channel ID, needed for rearm
- * @desired_cpu:  The cpu on which the notifications will show up. -1 means
- *                any CPU.
+ * @desired_cpu:  The cpu on which the notifications will show up. Use
+ *                DPAA2_IO_ANY_CPU if don't care
  * @dpio_id:      The dpio index
  * @qman64:       The 64-bit context value shows up in the FQDAN/CDAN.
  * @node:         The list node

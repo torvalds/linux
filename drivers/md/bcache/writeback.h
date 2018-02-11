@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _BCACHE_WRITEBACK_H
 #define _BCACHE_WRITEBACK_H
 
@@ -10,6 +11,25 @@ static inline uint64_t bcache_dev_sectors_dirty(struct bcache_device *d)
 
 	for (i = 0; i < d->nr_stripes; i++)
 		ret += atomic_read(d->stripe_sectors_dirty + i);
+
+	return ret;
+}
+
+static inline uint64_t  bcache_flash_devs_sectors_dirty(struct cache_set *c)
+{
+	uint64_t i, ret = 0;
+
+	mutex_lock(&bch_register_lock);
+
+	for (i = 0; i < c->nr_uuids; i++) {
+		struct bcache_device *d = c->devices[i];
+
+		if (!d || !UUID_FLASH_ONLY(&c->uuids[i]))
+			continue;
+	   ret += bcache_dev_sectors_dirty(d);
+	}
+
+	mutex_unlock(&bch_register_lock);
 
 	return ret;
 }
@@ -57,7 +77,9 @@ static inline bool should_writeback(struct cached_dev *dc, struct bio *bio,
 	if (would_skip)
 		return false;
 
-	return op_is_sync(bio->bi_opf) || in_use <= CUTOFF_WRITEBACK;
+	return (op_is_sync(bio->bi_opf) ||
+		bio->bi_opf & (REQ_META|REQ_PRIO) ||
+		in_use <= CUTOFF_WRITEBACK);
 }
 
 static inline void bch_writeback_queue(struct cached_dev *dc)
@@ -70,7 +92,7 @@ static inline void bch_writeback_add(struct cached_dev *dc)
 {
 	if (!atomic_read(&dc->has_dirty) &&
 	    !atomic_xchg(&dc->has_dirty, 1)) {
-		atomic_inc(&dc->count);
+		refcount_inc(&dc->count);
 
 		if (BDEV_STATE(&dc->sb) != BDEV_STATE_DIRTY) {
 			SET_BDEV_STATE(&dc->sb, BDEV_STATE_DIRTY);
@@ -84,7 +106,7 @@ static inline void bch_writeback_add(struct cached_dev *dc)
 
 void bcache_dev_sectors_dirty_add(struct cache_set *, unsigned, uint64_t, int);
 
-void bch_sectors_dirty_init(struct cached_dev *dc);
+void bch_sectors_dirty_init(struct bcache_device *);
 void bch_cached_dev_writeback_init(struct cached_dev *);
 int bch_cached_dev_writeback_start(struct cached_dev *);
 

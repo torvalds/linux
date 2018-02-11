@@ -55,12 +55,18 @@
  *
  *  For pSeries or server processors:
  *   1. The MMU is off & open firmware is running in real mode.
- *   2. The kernel is entered at __start
+ *   2. The primary CPU enters at __start.
+ *   3. If the RTAS supports "query-cpu-stopped-state", then secondary
+ *      CPUs will enter as directed by "start-cpu" RTAS call, which is
+ *      generic_secondary_smp_init, with PIR in r3.
+ *   4. Else the secondary CPUs will enter at secondary_hold (0x60) as
+ *      directed by the "start-cpu" RTS call, with PIR in r3.
  * -or- For OPAL entry:
- *   1. The MMU is off, processor in HV mode, primary CPU enters at 0
- *      with device-tree in gpr3. We also get OPAL base in r8 and
- *	entry in r9 for debugging purposes
- *   2. Secondary processors enter at 0x60 with PIR in gpr3
+ *   1. The MMU is off, processor in HV mode.
+ *   2. The primary CPU enters at 0 with device-tree in r3, OPAL base
+ *      in r8, and entry in r9 for debugging purposes.
+ *   3. Secondary CPUs enter as directed by OPAL_START_CPU call, which
+ *      is at generic_secondary_smp_init, with PIR in r3.
  *
  *  For Book3E processors:
  *   1. The MMU is on running in AS0 in a state defined in ePAPR
@@ -92,13 +98,13 @@ END_FTR_SECTION(0, 1)
 	.balign 8
 	.globl  __secondary_hold_spinloop
 __secondary_hold_spinloop:
-	.llong	0x0
+	.8byte	0x0
 
 	/* Secondary processors write this value with their cpu # */
 	/* after they enter the spin loop immediately below.	  */
 	.globl	__secondary_hold_acknowledge
 __secondary_hold_acknowledge:
-	.llong	0x0
+	.8byte	0x0
 
 #ifdef CONFIG_RELOCATABLE
 	/* This flag is set to 1 by a loader if the kernel should run
@@ -650,7 +656,7 @@ __after_prom_start:
 	bctr
 
 .balign 8
-p_end: .llong _end - copy_to_here
+p_end: .8byte _end - copy_to_here
 
 4:
 	/*
@@ -892,7 +898,7 @@ _GLOBAL(relative_toc)
 	blr
 
 .balign 8
-p_toc:	.llong	__toc_start + 0x8000 - 0b
+p_toc:	.8byte	__toc_start + 0x8000 - 0b
 
 /*
  * This is where the main kernel code starts.

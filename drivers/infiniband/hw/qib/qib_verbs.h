@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2012 - 2017 Intel Corporation.  All rights reserved.
  * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
@@ -241,8 +241,8 @@ static inline int qib_pkey_ok(u16 pkey1, u16 pkey2)
 	return p1 && p1 == p2 && ((__s16)pkey1 < 0 || (__s16)pkey2 < 0);
 }
 
-void qib_bad_pqkey(struct qib_ibport *ibp, __be16 trap_num, u32 key, u32 sl,
-		   u32 qp1, u32 qp2, __be16 lid1, __be16 lid2);
+void qib_bad_pkey(struct qib_ibport *ibp, u32 key, u32 sl,
+		  u32 qp1, u32 qp2, __be16 lid1, __be16 lid2);
 void qib_cap_mask_chg(struct rvt_dev_info *rdi, u8 port_num);
 void qib_sys_guid_chg(struct qib_ibport *ibp);
 void qib_node_desc_chg(struct qib_ibport *ibp);
@@ -274,21 +274,15 @@ int qib_get_counters(struct qib_pportdata *ppd,
  * Functions provided by qib driver for rdmavt to use
  */
 unsigned qib_free_all_qps(struct rvt_dev_info *rdi);
-void *qib_qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp, gfp_t gfp);
+void *qib_qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 void qib_qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 void qib_notify_qp_reset(struct rvt_qp *qp);
 int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
-		  enum ib_qp_type type, u8 port, gfp_t gfp);
+		  enum ib_qp_type type, u8 port);
 void qib_restart_rc(struct rvt_qp *qp, u32 psn, int wait);
 #ifdef CONFIG_DEBUG_FS
 
-struct qib_qp_iter;
-
-struct qib_qp_iter *qib_qp_iter_init(struct qib_ibdev *dev);
-
-int qib_qp_iter_next(struct qib_qp_iter *iter);
-
-void qib_qp_iter_print(struct seq_file *s, struct qib_qp_iter *iter);
+void qib_qp_iter_print(struct seq_file *s, struct rvt_qp_iter *iter);
 
 #endif
 

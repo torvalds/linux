@@ -61,10 +61,10 @@ static struct rc_map_table genius_tvgo_a11mce[] = {
 
 static struct rc_map_list genius_tvgo_a11mce_map = {
 	.map = {
-		.scan    = genius_tvgo_a11mce,
-		.size    = ARRAY_SIZE(genius_tvgo_a11mce),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_GENIUS_TVGO_A11MCE,
+		.scan     = genius_tvgo_a11mce,
+		.size     = ARRAY_SIZE(genius_tvgo_a11mce),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_GENIUS_TVGO_A11MCE,
 	}
 };
 

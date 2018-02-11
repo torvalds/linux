@@ -191,7 +191,6 @@
 #define LINK_WAIT_USLEEP_MIN		90000
 #define LINK_WAIT_USLEEP_MAX		100000
 
-#define LEGACY_IRQ_NUM			4
 #define MSI_IRQ_NUM			32
 
 struct advk_pcie {
@@ -729,7 +728,7 @@ static int advk_pcie_init_irq_domain(struct advk_pcie *pcie)
 	irq_chip->irq_unmask = advk_pcie_irq_unmask;
 
 	pcie->irq_domain =
-		irq_domain_add_linear(pcie_intc_node, LEGACY_IRQ_NUM,
+		irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
 				      &advk_pcie_irq_domain_ops, pcie);
 	if (!pcie->irq_domain) {
 		dev_err(dev, "Failed to get a INTx IRQ domain\n");
@@ -786,7 +785,7 @@ static void advk_pcie_handle_int(struct advk_pcie *pcie)
 		advk_pcie_handle_msi(pcie);
 
 	/* Process legacy interrupts */
-	for (i = 0; i < LEGACY_IRQ_NUM; i++) {
+	for (i = 0; i < PCI_NUM_INTX; i++) {
 		if (!(status & PCIE_ISR0_INTX_ASSERT(i)))
 			continue;
 
@@ -886,12 +885,14 @@ static int advk_pcie_probe(struct platform_device *pdev)
 	struct advk_pcie *pcie;
 	struct resource *res;
 	struct pci_bus *bus, *child;
+	struct pci_host_bridge *bridge;
 	int ret, irq;
 
-	pcie = devm_kzalloc(dev, sizeof(struct advk_pcie), GFP_KERNEL);
-	if (!pcie)
+	bridge = devm_pci_alloc_host_bridge(dev, sizeof(struct advk_pcie));
+	if (!bridge)
 		return -ENOMEM;
 
+	pcie = pci_host_bridge_priv(bridge);
 	pcie->pdev = pdev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -929,13 +930,22 @@ static int advk_pcie_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	bus = pci_scan_root_bus(dev, 0, &advk_pcie_ops,
-				pcie, &pcie->resources);
-	if (!bus) {
+	list_splice_init(&pcie->resources, &bridge->windows);
+	bridge->dev.parent = dev;
+	bridge->sysdata = pcie;
+	bridge->busnr = 0;
+	bridge->ops = &advk_pcie_ops;
+	bridge->map_irq = of_irq_parse_and_map_pci;
+	bridge->swizzle_irq = pci_common_swizzle;
+
+	ret = pci_scan_root_bus_bridge(bridge);
+	if (ret < 0) {
 		advk_pcie_remove_msi_irq_domain(pcie);
 		advk_pcie_remove_irq_domain(pcie);
-		return -ENOMEM;
+		return ret;
 	}
+
+	bus = bridge->bus;
 
 	pci_bus_assign_resources(bus);
 

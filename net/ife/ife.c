@@ -137,6 +137,6 @@ int ife_tlv_meta_encode(void *skbdata, u16 attrtype, u16 dlen, const void *dval)
 EXPORT_SYMBOL_GPL(ife_tlv_meta_encode);
 
 MODULE_AUTHOR("Jamal Hadi Salim <jhs@mojatatu.com>");
-MODULE_AUTHOR("Yotam Gigi <yotamg@mellanox.com>");
+MODULE_AUTHOR("Yotam Gigi <yotam.gi@gmail.com>");
 MODULE_DESCRIPTION("Inter-FE LFB action");
 MODULE_LICENSE("GPL");

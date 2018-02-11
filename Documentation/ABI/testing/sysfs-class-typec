@@ -30,6 +30,21 @@ Description:
 
 		Valid values: source, sink
 
+What:           /sys/class/typec/<port>/port_type
+Date:           May 2017
+Contact:	Badhri Jagan Sridharan <Badhri@google.com>
+Description:
+		Indicates the type of the port. This attribute can be used for
+		requesting a change in the port type. Port type change is
+		supported as a synchronous operation, so write(2) to the
+		attribute will not return until the operation has finished.
+
+		Valid values:
+		- source (The port will behave as source only DFP port)
+		- sink (The port will behave as sink only UFP port)
+		- dual (The port will behave as dual-role-data and
+			dual-role-power port)
+
 What:		/sys/class/typec/<port>/vconn_source
 Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <stddef.h>
@@ -68,7 +69,7 @@ struct test_attr_event {
  *
  * Return: %0 on success, %-1 if the test fails.
  */
-int test__parse_no_sample_id_all(int subtest __maybe_unused)
+int test__parse_no_sample_id_all(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err;
 

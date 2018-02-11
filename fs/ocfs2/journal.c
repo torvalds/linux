@@ -1348,7 +1348,6 @@ void ocfs2_complete_mount_recovery(struct ocfs2_super *osb)
 	ocfs2_schedule_truncate_log_flush(osb, 0);
 
 	osb->local_alloc_copy = NULL;
-	osb->dirty = 0;
 
 	/* queue to recover orphan slots for all offline slots */
 	ocfs2_replay_map_set_state(osb, REPLAY_NEEDED);

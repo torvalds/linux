@@ -26,18 +26,6 @@
 #include <asm/set_memory.h>
 #include <asm/debugreg.h>
 
-static void set_idt(void *newidt, __u16 limit)
-{
-	struct desc_ptr curidt;
-
-	/* ia32 supports unaliged loads & stores */
-	curidt.size    = limit;
-	curidt.address = (unsigned long)newidt;
-
-	load_idt(&curidt);
-}
-
-
 static void set_gdt(void *newgdt, __u16 limit)
 {
 	struct desc_ptr curgdt;
@@ -60,8 +48,6 @@ static void load_segments(void)
 		"\tmovl $"STR(__KERNEL_DS)",%%eax\n"
 		"\tmovl %%eax,%%ds\n"
 		"\tmovl %%eax,%%es\n"
-		"\tmovl %%eax,%%fs\n"
-		"\tmovl %%eax,%%gs\n"
 		"\tmovl %%eax,%%ss\n"
 		: : : "eax", "memory");
 #undef STR
@@ -244,8 +230,8 @@ void machine_kexec(struct kimage *image)
 	 * The gdt & idt are now invalid.
 	 * If you want to load them you must set up your own idt & gdt.
 	 */
+	idt_invalidate(phys_to_virt(0));
 	set_gdt(phys_to_virt(0), 0);
-	set_idt(phys_to_virt(0), 0);
 
 	/* now call it */
 	image->start = relocate_kernel_ptr((unsigned long)image->head,

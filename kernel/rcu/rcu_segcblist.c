@@ -23,6 +23,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/rcupdate.h>
 
 #include "rcu_segcblist.h"
 
@@ -33,24 +34,6 @@ void rcu_cblist_init(struct rcu_cblist *rclp)
 	rclp->tail = &rclp->head;
 	rclp->len = 0;
 	rclp->len_lazy = 0;
-}
-
-/*
- * Debug function to actually count the number of callbacks.
- * If the number exceeds the limit specified, return -1.
- */
-long rcu_cblist_count_cbs(struct rcu_cblist *rclp, long lim)
-{
-	int cnt = 0;
-	struct rcu_head **rhpp = &rclp->head;
-
-	for (;;) {
-		if (!*rhpp)
-			return cnt;
-		if (++cnt > lim)
-			return -1;
-		rhpp = &(*rhpp)->next;
-	}
 }
 
 /*
@@ -103,17 +86,6 @@ void rcu_segcblist_disable(struct rcu_segcblist *rsclp)
 }
 
 /*
- * Is the specified segment of the specified rcu_segcblist structure
- * empty of callbacks?
- */
-bool rcu_segcblist_segempty(struct rcu_segcblist *rsclp, int seg)
-{
-	if (seg == RCU_DONE_TAIL)
-		return &rsclp->head == rsclp->tails[RCU_DONE_TAIL];
-	return rsclp->tails[seg - 1] == rsclp->tails[seg];
-}
-
-/*
  * Does the specified rcu_segcblist structure contain callbacks that
  * are ready to be invoked?
  */
@@ -131,50 +103,6 @@ bool rcu_segcblist_pend_cbs(struct rcu_segcblist *rsclp)
 {
 	return rcu_segcblist_is_enabled(rsclp) &&
 	       !rcu_segcblist_restempty(rsclp, RCU_DONE_TAIL);
-}
-
-/*
- * Dequeue and return the first ready-to-invoke callback.  If there
- * are no ready-to-invoke callbacks, return NULL.  Disables interrupts
- * to avoid interference.  Does not protect from interference from other
- * CPUs or tasks.
- */
-struct rcu_head *rcu_segcblist_dequeue(struct rcu_segcblist *rsclp)
-{
-	unsigned long flags;
-	int i;
-	struct rcu_head *rhp;
-
-	local_irq_save(flags);
-	if (!rcu_segcblist_ready_cbs(rsclp)) {
-		local_irq_restore(flags);
-		return NULL;
-	}
-	rhp = rsclp->head;
-	BUG_ON(!rhp);
-	rsclp->head = rhp->next;
-	for (i = RCU_DONE_TAIL; i < RCU_CBLIST_NSEGS; i++) {
-		if (rsclp->tails[i] != &rhp->next)
-			break;
-		rsclp->tails[i] = &rsclp->head;
-	}
-	smp_mb(); /* Dequeue before decrement for rcu_barrier(). */
-	WRITE_ONCE(rsclp->len, rsclp->len - 1);
-	local_irq_restore(flags);
-	return rhp;
-}
-
-/*
- * Account for the fact that a previously dequeued callback turned out
- * to be marked as lazy.
- */
-void rcu_segcblist_dequeued_lazy(struct rcu_segcblist *rsclp)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	rsclp->len_lazy--;
-	local_irq_restore(flags);
 }
 
 /*
@@ -200,17 +128,6 @@ struct rcu_head *rcu_segcblist_first_pend_cb(struct rcu_segcblist *rsclp)
 	if (rcu_segcblist_is_enabled(rsclp))
 		return *rsclp->tails[RCU_DONE_TAIL];
 	return NULL;
-}
-
-/*
- * Does the specified rcu_segcblist structure contain callbacks that
- * have not yet been processed beyond having been posted, that is,
- * does it contain callbacks in its last segment?
- */
-bool rcu_segcblist_new_cbs(struct rcu_segcblist *rsclp)
-{
-	return rcu_segcblist_is_enabled(rsclp) &&
-	       !rcu_segcblist_restempty(rsclp, RCU_NEXT_READY_TAIL);
 }
 
 /*
@@ -502,4 +419,28 @@ bool rcu_segcblist_future_gp_needed(struct rcu_segcblist *rsclp,
 		    ULONG_CMP_LT(seq, rsclp->gp_seq[i]))
 			return true;
 	return false;
+}
+
+/*
+ * Merge the source rcu_segcblist structure into the destination
+ * rcu_segcblist structure, then initialize the source.  Any pending
+ * callbacks from the source get to start over.  It is best to
+ * advance and accelerate both the destination and the source
+ * before merging.
+ */
+void rcu_segcblist_merge(struct rcu_segcblist *dst_rsclp,
+			 struct rcu_segcblist *src_rsclp)
+{
+	struct rcu_cblist donecbs;
+	struct rcu_cblist pendcbs;
+
+	rcu_cblist_init(&donecbs);
+	rcu_cblist_init(&pendcbs);
+	rcu_segcblist_extract_count(src_rsclp, &donecbs);
+	rcu_segcblist_extract_done_cbs(src_rsclp, &donecbs);
+	rcu_segcblist_extract_pend_cbs(src_rsclp, &pendcbs);
+	rcu_segcblist_insert_count(dst_rsclp, &donecbs);
+	rcu_segcblist_insert_done_cbs(dst_rsclp, &donecbs);
+	rcu_segcblist_insert_pend_cbs(dst_rsclp, &pendcbs);
+	rcu_segcblist_init(src_rsclp);
 }

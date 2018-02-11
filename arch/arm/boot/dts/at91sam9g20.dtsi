@@ -16,11 +16,11 @@
 		reg = <0x20000000 0x08000000>;
 	};
 
-	sram0: sram@002ff000 {
+	sram0: sram@2ff000 {
 		status = "disabled";
 	};
 
-	sram1: sram@002fc000 {
+	sram1: sram@2fc000 {
 		compatible = "mmio-sram";
 		reg = <0x002fc000 0x8000>;
 	};

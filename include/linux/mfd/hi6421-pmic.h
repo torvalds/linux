@@ -38,4 +38,9 @@ struct hi6421_pmic {
 	struct regmap		*regmap;
 };
 
+enum hi6421_type {
+	HI6421 = 0,
+	HI6421_V530,
+};
+
 #endif		/* __HI6421_PMIC_H */

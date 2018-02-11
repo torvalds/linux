@@ -40,6 +40,8 @@ struct bpf_map_def SEC("maps") inner_lru_hash_map = {
 	.key_size = sizeof(u32),
 	.value_size = sizeof(long),
 	.max_entries = MAX_ENTRIES,
+	.map_flags = BPF_F_NUMA_NODE,
+	.numa_node = 0,
 };
 
 struct bpf_map_def SEC("maps") array_of_lru_hashs = {
@@ -81,6 +83,13 @@ struct bpf_map_def SEC("maps") lpm_trie_map_alloc = {
 
 struct bpf_map_def SEC("maps") array_map = {
 	.type = BPF_MAP_TYPE_ARRAY,
+	.key_size = sizeof(u32),
+	.value_size = sizeof(long),
+	.max_entries = MAX_ENTRIES,
+};
+
+struct bpf_map_def SEC("maps") lru_hash_lookup_map = {
+	.type = BPF_MAP_TYPE_LRU_HASH,
 	.key_size = sizeof(u32),
 	.value_size = sizeof(long),
 	.max_entries = MAX_ENTRIES,
@@ -146,12 +155,23 @@ int stress_percpu_hmap_alloc(struct pt_regs *ctx)
 SEC("kprobe/sys_connect")
 int stress_lru_hmap_alloc(struct pt_regs *ctx)
 {
+	char fmt[] = "Failed at stress_lru_hmap_alloc. ret:%dn";
+	union {
+		u16 dst6[8];
+		struct {
+			u16 magic0;
+			u16 magic1;
+			u16 tcase;
+			u16 unused16;
+			u32 unused32;
+			u32 key;
+		};
+	} test_params;
 	struct sockaddr_in6 *in6;
-	u16 test_case, dst6[8];
+	u16 test_case;
 	int addrlen, ret;
-	char fmt[] = "Failed at stress_lru_hmap_alloc. ret:%d\n";
 	long val = 1;
-	u32 key = bpf_get_prandom_u32();
+	u32 key = 0;
 
 	in6 = (struct sockaddr_in6 *)PT_REGS_PARM2(ctx);
 	addrlen = (int)PT_REGS_PARM3(ctx);
@@ -159,14 +179,18 @@ int stress_lru_hmap_alloc(struct pt_regs *ctx)
 	if (addrlen != sizeof(*in6))
 		return 0;
 
-	ret = bpf_probe_read(dst6, sizeof(dst6), &in6->sin6_addr);
+	ret = bpf_probe_read(test_params.dst6, sizeof(test_params.dst6),
+			     &in6->sin6_addr);
 	if (ret)
 		goto done;
 
-	if (dst6[0] != 0xdead || dst6[1] != 0xbeef)
+	if (test_params.magic0 != 0xdead ||
+	    test_params.magic1 != 0xbeef)
 		return 0;
 
-	test_case = dst6[7];
+	test_case = test_params.tcase;
+	if (test_case != 3)
+		key = bpf_get_prandom_u32();
 
 	if (test_case == 0) {
 		ret = bpf_map_update_elem(&lru_hash_map, &key, &val, BPF_ANY);
@@ -186,6 +210,16 @@ int stress_lru_hmap_alloc(struct pt_regs *ctx)
 
 		ret = bpf_map_update_elem(nolocal_lru_map, &key, &val,
 					  BPF_ANY);
+	} else if (test_case == 3) {
+		u32 i;
+
+		key = test_params.key;
+
+#pragma clang loop unroll(full)
+		for (i = 0; i < 32; i++) {
+			bpf_map_lookup_elem(&lru_hash_lookup_map, &key);
+			key++;
+		}
 	} else {
 		ret = -EINVAL;
 	}
@@ -232,7 +266,7 @@ int stress_hash_map_lookup(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("kprobe/sys_getpgrp")
+SEC("kprobe/sys_getppid")
 int stress_array_map_lookup(struct pt_regs *ctx)
 {
 	u32 key = 1, i;

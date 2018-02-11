@@ -125,7 +125,7 @@ struct dvb_net_priv {
 };
 
 
-/**
+/*
  *	Determine the packet's protocol ID. The rule here is that we
  *	assume 802.3 if the type field is short enough to be a length.
  *	This is normal practice and works for any 'now in use' protocol.
@@ -155,7 +155,7 @@ static __be16 dvb_net_eth_type_trans(struct sk_buff *skb,
 
 	rawp = skb->data;
 
-	/**
+	/*
 	 *	This is a magic hack to spot IPX packets. Older Novell breaks
 	 *	the protocol design and runs IPX over 802.3 without an 802.2 LLC
 	 *	layer. We look for FFFF which isn't a used 802.2 SSAP/DSAP. This
@@ -164,7 +164,7 @@ static __be16 dvb_net_eth_type_trans(struct sk_buff *skb,
 	if (*(unsigned short *)rawp == 0xFFFF)
 		return htons(ETH_P_802_3);
 
-	/**
+	/*
 	 *	Real 802.2 LLC
 	 */
 	return htons(ETH_P_802_2);
@@ -215,7 +215,8 @@ static int ule_exthdr_padding(struct dvb_net_priv *p)
 	return 0;
 }
 
-/** Handle ULE extension headers.
+/*
+ * Handle ULE extension headers.
  *  Function is called after a successful CRC32 verification of an ULE SNDU to complete its decoding.
  *  Returns: >= 0: nr. of bytes consumed by next extension header
  *	     -1:   Mandatory extension header that is not recognized or TEST SNDU; discard.
@@ -291,7 +292,7 @@ static int handle_ule_extensions( struct dvb_net_priv *p )
 }
 
 
-/** Prepare for a new ULE SNDU: reset the decoder state. */
+/* Prepare for a new ULE SNDU: reset the decoder state. */
 static inline void reset_ule( struct dvb_net_priv *p )
 {
 	p->ule_skb = NULL;
@@ -304,7 +305,7 @@ static inline void reset_ule( struct dvb_net_priv *p )
 	p->ule_bridged = 0;
 }
 
-/**
+/*
  * Decode ULE SNDUs according to draft-ietf-ipdvb-ule-03.txt from a sequence of
  * TS cells of a single PID.
  */
@@ -828,8 +829,7 @@ static void dvb_net_ule(struct net_device *dev, const u8 *buf, size_t buf_len)
 
 		/* Copy data into our current skb. */
 		h.how_much = min(h.priv->ule_sndu_remain, (int)h.ts_remain);
-		memcpy(skb_put(h.priv->ule_skb, h.how_much),
-		       h.from_where, h.how_much);
+		skb_put_data(h.priv->ule_skb, h.from_where, h.how_much);
 		h.priv->ule_sndu_remain -= h.how_much;
 		h.ts_remain -= h.how_much;
 		h.from_where += h.how_much;
@@ -964,7 +964,7 @@ static void dvb_net_sec(struct net_device *dev,
 	skb->dev = dev;
 
 	/* copy L3 payload */
-	eth = (u8 *) skb_put(skb, pkt_len - 12 - 4 + 14 - snap);
+	eth = skb_put(skb, pkt_len - 12 - 4 + 14 - snap);
 	memcpy(eth + 14, pkt + 12 + snap, pkt_len - 12 - 4 - snap);
 
 	/* create ethernet header: */
@@ -1006,7 +1006,7 @@ static int dvb_net_sec_callback(const u8 *buffer1, size_t buffer1_len,
 {
 	struct net_device *dev = filter->priv;
 
-	/**
+	/*
 	 * we rely on the DVB API definition where exactly one complete
 	 * section is delivered in buffer1
 	 */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* net/atm/proc.c - ATM /proc interface
  *
  * Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA
@@ -61,7 +62,7 @@ static void atm_dev_info(struct seq_file *seq, const struct atm_dev *dev)
 	add_stats(seq, "0", &dev->stats.aal0);
 	seq_puts(seq, "  ");
 	add_stats(seq, "5", &dev->stats.aal5);
-	seq_printf(seq, "\t[%d]", atomic_read(&dev->refcnt));
+	seq_printf(seq, "\t[%d]", refcount_read(&dev->refcnt));
 	seq_putc(seq, '\n');
 }
 
@@ -211,7 +212,7 @@ static void vcc_info(struct seq_file *seq, struct atm_vcc *vcc)
 		   vcc->flags, sk->sk_err,
 		   sk_wmem_alloc_get(sk), sk->sk_sndbuf,
 		   sk_rmem_alloc_get(sk), sk->sk_rcvbuf,
-		   atomic_read(&sk->sk_refcnt));
+		   refcount_read(&sk->sk_refcnt));
 }
 
 static void svc_info(struct seq_file *seq, struct atm_vcc *vcc)

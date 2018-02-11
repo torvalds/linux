@@ -165,7 +165,7 @@ int comedi_buf_map_put(struct comedi_buf_map *bm)
 int comedi_buf_map_access(struct comedi_buf_map *bm, unsigned long offset,
 			  void *buf, int len, int write)
 {
-	unsigned int pgoff = offset & ~PAGE_MASK;
+	unsigned int pgoff = offset_in_page(offset);
 	unsigned long pg = offset >> PAGE_SHIFT;
 	int done = 0;
 

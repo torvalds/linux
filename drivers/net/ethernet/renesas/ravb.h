@@ -991,6 +991,7 @@ struct ravb_private {
 	struct net_device *ndev;
 	struct platform_device *pdev;
 	void __iomem *addr;
+	struct clk *clk;
 	struct mdiobb_ctrl mdiobb;
 	u32 num_rx_ring[NUM_RX_QUEUE];
 	u32 num_tx_ring[NUM_TX_QUEUE];
@@ -1033,6 +1034,7 @@ struct ravb_private {
 
 	unsigned no_avb_link:1;
 	unsigned avb_link_active_low:1;
+	unsigned wol_enabled:1;
 };
 
 static inline u32 ravb_read(struct net_device *ndev, enum ravb_reg reg)

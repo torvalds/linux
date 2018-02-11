@@ -116,7 +116,7 @@ Parallel display support
 Required properties:
 - compatible: Should be "fsl,imx-parallel-display"
 Optional properties:
-- interface_pix_fmt: How this display is connected to the
+- interface-pix-fmt: How this display is connected to the
   display interface. Currently supported types: "rgb24", "rgb565", "bgr666"
   and "lvds666".
 - edid: verbatim EDID data block describing attached display.
@@ -129,7 +129,7 @@ Optional properties:
 
 example:
 
-display@di0 {
+disp0 {
 	compatible = "fsl,imx-parallel-display";
 	edid = [edid-data];
 	interface-pix-fmt = "rgb24";

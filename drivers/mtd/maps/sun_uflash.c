@@ -55,8 +55,8 @@ int uflash_devinit(struct platform_device *op, struct device_node *dp)
 		/* Non-CFI userflash device-- once I find one we
 		 * can work on supporting it.
 		 */
-		printk(KERN_ERR PFX "Unsupported device at %s, 0x%llx\n",
-		       dp->full_name, (unsigned long long)op->resource[0].start);
+		printk(KERN_ERR PFX "Unsupported device at %pOF, 0x%llx\n",
+		       dp, (unsigned long long)op->resource[0].start);
 
 		return -ENODEV;
 	}

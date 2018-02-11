@@ -47,8 +47,6 @@ enum {
  * devices with static assignments
  * @muxval: a number usually used to poke into some mux regiser to
  * mux in the signal to this channel
- * @cctl_memcpy: options for the channel control register for memcpy
- *  *** not used for slave channels ***
  * @addr: source/target address in physical memory for this DMA channel,
  * can be the address of a FIFO register for burst requests for example.
  * This can be left undefined if the PrimeCell API is used for configuring
@@ -63,10 +61,26 @@ struct pl08x_channel_data {
 	int min_signal;
 	int max_signal;
 	u32 muxval;
-	u32 cctl_memcpy;
 	dma_addr_t addr;
 	bool single;
 	u8 periph_buses;
+};
+
+enum pl08x_burst_size {
+	PL08X_BURST_SZ_1,
+	PL08X_BURST_SZ_4,
+	PL08X_BURST_SZ_8,
+	PL08X_BURST_SZ_16,
+	PL08X_BURST_SZ_32,
+	PL08X_BURST_SZ_64,
+	PL08X_BURST_SZ_128,
+	PL08X_BURST_SZ_256,
+};
+
+enum pl08x_bus_width {
+	PL08X_BUS_WIDTH_8_BITS,
+	PL08X_BUS_WIDTH_16_BITS,
+	PL08X_BUS_WIDTH_32_BITS,
 };
 
 /**
@@ -76,6 +90,11 @@ struct pl08x_channel_data {
  * platform, all inclusive, including multiplexed channels. The available
  * physical channels will be multiplexed around these signals as they are
  * requested, just enumerate all possible channels.
+ * @num_slave_channels: number of elements in the slave channel array
+ * @memcpy_burst_size: the appropriate burst size for memcpy operations
+ * @memcpy_bus_width: memory bus width
+ * @memcpy_prot_buff: whether memcpy DMA is bufferable
+ * @memcpy_prot_cache: whether memcpy DMA is cacheable
  * @get_xfer_signal: request a physical signal to be used for a DMA transfer
  * immediately: if there is some multiplexing or similar blocking the use
  * of the channel the transfer can be denied by returning less than zero,
@@ -90,7 +109,10 @@ struct pl08x_channel_data {
 struct pl08x_platform_data {
 	struct pl08x_channel_data *slave_channels;
 	unsigned int num_slave_channels;
-	struct pl08x_channel_data memcpy_channel;
+	enum pl08x_burst_size memcpy_burst_size;
+	enum pl08x_bus_width memcpy_bus_width;
+	bool memcpy_prot_buff;
+	bool memcpy_prot_cache;
 	int (*get_xfer_signal)(const struct pl08x_channel_data *);
 	void (*put_xfer_signal)(const struct pl08x_channel_data *, int);
 	u8 lli_buses;

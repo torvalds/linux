@@ -19,11 +19,11 @@
  */
 #if defined(CONFIG_PPC64) && !defined(__powerpc64__)
 /* 64 bits kernel, 32 bits code (ie. vdso32) */
-#define FTR_ENTRY_LONG		.llong
+#define FTR_ENTRY_LONG		.8byte
 #define FTR_ENTRY_OFFSET	.long 0xffffffff; .long
 #elif defined(CONFIG_PPC64)
-#define FTR_ENTRY_LONG		.llong
-#define FTR_ENTRY_OFFSET	.llong
+#define FTR_ENTRY_LONG		.8byte
+#define FTR_ENTRY_OFFSET	.8byte
 #else
 #define FTR_ENTRY_LONG		.long
 #define FTR_ENTRY_OFFSET	.long
@@ -187,7 +187,20 @@ label##3:					       	\
 	FTR_ENTRY_OFFSET label##1b-label##3b;		\
 	.popsection;
 
+#define RFI_FLUSH_FIXUP_SECTION				\
+951:							\
+	.pushsection __rfi_flush_fixup,"a";		\
+	.align 2;					\
+952:							\
+	FTR_ENTRY_OFFSET 951b-952b;			\
+	.popsection;
+
+
 #ifndef __ASSEMBLY__
+#include <linux/types.h>
+
+extern long __start___rfi_flush_fixup, __stop___rfi_flush_fixup;
+
 void apply_feature_fixups(void);
 void setup_feature_keys(void);
 #endif

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_MSPPP_H__
 #define __NVKM_MSPPP_H__
 #include <engine/falcon.h>

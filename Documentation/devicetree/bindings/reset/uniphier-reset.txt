@@ -6,7 +6,6 @@ System reset
 
 Required properties:
 - compatible: should be one of the following:
-    "socionext,uniphier-sld3-reset" - for sLD3 SoC
     "socionext,uniphier-ld4-reset"  - for LD4 SoC
     "socionext,uniphier-pro4-reset" - for Pro4 SoC
     "socionext,uniphier-sld8-reset" - for sLD8 SoC
@@ -14,6 +13,7 @@ Required properties:
     "socionext,uniphier-pxs2-reset" - for PXs2/LD6b SoC
     "socionext,uniphier-ld11-reset" - for LD11 SoC
     "socionext,uniphier-ld20-reset" - for LD20 SoC
+    "socionext,uniphier-pxs3-reset" - for PXs3 SoC
 - #reset-cells: should be 1.
 
 Example:
@@ -37,7 +37,6 @@ Media I/O (MIO) reset, SD reset
 
 Required properties:
 - compatible: should be one of the following:
-    "socionext,uniphier-sld3-mio-reset" - for sLD3 SoC
     "socionext,uniphier-ld4-mio-reset"  - for LD4 SoC
     "socionext,uniphier-pro4-mio-reset" - for Pro4 SoC
     "socionext,uniphier-sld8-mio-reset" - for sLD8 SoC
@@ -46,6 +45,7 @@ Required properties:
     "socionext,uniphier-ld11-mio-reset" - for LD11 SoC (MIO)
     "socionext,uniphier-ld11-sd-reset"  - for LD11 SoC (SD)
     "socionext,uniphier-ld20-sd-reset"  - for LD20 SoC
+    "socionext,uniphier-pxs3-sd-reset"  - for PXs3 SoC
 - #reset-cells: should be 1.
 
 Example:
@@ -76,6 +76,7 @@ Required properties:
     "socionext,uniphier-pxs2-peri-reset" - for PXs2/LD6b SoC
     "socionext,uniphier-ld11-peri-reset" - for LD11 SoC
     "socionext,uniphier-ld20-peri-reset" - for LD20 SoC
+    "socionext,uniphier-pxs3-peri-reset" - for PXs3 SoC
 - #reset-cells: should be 1.
 
 Example:
@@ -87,6 +88,31 @@ Example:
 
 		reset {
 			compatible = "socionext,uniphier-ld11-peri-reset";
+			#reset-cells = <1>;
+		};
+
+		other nodes ...
+	};
+
+
+Analog signal amplifier reset
+-----------------------------
+
+Required properties:
+- compatible: should be one of the following:
+    "socionext,uniphier-ld11-adamv-reset" - for LD11 SoC
+    "socionext,uniphier-ld20-adamv-reset" - for LD20 SoC
+- #reset-cells: should be 1.
+
+Example:
+
+	adamv@57920000 {
+		compatible = "socionext,uniphier-ld11-adamv",
+			     "simple-mfd", "syscon";
+		reg = <0x57920000 0x1000>;
+
+		adamv_rst: reset {
+			compatible = "socionext,uniphier-ld11-adamv-reset";
 			#reset-cells = <1>;
 		};
 

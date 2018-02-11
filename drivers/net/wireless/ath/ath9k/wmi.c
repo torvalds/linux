@@ -159,7 +159,7 @@ void ath9k_wmi_event_tasklet(unsigned long data)
 
 		switch (cmd_id) {
 		case WMI_SWBA_EVENTID:
-			swba = (struct wmi_event_swba *) wmi_event;
+			swba = wmi_event;
 			ath9k_htc_swba(priv, swba);
 			break;
 		case WMI_FATAL_EVENTID:
@@ -207,7 +207,7 @@ static void ath9k_wmi_rsp_callback(struct wmi *wmi, struct sk_buff *skb)
 static void ath9k_wmi_ctrl_rx(void *priv, struct sk_buff *skb,
 			      enum htc_endpoint_id epid)
 {
-	struct wmi *wmi = (struct wmi *) priv;
+	struct wmi *wmi = priv;
 	struct wmi_cmd_hdr *hdr;
 	u16 cmd_id;
 
@@ -277,7 +277,7 @@ static int ath9k_wmi_cmd_issue(struct wmi *wmi,
 	struct wmi_cmd_hdr *hdr;
 	unsigned long flags;
 
-	hdr = (struct wmi_cmd_hdr *) skb_push(skb, sizeof(struct wmi_cmd_hdr));
+	hdr = skb_push(skb, sizeof(struct wmi_cmd_hdr));
 	hdr->command_id = cpu_to_be16(cmd);
 	hdr->seq_no = cpu_to_be16(++wmi->tx_seq_id);
 
@@ -298,7 +298,6 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 	u16 headroom = sizeof(struct htc_frame_hdr) +
 		       sizeof(struct wmi_cmd_hdr);
 	struct sk_buff *skb;
-	u8 *data;
 	unsigned long time_left;
 	int ret = 0;
 
@@ -312,8 +311,7 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 	skb_reserve(skb, headroom);
 
 	if (cmd_len != 0 && cmd_buf != NULL) {
-		data = (u8 *) skb_put(skb, cmd_len);
-		memcpy(data, cmd_buf, cmd_len);
+		skb_put_data(skb, cmd_buf, cmd_len);
 	}
 
 	mutex_lock(&wmi->op_mutex);

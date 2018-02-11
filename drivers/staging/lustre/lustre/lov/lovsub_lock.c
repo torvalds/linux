@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -54,7 +55,6 @@ static void lovsub_lock_fini(const struct lu_env *env,
 	struct lovsub_lock   *lsl;
 
 	lsl = cl2lovsub_lock(slice);
-	LASSERT(list_empty(&lsl->lss_parents));
 	kmem_cache_free(lovsub_lock_kmem, lsl);
 }
 
@@ -70,7 +70,6 @@ int lovsub_lock_init(const struct lu_env *env, struct cl_object *obj,
 
 	lsk = kmem_cache_zalloc(lovsub_lock_kmem, GFP_NOFS);
 	if (lsk) {
-		INIT_LIST_HEAD(&lsk->lss_parents);
 		cl_lock_slice_add(lock, &lsk->lss_cl, obj, &lovsub_lock_ops);
 		result = 0;
 	} else {

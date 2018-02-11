@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_MACH_JZ4740_BASE_H__
 #define __ASM_MACH_JZ4740_BASE_H__
 

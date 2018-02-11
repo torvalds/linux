@@ -242,6 +242,15 @@ static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	}
 	spin_unlock(&root->ordered_extent_lock);
 
+	/*
+	 * We don't need the count_max_extents here, we can assume that all of
+	 * that work has been done at higher layers, so this is truly the
+	 * smallest the extent is going to get.
+	 */
+	spin_lock(&BTRFS_I(inode)->lock);
+	btrfs_mod_outstanding_extents(BTRFS_I(inode), 1);
+	spin_unlock(&BTRFS_I(inode)->lock);
+
 	return 0;
 }
 
@@ -591,11 +600,19 @@ void btrfs_remove_ordered_extent(struct inode *inode,
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_ordered_inode_tree *tree;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_inode *btrfs_inode = BTRFS_I(inode);
+	struct btrfs_root *root = btrfs_inode->root;
 	struct rb_node *node;
 	bool dec_pending_ordered = false;
 
-	tree = &BTRFS_I(inode)->ordered_tree;
+	/* This is paired with btrfs_add_ordered_extent. */
+	spin_lock(&btrfs_inode->lock);
+	btrfs_mod_outstanding_extents(btrfs_inode, -1);
+	spin_unlock(&btrfs_inode->lock);
+	if (root != fs_info->tree_root)
+		btrfs_delalloc_release_metadata(btrfs_inode, entry->len);
+
+	tree = &btrfs_inode->ordered_tree;
 	spin_lock_irq(&tree->lock);
 	node = &entry->rb_node;
 	rb_erase(node, &tree->tree);
@@ -663,7 +680,7 @@ static void btrfs_run_ordered_extent_work(struct btrfs_work *work)
  * wait for all the ordered extents in a root.  This is done when balancing
  * space between drives.
  */
-int btrfs_wait_ordered_extents(struct btrfs_root *root, int nr,
+u64 btrfs_wait_ordered_extents(struct btrfs_root *root, u64 nr,
 			       const u64 range_start, const u64 range_len)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -671,7 +688,7 @@ int btrfs_wait_ordered_extents(struct btrfs_root *root, int nr,
 	LIST_HEAD(skipped);
 	LIST_HEAD(works);
 	struct btrfs_ordered_extent *ordered, *next;
-	int count = 0;
+	u64 count = 0;
 	const u64 range_end = range_start + range_len;
 
 	mutex_lock(&root->ordered_extent_mutex);
@@ -701,7 +718,7 @@ int btrfs_wait_ordered_extents(struct btrfs_root *root, int nr,
 
 		cond_resched();
 		spin_lock(&root->ordered_extent_lock);
-		if (nr != -1)
+		if (nr != U64_MAX)
 			nr--;
 		count++;
 	}
@@ -720,13 +737,13 @@ int btrfs_wait_ordered_extents(struct btrfs_root *root, int nr,
 	return count;
 }
 
-int btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, int nr,
-			      const u64 range_start, const u64 range_len)
+u64 btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, u64 nr,
+			     const u64 range_start, const u64 range_len)
 {
 	struct btrfs_root *root;
 	struct list_head splice;
-	int done;
-	int total_done = 0;
+	u64 total_done = 0;
+	u64 done;
 
 	INIT_LIST_HEAD(&splice);
 
@@ -748,9 +765,8 @@ int btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, int nr,
 		total_done += done;
 
 		spin_lock(&fs_info->ordered_root_lock);
-		if (nr != -1) {
+		if (nr != U64_MAX) {
 			nr -= done;
-			WARN_ON(nr < 0);
 		}
 	}
 	list_splice_tail(&splice, &fs_info->ordered_roots);

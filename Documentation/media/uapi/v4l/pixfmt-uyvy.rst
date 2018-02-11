@@ -65,7 +65,7 @@ Each cell is one byte.
       - Y'\ :sub:`33`
 
 
-**Color Sample Location..**
+**Color Sample Location:**
 
 
 

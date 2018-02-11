@@ -67,7 +67,11 @@ static int regulator_quirk_notify(struct notifier_block *nb,
 {
 	struct device *dev = data;
 	struct i2c_client *client;
+	static bool done;
 	u32 mon;
+
+	if (done)
+		return 0;
 
 	mon = ioread32(irqc + IRQC_MONITOR);
 	dev_dbg(dev, "%s: %ld, IRQC_MONITOR = 0x%x\n", __func__, action, mon);
@@ -99,7 +103,7 @@ static int regulator_quirk_notify(struct notifier_block *nb,
 remove:
 	dev_info(dev, "IRQ2 is not asserted, removing quirk\n");
 
-	bus_unregister_notifier(&i2c_bus_type, nb);
+	done = true;
 	iounmap(irqc);
 	return 0;
 }

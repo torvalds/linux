@@ -187,7 +187,7 @@ ff_layout_add_mirror(struct pnfs_layout_hdr *lo,
 			continue;
 		if (!ff_mirror_match_fh(mirror, pos))
 			continue;
-		if (atomic_inc_not_zero(&pos->ref)) {
+		if (refcount_inc_not_zero(&pos->ref)) {
 			spin_unlock(&inode->i_lock);
 			return pos;
 		}
@@ -218,7 +218,7 @@ static struct nfs4_ff_layout_mirror *ff_layout_alloc_mirror(gfp_t gfp_flags)
 	mirror = kzalloc(sizeof(*mirror), gfp_flags);
 	if (mirror != NULL) {
 		spin_lock_init(&mirror->lock);
-		atomic_set(&mirror->ref, 1);
+		refcount_set(&mirror->ref, 1);
 		INIT_LIST_HEAD(&mirror->mirrors);
 	}
 	return mirror;
@@ -242,7 +242,7 @@ static void ff_layout_free_mirror(struct nfs4_ff_layout_mirror *mirror)
 
 static void ff_layout_put_mirror(struct nfs4_ff_layout_mirror *mirror)
 {
-	if (mirror != NULL && atomic_dec_and_test(&mirror->ref))
+	if (mirror != NULL && refcount_dec_and_test(&mirror->ref))
 		ff_layout_free_mirror(mirror);
 }
 
@@ -1050,34 +1050,10 @@ static int ff_layout_async_handle_error_v4(struct rpc_task *task,
 {
 	struct pnfs_layout_hdr *lo = lseg->pls_layout;
 	struct inode *inode = lo->plh_inode;
-	struct nfs_server *mds_server = NFS_SERVER(inode);
-
 	struct nfs4_deviceid_node *devid = FF_LAYOUT_DEVID_NODE(lseg, idx);
-	struct nfs_client *mds_client = mds_server->nfs_client;
 	struct nfs4_slot_table *tbl = &clp->cl_session->fc_slot_table;
 
 	switch (task->tk_status) {
-	/* MDS state errors */
-	case -NFS4ERR_DELEG_REVOKED:
-	case -NFS4ERR_ADMIN_REVOKED:
-	case -NFS4ERR_BAD_STATEID:
-		if (state == NULL)
-			break;
-		nfs_remove_bad_delegation(state->inode, NULL);
-	case -NFS4ERR_OPENMODE:
-		if (state == NULL)
-			break;
-		if (nfs4_schedule_stateid_recovery(mds_server, state) < 0)
-			goto out_bad_stateid;
-		goto wait_on_recovery;
-	case -NFS4ERR_EXPIRED:
-		if (state != NULL) {
-			if (nfs4_schedule_stateid_recovery(mds_server, state) < 0)
-				goto out_bad_stateid;
-		}
-		nfs4_schedule_lease_recovery(mds_client);
-		goto wait_on_recovery;
-	/* DS session errors */
 	case -NFS4ERR_BADSESSION:
 	case -NFS4ERR_BADSLOT:
 	case -NFS4ERR_BAD_HIGH_SLOT:
@@ -1137,17 +1113,8 @@ reset:
 			task->tk_status);
 		return -NFS4ERR_RESET_TO_MDS;
 	}
-out:
 	task->tk_status = 0;
 	return -EAGAIN;
-out_bad_stateid:
-	task->tk_status = -EIO;
-	return 0;
-wait_on_recovery:
-	rpc_sleep_on(&mds_client->cl_rpcwaitq, task, NULL);
-	if (test_bit(NFS4CLNT_MANAGER_RUNNING, &mds_client->cl_state) == 0)
-		rpc_wake_up_queued_task(&mds_client->cl_rpcwaitq, task);
-	goto out;
 }
 
 /* Retry all errors through either pNFS or MDS except for -EJUKEBOX */
@@ -1759,10 +1726,10 @@ ff_layout_read_pagelist(struct nfs_pgio_header *hdr)
 	vers = nfs4_ff_layout_ds_version(lseg, idx);
 
 	dprintk("%s USE DS: %s cl_count %d vers %d\n", __func__,
-		ds->ds_remotestr, atomic_read(&ds->ds_clp->cl_count), vers);
+		ds->ds_remotestr, refcount_read(&ds->ds_clp->cl_count), vers);
 
 	hdr->pgio_done_cb = ff_layout_read_done_cb;
-	atomic_inc(&ds->ds_clp->cl_count);
+	refcount_inc(&ds->ds_clp->cl_count);
 	hdr->ds_clp = ds->ds_clp;
 	fh = nfs4_ff_layout_select_ds_fh(lseg, idx);
 	if (fh)
@@ -1818,11 +1785,11 @@ ff_layout_write_pagelist(struct nfs_pgio_header *hdr, int sync)
 
 	dprintk("%s ino %lu sync %d req %zu@%llu DS: %s cl_count %d vers %d\n",
 		__func__, hdr->inode->i_ino, sync, (size_t) hdr->args.count,
-		offset, ds->ds_remotestr, atomic_read(&ds->ds_clp->cl_count),
+		offset, ds->ds_remotestr, refcount_read(&ds->ds_clp->cl_count),
 		vers);
 
 	hdr->pgio_done_cb = ff_layout_write_done_cb;
-	atomic_inc(&ds->ds_clp->cl_count);
+	refcount_inc(&ds->ds_clp->cl_count);
 	hdr->ds_clp = ds->ds_clp;
 	hdr->ds_commit_idx = idx;
 	fh = nfs4_ff_layout_select_ds_fh(lseg, idx);
@@ -1875,6 +1842,10 @@ static int ff_layout_initiate_commit(struct nfs_commit_data *data, int how)
 	int vers, ret;
 	struct nfs_fh *fh;
 
+	if (!lseg || !(pnfs_is_valid_lseg(lseg) ||
+	    test_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags)))
+		goto out_err;
+
 	idx = calc_ds_index_from_commit(lseg, data->ds_commit_index);
 	ds = nfs4_ff_layout_prepare_ds(lseg, idx, true);
 	if (!ds)
@@ -1892,11 +1863,11 @@ static int ff_layout_initiate_commit(struct nfs_commit_data *data, int how)
 	vers = nfs4_ff_layout_ds_version(lseg, idx);
 
 	dprintk("%s ino %lu, how %d cl_count %d vers %d\n", __func__,
-		data->inode->i_ino, how, atomic_read(&ds->ds_clp->cl_count),
+		data->inode->i_ino, how, refcount_read(&ds->ds_clp->cl_count),
 		vers);
 	data->commit_done_cb = ff_layout_commit_done_cb;
 	data->cred = ds_cred;
-	atomic_inc(&ds->ds_clp->cl_count);
+	refcount_inc(&ds->ds_clp->cl_count);
 	data->ds_clp = ds->ds_clp;
 	fh = select_ds_fh_from_commit(lseg, data->ds_commit_index);
 	if (fh)
@@ -2315,7 +2286,7 @@ ff_layout_mirror_prepare_stats(struct pnfs_layout_hdr *lo,
 		if (!test_and_clear_bit(NFS4_FF_MIRROR_STAT_AVAIL, &mirror->flags))
 			continue;
 		/* mirror refcount put in cleanup_layoutstats */
-		if (!atomic_inc_not_zero(&mirror->ref))
+		if (!refcount_inc_not_zero(&mirror->ref))
 			continue;
 		dev = &mirror->mirror_ds->id_node; 
 		memcpy(&devinfo->dev_id, &dev->deviceid, NFS4_DEVICEID4_SIZE);

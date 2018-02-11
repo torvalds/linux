@@ -39,15 +39,15 @@
 #define ECCTL2_TSCTR_FREERUN	BIT(4)
 
 struct ecap_context {
-	u32	cap3;
-	u32	cap4;
-	u16	ecctl2;
+	u32 cap3;
+	u32 cap4;
+	u16 ecctl2;
 };
 
 struct ecap_pwm_chip {
-	struct pwm_chip	chip;
-	unsigned int	clk_rate;
-	void __iomem	*mmio_base;
+	struct pwm_chip chip;
+	unsigned int clk_rate;
+	void __iomem *mmio_base;
 	struct ecap_context ctx;
 };
 
@@ -64,9 +64,9 @@ static int ecap_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		int duty_ns, int period_ns)
 {
 	struct ecap_pwm_chip *pc = to_ecap_pwm_chip(chip);
+	u32 period_cycles, duty_cycles;
 	unsigned long long c;
-	unsigned long period_cycles, duty_cycles;
-	unsigned int reg_val;
+	u16 value;
 
 	if (period_ns > NSEC_PER_SEC)
 		return -ERANGE;
@@ -74,7 +74,7 @@ static int ecap_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	c = pc->clk_rate;
 	c = c * period_ns;
 	do_div(c, NSEC_PER_SEC);
-	period_cycles = (unsigned long)c;
+	period_cycles = (u32)c;
 
 	if (period_cycles < 1) {
 		period_cycles = 1;
@@ -83,17 +83,17 @@ static int ecap_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		c = pc->clk_rate;
 		c = c * duty_ns;
 		do_div(c, NSEC_PER_SEC);
-		duty_cycles = (unsigned long)c;
+		duty_cycles = (u32)c;
 	}
 
 	pm_runtime_get_sync(pc->chip.dev);
 
-	reg_val = readw(pc->mmio_base + ECCTL2);
+	value = readw(pc->mmio_base + ECCTL2);
 
 	/* Configure APWM mode & disable sync option */
-	reg_val |= ECCTL2_APWM_MODE | ECCTL2_SYNC_SEL_DISA;
+	value |= ECCTL2_APWM_MODE | ECCTL2_SYNC_SEL_DISA;
 
-	writew(reg_val, pc->mmio_base + ECCTL2);
+	writew(value, pc->mmio_base + ECCTL2);
 
 	if (!pwm_is_enabled(pwm)) {
 		/* Update active registers if not running */
@@ -110,40 +110,45 @@ static int ecap_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	if (!pwm_is_enabled(pwm)) {
-		reg_val = readw(pc->mmio_base + ECCTL2);
+		value = readw(pc->mmio_base + ECCTL2);
 		/* Disable APWM mode to put APWM output Low */
-		reg_val &= ~ECCTL2_APWM_MODE;
-		writew(reg_val, pc->mmio_base + ECCTL2);
+		value &= ~ECCTL2_APWM_MODE;
+		writew(value, pc->mmio_base + ECCTL2);
 	}
 
 	pm_runtime_put_sync(pc->chip.dev);
+
 	return 0;
 }
 
 static int ecap_pwm_set_polarity(struct pwm_chip *chip, struct pwm_device *pwm,
-		enum pwm_polarity polarity)
+				 enum pwm_polarity polarity)
 {
 	struct ecap_pwm_chip *pc = to_ecap_pwm_chip(chip);
-	unsigned short reg_val;
+	u16 value;
 
 	pm_runtime_get_sync(pc->chip.dev);
-	reg_val = readw(pc->mmio_base + ECCTL2);
+
+	value = readw(pc->mmio_base + ECCTL2);
+
 	if (polarity == PWM_POLARITY_INVERSED)
 		/* Duty cycle defines LOW period of PWM */
-		reg_val |= ECCTL2_APWM_POL_LOW;
+		value |= ECCTL2_APWM_POL_LOW;
 	else
 		/* Duty cycle defines HIGH period of PWM */
-		reg_val &= ~ECCTL2_APWM_POL_LOW;
+		value &= ~ECCTL2_APWM_POL_LOW;
 
-	writew(reg_val, pc->mmio_base + ECCTL2);
+	writew(value, pc->mmio_base + ECCTL2);
+
 	pm_runtime_put_sync(pc->chip.dev);
+
 	return 0;
 }
 
 static int ecap_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct ecap_pwm_chip *pc = to_ecap_pwm_chip(chip);
-	unsigned int reg_val;
+	u16 value;
 
 	/* Leave clock enabled on enabling PWM */
 	pm_runtime_get_sync(pc->chip.dev);
@@ -152,24 +157,25 @@ static int ecap_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	 * Enable 'Free run Time stamp counter mode' to start counter
 	 * and  'APWM mode' to enable APWM output
 	 */
-	reg_val = readw(pc->mmio_base + ECCTL2);
-	reg_val |= ECCTL2_TSCTR_FREERUN | ECCTL2_APWM_MODE;
-	writew(reg_val, pc->mmio_base + ECCTL2);
+	value = readw(pc->mmio_base + ECCTL2);
+	value |= ECCTL2_TSCTR_FREERUN | ECCTL2_APWM_MODE;
+	writew(value, pc->mmio_base + ECCTL2);
+
 	return 0;
 }
 
 static void ecap_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct ecap_pwm_chip *pc = to_ecap_pwm_chip(chip);
-	unsigned int reg_val;
+	u16 value;
 
 	/*
 	 * Disable 'Free run Time stamp counter mode' to stop counter
 	 * and 'APWM mode' to put APWM output to low
 	 */
-	reg_val = readw(pc->mmio_base + ECCTL2);
-	reg_val &= ~(ECCTL2_TSCTR_FREERUN | ECCTL2_APWM_MODE);
-	writew(reg_val, pc->mmio_base + ECCTL2);
+	value = readw(pc->mmio_base + ECCTL2);
+	value &= ~(ECCTL2_TSCTR_FREERUN | ECCTL2_APWM_MODE);
+	writew(value, pc->mmio_base + ECCTL2);
 
 	/* Disable clock on PWM disable */
 	pm_runtime_put_sync(pc->chip.dev);
@@ -184,12 +190,12 @@ static void ecap_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 }
 
 static const struct pwm_ops ecap_pwm_ops = {
-	.free		= ecap_pwm_free,
-	.config		= ecap_pwm_config,
-	.set_polarity	= ecap_pwm_set_polarity,
-	.enable		= ecap_pwm_enable,
-	.disable	= ecap_pwm_disable,
-	.owner		= THIS_MODULE,
+	.free = ecap_pwm_free,
+	.config = ecap_pwm_config,
+	.set_polarity = ecap_pwm_set_polarity,
+	.enable = ecap_pwm_enable,
+	.disable = ecap_pwm_disable,
+	.owner = THIS_MODULE,
 };
 
 static const struct of_device_id ecap_of_match[] = {
@@ -202,10 +208,10 @@ MODULE_DEVICE_TABLE(of, ecap_of_match);
 static int ecap_pwm_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	int ret;
+	struct ecap_pwm_chip *pc;
 	struct resource *r;
 	struct clk *clk;
-	struct ecap_pwm_chip *pc;
+	int ret;
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc)
@@ -248,9 +254,9 @@ static int ecap_pwm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	platform_set_drvdata(pdev, pc);
 	pm_runtime_enable(&pdev->dev);
 
-	platform_set_drvdata(pdev, pc);
 	return 0;
 }
 
@@ -259,6 +265,7 @@ static int ecap_pwm_remove(struct platform_device *pdev)
 	struct ecap_pwm_chip *pc = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
+
 	return pwmchip_remove(&pc->chip);
 }
 
@@ -311,14 +318,13 @@ static SIMPLE_DEV_PM_OPS(ecap_pwm_pm_ops, ecap_pwm_suspend, ecap_pwm_resume);
 
 static struct platform_driver ecap_pwm_driver = {
 	.driver = {
-		.name	= "ecap",
+		.name = "ecap",
 		.of_match_table = ecap_of_match,
-		.pm	= &ecap_pwm_pm_ops,
+		.pm = &ecap_pwm_pm_ops,
 	},
 	.probe = ecap_pwm_probe,
 	.remove = ecap_pwm_remove,
 };
-
 module_platform_driver(ecap_pwm_driver);
 
 MODULE_DESCRIPTION("ECAP PWM driver");

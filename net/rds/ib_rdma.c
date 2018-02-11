@@ -52,7 +52,7 @@ static struct rds_ib_device *rds_ib_get_device(__be32 ipaddr)
 	list_for_each_entry_rcu(rds_ibdev, &rds_ib_devices, list) {
 		list_for_each_entry_rcu(i_ipaddr, &rds_ibdev->ipaddr_list, list) {
 			if (i_ipaddr->ipaddr == ipaddr) {
-				atomic_inc(&rds_ibdev->refcount);
+				refcount_inc(&rds_ibdev->refcount);
 				rcu_read_unlock();
 				return rds_ibdev;
 			}
@@ -134,7 +134,7 @@ void rds_ib_add_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *con
 	spin_unlock_irq(&ib_nodev_conns_lock);
 
 	ic->rds_ibdev = rds_ibdev;
-	atomic_inc(&rds_ibdev->refcount);
+	refcount_inc(&rds_ibdev->refcount);
 }
 
 void rds_ib_remove_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *conn)
@@ -601,11 +601,11 @@ struct rds_ib_mr_pool *rds_ib_create_mr_pool(struct rds_ib_device *rds_ibdev,
 	if (pool_type == RDS_IB_MR_1M_POOL) {
 		/* +1 allows for unaligned MRs */
 		pool->fmr_attr.max_pages = RDS_MR_1M_MSG_SIZE + 1;
-		pool->max_items = RDS_MR_1M_POOL_SIZE;
+		pool->max_items = rds_ibdev->max_1m_mrs;
 	} else {
 		/* pool_type == RDS_IB_MR_8K_POOL */
 		pool->fmr_attr.max_pages = RDS_MR_8K_MSG_SIZE + 1;
-		pool->max_items = RDS_MR_8K_POOL_SIZE;
+		pool->max_items = rds_ibdev->max_8k_mrs;
 	}
 
 	pool->max_free_pinned = pool->max_items * pool->fmr_attr.max_pages / 4;

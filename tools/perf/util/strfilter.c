@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "util.h"
 #include "string2.h"
 #include "strfilter.h"

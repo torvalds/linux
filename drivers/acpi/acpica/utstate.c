@@ -226,7 +226,7 @@ union acpi_generic_state *acpi_ut_create_update_state(union acpi_operand_object
 
 union acpi_generic_state *acpi_ut_create_pkg_state(void *internal_object,
 						   void *external_object,
-						   u16 index)
+						   u32 index)
 {
 	union acpi_generic_state *state;
 

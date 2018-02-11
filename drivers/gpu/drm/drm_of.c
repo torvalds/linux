@@ -160,8 +160,8 @@ int drm_of_component_probe(struct device *dev,
 				of_node_put(remote);
 				continue;
 			} else if (!of_device_is_available(remote->parent)) {
-				dev_warn(dev, "parent device of %s is not available\n",
-					 remote->full_name);
+				dev_warn(dev, "parent device of %pOF is not available\n",
+					 remote);
 				of_node_put(remote);
 				continue;
 			}
@@ -233,6 +233,8 @@ int drm_of_find_panel_or_bridge(const struct device_node *np,
 
 	if (!panel && !bridge)
 		return -EINVAL;
+	if (panel)
+		*panel = NULL;
 
 	remote = of_graph_get_remote_node(np, port, endpoint);
 	if (!remote)

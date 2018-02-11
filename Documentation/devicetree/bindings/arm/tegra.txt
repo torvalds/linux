@@ -29,7 +29,6 @@ board-specific compatible values:
   nvidia,harmony
   nvidia,seaboard
   nvidia,ventana
-  nvidia,whistler
   toradex,apalis_t30
   toradex,apalis_t30-eval
   toradex,apalis-tk1

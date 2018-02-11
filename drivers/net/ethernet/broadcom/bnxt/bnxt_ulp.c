@@ -84,6 +84,8 @@ static int bnxt_unregister_dev(struct bnxt_en_dev *edev, int ulp_id)
 
 		max_stat_ctxs = bnxt_get_max_func_stat_ctxs(bp);
 		bnxt_set_max_func_stat_ctxs(bp, max_stat_ctxs + 1);
+		if (ulp->msix_requested)
+			edev->en_ops->bnxt_free_msix(edev, ulp_id);
 	}
 	if (ulp->max_async_event_id)
 		bnxt_hwrm_func_rgtr_async_events(bp, NULL, 0);
@@ -263,6 +265,25 @@ void bnxt_ulp_sriov_cfg(struct bnxt *bp, int num_vfs)
 		rcu_read_unlock();
 		ops->ulp_sriov_config(ulp->handle, num_vfs);
 		bnxt_ulp_put(ulp);
+	}
+}
+
+void bnxt_ulp_shutdown(struct bnxt *bp)
+{
+	struct bnxt_en_dev *edev = bp->edev;
+	struct bnxt_ulp_ops *ops;
+	int i;
+
+	if (!edev)
+		return;
+
+	for (i = 0; i < BNXT_MAX_ULP; i++) {
+		struct bnxt_ulp *ulp = &edev->ulp_tbl[i];
+
+		ops = rtnl_dereference(ulp->ulp_ops);
+		if (!ops || !ops->ulp_shutdown)
+			continue;
+		ops->ulp_shutdown(ulp->handle);
 	}
 }
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -34,8 +35,8 @@
 
 #include <linux/seq_file.h>
 #include <linux/statfs.h>
-#include "../include/lprocfs_status.h"
-#include "../include/obd_class.h"
+#include <lprocfs_status.h>
+#include <obd_class.h>
 #include "lmv_internal.h"
 
 static ssize_t numobd_show(struct kobject *kobj, struct attribute *attr,
@@ -161,7 +162,7 @@ static struct attribute *lmv_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group lmv_attr_group = {
+static const struct attribute_group lmv_attr_group = {
 	.attrs = lmv_attrs,
 };
 

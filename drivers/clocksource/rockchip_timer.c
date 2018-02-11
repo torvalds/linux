@@ -274,7 +274,7 @@ static int __init rk_clksrc_init(struct device_node *np)
 		TIMER_NAME, rk_clksrc->freq, 250, 32,
 		clocksource_mmio_readl_down);
 	if (ret) {
-		pr_err("Failed to register clocksource");
+		pr_err("Failed to register clocksource\n");
 		goto out_clocksource;
 	}
 
@@ -303,5 +303,5 @@ static int __init rk_timer_init(struct device_node *np)
 	return -EINVAL;
 }
 
-CLOCKSOURCE_OF_DECLARE(rk3288_timer, "rockchip,rk3288-timer", rk_timer_init);
-CLOCKSOURCE_OF_DECLARE(rk3399_timer, "rockchip,rk3399-timer", rk_timer_init);
+TIMER_OF_DECLARE(rk3288_timer, "rockchip,rk3288-timer", rk_timer_init);
+TIMER_OF_DECLARE(rk3399_timer, "rockchip,rk3399-timer", rk_timer_init);

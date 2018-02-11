@@ -360,7 +360,7 @@ out:
 		bdisp_job_finish(ctx, VB2_BUF_STATE_ERROR);
 }
 
-static struct v4l2_m2m_ops bdisp_m2m_ops = {
+static const struct v4l2_m2m_ops bdisp_m2m_ops = {
 	.device_run     = bdisp_device_run,
 	.job_abort      = bdisp_job_abort,
 };
@@ -723,7 +723,7 @@ static int bdisp_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 static int bdisp_g_fmt(struct file *file, void *fh, struct v4l2_format *f)
 {
 	struct bdisp_ctx *ctx = fh_to_ctx(fh);
-	struct v4l2_pix_format *pix = &f->fmt.pix;
+	struct v4l2_pix_format *pix;
 	struct bdisp_frame *frame  = ctx_get_frame(ctx, f->type);
 
 	if (IS_ERR(frame)) {

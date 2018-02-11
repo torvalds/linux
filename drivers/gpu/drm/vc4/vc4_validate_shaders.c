@@ -200,7 +200,7 @@ check_tmu_write(struct vc4_validated_shader_info *validated_shader,
 		uint32_t clamp_reg, clamp_offset;
 
 		if (sig == QPU_SIG_SMALL_IMM) {
-			DRM_ERROR("direct TMU read used small immediate\n");
+			DRM_DEBUG("direct TMU read used small immediate\n");
 			return false;
 		}
 
@@ -209,7 +209,7 @@ check_tmu_write(struct vc4_validated_shader_info *validated_shader,
 		 */
 		if (is_mul ||
 		    QPU_GET_FIELD(inst, QPU_OP_ADD) != QPU_A_ADD) {
-			DRM_ERROR("direct TMU load wasn't an add\n");
+			DRM_DEBUG("direct TMU load wasn't an add\n");
 			return false;
 		}
 
@@ -220,13 +220,13 @@ check_tmu_write(struct vc4_validated_shader_info *validated_shader,
 		 */
 		clamp_reg = raddr_add_a_to_live_reg_index(inst);
 		if (clamp_reg == ~0) {
-			DRM_ERROR("direct TMU load wasn't clamped\n");
+			DRM_DEBUG("direct TMU load wasn't clamped\n");
 			return false;
 		}
 
 		clamp_offset = validation_state->live_min_clamp_offsets[clamp_reg];
 		if (clamp_offset == ~0) {
-			DRM_ERROR("direct TMU load wasn't clamped\n");
+			DRM_DEBUG("direct TMU load wasn't clamped\n");
 			return false;
 		}
 
@@ -238,7 +238,7 @@ check_tmu_write(struct vc4_validated_shader_info *validated_shader,
 
 		if (!(add_b == QPU_MUX_A && raddr_a == QPU_R_UNIF) &&
 		    !(add_b == QPU_MUX_B && raddr_b == QPU_R_UNIF)) {
-			DRM_ERROR("direct TMU load didn't add to a uniform\n");
+			DRM_DEBUG("direct TMU load didn't add to a uniform\n");
 			return false;
 		}
 
@@ -246,14 +246,14 @@ check_tmu_write(struct vc4_validated_shader_info *validated_shader,
 	} else {
 		if (raddr_a == QPU_R_UNIF || (sig != QPU_SIG_SMALL_IMM &&
 					      raddr_b == QPU_R_UNIF)) {
-			DRM_ERROR("uniform read in the same instruction as "
+			DRM_DEBUG("uniform read in the same instruction as "
 				  "texture setup.\n");
 			return false;
 		}
 	}
 
 	if (validation_state->tmu_write_count[tmu] >= 4) {
-		DRM_ERROR("TMU%d got too many parameters before dispatch\n",
+		DRM_DEBUG("TMU%d got too many parameters before dispatch\n",
 			  tmu);
 		return false;
 	}
@@ -265,7 +265,7 @@ check_tmu_write(struct vc4_validated_shader_info *validated_shader,
 	 */
 	if (!is_direct) {
 		if (validation_state->needs_uniform_address_update) {
-			DRM_ERROR("Texturing with undefined uniform address\n");
+			DRM_DEBUG("Texturing with undefined uniform address\n");
 			return false;
 		}
 
@@ -336,35 +336,35 @@ validate_uniform_address_write(struct vc4_validated_shader_info *validated_shade
 	case QPU_SIG_LOAD_TMU1:
 		break;
 	default:
-		DRM_ERROR("uniforms address change must be "
+		DRM_DEBUG("uniforms address change must be "
 			  "normal math\n");
 		return false;
 	}
 
 	if (is_mul || QPU_GET_FIELD(inst, QPU_OP_ADD) != QPU_A_ADD) {
-		DRM_ERROR("Uniform address reset must be an ADD.\n");
+		DRM_DEBUG("Uniform address reset must be an ADD.\n");
 		return false;
 	}
 
 	if (QPU_GET_FIELD(inst, QPU_COND_ADD) != QPU_COND_ALWAYS) {
-		DRM_ERROR("Uniform address reset must be unconditional.\n");
+		DRM_DEBUG("Uniform address reset must be unconditional.\n");
 		return false;
 	}
 
 	if (QPU_GET_FIELD(inst, QPU_PACK) != QPU_PACK_A_NOP &&
 	    !(inst & QPU_PM)) {
-		DRM_ERROR("No packing allowed on uniforms reset\n");
+		DRM_DEBUG("No packing allowed on uniforms reset\n");
 		return false;
 	}
 
 	if (add_lri == -1) {
-		DRM_ERROR("First argument of uniform address write must be "
+		DRM_DEBUG("First argument of uniform address write must be "
 			  "an immediate value.\n");
 		return false;
 	}
 
 	if (validation_state->live_immediates[add_lri] != expected_offset) {
-		DRM_ERROR("Resetting uniforms with offset %db instead of %db\n",
+		DRM_DEBUG("Resetting uniforms with offset %db instead of %db\n",
 			  validation_state->live_immediates[add_lri],
 			  expected_offset);
 		return false;
@@ -372,7 +372,7 @@ validate_uniform_address_write(struct vc4_validated_shader_info *validated_shade
 
 	if (!(add_b == QPU_MUX_A && raddr_a == QPU_R_UNIF) &&
 	    !(add_b == QPU_MUX_B && raddr_b == QPU_R_UNIF)) {
-		DRM_ERROR("Second argument of uniform address write must be "
+		DRM_DEBUG("Second argument of uniform address write must be "
 			  "a uniform.\n");
 		return false;
 	}
@@ -417,7 +417,7 @@ check_reg_write(struct vc4_validated_shader_info *validated_shader,
 	switch (waddr) {
 	case QPU_W_UNIFORMS_ADDRESS:
 		if (is_b) {
-			DRM_ERROR("relative uniforms address change "
+			DRM_DEBUG("relative uniforms address change "
 				  "unsupported\n");
 			return false;
 		}
@@ -452,11 +452,11 @@ check_reg_write(struct vc4_validated_shader_info *validated_shader,
 		/* XXX: I haven't thought about these, so don't support them
 		 * for now.
 		 */
-		DRM_ERROR("Unsupported waddr %d\n", waddr);
+		DRM_DEBUG("Unsupported waddr %d\n", waddr);
 		return false;
 
 	case QPU_W_VPM_ADDR:
-		DRM_ERROR("General VPM DMA unsupported\n");
+		DRM_DEBUG("General VPM DMA unsupported\n");
 		return false;
 
 	case QPU_W_VPM:
@@ -559,7 +559,7 @@ check_instruction_writes(struct vc4_validated_shader_info *validated_shader,
 	bool ok;
 
 	if (is_tmu_write(waddr_add) && is_tmu_write(waddr_mul)) {
-		DRM_ERROR("ADD and MUL both set up textures\n");
+		DRM_DEBUG("ADD and MUL both set up textures\n");
 		return false;
 	}
 
@@ -588,7 +588,7 @@ check_branch(uint64_t inst,
 	 * there's no need for it.
 	 */
 	if (waddr_add != QPU_W_NOP || waddr_mul != QPU_W_NOP) {
-		DRM_ERROR("branch instruction at %d wrote a register.\n",
+		DRM_DEBUG("branch instruction at %d wrote a register.\n",
 			  validation_state->ip);
 		return false;
 	}
@@ -614,7 +614,7 @@ check_instruction_reads(struct vc4_validated_shader_info *validated_shader,
 		validated_shader->uniforms_size += 4;
 
 		if (validation_state->needs_uniform_address_update) {
-			DRM_ERROR("Uniform read with undefined uniform "
+			DRM_DEBUG("Uniform read with undefined uniform "
 				  "address\n");
 			return false;
 		}
@@ -660,19 +660,19 @@ vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
 			continue;
 
 		if (ip - last_branch < 4) {
-			DRM_ERROR("Branch at %d during delay slots\n", ip);
+			DRM_DEBUG("Branch at %d during delay slots\n", ip);
 			return false;
 		}
 		last_branch = ip;
 
 		if (inst & QPU_BRANCH_REG) {
-			DRM_ERROR("branching from register relative "
+			DRM_DEBUG("branching from register relative "
 				  "not supported\n");
 			return false;
 		}
 
 		if (!(inst & QPU_BRANCH_REL)) {
-			DRM_ERROR("relative branching required\n");
+			DRM_DEBUG("relative branching required\n");
 			return false;
 		}
 
@@ -682,13 +682,13 @@ vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
 		 * end of the shader object.
 		 */
 		if (branch_imm % sizeof(inst) != 0) {
-			DRM_ERROR("branch target not aligned\n");
+			DRM_DEBUG("branch target not aligned\n");
 			return false;
 		}
 
 		branch_target_ip = after_delay_ip + (branch_imm >> 3);
 		if (branch_target_ip >= validation_state->max_ip) {
-			DRM_ERROR("Branch at %d outside of shader (ip %d/%d)\n",
+			DRM_DEBUG("Branch at %d outside of shader (ip %d/%d)\n",
 				  ip, branch_target_ip,
 				  validation_state->max_ip);
 			return false;
@@ -699,7 +699,7 @@ vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
 		 * the shader.
 		 */
 		if (after_delay_ip >= validation_state->max_ip) {
-			DRM_ERROR("Branch at %d continues past shader end "
+			DRM_DEBUG("Branch at %d continues past shader end "
 				  "(%d/%d)\n",
 				  ip, after_delay_ip, validation_state->max_ip);
 			return false;
@@ -709,7 +709,7 @@ vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
 	}
 
 	if (max_branch_target > validation_state->max_ip - 3) {
-		DRM_ERROR("Branch landed after QPU_SIG_PROG_END");
+		DRM_DEBUG("Branch landed after QPU_SIG_PROG_END");
 		return false;
 	}
 
@@ -750,7 +750,7 @@ vc4_handle_branch_target(struct vc4_shader_validation_state *validation_state)
 		return true;
 
 	if (texturing_in_progress(validation_state)) {
-		DRM_ERROR("Branch target landed during TMU setup\n");
+		DRM_DEBUG("Branch target landed during TMU setup\n");
 		return false;
 	}
 
@@ -837,7 +837,7 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 		case QPU_SIG_LAST_THREAD_SWITCH:
 			if (!check_instruction_writes(validated_shader,
 						      &validation_state)) {
-				DRM_ERROR("Bad write at ip %d\n", ip);
+				DRM_DEBUG("Bad write at ip %d\n", ip);
 				goto fail;
 			}
 
@@ -855,7 +855,7 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 				validated_shader->is_threaded = true;
 
 				if (ip < last_thread_switch_ip + 3) {
-					DRM_ERROR("Thread switch too soon after "
+					DRM_DEBUG("Thread switch too soon after "
 						  "last switch at ip %d\n", ip);
 					goto fail;
 				}
@@ -867,7 +867,7 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 		case QPU_SIG_LOAD_IMM:
 			if (!check_instruction_writes(validated_shader,
 						      &validation_state)) {
-				DRM_ERROR("Bad LOAD_IMM write at ip %d\n", ip);
+				DRM_DEBUG("Bad LOAD_IMM write at ip %d\n", ip);
 				goto fail;
 			}
 			break;
@@ -878,14 +878,14 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 				goto fail;
 
 			if (ip < last_thread_switch_ip + 3) {
-				DRM_ERROR("Branch in thread switch at ip %d",
+				DRM_DEBUG("Branch in thread switch at ip %d",
 					  ip);
 				goto fail;
 			}
 
 			break;
 		default:
-			DRM_ERROR("Unsupported QPU signal %d at "
+			DRM_DEBUG("Unsupported QPU signal %d at "
 				  "instruction %d\n", sig, ip);
 			goto fail;
 		}
@@ -898,7 +898,7 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 	}
 
 	if (ip == validation_state.max_ip) {
-		DRM_ERROR("shader failed to terminate before "
+		DRM_DEBUG("shader failed to terminate before "
 			  "shader BO end at %zd\n",
 			  shader_obj->base.size);
 		goto fail;
@@ -907,7 +907,7 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 	/* Might corrupt other thread */
 	if (validated_shader->is_threaded &&
 	    validation_state.all_registers_used) {
-		DRM_ERROR("Shader uses threading, but uses the upper "
+		DRM_DEBUG("Shader uses threading, but uses the upper "
 			  "half of the registers, too\n");
 		goto fail;
 	}

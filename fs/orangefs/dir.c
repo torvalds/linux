@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright 2017 Omnibond Systems, L.L.C.
  */
@@ -385,7 +386,6 @@ static int orangefs_dir_release(struct inode *inode, struct file *file)
 {
 	struct orangefs_dir *od = file->private_data;
 	struct orangefs_dir_part *part = od->part;
-	orangefs_flush_inode(inode);
 	while (part) {
 		struct orangefs_dir_part *next = part->next;
 		vfree(part);

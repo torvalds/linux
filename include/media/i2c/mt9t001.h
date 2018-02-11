@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _MEDIA_MT9T001_H
 #define _MEDIA_MT9T001_H
 

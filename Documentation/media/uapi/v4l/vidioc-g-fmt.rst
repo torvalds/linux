@@ -31,6 +31,7 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
+    Pointer to struct :c:type:`v4l2_format`.
 
 
 Description
@@ -87,7 +88,7 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
 
 .. c:type:: v4l2_format
 
-.. tabularcolumns::  |p{1.2cm}|p{4.3cm}|p{3.0cm}|p{9.0cm}|
+.. tabularcolumns::  |p{1.2cm}|p{4.6cm}|p{3.0cm}|p{8.6cm}|
 
 .. flat-table:: struct v4l2_format
     :header-rows:  0
@@ -147,3 +148,9 @@ appropriately. The generic error codes are described at the
 EINVAL
     The struct :c:type:`v4l2_format` ``type`` field is
     invalid or the requested buffer type not supported.
+
+EBUSY
+    The device is busy and cannot change the format. This could be
+    because or the device is streaming or buffers are allocated or
+    queued to the driver. Relevant for :ref:`VIDIOC_S_FMT
+    <VIDIOC_G_FMT>` only.

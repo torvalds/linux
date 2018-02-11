@@ -213,7 +213,7 @@ static int fm2fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 
 static int fm2fb_probe(struct zorro_dev *z, const struct zorro_device_id *id);
 
-static struct zorro_device_id fm2fb_devices[] = {
+static const struct zorro_device_id fm2fb_devices[] = {
 	{ ZORRO_PROD_BSC_FRAMEMASTER_II },
 	{ ZORRO_PROD_HELFRICH_RAINBOW_II },
 	{ 0 }

@@ -269,13 +269,11 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 			 * hopefully it will succeed on the retransmitted
 			 * packet.
 			 */
-			rcu_read_lock();
 			mangled = nf_nat_mangle_tcp_packet(skb, ct, ctinfo,
 							   iph->ihl * 4,
 							   start - data,
 							   end - start,
 							   buf, buf_len);
-			rcu_read_unlock();
 			if (mangled) {
 				ip_vs_nfct_expect_related(skb, ct, n_cp,
 							  IPPROTO_TCP, 0, 0);

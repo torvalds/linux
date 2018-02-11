@@ -20,16 +20,28 @@
 
 static int __init default_appraise_setup(char *str)
 {
+#ifdef CONFIG_IMA_APPRAISE_BOOTPARAM
 	if (strncmp(str, "off", 3) == 0)
 		ima_appraise = 0;
 	else if (strncmp(str, "log", 3) == 0)
 		ima_appraise = IMA_APPRAISE_LOG;
 	else if (strncmp(str, "fix", 3) == 0)
 		ima_appraise = IMA_APPRAISE_FIX;
+#endif
 	return 1;
 }
 
 __setup("ima_appraise=", default_appraise_setup);
+
+/*
+ * is_ima_appraise_enabled - return appraise status
+ *
+ * Only return enabled, if not in ima_appraise="fix" or "log" modes.
+ */
+bool is_ima_appraise_enabled(void)
+{
+	return ima_appraise & IMA_APPRAISE_ENFORCE;
+}
 
 /*
  * ima_must_appraise - set appraise flag
@@ -205,7 +217,8 @@ int ima_appraise_measurement(enum ima_hooks func,
 		if (rc && rc != -ENODATA)
 			goto out;
 
-		cause = "missing-hash";
+		cause = iint->flags & IMA_DIGSIG_REQUIRED ?
+				"IMA-signature-required" : "missing-hash";
 		status = INTEGRITY_NOLABEL;
 		if (opened & FILE_CREATED)
 			iint->flags |= IMA_NEW_FILE;
@@ -228,6 +241,7 @@ int ima_appraise_measurement(enum ima_hooks func,
 	case IMA_XATTR_DIGEST_NG:
 		/* first byte contains algorithm id */
 		hash_start = 1;
+		/* fall through */
 	case IMA_XATTR_DIGEST:
 		if (iint->flags & IMA_DIGSIG_REQUIRED) {
 			cause = "IMA-signature-required";
@@ -304,6 +318,9 @@ void ima_update_xattr(struct integrity_iint_cache *iint, struct file *file)
 
 	/* do not collect and update hash for digital signatures */
 	if (iint->flags & IMA_DIGSIG)
+		return;
+
+	if (iint->ima_file_status != INTEGRITY_PASS)
 		return;
 
 	rc = ima_collect_measurement(iint, file, NULL, 0, ima_hash_algo);
@@ -391,7 +408,7 @@ int ima_inode_setxattr(struct dentry *dentry, const char *xattr_name,
 		if (!xattr_value_len || (xvalue->type >= IMA_XATTR_LAST))
 			return -EINVAL;
 		ima_reset_appraise_flags(d_backing_inode(dentry),
-			 (xvalue->type == EVM_IMA_XATTR_DIGSIG) ? 1 : 0);
+			xvalue->type == EVM_IMA_XATTR_DIGSIG);
 		result = 0;
 	}
 	return result;

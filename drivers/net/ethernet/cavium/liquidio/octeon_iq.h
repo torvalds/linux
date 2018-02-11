@@ -251,7 +251,7 @@ union octeon_instr_64B {
 
 /** The size of each buffer in soft command buffer pool
  */
-#define  SOFT_COMMAND_BUFFER_SIZE	1536
+#define  SOFT_COMMAND_BUFFER_SIZE	2048
 
 struct octeon_soft_command {
 	/** Soft command buffer info. */
@@ -342,6 +342,9 @@ int octeon_init_instr_queue(struct octeon_device *octeon_dev,
 int octeon_delete_instr_queue(struct octeon_device *octeon_dev, u32 iq_no);
 
 int lio_wait_for_instr_fetch(struct octeon_device *oct);
+
+void
+octeon_ring_doorbell_locked(struct octeon_device *oct, u32 iq_no);
 
 int
 octeon_register_reqtype_free_fn(struct octeon_device *oct, int reqtype,

@@ -27,6 +27,10 @@ enum phy_mode {
 	PHY_MODE_USB_HOST,
 	PHY_MODE_USB_DEVICE,
 	PHY_MODE_USB_OTG,
+	PHY_MODE_SGMII,
+	PHY_MODE_10GKR,
+	PHY_MODE_UFS_HS_A,
+	PHY_MODE_UFS_HS_B,
 };
 
 /**
@@ -37,6 +41,7 @@ enum phy_mode {
  * @power_off: powering off the phy
  * @set_mode: set the mode of the phy
  * @reset: resetting the phy
+ * @calibrate: calibrate the phy
  * @owner: the module owner containing the ops
  */
 struct phy_ops {
@@ -46,6 +51,7 @@ struct phy_ops {
 	int	(*power_off)(struct phy *phy);
 	int	(*set_mode)(struct phy *phy, enum phy_mode mode);
 	int	(*reset)(struct phy *phy);
+	int	(*calibrate)(struct phy *phy);
 	struct module *owner;
 };
 
@@ -139,6 +145,7 @@ int phy_power_on(struct phy *phy);
 int phy_power_off(struct phy *phy);
 int phy_set_mode(struct phy *phy, enum phy_mode mode);
 int phy_reset(struct phy *phy);
+int phy_calibrate(struct phy *phy);
 static inline int phy_get_bus_width(struct phy *phy)
 {
 	return phy->attrs.bus_width;
@@ -260,6 +267,13 @@ static inline int phy_reset(struct phy *phy)
 	return -ENOSYS;
 }
 
+static inline int phy_calibrate(struct phy *phy)
+{
+	if (!phy)
+		return 0;
+	return -ENOSYS;
+}
+
 static inline int phy_get_bus_width(struct phy *phy)
 {
 	return -ENOSYS;
@@ -289,7 +303,7 @@ static inline struct phy *devm_phy_get(struct device *dev, const char *string)
 static inline struct phy *devm_phy_optional_get(struct device *dev,
 						const char *string)
 {
-	return ERR_PTR(-ENOSYS);
+	return NULL;
 }
 
 static inline struct phy *devm_of_phy_get(struct device *dev,

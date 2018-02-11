@@ -49,7 +49,7 @@
 #include "fsl-ls1088a.dtsi"
 
 / {
-	model = "L1088A RDB Board";
+	model = "LS1088A RDB Board";
 	compatible = "fsl,ls1088a-rdb", "fsl,ls1088a";
 };
 
@@ -94,11 +94,31 @@
 	};
 };
 
+&ifc {
+	ranges = <0 0 0x5 0x30000000 0x00010000
+		  2 0 0x5 0x20000000 0x00010000>;
+	status = "okay";
+
+	nand@0,0 {
+		compatible = "fsl,ifc-nand";
+		reg = <0x0 0x0 0x10000>;
+	};
+
+	fpga: board-control@2,0 {
+		compatible = "fsl,ls1088ardb-fpga", "fsl,fpga-qixis";
+		reg = <0x2 0x0 0x0000100>;
+	};
+};
+
 &duart0 {
 	status = "okay";
 };
 
 &duart1 {
+	status = "okay";
+};
+
+&esdhc {
 	status = "okay";
 };
 

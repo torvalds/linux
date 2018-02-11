@@ -1,4 +1,5 @@
 #!/bin/awk
+# SPDX-License-Identifier: GPL-2.0
 #
 # Awk script to generate include/generated/mach-types.h
 #

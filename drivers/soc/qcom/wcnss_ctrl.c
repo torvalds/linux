@@ -347,6 +347,7 @@ static const struct of_device_id wcnss_ctrl_of_match[] = {
 	{ .compatible = "qcom,wcnss", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, wcnss_ctrl_of_match);
 
 static struct rpmsg_driver wcnss_ctrl_driver = {
 	.probe = wcnss_ctrl_probe,

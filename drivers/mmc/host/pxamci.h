@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #define MMC_STRPCL	0x0000
 #define STOP_CLOCK		(1 << 0)
 #define START_CLOCK		(2 << 0)

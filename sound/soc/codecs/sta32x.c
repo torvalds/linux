@@ -847,8 +847,7 @@ static int sta32x_set_bias_level(struct snd_soc_codec *codec,
 		msleep(300);
 		sta32x_watchdog_stop(sta32x);
 
-		if (sta32x->gpiod_nreset)
-			gpiod_set_value(sta32x->gpiod_nreset, 0);
+		gpiod_set_value(sta32x->gpiod_nreset, 0);
 
 		regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies),
 				       sta32x->supplies);

@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 dir=$(dirname $0)
 CC=$1
 OBJDUMP=$2

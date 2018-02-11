@@ -396,7 +396,7 @@ static ssize_t show_max_alarm(struct device *dev, struct device_attribute *attr,
 	if (ret < 0)
 		return ret;
 
-	return snprintf(buf, PAGE_SIZE - 1, "%d\n", priv->max_alert);
+	return snprintf(buf, PAGE_SIZE, "%d\n", priv->max_alert);
 }
 
 static ssize_t show_min_alarm(struct device *dev, struct device_attribute *attr,
@@ -413,7 +413,7 @@ static ssize_t show_min_alarm(struct device *dev, struct device_attribute *attr,
 	if (ret < 0)
 		return ret;
 
-	return snprintf(buf, PAGE_SIZE - 1, "%d\n", priv->min_alert);
+	return snprintf(buf, PAGE_SIZE, "%d\n", priv->min_alert);
 }
 
 static ssize_t show_input(struct device *dev, struct device_attribute *attr,
@@ -428,7 +428,7 @@ static ssize_t show_input(struct device *dev, struct device_attribute *attr,
 	if (ret < 0)
 		return ret;
 
-	return snprintf(buf, PAGE_SIZE - 1, "%d\n", priv->temp);
+	return snprintf(buf, PAGE_SIZE, "%d\n", priv->temp);
 }
 
 static ssize_t show_therm(struct device *dev, struct device_attribute *attr,
@@ -436,7 +436,7 @@ static ssize_t show_therm(struct device *dev, struct device_attribute *attr,
 {
 	struct stts751_priv *priv = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE - 1, "%d\n", priv->therm);
+	return snprintf(buf, PAGE_SIZE, "%d\n", priv->therm);
 }
 
 static ssize_t set_therm(struct device *dev, struct device_attribute *attr,
@@ -478,7 +478,7 @@ static ssize_t show_hyst(struct device *dev, struct device_attribute *attr,
 {
 	struct stts751_priv *priv = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE - 1, "%d\n", priv->hyst);
+	return snprintf(buf, PAGE_SIZE, "%d\n", priv->hyst);
 }
 
 static ssize_t set_hyst(struct device *dev, struct device_attribute *attr,
@@ -518,7 +518,7 @@ static ssize_t show_therm_trip(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return snprintf(buf, PAGE_SIZE - 1, "%d\n", priv->therm_trip);
+	return snprintf(buf, PAGE_SIZE, "%d\n", priv->therm_trip);
 }
 
 static ssize_t show_max(struct device *dev, struct device_attribute *attr,
@@ -526,7 +526,7 @@ static ssize_t show_max(struct device *dev, struct device_attribute *attr,
 {
 	struct stts751_priv *priv = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE - 1, "%d\n", priv->event_max);
+	return snprintf(buf, PAGE_SIZE, "%d\n", priv->event_max);
 }
 
 static ssize_t set_max(struct device *dev, struct device_attribute *attr,
@@ -560,7 +560,7 @@ static ssize_t show_min(struct device *dev, struct device_attribute *attr,
 {
 	struct stts751_priv *priv = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE - 1, "%d\n", priv->event_min);
+	return snprintf(buf, PAGE_SIZE, "%d\n", priv->event_min);
 }
 
 static ssize_t set_min(struct device *dev, struct device_attribute *attr,
@@ -594,7 +594,7 @@ static ssize_t show_interval(struct device *dev, struct device_attribute *attr,
 {
 	struct stts751_priv *priv = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE - 1, "%d\n",
+	return snprintf(buf, PAGE_SIZE, "%d\n",
 			stts751_intervals[priv->interval]);
 }
 
@@ -718,6 +718,10 @@ static int stts751_read_chip_config(struct stts751_priv *priv)
 	ret = i2c_smbus_read_byte_data(priv->client, STTS751_REG_RATE);
 	if (ret < 0)
 		return ret;
+	if (ret >= ARRAY_SIZE(stts751_intervals)) {
+		dev_err(priv->dev, "Unrecognized conversion rate 0x%x\n", ret);
+		return -ENODEV;
+	}
 	priv->interval = ret;
 
 	ret = stts751_read_reg16(priv, &priv->event_max,

@@ -103,6 +103,7 @@ static const struct camif_fmt camif_formats[] = {
 
 /**
  * s3c_camif_find_format() - lookup camif color format by fourcc or an index
+ * @vp: video path (DMA) description (codec/preview)
  * @pixelformat: fourcc to match, ignored if null
  * @index: index to the camif_formats array, ignored if negative
  */
@@ -317,7 +318,6 @@ static int camif_media_dev_init(struct camif_dev *camif)
 		 ip_rev == S3C6410_CAMIF_IP_REV ? "6410" : "244X");
 	strlcpy(md->bus_info, "platform", sizeof(md->bus_info));
 	md->hw_revision = ip_rev;
-	md->driver_version = KERNEL_VERSION(1, 0, 0);
 
 	md->dev = camif->dev;
 

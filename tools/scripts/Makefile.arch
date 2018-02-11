@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 HOSTARCH := $(shell uname -m | sed -e s/i.86/x86/ -e s/x86_64/x86/ \
                                   -e s/sun4u/sparc/ -e s/sparc64/sparc/ \
                                   -e /arm64/!s/arm.*/arm/ -e s/sa110/arm/ \

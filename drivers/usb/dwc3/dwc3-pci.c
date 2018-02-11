@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * dwc3-pci.c - PCI Specific glue layer
  *
@@ -5,21 +6,13 @@
  *
  * Authors: Felipe Balbi <balbi@ti.com>,
  *	    Sebastian Andrzej Siewior <bigeasy@linutronix.de>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2  of
- * the License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/workqueue.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
@@ -42,7 +35,7 @@
 #define PCI_DEVICE_ID_INTEL_CNPLP		0x9dee
 #define PCI_DEVICE_ID_INTEL_CNPH		0xa36e
 
-#define PCI_INTEL_BXT_DSM_UUID		"732b85d5-b7a7-4a1b-9ba0-4bbd00ffd511"
+#define PCI_INTEL_BXT_DSM_GUID		"732b85d5-b7a7-4a1b-9ba0-4bbd00ffd511"
 #define PCI_INTEL_BXT_FUNC_PMU_PWR	4
 #define PCI_INTEL_BXT_STATE_D0		0
 #define PCI_INTEL_BXT_STATE_D3		3
@@ -51,16 +44,17 @@
  * struct dwc3_pci - Driver private structure
  * @dwc3: child dwc3 platform_device
  * @pci: our link to PCI bus
- * @uuid: _DSM UUID
+ * @guid: _DSM GUID
  * @has_dsm_for_pm: true for devices which need to run _DSM on runtime PM
  */
 struct dwc3_pci {
 	struct platform_device *dwc3;
 	struct pci_dev *pci;
 
-	u8 uuid[16];
+	guid_t guid;
 
 	unsigned int has_dsm_for_pm:1;
+	struct work_struct wakeup_work;
 };
 
 static const struct acpi_gpio_params reset_gpios = { 0, 0, false };
@@ -120,7 +114,7 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 
 		if (pdev->device == PCI_DEVICE_ID_INTEL_BXT ||
 				pdev->device == PCI_DEVICE_ID_INTEL_BXT_M) {
-			acpi_str_to_uuid(PCI_INTEL_BXT_DSM_UUID, dwc->uuid);
+			guid_parse(PCI_INTEL_BXT_DSM_GUID, &dwc->guid);
 			dwc->has_dsm_for_pm = true;
 		}
 
@@ -173,6 +167,22 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static void dwc3_pci_resume_work(struct work_struct *work)
+{
+	struct dwc3_pci *dwc = container_of(work, struct dwc3_pci, wakeup_work);
+	struct platform_device *dwc3 = dwc->dwc3;
+	int ret;
+
+	ret = pm_runtime_get_sync(&dwc3->dev);
+	if (ret)
+		return;
+
+	pm_runtime_mark_last_busy(&dwc3->dev);
+	pm_runtime_put_sync_autosuspend(&dwc3->dev);
+}
+#endif
 
 static int dwc3_pci_probe(struct pci_dev *pci,
 		const struct pci_device_id *id)
@@ -230,9 +240,11 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 	}
 
 	device_init_wakeup(dev, true);
-	device_set_run_wake(dev, true);
 	pci_set_drvdata(pci, dwc);
 	pm_runtime_put(dev);
+#ifdef CONFIG_PM
+	INIT_WORK(&dwc->wakeup_work, dwc3_pci_resume_work);
+#endif
 
 	return 0;
 err:
@@ -244,6 +256,9 @@ static void dwc3_pci_remove(struct pci_dev *pci)
 {
 	struct dwc3_pci		*dwc = pci_get_drvdata(pci);
 
+#ifdef CONFIG_PM
+	cancel_work_sync(&dwc->wakeup_work);
+#endif
 	device_init_wakeup(&pci->dev, false);
 	pm_runtime_get(&pci->dev);
 	platform_device_unregister(dwc->dwc3);
@@ -292,7 +307,7 @@ static int dwc3_pci_dsm(struct dwc3_pci *dwc, int param)
 	tmp.type = ACPI_TYPE_INTEGER;
 	tmp.integer.value = param;
 
-	obj = acpi_evaluate_dsm(ACPI_HANDLE(&dwc->pci->dev), dwc->uuid,
+	obj = acpi_evaluate_dsm(ACPI_HANDLE(&dwc->pci->dev), &dwc->guid,
 			1, PCI_INTEL_BXT_FUNC_PMU_PWR, &argv4);
 	if (!obj) {
 		dev_err(&dwc->pci->dev, "failed to evaluate _DSM\n");
@@ -310,7 +325,7 @@ static int dwc3_pci_runtime_suspend(struct device *dev)
 {
 	struct dwc3_pci		*dwc = dev_get_drvdata(dev);
 
-	if (device_run_wake(dev))
+	if (device_can_wakeup(dev))
 		return dwc3_pci_dsm(dwc, PCI_INTEL_BXT_STATE_D3);
 
 	return -EBUSY;
@@ -319,14 +334,15 @@ static int dwc3_pci_runtime_suspend(struct device *dev)
 static int dwc3_pci_runtime_resume(struct device *dev)
 {
 	struct dwc3_pci		*dwc = dev_get_drvdata(dev);
-	struct platform_device	*dwc3 = dwc->dwc3;
 	int			ret;
 
 	ret = dwc3_pci_dsm(dwc, PCI_INTEL_BXT_STATE_D0);
 	if (ret)
 		return ret;
 
-	return pm_runtime_get(&dwc3->dev);
+	queue_work(pm_wq, &dwc->wakeup_work);
+
+	return 0;
 }
 #endif /* CONFIG_PM */
 
@@ -346,7 +362,7 @@ static int dwc3_pci_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-static struct dev_pm_ops dwc3_pci_dev_pm_ops = {
+static const struct dev_pm_ops dwc3_pci_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(dwc3_pci_suspend, dwc3_pci_resume)
 	SET_RUNTIME_PM_OPS(dwc3_pci_runtime_suspend, dwc3_pci_runtime_resume,
 		NULL)

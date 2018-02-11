@@ -226,10 +226,12 @@ static int add_dt_node(__be32 parent_phandle, __be32 drc_index)
 		return -ENOENT;
 
 	dn = dlpar_configure_connector(drc_index, parent_dn);
-	if (!dn)
+	if (!dn) {
+		of_node_put(parent_dn);
 		return -ENOENT;
+	}
 
-	rc = dlpar_attach_node(dn);
+	rc = dlpar_attach_node(dn, parent_dn);
 	if (rc)
 		dlpar_free_cc_nodes(dn);
 
@@ -349,8 +351,9 @@ void post_mobility_fixup(void)
 	return;
 }
 
-static ssize_t migrate_store(struct class *class, struct class_attribute *attr,
-			     const char *buf, size_t count)
+static ssize_t migration_store(struct class *class,
+			       struct class_attribute *attr, const char *buf,
+			       size_t count)
 {
 	u64 streamid;
 	int rc;
@@ -380,7 +383,7 @@ static ssize_t migrate_store(struct class *class, struct class_attribute *attr,
  */
 #define MIGRATION_API_VERSION	1
 
-static CLASS_ATTR(migration, S_IWUSR, NULL, migrate_store);
+static CLASS_ATTR_WO(migration);
 static CLASS_ATTR_STRING(api_version, S_IRUGO, __stringify(MIGRATION_API_VERSION));
 
 static int __init mobility_sysfs_init(void)

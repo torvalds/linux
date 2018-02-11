@@ -95,7 +95,7 @@ void nf_reject_ip6_tcphdr_put(struct sk_buff *nskb,
 	int needs_ack;
 
 	skb_reset_transport_header(nskb);
-	tcph = (struct tcphdr *)skb_put(nskb, sizeof(struct tcphdr));
+	tcph = skb_put(nskb, sizeof(struct tcphdr));
 	/* Truncate to length (no data) */
 	tcph->doff = sizeof(struct tcphdr)/4;
 	tcph->source = oth->dest;
@@ -219,9 +219,6 @@ static bool reject6_csum_ok(struct sk_buff *skb, int hook)
 	int thoff;
 	__be16 fo;
 	u8 proto;
-
-	if (skb->csum_bad)
-		return false;
 
 	if (skb_csum_unnecessary(skb))
 		return true;

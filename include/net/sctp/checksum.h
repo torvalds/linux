@@ -48,31 +48,32 @@ static inline __wsum sctp_csum_update(const void *buff, int len, __wsum sum)
 	/* This uses the crypto implementation of crc32c, which is either
 	 * implemented w/ hardware support or resolves to __crc32c_le().
 	 */
-	return crc32c(sum, buff, len);
+	return (__force __wsum)crc32c((__force __u32)sum, buff, len);
 }
 
 static inline __wsum sctp_csum_combine(__wsum csum, __wsum csum2,
 				       int offset, int len)
 {
-	return __crc32c_le_combine(csum, csum2, len);
+	return (__force __wsum)__crc32c_le_combine((__force __u32)csum,
+						   (__force __u32)csum2, len);
 }
 
 static inline __le32 sctp_compute_cksum(const struct sk_buff *skb,
 					unsigned int offset)
 {
 	struct sctphdr *sh = sctp_hdr(skb);
-        __le32 ret, old = sh->checksum;
 	const struct skb_checksum_ops ops = {
 		.update  = sctp_csum_update,
 		.combine = sctp_csum_combine,
 	};
+	__le32 old = sh->checksum;
+	__wsum new;
 
 	sh->checksum = 0;
-	ret = cpu_to_le32(~__skb_checksum(skb, offset, skb->len - offset,
-					  ~(__u32)0, &ops));
+	new = ~__skb_checksum(skb, offset, skb->len - offset, ~(__wsum)0, &ops);
 	sh->checksum = old;
 
-	return ret;
+	return cpu_to_le32((__force __u32)new);
 }
 
 #endif /* __sctp_checksum_h__ */

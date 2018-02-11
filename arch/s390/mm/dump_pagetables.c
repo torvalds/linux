@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/sched.h>
@@ -149,7 +150,7 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st,
 }
 
 static void walk_pud_level(struct seq_file *m, struct pg_state *st,
-			   pgd_t *pgd, unsigned long addr)
+			   p4d_t *p4d, unsigned long addr)
 {
 	unsigned int prot;
 	pud_t *pud;
@@ -157,7 +158,7 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st,
 
 	for (i = 0; i < PTRS_PER_PUD && addr < max_addr; i++) {
 		st->current_address = addr;
-		pud = pud_offset(pgd, addr);
+		pud = pud_offset(p4d, addr);
 		if (!pud_none(*pud))
 			if (pud_large(*pud)) {
 				prot = pud_val(*pud) &
@@ -169,6 +170,23 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st,
 		else
 			note_page(m, st, _PAGE_INVALID, 2);
 		addr += PUD_SIZE;
+	}
+}
+
+static void walk_p4d_level(struct seq_file *m, struct pg_state *st,
+			   pgd_t *pgd, unsigned long addr)
+{
+	p4d_t *p4d;
+	int i;
+
+	for (i = 0; i < PTRS_PER_P4D && addr < max_addr; i++) {
+		st->current_address = addr;
+		p4d = p4d_offset(pgd, addr);
+		if (!p4d_none(*p4d))
+			walk_pud_level(m, st, p4d, addr);
+		else
+			note_page(m, st, _PAGE_INVALID, 2);
+		addr += P4D_SIZE;
 	}
 }
 
@@ -184,7 +202,7 @@ static void walk_pgd_level(struct seq_file *m)
 		st.current_address = addr;
 		pgd = pgd_offset_k(addr);
 		if (!pgd_none(*pgd))
-			walk_pud_level(m, &st, pgd, addr);
+			walk_p4d_level(m, &st, pgd, addr);
 		else
 			note_page(m, &st, _PAGE_INVALID, 1);
 		addr += PGDIR_SIZE;

@@ -150,6 +150,7 @@ try:
 	/* Release flags on context. Protect from writes and reads */
 	smp_store_release(&w_ctx->flags, PBLK_WRITABLE_ENTRY);
 	pblk_ppa_set_empty(&w_ctx->ppa);
+	w_ctx->lba = ADDR_EMPTY;
 }
 
 #define pblk_rb_ring_count(head, tail, size) CIRC_CNT(head, tail, size)
@@ -180,6 +181,14 @@ unsigned int pblk_rb_read_count(struct pblk_rb *rb)
 	return pblk_rb_ring_count(mem, subm, rb->nr_entries);
 }
 
+unsigned int pblk_rb_sync_count(struct pblk_rb *rb)
+{
+	unsigned int mem = READ_ONCE(rb->mem);
+	unsigned int sync = READ_ONCE(rb->sync);
+
+	return pblk_rb_ring_count(mem, sync, rb->nr_entries);
+}
+
 unsigned int pblk_rb_read_commit(struct pblk_rb *rb, unsigned int nr_entries)
 {
 	unsigned int subm;
@@ -192,18 +201,27 @@ unsigned int pblk_rb_read_commit(struct pblk_rb *rb, unsigned int nr_entries)
 	return subm;
 }
 
-static int __pblk_rb_update_l2p(struct pblk_rb *rb, unsigned int *l2p_upd,
-				unsigned int to_update)
+static int __pblk_rb_update_l2p(struct pblk_rb *rb, unsigned int to_update)
 {
 	struct pblk *pblk = container_of(rb, struct pblk, rwb);
 	struct pblk_line *line;
 	struct pblk_rb_entry *entry;
 	struct pblk_w_ctx *w_ctx;
+	unsigned int user_io = 0, gc_io = 0;
 	unsigned int i;
+	int flags;
 
 	for (i = 0; i < to_update; i++) {
-		entry = &rb->entries[*l2p_upd];
+		entry = &rb->entries[rb->l2p_update];
 		w_ctx = &entry->w_ctx;
+
+		flags = READ_ONCE(entry->w_ctx.flags);
+		if (flags & PBLK_IOTYPE_USER)
+			user_io++;
+		else if (flags & PBLK_IOTYPE_GC)
+			gc_io++;
+		else
+			WARN(1, "pblk: unknown IO type\n");
 
 		pblk_update_map_dev(pblk, w_ctx->lba, w_ctx->ppa,
 							entry->cacheline);
@@ -211,8 +229,10 @@ static int __pblk_rb_update_l2p(struct pblk_rb *rb, unsigned int *l2p_upd,
 		line = &pblk->lines[pblk_tgt_ppa_to_line(w_ctx->ppa)];
 		kref_put(&line->ref, pblk_line_put);
 		clean_wctx(w_ctx);
-		*l2p_upd = (*l2p_upd + 1) & (rb->nr_entries - 1);
+		rb->l2p_update = (rb->l2p_update + 1) & (rb->nr_entries - 1);
 	}
+
+	pblk_rl_out(&pblk->rl, user_io, gc_io);
 
 	return 0;
 }
@@ -237,7 +257,7 @@ static int pblk_rb_update_l2p(struct pblk_rb *rb, unsigned int nr_entries,
 
 	count = nr_entries - space;
 	/* l2p_update used exclusively under rb->w_lock */
-	ret = __pblk_rb_update_l2p(rb, &rb->l2p_update, count);
+	ret = __pblk_rb_update_l2p(rb, count);
 
 out:
 	return ret;
@@ -259,7 +279,7 @@ void pblk_rb_sync_l2p(struct pblk_rb *rb)
 	sync = smp_load_acquire(&rb->sync);
 
 	to_update = pblk_rb_ring_count(sync, rb->l2p_update, rb->nr_entries);
-	__pblk_rb_update_l2p(rb, &rb->l2p_update, to_update);
+	__pblk_rb_update_l2p(rb, to_update);
 
 	spin_unlock(&rb->w_lock);
 }
@@ -304,8 +324,8 @@ void pblk_rb_write_entry_user(struct pblk_rb *rb, void *data,
 }
 
 void pblk_rb_write_entry_gc(struct pblk_rb *rb, void *data,
-			    struct pblk_w_ctx w_ctx, struct pblk_line *gc_line,
-			    unsigned int ring_pos)
+			    struct pblk_w_ctx w_ctx, struct pblk_line *line,
+			    u64 paddr, unsigned int ring_pos)
 {
 	struct pblk *pblk = container_of(rb, struct pblk, rwb);
 	struct pblk_rb_entry *entry;
@@ -320,7 +340,7 @@ void pblk_rb_write_entry_gc(struct pblk_rb *rb, void *data,
 
 	__pblk_rb_write_entry(rb, data, w_ctx, entry);
 
-	if (!pblk_update_map_gc(pblk, w_ctx.lba, entry->cacheline, gc_line))
+	if (!pblk_update_map_gc(pblk, w_ctx.lba, entry->cacheline, line, paddr))
 		entry->w_ctx.lba = ADDR_EMPTY;
 
 	flags = w_ctx.flags | PBLK_WRITTEN_DATA;
@@ -334,7 +354,6 @@ static int pblk_rb_sync_point_set(struct pblk_rb *rb, struct bio *bio,
 {
 	struct pblk_rb_entry *entry;
 	unsigned int subm, sync_point;
-	int flags;
 
 	subm = READ_ONCE(rb->subm);
 
@@ -348,14 +367,11 @@ static int pblk_rb_sync_point_set(struct pblk_rb *rb, struct bio *bio,
 	sync_point = (pos == 0) ? (rb->nr_entries - 1) : (pos - 1);
 	entry = &rb->entries[sync_point];
 
-	flags = READ_ONCE(entry->w_ctx.flags);
-	flags |= PBLK_FLUSH_ENTRY;
-
-	/* Release flags on context. Protect from writes */
-	smp_store_release(&entry->w_ctx.flags, flags);
-
 	/* Protect syncs */
 	smp_store_release(&rb->sync_point, sync_point);
+
+	if (!bio)
+		return 0;
 
 	spin_lock_irq(&rb->s_lock);
 	bio_list_add(&entry->w_ctx.bios, bio);
@@ -395,6 +411,17 @@ static int pblk_rb_may_write(struct pblk_rb *rb, unsigned int nr_entries,
 	return 1;
 }
 
+void pblk_rb_flush(struct pblk_rb *rb)
+{
+	struct pblk *pblk = container_of(rb, struct pblk, rwb);
+	unsigned int mem = READ_ONCE(rb->mem);
+
+	if (pblk_rb_sync_point_set(rb, NULL, mem))
+		return;
+
+	pblk_write_should_kick(pblk);
+}
+
 static int pblk_rb_may_write_flush(struct pblk_rb *rb, unsigned int nr_entries,
 				   unsigned int *pos, struct bio *bio,
 				   int *io_ret)
@@ -419,6 +446,7 @@ static int pblk_rb_may_write_flush(struct pblk_rb *rb, unsigned int nr_entries,
 
 	/* Protect from read count */
 	smp_store_release(&rb->mem, mem);
+
 	return 1;
 }
 
@@ -431,15 +459,16 @@ int pblk_rb_may_write_user(struct pblk_rb *rb, struct bio *bio,
 			   unsigned int nr_entries, unsigned int *pos)
 {
 	struct pblk *pblk = container_of(rb, struct pblk, rwb);
-	int flush_done;
+	int io_ret;
 
 	spin_lock(&rb->w_lock);
-	if (!pblk_rl_user_may_insert(&pblk->rl, nr_entries)) {
+	io_ret = pblk_rl_user_may_insert(&pblk->rl, nr_entries);
+	if (io_ret) {
 		spin_unlock(&rb->w_lock);
-		return NVM_IO_REQUEUE;
+		return io_ret;
 	}
 
-	if (!pblk_rb_may_write_flush(rb, nr_entries, pos, bio, &flush_done)) {
+	if (!pblk_rb_may_write_flush(rb, nr_entries, pos, bio, &io_ret)) {
 		spin_unlock(&rb->w_lock);
 		return NVM_IO_REQUEUE;
 	}
@@ -447,7 +476,7 @@ int pblk_rb_may_write_user(struct pblk_rb *rb, struct bio *bio,
 	pblk_rl_user_in(&pblk->rl, nr_entries);
 	spin_unlock(&rb->w_lock);
 
-	return flush_done;
+	return io_ret;
 }
 
 /*
@@ -521,20 +550,19 @@ out:
  * This function is used by the write thread to form the write bio that will
  * persist data on the write buffer to the media.
  */
-unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct bio *bio,
-				 struct pblk_c_ctx *c_ctx,
-				 unsigned int pos,
-				 unsigned int nr_entries,
+unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct nvm_rq *rqd,
+				 unsigned int pos, unsigned int nr_entries,
 				 unsigned int count)
 {
 	struct pblk *pblk = container_of(rb, struct pblk, rwb);
+	struct request_queue *q = pblk->dev->q;
+	struct pblk_c_ctx *c_ctx = nvm_rq_to_pdu(rqd);
+	struct bio *bio = rqd->bio;
 	struct pblk_rb_entry *entry;
 	struct page *page;
-	unsigned int pad = 0, read = 0, to_read = nr_entries;
-	unsigned int user_io = 0, gc_io = 0;
+	unsigned int pad = 0, to_read = nr_entries;
 	unsigned int i;
 	int flags;
-	int ret;
 
 	if (count < nr_entries) {
 		pad = nr_entries - count;
@@ -553,15 +581,10 @@ unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct bio *bio,
 		 */
 try:
 		flags = READ_ONCE(entry->w_ctx.flags);
-		if (!(flags & PBLK_WRITTEN_DATA))
+		if (!(flags & PBLK_WRITTEN_DATA)) {
+			io_schedule();
 			goto try;
-
-		if (flags & PBLK_IOTYPE_USER)
-			user_io++;
-		else if (flags & PBLK_IOTYPE_GC)
-			gc_io++;
-		else
-			WARN(1, "pblk: unknown IO type\n");
+		}
 
 		page = virt_to_page(entry->data);
 		if (!page) {
@@ -570,17 +593,17 @@ try:
 			flags |= PBLK_SUBMITTED_ENTRY;
 			/* Release flags on context. Protect from writes */
 			smp_store_release(&entry->w_ctx.flags, flags);
-			goto out;
+			return NVM_IO_ERR;
 		}
 
-		ret = bio_add_page(bio, page, rb->seg_size, 0);
-		if (ret != rb->seg_size) {
+		if (bio_add_pc_page(q, bio, page, rb->seg_size, 0) !=
+								rb->seg_size) {
 			pr_err("pblk: could not add page to write bio\n");
 			flags &= ~PBLK_WRITTEN_DATA;
 			flags |= PBLK_SUBMITTED_ENTRY;
 			/* Release flags on context. Protect from writes */
 			smp_store_release(&entry->w_ctx.flags, flags);
-			goto out;
+			return NVM_IO_ERR;
 		}
 
 		if (flags & PBLK_FLUSH_ENTRY) {
@@ -607,14 +630,19 @@ try:
 		pos = (pos + 1) & (rb->nr_entries - 1);
 	}
 
-	read = to_read;
-	pblk_rl_out(&pblk->rl, user_io, gc_io);
+	if (pad) {
+		if (pblk_bio_add_pages(pblk, bio, GFP_KERNEL, pad)) {
+			pr_err("pblk: could not pad page in write bio\n");
+			return NVM_IO_ERR;
+		}
+	}
+
 #ifdef CONFIG_NVM_DEBUG
 	atomic_long_add(pad, &((struct pblk *)
 			(container_of(rb, struct pblk, rwb)))->padded_writes);
 #endif
-out:
-	return read;
+
+	return NVM_IO_OK;
 }
 
 /*
@@ -623,15 +651,17 @@ out:
  * be directed to disk.
  */
 int pblk_rb_copy_to_bio(struct pblk_rb *rb, struct bio *bio, sector_t lba,
-			u64 pos, int bio_iter)
+			struct ppa_addr ppa, int bio_iter, bool advanced_bio)
 {
+	struct pblk *pblk = container_of(rb, struct pblk, rwb);
 	struct pblk_rb_entry *entry;
 	struct pblk_w_ctx *w_ctx;
+	struct ppa_addr l2p_ppa;
+	u64 pos = pblk_addr_to_cacheline(ppa);
 	void *data;
 	int flags;
 	int ret = 1;
 
-	spin_lock(&rb->w_lock);
 
 #ifdef CONFIG_NVM_DEBUG
 	/* Caller must ensure that the access will not cause an overflow */
@@ -641,8 +671,14 @@ int pblk_rb_copy_to_bio(struct pblk_rb *rb, struct bio *bio, sector_t lba,
 	w_ctx = &entry->w_ctx;
 	flags = READ_ONCE(w_ctx->flags);
 
+	spin_lock(&rb->w_lock);
+	spin_lock(&pblk->trans_lock);
+	l2p_ppa = pblk_trans_map_get(pblk, lba);
+	spin_unlock(&pblk->trans_lock);
+
 	/* Check if the entry has been overwritten or is scheduled to be */
-	if (w_ctx->lba != lba || flags & PBLK_WRITABLE_ENTRY) {
+	if (!pblk_ppa_comp(l2p_ppa, ppa) || w_ctx->lba != lba ||
+						flags & PBLK_WRITABLE_ENTRY) {
 		ret = 0;
 		goto out;
 	}
@@ -652,7 +688,7 @@ int pblk_rb_copy_to_bio(struct pblk_rb *rb, struct bio *bio, sector_t lba,
 	 * filled with data from the cache). If part of the data resides on the
 	 * media, we will read later on
 	 */
-	if (unlikely(!bio->bi_iter.bi_idx))
+	if (unlikely(!advanced_bio))
 		bio_advance(bio, bio_iter * PBLK_EXPOSED_PAGE_SIZE);
 
 	data = bio_data(bio);

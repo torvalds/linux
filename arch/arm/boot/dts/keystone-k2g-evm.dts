@@ -20,9 +20,45 @@
 	compatible =  "ti,k2g-evm", "ti,k2g", "ti,keystone";
 	model = "Texas Instruments K2G General Purpose EVM";
 
-	memory {
+	memory@800000000 {
 		device_type = "memory";
 		reg = <0x00000008 0x00000000 0x00000000 0x80000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		dsp_common_memory: dsp-common-memory@81f800000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00000008 0x1f800000 0x00000000 0x800000>;
+			reusable;
+			status = "okay";
+		};
+	};
+
+	vcc3v3_dcin_reg: fixedregulator-vcc3v3-dcin {
+		compatible = "regulator-fixed";
+		regulator-name = "mmc0_fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	ecap0_pins: ecap0_pins {
+		pinctrl-single,pins = <
+			K2G_CORE_IOPAD(0x1374) (BUFFER_CLASS_B | MUX_MODE4)	/* pr1_mdio_data.ecap0_in_apwm0_out */
+		>;
+	};
+
+	spi1_pins: pinmux_spi1_pins {
+		pinctrl-single,pins = <
+			K2G_CORE_IOPAD(0x11a4) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* spi1_scs0.spi1_scs0 */
+			K2G_CORE_IOPAD(0x11ac) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* spi1_clk.spi1_clk */
+			K2G_CORE_IOPAD(0x11b0) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* spi1_miso.spi1_miso */
+			K2G_CORE_IOPAD(0x11b4) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* spi1_mosi.spi1_mosi */
+		>;
 	};
 
 };
@@ -34,10 +70,138 @@
 			K2G_CORE_IOPAD(0x11d0) (BUFFER_CLASS_B | PIN_PULLDOWN | MUX_MODE0)	/* uart0_txd.uart0_txd */
 		>;
 	};
+
+	mmc0_pins: pinmux_mmc0_pins {
+		pinctrl-single,pins = <
+			K2G_CORE_IOPAD(0x1300) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE2)	/* mmc0_dat3.mmc0_dat3 */
+			K2G_CORE_IOPAD(0x1304) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE2)	/* mmc0_dat2.mmc0_dat2 */
+			K2G_CORE_IOPAD(0x1308) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE2)	/* mmc0_dat1.mmc0_dat1 */
+			K2G_CORE_IOPAD(0x130c) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE2)	/* mmc0_dat0.mmc0_dat0 */
+			K2G_CORE_IOPAD(0x1310) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE2)	/* mmc0_clk.mmc0_clk */
+			K2G_CORE_IOPAD(0x1314) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE2)	/* mmc0_cmd.mmc0_cmd */
+			K2G_CORE_IOPAD(0x12ec) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE3)	/* mmc0_sdcd.gpio1_12 */
+		>;
+	};
+
+	mmc1_pins: pinmux_mmc1_pins {
+		pinctrl-single,pins = <
+			K2G_CORE_IOPAD(0x10ec) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* mmc1_dat7.mmc1_dat7 */
+			K2G_CORE_IOPAD(0x10f0) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* mmc1_dat6.mmc1_dat6 */
+			K2G_CORE_IOPAD(0x10f4) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* mmc1_dat5.mmc1_dat5 */
+			K2G_CORE_IOPAD(0x10f8) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* mmc1_dat4.mmc1_dat4 */
+			K2G_CORE_IOPAD(0x10fc) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* mmc1_dat3.mmc1_dat3 */
+			K2G_CORE_IOPAD(0x1100) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* mmc1_dat2.mmc1_dat2 */
+			K2G_CORE_IOPAD(0x1104) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* mmc1_dat1.mmc1_dat1 */
+			K2G_CORE_IOPAD(0x1108) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* mmc1_dat0.mmc1_dat0 */
+			K2G_CORE_IOPAD(0x110c) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* mmc1_clk.mmc1_clk */
+			K2G_CORE_IOPAD(0x1110) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* mmc1_cmd.mmc1_cmd */
+		>;
+	};
+
+	i2c0_pins: pinmux_i2c0_pins {
+		pinctrl-single,pins = <
+			K2G_CORE_IOPAD(0x137c) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* i2c0_scl.i2c0_scl */
+			K2G_CORE_IOPAD(0x1380) (BUFFER_CLASS_B | PIN_PULLUP | MUX_MODE0)	/* i2c0_sda.i2c0_sda */
+		>;
+	};
+
 };
 
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins>;
 	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&mmc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_pins>;
+	vmmc-supply = <&vcc3v3_dcin_reg>;
+	cd-gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+	vmmc-supply = <&vcc3v3_dcin_reg>; /* VCC3V3_EMMC is connected to VCC3V3_DCIN */
+	status = "okay";
+};
+
+&dsp0 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+	status = "okay";
+
+	eeprom@50 {
+		compatible = "atmel,24c1024";
+		reg = <0x50>;
+	};
+};
+
+&keystone_usb0 {
+	status = "okay";
+};
+
+&usb0_phy {
+	status = "okay";
+};
+
+&usb0 {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&keystone_usb1 {
+	status = "okay";
+};
+
+&usb1_phy {
+	status = "okay";
+};
+
+&usb1 {
+	dr_mode = "peripheral";
+	status = "okay";
+};
+
+&ecap0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&ecap0_pins>;
+};
+
+&spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_pins>;
+	status = "okay";
+
+	spi_nor: flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <5000000>;
+		m25p,fast-read;
+		reg = <0>;
+
+		partition@0 {
+			label = "u-boot-spl";
+			reg = <0x0 0x100000>;
+			read-only;
+		};
+
+		partition@1 {
+			label = "misc";
+			reg = <0x100000 0xf00000>;
+		};
+	};
 };

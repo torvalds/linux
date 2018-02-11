@@ -47,9 +47,9 @@ struct xfs_dir_ops {
 	struct xfs_dir2_sf_entry *
 		(*sf_nextentry)(struct xfs_dir2_sf_hdr *hdr,
 				struct xfs_dir2_sf_entry *sfep);
-	__uint8_t (*sf_get_ftype)(struct xfs_dir2_sf_entry *sfep);
+	uint8_t (*sf_get_ftype)(struct xfs_dir2_sf_entry *sfep);
 	void	(*sf_put_ftype)(struct xfs_dir2_sf_entry *sfep,
-				__uint8_t ftype);
+				uint8_t ftype);
 	xfs_ino_t (*sf_get_ino)(struct xfs_dir2_sf_hdr *hdr,
 				struct xfs_dir2_sf_entry *sfep);
 	void	(*sf_put_ino)(struct xfs_dir2_sf_hdr *hdr,
@@ -60,9 +60,9 @@ struct xfs_dir_ops {
 				     xfs_ino_t ino);
 
 	int	(*data_entsize)(int len);
-	__uint8_t (*data_get_ftype)(struct xfs_dir2_data_entry *dep);
+	uint8_t (*data_get_ftype)(struct xfs_dir2_data_entry *dep);
 	void	(*data_put_ftype)(struct xfs_dir2_data_entry *dep,
-				__uint8_t ftype);
+				uint8_t ftype);
 	__be16 * (*data_entry_tag_p)(struct xfs_dir2_data_entry *dep);
 	struct xfs_dir2_data_free *
 		(*data_bestfree_p)(struct xfs_dir2_data_hdr *hdr);
@@ -323,5 +323,22 @@ xfs_dir2_leaf_tail_p(struct xfs_da_geometry *geo, struct xfs_dir2_leaf *lp)
 		((char *)lp + geo->blksize -
 		  sizeof(struct xfs_dir2_leaf_tail));
 }
+
+/*
+ * The Linux API doesn't pass down the total size of the buffer
+ * we read into down to the filesystem.  With the filldir concept
+ * it's not needed for correct information, but the XFS dir2 leaf
+ * code wants an estimate of the buffer size to calculate it's
+ * readahead window and size the buffers used for mapping to
+ * physical blocks.
+ *
+ * Try to give it an estimate that's good enough, maybe at some
+ * point we can change the ->readdir prototype to include the
+ * buffer size.  For now we use the current glibc buffer size.
+ * musl libc hardcodes 2k and dietlibc uses PAGE_SIZE.
+ */
+#define XFS_READDIR_BUFSIZE	(32768)
+
+unsigned char xfs_dir3_get_dtype(struct xfs_mount *mp, uint8_t filetype);
 
 #endif	/* __XFS_DIR2_H__ */

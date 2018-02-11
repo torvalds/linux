@@ -67,18 +67,25 @@ static struct snd_soc_jack_pin hs_jack_pins[] = {
 
 static struct snd_soc_jack_gpio hs_jack_gpios[] = {
 	{
-		.name		= "hp-gpio",
-		.idx		= 0,
+		.name		= "hp",
 		.report		= SND_JACK_HEADPHONE | SND_JACK_LINEOUT,
 		.debounce_time	= 200,
 	},
 	{
-		.name		= "mic-gpio",
-		.idx		= 1,
+		.name		= "mic",
 		.invert		= 1,
 		.report		= SND_JACK_MICROPHONE,
 		.debounce_time	= 200,
 	},
+};
+
+static const struct acpi_gpio_params hp_gpios = { 0, 0, false };
+static const struct acpi_gpio_params mic_gpios = { 1, 0, false };
+
+static const struct acpi_gpio_mapping acpi_byt_max98090_gpios[] = {
+	{ "hp-gpios", &hp_gpios, 1 },
+	{ "mic-gpios", &mic_gpios, 1 },
+	{},
 };
 
 static int byt_max98090_init(struct snd_soc_pcm_runtime *runtime)
@@ -140,14 +147,19 @@ static struct snd_soc_card byt_max98090_card = {
 
 static int byt_max98090_probe(struct platform_device *pdev)
 {
-	int ret_val = 0;
+	struct device *dev = &pdev->dev;
 	struct byt_max98090_private *priv;
+	int ret_val;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_ATOMIC);
 	if (!priv) {
 		dev_err(&pdev->dev, "allocation failed\n");
 		return -ENOMEM;
 	}
+
+	ret_val = devm_acpi_dev_add_driver_gpios(dev->parent, acpi_byt_max98090_gpios);
+	if (ret_val)
+		dev_dbg(dev, "Unable to add GPIO mapping table\n");
 
 	byt_max98090_card.dev = &pdev->dev;
 	snd_soc_card_set_drvdata(&byt_max98090_card, priv);
@@ -158,23 +170,11 @@ static int byt_max98090_probe(struct platform_device *pdev)
 		return ret_val;
 	}
 
-	return ret_val;
-}
-
-static int byt_max98090_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-	struct byt_max98090_private *priv = snd_soc_card_get_drvdata(card);
-
-	snd_soc_jack_free_gpios(&priv->jack, ARRAY_SIZE(hs_jack_gpios),
-				hs_jack_gpios);
-
 	return 0;
 }
 
 static struct platform_driver byt_max98090_driver = {
 	.probe = byt_max98090_probe,
-	.remove = byt_max98090_remove,
 	.driver = {
 		.name = "byt-max98090",
 		.pm = &snd_soc_pm_ops,

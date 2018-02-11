@@ -1509,9 +1509,9 @@ static int isdn_net_ioctl(struct net_device *dev,
 
 /* called via cisco_timer.function */
 static void
-isdn_net_ciscohdlck_slarp_send_keepalive(unsigned long data)
+isdn_net_ciscohdlck_slarp_send_keepalive(struct timer_list *t)
 {
-	isdn_net_local *lp = (isdn_net_local *) data;
+	isdn_net_local *lp = from_timer(lp, t, cisco_timer);
 	struct sk_buff *skb;
 	unsigned char *p;
 	unsigned long last_cisco_myseq = lp->cisco_myseq;
@@ -1615,9 +1615,8 @@ isdn_net_ciscohdlck_connected(isdn_net_local *lp)
 	/* send slarp request because interface/seq.no.s reset */
 	isdn_net_ciscohdlck_slarp_send_request(lp);
 
-	init_timer(&lp->cisco_timer);
-	lp->cisco_timer.data = (unsigned long) lp;
-	lp->cisco_timer.function = isdn_net_ciscohdlck_slarp_send_keepalive;
+	timer_setup(&lp->cisco_timer,
+		    isdn_net_ciscohdlck_slarp_send_keepalive, 0);
 	lp->cisco_timer.expires = jiffies + lp->cisco_keepalive_period * HZ;
 	add_timer(&lp->cisco_timer);
 }
@@ -2611,10 +2610,9 @@ isdn_net_newslave(char *parm)
 	char newname[10];
 
 	if (p) {
-		/* Slave-Name MUST not be empty */
-		if (!strlen(p + 1))
+		/* Slave-Name MUST not be empty or overflow 'newname' */
+		if (strscpy(newname, p + 1, sizeof(newname)) <= 0)
 			return NULL;
-		strcpy(newname, p + 1);
 		*p = 0;
 		/* Master must already exist */
 		if (!(n = isdn_net_findif(parm)))

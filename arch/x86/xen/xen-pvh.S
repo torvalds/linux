@@ -87,7 +87,7 @@ ENTRY(pvh_start_xen)
 	wrmsr
 
 	/* Enable pre-constructed page tables. */
-	mov $_pa(init_level4_pgt), %eax
+	mov $_pa(init_top_pgt), %eax
 	mov %eax, %cr3
 	mov $(X86_CR0_PG | X86_CR0_PE), %eax
 	mov %eax, %cr0

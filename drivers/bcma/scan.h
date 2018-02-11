@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef BCMA_SCAN_H_
 #define BCMA_SCAN_H_
 

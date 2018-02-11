@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_TTY_H
 #define _LINUX_TTY_H
 
@@ -261,6 +262,8 @@ struct tty_port {
  */
 #define TTY_PORT_CTS_FLOW	3	/* h/w flow control enabled */
 #define TTY_PORT_CHECK_CD	4	/* carrier detect enabled */
+#define TTY_PORT_KOPENED	5	/* device exclusively opened by
+					   kernel */
 
 /*
  * Where all of the state associated with a tty is kept while the tty
@@ -316,7 +319,6 @@ struct tty_struct {
 
 	struct tty_struct *link;
 	struct fasync_struct *fasync;
-	int alt_speed;		/* For magic substitution of 38400 bps */
 	wait_queue_head_t write_wait;
 	wait_queue_head_t read_wait;
 	struct work_struct hangup_work;
@@ -333,7 +335,7 @@ struct tty_struct {
 	/* If the tty has a pending do_SAK, queue it here - akpm */
 	struct work_struct SAK_work;
 	struct tty_port *port;
-};
+} __randomize_layout;
 
 /* Each of a tty's open files has private_data pointing to tty_file_private */
 struct tty_file_private {
@@ -400,6 +402,9 @@ extern struct tty_struct *get_current_tty(void);
 /* tty_io.c */
 extern int __init tty_init(void);
 extern const char *tty_name(const struct tty_struct *tty);
+extern struct tty_struct *tty_kopen(dev_t device);
+extern void tty_kclose(struct tty_struct *tty);
+extern int tty_dev_name_to_number(const char *name, dev_t *number);
 #else
 static inline void tty_kref_put(struct tty_struct *tty)
 { }
@@ -420,6 +425,12 @@ static inline int __init tty_init(void)
 { return 0; }
 static inline const char *tty_name(const struct tty_struct *tty)
 { return "(none)"; }
+static inline struct tty_struct *tty_kopen(dev_t device)
+{ return ERR_PTR(-ENODEV); }
+static inline void tty_kclose(struct tty_struct *tty)
+{ }
+static inline int tty_dev_name_to_number(const char *name, dev_t *number)
+{ return -ENOTSUPP; }
 #endif
 
 extern struct ktermios tty_std_termios;
@@ -643,6 +654,19 @@ static inline void tty_port_set_initialized(struct tty_port *port, bool val)
 		set_bit(TTY_PORT_INITIALIZED, &port->iflags);
 	else
 		clear_bit(TTY_PORT_INITIALIZED, &port->iflags);
+}
+
+static inline bool tty_port_kopened(struct tty_port *port)
+{
+	return test_bit(TTY_PORT_KOPENED, &port->iflags);
+}
+
+static inline void tty_port_set_kopened(struct tty_port *port, bool val)
+{
+	if (val)
+		set_bit(TTY_PORT_KOPENED, &port->iflags);
+	else
+		clear_bit(TTY_PORT_KOPENED, &port->iflags);
 }
 
 extern struct tty_struct *tty_port_tty_get(struct tty_port *port);

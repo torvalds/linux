@@ -19,6 +19,7 @@ Optional properties:
 - dmas : DMA specifier, consisting of a phandle to the DMA controller
          node and a DMA channel number.
 - dma-names : "rx" for receive channel, "tx" for transmit channel.
+- rs485-rts-delay, rs485-rx-during-tx, linux,rs485-enabled-at-boot-time: see rs485.txt
 
 Example:
 

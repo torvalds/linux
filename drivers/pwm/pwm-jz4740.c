@@ -21,21 +21,9 @@
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 
-#include <asm/mach-jz4740/gpio.h>
 #include <asm/mach-jz4740/timer.h>
 
 #define NUM_PWM 8
-
-static const unsigned int jz4740_pwm_gpio_list[NUM_PWM] = {
-	JZ_GPIO_PWM0,
-	JZ_GPIO_PWM1,
-	JZ_GPIO_PWM2,
-	JZ_GPIO_PWM3,
-	JZ_GPIO_PWM4,
-	JZ_GPIO_PWM5,
-	JZ_GPIO_PWM6,
-	JZ_GPIO_PWM7,
-};
 
 struct jz4740_pwm_chip {
 	struct pwm_chip chip;
@@ -49,24 +37,12 @@ static inline struct jz4740_pwm_chip *to_jz4740(struct pwm_chip *chip)
 
 static int jz4740_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	unsigned int gpio = jz4740_pwm_gpio_list[pwm->hwpwm];
-	int ret;
-
 	/*
 	 * Timers 0 and 1 are used for system tasks, so they are unavailable
 	 * for use as PWMs.
 	 */
 	if (pwm->hwpwm < 2)
 		return -EBUSY;
-
-	ret = gpio_request(gpio, pwm->label);
-	if (ret) {
-		dev_err(chip->dev, "Failed to request GPIO#%u for PWM: %d\n",
-			gpio, ret);
-		return ret;
-	}
-
-	jz_gpio_set_function(gpio, JZ_GPIO_FUNC_PWM);
 
 	jz4740_timer_start(pwm->hwpwm);
 
@@ -75,12 +51,7 @@ static int jz4740_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 
 static void jz4740_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	unsigned int gpio = jz4740_pwm_gpio_list[pwm->hwpwm];
-
 	jz4740_timer_set_ctrl(pwm->hwpwm, 0);
-
-	jz_gpio_set_function(gpio, JZ_GPIO_FUNC_NONE);
-	gpio_free(gpio);
 
 	jz4740_timer_stop(pwm->hwpwm);
 }

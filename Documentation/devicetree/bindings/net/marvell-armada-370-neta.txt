@@ -41,7 +41,6 @@ ethernet@70000 {
 	interrupts = <8>;
 	clocks = <&gate_clk 4>;
 	tx-csum-limit = <9800>
-	status = "okay";
 	phy = <&phy0>;
 	phy-mode = "rgmii-id";
 	buffer-manager = <&bm>;

@@ -57,12 +57,6 @@ enum ion_heap_type {
  */
 #define ION_FLAG_CACHED 1
 
-/*
- * mappings of this buffer will created at mmap time, if this is set
- * caches must be managed manually
- */
-#define ION_FLAG_CACHED_NEEDS_SYNC 2
-
 /**
  * DOC: Ion Userspace API
  *
@@ -129,24 +123,6 @@ struct ion_heap_query {
  */
 #define ION_IOC_ALLOC		_IOWR(ION_IOC_MAGIC, 0, \
 				      struct ion_allocation_data)
-
-/**
- * DOC: ION_IOC_FREE - free memory
- *
- * Takes an ion_handle_data struct and frees the handle.
- */
-#define ION_IOC_FREE		_IOWR(ION_IOC_MAGIC, 1, struct ion_handle_data)
-
-/**
- * DOC: ION_IOC_SHARE - creates a file descriptor to use to share an allocation
- *
- * Takes an ion_fd_data struct with the handle field populated with a valid
- * opaque handle.  Returns the struct with the fd field set to a file
- * descriptor open in the current address space.  This file descriptor
- * can then be passed to another process.  The corresponding opaque handle can
- * be retrieved via ION_IOC_IMPORT.
- */
-#define ION_IOC_SHARE		_IOWR(ION_IOC_MAGIC, 4, struct ion_fd_data)
 
 /**
  * DOC: ION_IOC_HEAP_QUERY - information about available heaps

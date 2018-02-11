@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef PERF_TEST_LLVM_H
 #define PERF_TEST_LLVM_H
 

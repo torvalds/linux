@@ -114,7 +114,7 @@ int ks_wlan_update_phy_information(struct ks_wlan_private *priv)
 }
 
 static
-void ks_wlan_update_phyinfo_timeout(unsigned long ptr)
+void ks_wlan_update_phyinfo_timeout(struct timer_list *unused)
 {
 	DPRINTK(4, "in_interrupt = %ld\n", in_interrupt());
 	atomic_set(&update_phyinfo, 0);
@@ -473,13 +473,16 @@ static int ks_wlan_set_rate(struct net_device *dev,
 					priv->reg.rate_set.body[3] =
 					    TX_RATE_11M;
 					i++;
+					/* fall through */
 				case 5500000:
 					priv->reg.rate_set.body[2] = TX_RATE_5M;
 					i++;
+					/* fall through */
 				case 2000000:
 					priv->reg.rate_set.body[1] =
 					    TX_RATE_2M | BASIC_RATE;
 					i++;
+					/* fall through */
 				case 1000000:
 					priv->reg.rate_set.body[0] =
 					    TX_RATE_1M | BASIC_RATE;
@@ -535,14 +538,17 @@ static int ks_wlan_set_rate(struct net_device *dev,
 					priv->reg.rate_set.body[11] =
 					    TX_RATE_54M;
 					i++;
+					/* fall through */
 				case 48000000:
 					priv->reg.rate_set.body[10] =
 					    TX_RATE_48M;
 					i++;
+					/* fall through */
 				case 36000000:
 					priv->reg.rate_set.body[9] =
 					    TX_RATE_36M;
 					i++;
+					/* fall through */
 				case 24000000:
 				case 18000000:
 				case 12000000:
@@ -619,14 +625,17 @@ static int ks_wlan_set_rate(struct net_device *dev,
 						    TX_RATE_6M | BASIC_RATE;
 						i++;
 					}
+					/* fall through */
 				case 5500000:
 					priv->reg.rate_set.body[2] =
 					    TX_RATE_5M | BASIC_RATE;
 					i++;
+					/* fall through */
 				case 2000000:
 					priv->reg.rate_set.body[1] =
 					    TX_RATE_2M | BASIC_RATE;
 					i++;
+					/* fall through */
 				case 1000000:
 					priv->reg.rate_set.body[0] =
 					    TX_RATE_1M | BASIC_RATE;
@@ -1356,7 +1365,7 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 
 	/* Add mode */
 	iwe.cmd = SIOCGIWMODE;
-	capabilities = le16_to_cpu(ap->capability);
+	capabilities = ap->capability;
 	if (capabilities & (BSS_CAP_ESS | BSS_CAP_IBSS)) {
 		if (capabilities & BSS_CAP_ESS)
 			iwe.u.mode = IW_MODE_INFRA;
@@ -2010,6 +2019,7 @@ static int ks_wlan_set_mlme(struct net_device *dev,
 	case IW_MLME_DEAUTH:
 		if (mlme->reason_code == WLAN_REASON_MIC_FAILURE)
 			return 0;
+		/* fall through */
 	case IW_MLME_DISASSOC:
 		mode = 1;
 		return ks_wlan_set_stop_request(dev, NULL, &mode, NULL);
@@ -2273,7 +2283,7 @@ static int ks_wlan_set_sleep_mode(struct net_device *dev,
 		netdev_info(dev, "SET_SLEEP_MODE %d\n", priv->sleep_mode);
 		hostif_sme_enqueue(priv, SME_SLEEP_REQUEST);
 	} else {
-		netdev_err(dev, "SET_SLEEP_MODE %d errror\n", *uwrq);
+		netdev_err(dev, "SET_SLEEP_MODE %d error\n", *uwrq);
 		return -EINVAL;
 	}
 
@@ -2378,14 +2388,14 @@ static int ks_wlan_set_tx_gain(struct net_device *dev,
 		return -EPERM;
 	/* for SLEEP MODE */
 	if (*uwrq >= 0 && *uwrq <= 0xFF)	/* 0-255 */
-		priv->gain.TxGain = (uint8_t)*uwrq;
+		priv->gain.tx_gain = (uint8_t)*uwrq;
 	else
 		return -EINVAL;
 
-	if (priv->gain.TxGain < 0xFF)
-		priv->gain.TxMode = 1;
+	if (priv->gain.tx_gain < 0xFF)
+		priv->gain.tx_mode = 1;
 	else
-		priv->gain.TxMode = 0;
+		priv->gain.tx_mode = 0;
 
 	hostif_sme_enqueue(priv, SME_SET_GAIN);
 	return 0;
@@ -2400,7 +2410,7 @@ static int ks_wlan_get_tx_gain(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 	/* for SLEEP MODE */
-	*uwrq = priv->gain.TxGain;
+	*uwrq = priv->gain.tx_gain;
 	hostif_sme_enqueue(priv, SME_GET_GAIN);
 	return 0;
 }
@@ -2415,14 +2425,14 @@ static int ks_wlan_set_rx_gain(struct net_device *dev,
 		return -EPERM;
 	/* for SLEEP MODE */
 	if (*uwrq >= 0 && *uwrq <= 0xFF)	/* 0-255 */
-		priv->gain.RxGain = (uint8_t)*uwrq;
+		priv->gain.rx_gain = (uint8_t)*uwrq;
 	else
 		return -EINVAL;
 
-	if (priv->gain.RxGain < 0xFF)
-		priv->gain.RxMode = 1;
+	if (priv->gain.rx_gain < 0xFF)
+		priv->gain.rx_mode = 1;
 	else
-		priv->gain.RxMode = 0;
+		priv->gain.rx_mode = 0;
 
 	hostif_sme_enqueue(priv, SME_SET_GAIN);
 	return 0;
@@ -2437,7 +2447,7 @@ static int ks_wlan_get_rx_gain(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 	/* for SLEEP MODE */
-	*uwrq = priv->gain.RxGain;
+	*uwrq = priv->gain.rx_gain;
 	hostif_sme_enqueue(priv, SME_GET_GAIN);
 	return 0;
 }
@@ -2941,8 +2951,7 @@ int ks_wlan_net_start(struct net_device *dev)
 
 	/* phy information update timer */
 	atomic_set(&update_phyinfo, 0);
-	setup_timer(&update_phyinfo_timer, ks_wlan_update_phyinfo_timeout,
-		    (unsigned long)priv);
+	timer_setup(&update_phyinfo_timer, ks_wlan_update_phyinfo_timeout, 0);
 
 	/* dummy address set */
 	memcpy(priv->eth_addr, dummy_addr, ETH_ALEN);

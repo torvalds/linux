@@ -1,0 +1,53 @@
+/*
+ * Device Tree Source for K2G Industrial Communication Engine EVM
+ *
+ * Copyright (C) 2017 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * SPDX-License-Identifier: GPL-2.0
+ */
+/dts-v1/;
+
+#include "keystone-k2g.dtsi"
+
+/ {
+	compatible = "ti,k2g-ice", "ti,k2g", "ti,keystone";
+	model = "Texas Instruments K2G Industrial Communication EVM";
+
+	memory@800000000 {
+		device_type = "memory";
+		reg = <0x00000008 0x00000000 0x00000000 0x20000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		dsp_common_memory: dsp-common-memory@81f800000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00000008 0x1f800000 0x00000000 0x800000>;
+			reusable;
+			status = "okay";
+		};
+	};
+};
+
+&k2g_pinctrl {
+	uart0_pins: pinmux_uart0_pins {
+		pinctrl-single,pins = <
+			K2G_CORE_IOPAD(0x11cc) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* uart0_rxd.uart0_rxd */
+			K2G_CORE_IOPAD(0x11d0) (BUFFER_CLASS_B | PIN_PULLDOWN | MUX_MODE0)	/* uart0_txd.uart0_txd */
+		>;
+	};
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins>;
+	status = "okay";
+};
+
+&dsp0 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};

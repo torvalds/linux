@@ -75,7 +75,7 @@ int mt2701_init_clock(struct mtk_base_afe *afe)
 
 	for (i = 0; i < MT2701_CLOCK_NUM; i++) {
 		afe_priv->clocks[i] = devm_clk_get(afe->dev, aud_clks[i]);
-		if (IS_ERR(aud_clks[i])) {
+		if (IS_ERR(afe_priv->clocks[i])) {
 			dev_warn(afe->dev, "%s devm_clk_get %s fail\n",
 				 __func__, aud_clks[i]);
 			return PTR_ERR(aud_clks[i]);

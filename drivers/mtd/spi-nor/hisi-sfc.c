@@ -120,19 +120,24 @@ static inline int wait_op_finish(struct hifmc_host *host)
 		(reg & FMC_INT_OP_DONE), 0, FMC_WAIT_TIMEOUT);
 }
 
-static int get_if_type(enum read_mode flash_read)
+static int get_if_type(enum spi_nor_protocol proto)
 {
 	enum hifmc_iftype if_type;
 
-	switch (flash_read) {
-	case SPI_NOR_DUAL:
+	switch (proto) {
+	case SNOR_PROTO_1_1_2:
 		if_type = IF_TYPE_DUAL;
 		break;
-	case SPI_NOR_QUAD:
+	case SNOR_PROTO_1_2_2:
+		if_type = IF_TYPE_DIO;
+		break;
+	case SNOR_PROTO_1_1_4:
 		if_type = IF_TYPE_QUAD;
 		break;
-	case SPI_NOR_NORMAL:
-	case SPI_NOR_FAST:
+	case SNOR_PROTO_1_4_4:
+		if_type = IF_TYPE_QIO;
+		break;
+	case SNOR_PROTO_1_1_1:
 	default:
 		if_type = IF_TYPE_STD;
 		break;
@@ -253,7 +258,10 @@ static int hisi_spi_nor_dma_transfer(struct spi_nor *nor, loff_t start_off,
 	writel(FMC_DMA_LEN_SET(len), host->regbase + FMC_DMA_LEN);
 
 	reg = OP_CFG_FM_CS(priv->chipselect);
-	if_type = get_if_type(nor->flash_read);
+	if (op_type == FMC_OP_READ)
+		if_type = get_if_type(nor->read_proto);
+	else
+		if_type = get_if_type(nor->write_proto);
 	reg |= OP_CFG_MEM_IF_TYPE(if_type);
 	if (op_type == FMC_OP_READ)
 		reg |= OP_CFG_DUMMY_NUM(nor->read_dummy >> 3);
@@ -321,6 +329,13 @@ static ssize_t hisi_spi_nor_write(struct spi_nor *nor, loff_t to,
 static int hisi_spi_nor_register(struct device_node *np,
 				struct hifmc_host *host)
 {
+	const struct spi_nor_hwcaps hwcaps = {
+		.mask = SNOR_HWCAPS_READ |
+			SNOR_HWCAPS_READ_FAST |
+			SNOR_HWCAPS_READ_1_1_2 |
+			SNOR_HWCAPS_READ_1_1_4 |
+			SNOR_HWCAPS_PP,
+	};
 	struct device *dev = host->dev;
 	struct spi_nor *nor;
 	struct hifmc_priv *priv;
@@ -340,16 +355,16 @@ static int hisi_spi_nor_register(struct device_node *np,
 
 	ret = of_property_read_u32(np, "reg", &priv->chipselect);
 	if (ret) {
-		dev_err(dev, "There's no reg property for %s\n",
-			np->full_name);
+		dev_err(dev, "There's no reg property for %pOF\n",
+			np);
 		return ret;
 	}
 
 	ret = of_property_read_u32(np, "spi-max-frequency",
 			&priv->clkrate);
 	if (ret) {
-		dev_err(dev, "There's no spi-max-frequency property for %s\n",
-			np->full_name);
+		dev_err(dev, "There's no spi-max-frequency property for %pOF\n",
+			np);
 		return ret;
 	}
 	priv->host = host;
@@ -362,7 +377,7 @@ static int hisi_spi_nor_register(struct device_node *np,
 	nor->read = hisi_spi_nor_read;
 	nor->write = hisi_spi_nor_write;
 	nor->erase = NULL;
-	ret = spi_nor_scan(nor, NULL, SPI_NOR_QUAD);
+	ret = spi_nor_scan(nor, NULL, &hwcaps);
 	if (ret)
 		return ret;
 

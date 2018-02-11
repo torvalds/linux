@@ -24,7 +24,7 @@
  *
  *
  * libata documentation is available via 'make {ps|pdf}docs',
- * as Documentation/DocBook/libata.*
+ * as Documentation/driver-api/libata.rst
  *
  * AHCI hardware documentation:
  * http://www.intel.com/technology/serialata/pdf/rev1_0.pdf
@@ -504,6 +504,11 @@ void ahci_save_initial_config(struct device *dev, struct ahci_host_priv *hpriv)
 		cap &= ~HOST_CAP_FBS;
 	}
 
+	if (!(cap & HOST_CAP_ALPM) && (hpriv->flags & AHCI_HFLAG_YES_ALPM)) {
+		dev_info(dev, "controller can do ALPM, turning on CAP_ALPM\n");
+		cap |= HOST_CAP_ALPM;
+	}
+
 	if (hpriv->force_port_map && port_map != hpriv->force_port_map) {
 		dev_info(dev, "forcing port_map 0x%x -> 0x%x\n",
 			 port_map, hpriv->force_port_map);
@@ -940,7 +945,8 @@ int ahci_reset_controller(struct ata_host *host)
 		/* Some registers might be cleared on reset.  Restore
 		 * initial values.
 		 */
-		ahci_restore_initial_config(host);
+		if (!(hpriv->flags & AHCI_HFLAG_NO_WRITE_TO_RO))
+			ahci_restore_initial_config(host);
 	} else
 		dev_info(host->dev, "skipping global host reset\n");
 
@@ -962,12 +968,12 @@ static void ahci_sw_activity(struct ata_link *link)
 		mod_timer(&emp->timer, jiffies + msecs_to_jiffies(10));
 }
 
-static void ahci_sw_activity_blink(unsigned long arg)
+static void ahci_sw_activity_blink(struct timer_list *t)
 {
-	struct ata_link *link = (struct ata_link *)arg;
+	struct ahci_em_priv *emp = from_timer(emp, t, timer);
+	struct ata_link *link = emp->link;
 	struct ata_port *ap = link->ap;
-	struct ahci_port_priv *pp = ap->private_data;
-	struct ahci_em_priv *emp = &pp->em_priv[link->pmp];
+
 	unsigned long led_message = emp->led_state;
 	u32 activity_led_state;
 	unsigned long flags;
@@ -1014,7 +1020,8 @@ static void ahci_init_sw_activity(struct ata_link *link)
 
 	/* init activity stats, setup timer */
 	emp->saved_activity = emp->activity = 0;
-	setup_timer(&emp->timer, ahci_sw_activity_blink, (unsigned long)link);
+	emp->link = link;
+	timer_setup(&emp->timer, ahci_sw_activity_blink, 0);
 
 	/* check our blink policy and set flag for link if it's enabled */
 	if (emp->blink_policy)
@@ -1400,7 +1407,7 @@ int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 
 	ata_tf_init(link->device, &tf);
 
-	/* issue the first D2H Register FIS */
+	/* issue the first H2D Register FIS */
 	msecs = 0;
 	now = jiffies;
 	if (time_after(deadline, now))
@@ -1417,7 +1424,7 @@ int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 	/* spec says at least 5us, but be generous and sleep for 1ms */
 	ata_msleep(ap, 1);
 
-	/* issue the second D2H Register FIS */
+	/* issue the second H2D Register FIS */
 	tf.ctl &= ~ATA_SRST;
 	ahci_exec_polled_cmd(ap, pmp, &tf, 0, 0, 0);
 

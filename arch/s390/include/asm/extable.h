@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __S390_EXTABLE_H
 #define __S390_EXTABLE_H
 /*

@@ -629,7 +629,7 @@ static struct v4l2_ioctl_ops usbtv_ioctl_ops = {
 	.vidioc_streamoff = vb2_ioctl_streamoff,
 };
 
-static struct v4l2_file_operations usbtv_fops = {
+static const struct v4l2_file_operations usbtv_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = video_ioctl2,
 	.mmap = vb2_fop_mmap,
@@ -718,8 +718,8 @@ static int usbtv_s_ctrl(struct v4l2_ctrl *ctrl)
 	 */
 	if (ctrl->id == V4L2_CID_BRIGHTNESS || ctrl->id == V4L2_CID_CONTRAST) {
 		ret = usb_control_msg(usbtv->udev,
-			usb_sndctrlpipe(usbtv->udev, 0), USBTV_CONTROL_REG,
-			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			usb_rcvctrlpipe(usbtv->udev, 0), USBTV_CONTROL_REG,
+			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0, USBTV_BASE + 0x0244, (void *)data, 3, 0);
 		if (ret < 0)
 			goto error;

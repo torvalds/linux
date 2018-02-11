@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -34,10 +35,10 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-#include "../include/obd_support.h"
-#include "../include/obd_class.h"
+#include <obd_support.h>
+#include <obd_class.h>
 
 void class_uuid_unparse(class_uuid_t uu, struct obd_uuid *out)
 {

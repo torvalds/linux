@@ -12,6 +12,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
@@ -110,7 +111,7 @@ static struct seg6_hmac_algo *__hmac_get_algo(u8 alg_id)
 	struct seg6_hmac_algo *algo;
 	int i, alg_count;
 
-	alg_count = sizeof(hmac_algos) / sizeof(struct seg6_hmac_algo);
+	alg_count = ARRAY_SIZE(hmac_algos);
 	for (i = 0; i < alg_count; i++) {
 		algo = &hmac_algos[i];
 		if (algo->alg_id == alg_id)
@@ -360,7 +361,7 @@ static int seg6_hmac_init_algo(void)
 	struct shash_desc *shash;
 	int i, alg_count, cpu;
 
-	alg_count = sizeof(hmac_algos) / sizeof(struct seg6_hmac_algo);
+	alg_count = ARRAY_SIZE(hmac_algos);
 
 	for (i = 0; i < alg_count; i++) {
 		struct crypto_shash **p_tfm;
@@ -421,7 +422,7 @@ void seg6_hmac_exit(void)
 	struct seg6_hmac_algo *algo = NULL;
 	int i, alg_count, cpu;
 
-	alg_count = sizeof(hmac_algos) / sizeof(struct seg6_hmac_algo);
+	alg_count = ARRAY_SIZE(hmac_algos);
 	for (i = 0; i < alg_count; i++) {
 		algo = &hmac_algos[i];
 		for_each_possible_cpu(cpu) {

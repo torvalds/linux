@@ -182,6 +182,7 @@ struct dma_mapping {
 
 	struct list_head card_list;	/* list of usr_maps for card */
 	struct list_head pin_list;	/* list of pinned memory for dev */
+	int write;			/* writable map? useful in unmapping */
 };
 
 static inline void genwqe_mapping_init(struct dma_mapping *m,
@@ -189,6 +190,7 @@ static inline void genwqe_mapping_init(struct dma_mapping *m,
 {
 	memset(m, 0, sizeof(*m));
 	m->type = type;
+	m->write = 1; /* Assume the maps we create are R/W */
 }
 
 /**
@@ -347,6 +349,7 @@ enum genwqe_requ_state {
  * @user_size:      size of user-space memory area
  * @page:           buffer for partial pages if needed
  * @page_dma_addr:  dma address partial pages
+ * @write:          should we write it back to userspace?
  */
 struct genwqe_sgl {
 	dma_addr_t sgl_dma_addr;
@@ -355,6 +358,8 @@ struct genwqe_sgl {
 
 	void __user *user_addr; /* user-space base-address */
 	size_t user_size;       /* size of memory area */
+
+	int write;
 
 	unsigned long nr_pages;
 	unsigned long fpage_offs;
@@ -369,7 +374,7 @@ struct genwqe_sgl {
 };
 
 int genwqe_alloc_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
-			  void __user *user_addr, size_t user_size);
+			  void __user *user_addr, size_t user_size, int write);
 
 int genwqe_setup_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
 		     dma_addr_t *dma_list);

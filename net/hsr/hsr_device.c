@@ -284,12 +284,12 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 	skb_reset_mac_header(skb);
 
 	if (hsrVer > 0) {
-		hsr_tag = (typeof(hsr_tag)) skb_put(skb, sizeof(struct hsr_tag));
+		hsr_tag = skb_put(skb, sizeof(struct hsr_tag));
 		hsr_tag->encap_proto = htons(ETH_P_PRP);
 		set_hsr_tag_LSDU_size(hsr_tag, HSR_V1_SUP_LSDUSIZE);
 	}
 
-	hsr_stag = (typeof(hsr_stag)) skb_put(skb, sizeof(struct hsr_sup_tag));
+	hsr_stag = skb_put(skb, sizeof(struct hsr_sup_tag));
 	set_hsr_stag_path(hsr_stag, (hsrVer ? 0x0 : 0xf));
 	set_hsr_stag_HSR_Ver(hsr_stag, hsrVer);
 
@@ -311,10 +311,11 @@ static void send_hsr_supervision_frame(struct hsr_port *master,
 	hsr_stag->HSR_TLV_Length = hsrVer ? sizeof(struct hsr_sup_payload) : 12;
 
 	/* Payload: MacAddressA */
-	hsr_sp = (typeof(hsr_sp)) skb_put(skb, sizeof(struct hsr_sup_payload));
+	hsr_sp = skb_put(skb, sizeof(struct hsr_sup_payload));
 	ether_addr_copy(hsr_sp->MacAddressA, master->dev->dev_addr);
 
-	skb_put_padto(skb, ETH_ZLEN + HSR_HLEN);
+	if (skb_put_padto(skb, ETH_ZLEN + HSR_HLEN))
+		return;
 
 	hsr_forward_skb(skb, master);
 	return;
@@ -327,12 +328,12 @@ out:
 
 /* Announce (supervision frame) timer function
  */
-static void hsr_announce(unsigned long data)
+static void hsr_announce(struct timer_list *t)
 {
 	struct hsr_priv *hsr;
 	struct hsr_port *master;
 
-	hsr = (struct hsr_priv *) data;
+	hsr = from_timer(hsr, t, announce_timer);
 
 	rcu_read_lock();
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
@@ -378,7 +379,6 @@ static void hsr_dev_destroy(struct net_device *hsr_dev)
 	del_timer_sync(&hsr->announce_timer);
 
 	synchronize_rcu();
-	free_netdev(hsr_dev);
 }
 
 static const struct net_device_ops hsr_device_ops = {
@@ -404,7 +404,8 @@ void hsr_dev_setup(struct net_device *dev)
 	SET_NETDEV_DEVTYPE(dev, &hsr_type);
 	dev->priv_flags |= IFF_NO_QUEUE;
 
-	dev->destructor = hsr_dev_destroy;
+	dev->needs_free_netdev = true;
+	dev->priv_destructor = hsr_dev_destroy;
 
 	dev->hw_features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
 			   NETIF_F_GSO_MASK | NETIF_F_HW_CSUM |
@@ -462,9 +463,8 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	hsr->sequence_nr = HSR_SEQNR_START;
 	hsr->sup_sequence_nr = HSR_SUP_SEQNR_START;
 
-	setup_timer(&hsr->announce_timer, hsr_announce, (unsigned long)hsr);
-
-	setup_timer(&hsr->prune_timer, hsr_prune_nodes, (unsigned long)hsr);
+	timer_setup(&hsr->announce_timer, hsr_announce, 0);
+	timer_setup(&hsr->prune_timer, hsr_prune_nodes, 0);
 
 	ether_addr_copy(hsr->sup_multicast_addr, def_multicast_addr);
 	hsr->sup_multicast_addr[ETH_ALEN - 1] = multicast_spec;

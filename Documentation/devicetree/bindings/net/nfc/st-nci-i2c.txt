@@ -20,7 +20,6 @@ Example (for ARM-based BeagleBoard xM with ST21NFCB on I2C2):
 
 &i2c2 {
 
-	status = "okay";
 
 	st21nfcb: st21nfcb@8 {
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
@@ -49,25 +50,23 @@ static void doublefault_fn(void)
 		cpu_relax();
 }
 
-struct tss_struct doublefault_tss __cacheline_aligned = {
-	.x86_tss = {
-		.sp0		= STACK_START,
-		.ss0		= __KERNEL_DS,
-		.ldt		= 0,
-		.io_bitmap_base	= INVALID_IO_BITMAP_OFFSET,
+struct x86_hw_tss doublefault_tss __cacheline_aligned = {
+	.sp0		= STACK_START,
+	.ss0		= __KERNEL_DS,
+	.ldt		= 0,
+	.io_bitmap_base	= INVALID_IO_BITMAP_OFFSET,
 
-		.ip		= (unsigned long) doublefault_fn,
-		/* 0x2 bit is always set */
-		.flags		= X86_EFLAGS_SF | 0x2,
-		.sp		= STACK_START,
-		.es		= __USER_DS,
-		.cs		= __KERNEL_CS,
-		.ss		= __KERNEL_DS,
-		.ds		= __USER_DS,
-		.fs		= __KERNEL_PERCPU,
+	.ip		= (unsigned long) doublefault_fn,
+	/* 0x2 bit is always set */
+	.flags		= X86_EFLAGS_SF | 0x2,
+	.sp		= STACK_START,
+	.es		= __USER_DS,
+	.cs		= __KERNEL_CS,
+	.ss		= __KERNEL_DS,
+	.ds		= __USER_DS,
+	.fs		= __KERNEL_PERCPU,
 
-		.__cr3		= __pa_nodebug(swapper_pg_dir),
-	}
+	.__cr3		= __pa_nodebug(swapper_pg_dir),
 };
 
 /* dummy for do_double_fault() call */

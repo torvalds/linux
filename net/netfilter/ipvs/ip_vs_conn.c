@@ -104,7 +104,7 @@ static inline void ct_write_unlock_bh(unsigned int key)
 	spin_unlock_bh(&__ip_vs_conntbl_lock_array[key&CT_LOCKARRAY_MASK].l);
 }
 
-static void ip_vs_conn_expire(unsigned long data);
+static void ip_vs_conn_expire(struct timer_list *t);
 
 /*
  *	Returns hash value for IPVS connection entry
@@ -185,7 +185,7 @@ static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 		hlist_add_head_rcu(&cp->c_list, &ip_vs_conn_tab[hash]);
 		ret = 1;
 	} else {
-		pr_err("%s(): request for already hashed, called from %pF\n",
+		pr_err("%s(): request for already hashed, called from %pS\n",
 		       __func__, __builtin_return_address(0));
 		ret = 0;
 	}
@@ -457,7 +457,7 @@ EXPORT_SYMBOL_GPL(ip_vs_conn_out_get_proto);
 static void __ip_vs_conn_put_notimer(struct ip_vs_conn *cp)
 {
 	__ip_vs_conn_put(cp);
-	ip_vs_conn_expire((unsigned long)cp);
+	ip_vs_conn_expire(&cp->timer);
 }
 
 /*
@@ -817,9 +817,9 @@ static void ip_vs_conn_rcu_free(struct rcu_head *head)
 	kmem_cache_free(ip_vs_conn_cachep, cp);
 }
 
-static void ip_vs_conn_expire(unsigned long data)
+static void ip_vs_conn_expire(struct timer_list *t)
 {
-	struct ip_vs_conn *cp = (struct ip_vs_conn *)data;
+	struct ip_vs_conn *cp = from_timer(cp, t, timer);
 	struct netns_ipvs *ipvs = cp->ipvs;
 
 	/*
@@ -909,7 +909,7 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p, int dest_af,
 	}
 
 	INIT_HLIST_NODE(&cp->c_list);
-	setup_timer(&cp->timer, ip_vs_conn_expire, (unsigned long)cp);
+	timer_setup(&cp->timer, ip_vs_conn_expire, 0);
 	cp->ipvs	   = ipvs;
 	cp->af		   = p->af;
 	cp->daf		   = dest_af;

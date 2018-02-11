@@ -31,7 +31,7 @@ see Documentation/devicetree/bindings/mtd/nand.txt for generic bindings.
 
 
 Examples:
-nfc: nand@01c03000 {
+nfc: nand@1c03000 {
 	compatible = "allwinner,sun4i-a10-nand";
 	reg = <0x01c03000 0x1000>;
 	interrupts = <0 37 1>;
@@ -41,7 +41,6 @@ nfc: nand@01c03000 {
 	#size-cells = <0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&nand_pins_a &nand_cs0_pins_a &nand_rb0_pins_a>;
-	status = "okay";
 
 	nand@0 {
 		reg = <0>;

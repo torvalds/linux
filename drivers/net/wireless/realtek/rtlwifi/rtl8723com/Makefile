@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 rtl8723-common-objs :=		\
 		main.o		\
 		dm_common.o	\

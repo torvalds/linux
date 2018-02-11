@@ -273,8 +273,8 @@ void __init init_arch(bp_tag_t *bp_start)
  * Initialize system. Setup memory and reserve regions.
  */
 
-extern char _end;
-extern char _stext;
+extern char _end[];
+extern char _stext[];
 extern char _WindowVectors_text_start;
 extern char _WindowVectors_text_end;
 extern char _DebugInterruptVector_literal_start;
@@ -333,7 +333,7 @@ void __init setup_arch(char **cmdline_p)
 	}
 #endif
 
-	mem_reserve(__pa(&_stext), __pa(&_end));
+	mem_reserve(__pa(_stext), __pa(_end));
 
 #ifdef CONFIG_VECTORS_OFFSET
 	mem_reserve(__pa(&_WindowVectors_text_start),
@@ -593,8 +593,7 @@ c_show(struct seq_file *f, void *slot)
 		      (ccount_freq/10000) % 100,
 		      loops_per_jiffy/(500000/HZ),
 		      (loops_per_jiffy/(5000/HZ)) % 100);
-
-	seq_printf(f,"flags\t\t: "
+	seq_puts(f, "flags\t\t: "
 #if XCHAL_HAVE_NMI
 		     "nmi "
 #endif

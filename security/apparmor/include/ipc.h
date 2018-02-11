@@ -4,7 +4,7 @@
  * This file contains AppArmor ipc mediation function definitions.
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright 2009-2017 Canonical Ltd.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -19,10 +19,22 @@
 
 struct aa_profile;
 
-int aa_may_ptrace(struct aa_profile *tracer, struct aa_profile *tracee,
-		  unsigned int mode);
+#define AA_PTRACE_TRACE		MAY_WRITE
+#define AA_PTRACE_READ		MAY_READ
+#define AA_MAY_BE_TRACED	AA_MAY_APPEND
+#define AA_MAY_BE_READ		AA_MAY_CREATE
+#define PTRACE_PERM_SHIFT	2
 
-int aa_ptrace(struct task_struct *tracer, struct task_struct *tracee,
-	      unsigned int mode);
+#define AA_PTRACE_PERM_MASK (AA_PTRACE_READ | AA_PTRACE_TRACE | \
+			     AA_MAY_BE_READ | AA_MAY_BE_TRACED)
+#define AA_SIGNAL_PERM_MASK (MAY_READ | MAY_WRITE)
+
+#define AA_SFS_SIG_MASK "hup int quit ill trap abrt bus fpe kill usr1 " \
+	"segv usr2 pipe alrm term stkflt chld cont stop stp ttin ttou urg " \
+	"xcpu xfsz vtalrm prof winch io pwr sys emt lost"
+
+int aa_may_ptrace(struct aa_label *tracer, struct aa_label *tracee,
+		  u32 request);
+int aa_may_signal(struct aa_label *sender, struct aa_label *target, int sig);
 
 #endif /* __AA_IPC_H */

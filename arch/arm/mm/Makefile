@@ -1,15 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the linux arm-specific parts of the memory manager.
 #
 
-obj-y				:= dma-mapping.o extable.o fault.o init.o \
-				   iomap.o
-
+obj-y				:= extable.o fault.o init.o iomap.o
+obj-y				+= dma-mapping$(MMUEXT).o
 obj-$(CONFIG_MMU)		+= fault-armv.o flush.o idmap.o ioremap.o \
 				   mmap.o pgd.o mmu.o pageattr.o
 
 ifneq ($(CONFIG_MMU),y)
 obj-y				+= nommu.o
+obj-$(CONFIG_ARM_MPU)		+= pmsa-v7.o
 endif
 
 obj-$(CONFIG_ARM_PTDUMP)	+= dump.o

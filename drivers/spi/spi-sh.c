@@ -446,8 +446,8 @@ static int spi_sh_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "platform_get_irq error\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "platform_get_irq error: %d\n", irq);
+		return irq;
 	}
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct spi_sh_data));

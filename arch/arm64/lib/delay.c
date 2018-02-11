@@ -24,9 +24,27 @@
 #include <linux/module.h>
 #include <linux/timex.h>
 
+#include <clocksource/arm_arch_timer.h>
+
+#define USECS_TO_CYCLES(time_usecs)			\
+	xloops_to_cycles((time_usecs) * 0x10C7UL)
+
+static inline unsigned long xloops_to_cycles(unsigned long xloops)
+{
+	return (xloops * loops_per_jiffy * HZ) >> 32;
+}
+
 void __delay(unsigned long cycles)
 {
 	cycles_t start = get_cycles();
+
+	if (arch_timer_evtstrm_available()) {
+		const cycles_t timer_evt_period =
+			USECS_TO_CYCLES(ARCH_TIMER_EVT_STREAM_PERIOD_US);
+
+		while ((get_cycles() - start + timer_evt_period) < cycles)
+			wfe();
+	}
 
 	while ((get_cycles() - start) < cycles)
 		cpu_relax();
@@ -35,10 +53,7 @@ EXPORT_SYMBOL(__delay);
 
 inline void __const_udelay(unsigned long xloops)
 {
-	unsigned long loops;
-
-	loops = xloops * loops_per_jiffy * HZ;
-	__delay(loops >> 32);
+	__delay(xloops_to_cycles(xloops));
 }
 EXPORT_SYMBOL(__const_udelay);
 

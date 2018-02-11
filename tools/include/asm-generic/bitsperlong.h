@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_GENERIC_BITS_PER_LONG
 #define __ASM_GENERIC_BITS_PER_LONG
 

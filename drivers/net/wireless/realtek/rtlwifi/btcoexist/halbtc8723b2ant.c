@@ -707,6 +707,36 @@ static void btc8723b2ant_dec_bt_pwr(struct btc_coexist *btcoexist,
 	coex_dm->pre_dec_bt_pwr_lvl = coex_dm->cur_dec_bt_pwr_lvl;
 }
 
+static
+void halbtc8723b2ant_set_bt_auto_report(struct btc_coexist *btcoexist,
+					bool enable_auto_report)
+{
+	u8 h2c_parameter[1] = {0};
+
+	h2c_parameter[0] = 0;
+
+	if (enable_auto_report)
+		h2c_parameter[0] |= BIT(0);
+
+	btcoexist->btc_fill_h2c(btcoexist, 0x68, 1, h2c_parameter);
+}
+
+static
+void btc8723b2ant_bt_auto_report(struct btc_coexist *btcoexist,
+				 bool force_exec, bool enable_auto_report)
+{
+	coex_dm->cur_bt_auto_report = enable_auto_report;
+
+	if (!force_exec) {
+		if (coex_dm->pre_bt_auto_report == coex_dm->cur_bt_auto_report)
+			return;
+	}
+	halbtc8723b2ant_set_bt_auto_report(btcoexist,
+					   coex_dm->cur_bt_auto_report);
+
+	coex_dm->pre_bt_auto_report = coex_dm->cur_bt_auto_report;
+}
+
 static void btc8723b2ant_fw_dac_swing_lvl(struct btc_coexist *btcoexist,
 					  bool force_exec, u8 fw_dac_swing_lvl)
 {
@@ -1153,7 +1183,10 @@ static void btc8723b2ant_set_ant_path(struct btc_coexist *btcoexist,
 		}
 
 		/* fixed internal switch S1->WiFi, S0->BT */
-		btcoexist->btc_write_4byte(btcoexist, 0x948, 0x0);
+		if (board_info->btdm_ant_pos == BTC_ANTENNA_AT_MAIN_PORT)
+			btcoexist->btc_write_2byte(btcoexist, 0x948, 0x0);
+		else
+			btcoexist->btc_write_2byte(btcoexist, 0x948, 0x280);
 
 		switch (antpos_type) {
 		case BTC_ANT_WIFI_AT_MAIN:
@@ -3666,6 +3699,7 @@ void ex_btc8723b2ant_init_hwconfig(struct btc_coexist *btcoexist)
 	btcoexist->btc_write_1byte(btcoexist, 0x76e, 0x4);
 	btcoexist->btc_write_1byte(btcoexist, 0x778, 0x3);
 	btcoexist->btc_write_1byte_bitmask(btcoexist, 0x40, 0x20, 0x1);
+	btcoexist->auto_report_2ant = true;
 }
 
 void ex_btc8723b2ant_power_on_setting(struct btc_coexist *btcoexist)
@@ -3966,9 +4000,8 @@ void ex_btc8723b2ant_display_coex_info(struct btc_coexist *btcoexist)
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %d/ %d",
 		 "0x774(low-pri rx/tx)", coex_sta->low_priority_rx,
 		 coex_sta->low_priority_tx);
-#if (BT_AUTO_REPORT_ONLY_8723B_2ANT == 1)
-	btc8723b2ant_monitor_bt_ctr(btcoexist);
-#endif
+	if (btcoexist->auto_report_2ant)
+		btc8723b2ant_monitor_bt_ctr(btcoexist);
 	btcoexist->btc_disp_dbg_msg(btcoexist,
 	BTC_DBG_DISP_COEX_STATISTICS);
 }
@@ -4190,14 +4223,11 @@ void ex_btc8723b2ant_bt_info_notify(struct btc_coexist *btcoexist,
 		} else {
 			/* BT already NOT ignore Wlan active, do nothing here.*/
 		}
-#if (BT_AUTO_REPORT_ONLY_8723B_2ANT == 0)
-		if ((coex_sta->bt_info_ext & BIT4)) {
-			/* BT auto report already enabled, do nothing*/
-		} else {
-			btc8723b2ant_bt_auto_report(btcoexist, FORCE_EXEC,
-						    true);
+		if (!btcoexist->auto_report_2ant) {
+			if (!(coex_sta->bt_info_ext & BIT4))
+				btc8723b2ant_bt_auto_report(btcoexist,
+							    FORCE_EXEC, true);
 		}
-#endif
 	}
 
 	/* check BIT2 first ==> check if bt is under inquiry or page scan */
@@ -4347,21 +4377,22 @@ void ex_btc8723b2ant_periodical(struct btc_coexist *btcoexist)
 		}
 	}
 
-#if (BT_AUTO_REPORT_ONLY_8723B_2ANT == 0)
-	btc8723b2ant_query_bt_info(btcoexist);
-#else
-	btc8723b2ant_monitor_bt_ctr(btcoexist);
-	btc8723b2ant_monitor_wifi_ctr(btcoexist);
+	if (!btcoexist->auto_report_2ant) {
+		btc8723b2ant_query_bt_info(btcoexist);
+	} else {
+		btc8723b2ant_monitor_bt_ctr(btcoexist);
+		btc8723b2ant_monitor_wifi_ctr(btcoexist);
 
-	/* for some BT speakers that High-Priority pkts appear before
-	 * playing, this will cause HID exist
-	 */
-	if ((coex_sta->high_priority_tx + coex_sta->high_priority_rx < 50) &&
-	    (bt_link_info->hid_exist))
-		bt_link_info->hid_exist = false;
+		/* for some BT speakers that High-Priority pkts appear before
+		 * playing, this will cause HID exist
+		 */
+		if ((coex_sta->high_priority_tx +
+		    coex_sta->high_priority_rx < 50) &&
+		    (bt_link_info->hid_exist))
+			bt_link_info->hid_exist = false;
 
-	if (btc8723b2ant_is_wifi_status_changed(btcoexist) ||
-	    coex_dm->auto_tdma_adjust)
-		btc8723b2ant_run_coexist_mechanism(btcoexist);
-#endif
+		if (btc8723b2ant_is_wifi_status_changed(btcoexist) ||
+		    coex_dm->auto_tdma_adjust)
+			btc8723b2ant_run_coexist_mechanism(btcoexist);
+	}
 }

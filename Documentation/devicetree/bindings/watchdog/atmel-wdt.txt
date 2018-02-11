@@ -48,5 +48,4 @@ Example:
 		atmel,idle-halt;
 		atmel,max-heartbeat-sec = <16>;
 		atmel,min-heartbeat-sec = <0>;
-		status = "okay";
 	};

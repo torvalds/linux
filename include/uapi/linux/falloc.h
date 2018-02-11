@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_FALLOC_H_
 #define _UAPI_FALLOC_H_
 

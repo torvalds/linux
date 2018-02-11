@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/i386/kernel/head32.c -- prepare to run common code
  *
@@ -10,6 +11,7 @@
 #include <linux/mm.h>
 #include <linux/memblock.h>
 
+#include <asm/desc.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/e820/api.h>
@@ -29,7 +31,11 @@ static void __init i386_default_early_setup(void)
 
 asmlinkage __visible void __init i386_start_kernel(void)
 {
+	/* Make sure IDT is set up before any exception happens */
+	idt_setup_early_handler();
+
 	cr4_init_shadow();
+
 	sanitize_boot_params(&boot_params);
 
 	x86_early_init_platform_quirks();

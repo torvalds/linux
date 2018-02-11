@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *	PCI BIOS function numbering for conventional PCI BIOS 
  *	systems

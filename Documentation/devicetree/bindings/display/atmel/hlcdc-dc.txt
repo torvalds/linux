@@ -23,7 +23,6 @@ Example:
 		interrupts = <36 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&lcdc_clk>, <&lcdck>, <&clk32k>;
 		clock-names = "periph_clk","sys_clk", "slow_clk";
-		status = "disabled";
 
 		hlcdc-display-controller {
 			compatible = "atmel,hlcdc-display-controller";

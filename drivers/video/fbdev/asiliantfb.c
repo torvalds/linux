@@ -592,7 +592,7 @@ static void asiliantfb_remove(struct pci_dev *dp)
 	framebuffer_release(p);
 }
 
-static struct pci_device_id asiliantfb_pci_tbl[] = {
+static const struct pci_device_id asiliantfb_pci_tbl[] = {
 	{ PCI_VENDOR_ID_CT, PCI_DEVICE_ID_CT_69000, PCI_ANY_ID, PCI_ANY_ID },
 	{ 0 }
 };

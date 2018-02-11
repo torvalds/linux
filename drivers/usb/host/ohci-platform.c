@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Generic platform ohci driver
  *
@@ -11,8 +12,6 @@
  * Copyright 2000-2002 David Brownell
  * Copyright 1999 Linus Torvalds
  * Copyright 1999 Gregory P. Smith
- *
- * Licensed under the GNU/GPL. See COPYING for details.
  */
 
 #include <linux/clk.h>
@@ -24,6 +23,7 @@
 #include <linux/err.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/usb/ohci_pdriver.h>
 #include <linux/usb.h>
@@ -33,12 +33,11 @@
 
 #define DRIVER_DESC "OHCI generic platform driver"
 #define OHCI_MAX_CLKS 3
-#define OHCI_MAX_RESETS 2
 #define hcd_to_ohci_priv(h) ((struct ohci_platform_priv *)hcd_to_ohci(h)->priv)
 
 struct ohci_platform_priv {
 	struct clk *clks[OHCI_MAX_CLKS];
-	struct reset_control *resets[OHCI_MAX_RESETS];
+	struct reset_control *resets;
 	struct phy **phys;
 	int num_phys;
 };
@@ -118,7 +117,7 @@ static int ohci_platform_probe(struct platform_device *dev)
 	struct usb_ohci_pdata *pdata = dev_get_platdata(&dev->dev);
 	struct ohci_platform_priv *priv;
 	struct ohci_hcd *ohci;
-	int err, irq, phy_num, clk = 0, rst = 0;
+	int err, irq, phy_num, clk = 0;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -163,6 +162,10 @@ static int ohci_platform_probe(struct platform_device *dev)
 		if (of_property_read_bool(dev->dev.of_node, "no-big-frame-no"))
 			ohci->flags |= OHCI_QUIRK_FRAME_NO;
 
+		if (of_property_read_bool(dev->dev.of_node,
+					  "remote-wakeup-connected"))
+			ohci->hc_control = OHCI_CTRL_RWC;
+
 		of_property_read_u32(dev->dev.of_node, "num-ports",
 				     &ohci->num_ports);
 
@@ -199,21 +202,17 @@ static int ohci_platform_probe(struct platform_device *dev)
 				break;
 			}
 		}
-		for (rst = 0; rst < OHCI_MAX_RESETS; rst++) {
-			priv->resets[rst] =
-				devm_reset_control_get_shared_by_index(
-								&dev->dev, rst);
-			if (IS_ERR(priv->resets[rst])) {
-				err = PTR_ERR(priv->resets[rst]);
-				if (err == -EPROBE_DEFER)
-					goto err_reset;
-				priv->resets[rst] = NULL;
-				break;
-			}
-			err = reset_control_deassert(priv->resets[rst]);
-			if (err)
-				goto err_reset;
+
+		priv->resets = devm_reset_control_array_get_optional_shared(
+								&dev->dev);
+		if (IS_ERR(priv->resets)) {
+			err = PTR_ERR(priv->resets);
+			goto err_put_clks;
 		}
+
+		err = reset_control_deassert(priv->resets);
+		if (err)
+			goto err_put_clks;
 	}
 
 	if (pdata->big_endian_desc)
@@ -242,6 +241,8 @@ static int ohci_platform_probe(struct platform_device *dev)
 	}
 #endif
 
+	pm_runtime_set_active(&dev->dev);
+	pm_runtime_enable(&dev->dev);
 	if (pdata->power_on) {
 		err = pdata->power_on(dev);
 		if (err < 0)
@@ -271,8 +272,8 @@ err_power:
 	if (pdata->power_off)
 		pdata->power_off(dev);
 err_reset:
-	while (--rst >= 0)
-		reset_control_assert(priv->resets[rst]);
+	pm_runtime_disable(&dev->dev);
+	reset_control_assert(priv->resets);
 err_put_clks:
 	while (--clk >= 0)
 		clk_put(priv->clks[clk]);
@@ -290,20 +291,23 @@ static int ohci_platform_remove(struct platform_device *dev)
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	struct usb_ohci_pdata *pdata = dev_get_platdata(&dev->dev);
 	struct ohci_platform_priv *priv = hcd_to_ohci_priv(hcd);
-	int clk, rst;
+	int clk;
 
+	pm_runtime_get_sync(&dev->dev);
 	usb_remove_hcd(hcd);
 
 	if (pdata->power_off)
 		pdata->power_off(dev);
 
-	for (rst = 0; rst < OHCI_MAX_RESETS && priv->resets[rst]; rst++)
-		reset_control_assert(priv->resets[rst]);
+	reset_control_assert(priv->resets);
 
 	for (clk = 0; clk < OHCI_MAX_CLKS && priv->clks[clk]; clk++)
 		clk_put(priv->clks[clk]);
 
 	usb_put_hcd(hcd);
+
+	pm_runtime_put_sync(&dev->dev);
+	pm_runtime_disable(&dev->dev);
 
 	if (pdata == &ohci_platform_defaults)
 		dev->dev.platform_data = NULL;
@@ -350,6 +354,7 @@ static int ohci_platform_resume(struct device *dev)
 static const struct of_device_id ohci_platform_ids[] = {
 	{ .compatible = "generic-ohci", },
 	{ .compatible = "cavium,octeon-6335-ohci", },
+	{ .compatible = "ti,ohci-omap3", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ohci_platform_ids);

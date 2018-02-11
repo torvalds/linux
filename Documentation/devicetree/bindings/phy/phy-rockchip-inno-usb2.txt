@@ -2,9 +2,11 @@ ROCKCHIP USB2.0 PHY WITH INNO IP BLOCK
 
 Required properties (phy (parent) node):
  - compatible : should be one of the listed compatibles:
+	* "rockchip,rk3228-usb2phy"
 	* "rockchip,rk3328-usb2phy"
 	* "rockchip,rk3366-usb2phy"
 	* "rockchip,rk3399-usb2phy"
+	* "rockchip,rv1108-usb2phy"
  - reg : the address offset of grf for usb-phy configuration.
  - #clock-cells : should be 0.
  - clock-output-names : specify the 480m output clock name.
@@ -17,6 +19,10 @@ Optional properties:
 		 usb-phy output 480m and xin24m.
 		 Refer to clk/clock-bindings.txt for generic clock
 		 consumer properties.
+ - rockchip,usbgrf : phandle to the syscon managing the "usb general
+		 register files". When set driver will request its
+		 phandle as one companion-grf for some special SoCs
+		 (e.g RV1108).
 
 Required nodes : a sub-node is required for each port the phy provides.
 		 The sub-node name is used to identify host or otg port,
@@ -27,10 +33,14 @@ Required nodes : a sub-node is required for each port the phy provides.
 Required properties (port (child) node):
  - #phy-cells : must be 0. See ./phy-bindings.txt for details.
  - interrupts : specify an interrupt for each entry in interrupt-names.
- - interrupt-names : a list which shall be the following entries:
+ - interrupt-names : a list which should be one of the following cases:
+	Regular case:
 	* "otg-id" : for the otg id interrupt.
 	* "otg-bvalid" : for the otg vbus interrupt.
 	* "linestate" : for the host/otg linestate interrupt.
+	Some SoCs use one interrupt with the above muxed together, so for these
+	* "otg-mux" : otg-port interrupt, which mux otg-id/otg-bvalid/linestate
+		to one.
 
 Optional properties:
  - phy-supply : phandle to a regulator that provides power to VBUS.
@@ -57,14 +67,12 @@ grf: syscon@ff770000 {
 				     <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "otg-id", "otg-bvalid", "linestate";
-			status = "okay";
 		};
 
 		u2phy_host: host-port {
 			#phy-cells = <0>;
 			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "linestate";
-			status = "okay";
 		};
 	};
 };

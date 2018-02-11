@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -37,7 +38,7 @@
 
 #define DEBUG_SUBSYSTEM S_OSC
 
-#include "../include/lustre_obdo.h"
+#include <lustre_obdo.h>
 
 #include "osc_cl_internal.h"
 

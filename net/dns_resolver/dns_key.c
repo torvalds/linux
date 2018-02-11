@@ -224,7 +224,7 @@ static int dns_resolver_match_preparse(struct key_match_data *match_data)
 static void dns_resolver_describe(const struct key *key, struct seq_file *m)
 {
 	seq_puts(m, key->description);
-	if (key_is_instantiated(key)) {
+	if (key_is_positive(key)) {
 		int err = PTR_ERR(key->payload.data[dns_key_error]);
 
 		if (err)

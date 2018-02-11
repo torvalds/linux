@@ -3,13 +3,14 @@
  *
  *  This file contains the SELinux security data structures for kernel objects.
  *
- *  Author(s):  Stephen Smalley, <sds@epoch.ncsc.mil>
+ *  Author(s):  Stephen Smalley, <sds@tycho.nsa.gov>
  *		Chris Vance, <cvance@nai.com>
  *		Wayne Salamon, <wsalamon@nai.com>
  *		James Morris <jmorris@redhat.com>
  *
  *  Copyright (C) 2001,2002 Networks Associates Technology, Inc.
  *  Copyright (C) 2003 Red Hat, Inc., James Morris <jmorris@redhat.com>
+ *  Copyright (C) 2016 Mellanox Technologies
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License version 2,
@@ -137,6 +138,20 @@ struct tun_security_struct {
 
 struct key_security_struct {
 	u32 sid;	/* SID of key */
+};
+
+struct ib_security_struct {
+	u32 sid;        /* SID of the queue pair or MAD agent */
+};
+
+struct pkey_security_struct {
+	u64	subnet_prefix; /* Port subnet prefix */
+	u16	pkey;	/* PKey number */
+	u32	sid;	/* SID of pkey */
+};
+
+struct bpf_security_struct {
+	u32 sid;  /*SID of bpf obj creater*/
 };
 
 extern unsigned int selinux_checkreqprot;

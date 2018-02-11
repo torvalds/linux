@@ -245,6 +245,7 @@ struct e1000_hw {
 
 	struct e1000_mac_info  mac;
 	struct e1000_mbx_info mbx;
+	spinlock_t mbx_lock;		/* serializes mailbox ops */
 
 	union {
 		struct e1000_dev_spec_vf vf;

@@ -23,9 +23,9 @@ static int bochsfb_mmap(struct fb_info *info,
 static struct fb_ops bochsfb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
-	.fb_fillrect = drm_fb_helper_sys_fillrect,
-	.fb_copyarea = drm_fb_helper_sys_copyarea,
-	.fb_imageblit = drm_fb_helper_sys_imageblit,
+	.fb_fillrect = drm_fb_helper_cfb_fillrect,
+	.fb_copyarea = drm_fb_helper_cfb_copyarea,
+	.fb_imageblit = drm_fb_helper_cfb_imageblit,
 	.fb_mmap = bochsfb_mmap,
 };
 
@@ -118,7 +118,6 @@ static int bochsfb_create(struct drm_fb_helper *helper,
 
 	strcpy(info->fix.id, "bochsdrmfb");
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &bochsfb_ops;
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);

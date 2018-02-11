@@ -21,7 +21,6 @@ Example:
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
 	non-removable;
-	status = "okay";
 
 	esp8089: sdio_wifi@1 {
 		compatible = "esp,esp8089";

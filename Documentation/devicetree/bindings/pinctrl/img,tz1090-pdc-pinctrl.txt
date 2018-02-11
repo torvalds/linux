@@ -89,7 +89,7 @@ Valid values for pin and group names are:
 
 Example:
 
-	pinctrl_pdc: pinctrl@02006500 {
+	pinctrl_pdc: pinctrl@2006500 {
 		#gpio-range-cells = <3>;
 		compatible = "img,tz1090-pdc-pinctrl";
 		reg = <0x02006500 0x100>;
@@ -121,7 +121,7 @@ Example board file extracts:
 		};
 	};
 
-	ir: ir@02006200 {
+	ir: ir@2006200 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&irmod_default>;
 	};

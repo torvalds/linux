@@ -16,6 +16,7 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drmP.h>
 
+#include "zx_common_regs.h"
 #include "zx_drm_drv.h"
 #include "zx_plane.h"
 #include "zx_plane_regs.h"
@@ -539,7 +540,7 @@ int zx_plane_init(struct drm_device *drm, struct zx_plane *zplane,
 
 	ret = drm_universal_plane_init(drm, plane, VOU_CRTC_MASK,
 				       &zx_plane_funcs, formats, format_count,
-				       type, NULL);
+				       NULL, type, NULL);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to init universal plane: %d\n", ret);
 		return ret;

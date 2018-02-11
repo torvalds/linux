@@ -60,7 +60,7 @@ static int nfcmrvl_i2c_read(struct nfcmrvl_i2c_drv_data *drv_data,
 		return -ENOMEM;
 
 	/* Copy NCI header into the SKB */
-	memcpy(skb_put(*skb, NCI_CTRL_HDR_SIZE), &nci_hdr, NCI_CTRL_HDR_SIZE);
+	skb_put_data(*skb, &nci_hdr, NCI_CTRL_HDR_SIZE);
 
 	if (nci_hdr.plen) {
 		/* Read the NCI payload */
@@ -266,7 +266,7 @@ static const struct of_device_id of_nfcmrvl_i2c_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_nfcmrvl_i2c_match);
 
-static struct i2c_device_id nfcmrvl_i2c_id_table[] = {
+static const struct i2c_device_id nfcmrvl_i2c_id_table[] = {
 	{ "nfcmrvl_i2c", 0 },
 	{}
 };

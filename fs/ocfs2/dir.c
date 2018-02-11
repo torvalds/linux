@@ -3249,7 +3249,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 		spin_unlock(&OCFS2_I(dir)->ip_lock);
 		ocfs2_init_dinode_extent_tree(&et, INODE_CACHE(dir),
 					      parent_fe_bh);
-		num_free_extents = ocfs2_num_free_extents(osb, &et);
+		num_free_extents = ocfs2_num_free_extents(&et);
 		if (num_free_extents < 0) {
 			status = num_free_extents;
 			mlog_errno(status);

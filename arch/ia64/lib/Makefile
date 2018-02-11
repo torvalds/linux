@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for ia64-specific library routines..
 #
@@ -5,7 +6,7 @@
 lib-y := io.o __divsi3.o __udivsi3.o __modsi3.o __umodsi3.o		\
 	__divdi3.o __udivdi3.o __moddi3.o __umoddi3.o			\
 	checksum.o clear_page.o csum_partial_copy.o			\
-	clear_user.o strncpy_from_user.o strlen_user.o strnlen_user.o	\
+	clear_user.o strncpy_from_user.o strnlen_user.o			\
 	flush.o ip_fast_csum.o do_csum.o				\
 	memset.o strlen.o xor.o
 

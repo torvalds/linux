@@ -26,9 +26,9 @@
 #include "pcm_plugin.h"
 
 #define pcm_write(plug,buf,count) snd_pcm_oss_write3(plug,buf,count,1)
-#define pcm_writev(plug,vec,count) snd_pcm_oss_writev3(plug,vec,count,1)
+#define pcm_writev(plug,vec,count) snd_pcm_oss_writev3(plug,vec,count)
 #define pcm_read(plug,buf,count) snd_pcm_oss_read3(plug,buf,count,1)
-#define pcm_readv(plug,vec,count) snd_pcm_oss_readv3(plug,vec,count,1)
+#define pcm_readv(plug,vec,count) snd_pcm_oss_readv3(plug,vec,count)
 
 /*
  *  Basic io plugin

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifdef __KERNEL__
 #ifndef __MICROBLAZE_KGDB_H__
 #define __MICROBLAZE_KGDB_H__

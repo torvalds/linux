@@ -325,21 +325,15 @@ struct diag_pkt {
 #define HFI1_LRH_BTH 0x0002      /* 1. word of IB LRH - next header: BTH */
 
 /* misc. */
+#define SC15_PACKET 0xF
 #define SIZE_OF_CRC 1
+#define SIZE_OF_LT 1
+#define MAX_16B_PADDING 12 /* CRC = 4, LT = 1, Pad = 0 to 7 bytes */
 
 #define LIM_MGMT_P_KEY       0x7FFF
 #define FULL_MGMT_P_KEY      0xFFFF
 
 #define DEFAULT_P_KEY LIM_MGMT_P_KEY
-
-/**
- * 0xF8 - 4 bits of multicast range and 1 bit for collective range
- * Example: For 24 bit LID space,
- * Multicast range: 0xF00000 to 0xF7FFFF
- * Collective range: 0xF80000 to 0xFFFFFE
- */
-#define HFI1_MCAST_NR 0x4 /* Number of top bits set */
-#define HFI1_COLLECTIVE_NR 0x1 /* Number of bits after MCAST_NR */
 
 #define HFI1_PSM_IOC_BASE_SEQ 0x0
 

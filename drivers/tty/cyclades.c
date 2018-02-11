@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #undef	BLOCKMOVE
 #define	Z_WAKE
 #undef	Z_EXT_CHARS_IN_BUFFER
@@ -278,16 +279,15 @@ static unsigned detect_isa_irq(void __iomem *);
 #endif				/* CONFIG_ISA */
 
 #ifndef CONFIG_CYZ_INTR
-static void cyz_poll(unsigned long);
+static void cyz_poll(struct timer_list *);
 
 /* The Cyclades-Z polling cycle is defined by this variable */
 static long cyz_polling_cycle = CZ_DEF_POLL;
 
-static DEFINE_TIMER(cyz_timerlist, cyz_poll, 0, 0);
+static DEFINE_TIMER(cyz_timerlist, cyz_poll);
 
 #else				/* CONFIG_CYZ_INTR */
-static void cyz_rx_restart(unsigned long);
-static struct timer_list cyz_rx_full_timer[NR_PORTS];
+static void cyz_rx_restart(struct timer_list *);
 #endif				/* CONFIG_CYZ_INTR */
 
 static void cyy_writeb(struct cyclades_port *port, u32 reg, u8 val)
@@ -992,10 +992,8 @@ static void cyz_handle_rx(struct cyclades_port *info)
 	else
 		char_count = rx_put - rx_get + rx_bufsize;
 	if (char_count >= readl(&buf_ctrl->rx_threshold) &&
-			!timer_pending(&cyz_rx_full_timer[
-					info->line]))
-		mod_timer(&cyz_rx_full_timer[info->line],
-				jiffies + 1);
+			!timer_pending(&info->rx_full_timer))
+		mod_timer(&info->rx_full_timer, jiffies + 1);
 #endif
 	info->idle_stats.recv_idle = jiffies;
 	tty_schedule_flip(&info->port);
@@ -1197,9 +1195,9 @@ static irqreturn_t cyz_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }				/* cyz_interrupt */
 
-static void cyz_rx_restart(unsigned long arg)
+static void cyz_rx_restart(struct timer_list *t)
 {
-	struct cyclades_port *info = (struct cyclades_port *)arg;
+	struct cyclades_port *info = from_timer(info, t, rx_full_timer);
 	struct cyclades_card *card = info->card;
 	int retval;
 	__u32 channel = info->line - card->first_line;
@@ -1216,7 +1214,7 @@ static void cyz_rx_restart(unsigned long arg)
 
 #else				/* CONFIG_CYZ_INTR */
 
-static void cyz_poll(unsigned long arg)
+static void cyz_poll(struct timer_list *unused)
 {
 	struct cyclades_card *cinfo;
 	struct cyclades_port *info;
@@ -1975,18 +1973,6 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 	cflag = tty->termios.c_cflag;
 	iflag = tty->termios.c_iflag;
 
-	/*
-	 * Set up the tty->alt_speed kludge
-	 */
-	if ((info->port.flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
-		tty->alt_speed = 57600;
-	if ((info->port.flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
-		tty->alt_speed = 115200;
-	if ((info->port.flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
-		tty->alt_speed = 230400;
-	if ((info->port.flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
-		tty->alt_speed = 460800;
-
 	card = info->card;
 	channel = info->line - card->first_line;
 
@@ -2295,12 +2281,16 @@ cy_set_serial_info(struct cyclades_port *info, struct tty_struct *tty,
 		struct serial_struct __user *new_info)
 {
 	struct serial_struct new_serial;
+	int old_flags;
 	int ret;
 
 	if (copy_from_user(&new_serial, new_info, sizeof(new_serial)))
 		return -EFAULT;
 
 	mutex_lock(&info->port.mutex);
+
+	old_flags = info->port.flags;
+
 	if (!capable(CAP_SYS_ADMIN)) {
 		if (new_serial.close_delay != info->port.close_delay ||
 				new_serial.baud_base != info->baud ||
@@ -2332,6 +2322,11 @@ cy_set_serial_info(struct cyclades_port *info, struct tty_struct *tty,
 
 check_and_exit:
 	if (tty_port_initialized(&info->port)) {
+		if ((new_serial.flags ^ old_flags) & ASYNC_SPD_MASK) {
+			/* warn about deprecation unless clearing */
+			if (new_serial.flags & ASYNC_SPD_MASK)
+				dev_warn_ratelimited(tty->dev, "use of SPD flags is deprecated\n");
+		}
 		cy_set_line_char(info, tty);
 		ret = 0;
 	} else {
@@ -3100,8 +3095,7 @@ static int cy_init_card(struct cyclades_card *cinfo)
 			else
 				info->xmit_fifo_size = 4 * CYZ_FIFO_SIZE;
 #ifdef CONFIG_CYZ_INTR
-			setup_timer(&cyz_rx_full_timer[port],
-				cyz_rx_restart, (unsigned long)info);
+			timer_setup(&info->rx_full_timer, cyz_rx_restart, 0);
 #endif
 		} else {
 			unsigned short chip_number;

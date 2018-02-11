@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <sys/select.h>
 #include <stdlib.h>
 #include <stdio.h>

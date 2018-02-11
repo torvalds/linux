@@ -48,7 +48,7 @@
 	compatible = "amlogic,s905x", "amlogic,meson-gxl";
 };
 
-/* S905X Only has access to its internal PHY */
+/* S905X only has access to its internal PHY */
 &ethmac {
 	phy-mode = "rmii";
 	phy-handle = <&internal_phy>;

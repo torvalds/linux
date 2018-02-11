@@ -23,9 +23,9 @@
 
 #define VFDEC_BITS_PER_PIXEL	GAMMA_OUTPUT_BITS
 
-/** Viewfinder decimation */
+/* Viewfinder decimation */
 struct sh_css_isp_vf_isp_config {
-	uint32_t vf_downscale_bits; /**< Log VF downscale value */
+	uint32_t vf_downscale_bits; /** Log VF downscale value */
 	uint32_t enable;
 	struct ia_css_frame_sp_info info;
 	struct {

@@ -25,31 +25,15 @@
 
 #include <linux/list.h>
 #include <linux/ctype.h>
+#include <drm/drm_mode.h>
 
 struct drm_device;
 struct drm_atomic_state;
-
-/*
- * Rotation property bits. DRM_ROTATE_<degrees> rotates the image by the
- * specified amount in degrees in counter clockwise direction. DRM_REFLECT_X and
- * DRM_REFLECT_Y reflects the image along the specified axis prior to rotation
- *
- * WARNING: These defines are UABI since they're exposed in the rotation
- * property.
- */
-#define DRM_ROTATE_0	BIT(0)
-#define DRM_ROTATE_90	BIT(1)
-#define DRM_ROTATE_180	BIT(2)
-#define DRM_ROTATE_270	BIT(3)
-#define DRM_ROTATE_MASK (DRM_ROTATE_0   | DRM_ROTATE_90 | \
-			 DRM_ROTATE_180 | DRM_ROTATE_270)
-#define DRM_REFLECT_X	BIT(4)
-#define DRM_REFLECT_Y	BIT(5)
-#define DRM_REFLECT_MASK (DRM_REFLECT_X | DRM_REFLECT_Y)
+struct drm_plane;
 
 static inline bool drm_rotation_90_or_270(unsigned int rotation)
 {
-	return rotation & (DRM_ROTATE_90 | DRM_ROTATE_270);
+	return rotation & (DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_270);
 }
 
 int drm_plane_create_rotation_property(struct drm_plane *plane,

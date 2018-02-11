@@ -150,6 +150,40 @@ int cros_ec_check_result(struct cros_ec_device *ec_dev,
 }
 EXPORT_SYMBOL(cros_ec_check_result);
 
+/*
+ * cros_ec_get_host_event_wake_mask
+ *
+ * Get the mask of host events that cause wake from suspend.
+ *
+ * @ec_dev: EC device to call
+ * @msg: message structure to use
+ * @mask: result when function returns >=0.
+ *
+ * LOCKING:
+ * the caller has ec_dev->lock mutex, or the caller knows there is
+ * no other command in progress.
+ */
+static int cros_ec_get_host_event_wake_mask(struct cros_ec_device *ec_dev,
+					    struct cros_ec_command *msg,
+					    uint32_t *mask)
+{
+	struct ec_response_host_event_mask *r;
+	int ret;
+
+	msg->command = EC_CMD_HOST_EVENT_GET_WAKE_MASK;
+	msg->version = 0;
+	msg->outsize = 0;
+	msg->insize = sizeof(*r);
+
+	ret = send_command(ec_dev, msg);
+	if (ret > 0) {
+		r = (struct ec_response_host_event_mask *)msg->data;
+		*mask = r->mask;
+	}
+
+	return ret;
+}
+
 static int cros_ec_host_command_proto_query(struct cros_ec_device *ec_dev,
 					    int devidx,
 					    struct cros_ec_command *msg)
@@ -235,6 +269,22 @@ static int cros_ec_host_command_proto_query_v2(struct cros_ec_device *ec_dev)
 	return ret;
 }
 
+/*
+ * cros_ec_get_host_command_version_mask
+ *
+ * Get the version mask of a given command.
+ *
+ * @ec_dev: EC device to call
+ * @msg: message structure to use
+ * @cmd: command to get the version of.
+ * @mask: result when function returns 0.
+ *
+ * @return 0 on success, error code otherwise
+ *
+ * LOCKING:
+ * the caller has ec_dev->lock mutex or the caller knows there is
+ * no other command in progress.
+ */
 static int cros_ec_get_host_command_version_mask(struct cros_ec_device *ec_dev,
 	u16 cmd, u32 *mask)
 {
@@ -256,7 +306,7 @@ static int cros_ec_get_host_command_version_mask(struct cros_ec_device *ec_dev,
 	pver = (struct ec_params_get_cmd_versions *)msg->data;
 	pver->cmd = cmd;
 
-	ret = cros_ec_cmd_xfer(ec_dev, msg);
+	ret = send_command(ec_dev, msg);
 	if (ret > 0) {
 		rver = (struct ec_response_get_cmd_versions *)msg->data;
 		*mask = rver->version_mask;
@@ -370,6 +420,17 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 		ec_dev->mkbp_event_supported = 0;
 	else
 		ec_dev->mkbp_event_supported = 1;
+
+	/*
+	 * Get host event wake mask, assume all events are wake events
+	 * if unavailable.
+	 */
+	ret = cros_ec_get_host_event_wake_mask(ec_dev, proto_msg,
+					       &ec_dev->host_event_wake_mask);
+	if (ret < 0)
+		ec_dev->host_event_wake_mask = U32_MAX;
+
+	ret = 0;
 
 exit:
 	kfree(proto_msg);
@@ -486,11 +547,54 @@ static int get_keyboard_state_event(struct cros_ec_device *ec_dev)
 	return ec_dev->event_size;
 }
 
-int cros_ec_get_next_event(struct cros_ec_device *ec_dev)
+int cros_ec_get_next_event(struct cros_ec_device *ec_dev, bool *wake_event)
 {
-	if (ec_dev->mkbp_event_supported)
-		return get_next_event(ec_dev);
-	else
-		return get_keyboard_state_event(ec_dev);
+	u32 host_event;
+	int ret;
+
+	if (!ec_dev->mkbp_event_supported) {
+		ret = get_keyboard_state_event(ec_dev);
+		if (ret < 0)
+			return ret;
+
+		if (wake_event)
+			*wake_event = true;
+
+		return ret;
+	}
+
+	ret = get_next_event(ec_dev);
+	if (ret < 0)
+		return ret;
+
+	if (wake_event) {
+		host_event = cros_ec_get_host_event(ec_dev);
+
+		/* Consider non-host_event as wake event */
+		*wake_event = !host_event ||
+			      !!(host_event & ec_dev->host_event_wake_mask);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL(cros_ec_get_next_event);
+
+u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev)
+{
+	u32 host_event;
+
+	BUG_ON(!ec_dev->mkbp_event_supported);
+
+	if (ec_dev->event_data.event_type != EC_MKBP_EVENT_HOST_EVENT)
+		return 0;
+
+	if (ec_dev->event_size != sizeof(host_event)) {
+		dev_warn(ec_dev->dev, "Invalid host event size\n");
+		return 0;
+	}
+
+	host_event = get_unaligned_le32(&ec_dev->event_data.data.host_event);
+
+	return host_event;
+}
+EXPORT_SYMBOL(cros_ec_get_host_event);

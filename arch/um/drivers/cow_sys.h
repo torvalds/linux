@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __COW_SYS_H__
 #define __COW_SYS_H__
 

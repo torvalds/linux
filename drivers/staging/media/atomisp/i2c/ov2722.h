@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
@@ -34,8 +30,6 @@
 #include <media/v4l2-ctrls.h>
 
 #include "../include/linux/atomisp_platform.h"
-
-#define OV2722_NAME		"ov2722"
 
 #define OV2722_POWER_UP_RETRY_NUM 5
 
@@ -255,11 +249,6 @@ struct ov2722_write_buffer {
 struct ov2722_write_ctrl {
 	int index;
 	struct ov2722_write_buffer buffer;
-};
-
-static const struct i2c_device_id ov2722_id[] = {
-	{OV2722_NAME, 0},
-	{}
 };
 
 /*
@@ -1263,5 +1252,5 @@ struct ov2722_resolution ov2722_res_video[] = {
 #define N_RES_VIDEO (ARRAY_SIZE(ov2722_res_video))
 
 static struct ov2722_resolution *ov2722_res = ov2722_res_preview;
-static int N_RES = N_RES_PREVIEW;
+static unsigned long N_RES = N_RES_PREVIEW;
 #endif

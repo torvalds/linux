@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
 /* QLogic qedr NIC Driver
  * Copyright (c) 2015-2016  QLogic Corporation
  *
@@ -49,6 +50,9 @@ struct qedr_alloc_ucontext_resp {
 	__u32 sges_per_recv_wr;
 	__u32 sges_per_srq_wr;
 	__u32 max_cqes;
+	__u8 dpm_enabled;
+	__u8 wids_enabled;
+	__u16 wid_count;
 };
 
 struct qedr_alloc_pd_ureq {

@@ -428,7 +428,6 @@ static int cpufreq_gx_cpu_init(struct cpufreq_policy *policy)
 	policy->max = maxfreq;
 	policy->cpuinfo.min_freq = maxfreq / max_duration;
 	policy->cpuinfo.max_freq = maxfreq;
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 
 	return 0;
 }
@@ -438,6 +437,7 @@ static int cpufreq_gx_cpu_init(struct cpufreq_policy *policy)
  *   MediaGX/Geode GX initialize cpufreq driver
  */
 static struct cpufreq_driver gx_suspmod_driver = {
+	.flags		= CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING,
 	.get		= gx_get_cpuspeed,
 	.verify		= cpufreq_gx_verify,
 	.target		= cpufreq_gx_target,

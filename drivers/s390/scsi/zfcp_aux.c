@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * zfcp device driver
  *
@@ -29,7 +30,6 @@
 #define KMSG_COMPONENT "zfcp"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include <linux/miscdevice.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -358,6 +358,8 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	adapter->next_port_scan = jiffies;
 
+	adapter->erp_action.adapter = adapter;
+
 	if (zfcp_qdio_setup(adapter))
 		goto failed;
 
@@ -513,6 +515,9 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 	port->dev.parent = &adapter->ccw_device->dev;
 	port->dev.groups = zfcp_port_attr_groups;
 	port->dev.release = zfcp_port_release;
+
+	port->erp_action.adapter = adapter;
+	port->erp_action.port = port;
 
 	if (dev_set_name(&port->dev, "0x%016llx", (unsigned long long)wwpn)) {
 		kfree(port);

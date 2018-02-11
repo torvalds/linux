@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <net/ieee80211_radiotap.h>
 
 struct tx_radiotap_hdr {

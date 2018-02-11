@@ -94,10 +94,6 @@ struct e1000_info;
  */
 #define E1000_CHECK_RESET_COUNT		25
 
-#define DEFAULT_RDTR			0
-#define DEFAULT_RADV			8
-#define BURST_RDTR			0x20
-#define BURST_RADV			0x20
 #define PCICFG_DESC_RING_STATUS		0xe4
 #define FLUSH_DESC_REQUIRED		0x100
 
@@ -268,6 +264,7 @@ struct e1000_adapter {
 	u32 tx_fifo_size;
 	u32 tx_dma_failed;
 	u32 tx_hwtstamp_timeouts;
+	u32 tx_hwtstamp_skipped;
 
 	/* Rx */
 	bool (*clean_rx)(struct e1000_ring *ring, int *work_done,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 &cpu_alert0 {
 	temperature = <80000>; /* milliCelsius */
 };

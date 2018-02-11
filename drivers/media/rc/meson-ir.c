@@ -19,6 +19,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
+#include <linux/bitfield.h>
 
 #include <media/rc-core.h>
 
@@ -36,7 +37,7 @@
 /* only available on Meson 8b and newer */
 #define IR_DEC_REG2		0x20
 
-#define REG0_RATE_MASK		(BIT(11) - 1)
+#define REG0_RATE_MASK		GENMASK(11, 0)
 
 #define DECODE_MODE_NEC		0x0
 #define DECODE_MODE_RAW		0x2
@@ -49,14 +50,13 @@
 #define REG2_MODE_MASK		GENMASK(3, 0)
 #define REG2_MODE_SHIFT		0
 
-#define REG1_TIME_IV_SHIFT	16
-#define REG1_TIME_IV_MASK	((BIT(13) - 1) << REG1_TIME_IV_SHIFT)
+#define REG1_TIME_IV_MASK	GENMASK(28, 16)
 
-#define REG1_IRQSEL_MASK	(BIT(2) | BIT(3))
-#define REG1_IRQSEL_NEC_MODE	(0 << 2)
-#define REG1_IRQSEL_RISE_FALL	(1 << 2)
-#define REG1_IRQSEL_FALL	(2 << 2)
-#define REG1_IRQSEL_RISE	(3 << 2)
+#define REG1_IRQSEL_MASK	GENMASK(3, 2)
+#define REG1_IRQSEL_NEC_MODE	0
+#define REG1_IRQSEL_RISE_FALL	1
+#define REG1_IRQSEL_FALL	2
+#define REG1_IRQSEL_RISE	3
 
 #define REG1_RESET		BIT(0)
 #define REG1_ENABLE		BIT(15)
@@ -68,7 +68,6 @@
 struct meson_ir {
 	void __iomem	*reg;
 	struct rc_dev	*rc;
-	int		irq;
 	spinlock_t	lock;
 };
 
@@ -86,18 +85,19 @@ static void meson_ir_set_mask(struct meson_ir *ir, unsigned int reg,
 static irqreturn_t meson_ir_irq(int irqno, void *dev_id)
 {
 	struct meson_ir *ir = dev_id;
-	u32 duration;
+	u32 duration, status;
 	DEFINE_IR_RAW_EVENT(rawir);
 
 	spin_lock(&ir->lock);
 
-	duration = readl(ir->reg + IR_DEC_REG1);
-	duration = (duration & REG1_TIME_IV_MASK) >> REG1_TIME_IV_SHIFT;
+	duration = readl_relaxed(ir->reg + IR_DEC_REG1);
+	duration = FIELD_GET(REG1_TIME_IV_MASK, duration);
 	rawir.duration = US_TO_NS(duration * MESON_TRATE);
 
-	rawir.pulse = !!(readl(ir->reg + IR_DEC_STATUS) & STATUS_IR_DEC_IN);
+	status = readl_relaxed(ir->reg + IR_DEC_STATUS);
+	rawir.pulse = !!(status & STATUS_IR_DEC_IN);
 
-	ir_raw_event_store_with_filter(ir->rc, &rawir);
+	ir_raw_event_store(ir->rc, &rawir);
 	ir_raw_event_handle(ir->rc);
 
 	spin_unlock(&ir->lock);
@@ -112,7 +112,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	struct resource *res;
 	const char *map_name;
 	struct meson_ir *ir;
-	int ret;
+	int irq, ret;
 
 	ir = devm_kzalloc(dev, sizeof(struct meson_ir), GFP_KERNEL);
 	if (!ir)
@@ -125,26 +125,25 @@ static int meson_ir_probe(struct platform_device *pdev)
 		return PTR_ERR(ir->reg);
 	}
 
-	ir->irq = platform_get_irq(pdev, 0);
-	if (ir->irq < 0) {
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
 		dev_err(dev, "no irq resource\n");
-		return ir->irq;
+		return irq;
 	}
 
-	ir->rc = rc_allocate_device(RC_DRIVER_IR_RAW);
+	ir->rc = devm_rc_allocate_device(dev, RC_DRIVER_IR_RAW);
 	if (!ir->rc) {
 		dev_err(dev, "failed to allocate rc device\n");
 		return -ENOMEM;
 	}
 
 	ir->rc->priv = ir;
-	ir->rc->input_name = DRIVER_NAME;
+	ir->rc->device_name = DRIVER_NAME;
 	ir->rc->input_phys = DRIVER_NAME "/input0";
 	ir->rc->input_id.bustype = BUS_HOST;
 	map_name = of_get_property(node, "linux,rc-map-name", NULL);
 	ir->rc->map_name = map_name ? map_name : RC_MAP_EMPTY;
-	ir->rc->dev.parent = dev;
-	ir->rc->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+	ir->rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	ir->rc->rx_resolution = US_TO_NS(MESON_TRATE);
 	ir->rc->timeout = MS_TO_NS(200);
 	ir->rc->driver_name = DRIVER_NAME;
@@ -152,16 +151,16 @@ static int meson_ir_probe(struct platform_device *pdev)
 	spin_lock_init(&ir->lock);
 	platform_set_drvdata(pdev, ir);
 
-	ret = rc_register_device(ir->rc);
+	ret = devm_rc_register_device(dev, ir->rc);
 	if (ret) {
 		dev_err(dev, "failed to register rc device\n");
-		goto out_free;
+		return ret;
 	}
 
-	ret = devm_request_irq(dev, ir->irq, meson_ir_irq, 0, "ir-meson", ir);
+	ret = devm_request_irq(dev, irq, meson_ir_irq, 0, NULL, ir);
 	if (ret) {
 		dev_err(dev, "failed to request irq\n");
-		goto out_unreg;
+		return ret;
 	}
 
 	/* Reset the decoder */
@@ -171,29 +170,22 @@ static int meson_ir_probe(struct platform_device *pdev)
 	/* Set general operation mode (= raw/software decoding) */
 	if (of_device_is_compatible(node, "amlogic,meson6-ir"))
 		meson_ir_set_mask(ir, IR_DEC_REG1, REG1_MODE_MASK,
-				  DECODE_MODE_RAW << REG1_MODE_SHIFT);
+				  FIELD_PREP(REG1_MODE_MASK, DECODE_MODE_RAW));
 	else
 		meson_ir_set_mask(ir, IR_DEC_REG2, REG2_MODE_MASK,
-				  DECODE_MODE_RAW << REG2_MODE_SHIFT);
+				  FIELD_PREP(REG2_MODE_MASK, DECODE_MODE_RAW));
 
 	/* Set rate */
 	meson_ir_set_mask(ir, IR_DEC_REG0, REG0_RATE_MASK, MESON_TRATE - 1);
 	/* IRQ on rising and falling edges */
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_IRQSEL_MASK,
-			  REG1_IRQSEL_RISE_FALL);
+			  FIELD_PREP(REG1_IRQSEL_MASK, REG1_IRQSEL_RISE_FALL));
 	/* Enable the decoder */
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_ENABLE, REG1_ENABLE);
 
 	dev_info(dev, "receiver initialized\n");
 
 	return 0;
-out_unreg:
-	rc_unregister_device(ir->rc);
-	ir->rc = NULL;
-out_free:
-	rc_free_device(ir->rc);
-
-	return ret;
 }
 
 static int meson_ir_remove(struct platform_device *pdev)
@@ -206,9 +198,33 @@ static int meson_ir_remove(struct platform_device *pdev)
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_ENABLE, 0);
 	spin_unlock_irqrestore(&ir->lock, flags);
 
-	rc_unregister_device(ir->rc);
-
 	return 0;
+}
+
+static void meson_ir_shutdown(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device_node *node = dev->of_node;
+	struct meson_ir *ir = platform_get_drvdata(pdev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ir->lock, flags);
+
+	/*
+	 * Set operation mode to NEC/hardware decoding to give
+	 * bootloader a chance to power the system back on
+	 */
+	if (of_device_is_compatible(node, "amlogic,meson6-ir"))
+		meson_ir_set_mask(ir, IR_DEC_REG1, REG1_MODE_MASK,
+				  DECODE_MODE_NEC << REG1_MODE_SHIFT);
+	else
+		meson_ir_set_mask(ir, IR_DEC_REG2, REG2_MODE_MASK,
+				  DECODE_MODE_NEC << REG2_MODE_SHIFT);
+
+	/* Set rate to default value */
+	meson_ir_set_mask(ir, IR_DEC_REG0, REG0_RATE_MASK, 0x13);
+
+	spin_unlock_irqrestore(&ir->lock, flags);
 }
 
 static const struct of_device_id meson_ir_match[] = {
@@ -222,6 +238,7 @@ MODULE_DEVICE_TABLE(of, meson_ir_match);
 static struct platform_driver meson_ir_driver = {
 	.probe		= meson_ir_probe,
 	.remove		= meson_ir_remove,
+	.shutdown	= meson_ir_shutdown,
 	.driver = {
 		.name		= DRIVER_NAME,
 		.of_match_table	= meson_ir_match,

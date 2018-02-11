@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 // $Id: strcop.h,v 1.3 2003/10/22 13:27:12 henriken Exp $
 
 // Streamcop meta-data configuration structs

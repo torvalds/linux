@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  fs/ext4/mballoc.h
  *
@@ -78,10 +79,8 @@ do {									\
 
 
 struct ext4_free_data {
-	/* MUST be the first member */
-	struct ext4_journal_cb_entry	efd_jce;
-
-	/* ext4_free_data private data starts from here */
+	/* this links the free block information from sb_info */
+	struct list_head		efd_list;
 
 	/* this links the free block information from group_info */
 	struct rb_node			efd_node;

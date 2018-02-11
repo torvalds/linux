@@ -1081,7 +1081,7 @@ static int tegra_slink_probe(struct platform_device *pdev)
 		goto exit_free_irq;
 	}
 
-	tspi->rst = devm_reset_control_get(&pdev->dev, "spi");
+	tspi->rst = devm_reset_control_get_exclusive(&pdev->dev, "spi");
 	if (IS_ERR(tspi->rst)) {
 		dev_err(&pdev->dev, "can not get reset\n");
 		ret = PTR_ERR(tspi->rst);

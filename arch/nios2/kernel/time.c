@@ -107,7 +107,10 @@ static struct nios2_clocksource nios2_cs = {
 
 cycles_t get_cycles(void)
 {
-	return nios2_timer_read(&nios2_cs.cs);
+	/* Only read timer if it has been initialized */
+	if (nios2_cs.timer.base)
+		return nios2_timer_read(&nios2_cs.cs);
+	return 0;
 }
 EXPORT_SYMBOL(get_cycles);
 
@@ -350,7 +353,7 @@ void __init time_init(void)
 	if (count < 2)
 		panic("%d timer is found, it needs 2 timers in system\n", count);
 
-	clocksource_probe();
+	timer_probe();
 }
 
-CLOCKSOURCE_OF_DECLARE(nios2_timer, ALTR_TIMER_COMPATIBLE, nios2_time_init);
+TIMER_OF_DECLARE(nios2_timer, ALTR_TIMER_COMPATIBLE, nios2_time_init);

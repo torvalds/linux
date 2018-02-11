@@ -55,10 +55,10 @@ DEFINE_SPINLOCK(divert_lock);
 /***************************/
 /* timer callback function */
 /***************************/
-static void deflect_timer_expire(ulong arg)
+static void deflect_timer_expire(struct timer_list *t)
 {
 	unsigned long flags;
-	struct call_struc *cs = (struct call_struc *) arg;
+	struct call_struc *cs = from_timer(cs, t, timer);
 
 	spin_lock_irqsave(&divert_lock, flags);
 	del_timer(&cs->timer); /* delete active timer */
@@ -157,7 +157,7 @@ int cf_command(int drvid, int mode,
 	/* allocate mem for information struct */
 	if (!(cs = kmalloc(sizeof(struct call_struc), GFP_ATOMIC)))
 		return (-ENOMEM); /* no memory */
-	setup_timer(&cs->timer, deflect_timer_expire, (ulong)cs);
+	timer_setup(&cs->timer, deflect_timer_expire, 0);
 	cs->info[0] = '\0';
 	cs->ics.driver = drvid;
 	cs->ics.command = ISDN_CMD_PROT_IO; /* protocol specific io */
@@ -450,8 +450,7 @@ static int isdn_divert_icall(isdn_ctrl *ic)
 					return (0); /* no external deflection needed */
 			if (!(cs = kmalloc(sizeof(struct call_struc), GFP_ATOMIC)))
 				return (0); /* no memory */
-			setup_timer(&cs->timer, deflect_timer_expire,
-				    (ulong)cs);
+			timer_setup(&cs->timer, deflect_timer_expire, 0);
 			cs->info[0] = '\0';
 
 			cs->ics = *ic; /* copy incoming data */
@@ -485,18 +484,19 @@ static int isdn_divert_icall(isdn_ctrl *ic)
 				cs->deflect_dest[0] = '\0';
 				retval = 4; /* only proceed */
 			}
-			sprintf(cs->info, "%d 0x%lx %s %s %s %s 0x%x 0x%x %d %d %s\n",
-				cs->akt_state,
-				cs->divert_id,
-				divert_if.drv_to_name(cs->ics.driver),
-				(ic->command == ISDN_STAT_ICALLW) ? "1" : "0",
-				cs->ics.parm.setup.phone,
-				cs->ics.parm.setup.eazmsn,
-				cs->ics.parm.setup.si1,
-				cs->ics.parm.setup.si2,
-				cs->ics.parm.setup.screen,
-				dv->rule.waittime,
-				cs->deflect_dest);
+			snprintf(cs->info, sizeof(cs->info),
+				 "%d 0x%lx %s %s %s %s 0x%x 0x%x %d %d %s\n",
+				 cs->akt_state,
+				 cs->divert_id,
+				 divert_if.drv_to_name(cs->ics.driver),
+				 (ic->command == ISDN_STAT_ICALLW) ? "1" : "0",
+				 cs->ics.parm.setup.phone,
+				 cs->ics.parm.setup.eazmsn,
+				 cs->ics.parm.setup.si1,
+				 cs->ics.parm.setup.si2,
+				 cs->ics.parm.setup.screen,
+				 dv->rule.waittime,
+				 cs->deflect_dest);
 			if ((dv->rule.action == DEFLECT_REPORT) ||
 			    (dv->rule.action == DEFLECT_REJECT)) {
 				put_info_buffer(cs->info);

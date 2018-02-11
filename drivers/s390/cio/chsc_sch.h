@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _CHSC_SCH_H
 #define _CHSC_SCH_H
 

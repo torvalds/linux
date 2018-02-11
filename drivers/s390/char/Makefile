@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # S/390 character devices
 #
@@ -15,6 +16,8 @@ ifneq ($(CC_FLAGS_MARCH),-march=z900)
 CFLAGS_REMOVE_sclp_early_core.o	+= $(CC_FLAGS_MARCH)
 CFLAGS_sclp_early_core.o		+= -march=z900
 endif
+
+CFLAGS_sclp_early_core.o		+= -D__NO_FORTIFY
 
 obj-y += ctrlchar.o keyboard.o defkeymap.o sclp.o sclp_rw.o sclp_quiesce.o \
 	 sclp_cmd.o sclp_config.o sclp_cpi_sys.o sclp_ocf.o sclp_ctl.o \

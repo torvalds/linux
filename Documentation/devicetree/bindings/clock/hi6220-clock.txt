@@ -11,6 +11,7 @@ Required Properties:
 - compatible: the compatible should be one of the following strings to
 	indicate the clock controller functionality.
 
+	- "hisilicon,hi6220-acpu-sctrl"
 	- "hisilicon,hi6220-aoctrl"
 	- "hisilicon,hi6220-sysctrl"
 	- "hisilicon,hi6220-mediactrl"

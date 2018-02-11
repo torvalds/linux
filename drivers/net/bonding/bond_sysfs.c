@@ -759,7 +759,7 @@ static struct attribute *per_bond_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group bonding_group = {
+static const struct attribute_group bonding_group = {
 	.name = "bonding",
 	.attrs = per_bond_attrs,
 };

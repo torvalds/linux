@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_METAG_CORE_REG_H_
 #define __ASM_METAG_CORE_REG_H_
 

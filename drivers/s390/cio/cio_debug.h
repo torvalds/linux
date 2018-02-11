@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef CIO_DEBUG_H
 #define CIO_DEBUG_H
 
@@ -22,13 +23,7 @@ extern debug_info_t *cio_debug_crw_id;
 
 static inline void CIO_HEX_EVENT(int level, void *data, int length)
 {
-	if (unlikely(!cio_debug_trace_id))
-		return;
-	while (length > 0) {
-		debug_event(cio_debug_trace_id, level, data, length);
-		length -= cio_debug_trace_id->buf_size;
-		data += cio_debug_trace_id->buf_size;
-	}
+	debug_event(cio_debug_trace_id, level, data, length);
 }
 
 #endif

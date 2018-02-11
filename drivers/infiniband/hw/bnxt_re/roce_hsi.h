@@ -1473,8 +1473,8 @@ struct cmdq_modify_gid {
 	u8 resp_size;
 	u8 reserved8;
 	__le64 resp_addr;
-	__le32 gid[4];
-	__le16 src_mac[3];
+	__be32 gid[4];
+	__be16 src_mac[3];
 	__le16 vlan;
 	#define CMDQ_MODIFY_GID_VLAN_VLAN_ID_MASK		    0xfffUL
 	#define CMDQ_MODIFY_GID_VLAN_VLAN_ID_SFT		    0
@@ -2644,7 +2644,7 @@ struct creq_query_func_resp_sb {
 	u8 l2_db_space_size;
 	__le16 max_srq;
 	__le32 max_gid;
-	__le32 tqm_alloc_reqs[8];
+	__le32 tqm_alloc_reqs[12];
 };
 
 /* Set resources command response (16 bytes) */

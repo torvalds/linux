@@ -290,7 +290,6 @@ static irqreturn_t goldfish_mmc_irq(int irq, void *dev_id)
 	u16 status;
 	int end_command = 0;
 	int end_transfer = 0;
-	int transfer_error = 0;
 	int state_changed = 0;
 	int cmd_timeout = 0;
 
@@ -322,9 +321,7 @@ static irqreturn_t goldfish_mmc_irq(int irq, void *dev_id)
 	if (end_command)
 		goldfish_mmc_cmd_done(host, host->cmd);
 
-	if (transfer_error)
-		goldfish_mmc_xfer_done(host, host->data);
-	else if (end_transfer) {
+	if (end_transfer) {
 		host->dma_done = 1;
 		goldfish_mmc_end_of_data(host, host->data);
 	} else if (host->data != NULL) {
@@ -347,8 +344,7 @@ static irqreturn_t goldfish_mmc_irq(int irq, void *dev_id)
 		mmc_detect_change(host->mmc, 0);
 	}
 
-	if (!end_command && !end_transfer &&
-	    !transfer_error && !state_changed && !cmd_timeout) {
+	if (!end_command && !end_transfer && !state_changed && !cmd_timeout) {
 		status = GOLDFISH_MMC_READ(host, MMC_INT_STATUS);
 		dev_info(mmc_dev(host->mmc),"spurious irq 0x%04x\n", status);
 		if (status != 0) {

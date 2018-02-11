@@ -35,7 +35,7 @@
 static void ph_command(struct IsdnCardState *cs, unsigned int command);
 static inline void cic_int(struct IsdnCardState *cs);
 static void dch_l2l1(struct PStack *st, int pr, void *arg);
-static void dbusy_timer_handler(struct IsdnCardState *cs);
+static void dbusy_timer_handler(struct timer_list *t);
 static void dch_empty_fifo(struct IsdnCardState *cs, int count);
 static void dch_fill_fifo(struct IsdnCardState *cs);
 static inline void dch_int(struct IsdnCardState *cs);
@@ -198,8 +198,9 @@ dch_l2l1(struct PStack *st, int pr, void *arg)
 //----------------------------------------------------------
 //----------------------------------------------------------
 static void
-dbusy_timer_handler(struct IsdnCardState *cs)
+dbusy_timer_handler(struct timer_list *t)
 {
+	struct IsdnCardState *cs = from_timer(cs, t, dbusytimer);
 	struct PStack *st;
 	int	rbchd, stard;
 
@@ -298,7 +299,6 @@ dch_fill_fifo(struct IsdnCardState *cs)
 		debugl1(cs, "dch_fill_fifo dbusytimer running");
 		del_timer(&cs->dbusytimer);
 	}
-	init_timer(&cs->dbusytimer);
 	cs->dbusytimer.expires = jiffies + ((DBUSY_TIMER_VALUE * HZ)/1000);
 	add_timer(&cs->dbusytimer);
 
@@ -350,7 +350,7 @@ dch_int(struct IsdnCardState *cs)
 				if (!(skb = dev_alloc_skb(count)))
 					printk(KERN_WARNING "HiSax dch_int(): receive out of memory\n");
 				else {
-					memcpy(skb_put(skb, count), cs->rcvbuf, count);
+					skb_put_data(skb, cs->rcvbuf, count);
 					skb_queue_tail(&cs->rq, skb);
 				}
 			}
@@ -424,7 +424,7 @@ dch_init(struct IsdnCardState *cs)
 
 	cs->setstack_d      = dch_setstack;
 
-	setup_timer(&cs->dbusytimer, (void *)dbusy_timer_handler, (long)cs);
+	timer_setup(&cs->dbusytimer, dbusy_timer_handler, 0);
 
 	cs->writeisac(cs, IPACX_TR_CONF0, 0x00);  // clear LDD
 	cs->writeisac(cs, IPACX_TR_CONF2, 0x00);  // enable transmitter
@@ -627,7 +627,8 @@ bch_int(struct IsdnCardState *cs, u_char hscx)
 				if (!(skb = dev_alloc_skb(count)))
 					printk(KERN_WARNING "HiSax bch_int(): receive frame out of memory\n");
 				else {
-					memcpy(skb_put(skb, count), bcs->hw.hscx.rcvbuf, count);
+					skb_put_data(skb, bcs->hw.hscx.rcvbuf,
+						     count);
 					skb_queue_tail(&bcs->rqueue, skb);
 				}
 			}
@@ -644,7 +645,8 @@ bch_int(struct IsdnCardState *cs, u_char hscx)
 			if (!(skb = dev_alloc_skb(B_FIFO_SIZE)))
 				printk(KERN_WARNING "HiSax bch_int(): receive transparent out of memory\n");
 			else {
-				memcpy(skb_put(skb, B_FIFO_SIZE), bcs->hw.hscx.rcvbuf, B_FIFO_SIZE);
+				skb_put_data(skb, bcs->hw.hscx.rcvbuf,
+					     B_FIFO_SIZE);
 				skb_queue_tail(&bcs->rqueue, skb);
 			}
 			bcs->hw.hscx.rcvidx = 0;

@@ -94,6 +94,9 @@ enum wcn36xx_ampdu_state {
 #define WCN36XX_FLAGS(__wcn) (__wcn->hw->flags)
 #define WCN36XX_MAX_POWER(__wcn) (__wcn->hw->conf.chandef.chan->max_power)
 
+#define RF_UNKNOWN	0x0000
+#define RF_IRIS_WCN3620	0x3620
+
 static inline void buff_to_be(u32 *buf, size_t len)
 {
 	int i;
@@ -202,6 +205,9 @@ struct wcn36xx {
 	struct qcom_smem_state	*tx_rings_empty_state;
 	unsigned		tx_rings_empty_state_bit;
 
+	/* prevents concurrent FW reconfiguration */
+	struct mutex		conf_mutex;
+
 	/*
 	 * smd_buf must be protected with smd_mutex to garantee
 	 * that all messages are sent one after another
@@ -237,6 +243,9 @@ struct wcn36xx {
 	struct wcn36xx_dxe_mem_pool data_mem_pool;
 
 	struct sk_buff		*tx_ack_skb;
+
+	/* RF module */
+	unsigned		rf_id;
 
 #ifdef CONFIG_WCN36XX_DEBUGFS
 	/* Debug file system entry */

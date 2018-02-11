@@ -233,7 +233,7 @@ static void btuart_receive(struct btuart_info *info)
 
 		} else {
 
-			*skb_put(info->rx_skb, 1) = inb(iobase + UART_RX);
+			skb_put_u8(info->rx_skb, inb(iobase + UART_RX));
 			info->rx_count--;
 
 			if (info->rx_count == 0) {
@@ -614,14 +614,16 @@ static int btuart_config(struct pcmcia_device *link)
 	int try;
 
 	/* First pass: look for a config entry that looks normal.
-	   Two tries: without IO aliases, then with aliases */
+	 * Two tries: without IO aliases, then with aliases
+	 */
 	for (try = 0; try < 2; try++)
 		if (!pcmcia_loop_config(link, btuart_check_config, &try))
 			goto found_port;
 
 	/* Second pass: try to find an entry that isn't picky about
-	   its base address, then try to grab any standard serial port
-	   address, and finally try to get any free port. */
+	 * its base address, then try to grab any standard serial port
+	 * address, and finally try to get any free port.
+	 */
 	if (!pcmcia_loop_config(link, btuart_check_config_notpicky, NULL))
 		goto found_port;
 

@@ -311,37 +311,20 @@ static const struct regmap_config tps65217_regmap_config = {
 };
 
 static const struct of_device_id tps65217_of_match[] = {
-	{ .compatible = "ti,tps65217", .data = (void *)TPS65217 },
+	{ .compatible = "ti,tps65217"},
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, tps65217_of_match);
 
-static int tps65217_probe(struct i2c_client *client,
-				const struct i2c_device_id *ids)
+static int tps65217_probe(struct i2c_client *client)
 {
 	struct tps65217 *tps;
 	unsigned int version;
-	unsigned long chip_id = ids->driver_data;
-	const struct of_device_id *match;
 	bool status_off = false;
 	int ret;
 
-	if (client->dev.of_node) {
-		match = of_match_device(tps65217_of_match, &client->dev);
-		if (!match) {
-			dev_err(&client->dev,
-				"Failed to find matching dt id\n");
-			return -EINVAL;
-		}
-		chip_id = (unsigned long)match->data;
-		status_off = of_property_read_bool(client->dev.of_node,
-					"ti,pmic-shutdown-controller");
-	}
-
-	if (!chip_id) {
-		dev_err(&client->dev, "id is null.\n");
-		return -ENODEV;
-	}
+	status_off = of_property_read_bool(client->dev.of_node,
+					   "ti,pmic-shutdown-controller");
 
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
@@ -349,7 +332,6 @@ static int tps65217_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, tps);
 	tps->dev = &client->dev;
-	tps->id = chip_id;
 
 	tps->regmap = devm_regmap_init_i2c(client, &tps65217_regmap_config);
 	if (IS_ERR(tps->regmap)) {
@@ -430,7 +412,7 @@ static struct i2c_driver tps65217_driver = {
 		.of_match_table = tps65217_of_match,
 	},
 	.id_table	= tps65217_id_table,
-	.probe		= tps65217_probe,
+	.probe_new	= tps65217_probe,
 	.remove		= tps65217_remove,
 };
 

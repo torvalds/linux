@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 	.global cris_flush_cache_range
 	.type	cris_flush_cache_range, @function
 cris_flush_cache_range:

@@ -12,7 +12,7 @@
 #ifndef __MTD_NAND_S3C2410_H
 #define __MTD_NAND_S3C2410_H
 
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 
 /**
  * struct s3c2410_nand_set - define a set of one or more nand chips

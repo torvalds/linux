@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Resolve DNS hostnames into valid ip addresses
  */

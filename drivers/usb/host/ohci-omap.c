@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * OHCI HCD (Host Controller Driver) for USB.
  *
@@ -53,7 +54,7 @@
 #define DRIVER_DESC "OHCI OMAP driver"
 
 #ifdef CONFIG_TPS65010
-#include <linux/i2c/tps65010.h>
+#include <linux/mfd/tps65010.h>
 #else
 
 #define LOW	0

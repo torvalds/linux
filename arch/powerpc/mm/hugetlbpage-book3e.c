@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PPC Huge TLB Page Support for Book3E MMU
  *

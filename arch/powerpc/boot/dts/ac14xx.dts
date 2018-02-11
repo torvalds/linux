@@ -10,7 +10,7 @@
  */
 
 
-#include <mpc5121.dtsi>
+#include "mpc5121.dtsi"
 
 / {
 	model = "ac14xx";

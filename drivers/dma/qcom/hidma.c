@@ -1,7 +1,7 @@
 /*
  * Qualcomm Technologies HIDMA DMA engine interface
  *
- * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -210,6 +210,7 @@ static int hidma_chan_init(struct hidma_dev *dmadev, u32 dma_sig)
 	INIT_LIST_HEAD(&mchan->prepared);
 	INIT_LIST_HEAD(&mchan->active);
 	INIT_LIST_HEAD(&mchan->completed);
+	INIT_LIST_HEAD(&mchan->queued);
 
 	spin_lock_init(&mchan->lock);
 	list_add_tail(&mchan->chan.device_node, &ddev->channels);
@@ -230,9 +231,15 @@ static void hidma_issue_pending(struct dma_chan *dmach)
 	struct hidma_chan *mchan = to_hidma_chan(dmach);
 	struct hidma_dev *dmadev = mchan->dmadev;
 	unsigned long flags;
+	struct hidma_desc *qdesc, *next;
 	int status;
 
 	spin_lock_irqsave(&mchan->lock, flags);
+	list_for_each_entry_safe(qdesc, next, &mchan->queued, node) {
+		hidma_ll_queue_request(dmadev->lldev, qdesc->tre_ch);
+		list_move_tail(&qdesc->node, &mchan->active);
+	}
+
 	if (!mchan->running) {
 		struct hidma_desc *desc = list_first_entry(&mchan->active,
 							   struct hidma_desc,
@@ -315,17 +322,18 @@ static dma_cookie_t hidma_tx_submit(struct dma_async_tx_descriptor *txd)
 		pm_runtime_put_autosuspend(dmadev->ddev.dev);
 		return -ENODEV;
 	}
+	pm_runtime_mark_last_busy(dmadev->ddev.dev);
+	pm_runtime_put_autosuspend(dmadev->ddev.dev);
 
 	mdesc = container_of(txd, struct hidma_desc, desc);
 	spin_lock_irqsave(&mchan->lock, irqflags);
 
-	/* Move descriptor to active */
-	list_move_tail(&mdesc->node, &mchan->active);
+	/* Move descriptor to queued */
+	list_move_tail(&mdesc->node, &mchan->queued);
 
 	/* Update cookie */
 	cookie = dma_cookie_assign(txd);
 
-	hidma_ll_queue_request(dmadev->lldev, mdesc->tre_ch);
 	spin_unlock_irqrestore(&mchan->lock, irqflags);
 
 	return cookie;
@@ -403,7 +411,40 @@ hidma_prep_dma_memcpy(struct dma_chan *dmach, dma_addr_t dest, dma_addr_t src,
 		return NULL;
 
 	hidma_ll_set_transfer_params(mdma->lldev, mdesc->tre_ch,
-				     src, dest, len, flags);
+				     src, dest, len, flags,
+				     HIDMA_TRE_MEMCPY);
+
+	/* Place descriptor in prepared list */
+	spin_lock_irqsave(&mchan->lock, irqflags);
+	list_add_tail(&mdesc->node, &mchan->prepared);
+	spin_unlock_irqrestore(&mchan->lock, irqflags);
+
+	return &mdesc->desc;
+}
+
+static struct dma_async_tx_descriptor *
+hidma_prep_dma_memset(struct dma_chan *dmach, dma_addr_t dest, int value,
+		size_t len, unsigned long flags)
+{
+	struct hidma_chan *mchan = to_hidma_chan(dmach);
+	struct hidma_desc *mdesc = NULL;
+	struct hidma_dev *mdma = mchan->dmadev;
+	unsigned long irqflags;
+
+	/* Get free descriptor */
+	spin_lock_irqsave(&mchan->lock, irqflags);
+	if (!list_empty(&mchan->free)) {
+		mdesc = list_first_entry(&mchan->free, struct hidma_desc, node);
+		list_del(&mdesc->node);
+	}
+	spin_unlock_irqrestore(&mchan->lock, irqflags);
+
+	if (!mdesc)
+		return NULL;
+
+	hidma_ll_set_transfer_params(mdma->lldev, mdesc->tre_ch,
+				     value, dest, len, flags,
+				     HIDMA_TRE_MEMSET);
 
 	/* Place descriptor in prepared list */
 	spin_lock_irqsave(&mchan->lock, irqflags);
@@ -431,6 +472,7 @@ static int hidma_terminate_channel(struct dma_chan *chan)
 	list_splice_init(&mchan->active, &list);
 	list_splice_init(&mchan->prepared, &list);
 	list_splice_init(&mchan->completed, &list);
+	list_splice_init(&mchan->queued, &list);
 	spin_unlock_irqrestore(&mchan->lock, irqflags);
 
 	/* this suspends the existing transfer */
@@ -767,6 +809,7 @@ static int hidma_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(dmadev->ddev.dev);
 
 	dma_cap_set(DMA_MEMCPY, dmadev->ddev.cap_mask);
+	dma_cap_set(DMA_MEMSET, dmadev->ddev.cap_mask);
 	if (WARN_ON(!pdev->dev.dma_mask)) {
 		rc = -ENXIO;
 		goto dmafree;
@@ -777,6 +820,7 @@ static int hidma_probe(struct platform_device *pdev)
 	dmadev->dev_trca = trca;
 	dmadev->trca_resource = trca_resource;
 	dmadev->ddev.device_prep_dma_memcpy = hidma_prep_dma_memcpy;
+	dmadev->ddev.device_prep_dma_memset = hidma_prep_dma_memset;
 	dmadev->ddev.device_alloc_chan_resources = hidma_alloc_chan_resources;
 	dmadev->ddev.device_free_chan_resources = hidma_free_chan_resources;
 	dmadev->ddev.device_tx_status = hidma_tx_status;
@@ -795,8 +839,11 @@ static int hidma_probe(struct platform_device *pdev)
 	device_property_read_u32(&pdev->dev, "desc-count",
 				 &dmadev->nr_descriptors);
 
-	if (!dmadev->nr_descriptors && nr_desc_prm)
+	if (nr_desc_prm) {
+		dev_info(&pdev->dev, "overriding number of descriptors as %d\n",
+			 nr_desc_prm);
 		dmadev->nr_descriptors = nr_desc_prm;
+	}
 
 	if (!dmadev->nr_descriptors)
 		dmadev->nr_descriptors = HIDMA_NR_DEFAULT_DESC;

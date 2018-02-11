@@ -116,7 +116,7 @@ static int __bio_detain(struct dm_bio_prison *prison,
 
 	while (*new) {
 		struct dm_bio_prison_cell *cell =
-			container_of(*new, struct dm_bio_prison_cell, node);
+			rb_entry(*new, struct dm_bio_prison_cell, node);
 
 		r = cmp_keys(key, &cell->key);
 
@@ -229,7 +229,7 @@ void dm_cell_release_no_holder(struct dm_bio_prison *prison,
 EXPORT_SYMBOL_GPL(dm_cell_release_no_holder);
 
 void dm_cell_error(struct dm_bio_prison *prison,
-		   struct dm_bio_prison_cell *cell, int error)
+		   struct dm_bio_prison_cell *cell, blk_status_t error)
 {
 	struct bio_list bios;
 	struct bio *bio;
@@ -238,7 +238,7 @@ void dm_cell_error(struct dm_bio_prison *prison,
 	dm_cell_release(prison, cell, &bios);
 
 	while ((bio = bio_list_pop(&bios))) {
-		bio->bi_error = error;
+		bio->bi_status = error;
 		bio_endio(bio);
 	}
 }

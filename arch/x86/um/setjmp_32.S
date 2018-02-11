@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #
 # arch/i386/setjmp.S
 #
@@ -16,9 +17,9 @@
 
 	.text
 	.align 4
-	.globl setjmp
-	.type setjmp, @function
-setjmp:
+	.globl kernel_setjmp
+	.type kernel_setjmp, @function
+kernel_setjmp:
 #ifdef _REGPARM
 	movl %eax,%edx
 #else
@@ -35,13 +36,13 @@ setjmp:
 	movl %ecx,20(%edx)		# Return address
 	ret
 
-	.size setjmp,.-setjmp
+	.size kernel_setjmp,.-kernel_setjmp
 
 	.text
 	.align 4
-	.globl longjmp
-	.type longjmp, @function
-longjmp:
+	.globl kernel_longjmp
+	.type kernel_longjmp, @function
+kernel_longjmp:
 #ifdef _REGPARM
 	xchgl %eax,%edx
 #else
@@ -55,4 +56,4 @@ longjmp:
 	movl 16(%edx),%edi
 	jmp *20(%edx)
 
-	.size longjmp,.-longjmp
+	.size kernel_longjmp,.-kernel_longjmp

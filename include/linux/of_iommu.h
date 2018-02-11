@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __OF_IOMMU_H
 #define __OF_IOMMU_H
 

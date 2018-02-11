@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "util.h"
 #include "build-id.h"
 #include "hist.h"
@@ -167,6 +168,10 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 			symlen = unresolved_col_width + 4 + 2;
 			hists__set_unres_dso_col_len(hists, HISTC_MEM_DADDR_DSO);
 		}
+
+		hists__new_col_len(hists, HISTC_MEM_PHYS_DADDR,
+				   unresolved_col_width + 4 + 2);
+
 	} else {
 		symlen = unresolved_col_width + 4 + 2;
 		hists__new_col_len(hists, HISTC_MEM_DADDR_SYMBOL, symlen);
@@ -592,6 +597,7 @@ __hists__add_entry(struct hists *hists,
 			.map	= al->map,
 			.sym	= al->sym,
 		},
+		.srcline = al->srcline ? strdup(al->srcline) : NULL,
 		.socket	 = al->socket,
 		.cpu	 = al->cpu,
 		.cpumode = al->cpumode,
@@ -749,12 +755,9 @@ iter_prepare_branch_entry(struct hist_entry_iter *iter, struct addr_location *al
 }
 
 static int
-iter_add_single_branch_entry(struct hist_entry_iter *iter,
+iter_add_single_branch_entry(struct hist_entry_iter *iter __maybe_unused,
 			     struct addr_location *al __maybe_unused)
 {
-	/* to avoid calling callback function */
-	iter->he = NULL;
-
 	return 0;
 }
 
@@ -949,6 +952,7 @@ iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 			.map = al->map,
 			.sym = al->sym,
 		},
+		.srcline = al->srcline ? strdup(al->srcline) : NULL,
 		.parent = iter->parent,
 		.raw_data = sample->raw_data,
 		.raw_size = sample->raw_size,
@@ -1138,11 +1142,6 @@ void hist_entry__delete(struct hist_entry *he)
 		map__zput(he->mem_info->iaddr.map);
 		map__zput(he->mem_info->daddr.map);
 		zfree(&he->mem_info);
-	}
-
-	if (he->inline_node) {
-		inline_node__delete(he->inline_node);
-		he->inline_node = NULL;
 	}
 
 	zfree(&he->stat_acc);
@@ -1761,6 +1760,8 @@ void perf_evsel__output_resort(struct perf_evsel *evsel, struct ui_progress *pro
 		use_callchain = evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN;
 	else
 		use_callchain = symbol_conf.use_callchain;
+
+	use_callchain |= symbol_conf.show_branchflag_count;
 
 	output_resort(evsel__hists(evsel), prog, use_callchain, NULL);
 }

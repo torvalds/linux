@@ -7,59 +7,27 @@ Code Example For Symmetric Key Cipher Operation
 ::
 
 
-    struct tcrypt_result {
-        struct completion completion;
-        int err;
-    };
-
     /* tie all data structures together */
     struct skcipher_def {
         struct scatterlist sg;
         struct crypto_skcipher *tfm;
         struct skcipher_request *req;
-        struct tcrypt_result result;
+        struct crypto_wait wait;
     };
-
-    /* Callback function */
-    static void test_skcipher_cb(struct crypto_async_request *req, int error)
-    {
-        struct tcrypt_result *result = req->data;
-
-        if (error == -EINPROGRESS)
-            return;
-        result->err = error;
-        complete(&result->completion);
-        pr_info("Encryption finished successfully\n");
-    }
 
     /* Perform cipher operation */
     static unsigned int test_skcipher_encdec(struct skcipher_def *sk,
                          int enc)
     {
-        int rc = 0;
+        int rc;
 
         if (enc)
-            rc = crypto_skcipher_encrypt(sk->req);
+            rc = crypto_wait_req(crypto_skcipher_encrypt(sk->req), &sk->wait);
         else
-            rc = crypto_skcipher_decrypt(sk->req);
+            rc = crypto_wait_req(crypto_skcipher_decrypt(sk->req), &sk->wait);
 
-        switch (rc) {
-        case 0:
-            break;
-        case -EINPROGRESS:
-        case -EBUSY:
-            rc = wait_for_completion_interruptible(
-                &sk->result.completion);
-            if (!rc && !sk->result.err) {
-                reinit_completion(&sk->result.completion);
-                break;
-            }
-        default:
-            pr_info("skcipher encrypt returned with %d result %d\n",
-                rc, sk->result.err);
-            break;
-        }
-        init_completion(&sk->result.completion);
+	if (rc)
+		pr_info("skcipher encrypt returned with result %d\n", rc);
 
         return rc;
     }
@@ -89,8 +57,8 @@ Code Example For Symmetric Key Cipher Operation
         }
 
         skcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-                          test_skcipher_cb,
-                          &sk.result);
+                          crypto_req_done,
+                          &sk.wait);
 
         /* AES 256 with random key */
         get_random_bytes(&key, 32);
@@ -122,7 +90,7 @@ Code Example For Symmetric Key Cipher Operation
         /* We encrypt one block */
         sg_init_one(&sk.sg, scratchpad, 16);
         skcipher_request_set_crypt(req, &sk.sg, &sk.sg, 16, ivdata);
-        init_completion(&sk.result.completion);
+        crypto_init_wait(&sk.wait);
 
         /* encrypt data */
         ret = test_skcipher_encdec(&sk, 1);
@@ -155,9 +123,9 @@ Code Example For Use of Operational State Memory With SHASH
         char ctx[];
     };
 
-    static struct sdesc init_sdesc(struct crypto_shash *alg)
+    static struct sdesc *init_sdesc(struct crypto_shash *alg)
     {
-        struct sdesc sdesc;
+        struct sdesc *sdesc;
         int size;
 
         size = sizeof(struct shash_desc) + crypto_shash_descsize(alg);
@@ -169,20 +137,38 @@ Code Example For Use of Operational State Memory With SHASH
         return sdesc;
     }
 
-    static int calc_hash(struct crypto_shashalg,
-                 const unsigned chardata, unsigned int datalen,
-                 unsigned chardigest) {
-        struct sdesc sdesc;
+    static int calc_hash(struct crypto_shash *alg,
+                 const unsigned char *data, unsigned int datalen,
+                 unsigned char *digest)
+    {
+        struct sdesc *sdesc;
         int ret;
 
         sdesc = init_sdesc(alg);
         if (IS_ERR(sdesc)) {
-            pr_info("trusted_key: can't alloc %s\n", hash_alg);
+            pr_info("can't alloc sdesc\n");
             return PTR_ERR(sdesc);
         }
 
         ret = crypto_shash_digest(&sdesc->shash, data, datalen, digest);
         kfree(sdesc);
+        return ret;
+    }
+
+    static int test_hash(const unsigned char *data, unsigned int datalen,
+                 unsigned char *digest)
+    {
+        struct crypto_shash *alg;
+        char *hash_alg_name = "sha1-padlock-nano";
+        int ret;
+
+        alg = crypto_alloc_shash(hash_alg_name, CRYPTO_ALG_TYPE_SHASH, 0);
+        if (IS_ERR(alg)) {
+                pr_info("can't alloc alg %s\n", hash_alg_name);
+                return PTR_ERR(alg);
+        }
+        ret = calc_hash(alg, data, datalen, digest);
+        crypto_free_shash(alg);
         return ret;
     }
 
@@ -195,8 +181,8 @@ Code Example For Random Number Generator Usage
 
     static int get_random_numbers(u8 *buf, unsigned int len)
     {
-        struct crypto_rngrng = NULL;
-        chardrbg = "drbg_nopr_sha256"; /* Hash DRBG with SHA-256, no PR */
+        struct crypto_rng *rng = NULL;
+        char *drbg = "drbg_nopr_sha256"; /* Hash DRBG with SHA-256, no PR */
         int ret;
 
         if (!buf || !len) {
@@ -207,7 +193,7 @@ Code Example For Random Number Generator Usage
         rng = crypto_alloc_rng(drbg, 0, 0);
         if (IS_ERR(rng)) {
             pr_debug("could not allocate RNG handle for %s\n", drbg);
-            return -PTR_ERR(rng);
+            return PTR_ERR(rng);
         }
 
         ret = crypto_rng_get_bytes(rng, buf, len);

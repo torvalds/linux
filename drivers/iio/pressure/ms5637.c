@@ -124,7 +124,6 @@ static const struct iio_info ms5637_info = {
 	.read_raw = ms5637_read_raw,
 	.write_raw = ms5637_write_raw,
 	.attrs = &ms5637_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int ms5637_probe(struct i2c_client *client,
@@ -181,11 +180,21 @@ static const struct i2c_device_id ms5637_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ms5637_id);
 
+static const struct of_device_id ms5637_of_match[] = {
+	{ .compatible = "meas,ms5637", },
+	{ .compatible = "meas,ms5805", },
+	{ .compatible = "meas,ms5837", },
+	{ .compatible = "meas,ms8607-temppressure", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ms5637_of_match);
+
 static struct i2c_driver ms5637_driver = {
 	.probe = ms5637_probe,
 	.id_table = ms5637_id,
 	.driver = {
-		   .name = "ms5637"
+		   .name = "ms5637",
+		   .of_match_table = of_match_ptr(ms5637_of_match),
 		   },
 };
 

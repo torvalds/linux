@@ -50,8 +50,8 @@ static inline void put_unaligned_le8(u8 val, void *p)
  */
 
 #define DEFINE_BTRFS_SETGET_BITS(bits)					\
-u##bits btrfs_get_token_##bits(struct extent_buffer *eb, void *ptr,	\
-			       unsigned long off,			\
+u##bits btrfs_get_token_##bits(const struct extent_buffer *eb,		\
+			       const void *ptr, unsigned long off,	\
 			       struct btrfs_map_token *token)		\
 {									\
 	unsigned long part_offset = (unsigned long)ptr;			\
@@ -90,7 +90,8 @@ u##bits btrfs_get_token_##bits(struct extent_buffer *eb, void *ptr,	\
 	return res;							\
 }									\
 void btrfs_set_token_##bits(struct extent_buffer *eb,			\
-			    void *ptr, unsigned long off, u##bits val,	\
+			    const void *ptr, unsigned long off,		\
+			    u##bits val,				\
 			    struct btrfs_map_token *token)		\
 {									\
 	unsigned long part_offset = (unsigned long)ptr;			\
@@ -133,7 +134,7 @@ DEFINE_BTRFS_SETGET_BITS(16)
 DEFINE_BTRFS_SETGET_BITS(32)
 DEFINE_BTRFS_SETGET_BITS(64)
 
-void btrfs_node_key(struct extent_buffer *eb,
+void btrfs_node_key(const struct extent_buffer *eb,
 		    struct btrfs_disk_key *disk_key, int nr)
 {
 	unsigned long ptr = btrfs_node_key_ptr_offset(nr);

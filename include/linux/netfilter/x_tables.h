@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _X_TABLES_H
 #define _X_TABLES_H
 

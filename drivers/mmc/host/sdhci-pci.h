@@ -1,9 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SDHCI_PCI_H
 #define __SDHCI_PCI_H
 
 /*
- * PCI device IDs
+ * PCI device IDs, sub IDs
  */
+
+#define PCI_DEVICE_ID_O2_SDS0		0x8420
+#define PCI_DEVICE_ID_O2_SDS1		0x8421
+#define PCI_DEVICE_ID_O2_FUJIN2		0x8520
+#define PCI_DEVICE_ID_O2_SEABIRD0	0x8620
+#define PCI_DEVICE_ID_O2_SEABIRD1	0x8621
 
 #define PCI_DEVICE_ID_INTEL_PCH_SDIO0	0x8809
 #define PCI_DEVICE_ID_INTEL_PCH_SDIO1	0x880a
@@ -25,6 +32,7 @@
 #define PCI_DEVICE_ID_INTEL_SPT_SDIO	0x9d2c
 #define PCI_DEVICE_ID_INTEL_SPT_SD	0x9d2d
 #define PCI_DEVICE_ID_INTEL_DNV_EMMC	0x19db
+#define PCI_DEVICE_ID_INTEL_CDF_EMMC	0x18db
 #define PCI_DEVICE_ID_INTEL_BXT_SD	0x0aca
 #define PCI_DEVICE_ID_INTEL_BXT_EMMC	0x0acc
 #define PCI_DEVICE_ID_INTEL_BXT_SDIO	0x0ad0
@@ -37,6 +45,50 @@
 #define PCI_DEVICE_ID_INTEL_GLK_SD	0x31ca
 #define PCI_DEVICE_ID_INTEL_GLK_EMMC	0x31cc
 #define PCI_DEVICE_ID_INTEL_GLK_SDIO	0x31d0
+#define PCI_DEVICE_ID_INTEL_CNP_EMMC	0x9dc4
+#define PCI_DEVICE_ID_INTEL_CNP_SD	0x9df5
+#define PCI_DEVICE_ID_INTEL_CNPH_SD	0xa375
+
+#define PCI_DEVICE_ID_SYSKONNECT_8000	0x8000
+#define PCI_DEVICE_ID_VIA_95D0		0x95d0
+#define PCI_DEVICE_ID_REALTEK_5250	0x5250
+
+#define PCI_SUBDEVICE_ID_NI_7884	0x7884
+
+/*
+ * PCI device class and mask
+ */
+
+#define SYSTEM_SDHCI			(PCI_CLASS_SYSTEM_SDHCI << 8)
+#define PCI_CLASS_MASK			0xFFFF00
+
+/*
+ * Macros for PCI device-description
+ */
+
+#define _PCI_VEND(vend) PCI_VENDOR_ID_##vend
+#define _PCI_DEV(vend, dev) PCI_DEVICE_ID_##vend##_##dev
+#define _PCI_SUBDEV(subvend, subdev) PCI_SUBDEVICE_ID_##subvend##_##subdev
+
+#define SDHCI_PCI_DEVICE(vend, dev, cfg) { \
+	.vendor = _PCI_VEND(vend), .device = _PCI_DEV(vend, dev), \
+	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID, \
+	.driver_data = (kernel_ulong_t)&(sdhci_##cfg) \
+}
+
+#define SDHCI_PCI_SUBDEVICE(vend, dev, subvend, subdev, cfg) { \
+	.vendor = _PCI_VEND(vend), .device = _PCI_DEV(vend, dev), \
+	.subvendor = _PCI_VEND(subvend), \
+	.subdevice = _PCI_SUBDEV(subvend, subdev), \
+	.driver_data = (kernel_ulong_t)&(sdhci_##cfg) \
+}
+
+#define SDHCI_PCI_DEVICE_CLASS(vend, cl, cl_msk, cfg) { \
+	.vendor = _PCI_VEND(vend), .device = PCI_ANY_ID, \
+	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID, \
+	.class = (cl), .class_mask = (cl_msk), \
+	.driver_data = (kernel_ulong_t)&(sdhci_##cfg) \
+}
 
 /*
  * PCI registers
@@ -117,6 +169,12 @@ static inline void *sdhci_pci_priv(struct sdhci_pci_slot *slot)
 
 #ifdef CONFIG_PM_SLEEP
 int sdhci_pci_resume_host(struct sdhci_pci_chip *chip);
+#endif
+
+int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot);
+int sdhci_pci_o2_probe(struct sdhci_pci_chip *chip);
+#ifdef CONFIG_PM_SLEEP
+int sdhci_pci_o2_resume(struct sdhci_pci_chip *chip);
 #endif
 
 #endif /* __SDHCI_PCI_H */

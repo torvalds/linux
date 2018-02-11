@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERCPU_IDA_H__
 #define __PERCPU_IDA_H__
 

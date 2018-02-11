@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __TARGET_USB_GADGET_H__
 #define __TARGET_USB_GADGET_H__
 

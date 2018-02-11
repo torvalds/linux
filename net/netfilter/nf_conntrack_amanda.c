@@ -197,8 +197,8 @@ static void __exit nf_conntrack_amanda_fini(void)
 {
 	int i;
 
-	nf_conntrack_helper_unregister(&amanda_helper[0]);
-	nf_conntrack_helper_unregister(&amanda_helper[1]);
+	nf_conntrack_helpers_unregister(amanda_helper,
+					ARRAY_SIZE(amanda_helper));
 	for (i = 0; i < ARRAY_SIZE(search); i++)
 		textsearch_destroy(search[i].ts);
 }
@@ -218,16 +218,12 @@ static int __init nf_conntrack_amanda_init(void)
 			goto err1;
 		}
 	}
-	ret = nf_conntrack_helper_register(&amanda_helper[0]);
+	ret = nf_conntrack_helpers_register(amanda_helper,
+					    ARRAY_SIZE(amanda_helper));
 	if (ret < 0)
 		goto err1;
-	ret = nf_conntrack_helper_register(&amanda_helper[1]);
-	if (ret < 0)
-		goto err2;
 	return 0;
 
-err2:
-	nf_conntrack_helper_unregister(&amanda_helper[0]);
 err1:
 	while (--i >= 0)
 		textsearch_destroy(search[i].ts);

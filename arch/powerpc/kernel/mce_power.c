@@ -27,6 +27,36 @@
 #include <asm/mmu.h>
 #include <asm/mce.h>
 #include <asm/machdep.h>
+#include <asm/pgtable.h>
+#include <asm/pte-walk.h>
+#include <asm/sstep.h>
+#include <asm/exception-64s.h>
+
+/*
+ * Convert an address related to an mm to a PFN. NOTE: we are in real
+ * mode, we could potentially race with page table updates.
+ */
+static unsigned long addr_to_pfn(struct pt_regs *regs, unsigned long addr)
+{
+	pte_t *ptep;
+	unsigned long flags;
+	struct mm_struct *mm;
+
+	if (user_mode(regs))
+		mm = current->mm;
+	else
+		mm = &init_mm;
+
+	local_irq_save(flags);
+	if (mm == current->mm)
+		ptep = find_current_mm_pte(mm->pgd, addr, NULL, NULL);
+	else
+		ptep = find_init_mm_pte(addr, NULL);
+	local_irq_restore(flags);
+	if (!ptep || pte_special(*ptep))
+		return ULONG_MAX;
+	return pte_pfn(*ptep);
+}
 
 static void flush_tlb_206(unsigned int num_sets, unsigned int action)
 {
@@ -53,6 +83,60 @@ static void flush_tlb_206(unsigned int num_sets, unsigned int action)
 	asm volatile("ptesync" : : : "memory");
 }
 
+static void flush_tlb_300(unsigned int num_sets, unsigned int action)
+{
+	unsigned long rb;
+	unsigned int i;
+	unsigned int r;
+
+	switch (action) {
+	case TLB_INVAL_SCOPE_GLOBAL:
+		rb = TLBIEL_INVAL_SET;
+		break;
+	case TLB_INVAL_SCOPE_LPID:
+		rb = TLBIEL_INVAL_SET_LPID;
+		break;
+	default:
+		BUG();
+		break;
+	}
+
+	asm volatile("ptesync" : : : "memory");
+
+	if (early_radix_enabled())
+		r = 1;
+	else
+		r = 0;
+
+	/*
+	 * First flush table/PWC caches with set 0, then flush the
+	 * rest of the sets, partition scope. Radix must then do it
+	 * all again with process scope. Hash just has to flush
+	 * process table.
+	 */
+	asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
+			"r"(rb), "r"(0), "i"(2), "i"(0), "r"(r));
+	for (i = 1; i < num_sets; i++) {
+		unsigned long set = i * (1<<TLBIEL_INVAL_SET_SHIFT);
+
+		asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
+				"r"(rb+set), "r"(0), "i"(2), "i"(0), "r"(r));
+	}
+
+	asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
+			"r"(rb), "r"(0), "i"(2), "i"(1), "r"(r));
+	if (early_radix_enabled()) {
+		for (i = 1; i < num_sets; i++) {
+			unsigned long set = i * (1<<TLBIEL_INVAL_SET_SHIFT);
+
+			asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
+				"r"(rb+set), "r"(0), "i"(2), "i"(1), "r"(r));
+		}
+	}
+
+	asm volatile("ptesync" : : : "memory");
+}
+
 /*
  * Generic routines to flush TLB on POWER processors. These routines
  * are used as flush_tlb hook in the cpu_spec.
@@ -74,17 +158,17 @@ void __flush_tlb_power9(unsigned int action)
 {
 	unsigned int num_sets;
 
-	if (radix_enabled())
+	if (early_radix_enabled())
 		num_sets = POWER9_TLB_SETS_RADIX;
 	else
 		num_sets = POWER9_TLB_SETS_HASH;
 
-	flush_tlb_206(num_sets, action);
+	flush_tlb_300(num_sets, action);
 }
 
 
 /* flush SLBs and reload */
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 static void flush_and_reload_slb(void)
 {
 	struct slb_shadow *slb;
@@ -131,7 +215,7 @@ static void flush_erat(void)
 
 static int mce_flush(int what)
 {
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	if (what == MCE_FLUSH_SLB) {
 		flush_and_reload_slb();
 		return 1;
@@ -235,6 +319,9 @@ static const struct mce_ierror_table mce_p9_ierror_table[] = {
   MCE_INITIATOR_CPU,  MCE_SEV_ERROR_SYNC, },
 { 0x00000000081c0000, 0x0000000000180000, true,
   MCE_ERROR_TYPE_UE,  MCE_UE_ERROR_PAGE_TABLE_WALK_IFETCH,
+  MCE_INITIATOR_CPU,  MCE_SEV_ERROR_SYNC, },
+{ 0x00000000081c0000, 0x00000000001c0000, true,
+  MCE_ERROR_TYPE_RA,  MCE_RA_ERROR_IFETCH_FOREIGN,
   MCE_INITIATOR_CPU,  MCE_SEV_ERROR_SYNC, },
 { 0x00000000081c0000, 0x0000000008000000, true,
   MCE_ERROR_TYPE_LINK,MCE_LINK_ERROR_IFETCH_TIMEOUT,
@@ -364,9 +451,45 @@ static const struct mce_derror_table mce_p9_derror_table[] = {
   MCE_INITIATOR_CPU,   MCE_SEV_ERROR_SYNC, },
 { 0, false, 0, 0, 0, 0 } };
 
+static int mce_find_instr_ea_and_pfn(struct pt_regs *regs, uint64_t *addr,
+					uint64_t *phys_addr)
+{
+	/*
+	 * Carefully look at the NIP to determine
+	 * the instruction to analyse. Reading the NIP
+	 * in real-mode is tricky and can lead to recursive
+	 * faults
+	 */
+	int instr;
+	unsigned long pfn, instr_addr;
+	struct instruction_op op;
+	struct pt_regs tmp = *regs;
+
+	pfn = addr_to_pfn(regs, regs->nip);
+	if (pfn != ULONG_MAX) {
+		instr_addr = (pfn << PAGE_SHIFT) + (regs->nip & ~PAGE_MASK);
+		instr = *(unsigned int *)(instr_addr);
+		if (!analyse_instr(&op, &tmp, instr)) {
+			pfn = addr_to_pfn(regs, op.ea);
+			*addr = op.ea;
+			*phys_addr = (pfn << PAGE_SHIFT);
+			return 0;
+		}
+		/*
+		 * analyse_instr() might fail if the instruction
+		 * is not a load/store, although this is unexpected
+		 * for load/store errors or if we got the NIP
+		 * wrong
+		 */
+	}
+	*addr = 0;
+	return -1;
+}
+
 static int mce_handle_ierror(struct pt_regs *regs,
 		const struct mce_ierror_table table[],
-		struct mce_error_info *mce_err, uint64_t *addr)
+		struct mce_error_info *mce_err, uint64_t *addr,
+		uint64_t *phys_addr)
 {
 	uint64_t srr1 = regs->msr;
 	int handled = 0;
@@ -418,8 +541,22 @@ static int mce_handle_ierror(struct pt_regs *regs,
 		}
 		mce_err->severity = table[i].severity;
 		mce_err->initiator = table[i].initiator;
-		if (table[i].nip_valid)
+		if (table[i].nip_valid) {
 			*addr = regs->nip;
+			if (mce_err->severity == MCE_SEV_ERROR_SYNC &&
+				table[i].error_type == MCE_ERROR_TYPE_UE) {
+				unsigned long pfn;
+
+				if (get_paca()->in_mce < MAX_MCE_DEPTH) {
+					pfn = addr_to_pfn(regs, regs->nip);
+					if (pfn != ULONG_MAX) {
+						*phys_addr =
+							(pfn << PAGE_SHIFT);
+						handled = 1;
+					}
+				}
+			}
+		}
 		return handled;
 	}
 
@@ -432,7 +569,8 @@ static int mce_handle_ierror(struct pt_regs *regs,
 
 static int mce_handle_derror(struct pt_regs *regs,
 		const struct mce_derror_table table[],
-		struct mce_error_info *mce_err, uint64_t *addr)
+		struct mce_error_info *mce_err, uint64_t *addr,
+		uint64_t *phys_addr)
 {
 	uint64_t dsisr = regs->dsisr;
 	int handled = 0;
@@ -498,7 +636,17 @@ static int mce_handle_derror(struct pt_regs *regs,
 		mce_err->initiator = table[i].initiator;
 		if (table[i].dar_valid)
 			*addr = regs->dar;
-
+		else if (mce_err->severity == MCE_SEV_ERROR_SYNC &&
+				table[i].error_type == MCE_ERROR_TYPE_UE) {
+			/*
+			 * We do a maximum of 4 nested MCE calls, see
+			 * kernel/exception-64s.h
+			 */
+			if (get_paca()->in_mce < MAX_MCE_DEPTH)
+				if (!mce_find_instr_ea_and_pfn(regs, addr,
+								phys_addr))
+					handled = 1;
+		}
 		found = 1;
 	}
 
@@ -535,19 +683,21 @@ static long mce_handle_error(struct pt_regs *regs,
 		const struct mce_ierror_table itable[])
 {
 	struct mce_error_info mce_err = { 0 };
-	uint64_t addr;
+	uint64_t addr, phys_addr;
 	uint64_t srr1 = regs->msr;
 	long handled;
 
 	if (SRR1_MC_LOADSTORE(srr1))
-		handled = mce_handle_derror(regs, dtable, &mce_err, &addr);
+		handled = mce_handle_derror(regs, dtable, &mce_err, &addr,
+				&phys_addr);
 	else
-		handled = mce_handle_ierror(regs, itable, &mce_err, &addr);
+		handled = mce_handle_ierror(regs, itable, &mce_err, &addr,
+				&phys_addr);
 
 	if (!handled && mce_err.error_type == MCE_ERROR_TYPE_UE)
 		handled = mce_handle_ue_error(regs);
 
-	save_mce_event(regs, handled, &mce_err, regs->nip, addr);
+	save_mce_event(regs, handled, &mce_err, regs->nip, addr, phys_addr);
 
 	return handled;
 }
@@ -567,5 +717,18 @@ long __machine_check_early_realmode_p8(struct pt_regs *regs)
 
 long __machine_check_early_realmode_p9(struct pt_regs *regs)
 {
+	/*
+	 * On POWER9 DD2.1 and below, it's possible to get a machine check
+	 * caused by a paste instruction where only DSISR bit 25 is set. This
+	 * will result in the MCE handler seeing an unknown event and the kernel
+	 * crashing. An MCE that occurs like this is spurious, so we don't need
+	 * to do anything in terms of servicing it. If there is something that
+	 * needs to be serviced, the CPU will raise the MCE again with the
+	 * correct DSISR so that it can be serviced properly. So detect this
+	 * case and mark it as handled.
+	 */
+	if (SRR1_MC_LOADSTORE(regs->msr) && regs->dsisr == 0x02000000)
+		return 1;
+
 	return mce_handle_error(regs, mce_p9_derror_table, mce_p9_ierror_table);
 }

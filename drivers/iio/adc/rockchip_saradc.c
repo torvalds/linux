@@ -125,7 +125,6 @@ static irqreturn_t rockchip_saradc_isr(int irq, void *dev_id)
 
 static const struct iio_info rockchip_saradc_iio_info = {
 	.read_raw = rockchip_saradc_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #define ADC_CHANNEL(_index, _id) {				\
@@ -224,6 +223,11 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 	info = iio_priv(indio_dev);
 
 	match = of_match_device(rockchip_saradc_match, &pdev->dev);
+	if (!match) {
+		dev_err(&pdev->dev, "failed to match device\n");
+		return -ENODEV;
+	}
+
 	info->data = match->data;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -235,7 +239,8 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 	 * The reset should be an optional property, as it should work
 	 * with old devicetrees as well
 	 */
-	info->reset = devm_reset_control_get(&pdev->dev, "saradc-apb");
+	info->reset = devm_reset_control_get_exclusive(&pdev->dev,
+						       "saradc-apb");
 	if (IS_ERR(info->reset)) {
 		ret = PTR_ERR(info->reset);
 		if (ret != -ENOENT)

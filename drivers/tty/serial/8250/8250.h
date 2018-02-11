@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Driver for 8250/16550-type serial ports
  *
  *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.
  *
  *  Copyright (C) 2001 Russell King.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/serial_8250.h>
@@ -81,6 +77,9 @@ struct serial8250_config {
 #define UART_CAP_HFIFO	(1 << 14)	/* UART has a "hidden" FIFO */
 #define UART_CAP_RPM	(1 << 15)	/* Runtime PM is active while idle */
 #define UART_CAP_IRDA	(1 << 16)	/* UART supports IrDA line discipline */
+#define UART_CAP_MINI	(1 << 17)	/* Mini UART on BCM283X family lacks:
+					 * STOP PARITY EPAR SPAR WLEN5 WLEN6
+					 */
 
 #define UART_BUG_QUOT	(1 << 0)	/* UART has buggy quot LSB */
 #define UART_BUG_TXEN	(1 << 1)	/* UART has buggy TX IIR status */

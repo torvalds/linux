@@ -527,7 +527,7 @@ static void usb_in_complete(struct urb *urb)
 				WARNING("receive out of memory\n");
 				break;
 			}
-			memcpy(skb_put(skb, status), in->rcvbuf, status);
+			skb_put_data(skb, in->rcvbuf, status);
 			in->hisax_if->l1l2(in->hisax_if, PH_DATA | INDICATION, skb);
 		} else if (status == -HDLC_CRC_ERROR) {
 			INFO("CRC error");

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* net/atm/atm_misc.c - Various functions for use by ATM drivers */
 
 /* Written 1995-2000 by Werner Almesberger, EPFL ICA */

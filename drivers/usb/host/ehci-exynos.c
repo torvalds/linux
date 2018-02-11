@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * SAMSUNG EXYNOS USB HOST EHCI Controller
  *
  * Copyright (C) 2011 Samsung Electronics Co.Ltd
  * Author: Jingoo Han <jg1.han@samsung.com>
  * Author: Joonyoung Shim <jy0922.shim@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
 #include <linux/clk.h>
@@ -279,7 +274,9 @@ static int exynos_ehci_resume(struct device *dev)
 	struct exynos_ehci_hcd *exynos_ehci = to_exynos_ehci(hcd);
 	int ret;
 
-	clk_prepare_enable(exynos_ehci->clk);
+	ret = clk_prepare_enable(exynos_ehci->clk);
+	if (ret)
+		return ret;
 
 	ret = exynos_ehci_phy_enable(dev);
 	if (ret) {

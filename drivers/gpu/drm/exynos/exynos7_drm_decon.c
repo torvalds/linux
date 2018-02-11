@@ -55,7 +55,6 @@ struct decon_context {
 	unsigned long			irq_flags;
 	bool				i80_if;
 	bool				suspended;
-	int				pipe;
 	wait_queue_head_t		wait_vsync_queue;
 	atomic_t			wait_vsync_event;
 
@@ -130,19 +129,11 @@ static void decon_clear_channels(struct exynos_drm_crtc *crtc)
 static int decon_ctx_initialize(struct decon_context *ctx,
 			struct drm_device *drm_dev)
 {
-	struct exynos_drm_private *priv = drm_dev->dev_private;
-	int ret;
-
 	ctx->drm_dev = drm_dev;
-	ctx->pipe = priv->pipe++;
 
 	decon_clear_channels(ctx->crtc);
 
-	ret = drm_iommu_attach_device(drm_dev, ctx->dev);
-	if (ret)
-		priv->pipe--;
-
-	return ret;
+	return drm_iommu_attach_device(drm_dev, ctx->dev);
 }
 
 static void decon_ctx_remove(struct decon_context *ctx)
@@ -318,19 +309,14 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
 	case DRM_FORMAT_BGRA8888:
+	default:
 		val |= WINCONx_BPPMODE_32BPP_BGRA | WINCONx_BLD_PIX |
 			WINCONx_ALPHA_SEL;
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
-	default:
-		DRM_DEBUG_KMS("invalid pixel size so using unpacked 24bpp.\n");
-
-		val |= WINCONx_BPPMODE_24BPP_xRGB;
-		val |= WINCONx_BURSTLEN_16WORD;
-		break;
 	}
 
-	DRM_DEBUG_KMS("bpp = %d\n", fb->format->cpp[0] * 8);
+	DRM_DEBUG_KMS("cpp = %d\n", fb->format->cpp[0]);
 
 	/*
 	 * In case of exynos, setting dma-burst to 16Word causes permanent
@@ -407,7 +393,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	unsigned int last_x;
 	unsigned int last_y;
 	unsigned int win = plane->index;
-	unsigned int bpp = fb->format->cpp[0];
+	unsigned int cpp = fb->format->cpp[0];
 	unsigned int pitch = fb->pitches[0];
 
 	if (ctx->suspended)
@@ -427,7 +413,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	val = (unsigned long)exynos_drm_fb_dma_addr(fb, 0);
 	writel(val, ctx->regs + VIDW_BUF_START(win));
 
-	padding = (pitch / bpp) - fb->width;
+	padding = (pitch / cpp) - fb->width;
 
 	/* buffer size */
 	writel(fb->width + padding, ctx->regs + VIDW_WHOLE_X(win));
@@ -590,7 +576,6 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.enable = decon_enable,
 	.disable = decon_disable,
-	.commit = decon_commit,
 	.enable_vblank = decon_enable_vblank,
 	.disable_vblank = decon_disable_vblank,
 	.atomic_begin = decon_atomic_begin,
@@ -612,7 +597,7 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 		writel(clear_bit, ctx->regs + VIDINTCON1);
 
 	/* check the crtc is detached already from encoder */
-	if (ctx->pipe < 0 || !ctx->drm_dev)
+	if (!ctx->drm_dev)
 		goto out;
 
 	if (!ctx->i80_if) {
@@ -649,15 +634,14 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 		ctx->configs[i].type = decon_win_types[i];
 
 		ret = exynos_plane_init(drm_dev, &ctx->planes[i], i,
-					1 << ctx->pipe, &ctx->configs[i]);
+					&ctx->configs[i]);
 		if (ret)
 			return ret;
 	}
 
 	exynos_plane = &ctx->planes[DEFAULT_WIN];
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
-					   ctx->pipe, EXYNOS_DISPLAY_TYPE_LCD,
-					   &decon_crtc_ops, ctx);
+			EXYNOS_DISPLAY_TYPE_LCD, &decon_crtc_ops, ctx);
 	if (IS_ERR(ctx->crtc)) {
 		decon_ctx_remove(ctx);
 		return PTR_ERR(ctx->crtc);

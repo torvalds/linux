@@ -69,12 +69,13 @@ static void ir_handle_key(struct bttv *btv)
 
 	if ((ir->mask_keydown && (gpio & ir->mask_keydown)) ||
 	    (ir->mask_keyup   && !(gpio & ir->mask_keyup))) {
-		rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
+		rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data, 0);
 	} else {
 		/* HACK: Probably, ir->mask_keydown is missing
 		   for this board */
 		if (btv->c.type == BTTV_BOARD_WINFAST2000)
-			rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+					     0);
 
 		rc_keyup(ir->dev);
 	}
@@ -99,7 +100,7 @@ static void ir_enltv_handle_key(struct bttv *btv)
 			gpio, data,
 			(gpio & ir->mask_keyup) ? " up" : "up/down");
 
-		rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
+		rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data, 0);
 		if (keyup)
 			rc_keyup(ir->dev);
 	} else {
@@ -113,7 +114,8 @@ static void ir_enltv_handle_key(struct bttv *btv)
 		if (keyup)
 			rc_keyup(ir->dev);
 		else
-			rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+					     0);
 	}
 
 	ir->last_gpio = data | keyup;
@@ -131,10 +133,10 @@ void bttv_input_irq(struct bttv *btv)
 		ir_handle_key(btv);
 }
 
-static void bttv_input_timer(unsigned long data)
+static void bttv_input_timer(struct timer_list *t)
 {
-	struct bttv *btv = (struct bttv*)data;
-	struct bttv_ir *ir = btv->remote;
+	struct bttv_ir *ir = from_timer(ir, t, timer);
+	struct bttv *btv = ir->btv;
 
 	if (btv->c.type == BTTV_BOARD_ENLTV_FM_2)
 		ir_enltv_handle_key(btv);
@@ -187,9 +189,9 @@ static u32 bttv_rc5_decode(unsigned int code)
 	return rc5;
 }
 
-static void bttv_rc5_timer_end(unsigned long data)
+static void bttv_rc5_timer_end(struct timer_list *t)
 {
-	struct bttv_ir *ir = (struct bttv_ir *)data;
+	struct bttv_ir *ir = from_timer(ir, t, timer);
 	ktime_t tv;
 	u32 gap, rc5, scancode;
 	u8 toggle, command, system;
@@ -235,7 +237,7 @@ static void bttv_rc5_timer_end(unsigned long data)
 	}
 
 	scancode = RC_SCANCODE_RC5(system, command);
-	rc_keydown(ir->dev, RC_TYPE_RC5, scancode, toggle);
+	rc_keydown(ir->dev, RC_PROTO_RC5, scancode, toggle);
 	dprintk("scancode %x, toggle %x\n", scancode, toggle);
 }
 
@@ -294,15 +296,15 @@ static int bttv_rc5_irq(struct bttv *btv)
 
 /* ---------------------------------------------------------------------- */
 
-static void bttv_ir_start(struct bttv *btv, struct bttv_ir *ir)
+static void bttv_ir_start(struct bttv_ir *ir)
 {
 	if (ir->polling) {
-		setup_timer(&ir->timer, bttv_input_timer, (unsigned long)btv);
+		timer_setup(&ir->timer, bttv_input_timer, 0);
 		ir->timer.expires  = jiffies + msecs_to_jiffies(1000);
 		add_timer(&ir->timer);
 	} else if (ir->rc5_gpio) {
 		/* set timer_end for code completion */
-		setup_timer(&ir->timer, bttv_rc5_timer_end, (unsigned long)ir);
+		timer_setup(&ir->timer, bttv_rc5_timer_end, 0);
 		ir->shift_by = 1;
 		ir->rc5_remote_gap = ir_rc5_remote_gap;
 	}
@@ -327,7 +329,7 @@ static void bttv_ir_stop(struct bttv *btv)
  * Get_key functions used by I2C remotes
  */
 
-static int get_key_pv951(struct IR_i2c *ir, enum rc_type *protocol,
+static int get_key_pv951(struct IR_i2c *ir, enum rc_proto *protocol,
 			 u32 *scancode, u8 *toggle)
 {
 	unsigned char b;
@@ -355,7 +357,7 @@ static int get_key_pv951(struct IR_i2c *ir, enum rc_type *protocol,
 	 * 	   the device is bound to the vendor-provided RC.
 	 */
 
-	*protocol = RC_TYPE_UNKNOWN;
+	*protocol = RC_PROTO_UNKNOWN;
 	*scancode = b;
 	*toggle = 0;
 	return 1;
@@ -529,13 +531,14 @@ int bttv_input_init(struct bttv *btv)
 
 	/* init input device */
 	ir->dev = rc;
+	ir->btv = btv;
 
 	snprintf(ir->name, sizeof(ir->name), "bttv IR (card=%d)",
 		 btv->c.type);
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(btv->c.pci));
 
-	rc->input_name = ir->name;
+	rc->device_name = ir->name;
 	rc->input_phys = ir->phys;
 	rc->input_id.bustype = BUS_PCI;
 	rc->input_id.version = 1;
@@ -551,7 +554,7 @@ int bttv_input_init(struct bttv *btv)
 	rc->driver_name = MODULE_NAME;
 
 	btv->remote = ir;
-	bttv_ir_start(btv, ir);
+	bttv_ir_start(ir);
 
 	/* all done */
 	err = rc_register_device(rc);

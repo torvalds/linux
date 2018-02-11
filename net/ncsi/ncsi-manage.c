@@ -38,6 +38,25 @@ static inline int ncsi_filter_size(int table)
 	return sizes[table];
 }
 
+static u32 *ncsi_get_filter(struct ncsi_channel *nc, int table, int index)
+{
+	struct ncsi_channel_filter *ncf;
+	int size;
+
+	ncf = nc->filters[table];
+	if (!ncf)
+		return NULL;
+
+	size = ncsi_filter_size(table);
+	if (size < 0)
+		return NULL;
+
+	return ncf->data + size * index;
+}
+
+/* Find the first active filter in a filter table that matches the given
+ * data parameter. If data is NULL, this returns the first active filter.
+ */
 int ncsi_find_filter(struct ncsi_channel *nc, int table, void *data)
 {
 	struct ncsi_channel_filter *ncf;
@@ -58,7 +77,7 @@ int ncsi_find_filter(struct ncsi_channel *nc, int table, void *data)
 	index = -1;
 	while ((index = find_next_bit(bitmap, ncf->total, index + 1))
 	       < ncf->total) {
-		if (!memcmp(ncf->data + size * index, data, size)) {
+		if (!data || !memcmp(ncf->data + size * index, data, size)) {
 			spin_unlock_irqrestore(&nc->lock, flags);
 			return index;
 		}
@@ -165,11 +184,12 @@ report:
 	nd->handler(nd);
 }
 
-static void ncsi_channel_monitor(unsigned long data)
+static void ncsi_channel_monitor(struct timer_list *t)
 {
-	struct ncsi_channel *nc = (struct ncsi_channel *)data;
+	struct ncsi_channel *nc = from_timer(nc, t, monitor.timer);
 	struct ncsi_package *np = nc->package;
 	struct ncsi_dev_priv *ndp = np->ndp;
+	struct ncsi_channel_mode *ncm;
 	struct ncsi_cmd_arg nca;
 	bool enabled, chained;
 	unsigned int monitor_state;
@@ -183,11 +203,15 @@ static void ncsi_channel_monitor(unsigned long data)
 	monitor_state = nc->monitor.state;
 	spin_unlock_irqrestore(&nc->lock, flags);
 
-	if (!enabled || chained)
+	if (!enabled || chained) {
+		ncsi_stop_channel_monitor(nc);
 		return;
+	}
 	if (state != NCSI_CHANNEL_INACTIVE &&
-	    state != NCSI_CHANNEL_ACTIVE)
+	    state != NCSI_CHANNEL_ACTIVE) {
+		ncsi_stop_channel_monitor(nc);
 		return;
+	}
 
 	switch (monitor_state) {
 	case NCSI_CHANNEL_MONITOR_START:
@@ -198,28 +222,30 @@ static void ncsi_channel_monitor(unsigned long data)
 		nca.type = NCSI_PKT_CMD_GLS;
 		nca.req_flags = 0;
 		ret = ncsi_xmit_cmd(&nca);
-		if (ret) {
+		if (ret)
 			netdev_err(ndp->ndev.dev, "Error %d sending GLS\n",
 				   ret);
-			return;
-		}
-
 		break;
 	case NCSI_CHANNEL_MONITOR_WAIT ... NCSI_CHANNEL_MONITOR_WAIT_MAX:
 		break;
 	default:
-		if (!(ndp->flags & NCSI_DEV_HWA) &&
-		    state == NCSI_CHANNEL_ACTIVE) {
+		netdev_err(ndp->ndev.dev, "NCSI Channel %d timed out!\n",
+			   nc->id);
+		if (!(ndp->flags & NCSI_DEV_HWA)) {
 			ncsi_report_link(ndp, true);
 			ndp->flags |= NCSI_DEV_RESHUFFLE;
 		}
 
+		ncsi_stop_channel_monitor(nc);
+
+		ncm = &nc->modes[NCSI_MODE_LINK];
 		spin_lock_irqsave(&nc->lock, flags);
 		nc->state = NCSI_CHANNEL_INVISIBLE;
+		ncm->data[2] &= ~0x1;
 		spin_unlock_irqrestore(&nc->lock, flags);
 
 		spin_lock_irqsave(&ndp->lock, flags);
-		nc->state = NCSI_CHANNEL_INACTIVE;
+		nc->state = NCSI_CHANNEL_ACTIVE;
 		list_add_tail_rcu(&nc->link, &ndp->channel_queue);
 		spin_unlock_irqrestore(&ndp->lock, flags);
 		ncsi_process_next_channel(ndp);
@@ -287,8 +313,7 @@ struct ncsi_channel *ncsi_add_channel(struct ncsi_package *np, unsigned char id)
 	nc->package = np;
 	nc->state = NCSI_CHANNEL_INACTIVE;
 	nc->monitor.enabled = false;
-	setup_timer(&nc->monitor.timer,
-		    ncsi_channel_monitor, (unsigned long)nc);
+	timer_setup(&nc->monitor.timer, ncsi_channel_monitor, 0);
 	spin_lock_init(&nc->lock);
 	INIT_LIST_HEAD(&nc->link);
 	for (index = 0; index < NCSI_CAP_MAX; index++)
@@ -503,9 +528,9 @@ struct ncsi_dev *ncsi_find_dev(struct net_device *dev)
 	return NULL;
 }
 
-static void ncsi_request_timeout(unsigned long data)
+static void ncsi_request_timeout(struct timer_list *t)
 {
-	struct ncsi_request *nr = (struct ncsi_request *)data;
+	struct ncsi_request *nr = from_timer(nr, t, timer);
 	struct ncsi_dev_priv *ndp = nr->ndp;
 	unsigned long flags;
 
@@ -639,6 +664,99 @@ error:
 	nd->state = ncsi_dev_state_functional;
 }
 
+/* Check the VLAN filter bitmap for a set filter, and construct a
+ * "Set VLAN Filter - Disable" packet if found.
+ */
+static int clear_one_vid(struct ncsi_dev_priv *ndp, struct ncsi_channel *nc,
+			 struct ncsi_cmd_arg *nca)
+{
+	int index;
+	u32 *data;
+	u16 vid;
+
+	index = ncsi_find_filter(nc, NCSI_FILTER_VLAN, NULL);
+	if (index < 0) {
+		/* Filter table empty */
+		return -1;
+	}
+
+	data = ncsi_get_filter(nc, NCSI_FILTER_VLAN, index);
+	if (!data) {
+		netdev_err(ndp->ndev.dev,
+			   "NCSI: failed to retrieve filter %d\n", index);
+		/* Set the VLAN id to 0 - this will still disable the entry in
+		 * the filter table, but we won't know what it was.
+		 */
+		vid = 0;
+	} else {
+		vid = *(u16 *)data;
+	}
+
+	netdev_printk(KERN_DEBUG, ndp->ndev.dev,
+		      "NCSI: removed vlan tag %u at index %d\n",
+		      vid, index + 1);
+	ncsi_remove_filter(nc, NCSI_FILTER_VLAN, index);
+
+	nca->type = NCSI_PKT_CMD_SVF;
+	nca->words[1] = vid;
+	/* HW filter index starts at 1 */
+	nca->bytes[6] = index + 1;
+	nca->bytes[7] = 0x00;
+	return 0;
+}
+
+/* Find an outstanding VLAN tag and constuct a "Set VLAN Filter - Enable"
+ * packet.
+ */
+static int set_one_vid(struct ncsi_dev_priv *ndp, struct ncsi_channel *nc,
+		       struct ncsi_cmd_arg *nca)
+{
+	struct vlan_vid *vlan = NULL;
+	int index = 0;
+
+	list_for_each_entry_rcu(vlan, &ndp->vlan_vids, list) {
+		index = ncsi_find_filter(nc, NCSI_FILTER_VLAN, &vlan->vid);
+		if (index < 0) {
+			/* New tag to add */
+			netdev_printk(KERN_DEBUG, ndp->ndev.dev,
+				      "NCSI: new vlan id to set: %u\n",
+				      vlan->vid);
+			break;
+		}
+		netdev_printk(KERN_DEBUG, ndp->ndev.dev,
+			      "vid %u already at filter pos %d\n",
+			      vlan->vid, index);
+	}
+
+	if (!vlan || index >= 0) {
+		netdev_printk(KERN_DEBUG, ndp->ndev.dev,
+			      "no vlan ids left to set\n");
+		return -1;
+	}
+
+	index = ncsi_add_filter(nc, NCSI_FILTER_VLAN, &vlan->vid);
+	if (index < 0) {
+		netdev_err(ndp->ndev.dev,
+			   "Failed to add new VLAN tag, error %d\n", index);
+		if (index == -ENOSPC)
+			netdev_err(ndp->ndev.dev,
+				   "Channel %u already has all VLAN filters set\n",
+				   nc->id);
+		return -1;
+	}
+
+	netdev_printk(KERN_DEBUG, ndp->ndev.dev,
+		      "NCSI: set vid %u in packet, index %u\n",
+		      vlan->vid, index + 1);
+	nca->type = NCSI_PKT_CMD_SVF;
+	nca->words[1] = vlan->vid;
+	/* HW filter index starts at 1 */
+	nca->bytes[6] = index + 1;
+	nca->bytes[7] = 0x01;
+
+	return 0;
+}
+
 static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 {
 	struct ncsi_dev *nd = &ndp->ndev;
@@ -667,8 +785,11 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 		nca.package = np->id;
 		nca.channel = NCSI_RESERVED_CHANNEL;
 		ret = ncsi_xmit_cmd(&nca);
-		if (ret)
+		if (ret) {
+			netdev_err(ndp->ndev.dev,
+				   "NCSI: Failed to transmit CMD_SP\n");
 			goto error;
+		}
 
 		nd->state = ncsi_dev_state_config_cis;
 		break;
@@ -680,11 +801,17 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 		nca.package = np->id;
 		nca.channel = nc->id;
 		ret = ncsi_xmit_cmd(&nca);
-		if (ret)
+		if (ret) {
+			netdev_err(ndp->ndev.dev,
+				   "NCSI: Failed to transmit CMD_CIS\n");
 			goto error;
+		}
 
-		nd->state = ncsi_dev_state_config_sma;
+		nd->state = ncsi_dev_state_config_clear_vids;
 		break;
+	case ncsi_dev_state_config_clear_vids:
+	case ncsi_dev_state_config_svf:
+	case ncsi_dev_state_config_ev:
 	case ncsi_dev_state_config_sma:
 	case ncsi_dev_state_config_ebf:
 #if IS_ENABLED(CONFIG_IPV6)
@@ -699,11 +826,40 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 		nca.package = np->id;
 		nca.channel = nc->id;
 
+		/* Clear any active filters on the channel before setting */
+		if (nd->state == ncsi_dev_state_config_clear_vids) {
+			ret = clear_one_vid(ndp, nc, &nca);
+			if (ret) {
+				nd->state = ncsi_dev_state_config_svf;
+				schedule_work(&ndp->work);
+				break;
+			}
+			/* Repeat */
+			nd->state = ncsi_dev_state_config_clear_vids;
+		/* Add known VLAN tags to the filter */
+		} else if (nd->state == ncsi_dev_state_config_svf) {
+			ret = set_one_vid(ndp, nc, &nca);
+			if (ret) {
+				nd->state = ncsi_dev_state_config_ev;
+				schedule_work(&ndp->work);
+				break;
+			}
+			/* Repeat */
+			nd->state = ncsi_dev_state_config_svf;
+		/* Enable/Disable the VLAN filter */
+		} else if (nd->state == ncsi_dev_state_config_ev) {
+			if (list_empty(&ndp->vlan_vids)) {
+				nca.type = NCSI_PKT_CMD_DV;
+			} else {
+				nca.type = NCSI_PKT_CMD_EV;
+				nca.bytes[3] = NCSI_CAP_VLAN_NO;
+			}
+			nd->state = ncsi_dev_state_config_sma;
+		} else if (nd->state == ncsi_dev_state_config_sma) {
 		/* Use first entry in unicast filter table. Note that
 		 * the MAC filter table starts from entry 1 instead of
 		 * 0.
 		 */
-		if (nd->state == ncsi_dev_state_config_sma) {
 			nca.type = NCSI_PKT_CMD_SMA;
 			for (index = 0; index < 6; index++)
 				nca.bytes[index] = dev->dev_addr[index];
@@ -746,17 +902,45 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 		}
 
 		ret = ncsi_xmit_cmd(&nca);
-		if (ret)
+		if (ret) {
+			netdev_err(ndp->ndev.dev,
+				   "NCSI: Failed to transmit CMD %x\n",
+				   nca.type);
 			goto error;
+		}
 		break;
 	case ncsi_dev_state_config_done:
+		netdev_printk(KERN_DEBUG, ndp->ndev.dev,
+			      "NCSI: channel %u config done\n", nc->id);
 		spin_lock_irqsave(&nc->lock, flags);
+		if (nc->reconfigure_needed) {
+			/* This channel's configuration has been updated
+			 * part-way during the config state - start the
+			 * channel configuration over
+			 */
+			nc->reconfigure_needed = false;
+			nc->state = NCSI_CHANNEL_INACTIVE;
+			spin_unlock_irqrestore(&nc->lock, flags);
+
+			spin_lock_irqsave(&ndp->lock, flags);
+			list_add_tail_rcu(&nc->link, &ndp->channel_queue);
+			spin_unlock_irqrestore(&ndp->lock, flags);
+
+			netdev_printk(KERN_DEBUG, dev,
+				      "Dirty NCSI channel state reset\n");
+			ncsi_process_next_channel(ndp);
+			break;
+		}
+
 		if (nc->modes[NCSI_MODE_LINK].data[2] & 0x1) {
 			hot_nc = nc;
 			nc->state = NCSI_CHANNEL_ACTIVE;
 		} else {
 			hot_nc = NULL;
 			nc->state = NCSI_CHANNEL_INACTIVE;
+			netdev_warn(ndp->ndev.dev,
+				    "NCSI: channel %u link down after config\n",
+				    nc->id);
 		}
 		spin_unlock_irqrestore(&nc->lock, flags);
 
@@ -769,8 +953,8 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 		ncsi_process_next_channel(ndp);
 		break;
 	default:
-		netdev_warn(dev, "Wrong NCSI state 0x%x in config\n",
-			    nd->state);
+		netdev_alert(dev, "Wrong NCSI state 0x%x in config\n",
+			     nd->state);
 	}
 
 	return;
@@ -822,9 +1006,16 @@ static int ncsi_choose_active_channel(struct ncsi_dev_priv *ndp)
 	}
 
 	if (!found) {
+		netdev_warn(ndp->ndev.dev,
+			    "NCSI: No channel found with link\n");
 		ncsi_report_link(ndp, true);
 		return -ENODEV;
 	}
+
+	ncm = &found->modes[NCSI_MODE_LINK];
+	netdev_printk(KERN_DEBUG, ndp->ndev.dev,
+		      "NCSI: Channel %u added to queue (link %s)\n",
+		      found->id, ncm->data[2] & 0x1 ? "up" : "down");
 
 out:
 	spin_lock_irqsave(&ndp->lock, flags);
@@ -839,12 +1030,15 @@ static bool ncsi_check_hwa(struct ncsi_dev_priv *ndp)
 	struct ncsi_package *np;
 	struct ncsi_channel *nc;
 	unsigned int cap;
+	bool has_channel = false;
 
 	/* The hardware arbitration is disabled if any one channel
 	 * doesn't support explicitly.
 	 */
 	NCSI_FOR_EACH_PACKAGE(ndp, np) {
 		NCSI_FOR_EACH_CHANNEL(np, nc) {
+			has_channel = true;
+
 			cap = nc->caps[NCSI_CAP_GENERIC].cap;
 			if (!(cap & NCSI_CAP_GENERIC_HWA) ||
 			    (cap & NCSI_CAP_GENERIC_HWA_MASK) !=
@@ -855,8 +1049,13 @@ static bool ncsi_check_hwa(struct ncsi_dev_priv *ndp)
 		}
 	}
 
-	ndp->flags |= NCSI_DEV_HWA;
-	return true;
+	if (has_channel) {
+		ndp->flags |= NCSI_DEV_HWA;
+		return true;
+	}
+
+	ndp->flags &= ~NCSI_DEV_HWA;
+	return false;
 }
 
 static int ncsi_enable_hwa(struct ncsi_dev_priv *ndp)
@@ -879,6 +1078,8 @@ static int ncsi_enable_hwa(struct ncsi_dev_priv *ndp)
 
 	/* We can have no channels in extremely case */
 	if (list_empty(&ndp->channel_queue)) {
+		netdev_err(ndp->ndev.dev,
+			   "NCSI: No available channels for HWA\n");
 		ncsi_report_link(ndp, false);
 		return -ENOENT;
 	}
@@ -1047,6 +1248,9 @@ static void ncsi_probe_channel(struct ncsi_dev_priv *ndp)
 
 	return;
 error:
+	netdev_err(ndp->ndev.dev,
+		   "NCSI: Failed to transmit cmd 0x%x during probe\n",
+		   nca.type);
 	ncsi_report_link(ndp, true);
 }
 
@@ -1100,10 +1304,14 @@ int ncsi_process_next_channel(struct ncsi_dev_priv *ndp)
 	switch (old_state) {
 	case NCSI_CHANNEL_INACTIVE:
 		ndp->ndev.state = ncsi_dev_state_config;
+		netdev_info(ndp->ndev.dev, "NCSI: configuring channel %u\n",
+			    nc->id);
 		ncsi_configure_channel(ndp);
 		break;
 	case NCSI_CHANNEL_ACTIVE:
 		ndp->ndev.state = ncsi_dev_state_suspend;
+		netdev_info(ndp->ndev.dev, "NCSI: suspending channel %u\n",
+			    nc->id);
 		ncsi_suspend_channel(ndp);
 		break;
 	default:
@@ -1123,6 +1331,8 @@ out:
 		return ncsi_choose_active_channel(ndp);
 	}
 
+	netdev_printk(KERN_DEBUG, ndp->ndev.dev,
+		      "NCSI: No more channels to process\n");
 	ncsi_report_link(ndp, false);
 	return -ENODEV;
 }
@@ -1191,6 +1401,147 @@ static struct notifier_block ncsi_inet6addr_notifier = {
 };
 #endif /* CONFIG_IPV6 */
 
+static int ncsi_kick_channels(struct ncsi_dev_priv *ndp)
+{
+	struct ncsi_dev *nd = &ndp->ndev;
+	struct ncsi_channel *nc;
+	struct ncsi_package *np;
+	unsigned long flags;
+	unsigned int n = 0;
+
+	NCSI_FOR_EACH_PACKAGE(ndp, np) {
+		NCSI_FOR_EACH_CHANNEL(np, nc) {
+			spin_lock_irqsave(&nc->lock, flags);
+
+			/* Channels may be busy, mark dirty instead of
+			 * kicking if;
+			 * a) not ACTIVE (configured)
+			 * b) in the channel_queue (to be configured)
+			 * c) it's ndev is in the config state
+			 */
+			if (nc->state != NCSI_CHANNEL_ACTIVE) {
+				if ((ndp->ndev.state & 0xff00) ==
+						ncsi_dev_state_config ||
+						!list_empty(&nc->link)) {
+					netdev_printk(KERN_DEBUG, nd->dev,
+						      "NCSI: channel %p marked dirty\n",
+						      nc);
+					nc->reconfigure_needed = true;
+				}
+				spin_unlock_irqrestore(&nc->lock, flags);
+				continue;
+			}
+
+			spin_unlock_irqrestore(&nc->lock, flags);
+
+			ncsi_stop_channel_monitor(nc);
+			spin_lock_irqsave(&nc->lock, flags);
+			nc->state = NCSI_CHANNEL_INACTIVE;
+			spin_unlock_irqrestore(&nc->lock, flags);
+
+			spin_lock_irqsave(&ndp->lock, flags);
+			list_add_tail_rcu(&nc->link, &ndp->channel_queue);
+			spin_unlock_irqrestore(&ndp->lock, flags);
+
+			netdev_printk(KERN_DEBUG, nd->dev,
+				      "NCSI: kicked channel %p\n", nc);
+			n++;
+		}
+	}
+
+	return n;
+}
+
+int ncsi_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
+{
+	struct ncsi_dev_priv *ndp;
+	unsigned int n_vids = 0;
+	struct vlan_vid *vlan;
+	struct ncsi_dev *nd;
+	bool found = false;
+
+	if (vid == 0)
+		return 0;
+
+	nd = ncsi_find_dev(dev);
+	if (!nd) {
+		netdev_warn(dev, "NCSI: No net_device?\n");
+		return 0;
+	}
+
+	ndp = TO_NCSI_DEV_PRIV(nd);
+
+	/* Add the VLAN id to our internal list */
+	list_for_each_entry_rcu(vlan, &ndp->vlan_vids, list) {
+		n_vids++;
+		if (vlan->vid == vid) {
+			netdev_printk(KERN_DEBUG, dev,
+				      "NCSI: vid %u already registered\n", vid);
+			return 0;
+		}
+	}
+	if (n_vids >= NCSI_MAX_VLAN_VIDS) {
+		netdev_warn(dev,
+			    "tried to add vlan id %u but NCSI max already registered (%u)\n",
+			    vid, NCSI_MAX_VLAN_VIDS);
+		return -ENOSPC;
+	}
+
+	vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
+	if (!vlan)
+		return -ENOMEM;
+
+	vlan->proto = proto;
+	vlan->vid = vid;
+	list_add_rcu(&vlan->list, &ndp->vlan_vids);
+
+	netdev_printk(KERN_DEBUG, dev, "NCSI: Added new vid %u\n", vid);
+
+	found = ncsi_kick_channels(ndp) != 0;
+
+	return found ? ncsi_process_next_channel(ndp) : 0;
+}
+EXPORT_SYMBOL_GPL(ncsi_vlan_rx_add_vid);
+
+int ncsi_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
+{
+	struct vlan_vid *vlan, *tmp;
+	struct ncsi_dev_priv *ndp;
+	struct ncsi_dev *nd;
+	bool found = false;
+
+	if (vid == 0)
+		return 0;
+
+	nd = ncsi_find_dev(dev);
+	if (!nd) {
+		netdev_warn(dev, "NCSI: no net_device?\n");
+		return 0;
+	}
+
+	ndp = TO_NCSI_DEV_PRIV(nd);
+
+	/* Remove the VLAN id from our internal list */
+	list_for_each_entry_safe(vlan, tmp, &ndp->vlan_vids, list)
+		if (vlan->vid == vid) {
+			netdev_printk(KERN_DEBUG, dev,
+				      "NCSI: vid %u found, removing\n", vid);
+			list_del_rcu(&vlan->list);
+			found = true;
+			kfree(vlan);
+		}
+
+	if (!found) {
+		netdev_err(dev, "NCSI: vid %u wasn't registered!\n", vid);
+		return -EINVAL;
+	}
+
+	found = ncsi_kick_channels(ndp) != 0;
+
+	return found ? ncsi_process_next_channel(ndp) : 0;
+}
+EXPORT_SYMBOL_GPL(ncsi_vlan_rx_kill_vid);
+
 struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 				   void (*handler)(struct ncsi_dev *ndev))
 {
@@ -1215,6 +1566,7 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 	nd->handler = handler;
 	ndp->pending_req_num = 0;
 	INIT_LIST_HEAD(&ndp->channel_queue);
+	INIT_LIST_HEAD(&ndp->vlan_vids);
 	INIT_WORK(&ndp->work, ncsi_dev_work);
 
 	/* Initialize private NCSI device */
@@ -1224,9 +1576,7 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 	for (i = 0; i < ARRAY_SIZE(ndp->requests); i++) {
 		ndp->requests[i].id = i;
 		ndp->requests[i].ndp = ndp;
-		setup_timer(&ndp->requests[i].timer,
-			    ncsi_request_timeout,
-			    (unsigned long)&ndp->requests[i]);
+		timer_setup(&ndp->requests[i].timer, ncsi_request_timeout, 0);
 	}
 
 	spin_lock_irqsave(&ncsi_dev_lock, flags);
@@ -1263,10 +1613,12 @@ int ncsi_start_dev(struct ncsi_dev *nd)
 		return 0;
 	}
 
-	if (ndp->flags & NCSI_DEV_HWA)
+	if (ndp->flags & NCSI_DEV_HWA) {
+		netdev_info(ndp->ndev.dev, "NCSI: Enabling HWA mode\n");
 		ret = ncsi_enable_hwa(ndp);
-	else
+	} else {
 		ret = ncsi_choose_active_channel(ndp);
+	}
 
 	return ret;
 }
@@ -1297,6 +1649,7 @@ void ncsi_stop_dev(struct ncsi_dev *nd)
 		}
 	}
 
+	netdev_printk(KERN_DEBUG, ndp->ndev.dev, "NCSI: Stopping device\n");
 	ncsi_report_link(ndp, true);
 }
 EXPORT_SYMBOL_GPL(ncsi_stop_dev);

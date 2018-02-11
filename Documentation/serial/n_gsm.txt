@@ -77,6 +77,13 @@ for example, it's possible :
 
 6- first close all virtual ports before closing the physical port.
 
+Note that after closing the physical port the modem is still in multiplexing
+mode. This may prevent a successful re-opening of the port later. To avoid
+this situation either reset the modem if your hardware allows that or send
+a disconnect command frame manually before initializing the multiplexing mode
+for the second time. The byte sequence for the disconnect command frame is:
+0xf9, 0x03, 0xef, 0x03, 0xc3, 0x16, 0xf9.
+
 Additional Documentation
 ------------------------
 More practical details on the protocol and how it's supported by industrial

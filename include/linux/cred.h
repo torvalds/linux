@@ -1,4 +1,4 @@
-/* Credentials management - see Documentation/security/credentials.txt
+/* Credentials management - see Documentation/security/credentials.rst
  *
  * Copyright (C) 2008 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -31,7 +31,7 @@ struct group_info {
 	atomic_t	usage;
 	int		ngroups;
 	kgid_t		gid[0];
-};
+} __randomize_layout;
 
 /**
  * get_group_info - Get a reference to a group info structure
@@ -83,6 +83,7 @@ extern int set_current_groups(struct group_info *);
 extern void set_groups(struct cred *, struct group_info *);
 extern int groups_search(const struct group_info *, kgid_t);
 extern bool may_setgroups(void);
+extern void groups_sort(struct group_info *);
 
 /*
  * The security context of a task
@@ -145,7 +146,7 @@ struct cred {
 	struct user_namespace *user_ns; /* user_ns the caps and keyrings are relative to. */
 	struct group_info *group_info;	/* supplementary groups for euid/fsgid */
 	struct rcu_head	rcu;		/* RCU deletion hook */
-};
+} __randomize_layout;
 
 extern void __put_cred(struct cred *);
 extern void exit_creds(struct task_struct *);

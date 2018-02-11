@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /* generic HDLC line discipline for Linux
  *
  * Written by Paul Fulghum paulkf@microgate.com
@@ -10,8 +11,6 @@
  *	Paul Mackerras <Paul.Mackerras@cs.anu.edu.au>
  *
  * Original release 01/11/99
- *
- * This code is released under the GNU General Public License (GPL)
  *
  * This module implements the tty line discipline N_HDLC for use with
  * tty device drivers that support bit-synchronous HDLC communications.

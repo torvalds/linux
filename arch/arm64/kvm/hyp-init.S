@@ -106,10 +106,13 @@ __do_hyp_init:
 	tlbi	alle2
 	dsb	sy
 
-	mrs	x4, sctlr_el2
-	and	x4, x4, #SCTLR_ELx_EE	// preserve endianness of EL2
-	ldr	x5, =SCTLR_ELx_FLAGS
-	orr	x4, x4, x5
+	/*
+	 * Preserve all the RES1 bits while setting the default flags,
+	 * as well as the EE bit on BE. Drop the A flag since the compiler
+	 * is allowed to generate unaligned accesses.
+	 */
+	ldr	x4, =(SCTLR_EL2_RES1 | (SCTLR_ELx_FLAGS & ~SCTLR_ELx_A))
+CPU_BE(	orr	x4, x4, #SCTLR_ELx_EE)
 	msr	sctlr_el2, x4
 	isb
 
@@ -148,6 +151,7 @@ reset:
 	mrs	x5, sctlr_el2
 	ldr	x6, =SCTLR_ELx_FLAGS
 	bic	x5, x5, x6		// Clear SCTL_M and etc
+	pre_disable_mmu_workaround
 	msr	sctlr_el2, x5
 	isb
 

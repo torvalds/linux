@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 enum HF_S {
 	HF_None = 0, HF_B, HF_DK, HF_G, HF_I, HF_L, HF_L1, HF_MN, HF_FM_Radio,
 	HF_AnalogMax, HF_DVBT_6MHZ, HF_DVBT_7MHZ, HF_DVBT_8MHZ,

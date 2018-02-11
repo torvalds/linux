@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Local helper macros and functions for HD-audio core drivers
  */
@@ -28,6 +29,8 @@ static inline unsigned int get_wcaps_channels(u32 wcaps)
 
 extern const struct attribute_group *hdac_dev_attr_groups[];
 int hda_widget_sysfs_init(struct hdac_device *codec);
+int hda_widget_sysfs_reinit(struct hdac_device *codec, hda_nid_t start_nid,
+			    int num_nodes);
 void hda_widget_sysfs_exit(struct hdac_device *codec);
 
 #endif /* __HDAC_LOCAL_H */

@@ -58,6 +58,7 @@ struct crypto_engine {
 	struct list_head	list;
 	spinlock_t		queue_lock;
 	struct crypto_queue	queue;
+	struct device		*dev;
 
 	bool			rt;
 

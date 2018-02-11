@@ -484,6 +484,7 @@ static int ov965x_set_default_gamma_curve(struct ov965x *ov965x)
 
 	for (i = 0; i < ARRAY_SIZE(gamma_curve); i++) {
 		int ret = ov965x_write(ov965x->client, addr, gamma_curve[i]);
+
 		if (ret < 0)
 			return ret;
 		addr++;
@@ -503,6 +504,7 @@ static int ov965x_set_color_matrix(struct ov965x *ov965x)
 
 	for (i = 0; i < ARRAY_SIZE(mtx); i++) {
 		int ret = ov965x_write(ov965x->client, addr, mtx[i]);
+
 		if (ret < 0)
 			return ret;
 		addr++;
@@ -611,7 +613,7 @@ static int ov965x_set_banding_filter(struct ov965x *ov965x, int value)
 	}
 	if (value == V4L2_CID_POWER_LINE_FREQUENCY_DISABLED)
 		return 0;
-	if (WARN_ON(ov965x->fiv == NULL))
+	if (WARN_ON(!ov965x->fiv))
 		return -EINVAL;
 	/* Set minimal exposure time for 50/60 HZ lighting */
 	if (value == V4L2_CID_POWER_LINE_FREQUENCY_50HZ)
@@ -983,7 +985,6 @@ static const struct v4l2_ctrl_ops ov965x_ctrl_ops = {
 static const char * const test_pattern_menu[] = {
 	"Disabled",
 	"Color bars",
-	NULL
 };
 
 static int ov965x_initialize_controls(struct ov965x *ov965x)
@@ -999,44 +1000,47 @@ static int ov965x_initialize_controls(struct ov965x *ov965x)
 
 	/* Auto/manual white balance */
 	ctrls->auto_wb = v4l2_ctrl_new_std(hdl, ops,
-				V4L2_CID_AUTO_WHITE_BALANCE,
-				0, 1, 1, 1);
+					   V4L2_CID_AUTO_WHITE_BALANCE,
+					   0, 1, 1, 1);
 	ctrls->blue_balance = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_BLUE_BALANCE,
 						0, 0xff, 1, 0x80);
 	ctrls->red_balance = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_RED_BALANCE,
-						0, 0xff, 1, 0x80);
+					       0, 0xff, 1, 0x80);
 	/* Auto/manual exposure */
-	ctrls->auto_exp = v4l2_ctrl_new_std_menu(hdl, ops,
-				V4L2_CID_EXPOSURE_AUTO,
-				V4L2_EXPOSURE_MANUAL, 0, V4L2_EXPOSURE_AUTO);
+	ctrls->auto_exp =
+		v4l2_ctrl_new_std_menu(hdl, ops,
+				       V4L2_CID_EXPOSURE_AUTO,
+				       V4L2_EXPOSURE_MANUAL, 0,
+				       V4L2_EXPOSURE_AUTO);
 	/* Exposure time, in 100 us units. min/max is updated dynamically. */
 	ctrls->exposure = v4l2_ctrl_new_std(hdl, ops,
-				V4L2_CID_EXPOSURE_ABSOLUTE,
-				2, 1500, 1, 500);
+					    V4L2_CID_EXPOSURE_ABSOLUTE,
+					    2, 1500, 1, 500);
 	/* Auto/manual gain */
 	ctrls->auto_gain = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_AUTOGAIN,
-						0, 1, 1, 1);
+					     0, 1, 1, 1);
 	ctrls->gain = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_GAIN,
-						16, 64 * (16 + 15), 1, 64 * 16);
+					16, 64 * (16 + 15), 1, 64 * 16);
 
 	ctrls->saturation = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_SATURATION,
-						-2, 2, 1, 0);
+					      -2, 2, 1, 0);
 	ctrls->brightness = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_BRIGHTNESS,
-						-3, 3, 1, 0);
+					      -3, 3, 1, 0);
 	ctrls->sharpness = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_SHARPNESS,
-						0, 32, 1, 6);
+					     0, 32, 1, 6);
 
 	ctrls->hflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HFLIP, 0, 1, 1, 0);
 	ctrls->vflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VFLIP, 0, 1, 1, 0);
 
-	ctrls->light_freq = v4l2_ctrl_new_std_menu(hdl, ops,
-				V4L2_CID_POWER_LINE_FREQUENCY,
-				V4L2_CID_POWER_LINE_FREQUENCY_60HZ, ~0x7,
-				V4L2_CID_POWER_LINE_FREQUENCY_50HZ);
+	ctrls->light_freq =
+		v4l2_ctrl_new_std_menu(hdl, ops,
+				       V4L2_CID_POWER_LINE_FREQUENCY,
+				       V4L2_CID_POWER_LINE_FREQUENCY_60HZ, ~0x7,
+				       V4L2_CID_POWER_LINE_FREQUENCY_50HZ);
 
 	v4l2_ctrl_new_std_menu_items(hdl, ops, V4L2_CID_TEST_PATTERN,
-				ARRAY_SIZE(test_pattern_menu) - 1, 0, 0,
-				test_pattern_menu);
+				     ARRAY_SIZE(test_pattern_menu) - 1, 0, 0,
+				     test_pattern_menu);
 	if (hdl->error) {
 		ret = hdl->error;
 		v4l2_ctrl_handler_free(hdl);
@@ -1121,7 +1125,6 @@ static int __ov965x_set_frame_interval(struct ov965x *ov965x,
 	u64 req_int, err, min_err = ~0ULL;
 	unsigned int i;
 
-
 	if (fi->interval.denominator == 0)
 		return -EINVAL;
 
@@ -1165,7 +1168,8 @@ static int ov965x_s_frame_interval(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static int ov965x_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
+static int ov965x_get_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct ov965x *ov965x = to_ov965x(sd);
@@ -1209,7 +1213,8 @@ static void __ov965x_try_frame_size(struct v4l2_mbus_framefmt *mf,
 		*size = match;
 }
 
-static int ov965x_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
+static int ov965x_set_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	unsigned int index = ARRAY_SIZE(ov965x_formats);
@@ -1231,7 +1236,7 @@ static int ov965x_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config 
 	mutex_lock(&ov965x->lock);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		if (cfg != NULL) {
+		if (cfg) {
 			mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
 			*mf = fmt->format;
 		}
@@ -1362,7 +1367,8 @@ static int ov965x_s_stream(struct v4l2_subdev *sd, int on)
  */
 static int ov965x_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	struct v4l2_mbus_framefmt *mf = v4l2_subdev_get_try_format(sd, fh->pad, 0);
+	struct v4l2_mbus_framefmt *mf =
+		v4l2_subdev_get_try_format(sd, fh->pad, 0);
 
 	ov965x_get_default_format(mf);
 	return 0;
@@ -1470,7 +1476,7 @@ static int ov965x_probe(struct i2c_client *client,
 	struct ov965x *ov965x;
 	int ret;
 
-	if (pdata == NULL) {
+	if (!pdata) {
 		dev_err(&client->dev, "platform data not specified\n");
 		return -EINVAL;
 	}
@@ -1498,13 +1504,13 @@ static int ov965x_probe(struct i2c_client *client,
 
 	ret = ov965x_configure_gpios(ov965x, pdata);
 	if (ret < 0)
-		return ret;
+		goto err_mutex;
 
 	ov965x->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_pads_init(&sd->entity, 1, &ov965x->pad);
 	if (ret < 0)
-		return ret;
+		goto err_mutex;
 
 	ret = ov965x_initialize_controls(ov965x);
 	if (ret < 0)
@@ -1530,16 +1536,20 @@ err_ctrls:
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 err_me:
 	media_entity_cleanup(&sd->entity);
+err_mutex:
+	mutex_destroy(&ov965x->lock);
 	return ret;
 }
 
 static int ov965x_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ov965x *ov965x = to_ov965x(sd);
 
 	v4l2_async_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	media_entity_cleanup(&sd->entity);
+	mutex_destroy(&ov965x->lock);
 
 	return 0;
 }

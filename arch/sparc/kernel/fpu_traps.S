@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 	/* This is trivial with the new code... */
 	.globl		do_fpdis
 	.type		do_fpdis,#function

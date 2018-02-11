@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef S390_CHSC_H
 #define S390_CHSC_H
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LOCKD_NETNS_H__
 #define __LOCKD_NETNS_H__
 

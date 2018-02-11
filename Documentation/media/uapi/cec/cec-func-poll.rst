@@ -39,10 +39,10 @@ Arguments
 Description
 ===========
 
-With the :c:func:`poll()` function applications can wait for CEC
+With the :c:func:`poll() <cec-poll>` function applications can wait for CEC
 events.
 
-On success :c:func:`poll()` returns the number of file descriptors
+On success :c:func:`poll() <cec-poll>` returns the number of file descriptors
 that have been selected (that is, file descriptors for which the
 ``revents`` field of the respective struct :c:type:`pollfd`
 is non-zero). CEC devices set the ``POLLIN`` and ``POLLRDNORM`` flags in
@@ -53,13 +53,13 @@ then the ``POLLPRI`` flag is set. When the function times out it returns
 a value of zero, on failure it returns -1 and the ``errno`` variable is
 set appropriately.
 
-For more details see the :c:func:`poll()` manual page.
+For more details see the :c:func:`poll() <cec-poll>` manual page.
 
 
 Return Value
 ============
 
-On success, :c:func:`poll()` returns the number structures which have
+On success, :c:func:`poll() <cec-poll>` returns the number structures which have
 non-zero ``revents`` fields, or zero if the call timed out. On error -1
 is returned, and the ``errno`` variable is set appropriately:
 

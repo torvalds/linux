@@ -53,6 +53,13 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
+		gpio0 = &bgpio0;
+		gpio1 = &bgpio1;
+		gpio2 = &bgpio2;
+		gpio3 = &bgpio3;
+		gpio4 = &bgpio4;
+		gpio5 = &bgpio5;
+		gpio6 = &bgpio6;
 		serial0 = &uart0;
 	};
 
@@ -118,28 +125,33 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
-		opp@500000000 {
+		opp-500000000 {
 			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <866000>;
 			clock-latency-ns = <500000>;
 		};
 
-		opp@648000000 {
+		opp-648000000 {
 			opp-hz = /bits/ 64 <648000000>;
+			opp-microvolt = <866000>;
 			clock-latency-ns = <500000>;
 		};
 
-		opp@800000000 {
+		opp-800000000 {
 			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <888000>;
 			clock-latency-ns = <500000>;
 		};
 
-		opp@1000000000 {
+		opp-1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <898000>;
 			clock-latency-ns = <500000>;
 		};
 
-		opp@1188000000 {
+		opp-1188000000 {
 			opp-hz = /bits/ 64 <1188000000>;
+			opp-microvolt = <1015000>;
 			clock-latency-ns = <500000>;
 		};
 	};
@@ -283,9 +295,21 @@
 		compatible = "simple-bus";
 		ranges;
 
+		irdec: ir-decoder@111000 {
+			compatible = "zte,zx296718-irdec";
+			reg = <0x111000 0x1000>;
+			interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
 		aon_sysctrl: aon-sysctrl@116000 {
 			compatible = "zte,zx296718-aon-sysctrl", "syscon";
 			reg = <0x116000 0x1000>;
+		};
+
+		iocfg: pin-controller@119000 {
+			compatible = "zte,zx296718-iocfg";
+			reg = <0x119000 0x1000>;
 		};
 
 		uart0: uart@11f000 {
@@ -311,7 +335,6 @@
 			clock-frequency = <50000000>;
 			clocks = <&topcrm SD0_AHB>, <&topcrm SD0_WCLK>;
 			clock-names = "biu", "ciu";
-			num-slots = <1>;
 			max-frequency = <50000000>;
 			cap-sdio-irq;
 			cap-sd-highspeed;
@@ -336,7 +359,6 @@
 			clock-frequency = <167000000>;
 			clocks = <&topcrm SD1_AHB>, <&topcrm SD1_WCLK>;
 			clock-names = "biu", "ciu";
-			num-slots = <1>;
 			max-frequency = <167000000>;
 			cap-sdio-irq;
 			cap-sd-highspeed;
@@ -360,10 +382,107 @@
 			#clock-cells = <1>;
 		};
 
+		bgpio0: gpio@142d000 {
+			compatible = "zte,zx296718-gpio", "zte,zx296702-gpio";
+			reg = <0x142d000 0x40>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pmm 0 48 16>;
+			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		bgpio1: gpio@142d040 {
+			compatible = "zte,zx296718-gpio", "zte,zx296702-gpio";
+			reg = <0x142d040 0x40>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pmm 0 80 16>;
+			interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		bgpio2: gpio@142d080 {
+			compatible = "zte,zx296718-gpio", "zte,zx296702-gpio";
+			reg = <0x142d080 0x40>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pmm 0 80 3
+				       &pmm 3 32 4
+				       &pmm 7 83 9>;
+			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		bgpio3: gpio@142d0c0 {
+			compatible = "zte,zx296718-gpio", "zte,zx296702-gpio";
+			reg = <0x142d0c0 0x40>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pmm 0 92 16>;
+			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		bgpio4: gpio@142d100 {
+			compatible = "zte,zx296718-gpio", "zte,zx296702-gpio";
+			reg = <0x142d100 0x40>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pmm 0 108 12
+				       &pmm 12 121 4>;
+			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		bgpio5: gpio@142d140 {
+			compatible = "zte,zx296718-gpio", "zte,zx296702-gpio";
+			reg = <0x142d140 0x40>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pmm 0 125 16>;
+			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		bgpio6: gpio@142d180 {
+			compatible = "zte,zx296718-gpio", "zte,zx296702-gpio";
+			reg = <0x142d180 0x40>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pmm 0 141 2>;
+			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
 		lsp1crm: clock-controller@1430000 {
 			compatible = "zte,zx296718-lsp1crm";
 			reg = <0x01430000 0x1000>;
 			#clock-cells = <1>;
+		};
+
+		pwm: pwm@1439000 {
+			compatible = "zte,zx296718-pwm";
+			reg = <0x1439000 0x1000>;
+			clocks = <&lsp1crm LSP1_PWM_PCLK>,
+				 <&lsp1crm LSP1_PWM_WCLK>;
+			clock-names = "pclk", "wclk";
+			#pwm-cells = <3>;
+			status = "disabled";
 		};
 
 		vou: vou@1440000 {
@@ -385,6 +504,16 @@
 					 <&topcrm VOU_MAIN_WCLK>, <&topcrm VOU_AUX_WCLK>;
 				clock-names = "aclk", "ppu_wclk",
 					      "main_wclk", "aux_wclk";
+			};
+
+			vga: vga@8000 {
+				compatible = "zte,zx296718-vga";
+				reg = <0x8000 0x1000>;
+				interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&topcrm VGA_I2C_WCLK>;
+				clock-names = "i2c_wclk";
+				zte,vga-power-control = <&sysctrl 0x170 0xe0>;
+				status = "disabled";
 			};
 
 			hdmi: hdmi@c000 {
@@ -411,6 +540,12 @@
 			compatible = "zte,zx296718-topcrm";
 			reg = <0x01461000 0x1000>;
 			#clock-cells = <1>;
+		};
+
+		pmm: pin-controller@1462000 {
+			compatible = "zte,zx296718-pmm";
+			reg = <0x1462000 0x1000>;
+			zte,auxiliary-controller = <&iocfg>;
 		};
 
 		sysctrl: sysctrl@1463000 {
@@ -443,6 +578,38 @@
 			compatible = "zte,zx296718-audiocrm";
 			reg = <0x01480000 0x1000>;
 			#clock-cells = <1>;
+		};
+
+		i2s0: i2s@1482000 {
+			compatible = "zte,zx296718-i2s", "zte,zx296702-i2s";
+			reg = <0x01482000 0x1000>;
+			clocks = <&audiocrm AUDIO_I2S0_WCLK>,
+				 <&audiocrm AUDIO_I2S0_PCLK>;
+			clock-names = "wclk", "pclk";
+			assigned-clocks = <&audiocrm I2S0_WCLK_MUX>;
+			assigned-clock-parents = <&topcrm AUDIO_99M>;
+			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&dma 22>, <&dma 23>;
+			dma-names = "tx", "rx";
+			#sound-dai-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c0: i2c@1486000 {
+			compatible = "zte,zx296718-i2c";
+			reg = <0x01486000 0x1000>;
+			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&audiocrm AUDIO_I2C0_WCLK>;
+			clock-frequency = <1600000>;
+			status = "disabled";
+
+			aud96p22: codec@22 {
+				compatible = "zte,zx-aud96p22";
+				#sound-dai-cells = <0>;
+				reg = <0x22>;
+			};
 		};
 
 		spdif0: spdif@1488000 {

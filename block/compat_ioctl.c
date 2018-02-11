@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
 #include <linux/blktrace_api.h>
 #include <linux/cdrom.h>
 #include <linux/compat.h>
 #include <linux/elevator.h>
-#include <linux/fd.h>
 #include <linux/hdreg.h>
 #include <linux/slab.h>
 #include <linux/syscalls.h>
@@ -80,19 +80,16 @@ static int compat_hdio_getgeo(struct gendisk *disk, struct block_device *bdev,
 static int compat_hdio_ioctl(struct block_device *bdev, fmode_t mode,
 		unsigned int cmd, unsigned long arg)
 {
-	mm_segment_t old_fs = get_fs();
-	unsigned long kval;
-	unsigned int __user *uvp;
+	unsigned long __user *p;
 	int error;
 
-	set_fs(KERNEL_DS);
+	p = compat_alloc_user_space(sizeof(unsigned long));
 	error = __blkdev_driver_ioctl(bdev, mode,
-				cmd, (unsigned long)(&kval));
-	set_fs(old_fs);
-
+				cmd, (unsigned long)p);
 	if (error == 0) {
-		uvp = compat_ptr(arg);
-		if (put_user(kval, uvp))
+		unsigned int __user *uvp = compat_ptr(arg);
+		unsigned long v;
+		if (get_user(v, p) || put_user(v, uvp))
 			error = -EFAULT;
 	}
 	return error;
@@ -209,318 +206,6 @@ static int compat_blkpg_ioctl(struct block_device *bdev, fmode_t mode,
 #define BLKBSZSET_32		_IOW(0x12, 113, int)
 #define BLKGETSIZE64_32		_IOR(0x12, 114, int)
 
-struct compat_floppy_drive_params {
-	char		cmos;
-	compat_ulong_t	max_dtr;
-	compat_ulong_t	hlt;
-	compat_ulong_t	hut;
-	compat_ulong_t	srt;
-	compat_ulong_t	spinup;
-	compat_ulong_t	spindown;
-	unsigned char	spindown_offset;
-	unsigned char	select_delay;
-	unsigned char	rps;
-	unsigned char	tracks;
-	compat_ulong_t	timeout;
-	unsigned char	interleave_sect;
-	struct floppy_max_errors max_errors;
-	char		flags;
-	char		read_track;
-	short		autodetect[8];
-	compat_int_t	checkfreq;
-	compat_int_t	native_format;
-};
-
-struct compat_floppy_drive_struct {
-	signed char	flags;
-	compat_ulong_t	spinup_date;
-	compat_ulong_t	select_date;
-	compat_ulong_t	first_read_date;
-	short		probed_format;
-	short		track;
-	short		maxblock;
-	short		maxtrack;
-	compat_int_t	generation;
-	compat_int_t	keep_data;
-	compat_int_t	fd_ref;
-	compat_int_t	fd_device;
-	compat_int_t	last_checked;
-	compat_caddr_t dmabuf;
-	compat_int_t	bufblocks;
-};
-
-struct compat_floppy_fdc_state {
-	compat_int_t	spec1;
-	compat_int_t	spec2;
-	compat_int_t	dtr;
-	unsigned char	version;
-	unsigned char	dor;
-	compat_ulong_t	address;
-	unsigned int	rawcmd:2;
-	unsigned int	reset:1;
-	unsigned int	need_configure:1;
-	unsigned int	perp_mode:2;
-	unsigned int	has_fifo:1;
-	unsigned int	driver_version;
-	unsigned char	track[4];
-};
-
-struct compat_floppy_write_errors {
-	unsigned int	write_errors;
-	compat_ulong_t	first_error_sector;
-	compat_int_t	first_error_generation;
-	compat_ulong_t	last_error_sector;
-	compat_int_t	last_error_generation;
-	compat_uint_t	badness;
-};
-
-#define FDSETPRM32 _IOW(2, 0x42, struct compat_floppy_struct)
-#define FDDEFPRM32 _IOW(2, 0x43, struct compat_floppy_struct)
-#define FDSETDRVPRM32 _IOW(2, 0x90, struct compat_floppy_drive_params)
-#define FDGETDRVPRM32 _IOR(2, 0x11, struct compat_floppy_drive_params)
-#define FDGETDRVSTAT32 _IOR(2, 0x12, struct compat_floppy_drive_struct)
-#define FDPOLLDRVSTAT32 _IOR(2, 0x13, struct compat_floppy_drive_struct)
-#define FDGETFDCSTAT32 _IOR(2, 0x15, struct compat_floppy_fdc_state)
-#define FDWERRORGET32  _IOR(2, 0x17, struct compat_floppy_write_errors)
-
-static struct {
-	unsigned int	cmd32;
-	unsigned int	cmd;
-} fd_ioctl_trans_table[] = {
-	{ FDSETPRM32, FDSETPRM },
-	{ FDDEFPRM32, FDDEFPRM },
-	{ FDGETPRM32, FDGETPRM },
-	{ FDSETDRVPRM32, FDSETDRVPRM },
-	{ FDGETDRVPRM32, FDGETDRVPRM },
-	{ FDGETDRVSTAT32, FDGETDRVSTAT },
-	{ FDPOLLDRVSTAT32, FDPOLLDRVSTAT },
-	{ FDGETFDCSTAT32, FDGETFDCSTAT },
-	{ FDWERRORGET32, FDWERRORGET }
-};
-
-#define NR_FD_IOCTL_TRANS ARRAY_SIZE(fd_ioctl_trans_table)
-
-static int compat_fd_ioctl(struct block_device *bdev, fmode_t mode,
-		unsigned int cmd, unsigned long arg)
-{
-	mm_segment_t old_fs = get_fs();
-	void *karg = NULL;
-	unsigned int kcmd = 0;
-	int i, err;
-
-	for (i = 0; i < NR_FD_IOCTL_TRANS; i++)
-		if (cmd == fd_ioctl_trans_table[i].cmd32) {
-			kcmd = fd_ioctl_trans_table[i].cmd;
-			break;
-		}
-	if (!kcmd)
-		return -EINVAL;
-
-	switch (cmd) {
-	case FDSETPRM32:
-	case FDDEFPRM32:
-	case FDGETPRM32:
-	{
-		compat_uptr_t name;
-		struct compat_floppy_struct __user *uf;
-		struct floppy_struct *f;
-
-		uf = compat_ptr(arg);
-		f = karg = kmalloc(sizeof(struct floppy_struct), GFP_KERNEL);
-		if (!karg)
-			return -ENOMEM;
-		if (cmd == FDGETPRM32)
-			break;
-		err = __get_user(f->size, &uf->size);
-		err |= __get_user(f->sect, &uf->sect);
-		err |= __get_user(f->head, &uf->head);
-		err |= __get_user(f->track, &uf->track);
-		err |= __get_user(f->stretch, &uf->stretch);
-		err |= __get_user(f->gap, &uf->gap);
-		err |= __get_user(f->rate, &uf->rate);
-		err |= __get_user(f->spec1, &uf->spec1);
-		err |= __get_user(f->fmt_gap, &uf->fmt_gap);
-		err |= __get_user(name, &uf->name);
-		f->name = compat_ptr(name);
-		if (err) {
-			err = -EFAULT;
-			goto out;
-		}
-		break;
-	}
-	case FDSETDRVPRM32:
-	case FDGETDRVPRM32:
-	{
-		struct compat_floppy_drive_params __user *uf;
-		struct floppy_drive_params *f;
-
-		uf = compat_ptr(arg);
-		f = karg = kmalloc(sizeof(struct floppy_drive_params), GFP_KERNEL);
-		if (!karg)
-			return -ENOMEM;
-		if (cmd == FDGETDRVPRM32)
-			break;
-		err = __get_user(f->cmos, &uf->cmos);
-		err |= __get_user(f->max_dtr, &uf->max_dtr);
-		err |= __get_user(f->hlt, &uf->hlt);
-		err |= __get_user(f->hut, &uf->hut);
-		err |= __get_user(f->srt, &uf->srt);
-		err |= __get_user(f->spinup, &uf->spinup);
-		err |= __get_user(f->spindown, &uf->spindown);
-		err |= __get_user(f->spindown_offset, &uf->spindown_offset);
-		err |= __get_user(f->select_delay, &uf->select_delay);
-		err |= __get_user(f->rps, &uf->rps);
-		err |= __get_user(f->tracks, &uf->tracks);
-		err |= __get_user(f->timeout, &uf->timeout);
-		err |= __get_user(f->interleave_sect, &uf->interleave_sect);
-		err |= __copy_from_user(&f->max_errors, &uf->max_errors, sizeof(f->max_errors));
-		err |= __get_user(f->flags, &uf->flags);
-		err |= __get_user(f->read_track, &uf->read_track);
-		err |= __copy_from_user(f->autodetect, uf->autodetect, sizeof(f->autodetect));
-		err |= __get_user(f->checkfreq, &uf->checkfreq);
-		err |= __get_user(f->native_format, &uf->native_format);
-		if (err) {
-			err = -EFAULT;
-			goto out;
-		}
-		break;
-	}
-	case FDGETDRVSTAT32:
-	case FDPOLLDRVSTAT32:
-		karg = kmalloc(sizeof(struct floppy_drive_struct), GFP_KERNEL);
-		if (!karg)
-			return -ENOMEM;
-		break;
-	case FDGETFDCSTAT32:
-		karg = kmalloc(sizeof(struct floppy_fdc_state), GFP_KERNEL);
-		if (!karg)
-			return -ENOMEM;
-		break;
-	case FDWERRORGET32:
-		karg = kmalloc(sizeof(struct floppy_write_errors), GFP_KERNEL);
-		if (!karg)
-			return -ENOMEM;
-		break;
-	default:
-		return -EINVAL;
-	}
-	set_fs(KERNEL_DS);
-	err = __blkdev_driver_ioctl(bdev, mode, kcmd, (unsigned long)karg);
-	set_fs(old_fs);
-	if (err)
-		goto out;
-	switch (cmd) {
-	case FDGETPRM32:
-	{
-		struct floppy_struct *f = karg;
-		struct compat_floppy_struct __user *uf = compat_ptr(arg);
-
-		err = __put_user(f->size, &uf->size);
-		err |= __put_user(f->sect, &uf->sect);
-		err |= __put_user(f->head, &uf->head);
-		err |= __put_user(f->track, &uf->track);
-		err |= __put_user(f->stretch, &uf->stretch);
-		err |= __put_user(f->gap, &uf->gap);
-		err |= __put_user(f->rate, &uf->rate);
-		err |= __put_user(f->spec1, &uf->spec1);
-		err |= __put_user(f->fmt_gap, &uf->fmt_gap);
-		err |= __put_user((u64)f->name, (compat_caddr_t __user *)&uf->name);
-		break;
-	}
-	case FDGETDRVPRM32:
-	{
-		struct compat_floppy_drive_params __user *uf;
-		struct floppy_drive_params *f = karg;
-
-		uf = compat_ptr(arg);
-		err = __put_user(f->cmos, &uf->cmos);
-		err |= __put_user(f->max_dtr, &uf->max_dtr);
-		err |= __put_user(f->hlt, &uf->hlt);
-		err |= __put_user(f->hut, &uf->hut);
-		err |= __put_user(f->srt, &uf->srt);
-		err |= __put_user(f->spinup, &uf->spinup);
-		err |= __put_user(f->spindown, &uf->spindown);
-		err |= __put_user(f->spindown_offset, &uf->spindown_offset);
-		err |= __put_user(f->select_delay, &uf->select_delay);
-		err |= __put_user(f->rps, &uf->rps);
-		err |= __put_user(f->tracks, &uf->tracks);
-		err |= __put_user(f->timeout, &uf->timeout);
-		err |= __put_user(f->interleave_sect, &uf->interleave_sect);
-		err |= __copy_to_user(&uf->max_errors, &f->max_errors, sizeof(f->max_errors));
-		err |= __put_user(f->flags, &uf->flags);
-		err |= __put_user(f->read_track, &uf->read_track);
-		err |= __copy_to_user(uf->autodetect, f->autodetect, sizeof(f->autodetect));
-		err |= __put_user(f->checkfreq, &uf->checkfreq);
-		err |= __put_user(f->native_format, &uf->native_format);
-		break;
-	}
-	case FDGETDRVSTAT32:
-	case FDPOLLDRVSTAT32:
-	{
-		struct compat_floppy_drive_struct __user *uf;
-		struct floppy_drive_struct *f = karg;
-
-		uf = compat_ptr(arg);
-		err = __put_user(f->flags, &uf->flags);
-		err |= __put_user(f->spinup_date, &uf->spinup_date);
-		err |= __put_user(f->select_date, &uf->select_date);
-		err |= __put_user(f->first_read_date, &uf->first_read_date);
-		err |= __put_user(f->probed_format, &uf->probed_format);
-		err |= __put_user(f->track, &uf->track);
-		err |= __put_user(f->maxblock, &uf->maxblock);
-		err |= __put_user(f->maxtrack, &uf->maxtrack);
-		err |= __put_user(f->generation, &uf->generation);
-		err |= __put_user(f->keep_data, &uf->keep_data);
-		err |= __put_user(f->fd_ref, &uf->fd_ref);
-		err |= __put_user(f->fd_device, &uf->fd_device);
-		err |= __put_user(f->last_checked, &uf->last_checked);
-		err |= __put_user((u64)f->dmabuf, &uf->dmabuf);
-		err |= __put_user((u64)f->bufblocks, &uf->bufblocks);
-		break;
-	}
-	case FDGETFDCSTAT32:
-	{
-		struct compat_floppy_fdc_state __user *uf;
-		struct floppy_fdc_state *f = karg;
-
-		uf = compat_ptr(arg);
-		err = __put_user(f->spec1, &uf->spec1);
-		err |= __put_user(f->spec2, &uf->spec2);
-		err |= __put_user(f->dtr, &uf->dtr);
-		err |= __put_user(f->version, &uf->version);
-		err |= __put_user(f->dor, &uf->dor);
-		err |= __put_user(f->address, &uf->address);
-		err |= __copy_to_user((char __user *)&uf->address + sizeof(uf->address),
-				   (char *)&f->address + sizeof(f->address), sizeof(int));
-		err |= __put_user(f->driver_version, &uf->driver_version);
-		err |= __copy_to_user(uf->track, f->track, sizeof(f->track));
-		break;
-	}
-	case FDWERRORGET32:
-	{
-		struct compat_floppy_write_errors __user *uf;
-		struct floppy_write_errors *f = karg;
-
-		uf = compat_ptr(arg);
-		err = __put_user(f->write_errors, &uf->write_errors);
-		err |= __put_user(f->first_error_sector, &uf->first_error_sector);
-		err |= __put_user(f->first_error_generation, &uf->first_error_generation);
-		err |= __put_user(f->last_error_sector, &uf->last_error_sector);
-		err |= __put_user(f->last_error_generation, &uf->last_error_generation);
-		err |= __put_user(f->badness, &uf->badness);
-		break;
-	}
-	default:
-		break;
-	}
-	if (err)
-		err = -EFAULT;
-
-out:
-	kfree(karg);
-	return err;
-}
-
 static int compat_blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned cmd, unsigned long arg)
 {
@@ -537,16 +222,6 @@ static int compat_blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 	case HDIO_GET_ADDRESS:
 	case HDIO_GET_BUSSTATE:
 		return compat_hdio_ioctl(bdev, mode, cmd, arg);
-	case FDSETPRM32:
-	case FDDEFPRM32:
-	case FDGETPRM32:
-	case FDSETDRVPRM32:
-	case FDGETDRVPRM32:
-	case FDGETDRVSTAT32:
-	case FDPOLLDRVSTAT32:
-	case FDGETFDCSTAT32:
-	case FDWERRORGET32:
-		return compat_fd_ioctl(bdev, mode, cmd, arg);
 	case CDROMREADAUDIO:
 		return compat_cdrom_read_audio(bdev, mode, cmd, arg);
 	case CDROM_SEND_PACKET:
@@ -566,23 +241,6 @@ static int compat_blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 	case HDIO_DRIVE_CMD:
 	/* 0x330 is reserved -- it used to be HDIO_GETGEO_BIG */
 	case 0x330:
-	/* 0x02 -- Floppy ioctls */
-	case FDMSGON:
-	case FDMSGOFF:
-	case FDSETEMSGTRESH:
-	case FDFLUSH:
-	case FDWERRORCLR:
-	case FDSETMAXERRS:
-	case FDGETMAXERRS:
-	case FDGETDRVTYP:
-	case FDEJECT:
-	case FDCLRPRM:
-	case FDFMTBEG:
-	case FDFMTEND:
-	case FDRESET:
-	case FDTWADDLE:
-	case FDFMTTRK:
-	case FDRAWCMD:
 	/* CDROM stuff */
 	case CDROMPAUSE:
 	case CDROMRESUME:

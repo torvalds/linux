@@ -264,6 +264,8 @@ static s32 e1000_write_mbx_vf(struct e1000_hw *hw, u32 *msg, u16 size)
 	s32 err;
 	u16 i;
 
+	WARN_ON_ONCE(!spin_is_locked(&hw->mbx_lock));
+
 	/* lock the mailbox to prevent pf/vf race condition */
 	err = e1000_obtain_mbx_lock_vf(hw);
 	if (err)
@@ -299,6 +301,8 @@ static s32 e1000_read_mbx_vf(struct e1000_hw *hw, u32 *msg, u16 size)
 {
 	s32 err;
 	u16 i;
+
+	WARN_ON_ONCE(!spin_is_locked(&hw->mbx_lock));
 
 	/* lock the mailbox to prevent pf/vf race condition */
 	err = e1000_obtain_mbx_lock_vf(hw);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 
 /*
  *  ATI Mach64 CT/VT/GT/LT Support

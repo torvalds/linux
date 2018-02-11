@@ -39,6 +39,10 @@
 #include <asm/iommu.h>
 #include <asm/switch_to.h>
 #include <asm/xive.h>
+#ifdef CONFIG_PPC_PSERIES
+#include <asm/hvcall.h>
+#include <asm/plpar_wrappers.h>
+#endif
 
 #include "timing.h"
 #include "irq.h"
@@ -55,8 +59,12 @@ EXPORT_SYMBOL_GPL(kvmppc_pr_ops);
 
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 {
-	return !!(v->arch.pending_exceptions) ||
-	       v->requests;
+	return !!(v->arch.pending_exceptions) || kvm_request_pending(v);
+}
+
+bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu)
+{
+	return false;
 }
 
 int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
@@ -108,7 +116,7 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 		 */
 		smp_mb();
 
-		if (vcpu->requests) {
+		if (kvm_request_pending(vcpu)) {
 			/* Make sure we process requests preemptable */
 			local_irq_enable();
 			trace_kvm_check_requests(vcpu);
@@ -544,6 +552,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 #ifdef CONFIG_KVM_XICS
 	case KVM_CAP_IRQ_XICS:
 #endif
+	case KVM_CAP_PPC_GET_CPU_CHAR:
 		r = 1;
 		break;
 
@@ -554,11 +563,26 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	case KVM_CAP_PPC_SMT:
 		r = 0;
-		if (hv_enabled) {
+		if (kvm) {
+			if (kvm->arch.emul_smt_mode > 1)
+				r = kvm->arch.emul_smt_mode;
+			else
+				r = kvm->arch.smt_mode;
+		} else if (hv_enabled) {
 			if (cpu_has_feature(CPU_FTR_ARCH_300))
 				r = 1;
 			else
 				r = threads_per_subcore;
+		}
+		break;
+	case KVM_CAP_PPC_SMT_POSSIBLE:
+		r = 1;
+		if (hv_enabled) {
+			if (!cpu_has_feature(CPU_FTR_ARCH_300))
+				r = ((threads_per_subcore << 1) - 1);
+			else
+				/* P9 can emulate dbells, so allow any mode */
+				r = 8 | 4 | 2 | 1;
 		}
 		break;
 	case KVM_CAP_PPC_RMA:
@@ -571,8 +595,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = !!(hv_enabled && radix_enabled());
 		break;
 	case KVM_CAP_PPC_MMU_HASH_V3:
-		r = !!(hv_enabled && !radix_enabled() &&
-		       cpu_has_feature(CPU_FTR_ARCH_300));
+		r = !!(hv_enabled && cpu_has_feature(CPU_FTR_ARCH_300));
 		break;
 #endif
 	case KVM_CAP_SYNC_MMU:
@@ -619,9 +642,14 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = !!hv_enabled && !cpu_has_feature(CPU_FTR_ARCH_300);
 		break;
 #endif
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	case KVM_CAP_PPC_FWNMI:
+		r = hv_enabled;
+		break;
+#endif
 	case KVM_CAP_PPC_HTM:
-		r = cpu_has_feature(CPU_FTR_TM_COMP) &&
-		    is_kvmppc_hv_enabled(kvm);
+		r = hv_enabled &&
+		    (cur_cpu_spec->cpu_user_features2 & PPC_FEATURE2_HTM_COMP);
 		break;
 	default:
 		r = 0;
@@ -1384,7 +1412,6 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	int r;
-	sigset_t sigsaved;
 
 	if (vcpu->mmio_needed) {
 		vcpu->mmio_needed = 0;
@@ -1425,16 +1452,14 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 #endif
 	}
 
-	if (vcpu->sigset_active)
-		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
+	kvm_sigset_activate(vcpu);
 
 	if (run->immediate_exit)
 		r = -EINTR;
 	else
 		r = kvmppc_vcpu_run(run, vcpu);
 
-	if (vcpu->sigset_active)
-		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
+	kvm_sigset_deactivate(vcpu);
 
 	return r;
 }
@@ -1538,6 +1563,15 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		break;
 	}
 #endif /* CONFIG_KVM_XICS */
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	case KVM_CAP_PPC_FWNMI:
+		r = -EINVAL;
+		if (!is_kvmppc_hv_enabled(vcpu->kvm))
+			break;
+		r = 0;
+		vcpu->kvm->arch.fwnmi_enabled = true;
+		break;
+#endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 	default:
 		r = -EINVAL;
 		break;
@@ -1712,6 +1746,15 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		r = 0;
 		break;
 	}
+	case KVM_CAP_PPC_SMT: {
+		unsigned long mode = cap->args[0];
+		unsigned long flags = cap->args[1];
+
+		r = -EINVAL;
+		if (kvm->arch.kvm_ops->set_smt_mode)
+			r = kvm->arch.kvm_ops->set_smt_mode(kvm, mode, flags);
+		break;
+	}
 #endif
 	default:
 		r = -EINVAL;
@@ -1720,6 +1763,124 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 
 	return r;
 }
+
+#ifdef CONFIG_PPC_BOOK3S_64
+/*
+ * These functions check whether the underlying hardware is safe
+ * against attacks based on observing the effects of speculatively
+ * executed instructions, and whether it supplies instructions for
+ * use in workarounds.  The information comes from firmware, either
+ * via the device tree on powernv platforms or from an hcall on
+ * pseries platforms.
+ */
+#ifdef CONFIG_PPC_PSERIES
+static int pseries_get_cpu_char(struct kvm_ppc_cpu_char *cp)
+{
+	struct h_cpu_char_result c;
+	unsigned long rc;
+
+	if (!machine_is(pseries))
+		return -ENOTTY;
+
+	rc = plpar_get_cpu_characteristics(&c);
+	if (rc == H_SUCCESS) {
+		cp->character = c.character;
+		cp->behaviour = c.behaviour;
+		cp->character_mask = KVM_PPC_CPU_CHAR_SPEC_BAR_ORI31 |
+			KVM_PPC_CPU_CHAR_BCCTRL_SERIALISED |
+			KVM_PPC_CPU_CHAR_L1D_FLUSH_ORI30 |
+			KVM_PPC_CPU_CHAR_L1D_FLUSH_TRIG2 |
+			KVM_PPC_CPU_CHAR_L1D_THREAD_PRIV |
+			KVM_PPC_CPU_CHAR_BR_HINT_HONOURED |
+			KVM_PPC_CPU_CHAR_MTTRIG_THR_RECONF |
+			KVM_PPC_CPU_CHAR_COUNT_CACHE_DIS;
+		cp->behaviour_mask = KVM_PPC_CPU_BEHAV_FAVOUR_SECURITY |
+			KVM_PPC_CPU_BEHAV_L1D_FLUSH_PR |
+			KVM_PPC_CPU_BEHAV_BNDS_CHK_SPEC_BAR;
+	}
+	return 0;
+}
+#else
+static int pseries_get_cpu_char(struct kvm_ppc_cpu_char *cp)
+{
+	return -ENOTTY;
+}
+#endif
+
+static inline bool have_fw_feat(struct device_node *fw_features,
+				const char *state, const char *name)
+{
+	struct device_node *np;
+	bool r = false;
+
+	np = of_get_child_by_name(fw_features, name);
+	if (np) {
+		r = of_property_read_bool(np, state);
+		of_node_put(np);
+	}
+	return r;
+}
+
+static int kvmppc_get_cpu_char(struct kvm_ppc_cpu_char *cp)
+{
+	struct device_node *np, *fw_features;
+	int r;
+
+	memset(cp, 0, sizeof(*cp));
+	r = pseries_get_cpu_char(cp);
+	if (r != -ENOTTY)
+		return r;
+
+	np = of_find_node_by_name(NULL, "ibm,opal");
+	if (np) {
+		fw_features = of_get_child_by_name(np, "fw-features");
+		of_node_put(np);
+		if (!fw_features)
+			return 0;
+		if (have_fw_feat(fw_features, "enabled",
+				 "inst-spec-barrier-ori31,31,0"))
+			cp->character |= KVM_PPC_CPU_CHAR_SPEC_BAR_ORI31;
+		if (have_fw_feat(fw_features, "enabled",
+				 "fw-bcctrl-serialized"))
+			cp->character |= KVM_PPC_CPU_CHAR_BCCTRL_SERIALISED;
+		if (have_fw_feat(fw_features, "enabled",
+				 "inst-l1d-flush-ori30,30,0"))
+			cp->character |= KVM_PPC_CPU_CHAR_L1D_FLUSH_ORI30;
+		if (have_fw_feat(fw_features, "enabled",
+				 "inst-l1d-flush-trig2"))
+			cp->character |= KVM_PPC_CPU_CHAR_L1D_FLUSH_TRIG2;
+		if (have_fw_feat(fw_features, "enabled",
+				 "fw-l1d-thread-split"))
+			cp->character |= KVM_PPC_CPU_CHAR_L1D_THREAD_PRIV;
+		if (have_fw_feat(fw_features, "enabled",
+				 "fw-count-cache-disabled"))
+			cp->character |= KVM_PPC_CPU_CHAR_COUNT_CACHE_DIS;
+		cp->character_mask = KVM_PPC_CPU_CHAR_SPEC_BAR_ORI31 |
+			KVM_PPC_CPU_CHAR_BCCTRL_SERIALISED |
+			KVM_PPC_CPU_CHAR_L1D_FLUSH_ORI30 |
+			KVM_PPC_CPU_CHAR_L1D_FLUSH_TRIG2 |
+			KVM_PPC_CPU_CHAR_L1D_THREAD_PRIV |
+			KVM_PPC_CPU_CHAR_COUNT_CACHE_DIS;
+
+		if (have_fw_feat(fw_features, "enabled",
+				 "speculation-policy-favor-security"))
+			cp->behaviour |= KVM_PPC_CPU_BEHAV_FAVOUR_SECURITY;
+		if (!have_fw_feat(fw_features, "disabled",
+				  "needs-l1d-flush-msr-pr-0-to-1"))
+			cp->behaviour |= KVM_PPC_CPU_BEHAV_L1D_FLUSH_PR;
+		if (!have_fw_feat(fw_features, "disabled",
+				  "needs-spec-barrier-for-bound-checks"))
+			cp->behaviour |= KVM_PPC_CPU_BEHAV_BNDS_CHK_SPEC_BAR;
+		cp->behaviour_mask = KVM_PPC_CPU_BEHAV_FAVOUR_SECURITY |
+			KVM_PPC_CPU_BEHAV_L1D_FLUSH_PR |
+			KVM_PPC_CPU_BEHAV_BNDS_CHK_SPEC_BAR;
+
+		of_node_put(fw_features);
+	}
+
+	return 0;
+}
+#endif
 
 long kvm_arch_vm_ioctl(struct file *filp,
                        unsigned int ioctl, unsigned long arg)
@@ -1820,6 +1981,14 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			goto out;
 		r = kvm->arch.kvm_ops->get_rmmu_info(kvm, &info);
 		if (r >= 0 && copy_to_user(argp, &info, sizeof(info)))
+			r = -EFAULT;
+		break;
+	}
+	case KVM_PPC_GET_CPU_CHAR: {
+		struct kvm_ppc_cpu_char cpuchar;
+
+		r = kvmppc_get_cpu_char(&cpuchar);
+		if (r >= 0 && copy_to_user(argp, &cpuchar, sizeof(cpuchar)))
 			r = -EFAULT;
 		break;
 	}

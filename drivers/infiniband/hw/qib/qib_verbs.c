@@ -389,9 +389,9 @@ drop:
  * This is called from a timer to check for QPs
  * which need kernel memory in order to send a packet.
  */
-static void mem_timer(unsigned long data)
+static void mem_timer(struct timer_list *t)
 {
-	struct qib_ibdev *dev = (struct qib_ibdev *) data;
+	struct qib_ibdev *dev = from_timer(dev, t, mem_timer);
 	struct list_head *list = &dev->memwait;
 	struct rvt_qp *qp = NULL;
 	struct qib_qp_priv *priv = NULL;
@@ -701,7 +701,7 @@ void qib_put_txreq(struct qib_verbs_txreq *tx)
  */
 void qib_verbs_sdma_desc_avail(struct qib_pportdata *ppd, unsigned avail)
 {
-	struct rvt_qp *qp, *nqp;
+	struct rvt_qp *qp;
 	struct qib_qp_priv *qpp, *nqpp;
 	struct rvt_qp *qps[20];
 	struct qib_ibdev *dev;
@@ -714,7 +714,6 @@ void qib_verbs_sdma_desc_avail(struct qib_pportdata *ppd, unsigned avail)
 	/* Search wait list for first QP wanting DMA descriptors. */
 	list_for_each_entry_safe(qpp, nqpp, &dev->dmawait, iowait) {
 		qp = qpp->owner;
-		nqp = nqpp->owner;
 		if (qp->port_num != ppd->port)
 			continue;
 		if (n == ARRAY_SIZE(qps))
@@ -1341,6 +1340,15 @@ int qib_check_ah(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr)
 	if (rdma_ah_get_sl(ah_attr) > 15)
 		return -EINVAL;
 
+	if (rdma_ah_get_dlid(ah_attr) == 0)
+		return -EINVAL;
+	if (rdma_ah_get_dlid(ah_attr) >=
+		be16_to_cpu(IB_MULTICAST_LID_BASE) &&
+	    rdma_ah_get_dlid(ah_attr) !=
+		be16_to_cpu(IB_LID_PERMISSIVE) &&
+	    !(rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH))
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -1523,7 +1531,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 		init_ibport(ppd + i);
 
 	/* Only need to initialize non-zero fields. */
-	setup_timer(&dev->mem_timer, mem_timer, (unsigned long)dev);
+	timer_setup(&dev->mem_timer, mem_timer, 0);
 
 	INIT_LIST_HEAD(&dev->piowait);
 	INIT_LIST_HEAD(&dev->dmawait);

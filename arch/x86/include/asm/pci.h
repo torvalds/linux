@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PCI_H
 #define _ASM_X86_PCI_H
 
@@ -77,14 +78,8 @@ static inline bool is_vmd(struct pci_bus *bus)
 
 extern unsigned int pcibios_assign_all_busses(void);
 extern int pci_legacy_init(void);
-# ifdef CONFIG_ACPI
-#  define x86_default_pci_init pci_acpi_init
-# else
-#  define x86_default_pci_init pci_legacy_init
-# endif
 #else
-# define pcibios_assign_all_busses()	0
-# define x86_default_pci_init		NULL
+static inline int pcibios_assign_all_busses(void) { return 0; }
 #endif
 
 extern unsigned long pci_mem_start;
@@ -94,10 +89,8 @@ extern unsigned long pci_mem_start;
 #define PCIBIOS_MIN_CARDBUS_IO	0x4000
 
 extern int pcibios_enabled;
-void pcibios_config_init(void);
 void pcibios_scan_root(int bus);
 
-void pcibios_set_master(struct pci_dev *dev);
 struct irq_routing_table *pcibios_get_irq_routing_table(void);
 int pcibios_set_irq_routing(struct pci_dev *dev, int pin, int irq);
 

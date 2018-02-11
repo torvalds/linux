@@ -28,15 +28,17 @@
 #define CLK_PLL_AUDIO_4X	6
 #define CLK_PLL_AUDIO_8X	7
 #define CLK_PLL_VIDEO0		8
-#define CLK_PLL_VIDEO0_2X	9
+
+/* The PLL_VIDEO0_2X is exported for HDMI */
+
 #define CLK_PLL_VE		10
 #define CLK_PLL_DDR_BASE	11
 #define CLK_PLL_DDR		12
 #define CLK_PLL_DDR_OTHER	13
 #define CLK_PLL_PERIPH		14
 #define CLK_PLL_VIDEO1		15
-#define CLK_PLL_VIDEO1_2X	16
 
+/* The PLL_VIDEO1_2X is exported for HDMI */
 /* The CPU clock is exported */
 
 #define CLK_AXI			18

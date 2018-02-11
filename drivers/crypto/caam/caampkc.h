@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * caam - Freescale FSL CAAM support for Public Key Cryptography descriptors
  *
@@ -13,21 +14,75 @@
 #include "pdb.h"
 
 /**
+ * caam_priv_key_form - CAAM RSA private key representation
+ * CAAM RSA private key may have either of three forms.
+ *
+ * 1. The first representation consists of the pair (n, d), where the
+ *    components have the following meanings:
+ *        n      the RSA modulus
+ *        d      the RSA private exponent
+ *
+ * 2. The second representation consists of the triplet (p, q, d), where the
+ *    components have the following meanings:
+ *        p      the first prime factor of the RSA modulus n
+ *        q      the second prime factor of the RSA modulus n
+ *        d      the RSA private exponent
+ *
+ * 3. The third representation consists of the quintuple (p, q, dP, dQ, qInv),
+ *    where the components have the following meanings:
+ *        p      the first prime factor of the RSA modulus n
+ *        q      the second prime factor of the RSA modulus n
+ *        dP     the first factors's CRT exponent
+ *        dQ     the second factors's CRT exponent
+ *        qInv   the (first) CRT coefficient
+ *
+ * The benefit of using the third or the second key form is lower computational
+ * cost for the decryption and signature operations.
+ */
+enum caam_priv_key_form {
+	FORM1,
+	FORM2,
+	FORM3
+};
+
+/**
  * caam_rsa_key - CAAM RSA key structure. Keys are allocated in DMA zone.
  * @n           : RSA modulus raw byte stream
  * @e           : RSA public exponent raw byte stream
  * @d           : RSA private exponent raw byte stream
+ * @p           : RSA prime factor p of RSA modulus n
+ * @q           : RSA prime factor q of RSA modulus n
+ * @dp          : RSA CRT exponent of p
+ * @dp          : RSA CRT exponent of q
+ * @qinv        : RSA CRT coefficient
+ * @tmp1        : CAAM uses this temporary buffer as internal state buffer.
+ *                It is assumed to be as long as p.
+ * @tmp2        : CAAM uses this temporary buffer as internal state buffer.
+ *                It is assumed to be as long as q.
  * @n_sz        : length in bytes of RSA modulus n
  * @e_sz        : length in bytes of RSA public exponent
  * @d_sz        : length in bytes of RSA private exponent
+ * @p_sz        : length in bytes of RSA prime factor p of RSA modulus n
+ * @q_sz        : length in bytes of RSA prime factor q of RSA modulus n
+ * @priv_form   : CAAM RSA private key representation
  */
 struct caam_rsa_key {
 	u8 *n;
 	u8 *e;
 	u8 *d;
+	u8 *p;
+	u8 *q;
+	u8 *dp;
+	u8 *dq;
+	u8 *qinv;
+	u8 *tmp1;
+	u8 *tmp2;
 	size_t n_sz;
 	size_t e_sz;
 	size_t d_sz;
+	size_t p_sz;
+	size_t q_sz;
+	enum caam_priv_key_form priv_form;
 };
 
 /**
@@ -59,6 +114,8 @@ struct rsa_edesc {
 	union {
 		struct rsa_pub_pdb pub;
 		struct rsa_priv_f1_pdb priv_f1;
+		struct rsa_priv_f2_pdb priv_f2;
+		struct rsa_priv_f3_pdb priv_f3;
 	} pdb;
 	u32 hw_desc[];
 };
@@ -66,5 +123,7 @@ struct rsa_edesc {
 /* Descriptor construction primitives. */
 void init_rsa_pub_desc(u32 *desc, struct rsa_pub_pdb *pdb);
 void init_rsa_priv_f1_desc(u32 *desc, struct rsa_priv_f1_pdb *pdb);
+void init_rsa_priv_f2_desc(u32 *desc, struct rsa_priv_f2_pdb *pdb);
+void init_rsa_priv_f3_desc(u32 *desc, struct rsa_priv_f3_pdb *pdb);
 
 #endif

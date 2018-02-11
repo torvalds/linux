@@ -10,7 +10,7 @@ Required properties:
 
 Example:
 
-emac: ethernet@01c0b000 {
+emac: ethernet@1c0b000 {
        compatible = "allwinner,sun4i-a10-emac";
        reg = <0x01c0b000 0x1000>;
        interrupts = <55>;

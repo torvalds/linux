@@ -48,7 +48,7 @@
 
 #define VREF_MV_BASE 1850
 
-const char *mx23_lradc_adc_irq_names[] = {
+static const char *mx23_lradc_adc_irq_names[] = {
 	"mxs-lradc-channel0",
 	"mxs-lradc-channel1",
 	"mxs-lradc-channel2",
@@ -57,7 +57,7 @@ const char *mx23_lradc_adc_irq_names[] = {
 	"mxs-lradc-channel5",
 };
 
-const char *mx28_lradc_adc_irq_names[] = {
+static const char *mx28_lradc_adc_irq_names[] = {
 	"mxs-lradc-thresh0",
 	"mxs-lradc-thresh1",
 	"mxs-lradc-channel0",
@@ -344,20 +344,20 @@ static ssize_t mxs_lradc_adc_show_scale_avail(struct device *dev,
 	IIO_DEVICE_ATTR(in_voltage##ch##_scale_available, 0444,\
 			mxs_lradc_adc_show_scale_avail, NULL, ch)
 
-SHOW_SCALE_AVAILABLE_ATTR(0);
-SHOW_SCALE_AVAILABLE_ATTR(1);
-SHOW_SCALE_AVAILABLE_ATTR(2);
-SHOW_SCALE_AVAILABLE_ATTR(3);
-SHOW_SCALE_AVAILABLE_ATTR(4);
-SHOW_SCALE_AVAILABLE_ATTR(5);
-SHOW_SCALE_AVAILABLE_ATTR(6);
-SHOW_SCALE_AVAILABLE_ATTR(7);
-SHOW_SCALE_AVAILABLE_ATTR(10);
-SHOW_SCALE_AVAILABLE_ATTR(11);
-SHOW_SCALE_AVAILABLE_ATTR(12);
-SHOW_SCALE_AVAILABLE_ATTR(13);
-SHOW_SCALE_AVAILABLE_ATTR(14);
-SHOW_SCALE_AVAILABLE_ATTR(15);
+static SHOW_SCALE_AVAILABLE_ATTR(0);
+static SHOW_SCALE_AVAILABLE_ATTR(1);
+static SHOW_SCALE_AVAILABLE_ATTR(2);
+static SHOW_SCALE_AVAILABLE_ATTR(3);
+static SHOW_SCALE_AVAILABLE_ATTR(4);
+static SHOW_SCALE_AVAILABLE_ATTR(5);
+static SHOW_SCALE_AVAILABLE_ATTR(6);
+static SHOW_SCALE_AVAILABLE_ATTR(7);
+static SHOW_SCALE_AVAILABLE_ATTR(10);
+static SHOW_SCALE_AVAILABLE_ATTR(11);
+static SHOW_SCALE_AVAILABLE_ATTR(12);
+static SHOW_SCALE_AVAILABLE_ATTR(13);
+static SHOW_SCALE_AVAILABLE_ATTR(14);
+static SHOW_SCALE_AVAILABLE_ATTR(15);
 
 static struct attribute *mxs_lradc_adc_attributes[] = {
 	&iio_dev_attr_in_voltage0_scale_available.dev_attr.attr,
@@ -382,7 +382,6 @@ static const struct attribute_group mxs_lradc_adc_attribute_group = {
 };
 
 static const struct iio_info mxs_lradc_adc_iio_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= mxs_lradc_adc_read_raw,
 	.write_raw		= mxs_lradc_adc_write_raw,
 	.write_raw_get_fmt	= mxs_lradc_adc_write_raw_get_fmt,
@@ -455,7 +454,6 @@ static int mxs_lradc_adc_configure_trigger(struct iio_trigger *trig, bool state)
 }
 
 static const struct iio_trigger_ops mxs_lradc_adc_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = &mxs_lradc_adc_configure_trigger,
 };
 
@@ -718,9 +716,12 @@ static int mxs_lradc_adc_probe(struct platform_device *pdev)
 	adc->dev = dev;
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!iores)
+		return -EINVAL;
+
 	adc->base = devm_ioremap(dev, iores->start, resource_size(iores));
-	if (IS_ERR(adc->base))
-		return PTR_ERR(adc->base);
+	if (!adc->base)
+		return -ENOMEM;
 
 	init_completion(&adc->completion);
 	spin_lock_init(&adc->lock);

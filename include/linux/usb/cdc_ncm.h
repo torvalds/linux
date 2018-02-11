@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 /*
  * Copyright (C) ST-Ericsson 2010-2012
  * Contact: Alexey Orishko <alexey.orishko@stericsson.com>
@@ -83,6 +84,7 @@
 /* Driver flags */
 #define CDC_NCM_FLAG_NDP_TO_END			0x02	/* NDP is placed at end of frame */
 #define CDC_MBIM_FLAG_AVOID_ALTSETTING_TOGGLE	0x04	/* Avoid altsetting toggle during init */
+#define CDC_NCM_FLAG_RESET_NTB16 0x08	/* set NDP16 one more time after altsetting switch */
 
 #define cdc_ncm_comm_intf_is_mbim(x)  ((x)->desc.bInterfaceSubClass == USB_CDC_SUBCLASS_MBIM && \
 				       (x)->desc.bInterfaceProtocol == USB_CDC_PROTO_NONE)
@@ -117,6 +119,9 @@ struct cdc_ncm_ctx {
 	u32 tx_curr_frame_num;
 	u32 rx_max;
 	u32 tx_max;
+	u32 tx_curr_size;
+	u32 tx_low_mem_max_cnt;
+	u32 tx_low_mem_val;
 	u32 max_datagram_size;
 	u16 tx_max_datagrams;
 	u16 tx_remainder;

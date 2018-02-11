@@ -546,7 +546,7 @@ static int moxart_get_ro(struct mmc_host *mmc)
 	return !!(readl(host->base + REG_STATUS) & WRITE_PROT);
 }
 
-static struct mmc_host_ops moxart_ops = {
+static const struct mmc_host_ops moxart_ops = {
 	.request = moxart_request,
 	.set_ios = moxart_set_ios,
 	.get_ro = moxart_get_ro,

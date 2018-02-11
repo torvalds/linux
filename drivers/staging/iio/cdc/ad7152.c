@@ -231,16 +231,12 @@ static int ad7152_write_raw_samp_freq(struct device *dev, int val)
 	if (i >= ARRAY_SIZE(ad7152_filter_rate_table))
 		i = ARRAY_SIZE(ad7152_filter_rate_table) - 1;
 
-	mutex_lock(&chip->state_lock);
 	ret = i2c_smbus_write_byte_data(chip->client,
 					AD7152_REG_CFG2, AD7152_CFG2_OSR(i));
-	if (ret < 0) {
-		mutex_unlock(&chip->state_lock);
+	if (ret < 0)
 		return ret;
-	}
 
 	chip->filter_rate_setup = i;
-	mutex_unlock(&chip->state_lock);
 
 	return ret;
 }
@@ -445,7 +441,6 @@ static const struct iio_info ad7152_info = {
 	.read_raw = ad7152_read_raw,
 	.write_raw = ad7152_write_raw,
 	.write_raw_get_fmt = ad7152_write_raw_get_fmt,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct iio_chan_spec ad7152_channels[] = {

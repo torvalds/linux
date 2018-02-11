@@ -35,18 +35,34 @@ struct fscache_netfs ceph_cache_netfs = {
 	.version	= 0,
 };
 
+static DEFINE_MUTEX(ceph_fscache_lock);
+static LIST_HEAD(ceph_fscache_list);
+
+struct ceph_fscache_entry {
+	struct list_head list;
+	struct fscache_cookie *fscache;
+	struct ceph_fsid fsid;
+	size_t uniq_len;
+	char uniquifier[0];
+};
+
 static uint16_t ceph_fscache_session_get_key(const void *cookie_netfs_data,
 					     void *buffer, uint16_t maxbuf)
 {
 	const struct ceph_fs_client* fsc = cookie_netfs_data;
-	uint16_t klen;
+	const char *fscache_uniq = fsc->mount_options->fscache_uniq;
+	uint16_t fsid_len, uniq_len;
 
-	klen = sizeof(fsc->client->fsid);
-	if (klen > maxbuf)
+	fsid_len = sizeof(fsc->client->fsid);
+	uniq_len = fscache_uniq ? strlen(fscache_uniq) : 0;
+	if (fsid_len + uniq_len > maxbuf)
 		return 0;
 
-	memcpy(buffer, &fsc->client->fsid, klen);
-	return klen;
+	memcpy(buffer, &fsc->client->fsid, fsid_len);
+	if (uniq_len)
+		memcpy(buffer + fsid_len, fscache_uniq, uniq_len);
+
+	return fsid_len + uniq_len;
 }
 
 static const struct fscache_cookie_def ceph_fscache_fsid_object_def = {
@@ -67,13 +83,54 @@ void ceph_fscache_unregister(void)
 
 int ceph_fscache_register_fs(struct ceph_fs_client* fsc)
 {
+	const struct ceph_fsid *fsid = &fsc->client->fsid;
+	const char *fscache_uniq = fsc->mount_options->fscache_uniq;
+	size_t uniq_len = fscache_uniq ? strlen(fscache_uniq) : 0;
+	struct ceph_fscache_entry *ent;
+	int err = 0;
+
+	mutex_lock(&ceph_fscache_lock);
+	list_for_each_entry(ent, &ceph_fscache_list, list) {
+		if (memcmp(&ent->fsid, fsid, sizeof(*fsid)))
+			continue;
+		if (ent->uniq_len != uniq_len)
+			continue;
+		if (uniq_len && memcmp(ent->uniquifier, fscache_uniq, uniq_len))
+			continue;
+
+		pr_err("fscache cookie already registered for fsid %pU\n", fsid);
+		pr_err("  use fsc=%%s mount option to specify a uniquifier\n");
+		err = -EBUSY;
+		goto out_unlock;
+	}
+
+	ent = kzalloc(sizeof(*ent) + uniq_len, GFP_KERNEL);
+	if (!ent) {
+		err = -ENOMEM;
+		goto out_unlock;
+	}
+
 	fsc->fscache = fscache_acquire_cookie(ceph_cache_netfs.primary_index,
 					      &ceph_fscache_fsid_object_def,
 					      fsc, true);
-	if (!fsc->fscache)
-		pr_err("Unable to register fsid: %p fscache cookie\n", fsc);
 
-	return 0;
+	if (fsc->fscache) {
+		memcpy(&ent->fsid, fsid, sizeof(*fsid));
+		if (uniq_len > 0) {
+			memcpy(&ent->uniquifier, fscache_uniq, uniq_len);
+			ent->uniq_len = uniq_len;
+		}
+		ent->fscache = fsc->fscache;
+		list_add_tail(&ent->list, &ceph_fscache_list);
+	} else {
+		kfree(ent);
+		pr_err("unable to register fscache cookie for fsid %pU\n",
+		       fsid);
+		/* all other fs ignore this error */
+	}
+out_unlock:
+	mutex_unlock(&ceph_fscache_lock);
+	return err;
 }
 
 static uint16_t ceph_fscache_inode_get_key(const void *cookie_netfs_data,
@@ -137,36 +194,6 @@ static enum fscache_checkaux ceph_fscache_inode_check_aux(
 	return FSCACHE_CHECKAUX_OKAY;
 }
 
-static void ceph_fscache_inode_now_uncached(void* cookie_netfs_data)
-{
-	struct ceph_inode_info* ci = cookie_netfs_data;
-	struct pagevec pvec;
-	pgoff_t first;
-	int loop, nr_pages;
-
-	pagevec_init(&pvec, 0);
-	first = 0;
-
-	dout("ceph inode 0x%p now uncached", ci);
-
-	while (1) {
-		nr_pages = pagevec_lookup(&pvec, ci->vfs_inode.i_mapping, first,
-					  PAGEVEC_SIZE - pagevec_count(&pvec));
-
-		if (!nr_pages)
-			break;
-
-		for (loop = 0; loop < nr_pages; loop++)
-			ClearPageFsCache(pvec.pages[loop]);
-
-		first = pvec.pages[nr_pages - 1]->index + 1;
-
-		pvec.nr = nr_pages;
-		pagevec_release(&pvec);
-		cond_resched();
-	}
-}
-
 static const struct fscache_cookie_def ceph_fscache_inode_object_def = {
 	.name		= "CEPH.inode",
 	.type		= FSCACHE_COOKIE_TYPE_DATAFILE,
@@ -174,7 +201,6 @@ static const struct fscache_cookie_def ceph_fscache_inode_object_def = {
 	.get_attr	= ceph_fscache_inode_get_attr,
 	.get_aux	= ceph_fscache_inode_get_aux,
 	.check_aux	= ceph_fscache_inode_check_aux,
-	.now_uncached	= ceph_fscache_inode_now_uncached,
 };
 
 void ceph_fscache_register_inode_cookie(struct inode *inode)
@@ -183,7 +209,7 @@ void ceph_fscache_register_inode_cookie(struct inode *inode)
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 
 	/* No caching for filesystem */
-	if (fsc->fscache == NULL)
+	if (!fsc->fscache)
 		return;
 
 	/* Only cache for regular files that are read only */
@@ -240,13 +266,7 @@ void ceph_fscache_file_set_cookie(struct inode *inode, struct file *filp)
 	}
 }
 
-static void ceph_vfs_readpage_complete(struct page *page, void *data, int error)
-{
-	if (!error)
-		SetPageUptodate(page);
-}
-
-static void ceph_vfs_readpage_complete_unlock(struct page *page, void *data, int error)
+static void ceph_readpage_from_fscache_complete(struct page *page, void *data, int error)
 {
 	if (!error)
 		SetPageUptodate(page);
@@ -274,7 +294,7 @@ int ceph_readpage_from_fscache(struct inode *inode, struct page *page)
 		return -ENOBUFS;
 
 	ret = fscache_read_or_alloc_page(ci->fscache, page,
-					 ceph_vfs_readpage_complete, NULL,
+					 ceph_readpage_from_fscache_complete, NULL,
 					 GFP_KERNEL);
 
 	switch (ret) {
@@ -303,7 +323,7 @@ int ceph_readpages_from_fscache(struct inode *inode,
 		return -ENOBUFS;
 
 	ret = fscache_read_or_alloc_pages(ci->fscache, mapping, pages, nr_pages,
-					  ceph_vfs_readpage_complete_unlock,
+					  ceph_readpage_from_fscache_complete,
 					  NULL, mapping_gfp_mask(mapping));
 
 	switch (ret) {
@@ -349,7 +369,24 @@ void ceph_invalidate_fscache_page(struct inode* inode, struct page *page)
 
 void ceph_fscache_unregister_fs(struct ceph_fs_client* fsc)
 {
-	fscache_relinquish_cookie(fsc->fscache, 0);
+	if (fscache_cookie_valid(fsc->fscache)) {
+		struct ceph_fscache_entry *ent;
+		bool found = false;
+
+		mutex_lock(&ceph_fscache_lock);
+		list_for_each_entry(ent, &ceph_fscache_list, list) {
+			if (ent->fscache == fsc->fscache) {
+				list_del(&ent->list);
+				kfree(ent);
+				found = true;
+				break;
+			}
+		}
+		WARN_ON_ONCE(!found);
+		mutex_unlock(&ceph_fscache_lock);
+
+		__fscache_relinquish_cookie(fsc->fscache, 0);
+	}
 	fsc->fscache = NULL;
 }
 

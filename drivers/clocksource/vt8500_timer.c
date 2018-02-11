@@ -165,4 +165,4 @@ static int __init vt8500_timer_init(struct device_node *np)
 	return 0;
 }
 
-CLOCKSOURCE_OF_DECLARE(vt8500, "via,vt8500-timer", vt8500_timer_init);
+TIMER_OF_DECLARE(vt8500, "via,vt8500-timer", vt8500_timer_init);

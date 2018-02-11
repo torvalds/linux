@@ -46,12 +46,13 @@ Required Properties:
 - power-domains: phandle pointing to the corresponding PM domain node
 		 and an ID representing the device.
 
-See dt-bindings/genpd/k2g.h for the list of valid identifiers for k2g.
+See http://processors.wiki.ti.com/index.php/TISCI#66AK2G02_Data for the list
+of valid identifiers for k2g.
 
 Example (K2G):
 --------------------
-	uart0: serial@02530c00 {
+	uart0: serial@2530c00 {
 		compatible = "ns16550a";
 		...
-		power-domains = <&k2g_pds K2G_DEV_UART0>;
+		power-domains = <&k2g_pds 0x002c>;
 	};

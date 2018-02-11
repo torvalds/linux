@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device driver for the PMU on 68K-based Apple PowerBooks
  *

@@ -114,7 +114,7 @@ static __le16 vnt_time_stamp_off(struct vnt_private *priv, u16 rate)
 }
 
 static u32 vnt_get_rsvtime(struct vnt_private *priv, u8 pkt_type,
-			    u32 frame_length, u16 rate, int need_ack)
+			   u32 frame_length, u16 rate, int need_ack)
 {
 	u32 data_time, ack_time;
 
@@ -135,30 +135,37 @@ static u32 vnt_get_rsvtime(struct vnt_private *priv, u8 pkt_type,
 }
 
 static __le16 vnt_rxtx_rsvtime_le16(struct vnt_private *priv, u8 pkt_type,
-				     u32 frame_length, u16 rate, int need_ack)
+				    u32 frame_length, u16 rate, int need_ack)
 {
 	return cpu_to_le16((u16)vnt_get_rsvtime(priv, pkt_type,
 		frame_length, rate, need_ack));
 }
 
-static __le16 vnt_get_rtscts_rsvtime_le(struct vnt_private *priv,
-					 u8 rsv_type, u8 pkt_type, u32 frame_length, u16 current_rate)
+static __le16 vnt_get_rtscts_rsvtime_le(struct vnt_private *priv, u8 rsv_type,
+					u8 pkt_type, u32 frame_length,
+					u16 current_rate)
 {
 	u32 rrv_time, rts_time, cts_time, ack_time, data_time;
 
-	rrv_time = rts_time = cts_time = ack_time = data_time = 0;
+	rrv_time = 0;
+	rts_time = 0;
+	cts_time = 0;
+	ack_time = 0;
 
 	data_time = vnt_get_frame_time(priv->preamble_type, pkt_type,
 				       frame_length, current_rate);
 
 	if (rsv_type == 0) {
-		rts_time = vnt_get_frame_time(priv->preamble_type,
-			pkt_type, 20, priv->top_cck_basic_rate);
-		cts_time = ack_time = vnt_get_frame_time(priv->preamble_type,
-			pkt_type, 14, priv->top_cck_basic_rate);
+		rts_time = vnt_get_frame_time(priv->preamble_type, pkt_type,
+					      20, priv->top_cck_basic_rate);
+		ack_time = vnt_get_frame_time(priv->preamble_type,
+					      pkt_type, 14,
+					      priv->top_cck_basic_rate);
+		cts_time = ack_time;
+
 	} else if (rsv_type == 1) {
-		rts_time = vnt_get_frame_time(priv->preamble_type,
-			pkt_type, 20, priv->top_cck_basic_rate);
+		rts_time = vnt_get_frame_time(priv->preamble_type, pkt_type,
+					      20, priv->top_cck_basic_rate);
 		cts_time = vnt_get_frame_time(priv->preamble_type, pkt_type,
 					      14, priv->top_cck_basic_rate);
 		ack_time = vnt_get_frame_time(priv->preamble_type, pkt_type,
@@ -166,8 +173,11 @@ static __le16 vnt_get_rtscts_rsvtime_le(struct vnt_private *priv,
 	} else if (rsv_type == 2) {
 		rts_time = vnt_get_frame_time(priv->preamble_type, pkt_type,
 					      20, priv->top_ofdm_basic_rate);
-		cts_time = ack_time = vnt_get_frame_time(priv->preamble_type,
-			pkt_type, 14, priv->top_ofdm_basic_rate);
+		ack_time = vnt_get_frame_time(priv->preamble_type,
+					      pkt_type, 14,
+					      priv->top_ofdm_basic_rate);
+		cts_time = ack_time;
+
 	} else if (rsv_type == 3) {
 		cts_time = vnt_get_frame_time(priv->preamble_type, pkt_type,
 					      14, priv->top_cck_basic_rate);
@@ -184,18 +194,20 @@ static __le16 vnt_get_rtscts_rsvtime_le(struct vnt_private *priv,
 	return cpu_to_le16((u16)rrv_time);
 }
 
-static __le16 vnt_get_duration_le(struct vnt_private *priv,
-				   u8 pkt_type, int need_ack)
+static __le16 vnt_get_duration_le(struct vnt_private *priv, u8 pkt_type,
+				  int need_ack)
 {
 	u32 ack_time = 0;
 
 	if (need_ack) {
 		if (pkt_type == PK_TYPE_11B)
 			ack_time = vnt_get_frame_time(priv->preamble_type,
-				pkt_type, 14, priv->top_cck_basic_rate);
+						      pkt_type, 14,
+						      priv->top_cck_basic_rate);
 		else
 			ack_time = vnt_get_frame_time(priv->preamble_type,
-				pkt_type, 14, priv->top_ofdm_basic_rate);
+						      pkt_type, 14,
+						      priv->top_ofdm_basic_rate);
 
 		return cpu_to_le16((u16)(priv->sifs + ack_time));
 	}
@@ -216,8 +228,8 @@ static __le16 vnt_get_rtscts_duration_le(struct vnt_usb_send_context *context,
 	case RTSDUR_BA:
 	case RTSDUR_BA_F0:
 	case RTSDUR_BA_F1:
-		cts_time = vnt_get_frame_time(priv->preamble_type,
-				pkt_type, 14, priv->top_cck_basic_rate);
+		cts_time = vnt_get_frame_time(priv->preamble_type, pkt_type,
+					      14, priv->top_cck_basic_rate);
 		dur_time = cts_time + 2 * priv->sifs +
 			vnt_get_rsvtime(priv, pkt_type,
 					frame_length, rate, need_ack);
@@ -226,8 +238,8 @@ static __le16 vnt_get_rtscts_duration_le(struct vnt_usb_send_context *context,
 	case RTSDUR_AA:
 	case RTSDUR_AA_F0:
 	case RTSDUR_AA_F1:
-		cts_time = vnt_get_frame_time(priv->preamble_type,
-					      pkt_type, 14, priv->top_ofdm_basic_rate);
+		cts_time = vnt_get_frame_time(priv->preamble_type, pkt_type,
+					      14, priv->top_ofdm_basic_rate);
 		dur_time = cts_time + 2 * priv->sifs +
 			vnt_get_rsvtime(priv, pkt_type,
 					frame_length, rate, need_ack);
@@ -248,7 +260,7 @@ static __le16 vnt_get_rtscts_duration_le(struct vnt_usb_send_context *context,
 }
 
 static u16 vnt_mac_hdr_pos(struct vnt_usb_send_context *tx_context,
-	struct ieee80211_hdr *hdr)
+			   struct ieee80211_hdr *hdr)
 {
 	u8 *head = tx_context->data + offsetof(struct vnt_tx_buffer, fifo_head);
 	u8 *hdr_pos = (u8 *)hdr;
@@ -263,7 +275,6 @@ static u16 vnt_mac_hdr_pos(struct vnt_usb_send_context *tx_context,
 static u16 vnt_rxtx_datahead_g(struct vnt_usb_send_context *tx_context,
 			       struct vnt_tx_datahead_g *buf)
 {
-
 	struct vnt_private *priv = tx_context->priv;
 	struct ieee80211_hdr *hdr =
 				(struct ieee80211_hdr *)tx_context->skb->data;
@@ -274,7 +285,7 @@ static u16 vnt_rxtx_datahead_g(struct vnt_usb_send_context *tx_context,
 	/* Get SignalField,ServiceField,Length */
 	vnt_get_phy_field(priv, frame_len, rate, tx_context->pkt_type, &buf->a);
 	vnt_get_phy_field(priv, frame_len, priv->top_cck_basic_rate,
-							PK_TYPE_11B, &buf->b);
+			  PK_TYPE_11B, &buf->b);
 
 	/* Get Duration and TimeStamp */
 	if (ieee80211_is_pspoll(hdr->frame_control)) {
@@ -310,7 +321,7 @@ static u16 vnt_rxtx_datahead_g_fb(struct vnt_usb_send_context *tx_context,
 	vnt_get_phy_field(priv, frame_len, rate, tx_context->pkt_type, &buf->a);
 
 	vnt_get_phy_field(priv, frame_len, priv->top_cck_basic_rate,
-						PK_TYPE_11B, &buf->b);
+			  PK_TYPE_11B, &buf->b);
 
 	/* Get Duration and TimeStamp */
 	buf->duration_a = vnt_get_duration_le(priv, tx_context->pkt_type,
@@ -387,7 +398,7 @@ static u16 vnt_rxtx_datahead_ab(struct vnt_usb_send_context *tx_context,
 }
 
 static int vnt_fill_ieee80211_rts(struct vnt_usb_send_context *tx_context,
-	struct ieee80211_rts *rts, __le16 duration)
+				  struct ieee80211_rts *rts, __le16 duration)
 {
 	struct ieee80211_hdr *hdr =
 				(struct ieee80211_hdr *)tx_context->skb->data;
@@ -499,8 +510,8 @@ static u16 vnt_rxtx_rts_a_fb_head(struct vnt_usb_send_context *tx_context,
 	u16 current_rate = tx_context->tx_rate;
 	u16 rts_frame_len = 20;
 
-	vnt_get_phy_field(priv, rts_frame_len,
-		priv->top_ofdm_basic_rate, tx_context->pkt_type, &buf->a);
+	vnt_get_phy_field(priv, rts_frame_len, priv->top_ofdm_basic_rate,
+			  tx_context->pkt_type, &buf->a);
 
 	buf->duration = vnt_get_rtscts_duration_le(tx_context, RTSDUR_AA,
 						   tx_context->pkt_type,
@@ -683,11 +694,10 @@ static u16 vnt_rxtx_ab(struct vnt_usb_send_context *tx_context,
 }
 
 static u16 vnt_generate_tx_parameter(struct vnt_usb_send_context *tx_context,
-				      struct vnt_tx_buffer *tx_buffer,
-				      struct vnt_mic_hdr **mic_hdr, u32 need_mic,
-				      bool need_rts)
+				     struct vnt_tx_buffer *tx_buffer,
+				     struct vnt_mic_hdr **mic_hdr, u32 need_mic,
+				     bool need_rts)
 {
-
 	if (tx_context->pkt_type == PK_TYPE_11GB ||
 	    tx_context->pkt_type == PK_TYPE_11GA) {
 		if (need_rts) {
@@ -712,8 +722,9 @@ static u16 vnt_generate_tx_parameter(struct vnt_usb_send_context *tx_context,
 }
 
 static void vnt_fill_txkey(struct vnt_usb_send_context *tx_context,
-	u8 *key_buffer, struct ieee80211_key_conf *tx_key, struct sk_buff *skb,
-	u16 payload_len, struct vnt_mic_hdr *mic_hdr)
+			   u8 *key_buffer, struct ieee80211_key_conf *tx_key,
+			   struct sk_buff *skb, u16 payload_len,
+			   struct vnt_mic_hdr *mic_hdr)
 {
 	struct ieee80211_hdr *hdr = tx_context->hdr;
 	u64 pn64;
@@ -774,14 +785,12 @@ static void vnt_fill_txkey(struct vnt_usb_send_context *tx_context,
 		if (ieee80211_has_a4(hdr->frame_control))
 			ether_addr_copy(mic_hdr->addr4, hdr->addr4);
 
-
 		memcpy(key_buffer, tx_key->key, WLAN_KEY_LEN_CCMP);
 
 		break;
 	default:
 		break;
 	}
-
 }
 
 int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
@@ -807,7 +816,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	current_rate = rate->hw_value;
 	if (priv->current_rate != current_rate &&
-			!(priv->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)) {
+	    !(priv->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)) {
 		priv->current_rate = current_rate;
 		vnt_schedule_command(priv, WLAN_CMD_SETPOWER);
 	}
@@ -964,7 +973,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 		tx_key = info->control.hw_key;
 		if (tx_key->keylen > 0)
 			vnt_fill_txkey(tx_context, tx_buffer_head->tx_key,
-				tx_key, skb, tx_body_size, mic_hdr);
+				       tx_key, skb, tx_body_size, mic_hdr);
 	}
 
 	priv->seq_counter = (le16_to_cpu(hdr->seq_ctrl) &
@@ -991,8 +1000,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	return 0;
 }
 
-static int vnt_beacon_xmit(struct vnt_private *priv,
-	struct sk_buff *skb)
+static int vnt_beacon_xmit(struct vnt_private *priv, struct sk_buff *skb)
 {
 	struct vnt_beacon_buffer *beacon_buffer;
 	struct vnt_tx_short_buf_head *short_head;
@@ -1101,7 +1109,7 @@ int vnt_beacon_make(struct vnt_private *priv, struct ieee80211_vif *vif)
 }
 
 int vnt_beacon_enable(struct vnt_private *priv, struct ieee80211_vif *vif,
-		       struct ieee80211_bss_conf *conf)
+		      struct ieee80211_bss_conf *conf)
 {
 	vnt_mac_reg_bits_off(priv, MAC_REG_TCR, TCR_AUTOBCNTX);
 

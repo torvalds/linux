@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -42,10 +43,10 @@
 
 #define DEBUG_SUBSYSTEM S_LOG
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-#include "../include/obd_class.h"
-#include "../include/lustre_log.h"
+#include <obd_class.h>
+#include <lustre_log.h>
 #include <linux/list.h>
 
 int llog_initiator_connect(struct llog_ctxt *ctxt)

@@ -1069,7 +1069,7 @@ static int saa717x_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	struct saa717x_state *decoder = to_state(sd);
 
 	v4l2_dbg(1, debug, sd, "decoder set norm ");
-	v4l2_dbg(1, debug, sd, "(not yet implementd)\n");
+	v4l2_dbg(1, debug, sd, "(not yet implemented)\n");
 
 	decoder->radio = 0;
 	decoder->std = std;

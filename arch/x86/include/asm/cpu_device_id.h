@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _CPU_DEVICE_ID
 #define _CPU_DEVICE_ID 1
 

@@ -49,6 +49,7 @@
 #define SCLK_EMMC_DRV		117
 #define SCLK_SDMMC_SAMPLE	118
 #define SCLK_SDIO_SAMPLE	119
+#define SCLK_SDIO_SRC		120
 #define SCLK_EMMC_SAMPLE	121
 #define SCLK_VOP		122
 #define SCLK_HDMI_HDCP		123
@@ -61,6 +62,17 @@
 #define SCLK_MAC_TX		130
 #define SCLK_MAC_PHY		131
 #define SCLK_MAC_OUT		132
+#define SCLK_VDEC_CABAC		133
+#define SCLK_VDEC_CORE		134
+#define SCLK_RGA		135
+#define SCLK_HDCP		136
+#define SCLK_HDMI_CEC		137
+#define SCLK_CRYPTO		138
+#define SCLK_TSP		139
+#define SCLK_HSADC		140
+#define SCLK_WIFI		141
+#define SCLK_OTGPHY0		142
+#define SCLK_OTGPHY1		143
 
 /* dclk gates */
 #define DCLK_VOP		190
@@ -68,15 +80,32 @@
 
 /* aclk gates */
 #define ACLK_DMAC		194
+#define ACLK_CPU		195
+#define ACLK_VPU_PRE		196
+#define ACLK_RKVDEC_PRE		197
+#define ACLK_RGA_PRE		198
+#define ACLK_IEP_PRE		199
+#define ACLK_HDCP_PRE		200
+#define ACLK_VOP_PRE		201
+#define ACLK_VPU		202
+#define ACLK_RKVDEC		203
+#define ACLK_IEP		204
+#define ACLK_RGA		205
+#define ACLK_HDCP		206
 #define ACLK_PERI		210
 #define ACLK_VOP		211
 #define ACLK_GMAC		212
+#define ACLK_GPU		213
 
 /* pclk gates */
 #define PCLK_GPIO0		320
 #define PCLK_GPIO1		321
 #define PCLK_GPIO2		322
 #define PCLK_GPIO3		323
+#define PCLK_VIO_H2P		324
+#define PCLK_HDCP		325
+#define PCLK_EFUSE_1024		326
+#define PCLK_EFUSE_256		327
 #define PCLK_GRF		329
 #define PCLK_I2C0		332
 #define PCLK_I2C1		333
@@ -89,6 +118,7 @@
 #define PCLK_TSADC		344
 #define PCLK_PWM		350
 #define PCLK_TIMER		353
+#define PCLK_CPU		354
 #define PCLK_PERI		363
 #define PCLK_HDMI_CTRL		364
 #define PCLK_HDMI_PHY		365
@@ -104,6 +134,24 @@
 #define HCLK_SDMMC		456
 #define HCLK_SDIO		457
 #define HCLK_EMMC		459
+#define HCLK_CPU		460
+#define HCLK_VPU_PRE		461
+#define HCLK_RKVDEC_PRE		462
+#define HCLK_VIO_PRE		463
+#define HCLK_VPU		464
+#define HCLK_RKVDEC		465
+#define HCLK_VIO		466
+#define HCLK_RGA		467
+#define HCLK_IEP		468
+#define HCLK_VIO_H2P		469
+#define HCLK_HDCP_MMU		470
+#define HCLK_HOST0		471
+#define HCLK_HOST1		472
+#define HCLK_HOST2		473
+#define HCLK_OTG		474
+#define HCLK_TSP		475
+#define HCLK_M_CRYPTO		476
+#define HCLK_S_CRYPTO		477
 #define HCLK_PERI		478
 
 #define CLK_NR_CLKS		(HCLK_PERI + 1)

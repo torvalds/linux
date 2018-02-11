@@ -63,89 +63,26 @@ extern void xfs_verifier_error(struct xfs_buf *bp);
 		} \
 	}
 
-/*
- * error injection tags - the labels can be anything you want
- * but each tag should have its own unique number
- */
-
-#define XFS_ERRTAG_NOERROR				0
-#define XFS_ERRTAG_IFLUSH_1				1
-#define XFS_ERRTAG_IFLUSH_2				2
-#define XFS_ERRTAG_IFLUSH_3				3
-#define XFS_ERRTAG_IFLUSH_4				4
-#define XFS_ERRTAG_IFLUSH_5				5
-#define XFS_ERRTAG_IFLUSH_6				6
-#define	XFS_ERRTAG_DA_READ_BUF				7
-#define	XFS_ERRTAG_BTREE_CHECK_LBLOCK			8
-#define	XFS_ERRTAG_BTREE_CHECK_SBLOCK			9
-#define	XFS_ERRTAG_ALLOC_READ_AGF			10
-#define	XFS_ERRTAG_IALLOC_READ_AGI			11
-#define	XFS_ERRTAG_ITOBP_INOTOBP			12
-#define	XFS_ERRTAG_IUNLINK				13
-#define	XFS_ERRTAG_IUNLINK_REMOVE			14
-#define	XFS_ERRTAG_DIR_INO_VALIDATE			15
-#define XFS_ERRTAG_BULKSTAT_READ_CHUNK			16
-#define XFS_ERRTAG_IODONE_IOERR				17
-#define XFS_ERRTAG_STRATREAD_IOERR			18
-#define XFS_ERRTAG_STRATCMPL_IOERR			19
-#define XFS_ERRTAG_DIOWRITE_IOERR			20
-#define XFS_ERRTAG_BMAPIFORMAT				21
-#define XFS_ERRTAG_FREE_EXTENT				22
-#define XFS_ERRTAG_RMAP_FINISH_ONE			23
-#define XFS_ERRTAG_REFCOUNT_CONTINUE_UPDATE		24
-#define XFS_ERRTAG_REFCOUNT_FINISH_ONE			25
-#define XFS_ERRTAG_BMAP_FINISH_ONE			26
-#define XFS_ERRTAG_AG_RESV_CRITICAL			27
-#define XFS_ERRTAG_MAX					28
-
-/*
- * Random factors for above tags, 1 means always, 2 means 1/2 time, etc.
- */
-#define XFS_RANDOM_DEFAULT				100
-#define XFS_RANDOM_IFLUSH_1				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IFLUSH_2				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IFLUSH_3				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IFLUSH_4				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IFLUSH_5				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IFLUSH_6				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_DA_READ_BUF				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_BTREE_CHECK_LBLOCK			(XFS_RANDOM_DEFAULT/4)
-#define XFS_RANDOM_BTREE_CHECK_SBLOCK			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_ALLOC_READ_AGF			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IALLOC_READ_AGI			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_ITOBP_INOTOBP			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IUNLINK				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IUNLINK_REMOVE			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_DIR_INO_VALIDATE			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_BULKSTAT_READ_CHUNK			XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_IODONE_IOERR				(XFS_RANDOM_DEFAULT/10)
-#define XFS_RANDOM_STRATREAD_IOERR			(XFS_RANDOM_DEFAULT/10)
-#define XFS_RANDOM_STRATCMPL_IOERR			(XFS_RANDOM_DEFAULT/10)
-#define XFS_RANDOM_DIOWRITE_IOERR			(XFS_RANDOM_DEFAULT/10)
-#define	XFS_RANDOM_BMAPIFORMAT				XFS_RANDOM_DEFAULT
-#define XFS_RANDOM_FREE_EXTENT				1
-#define XFS_RANDOM_RMAP_FINISH_ONE			1
-#define XFS_RANDOM_REFCOUNT_CONTINUE_UPDATE		1
-#define XFS_RANDOM_REFCOUNT_FINISH_ONE			1
-#define XFS_RANDOM_BMAP_FINISH_ONE			1
-#define XFS_RANDOM_AG_RESV_CRITICAL			4
-
 #ifdef DEBUG
-extern int xfs_error_test_active;
-extern int xfs_error_test(int, int *, char *, int, char *, unsigned long);
+extern int xfs_errortag_init(struct xfs_mount *mp);
+extern void xfs_errortag_del(struct xfs_mount *mp);
+extern bool xfs_errortag_test(struct xfs_mount *mp, const char *expression,
+		const char *file, int line, unsigned int error_tag);
+#define XFS_TEST_ERROR(expr, mp, tag)		\
+	((expr) || xfs_errortag_test((mp), #expr, __FILE__, __LINE__, (tag)))
 
-#define	XFS_NUM_INJECT_ERROR				10
-#define XFS_TEST_ERROR(expr, mp, tag, rf)		\
-	((expr) || (xfs_error_test_active && \
-	 xfs_error_test((tag), (mp)->m_fixedfsid, "expr", __LINE__, __FILE__, \
-			(rf))))
-
-extern int xfs_errortag_add(unsigned int error_tag, struct xfs_mount *mp);
-extern int xfs_errortag_clearall(struct xfs_mount *mp, int loud);
+extern int xfs_errortag_get(struct xfs_mount *mp, unsigned int error_tag);
+extern int xfs_errortag_set(struct xfs_mount *mp, unsigned int error_tag,
+		unsigned int tag_value);
+extern int xfs_errortag_add(struct xfs_mount *mp, unsigned int error_tag);
+extern int xfs_errortag_clearall(struct xfs_mount *mp);
 #else
-#define XFS_TEST_ERROR(expr, mp, tag, rf)	(expr)
-#define xfs_errortag_add(tag, mp)		(ENOSYS)
-#define xfs_errortag_clearall(mp, loud)		(ENOSYS)
+#define xfs_errortag_init(mp)			(0)
+#define xfs_errortag_del(mp)
+#define XFS_TEST_ERROR(expr, mp, tag)		(expr)
+#define xfs_errortag_set(mp, tag, val)		(ENOSYS)
+#define xfs_errortag_add(mp, tag)		(ENOSYS)
+#define xfs_errortag_clearall(mp)		(ENOSYS)
 #endif /* DEBUG */
 
 /*

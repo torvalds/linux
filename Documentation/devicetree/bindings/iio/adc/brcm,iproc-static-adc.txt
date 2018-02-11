@@ -37,5 +37,4 @@ For example:
 		clocks = <&asiu_clks BCM_CYGNUS_ASIU_ADC_CLK>;
 		clock-names = "tsc_clk";
 		interrupts = <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
 	};

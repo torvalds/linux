@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 int omap_sram_init(void);
 
 void omap_map_sram(unsigned long start, unsigned long size,

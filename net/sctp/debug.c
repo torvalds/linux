@@ -60,7 +60,7 @@ static const char *const sctp_cid_tbl[SCTP_NUM_BASE_CHUNK_TYPES] = {
 };
 
 /* Lookup "chunk type" debug name. */
-const char *sctp_cname(const sctp_subtype_t cid)
+const char *sctp_cname(const union sctp_subtype cid)
 {
 	if (cid.chunk <= SCTP_CID_BASE_MAX)
 		return sctp_cid_tbl[cid.chunk];
@@ -77,6 +77,9 @@ const char *sctp_cname(const sctp_subtype_t cid)
 
 	case SCTP_CID_AUTH:
 		return "AUTH";
+
+	case SCTP_CID_RECONF:
+		return "RECONF";
 
 	default:
 		break;
@@ -130,7 +133,7 @@ static const char *const sctp_primitive_tbl[SCTP_NUM_PRIMITIVE_TYPES] = {
 };
 
 /* Lookup primitive debug name. */
-const char *sctp_pname(const sctp_subtype_t id)
+const char *sctp_pname(const union sctp_subtype id)
 {
 	if (id.primitive <= SCTP_EVENT_PRIMITIVE_MAX)
 		return sctp_primitive_tbl[id.primitive];
@@ -143,7 +146,7 @@ static const char *const sctp_other_tbl[] = {
 };
 
 /* Lookup "other" debug name. */
-const char *sctp_oname(const sctp_subtype_t id)
+const char *sctp_oname(const union sctp_subtype id)
 {
 	if (id.other <= SCTP_EVENT_OTHER_MAX)
 		return sctp_other_tbl[id.other];
@@ -165,7 +168,7 @@ static const char *const sctp_timer_tbl[] = {
 };
 
 /* Lookup timer debug name. */
-const char *sctp_tname(const sctp_subtype_t id)
+const char *sctp_tname(const union sctp_subtype id)
 {
 	BUILD_BUG_ON(SCTP_EVENT_TIMEOUT_MAX + 1 != ARRAY_SIZE(sctp_timer_tbl));
 

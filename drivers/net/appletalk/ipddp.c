@@ -311,9 +311,7 @@ module_param(ipddp_mode, int, 0);
 static int __init ipddp_init_module(void)
 {
 	dev_ipddp = ipddp_init();
-        if (IS_ERR(dev_ipddp))
-                return PTR_ERR(dev_ipddp);
-	return 0;
+	return PTR_ERR_OR_ZERO(dev_ipddp);
 }
 
 static void __exit ipddp_cleanup_module(void)

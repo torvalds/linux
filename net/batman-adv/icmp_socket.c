@@ -132,10 +132,10 @@ static ssize_t batadv_socket_read(struct file *file, char __user *buf,
 	size_t packet_len;
 	int error;
 
-	if ((file->f_flags & O_NONBLOCK) && (socket_client->queue_len == 0))
+	if ((file->f_flags & O_NONBLOCK) && socket_client->queue_len == 0)
 		return -EAGAIN;
 
-	if ((!buf) || (count < sizeof(struct batadv_icmp_packet)))
+	if (!buf || count < sizeof(struct batadv_icmp_packet))
 		return -EINVAL;
 
 	if (!access_ok(VERIFY_WRITE, buf, count))
@@ -207,7 +207,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 
 	skb->priority = TC_PRIO_CONTROL;
 	skb_reserve(skb, ETH_HLEN);
-	icmp_header = (struct batadv_icmp_header *)skb_put(skb, packet_len);
+	icmp_header = skb_put(skb, packet_len);
 
 	if (copy_from_user(icmp_header, buff, packet_len)) {
 		len = -EFAULT;

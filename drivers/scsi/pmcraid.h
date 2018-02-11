@@ -755,7 +755,7 @@ struct pmcraid_instance {
 
 	/* structures related to command blocks */
 	struct kmem_cache *cmd_cachep;		/* cache for cmd blocks */
-	struct pci_pool *control_pool;		/* pool for control blocks */
+	struct dma_pool *control_pool;		/* pool for control blocks */
 	char   cmd_pool_name[64];		/* name of cmd cache */
 	char   ctl_pool_name[64];		/* name of control cache */
 

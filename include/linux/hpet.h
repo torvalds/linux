@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef	__HPET__
 #define	__HPET__ 1
 

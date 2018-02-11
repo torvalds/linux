@@ -534,7 +534,6 @@ static int scsifront_queuecommand(struct Scsi_Host *shost,
 	int err;
 
 	sc->result = 0;
-	memset(shadow, 0, sizeof(*shadow));
 
 	shadow->sc  = sc;
 	shadow->act = VSCSIIF_ACT_SCSI_CDB;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef PERF_UTIL_PERF_HOOKS_H
 #define PERF_UTIL_PERF_HOOKS_H
 

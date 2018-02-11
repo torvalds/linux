@@ -1,0 +1,72 @@
+/*
+ * Realtek RTD1293/RTD1295/RTD1296 SoC
+ *
+ * Copyright (c) 2016-2017 Andreas Färber
+ *
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ */
+
+/memreserve/	0x0000000000000000 0x0000000000030000;
+/memreserve/	0x000000000001f000 0x0000000000001000;
+/memreserve/	0x0000000000030000 0x00000000000d0000;
+/memreserve/	0x0000000001b00000 0x00000000004be000;
+/memreserve/	0x0000000001ffe000 0x0000000000004000;
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	arm_pmu: arm-pmu {
+		compatible = "arm,cortex-a53-pmu";
+		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		/* Exclude up to 2 GiB of RAM */
+		ranges = <0x80000000 0x80000000 0x80000000>;
+
+		uart0: serial@98007800 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x98007800 0x400>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clock-frequency = <27000000>;
+			status = "disabled";
+		};
+
+		uart1: serial@9801b200 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x9801b200 0x100>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clock-frequency = <432000000>;
+			status = "disabled";
+		};
+
+		uart2: serial@9801b400 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x9801b400 0x100>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clock-frequency = <432000000>;
+			status = "disabled";
+		};
+
+		gic: interrupt-controller@ff011000 {
+			compatible = "arm,gic-400";
+			reg = <0xff011000 0x1000>,
+			      <0xff012000 0x2000>,
+			      <0xff014000 0x2000>,
+			      <0xff016000 0x2000>;
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
+		};
+	};
+};

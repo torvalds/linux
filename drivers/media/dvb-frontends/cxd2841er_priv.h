@@ -25,7 +25,10 @@
 #define I2C_SLVX			0
 #define I2C_SLVT			1
 
+#define CXD2837ER_CHIP_ID		0xb1
+#define CXD2838ER_CHIP_ID		0xb0
 #define CXD2841ER_CHIP_ID		0xa7
+#define CXD2843ER_CHIP_ID		0xa4
 #define CXD2854ER_CHIP_ID		0xc1
 
 #define CXD2841ER_DVBS_POLLING_INVL	10

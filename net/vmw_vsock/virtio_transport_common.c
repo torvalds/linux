@@ -90,7 +90,6 @@ out_pkt:
 static struct sk_buff *virtio_transport_build_skb(void *opaque)
 {
 	struct virtio_vsock_pkt *pkt = opaque;
-	unsigned char *t_hdr, *payload;
 	struct af_vsockmon_hdr *hdr;
 	struct sk_buff *skb;
 
@@ -99,7 +98,7 @@ static struct sk_buff *virtio_transport_build_skb(void *opaque)
 	if (!skb)
 		return NULL;
 
-	hdr = (struct af_vsockmon_hdr *)skb_put(skb, sizeof(*hdr));
+	hdr = skb_put(skb, sizeof(*hdr));
 
 	/* pkt->hdr is little-endian so no need to byteswap here */
 	hdr->src_cid = pkt->hdr.src_cid;
@@ -132,12 +131,10 @@ static struct sk_buff *virtio_transport_build_skb(void *opaque)
 		break;
 	}
 
-	t_hdr = skb_put(skb, sizeof(pkt->hdr));
-	memcpy(t_hdr, &pkt->hdr, sizeof(pkt->hdr));
+	skb_put_data(skb, &pkt->hdr, sizeof(pkt->hdr));
 
 	if (pkt->len) {
-		payload = skb_put(skb, pkt->len);
-		memcpy(payload, pkt->buf, pkt->len);
+		skb_put_data(skb, pkt->buf, pkt->len);
 	}
 
 	return skb;
@@ -711,7 +708,7 @@ static void virtio_transport_do_close(struct vsock_sock *vsk,
 	sock_set_flag(sk, SOCK_DONE);
 	vsk->peer_shutdown = SHUTDOWN_MASK;
 	if (vsock_stream_has_data(vsk) <= 0)
-		sk->sk_state = SS_DISCONNECTING;
+		sk->sk_state = TCP_CLOSING;
 	sk->sk_state_change(sk);
 
 	if (vsk->close_work_scheduled &&
@@ -751,8 +748,8 @@ static bool virtio_transport_close(struct vsock_sock *vsk)
 {
 	struct sock *sk = &vsk->sk;
 
-	if (!(sk->sk_state == SS_CONNECTED ||
-	      sk->sk_state == SS_DISCONNECTING))
+	if (!(sk->sk_state == TCP_ESTABLISHED ||
+	      sk->sk_state == TCP_CLOSING))
 		return true;
 
 	/* Already received SHUTDOWN from peer, reply with RST */
@@ -804,7 +801,7 @@ virtio_transport_recv_connecting(struct sock *sk,
 
 	switch (le16_to_cpu(pkt->hdr.op)) {
 	case VIRTIO_VSOCK_OP_RESPONSE:
-		sk->sk_state = SS_CONNECTED;
+		sk->sk_state = TCP_ESTABLISHED;
 		sk->sk_socket->state = SS_CONNECTED;
 		vsock_insert_connected(vsk);
 		sk->sk_state_change(sk);
@@ -824,7 +821,7 @@ virtio_transport_recv_connecting(struct sock *sk,
 
 destroy:
 	virtio_transport_reset(vsk, pkt);
-	sk->sk_state = SS_UNCONNECTED;
+	sk->sk_state = TCP_CLOSE;
 	sk->sk_err = skerr;
 	sk->sk_error_report(sk);
 	return err;
@@ -860,7 +857,7 @@ virtio_transport_recv_connected(struct sock *sk,
 			vsk->peer_shutdown |= SEND_SHUTDOWN;
 		if (vsk->peer_shutdown == SHUTDOWN_MASK &&
 		    vsock_stream_has_data(vsk) <= 0)
-			sk->sk_state = SS_DISCONNECTING;
+			sk->sk_state = TCP_CLOSING;
 		if (le32_to_cpu(pkt->hdr.flags))
 			sk->sk_state_change(sk);
 		break;
@@ -931,7 +928,7 @@ virtio_transport_recv_listen(struct sock *sk, struct virtio_vsock_pkt *pkt)
 
 	lock_sock_nested(child, SINGLE_DEPTH_NESTING);
 
-	child->sk_state = SS_CONNECTED;
+	child->sk_state = TCP_ESTABLISHED;
 
 	vchild = vsock_sk(child);
 	vsock_addr_init(&vchild->local_addr, le64_to_cpu(pkt->hdr.dst_cid),
@@ -1019,18 +1016,18 @@ void virtio_transport_recv_pkt(struct virtio_vsock_pkt *pkt)
 		sk->sk_write_space(sk);
 
 	switch (sk->sk_state) {
-	case VSOCK_SS_LISTEN:
+	case TCP_LISTEN:
 		virtio_transport_recv_listen(sk, pkt);
 		virtio_transport_free_pkt(pkt);
 		break;
-	case SS_CONNECTING:
+	case TCP_SYN_SENT:
 		virtio_transport_recv_connecting(sk, pkt);
 		virtio_transport_free_pkt(pkt);
 		break;
-	case SS_CONNECTED:
+	case TCP_ESTABLISHED:
 		virtio_transport_recv_connected(sk, pkt);
 		break;
-	case SS_DISCONNECTING:
+	case TCP_CLOSING:
 		virtio_transport_recv_disconnecting(sk, pkt);
 		virtio_transport_free_pkt(pkt);
 		break;

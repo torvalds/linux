@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /* keyctl.h: keyctl command IDs
  *
  * Copyright (C) 2004, 2008 Red Hat, Inc. All Rights Reserved.
@@ -70,8 +71,8 @@ struct keyctl_dh_params {
 };
 
 struct keyctl_kdf_params {
-	char *hashname;
-	char *otherinfo;
+	char __user *hashname;
+	char __user *otherinfo;
 	__u32 otherinfolen;
 	__u32 __spare[8];
 };

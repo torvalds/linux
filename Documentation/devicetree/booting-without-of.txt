@@ -1282,7 +1282,7 @@ hierarchy and routing of interrupts in the hardware.
 The interrupt tree model is fully described in the
 document "Open Firmware Recommended Practice: Interrupt
 Mapping Version 0.9".  The document is available at:
-<http://www.openfirmware.org/ofwg/practice/>
+<http://www.devicetree.org/open-firmware/practice/>
 
 1) interrupts property
 ----------------------
@@ -1413,7 +1413,7 @@ Optional property:
 	from DMA operations originating from the bus. It provides a means of
 	defining a mapping or translation between the physical address space of
 	the bus and the physical address space of the parent of the bus.
-	(for more information see ePAPR specification)
+	(for more information see the Devicetree Specification)
 
 * DMA Bus child
 Optional property:

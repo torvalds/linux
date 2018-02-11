@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH_BL_BIT_H
 #define __ASM_SH_BL_BIT_H
 

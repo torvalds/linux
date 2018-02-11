@@ -1,7 +1,7 @@
 /*
  * Driver for the PCM512x CODECs
  *
- * Author:	Mark Brown <broonie@linaro.org>
+ * Author:	Mark Brown <broonie@kernel.org>
  *		Copyright 2014 Linaro Ltd
  *
  * This program is free software; you can redistribute it and/or
@@ -29,9 +29,6 @@
 #include <sound/tlv.h>
 
 #include "pcm512x.h"
-
-#define DIV_ROUND_DOWN_ULL(ll, d) \
-	({ unsigned long long _tmp = (ll); do_div(_tmp, d); _tmp; })
 
 #define PCM512x_NUM_SUPPLIES 3
 static const char * const pcm512x_supply_names[PCM512x_NUM_SUPPLIES] = {
@@ -1344,7 +1341,7 @@ static struct snd_soc_dai_driver pcm512x_dai = {
 	.ops = &pcm512x_dai_ops,
 };
 
-static struct snd_soc_codec_driver pcm512x_codec_driver = {
+static const struct snd_soc_codec_driver pcm512x_codec_driver = {
 	.set_bias_level = pcm512x_set_bias_level,
 	.idle_bias_off = true,
 
@@ -1605,5 +1602,5 @@ const struct dev_pm_ops pcm512x_pm_ops = {
 EXPORT_SYMBOL_GPL(pcm512x_pm_ops);
 
 MODULE_DESCRIPTION("ASoC PCM512x codec driver");
-MODULE_AUTHOR("Mark Brown <broonie@linaro.org>");
+MODULE_AUTHOR("Mark Brown <broonie@kernel.org>");
 MODULE_LICENSE("GPL v2");

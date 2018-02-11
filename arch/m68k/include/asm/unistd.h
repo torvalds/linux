@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_M68K_UNISTD_H_
 #define _ASM_M68K_UNISTD_H_
 

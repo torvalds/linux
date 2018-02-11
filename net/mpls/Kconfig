@@ -24,6 +24,7 @@ config NET_MPLS_GSO
 
 config MPLS_ROUTING
 	tristate "MPLS: routing support"
+	depends on NET_IP_TUNNEL || NET_IP_TUNNEL=n
 	---help---
 	 Add support for forwarding of mpls packets.
 

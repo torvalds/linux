@@ -469,10 +469,12 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	 * TODO: Explicit member copy would probably be better here.
 	 */
 
+	atomic_inc(&bo->glob->bo_count);
 	INIT_LIST_HEAD(&fbo->ddestroy);
 	INIT_LIST_HEAD(&fbo->lru);
 	INIT_LIST_HEAD(&fbo->swap);
 	INIT_LIST_HEAD(&fbo->io_reserve_lru);
+	mutex_init(&fbo->wu_mutex);
 	fbo->moving = NULL;
 	drm_vma_node_reset(&fbo->vma_node);
 	atomic_set(&fbo->cpu_writers, 0);
@@ -586,7 +588,6 @@ int ttm_bo_kmap(struct ttm_buffer_object *bo,
 	unsigned long offset, size;
 	int ret;
 
-	BUG_ON(!list_empty(&bo->swap));
 	map->virtual = NULL;
 	map->bo = bo;
 	if (num_pages > bo->num_pages)

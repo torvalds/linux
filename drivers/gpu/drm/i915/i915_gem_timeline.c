@@ -23,6 +23,32 @@
  */
 
 #include "i915_drv.h"
+#include "i915_syncmap.h"
+
+static void __intel_timeline_init(struct intel_timeline *tl,
+				  struct i915_gem_timeline *parent,
+				  u64 context,
+				  struct lock_class_key *lockclass,
+				  const char *lockname)
+{
+	tl->fence_context = context;
+	tl->common = parent;
+#ifdef CONFIG_DEBUG_SPINLOCK
+	__raw_spin_lock_init(&tl->lock.rlock, lockname, lockclass);
+#else
+	spin_lock_init(&tl->lock);
+#endif
+	init_request_active(&tl->last_request, NULL);
+	INIT_LIST_HEAD(&tl->requests);
+	i915_syncmap_init(&tl->sync);
+}
+
+static void __intel_timeline_fini(struct intel_timeline *tl)
+{
+	GEM_BUG_ON(!list_empty(&tl->requests));
+
+	i915_syncmap_free(&tl->sync);
+}
 
 static int __i915_gem_timeline_init(struct drm_i915_private *i915,
 				    struct i915_gem_timeline *timeline,
@@ -35,6 +61,14 @@ static int __i915_gem_timeline_init(struct drm_i915_private *i915,
 
 	lockdep_assert_held(&i915->drm.struct_mutex);
 
+	/*
+	 * Ideally we want a set of engines on a single leaf as we expect
+	 * to mostly be tracking synchronisation between engines. It is not
+	 * a huge issue if this is not the case, but we may want to mitigate
+	 * any page crossing penalties if they become an issue.
+	 */
+	BUILD_BUG_ON(KSYNCMAP < I915_NUM_ENGINES);
+
 	timeline->i915 = i915;
 	timeline->name = kstrdup(name ?: "[kernel]", GFP_KERNEL);
 	if (!timeline->name)
@@ -44,19 +78,10 @@ static int __i915_gem_timeline_init(struct drm_i915_private *i915,
 
 	/* Called during early_init before we know how many engines there are */
 	fences = dma_fence_context_alloc(ARRAY_SIZE(timeline->engine));
-	for (i = 0; i < ARRAY_SIZE(timeline->engine); i++) {
-		struct intel_timeline *tl = &timeline->engine[i];
-
-		tl->fence_context = fences++;
-		tl->common = timeline;
-#ifdef CONFIG_DEBUG_SPINLOCK
-		__raw_spin_lock_init(&tl->lock.rlock, lockname, lockclass);
-#else
-		spin_lock_init(&tl->lock);
-#endif
-		init_request_active(&tl->last_request, NULL);
-		INIT_LIST_HEAD(&tl->requests);
-	}
+	for (i = 0; i < ARRAY_SIZE(timeline->engine); i++)
+		__intel_timeline_init(&timeline->engine[i],
+				      timeline, fences++,
+				      lockclass, lockname);
 
 	return 0;
 }
@@ -81,18 +106,52 @@ int i915_gem_timeline_init__global(struct drm_i915_private *i915)
 					&class, "&global_timeline->lock");
 }
 
+/**
+ * i915_gem_timelines_mark_idle -- called when the driver idles
+ * @i915 - the drm_i915_private device
+ *
+ * When the driver is completely idle, we know that all of our sync points
+ * have been signaled and our tracking is then entirely redundant. Any request
+ * to wait upon an older sync point will be completed instantly as we know
+ * the fence is signaled and therefore we will not even look them up in the
+ * sync point map.
+ */
+void i915_gem_timelines_mark_idle(struct drm_i915_private *i915)
+{
+	struct i915_gem_timeline *timeline;
+	int i;
+
+	lockdep_assert_held(&i915->drm.struct_mutex);
+
+	list_for_each_entry(timeline, &i915->gt.timelines, link) {
+		for (i = 0; i < ARRAY_SIZE(timeline->engine); i++) {
+			struct intel_timeline *tl = &timeline->engine[i];
+
+			/*
+			 * All known fences are completed so we can scrap
+			 * the current sync point tracking and start afresh,
+			 * any attempt to wait upon a previous sync point
+			 * will be skipped as the fence was signaled.
+			 */
+			i915_syncmap_free(&tl->sync);
+		}
+	}
+}
+
 void i915_gem_timeline_fini(struct i915_gem_timeline *timeline)
 {
 	int i;
 
 	lockdep_assert_held(&timeline->i915->drm.struct_mutex);
 
-	for (i = 0; i < ARRAY_SIZE(timeline->engine); i++) {
-		struct intel_timeline *tl = &timeline->engine[i];
-
-		GEM_BUG_ON(!list_empty(&tl->requests));
-	}
+	for (i = 0; i < ARRAY_SIZE(timeline->engine); i++)
+		__intel_timeline_fini(&timeline->engine[i]);
 
 	list_del(&timeline->link);
 	kfree(timeline->name);
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/mock_timeline.c"
+#include "selftests/i915_gem_timeline.c"
+#endif

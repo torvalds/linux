@@ -472,7 +472,6 @@ static int pt3_fetch_thread(void *data)
 	}
 	dev_dbg(adap->dvb_adap.device, "PT3: [%s] exited\n",
 		adap->thread->comm);
-	adap->thread = NULL;
 	return 0;
 }
 
@@ -486,6 +485,7 @@ static int pt3_start_streaming(struct pt3_adapter *adap)
 	if (IS_ERR(thread)) {
 		int ret = PTR_ERR(thread);
 
+		adap->thread = NULL;
 		dev_warn(adap->dvb_adap.device,
 			 "PT3 (adap:%d, dmx:%d): failed to start kthread\n",
 			 adap->dvb_adap.num, adap->dmxdev.dvbdev->id);
@@ -508,6 +508,7 @@ static int pt3_stop_streaming(struct pt3_adapter *adap)
 
 	/* kill the fetching thread */
 	ret = kthread_stop(adap->thread);
+	adap->thread = NULL;
 	return ret;
 }
 
@@ -520,14 +521,8 @@ static int pt3_start_feed(struct dvb_demux_feed *feed)
 
 	adap = container_of(feed->demux, struct pt3_adapter, demux);
 	adap->num_feeds++;
-	if (adap->thread)
+	if (adap->num_feeds > 1)
 		return 0;
-	if (adap->num_feeds != 1) {
-		dev_warn(adap->dvb_adap.device,
-			 "%s: unmatched start/stop_feed in adap:%i/dmx:%i\n",
-			 __func__, adap->dvb_adap.num, adap->dmxdev.dvbdev->id);
-		adap->num_feeds = 1;
-	}
 
 	return pt3_start_streaming(adap);
 

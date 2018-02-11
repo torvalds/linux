@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_LINUX_IF_LINK_H
 #define _UAPI_LINUX_IF_LINK_H
 
@@ -157,6 +158,9 @@ enum {
 	IFLA_GSO_MAX_SIZE,
 	IFLA_PAD,
 	IFLA_XDP,
+	IFLA_EVENT,
+	IFLA_NEW_NETNSID,
+	IFLA_IF_NETNSID,
 	__IFLA_MAX
 };
 
@@ -324,6 +328,8 @@ enum {
 	IFLA_BRPORT_MCAST_TO_UCAST,
 	IFLA_BRPORT_VLAN_TUNNEL,
 	IFLA_BRPORT_BCAST_FLOOD,
+	IFLA_BRPORT_GROUP_FWD_MASK,
+	IFLA_BRPORT_NEIGH_SUPPRESS,
 	__IFLA_BRPORT_MAX
 };
 #define IFLA_BRPORT_MAX (__IFLA_BRPORT_MAX - 1)
@@ -461,6 +467,7 @@ enum macsec_validation_type {
 enum {
 	IFLA_IPVLAN_UNSPEC,
 	IFLA_IPVLAN_MODE,
+	IFLA_IPVLAN_FLAGS,
 	__IFLA_IPVLAN_MAX
 };
 
@@ -472,6 +479,9 @@ enum ipvlan_mode {
 	IPVLAN_MODE_L3S,
 	IPVLAN_MODE_MAX
 };
+
+#define IPVLAN_F_PRIVATE	0x01
+#define IPVLAN_F_VEPA		0x02
 
 /* VXLAN section */
 enum {
@@ -890,15 +900,19 @@ enum {
 #define XDP_FLAGS_UPDATE_IF_NOEXIST	(1U << 0)
 #define XDP_FLAGS_SKB_MODE		(1U << 1)
 #define XDP_FLAGS_DRV_MODE		(1U << 2)
+#define XDP_FLAGS_HW_MODE		(1U << 3)
+#define XDP_FLAGS_MODES			(XDP_FLAGS_SKB_MODE | \
+					 XDP_FLAGS_DRV_MODE | \
+					 XDP_FLAGS_HW_MODE)
 #define XDP_FLAGS_MASK			(XDP_FLAGS_UPDATE_IF_NOEXIST | \
-					 XDP_FLAGS_SKB_MODE | \
-					 XDP_FLAGS_DRV_MODE)
+					 XDP_FLAGS_MODES)
 
 /* These are stored into IFLA_XDP_ATTACHED on dump. */
 enum {
 	XDP_ATTACHED_NONE = 0,
 	XDP_ATTACHED_DRV,
 	XDP_ATTACHED_SKB,
+	XDP_ATTACHED_HW,
 };
 
 enum {
@@ -906,9 +920,20 @@ enum {
 	IFLA_XDP_FD,
 	IFLA_XDP_ATTACHED,
 	IFLA_XDP_FLAGS,
+	IFLA_XDP_PROG_ID,
 	__IFLA_XDP_MAX,
 };
 
 #define IFLA_XDP_MAX (__IFLA_XDP_MAX - 1)
+
+enum {
+	IFLA_EVENT_NONE,
+	IFLA_EVENT_REBOOT,		/* internal reset / reboot */
+	IFLA_EVENT_FEATURES,		/* change in offload features */
+	IFLA_EVENT_BONDING_FAILOVER,	/* change in active slave */
+	IFLA_EVENT_NOTIFY_PEERS,	/* re-sent grat. arp/ndisc */
+	IFLA_EVENT_IGMP_RESEND,		/* re-sent IGMP JOIN */
+	IFLA_EVENT_BONDING_OPTIONS,	/* change in bonding options */
+};
 
 #endif /* _UAPI_LINUX_IF_LINK_H */

@@ -1812,7 +1812,7 @@ static int do_lookup_nm(struct ubifs_info *c, const union ubifs_key *key,
 	int found, n, err;
 	struct ubifs_znode *znode;
 
-	//dbg_tnck(key, "name '%.*s' key ", nm->len, nm->name);
+	dbg_tnck(key, "key ");
 	mutex_lock(&c->tnc_mutex);
 	found = ubifs_lookup_level0(c, key, &znode, &n);
 	if (!found) {
@@ -1880,13 +1880,53 @@ int ubifs_tnc_lookup_nm(struct ubifs_info *c, const union ubifs_key *key,
 	return do_lookup_nm(c, key, node, nm);
 }
 
+static int search_dh_cookie(struct ubifs_info *c, const union ubifs_key *key,
+			    struct ubifs_dent_node *dent, uint32_t cookie,
+			    struct ubifs_znode **zn, int *n)
+{
+	int err;
+	struct ubifs_znode *znode = *zn;
+	struct ubifs_zbranch *zbr;
+	union ubifs_key *dkey;
+
+	for (;;) {
+		if (!err) {
+			err = tnc_next(c, &znode, n);
+			if (err)
+				goto out;
+		}
+
+		zbr = &znode->zbranch[*n];
+		dkey = &zbr->key;
+
+		if (key_inum(c, dkey) != key_inum(c, key) ||
+		    key_type(c, dkey) != key_type(c, key)) {
+			err = -ENOENT;
+			goto out;
+		}
+
+		err = tnc_read_hashed_node(c, zbr, dent);
+		if (err)
+			goto out;
+
+		if (key_hash(c, key) == key_hash(c, dkey) &&
+		    le32_to_cpu(dent->cookie) == cookie) {
+			*zn = znode;
+			goto out;
+		}
+	}
+
+out:
+
+	return err;
+}
+
 static int do_lookup_dh(struct ubifs_info *c, const union ubifs_key *key,
 			struct ubifs_dent_node *dent, uint32_t cookie)
 {
-	int n, err, type = key_type(c, key);
+	int n, err;
 	struct ubifs_znode *znode;
-	struct ubifs_zbranch *zbr;
-	union ubifs_key *dkey, start_key;
+	union ubifs_key start_key;
 
 	ubifs_assert(is_hash_key(c, key));
 
@@ -1897,30 +1937,7 @@ static int do_lookup_dh(struct ubifs_info *c, const union ubifs_key *key,
 	if (unlikely(err < 0))
 		goto out_unlock;
 
-	for (;;) {
-		if (!err) {
-			err = tnc_next(c, &znode, &n);
-			if (err)
-				goto out_unlock;
-		}
-
-		zbr = &znode->zbranch[n];
-		dkey = &zbr->key;
-
-		if (key_inum(c, dkey) != key_inum(c, key) ||
-		    key_type(c, dkey) != type) {
-			err = -ENOENT;
-			goto out_unlock;
-		}
-
-		err = tnc_read_hashed_node(c, zbr, dent);
-		if (err)
-			goto out_unlock;
-
-		if (key_hash(c, key) == key_hash(c, dkey) &&
-		    le32_to_cpu(dent->cookie) == cookie)
-			goto out_unlock;
-	}
+	err = search_dh_cookie(c, key, dent, cookie, &znode, &n);
 
 out_unlock:
 	mutex_unlock(&c->tnc_mutex);
@@ -2393,8 +2410,7 @@ int ubifs_tnc_add_nm(struct ubifs_info *c, const union ubifs_key *key,
 	struct ubifs_znode *znode;
 
 	mutex_lock(&c->tnc_mutex);
-	//dbg_tnck(key, "LEB %d:%d, name '%.*s', key ",
-	//	 lnum, offs, nm->len, nm->name);
+	dbg_tnck(key, "LEB %d:%d, key ", lnum, offs);
 	found = lookup_level0_dirty(c, key, &znode, &n);
 	if (found < 0) {
 		err = found;
@@ -2628,7 +2644,7 @@ int ubifs_tnc_remove_nm(struct ubifs_info *c, const union ubifs_key *key,
 	struct ubifs_znode *znode;
 
 	mutex_lock(&c->tnc_mutex);
-	//dbg_tnck(key, "%.*s, key ", nm->len, nm->name);
+	dbg_tnck(key, "key ");
 	err = lookup_level0_dirty(c, key, &znode, &n);
 	if (err < 0)
 		goto out_unlock;
@@ -2655,6 +2671,74 @@ int ubifs_tnc_remove_nm(struct ubifs_info *c, const union ubifs_key *key,
 		}
 	}
 
+out_unlock:
+	if (!err)
+		err = dbg_check_tnc(c, 0);
+	mutex_unlock(&c->tnc_mutex);
+	return err;
+}
+
+/**
+ * ubifs_tnc_remove_dh - remove an index entry for a "double hashed" node.
+ * @c: UBIFS file-system description object
+ * @key: key of node
+ * @cookie: node cookie for collision resolution
+ *
+ * Returns %0 on success or negative error code on failure.
+ */
+int ubifs_tnc_remove_dh(struct ubifs_info *c, const union ubifs_key *key,
+			uint32_t cookie)
+{
+	int n, err;
+	struct ubifs_znode *znode;
+	struct ubifs_dent_node *dent;
+	struct ubifs_zbranch *zbr;
+
+	if (!c->double_hash)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&c->tnc_mutex);
+	err = lookup_level0_dirty(c, key, &znode, &n);
+	if (err <= 0)
+		goto out_unlock;
+
+	zbr = &znode->zbranch[n];
+	dent = kmalloc(UBIFS_MAX_DENT_NODE_SZ, GFP_NOFS);
+	if (!dent) {
+		err = -ENOMEM;
+		goto out_unlock;
+	}
+
+	err = tnc_read_hashed_node(c, zbr, dent);
+	if (err)
+		goto out_free;
+
+	/* If the cookie does not match, we're facing a hash collision. */
+	if (le32_to_cpu(dent->cookie) != cookie) {
+		union ubifs_key start_key;
+
+		lowest_dent_key(c, &start_key, key_inum(c, key));
+
+		err = ubifs_lookup_level0(c, &start_key, &znode, &n);
+		if (unlikely(err < 0))
+			goto out_free;
+
+		err = search_dh_cookie(c, key, dent, cookie, &znode, &n);
+		if (err)
+			goto out_free;
+	}
+
+	if (znode->cnext || !ubifs_zn_dirty(znode)) {
+		znode = dirty_cow_bottom_up(c, znode);
+		if (IS_ERR(znode)) {
+			err = PTR_ERR(znode);
+			goto out_free;
+		}
+	}
+	err = tnc_delete(c, znode, n);
+
+out_free:
+	kfree(dent);
 out_unlock:
 	if (!err)
 		err = dbg_check_tnc(c, 0);
@@ -2802,6 +2886,8 @@ int ubifs_tnc_remove_ino(struct ubifs_info *c, ino_t inum)
 		dbg_tnc("xent '%s', ino %lu", xent->name,
 			(unsigned long)xattr_inum);
 
+		ubifs_evict_xattr_inode(c, xattr_inum);
+
 		fname_name(&nm) = xent->name;
 		fname_len(&nm) = le16_to_cpu(xent->nlen);
 		err = ubifs_tnc_remove_nm(c, &key1, &nm);
@@ -2863,7 +2949,7 @@ struct ubifs_dent_node *ubifs_tnc_next_ent(struct ubifs_info *c,
 	struct ubifs_zbranch *zbr;
 	union ubifs_key *dkey;
 
-	//dbg_tnck(key, "%s ", nm->name ? (char *)nm->name : "(lowest)");
+	dbg_tnck(key, "key ");
 	ubifs_assert(is_hash_key(c, key));
 
 	mutex_lock(&c->tnc_mutex);

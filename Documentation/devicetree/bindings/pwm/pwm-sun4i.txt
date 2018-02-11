@@ -14,10 +14,9 @@ Required properties:
 
 Example:
 
-	pwm: pwm@01c20e00 {
+	pwm: pwm@1c20e00 {
 		compatible = "allwinner,sun7i-a20-pwm";
 		reg = <0x01c20e00 0xc>;
 		clocks = <&osc24M>;
 		#pwm-cells = <3>;
-		status = "disabled";
 	};

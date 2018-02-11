@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #include <linux/types.h>
 
 #define XT_CONNLABEL_MAXBIT 127

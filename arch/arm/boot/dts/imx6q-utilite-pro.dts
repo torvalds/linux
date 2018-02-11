@@ -130,7 +130,7 @@
 			#size-cells = <0>;
 
 			eeprom@50 {
-				compatible = "at24,24c02";
+				compatible = "atmel,24c02";
 				reg = <0x50>;
 				pagesize = <16>;
 			};
@@ -188,6 +188,8 @@
 /delete-node/&hdmi_mux_1;
 
 &hdmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hdmicec>;
 	ddc-i2c-bus = <&i2c2>;
 	status = "okay";
 };
@@ -208,6 +210,12 @@
 	pinctrl_gpio_keys: gpio_keysgrp {
 		fsl,pins = <
 			MX6QDL_PAD_ENET_TXD1__GPIO1_IO29 0x1b0b0
+		>;
+	};
+
+	pinctrl_hdmicec: hdmicecgrp {
+		fsl,pins = <
+			MX6QDL_PAD_KEY_ROW2__HDMI_TX_CEC_LINE 0x1f8b0
 		>;
 	};
 

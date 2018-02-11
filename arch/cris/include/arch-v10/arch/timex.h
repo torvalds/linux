@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Use prescale timer at 25000 Hz instead of the baudrate timer at 
  * 19200 to get rid of the 64ppm to fast timer (and we get better 

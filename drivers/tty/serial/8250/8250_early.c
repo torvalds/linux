@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Early serial console for 8250/16550 devices
  *
  * (c) Copyright 2004 Hewlett-Packard Development Company, L.P.
  *	Bjorn Helgaas <bjorn.helgaas@hp.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Based on the 8250.c serial driver, Copyright (C) 2001 Russell King,
  * and on early_printk.c by Andi Kleen.
@@ -37,7 +34,7 @@
 #include <asm/io.h>
 #include <asm/serial.h>
 
-static unsigned int __init serial8250_early_in(struct uart_port *port, int offset)
+static unsigned int serial8250_early_in(struct uart_port *port, int offset)
 {
 	int reg_offset = offset;
 	offset <<= port->regshift;
@@ -60,7 +57,7 @@ static unsigned int __init serial8250_early_in(struct uart_port *port, int offse
 	}
 }
 
-static void __init serial8250_early_out(struct uart_port *port, int offset, int value)
+static void serial8250_early_out(struct uart_port *port, int offset, int value)
 {
 	int reg_offset = offset;
 	offset <<= port->regshift;
@@ -89,7 +86,7 @@ static void __init serial8250_early_out(struct uart_port *port, int offset, int 
 
 #define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
 
-static void __init serial_putc(struct uart_port *port, int c)
+static void serial_putc(struct uart_port *port, int c)
 {
 	unsigned int status;
 
@@ -103,7 +100,7 @@ static void __init serial_putc(struct uart_port *port, int c)
 	}
 }
 
-static void __init early_serial8250_write(struct console *console,
+static void early_serial8250_write(struct console *console,
 					const char *s, unsigned int count)
 {
 	struct earlycon_device *device = console->data;
@@ -125,12 +122,14 @@ static void __init init_port(struct earlycon_device *device)
 	serial8250_early_out(port, UART_FCR, 0);	/* no fifo */
 	serial8250_early_out(port, UART_MCR, 0x3);	/* DTR + RTS */
 
-	divisor = DIV_ROUND_CLOSEST(port->uartclk, 16 * device->baud);
-	c = serial8250_early_in(port, UART_LCR);
-	serial8250_early_out(port, UART_LCR, c | UART_LCR_DLAB);
-	serial8250_early_out(port, UART_DLL, divisor & 0xff);
-	serial8250_early_out(port, UART_DLM, (divisor >> 8) & 0xff);
-	serial8250_early_out(port, UART_LCR, c & ~UART_LCR_DLAB);
+	if (port->uartclk && device->baud) {
+		divisor = DIV_ROUND_CLOSEST(port->uartclk, 16 * device->baud);
+		c = serial8250_early_in(port, UART_LCR);
+		serial8250_early_out(port, UART_LCR, c | UART_LCR_DLAB);
+		serial8250_early_out(port, UART_DLL, divisor & 0xff);
+		serial8250_early_out(port, UART_DLM, (divisor >> 8) & 0xff);
+		serial8250_early_out(port, UART_LCR, c & ~UART_LCR_DLAB);
+	}
 }
 
 int __init early_serial8250_setup(struct earlycon_device *device,

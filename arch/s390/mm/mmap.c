@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  flexible mmap layout support
  *
  * Copyright 2003-2004 Red Hat Inc., Durham, North Carolina.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  *
  * Started by Ingo Molnar <mingo@elte.hu>
  */
@@ -101,7 +87,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
-		    (!vma || addr + len <= vma->vm_start))
+		    (!vma || addr + len <= vm_start_gap(vma)))
 			goto check_asce_limit;
 	}
 
@@ -119,8 +105,9 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		return addr;
 
 check_asce_limit:
-	if (addr + len > current->mm->context.asce_limit) {
-		rc = crst_table_upgrade(mm);
+	if (addr + len > current->mm->context.asce_limit &&
+	    addr + len <= TASK_SIZE) {
+		rc = crst_table_upgrade(mm, addr + len);
 		if (rc)
 			return (unsigned long) rc;
 	}
@@ -151,7 +138,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
-				(!vma || addr + len <= vma->vm_start))
+				(!vma || addr + len <= vm_start_gap(vma)))
 			goto check_asce_limit;
 	}
 
@@ -183,8 +170,9 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	}
 
 check_asce_limit:
-	if (addr + len > current->mm->context.asce_limit) {
-		rc = crst_table_upgrade(mm);
+	if (addr + len > current->mm->context.asce_limit &&
+	    addr + len <= TASK_SIZE) {
+		rc = crst_table_upgrade(mm, addr + len);
 		if (rc)
 			return (unsigned long) rc;
 	}

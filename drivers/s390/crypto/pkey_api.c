@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  pkey device driver
  *
  *  Copyright IBM Corp. 2017
  *  Author(s): Harald Freudenberger
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
- *
  */
 
 #define KMSG_COMPONENT "pkey"
@@ -125,10 +121,9 @@ static int alloc_and_prep_cprbmem(size_t paramblen,
 	 * allocate consecutive memory for request CPRB, request param
 	 * block, reply CPRB and reply param block
 	 */
-	cprbmem = kmalloc(2 * cprbplusparamblen, GFP_KERNEL);
+	cprbmem = kzalloc(2 * cprbplusparamblen, GFP_KERNEL);
 	if (!cprbmem)
 		return -ENOMEM;
-	memset(cprbmem, 0, 2 * cprbplusparamblen);
 
 	preqcblk = (struct CPRBX *) cprbmem;
 	prepcblk = (struct CPRBX *) (cprbmem + cprbplusparamblen);
@@ -178,9 +173,9 @@ static inline void prep_xcrb(struct ica_xcRB *pxcrb,
 	pxcrb->user_defined = (cardnr == 0xFFFF ? AUTOSELECT : cardnr);
 	pxcrb->request_control_blk_length =
 		preqcblk->cprb_len + preqcblk->req_parml;
-	pxcrb->request_control_blk_addr = (void *) preqcblk;
+	pxcrb->request_control_blk_addr = (void __user *) preqcblk;
 	pxcrb->reply_control_blk_length = preqcblk->rpl_msgbl;
-	pxcrb->reply_control_blk_addr = (void *) prepcblk;
+	pxcrb->reply_control_blk_addr = (void __user *) prepcblk;
 }
 
 /*
@@ -1194,7 +1189,7 @@ static struct miscdevice pkey_dev = {
 /*
  * Module init
  */
-int __init pkey_init(void)
+static int __init pkey_init(void)
 {
 	cpacf_mask_t pckmo_functions;
 

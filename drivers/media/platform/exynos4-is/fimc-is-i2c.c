@@ -130,7 +130,7 @@ static int fimc_is_i2c_resume(struct device *dev)
 }
 #endif
 
-static struct dev_pm_ops fimc_is_i2c_pm_ops = {
+static const struct dev_pm_ops fimc_is_i2c_pm_ops = {
 	SET_RUNTIME_PM_OPS(fimc_is_i2c_runtime_suspend,
 					fimc_is_i2c_runtime_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(fimc_is_i2c_suspend, fimc_is_i2c_resume)

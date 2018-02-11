@@ -35,6 +35,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_simple_kms_helper.h>
@@ -92,7 +93,7 @@ void mxsfb_disable_axi_clk(struct mxsfb_drm_private *mxsfb)
 }
 
 static const struct drm_mode_config_funcs mxsfb_mode_config_funcs = {
-	.fb_create		= drm_fb_cma_create,
+	.fb_create		= drm_gem_fb_create,
 	.atomic_check		= drm_atomic_helper_check,
 	.atomic_commit		= drm_atomic_helper_commit,
 };
@@ -127,7 +128,7 @@ static void mxsfb_pipe_update(struct drm_simple_display_pipe *pipe,
 static int mxsfb_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
 				 struct drm_plane_state *plane_state)
 {
-	return drm_fb_cma_prepare_fb(&pipe->plane, plane_state);
+	return drm_gem_fb_prepare_fb(&pipe->plane, plane_state);
 }
 
 static struct drm_simple_display_pipe_funcs mxsfb_funcs = {
@@ -190,7 +191,7 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 	}
 
 	ret = drm_simple_display_pipe_init(drm, &mxsfb->pipe, &mxsfb_funcs,
-			mxsfb_formats, ARRAY_SIZE(mxsfb_formats),
+			mxsfb_formats, ARRAY_SIZE(mxsfb_formats), NULL,
 			&mxsfb->connector);
 	if (ret < 0) {
 		dev_err(drm->dev, "Cannot setup simple display pipe\n");
@@ -256,7 +257,6 @@ static void mxsfb_unload(struct drm_device *drm)
 
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
-	drm_vblank_cleanup(drm);
 
 	pm_runtime_get_sync(drm->dev);
 	drm_irq_uninstall(drm);
@@ -335,11 +335,9 @@ static struct drm_driver mxsfb_driver = {
 	.irq_uninstall		= mxsfb_irq_preinstall,
 	.enable_vblank		= mxsfb_enable_vblank,
 	.disable_vblank		= mxsfb_disable_vblank,
-	.gem_free_object	= drm_gem_cma_free_object,
+	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= drm_gem_cma_dumb_create,
-	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
-	.dumb_destroy		= drm_gem_dumb_destroy,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_export	= drm_gem_prime_export,

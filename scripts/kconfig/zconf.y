@@ -101,8 +101,8 @@ static struct menu *current_menu, *current_entry;
 } if_entry menu_entry choice_entry
 
 %{
-/* Include zconf.hash.c here so it can see the token constants. */
-#include "zconf.hash.c"
+/* Include zconf_id.c here so it can see the token constants. */
+#include "kconf_id.c"
 %}
 
 %%
@@ -119,7 +119,7 @@ stmt_list:
 	| stmt_list T_WORD error T_EOL	{ zconf_error("unknown statement \"%s\"", $2); }
 	| stmt_list option_name error T_EOL
 {
-	zconf_error("unexpected option \"%s\"", kconf_id_strings + $2->name);
+	zconf_error("unexpected option \"%s\"", $2->name);
 }
 	| stmt_list error T_EOL		{ zconf_error("invalid statement"); }
 ;
@@ -551,13 +551,13 @@ static bool zconf_endtoken(const struct kconf_id *id, int starttoken, int endtok
 {
 	if (id->token != endtoken) {
 		zconf_error("unexpected '%s' within %s block",
-			kconf_id_strings + id->name, zconf_tokenname(starttoken));
+			id->name, zconf_tokenname(starttoken));
 		zconfnerrs++;
 		return false;
 	}
 	if (current_menu->file != current_file) {
 		zconf_error("'%s' in different file than '%s'",
-			kconf_id_strings + id->name, zconf_tokenname(starttoken));
+			id->name, zconf_tokenname(starttoken));
 		fprintf(stderr, "%s:%d: location of the '%s'\n",
 			current_menu->file->name, current_menu->lineno,
 			zconf_tokenname(starttoken));

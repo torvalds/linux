@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * auxio.h:  Definitions and code for the Auxiliary I/O registers.
  *

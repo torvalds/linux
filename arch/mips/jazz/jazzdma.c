@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Mips Jazz DMA controller support
  * Copyright (C) 1995, 1996 by Andreas Busse

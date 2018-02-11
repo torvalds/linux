@@ -47,10 +47,10 @@ static struct rc_map_table flyvideo[] = {
 
 static struct rc_map_list flyvideo_map = {
 	.map = {
-		.scan    = flyvideo,
-		.size    = ARRAY_SIZE(flyvideo),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_FLYVIDEO,
+		.scan     = flyvideo,
+		.size     = ARRAY_SIZE(flyvideo),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_FLYVIDEO,
 	}
 };
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *	linux/arch/alpha/kernel/pci_impl.h
  *
@@ -156,16 +157,8 @@ struct pci_iommu_arena
 #endif
 
 #ifdef ALPHA_RESTORE_SRM_SETUP
-/* Store PCI device configuration left by SRM here. */
-struct pdev_srm_saved_conf
-{
-	struct pdev_srm_saved_conf *next;
-	struct pci_dev *dev;
-};
-
 extern void pci_restore_srm_config(void);
 #else
-#define pdev_save_srm_config(dev)	do {} while (0)
 #define pci_restore_srm_config()	do {} while (0)
 #endif
 

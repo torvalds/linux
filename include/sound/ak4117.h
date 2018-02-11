@@ -155,6 +155,14 @@
 typedef void (ak4117_write_t)(void *private_data, unsigned char addr, unsigned char data);
 typedef unsigned char (ak4117_read_t)(void *private_data, unsigned char addr);
 
+enum {
+	AK4117_PARITY_ERRORS,
+	AK4117_V_BIT_ERRORS,
+	AK4117_QCRC_ERRORS,
+	AK4117_CCRC_ERRORS,
+	AK4117_NUM_ERRORS
+};
+
 struct ak4117 {
 	struct snd_card *card;
 	ak4117_write_t * write;
@@ -165,10 +173,7 @@ struct ak4117 {
 	unsigned char regmap[5];
 	struct snd_kcontrol *kctls[AK4117_CONTROLS];
 	struct snd_pcm_substream *substream;
-	unsigned long parity_errors;
-	unsigned long v_bit_errors;
-	unsigned long qcrc_errors;
-	unsigned long ccrc_errors;
+	unsigned long errors[AK4117_NUM_ERRORS];
 	unsigned char rcs0;
 	unsigned char rcs1;
 	unsigned char rcs2;

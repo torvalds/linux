@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  *  (c) Copyright 2008, RealTEK Technologies Inc. All Rights Reserved.
@@ -31,7 +32,6 @@ rt_status SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 	struct r8192_priv   *priv = ieee80211_priv(dev);
 	struct sk_buff	    *skb;
 	struct cb_desc	    *tcb_desc;
-	unsigned char	    *ptr_buf;
 
 	/* Get TCB and local buffer from common pool.
 	 * (It is shared by CmdQ, MgntQ, and USB coalesce DataQ)
@@ -45,8 +45,7 @@ rt_status SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 	tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_NORMAL;
 	tcb_desc->bLastIniPkt = 0;
 	skb_reserve(skb, USB_HWDESC_HEADER_LEN);
-	ptr_buf = skb_put(skb, DataLen);
-	memcpy(ptr_buf, pData, DataLen);
+	skb_put_data(skb, pData, DataLen);
 	tcb_desc->txbuf_size = (u16)DataLen;
 
 	if (!priv->ieee80211->check_nic_enough_desc(dev, tcb_desc->queue_index) ||
@@ -296,7 +295,7 @@ static void cmpk_handle_query_config_rx(struct net_device *dev, u8 *pmsg)
 	 * windows OS. So we have to read the content byte by byte or transfer
 	 * endian type before copy the message copy.
 	 */
-	rx_query_cfg.cfg_action		= (pmsg[4] & 0x80000000) >> 31;
+	rx_query_cfg.cfg_action		= (pmsg[4] & 0x80) >> 7;
 	rx_query_cfg.cfg_type		= (pmsg[4] & 0x60) >> 5;
 	rx_query_cfg.cfg_size		= (pmsg[4] & 0x18) >> 3;
 	rx_query_cfg.cfg_page		= (pmsg[6] & 0x0F) >> 0;

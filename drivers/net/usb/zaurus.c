@@ -74,10 +74,10 @@ done:
 		fcs = crc32_le(~0, skb->data, skb->len);
 		fcs = ~fcs;
 
-		*skb_put (skb, 1) = fcs       & 0xff;
-		*skb_put (skb, 1) = (fcs>> 8) & 0xff;
-		*skb_put (skb, 1) = (fcs>>16) & 0xff;
-		*skb_put (skb, 1) = (fcs>>24) & 0xff;
+		skb_put_u8(skb, fcs & 0xff);
+		skb_put_u8(skb, (fcs >> 8) & 0xff);
+		skb_put_u8(skb, (fcs >> 16) & 0xff);
+		skb_put_u8(skb, (fcs >> 24) & 0xff);
 	}
 	return skb;
 }

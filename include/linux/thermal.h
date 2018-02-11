@@ -102,6 +102,7 @@ enum thermal_notify_event {
 	THERMAL_DEVICE_DOWN, /* Thermal device is down */
 	THERMAL_DEVICE_UP, /* Thermal device is up after a down event */
 	THERMAL_DEVICE_POWER_CAPABILITY_CHANGED, /* power capability changed */
+	THERMAL_TABLE_CHANGED, /* Thermal table(s) changed */
 };
 
 struct thermal_zone_device_ops {
@@ -487,7 +488,7 @@ static inline int power_actor_set_power(struct thermal_cooling_device *cdev,
 static inline struct thermal_zone_device *thermal_zone_device_register(
 	const char *type, int trips, int mask, void *devdata,
 	struct thermal_zone_device_ops *ops,
-	const struct thermal_zone_params *tzp,
+	struct thermal_zone_params *tzp,
 	int passive_delay, int polling_delay)
 { return ERR_PTR(-ENODEV); }
 static inline void thermal_zone_device_unregister(

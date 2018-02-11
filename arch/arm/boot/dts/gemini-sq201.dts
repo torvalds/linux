@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree file for ITian Square One SQ201 NAS
  */
@@ -33,6 +34,7 @@
 			wakeup-source;
 			linux,code = <KEY_SETUP>;
 			label = "factory reset";
+			/* Conflict with NAND flash */
 			gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
 		};
 	};
@@ -41,12 +43,14 @@
 		compatible = "gpio-leds";
 		led@20 {
 			label = "sq201:green:info";
+			/* Conflict with parallel flash */
 			gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
 		};
 		led@31 {
 			label = "sq201:green:usb";
+			/* Conflict with parallel and NAND flash */
 			gpios = <&gpio0 31 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 			linux,default-trigger = "usb-host";
@@ -55,7 +59,15 @@
 
 	soc {
 		flash@30000000 {
-			status = "okay";
+			/*
+			 * Flash access can be enabled, with the side effect
+			 * of disabling access to GPIO LED on GPIO0[20] which
+			 * reuse one of the parallel flash chip select lines.
+			 * Also the default firmware on the machine has the
+			 * problem that since it uses the flash, the two LEDS
+			 * on the right become numb.
+			 */
+			/* status = "okay"; */
 			/* 16MB of flash */
 			reg = <0x30000000 0x01000000>;
 
@@ -93,6 +105,35 @@
 			};
 		};
 
+		syscon: syscon@40000000 {
+			pinctrl {
+				/*
+				 * gpio0fgrp cover line 18 used by reset button
+				 * gpio0ggrp cover line 20 used by info LED
+				 * gpio0kgrp cover line 31 used by USB LED
+				 */
+				gpio0_default_pins: pinctrl-gpio0 {
+					mux {
+						function = "gpio0";
+						groups = "gpio0fgrp",
+						"gpio0ggrp",
+						"gpio0kgrp";
+					};
+				};
+			};
+		};
+
+		sata: sata@46000000 {
+			cortina,gemini-ata-muxmode = <0>;
+			cortina,gemini-enable-sata-bridge;
+			status = "okay";
+		};
+
+		gpio0: gpio@4d000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio0_default_pins>;
+		};
+
 		pci@50000000 {
 			status = "okay";
 			interrupt-map-mask = <0xf800 0 0 7>;
@@ -113,6 +154,10 @@
 				<0x6000 0 0 2 &pci_intc 0>,
 				<0x6000 0 0 3 &pci_intc 1>,
 				<0x6000 0 0 4 &pci_intc 2>;
+		};
+
+		ata@63000000 {
+			status = "okay";
 		};
 	};
 };

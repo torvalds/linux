@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_ASM_GENERIC_RESOURCE_H
 #define _UAPI_ASM_GENERIC_RESOURCE_H
 

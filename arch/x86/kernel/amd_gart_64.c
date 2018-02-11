@@ -704,6 +704,7 @@ static const struct dma_map_ops gart_dma_ops = {
 	.alloc				= gart_alloc_coherent,
 	.free				= gart_free_coherent,
 	.mapping_error			= gart_mapping_error,
+	.dma_supported			= x86_dma_supported,
 };
 
 static void gart_iommu_shutdown(void)

@@ -156,7 +156,7 @@ static void __init media5200_init_irq(void)
 	fpga_np = of_find_compatible_node(NULL, NULL, "fsl,media5200-fpga");
 	if (!fpga_np)
 		goto out;
-	pr_debug("%s: found fpga node: %s\n", __func__, fpga_np->full_name);
+	pr_debug("%s: found fpga node: %pOF\n", __func__, fpga_np);
 
 	media5200_irq.regs = of_iomap(fpga_np, 0);
 	if (!media5200_irq.regs)

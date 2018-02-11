@@ -89,7 +89,7 @@ ebt_ip6_mt(const struct sk_buff *skb, struct xt_action_param *par)
 			if (NF_INVF(info, EBT_IP6_SPORT,
 				    src < info->sport[0] ||
 				    src > info->sport[1]))
-			return false;
+				return false;
 		}
 		if ((info->bitmask & EBT_IP6_ICMP6) &&
 		    NF_INVF(info, EBT_IP6_ICMP6,

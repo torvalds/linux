@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __IMX_AUDMUX_H
 #define __IMX_AUDMUX_H
 

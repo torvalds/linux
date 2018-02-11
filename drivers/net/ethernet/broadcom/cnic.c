@@ -1278,7 +1278,7 @@ static int cnic_alloc_bnx2x_resc(struct cnic_dev *dev)
 
 	ret = cnic_alloc_dma(dev, kwq_16_dma, pages, 0);
 	if (ret)
-		return -ENOMEM;
+		goto error;
 
 	n = CNIC_PAGE_SIZE / CNIC_KWQ16_DATA_SIZE;
 	for (i = 0, j = 0; i < cp->max_cid_space; i++) {

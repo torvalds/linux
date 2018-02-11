@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "../../util/util.h"
 #include "../browser.h"
 #include "../helpline.h"
@@ -9,14 +10,16 @@
 #include "../../util/symbol.h"
 #include "../../util/evsel.h"
 #include "../../util/config.h"
+#include "../../util/evlist.h"
 #include <inttypes.h>
 #include <pthread.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <sys/ttydefaults.h>
 
 struct disasm_line_samples {
-	double		percent;
-	u64		nr;
+	double		      percent;
+	struct sym_hist_entry he;
 };
 
 #define IPC_WIDTH 6
@@ -40,11 +43,14 @@ static struct annotate_browser_opt {
 	     jump_arrows,
 	     show_linenr,
 	     show_nr_jumps,
+	     show_nr_samples,
 	     show_total_period;
 } annotate_browser__opts = {
 	.use_offset	= true,
 	.jump_arrows	= true,
 };
+
+struct arch;
 
 struct annotate_browser {
 	struct ui_browser b;
@@ -52,6 +58,7 @@ struct annotate_browser {
 	struct rb_node	  *curr_hot;
 	struct disasm_line  *selection;
 	struct disasm_line  **offsets;
+	struct arch	    *arch;
 	int		    nr_events;
 	u64		    start;
 	int		    nr_asm_entries;
@@ -105,11 +112,12 @@ static int annotate_browser__set_jumps_percent_color(struct annotate_browser *br
 
 static int annotate_browser__pcnt_width(struct annotate_browser *ab)
 {
-	int w = 7 * ab->nr_events;
+	return (annotate_browser__opts.show_total_period ? 12 : 7) * ab->nr_events;
+}
 
-	if (ab->have_cycles)
-		w += IPC_WIDTH + CYCLES_WIDTH;
-	return w;
+static int annotate_browser__cycles_width(struct annotate_browser *ab)
+{
+	return ab->have_cycles ? IPC_WIDTH + CYCLES_WIDTH : 0;
 }
 
 static void annotate_browser__write(struct ui_browser *browser, void *entry, int row)
@@ -122,46 +130,67 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 			     (!current_entry || (browser->use_navkeypressed &&
 					         !browser->navkeypressed)));
 	int width = browser->width, printed;
-	int i, pcnt_width = annotate_browser__pcnt_width(ab);
+	int i, pcnt_width = annotate_browser__pcnt_width(ab),
+	       cycles_width = annotate_browser__cycles_width(ab);
 	double percent_max = 0.0;
 	char bf[256];
+	bool show_title = false;
 
 	for (i = 0; i < ab->nr_events; i++) {
 		if (bdl->samples[i].percent > percent_max)
 			percent_max = bdl->samples[i].percent;
 	}
 
+	if ((row == 0) && (dl->offset == -1 || percent_max == 0.0)) {
+		if (ab->have_cycles) {
+			if (dl->ipc == 0.0 && dl->cycles == 0)
+				show_title = true;
+		} else
+			show_title = true;
+	}
+
 	if (dl->offset != -1 && percent_max != 0.0) {
-		if (percent_max != 0.0) {
-			for (i = 0; i < ab->nr_events; i++) {
-				ui_browser__set_percent_color(browser,
-							bdl->samples[i].percent,
-							current_entry);
-				if (annotate_browser__opts.show_total_period) {
-					ui_browser__printf(browser, "%6" PRIu64 " ",
-							   bdl->samples[i].nr);
-				} else {
-					ui_browser__printf(browser, "%6.2f ",
-							   bdl->samples[i].percent);
-				}
+		for (i = 0; i < ab->nr_events; i++) {
+			ui_browser__set_percent_color(browser,
+						bdl->samples[i].percent,
+						current_entry);
+			if (annotate_browser__opts.show_total_period) {
+				ui_browser__printf(browser, "%11" PRIu64 " ",
+						   bdl->samples[i].he.period);
+			} else if (annotate_browser__opts.show_nr_samples) {
+				ui_browser__printf(browser, "%6" PRIu64 " ",
+						   bdl->samples[i].he.nr_samples);
+			} else {
+				ui_browser__printf(browser, "%6.2f ",
+						   bdl->samples[i].percent);
 			}
-		} else {
-			ui_browser__write_nstring(browser, " ", 7 * ab->nr_events);
 		}
 	} else {
 		ui_browser__set_percent_color(browser, 0, current_entry);
-		ui_browser__write_nstring(browser, " ", 7 * ab->nr_events);
+
+		if (!show_title)
+			ui_browser__write_nstring(browser, " ", pcnt_width);
+		else {
+			ui_browser__printf(browser, "%*s", pcnt_width,
+					   annotate_browser__opts.show_total_period ? "Period" :
+					   annotate_browser__opts.show_nr_samples ? "Samples" : "Percent");
+		}
 	}
 	if (ab->have_cycles) {
 		if (dl->ipc)
 			ui_browser__printf(browser, "%*.2f ", IPC_WIDTH - 1, dl->ipc);
-		else
+		else if (!show_title)
 			ui_browser__write_nstring(browser, " ", IPC_WIDTH);
+		else
+			ui_browser__printf(browser, "%*s ", IPC_WIDTH - 1, "IPC");
+
 		if (dl->cycles)
 			ui_browser__printf(browser, "%*" PRIu64 " ",
 					   CYCLES_WIDTH - 1, dl->cycles);
-		else
+		else if (!show_title)
 			ui_browser__write_nstring(browser, " ", CYCLES_WIDTH);
+		else
+			ui_browser__printf(browser, "%*s ", CYCLES_WIDTH - 1, "Cycle");
 	}
 
 	SLsmg_write_char(' ');
@@ -171,7 +200,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 		width += 1;
 
 	if (!*dl->line)
-		ui_browser__write_nstring(browser, " ", width - pcnt_width);
+		ui_browser__write_nstring(browser, " ", width - pcnt_width - cycles_width);
 	else if (dl->offset == -1) {
 		if (dl->line_nr && annotate_browser__opts.show_linenr)
 			printed = scnprintf(bf, sizeof(bf), "%-*d ",
@@ -180,7 +209,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 			printed = scnprintf(bf, sizeof(bf), "%*s  ",
 				    ab->addr_width, " ");
 		ui_browser__write_nstring(browser, bf, printed);
-		ui_browser__write_nstring(browser, dl->line, width - printed - pcnt_width + 1);
+		ui_browser__write_nstring(browser, dl->line, width - printed - pcnt_width - cycles_width + 1);
 	} else {
 		u64 addr = dl->offset;
 		int color = -1;
@@ -237,7 +266,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 		}
 
 		disasm_line__scnprintf(dl, bf, sizeof(bf), !annotate_browser__opts.use_offset);
-		ui_browser__write_nstring(browser, bf, width - pcnt_width - 3 - printed);
+		ui_browser__write_nstring(browser, bf, width - pcnt_width - cycles_width - 3 - printed);
 	}
 
 	if (current_entry)
@@ -253,6 +282,25 @@ static bool disasm_line__is_valid_jump(struct disasm_line *dl, struct symbol *sy
 		return false;
 
 	return true;
+}
+
+static bool is_fused(struct annotate_browser *ab, struct disasm_line *cursor)
+{
+	struct disasm_line *pos = list_prev_entry(cursor, node);
+	const char *name;
+
+	if (!pos)
+		return false;
+
+	if (ins__is_lock(&pos->ins))
+		name = pos->ops.locked.ins.name;
+	else
+		name = pos->ins.name;
+
+	if (!name || !cursor->ins.name)
+		return false;
+
+	return ins__is_fused(ab->arch, name, cursor->ins.name);
 }
 
 static void annotate_browser__draw_current_jump(struct ui_browser *browser)
@@ -290,6 +338,13 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	ui_browser__set_color(browser, HE_COLORSET_JUMP_ARROWS);
 	__ui_browser__line_arrow(browser, pcnt_width + 2 + ab->addr_width,
 				 from, to);
+
+	if (is_fused(ab, cursor)) {
+		ui_browser__mark_fused(browser,
+				       pcnt_width + 3 + ab->addr_width,
+				       from - 1,
+				       to > from ? true : false);
+	}
 }
 
 static unsigned int annotate_browser__refresh(struct ui_browser *browser)
@@ -405,14 +460,14 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 		next = disasm__get_next_ip_line(&notes->src->source, pos);
 
 		for (i = 0; i < browser->nr_events; i++) {
-			u64 nr_samples;
+			struct sym_hist_entry sample;
 
 			bpos->samples[i].percent = disasm__calc_percent(notes,
 						evsel->idx + i,
 						pos->offset,
 						next ? next->offset : len,
-						&path, &nr_samples);
-			bpos->samples[i].nr = nr_samples;
+						&path, &sample);
+			bpos->samples[i].he = sample;
 
 			if (max_percent < bpos->samples[i].percent)
 				max_percent = bpos->samples[i].percent;
@@ -775,13 +830,14 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		"q/ESC/CTRL+C  Exit\n\n"
 		"ENTER         Go to target\n"
 		"ESC           Exit\n"
-		"H             Cycle thru hottest instructions\n"
+		"H             Go to hottest instruction\n"
+		"TAB/shift+TAB Cycle thru hottest instructions\n"
 		"j             Toggle showing jump to target arrows\n"
 		"J             Toggle showing number of jump sources on targets\n"
 		"n             Search next string\n"
 		"o             Toggle disassembler output/simplified view\n"
 		"s             Toggle source code view\n"
-		"t             Toggle total period view\n"
+		"t             Circulate percent, total period, samples view\n"
 		"/             Search string\n"
 		"k             Toggle line numbers\n"
 		"r             Run available scripts\n"
@@ -858,8 +914,13 @@ show_sup_ins:
 			}
 			continue;
 		case 't':
-			annotate_browser__opts.show_total_period =
-			  !annotate_browser__opts.show_total_period;
+			if (annotate_browser__opts.show_total_period) {
+				annotate_browser__opts.show_total_period = false;
+				annotate_browser__opts.show_nr_samples = true;
+			} else if (annotate_browser__opts.show_nr_samples)
+				annotate_browser__opts.show_nr_samples = false;
+			else
+				annotate_browser__opts.show_total_period = true;
 			annotate_browser__update_addr_width(browser);
 			continue;
 		case K_LEFT:
@@ -882,9 +943,11 @@ out:
 int map_symbol__tui_annotate(struct map_symbol *ms, struct perf_evsel *evsel,
 			     struct hist_browser_timer *hbt)
 {
-	/* Set default value for show_total_period.  */
+	/* Set default value for show_total_period and show_nr_samples  */
 	annotate_browser__opts.show_total_period =
-	  symbol_conf.show_total_period;
+		symbol_conf.show_total_period;
+	annotate_browser__opts.show_nr_samples =
+		symbol_conf.show_nr_samples;
 
 	return symbol__tui_annotate(ms->sym, ms->map, evsel, hbt);
 }
@@ -1056,7 +1119,9 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 		  (nr_pcnt - 1);
 	}
 
-	err = symbol__disassemble(sym, map, perf_evsel__env_arch(evsel), sizeof_bdl);
+	err = symbol__disassemble(sym, map, perf_evsel__env_arch(evsel),
+				  sizeof_bdl, &browser.arch,
+				  perf_evsel__env_cpuid(evsel));
 	if (err) {
 		char msg[BUFSIZ];
 		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));
@@ -1133,6 +1198,7 @@ static struct annotate_config {
 	ANNOTATE_CFG(jump_arrows),
 	ANNOTATE_CFG(show_linenr),
 	ANNOTATE_CFG(show_nr_jumps),
+	ANNOTATE_CFG(show_nr_samples),
 	ANNOTATE_CFG(show_total_period),
 	ANNOTATE_CFG(use_offset),
 };
@@ -1152,7 +1218,7 @@ static int annotate__config(const char *var, const char *value,
 	struct annotate_config *cfg;
 	const char *name;
 
-	if (prefixcmp(var, "annotate.") != 0)
+	if (!strstarts(var, "annotate."))
 		return 0;
 
 	name = var + 9;

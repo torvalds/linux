@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * -- <linux/cdrom.h>
  * General header file for linux CD-ROM drivers 

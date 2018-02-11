@@ -38,6 +38,7 @@
 #include <linux/memory.h>
 #include <linux/nmi.h>
 
+#include <asm/debugfs.h>
 #include <asm/io.h>
 #include <asm/kdump.h>
 #include <asm/prom.h>
@@ -68,6 +69,8 @@
 #include <asm/livepatch.h>
 #include <asm/opal.h>
 #include <asm/cputhreads.h>
+
+#include "setup.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -317,6 +320,13 @@ void __init early_setup(unsigned long dt_ptr)
 	early_init_mmu();
 
 	/*
+	 * After firmware and early platform setup code has set things up,
+	 * we note the SPR values for configurable control/performance
+	 * registers, and use those as initial defaults.
+	 */
+	record_spr_defaults();
+
+	/*
 	 * At this point, we can let interrupts switch to virtual mode
 	 * (the MMU has been setup), so adjust the MSR in the PACA to
 	 * have IR and DR set and enable AIL if it exists
@@ -360,8 +370,16 @@ void early_setup_secondary(void)
 #if defined(CONFIG_SMP) || defined(CONFIG_KEXEC_CORE)
 static bool use_spinloop(void)
 {
-	if (!IS_ENABLED(CONFIG_PPC_BOOK3E))
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S)) {
+		/*
+		 * See comments in head_64.S -- not all platforms insert
+		 * secondaries at __secondary_hold and wait at the spin
+		 * loop.
+		 */
+		if (firmware_has_feature(FW_FEATURE_OPAL))
+			return false;
 		return true;
+	}
 
 	/*
 	 * When book3e boots from kexec, the ePAPR spin table does
@@ -564,6 +582,9 @@ static __init u64 safe_stack_limit(void)
 	/* Other BookE, we assume the first GB is bolted */
 	return 1ul << 30;
 #else
+	if (early_radix_enabled())
+		return ULONG_MAX;
+
 	/* BookS, the first segment is bolted */
 	if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
 		return 1UL << SID_SHIFT_1T;
@@ -578,7 +599,8 @@ void __init irqstack_early_init(void)
 
 	/*
 	 * Interrupt stacks must be in the first segment since we
-	 * cannot afford to take SLB misses on them.
+	 * cannot afford to take SLB misses on them. They are not
+	 * accessed in realmode.
 	 */
 	for_each_possible_cpu(i) {
 		softirq_ctx[i] = (struct thread_info *)
@@ -616,6 +638,24 @@ void __init exc_lvl_early_init(void)
 #endif
 
 /*
+ * Emergency stacks are used for a range of things, from asynchronous
+ * NMIs (system reset, machine check) to synchronous, process context.
+ * We set preempt_count to zero, even though that isn't necessarily correct. To
+ * get the right value we'd need to copy it from the previous thread_info, but
+ * doing that might fault causing more problems.
+ * TODO: what to do with accounting?
+ */
+static void emerg_stack_init_thread_info(struct thread_info *ti, int cpu)
+{
+	ti->task = NULL;
+	ti->cpu = cpu;
+	ti->preempt_count = 0;
+	ti->local_flags = 0;
+	ti->flags = 0;
+	klp_init_thread_info(ti);
+}
+
+/*
  * Stack space used when we detect a bad kernel stack pointer, and
  * early in SMP boots before relocation is enabled. Exclusive emergency
  * stack for machine checks.
@@ -631,26 +671,34 @@ void __init emergency_stack_init(void)
 	 * aligned.
 	 *
 	 * Since we use these as temporary stacks during secondary CPU
-	 * bringup, we need to get at them in real mode. This means they
-	 * must also be within the RMO region.
+	 * bringup, machine check, system reset, and HMI, we need to get
+	 * at them in real mode. This means they must also be within the RMO
+	 * region.
+	 *
+	 * The IRQ stacks allocated elsewhere in this file are zeroed and
+	 * initialized in kernel/irq.c. These are initialized here in order
+	 * to have emergency stacks available as early as possible.
 	 */
 	limit = min(safe_stack_limit(), ppc64_rma_size);
 
 	for_each_possible_cpu(i) {
 		struct thread_info *ti;
 		ti = __va(memblock_alloc_base(THREAD_SIZE, THREAD_SIZE, limit));
-		klp_init_thread_info(ti);
+		memset(ti, 0, THREAD_SIZE);
+		emerg_stack_init_thread_info(ti, i);
 		paca[i].emergency_sp = (void *)ti + THREAD_SIZE;
 
 #ifdef CONFIG_PPC_BOOK3S_64
 		/* emergency stack for NMI exception handling. */
 		ti = __va(memblock_alloc_base(THREAD_SIZE, THREAD_SIZE, limit));
-		klp_init_thread_info(ti);
+		memset(ti, 0, THREAD_SIZE);
+		emerg_stack_init_thread_info(ti, i);
 		paca[i].nmi_emergency_sp = (void *)ti + THREAD_SIZE;
 
 		/* emergency stack for machine check exception handling. */
 		ti = __va(memblock_alloc_base(THREAD_SIZE, THREAD_SIZE, limit));
-		klp_init_thread_info(ti);
+		memset(ti, 0, THREAD_SIZE);
+		emerg_stack_init_thread_info(ti, i);
 		paca[i].mc_emergency_sp = (void *)ti + THREAD_SIZE;
 #endif
 	}
@@ -661,7 +709,7 @@ void __init emergency_stack_init(void)
 
 static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size, size_t align)
 {
-	return __alloc_bootmem_node(NODE_DATA(cpu_to_node(cpu)), size, align,
+	return __alloc_bootmem_node(NODE_DATA(early_cpu_to_node(cpu)), size, align,
 				    __pa(MAX_DMA_ADDRESS));
 }
 
@@ -672,7 +720,7 @@ static void __init pcpu_fc_free(void *ptr, size_t size)
 
 static int pcpu_cpu_distance(unsigned int from, unsigned int to)
 {
-	if (cpu_to_node(from) == cpu_to_node(to))
+	if (early_cpu_to_node(from) == early_cpu_to_node(to))
 		return LOCAL_DISTANCE;
 	else
 		return REMOTE_DISTANCE;
@@ -727,21 +775,168 @@ struct ppc_pci_io ppc_pci_io;
 EXPORT_SYMBOL(ppc_pci_io);
 #endif
 
-#ifdef CONFIG_HARDLOCKUP_DETECTOR
+#ifdef CONFIG_HARDLOCKUP_DETECTOR_PERF
 u64 hw_nmi_get_sample_period(int watchdog_thresh)
 {
 	return ppc_proc_freq * watchdog_thresh;
 }
+#endif
 
 /*
- * The hardlockup detector breaks PMU event based branches and is likely
- * to get false positives in KVM guests, so disable it by default.
+ * The perf based hardlockup detector breaks PMU event based branches, so
+ * disable it by default. Book3S has a soft-nmi hardlockup detector based
+ * on the decrementer interrupt, so it does not suffer from this problem.
+ *
+ * It is likely to get false positives in VM guests, so disable it there
+ * by default too.
  */
 static int __init disable_hardlockup_detector(void)
 {
+#ifdef CONFIG_HARDLOCKUP_DETECTOR_PERF
 	hardlockup_detector_disable();
+#else
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		hardlockup_detector_disable();
+#endif
 
 	return 0;
 }
 early_initcall(disable_hardlockup_detector);
+
+#ifdef CONFIG_PPC_BOOK3S_64
+static enum l1d_flush_type enabled_flush_types;
+static void *l1d_flush_fallback_area;
+static bool no_rfi_flush;
+bool rfi_flush;
+
+static int __init handle_no_rfi_flush(char *p)
+{
+	pr_info("rfi-flush: disabled on command line.");
+	no_rfi_flush = true;
+	return 0;
+}
+early_param("no_rfi_flush", handle_no_rfi_flush);
+
+/*
+ * The RFI flush is not KPTI, but because users will see doco that says to use
+ * nopti we hijack that option here to also disable the RFI flush.
+ */
+static int __init handle_no_pti(char *p)
+{
+	pr_info("rfi-flush: disabling due to 'nopti' on command line.\n");
+	handle_no_rfi_flush(NULL);
+	return 0;
+}
+early_param("nopti", handle_no_pti);
+
+static void do_nothing(void *unused)
+{
+	/*
+	 * We don't need to do the flush explicitly, just enter+exit kernel is
+	 * sufficient, the RFI exit handlers will do the right thing.
+	 */
+}
+
+void rfi_flush_enable(bool enable)
+{
+	if (rfi_flush == enable)
+		return;
+
+	if (enable) {
+		do_rfi_flush_fixups(enabled_flush_types);
+		on_each_cpu(do_nothing, NULL, 1);
+	} else
+		do_rfi_flush_fixups(L1D_FLUSH_NONE);
+
+	rfi_flush = enable;
+}
+
+static void init_fallback_flush(void)
+{
+	u64 l1d_size, limit;
+	int cpu;
+
+	l1d_size = ppc64_caches.l1d.size;
+	limit = min(safe_stack_limit(), ppc64_rma_size);
+
+	/*
+	 * Align to L1d size, and size it at 2x L1d size, to catch possible
+	 * hardware prefetch runoff. We don't have a recipe for load patterns to
+	 * reliably avoid the prefetcher.
+	 */
+	l1d_flush_fallback_area = __va(memblock_alloc_base(l1d_size * 2, l1d_size, limit));
+	memset(l1d_flush_fallback_area, 0, l1d_size * 2);
+
+	for_each_possible_cpu(cpu) {
+		/*
+		 * The fallback flush is currently coded for 8-way
+		 * associativity. Different associativity is possible, but it
+		 * will be treated as 8-way and may not evict the lines as
+		 * effectively.
+		 *
+		 * 128 byte lines are mandatory.
+		 */
+		u64 c = l1d_size / 8;
+
+		paca[cpu].rfi_flush_fallback_area = l1d_flush_fallback_area;
+		paca[cpu].l1d_flush_congruence = c;
+		paca[cpu].l1d_flush_sets = c / 128;
+	}
+}
+
+void __init setup_rfi_flush(enum l1d_flush_type types, bool enable)
+{
+	if (types & L1D_FLUSH_FALLBACK) {
+		pr_info("rfi-flush: Using fallback displacement flush\n");
+		init_fallback_flush();
+	}
+
+	if (types & L1D_FLUSH_ORI)
+		pr_info("rfi-flush: Using ori type flush\n");
+
+	if (types & L1D_FLUSH_MTTRIG)
+		pr_info("rfi-flush: Using mttrig type flush\n");
+
+	enabled_flush_types = types;
+
+	if (!no_rfi_flush)
+		rfi_flush_enable(enable);
+}
+
+#ifdef CONFIG_DEBUG_FS
+static int rfi_flush_set(void *data, u64 val)
+{
+	if (val == 1)
+		rfi_flush_enable(true);
+	else if (val == 0)
+		rfi_flush_enable(false);
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int rfi_flush_get(void *data, u64 *val)
+{
+	*val = rfi_flush ? 1 : 0;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_rfi_flush, rfi_flush_get, rfi_flush_set, "%llu\n");
+
+static __init int rfi_flush_debugfs_init(void)
+{
+	debugfs_create_file("rfi_flush", 0600, powerpc_debugfs_root, NULL, &fops_rfi_flush);
+	return 0;
+}
+device_initcall(rfi_flush_debugfs_init);
 #endif
+
+ssize_t cpu_show_meltdown(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	if (rfi_flush)
+		return sprintf(buf, "Mitigation: RFI Flush\n");
+
+	return sprintf(buf, "Vulnerable\n");
+}
+#endif /* CONFIG_PPC_BOOK3S_64 */

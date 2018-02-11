@@ -432,7 +432,7 @@ static void powermate_disconnect(struct usb_interface *intf)
 	}
 }
 
-static struct usb_device_id powermate_devices [] = {
+static const struct usb_device_id powermate_devices[] = {
 	{ USB_DEVICE(POWERMATE_VENDOR, POWERMATE_PRODUCT_NEW) },
 	{ USB_DEVICE(POWERMATE_VENDOR, POWERMATE_PRODUCT_OLD) },
 	{ USB_DEVICE(CONTOUR_VENDOR, CONTOUR_JOG) },

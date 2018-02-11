@@ -106,9 +106,9 @@ extern u32 GlobalDebugLevel;
 					 (((__i + 1) % 4) == 0) ?	\
 					 "  " : " ");	\
 				if (((__i + 1) % 16) == 0)		\
-					printk("\n");			\
+					pr_cont("\n");			\
 			}						\
-			printk("\n");					\
+			pr_cont("\n");					\
 		}							\
 	} while (0)
 

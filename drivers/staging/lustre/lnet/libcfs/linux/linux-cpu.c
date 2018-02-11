@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -31,7 +32,7 @@
 
 #include <linux/cpu.h>
 #include <linux/sched.h>
-#include "../../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
 #ifdef CONFIG_SMP
 

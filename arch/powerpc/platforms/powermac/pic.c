@@ -364,8 +364,8 @@ static void __init pmac_pic_probe_oldstyle(void)
 			(addr + 0x10);
 	of_node_put(master);
 
-	printk(KERN_INFO "irq: Found primary Apple PIC %s for %d irqs\n",
-	       master->full_name, max_real_irqs);
+	printk(KERN_INFO "irq: Found primary Apple PIC %pOF for %d irqs\n",
+	       master, max_real_irqs);
 
 	/* Map interrupts of cascaded controller */
 	if (slave && !of_address_to_resource(slave, 0, &r)) {
@@ -378,8 +378,8 @@ static void __init pmac_pic_probe_oldstyle(void)
 				(addr + 0x10);
 		pmac_irq_cascade = irq_of_parse_and_map(slave, 0);
 
-		printk(KERN_INFO "irq: Found slave Apple PIC %s for %d irqs"
-		       " cascade: %d\n", slave->full_name,
+		printk(KERN_INFO "irq: Found slave Apple PIC %pOF for %d irqs"
+		       " cascade: %d\n", slave,
 		       max_irqs - max_real_irqs, pmac_irq_cascade);
 	}
 	of_node_put(slave);

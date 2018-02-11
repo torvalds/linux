@@ -352,7 +352,7 @@ static int vb2_dc_dmabuf_ops_mmap(struct dma_buf *dbuf,
 	return vb2_dc_mmap(dbuf->priv, vma);
 }
 
-static struct dma_buf_ops vb2_dc_dmabuf_ops = {
+static const struct dma_buf_ops vb2_dc_dmabuf_ops = {
 	.attach = vb2_dc_dmabuf_ops_attach,
 	.detach = vb2_dc_dmabuf_ops_detach,
 	.map_dma_buf = vb2_dc_dmabuf_ops_map,
@@ -479,7 +479,7 @@ static void *vb2_dc_get_userptr(struct device *dev, unsigned long vaddr,
 {
 	struct vb2_dc_buf *buf;
 	struct frame_vector *vec;
-	unsigned long offset;
+	unsigned int offset;
 	int n_pages, i;
 	int ret = 0;
 	struct sg_table *sgt;
@@ -507,8 +507,9 @@ static void *vb2_dc_get_userptr(struct device *dev, unsigned long vaddr,
 	buf->dev = dev;
 	buf->dma_dir = dma_dir;
 
-	offset = vaddr & ~PAGE_MASK;
-	vec = vb2_create_framevec(vaddr, size, dma_dir == DMA_FROM_DEVICE);
+	offset = lower_32_bits(offset_in_page(vaddr));
+	vec = vb2_create_framevec(vaddr, size, dma_dir == DMA_FROM_DEVICE ||
+					       dma_dir == DMA_BIDIRECTIONAL);
 	if (IS_ERR(vec)) {
 		ret = PTR_ERR(vec);
 		goto fail_buf;

@@ -445,7 +445,7 @@ static unsigned int artpec6_pconf_drive_field_to_mA(int field)
 	}
 }
 
-static struct pinctrl_ops artpec6_pctrl_ops = {
+static const struct pinctrl_ops artpec6_pctrl_ops = {
 	.get_group_pins		= artpec6_get_group_pins,
 	.get_groups_count	= artpec6_get_groups_count,
 	.get_group_name		= artpec6_get_group_name,

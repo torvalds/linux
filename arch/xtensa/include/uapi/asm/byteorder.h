@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _XTENSA_BYTEORDER_H
 #define _XTENSA_BYTEORDER_H
 

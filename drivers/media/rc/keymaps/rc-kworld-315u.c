@@ -60,10 +60,10 @@ static struct rc_map_table kworld_315u[] = {
 
 static struct rc_map_list kworld_315u_map = {
 	.map = {
-		.scan    = kworld_315u,
-		.size    = ARRAY_SIZE(kworld_315u),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_KWORLD_315U,
+		.scan     = kworld_315u,
+		.size     = ARRAY_SIZE(kworld_315u),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_KWORLD_315U,
 	}
 };
 

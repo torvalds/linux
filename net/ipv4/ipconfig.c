@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Automatic Configuration of IP -- use DHCP, BOOTP, RARP, or
  *  user-supplied information to configure own IP address and routes.
@@ -813,8 +814,7 @@ static void __init ic_bootp_send_if(struct ic_device *d, unsigned long jiffies_d
 	if (!skb)
 		return;
 	skb_reserve(skb, hlen);
-	b = (struct bootp_pkt *) skb_put(skb, sizeof(struct bootp_pkt));
-	memset(b, 0, sizeof(struct bootp_pkt));
+	b = skb_put_zero(skb, sizeof(struct bootp_pkt));
 
 	/* Construct IP header */
 	skb_reset_network_header(skb);

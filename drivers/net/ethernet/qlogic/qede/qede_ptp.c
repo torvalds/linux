@@ -244,6 +244,7 @@ static int qede_ptp_cfg_filters(struct qede_dev *edev)
 		break;
 	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_SOME:
+	case HWTSTAMP_FILTER_NTP_ALL:
 		ptp->rx_filter = HWTSTAMP_FILTER_NONE;
 		rx_filter = QED_PTP_FILTER_ALL;
 		break;

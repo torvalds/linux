@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Driver for AMBA serial ports
  *
@@ -6,20 +7,6 @@
  *  Copyright 1999 ARM Limited
  *  Copyright (C) 2000 Deep Blue Solutions Ltd.
  *  Copyright (C) 2010 ST-Ericsson SA
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * This is a generic driver for ARM AMBA-type serial ports.  They
  * have a lot of 16550-like features, but are not register compatible.
@@ -128,7 +115,7 @@ static struct vendor_data vendor_arm = {
 	.get_fifosize		= get_fifosize_arm,
 };
 
-static struct vendor_data vendor_sbsa = {
+static const struct vendor_data vendor_sbsa = {
 	.reg_offset		= pl011_std_offsets,
 	.fr_busy		= UART01x_FR_BUSY,
 	.fr_dsr			= UART01x_FR_DSR,
@@ -142,16 +129,8 @@ static struct vendor_data vendor_sbsa = {
 	.fixed_options		= true,
 };
 
-/*
- * Erratum 44 for QDF2432v1 and QDF2400v1 SoCs describes the BUSY bit as
- * occasionally getting stuck as 1. To avoid the potential for a hang, check
- * TXFE == 0 instead of BUSY == 1. This may not be suitable for all UART
- * implementations, so only do so if an affected platform is detected in
- * parse_spcr().
- */
-static bool qdf2400_e44_present = false;
-
-static struct vendor_data vendor_qdt_qdf2400_e44 = {
+#ifdef CONFIG_ACPI_SPCR_TABLE
+static const struct vendor_data vendor_qdt_qdf2400_e44 = {
 	.reg_offset		= pl011_std_offsets,
 	.fr_busy		= UART011_FR_TXFE,
 	.fr_dsr			= UART01x_FR_DSR,
@@ -165,6 +144,7 @@ static struct vendor_data vendor_qdt_qdf2400_e44 = {
 	.always_enabled		= true,
 	.fixed_options		= true,
 };
+#endif
 
 static u16 pl011_st_offsets[REG_ARRAY_SIZE] = {
 	[REG_DR] = UART01x_DR,
@@ -288,7 +268,6 @@ struct uart_amba_port {
 	unsigned int		old_status;
 	unsigned int		fifosize;	/* vendor-specific */
 	unsigned int		old_cr;		/* state during shutdown */
-	bool			autorts;
 	unsigned int		fixed_baud;	/* vendor-set fixed baud rate */
 	char			type[12];
 #ifdef CONFIG_DMA_ENGINE
@@ -1085,9 +1064,9 @@ static inline void pl011_dma_rx_stop(struct uart_amba_port *uap)
  * Every polling, It checks the residue in the dma buffer and transfer
  * data to the tty. Also, last_residue is updated for the next polling.
  */
-static void pl011_dma_rx_poll(unsigned long args)
+static void pl011_dma_rx_poll(struct timer_list *t)
 {
-	struct uart_amba_port *uap = (struct uart_amba_port *)args;
+	struct uart_amba_port *uap = from_timer(uap, t, dmarx.timer);
 	struct tty_port *port = &uap->port.state->port;
 	struct pl011_dmarx_data *dmarx = &uap->dmarx;
 	struct dma_chan *rxchan = uap->dmarx.chan;
@@ -1199,9 +1178,7 @@ skip_rx:
 			dev_dbg(uap->port.dev, "could not trigger initial "
 				"RX DMA job, fall back to interrupt mode\n");
 		if (uap->dmarx.poll_rate) {
-			init_timer(&(uap->dmarx.timer));
-			uap->dmarx.timer.function = pl011_dma_rx_poll;
-			uap->dmarx.timer.data = (unsigned long)uap;
+			timer_setup(&uap->dmarx.timer, pl011_dma_rx_poll, 0);
 			mod_timer(&uap->dmarx.timer,
 				jiffies +
 				msecs_to_jiffies(uap->dmarx.poll_rate));
@@ -1595,7 +1572,7 @@ static void pl011_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	TIOCMBIT(TIOCM_OUT2, UART011_CR_OUT2);
 	TIOCMBIT(TIOCM_LOOP, UART011_CR_LBE);
 
-	if (uap->autorts) {
+	if (port->status & UPSTAT_AUTORTS) {
 		/* We need to disable auto-RTS if we want to turn RTS off */
 		TIOCMBIT(TIOCM_RTS, UART011_CR_RTSEN);
 	}
@@ -1849,7 +1826,7 @@ static void pl011_disable_uart(struct uart_amba_port *uap)
 {
 	unsigned int cr;
 
-	uap->autorts = false;
+	uap->port.status &= ~(UPSTAT_AUTOCTS | UPSTAT_AUTORTS);
 	spin_lock_irq(&uap->port.lock);
 	cr = pl011_read(uap, REG_CR);
 	uap->old_cr = cr;
@@ -2035,10 +2012,10 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 			old_cr |= UART011_CR_RTSEN;
 
 		old_cr |= UART011_CR_CTSEN;
-		uap->autorts = true;
+		port->status |= UPSTAT_AUTOCTS | UPSTAT_AUTORTS;
 	} else {
 		old_cr &= ~(UART011_CR_CTSEN | UART011_CR_RTSEN);
-		uap->autorts = false;
+		port->status &= ~(UPSTAT_AUTOCTS | UPSTAT_AUTORTS);
 	}
 
 	if (uap->vendor->oversampling) {
@@ -2375,12 +2352,14 @@ static int __init pl011_console_match(struct console *co, char *name, int idx,
 	resource_size_t addr;
 	int i;
 
-	if (strcmp(name, "qdf2400_e44") == 0) {
-		pr_info_once("UART: Working around QDF2400 SoC erratum 44");
-		qdf2400_e44_present = true;
-	} else if (strcmp(name, "pl011") != 0) {
+	/*
+	 * Systems affected by the Qualcomm Technologies QDF2400 E44 erratum
+	 * have a distinct console name, so make sure we check for that.
+	 * The actual implementation of the erratum occurs in the probe
+	 * function.
+	 */
+	if ((strcmp(name, "qdf2400_e44") != 0) && (strcmp(name, "pl011") != 0))
 		return -ENODEV;
-	}
 
 	if (uart_parse_earlycon(options, &iotype, &addr, &options))
 		return -ENODEV;
@@ -2734,11 +2713,17 @@ static int sbsa_uart_probe(struct platform_device *pdev)
 	}
 	uap->port.irq	= ret;
 
-	uap->reg_offset	= vendor_sbsa.reg_offset;
-	uap->vendor	= qdf2400_e44_present ?
-					&vendor_qdt_qdf2400_e44 : &vendor_sbsa;
+#ifdef CONFIG_ACPI_SPCR_TABLE
+	if (qdf2400_e44_present) {
+		dev_info(&pdev->dev, "working around QDF2400 SoC erratum 44\n");
+		uap->vendor = &vendor_qdt_qdf2400_e44;
+	} else
+#endif
+		uap->vendor = &vendor_sbsa;
+
+	uap->reg_offset	= uap->vendor->reg_offset;
 	uap->fifosize	= 32;
-	uap->port.iotype = vendor_sbsa.access_32b ? UPIO_MEM32 : UPIO_MEM;
+	uap->port.iotype = uap->vendor->access_32b ? UPIO_MEM32 : UPIO_MEM;
 	uap->port.ops	= &sbsa_uart_pops;
 	uap->fixed_baud = baudrate;
 
@@ -2786,7 +2771,7 @@ static struct platform_driver arm_sbsa_uart_platform_driver = {
 	},
 };
 
-static struct amba_id pl011_ids[] = {
+static const struct amba_id pl011_ids[] = {
 	{
 		.id	= 0x00041011,
 		.mask	= 0x000fffff,

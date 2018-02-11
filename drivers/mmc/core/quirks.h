@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  This file contains work-arounds for many known SD/MMC
  *  and SDIO hardware bugs.
@@ -49,6 +50,14 @@ static const struct mmc_fixup mmc_blk_fixups[] = {
 	MMC_FIXUP("MMC16G", CID_MANFID_TOSHIBA, CID_OEMID_ANY, add_quirk_mmc,
 		  MMC_QUIRK_BLK_NO_CMD23),
 	MMC_FIXUP("MMC32G", CID_MANFID_TOSHIBA, CID_OEMID_ANY, add_quirk_mmc,
+		  MMC_QUIRK_BLK_NO_CMD23),
+
+	/*
+	 * Some SD cards lockup while using CMD23 multiblock transfers.
+	 */
+	MMC_FIXUP("AF SD", CID_MANFID_ATP, CID_OEMID_ANY, add_quirk_sd,
+		  MMC_QUIRK_BLK_NO_CMD23),
+	MMC_FIXUP("APUSD", CID_MANFID_APACER, 0x5048, add_quirk_sd,
 		  MMC_QUIRK_BLK_NO_CMD23),
 
 	/*

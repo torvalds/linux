@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * cgroup_event_listener.c - Simple listener of cgroup events
  *

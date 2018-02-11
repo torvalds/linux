@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Shared Memory Communications over RDMA (SMC-R) and RoCE
  *
@@ -37,6 +38,14 @@ struct smc_wr_buf {
 	u8	raw[SMC_WR_BUF_SIZE];
 };
 
+#define SMC_WR_REG_MR_WAIT_TIME	(5 * HZ)/* wait time for ib_wr_reg_mr result */
+
+enum smc_wr_reg_state {
+	POSTED,		/* ib_wr_reg_mr request posted */
+	CONFIRMED,	/* ib_wr_reg_mr response: successful */
+	FAILED		/* ib_wr_reg_mr response: failure */
+};
+
 struct smc_link {
 	struct smc_ib_device	*smcibdev;	/* ib-device */
 	u8			ibport;		/* port - values 1 | 2 */
@@ -65,6 +74,10 @@ struct smc_link {
 	u64			wr_rx_id;	/* seq # of last recv WR */
 	u32			wr_rx_cnt;	/* number of WR recv buffers */
 
+	struct ib_reg_wr	wr_reg;		/* WR register memory region */
+	wait_queue_head_t	wr_reg_wait;	/* wait for wr_reg result */
+	enum smc_wr_reg_state	wr_reg_state;	/* state of wr_reg request */
+
 	union ib_gid		gid;		/* gid matching used vlan id */
 	u32			peer_qpn;	/* QP number of peer */
 	enum ib_mtu		path_mtu;	/* used mtu */
@@ -90,14 +103,15 @@ struct smc_link {
 /* tx/rx buffer list element for sndbufs list and rmbs list of a lgr */
 struct smc_buf_desc {
 	struct list_head	list;
-	u64			dma_addr[SMC_LINKS_PER_LGR_MAX];
-						/* mapped address of buffer */
 	void			*cpu_addr;	/* virtual address of buffer */
-	u32			rkey[SMC_LINKS_PER_LGR_MAX];
-						/* for rmb only:
-						 * rkey provided to peer
+	struct sg_table		sgt[SMC_LINKS_PER_LGR_MAX];/* virtual buffer */
+	struct ib_mr		*mr_rx[SMC_LINKS_PER_LGR_MAX];
+						/* for rmb only: memory region
+						 * incl. rkey provided to peer
 						 */
+	u32			order;		/* allocation order */
 	u32			used;		/* currently used / unused */
+	bool			reused;		/* new created / reused */
 };
 
 struct smc_rtoken {				/* address/key of remote RMB */
@@ -173,9 +187,11 @@ struct smc_clc_msg_accept_confirm;
 
 void smc_lgr_free(struct smc_link_group *lgr);
 void smc_lgr_terminate(struct smc_link_group *lgr);
-int smc_sndbuf_create(struct smc_sock *smc);
-int smc_rmb_create(struct smc_sock *smc);
+int smc_buf_create(struct smc_sock *smc);
 int smc_rmb_rtoken_handling(struct smc_connection *conn,
 			    struct smc_clc_msg_accept_confirm *clc);
-
+void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn);
+void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn);
+void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn);
+void smc_rmb_sync_sg_for_device(struct smc_connection *conn);
 #endif

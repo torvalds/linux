@@ -37,6 +37,7 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
 
 	memset(&srx, 0, sizeof(srx));
 	srx.transport_type = local->srx.transport_type;
+	srx.transport_len = local->srx.transport_len;
 	srx.transport.family = local->srx.transport.family;
 
 	/* Can we see an ICMP4 packet on an ICMP6 listening socket?  and vice
@@ -45,7 +46,6 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
 	switch (srx.transport.family) {
 	case AF_INET:
 		srx.transport.sin.sin_port = serr->port;
-		srx.transport_len = sizeof(struct sockaddr_in);
 		switch (serr->ee.ee_origin) {
 		case SO_EE_ORIGIN_ICMP:
 			_net("Rx ICMP");
@@ -69,7 +69,6 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
 #ifdef CONFIG_AF_RXRPC_IPV6
 	case AF_INET6:
 		srx.transport.sin6.sin6_port = serr->port;
-		srx.transport_len = sizeof(struct sockaddr_in6);
 		switch (serr->ee.ee_origin) {
 		case SO_EE_ORIGIN_ICMP6:
 			_net("Rx ICMP6");
@@ -79,6 +78,9 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
 			break;
 		case SO_EE_ORIGIN_ICMP:
 			_net("Rx ICMP on v6 sock");
+			srx.transport.sin6.sin6_addr.s6_addr32[0] = 0;
+			srx.transport.sin6.sin6_addr.s6_addr32[1] = 0;
+			srx.transport.sin6.sin6_addr.s6_addr32[2] = htonl(0xffff);
 			memcpy(srx.transport.sin6.sin6_addr.s6_addr + 12,
 			       skb_network_header(skb) + serr->addr_offset,
 			       sizeof(struct in_addr));

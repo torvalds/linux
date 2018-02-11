@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_UDP_TUNNEL_H
 #define __NET_UDP_TUNNEL_H
 
@@ -115,6 +116,8 @@ struct udp_tunnel_info {
 /* Notify network devices of offloadable types */
 void udp_tunnel_push_rx_port(struct net_device *dev, struct socket *sock,
 			     unsigned short type);
+void udp_tunnel_drop_rx_port(struct net_device *dev, struct socket *sock,
+			     unsigned short type);
 void udp_tunnel_notify_add_rx_port(struct socket *sock, unsigned short type);
 void udp_tunnel_notify_del_rx_port(struct socket *sock, unsigned short type);
 
@@ -122,6 +125,12 @@ static inline void udp_tunnel_get_rx_info(struct net_device *dev)
 {
 	ASSERT_RTNL();
 	call_netdevice_notifiers(NETDEV_UDP_TUNNEL_PUSH_INFO, dev);
+}
+
+static inline void udp_tunnel_drop_rx_info(struct net_device *dev)
+{
+	ASSERT_RTNL();
+	call_netdevice_notifiers(NETDEV_UDP_TUNNEL_DROP_INFO, dev);
 }
 
 /* Transmit the skb using UDP encapsulation. */

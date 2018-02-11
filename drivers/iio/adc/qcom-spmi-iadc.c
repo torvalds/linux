@@ -356,7 +356,6 @@ static int iadc_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info iadc_info = {
 	.read_raw = iadc_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static irqreturn_t iadc_isr(int irq, void *dev_id)

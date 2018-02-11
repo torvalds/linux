@@ -280,6 +280,7 @@ htable_bits(u32 hashsize)
 struct htype {
 	struct htable __rcu *table; /* the hash table */
 	struct timer_list gc;	/* garbage collection when timeout enabled */
+	struct ip_set *set;	/* attached to this ip_set */
 	u32 maxelem;		/* max elements in the hash */
 	u32 initval;		/* random jhash init value */
 #ifdef IP_SET_HASH_WITH_MARKMASK
@@ -429,11 +430,11 @@ mtype_destroy(struct ip_set *set)
 }
 
 static void
-mtype_gc_init(struct ip_set *set, void (*gc)(unsigned long ul_set))
+mtype_gc_init(struct ip_set *set, void (*gc)(struct timer_list *t))
 {
 	struct htype *h = set->data;
 
-	setup_timer(&h->gc, gc, (unsigned long)set);
+	timer_setup(&h->gc, gc, 0);
 	mod_timer(&h->gc, jiffies + IPSET_GC_PERIOD(set->timeout) * HZ);
 	pr_debug("gc initialized, run in every %u\n",
 		 IPSET_GC_PERIOD(set->timeout));
@@ -526,10 +527,10 @@ mtype_expire(struct ip_set *set, struct htype *h)
 }
 
 static void
-mtype_gc(unsigned long ul_set)
+mtype_gc(struct timer_list *t)
 {
-	struct ip_set *set = (struct ip_set *)ul_set;
-	struct htype *h = set->data;
+	struct htype *h = from_timer(h, t, gc);
+	struct ip_set *set = h->set;
 
 	pr_debug("called\n");
 	spin_lock_bh(&set->lock);
@@ -1041,11 +1042,23 @@ out:
 static int
 mtype_head(struct ip_set *set, struct sk_buff *skb)
 {
-	const struct htype *h = set->data;
+	struct htype *h = set->data;
 	const struct htable *t;
 	struct nlattr *nested;
 	size_t memsize;
 	u8 htable_bits;
+
+	/* If any members have expired, set->elements will be wrong
+	 * mytype_expire function will update it with the right count.
+	 * we do not hold set->lock here, so grab it first.
+	 * set->elements can still be incorrect in the case of a huge set,
+	 * because elements might time out during the listing.
+	 */
+	if (SET_WITH_TIMEOUT(set)) {
+		spin_lock_bh(&set->lock);
+		mtype_expire(set, h);
+		spin_unlock_bh(&set->lock);
+	}
 
 	rcu_read_lock_bh();
 	t = rcu_dereference_bh_nfnl(h->table);
@@ -1302,6 +1315,7 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	t->htable_bits = hbits;
 	RCU_INIT_POINTER(h->table, t);
 
+	h->set = set;
 	set->data = h;
 #ifndef IP_SET_PROTO_UNDEF
 	if (set->family == NFPROTO_IPV4) {

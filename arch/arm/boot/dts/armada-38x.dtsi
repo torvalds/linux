@@ -143,15 +143,22 @@
 				reg = <0x8000 0x1000>;
 				cache-unified;
 				cache-level = <2>;
-				arm,double-linefill-incr = <1>;
+				arm,double-linefill-incr = <0>;
 				arm,double-linefill-wrap = <0>;
-				arm,double-linefill = <1>;
+				arm,double-linefill = <0>;
 				prefetch-data = <1>;
 			};
 
 			scu@c000 {
 				compatible = "arm,cortex-a9-scu";
 				reg = <0xc000 0x58>;
+			};
+
+			timer@c200 {
+				compatible = "arm,cortex-a9-global-timer";
+				reg = <0xc200 0x20>;
+				interrupts = <GIC_PPI 11 (IRQ_TYPE_EDGE_RISING | GIC_CPU_MASK_SIMPLE(2))>;
+				clocks = <&coreclk 2>;
 			};
 
 			timer@c600 {
@@ -171,7 +178,7 @@
 			};
 
 			i2c0: i2c@11000 {
-				compatible = "marvell,mv64xxx-i2c";
+				compatible = "marvell,mv78230-a0-i2c", "marvell,mv64xxx-i2c";
 				reg = <0x11000 0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -182,7 +189,7 @@
 			};
 
 			i2c1: i2c@11100 {
-				compatible = "marvell,mv64xxx-i2c";
+				compatible = "marvell,mv78230-a0-i2c", "marvell,mv64xxx-i2c";
 				reg = <0x11100 0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -312,31 +319,39 @@
 			};
 
 			gpio0: gpio@18100 {
-				compatible = "marvell,orion-gpio";
-				reg = <0x18100 0x40>;
+				compatible = "marvell,armada-370-gpio",
+					     "marvell,orion-gpio";
+				reg = <0x18100 0x40>, <0x181c0 0x08>;
+				reg-names = "gpio", "pwm";
 				ngpios = <32>;
 				gpio-controller;
 				#gpio-cells = <2>;
+				#pwm-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&coreclk 0>;
 			};
 
 			gpio1: gpio@18140 {
-				compatible = "marvell,orion-gpio";
-				reg = <0x18140 0x40>;
+				compatible = "marvell,armada-370-gpio",
+					     "marvell,orion-gpio";
+				reg = <0x18140 0x40>, <0x181c8 0x08>;
+				reg-names = "gpio", "pwm";
 				ngpios = <28>;
 				gpio-controller;
 				#gpio-cells = <2>;
+				#pwm-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&coreclk 0>;
 			};
 
 			systemc: system-controller@18200 {

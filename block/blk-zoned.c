@@ -116,7 +116,7 @@ int blkdev_report_zones(struct block_device *bdev,
 	if (!bio)
 		return -ENOMEM;
 
-	bio->bi_bdev = bdev;
+	bio_set_dev(bio, bdev);
 	bio->bi_iter.bi_sector = blk_zone_start(q, sector);
 	bio_set_op_attrs(bio, REQ_OP_ZONE_REPORT, 0);
 
@@ -234,7 +234,7 @@ int blkdev_reset_zones(struct block_device *bdev,
 
 		bio = bio_alloc(gfp_mask, 0);
 		bio->bi_iter.bi_sector = sector;
-		bio->bi_bdev = bdev;
+		bio_set_dev(bio, bdev);
 		bio_set_op_attrs(bio, REQ_OP_ZONE_RESET, 0);
 
 		ret = submit_bio_wait(bio);

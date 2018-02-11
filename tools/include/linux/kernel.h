@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __TOOLS_LINUX_KERNEL_H
 #define __TOOLS_LINUX_KERNEL_H
 
@@ -5,6 +6,8 @@
 #include <stddef.h>
 #include <assert.h>
 #include <linux/compiler.h>
+#include <endian.h>
+#include <byteswap.h>
 
 #ifndef UINT_MAX
 #define UINT_MAX	(~0U)
@@ -32,6 +35,7 @@
 	(type *)((char *)__mptr - offsetof(type, member)); })
 #endif
 
+#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 #define BUILD_BUG_ON_ZERO(e) (sizeof(struct { int:-!!(e); }))
 
 #ifndef max
@@ -67,12 +71,33 @@
 #endif
 #endif
 
-/*
- * Both need more care to handle endianness
- * (Don't use bitmap_copy_le() for now)
- */
-#define cpu_to_le64(x)	(x)
-#define cpu_to_le32(x)	(x)
+#if __BYTE_ORDER == __BIG_ENDIAN
+#define cpu_to_le16 bswap_16
+#define cpu_to_le32 bswap_32
+#define cpu_to_le64 bswap_64
+#define le16_to_cpu bswap_16
+#define le32_to_cpu bswap_32
+#define le64_to_cpu bswap_64
+#define cpu_to_be16
+#define cpu_to_be32
+#define cpu_to_be64
+#define be16_to_cpu
+#define be32_to_cpu
+#define be64_to_cpu
+#else
+#define cpu_to_le16
+#define cpu_to_le32
+#define cpu_to_le64
+#define le16_to_cpu
+#define le32_to_cpu
+#define le64_to_cpu
+#define cpu_to_be16 bswap_16
+#define cpu_to_be32 bswap_32
+#define cpu_to_be64 bswap_64
+#define be16_to_cpu bswap_16
+#define be32_to_cpu bswap_32
+#define be64_to_cpu bswap_64
+#endif
 
 int vscnprintf(char *buf, size_t size, const char *fmt, va_list args);
 int scnprintf(char * buf, size_t size, const char * fmt, ...);
@@ -88,5 +113,8 @@ int scnprintf(char * buf, size_t size, const char * fmt, ...);
 #define __round_mask(x, y) ((__typeof__(x))((y)-1))
 #define round_up(x, y) ((((x)-1) | __round_mask(x, y))+1)
 #define round_down(x, y) ((x) & ~__round_mask(x, y))
+
+#define current_gfp_context(k) 0
+#define synchronize_sched()
 
 #endif

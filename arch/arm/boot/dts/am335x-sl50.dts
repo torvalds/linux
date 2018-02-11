@@ -220,7 +220,7 @@
 
 	mmc1_pins: pinmux_mmc1_pins {
 		pinctrl-single,pins = <
-			AM33XX_IOPAD(0x960, PIN_INPUT | MUX_MODE7)		/* spi0_cs1.gpio0_6 */
+			AM33XX_IOPAD(0x96c, PIN_INPUT | MUX_MODE7)		/* uart0_rtsn.gpio1_9 */
 		>;
 	};
 
@@ -280,10 +280,6 @@
 			AM33XX_IOPAD(0x834, PIN_INPUT_PULLUP | MUX_MODE7)	/* nKbdReset - gpmc_ad13.gpio1_13 */
 			AM33XX_IOPAD(0x838, PIN_INPUT_PULLUP | MUX_MODE7)	/* nDispReset - gpmc_ad14.gpio1_14 */
 			AM33XX_IOPAD(0x844, PIN_INPUT_PULLUP | MUX_MODE7)	/* USB1_enPower - gpmc_a1.gpio1_17 */
-			/* AVR Programming - SPI Bus (bit bang) - Screen and Keyboard */
-			AM33XX_IOPAD(0x954, PIN_INPUT_PULLUP | MUX_MODE7)	/* Kbd/Disp/BattMOSI spi0_d0.gpio0_3 */
-			AM33XX_IOPAD(0x958, PIN_INPUT_PULLUP | MUX_MODE7)	/* Kbd/Disp/BattMISO spi0_d1.gpio0_4 */
-			AM33XX_IOPAD(0x950, PIN_INPUT_PULLUP | MUX_MODE7)	/* Kbd/Disp/BattSCLK spi0_clk.gpio0_2 */
 			/* PDI Bus - Battery system */
 			AM33XX_IOPAD(0x840, PIN_INPUT_PULLUP | MUX_MODE7)	/* nBattReset  gpmc_a0.gpio1_16 */
 			AM33XX_IOPAD(0x83c, PIN_INPUT_PULLUP | MUX_MODE7)	/* BattPDIData gpmc_ad15.gpio1_15 */
@@ -309,7 +305,7 @@
 	};
 
 	eeprom: eeprom@50 {
-		compatible = "at,24c256";
+		compatible = "atmel,24c256";
 		reg = <0x50>;
 	};
 
@@ -384,7 +380,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
 	bus-width = <4>;
-	cd-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&vmmcsd_fixed>;
 };
 

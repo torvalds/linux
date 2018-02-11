@@ -260,7 +260,7 @@ static bool cx81801_cmd_pending;
 static bool ams_delta_muted;
 static DEFINE_SPINLOCK(ams_delta_lock);
 
-static void cx81801_timeout(unsigned long data)
+static void cx81801_timeout(struct timer_list *unused)
 {
 	int muted;
 
@@ -349,7 +349,7 @@ static void cx81801_receive(struct tty_struct *tty,
 		/* First modem response, complete setup procedure */
 
 		/* Initialize timer used for config pulse generation */
-		setup_timer(&cx81801_timer, cx81801_timeout, 0);
+		timer_setup(&cx81801_timer, cx81801_timeout, 0);
 
 		v253_ops.receive_buf(tty, cp, fp, count);
 
@@ -513,15 +513,6 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static int ams_delta_card_remove(struct snd_soc_card *card)
-{
-	snd_soc_jack_free_gpios(&ams_delta_hook_switch,
-			ARRAY_SIZE(ams_delta_hook_switch_gpios),
-			ams_delta_hook_switch_gpios);
-
-	return 0;
-}
-
 /* DAI glue - connects codec <--> CPU */
 static struct snd_soc_dai_link ams_delta_dai_link = {
 	.name = "CX20442",
@@ -540,7 +531,6 @@ static struct snd_soc_dai_link ams_delta_dai_link = {
 static struct snd_soc_card ams_delta_audio_card = {
 	.name = "AMS_DELTA",
 	.owner = THIS_MODULE,
-	.remove = ams_delta_card_remove,
 	.dai_link = &ams_delta_dai_link,
 	.num_links = 1,
 

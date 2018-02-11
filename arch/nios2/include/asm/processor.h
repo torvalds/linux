@@ -75,9 +75,6 @@ static inline void release_thread(struct task_struct *dead_task)
 {
 }
 
-/* Return saved PC of a blocked thread. */
-#define thread_saved_pc(tsk)	((tsk)->thread.kregs->ea)
-
 extern unsigned long get_wchan(struct task_struct *p);
 
 #define task_pt_regs(p) \

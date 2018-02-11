@@ -38,11 +38,11 @@ nf_nat_redirect_ipv4(struct sk_buff *skb,
 	__be32 newdst;
 	struct nf_nat_range newrange;
 
-	NF_CT_ASSERT(hooknum == NF_INET_PRE_ROUTING ||
-		     hooknum == NF_INET_LOCAL_OUT);
+	WARN_ON(hooknum != NF_INET_PRE_ROUTING &&
+		hooknum != NF_INET_LOCAL_OUT);
 
 	ct = nf_ct_get(skb, &ctinfo);
-	NF_CT_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED));
+	WARN_ON(!(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED)));
 
 	/* Local packets: make them go to loopback */
 	if (hooknum == NF_INET_LOCAL_OUT) {

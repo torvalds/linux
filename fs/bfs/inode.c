@@ -419,7 +419,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 		if (i_sblock > info->si_blocks ||
 			i_eblock > info->si_blocks ||
 			i_sblock > i_eblock ||
-			i_eoff > s_size ||
+			(i_eoff != le32_to_cpu(-1) && i_eoff > s_size) ||
 			i_sblock * BFS_BSIZE > i_eoff) {
 
 			printf("Inode 0x%08x corrupted\n", i);

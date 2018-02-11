@@ -1,6 +1,6 @@
 /*
  *    driver for Microsemi PQI-based storage controllers
- *    Copyright (c) 2016 Microsemi Corporation
+ *    Copyright (c) 2016-2017 Microsemi Corporation
  *    Copyright (c) 2016 PMC-Sierra, Inc.
  *
  *    This program is free software; you can redistribute it and/or modify
@@ -15,6 +15,8 @@
  *    Questions/Comments/Bugfixes to esc.storagedev@microsemi.com
  *
  */
+
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 #if !defined(_SMARTPQI_H)
 #define _SMARTPQI_H
@@ -61,7 +63,7 @@ struct pqi_device_registers {
 /*
  * controller registers
  *
- * These are defined by the PMC implementation.
+ * These are defined by the Microsemi implementation.
  *
  * Some registers (those named sis_*) are only used when in
  * legacy SIS mode before we transition the controller into
@@ -100,6 +102,12 @@ struct pqi_ctrl_registers {
 enum pqi_io_path {
 	RAID_PATH = 0,
 	AIO_PATH = 1
+};
+
+enum pqi_irq_mode {
+	IRQ_MODE_NONE,
+	IRQ_MODE_INTX,
+	IRQ_MODE_MSIX
 };
 
 struct pqi_sg_descriptor {
@@ -484,7 +492,6 @@ struct pqi_raid_error_info {
 #define PQI_EVENT_TYPE_LOGICAL_DEVICE		0x5
 #define PQI_EVENT_TYPE_AIO_STATE_CHANGE		0xfd
 #define PQI_EVENT_TYPE_AIO_CONFIG_CHANGE	0xfe
-#define PQI_EVENT_TYPE_HEARTBEAT		0xff
 
 #pragma pack()
 
@@ -629,17 +636,92 @@ struct pqi_encryption_info {
 	u32	encrypt_tweak_upper;
 };
 
-#define PQI_MAX_OUTSTANDING_REQUESTS	((u32)~0)
-#define PQI_MAX_TRANSFER_SIZE		(4 * 1024U * 1024U)
+#pragma pack(1)
+
+#define PQI_CONFIG_TABLE_SIGNATURE	"CFGTABLE"
+#define PQI_CONFIG_TABLE_MAX_LENGTH	((u16)~0)
+
+/* configuration table section IDs */
+#define PQI_CONFIG_TABLE_SECTION_GENERAL_INFO		0
+#define PQI_CONFIG_TABLE_SECTION_FIRMWARE_FEATURES	1
+#define PQI_CONFIG_TABLE_SECTION_FIRMWARE_ERRATA	2
+#define PQI_CONFIG_TABLE_SECTION_DEBUG			3
+#define PQI_CONFIG_TABLE_SECTION_HEARTBEAT		4
+
+struct pqi_config_table {
+	u8	signature[8];		/* "CFGTABLE" */
+	__le32	first_section_offset;	/* offset in bytes from the base */
+					/* address of this table to the */
+					/* first section */
+};
+
+struct pqi_config_table_section_header {
+	__le16	section_id;		/* as defined by the */
+					/* PQI_CONFIG_TABLE_SECTION_* */
+					/* manifest constants above */
+	__le16	next_section_offset;	/* offset in bytes from base */
+					/* address of the table of the */
+					/* next section or 0 if last entry */
+};
+
+struct pqi_config_table_general_info {
+	struct pqi_config_table_section_header header;
+	__le32	section_length;		/* size of this section in bytes */
+					/* including the section header */
+	__le32	max_outstanding_requests;	/* max. outstanding */
+						/* commands supported by */
+						/* the controller */
+	__le32	max_sg_size;		/* max. transfer size of a single */
+					/* command */
+	__le32	max_sg_per_request;	/* max. number of scatter-gather */
+					/* entries supported in a single */
+					/* command */
+};
+
+struct pqi_config_table_debug {
+	struct pqi_config_table_section_header header;
+	__le32	scratchpad;
+};
+
+struct pqi_config_table_heartbeat {
+	struct pqi_config_table_section_header header;
+	__le32	heartbeat_counter;
+};
+
+union pqi_reset_register {
+	struct {
+		u32	reset_type : 3;
+		u32	reserved : 2;
+		u32	reset_action : 3;
+		u32	hold_in_pd1 : 1;
+		u32	reserved2 : 23;
+	} bits;
+	u32	all_bits;
+};
+
+#define PQI_RESET_ACTION_RESET		0x1
+
+#define PQI_RESET_TYPE_NO_RESET		0x0
+#define PQI_RESET_TYPE_SOFT_RESET	0x1
+#define PQI_RESET_TYPE_FIRM_RESET	0x2
+#define PQI_RESET_TYPE_HARD_RESET	0x3
+
+#define PQI_RESET_ACTION_COMPLETED	0x2
+
+#define PQI_RESET_POLL_INTERVAL_MSECS	100
+
+#define PQI_MAX_OUTSTANDING_REQUESTS		((u32)~0)
+#define PQI_MAX_OUTSTANDING_REQUESTS_KDUMP	32
+#define PQI_MAX_TRANSFER_SIZE			(1024U * 1024U)
+#define PQI_MAX_TRANSFER_SIZE_KDUMP		(512 * 1024U)
 
 #define RAID_MAP_MAX_ENTRIES		1024
 
 #define PQI_PHYSICAL_DEVICE_BUS		0
 #define PQI_RAID_VOLUME_BUS		1
 #define PQI_HBA_BUS			2
-#define PQI_MAX_BUS			PQI_HBA_BUS
-
-#pragma pack(1)
+#define PQI_EXTERNAL_RAID_VOLUME_BUS	3
+#define PQI_MAX_BUS			PQI_EXTERNAL_RAID_VOLUME_BUS
 
 struct report_lun_header {
 	__be32	list_length;
@@ -668,7 +750,6 @@ struct report_phys_lun_extended_entry {
 };
 
 /* for device_flags field of struct report_phys_lun_extended_entry */
-#define REPORT_PHYS_LUN_DEV_FLAG_NON_DISK	0x1
 #define REPORT_PHYS_LUN_DEV_FLAG_AIO_ENABLED	0x8
 
 struct report_phys_lun_extended {
@@ -726,14 +807,15 @@ struct pqi_scsi_dev {
 	__be64	wwid;
 	u8	volume_id[16];
 	u8	is_physical_device : 1;
+	u8	is_external_raid_device : 1;
 	u8	target_lun_valid : 1;
-	u8	expose_device : 1;
-	u8	no_uld_attach : 1;
-	u8	aio_enabled : 1;	/* only valid for physical disks */
 	u8	device_gone : 1;
 	u8	new_device : 1;
 	u8	keep_device : 1;
 	u8	volume_offline : 1;
+	bool	aio_enabled;		/* only valid for physical disks */
+	bool	in_reset;
+	bool	device_offline;
 	u8	vendor[8];		/* bytes 8-15 of inquiry data */
 	u8	model[16];		/* bytes 16-31 of inquiry data */
 	u64	sas_address;
@@ -747,12 +829,11 @@ struct pqi_scsi_dev {
 	u8	bay;
 	u8	box[8];
 	u16	phys_connector[8];
-	int	offload_configured;	/* I/O accel RAID offload configured */
-	int	offload_enabled;	/* I/O accel RAID offload enabled */
-	int	offload_enabled_pending;
-	int	offload_to_mirror;	/* Send next I/O accelerator RAID */
-					/* offload request to mirror drive. */
-	struct raid_map *raid_map;	/* I/O accelerator RAID map */
+	bool	raid_bypass_configured;	/* RAID bypass configured */
+	bool	raid_bypass_enabled;	/* RAID bypass enabled */
+	int	offload_to_mirror;	/* Send next RAID bypass request */
+					/* to mirror drive. */
+	struct raid_map *raid_map;	/* RAID bypass map */
 
 	struct pqi_sas_port *sas_port;
 	struct scsi_device *sdev;
@@ -761,13 +842,15 @@ struct pqi_scsi_dev {
 	struct list_head new_device_list_entry;
 	struct list_head add_list_entry;
 	struct list_head delete_list_entry;
+
+	atomic_t scsi_cmds_outstanding;
 };
 
 /* VPD inquiry pages */
 #define SCSI_VPD_SUPPORTED_PAGES	0x0	/* standard page */
 #define SCSI_VPD_DEVICE_ID		0x83	/* standard page */
 #define CISS_VPD_LV_DEVICE_GEOMETRY	0xc1	/* vendor-specific page */
-#define CISS_VPD_LV_OFFLOAD_STATUS	0xc2	/* vendor-specific page */
+#define CISS_VPD_LV_BYPASS_STATUS	0xc2	/* vendor-specific page */
 #define CISS_VPD_LV_STATUS		0xc3	/* vendor-specific page */
 
 #define VPD_PAGE	(1 << 8)
@@ -851,7 +934,9 @@ struct pqi_io_request {
 	void (*io_complete_callback)(struct pqi_io_request *io_request,
 		void *context);
 	void		*context;
+	u8		raid_bypass : 1;
 	int		status;
+	struct pqi_queue_group *queue_group;
 	struct scsi_cmnd *scmd;
 	void		*error_info;
 	struct pqi_sg_descriptor *sg_chain_buffer;
@@ -860,15 +945,7 @@ struct pqi_io_request {
 	struct list_head request_list_entry;
 };
 
-/* for indexing into the pending_events[] field of struct pqi_ctrl_info */
-#define PQI_EVENT_HEARTBEAT		0
-#define PQI_EVENT_HOTPLUG		1
-#define PQI_EVENT_HARDWARE		2
-#define PQI_EVENT_PHYSICAL_DEVICE	3
-#define PQI_EVENT_LOGICAL_DEVICE	4
-#define PQI_EVENT_AIO_STATE_CHANGE	5
-#define PQI_EVENT_AIO_CONFIG_CHANGE	6
-#define PQI_NUM_SUPPORTED_EVENTS	7
+#define PQI_NUM_SUPPORTED_EVENTS	6
 
 struct pqi_event {
 	bool	pending;
@@ -911,7 +988,7 @@ struct pqi_ctrl_info {
 	dma_addr_t	error_buffer_dma_handle;
 	size_t		sg_chain_buffer_length;
 	unsigned int	num_queue_groups;
-	unsigned int	num_active_queue_groups;
+	u16		max_hw_queue_index;
 	u16		num_elements_per_iq;
 	u16		num_elements_per_oq;
 	u16		max_inbound_iu_length_per_firmware;
@@ -926,6 +1003,7 @@ struct pqi_ctrl_info {
 	struct pqi_admin_queues admin_queues;
 	struct pqi_queue_group queue_groups[PQI_MAX_QUEUE_GROUPS];
 	struct pqi_event_queue event_queue;
+	enum pqi_irq_mode irq_mode;
 	int		max_msix_vectors;
 	int		num_msix_vectors_enabled;
 	int		num_msix_vectors_initialized;
@@ -933,11 +1011,13 @@ struct pqi_ctrl_info {
 	struct Scsi_Host *scsi_host;
 
 	struct mutex	scan_mutex;
+	struct mutex	lun_reset_mutex;
+	bool		controller_online;
+	bool		block_requests;
 	u8		inbound_spanning_supported : 1;
 	u8		outbound_spanning_supported : 1;
 	u8		pqi_mode_enabled : 1;
-	u8		controller_online : 1;
-	u8		heartbeat_timer_started : 1;
+	u8		pqi_reset_quiesce_supported : 1;
 
 	struct list_head scsi_device_list;
 	spinlock_t	scsi_device_list_lock;
@@ -951,20 +1031,28 @@ struct pqi_ctrl_info {
 	struct pqi_io_request *io_request_pool;
 	u16		next_io_request_slot;
 
-	struct pqi_event pending_events[PQI_NUM_SUPPORTED_EVENTS];
+	struct pqi_event events[PQI_NUM_SUPPORTED_EVENTS];
 	struct work_struct event_work;
 
 	atomic_t	num_interrupts;
 	int		previous_num_interrupts;
-	unsigned int	num_heartbeats_requested;
+	u32		previous_heartbeat_count;
+	__le32 __iomem	*heartbeat_counter;
 	struct timer_list heartbeat_timer;
+	struct work_struct ctrl_offline_work;
 
 	struct semaphore sync_request_sem;
-	struct semaphore lun_reset_sem;
+	atomic_t	num_busy_threads;
+	atomic_t	num_blocked_threads;
+	wait_queue_head_t block_requests_wait;
+
+	struct list_head raid_bypass_retry_list;
+	spinlock_t	raid_bypass_retry_list_lock;
+	struct work_struct raid_bypass_retry_work;
 };
 
 enum pqi_ctrl_mode {
-	UNKNOWN,
+	SIS_MODE = 0,
 	PQI_MODE
 };
 
@@ -972,9 +1060,6 @@ enum pqi_ctrl_mode {
  * assume worst case: SATA queue depth of 31 minus 4 internal firmware commands
  */
 #define PQI_PHYSICAL_DISK_DEFAULT_MAX_QUEUE_DEPTH	27
-
-/* 0 = no limit */
-#define PQI_LOGICAL_DRIVE_DEFAULT_MAX_QUEUE_DEPTH	0
 
 /* CISS commands */
 #define CISS_READ		0xc0
@@ -994,15 +1079,15 @@ enum pqi_ctrl_mode {
 #define BMIC_SENSE_CONTROLLER_PARAMETERS	0x64
 #define BMIC_SENSE_SUBSYSTEM_INFORMATION	0x66
 #define BMIC_WRITE_HOST_WELLNESS		0xa5
-#define BMIC_CACHE_FLUSH			0xc2
+#define BMIC_FLUSH_CACHE			0xc2
 
-#define SA_CACHE_FLUSH				0x01
+#define SA_FLUSH_CACHE				0x1
 
 #define MASKED_DEVICE(lunid)			((lunid)[3] & 0xc0)
-#define CISS_GET_BUS(lunid)			((lunid)[7] & 0x3f)
+#define CISS_GET_LEVEL_2_BUS(lunid)		((lunid)[7] & 0x3f)
 #define CISS_GET_LEVEL_2_TARGET(lunid)		((lunid)[6])
 #define CISS_GET_DRIVE_NUMBER(lunid)		\
-	(((CISS_GET_BUS((lunid)) - 1) << 8) +	\
+	(((CISS_GET_LEVEL_2_BUS((lunid)) - 1) << 8) + \
 	CISS_GET_LEVEL_2_TARGET((lunid)))
 
 #define NO_TIMEOUT		((unsigned long) -1)
@@ -1069,9 +1154,9 @@ struct bmic_identify_physical_device {
 	u8	multi_lun_device_lun_count;
 	u8	minimum_good_fw_revision[8];
 	u8	unique_inquiry_bytes[20];
-	u8	current_temperature_degreesC;
-	u8	temperature_threshold_degreesC;
-	u8	max_temperature_degreesC;
+	u8	current_temperature_degrees;
+	u8	temperature_threshold_degrees;
+	u8	max_temperature_degrees;
 	u8	logical_blocks_per_phys_block_exp;
 	__le16	current_queue_depth_limit;
 	u8	switch_name[10];
@@ -1084,10 +1169,39 @@ struct bmic_identify_physical_device {
 	u8	smart_carrier_authentication;
 	u8	smart_carrier_app_fw_version;
 	u8	smart_carrier_bootloader_fw_version;
+	u8	sanitize_flags;
+	u8	encryption_key_flags;
 	u8	encryption_key_name[64];
 	__le32	misc_drive_flags;
 	__le16	dek_index;
-	u8	padding[112];
+	__le16	hba_drive_encryption_flags;
+	__le16	max_overwrite_time;
+	__le16	max_block_erase_time;
+	__le16	max_crypto_erase_time;
+	u8	connector_info[5];
+	u8	connector_name[8][8];
+	u8	page_83_identifier[16];
+	u8	maximum_link_rate[256];
+	u8	negotiated_physical_link_rate[256];
+	u8	box_connector_name[8];
+	u8	padding_to_multiple_of_512[9];
+};
+
+struct bmic_flush_cache {
+	u8	disable_flag;
+	u8	system_power_action;
+	u8	ndu_flush;
+	u8	shutdown_event;
+	u8	reserved[28];
+};
+
+/* for shutdown_event member of struct bmic_flush_cache */
+enum bmic_flush_cache_shutdown_event {
+	NONE_CACHE_FLUSH_ONLY = 0,
+	SHUTDOWN = 1,
+	HIBERNATE = 2,
+	SUSPEND = 3,
+	RESTART = 4
 };
 
 #pragma pack()
@@ -1099,36 +1213,8 @@ int pqi_add_sas_device(struct pqi_sas_node *pqi_sas_node,
 void pqi_remove_sas_device(struct pqi_scsi_dev *device);
 struct pqi_scsi_dev *pqi_find_device_by_sas_rphy(
 	struct pqi_ctrl_info *ctrl_info, struct sas_rphy *rphy);
+void pqi_prep_for_scsi_done(struct scsi_cmnd *scmd);
 
 extern struct sas_function_template pqi_sas_transport_functions;
-
-#if !defined(readq)
-#define readq readq
-static inline u64 readq(const volatile void __iomem *addr)
-{
-	u32 lower32;
-	u32 upper32;
-
-	lower32 = readl(addr);
-	upper32 = readl(addr + 4);
-
-	return ((u64)upper32 << 32) | lower32;
-}
-#endif
-
-#if !defined(writeq)
-#define writeq writeq
-static inline void writeq(u64 value, volatile void __iomem *addr)
-{
-	u32 lower32;
-	u32 upper32;
-
-	lower32 = lower_32_bits(value);
-	upper32 = upper_32_bits(value);
-
-	writel(lower32, addr);
-	writel(upper32, addr + 4);
-}
-#endif
 
 #endif /* _SMARTPQI_H */

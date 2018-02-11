@@ -49,7 +49,7 @@ static int fc_header(struct sk_buff *skb, struct net_device *dev,
 		struct fcllc *fcllc;
 
 		hdr_len = sizeof(struct fch_hdr) + sizeof(struct fcllc);
-		fch = (struct fch_hdr *)skb_push(skb, hdr_len);
+		fch = skb_push(skb, hdr_len);
 		fcllc = (struct fcllc *)(fch+1);
 		fcllc->dsap = fcllc->ssap = EXTENDED_SAP;
 		fcllc->llc = UI_CMD;
@@ -59,7 +59,7 @@ static int fc_header(struct sk_buff *skb, struct net_device *dev,
 	else
 	{
 		hdr_len = sizeof(struct fch_hdr);
-		fch = (struct fch_hdr *)skb_push(skb, hdr_len);
+		fch = skb_push(skb, hdr_len);
 	}
 
 	if(saddr)

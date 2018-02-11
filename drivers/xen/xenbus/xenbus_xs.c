@@ -857,6 +857,8 @@ static int xenwatch_thread(void *unused)
 	struct list_head *ent;
 	struct xs_watch_event *event;
 
+	xenwatch_pid = current->pid;
+
 	for (;;) {
 		wait_event_interruptible(watch_events_waitq,
 					 !list_empty(&watch_events));
@@ -925,7 +927,6 @@ int xs_init(void)
 	task = kthread_run(xenwatch_thread, NULL, "xenwatch");
 	if (IS_ERR(task))
 		return PTR_ERR(task);
-	xenwatch_pid = task->pid;
 
 	/* shutdown watches for kexec boot */
 	xs_reset_watches();

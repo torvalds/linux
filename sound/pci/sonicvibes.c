@@ -248,13 +248,13 @@ static const struct pci_device_id snd_sonic_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, snd_sonic_ids);
 
-static struct snd_ratden sonicvibes_adc_clock = {
+static const struct snd_ratden sonicvibes_adc_clock = {
 	.num_min = 4000 * 65536,
 	.num_max = 48000UL * 65536,
 	.num_step = 1,
 	.den = 65536,
 };
-static struct snd_pcm_hw_constraint_ratdens snd_sonicvibes_hw_constraints_adc_clock = {
+static const struct snd_pcm_hw_constraint_ratdens snd_sonicvibes_hw_constraints_adc_clock = {
 	.nrats = 1,
 	.rats = &sonicvibes_adc_clock,
 };
@@ -776,7 +776,7 @@ static snd_pcm_uframes_t snd_sonicvibes_capture_pointer(struct snd_pcm_substream
 	return bytes_to_frames(substream->runtime, ptr);
 }
 
-static struct snd_pcm_hardware snd_sonicvibes_playback =
+static const struct snd_pcm_hardware snd_sonicvibes_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -795,7 +795,7 @@ static struct snd_pcm_hardware snd_sonicvibes_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_sonicvibes_capture =
+static const struct snd_pcm_hardware snd_sonicvibes_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |

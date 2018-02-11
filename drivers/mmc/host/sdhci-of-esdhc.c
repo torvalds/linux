@@ -86,6 +86,17 @@ static u32 esdhc_readl_fixup(struct sdhci_host *host,
 		return ret;
 	}
 
+	/*
+	 * DTS properties of mmc host are used to enable each speed mode
+	 * according to soc and board capability. So clean up
+	 * SDR50/SDR104/DDR50 support bits here.
+	 */
+	if (spec_reg == SDHCI_CAPABILITIES_1) {
+		ret = value & ~(SDHCI_SUPPORT_SDR50 | SDHCI_SUPPORT_SDR104 |
+				SDHCI_SUPPORT_DDR50);
+		return ret;
+	}
+
 	ret = value;
 	return ret;
 }
@@ -249,7 +260,11 @@ static u32 esdhc_be_readl(struct sdhci_host *host, int reg)
 	u32 ret;
 	u32 value;
 
-	value = ioread32be(host->ioaddr + reg);
+	if (reg == SDHCI_CAPABILITIES_1)
+		value = ioread32be(host->ioaddr + ESDHC_CAPABILITIES_1);
+	else
+		value = ioread32be(host->ioaddr + reg);
+
 	ret = esdhc_readl_fixup(host, reg, value);
 
 	return ret;
@@ -260,7 +275,11 @@ static u32 esdhc_le_readl(struct sdhci_host *host, int reg)
 	u32 ret;
 	u32 value;
 
-	value = ioread32(host->ioaddr + reg);
+	if (reg == SDHCI_CAPABILITIES_1)
+		value = ioread32(host->ioaddr + ESDHC_CAPABILITIES_1);
+	else
+		value = ioread32(host->ioaddr + reg);
+
 	ret = esdhc_readl_fixup(host, reg, value);
 
 	return ret;
@@ -439,6 +458,33 @@ static unsigned int esdhc_of_get_min_clock(struct sdhci_host *host)
 	return clock / 256 / 16;
 }
 
+static void esdhc_clock_enable(struct sdhci_host *host, bool enable)
+{
+	u32 val;
+	ktime_t timeout;
+
+	val = sdhci_readl(host, ESDHC_SYSTEM_CONTROL);
+
+	if (enable)
+		val |= ESDHC_CLOCK_SDCLKEN;
+	else
+		val &= ~ESDHC_CLOCK_SDCLKEN;
+
+	sdhci_writel(host, val, ESDHC_SYSTEM_CONTROL);
+
+	/* Wait max 20 ms */
+	timeout = ktime_add_ms(ktime_get(), 20);
+	val = ESDHC_CLOCK_STABLE;
+	while (!(sdhci_readl(host, ESDHC_PRSSTAT) & val)) {
+		if (ktime_after(ktime_get(), timeout)) {
+			pr_err("%s: Internal clock never stabilised.\n",
+				mmc_hostname(host->mmc));
+			break;
+		}
+		udelay(10);
+	}
+}
+
 static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -450,8 +496,10 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	host->mmc->actual_clock = 0;
 
-	if (clock == 0)
+	if (clock == 0) {
+		esdhc_clock_enable(host, false);
 		return;
+	}
 
 	/* Workaround to start pre_div at 2 for VNN < VENDOR_V_23 */
 	if (esdhc->vendor_ver < VENDOR_V_23)
@@ -537,33 +585,6 @@ static void esdhc_pltfm_set_bus_width(struct sdhci_host *host, int width)
 	}
 
 	sdhci_writel(host, ctrl, ESDHC_PROCTL);
-}
-
-static void esdhc_clock_enable(struct sdhci_host *host, bool enable)
-{
-	u32 val;
-	ktime_t timeout;
-
-	val = sdhci_readl(host, ESDHC_SYSTEM_CONTROL);
-
-	if (enable)
-		val |= ESDHC_CLOCK_SDCLKEN;
-	else
-		val &= ~ESDHC_CLOCK_SDCLKEN;
-
-	sdhci_writel(host, val, ESDHC_SYSTEM_CONTROL);
-
-	/* Wait max 20 ms */
-	timeout = ktime_add_ms(ktime_get(), 20);
-	val = ESDHC_CLOCK_STABLE;
-	while (!(sdhci_readl(host, ESDHC_PRSSTAT) & val)) {
-		if (ktime_after(ktime_get(), timeout)) {
-			pr_err("%s: Internal clock never stabilised.\n",
-				mmc_hostname(host->mmc));
-			break;
-		}
-		udelay(10);
-	}
 }
 
 static void esdhc_reset(struct sdhci_host *host, u8 mask)

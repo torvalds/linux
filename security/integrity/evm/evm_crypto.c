@@ -80,7 +80,7 @@ static struct shash_desc *init_desc(char type)
 
 	if (type == EVM_XATTR_HMAC) {
 		if (!(evm_initialized & EVM_INIT_HMAC)) {
-			pr_err("HMAC key is not set\n");
+			pr_err_once("HMAC key is not set\n");
 			return ERR_PTR(-ENOKEY);
 		}
 		tfm = &hmac_tfm;
@@ -164,7 +164,7 @@ static void hmac_add_misc(struct shash_desc *desc, struct inode *inode,
 	hmac_misc.mode = inode->i_mode;
 	crypto_shash_update(desc, (const u8 *)&hmac_misc, sizeof(hmac_misc));
 	if (evm_hmac_attrs & EVM_ATTR_FSUUID)
-		crypto_shash_update(desc, inode->i_sb->s_uuid,
+		crypto_shash_update(desc, &inode->i_sb->s_uuid.b[0],
 				    sizeof(inode->i_sb->s_uuid));
 	crypto_shash_final(desc, digest);
 }

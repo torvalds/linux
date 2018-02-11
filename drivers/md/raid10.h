@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _RAID10_H
 #define _RAID10_H
 
@@ -88,6 +89,12 @@ struct r10conf {
 	 * the new thread here until we fully activate the array.
 	 */
 	struct md_thread	*thread;
+
+	/*
+	 * Keep track of cluster resync window to send to other nodes.
+	 */
+	sector_t		cluster_sync_low;
+	sector_t		cluster_sync_high;
 };
 
 /*

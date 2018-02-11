@@ -765,7 +765,8 @@ static int iscsi_check_for_auth_key(char *key)
 	return 0;
 }
 
-static void iscsi_check_proposer_for_optional_reply(struct iscsi_param *param)
+static void iscsi_check_proposer_for_optional_reply(struct iscsi_param *param,
+						    bool keys_workaround)
 {
 	if (IS_TYPE_BOOL_AND(param)) {
 		if (!strcmp(param->value, NO))
@@ -773,19 +774,31 @@ static void iscsi_check_proposer_for_optional_reply(struct iscsi_param *param)
 	} else if (IS_TYPE_BOOL_OR(param)) {
 		if (!strcmp(param->value, YES))
 			SET_PSTATE_REPLY_OPTIONAL(param);
-		 /*
-		  * Required for gPXE iSCSI boot client
-		  */
-		if (!strcmp(param->name, IMMEDIATEDATA))
-			SET_PSTATE_REPLY_OPTIONAL(param);
+
+		if (keys_workaround) {
+			/*
+			 * Required for gPXE iSCSI boot client
+			 */
+			if (!strcmp(param->name, IMMEDIATEDATA))
+				SET_PSTATE_REPLY_OPTIONAL(param);
+		}
 	} else if (IS_TYPE_NUMBER(param)) {
 		if (!strcmp(param->name, MAXRECVDATASEGMENTLENGTH))
 			SET_PSTATE_REPLY_OPTIONAL(param);
-		/*
-		 * Required for gPXE iSCSI boot client
-		 */
-		if (!strcmp(param->name, MAXCONNECTIONS))
-			SET_PSTATE_REPLY_OPTIONAL(param);
+
+		if (keys_workaround) {
+			/*
+			 * Required for Mellanox Flexboot PXE boot ROM
+			 */
+			if (!strcmp(param->name, FIRSTBURSTLENGTH))
+				SET_PSTATE_REPLY_OPTIONAL(param);
+
+			/*
+			 * Required for gPXE iSCSI boot client
+			 */
+			if (!strcmp(param->name, MAXCONNECTIONS))
+				SET_PSTATE_REPLY_OPTIONAL(param);
+		}
 	} else if (IS_PHASE_DECLARATIVE(param))
 		SET_PSTATE_REPLY_OPTIONAL(param);
 }
@@ -1367,10 +1380,8 @@ int iscsi_decode_text_input(
 		char *key, *value;
 		struct iscsi_param *param;
 
-		if (iscsi_extract_key_value(start, &key, &value) < 0) {
-			kfree(tmpbuf);
-			return -1;
-		}
+		if (iscsi_extract_key_value(start, &key, &value) < 0)
+			goto free_buffer;
 
 		pr_debug("Got key: %s=%s\n", key, value);
 
@@ -1383,38 +1394,37 @@ int iscsi_decode_text_input(
 
 		param = iscsi_check_key(key, phase, sender, param_list);
 		if (!param) {
-			if (iscsi_add_notunderstood_response(key,
-					value, param_list) < 0) {
-				kfree(tmpbuf);
-				return -1;
-			}
+			if (iscsi_add_notunderstood_response(key, value,
+							     param_list) < 0)
+				goto free_buffer;
+
 			start += strlen(key) + strlen(value) + 2;
 			continue;
 		}
-		if (iscsi_check_value(param, value) < 0) {
-			kfree(tmpbuf);
-			return -1;
-		}
+		if (iscsi_check_value(param, value) < 0)
+			goto free_buffer;
 
 		start += strlen(key) + strlen(value) + 2;
 
 		if (IS_PSTATE_PROPOSER(param)) {
-			if (iscsi_check_proposer_state(param, value) < 0) {
-				kfree(tmpbuf);
-				return -1;
-			}
+			if (iscsi_check_proposer_state(param, value) < 0)
+				goto free_buffer;
+
 			SET_PSTATE_RESPONSE_GOT(param);
 		} else {
-			if (iscsi_check_acceptor_state(param, value, conn) < 0) {
-				kfree(tmpbuf);
-				return -1;
-			}
+			if (iscsi_check_acceptor_state(param, value, conn) < 0)
+				goto free_buffer;
+
 			SET_PSTATE_ACCEPTOR(param);
 		}
 	}
 
 	kfree(tmpbuf);
 	return 0;
+
+free_buffer:
+	kfree(tmpbuf);
+	return -1;
 }
 
 int iscsi_encode_text_output(
@@ -1422,7 +1432,8 @@ int iscsi_encode_text_output(
 	u8 sender,
 	char *textbuf,
 	u32 *length,
-	struct iscsi_param_list *param_list)
+	struct iscsi_param_list *param_list,
+	bool keys_workaround)
 {
 	char *output_buf = NULL;
 	struct iscsi_extra_response *er;
@@ -1458,7 +1469,8 @@ int iscsi_encode_text_output(
 			*length += 1;
 			output_buf = textbuf + *length;
 			SET_PSTATE_PROPOSER(param);
-			iscsi_check_proposer_for_optional_reply(param);
+			iscsi_check_proposer_for_optional_reply(param,
+							        keys_workaround);
 			pr_debug("Sending key: %s=%s\n",
 				param->name, param->value);
 		}

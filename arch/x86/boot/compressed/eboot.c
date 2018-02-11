@@ -767,7 +767,7 @@ static efi_status_t setup_e820(struct boot_params *params,
 		m |= (u64)efi->efi_memmap_hi << 32;
 #endif
 
-		d = (efi_memory_desc_t *)(m + (i * efi->efi_memdesc_size));
+		d = efi_early_memdesc_ptr(m, efi->efi_memdesc_size, i);
 		switch (d->type) {
 		case EFI_RESERVED_TYPE:
 		case EFI_RUNTIME_SERVICES_CODE:
@@ -997,6 +997,9 @@ struct boot_params *efi_main(struct efi_config *c,
 	if (boot_params->secure_boot == efi_secureboot_mode_unset)
 		boot_params->secure_boot = efi_get_secureboot(sys_table);
 
+	/* Ask the firmware to clear memory on unclean shutdown */
+	efi_enable_reset_attack_mitigation(sys_table);
+
 	setup_graphics(boot_params);
 
 	setup_efi_pci(boot_params);
@@ -1046,9 +1049,31 @@ struct boot_params *efi_main(struct efi_config *c,
 	memset((char *)gdt->address, 0x0, gdt->size);
 	desc = (struct desc_struct *)gdt->address;
 
-	/* The first GDT is a dummy and the second is unused. */
-	desc += 2;
+	/* The first GDT is a dummy. */
+	desc++;
 
+	if (IS_ENABLED(CONFIG_X86_64)) {
+		/* __KERNEL32_CS */
+		desc->limit0 = 0xffff;
+		desc->base0 = 0x0000;
+		desc->base1 = 0x0000;
+		desc->type = SEG_TYPE_CODE | SEG_TYPE_EXEC_READ;
+		desc->s = DESC_TYPE_CODE_DATA;
+		desc->dpl = 0;
+		desc->p = 1;
+		desc->limit1 = 0xf;
+		desc->avl = 0;
+		desc->l = 0;
+		desc->d = SEG_OP_SIZE_32BIT;
+		desc->g = SEG_GRANULARITY_4KB;
+		desc->base2 = 0x00;
+		desc++;
+	} else {
+		/* Second entry is unused on 32-bit */
+		desc++;
+	}
+
+	/* __KERNEL_CS */
 	desc->limit0 = 0xffff;
 	desc->base0 = 0x0000;
 	desc->base1 = 0x0000;
@@ -1056,14 +1081,20 @@ struct boot_params *efi_main(struct efi_config *c,
 	desc->s = DESC_TYPE_CODE_DATA;
 	desc->dpl = 0;
 	desc->p = 1;
-	desc->limit = 0xf;
+	desc->limit1 = 0xf;
 	desc->avl = 0;
-	desc->l = 0;
-	desc->d = SEG_OP_SIZE_32BIT;
+	if (IS_ENABLED(CONFIG_X86_64)) {
+		desc->l = 1;
+		desc->d = 0;
+	} else {
+		desc->l = 0;
+		desc->d = SEG_OP_SIZE_32BIT;
+	}
 	desc->g = SEG_GRANULARITY_4KB;
 	desc->base2 = 0x00;
-
 	desc++;
+
+	/* __KERNEL_DS */
 	desc->limit0 = 0xffff;
 	desc->base0 = 0x0000;
 	desc->base1 = 0x0000;
@@ -1071,30 +1102,31 @@ struct boot_params *efi_main(struct efi_config *c,
 	desc->s = DESC_TYPE_CODE_DATA;
 	desc->dpl = 0;
 	desc->p = 1;
-	desc->limit = 0xf;
+	desc->limit1 = 0xf;
 	desc->avl = 0;
 	desc->l = 0;
 	desc->d = SEG_OP_SIZE_32BIT;
 	desc->g = SEG_GRANULARITY_4KB;
 	desc->base2 = 0x00;
-
-#ifdef CONFIG_X86_64
-	/* Task segment value */
 	desc++;
-	desc->limit0 = 0x0000;
-	desc->base0 = 0x0000;
-	desc->base1 = 0x0000;
-	desc->type = SEG_TYPE_TSS;
-	desc->s = 0;
-	desc->dpl = 0;
-	desc->p = 1;
-	desc->limit = 0x0;
-	desc->avl = 0;
-	desc->l = 0;
-	desc->d = 0;
-	desc->g = SEG_GRANULARITY_4KB;
-	desc->base2 = 0x00;
-#endif /* CONFIG_X86_64 */
+
+	if (IS_ENABLED(CONFIG_X86_64)) {
+		/* Task segment value */
+		desc->limit0 = 0x0000;
+		desc->base0 = 0x0000;
+		desc->base1 = 0x0000;
+		desc->type = SEG_TYPE_TSS;
+		desc->s = 0;
+		desc->dpl = 0;
+		desc->p = 1;
+		desc->limit1 = 0x0;
+		desc->avl = 0;
+		desc->l = 0;
+		desc->d = 0;
+		desc->g = SEG_GRANULARITY_4KB;
+		desc->base2 = 0x00;
+		desc++;
+	}
 
 	asm volatile("cli");
 	asm volatile ("lgdt %0" : : "m" (*gdt));

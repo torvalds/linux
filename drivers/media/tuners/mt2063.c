@@ -1397,9 +1397,9 @@ static u32 MT2063_Round_fLO(u32 f_LO, u32 f_LO_Step, u32 f_ref)
  *                        risk of overflow.  It accurately calculates
  *                        f_ref * num / denom to within 1 HZ with fixed math.
  *
- * @num :	Fractional portion of the multiplier
+ * @f_ref:	SRO frequency.
+ * @num:	Fractional portion of the multiplier
  * @denom:	denominator portion of the ratio
- * @f_Ref:	SRO frequency.
  *
  * This calculation handles f_ref as two separate 14-bit fields.
  * Therefore, a maximum value of 2^28-1 may safely be used for f_ref.
@@ -1464,8 +1464,6 @@ static u32 MT2063_CalcLO1Mult(u32 *Div,
  * @f_LO:	desired LO frequency.
  * @f_LO_Step:	Minimum step size for the LO (in Hz).
  * @f_Ref:	SRO frequency.
- * @f_Avoid:	Range of PLL frequencies to avoid near
- *		integer multiples of f_Ref (in Hz).
  *
  * Returns: Recalculated LO frequency.
  */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* $Id: um_idi.h,v 1.6 2004/03/21 17:26:01 armin Exp $ */
 
 #ifndef __DIVA_USER_MODE_IDI_CORE_H__

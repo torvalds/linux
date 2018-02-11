@@ -722,7 +722,6 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl,
 		clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 
 	sdp->sd_log_flush_head = sdp->sd_log_head;
-	sdp->sd_log_flush_wrapped = 0;
 	tr = sdp->sd_log_tr;
 	if (tr) {
 		sdp->sd_log_tr = NULL;
@@ -775,7 +774,6 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl,
 			}
 			atomic_dec(&sdp->sd_log_blks_free); /* Adjust for unreserved buffer */
 			trace_gfs2_log_blocks(sdp, -1);
-			sdp->sd_log_flush_wrapped = 0;
 			log_write_header(sdp, 0);
 			sdp->sd_log_head = sdp->sd_log_flush_head;
 		}
@@ -880,7 +878,6 @@ void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 	gfs2_assert_withdraw(sdp, list_empty(&sdp->sd_ail1_list));
 
 	sdp->sd_log_flush_head = sdp->sd_log_head;
-	sdp->sd_log_flush_wrapped = 0;
 
 	log_write_header(sdp, GFS2_LOG_HEAD_UNMOUNT);
 
@@ -901,6 +898,10 @@ static inline int gfs2_jrnl_flush_reqd(struct gfs2_sbd *sdp)
 static inline int gfs2_ail_flush_reqd(struct gfs2_sbd *sdp)
 {
 	unsigned int used_blocks = sdp->sd_jdesc->jd_blocks - atomic_read(&sdp->sd_log_blks_free);
+
+	if (test_and_clear_bit(SDF_FORCE_AIL_FLUSH, &sdp->sd_flags))
+		return 1;
+
 	return used_blocks + atomic_read(&sdp->sd_log_blks_needed) >=
 		atomic_read(&sdp->sd_log_thresh2);
 }
@@ -921,6 +922,15 @@ int gfs2_logd(void *data)
 	bool did_flush;
 
 	while (!kthread_should_stop()) {
+
+		/* Check for errors writing to the journal */
+		if (sdp->sd_log_error) {
+			gfs2_lm_withdraw(sdp,
+					 "GFS2: fsid=%s: error %d: "
+					 "withdrawing the file system to "
+					 "prevent further damage.\n",
+					 sdp->sd_fsname, sdp->sd_log_error);
+		}
 
 		did_flush = false;
 		if (gfs2_jrnl_flush_reqd(sdp) || t == 0) {

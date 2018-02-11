@@ -174,7 +174,7 @@
 
 &mmc1 {
 	vmmc-supply = <&vmmc1>;
-	vmmc_aux-supply = <&vsim>;
+	vqmmc-supply = <&vsim>;
 	bus-width = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;

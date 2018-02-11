@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 local_dir="$(pwd)"
 root_dir=$local_dir/../..
 mnt_dir=$(mktemp -d --tmp)

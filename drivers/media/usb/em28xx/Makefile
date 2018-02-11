@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 em28xx-y +=	em28xx-core.o em28xx-i2c.o em28xx-cards.o em28xx-camera.o
 
 em28xx-v4l-objs := em28xx-video.o em28xx-vbi.o

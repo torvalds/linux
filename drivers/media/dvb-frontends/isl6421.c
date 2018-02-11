@@ -38,35 +38,101 @@ struct isl6421 {
 	u8			override_and;
 	struct i2c_adapter	*i2c;
 	u8			i2c_addr;
+	bool			is_off;
 };
 
 static int isl6421_set_voltage(struct dvb_frontend *fe,
 			       enum fe_sec_voltage voltage)
 {
+	int ret;
+	u8 buf;
+	bool is_off;
 	struct isl6421 *isl6421 = (struct isl6421 *) fe->sec_priv;
-	struct i2c_msg msg = {	.addr = isl6421->i2c_addr, .flags = 0,
-				.buf = &isl6421->config,
-				.len = sizeof(isl6421->config) };
+	struct i2c_msg msg[2] = {
+		{
+		  .addr = isl6421->i2c_addr,
+		  .flags = 0,
+		  .buf = &isl6421->config,
+		  .len = 1,
+		}, {
+		  .addr = isl6421->i2c_addr,
+		  .flags = I2C_M_RD,
+		  .buf = &buf,
+		  .len = 1,
+		}
+
+	};
 
 	isl6421->config &= ~(ISL6421_VSEL1 | ISL6421_EN1);
 
 	switch(voltage) {
 	case SEC_VOLTAGE_OFF:
+		is_off = true;
 		break;
 	case SEC_VOLTAGE_13:
+		is_off = false;
 		isl6421->config |= ISL6421_EN1;
 		break;
 	case SEC_VOLTAGE_18:
+		is_off = false;
 		isl6421->config |= (ISL6421_EN1 | ISL6421_VSEL1);
 		break;
 	default:
 		return -EINVAL;
 	}
 
+	/*
+	 * If LNBf were not powered on, disable dynamic current limit, as,
+	 * according with datasheet, highly capacitive load on the output may
+	 * cause a difficult start-up.
+	 */
+	if (isl6421->is_off && !is_off)
+		isl6421->config |= ISL6421_DCL;
+
 	isl6421->config |= isl6421->override_or;
 	isl6421->config &= isl6421->override_and;
 
-	return (i2c_transfer(isl6421->i2c, &msg, 1) == 1) ? 0 : -EIO;
+	ret = i2c_transfer(isl6421->i2c, msg, 2);
+	if (ret < 0)
+		return ret;
+	if (ret != 2)
+		return -EIO;
+
+	/* Store off status now incase future commands fail */
+	isl6421->is_off = is_off;
+
+	/* On overflow, the device will try again after 900 ms (typically) */
+	if (!is_off && (buf & ISL6421_OLF1))
+		msleep(1000);
+
+	/* Re-enable dynamic current limit */
+	if ((isl6421->config & ISL6421_DCL) &&
+	    !(isl6421->override_or & ISL6421_DCL)) {
+		isl6421->config &= ~ISL6421_DCL;
+
+		ret = i2c_transfer(isl6421->i2c, msg, 2);
+		if (ret < 0)
+			return ret;
+		if (ret != 2)
+			return -EIO;
+	}
+
+	/* Check if overload flag is active. If so, disable power */
+	if (!is_off && (buf & ISL6421_OLF1)) {
+		isl6421->config &= ~(ISL6421_VSEL1 | ISL6421_EN1);
+		ret = i2c_transfer(isl6421->i2c, msg, 1);
+		if (ret < 0)
+			return ret;
+		if (ret != 1)
+			return -EIO;
+		isl6421->is_off = true;
+
+		dev_warn(&isl6421->i2c->dev,
+			 "Overload current detected. disabling LNBf power\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int isl6421_enable_high_lnb_voltage(struct dvb_frontend *fe, long arg)
@@ -147,6 +213,8 @@ struct dvb_frontend *isl6421_attach(struct dvb_frontend *fe, struct i2c_adapter 
 		fe->sec_priv = NULL;
 		return NULL;
 	}
+
+	isl6421->is_off = true;
 
 	/* install release callback */
 	fe->ops.release_sec = isl6421_release;

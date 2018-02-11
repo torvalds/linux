@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* atmapi.h - ATM API user space/kernel compatibility */
  
 /* Written 1999,2000 by Werner Almesberger, EPFL ICA */

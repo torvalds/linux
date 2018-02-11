@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #if IS_ENABLED(CONFIG_NET_DEVLINK)
 
 #undef TRACE_SYSTEM

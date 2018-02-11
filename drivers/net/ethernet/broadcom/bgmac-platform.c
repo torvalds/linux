@@ -50,11 +50,14 @@ static u32 platform_bgmac_idm_read(struct bgmac *bgmac, u16 offset)
 
 static void platform_bgmac_idm_write(struct bgmac *bgmac, u16 offset, u32 value)
 {
-	return writel(value, bgmac->plat.idm_base + offset);
+	writel(value, bgmac->plat.idm_base + offset);
 }
 
 static bool platform_bgmac_clk_enabled(struct bgmac *bgmac)
 {
+	if (!bgmac->plat.idm_base)
+		return true;
+
 	if ((bgmac_idm_read(bgmac, BCMA_IOCTL) & BGMAC_CLK_EN) != BGMAC_CLK_EN)
 		return false;
 	if (bgmac_idm_read(bgmac, BCMA_RESET_CTL) & BCMA_RESET_CTL_RESET)
@@ -65,6 +68,9 @@ static bool platform_bgmac_clk_enabled(struct bgmac *bgmac)
 static void platform_bgmac_clk_enable(struct bgmac *bgmac, u32 flags)
 {
 	u32 val;
+
+	if (!bgmac->plat.idm_base)
+		return;
 
 	/* The Reset Control register only contains a single bit to show if the
 	 * controller is currently in reset.  Do a sanity check here, just in
@@ -125,6 +131,7 @@ static void bgmac_nicpm_speed_set(struct net_device *net_dev)
 	switch (bgmac->net_dev->phydev->speed) {
 	default:
 		netdev_err(net_dev, "Unsupported speed. Defaulting to 1000Mb\n");
+		/* fall through */
 	case SPEED_1000:
 		val |= NICPM_IOMUX_CTRL_SPD_1000M << NICPM_IOMUX_CTRL_SPD_SHIFT;
 		break;
@@ -180,6 +187,7 @@ static int bgmac_probe(struct platform_device *pdev)
 	bgmac->feature_flags |= BGMAC_FEAT_CMDCFG_SR_REV4;
 	bgmac->feature_flags |= BGMAC_FEAT_TX_MASK_SETUP;
 	bgmac->feature_flags |= BGMAC_FEAT_RX_MASK_SETUP;
+	bgmac->feature_flags |= BGMAC_FEAT_IDM_MASK;
 
 	bgmac->dev = &pdev->dev;
 	bgmac->dma_dev = &pdev->dev;
@@ -207,14 +215,12 @@ static int bgmac_probe(struct platform_device *pdev)
 		return PTR_ERR(bgmac->plat.base);
 
 	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, "idm_base");
-	if (!regs) {
-		dev_err(&pdev->dev, "Unable to obtain idm resource\n");
-		return -EINVAL;
+	if (regs) {
+		bgmac->plat.idm_base = devm_ioremap_resource(&pdev->dev, regs);
+		if (IS_ERR(bgmac->plat.idm_base))
+			return PTR_ERR(bgmac->plat.idm_base);
+		bgmac->feature_flags &= ~BGMAC_FEAT_IDM_MASK;
 	}
-
-	bgmac->plat.idm_base = devm_ioremap_resource(&pdev->dev, regs);
-	if (IS_ERR(bgmac->plat.idm_base))
-		return PTR_ERR(bgmac->plat.idm_base);
 
 	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nicpm_base");
 	if (regs) {

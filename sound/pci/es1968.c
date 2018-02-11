@@ -1290,7 +1290,7 @@ static snd_pcm_uframes_t snd_es1968_pcm_pointer(struct snd_pcm_substream *substr
 	return bytes_to_frames(substream->runtime, ptr % es->dma_size);
 }
 
-static struct snd_pcm_hardware snd_es1968_playback = {
+static const struct snd_pcm_hardware snd_es1968_playback = {
 	.info =			(SNDRV_PCM_INFO_MMAP |
                		         SNDRV_PCM_INFO_MMAP_VALID |
 				 SNDRV_PCM_INFO_INTERLEAVED |
@@ -1311,7 +1311,7 @@ static struct snd_pcm_hardware snd_es1968_playback = {
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_es1968_capture = {
+static const struct snd_pcm_hardware snd_es1968_capture = {
 	.info =			(SNDRV_PCM_INFO_NONINTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_MMAP_VALID |

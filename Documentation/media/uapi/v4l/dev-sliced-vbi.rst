@@ -105,7 +105,13 @@ which may return ``EBUSY`` can be the
 struct v4l2_sliced_vbi_format
 -----------------------------
 
-.. tabularcolumns:: |p{1.0cm}|p{4.5cm}|p{4.0cm}|p{4.0cm}|p{4.0cm}|
+.. raw:: latex
+
+    \begingroup
+    \scriptsize
+    \setlength{\tabcolsep}{2pt}
+
+.. tabularcolumns:: |p{.75cm}|p{3.3cm}|p{3.4cm}|p{3.4cm}|p{3.4cm}|
 
 .. cssclass:: longtable
 
@@ -199,6 +205,9 @@ struct v4l2_sliced_vbi_format
 
 	Applications and drivers must set it to zero.
 
+.. raw:: latex
+
+    \endgroup
 
 .. _vbi-services2:
 
@@ -207,9 +216,9 @@ Sliced VBI services
 
 .. raw:: latex
 
-    \begin{adjustbox}{width=\columnwidth}
+    \footnotesize
 
-.. tabularcolumns:: |p{5.0cm}|p{1.4cm}|p{3.0cm}|p{2.5cm}|p{9.0cm}|
+.. tabularcolumns:: |p{4.1cm}|p{1.1cm}|p{2.4cm}|p{2.0cm}|p{7.3cm}|
 
 .. flat-table::
     :header-rows:  1
@@ -263,7 +272,7 @@ Sliced VBI services
 
 .. raw:: latex
 
-    \end{adjustbox}\newline\newline
+    \normalsize
 
 
 Drivers may return an ``EINVAL`` error code when applications attempt to
@@ -422,7 +431,7 @@ MPEG stream.
 *Historical context*: This format specification originates from a
 custom, embedded, sliced VBI data format used by the ``ivtv`` driver.
 This format has already been informally specified in the kernel sources
-in the file ``Documentation/video4linux/cx2341x/README.vbi`` . The
+in the file ``Documentation/media/v4l-drivers/cx2341x.rst`` . The
 maximum size of the payload and other aspects of this format are driven
 by the CX23415 MPEG decoder's capabilities and limitations with respect
 to extracting, decoding, and displaying sliced VBI data embedded within
@@ -457,7 +466,7 @@ number).
 struct v4l2_mpeg_vbi_fmt_ivtv
 -----------------------------
 
-.. tabularcolumns:: |p{1.0cm}|p{3.5cm}|p{1.0cm}|p{11.5cm}|
+.. tabularcolumns:: |p{1.0cm}|p{3.8cm}|p{1.0cm}|p{11.2cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -525,7 +534,7 @@ Magic Constants for struct v4l2_mpeg_vbi_fmt_ivtv magic field
 structs v4l2_mpeg_vbi_itv0 and v4l2_mpeg_vbi_ITV0
 -------------------------------------------------
 
-.. tabularcolumns:: |p{4.4cm}|p{2.4cm}|p{10.7cm}|
+.. tabularcolumns:: |p{4.9cm}|p{2.4cm}|p{10.2cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -574,7 +583,7 @@ structs v4l2_mpeg_vbi_itv0 and v4l2_mpeg_vbi_ITV0
 struct v4l2_mpeg_vbi_ITV0
 -------------------------
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.9cm}|p{4.4cm}|p{8.2cm}|
 
 .. flat-table::
     :header-rows:  0

@@ -55,14 +55,10 @@ struct msm_fence_cb;
 struct msm_gem_address_space;
 struct msm_gem_vma;
 
-#define NUM_DOMAINS 2    /* one for KMS, then one per gpu core (?) */
-
 struct msm_file_private {
-	/* currently we don't do anything useful with this.. but when
-	 * per-context address spaces are supported we'd keep track of
-	 * the context's page-tables here.
-	 */
-	int dummy;
+	rwlock_t queuelock;
+	struct list_head submitqueues;
+	int queueid;
 };
 
 enum msm_mdp_plane_property {
@@ -77,6 +73,8 @@ struct msm_vblank_ctrl {
 	struct list_head event_list;
 	spinlock_t lock;
 };
+
+#define MSM_GPU_MAX_RINGS 4
 
 struct msm_drm_private {
 
@@ -110,7 +108,8 @@ struct msm_drm_private {
 
 	struct drm_fb_helper *fbdev;
 
-	struct msm_rd_state *rd;
+	struct msm_rd_state *rd;       /* debugfs to dump all submits */
+	struct msm_rd_state *hangrd;   /* debugfs to dump hanging submits */
 	struct msm_perf_state *perf;
 
 	/* list of GEM objects: */
@@ -122,14 +121,6 @@ struct msm_drm_private {
 	/* crtcs pending async atomic updates: */
 	uint32_t pending_crtcs;
 	wait_queue_head_t pending_crtcs_event;
-
-	/* Registered address spaces.. currently this is fixed per # of
-	 * iommu's.  Ie. one for display block and one for gpu block.
-	 * Eventually, to do per-process gpu pagetables, we'll want one
-	 * of these per-process.
-	 */
-	unsigned int num_aspaces;
-	struct msm_gem_address_space *aspace[NUM_DOMAINS];
 
 	unsigned int num_planes;
 	struct drm_plane *planes[16];
@@ -157,34 +148,24 @@ struct msm_drm_private {
 		 * and position mm_node->start is in # of pages:
 		 */
 		struct drm_mm mm;
+		spinlock_t lock; /* Protects drm_mm node allocation/removal */
 	} vram;
 
 	struct notifier_block vmap_notifier;
 	struct shrinker shrinker;
 
 	struct msm_vblank_ctrl vblank_ctrl;
-
-	/* task holding struct_mutex.. currently only used in submit path
-	 * to detect and reject faults from copy_from_user() for submit
-	 * ioctl.
-	 */
-	struct task_struct *struct_mutex_task;
 };
 
 struct msm_format {
 	uint32_t pixel_format;
 };
 
-int msm_atomic_check(struct drm_device *dev,
-		     struct drm_atomic_state *state);
 int msm_atomic_commit(struct drm_device *dev,
 		struct drm_atomic_state *state, bool nonblock);
 struct drm_atomic_state *msm_atomic_state_alloc(struct drm_device *dev);
 void msm_atomic_state_clear(struct drm_atomic_state *state);
 void msm_atomic_state_free(struct drm_atomic_state *state);
-
-int msm_register_address_space(struct drm_device *dev,
-		struct msm_gem_address_space *aspace);
 
 void msm_gem_unmap_vma(struct msm_gem_address_space *aspace,
 		struct msm_gem_vma *vma, struct sg_table *sgt);
@@ -209,13 +190,14 @@ int msm_gem_mmap_obj(struct drm_gem_object *obj,
 int msm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 int msm_gem_fault(struct vm_fault *vmf);
 uint64_t msm_gem_mmap_offset(struct drm_gem_object *obj);
-int msm_gem_get_iova_locked(struct drm_gem_object *obj, int id,
-		uint64_t *iova);
-int msm_gem_get_iova(struct drm_gem_object *obj, int id, uint64_t *iova);
-uint64_t msm_gem_iova(struct drm_gem_object *obj, int id);
+int msm_gem_get_iova(struct drm_gem_object *obj,
+		struct msm_gem_address_space *aspace, uint64_t *iova);
+uint64_t msm_gem_iova(struct drm_gem_object *obj,
+		struct msm_gem_address_space *aspace);
 struct page **msm_gem_get_pages(struct drm_gem_object *obj);
 void msm_gem_put_pages(struct drm_gem_object *obj);
-void msm_gem_put_iova(struct drm_gem_object *obj, int id);
+void msm_gem_put_iova(struct drm_gem_object *obj,
+		struct msm_gem_address_space *aspace);
 int msm_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 		struct drm_mode_create_dumb *args);
 int msm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
@@ -229,13 +211,10 @@ struct drm_gem_object *msm_gem_prime_import_sg_table(struct drm_device *dev,
 		struct dma_buf_attachment *attach, struct sg_table *sg);
 int msm_gem_prime_pin(struct drm_gem_object *obj);
 void msm_gem_prime_unpin(struct drm_gem_object *obj);
-void *msm_gem_get_vaddr_locked(struct drm_gem_object *obj);
 void *msm_gem_get_vaddr(struct drm_gem_object *obj);
-void msm_gem_put_vaddr_locked(struct drm_gem_object *obj);
+void *msm_gem_get_vaddr_active(struct drm_gem_object *obj);
 void msm_gem_put_vaddr(struct drm_gem_object *obj);
 int msm_gem_madvise(struct drm_gem_object *obj, unsigned madv);
-void msm_gem_purge(struct drm_gem_object *obj);
-void msm_gem_vunmap(struct drm_gem_object *obj);
 int msm_gem_sync_object(struct drm_gem_object *obj,
 		struct msm_fence_context *fctx, bool exclusive);
 void msm_gem_move_to_active(struct drm_gem_object *obj,
@@ -248,18 +227,29 @@ int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 		uint32_t size, uint32_t flags, uint32_t *handle);
 struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 		uint32_t size, uint32_t flags);
+struct drm_gem_object *msm_gem_new_locked(struct drm_device *dev,
+		uint32_t size, uint32_t flags);
+void *msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
+		uint32_t flags, struct msm_gem_address_space *aspace,
+		struct drm_gem_object **bo, uint64_t *iova);
+void *msm_gem_kernel_new_locked(struct drm_device *dev, uint32_t size,
+		uint32_t flags, struct msm_gem_address_space *aspace,
+		struct drm_gem_object **bo, uint64_t *iova);
 struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 		struct dma_buf *dmabuf, struct sg_table *sgt);
 
-int msm_framebuffer_prepare(struct drm_framebuffer *fb, int id);
-void msm_framebuffer_cleanup(struct drm_framebuffer *fb, int id);
-uint32_t msm_framebuffer_iova(struct drm_framebuffer *fb, int id, int plane);
+int msm_framebuffer_prepare(struct drm_framebuffer *fb,
+		struct msm_gem_address_space *aspace);
+void msm_framebuffer_cleanup(struct drm_framebuffer *fb,
+		struct msm_gem_address_space *aspace);
+uint32_t msm_framebuffer_iova(struct drm_framebuffer *fb,
+		struct msm_gem_address_space *aspace, int plane);
 struct drm_gem_object *msm_framebuffer_bo(struct drm_framebuffer *fb, int plane);
 const struct msm_format *msm_framebuffer_format(struct drm_framebuffer *fb);
-struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
-		const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
 struct drm_framebuffer *msm_framebuffer_create(struct drm_device *dev,
 		struct drm_file *file, const struct drm_mode_fb_cmd2 *mode_cmd);
+struct drm_framebuffer * msm_alloc_stolen_fb(struct drm_device *dev,
+		int w, int h, int p, uint32_t format);
 
 struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev);
 void msm_fbdev_free(struct drm_device *dev);
@@ -307,7 +297,8 @@ void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m);
 int msm_debugfs_late_init(struct drm_device *dev);
 int msm_rd_debugfs_init(struct drm_minor *minor);
 void msm_rd_debugfs_cleanup(struct msm_drm_private *priv);
-void msm_rd_dump_submit(struct msm_gem_submit *submit);
+void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit,
+		const char *fmt, ...);
 int msm_perf_debugfs_init(struct drm_minor *minor);
 void msm_perf_debugfs_cleanup(struct msm_drm_private *priv);
 #else
@@ -322,6 +313,18 @@ void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 		const char *dbgname);
 void msm_writel(u32 data, void __iomem *addr);
 u32 msm_readl(const void __iomem *addr);
+
+struct msm_gpu_submitqueue;
+int msm_submitqueue_init(struct drm_device *drm, struct msm_file_private *ctx);
+struct msm_gpu_submitqueue *msm_submitqueue_get(struct msm_file_private *ctx,
+		u32 id);
+int msm_submitqueue_create(struct drm_device *drm, struct msm_file_private *ctx,
+		u32 prio, u32 flags, u32 *id);
+int msm_submitqueue_remove(struct msm_file_private *ctx, u32 id);
+void msm_submitqueue_close(struct msm_file_private *ctx);
+
+void msm_submitqueue_destroy(struct kref *kref);
+
 
 #define DBG(fmt, ...) DRM_DEBUG_DRIVER(fmt"\n", ##__VA_ARGS__)
 #define VERB(fmt, ...) if (0) DRM_DEBUG_DRIVER(fmt"\n", ##__VA_ARGS__)

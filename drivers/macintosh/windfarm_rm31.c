@@ -338,7 +338,7 @@ static int cpu_setup_pid(int cpu)
 }
 
 /* Backside/U3 fan */
-static struct wf_pid_param backside_param = {
+static const struct wf_pid_param backside_param = {
 	.interval	= 1,
 	.history_len	= 2,
 	.gd		= 0x00500000,
@@ -351,7 +351,7 @@ static struct wf_pid_param backside_param = {
 };
 
 /* DIMMs temperature (clamp the backside fan) */
-static struct wf_pid_param dimms_param = {
+static const struct wf_pid_param dimms_param = {
 	.interval	= 1,
 	.history_len	= 20,
 	.gd		= 0,

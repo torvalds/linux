@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*!*****************************************************************************
 *!
 *!  Implements an interface for i2c compatible eeproms to run under Linux.

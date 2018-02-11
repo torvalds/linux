@@ -52,10 +52,10 @@ static struct rc_map_table avermedia_a16d[] = {
 
 static struct rc_map_list avermedia_a16d_map = {
 	.map = {
-		.scan    = avermedia_a16d,
-		.size    = ARRAY_SIZE(avermedia_a16d),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_AVERMEDIA_A16D,
+		.scan     = avermedia_a16d,
+		.size     = ARRAY_SIZE(avermedia_a16d),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_AVERMEDIA_A16D,
 	}
 };
 

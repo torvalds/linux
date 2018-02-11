@@ -50,6 +50,7 @@ enum cgs_ind_reg {
 	CGS_IND_REG__UVD_CTX,
 	CGS_IND_REG__DIDT,
 	CGS_IND_REG_GC_CAC,
+	CGS_IND_REG_SE_CAC,
 	CGS_IND_REG__AUDIO_ENDPT
 };
 
@@ -99,6 +100,7 @@ enum cgs_system_info_id {
 	CGS_SYSTEM_INFO_GFX_SE_INFO,
 	CGS_SYSTEM_INFO_PCIE_SUB_SYS_ID,
 	CGS_SYSTEM_INFO_PCIE_SUB_SYS_VENDOR_ID,
+	CGS_SYSTEM_INFO_PCIE_BUS_DEVFN,
 	CGS_SYSTEM_INFO_ID_MAXIMUM,
 };
 
@@ -192,8 +194,6 @@ struct cgs_acpi_method_info {
  * @type:	memory type
  * @size:	size in bytes
  * @align:	alignment in bytes
- * @min_offset: minimum offset from start of heap
- * @max_offset: maximum offset from start of heap
  * @handle:	memory handle (output)
  *
  * The memory types CGS_GPU_MEM_TYPE_*_CONTIG_FB force contiguous
@@ -215,7 +215,6 @@ struct cgs_acpi_method_info {
  */
 typedef int (*cgs_alloc_gpu_mem_t)(struct cgs_device *cgs_device, enum cgs_gpu_mem_type type,
 				   uint64_t size, uint64_t align,
-				   uint64_t min_offset, uint64_t max_offset,
 				   cgs_handle_t *handle);
 
 /**
@@ -308,6 +307,22 @@ typedef uint32_t (*cgs_read_ind_register_t)(struct cgs_device *cgs_device, enum 
  */
 typedef void (*cgs_write_ind_register_t)(struct cgs_device *cgs_device, enum cgs_ind_reg space,
 					 unsigned index, uint32_t value);
+
+#define CGS_REG_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
+#define CGS_REG_FIELD_MASK(reg, field) reg##__##field##_MASK
+
+#define CGS_REG_SET_FIELD(orig_val, reg, field, field_val)			\
+	(((orig_val) & ~CGS_REG_FIELD_MASK(reg, field)) |			\
+	 (CGS_REG_FIELD_MASK(reg, field) & ((field_val) << CGS_REG_FIELD_SHIFT(reg, field))))
+
+#define CGS_REG_GET_FIELD(value, reg, field)				\
+	(((value) & CGS_REG_FIELD_MASK(reg, field)) >> CGS_REG_FIELD_SHIFT(reg, field))
+
+#define CGS_WREG32_FIELD(device, reg, field, val)	\
+	cgs_write_register(device, mm##reg, (cgs_read_register(device, mm##reg) & ~CGS_REG_FIELD_MASK(reg, field)) | (val) << CGS_REG_FIELD_SHIFT(reg, field))
+
+#define CGS_WREG32_FIELD_IND(device, space, reg, field, val)	\
+	cgs_write_ind_register(device, space, ix##reg, (cgs_read_ind_register(device, space, ix##reg) & ~CGS_REG_FIELD_MASK(reg, field)) | (val) << CGS_REG_FIELD_SHIFT(reg, field))
 
 /**
  * cgs_get_pci_resource() - provide access to a device resource (PCI BAR)
@@ -406,6 +421,12 @@ typedef int (*cgs_is_virtualization_enabled_t)(void *cgs_device);
 
 typedef int (*cgs_enter_safe_mode)(struct cgs_device *cgs_device, bool en);
 
+typedef void (*cgs_lock_grbm_idx)(struct cgs_device *cgs_device, bool lock);
+
+struct amd_pp_init;
+typedef void* (*cgs_register_pp_handle)(struct cgs_device *cgs_device,
+			int (*call_back_func)(struct amd_pp_init *, void **));
+
 struct cgs_ops {
 	/* memory management calls (similar to KFD interface) */
 	cgs_alloc_gpu_mem_t alloc_gpu_mem;
@@ -441,6 +462,8 @@ struct cgs_ops {
 	cgs_query_system_info query_system_info;
 	cgs_is_virtualization_enabled_t is_virtualization_enabled;
 	cgs_enter_safe_mode enter_safe_mode;
+	cgs_lock_grbm_idx lock_grbm_idx;
+	cgs_register_pp_handle register_pp_handle;
 };
 
 struct cgs_os_ops; /* To be define in OS-specific CGS header */
@@ -459,8 +482,8 @@ struct cgs_device
 #define CGS_OS_CALL(func,dev,...) \
 	(((struct cgs_device *)dev)->os_ops->func(dev, ##__VA_ARGS__))
 
-#define cgs_alloc_gpu_mem(dev,type,size,align,min_off,max_off,handle)	\
-	CGS_CALL(alloc_gpu_mem,dev,type,size,align,min_off,max_off,handle)
+#define cgs_alloc_gpu_mem(dev,type,size,align,handle)	\
+	CGS_CALL(alloc_gpu_mem,dev,type,size,align,handle)
 #define cgs_free_gpu_mem(dev,handle)		\
 	CGS_CALL(free_gpu_mem,dev,handle)
 #define cgs_gmap_gpu_mem(dev,handle,mcaddr)	\
@@ -516,5 +539,10 @@ struct cgs_device
 
 #define cgs_enter_safe_mode(cgs_device, en) \
 		CGS_CALL(enter_safe_mode, cgs_device, en)
+
+#define cgs_lock_grbm_idx(cgs_device, lock) \
+		CGS_CALL(lock_grbm_idx, cgs_device, lock)
+#define cgs_register_pp_handle(cgs_device, call_back_func) \
+		CGS_CALL(register_pp_handle, cgs_device, call_back_func)
 
 #endif /* _CGS_COMMON_H */

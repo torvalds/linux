@@ -16,10 +16,11 @@ provided by gadgets.
 13. RNDIS function
 14. SERIAL function
 15. SOURCESINK function
-16. UAC1 function
+16. UAC1 function (legacy implementation)
 17. UAC2 function
 18. UVC function
 19. PRINTER function
+20. UAC1 function (new API)
 
 
 1. ACM function
@@ -589,15 +590,16 @@ device: run the gadget
 host: test-usb (tools/usb/testusb.c)
 
 
-16. UAC1 function
+16. UAC1 function (legacy implementation)
 =================
 
-The function is provided by usb_f_uac1.ko module.
+The function is provided by usb_f_uac1_legacy.ko module.
 
 Function-specific configfs interface
 ------------------------------------
 
-The function name to use when creating the function directory is "uac1".
+The function name to use when creating the function directory
+is "uac1_legacy".
 The uac1 function provides these attributes in its function directory:
 
 	audio_buf_size - audio buffer size
@@ -691,7 +693,7 @@ such specification consists of a number of lines with an inverval value
 in each line. The rules stated above are best illustrated with an example:
 
 # mkdir functions/uvc.usb0/control/header/h
-# cd functions/uvc.usb0/control/header/h
+# cd functions/uvc.usb0/control/
 # ln -s header/h class/fs
 # ln -s header/h class/ss
 # mkdir -p functions/uvc.usb0/streaming/uncompressed/u/360p
@@ -771,4 +773,47 @@ host:
 # cat /dev/usb/lp0
 
 More advanced testing can be done with the prn_example
-described in Documentation/usb/gadget-printer.txt.
+described in Documentation/usb/gadget_printer.txt.
+
+
+20. UAC1 function (virtual ALSA card, using u_audio API)
+=================
+
+The function is provided by usb_f_uac1.ko module.
+It will create a virtual ALSA card and the audio streams are simply
+sinked to and sourced from it.
+
+Function-specific configfs interface
+------------------------------------
+
+The function name to use when creating the function directory is "uac1".
+The uac1 function provides these attributes in its function directory:
+
+	c_chmask - capture channel mask
+	c_srate - capture sampling rate
+	c_ssize - capture sample size (bytes)
+	p_chmask - playback channel mask
+	p_srate - playback sampling rate
+	p_ssize - playback sample size (bytes)
+	req_number - the number of pre-allocated request for both capture
+		     and playback
+
+The attributes have sane default values.
+
+Testing the UAC1 function
+-------------------------
+
+device: run the gadget
+host: aplay -l # should list our USB Audio Gadget
+
+This function does not require real hardware support, it just
+sends a stream of audio data to/from the host. In order to
+actually hear something at the device side, a command similar
+to this must be used at the device side:
+
+$ arecord -f dat -t wav -D hw:2,0 | aplay -D hw:0,0 &
+
+e.g.:
+
+$ arecord -f dat -t wav -D hw:CARD=UAC1Gadget,DEV=0 | \
+aplay -D default:CARD=OdroidU3

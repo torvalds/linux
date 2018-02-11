@@ -50,6 +50,6 @@ libperf-y += util/
 libperf-y += arch/
 libperf-y += ui/
 libperf-y += scripts/
-libperf-y += trace/beauty/
+libperf-$(CONFIG_AUDIT) += trace/beauty/
 
 gtk-y += ui/gtk/

@@ -758,9 +758,9 @@ enum action {
 };
 
 
-static void qla1280_mailbox_timeout(unsigned long __data)
+static void qla1280_mailbox_timeout(struct timer_list *t)
 {
-	struct scsi_qla_host *ha = (struct scsi_qla_host *)__data;
+	struct scsi_qla_host *ha = from_timer(ha, t, mailbox_timer);
 	struct device_reg __iomem *reg;
 	reg = ha->iobase;
 
@@ -2465,7 +2465,6 @@ qla1280_mailbox_command(struct scsi_qla_host *ha, uint8_t mr, uint16_t *mb)
 	uint16_t __iomem *mptr;
 	uint16_t data;
 	DECLARE_COMPLETION_ONSTACK(wait);
-	struct timer_list timer;
 
 	ENTER("qla1280_mailbox_command");
 
@@ -2494,18 +2493,15 @@ qla1280_mailbox_command(struct scsi_qla_host *ha, uint8_t mr, uint16_t *mb)
 	/* Issue set host interrupt command. */
 
 	/* set up a timer just in case we're really jammed */
-	init_timer_on_stack(&timer);
-	timer.expires = jiffies + 20*HZ;
-	timer.data = (unsigned long)ha;
-	timer.function = qla1280_mailbox_timeout;
-	add_timer(&timer);
+	timer_setup(&ha->mailbox_timer, qla1280_mailbox_timeout, 0);
+	mod_timer(&ha->mailbox_timer, jiffies + 20 * HZ);
 
 	spin_unlock_irq(ha->host->host_lock);
 	WRT_REG_WORD(&reg->host_cmd, HC_SET_HOST_INT);
 	data = qla1280_debounce_register(&reg->istatus);
 
 	wait_for_completion(&wait);
-	del_timer_sync(&timer);
+	del_timer_sync(&ha->mailbox_timer);
 
 	spin_lock_irq(ha->host->host_lock);
 
@@ -3390,7 +3386,7 @@ qla1280_isp_cmd(struct scsi_qla_host *ha)
 	 *    On PCI bus, order reverses and write of 6 posts, then index 5,
 	 *       causing chip to issue full queue of stale commands
 	 * The mmiowb() prevents future writes from crossing the barrier.
-	 * See Documentation/DocBook/deviceiobook.tmpl for more information.
+	 * See Documentation/driver-api/device-io.rst for more information.
 	 */
 	WRT_REG_WORD(&reg->mailbox4, ha->req_ring_index);
 	mmiowb();

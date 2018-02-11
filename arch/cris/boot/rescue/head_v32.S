@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Just get started by jumping to CONFIG_ETRAX_PTABLE_SECTOR to start
  * kernel decompressor.

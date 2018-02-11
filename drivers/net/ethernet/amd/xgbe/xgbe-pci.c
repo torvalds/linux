@@ -139,6 +139,7 @@ static int xgbe_config_multi_msi(struct xgbe_prv_data *pdata)
 		return ret;
 	}
 
+	pdata->isr_as_tasklet = 1;
 	pdata->irq_count = ret;
 
 	pdata->dev_irq = pci_irq_vector(pdata->pcidev, 0);
@@ -175,6 +176,7 @@ static int xgbe_config_irqs(struct xgbe_prv_data *pdata)
 		return ret;
 	}
 
+	pdata->isr_as_tasklet = pdata->pcidev->msi_enabled ? 1 : 0;
 	pdata->irq_count = 1;
 	pdata->channel_irq_count = 1;
 
@@ -290,6 +292,10 @@ static int xgbe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pdata->xpcs_window_size = 1 << (pdata->xpcs_window_size + 7);
 	pdata->xpcs_window_mask = pdata->xpcs_window_size - 1;
 	if (netif_msg_probe(pdata)) {
+		dev_dbg(dev, "xpcs window def  = %#010x\n",
+			pdata->xpcs_window_def_reg);
+		dev_dbg(dev, "xpcs window sel  = %#010x\n",
+			pdata->xpcs_window_sel_reg);
 		dev_dbg(dev, "xpcs window      = %#010x\n",
 			pdata->xpcs_window);
 		dev_dbg(dev, "xpcs window size = %#010x\n",
@@ -325,9 +331,9 @@ static int xgbe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Set the DMA coherency values */
 	pdata->coherent = 1;
-	pdata->axdomain = XGBE_DMA_OS_AXDOMAIN;
-	pdata->arcache = XGBE_DMA_OS_ARCACHE;
-	pdata->awcache = XGBE_DMA_OS_AWCACHE;
+	pdata->arcr = XGBE_DMA_PCI_ARCR;
+	pdata->awcr = XGBE_DMA_PCI_AWCR;
+	pdata->awarcr = XGBE_DMA_PCI_AWARCR;
 
 	/* Set the maximum channels and queues */
 	reg = XP_IOREAD(pdata, XP_PROP_1);
@@ -445,6 +451,9 @@ static const struct xgbe_version_data xgbe_v2a = {
 	.tx_tstamp_workaround		= 1,
 	.ecc_support			= 1,
 	.i2c_support			= 1,
+	.irq_reissue_support		= 1,
+	.tx_desc_prefetch		= 5,
+	.rx_desc_prefetch		= 5,
 };
 
 static const struct xgbe_version_data xgbe_v2b = {
@@ -456,6 +465,9 @@ static const struct xgbe_version_data xgbe_v2b = {
 	.tx_tstamp_workaround		= 1,
 	.ecc_support			= 1,
 	.i2c_support			= 1,
+	.irq_reissue_support		= 1,
+	.tx_desc_prefetch		= 5,
+	.rx_desc_prefetch		= 5,
 };
 
 static const struct pci_device_id xgbe_pci_table[] = {

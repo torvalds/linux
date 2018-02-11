@@ -17,6 +17,7 @@
 #include <drv_types.h>
 #include <rtw_debug.h>
 #include <rtw_wifi_regd.h>
+#include <linux/kernel.h>
 
 
 static struct mlme_handler mlme_sta_tbl[] = {
@@ -474,15 +475,12 @@ int	init_mlme_ext_priv(struct adapter *padapter)
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 
-	/*  We don't need to memset padapter->XXX to zero, because adapter is allocated by vzalloc(). */
-	/* memset((u8 *)pmlmeext, 0, sizeof(struct mlme_ext_priv)); */
-
 	pmlmeext->padapter = padapter;
 
 	/* fill_fwpriv(padapter, &(pmlmeext->fwpriv)); */
 
 	init_mlme_ext_priv_value(padapter);
-	pmlmeinfo->bAcceptAddbaReq = pregistrypriv->bAcceptAddbaReq;
+	pmlmeinfo->accept_addba_req = pregistrypriv->accept_addba_req;
 
 	init_mlme_ext_timer(padapter);
 
@@ -510,7 +508,7 @@ void free_mlme_ext_priv(struct mlme_ext_priv *pmlmeext)
 	if (!padapter)
 		return;
 
-	if (padapter->bDriverStopped == true) {
+	if (padapter->bDriverStopped) {
 		del_timer_sync(&pmlmeext->survey_timer);
 		del_timer_sync(&pmlmeext->link_timer);
 		/* del_timer_sync(&pmlmeext->ADDBA_timer); */
@@ -562,7 +560,7 @@ void mgt_dispatcher(struct adapter *padapter, union recv_frame *precv_frame)
 
 	index = GetFrameSubType(pframe) >> 4;
 
-	if (index >= (sizeof(mlme_sta_tbl) / sizeof(struct mlme_handler))) {
+	if (index >= ARRAY_SIZE(mlme_sta_tbl)) {
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("Currently we do not support reserved sub-fr-type =%d\n", index));
 		return;
 	}
@@ -582,11 +580,11 @@ void mgt_dispatcher(struct adapter *padapter, union recv_frame *precv_frame)
 
 	switch (GetFrameSubType(pframe)) {
 	case WIFI_AUTH:
-		if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true)
+		if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
 			ptable->func = &OnAuth;
 		else
 			ptable->func = &OnAuthClient;
-		/* pass through */
+		/* fall through */
 	case WIFI_ASSOCREQ:
 	case WIFI_REASSOCREQ:
 		_mgt_dispatcher(padapter, ptable, precv_frame);
@@ -637,8 +635,8 @@ unsigned int OnProbeReq(struct adapter *padapter, union recv_frame *precv_frame)
 	/* DBG_871X("+OnProbeReq\n"); */
 
 #ifdef CONFIG_AUTO_AP_MODE
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == true &&
-			pmlmepriv->cur_network.join_res == true) {
+	if (check_fwstate(pmlmepriv, _FW_LINKED) &&
+			pmlmepriv->cur_network.join_res) {
 		struct sta_info *psta;
 		u8 *mac_addr, *peer_addr;
 		struct sta_priv *pstapriv = &padapter->stapriv;
@@ -752,7 +750,7 @@ _non_rc_device:
 
 	/* check (wildcard) SSID */
 	if (p != NULL) {
-		if (is_valid_p2p_probereq == true)
+		if (is_valid_p2p_probereq)
 			goto _issue_probersp;
 
 		if ((ielen != 0 && false == !memcmp((void *)(p+2), (void *)cur->Ssid.Ssid, cur->Ssid.SsidLength))
@@ -761,8 +759,8 @@ _non_rc_device:
 			return _SUCCESS;
 
 _issue_probersp:
-		if (((check_fwstate(pmlmepriv, _FW_LINKED) == true &&
-			pmlmepriv->cur_network.join_res == true)) || check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) {
+		if ((check_fwstate(pmlmepriv, _FW_LINKED)  &&
+			pmlmepriv->cur_network.join_res) || check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) {
 			/* DBG_871X("+issue_probersp during ap mode\n"); */
 			issue_probersp(padapter, get_sa(pframe), is_valid_p2p_probereq);
 		}
@@ -818,7 +816,7 @@ unsigned int OnBeacon(struct adapter *padapter, union recv_frame *precv_frame)
 	if (!memcmp(GetAddr3Ptr(pframe), get_my_bssid(&pmlmeinfo->network), ETH_ALEN)) {
 		if (pmlmeinfo->state & WIFI_FW_AUTH_NULL) {
 			/* we should update current network before auth, or some IE is wrong */
-			pbss = (struct wlan_bssid_ex *)rtw_malloc(sizeof(struct wlan_bssid_ex));
+			pbss = rtw_malloc(sizeof(struct wlan_bssid_ex));
 			if (pbss) {
 				if (collect_bss_info(padapter, precv_frame, pbss) == _SUCCESS) {
 					update_network(&(pmlmepriv->cur_network.network), pbss, padapter, true);
@@ -1228,7 +1226,7 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 	}
 
 	pstat = rtw_get_stainfo(pstapriv, GetAddr2Ptr(pframe));
-	if (pstat == (struct sta_info *)NULL) {
+	if (pstat == NULL) {
 		status = _RSON_CLS2_;
 		goto asoc_class2_error;
 	}
@@ -1773,7 +1771,7 @@ unsigned int OnDeAuth(struct adapter *padapter, union recv_frame *precv_frame)
 
 	DBG_871X("%s Reason code(%d)\n", __func__, reason);
 
-	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
+	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		struct sta_info *psta;
 		struct sta_priv *pstapriv = &padapter->stapriv;
 
@@ -1848,7 +1846,7 @@ unsigned int OnDisassoc(struct adapter *padapter, union recv_frame *precv_frame)
 
 	DBG_871X("%s Reason code(%d)\n", __func__, reason);
 
-	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
+	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		struct sta_info *psta;
 		struct sta_priv *pstapriv = &padapter->stapriv;
 
@@ -1976,7 +1974,7 @@ unsigned int OnAction_back(struct adapter *padapter, union recv_frame *precv_fra
 			/* process_addba_req(padapter, (u8 *)&(pmlmeinfo->ADDBA_req), GetAddr3Ptr(pframe)); */
 			process_addba_req(padapter, (u8 *)&(pmlmeinfo->ADDBA_req), addr);
 
-			if (pmlmeinfo->bAcceptAddbaReq == true) {
+			if (pmlmeinfo->accept_addba_req) {
 				issue_action_BA(padapter, addr, RTW_WLAN_ACTION_ADDBA_RESP, 0);
 			} else{
 				issue_action_BA(padapter, addr, RTW_WLAN_ACTION_ADDBA_RESP, 37);/* reject ADDBA Req */
@@ -2227,7 +2225,7 @@ unsigned int OnAction(struct adapter *padapter, union recv_frame *precv_frame)
 
 	category = frame_body[0];
 
-	for (i = 0; i < sizeof(OnAction_tbl)/sizeof(struct action_handler); i++) {
+	for (i = 0; i < ARRAY_SIZE(OnAction_tbl); i++) {
 		ptable = &OnAction_tbl[i];
 
 		if (category == ptable->num)
@@ -2350,8 +2348,8 @@ void update_mgntframe_attrib_addr(struct adapter *padapter, struct xmit_frame *p
 
 void dump_mgntframe(struct adapter *padapter, struct xmit_frame *pmgntframe)
 {
-	if (padapter->bSurpriseRemoved == true ||
-		padapter->bDriverStopped == true) {
+	if (padapter->bSurpriseRemoved ||
+		padapter->bDriverStopped) {
 		rtw_free_xmitbuf(&padapter->xmitpriv, pmgntframe->pxmitbuf);
 		rtw_free_xmitframe(&padapter->xmitpriv, pmgntframe);
 		return;
@@ -2368,8 +2366,8 @@ s32 dump_mgntframe_and_wait(struct adapter *padapter, struct xmit_frame *pmgntfr
 	struct xmit_buf *pxmitbuf = pmgntframe->pxmitbuf;
 	struct submit_ctx sctx;
 
-	if (padapter->bSurpriseRemoved == true ||
-		padapter->bDriverStopped == true) {
+	if (padapter->bSurpriseRemoved ||
+		padapter->bDriverStopped) {
 		rtw_free_xmitbuf(&padapter->xmitpriv, pmgntframe->pxmitbuf);
 		rtw_free_xmitframe(&padapter->xmitpriv, pmgntframe);
 		return ret;
@@ -2392,13 +2390,13 @@ s32 dump_mgntframe_and_wait(struct adapter *padapter, struct xmit_frame *pmgntfr
 
 s32 dump_mgntframe_and_wait_ack(struct adapter *padapter, struct xmit_frame *pmgntframe)
 {
-	static u8 seq_no = 0;
+	static u8 seq_no;
 	s32 ret = _FAIL;
 	u32 timeout_ms = 500;/*   500ms */
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
-	if (padapter->bSurpriseRemoved == true ||
-		padapter->bDriverStopped == true) {
+	if (padapter->bSurpriseRemoved ||
+		padapter->bDriverStopped) {
 		rtw_free_xmitbuf(&padapter->xmitpriv, pmgntframe->pxmitbuf);
 		rtw_free_xmitframe(&padapter->xmitpriv, pmgntframe);
 		return -1;
@@ -2833,7 +2831,9 @@ void issue_probersp(struct adapter *padapter, unsigned char *da, u8 is_valid_p2p
 
 }
 
-static int _issue_probereq(struct adapter *padapter, struct ndis_802_11_ssid *pssid, u8 *da, u8 ch, bool append_wps, int wait_ack)
+static int _issue_probereq(struct adapter *padapter,
+			   struct ndis_802_11_ssid *pssid,
+			   u8 *da, u8 ch, bool append_wps, bool wait_ack)
 {
 	int ret = _FAIL;
 	struct xmit_frame		*pmgntframe;
@@ -3394,7 +3394,7 @@ void issue_assocreq(struct adapter *padapter)
 			pframe = rtw_set_ie(pframe, EID_WPA2, pIE->Length, pIE->data, &(pattrib->pktlen));
 			break;
 		case EID_HTCapability:
-			if (padapter->mlmepriv.htpriv.ht_option == true) {
+			if (padapter->mlmepriv.htpriv.ht_option) {
 				if (!(is_ap_in_tkip(padapter))) {
 					memcpy(&(pmlmeinfo->HT_caps), pIE->data, sizeof(struct HT_caps_element));
 					pframe = rtw_set_ie(pframe, EID_HTCapability, pIE->Length, (u8 *)(&(pmlmeinfo->HT_caps)), &(pattrib->pktlen));
@@ -3403,7 +3403,7 @@ void issue_assocreq(struct adapter *padapter)
 			break;
 
 		case EID_EXTCapability:
-			if (padapter->mlmepriv.htpriv.ht_option == true)
+			if (padapter->mlmepriv.htpriv.ht_option)
 				pframe = rtw_set_ie(pframe, EID_EXTCapability, pIE->Length, pIE->data, &(pattrib->pktlen));
 			break;
 		default:
@@ -3432,7 +3432,8 @@ exit:
 }
 
 /* when wait_ack is ture, this function shoule be called at process context */
-static int _issue_nulldata(struct adapter *padapter, unsigned char *da, unsigned int power_mode, int wait_ack)
+static int _issue_nulldata(struct adapter *padapter, unsigned char *da,
+			   unsigned int power_mode, bool wait_ack)
 {
 	int ret = _FAIL;
 	struct xmit_frame			*pmgntframe;
@@ -3593,7 +3594,8 @@ s32 issue_nulldata_in_interrupt(struct adapter *padapter, u8 *da)
 }
 
 /* when wait_ack is ture, this function shoule be called at process context */
-static int _issue_qos_nulldata(struct adapter *padapter, unsigned char *da, u16 tid, int wait_ack)
+static int _issue_qos_nulldata(struct adapter *padapter, unsigned char *da,
+			       u16 tid, bool wait_ack)
 {
 	int ret = _FAIL;
 	struct xmit_frame			*pmgntframe;
@@ -3717,7 +3719,8 @@ exit:
 	return ret;
 }
 
-static int _issue_deauth(struct adapter *padapter, unsigned char *da, unsigned short reason, u8 wait_ack)
+static int _issue_deauth(struct adapter *padapter, unsigned char *da,
+			 unsigned short reason, bool wait_ack)
 {
 	struct xmit_frame			*pmgntframe;
 	struct pkt_attrib			*pattrib;
@@ -4219,7 +4222,7 @@ unsigned int send_delba(struct adapter *padapter, u8 initiator, u8 *addr)
 
 	if (initiator == 0) {/*  recipient */
 		for (tid = 0; tid < MAXTID; tid++) {
-			if (psta->recvreorder_ctrl[tid].enable == true) {
+			if (psta->recvreorder_ctrl[tid].enable) {
 				DBG_871X("rx agg disable tid(%d)\n", tid);
 				issue_action_BA(padapter, addr, RTW_WLAN_ACTION_DELBA, (((tid << 1) | initiator)&0x1F));
 				psta->recvreorder_ctrl[tid].enable = false;
@@ -4408,7 +4411,7 @@ void site_survey(struct adapter *padapter)
 			Restore_DM_Func_Flag(padapter);
 			/* Switch_DM_Func(padapter, DYNAMIC_ALL_FUNC_ENABLE, true); */
 
-			if (is_client_associated_to_ap(padapter) == true)
+			if (is_client_associated_to_ap(padapter))
 				issue_nulldata(padapter, NULL, 0, 3, 500);
 
 			val8 = 0; /* survey done */
@@ -5049,12 +5052,12 @@ void report_survey_event(struct adapter *padapter, union recv_frame *precv_frame
 	pmlmeext = &padapter->mlmeextpriv;
 	pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = (struct cmd_obj *)rtw_zmalloc(sizeof(struct cmd_obj));
+	pcmd_obj = rtw_zmalloc(sizeof(struct cmd_obj));
 	if (pcmd_obj == NULL)
 		return;
 
 	cmdsz = (sizeof(struct survey_event) + sizeof(struct C2HEvent_Header));
-	pevtcmd = (u8 *)rtw_zmalloc(cmdsz);
+	pevtcmd = rtw_zmalloc(cmdsz);
 	if (pevtcmd == NULL) {
 		kfree((u8 *)pcmd_obj);
 		return;
@@ -5102,12 +5105,12 @@ void report_surveydone_event(struct adapter *padapter)
 	struct mlme_ext_priv 	*pmlmeext = &padapter->mlmeextpriv;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = (struct cmd_obj *)rtw_zmalloc(sizeof(struct cmd_obj));
+	pcmd_obj = rtw_zmalloc(sizeof(struct cmd_obj));
 	if (pcmd_obj == NULL)
 		return;
 
 	cmdsz = (sizeof(struct surveydone_event) + sizeof(struct C2HEvent_Header));
-	pevtcmd = (u8 *)rtw_zmalloc(cmdsz);
+	pevtcmd = rtw_zmalloc(cmdsz);
 	if (pevtcmd == NULL) {
 		kfree((u8 *)pcmd_obj);
 		return;
@@ -5149,12 +5152,12 @@ void report_join_res(struct adapter *padapter, int res)
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = (struct cmd_obj *)rtw_zmalloc(sizeof(struct cmd_obj));
+	pcmd_obj = rtw_zmalloc(sizeof(struct cmd_obj));
 	if (pcmd_obj == NULL)
 		return;
 
 	cmdsz = (sizeof(struct joinbss_event) + sizeof(struct C2HEvent_Header));
-	pevtcmd = (u8 *)rtw_zmalloc(cmdsz);
+	pevtcmd = rtw_zmalloc(cmdsz);
 	if (pevtcmd == NULL) {
 		kfree((u8 *)pcmd_obj);
 		return;
@@ -5200,12 +5203,12 @@ void report_wmm_edca_update(struct adapter *padapter)
 	struct mlme_ext_priv 	*pmlmeext = &padapter->mlmeextpriv;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = (struct cmd_obj *)rtw_zmalloc(sizeof(struct cmd_obj));
+	pcmd_obj = rtw_zmalloc(sizeof(struct cmd_obj));
 	if (pcmd_obj == NULL)
 		return;
 
 	cmdsz = (sizeof(struct wmm_event) + sizeof(struct C2HEvent_Header));
-	pevtcmd = (u8 *)rtw_zmalloc(cmdsz);
+	pevtcmd = rtw_zmalloc(cmdsz);
 	if (pevtcmd == NULL) {
 		kfree((u8 *)pcmd_obj);
 		return;
@@ -5246,13 +5249,13 @@ void report_del_sta_event(struct adapter *padapter, unsigned char *MacAddr, unsi
 	struct mlme_ext_priv 	*pmlmeext = &padapter->mlmeextpriv;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = (struct cmd_obj *)rtw_zmalloc(sizeof(struct cmd_obj));
+	pcmd_obj = rtw_zmalloc(sizeof(struct cmd_obj));
 	if (pcmd_obj == NULL) {
 		return;
 	}
 
 	cmdsz = (sizeof(struct stadel_event) + sizeof(struct C2HEvent_Header));
-	pevtcmd = (u8 *)rtw_zmalloc(cmdsz);
+	pevtcmd = rtw_zmalloc(cmdsz);
 	if (pevtcmd == NULL) {
 		kfree((u8 *)pcmd_obj);
 		return;
@@ -5302,12 +5305,12 @@ void report_add_sta_event(struct adapter *padapter, unsigned char *MacAddr, int 
 	struct mlme_ext_priv 	*pmlmeext = &padapter->mlmeextpriv;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = (struct cmd_obj *)rtw_zmalloc(sizeof(struct cmd_obj));
+	pcmd_obj = rtw_zmalloc(sizeof(struct cmd_obj));
 	if (pcmd_obj == NULL)
 		return;
 
 	cmdsz = (sizeof(struct stassoc_event) + sizeof(struct C2HEvent_Header));
-	pevtcmd = (u8 *)rtw_zmalloc(cmdsz);
+	pevtcmd = rtw_zmalloc(cmdsz);
 	if (pevtcmd == NULL) {
 		kfree((u8 *)pcmd_obj);
 		return;
@@ -5445,7 +5448,7 @@ static void rtw_mlmeext_disconnect(struct adapter *padapter)
 	pmlmeinfo->state = WIFI_FW_NULL_STATE;
 
 	if (state_backup == WIFI_FW_STATION_STATE) {
-		if (rtw_port_switch_chk(padapter) == true) {
+		if (rtw_port_switch_chk(padapter)) {
 			rtw_hal_set_hwreg(padapter, HW_VAR_PORT_SWITCH, NULL);
 			{
 				struct adapter *port0_iface = dvobj_get_port0_adapter(adapter_to_dvobj(padapter));
@@ -5534,7 +5537,7 @@ void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res)
 		rtw_hal_macid_wakeup(padapter, psta->mac_id);
 	}
 
-	if (rtw_port_switch_chk(padapter) == true)
+	if (rtw_port_switch_chk(padapter))
 		rtw_hal_set_hwreg(padapter, HW_VAR_PORT_SWITCH, NULL);
 
 	join_type = 2;
@@ -5659,7 +5662,7 @@ void _linked_info_dump(struct adapter *padapter)
 
 		}
 		for (i = 0; i < NUM_STA; i++) {
-			if (pdvobj->macid[i] == true) {
+			if (pdvobj->macid[i]) {
 				if (i != 1) /* skip bc/mc sta */
 					/*   tx info ============ */
 					rtw_hal_get_def_var(padapter, HW_DEF_RA_INFO_DUMP, &i);
@@ -5827,8 +5830,10 @@ void linked_status_chk(struct adapter *padapter)
 
 }
 
-void survey_timer_hdl(struct adapter *padapter)
+void survey_timer_hdl(struct timer_list *t)
 {
+	struct adapter *padapter =
+		from_timer(padapter, t, mlmeextpriv.survey_timer);
 	struct cmd_obj	*ph2c;
 	struct sitesurvey_parm	*psurveyPara;
 	struct cmd_priv 				*pcmdpriv = &padapter->cmdpriv;
@@ -5842,7 +5847,7 @@ void survey_timer_hdl(struct adapter *padapter)
 			pmlmeext->sitesurvey_res.channel_idx++;
 		}
 
-		if (pmlmeext->scan_abort == true) {
+		if (pmlmeext->scan_abort) {
 			{
 				pmlmeext->sitesurvey_res.channel_idx = pmlmeext->sitesurvey_res.ch_num;
 				DBG_871X("%s idx:%d\n", __func__
@@ -5853,12 +5858,12 @@ void survey_timer_hdl(struct adapter *padapter)
 			pmlmeext->scan_abort = false;/* reset */
 		}
 
-		ph2c = (struct cmd_obj *)rtw_zmalloc(sizeof(struct cmd_obj));
+		ph2c = rtw_zmalloc(sizeof(struct cmd_obj));
 		if (ph2c == NULL) {
 			goto exit_survey_timer_hdl;
 		}
 
-		psurveyPara = (struct sitesurvey_parm *)rtw_zmalloc(sizeof(struct sitesurvey_parm));
+		psurveyPara = rtw_zmalloc(sizeof(struct sitesurvey_parm));
 		if (psurveyPara == NULL) {
 			kfree((unsigned char *)ph2c);
 			goto exit_survey_timer_hdl;
@@ -5874,8 +5879,10 @@ exit_survey_timer_hdl:
 	return;
 }
 
-void link_timer_hdl(struct adapter *padapter)
+void link_timer_hdl(struct timer_list *t)
 {
+	struct adapter *padapter =
+		from_timer(padapter, t, mlmeextpriv.link_timer);
 	/* static unsigned int		rx_pkt = 0; */
 	/* static u64				tx_cnt = 0; */
 	/* struct xmit_priv 	*pxmitpriv = &(padapter->xmitpriv); */
@@ -5924,8 +5931,9 @@ void link_timer_hdl(struct adapter *padapter)
 	return;
 }
 
-void addba_timer_hdl(struct sta_info *psta)
+void addba_timer_hdl(struct timer_list *t)
 {
+	struct sta_info *psta = from_timer(psta, t, addba_retry_timer);
 	struct ht_priv *phtpriv;
 
 	if (!psta)
@@ -5933,20 +5941,22 @@ void addba_timer_hdl(struct sta_info *psta)
 
 	phtpriv = &psta->htpriv;
 
-	if ((phtpriv->ht_option == true) && (phtpriv->ampdu_enable == true)) {
+	if (phtpriv->ht_option && phtpriv->ampdu_enable) {
 		if (phtpriv->candidate_tid_bitmap)
 			phtpriv->candidate_tid_bitmap = 0x0;
 
 	}
 }
 
-void sa_query_timer_hdl(struct adapter *padapter)
+void sa_query_timer_hdl(struct timer_list *t)
 {
+	struct adapter *padapter =
+		from_timer(padapter, t, mlmeextpriv.sa_query_timer);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	/* disconnect */
 	spin_lock_bh(&pmlmepriv->lock);
 
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == true) {
+	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 		rtw_disassoc_cmd(padapter, 0, true);
 		rtw_indicate_disconnect(padapter);
 		rtw_free_assoc_resources(padapter, 1);
@@ -6084,7 +6094,7 @@ u8 setopmode_hdl(struct adapter *padapter, u8 *pbuf)
 		rtw_auto_ap_start_beacon(padapter);
 #endif
 
-	if (rtw_port_switch_chk(padapter) == true) {
+	if (rtw_port_switch_chk(padapter)) {
 		rtw_hal_set_hwreg(padapter, HW_VAR_PORT_SWITCH, NULL);
 
 		if (psetop->mode == Ndis802_11APMode)
@@ -6358,7 +6368,7 @@ static int rtw_scan_ch_decision(struct adapter *padapter, struct rtw_ieee80211_c
 		set_idx = rtw_ch_set_search_ch(pmlmeext->channel_set, in[i].hw_value);
 		if (in[i].hw_value && !(in[i].flags & RTW_IEEE80211_CHAN_DISABLED)
 			&& set_idx >= 0
-			&& rtw_mlme_band_check(padapter, in[i].hw_value) == true
+			&& rtw_mlme_band_check(padapter, in[i].hw_value)
 		) {
 			if (j >= out_num) {
 				DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" out_num:%u not enough\n",
@@ -6383,7 +6393,7 @@ static int rtw_scan_ch_decision(struct adapter *padapter, struct rtw_ieee80211_c
 
 			DBG_871X(FUNC_ADPT_FMT" ch:%u\n", FUNC_ADPT_ARG(padapter), pmlmeext->channel_set[i].ChannelNum);
 
-			if (rtw_mlme_band_check(padapter, pmlmeext->channel_set[i].ChannelNum) == true) {
+			if (rtw_mlme_band_check(padapter, pmlmeext->channel_set[i].ChannelNum)) {
 
 				if (j >= out_num) {
 					DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" out_num:%u not enough\n",
@@ -6435,7 +6445,7 @@ u8 sitesurvey_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 		pmlmeext->sitesurvey_res.scan_mode = pparm->scan_mode;
 
 		/* issue null data if associating to the AP */
-		if (is_client_associated_to_ap(padapter) == true) {
+		if (is_client_associated_to_ap(padapter)) {
 			pmlmeext->sitesurvey_res.state = SCAN_TXNULL;
 
 			issue_nulldata(padapter, NULL, 1, 3, 500);
@@ -6602,7 +6612,7 @@ u8 chk_bmc_sleepq_cmd(struct adapter *padapter)
 	struct cmd_priv *pcmdpriv = &(padapter->cmdpriv);
 	u8 res = _SUCCESS;
 
-	ph2c = (struct cmd_obj *)rtw_zmalloc(sizeof(struct cmd_obj));
+	ph2c = rtw_zmalloc(sizeof(struct cmd_obj));
 	if (ph2c == NULL) {
 		res = _FAIL;
 		goto exit;
@@ -6626,13 +6636,13 @@ u8 set_tx_beacon_cmd(struct adapter *padapter)
 	u8 res = _SUCCESS;
 	int len_diff = 0;
 
-	ph2c = (struct cmd_obj *)rtw_zmalloc(sizeof(struct cmd_obj));
+	ph2c = rtw_zmalloc(sizeof(struct cmd_obj));
 	if (ph2c == NULL) {
 		res = _FAIL;
 		goto exit;
 	}
 
-	ptxBeacon_parm = (struct Tx_Beacon_param *)rtw_zmalloc(sizeof(struct Tx_Beacon_param));
+	ptxBeacon_parm = rtw_zmalloc(sizeof(struct Tx_Beacon_param));
 	if (ptxBeacon_parm == NULL) {
 		kfree((unsigned char *)ph2c);
 		res = _FAIL;
@@ -6767,7 +6777,7 @@ u8 chk_bmc_sleepq_hdl(struct adapter *padapter, unsigned char *pbuf)
 
 			pxmitframe->attrib.triggered = 1;
 
-			if (xmitframe_hiq_filter(pxmitframe) == true)
+			if (xmitframe_hiq_filter(pxmitframe))
 				pxmitframe->attrib.qsel = 0x11;/* HIQ */
 
 			rtw_hal_xmitframe_enqueue(padapter, pxmitframe);
@@ -6809,7 +6819,7 @@ int rtw_chk_start_clnt_join(struct adapter *padapter, u8 *ch, u8 *bw, u8 *offset
 		connect_allow = false;
 	}
 
-	if (connect_allow == true) {
+	if (connect_allow) {
 		DBG_871X("start_join_set_ch_bw: ch =%d, bwmode =%d, ch_offset =%d\n", cur_ch, cur_bw, cur_ch_offset);
 		*ch = cur_ch;
 		*bw = cur_bw;

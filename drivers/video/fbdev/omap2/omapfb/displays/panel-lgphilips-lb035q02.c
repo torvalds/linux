@@ -18,7 +18,7 @@
 
 #include <video/omapfb_dss.h>
 
-static struct omap_video_timings lb035q02_timings = {
+static const struct omap_video_timings lb035q02_timings = {
 	.x_res = 320,
 	.y_res = 240,
 

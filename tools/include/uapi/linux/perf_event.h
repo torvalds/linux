@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Performance events:
  *
@@ -139,8 +140,9 @@ enum perf_event_sample_format {
 	PERF_SAMPLE_IDENTIFIER			= 1U << 16,
 	PERF_SAMPLE_TRANSACTION			= 1U << 17,
 	PERF_SAMPLE_REGS_INTR			= 1U << 18,
+	PERF_SAMPLE_PHYS_ADDR			= 1U << 19,
 
-	PERF_SAMPLE_MAX = 1U << 19,		/* non-ABI */
+	PERF_SAMPLE_MAX = 1U << 20,		/* non-ABI */
 };
 
 /*
@@ -174,6 +176,8 @@ enum perf_branch_sample_type_shift {
 	PERF_SAMPLE_BRANCH_NO_FLAGS_SHIFT	= 14, /* no flags */
 	PERF_SAMPLE_BRANCH_NO_CYCLES_SHIFT	= 15, /* no cycles */
 
+	PERF_SAMPLE_BRANCH_TYPE_SAVE_SHIFT	= 16, /* save branch type */
+
 	PERF_SAMPLE_BRANCH_MAX_SHIFT		/* non-ABI */
 };
 
@@ -198,7 +202,28 @@ enum perf_branch_sample_type {
 	PERF_SAMPLE_BRANCH_NO_FLAGS	= 1U << PERF_SAMPLE_BRANCH_NO_FLAGS_SHIFT,
 	PERF_SAMPLE_BRANCH_NO_CYCLES	= 1U << PERF_SAMPLE_BRANCH_NO_CYCLES_SHIFT,
 
+	PERF_SAMPLE_BRANCH_TYPE_SAVE	=
+		1U << PERF_SAMPLE_BRANCH_TYPE_SAVE_SHIFT,
+
 	PERF_SAMPLE_BRANCH_MAX		= 1U << PERF_SAMPLE_BRANCH_MAX_SHIFT,
+};
+
+/*
+ * Common flow change classification
+ */
+enum {
+	PERF_BR_UNKNOWN		= 0,	/* unknown */
+	PERF_BR_COND		= 1,	/* conditional */
+	PERF_BR_UNCOND		= 2,	/* unconditional  */
+	PERF_BR_IND		= 3,	/* indirect */
+	PERF_BR_CALL		= 4,	/* function call */
+	PERF_BR_IND_CALL	= 5,	/* indirect function call */
+	PERF_BR_RET		= 6,	/* function return */
+	PERF_BR_SYSCALL		= 7,	/* syscall */
+	PERF_BR_SYSRET		= 8,	/* syscall return */
+	PERF_BR_COND_CALL	= 9,	/* conditional function call */
+	PERF_BR_COND_RET	= 10,	/* conditional function return */
+	PERF_BR_MAX,
 };
 
 #define PERF_SAMPLE_BRANCH_PLM_ALL \
@@ -791,6 +816,7 @@ enum perf_event_type {
 	 *	{ u64			transaction; } && PERF_SAMPLE_TRANSACTION
 	 *	{ u64			abi; # enum perf_sample_regs_abi
 	 *	  u64			regs[weight(mask)]; } && PERF_SAMPLE_REGS_INTR
+	 *	{ u64			phys_addr;} && PERF_SAMPLE_PHYS_ADDR
 	 * };
 	 */
 	PERF_RECORD_SAMPLE			= 9,
@@ -916,6 +942,7 @@ enum perf_callchain_context {
 #define PERF_AUX_FLAG_TRUNCATED		0x01	/* record was truncated to fit */
 #define PERF_AUX_FLAG_OVERWRITE		0x02	/* snapshot from overwrite mode */
 #define PERF_AUX_FLAG_PARTIAL		0x04	/* record contains gaps */
+#define PERF_AUX_FLAG_COLLISION		0x08	/* sample collided with another */
 
 #define PERF_FLAG_FD_NO_GROUP		(1UL << 0)
 #define PERF_FLAG_FD_OUTPUT		(1UL << 1)
@@ -931,14 +958,20 @@ union perf_mem_data_src {
 			mem_snoop:5,	/* snoop mode */
 			mem_lock:2,	/* lock instr */
 			mem_dtlb:7,	/* tlb access */
-			mem_rsvd:31;
+			mem_lvl_num:4,	/* memory hierarchy level number */
+			mem_remote:1,   /* remote */
+			mem_snoopx:2,	/* snoop mode, ext */
+			mem_rsvd:24;
 	};
 };
 #elif defined(__BIG_ENDIAN_BITFIELD)
 union perf_mem_data_src {
 	__u64 val;
 	struct {
-		__u64	mem_rsvd:31,
+		__u64	mem_rsvd:24,
+			mem_snoopx:2,	/* snoop mode, ext */
+			mem_remote:1,   /* remote */
+			mem_lvl_num:4,	/* memory hierarchy level number */
 			mem_dtlb:7,	/* tlb access */
 			mem_lock:2,	/* lock instr */
 			mem_snoop:5,	/* snoop mode */
@@ -975,6 +1008,22 @@ union perf_mem_data_src {
 #define PERF_MEM_LVL_UNC	0x2000 /* Uncached memory */
 #define PERF_MEM_LVL_SHIFT	5
 
+#define PERF_MEM_REMOTE_REMOTE	0x01  /* Remote */
+#define PERF_MEM_REMOTE_SHIFT	37
+
+#define PERF_MEM_LVLNUM_L1	0x01 /* L1 */
+#define PERF_MEM_LVLNUM_L2	0x02 /* L2 */
+#define PERF_MEM_LVLNUM_L3	0x03 /* L3 */
+#define PERF_MEM_LVLNUM_L4	0x04 /* L4 */
+/* 5-0xa available */
+#define PERF_MEM_LVLNUM_ANY_CACHE 0x0b /* Any cache */
+#define PERF_MEM_LVLNUM_LFB	0x0c /* LFB */
+#define PERF_MEM_LVLNUM_RAM	0x0d /* RAM */
+#define PERF_MEM_LVLNUM_PMEM	0x0e /* PMEM */
+#define PERF_MEM_LVLNUM_NA	0x0f /* N/A */
+
+#define PERF_MEM_LVLNUM_SHIFT	33
+
 /* snoop mode */
 #define PERF_MEM_SNOOP_NA	0x01 /* not available */
 #define PERF_MEM_SNOOP_NONE	0x02 /* no snoop */
@@ -982,6 +1031,10 @@ union perf_mem_data_src {
 #define PERF_MEM_SNOOP_MISS	0x08 /* snoop miss */
 #define PERF_MEM_SNOOP_HITM	0x10 /* snoop hit modified */
 #define PERF_MEM_SNOOP_SHIFT	19
+
+#define PERF_MEM_SNOOPX_FWD	0x01 /* forward */
+/* 1 free */
+#define PERF_MEM_SNOOPX_SHIFT	37
 
 /* locked instruction */
 #define PERF_MEM_LOCK_NA	0x01 /* not available */
@@ -1015,6 +1068,7 @@ union perf_mem_data_src {
  *     in_tx: running in a hardware transaction
  *     abort: aborting a hardware transaction
  *    cycles: cycles from last branch (or 0 if not supported)
+ *      type: branch type
  */
 struct perf_branch_entry {
 	__u64	from;
@@ -1024,7 +1078,8 @@ struct perf_branch_entry {
 		in_tx:1,    /* in transaction */
 		abort:1,    /* transaction abort */
 		cycles:16,  /* cycle count to last branch */
-		reserved:44;
+		type:4,     /* branch type */
+		reserved:40;
 };
 
 #endif /* _UAPI_LINUX_PERF_EVENT_H */

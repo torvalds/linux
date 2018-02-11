@@ -156,3 +156,68 @@ pointed to by its first argument.  That should be done in the driver's .probe()
 routine.  On removal, the driver should unregister its GPIO mapping table by
 calling acpi_dev_remove_driver_gpios() on the ACPI device object where that
 table was previously registered.
+
+Using the _CRS fallback
+-----------------------
+
+If a device does not have _DSD or the driver does not create ACPI GPIO
+mapping, the Linux GPIO framework refuses to return any GPIOs. This is
+because the driver does not know what it actually gets. For example if we
+have a device like below:
+
+  Device (BTH)
+  {
+      Name (_HID, ...)
+
+      Name (_CRS, ResourceTemplate () {
+          GpioIo (Exclusive, PullNone, 0, 0, IoRestrictionNone,
+                  "\\_SB.GPO0", 0, ResourceConsumer) {15}
+          GpioIo (Exclusive, PullNone, 0, 0, IoRestrictionNone,
+                  "\\_SB.GPO0", 0, ResourceConsumer) {27}
+      })
+  }
+
+The driver might expect to get the right GPIO when it does:
+
+  desc = gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+
+but since there is no way to know the mapping between "reset" and
+the GpioIo() in _CRS desc will hold ERR_PTR(-ENOENT).
+
+The driver author can solve this by passing the mapping explictly
+(the recommended way and documented in the above chapter).
+
+The ACPI GPIO mapping tables should not contaminate drivers that are not
+knowing about which exact device they are servicing on. It implies that
+the ACPI GPIO mapping tables are hardly linked to ACPI ID and certain
+objects, as listed in the above chapter, of the device in question.
+
+Getting GPIO descriptor
+-----------------------
+
+There are two main approaches to get GPIO resource from ACPI:
+	desc = gpiod_get(dev, connection_id, flags);
+	desc = gpiod_get_index(dev, connection_id, index, flags);
+
+We may consider two different cases here, i.e. when connection ID is
+provided and otherwise.
+
+Case 1:
+	desc = gpiod_get(dev, "non-null-connection-id", flags);
+	desc = gpiod_get_index(dev, "non-null-connection-id", index, flags);
+
+Case 2:
+	desc = gpiod_get(dev, NULL, flags);
+	desc = gpiod_get_index(dev, NULL, index, flags);
+
+Case 1 assumes that corresponding ACPI device description must have
+defined device properties and will prevent to getting any GPIO resources
+otherwise.
+
+Case 2 explicitly tells GPIO core to look for resources in _CRS.
+
+Be aware that gpiod_get_index() in cases 1 and 2, assuming that there
+are two versions of ACPI device description provided and no mapping is
+present in the driver, will return different resources. That's why a
+certain driver has to handle them carefully as explained in previous
+chapter.

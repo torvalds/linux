@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __XEN_PROTOCOLS_H__
 #define __XEN_PROTOCOLS_H__
 

@@ -26,7 +26,6 @@
 #include <linux/kthread.h>
 
 #include <mostcore.h>
-#include <networking.h>
 #include "dim2_hal.h"
 #include "dim2_hdm.h"
 #include "dim2_errors.h"
@@ -107,6 +106,8 @@ struct dim2_hdm {
 	unsigned char link_state;
 	int atx_idx;
 	struct medialb_bus bus;
+	void (*on_netinfo)(struct most_interface *,
+			   unsigned char, unsigned char *);
 };
 
 #define iface_to_hdm(iface) container_of(iface, struct dim2_hdm, most_iface)
@@ -287,8 +288,11 @@ static int deliver_netinfo_thread(void *data)
 
 		if (dev->deliver_netinfo) {
 			dev->deliver_netinfo--;
-			most_deliver_netinfo(&dev->most_iface, dev->link_state,
-					     dev->mac_addrs);
+			if (dev->on_netinfo) {
+				dev->on_netinfo(&dev->most_iface,
+						dev->link_state,
+						dev->mac_addrs);
+			}
 		}
 	}
 
@@ -654,11 +658,17 @@ static int enqueue(struct most_interface *most_iface, int ch_idx,
  * Send a command to INIC which triggers retrieving of network info by means of
  * "Message exchange over MDP/MEP". Return 0 on success, negative on failure.
  */
-static void request_netinfo(struct most_interface *most_iface, int ch_idx)
+static void request_netinfo(struct most_interface *most_iface, int ch_idx,
+			    void (*on_netinfo)(struct most_interface *,
+					       unsigned char, unsigned char *))
 {
 	struct dim2_hdm *dev = iface_to_hdm(most_iface);
 	struct mbo *mbo;
 	u8 *data;
+
+	dev->on_netinfo = on_netinfo;
+	if (!on_netinfo)
+		return;
 
 	if (dev->atx_idx < 0) {
 		pr_err("Async Tx Not initialized\n");
@@ -751,8 +761,8 @@ static int dim2_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get ahb0_int irq\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "failed to get ahb0_int irq: %d\n", irq);
+		return irq;
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq, dim2_ahb_isr, 0,
@@ -764,8 +774,8 @@ static int dim2_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 1);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get mlb_int irq\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "failed to get mlb_int irq: %d\n", irq);
+		return irq;
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq, dim2_mlb_isr, 0,
@@ -884,7 +894,7 @@ static int dim2_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id dim2_id[] = {
+static const struct platform_device_id dim2_id[] = {
 	{ "medialb_dim2" },
 	{ }, /* Terminating entry */
 };

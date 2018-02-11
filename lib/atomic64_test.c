@@ -153,8 +153,10 @@ static __init void test_atomic64(void)
 	long long v0 = 0xaaa31337c001d00dLL;
 	long long v1 = 0xdeadbeefdeafcafeLL;
 	long long v2 = 0xfaceabadf00df001LL;
+	long long v3 = 0x8000000000000000LL;
 	long long onestwos = 0x1111111122222222LL;
 	long long one = 1LL;
+	int r_int;
 
 	atomic64_t v = ATOMIC64_INIT(v0);
 	long long r = v0;
@@ -240,6 +242,11 @@ static __init void test_atomic64(void)
 	BUG_ON(!atomic64_inc_not_zero(&v));
 	r += one;
 	BUG_ON(v.counter != r);
+
+	/* Confirm the return value fits in an int, even if the value doesn't */
+	INIT(v3);
+	r_int = atomic64_inc_not_zero(&v);
+	BUG_ON(!r_int);
 }
 
 static __init int test_atomics_init(void)

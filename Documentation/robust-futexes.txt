@@ -1,4 +1,8 @@
-Started by: Ingo Molnar <mingo@redhat.com>
+========================================
+A description of what robust futexes are
+========================================
+
+:Started by: Ingo Molnar <mingo@redhat.com>
 
 Background
 ----------
@@ -163,7 +167,7 @@ Implementation details
 ----------------------
 
 The patch adds two new syscalls: one to register the userspace list, and
-one to query the registered list pointer:
+one to query the registered list pointer::
 
  asmlinkage long
  sys_set_robust_list(struct robust_list_head __user *head,
@@ -185,7 +189,7 @@ straightforward. The kernel doesn't have any internal distinction between
 robust and normal futexes.
 
 If a futex is found to be held at exit time, the kernel sets the
-following bit of the futex word:
+following bit of the futex word::
 
 	#define FUTEX_OWNER_DIED        0x40000000
 
@@ -193,7 +197,7 @@ and wakes up the next futex waiter (if any). User-space does the rest of
 the cleanup.
 
 Otherwise, robust futexes are acquired by glibc by putting the TID into
-the futex field atomically. Waiters set the FUTEX_WAITERS bit:
+the futex field atomically. Waiters set the FUTEX_WAITERS bit::
 
 	#define FUTEX_WAITERS           0x80000000
 

@@ -313,13 +313,17 @@ static int svc_rdma_dma_map_buf(struct svcxprt_rdma *rdma,
 	dma_addr = ib_dma_map_page(dev, virt_to_page(base),
 				   offset, len, DMA_TO_DEVICE);
 	if (ib_dma_mapping_error(dev, dma_addr))
-		return -EIO;
+		goto out_maperr;
 
 	ctxt->sge[sge_no].addr = dma_addr;
 	ctxt->sge[sge_no].length = len;
 	ctxt->sge[sge_no].lkey = rdma->sc_pd->local_dma_lkey;
 	svc_rdma_count_mappings(rdma, ctxt);
 	return 0;
+
+out_maperr:
+	pr_err("svcrdma: failed to map buffer\n");
+	return -EIO;
 }
 
 static int svc_rdma_dma_map_page(struct svcxprt_rdma *rdma,
@@ -334,13 +338,17 @@ static int svc_rdma_dma_map_page(struct svcxprt_rdma *rdma,
 
 	dma_addr = ib_dma_map_page(dev, page, offset, len, DMA_TO_DEVICE);
 	if (ib_dma_mapping_error(dev, dma_addr))
-		return -EIO;
+		goto out_maperr;
 
 	ctxt->sge[sge_no].addr = dma_addr;
 	ctxt->sge[sge_no].length = len;
 	ctxt->sge[sge_no].lkey = rdma->sc_pd->local_dma_lkey;
 	svc_rdma_count_mappings(rdma, ctxt);
 	return 0;
+
+out_maperr:
+	pr_err("svcrdma: failed to map page\n");
+	return -EIO;
 }
 
 /**
@@ -547,7 +555,6 @@ static int svc_rdma_send_reply_msg(struct svcxprt_rdma *rdma,
 	return 0;
 
 err:
-	pr_err("svcrdma: failed to post Send WR (%d)\n", ret);
 	svc_rdma_unmap_dma(ctxt);
 	svc_rdma_put_context(ctxt, 1);
 	return ret;
@@ -677,7 +684,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	return 0;
 
  err2:
-	if (ret != -E2BIG)
+	if (ret != -E2BIG && ret != -EINVAL)
 		goto err1;
 
 	ret = svc_rdma_post_recv(rdma, GFP_KERNEL);

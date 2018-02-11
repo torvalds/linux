@@ -14,14 +14,12 @@
 #include <linux/init.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
-#include <linux/workqueue.h>
 #include <linux/leds.h>
 #include <linux/slab.h>
 #include "../leds.h"
 
 struct gpio_trig_data {
 	struct led_classdev *led;
-	struct work_struct work;
 
 	unsigned desired_brightness;	/* desired brightness when led is on */
 	unsigned inverted;		/* true when gpio is inverted */
@@ -32,21 +30,7 @@ static irqreturn_t gpio_trig_irq(int irq, void *_led)
 {
 	struct led_classdev *led = _led;
 	struct gpio_trig_data *gpio_data = led->trigger_data;
-
-	/* just schedule_work since gpio_get_value can sleep */
-	schedule_work(&gpio_data->work);
-
-	return IRQ_HANDLED;
-};
-
-static void gpio_trig_work(struct work_struct *work)
-{
-	struct gpio_trig_data *gpio_data = container_of(work,
-			struct gpio_trig_data, work);
 	int tmp;
-
-	if (!gpio_data->gpio)
-		return;
 
 	tmp = gpio_get_value_cansleep(gpio_data->gpio);
 	if (gpio_data->inverted)
@@ -61,6 +45,8 @@ static void gpio_trig_work(struct work_struct *work)
 	} else {
 		led_set_brightness_nosleep(gpio_data->led, LED_OFF);
 	}
+
+	return IRQ_HANDLED;
 }
 
 static ssize_t gpio_trig_brightness_show(struct device *dev,
@@ -120,7 +106,7 @@ static ssize_t gpio_trig_inverted_store(struct device *dev,
 	gpio_data->inverted = inverted;
 
 	/* After inverting, we need to update the LED. */
-	schedule_work(&gpio_data->work);
+	gpio_trig_irq(0, led);
 
 	return n;
 }
@@ -147,7 +133,6 @@ static ssize_t gpio_trig_gpio_store(struct device *dev,
 	ret = sscanf(buf, "%u", &gpio);
 	if (ret < 1) {
 		dev_err(dev, "couldn't read gpio number\n");
-		flush_work(&gpio_data->work);
 		return -EINVAL;
 	}
 
@@ -161,8 +146,8 @@ static ssize_t gpio_trig_gpio_store(struct device *dev,
 		return n;
 	}
 
-	ret = request_irq(gpio_to_irq(gpio), gpio_trig_irq,
-			IRQF_SHARED | IRQF_TRIGGER_RISING
+	ret = request_threaded_irq(gpio_to_irq(gpio), NULL, gpio_trig_irq,
+			IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_RISING
 			| IRQF_TRIGGER_FALLING, "ledtrig-gpio", led);
 	if (ret) {
 		dev_err(dev, "request_irq failed with error %d\n", ret);
@@ -170,6 +155,8 @@ static ssize_t gpio_trig_gpio_store(struct device *dev,
 		if (gpio_data->gpio != 0)
 			free_irq(gpio_to_irq(gpio_data->gpio), led);
 		gpio_data->gpio = gpio;
+		/* After changing the GPIO, we need to update the LED. */
+		gpio_trig_irq(0, led);
 	}
 
 	return ret ? ret : n;
@@ -199,7 +186,6 @@ static void gpio_trig_activate(struct led_classdev *led)
 
 	gpio_data->led = led;
 	led->trigger_data = gpio_data;
-	INIT_WORK(&gpio_data->work, gpio_trig_work);
 	led->activated = true;
 
 	return;
@@ -222,7 +208,6 @@ static void gpio_trig_deactivate(struct led_classdev *led)
 		device_remove_file(led->dev, &dev_attr_gpio);
 		device_remove_file(led->dev, &dev_attr_inverted);
 		device_remove_file(led->dev, &dev_attr_desired_brightness);
-		flush_work(&gpio_data->work);
 		if (gpio_data->gpio != 0)
 			free_irq(gpio_to_irq(gpio_data->gpio), led);
 		kfree(gpio_data);

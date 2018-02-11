@@ -10,162 +10,135 @@
 #
 
 # how we were called determines which rpms we build and how we build them
-if [ "$1" = "prebuilt" ]; then
-	PREBUILT=true
+if [ "$1" = prebuilt ]; then
+	S=DEL
 else
-	PREBUILT=false
+	S=
 fi
 
-# starting to output the spec
-if [ "`grep CONFIG_DRM=y .config | cut -f2 -d\=`" = "y" ]; then
+if grep -q CONFIG_MODULES=y .config; then
+	M=
+else
+	M=DEL
+fi
+
+if grep -q CONFIG_DRM=y .config; then
 	PROVIDES=kernel-drm
 fi
 
 PROVIDES="$PROVIDES kernel-$KERNELRELEASE"
-__KERNELRELEASE=`echo $KERNELRELEASE | sed -e "s/-/_/g"`
+__KERNELRELEASE=$(echo $KERNELRELEASE | sed -e "s/-/_/g")
+EXCLUDES="$RCS_TAR_IGNORE --exclude=.tmp_versions --exclude=*vmlinux* \
+--exclude=*.o --exclude=*.ko --exclude=*.cmd --exclude=Documentation \
+--exclude=.config.old --exclude=.missing-syscalls.d"
 
-echo "Name: kernel"
-echo "Summary: The Linux Kernel"
-echo "Version: $__KERNELRELEASE"
-# we need to determine the NEXT version number so that uname and
-# rpm -q will agree
-echo "Release: `. $srctree/scripts/mkversion`"
-echo "License: GPL"
-echo "Group: System Environment/Kernel"
-echo "Vendor: The Linux Community"
-echo "URL: http://www.kernel.org"
+# We can label the here-doc lines for conditional output to the spec file
+#
+# Labels:
+#  $S: this line is enabled only when building source package
+#  $M: this line is enabled only when CONFIG_MODULES is enabled
+sed -e '/^DEL/d' -e 's/^\t*//' <<EOF
+	Name: kernel
+	Summary: The Linux Kernel
+	Version: $__KERNELRELEASE
+	Release: $(cat .version 2>/dev/null || echo 1)
+	License: GPL
+	Group: System Environment/Kernel
+	Vendor: The Linux Community
+	URL: http://www.kernel.org
+$S	Source: kernel-$__KERNELRELEASE.tar.gz
+	Provides: $PROVIDES
+	%define __spec_install_post /usr/lib/rpm/brp-compress || :
+	%define debug_package %{nil}
 
-if ! $PREBUILT; then
-echo "Source: kernel-$__KERNELRELEASE.tar.gz"
-fi
+	%description
+	The Linux Kernel, the operating system core itself
 
-echo "BuildRoot: %{_tmppath}/%{name}-%{PACKAGE_VERSION}-root"
-echo "Provides: $PROVIDES"
-echo "%define __spec_install_post /usr/lib/rpm/brp-compress || :"
-echo "%define debug_package %{nil}"
-echo ""
-echo "%description"
-echo "The Linux Kernel, the operating system core itself"
-echo ""
-echo "%package headers"
-echo "Summary: Header files for the Linux kernel for use by glibc"
-echo "Group: Development/System"
-echo "Obsoletes: kernel-headers"
-echo "Provides: kernel-headers = %{version}"
-echo "%description headers"
-echo "Kernel-headers includes the C header files that specify the interface"
-echo "between the Linux kernel and userspace libraries and programs.  The"
-echo "header files define structures and constants that are needed for"
-echo "building most standard programs and are also needed for rebuilding the"
-echo "glibc package."
-echo ""
-echo "%package devel"
-echo "Summary: Development package for building kernel modules to match the $__KERNELRELEASE kernel"
-echo "Group: System Environment/Kernel"
-echo "AutoReqProv: no"
-echo "%description -n kernel-devel"
-echo "This package provides kernel headers and makefiles sufficient to build modules"
-echo "against the $__KERNELRELEASE kernel package."
-echo ""
+	%package headers
+	Summary: Header files for the Linux kernel for use by glibc
+	Group: Development/System
+	Obsoletes: kernel-headers
+	Provides: kernel-headers = %{version}
+	%description headers
+	Kernel-headers includes the C header files that specify the interface
+	between the Linux kernel and userspace libraries and programs.  The
+	header files define structures and constants that are needed for
+	building most standard programs and are also needed for rebuilding the
+	glibc package.
 
-if ! $PREBUILT; then
-echo "%prep"
-echo "%setup -q"
-echo ""
-fi
+$S$M	%package devel
+$S$M	Summary: Development package for building kernel modules to match the $__KERNELRELEASE kernel
+$S$M	Group: System Environment/Kernel
+$S$M	AutoReqProv: no
+$S$M	%description -n kernel-devel
+$S$M	This package provides kernel headers and makefiles sufficient to build modules
+$S$M	against the $__KERNELRELEASE kernel package.
+$S$M
+$S	%prep
+$S	%setup -q
+$S
+$S	%build
+$S	make %{?_smp_mflags} KBUILD_BUILD_VERSION=%{release}
+$S
+	%install
+	mkdir -p %{buildroot}/boot
+	%ifarch ia64
+	mkdir -p %{buildroot}/boot/efi
+	cp \$(make image_name) %{buildroot}/boot/efi/vmlinuz-$KERNELRELEASE
+	ln -s efi/vmlinuz-$KERNELRELEASE %{buildroot}/boot/
+	%else
+	cp \$(make image_name) %{buildroot}/boot/vmlinuz-$KERNELRELEASE
+	%endif
+$M	make %{?_smp_mflags} INSTALL_MOD_PATH=%{buildroot} KBUILD_SRC= modules_install
+	make %{?_smp_mflags} INSTALL_HDR_PATH=%{buildroot}/usr KBUILD_SRC= headers_install
+	cp System.map %{buildroot}/boot/System.map-$KERNELRELEASE
+	cp .config %{buildroot}/boot/config-$KERNELRELEASE
+	bzip2 -9 --keep vmlinux
+	mv vmlinux.bz2 %{buildroot}/boot/vmlinux-$KERNELRELEASE.bz2
+$S$M	rm -f %{buildroot}/lib/modules/$KERNELRELEASE/build
+$S$M	rm -f %{buildroot}/lib/modules/$KERNELRELEASE/source
+$S$M	mkdir -p %{buildroot}/usr/src/kernels/$KERNELRELEASE
+$S$M	tar cf - . $EXCLUDES | tar xf - -C %{buildroot}/usr/src/kernels/$KERNELRELEASE
+$S$M	cd %{buildroot}/lib/modules/$KERNELRELEASE
+$S$M	ln -sf /usr/src/kernels/$KERNELRELEASE build
+$S$M	ln -sf /usr/src/kernels/$KERNELRELEASE source
 
-echo "%build"
+	%clean
+	rm -rf %{buildroot}
 
-if ! $PREBUILT; then
-echo "make clean && make %{?_smp_mflags}"
-echo ""
-fi
+	%post
+	if [ -x /sbin/installkernel -a -r /boot/vmlinuz-$KERNELRELEASE -a -r /boot/System.map-$KERNELRELEASE ]; then
+	cp /boot/vmlinuz-$KERNELRELEASE /boot/.vmlinuz-$KERNELRELEASE-rpm
+	cp /boot/System.map-$KERNELRELEASE /boot/.System.map-$KERNELRELEASE-rpm
+	rm -f /boot/vmlinuz-$KERNELRELEASE /boot/System.map-$KERNELRELEASE
+	/sbin/installkernel $KERNELRELEASE /boot/.vmlinuz-$KERNELRELEASE-rpm /boot/.System.map-$KERNELRELEASE-rpm
+	rm -f /boot/.vmlinuz-$KERNELRELEASE-rpm /boot/.System.map-$KERNELRELEASE-rpm
+	fi
 
-echo "%install"
-echo 'KBUILD_IMAGE=$(make image_name)'
-echo "%ifarch ia64"
-echo 'mkdir -p $RPM_BUILD_ROOT/boot/efi $RPM_BUILD_ROOT/lib/modules'
-echo "%else"
-echo 'mkdir -p $RPM_BUILD_ROOT/boot $RPM_BUILD_ROOT/lib/modules'
-echo "%endif"
-echo 'mkdir -p $RPM_BUILD_ROOT'"/lib/firmware/$KERNELRELEASE"
+	%preun
+	if [ -x /sbin/new-kernel-pkg ]; then
+	new-kernel-pkg --remove $KERNELRELEASE --rminitrd --initrdfile=/boot/initramfs-$KERNELRELEASE.img
+	fi
 
-echo 'INSTALL_MOD_PATH=$RPM_BUILD_ROOT make %{?_smp_mflags} KBUILD_SRC= mod-fw= modules_install'
-echo 'INSTALL_FW_PATH=$RPM_BUILD_ROOT'"/lib/firmware/$KERNELRELEASE"
-echo 'make INSTALL_FW_PATH=$INSTALL_FW_PATH' firmware_install
-echo "%ifarch ia64"
-echo 'cp $KBUILD_IMAGE $RPM_BUILD_ROOT'"/boot/efi/vmlinuz-$KERNELRELEASE"
-echo 'ln -s '"efi/vmlinuz-$KERNELRELEASE" '$RPM_BUILD_ROOT'"/boot/"
-echo "%else"
-echo "%ifarch ppc64"
-echo "cp vmlinux arch/powerpc/boot"
-echo "cp arch/powerpc/boot/"'$KBUILD_IMAGE $RPM_BUILD_ROOT'"/boot/vmlinuz-$KERNELRELEASE"
-echo "%else"
-echo 'cp $KBUILD_IMAGE $RPM_BUILD_ROOT'"/boot/vmlinuz-$KERNELRELEASE"
-echo "%endif"
-echo "%endif"
+	%postun
+	if [ -x /sbin/update-bootloader ]; then
+	/sbin/update-bootloader --remove $KERNELRELEASE
+	fi
 
-echo 'make %{?_smp_mflags} INSTALL_HDR_PATH=$RPM_BUILD_ROOT/usr KBUILD_SRC= headers_install'
-echo 'cp System.map $RPM_BUILD_ROOT'"/boot/System.map-$KERNELRELEASE"
+	%files
+	%defattr (-, root, root)
+$M	/lib/modules/$KERNELRELEASE
+$M	%exclude /lib/modules/$KERNELRELEASE/build
+$M	%exclude /lib/modules/$KERNELRELEASE/source
+	/boot/*
 
-echo 'cp .config $RPM_BUILD_ROOT'"/boot/config-$KERNELRELEASE"
-
-echo "%ifnarch ppc64"
-echo 'bzip2 -9 --keep vmlinux'
-echo 'mv vmlinux.bz2 $RPM_BUILD_ROOT'"/boot/vmlinux-$KERNELRELEASE.bz2"
-echo "%endif"
-
-if ! $PREBUILT; then
-echo 'rm -f $RPM_BUILD_ROOT'"/lib/modules/$KERNELRELEASE/build"
-echo 'rm -f $RPM_BUILD_ROOT'"/lib/modules/$KERNELRELEASE/source"
-echo "mkdir -p "'$RPM_BUILD_ROOT'"/usr/src/kernels/$KERNELRELEASE"
-echo "EXCLUDES=\"$RCS_TAR_IGNORE --exclude .tmp_versions --exclude=*vmlinux* --exclude=*.o --exclude=*.ko --exclude=*.cmd --exclude=Documentation --exclude=firmware --exclude .config.old --exclude .missing-syscalls.d\""
-echo "tar "'$EXCLUDES'" -cf- . | (cd "'$RPM_BUILD_ROOT'"/usr/src/kernels/$KERNELRELEASE;tar xvf -)"
-echo 'cd $RPM_BUILD_ROOT'"/lib/modules/$KERNELRELEASE"
-echo "ln -sf /usr/src/kernels/$KERNELRELEASE build"
-echo "ln -sf /usr/src/kernels/$KERNELRELEASE source"
-fi
-
-echo ""
-echo "%clean"
-echo 'rm -rf $RPM_BUILD_ROOT'
-echo ""
-echo "%post"
-echo "if [ -x /sbin/installkernel -a -r /boot/vmlinuz-$KERNELRELEASE -a -r /boot/System.map-$KERNELRELEASE ]; then"
-echo "cp /boot/vmlinuz-$KERNELRELEASE /boot/.vmlinuz-$KERNELRELEASE-rpm"
-echo "cp /boot/System.map-$KERNELRELEASE /boot/.System.map-$KERNELRELEASE-rpm"
-echo "rm -f /boot/vmlinuz-$KERNELRELEASE /boot/System.map-$KERNELRELEASE"
-echo "/sbin/installkernel $KERNELRELEASE /boot/.vmlinuz-$KERNELRELEASE-rpm /boot/.System.map-$KERNELRELEASE-rpm"
-echo "rm -f /boot/.vmlinuz-$KERNELRELEASE-rpm /boot/.System.map-$KERNELRELEASE-rpm"
-echo "fi"
-echo ""
-echo "%preun"
-echo "if [ -x /sbin/new-kernel-pkg ]; then"
-echo "new-kernel-pkg --remove $KERNELRELEASE --rminitrd --initrdfile=/boot/initramfs-$KERNELRELEASE.img"
-echo "fi"
-echo ""
-echo "%postun"
-echo "if [ -x /sbin/update-bootloader ]; then"
-echo "/sbin/update-bootloader --remove $KERNELRELEASE"
-echo "fi"
-echo ""
-echo "%files"
-echo '%defattr (-, root, root)'
-echo "/lib/modules/$KERNELRELEASE"
-echo "%exclude /lib/modules/$KERNELRELEASE/build"
-echo "%exclude /lib/modules/$KERNELRELEASE/source"
-echo "/lib/firmware/$KERNELRELEASE"
-echo "/boot/*"
-echo ""
-echo "%files headers"
-echo '%defattr (-, root, root)'
-echo "/usr/include"
-echo ""
-if ! $PREBUILT; then
-echo "%files devel"
-echo '%defattr (-, root, root)'
-echo "/usr/src/kernels/$KERNELRELEASE"
-echo "/lib/modules/$KERNELRELEASE/build"
-echo "/lib/modules/$KERNELRELEASE/source"
-echo ""
-fi
+	%files headers
+	%defattr (-, root, root)
+	/usr/include
+$S$M
+$S$M	%files devel
+$S$M	%defattr (-, root, root)
+$S$M	/usr/src/kernels/$KERNELRELEASE
+$S$M	/lib/modules/$KERNELRELEASE/build
+$S$M	/lib/modules/$KERNELRELEASE/source
+EOF

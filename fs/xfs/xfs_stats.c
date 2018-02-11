@@ -33,9 +33,9 @@ int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 {
 	int		i, j;
 	int		len = 0;
-	__uint64_t	xs_xstrat_bytes = 0;
-	__uint64_t	xs_write_bytes = 0;
-	__uint64_t	xs_read_bytes = 0;
+	uint64_t	xs_xstrat_bytes = 0;
+	uint64_t	xs_write_bytes = 0;
+	uint64_t	xs_read_bytes = 0;
 
 	static const struct xstats_entry {
 		char	*desc;
@@ -100,7 +100,7 @@ int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 void xfs_stats_clearall(struct xfsstats __percpu *stats)
 {
 	int		c;
-	__uint32_t	vn_active;
+	uint32_t	vn_active;
 
 	xfs_notice(NULL, "Clearing xfsstats");
 	for_each_possible_cpu(c) {

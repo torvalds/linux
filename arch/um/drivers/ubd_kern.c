@@ -534,7 +534,7 @@ static void ubd_handler(void)
 		for (count = 0; count < n/sizeof(struct io_thread_req *); count++) {
 			blk_end_request(
 				(*irq_req_buffer)[count]->req,
-				0,
+				BLK_STS_OK,
 				(*irq_req_buffer)[count]->length
 			);
 			kfree((*irq_req_buffer)[count]);

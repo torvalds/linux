@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/proc_fs.h>
 #include <linux/export.h>
 #include <net/net_namespace.h>

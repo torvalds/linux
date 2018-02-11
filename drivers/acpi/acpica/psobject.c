@@ -122,6 +122,9 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 			     (u32)(aml_offset +
 				   sizeof(struct acpi_table_header)));
 
+			ACPI_ERROR((AE_INFO,
+				    "Aborting disassembly, AML byte code is corrupt"));
+
 			/* Dump the context surrounding the invalid opcode */
 
 			acpi_ut_dump_buffer(((u8 *)walk_state->parser_state.
@@ -130,6 +133,14 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 					     sizeof(struct acpi_table_header) -
 					     16));
 			acpi_os_printf(" */\n");
+
+			/*
+			 * Just abort the disassembly, cannot continue because the
+			 * parser is essentially lost. The disassembler can then
+			 * randomly fail because an ill-constructed parse tree
+			 * can result.
+			 */
+			return_ACPI_STATUS(AE_AML_BAD_OPCODE);
 #endif
 		}
 
@@ -331,6 +342,9 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 	if (status == AE_CTRL_PARSE_CONTINUE) {
 		return_ACPI_STATUS(AE_CTRL_PARSE_CONTINUE);
 	}
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
 
 	/* Create Op structure and append to parent's argument list */
 
@@ -345,6 +359,32 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 		    acpi_ps_build_named_op(walk_state, aml_op_start, op,
 					   &named_op);
 		acpi_ps_free_op(op);
+
+#ifdef ACPI_ASL_COMPILER
+		if (acpi_gbl_disasm_flag
+		    && walk_state->opcode == AML_EXTERNAL_OP
+		    && status == AE_NOT_FOUND) {
+			/*
+			 * If parsing of AML_EXTERNAL_OP's name path fails, then skip
+			 * past this opcode and keep parsing. This is a much better
+			 * alternative than to abort the entire disassembler. At this
+			 * point, the parser_state is at the end of the namepath of the
+			 * external declaration opcode. Setting walk_state->Aml to
+			 * walk_state->parser_state.Aml + 2 moves increments the
+			 * walk_state->Aml past the object type and the paramcount of the
+			 * external opcode. For the error message, only print the AML
+			 * offset. We could attempt to print the name but this may cause
+			 * a segmentation fault when printing the namepath because the
+			 * AML may be incorrect.
+			 */
+			acpi_os_printf
+			    ("// Invalid external declaration at AML offset 0x%x.\n",
+			     walk_state->aml -
+			     walk_state->parser_state.aml_start);
+			walk_state->aml = walk_state->parser_state.aml + 2;
+			return_ACPI_STATUS(AE_CTRL_PARSE_CONTINUE);
+		}
+#endif
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}

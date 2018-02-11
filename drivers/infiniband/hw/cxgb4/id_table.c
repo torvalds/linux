@@ -73,7 +73,6 @@ void c4iw_id_free(struct c4iw_id_table *alloc, u32 obj)
 	unsigned long flags;
 
 	obj -= alloc->start;
-	BUG_ON((int)obj < 0);
 
 	spin_lock_irqsave(&alloc->lock, flags);
 	clear_bit(obj, alloc->table);

@@ -355,7 +355,7 @@ static int initialize_timer(struct snd_seq_timer *tmr)
 	unsigned long freq;
 
 	t = tmr->timeri->timer;
-	if (snd_BUG_ON(!t))
+	if (!t)
 		return -EINVAL;
 
 	freq = tmr->preferred_resolution;

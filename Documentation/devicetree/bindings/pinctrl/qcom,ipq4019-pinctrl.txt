@@ -50,7 +50,11 @@ Valid values for qcom,pins are:
     Supports mux, bias and drive-strength
 
 Valid values for qcom,function are:
-gpio, blsp_uart1, blsp_i2c0, blsp_i2c1, blsp_uart0, blsp_spi1, blsp_spi0
+aud_pin, audio_pwm, blsp_i2c0, blsp_i2c1, blsp_spi0, blsp_spi1, blsp_uart0,
+blsp_uart1, chip_rst, gpio, i2s_rx, i2s_spdif_in, i2s_spdif_out, i2s_td, i2s_tx,
+jtag, led0, led1, led2, led3, led4, led5, led6, led7, led8, led9, led10, led11,
+mdc, mdio, pcie, pmu, prng_rosc, qpic, rgmii, rmii, sdio, smart0, smart1,
+smart2, smart3, tm, wifi0, wifi1
 
 Example:
 

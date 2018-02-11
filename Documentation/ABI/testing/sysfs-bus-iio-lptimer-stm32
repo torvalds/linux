@@ -1,0 +1,57 @@
+What:		/sys/bus/iio/devices/iio:deviceX/in_count0_preset
+KernelVersion:	4.13
+Contact:	fabrice.gasnier@st.com
+Description:
+		Reading returns the current preset value. Writing sets the
+		preset value. Encoder counts continuously from 0 to preset
+		value, depending on direction (up/down).
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_count_quadrature_mode_available
+KernelVersion:	4.13
+Contact:	fabrice.gasnier@st.com
+Description:
+		Reading returns the list possible quadrature modes.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_count0_quadrature_mode
+KernelVersion:	4.13
+Contact:	fabrice.gasnier@st.com
+Description:
+		Configure the device counter quadrature modes:
+		- non-quadrature:
+			Encoder IN1 input servers as the count input (up
+			direction).
+		- quadrature:
+			Encoder IN1 and IN2 inputs are mixed to get direction
+			and count.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_count_polarity_available
+KernelVersion:	4.13
+Contact:	fabrice.gasnier@st.com
+Description:
+		Reading returns the list possible active edges.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_count0_polarity
+KernelVersion:	4.13
+Contact:	fabrice.gasnier@st.com
+Description:
+		Configure the device encoder/counter active edge:
+		- rising-edge
+		- falling-edge
+		- both-edges
+
+		In non-quadrature mode, device counts up on active edge.
+		In quadrature mode, encoder counting scenarios are as follows:
+		----------------------------------------------------------------
+		| Active  | Level on |      IN1 signal    |     IN2 signal     |
+		| edge    | opposite |------------------------------------------
+		|         | signal   |  Rising  | Falling |  Rising  | Falling |
+		----------------------------------------------------------------
+		| Rising  | High ->  |   Down   |    -    |    Up    |    -    |
+		| edge    | Low  ->  |    Up    |    -    |   Down   |    -    |
+		----------------------------------------------------------------
+		| Falling | High ->  |    -     |    Up   |    -     |   Down  |
+		| edge    | Low  ->  |    -     |   Down  |    -     |    Up   |
+		----------------------------------------------------------------
+		| Both    | High ->  |   Down   |    Up   |    Up    |   Down  |
+		| edges   | Low  ->  |    Up    |   Down  |   Down   |    Up   |
+		----------------------------------------------------------------

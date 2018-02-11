@@ -1,37 +1,49 @@
 config CIFS
-	tristate "CIFS support (advanced network filesystem, SMBFS successor)"
+	tristate "SMB3 and CIFS support (advanced network filesystem)"
 	depends on INET
 	select NLS
 	select CRYPTO
 	select CRYPTO_MD4
 	select CRYPTO_MD5
+	select CRYPTO_SHA256
+	select CRYPTO_CMAC
 	select CRYPTO_HMAC
 	select CRYPTO_ARC4
+	select CRYPTO_AEAD2
+	select CRYPTO_CCM
 	select CRYPTO_ECB
+	select CRYPTO_AES
 	select CRYPTO_DES
 	help
-	  This is the client VFS module for the Common Internet File System
-	  (CIFS) protocol which is the successor to the Server Message Block
-	  (SMB) protocol, the native file sharing mechanism for most early
-	  PC operating systems.  The CIFS protocol is fully supported by
-	  file servers such as Windows 2000 (including Windows 2003, Windows 2008,
-	  NT 4 and Windows XP) as well by Samba (which provides excellent CIFS
+	  This is the client VFS module for the SMB3 family of NAS protocols,
+	  as well as for earlier dialects such as SMB2.1, SMB2 and the
+	  Common Internet File System (CIFS) protocol.  CIFS was the successor
+	  to the original dialect, the Server Message Block (SMB) protocol, the
+	  native file sharing mechanism for most early PC operating systems.
+
+	  The SMB3 protocol is supported by most modern operating systems and
+	  NAS appliances (e.g. Samba, Windows 8, Windows 2012, MacOS).
+	  The older CIFS protocol was included in Windows NT4, 2000 and XP (and
+	  later) as well by Samba (which provides excellent CIFS and SMB3
 	  server support for Linux and many other operating systems). Limited
-	  support for OS/2 and Windows ME and similar servers is provided as
-	  well.
+	  support for OS/2 and Windows ME and similar very old servers is
+	  provided as well.
 
-	  The module also provides optional support for the followon
-	  protocols for CIFS including SMB3, which enables
-	  useful performance and security features (see the description
-	  of CONFIG_CIFS_SMB2).
-
-	  The cifs module provides an advanced network file system
-	  client for mounting to CIFS compliant servers.  It includes
+	  The cifs module provides an advanced network file system client
+	  for mounting to SMB3 (and CIFS) compliant servers.  It includes
 	  support for DFS (hierarchical name space), secure per-user
 	  session establishment via Kerberos or NTLM or NTLMv2,
 	  safe distributed caching (oplock), optional packet
 	  signing, Unicode and other internationalization improvements.
-	  If you need to mount to Samba or Windows from this machine, say Y.
+
+	  In general, the default dialects, SMB3 and later, enable better
+	  performance, security and features, than would be possible with CIFS.
+	  Note that when mounting to Samba, due to the CIFS POSIX extensions,
+	  CIFS mounts can provide slightly better POSIX compatibility
+	  than SMB3 mounts. SMB2/SMB3 mount options are also
+	  slightly simpler (compared to CIFS) due to protocol improvements.
+
+	  If you need to mount to Samba, Macs or Windows from this machine, say Y.
 
 config CIFS_STATS
         bool "CIFS statistics"
@@ -89,7 +101,7 @@ config CIFS_UPCALL
 	  Enables an upcall mechanism for CIFS which accesses userspace helper
 	  utilities to provide SPNEGO packaged (RFC 4178) Kerberos tickets
 	  which are needed to mount to certain secure servers (for which more
-	  secure Kerberos authentication is required). If unsure, say N.
+	  secure Kerberos authentication is required). If unsure, say Y.
 
 config CIFS_XATTR
         bool "CIFS extended attributes"
@@ -105,7 +117,7 @@ config CIFS_XATTR
           (used by some filesystems to store ACLs) is not supported at
           this time.
 
-          If unsure, say N.
+          If unsure, say Y.
 
 config CIFS_POSIX
         bool "CIFS POSIX Extensions"
@@ -125,7 +137,7 @@ config CIFS_ACL
 	  help
 	    Allows fetching CIFS/NTFS ACL from the server.  The DACL blob
 	    is handed over to the application/caller.  See the man
-	    page for getcifsacl for more information.
+	    page for getcifsacl for more information.  If unsure, say Y.
 
 config CIFS_DEBUG
 	bool "Enable CIFS debugging routines"
@@ -146,6 +158,16 @@ config CIFS_DEBUG2
 	   option can be turned off unless you are debugging
 	   cifs problems.  If unsure, say N.
 
+config CIFS_DEBUG_DUMP_KEYS
+	bool "Dump encryption keys for offline decryption (Unsafe)"
+	depends on CIFS_DEBUG
+	help
+	   Enabling this will dump the encryption and decryption keys
+	   used to communicate on an encrypted share connection on the
+	   console. This allows Wireshark to decrypt and dissect
+	   encrypted network captures. Enable this carefully.
+	   If unsure, say N.
+
 config CIFS_DFS_UPCALL
 	  bool "DFS feature support"
 	  depends on CIFS && KEYS
@@ -157,7 +179,7 @@ config CIFS_DFS_UPCALL
 	    an upcall mechanism for CIFS which contacts userspace helper
 	    utilities to provide server name resolution (host names to
 	    IP addresses) which is needed for implicit mounts of DFS junction
-	    points. If unsure, say N.
+	    points. If unsure, say Y.
 
 config CIFS_NFSD_EXPORT
 	  bool "Allow nfsd to export CIFS file system"
@@ -165,38 +187,9 @@ config CIFS_NFSD_EXPORT
 	  help
 	   Allows NFS server to export a CIFS mounted share (nfsd over cifs)
 
-config CIFS_SMB2
-	bool "SMB2 and SMB3 network file system support"
-	depends on CIFS
-	select KEYS
-	select FSCACHE
-	select DNS_RESOLVER
-	select CRYPTO_AES
-	select CRYPTO_SHA256
-	select CRYPTO_CMAC
-	select CRYPTO_AEAD2
-	select CRYPTO_CCM
-
-	help
-	  This enables support for the Server Message Block version 2
-	  family of protocols, including SMB3.  SMB3 support is
-	  enabled on mount by specifying "vers=3.0" in the mount
-	  options. These protocols are the successors to the popular
-	  CIFS and SMB network file sharing protocols. SMB3 is the
-	  native file sharing mechanism for the more recent
-	  versions of Windows (Windows 8 and Windows 2012 and
-	  later) and Samba server and many others support SMB3 well.
-	  In general SMB3 enables better performance, security
-	  and features, than would be possible with CIFS (Note that
-	  when mounting to Samba, due to the CIFS POSIX extensions,
-	  CIFS mounts can provide slightly better POSIX compatibility
-	  than SMB3 mounts do though). Note that SMB2/SMB3 mount
-	  options are also slightly simpler (compared to CIFS) due
-	  to protocol improvements.
-
 config CIFS_SMB311
 	bool "SMB3.1.1 network file system support (Experimental)"
-	depends on CIFS_SMB2
+	depends on CIFS
 
 	help
 	  This enables experimental support for the newest, SMB3.1.1, dialect.

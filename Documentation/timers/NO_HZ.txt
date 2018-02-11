@@ -194,32 +194,9 @@ that the RCU callbacks are processed in a timely fashion.
 
 Another approach is to offload RCU callback processing to "rcuo" kthreads
 using the CONFIG_RCU_NOCB_CPU=y Kconfig option.  The specific CPUs to
-offload may be selected via several methods:
-
-1.	One of three mutually exclusive Kconfig options specify a
-	build-time default for the CPUs to offload:
-
-	a.	The CONFIG_RCU_NOCB_CPU_NONE=y Kconfig option results in
-		no CPUs being offloaded.
-
-	b.	The CONFIG_RCU_NOCB_CPU_ZERO=y Kconfig option causes
-		CPU 0 to be offloaded.
-
-	c.	The CONFIG_RCU_NOCB_CPU_ALL=y Kconfig option causes all
-		CPUs to be offloaded.  Note that the callbacks will be
-		offloaded to "rcuo" kthreads, and that those kthreads
-		will in fact run on some CPU.  However, this approach
-		gives fine-grained control on exactly which CPUs the
-		callbacks run on, along with their scheduling priority
-		(including the default of SCHED_OTHER), and it further
-		allows this control to be varied dynamically at runtime.
-
-2.	The "rcu_nocbs=" kernel boot parameter, which takes a comma-separated
-	list of CPUs and CPU ranges, for example, "1,3-5" selects CPUs 1,
-	3, 4, and 5.  The specified CPUs will be offloaded in addition to
-	any CPUs specified as offloaded by CONFIG_RCU_NOCB_CPU_ZERO=y or
-	CONFIG_RCU_NOCB_CPU_ALL=y.  This means that the "rcu_nocbs=" boot
-	parameter has no effect for kernels built with RCU_NOCB_CPU_ALL=y.
+offload may be selected using The "rcu_nocbs=" kernel boot parameter,
+which takes a comma-separated list of CPUs and CPU ranges, for example,
+"1,3-5" selects CPUs 1, 3, 4, and 5.
 
 The offloaded CPUs will never queue RCU callbacks, and therefore RCU
 never prevents offloaded CPUs from entering either dyntick-idle mode

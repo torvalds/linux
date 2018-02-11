@@ -29,8 +29,8 @@ struct mmc_csd {
 	unsigned char		structure;
 	unsigned char		mmca_vsn;
 	unsigned short		cmdclass;
-	unsigned short		tacc_clks;
-	unsigned int		tacc_ns;
+	unsigned short		taac_clks;
+	unsigned int		taac_ns;
 	unsigned int		c_size;
 	unsigned int		r2w_factor;
 	unsigned int		max_dtr;
@@ -305,9 +305,7 @@ struct mmc_card {
 	struct mmc_part	part[MMC_NUM_PHY_PARTITION]; /* physical partitions */
 	unsigned int    nr_parts;
 
-	struct mmc_queue_req	*mqrq;		/* Shared queue structure */
 	unsigned int		bouncesz;	/* Bounce buffer size */
-	int			qdepth;		/* Shared queue depth */
 };
 
 static inline bool mmc_large_sector(struct mmc_card *card)

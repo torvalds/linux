@@ -31,12 +31,16 @@
 #include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/sched.h>
 #include <linux/spi/spi.h>
 #include <linux/timer.h>
 
 #define CQSPI_NAME			"cadence-qspi"
 #define CQSPI_MAX_CHIPSELECT		16
+
+/* Quirks */
+#define CQSPI_NEEDS_WR_DELAY		BIT(0)
 
 struct cqspi_st;
 
@@ -75,7 +79,9 @@ struct cqspi_st {
 	bool			is_decoded_cs;
 	u32			fifo_depth;
 	u32			fifo_width;
+	bool			rclk_en;
 	u32			trigger_address;
+	u32			wr_delay;
 	struct cqspi_flash_pdata f_pdata[CQSPI_MAX_CHIPSELECT];
 };
 
@@ -608,6 +614,15 @@ static int cqspi_indirect_write_execute(struct spi_nor *nor,
 	reinit_completion(&cqspi->transfer_complete);
 	writel(CQSPI_REG_INDIRECTWR_START_MASK,
 	       reg_base + CQSPI_REG_INDIRECTWR);
+	/*
+	 * As per 66AK2G02 TRM SPRUHY8F section 11.15.5.3 Indirect Access
+	 * Controller programming sequence, couple of cycles of
+	 * QSPI_REF_CLK delay is required for the above bit to
+	 * be internally synchronized by the QSPI module. Provide 5
+	 * cycles of delay.
+	 */
+	if (cqspi->wr_delay)
+		ndelay(cqspi->wr_delay);
 
 	while (remaining > 0) {
 		write_bytes = remaining > page_size ? page_size : remaining;
@@ -775,7 +790,7 @@ static void cqspi_config_baudrate_div(struct cqspi_st *cqspi)
 }
 
 static void cqspi_readdata_capture(struct cqspi_st *cqspi,
-				   const unsigned int bypass,
+				   const bool bypass,
 				   const unsigned int delay)
 {
 	void __iomem *reg_base = cqspi->iobase;
@@ -839,7 +854,8 @@ static void cqspi_configure(struct spi_nor *nor)
 		cqspi->sclk = sclk;
 		cqspi_config_baudrate_div(cqspi);
 		cqspi_delay(nor);
-		cqspi_readdata_capture(cqspi, 1, f_pdata->read_delay);
+		cqspi_readdata_capture(cqspi, !cqspi->rclk_en,
+				       f_pdata->read_delay);
 	}
 
 	if (switch_cs || switch_ck)
@@ -855,15 +871,14 @@ static int cqspi_set_protocol(struct spi_nor *nor, const int read)
 	f_pdata->data_width = CQSPI_INST_TYPE_SINGLE;
 
 	if (read) {
-		switch (nor->flash_read) {
-		case SPI_NOR_NORMAL:
-		case SPI_NOR_FAST:
+		switch (nor->read_proto) {
+		case SNOR_PROTO_1_1_1:
 			f_pdata->data_width = CQSPI_INST_TYPE_SINGLE;
 			break;
-		case SPI_NOR_DUAL:
+		case SNOR_PROTO_1_1_2:
 			f_pdata->data_width = CQSPI_INST_TYPE_DUAL;
 			break;
-		case SPI_NOR_QUAD:
+		case SNOR_PROTO_1_1_4:
 			f_pdata->data_width = CQSPI_INST_TYPE_QUAD;
 			break;
 		default:
@@ -1037,6 +1052,8 @@ static int cqspi_of_get_pdata(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	cqspi->rclk_en = of_property_read_bool(np, "cdns,rclk-en");
+
 	return 0;
 }
 
@@ -1069,6 +1086,13 @@ static void cqspi_controller_init(struct cqspi_st *cqspi)
 
 static int cqspi_setup_flash(struct cqspi_st *cqspi, struct device_node *np)
 {
+	const struct spi_nor_hwcaps hwcaps = {
+		.mask = SNOR_HWCAPS_READ |
+			SNOR_HWCAPS_READ_FAST |
+			SNOR_HWCAPS_READ_1_1_2 |
+			SNOR_HWCAPS_READ_1_1_4 |
+			SNOR_HWCAPS_PP,
+	};
 	struct platform_device *pdev = cqspi->pdev;
 	struct device *dev = &pdev->dev;
 	struct cqspi_flash_pdata *f_pdata;
@@ -1123,7 +1147,7 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi, struct device_node *np)
 			goto err;
 		}
 
-		ret = spi_nor_scan(nor, NULL, SPI_NOR_QUAD);
+		ret = spi_nor_scan(nor, NULL, &hwcaps);
 		if (ret)
 			goto err;
 
@@ -1150,6 +1174,7 @@ static int cqspi_probe(struct platform_device *pdev)
 	struct cqspi_st *cqspi;
 	struct resource *res;
 	struct resource *res_ahb;
+	unsigned long data;
 	int ret;
 	int irq;
 
@@ -1200,13 +1225,24 @@ static int cqspi_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	ret = clk_prepare_enable(cqspi->clk);
-	if (ret) {
-		dev_err(dev, "Cannot enable QSPI clock.\n");
+	pm_runtime_enable(dev);
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(dev);
 		return ret;
 	}
 
+	ret = clk_prepare_enable(cqspi->clk);
+	if (ret) {
+		dev_err(dev, "Cannot enable QSPI clock.\n");
+		goto probe_clk_failed;
+	}
+
 	cqspi->master_ref_clk_hz = clk_get_rate(cqspi->clk);
+	data  = (unsigned long)of_device_get_match_data(dev);
+	if (data & CQSPI_NEEDS_WR_DELAY)
+		cqspi->wr_delay = 5 * DIV_ROUND_UP(NSEC_PER_SEC,
+						   cqspi->master_ref_clk_hz);
 
 	ret = devm_request_irq(dev, irq, cqspi_irq_handler, 0,
 			       pdev->name, cqspi);
@@ -1227,10 +1263,13 @@ static int cqspi_probe(struct platform_device *pdev)
 	}
 
 	return ret;
-probe_irq_failed:
-	cqspi_controller_enable(cqspi, 0);
 probe_setup_failed:
+	cqspi_controller_enable(cqspi, 0);
+probe_irq_failed:
 	clk_disable_unprepare(cqspi->clk);
+probe_clk_failed:
+	pm_runtime_put_sync(dev);
+	pm_runtime_disable(dev);
 	return ret;
 }
 
@@ -1246,6 +1285,9 @@ static int cqspi_remove(struct platform_device *pdev)
 	cqspi_controller_enable(cqspi, 0);
 
 	clk_disable_unprepare(cqspi->clk);
+
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
@@ -1277,8 +1319,15 @@ static const struct dev_pm_ops cqspi__dev_pm_ops = {
 #define CQSPI_DEV_PM_OPS	NULL
 #endif
 
-static struct of_device_id const cqspi_dt_ids[] = {
-	{.compatible = "cdns,qspi-nor",},
+static const struct of_device_id cqspi_dt_ids[] = {
+	{
+		.compatible = "cdns,qspi-nor",
+		.data = (void *)0,
+	},
+	{
+		.compatible = "ti,k2g-qspi",
+		.data = (void *)CQSPI_NEEDS_WR_DELAY,
+	},
 	{ /* end of table */ }
 };
 

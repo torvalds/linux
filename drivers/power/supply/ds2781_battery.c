@@ -19,7 +19,7 @@
 #include <linux/power_supply.h>
 #include <linux/idr.h>
 
-#include "../../w1/w1.h"
+#include <linux/w1.h>
 #include "../../w1/slaves/w1_ds2781.h"
 
 /* Current unit measurement in uA for a 1 milli-ohm sense resistor */
@@ -665,7 +665,7 @@ static ssize_t ds2781_write_param_eeprom_bin(struct file *filp,
 	return count;
 }
 
-static struct bin_attribute ds2781_param_eeprom_bin_attr = {
+static const struct bin_attribute ds2781_param_eeprom_bin_attr = {
 	.attr = {
 		.name = "param_eeprom",
 		.mode = S_IRUGO | S_IWUSR,
@@ -711,7 +711,7 @@ static ssize_t ds2781_write_user_eeprom_bin(struct file *filp,
 	return count;
 }
 
-static struct bin_attribute ds2781_user_eeprom_bin_attr = {
+static const struct bin_attribute ds2781_user_eeprom_bin_attr = {
 	.attr = {
 		.name = "user_eeprom",
 		.mode = S_IRUGO | S_IWUSR,

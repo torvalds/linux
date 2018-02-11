@@ -745,7 +745,7 @@ static unsigned int carm_fill_get_fw_ver(struct carm_host *host,
 
 static inline void carm_end_request_queued(struct carm_host *host,
 					   struct carm_request *crq,
-					   int error)
+					   blk_status_t error)
 {
 	struct request *req = crq->rq;
 	int rc;
@@ -791,7 +791,7 @@ static inline void carm_round_robin(struct carm_host *host)
 }
 
 static inline void carm_end_rq(struct carm_host *host, struct carm_request *crq,
-			       int error)
+			       blk_status_t error)
 {
 	carm_end_request_queued(host, crq, error);
 	if (max_queue == 1)
@@ -869,14 +869,14 @@ queue_one_request:
 	sg = &crq->sg[0];
 	n_elem = blk_rq_map_sg(q, rq, sg);
 	if (n_elem <= 0) {
-		carm_end_rq(host, crq, -EIO);
+		carm_end_rq(host, crq, BLK_STS_IOERR);
 		return;		/* request with no s/g entries? */
 	}
 
 	/* map scatterlist to PCI bus addresses */
 	n_elem = pci_map_sg(host->pdev, sg, n_elem, pci_dir);
 	if (n_elem <= 0) {
-		carm_end_rq(host, crq, -EIO);
+		carm_end_rq(host, crq, BLK_STS_IOERR);
 		return;		/* request with no s/g entries? */
 	}
 	crq->n_elem = n_elem;
@@ -937,7 +937,7 @@ queue_one_request:
 
 static void carm_handle_array_info(struct carm_host *host,
 				   struct carm_request *crq, u8 *mem,
-				   int error)
+				   blk_status_t error)
 {
 	struct carm_port *port;
 	u8 *msg_data = mem + sizeof(struct carm_array_info);
@@ -997,7 +997,7 @@ out:
 
 static void carm_handle_scan_chan(struct carm_host *host,
 				  struct carm_request *crq, u8 *mem,
-				  int error)
+				  blk_status_t error)
 {
 	u8 *msg_data = mem + IOC_SCAN_CHAN_OFFSET;
 	unsigned int i, dev_count = 0;
@@ -1029,7 +1029,7 @@ out:
 }
 
 static void carm_handle_generic(struct carm_host *host,
-				struct carm_request *crq, int error,
+				struct carm_request *crq, blk_status_t error,
 				int cur_state, int next_state)
 {
 	DPRINTK("ENTER\n");
@@ -1045,7 +1045,7 @@ static void carm_handle_generic(struct carm_host *host,
 }
 
 static inline void carm_handle_rw(struct carm_host *host,
-				  struct carm_request *crq, int error)
+				  struct carm_request *crq, blk_status_t error)
 {
 	int pci_dir;
 
@@ -1067,7 +1067,7 @@ static inline void carm_handle_resp(struct carm_host *host,
 	u32 handle = le32_to_cpu(ret_handle_le);
 	unsigned int msg_idx;
 	struct carm_request *crq;
-	int error = (status == RMSG_OK) ? 0 : -EIO;
+	blk_status_t error = (status == RMSG_OK) ? 0 : BLK_STS_IOERR;
 	u8 *mem;
 
 	VPRINTK("ENTER, handle == 0x%x\n", handle);
@@ -1155,7 +1155,7 @@ static inline void carm_handle_resp(struct carm_host *host,
 err_out:
 	printk(KERN_WARNING DRV_NAME "(%s): BUG: unhandled message type %d/%d\n",
 	       pci_name(host->pdev), crq->msg_type, crq->msg_subtype);
-	carm_end_rq(host, crq, -EIO);
+	carm_end_rq(host, crq, BLK_STS_IOERR);
 }
 
 static inline void carm_handle_responses(struct carm_host *host)

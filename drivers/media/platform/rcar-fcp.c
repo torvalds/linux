@@ -53,14 +53,7 @@ struct rcar_fcp_device *rcar_fcp_get(const struct device_node *np)
 		if (fcp->dev->of_node != np)
 			continue;
 
-		/*
-		 * Make sure the module won't be unloaded behind our back. This
-		 * is a poor man's safety net, the module should really not be
-		 * unloaded while FCP users can be active.
-		 */
-		if (!try_module_get(fcp->dev->driver->owner))
-			fcp = NULL;
-
+		get_device(fcp->dev);
 		goto done;
 	}
 
@@ -81,9 +74,15 @@ EXPORT_SYMBOL_GPL(rcar_fcp_get);
 void rcar_fcp_put(struct rcar_fcp_device *fcp)
 {
 	if (fcp)
-		module_put(fcp->dev->driver->owner);
+		put_device(fcp->dev);
 }
 EXPORT_SYMBOL_GPL(rcar_fcp_put);
+
+struct device *rcar_fcp_get_device(struct rcar_fcp_device *fcp)
+{
+	return fcp->dev;
+}
+EXPORT_SYMBOL_GPL(rcar_fcp_get_device);
 
 /**
  * rcar_fcp_enable - Enable an FCP

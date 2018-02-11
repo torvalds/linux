@@ -28,29 +28,11 @@
 #include <core/enum.h>
 #include <engine/fifo.h>
 
-int
-nv50_fb_memtype[0x80] = {
-	1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	1, 1, 1, 1, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0,
-	1, 1, 1, 1, 1, 1, 1, 0, 2, 2, 2, 2, 2, 2, 2, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 0, 0,
-	0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 2, 2, 2, 2,
-	1, 0, 2, 0, 1, 0, 2, 0, 1, 1, 2, 2, 1, 1, 0, 0
-};
-
 static int
 nv50_fb_ram_new(struct nvkm_fb *base, struct nvkm_ram **pram)
 {
 	struct nv50_fb *fb = nv50_fb(base);
 	return fb->func->ram_new(&fb->base, pram);
-}
-
-static bool
-nv50_fb_memtype_valid(struct nvkm_fb *fb, u32 memtype)
-{
-	return nv50_fb_memtype[(memtype & 0xff00) >> 8] != 0;
 }
 
 static const struct nvkm_enum vm_dispatch_subclients[] = {
@@ -244,6 +226,15 @@ nv50_fb_init(struct nvkm_fb *base)
 	nvkm_wr32(device, 0x100c90, fb->func->trap);
 }
 
+static u32
+nv50_fb_tags(struct nvkm_fb *base)
+{
+	struct nv50_fb *fb = nv50_fb(base);
+	if (fb->func->tags)
+		return fb->func->tags(&fb->base);
+	return 0;
+}
+
 static void *
 nv50_fb_dtor(struct nvkm_fb *base)
 {
@@ -262,11 +253,11 @@ nv50_fb_dtor(struct nvkm_fb *base)
 static const struct nvkm_fb_func
 nv50_fb_ = {
 	.dtor = nv50_fb_dtor,
+	.tags = nv50_fb_tags,
 	.oneinit = nv50_fb_oneinit,
 	.init = nv50_fb_init,
 	.intr = nv50_fb_intr,
 	.ram_new = nv50_fb_ram_new,
-	.memtype_valid = nv50_fb_memtype_valid,
 };
 
 int
@@ -287,6 +278,7 @@ nv50_fb_new_(const struct nv50_fb_func *func, struct nvkm_device *device,
 static const struct nv50_fb_func
 nv50_fb = {
 	.ram_new = nv50_ram_new,
+	.tags = nv20_fb_tags,
 	.trap = 0x000707ff,
 };
 

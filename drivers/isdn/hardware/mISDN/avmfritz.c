@@ -156,7 +156,7 @@ _set_debug(struct fritzcard *card)
 }
 
 static int
-set_debug(const char *val, struct kernel_param *kp)
+set_debug(const char *val, const struct kernel_param *kp)
 {
 	int ret;
 	struct fritzcard *card;
@@ -1142,7 +1142,7 @@ fritz_remove_pci(struct pci_dev *pdev)
 			pr_info("%s: drvdata already removed\n", __func__);
 }
 
-static struct pci_device_id fcpci_ids[] = {
+static const struct pci_device_id fcpci_ids[] = {
 	{ PCI_VENDOR_ID_AVM, PCI_DEVICE_ID_AVM_A1, PCI_ANY_ID, PCI_ANY_ID,
 	  0, 0, (unsigned long) "Fritz!Card PCI"},
 	{ PCI_VENDOR_ID_AVM, PCI_DEVICE_ID_AVM_A1_V2, PCI_ANY_ID, PCI_ANY_ID,

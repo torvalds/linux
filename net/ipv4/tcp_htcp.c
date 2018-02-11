@@ -66,7 +66,6 @@ static inline void htcp_reset(struct htcp *ca)
 
 static u32 htcp_cwnd_undo(struct sock *sk)
 {
-	const struct tcp_sock *tp = tcp_sk(sk);
 	struct htcp *ca = inet_csk_ca(sk);
 
 	if (ca->undo_last_cong) {
@@ -76,7 +75,7 @@ static u32 htcp_cwnd_undo(struct sock *sk)
 		ca->undo_last_cong = 0;
 	}
 
-	return max(tp->snd_cwnd, (tp->snd_ssthresh << 7) / ca->beta);
+	return tcp_reno_undo_cwnd(sk);
 }
 
 static inline void measure_rtt(struct sock *sk, u32 srtt)
@@ -104,7 +103,7 @@ static void measure_achieved_throughput(struct sock *sk,
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct htcp *ca = inet_csk_ca(sk);
-	u32 now = tcp_time_stamp;
+	u32 now = tcp_jiffies32;
 
 	if (icsk->icsk_ca_state == TCP_CA_Open)
 		ca->pkts_acked = sample->pkts_acked;

@@ -1,0 +1,16 @@
+* TI OMAP SDHCI Controller
+
+Refer to mmc.txt for standard MMC bindings.
+
+Required properties:
+- compatible: Should be "ti,dra7-sdhci" for DRA7 and DRA72 controllers
+- ti,hwmods: Must be "mmc<n>", <n> is controller instance starting 1
+
+Example:
+	mmc1: mmc@4809c000 {
+		compatible = "ti,dra7-sdhci";
+		reg = <0x4809c000 0x400>;
+		ti,hwmods = "mmc1";
+		bus-width = <4>;
+		vmmc-supply = <&vmmc>; /* phandle to regulator node */
+	};

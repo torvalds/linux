@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
 /*
  * Definitions for virtio-ccw devices.
  *
  * Copyright IBM Corp. 2013
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  *
  *  Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  */

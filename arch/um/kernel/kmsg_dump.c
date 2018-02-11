@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kmsg_dump.h>
 #include <linux/console.h>
 #include <shared/init.h>

@@ -16,7 +16,6 @@
 #define __STRING_SUPPORT_H_INCLUDED__
 #include <platform_support.h>
 #include <type_support.h>
-#include <storage_class.h>
 
 #if !defined(_MSC_VER)
 /*
@@ -24,7 +23,7 @@
  */
 
 
-/** @brief Copy from src_buf to dest_buf.
+/* @brief Copy from src_buf to dest_buf.
  *
  * @param[out] dest_buf. Destination buffer to copy to
  * @param[in]  dest_size. The size of the destination buffer in bytes
@@ -34,7 +33,7 @@
  * @return     EINVAL on Invalid arguments
  * @return     ERANGE on Destination size too small
  */
-STORAGE_CLASS_INLINE int memcpy_s(
+static inline int memcpy_s(
 	void* dest_buf,
 	size_t dest_size,
 	const void* src_buf,
@@ -54,7 +53,7 @@ STORAGE_CLASS_INLINE int memcpy_s(
 	return 0;
 }
 
-/** @brief Get the length of the string, excluding the null terminator
+/* @brief Get the length of the string, excluding the null terminator
  *
  * @param[in]  src_str. The source string
  * @param[in]  max_len. Look only for max_len bytes in the string
@@ -72,15 +71,14 @@ static size_t strnlen_s(
 		return 0;
 	}
 
-	for (ix=0;
-		((src_str[ix] != '\0') && (ix< max_len));
-		++ix) /*Nothing else to do*/;
+	for (ix = 0; ix < max_len && src_str[ix] != '\0'; ix++)
+		;
 
 	/* On Error, it will return src_size == max_len*/
 	return ix;
 }
 
-/** @brief Copy string from src_str to dest_str
+/* @brief Copy string from src_str to dest_str
  *
  * @param[out] dest_str. Destination buffer to copy to
  * @param[in]  dest_size. The size of the destination buffer in bytes
@@ -90,7 +88,7 @@ static size_t strnlen_s(
  * @return     Returns EINVAL on invalid arguments
  * @return     Returns ERANGE on destination size too small
  */
-STORAGE_CLASS_INLINE int strncpy_s(
+static inline int strncpy_s(
 	char* dest_str,
 	size_t dest_size,
 	const char* src_str,
@@ -118,11 +116,11 @@ STORAGE_CLASS_INLINE int strncpy_s(
 
 	/* dest_str is big enough for the len */
 	strncpy(dest_str, src_str, len);
-	dest_str[len+1] = '\0';
+	dest_str[len] = '\0';
 	return 0;
 }
 
-/** @brief Copy string from src_str to dest_str
+/* @brief Copy string from src_str to dest_str
  *
  * @param[out] dest_str. Destination buffer to copy to
  * @param[in]  dest_size. The size of the destination buffer in bytes
@@ -131,7 +129,7 @@ STORAGE_CLASS_INLINE int strncpy_s(
  * @return     Returns EINVAL on invalid arguments
  * @return     Returns ERANGE on destination size too small
  */
-STORAGE_CLASS_INLINE int strcpy_s(
+static inline int strcpy_s(
 	char* dest_str,
 	size_t dest_size,
 	const char* src_str)
@@ -158,7 +156,7 @@ STORAGE_CLASS_INLINE int strcpy_s(
 
 	/* dest_str is big enough for the len */
 	strncpy(dest_str, src_str, len);
-	dest_str[len+1] = '\0';
+	dest_str[len] = '\0';
 	return 0;
 }
 

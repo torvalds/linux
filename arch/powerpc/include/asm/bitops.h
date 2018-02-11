@@ -206,68 +206,13 @@ static __inline__ void __clear_bit_unlock(int nr, volatile unsigned long *addr)
  * Return the zero-based bit position (LE, not IBM bit numbering) of
  * the most significant 1-bit in a double word.
  */
-static __inline__ __attribute__((const))
-int __ilog2(unsigned long x)
-{
-	int lz;
+#define __ilog2(x)	ilog2(x)
 
-	asm (PPC_CNTLZL "%0,%1" : "=r" (lz) : "r" (x));
-	return BITS_PER_LONG - 1 - lz;
-}
+#include <asm-generic/bitops/ffz.h>
 
-static inline __attribute__((const))
-int __ilog2_u32(u32 n)
-{
-	int bit;
-	asm ("cntlzw %0,%1" : "=r" (bit) : "r" (n));
-	return 31 - bit;
-}
+#include <asm-generic/bitops/builtin-__ffs.h>
 
-#ifdef __powerpc64__
-static inline __attribute__((const))
-int __ilog2_u64(u64 n)
-{
-	int bit;
-	asm ("cntlzd %0,%1" : "=r" (bit) : "r" (n));
-	return 63 - bit;
-}
-#endif
-
-/*
- * Determines the bit position of the least significant 0 bit in the
- * specified double word. The returned bit position will be
- * zero-based, starting from the right side (63/31 - 0).
- */
-static __inline__ unsigned long ffz(unsigned long x)
-{
-	/* no zero exists anywhere in the 8 byte area. */
-	if ((x = ~x) == 0)
-		return BITS_PER_LONG;
-
-	/*
-	 * Calculate the bit position of the least significant '1' bit in x
-	 * (since x has been changed this will actually be the least significant
-	 * '0' bit in * the original x).  Note: (x & -x) gives us a mask that
-	 * is the least significant * (RIGHT-most) 1-bit of the value in x.
-	 */
-	return __ilog2(x & -x);
-}
-
-static __inline__ unsigned long __ffs(unsigned long x)
-{
-	return __ilog2(x & -x);
-}
-
-/*
- * ffs: find first bit set. This is defined the same way as
- * the libc and compiler builtin ffs routines, therefore
- * differs in spirit from the above ffz (man ffs).
- */
-static __inline__ int ffs(int x)
-{
-	unsigned long i = (unsigned long)x;
-	return __ilog2(i & -i) + 1;
-}
+#include <asm-generic/bitops/builtin-ffs.h>
 
 /*
  * fls: find last (most-significant) bit set.
@@ -275,33 +220,15 @@ static __inline__ int ffs(int x)
  */
 static __inline__ int fls(unsigned int x)
 {
-	int lz;
-
-	asm ("cntlzw %0,%1" : "=r" (lz) : "r" (x));
-	return 32 - lz;
+	return 32 - __builtin_clz(x);
 }
 
-static __inline__ unsigned long __fls(unsigned long x)
-{
-	return __ilog2(x);
-}
+#include <asm-generic/bitops/builtin-__fls.h>
 
-/*
- * 64-bit can do this using one cntlzd (count leading zeroes doubleword)
- * instruction; for 32-bit we use the generic version, which does two
- * 32-bit fls calls.
- */
-#ifdef __powerpc64__
 static __inline__ int fls64(__u64 x)
 {
-	int lz;
-
-	asm ("cntlzd %0,%1" : "=r" (lz) : "r" (x));
-	return 64 - lz;
+	return 64 - __builtin_clzll(x);
 }
-#else
-#include <asm-generic/bitops/fls64.h>
-#endif /* __powerpc64__ */
 
 #ifdef CONFIG_PPC64
 unsigned int __arch_hweight8(unsigned int w);

@@ -33,7 +33,6 @@ Example:
 		#size-cells = <1>;
 		ranges = <0x702c0000 0x0 0x702c0000 0x00040000>;
 
-		status = "disabled";
 
 		child1 {
 			...

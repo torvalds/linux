@@ -360,8 +360,8 @@ static int xgpio_probe(struct platform_device *pdev)
 	/* Call the OF gpio helper to setup and register the GPIO device */
 	status = of_mm_gpiochip_add_data(np, &chip->mmchip, chip);
 	if (status) {
-		pr_err("%s: error in probe function with status %d\n",
-		       np->full_name, status);
+		pr_err("%pOF: error in probe function with status %d\n",
+		       np, status);
 		return status;
 	}
 

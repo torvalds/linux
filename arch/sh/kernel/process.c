@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/mm.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -58,7 +59,7 @@ void arch_task_cache_init(void)
 
 	task_xstate_cachep = kmem_cache_create("task_xstate", xstate_size,
 					       __alignof__(union thread_xstate),
-					       SLAB_PANIC | SLAB_NOTRACK, NULL);
+					       SLAB_PANIC, NULL);
 }
 
 #ifdef CONFIG_SH_FPU_EMU

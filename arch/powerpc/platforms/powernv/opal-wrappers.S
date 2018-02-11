@@ -27,7 +27,7 @@
 
 	.globl opal_tracepoint_refcount
 opal_tracepoint_refcount:
-	.llong	0
+	.8byte	0
 
 	.section	".text"
 
@@ -94,15 +94,15 @@ opal_return:
 	 * bytes (always BE) since MSR:LE will end up fixed up as a side
 	 * effect of the rfid.
 	 */
-	FIXUP_ENDIAN
+	FIXUP_ENDIAN_HV
 	ld	r2,PACATOC(r13);
 	lwz	r4,8(r1);
 	ld	r5,PPC_LR_STKOFF(r1);
 	ld	r6,PACASAVEDMSR(r13);
-	mtspr	SPRN_SRR0,r5;
-	mtspr	SPRN_SRR1,r6;
 	mtcr	r4;
-	rfid
+	mtspr	SPRN_HSRR0,r5;
+	mtspr	SPRN_HSRR1,r6;
+	hrfid
 
 opal_real_call:
 	mfcr	r11
@@ -120,7 +120,7 @@ opal_real_call:
 	hrfid
 
 opal_return_realmode:
-	FIXUP_ENDIAN
+	FIXUP_ENDIAN_HV
 	ld	r2,PACATOC(r13);
 	lwz	r11,8(r1);
 	ld	r12,PPC_LR_STKOFF(r1)
@@ -307,6 +307,16 @@ OPAL_CALL(opal_xive_get_vp_info,		OPAL_XIVE_GET_VP_INFO);
 OPAL_CALL(opal_xive_set_vp_info,		OPAL_XIVE_SET_VP_INFO);
 OPAL_CALL(opal_xive_sync,			OPAL_XIVE_SYNC);
 OPAL_CALL(opal_xive_dump,			OPAL_XIVE_DUMP);
+OPAL_CALL(opal_signal_system_reset,		OPAL_SIGNAL_SYSTEM_RESET);
 OPAL_CALL(opal_npu_init_context,		OPAL_NPU_INIT_CONTEXT);
 OPAL_CALL(opal_npu_destroy_context,		OPAL_NPU_DESTROY_CONTEXT);
 OPAL_CALL(opal_npu_map_lpar,			OPAL_NPU_MAP_LPAR);
+OPAL_CALL(opal_imc_counters_init,		OPAL_IMC_COUNTERS_INIT);
+OPAL_CALL(opal_imc_counters_start,		OPAL_IMC_COUNTERS_START);
+OPAL_CALL(opal_imc_counters_stop,		OPAL_IMC_COUNTERS_STOP);
+OPAL_CALL(opal_pci_set_p2p,			OPAL_PCI_SET_P2P);
+OPAL_CALL(opal_get_powercap,			OPAL_GET_POWERCAP);
+OPAL_CALL(opal_set_powercap,			OPAL_SET_POWERCAP);
+OPAL_CALL(opal_get_power_shift_ratio,		OPAL_GET_POWER_SHIFT_RATIO);
+OPAL_CALL(opal_set_power_shift_ratio,		OPAL_SET_POWER_SHIFT_RATIO);
+OPAL_CALL(opal_sensor_group_clear,		OPAL_SENSOR_GROUP_CLEAR);

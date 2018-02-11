@@ -311,11 +311,6 @@ enum {
 
 /**
  * rate_n_flags Tx antenna masks
- * 4965 has 2 transmitters
- * 5100 has 1 transmitter B
- * 5150 has 1 transmitter A
- * 5300 has 3 transmitters
- * 5350 has 3 transmitters
  * bit14:16
  */
 #define RATE_MCS_ANT_POS	14
@@ -1230,7 +1225,6 @@ struct iwl_rx_mpdu_res_start {
  */
 
 /*
- * 4965 uCode updates these Tx attempt count values in host DRAM.
  * Used for managing Tx retries when expecting block-acks.
  * Driver should set these fields to 0.
  */
@@ -1437,22 +1431,6 @@ struct agg_tx_status {
 	__le16 sequence;
 } __packed;
 
-/*
- * definitions for initial rate index field
- * bits [3:0] initial rate index
- * bits [6:4] rate table color, used for the initial rate
- * bit-7 invalid rate indication
- *   i.e. rate was not chosen from rate table
- *   or rate table color was changed during frame retries
- * refer tlc rate info
- */
-
-#define IWL50_TX_RES_INIT_RATE_INDEX_POS	0
-#define IWL50_TX_RES_INIT_RATE_INDEX_MSK	0x0f
-#define IWL50_TX_RES_RATE_TABLE_COLOR_POS	4
-#define IWL50_TX_RES_RATE_TABLE_COLOR_MSK	0x70
-#define IWL50_TX_RES_INV_RATE_INDEX_MSK	0x80
-
 /* refer to ra_tid */
 #define IWLAGN_TX_RES_TID_POS	0
 #define IWLAGN_TX_RES_TID_MSK	0x0f
@@ -1556,7 +1534,7 @@ struct iwl_link_qual_general_params {
 	/* Best single antenna to use for single stream (legacy, SISO). */
 	u8 single_stream_ant_msk;	/* LINK_QUAL_ANT_* */
 
-	/* Best antennas to use for MIMO (unused for 4965, assumes both). */
+	/* Best antennas to use for MIMO */
 	u8 dual_stream_ant_msk;		/* LINK_QUAL_ANT_* */
 
 	/*

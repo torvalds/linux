@@ -1,6 +1,5 @@
 menuconfig MTD
 	tristate "Memory Technology Device (MTD) support"
-	depends on GENERIC_IO
 	help
 	  Memory Technology Devices are flash, RAM and similar chips, often
 	  used for solid state file systems on embedded devices. This option
@@ -154,6 +153,10 @@ config MTD_BCM47XX_PARTS
 	help
 	  This provides partitions parser for devices based on BCM47xx
 	  boards.
+
+menu "Partition parsers"
+source "drivers/mtd/parsers/Kconfig"
+endmenu
 
 comment "User Modules And Translation Layers"
 

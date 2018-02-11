@@ -57,6 +57,7 @@
 	aliases {
 		serial0 = &uart0;
 		serial1 = &uart1;
+		gpio0 = &ap_gpio;
 	};
 
 	psci {
@@ -146,6 +147,13 @@
 				marvell,spi-base = <128>, <136>, <144>, <152>;
 			};
 
+			gicp: gicp@3f0040 {
+				compatible = "marvell,ap806-gicp";
+				reg = <0x3f0040 0x10>;
+				marvell,spi-ranges = <64 64>, <288 64>;
+				msi-controller;
+			};
+
 			pic: interrupt-controller@3f0100 {
 				compatible = "marvell,armada-8k-pic";
 				reg = <0x3f0100 0x10>;
@@ -159,6 +167,7 @@
 				reg = <0x400000 0x1000>,
 				      <0x410000 0x1000>;
 				msi-parent = <&gic_v2m0>;
+				clocks = <&ap_clk 3>;
 				dma-coherent;
 			};
 
@@ -167,6 +176,7 @@
 				reg = <0x420000 0x1000>,
 				      <0x430000 0x1000>;
 				msi-parent = <&gic_v2m0>;
+				clocks = <&ap_clk 3>;
 				dma-coherent;
 			};
 
@@ -175,6 +185,7 @@
 				reg = <0x440000 0x1000>,
 				      <0x450000 0x1000>;
 				msi-parent = <&gic_v2m0>;
+				clocks = <&ap_clk 3>;
 				dma-coherent;
 			};
 
@@ -183,6 +194,7 @@
 				reg = <0x460000 0x1000>,
 				      <0x470000 0x1000>;
 				msi-parent = <&gic_v2m0>;
+				clocks = <&ap_clk 3>;
 				dma-coherent;
 			};
 
@@ -193,7 +205,7 @@
 				#size-cells = <0>;
 				cell-index = <0>;
 				interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&ap_syscon 3>;
+				clocks = <&ap_clk 3>;
 				status = "disabled";
 			};
 
@@ -204,7 +216,7 @@
 				#size-cells = <0>;
 				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 				timeout-ms = <1000>;
-				clocks = <&ap_syscon 3>;
+				clocks = <&ap_clk 3>;
 				status = "disabled";
 			};
 
@@ -214,7 +226,7 @@
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
 				reg-io-width = <1>;
-				clocks = <&ap_syscon 3>;
+				clocks = <&ap_clk 3>;
 				status = "disabled";
 			};
 
@@ -224,9 +236,15 @@
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 				reg-io-width = <1>;
-				clocks = <&ap_syscon 3>;
+				clocks = <&ap_clk 3>;
 				status = "disabled";
 
+			};
+
+			watchdog: watchdog@600000 {
+				compatible = "arm,sbsa-gwdt";
+				reg = <0x610000 0x1000>, <0x600000 0x1000>;
+				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			ap_sdhci0: sdhci@6e0000 {
@@ -234,21 +252,38 @@
 				reg = <0x6e0000 0x300>;
 				interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 				clock-names = "core";
-				clocks = <&ap_syscon 4>;
+				clocks = <&ap_clk 4>;
 				dma-coherent;
 				marvell,xenon-phy-slow-mode;
 				status = "disabled";
 			};
 
 			ap_syscon: system-controller@6f4000 {
-				compatible = "marvell,ap806-system-controller",
-					     "syscon";
-				#clock-cells = <1>;
-				clock-output-names = "ap-cpu-cluster-0",
-						     "ap-cpu-cluster-1",
-						     "ap-fixed", "ap-mss",
-						     "ap-emmc";
-				reg = <0x6f4000 0x1000>;
+				compatible = "syscon", "simple-mfd";
+				reg = <0x6f4000 0x2000>;
+
+				ap_clk: clock {
+					compatible = "marvell,ap806-clock";
+					#clock-cells = <1>;
+				};
+
+				ap_pinctrl: pinctrl {
+					compatible = "marvell,ap806-pinctrl";
+
+					uart0_pins: uart0-pins {
+						marvell,pins = "mpp11", "mpp19";
+						marvell,function = "uart0";
+					};
+				};
+
+				ap_gpio: gpio@1040 {
+					compatible = "marvell,armada-8k-gpio";
+					offset = <0x1040>;
+					ngpios = <20>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					gpio-ranges = <&ap_pinctrl 0 0 20>;
+				};
 			};
 		};
 	};

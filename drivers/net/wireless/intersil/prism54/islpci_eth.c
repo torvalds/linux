@@ -276,10 +276,7 @@ islpci_monitor_rx(islpci_private *priv, struct sk_buff **skb)
 		}
 
 		/* make room for the new header and fill it. */
-		avs =
-		    (struct avs_80211_1_header *) skb_push(*skb,
-							   sizeof (struct
-								   avs_80211_1_header));
+		avs = skb_push(*skb, sizeof(struct avs_80211_1_header));
 
 		avs->version = cpu_to_be32(P80211CAPTURE_VERSION);
 		avs->length = cpu_to_be32(sizeof (struct avs_80211_1_header));

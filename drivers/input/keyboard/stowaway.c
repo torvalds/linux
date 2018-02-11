@@ -146,7 +146,7 @@ static void skbd_disconnect(struct serio *serio)
 	kfree(skbd);
 }
 
-static struct serio_device_id skbd_serio_ids[] = {
+static const struct serio_device_id skbd_serio_ids[] = {
 	{
 		.type	= SERIO_RS232,
 		.proto	= SERIO_STOWAWAY,

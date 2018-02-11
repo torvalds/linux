@@ -75,7 +75,8 @@ struct pci_dev *pnv_pci_get_npu_dev(struct pci_dev *gpdev, int index)
 	if (WARN_ON(!gpdev))
 		return NULL;
 
-	if (WARN_ON(!gpdev->dev.of_node))
+	/* Not all PCI devices have device-tree nodes */
+	if (!gpdev->dev.of_node)
 		return NULL;
 
 	/* Get assoicated PCI device */
@@ -394,6 +395,7 @@ struct npu_context {
 	struct pci_dev *npdev[NV_MAX_NPUS][NV_MAX_LINKS];
 	struct mmu_notifier mn;
 	struct kref kref;
+	bool nmmu_flush;
 
 	/* Callback to stop translation requests on a given GPU */
 	struct npu_context *(*release_cb)(struct npu_context *, void *);
@@ -448,7 +450,7 @@ static int mmio_launch_invalidate(struct npu *npu, unsigned long launch,
 	return mmio_atsd_reg;
 }
 
-static int mmio_invalidate_pid(struct npu *npu, unsigned long pid)
+static int mmio_invalidate_pid(struct npu *npu, unsigned long pid, bool flush)
 {
 	unsigned long launch;
 
@@ -464,12 +466,15 @@ static int mmio_invalidate_pid(struct npu *npu, unsigned long pid)
 	/* PID */
 	launch |= pid << PPC_BITLSHIFT(38);
 
+	/* No flush */
+	launch |= !flush << PPC_BITLSHIFT(39);
+
 	/* Invalidating the entire process doesn't use a va */
 	return mmio_launch_invalidate(npu, launch, 0);
 }
 
 static int mmio_invalidate_va(struct npu *npu, unsigned long va,
-			unsigned long pid)
+			unsigned long pid, bool flush)
 {
 	unsigned long launch;
 
@@ -485,27 +490,69 @@ static int mmio_invalidate_va(struct npu *npu, unsigned long va,
 	/* PID */
 	launch |= pid << PPC_BITLSHIFT(38);
 
+	/* No flush */
+	launch |= !flush << PPC_BITLSHIFT(39);
+
 	return mmio_launch_invalidate(npu, launch, va);
 }
 
 #define mn_to_npu_context(x) container_of(x, struct npu_context, mn)
+
+struct mmio_atsd_reg {
+	struct npu *npu;
+	int reg;
+};
+
+static void mmio_invalidate_wait(
+	struct mmio_atsd_reg mmio_atsd_reg[NV_MAX_NPUS], bool flush)
+{
+	struct npu *npu;
+	int i, reg;
+
+	/* Wait for all invalidations to complete */
+	for (i = 0; i <= max_npu2_index; i++) {
+		if (mmio_atsd_reg[i].reg < 0)
+			continue;
+
+		/* Wait for completion */
+		npu = mmio_atsd_reg[i].npu;
+		reg = mmio_atsd_reg[i].reg;
+		while (__raw_readq(npu->mmio_atsd_regs[reg] + XTS_ATSD_STAT))
+			cpu_relax();
+
+		put_mmio_atsd_reg(npu, reg);
+
+		/*
+		 * The GPU requires two flush ATSDs to ensure all entries have
+		 * been flushed. We use PID 0 as it will never be used for a
+		 * process on the GPU.
+		 */
+		if (flush)
+			mmio_invalidate_pid(npu, 0, true);
+	}
+}
 
 /*
  * Invalidate either a single address or an entire PID depending on
  * the value of va.
  */
 static void mmio_invalidate(struct npu_context *npu_context, int va,
-			unsigned long address)
+			unsigned long address, bool flush)
 {
-	int i, j, reg;
+	int i, j;
 	struct npu *npu;
 	struct pnv_phb *nphb;
 	struct pci_dev *npdev;
-	struct {
-		struct npu *npu;
-		int reg;
-	} mmio_atsd_reg[NV_MAX_NPUS];
+	struct mmio_atsd_reg mmio_atsd_reg[NV_MAX_NPUS];
 	unsigned long pid = npu_context->mm->context.id;
+
+	if (npu_context->nmmu_flush)
+		/*
+		 * Unfortunately the nest mmu does not support flushing specific
+		 * addresses so we have to flush the whole mm once before
+		 * shooting down the GPU translation.
+		 */
+		flush_all_mm(npu_context->mm);
 
 	/*
 	 * Loop over all the NPUs this process is active on and launch
@@ -524,10 +571,11 @@ static void mmio_invalidate(struct npu_context *npu_context, int va,
 
 			if (va)
 				mmio_atsd_reg[i].reg =
-					mmio_invalidate_va(npu, address, pid);
+					mmio_invalidate_va(npu, address, pid,
+							flush);
 			else
 				mmio_atsd_reg[i].reg =
-					mmio_invalidate_pid(npu, pid);
+					mmio_invalidate_pid(npu, pid, flush);
 
 			/*
 			 * The NPU hardware forwards the shootdown to all GPUs
@@ -537,24 +585,10 @@ static void mmio_invalidate(struct npu_context *npu_context, int va,
 		}
 	}
 
-	/*
-	 * Unfortunately the nest mmu does not support flushing specific
-	 * addresses so we have to flush the whole mm.
-	 */
-	flush_tlb_mm(npu_context->mm);
-
-	/* Wait for all invalidations to complete */
-	for (i = 0; i <= max_npu2_index; i++) {
-		if (mmio_atsd_reg[i].reg < 0)
-			continue;
-
-		/* Wait for completion */
-		npu = mmio_atsd_reg[i].npu;
-		reg = mmio_atsd_reg[i].reg;
-		while (__raw_readq(npu->mmio_atsd_regs[reg] + XTS_ATSD_STAT))
-			cpu_relax();
-		put_mmio_atsd_reg(npu, reg);
-	}
+	mmio_invalidate_wait(mmio_atsd_reg, flush);
+	if (flush)
+		/* Wait for the flush to complete */
+		mmio_invalidate_wait(mmio_atsd_reg, false);
 }
 
 static void pnv_npu2_mn_release(struct mmu_notifier *mn,
@@ -570,7 +604,7 @@ static void pnv_npu2_mn_release(struct mmu_notifier *mn,
 	 * There should be no more translation requests for this PID, but we
 	 * need to ensure any entries for it are removed from the TLB.
 	 */
-	mmio_invalidate(npu_context, 0, 0);
+	mmio_invalidate(npu_context, 0, 0, true);
 }
 
 static void pnv_npu2_mn_change_pte(struct mmu_notifier *mn,
@@ -580,16 +614,7 @@ static void pnv_npu2_mn_change_pte(struct mmu_notifier *mn,
 {
 	struct npu_context *npu_context = mn_to_npu_context(mn);
 
-	mmio_invalidate(npu_context, 1, address);
-}
-
-static void pnv_npu2_mn_invalidate_page(struct mmu_notifier *mn,
-					struct mm_struct *mm,
-					unsigned long address)
-{
-	struct npu_context *npu_context = mn_to_npu_context(mn);
-
-	mmio_invalidate(npu_context, 1, address);
+	mmio_invalidate(npu_context, 1, address, true);
 }
 
 static void pnv_npu2_mn_invalidate_range(struct mmu_notifier *mn,
@@ -599,14 +624,16 @@ static void pnv_npu2_mn_invalidate_range(struct mmu_notifier *mn,
 	struct npu_context *npu_context = mn_to_npu_context(mn);
 	unsigned long address;
 
-	for (address = start; address <= end; address += PAGE_SIZE)
-		mmio_invalidate(npu_context, 1, address);
+	for (address = start; address < end; address += PAGE_SIZE)
+		mmio_invalidate(npu_context, 1, address, false);
+
+	/* Do the flush only on the final addess == end */
+	mmio_invalidate(npu_context, 1, address, true);
 }
 
 static const struct mmu_notifier_ops nv_nmmu_notifier_ops = {
 	.release = pnv_npu2_mn_release,
 	.change_pte = pnv_npu2_mn_change_pte,
-	.invalidate_page = pnv_npu2_mn_invalidate_page,
 	.invalidate_range = pnv_npu2_mn_invalidate_range,
 };
 
@@ -650,8 +677,11 @@ struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 		/* No nvlink associated with this GPU device */
 		return ERR_PTR(-ENODEV);
 
-	if (!mm) {
-		/* kernel thread contexts are not supported */
+	if (!mm || mm->context.id == 0) {
+		/*
+		 * Kernel thread contexts are not supported and context id 0 is
+		 * reserved on the GPU.
+		 */
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -695,6 +725,16 @@ struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 		return ERR_PTR(-ENODEV);
 	npu_context->npdev[npu->index][nvlink_index] = npdev;
 
+	if (!nphb->npu.nmmu_flush) {
+		/*
+		 * If we're not explicitly flushing ourselves we need to mark
+		 * the thread for global flushes
+		 */
+		npu_context->nmmu_flush = false;
+		mm_context_add_copro(mm);
+	} else
+		npu_context->nmmu_flush = true;
+
 	return npu_context;
 }
 EXPORT_SYMBOL(pnv_npu2_init_context);
@@ -703,6 +743,9 @@ static void pnv_npu2_release_context(struct kref *kref)
 {
 	struct npu_context *npu_context =
 		container_of(kref, struct npu_context, kref);
+
+	if (!npu_context->nmmu_flush)
+		mm_context_remove_copro(npu_context->mm);
 
 	npu_context->mm->context.npu_context = NULL;
 	mmu_notifier_unregister(&npu_context->mn,
@@ -792,6 +835,8 @@ int pnv_npu2_init(struct pnv_phb *phb)
 	static int npu_index;
 	uint64_t rc = 0;
 
+	phb->npu.nmmu_flush =
+		of_property_read_bool(phb->hose->dn, "ibm,nmmu-flush");
 	for_each_child_of_node(phb->hose->dn, dn) {
 		gpdev = pnv_pci_get_gpu_dev(get_pci_dev(dn));
 		if (gpdev) {

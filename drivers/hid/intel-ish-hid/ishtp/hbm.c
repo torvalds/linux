@@ -321,13 +321,10 @@ int ishtp_hbm_cl_flow_control_req(struct ishtp_device *dev,
 	if (!rv) {
 		++cl->out_flow_ctrl_creds;
 		++cl->out_flow_ctrl_cnt;
-		getnstimeofday(&cl->ts_out_fc);
-		if (cl->ts_rx.tv_sec && cl->ts_rx.tv_nsec) {
-			struct timespec ts_diff;
-
-			ts_diff = timespec_sub(cl->ts_out_fc, cl->ts_rx);
-			if (timespec_compare(&ts_diff, &cl->ts_max_fc_delay)
-					> 0)
+		cl->ts_out_fc = ktime_get();
+		if (cl->ts_rx) {
+			ktime_t ts_diff = ktime_sub(cl->ts_out_fc, cl->ts_rx);
+			if (ktime_after(ts_diff, cl->ts_max_fc_delay))
 				cl->ts_max_fc_delay = ts_diff;
 		}
 	} else {

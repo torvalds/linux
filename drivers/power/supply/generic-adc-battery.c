@@ -201,14 +201,12 @@ err:
 static void gab_work(struct work_struct *work)
 {
 	struct gab *adc_bat;
-	struct gab_platform_data *pdata;
 	struct delayed_work *delayed_work;
 	bool is_plugged;
 	int status;
 
 	delayed_work = to_delayed_work(work);
 	adc_bat = container_of(delayed_work, struct gab, bat_work);
-	pdata = adc_bat->pdata;
 	status = adc_bat->status;
 
 	is_plugged = power_supply_am_i_supplied(adc_bat->psy);

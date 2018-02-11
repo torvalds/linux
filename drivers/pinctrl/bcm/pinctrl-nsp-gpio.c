@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Broadcom Corporation
+ * Copyright (C) 2014-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -9,7 +9,9 @@
  * kind, whether express or implied; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+ */
+
+/*
  * This file contains the Broadcom Northstar Plus (NSP) GPIO driver that
  * supports the chipCommonA GPIO controller. Basic PINCONF such as bias,
  * pull up/down, slew and drive strength are also supported in this driver.
@@ -272,23 +274,6 @@ static struct irq_chip nsp_gpio_irq_chip = {
 	.irq_unmask = nsp_gpio_irq_unmask,
 	.irq_set_type = nsp_gpio_irq_set_type,
 };
-
-/*
- * Request the nsp IOMUX pinmux controller to mux individual pins to GPIO
- */
-static int nsp_gpio_request(struct gpio_chip *gc, unsigned offset)
-{
-	unsigned gpio = gc->base + offset;
-
-	return pinctrl_request_gpio(gpio);
-}
-
-static void nsp_gpio_free(struct gpio_chip *gc, unsigned offset)
-{
-	unsigned gpio = gc->base + offset;
-
-	pinctrl_free_gpio(gpio);
-}
 
 static int nsp_gpio_direction_input(struct gpio_chip *gc, unsigned gpio)
 {
@@ -668,8 +653,8 @@ static int nsp_gpio_probe(struct platform_device *pdev)
 	gc->label = dev_name(dev);
 	gc->parent = dev;
 	gc->of_node = dev->of_node;
-	gc->request = nsp_gpio_request;
-	gc->free = nsp_gpio_free;
+	gc->request = gpiochip_generic_request;
+	gc->free = gpiochip_generic_free;
 	gc->direction_input = nsp_gpio_direction_input;
 	gc->direction_output = nsp_gpio_direction_output;
 	gc->set = nsp_gpio_set;

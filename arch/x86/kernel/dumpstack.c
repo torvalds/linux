@@ -18,6 +18,7 @@
 #include <linux/nmi.h>
 #include <linux/sysfs.h>
 
+#include <asm/cpu_entry_area.h>
 #include <asm/stacktrace.h>
 #include <asm/unwind.h>
 
@@ -43,11 +44,62 @@ bool in_task_stack(unsigned long *stack, struct task_struct *task,
 	return true;
 }
 
+bool in_entry_stack(unsigned long *stack, struct stack_info *info)
+{
+	struct entry_stack *ss = cpu_entry_stack(smp_processor_id());
+
+	void *begin = ss;
+	void *end = ss + 1;
+
+	if ((void *)stack < begin || (void *)stack >= end)
+		return false;
+
+	info->type	= STACK_TYPE_ENTRY;
+	info->begin	= begin;
+	info->end	= end;
+	info->next_sp	= NULL;
+
+	return true;
+}
+
 static void printk_stack_address(unsigned long address, int reliable,
 				 char *log_lvl)
 {
 	touch_nmi_watchdog();
 	printk("%s %s%pB\n", log_lvl, reliable ? "" : "? ", (void *)address);
+}
+
+void show_iret_regs(struct pt_regs *regs)
+{
+	printk(KERN_DEFAULT "RIP: %04x:%pS\n", (int)regs->cs, (void *)regs->ip);
+	printk(KERN_DEFAULT "RSP: %04x:%016lx EFLAGS: %08lx", (int)regs->ss,
+		regs->sp, regs->flags);
+}
+
+static void show_regs_if_on_stack(struct stack_info *info, struct pt_regs *regs,
+				  bool partial)
+{
+	/*
+	 * These on_stack() checks aren't strictly necessary: the unwind code
+	 * has already validated the 'regs' pointer.  The checks are done for
+	 * ordering reasons: if the registers are on the next stack, we don't
+	 * want to print them out yet.  Otherwise they'll be shown as part of
+	 * the wrong stack.  Later, when show_trace_log_lvl() switches to the
+	 * next stack, this function will be called again with the same regs so
+	 * they can be printed in the right context.
+	 */
+	if (!partial && on_stack(info, regs, sizeof(*regs))) {
+		__show_regs(regs, 0);
+
+	} else if (partial && on_stack(info, (void *)regs + IRET_FRAME_OFFSET,
+				       IRET_FRAME_SIZE)) {
+		/*
+		 * When an interrupt or exception occurs in entry code, the
+		 * full pt_regs might not have been saved yet.  In that case
+		 * just print the iret frame.
+		 */
+		show_iret_regs(regs);
+	}
 }
 
 void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
@@ -57,11 +109,13 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	struct stack_info stack_info = {0};
 	unsigned long visit_mask = 0;
 	int graph_idx = 0;
+	bool partial;
 
 	printk("%sCall Trace:\n", log_lvl);
 
 	unwind_start(&state, task, regs, stack);
 	stack = stack ? : get_stack_pointer(task, regs);
+	regs = unwind_get_entry_regs(&state, &partial);
 
 	/*
 	 * Iterate through the stacks, starting with the current stack pointer.
@@ -71,28 +125,35 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	 * - task stack
 	 * - interrupt stack
 	 * - HW exception stacks (double fault, nmi, debug, mce)
+	 * - entry stack
 	 *
-	 * x86-32 can have up to three stacks:
+	 * x86-32 can have up to four stacks:
 	 * - task stack
 	 * - softirq stack
 	 * - hardirq stack
+	 * - entry stack
 	 */
-	for (regs = NULL; stack; stack = PTR_ALIGN(stack_info.next_sp, sizeof(long))) {
+	for ( ; stack; stack = PTR_ALIGN(stack_info.next_sp, sizeof(long))) {
 		const char *stack_name;
 
-		/*
-		 * If we overflowed the task stack into a guard page, jump back
-		 * to the bottom of the usable stack.
-		 */
-		if (task_stack_page(task) - (void *)stack < PAGE_SIZE)
-			stack = task_stack_page(task);
-
-		if (get_stack_info(stack, task, &stack_info, &visit_mask))
-			break;
+		if (get_stack_info(stack, task, &stack_info, &visit_mask)) {
+			/*
+			 * We weren't on a valid stack.  It's possible that
+			 * we overflowed a valid stack into a guard page.
+			 * See if the next page up is valid so that we can
+			 * generate some kind of backtrace if this happens.
+			 */
+			stack = (unsigned long *)PAGE_ALIGN((unsigned long)stack);
+			if (get_stack_info(stack, task, &stack_info, &visit_mask))
+				break;
+		}
 
 		stack_name = stack_type_name(stack_info.type);
 		if (stack_name)
 			printk("%s <%s>\n", log_lvl, stack_name);
+
+		if (regs)
+			show_regs_if_on_stack(&stack_info, regs, partial);
 
 		/*
 		 * Scan the stack, printing any text addresses we find.  At the
@@ -116,12 +177,10 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 
 			/*
 			 * Don't print regs->ip again if it was already printed
-			 * by __show_regs() below.
+			 * by show_regs_if_on_stack().
 			 */
-			if (regs && stack == &regs->ip) {
-				unwind_next_frame(&state);
-				continue;
-			}
+			if (regs && stack == &regs->ip)
+				goto next;
 
 			if (stack == ret_addr_p)
 				reliable = 1;
@@ -144,6 +203,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			if (!reliable)
 				continue;
 
+next:
 			/*
 			 * Get the next frame from the unwinder.  No need to
 			 * check for an error: if anything goes wrong, the rest
@@ -152,9 +212,9 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			unwind_next_frame(&state);
 
 			/* if the frame has entry regs, print them */
-			regs = unwind_get_entry_regs(&state);
+			regs = unwind_get_entry_regs(&state, &partial);
 			if (regs)
-				__show_regs(regs, 0);
+				show_regs_if_on_stack(&stack_info, regs, partial);
 		}
 
 		if (stack_name)
@@ -250,11 +310,13 @@ int __die(const char *str, struct pt_regs *regs, long err)
 	unsigned long sp;
 #endif
 	printk(KERN_DEFAULT
-	       "%s: %04lx [#%d]%s%s%s%s\n", str, err & 0xffff, ++die_counter,
+	       "%s: %04lx [#%d]%s%s%s%s%s\n", str, err & 0xffff, ++die_counter,
 	       IS_ENABLED(CONFIG_PREEMPT) ? " PREEMPT"         : "",
 	       IS_ENABLED(CONFIG_SMP)     ? " SMP"             : "",
 	       debug_pagealloc_enabled()  ? " DEBUG_PAGEALLOC" : "",
-	       IS_ENABLED(CONFIG_KASAN)   ? " KASAN"           : "");
+	       IS_ENABLED(CONFIG_KASAN)   ? " KASAN"           : "",
+	       IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION) ?
+	       (boot_cpu_has(X86_FEATURE_PTI) ? " PTI" : " NOPTI") : "");
 
 	if (notify_die(DIE_OOPS, str, regs, err,
 			current->thread.trap_nr, SIGSEGV) == NOTIFY_STOP)
@@ -265,7 +327,7 @@ int __die(const char *str, struct pt_regs *regs, long err)
 #ifdef CONFIG_X86_32
 	if (user_mode(regs)) {
 		sp = regs->sp;
-		ss = regs->ss & 0xffff;
+		ss = regs->ss;
 	} else {
 		sp = kernel_stack_pointer(regs);
 		savesegment(ss, ss);

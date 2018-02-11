@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _BMC150_ACCEL_H_
 #define _BMC150_ACCEL_H_
 

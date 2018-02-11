@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /* ptrace.h: ptrace() relevant definitions
  *
  * Copyright (C) 2003 Red Hat, Inc. All Rights Reserved.

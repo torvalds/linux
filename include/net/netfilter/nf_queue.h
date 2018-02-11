@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NF_QUEUE_H
 #define _NF_QUEUE_H
 
@@ -10,9 +11,9 @@ struct nf_queue_entry {
 	struct list_head	list;
 	struct sk_buff		*skb;
 	unsigned int		id;
+	unsigned int		hook_index;	/* index in hook_entries->hook[] */
 
 	struct nf_hook_state	state;
-	struct nf_hook_entry	*hook;
 	u16			size; /* sizeof(entry) + saved route keys */
 
 	/* extra space to store route keys */

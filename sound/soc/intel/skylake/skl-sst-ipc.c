@@ -283,7 +283,7 @@ enum skl_ipc_module_msg {
 	IPC_MOD_SET_D0IX = 8
 };
 
-static void skl_ipc_tx_data_copy(struct ipc_message *msg, char *tx_data,
+void skl_ipc_tx_data_copy(struct ipc_message *msg, char *tx_data,
 		size_t tx_size)
 {
 	if (tx_size)
@@ -347,7 +347,7 @@ out:
 
 }
 
-static int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
+int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
 		struct skl_ipc_header header)
 {
 	struct skl_sst *skl = container_of(ipc, struct skl_sst, ipc);
@@ -406,15 +406,18 @@ static int skl_ipc_set_reply_error_code(u32 reply)
 	}
 }
 
-static void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
+void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
 		struct skl_ipc_header header)
 {
 	struct ipc_message *msg;
 	u32 reply = header.primary & IPC_GLB_REPLY_STATUS_MASK;
 	u64 *ipc_header = (u64 *)(&header);
 	struct skl_sst *skl = container_of(ipc, struct skl_sst, ipc);
+	unsigned long flags;
 
+	spin_lock_irqsave(&ipc->dsp->spinlock, flags);
 	msg = skl_ipc_reply_get_msg(ipc, *ipc_header);
+	spin_unlock_irqrestore(&ipc->dsp->spinlock, flags);
 	if (msg == NULL) {
 		dev_dbg(ipc->dev, "ipc: rx list is empty\n");
 		return;
@@ -456,8 +459,10 @@ static void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
 		}
 	}
 
+	spin_lock_irqsave(&ipc->dsp->spinlock, flags);
 	list_del(&msg->list);
 	sst_ipc_tx_msg_reply_complete(ipc, msg);
+	spin_unlock_irqrestore(&ipc->dsp->spinlock, flags);
 }
 
 irqreturn_t skl_dsp_irq_thread_handler(int irq, void *context)

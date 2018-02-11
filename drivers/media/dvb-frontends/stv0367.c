@@ -25,7 +25,10 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 
+#include "dvb_math.h"
+
 #include "stv0367.h"
+#include "stv0367_defs.h"
 #include "stv0367_regs.h"
 #include "stv0367_priv.h"
 
@@ -45,6 +48,8 @@ module_param_named(i2c_debug, i2cdebug, int, 0644);
 	} while (0)
 	/* DVB-C */
 
+enum active_demod_state { demod_none, demod_ter, demod_cab };
+
 struct stv0367cab_state {
 	enum stv0367_cab_signal_type	state;
 	u32	mclk;
@@ -56,6 +61,7 @@ struct stv0367cab_state {
 	u32 freq_khz;			/* found frequency (in kHz)	*/
 	u32 symbol_rate;		/* found symbol rate (in Bds)	*/
 	enum fe_spectral_inversion spect_inv; /* Spectrum Inversion	*/
+	u32 qamfec_status_reg;          /* status reg to poll for FEC Lock */
 };
 
 struct stv0367ter_state {
@@ -89,461 +95,12 @@ struct stv0367_state {
 	struct stv0367cab_state *cab_state;
 	/* DVB-T */
 	struct stv0367ter_state *ter_state;
-};
-
-struct st_register {
-	u16	addr;
-	u8	value;
-};
-
-/* values for STV4100 XTAL=30M int clk=53.125M*/
-static struct st_register def0367ter[STV0367TER_NBREGS] = {
-	{R367TER_ID,		0x60},
-	{R367TER_I2CRPT,	0xa0},
-	/* {R367TER_I2CRPT,	0x22},*/
-	{R367TER_TOPCTRL,	0x00},/* for xc5000; was 0x02 */
-	{R367TER_IOCFG0,	0x40},
-	{R367TER_DAC0R,		0x00},
-	{R367TER_IOCFG1,	0x00},
-	{R367TER_DAC1R,		0x00},
-	{R367TER_IOCFG2,	0x62},
-	{R367TER_SDFR,		0x00},
-	{R367TER_STATUS,	0xf8},
-	{R367TER_AUX_CLK,	0x0a},
-	{R367TER_FREESYS1,	0x00},
-	{R367TER_FREESYS2,	0x00},
-	{R367TER_FREESYS3,	0x00},
-	{R367TER_GPIO_CFG,	0x55},
-	{R367TER_GPIO_CMD,	0x00},
-	{R367TER_AGC2MAX,	0xff},
-	{R367TER_AGC2MIN,	0x00},
-	{R367TER_AGC1MAX,	0xff},
-	{R367TER_AGC1MIN,	0x00},
-	{R367TER_AGCR,		0xbc},
-	{R367TER_AGC2TH,	0x00},
-	{R367TER_AGC12C,	0x00},
-	{R367TER_AGCCTRL1,	0x85},
-	{R367TER_AGCCTRL2,	0x1f},
-	{R367TER_AGC1VAL1,	0x00},
-	{R367TER_AGC1VAL2,	0x00},
-	{R367TER_AGC2VAL1,	0x6f},
-	{R367TER_AGC2VAL2,	0x05},
-	{R367TER_AGC2PGA,	0x00},
-	{R367TER_OVF_RATE1,	0x00},
-	{R367TER_OVF_RATE2,	0x00},
-	{R367TER_GAIN_SRC1,	0xaa},/* for xc5000; was 0x2b */
-	{R367TER_GAIN_SRC2,	0xd6},/* for xc5000; was 0x04 */
-	{R367TER_INC_DEROT1,	0x55},
-	{R367TER_INC_DEROT2,	0x55},
-	{R367TER_PPM_CPAMP_DIR,	0x2c},
-	{R367TER_PPM_CPAMP_INV,	0x00},
-	{R367TER_FREESTFE_1,	0x00},
-	{R367TER_FREESTFE_2,	0x1c},
-	{R367TER_DCOFFSET,	0x00},
-	{R367TER_EN_PROCESS,	0x05},
-	{R367TER_SDI_SMOOTHER,	0x80},
-	{R367TER_FE_LOOP_OPEN,	0x1c},
-	{R367TER_FREQOFF1,	0x00},
-	{R367TER_FREQOFF2,	0x00},
-	{R367TER_FREQOFF3,	0x00},
-	{R367TER_TIMOFF1,	0x00},
-	{R367TER_TIMOFF2,	0x00},
-	{R367TER_EPQ,		0x02},
-	{R367TER_EPQAUTO,	0x01},
-	{R367TER_SYR_UPDATE,	0xf5},
-	{R367TER_CHPFREE,	0x00},
-	{R367TER_PPM_STATE_MAC,	0x23},
-	{R367TER_INR_THRESHOLD,	0xff},
-	{R367TER_EPQ_TPS_ID_CELL, 0xf9},
-	{R367TER_EPQ_CFG,	0x00},
-	{R367TER_EPQ_STATUS,	0x01},
-	{R367TER_AUTORELOCK,	0x81},
-	{R367TER_BER_THR_VMSB,	0x00},
-	{R367TER_BER_THR_MSB,	0x00},
-	{R367TER_BER_THR_LSB,	0x00},
-	{R367TER_CCD,		0x83},
-	{R367TER_SPECTR_CFG,	0x00},
-	{R367TER_CHC_DUMMY,	0x18},
-	{R367TER_INC_CTL,	0x88},
-	{R367TER_INCTHRES_COR1,	0xb4},
-	{R367TER_INCTHRES_COR2,	0x96},
-	{R367TER_INCTHRES_DET1,	0x0e},
-	{R367TER_INCTHRES_DET2,	0x11},
-	{R367TER_IIR_CELLNB,	0x8d},
-	{R367TER_IIRCX_COEFF1_MSB, 0x00},
-	{R367TER_IIRCX_COEFF1_LSB, 0x00},
-	{R367TER_IIRCX_COEFF2_MSB, 0x09},
-	{R367TER_IIRCX_COEFF2_LSB, 0x18},
-	{R367TER_IIRCX_COEFF3_MSB, 0x14},
-	{R367TER_IIRCX_COEFF3_LSB, 0x9c},
-	{R367TER_IIRCX_COEFF4_MSB, 0x00},
-	{R367TER_IIRCX_COEFF4_LSB, 0x00},
-	{R367TER_IIRCX_COEFF5_MSB, 0x36},
-	{R367TER_IIRCX_COEFF5_LSB, 0x42},
-	{R367TER_FEPATH_CFG,	0x00},
-	{R367TER_PMC1_FUNC,	0x65},
-	{R367TER_PMC1_FOR,	0x00},
-	{R367TER_PMC2_FUNC,	0x00},
-	{R367TER_STATUS_ERR_DA,	0xe0},
-	{R367TER_DIG_AGC_R,	0xfe},
-	{R367TER_COMAGC_TARMSB,	0x0b},
-	{R367TER_COM_AGC_TAR_ENMODE, 0x41},
-	{R367TER_COM_AGC_CFG,	0x3e},
-	{R367TER_COM_AGC_GAIN1, 0x39},
-	{R367TER_AUT_AGC_TARGETMSB, 0x0b},
-	{R367TER_LOCK_DET_MSB,	0x01},
-	{R367TER_AGCTAR_LOCK_LSBS, 0x40},
-	{R367TER_AUT_GAIN_EN,	0xf4},
-	{R367TER_AUT_CFG,	0xf0},
-	{R367TER_LOCKN,		0x23},
-	{R367TER_INT_X_3,	0x00},
-	{R367TER_INT_X_2,	0x03},
-	{R367TER_INT_X_1,	0x8d},
-	{R367TER_INT_X_0,	0xa0},
-	{R367TER_MIN_ERRX_MSB,	0x00},
-	{R367TER_COR_CTL,	0x23},
-	{R367TER_COR_STAT,	0xf6},
-	{R367TER_COR_INTEN,	0x00},
-	{R367TER_COR_INTSTAT,	0x3f},
-	{R367TER_COR_MODEGUARD,	0x03},
-	{R367TER_AGC_CTL,	0x08},
-	{R367TER_AGC_MANUAL1,	0x00},
-	{R367TER_AGC_MANUAL2,	0x00},
-	{R367TER_AGC_TARG,	0x16},
-	{R367TER_AGC_GAIN1,	0x53},
-	{R367TER_AGC_GAIN2,	0x1d},
-	{R367TER_RESERVED_1,	0x00},
-	{R367TER_RESERVED_2,	0x00},
-	{R367TER_RESERVED_3,	0x00},
-	{R367TER_CAS_CTL,	0x44},
-	{R367TER_CAS_FREQ,	0xb3},
-	{R367TER_CAS_DAGCGAIN,	0x12},
-	{R367TER_SYR_CTL,	0x04},
-	{R367TER_SYR_STAT,	0x10},
-	{R367TER_SYR_NCO1,	0x00},
-	{R367TER_SYR_NCO2,	0x00},
-	{R367TER_SYR_OFFSET1,	0x00},
-	{R367TER_SYR_OFFSET2,	0x00},
-	{R367TER_FFT_CTL,	0x00},
-	{R367TER_SCR_CTL,	0x70},
-	{R367TER_PPM_CTL1,	0xf8},
-	{R367TER_TRL_CTL,	0x14},/* for xc5000; was 0xac */
-	{R367TER_TRL_NOMRATE1,	0xae},/* for xc5000; was 0x1e */
-	{R367TER_TRL_NOMRATE2,	0x56},/* for xc5000; was 0x58 */
-	{R367TER_TRL_TIME1,	0x1d},
-	{R367TER_TRL_TIME2,	0xfc},
-	{R367TER_CRL_CTL,	0x24},
-	{R367TER_CRL_FREQ1,	0xad},
-	{R367TER_CRL_FREQ2,	0x9d},
-	{R367TER_CRL_FREQ3,	0xff},
-	{R367TER_CHC_CTL,	0x01},
-	{R367TER_CHC_SNR,	0xf0},
-	{R367TER_BDI_CTL,	0x00},
-	{R367TER_DMP_CTL,	0x00},
-	{R367TER_TPS_RCVD1,	0x30},
-	{R367TER_TPS_RCVD2,	0x02},
-	{R367TER_TPS_RCVD3,	0x01},
-	{R367TER_TPS_RCVD4,	0x00},
-	{R367TER_TPS_ID_CELL1,	0x00},
-	{R367TER_TPS_ID_CELL2,	0x00},
-	{R367TER_TPS_RCVD5_SET1, 0x02},
-	{R367TER_TPS_SET2,	0x02},
-	{R367TER_TPS_SET3,	0x01},
-	{R367TER_TPS_CTL,	0x00},
-	{R367TER_CTL_FFTOSNUM,	0x34},
-	{R367TER_TESTSELECT,	0x09},
-	{R367TER_MSC_REV,	0x0a},
-	{R367TER_PIR_CTL,	0x00},
-	{R367TER_SNR_CARRIER1,	0xa1},
-	{R367TER_SNR_CARRIER2,	0x9a},
-	{R367TER_PPM_CPAMP,	0x2c},
-	{R367TER_TSM_AP0,	0x00},
-	{R367TER_TSM_AP1,	0x00},
-	{R367TER_TSM_AP2 ,	0x00},
-	{R367TER_TSM_AP3,	0x00},
-	{R367TER_TSM_AP4,	0x00},
-	{R367TER_TSM_AP5,	0x00},
-	{R367TER_TSM_AP6,	0x00},
-	{R367TER_TSM_AP7,	0x00},
-	{R367TER_TSTRES,	0x00},
-	{R367TER_ANACTRL,	0x0D},/* PLL stoped, restart at init!!! */
-	{R367TER_TSTBUS,	0x00},
-	{R367TER_TSTRATE,	0x00},
-	{R367TER_CONSTMODE,	0x01},
-	{R367TER_CONSTCARR1,	0x00},
-	{R367TER_CONSTCARR2,	0x00},
-	{R367TER_ICONSTEL,	0x0a},
-	{R367TER_QCONSTEL,	0x15},
-	{R367TER_TSTBISTRES0,	0x00},
-	{R367TER_TSTBISTRES1,	0x00},
-	{R367TER_TSTBISTRES2,	0x28},
-	{R367TER_TSTBISTRES3,	0x00},
-	{R367TER_RF_AGC1,	0xff},
-	{R367TER_RF_AGC2,	0x83},
-	{R367TER_ANADIGCTRL,	0x19},
-	{R367TER_PLLMDIV,	0x01},/* for xc5000; was 0x0c */
-	{R367TER_PLLNDIV,	0x06},/* for xc5000; was 0x55 */
-	{R367TER_PLLSETUP,	0x18},
-	{R367TER_DUAL_AD12,	0x0C},/* for xc5000 AGC voltage 1.6V */
-	{R367TER_TSTBIST,	0x00},
-	{R367TER_PAD_COMP_CTRL,	0x00},
-	{R367TER_PAD_COMP_WR,	0x00},
-	{R367TER_PAD_COMP_RD,	0xe0},
-	{R367TER_SYR_TARGET_FFTADJT_MSB, 0x00},
-	{R367TER_SYR_TARGET_FFTADJT_LSB, 0x00},
-	{R367TER_SYR_TARGET_CHCADJT_MSB, 0x00},
-	{R367TER_SYR_TARGET_CHCADJT_LSB, 0x00},
-	{R367TER_SYR_FLAG,	0x00},
-	{R367TER_CRL_TARGET1,	0x00},
-	{R367TER_CRL_TARGET2,	0x00},
-	{R367TER_CRL_TARGET3,	0x00},
-	{R367TER_CRL_TARGET4,	0x00},
-	{R367TER_CRL_FLAG,	0x00},
-	{R367TER_TRL_TARGET1,	0x00},
-	{R367TER_TRL_TARGET2,	0x00},
-	{R367TER_TRL_CHC,	0x00},
-	{R367TER_CHC_SNR_TARG,	0x00},
-	{R367TER_TOP_TRACK,	0x00},
-	{R367TER_TRACKER_FREE1,	0x00},
-	{R367TER_ERROR_CRL1,	0x00},
-	{R367TER_ERROR_CRL2,	0x00},
-	{R367TER_ERROR_CRL3,	0x00},
-	{R367TER_ERROR_CRL4,	0x00},
-	{R367TER_DEC_NCO1,	0x2c},
-	{R367TER_DEC_NCO2,	0x0f},
-	{R367TER_DEC_NCO3,	0x20},
-	{R367TER_SNR,		0xf1},
-	{R367TER_SYR_FFTADJ1,	0x00},
-	{R367TER_SYR_FFTADJ2,	0x00},
-	{R367TER_SYR_CHCADJ1,	0x00},
-	{R367TER_SYR_CHCADJ2,	0x00},
-	{R367TER_SYR_OFF,	0x00},
-	{R367TER_PPM_OFFSET1,	0x00},
-	{R367TER_PPM_OFFSET2,	0x03},
-	{R367TER_TRACKER_FREE2,	0x00},
-	{R367TER_DEBG_LT10,	0x00},
-	{R367TER_DEBG_LT11,	0x00},
-	{R367TER_DEBG_LT12,	0x00},
-	{R367TER_DEBG_LT13,	0x00},
-	{R367TER_DEBG_LT14,	0x00},
-	{R367TER_DEBG_LT15,	0x00},
-	{R367TER_DEBG_LT16,	0x00},
-	{R367TER_DEBG_LT17,	0x00},
-	{R367TER_DEBG_LT18,	0x00},
-	{R367TER_DEBG_LT19,	0x00},
-	{R367TER_DEBG_LT1A,	0x00},
-	{R367TER_DEBG_LT1B,	0x00},
-	{R367TER_DEBG_LT1C,	0x00},
-	{R367TER_DEBG_LT1D,	0x00},
-	{R367TER_DEBG_LT1E,	0x00},
-	{R367TER_DEBG_LT1F,	0x00},
-	{R367TER_RCCFGH,	0x00},
-	{R367TER_RCCFGM,	0x00},
-	{R367TER_RCCFGL,	0x00},
-	{R367TER_RCINSDELH,	0x00},
-	{R367TER_RCINSDELM,	0x00},
-	{R367TER_RCINSDELL,	0x00},
-	{R367TER_RCSTATUS,	0x00},
-	{R367TER_RCSPEED,	0x6f},
-	{R367TER_RCDEBUGM,	0xe7},
-	{R367TER_RCDEBUGL,	0x9b},
-	{R367TER_RCOBSCFG,	0x00},
-	{R367TER_RCOBSM,	0x00},
-	{R367TER_RCOBSL,	0x00},
-	{R367TER_RCFECSPY,	0x00},
-	{R367TER_RCFSPYCFG,	0x00},
-	{R367TER_RCFSPYDATA,	0x00},
-	{R367TER_RCFSPYOUT,	0x00},
-	{R367TER_RCFSTATUS,	0x00},
-	{R367TER_RCFGOODPACK,	0x00},
-	{R367TER_RCFPACKCNT,	0x00},
-	{R367TER_RCFSPYMISC,	0x00},
-	{R367TER_RCFBERCPT4,	0x00},
-	{R367TER_RCFBERCPT3,	0x00},
-	{R367TER_RCFBERCPT2,	0x00},
-	{R367TER_RCFBERCPT1,	0x00},
-	{R367TER_RCFBERCPT0,	0x00},
-	{R367TER_RCFBERERR2,	0x00},
-	{R367TER_RCFBERERR1,	0x00},
-	{R367TER_RCFBERERR0,	0x00},
-	{R367TER_RCFSTATESM,	0x00},
-	{R367TER_RCFSTATESL,	0x00},
-	{R367TER_RCFSPYBER,	0x00},
-	{R367TER_RCFSPYDISTM,	0x00},
-	{R367TER_RCFSPYDISTL,	0x00},
-	{R367TER_RCFSPYOBS7,	0x00},
-	{R367TER_RCFSPYOBS6,	0x00},
-	{R367TER_RCFSPYOBS5,	0x00},
-	{R367TER_RCFSPYOBS4,	0x00},
-	{R367TER_RCFSPYOBS3,	0x00},
-	{R367TER_RCFSPYOBS2,	0x00},
-	{R367TER_RCFSPYOBS1,	0x00},
-	{R367TER_RCFSPYOBS0,	0x00},
-	{R367TER_TSGENERAL,	0x00},
-	{R367TER_RC1SPEED,	0x6f},
-	{R367TER_TSGSTATUS,	0x18},
-	{R367TER_FECM,		0x01},
-	{R367TER_VTH12,		0xff},
-	{R367TER_VTH23,		0xa1},
-	{R367TER_VTH34,		0x64},
-	{R367TER_VTH56,		0x40},
-	{R367TER_VTH67,		0x00},
-	{R367TER_VTH78,		0x2c},
-	{R367TER_VITCURPUN,	0x12},
-	{R367TER_VERROR,	0x01},
-	{R367TER_PRVIT,		0x3f},
-	{R367TER_VAVSRVIT,	0x00},
-	{R367TER_VSTATUSVIT,	0xbd},
-	{R367TER_VTHINUSE,	0xa1},
-	{R367TER_KDIV12,	0x20},
-	{R367TER_KDIV23,	0x40},
-	{R367TER_KDIV34,	0x20},
-	{R367TER_KDIV56,	0x30},
-	{R367TER_KDIV67,	0x00},
-	{R367TER_KDIV78,	0x30},
-	{R367TER_SIGPOWER,	0x54},
-	{R367TER_DEMAPVIT,	0x40},
-	{R367TER_VITSCALE,	0x00},
-	{R367TER_FFEC1PRG,	0x00},
-	{R367TER_FVITCURPUN,	0x12},
-	{R367TER_FVERROR,	0x01},
-	{R367TER_FVSTATUSVIT,	0xbd},
-	{R367TER_DEBUG_LT1,	0x00},
-	{R367TER_DEBUG_LT2,	0x00},
-	{R367TER_DEBUG_LT3,	0x00},
-	{R367TER_TSTSFMET,	0x00},
-	{R367TER_SELOUT,	0x00},
-	{R367TER_TSYNC,		0x00},
-	{R367TER_TSTERR,	0x00},
-	{R367TER_TSFSYNC,	0x00},
-	{R367TER_TSTSFERR,	0x00},
-	{R367TER_TSTTSSF1,	0x01},
-	{R367TER_TSTTSSF2,	0x1f},
-	{R367TER_TSTTSSF3,	0x00},
-	{R367TER_TSTTS1,	0x00},
-	{R367TER_TSTTS2,	0x1f},
-	{R367TER_TSTTS3,	0x01},
-	{R367TER_TSTTS4,	0x00},
-	{R367TER_TSTTSRC,	0x00},
-	{R367TER_TSTTSRS,	0x00},
-	{R367TER_TSSTATEM,	0xb0},
-	{R367TER_TSSTATEL,	0x40},
-	{R367TER_TSCFGH,	0xC0},
-	{R367TER_TSCFGM,	0xc0},/* for xc5000; was 0x00 */
-	{R367TER_TSCFGL,	0x20},
-	{R367TER_TSSYNC,	0x00},
-	{R367TER_TSINSDELH,	0x00},
-	{R367TER_TSINSDELM,	0x00},
-	{R367TER_TSINSDELL,	0x00},
-	{R367TER_TSDIVN,	0x03},
-	{R367TER_TSDIVPM,	0x00},
-	{R367TER_TSDIVPL,	0x00},
-	{R367TER_TSDIVQM,	0x00},
-	{R367TER_TSDIVQL,	0x00},
-	{R367TER_TSDILSTKM,	0x00},
-	{R367TER_TSDILSTKL,	0x00},
-	{R367TER_TSSPEED,	0x40},/* for xc5000; was 0x6f */
-	{R367TER_TSSTATUS,	0x81},
-	{R367TER_TSSTATUS2,	0x6a},
-	{R367TER_TSBITRATEM,	0x0f},
-	{R367TER_TSBITRATEL,	0xc6},
-	{R367TER_TSPACKLENM,	0x00},
-	{R367TER_TSPACKLENL,	0xfc},
-	{R367TER_TSBLOCLENM,	0x0a},
-	{R367TER_TSBLOCLENL,	0x80},
-	{R367TER_TSDLYH,	0x90},
-	{R367TER_TSDLYM,	0x68},
-	{R367TER_TSDLYL,	0x01},
-	{R367TER_TSNPDAV,	0x00},
-	{R367TER_TSBUFSTATH,	0x00},
-	{R367TER_TSBUFSTATM,	0x00},
-	{R367TER_TSBUFSTATL,	0x00},
-	{R367TER_TSDEBUGM,	0xcf},
-	{R367TER_TSDEBUGL,	0x1e},
-	{R367TER_TSDLYSETH,	0x00},
-	{R367TER_TSDLYSETM,	0x68},
-	{R367TER_TSDLYSETL,	0x00},
-	{R367TER_TSOBSCFG,	0x00},
-	{R367TER_TSOBSM,	0x47},
-	{R367TER_TSOBSL,	0x1f},
-	{R367TER_ERRCTRL1,	0x95},
-	{R367TER_ERRCNT1H,	0x80},
-	{R367TER_ERRCNT1M,	0x00},
-	{R367TER_ERRCNT1L,	0x00},
-	{R367TER_ERRCTRL2,	0x95},
-	{R367TER_ERRCNT2H,	0x00},
-	{R367TER_ERRCNT2M,	0x00},
-	{R367TER_ERRCNT2L,	0x00},
-	{R367TER_FECSPY,	0x88},
-	{R367TER_FSPYCFG,	0x2c},
-	{R367TER_FSPYDATA,	0x3a},
-	{R367TER_FSPYOUT,	0x06},
-	{R367TER_FSTATUS,	0x61},
-	{R367TER_FGOODPACK,	0xff},
-	{R367TER_FPACKCNT,	0xff},
-	{R367TER_FSPYMISC,	0x66},
-	{R367TER_FBERCPT4,	0x00},
-	{R367TER_FBERCPT3,	0x00},
-	{R367TER_FBERCPT2,	0x36},
-	{R367TER_FBERCPT1,	0x36},
-	{R367TER_FBERCPT0,	0x14},
-	{R367TER_FBERERR2,	0x00},
-	{R367TER_FBERERR1,	0x03},
-	{R367TER_FBERERR0,	0x28},
-	{R367TER_FSTATESM,	0x00},
-	{R367TER_FSTATESL,	0x02},
-	{R367TER_FSPYBER,	0x00},
-	{R367TER_FSPYDISTM,	0x01},
-	{R367TER_FSPYDISTL,	0x9f},
-	{R367TER_FSPYOBS7,	0xc9},
-	{R367TER_FSPYOBS6,	0x99},
-	{R367TER_FSPYOBS5,	0x08},
-	{R367TER_FSPYOBS4,	0xec},
-	{R367TER_FSPYOBS3,	0x01},
-	{R367TER_FSPYOBS2,	0x0f},
-	{R367TER_FSPYOBS1,	0xf5},
-	{R367TER_FSPYOBS0,	0x08},
-	{R367TER_SFDEMAP,	0x40},
-	{R367TER_SFERROR,	0x00},
-	{R367TER_SFAVSR,	0x30},
-	{R367TER_SFECSTATUS,	0xcc},
-	{R367TER_SFKDIV12,	0x20},
-	{R367TER_SFKDIV23,	0x40},
-	{R367TER_SFKDIV34,	0x20},
-	{R367TER_SFKDIV56,	0x20},
-	{R367TER_SFKDIV67,	0x00},
-	{R367TER_SFKDIV78,	0x20},
-	{R367TER_SFDILSTKM,	0x00},
-	{R367TER_SFDILSTKL,	0x00},
-	{R367TER_SFSTATUS,	0xb5},
-	{R367TER_SFDLYH,	0x90},
-	{R367TER_SFDLYM,	0x60},
-	{R367TER_SFDLYL,	0x01},
-	{R367TER_SFDLYSETH,	0xc0},
-	{R367TER_SFDLYSETM,	0x60},
-	{R367TER_SFDLYSETL,	0x00},
-	{R367TER_SFOBSCFG,	0x00},
-	{R367TER_SFOBSM,	0x47},
-	{R367TER_SFOBSL,	0x05},
-	{R367TER_SFECINFO,	0x40},
-	{R367TER_SFERRCTRL,	0x74},
-	{R367TER_SFERRCNTH,	0x80},
-	{R367TER_SFERRCNTM ,	0x00},
-	{R367TER_SFERRCNTL,	0x00},
-	{R367TER_SYMBRATEM,	0x2f},
-	{R367TER_SYMBRATEL,	0x50},
-	{R367TER_SYMBSTATUS,	0x7f},
-	{R367TER_SYMBCFG,	0x00},
-	{R367TER_SYMBFIFOM,	0xf4},
-	{R367TER_SYMBFIFOL,	0x0d},
-	{R367TER_SYMBOFFSM,	0xf0},
-	{R367TER_SYMBOFFSL,	0x2d},
-	{R367TER_DEBUG_LT4,	0x00},
-	{R367TER_DEBUG_LT5,	0x00},
-	{R367TER_DEBUG_LT6,	0x00},
-	{R367TER_DEBUG_LT7,	0x00},
-	{R367TER_DEBUG_LT8,	0x00},
-	{R367TER_DEBUG_LT9,	0x00},
+	/* flags for operation control */
+	u8 use_i2c_gatectrl;
+	u8 deftabs;
+	u8 reinit_on_setfrontend;
+	u8 auto_if_khz;
+	enum active_demod_state activedemod;
 };
 
 #define RF_LOOKUP_TABLE_SIZE  31
@@ -569,197 +126,6 @@ static const s32 stv0367cab_RF_LookUp2[RF_LOOKUP_TABLE2_SIZE][RF_LOOKUP_TABLE2_S
 		57, 58, 59, 60, 61, 62, 63, 64,
 		65, 66, 67, 68, 69, 70, 71, 72,
 	}
-};
-
-static struct st_register def0367cab[STV0367CAB_NBREGS] = {
-	{R367CAB_ID,		0x60},
-	{R367CAB_I2CRPT,	0xa0},
-	/*{R367CAB_I2CRPT,	0x22},*/
-	{R367CAB_TOPCTRL,	0x10},
-	{R367CAB_IOCFG0,	0x80},
-	{R367CAB_DAC0R,		0x00},
-	{R367CAB_IOCFG1,	0x00},
-	{R367CAB_DAC1R,		0x00},
-	{R367CAB_IOCFG2,	0x00},
-	{R367CAB_SDFR,		0x00},
-	{R367CAB_AUX_CLK,	0x00},
-	{R367CAB_FREESYS1,	0x00},
-	{R367CAB_FREESYS2,	0x00},
-	{R367CAB_FREESYS3,	0x00},
-	{R367CAB_GPIO_CFG,	0x55},
-	{R367CAB_GPIO_CMD,	0x01},
-	{R367CAB_TSTRES,	0x00},
-	{R367CAB_ANACTRL,	0x0d},/* was 0x00 need to check - I.M.L.*/
-	{R367CAB_TSTBUS,	0x00},
-	{R367CAB_RF_AGC1,	0xea},
-	{R367CAB_RF_AGC2,	0x82},
-	{R367CAB_ANADIGCTRL,	0x0b},
-	{R367CAB_PLLMDIV,	0x01},
-	{R367CAB_PLLNDIV,	0x08},
-	{R367CAB_PLLSETUP,	0x18},
-	{R367CAB_DUAL_AD12,	0x0C}, /* for xc5000 AGC voltage 1.6V */
-	{R367CAB_TSTBIST,	0x00},
-	{R367CAB_CTRL_1,	0x00},
-	{R367CAB_CTRL_2,	0x03},
-	{R367CAB_IT_STATUS1,	0x2b},
-	{R367CAB_IT_STATUS2,	0x08},
-	{R367CAB_IT_EN1,	0x00},
-	{R367CAB_IT_EN2,	0x00},
-	{R367CAB_CTRL_STATUS,	0x04},
-	{R367CAB_TEST_CTL,	0x00},
-	{R367CAB_AGC_CTL,	0x73},
-	{R367CAB_AGC_IF_CFG,	0x50},
-	{R367CAB_AGC_RF_CFG,	0x00},
-	{R367CAB_AGC_PWM_CFG,	0x03},
-	{R367CAB_AGC_PWR_REF_L,	0x5a},
-	{R367CAB_AGC_PWR_REF_H,	0x00},
-	{R367CAB_AGC_RF_TH_L,	0xff},
-	{R367CAB_AGC_RF_TH_H,	0x07},
-	{R367CAB_AGC_IF_LTH_L,	0x00},
-	{R367CAB_AGC_IF_LTH_H,	0x08},
-	{R367CAB_AGC_IF_HTH_L,	0xff},
-	{R367CAB_AGC_IF_HTH_H,	0x07},
-	{R367CAB_AGC_PWR_RD_L,	0xa0},
-	{R367CAB_AGC_PWR_RD_M,	0xe9},
-	{R367CAB_AGC_PWR_RD_H,	0x03},
-	{R367CAB_AGC_PWM_IFCMD_L,	0xe4},
-	{R367CAB_AGC_PWM_IFCMD_H,	0x00},
-	{R367CAB_AGC_PWM_RFCMD_L,	0xff},
-	{R367CAB_AGC_PWM_RFCMD_H,	0x07},
-	{R367CAB_IQDEM_CFG,	0x01},
-	{R367CAB_MIX_NCO_LL,	0x22},
-	{R367CAB_MIX_NCO_HL,	0x96},
-	{R367CAB_MIX_NCO_HH,	0x55},
-	{R367CAB_SRC_NCO_LL,	0xff},
-	{R367CAB_SRC_NCO_LH,	0x0c},
-	{R367CAB_SRC_NCO_HL,	0xf5},
-	{R367CAB_SRC_NCO_HH,	0x20},
-	{R367CAB_IQDEM_GAIN_SRC_L,	0x06},
-	{R367CAB_IQDEM_GAIN_SRC_H,	0x01},
-	{R367CAB_IQDEM_DCRM_CFG_LL,	0xfe},
-	{R367CAB_IQDEM_DCRM_CFG_LH,	0xff},
-	{R367CAB_IQDEM_DCRM_CFG_HL,	0x0f},
-	{R367CAB_IQDEM_DCRM_CFG_HH,	0x00},
-	{R367CAB_IQDEM_ADJ_COEFF0,	0x34},
-	{R367CAB_IQDEM_ADJ_COEFF1,	0xae},
-	{R367CAB_IQDEM_ADJ_COEFF2,	0x46},
-	{R367CAB_IQDEM_ADJ_COEFF3,	0x77},
-	{R367CAB_IQDEM_ADJ_COEFF4,	0x96},
-	{R367CAB_IQDEM_ADJ_COEFF5,	0x69},
-	{R367CAB_IQDEM_ADJ_COEFF6,	0xc7},
-	{R367CAB_IQDEM_ADJ_COEFF7,	0x01},
-	{R367CAB_IQDEM_ADJ_EN,	0x04},
-	{R367CAB_IQDEM_ADJ_AGC_REF,	0x94},
-	{R367CAB_ALLPASSFILT1,	0xc9},
-	{R367CAB_ALLPASSFILT2,	0x2d},
-	{R367CAB_ALLPASSFILT3,	0xa3},
-	{R367CAB_ALLPASSFILT4,	0xfb},
-	{R367CAB_ALLPASSFILT5,	0xf6},
-	{R367CAB_ALLPASSFILT6,	0x45},
-	{R367CAB_ALLPASSFILT7,	0x6f},
-	{R367CAB_ALLPASSFILT8,	0x7e},
-	{R367CAB_ALLPASSFILT9,	0x05},
-	{R367CAB_ALLPASSFILT10,	0x0a},
-	{R367CAB_ALLPASSFILT11,	0x51},
-	{R367CAB_TRL_AGC_CFG,	0x20},
-	{R367CAB_TRL_LPF_CFG,	0x28},
-	{R367CAB_TRL_LPF_ACQ_GAIN,	0x44},
-	{R367CAB_TRL_LPF_TRK_GAIN,	0x22},
-	{R367CAB_TRL_LPF_OUT_GAIN,	0x03},
-	{R367CAB_TRL_LOCKDET_LTH,	0x04},
-	{R367CAB_TRL_LOCKDET_HTH,	0x11},
-	{R367CAB_TRL_LOCKDET_TRGVAL,	0x20},
-	{R367CAB_IQ_QAM,	0x01},
-	{R367CAB_FSM_STATE,	0xa0},
-	{R367CAB_FSM_CTL,	0x08},
-	{R367CAB_FSM_STS,	0x0c},
-	{R367CAB_FSM_SNR0_HTH,	0x00},
-	{R367CAB_FSM_SNR1_HTH,	0x00},
-	{R367CAB_FSM_SNR2_HTH,	0x23},/* 0x00 */
-	{R367CAB_FSM_SNR0_LTH,	0x00},
-	{R367CAB_FSM_SNR1_LTH,	0x00},
-	{R367CAB_FSM_EQA1_HTH,	0x00},
-	{R367CAB_FSM_TEMPO,	0x32},
-	{R367CAB_FSM_CONFIG,	0x03},
-	{R367CAB_EQU_I_TESTTAP_L,	0x11},
-	{R367CAB_EQU_I_TESTTAP_M,	0x00},
-	{R367CAB_EQU_I_TESTTAP_H,	0x00},
-	{R367CAB_EQU_TESTAP_CFG,	0x00},
-	{R367CAB_EQU_Q_TESTTAP_L,	0xff},
-	{R367CAB_EQU_Q_TESTTAP_M,	0x00},
-	{R367CAB_EQU_Q_TESTTAP_H,	0x00},
-	{R367CAB_EQU_TAP_CTRL,	0x00},
-	{R367CAB_EQU_CTR_CRL_CONTROL_L,	0x11},
-	{R367CAB_EQU_CTR_CRL_CONTROL_H,	0x05},
-	{R367CAB_EQU_CTR_HIPOW_L,	0x00},
-	{R367CAB_EQU_CTR_HIPOW_H,	0x00},
-	{R367CAB_EQU_I_EQU_LO,	0xef},
-	{R367CAB_EQU_I_EQU_HI,	0x00},
-	{R367CAB_EQU_Q_EQU_LO,	0xee},
-	{R367CAB_EQU_Q_EQU_HI,	0x00},
-	{R367CAB_EQU_MAPPER,	0xc5},
-	{R367CAB_EQU_SWEEP_RATE,	0x80},
-	{R367CAB_EQU_SNR_LO,	0x64},
-	{R367CAB_EQU_SNR_HI,	0x03},
-	{R367CAB_EQU_GAMMA_LO,	0x00},
-	{R367CAB_EQU_GAMMA_HI,	0x00},
-	{R367CAB_EQU_ERR_GAIN,	0x36},
-	{R367CAB_EQU_RADIUS,	0xaa},
-	{R367CAB_EQU_FFE_MAINTAP,	0x00},
-	{R367CAB_EQU_FFE_LEAKAGE,	0x63},
-	{R367CAB_EQU_FFE_MAINTAP_POS,	0xdf},
-	{R367CAB_EQU_GAIN_WIDE,	0x88},
-	{R367CAB_EQU_GAIN_NARROW,	0x41},
-	{R367CAB_EQU_CTR_LPF_GAIN,	0xd1},
-	{R367CAB_EQU_CRL_LPF_GAIN,	0xa7},
-	{R367CAB_EQU_GLOBAL_GAIN,	0x06},
-	{R367CAB_EQU_CRL_LD_SEN,	0x85},
-	{R367CAB_EQU_CRL_LD_VAL,	0xe2},
-	{R367CAB_EQU_CRL_TFR,	0x20},
-	{R367CAB_EQU_CRL_BISTH_LO,	0x00},
-	{R367CAB_EQU_CRL_BISTH_HI,	0x00},
-	{R367CAB_EQU_SWEEP_RANGE_LO,	0x00},
-	{R367CAB_EQU_SWEEP_RANGE_HI,	0x00},
-	{R367CAB_EQU_CRL_LIMITER,	0x40},
-	{R367CAB_EQU_MODULUS_MAP,	0x90},
-	{R367CAB_EQU_PNT_GAIN,	0xa7},
-	{R367CAB_FEC_AC_CTR_0,	0x16},
-	{R367CAB_FEC_AC_CTR_1,	0x0b},
-	{R367CAB_FEC_AC_CTR_2,	0x88},
-	{R367CAB_FEC_AC_CTR_3,	0x02},
-	{R367CAB_FEC_STATUS,	0x12},
-	{R367CAB_RS_COUNTER_0,	0x7d},
-	{R367CAB_RS_COUNTER_1,	0xd0},
-	{R367CAB_RS_COUNTER_2,	0x19},
-	{R367CAB_RS_COUNTER_3,	0x0b},
-	{R367CAB_RS_COUNTER_4,	0xa3},
-	{R367CAB_RS_COUNTER_5,	0x00},
-	{R367CAB_BERT_0,	0x01},
-	{R367CAB_BERT_1,	0x25},
-	{R367CAB_BERT_2,	0x41},
-	{R367CAB_BERT_3,	0x39},
-	{R367CAB_OUTFORMAT_0,	0xc2},
-	{R367CAB_OUTFORMAT_1,	0x22},
-	{R367CAB_SMOOTHER_2,	0x28},
-	{R367CAB_TSMF_CTRL_0,	0x01},
-	{R367CAB_TSMF_CTRL_1,	0xc6},
-	{R367CAB_TSMF_CTRL_3,	0x43},
-	{R367CAB_TS_ON_ID_0,	0x00},
-	{R367CAB_TS_ON_ID_1,	0x00},
-	{R367CAB_TS_ON_ID_2,	0x00},
-	{R367CAB_TS_ON_ID_3,	0x00},
-	{R367CAB_RE_STATUS_0,	0x00},
-	{R367CAB_RE_STATUS_1,	0x00},
-	{R367CAB_RE_STATUS_2,	0x00},
-	{R367CAB_RE_STATUS_3,	0x00},
-	{R367CAB_TS_STATUS_0,	0x00},
-	{R367CAB_TS_STATUS_1,	0x00},
-	{R367CAB_TS_STATUS_2,	0xa0},
-	{R367CAB_TS_STATUS_3,	0x00},
-	{R367CAB_T_O_ID_0,	0x00},
-	{R367CAB_T_O_ID_1,	0x00},
-	{R367CAB_T_O_ID_2,	0x00},
-	{R367CAB_T_O_ID_3,	0x00},
 };
 
 static
@@ -899,6 +265,78 @@ static u8 stv0367_getbits(u8 reg, u32 label)
 	return (reg & mask) >> pos;
 }
 #endif
+
+static void stv0367_write_table(struct stv0367_state *state,
+				const struct st_register *deftab)
+{
+	int i = 0;
+
+	while (1) {
+		if (!deftab[i].addr)
+			break;
+		stv0367_writereg(state, deftab[i].addr, deftab[i].value);
+		i++;
+	}
+}
+
+static void stv0367_pll_setup(struct stv0367_state *state,
+				u32 icspeed, u32 xtal)
+{
+	/* note on regs: R367TER_* and R367CAB_* defines each point to
+	 * 0xf0d8, so just use R367TER_ for both cases
+	 */
+
+	switch (icspeed) {
+	case STV0367_ICSPEED_58000:
+		switch (xtal) {
+		default:
+		case 27000000:
+			dprintk("STV0367 SetCLKgen for 58MHz IC and 27Mhz crystal\n");
+			/* PLLMDIV: 27, PLLNDIV: 232 */
+			stv0367_writereg(state, R367TER_PLLMDIV, 0x1b);
+			stv0367_writereg(state, R367TER_PLLNDIV, 0xe8);
+			break;
+		}
+		break;
+	default:
+	case STV0367_ICSPEED_53125:
+		switch (xtal) {
+			/* set internal freq to 53.125MHz */
+		case 16000000:
+			stv0367_writereg(state, R367TER_PLLMDIV, 0x2);
+			stv0367_writereg(state, R367TER_PLLNDIV, 0x1b);
+			break;
+		case 25000000:
+			stv0367_writereg(state, R367TER_PLLMDIV, 0xa);
+			stv0367_writereg(state, R367TER_PLLNDIV, 0x55);
+			break;
+		default:
+		case 27000000:
+			dprintk("FE_STV0367TER_SetCLKgen for 27Mhz\n");
+			stv0367_writereg(state, R367TER_PLLMDIV, 0x1);
+			stv0367_writereg(state, R367TER_PLLNDIV, 0x8);
+			break;
+		case 30000000:
+			stv0367_writereg(state, R367TER_PLLMDIV, 0xc);
+			stv0367_writereg(state, R367TER_PLLNDIV, 0x55);
+			break;
+		}
+	}
+
+	stv0367_writereg(state, R367TER_PLLSETUP, 0x18);
+}
+
+static int stv0367_get_if_khz(struct stv0367_state *state, u32 *ifkhz)
+{
+	if (state->auto_if_khz && state->fe.ops.tuner_ops.get_if_frequency) {
+		state->fe.ops.tuner_ops.get_if_frequency(&state->fe, ifkhz);
+		*ifkhz = *ifkhz / 1000; /* hz -> khz */
+	} else
+		*ifkhz = state->config->if_khz;
+
+	return 0;
+}
+
 static int stv0367ter_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
@@ -1260,9 +698,9 @@ stv0367_ter_signal_type stv0367ter_check_cpamp(struct stv0367_state *state,
 	dprintk("******last CPAMPvalue= %d at wd=%d\n", CPAMPvalue, wd);
 	if (CPAMPvalue < CPAMPMin) {
 		CPAMPStatus = FE_TER_NOCPAMP;
-		printk(KERN_ERR "CPAMP failed\n");
+		dprintk("%s: CPAMP failed\n", __func__);
 	} else {
-		printk(KERN_ERR "CPAMP OK !\n");
+		dprintk("%s: CPAMP OK !\n", __func__);
 		CPAMPStatus = FE_TER_CPAMPOK;
 	}
 
@@ -1538,41 +976,15 @@ static int stv0367ter_init(struct dvb_frontend *fe)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
 	struct stv0367ter_state *ter_state = state->ter_state;
-	int i;
 
 	dprintk("%s:\n", __func__);
 
 	ter_state->pBER = 0;
 
-	for (i = 0; i < STV0367TER_NBREGS; i++)
-		stv0367_writereg(state, def0367ter[i].addr,
-					def0367ter[i].value);
+	stv0367_write_table(state,
+		stv0367_deftabs[state->deftabs][STV0367_TAB_TER]);
 
-	switch (state->config->xtal) {
-		/*set internal freq to 53.125MHz */
-	case 16000000:
-		stv0367_writereg(state, R367TER_PLLMDIV, 0x2);
-		stv0367_writereg(state, R367TER_PLLNDIV, 0x1b);
-		stv0367_writereg(state, R367TER_PLLSETUP, 0x18);
-		break;
-	case 25000000:
-		stv0367_writereg(state, R367TER_PLLMDIV, 0xa);
-		stv0367_writereg(state, R367TER_PLLNDIV, 0x55);
-		stv0367_writereg(state, R367TER_PLLSETUP, 0x18);
-		break;
-	default:
-	case 27000000:
-		dprintk("FE_STV0367TER_SetCLKgen for 27Mhz\n");
-		stv0367_writereg(state, R367TER_PLLMDIV, 0x1);
-		stv0367_writereg(state, R367TER_PLLNDIV, 0x8);
-		stv0367_writereg(state, R367TER_PLLSETUP, 0x18);
-		break;
-	case 30000000:
-		stv0367_writereg(state, R367TER_PLLMDIV, 0xc);
-		stv0367_writereg(state, R367TER_PLLNDIV, 0x55);
-		stv0367_writereg(state, R367TER_PLLSETUP, 0x18);
-		break;
-	}
+	stv0367_pll_setup(state, STV0367_ICSPEED_53125, state->config->xtal);
 
 	stv0367_writereg(state, R367TER_I2CRPT, 0xa0);
 	stv0367_writereg(state, R367TER_ANACTRL, 0x00);
@@ -1598,9 +1010,11 @@ static int stv0367ter_algo(struct dvb_frontend *fe)
 	u8 /*constell,*/ counter;
 	s8 step;
 	s32 timing_offset = 0;
-	u32 trl_nomrate = 0, InternalFreq = 0, temp = 0;
+	u32 trl_nomrate = 0, InternalFreq = 0, temp = 0, ifkhz = 0;
 
 	dprintk("%s:\n", __func__);
+
+	stv0367_get_if_khz(state, &ifkhz);
 
 	ter_state->frequency = p->frequency;
 	ter_state->force = FE_TER_FORCENONE
@@ -1704,8 +1118,7 @@ static int stv0367ter_algo(struct dvb_frontend *fe)
 			stv0367_readbits(state, F367TER_GAIN_SRC_LO);
 
 	temp = (int)
-		((InternalFreq - state->config->if_khz) * (1 << 16)
-							/ (InternalFreq));
+		((InternalFreq - ifkhz) * (1 << 16) / (InternalFreq));
 
 	dprintk("DEROT temp=0x%x\n", temp);
 	stv0367_writebits(state, F367TER_INC_DEROT_HI, temp / 256);
@@ -1824,13 +1237,14 @@ static int stv0367ter_set_frontend(struct dvb_frontend *fe)
 	s8 num_trials, index;
 	u8 SenseTrials[] = { INVERSION_ON, INVERSION_OFF };
 
-	stv0367ter_init(fe);
+	if (state->reinit_on_setfrontend)
+		stv0367ter_init(fe);
 
 	if (fe->ops.tuner_ops.set_params) {
-		if (fe->ops.i2c_gate_ctrl)
+		if (state->use_i2c_gatectrl && fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 1);
 		fe->ops.tuner_ops.set_params(fe);
-		if (fe->ops.i2c_gate_ctrl)
+		if (state->use_i2c_gatectrl && fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
@@ -2025,7 +1439,7 @@ static int stv0367ter_get_frontend(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int stv0367ter_read_snr(struct dvb_frontend *fe, u16 *snr)
+static u32 stv0367ter_snr_readreg(struct dvb_frontend *fe)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
 	u32 snru32 = 0;
@@ -2041,10 +1455,16 @@ static int stv0367ter_read_snr(struct dvb_frontend *fe, u16 *snr)
 
 		cpt++;
 	}
-
 	snru32 /= 10;/*average on 10 values*/
 
-	*snr = snru32 / 1000;
+	return snru32;
+}
+
+static int stv0367ter_read_snr(struct dvb_frontend *fe, u16 *snr)
+{
+	u32 snrval = stv0367ter_snr_readreg(fe);
+
+	*snr = snrval / 1000;
 
 	return 0;
 }
@@ -2089,7 +1509,8 @@ static int stv0367ter_read_status(struct dvb_frontend *fe,
 	*status = 0;
 
 	if (stv0367_readbits(state, F367TER_LK)) {
-		*status |= FE_HAS_LOCK;
+		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI
+			  | FE_HAS_SYNC | FE_HAS_LOCK;
 		dprintk("%s: stv0367 has locked\n", __func__);
 	}
 
@@ -2321,6 +1742,12 @@ struct dvb_frontend *stv0367ter_attach(const struct stv0367_config *config,
 	state->fe.demodulator_priv = state;
 	state->chip_id = stv0367_readreg(state, 0xf000);
 
+	/* demod operation options */
+	state->use_i2c_gatectrl = 1;
+	state->deftabs = STV0367_DEFTAB_GENERIC;
+	state->reinit_on_setfrontend = 1;
+	state->auto_if_khz = 0;
+
 	dprintk("%s: chip_id = 0x%x\n", __func__, state->chip_id);
 
 	/* check if the demod is there */
@@ -2423,11 +1850,11 @@ static enum stv0367cab_mod stv0367cab_SetQamSize(struct stv0367_state *state,
 	case FE_CAB_MOD_QAM64:
 		stv0367_writereg(state, R367CAB_IQDEM_ADJ_AGC_REF, 0x82);
 		stv0367_writereg(state, R367CAB_AGC_PWR_REF_L, 0x5a);
-		if (SymbolRate > 45000000) {
+		if (SymbolRate > 4500000) {
 			stv0367_writereg(state, R367CAB_FSM_STATE, 0xb0);
 			stv0367_writereg(state, R367CAB_EQU_CTR_LPF_GAIN, 0xc1);
 			stv0367_writereg(state, R367CAB_EQU_CRL_LPF_GAIN, 0xa5);
-		} else if (SymbolRate > 25000000) {
+		} else if (SymbolRate > 2500000) {
 			stv0367_writereg(state, R367CAB_FSM_STATE, 0xa0);
 			stv0367_writereg(state, R367CAB_EQU_CTR_LPF_GAIN, 0xc1);
 			stv0367_writereg(state, R367CAB_EQU_CRL_LPF_GAIN, 0xa6);
@@ -2445,9 +1872,9 @@ static enum stv0367cab_mod stv0367cab_SetQamSize(struct stv0367_state *state,
 		stv0367_writereg(state, R367CAB_AGC_PWR_REF_L, 0x76);
 		stv0367_writereg(state, R367CAB_FSM_STATE, 0x90);
 		stv0367_writereg(state, R367CAB_EQU_CTR_LPF_GAIN, 0xb1);
-		if (SymbolRate > 45000000)
+		if (SymbolRate > 4500000)
 			stv0367_writereg(state, R367CAB_EQU_CRL_LPF_GAIN, 0xa7);
-		else if (SymbolRate > 25000000)
+		else if (SymbolRate > 2500000)
 			stv0367_writereg(state, R367CAB_EQU_CRL_LPF_GAIN, 0xa6);
 		else
 			stv0367_writereg(state, R367CAB_EQU_CRL_LPF_GAIN, 0x97);
@@ -2460,9 +1887,9 @@ static enum stv0367cab_mod stv0367cab_SetQamSize(struct stv0367_state *state,
 		stv0367_writereg(state, R367CAB_IQDEM_ADJ_AGC_REF, 0x94);
 		stv0367_writereg(state, R367CAB_AGC_PWR_REF_L, 0x5a);
 		stv0367_writereg(state, R367CAB_FSM_STATE, 0xa0);
-		if (SymbolRate > 45000000)
+		if (SymbolRate > 4500000)
 			stv0367_writereg(state, R367CAB_EQU_CTR_LPF_GAIN, 0xc1);
-		else if (SymbolRate > 25000000)
+		else if (SymbolRate > 2500000)
 			stv0367_writereg(state, R367CAB_EQU_CTR_LPF_GAIN, 0xc1);
 		else
 			stv0367_writereg(state, R367CAB_EQU_CTR_LPF_GAIN, 0xd1);
@@ -2722,6 +2149,71 @@ static u32 stv0367cab_GetSymbolRate(struct stv0367_state *state, u32 mclk_hz)
 	return regsym;
 }
 
+static u32 stv0367cab_fsm_status(struct stv0367_state *state)
+{
+	return stv0367_readbits(state, F367CAB_FSM_STATUS);
+}
+
+static u32 stv0367cab_qamfec_lock(struct stv0367_state *state)
+{
+	return stv0367_readbits(state,
+		(state->cab_state->qamfec_status_reg ?
+		 state->cab_state->qamfec_status_reg :
+		 F367CAB_QAMFEC_LOCK));
+}
+
+static
+enum stv0367_cab_signal_type stv0367cab_fsm_signaltype(u32 qam_fsm_status)
+{
+	enum stv0367_cab_signal_type signaltype = FE_CAB_NOAGC;
+
+	switch (qam_fsm_status) {
+	case 1:
+		signaltype = FE_CAB_NOAGC;
+		break;
+	case 2:
+		signaltype = FE_CAB_NOTIMING;
+		break;
+	case 3:
+		signaltype = FE_CAB_TIMINGOK;
+		break;
+	case 4:
+		signaltype = FE_CAB_NOCARRIER;
+		break;
+	case 5:
+		signaltype = FE_CAB_CARRIEROK;
+		break;
+	case 7:
+		signaltype = FE_CAB_NOBLIND;
+		break;
+	case 8:
+		signaltype = FE_CAB_BLINDOK;
+		break;
+	case 10:
+		signaltype = FE_CAB_NODEMOD;
+		break;
+	case 11:
+		signaltype = FE_CAB_DEMODOK;
+		break;
+	case 12:
+		signaltype = FE_CAB_DEMODOK;
+		break;
+	case 13:
+		signaltype = FE_CAB_NODEMOD;
+		break;
+	case 14:
+		signaltype = FE_CAB_NOBLIND;
+		break;
+	case 15:
+		signaltype = FE_CAB_NOSIGNAL;
+		break;
+	default:
+		break;
+	}
+
+	return signaltype;
+}
+
 static int stv0367cab_read_status(struct dvb_frontend *fe,
 				  enum fe_status *status)
 {
@@ -2731,9 +2223,26 @@ static int stv0367cab_read_status(struct dvb_frontend *fe,
 
 	*status = 0;
 
-	if (stv0367_readbits(state, F367CAB_QAMFEC_LOCK)) {
-		*status |= FE_HAS_LOCK;
+	/* update cab_state->state from QAM_FSM_STATUS */
+	state->cab_state->state = stv0367cab_fsm_signaltype(
+		stv0367cab_fsm_status(state));
+
+	if (stv0367cab_qamfec_lock(state)) {
+		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI
+			  | FE_HAS_SYNC | FE_HAS_LOCK;
 		dprintk("%s: stv0367 has locked\n", __func__);
+	} else {
+		if (state->cab_state->state > FE_CAB_NOSIGNAL)
+			*status |= FE_HAS_SIGNAL;
+
+		if (state->cab_state->state > FE_CAB_NOCARRIER)
+			*status |= FE_HAS_CARRIER;
+
+		if (state->cab_state->state >= FE_CAB_DEMODOK)
+			*status |= FE_HAS_VITERBI;
+
+		if (state->cab_state->state >= FE_CAB_DATAOK)
+			*status |= FE_HAS_SYNC;
 	}
 
 	return 0;
@@ -2777,13 +2286,11 @@ static int stv0367cab_init(struct dvb_frontend *fe)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
 	struct stv0367cab_state *cab_state = state->cab_state;
-	int i;
 
 	dprintk("%s:\n", __func__);
 
-	for (i = 0; i < STV0367CAB_NBREGS; i++)
-		stv0367_writereg(state, def0367cab[i].addr,
-						def0367cab[i].value);
+	stv0367_write_table(state,
+		stv0367_deftabs[state->deftabs][STV0367_TAB_CAB]);
 
 	switch (state->config->ts_mode) {
 	case STV0367_DVBCI_CLOCK:
@@ -2831,13 +2338,15 @@ enum stv0367_cab_signal_type stv0367cab_algo(struct stv0367_state *state,
 {
 	struct stv0367cab_state *cab_state = state->cab_state;
 	enum stv0367_cab_signal_type signalType = FE_CAB_NOAGC;
-	u32	QAMFEC_Lock, QAM_Lock, u32_tmp,
+	u32	QAMFEC_Lock, QAM_Lock, u32_tmp, ifkhz,
 		LockTime, TRLTimeOut, AGCTimeOut, CRLSymbols,
 		CRLTimeOut, EQLTimeOut, DemodTimeOut, FECTimeOut;
 	u8	TrackAGCAccum;
 	s32	tmp;
 
 	dprintk("%s:\n", __func__);
+
+	stv0367_get_if_khz(state, &ifkhz);
 
 	/* Timeouts calculation */
 	/* A max lock time of 25 ms is allowed for delayed AGC */
@@ -2917,7 +2426,7 @@ enum stv0367_cab_signal_type stv0367cab_algo(struct stv0367_state *state,
 	/* The sweep function is never used, Sweep rate must be set to 0 */
 	/* Set the derotator frequency in Hz */
 	stv0367cab_set_derot_freq(state, cab_state->adc_clk,
-		(1000 * (s32)state->config->if_khz + cab_state->derot_offset));
+		(1000 * (s32)ifkhz + cab_state->derot_offset));
 	/* Disable the Allpass Filter when the symbol rate is out of range */
 	if ((p->symbol_rate > 10800000) | (p->symbol_rate < 1800000)) {
 		stv0367_writebits(state, F367CAB_ADJ_EN, 0);
@@ -2934,7 +2443,7 @@ enum stv0367_cab_signal_type stv0367cab_algo(struct stv0367_state *state,
 	LockTime = 0;
 	stv0367_writereg(state, R367CAB_CTRL_1, 0x00);
 	do {
-		QAM_Lock = stv0367_readbits(state, F367CAB_FSM_STATUS);
+		QAM_Lock = stv0367cab_fsm_status(state);
 		if ((LockTime >= (DemodTimeOut - EQLTimeOut)) &&
 							(QAM_Lock == 0x04))
 			/*
@@ -2995,8 +2504,7 @@ enum stv0367_cab_signal_type stv0367cab_algo(struct stv0367_state *state,
 		do {
 			usleep_range(5000, 7000);
 			LockTime += 5;
-			QAMFEC_Lock = stv0367_readbits(state,
-							F367CAB_QAMFEC_LOCK);
+			QAMFEC_Lock = stv0367cab_qamfec_lock(state);
 		} while (!QAMFEC_Lock && (LockTime < FECTimeOut));
 	} else
 		QAMFEC_Lock = 0;
@@ -3007,17 +2515,17 @@ enum stv0367_cab_signal_type stv0367cab_algo(struct stv0367_state *state,
 							F367CAB_QUAD_INV);
 #if 0
 /* not clear for me */
-		if (state->config->if_khz != 0) {
-			if (state->config->if_khz > cab_state->adc_clk / 1000) {
+		if (ifkhz != 0) {
+			if (ifkhz > cab_state->adc_clk / 1000) {
 				cab_state->freq_khz =
 					FE_Cab_TunerGetFrequency(pIntParams->hTuner)
 				- stv0367cab_get_derot_freq(state, cab_state->adc_clk)
-				- cab_state->adc_clk / 1000 + state->config->if_khz;
+				- cab_state->adc_clk / 1000 + ifkhz;
 			} else {
 				cab_state->freq_khz =
 						FE_Cab_TunerGetFrequency(pIntParams->hTuner)
 						- stv0367cab_get_derot_freq(state, cab_state->adc_clk)
-										+ state->config->if_khz;
+						+ ifkhz;
 			}
 		} else {
 			cab_state->freq_khz =
@@ -3032,52 +2540,8 @@ enum stv0367_cab_signal_type stv0367cab_algo(struct stv0367_state *state,
 		cab_state->locked = 1;
 
 		/* stv0367_setbits(state, F367CAB_AGC_ACCUMRSTSEL,7);*/
-	} else {
-		switch (QAM_Lock) {
-		case 1:
-			signalType = FE_CAB_NOAGC;
-			break;
-		case 2:
-			signalType = FE_CAB_NOTIMING;
-			break;
-		case 3:
-			signalType = FE_CAB_TIMINGOK;
-			break;
-		case 4:
-			signalType = FE_CAB_NOCARRIER;
-			break;
-		case 5:
-			signalType = FE_CAB_CARRIEROK;
-			break;
-		case 7:
-			signalType = FE_CAB_NOBLIND;
-			break;
-		case 8:
-			signalType = FE_CAB_BLINDOK;
-			break;
-		case 10:
-			signalType = FE_CAB_NODEMOD;
-			break;
-		case 11:
-			signalType = FE_CAB_DEMODOK;
-			break;
-		case 12:
-			signalType = FE_CAB_DEMODOK;
-			break;
-		case 13:
-			signalType = FE_CAB_NODEMOD;
-			break;
-		case 14:
-			signalType = FE_CAB_NOBLIND;
-			break;
-		case 15:
-			signalType = FE_CAB_NOSIGNAL;
-			break;
-		default:
-			break;
-		}
-
-	}
+	} else
+		signalType = stv0367cab_fsm_signaltype(QAM_Lock);
 
 	/* Set the AGC control values to tracking values */
 	stv0367_writebits(state, F367CAB_AGC_ACCUMRSTSEL, TrackAGCAccum);
@@ -3116,14 +2580,15 @@ static int stv0367cab_set_frontend(struct dvb_frontend *fe)
 		break;
 	}
 
-	stv0367cab_init(fe);
+	if (state->reinit_on_setfrontend)
+		stv0367cab_init(fe);
 
 	/* Tuner Frequency Setting */
 	if (fe->ops.tuner_ops.set_params) {
-		if (fe->ops.i2c_gate_ctrl)
+		if (state->use_i2c_gatectrl && fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 1);
 		fe->ops.tuner_ops.set_params(fe);
-		if (fe->ops.i2c_gate_ctrl)
+		if (state->use_i2c_gatectrl && fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
@@ -3147,11 +2612,13 @@ static int stv0367cab_get_frontend(struct dvb_frontend *fe,
 {
 	struct stv0367_state *state = fe->demodulator_priv;
 	struct stv0367cab_state *cab_state = state->cab_state;
+	u32 ifkhz = 0;
 
 	enum stv0367cab_mod QAMSize;
 
 	dprintk("%s:\n", __func__);
 
+	stv0367_get_if_khz(state, &ifkhz);
 	p->symbol_rate = stv0367cab_GetSymbolRate(state, cab_state->mclk);
 
 	QAMSize = stv0367_readbits(state, F367CAB_QAM_MODE);
@@ -3179,19 +2646,19 @@ static int stv0367cab_get_frontend(struct dvb_frontend *fe,
 
 	dprintk("%s: tuner frequency = %d\n", __func__, p->frequency);
 
-	if (state->config->if_khz == 0) {
+	if (ifkhz == 0) {
 		p->frequency +=
 			(stv0367cab_get_derot_freq(state, cab_state->adc_clk) -
 			cab_state->adc_clk / 4000);
 		return 0;
 	}
 
-	if (state->config->if_khz > cab_state->adc_clk / 1000)
-		p->frequency += (state->config->if_khz
+	if (ifkhz > cab_state->adc_clk / 1000)
+		p->frequency += (ifkhz
 			- stv0367cab_get_derot_freq(state, cab_state->adc_clk)
 			- cab_state->adc_clk / 1000);
 	else
-		p->frequency += (state->config->if_khz
+		p->frequency += (ifkhz
 			- stv0367cab_get_derot_freq(state, cab_state->adc_clk));
 
 	return 0;
@@ -3278,51 +2745,61 @@ static int stv0367cab_read_strength(struct dvb_frontend *fe, u16 *strength)
 	return 0;
 }
 
-static int stv0367cab_read_snr(struct dvb_frontend *fe, u16 *snr)
+static int stv0367cab_snr_power(struct dvb_frontend *fe)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
-	u32 noisepercentage;
 	enum stv0367cab_mod QAMSize;
-	u32 regval = 0, temp = 0;
-	int power, i;
 
 	QAMSize = stv0367_readbits(state, F367CAB_QAM_MODE);
 	switch (QAMSize) {
 	case FE_CAB_MOD_QAM4:
-		power = 21904;
-		break;
+		return 21904;
 	case FE_CAB_MOD_QAM16:
-		power = 20480;
-		break;
+		return 20480;
 	case FE_CAB_MOD_QAM32:
-		power = 23040;
-		break;
+		return 23040;
 	case FE_CAB_MOD_QAM64:
-		power = 21504;
-		break;
+		return 21504;
 	case FE_CAB_MOD_QAM128:
-		power = 23616;
-		break;
+		return 23616;
 	case FE_CAB_MOD_QAM256:
-		power = 21760;
-		break;
-	case FE_CAB_MOD_QAM512:
-		power = 1;
-		break;
+		return 21760;
 	case FE_CAB_MOD_QAM1024:
-		power = 21280;
-		break;
+		return 21280;
 	default:
-		power = 1;
 		break;
 	}
+
+	return 1;
+}
+
+static int stv0367cab_snr_readreg(struct dvb_frontend *fe, int avgdiv)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	u32 regval = 0;
+	int i;
 
 	for (i = 0; i < 10; i++) {
 		regval += (stv0367_readbits(state, F367CAB_SNR_LO)
 			+ 256 * stv0367_readbits(state, F367CAB_SNR_HI));
 	}
 
-	regval /= 10; /*for average over 10 times in for loop above*/
+	if (avgdiv)
+		regval /= 10;
+
+	return regval;
+}
+
+static int stv0367cab_read_snr(struct dvb_frontend *fe, u16 *snr)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	u32 noisepercentage;
+	u32 regval = 0, temp = 0;
+	int power;
+
+	power = stv0367cab_snr_power(fe);
+	regval = stv0367cab_snr_readreg(fe, 1);
+
 	if (regval != 0) {
 		temp = power
 			* (1 << (3 + stv0367_readbits(state, F367CAB_SNR_PER)));
@@ -3432,10 +2909,17 @@ struct dvb_frontend *stv0367cab_attach(const struct stv0367_config *config,
 	state->i2c = i2c;
 	state->config = config;
 	cab_state->search_range = 280000;
+	cab_state->qamfec_status_reg = F367CAB_QAMFEC_LOCK;
 	state->cab_state = cab_state;
 	state->fe.ops = stv0367cab_ops;
 	state->fe.demodulator_priv = state;
 	state->chip_id = stv0367_readreg(state, 0xf000);
+
+	/* demod operation options */
+	state->use_i2c_gatectrl = 1;
+	state->deftabs = STV0367_DEFTAB_GENERIC;
+	state->reinit_on_setfrontend = 1;
+	state->auto_if_khz = 0;
 
 	dprintk("%s: chip_id = 0x%x\n", __func__, state->chip_id);
 
@@ -3451,6 +2935,428 @@ error:
 	return NULL;
 }
 EXPORT_SYMBOL(stv0367cab_attach);
+
+/*
+ * Functions for operation on Digital Devices hardware
+ */
+
+static void stv0367ddb_setup_ter(struct stv0367_state *state)
+{
+	stv0367_writereg(state, R367TER_DEBUG_LT4, 0x00);
+	stv0367_writereg(state, R367TER_DEBUG_LT5, 0x00);
+	stv0367_writereg(state, R367TER_DEBUG_LT6, 0x00); /* R367CAB_CTRL_1 */
+	stv0367_writereg(state, R367TER_DEBUG_LT7, 0x00); /* R367CAB_CTRL_2 */
+	stv0367_writereg(state, R367TER_DEBUG_LT8, 0x00);
+	stv0367_writereg(state, R367TER_DEBUG_LT9, 0x00);
+
+	/* Tuner Setup */
+	/* Buffer Q disabled, I Enabled, unsigned ADC */
+	stv0367_writereg(state, R367TER_ANADIGCTRL, 0x89);
+	stv0367_writereg(state, R367TER_DUAL_AD12, 0x04); /* ADCQ disabled */
+
+	/* Clock setup */
+	/* PLL bypassed and disabled */
+	stv0367_writereg(state, R367TER_ANACTRL, 0x0D);
+	stv0367_writereg(state, R367TER_TOPCTRL, 0x00); /* Set OFDM */
+
+	/* IC runs at 54 MHz with a 27 MHz crystal */
+	stv0367_pll_setup(state, STV0367_ICSPEED_53125, state->config->xtal);
+
+	msleep(50);
+	/* PLL enabled and used */
+	stv0367_writereg(state, R367TER_ANACTRL, 0x00);
+
+	state->activedemod = demod_ter;
+}
+
+static void stv0367ddb_setup_cab(struct stv0367_state *state)
+{
+	stv0367_writereg(state, R367TER_DEBUG_LT4, 0x00);
+	stv0367_writereg(state, R367TER_DEBUG_LT5, 0x01);
+	stv0367_writereg(state, R367TER_DEBUG_LT6, 0x06); /* R367CAB_CTRL_1 */
+	stv0367_writereg(state, R367TER_DEBUG_LT7, 0x03); /* R367CAB_CTRL_2 */
+	stv0367_writereg(state, R367TER_DEBUG_LT8, 0x00);
+	stv0367_writereg(state, R367TER_DEBUG_LT9, 0x00);
+
+	/* Tuner Setup */
+	/* Buffer Q disabled, I Enabled, signed ADC */
+	stv0367_writereg(state, R367TER_ANADIGCTRL, 0x8B);
+	/* ADCQ disabled */
+	stv0367_writereg(state, R367TER_DUAL_AD12, 0x04);
+
+	/* Clock setup */
+	/* PLL bypassed and disabled */
+	stv0367_writereg(state, R367TER_ANACTRL, 0x0D);
+	/* Set QAM */
+	stv0367_writereg(state, R367TER_TOPCTRL, 0x10);
+
+	/* IC runs at 58 MHz with a 27 MHz crystal */
+	stv0367_pll_setup(state, STV0367_ICSPEED_58000, state->config->xtal);
+
+	msleep(50);
+	/* PLL enabled and used */
+	stv0367_writereg(state, R367TER_ANACTRL, 0x00);
+
+	state->cab_state->mclk = stv0367cab_get_mclk(&state->fe,
+		state->config->xtal);
+	state->cab_state->adc_clk = stv0367cab_get_adc_freq(&state->fe,
+		state->config->xtal);
+
+	state->activedemod = demod_cab;
+}
+
+static int stv0367ddb_set_frontend(struct dvb_frontend *fe)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+
+	switch (fe->dtv_property_cache.delivery_system) {
+	case SYS_DVBT:
+		if (state->activedemod != demod_ter)
+			stv0367ddb_setup_ter(state);
+
+		return stv0367ter_set_frontend(fe);
+	case SYS_DVBC_ANNEX_A:
+		if (state->activedemod != demod_cab)
+			stv0367ddb_setup_cab(state);
+
+		/* protect against division error oopses */
+		if (fe->dtv_property_cache.symbol_rate == 0) {
+			printk(KERN_ERR "Invalid symbol rate\n");
+			return -EINVAL;
+		}
+
+		return stv0367cab_set_frontend(fe);
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static void stv0367ddb_read_signal_strength(struct dvb_frontend *fe)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	s32 signalstrength;
+
+	switch (state->activedemod) {
+	case demod_cab:
+		signalstrength = stv0367cab_get_rf_lvl(state) * 1000;
+		break;
+	default:
+		p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return;
+	}
+
+	p->strength.stat[0].scale = FE_SCALE_DECIBEL;
+	p->strength.stat[0].uvalue = signalstrength;
+}
+
+static void stv0367ddb_read_snr(struct dvb_frontend *fe)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	int cab_pwr;
+	u32 regval, tmpval, snrval = 0;
+
+	switch (state->activedemod) {
+	case demod_ter:
+		snrval = stv0367ter_snr_readreg(fe);
+		break;
+	case demod_cab:
+		cab_pwr = stv0367cab_snr_power(fe);
+		regval = stv0367cab_snr_readreg(fe, 0);
+
+		/* prevent division by zero */
+		if (!regval) {
+			snrval = 0;
+			break;
+		}
+
+		tmpval = (cab_pwr * 320) / regval;
+		snrval = ((tmpval != 0) ? (intlog2(tmpval) / 5581) : 0);
+		break;
+	default:
+		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return;
+	}
+
+	p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+	p->cnr.stat[0].uvalue = snrval;
+}
+
+static void stv0367ddb_read_ucblocks(struct dvb_frontend *fe)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	u32 ucblocks = 0;
+
+	switch (state->activedemod) {
+	case demod_ter:
+		stv0367ter_read_ucblocks(fe, &ucblocks);
+		break;
+	case demod_cab:
+		stv0367cab_read_ucblcks(fe, &ucblocks);
+		break;
+	default:
+		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return;
+	}
+
+	p->block_error.stat[0].scale = FE_SCALE_COUNTER;
+	p->block_error.stat[0].uvalue = ucblocks;
+}
+
+static int stv0367ddb_read_status(struct dvb_frontend *fe,
+				  enum fe_status *status)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	int ret = 0;
+
+	switch (state->activedemod) {
+	case demod_ter:
+		ret = stv0367ter_read_status(fe, status);
+		break;
+	case demod_cab:
+		ret = stv0367cab_read_status(fe, status);
+		break;
+	default:
+		break;
+	}
+
+	/* stop and report on *_read_status failure */
+	if (ret)
+		return ret;
+
+	stv0367ddb_read_signal_strength(fe);
+
+	/* read carrier/noise when a carrier is detected */
+	if (*status & FE_HAS_CARRIER)
+		stv0367ddb_read_snr(fe);
+	else
+		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
+	/* read uncorrected blocks on FE_HAS_LOCK */
+	if (*status & FE_HAS_LOCK)
+		stv0367ddb_read_ucblocks(fe);
+	else
+		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
+	return 0;
+}
+
+static int stv0367ddb_get_frontend(struct dvb_frontend *fe,
+				   struct dtv_frontend_properties *p)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+
+	switch (state->activedemod) {
+	case demod_ter:
+		return stv0367ter_get_frontend(fe, p);
+	case demod_cab:
+		return stv0367cab_get_frontend(fe, p);
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int stv0367ddb_sleep(struct dvb_frontend *fe)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+
+	switch (state->activedemod) {
+	case demod_ter:
+		state->activedemod = demod_none;
+		return stv0367ter_sleep(fe);
+	case demod_cab:
+		state->activedemod = demod_none;
+		return stv0367cab_sleep(fe);
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static int stv0367ddb_init(struct stv0367_state *state)
+{
+	struct stv0367ter_state *ter_state = state->ter_state;
+	struct dtv_frontend_properties *p = &state->fe.dtv_property_cache;
+
+	stv0367_writereg(state, R367TER_TOPCTRL, 0x10);
+
+	if (stv0367_deftabs[state->deftabs][STV0367_TAB_BASE])
+		stv0367_write_table(state,
+			stv0367_deftabs[state->deftabs][STV0367_TAB_BASE]);
+
+	stv0367_write_table(state,
+		stv0367_deftabs[state->deftabs][STV0367_TAB_CAB]);
+
+	stv0367_writereg(state, R367TER_TOPCTRL, 0x00);
+	stv0367_write_table(state,
+		stv0367_deftabs[state->deftabs][STV0367_TAB_TER]);
+
+	stv0367_writereg(state, R367TER_GAIN_SRC1, 0x2A);
+	stv0367_writereg(state, R367TER_GAIN_SRC2, 0xD6);
+	stv0367_writereg(state, R367TER_INC_DEROT1, 0x55);
+	stv0367_writereg(state, R367TER_INC_DEROT2, 0x55);
+	stv0367_writereg(state, R367TER_TRL_CTL, 0x14);
+	stv0367_writereg(state, R367TER_TRL_NOMRATE1, 0xAE);
+	stv0367_writereg(state, R367TER_TRL_NOMRATE2, 0x56);
+	stv0367_writereg(state, R367TER_FEPATH_CFG, 0x0);
+
+	/* OFDM TS Setup */
+
+	stv0367_writereg(state, R367TER_TSCFGH, 0x70);
+	stv0367_writereg(state, R367TER_TSCFGM, 0xC0);
+	stv0367_writereg(state, R367TER_TSCFGL, 0x20);
+	stv0367_writereg(state, R367TER_TSSPEED, 0x40); /* Fixed at 54 MHz */
+
+	stv0367_writereg(state, R367TER_TSCFGH, 0x71);
+	stv0367_writereg(state, R367TER_TSCFGH, 0x70);
+
+	stv0367_writereg(state, R367TER_TOPCTRL, 0x10);
+
+	/* Also needed for QAM */
+	stv0367_writereg(state, R367TER_AGC12C, 0x01); /* AGC Pin setup */
+
+	stv0367_writereg(state, R367TER_AGCCTRL1, 0x8A);
+
+	/* QAM TS setup, note exact format also depends on descrambler */
+	/* settings */
+	/* Inverted Clock, Swap, serial */
+	stv0367_writereg(state, R367CAB_OUTFORMAT_0, 0x85);
+
+	/* Clock setup (PLL bypassed and disabled) */
+	stv0367_writereg(state, R367TER_ANACTRL, 0x0D);
+
+	/* IC runs at 58 MHz with a 27 MHz crystal */
+	stv0367_pll_setup(state, STV0367_ICSPEED_58000, state->config->xtal);
+
+	/* Tuner setup */
+	/* Buffer Q disabled, I Enabled, signed ADC */
+	stv0367_writereg(state, R367TER_ANADIGCTRL, 0x8b);
+	stv0367_writereg(state, R367TER_DUAL_AD12, 0x04); /* ADCQ disabled */
+
+	/* Improves the C/N lock limit */
+	stv0367_writereg(state, R367CAB_FSM_SNR2_HTH, 0x23);
+	/* ZIF/IF Automatic mode */
+	stv0367_writereg(state, R367CAB_IQ_QAM, 0x01);
+	/* Improving burst noise performances */
+	stv0367_writereg(state, R367CAB_EQU_FFE_LEAKAGE, 0x83);
+	/* Improving ACI performances */
+	stv0367_writereg(state, R367CAB_IQDEM_ADJ_EN, 0x05);
+
+	/* PLL enabled and used */
+	stv0367_writereg(state, R367TER_ANACTRL, 0x00);
+
+	stv0367_writereg(state, R367TER_I2CRPT, (0x08 | ((5 & 0x07) << 4)));
+
+	ter_state->pBER = 0;
+	ter_state->first_lock = 0;
+	ter_state->unlock_counter = 2;
+
+	p->strength.len = 1;
+	p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->cnr.len = 1;
+	p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->block_error.len = 1;
+	p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
+	return 0;
+}
+
+static const struct dvb_frontend_ops stv0367ddb_ops = {
+	.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBT },
+	.info = {
+		.name			= "ST STV0367 DDB DVB-C/T",
+		.frequency_min		= 47000000,
+		.frequency_max		= 865000000,
+		.frequency_stepsize	= 166667,
+		.frequency_tolerance	= 0,
+		.symbol_rate_min	= 870000,
+		.symbol_rate_max	= 11700000,
+		.caps = /* DVB-C */
+			0x400 |/* FE_CAN_QAM_4 */
+			FE_CAN_QAM_16 | FE_CAN_QAM_32  |
+			FE_CAN_QAM_64 | FE_CAN_QAM_128 |
+			FE_CAN_QAM_256 |
+			/* DVB-T */
+			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
+			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
+			FE_CAN_QPSK | FE_CAN_TRANSMISSION_MODE_AUTO |
+			FE_CAN_RECOVER | FE_CAN_INVERSION_AUTO |
+			FE_CAN_MUTE_TS
+	},
+	.release = stv0367_release,
+	.sleep = stv0367ddb_sleep,
+	.i2c_gate_ctrl = stv0367cab_gate_ctrl, /* valid for TER and CAB */
+	.set_frontend = stv0367ddb_set_frontend,
+	.get_frontend = stv0367ddb_get_frontend,
+	.get_tune_settings = stv0367_get_tune_settings,
+	.read_status = stv0367ddb_read_status,
+};
+
+struct dvb_frontend *stv0367ddb_attach(const struct stv0367_config *config,
+				   struct i2c_adapter *i2c)
+{
+	struct stv0367_state *state = NULL;
+	struct stv0367ter_state *ter_state = NULL;
+	struct stv0367cab_state *cab_state = NULL;
+
+	/* allocate memory for the internal state */
+	state = kzalloc(sizeof(struct stv0367_state), GFP_KERNEL);
+	if (state == NULL)
+		goto error;
+	ter_state = kzalloc(sizeof(struct stv0367ter_state), GFP_KERNEL);
+	if (ter_state == NULL)
+		goto error;
+	cab_state = kzalloc(sizeof(struct stv0367cab_state), GFP_KERNEL);
+	if (cab_state == NULL)
+		goto error;
+
+	/* setup the state */
+	state->i2c = i2c;
+	state->config = config;
+	state->ter_state = ter_state;
+	cab_state->search_range = 280000;
+	cab_state->qamfec_status_reg = F367CAB_DESCR_SYNCSTATE;
+	state->cab_state = cab_state;
+	state->fe.ops = stv0367ddb_ops;
+	state->fe.demodulator_priv = state;
+	state->chip_id = stv0367_readreg(state, R367TER_ID);
+
+	/* demod operation options */
+	state->use_i2c_gatectrl = 0;
+	state->deftabs = STV0367_DEFTAB_DDB;
+	state->reinit_on_setfrontend = 0;
+	state->auto_if_khz = 1;
+	state->activedemod = demod_none;
+
+	dprintk("%s: chip_id = 0x%x\n", __func__, state->chip_id);
+
+	/* check if the demod is there */
+	if ((state->chip_id != 0x50) && (state->chip_id != 0x60))
+		goto error;
+
+	dev_info(&i2c->dev, "Found %s with ChipID %02X at adr %02X\n",
+		state->fe.ops.info.name, state->chip_id,
+		config->demod_address);
+
+	stv0367ddb_init(state);
+
+	return &state->fe;
+
+error:
+	kfree(cab_state);
+	kfree(ter_state);
+	kfree(state);
+	return NULL;
+}
+EXPORT_SYMBOL(stv0367ddb_attach);
 
 MODULE_PARM_DESC(debug, "Set debug");
 MODULE_PARM_DESC(i2c_debug, "Set i2c debug");

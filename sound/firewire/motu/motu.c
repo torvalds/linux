@@ -103,7 +103,10 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	if (motu->spec->flags & SND_MOTU_SPEC_HAS_MIDI) {
+	if ((motu->spec->flags & SND_MOTU_SPEC_RX_MIDI_2ND_Q) ||
+	    (motu->spec->flags & SND_MOTU_SPEC_RX_MIDI_3RD_Q) ||
+	    (motu->spec->flags & SND_MOTU_SPEC_TX_MIDI_2ND_Q) ||
+	    (motu->spec->flags & SND_MOTU_SPEC_TX_MIDI_3RD_Q)) {
 		err = snd_motu_create_midi_devices(motu);
 		if (err < 0)
 			goto error;
@@ -128,6 +131,7 @@ static void do_registration(struct work_struct *work)
 	return;
 error:
 	snd_motu_transaction_unregister(motu);
+	snd_motu_stream_destroy_duplex(motu);
 	snd_card_free(motu->card);
 	dev_info(&motu->unit->device,
 		 "Sound card registration failed: %d\n", err);
@@ -190,20 +194,21 @@ static void motu_bus_update(struct fw_unit *unit)
 	snd_motu_transaction_reregister(motu);
 }
 
-static struct snd_motu_spec motu_828mk2 = {
+static const struct snd_motu_spec motu_828mk2 = {
 	.name = "828mk2",
 	.protocol = &snd_motu_protocol_v2,
 	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
 		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
 		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
 		 SND_MOTU_SPEC_HAS_OPT_IFACE_A |
-		 SND_MOTU_SPEC_HAS_MIDI,
+		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
+		 SND_MOTU_SPEC_TX_MIDI_2ND_Q,
 
 	.analog_in_ports = 8,
 	.analog_out_ports = 8,
 };
 
-static struct snd_motu_spec motu_828mk3 = {
+static const struct snd_motu_spec motu_828mk3 = {
 	.name = "828mk3",
 	.protocol = &snd_motu_protocol_v3,
 	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
@@ -213,10 +218,23 @@ static struct snd_motu_spec motu_828mk3 = {
 		 SND_MOTU_SPEC_TX_REVERB_CHUNK |
 		 SND_MOTU_SPEC_HAS_OPT_IFACE_A |
 		 SND_MOTU_SPEC_HAS_OPT_IFACE_B |
-		 SND_MOTU_SPEC_HAS_MIDI,
+		 SND_MOTU_SPEC_RX_MIDI_3RD_Q |
+		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
 
 	.analog_in_ports = 8,
 	.analog_out_ports = 8,
+};
+
+static const struct snd_motu_spec motu_audio_express = {
+	.name = "AudioExpress",
+	.protocol = &snd_motu_protocol_v3,
+	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
+		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
+		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
+		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
+		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
+	.analog_in_ports = 2,
+	.analog_out_ports = 4,
 };
 
 #define SND_MOTU_DEV_ENTRY(model, data)			\
@@ -234,6 +252,7 @@ static const struct ieee1394_device_id motu_id_table[] = {
 	SND_MOTU_DEV_ENTRY(0x101800, &motu_828mk2),
 	SND_MOTU_DEV_ENTRY(0x106800, &motu_828mk3),	/* FireWire only. */
 	SND_MOTU_DEV_ENTRY(0x100800, &motu_828mk3),	/* Hybrid. */
+	SND_MOTU_DEV_ENTRY(0x104800, &motu_audio_express),
 	{ }
 };
 MODULE_DEVICE_TABLE(ieee1394, motu_id_table);

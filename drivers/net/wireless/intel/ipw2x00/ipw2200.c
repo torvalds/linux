@@ -1195,12 +1195,12 @@ static void ipw_led_shutdown(struct ipw_priv *priv)
  *
  * See the level definitions in ipw for details.
  */
-static ssize_t show_debug_level(struct device_driver *d, char *buf)
+static ssize_t debug_level_show(struct device_driver *d, char *buf)
 {
 	return sprintf(buf, "0x%08X\n", ipw_debug_level);
 }
 
-static ssize_t store_debug_level(struct device_driver *d, const char *buf,
+static ssize_t debug_level_store(struct device_driver *d, const char *buf,
 				 size_t count)
 {
 	char *p = (char *)buf;
@@ -1221,9 +1221,7 @@ static ssize_t store_debug_level(struct device_driver *d, const char *buf,
 
 	return strnlen(buf, count);
 }
-
-static DRIVER_ATTR(debug_level, S_IWUSR | S_IRUGO,
-		   show_debug_level, store_debug_level);
+static DRIVER_ATTR_RW(debug_level);
 
 static inline u32 ipw_get_event_log_len(struct ipw_priv *priv)
 {
@@ -3211,7 +3209,7 @@ static int ipw_load_firmware(struct ipw_priv *priv, u8 * data, size_t len)
 	struct fw_chunk *chunk;
 	int total_nr = 0;
 	int i;
-	struct pci_pool *pool;
+	struct dma_pool *pool;
 	void **virts;
 	dma_addr_t *phys;
 
@@ -3228,9 +3226,10 @@ static int ipw_load_firmware(struct ipw_priv *priv, u8 * data, size_t len)
 		kfree(virts);
 		return -ENOMEM;
 	}
-	pool = pci_pool_create("ipw2200", priv->pci_dev, CB_MAX_LENGTH, 0, 0);
+	pool = dma_pool_create("ipw2200", &priv->pci_dev->dev, CB_MAX_LENGTH, 0,
+			       0);
 	if (!pool) {
-		IPW_ERROR("pci_pool_create failed\n");
+		IPW_ERROR("dma_pool_create failed\n");
 		kfree(phys);
 		kfree(virts);
 		return -ENOMEM;
@@ -3255,7 +3254,7 @@ static int ipw_load_firmware(struct ipw_priv *priv, u8 * data, size_t len)
 
 		nr = (chunk_len + CB_MAX_LENGTH - 1) / CB_MAX_LENGTH;
 		for (i = 0; i < nr; i++) {
-			virts[total_nr] = pci_pool_alloc(pool, GFP_KERNEL,
+			virts[total_nr] = dma_pool_alloc(pool, GFP_KERNEL,
 							 &phys[total_nr]);
 			if (!virts[total_nr]) {
 				ret = -ENOMEM;
@@ -3299,9 +3298,9 @@ static int ipw_load_firmware(struct ipw_priv *priv, u8 * data, size_t len)
 	}
  out:
 	for (i = 0; i < total_nr; i++)
-		pci_pool_free(pool, virts[i], phys[i]);
+		dma_pool_free(pool, virts[i], phys[i]);
 
-	pci_pool_destroy(pool);
+	dma_pool_destroy(pool);
 	kfree(phys);
 	kfree(virts);
 
@@ -10010,7 +10009,7 @@ static iw_handler ipw_priv_handler[] = {
 #endif
 };
 
-static struct iw_handler_def ipw_wx_handler_def = {
+static const struct iw_handler_def ipw_wx_handler_def = {
 	.standard = ipw_wx_handlers,
 	.num_standard = ARRAY_SIZE(ipw_wx_handlers),
 	.num_private = ARRAY_SIZE(ipw_priv_handler),
@@ -10274,8 +10273,9 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct libipw_txb *txb,
 
 				printk(KERN_INFO "Adding frag %d %d...\n",
 				       j, size);
-				memcpy(skb_put(skb, size),
-				       txb->fragments[j]->data + hdr_len, size);
+				skb_put_data(skb,
+					     txb->fragments[j]->data + hdr_len,
+					     size);
 			}
 			dev_kfree_skb_any(txb->fragments[i]);
 			txb->fragments[i] = skb;
@@ -10370,7 +10370,7 @@ static void ipw_handle_promiscuous_tx(struct ipw_priv *priv,
 		if (!dst)
 			continue;
 
-		rt_hdr = (void *)skb_put(dst, sizeof(*rt_hdr));
+		rt_hdr = skb_put(dst, sizeof(*rt_hdr));
 
 		rt_hdr->it_version = PKTHDR_RADIOTAP_VERSION;
 		rt_hdr->it_pad = 0;
@@ -11501,7 +11501,7 @@ static struct attribute *ipw_sysfs_entries[] = {
 	NULL
 };
 
-static struct attribute_group ipw_attribute_group = {
+static const struct attribute_group ipw_attribute_group = {
 	.name = NULL,		/* put in device directory */
 	.attrs = ipw_sysfs_entries,
 };

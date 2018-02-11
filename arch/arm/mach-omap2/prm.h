@@ -16,7 +16,7 @@
 #include "prcm-common.h"
 
 # ifndef __ASSEMBLER__
-extern void __iomem *prm_base;
+extern struct omap_domain_base prm_base;
 extern u16 prm_features;
 extern void omap2_set_globals_prm(void __iomem *prm);
 int omap_prcm_init(void);
@@ -29,11 +29,9 @@ int omap2_prcm_base_init(void);
  *
  * PRM_HAS_IO_WAKEUP: has IO wakeup capability
  * PRM_HAS_VOLTAGE: has voltage domains
- * PRM_IRQ_DEFAULT: use default irq number for PRM irq
  */
 #define PRM_HAS_IO_WAKEUP	BIT(0)
 #define PRM_HAS_VOLTAGE		BIT(1)
-#define PRM_IRQ_DEFAULT		BIT(2)
 
 /*
  * MAX_MODULE_SOFTRESET_WAIT: Maximum microseconds to wait for OMAP

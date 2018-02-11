@@ -30,7 +30,7 @@
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 
-const char *mxs_lradc_ts_irq_names[] = {
+static const char * const mxs_lradc_ts_irq_names[] = {
 	"mxs-lradc-touchscreen",
 	"mxs-lradc-channel6",
 	"mxs-lradc-channel7",
@@ -584,7 +584,7 @@ static void mxs_lradc_ts_hw_init(struct mxs_lradc_ts *ts)
 
 static int mxs_lradc_ts_register(struct mxs_lradc_ts *ts)
 {
-	struct input_dev *input = ts->ts_input;
+	struct input_dev *input;
 	struct device *dev = ts->dev;
 
 	input = devm_input_allocate_device(dev);
@@ -630,9 +630,11 @@ static int mxs_lradc_ts_probe(struct platform_device *pdev)
 	spin_lock_init(&ts->lock);
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!iores)
+		return -EINVAL;
 	ts->base = devm_ioremap(dev, iores->start, resource_size(iores));
-	if (IS_ERR(ts->base))
-		return PTR_ERR(ts->base);
+	if (!ts->base)
+		return -ENOMEM;
 
 	ret = of_property_read_u32(node, "fsl,lradc-touchscreen-wires",
 				   &ts_wires);

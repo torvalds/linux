@@ -15,7 +15,6 @@ smsc phy with disabled energy detect mode on an am335x based board.
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&davinci_mdio_default>;
 	pinctrl-1 = <&davinci_mdio_sleep>;
-	status = "okay";
 
 	ethernetphy0: ethernet-phy@0 {
 		reg = <0>;

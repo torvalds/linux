@@ -44,11 +44,10 @@ struct ib_ah *hns_roce_create_ah(struct ib_pd *ibpd,
 				 struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibpd->device);
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	struct ib_gid_attr gid_attr;
 	struct hns_roce_ah *ah;
 	u16 vlan_tag = 0xffff;
-	struct in6_addr in6;
 	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
 	union ib_gid sgid;
 	int ret;
@@ -58,16 +57,7 @@ struct ib_ah *hns_roce_create_ah(struct ib_pd *ibpd,
 		return ERR_PTR(-ENOMEM);
 
 	/* Get mac address */
-	memcpy(&in6, grh->dgid.raw, sizeof(grh->dgid.raw));
-	if (rdma_is_multicast_addr(&in6)) {
-		rdma_get_mcast_mac(&in6, ah->av.mac);
-	} else {
-		u8 *dmac = rdma_ah_retrieve_dmac(ah_attr);
-
-		if (!dmac)
-			return ERR_PTR(-EINVAL);
-		memcpy(ah->av.mac, dmac, ETH_ALEN);
-	}
+	memcpy(ah->av.mac, ah_attr->roce.dmac, ETH_ALEN);
 
 	/* Get source gid */
 	ret = ib_get_cached_gid(ibpd->device, rdma_ah_get_port_num(ah_attr),

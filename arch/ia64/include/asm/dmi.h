@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_DMI_H
 #define _ASM_DMI_H 1
 

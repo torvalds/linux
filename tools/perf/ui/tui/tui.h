@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PERF_TUI_H_
 #define _PERF_TUI_H_ 1
 

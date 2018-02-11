@@ -39,15 +39,15 @@ struct ath79_spi {
 	u32			reg_ctrl;
 	void __iomem		*base;
 	struct clk		*clk;
-	unsigned		rrw_delay;
+	unsigned int		rrw_delay;
 };
 
-static inline u32 ath79_spi_rr(struct ath79_spi *sp, unsigned reg)
+static inline u32 ath79_spi_rr(struct ath79_spi *sp, unsigned int reg)
 {
 	return ioread32(sp->base + reg);
 }
 
-static inline void ath79_spi_wr(struct ath79_spi *sp, unsigned reg, u32 val)
+static inline void ath79_spi_wr(struct ath79_spi *sp, unsigned int reg, u32 val)
 {
 	iowrite32(val, sp->base + reg);
 }
@@ -57,7 +57,7 @@ static inline struct ath79_spi *ath79_spidev_to_sp(struct spi_device *spi)
 	return spi_master_get_devdata(spi->master);
 }
 
-static inline void ath79_spi_delay(struct ath79_spi *sp, unsigned nsecs)
+static inline void ath79_spi_delay(struct ath79_spi *sp, unsigned int nsecs)
 {
 	if (nsecs > sp->rrw_delay)
 		ndelay(nsecs - sp->rrw_delay);
@@ -148,9 +148,8 @@ static int ath79_spi_setup_cs(struct spi_device *spi)
 
 static void ath79_spi_cleanup_cs(struct spi_device *spi)
 {
-	if (gpio_is_valid(spi->cs_gpio)) {
+	if (gpio_is_valid(spi->cs_gpio))
 		gpio_free(spi->cs_gpio);
-	}
 }
 
 static int ath79_spi_setup(struct spi_device *spi)
@@ -176,7 +175,7 @@ static void ath79_spi_cleanup(struct spi_device *spi)
 	spi_bitbang_cleanup(spi);
 }
 
-static u32 ath79_spi_txrx_mode0(struct spi_device *spi, unsigned nsecs,
+static u32 ath79_spi_txrx_mode0(struct spi_device *spi, unsigned int nsecs,
 			       u32 word, u8 bits)
 {
 	struct ath79_spi *sp = ath79_spidev_to_sp(spi);

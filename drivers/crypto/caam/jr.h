@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * CAAM public-level include definitions for the JobR backend
  *

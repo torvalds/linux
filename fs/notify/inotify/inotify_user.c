@@ -376,7 +376,7 @@ static struct inotify_inode_mark *inotify_idr_find_locked(struct fsnotify_group 
 
 		fsnotify_get_mark(fsn_mark);
 		/* One ref for being in the idr, one ref we just took */
-		BUG_ON(atomic_read(&fsn_mark->refcnt) < 2);
+		BUG_ON(refcount_read(&fsn_mark->refcnt) < 2);
 	}
 
 	return i_mark;
@@ -446,7 +446,7 @@ static void inotify_remove_from_idr(struct fsnotify_group *group,
 	 * One ref for being in the idr
 	 * one ref grabbed by inotify_idr_find
 	 */
-	if (unlikely(atomic_read(&i_mark->fsn_mark.refcnt) < 2)) {
+	if (unlikely(refcount_read(&i_mark->fsn_mark.refcnt) < 2)) {
 		printk(KERN_ERR "%s: i_mark=%p i_mark->wd=%d i_mark->group=%p\n",
 			 __func__, i_mark, i_mark->wd, i_mark->fsn_mark.group);
 		/* we can't really recover with bad ref cnting.. */

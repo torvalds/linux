@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * s390 specific pci instructions
  *
@@ -7,6 +8,7 @@
 #include <linux/export.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
+#include <asm/facility.h>
 #include <asm/pci_insn.h>
 #include <asm/pci_debug.h>
 #include <asm/processor.h>
@@ -40,20 +42,20 @@ static inline u8 __mpcifc(u64 req, struct zpci_fib *fib, u8 *status)
 	return cc;
 }
 
-int zpci_mod_fc(u64 req, struct zpci_fib *fib)
+u8 zpci_mod_fc(u64 req, struct zpci_fib *fib, u8 *status)
 {
-	u8 cc, status;
+	u8 cc;
 
 	do {
-		cc = __mpcifc(req, fib, &status);
+		cc = __mpcifc(req, fib, status);
 		if (cc == 2)
 			msleep(ZPCI_INSN_BUSY_DELAY);
 	} while (cc == 2);
 
 	if (cc)
-		zpci_err_insn(cc, status, req, 0);
+		zpci_err_insn(cc, *status, req, 0);
 
-	return (cc) ? -EIO : 0;
+	return cc;
 }
 
 /* Refresh PCI Translations */
@@ -87,15 +89,21 @@ int zpci_refresh_trans(u64 fn, u64 addr, u64 range)
 	if (cc)
 		zpci_err_insn(cc, status, addr, range);
 
+	if (cc == 1 && (status == 4 || status == 16))
+		return -ENOMEM;
+
 	return (cc) ? -EIO : 0;
 }
 
 /* Set Interruption Controls */
-void zpci_set_irq_ctrl(u16 ctl, char *unused, u8 isc)
+int zpci_set_irq_ctrl(u16 ctl, char *unused, u8 isc)
 {
+	if (!test_facility(72))
+		return -EIO;
 	asm volatile (
 		"	.insn	rsy,0xeb00000000d1,%[ctl],%[isc],%[u]\n"
 		: : [ctl] "d" (ctl), [isc] "d" (isc << 27), [u] "Q" (*unused));
+	return 0;
 }
 
 /* PCI Load */

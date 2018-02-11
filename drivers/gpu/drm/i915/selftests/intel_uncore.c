@@ -127,7 +127,7 @@ static int intel_uncore_check_forcewake_domains(struct drm_i915_private *dev_pri
 		return 0;
 
 	valid = kzalloc(BITS_TO_LONGS(FW_RANGE) * sizeof(*valid),
-			GFP_TEMPORARY);
+			GFP_KERNEL);
 	if (!valid)
 		return -ENOMEM;
 

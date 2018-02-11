@@ -101,11 +101,6 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *r)
 	return 1;
 }
 
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	return task_pt_regs(tsk)->cp0_epc;
-}
-
 unsigned long get_wchan(struct task_struct *task)
 {
 	if (!task || task == current || task->state == TASK_RUNNING)

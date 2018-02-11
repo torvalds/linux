@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "tw5864.h"
 
 void tw5864_indir_writeb(struct tw5864_dev *dev, u16 addr, u8 data)

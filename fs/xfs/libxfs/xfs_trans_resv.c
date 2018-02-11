@@ -477,14 +477,14 @@ xfs_calc_mkdir_reservation(
 /*
  * Making a new symplink is the same as creating a new file, but
  * with the added blocks for remote symlink data which can be up to 1kB in
- * length (MAXPATHLEN).
+ * length (XFS_SYMLINK_MAXLEN).
  */
 STATIC uint
 xfs_calc_symlink_reservation(
 	struct xfs_mount	*mp)
 {
 	return xfs_calc_create_reservation(mp) +
-	       xfs_calc_buf_res(1, MAXPATHLEN);
+	       xfs_calc_buf_res(1, XFS_SYMLINK_MAXLEN);
 }
 
 /*

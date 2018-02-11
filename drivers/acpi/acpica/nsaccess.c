@@ -47,6 +47,10 @@
 #include "acnamesp.h"
 #include "acdispat.h"
 
+#ifdef ACPI_ASL_COMPILER
+#include "acdisasm.h"
+#endif
+
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsaccess")
 
@@ -288,6 +292,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 {
 	acpi_status status;
 	char *path = pathname;
+	char *external_path;
 	struct acpi_namespace_node *prefix_node;
 	struct acpi_namespace_node *current_node = NULL;
 	struct acpi_namespace_node *this_node = NULL;
@@ -423,13 +428,22 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 				num_carats++;
 				this_node = this_node->parent;
 				if (!this_node) {
+					/*
+					 * Current scope has no parent scope. Externalize
+					 * the internal path for error message.
+					 */
+					status =
+					    acpi_ns_externalize_name
+					    (ACPI_UINT32_MAX, pathname, NULL,
+					     &external_path);
+					if (ACPI_SUCCESS(status)) {
+						ACPI_ERROR((AE_INFO,
+							    "%s: Path has too many parent prefixes (^)",
+							    external_path));
 
-					/* Current scope has no parent scope */
+						ACPI_FREE(external_path);
+					}
 
-					ACPI_ERROR((AE_INFO,
-						    "%s: Path has too many parent prefixes (^) "
-						    "- reached beyond root node",
-						    pathname));
 					return_ACPI_STATUS(AE_NOT_FOUND);
 				}
 			}
@@ -580,6 +594,29 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 						  (char *)&current_node->name,
 						  current_node));
 			}
+#ifdef ACPI_ASL_COMPILER
+			/*
+			 * If this ACPI name already exists within the namespace as an
+			 * external declaration, then mark the external as a conflicting
+			 * declaration and proceed to process the current node as if it did
+			 * not exist in the namespace. If this node is not processed as
+			 * normal, then it could cause improper namespace resolution
+			 * by failing to open a new scope.
+			 */
+			if (acpi_gbl_disasm_flag &&
+			    (status == AE_ALREADY_EXISTS) &&
+			    ((this_node->flags & ANOBJ_IS_EXTERNAL) ||
+			     (walk_state
+			      && walk_state->opcode == AML_EXTERNAL_OP))) {
+				this_node->flags &= ~ANOBJ_IS_EXTERNAL;
+				this_node->type = (u8)this_search_type;
+				if (walk_state->opcode != AML_EXTERNAL_OP) {
+					acpi_dm_mark_external_conflict
+					    (this_node);
+				}
+				break;
+			}
+#endif
 
 			*return_node = this_node;
 			return_ACPI_STATUS(status);
@@ -607,6 +644,12 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 					    this_node->object;
 				}
 			}
+#ifdef ACPI_ASL_COMPILER
+			if (!acpi_gbl_disasm_flag &&
+			    (this_node->flags & ANOBJ_IS_EXTERNAL)) {
+				this_node->flags |= IMPLICIT_EXTERNAL;
+			}
+#endif
 		}
 
 		/* Special handling for the last segment (num_segments == 0) */

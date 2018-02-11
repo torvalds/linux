@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus operations
  *
  * Copyright 2015-2016 Google Inc.
- *
- * Released under the GPLv2 only.
  */
 
 #include <linux/slab.h>

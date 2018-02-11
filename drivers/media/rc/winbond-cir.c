@@ -429,7 +429,7 @@ wbcir_irq_tx(struct wbcir_data *data)
 		bytes[used] = byte;
 	}
 
-	while (data->txbuf[data->txoff] == 0 && data->txoff != data->txlen)
+	while (data->txoff != data->txlen && data->txbuf[data->txoff] == 0)
 		data->txoff++;
 
 	if (used == 0) {
@@ -697,7 +697,7 @@ wbcir_shutdown(struct pnp_dev *device)
 	}
 
 	switch (rc->wakeup_protocol) {
-	case RC_TYPE_RC5:
+	case RC_PROTO_RC5:
 		/* Mask = 13 bits, ex toggle */
 		mask[0]  = (mask_sc & 0x003f);
 		mask[0] |= (mask_sc & 0x0300) >> 2;
@@ -714,7 +714,7 @@ wbcir_shutdown(struct pnp_dev *device)
 		proto = IR_PROTOCOL_RC5;
 		break;
 
-	case RC_TYPE_NEC:
+	case RC_PROTO_NEC:
 		mask[1] = bitrev8(mask_sc);
 		mask[0] = mask[1];
 		mask[3] = bitrev8(mask_sc >> 8);
@@ -728,7 +728,7 @@ wbcir_shutdown(struct pnp_dev *device)
 		proto = IR_PROTOCOL_NEC;
 		break;
 
-	case RC_TYPE_NECX:
+	case RC_PROTO_NECX:
 		mask[1] = bitrev8(mask_sc);
 		mask[0] = mask[1];
 		mask[2] = bitrev8(mask_sc >> 8);
@@ -742,7 +742,7 @@ wbcir_shutdown(struct pnp_dev *device)
 		proto = IR_PROTOCOL_NEC;
 		break;
 
-	case RC_TYPE_NEC32:
+	case RC_PROTO_NEC32:
 		mask[0] = bitrev8(mask_sc);
 		mask[1] = bitrev8(mask_sc >> 8);
 		mask[2] = bitrev8(mask_sc >> 16);
@@ -756,7 +756,7 @@ wbcir_shutdown(struct pnp_dev *device)
 		proto = IR_PROTOCOL_NEC;
 		break;
 
-	case RC_TYPE_RC6_0:
+	case RC_PROTO_RC6_0:
 		/* Command */
 		match[0] = wbcir_to_rc6cells(wake_sc >> 0);
 		mask[0]  = wbcir_to_rc6cells(mask_sc >> 0);
@@ -779,9 +779,9 @@ wbcir_shutdown(struct pnp_dev *device)
 		proto = IR_PROTOCOL_RC6;
 		break;
 
-	case RC_TYPE_RC6_6A_24:
-	case RC_TYPE_RC6_6A_32:
-	case RC_TYPE_RC6_MCE:
+	case RC_PROTO_RC6_6A_24:
+	case RC_PROTO_RC6_6A_32:
+	case RC_PROTO_RC6_MCE:
 		i = 0;
 
 		/* Command */
@@ -800,13 +800,13 @@ wbcir_shutdown(struct pnp_dev *device)
 		match[i]  = wbcir_to_rc6cells(wake_sc >> 16);
 		mask[i++] = wbcir_to_rc6cells(mask_sc >> 16);
 
-		if (rc->wakeup_protocol == RC_TYPE_RC6_6A_20) {
+		if (rc->wakeup_protocol == RC_PROTO_RC6_6A_20) {
 			rc6_csl = 52;
 		} else {
 			match[i]  = wbcir_to_rc6cells(wake_sc >> 20);
 			mask[i++] = wbcir_to_rc6cells(mask_sc >> 20);
 
-			if (rc->wakeup_protocol == RC_TYPE_RC6_6A_24) {
+			if (rc->wakeup_protocol == RC_PROTO_RC6_6A_24) {
 				rc6_csl = 60;
 			} else {
 				/* Customer range bit and bits 15 - 8 */
@@ -1068,7 +1068,7 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 	}
 
 	data->dev->driver_name = DRVNAME;
-	data->dev->input_name = WBCIR_NAME;
+	data->dev->device_name = WBCIR_NAME;
 	data->dev->input_phys = "wbcir/cir0";
 	data->dev->input_id.bustype = BUS_HOST;
 	data->dev->input_id.vendor = PCI_VENDOR_ID_WINBOND;
@@ -1086,12 +1086,13 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 	data->dev->timeout = IR_DEFAULT_TIMEOUT;
 	data->dev->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
 	data->dev->rx_resolution = US_TO_NS(2);
-	data->dev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
-	data->dev->allowed_wakeup_protocols = RC_BIT_NEC | RC_BIT_NECX |
-			RC_BIT_NEC32 | RC_BIT_RC5 | RC_BIT_RC6_0 |
-			RC_BIT_RC6_6A_20 | RC_BIT_RC6_6A_24 |
-			RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE;
-	data->dev->wakeup_protocol = RC_TYPE_RC6_MCE;
+	data->dev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
+	data->dev->allowed_wakeup_protocols = RC_PROTO_BIT_NEC |
+		RC_PROTO_BIT_NECX | RC_PROTO_BIT_NEC32 | RC_PROTO_BIT_RC5 |
+		RC_PROTO_BIT_RC6_0 | RC_PROTO_BIT_RC6_6A_20 |
+		RC_PROTO_BIT_RC6_6A_24 | RC_PROTO_BIT_RC6_6A_32 |
+		RC_PROTO_BIT_RC6_MCE;
+	data->dev->wakeup_protocol = RC_PROTO_RC6_MCE;
 	data->dev->scancode_wakeup_filter.data = 0x800f040c;
 	data->dev->scancode_wakeup_filter.mask = 0xffff7fff;
 	data->dev->s_wakeup_filter = wbcir_set_wakeup_filter;

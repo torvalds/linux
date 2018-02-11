@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/reboot.h>
-#include "reboot-mode.h"
+#include <linux/reboot-mode.h>
 
 #define PREFIX "mode-"
 

@@ -54,8 +54,8 @@
 		allwinner,pipelines = <&fe0>;
 	};
 
-	soc@01c00000 {
-		pwm: pwm@01c20e00 {
+	soc@1c00000 {
+		pwm: pwm@1c20e00 {
 			compatible = "allwinner,sun5i-a10s-pwm";
 			reg = <0x01c20e00 0xc>;
 			clocks = <&ccu CLK_HOSC>;
@@ -63,7 +63,7 @@
 			status = "disabled";
 		};
 
-		spdif: spdif@01c21000 {
+		spdif: spdif@1c21000 {
 			#sound-dai-cells = <0>;
 			compatible = "allwinner,sun4i-a10-spdif";
 			reg = <0x01c21000 0x400>;
@@ -76,7 +76,7 @@
 			status = "disabled";
 		};
 
-		i2s0: i2s@01c22400 {
+		i2s0: i2s@1c22400 {
 			#sound-dai-cells = <0>;
 			compatible = "allwinner,sun4i-a10-i2s";
 			reg = <0x01c22400 0x400>;

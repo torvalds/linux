@@ -493,7 +493,16 @@ static const struct virtio_config_ops virtio_mmio_config_ops = {
 };
 
 
-static void virtio_mmio_release_dev_empty(struct device *_d) {}
+static void virtio_mmio_release_dev(struct device *_d)
+{
+	struct virtio_device *vdev =
+			container_of(_d, struct virtio_device, dev);
+	struct virtio_mmio_device *vm_dev =
+			container_of(vdev, struct virtio_mmio_device, vdev);
+	struct platform_device *pdev = vm_dev->pdev;
+
+	devm_kfree(&pdev->dev, vm_dev);
+}
 
 /* Platform device */
 
@@ -514,10 +523,10 @@ static int virtio_mmio_probe(struct platform_device *pdev)
 
 	vm_dev = devm_kzalloc(&pdev->dev, sizeof(*vm_dev), GFP_KERNEL);
 	if (!vm_dev)
-		return  -ENOMEM;
+		return -ENOMEM;
 
 	vm_dev->vdev.dev.parent = &pdev->dev;
-	vm_dev->vdev.dev.release = virtio_mmio_release_dev_empty;
+	vm_dev->vdev.dev.release = virtio_mmio_release_dev;
 	vm_dev->vdev.config = &virtio_mmio_config_ops;
 	vm_dev->pdev = pdev;
 	INIT_LIST_HEAD(&vm_dev->virtqueues);
@@ -573,13 +582,16 @@ static int virtio_mmio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, vm_dev);
 
-	return register_virtio_device(&vm_dev->vdev);
+	rc = register_virtio_device(&vm_dev->vdev);
+	if (rc)
+		put_device(&vm_dev->vdev.dev);
+
+	return rc;
 }
 
 static int virtio_mmio_remove(struct platform_device *pdev)
 {
 	struct virtio_mmio_device *vm_dev = platform_get_drvdata(pdev);
-
 	unregister_virtio_device(&vm_dev->vdev);
 
 	return 0;

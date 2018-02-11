@@ -40,8 +40,9 @@ void gic_enable_quirks(u32 iidr, const struct gic_quirk *quirks,
 	for (; quirks->desc; quirks++) {
 		if (quirks->iidr != (quirks->mask & iidr))
 			continue;
-		quirks->init(data);
-		pr_info("GIC: enabling workaround for %s\n", quirks->desc);
+		if (quirks->init(data))
+			pr_info("GIC: enabling workaround for %s\n",
+				quirks->desc);
 	}
 }
 

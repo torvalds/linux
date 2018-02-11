@@ -327,7 +327,7 @@ static int  mdio_read(struct net_device *dev, int phy_id, int location);
 static void mdio_write(struct net_device *dev, int phy_id, int location, int value);
 static int  netdev_open(struct net_device *dev);
 static int  update_link(struct net_device *dev);
-static void netdev_timer(unsigned long data);
+static void netdev_timer(struct timer_list *t);
 static void init_rxtx_rings(struct net_device *dev);
 static void free_rxtx_rings(struct netdev_private *np);
 static void init_registers(struct net_device *dev);
@@ -655,10 +655,8 @@ static int netdev_open(struct net_device *dev)
 		netdev_dbg(dev, "Done netdev_open()\n");
 
 	/* Set the timer to check for link beat. */
-	init_timer(&np->timer);
+	timer_setup(&np->timer, netdev_timer, 0);
 	np->timer.expires = jiffies + 1*HZ;
-	np->timer.data = (unsigned long)dev;
-	np->timer.function = netdev_timer;				/* timer handler */
 	add_timer(&np->timer);
 	return 0;
 out_err:
@@ -774,10 +772,10 @@ static inline void update_csr6(struct net_device *dev, int new)
 		np->mii_if.full_duplex = 1;
 }
 
-static void netdev_timer(unsigned long data)
+static void netdev_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct netdev_private *np = netdev_priv(dev);
+	struct netdev_private *np = from_timer(np, t, timer);
+	struct net_device *dev = pci_get_drvdata(np->pci_dev);
 	void __iomem *ioaddr = np->base_addr;
 
 	if (debug > 2)
@@ -1395,13 +1393,12 @@ static int netdev_get_link_ksettings(struct net_device *dev,
 				     struct ethtool_link_ksettings *cmd)
 {
 	struct netdev_private *np = netdev_priv(dev);
-	int rc;
 
 	spin_lock_irq(&np->lock);
-	rc = mii_ethtool_get_link_ksettings(&np->mii_if, cmd);
+	mii_ethtool_get_link_ksettings(&np->mii_if, cmd);
 	spin_unlock_irq(&np->lock);
 
-	return rc;
+	return 0;
 }
 
 static int netdev_set_link_ksettings(struct net_device *dev,

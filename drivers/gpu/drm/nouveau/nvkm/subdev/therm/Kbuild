@@ -11,3 +11,5 @@ nvkm-y += nvkm/subdev/therm/g84.o
 nvkm-y += nvkm/subdev/therm/gt215.o
 nvkm-y += nvkm/subdev/therm/gf119.o
 nvkm-y += nvkm/subdev/therm/gm107.o
+nvkm-y += nvkm/subdev/therm/gm200.o
+nvkm-y += nvkm/subdev/therm/gp100.o

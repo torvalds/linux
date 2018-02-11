@@ -1,0 +1,22 @@
+Realtek platforms device tree bindings
+--------------------------------------
+
+
+RTD1295 SoC
+===========
+
+Required root node properties:
+
+ - compatible :  must contain "realtek,rtd1295"
+
+
+Root node property compatible must contain, depending on board:
+
+ - MeLE V9: "mele,v9"
+ - ProBox2 AVA: "probox2,ava"
+ - Zidoo X9S: "zidoo,x9s"
+
+
+Example:
+
+    compatible = "zidoo,x9s", "realtek,rtd1295";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_SORT_H
 #define __PERF_SORT_H
 #include "../builtin.h"
@@ -129,7 +130,6 @@ struct hist_entry {
 	};
 	char			*srcline;
 	char			*srcfile;
-	struct inline_node	*inline_node;
 	struct symbol		*parent;
 	struct branch_info	*branch_info;
 	struct hists		*hists;
@@ -245,6 +245,7 @@ enum sort_type {
 	SORT_MEM_SNOOP,
 	SORT_MEM_DCACHELINE,
 	SORT_MEM_IADDR_SYMBOL,
+	SORT_MEM_PHYS_DADDR,
 };
 
 /*

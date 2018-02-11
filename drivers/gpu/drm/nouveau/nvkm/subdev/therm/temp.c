@@ -83,7 +83,7 @@ nvkm_therm_sensor_event(struct nvkm_therm *therm, enum nvkm_therm_thrs thrs,
 {
 	struct nvkm_subdev *subdev = &therm->subdev;
 	bool active;
-	const char *thresolds[] = {
+	static const char * const thresholds[] = {
 		"fanboost", "downclock", "critical", "shutdown"
 	};
 	int temperature = therm->func->temp_get(therm);
@@ -94,10 +94,10 @@ nvkm_therm_sensor_event(struct nvkm_therm *therm, enum nvkm_therm_thrs thrs,
 	if (dir == NVKM_THERM_THRS_FALLING)
 		nvkm_info(subdev,
 			  "temperature (%i C) went below the '%s' threshold\n",
-			  temperature, thresolds[thrs]);
+			  temperature, thresholds[thrs]);
 	else
 		nvkm_info(subdev, "temperature (%i C) hit the '%s' threshold\n",
-			  temperature, thresolds[thrs]);
+			  temperature, thresholds[thrs]);
 
 	active = (dir == NVKM_THERM_THRS_RISING);
 	switch (thrs) {
@@ -220,7 +220,7 @@ nvkm_therm_sensor_fini(struct nvkm_therm *therm, bool suspend)
 {
 	struct nvkm_timer *tmr = therm->subdev.device->timer;
 	if (suspend)
-		nvkm_timer_alarm_cancel(tmr, &therm->sensor.therm_poll_alarm);
+		nvkm_timer_alarm(tmr, 0, &therm->sensor.therm_poll_alarm);
 	return 0;
 }
 

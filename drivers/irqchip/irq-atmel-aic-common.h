@@ -33,8 +33,8 @@ struct irq_domain *__init aic_common_of_init(struct device_node *node,
 					     const char *name, int nirqs,
 					     const struct of_device_id *matches);
 
-void __init aic_common_rtc_irq_fixup(struct device_node *root);
+void __init aic_common_rtc_irq_fixup(void);
 
-void __init aic_common_rtt_irq_fixup(struct device_node *root);
+void __init aic_common_rtt_irq_fixup(void);
 
 #endif /* __IRQ_ATMEL_AIC_COMMON_H */

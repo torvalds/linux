@@ -81,7 +81,7 @@ static void pcpu_free_pages(struct pcpu_chunk *chunk,
 static int pcpu_alloc_pages(struct pcpu_chunk *chunk,
 			    struct page **pages, int page_start, int page_end)
 {
-	const gfp_t gfp = GFP_KERNEL | __GFP_HIGHMEM | __GFP_COLD;
+	const gfp_t gfp = GFP_KERNEL | __GFP_HIGHMEM;
 	unsigned int cpu, tcpu;
 	int i;
 
@@ -343,12 +343,22 @@ static struct pcpu_chunk *pcpu_create_chunk(void)
 
 	chunk->data = vms;
 	chunk->base_addr = vms[0]->addr - pcpu_group_offsets[0];
+
+	pcpu_stats_chunk_alloc();
+	trace_percpu_create_chunk(chunk->base_addr);
+
 	return chunk;
 }
 
 static void pcpu_destroy_chunk(struct pcpu_chunk *chunk)
 {
-	if (chunk && chunk->data)
+	if (!chunk)
+		return;
+
+	pcpu_stats_chunk_dealloc();
+	trace_percpu_destroy_chunk(chunk->base_addr);
+
+	if (chunk->data)
 		pcpu_free_vm_areas(chunk->data, pcpu_nr_groups);
 	pcpu_free_chunk(chunk);
 }

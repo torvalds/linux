@@ -23,6 +23,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
+#include <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 #include "qcom-msm8660.dtsi"
 
 / {
@@ -81,6 +82,25 @@
 			vin-supply = <&pm8058_l14>;
 			regulator-always-on;
 		};
+	};
+
+	/*
+	 * Capella CM3605 light and proximity sensor mounted directly
+	 * on the sensor board.
+	 */
+	cm3605 {
+		compatible = "capella,cm3605";
+		vdd-supply = <&pm8058_l14>; // 2.85V
+		aset-gpios = <&pm8058_gpio 35 GPIO_ACTIVE_LOW>;
+		capella,aset-resistance-ohms = <100000>;
+		/* GPIO34 has interrupt 225 on the PM8058 */
+		/* Trig on both edges - getting close or far away */
+		interrupts-extended = <&pm8058 225 IRQ_TYPE_EDGE_BOTH>;
+		/* MPP05 analog input to the XOADC */
+		io-channels = <&xoadc 0x00 0x05>;
+		io-channel-names = "aout";
+		pinctrl-names = "default";
+		pinctrl-0 = <&dragon_cm3605_gpios>, <&dragon_cm3605_mpps>;
 	};
 
 	soc {
@@ -157,6 +177,19 @@
 					pins = "gpio96", "gpio98", "gpio99", "gpio100";
 					drive-strength = <10>;
 					bias-pull-up;
+				};
+			};
+
+			dragon_gsbi8_i2c_pins: gsbi8_i2c {
+				mux {
+					pins = "gpio64", "gpio65";
+					function = "gsbi8";
+				};
+				pinconf {
+					pins = "gpio64", "gpio65";
+					drive-strength = <16>;
+					/* These have external pull-up 2.2kOhm to 1.8V */
+					bias-disable;
 				};
 			};
 
@@ -317,6 +350,24 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
+					dragon_cm3605_gpios: cm3605-gpios {
+						/* Pin 34 connected to the proxy IRQ */
+						pinconf_gpio34 {
+							pins = "gpio34";
+							function = "normal";
+							input-enable;
+							bias-disable;
+							power-source = <PM8058_GPIO_S3>;
+						};
+						/* Pin 35 connected to ASET */
+						pinconf_gpio35 {
+							pins = "gpio35";
+							function = "normal";
+							output-high;
+							bias-disable;
+							power-source = <PM8058_GPIO_S3>;
+						};
+					};
 					dragon_veth_gpios: veth-gpios {
 						pinconf {
 							pins = "gpio40";
@@ -324,6 +375,47 @@
 							bias-disable;
 							drive-push-pull;
 						};
+					};
+				};
+
+				mpps@50 {
+					dragon_cm3605_mpps: cm3605-mpps {
+						pinconf {
+							pins = "mpp5";
+							function = "analog";
+							input-enable;
+							bias-high-impedance;
+							/* Let's use channel 5 */
+							qcom,amux-route = <PMIC_MPP_AMUX_ROUTE_CH5>;
+							power-source = <PM8058_GPIO_S3>;
+						};
+					};
+				};
+
+				xoadc@197 {
+					/* Reference voltage 2.2 V */
+					xoadc-ref-supply = <&pm8058_l18>;
+
+					/* Board-specific channels */
+					mpp5@5 {
+						/* Connected to AOUT of ALS sensor */
+						reg = <0x00 0x05>;
+					};
+					mpp6@6 {
+						/* Connected to test point TP43 */
+						reg = <0x00 0x06>;
+					};
+					mpp7@7 {
+						/* Connected to battery thermistor */
+						reg = <0x00 0x07>;
+					};
+					mpp8@8 {
+						/* Connected to battery ID detector */
+						reg = <0x00 0x08>;
+					};
+					mpp9@9 {
+						/* Connected to XO thermistor */
+						reg = <0x00 0x09>;
 					};
 				};
 
@@ -340,6 +432,7 @@
 					reg = <0x48>;
 					label = "pm8058:infrared:proximitysensor";
 					default-state = "off";
+					linux,default-trigger = "cm3605";
 				};
 				led@131 {
 					compatible = "qcom,pm8058-led";
@@ -368,6 +461,42 @@
 			};
 		};
 
+		gsbi@19800000 {
+			status = "ok";
+			qcom,mode = <GSBI_PROT_I2C>;
+
+			i2c@19880000 {
+				status = "ok";
+				pinctrl-names = "default";
+				pinctrl-0 = <&dragon_gsbi8_i2c_pins>;
+
+				eeprom@52 {
+					/* A 16KiB Platform ID EEPROM on the CPU carrier board */
+					compatible = "atmel,24c128";
+					reg = <0x52>;
+					vcc-supply = <&pm8058_s3>;
+					pagesize = <64>;
+				};
+				wm8903: wm8903@1a {
+					/* This Woolfson Micro device has an unrouted interrupt line */
+					compatible = "wlf,wm8903";
+					reg = <0x1a>;
+
+					AVDD-supply = <&pm8058_l16>;
+					CPVDD-supply = <&pm8058_l16>;
+					DBVDD-supply = <&pm8058_s3>;
+					DCVDD-supply = <&pm8058_l0>;
+
+					gpio-controller;
+					#gpio-cells = <2>;
+
+					micdet-cfg = <0>;
+					micdet-delay = <100>;
+					gpio-cfg = <0xffffffff 0xffffffff 0 0xffffffff 0xffffffff>;
+				};
+			};
+		};
+
 		gsbi@19c00000 {
 			status = "ok";
 			qcom,mode = <GSBI_PROT_I2C_UART>;
@@ -383,7 +512,7 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&dragon_gsbi12_i2c_pins>;
 
-				ak8975@0c {
+				ak8975@c {
 					compatible = "asahi-kasei,ak8975";
 					reg = <0x0c>;
 					/* FIXME: GPIO33 has interrupt 224 on the PM8058 */

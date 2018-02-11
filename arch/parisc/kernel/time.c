@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/parisc/kernel/time.c
  *
@@ -243,13 +244,32 @@ void __init time_init(void)
 static int __init init_cr16_clocksource(void)
 {
 	/*
-	 * The cr16 interval timers are not syncronized across CPUs, so mark
-	 * them unstable and lower rating on SMP systems.
+	 * The cr16 interval timers are not syncronized across CPUs on
+	 * different sockets, so mark them unstable and lower rating on
+	 * multi-socket SMP systems.
 	 */
 	if (num_online_cpus() > 1) {
-		clocksource_cr16.flags = CLOCK_SOURCE_UNSTABLE;
-		clocksource_cr16.rating = 0;
+		int cpu;
+		unsigned long cpu0_loc;
+		cpu0_loc = per_cpu(cpu_data, 0).cpu_loc;
+
+		for_each_online_cpu(cpu) {
+			if (cpu == 0)
+				continue;
+			if ((cpu0_loc != 0) &&
+			    (cpu0_loc == per_cpu(cpu_data, cpu).cpu_loc))
+				continue;
+
+			clocksource_cr16.name = "cr16_unstable";
+			clocksource_cr16.flags = CLOCK_SOURCE_UNSTABLE;
+			clocksource_cr16.rating = 0;
+			break;
+		}
 	}
+
+	/* XXX: We may want to mark sched_clock stable here if cr16 clocks are
+	 *	in sync:
+	 *	(clocksource_cr16.flags == CLOCK_SOURCE_IS_CONTINUOUS) */
 
 	/* register at clocksource framework */
 	clocksource_register_hz(&clocksource_cr16,

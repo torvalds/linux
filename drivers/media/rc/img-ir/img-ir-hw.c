@@ -339,7 +339,7 @@ static void img_ir_decoder_preprocess(struct img_ir_decoder *decoder)
 /**
  * img_ir_decoder_convert() - Generate internal timings in decoder.
  * @decoder:	Decoder to be converted to internal timings.
- * @timings:	Timing register values.
+ * @reg_timings: Timing register values.
  * @clock_hz:	IR clock rate in Hz.
  *
  * Fills out the repeat timings and timing register values for a specific clock
@@ -589,7 +589,7 @@ static void img_ir_set_decoder(struct img_ir_priv *priv,
 	/* clear the wakeup scancode filter */
 	rdev->scancode_wakeup_filter.data = 0;
 	rdev->scancode_wakeup_filter.mask = 0;
-	rdev->wakeup_protocol = RC_TYPE_UNKNOWN;
+	rdev->wakeup_protocol = RC_PROTO_UNKNOWN;
 
 	/* clear raw filters */
 	_img_ir_set_filter(priv, NULL);
@@ -701,10 +701,6 @@ success:
 static void img_ir_set_protocol(struct img_ir_priv *priv, u64 proto)
 {
 	struct rc_dev *rdev = priv->hw.rdev;
-
-	spin_lock_irq(&rdev->rc_map.lock);
-	rdev->rc_map.rc_type = __ffs64(proto);
-	spin_unlock_irq(&rdev->rc_map.lock);
 
 	mutex_lock(&rdev->lock);
 	rdev->enabled_protocols = proto;
@@ -827,7 +823,7 @@ static void img_ir_handle_data(struct img_ir_priv *priv, u32 len, u64 raw)
 	int ret = IMG_IR_SCANCODE;
 	struct img_ir_scancode_req request;
 
-	request.protocol = RC_TYPE_UNKNOWN;
+	request.protocol = RC_PROTO_UNKNOWN;
 	request.toggle   = 0;
 
 	if (dec->scancode)
@@ -871,9 +867,9 @@ static void img_ir_handle_data(struct img_ir_priv *priv, u32 len, u64 raw)
 }
 
 /* timer function to end waiting for repeat. */
-static void img_ir_end_timer(unsigned long arg)
+static void img_ir_end_timer(struct timer_list *t)
 {
-	struct img_ir_priv *priv = (struct img_ir_priv *)arg;
+	struct img_ir_priv *priv = from_timer(priv, t, hw.end_timer);
 
 	spin_lock_irq(&priv->lock);
 	img_ir_end_repeat(priv);
@@ -885,9 +881,9 @@ static void img_ir_end_timer(unsigned long arg)
  * cleared when invalid interrupts were generated due to a quirk in the
  * img-ir decoder.
  */
-static void img_ir_suspend_timer(unsigned long arg)
+static void img_ir_suspend_timer(struct timer_list *t)
 {
-	struct img_ir_priv *priv = (struct img_ir_priv *)arg;
+	struct img_ir_priv *priv = from_timer(priv, t, hw.suspend_timer);
 
 	spin_lock_irq(&priv->lock);
 	/*
@@ -1059,9 +1055,8 @@ int img_ir_probe_hw(struct img_ir_priv *priv)
 	img_ir_probe_hw_caps(priv);
 
 	/* Set up the end timer */
-	setup_timer(&hw->end_timer, img_ir_end_timer, (unsigned long)priv);
-	setup_timer(&hw->suspend_timer, img_ir_suspend_timer,
-				(unsigned long)priv);
+	timer_setup(&hw->end_timer, img_ir_end_timer, 0);
+	timer_setup(&hw->suspend_timer, img_ir_suspend_timer, 0);
 
 	/* Register a clock notifier */
 	if (!IS_ERR(priv->clk)) {
@@ -1087,7 +1082,7 @@ int img_ir_probe_hw(struct img_ir_priv *priv)
 	rdev->priv = priv;
 	rdev->map_name = RC_MAP_EMPTY;
 	rdev->allowed_protocols = img_ir_allowed_protos(priv);
-	rdev->input_name = "IMG Infrared Decoder";
+	rdev->device_name = "IMG Infrared Decoder";
 	rdev->s_filter = img_ir_set_normal_filter;
 	rdev->s_wakeup_filter = img_ir_set_wakeup_filter;
 

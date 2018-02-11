@@ -19,7 +19,7 @@
 
 #ifdef CONFIG_MTK_SMI
 
-#define MTK_LARB_NR_MAX		8
+#define MTK_LARB_NR_MAX		16
 
 #define MTK_SMI_MMU_EN(port)	BIT(port)
 

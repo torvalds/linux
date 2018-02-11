@@ -1,9 +1,11 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0
 #
 # Clean a patch file -- or directory of patch files -- of stealth whitespace.
 # WARNING: this can be a highly destructive operation.  Use with caution.
 #
 
+use warnings;
 use bytes;
 use File::Basename;
 

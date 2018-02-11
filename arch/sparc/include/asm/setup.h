@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- *	Just a place holder. 
+ *	Just a place holder.
  */
 #ifndef _SPARC_SETUP_H
 #define _SPARC_SETUP_H

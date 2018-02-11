@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_SYMBOL
 #define __PERF_SYMBOL 1
 
@@ -59,6 +60,7 @@ struct symbol {
 	u8		binding;
 	u8		idle:1;
 	u8		ignore:1;
+	u8		inlined:1;
 	u8		arch_sym;
 	char		name[0];
 };
@@ -186,6 +188,7 @@ struct addr_map_symbol {
 	struct symbol *sym;
 	u64	      addr;
 	u64	      al_addr;
+	u64	      phys_addr;
 };
 
 struct branch_info {
@@ -207,6 +210,7 @@ struct addr_location {
 	struct thread *thread;
 	struct map    *map;
 	struct symbol *sym;
+	const char    *srcline;
 	u64	      addr;
 	char	      level;
 	u8	      filtered;
@@ -273,7 +277,7 @@ int filename__read_build_id(const char *filename, void *bf, size_t size);
 int sysfs__read_build_id(const char *filename, void *bf, size_t size);
 int modules__parse(const char *filename, void *arg,
 		   int (*process_module)(void *arg, const char *name,
-					 u64 start));
+					 u64 start, u64 size));
 int filename__read_debuglink(const char *filename, char *debuglink,
 			     size_t size);
 
@@ -306,7 +310,7 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss,
 				struct map *map);
 
-char *dso__demangle_sym(struct dso *dso, int kmodule, char *elf_name);
+char *dso__demangle_sym(struct dso *dso, int kmodule, const char *elf_name);
 
 void __symbols__insert(struct rb_root *symbols, struct symbol *sym, bool kernel);
 void symbols__insert(struct rb_root *symbols, struct symbol *sym);

@@ -674,6 +674,10 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	efx->rx_packet_len_offset =
 		ES_DZ_RX_PREFIX_PKTLEN_OFST - ES_DZ_RX_PREFIX_SIZE;
 
+	if (nic_data->datapath_caps &
+	    (1 << MC_CMD_GET_CAPABILITIES_OUT_RX_INCLUDE_FCS_LBN))
+		efx->net_dev->hw_features |= NETIF_F_RXFCS;
+
 	rc = efx_mcdi_port_get_number(efx);
 	if (rc < 0)
 		goto fail5;
@@ -2073,7 +2077,7 @@ static irqreturn_t efx_ef10_msi_interrupt(int irq, void *dev_id)
 	netif_vdbg(efx, intr, efx->net_dev,
 		   "IRQ %d on CPU %d\n", irq, raw_smp_processor_id());
 
-	if (likely(ACCESS_ONCE(efx->irq_soft_enabled))) {
+	if (likely(READ_ONCE(efx->irq_soft_enabled))) {
 		/* Note test interrupts */
 		if (context->index == efx->irq_level)
 			efx->last_irq_cpu = raw_smp_processor_id();
@@ -2088,7 +2092,7 @@ static irqreturn_t efx_ef10_msi_interrupt(int irq, void *dev_id)
 static irqreturn_t efx_ef10_legacy_interrupt(int irq, void *dev_id)
 {
 	struct efx_nic *efx = dev_id;
-	bool soft_enabled = ACCESS_ONCE(efx->irq_soft_enabled);
+	bool soft_enabled = READ_ONCE(efx->irq_soft_enabled);
 	struct efx_channel *channel;
 	efx_dword_t reg;
 	u32 queues;
@@ -3199,11 +3203,15 @@ static u16 efx_ef10_handle_rx_event_errors(struct efx_channel *channel,
 					   const efx_qword_t *event)
 {
 	struct efx_nic *efx = channel->efx;
+	bool handled = false;
 
 	if (EFX_QWORD_FIELD(*event, ESF_DZ_RX_ECRC_ERR)) {
-		if (!efx->loopback_selftest)
-			channel->n_rx_eth_crc_err += n_packets;
-		return EFX_RX_PKT_DISCARD;
+		if (!(efx->net_dev->features & NETIF_F_RXALL)) {
+			if (!efx->loopback_selftest)
+				channel->n_rx_eth_crc_err += n_packets;
+			return EFX_RX_PKT_DISCARD;
+		}
+		handled = true;
 	}
 	if (EFX_QWORD_FIELD(*event, ESF_DZ_RX_IPCKSUM_ERR)) {
 		if (unlikely(rx_encap_hdr != ESE_EZ_ENCAP_HDR_VXLAN &&
@@ -3274,7 +3282,7 @@ static u16 efx_ef10_handle_rx_event_errors(struct efx_channel *channel,
 		return 0;
 	}
 
-	WARN_ON(1); /* No error bits were recognised */
+	WARN_ON(!handled); /* No error bits were recognised */
 	return 0;
 }
 
@@ -3291,7 +3299,7 @@ static int efx_ef10_handle_rx_event(struct efx_channel *channel,
 	bool rx_cont;
 	u16 flags = 0;
 
-	if (unlikely(ACCESS_ONCE(efx->reset_pending)))
+	if (unlikely(READ_ONCE(efx->reset_pending)))
 		return 0;
 
 	/* Basic packet information */
@@ -3428,7 +3436,7 @@ efx_ef10_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 	unsigned int tx_ev_q_label;
 	int tx_descs = 0;
 
-	if (unlikely(ACCESS_ONCE(efx->reset_pending)))
+	if (unlikely(READ_ONCE(efx->reset_pending)))
 		return 0;
 
 	if (unlikely(EFX_QWORD_FIELD(*event, ESF_DZ_TX_DROP_EVENT)))
@@ -4172,7 +4180,7 @@ found:
 	 * recipients
 	 */
 	if (is_mc_recip) {
-		MCDI_DECLARE_BUF(inbuf, MC_CMD_FILTER_OP_IN_LEN);
+		MCDI_DECLARE_BUF(inbuf, MC_CMD_FILTER_OP_EXT_IN_LEN);
 		unsigned int depth, i;
 
 		memset(inbuf, 0, sizeof(inbuf));
@@ -4320,7 +4328,7 @@ static int efx_ef10_filter_remove_internal(struct efx_nic *efx,
 			efx_ef10_filter_set_entry(table, filter_idx, NULL, 0);
 		} else {
 			efx_mcdi_display_error(efx, MC_CMD_FILTER_OP,
-					       MC_CMD_FILTER_OP_IN_LEN,
+					       MC_CMD_FILTER_OP_EXT_IN_LEN,
 					       NULL, 0, rc);
 		}
 	}
@@ -4453,7 +4461,7 @@ static s32 efx_ef10_filter_rfs_insert(struct efx_nic *efx,
 				      struct efx_filter_spec *spec)
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_FILTER_OP_IN_LEN);
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_FILTER_OP_EXT_IN_LEN);
 	struct efx_filter_spec *saved_spec;
 	unsigned int hash, i, depth = 1;
 	bool replacing = false;
@@ -4940,7 +4948,7 @@ not_restored:
 static void efx_ef10_filter_table_remove(struct efx_nic *efx)
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_FILTER_OP_IN_LEN);
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_FILTER_OP_EXT_IN_LEN);
 	struct efx_filter_spec *spec;
 	unsigned int filter_idx;
 	int rc;
@@ -5034,12 +5042,9 @@ static void efx_ef10_filter_uc_addr_list(struct efx_nic *efx)
 	struct efx_ef10_filter_table *table = efx->filter_state;
 	struct net_device *net_dev = efx->net_dev;
 	struct netdev_hw_addr *uc;
-	int addr_count;
 	unsigned int i;
 
-	addr_count = netdev_uc_count(net_dev);
 	table->uc_promisc = !!(net_dev->flags & IFF_PROMISC);
-	table->dev_uc_count = 1 + addr_count;
 	ether_addr_copy(table->dev_uc_list[0].addr, net_dev->dev_addr);
 	i = 1;
 	netdev_for_each_uc_addr(uc, net_dev) {
@@ -5050,6 +5055,8 @@ static void efx_ef10_filter_uc_addr_list(struct efx_nic *efx)
 		ether_addr_copy(table->dev_uc_list[i].addr, uc->addr);
 		i++;
 	}
+
+	table->dev_uc_count = i;
 }
 
 static void efx_ef10_filter_mc_addr_list(struct efx_nic *efx)
@@ -5057,12 +5064,11 @@ static void efx_ef10_filter_mc_addr_list(struct efx_nic *efx)
 	struct efx_ef10_filter_table *table = efx->filter_state;
 	struct net_device *net_dev = efx->net_dev;
 	struct netdev_hw_addr *mc;
-	unsigned int i, addr_count;
+	unsigned int i;
 
 	table->mc_overflow = false;
 	table->mc_promisc = !!(net_dev->flags & (IFF_PROMISC | IFF_ALLMULTI));
 
-	addr_count = netdev_mc_count(net_dev);
 	i = 0;
 	netdev_for_each_mc_addr(mc, net_dev) {
 		if (i >= EFX_EF10_FILTER_DEV_MC_MAX) {
@@ -5105,6 +5111,7 @@ static int efx_ef10_filter_insert_addr_list(struct efx_nic *efx,
 
 	/* Insert/renew filters */
 	for (i = 0; i < addr_count; i++) {
+		EFX_WARN_ON_PARANOID(ids[i] != EFX_EF10_FILTER_ID_INVALID);
 		efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO, filter_flags, 0);
 		efx_filter_set_eth_local(&spec, vlan->vid, addr_list[i].addr);
 		rc = efx_ef10_filter_insert(efx, &spec, true);
@@ -5122,11 +5129,11 @@ static int efx_ef10_filter_insert_addr_list(struct efx_nic *efx,
 				}
 				return rc;
 			} else {
-				/* mark as not inserted, and carry on */
-				rc = EFX_EF10_FILTER_ID_INVALID;
+				/* keep invalid ID, and carry on */
 			}
+		} else {
+			ids[i] = efx_ef10_filter_get_unsafe_id(rc);
 		}
-		ids[i] = efx_ef10_filter_get_unsafe_id(rc);
 	}
 
 	if (multicast && rollback) {
@@ -5317,7 +5324,7 @@ static void efx_ef10_filter_remove_old(struct efx_nic *efx)
 	int i;
 
 	for (i = 0; i < HUNT_FILTER_TBL_ROWS; i++) {
-		if (ACCESS_ONCE(table->entry[i].spec) &
+		if (READ_ONCE(table->entry[i].spec) &
 		    EFX_EF10_FILTER_FLAG_AUTO_OLD) {
 			rc = efx_ef10_filter_remove_internal(efx,
 					1U << EFX_FILTER_PRI_AUTO, i, true);
@@ -5727,7 +5734,7 @@ static int efx_ef10_set_mac_address(struct efx_nic *efx)
 		 * MCFW do not support VFs.
 		 */
 		rc = efx_ef10_vport_set_mac_address(efx);
-	} else {
+	} else if (rc) {
 		efx_mcdi_display_error(efx, MC_CMD_VADAPTOR_SET_MAC,
 				       sizeof(inbuf), NULL, 0, rc);
 	}
@@ -6068,6 +6075,7 @@ static int efx_ef10_ptp_set_ts_config(struct efx_nic *efx,
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_NTP_ALL:
 		init->rx_filter = HWTSTAMP_FILTER_ALL;
 		rc = efx_ptp_change_mode(efx, true, 0);
 		if (!rc)

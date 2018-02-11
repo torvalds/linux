@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_HVCALL_H
 #define _ASM_POWERPC_HVCALL_H
 #ifdef __KERNEL__
@@ -240,6 +241,7 @@
 #define H_GET_HCA_INFO          0x1B8
 #define H_GET_PERF_COUNT        0x1BC
 #define H_MANAGE_TRACE          0x1C0
+#define H_GET_CPU_CHARACTERISTICS 0x1C8
 #define H_FREE_LOGICAL_LAN_BUFFER 0x1D4
 #define H_QUERY_INT_STATE       0x1E4
 #define H_POLL_PENDING		0x1D8
@@ -280,7 +282,18 @@
 #define H_RESIZE_HPT_COMMIT	0x370
 #define H_REGISTER_PROC_TBL	0x37C
 #define H_SIGNAL_SYS_RESET	0x380
-#define MAX_HCALL_OPCODE	H_SIGNAL_SYS_RESET
+#define H_INT_GET_SOURCE_INFO   0x3A8
+#define H_INT_SET_SOURCE_CONFIG 0x3AC
+#define H_INT_GET_SOURCE_CONFIG 0x3B0
+#define H_INT_GET_QUEUE_INFO    0x3B4
+#define H_INT_SET_QUEUE_CONFIG  0x3B8
+#define H_INT_GET_QUEUE_CONFIG  0x3BC
+#define H_INT_SET_OS_REPORTING_LINE 0x3C0
+#define H_INT_GET_OS_REPORTING_LINE 0x3C4
+#define H_INT_ESB               0x3C8
+#define H_INT_SYNC              0x3CC
+#define H_INT_RESET             0x3D0
+#define MAX_HCALL_OPCODE	H_INT_RESET
 
 /* H_VIOCTL functions */
 #define H_GET_VIOA_DUMP_SIZE	0x01
@@ -295,6 +308,8 @@
 #define H_DISABLE_ALL_VIO_INTS	0x0A
 #define H_DISABLE_VIO_INTERRUPT	0x0B
 #define H_ENABLE_VIO_INTERRUPT	0x0C
+#define H_GET_SESSION_TOKEN	0x19
+#define H_SESSION_ERR_DETECTED	0x1A
 
 
 /* Platform specific hcalls, used by KVM */
@@ -316,6 +331,17 @@
 #define H_SIGNAL_SYS_RESET_ALL_OTHERS		-2
 /* >= 0 values are CPU number */
 
+/* H_GET_CPU_CHARACTERISTICS return values */
+#define H_CPU_CHAR_SPEC_BAR_ORI31	(1ull << 63) // IBM bit 0
+#define H_CPU_CHAR_BCCTRL_SERIALISED	(1ull << 62) // IBM bit 1
+#define H_CPU_CHAR_L1D_FLUSH_ORI30	(1ull << 61) // IBM bit 2
+#define H_CPU_CHAR_L1D_FLUSH_TRIG2	(1ull << 60) // IBM bit 3
+#define H_CPU_CHAR_L1D_THREAD_PRIV	(1ull << 59) // IBM bit 4
+
+#define H_CPU_BEHAV_FAVOUR_SECURITY	(1ull << 63) // IBM bit 0
+#define H_CPU_BEHAV_L1D_FLUSH_PR	(1ull << 62) // IBM bit 1
+#define H_CPU_BEHAV_BNDS_CHK_SPEC_BAR	(1ull << 61) // IBM bit 2
+
 /* Flag values used in H_REGISTER_PROC_TBL hcall */
 #define PROC_TABLE_OP_MASK	0x18
 #define PROC_TABLE_DEREG	0x10
@@ -327,6 +353,7 @@
 #define PROC_TABLE_GTSE		0x01
 
 #ifndef __ASSEMBLY__
+#include <linux/types.h>
 
 /**
  * plpar_hcall_norets: - Make a pseries hypervisor call with no return arguments
@@ -421,6 +448,11 @@ static inline unsigned int get_longbusy_msecs(int longbusy_rc)
 		return 1;
 	}
 }
+
+struct h_cpu_char_result {
+	u64 character;
+	u64 behaviour;
+};
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

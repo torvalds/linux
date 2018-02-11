@@ -182,7 +182,10 @@ extern "C" {
 #define DRM_FORMAT_MOD_VENDOR_SAMSUNG 0x04
 #define DRM_FORMAT_MOD_VENDOR_QCOM    0x05
 #define DRM_FORMAT_MOD_VENDOR_VIVANTE 0x06
+#define DRM_FORMAT_MOD_VENDOR_BROADCOM 0x07
 /* add more to the end as needed */
+
+#define DRM_FORMAT_RESERVED	      ((1ULL << 56) - 1)
 
 #define fourcc_mod_code(vendor, val) \
 	((((__u64)DRM_FORMAT_MOD_VENDOR_## vendor) << 56) | (val & 0x00ffffffffffffffULL))
@@ -194,6 +197,15 @@ extern "C" {
  * similar to the fourcc codes above. drm_fourcc.h is considered the
  * authoritative source for all of these.
  */
+
+/*
+ * Invalid Modifier
+ *
+ * This modifier can be used as a sentinel to terminate the format modifiers
+ * list, or to initialize a variable with an invalid modifier. It might also be
+ * used to report an error back to userspace for certain APIs.
+ */
+#define DRM_FORMAT_MOD_INVALID	fourcc_mod_code(NONE, DRM_FORMAT_RESERVED)
 
 /*
  * Linear Layout
@@ -252,6 +264,26 @@ extern "C" {
 #define I915_FORMAT_MOD_Yf_TILED fourcc_mod_code(INTEL, 3)
 
 /*
+ * Intel color control surface (CCS) for render compression
+ *
+ * The framebuffer format must be one of the 8:8:8:8 RGB formats.
+ * The main surface will be plane index 0 and must be Y/Yf-tiled,
+ * the CCS will be plane index 1.
+ *
+ * Each CCS tile matches a 1024x512 pixel area of the main surface.
+ * To match certain aspects of the 3D hardware the CCS is
+ * considered to be made up of normal 128Bx32 Y tiles, Thus
+ * the CCS pitch must be specified in multiples of 128 bytes.
+ *
+ * In reality the CCS tile appears to be a 64Bx64 Y tile, composed
+ * of QWORD (8 bytes) chunks instead of OWORD (16 bytes) chunks.
+ * But that fact is not relevant unless the memory is accessed
+ * directly.
+ */
+#define I915_FORMAT_MOD_Y_TILED_CCS	fourcc_mod_code(INTEL, 4)
+#define I915_FORMAT_MOD_Yf_TILED_CCS	fourcc_mod_code(INTEL, 5)
+
+/*
  * Tiled, NV12MT, grouped in 64 (pixels) x 32 (lines) -sized macroblocks
  *
  * Macroblocks are laid in a Z-shape, and each pixel data is following the
@@ -306,7 +338,6 @@ extern "C" {
  */
 #define DRM_FORMAT_MOD_VIVANTE_SPLIT_SUPER_TILED fourcc_mod_code(VIVANTE, 4)
 
-
 /* NVIDIA Tegra frame buffer modifiers */
 
 /*
@@ -350,6 +381,27 @@ extern "C" {
  * in full detail.
  */
 #define NV_FORMAT_MOD_TEGRA_16BX2_BLOCK(v) fourcc_mod_tegra_code(2, v)
+
+/*
+ * Broadcom VC4 "T" format
+ *
+ * This is the primary layout that the V3D GPU can texture from (it
+ * can't do linear).  The T format has:
+ *
+ * - 64b utiles of pixels in a raster-order grid according to cpp.  It's 4x4
+ *   pixels at 32 bit depth.
+ *
+ * - 1k subtiles made of a 4x4 raster-order grid of 64b utiles (so usually
+ *   16x16 pixels).
+ *
+ * - 4k tiles made of a 2x2 grid of 1k subtiles (so usually 32x32 pixels).  On
+ *   even 4k tile rows, they're arranged as (BL, TL, TR, BR), and on odd rows
+ *   they're (TR, BR, BL, TL), where bottom left is start of memory.
+ *
+ * - an image made of 4k tiles in rows either left-to-right (even rows of 4k
+ *   tiles) or right-to-left (odd rows of 4k tiles).
+ */
+#define DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED fourcc_mod_code(BROADCOM, 1)
 
 #if defined(__cplusplus)
 }

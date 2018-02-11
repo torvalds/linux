@@ -159,7 +159,7 @@ static int xen_blkif_alloc_rings(struct xen_blkif *blkif)
 		init_waitqueue_head(&ring->shutdown_wq);
 		ring->blkif = blkif;
 		ring->st_print = jiffies;
-		xen_blkif_get(blkif);
+		ring->active = true;
 	}
 
 	return 0;
@@ -244,23 +244,28 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 {
 	struct pending_req *req, *n;
 	unsigned int j, r;
+	bool busy = false;
 
 	for (r = 0; r < blkif->nr_rings; r++) {
 		struct xen_blkif_ring *ring = &blkif->rings[r];
 		unsigned int i = 0;
 
+		if (!ring->active)
+			continue;
+
 		if (ring->xenblkd) {
 			kthread_stop(ring->xenblkd);
 			wake_up(&ring->shutdown_wq);
-			ring->xenblkd = NULL;
 		}
 
 		/* The above kthread_stop() guarantees that at this point we
 		 * don't have any discard_io or other_io requests. So, checking
 		 * for inflight IO is enough.
 		 */
-		if (atomic_read(&ring->inflight) > 0)
-			return -EBUSY;
+		if (atomic_read(&ring->inflight) > 0) {
+			busy = true;
+			continue;
+		}
 
 		if (ring->irq) {
 			unbind_from_irqhandler(ring->irq, ring);
@@ -296,8 +301,11 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 		BUG_ON(ring->free_pages_num != 0);
 		BUG_ON(ring->persistent_gnt_c != 0);
 		WARN_ON(i != (XEN_BLKIF_REQS_PER_PAGE * blkif->nr_ring_pages));
-		xen_blkif_put(blkif);
+		ring->active = false;
 	}
+	if (busy)
+		return -EBUSY;
+
 	blkif->nr_ring_pages = 0;
 	/*
 	 * blkif->rings was allocated in connect_ring, so we should free it in
@@ -312,9 +320,10 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 
 static void xen_blkif_free(struct xen_blkif *blkif)
 {
-
-	xen_blkif_disconnect(blkif);
+	WARN_ON(xen_blkif_disconnect(blkif));
 	xen_vbd_free(&blkif->vbd);
+	kfree(blkif->be->mode);
+	kfree(blkif->be);
 
 	/* Make sure everything is drained before shutting down */
 	kmem_cache_free(xen_blkif_cachep, blkif);
@@ -511,8 +520,6 @@ static int xen_blkbk_remove(struct xenbus_device *dev)
 		xen_blkif_put(be->blkif);
 	}
 
-	kfree(be->mode);
-	kfree(be);
 	return 0;
 }
 
@@ -809,7 +816,8 @@ static void frontend_changed(struct xenbus_device *dev,
 		xenbus_switch_state(dev, XenbusStateClosed);
 		if (xenbus_dev_is_online(dev))
 			break;
-		/* fall through if not online */
+		/* fall through */
+		/* if not online */
 	case XenbusStateUnknown:
 		/* implies xen_blkif_disconnect() via xen_blkbk_remove() */
 		device_unregister(&dev->dev);

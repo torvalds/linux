@@ -24,7 +24,7 @@
  *
  *
  * libata documentation is available via 'make {ps|pdf}docs',
- * as Documentation/DocBook/libata.*
+ * as Documentation/driver-api/libata.rst
  *
  * AHCI hardware documentation:
  * http://www.intel.com/technology/serialata/pdf/rev1_0.pdf
@@ -57,6 +57,7 @@ enum {
 	AHCI_PCI_BAR_STA2X11	= 0,
 	AHCI_PCI_BAR_CAVIUM	= 0,
 	AHCI_PCI_BAR_ENMOTUS	= 2,
+	AHCI_PCI_BAR_CAVIUM_GEN5	= 4,
 	AHCI_PCI_BAR_STANDARD	= 5,
 };
 
@@ -548,6 +549,8 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(ASMEDIA, 0x0602), board_ahci },	/* ASM1060 */
 	{ PCI_VDEVICE(ASMEDIA, 0x0611), board_ahci },	/* ASM1061 */
 	{ PCI_VDEVICE(ASMEDIA, 0x0612), board_ahci },	/* ASM1062 */
+	{ PCI_VDEVICE(ASMEDIA, 0x0621), board_ahci },   /* ASM1061R */
+	{ PCI_VDEVICE(ASMEDIA, 0x0622), board_ahci },   /* ASM1062R */
 
 	/*
 	 * Samsung SSDs found on some macbooks.  NCQ times out if MSI is
@@ -619,8 +622,11 @@ static void ahci_pci_save_initial_config(struct pci_dev *pdev,
 static int ahci_pci_reset_controller(struct ata_host *host)
 {
 	struct pci_dev *pdev = to_pci_dev(host->dev);
+	int rc;
 
-	ahci_reset_controller(host);
+	rc = ahci_reset_controller(host);
+	if (rc)
+		return rc;
 
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL) {
 		struct ahci_host_priv *hpriv = host->private_data;
@@ -1467,7 +1473,14 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
 		return;
 
 	dev_warn(&pdev->dev, "Found %d remapped NVMe devices.\n", count);
-	dev_warn(&pdev->dev, "Switch your BIOS from RAID to AHCI mode to use them.\n");
+	dev_warn(&pdev->dev,
+		 "Switch your BIOS from RAID to AHCI mode to use them.\n");
+
+	/*
+	 * Don't rely on the msi-x capability in the remap case,
+	 * share the legacy interrupt across ahci and remapped devices.
+	 */
+	hpriv->flags |= AHCI_HFLAG_NO_MSI;
 }
 
 static int ahci_get_irq_vector(struct ata_host *host, int port)
@@ -1558,8 +1571,12 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ahci_pci_bar = AHCI_PCI_BAR_STA2X11;
 	else if (pdev->vendor == 0x1c44 && pdev->device == 0x8000)
 		ahci_pci_bar = AHCI_PCI_BAR_ENMOTUS;
-	else if (pdev->vendor == 0x177d && pdev->device == 0xa01c)
-		ahci_pci_bar = AHCI_PCI_BAR_CAVIUM;
+	else if (pdev->vendor == PCI_VENDOR_ID_CAVIUM) {
+		if (pdev->device == 0xa01c)
+			ahci_pci_bar = AHCI_PCI_BAR_CAVIUM;
+		if (pdev->device == 0xa084)
+			ahci_pci_bar = AHCI_PCI_BAR_CAVIUM_GEN5;
+	}
 
 	/* acquire resources */
 	rc = pcim_enable_device(pdev);

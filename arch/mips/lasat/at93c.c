@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Atmel AT93C46 serial eeprom driver
  *

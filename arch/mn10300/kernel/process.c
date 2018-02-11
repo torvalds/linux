@@ -40,14 +40,6 @@
 #include "internal.h"
 
 /*
- * return saved PC of a blocked thread.
- */
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	return ((unsigned long *) tsk->thread.sp)[3];
-}
-
-/*
  * power off function, if any
  */
 void (*pm_power_off)(void);
@@ -66,10 +58,6 @@ void arch_cpu_idle(void)
 	safe_halt();
 }
 #endif
-
-void release_segments(struct mm_struct *mm)
-{
-}
 
 void machine_restart(char *cmd)
 {
@@ -117,14 +105,6 @@ void flush_thread(void)
 }
 
 void release_thread(struct task_struct *dead_task)
-{
-}
-
-/*
- * we do not have to muck with descriptors here, that is
- * done in switch_mm() as needed.
- */
-void copy_segments(struct task_struct *p, struct mm_struct *new_mm)
 {
 }
 

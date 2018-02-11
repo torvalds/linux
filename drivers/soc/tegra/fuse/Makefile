@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-y					+= fuse-tegra.o
 obj-y					+= fuse-tegra30.o
 obj-y					+= tegra-apbmisc.o

@@ -17,6 +17,7 @@
 #include <asm/mmu.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
+#include <asm/pte-walk.h>
 
 /*
  * Supported radix tree geometry.
@@ -322,13 +323,13 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	gpa = vcpu->arch.fault_gpa & ~0xfffUL;
 	gpa &= ~0xF000000000000000ul;
 	gfn = gpa >> PAGE_SHIFT;
-	if (!(dsisr & DSISR_PGDIRFAULT))
+	if (!(dsisr & DSISR_PRTABLE_FAULT))
 		gpa |= ea & 0xfff;
 	memslot = gfn_to_memslot(kvm, gfn);
 
 	/* No memslot means it's an emulated MMIO region */
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID)) {
-		if (dsisr & (DSISR_PGDIRFAULT | DSISR_BADACCESS |
+		if (dsisr & (DSISR_PRTABLE_FAULT | DSISR_BADACCESS |
 			     DSISR_SET_RC)) {
 			/*
 			 * Bad address in guest page table tree, or other
@@ -359,8 +360,7 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		if (writing)
 			pgflags |= _PAGE_DIRTY;
 		local_irq_save(flags);
-		ptep = __find_linux_pte_or_hugepte(current->mm->pgd, hva,
-						   NULL, NULL);
+		ptep = find_current_mm_pte(current->mm->pgd, hva, NULL, NULL);
 		if (ptep) {
 			pte = READ_ONCE(*ptep);
 			if (pte_present(pte) &&
@@ -374,8 +374,12 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				spin_unlock(&kvm->mmu_lock);
 				return RESUME_GUEST;
 			}
-			ptep = __find_linux_pte_or_hugepte(kvm->arch.pgtable,
-							gpa, NULL, &shift);
+			/*
+			 * We are walking the secondary page table here. We can do this
+			 * without disabling irq.
+			 */
+			ptep = __find_linux_pte(kvm->arch.pgtable,
+						gpa, NULL, &shift);
 			if (ptep && pte_present(*ptep)) {
 				kvmppc_radix_update_pte(kvm, ptep, 0, pgflags,
 							gpa, shift);
@@ -427,8 +431,8 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			pgflags |= _PAGE_WRITE;
 		} else {
 			local_irq_save(flags);
-			ptep = __find_linux_pte_or_hugepte(current->mm->pgd,
-							hva, NULL, NULL);
+			ptep = find_current_mm_pte(current->mm->pgd,
+						   hva, NULL, NULL);
 			if (ptep && pte_write(*ptep) && pte_dirty(*ptep))
 				pgflags |= _PAGE_WRITE;
 			local_irq_restore(flags);
@@ -470,26 +474,6 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return ret;
 }
 
-static void mark_pages_dirty(struct kvm *kvm, struct kvm_memory_slot *memslot,
-			     unsigned long gfn, unsigned int order)
-{
-	unsigned long i, limit;
-	unsigned long *dp;
-
-	if (!memslot->dirty_bitmap)
-		return;
-	limit = 1ul << order;
-	if (limit < BITS_PER_LONG) {
-		for (i = 0; i < limit; ++i)
-			mark_page_dirty(kvm, gfn + i);
-		return;
-	}
-	dp = memslot->dirty_bitmap + (gfn - memslot->base_gfn);
-	limit /= BITS_PER_LONG;
-	for (i = 0; i < limit; ++i)
-		*dp++ = ~0ul;
-}
-
 /* Called with kvm->lock held */
 int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		    unsigned long gfn)
@@ -499,18 +483,16 @@ int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	unsigned int shift;
 	unsigned long old;
 
-	ptep = __find_linux_pte_or_hugepte(kvm->arch.pgtable, gpa,
-					   NULL, &shift);
+	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep)) {
 		old = kvmppc_radix_update_pte(kvm, ptep, _PAGE_PRESENT, 0,
 					      gpa, shift);
 		kvmppc_radix_tlbie_page(kvm, gpa, shift);
-		if (old & _PAGE_DIRTY) {
-			if (!shift)
-				mark_page_dirty(kvm, gfn);
-			else
-				mark_pages_dirty(kvm, memslot,
-						 gfn, shift - PAGE_SHIFT);
+		if ((old & _PAGE_DIRTY) && memslot->dirty_bitmap) {
+			unsigned long npages = 1;
+			if (shift)
+				npages = 1ul << (shift - PAGE_SHIFT);
+			kvmppc_update_dirty_map(memslot, gfn, npages);
 		}
 	}
 	return 0;				
@@ -525,8 +507,7 @@ int kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	unsigned int shift;
 	int ref = 0;
 
-	ptep = __find_linux_pte_or_hugepte(kvm->arch.pgtable, gpa,
-					   NULL, &shift);
+	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep) && pte_young(*ptep)) {
 		kvmppc_radix_update_pte(kvm, ptep, _PAGE_ACCESSED, 0,
 					gpa, shift);
@@ -545,8 +526,7 @@ int kvm_test_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	unsigned int shift;
 	int ref = 0;
 
-	ptep = __find_linux_pte_or_hugepte(kvm->arch.pgtable, gpa,
-					   NULL, &shift);
+	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep) && pte_young(*ptep))
 		ref = 1;
 	return ref;
@@ -562,8 +542,7 @@ static int kvm_radix_test_clear_dirty(struct kvm *kvm,
 	unsigned int shift;
 	int ret = 0;
 
-	ptep = __find_linux_pte_or_hugepte(kvm->arch.pgtable, gpa,
-					   NULL, &shift);
+	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
 	if (ptep && pte_present(*ptep) && pte_dirty(*ptep)) {
 		ret = 1;
 		if (shift)
@@ -579,19 +558,7 @@ long kvmppc_hv_get_dirty_log_radix(struct kvm *kvm,
 			struct kvm_memory_slot *memslot, unsigned long *map)
 {
 	unsigned long i, j;
-	unsigned long n, *p;
 	int npages;
-
-	/*
-	 * Radix accumulates dirty bits in the first half of the
-	 * memslot's dirty_bitmap area, for when pages are paged
-	 * out or modified by the host directly.  Pick up these
-	 * bits and add them to the map.
-	 */
-	n = kvm_dirty_bitmap_bytes(memslot) / sizeof(long);
-	p = memslot->dirty_bitmap;
-	for (i = 0; i < n; ++i)
-		map[i] |= xchg(&p[i], 0);
 
 	for (i = 0; i < memslot->npages; i = j) {
 		npages = kvm_radix_test_clear_dirty(kvm, memslot, i);
@@ -604,9 +571,10 @@ long kvmppc_hv_get_dirty_log_radix(struct kvm *kvm,
 		 * real address, if npages > 1 we can skip to i + npages.
 		 */
 		j = i + 1;
-		if (npages)
-			for (j = i; npages; ++j, --npages)
-				__set_bit_le(j, map);
+		if (npages) {
+			set_dirty_bits(map, i, npages);
+			i = j + npages;
+		}
 	}
 	return 0;
 }
@@ -694,6 +662,7 @@ void kvmppc_free_radix(struct kvm *kvm)
 		pgd_clear(pgd);
 	}
 	pgd_free(kvm->mm, kvm->arch.pgtable);
+	kvm->arch.pgtable = NULL;
 }
 
 static void pte_ctor(void *addr)

@@ -151,7 +151,7 @@ instance_put(struct nfulnl_instance *inst)
 		call_rcu_bh(&inst->rcu, nfulnl_instance_free_rcu);
 }
 
-static void nfulnl_timer(unsigned long data);
+static void nfulnl_timer(struct timer_list *t);
 
 static struct nfulnl_instance *
 instance_create(struct net *net, u_int16_t group_num,
@@ -184,7 +184,7 @@ instance_create(struct net *net, u_int16_t group_num,
 	/* needs to be two, since we _put() after creation */
 	refcount_set(&inst->use, 2);
 
-	setup_timer(&inst->timer, nfulnl_timer, (unsigned long)inst);
+	timer_setup(&inst->timer, nfulnl_timer, 0);
 
 	inst->net = get_net(net);
 	inst->peer_user_ns = user_ns;
@@ -377,9 +377,9 @@ __nfulnl_flush(struct nfulnl_instance *inst)
 }
 
 static void
-nfulnl_timer(unsigned long data)
+nfulnl_timer(struct timer_list *t)
 {
-	struct nfulnl_instance *inst = (struct nfulnl_instance *)data;
+	struct nfulnl_instance *inst = from_timer(inst, t, timer);
 
 	spin_lock_bh(&inst->lock);
 	if (inst->skb)
@@ -590,7 +590,7 @@ __build_packet_message(struct nfnl_log_net *log,
 		if (skb_tailroom(inst->skb) < nla_total_size(data_len))
 			goto nla_put_failure;
 
-		nla = (struct nlattr *)skb_put(inst->skb, nla_total_size(data_len));
+		nla = skb_put(inst->skb, nla_total_size(data_len));
 		nla->nla_type = NFULA_PAYLOAD;
 		nla->nla_len = size;
 
@@ -606,7 +606,7 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nf_loginfo default_loginfo = {
+static const struct nf_loginfo default_loginfo = {
 	.type =		NF_LOG_TYPE_ULOG,
 	.u = {
 		.ulog = {
@@ -795,7 +795,8 @@ static struct notifier_block nfulnl_rtnl_notifier = {
 
 static int nfulnl_recv_unsupp(struct net *net, struct sock *ctnl,
 			      struct sk_buff *skb, const struct nlmsghdr *nlh,
-			      const struct nlattr * const nfqa[])
+			      const struct nlattr * const nfqa[],
+			      struct netlink_ext_ack *extack)
 {
 	return -ENOTSUPP;
 }
@@ -818,7 +819,8 @@ static const struct nla_policy nfula_cfg_policy[NFULA_CFG_MAX+1] = {
 
 static int nfulnl_recv_config(struct net *net, struct sock *ctnl,
 			      struct sk_buff *skb, const struct nlmsghdr *nlh,
-			      const struct nlattr * const nfula[])
+			      const struct nlattr * const nfula[],
+			      struct netlink_ext_ack *extack)
 {
 	struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u_int16_t group_num = ntohs(nfmsg->res_id);
@@ -1091,10 +1093,15 @@ static int __net_init nfnl_log_net_init(struct net *net)
 
 static void __net_exit nfnl_log_net_exit(struct net *net)
 {
+	struct nfnl_log_net *log = nfnl_log_pernet(net);
+	unsigned int i;
+
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("nfnetlink_log", net->nf.proc_netfilter);
 #endif
 	nf_log_unset(net, &nfulnl_logger);
+	for (i = 0; i < INSTANCE_BUCKETS; i++)
+		WARN_ON_ONCE(!hlist_empty(&log->instance_table[i]));
 }
 
 static struct pernet_operations nfnl_log_net_ops = {

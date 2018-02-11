@@ -154,7 +154,7 @@ static snd_pcm_uframes_t snd_imx_pcm_pointer(struct snd_pcm_substream *substream
 	return bytes_to_frames(substream->runtime, iprtd->offset);
 }
 
-static struct snd_pcm_hardware snd_imx_hardware = {
+static const struct snd_pcm_hardware snd_imx_hardware = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_MMAP |
@@ -227,7 +227,7 @@ static int snd_imx_pcm_mmap(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_pcm_ops imx_pcm_ops = {
+static const struct snd_pcm_ops imx_pcm_ops = {
 	.open		= snd_imx_open,
 	.close		= snd_imx_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -341,7 +341,7 @@ static void imx_pcm_fiq_free(struct snd_pcm *pcm)
 	imx_pcm_free(pcm);
 }
 
-static struct snd_soc_platform_driver imx_soc_platform_fiq = {
+static const struct snd_soc_platform_driver imx_soc_platform_fiq = {
 	.ops		= &imx_pcm_ops,
 	.pcm_new	= imx_pcm_fiq_new,
 	.pcm_free	= imx_pcm_fiq_free,

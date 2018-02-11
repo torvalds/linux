@@ -126,6 +126,7 @@ int i1480_mpi_read(struct i1480 *i1480, u8 *data, u16 srcaddr, size_t size)
 		dev_err(i1480->dev, "MPI-READ: command execution failed: %d\n",
 			reply->bResultCode);
 		result = -EIO;
+		goto out;
 	}
 	for (cnt = 0; cnt < size; cnt++) {
 		if (reply->data[cnt].page != (srcaddr + cnt) >> 8)

@@ -1,0 +1,91 @@
+/*
+ * Device Tree Source for the r8a7795 ES1.x SoC
+ *
+ * Copyright (C) 2015 Renesas Electronics Corp.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+#include "r8a7795.dtsi"
+
+&soc {
+	xhci1: usb@ee040000 {
+		compatible = "renesas,xhci-r8a7795", "renesas,rcar-gen3-xhci";
+		reg = <0 0xee040000 0 0xc00>;
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cpg CPG_MOD 327>;
+		power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+		resets = <&cpg 327>;
+		status = "disabled";
+	};
+
+	/delete-node/ usb-phy@ee0e0200;
+	/delete-node/ usb@ee0e0100;
+	/delete-node/ usb@ee0e0000;
+	/delete-node/ usb@e659c000;
+
+	/delete-node/ dma-controller@e6460000;
+	/delete-node/ dma-controller@e6470000;
+
+	fcpf2: fcp@fe952000 {
+		compatible = "renesas,fcpf";
+		reg = <0 0xfe952000 0 0x200>;
+		clocks = <&cpg CPG_MOD 613>;
+		power-domains = <&sysc R8A7795_PD_A3VP>;
+		resets = <&cpg 613>;
+	};
+
+	vspi2: vsp@fe9c0000 {
+		compatible = "renesas,vsp2";
+		reg = <0 0xfe9c0000 0 0x8000>;
+		interrupts = <GIC_SPI 446 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cpg CPG_MOD 629>;
+		power-domains = <&sysc R8A7795_PD_A3VP>;
+		resets = <&cpg 629>;
+
+		renesas,fcp = <&fcpvi2>;
+	};
+
+	fcpvi2: fcp@fe9cf000 {
+		compatible = "renesas,fcpv";
+		reg = <0 0xfe9cf000 0 0x200>;
+		clocks = <&cpg CPG_MOD 609>;
+		power-domains = <&sysc R8A7795_PD_A3VP>;
+		resets = <&cpg 609>;
+	};
+
+	vspd3: vsp@fea38000 {
+		compatible = "renesas,vsp2";
+		reg = <0 0xfea38000 0 0x4000>;
+		interrupts = <GIC_SPI 469 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cpg CPG_MOD 620>;
+		power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+		resets = <&cpg 620>;
+
+		renesas,fcp = <&fcpvd3>;
+	};
+
+	fcpvd3: fcp@fea3f000 {
+		compatible = "renesas,fcpv";
+		reg = <0 0xfea3f000 0 0x200>;
+		clocks = <&cpg CPG_MOD 600>;
+		power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+		resets = <&cpg 600>;
+	};
+
+	fdp1@fe948000 {
+		compatible = "renesas,fdp1";
+		reg = <0 0xfe948000 0 0x2400>;
+		interrupts = <GIC_SPI 264 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cpg CPG_MOD 117>;
+		power-domains = <&sysc R8A7795_PD_A3VP>;
+		resets = <&cpg 117>;
+		renesas,fcp = <&fcpf2>;
+	};
+};
+
+&du {
+	vsps = <&vspd0 &vspd1 &vspd2 &vspd3>;
+};

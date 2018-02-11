@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __extmem_defs_h
 #define __extmem_defs_h
 

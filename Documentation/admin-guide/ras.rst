@@ -344,9 +344,9 @@ for more than 2 channels, like Fully Buffered DIMMs (FB-DIMMs) memory
 controllers. The following example will assume 2 channels:
 
 	+------------+-----------------------+
-	| Chip       |       Channels        |
-	| Select     +-----------+-----------+
-	| rows       |  ``ch0``  |  ``ch1``  |
+	| CS Rows    |       Channels        |
+	+------------+-----------+-----------+
+	|            |  ``ch0``  |  ``ch1``  |
 	+============+===========+===========+
 	| ``csrow0`` |  DIMM_A0  |  DIMM_B0  |
 	+------------+           |           |
@@ -698,7 +698,7 @@ information indicating that errors have been detected::
 The structure of the message is:
 
 	+---------------------------------------+-------------+
-	| Content                               + Example     |
+	| Content                               | Example     |
 	+=======================================+=============+
 	| The memory controller                 | MC0         |
 	+---------------------------------------+-------------+
@@ -713,7 +713,7 @@ The structure of the message is:
 	+---------------------------------------+-------------+
 	| The error syndrome                    | 0xb741      |
 	+---------------------------------------+-------------+
-	| Memory row                            | row 0       +
+	| Memory row                            | row 0       |
 	+---------------------------------------+-------------+
 	| Memory channel                        | channel 1   |
 	+---------------------------------------+-------------+

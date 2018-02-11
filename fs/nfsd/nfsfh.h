@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 1995, 1996, 1997 Olaf Kirch <okir@monad.swb.de>
  *
@@ -241,6 +242,28 @@ fh_clear_wcc(struct svc_fh *fhp)
 }
 
 /*
+ * We could use i_version alone as the change attribute.  However,
+ * i_version can go backwards after a reboot.  On its own that doesn't
+ * necessarily cause a problem, but if i_version goes backwards and then
+ * is incremented again it could reuse a value that was previously used
+ * before boot, and a client who queried the two values might
+ * incorrectly assume nothing changed.
+ *
+ * By using both ctime and the i_version counter we guarantee that as
+ * long as time doesn't go backwards we never reuse an old value.
+ */
+static inline u64 nfsd4_change_attribute(struct inode *inode)
+{
+	u64 chattr;
+
+	chattr =  inode->i_ctime.tv_sec;
+	chattr <<= 30;
+	chattr += inode->i_ctime.tv_nsec;
+	chattr += inode->i_version;
+	return chattr;
+}
+
+/*
  * Fill in the pre_op attr for the wcc data
  */
 static inline void
@@ -253,7 +276,7 @@ fill_pre_wcc(struct svc_fh *fhp)
 		fhp->fh_pre_mtime = inode->i_mtime;
 		fhp->fh_pre_ctime = inode->i_ctime;
 		fhp->fh_pre_size  = inode->i_size;
-		fhp->fh_pre_change = inode->i_version;
+		fhp->fh_pre_change = nfsd4_change_attribute(inode);
 		fhp->fh_pre_saved = true;
 	}
 }

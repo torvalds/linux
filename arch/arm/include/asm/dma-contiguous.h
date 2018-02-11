@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ASMARM_DMA_CONTIGUOUS_H
 #define ASMARM_DMA_CONTIGUOUS_H
 

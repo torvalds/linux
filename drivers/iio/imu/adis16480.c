@@ -696,7 +696,7 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.gyro_max_val = IIO_RAD_TO_DEGREE(22500),
 		.gyro_max_scale = 450,
 		.accel_max_val = IIO_M_S_2_TO_G(12500),
-		.accel_max_scale = 5,
+		.accel_max_scale = 10,
 	},
 	[ADIS16485] = {
 		.channels = adis16485_channels,
@@ -720,7 +720,6 @@ static const struct iio_info adis16480_info = {
 	.read_raw = &adis16480_read_raw,
 	.write_raw = &adis16480_write_raw,
 	.update_scan_mode = adis_update_scan_mode,
-	.driver_module = THIS_MODULE,
 };
 
 static int adis16480_stop_device(struct iio_dev *indio_dev)

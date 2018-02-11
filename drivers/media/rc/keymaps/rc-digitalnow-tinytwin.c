@@ -75,10 +75,10 @@ static struct rc_map_table digitalnow_tinytwin[] = {
 
 static struct rc_map_list digitalnow_tinytwin_map = {
 	.map = {
-		.scan    = digitalnow_tinytwin,
-		.size    = ARRAY_SIZE(digitalnow_tinytwin),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_DIGITALNOW_TINYTWIN,
+		.scan     = digitalnow_tinytwin,
+		.size     = ARRAY_SIZE(digitalnow_tinytwin),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_DIGITALNOW_TINYTWIN,
 	}
 };
 

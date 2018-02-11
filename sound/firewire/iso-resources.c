@@ -210,8 +210,13 @@ EXPORT_SYMBOL(fw_iso_resources_update);
  */
 void fw_iso_resources_free(struct fw_iso_resources *r)
 {
-	struct fw_card *card = fw_parent_device(r->unit)->card;
+	struct fw_card *card;
 	int bandwidth, channel;
+
+	/* Not initialized. */
+	if (r->unit == NULL)
+		return;
+	card = fw_parent_device(r->unit)->card;
 
 	mutex_lock(&r->mutex);
 

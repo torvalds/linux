@@ -25,8 +25,7 @@
 
 #include <asm/io.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
+#include <linux/w1.h>
 
 
 #define DS1WM_CMD	0x00	/* R/W 4 bits command */
@@ -96,7 +95,8 @@ static struct {
 
 struct ds1wm_data {
 	void     __iomem *map;
-	int      bus_shift; /* # of shifts to calc register offsets */
+	unsigned int      bus_shift; /* # of shifts to calc register offsets */
+	bool      is_hw_big_endian;
 	struct platform_device *pdev;
 	const struct mfd_cell   *cell;
 	int      irq;
@@ -116,12 +116,65 @@ struct ds1wm_data {
 static inline void ds1wm_write_register(struct ds1wm_data *ds1wm_data, u32 reg,
 					u8 val)
 {
-	__raw_writeb(val, ds1wm_data->map + (reg << ds1wm_data->bus_shift));
+	if (ds1wm_data->is_hw_big_endian) {
+		switch (ds1wm_data->bus_shift) {
+		case 0:
+			iowrite8(val, ds1wm_data->map + (reg << 0));
+			break;
+		case 1:
+			iowrite16be((u16)val, ds1wm_data->map + (reg << 1));
+			break;
+		case 2:
+			iowrite32be((u32)val, ds1wm_data->map + (reg << 2));
+			break;
+		}
+	} else {
+		switch (ds1wm_data->bus_shift) {
+		case 0:
+			iowrite8(val, ds1wm_data->map + (reg << 0));
+			break;
+		case 1:
+			iowrite16((u16)val, ds1wm_data->map + (reg << 1));
+			break;
+		case 2:
+			iowrite32((u32)val, ds1wm_data->map + (reg << 2));
+			break;
+		}
+	}
 }
 
 static inline u8 ds1wm_read_register(struct ds1wm_data *ds1wm_data, u32 reg)
 {
-	return __raw_readb(ds1wm_data->map + (reg << ds1wm_data->bus_shift));
+	u32 val = 0;
+
+	if (ds1wm_data->is_hw_big_endian) {
+		switch (ds1wm_data->bus_shift) {
+		case 0:
+			val = ioread8(ds1wm_data->map + (reg << 0));
+			break;
+		case 1:
+			val = ioread16be(ds1wm_data->map + (reg << 1));
+			break;
+		case 2:
+			val = ioread32be(ds1wm_data->map + (reg << 2));
+			break;
+		}
+	} else {
+		switch (ds1wm_data->bus_shift) {
+		case 0:
+			val = ioread8(ds1wm_data->map + (reg << 0));
+			break;
+		case 1:
+			val = ioread16(ds1wm_data->map + (reg << 1));
+			break;
+		case 2:
+			val = ioread32(ds1wm_data->map + (reg << 2));
+			break;
+		}
+	}
+	dev_dbg(&ds1wm_data->pdev->dev,
+		"ds1wm_read_register reg: %d, 32 bit val:%x\n", reg, val);
+	return (u8)val;
 }
 
 
@@ -456,6 +509,7 @@ static int ds1wm_probe(struct platform_device *pdev)
 	struct ds1wm_driver_data *plat;
 	struct resource *res;
 	int ret;
+	u8 inten;
 
 	if (!pdev)
 		return -ENODEV;
@@ -474,9 +528,6 @@ static int ds1wm_probe(struct platform_device *pdev)
 	if (!ds1wm_data->map)
 		return -ENOMEM;
 
-	/* calculate bus shift from mem resource */
-	ds1wm_data->bus_shift = resource_size(res) >> 3;
-
 	ds1wm_data->pdev = pdev;
 	ds1wm_data->cell = mfd_get_cell(pdev);
 	if (!ds1wm_data->cell)
@@ -485,6 +536,26 @@ static int ds1wm_probe(struct platform_device *pdev)
 	if (!plat)
 		return -ENODEV;
 
+	/* how many bits to shift register number to get register offset */
+	if (plat->bus_shift > 2) {
+		dev_err(&ds1wm_data->pdev->dev,
+			"illegal bus shift %d, not written",
+			ds1wm_data->bus_shift);
+		return -EINVAL;
+	}
+
+	ds1wm_data->bus_shift = plat->bus_shift;
+	/* make sure resource has space for 8 registers */
+	if ((8 << ds1wm_data->bus_shift) > resource_size(res)) {
+		dev_err(&ds1wm_data->pdev->dev,
+			"memory resource size %d to small, should be %d\n",
+			(int)resource_size(res),
+			8 << ds1wm_data->bus_shift);
+		return -EINVAL;
+	}
+
+	ds1wm_data->is_hw_big_endian = plat->is_hw_big_endian;
+
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res)
 		return -ENXIO;
@@ -492,15 +563,30 @@ static int ds1wm_probe(struct platform_device *pdev)
 	ds1wm_data->int_en_reg_none = (plat->active_high ? DS1WM_INTEN_IAS : 0);
 	ds1wm_data->reset_recover_delay = plat->reset_recover_delay;
 
+	/* Mask interrupts, set IAS before claiming interrupt */
+	inten = ds1wm_read_register(ds1wm_data, DS1WM_INT_EN);
+	ds1wm_write_register(ds1wm_data,
+		DS1WM_INT_EN, ds1wm_data->int_en_reg_none);
+
 	if (res->flags & IORESOURCE_IRQ_HIGHEDGE)
 		irq_set_irq_type(ds1wm_data->irq, IRQ_TYPE_EDGE_RISING);
 	if (res->flags & IORESOURCE_IRQ_LOWEDGE)
 		irq_set_irq_type(ds1wm_data->irq, IRQ_TYPE_EDGE_FALLING);
+	if (res->flags & IORESOURCE_IRQ_HIGHLEVEL)
+		irq_set_irq_type(ds1wm_data->irq, IRQ_TYPE_LEVEL_HIGH);
+	if (res->flags & IORESOURCE_IRQ_LOWLEVEL)
+		irq_set_irq_type(ds1wm_data->irq, IRQ_TYPE_LEVEL_LOW);
 
 	ret = devm_request_irq(&pdev->dev, ds1wm_data->irq, ds1wm_isr,
 			IRQF_SHARED, "ds1wm", ds1wm_data);
-	if (ret)
+	if (ret) {
+		dev_err(&ds1wm_data->pdev->dev,
+			"devm_request_irq %d failed with errno %d\n",
+			ds1wm_data->irq,
+			ret);
+
 		return ret;
+	}
 
 	ds1wm_up(ds1wm_data);
 
@@ -510,6 +596,13 @@ static int ds1wm_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
+	dev_dbg(&ds1wm_data->pdev->dev,
+		"ds1wm: probe successful, IAS: %d, rec.delay: %d, clockrate: %d, bus-shift: %d, is Hw Big Endian: %d\n",
+		plat->active_high,
+		plat->reset_recover_delay,
+		plat->clock_rate,
+		ds1wm_data->bus_shift,
+		ds1wm_data->is_hw_big_endian);
 	return 0;
 
 err:

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __RK3288_CRYPTO_H__
 #define __RK3288_CRYPTO_H__
 
@@ -190,9 +191,10 @@ struct rk_crypto_info {
 	void __iomem			*reg;
 	int				irq;
 	struct crypto_queue		queue;
-	struct tasklet_struct		crypto_tasklet;
-	struct ablkcipher_request	*ablk_req;
-	struct ahash_request		*ahash_req;
+	struct tasklet_struct		queue_task;
+	struct tasklet_struct		done_task;
+	struct crypto_async_request	*async_req;
+	int 				err;
 	/* device lock */
 	spinlock_t			lock;
 
@@ -208,18 +210,20 @@ struct rk_crypto_info {
 	size_t				nents;
 	unsigned int			total;
 	unsigned int			count;
-	u32				mode;
 	dma_addr_t			addr_in;
 	dma_addr_t			addr_out;
+	bool				busy;
 	int (*start)(struct rk_crypto_info *dev);
 	int (*update)(struct rk_crypto_info *dev);
-	void (*complete)(struct rk_crypto_info *dev, int err);
+	void (*complete)(struct crypto_async_request *base, int err);
 	int (*enable_clk)(struct rk_crypto_info *dev);
 	void (*disable_clk)(struct rk_crypto_info *dev);
 	int (*load_data)(struct rk_crypto_info *dev,
 			 struct scatterlist *sg_src,
 			 struct scatterlist *sg_dst);
 	void (*unload_data)(struct rk_crypto_info *dev);
+	int (*enqueue)(struct rk_crypto_info *dev,
+		       struct crypto_async_request *async_req);
 };
 
 /* the private variable of hash */
@@ -232,12 +236,14 @@ struct rk_ahash_ctx {
 /* the privete variable of hash for fallback */
 struct rk_ahash_rctx {
 	struct ahash_request		fallback_req;
+	u32				mode;
 };
 
 /* the private variable of cipher */
 struct rk_cipher_ctx {
 	struct rk_crypto_info		*dev;
 	unsigned int			keylen;
+	u32				mode;
 };
 
 enum alg_type {

@@ -1187,7 +1187,7 @@ static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 	release_all_pagetables(dev, buf);
 }
 
-static struct videobuf_queue_ops video_qops = {
+static const struct videobuf_queue_ops video_qops = {
 	.buf_setup    = buffer_setup,
 	.buf_prepare  = buffer_prepare,
 	.buf_queue    = buffer_queue,
@@ -1201,8 +1201,7 @@ static void video_init(struct saa7146_dev *dev, struct saa7146_vv *vv)
 {
 	INIT_LIST_HEAD(&vv->video_dmaq.queue);
 
-	setup_timer(&vv->video_dmaq.timeout, saa7146_buffer_timeout,
-		    (unsigned long)(&vv->video_dmaq));
+	timer_setup(&vv->video_dmaq.timeout, saa7146_buffer_timeout, 0);
 	vv->video_dmaq.dev              = dev;
 
 	/* set some default values */
@@ -1303,7 +1302,7 @@ out:
 	return ret;
 }
 
-struct saa7146_use_ops saa7146_video_uops = {
+const struct saa7146_use_ops saa7146_video_uops = {
 	.init = video_init,
 	.open = video_open,
 	.release = video_close,

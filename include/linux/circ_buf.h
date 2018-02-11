@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * See Documentation/circular-buffers.txt for more information.
  */

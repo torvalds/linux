@@ -22,11 +22,11 @@
 
 /*VMEM Luma params*/
 struct ia_css_isp_ctc2_vmem_params {
-	/**< Gains by Y(Luma) at Y = 0.0,Y_X1, Y_X2, Y_X3, Y_X4*/
+	/** Gains by Y(Luma) at Y = 0.0,Y_X1, Y_X2, Y_X3, Y_X4*/
 	VMEM_ARRAY(y_x, ISP_VEC_NELEMS);
-	/** kneepoints by Y(Luma) 0.0, y_x1, y_x2, y _x3, y_x4*/
+	/* kneepoints by Y(Luma) 0.0, y_x1, y_x2, y _x3, y_x4*/
 	VMEM_ARRAY(y_y, ISP_VEC_NELEMS);
-	/** Slopes of lines interconnecting
+	/* Slopes of lines interconnecting
 	 *  0.0 -> y_x1 -> y_x2 -> y _x3 -> y_x4 -> 1.0*/
 	VMEM_ARRAY(e_y_slope, ISP_VEC_NELEMS);
 };
@@ -34,15 +34,15 @@ struct ia_css_isp_ctc2_vmem_params {
 /*DMEM Chroma params*/
 struct ia_css_isp_ctc2_dmem_params {
 
-	/** Gains by UV(Chroma) under kneepoints uv_x0 and uv_x1*/
+	/* Gains by UV(Chroma) under kneepoints uv_x0 and uv_x1*/
 	int32_t uv_y0;
 	int32_t uv_y1;
 
-	/** Kneepoints by UV(Chroma)- uv_x0 and uv_x1*/
+	/* Kneepoints by UV(Chroma)- uv_x0 and uv_x1*/
 	int32_t uv_x0;
 	int32_t uv_x1;
 
-	/** Slope of line interconnecting uv_x0 -> uv_x1*/
+	/* Slope of line interconnecting uv_x0 -> uv_x1*/
 	int32_t uv_dydx;
 
 };

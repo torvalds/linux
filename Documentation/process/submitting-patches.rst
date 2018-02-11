@@ -413,7 +413,7 @@ e-mail discussions.
 
 
 
-11) Sign your work — the Developer's Certificate of Origin
+11) Sign your work - the Developer's Certificate of Origin
 ----------------------------------------------------------
 
 To improve tracking of who did what, especially with patches that can
@@ -621,13 +621,13 @@ The canonical patch subject line is::
 
 The canonical patch message body contains the following:
 
-  - A ``from`` line specifying the patch author (only needed if the person
-    sending the patch is not the author).
-
-  - An empty line.
+  - A ``from`` line specifying the patch author, followed by an empty
+    line (only needed if the person sending the patch is not the author).
 
   - The body of the explanation, line wrapped at 75 columns, which will
     be copied to the permanent changelog to describe this patch.
+
+  - An empty line.
 
   - The ``Signed-off-by:`` lines, described above, which will
     also go in the changelog.

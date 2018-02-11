@@ -31,10 +31,9 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/of_device.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -703,6 +702,8 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	chip->read_buf = vf610_nfc_read_buf;
 	chip->write_buf = vf610_nfc_write_buf;
 	chip->select_chip = vf610_nfc_select_chip;
+	chip->onfi_set_features = nand_onfi_get_set_features_notsupp;
+	chip->onfi_get_features = nand_onfi_get_set_features_notsupp;
 
 	chip->options |= NAND_NO_SUBPAGE_WRITE;
 
@@ -812,12 +813,14 @@ static int vf610_nfc_suspend(struct device *dev)
 
 static int vf610_nfc_resume(struct device *dev)
 {
+	int err;
+
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 	struct vf610_nfc *nfc = mtd_to_nfc(mtd);
 
-	pinctrl_pm_select_default_state(dev);
-
-	clk_prepare_enable(nfc->clk);
+	err = clk_prepare_enable(nfc->clk);
+	if (err)
+		return err;
 
 	vf610_nfc_preinit_controller(nfc);
 	vf610_nfc_init_controller(nfc);

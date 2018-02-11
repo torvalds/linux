@@ -151,7 +151,7 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
 	op_flags |= REQ_SYNC;
 
 	bio = bio_alloc_drbd(GFP_NOIO);
-	bio->bi_bdev = bdev->md_bdev;
+	bio_set_dev(bio, bdev->md_bdev);
 	bio->bi_iter.bi_sector = sector;
 	err = -EIO;
 	if (bio_add_page(bio, device->md_io.page, size, 0) != size)
@@ -178,7 +178,7 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
 	else
 		submit_bio(bio);
 	wait_until_done_or_force_detached(device, bdev, &device->md_io.done);
-	if (!bio->bi_error)
+	if (!bio->bi_status)
 		err = device->md_io.error;
 
  out:

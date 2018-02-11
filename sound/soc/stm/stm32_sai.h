@@ -16,9 +16,11 @@
  * details.
  */
 
+#include <linux/bitfield.h>
+
 /******************** SAI Register Map **************************************/
 
-/* common register */
+/* Global configuration register */
 #define STM_SAI_GCR		0x00
 
 /* Sub-block A&B registers offsets, relative to A&B sub-block addresses */
@@ -31,14 +33,19 @@
 #define STM_SAI_CLRFR_REGX	0x18
 #define STM_SAI_DR_REGX		0x1C
 
+/* Sub-block A registers, relative to sub-block A address */
+#define STM_SAI_PDMCR_REGX	0x40
+#define STM_SAI_PDMLY_REGX	0x44
+
 /******************** Bit definition for SAI_GCR register *******************/
 #define SAI_GCR_SYNCIN_SHIFT	0
+#define SAI_GCR_SYNCIN_WDTH	2
 #define SAI_GCR_SYNCIN_MASK	GENMASK(1, SAI_GCR_SYNCIN_SHIFT)
-#define SAI_GCR_SYNCIN_SET(x)	((x) << SAI_GCR_SYNCIN_SHIFT)
+#define SAI_GCR_SYNCIN_MAX	FIELD_GET(SAI_GCR_SYNCIN_MASK,\
+				SAI_GCR_SYNCIN_MASK)
 
 #define SAI_GCR_SYNCOUT_SHIFT	4
 #define SAI_GCR_SYNCOUT_MASK	GENMASK(5, SAI_GCR_SYNCOUT_SHIFT)
-#define SAI_GCR_SYNCOUT_SET(x)	((x) << SAI_GCR_SYNCOUT_SHIFT)
 
 /******************* Bit definition for SAI_XCR1 register *******************/
 #define SAI_XCR1_RX_TX_SHIFT	0
@@ -75,10 +82,11 @@
 #define SAI_XCR1_NODIV		BIT(SAI_XCR1_NODIV_SHIFT)
 
 #define SAI_XCR1_MCKDIV_SHIFT	20
-#define SAI_XCR1_MCKDIV_WIDTH	4
-#define SAI_XCR1_MCKDIV_MASK	GENMASK(24, SAI_XCR1_MCKDIV_SHIFT)
+#define SAI_XCR1_MCKDIV_WIDTH(x)	(((x) == SAI_STM32F4) ? 4 : 6)
+#define SAI_XCR1_MCKDIV_MASK(x) GENMASK((SAI_XCR1_MCKDIV_SHIFT + (x) - 1),\
+				SAI_XCR1_MCKDIV_SHIFT)
 #define SAI_XCR1_MCKDIV_SET(x)	((x) << SAI_XCR1_MCKDIV_SHIFT)
-#define SAI_XCR1_MCKDIV_MAX	((1 << SAI_XCR1_MCKDIV_WIDTH) - 1)
+#define SAI_XCR1_MCKDIV_MAX(x)	((1 << SAI_XCR1_MCKDIV_WIDTH(x)) - 1)
 
 #define SAI_XCR1_OSR_SHIFT	26
 #define SAI_XCR1_OSR		BIT(SAI_XCR1_OSR_SHIFT)
@@ -125,7 +133,6 @@
 #define SAI_XFRCR_FSOFF		BIT(SAI_XFRCR_FSOFF_SHIFT)
 
 /****************** Bit definition for SAI_XSLOTR register ******************/
-
 #define SAI_XSLOTR_FBOFF_SHIFT	0
 #define SAI_XSLOTR_FBOFF_MASK	GENMASK(4, SAI_XSLOTR_FBOFF_SHIFT)
 #define SAI_XSLOTR_FBOFF_SET(x)	((x) << SAI_XSLOTR_FBOFF_SHIFT)
@@ -179,22 +186,92 @@
 #define SAI_XCLRFR_SHIFT	0
 #define SAI_XCLRFR_MASK		GENMASK(6, SAI_XCLRFR_SHIFT)
 
+/****************** Bit definition for SAI_PDMCR register ******************/
+#define SAI_PDMCR_PDMEN		BIT(0)
+
+#define SAI_PDMCR_MICNBR_SHIFT	4
+#define SAI_PDMCR_MICNBR_MASK	GENMASK(5, SAI_PDMCR_MICNBR_SHIFT)
+#define SAI_PDMCR_MICNBR_SET(x)	((x) << SAI_PDMCR_MICNBR_SHIFT)
+
+#define SAI_PDMCR_CKEN1		BIT(8)
+#define SAI_PDMCR_CKEN2		BIT(9)
+#define SAI_PDMCR_CKEN3		BIT(10)
+#define SAI_PDMCR_CKEN4		BIT(11)
+
+/****************** Bit definition for (SAI_PDMDLY register ****************/
+#define SAI_PDMDLY_1L_SHIFT	0
+#define SAI_PDMDLY_1L_MASK	GENMASK(2, SAI_PDMDLY_1L_SHIFT)
+#define SAI_PDMDLY_1L_WIDTH	3
+
+#define SAI_PDMDLY_1R_SHIFT	4
+#define SAI_PDMDLY_1R_MASK	GENMASK(6, SAI_PDMDLY_1R_SHIFT)
+#define SAI_PDMDLY_1R_WIDTH	3
+
+#define SAI_PDMDLY_2L_SHIFT	8
+#define SAI_PDMDLY_2L_MASK	GENMASK(10, SAI_PDMDLY_2L_SHIFT)
+#define SAI_PDMDLY_2L_WIDTH	3
+
+#define SAI_PDMDLY_2R_SHIFT	12
+#define SAI_PDMDLY_2R_MASK	GENMASK(14, SAI_PDMDLY_2R_SHIFT)
+#define SAI_PDMDLY_2R_WIDTH	3
+
+#define SAI_PDMDLY_3L_SHIFT	16
+#define SAI_PDMDLY_3L_MASK	GENMASK(18, SAI_PDMDLY_3L_SHIFT)
+#define SAI_PDMDLY_3L_WIDTH	3
+
+#define SAI_PDMDLY_3R_SHIFT	20
+#define SAI_PDMDLY_3R_MASK	GENMASK(22, SAI_PDMDLY_3R_SHIFT)
+#define SAI_PDMDLY_3R_WIDTH	3
+
+#define SAI_PDMDLY_4L_SHIFT	24
+#define SAI_PDMDLY_4L_MASK	GENMASK(26, SAI_PDMDLY_4L_SHIFT)
+#define SAI_PDMDLY_4L_WIDTH	3
+
+#define SAI_PDMDLY_4R_SHIFT	28
+#define SAI_PDMDLY_4R_MASK	GENMASK(30, SAI_PDMDLY_4R_SHIFT)
+#define SAI_PDMDLY_4R_WIDTH	3
+
+#define STM_SAI_IS_F4(ip)	((ip)->conf->version == SAI_STM32F4)
+#define STM_SAI_IS_H7(ip)	((ip)->conf->version == SAI_STM32H7)
+
+enum stm32_sai_syncout {
+	STM_SAI_SYNC_OUT_NONE,
+	STM_SAI_SYNC_OUT_A,
+	STM_SAI_SYNC_OUT_B,
+};
+
 enum stm32_sai_version {
-	SAI_STM32F4
+	SAI_STM32F4,
+	SAI_STM32H7
+};
+
+/**
+ * struct stm32_sai_conf - SAI configuration
+ * @version: SAI version
+ */
+struct stm32_sai_conf {
+	int version;
 };
 
 /**
  * struct stm32_sai_data - private data of SAI instance driver
  * @pdev: device data pointer
+ * @base: common register bank virtual base address
+ * @pclk: SAI bus clock
  * @clk_x8k: SAI parent clock for sampling frequencies multiple of 8kHz
  * @clk_x11k: SAI parent clock for sampling frequencies multiple of 11kHz
  * @version: SOC version
  * @irq: SAI interrupt line
+ * @set_sync: pointer to synchro mode configuration callback
  */
 struct stm32_sai_data {
 	struct platform_device *pdev;
+	void __iomem *base;
+	struct clk *pclk;
 	struct clk *clk_x8k;
 	struct clk *clk_x11k;
-	int version;
+	struct stm32_sai_conf *conf;
 	int irq;
+	int (*set_sync)(struct stm32_sai_data *sai,
+			struct device_node *np_provider, int synco, int synci);
 };

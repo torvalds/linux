@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * sys_ipc() is the old de-multiplexer for the SysV IPC calls.
  *
@@ -5,12 +6,12 @@
  * the individual syscalls instead.
  */
 #include <linux/unistd.h>
+#include <linux/syscalls.h>
 
 #ifdef __ARCH_WANT_SYS_IPC
 #include <linux/errno.h>
 #include <linux/ipc.h>
 #include <linux/shm.h>
-#include <linux/syscalls.h>
 #include <linux/uaccess.h>
 
 SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
@@ -96,4 +97,92 @@ SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
 		return -ENOSYS;
 	}
 }
+#endif
+
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+
+#ifndef COMPAT_SHMLBA
+#define COMPAT_SHMLBA	SHMLBA
+#endif
+
+struct compat_ipc_kludge {
+	compat_uptr_t msgp;
+	compat_long_t msgtyp;
+};
+
+#ifdef CONFIG_ARCH_WANT_OLD_COMPAT_IPC
+COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
+	u32, third, compat_uptr_t, ptr, u32, fifth)
+{
+	int version;
+	u32 pad;
+
+	version = call >> 16; /* hack for backward compatibility */
+	call &= 0xffff;
+
+	switch (call) {
+	case SEMOP:
+		/* struct sembuf is the same on 32 and 64bit :)) */
+		return sys_semtimedop(first, compat_ptr(ptr), second, NULL);
+	case SEMTIMEDOP:
+		return compat_sys_semtimedop(first, compat_ptr(ptr), second,
+						compat_ptr(fifth));
+	case SEMGET:
+		return sys_semget(first, second, third);
+	case SEMCTL:
+		if (!ptr)
+			return -EINVAL;
+		if (get_user(pad, (u32 __user *) compat_ptr(ptr)))
+			return -EFAULT;
+		return compat_sys_semctl(first, second, third, pad);
+
+	case MSGSND:
+		return compat_sys_msgsnd(first, ptr, second, third);
+
+	case MSGRCV: {
+		void __user *uptr = compat_ptr(ptr);
+
+		if (first < 0 || second < 0)
+			return -EINVAL;
+
+		if (!version) {
+			struct compat_ipc_kludge ipck;
+			if (!uptr)
+				return -EINVAL;
+			if (copy_from_user(&ipck, uptr, sizeof(ipck)))
+				return -EFAULT;
+			return compat_sys_msgrcv(first, ipck.msgp, second,
+						 ipck.msgtyp, third);
+		}
+		return compat_sys_msgrcv(first, ptr, second, fifth, third);
+	}
+	case MSGGET:
+		return sys_msgget(first, second);
+	case MSGCTL:
+		return compat_sys_msgctl(first, second, compat_ptr(ptr));
+
+	case SHMAT: {
+		int err;
+		unsigned long raddr;
+
+		if (version == 1)
+			return -EINVAL;
+		err = do_shmat(first, compat_ptr(ptr), second, &raddr,
+			       COMPAT_SHMLBA);
+		if (err < 0)
+			return err;
+		return put_user(raddr, (compat_ulong_t __user *)compat_ptr(third));
+	}
+	case SHMDT:
+		return sys_shmdt(compat_ptr(ptr));
+	case SHMGET:
+		return sys_shmget(first, (unsigned)second, third);
+	case SHMCTL:
+		return compat_sys_shmctl(first, second, compat_ptr(ptr));
+	}
+
+	return -ENOSYS;
+}
+#endif
 #endif

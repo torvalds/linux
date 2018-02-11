@@ -102,7 +102,7 @@ ssize_t drm_scdc_write(struct i2c_adapter *adapter, u8 offset,
 	void *data;
 	int err;
 
-	data = kmalloc(1 + size, GFP_TEMPORARY);
+	data = kmalloc(1 + size, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -134,7 +134,6 @@ EXPORT_SYMBOL(drm_scdc_write);
  * Returns:
  * True if the scrambling is enabled, false otherwise.
  */
-
 bool drm_scdc_get_scrambling_status(struct i2c_adapter *adapter)
 {
 	u8 status;
@@ -142,7 +141,7 @@ bool drm_scdc_get_scrambling_status(struct i2c_adapter *adapter)
 
 	ret = drm_scdc_readb(adapter, SCDC_SCRAMBLER_STATUS, &status);
 	if (ret < 0) {
-		DRM_ERROR("Failed to read scrambling status, error %d\n", ret);
+		DRM_ERROR("Failed to read scrambling status: %d\n", ret);
 		return false;
 	}
 
@@ -162,7 +161,6 @@ EXPORT_SYMBOL(drm_scdc_get_scrambling_status);
  * Returns:
  * True if scrambling is set/reset successfully, false otherwise.
  */
-
 bool drm_scdc_set_scrambling(struct i2c_adapter *adapter, bool enable)
 {
 	u8 config;
@@ -170,7 +168,7 @@ bool drm_scdc_set_scrambling(struct i2c_adapter *adapter, bool enable)
 
 	ret = drm_scdc_readb(adapter, SCDC_TMDS_CONFIG, &config);
 	if (ret < 0) {
-		DRM_ERROR("Failed to read tmds config, err=%d\n", ret);
+		DRM_ERROR("Failed to read TMDS config: %d\n", ret);
 		return false;
 	}
 
@@ -181,7 +179,7 @@ bool drm_scdc_set_scrambling(struct i2c_adapter *adapter, bool enable)
 
 	ret = drm_scdc_writeb(adapter, SCDC_TMDS_CONFIG, config);
 	if (ret < 0) {
-		DRM_ERROR("Failed to enable scrambling, error %d\n", ret);
+		DRM_ERROR("Failed to enable scrambling: %d\n", ret);
 		return false;
 	}
 
@@ -194,19 +192,26 @@ EXPORT_SYMBOL(drm_scdc_set_scrambling);
  * @adapter: I2C adapter for DDC channel
  * @set: ret or reset the high clock ratio
  *
- * TMDS clock ratio calculations go like this:
- * TMDS character = 10 bit TMDS encoded value
- * TMDS character rate = The rate at which TMDS characters are transmitted(Mcsc)
- * TMDS bit rate = 10x TMDS character rate
- * As per the spec:
- * TMDS clock rate for pixel clock < 340 MHz = 1x the character rate
- *	= 1/10 pixel clock rate
- * TMDS clock rate for pixel clock > 340 MHz = 0.25x the character rate
- *	= 1/40 pixel clock rate
  *
- * Writes to the TMDS config register over SCDC channel, and:
- * sets TMDS clock ratio to 1/40 when set = 1
- * sets TMDS clock ratio to 1/10 when set = 0
+ *	TMDS clock ratio calculations go like this:
+ *		TMDS character = 10 bit TMDS encoded value
+ *
+ *		TMDS character rate = The rate at which TMDS characters are
+ *		transmitted (Mcsc)
+ *
+ *		TMDS bit rate = 10x TMDS character rate
+ *
+ *	As per the spec:
+ *		TMDS clock rate for pixel clock < 340 MHz = 1x the character
+ *		rate = 1/10 pixel clock rate
+ *
+ *		TMDS clock rate for pixel clock > 340 MHz = 0.25x the character
+ *		rate = 1/40 pixel clock rate
+ *
+ *	Writes to the TMDS config register over SCDC channel, and:
+ *		sets TMDS clock ratio to 1/40 when set = 1
+ *
+ *		sets TMDS clock ratio to 1/10 when set = 0
  *
  * Returns:
  * True if write is successful, false otherwise.
@@ -218,7 +223,7 @@ bool drm_scdc_set_high_tmds_clock_ratio(struct i2c_adapter *adapter, bool set)
 
 	ret = drm_scdc_readb(adapter, SCDC_TMDS_CONFIG, &config);
 	if (ret < 0) {
-		DRM_ERROR("Failed to read tmds config, err=%d\n", ret);
+		DRM_ERROR("Failed to read TMDS config: %d\n", ret);
 		return false;
 	}
 
@@ -229,7 +234,7 @@ bool drm_scdc_set_high_tmds_clock_ratio(struct i2c_adapter *adapter, bool set)
 
 	ret = drm_scdc_writeb(adapter, SCDC_TMDS_CONFIG, config);
 	if (ret < 0) {
-		DRM_ERROR("Failed to set TMDS clock ratio, error %d\n", ret);
+		DRM_ERROR("Failed to set TMDS clock ratio: %d\n", ret);
 		return false;
 	}
 

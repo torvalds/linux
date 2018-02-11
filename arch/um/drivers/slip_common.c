@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <string.h>
 #include "slip_common.h"
 #include <net_user.h>

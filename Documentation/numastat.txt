@@ -1,10 +1,12 @@
-
+===============================
 Numa policy hit/miss statistics
+===============================
 
 /sys/devices/system/node/node*/numastat
 
 All units are pages. Hugepages have separate counters.
 
+=============== ============================================================
 numa_hit	A process wanted to allocate memory from this node,
 		and succeeded.
 
@@ -20,6 +22,7 @@ other_node	A process ran on this node and got memory from another node.
 
 interleave_hit 	Interleaving wanted to allocate from this node
 		and succeeded.
+=============== ============================================================
 
 For easier reading you can use the numastat utility from the numactl package
 (http://oss.sgi.com/projects/libnuma/). Note that it only works

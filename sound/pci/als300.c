@@ -328,7 +328,7 @@ static int snd_als300_ac97(struct snd_als300 *chip)
  * the card when it is running outside of legacy
  * mode.
  */
-static struct snd_pcm_hardware snd_als300_playback_hw =
+static const struct snd_pcm_hardware snd_als300_playback_hw =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				SNDRV_PCM_INFO_INTERLEAVED |
@@ -347,7 +347,7 @@ static struct snd_pcm_hardware snd_als300_playback_hw =
 	.periods_max =		2,
 };
 
-static struct snd_pcm_hardware snd_als300_capture_hw =
+static const struct snd_pcm_hardware snd_als300_capture_hw =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				SNDRV_PCM_INFO_INTERLEAVED |

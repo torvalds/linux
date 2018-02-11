@@ -67,7 +67,6 @@
 
 &mmc_0 {
 	status = "okay";
-	num-slots = <1>;
 	broken-cd;
 	bypass-smu;
 	cap-mmc-highspeed;
@@ -83,7 +82,6 @@
 
 &mmc_2 {
 	status = "okay";
-	num-slots = <1>;
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;

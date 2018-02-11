@@ -103,6 +103,7 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	void __user *puhr;
 	union hpi_message_buffer_v1 *hm;
 	union hpi_response_buffer_v1 *hr;
+	u16 msg_size;
 	u16 res_max_size;
 	u32 uncopied_bytes;
 	int err = 0;
@@ -127,21 +128,24 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 	/* Now read the message size and data from user space.  */
-	if (get_user(hm->h.size, (u16 __user *)puhm)) {
+	if (get_user(msg_size, (u16 __user *)puhm)) {
 		err = -EFAULT;
 		goto out;
 	}
-	if (hm->h.size > sizeof(*hm))
-		hm->h.size = sizeof(*hm);
+	if (msg_size > sizeof(*hm))
+		msg_size = sizeof(*hm);
 
 	/* printk(KERN_INFO "message size %d\n", hm->h.wSize); */
 
-	uncopied_bytes = copy_from_user(hm, puhm, hm->h.size);
+	uncopied_bytes = copy_from_user(hm, puhm, msg_size);
 	if (uncopied_bytes) {
 		HPI_DEBUG_LOG(ERROR, "uncopied bytes %d\n", uncopied_bytes);
 		err = -EFAULT;
 		goto out;
 	}
+
+	/* Override h.size in case it is changed between two userspace fetches */
+	hm->h.size = msg_size;
 
 	if (get_user(res_max_size, (u16 __user *)puhr)) {
 		err = -EFAULT;

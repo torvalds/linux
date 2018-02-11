@@ -31,13 +31,13 @@ extern const struct cpu_operations cpu_psci_ops;
 
 const struct cpu_operations *cpu_ops[NR_CPUS] __ro_after_init;
 
-static const struct cpu_operations *dt_supported_cpu_ops[] __initconst = {
+static const struct cpu_operations *const dt_supported_cpu_ops[] __initconst = {
 	&smp_spin_table_ops,
 	&cpu_psci_ops,
 	NULL,
 };
 
-static const struct cpu_operations *acpi_supported_cpu_ops[] __initconst = {
+static const struct cpu_operations *const acpi_supported_cpu_ops[] __initconst = {
 #ifdef CONFIG_ARM64_ACPI_PARKING_PROTOCOL
 	&acpi_parking_protocol_ops,
 #endif
@@ -47,7 +47,7 @@ static const struct cpu_operations *acpi_supported_cpu_ops[] __initconst = {
 
 static const struct cpu_operations * __init cpu_get_ops(const char *name)
 {
-	const struct cpu_operations **ops;
+	const struct cpu_operations *const *ops;
 
 	ops = acpi_disabled ? dt_supported_cpu_ops : acpi_supported_cpu_ops;
 
@@ -82,8 +82,8 @@ static const char *__init cpu_read_enable_method(int cpu)
 			 * Don't warn spuriously.
 			 */
 			if (cpu != 0)
-				pr_err("%s: missing enable-method property\n",
-					dn->full_name);
+				pr_err("%pOF: missing enable-method property\n",
+					dn);
 		}
 	} else {
 		enable_method = acpi_get_enable_method(cpu);

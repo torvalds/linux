@@ -65,7 +65,7 @@ MODULE_PARM_DESC(watchdog, "transmit timeout in milliseconds");
  */
 static int debug;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "dm9000 debug level (0-4)");
+MODULE_PARM_DESC(debug, "dm9000 debug level (0-6)");
 
 /* DM9000 register address locking.
  *
@@ -1171,7 +1171,7 @@ dm9000_rx(struct net_device *dev)
 		if (GoodPacket &&
 		    ((skb = netdev_alloc_skb(dev, RxLen + 4)) != NULL)) {
 			skb_reserve(skb, 2);
-			rdptr = (u8 *) skb_put(skb, RxLen - 4);
+			rdptr = skb_put(skb, RxLen - 4);
 
 			/* Read received packet from RX SRAM */
 

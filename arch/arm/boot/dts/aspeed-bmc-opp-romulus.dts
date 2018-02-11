@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "aspeed-g5.dtsi"
@@ -78,4 +79,62 @@
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_rmii1_default>;
+};
+
+&i2c2 {
+	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+};
+
+&i2c4 {
+	status = "okay";
+};
+
+&i2c5 {
+	status = "okay";
+};
+
+&i2c6 {
+	/* PCIe slot 1 (x8) */
+	status = "okay";
+};
+
+&i2c7 {
+	/* PCIe slot 2 (x16) */
+	status = "okay";
+};
+
+&i2c8 {
+	/* PCIe slot 3 (x16) */
+	status = "okay";
+};
+
+&i2c9 {
+	/* PCIe slot 4 (x16) */
+	status = "okay";
+};
+
+&i2c10 {
+	/* PCIe slot 5 (x8) */
+	status = "okay";
+};
+
+&i2c11 {
+	status = "okay";
+
+	rtc@32 {
+		compatible = "epson,rx8900";
+		reg = <0x32>;
+	};
+};
+
+&i2c12 {
+	status = "okay";
+};
+
+&vuart {
+	status = "okay";
 };

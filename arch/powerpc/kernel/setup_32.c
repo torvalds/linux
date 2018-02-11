@@ -98,6 +98,9 @@ extern unsigned int memset_nocache_branch; /* Insn to be replaced by NOP */
 
 notrace void __init machine_init(u64 dt_ptr)
 {
+	unsigned int *addr = &memset_nocache_branch;
+	unsigned long insn;
+
 	/* Configure static keys first, now that we're relocated. */
 	setup_feature_keys();
 
@@ -105,7 +108,9 @@ notrace void __init machine_init(u64 dt_ptr)
 	udbg_early_init();
 
 	patch_instruction((unsigned int *)&memcpy, PPC_INST_NOP);
-	patch_instruction(&memset_nocache_branch, PPC_INST_NOP);
+
+	insn = create_cond_branch(addr, branch_target(addr), 0x820000);
+	patch_instruction(addr, insn);	/* replace b by bne cr0 */
 
 	/* Do some early initialization based on the flat device tree */
 	early_init_devtree(__va(dt_ptr));

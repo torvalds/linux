@@ -271,7 +271,7 @@ hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	if (retried)
 		ip = ntohl(h->next.ip);
-	for (; !before(ip_to, ip); ip++) {
+	for (; ip <= ip_to; ip++) {
 		e.ip = htonl(ip);
 		p = retried && ip == ntohl(h->next.ip) ? ntohs(h->next.port)
 						       : port;
@@ -281,7 +281,7 @@ hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 			      ip == ntohl(h->next.ip) &&
 			      p == ntohs(h->next.port)
 				? ntohl(h->next.ip2) : ip2_from;
-			while (!after(ip2, ip2_to)) {
+			while (ip2 <= ip2_to) {
 				e.ip2 = htonl(ip2);
 				ip2_last = ip_set_range_to_cidr(ip2, ip2_to,
 								&cidr);
@@ -434,7 +434,7 @@ hash_ipportnet6_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (unlikely(tb[IPSET_ATTR_IP_TO]))
 		return -IPSET_ERR_HASH_RANGE_UNSUPPORTED;
 	if (unlikely(tb[IPSET_ATTR_CIDR])) {
-		u8 cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
+		cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
 
 		if (cidr != HOST_MASK)
 			return -IPSET_ERR_INVALID_CIDR;

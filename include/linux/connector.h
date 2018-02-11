@@ -22,7 +22,7 @@
 #define __CONNECTOR_H
 
 
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 
 #include <linux/list.h>
 #include <linux/workqueue.h>
@@ -49,7 +49,7 @@ struct cn_callback_id {
 
 struct cn_callback_entry {
 	struct list_head callback_entry;
-	atomic_t refcnt;
+	refcount_t refcnt;
 	struct cn_queue_dev *pdev;
 
 	struct cn_callback_id id;

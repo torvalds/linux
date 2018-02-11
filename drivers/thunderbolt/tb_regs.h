@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Thunderbolt Cactus Ridge driver - Port/Switch config area registers
  *
@@ -23,15 +24,22 @@
  */
 #define TB_MAX_CONFIG_RW_LENGTH 60
 
-enum tb_cap {
-	TB_CAP_PHY		= 0x0001,
-	TB_CAP_TIME1		= 0x0003,
-	TB_CAP_PCIE		= 0x0004,
-	TB_CAP_I2C		= 0x0005,
-	TB_CAP_PLUG_EVENTS	= 0x0105, /* also EEPROM */
-	TB_CAP_TIME2		= 0x0305,
-	TB_CAP_IECS		= 0x0405,
-	TB_CAP_LINK_CONTROLLER	= 0x0605, /* also IECS */
+enum tb_switch_cap {
+	TB_SWITCH_CAP_VSE		= 0x05,
+};
+
+enum tb_switch_vse_cap {
+	TB_VSE_CAP_PLUG_EVENTS		= 0x01, /* also EEPROM */
+	TB_VSE_CAP_TIME2		= 0x03,
+	TB_VSE_CAP_IECS			= 0x04,
+	TB_VSE_CAP_LINK_CONTROLLER	= 0x06, /* also IECS */
+};
+
+enum tb_port_cap {
+	TB_PORT_CAP_PHY			= 0x01,
+	TB_PORT_CAP_TIME1		= 0x03,
+	TB_PORT_CAP_ADAP		= 0x04,
+	TB_PORT_CAP_VSE			= 0x05,
 };
 
 enum tb_port_state {
@@ -49,15 +57,34 @@ struct tb_cap_basic {
 	u8 cap; /* if cap == 0x05 then we have a extended capability */
 } __packed;
 
+/**
+ * struct tb_cap_extended_short - Switch extended short capability
+ * @next: Pointer to the next capability. If @next and @length are zero
+ *	  then we have a long cap.
+ * @cap: Base capability ID (see &enum tb_switch_cap)
+ * @vsec_id: Vendor specific capability ID (see &enum switch_vse_cap)
+ * @length: Length of this capability
+ */
 struct tb_cap_extended_short {
-	u8 next; /* if next and length are zero then we have a long cap */
-	enum tb_cap cap:16;
+	u8 next;
+	u8 cap;
+	u8 vsec_id;
 	u8 length;
 } __packed;
 
+/**
+ * struct tb_cap_extended_long - Switch extended long capability
+ * @zero1: This field should be zero
+ * @cap: Base capability ID (see &enum tb_switch_cap)
+ * @vsec_id: Vendor specific capability ID (see &enum switch_vse_cap)
+ * @zero2: This field should be zero
+ * @next: Pointer to the next capability
+ * @length: Length of this capability
+ */
 struct tb_cap_extended_long {
 	u8 zero1;
-	enum tb_cap cap:16;
+	u8 cap;
+	u8 vsec_id;
 	u8 zero2;
 	u16 next;
 	u16 length;

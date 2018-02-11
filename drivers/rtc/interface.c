@@ -227,6 +227,13 @@ int __rtc_read_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 			missing = year;
 	}
 
+	/* Can't proceed if alarm is still invalid after replacing
+	 * missing fields.
+	 */
+	err = rtc_valid_tm(&alarm->time);
+	if (err)
+		goto done;
+
 	/* with luck, no rollover is needed */
 	t_now = rtc_tm_to_time64(&now);
 	t_alm = rtc_tm_to_time64(&alarm->time);
@@ -278,9 +285,9 @@ int __rtc_read_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 		dev_warn(&rtc->dev, "alarm rollover not handled\n");
 	}
 
-done:
 	err = rtc_valid_tm(&alarm->time);
 
+done:
 	if (err) {
 		dev_warn(&rtc->dev, "invalid alarm value: %d-%d-%d %d:%d:%d\n",
 			alarm->time.tm_year + 1900, alarm->time.tm_mon + 1,
@@ -772,7 +779,7 @@ static int rtc_timer_enqueue(struct rtc_device *rtc, struct rtc_timer *timer)
 	}
 
 	timerqueue_add(&rtc->timerqueue, &timer->node);
-	if (!next) {
+	if (!next || ktime_before(timer->node.expires, next->expires)) {
 		struct rtc_wkalrm alarm;
 		int err;
 		alarm.time = rtc_ktime_to_tm(timer->node.expires);
@@ -996,6 +1003,10 @@ int rtc_read_offset(struct rtc_device *rtc, long *offset)
  * Some rtc's allow an adjustment to the average duration of a second
  * to compensate for differences in the actual clock rate due to temperature,
  * the crystal, capacitor, etc.
+ *
+ * The adjustment applied is as follows:
+ *   t = t0 * (1 + offset * 1e-9)
+ * where t0 is the measured length of 1 RTC second with offset = 0
  *
  * Kernel interface to adjust an rtc clock offset.
  * Return 0 on success, or a negative number on error.

@@ -31,6 +31,10 @@ struct dev_rot_state {
 	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info quaternion;
 	u32 sampled_vals[4];
+	int scale_pre_decml;
+	int scale_post_decml;
+	int scale_precision;
+	int value_offset;
 };
 
 /* Channel definitions */
@@ -41,6 +45,8 @@ static const struct iio_chan_spec dev_rot_channels[] = {
 		.channel2 = IIO_MOD_QUATERNION,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SAMP_FREQ) |
+					BIT(IIO_CHAN_INFO_OFFSET) |
+					BIT(IIO_CHAN_INFO_SCALE) |
 					BIT(IIO_CHAN_INFO_HYSTERESIS)
 	}
 };
@@ -80,6 +86,15 @@ static int dev_rot_read_raw(struct iio_dev *indio_dev,
 		} else
 			ret_type = -EINVAL;
 		break;
+	case IIO_CHAN_INFO_SCALE:
+		vals[0] = rot_state->scale_pre_decml;
+		vals[1] = rot_state->scale_post_decml;
+		return rot_state->scale_precision;
+
+	case IIO_CHAN_INFO_OFFSET:
+		*vals = rot_state->value_offset;
+		return IIO_VAL_INT;
+
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		ret_type = hid_sensor_read_samp_freq_value(
 			&rot_state->common_attributes, &vals[0], &vals[1]);
@@ -123,7 +138,6 @@ static int dev_rot_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info dev_rot_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw_multi = &dev_rot_read_raw,
 	.write_raw = &dev_rot_write_raw,
 };
@@ -199,6 +213,11 @@ static int dev_rot_parse_report(struct platform_device *pdev,
 	dev_dbg(&pdev->dev, "dev_rot: attrib size %d\n",
 				st->quaternion.size);
 
+	st->scale_precision = hid_sensor_format_scale(
+				hsdev->usage,
+				&st->quaternion,
+				&st->scale_pre_decml, &st->scale_post_decml);
+
 	/* Set Sensitivity field ids, when there is no individual modifier */
 	if (st->common_attributes.sensitivity.index < 0) {
 		sensor_hub_input_get_attribute_info(hsdev,
@@ -218,7 +237,7 @@ static int dev_rot_parse_report(struct platform_device *pdev,
 static int hid_dev_rot_probe(struct platform_device *pdev)
 {
 	int ret;
-	static char *name = "dev_rotation";
+	char *name;
 	struct iio_dev *indio_dev;
 	struct dev_rot_state *rot_state;
 	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
@@ -234,8 +253,21 @@ static int hid_dev_rot_probe(struct platform_device *pdev)
 	rot_state->common_attributes.hsdev = hsdev;
 	rot_state->common_attributes.pdev = pdev;
 
-	ret = hid_sensor_parse_common_attributes(hsdev,
-				HID_USAGE_SENSOR_DEVICE_ORIENTATION,
+	switch (hsdev->usage) {
+	case HID_USAGE_SENSOR_DEVICE_ORIENTATION:
+		name = "dev_rotation";
+		break;
+	case HID_USAGE_SENSOR_RELATIVE_ORIENTATION:
+		name = "relative_orientation";
+		break;
+	case HID_USAGE_SENSOR_GEOMAGNETIC_ORIENTATION:
+		name = "geomagnetic_orientation";
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = hid_sensor_parse_common_attributes(hsdev, hsdev->usage,
 				&rot_state->common_attributes);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup common attributes\n");
@@ -252,8 +284,7 @@ static int hid_dev_rot_probe(struct platform_device *pdev)
 
 	ret = dev_rot_parse_report(pdev, hsdev,
 				   (struct iio_chan_spec *)indio_dev->channels,
-				   HID_USAGE_SENSOR_DEVICE_ORIENTATION,
-				   rot_state);
+					hsdev->usage, rot_state);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup attributes\n");
 		return ret;
@@ -288,8 +319,7 @@ static int hid_dev_rot_probe(struct platform_device *pdev)
 	rot_state->callbacks.send_event = dev_rot_proc_event;
 	rot_state->callbacks.capture_sample = dev_rot_capture_sample;
 	rot_state->callbacks.pdev = pdev;
-	ret = sensor_hub_register_callback(hsdev,
-					HID_USAGE_SENSOR_DEVICE_ORIENTATION,
+	ret = sensor_hub_register_callback(hsdev, hsdev->usage,
 					&rot_state->callbacks);
 	if (ret) {
 		dev_err(&pdev->dev, "callback reg failed\n");
@@ -314,7 +344,7 @@ static int hid_dev_rot_remove(struct platform_device *pdev)
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct dev_rot_state *rot_state = iio_priv(indio_dev);
 
-	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_DEVICE_ORIENTATION);
+	sensor_hub_remove_callback(hsdev, hsdev->usage);
 	iio_device_unregister(indio_dev);
 	hid_sensor_remove_trigger(&rot_state->common_attributes);
 	iio_triggered_buffer_cleanup(indio_dev);
@@ -326,6 +356,14 @@ static const struct platform_device_id hid_dev_rot_ids[] = {
 	{
 		/* Format: HID-SENSOR-usage_id_in_hex_lowercase */
 		.name = "HID-SENSOR-20008a",
+	},
+	{
+		/* Relative orientation(AG) sensor */
+		.name = "HID-SENSOR-20008e",
+	},
+	{
+		/* Geomagnetic orientation(AM) sensor */
+		.name = "HID-SENSOR-2000c1",
 	},
 	{ /* sentinel */ }
 };

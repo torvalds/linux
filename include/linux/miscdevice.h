@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_MISCDEVICE_H
 #define _LINUX_MISCDEVICE_H
 #include <linux/major.h>
@@ -35,6 +36,7 @@
 #define HWRNG_MINOR		183
 #define MICROCODE_MINOR		184
 #define IRNET_MINOR		187
+#define D7S_MINOR		193
 #define VFIO_MINOR		196
 #define TUN_MINOR		200
 #define CUSE_MINOR		203
@@ -54,6 +56,7 @@
 #define VHOST_NET_MINOR		238
 #define UHID_MINOR		239
 #define USERIO_MINOR		240
+#define VHOST_VSOCK_MINOR	241
 #define MISC_DYNAMIC_MINOR	255
 
 struct device;

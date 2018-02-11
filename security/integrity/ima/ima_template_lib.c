@@ -159,6 +159,67 @@ void ima_show_template_sig(struct seq_file *m, enum ima_show_type show,
 	ima_show_template_field_data(m, show, DATA_FMT_HEX, field_data);
 }
 
+/**
+ * ima_parse_buf() - Parses lengths and data from an input buffer
+ * @bufstartp:       Buffer start address.
+ * @bufendp:         Buffer end address.
+ * @bufcurp:         Pointer to remaining (non-parsed) data.
+ * @maxfields:       Length of fields array.
+ * @fields:          Array containing lengths and pointers of parsed data.
+ * @curfields:       Number of array items containing parsed data.
+ * @len_mask:        Bitmap (if bit is set, data length should not be parsed).
+ * @enforce_mask:    Check if curfields == maxfields and/or bufcurp == bufendp.
+ * @bufname:         String identifier of the input buffer.
+ *
+ * Return: 0 on success, -EINVAL on error.
+ */
+int ima_parse_buf(void *bufstartp, void *bufendp, void **bufcurp,
+		  int maxfields, struct ima_field_data *fields, int *curfields,
+		  unsigned long *len_mask, int enforce_mask, char *bufname)
+{
+	void *bufp = bufstartp;
+	int i;
+
+	for (i = 0; i < maxfields; i++) {
+		if (len_mask == NULL || !test_bit(i, len_mask)) {
+			if (bufp > (bufendp - sizeof(u32)))
+				break;
+
+			fields[i].len = *(u32 *)bufp;
+			if (ima_canonical_fmt)
+				fields[i].len = le32_to_cpu(fields[i].len);
+
+			bufp += sizeof(u32);
+		}
+
+		if (bufp > (bufendp - fields[i].len))
+			break;
+
+		fields[i].data = bufp;
+		bufp += fields[i].len;
+	}
+
+	if ((enforce_mask & ENFORCE_FIELDS) && i != maxfields) {
+		pr_err("%s: nr of fields mismatch: expected: %d, current: %d\n",
+		       bufname, maxfields, i);
+		return -EINVAL;
+	}
+
+	if ((enforce_mask & ENFORCE_BUFEND) && bufp != bufendp) {
+		pr_err("%s: buf end mismatch: expected: %p, current: %p\n",
+		       bufname, bufendp, bufp);
+		return -EINVAL;
+	}
+
+	if (curfields)
+		*curfields = i;
+
+	if (bufcurp)
+		*bufcurp = bufp;
+
+	return 0;
+}
+
 static int ima_eventdigest_init_common(u8 *digest, u32 digestsize, u8 hash_algo,
 				       struct ima_field_data *field_data)
 {

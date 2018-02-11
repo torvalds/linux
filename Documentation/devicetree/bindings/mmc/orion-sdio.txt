@@ -13,5 +13,4 @@ Example:
 		reg = <0xd00d4000 0x200>;
 		interrupts = <54>;
 		clocks = <&gateclk 17>;
-		status = "disabled";
 	};

@@ -187,8 +187,8 @@ static struct axon_msic *find_msi_translator(struct pci_dev *dev)
 
 	irq_domain = irq_find_host(dn);
 	if (!irq_domain) {
-		dev_dbg(&dev->dev, "axon_msi: no irq_domain found for node %s\n",
-			dn->full_name);
+		dev_dbg(&dev->dev, "axon_msi: no irq_domain found for node %pOF\n",
+			dn);
 		goto out_error;
 	}
 
@@ -326,8 +326,8 @@ static void axon_msi_shutdown(struct platform_device *device)
 	struct axon_msic *msic = dev_get_drvdata(&device->dev);
 	u32 tmp;
 
-	pr_devel("axon_msi: disabling %s\n",
-		 irq_domain_get_of_node(msic->irq_domain)->full_name);
+	pr_devel("axon_msi: disabling %pOF\n",
+		 irq_domain_get_of_node(msic->irq_domain));
 	tmp  = dcr_read(msic->dcr_host, MSIC_CTRL_REG);
 	tmp &= ~MSIC_CTRL_ENABLE & ~MSIC_CTRL_IRQ_ENABLE;
 	msic_dcr_write(msic, MSIC_CTRL_REG, tmp);
@@ -340,12 +340,12 @@ static int axon_msi_probe(struct platform_device *device)
 	unsigned int virq;
 	int dcr_base, dcr_len;
 
-	pr_devel("axon_msi: setting up dn %s\n", dn->full_name);
+	pr_devel("axon_msi: setting up dn %pOF\n", dn);
 
 	msic = kzalloc(sizeof(struct axon_msic), GFP_KERNEL);
 	if (!msic) {
-		printk(KERN_ERR "axon_msi: couldn't allocate msic for %s\n",
-		       dn->full_name);
+		printk(KERN_ERR "axon_msi: couldn't allocate msic for %pOF\n",
+		       dn);
 		goto out;
 	}
 
@@ -354,30 +354,30 @@ static int axon_msi_probe(struct platform_device *device)
 
 	if (dcr_base == 0 || dcr_len == 0) {
 		printk(KERN_ERR
-		       "axon_msi: couldn't parse dcr properties on %s\n",
-			dn->full_name);
+		       "axon_msi: couldn't parse dcr properties on %pOF\n",
+			dn);
 		goto out_free_msic;
 	}
 
 	msic->dcr_host = dcr_map(dn, dcr_base, dcr_len);
 	if (!DCR_MAP_OK(msic->dcr_host)) {
-		printk(KERN_ERR "axon_msi: dcr_map failed for %s\n",
-		       dn->full_name);
+		printk(KERN_ERR "axon_msi: dcr_map failed for %pOF\n",
+		       dn);
 		goto out_free_msic;
 	}
 
 	msic->fifo_virt = dma_alloc_coherent(&device->dev, MSIC_FIFO_SIZE_BYTES,
 					     &msic->fifo_phys, GFP_KERNEL);
 	if (!msic->fifo_virt) {
-		printk(KERN_ERR "axon_msi: couldn't allocate fifo for %s\n",
-		       dn->full_name);
+		printk(KERN_ERR "axon_msi: couldn't allocate fifo for %pOF\n",
+		       dn);
 		goto out_free_msic;
 	}
 
 	virq = irq_of_parse_and_map(dn, 0);
 	if (!virq) {
-		printk(KERN_ERR "axon_msi: irq parse and map failed for %s\n",
-		       dn->full_name);
+		printk(KERN_ERR "axon_msi: irq parse and map failed for %pOF\n",
+		       dn);
 		goto out_free_fifo;
 	}
 	memset(msic->fifo_virt, 0xff, MSIC_FIFO_SIZE_BYTES);
@@ -385,8 +385,8 @@ static int axon_msi_probe(struct platform_device *device)
 	/* We rely on being able to stash a virq in a u16, so limit irqs to < 65536 */
 	msic->irq_domain = irq_domain_add_nomap(dn, 65536, &msic_host_ops, msic);
 	if (!msic->irq_domain) {
-		printk(KERN_ERR "axon_msi: couldn't allocate irq_domain for %s\n",
-		       dn->full_name);
+		printk(KERN_ERR "axon_msi: couldn't allocate irq_domain for %pOF\n",
+		       dn);
 		goto out_free_fifo;
 	}
 
@@ -412,7 +412,7 @@ static int axon_msi_probe(struct platform_device *device)
 
 	axon_msi_debug_setup(dn, msic);
 
-	printk(KERN_DEBUG "axon_msi: setup MSIC on %s\n", dn->full_name);
+	printk(KERN_DEBUG "axon_msi: setup MSIC on %pOF\n", dn);
 
 	return 0;
 

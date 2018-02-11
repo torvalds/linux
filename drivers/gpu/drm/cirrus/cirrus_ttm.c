@@ -26,8 +26,9 @@
  * Authors: Dave Airlie <airlied@redhat.com>
  */
 #include <drm/drmP.h>
+#include <drm/ttm/ttm_page_alloc.h>
+
 #include "cirrus_drv.h"
-#include <ttm/ttm_page_alloc.h>
 
 static inline struct cirrus_device *
 cirrus_bdev(struct ttm_bo_device *bd)

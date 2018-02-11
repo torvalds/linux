@@ -276,7 +276,7 @@ static const struct i2c_algorithm ocores_algorithm = {
 	.functionality = ocores_func,
 };
 
-static struct i2c_adapter ocores_adapter = {
+static const struct i2c_adapter ocores_adapter = {
 	.owner = THIS_MODULE,
 	.name = "i2c-ocores",
 	.class = I2C_CLASS_DEPRECATED,

@@ -33,36 +33,42 @@ config=2
 fd=5
 type=0
 config=0
+optional=1
 
 # PERF_TYPE_HARDWARE / PERF_COUNT_HW_STALLED_CYCLES_FRONTEND
 [event6:base-stat]
 fd=6
 type=0
 config=7
+optional=1
 
 # PERF_TYPE_HARDWARE / PERF_COUNT_HW_STALLED_CYCLES_BACKEND
 [event7:base-stat]
 fd=7
 type=0
 config=8
+optional=1
 
 # PERF_TYPE_HARDWARE / PERF_COUNT_HW_INSTRUCTIONS
 [event8:base-stat]
 fd=8
 type=0
 config=1
+optional=1
 
 # PERF_TYPE_HARDWARE / PERF_COUNT_HW_BRANCH_INSTRUCTIONS
 [event9:base-stat]
 fd=9
 type=0
 config=4
+optional=1
 
 # PERF_TYPE_HARDWARE / PERF_COUNT_HW_BRANCH_MISSES
 [event10:base-stat]
 fd=10
 type=0
 config=5
+optional=1
 
 # PERF_TYPE_HW_CACHE /
 #  PERF_COUNT_HW_CACHE_L1D                <<  0  |
@@ -72,6 +78,7 @@ config=5
 fd=11
 type=3
 config=0
+optional=1
 
 # PERF_TYPE_HW_CACHE /
 #  PERF_COUNT_HW_CACHE_L1D                <<  0  |
@@ -81,6 +88,7 @@ config=0
 fd=12
 type=3
 config=65536
+optional=1
 
 # PERF_TYPE_HW_CACHE /
 #  PERF_COUNT_HW_CACHE_LL                 <<  0  |
@@ -90,6 +98,7 @@ config=65536
 fd=13
 type=3
 config=2
+optional=1
 
 # PERF_TYPE_HW_CACHE,
 #  PERF_COUNT_HW_CACHE_LL                 <<  0  |
@@ -99,3 +108,4 @@ config=2
 fd=14
 type=3
 config=65538
+optional=1

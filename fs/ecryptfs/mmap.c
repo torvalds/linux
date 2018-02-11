@@ -431,8 +431,6 @@ static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_inode)
 	}
 	xattr_virt = kmem_cache_alloc(ecryptfs_xattr_cache, GFP_KERNEL);
 	if (!xattr_virt) {
-		printk(KERN_ERR "Out of memory whilst attempting to write "
-		       "inode size to xattr\n");
 		rc = -ENOMEM;
 		goto out;
 	}

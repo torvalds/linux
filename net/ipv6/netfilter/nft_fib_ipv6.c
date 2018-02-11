@@ -25,9 +25,9 @@ static int get_ifindex(const struct net_device *dev)
 
 static int nft_fib6_flowi_init(struct flowi6 *fl6, const struct nft_fib *priv,
 			       const struct nft_pktinfo *pkt,
-			       const struct net_device *dev)
+			       const struct net_device *dev,
+			       struct ipv6hdr *iph)
 {
-	const struct ipv6hdr *iph = ipv6_hdr(pkt->skb);
 	int lookup_flags = 0;
 
 	if (priv->flags & NFTA_FIB_F_DADDR) {
@@ -55,7 +55,8 @@ static int nft_fib6_flowi_init(struct flowi6 *fl6, const struct nft_fib *priv,
 }
 
 static u32 __nft_fib6_eval_type(const struct nft_fib *priv,
-				const struct nft_pktinfo *pkt)
+				const struct nft_pktinfo *pkt,
+				struct ipv6hdr *iph)
 {
 	const struct net_device *dev = NULL;
 	const struct nf_ipv6_ops *v6ops;
@@ -77,7 +78,7 @@ static u32 __nft_fib6_eval_type(const struct nft_fib *priv,
 	else if (priv->flags & NFTA_FIB_F_OIF)
 		dev = nft_out(pkt);
 
-	nft_fib6_flowi_init(&fl6, priv, pkt, dev);
+	nft_fib6_flowi_init(&fl6, priv, pkt, dev, iph);
 
 	v6ops = nf_get_ipv6_ops();
 	if (dev && v6ops && v6ops->chk_addr(nft_net(pkt), &fl6.daddr, dev, true))
@@ -131,9 +132,17 @@ void nft_fib6_eval_type(const struct nft_expr *expr, struct nft_regs *regs,
 			const struct nft_pktinfo *pkt)
 {
 	const struct nft_fib *priv = nft_expr_priv(expr);
+	int noff = skb_network_offset(pkt->skb);
 	u32 *dest = &regs->data[priv->dreg];
+	struct ipv6hdr *iph, _iph;
 
-	*dest = __nft_fib6_eval_type(priv, pkt);
+	iph = skb_header_pointer(pkt->skb, noff, sizeof(_iph), &_iph);
+	if (!iph) {
+		regs->verdict.code = NFT_BREAK;
+		return;
+	}
+
+	*dest = __nft_fib6_eval_type(priv, pkt, iph);
 }
 EXPORT_SYMBOL_GPL(nft_fib6_eval_type);
 
@@ -141,8 +150,10 @@ void nft_fib6_eval(const struct nft_expr *expr, struct nft_regs *regs,
 		   const struct nft_pktinfo *pkt)
 {
 	const struct nft_fib *priv = nft_expr_priv(expr);
+	int noff = skb_network_offset(pkt->skb);
 	const struct net_device *oif = NULL;
 	u32 *dest = &regs->data[priv->dreg];
+	struct ipv6hdr *iph, _iph;
 	struct flowi6 fl6 = {
 		.flowi6_iif = LOOPBACK_IFINDEX,
 		.flowi6_proto = pkt->tprot,
@@ -155,7 +166,13 @@ void nft_fib6_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	else if (priv->flags & NFTA_FIB_F_OIF)
 		oif = nft_out(pkt);
 
-	lookup_flags = nft_fib6_flowi_init(&fl6, priv, pkt, oif);
+	iph = skb_header_pointer(pkt->skb, noff, sizeof(_iph), &_iph);
+	if (!iph) {
+		regs->verdict.code = NFT_BREAK;
+		return;
+	}
+
+	lookup_flags = nft_fib6_flowi_init(&fl6, priv, pkt, oif, iph);
 
 	if (nft_hook(pkt) == NF_INET_PRE_ROUTING &&
 	    nft_fib_is_loopback(pkt->skb, nft_in(pkt))) {

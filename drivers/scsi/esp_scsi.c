@@ -597,13 +597,11 @@ static int esp_alloc_lun_tag(struct esp_cmd_entry *ent,
 
 		lp->non_tagged_cmd = ent;
 		return 0;
-	} else {
-		/* Tagged command, see if blocked by a
-		 * non-tagged one.
-		 */
-		if (lp->non_tagged_cmd || lp->hold)
-			return -EBUSY;
 	}
+
+	/* Tagged command. Check that it isn't blocked by a non-tagged one. */
+	if (lp->non_tagged_cmd || lp->hold)
+		return -EBUSY;
 
 	BUG_ON(lp->tagged_cmds[ent->orig_tag[1]]);
 
@@ -1210,12 +1208,6 @@ static int esp_reconnect(struct esp *esp)
 
 	esp->active_cmd = ent;
 
-	if (ent->flags & ESP_CMD_FLAG_ABORT) {
-		esp->msg_out[0] = ABORT_TASK_SET;
-		esp->msg_out_len = 1;
-		scsi_esp_cmd(esp, ESP_CMD_SATN);
-	}
-
 	esp_event(esp, ESP_EVENT_CHECK_PHASE);
 	esp_restore_pointers(esp, ent);
 	esp->flags |= ESP_FLAG_QUICKIRQ_CHECK;
@@ -1230,9 +1222,6 @@ static int esp_finish_select(struct esp *esp)
 {
 	struct esp_cmd_entry *ent;
 	struct scsi_cmnd *cmd;
-	u8 orig_select_state;
-
-	orig_select_state = esp->select_state;
 
 	/* No longer selecting.  */
 	esp->select_state = ESP_SELECT_NONE;
@@ -1496,9 +1485,8 @@ static void esp_msgin_reject(struct esp *esp)
 		return;
 	}
 
-	esp->msg_out[0] = ABORT_TASK_SET;
-	esp->msg_out_len = 1;
-	scsi_esp_cmd(esp, ESP_CMD_SATN);
+	shost_printk(KERN_INFO, esp->host, "Unexpected MESSAGE REJECT\n");
+	esp_schedule_reset(esp);
 }
 
 static void esp_msgin_sdtr(struct esp *esp, struct esp_target_data *tp)
@@ -1621,7 +1609,7 @@ static void esp_msgin_extended(struct esp *esp)
 	shost_printk(KERN_INFO, esp->host,
 		     "Unexpected extended msg type %x\n", esp->msg_in[2]);
 
-	esp->msg_out[0] = ABORT_TASK_SET;
+	esp->msg_out[0] = MESSAGE_REJECT;
 	esp->msg_out_len = 1;
 	scsi_esp_cmd(esp, ESP_CMD_SATN);
 }
@@ -1745,7 +1733,6 @@ again:
 			return 0;
 		}
 		goto again;
-		break;
 
 	case ESP_EVENT_DATA_IN:
 		write = 1;
@@ -1956,12 +1943,16 @@ again:
 		} else {
 			if (esp->msg_out_len > 1)
 				esp->ops->dma_invalidate(esp);
-		}
 
-		if (!(esp->ireg & ESP_INTR_DC)) {
-			if (esp->rev != FASHME)
+			/* XXX if the chip went into disconnected mode,
+			 * we can't run the phase state machine anyway.
+			 */
+			if (!(esp->ireg & ESP_INTR_DC))
 				scsi_esp_cmd(esp, ESP_CMD_NULL);
 		}
+
+		esp->msg_out_len = 0;
+
 		esp_event(esp, ESP_EVENT_CHECK_PHASE);
 		goto again;
 	case ESP_EVENT_MSGIN:
@@ -1998,6 +1989,10 @@ again:
 
 			scsi_esp_cmd(esp, ESP_CMD_MOK);
 
+			/* Check whether a bus reset is to be done next */
+			if (esp->event == ESP_EVENT_RESET)
+				return 0;
+
 			if (esp->event != ESP_EVENT_FREE_BUS)
 				esp_event(esp, ESP_EVENT_CHECK_PHASE);
 		} else {
@@ -2022,7 +2017,6 @@ again:
 		}
 		esp_schedule_reset(esp);
 		return 0;
-		break;
 
 	case ESP_EVENT_RESET:
 		scsi_esp_cmd(esp, ESP_CMD_RS);
@@ -2033,7 +2027,6 @@ again:
 			     "Unexpected event %x, resetting\n", esp->event);
 		esp_schedule_reset(esp);
 		return 0;
-		break;
 	}
 	return 1;
 }
@@ -2170,14 +2163,14 @@ static void __esp_interrupt(struct esp *esp)
 
 		esp_schedule_reset(esp);
 	} else {
-		if (!(esp->ireg & ESP_INTR_RSEL)) {
-			/* Some combination of FDONE, BSERV, DC.  */
-			if (esp->select_state != ESP_SELECT_NONE)
-				intr_done = esp_finish_select(esp);
-		} else if (esp->ireg & ESP_INTR_RSEL) {
+		if (esp->ireg & ESP_INTR_RSEL) {
 			if (esp->active_cmd)
 				(void) esp_finish_select(esp);
 			intr_done = esp_reconnect(esp);
+		} else {
+			/* Some combination of FDONE, BSERV, DC. */
+			if (esp->select_state != ESP_SELECT_NONE)
+				intr_done = esp_finish_select(esp);
 		}
 	}
 	while (!intr_done)

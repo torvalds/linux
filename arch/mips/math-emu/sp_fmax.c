@@ -47,14 +47,26 @@ union ieee754sp ieee754sp_fmax(union ieee754sp x, union ieee754sp y)
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_INF):
 		return ieee754sp_nanxcpt(x);
 
-	/* numbers are preferred to NaNs */
+	/*
+	 * Quiet NaN handling
+	 */
+
+	/*
+	 *    The case of both inputs quiet NaNs
+	 */
+	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_QNAN):
+		return x;
+
+	/*
+	 *    The cases of exactly one input quiet NaN (numbers
+	 *    are here preferred as returned values to NaNs)
+	 */
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_QNAN):
 		return x;
 
-	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_ZERO):
 	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_NORM):
 	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_DNORM):
@@ -80,9 +92,7 @@ union ieee754sp ieee754sp_fmax(union ieee754sp x, union ieee754sp y)
 		return ys ? x : y;
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_ZERO):
-		if (xs == ys)
-			return x;
-		return ieee754sp_zero(1);
+		return ieee754sp_zero(xs & ys);
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
 		SPDNORMX;
@@ -106,16 +116,32 @@ union ieee754sp ieee754sp_fmax(union ieee754sp x, union ieee754sp y)
 	else if (xs < ys)
 		return x;
 
-	/* Compare exponent */
-	if (xe > ye)
-		return x;
-	else if (xe < ye)
-		return y;
+	/* Signs of inputs are equal, let's compare exponents */
+	if (xs == 0) {
+		/* Inputs are both positive */
+		if (xe > ye)
+			return x;
+		else if (xe < ye)
+			return y;
+	} else {
+		/* Inputs are both negative */
+		if (xe > ye)
+			return y;
+		else if (xe < ye)
+			return x;
+	}
 
-	/* Compare mantissa */
+	/* Signs and exponents of inputs are equal, let's compare mantissas */
+	if (xs == 0) {
+		/* Inputs are both positive, with equal signs and exponents */
+		if (xm <= ym)
+			return y;
+		return x;
+	}
+	/* Inputs are both negative, with equal signs and exponents */
 	if (xm <= ym)
-		return y;
-	return x;
+		return x;
+	return y;
 }
 
 union ieee754sp ieee754sp_fmaxa(union ieee754sp x, union ieee754sp y)
@@ -147,14 +173,26 @@ union ieee754sp ieee754sp_fmaxa(union ieee754sp x, union ieee754sp y)
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_INF):
 		return ieee754sp_nanxcpt(x);
 
-	/* numbers are preferred to NaNs */
+	/*
+	 * Quiet NaN handling
+	 */
+
+	/*
+	 *    The case of both inputs quiet NaNs
+	 */
+	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_QNAN):
+		return x;
+
+	/*
+	 *    The cases of exactly one input quiet NaN (numbers
+	 *    are here preferred as returned values to NaNs)
+	 */
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_QNAN):
 		return x;
 
-	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_ZERO):
 	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_NORM):
 	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_DNORM):
@@ -164,6 +202,9 @@ union ieee754sp ieee754sp_fmaxa(union ieee754sp x, union ieee754sp y)
 	/*
 	 * Infinity and zero handling
 	 */
+	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_INF):
+		return ieee754sp_inf(xs & ys);
+
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_ZERO):
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_NORM):
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_DNORM):
@@ -171,7 +212,6 @@ union ieee754sp ieee754sp_fmaxa(union ieee754sp x, union ieee754sp y)
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_ZERO):
 		return x;
 
-	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_INF):
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_INF):
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_INF):
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_INF):
@@ -180,9 +220,7 @@ union ieee754sp ieee754sp_fmaxa(union ieee754sp x, union ieee754sp y)
 		return y;
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_ZERO):
-		if (xs == ys)
-			return x;
-		return ieee754sp_zero(1);
+		return ieee754sp_zero(xs & ys);
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
 		SPDNORMX;
@@ -207,7 +245,11 @@ union ieee754sp ieee754sp_fmaxa(union ieee754sp x, union ieee754sp y)
 		return y;
 
 	/* Compare mantissa */
-	if (xm <= ym)
+	if (xm < ym)
 		return y;
-	return x;
+	else if (xm > ym)
+		return x;
+	else if (xs == 0)
+		return x;
+	return y;
 }

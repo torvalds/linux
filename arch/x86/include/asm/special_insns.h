@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_SPECIAL_INSNS_H
 #define _ASM_X86_SPECIAL_INSNS_H
 
@@ -39,7 +40,7 @@ static inline void native_write_cr2(unsigned long val)
 	asm volatile("mov %0,%%cr2": : "r" (val), "m" (__force_order));
 }
 
-static inline unsigned long native_read_cr3(void)
+static inline unsigned long __native_read_cr3(void)
 {
 	unsigned long val;
 	asm volatile("mov %%cr3,%0\n\t" : "=r" (val), "=m" (__force_order));
@@ -135,6 +136,11 @@ static inline void native_wbinvd(void)
 
 extern asmlinkage void native_load_gs_index(unsigned);
 
+static inline unsigned long __read_cr4(void)
+{
+	return native_read_cr4();
+}
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
@@ -159,19 +165,18 @@ static inline void write_cr2(unsigned long x)
 	native_write_cr2(x);
 }
 
-static inline unsigned long read_cr3(void)
+/*
+ * Careful!  CR3 contains more than just an address.  You probably want
+ * read_cr3_pa() instead.
+ */
+static inline unsigned long __read_cr3(void)
 {
-	return native_read_cr3();
+	return __native_read_cr3();
 }
 
 static inline void write_cr3(unsigned long x)
 {
 	native_write_cr3(x);
-}
-
-static inline unsigned long __read_cr4(void)
-{
-	return native_read_cr4();
 }
 
 static inline void __write_cr4(unsigned long x)

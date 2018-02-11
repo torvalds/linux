@@ -239,7 +239,7 @@ static int a2mp_discover_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 		}
 
 		len -= sizeof(*cl);
-		cl = (void *) skb_pull(skb, sizeof(*cl));
+		cl = skb_pull(skb, sizeof(*cl));
 	}
 
 	/* Fall back to L2CAP init sequence */
@@ -279,7 +279,7 @@ static int a2mp_change_notify(struct amp_mgr *mgr, struct sk_buff *skb,
 	while (skb->len >= sizeof(*cl)) {
 		BT_DBG("Controller id %d type %d status %d", cl->id, cl->type,
 		       cl->status);
-		cl = (struct a2mp_cl *) skb_pull(skb, sizeof(*cl));
+		cl = skb_pull(skb, sizeof(*cl));
 	}
 
 	/* TODO send A2MP_CHANGE_RSP */
@@ -573,7 +573,7 @@ static int a2mp_discphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	hcon = hci_conn_hash_lookup_ba(hdev, AMP_LINK,
 				       &mgr->l2cap_conn->hcon->dst);
 	if (!hcon) {
-		BT_ERR("No phys link exist");
+		bt_dev_err(hdev, "no phys link exist");
 		rsp.status = A2MP_STATUS_NO_PHYSICAL_LINK_EXISTS;
 		goto clean;
 	}

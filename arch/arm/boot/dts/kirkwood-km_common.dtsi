@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 / {
 	chosen {
 		bootargs = "console=ttyS0,115200n8 earlyprintk";

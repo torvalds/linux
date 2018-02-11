@@ -344,7 +344,6 @@ static int atlas_buffer_predisable(struct iio_dev *indio_dev)
 }
 
 static const struct iio_trigger_ops atlas_interrupt_trigger_ops = {
-	.owner = THIS_MODULE,
 };
 
 static const struct iio_buffer_setup_ops atlas_buffer_setup_ops = {
@@ -499,7 +498,6 @@ static int atlas_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info atlas_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = atlas_read_raw,
 	.write_raw = atlas_write_raw,
 };

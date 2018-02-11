@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH_KFR2R09_H
 #define __ASM_SH_KFR2R09_H
 

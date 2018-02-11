@@ -54,8 +54,6 @@
 #define PRIu64 "u"
 #define PRIo64 "o"
 
-#define APIC_BUS_CYCLE_NS 1
-
 /* #define apic_debug(fmt,arg...) printk(KERN_WARNING fmt,##arg) */
 #define apic_debug(fmt, arg...)
 
@@ -268,9 +266,14 @@ static inline void kvm_apic_set_ldr(struct kvm_lapic *apic, u32 id)
 	recalculate_apic_map(apic->vcpu->kvm);
 }
 
+static inline u32 kvm_apic_calc_x2apic_ldr(u32 id)
+{
+	return ((id >> 4) << 16) | (1 << (id & 0xf));
+}
+
 static inline void kvm_apic_set_x2apic_id(struct kvm_lapic *apic, u32 id)
 {
-	u32 ldr = ((id >> 4) << 16) | (1 << (id & 0xf));
+	u32 ldr = kvm_apic_calc_x2apic_ldr(id);
 
 	WARN_ON_ONCE(id != apic->vcpu->vcpu_id);
 
@@ -1303,14 +1306,42 @@ static void update_divide_count(struct kvm_lapic *apic)
 				   apic->divide_count);
 }
 
+static void limit_periodic_timer_frequency(struct kvm_lapic *apic)
+{
+	/*
+	 * Do not allow the guest to program periodic timers with small
+	 * interval, since the hrtimers are not throttled by the host
+	 * scheduler.
+	 */
+	if (apic_lvtt_period(apic) && apic->lapic_timer.period) {
+		s64 min_period = min_timer_period_us * 1000LL;
+
+		if (apic->lapic_timer.period < min_period) {
+			pr_info_ratelimited(
+			    "kvm: vcpu %i: requested %lld ns "
+			    "lapic timer period limited to %lld ns\n",
+			    apic->vcpu->vcpu_id,
+			    apic->lapic_timer.period, min_period);
+			apic->lapic_timer.period = min_period;
+		}
+	}
+}
+
 static void apic_update_lvtt(struct kvm_lapic *apic)
 {
 	u32 timer_mode = kvm_lapic_get_reg(apic, APIC_LVTT) &
 			apic->lapic_timer.timer_mode_mask;
 
 	if (apic->lapic_timer.timer_mode != timer_mode) {
+		if (apic_lvtt_tscdeadline(apic) != (timer_mode ==
+				APIC_LVT_TIMER_TSCDEADLINE)) {
+			hrtimer_cancel(&apic->lapic_timer.timer);
+			kvm_lapic_set_reg(apic, APIC_TMICT, 0);
+			apic->lapic_timer.period = 0;
+			apic->lapic_timer.tscdeadline = 0;
+		}
 		apic->lapic_timer.timer_mode = timer_mode;
-		hrtimer_cancel(&apic->lapic_timer.timer);
+		limit_periodic_timer_frequency(apic);
 	}
 }
 
@@ -1326,6 +1357,10 @@ static void apic_timer_expired(struct kvm_lapic *apic)
 	atomic_inc(&apic->lapic_timer.pending);
 	kvm_set_pending_timer(vcpu);
 
+	/*
+	 * For x86, the atomic_inc() is serialized, thus
+	 * using swait_active() is safe.
+	 */
 	if (swait_active(q))
 		swake_up(q);
 
@@ -1428,6 +1463,30 @@ static void start_sw_period(struct kvm_lapic *apic)
 		HRTIMER_MODE_ABS_PINNED);
 }
 
+static void update_target_expiration(struct kvm_lapic *apic, uint32_t old_divisor)
+{
+	ktime_t now, remaining;
+	u64 ns_remaining_old, ns_remaining_new;
+
+	apic->lapic_timer.period = (u64)kvm_lapic_get_reg(apic, APIC_TMICT)
+		* APIC_BUS_CYCLE_NS * apic->divide_count;
+	limit_periodic_timer_frequency(apic);
+
+	now = ktime_get();
+	remaining = ktime_sub(apic->lapic_timer.target_expiration, now);
+	if (ktime_to_ns(remaining) < 0)
+		remaining = 0;
+
+	ns_remaining_old = ktime_to_ns(remaining);
+	ns_remaining_new = mul_u64_u32_div(ns_remaining_old,
+	                                   apic->divide_count, old_divisor);
+
+	apic->lapic_timer.tscdeadline +=
+		nsec_to_cycles(apic->vcpu, ns_remaining_new) -
+		nsec_to_cycles(apic->vcpu, ns_remaining_old);
+	apic->lapic_timer.target_expiration = ktime_add_ns(now, ns_remaining_new);
+}
+
 static bool set_target_expiration(struct kvm_lapic *apic)
 {
 	ktime_t now;
@@ -1437,26 +1496,12 @@ static bool set_target_expiration(struct kvm_lapic *apic)
 	apic->lapic_timer.period = (u64)kvm_lapic_get_reg(apic, APIC_TMICT)
 		* APIC_BUS_CYCLE_NS * apic->divide_count;
 
-	if (!apic->lapic_timer.period)
+	if (!apic->lapic_timer.period) {
+		apic->lapic_timer.tscdeadline = 0;
 		return false;
-
-	/*
-	 * Do not allow the guest to program periodic timers with small
-	 * interval, since the hrtimers are not throttled by the host
-	 * scheduler.
-	 */
-	if (apic_lvtt_period(apic)) {
-		s64 min_period = min_timer_period_us * 1000LL;
-
-		if (apic->lapic_timer.period < min_period) {
-			pr_info_ratelimited(
-			    "kvm: vcpu %i: requested %lld ns "
-			    "lapic timer period limited to %lld ns\n",
-			    apic->vcpu->vcpu_id,
-			    apic->lapic_timer.period, min_period);
-			apic->lapic_timer.period = min_period;
-		}
 	}
+
+	limit_periodic_timer_frequency(apic);
 
 	apic_debug("%s: bus cycle is %" PRId64 "ns, now 0x%016"
 		   PRIx64 ", "
@@ -1495,59 +1540,98 @@ EXPORT_SYMBOL_GPL(kvm_lapic_hv_timer_in_use);
 
 static void cancel_hv_timer(struct kvm_lapic *apic)
 {
-	preempt_disable();
+	WARN_ON(preemptible());
+	WARN_ON(!apic->lapic_timer.hv_timer_in_use);
 	kvm_x86_ops->cancel_hv_timer(apic->vcpu);
 	apic->lapic_timer.hv_timer_in_use = false;
-	preempt_enable();
 }
 
 static bool start_hv_timer(struct kvm_lapic *apic)
 {
-	u64 tscdeadline = apic->lapic_timer.tscdeadline;
+	struct kvm_timer *ktimer = &apic->lapic_timer;
+	int r;
 
-	if ((atomic_read(&apic->lapic_timer.pending) &&
-		!apic_lvtt_period(apic)) ||
-		kvm_x86_ops->set_hv_timer(apic->vcpu, tscdeadline)) {
-		if (apic->lapic_timer.hv_timer_in_use)
-			cancel_hv_timer(apic);
-	} else {
-		apic->lapic_timer.hv_timer_in_use = true;
-		hrtimer_cancel(&apic->lapic_timer.timer);
+	WARN_ON(preemptible());
+	if (!kvm_x86_ops->set_hv_timer)
+		return false;
 
-		/* In case the sw timer triggered in the window */
-		if (atomic_read(&apic->lapic_timer.pending) &&
-			!apic_lvtt_period(apic))
-			cancel_hv_timer(apic);
+	if (!apic_lvtt_period(apic) && atomic_read(&ktimer->pending))
+		return false;
+
+	if (!ktimer->tscdeadline)
+		return false;
+
+	r = kvm_x86_ops->set_hv_timer(apic->vcpu, ktimer->tscdeadline);
+	if (r < 0)
+		return false;
+
+	ktimer->hv_timer_in_use = true;
+	hrtimer_cancel(&ktimer->timer);
+
+	/*
+	 * Also recheck ktimer->pending, in case the sw timer triggered in
+	 * the window.  For periodic timer, leave the hv timer running for
+	 * simplicity, and the deadline will be recomputed on the next vmexit.
+	 */
+	if (!apic_lvtt_period(apic) && (r || atomic_read(&ktimer->pending))) {
+		if (r)
+			apic_timer_expired(apic);
+		return false;
 	}
-	trace_kvm_hv_timer_state(apic->vcpu->vcpu_id,
-			apic->lapic_timer.hv_timer_in_use);
-	return apic->lapic_timer.hv_timer_in_use;
+
+	trace_kvm_hv_timer_state(apic->vcpu->vcpu_id, true);
+	return true;
+}
+
+static void start_sw_timer(struct kvm_lapic *apic)
+{
+	struct kvm_timer *ktimer = &apic->lapic_timer;
+
+	WARN_ON(preemptible());
+	if (apic->lapic_timer.hv_timer_in_use)
+		cancel_hv_timer(apic);
+	if (!apic_lvtt_period(apic) && atomic_read(&ktimer->pending))
+		return;
+
+	if (apic_lvtt_period(apic) || apic_lvtt_oneshot(apic))
+		start_sw_period(apic);
+	else if (apic_lvtt_tscdeadline(apic))
+		start_sw_tscdeadline(apic);
+	trace_kvm_hv_timer_state(apic->vcpu->vcpu_id, false);
+}
+
+static void restart_apic_timer(struct kvm_lapic *apic)
+{
+	preempt_disable();
+	if (!start_hv_timer(apic))
+		start_sw_timer(apic);
+	preempt_enable();
 }
 
 void kvm_lapic_expired_hv_timer(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
-	WARN_ON(!apic->lapic_timer.hv_timer_in_use);
+	preempt_disable();
+	/* If the preempt notifier has already run, it also called apic_timer_expired */
+	if (!apic->lapic_timer.hv_timer_in_use)
+		goto out;
 	WARN_ON(swait_active(&vcpu->wq));
 	cancel_hv_timer(apic);
 	apic_timer_expired(apic);
 
 	if (apic_lvtt_period(apic) && apic->lapic_timer.period) {
 		advance_periodic_target_expiration(apic);
-		if (!start_hv_timer(apic))
-			start_sw_period(apic);
+		restart_apic_timer(apic);
 	}
+out:
+	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(kvm_lapic_expired_hv_timer);
 
 void kvm_lapic_switch_to_hv_timer(struct kvm_vcpu *vcpu)
 {
-	struct kvm_lapic *apic = vcpu->arch.apic;
-
-	WARN_ON(apic->lapic_timer.hv_timer_in_use);
-
-	start_hv_timer(apic);
+	restart_apic_timer(vcpu->arch.apic);
 }
 EXPORT_SYMBOL_GPL(kvm_lapic_switch_to_hv_timer);
 
@@ -1555,34 +1639,31 @@ void kvm_lapic_switch_to_sw_timer(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
+	preempt_disable();
 	/* Possibly the TSC deadline timer is not enabled yet */
-	if (!apic->lapic_timer.hv_timer_in_use)
-		return;
-
-	cancel_hv_timer(apic);
-
-	if (atomic_read(&apic->lapic_timer.pending))
-		return;
-
-	if (apic_lvtt_period(apic) || apic_lvtt_oneshot(apic))
-		start_sw_period(apic);
-	else if (apic_lvtt_tscdeadline(apic))
-		start_sw_tscdeadline(apic);
+	if (apic->lapic_timer.hv_timer_in_use)
+		start_sw_timer(apic);
+	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(kvm_lapic_switch_to_sw_timer);
+
+void kvm_lapic_restart_hv_timer(struct kvm_vcpu *vcpu)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+
+	WARN_ON(!apic->lapic_timer.hv_timer_in_use);
+	restart_apic_timer(apic);
+}
 
 static void start_apic_timer(struct kvm_lapic *apic)
 {
 	atomic_set(&apic->lapic_timer.pending, 0);
 
-	if (apic_lvtt_period(apic) || apic_lvtt_oneshot(apic)) {
-		if (set_target_expiration(apic) &&
-			!(kvm_x86_ops->set_hv_timer && start_hv_timer(apic)))
-			start_sw_period(apic);
-	} else if (apic_lvtt_tscdeadline(apic)) {
-		if (!(kvm_x86_ops->set_hv_timer && start_hv_timer(apic)))
-			start_sw_tscdeadline(apic);
-	}
+	if ((apic_lvtt_period(apic) || apic_lvtt_oneshot(apic))
+	    && !set_target_expiration(apic))
+		return;
+
+	restart_apic_timer(apic);
 }
 
 static void apic_manage_nmi_watchdog(struct kvm_lapic *apic, u32 lvt0_val)
@@ -1703,13 +1784,21 @@ int kvm_lapic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 		start_apic_timer(apic);
 		break;
 
-	case APIC_TDCR:
+	case APIC_TDCR: {
+		uint32_t old_divisor = apic->divide_count;
+
 		if (val & 4)
 			apic_debug("KVM_WRITE:TDCR %x\n", val);
 		kvm_lapic_set_reg(apic, APIC_TDCR, val);
 		update_divide_count(apic);
+		if (apic->divide_count != old_divisor &&
+				apic->lapic_timer.period) {
+			hrtimer_cancel(&apic->lapic_timer.timer);
+			update_target_expiration(apic, old_divisor);
+			restart_apic_timer(apic);
+		}
 		break;
-
+	}
 	case APIC_ESR:
 		if (apic_x2apic_mode(apic) && val != 0) {
 			apic_debug("KVM_WRITE:ESR not zero %x\n", val);
@@ -1813,16 +1902,6 @@ void kvm_free_lapic(struct kvm_vcpu *vcpu)
  * LAPIC interface
  *----------------------------------------------------------------------
  */
-u64 kvm_get_lapic_target_expiration_tsc(struct kvm_vcpu *vcpu)
-{
-	struct kvm_lapic *apic = vcpu->arch.apic;
-
-	if (!lapic_in_kernel(vcpu))
-		return 0;
-
-	return apic->lapic_timer.tscdeadline;
-}
-
 u64 kvm_get_lapic_tscdeadline_msr(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
@@ -1967,6 +2046,11 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu, bool init_event)
 				vcpu->arch.apic_base | MSR_IA32_APICBASE_BSP);
 	vcpu->arch.pv_eoi.msr_val = 0;
 	apic_update_ppr(apic);
+	if (vcpu->arch.apicv_active) {
+		kvm_x86_ops->apicv_post_state_restore(vcpu);
+		kvm_x86_ops->hwapic_irr_update(vcpu, -1);
+		kvm_x86_ops->hwapic_isr_update(vcpu, -1);
+	}
 
 	vcpu->arch.apic_arb_prio = 0;
 	vcpu->arch.apic_attention = 0;
@@ -2166,6 +2250,7 @@ static int kvm_apic_state_fixup(struct kvm_vcpu *vcpu,
 {
 	if (apic_x2apic_mode(vcpu->arch.apic)) {
 		u32 *id = (u32 *)(s->regs + APIC_ID);
+		u32 *ldr = (u32 *)(s->regs + APIC_LDR);
 
 		if (vcpu->kvm->arch.x2apic_format) {
 			if (*id != vcpu->vcpu_id)
@@ -2176,6 +2261,10 @@ static int kvm_apic_state_fixup(struct kvm_vcpu *vcpu,
 			else
 				*id <<= 24;
 		}
+
+		/* In x2APIC mode, the LDR is fixed and based on the id */
+		if (set)
+			*ldr = kvm_apic_calc_x2apic_ldr(*id);
 	}
 
 	return 0;

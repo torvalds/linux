@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_TTY_DRIVER_H
 #define _LINUX_TTY_DRIVER_H
 
@@ -243,6 +244,7 @@
 #include <linux/list.h>
 #include <linux/cdev.h>
 #include <linux/termios.h>
+#include <linux/seq_file.h>
 
 struct tty_struct;
 struct tty_driver;
@@ -285,13 +287,14 @@ struct tty_operations {
 	int (*set_termiox)(struct tty_struct *tty, struct termiox *tnew);
 	int (*get_icount)(struct tty_struct *tty,
 				struct serial_icounter_struct *icount);
+	void (*show_fdinfo)(struct tty_struct *tty, struct seq_file *m);
 #ifdef CONFIG_CONSOLE_POLL
 	int (*poll_init)(struct tty_driver *driver, int line, char *options);
 	int (*poll_get_char)(struct tty_driver *driver, int line);
 	void (*poll_put_char)(struct tty_driver *driver, int line, char ch);
 #endif
 	const struct file_operations *proc_fops;
-};
+} __randomize_layout;
 
 struct tty_driver {
 	int	magic;		/* magic number for this structure */
@@ -325,7 +328,7 @@ struct tty_driver {
 
 	const struct tty_operations *ops;
 	struct list_head tty_drivers;
-};
+} __randomize_layout;
 
 extern struct list_head tty_drivers;
 

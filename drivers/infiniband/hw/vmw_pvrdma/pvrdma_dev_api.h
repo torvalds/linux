@@ -50,7 +50,15 @@
 
 #include "pvrdma_verbs.h"
 
-#define PVRDMA_VERSION			17
+/*
+ * PVRDMA version macros. Some new features require updates to PVRDMA_VERSION.
+ * These macros allow us to check for different features if necessary.
+ */
+
+#define PVRDMA_ROCEV1_VERSION		17
+#define PVRDMA_ROCEV2_VERSION		18
+#define PVRDMA_VERSION			PVRDMA_ROCEV2_VERSION
+
 #define PVRDMA_BOARD_ID			1
 #define PVRDMA_REV_ID			1
 
@@ -122,6 +130,31 @@
 
 #define PVRDMA_GID_TYPE_FLAG_ROCE_V1	BIT(0)
 #define PVRDMA_GID_TYPE_FLAG_ROCE_V2	BIT(1)
+
+/*
+ * Version checks. This checks whether each version supports specific
+ * capabilities from the device.
+ */
+
+#define PVRDMA_IS_VERSION17(_dev)					\
+	(_dev->dsr_version == PVRDMA_ROCEV1_VERSION &&			\
+	 _dev->dsr->caps.gid_types == PVRDMA_GID_TYPE_FLAG_ROCE_V1)
+
+#define PVRDMA_IS_VERSION18(_dev)					\
+	(_dev->dsr_version >= PVRDMA_ROCEV2_VERSION &&			\
+	 (_dev->dsr->caps.gid_types == PVRDMA_GID_TYPE_FLAG_ROCE_V1 ||  \
+	  _dev->dsr->caps.gid_types == PVRDMA_GID_TYPE_FLAG_ROCE_V2))	\
+
+#define PVRDMA_SUPPORTED(_dev)						\
+	((_dev->dsr->caps.mode == PVRDMA_DEVICE_MODE_ROCE) &&		\
+	 (PVRDMA_IS_VERSION17(_dev) || PVRDMA_IS_VERSION18(_dev)))
+
+/*
+ * Get capability values based on device version.
+ */
+
+#define PVRDMA_GET_CAP(_dev, _old_val, _val) \
+	((PVRDMA_IS_VERSION18(_dev)) ? _val : _old_val)
 
 enum pvrdma_pci_resource {
 	PVRDMA_PCI_RESOURCE_MSIX,	/* BAR0: MSI-X, MMIO. */
@@ -225,7 +258,7 @@ struct pvrdma_device_caps {
 	u8  atomic_ops;				/* PVRDMA_ATOMIC_OP_* bits */
 	u8  bmme_flags;				/* FRWR Mem Mgmt Extensions */
 	u8  gid_types;				/* PVRDMA_GID_TYPE_FLAG_ */
-	u8  reserved[4];
+	u32 max_fast_reg_page_list_len;
 };
 
 struct pvrdma_ring_page_info {
@@ -306,6 +339,10 @@ enum {
 	PVRDMA_CMD_DESTROY_UC,
 	PVRDMA_CMD_CREATE_BIND,
 	PVRDMA_CMD_DESTROY_BIND,
+	PVRDMA_CMD_CREATE_SRQ,
+	PVRDMA_CMD_MODIFY_SRQ,
+	PVRDMA_CMD_QUERY_SRQ,
+	PVRDMA_CMD_DESTROY_SRQ,
 	PVRDMA_CMD_MAX,
 };
 
@@ -328,6 +365,10 @@ enum {
 	PVRDMA_CMD_DESTROY_UC_RESP_NOOP,
 	PVRDMA_CMD_CREATE_BIND_RESP_NOOP,
 	PVRDMA_CMD_DESTROY_BIND_RESP_NOOP,
+	PVRDMA_CMD_CREATE_SRQ_RESP,
+	PVRDMA_CMD_MODIFY_SRQ_RESP,
+	PVRDMA_CMD_QUERY_SRQ_RESP,
+	PVRDMA_CMD_DESTROY_SRQ_RESP,
 	PVRDMA_CMD_MAX_RESP,
 };
 
@@ -462,6 +503,46 @@ struct pvrdma_cmd_destroy_cq {
 	u8 reserved[4];
 };
 
+struct pvrdma_cmd_create_srq {
+	struct pvrdma_cmd_hdr hdr;
+	u64 pdir_dma;
+	u32 pd_handle;
+	u32 nchunks;
+	struct pvrdma_srq_attr attrs;
+	u8 srq_type;
+	u8 reserved[7];
+};
+
+struct pvrdma_cmd_create_srq_resp {
+	struct pvrdma_cmd_resp_hdr hdr;
+	u32 srqn;
+	u8 reserved[4];
+};
+
+struct pvrdma_cmd_modify_srq {
+	struct pvrdma_cmd_hdr hdr;
+	u32 srq_handle;
+	u32 attr_mask;
+	struct pvrdma_srq_attr attrs;
+};
+
+struct pvrdma_cmd_query_srq {
+	struct pvrdma_cmd_hdr hdr;
+	u32 srq_handle;
+	u8 reserved[4];
+};
+
+struct pvrdma_cmd_query_srq_resp {
+	struct pvrdma_cmd_resp_hdr hdr;
+	struct pvrdma_srq_attr attrs;
+};
+
+struct pvrdma_cmd_destroy_srq {
+	struct pvrdma_cmd_hdr hdr;
+	u32 srq_handle;
+	u8 reserved[4];
+};
+
 struct pvrdma_cmd_create_qp {
 	struct pvrdma_cmd_hdr hdr;
 	u64 pdir_dma;
@@ -561,6 +642,10 @@ union pvrdma_cmd_req {
 	struct pvrdma_cmd_destroy_qp destroy_qp;
 	struct pvrdma_cmd_create_bind create_bind;
 	struct pvrdma_cmd_destroy_bind destroy_bind;
+	struct pvrdma_cmd_create_srq create_srq;
+	struct pvrdma_cmd_modify_srq modify_srq;
+	struct pvrdma_cmd_query_srq query_srq;
+	struct pvrdma_cmd_destroy_srq destroy_srq;
 };
 
 union pvrdma_cmd_resp {
@@ -575,6 +660,8 @@ union pvrdma_cmd_resp {
 	struct pvrdma_cmd_create_qp_resp create_qp_resp;
 	struct pvrdma_cmd_query_qp_resp query_qp_resp;
 	struct pvrdma_cmd_destroy_qp_resp destroy_qp_resp;
+	struct pvrdma_cmd_create_srq_resp create_srq_resp;
+	struct pvrdma_cmd_query_srq_resp query_srq_resp;
 };
 
 #endif /* __PVRDMA_DEV_API_H__ */

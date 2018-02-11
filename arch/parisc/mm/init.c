@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/parisc/mm/init.c
  *
@@ -381,6 +382,9 @@ static void __init setup_bootmem(void)
 		request_resource(res, &data_resource);
 	}
 	request_resource(&sysram_resources[0], &pdcdata_resource);
+
+	/* Initialize Page Deallocation Table (PDT) and check for bad memory. */
+	pdc_pdt_init();
 }
 
 static int __init parisc_text_address(unsigned long vaddr)
@@ -627,11 +631,11 @@ void __init mem_init(void)
 	mem_init_print_info(NULL);
 #ifdef CONFIG_DEBUG_KERNEL /* double-sanity-check paranoia */
 	printk("virtual kernel memory layout:\n"
-	       "    vmalloc : 0x%p - 0x%p   (%4ld MB)\n"
-	       "    memory  : 0x%p - 0x%p   (%4ld MB)\n"
-	       "      .init : 0x%p - 0x%p   (%4ld kB)\n"
-	       "      .data : 0x%p - 0x%p   (%4ld kB)\n"
-	       "      .text : 0x%p - 0x%p   (%4ld kB)\n",
+	       "    vmalloc : 0x%px - 0x%px   (%4ld MB)\n"
+	       "    memory  : 0x%px - 0x%px   (%4ld MB)\n"
+	       "      .init : 0x%px - 0x%px   (%4ld kB)\n"
+	       "      .data : 0x%px - 0x%px   (%4ld kB)\n"
+	       "      .text : 0x%px - 0x%px   (%4ld kB)\n",
 
 	       (void*)VMALLOC_START, (void*)VMALLOC_END,
 	       (VMALLOC_END - VMALLOC_START) >> 20,

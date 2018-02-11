@@ -9,11 +9,11 @@ Required properties:
  - pinctrl-names: Contains only one value - "default"
  - pinctrl-0: Specifies the pin control groups used for CEC hardware.
  - resets: Reference to a reset controller
- - hdmi-phandle: Phandle to the HDMI controller
+ - hdmi-phandle: Phandle to the HDMI controller, see also cec.txt.
 
 Example for STIH407:
 
-sti-cec@094a087c {
+sti-cec@94a087c {
 	compatible = "st,stih-cec";
 	reg = <0x94a087c 0x64>;
 	clocks = <&clk_sysin>;

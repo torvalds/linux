@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_PARISC_COMPAT_H
 #define _ASM_PARISC_COMPAT_H
 /*
@@ -194,7 +195,6 @@ typedef struct compat_siginfo {
 } compat_siginfo_t;
 
 #define COMPAT_OFF_T_MAX	0x7fffffff
-#define COMPAT_LOFF_T_MAX	0x7fffffffffffffffL
 
 struct compat_ipc64_perm {
 	compat_key_t key;

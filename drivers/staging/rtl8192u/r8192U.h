@@ -34,7 +34,7 @@
 #include <linux/proc_fs.h>
 #include <linux/if_arp.h>
 #include <linux/random.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include "ieee80211/ieee80211.h"
 
 #define RTL8192U
@@ -1147,9 +1147,9 @@ int write_nic_word(struct net_device *dev, int x, u16 y);
 int write_nic_dword(struct net_device *dev, int x, u32 y);
 void force_pci_posting(struct net_device *dev);
 
-void rtl8192_rtx_disable(struct net_device *);
-void rtl8192_rx_enable(struct net_device *);
-void rtl8192_tx_enable(struct net_device *);
+void rtl8192_rtx_disable(struct net_device *dev);
+void rtl8192_rx_enable(struct net_device *dev);
+void rtl8192_tx_enable(struct net_device *dev);
 
 void rtl8192_disassociate(struct net_device *dev);
 void rtl8185_set_rf_pins_enable(struct net_device *dev, u32 a);

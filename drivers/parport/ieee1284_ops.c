@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* IEEE-1284 operations for parport.
  *
  * This file is for generic IEEE 1284 operations.  The idea is that

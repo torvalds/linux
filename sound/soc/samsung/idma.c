@@ -325,7 +325,7 @@ static int idma_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_ops idma_ops = {
+static const struct snd_pcm_ops idma_ops = {
 	.open		= idma_open,
 	.close		= idma_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -399,7 +399,7 @@ void idma_reg_addr_init(void __iomem *regs, dma_addr_t addr)
 }
 EXPORT_SYMBOL_GPL(idma_reg_addr_init);
 
-static struct snd_soc_platform_driver asoc_idma_platform = {
+static const struct snd_soc_platform_driver asoc_idma_platform = {
 	.ops = &idma_ops,
 	.pcm_new = idma_new,
 	.pcm_free = idma_free,

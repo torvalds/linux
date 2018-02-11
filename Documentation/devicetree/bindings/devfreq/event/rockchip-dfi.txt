@@ -9,11 +9,10 @@ Required properties:
 - clock-names : the name of clock used by the DFI, must be "pclk_ddr_mon";
 
 Example:
-	dfi: dfi@0xff630000 {
+	dfi: dfi@ff630000 {
 		compatible = "rockchip,rk3399-dfi";
 		reg = <0x00 0xff630000 0x00 0x4000>;
 		rockchip,pmu = <&pmugrf>;
 		clocks = <&cru PCLK_DDR_MON>;
 		clock-names = "pclk_ddr_mon";
-		status = "disabled";
 	};

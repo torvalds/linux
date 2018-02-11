@@ -267,14 +267,13 @@ static void hsi_add_client_from_dt(struct hsi_port *port,
 
 	cl->rx_cfg.num_channels = cells;
 	cl->tx_cfg.num_channels = cells;
-
-	cl->rx_cfg.channels = kzalloc(cells * sizeof(channel), GFP_KERNEL);
+	cl->rx_cfg.channels = kcalloc(cells, sizeof(channel), GFP_KERNEL);
 	if (!cl->rx_cfg.channels) {
 		err = -ENOMEM;
 		goto err;
 	}
 
-	cl->tx_cfg.channels = kzalloc(cells * sizeof(channel), GFP_KERNEL);
+	cl->tx_cfg.channels = kcalloc(cells, sizeof(channel), GFP_KERNEL);
 	if (!cl->tx_cfg.channels) {
 		err = -ENOMEM;
 		goto err2;
@@ -485,7 +484,7 @@ struct hsi_controller *hsi_alloc_controller(unsigned int n_ports, gfp_t flags)
 	hsi = kzalloc(sizeof(*hsi), flags);
 	if (!hsi)
 		return NULL;
-	port = kzalloc(sizeof(*port)*n_ports, flags);
+	port = kcalloc(n_ports, sizeof(*port), flags);
 	if (!port) {
 		kfree(hsi);
 		return NULL;

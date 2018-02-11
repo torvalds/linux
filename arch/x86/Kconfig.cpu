@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Put here option for CPU selection and depending optimization
 choice
 	prompt "Processor family"

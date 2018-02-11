@@ -27,6 +27,7 @@
 			compatible = "arm,cortex-a9";
 			reg = <0>;
 			clock-frequency = <1196000000>;
+			clocks = <&cpg_clocks SH73A0_CLK_Z>;
 			power-domains = <&pd_a2sl>;
 			next-level-cache = <&L2>;
 		};
@@ -35,6 +36,7 @@
 			compatible = "arm,cortex-a9";
 			reg = <1>;
 			clock-frequency = <1196000000>;
+			clocks = <&cpg_clocks SH73A0_CLK_Z>;
 			power-domains = <&pd_a2sl>;
 			next-level-cache = <&L2>;
 		};
@@ -444,7 +446,7 @@
 		status = "disabled";
 	};
 
-	pfc: pfc@e6050000 {
+	pfc: pin-controller@e6050000 {
 		compatible = "renesas,pfc-sh73a0";
 		reg = <0xe6050000 0x8000>,
 		      <0xe605801c 0x1c>;

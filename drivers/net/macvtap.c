@@ -49,7 +49,7 @@ static struct class macvtap_class = {
 static struct cdev macvtap_cdev;
 
 #define TUN_OFFLOADS (NETIF_F_HW_CSUM | NETIF_F_TSO_ECN | NETIF_F_TSO | \
-		      NETIF_F_TSO6 | NETIF_F_UFO)
+		      NETIF_F_TSO6)
 
 static void macvtap_count_tx_dropped(struct tap_dev *tap)
 {
@@ -77,10 +77,9 @@ static void macvtap_update_features(struct tap_dev *tap,
 	netdev_update_features(vlan->dev);
 }
 
-static int macvtap_newlink(struct net *src_net,
-			   struct net_device *dev,
-			   struct nlattr *tb[],
-			   struct nlattr *data[])
+static int macvtap_newlink(struct net *src_net, struct net_device *dev,
+			   struct nlattr *tb[], struct nlattr *data[],
+			   struct netlink_ext_ack *extack)
 {
 	struct macvtap_dev *vlantap = netdev_priv(dev);
 	int err;
@@ -106,7 +105,7 @@ static int macvtap_newlink(struct net *src_net,
 	/* Don't put anything that may fail after macvlan_common_newlink
 	 * because we can't undo what it does.
 	 */
-	err = macvlan_common_newlink(src_net, dev, tb, data);
+	err = macvlan_common_newlink(src_net, dev, tb, data, extack);
 	if (err) {
 		netdev_rx_handler_unregister(dev);
 		return err;
@@ -205,8 +204,8 @@ static int macvtap_init(void)
 {
 	int err;
 
-	err = tap_create_cdev(&macvtap_cdev, &macvtap_major, "macvtap");
-
+	err = tap_create_cdev(&macvtap_cdev, &macvtap_major, "macvtap",
+			      THIS_MODULE);
 	if (err)
 		goto out1;
 

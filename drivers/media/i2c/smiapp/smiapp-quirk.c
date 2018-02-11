@@ -71,7 +71,7 @@ static int jt8ew9_limits(struct smiapp_sensor *sensor)
 
 static int jt8ew9_post_poweron(struct smiapp_sensor *sensor)
 {
-	const struct smiapp_reg_8 regs[] = {
+	static const struct smiapp_reg_8 regs[] = {
 		{ 0x30a3, 0xd8 }, /* Output port control : LVDS ports only */
 		{ 0x30ae, 0x00 }, /* 0x0307 pll_multiplier maximum value on PLL input 9.6MHz ( 19.2MHz is divided on pre_pll_div) */
 		{ 0x30af, 0xd0 }, /* 0x0307 pll_multiplier maximum value on PLL input 9.6MHz ( 19.2MHz is divided on pre_pll_div) */
@@ -115,7 +115,7 @@ const struct smiapp_quirk smiapp_jt8ew9_quirk = {
 static int imx125es_post_poweron(struct smiapp_sensor *sensor)
 {
 	/* Taken from v02. No idea what the other two are. */
-	const struct smiapp_reg_8 regs[] = {
+	static const struct smiapp_reg_8 regs[] = {
 		/*
 		 * 0x3302: clk during frame blanking:
 		 * 0x00 - HS mode, 0x01 - LP11
@@ -145,7 +145,7 @@ static int jt8ev1_post_poweron(struct smiapp_sensor *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	int rval;
-	const struct smiapp_reg_8 regs[] = {
+	static const struct smiapp_reg_8 regs[] = {
 		{ 0x3031, 0xcd }, /* For digital binning (EQ_MONI) */
 		{ 0x30a3, 0xd0 }, /* FLASH STROBE enable */
 		{ 0x3237, 0x00 }, /* For control of pulse timing for ADC */
@@ -166,7 +166,7 @@ static int jt8ev1_post_poweron(struct smiapp_sensor *sensor)
 		{ 0x33cf, 0xec }, /* For Black sun */
 		{ 0x3328, 0x80 }, /* Ugh. No idea what's this. */
 	};
-	const struct smiapp_reg_8 regs_96[] = {
+	static const struct smiapp_reg_8 regs_96[] = {
 		{ 0x30ae, 0x00 }, /* For control of ADC clock */
 		{ 0x30af, 0xd0 },
 		{ 0x30b0, 0x01 },

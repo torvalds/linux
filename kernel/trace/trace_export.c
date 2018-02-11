@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * trace_export.c - export basic ftrace utilities to user space
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/clock/tegra30-car.h>
 #include <dt-bindings/gpio/tegra-gpio.h>
 #include <dt-bindings/memory/tegra30-mc.h>
@@ -10,7 +11,7 @@
 	compatible = "nvidia,tegra30";
 	interrupt-parent = <&lic>;
 
-	pcie-controller@00003000 {
+	pcie@3000 {
 		compatible = "nvidia,tegra30-pcie";
 		device_type = "pci";
 		reg = <0x00003000 0x00000800   /* PADS registers */
@@ -51,6 +52,7 @@
 			device_type = "pci";
 			assigned-addresses = <0x82000800 0 0x00000000 0 0x1000>;
 			reg = <0x000800 0 0 0 0>;
+			bus-range = <0x00 0xff>;
 			status = "disabled";
 
 			#address-cells = <3>;
@@ -64,6 +66,7 @@
 			device_type = "pci";
 			assigned-addresses = <0x82001000 0 0x00001000 0 0x1000>;
 			reg = <0x001000 0 0 0 0>;
+			bus-range = <0x00 0xff>;
 			status = "disabled";
 
 			#address-cells = <3>;
@@ -77,6 +80,7 @@
 			device_type = "pci";
 			assigned-addresses = <0x82001800 0 0x00004000 0 0x1000>;
 			reg = <0x001800 0 0 0 0>;
+			bus-range = <0x00 0xff>;
 			status = "disabled";
 
 			#address-cells = <3>;

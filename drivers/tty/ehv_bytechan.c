@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /* ePAPR hypervisor byte channel device driver
  *
  * Copyright 2009-2011 Freescale Semiconductor, Inc.
  *
  * Author: Timur Tabi <timur@freescale.com>
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  *
  * This driver support three distinct interfaces, all of which are related to
  * ePAPR hypervisor byte channels.
@@ -122,7 +119,7 @@ static int find_console_handle(void)
 
 	stdout_irq = irq_of_parse_and_map(np, 0);
 	if (stdout_irq == NO_IRQ) {
-		pr_err("ehv-bc: no 'interrupts' property in %s node\n", np->full_name);
+		pr_err("ehv-bc: no 'interrupts' property in %pOF node\n", np);
 		return 0;
 	}
 
@@ -328,7 +325,7 @@ console_initcall(ehv_bc_console_init);
 /******************************** TTY DRIVER ********************************/
 
 /*
- * byte channel receive interupt handler
+ * byte channel receive interrupt handler
  *
  * This ISR is called whenever data is available on a byte channel.
  */
@@ -428,7 +425,7 @@ static void ehv_bc_tx_dequeue(struct ehv_bc_data *bc)
 }
 
 /*
- * byte channel transmit interupt handler
+ * byte channel transmit interrupt handler
  *
  * This ISR is called whenever space becomes available for transmitting
  * characters on a byte channel.

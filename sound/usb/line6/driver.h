@@ -117,6 +117,8 @@ enum {
 	LINE6_CAP_IN_NEEDS_OUT = 1 << 3,
 	/* device uses raw MIDI via USB (data endpoints) */
 	LINE6_CAP_CONTROL_MIDI = 1 << 4,
+	/* device provides low-level information */
+	LINE6_CAP_CONTROL_INFO = 1 << 5,
 };
 
 /*
@@ -196,8 +198,7 @@ extern int line6_send_sysex_message(struct usb_line6 *line6,
 extern ssize_t line6_set_raw(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count);
 extern void line6_start_timer(struct timer_list *timer, unsigned long msecs,
-			      void (*function)(unsigned long),
-			      unsigned long data);
+			      void (*function)(struct timer_list *t));
 extern int line6_version_request_async(struct usb_line6 *line6);
 extern int line6_write_data(struct usb_line6 *line6, unsigned address,
 			    void *data, unsigned datalen);

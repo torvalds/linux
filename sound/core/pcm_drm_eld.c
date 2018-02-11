@@ -29,13 +29,13 @@ static int eld_limit_rates(struct snd_pcm_hw_params *params,
 			   struct snd_pcm_hw_rule *rule)
 {
 	struct snd_interval *r = hw_param_interval(params, rule->var);
-	struct snd_interval *c;
+	const struct snd_interval *c;
 	unsigned int rate_mask = 7, i;
 	const u8 *sad, *eld = rule->private;
 
 	sad = drm_eld_sad(eld);
 	if (sad) {
-		c = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
+		c = hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_CHANNELS);
 
 		for (i = drm_eld_sad_count(eld); i > 0; i--, sad += 3) {
 			unsigned max_channels = sad_max_channels(sad);
@@ -57,7 +57,7 @@ static int eld_limit_channels(struct snd_pcm_hw_params *params,
 			      struct snd_pcm_hw_rule *rule)
 {
 	struct snd_interval *c = hw_param_interval(params, rule->var);
-	struct snd_interval *r;
+	const struct snd_interval *r;
 	struct snd_interval t = { .min = 1, .max = 2, .integer = 1, };
 	unsigned int i;
 	const u8 *sad, *eld = rule->private;
@@ -67,7 +67,7 @@ static int eld_limit_channels(struct snd_pcm_hw_params *params,
 		unsigned int rate_mask = 0;
 
 		/* Convert the rate interval to a mask */
-		r = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+		r = hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_RATE);
 		for (i = 0; i < ARRAY_SIZE(eld_rates); i++)
 			if (r->min <= eld_rates[i] && r->max >= eld_rates[i])
 				rate_mask |= BIT(i);

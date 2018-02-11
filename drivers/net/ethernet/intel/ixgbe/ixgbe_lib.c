@@ -806,6 +806,7 @@ static void ixgbe_add_ring(struct ixgbe_ring *ring,
 	ring->next = head->ring;
 	head->ring = ring;
 	head->count++;
+	head->next_update = jiffies + 1;
 }
 
 /**
@@ -879,8 +880,11 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 	/* initialize work limits */
 	q_vector->tx.work_limit = adapter->tx_work_limit;
 
-	/* initialize pointer to rings */
-	ring = q_vector->ring;
+	/* Initialize setting for adaptive ITR */
+	q_vector->tx.itr = IXGBE_ITR_ADAPTIVE_MAX_USECS |
+			   IXGBE_ITR_ADAPTIVE_LATENCY;
+	q_vector->rx.itr = IXGBE_ITR_ADAPTIVE_MAX_USECS |
+			   IXGBE_ITR_ADAPTIVE_LATENCY;
 
 	/* intialize ITR */
 	if (txr_count && !rxr_count) {
@@ -896,6 +900,9 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 		else
 			q_vector->itr = adapter->rx_itr_setting;
 	}
+
+	/* initialize pointer to rings */
+	ring = q_vector->ring;
 
 	while (txr_count) {
 		/* assign generic ring traits */
@@ -1018,8 +1025,12 @@ static void ixgbe_free_q_vector(struct ixgbe_adapter *adapter, int v_idx)
 	struct ixgbe_q_vector *q_vector = adapter->q_vector[v_idx];
 	struct ixgbe_ring *ring;
 
-	ixgbe_for_each_ring(ring, q_vector->tx)
-		adapter->tx_ring[ring->queue_index] = NULL;
+	ixgbe_for_each_ring(ring, q_vector->tx) {
+		if (ring_is_xdp(ring))
+			adapter->xdp_ring[ring->queue_index] = NULL;
+		else
+			adapter->tx_ring[ring->queue_index] = NULL;
+	}
 
 	ixgbe_for_each_ring(ring, q_vector->rx)
 		adapter->rx_ring[ring->queue_index] = NULL;

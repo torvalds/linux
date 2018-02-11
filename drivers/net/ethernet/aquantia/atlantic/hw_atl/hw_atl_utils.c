@@ -141,6 +141,12 @@ static int hw_atl_utils_init_ucp(struct aq_hw_s *self,
 
 	err = hw_atl_utils_ver_match(aq_hw_caps->fw_ver_expected,
 				     aq_hw_read_reg(self, 0x18U));
+
+	if (err < 0)
+		pr_err("%s: Bad FW version detected: expected=%x, actual=%x\n",
+		       AQ_CFG_DRV_NAME,
+		       aq_hw_caps->fw_ver_expected,
+		       aq_hw_read_reg(self, 0x18U));
 	return err;
 }
 
@@ -249,6 +255,15 @@ err_exit:
 	return err;
 }
 
+int hw_atl_utils_mpi_read_mbox(struct aq_hw_s *self,
+			       struct hw_aq_atl_utils_mbox_header *pmbox)
+{
+	return hw_atl_utils_fw_downld_dwords(self,
+				      PHAL_ATLANTIC->mbox_addr,
+				      (u32 *)(void *)pmbox,
+				      sizeof(*pmbox) / sizeof(u32));
+}
+
 void hw_atl_utils_mpi_read_stats(struct aq_hw_s *self,
 				 struct hw_aq_atl_utils_mbox *pmbox)
 {
@@ -260,9 +275,6 @@ void hw_atl_utils_mpi_read_stats(struct aq_hw_s *self,
 					    sizeof(*pmbox) / sizeof(u32));
 	if (err < 0)
 		goto err_exit;
-
-	if (pmbox != &PHAL_ATLANTIC->mbox)
-		memcpy(pmbox, &PHAL_ATLANTIC->mbox, sizeof(*pmbox));
 
 	if (IS_CHIP_FEATURE(REVISION_A0)) {
 		unsigned int mtu = self->aq_nic_cfg ?
@@ -293,17 +305,17 @@ void hw_atl_utils_mpi_set(struct aq_hw_s *self,
 {
 	int err = 0;
 	u32 transaction_id = 0;
+	struct hw_aq_atl_utils_mbox_header mbox;
 
 	if (state == MPI_RESET) {
-		hw_atl_utils_mpi_read_stats(self, &PHAL_ATLANTIC->mbox);
+		hw_atl_utils_mpi_read_mbox(self, &mbox);
 
-		transaction_id = PHAL_ATLANTIC->mbox.transaction_id;
+		transaction_id = mbox.transaction_id;
 
 		AQ_HW_WAIT_FOR(transaction_id !=
-				(hw_atl_utils_mpi_read_stats
-					(self, &PHAL_ATLANTIC->mbox),
-					PHAL_ATLANTIC->mbox.transaction_id),
-					1000U, 100U);
+				(hw_atl_utils_mpi_read_mbox(self, &mbox),
+				 mbox.transaction_id),
+			       1000U, 100U);
 		if (err < 0)
 			goto err_exit;
 	}
@@ -313,11 +325,11 @@ void hw_atl_utils_mpi_set(struct aq_hw_s *self,
 err_exit:;
 }
 
-int hw_atl_utils_mpi_get_link_status(struct aq_hw_s *self,
-				     struct aq_hw_link_status_s *link_status)
+int hw_atl_utils_mpi_get_link_status(struct aq_hw_s *self)
 {
 	u32 cp0x036C = aq_hw_read_reg(self, HW_ATL_MPI_STATE_ADR);
 	u32 link_speed_mask = cp0x036C >> HW_ATL_MPI_SPEED_SHIFT;
+	struct aq_hw_link_status_s *link_status = &self->aq_link_status;
 
 	if (!link_speed_mask) {
 		link_status->mbps = 0U;
@@ -345,8 +357,7 @@ int hw_atl_utils_mpi_get_link_status(struct aq_hw_s *self,
 			break;
 
 		default:
-			link_status->mbps = 0U;
-			break;
+			return -EBUSY;
 		}
 	}
 
@@ -487,43 +498,48 @@ int hw_atl_utils_hw_set_power(struct aq_hw_s *self,
 	return 0;
 }
 
-int hw_atl_utils_get_hw_stats(struct aq_hw_s *self,
-			      u64 *data, unsigned int *p_count)
+int hw_atl_utils_update_stats(struct aq_hw_s *self)
 {
-	struct hw_atl_stats_s *stats = NULL;
-	int i = 0;
+	struct hw_atl_s *hw_self = PHAL_ATLANTIC;
+	struct hw_aq_atl_utils_mbox mbox;
 
-	hw_atl_utils_mpi_read_stats(self, &PHAL_ATLANTIC->mbox);
+	hw_atl_utils_mpi_read_stats(self, &mbox);
 
-	stats = &PHAL_ATLANTIC->mbox.stats;
+#define AQ_SDELTA(_N_) (hw_self->curr_stats._N_ += \
+			mbox.stats._N_ - hw_self->last_stats._N_)
+	if (self->aq_link_status.mbps) {
+		AQ_SDELTA(uprc);
+		AQ_SDELTA(mprc);
+		AQ_SDELTA(bprc);
+		AQ_SDELTA(erpt);
 
-	data[i] = stats->uprc + stats->mprc + stats->bprc;
-	data[++i] = stats->uprc;
-	data[++i] = stats->mprc;
-	data[++i] = stats->bprc;
-	data[++i] = stats->erpt;
-	data[++i] = stats->uptc + stats->mptc + stats->bptc;
-	data[++i] = stats->uptc;
-	data[++i] = stats->mptc;
-	data[++i] = stats->bptc;
-	data[++i] = stats->ubrc;
-	data[++i] = stats->ubtc;
-	data[++i] = stats->mbrc;
-	data[++i] = stats->mbtc;
-	data[++i] = stats->bbrc;
-	data[++i] = stats->bbtc;
-	data[++i] = stats->ubrc + stats->mbrc + stats->bbrc;
-	data[++i] = stats->ubtc + stats->mbtc + stats->bbtc;
-	data[++i] = stats_rx_dma_good_pkt_counterlsw_get(self);
-	data[++i] = stats_tx_dma_good_pkt_counterlsw_get(self);
-	data[++i] = stats_rx_dma_good_octet_counterlsw_get(self);
-	data[++i] = stats_tx_dma_good_octet_counterlsw_get(self);
-	data[++i] = stats->dpc;
+		AQ_SDELTA(uptc);
+		AQ_SDELTA(mptc);
+		AQ_SDELTA(bptc);
+		AQ_SDELTA(erpr);
 
-	if (p_count)
-		*p_count = ++i;
+		AQ_SDELTA(ubrc);
+		AQ_SDELTA(ubtc);
+		AQ_SDELTA(mbrc);
+		AQ_SDELTA(mbtc);
+		AQ_SDELTA(bbrc);
+		AQ_SDELTA(bbtc);
+		AQ_SDELTA(dpc);
+	}
+#undef AQ_SDELTA
+	hw_self->curr_stats.dma_pkt_rc = stats_rx_dma_good_pkt_counterlsw_get(self);
+	hw_self->curr_stats.dma_pkt_tc = stats_tx_dma_good_pkt_counterlsw_get(self);
+	hw_self->curr_stats.dma_oct_rc = stats_rx_dma_good_octet_counterlsw_get(self);
+	hw_self->curr_stats.dma_oct_tc = stats_tx_dma_good_octet_counterlsw_get(self);
+
+	memcpy(&hw_self->last_stats, &mbox.stats, sizeof(mbox.stats));
 
 	return 0;
+}
+
+struct aq_stats_s *hw_atl_utils_get_hw_stats(struct aq_hw_s *self)
+{
+	return &PHAL_ATLANTIC->curr_stats;
 }
 
 static const u32 hw_atl_utils_hw_mac_regs[] = {

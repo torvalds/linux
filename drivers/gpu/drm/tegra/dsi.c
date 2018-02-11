@@ -28,6 +28,7 @@
 #include "drm.h"
 #include "dsi.h"
 #include "mipi-phy.h"
+#include "trace.h"
 
 struct tegra_dsi_state {
 	struct drm_connector_state base;
@@ -105,15 +106,20 @@ static struct tegra_dsi_state *tegra_dsi_get_state(struct tegra_dsi *dsi)
 	return to_dsi_state(dsi->output.connector.state);
 }
 
-static inline u32 tegra_dsi_readl(struct tegra_dsi *dsi, unsigned long reg)
+static inline u32 tegra_dsi_readl(struct tegra_dsi *dsi, unsigned int offset)
 {
-	return readl(dsi->regs + (reg << 2));
+	u32 value = readl(dsi->regs + (offset << 2));
+
+	trace_dsi_readl(dsi->dev, offset, value);
+
+	return value;
 }
 
 static inline void tegra_dsi_writel(struct tegra_dsi *dsi, u32 value,
-				    unsigned long reg)
+				    unsigned int offset)
 {
-	writel(value, dsi->regs + (reg << 2));
+	trace_dsi_writel(dsi->dev, offset, value);
+	writel(value, dsi->regs + (offset << 2));
 }
 
 static int tegra_dsi_show_regs(struct seq_file *s, void *data)
@@ -815,7 +821,6 @@ tegra_dsi_connector_duplicate_state(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs tegra_dsi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.reset = tegra_dsi_connector_reset,
 	.detect = tegra_output_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,

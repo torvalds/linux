@@ -343,6 +343,7 @@ config SENSORS_ASB100
 
 config SENSORS_ASPEED
 	tristate "ASPEED AST2400/AST2500 PWM and Fan tach driver"
+	depends on THERMAL || THERMAL=n
 	select REGMAP
 	help
 	  This driver provides support for ASPEED AST2400/AST2500 PWM
@@ -551,6 +552,7 @@ config SENSORS_G762
 
 config SENSORS_GPIO_FAN
 	tristate "GPIO fan"
+	depends on OF_GPIO
 	depends on GPIOLIB || COMPILE_TEST
 	depends on THERMAL || THERMAL=n
 	help
@@ -790,6 +792,13 @@ config SENSORS_LTC4261
 	  This driver can also be built as a module. If so, the module will
 	  be called ltc4261.
 
+config SENSORS_LTQ_CPUTEMP
+	bool "Lantiq cpu temperature sensor driver"
+	depends on LANTIQ
+	help
+	  If you say yes here you get support for the temperature
+	  sensor inside your CPU.
+
 config SENSORS_MAX1111
 	tristate "Maxim MAX1111 Serial 8-bit ADC chip and compatibles"
 	depends on SPI_MASTER
@@ -853,6 +862,20 @@ tristate "MAX31722 temperature sensor"
 
 	  This driver can also be built as a module. If so, the module
 	  will be called max31722.
+
+config SENSORS_MAX6621
+	tristate "Maxim MAX6621 sensor chip"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for MAX6621 sensor chip.
+	  MAX6621 is a PECI-to-I2C translator provides an efficient,
+	  low-cost solution for PECI-to-SMBus/I2C protocol conversion.
+	  It allows reading the temperature from the PECI-compliant
+	  host directly from up to four PECI-enabled CPUs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max6621.
 
 config SENSORS_MAX6639
 	tristate "Maxim MAX6639 sensor chip"

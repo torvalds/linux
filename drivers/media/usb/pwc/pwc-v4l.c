@@ -568,7 +568,8 @@ static int pwc_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 		pdev->gain_valid = true;
 		if (!DEVICE_USE_CODEC3(pdev->type))
 			break;
-		/* Fall through for CODEC3 where autogain also controls expo */
+		/* For CODEC3 where autogain also controls expo */
+		/* fall through */
 	case V4L2_CID_EXPOSURE_AUTO:
 		if (pdev->exposure_valid && time_before(jiffies,
 				pdev->last_exposure_update + HZ / 4)) {

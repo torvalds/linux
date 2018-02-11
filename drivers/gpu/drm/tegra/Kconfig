@@ -3,11 +3,13 @@ config DRM_TEGRA
 	depends on ARCH_TEGRA || (ARM && COMPILE_TEST)
 	depends on COMMON_CLK
 	depends on DRM
+	depends on OF
 	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
 	select DRM_PANEL
 	select TEGRA_HOST1X
 	select IOMMU_IOVA if IOMMU_SUPPORT
+	select CEC_CORE if CEC_NOTIFIER
 	help
 	  Choose this option if you have an NVIDIA Tegra SoC.
 

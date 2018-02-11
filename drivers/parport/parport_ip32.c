@@ -138,7 +138,7 @@ static unsigned int features =	~0U;
 static bool verbose_probing =	DEFAULT_VERBOSE_PROBING;
 
 /* We do not support more than one port. */
-static struct parport *this_port = NULL;
+static struct parport *this_port;
 
 /* Timing constants for FIFO modes.  */
 #define FIFO_NFAULT_TIMEOUT	100	/* milliseconds */
@@ -1769,7 +1769,7 @@ stop:
 
 /*--- Default parport operations ---------------------------------------*/
 
-static __initdata struct parport_operations parport_ip32_ops = {
+static const struct parport_operations parport_ip32_ops __initconst = {
 	.write_data		= parport_ip32_write_data,
 	.read_data		= parport_ip32_read_data,
 

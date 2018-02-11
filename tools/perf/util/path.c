@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * I'm tired of doing "vsnprintf()" etc just to open a
  * file, so here's a "return static buffer with printf"

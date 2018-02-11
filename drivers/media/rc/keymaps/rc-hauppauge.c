@@ -269,10 +269,10 @@ static struct rc_map_table rc5_hauppauge_new[] = {
 
 static struct rc_map_list rc5_hauppauge_new_map = {
 	.map = {
-		.scan    = rc5_hauppauge_new,
-		.size    = ARRAY_SIZE(rc5_hauppauge_new),
-		.rc_type = RC_TYPE_RC5,
-		.name    = RC_MAP_HAUPPAUGE,
+		.scan     = rc5_hauppauge_new,
+		.size     = ARRAY_SIZE(rc5_hauppauge_new),
+		.rc_proto = RC_PROTO_RC5,
+		.name     = RC_MAP_HAUPPAUGE,
 	}
 };
 

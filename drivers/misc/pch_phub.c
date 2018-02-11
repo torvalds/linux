@@ -659,7 +659,7 @@ static ssize_t store_pch_mac(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(pch_mac, S_IRUGO | S_IWUSR, show_pch_mac, store_pch_mac);
 
-static struct bin_attribute pch_bin_attr = {
+static const struct bin_attribute pch_bin_attr = {
 	.attr = {
 		.name = "pch_firmware",
 		.mode = S_IRUGO | S_IWUSR,
@@ -891,7 +891,7 @@ static int pch_phub_resume(struct pci_dev *pdev)
 #define pch_phub_resume NULL
 #endif /* CONFIG_PM */
 
-static struct pci_device_id pch_phub_pcidev_id[] = {
+static const struct pci_device_id pch_phub_pcidev_id[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PCH1_PHUB),       1,  },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ROHM_ML7213_PHUB), 2,  },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ROHM_ML7223_mPHUB), 3,  },

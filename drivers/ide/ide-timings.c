@@ -104,19 +104,19 @@ u16 ide_pio_cycle_time(ide_drive_t *drive, u8 pio)
 EXPORT_SYMBOL_GPL(ide_pio_cycle_time);
 
 #define ENOUGH(v, unit)		(((v) - 1) / (unit) + 1)
-#define EZ(v, unit)		((v) ? ENOUGH(v, unit) : 0)
+#define EZ(v, unit)		((v) ? ENOUGH((v) * 1000, unit) : 0)
 
 static void ide_timing_quantize(struct ide_timing *t, struct ide_timing *q,
 				int T, int UT)
 {
-	q->setup   = EZ(t->setup   * 1000,  T);
-	q->act8b   = EZ(t->act8b   * 1000,  T);
-	q->rec8b   = EZ(t->rec8b   * 1000,  T);
-	q->cyc8b   = EZ(t->cyc8b   * 1000,  T);
-	q->active  = EZ(t->active  * 1000,  T);
-	q->recover = EZ(t->recover * 1000,  T);
-	q->cycle   = EZ(t->cycle   * 1000,  T);
-	q->udma    = EZ(t->udma    * 1000, UT);
+	q->setup   = EZ(t->setup,   T);
+	q->act8b   = EZ(t->act8b,   T);
+	q->rec8b   = EZ(t->rec8b,   T);
+	q->cyc8b   = EZ(t->cyc8b,   T);
+	q->active  = EZ(t->active,  T);
+	q->recover = EZ(t->recover, T);
+	q->cycle   = EZ(t->cycle,   T);
+	q->udma    = EZ(t->udma,    UT);
 }
 
 void ide_timing_merge(struct ide_timing *a, struct ide_timing *b,

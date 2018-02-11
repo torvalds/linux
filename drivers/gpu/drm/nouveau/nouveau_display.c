@@ -98,7 +98,7 @@ calc(int blanks, int blanke, int total, int line)
 	return line;
 }
 
-static int
+static bool
 nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 				ktime_t *stime, ktime_t *etime)
 {
@@ -111,16 +111,16 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 	};
 	struct nouveau_display *disp = nouveau_display(crtc->dev);
 	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[drm_crtc_index(crtc)];
-	int ret, retry = 20;
+	int retry = 20;
+	bool ret = false;
 
 	do {
 		ret = nvif_mthd(&disp->disp, 0, &args, sizeof(args));
 		if (ret != 0)
-			return 0;
+			return false;
 
 		if (args.scan.vline) {
-			ret |= DRM_SCANOUTPOS_ACCURATE;
-			ret |= DRM_SCANOUTPOS_VALID;
+			ret = true;
 			break;
 		}
 
@@ -133,14 +133,12 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 	if (stime) *stime = ns_to_ktime(args.scan.time[0]);
 	if (etime) *etime = ns_to_ktime(args.scan.time[1]);
 
-	if (*vpos < 0)
-		ret |= DRM_SCANOUTPOS_IN_VBLANK;
 	return ret;
 }
 
-int
+bool
 nouveau_display_scanoutpos(struct drm_device *dev, unsigned int pipe,
-			   unsigned int flags, int *vpos, int *hpos,
+			   bool in_vblank_irq, int *vpos, int *hpos,
 			   ktime_t *stime, ktime_t *etime,
 			   const struct drm_display_mode *mode)
 {
@@ -153,36 +151,13 @@ nouveau_display_scanoutpos(struct drm_device *dev, unsigned int pipe,
 		}
 	}
 
-	return 0;
-}
-
-int
-nouveau_display_vblstamp(struct drm_device *dev, unsigned int pipe,
-			 int *max_error, struct timeval *time, unsigned flags)
-{
-	struct drm_crtc *crtc;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (nouveau_crtc(crtc)->index == pipe) {
-			struct drm_display_mode *mode;
-			if (drm_drv_uses_atomic_modeset(dev))
-				mode = &crtc->state->adjusted_mode;
-			else
-				mode = &crtc->hwmode;
-			return drm_calc_vbltimestamp_from_scanoutpos(dev,
-					pipe, max_error, time, flags, mode);
-		}
-	}
-
-	return -EINVAL;
+	return false;
 }
 
 static void
 nouveau_display_vblank_fini(struct drm_device *dev)
 {
 	struct drm_crtc *crtc;
-
-	drm_vblank_cleanup(dev);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
@@ -256,8 +231,29 @@ nouveau_framebuffer_new(struct drm_device *dev,
 			struct nouveau_bo *nvbo,
 			struct nouveau_framebuffer **pfb)
 {
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_framebuffer *fb;
 	int ret;
+
+        /* YUV overlays have special requirements pre-NV50 */
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA &&
+
+	    (mode_cmd->pixel_format == DRM_FORMAT_YUYV ||
+	     mode_cmd->pixel_format == DRM_FORMAT_UYVY ||
+	     mode_cmd->pixel_format == DRM_FORMAT_NV12 ||
+	     mode_cmd->pixel_format == DRM_FORMAT_NV21) &&
+	    (mode_cmd->pitches[0] & 0x3f || /* align 64 */
+	     mode_cmd->pitches[0] >= 0x10000 || /* at most 64k pitch */
+	     (mode_cmd->pitches[1] && /* pitches for planes must match */
+	      mode_cmd->pitches[0] != mode_cmd->pitches[1]))) {
+		struct drm_format_name_buf format_name;
+		DRM_DEBUG_KMS("Unsuitable framebuffer: format: %s; pitches: 0x%x\n 0x%x\n",
+			      drm_get_format_name(mode_cmd->pixel_format,
+						  &format_name),
+			      mode_cmd->pitches[0],
+			      mode_cmd->pitches[1]);
+		return -EINVAL;
+	}
 
 	if (!(fb = *pfb = kzalloc(sizeof(*fb), GFP_KERNEL)))
 		return -ENOMEM;
@@ -432,7 +428,6 @@ nouveau_display_fini(struct drm_device *dev, bool suspend)
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_connector *connector;
-	struct drm_crtc *crtc;
 
 	if (!suspend) {
 		if (drm_drv_uses_atomic_modeset(dev))
@@ -440,10 +435,6 @@ nouveau_display_fini(struct drm_device *dev, bool suspend)
 		else
 			drm_crtc_force_disable_all(dev);
 	}
-
-	/* Make sure that drm and hw vblank irqs get properly disabled. */
-	drm_for_each_crtc(crtc, dev)
-		drm_crtc_vblank_off(crtc);
 
 	/* disable flip completion events */
 	nvif_notify_put(&drm->flip);

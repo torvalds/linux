@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Tests for presence or absence of hardware registers.
  * This code was originally in atari/config.c, but I noticed
  * that it was also in drivers/nubus/nubus.c and I wanted to

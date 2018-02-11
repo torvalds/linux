@@ -334,7 +334,7 @@ static struct attribute *rmi_f01_attrs[] = {
 	NULL
 };
 
-static struct attribute_group rmi_f01_attr_group = {
+static const struct attribute_group rmi_f01_attr_group = {
 	.attrs = rmi_f01_attrs,
 };
 
@@ -579,6 +579,7 @@ static int rmi_f01_probe(struct rmi_function *fn)
 
 static void rmi_f01_remove(struct rmi_function *fn)
 {
+	/* Note that the bus device is used, not the F01 device */
 	sysfs_remove_group(&fn->rmi_dev->dev.kobj, &rmi_f01_attr_group);
 }
 

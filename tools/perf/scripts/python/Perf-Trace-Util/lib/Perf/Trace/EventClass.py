@@ -1,4 +1,5 @@
 # EventClass.py
+# SPDX-License-Identifier: GPL-2.0
 #
 # This is a library defining some events types classes, which could
 # be used by other scripts to analyzing the perf samples.

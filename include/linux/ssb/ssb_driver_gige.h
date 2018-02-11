@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_SSB_DRIVER_GIGE_H_
 #define LINUX_SSB_DRIVER_GIGE_H_
 

@@ -58,8 +58,6 @@
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
-		pinctrl-names = "default";
-		pinctrl-0 = <&bl_en_pin_inet>;
 		pwms = <&pwm 0 50000 PWM_POLARITY_INVERTED>;
 		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
 		default-brightness-level = <8>;
@@ -88,8 +86,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -101,8 +97,6 @@
 #include "axp209.dtsi"
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 
 	/* Accelerometer */
@@ -115,8 +109,6 @@
 };
 
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
 
 	ft5x: touchscreen@38 {
@@ -124,8 +116,6 @@
 		reg = <0x38>;
 		interrupt-parent = <&pio>;
 		interrupts = <7 21 IRQ_TYPE_EDGE_FALLING>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&touchscreen_wake_pin>;
 		wake-gpios = <&pio 1 13 GPIO_ACTIVE_HIGH>; /* PB13 */
 		touchscreen-size-x = <600>;
 		touchscreen-size-y = <1024>;
@@ -137,21 +127,21 @@
 	vref-supply = <&reg_ldo2>;
 	status = "okay";
 
-	button@200 {
+	button-200 {
 		label = "Volume Up";
 		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;
 		voltage = <200000>;
 	};
 
-	button@1000 {
+	button-1000 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
 		voltage = <1000000>;
 	};
 
-	button@1200 {
+	button-1200 {
 		label = "Home";
 		linux,code = <KEY_HOMEPAGE>;
 		channel = <0>;
@@ -160,8 +150,6 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
@@ -178,23 +166,13 @@
 };
 
 &pio {
-	bl_en_pin_inet: bl_en_pin@0 {
-		pins = "PH7";
-		function = "gpio_out";
-	};
-
-	touchscreen_wake_pin: touchscreen_wake_pin@0 {
-		pins = "PB13";
-		function = "gpio_out";
-	};
-
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
+	usb0_id_detect_pin: usb0-id-detect-pin {
 		pins = "PH4";
 		function = "gpio_in";
 		bias-pull-up;
 	};
 
-	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
+	usb0_vbus_detect_pin: usb0-vbus-detect-pin {
 		pins = "PH5";
 		function = "gpio_in";
 		bias-pull-down;
@@ -203,7 +181,7 @@
 
 &pwm {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pwm0_pins_a>;
+	pinctrl-0 = <&pwm0_pin>;
 	status = "okay";
 };
 
@@ -246,7 +224,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 

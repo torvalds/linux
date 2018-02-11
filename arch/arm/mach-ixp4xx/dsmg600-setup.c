@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * DSM-G600 board-setup
  *
@@ -25,7 +26,7 @@
 #include <linux/leds.h>
 #include <linux/reboot.h>
 #include <linux/i2c.h>
-#include <linux/i2c-gpio.h>
+#include <linux/gpio/machine.h>
 
 #include <mach/hardware.h>
 
@@ -68,16 +69,21 @@ static struct platform_device dsmg600_flash = {
 	.resource		= &dsmg600_flash_resource,
 };
 
-static struct i2c_gpio_platform_data dsmg600_i2c_gpio_data = {
-	.sda_pin		= DSMG600_SDA_PIN,
-	.scl_pin		= DSMG600_SCL_PIN,
+static struct gpiod_lookup_table dsmg600_i2c_gpiod_table = {
+	.dev_id		= "i2c-gpio",
+	.table		= {
+		GPIO_LOOKUP_IDX("IXP4XX_GPIO_CHIP", DSMG600_SDA_PIN,
+				NULL, 0, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+		GPIO_LOOKUP_IDX("IXP4XX_GPIO_CHIP", DSMG600_SCL_PIN,
+				NULL, 1, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+	},
 };
 
 static struct platform_device dsmg600_i2c_gpio = {
 	.name			= "i2c-gpio",
 	.id			= 0,
 	.dev	 = {
-		.platform_data	= &dsmg600_i2c_gpio_data,
+		.platform_data	= NULL,
 	},
 };
 
@@ -173,10 +179,10 @@ static int power_button_countdown;
 /* Must hold the button down for at least this many counts to be processed */
 #define PBUTTON_HOLDDOWN_COUNT 4 /* 2 secs */
 
-static void dsmg600_power_handler(unsigned long data);
-static DEFINE_TIMER(dsmg600_power_timer, dsmg600_power_handler, 0, 0);
+static void dsmg600_power_handler(struct timer_list *unused);
+static DEFINE_TIMER(dsmg600_power_timer, dsmg600_power_handler);
 
-static void dsmg600_power_handler(unsigned long data)
+static void dsmg600_power_handler(struct timer_list *unused)
 {
 	/* This routine is called twice per second to check the
 	 * state of the power button.
@@ -269,6 +275,7 @@ static void __init dsmg600_init(void)
 	dsmg600_flash_resource.end =
 		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;
 
+	gpiod_add_lookup_table(&dsmg600_i2c_gpiod_table);
 	i2c_register_board_info(0, dsmg600_i2c_board_info,
 				ARRAY_SIZE(dsmg600_i2c_board_info));
 

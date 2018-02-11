@@ -649,19 +649,19 @@ static unsigned short CARDwGetOFDMControlRate(struct vnt_private *priv,
 	pr_debug("BASIC RATE: %X\n", priv->basic_rates);
 
 	if (!CARDbIsOFDMinBasicRate((void *)priv)) {
-		pr_debug("CARDwGetOFDMControlRate:(NO OFDM) %d\n", wRateIdx);
+		pr_debug("%s:(NO OFDM) %d\n", __func__, wRateIdx);
 		if (wRateIdx > RATE_24M)
 			wRateIdx = RATE_24M;
 		return wRateIdx;
 	}
 	while (ui > RATE_11M) {
 		if (priv->basic_rates & ((u32)0x1 << ui)) {
-			pr_debug("CARDwGetOFDMControlRate : %d\n", ui);
+			pr_debug("%s : %d\n", __func__, ui);
 			return (unsigned short)ui;
 		}
 		ui--;
 	}
-	pr_debug("CARDwGetOFDMControlRate: 6M\n");
+	pr_debug("%s: 6M\n", __func__);
 	return (unsigned short)RATE_24M;
 }
 
@@ -913,7 +913,7 @@ u64 CARDqGetTSFOffset(unsigned char byRxRate, u64 qwTSF1, u64 qwTSF2)
 {
 	unsigned short wRxBcnTSFOffst;
 
-	wRxBcnTSFOffst = cwRXBCNTSFOff[byRxRate%MAX_RATE];
+	wRxBcnTSFOffst = cwRXBCNTSFOff[byRxRate % MAX_RATE];
 
 	qwTSF2 += (u64)wRxBcnTSFOffst;
 

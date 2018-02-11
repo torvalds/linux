@@ -1,0 +1,224 @@
+/*
+ * Copyright (C) 2017 Synopsys, Inc. (www.synopsys.com)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/*
+ * Device Tree for ARC HS Development Kit
+ */
+/dts-v1/;
+
+#include <dt-bindings/net/ti-dp83867.h>
+#include <dt-bindings/reset/snps,hsdk-reset.h>
+
+/ {
+	model = "snps,hsdk";
+	compatible = "snps,hsdk";
+
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xf0005000,115200n8 console=ttyS0,115200n8 debug print-fatal-signals=1";
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "snps,archs38";
+			reg = <0>;
+			clocks = <&core_clk>;
+		};
+
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "snps,archs38";
+			reg = <1>;
+			clocks = <&core_clk>;
+		};
+
+		cpu@2 {
+			device_type = "cpu";
+			compatible = "snps,archs38";
+			reg = <2>;
+			clocks = <&core_clk>;
+		};
+
+		cpu@3 {
+			device_type = "cpu";
+			compatible = "snps,archs38";
+			reg = <3>;
+			clocks = <&core_clk>;
+		};
+	};
+
+	input_clk: input-clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <33333333>;
+	};
+
+	cpu_intc: cpu-interrupt-controller {
+		compatible = "snps,archs-intc";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+	};
+
+	idu_intc: idu-interrupt-controller {
+		compatible = "snps,archs-idu-intc";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		interrupt-parent = <&cpu_intc>;
+	};
+
+	arcpct: pct {
+		compatible = "snps,archs-pct";
+	};
+
+	/* TIMER0 with interrupt for clockevent */
+	timer {
+		compatible = "snps,arc-timer";
+		interrupts = <16>;
+		interrupt-parent = <&cpu_intc>;
+		clocks = <&core_clk>;
+	};
+
+	/* 64-bit Global Free Running Counter */
+	gfrc {
+		compatible = "snps,archs-timer-gfrc";
+		clocks = <&core_clk>;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		interrupt-parent = <&idu_intc>;
+
+		ranges = <0x00000000 0xf0000000 0x10000000>;
+
+		cgu_rst: reset-controller@8a0 {
+			compatible = "snps,hsdk-reset";
+			#reset-cells = <1>;
+			reg = <0x8A0 0x4>, <0xFF0 0x4>;
+		};
+
+		core_clk: core-clk@0 {
+			compatible = "snps,hsdk-core-pll-clock";
+			reg = <0x00 0x10>, <0x14B8 0x4>;
+			#clock-cells = <0>;
+			clocks = <&input_clk>;
+
+			/*
+			 * Set initial core pll output frequency to 1GHz.
+			 * It will be applied at the core pll driver probing
+			 * on early boot.
+			 */
+			assigned-clocks = <&core_clk>;
+			assigned-clock-rates = <1000000000>;
+		};
+
+		serial: serial@5000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x5000 0x100>;
+			clock-frequency = <33330000>;
+			interrupts = <6>;
+			baud = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+		};
+
+		gmacclk: gmacclk {
+			compatible = "fixed-clock";
+			clock-frequency = <400000000>;
+			#clock-cells = <0>;
+		};
+
+		mmcclk_ciu: mmcclk-ciu {
+			compatible = "fixed-clock";
+			/*
+			 * DW sdio controller has external ciu clock divider
+			 * controlled via register in SDIO IP. Due to its
+			 * unexpected default value (it should divide by 1
+			 * but it divides by 8) SDIO IP uses wrong clock and
+			 * works unstable (see STAR 9001204800)
+			 * We switched to the minimum possible value of the
+			 * divisor (div-by-2) in HSDK platform code.
+			 * So add temporary fix and change clock frequency
+			 * to 50000000 Hz until we fix dw sdio driver itself.
+			 */
+			clock-frequency = <50000000>;
+			#clock-cells = <0>;
+		};
+
+		mmcclk_biu: mmcclk-biu {
+			compatible = "fixed-clock";
+			clock-frequency = <400000000>;
+			#clock-cells = <0>;
+		};
+
+		ethernet@8000 {
+			#interrupt-cells = <1>;
+			compatible = "snps,dwmac";
+			reg = <0x8000 0x2000>;
+			interrupts = <10>;
+			interrupt-names = "macirq";
+			phy-mode = "rgmii";
+			snps,pbl = <32>;
+			clocks = <&gmacclk>;
+			clock-names = "stmmaceth";
+			phy-handle = <&phy0>;
+			resets = <&cgu_rst HSDK_ETH_RESET>;
+			reset-names = "stmmaceth";
+
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "snps,dwmac-mdio";
+				phy0: ethernet-phy@0 {
+					reg = <0>;
+					ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
+					ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
+					ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
+				};
+			};
+		};
+
+		ohci@60000 {
+			compatible = "snps,hsdk-v1.0-ohci", "generic-ohci";
+			reg = <0x60000 0x100>;
+			interrupts = <15>;
+		};
+
+		ehci@40000 {
+			compatible = "snps,hsdk-v1.0-ehci", "generic-ehci";
+			reg = <0x40000 0x100>;
+			interrupts = <15>;
+		};
+
+		mmc@a000 {
+			compatible = "altr,socfpga-dw-mshc";
+			reg = <0xa000 0x400>;
+			num-slots = <1>;
+			fifo-depth = <16>;
+			card-detect-delay = <200>;
+			clocks = <&mmcclk_biu>, <&mmcclk_ciu>;
+			clock-names = "biu", "ciu";
+			interrupts = <12>;
+			bus-width = <4>;
+		};
+	};
+
+	memory@80000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		device_type = "memory";
+		reg = <0x80000000 0x40000000>;  /* 1 GiB */
+	};
+};

@@ -916,7 +916,7 @@ static int open_file_regdump(struct inode *inode, struct file *file)
 	u8 *buf;
 	int i, j = 0;
 	unsigned long num_regs, regdump_len, max_reg_offset;
-	const struct reg_hole {
+	static const struct reg_hole {
 		u32 start;
 		u32 end;
 	} reg_hole_list[] = {
@@ -1167,7 +1167,7 @@ static ssize_t write_file_tpc(struct file *file, const char __user *user_buf,
 	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
-	if (val < 0 || val > 1)
+	if (val > 1)
 		return -EINVAL;
 
 	tpc_enabled = !!val;
@@ -1452,7 +1452,7 @@ int ath9k_init_debug(struct ath_hw *ah)
 #endif
 
 #ifdef CONFIG_ATH9K_DYNACK
-	debugfs_create_file("ack_to", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+	debugfs_create_file("ack_to", S_IRUSR, sc->debug.debugfs_phy,
 			    sc, &fops_ackto);
 #endif
 	debugfs_create_file("tpc", S_IRUSR | S_IWUSR,

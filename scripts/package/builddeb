@@ -92,12 +92,10 @@ else
 fi
 sourcename=$KDEB_SOURCENAME
 tmpdir="$objtree/debian/tmp"
-fwdir="$objtree/debian/fwtmp"
 kernel_headers_dir="$objtree/debian/hdrtmp"
 libc_headers_dir="$objtree/debian/headertmp"
 dbg_dir="$objtree/debian/dbgtmp"
 packagename=linux-image-$version
-fwpackagename=linux-firmware-image-$version
 kernel_headers_packagename=linux-headers-$version
 libc_headers_packagename=linux-libc-dev
 dbg_packagename=$packagename-dbg
@@ -126,10 +124,9 @@ esac
 BUILD_DEBUG="$(grep -s '^CONFIG_DEBUG_INFO=y' $KCONFIG_CONFIG || true)"
 
 # Setup the directory structure
-rm -rf "$tmpdir" "$fwdir" "$kernel_headers_dir" "$libc_headers_dir" "$dbg_dir" $objtree/debian/files
+rm -rf "$tmpdir" "$kernel_headers_dir" "$libc_headers_dir" "$dbg_dir" $objtree/debian/files
 mkdir -m 755 -p "$tmpdir/DEBIAN"
 mkdir -p "$tmpdir/lib" "$tmpdir/boot"
-mkdir -p "$fwdir/lib/firmware/$version/"
 mkdir -p "$kernel_headers_dir/lib/modules/$version/"
 
 # Build and install the kernel
@@ -306,7 +303,6 @@ else
 	cat <<EOF >> debian/control
 
 Package: $packagename
-Suggests: $fwpackagename
 Architecture: any
 Description: Linux kernel, version $version
  This package contains the Linux kernel, modules and corresponding other
@@ -344,22 +340,6 @@ Description: Linux kernel headers for $KERNELRELEASE on \${kernel:debarch}
  .
  This is useful for people who need to build external modules
 EOF
-
-# Do we have firmware? Move it out of the way and build it into a package.
-if [ -e "$tmpdir/lib/firmware" ]; then
-	mv "$tmpdir/lib/firmware"/* "$fwdir/lib/firmware/$version/"
-	rmdir "$tmpdir/lib/firmware"
-
-	cat <<EOF >> debian/control
-
-Package: $fwpackagename
-Architecture: all
-Description: Linux kernel firmware, version $version
- This package contains firmware from the Linux kernel, version $version.
-EOF
-
-	create_package "$fwpackagename" "$fwdir"
-fi
 
 cat <<EOF >> debian/control
 
@@ -428,9 +408,9 @@ EOF
 	dpkg-source -cdebian/control -ldebian/changelog --format="3.0 (custom)" --target-format="3.0 (quilt)" \
 		-b / ../${sourcename}_${version}.orig.tar.gz  ../${sourcename}_${packageversion}.debian.tar.gz
 	mv ${sourcename}_${packageversion}*dsc ..
-	dpkg-genchanges > ../${sourcename}_${packageversion}_${debarch}.changes
+	dpkg-genchanges -Vkernel:debarch="${debarch}" > ../${sourcename}_${packageversion}_${debarch}.changes
 else
-	dpkg-genchanges -b > ../${sourcename}_${packageversion}_${debarch}.changes
+	dpkg-genchanges -b -Vkernel:debarch="${debarch}" > ../${sourcename}_${packageversion}_${debarch}.changes
 fi
 
 exit 0

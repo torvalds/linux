@@ -65,7 +65,7 @@ int vnt_download_firmware(struct vnt_private *priv)
 
 		status = vnt_control_out(priv,
 					 0,
-					 0x1200+ii,
+					 0x1200 + ii,
 					 0x0000,
 					 length,
 					 buffer);

@@ -135,9 +135,9 @@ static struct fasync_struct *rtc_async_queue;
 static DECLARE_WAIT_QUEUE_HEAD(rtc_wait);
 
 #ifdef RTC_IRQ
-static void rtc_dropped_irq(unsigned long data);
+static void rtc_dropped_irq(struct timer_list *unused);
 
-static DEFINE_TIMER(rtc_irq_timer, rtc_dropped_irq, 0, 0);
+static DEFINE_TIMER(rtc_irq_timer, rtc_dropped_irq);
 #endif
 
 static ssize_t rtc_read(struct file *file, char __user *buf,
@@ -1171,7 +1171,7 @@ module_exit(rtc_exit);
  *	for something that requires a steady > 1KHz signal anyways.)
  */
 
-static void rtc_dropped_irq(unsigned long data)
+static void rtc_dropped_irq(struct timer_list *unused)
 {
 	unsigned long freq;
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * (C) 2001 Clemson University and The University of Chicago
  *
@@ -21,7 +22,9 @@ static int orangefs_create(struct inode *dir,
 {
 	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
+	struct orangefs_object_kref ref;
 	struct inode *inode;
+	struct iattr iattr;
 	int ret;
 
 	gossip_debug(GOSSIP_NAME_DEBUG, "%s: %pd\n",
@@ -54,8 +57,10 @@ static int orangefs_create(struct inode *dir,
 	if (ret < 0)
 		goto out;
 
-	inode = orangefs_new_inode(dir->i_sb, dir, S_IFREG | mode, 0,
-				&new_op->downcall.resp.create.refn);
+	ref = new_op->downcall.resp.create.refn;
+	op_release(new_op);
+
+	inode = orangefs_new_inode(dir->i_sb, dir, S_IFREG | mode, 0, &ref);
 	if (IS_ERR(inode)) {
 		gossip_err("%s: Failed to allocate inode for file :%pd:\n",
 			   __func__,
@@ -81,12 +86,13 @@ static int orangefs_create(struct inode *dir,
 		     __func__,
 		     dentry);
 
-	SetMtimeFlag(parent);
 	dir->i_mtime = dir->i_ctime = current_time(dir);
+	memset(&iattr, 0, sizeof iattr);
+	iattr.ia_valid |= ATTR_MTIME;
+	orangefs_inode_setattr(dir, &iattr);
 	mark_inode_dirty_sync(dir);
 	ret = 0;
 out:
-	op_release(new_op);
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "%s: %pd: returning %d\n",
 		     __func__,
@@ -220,6 +226,7 @@ static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 	struct inode *inode = dentry->d_inode;
 	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
+	struct iattr iattr;
 	int ret;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
@@ -252,8 +259,10 @@ static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 	if (!ret) {
 		drop_nlink(inode);
 
-		SetMtimeFlag(parent);
 		dir->i_mtime = dir->i_ctime = current_time(dir);
+		memset(&iattr, 0, sizeof iattr);
+		iattr.ia_valid |= ATTR_MTIME;
+		orangefs_inode_setattr(dir, &iattr);
 		mark_inode_dirty_sync(dir);
 	}
 	return ret;
@@ -265,7 +274,9 @@ static int orangefs_symlink(struct inode *dir,
 {
 	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
+	struct orangefs_object_kref ref;
 	struct inode *inode;
+	struct iattr iattr;
 	int mode = 755;
 	int ret;
 
@@ -306,8 +317,10 @@ static int orangefs_symlink(struct inode *dir,
 		goto out;
 	}
 
-	inode = orangefs_new_inode(dir->i_sb, dir, S_IFLNK | mode, 0,
-				&new_op->downcall.resp.sym.refn);
+	ref = new_op->downcall.resp.sym.refn;
+	op_release(new_op);
+
+	inode = orangefs_new_inode(dir->i_sb, dir, S_IFLNK | mode, 0, &ref);
 	if (IS_ERR(inode)) {
 		gossip_err
 		    ("*** Failed to allocate orangefs symlink inode\n");
@@ -330,12 +343,13 @@ static int orangefs_symlink(struct inode *dir,
 		     get_khandle_from_ino(inode),
 		     dentry);
 
-	SetMtimeFlag(parent);
 	dir->i_mtime = dir->i_ctime = current_time(dir);
+	memset(&iattr, 0, sizeof iattr);
+	iattr.ia_valid |= ATTR_MTIME;
+	orangefs_inode_setattr(dir, &iattr);
 	mark_inode_dirty_sync(dir);
 	ret = 0;
 out:
-	op_release(new_op);
 	return ret;
 }
 
@@ -343,7 +357,9 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 {
 	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
+	struct orangefs_object_kref ref;
 	struct inode *inode;
+	struct iattr iattr;
 	int ret;
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_MKDIR);
@@ -372,8 +388,10 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 		goto out;
 	}
 
-	inode = orangefs_new_inode(dir->i_sb, dir, S_IFDIR | mode, 0,
-				&new_op->downcall.resp.mkdir.refn);
+	ref = new_op->downcall.resp.mkdir.refn;
+	op_release(new_op);
+
+	inode = orangefs_new_inode(dir->i_sb, dir, S_IFDIR | mode, 0, &ref);
 	if (IS_ERR(inode)) {
 		gossip_err("*** Failed to allocate orangefs dir inode\n");
 		ret = PTR_ERR(inode);
@@ -399,11 +417,12 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	 * NOTE: we have no good way to keep nlink consistent for directories
 	 * across clients; keep constant at 1.
 	 */
-	SetMtimeFlag(parent);
 	dir->i_mtime = dir->i_ctime = current_time(dir);
+	memset(&iattr, 0, sizeof iattr);
+	iattr.ia_valid |= ATTR_MTIME;
+	orangefs_inode_setattr(dir, &iattr);
 	mark_inode_dirty_sync(dir);
 out:
-	op_release(new_op);
 	return ret;
 }
 
@@ -469,4 +488,5 @@ const struct inode_operations orangefs_dir_inode_operations = {
 	.getattr = orangefs_getattr,
 	.listxattr = orangefs_listxattr,
 	.permission = orangefs_permission,
+	.update_time = orangefs_update_time,
 };

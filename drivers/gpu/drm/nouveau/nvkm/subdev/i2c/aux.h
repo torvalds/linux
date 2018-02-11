@@ -1,8 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_I2C_AUX_H__
 #define __NVKM_I2C_AUX_H__
 #include "pad.h"
 
 struct nvkm_i2c_aux_func {
+	bool address_only;
 	int  (*xfer)(struct nvkm_i2c_aux *, bool retry, u8 type,
 		     u32 addr, u8 *data, u8 *size);
 	int  (*lnk_ctl)(struct nvkm_i2c_aux *, int link_nr, int link_bw,
@@ -17,7 +19,12 @@ void nvkm_i2c_aux_del(struct nvkm_i2c_aux **);
 int nvkm_i2c_aux_xfer(struct nvkm_i2c_aux *, bool retry, u8 type,
 		      u32 addr, u8 *data, u8 *size);
 
+int g94_i2c_aux_new_(const struct nvkm_i2c_aux_func *, struct nvkm_i2c_pad *,
+		     int, u8, struct nvkm_i2c_aux **);
+
 int g94_i2c_aux_new(struct nvkm_i2c_pad *, int, u8, struct nvkm_i2c_aux **);
+int g94_i2c_aux_xfer(struct nvkm_i2c_aux *, bool, u8, u32, u8 *, u8 *);
+int gf119_i2c_aux_new(struct nvkm_i2c_pad *, int, u8, struct nvkm_i2c_aux **);
 int gm200_i2c_aux_new(struct nvkm_i2c_pad *, int, u8, struct nvkm_i2c_aux **);
 
 #define AUX_MSG(b,l,f,a...) do {                                               \

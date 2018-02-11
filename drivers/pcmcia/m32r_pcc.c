@@ -386,10 +386,9 @@ static irqreturn_t pcc_interrupt(int irq, void *dev)
 	return IRQ_RETVAL(handled);
 } /* pcc_interrupt */
 
-static void pcc_interrupt_wrapper(u_long data)
+static void pcc_interrupt_wrapper(struct timer_list *unused)
 {
 	pcc_interrupt(0, NULL);
-	init_timer(&poll_timer);
 	poll_timer.expires = jiffies + poll_interval;
 	add_timer(&poll_timer);
 }
@@ -729,9 +728,7 @@ static int __init init_m32r_pcc(void)
 
 	/* Finally, schedule a polling interrupt */
 	if (poll_interval != 0) {
-		poll_timer.function = pcc_interrupt_wrapper;
-		poll_timer.data = 0;
-		init_timer(&poll_timer);
+		timer_setup(&poll_timer, pcc_interrupt_wrapper, 0);
 		poll_timer.expires = jiffies + poll_interval;
 		add_timer(&poll_timer);
 	}

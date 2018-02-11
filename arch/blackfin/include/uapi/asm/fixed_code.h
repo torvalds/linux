@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * This file defines the fixed addresses where userspace programs
  * can find atomic code sequences.

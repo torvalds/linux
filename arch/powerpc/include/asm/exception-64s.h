@@ -36,20 +36,96 @@
  */
 #include <asm/head-64.h>
 
+/* PACA save area offsets (exgen, exmc, etc) */
 #define EX_R9		0
 #define EX_R10		8
 #define EX_R11		16
 #define EX_R12		24
 #define EX_R13		32
-#define EX_SRR0		40
-#define EX_DAR		48
-#define EX_DSISR	56
-#define EX_CCR		60
-#define EX_R3		64
-#define EX_LR		72
-#define EX_CFAR		80
-#define EX_PPR		88	/* SMT thread status register (priority) */
-#define EX_CTR		96
+#define EX_DAR		40
+#define EX_DSISR	48
+#define EX_CCR		52
+#define EX_CFAR		56
+#define EX_PPR		64
+#if defined(CONFIG_RELOCATABLE)
+#define EX_CTR		72
+#define EX_SIZE		10	/* size in u64 units */
+#else
+#define EX_SIZE		9	/* size in u64 units */
+#endif
+
+/*
+ * maximum recursive depth of MCE exceptions
+ */
+#define MAX_MCE_DEPTH	4
+
+/*
+ * EX_LR is only used in EXSLB and where it does not overlap with EX_DAR
+ * EX_CCR similarly with DSISR, but being 4 byte registers there is a hole
+ * in the save area so it's not necessary to overlap them. Could be used
+ * for future savings though if another 4 byte register was to be saved.
+ */
+#define EX_LR		EX_DAR
+
+/*
+ * EX_R3 is only used by the bad_stack handler. bad_stack reloads and
+ * saves DAR from SPRN_DAR, and EX_DAR is not used. So EX_R3 can overlap
+ * with EX_DAR.
+ */
+#define EX_R3		EX_DAR
+
+/*
+ * Macros for annotating the expected destination of (h)rfid
+ *
+ * The nop instructions allow us to insert one or more instructions to flush the
+ * L1-D cache when returning to userspace or a guest.
+ */
+#define RFI_FLUSH_SLOT							\
+	RFI_FLUSH_FIXUP_SECTION;					\
+	nop;								\
+	nop;								\
+	nop
+
+#define RFI_TO_KERNEL							\
+	rfid
+
+#define RFI_TO_USER							\
+	RFI_FLUSH_SLOT;							\
+	rfid;								\
+	b	rfi_flush_fallback
+
+#define RFI_TO_USER_OR_KERNEL						\
+	RFI_FLUSH_SLOT;							\
+	rfid;								\
+	b	rfi_flush_fallback
+
+#define RFI_TO_GUEST							\
+	RFI_FLUSH_SLOT;							\
+	rfid;								\
+	b	rfi_flush_fallback
+
+#define HRFI_TO_KERNEL							\
+	hrfid
+
+#define HRFI_TO_USER							\
+	RFI_FLUSH_SLOT;							\
+	hrfid;								\
+	b	hrfi_flush_fallback
+
+#define HRFI_TO_USER_OR_KERNEL						\
+	RFI_FLUSH_SLOT;							\
+	hrfid;								\
+	b	hrfi_flush_fallback
+
+#define HRFI_TO_GUEST							\
+	RFI_FLUSH_SLOT;							\
+	hrfid;								\
+	b	hrfi_flush_fallback
+
+#define HRFI_TO_UNKNOWN							\
+	RFI_FLUSH_SLOT;							\
+	hrfid;								\
+	b	hrfi_flush_fallback
 
 #ifdef CONFIG_RELOCATABLE
 #define __EXCEPTION_RELON_PROLOG_PSERIES_1(label, h)			\
@@ -195,7 +271,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	mtspr	SPRN_##h##SRR0,r12;					\
 	mfspr	r12,SPRN_##h##SRR1;	/* and SRR1 */			\
 	mtspr	SPRN_##h##SRR1,r10;					\
-	h##rfid;							\
+	h##RFI_TO_KERNEL;						\
 	b	.	/* prevent speculative execution */
 #define EXCEPTION_PROLOG_PSERIES_1(label, h)				\
 	__EXCEPTION_PROLOG_PSERIES_1(label, h)
@@ -209,7 +285,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	mtspr	SPRN_##h##SRR0,r12;					\
 	mfspr	r12,SPRN_##h##SRR1;	/* and SRR1 */			\
 	mtspr	SPRN_##h##SRR1,r10;					\
-	h##rfid;							\
+	h##RFI_TO_KERNEL;						\
 	b	.	/* prevent speculative execution */
 
 #define EXCEPTION_PROLOG_PSERIES_1_NORI(label, h)			\
@@ -235,6 +311,19 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 #else
 #define kvmppc_interrupt kvmppc_interrupt_pr
 #endif
+
+/*
+ * Branch to label using its 0xC000 address. This results in instruction
+ * address suitable for MSR[IR]=0 or 1, which allows relocation to be turned
+ * on using mtmsr rather than rfid.
+ *
+ * This could set the 0xc bits for !RELOCATABLE as an immediate, rather than
+ * load KBASE for a slight optimisation.
+ */
+#define BRANCH_TO_C000(reg, label)					\
+	__LOAD_HANDLER(reg, label);					\
+	mtctr	reg;							\
+	bctr
 
 #ifdef CONFIG_RELOCATABLE
 #define BRANCH_TO_COMMON(reg, label)					\

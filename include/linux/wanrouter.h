@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * wanrouter.h	Legacy declarations kept around until X25 is removed
  */

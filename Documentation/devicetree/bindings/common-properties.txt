@@ -1,6 +1,10 @@
 Common properties
+=================
 
-The ePAPR specification does not define any properties related to hardware
+Endianness
+----------
+
+The Devicetree Specification does not define any properties related to hardware
 byteswapping, but endianness issues show up frequently in porting Linux to
 different machine types.  This document attempts to provide a consistent
 way of handling byteswapping across drivers.
@@ -57,4 +61,26 @@ dev: dev@40031000 {
 	      reg = <0x40031000 0x1000>;
 	      ...
 	      little-endian;
+};
+
+Daisy-chained devices
+---------------------
+
+Many serially-attached GPIO and IIO devices are daisy-chainable.  To the
+host controller, a daisy-chain appears as a single device, but the number
+of inputs and outputs it provides is the sum of inputs and outputs provided
+by all of its devices.  The driver needs to know how many devices the
+daisy-chain comprises to determine the amount of data exchanged, how many
+inputs and outputs to register and so on.
+
+Optional properties:
+ - #daisy-chained-devices: Number of devices in the daisy-chain (default is 1).
+
+Example:
+gpio@0 {
+	      compatible = "name";
+	      reg = <0>;
+	      gpio-controller;
+	      #gpio-cells = <2>;
+	      #daisy-chained-devices = <3>;
 };

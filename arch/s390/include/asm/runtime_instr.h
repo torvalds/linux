@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _RUNTIME_INSTR_H
 #define _RUNTIME_INSTR_H
 
@@ -5,55 +6,55 @@
 #define S390_RUNTIME_INSTR_STOP		0x2
 
 struct runtime_instr_cb {
-	__u64 buf_current;
-	__u64 buf_origin;
-	__u64 buf_limit;
+	__u64 rca;
+	__u64 roa;
+	__u64 rla;
 
-	__u32 valid		: 1;
-	__u32 pstate		: 1;
-	__u32 pstate_set_buf	: 1;
-	__u32 home_space	: 1;
-	__u32 altered		: 1;
-	__u32			: 3;
-	__u32 pstate_sample	: 1;
-	__u32 sstate_sample	: 1;
-	__u32 pstate_collect	: 1;
-	__u32 sstate_collect	: 1;
-	__u32			: 1;
-	__u32 halted_int	: 1;
-	__u32 int_requested	: 1;
-	__u32 buffer_full_int	: 1;
+	__u32 v			: 1;
+	__u32 s			: 1;
+	__u32 k			: 1;
+	__u32 h			: 1;
+	__u32 a			: 1;
+	__u32 reserved1		: 3;
+	__u32 ps		: 1;
+	__u32 qs		: 1;
+	__u32 pc		: 1;
+	__u32 qc		: 1;
+	__u32 reserved2		: 1;
+	__u32 g			: 1;
+	__u32 u			: 1;
+	__u32 l			: 1;
 	__u32 key		: 4;
-	__u32			: 9;
+	__u32 reserved3		: 8;
+	__u32 t			: 1;
 	__u32 rgs		: 3;
 
-	__u32 mode		: 4;
-	__u32 next		: 1;
+	__u32 m			: 4;
+	__u32 n			: 1;
 	__u32 mae		: 1;
-	__u32			: 2;
-	__u32 call_type_br	: 1;
-	__u32 return_type_br	: 1;
-	__u32 other_type_br	: 1;
-	__u32 bc_other_type	: 1;
-	__u32 emit		: 1;
-	__u32 tx_abort		: 1;
-	__u32			: 2;
-	__u32 bp_xn		: 1;
-	__u32 bp_xt		: 1;
-	__u32 bp_ti		: 1;
-	__u32 bp_ni		: 1;
-	__u32 suppr_y		: 1;
-	__u32 suppr_z		: 1;
+	__u32 reserved4		: 2;
+	__u32 c			: 1;
+	__u32 r			: 1;
+	__u32 b			: 1;
+	__u32 j			: 1;
+	__u32 e			: 1;
+	__u32 x			: 1;
+	__u32 reserved5		: 2;
+	__u32 bpxn		: 1;
+	__u32 bpxt		: 1;
+	__u32 bpti		: 1;
+	__u32 bpni		: 1;
+	__u32 reserved6		: 2;
 
-	__u32 dc_miss_extra	: 1;
-	__u32 lat_lev_ignore	: 1;
-	__u32 ic_lat_lev	: 4;
-	__u32 dc_lat_lev	: 4;
+	__u32 d			: 1;
+	__u32 f			: 1;
+	__u32 ic		: 4;
+	__u32 dc		: 4;
 
-	__u64 reserved1;
-	__u64 scaling_factor;
+	__u64 reserved7;
+	__u64 sf;
 	__u64 rsic;
-	__u64 reserved2;
+	__u64 reserved8;
 } __packed __aligned(8);
 
 extern struct runtime_instr_cb runtime_instr_empty_cb;
@@ -85,6 +86,8 @@ static inline void restore_ri_cb(struct runtime_instr_cb *cb_next,
 		load_runtime_instr_cb(&runtime_instr_empty_cb);
 }
 
-void exit_thread_runtime_instr(void);
+struct task_struct;
+
+void runtime_instr_release(struct task_struct *tsk);
 
 #endif /* _RUNTIME_INSTR_H */

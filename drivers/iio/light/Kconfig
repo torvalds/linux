@@ -172,6 +172,16 @@ config SENSORS_ISL29018
 	 in lux, proximity infrared sensing and normal infrared sensing.
 	 Data from sensor is accessible via sysfs.
 
+config SENSORS_ISL29028
+	tristate "Intersil ISL29028 Concurrent Light and Proximity Sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	 Provides driver for the Intersil's ISL29028 device.
+	 This driver supports the sysfs interface to get the ALS, IR intensity,
+	 Proximity value via iio. The ISL29028 provides the concurrent sensing
+	 of ambient light and proximity.
+
 config ISL29125
 	tristate "Intersil ISL29125 digital color light sensor"
 	depends on I2C

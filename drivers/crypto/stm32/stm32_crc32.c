@@ -107,12 +107,12 @@ static int stm32_crc_init(struct shash_desc *desc)
 	spin_unlock_bh(&crc_list.lock);
 
 	/* Reset, set key, poly and configure in bit reverse mode */
-	writel(bitrev32(mctx->key), ctx->crc->regs + CRC_INIT);
-	writel(bitrev32(mctx->poly), ctx->crc->regs + CRC_POL);
-	writel(CRC_CR_RESET | CRC_CR_REVERSE, ctx->crc->regs + CRC_CR);
+	writel_relaxed(bitrev32(mctx->key), ctx->crc->regs + CRC_INIT);
+	writel_relaxed(bitrev32(mctx->poly), ctx->crc->regs + CRC_POL);
+	writel_relaxed(CRC_CR_RESET | CRC_CR_REVERSE, ctx->crc->regs + CRC_CR);
 
 	/* Store partial result */
-	ctx->partial = readl(ctx->crc->regs + CRC_DR);
+	ctx->partial = readl_relaxed(ctx->crc->regs + CRC_DR);
 	ctx->crc->nb_pending_bytes = 0;
 
 	return 0;
@@ -135,7 +135,8 @@ static int stm32_crc_update(struct shash_desc *desc, const u8 *d8,
 
 		if (crc->nb_pending_bytes == sizeof(u32)) {
 			/* Process completed pending data */
-			writel(*(u32 *)crc->pending_data, crc->regs + CRC_DR);
+			writel_relaxed(*(u32 *)crc->pending_data,
+				       crc->regs + CRC_DR);
 			crc->nb_pending_bytes = 0;
 		}
 	}
@@ -143,10 +144,10 @@ static int stm32_crc_update(struct shash_desc *desc, const u8 *d8,
 	d32 = (u32 *)d8;
 	for (i = 0; i < length >> 2; i++)
 		/* Process 32 bits data */
-		writel(*(d32++), crc->regs + CRC_DR);
+		writel_relaxed(*(d32++), crc->regs + CRC_DR);
 
 	/* Store partial result */
-	ctx->partial = readl(crc->regs + CRC_DR);
+	ctx->partial = readl_relaxed(crc->regs + CRC_DR);
 
 	/* Check for pending data (non 32 bits) */
 	length &= 3;
@@ -295,7 +296,7 @@ static int stm32_crc_remove(struct platform_device *pdev)
 	list_del(&crc->list);
 	spin_unlock(&crc_list.lock);
 
-	crypto_unregister_shash(algs);
+	crypto_unregister_shashes(algs, ARRAY_SIZE(algs));
 
 	clk_disable_unprepare(crc->clk);
 

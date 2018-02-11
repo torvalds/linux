@@ -15,6 +15,11 @@ Required properties:
                     to associate with its master device.  See:
                     Documentation/devicetree/bindings/iommu/iommu.txt
 
+Optional properties:
+- rockchip,disable-mmu-reset : Don't use the mmu reset operation.
+			       Some mmu instances may produce unexpected results
+			       when the reset operation is used.
+
 Example:
 
 	vopl_mmu: iommu@ff940300 {

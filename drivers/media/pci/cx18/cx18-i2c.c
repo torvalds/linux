@@ -93,8 +93,8 @@ static int cx18_i2c_new_ir(struct cx18 *cx, struct i2c_adapter *adap, u32 hw,
 	case CX18_HW_Z8F0811_IR_RX_HAUP:
 		init_data->ir_codes = RC_MAP_HAUPPAUGE;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
-		init_data->type = RC_BIT_RC5 | RC_BIT_RC6_MCE |
-							RC_BIT_RC6_6A_32;
+		init_data->type = RC_PROTO_BIT_RC5 | RC_PROTO_BIT_RC6_MCE |
+							RC_PROTO_BIT_RC6_6A_32;
 		init_data->name = cx->card_name;
 		info.platform_data = init_data;
 		break;
@@ -206,7 +206,7 @@ static int cx18_getsda(void *data)
 }
 
 /* template for i2c-bit-algo */
-static struct i2c_adapter cx18_i2c_adap_template = {
+static const struct i2c_adapter cx18_i2c_adap_template = {
 	.name = "cx18 i2c driver",
 	.algo = NULL,                   /* set by i2c-algo-bit */
 	.algo_data = NULL,              /* filled from template */
@@ -216,7 +216,7 @@ static struct i2c_adapter cx18_i2c_adap_template = {
 #define CX18_SCL_PERIOD (10) /* usecs. 10 usec is period for a 100 KHz clock */
 #define CX18_ALGO_BIT_TIMEOUT (2) /* seconds */
 
-static struct i2c_algo_bit_data cx18_i2c_algo_template = {
+static const struct i2c_algo_bit_data cx18_i2c_algo_template = {
 	.setsda		= cx18_setsda,
 	.setscl		= cx18_setscl,
 	.getsda		= cx18_getsda,

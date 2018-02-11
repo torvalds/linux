@@ -50,7 +50,7 @@ static int lan9303_i2c_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	sw_dev->chip.regmap = devm_regmap_init_i2c(client,
-						&lan9303_i2c_regmap_config);
+						   &lan9303_i2c_regmap_config);
 	if (IS_ERR(sw_dev->chip.regmap)) {
 		ret = PTR_ERR(sw_dev->chip.regmap);
 		dev_err(&client->dev, "Failed to allocate register map: %d\n",
@@ -62,6 +62,8 @@ static int lan9303_i2c_probe(struct i2c_client *client,
 	sw_dev->device = client;
 	i2c_set_clientdata(client, sw_dev);
 	sw_dev->chip.dev = &client->dev;
+
+	sw_dev->chip.ops = &lan9303_indirect_phy_ops;
 
 	ret = lan9303_probe(&sw_dev->chip, client->dev.of_node);
 	if (ret != 0)

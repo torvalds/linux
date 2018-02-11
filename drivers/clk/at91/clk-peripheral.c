@@ -367,8 +367,10 @@ at91_clk_register_sam9x5_peripheral(struct regmap *regmap, spinlock_t *lock,
 	if (ret) {
 		kfree(periph);
 		hw = ERR_PTR(ret);
-	} else
+	} else {
 		clk_sam9x5_peripheral_autodiv(periph);
+		pmc_register_id(id);
+	}
 
 	return hw;
 }

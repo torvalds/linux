@@ -13,6 +13,5 @@ Example:
 
 act8846: act8846@5 {
 	 compatible = "active-semi,act8846";
-	 status = "okay";
 	 system-power-controller;
 }

@@ -626,7 +626,7 @@ static umode_t lm3533_led_attr_is_visible(struct kobject *kobj,
 	return mode;
 };
 
-static struct attribute_group lm3533_led_attribute_group = {
+static const struct attribute_group lm3533_led_attribute_group = {
 	.is_visible	= lm3533_led_attr_is_visible,
 	.attrs		= lm3533_led_attributes
 };

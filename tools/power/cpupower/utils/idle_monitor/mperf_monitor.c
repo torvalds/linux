@@ -80,7 +80,8 @@ static int *is_valid;
 static int mperf_get_tsc(unsigned long long *tsc)
 {
 	int ret;
-	ret = read_msr(0, MSR_TSC, tsc);
+
+	ret = read_msr(base_cpu, MSR_TSC, tsc);
 	if (ret)
 		dprint("Reading TSC MSR failed, returning %llu\n", *tsc);
 	return ret;

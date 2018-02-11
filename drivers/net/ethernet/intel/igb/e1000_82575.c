@@ -257,6 +257,7 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 	}
 
 	/* Set phy->phy_addr and phy->id. */
+	igb_write_phy_reg_82580(hw, I347AT4_PAGE_SELECT, 0);
 	ret_val = igb_get_phy_id_82575(hw);
 	if (ret_val)
 		return ret_val;
@@ -338,6 +339,9 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 		phy->ops.set_d0_lplu_state = igb_set_d0_lplu_state_82580;
 		phy->ops.set_d3_lplu_state = igb_set_d3_lplu_state_82580;
 		phy->ops.force_speed_duplex = igb_phy_force_speed_duplex_m88;
+		break;
+	case BCM54616_E_PHY_ID:
+		phy->type = e1000_phy_bcm54616;
 		break;
 	default:
 		ret_val = -E1000_ERR_PHY;
@@ -1657,6 +1661,9 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 		break;
 	case e1000_phy_82580:
 		ret_val = igb_copper_link_setup_82580(hw);
+		break;
+	case e1000_phy_bcm54616:
+		ret_val = 0;
 		break;
 	default:
 		ret_val = -E1000_ERR_PHY;

@@ -1185,7 +1185,7 @@ static int usdhi6_sig_volt_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 	return ret;
 }
 
-static struct mmc_host_ops usdhi6_ops = {
+static const struct mmc_host_ops usdhi6_ops = {
 	.request	= usdhi6_request,
 	.set_ios	= usdhi6_set_ios,
 	.get_cd		= usdhi6_get_cd,
@@ -1757,7 +1757,7 @@ static int usdhi6_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ret = mmc_regulator_get_supply(mmc);
-	if (ret == -EPROBE_DEFER)
+	if (ret)
 		goto e_free_mmc;
 
 	ret = mmc_of_parse(mmc);

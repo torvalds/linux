@@ -709,8 +709,8 @@ int of_get_drm_display_mode(struct device_node *np,
 	if (bus_flags)
 		drm_bus_flags_from_videomode(&vm, bus_flags);
 
-	pr_debug("%s: got %dx%d display mode from %s\n",
-		of_node_full_name(np), vm.hactive, vm.vactive, np->name);
+	pr_debug("%pOF: got %dx%d display mode from %s\n",
+		np, vm.hactive, vm.vactive, np->name);
 	drm_mode_debug_printmodeline(dmode);
 
 	return 0;
@@ -1083,6 +1083,34 @@ drm_mode_validate_size(const struct drm_display_mode *mode,
 }
 EXPORT_SYMBOL(drm_mode_validate_size);
 
+/**
+ * drm_mode_validate_ycbcr420 - add 'ycbcr420-only' modes only when allowed
+ * @mode: mode to check
+ * @connector: drm connector under action
+ *
+ * This function is a helper which can be used to filter out any YCBCR420
+ * only mode, when the source doesn't support it.
+ *
+ * Returns:
+ * The mode status
+ */
+enum drm_mode_status
+drm_mode_validate_ycbcr420(const struct drm_display_mode *mode,
+			   struct drm_connector *connector)
+{
+	u8 vic = drm_match_cea_mode(mode);
+	enum drm_mode_status status = MODE_OK;
+	struct drm_hdmi_info *hdmi = &connector->display_info.hdmi;
+
+	if (test_bit(vic, hdmi->y420_vdb_modes)) {
+		if (!connector->ycbcr_420_allowed)
+			status = MODE_NO_420;
+	}
+
+	return status;
+}
+EXPORT_SYMBOL(drm_mode_validate_ycbcr420);
+
 #define MODE_STATUS(status) [MODE_ ## status + 3] = #status
 
 static const char * const drm_mode_status_names[] = {
@@ -1122,6 +1150,7 @@ static const char * const drm_mode_status_names[] = {
 	MODE_STATUS(ONE_SIZE),
 	MODE_STATUS(NO_REDUCED),
 	MODE_STATUS(NO_STEREO),
+	MODE_STATUS(NO_420),
 	MODE_STATUS(STALE),
 	MODE_STATUS(BAD),
 	MODE_STATUS(ERROR),
@@ -1576,3 +1605,61 @@ int drm_mode_convert_umode(struct drm_display_mode *out,
 out:
 	return ret;
 }
+
+/**
+ * drm_mode_is_420_only - if a given videomode can be only supported in YCBCR420
+ * output format
+ *
+ * @display: display under action
+ * @mode: video mode to be tested.
+ *
+ * Returns:
+ * true if the mode can be supported in YCBCR420 format
+ * false if not.
+ */
+bool drm_mode_is_420_only(const struct drm_display_info *display,
+			  const struct drm_display_mode *mode)
+{
+	u8 vic = drm_match_cea_mode(mode);
+
+	return test_bit(vic, display->hdmi.y420_vdb_modes);
+}
+EXPORT_SYMBOL(drm_mode_is_420_only);
+
+/**
+ * drm_mode_is_420_also - if a given videomode can be supported in YCBCR420
+ * output format also (along with RGB/YCBCR444/422)
+ *
+ * @display: display under action.
+ * @mode: video mode to be tested.
+ *
+ * Returns:
+ * true if the mode can be support YCBCR420 format
+ * false if not.
+ */
+bool drm_mode_is_420_also(const struct drm_display_info *display,
+			  const struct drm_display_mode *mode)
+{
+	u8 vic = drm_match_cea_mode(mode);
+
+	return test_bit(vic, display->hdmi.y420_cmdb_modes);
+}
+EXPORT_SYMBOL(drm_mode_is_420_also);
+/**
+ * drm_mode_is_420 - if a given videomode can be supported in YCBCR420
+ * output format
+ *
+ * @display: display under action.
+ * @mode: video mode to be tested.
+ *
+ * Returns:
+ * true if the mode can be supported in YCBCR420 format
+ * false if not.
+ */
+bool drm_mode_is_420(const struct drm_display_info *display,
+		     const struct drm_display_mode *mode)
+{
+	return drm_mode_is_420_only(display, mode) ||
+		drm_mode_is_420_also(display, mode);
+}
+EXPORT_SYMBOL(drm_mode_is_420);

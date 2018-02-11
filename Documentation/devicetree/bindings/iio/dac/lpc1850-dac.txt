@@ -16,5 +16,4 @@ dac: dac@400e1000 {
 	clocks = <&ccu1 CLK_APB3_DAC>;
 	vref-supply = <&reg_vdda>;
 	resets = <&rgu 42>;
-	status = "disabled";
 };

@@ -10,12 +10,27 @@ Part II - Digital TV API
 
 .. note::
 
-   This API is also known as **DVB API**, although it is generic
-   enough to support all digital TV standards.
+   This API is also known as Linux **DVB API**.
+
+   It it was originally written to support the European digital TV
+   standard (DVB), and later extended to support all digital TV standards.
+
+   In order to avoid confusion, within this document, it was opted to refer to
+   it, and to associated hardware as **Digital TV**.
+
+   The word **DVB** is reserved to be used for:
+
+     - the Digital TV API version
+       (e. g. DVB API version 3 or DVB API version 5);
+     - digital TV data types (enums, structs, defines, etc);
+     - digital TV device nodes (``/dev/dvb/...``);
+     - the European DVB standard.
 
 **Version 5.10**
 
-.. class:: toc-title
+.. only:: html
+
+   .. class:: toc-title
 
         Table of Contents
 
@@ -30,12 +45,7 @@ Part II - Digital TV API
     net
     legacy_dvb_apis
     examples
-    audio_h
-    ca_h
-    dmx_h
-    frontend_h
-    net_h
-    video_h
+    headers
 
 
 **********************
@@ -46,11 +56,11 @@ Authors:
 
 - J. K. Metzler, Ralph <rjkm@metzlerbros.de>
 
- - Original author of the DVB API documentation.
+ - Original author of the Digital TV API documentation.
 
 - O. C. Metzler, Marcus <rjkm@metzlerbros.de>
 
- - Original author of the DVB API documentation.
+ - Original author of the Digital TV API documentation.
 
 - Carvalho Chehab, Mauro <m.chehab@kernel.org>
 
@@ -58,21 +68,26 @@ Authors:
 
 **Copyright** |copy| 2002-2003 : Convergence GmbH
 
-**Copyright** |copy| 2009-2016 : Mauro Carvalho Chehab
+**Copyright** |copy| 2009-2017 : Mauro Carvalho Chehab
 
 ****************
 Revision History
 ****************
 
+:revision: 2.2.0 / 2017-09-01 (*mcc*)
+
+Most gaps between the uAPI document and the Kernel implementation
+got fixed for the non-legacy API.
+
 :revision: 2.1.0 / 2015-05-29 (*mcc*)
 
 DocBook improvements and cleanups, in order to document the system calls
 on a more standard way and provide more description about the current
-DVB API.
+Digital TV API.
 
 :revision: 2.0.4 / 2011-05-06 (*mcc*)
 
-Add more information about DVB APIv5, better describing the frontend
+Add more information about DVBv5 API, better describing the frontend
 GET/SET props ioctl's.
 
 

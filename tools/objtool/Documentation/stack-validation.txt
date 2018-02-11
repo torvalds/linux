@@ -11,9 +11,6 @@ analyzes every .o file and ensures the validity of its stack metadata.
 It enforces a set of rules on asm code and C inline assembly code so
 that stack traces can be reliable.
 
-Currently it only checks frame pointer usage, but there are plans to add
-CFI validation for C files and CFI generation for asm files.
-
 For each function, it recursively follows all possible code paths and
 validates the correct frame pointer state at each instruction.
 
@@ -22,6 +19,10 @@ It also follows code paths involving special sections, like
 alternative execution paths to a given instruction (or set of
 instructions).  Similarly, it knows how to follow switch statements, for
 which gcc sometimes uses jump tables.
+
+(Objtool also has an 'orc generate' subcommand which generates debuginfo
+for the ORC unwinder.  See Documentation/x86/orc-unwinder.txt in the
+kernel tree for more details.)
 
 
 Why do we need stack metadata validation?
@@ -93,62 +94,24 @@ a) More reliable stack traces for frame pointer enabled kernels
        or at the very end of the function after the stack frame has been
        destroyed.  This is an inherent limitation of frame pointers.
 
-b) 100% reliable stack traces for DWARF enabled kernels
+b) ORC (Oops Rewind Capability) unwind table generation
 
-   (NOTE: This is not yet implemented)
+   An alternative to frame pointers and DWARF, ORC unwind data can be
+   used to walk the stack.  Unlike frame pointers, ORC data is out of
+   band.  So it doesn't affect runtime performance and it can be
+   reliable even when interrupts or exceptions are involved.
 
-   As an alternative to frame pointers, DWARF Call Frame Information
-   (CFI) metadata can be used to walk the stack.  Unlike frame pointers,
-   CFI metadata is out of band.  So it doesn't affect runtime
-   performance and it can be reliable even when interrupts or exceptions
-   are involved.
-
-   For C code, gcc automatically generates DWARF CFI metadata.  But for
-   asm code, generating CFI is a tedious manual approach which requires
-   manually placed .cfi assembler macros to be scattered throughout the
-   code.  It's clumsy and very easy to get wrong, and it makes the real
-   code harder to read.
-
-   Stacktool will improve this situation in several ways.  For code
-   which already has CFI annotations, it will validate them.  For code
-   which doesn't have CFI annotations, it will generate them.  So an
-   architecture can opt to strip out all the manual .cfi annotations
-   from their asm code and have objtool generate them instead.
-
-   We might also add a runtime stack validation debug option where we
-   periodically walk the stack from schedule() and/or an NMI to ensure
-   that the stack metadata is sane and that we reach the bottom of the
-   stack.
-
-   So the benefit of objtool here will be that external tooling should
-   always show perfect stack traces.  And the same will be true for
-   kernel warning/oops traces if the architecture has a runtime DWARF
-   unwinder.
+   For more details, see Documentation/x86/orc-unwinder.txt.
 
 c) Higher live patching compatibility rate
 
-   (NOTE: This is not yet implemented)
+   Livepatch has an optional "consistency model", which is needed for
+   more complex patches.  In order for the consistency model to work,
+   stack traces need to be reliable (or an unreliable condition needs to
+   be detectable).  Objtool makes that possible.
 
-   Currently with CONFIG_LIVEPATCH there's a basic live patching
-   framework which is safe for roughly 85-90% of "security" fixes.  But
-   patches can't have complex features like function dependency or
-   prototype changes, or data structure changes.
-
-   There's a strong need to support patches which have the more complex
-   features so that the patch compatibility rate for security fixes can
-   eventually approach something resembling 100%.  To achieve that, a
-   "consistency model" is needed, which allows tasks to be safely
-   transitioned from an unpatched state to a patched state.
-
-   One of the key requirements of the currently proposed livepatch
-   consistency model [*] is that it needs to walk the stack of each
-   sleeping task to determine if it can be transitioned to the patched
-   state.  If objtool can ensure that stack traces are reliable, this
-   consistency model can be used and the live patching compatibility
-   rate can be improved significantly.
-
-   [*] https://lkml.kernel.org/r/cover.1423499826.git.jpoimboe@redhat.com
-
+   For more details, see the livepatch documentation in the Linux kernel
+   source tree at Documentation/livepatch/livepatch.txt.
 
 Rules
 -----
@@ -201,80 +164,84 @@ To achieve the validation, objtool enforces the following rules:
    return normally.
 
 
-Errors in .S files
-------------------
+Objtool warnings
+----------------
 
-If you're getting an error in a compiled .S file which you don't
-understand, first make sure that the affected code follows the above
-rules.
+For asm files, if you're getting an error which doesn't make sense,
+first make sure that the affected code follows the above rules.
+
+For C files, the common culprits are inline asm statements and calls to
+"noreturn" functions.  See below for more details.
+
+Another possible cause for errors in C code is if the Makefile removes
+-fno-omit-frame-pointer or adds -fomit-frame-pointer to the gcc options.
 
 Here are some examples of common warnings reported by objtool, what
 they mean, and suggestions for how to fix them.
 
 
-1. asm_file.o: warning: objtool: func()+0x128: call without frame pointer save/setup
+1. file.o: warning: objtool: func()+0x128: call without frame pointer save/setup
 
    The func() function made a function call without first saving and/or
-   updating the frame pointer.
+   updating the frame pointer, and CONFIG_FRAME_POINTER is enabled.
 
-   If func() is indeed a callable function, add proper frame pointer
-   logic using the FRAME_BEGIN and FRAME_END macros.  Otherwise, remove
-   its ELF function annotation by changing ENDPROC to END.
+   If the error is for an asm file, and func() is indeed a callable
+   function, add proper frame pointer logic using the FRAME_BEGIN and
+   FRAME_END macros.  Otherwise, if it's not a callable function, remove
+   its ELF function annotation by changing ENDPROC to END, and instead
+   use the manual unwind hint macros in asm/unwind_hints.h.
 
-   If you're getting this error in a .c file, see the "Errors in .c
-   files" section.
+   If it's a GCC-compiled .c file, the error may be because the function
+   uses an inline asm() statement which has a "call" instruction.  An
+   asm() statement with a call instruction must declare the use of the
+   stack pointer in its output operand.  On x86_64, this means adding
+   the ASM_CALL_CONSTRAINT as an output constraint:
 
+     asm volatile("call func" : ASM_CALL_CONSTRAINT);
 
-2. asm_file.o: warning: objtool: .text+0x53: return instruction outside of a callable function
-
-   A return instruction was detected, but objtool couldn't find a way
-   for a callable function to reach the instruction.
-
-   If the return instruction is inside (or reachable from) a callable
-   function, the function needs to be annotated with the ENTRY/ENDPROC
-   macros.
-
-   If you _really_ need a return instruction outside of a function, and
-   are 100% sure that it won't affect stack traces, you can tell
-   objtool to ignore it.  See the "Adding exceptions" section below.
+   Otherwise the stack frame may not get created before the call.
 
 
-3. asm_file.o: warning: objtool: func()+0x9: function has unreachable instruction
+2. file.o: warning: objtool: .text+0x53: unreachable instruction
 
-   The instruction lives inside of a callable function, but there's no
-   possible control flow path from the beginning of the function to the
-   instruction.
+   Objtool couldn't find a code path to reach the instruction.
 
-   If the instruction is actually needed, and it's actually in a
-   callable function, ensure that its function is properly annotated
-   with ENTRY/ENDPROC.
+   If the error is for an asm file, and the instruction is inside (or
+   reachable from) a callable function, the function should be annotated
+   with the ENTRY/ENDPROC macros (ENDPROC is the important one).
+   Otherwise, the code should probably be annotated with the unwind hint
+   macros in asm/unwind_hints.h so objtool and the unwinder can know the
+   stack state associated with the code.
+
+   If you're 100% sure the code won't affect stack traces, or if you're
+   a just a bad person, you can tell objtool to ignore it.  See the
+   "Adding exceptions" section below.
 
    If it's not actually in a callable function (e.g. kernel entry code),
    change ENDPROC to END.
 
 
-4. asm_file.o: warning: objtool: func(): can't find starting instruction
+4. file.o: warning: objtool: func(): can't find starting instruction
    or
-   asm_file.o: warning: objtool: func()+0x11dd: can't decode instruction
+   file.o: warning: objtool: func()+0x11dd: can't decode instruction
 
-   Did you put data in a text section?  If so, that can confuse
+   Does the file have data in a text section?  If so, that can confuse
    objtool's instruction decoder.  Move the data to a more appropriate
    section like .data or .rodata.
 
 
-5. asm_file.o: warning: objtool: func()+0x6: kernel entry/exit from callable instruction
+5. file.o: warning: objtool: func()+0x6: unsupported instruction in callable function
 
-   This is a kernel entry/exit instruction like sysenter or sysret.
-   Such instructions aren't allowed in a callable function, and are most
-   likely part of the kernel entry code.
+   This is a kernel entry/exit instruction like sysenter or iret.  Such
+   instructions aren't allowed in a callable function, and are most
+   likely part of the kernel entry code.  They should usually not have
+   the callable function annotation (ENDPROC) and should always be
+   annotated with the unwind hint macros in asm/unwind_hints.h.
 
-   If the instruction isn't actually in a callable function, change
-   ENDPROC to END.
 
+6. file.o: warning: objtool: func()+0x26: sibling call from callable instruction with modified stack frame
 
-6. asm_file.o: warning: objtool: func()+0x26: sibling call from callable instruction with changed frame pointer
-
-   This is a dynamic jump or a jump to an undefined symbol.  Stacktool
+   This is a dynamic jump or a jump to an undefined symbol.  Objtool
    assumed it's a sibling call and detected that the frame pointer
    wasn't first restored to its original state.
 
@@ -282,24 +249,28 @@ they mean, and suggestions for how to fix them.
    destination code to the local file.
 
    If the instruction is not actually in a callable function (e.g.
-   kernel entry code), change ENDPROC to END.
+   kernel entry code), change ENDPROC to END and annotate manually with
+   the unwind hint macros in asm/unwind_hints.h.
 
 
-7. asm_file: warning: objtool: func()+0x5c: frame pointer state mismatch
+7. file: warning: objtool: func()+0x5c: stack state mismatch
 
    The instruction's frame pointer state is inconsistent, depending on
    which execution path was taken to reach the instruction.
 
-   Make sure the function pushes and sets up the frame pointer (for
-   x86_64, this means rbp) at the beginning of the function and pops it
-   at the end of the function.  Also make sure that no other code in the
-   function touches the frame pointer.
+   Make sure that, when CONFIG_FRAME_POINTER is enabled, the function
+   pushes and sets up the frame pointer (for x86_64, this means rbp) at
+   the beginning of the function and pops it at the end of the function.
+   Also make sure that no other code in the function touches the frame
+   pointer.
+
+   Another possibility is that the code has some asm or inline asm which
+   does some unusual things to the stack or the frame pointer.  In such
+   cases it's probably appropriate to use the unwind hint macros in
+   asm/unwind_hints.h.
 
 
-Errors in .c files
-------------------
-
-1. c_file.o: warning: objtool: funcA() falls through to next function funcB()
+8. file.o: warning: objtool: funcA() falls through to next function funcB()
 
    This means that funcA() doesn't end with a return instruction or an
    unconditional jump, and that objtool has determined that the function
@@ -318,22 +289,6 @@ Errors in .c files
       might be corrupt due to a gcc bug.  For more details, see:
       https://gcc.gnu.org/bugzilla/show_bug.cgi?id=70646
 
-2. If you're getting any other objtool error in a compiled .c file, it
-   may be because the file uses an asm() statement which has a "call"
-   instruction.  An asm() statement with a call instruction must declare
-   the use of the stack pointer in its output operand.  For example, on
-   x86_64:
-
-     register void *__sp asm("rsp");
-     asm volatile("call func" : "+r" (__sp));
-
-   Otherwise the stack frame may not get created before the call.
-
-3. Another possible cause for errors in C code is if the Makefile removes
-   -fno-omit-frame-pointer or adds -fomit-frame-pointer to the gcc options.
-
-Also see the above section for .S file errors for more information what
-the individual error messages mean.
 
 If the error doesn't seem to make sense, it could be a bug in objtool.
 Feel free to ask the objtool maintainer for help.

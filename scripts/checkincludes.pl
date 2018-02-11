@@ -1,4 +1,5 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0
 #
 # checkincludes: find/remove files included more than once
 #

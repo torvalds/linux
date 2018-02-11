@@ -100,6 +100,10 @@ enum SS4_PACKET_ID {
 				 ((_b[1 + _i * 3]  << 5) & 0x1F00)	\
 				)
 
+#define SS4_PLUS_STD_MF_X_V2(_b, _i) (((_b[0 + (_i) * 3] << 4) & 0x0070) | \
+				 ((_b[1 + (_i) * 3]  << 4) & 0x0F80)	\
+				)
+
 #define SS4_STD_MF_Y_V2(_b, _i)	(((_b[1 + (_i) * 3] << 3) & 0x0010) |	\
 				 ((_b[2 + (_i) * 3] << 5) & 0x01E0) |	\
 				 ((_b[2 + (_i) * 3] << 4) & 0x0E00)	\
@@ -107,6 +111,10 @@ enum SS4_PACKET_ID {
 
 #define SS4_BTL_MF_X_V2(_b, _i)	(SS4_STD_MF_X_V2(_b, _i) |		\
 				 ((_b[0 + (_i) * 3] >> 3) & 0x0010)	\
+				)
+
+#define SS4_PLUS_BTL_MF_X_V2(_b, _i) (SS4_PLUS_STD_MF_X_V2(_b, _i) |	\
+				 ((_b[0 + (_i) * 3] >> 4) & 0x0008)	\
 				)
 
 #define SS4_BTL_MF_Y_V2(_b, _i)	(SS4_STD_MF_Y_V2(_b, _i) | \
@@ -133,10 +141,12 @@ enum SS4_PACKET_ID {
 #define SS4_TS_Z_V2(_b)		(s8)(_b[4] & 0x7F)
 
 
-#define SS4_MFPACKET_NO_AX	8160	/* X-Coordinate value */
-#define SS4_MFPACKET_NO_AY	4080	/* Y-Coordinate value */
-#define SS4_MFPACKET_NO_AX_BL	8176	/* Buttonless X-Coordinate value */
-#define SS4_MFPACKET_NO_AY_BL	4088	/* Buttonless Y-Coordinate value */
+#define SS4_MFPACKET_NO_AX		8160	/* X-Coordinate value */
+#define SS4_MFPACKET_NO_AY		4080	/* Y-Coordinate value */
+#define SS4_MFPACKET_NO_AX_BL		8176	/* Buttonless X-Coord value */
+#define SS4_MFPACKET_NO_AY_BL		4088	/* Buttonless Y-Coord value */
+#define SS4_PLUS_MFPACKET_NO_AX		4080	/* SS4 PLUS, X */
+#define SS4_PLUS_MFPACKET_NO_AX_BL	4088	/* Buttonless SS4 PLUS, X */
 
 /*
  * enum V7_PACKET_ID - defines the packet type for V7

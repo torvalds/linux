@@ -23,14 +23,14 @@ static const char * const backends[] = {
 #if IS_ENABLED(CONFIG_CRYPTO_LZ4)
 	"lz4",
 #endif
-#if IS_ENABLED(CONFIG_CRYPTO_DEFLATE)
-	"deflate",
-#endif
 #if IS_ENABLED(CONFIG_CRYPTO_LZ4HC)
 	"lz4hc",
 #endif
 #if IS_ENABLED(CONFIG_CRYPTO_842)
 	"842",
+#endif
+#if IS_ENABLED(CONFIG_CRYPTO_ZSTD)
+	"zstd",
 #endif
 	NULL
 };
@@ -68,13 +68,11 @@ static struct zcomp_strm *zcomp_strm_alloc(struct zcomp *comp)
 
 bool zcomp_available_algorithm(const char *comp)
 {
-	int i = 0;
+	int i;
 
-	while (backends[i]) {
-		if (sysfs_streq(comp, backends[i]))
-			return true;
-		i++;
-	}
+	i = __sysfs_match_string(backends, -1, comp);
+	if (i >= 0)
+		return true;
 
 	/*
 	 * Crypto does not ignore a trailing new line symbol,

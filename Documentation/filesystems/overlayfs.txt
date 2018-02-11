@@ -156,6 +156,40 @@ handle it in two different ways:
    root of the overlay.  Finally the directory is moved to the new
    location.
 
+There are several ways to tune the "redirect_dir" feature.
+
+Kernel config options:
+
+- OVERLAY_FS_REDIRECT_DIR:
+    If this is enabled, then redirect_dir is turned on by  default.
+- OVERLAY_FS_REDIRECT_ALWAYS_FOLLOW:
+    If this is enabled, then redirects are always followed by default. Enabling
+    this results in a less secure configuration.  Enable this option only when
+    worried about backward compatibility with kernels that have the redirect_dir
+    feature and follow redirects even if turned off.
+
+Module options (can also be changed through /sys/module/overlay/parameters/*):
+
+- "redirect_dir=BOOL":
+    See OVERLAY_FS_REDIRECT_DIR kernel config option above.
+- "redirect_always_follow=BOOL":
+    See OVERLAY_FS_REDIRECT_ALWAYS_FOLLOW kernel config option above.
+- "redirect_max=NUM":
+    The maximum number of bytes in an absolute redirect (default is 256).
+
+Mount options:
+
+- "redirect_dir=on":
+    Redirects are enabled.
+- "redirect_dir=follow":
+    Redirects are not created, but followed.
+- "redirect_dir=off":
+    Redirects are not created and only followed if "redirect_always_follow"
+    feature is enabled in the kernel/module config.
+- "redirect_dir=nofollow":
+    Redirects are not created and not followed (equivalent to "redirect_dir=off"
+    if "redirect_always_follow" feature is not enabled).
+
 Non-directories
 ---------------
 
@@ -199,6 +233,43 @@ that case the overlay will be read-only.
 The specified lower directories will be stacked beginning from the
 rightmost one and going left.  In the above example lower1 will be the
 top, lower2 the middle and lower3 the bottom layer.
+
+
+Sharing and copying layers
+--------------------------
+
+Lower layers may be shared among several overlay mounts and that is indeed
+a very common practice.  An overlay mount may use the same lower layer
+path as another overlay mount and it may use a lower layer path that is
+beneath or above the path of another overlay lower layer path.
+
+Using an upper layer path and/or a workdir path that are already used by
+another overlay mount is not allowed and may fail with EBUSY.  Using
+partially overlapping paths is not allowed but will not fail with EBUSY.
+If files are accessed from two overlayfs mounts which share or overlap the
+upper layer and/or workdir path the behavior of the overlay is undefined,
+though it will not result in a crash or deadlock.
+
+Mounting an overlay using an upper layer path, where the upper layer path
+was previously used by another mounted overlay in combination with a
+different lower layer path, is allowed, unless the "inodes index" feature
+is enabled.
+
+With the "inodes index" feature, on the first time mount, an NFS file
+handle of the lower layer root directory, along with the UUID of the lower
+filesystem, are encoded and stored in the "trusted.overlay.origin" extended
+attribute on the upper layer root directory.  On subsequent mount attempts,
+the lower root directory file handle and lower filesystem UUID are compared
+to the stored origin in upper root directory.  On failure to verify the
+lower root origin, mount will fail with ESTALE.  An overlayfs mount with
+"inodes index" enabled will fail with EOPNOTSUPP if the lower filesystem
+does not support NFS export, lower filesystem does not have a valid UUID or
+if the upper filesystem does not support extended attributes.
+
+It is quite a common practice to copy overlay layers to a different
+directory tree on the same or different underlying filesystem, and even
+to a different machine.  With the "inodes index" feature, trying to mount
+the copied layers will fail the verification of the lower root file handle.
 
 
 Non-standard behavior

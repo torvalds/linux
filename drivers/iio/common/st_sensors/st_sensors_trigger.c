@@ -31,7 +31,7 @@ static int st_sensors_new_samples_available(struct iio_dev *indio_dev,
 	int ret;
 
 	/* How would I know if I can't check it? */
-	if (!sdata->sensor_settings->drdy_irq.addr_stat_drdy)
+	if (!sdata->sensor_settings->drdy_irq.stat_drdy.addr)
 		return -EINVAL;
 
 	/* No scan mask, no interrupt */
@@ -39,23 +39,15 @@ static int st_sensors_new_samples_available(struct iio_dev *indio_dev,
 		return 0;
 
 	ret = sdata->tf->read_byte(&sdata->tb, sdata->dev,
-			sdata->sensor_settings->drdy_irq.addr_stat_drdy,
+			sdata->sensor_settings->drdy_irq.stat_drdy.addr,
 			&status);
 	if (ret < 0) {
 		dev_err(sdata->dev,
 			"error checking samples available\n");
 		return ret;
 	}
-	/*
-	 * the lower bits of .active_scan_mask[0] is directly mapped
-	 * to the channels on the sensor: either bit 0 for
-	 * one-dimensional sensors, or e.g. x,y,z for accelerometers,
-	 * gyroscopes or magnetometers. No sensor use more than 3
-	 * channels, so cut the other status bits here.
-	 */
-	status &= 0x07;
 
-	if (status & (u8)indio_dev->active_scan_mask[0])
+	if (status & sdata->sensor_settings->drdy_irq.stat_drdy.mask)
 		return 1;
 
 	return 0;
@@ -212,7 +204,7 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 	 * it was "our" interrupt.
 	 */
 	if (sdata->int_pin_open_drain &&
-	    sdata->sensor_settings->drdy_irq.addr_stat_drdy)
+	    sdata->sensor_settings->drdy_irq.stat_drdy.addr)
 		irq_trig |= IRQF_SHARED;
 
 	err = request_threaded_irq(sdata->get_irq_data_ready(indio_dev),

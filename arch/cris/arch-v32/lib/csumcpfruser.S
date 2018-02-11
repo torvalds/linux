@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Add-on to transform csum_partial_copy_nocheck in checksumcopy.S into
  * csum_partial_copy_from_user by adding exception records.

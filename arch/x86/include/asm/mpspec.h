@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_MPSPEC_H
 #define _ASM_X86_MPSPEC_H
 
@@ -86,7 +87,6 @@ static inline void e820__memblock_alloc_reserved_mpc_new(void) { }
 #endif
 
 int generic_processor_info(int apicid, int version);
-int __generic_processor_info(int apicid, int version, bool enabled);
 
 #define PHYSID_ARRAY_SIZE	BITS_TO_LONGS(MAX_LOCAL_APIC)
 

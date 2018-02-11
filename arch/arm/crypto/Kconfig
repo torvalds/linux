@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 menuconfig ARM_CRYPTO
 	bool "ARM Accelerated Cryptographic Algorithms"
@@ -94,14 +95,15 @@ config CRYPTO_AES_ARM_CE
 	  ARMv8 Crypto Extensions
 
 config CRYPTO_GHASH_ARM_CE
-	tristate "PMULL-accelerated GHASH using ARMv8 Crypto Extensions"
+	tristate "PMULL-accelerated GHASH using NEON/ARMv8 Crypto Extensions"
 	depends on KERNEL_MODE_NEON
 	select CRYPTO_HASH
 	select CRYPTO_CRYPTD
 	help
 	  Use an implementation of GHASH (used by the GCM AEAD chaining mode)
 	  that uses the 64x64 to 128 bit polynomial multiplication (vmull.p64)
-	  that is part of the ARMv8 Crypto Extensions
+	  that is part of the ARMv8 Crypto Extensions, or a slower variant that
+	  uses the vmull.p8 instruction that is part of the basic NEON ISA.
 
 config CRYPTO_CRCT10DIF_ARM_CE
 	tristate "CRCT10DIF digest algorithm using PMULL instructions"

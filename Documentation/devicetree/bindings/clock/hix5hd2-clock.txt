@@ -27,5 +27,4 @@ Examples:
 		interrupts = <0 49 4>;
 		clocks = <&clock HIX5HD2_FIXED_83M>;
 		clock-names = "apb_pclk";
-		status = "disabled";
 	};

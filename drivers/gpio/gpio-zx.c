@@ -170,7 +170,7 @@ static void zx_irq_handler(struct irq_desc *desc)
 	writew_relaxed(pending, chip->base + ZX_GPIO_IC);
 	if (pending) {
 		for_each_set_bit(offset, &pending, ZX_GPIO_NR)
-			generic_handle_irq(irq_find_mapping(gc->irqdomain,
+			generic_handle_irq(irq_find_mapping(gc->irq.domain,
 							    offset));
 	}
 

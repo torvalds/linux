@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NWBUTTON_H
 #define __NWBUTTON_H
 
@@ -24,7 +25,7 @@ struct button_callback {
 
 /* Function prototypes: */
 
-static void button_sequence_finished (unsigned long parameters);
+static void button_sequence_finished(struct timer_list *unused);
 static irqreturn_t button_handler (int irq, void *dev_id);
 int button_init (void);
 int button_add_callback (void (*callback) (void), int count);

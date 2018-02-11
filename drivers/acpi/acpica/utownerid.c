@@ -104,13 +104,19 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id *owner_id)
 				break;
 			}
 
-			if (!(acpi_gbl_owner_id_mask[j] & (1 << k))) {
+			/*
+			 * Note: the u32 cast ensures that 1 is stored as a unsigned
+			 * integer. Omitting the cast may result in 1 being stored as an
+			 * int. Some compilers or runtime error detection may flag this as
+			 * an error.
+			 */
+			if (!(acpi_gbl_owner_id_mask[j] & ((u32)1 << k))) {
 				/*
 				 * Found a free ID. The actual ID is the bit index plus one,
 				 * making zero an invalid Owner ID. Save this as the last ID
 				 * allocated and update the global ID mask.
 				 */
-				acpi_gbl_owner_id_mask[j] |= (1 << k);
+				acpi_gbl_owner_id_mask[j] |= ((u32)1 << k);
 
 				acpi_gbl_last_owner_id_index = (u8)j;
 				acpi_gbl_next_owner_id_offset = (u8)(k + 1);
@@ -201,7 +207,7 @@ void acpi_ut_release_owner_id(acpi_owner_id *owner_id_ptr)
 	/* Decode ID to index/offset pair */
 
 	index = ACPI_DIV_32(owner_id);
-	bit = 1 << ACPI_MOD_32(owner_id);
+	bit = (u32)1 << ACPI_MOD_32(owner_id);
 
 	/* Free the owner ID only if it is valid */
 

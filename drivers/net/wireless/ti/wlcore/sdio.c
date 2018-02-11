@@ -230,6 +230,7 @@ static const struct wilink_family_data wl128x_data = {
 static const struct wilink_family_data wl18xx_data = {
 	.name = "wl18xx",
 	.cfg_name = "ti-connectivity/wl18xx-conf.bin",
+	.nvs_name = "ti-connectivity/wl1271-nvs.bin",
 };
 
 static const struct of_device_id wlcore_sdio_of_match_table[] = {
@@ -237,6 +238,7 @@ static const struct of_device_id wlcore_sdio_of_match_table[] = {
 	{ .compatible = "ti,wl1273", .data = &wl127x_data },
 	{ .compatible = "ti,wl1281", .data = &wl128x_data },
 	{ .compatible = "ti,wl1283", .data = &wl128x_data },
+	{ .compatible = "ti,wl1285", .data = &wl128x_data },
 	{ .compatible = "ti,wl1801", .data = &wl18xx_data },
 	{ .compatible = "ti,wl1805", .data = &wl18xx_data },
 	{ .compatible = "ti,wl1807", .data = &wl18xx_data },

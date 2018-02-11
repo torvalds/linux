@@ -22,6 +22,8 @@
 
 #include <asm/prom.h>
 #include <asm/icswx.h>
+#include <asm/vas.h>
+#include <asm/reg.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dan Streetman <ddstreet@ieee.org>");
@@ -31,6 +33,9 @@ MODULE_ALIAS_CRYPTO("842-nx");
 
 #define WORKMEM_ALIGN	(CRB_ALIGN)
 #define CSB_WAIT_MAX	(5000) /* ms */
+#define VAS_RETRIES	(10)
+/* # of requests allowed per RxFIFO at a time. 0 for unlimited */
+#define MAX_CREDITS_PER_RXFIFO	(1024)
 
 struct nx842_workmem {
 	/* Below fields must be properly aligned */
@@ -47,13 +52,27 @@ struct nx842_workmem {
 struct nx842_coproc {
 	unsigned int chip_id;
 	unsigned int ct;
-	unsigned int ci;
+	unsigned int ci;	/* Coprocessor instance, used with icswx */
+	struct {
+		struct vas_window *rxwin;
+		int id;
+	} vas;
 	struct list_head list;
 };
 
+/*
+ * Send the request to NX engine on the chip for the corresponding CPU
+ * where the process is executing. Use with VAS function.
+ */
+static DEFINE_PER_CPU(struct vas_window *, cpu_txwin);
+
 /* no cpu hotplug on powernv, so this list never changes after init */
 static LIST_HEAD(nx842_coprocs);
-static unsigned int nx842_ct;
+static unsigned int nx842_ct;	/* used in icswx function */
+
+static int (*nx842_powernv_exec)(const unsigned char *in,
+				unsigned int inlen, unsigned char *out,
+				unsigned int *outlenp, void *workmem, int fc);
 
 /**
  * setup_indirect_dde - Setup an indirect DDE
@@ -173,7 +192,7 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 	ktime_t start = wmem->start, now = ktime_get();
 	ktime_t timeout = ktime_add_ms(start, CSB_WAIT_MAX);
 
-	while (!(ACCESS_ONCE(csb->flags) & CSB_V)) {
+	while (!(READ_ONCE(csb->flags) & CSB_V)) {
 		cpu_relax();
 		now = ktime_get();
 		if (ktime_after(now, timeout))
@@ -238,6 +257,13 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 	case CSB_CC_TEMPL_OVERFLOW:
 		CSB_ERR(csb, "Compressed data template shows data past end");
 		return -EINVAL;
+	case CSB_CC_EXCEED_BYTE_COUNT:	/* P9 or later */
+		/*
+		 * DDE byte count exceeds the limit specified in Maximum
+		 * byte count register.
+		 */
+		CSB_ERR(csb, "DDE byte count exceeds the limit");
+		return -EINVAL;
 
 	/* these should not happen */
 	case CSB_CC_INVALID_ALIGN:
@@ -279,8 +305,16 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 		CSB_ERR(csb, "Too many DDEs in DDL");
 		return -EINVAL;
 	case CSB_CC_TRANSPORT:
+	case CSB_CC_INVALID_CRB:	/* P9 or later */
 		/* shouldn't happen, we setup CRB correctly */
 		CSB_ERR(csb, "Invalid CRB");
+		return -EINVAL;
+	case CSB_CC_INVALID_DDE:	/* P9 or later */
+		/*
+		 * shouldn't happen, setup_direct/indirect_dde creates
+		 * DDE right
+		 */
+		CSB_ERR(csb, "Invalid DDE");
 		return -EINVAL;
 	case CSB_CC_SEGMENTED_DDL:
 		/* shouldn't happen, setup_ddl creates DDL right */
@@ -325,6 +359,9 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 	case CSB_CC_HW:
 		CSB_ERR(csb, "Correctable hardware error");
 		return -EPROTO;
+	case CSB_CC_HW_EXPIRED_TIMER:	/* P9 or later */
+		CSB_ERR(csb, "Job did not finish within allowed time");
+		return -EPROTO;
 
 	default:
 		CSB_ERR(csb, "Invalid CC %d", csb->cc);
@@ -353,8 +390,42 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 	return 0;
 }
 
+static int nx842_config_crb(const unsigned char *in, unsigned int inlen,
+			unsigned char *out, unsigned int outlen,
+			struct nx842_workmem *wmem)
+{
+	struct coprocessor_request_block *crb;
+	struct coprocessor_status_block *csb;
+	u64 csb_addr;
+	int ret;
+
+	crb = &wmem->crb;
+	csb = &crb->csb;
+
+	/* Clear any previous values */
+	memset(crb, 0, sizeof(*crb));
+
+	/* set up DDLs */
+	ret = setup_ddl(&crb->source, wmem->ddl_in,
+			(unsigned char *)in, inlen, true);
+	if (ret)
+		return ret;
+
+	ret = setup_ddl(&crb->target, wmem->ddl_out,
+			out, outlen, false);
+	if (ret)
+		return ret;
+
+	/* set up CRB's CSB addr */
+	csb_addr = nx842_get_pa(csb) & CRB_CSB_ADDRESS;
+	csb_addr |= CRB_CSB_AT; /* Addrs are phys */
+	crb->csb_addr = cpu_to_be64(csb_addr);
+
+	return 0;
+}
+
 /**
- * nx842_powernv_function - compress/decompress data using the 842 algorithm
+ * nx842_exec_icswx - compress/decompress data using the 842 algorithm
  *
  * (De)compression provided by the NX842 coprocessor on IBM PowerNV systems.
  * This compresses or decompresses the provided input buffer into the provided
@@ -384,7 +455,7 @@ static int wait_for_csb(struct nx842_workmem *wmem,
  *   -ETIMEDOUT	hardware did not complete operation in reasonable time
  *   -EINTR	operation was aborted
  */
-static int nx842_powernv_function(const unsigned char *in, unsigned int inlen,
+static int nx842_exec_icswx(const unsigned char *in, unsigned int inlen,
 				  unsigned char *out, unsigned int *outlenp,
 				  void *workmem, int fc)
 {
@@ -392,7 +463,6 @@ static int nx842_powernv_function(const unsigned char *in, unsigned int inlen,
 	struct coprocessor_status_block *csb;
 	struct nx842_workmem *wmem;
 	int ret;
-	u64 csb_addr;
 	u32 ccw;
 	unsigned int outlen = *outlenp;
 
@@ -406,32 +476,18 @@ static int nx842_powernv_function(const unsigned char *in, unsigned int inlen,
 		return -ENODEV;
 	}
 
+	ret = nx842_config_crb(in, inlen, out, outlen, wmem);
+	if (ret)
+		return ret;
+
 	crb = &wmem->crb;
 	csb = &crb->csb;
 
-	/* Clear any previous values */
-	memset(crb, 0, sizeof(*crb));
-
-	/* set up DDLs */
-	ret = setup_ddl(&crb->source, wmem->ddl_in,
-			(unsigned char *)in, inlen, true);
-	if (ret)
-		return ret;
-	ret = setup_ddl(&crb->target, wmem->ddl_out,
-			out, outlen, false);
-	if (ret)
-		return ret;
-
 	/* set up CCW */
 	ccw = 0;
-	ccw = SET_FIELD(ccw, CCW_CT, nx842_ct);
-	ccw = SET_FIELD(ccw, CCW_CI_842, 0); /* use 0 for hw auto-selection */
-	ccw = SET_FIELD(ccw, CCW_FC_842, fc);
-
-	/* set up CRB's CSB addr */
-	csb_addr = nx842_get_pa(csb) & CRB_CSB_ADDRESS;
-	csb_addr |= CRB_CSB_AT; /* Addrs are phys */
-	crb->csb_addr = cpu_to_be64(csb_addr);
+	ccw = SET_FIELD(CCW_CT, ccw, nx842_ct);
+	ccw = SET_FIELD(CCW_CI_842, ccw, 0); /* use 0 for hw auto-selection */
+	ccw = SET_FIELD(CCW_FC_842, ccw, fc);
 
 	wmem->start = ktime_get();
 
@@ -471,6 +527,99 @@ static int nx842_powernv_function(const unsigned char *in, unsigned int inlen,
 }
 
 /**
+ * nx842_exec_vas - compress/decompress data using the 842 algorithm
+ *
+ * (De)compression provided by the NX842 coprocessor on IBM PowerNV systems.
+ * This compresses or decompresses the provided input buffer into the provided
+ * output buffer.
+ *
+ * Upon return from this function @outlen contains the length of the
+ * output data.  If there is an error then @outlen will be 0 and an
+ * error will be specified by the return code from this function.
+ *
+ * The @workmem buffer should only be used by one function call at a time.
+ *
+ * @in: input buffer pointer
+ * @inlen: input buffer size
+ * @out: output buffer pointer
+ * @outlenp: output buffer size pointer
+ * @workmem: working memory buffer pointer, size determined by
+ *           nx842_powernv_driver.workmem_size
+ * @fc: function code, see CCW Function Codes in nx-842.h
+ *
+ * Returns:
+ *   0		Success, output of length @outlenp stored in the buffer
+ *		at @out
+ *   -ENODEV	Hardware unavailable
+ *   -ENOSPC	Output buffer is to small
+ *   -EMSGSIZE	Input buffer too large
+ *   -EINVAL	buffer constraints do not fix nx842_constraints
+ *   -EPROTO	hardware error during operation
+ *   -ETIMEDOUT	hardware did not complete operation in reasonable time
+ *   -EINTR	operation was aborted
+ */
+static int nx842_exec_vas(const unsigned char *in, unsigned int inlen,
+				  unsigned char *out, unsigned int *outlenp,
+				  void *workmem, int fc)
+{
+	struct coprocessor_request_block *crb;
+	struct coprocessor_status_block *csb;
+	struct nx842_workmem *wmem;
+	struct vas_window *txwin;
+	int ret, i = 0;
+	u32 ccw;
+	unsigned int outlen = *outlenp;
+
+	wmem = PTR_ALIGN(workmem, WORKMEM_ALIGN);
+
+	*outlenp = 0;
+
+	crb = &wmem->crb;
+	csb = &crb->csb;
+
+	ret = nx842_config_crb(in, inlen, out, outlen, wmem);
+	if (ret)
+		return ret;
+
+	ccw = 0;
+	ccw = SET_FIELD(CCW_FC_842, ccw, fc);
+	crb->ccw = cpu_to_be32(ccw);
+
+	do {
+		wmem->start = ktime_get();
+		preempt_disable();
+		txwin = this_cpu_read(cpu_txwin);
+
+		/*
+		 * VAS copy CRB into L2 cache. Refer <asm/vas.h>.
+		 * @crb and @offset.
+		 */
+		vas_copy_crb(crb, 0);
+
+		/*
+		 * VAS paste previously copied CRB to NX.
+		 * @txwin, @offset and @last (must be true).
+		 */
+		ret = vas_paste_crb(txwin, 0, 1);
+		preempt_enable();
+		/*
+		 * Retry copy/paste function for VAS failures.
+		 */
+	} while (ret && (i++ < VAS_RETRIES));
+
+	if (ret) {
+		pr_err_ratelimited("VAS copy/paste failed\n");
+		return ret;
+	}
+
+	ret = wait_for_csb(wmem, csb);
+	if (!ret)
+		*outlenp = be32_to_cpu(csb->count);
+
+	return ret;
+}
+
+/**
  * nx842_powernv_compress - Compress data using the 842 algorithm
  *
  * Compression provided by the NX842 coprocessor on IBM PowerNV systems.
@@ -488,13 +637,13 @@ static int nx842_powernv_function(const unsigned char *in, unsigned int inlen,
  * @workmem: working memory buffer pointer, size determined by
  *           nx842_powernv_driver.workmem_size
  *
- * Returns: see @nx842_powernv_function()
+ * Returns: see @nx842_powernv_exec()
  */
 static int nx842_powernv_compress(const unsigned char *in, unsigned int inlen,
 				  unsigned char *out, unsigned int *outlenp,
 				  void *wmem)
 {
-	return nx842_powernv_function(in, inlen, out, outlenp,
+	return nx842_powernv_exec(in, inlen, out, outlenp,
 				      wmem, CCW_FC_842_COMP_CRC);
 }
 
@@ -516,14 +665,221 @@ static int nx842_powernv_compress(const unsigned char *in, unsigned int inlen,
  * @workmem: working memory buffer pointer, size determined by
  *           nx842_powernv_driver.workmem_size
  *
- * Returns: see @nx842_powernv_function()
+ * Returns: see @nx842_powernv_exec()
  */
 static int nx842_powernv_decompress(const unsigned char *in, unsigned int inlen,
 				    unsigned char *out, unsigned int *outlenp,
 				    void *wmem)
 {
-	return nx842_powernv_function(in, inlen, out, outlenp,
+	return nx842_powernv_exec(in, inlen, out, outlenp,
 				      wmem, CCW_FC_842_DECOMP_CRC);
+}
+
+static inline void nx842_add_coprocs_list(struct nx842_coproc *coproc,
+					int chipid)
+{
+	coproc->chip_id = chipid;
+	INIT_LIST_HEAD(&coproc->list);
+	list_add(&coproc->list, &nx842_coprocs);
+}
+
+static struct vas_window *nx842_alloc_txwin(struct nx842_coproc *coproc)
+{
+	struct vas_window *txwin = NULL;
+	struct vas_tx_win_attr txattr;
+
+	/*
+	 * Kernel requests will be high priority. So open send
+	 * windows only for high priority RxFIFO entries.
+	 */
+	vas_init_tx_win_attr(&txattr, coproc->ct);
+	txattr.lpid = 0;	/* lpid is 0 for kernel requests */
+	txattr.pid = 0;		/* pid is 0 for kernel requests */
+
+	/*
+	 * Open a VAS send window which is used to send request to NX.
+	 */
+	txwin = vas_tx_win_open(coproc->vas.id, coproc->ct, &txattr);
+	if (IS_ERR(txwin))
+		pr_err("ibm,nx-842: Can not open TX window: %ld\n",
+				PTR_ERR(txwin));
+
+	return txwin;
+}
+
+/*
+ * Identify chip ID for each CPU, open send wndow for the corresponding NX
+ * engine and save txwin in percpu cpu_txwin.
+ * cpu_txwin is used in copy/paste operation for each compression /
+ * decompression request.
+ */
+static int nx842_open_percpu_txwins(void)
+{
+	struct nx842_coproc *coproc, *n;
+	unsigned int i, chip_id;
+
+	for_each_possible_cpu(i) {
+		struct vas_window *txwin = NULL;
+
+		chip_id = cpu_to_chip_id(i);
+
+		list_for_each_entry_safe(coproc, n, &nx842_coprocs, list) {
+			/*
+			 * Kernel requests use only high priority FIFOs. So
+			 * open send windows for these FIFOs.
+			 */
+
+			if (coproc->ct != VAS_COP_TYPE_842_HIPRI)
+				continue;
+
+			if (coproc->chip_id == chip_id) {
+				txwin = nx842_alloc_txwin(coproc);
+				if (IS_ERR(txwin))
+					return PTR_ERR(txwin);
+
+				per_cpu(cpu_txwin, i) = txwin;
+				break;
+			}
+		}
+
+		if (!per_cpu(cpu_txwin, i)) {
+			/* shoudn't happen, Each chip will have NX engine */
+			pr_err("NX engine is not availavle for CPU %d\n", i);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int __init vas_cfg_coproc_info(struct device_node *dn, int chip_id,
+					int vasid)
+{
+	struct vas_window *rxwin = NULL;
+	struct vas_rx_win_attr rxattr;
+	struct nx842_coproc *coproc;
+	u32 lpid, pid, tid, fifo_size;
+	u64 rx_fifo;
+	const char *priority;
+	int ret;
+
+	ret = of_property_read_u64(dn, "rx-fifo-address", &rx_fifo);
+	if (ret) {
+		pr_err("Missing rx-fifo-address property\n");
+		return ret;
+	}
+
+	ret = of_property_read_u32(dn, "rx-fifo-size", &fifo_size);
+	if (ret) {
+		pr_err("Missing rx-fifo-size property\n");
+		return ret;
+	}
+
+	ret = of_property_read_u32(dn, "lpid", &lpid);
+	if (ret) {
+		pr_err("Missing lpid property\n");
+		return ret;
+	}
+
+	ret = of_property_read_u32(dn, "pid", &pid);
+	if (ret) {
+		pr_err("Missing pid property\n");
+		return ret;
+	}
+
+	ret = of_property_read_u32(dn, "tid", &tid);
+	if (ret) {
+		pr_err("Missing tid property\n");
+		return ret;
+	}
+
+	ret = of_property_read_string(dn, "priority", &priority);
+	if (ret) {
+		pr_err("Missing priority property\n");
+		return ret;
+	}
+
+	coproc = kzalloc(sizeof(*coproc), GFP_KERNEL);
+	if (!coproc)
+		return -ENOMEM;
+
+	if (!strcmp(priority, "High"))
+		coproc->ct = VAS_COP_TYPE_842_HIPRI;
+	else if (!strcmp(priority, "Normal"))
+		coproc->ct = VAS_COP_TYPE_842;
+	else {
+		pr_err("Invalid RxFIFO priority value\n");
+		ret =  -EINVAL;
+		goto err_out;
+	}
+
+	vas_init_rx_win_attr(&rxattr, coproc->ct);
+	rxattr.rx_fifo = (void *)rx_fifo;
+	rxattr.rx_fifo_size = fifo_size;
+	rxattr.lnotify_lpid = lpid;
+	rxattr.lnotify_pid = pid;
+	rxattr.lnotify_tid = tid;
+	rxattr.wcreds_max = MAX_CREDITS_PER_RXFIFO;
+
+	/*
+	 * Open a VAS receice window which is used to configure RxFIFO
+	 * for NX.
+	 */
+	rxwin = vas_rx_win_open(vasid, coproc->ct, &rxattr);
+	if (IS_ERR(rxwin)) {
+		ret = PTR_ERR(rxwin);
+		pr_err("setting RxFIFO with VAS failed: %d\n",
+			ret);
+		goto err_out;
+	}
+
+	coproc->vas.rxwin = rxwin;
+	coproc->vas.id = vasid;
+	nx842_add_coprocs_list(coproc, chip_id);
+
+	return 0;
+
+err_out:
+	kfree(coproc);
+	return ret;
+}
+
+
+static int __init nx842_powernv_probe_vas(struct device_node *pn)
+{
+	struct device_node *dn;
+	int chip_id, vasid, ret = 0;
+	int nx_fifo_found = 0;
+
+	chip_id = of_get_ibm_chip_id(pn);
+	if (chip_id < 0) {
+		pr_err("ibm,chip-id missing\n");
+		return -EINVAL;
+	}
+
+	vasid = chip_to_vas_id(chip_id);
+	if (vasid < 0) {
+		pr_err("Unable to map chip_id %d to vasid\n", chip_id);
+		return -EINVAL;
+	}
+
+	for_each_child_of_node(pn, dn) {
+		if (of_device_is_compatible(dn, "ibm,p9-nx-842")) {
+			ret = vas_cfg_coproc_info(dn, chip_id, vasid);
+			if (ret) {
+				of_node_put(dn);
+				return ret;
+			}
+			nx_fifo_found++;
+		}
+	}
+
+	if (!nx_fifo_found) {
+		pr_err("NX842 FIFO nodes are missing\n");
+		ret = -EINVAL;
+	}
+
+	return ret;
 }
 
 static int __init nx842_powernv_probe(struct device_node *dn)
@@ -552,11 +908,9 @@ static int __init nx842_powernv_probe(struct device_node *dn)
 	if (!coproc)
 		return -ENOMEM;
 
-	coproc->chip_id = chip_id;
 	coproc->ct = ct;
 	coproc->ci = ci;
-	INIT_LIST_HEAD(&coproc->list);
-	list_add(&coproc->list, &nx842_coprocs);
+	nx842_add_coprocs_list(coproc, chip_id);
 
 	pr_info("coprocessor found on chip %d, CT %d CI %d\n", chip_id, ct, ci);
 
@@ -567,6 +921,32 @@ static int __init nx842_powernv_probe(struct device_node *dn)
 		       chip_id, ct, nx842_ct);
 
 	return 0;
+}
+
+static void nx842_delete_coprocs(void)
+{
+	struct nx842_coproc *coproc, *n;
+	struct vas_window *txwin;
+	int i;
+
+	/*
+	 * close percpu txwins that are opened for the corresponding coproc.
+	 */
+	for_each_possible_cpu(i) {
+		txwin = per_cpu(cpu_txwin, i);
+		if (txwin)
+			vas_win_close(txwin);
+
+		per_cpu(cpu_txwin, i) = 0;
+	}
+
+	list_for_each_entry_safe(coproc, n, &nx842_coprocs, list) {
+		if (coproc->vas.rxwin)
+			vas_win_close(coproc->vas.rxwin);
+
+		list_del(&coproc->list);
+		kfree(coproc);
+	}
 }
 
 static struct nx842_constraints nx842_powernv_constraints = {
@@ -618,21 +998,35 @@ static __init int nx842_powernv_init(void)
 	BUILD_BUG_ON(DDE_BUFFER_ALIGN % DDE_BUFFER_SIZE_MULT);
 	BUILD_BUG_ON(DDE_BUFFER_SIZE_MULT % DDE_BUFFER_LAST_MULT);
 
-	for_each_compatible_node(dn, NULL, "ibm,power-nx")
-		nx842_powernv_probe(dn);
+	for_each_compatible_node(dn, NULL, "ibm,power9-nx") {
+		ret = nx842_powernv_probe_vas(dn);
+		if (ret) {
+			nx842_delete_coprocs();
+			return ret;
+		}
+	}
 
-	if (!nx842_ct)
-		return -ENODEV;
+	if (list_empty(&nx842_coprocs)) {
+		for_each_compatible_node(dn, NULL, "ibm,power-nx")
+			nx842_powernv_probe(dn);
+
+		if (!nx842_ct)
+			return -ENODEV;
+
+		nx842_powernv_exec = nx842_exec_icswx;
+	} else {
+		ret = nx842_open_percpu_txwins();
+		if (ret) {
+			nx842_delete_coprocs();
+			return ret;
+		}
+
+		nx842_powernv_exec = nx842_exec_vas;
+	}
 
 	ret = crypto_register_alg(&nx842_powernv_alg);
 	if (ret) {
-		struct nx842_coproc *coproc, *n;
-
-		list_for_each_entry_safe(coproc, n, &nx842_coprocs, list) {
-			list_del(&coproc->list);
-			kfree(coproc);
-		}
-
+		nx842_delete_coprocs();
 		return ret;
 	}
 
@@ -642,13 +1036,8 @@ module_init(nx842_powernv_init);
 
 static void __exit nx842_powernv_exit(void)
 {
-	struct nx842_coproc *coproc, *n;
-
 	crypto_unregister_alg(&nx842_powernv_alg);
 
-	list_for_each_entry_safe(coproc, n, &nx842_coprocs, list) {
-		list_del(&coproc->list);
-		kfree(coproc);
-	}
+	nx842_delete_coprocs();
 }
 module_exit(nx842_powernv_exit);

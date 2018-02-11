@@ -1,0 +1,51 @@
+[
+    {
+        "id": "",
+        "name": "",
+        "category": [
+            "",
+            ""
+        ],
+        "setup": [
+            ""
+        ],
+        "cmdUnderTest": "",
+        "expExitCode": "",
+        "verifyCmd": "",
+        "matchPattern": "",
+        "matchCount": "",
+        "teardown": [
+            ""
+        ]
+    },
+    {
+        "id": "",
+        "name": "",
+        "category": [
+            "",
+            ""
+        ],
+        "setup": [
+            "",
+	    [
+		"",
+		0,
+		1,
+		255
+	    ]
+        ],
+        "cmdUnderTest": "",
+        "expExitCode": "",
+        "verifyCmd": "",
+        "matchPattern": "",
+        "matchCount": "",
+        "teardown": [
+            "",
+	    [
+		"",
+		0,
+		255
+            ]
+        ]
+    }
+]

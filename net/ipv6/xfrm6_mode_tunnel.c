@@ -92,6 +92,7 @@ static int xfrm6_mode_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb_reset_network_header(skb);
 	skb_mac_header_rebuild(skb);
+	eth_hdr(skb)->h_proto = skb->protocol;
 
 	err = 0;
 

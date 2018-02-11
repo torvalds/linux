@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "tests.h"
 #include <stdio.h>
 #include "cpumap.h"
@@ -72,7 +73,7 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 }
 
 
-int test__cpu_map_synthesize(int subtest __maybe_unused)
+int test__cpu_map_synthesize(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct cpu_map *cpus;
 
@@ -106,7 +107,7 @@ static int cpu_map_print(const char *str)
 	return !strcmp(buf, str);
 }
 
-int test__cpu_map_print(int subtest __maybe_unused)
+int test__cpu_map_print(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	TEST_ASSERT_VAL("failed to convert map", cpu_map_print("1"));
 	TEST_ASSERT_VAL("failed to convert map", cpu_map_print("1,5"));

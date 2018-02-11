@@ -34,6 +34,7 @@
 #include <linux/mm.h>
 
 #include <asm/microcode_intel.h>
+#include <asm/intel-family.h>
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
 #include <asm/setup.h>
@@ -42,7 +43,10 @@
 static const char ucode_path[] = "kernel/x86/microcode/GenuineIntel.bin";
 
 /* Current microcode patch used in early patching on the APs. */
-struct microcode_intel *intel_ucode_patch;
+static struct microcode_intel *intel_ucode_patch;
+
+/* last level cache size per core */
+static int llc_size_per_core;
 
 static inline bool cpu_signatures_match(unsigned int s1, unsigned int p1,
 					unsigned int s2, unsigned int p2)
@@ -146,18 +150,18 @@ static bool microcode_matches(struct microcode_header_intel *mc_header,
 	return false;
 }
 
-static struct ucode_patch *__alloc_microcode_buf(void *data, unsigned int size)
+static struct ucode_patch *memdup_patch(void *data, unsigned int size)
 {
 	struct ucode_patch *p;
 
 	p = kzalloc(sizeof(struct ucode_patch), GFP_KERNEL);
 	if (!p)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	p->data = kmemdup(data, size, GFP_KERNEL);
 	if (!p->data) {
 		kfree(p);
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 	}
 
 	return p;
@@ -166,7 +170,7 @@ static struct ucode_patch *__alloc_microcode_buf(void *data, unsigned int size)
 static void save_microcode_patch(void *data, unsigned int size)
 {
 	struct microcode_header_intel *mc_hdr, *mc_saved_hdr;
-	struct ucode_patch *iter, *tmp, *p;
+	struct ucode_patch *iter, *tmp, *p = NULL;
 	bool prev_found = false;
 	unsigned int sig, pf;
 
@@ -183,8 +187,8 @@ static void save_microcode_patch(void *data, unsigned int size)
 			if (mc_hdr->rev <= mc_saved_hdr->rev)
 				continue;
 
-			p = __alloc_microcode_buf(data, size);
-			if (IS_ERR(p))
+			p = memdup_patch(data, size);
+			if (!p)
 				pr_err("Error allocating buffer %p\n", data);
 			else
 				list_replace(&iter->plist, &p->plist);
@@ -196,12 +200,25 @@ static void save_microcode_patch(void *data, unsigned int size)
 	 * newly found.
 	 */
 	if (!prev_found) {
-		p = __alloc_microcode_buf(data, size);
-		if (IS_ERR(p))
+		p = memdup_patch(data, size);
+		if (!p)
 			pr_err("Error allocating buffer for %p\n", data);
 		else
 			list_add_tail(&p->plist, &microcode_cache);
 	}
+
+	if (!p)
+		return;
+
+	/*
+	 * Save for early loading. On 32-bit, that needs to be a physical
+	 * address as the APs are running from physical addresses, before
+	 * paging has been enabled.
+	 */
+	if (IS_ENABLED(CONFIG_X86_32))
+		intel_ucode_patch = (struct microcode_intel *)__pa_nodebug(p->data);
+	else
+		intel_ucode_patch = p->data;
 }
 
 static int microcode_sanity_check(void *mc, int print_err)
@@ -551,15 +568,6 @@ static void print_ucode(struct ucode_cpu_info *uci)
 }
 #else
 
-/*
- * Flush global tlb. We only do this in x86_64 where paging has been enabled
- * already and PGE should be enabled as well.
- */
-static inline void flush_tlb_early(void)
-{
-	__native_flush_tlb_global_irq_disabled();
-}
-
 static inline void print_ucode(struct ucode_cpu_info *uci)
 {
 	struct microcode_intel *mc;
@@ -588,10 +596,6 @@ static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
 	if (rev != mc->hdr.rev)
 		return -1;
 
-#ifdef CONFIG_X86_64
-	/* Flush global tlb. This is precaution. */
-	flush_tlb_early();
-#endif
 	uci->cpu_sig.rev = rev;
 
 	if (early)
@@ -606,6 +610,14 @@ int __init save_microcode_in_initrd_intel(void)
 {
 	struct ucode_cpu_info uci;
 	struct cpio_data cp;
+
+	/*
+	 * initrd is going away, clear patch ptr. We will scan the microcode one
+	 * last time before jettisoning and save a patch, if found. Then we will
+	 * update that pointer too, with a stable patch address to use when
+	 * resuming the cores.
+	 */
+	intel_ucode_patch = NULL;
 
 	if (!load_builtin_intel_microcode(&cp))
 		cp = find_microcode_in_initrd(ucode_path, false);
@@ -897,6 +909,29 @@ static int get_ucode_fw(void *to, const void *from, size_t n)
 	return 0;
 }
 
+static bool is_blacklisted(unsigned int cpu)
+{
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
+
+	/*
+	 * Late loading on model 79 with microcode revision less than 0x0b000021
+	 * and LLC size per core bigger than 2.5MB may result in a system hang.
+	 * This behavior is documented in item BDF90, #334165 (Intel Xeon
+	 * Processor E7-8800/4800 v4 Product Family).
+	 */
+	if (c->x86 == 6 &&
+	    c->x86_model == INTEL_FAM6_BROADWELL_X &&
+	    c->x86_mask == 0x01 &&
+	    llc_size_per_core > 2621440 &&
+	    c->microcode < 0x0b000021) {
+		pr_err_once("Erratum BDF90: late loading with revision < 0x0b000021 (0x%x) disabled.\n", c->microcode);
+		pr_err_once("Please consider either early loading through initrd/built-in or a potential BIOS update.\n");
+		return true;
+	}
+
+	return false;
+}
+
 static enum ucode_state request_microcode_fw(int cpu, struct device *device,
 					     bool refresh_fw)
 {
@@ -904,6 +939,9 @@ static enum ucode_state request_microcode_fw(int cpu, struct device *device,
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	const struct firmware *firmware;
 	enum ucode_state ret;
+
+	if (is_blacklisted(cpu))
+		return UCODE_NFOUND;
 
 	sprintf(name, "intel-ucode/%02x-%02x-%02x",
 		c->x86, c->x86_model, c->x86_mask);
@@ -929,6 +967,9 @@ static int get_ucode_user(void *to, const void *from, size_t n)
 static enum ucode_state
 request_microcode_user(int cpu, const void __user *buf, size_t size)
 {
+	if (is_blacklisted(cpu))
+		return UCODE_NFOUND;
+
 	return generic_load_microcode(cpu, (void *)buf, size, &get_ucode_user);
 }
 
@@ -939,6 +980,15 @@ static struct microcode_ops microcode_intel_ops = {
 	.apply_microcode                  = apply_microcode_intel,
 };
 
+static int __init calc_llc_size_per_core(struct cpuinfo_x86 *c)
+{
+	u64 llc_size = c->x86_cache_size * 1024;
+
+	do_div(llc_size, c->x86_max_cores);
+
+	return (int)llc_size;
+}
+
 struct microcode_ops * __init init_intel_microcode(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
@@ -948,6 +998,8 @@ struct microcode_ops * __init init_intel_microcode(void)
 		pr_err("Intel CPU family 0x%x not supported\n", c->x86);
 		return NULL;
 	}
+
+	llc_size_per_core = calc_llc_size_per_core(c);
 
 	return &microcode_intel_ops;
 }

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ethtool.h: Defines for Linux ethtool.
  *
@@ -137,6 +138,17 @@ struct ethtool_link_ksettings {
 	__set_bit(ETHTOOL_LINK_MODE_ ## mode ## _BIT, (ptr)->link_modes.name)
 
 /**
+ * ethtool_link_ksettings_del_link_mode - clear bit in link_ksettings
+ * link mode mask
+ *   @ptr : pointer to struct ethtool_link_ksettings
+ *   @name : one of supported/advertising/lp_advertising
+ *   @mode : one of the ETHTOOL_LINK_MODE_*_BIT
+ * (not atomic, no bound checking)
+ */
+#define ethtool_link_ksettings_del_link_mode(ptr, name, mode)		\
+	__clear_bit(ETHTOOL_LINK_MODE_ ## mode ## _BIT, (ptr)->link_modes.name)
+
+/**
  * ethtool_link_ksettings_test_link_mode - test bit in ksettings link mode mask
  *   @ptr : pointer to struct ethtool_link_ksettings
  *   @name : one of supported/advertising/lp_advertising
@@ -151,6 +163,16 @@ struct ethtool_link_ksettings {
 extern int
 __ethtool_get_link_ksettings(struct net_device *dev,
 			     struct ethtool_link_ksettings *link_ksettings);
+
+/**
+ * ethtool_intersect_link_masks - Given two link masks, AND them together
+ * @dst: first mask and where result is stored
+ * @src: second mask to intersect with
+ *
+ * Given two link mode masks, AND them together and save the result in dst.
+ */
+void ethtool_intersect_link_masks(struct ethtool_link_ksettings *dst,
+				  struct ethtool_link_ksettings *src);
 
 void ethtool_convert_legacy_u32_to_link_mode(unsigned long *dst,
 					     u32 legacy_u32);
@@ -374,5 +396,9 @@ struct ethtool_ops {
 				      struct ethtool_link_ksettings *);
 	int	(*set_link_ksettings)(struct net_device *,
 				      const struct ethtool_link_ksettings *);
+	int	(*get_fecparam)(struct net_device *,
+				      struct ethtool_fecparam *);
+	int	(*set_fecparam)(struct net_device *,
+				      struct ethtool_fecparam *);
 };
 #endif /* _LINUX_ETHTOOL_H */

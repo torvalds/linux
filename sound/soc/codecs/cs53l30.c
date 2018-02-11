@@ -747,7 +747,7 @@ static unsigned int const cs53l30_src_rates[] = {
 	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000
 };
 
-static struct snd_pcm_hw_constraint_list src_constraints = {
+static const struct snd_pcm_hw_constraint_list src_constraints = {
 	.count = ARRAY_SIZE(cs53l30_src_rates),
 	.list = cs53l30_src_rates,
 };
@@ -842,8 +842,7 @@ static int cs53l30_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 {
 	struct cs53l30_private *priv = snd_soc_codec_get_drvdata(dai->codec);
 
-	if (priv->mute_gpio)
-		gpiod_set_value_cansleep(priv->mute_gpio, mute);
+	gpiod_set_value_cansleep(priv->mute_gpio, mute);
 
 	return 0;
 }
@@ -892,7 +891,7 @@ static int cs53l30_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver cs53l30_driver = {
+static const struct snd_soc_codec_driver cs53l30_driver = {
 	.probe = cs53l30_codec_probe,
 	.set_bias_level = cs53l30_set_bias_level,
 	.idle_bias_off = true,
@@ -960,8 +959,7 @@ static int cs53l30_i2c_probe(struct i2c_client *client,
 		goto error;
 	}
 
-	if (cs53l30->reset_gpio)
-		gpiod_set_value_cansleep(cs53l30->reset_gpio, 1);
+	gpiod_set_value_cansleep(cs53l30->reset_gpio, 1);
 
 	i2c_set_clientdata(client, cs53l30);
 
@@ -1056,8 +1054,7 @@ static int cs53l30_i2c_remove(struct i2c_client *client)
 	snd_soc_unregister_codec(&client->dev);
 
 	/* Hold down reset */
-	if (cs53l30->reset_gpio)
-		gpiod_set_value_cansleep(cs53l30->reset_gpio, 0);
+	gpiod_set_value_cansleep(cs53l30->reset_gpio, 0);
 
 	regulator_bulk_disable(ARRAY_SIZE(cs53l30->supplies),
 			       cs53l30->supplies);
@@ -1073,8 +1070,7 @@ static int cs53l30_runtime_suspend(struct device *dev)
 	regcache_cache_only(cs53l30->regmap, true);
 
 	/* Hold down reset */
-	if (cs53l30->reset_gpio)
-		gpiod_set_value_cansleep(cs53l30->reset_gpio, 0);
+	gpiod_set_value_cansleep(cs53l30->reset_gpio, 0);
 
 	regulator_bulk_disable(ARRAY_SIZE(cs53l30->supplies),
 			       cs53l30->supplies);
@@ -1094,8 +1090,7 @@ static int cs53l30_runtime_resume(struct device *dev)
 		return ret;
 	}
 
-	if (cs53l30->reset_gpio)
-		gpiod_set_value_cansleep(cs53l30->reset_gpio, 1);
+	gpiod_set_value_cansleep(cs53l30->reset_gpio, 1);
 
 	regcache_cache_only(cs53l30->regmap, false);
 	ret = regcache_sync(cs53l30->regmap);

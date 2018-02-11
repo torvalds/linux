@@ -1457,7 +1457,7 @@ static int da7218_dai_event(struct snd_soc_dapm_widget *w,
 				++i;
 				msleep(DA7218_SRM_CHECK_DELAY);
 			}
-		} while ((i < DA7218_SRM_CHECK_TRIES) & (!success));
+		} while ((i < DA7218_SRM_CHECK_TRIES) && (!success));
 
 		if (!success)
 			dev_warn(codec->dev, "SRM failed to lock\n");
@@ -2520,7 +2520,7 @@ static struct da7218_pdata *da7218_of_to_pdata(struct snd_soc_codec *codec)
 	}
 
 	if (da7218->dev_id == DA7218_DEV_ID) {
-		hpldet_np = of_find_node_by_name(np, "da7218_hpldet");
+		hpldet_np = of_get_child_by_name(np, "da7218_hpldet");
 		if (!hpldet_np)
 			return pdata;
 
@@ -3035,7 +3035,7 @@ static int da7218_resume(struct snd_soc_codec *codec)
 #define da7218_resume NULL
 #endif
 
-static struct snd_soc_codec_driver soc_codec_dev_da7218 = {
+static const struct snd_soc_codec_driver soc_codec_dev_da7218 = {
 	.probe			= da7218_probe,
 	.remove			= da7218_remove,
 	.suspend		= da7218_suspend,

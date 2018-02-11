@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus Bridged-Phy Bus driver
  *
  * Copyright 2014 Google Inc.
  * Copyright 2014 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -66,7 +65,7 @@ static const struct dev_pm_ops gb_gbphy_pm_ops = {
 			   gb_gbphy_idle)
 };
 
-static struct device_type greybus_gbphy_dev_type = {
+static const struct device_type greybus_gbphy_dev_type = {
 	.name	 =	"gbphy_device",
 	.release =	gbphy_dev_release,
 	.pm	=	&gb_gbphy_pm_ops,

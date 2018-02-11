@@ -68,6 +68,9 @@ Linux implementation note:
 - If a "linux,cma-default" property is present, then Linux will use the
   region for the default pool of the contiguous memory allocator.
 
+- If a "linux,dma-default" property is present, then Linux will use the
+  region for the default pool of the consistent DMA allocator.
+
 Device node references to reserved memory
 -----------------------------------------
 Regions in the /reserved-memory node may be referenced by other device

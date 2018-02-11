@@ -33,7 +33,8 @@ static const struct nla_policy hsr_policy[IFLA_HSR_MAX + 1] = {
  * hsr_dev_setup routine has been executed. Nice!
  */
 static int hsr_newlink(struct net *src_net, struct net_device *dev,
-		       struct nlattr *tb[], struct nlattr *data[])
+		       struct nlattr *tb[], struct nlattr *data[],
+		       struct netlink_ext_ack *extack)
 {
 	struct net_device *link[2];
 	unsigned char multicast_spec, hsr_version;

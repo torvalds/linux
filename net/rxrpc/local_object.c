@@ -25,9 +25,6 @@
 static void rxrpc_local_processor(struct work_struct *);
 static void rxrpc_local_rcu(struct rcu_head *);
 
-static DEFINE_MUTEX(rxrpc_local_mutex);
-static LIST_HEAD(rxrpc_local_endpoints);
-
 /*
  * Compare a local to an address.  Return -ve, 0 or +ve to indicate less than,
  * same or greater than.
@@ -77,13 +74,15 @@ static long rxrpc_local_cmp_key(const struct rxrpc_local *local,
 /*
  * Allocate a new local endpoint.
  */
-static struct rxrpc_local *rxrpc_alloc_local(const struct sockaddr_rxrpc *srx)
+static struct rxrpc_local *rxrpc_alloc_local(struct rxrpc_net *rxnet,
+					     const struct sockaddr_rxrpc *srx)
 {
 	struct rxrpc_local *local;
 
 	local = kzalloc(sizeof(struct rxrpc_local), GFP_KERNEL);
 	if (local) {
 		atomic_set(&local->usage, 1);
+		local->rxnet = rxnet;
 		INIT_LIST_HEAD(&local->link);
 		INIT_WORK(&local->processor, rxrpc_local_processor);
 		init_rwsem(&local->defrag_sem);
@@ -95,6 +94,7 @@ static struct rxrpc_local *rxrpc_alloc_local(const struct sockaddr_rxrpc *srx)
 		rwlock_init(&local->services_lock);
 		local->debug_id = atomic_inc_return(&rxrpc_debug_id);
 		memcpy(&local->srx, srx, sizeof(*srx));
+		local->srx.srx_service = 0;
 	}
 
 	_leave(" = %p", local);
@@ -105,7 +105,7 @@ static struct rxrpc_local *rxrpc_alloc_local(const struct sockaddr_rxrpc *srx)
  * create the local socket
  * - must be called with rxrpc_local_mutex locked
  */
-static int rxrpc_open_socket(struct rxrpc_local *local)
+static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 {
 	struct sock *sock;
 	int ret, opt;
@@ -114,7 +114,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local)
 	       local, local->srx.transport_type, local->srx.transport.family);
 
 	/* create a socket to represent the local endpoint */
-	ret = sock_create_kern(&init_net, local->srx.transport.family,
+	ret = sock_create_kern(net, local->srx.transport.family,
 			       local->srx.transport_type, 0, &local->socket);
 	if (ret < 0) {
 		_leave(" = %d [socket]", ret);
@@ -172,9 +172,11 @@ error:
 /*
  * Look up or create a new local endpoint using the specified local address.
  */
-struct rxrpc_local *rxrpc_lookup_local(const struct sockaddr_rxrpc *srx)
+struct rxrpc_local *rxrpc_lookup_local(struct net *net,
+				       const struct sockaddr_rxrpc *srx)
 {
 	struct rxrpc_local *local;
+	struct rxrpc_net *rxnet = rxrpc_net(net);
 	struct list_head *cursor;
 	const char *age;
 	long diff;
@@ -183,10 +185,10 @@ struct rxrpc_local *rxrpc_lookup_local(const struct sockaddr_rxrpc *srx)
 	_enter("{%d,%d,%pISp}",
 	       srx->transport_type, srx->transport.family, &srx->transport);
 
-	mutex_lock(&rxrpc_local_mutex);
+	mutex_lock(&rxnet->local_mutex);
 
-	for (cursor = rxrpc_local_endpoints.next;
-	     cursor != &rxrpc_local_endpoints;
+	for (cursor = rxnet->local_endpoints.next;
+	     cursor != &rxnet->local_endpoints;
 	     cursor = cursor->next) {
 		local = list_entry(cursor, struct rxrpc_local, link);
 
@@ -220,11 +222,11 @@ struct rxrpc_local *rxrpc_lookup_local(const struct sockaddr_rxrpc *srx)
 		goto found;
 	}
 
-	local = rxrpc_alloc_local(srx);
+	local = rxrpc_alloc_local(rxnet, srx);
 	if (!local)
 		goto nomem;
 
-	ret = rxrpc_open_socket(local);
+	ret = rxrpc_open_socket(local, net);
 	if (ret < 0)
 		goto sock_error;
 
@@ -232,7 +234,7 @@ struct rxrpc_local *rxrpc_lookup_local(const struct sockaddr_rxrpc *srx)
 	age = "new";
 
 found:
-	mutex_unlock(&rxrpc_local_mutex);
+	mutex_unlock(&rxnet->local_mutex);
 
 	_net("LOCAL %s %d {%pISp}",
 	     age, local->debug_id, &local->srx.transport);
@@ -243,13 +245,13 @@ found:
 nomem:
 	ret = -ENOMEM;
 sock_error:
-	mutex_unlock(&rxrpc_local_mutex);
+	mutex_unlock(&rxnet->local_mutex);
 	kfree(local);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
 
 addr_in_use:
-	mutex_unlock(&rxrpc_local_mutex);
+	mutex_unlock(&rxnet->local_mutex);
 	_leave(" = -EADDRINUSE");
 	return ERR_PTR(-EADDRINUSE);
 }
@@ -273,6 +275,7 @@ void __rxrpc_put_local(struct rxrpc_local *local)
 static void rxrpc_local_destroyer(struct rxrpc_local *local)
 {
 	struct socket *socket = local->socket;
+	struct rxrpc_net *rxnet = local->rxnet;
 
 	_enter("%d", local->debug_id);
 
@@ -286,9 +289,9 @@ static void rxrpc_local_destroyer(struct rxrpc_local *local)
 	}
 	local->dead = true;
 
-	mutex_lock(&rxrpc_local_mutex);
+	mutex_lock(&rxnet->local_mutex);
 	list_del_init(&local->link);
-	mutex_unlock(&rxrpc_local_mutex);
+	mutex_unlock(&rxnet->local_mutex);
 
 	ASSERT(RB_EMPTY_ROOT(&local->client_conns));
 	ASSERT(!local->service);
@@ -357,7 +360,7 @@ static void rxrpc_local_rcu(struct rcu_head *rcu)
 /*
  * Verify the local endpoint list is empty by this point.
  */
-void __exit rxrpc_destroy_all_locals(void)
+void rxrpc_destroy_all_locals(struct rxrpc_net *rxnet)
 {
 	struct rxrpc_local *local;
 
@@ -365,15 +368,13 @@ void __exit rxrpc_destroy_all_locals(void)
 
 	flush_workqueue(rxrpc_workqueue);
 
-	if (!list_empty(&rxrpc_local_endpoints)) {
-		mutex_lock(&rxrpc_local_mutex);
-		list_for_each_entry(local, &rxrpc_local_endpoints, link) {
+	if (!list_empty(&rxnet->local_endpoints)) {
+		mutex_lock(&rxnet->local_mutex);
+		list_for_each_entry(local, &rxnet->local_endpoints, link) {
 			pr_err("AF_RXRPC: Leaked local %p {%d}\n",
 			       local, atomic_read(&local->usage));
 		}
-		mutex_unlock(&rxrpc_local_mutex);
+		mutex_unlock(&rxnet->local_mutex);
 		BUG();
 	}
-
-	rcu_barrier();
 }

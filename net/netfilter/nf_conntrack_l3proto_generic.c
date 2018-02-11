@@ -49,11 +49,6 @@ static bool generic_invert_tuple(struct nf_conntrack_tuple *tuple,
 	return true;
 }
 
-static void generic_print_tuple(struct seq_file *s,
-				const struct nf_conntrack_tuple *tuple)
-{
-}
-
 static int generic_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 			       unsigned int *dataoff, u_int8_t *protonum)
 {
@@ -64,10 +59,8 @@ static int generic_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 
 struct nf_conntrack_l3proto nf_conntrack_l3proto_generic __read_mostly = {
 	.l3proto	 = PF_UNSPEC,
-	.name		 = "unknown",
 	.pkt_to_tuple	 = generic_pkt_to_tuple,
 	.invert_tuple	 = generic_invert_tuple,
-	.print_tuple	 = generic_print_tuple,
 	.get_l4proto	 = generic_get_l4proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_generic);

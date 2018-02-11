@@ -393,7 +393,7 @@ EXPORT_SYMBOL(netlbl_calipso_ops_register);
 
 static const struct netlbl_calipso_ops *netlbl_calipso_ops_get(void)
 {
-	return ACCESS_ONCE(calipso_ops);
+	return READ_ONCE(calipso_ops);
 }
 
 /**

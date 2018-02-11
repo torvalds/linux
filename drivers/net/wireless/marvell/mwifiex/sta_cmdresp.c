@@ -70,11 +70,7 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 		break;
 	case HostCmd_CMD_802_11_SCAN:
 	case HostCmd_CMD_802_11_SCAN_EXT:
-		mwifiex_cancel_pending_scan_cmd(adapter);
-
-		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
-		adapter->scan_processing = false;
-		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
+		mwifiex_cancel_scan(adapter);
 		break;
 
 	case HostCmd_CMD_MAC_CONTROL:
@@ -298,9 +294,8 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 			priv->bitmap_rates[1] =
 				le16_to_cpu(rate_scope->ofdm_rate_bitmap);
 			for (i = 0;
-			     i <
-			     sizeof(rate_scope->ht_mcs_rate_bitmap) /
-			     sizeof(u16); i++)
+			     i < ARRAY_SIZE(rate_scope->ht_mcs_rate_bitmap);
+			     i++)
 				priv->bitmap_rates[2 + i] =
 					le16_to_cpu(rate_scope->
 						    ht_mcs_rate_bitmap[i]);
@@ -1154,6 +1149,27 @@ static int mwifiex_ret_chan_region_cfg(struct mwifiex_private *priv,
 	return 0;
 }
 
+static int mwifiex_ret_pkt_aggr_ctrl(struct mwifiex_private *priv,
+				     struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_pkt_aggr_ctrl *pkt_aggr_ctrl =
+					&resp->params.pkt_aggr_ctrl;
+	struct mwifiex_adapter *adapter = priv->adapter;
+
+	adapter->bus_aggr.enable = le16_to_cpu(pkt_aggr_ctrl->enable);
+	if (adapter->bus_aggr.enable)
+		adapter->intf_hdr_len = INTF_HEADER_LEN;
+	adapter->bus_aggr.mode = MWIFIEX_BUS_AGGR_MODE_LEN_V2;
+	adapter->bus_aggr.tx_aggr_max_size =
+				le16_to_cpu(pkt_aggr_ctrl->tx_aggr_max_size);
+	adapter->bus_aggr.tx_aggr_max_num =
+				le16_to_cpu(pkt_aggr_ctrl->tx_aggr_max_num);
+	adapter->bus_aggr.tx_aggr_align =
+				le16_to_cpu(pkt_aggr_ctrl->tx_aggr_align);
+
+	return 0;
+}
+
 /*
  * This function handles the command responses.
  *
@@ -1254,6 +1270,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		ret = mwifiex_ret_remain_on_chan(priv, resp, data_buf);
 		break;
 	case HostCmd_CMD_11AC_CFG:
+		break;
+	case HostCmd_CMD_PACKET_AGGR_CTRL:
+		ret = mwifiex_ret_pkt_aggr_ctrl(priv, resp);
 		break;
 	case HostCmd_CMD_P2P_MODE_CFG:
 		ret = mwifiex_ret_p2p_mode_cfg(priv, resp, data_buf);

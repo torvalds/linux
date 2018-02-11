@@ -18,7 +18,7 @@
  *   CM-X270 board.
  */
 
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
@@ -42,7 +42,7 @@ static void __iomem *cmx270_nand_io;
 /*
  * Define static partitions for flash device
  */
-static struct mtd_partition partition_info[] = {
+static const struct mtd_partition partition_info[] = {
 	[0] = {
 		.name	= "cmx270-0",
 		.offset	= 0,

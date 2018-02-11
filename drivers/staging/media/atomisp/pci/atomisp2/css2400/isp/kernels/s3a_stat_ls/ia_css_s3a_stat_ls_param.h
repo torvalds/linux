@@ -22,7 +22,7 @@
 
 #define NUM_S3A_LS 1
 
-/** s3a statistics store */
+/* s3a statistics store */
 #ifdef ISP2401
 struct ia_css_s3a_stat_ls_configuration {
 	uint32_t s3a_grid_size_log2;

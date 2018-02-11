@@ -98,7 +98,7 @@ static int migor_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_soc_ops migor_dai_ops = {
+static const struct snd_soc_ops migor_dai_ops = {
 	.hw_params = migor_hw_params,
 	.hw_free = migor_hw_free,
 };

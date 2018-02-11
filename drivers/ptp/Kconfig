@@ -25,6 +25,22 @@ config PTP_1588_CLOCK
 	  To compile this driver as a module, choose M here: the module
 	  will be called ptp.
 
+config PTP_1588_CLOCK_DTE
+	tristate "Broadcom DTE as PTP clock"
+	depends on PTP_1588_CLOCK
+	depends on NET && HAS_IOMEM
+	depends on ARCH_BCM_MOBILE || (ARCH_BCM_IPROC && !(ARCH_BCM_NSP || ARCH_BCM_5301X)) || COMPILE_TEST
+	default y
+	help
+	  This driver adds support for using the Digital timing engine
+	  (DTE) in the Broadcom SoC's as a PTP clock.
+
+	  The clock can be used in both wired and wireless networks
+	  for PTP purposes.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ptp_dte.
+
 config PTP_1588_CLOCK_GIANFAR
 	tristate "Freescale eTSEC as PTP clock"
 	depends on GIANFAR

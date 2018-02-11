@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Generic driver for the MPSC (UART mode) on Marvell parts (e.g., GT64240,
  * GT64260, MV64340, MV64360, GT96100, ... ).
@@ -10,10 +11,7 @@
  * taken from PPCBoot (now U-Boot).  Also based on drivers/serial/8250.c
  * by Russell King.
  *
- * 2004 (c) MontaVista, Software, Inc.  This file is licensed under
- * the terms of the GNU General Public License version 2.  This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2004 (c) MontaVista, Software, Inc.
  */
 /*
  * The MPSC interface is much like a typical network controller's interface.
@@ -754,9 +752,10 @@ static int mpsc_alloc_ring_mem(struct mpsc_port_info *pi)
 		if (!dma_set_mask(pi->port.dev, 0xffffffff)) {
 			printk(KERN_ERR "MPSC: Inadequate DMA support\n");
 			rc = -ENXIO;
-		} else if ((pi->dma_region = dma_alloc_noncoherent(pi->port.dev,
+		} else if ((pi->dma_region = dma_alloc_attrs(pi->port.dev,
 						MPSC_DMA_ALLOC_SIZE,
-						&pi->dma_region_p, GFP_KERNEL))
+						&pi->dma_region_p, GFP_KERNEL,
+						DMA_ATTR_NON_CONSISTENT))
 				== NULL) {
 			printk(KERN_ERR "MPSC: Can't alloc Desc region\n");
 			rc = -ENOMEM;
@@ -771,8 +770,9 @@ static void mpsc_free_ring_mem(struct mpsc_port_info *pi)
 	pr_debug("mpsc_free_ring_mem[%d]: Freeing ring mem\n", pi->port.line);
 
 	if (pi->dma_region) {
-		dma_free_noncoherent(pi->port.dev, MPSC_DMA_ALLOC_SIZE,
-				pi->dma_region, pi->dma_region_p);
+		dma_free_attrs(pi->port.dev, MPSC_DMA_ALLOC_SIZE,
+				pi->dma_region, pi->dma_region_p,
+				DMA_ATTR_NON_CONSISTENT);
 		pi->dma_region = NULL;
 		pi->dma_region_p = (dma_addr_t)NULL;
 	}

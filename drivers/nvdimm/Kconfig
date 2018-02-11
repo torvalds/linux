@@ -96,7 +96,7 @@ config NVDIMM_DAX
 	help
 	  Support raw device dax access to a persistent memory
 	  namespace.  For environments that want to hard partition
-	  peristent memory, this capability provides a mechanism to
+	  persistent memory, this capability provides a mechanism to
 	  sub-divide a namespace into character devices that can only be
 	  accessed via DAX (mmap(2)).
 

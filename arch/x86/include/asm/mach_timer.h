@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  Machine specific calibrate_tsc() for generic.
  *  Split out from timer_tsc.c by Osamu Tomita <tomita@cinet.co.jp>

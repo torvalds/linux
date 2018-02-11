@@ -42,16 +42,6 @@ struct ccdc_hw_ops {
 	int (*set_hw_if_params) (struct vpfe_hw_if_param *param);
 	/* get interface parameters */
 	int (*get_hw_if_params) (struct vpfe_hw_if_param *param);
-	/*
-	 * Pointer to function to set parameters. Used
-	 * for implementing VPFE_S_CCDC_PARAMS
-	 */
-	int (*set_params) (void *params);
-	/*
-	 * Pointer to function to get parameter. Used
-	 * for implementing VPFE_G_CCDC_PARAMS
-	 */
-	int (*get_params) (void *params);
 	/* Pointer to function to configure ccdc */
 	int (*configure) (void);
 
@@ -92,8 +82,8 @@ struct ccdc_hw_device {
 };
 
 /* Used by CCDC module to register & unregister with vpfe capture driver */
-int vpfe_register_ccdc_device(struct ccdc_hw_device *dev);
-void vpfe_unregister_ccdc_device(struct ccdc_hw_device *dev);
+int vpfe_register_ccdc_device(const struct ccdc_hw_device *dev);
+void vpfe_unregister_ccdc_device(const struct ccdc_hw_device *dev);
 
 #endif
 #endif

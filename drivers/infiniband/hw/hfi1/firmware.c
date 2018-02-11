@@ -64,30 +64,27 @@
 #define DEFAULT_FW_FABRIC_NAME "hfi1_fabric.fw"
 #define DEFAULT_FW_SBUS_NAME "hfi1_sbus.fw"
 #define DEFAULT_FW_PCIE_NAME "hfi1_pcie.fw"
-#define DEFAULT_PLATFORM_CONFIG_NAME "hfi1_platform.dat"
 #define ALT_FW_8051_NAME_ASIC "hfi1_dc8051_d.fw"
 #define ALT_FW_FABRIC_NAME "hfi1_fabric_d.fw"
 #define ALT_FW_SBUS_NAME "hfi1_sbus_d.fw"
 #define ALT_FW_PCIE_NAME "hfi1_pcie_d.fw"
+#define HOST_INTERFACE_VERSION 1
+
+MODULE_FIRMWARE(DEFAULT_FW_8051_NAME_ASIC);
+MODULE_FIRMWARE(DEFAULT_FW_FABRIC_NAME);
+MODULE_FIRMWARE(DEFAULT_FW_SBUS_NAME);
+MODULE_FIRMWARE(DEFAULT_FW_PCIE_NAME);
 
 static uint fw_8051_load = 1;
 static uint fw_fabric_serdes_load = 1;
 static uint fw_pcie_serdes_load = 1;
 static uint fw_sbus_load = 1;
 
-/*
- * Access required in platform.c
- * Maintains state of whether the platform config was fetched via the
- * fallback option
- */
-uint platform_config_load;
-
 /* Firmware file names get set in hfi1_firmware_init() based on the above */
 static char *fw_8051_name;
 static char *fw_fabric_serdes_name;
 static char *fw_sbus_name;
 static char *fw_pcie_serdes_name;
-static char *platform_config_name;
 
 #define SBUS_MAX_POLL_COUNT 100
 #define SBUS_COUNTER(reg, name) \
@@ -120,6 +117,12 @@ struct css_header {
 #define KEY_SIZE      256
 #define MU_SIZE		8
 #define EXPONENT_SIZE	4
+
+/* size of platform configuration partition */
+#define MAX_PLATFORM_CONFIG_FILE_SIZE 4096
+
+/* size of file of plaform configuration encoded in format version 4 */
+#define PLATFORM_CONFIG_FORMAT_4_FILE_SIZE 528
 
 /* the file itself */
 struct firmware_file {
@@ -177,7 +180,6 @@ static struct firmware_details fw_8051;
 static struct firmware_details fw_fabric;
 static struct firmware_details fw_pcie;
 static struct firmware_details fw_sbus;
-static const struct firmware *platform_config;
 
 /* flags for turn_off_spicos() */
 #define SPICO_SBUS   0x1
@@ -615,6 +617,14 @@ retry:
 		fw_fabric_serdes_name = ALT_FW_FABRIC_NAME;
 		fw_sbus_name = ALT_FW_SBUS_NAME;
 		fw_pcie_serdes_name = ALT_FW_PCIE_NAME;
+
+		/*
+		 * Add a delay before obtaining and loading debug firmware.
+		 * Authorization will fail if the delay between firmware
+		 * authorization events is shorter than 50us. Add 100us to
+		 * make a delay time safe.
+		 */
+		usleep_range(100, 120);
 	}
 
 	if (fw_sbus_load) {
@@ -675,7 +685,6 @@ done:
 static int obtain_firmware(struct hfi1_devdata *dd)
 {
 	unsigned long timeout;
-	int err = 0;
 
 	mutex_lock(&fw_mutex);
 
@@ -699,38 +708,11 @@ static int obtain_firmware(struct hfi1_devdata *dd)
 	}
 	/* not in FW_TRY state */
 
-	if (fw_state == FW_FINAL) {
-		if (platform_config) {
-			dd->platform_config.data = platform_config->data;
-			dd->platform_config.size = platform_config->size;
-		}
-		goto done;	/* already acquired */
-	} else if (fw_state == FW_ERR) {
-		goto done;	/* already tried and failed */
-	}
-	/* fw_state is FW_EMPTY */
-
 	/* set fw_state to FW_TRY, FW_FINAL, or FW_ERR, and fw_err */
-	__obtain_firmware(dd);
+	if (fw_state == FW_EMPTY)
+		__obtain_firmware(dd);
 
-	if (platform_config_load) {
-		platform_config = NULL;
-		err = request_firmware(&platform_config, platform_config_name,
-				       &dd->pcidev->dev);
-		if (err) {
-			platform_config = NULL;
-			dd_dev_err(dd,
-				   "%s: No default platform config file found\n",
-				   __func__);
-			goto done;
-		}
-		dd->platform_config.data = platform_config->data;
-		dd->platform_config.size = platform_config->size;
-	}
-
-done:
 	mutex_unlock(&fw_mutex);
-
 	return fw_err;
 }
 
@@ -751,9 +733,6 @@ void dispose_firmware(void)
 	dispose_one_firmware(&fw_fabric);
 	dispose_one_firmware(&fw_pcie);
 	dispose_one_firmware(&fw_sbus);
-
-	release_firmware(platform_config);
-	platform_config = NULL;
 
 	/* retain the error state, otherwise revert to empty */
 	if (fw_state != FW_ERR)
@@ -997,6 +976,46 @@ int wait_fm_ready(struct hfi1_devdata *dd, u32 mstimeout)
 }
 
 /*
+ * Clear all reset bits, releasing the 8051.
+ * Wait for firmware to be ready to accept host requests.
+ * Then, set host version bit.
+ *
+ * This function executes even if the 8051 is in reset mode when
+ * dd->dc_shutdown == 1.
+ *
+ * Expects dd->dc8051_lock to be held.
+ */
+int release_and_wait_ready_8051_firmware(struct hfi1_devdata *dd)
+{
+	int ret;
+
+	lockdep_assert_held(&dd->dc8051_lock);
+	/* clear all reset bits, releasing the 8051 */
+	write_csr(dd, DC_DC8051_CFG_RST, 0ull);
+
+	/*
+	 * Wait for firmware to be ready to accept host
+	 * requests.
+	 */
+	ret = wait_fm_ready(dd, TIMEOUT_8051_START);
+	if (ret) {
+		dd_dev_err(dd, "8051 start timeout, current FW state 0x%x\n",
+			   get_firmware_state(dd));
+		return ret;
+	}
+
+	ret = write_host_interface_version(dd, HOST_INTERFACE_VERSION);
+	if (ret != HCMD_SUCCESS) {
+		dd_dev_err(dd,
+			   "Failed to set host interface version, return 0x%x\n",
+			   ret);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+/*
  * Load the 8051 firmware.
  */
 static int load_8051_firmware(struct hfi1_devdata *dd,
@@ -1061,19 +1080,17 @@ static int load_8051_firmware(struct hfi1_devdata *dd,
 	if (ret)
 		return ret;
 
-	/* clear all reset bits, releasing the 8051 */
-	write_csr(dd, DC_DC8051_CFG_RST, 0ull);
-
 	/*
+	 * Clear all reset bits, releasing the 8051.
 	 * DC reset step 5. Wait for firmware to be ready to accept host
 	 * requests.
+	 * Then, set host version bit.
 	 */
-	ret = wait_fm_ready(dd, TIMEOUT_8051_START);
-	if (ret) { /* timed out */
-		dd_dev_err(dd, "8051 start timeout, current state 0x%x\n",
-			   get_firmware_state(dd));
-		return -ETIMEDOUT;
-	}
+	mutex_lock(&dd->dc8051_lock);
+	ret = release_and_wait_ready_8051_firmware(dd);
+	mutex_unlock(&dd->dc8051_lock);
+	if (ret)
+		return ret;
 
 	read_misc_status(dd, &ver_major, &ver_minor, &ver_patch);
 	dd_dev_info(dd, "8051 firmware version %d.%d.%d\n",
@@ -1412,7 +1429,14 @@ int acquire_hw_mutex(struct hfi1_devdata *dd)
 	unsigned long timeout;
 	int try = 0;
 	u8 mask = 1 << dd->hfi1_id;
-	u8 user;
+	u8 user = (u8)read_csr(dd, ASIC_CFG_MUTEX);
+
+	if (user == mask) {
+		dd_dev_info(dd,
+			    "Hardware mutex already acquired, mutex mask %u\n",
+			    (u32)mask);
+		return 0;
+	}
 
 retry:
 	timeout = msecs_to_jiffies(HM_TIMEOUT) + jiffies;
@@ -1443,7 +1467,15 @@ retry:
 
 void release_hw_mutex(struct hfi1_devdata *dd)
 {
-	write_csr(dd, ASIC_CFG_MUTEX, 0);
+	u8 mask = 1 << dd->hfi1_id;
+	u8 user = (u8)read_csr(dd, ASIC_CFG_MUTEX);
+
+	if (user != mask)
+		dd_dev_warn(dd,
+			    "Unable to release hardware mutex, mutex mask %u, my mask %u\n",
+			    (u32)user, (u32)mask);
+	else
+		write_csr(dd, ASIC_CFG_MUTEX, 0);
 }
 
 /* return the given resource bit(s) as a mask for the given HFI */
@@ -1709,10 +1741,8 @@ int hfi1_firmware_init(struct hfi1_devdata *dd)
 	}
 
 	/* no 8051 or QSFP on simulator */
-	if (dd->icode == ICODE_FUNCTIONAL_SIMULATOR) {
+	if (dd->icode == ICODE_FUNCTIONAL_SIMULATOR)
 		fw_8051_load = 0;
-		platform_config_load = 0;
-	}
 
 	if (!fw_8051_name) {
 		if (dd->icode == ICODE_RTL_SILICON)
@@ -1726,8 +1756,6 @@ int hfi1_firmware_init(struct hfi1_devdata *dd)
 		fw_sbus_name = DEFAULT_FW_SBUS_NAME;
 	if (!fw_pcie_serdes_name)
 		fw_pcie_serdes_name = DEFAULT_FW_PCIE_NAME;
-	if (!platform_config_name)
-		platform_config_name = DEFAULT_PLATFORM_CONFIG_NAME;
 
 	return obtain_firmware(dd);
 }
@@ -1762,7 +1790,7 @@ static int check_meta_version(struct hfi1_devdata *dd, u32 *system_table)
 	ver_start /= 8;
 	meta_ver = *((u8 *)system_table + ver_start) & ((1 << ver_len) - 1);
 
-	if (meta_ver < 5) {
+	if (meta_ver < 4) {
 		dd_dev_info(
 			dd, "%s:Please update platform config\n", __func__);
 		return -EINVAL;
@@ -1773,6 +1801,7 @@ static int check_meta_version(struct hfi1_devdata *dd, u32 *system_table)
 int parse_platform_config(struct hfi1_devdata *dd)
 {
 	struct platform_config_cache *pcfgcache = &dd->pcfg_cache;
+	struct hfi1_pportdata *ppd = dd->pport;
 	u32 *ptr = NULL;
 	u32 header1 = 0, header2 = 0, magic_num = 0, crc = 0, file_length = 0;
 	u32 record_idx = 0, table_type = 0, table_length_dwords = 0;
@@ -1784,7 +1813,7 @@ int parse_platform_config(struct hfi1_devdata *dd)
 	 * scratch register bitmap, thus there is no platform config to parse.
 	 * Skip parsing in these situations.
 	 */
-	if (is_integrated(dd) && !platform_config_load)
+	if (ppd->config_from_scratch)
 		return 0;
 
 	if (!dd->platform_config.data) {
@@ -1802,7 +1831,20 @@ int parse_platform_config(struct hfi1_devdata *dd)
 
 	/* Field is file size in DWORDs */
 	file_length = (*ptr) * 4;
-	ptr++;
+
+	/*
+	 * Length can't be larger than partition size. Assume platform
+	 * config format version 4 is being used. Interpret the file size
+	 * field as header instead by not moving the pointer.
+	 */
+	if (file_length > MAX_PLATFORM_CONFIG_FILE_SIZE) {
+		dd_dev_info(dd,
+			    "%s:File length out of bounds, using alternative format\n",
+			    __func__);
+		file_length = PLATFORM_CONFIG_FORMAT_4_FILE_SIZE;
+	} else {
+		ptr++;
+	}
 
 	if (file_length > dd->platform_config.size) {
 		dd_dev_info(dd, "%s:File claims to be larger than read size\n",
@@ -1817,7 +1859,8 @@ int parse_platform_config(struct hfi1_devdata *dd)
 
 	/*
 	 * In both cases where we proceed, using the self-reported file length
-	 * is the safer option
+	 * is the safer option. In case of old format a predefined value is
+	 * being used.
 	 */
 	while (ptr < (u32 *)(dd->platform_config.data + file_length)) {
 		header1 = *ptr;
@@ -2073,13 +2116,14 @@ int get_platform_config_field(struct hfi1_devdata *dd,
 	int ret = 0, wlen = 0, seek = 0;
 	u32 field_len_bits = 0, field_start_bits = 0, *src_ptr = NULL;
 	struct platform_config_cache *pcfgcache = &dd->pcfg_cache;
+	struct hfi1_pportdata *ppd = dd->pport;
 
 	if (data)
 		memset(data, 0, len);
 	else
 		return -EINVAL;
 
-	if (is_integrated(dd) && !platform_config_load) {
+	if (ppd->config_from_scratch) {
 		/*
 		 * Use saved configuration from ppd for integrated platforms
 		 */

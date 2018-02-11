@@ -402,6 +402,7 @@ static bool ftmac100_rx_packet(struct ftmac100 *priv, int *processed)
 	struct page *page;
 	dma_addr_t map;
 	int length;
+	bool ret;
 
 	rxdes = ftmac100_rx_locate_first_segment(priv);
 	if (!rxdes)
@@ -416,8 +417,8 @@ static bool ftmac100_rx_packet(struct ftmac100 *priv, int *processed)
 	 * It is impossible to get multi-segment packets
 	 * because we always provide big enough receive buffers.
 	 */
-	if (unlikely(!ftmac100_rxdes_last_segment(rxdes)))
-		BUG();
+	ret = ftmac100_rxdes_last_segment(rxdes);
+	BUG_ON(!ret);
 
 	/* start processing */
 	skb = netdev_alloc_skb_ip_align(netdev, 128);
@@ -829,7 +830,10 @@ static int ftmac100_get_link_ksettings(struct net_device *netdev,
 				       struct ethtool_link_ksettings *cmd)
 {
 	struct ftmac100 *priv = netdev_priv(netdev);
-	return mii_ethtool_get_link_ksettings(&priv->mii, cmd);
+
+	mii_ethtool_get_link_ksettings(&priv->mii, cmd);
+
+	return 0;
 }
 
 static int ftmac100_set_link_ksettings(struct net_device *netdev,

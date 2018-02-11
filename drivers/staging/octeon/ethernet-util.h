@@ -39,7 +39,7 @@ static inline int INTERFACE(int ipd_port)
 	interface = cvmx_helper_get_interface_num(ipd_port);
 	if (interface >= 0)
 		return interface;
-	panic("Illegal ipd_port %d passed to INTERFACE\n", ipd_port);
+	panic("Illegal ipd_port %d passed to %s\n", ipd_port, __func__);
 }
 
 /**

@@ -73,12 +73,13 @@ UBSAN_SANITIZE := n
 $(obj)/bzImage: asflags-y  := $(SVGA_MODE)
 
 quiet_cmd_image = BUILD   $@
+silent_redirect_image = >/dev/null
 cmd_image = $(obj)/tools/build $(obj)/setup.bin $(obj)/vmlinux.bin \
-			       $(obj)/zoffset.h $@
+			       $(obj)/zoffset.h $@ $($(quiet)redirect_image)
 
 $(obj)/bzImage: $(obj)/setup.bin $(obj)/vmlinux.bin $(obj)/tools/build FORCE
 	$(call if_changed,image)
-	@echo 'Kernel: $@ is ready' ' (#'`cat .version`')'
+	@$(kecho) 'Kernel: $@ is ready' ' (#'`cat .version`')'
 
 OBJCOPYFLAGS_vmlinux.bin := -O binary -R .note -R .comment -S
 $(obj)/vmlinux.bin: $(obj)/compressed/vmlinux FORCE
@@ -122,63 +123,26 @@ image_cmdline = default linux $(FDARGS) $(if $(FDINITRD),initrd=initrd.img,)
 $(obj)/mtools.conf: $(src)/mtools.conf.in
 	sed -e 's|@OBJ@|$(obj)|g' < $< > $@
 
+quiet_cmd_genimage = GENIMAGE $3
+cmd_genimage = sh $(srctree)/$(src)/genimage.sh $2 $3 $(obj)/bzImage \
+			$(obj)/mtools.conf '$(image_cmdline)' $(FDINITRD)
+
 # This requires write access to /dev/fd0
 bzdisk: $(obj)/bzImage $(obj)/mtools.conf
-	MTOOLSRC=$(obj)/mtools.conf mformat a:			; sync
-	syslinux /dev/fd0					; sync
-	echo '$(image_cmdline)' | \
-		MTOOLSRC=$(src)/mtools.conf mcopy - a:syslinux.cfg
-	if [ -f '$(FDINITRD)' ] ; then \
-		MTOOLSRC=$(obj)/mtools.conf mcopy '$(FDINITRD)' a:initrd.img ; \
-	fi
-	MTOOLSRC=$(obj)/mtools.conf mcopy $(obj)/bzImage a:linux	; sync
+	$(call cmd,genimage,bzdisk,/dev/fd0)
 
 # These require being root or having syslinux 2.02 or higher installed
 fdimage fdimage144: $(obj)/bzImage $(obj)/mtools.conf
-	dd if=/dev/zero of=$(obj)/fdimage bs=1024 count=1440
-	MTOOLSRC=$(obj)/mtools.conf mformat v:			; sync
-	syslinux $(obj)/fdimage					; sync
-	echo '$(image_cmdline)' | \
-		MTOOLSRC=$(obj)/mtools.conf mcopy - v:syslinux.cfg
-	if [ -f '$(FDINITRD)' ] ; then \
-		MTOOLSRC=$(obj)/mtools.conf mcopy '$(FDINITRD)' v:initrd.img ; \
-	fi
-	MTOOLSRC=$(obj)/mtools.conf mcopy $(obj)/bzImage v:linux	; sync
+	$(call cmd,genimage,fdimage144,$(obj)/fdimage)
+	@$(kecho) 'Kernel: $(obj)/fdimage is ready'
 
 fdimage288: $(obj)/bzImage $(obj)/mtools.conf
-	dd if=/dev/zero of=$(obj)/fdimage bs=1024 count=2880
-	MTOOLSRC=$(obj)/mtools.conf mformat w:			; sync
-	syslinux $(obj)/fdimage					; sync
-	echo '$(image_cmdline)' | \
-		MTOOLSRC=$(obj)/mtools.conf mcopy - w:syslinux.cfg
-	if [ -f '$(FDINITRD)' ] ; then \
-		MTOOLSRC=$(obj)/mtools.conf mcopy '$(FDINITRD)' w:initrd.img ; \
-	fi
-	MTOOLSRC=$(obj)/mtools.conf mcopy $(obj)/bzImage w:linux	; sync
+	$(call cmd,genimage,fdimage288,$(obj)/fdimage)
+	@$(kecho) 'Kernel: $(obj)/fdimage is ready'
 
 isoimage: $(obj)/bzImage
-	-rm -rf $(obj)/isoimage
-	mkdir $(obj)/isoimage
-	for i in lib lib64 share end ; do \
-		if [ -f /usr/$$i/syslinux/isolinux.bin ] ; then \
-			cp /usr/$$i/syslinux/isolinux.bin $(obj)/isoimage ; \
-			if [ -f /usr/$$i/syslinux/ldlinux.c32 ]; then \
-				cp /usr/$$i/syslinux/ldlinux.c32 $(obj)/isoimage ; \
-			fi ; \
-			break ; \
-		fi ; \
-		if [ $$i = end ] ; then exit 1 ; fi ; \
-	done
-	cp $(obj)/bzImage $(obj)/isoimage/linux
-	echo '$(image_cmdline)' > $(obj)/isoimage/isolinux.cfg
-	if [ -f '$(FDINITRD)' ] ; then \
-		cp '$(FDINITRD)' $(obj)/isoimage/initrd.img ; \
-	fi
-	mkisofs -J -r -o $(obj)/image.iso -b isolinux.bin -c boot.cat \
-		-no-emul-boot -boot-load-size 4 -boot-info-table \
-		$(obj)/isoimage
-	isohybrid $(obj)/image.iso 2>/dev/null || true
-	rm -rf $(obj)/isoimage
+	$(call cmd,genimage,isoimage,$(obj)/image.iso)
+	@$(kecho) 'Kernel: $(obj)/image.iso is ready'
 
 bzlilo: $(obj)/bzImage
 	if [ -f $(INSTALL_PATH)/vmlinuz ]; then mv $(INSTALL_PATH)/vmlinuz $(INSTALL_PATH)/vmlinuz.old; fi

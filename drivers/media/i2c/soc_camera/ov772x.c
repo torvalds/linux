@@ -1047,11 +1047,13 @@ static int ov772x_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
+					      I2C_FUNC_PROTOCOL_MANGLING)) {
 		dev_err(&adapter->dev,
-			"I2C-Adapter doesn't support I2C_FUNC_SMBUS_BYTE_DATA\n");
+			"I2C-Adapter doesn't support SMBUS_BYTE_DATA or PROTOCOL_MANGLING\n");
 		return -EIO;
 	}
+	client->flags |= I2C_CLIENT_SCCB;
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)

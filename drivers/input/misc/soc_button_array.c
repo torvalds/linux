@@ -248,7 +248,8 @@ static struct soc_button_info *soc_button_get_button_info(struct device *dev)
 
 	if (!btns_desc) {
 		dev_err(dev, "ACPI Button Descriptors not found\n");
-		return ERR_PTR(-ENODEV);
+		button_info = ERR_PTR(-ENODEV);
+		goto out;
 	}
 
 	/* The first package describes the collection */
@@ -264,24 +265,31 @@ static struct soc_button_info *soc_button_get_button_info(struct device *dev)
 	}
 	if (collection_uid == -1) {
 		dev_err(dev, "Invalid Button Collection Descriptor\n");
-		return ERR_PTR(-ENODEV);
+		button_info = ERR_PTR(-ENODEV);
+		goto out;
 	}
 
 	/* There are package.count - 1 buttons + 1 terminating empty entry */
 	button_info = devm_kcalloc(dev, btns_desc->package.count,
 				   sizeof(*button_info), GFP_KERNEL);
-	if (!button_info)
-		return ERR_PTR(-ENOMEM);
+	if (!button_info) {
+		button_info = ERR_PTR(-ENOMEM);
+		goto out;
+	}
 
 	/* Parse the button descriptors */
 	for (i = 1, btn = 0; i < btns_desc->package.count; i++, btn++) {
 		if (soc_button_parse_btn_desc(dev,
 					      &btns_desc->package.elements[i],
 					      collection_uid,
-					      &button_info[btn]))
-			return ERR_PTR(-ENODEV);
+					      &button_info[btn])) {
+			button_info = ERR_PTR(-ENODEV);
+			goto out;
+		}
 	}
 
+out:
+	kfree(buf.pointer);
 	return button_info;
 }
 
@@ -323,7 +331,7 @@ static int soc_button_probe(struct platform_device *pdev)
 	error = gpiod_count(dev, NULL);
 	if (error < 0) {
 		dev_dbg(dev, "no GPIO attached, ignoring...\n");
-		return error;
+		return -ENODEV;
 	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);

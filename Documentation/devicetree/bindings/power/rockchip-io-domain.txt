@@ -32,12 +32,15 @@ SoC is on the same page.
 Required properties:
 - compatible: should be one of:
   - "rockchip,rk3188-io-voltage-domain" for rk3188
+  - "rockchip,rk3228-io-voltage-domain" for rk3228
   - "rockchip,rk3288-io-voltage-domain" for rk3288
   - "rockchip,rk3328-io-voltage-domain" for rk3328
   - "rockchip,rk3368-io-voltage-domain" for rk3368
   - "rockchip,rk3368-pmu-io-voltage-domain" for rk3368 pmu-domains
   - "rockchip,rk3399-io-voltage-domain" for rk3399
   - "rockchip,rk3399-pmu-io-voltage-domain" for rk3399 pmu-domains
+  - "rockchip,rv1108-io-voltage-domain" for rv1108
+  - "rockchip,rv1108-pmu-io-voltage-domain" for rv1108 pmu-domains
 
 Deprecated properties:
 - rockchip,grf: phandle to the syscon managing the "general register files"
@@ -58,6 +61,12 @@ Possible supplies for rk3188:
 - vccio0-supply: The supply connected to VCCIO0.
 - vccio1-supply: The supply connected to VCCIO1.
                  Sometimes also labeled VCCIO1 and VCCIO2.
+
+Possible supplies for rk3228:
+- vccio1-supply: The supply connected to VCCIO1.
+- vccio2-supply: The supply connected to VCCIO2.
+- vccio3-supply: The supply connected to VCCIO3.
+- vccio4-supply: The supply connected to VCCIO4.
 
 Possible supplies for rk3288:
 - audio-supply:  The supply connected to APIO4_VDD.

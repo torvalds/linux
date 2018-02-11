@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * chaoskey - driver for ChaosKey device from Altus Metrum.
  *
@@ -11,15 +12,6 @@
  * bit stream.
  *
  * Copyright © 2015 Keith Packard <keithp@keithp.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the GNU
- * General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -42,12 +34,10 @@ static int chaoskey_rng_read(struct hwrng *rng, void *data,
 	dev_err(&(usb_if)->dev, format, ## arg)
 
 /* Version Information */
-#define DRIVER_VERSION	"v0.1"
 #define DRIVER_AUTHOR	"Keith Packard, keithp@keithp.com"
 #define DRIVER_DESC	"Altus Metrum ChaosKey driver"
 #define DRIVER_SHORT	"chaoskey"
 
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

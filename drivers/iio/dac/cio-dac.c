@@ -85,7 +85,6 @@ static int cio_dac_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info cio_dac_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = cio_dac_read_raw,
 	.write_raw = cio_dac_write_raw
 };

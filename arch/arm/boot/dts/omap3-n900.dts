@@ -164,6 +164,29 @@
 	};
 };
 
+&isp {
+	vdds_csib-supply = <&vaux2>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&camera_pins>;
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			csi_isp: endpoint {
+				remote-endpoint = <&csi_cam1>;
+				bus-type = <3>; /* CCP2 */
+				clock-lanes = <1>;
+				data-lanes = <0>;
+				lane-polarity = <0 0>;
+				/* Select strobe = <1> for back camera, <0> for front camera */
+				strobe = <1>;
+			};
+		};
+	};
+};
+
 &omap3_pmx_core {
 	pinctrl-names = "default";
 
@@ -326,6 +349,22 @@
 			OMAP3_CORE1_IOPAD(0x20e4, PIN_OUTPUT | MUX_MODE4)		/* gpio 74 => cmt_en */
 			OMAP3_CORE1_IOPAD(0x20e6, PIN_OUTPUT | MUX_MODE4)		/* gpio 75 => cmt_rst */
 			OMAP3_CORE1_IOPAD(0x218e, PIN_OUTPUT | MUX_MODE4)		/* gpio 157 => cmt_bsi */
+		>;
+	};
+
+	camera_pins: pinmux_camera {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x210c, PIN_OUTPUT | MUX_MODE7)       /* cam_hs */
+			OMAP3_CORE1_IOPAD(0x210e, PIN_OUTPUT | MUX_MODE7)       /* cam_vs */
+			OMAP3_CORE1_IOPAD(0x2110, PIN_OUTPUT | MUX_MODE0)       /* cam_xclka */
+			OMAP3_CORE1_IOPAD(0x211e, PIN_OUTPUT | MUX_MODE7)       /* cam_d4 */
+			OMAP3_CORE1_IOPAD(0x2122, PIN_INPUT | MUX_MODE0)        /* cam_d6 */
+			OMAP3_CORE1_IOPAD(0x2124, PIN_INPUT | MUX_MODE0)        /* cam_d7 */
+			OMAP3_CORE1_IOPAD(0x2126, PIN_INPUT | MUX_MODE0)        /* cam_d8 */
+			OMAP3_CORE1_IOPAD(0x2128, PIN_INPUT | MUX_MODE0)        /* cam_d9 */
+			OMAP3_CORE1_IOPAD(0x212a, PIN_OUTPUT | MUX_MODE7)       /* cam_d10 */
+			OMAP3_CORE1_IOPAD(0x212e, PIN_OUTPUT | MUX_MODE7)       /* cam_xclkb */
+			OMAP3_CORE1_IOPAD(0x2132, PIN_OUTPUT | MUX_MODE0)       /* cam_strobe */
 		>;
 	};
 };
@@ -726,6 +765,40 @@
 		st,max-limit-y = <32>;
 		st,max-limit-z = <32>;
 	};
+
+	cam1: camera@3e {
+		compatible = "toshiba,et8ek8";
+		reg = <0x3e>;
+
+		vana-supply = <&vaux4>;
+
+		clocks = <&isp 0>;
+		clock-names = "extclk";
+		clock-frequency = <9600000>;
+
+		reset-gpio = <&gpio4 6 GPIO_ACTIVE_HIGH>; /* 102 */
+
+		port {
+			csi_cam1: endpoint {
+				bus-type = <3>; /* CCP2 */
+				strobe = <1>;
+				clock-inv = <0>;
+				crc = <1>;
+
+				remote-endpoint = <&csi_isp>;
+			};
+		};
+	};
+
+	/* D/A converter for auto-focus */
+	ad5820: dac@c {
+		compatible = "adi,ad5820";
+		reg = <0x0c>;
+
+		VANA-supply = <&vaux4>;
+
+		#io-channel-cells = <0>;
+	};
 };
 
 &mmc1 {
@@ -733,6 +806,9 @@
 	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&vmmc1>;
 	bus-width = <4>;
+	/* For debugging, it is often good idea to remove this GPIO.
+	   It means you can remove back cover (to reboot by removing
+	   battery) and still use the MMC card. */
 	cd-gpios = <&gpio6 0 GPIO_ACTIVE_HIGH>; /* 160 */
 };
 
@@ -741,7 +817,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins>;
 	vmmc-supply = <&vaux3>;
-	vmmc_aux-supply = <&vsim>;
+	vqmmc-supply = <&vsim>;
 	bus-width = <8>;
 	non-removable;
 	no-sdio;

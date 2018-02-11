@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
    md_p.h : physical layout of Linux RAID devices
           Copyright (C) 1996-98 Ingo Molnar, Gadi Oxman
@@ -324,9 +325,10 @@ struct mdp_superblock_1 {
 #define	MD_FEATURE_RECOVERY_BITMAP	128 /* recovery that is happening
 					     * is guided by bitmap.
 					     */
-#define MD_FEATURE_CLUSTERED		256 /* clustered MD */
+#define	MD_FEATURE_CLUSTERED		256 /* clustered MD */
 #define	MD_FEATURE_JOURNAL		512 /* support write cache */
 #define	MD_FEATURE_PPL			1024 /* support PPL */
+#define	MD_FEATURE_MULTIPLE_PPLS	2048 /* support for multiple PPLs */
 #define	MD_FEATURE_ALL			(MD_FEATURE_BITMAP_OFFSET	\
 					|MD_FEATURE_RECOVERY_OFFSET	\
 					|MD_FEATURE_RESHAPE_ACTIVE	\
@@ -338,6 +340,7 @@ struct mdp_superblock_1 {
 					|MD_FEATURE_CLUSTERED		\
 					|MD_FEATURE_JOURNAL		\
 					|MD_FEATURE_PPL			\
+					|MD_FEATURE_MULTIPLE_PPLS	\
 					)
 
 struct r5l_payload_header {

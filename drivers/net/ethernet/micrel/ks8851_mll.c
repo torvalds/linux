@@ -1315,7 +1315,10 @@ static int ks_get_link_ksettings(struct net_device *netdev,
 				 struct ethtool_link_ksettings *cmd)
 {
 	struct ks_net *ks = netdev_priv(netdev);
-	return mii_ethtool_get_link_ksettings(&ks->mii, cmd);
+
+	mii_ethtool_get_link_ksettings(&ks->mii, cmd);
+
+	return 0;
 }
 
 static int ks_set_link_ksettings(struct net_device *netdev,

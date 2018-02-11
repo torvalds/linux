@@ -981,12 +981,12 @@ static int byt_gpio_request_enable(struct pinctrl_dev *pctl_dev,
 	 */
 	value = readl(reg) & BYT_PIN_MUX;
 	gpio_mux = byt_get_gpio_mux(vg, offset);
-	if (WARN_ON(gpio_mux != value)) {
+	if (gpio_mux != value) {
 		value = readl(reg) & ~BYT_PIN_MUX;
 		value |= gpio_mux;
 		writel(value, reg);
 
-		dev_warn(&vg->pdev->dev,
+		dev_warn(&vg->pdev->dev, FW_BUG
 			 "pin %u forcibly re-configured as GPIO\n", offset);
 	}
 
@@ -1627,7 +1627,7 @@ static void byt_gpio_irq_handler(struct irq_desc *desc)
 		pending = readl(reg);
 		raw_spin_unlock(&vg->lock);
 		for_each_set_bit(pin, &pending, 32) {
-			virq = irq_find_mapping(vg->chip.irqdomain, base + pin);
+			virq = irq_find_mapping(vg->chip.irq.domain, base + pin);
 			generic_handle_irq(virq);
 		}
 	}
@@ -1660,7 +1660,7 @@ static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
 
 		value = readl(reg);
 		if (value & BYT_DIRECT_IRQ_EN) {
-			clear_bit(i, gc->irq_valid_mask);
+			clear_bit(i, gc->irq.valid_mask);
 			dev_dbg(dev, "excluding GPIO %d from IRQ domain\n", i);
 		} else if ((value & BYT_PIN_MUX) == byt_get_gpio_mux(vg, i)) {
 			byt_gpio_clear_triggering(vg, i);
@@ -1703,7 +1703,7 @@ static int byt_gpio_probe(struct byt_gpio *vg)
 	gc->can_sleep	= false;
 	gc->parent	= &vg->pdev->dev;
 	gc->ngpio	= vg->soc_data->npins;
-	gc->irq_need_valid_mask	= true;
+	gc->irq.need_valid_mask	= true;
 
 #ifdef CONFIG_PM_SLEEP
 	vg->saved_context = devm_kcalloc(&vg->pdev->dev, gc->ngpio,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* hvapi.c: Hypervisor API management.
  *
  * Copyright (C) 2007 David S. Miller <davem@davemloft.net>
@@ -189,7 +190,7 @@ void __init sun4v_hvapi_init(void)
 
 	group = HV_GRP_CORE;
 	major = 1;
-	minor = 1;
+	minor = 6;
 	if (sun4v_hvapi_register(group, major, &minor))
 		goto bad;
 

@@ -256,7 +256,7 @@
 		status = "okay";
 	};
 
-	lcd_display: display@di0 {
+	lcd_display: disp0 {
 		compatible = "fsl,imx-parallel-display";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -397,7 +397,7 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
-	codec: sgtl5000@0a {
+	codec: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_sgtl5000>;
@@ -408,7 +408,7 @@
 	};
 
 	rtc: rtc@68 {
-		compatible = "st,rv4162";
+		compatible = "microcrystal,rv4162";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_rv4162>;
 		reg = <0x68>;
@@ -429,7 +429,7 @@
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
-	touchscreen@04 {
+	touchscreen@4 {
 		compatible = "eeti,egalax_ts";
 		reg = <0x04>;
 		interrupt-parent = <&gpio1>;

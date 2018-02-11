@@ -1,0 +1,13 @@
+Device tree bindings for IR LED connected through pwm pin which is used as
+remote controller transmitter.
+
+Required properties:
+	- compatible: should be "pwm-ir-tx".
+	- pwms : PWM property to point to the PWM device (phandle)/port (id)
+	  and to specify the period time to be used: <&phandle id period_ns>;
+
+Example:
+	irled {
+		compatible = "pwm-ir-tx";
+		pwms = <&pwm0 0 10000000>;
+	};

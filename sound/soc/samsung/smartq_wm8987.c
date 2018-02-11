@@ -160,14 +160,6 @@ static int smartq_wm8987_init(struct snd_soc_pcm_runtime *rtd)
 	return err;
 }
 
-static int smartq_wm8987_card_remove(struct snd_soc_card *card)
-{
-	snd_soc_jack_free_gpios(&smartq_jack, ARRAY_SIZE(smartq_jack_gpios),
-				smartq_jack_gpios);
-
-	return 0;
-}
-
 static struct snd_soc_dai_link smartq_dai[] = {
 	{
 		.name		= "wm8987",
@@ -186,7 +178,6 @@ static struct snd_soc_dai_link smartq_dai[] = {
 static struct snd_soc_card snd_soc_smartq = {
 	.name = "SmartQ",
 	.owner = THIS_MODULE,
-	.remove = smartq_wm8987_card_remove,
 	.dai_link = smartq_dai,
 	.num_links = ARRAY_SIZE(smartq_dai),
 

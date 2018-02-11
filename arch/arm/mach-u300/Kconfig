@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig ARCH_U300
 	bool "ST-Ericsson U300 Series"
 	depends on ARCH_MULTI_V5 && MMU

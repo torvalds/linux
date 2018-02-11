@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *	webcam.c -- USB webcam gadget driver
  *
  *	Copyright (C) 2009-2010
  *	    Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -436,5 +432,4 @@ module_usb_composite_driver(webcam_driver);
 MODULE_AUTHOR("Laurent Pinchart");
 MODULE_DESCRIPTION("Webcam Video Gadget");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.1.0");
 

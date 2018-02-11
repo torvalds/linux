@@ -59,7 +59,8 @@ static int exynos_drm_alloc_buf(struct exynos_drm_gem *exynos_gem)
 
 	nr_pages = exynos_gem->size >> PAGE_SHIFT;
 
-	exynos_gem->pages = drm_calloc_large(nr_pages, sizeof(struct page *));
+	exynos_gem->pages = kvmalloc_array(nr_pages, sizeof(struct page *),
+			GFP_KERNEL | __GFP_ZERO);
 	if (!exynos_gem->pages) {
 		DRM_ERROR("failed to allocate pages.\n");
 		return -ENOMEM;
@@ -101,7 +102,7 @@ err_dma_free:
 	dma_free_attrs(to_dma_dev(dev), exynos_gem->size, exynos_gem->cookie,
 		       exynos_gem->dma_addr, exynos_gem->dma_attrs);
 err_free:
-	drm_free_large(exynos_gem->pages);
+	kvfree(exynos_gem->pages);
 
 	return ret;
 }
@@ -122,7 +123,7 @@ static void exynos_drm_free_buf(struct exynos_drm_gem *exynos_gem)
 			(dma_addr_t)exynos_gem->dma_addr,
 			exynos_gem->dma_attrs);
 
-	drm_free_large(exynos_gem->pages);
+	kvfree(exynos_gem->pages);
 }
 
 static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
@@ -246,6 +247,15 @@ struct exynos_drm_gem *exynos_drm_gem_create(struct drm_device *dev,
 	if (IS_ERR(exynos_gem))
 		return exynos_gem;
 
+	if (!is_drm_iommu_supported(dev) && (flags & EXYNOS_BO_NONCONTIG)) {
+		/*
+		 * when no IOMMU is available, all allocated buffers are
+		 * contiguous anyway, so drop EXYNOS_BO_NONCONTIG flag
+		 */
+		flags &= ~EXYNOS_BO_NONCONTIG;
+		DRM_WARN("Non-contiguous allocation is not supported without IOMMU, falling back to contiguous buffer\n");
+	}
+
 	/* set memory type and cache attribute from user side. */
 	exynos_gem->flags = flags;
 
@@ -285,8 +295,8 @@ int exynos_drm_gem_map_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_exynos_gem_map *args = data;
 
-	return exynos_drm_gem_dumb_map_offset(file_priv, dev, args->handle,
-					      &args->offset);
+	return drm_gem_dumb_map_offset(file_priv, dev, args->handle,
+				       &args->offset);
 }
 
 dma_addr_t *exynos_drm_gem_get_dma_addr(struct drm_device *dev,
@@ -421,32 +431,6 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 	return 0;
 }
 
-int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
-				   struct drm_device *dev, uint32_t handle,
-				   uint64_t *offset)
-{
-	struct drm_gem_object *obj;
-	int ret = 0;
-
-	/*
-	 * get offset of memory allocated for drm framebuffer.
-	 * - this callback would be called by user application
-	 *	with DRM_IOCTL_MODE_MAP_DUMB command.
-	 */
-
-	obj = drm_gem_object_lookup(file_priv, handle);
-	if (!obj) {
-		DRM_ERROR("failed to lookup gem object.\n");
-		return -EINVAL;
-	}
-
-	*offset = drm_vma_node_offset_addr(&obj->vma_node);
-	DRM_DEBUG_KMS("offset = 0x%lx\n", (unsigned long)*offset);
-
-	drm_gem_object_unreference_unlocked(obj);
-	return ret;
-}
-
 int exynos_drm_gem_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
@@ -531,6 +515,12 @@ int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 }
 
 /* low-level interface prime helpers */
+struct drm_gem_object *exynos_drm_gem_prime_import(struct drm_device *dev,
+					    struct dma_buf *dma_buf)
+{
+	return drm_gem_prime_import_dev(dev, dma_buf, to_dma_dev(dev));
+}
+
 struct sg_table *exynos_drm_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
 	struct exynos_drm_gem *exynos_gem = to_exynos_gem(obj);
@@ -559,7 +549,7 @@ exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
 	exynos_gem->dma_addr = sg_dma_address(sgt->sgl);
 
 	npages = exynos_gem->size >> PAGE_SHIFT;
-	exynos_gem->pages = drm_malloc_ab(npages, sizeof(struct page *));
+	exynos_gem->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (!exynos_gem->pages) {
 		ret = -ENOMEM;
 		goto err;
@@ -588,7 +578,7 @@ exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
 	return &exynos_gem->base;
 
 err_free_large:
-	drm_free_large(exynos_gem->pages);
+	kvfree(exynos_gem->pages);
 err:
 	drm_gem_object_release(&exynos_gem->base);
 	kfree(exynos_gem);

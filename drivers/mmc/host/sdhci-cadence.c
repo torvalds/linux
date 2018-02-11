@@ -13,6 +13,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
@@ -27,15 +28,14 @@
 #define   SDHCI_CDNS_HRS04_ACK			BIT(26)
 #define   SDHCI_CDNS_HRS04_RD			BIT(25)
 #define   SDHCI_CDNS_HRS04_WR			BIT(24)
-#define   SDHCI_CDNS_HRS04_RDATA_SHIFT		16
-#define   SDHCI_CDNS_HRS04_WDATA_SHIFT		8
-#define   SDHCI_CDNS_HRS04_ADDR_SHIFT		0
+#define   SDHCI_CDNS_HRS04_RDATA		GENMASK(23, 16)
+#define   SDHCI_CDNS_HRS04_WDATA		GENMASK(15, 8)
+#define   SDHCI_CDNS_HRS04_ADDR			GENMASK(5, 0)
 
 #define SDHCI_CDNS_HRS06		0x18		/* eMMC control */
 #define   SDHCI_CDNS_HRS06_TUNE_UP		BIT(15)
-#define   SDHCI_CDNS_HRS06_TUNE_SHIFT		8
-#define   SDHCI_CDNS_HRS06_TUNE_MASK		0x3f
-#define   SDHCI_CDNS_HRS06_MODE_MASK		0x7
+#define   SDHCI_CDNS_HRS06_TUNE			GENMASK(13, 8)
+#define   SDHCI_CDNS_HRS06_MODE			GENMASK(2, 0)
 #define   SDHCI_CDNS_HRS06_MODE_SD		0x0
 #define   SDHCI_CDNS_HRS06_MODE_MMC_SDR		0x2
 #define   SDHCI_CDNS_HRS06_MODE_MMC_DDR		0x3
@@ -67,9 +67,16 @@
  */
 #define SDHCI_CDNS_MAX_TUNING_LOOP	40
 
+struct sdhci_cdns_phy_param {
+	u8 addr;
+	u8 data;
+};
+
 struct sdhci_cdns_priv {
 	void __iomem *hrs_addr;
 	bool enhanced_strobe;
+	unsigned int nr_phy_params;
+	struct sdhci_cdns_phy_param phy_params[0];
 };
 
 struct sdhci_cdns_phy_cfg {
@@ -98,8 +105,8 @@ static int sdhci_cdns_write_phy_reg(struct sdhci_cdns_priv *priv,
 	u32 tmp;
 	int ret;
 
-	tmp = (data << SDHCI_CDNS_HRS04_WDATA_SHIFT) |
-	      (addr << SDHCI_CDNS_HRS04_ADDR_SHIFT);
+	tmp = FIELD_PREP(SDHCI_CDNS_HRS04_WDATA, data) |
+	      FIELD_PREP(SDHCI_CDNS_HRS04_ADDR, addr);
 	writel(tmp, reg);
 
 	tmp |= SDHCI_CDNS_HRS04_WR;
@@ -115,9 +122,22 @@ static int sdhci_cdns_write_phy_reg(struct sdhci_cdns_priv *priv,
 	return 0;
 }
 
-static int sdhci_cdns_phy_init(struct device_node *np,
-			       struct sdhci_cdns_priv *priv)
+static unsigned int sdhci_cdns_phy_param_count(struct device_node *np)
 {
+	unsigned int count = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sdhci_cdns_phy_cfgs); i++)
+		if (of_property_read_bool(np, sdhci_cdns_phy_cfgs[i].property))
+			count++;
+
+	return count;
+}
+
+static void sdhci_cdns_phy_param_parse(struct device_node *np,
+				       struct sdhci_cdns_priv *priv)
+{
+	struct sdhci_cdns_phy_param *p = priv->phy_params;
 	u32 val;
 	int ret, i;
 
@@ -127,9 +147,19 @@ static int sdhci_cdns_phy_init(struct device_node *np,
 		if (ret)
 			continue;
 
-		ret = sdhci_cdns_write_phy_reg(priv,
-					       sdhci_cdns_phy_cfgs[i].addr,
-					       val);
+		p->addr = sdhci_cdns_phy_cfgs[i].addr;
+		p->data = val;
+		p++;
+	}
+}
+
+static int sdhci_cdns_phy_init(struct sdhci_cdns_priv *priv)
+{
+	int ret, i;
+
+	for (i = 0; i < priv->nr_phy_params; i++) {
+		ret = sdhci_cdns_write_phy_reg(priv, priv->phy_params[i].addr,
+					       priv->phy_params[i].data);
 		if (ret)
 			return ret;
 	}
@@ -159,8 +189,8 @@ static void sdhci_cdns_set_emmc_mode(struct sdhci_cdns_priv *priv, u32 mode)
 
 	/* The speed mode for eMMC is selected by HRS06 register */
 	tmp = readl(priv->hrs_addr + SDHCI_CDNS_HRS06);
-	tmp &= ~SDHCI_CDNS_HRS06_MODE_MASK;
-	tmp |= mode;
+	tmp &= ~SDHCI_CDNS_HRS06_MODE;
+	tmp |= FIELD_PREP(SDHCI_CDNS_HRS06_MODE, mode);
 	writel(tmp, priv->hrs_addr + SDHCI_CDNS_HRS06);
 }
 
@@ -169,7 +199,7 @@ static u32 sdhci_cdns_get_emmc_mode(struct sdhci_cdns_priv *priv)
 	u32 tmp;
 
 	tmp = readl(priv->hrs_addr + SDHCI_CDNS_HRS06);
-	return tmp & SDHCI_CDNS_HRS06_MODE_MASK;
+	return FIELD_GET(SDHCI_CDNS_HRS06_MODE, tmp);
 }
 
 static void sdhci_cdns_set_uhs_signaling(struct sdhci_host *host,
@@ -224,12 +254,12 @@ static int sdhci_cdns_set_tune_val(struct sdhci_host *host, unsigned int val)
 	void __iomem *reg = priv->hrs_addr + SDHCI_CDNS_HRS06;
 	u32 tmp;
 
-	if (WARN_ON(val > SDHCI_CDNS_HRS06_TUNE_MASK))
+	if (WARN_ON(!FIELD_FIT(SDHCI_CDNS_HRS06_TUNE, val)))
 		return -EINVAL;
 
 	tmp = readl(reg);
-	tmp &= ~(SDHCI_CDNS_HRS06_TUNE_MASK << SDHCI_CDNS_HRS06_TUNE_SHIFT);
-	tmp |= val << SDHCI_CDNS_HRS06_TUNE_SHIFT;
+	tmp &= ~SDHCI_CDNS_HRS06_TUNE;
+	tmp |= FIELD_PREP(SDHCI_CDNS_HRS06_TUNE, val);
 	tmp |= SDHCI_CDNS_HRS06_TUNE_UP;
 	writel(tmp, reg);
 
@@ -302,6 +332,8 @@ static int sdhci_cdns_probe(struct platform_device *pdev)
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_cdns_priv *priv;
 	struct clk *clk;
+	size_t priv_size;
+	unsigned int nr_phy_params;
 	int ret;
 	struct device *dev = &pdev->dev;
 
@@ -313,7 +345,9 @@ static int sdhci_cdns_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	host = sdhci_pltfm_init(pdev, &sdhci_cdns_pltfm_data, sizeof(*priv));
+	nr_phy_params = sdhci_cdns_phy_param_count(dev->of_node);
+	priv_size = sizeof(*priv) + sizeof(priv->phy_params[0]) * nr_phy_params;
+	host = sdhci_pltfm_init(pdev, &sdhci_cdns_pltfm_data, priv_size);
 	if (IS_ERR(host)) {
 		ret = PTR_ERR(host);
 		goto disable_clk;
@@ -322,7 +356,8 @@ static int sdhci_cdns_probe(struct platform_device *pdev)
 	pltfm_host = sdhci_priv(host);
 	pltfm_host->clk = clk;
 
-	priv = sdhci_cdns_priv(host);
+	priv = sdhci_pltfm_priv(pltfm_host);
+	priv->nr_phy_params = nr_phy_params;
 	priv->hrs_addr = host->ioaddr;
 	priv->enhanced_strobe = false;
 	host->ioaddr += SDHCI_CDNS_SRS_BASE;
@@ -336,7 +371,9 @@ static int sdhci_cdns_probe(struct platform_device *pdev)
 	if (ret)
 		goto free;
 
-	ret = sdhci_cdns_phy_init(dev->of_node, priv);
+	sdhci_cdns_phy_param_parse(dev->of_node, priv);
+
+	ret = sdhci_cdns_phy_init(priv);
 	if (ret)
 		goto free;
 
@@ -353,6 +390,39 @@ disable_clk:
 	return ret;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int sdhci_cdns_resume(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_cdns_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	int ret;
+
+	ret = clk_prepare_enable(pltfm_host->clk);
+	if (ret)
+		return ret;
+
+	ret = sdhci_cdns_phy_init(priv);
+	if (ret)
+		goto disable_clk;
+
+	ret = sdhci_resume_host(host);
+	if (ret)
+		goto disable_clk;
+
+	return 0;
+
+disable_clk:
+	clk_disable_unprepare(pltfm_host->clk);
+
+	return ret;
+}
+#endif
+
+static const struct dev_pm_ops sdhci_cdns_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(sdhci_pltfm_suspend, sdhci_cdns_resume)
+};
+
 static const struct of_device_id sdhci_cdns_match[] = {
 	{ .compatible = "socionext,uniphier-sd4hc" },
 	{ .compatible = "cdns,sd4hc" },
@@ -363,7 +433,7 @@ MODULE_DEVICE_TABLE(of, sdhci_cdns_match);
 static struct platform_driver sdhci_cdns_driver = {
 	.driver = {
 		.name = "sdhci-cdns",
-		.pm = &sdhci_pltfm_pmops,
+		.pm = &sdhci_cdns_pm_ops,
 		.of_match_table = sdhci_cdns_match,
 	},
 	.probe = sdhci_cdns_probe,

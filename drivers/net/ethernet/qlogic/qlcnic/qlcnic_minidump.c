@@ -1285,7 +1285,7 @@ flash_temp:
 int qlcnic_dump_fw(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
-	static const struct qlcnic_dump_operations *fw_dump_ops;
+	const struct qlcnic_dump_operations *fw_dump_ops;
 	struct qlcnic_83xx_dump_template_hdr *hdr_83xx;
 	u32 entry_offset, dump, no_entries, buf_offset = 0;
 	int i, k, ops_cnt, ops_index, dump_size = 0;

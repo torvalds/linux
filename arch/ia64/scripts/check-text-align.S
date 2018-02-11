@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 	.proc foo
 	.prologue
 foo:	.save rp, r2

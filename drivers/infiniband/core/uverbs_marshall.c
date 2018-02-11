@@ -33,10 +33,46 @@
 #include <linux/export.h>
 #include <rdma/ib_marshall.h>
 
-void ib_copy_ah_attr_to_user(struct ib_uverbs_ah_attr *dst,
-			     struct rdma_ah_attr *src)
+#define OPA_DEFAULT_GID_PREFIX cpu_to_be64(0xfe80000000000000ULL)
+static int rdma_ah_conv_opa_to_ib(struct ib_device *dev,
+				  struct rdma_ah_attr *ib,
+				  struct rdma_ah_attr *opa)
 {
+	struct ib_port_attr port_attr;
+	int ret = 0;
+
+	/* Do structure copy and the over-write fields */
+	*ib = *opa;
+
+	ib->type = RDMA_AH_ATTR_TYPE_IB;
+	rdma_ah_set_grh(ib, NULL, 0, 0, 1, 0);
+
+	if (ib_query_port(dev, opa->port_num, &port_attr)) {
+		/* Set to default subnet to indicate error */
+		rdma_ah_set_subnet_prefix(ib, OPA_DEFAULT_GID_PREFIX);
+		ret = -EINVAL;
+	} else {
+		rdma_ah_set_subnet_prefix(ib,
+					  cpu_to_be64(port_attr.subnet_prefix));
+	}
+	rdma_ah_set_interface_id(ib, OPA_MAKE_ID(rdma_ah_get_dlid(opa)));
+	return ret;
+}
+
+void ib_copy_ah_attr_to_user(struct ib_device *device,
+			     struct ib_uverbs_ah_attr *dst,
+			     struct rdma_ah_attr *ah_attr)
+{
+	struct rdma_ah_attr *src = ah_attr;
+	struct rdma_ah_attr conv_ah;
+
 	memset(&dst->grh.reserved, 0, sizeof(dst->grh.reserved));
+
+	if ((ah_attr->type == RDMA_AH_ATTR_TYPE_OPA) &&
+	    (rdma_ah_get_dlid(ah_attr) > be16_to_cpu(IB_LID_PERMISSIVE)) &&
+	    (!rdma_ah_conv_opa_to_ib(device, &conv_ah, ah_attr)))
+		src = &conv_ah;
+
 	dst->dlid		   = rdma_ah_get_dlid(src);
 	dst->sl			   = rdma_ah_get_sl(src);
 	dst->src_path_bits	   = rdma_ah_get_path_bits(src);
@@ -57,7 +93,8 @@ void ib_copy_ah_attr_to_user(struct ib_uverbs_ah_attr *dst,
 }
 EXPORT_SYMBOL(ib_copy_ah_attr_to_user);
 
-void ib_copy_qp_attr_to_user(struct ib_uverbs_qp_attr *dst,
+void ib_copy_qp_attr_to_user(struct ib_device *device,
+			     struct ib_uverbs_qp_attr *dst,
 			     struct ib_qp_attr *src)
 {
 	dst->qp_state	        = src->qp_state;
@@ -76,8 +113,8 @@ void ib_copy_qp_attr_to_user(struct ib_uverbs_qp_attr *dst,
 	dst->max_recv_sge	= src->cap.max_recv_sge;
 	dst->max_inline_data	= src->cap.max_inline_data;
 
-	ib_copy_ah_attr_to_user(&dst->ah_attr, &src->ah_attr);
-	ib_copy_ah_attr_to_user(&dst->alt_ah_attr, &src->alt_ah_attr);
+	ib_copy_ah_attr_to_user(device, &dst->ah_attr, &src->ah_attr);
+	ib_copy_ah_attr_to_user(device, &dst->alt_ah_attr, &src->alt_ah_attr);
 
 	dst->pkey_index		= src->pkey_index;
 	dst->alt_pkey_index	= src->alt_pkey_index;
@@ -138,18 +175,18 @@ EXPORT_SYMBOL(ib_copy_path_rec_to_user);
 void ib_copy_path_rec_from_user(struct sa_path_rec *dst,
 				struct ib_user_path_rec *src)
 {
-	__be32 slid, dlid;
+	u32 slid, dlid;
 
 	memset(dst, 0, sizeof(*dst));
 	if ((ib_is_opa_gid((union ib_gid *)src->sgid)) ||
 	    (ib_is_opa_gid((union ib_gid *)src->dgid))) {
 		dst->rec_type = SA_PATH_REC_TYPE_OPA;
-		slid = htonl(opa_get_lid_from_gid((union ib_gid *)src->sgid));
-		dlid = htonl(opa_get_lid_from_gid((union ib_gid *)src->dgid));
+		slid = opa_get_lid_from_gid((union ib_gid *)src->sgid);
+		dlid = opa_get_lid_from_gid((union ib_gid *)src->dgid);
 	} else {
 		dst->rec_type = SA_PATH_REC_TYPE_IB;
-		slid = htonl(ntohs(src->slid));
-		dlid = htonl(ntohs(src->dlid));
+		slid = ntohs(src->slid);
+		dlid = ntohs(src->dlid);
 	}
 	memcpy(dst->dgid.raw, src->dgid, sizeof dst->dgid);
 	memcpy(dst->sgid.raw, src->sgid, sizeof dst->sgid);

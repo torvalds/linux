@@ -1,0 +1,7 @@
+Synopsys DesignWare ARC HS Development Kit Device Tree Bindings
+---------------------------------------------------------------------------
+
+ARC HSDK Board with quad-core ARC HS38x4 in silicon.
+
+Required root node properties:
+    - compatible = "snps,hsdk";

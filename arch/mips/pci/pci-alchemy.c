@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Alchemy PCI host mode support.
  *
@@ -522,7 +523,7 @@ static int __init alchemy_pci_init(void)
 arch_initcall(alchemy_pci_init);
 
 
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	struct alchemy_pci_context *ctx = dev->sysdata;
 	if (ctx && ctx->board_map_irq)

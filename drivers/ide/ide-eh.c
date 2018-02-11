@@ -135,7 +135,7 @@ ide_startstop_t ide_error(ide_drive_t *drive, const char *msg, u8 stat)
 			return ide_stopped;
 		}
 		scsi_req(rq)->result = err;
-		ide_complete_rq(drive, err ? -EIO : 0, blk_rq_bytes(rq));
+		ide_complete_rq(drive, err ? BLK_STS_IOERR : BLK_STS_OK, blk_rq_bytes(rq));
 		return ide_stopped;
 	}
 
@@ -143,7 +143,7 @@ ide_startstop_t ide_error(ide_drive_t *drive, const char *msg, u8 stat)
 }
 EXPORT_SYMBOL_GPL(ide_error);
 
-static inline void ide_complete_drive_reset(ide_drive_t *drive, int err)
+static inline void ide_complete_drive_reset(ide_drive_t *drive, blk_status_t err)
 {
 	struct request *rq = drive->hwif->rq;
 
@@ -151,7 +151,7 @@ static inline void ide_complete_drive_reset(ide_drive_t *drive, int err)
 	    scsi_req(rq)->cmd[0] == REQ_DRIVE_RESET) {
 		if (err <= 0 && scsi_req(rq)->result == 0)
 			scsi_req(rq)->result = -EIO;
-		ide_complete_rq(drive, err ? err : 0, blk_rq_bytes(rq));
+		ide_complete_rq(drive, err, blk_rq_bytes(rq));
 	}
 }
 
@@ -191,7 +191,7 @@ static ide_startstop_t atapi_reset_pollfunc(ide_drive_t *drive)
 	}
 	/* done polling */
 	hwif->polling = 0;
-	ide_complete_drive_reset(drive, 0);
+	ide_complete_drive_reset(drive, BLK_STS_OK);
 	return ide_stopped;
 }
 
@@ -225,7 +225,7 @@ static ide_startstop_t reset_pollfunc(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_port_ops *port_ops = hwif->port_ops;
 	u8 tmp;
-	int err = 0;
+	blk_status_t err = BLK_STS_OK;
 
 	if (port_ops && port_ops->reset_poll) {
 		err = port_ops->reset_poll(drive);
@@ -247,7 +247,7 @@ static ide_startstop_t reset_pollfunc(ide_drive_t *drive)
 		printk(KERN_ERR "%s: reset timed-out, status=0x%02x\n",
 			hwif->name, tmp);
 		drive->failures++;
-		err = -EIO;
+		err = BLK_STS_IOERR;
 	} else  {
 		tmp = ide_read_error(drive);
 
@@ -257,7 +257,7 @@ static ide_startstop_t reset_pollfunc(ide_drive_t *drive)
 		} else {
 			ide_reset_report_error(hwif, tmp);
 			drive->failures++;
-			err = -EIO;
+			err = BLK_STS_IOERR;
 		}
 	}
 out:
@@ -392,7 +392,7 @@ static ide_startstop_t do_reset1(ide_drive_t *drive, int do_not_try_atapi)
 
 	if (io_ports->ctl_addr == 0) {
 		spin_unlock_irqrestore(&hwif->lock, flags);
-		ide_complete_drive_reset(drive, -ENXIO);
+		ide_complete_drive_reset(drive, BLK_STS_IOERR);
 		return ide_stopped;
 	}
 

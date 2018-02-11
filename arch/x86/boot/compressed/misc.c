@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * misc.c
  *
@@ -116,8 +117,7 @@ void __putstr(const char *s)
 		}
 	}
 
-	if (boot_params->screen_info.orig_video_mode == 0 &&
-	    lines == 0 && cols == 0)
+	if (lines == 0 || cols == 0)
 		return;
 
 	x = boot_params->screen_info.orig_x;
@@ -167,6 +167,16 @@ void __puthex(unsigned long value)
 
 		__putstr(alpha);
 	}
+}
+
+static bool l5_supported(void)
+{
+	/* Check if leaf 7 is supported. */
+	if (native_cpuid_eax(0) < 7)
+		return 0;
+
+	/* Check if la57 is supported. */
+	return native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31));
 }
 
 #if CONFIG_X86_NEED_RELOCS
@@ -338,7 +348,7 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 				  unsigned long output_len)
 {
 	const unsigned long kernel_total_size = VO__end - VO__text;
-	unsigned long virt_addr = (unsigned long)output;
+	unsigned long virt_addr = LOAD_PHYSICAL_ADDR;
 
 	/* Retain x86 boot parameters pointer passed from startup_32/64. */
 	boot_params = rmode;
@@ -361,6 +371,12 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 
 	console_init();
 	debug_putstr("early console in extract_kernel\n");
+
+	if (IS_ENABLED(CONFIG_X86_5LEVEL) && !l5_supported()) {
+		error("This linux kernel as configured requires 5-level paging\n"
+			"This CPU does not support the required 'cr4.la57' feature\n"
+			"Unable to boot - please use a kernel appropriate for your CPU\n");
+	}
 
 	free_mem_ptr     = heap;	/* Heap */
 	free_mem_end_ptr = heap + BOOT_HEAP_SIZE;
@@ -390,6 +406,8 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 #ifdef CONFIG_X86_64
 	if (heap > 0x3fffffffffffUL)
 		error("Destination address too large");
+	if (virt_addr + max(output_len, kernel_total_size) > KERNEL_IMAGE_SIZE)
+		error("Destination virtual address is beyond the kernel mapping area");
 #else
 	if (heap > ((-__PAGE_OFFSET-(128<<20)-1) & 0x7fffffff))
 		error("Destination address too large");
@@ -397,7 +415,7 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 #ifndef CONFIG_RELOCATABLE
 	if ((unsigned long)output != LOAD_PHYSICAL_ADDR)
 		error("Destination address does not match LOAD_PHYSICAL_ADDR");
-	if ((unsigned long)output != virt_addr)
+	if (virt_addr != LOAD_PHYSICAL_ADDR)
 		error("Destination virtual address changed when not relocatable");
 #endif
 
@@ -408,4 +426,9 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 	handle_relocations(output, output_len, virt_addr);
 	debug_putstr("done.\nBooting the kernel.\n");
 	return output;
+}
+
+void fortify_panic(const char *name)
+{
+	error("detected buffer overflow");
 }

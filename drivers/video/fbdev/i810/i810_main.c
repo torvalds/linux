@@ -107,7 +107,7 @@ static const char * const i810_pci_list[] = {
 	"Intel(R) 815 (Internal Graphics with AGP) Framebuffer Device"
 };
 
-static struct pci_device_id i810fb_pci_tbl[] = {
+static const struct pci_device_id i810fb_pci_tbl[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82810_IG1,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82810_IG3,
@@ -1542,7 +1542,7 @@ static int i810fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	return 0;
 }
 
-static struct fb_ops i810fb_ops = {
+static const struct fb_ops i810fb_ops = {
 	.owner =             THIS_MODULE,
 	.fb_open =           i810fb_open,
 	.fb_release =        i810fb_release,

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2016 Toradex AG
+ * Copyright 2014-2017 Toradex AG
  * Copyright 2012 Freescale Semiconductor, Inc.
  * Copyright 2011 Linaro Ltd.
  *
@@ -53,18 +53,6 @@
 		pinctrl-0 = <&pinctrl_gpio_bl_on>;
 		pwms = <&pwm4 0 5000000>;
 		enable-gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;
-		status = "disabled";
-	};
-
-	/* DDC_I2C: I2C2_SDA/SCL on MXM3 205/207 */
-	i2cddc: i2c@0 {
-		compatible = "i2c-gpio";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_i2c_ddc>;
-		gpios = <&gpio3 16 GPIO_ACTIVE_HIGH /* sda */
-			 &gpio2 30 GPIO_ACTIVE_HIGH /* scl */
-			>;
-		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
 		status = "disabled";
 	};
 
@@ -210,10 +198,13 @@
 	};
 };
 
-/*
- * GEN1_I2C: I2C1_SDA/SCL on MXM3 209/211 (e.g. RTC on carrier
- * board)
- */
+&hdmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hdmi_ddc>;
+	status = "disabled";
+};
+
+/* I2C1_SDA/SCL on MXM3 209/211 (e.g. RTC on carrier board) */
 &i2c1 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
@@ -231,7 +222,7 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	pmic: pfuze100@08 {
+	pmic: pfuze100@8 {
 		compatible = "fsl,pfuze100";
 		reg = <0x08>;
 
@@ -322,7 +313,7 @@
 		};
 	};
 
-	codec: sgtl5000@0a {
+	codec: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 		clocks = <&clks IMX6QDL_CLK_CKO>;
@@ -374,7 +365,8 @@
 };
 
 /*
- * GEN2_I2C, CAM: I2C3_SDA/SCL on MXM3 201/203 (unused)
+ * I2C3_SDA/SCL (CAM) on MXM3 pin 201/203 (e.g. camera sensor on carrier
+ * board)
  */
 &i2c3 {
 	clock-frequency = <100000>;
@@ -460,7 +452,7 @@
 /* MMC1 */
 &usdhc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc1>;
+	pinctrl-0 = <&pinctrl_usdhc1_4bit &pinctrl_usdhc1_8bit>;
 	vqmmc-supply = <&reg_3p3v>;
 	bus-width = <8>;
 	voltage-ranges = <3300 3300>;
@@ -640,11 +632,10 @@
 		>;
 	};
 
-	pinctrl_i2c_ddc: gpioi2cddcgrp {
+	pinctrl_hdmi_ddc: hdmiddcgrp {
 		fsl,pins = <
-			/* DDC bitbang */
-			MX6QDL_PAD_EIM_EB2__GPIO2_IO30 0x1b0b0
-			MX6QDL_PAD_EIM_D16__GPIO3_IO16 0x1b0b0
+			MX6QDL_PAD_EIM_EB2__HDMI_TX_DDC_SCL 0x4001b8b1
+			MX6QDL_PAD_EIM_D16__HDMI_TX_DDC_SDA 0x4001b8b1
 		>;
 	};
 
@@ -912,7 +903,7 @@
 		>;
 	};
 
-	pinctrl_usdhc1: usdhc1grp {
+	pinctrl_usdhc1_4bit: usdhc1grp_4bit {
 		fsl,pins = <
 			MX6QDL_PAD_SD1_CMD__SD1_CMD    0x17071
 			MX6QDL_PAD_SD1_CLK__SD1_CLK    0x10071
@@ -920,6 +911,11 @@
 			MX6QDL_PAD_SD1_DAT1__SD1_DATA1 0x17071
 			MX6QDL_PAD_SD1_DAT2__SD1_DATA2 0x17071
 			MX6QDL_PAD_SD1_DAT3__SD1_DATA3 0x17071
+		>;
+	};
+
+	pinctrl_usdhc1_8bit: usdhc1grp_8bit {
+		fsl,pins = <
 			MX6QDL_PAD_NANDF_D0__SD1_DATA4 0x17071
 			MX6QDL_PAD_NANDF_D1__SD1_DATA5 0x17071
 			MX6QDL_PAD_NANDF_D2__SD1_DATA6 0x17071

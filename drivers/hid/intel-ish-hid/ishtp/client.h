@@ -118,9 +118,9 @@ struct ishtp_cl {
 	unsigned int	out_flow_ctrl_cnt;
 
 	/* Rx msg ... out FC timing */
-	struct timespec ts_rx;
-	struct timespec ts_out_fc;
-	struct timespec ts_max_fc_delay;
+	ktime_t ts_rx;
+	ktime_t ts_out_fc;
+	ktime_t ts_max_fc_delay;
 	void *client_data;
 };
 

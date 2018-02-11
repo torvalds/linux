@@ -30,8 +30,8 @@
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/leds.h>
+#include <linux/platform_data/lm8323.h>
 #include <linux/pm.h>
-#include <linux/i2c/lm8323.h>
 #include <linux/slab.h>
 
 /* Commands to send to the chip. */

@@ -770,7 +770,7 @@ static void pluto2_remove(struct pci_dev *pdev)
 #define PCI_DEVICE_ID_PLUTO2	0x0001
 #endif
 
-static struct pci_device_id pluto2_id_table[] = {
+static const struct pci_device_id pluto2_id_table[] = {
 	{
 		.vendor = PCI_VENDOR_ID_SCM,
 		.device = PCI_DEVICE_ID_PLUTO2,

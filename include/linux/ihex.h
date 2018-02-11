@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Compact binary representation of ihex records. Some devices need their
  * firmware loaded in strange orders rather than a single big blob, but

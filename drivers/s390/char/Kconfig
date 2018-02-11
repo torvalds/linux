@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 comment "S/390 character device drivers"
 	depends on S390
 
@@ -169,9 +170,20 @@ config VMCP
 	def_bool y
 	prompt "Support for the z/VM CP interface"
 	depends on S390
+	select CMA
 	help
 	  Select this option if you want to be able to interact with the control
 	  program on z/VM
+
+config VMCP_CMA_SIZE
+	int "Memory in MiB reserved for z/VM CP interface"
+	default "4"
+	depends on VMCP
+	help
+	  Specify the default amount of memory in MiB reserved for the z/VM CP
+	  interface. If needed this memory is used for large contiguous memory
+	  allocations. The default can be changed with the kernel command line
+	  parameter "vmcp_cma".
 
 config MONREADER
 	def_tristate m

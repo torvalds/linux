@@ -351,7 +351,6 @@ static const struct iio_info hp206c_info = {
 	.attrs = &hp206c_attribute_group,
 	.read_raw = hp206c_read_raw,
 	.write_raw = hp206c_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int hp206c_probe(struct i2c_client *client,

@@ -32,7 +32,11 @@
 #define AZX_DCAPS_NO_MSI	(1 << 9)	/* No MSI support */
 #define AZX_DCAPS_SNOOP_MASK	(3 << 10)	/* snoop type mask */
 #define AZX_DCAPS_SNOOP_OFF	(1 << 12)	/* snoop default off */
-/* 13 unused */
+#ifdef CONFIG_SND_HDA_I915
+#define AZX_DCAPS_I915_COMPONENT (1 << 13)	/* bind with i915 gfx */
+#else
+#define AZX_DCAPS_I915_COMPONENT 0		/* NOP */
+#endif
 /* 14 unused */
 #define AZX_DCAPS_CTX_WORKAROUND (1 << 15)	/* X-Fi workaround */
 #define AZX_DCAPS_POSFIX_LPIB	(1 << 16)	/* Use LPIB as default */

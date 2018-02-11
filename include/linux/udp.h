@@ -80,6 +80,9 @@ struct udp_sock {
 						struct sk_buff *skb,
 						int nhoff);
 
+	/* udp_recvmsg try to use this before splicing sk_receive_queue */
+	struct sk_buff_head	reader_queue ____cacheline_aligned_in_smp;
+
 	/* This field is dirtied by udp_recvmsg() */
 	int		forward_deficit;
 };

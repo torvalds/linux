@@ -197,7 +197,7 @@ static void lola_stream_reset(struct lola *chip, struct lola_stream *str)
 	}
 }
 
-static struct snd_pcm_hardware lola_pcm_hw = {
+static const struct snd_pcm_hardware lola_pcm_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |

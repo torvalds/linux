@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus Lights protocol driver.
  *
  * Copyright 2015 Google Inc.
  * Copyright 2015 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #include <linux/kernel.h>
@@ -58,6 +57,7 @@ struct gb_light {
 	bool			ready;
 #if IS_REACHABLE(CONFIG_V4L2_FLASH_LED_CLASS)
 	struct v4l2_flash	*v4l2_flash;
+	struct v4l2_flash	*v4l2_flash_ind;
 #endif
 };
 
@@ -534,26 +534,21 @@ static int gb_lights_light_v4l2_register(struct gb_light *light)
 {
 	struct gb_connection *connection = get_conn_from_light(light);
 	struct device *dev = &connection->bundle->dev;
-	struct v4l2_flash_config *sd_cfg;
+	struct v4l2_flash_config sd_cfg = { {0} }, sd_cfg_ind = { {0} };
 	struct led_classdev_flash *fled;
-	struct led_classdev_flash *iled = NULL;
+	struct led_classdev *iled = NULL;
 	struct gb_channel *channel_torch, *channel_ind, *channel_flash;
-	int ret = 0;
-
-	sd_cfg = kcalloc(1, sizeof(*sd_cfg), GFP_KERNEL);
-	if (!sd_cfg)
-		return -ENOMEM;
 
 	channel_torch = get_channel_from_mode(light, GB_CHANNEL_MODE_TORCH);
 	if (channel_torch)
 		__gb_lights_channel_v4l2_config(&channel_torch->intensity_uA,
-						&sd_cfg->torch_intensity);
+						&sd_cfg.intensity);
 
 	channel_ind = get_channel_from_mode(light, GB_CHANNEL_MODE_INDICATOR);
 	if (channel_ind) {
 		__gb_lights_channel_v4l2_config(&channel_ind->intensity_uA,
-						&sd_cfg->indicator_intensity);
-		iled = &channel_ind->fled;
+						&sd_cfg_ind.intensity);
+		iled = &channel_ind->fled.led_cdev;
 	}
 
 	channel_flash = get_channel_from_mode(light, GB_CHANNEL_MODE_FLASH);
@@ -561,31 +556,37 @@ static int gb_lights_light_v4l2_register(struct gb_light *light)
 
 	fled = &channel_flash->fled;
 
-	snprintf(sd_cfg->dev_name, sizeof(sd_cfg->dev_name), "%s", light->name);
+	snprintf(sd_cfg.dev_name, sizeof(sd_cfg.dev_name), "%s", light->name);
+	snprintf(sd_cfg_ind.dev_name, sizeof(sd_cfg_ind.dev_name),
+		 "%s indicator", light->name);
 
 	/* Set the possible values to faults, in our case all faults */
-	sd_cfg->flash_faults = LED_FAULT_OVER_VOLTAGE | LED_FAULT_TIMEOUT |
+	sd_cfg.flash_faults = LED_FAULT_OVER_VOLTAGE | LED_FAULT_TIMEOUT |
 		LED_FAULT_OVER_TEMPERATURE | LED_FAULT_SHORT_CIRCUIT |
 		LED_FAULT_OVER_CURRENT | LED_FAULT_INDICATOR |
 		LED_FAULT_UNDER_VOLTAGE | LED_FAULT_INPUT_VOLTAGE |
 		LED_FAULT_LED_OVER_TEMPERATURE;
 
-	light->v4l2_flash = v4l2_flash_init(dev, NULL, fled, iled,
-					    &v4l2_flash_ops, sd_cfg);
-	if (IS_ERR_OR_NULL(light->v4l2_flash)) {
-		ret = PTR_ERR(light->v4l2_flash);
-		goto out_free;
+	light->v4l2_flash = v4l2_flash_init(dev, NULL, fled, &v4l2_flash_ops,
+					    &sd_cfg);
+	if (IS_ERR(light->v4l2_flash))
+		return PTR_ERR(light->v4l2_flash);
+
+	if (channel_ind) {
+		light->v4l2_flash_ind =
+			v4l2_flash_indicator_init(dev, NULL, iled, &sd_cfg_ind);
+		if (IS_ERR(light->v4l2_flash_ind)) {
+			v4l2_flash_release(light->v4l2_flash);
+			return PTR_ERR(light->v4l2_flash_ind);
+		}
 	}
 
-	return ret;
-
-out_free:
-	kfree(sd_cfg);
-	return ret;
+	return 0;
 }
 
 static void gb_lights_light_v4l2_unregister(struct gb_light *light)
 {
+	v4l2_flash_release(light->v4l2_flash_ind);
 	v4l2_flash_release(light->v4l2_flash);
 }
 #else
@@ -923,6 +924,8 @@ static void __gb_lights_led_unregister(struct gb_channel *channel)
 		return;
 
 	led_classdev_unregister(cdev);
+	kfree(cdev->name);
+	cdev->name = NULL;
 	channel->led = NULL;
 }
 
@@ -996,11 +999,7 @@ static int gb_lights_channel_config(struct gb_light *light,
 
 	light->has_flash = true;
 
-	ret = gb_lights_channel_flash_config(channel);
-	if (ret < 0)
-		return ret;
-
-	return ret;
+	return gb_lights_channel_flash_config(channel);
 }
 
 static int gb_lights_light_config(struct gb_lights *glights, u8 id)
@@ -1030,7 +1029,7 @@ static int gb_lights_light_config(struct gb_lights *glights, u8 id)
 	light->channels_count = conf.channel_count;
 	light->name = kstrndup(conf.name, NAMES_MAX, GFP_KERNEL);
 
-	light->channels = kzalloc(light->channels_count *
+	light->channels = kcalloc(light->channels_count,
 				  sizeof(struct gb_channel), GFP_KERNEL);
 	if (!light->channels)
 		return -ENOMEM;
@@ -1167,7 +1166,7 @@ static int gb_lights_create_all(struct gb_lights *glights)
 	if (ret < 0)
 		goto out;
 
-	glights->lights = kzalloc(glights->lights_count *
+	glights->lights = kcalloc(glights->lights_count,
 				  sizeof(struct gb_light), GFP_KERNEL);
 	if (!glights->lights) {
 		ret = -ENOMEM;

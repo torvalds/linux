@@ -773,13 +773,13 @@ static int __init hsc_init(void)
 
 	if ((max_data_size < 4) || (max_data_size > 0x10000) ||
 		(max_data_size & (max_data_size - 1))) {
-		pr_err("Invalid max read/write data size");
+		pr_err("Invalid max read/write data size\n");
 		return -EINVAL;
 	}
 
 	ret = hsi_register_client_driver(&hsc_driver);
 	if (ret) {
-		pr_err("Error while registering HSI/SSI driver %d", ret);
+		pr_err("Error while registering HSI/SSI driver %d\n", ret);
 		return ret;
 	}
 

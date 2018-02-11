@@ -203,5 +203,5 @@ static int __init digicolor_timer_init(struct device_node *node)
 
 	return 0;
 }
-CLOCKSOURCE_OF_DECLARE(conexant_digicolor, "cnxt,cx92755-timer",
+TIMER_OF_DECLARE(conexant_digicolor, "cnxt,cx92755-timer",
 		       digicolor_timer_init);

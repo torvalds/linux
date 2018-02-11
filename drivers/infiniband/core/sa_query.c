@@ -50,6 +50,7 @@
 #include <uapi/rdma/ib_user_sa.h>
 #include <rdma/ib_marshall.h>
 #include <rdma/ib_addr.h>
+#include <rdma/opa_addr.h>
 #include "sa.h"
 #include "core_priv.h"
 
@@ -759,8 +760,7 @@ static void ib_nl_set_path_rec_attrs(struct sk_buff *skb,
 	query->mad_buf->context[1] = NULL;
 
 	/* Construct the family header first */
-	header = (struct rdma_ls_resolve_header *)
-		skb_put(skb, NLMSG_ALIGN(sizeof(*header)));
+	header = skb_put(skb, NLMSG_ALIGN(sizeof(*header)));
 	memcpy(header->device_name, query->port->agent->device->name,
 	       LS_DEVICE_NAME_MAX);
 	header->port_num = query->port->port_num;
@@ -862,7 +862,7 @@ static int ib_nl_send_msg(struct ib_sa_query *query, gfp_t gfp_mask)
 	/* Repair the nlmsg header length */
 	nlmsg_end(skb, nlh);
 
-	ret = ibnl_multicast(skb, nlh, RDMA_NL_GROUP_LS, gfp_mask);
+	ret = rdma_nl_multicast(skb, RDMA_NL_GROUP_LS, gfp_mask);
 	if (!ret)
 		ret = len;
 	else
@@ -1022,9 +1022,9 @@ static void ib_nl_request_timeout(struct work_struct *work)
 }
 
 int ib_nl_handle_set_timeout(struct sk_buff *skb,
-			     struct netlink_callback *cb)
+			     struct nlmsghdr *nlh,
+			     struct netlink_ext_ack *extack)
 {
-	const struct nlmsghdr *nlh = (struct nlmsghdr *)cb->nlh;
 	int timeout, delta, abs_delta;
 	const struct nlattr *attr;
 	unsigned long flags;
@@ -1034,8 +1034,7 @@ int ib_nl_handle_set_timeout(struct sk_buff *skb,
 	int ret;
 
 	if (!(nlh->nlmsg_flags & NLM_F_REQUEST) ||
-	    !(NETLINK_CB(skb).sk) ||
-	    !netlink_capable(skb, CAP_NET_ADMIN))
+	    !(NETLINK_CB(skb).sk))
 		return -EPERM;
 
 	ret = nla_parse(tb, LS_NLA_TYPE_MAX - 1, nlmsg_data(nlh),
@@ -1099,9 +1098,9 @@ static inline int ib_nl_is_good_resolve_resp(const struct nlmsghdr *nlh)
 }
 
 int ib_nl_handle_resolve_resp(struct sk_buff *skb,
-			      struct netlink_callback *cb)
+			      struct nlmsghdr *nlh,
+			      struct netlink_ext_ack *extack)
 {
-	const struct nlmsghdr *nlh = (struct nlmsghdr *)cb->nlh;
 	unsigned long flags;
 	struct ib_sa_query *query;
 	struct ib_mad_send_buf *send_buf;
@@ -1110,8 +1109,7 @@ int ib_nl_handle_resolve_resp(struct sk_buff *skb,
 	int ret;
 
 	if ((nlh->nlmsg_flags & NLM_F_REQUEST) ||
-	    !(NETLINK_CB(skb).sk) ||
-	    !netlink_capable(skb, CAP_NET_ADMIN))
+	    !(NETLINK_CB(skb).sk))
 		return -EPERM;
 
 	spin_lock_irqsave(&ib_nl_request_lock, flags);
@@ -1242,6 +1240,11 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 	ah_attr->type = rdma_ah_find_type(device, port_num);
 
 	rdma_ah_set_dlid(ah_attr, be32_to_cpu(sa_path_get_dlid(rec)));
+
+	if ((ah_attr->type == RDMA_AH_ATTR_TYPE_OPA) &&
+	    (rdma_ah_get_dlid(ah_attr) == be16_to_cpu(IB_LID_PERMISSIVE)))
+		rdma_ah_set_make_grd(ah_attr, true);
+
 	rdma_ah_set_sl(ah_attr, rec->sl);
 	rdma_ah_set_path_bits(ah_attr, be32_to_cpu(sa_path_get_slid(rec)) &
 			      get_src_path_mask(device, port_num));
@@ -1421,7 +1424,7 @@ static int send_mad(struct ib_sa_query *query, int timeout_ms, gfp_t gfp_mask)
 
 	if ((query->flags & IB_SA_ENABLE_LOCAL_SERVICE) &&
 	    (!(query->flags & IB_SA_QUERY_OPA))) {
-		if (!ibnl_chk_listeners(RDMA_NL_GROUP_LS)) {
+		if (!rdma_nl_chk_listeners(RDMA_NL_GROUP_LS)) {
 			if (!ib_nl_make_request(query, gfp_mask))
 				return id;
 		}
@@ -2291,12 +2294,15 @@ static void update_sm_ah(struct work_struct *work)
 	rdma_ah_set_sl(&ah_attr, port_attr.sm_sl);
 	rdma_ah_set_port_num(&ah_attr, port->port_num);
 	if (port_attr.grh_required) {
-		rdma_ah_set_ah_flags(&ah_attr, IB_AH_GRH);
-
-		rdma_ah_set_subnet_prefix(&ah_attr,
-					  cpu_to_be64(port_attr.subnet_prefix));
-		rdma_ah_set_interface_id(&ah_attr,
-					 cpu_to_be64(IB_SA_WELL_KNOWN_GUID));
+		if (ah_attr.type == RDMA_AH_ATTR_TYPE_OPA) {
+			rdma_ah_set_make_grd(&ah_attr, true);
+		} else {
+			rdma_ah_set_ah_flags(&ah_attr, IB_AH_GRH);
+			rdma_ah_set_subnet_prefix(&ah_attr,
+						  cpu_to_be64(port_attr.subnet_prefix));
+			rdma_ah_set_interface_id(&ah_attr,
+						 cpu_to_be64(IB_SA_WELL_KNOWN_GUID));
+		}
 	}
 
 	new_ah->ah = rdma_create_ah(port->agent->qp->pd, &ah_attr);
@@ -2411,8 +2417,7 @@ static void ib_sa_add_one(struct ib_device *device)
 	 */
 
 	INIT_IB_EVENT_HANDLER(&sa_dev->event_handler, device, ib_sa_event);
-	if (ib_register_event_handler(&sa_dev->event_handler))
-		goto err;
+	ib_register_event_handler(&sa_dev->event_handler);
 
 	for (i = 0; i <= e - s; ++i) {
 		if (rdma_cap_ib_sa(device, i + 1))

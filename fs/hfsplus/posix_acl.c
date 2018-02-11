@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/fs/hfsplus/posix_acl.c
  *
@@ -51,8 +52,8 @@ struct posix_acl *hfsplus_get_posix_acl(struct inode *inode, int type)
 	return acl;
 }
 
-int hfsplus_set_posix_acl(struct inode *inode, struct posix_acl *acl,
-		int type)
+static int __hfsplus_set_posix_acl(struct inode *inode, struct posix_acl *acl,
+				   int type)
 {
 	int err;
 	char *xattr_name;
@@ -64,12 +65,6 @@ int hfsplus_set_posix_acl(struct inode *inode, struct posix_acl *acl,
 	switch (type) {
 	case ACL_TYPE_ACCESS:
 		xattr_name = XATTR_NAME_POSIX_ACL_ACCESS;
-		if (acl) {
-			err = posix_acl_update_mode(inode, &inode->i_mode, &acl);
-			if (err)
-				return err;
-		}
-		err = 0;
 		break;
 
 	case ACL_TYPE_DEFAULT:
@@ -105,6 +100,18 @@ end_set_acl:
 	return err;
 }
 
+int hfsplus_set_posix_acl(struct inode *inode, struct posix_acl *acl, int type)
+{
+	int err;
+
+	if (type == ACL_TYPE_ACCESS && acl) {
+		err = posix_acl_update_mode(inode, &inode->i_mode, &acl);
+		if (err)
+			return err;
+	}
+	return __hfsplus_set_posix_acl(inode, acl, type);
+}
+
 int hfsplus_init_posix_acl(struct inode *inode, struct inode *dir)
 {
 	int err = 0;
@@ -122,15 +129,15 @@ int hfsplus_init_posix_acl(struct inode *inode, struct inode *dir)
 		return err;
 
 	if (default_acl) {
-		err = hfsplus_set_posix_acl(inode, default_acl,
-					    ACL_TYPE_DEFAULT);
+		err = __hfsplus_set_posix_acl(inode, default_acl,
+					      ACL_TYPE_DEFAULT);
 		posix_acl_release(default_acl);
 	}
 
 	if (acl) {
 		if (!err)
-			err = hfsplus_set_posix_acl(inode, acl,
-						    ACL_TYPE_ACCESS);
+			err = __hfsplus_set_posix_acl(inode, acl,
+						      ACL_TYPE_ACCESS);
 		posix_acl_release(acl);
 	}
 	return err;

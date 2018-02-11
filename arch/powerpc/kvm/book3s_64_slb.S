@@ -113,7 +113,7 @@ slb_do_enter:
 
 	/* Remove all SLB entries that are in use. */
 
-	li	r0, r0
+	li	r0, 0
 	slbmte	r0, r0
 	slbia
 

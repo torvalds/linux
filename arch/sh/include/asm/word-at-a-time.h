@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH_WORD_AT_A_TIME_H
 #define __ASM_SH_WORD_AT_A_TIME_H
 

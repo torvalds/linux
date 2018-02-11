@@ -412,7 +412,6 @@ static int imx7d_adc_reg_access(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info imx7d_adc_iio_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &imx7d_adc_read_raw,
 	.debugfs_reg_access = &imx7d_adc_reg_access,
 };

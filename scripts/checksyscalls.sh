@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 #
 # Check if current architecture are missing any function calls compared
 # to i386.
@@ -202,15 +203,12 @@ EOF
 }
 
 syscall_list() {
-    grep '^[0-9]' "$1" | sort -n | (
+    grep '^[0-9]' "$1" | sort -n |
 	while read nr abi name entry ; do
-	    cat <<EOF
-#if !defined(__NR_${name}) && !defined(__IGNORE_${name})
-#warning syscall ${name} not implemented
-#endif
-EOF
+		echo "#if !defined(__NR_${name}) && !defined(__IGNORE_${name})"
+		echo "#warning syscall ${name} not implemented"
+		echo "#endif"
 	done
-    )
 }
 
 (ignore_list && syscall_list $(dirname $0)/../arch/x86/entry/syscalls/syscall_32.tbl) | \

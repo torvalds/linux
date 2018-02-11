@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _GENERIC_STATFS_H
 #define _GENERIC_STATFS_H
 

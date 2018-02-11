@@ -263,7 +263,7 @@ radeon_connector_update_scratch_regs(struct drm_connector *connector, enum drm_c
 		if (connector->encoder_ids[i] == 0)
 			break;
 
-		encoder = drm_encoder_find(connector->dev,
+		encoder = drm_encoder_find(connector->dev, NULL,
 					   connector->encoder_ids[i]);
 		if (!encoder)
 			continue;
@@ -290,7 +290,7 @@ static struct drm_encoder *radeon_find_encoder(struct drm_connector *connector, 
 		if (connector->encoder_ids[i] == 0)
 			break;
 
-		encoder = drm_encoder_find(connector->dev, connector->encoder_ids[i]);
+		encoder = drm_encoder_find(connector->dev, NULL, connector->encoder_ids[i]);
 		if (!encoder)
 			continue;
 
@@ -404,7 +404,7 @@ static struct drm_encoder *radeon_best_single_encoder(struct drm_connector *conn
 	int enc_id = connector->encoder_ids[0];
 	/* pick the encoder ids */
 	if (enc_id)
-		return drm_encoder_find(connector->dev, enc_id);
+		return drm_encoder_find(connector->dev, NULL, enc_id);
 	return NULL;
 }
 
@@ -773,12 +773,15 @@ static int radeon_connector_set_property(struct drm_connector *connector, struct
 
 		if (connector->encoder->crtc) {
 			struct drm_crtc *crtc  = connector->encoder->crtc;
-			const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 			struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 
 			radeon_crtc->output_csc = radeon_encoder->output_csc;
 
-			(*crtc_funcs->load_lut)(crtc);
+			/*
+			 * Our .gamma_set assumes the .gamma_store has been
+			 * prefilled and don't care about its arguments.
+			 */
+			crtc->funcs->gamma_set(crtc, NULL, NULL, NULL, 0, NULL);
 		}
 	}
 
@@ -1365,7 +1368,7 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 			if (connector->encoder_ids[i] == 0)
 				break;
 
-			encoder = drm_encoder_find(connector->dev,
+			encoder = drm_encoder_find(connector->dev, NULL,
 						   connector->encoder_ids[i]);
 			if (!encoder)
 				continue;
@@ -1451,7 +1454,7 @@ static struct drm_encoder *radeon_dvi_encoder(struct drm_connector *connector)
 		if (connector->encoder_ids[i] == 0)
 			break;
 
-		encoder = drm_encoder_find(connector->dev, connector->encoder_ids[i]);
+		encoder = drm_encoder_find(connector->dev, NULL, connector->encoder_ids[i]);
 		if (!encoder)
 			continue;
 
@@ -1470,7 +1473,7 @@ static struct drm_encoder *radeon_dvi_encoder(struct drm_connector *connector)
 	/* then check use digitial */
 	/* pick the first one */
 	if (enc_id)
-		return drm_encoder_find(connector->dev, enc_id);
+		return drm_encoder_find(connector->dev, NULL, enc_id);
 	return NULL;
 }
 
@@ -1617,7 +1620,7 @@ u16 radeon_connector_encoder_get_dp_bridge_encoder_id(struct drm_connector *conn
 		if (connector->encoder_ids[i] == 0)
 			break;
 
-		encoder = drm_encoder_find(connector->dev, connector->encoder_ids[i]);
+		encoder = drm_encoder_find(connector->dev, NULL, connector->encoder_ids[i]);
 		if (!encoder)
 			continue;
 
@@ -1646,7 +1649,7 @@ static bool radeon_connector_encoder_is_hbr2(struct drm_connector *connector)
 		if (connector->encoder_ids[i] == 0)
 			break;
 
-		encoder = drm_encoder_find(connector->dev, connector->encoder_ids[i]);
+		encoder = drm_encoder_find(connector->dev, NULL, connector->encoder_ids[i]);
 		if (!encoder)
 			continue;
 

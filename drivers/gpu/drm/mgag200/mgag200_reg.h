@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * MGA Millennium (MGA2064W) functions
  * MGA Mystique (MGA1064SG) functions

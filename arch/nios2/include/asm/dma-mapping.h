@@ -17,13 +17,4 @@ static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 	return &nios2_dma_ops;
 }
 
-/*
- * dma_alloc_noncoherent() returns non-cacheable memory, so there's no need to
- * do any flushing here.
- */
-static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
-				  enum dma_data_direction direction)
-{
-}
-
 #endif /* _ASM_NIOS2_DMA_MAPPING_H */

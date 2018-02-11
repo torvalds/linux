@@ -50,7 +50,7 @@ int edac_mc_get_poll_msec(void)
 	return edac_mc_poll_msec;
 }
 
-static int edac_set_poll_msec(const char *val, struct kernel_param *kp)
+static int edac_set_poll_msec(const char *val, const struct kernel_param *kp)
 {
 	unsigned long l;
 	int ret;
@@ -287,7 +287,7 @@ static struct attribute *csrow_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group csrow_attr_grp = {
+static const struct attribute_group csrow_attr_grp = {
 	.attrs	= csrow_attrs,
 };
 
@@ -304,7 +304,7 @@ static void csrow_attr_release(struct device *dev)
 	kfree(csrow);
 }
 
-static struct device_type csrow_attr_type = {
+static const struct device_type csrow_attr_type = {
 	.groups		= csrow_attr_groups,
 	.release	= csrow_attr_release,
 };
@@ -627,7 +627,7 @@ static struct attribute *dimm_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group dimm_attr_grp = {
+static const struct attribute_group dimm_attr_grp = {
 	.attrs	= dimm_attrs,
 };
 
@@ -644,7 +644,7 @@ static void dimm_attr_release(struct device *dev)
 	kfree(dimm);
 }
 
-static struct device_type dimm_attr_type = {
+static const struct device_type dimm_attr_type = {
 	.groups		= dimm_attr_groups,
 	.release	= dimm_attr_release,
 };
@@ -902,7 +902,7 @@ static umode_t mci_attr_is_visible(struct kobject *kobj,
 	return mode;
 }
 
-static struct attribute_group mci_attr_grp = {
+static const struct attribute_group mci_attr_grp = {
 	.attrs	= mci_attrs,
 	.is_visible = mci_attr_is_visible,
 };
@@ -920,7 +920,7 @@ static void mci_attr_release(struct device *dev)
 	kfree(mci);
 }
 
-static struct device_type mci_attr_type = {
+static const struct device_type mci_attr_type = {
 	.groups		= mci_attr_groups,
 	.release	= mci_attr_release,
 };
@@ -1074,7 +1074,7 @@ static void mc_attr_release(struct device *dev)
 	kfree(dev);
 }
 
-static struct device_type mc_attr_type = {
+static const struct device_type mc_attr_type = {
 	.release	= mc_attr_release,
 };
 /*

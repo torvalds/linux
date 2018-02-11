@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * the definition file of cs5536 Virtual Support Module(VSM).
  * pci configuration space can be accessed through the VSM, so
@@ -80,7 +81,6 @@ extern u32 cs5536_pci_conf_read4(int function, int reg);
 #define PCI_BAR3_REG			0x1c
 #define PCI_BAR4_REG			0x20
 #define PCI_BAR5_REG			0x24
-#define PCI_BAR_COUNT			6
 #define PCI_BAR_RANGE_MASK		0xFFFFFFFF
 
 /* CARDBUS CIS POINTER */

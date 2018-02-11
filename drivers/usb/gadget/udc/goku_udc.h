@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Toshiba TC86C001 ("Goku-S") USB Device Controller driver
  *
@@ -5,10 +6,6 @@
  *      by Stuart Lynne, Tom Rushworth, and Bruce Balden
  * Copyright (C) 2002 Toshiba Corporation
  * Copyright (C) 2003 MontaVista Software (source@mvista.com)
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 /*

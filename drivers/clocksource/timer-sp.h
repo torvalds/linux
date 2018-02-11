@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ARM timer implementation, found in Integrator, Versatile and Realview
  * platforms.  Not all platforms support all registers and bits in these

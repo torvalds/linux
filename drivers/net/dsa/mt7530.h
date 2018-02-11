@@ -151,6 +151,7 @@ enum mt7530_stp_state {
 #define  PMCR_TX_FC_EN			BIT(5)
 #define  PMCR_RX_FC_EN			BIT(4)
 #define  PMCR_FORCE_SPEED_1000		BIT(3)
+#define  PMCR_FORCE_SPEED_100		BIT(2)
 #define  PMCR_FORCE_FDX			BIT(1)
 #define  PMCR_FORCE_LNK			BIT(0)
 #define  PMCR_COMMON_LINK		(PMCR_IFG_XMIT(1) | PMCR_MAC_MODE | \

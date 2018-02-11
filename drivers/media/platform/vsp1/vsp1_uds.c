@@ -271,22 +271,31 @@ static void uds_configure(struct vsp1_entity *entity,
 	unsigned int vscale;
 	bool multitap;
 
-	if (params == VSP1_ENTITY_PARAMS_PARTITION) {
-		const struct v4l2_rect *clip = &pipe->partition;
+	input = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
+					   UDS_PAD_SINK);
+	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
+					    UDS_PAD_SOURCE);
 
+	if (params == VSP1_ENTITY_PARAMS_PARTITION) {
+		struct vsp1_partition *partition = pipe->partition;
+
+		/* Input size clipping */
+		vsp1_uds_write(uds, dl, VI6_UDS_HSZCLIP, VI6_UDS_HSZCLIP_HCEN |
+			       (0 << VI6_UDS_HSZCLIP_HCL_OFST_SHIFT) |
+			       (partition->uds_sink.width
+					<< VI6_UDS_HSZCLIP_HCL_SIZE_SHIFT));
+
+		/* Output size clipping */
 		vsp1_uds_write(uds, dl, VI6_UDS_CLIP_SIZE,
-			       (clip->width << VI6_UDS_CLIP_SIZE_HSIZE_SHIFT) |
-			       (clip->height << VI6_UDS_CLIP_SIZE_VSIZE_SHIFT));
+			       (partition->uds_source.width
+					<< VI6_UDS_CLIP_SIZE_HSIZE_SHIFT) |
+			       (output->height
+					<< VI6_UDS_CLIP_SIZE_VSIZE_SHIFT));
 		return;
 	}
 
 	if (params != VSP1_ENTITY_PARAMS_INIT)
 		return;
-
-	input = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
-					   UDS_PAD_SINK);
-	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
-					    UDS_PAD_SOURCE);
 
 	hscale = uds_compute_ratio(input->width, output->width);
 	vscale = uds_compute_ratio(input->height, output->height);
@@ -343,9 +352,41 @@ static unsigned int uds_max_width(struct vsp1_entity *entity,
 		return 2048;
 }
 
+/* -----------------------------------------------------------------------------
+ * Partition Algorithm Support
+ */
+
+static void uds_partition(struct vsp1_entity *entity,
+			  struct vsp1_pipeline *pipe,
+			  struct vsp1_partition *partition,
+			  unsigned int partition_idx,
+			  struct vsp1_partition_window *window)
+{
+	struct vsp1_uds *uds = to_uds(&entity->subdev);
+	const struct v4l2_mbus_framefmt *output;
+	const struct v4l2_mbus_framefmt *input;
+
+	/* Initialise the partition state */
+	partition->uds_sink = *window;
+	partition->uds_source = *window;
+
+	input = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
+					   UDS_PAD_SINK);
+	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
+					    UDS_PAD_SOURCE);
+
+	partition->uds_sink.width = window->width * input->width
+				  / output->width;
+	partition->uds_sink.left = window->left * input->width
+				 / output->width;
+
+	*window = partition->uds_sink;
+}
+
 static const struct vsp1_entity_operations uds_entity_ops = {
 	.configure = uds_configure,
 	.max_width = uds_max_width,
+	.partition = uds_partition,
 };
 
 /* -----------------------------------------------------------------------------

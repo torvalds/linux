@@ -102,6 +102,21 @@ extern int intel_svm_bind_mm(struct device *dev, int *pasid, int flags,
  */
 extern int intel_svm_unbind_mm(struct device *dev, int pasid);
 
+/**
+ * intel_svm_is_pasid_valid() - check if pasid is valid
+ * @dev:	Device for which PASID was allocated
+ * @pasid:	PASID value to be checked
+ *
+ * This function checks if the specified pasid is still valid. A
+ * valid pasid means the backing mm is still having a valid user.
+ * For kernel callers init_mm is always valid. for other mm, if mm->mm_users
+ * is non-zero, it is valid.
+ *
+ * returns -EINVAL if invalid pasid, 0 if pasid ref count is invalid
+ * 1 if pasid is valid.
+ */
+extern int intel_svm_is_pasid_valid(struct device *dev, int pasid);
+
 #else /* CONFIG_INTEL_IOMMU_SVM */
 
 static inline int intel_svm_bind_mm(struct device *dev, int *pasid,
@@ -113,6 +128,11 @@ static inline int intel_svm_bind_mm(struct device *dev, int *pasid,
 static inline int intel_svm_unbind_mm(struct device *dev, int pasid)
 {
 	BUG();
+}
+
+static int intel_svm_is_pasid_valid(struct device *dev, int pasid)
+{
+	return -EINVAL;
 }
 #endif /* CONFIG_INTEL_IOMMU_SVM */
 

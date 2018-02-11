@@ -30,6 +30,15 @@ config CLK_BCM_CYGNUS
 	help
 	  Enable common clock framework support for the Broadcom Cygnus SoC
 
+config CLK_BCM_HR2
+	bool "Broadcom Hurricane 2 clock support"
+	depends on ARCH_BCM_HR2 || COMPILE_TEST
+	select COMMON_CLK_IPROC
+	default ARCH_BCM_HR2
+	help
+	  Enable common clock framework support for the Broadcom Hurricane 2
+	  SoC
+
 config CLK_BCM_NSP
 	bool "Broadcom Northstar/Northstar Plus clock support"
 	depends on ARCH_BCM_5301X || ARCH_BCM_NSP || COMPILE_TEST
@@ -46,3 +55,11 @@ config CLK_BCM_NS2
 	default ARCH_BCM_IPROC
 	help
 	  Enable common clock framework support for the Broadcom Northstar 2 SoC
+
+config CLK_BCM_SR
+	bool "Broadcom Stingray clock support"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	select COMMON_CLK_IPROC
+	default ARCH_BCM_IPROC
+	help
+	  Enable common clock framework support for the Broadcom Stingray SoC

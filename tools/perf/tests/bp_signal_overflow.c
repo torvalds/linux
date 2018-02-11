@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Originally done by Vince Weaver <vincent.weaver@maine.edu> for
  * perf_event_tests (git://github.com/deater/perf_event_tests)
@@ -28,8 +29,7 @@
 
 static int overflows;
 
-__attribute__ ((noinline))
-static int test_function(void)
+static noinline int test_function(void)
 {
 	return time(NULL);
 }
@@ -58,7 +58,7 @@ static long long bp_count(int fd)
 #define EXECUTIONS 10000
 #define THRESHOLD  100
 
-int test__bp_signal_overflow(int subtest __maybe_unused)
+int test__bp_signal_overflow(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct perf_event_attr pe;
 	struct sigaction sa;

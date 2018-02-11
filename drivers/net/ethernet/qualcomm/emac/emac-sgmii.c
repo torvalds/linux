@@ -68,10 +68,10 @@ static void emac_sgmii_link_init(struct emac_adapter *adpt)
 	writel(val, phy->base + EMAC_SGMII_PHY_AUTONEG_CFG2);
 }
 
-static int emac_sgmii_irq_clear(struct emac_adapter *adpt, u32 irq_bits)
+static int emac_sgmii_irq_clear(struct emac_adapter *adpt, u8 irq_bits)
 {
 	struct emac_sgmii *phy = &adpt->phy;
-	u32 status;
+	u8 status;
 
 	writel_relaxed(irq_bits, phy->base + EMAC_SGMII_PHY_INTERRUPT_CLEAR);
 	writel_relaxed(IRQ_GLOBAL_CLEAR, phy->base + EMAC_SGMII_PHY_IRQ_CMD);
@@ -86,9 +86,8 @@ static int emac_sgmii_irq_clear(struct emac_adapter *adpt, u32 irq_bits)
 				      EMAC_SGMII_PHY_INTERRUPT_STATUS,
 				      status, !(status & irq_bits), 1,
 				      SGMII_PHY_IRQ_CLR_WAIT_TIME)) {
-		netdev_err(adpt->netdev,
-			   "error: failed clear SGMII irq: status:0x%x bits:0x%x\n",
-			   status, irq_bits);
+		net_err_ratelimited("%s: failed to clear SGMII irq: status:0x%x bits:0x%x\n",
+				    adpt->netdev->name, status, irq_bits);
 		return -EIO;
 	}
 
@@ -109,7 +108,7 @@ static irqreturn_t emac_sgmii_interrupt(int irq, void *data)
 {
 	struct emac_adapter *adpt = data;
 	struct emac_sgmii *phy = &adpt->phy;
-	u32 status;
+	u8 status;
 
 	status = readl(phy->base + EMAC_SGMII_PHY_INTERRUPT_STATUS);
 	status &= SGMII_ISR_MASK;
@@ -139,10 +138,8 @@ static irqreturn_t emac_sgmii_interrupt(int irq, void *data)
 		atomic_set(&phy->decode_error_count, 0);
 	}
 
-	if (emac_sgmii_irq_clear(adpt, status)) {
-		netdev_warn(adpt->netdev, "failed to clear SGMII interrupt\n");
+	if (emac_sgmii_irq_clear(adpt, status))
 		schedule_work(&adpt->work_thread);
-	}
 
 	return IRQ_HANDLED;
 }
@@ -297,6 +294,14 @@ static const struct of_device_id emac_sgmii_dt_match[] = {
 	{}
 };
 
+/* Dummy function for systems without an internal PHY. This avoids having
+ * to check for NULL pointers before calling the functions.
+ */
+static int emac_sgmii_dummy(struct emac_adapter *adpt)
+{
+	return 0;
+}
+
 int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 {
 	struct platform_device *sgmii_pdev = NULL;
@@ -311,8 +316,19 @@ int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 					emac_sgmii_acpi_match);
 
 		if (!dev) {
-			dev_err(&pdev->dev, "cannot find internal phy node\n");
-			return -ENODEV;
+			dev_warn(&pdev->dev, "cannot find internal phy node\n");
+			/* There is typically no internal PHY on emulation
+			 * systems, so if we can't find the node, assume
+			 * we are on an emulation system and stub-out
+			 * support for the internal PHY.  These systems only
+			 * use ACPI.
+			 */
+			phy->open = emac_sgmii_dummy;
+			phy->close = emac_sgmii_dummy;
+			phy->link_up = emac_sgmii_dummy;
+			phy->link_down = emac_sgmii_dummy;
+
+			return 0;
 		}
 
 		sgmii_pdev = to_platform_device(dev);

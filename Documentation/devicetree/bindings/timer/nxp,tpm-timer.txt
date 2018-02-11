@@ -1,0 +1,28 @@
+NXP Low Power Timer/Pulse Width Modulation Module (TPM)
+
+The Timer/PWM Module (TPM) supports input capture, output compare,
+and the generation of PWM signals to control electric motor and power
+management applications. The counter, compare and capture registers
+are clocked by an asynchronous clock that can remain enabled in low
+power modes. TPM can support global counter bus where one TPM drives
+the counter bus for the others, provided bit width is the same.
+
+Required properties:
+
+- compatible :	should be "fsl,imx7ulp-tpm"
+- reg :		Specifies base physical address and size of the register sets
+		for the clock event device and clock source device.
+- interrupts :	Should be the clock event device interrupt.
+- clocks :	The clocks provided by the SoC to drive the timer, must contain
+		an entry for each entry in clock-names.
+- clock-names : Must include the following entries: "igp" and "per".
+
+Example:
+tpm5: tpm@40260000 {
+	compatible = "fsl,imx7ulp-tpm";
+	reg = <0x40260000 0x1000>;
+	interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&clks IMX7ULP_CLK_NIC1_BUS_DIV>,
+		 <&clks IMX7ULP_CLK_LPTPM5>;
+	clock-names = "ipg", "per";
+};

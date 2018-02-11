@@ -24,7 +24,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 
-#include <linux/i2c/tps65010.h>
+#include <linux/mfd/tps65010.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -36,7 +36,7 @@
 #include <linux/platform_data/i2c-s3c2410.h>
 
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/ip.h>
 #include <linux/sctp.h>
@@ -15,19 +16,22 @@ sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		   struct ip_vs_iphdr *iph)
 {
 	struct ip_vs_service *svc;
-	sctp_chunkhdr_t _schunkh, *sch;
-	sctp_sctphdr_t *sh, _sctph;
+	struct sctp_chunkhdr _schunkh, *sch;
+	struct sctphdr *sh, _sctph;
 	__be16 _ports[2], *ports = NULL;
 
 	if (likely(!ip_vs_iph_icmp(iph))) {
 		sh = skb_header_pointer(skb, iph->len, sizeof(_sctph), &_sctph);
 		if (sh) {
-			sch = skb_header_pointer(
-				skb, iph->len + sizeof(sctp_sctphdr_t),
-				sizeof(_schunkh), &_schunkh);
-			if (sch && (sch->type == SCTP_CID_INIT ||
-				    sysctl_sloppy_sctp(ipvs)))
+			sch = skb_header_pointer(skb, iph->len + sizeof(_sctph),
+						 sizeof(_schunkh), &_schunkh);
+			if (sch) {
+				if (sch->type == SCTP_CID_ABORT ||
+				    !(sysctl_sloppy_sctp(ipvs) ||
+				      sch->type == SCTP_CID_INIT))
+					return 1;
 				ports = &sh->source;
+			}
 		}
 	} else {
 		ports = skb_header_pointer(
@@ -39,7 +43,6 @@ sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		return 0;
 	}
 
-	rcu_read_lock();
 	if (likely(!ip_vs_iph_inverse(iph)))
 		svc = ip_vs_service_find(ipvs, af, skb->mark, iph->protocol,
 					 &iph->daddr, ports[1]);
@@ -54,7 +57,6 @@ sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 			 * It seems that we are very loaded.
 			 * We have to drop this packet :(
 			 */
-			rcu_read_unlock();
 			*verdict = NF_DROP;
 			return 0;
 		}
@@ -68,16 +70,14 @@ sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 				*verdict = ip_vs_leave(svc, skb, pd, iph);
 			else
 				*verdict = NF_DROP;
-			rcu_read_unlock();
 			return 0;
 		}
 	}
-	rcu_read_unlock();
 	/* NF_ACCEPT */
 	return 1;
 }
 
-static void sctp_nat_csum(struct sk_buff *skb, sctp_sctphdr_t *sctph,
+static void sctp_nat_csum(struct sk_buff *skb, struct sctphdr *sctph,
 			  unsigned int sctphoff)
 {
 	sctph->checksum = sctp_compute_cksum(skb, sctphoff);
@@ -88,7 +88,7 @@ static int
 sctp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		  struct ip_vs_conn *cp, struct ip_vs_iphdr *iph)
 {
-	sctp_sctphdr_t *sctph;
+	struct sctphdr *sctph;
 	unsigned int sctphoff = iph->len;
 	bool payload_csum = false;
 
@@ -135,7 +135,7 @@ static int
 sctp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		  struct ip_vs_conn *cp, struct ip_vs_iphdr *iph)
 {
-	sctp_sctphdr_t *sctph;
+	struct sctphdr *sctph;
 	unsigned int sctphoff = iph->len;
 	bool payload_csum = false;
 
@@ -378,7 +378,7 @@ static inline void
 set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 		int direction, const struct sk_buff *skb)
 {
-	sctp_chunkhdr_t _sctpch, *sch;
+	struct sctp_chunkhdr _sctpch, *sch;
 	unsigned char chunk_type;
 	int event, next_state;
 	int ihl, cofs;
@@ -389,7 +389,7 @@ set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 	ihl = ip_hdrlen(skb);
 #endif
 
-	cofs = ihl + sizeof(sctp_sctphdr_t);
+	cofs = ihl + sizeof(struct sctphdr);
 	sch = skb_header_pointer(skb, cofs, sizeof(_sctpch), &_sctpch);
 	if (sch == NULL)
 		return;
@@ -410,7 +410,7 @@ set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 	    (sch->type == SCTP_CID_COOKIE_ACK)) {
 		int clen = ntohs(sch->length);
 
-		if (clen >= sizeof(sctp_chunkhdr_t)) {
+		if (clen >= sizeof(_sctpch)) {
 			sch = skb_header_pointer(skb, cofs + ALIGN(clen, 4),
 						 sizeof(_sctpch), &_sctpch);
 			if (sch && sch->type == SCTP_CID_ABORT)
@@ -527,12 +527,10 @@ static int sctp_app_conn_bind(struct ip_vs_conn *cp)
 	/* Lookup application incarnations and bind the right one */
 	hash = sctp_app_hashkey(cp->vport);
 
-	rcu_read_lock();
 	list_for_each_entry_rcu(inc, &ipvs->sctp_apps[hash], p_list) {
 		if (inc->port == cp->vport) {
 			if (unlikely(!ip_vs_app_inc_get(inc)))
 				break;
-			rcu_read_unlock();
 
 			IP_VS_DBG_BUF(9, "%s: Binding conn %s:%u->"
 					"%s:%u to app %s on port %u\n",
@@ -545,11 +543,10 @@ static int sctp_app_conn_bind(struct ip_vs_conn *cp)
 			cp->app = inc;
 			if (inc->init_conn)
 				result = inc->init_conn(inc, cp);
-			goto out;
+			break;
 		}
 	}
-	rcu_read_unlock();
-out:
+
 	return result;
 }
 

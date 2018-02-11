@@ -52,10 +52,10 @@ static struct rc_map_table rc_map_dvico_portable_table[] = {
 
 static struct rc_map_list dvico_portable_map = {
 	.map = {
-		.scan    = rc_map_dvico_portable_table,
-		.size    = ARRAY_SIZE(rc_map_dvico_portable_table),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_DVICO_PORTABLE,
+		.scan     = rc_map_dvico_portable_table,
+		.size     = ARRAY_SIZE(rc_map_dvico_portable_table),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_DVICO_PORTABLE,
 	}
 };
 

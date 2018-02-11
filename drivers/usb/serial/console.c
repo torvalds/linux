@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * USB Serial Console driver
  *
  * Copyright (C) 2001 - 2002 Greg Kroah-Hartman (greg@kroah.com)
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License version
- *	2 as published by the Free Software Foundation.
  *
  * Thanks to Randy Dunlap for the original version of this code.
  *
@@ -186,6 +183,7 @@ static int usb_console_setup(struct console *co, char *options)
 	tty_kref_put(tty);
  reset_open_count:
 	port->port.count = 0;
+	info->port = NULL;
 	usb_autopm_put_interface(serial->interface);
  error_get_interface:
 	usb_serial_put(serial);
@@ -265,7 +263,7 @@ static struct console usbcons = {
 
 void usb_serial_console_disconnect(struct usb_serial *serial)
 {
-	if (serial->port[0] == usbcons_info.port) {
+	if (serial->port[0] && serial->port[0] == usbcons_info.port) {
 		usb_serial_console_exit();
 		usb_serial_put(serial);
 	}

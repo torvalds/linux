@@ -61,10 +61,12 @@ config BCM63XX_ENET
 
 config BCMGENET
 	tristate "Broadcom GENET internal MAC support"
+	depends on OF && HAS_IOMEM
 	select MII
 	select PHYLIB
 	select FIXED_PHY
 	select BCM7XXX_PHY
+	select MDIO_BCM_UNIMAC
 	help
 	  This driver supports the built-in Ethernet MACs found in the
 	  Broadcom BCM7xxx Set Top Box family chipset.
@@ -182,6 +184,7 @@ config BGMAC_PLATFORM
 config SYSTEMPORT
 	tristate "Broadcom SYSTEMPORT internal MAC support"
 	depends on OF
+	depends on NET_DSA || !NET_DSA
 	select MII
 	select PHYLIB
 	select FIXED_PHY
@@ -193,6 +196,7 @@ config SYSTEMPORT
 config BNXT
 	tristate "Broadcom NetXtreme-C/E support"
 	depends on PCI
+	depends on MAY_USE_DEVLINK
 	select FW_LOADER
 	select LIBCRC32C
 	---help---
@@ -208,6 +212,15 @@ config BNXT_SRIOV
 	  This configuration parameter enables Single Root Input Output
 	  Virtualization support in the NetXtreme-C/E products. This
 	  allows for virtual function acceleration in virtual environments.
+
+config BNXT_FLOWER_OFFLOAD
+	bool "TC Flower offload support for NetXtreme-C/E"
+	depends on BNXT
+	default y
+	---help---
+	  This configuration parameter enables TC Flower packet classifier
+	  offload for eswitch.  This option enables SR-IOV switchdev eswitch
+	  offload.
 
 config BNXT_DCB
 	bool "Data Center Bridging (DCB) Support"

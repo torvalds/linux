@@ -10,7 +10,7 @@ Required properties:
 - reg: Should contain registers location and length
 
 Examples:
-usbmisc@02184800 {
+usbmisc@2184800 {
 	#index-cells = <1>;
 	compatible = "fsl,imx6q-usbmisc";
 	reg = <0x02184800 0x200>;

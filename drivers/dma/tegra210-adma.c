@@ -717,8 +717,8 @@ static int tegra_adma_probe(struct platform_device *pdev)
 		tdc->chan_addr = tdma->base_addr + ADMA_CH_REG_OFFSET(i);
 
 		tdc->irq = of_irq_get(pdev->dev.of_node, i);
-		if (tdc->irq < 0) {
-			ret = tdc->irq;
+		if (tdc->irq <= 0) {
+			ret = tdc->irq ?: -ENXIO;
 			goto irq_dispose;
 		}
 

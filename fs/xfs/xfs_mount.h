@@ -108,10 +108,10 @@ typedef struct xfs_mount {
 	xfs_buftarg_t		*m_ddev_targp;	/* saves taking the address */
 	xfs_buftarg_t		*m_logdev_targp;/* ptr to log device */
 	xfs_buftarg_t		*m_rtdev_targp;	/* ptr to rt device */
-	__uint8_t		m_blkbit_log;	/* blocklog + NBBY */
-	__uint8_t		m_blkbb_log;	/* blocklog - BBSHIFT */
-	__uint8_t		m_agno_log;	/* log #ag's */
-	__uint8_t		m_agino_log;	/* #bits for agino in inum */
+	uint8_t			m_blkbit_log;	/* blocklog + NBBY */
+	uint8_t			m_blkbb_log;	/* blocklog - BBSHIFT */
+	uint8_t			m_agno_log;	/* log #ag's */
+	uint8_t			m_agino_log;	/* #bits for agino in inum */
 	uint			m_inode_cluster_size;/* min inode buf size */
 	uint			m_blockmask;	/* sb_blocksize-1 */
 	uint			m_blockwsize;	/* sb_blocksize in words */
@@ -139,7 +139,7 @@ typedef struct xfs_mount {
 	struct mutex		m_growlock;	/* growfs mutex */
 	int			m_fixedfsid[2];	/* unchanged for life of FS */
 	uint			m_dmevmask;	/* DMI events for this FS */
-	__uint64_t		m_flags;	/* global mount flags */
+	uint64_t		m_flags;	/* global mount flags */
 	bool			m_inotbt_nores; /* no per-AG finobt resv. */
 	int			m_ialloc_inos;	/* inodes in inode allocation */
 	int			m_ialloc_blks;	/* blocks in inode allocation */
@@ -148,14 +148,14 @@ typedef struct xfs_mount {
 	int			m_inoalign_mask;/* mask sb_inoalignmt if used */
 	uint			m_qflags;	/* quota status flags */
 	struct xfs_trans_resv	m_resv;		/* precomputed res values */
-	__uint64_t		m_maxicount;	/* maximum inode count */
-	__uint64_t		m_resblks;	/* total reserved blocks */
-	__uint64_t		m_resblks_avail;/* available reserved blocks */
-	__uint64_t		m_resblks_save;	/* reserved blks @ remount,ro */
+	uint64_t		m_maxicount;	/* maximum inode count */
+	uint64_t		m_resblks;	/* total reserved blocks */
+	uint64_t		m_resblks_avail;/* available reserved blocks */
+	uint64_t		m_resblks_save;	/* reserved blks @ remount,ro */
 	int			m_dalign;	/* stripe unit */
 	int			m_swidth;	/* stripe width */
 	int			m_sinoalign;	/* stripe unit inode alignment */
-	__uint8_t		m_sectbb_log;	/* sectlog - BBSHIFT */
+	uint8_t			m_sectbb_log;	/* sectlog - BBSHIFT */
 	const struct xfs_nameops *m_dirnameops;	/* vector of dir name ops */
 	const struct xfs_dir_ops *m_dir_inode_ops; /* vector of dir inode ops */
 	const struct xfs_dir_ops *m_nondir_inode_ops; /* !dir inode ops */
@@ -194,19 +194,17 @@ typedef struct xfs_mount {
 	 * ever support shrinks it would have to be persisted in addition
 	 * to various other kinds of pain inflicted on the pNFS server.
 	 */
-	__uint32_t		m_generation;
+	uint32_t		m_generation;
 
 	bool			m_fail_unmount;
 #ifdef DEBUG
 	/*
-	 * DEBUG mode instrumentation to test and/or trigger delayed allocation
-	 * block killing in the event of failed writes. When enabled, all
-	 * buffered writes are silenty dropped and handled as if they failed.
-	 * All delalloc blocks in the range of the write (including pre-existing
-	 * delalloc blocks!) are tossed as part of the write failure error
-	 * handling sequence.
+	 * Frequency with which errors are injected.  Replaces xfs_etest; the
+	 * value stored in here is the inverse of the frequency with which the
+	 * error triggers.  1 = always, 2 = half the time, etc.
 	 */
-	bool			m_drop_writes;
+	unsigned int		*m_errortag;
+	struct xfs_kobj		m_errortag_kobj;
 #endif
 } xfs_mount_t;
 
@@ -325,20 +323,6 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 	return (xfs_agblock_t) do_div(ld, mp->m_sb.sb_agblocks);
 }
 
-#ifdef DEBUG
-static inline bool
-xfs_mp_drop_writes(struct xfs_mount *mp)
-{
-	return mp->m_drop_writes;
-}
-#else
-static inline bool
-xfs_mp_drop_writes(struct xfs_mount *mp)
-{
-	return 0;
-}
-#endif
-
 /* per-AG block reservation data structures*/
 enum xfs_ag_resv_type {
 	XFS_AG_RESV_NONE = 0,
@@ -367,12 +351,12 @@ typedef struct xfs_perag {
 	char		pagi_init;	/* this agi's entry is initialized */
 	char		pagf_metadata;	/* the agf is preferred to be metadata */
 	char		pagi_inodeok;	/* The agi is ok for inodes */
-	__uint8_t	pagf_levels[XFS_BTNUM_AGF];
+	uint8_t		pagf_levels[XFS_BTNUM_AGF];
 					/* # of levels in bno & cnt btree */
-	__uint32_t	pagf_flcount;	/* count of blocks in freelist */
+	uint32_t	pagf_flcount;	/* count of blocks in freelist */
 	xfs_extlen_t	pagf_freeblks;	/* total free blocks */
 	xfs_extlen_t	pagf_longest;	/* longest free space */
-	__uint32_t	pagf_btreeblks;	/* # of blocks held in AGF btrees */
+	uint32_t	pagf_btreeblks;	/* # of blocks held in AGF btrees */
 	xfs_agino_t	pagi_freecount;	/* number of free inodes */
 	xfs_agino_t	pagi_count;	/* number of allocated inodes */
 
@@ -411,7 +395,7 @@ typedef struct xfs_perag {
 	struct xfs_ag_resv	pag_agfl_resv;
 
 	/* reference count */
-	__uint8_t		pagf_refcount_level;
+	uint8_t			pagf_refcount_level;
 } xfs_perag_t;
 
 static inline struct xfs_ag_resv *
@@ -434,7 +418,7 @@ void xfs_buf_hash_destroy(xfs_perag_t *pag);
 
 extern void	xfs_uuid_table_free(void);
 extern int	xfs_log_sbcount(xfs_mount_t *);
-extern __uint64_t xfs_default_resblks(xfs_mount_t *mp);
+extern uint64_t xfs_default_resblks(xfs_mount_t *mp);
 extern int	xfs_mountfs(xfs_mount_t *mp);
 extern int	xfs_initialize_perag(xfs_mount_t *mp, xfs_agnumber_t agcount,
 				     xfs_agnumber_t *maxagi);
@@ -450,7 +434,7 @@ extern struct xfs_buf *xfs_getsb(xfs_mount_t *, int);
 extern int	xfs_readsb(xfs_mount_t *, int);
 extern void	xfs_freesb(xfs_mount_t *);
 extern bool	xfs_fs_writable(struct xfs_mount *mp, int level);
-extern int	xfs_sb_validate_fsb_count(struct xfs_sb *, __uint64_t);
+extern int	xfs_sb_validate_fsb_count(struct xfs_sb *, uint64_t);
 
 extern int	xfs_dev_is_read_only(struct xfs_mount *, char *);
 

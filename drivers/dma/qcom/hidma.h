@@ -28,6 +28,11 @@
 #define HIDMA_TRE_DEST_LOW_IDX		4
 #define HIDMA_TRE_DEST_HI_IDX		5
 
+enum tre_type {
+	HIDMA_TRE_MEMCPY = 3,
+	HIDMA_TRE_MEMSET = 4,
+};
+
 struct hidma_tre {
 	atomic_t allocated;		/* if this channel is allocated	    */
 	bool queued;			/* flag whether this is pending     */
@@ -104,6 +109,7 @@ struct hidma_chan {
 	struct dma_chan			chan;
 	struct list_head		free;
 	struct list_head		prepared;
+	struct list_head		queued;
 	struct list_head		active;
 	struct list_head		completed;
 
@@ -149,7 +155,7 @@ void hidma_ll_start(struct hidma_lldev *llhndl);
 int hidma_ll_disable(struct hidma_lldev *lldev);
 int hidma_ll_enable(struct hidma_lldev *llhndl);
 void hidma_ll_set_transfer_params(struct hidma_lldev *llhndl, u32 tre_ch,
-	dma_addr_t src, dma_addr_t dest, u32 len, u32 flags);
+	dma_addr_t src, dma_addr_t dest, u32 len, u32 flags, u32 txntype);
 void hidma_ll_setup_irq(struct hidma_lldev *lldev, bool msi);
 int hidma_ll_setup(struct hidma_lldev *lldev);
 struct hidma_lldev *hidma_ll_init(struct device *dev, u32 max_channels,

@@ -30,7 +30,7 @@
 #include <linux/workqueue.h>
 #include <linux/device.h>
 
-#if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
 #include <sound/seq_device.h>
 #endif
 
@@ -144,7 +144,7 @@ struct snd_rawmidi {
 
 	struct snd_info_entry *proc_entry;
 
-#if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
 	struct snd_seq_device *seq_dev;
 #endif
 };

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_IA64_PCI_H
 #define _ASM_IA64_PCI_H
 
@@ -28,10 +29,6 @@ struct pci_vector_struct {
 
 #define PCIBIOS_MIN_IO		0x1000
 #define PCIBIOS_MIN_MEM		0x10000000
-
-void pcibios_config_init(void);
-
-struct pci_dev;
 
 /*
  * PCI_DMA_BUS_IS_PHYS should be set to 1 if there is _necessarily_ a direct

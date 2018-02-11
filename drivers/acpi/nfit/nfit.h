@@ -18,14 +18,13 @@
 #include <linux/libnvdimm.h>
 #include <linux/ndctl.h>
 #include <linux/types.h>
-#include <linux/uuid.h>
 #include <linux/acpi.h>
 #include <acpi/acuuid.h>
 
 /* ACPI 6.1 */
 #define UUID_NFIT_BUS "2f10e7a4-9e91-11e4-89d3-123b93f75cba"
 
-/* http://pmem.io/documents/NVDIMM_DSM_Interface_Example.pdf */
+/* http://pmem.io/documents/NVDIMM_DSM_Interface-V1.6.pdf */
 #define UUID_NFIT_DIMM "4309ac30-0d11-11e4-9191-0800200c9a66"
 
 /* https://github.com/HewlettPackard/hpe-nvm/blob/master/Documentation/ */
@@ -38,6 +37,37 @@
 #define ACPI_NFIT_MEM_FAILED_MASK (ACPI_NFIT_MEM_SAVE_FAILED \
 		| ACPI_NFIT_MEM_RESTORE_FAILED | ACPI_NFIT_MEM_FLUSH_FAILED \
 		| ACPI_NFIT_MEM_NOT_ARMED | ACPI_NFIT_MEM_MAP_FAILED)
+
+#define NVDIMM_FAMILY_MAX NVDIMM_FAMILY_MSFT
+
+#define NVDIMM_STANDARD_CMDMASK \
+(1 << ND_CMD_SMART | 1 << ND_CMD_SMART_THRESHOLD | 1 << ND_CMD_DIMM_FLAGS \
+ | 1 << ND_CMD_GET_CONFIG_SIZE | 1 << ND_CMD_GET_CONFIG_DATA \
+ | 1 << ND_CMD_SET_CONFIG_DATA | 1 << ND_CMD_VENDOR_EFFECT_LOG_SIZE \
+ | 1 << ND_CMD_VENDOR_EFFECT_LOG | 1 << ND_CMD_VENDOR)
+
+/*
+ * Command numbers that the kernel needs to know about to handle
+ * non-default DSM revision ids
+ */
+enum nvdimm_family_cmds {
+	NVDIMM_INTEL_LATCH_SHUTDOWN = 10,
+	NVDIMM_INTEL_GET_MODES = 11,
+	NVDIMM_INTEL_GET_FWINFO = 12,
+	NVDIMM_INTEL_START_FWUPDATE = 13,
+	NVDIMM_INTEL_SEND_FWUPDATE = 14,
+	NVDIMM_INTEL_FINISH_FWUPDATE = 15,
+	NVDIMM_INTEL_QUERY_FWUPDATE = 16,
+	NVDIMM_INTEL_SET_THRESHOLD = 17,
+	NVDIMM_INTEL_INJECT_ERROR = 18,
+};
+
+#define NVDIMM_INTEL_CMDMASK \
+(NVDIMM_STANDARD_CMDMASK | 1 << NVDIMM_INTEL_GET_MODES \
+ | 1 << NVDIMM_INTEL_GET_FWINFO | 1 << NVDIMM_INTEL_START_FWUPDATE \
+ | 1 << NVDIMM_INTEL_SEND_FWUPDATE | 1 << NVDIMM_INTEL_FINISH_FWUPDATE \
+ | 1 << NVDIMM_INTEL_QUERY_FWUPDATE | 1 << NVDIMM_INTEL_SET_THRESHOLD \
+ | 1 << NVDIMM_INTEL_INJECT_ERROR | 1 << NVDIMM_INTEL_LATCH_SHUTDOWN)
 
 enum nfit_uuids {
 	/* for simplicity alias the uuid index with the family id */
@@ -80,6 +110,7 @@ enum {
 
 enum nfit_root_notifiers {
 	NFIT_NOTIFY_UPDATE = 0x80,
+	NFIT_NOTIFY_UC_MEMORY_ERROR = 0x81,
 };
 
 enum nfit_dimm_notifiers {
@@ -140,6 +171,9 @@ struct nfit_mem {
 	struct resource *flush_wpq;
 	unsigned long dsm_mask;
 	int family;
+	u32 has_lsi:1;
+	u32 has_lsr:1;
+	u32 has_lsw:1;
 };
 
 struct acpi_nfit_desc {
@@ -155,6 +189,7 @@ struct acpi_nfit_desc {
 	struct list_head idts;
 	struct nvdimm_bus *nvdimm_bus;
 	struct device *dev;
+	u8 ars_start_flags;
 	struct nd_cmd_ars_status *ars_status;
 	size_t ars_status_size;
 	struct work_struct work;
@@ -166,6 +201,7 @@ struct acpi_nfit_desc {
 	unsigned int init_complete:1;
 	unsigned long dimm_cmd_force_en;
 	unsigned long bus_cmd_force_en;
+	unsigned long bus_nfit_cmd_force_en;
 	int (*blk_do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
 			void *iobuf, u64 len, int rw);
 };
@@ -207,7 +243,7 @@ struct nfit_blk {
 
 extern struct list_head acpi_descs;
 extern struct mutex acpi_desc_lock;
-int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc);
+int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc, u8 flags);
 
 #ifdef CONFIG_X86_MCE
 void nfit_mce_register(void);
@@ -237,7 +273,7 @@ static inline struct acpi_nfit_desc *to_acpi_desc(
 	return container_of(nd_desc, struct acpi_nfit_desc, nd_desc);
 }
 
-const u8 *to_nfit_uuid(enum nfit_uuids id);
+const guid_t *to_nfit_uuid(enum nfit_uuids id);
 int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *nfit, acpi_size sz);
 void acpi_nfit_shutdown(void *data);
 void __acpi_nfit_notify(struct device *dev, acpi_handle handle, u32 event);

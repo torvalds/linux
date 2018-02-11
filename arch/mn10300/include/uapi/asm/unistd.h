@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /* MN10300 System call number list
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.

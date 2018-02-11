@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SPARC_MMAN_H__
 #define __SPARC_MMAN_H__
 

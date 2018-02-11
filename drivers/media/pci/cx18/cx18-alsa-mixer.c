@@ -161,7 +161,7 @@ int __init snd_cx18_mixer_create(struct snd_cx18_card *cxsc)
 
 	strlcpy(sc->mixername, "CX23418 Mixer", sizeof(sc->mixername));
 
-	ret = snd_ctl_add(sc, snd_ctl_new1(snd_cx18_mixer_tv_vol, cxsc));
+	ret = snd_ctl_add(sc, snd_ctl_new1(&snd_cx18_mixer_tv_vol, cxsc));
 	if (ret) {
 		CX18_ALSA_WARN("%s: failed to add %s control, err %d\n",
 				__func__, snd_cx18_mixer_tv_vol.name, ret);

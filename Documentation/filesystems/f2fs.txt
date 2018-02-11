@@ -155,11 +155,25 @@ noinline_data          Disable the inline data feature, inline data feature is
                        enabled by default.
 data_flush             Enable data flushing before checkpoint in order to
                        persist data of regular and symlink.
+fault_injection=%d     Enable fault injection in all supported types with
+                       specified injection rate.
 mode=%s                Control block allocation mode which supports "adaptive"
                        and "lfs". In "lfs" mode, there should be no random
                        writes towards main area.
 io_bits=%u             Set the bit size of write IO requests. It should be set
                        with "mode=lfs".
+usrquota               Enable plain user disk quota accounting.
+grpquota               Enable plain group disk quota accounting.
+prjquota               Enable plain project quota accounting.
+usrjquota=<file>       Appoint specified file and type during mount, so that quota
+grpjquota=<file>       information can be properly updated during recovery flow,
+prjjquota=<file>       <quota file>: must be in root directory;
+jqfmt=<quota type>     <quota type>: [vfsold,vfsv0,vfsv1].
+offusrjquota           Turn off user journelled quota.
+offgrpjquota           Turn off group journelled quota.
+offprjjquota           Turn off project journelled quota.
+quota                  Enable plain user disk quota accounting.
+noquota                Disable all plain disk quota option.
 
 ================================================================================
 DEBUGFS ENTRIES
@@ -204,6 +218,15 @@ Files in /sys/fs/f2fs/<devname>
                               (default) will disable this option. Setting
                               gc_idle = 1 will select the Cost Benefit approach
                               & setting gc_idle = 2 will select the greedy approach.
+
+ gc_urgent                    This parameter controls triggering background GCs
+                              urgently or not. Setting gc_urgent = 0 [default]
+                              makes back to default behavior, while if it is set
+                              to 1, background thread starts to do GC by given
+                              gc_urgent_sleep_time interval.
+
+ gc_urgent_sleep_time         This parameter controls sleep time for gc_urgent.
+                              500 ms is set by default. See above gc_urgent.
 
  reclaim_segments             This parameter controls the number of prefree
                               segments to be reclaimed. If the number of prefree

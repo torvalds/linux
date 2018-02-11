@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/proc/base.c
  *
@@ -232,7 +233,7 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 		goto out_mmput;
 	}
 
-	page = (char *)__get_free_page(GFP_TEMPORARY);
+	page = (char *)__get_free_page(GFP_KERNEL);
 	if (!page) {
 		rv = -ENOMEM;
 		goto out_mmput;
@@ -442,8 +443,7 @@ static int proc_pid_stack(struct seq_file *m, struct pid_namespace *ns,
 		save_stack_trace_tsk(task, &trace);
 
 		for (i = 0; i < trace.nr_entries; i++) {
-			seq_printf(m, "[<%pK>] %pB\n",
-				   (void *)entries[i], (void *)entries[i]);
+			seq_printf(m, "[<0>] %pB\n", (void *)entries[i]);
 		}
 		unlock_trace(task);
 	}
@@ -813,7 +813,7 @@ static ssize_t mem_rw(struct file *file, char __user *buf,
 	if (!mm)
 		return 0;
 
-	page = (char *)__get_free_page(GFP_TEMPORARY);
+	page = (char *)__get_free_page(GFP_KERNEL);
 	if (!page)
 		return -ENOMEM;
 
@@ -918,7 +918,7 @@ static ssize_t environ_read(struct file *file, char __user *buf,
 	if (!mm || !mm->env_end)
 		return 0;
 
-	page = (char *)__get_free_page(GFP_TEMPORARY);
+	page = (char *)__get_free_page(GFP_KERNEL);
 	if (!page)
 		return -ENOMEM;
 
@@ -1355,6 +1355,49 @@ static const struct file_operations proc_fault_inject_operations = {
 	.write		= proc_fault_inject_write,
 	.llseek		= generic_file_llseek,
 };
+
+static ssize_t proc_fail_nth_write(struct file *file, const char __user *buf,
+				   size_t count, loff_t *ppos)
+{
+	struct task_struct *task;
+	int err;
+	unsigned int n;
+
+	err = kstrtouint_from_user(buf, count, 0, &n);
+	if (err)
+		return err;
+
+	task = get_proc_task(file_inode(file));
+	if (!task)
+		return -ESRCH;
+	WRITE_ONCE(task->fail_nth, n);
+	put_task_struct(task);
+
+	return count;
+}
+
+static ssize_t proc_fail_nth_read(struct file *file, char __user *buf,
+				  size_t count, loff_t *ppos)
+{
+	struct task_struct *task;
+	char numbuf[PROC_NUMBUF];
+	ssize_t len;
+
+	task = get_proc_task(file_inode(file));
+	if (!task)
+		return -ESRCH;
+	len = snprintf(numbuf, sizeof(numbuf), "%u\n",
+			READ_ONCE(task->fail_nth));
+	len = simple_read_from_buffer(buf, count, ppos, numbuf, len);
+	put_task_struct(task);
+
+	return len;
+}
+
+static const struct file_operations proc_fail_nth_operations = {
+	.read		= proc_fail_nth_read,
+	.write		= proc_fail_nth_write,
+};
 #endif
 
 
@@ -1365,12 +1408,13 @@ static const struct file_operations proc_fault_inject_operations = {
 static int sched_show(struct seq_file *m, void *v)
 {
 	struct inode *inode = m->private;
+	struct pid_namespace *ns = inode->i_sb->s_fs_info;
 	struct task_struct *p;
 
 	p = get_proc_task(inode);
 	if (!p)
 		return -ESRCH;
-	proc_sched_show_task(p, m);
+	proc_sched_show_task(p, ns, m);
 
 	put_task_struct(p);
 
@@ -1586,7 +1630,7 @@ out:
 
 static int do_proc_readlink(struct path *path, char __user *buffer, int buflen)
 {
-	char *tmp = (char*)__get_free_page(GFP_TEMPORARY);
+	char *tmp = (char *)__get_free_page(GFP_KERNEL);
 	char *pathname;
 	int len;
 
@@ -1637,7 +1681,7 @@ const struct inode_operations proc_pid_link_inode_operations = {
 
 /* building an inode */
 
-void task_dump_owner(struct task_struct *task, mode_t mode,
+void task_dump_owner(struct task_struct *task, umode_t mode,
 		     kuid_t *ruid, kgid_t *rgid)
 {
 	/* Depending on the state of dumpable compute who should own a
@@ -2224,7 +2268,7 @@ static int show_timer(struct seq_file *m, void *v)
 	notify = timer->it_sigev_notify;
 
 	seq_printf(m, "ID: %d\n", timer->it_id);
-	seq_printf(m, "signal: %d/%p\n",
+	seq_printf(m, "signal: %d/%px\n",
 		   timer->sigq->info.si_signo,
 		   timer->sigq->info.si_value.sival_ptr);
 	seq_printf(m, "notify: %s/%s.%d\n",
@@ -2887,6 +2931,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #ifdef CONFIG_PROC_PAGE_MONITOR
 	REG("clear_refs", S_IWUSR, proc_clear_refs_operations),
 	REG("smaps",      S_IRUGO, proc_pid_smaps_operations),
+	REG("smaps_rollup", S_IRUGO, proc_pid_smaps_rollup_operations),
 	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
 #endif
 #ifdef CONFIG_SECURITY
@@ -2919,6 +2964,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #endif
 #ifdef CONFIG_FAULT_INJECTION
 	REG("make-it-fail", S_IRUGO|S_IWUSR, proc_fault_inject_operations),
+	REG("fail-nth", 0644, proc_fail_nth_operations),
 #endif
 #ifdef CONFIG_ELF_CORE
 	REG("coredump_filter", S_IRUGO|S_IWUSR, proc_coredump_filter_operations),
@@ -3279,6 +3325,7 @@ static const struct pid_entry tid_base_stuff[] = {
 #ifdef CONFIG_PROC_PAGE_MONITOR
 	REG("clear_refs", S_IWUSR, proc_clear_refs_operations),
 	REG("smaps",     S_IRUGO, proc_tid_smaps_operations),
+	REG("smaps_rollup", S_IRUGO, proc_pid_smaps_rollup_operations),
 	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
 #endif
 #ifdef CONFIG_SECURITY
@@ -3311,6 +3358,7 @@ static const struct pid_entry tid_base_stuff[] = {
 #endif
 #ifdef CONFIG_FAULT_INJECTION
 	REG("make-it-fail", S_IRUGO|S_IWUSR, proc_fault_inject_operations),
+	REG("fail-nth", 0644, proc_fail_nth_operations),
 #endif
 #ifdef CONFIG_TASK_IO_ACCOUNTING
 	ONE("io",	S_IRUSR, proc_tid_io_accounting),

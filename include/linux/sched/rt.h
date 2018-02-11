@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_SCHED_RT_H
 #define _LINUX_SCHED_RT_H
 
@@ -15,6 +16,17 @@ static inline int rt_prio(int prio)
 static inline int rt_task(struct task_struct *p)
 {
 	return rt_prio(p->prio);
+}
+
+static inline bool task_is_realtime(struct task_struct *tsk)
+{
+	int policy = tsk->policy;
+
+	if (policy == SCHED_FIFO || policy == SCHED_RR)
+		return true;
+	if (policy == SCHED_DEADLINE)
+		return true;
+	return false;
 }
 
 #ifdef CONFIG_RT_MUTEXES

@@ -20,7 +20,7 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/gpio.h>
@@ -310,6 +310,8 @@ static int __init plat_setup_devices(void)
 	return platform_add_devices(rb532_devs, ARRAY_SIZE(rb532_devs));
 }
 
+#ifdef CONFIG_NET
+
 static int __init setup_kmac(char *s)
 {
 	printk(KERN_INFO "korina mac = %s\n", s);
@@ -321,5 +323,7 @@ static int __init setup_kmac(char *s)
 }
 
 __setup("kmac=", setup_kmac);
+
+#endif /* CONFIG_NET */
 
 arch_initcall(plat_setup_devices);

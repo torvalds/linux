@@ -1492,9 +1492,9 @@ static int msb_ftl_scan(struct msb_data *msb)
 	return 0;
 }
 
-static void msb_cache_flush_timer(unsigned long data)
+static void msb_cache_flush_timer(struct timer_list *t)
 {
-	struct msb_data *msb = (struct msb_data *)data;
+	struct msb_data *msb = from_timer(msb, t, cache_flush_timer);
 	msb->need_flush_cache = true;
 	queue_work(msb->io_queue, &msb->io_work);
 }
@@ -1514,8 +1514,7 @@ static void msb_cache_discard(struct msb_data *msb)
 
 static int msb_cache_init(struct msb_data *msb)
 {
-	setup_timer(&msb->cache_flush_timer, msb_cache_flush_timer,
-		(unsigned long)msb);
+	timer_setup(&msb->cache_flush_timer, msb_cache_flush_timer, 0);
 
 	if (!msb->cache)
 		msb->cache = kzalloc(msb->block_size, GFP_KERNEL);
@@ -1921,12 +1920,13 @@ static void msb_io_work(struct work_struct *work)
 		spin_lock_irqsave(&msb->q_lock, flags);
 
 		if (len)
-			if (!__blk_end_request(msb->req, 0, len))
+			if (!__blk_end_request(msb->req, BLK_STS_OK, len))
 				msb->req = NULL;
 
 		if (error && msb->req) {
+			blk_status_t ret = errno_to_blk_status(error);
 			dbg_verbose("IO: ending one sector of the request with error");
-			if (!__blk_end_request(msb->req, error, msb->page_size))
+			if (!__blk_end_request(msb->req, ret, msb->page_size))
 				msb->req = NULL;
 		}
 
@@ -2014,7 +2014,7 @@ static void msb_submit_req(struct request_queue *q)
 		WARN_ON(!msb->io_queue_stopped);
 
 		while ((req = blk_fetch_request(q)) != NULL)
-			__blk_end_request_all(req, -ENODEV);
+			__blk_end_request_all(req, BLK_STS_IOERR);
 		return;
 	}
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -43,8 +44,8 @@
  * @{
  */
 
-#include "lustre_handles.h"
-#include "lustre/lustre_idl.h"
+#include <lustre_handles.h>
+#include <uapi/linux/lustre/lustre_idl.h>
 
 /**
  * Adaptive Timeout stuff

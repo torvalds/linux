@@ -212,5 +212,6 @@ void snd_hdac_bus_remove_device(struct hdac_bus *bus,
 	bus->caddr_tbl[codec->addr] = NULL;
 	clear_bit(codec->addr, &bus->codec_powered);
 	bus->num_codecs--;
+	flush_work(&bus->unsol_work);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_remove_device);

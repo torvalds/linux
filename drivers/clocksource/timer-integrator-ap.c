@@ -36,8 +36,8 @@ static u64 notrace integrator_read_sched_clock(void)
 	return -readl(sched_clk_base + TIMER_VALUE);
 }
 
-static int integrator_clocksource_init(unsigned long inrate,
-				       void __iomem *base)
+static int __init integrator_clocksource_init(unsigned long inrate,
+					      void __iomem *base)
 {
 	u32 ctrl = TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC;
 	unsigned long rate = inrate;
@@ -232,5 +232,5 @@ static int __init integrator_ap_timer_init_of(struct device_node *node)
 	return 0;
 }
 
-CLOCKSOURCE_OF_DECLARE(integrator_ap_timer, "arm,integrator-timer",
+TIMER_OF_DECLARE(integrator_ap_timer, "arm,integrator-timer",
 		       integrator_ap_timer_init_of);

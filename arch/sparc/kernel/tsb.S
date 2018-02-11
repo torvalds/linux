@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* tsb.S: Sparc64 TSB table handling.
  *
  * Copyright (C) 2006 David S. Miller <davem@davemloft.net>
@@ -117,7 +118,7 @@ tsb_miss_page_table_walk_sun4v_fastpath:
 	/* Valid PTE is now in %g5.  */
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-	sethi		%uhi(_PAGE_PMD_HUGE), %g7
+	sethi		%uhi(_PAGE_PMD_HUGE | _PAGE_PUD_HUGE), %g7
 	sllx		%g7, 32, %g7
 
 	andcc		%g5, %g7, %g0
@@ -360,6 +361,7 @@ tsb_flush:
 	 * %o1:	TSB base config pointer
 	 * %o2:	TSB huge config pointer, or NULL if none
 	 * %o3:	Hypervisor TSB descriptor physical address
+	 * %o4: Secondary context to load, if non-zero
 	 *
 	 * We have to run this whole thing with interrupts
 	 * disabled so that the current cpu doesn't change
@@ -372,6 +374,17 @@ __tsb_context_switch:
 	rdpr	%pstate, %g1
 	wrpr	%g1, PSTATE_IE, %pstate
 
+	brz,pn	%o4, 1f
+	 mov	SECONDARY_CONTEXT, %o5
+
+661:	stxa	%o4, [%o5] ASI_DMMU
+	.section .sun4v_1insn_patch, "ax"
+	.word	661b
+	stxa	%o4, [%o5] ASI_MMU
+	.previous
+	flush	%g6
+
+1:
 	TRAP_LOAD_TRAP_BLOCK(%g2, %g3)
 
 	stx	%o0, [%g2 + TRAP_PER_CPU_PGD_PADDR]

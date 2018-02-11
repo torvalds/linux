@@ -126,14 +126,14 @@ struct stmmac_axi {
 
 struct stmmac_rxq_cfg {
 	u8 mode_to_use;
-	u8 chan;
+	u32 chan;
 	u8 pkt_route;
 	bool use_prio;
 	u32 prio;
 };
 
 struct stmmac_txq_cfg {
-	u8 weight;
+	u32 weight;
 	u8 mode_to_use;
 	/* Credit Base Shaper parameters */
 	u32 send_slope;
@@ -168,8 +168,8 @@ struct plat_stmmacenet_data {
 	int unicast_filter_entries;
 	int tx_fifo_size;
 	int rx_fifo_size;
-	u8 rx_queues_to_use;
-	u8 tx_queues_to_use;
+	u32 rx_queues_to_use;
+	u32 tx_queues_to_use;
 	u8 rx_sched_algorithm;
 	u8 tx_sched_algorithm;
 	struct stmmac_rxq_cfg rx_queues_cfg[MTL_MAX_RX_QUEUES];
@@ -177,6 +177,7 @@ struct plat_stmmacenet_data {
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
 	int (*init)(struct platform_device *pdev, void *priv);
 	void (*exit)(struct platform_device *pdev, void *priv);
+	struct mac_device_info *(*setup)(void *priv);
 	void *bsp_priv;
 	struct clk *stmmac_clk;
 	struct clk *pclk;
@@ -185,6 +186,7 @@ struct plat_stmmacenet_data {
 	struct reset_control *stmmac_rst;
 	struct stmmac_axi *axi;
 	int has_gmac4;
+	bool has_sun8i;
 	bool tso_en;
 	int mac_port_sel_speed;
 	bool en_tx_lpi_clockgating;

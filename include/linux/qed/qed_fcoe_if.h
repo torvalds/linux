@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _QED_FCOE_IF_H
 #define _QED_FCOE_IF_H
 #include <linux/types.h>
@@ -24,6 +25,11 @@ struct qed_dev_fcoe_info {
 
 	void __iomem *primary_dbq_rq_addr;
 	void __iomem *secondary_bdq_rq_addr;
+
+	u64 wwpn;
+	u64 wwnn;
+
+	u8 num_cqs;
 };
 
 struct qed_fcoe_params_offload {

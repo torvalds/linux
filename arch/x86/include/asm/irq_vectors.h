@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_IRQ_VECTORS_H
 #define _ASM_X86_IRQ_VECTORS_H
 
@@ -83,7 +84,6 @@
  */
 #define X86_PLATFORM_IPI_VECTOR		0xf7
 
-#define POSTED_INTR_WAKEUP_VECTOR	0xf1
 /*
  * IRQ work vector:
  */
@@ -98,14 +98,12 @@
 /* Vector for KVM to deliver posted interrupt IPI */
 #ifdef CONFIG_HAVE_KVM
 #define POSTED_INTR_VECTOR		0xf2
+#define POSTED_INTR_WAKEUP_VECTOR	0xf1
+#define POSTED_INTR_NESTED_VECTOR	0xf0
 #endif
 
-/*
- * Local APIC timer IRQ vector is on a different priority level,
- * to work around the 'lost local interrupt if more than 2 IRQ
- * sources per level' errata.
- */
-#define LOCAL_TIMER_VECTOR		0xef
+#define MANAGED_IRQ_SHUTDOWN_VECTOR	0xef
+#define LOCAL_TIMER_VECTOR		0xee
 
 #define NR_VECTORS			 256
 

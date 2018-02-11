@@ -106,7 +106,7 @@ static DEFINE_SPINLOCK(recent_lock);
 static DEFINE_MUTEX(recent_mutex);
 
 #ifdef CONFIG_PROC_FS
-static const struct file_operations recent_old_fops, recent_mt_fops;
+static const struct file_operations recent_mt_fops;
 #endif
 
 static u_int32_t hash_rnd __read_mostly;

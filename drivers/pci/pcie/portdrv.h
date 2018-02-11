@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * File:	portdrv.h
  * Purpose:	PCI Express Port Bus Driver's Internal Data Structures
@@ -13,10 +14,11 @@
 
 #define PCIE_PORT_DEVICE_MAXSERVICES   5
 /*
- * According to the PCI Express Base Specification 2.0, the indices of
- * the MSI-X table entries used by port services must not exceed 31
+ * The PCIe Capability Interrupt Message Number (PCIe r3.1, sec 7.8.2) must
+ * be one of the first 32 MSI-X entries.  Per PCI r3.0, sec 6.8.3.1, MSI
+ * supports a maximum of 32 vectors per function.
  */
-#define PCIE_PORT_MAX_MSIX_ENTRIES	32
+#define PCIE_PORT_MAX_MSI_ENTRIES	32
 
 #define get_descriptor_id(type, service) (((type - 4) << 8) | service)
 

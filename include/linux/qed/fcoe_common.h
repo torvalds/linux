@@ -13,7 +13,6 @@
 /*********************/
 
 #define FC_ABTS_REPLY_MAX_PAYLOAD_LEN	12
-#define FCOE_MAX_SIZE_FCP_DATA_SUPER	(8600)
 
 struct fcoe_abts_pkt {
 	__le32 abts_rsp_fc_payload_lo;

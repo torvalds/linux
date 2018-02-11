@@ -64,7 +64,7 @@
 		};
 	};
 
-	sram: sram@00300000 {
+	sram: sram@300000 {
 		compatible = "mmio-sram";
 		reg = <0x00300000 0x8000>;
 	};
@@ -89,11 +89,27 @@
 				atmel,external-irqs = <31>;
 			};
 
+			matrix: matrix@ffffde00 {
+				compatible = "atmel,at91sam9n12-matrix", "syscon";
+				reg = <0xffffde00 0x100>;
+			};
+
+			pmecc: ecc-engine@ffffe000 {
+				compatible = "atmel,at91sam9g45-pmecc";
+				reg = <0xffffe000 0x600>,
+				      <0xffffe600 0x200>;
+			};
+
 			ramc0: ramc@ffffe800 {
 				compatible = "atmel,at91sam9g45-ddramc";
 				reg = <0xffffe800 0x200>;
 				clocks = <&ddrck>;
 				clock-names = "ddrck";
+			};
+
+			smc: smc@ffffea00 {
+				compatible = "atmel,at91sam9260-smc", "syscon";
+				reg = <0xffffea00 0x200>;
 			};
 
 			pmc: pmc@fffffc00 {
@@ -627,10 +643,14 @@
 				};
 
 				nand {
-					pinctrl_nand: nand-0 {
+					pinctrl_nand_rb: nand-rb-0 {
 						atmel,pins =
-							<AT91_PIOD 5 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP	/* PD5 gpio RDY pin pull_up*/
-							 AT91_PIOD 4 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;	/* PD4 gpio enable pin pull_up */
+							<AT91_PIOD 5 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;
+					};
+
+					pinctrl_nand_cs: nand-cs-0 {
+						atmel,pins =
+							 <AT91_PIOD 4 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;
 					};
 				};
 
@@ -998,35 +1018,39 @@
 			};
 		};
 
-		nand0: nand@40000000 {
-			compatible = "atmel,at91rm9200-nand";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			reg = < 0x40000000 0x10000000
-				0xffffe000 0x00000600
-				0xffffe600 0x00000200
-				0x00108000 0x00018000
-			       >;
-			atmel,pmecc-lookup-table-offset = <0x0 0x8000>;
-			atmel,nand-addr-offset = <21>;
-			atmel,nand-cmd-offset = <22>;
-			atmel,nand-has-dma;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_nand>;
-			gpios = <&pioD 5 GPIO_ACTIVE_HIGH
-				 &pioD 4 GPIO_ACTIVE_HIGH
-				 0
-				>;
-			status = "disabled";
-		};
-
-		usb0: ohci@00500000 {
+		usb0: ohci@500000 {
 			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 			reg = <0x00500000 0x00100000>;
 			interrupts = <22 IRQ_TYPE_LEVEL_HIGH 2>;
 			clocks = <&uhphs_clk>, <&uhphs_clk>, <&uhpck>;
 			clock-names = "ohci_clk", "hclk", "uhpck";
 			status = "disabled";
+		};
+
+		ebi: ebi@10000000 {
+			compatible = "atmel,at91sam9x5-ebi";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			atmel,smc = <&smc>;
+			atmel,matrix = <&matrix>;
+			reg = <0x10000000 0x60000000>;
+			ranges = <0x0 0x0 0x10000000 0x10000000
+				  0x1 0x0 0x20000000 0x10000000
+				  0x2 0x0 0x30000000 0x10000000
+				  0x3 0x0 0x40000000 0x10000000
+				  0x4 0x0 0x50000000 0x10000000
+				  0x5 0x0 0x60000000 0x10000000>;
+			clocks = <&mck>;
+			status = "disabled";
+
+			nand_controller: nand-controller {
+				compatible = "atmel,at91sam9g45-nand-controller";
+				ecc-engine = <&pmecc>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				ranges;
+				status = "disabled";
+			};
 		};
 	};
 

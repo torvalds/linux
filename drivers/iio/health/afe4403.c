@@ -309,7 +309,6 @@ static const struct iio_info afe4403_iio_info = {
 	.attrs = &afe440x_attribute_group,
 	.read_raw = afe4403_read_raw,
 	.write_raw = afe4403_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static irqreturn_t afe4403_trigger_handler(int irq, void *private)
@@ -354,7 +353,6 @@ err:
 }
 
 static const struct iio_trigger_ops afe4403_trigger_ops = {
-	.owner = THIS_MODULE,
 };
 
 #define AFE4403_TIMING_PAIRS			\

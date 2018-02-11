@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SH_KEYSC_H__
 #define __SH_KEYSC_H__
 

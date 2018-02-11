@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -33,7 +34,7 @@
 #ifndef __LLOG_INTERNAL_H__
 #define __LLOG_INTERNAL_H__
 
-#include "../include/lustre_log.h"
+#include <lustre_log.h>
 
 struct llog_process_info {
 	struct llog_handle *lpi_loghandle;

@@ -16,6 +16,8 @@
 #include <linux/thermal.h>
 #include "acpi_thermal_rel.h"
 
+#define INT3400_THERMAL_TABLE_CHANGED 0x83
+
 enum int3400_thermal_uuid {
 	INT3400_THERMAL_PASSIVE_1,
 	INT3400_THERMAL_ACTIVE,
@@ -23,7 +25,7 @@ enum int3400_thermal_uuid {
 	INT3400_THERMAL_MAXIMUM_UUID,
 };
 
-static u8 *int3400_thermal_uuids[INT3400_THERMAL_MAXIMUM_UUID] = {
+static char *int3400_thermal_uuids[INT3400_THERMAL_MAXIMUM_UUID] = {
 	"42A441D6-AE6A-462b-A84B-4A8CE79027D3",
 	"3A95C389-E4B8-4629-A526-C52C88626BAE",
 	"97C68AE7-15FA-499c-B8C9-5DA81D606E0A",
@@ -104,7 +106,7 @@ static struct attribute *uuid_attrs[] = {
 	NULL
 };
 
-static struct attribute_group uuid_attribute_group = {
+static const struct attribute_group uuid_attribute_group = {
 	.attrs = uuid_attrs,
 	.name = "uuids"
 };
@@ -141,10 +143,10 @@ static int int3400_thermal_get_uuids(struct int3400_thermal_priv *priv)
 		}
 
 		for (j = 0; j < INT3400_THERMAL_MAXIMUM_UUID; j++) {
-			u8 uuid[16];
+			guid_t guid;
 
-			acpi_str_to_uuid(int3400_thermal_uuids[j], uuid);
-			if (!strncmp(uuid, objb->buffer.pointer, 16)) {
+			guid_parse(int3400_thermal_uuids[j], &guid);
+			if (guid_equal((guid_t *)objb->buffer.pointer, &guid)) {
 				priv->uuid_bitmap |= (1 << j);
 				break;
 			}
@@ -183,6 +185,35 @@ static int int3400_thermal_run_osc(acpi_handle handle,
 
 	kfree(context.ret.pointer);
 	return result;
+}
+
+static void int3400_notify(acpi_handle handle,
+			u32 event,
+			void *data)
+{
+	struct int3400_thermal_priv *priv = data;
+	char *thermal_prop[5];
+
+	if (!priv)
+		return;
+
+	switch (event) {
+	case INT3400_THERMAL_TABLE_CHANGED:
+		thermal_prop[0] = kasprintf(GFP_KERNEL, "NAME=%s",
+				priv->thermal->type);
+		thermal_prop[1] = kasprintf(GFP_KERNEL, "TEMP=%d",
+				priv->thermal->temperature);
+		thermal_prop[2] = kasprintf(GFP_KERNEL, "TRIP=");
+		thermal_prop[3] = kasprintf(GFP_KERNEL, "EVENT=%d",
+				THERMAL_TABLE_CHANGED);
+		thermal_prop[4] = NULL;
+		kobject_uevent_env(&priv->thermal->device.kobj, KOBJ_CHANGE,
+				thermal_prop);
+		break;
+	default:
+		dev_err(&priv->adev->dev, "Unsupported event [0x%x]\n", event);
+		break;
+	}
 }
 
 static int int3400_thermal_get_temp(struct thermal_zone_device *thermal,
@@ -290,6 +321,12 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 	if (result)
 		goto free_zone;
 
+	result = acpi_install_notify_handler(
+			priv->adev->handle, ACPI_DEVICE_NOTIFY, int3400_notify,
+			(void *)priv);
+	if (result)
+		goto free_zone;
+
 	return 0;
 
 free_zone:
@@ -305,6 +342,10 @@ free_priv:
 static int int3400_thermal_remove(struct platform_device *pdev)
 {
 	struct int3400_thermal_priv *priv = platform_get_drvdata(pdev);
+
+	acpi_remove_notify_handler(
+			priv->adev->handle, ACPI_DEVICE_NOTIFY,
+			int3400_notify);
 
 	if (!priv->rel_misc_dev_res)
 		acpi_thermal_rel_misc_device_remove(priv->adev->handle);

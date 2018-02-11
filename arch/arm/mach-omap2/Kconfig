@@ -87,6 +87,7 @@ config SOC_DRA7XX
 	select OMAP_INTERCONNECT_BARRIER
 	select PM_OPP if PM
 	select ZONE_DMA if ARM_LPAE
+	select PINCTRL_TI_IODELAY if OF && PINCTRL
 
 config ARCH_OMAP2PLUS
 	bool
@@ -103,6 +104,7 @@ config ARCH_OMAP2PLUS
 	select OMAP_GPMC
 	select PINCTRL
 	select SOC_BUS
+	select TI_SYSC
 	select OMAP_IRQCHIP
 	select CLKSRC_TI_32K
 	help

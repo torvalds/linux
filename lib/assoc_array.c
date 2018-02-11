@@ -1,6 +1,6 @@
 /* Generic associative array implementation.
  *
- * See Documentation/assoc_array.txt for information.
+ * See Documentation/core-api/assoc_array.rst for information.
  *
  * Copyright (C) 2013 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -39,7 +39,7 @@ begin_node:
 		/* Descend through a shortcut */
 		shortcut = assoc_array_ptr_to_shortcut(cursor);
 		smp_read_barrier_depends();
-		cursor = ACCESS_ONCE(shortcut->next_node);
+		cursor = READ_ONCE(shortcut->next_node);
 	}
 
 	node = assoc_array_ptr_to_node(cursor);
@@ -55,7 +55,7 @@ begin_node:
 	 */
 	has_meta = 0;
 	for (; slot < ASSOC_ARRAY_FAN_OUT; slot++) {
-		ptr = ACCESS_ONCE(node->slots[slot]);
+		ptr = READ_ONCE(node->slots[slot]);
 		has_meta |= (unsigned long)ptr;
 		if (ptr && assoc_array_ptr_is_leaf(ptr)) {
 			/* We need a barrier between the read of the pointer
@@ -89,7 +89,7 @@ continue_node:
 	smp_read_barrier_depends();
 
 	for (; slot < ASSOC_ARRAY_FAN_OUT; slot++) {
-		ptr = ACCESS_ONCE(node->slots[slot]);
+		ptr = READ_ONCE(node->slots[slot]);
 		if (assoc_array_ptr_is_meta(ptr)) {
 			cursor = ptr;
 			goto begin_node;
@@ -98,7 +98,7 @@ continue_node:
 
 finished_node:
 	/* Move up to the parent (may need to skip back over a shortcut) */
-	parent = ACCESS_ONCE(node->back_pointer);
+	parent = READ_ONCE(node->back_pointer);
 	slot = node->parent_slot;
 	if (parent == stop)
 		return 0;
@@ -107,7 +107,7 @@ finished_node:
 		shortcut = assoc_array_ptr_to_shortcut(parent);
 		smp_read_barrier_depends();
 		cursor = parent;
-		parent = ACCESS_ONCE(shortcut->back_pointer);
+		parent = READ_ONCE(shortcut->back_pointer);
 		slot = shortcut->parent_slot;
 		if (parent == stop)
 			return 0;
@@ -147,7 +147,7 @@ int assoc_array_iterate(const struct assoc_array *array,
 					void *iterator_data),
 			void *iterator_data)
 {
-	struct assoc_array_ptr *root = ACCESS_ONCE(array->root);
+	struct assoc_array_ptr *root = READ_ONCE(array->root);
 
 	if (!root)
 		return 0;
@@ -194,7 +194,7 @@ assoc_array_walk(const struct assoc_array *array,
 
 	pr_devel("-->%s()\n", __func__);
 
-	cursor = ACCESS_ONCE(array->root);
+	cursor = READ_ONCE(array->root);
 	if (!cursor)
 		return assoc_array_walk_tree_empty;
 
@@ -220,7 +220,7 @@ consider_node:
 
 	slot = segments >> (level & ASSOC_ARRAY_KEY_CHUNK_MASK);
 	slot &= ASSOC_ARRAY_FAN_MASK;
-	ptr = ACCESS_ONCE(node->slots[slot]);
+	ptr = READ_ONCE(node->slots[slot]);
 
 	pr_devel("consider slot %x [ix=%d type=%lu]\n",
 		 slot, level, (unsigned long)ptr & 3);
@@ -294,7 +294,7 @@ follow_shortcut:
 	} while (sc_level < shortcut->skip_to_level);
 
 	/* The shortcut matches the leaf's index to this point. */
-	cursor = ACCESS_ONCE(shortcut->next_node);
+	cursor = READ_ONCE(shortcut->next_node);
 	if (((level ^ sc_level) & ~ASSOC_ARRAY_KEY_CHUNK_MASK) != 0) {
 		level = sc_level;
 		goto jumped;
@@ -337,7 +337,7 @@ void *assoc_array_find(const struct assoc_array *array,
 	 * the terminal node.
 	 */
 	for (slot = 0; slot < ASSOC_ARRAY_FAN_OUT; slot++) {
-		ptr = ACCESS_ONCE(node->slots[slot]);
+		ptr = READ_ONCE(node->slots[slot]);
 		if (ptr && assoc_array_ptr_is_leaf(ptr)) {
 			/* We need a barrier between the read of the pointer
 			 * and dereferencing the pointer - but only if we are
@@ -598,21 +598,31 @@ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
 		if ((edit->segment_cache[ASSOC_ARRAY_FAN_OUT] ^ base_seg) == 0)
 			goto all_leaves_cluster_together;
 
-		/* Otherwise we can just insert a new node ahead of the old
-		 * one.
+		/* Otherwise all the old leaves cluster in the same slot, but
+		 * the new leaf wants to go into a different slot - so we
+		 * create a new node (n0) to hold the new leaf and a pointer to
+		 * a new node (n1) holding all the old leaves.
+		 *
+		 * This can be done by falling through to the node splitting
+		 * path.
 		 */
-		goto present_leaves_cluster_but_not_new_leaf;
+		pr_devel("present leaves cluster but not new leaf\n");
 	}
 
 split_node:
 	pr_devel("split node\n");
 
-	/* We need to split the current node; we know that the node doesn't
-	 * simply contain a full set of leaves that cluster together (it
-	 * contains meta pointers and/or non-clustering leaves).
+	/* We need to split the current node.  The node must contain anything
+	 * from a single leaf (in the one leaf case, this leaf will cluster
+	 * with the new leaf) and the rest meta-pointers, to all leaves, some
+	 * of which may cluster.
+	 *
+	 * It won't contain the case in which all the current leaves plus the
+	 * new leaves want to cluster in the same slot.
 	 *
 	 * We need to expel at least two leaves out of a set consisting of the
-	 * leaves in the node and the new leaf.
+	 * leaves in the node and the new leaf.  The current meta pointers can
+	 * just be copied as they shouldn't cluster with any of the leaves.
 	 *
 	 * We need a new node (n0) to replace the current one and a new node to
 	 * take the expelled nodes (n1).
@@ -715,33 +725,6 @@ found_slot_for_multiple_occupancy:
 		edit->set[0].ptr = &assoc_array_ptr_to_shortcut(ptr)->next_node;
 	edit->excised_meta[0] = assoc_array_node_to_ptr(node);
 	pr_devel("<--%s() = ok [split node]\n", __func__);
-	return true;
-
-present_leaves_cluster_but_not_new_leaf:
-	/* All the old leaves cluster in the same slot, but the new leaf wants
-	 * to go into a different slot, so we create a new node to hold the new
-	 * leaf and a pointer to a new node holding all the old leaves.
-	 */
-	pr_devel("present leaves cluster but not new leaf\n");
-
-	new_n0->back_pointer = node->back_pointer;
-	new_n0->parent_slot = node->parent_slot;
-	new_n0->nr_leaves_on_branch = node->nr_leaves_on_branch;
-	new_n1->back_pointer = assoc_array_node_to_ptr(new_n0);
-	new_n1->parent_slot = edit->segment_cache[0];
-	new_n1->nr_leaves_on_branch = node->nr_leaves_on_branch;
-	edit->adjust_count_on = new_n0;
-
-	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++)
-		new_n1->slots[i] = node->slots[i];
-
-	new_n0->slots[edit->segment_cache[0]] = assoc_array_node_to_ptr(new_n0);
-	edit->leaf_p = &new_n0->slots[edit->segment_cache[ASSOC_ARRAY_FAN_OUT]];
-
-	edit->set[0].ptr = &assoc_array_ptr_to_node(node->back_pointer)->slots[node->parent_slot];
-	edit->set[0].to = assoc_array_node_to_ptr(new_n0);
-	edit->excised_meta[0] = assoc_array_node_to_ptr(node);
-	pr_devel("<--%s() = ok [insert node before]\n", __func__);
 	return true;
 
 all_leaves_cluster_together:

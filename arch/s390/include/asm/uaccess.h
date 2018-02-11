@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999, 2000
@@ -15,7 +16,7 @@
 #include <asm/processor.h>
 #include <asm/ctl_reg.h>
 #include <asm/extable.h>
-
+#include <asm/facility.h>
 
 /*
  * The fs value determines whether argument validity checking should be
@@ -25,27 +26,16 @@
  * For historical reasons, these macros are grossly misnamed.
  */
 
-#define MAKE_MM_SEG(a)  ((mm_segment_t) { (a) })
-
-
-#define KERNEL_DS       MAKE_MM_SEG(0)
-#define USER_DS         MAKE_MM_SEG(1)
+#define KERNEL_DS	(0)
+#define KERNEL_DS_SACF	(1)
+#define USER_DS		(2)
+#define USER_DS_SACF	(3)
 
 #define get_ds()        (KERNEL_DS)
 #define get_fs()        (current->thread.mm_segment)
-#define segment_eq(a,b) ((a).ar4 == (b).ar4)
+#define segment_eq(a,b) (((a) & 2) == ((b) & 2))
 
-static inline void set_fs(mm_segment_t fs)
-{
-	current->thread.mm_segment = fs;
-	if (uaccess_kernel()) {
-		set_cpu_flag(CIF_ASCE_SECONDARY);
-		__ctl_load(S390_lowcore.kernel_asce, 7, 7);
-	} else {
-		clear_cpu_flag(CIF_ASCE_SECONDARY);
-		__ctl_load(S390_lowcore.user_asce, 7, 7);
-	}
-}
+void set_fs(mm_segment_t fs);
 
 static inline int __range_ok(unsigned long addr, unsigned long size)
 {
@@ -94,7 +84,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n);
 
 static inline int __put_user_fn(void *x, void __user *ptr, unsigned long size)
 {
-	unsigned long spec = 0x810000UL;
+	unsigned long spec = 0x010000UL;
 	int rc;
 
 	switch (size) {
@@ -124,7 +114,7 @@ static inline int __put_user_fn(void *x, void __user *ptr, unsigned long size)
 
 static inline int __get_user_fn(void *x, const void __user *ptr, unsigned long size)
 {
-	unsigned long spec = 0x81UL;
+	unsigned long spec = 0x01UL;
 	int rc;
 
 	switch (size) {
@@ -249,9 +239,6 @@ int __put_user_bad(void) __attribute__((noreturn));
 
 int __get_user_bad(void) __attribute__((noreturn));
 
-#define __put_user_unaligned __put_user
-#define __get_user_unaligned __get_user
-
 unsigned long __must_check
 raw_copy_in_user(void __user *to, const void __user *from, unsigned long n);
 
@@ -275,23 +262,6 @@ static inline unsigned long strnlen_user(const char __user *src, unsigned long n
 	might_fault();
 	return __strnlen_user(src, n);
 }
-
-/**
- * strlen_user: - Get the size of a string in user space.
- * @str: The string to measure.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Get the size of a NUL-terminated string in user space.
- *
- * Returns the size of the string INCLUDING the terminating NUL.
- * On exception, returns 0.
- *
- * If there is a limit on the length of a valid string, you may wish to
- * consider using strnlen_user() instead.
- */
-#define strlen_user(str) strnlen_user(str, ~0UL)
 
 /*
  * Zero Userspace

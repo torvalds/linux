@@ -54,21 +54,6 @@
 #define HFI1_VNIC_MAX_TXQ     16
 #define HFI1_VNIC_MAX_PAD     12
 
-/* L2 header definitions */
-#define HFI1_L2_TYPE_OFFSET     0x7
-#define HFI1_L2_TYPE_SHFT       0x5
-#define HFI1_L2_TYPE_MASK       0x3
-
-#define HFI1_GET_L2_TYPE(hdr)                                            \
-	((*((u8 *)(hdr) + HFI1_L2_TYPE_OFFSET) >> HFI1_L2_TYPE_SHFT) &   \
-	 HFI1_L2_TYPE_MASK)
-
-/* L4 type definitions */
-#define HFI1_L4_TYPE_OFFSET 8
-
-#define HFI1_GET_L4_TYPE(data)   \
-	(*((u8 *)(data) + HFI1_L4_TYPE_OFFSET))
-
 /* L4 header definitions */
 #define HFI1_VNIC_L4_HDR_OFFSET  OPA_VNIC_L2_HDR_LEN
 
@@ -103,6 +88,7 @@ struct hfi1_vnic_sdma {
 	struct sdma_txreq stx;
 	unsigned int state;
 	u8 q_idx;
+	bool pkts_sent;
 };
 
 /**
@@ -176,7 +162,6 @@ struct net_device *hfi1_vnic_alloc_rn(struct ib_device *device,
 				      const char *name,
 				      unsigned char name_assign_type,
 				      void (*setup)(struct net_device *));
-void hfi1_vnic_free_rn(struct net_device *netdev);
 int hfi1_vnic_send_dma(struct hfi1_devdata *dd, u8 q_idx,
 		       struct hfi1_vnic_vport_info *vinfo,
 		       struct sk_buff *skb, u64 pbc, u8 plen);

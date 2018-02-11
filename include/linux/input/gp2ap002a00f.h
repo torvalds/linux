@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _GP2AP002A00F_H_
 #define _GP2AP002A00F_H_
 

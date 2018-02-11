@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _RTL871X_RECV_H_
 #define _RTL871X_RECV_H_
 

@@ -75,6 +75,10 @@ These nodes must have the following properties:
 - reg: Specifies the base physical address and size of the ITS
   registers.
 
+Optional:
+- socionext,synquacer-pre-its: (u32, u32) tuple describing the untranslated
+  address and size of the pre-ITS window.
+
 The main GIC node must contain the appropriate #address-cells,
 #size-cells and ranges properties for the reg property of all ITS
 nodes.
@@ -99,7 +103,7 @@ Examples:
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
-			reg = <0x0 0x2c200000 0 0x200000>;
+			reg = <0x0 0x2c200000 0 0x20000>;
 		};
 	};
 
@@ -124,14 +128,14 @@ Examples:
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
-			reg = <0x0 0x2c200000 0 0x200000>;
+			reg = <0x0 0x2c200000 0 0x20000>;
 		};
 
 		gic-its@2c400000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
-			reg = <0x0 0x2c400000 0 0x200000>;
+			reg = <0x0 0x2c400000 0 0x20000>;
 		};
 
 		ppi-partitions {

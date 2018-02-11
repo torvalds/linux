@@ -46,7 +46,7 @@ struct kvm_kernel_irqfd_resampler {
 struct kvm_kernel_irqfd {
 	/* Used for MSI fast-path */
 	struct kvm *kvm;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	/* Update side is protected by irqfds.lock */
 	struct kvm_kernel_irq_routing_entry irq_entry;
 	seqcount_t irq_entry_sc;

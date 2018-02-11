@@ -90,10 +90,13 @@ enum ad_link_speed_type {
 	AD_LINK_SPEED_100MBPS,
 	AD_LINK_SPEED_1000MBPS,
 	AD_LINK_SPEED_2500MBPS,
+	AD_LINK_SPEED_5000MBPS,
 	AD_LINK_SPEED_10000MBPS,
+	AD_LINK_SPEED_14000MBPS,
 	AD_LINK_SPEED_20000MBPS,
 	AD_LINK_SPEED_25000MBPS,
 	AD_LINK_SPEED_40000MBPS,
+	AD_LINK_SPEED_50000MBPS,
 	AD_LINK_SPEED_56000MBPS,
 	AD_LINK_SPEED_100000MBPS,
 };
@@ -259,10 +262,13 @@ static inline int __check_agg_selection_timer(struct port *port)
  *     %AD_LINK_SPEED_100MBPS,
  *     %AD_LINK_SPEED_1000MBPS,
  *     %AD_LINK_SPEED_2500MBPS,
+ *     %AD_LINK_SPEED_5000MBPS,
  *     %AD_LINK_SPEED_10000MBPS
+ *     %AD_LINK_SPEED_14000MBPS,
  *     %AD_LINK_SPEED_20000MBPS
  *     %AD_LINK_SPEED_25000MBPS
  *     %AD_LINK_SPEED_40000MBPS
+ *     %AD_LINK_SPEED_50000MBPS
  *     %AD_LINK_SPEED_56000MBPS
  *     %AD_LINK_SPEED_100000MBPS
  */
@@ -296,8 +302,16 @@ static u16 __get_link_speed(struct port *port)
 			speed = AD_LINK_SPEED_2500MBPS;
 			break;
 
+		case SPEED_5000:
+			speed = AD_LINK_SPEED_5000MBPS;
+			break;
+
 		case SPEED_10000:
 			speed = AD_LINK_SPEED_10000MBPS;
+			break;
+
+		case SPEED_14000:
+			speed = AD_LINK_SPEED_14000MBPS;
 			break;
 
 		case SPEED_20000:
@@ -312,6 +326,10 @@ static u16 __get_link_speed(struct port *port)
 			speed = AD_LINK_SPEED_40000MBPS;
 			break;
 
+		case SPEED_50000:
+			speed = AD_LINK_SPEED_50000MBPS;
+			break;
+
 		case SPEED_56000:
 			speed = AD_LINK_SPEED_56000MBPS;
 			break;
@@ -322,6 +340,11 @@ static u16 __get_link_speed(struct port *port)
 
 		default:
 			/* unknown speed value from ethtool. shouldn't happen */
+			if (slave->speed != SPEED_UNKNOWN)
+				pr_warn_once("%s: unknown ethtool speed (%d) for port %d (set it to 0)\n",
+					     slave->bond->dev->name,
+					     slave->speed,
+					     port->actor_port_number);
 			speed = 0;
 			break;
 		}
@@ -707,8 +730,14 @@ static u32 __get_agg_bandwidth(struct aggregator *aggregator)
 		case AD_LINK_SPEED_2500MBPS:
 			bandwidth = nports * 2500;
 			break;
+		case AD_LINK_SPEED_5000MBPS:
+			bandwidth = nports * 5000;
+			break;
 		case AD_LINK_SPEED_10000MBPS:
 			bandwidth = nports * 10000;
+			break;
+		case AD_LINK_SPEED_14000MBPS:
+			bandwidth = nports * 14000;
 			break;
 		case AD_LINK_SPEED_20000MBPS:
 			bandwidth = nports * 20000;
@@ -718,6 +747,9 @@ static u32 __get_agg_bandwidth(struct aggregator *aggregator)
 			break;
 		case AD_LINK_SPEED_40000MBPS:
 			bandwidth = nports * 40000;
+			break;
+		case AD_LINK_SPEED_50000MBPS:
+			bandwidth = nports * 50000;
 			break;
 		case AD_LINK_SPEED_56000MBPS:
 			bandwidth = nports * 56000;
@@ -825,7 +857,7 @@ static int ad_lacpdu_send(struct port *port)
 	skb->protocol = PKT_TYPE_LACPDU;
 	skb->priority = TC_PRIO_CONTROL;
 
-	lacpdu_header = (struct lacpdu_header *)skb_put(skb, length);
+	lacpdu_header = skb_put(skb, length);
 
 	ether_addr_copy(lacpdu_header->hdr.h_dest, lacpdu_mcast_addr);
 	/* Note: source address is set to be the member's PERMANENT address,
@@ -867,7 +899,7 @@ static int ad_marker_send(struct port *port, struct bond_marker *marker)
 	skb->network_header = skb->mac_header + ETH_HLEN;
 	skb->protocol = PKT_TYPE_LACPDU;
 
-	marker_header = (struct bond_marker_header *)skb_put(skb, length);
+	marker_header = skb_put(skb, length);
 
 	ether_addr_copy(marker_header->hdr.h_dest, lacpdu_mcast_addr);
 	/* Note: source address is set to be the member's PERMANENT address,

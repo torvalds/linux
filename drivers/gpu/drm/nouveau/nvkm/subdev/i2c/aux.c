@@ -117,6 +117,10 @@ int
 nvkm_i2c_aux_xfer(struct nvkm_i2c_aux *aux, bool retry, u8 type,
 		  u32 addr, u8 *data, u8 *size)
 {
+	if (!*size && !aux->func->address_only) {
+		AUX_ERR(aux, "address-only transaction dropped");
+		return -ENOSYS;
+	}
 	return aux->func->xfer(aux, retry, type, addr, data, size);
 }
 

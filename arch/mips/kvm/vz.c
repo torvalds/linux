@@ -2337,7 +2337,7 @@ static int kvm_vz_check_requests(struct kvm_vcpu *vcpu, int cpu)
 	int ret = 0;
 	int i;
 
-	if (!vcpu->requests)
+	if (!kvm_request_pending(vcpu))
 		return 0;
 
 	if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu)) {

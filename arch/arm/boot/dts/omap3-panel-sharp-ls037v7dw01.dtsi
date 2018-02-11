@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Common file for omap dpi panels with QVGA and reset pins
  *
@@ -29,6 +30,7 @@
 		compatible = "sharp,ls037v7dw01";
 		label = "lcd";
 		power-supply = <&lcd_3v3>;
+		envdd-supply = <&lcd_3v3>;
 
 		port {
 			lcd_in: endpoint {

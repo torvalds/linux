@@ -85,11 +85,6 @@ config CPU_EXYNOS4210
 	default y
 	depends on ARCH_EXYNOS4
 
-config SOC_EXYNOS4212
-	bool "SAMSUNG EXYNOS4212"
-	default y
-	depends on ARCH_EXYNOS4
-
 config SOC_EXYNOS4412
 	bool "SAMSUNG EXYNOS4412"
 	default y

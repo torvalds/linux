@@ -300,7 +300,7 @@ config PWM_MEDIATEK
 	  Generic PWM framework driver for Mediatek ARM SoC.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called pwm-mxs.
+	  will be called pwm-mediatek.
 
 config PWM_MXS
 	tristate "Freescale MXS PWM support"
@@ -417,6 +417,16 @@ config PWM_STM32
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-stm32.
 
+config PWM_STM32_LP
+	tristate "STMicroelectronics STM32 PWM LP"
+	depends on MFD_STM32_LPTIMER || COMPILE_TEST
+	help
+	  Generic PWM framework driver for STMicroelectronics STM32 SoCs
+	  with Low-Power Timer (LPTIM).
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-stm32-lp.
+
 config PWM_STMPE
 	bool "STMPE expander PWM export"
 	depends on MFD_STMPE
@@ -446,7 +456,7 @@ config PWM_TEGRA
 
 config  PWM_TIECAP
 	tristate "ECAP PWM support"
-	depends on ARCH_OMAP2PLUS || ARCH_DAVINCI_DA8XX
+	depends on ARCH_OMAP2PLUS || ARCH_DAVINCI_DA8XX || ARCH_KEYSTONE
 	help
 	  PWM driver support for the ECAP APWM controller found on AM33XX
 	  TI SOC
@@ -499,5 +509,14 @@ config PWM_VT8500
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-vt8500.
+
+config PWM_ZX
+	tristate "ZTE ZX PWM support"
+	depends on ARCH_ZX
+	help
+	  Generic PWM framework driver for ZTE ZX family SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-zx.
 
 endif

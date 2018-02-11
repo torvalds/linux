@@ -505,7 +505,7 @@ static int ad1983_auto_smux_enum_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new ad1983_auto_smux_mixer = {
+static const struct snd_kcontrol_new ad1983_auto_smux_mixer = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "IEC958 Playback Source",
 	.info = ad1983_auto_smux_enum_info,
@@ -788,7 +788,7 @@ static int ad1988_auto_smux_enum_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new ad1988_auto_smux_mixer = {
+static const struct snd_kcontrol_new ad1988_auto_smux_mixer = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "IEC958 Playback Source",
 	.info = ad1988_auto_smux_enum_info,

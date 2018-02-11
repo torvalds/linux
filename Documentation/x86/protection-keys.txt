@@ -1,5 +1,10 @@
-Memory Protection Keys for Userspace (PKU aka PKEYs) is a CPU feature
-which will be found on future Intel CPUs.
+Memory Protection Keys for Userspace (PKU aka PKEYs) is a feature
+which is found on Intel's Skylake "Scalable Processor" Server CPUs.
+It will be avalable in future non-server parts.
+
+For anyone wishing to test or use this feature, it is available in
+Amazon's EC2 C5 instances and is known to work there using an Ubuntu
+17.04 image.
 
 Memory Protection Keys provides a mechanism for enforcing page-based
 protections, but without requiring modification of the page tables
@@ -34,7 +39,7 @@ with a key.  In this example WRPKRU is wrapped by a C function
 called pkey_set().
 
 	int real_prot = PROT_READ|PROT_WRITE;
-	pkey = pkey_alloc(0, PKEY_DENY_WRITE);
+	pkey = pkey_alloc(0, PKEY_DISABLE_WRITE);
 	ptr = mmap(NULL, PAGE_SIZE, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
 	ret = pkey_mprotect(ptr, PAGE_SIZE, real_prot, pkey);
 	... application runs here
@@ -42,9 +47,9 @@ called pkey_set().
 Now, if the application needs to update the data at 'ptr', it can
 gain access, do the update, then remove its write access:
 
-	pkey_set(pkey, 0); // clear PKEY_DENY_WRITE
+	pkey_set(pkey, 0); // clear PKEY_DISABLE_WRITE
 	*ptr = foo; // assign something
-	pkey_set(pkey, PKEY_DENY_WRITE); // set PKEY_DENY_WRITE again
+	pkey_set(pkey, PKEY_DISABLE_WRITE); // set PKEY_DISABLE_WRITE again
 
 Now when it frees the memory, it will also free the pkey since it
 is no longer in use:

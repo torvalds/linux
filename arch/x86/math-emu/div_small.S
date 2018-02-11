@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 	.file	"div_small.S"
 /*---------------------------------------------------------------------------+
  |  div_small.S                                                              |
@@ -44,4 +45,4 @@ ENTRY(FPU_div_small)
 
 	leave
 	ret
-
+ENDPROC(FPU_div_small)

@@ -1,4 +1,4 @@
-Common leds properties.
+* Common leds properties.
 
 LED and flash LED devices provide the same basic functionality as current
 regulators, but extended with LED and flash LED specific features like
@@ -49,6 +49,22 @@ Optional properties for child nodes:
 - panic-indicator : This property specifies that the LED should be used,
 		    if at all possible, as a panic indicator.
 
+- trigger-sources : List of devices which should be used as a source triggering
+		    this LED activity. Some LEDs can be related to a specific
+		    device and should somehow indicate its state. E.g. USB 2.0
+		    LED may react to device(s) in a USB 2.0 port(s).
+		    Another common example is switch or router with multiple
+		    Ethernet ports each of them having its own LED assigned
+		    (assuming they are not hardwired). In such cases this
+		    property should contain phandle(s) of related source
+		    device(s).
+		    In many cases LED can be related to more than one device
+		    (e.g. one USB LED vs. multiple USB ports). Each source
+		    should be represented by a node in the device tree and be
+		    referenced by a phandle and a set of phandle arguments. A
+		    length of arguments should be specified by the
+		    #trigger-source-cells property in the source node.
+
 Required properties for flash LED child nodes:
 - flash-max-microamp : Maximum flash LED supply current in microamperes.
 - flash-max-timeout-us : Maximum timeout in microseconds after which the flash
@@ -59,7 +75,17 @@ property can be omitted.
 For controllers that have no configurable timeout the flash-max-timeout-us
 property can be omitted.
 
-Examples:
+* Trigger source providers
+
+Each trigger source should be represented by a device tree node. It may be e.g.
+a USB port or an Ethernet device.
+
+Required properties for trigger source:
+- #trigger-source-cells : Number of cells in a source trigger. Typically 0 for
+			  nodes of simple trigger sources (e.g. a specific USB
+			  port).
+
+* Examples
 
 gpio-leds {
 	compatible = "gpio-leds";
@@ -68,6 +94,11 @@ gpio-leds {
 		label = "Status";
 		linux,default-trigger = "heartbeat";
 		gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>;
+	};
+
+	usb {
+		gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+		trigger-sources = <&ohci_port1>, <&ehci_port1>;
 	};
 };
 

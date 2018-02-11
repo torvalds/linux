@@ -1,19 +1,4 @@
-/*
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 675 Mass Ave, Cambridge, MA 02139, USA.
- */
+// SPDX-License-Identifier: GPL-2.0+
 #include <linux/jiffies.h>
 #include <linux/errno.h>
 #include <linux/module.h>
@@ -95,12 +80,12 @@ static struct us_unusual_dev ene_ub6250_unusual_dev_list[] = {
 #define REG_HW_TRAP1        0xFF89
 
 /* SRB Status */
-#define SS_SUCCESS                  0x00      /* No Sense */
-#define SS_NOT_READY                0x02
-#define SS_MEDIUM_ERR               0x03
-#define SS_HW_ERR                   0x04
-#define SS_ILLEGAL_REQUEST          0x05
-#define SS_UNIT_ATTENTION           0x06
+#define SS_SUCCESS		0x000000	/* No Sense */
+#define SS_NOT_READY		0x023A00	/* Medium not present */
+#define SS_MEDIUM_ERR		0x031100	/* Unrecovered read error */
+#define SS_HW_ERR		0x040800	/* Communication failure */
+#define SS_ILLEGAL_REQUEST	0x052000	/* Invalid command */
+#define SS_UNIT_ATTENTION	0x062900	/* Reset occurred */
 
 /* ENE Load FW Pattern */
 #define SD_INIT1_PATTERN   1
@@ -584,6 +569,34 @@ static int ene_send_scsi_cmd(struct us_data *us, u8 fDir, void *buf, int use_sg)
 	return USB_STOR_TRANSPORT_GOOD;
 }
 
+static int do_scsi_request_sense(struct us_data *us, struct scsi_cmnd *srb)
+{
+	struct ene_ub6250_info *info = (struct ene_ub6250_info *) us->extra;
+	unsigned char buf[18];
+
+	memset(buf, 0, 18);
+	buf[0] = 0x70;				/* Current error */
+	buf[2] = info->SrbStatus >> 16;		/* Sense key */
+	buf[7] = 10;				/* Additional length */
+	buf[12] = info->SrbStatus >> 8;		/* ASC */
+	buf[13] = info->SrbStatus;		/* ASCQ */
+
+	usb_stor_set_xfer_buf(buf, sizeof(buf), srb);
+	return USB_STOR_TRANSPORT_GOOD;
+}
+
+static int do_scsi_inquiry(struct us_data *us, struct scsi_cmnd *srb)
+{
+	unsigned char data_ptr[36] = {
+		0x00, 0x00, 0x02, 0x00, 0x1F, 0x00, 0x00, 0x00, 0x55,
+		0x53, 0x42, 0x32, 0x2E, 0x30, 0x20, 0x20, 0x43, 0x61,
+		0x72, 0x64, 0x52, 0x65, 0x61, 0x64, 0x65, 0x72, 0x20,
+		0x20, 0x20, 0x20, 0x20, 0x20, 0x30, 0x31, 0x30, 0x30 };
+
+	usb_stor_set_xfer_buf(data_ptr, 36, srb);
+	return USB_STOR_TRANSPORT_GOOD;
+}
+
 static int sd_scsi_test_unit_ready(struct us_data *us, struct scsi_cmnd *srb)
 {
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *) us->extra;
@@ -595,18 +608,6 @@ static int sd_scsi_test_unit_ready(struct us_data *us, struct scsi_cmnd *srb)
 		return USB_STOR_TRANSPORT_GOOD;
 	}
 
-	return USB_STOR_TRANSPORT_GOOD;
-}
-
-static int sd_scsi_inquiry(struct us_data *us, struct scsi_cmnd *srb)
-{
-	unsigned char data_ptr[36] = {
-		0x00, 0x80, 0x02, 0x00, 0x1F, 0x00, 0x00, 0x00, 0x55,
-		0x53, 0x42, 0x32, 0x2E, 0x30, 0x20, 0x20, 0x43, 0x61,
-		0x72, 0x64, 0x52, 0x65, 0x61, 0x64, 0x65, 0x72, 0x20,
-		0x20, 0x20, 0x20, 0x20, 0x20, 0x30, 0x31, 0x30, 0x30 };
-
-	usb_stor_set_xfer_buf(data_ptr, 36, srb);
 	return USB_STOR_TRANSPORT_GOOD;
 }
 
@@ -1455,19 +1456,6 @@ static int ms_scsi_test_unit_ready(struct us_data *us, struct scsi_cmnd *srb)
 	return USB_STOR_TRANSPORT_GOOD;
 }
 
-static int ms_scsi_inquiry(struct us_data *us, struct scsi_cmnd *srb)
-{
-	/* pr_info("MS_SCSI_Inquiry\n"); */
-	unsigned char data_ptr[36] = {
-		0x00, 0x80, 0x02, 0x00, 0x1F, 0x00, 0x00, 0x00, 0x55,
-		0x53, 0x42, 0x32, 0x2E, 0x30, 0x20, 0x20, 0x43, 0x61,
-		0x72, 0x64, 0x52, 0x65, 0x61, 0x64, 0x65, 0x72, 0x20,
-		0x20, 0x20, 0x20, 0x20, 0x20, 0x30, 0x31, 0x30, 0x30};
-
-	usb_stor_set_xfer_buf(data_ptr, 36, srb);
-	return USB_STOR_TRANSPORT_GOOD;
-}
-
 static int ms_scsi_mode_sense(struct us_data *us, struct scsi_cmnd *srb)
 {
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *) us->extra;
@@ -1940,6 +1928,8 @@ static int ene_load_bincode(struct us_data *us, unsigned char flag)
 	bcb->CDB[0] = 0xEF;
 
 	result = ene_send_scsi_cmd(us, FDIR_WRITE, buf, 0);
+	if (us->srb != NULL)
+		scsi_set_resid(us->srb, 0);
 	info->BIN_FLAG = flag;
 	kfree(buf);
 
@@ -2223,13 +2213,15 @@ static int sd_scsi_irp(struct us_data *us, struct scsi_cmnd *srb)
 	int    result;
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *)us->extra;
 
-	info->SrbStatus = SS_SUCCESS;
 	switch (srb->cmnd[0]) {
 	case TEST_UNIT_READY:
 		result = sd_scsi_test_unit_ready(us, srb);
 		break; /* 0x00 */
+	case REQUEST_SENSE:
+		result = do_scsi_request_sense(us, srb);
+		break; /* 0x03 */
 	case INQUIRY:
-		result = sd_scsi_inquiry(us, srb);
+		result = do_scsi_inquiry(us, srb);
 		break; /* 0x12 */
 	case MODE_SENSE:
 		result = sd_scsi_mode_sense(us, srb);
@@ -2253,6 +2245,8 @@ static int sd_scsi_irp(struct us_data *us, struct scsi_cmnd *srb)
 		result = USB_STOR_TRANSPORT_FAILED;
 		break;
 	}
+	if (result == USB_STOR_TRANSPORT_GOOD)
+		info->SrbStatus = SS_SUCCESS;
 	return result;
 }
 
@@ -2263,13 +2257,16 @@ static int ms_scsi_irp(struct us_data *us, struct scsi_cmnd *srb)
 {
 	int result;
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *)us->extra;
-	info->SrbStatus = SS_SUCCESS;
+
 	switch (srb->cmnd[0]) {
 	case TEST_UNIT_READY:
 		result = ms_scsi_test_unit_ready(us, srb);
 		break; /* 0x00 */
+	case REQUEST_SENSE:
+		result = do_scsi_request_sense(us, srb);
+		break; /* 0x03 */
 	case INQUIRY:
-		result = ms_scsi_inquiry(us, srb);
+		result = do_scsi_inquiry(us, srb);
 		break; /* 0x12 */
 	case MODE_SENSE:
 		result = ms_scsi_mode_sense(us, srb);
@@ -2288,26 +2285,29 @@ static int ms_scsi_irp(struct us_data *us, struct scsi_cmnd *srb)
 		result = USB_STOR_TRANSPORT_FAILED;
 		break;
 	}
+	if (result == USB_STOR_TRANSPORT_GOOD)
+		info->SrbStatus = SS_SUCCESS;
 	return result;
 }
 
 static int ene_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
-	int result = 0;
+	int result = USB_STOR_XFER_GOOD;
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *)(us->extra);
 
 	/*US_DEBUG(usb_stor_show_command(us, srb)); */
 	scsi_set_resid(srb, 0);
-	if (unlikely(!(info->SD_Status.Ready || info->MS_Status.Ready))) {
+	if (unlikely(!(info->SD_Status.Ready || info->MS_Status.Ready)))
 		result = ene_init(us);
-	} else {
+	if (result == USB_STOR_XFER_GOOD) {
+		result = USB_STOR_TRANSPORT_ERROR;
 		if (info->SD_Status.Ready)
 			result = sd_scsi_irp(us, srb);
 
 		if (info->MS_Status.Ready)
 			result = ms_scsi_irp(us, srb);
 	}
-	return 0;
+	return result;
 }
 
 static struct scsi_host_template ene_ub6250_host_template;

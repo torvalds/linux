@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# SPDX-License-Identifier: GPL-2.0
 
 open (IN,"ktest.pl");
 while (<IN>) {

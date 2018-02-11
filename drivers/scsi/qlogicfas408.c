@@ -496,13 +496,13 @@ int qlogicfas408_abort(struct scsi_cmnd *cmd)
 	return SUCCESS;
 }
 
-/* 
+/*
  *	Reset SCSI bus
  *	FIXME: This function is invoked with cmd = NULL directly by
  *	the PCMCIA qlogic_stub code. This wants fixing
  */
 
-int qlogicfas408_bus_reset(struct scsi_cmnd *cmd)
+int qlogicfas408_host_reset(struct scsi_cmnd *cmd)
 {
 	struct qlogicfas408_priv *priv = get_priv_by_cmd(cmd);
 	unsigned long flags;
@@ -607,7 +607,7 @@ module_exit(qlogicfas408_exit);
 EXPORT_SYMBOL(qlogicfas408_info);
 EXPORT_SYMBOL(qlogicfas408_queuecommand);
 EXPORT_SYMBOL(qlogicfas408_abort);
-EXPORT_SYMBOL(qlogicfas408_bus_reset);
+EXPORT_SYMBOL(qlogicfas408_host_reset);
 EXPORT_SYMBOL(qlogicfas408_biosparam);
 EXPORT_SYMBOL(qlogicfas408_ihandl);
 EXPORT_SYMBOL(qlogicfas408_get_chip_type);

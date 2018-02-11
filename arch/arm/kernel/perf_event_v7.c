@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ARMv7 Cortex-A8 and Cortex-A9 Performance Events handling code.
  *

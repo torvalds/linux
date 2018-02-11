@@ -1232,7 +1232,7 @@ static struct attribute *at91_sysfs_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group at91_sysfs_attr_group = {
+static const struct attribute_group at91_sysfs_attr_group = {
 	.attrs = at91_sysfs_attrs,
 };
 

@@ -21,6 +21,15 @@ enum nvdimm_event {
 	NVDIMM_REVALIDATE_POISON,
 };
 
+enum nvdimm_claim_class {
+	NVDIMM_CCLASS_NONE,
+	NVDIMM_CCLASS_BTT,
+	NVDIMM_CCLASS_BTT2,
+	NVDIMM_CCLASS_PFN,
+	NVDIMM_CCLASS_DAX,
+	NVDIMM_CCLASS_UNKNOWN,
+};
+
 struct nd_device_driver {
 	struct device_driver drv;
 	unsigned long type;
@@ -41,12 +50,14 @@ static inline struct nd_device_driver *to_nd_device_driver(
  * @force_raw: ignore other personalities for the namespace (e.g. btt)
  * @dev: device model node
  * @claim: when set a another personality has taken ownership of the namespace
+ * @claim_class: restrict claim type to a given class
  * @rw_bytes: access the raw namespace capacity with byte-aligned transfers
  */
 struct nd_namespace_common {
 	int force_raw;
 	struct device dev;
 	struct device *claim;
+	enum nvdimm_claim_class claim_class;
 	int (*rw_bytes)(struct nd_namespace_common *, resource_size_t offset,
 			void *buf, size_t size, int rw, unsigned long flags);
 };
@@ -75,12 +86,14 @@ struct nd_namespace_io {
 /**
  * struct nd_namespace_pmem - namespace device for dimm-backed interleaved memory
  * @nsio: device and system physical address range to drive
+ * @lbasize: logical sector size for the namespace in block-device-mode
  * @alt_name: namespace name supplied in the dimm label
  * @uuid: namespace name supplied in the dimm label
  * @id: ida allocated id
  */
 struct nd_namespace_pmem {
 	struct nd_namespace_io nsio;
+	unsigned long lbasize;
 	char *alt_name;
 	u8 *uuid;
 	int id;

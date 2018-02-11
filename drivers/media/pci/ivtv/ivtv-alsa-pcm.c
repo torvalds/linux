@@ -41,7 +41,7 @@ MODULE_PARM_DESC(pcm_debug, "enable debug messages for pcm");
 			pr_info("ivtv-alsa-pcm %s: " fmt, __func__, ##arg); \
 	} while (0)
 
-static struct snd_pcm_hardware snd_ivtv_hw_capture = {
+static const struct snd_pcm_hardware snd_ivtv_hw_capture = {
 	.info = SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_MMAP           |
 		SNDRV_PCM_INFO_INTERLEAVED    |
@@ -262,14 +262,16 @@ static int snd_ivtv_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_ivtv_card *itvsc = snd_pcm_substream_chip(substream);
 	unsigned long flags;
+	unsigned char *dma_area = NULL;
 
 	spin_lock_irqsave(&itvsc->slock, flags);
 	if (substream->runtime->dma_area) {
 		dprintk("freeing pcm capture region\n");
-		vfree(substream->runtime->dma_area);
+		dma_area = substream->runtime->dma_area;
 		substream->runtime->dma_area = NULL;
 	}
 	spin_unlock_irqrestore(&itvsc->slock, flags);
+	vfree(dma_area);
 
 	return 0;
 }

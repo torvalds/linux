@@ -74,7 +74,7 @@
 #endif				/* TRACING */
 
 static DEFINE_MUTEX(dtlk_mutex);
-static void dtlk_timer_tick(unsigned long data);
+static void dtlk_timer_tick(struct timer_list *unused);
 
 static int dtlk_major;
 static int dtlk_port_lpc;
@@ -84,7 +84,7 @@ static int dtlk_has_indexing;
 static unsigned int dtlk_portlist[] =
 {0x25e, 0x29e, 0x2de, 0x31e, 0x35e, 0x39e, 0};
 static wait_queue_head_t dtlk_process_list;
-static DEFINE_TIMER(dtlk_timer, dtlk_timer_tick, 0, 0);
+static DEFINE_TIMER(dtlk_timer, dtlk_timer_tick);
 
 /* prototypes for file_operations struct */
 static ssize_t dtlk_read(struct file *, char __user *,
@@ -259,7 +259,7 @@ static unsigned int dtlk_poll(struct file *file, poll_table * wait)
 	return mask;
 }
 
-static void dtlk_timer_tick(unsigned long data)
+static void dtlk_timer_tick(struct timer_list *unused)
 {
 	TRACE_TEXT(" dtlk_timer_tick");
 	wake_up_interruptible(&dtlk_process_list);

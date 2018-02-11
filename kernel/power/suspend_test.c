@@ -104,9 +104,9 @@ repeat:
 		printk(info_test, pm_states[state]);
 		status = pm_suspend(state);
 		if (status < 0)
-			state = PM_SUSPEND_FREEZE;
+			state = PM_SUSPEND_TO_IDLE;
 	}
-	if (state == PM_SUSPEND_FREEZE) {
+	if (state == PM_SUSPEND_TO_IDLE) {
 		printk(info_test, pm_states[state]);
 		status = pm_suspend(state);
 	}

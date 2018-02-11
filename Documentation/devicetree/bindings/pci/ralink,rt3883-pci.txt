@@ -71,7 +71,7 @@
    - interrupt-map: standard PCI properties to define the mapping of the
      PCI interface to interrupt numbers.
 
-   The PCI host bridge node migh have additional sub-nodes representing
+   The PCI host bridge node might have additional sub-nodes representing
    the onboard PCI devices/PCI slots. Each such sub-node must have the
    following mandatory properties:
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Device tables which are exported to userspace via
  * scripts/mod/file2alias.c.  You must keep that file in sync with this
@@ -293,6 +294,7 @@ struct pcmcia_device_id {
 #define INPUT_DEVICE_ID_SND_MAX		0x07
 #define INPUT_DEVICE_ID_FF_MAX		0x7f
 #define INPUT_DEVICE_ID_SW_MAX		0x0f
+#define INPUT_DEVICE_ID_PROP_MAX	0x1f
 
 #define INPUT_DEVICE_ID_MATCH_BUS	1
 #define INPUT_DEVICE_ID_MATCH_VENDOR	2
@@ -308,6 +310,7 @@ struct pcmcia_device_id {
 #define INPUT_DEVICE_ID_MATCH_SNDBIT	0x0400
 #define INPUT_DEVICE_ID_MATCH_FFBIT	0x0800
 #define INPUT_DEVICE_ID_MATCH_SWBIT	0x1000
+#define INPUT_DEVICE_ID_MATCH_PROPBIT	0x2000
 
 struct input_device_id {
 
@@ -327,6 +330,7 @@ struct input_device_id {
 	kernel_ulong_t sndbit[INPUT_DEVICE_ID_SND_MAX / BITS_PER_LONG + 1];
 	kernel_ulong_t ffbit[INPUT_DEVICE_ID_FF_MAX / BITS_PER_LONG + 1];
 	kernel_ulong_t swbit[INPUT_DEVICE_ID_SW_MAX / BITS_PER_LONG + 1];
+	kernel_ulong_t propbit[INPUT_DEVICE_ID_PROP_MAX / BITS_PER_LONG + 1];
 
 	kernel_ulong_t driver_info;
 };
@@ -674,8 +678,6 @@ struct ulpi_device_id {
  * struct fsl_mc_device_id - MC object device identifier
  * @vendor: vendor ID
  * @obj_type: MC object type
- * @ver_major: MC object version major number
- * @ver_minor: MC object version minor number
  *
  * Type of entries in the "device Id" table for MC object devices supported by
  * a MC object device driver. The last entry of the table has vendor set to 0x0
@@ -685,5 +687,31 @@ struct fsl_mc_device_id {
 	const char obj_type[16];
 };
 
+/**
+ * struct tb_service_id - Thunderbolt service identifiers
+ * @match_flags: Flags used to match the structure
+ * @protocol_key: Protocol key the service supports
+ * @protocol_id: Protocol id the service supports
+ * @protocol_version: Version of the protocol
+ * @protocol_revision: Revision of the protocol software
+ * @driver_data: Driver specific data
+ *
+ * Thunderbolt XDomain services are exposed as devices where each device
+ * carries the protocol information the service supports. Thunderbolt
+ * XDomain service drivers match against that information.
+ */
+struct tb_service_id {
+	__u32 match_flags;
+	char protocol_key[8 + 1];
+	__u32 protocol_id;
+	__u32 protocol_version;
+	__u32 protocol_revision;
+	kernel_ulong_t driver_data;
+};
+
+#define TBSVC_MATCH_PROTOCOL_KEY	0x0001
+#define TBSVC_MATCH_PROTOCOL_ID		0x0002
+#define TBSVC_MATCH_PROTOCOL_VERSION	0x0004
+#define TBSVC_MATCH_PROTOCOL_REVISION	0x0008
 
 #endif /* LINUX_MOD_DEVICETABLE_H */

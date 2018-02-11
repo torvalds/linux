@@ -89,6 +89,10 @@ do { \
 
 #define RCB_RING_NAME_LEN 16
 
+#define HNAE_LOWEST_LATENCY_COAL_PARAM	30
+#define HNAE_LOW_LATENCY_COAL_PARAM	80
+#define HNAE_BULK_LATENCY_COAL_PARAM	150
+
 enum hnae_led_state {
 	HNAE_LED_INACTIVE,
 	HNAE_LED_ACTIVE,
@@ -292,6 +296,12 @@ struct hnae_ring {
 
 	int flags;          /* ring attribute */
 	int irq_init_flag;
+
+	/* total rx bytes after last rx rate calucated */
+	u64 coal_last_rx_bytes;
+	unsigned long coal_last_jiffies;
+	u32 coal_param;
+	u32 coal_rx_rate;	/* rx rate in MB */
 };
 
 #define ring_ptr_move_fw(ring, p) \
@@ -360,6 +370,7 @@ enum hnae_loop {
 	MAC_INTERNALLOOP_MAC = 0,
 	MAC_INTERNALLOOP_SERDES,
 	MAC_INTERNALLOOP_PHY,
+	MAC_LOOP_PHY_NONE,
 	MAC_LOOP_NONE,
 };
 
@@ -547,8 +558,13 @@ struct hnae_handle {
 	u32 if_support;
 	int q_num;
 	int vf_id;
+	unsigned long coal_last_jiffies;
+	u32 coal_param;		/* self adapt coalesce param */
+	/* the ring index of last ring that set coal param */
+	u32 coal_ring_idx;
 	u32 eport_id;
 	u32 dport_id;	/* v2 tx bd should fill the dport_id */
+	bool coal_adapt_en;
 	enum hnae_port_type port_type;
 	enum hnae_media_type media_type;
 	struct list_head node;    /* list to hnae_ae_dev->handle_list */

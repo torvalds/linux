@@ -69,7 +69,7 @@ struct asyncppp {
 
 	struct tasklet_struct tsk;
 
-	atomic_t	refcnt;
+	refcount_t	refcnt;
 	struct semaphore dead_sem;
 	struct ppp_channel chan;	/* interface to generic ppp layer */
 	unsigned char	obuf[OBUFSIZE];
@@ -140,14 +140,14 @@ static struct asyncppp *ap_get(struct tty_struct *tty)
 	read_lock(&disc_data_lock);
 	ap = tty->disc_data;
 	if (ap != NULL)
-		atomic_inc(&ap->refcnt);
+		refcount_inc(&ap->refcnt);
 	read_unlock(&disc_data_lock);
 	return ap;
 }
 
 static void ap_put(struct asyncppp *ap)
 {
-	if (atomic_dec_and_test(&ap->refcnt))
+	if (refcount_dec_and_test(&ap->refcnt))
 		up(&ap->dead_sem);
 }
 
@@ -185,7 +185,7 @@ ppp_asynctty_open(struct tty_struct *tty)
 	skb_queue_head_init(&ap->rqueue);
 	tasklet_init(&ap->tsk, ppp_async_process, (unsigned long) ap);
 
-	atomic_set(&ap->refcnt, 1);
+	refcount_set(&ap->refcnt, 1);
 	sema_init(&ap->dead_sem, 0);
 
 	ap->chan.private = ap;
@@ -234,7 +234,7 @@ ppp_asynctty_close(struct tty_struct *tty)
 	 * our channel ops (i.e. ppp_async_send/ioctl) are in progress
 	 * by the time it returns.
 	 */
-	if (!atomic_dec_and_test(&ap->refcnt))
+	if (!refcount_dec_and_test(&ap->refcnt))
 		down(&ap->dead_sem);
 	tasklet_kill(&ap->tsk);
 
@@ -802,7 +802,7 @@ process_input_packet(struct asyncppp *ap)
 	proto = p[0];
 	if (proto & 1) {
 		/* protocol is compressed */
-		skb_push(skb, 1)[0] = 0;
+		*(u8 *)skb_push(skb, 1) = 0;
 	} else {
 		if (skb->len < 2)
 			goto err;
@@ -894,8 +894,7 @@ ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
 				/* packet overflowed MRU */
 				ap->state |= SC_TOSS;
 			} else {
-				sp = skb_put(skb, n);
-				memcpy(sp, buf, n);
+				sp = skb_put_data(skb, buf, n);
 				if (ap->state & SC_ESCAPE) {
 					sp[0] ^= PPP_TRANS;
 					ap->state &= ~SC_ESCAPE;

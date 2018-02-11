@@ -62,7 +62,7 @@ static int da9055_i2c_remove(struct i2c_client *i2c)
  * purposes separate). As a result there are specific DA9055 ids for PMIC
  * and CODEC, which must be different to operate together.
  */
-static struct i2c_device_id da9055_i2c_id[] = {
+static const struct i2c_device_id da9055_i2c_id[] = {
 	{"da9055-pmic", 0},
 	{ }
 };

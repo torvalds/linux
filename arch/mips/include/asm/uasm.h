@@ -72,9 +72,12 @@ Ip_u1u2s3(_beq);
 Ip_u1u2s3(_beql);
 Ip_u1s2(_bgez);
 Ip_u1s2(_bgezl);
+Ip_u1s2(_bgtz);
+Ip_u1s2(_blez);
 Ip_u1s2(_bltz);
 Ip_u1s2(_bltzl);
 Ip_u1u2s3(_bne);
+Ip_u1(_break);
 Ip_u2s3u1(_cache);
 Ip_u1u2(_cfc1);
 Ip_u2u1(_cfcmsa);
@@ -82,19 +85,28 @@ Ip_u1u2(_ctc1);
 Ip_u2u1(_ctcmsa);
 Ip_u2u1s3(_daddiu);
 Ip_u3u1u2(_daddu);
+Ip_u1u2(_ddivu);
 Ip_u1(_di);
 Ip_u2u1msbu3(_dins);
 Ip_u2u1msbu3(_dinsm);
+Ip_u2u1msbu3(_dinsu);
 Ip_u1u2(_divu);
 Ip_u1u2u3(_dmfc0);
 Ip_u1u2u3(_dmtc0);
+Ip_u1u2(_dmultu);
 Ip_u2u1u3(_drotr);
 Ip_u2u1u3(_drotr32);
+Ip_u2u1(_dsbh);
+Ip_u2u1(_dshd);
 Ip_u2u1u3(_dsll);
 Ip_u2u1u3(_dsll32);
+Ip_u3u2u1(_dsllv);
 Ip_u2u1u3(_dsra);
+Ip_u2u1u3(_dsra32);
+Ip_u3u2u1(_dsrav);
 Ip_u2u1u3(_dsrl);
 Ip_u2u1u3(_dsrl32);
+Ip_u3u2u1(_dsrlv);
 Ip_u3u1u2(_dsubu);
 Ip_0(_eret);
 Ip_u2u1msbu3(_ext);
@@ -104,6 +116,7 @@ Ip_u1(_jal);
 Ip_u2u1(_jalr);
 Ip_u1(_jr);
 Ip_u2s3u1(_lb);
+Ip_u2s3u1(_lbu);
 Ip_u2s3u1(_ld);
 Ip_u3u1u2(_ldx);
 Ip_u2s3u1(_lh);
@@ -112,27 +125,35 @@ Ip_u2s3u1(_ll);
 Ip_u2s3u1(_lld);
 Ip_u1s2(_lui);
 Ip_u2s3u1(_lw);
+Ip_u2s3u1(_lwu);
 Ip_u3u1u2(_lwx);
 Ip_u1u2u3(_mfc0);
 Ip_u1u2u3(_mfhc0);
 Ip_u1(_mfhi);
 Ip_u1(_mflo);
+Ip_u3u1u2(_movn);
+Ip_u3u1u2(_movz);
 Ip_u1u2u3(_mtc0);
 Ip_u1u2u3(_mthc0);
 Ip_u1(_mthi);
 Ip_u1(_mtlo);
 Ip_u3u1u2(_mul);
+Ip_u1u2(_multu);
+Ip_u3u1u2(_nor);
 Ip_u3u1u2(_or);
 Ip_u2u1u3(_ori);
 Ip_u2s3u1(_pref);
 Ip_0(_rfe);
 Ip_u2u1u3(_rotr);
+Ip_u2s3u1(_sb);
 Ip_u2s3u1(_sc);
 Ip_u2s3u1(_scd);
 Ip_u2s3u1(_sd);
+Ip_u2s3u1(_sh);
 Ip_u2u1u3(_sll);
 Ip_u3u2u1(_sllv);
 Ip_s3s1s2(_slt);
+Ip_u2u1s3(_slti);
 Ip_u2u1s3(_sltiu);
 Ip_u3u1u2(_sltu);
 Ip_u2u1u3(_sra);
@@ -246,6 +267,15 @@ static inline void uasm_i_dsrl_safe(u32 **p, unsigned int a1,
 		uasm_i_dsrl(p, a1, a2, a3);
 	else
 		uasm_i_dsrl32(p, a1, a2, a3 - 32);
+}
+
+static inline void uasm_i_dsra_safe(u32 **p, unsigned int a1,
+				    unsigned int a2, unsigned int a3)
+{
+	if (a3 < 32)
+		uasm_i_dsra(p, a1, a2, a3);
+	else
+		uasm_i_dsra32(p, a1, a2, a3 - 32);
 }
 
 /* Handle relocations. */

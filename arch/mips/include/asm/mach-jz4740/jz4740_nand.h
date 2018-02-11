@@ -16,7 +16,7 @@
 #ifndef __ASM_MACH_JZ4740_JZ4740_NAND_H__
 #define __ASM_MACH_JZ4740_JZ4740_NAND_H__
 
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 
 #define JZ_NAND_NUM_BANKS 4

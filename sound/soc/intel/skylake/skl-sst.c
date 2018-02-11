@@ -503,7 +503,7 @@ static void skl_clear_module_table(struct sst_dsp *ctx)
 	}
 }
 
-static struct skl_dsp_fw_ops skl_fw_ops = {
+static const struct skl_dsp_fw_ops skl_fw_ops = {
 	.set_state_D0 = skl_set_dsp_D0,
 	.set_state_D3 = skl_set_dsp_D3,
 	.load_fw = skl_load_base_firmware,
@@ -512,7 +512,7 @@ static struct skl_dsp_fw_ops skl_fw_ops = {
 	.unload_mod = skl_unload_module,
 };
 
-static struct skl_dsp_fw_ops kbl_fw_ops = {
+static const struct skl_dsp_fw_ops kbl_fw_ops = {
 	.set_state_D0 = skl_set_dsp_D0,
 	.set_state_D3 = skl_set_dsp_D3,
 	.load_fw = skl_load_base_firmware,
@@ -553,12 +553,21 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 	sst = skl->dsp;
 	sst->addr.lpe = mmio_base;
 	sst->addr.shim = mmio_base;
+	sst->addr.sram0_base = SKL_ADSP_SRAM0_BASE;
+	sst->addr.sram1_base = SKL_ADSP_SRAM1_BASE;
+	sst->addr.w0_stat_sz = SKL_ADSP_W0_STAT_SZ;
+	sst->addr.w0_up_sz = SKL_ADSP_W0_UP_SZ;
+
 	sst_dsp_mailbox_init(sst, (SKL_ADSP_SRAM0_BASE + SKL_ADSP_W0_STAT_SZ),
 			SKL_ADSP_W0_UP_SZ, SKL_ADSP_SRAM1_BASE, SKL_ADSP_W1_SZ);
 
-	sst->fw_ops = skl_fw_ops;
+	ret = skl_ipc_init(dev, skl);
+	if (ret) {
+		skl_dsp_free(sst);
+		return ret;
+	}
 
-	skl->cores.count = 2;
+	sst->fw_ops = skl_fw_ops;
 
 	return 0;
 }

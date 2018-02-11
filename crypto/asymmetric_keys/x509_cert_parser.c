@@ -102,6 +102,7 @@ struct x509_certificate *x509_cert_parse(const void *data, size_t datalen)
 		}
 	}
 
+	ret = -ENOMEM;
 	cert->pub->key = kmemdup(ctx->key, ctx->key_size, GFP_KERNEL);
 	if (!cert->pub->key)
 		goto error_decode;
@@ -408,6 +409,8 @@ int x509_extract_key_data(void *context, size_t hdrlen,
 	ctx->cert->pub->pkey_algo = "rsa";
 
 	/* Discard the BIT STRING metadata */
+	if (vlen < 1 || *(const u8 *)value != 0)
+		return -EBADMSG;
 	ctx->key = value + 1;
 	ctx->key_size = vlen - 1;
 	return 0;

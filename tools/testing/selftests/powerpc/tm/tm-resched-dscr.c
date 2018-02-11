@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Test context switching to see if the DSCR SPR is correctly preserved
  * when within a transaction.
  *
@@ -30,6 +31,7 @@
 
 #include "utils.h"
 #include "tm.h"
+#include "../pmu/lib.h"
 
 #define SPRN_DSCR       0x03
 
@@ -75,8 +77,6 @@ int test_body(void)
 		);
 		assert(rv); /* make sure the transaction aborted */
 		if ((texasr >> 56) != TM_CAUSE_RESCHED) {
-			putchar('.');
-			fflush(stdout);
 			continue;
 		}
 		if (dscr2 != dscr1) {
@@ -89,7 +89,12 @@ int test_body(void)
 	}
 }
 
-int main(void)
+static int tm_resched_dscr(void)
 {
-	return test_harness(test_body, "tm_resched_dscr");
+	return eat_cpu(test_body);
+}
+
+int main(int argc, const char *argv[])
+{
+	return test_harness(tm_resched_dscr, "tm_resched_dscr");
 }

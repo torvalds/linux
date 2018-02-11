@@ -59,7 +59,7 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 }
 
 
-#define jffs2_is_readonly(c) (OFNI_BS_2SFFJ(c)->s_flags & MS_RDONLY)
+#define jffs2_is_readonly(c) (OFNI_BS_2SFFJ(c)->s_flags & SB_RDONLY)
 
 #define SECTOR_ADDR(x) ( (((unsigned long)(x) / c->sector_size) * c->sector_size) )
 #ifndef CONFIG_JFFS2_FS_WRITEBUFFER

@@ -393,16 +393,6 @@ config SPEAR13XX_PCIE_GADGET
 	 entry will be created for that controller. User can use these
 	 sysfs node to configure PCIe EP as per his requirements.
 
-config TI_DAC7512
-	tristate "Texas Instruments DAC7512"
-	depends on SPI && SYSFS
-	help
-	  If you say yes here you get support for the Texas Instruments
-	  DAC7512 16-bit digital-to-analog converter.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called ti_dac7512.
-
 config VMWARE_BALLOON
 	tristate "VMware Balloon Driver"
 	depends on VMWARE_VMCI && X86 && HYPERVISOR_GUEST
@@ -489,6 +479,14 @@ config ASPEED_LPC_CTRL
 	  Control Aspeed ast2400/2500 HOST LPC to BMC mappings through
 	  ioctl()s, the driver also provides a read/write interface to a BMC ram
 	  region where the host LPC read/write region can be buffered.
+
+config ASPEED_LPC_SNOOP
+	tristate "Aspeed ast2500 HOST LPC snoop support"
+	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
+	help
+	  Provides a driver to control the LPC snoop interface which
+	  allows the BMC to listen on and save the data written by
+	  the host to an arbitrary LPC I/O port.
 
 config PCI_ENDPOINT_TEST
 	depends on PCI

@@ -46,6 +46,28 @@ struct aq_hw_link_status_s {
 	unsigned int mbps;
 };
 
+struct aq_stats_s {
+	u64 uprc;
+	u64 mprc;
+	u64 bprc;
+	u64 erpt;
+	u64 uptc;
+	u64 mptc;
+	u64 bptc;
+	u64 erpr;
+	u64 mbtc;
+	u64 bbtc;
+	u64 mbrc;
+	u64 bbrc;
+	u64 ubrc;
+	u64 ubtc;
+	u64 dpc;
+	u64 dma_pkt_rc;
+	u64 dma_pkt_tc;
+	u64 dma_oct_rc;
+	u64 dma_oct_tc;
+};
+
 #define AQ_HW_IRQ_INVALID 0U
 #define AQ_HW_IRQ_LEGACY  1U
 #define AQ_HW_IRQ_MSI     2U
@@ -85,7 +107,9 @@ struct aq_hw_ops {
 	void (*destroy)(struct aq_hw_s *self);
 
 	int (*get_hw_caps)(struct aq_hw_s *self,
-			   struct aq_hw_caps_s *aq_hw_caps);
+			   struct aq_hw_caps_s *aq_hw_caps,
+			   unsigned short device,
+			   unsigned short subsystem_device);
 
 	int (*hw_ring_tx_xmit)(struct aq_hw_s *self, struct aq_ring_s *aq_ring,
 			       unsigned int frags);
@@ -105,8 +129,7 @@ struct aq_hw_ops {
 
 	int (*hw_set_mac_address)(struct aq_hw_s *self, u8 *mac_addr);
 
-	int (*hw_get_link_status)(struct aq_hw_s *self,
-				  struct aq_hw_link_status_s *link_status);
+	int (*hw_get_link_status)(struct aq_hw_s *self);
 
 	int (*hw_set_link_speed)(struct aq_hw_s *self, u32 speed);
 
@@ -152,8 +175,7 @@ struct aq_hw_ops {
 				     [ETH_ALEN],
 				     u32 count);
 
-	int (*hw_interrupt_moderation_set)(struct aq_hw_s *self,
-					   bool itr_enabled);
+	int (*hw_interrupt_moderation_set)(struct aq_hw_s *self);
 
 	int (*hw_rss_set)(struct aq_hw_s *self,
 			  struct aq_rss_parameters *rss_params);
@@ -164,8 +186,9 @@ struct aq_hw_ops {
 	int (*hw_get_regs)(struct aq_hw_s *self,
 			   struct aq_hw_caps_s *aq_hw_caps, u32 *regs_buff);
 
-	int (*hw_get_hw_stats)(struct aq_hw_s *self, u64 *data,
-			       unsigned int *p_count);
+	int (*hw_update_stats)(struct aq_hw_s *self);
+
+	struct aq_stats_s *(*hw_get_hw_stats)(struct aq_hw_s *self);
 
 	int (*hw_get_fw_version)(struct aq_hw_s *self, u32 *fw_version);
 

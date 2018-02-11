@@ -412,7 +412,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	int type = icmp_param->data.icmph.type;
 	int code = icmp_param->data.icmph.code;
 
-	if (ip_options_echo(&icmp_param->replyopts.opt.opt, skb))
+	if (ip_options_echo(net, &icmp_param->replyopts.opt.opt, skb))
 		return;
 
 	/* Needed by both icmp_global_allow and icmp_xmit_lock */
@@ -489,7 +489,7 @@ static struct rtable *icmp_route_lookup(struct net *net,
 	fl4->flowi4_oif = l3mdev_master_ifindex(skb_dst(skb_in)->dev);
 
 	security_skb_classify_flow(skb_in, flowi4_to_flowi(fl4));
-	rt = __ip_route_output_key_hash(net, fl4, skb_in);
+	rt = ip_route_output_key_hash(net, fl4, skb_in);
 	if (IS_ERR(rt))
 		return rt;
 
@@ -657,8 +657,12 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	/* Needed by both icmp_global_allow and icmp_xmit_lock */
 	local_bh_disable();
 
-	/* Check global sysctl_icmp_msgs_per_sec ratelimit */
-	if (!icmpv4_global_allow(net, type, code))
+	/* Check global sysctl_icmp_msgs_per_sec ratelimit, unless
+	 * incoming dev is loopback.  If outgoing dev change to not be
+	 * loopback, then peer ratelimit still work (in icmpv4_xrlim_allow)
+	 */
+	if (!(skb_in->dev && (skb_in->dev->flags&IFF_LOOPBACK)) &&
+	      !icmpv4_global_allow(net, type, code))
 		goto out_bh_enable;
 
 	sk = icmp_xmit_lock(net);
@@ -690,7 +694,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 					  iph->tos;
 	mark = IP4_REPLY_MARK(net, skb_in->mark);
 
-	if (ip_options_echo(&icmp_param.replyopts.opt.opt, skb_in))
+	if (ip_options_echo(net, &icmp_param.replyopts.opt.opt, skb_in))
 		goto out_unlock;
 
 
@@ -778,7 +782,7 @@ static bool icmp_tag_validation(int proto)
 }
 
 /*
- *	Handle ICMP_DEST_UNREACH, ICMP_TIME_EXCEED, ICMP_QUENCH, and
+ *	Handle ICMP_DEST_UNREACH, ICMP_TIME_EXCEEDED, ICMP_QUENCH, and
  *	ICMP_PARAMETERPROB.
  */
 
@@ -806,7 +810,8 @@ static bool icmp_unreach(struct sk_buff *skb)
 	if (iph->ihl < 5) /* Mangled header, drop. */
 		goto out_err;
 
-	if (icmph->type == ICMP_DEST_UNREACH) {
+	switch (icmph->type) {
+	case ICMP_DEST_UNREACH:
 		switch (icmph->code & 15) {
 		case ICMP_NET_UNREACH:
 		case ICMP_HOST_UNREACH:
@@ -842,8 +847,16 @@ static bool icmp_unreach(struct sk_buff *skb)
 		}
 		if (icmph->code > NR_ICMP_UNREACH)
 			goto out;
-	} else if (icmph->type == ICMP_PARAMETERPROB)
+		break;
+	case ICMP_PARAMETERPROB:
 		info = ntohl(icmph->un.gateway) >> 24;
+		break;
+	case ICMP_TIME_EXCEEDED:
+		__ICMP_INC_STATS(net, ICMP_MIB_INTIMEEXCDS);
+		if (icmph->code == ICMP_EXC_FRAGTIME)
+			goto out;
+		break;
+	}
 
 	/*
 	 *	Throw it at our lower layers
@@ -955,8 +968,9 @@ static bool icmp_timestamp(struct sk_buff *skb)
 	 */
 	icmp_param.data.times[1] = inet_current_timestamp();
 	icmp_param.data.times[2] = icmp_param.data.times[1];
-	if (skb_copy_bits(skb, 0, &icmp_param.data.times[0], 4))
-		BUG();
+
+	BUG_ON(skb_copy_bits(skb, 0, &icmp_param.data.times[0], 4));
+
 	icmp_param.data.icmph	   = *icmp_hdr(skb);
 	icmp_param.data.icmph.type = ICMP_TIMESTAMPREPLY;
 	icmp_param.data.icmph.code = 0;

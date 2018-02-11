@@ -11,8 +11,12 @@
 
 #include <linux/sched.h>
 #include <linux/mm_types.h>
+#include <linux/mm.h>
 
 #include <asm/pgalloc.h>
+#include <asm/pgtable.h>
+#include <asm/sections.h>
+#include <asm/mmu.h>
 #include <asm/tlb.h>
 
 #include "mmu_decl.h"
@@ -21,6 +25,81 @@
 #include <trace/events/thp.h>
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
+/*
+ * vmemmap is the starting address of the virtual address space where
+ * struct pages are allocated for all possible PFNs present on the system
+ * including holes and bad memory (hence sparse). These virtual struct
+ * pages are stored in sequence in this virtual address space irrespective
+ * of the fact whether the corresponding PFN is valid or not. This achieves
+ * constant relationship between address of struct page and its PFN.
+ *
+ * During boot or memory hotplug operation when a new memory section is
+ * added, physical memory allocation (including hash table bolting) will
+ * be performed for the set of struct pages which are part of the memory
+ * section. This saves memory by not allocating struct pages for PFNs
+ * which are not valid.
+ *
+ *		----------------------------------------------
+ *		| PHYSICAL ALLOCATION OF VIRTUAL STRUCT PAGES|
+ *		----------------------------------------------
+ *
+ *	   f000000000000000                  c000000000000000
+ * vmemmap +--------------+                  +--------------+
+ *  +      |  page struct | +--------------> |  page struct |
+ *  |      +--------------+                  +--------------+
+ *  |      |  page struct | +--------------> |  page struct |
+ *  |      +--------------+ |                +--------------+
+ *  |      |  page struct | +       +------> |  page struct |
+ *  |      +--------------+         |        +--------------+
+ *  |      |  page struct |         |   +--> |  page struct |
+ *  |      +--------------+         |   |    +--------------+
+ *  |      |  page struct |         |   |
+ *  |      +--------------+         |   |
+ *  |      |  page struct |         |   |
+ *  |      +--------------+         |   |
+ *  |      |  page struct |         |   |
+ *  |      +--------------+         |   |
+ *  |      |  page struct |         |   |
+ *  |      +--------------+         |   |
+ *  |      |  page struct | +-------+   |
+ *  |      +--------------+             |
+ *  |      |  page struct | +-----------+
+ *  |      +--------------+
+ *  |      |  page struct | No mapping
+ *  |      +--------------+
+ *  |      |  page struct | No mapping
+ *  v      +--------------+
+ *
+ *		-----------------------------------------
+ *		| RELATION BETWEEN STRUCT PAGES AND PFNS|
+ *		-----------------------------------------
+ *
+ * vmemmap +--------------+                 +---------------+
+ *  +      |  page struct | +-------------> |      PFN      |
+ *  |      +--------------+                 +---------------+
+ *  |      |  page struct | +-------------> |      PFN      |
+ *  |      +--------------+                 +---------------+
+ *  |      |  page struct | +-------------> |      PFN      |
+ *  |      +--------------+                 +---------------+
+ *  |      |  page struct | +-------------> |      PFN      |
+ *  |      +--------------+                 +---------------+
+ *  |      |              |
+ *  |      +--------------+
+ *  |      |              |
+ *  |      +--------------+
+ *  |      |              |
+ *  |      +--------------+                 +---------------+
+ *  |      |  page struct | +-------------> |      PFN      |
+ *  |      +--------------+                 +---------------+
+ *  |      |              |
+ *  |      +--------------+
+ *  |      |              |
+ *  |      +--------------+                 +---------------+
+ *  |      |  page struct | +-------------> |      PFN      |
+ *  |      +--------------+                 +---------------+
+ *  |      |  page struct | +-------------> |      PFN      |
+ *  v      +--------------+                 +---------------+
+ */
 /*
  * On hash-based CPUs, the vmemmap is bolted in the hash table.
  *
@@ -109,7 +188,7 @@ unsigned long hash__pmd_hugepage_update(struct mm_struct *mm, unsigned long addr
 	unsigned long old;
 
 #ifdef CONFIG_DEBUG_VM
-	WARN_ON(!pmd_trans_huge(*pmdp));
+	WARN_ON(!hash__pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
 	assert_spin_locked(&mm->page_table_lock);
 #endif
 
@@ -141,6 +220,7 @@ pmd_t hash__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addres
 
 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
 	VM_BUG_ON(pmd_trans_huge(*pmdp));
+	VM_BUG_ON(pmd_devmap(*pmdp));
 
 	pmd = *pmdp;
 	pmd_clear(pmdp);
@@ -159,7 +239,7 @@ pmd_t hash__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addres
 	 * by sending an IPI to all the cpus and executing a dummy
 	 * function there.
 	 */
-	kick_all_cpus_sync();
+	serialize_against_pte_lookup(vma->vm_mm);
 	/*
 	 * Now invalidate the hpte entries in the range
 	 * covered by pmd. This make sure we take a
@@ -221,6 +301,7 @@ void hash__pmdp_huge_split_prepare(struct vm_area_struct *vma,
 {
 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
 	VM_BUG_ON(REGION_ID(address) != USER_REGION_ID);
+	VM_BUG_ON(pmd_devmap(*pmdp));
 
 	/*
 	 * We can't mark the pmd none here, because that will cause a race
@@ -248,7 +329,6 @@ void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
 	unsigned int psize;
 	unsigned long vsid;
 	unsigned long flags = 0;
-	const struct cpumask *tmp;
 
 	/* get the base page size,vsid and segment size */
 #ifdef CONFIG_DEBUG_VM
@@ -269,8 +349,7 @@ void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
 		ssize = mmu_kernel_ssize;
 	}
 
-	tmp = cpumask_of(smp_processor_id());
-	if (cpumask_equal(mm_cpumask(mm), tmp))
+	if (mm_is_thread_local(mm))
 		flags |= HPTE_LOCAL_UPDATE;
 
 	return flush_hash_hugepage(vsid, addr, pmdp, psize, ssize, flags);
@@ -299,16 +378,16 @@ pmd_t hash__pmdp_huge_get_and_clear(struct mm_struct *mm,
 	 */
 	memset(pgtable, 0, PTE_FRAG_SIZE);
 	/*
-	 * Serialize against find_linux_pte_or_hugepte which does lock-less
+	 * Serialize against find_current_mm_pte variants which does lock-less
 	 * lookup in page tables with local interrupts disabled. For huge pages
 	 * it casts pmd_t to pte_t. Since format of pte_t is different from
 	 * pmd_t we want to prevent transit from pmd pointing to page table
 	 * to pmd pointing to huge page (and back) while interrupts are disabled.
 	 * We clear pmd to possibly replace it with page table pointer in
 	 * different code paths. So make sure we wait for the parallel
-	 * find_linux_pte_or_hugepage to finish.
+	 * find_curren_mm_pte to finish.
 	 */
-	kick_all_cpus_sync();
+	serialize_against_pte_lookup(mm);
 	return old_pmd;
 }
 
@@ -342,3 +421,53 @@ int hash__has_transparent_hugepage(void)
 	return 1;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
+#ifdef CONFIG_STRICT_KERNEL_RWX
+static bool hash__change_memory_range(unsigned long start, unsigned long end,
+				      unsigned long newpp)
+{
+	unsigned long idx;
+	unsigned int step, shift;
+
+	shift = mmu_psize_defs[mmu_linear_psize].shift;
+	step = 1 << shift;
+
+	start = ALIGN_DOWN(start, step);
+	end = ALIGN(end, step); // aligns up
+
+	if (start >= end)
+		return false;
+
+	pr_debug("Changing page protection on range 0x%lx-0x%lx, to 0x%lx, step 0x%x\n",
+		 start, end, newpp, step);
+
+	for (idx = start; idx < end; idx += step)
+		/* Not sure if we can do much with the return value */
+		mmu_hash_ops.hpte_updateboltedpp(newpp, idx, mmu_linear_psize,
+							mmu_kernel_ssize);
+
+	return true;
+}
+
+void hash__mark_rodata_ro(void)
+{
+	unsigned long start, end;
+
+	start = (unsigned long)_stext;
+	end = (unsigned long)__init_begin;
+
+	WARN_ON(!hash__change_memory_range(start, end, PP_RXXX));
+}
+
+void hash__mark_initmem_nx(void)
+{
+	unsigned long start, end, pp;
+
+	start = (unsigned long)__init_begin;
+	end = (unsigned long)__init_end;
+
+	pp = htab_convert_pte_flags(pgprot_val(PAGE_KERNEL));
+
+	WARN_ON(!hash__change_memory_range(start, end, pp));
+}
+#endif

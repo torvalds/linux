@@ -127,4 +127,27 @@ struct rxrpc_key_data_v1 {
 #define AFSTOKEN_K5_ADDRESSES_MAX	16	/* max K5 addresses */
 #define AFSTOKEN_K5_AUTHDATA_MAX	16	/* max K5 pieces of auth data */
 
+/*
+ * Truncate a time64_t to the range from 1970 to 2106 as in the network
+ * protocol.
+ */
+static inline u32 rxrpc_time64_to_u32(time64_t time)
+{
+	if (time < 0)
+		return 0;
+
+	if (time > UINT_MAX)
+		return UINT_MAX;
+
+	return (u32)time;
+}
+
+/*
+ * Extend u32 back to time64_t using the same 1970-2106 range.
+ */
+static inline time64_t rxrpc_u32_to_time64(u32 time)
+{
+	return (time64_t)time;
+}
+
 #endif /* _KEYS_RXRPC_TYPE_H */

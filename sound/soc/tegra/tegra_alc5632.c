@@ -124,18 +124,6 @@ static int tegra_alc5632_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static int tegra_alc5632_card_remove(struct snd_soc_card *card)
-{
-	struct tegra_alc5632 *machine = snd_soc_card_get_drvdata(card);
-
-	if (gpio_is_valid(machine->gpio_hp_det)) {
-		snd_soc_jack_free_gpios(&tegra_alc5632_hs_jack, 1,
-					&tegra_alc5632_hp_jack_gpio);
-	}
-
-	return 0;
-}
-
 static struct snd_soc_dai_link tegra_alc5632_dai = {
 	.name = "ALC5632",
 	.stream_name = "ALC5632 PCM",
@@ -150,7 +138,6 @@ static struct snd_soc_dai_link tegra_alc5632_dai = {
 static struct snd_soc_card snd_soc_tegra_alc5632 = {
 	.name = "tegra-alc5632",
 	.owner = THIS_MODULE,
-	.remove = tegra_alc5632_card_remove,
 	.dai_link = &tegra_alc5632_dai,
 	.num_links = 1,
 	.controls = tegra_alc5632_controls,
@@ -173,7 +160,6 @@ static int tegra_alc5632_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	card->dev = &pdev->dev;
-	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, alc5632);
 
 	alc5632->gpio_hp_det = of_get_named_gpio(np, "nvidia,hp-det-gpios", 0);

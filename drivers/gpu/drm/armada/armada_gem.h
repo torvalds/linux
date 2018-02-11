@@ -16,6 +16,7 @@ struct armada_gem_object {
 	void			*addr;
 	phys_addr_t		phys_addr;
 	resource_size_t		dev_addr;
+	bool			mapped;
 	struct drm_mm_node	*linear;	/* for linear backed */
 	struct page		*page;		/* for page backed */
 	struct sg_table		*sgt;		/* for imported */
@@ -34,10 +35,6 @@ struct armada_gem_object *armada_gem_alloc_private_object(struct drm_device *,
 	size_t);
 int armada_gem_dumb_create(struct drm_file *, struct drm_device *,
 	struct drm_mode_create_dumb *);
-int armada_gem_dumb_map_offset(struct drm_file *, struct drm_device *,
-	uint32_t, uint64_t *);
-int armada_gem_dumb_destroy(struct drm_file *, struct drm_device *,
-	uint32_t);
 struct dma_buf *armada_gem_prime_export(struct drm_device *dev,
 	struct drm_gem_object *obj, int flags);
 struct drm_gem_object *armada_gem_prime_import(struct drm_device *,

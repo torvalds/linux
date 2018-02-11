@@ -1,0 +1,16 @@
+What:		/sys/class/mux/
+Date:		April 2017
+KernelVersion:	4.13
+Contact:	Peter Rosin <peda@axentia.se>
+Description:
+		The mux/ class sub-directory belongs to the Generic MUX
+		Framework and provides a sysfs interface for using MUX
+		controllers.
+
+What:		/sys/class/mux/muxchipN/
+Date:		April 2017
+KernelVersion:	4.13
+Contact:	Peter Rosin <peda@axentia.se>
+Description:
+		A /sys/class/mux/muxchipN directory is created for each
+		probed MUX chip where N is a simple enumeration.

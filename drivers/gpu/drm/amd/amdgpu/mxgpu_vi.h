@@ -23,7 +23,7 @@
 #ifndef __MXGPU_VI_H__
 #define __MXGPU_VI_H__
 
-#define VI_MAILBOX_TIMEDOUT	5000
+#define VI_MAILBOX_TIMEDOUT	12000
 #define VI_MAILBOX_RESET_TIME	12
 
 /* VI mailbox messages request */
@@ -32,7 +32,9 @@ enum idh_request {
 	IDH_REL_GPU_INIT_ACCESS,
 	IDH_REQ_GPU_FINI_ACCESS,
 	IDH_REL_GPU_FINI_ACCESS,
-	IDH_REQ_GPU_RESET_ACCESS
+	IDH_REQ_GPU_RESET_ACCESS,
+
+	IDH_LOG_VF_ERROR       = 200,
 };
 
 /* VI mailbox messages data */

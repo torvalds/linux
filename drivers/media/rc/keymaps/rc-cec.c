@@ -160,7 +160,7 @@ static struct rc_map_list cec_map = {
 	.map = {
 		.scan		= cec,
 		.size		= ARRAY_SIZE(cec),
-		.rc_type	= RC_TYPE_CEC,
+		.rc_proto	= RC_PROTO_CEC,
 		.name		= RC_MAP_CEC,
 	}
 };

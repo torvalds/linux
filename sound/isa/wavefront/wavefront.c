@@ -88,7 +88,7 @@ MODULE_PARM_DESC(use_cs4232_midi, "Use CS4232 MPU-401 interface (inaccessibly lo
 static int isa_registered;
 static int pnp_registered;
 
-static struct pnp_card_device_id snd_wavefront_pnpids[] = {
+static const struct pnp_card_device_id snd_wavefront_pnpids[] = {
 	/* Tropez */
 	{ .id = "CSC7532", .devs = { { "CSC0000" }, { "CSC0010" }, { "PnPb006" }, { "CSC0004" } } },
 	/* Tropez+ */

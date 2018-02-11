@@ -192,14 +192,19 @@ static const struct dev_pm_ops tpiu_dev_pm_ops = {
 	SET_RUNTIME_PM_OPS(tpiu_runtime_suspend, tpiu_runtime_resume, NULL)
 };
 
-static struct amba_id tpiu_ids[] = {
+static const struct amba_id tpiu_ids[] = {
 	{
-		.id	= 0x0003b912,
-		.mask	= 0x0003ffff,
+		.id	= 0x000bb912,
+		.mask	= 0x000fffff,
 	},
 	{
 		.id	= 0x0004b912,
 		.mask	= 0x0007ffff,
+	},
+	{
+		/* Coresight SoC-600 */
+		.id	= 0x000bb9e7,
+		.mask	= 0x000fffff,
 	},
 	{ 0, 0},
 };

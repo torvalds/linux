@@ -106,6 +106,23 @@ nft_bitmap_elem_find(const struct nft_set *set, struct nft_bitmap_elem *this,
 	return NULL;
 }
 
+static void *nft_bitmap_get(const struct net *net, const struct nft_set *set,
+			    const struct nft_set_elem *elem, unsigned int flags)
+{
+	const struct nft_bitmap *priv = nft_set_priv(set);
+	u8 genmask = nft_genmask_cur(net);
+	struct nft_bitmap_elem *be;
+
+	list_for_each_entry_rcu(be, &priv->list, head) {
+		if (memcmp(nft_set_ext_key(&be->ext), elem->key.val.data, set->klen) ||
+		    !nft_set_elem_active(&be->ext, genmask))
+			continue;
+
+		return be;
+	}
+	return ERR_PTR(-ENOENT);
+}
+
 static int nft_bitmap_insert(const struct net *net, const struct nft_set *set,
 			     const struct nft_set_elem *elem,
 			     struct nft_set_ext **ext)
@@ -236,7 +253,8 @@ static inline u32 nft_bitmap_total_size(u32 klen)
 	return sizeof(struct nft_bitmap) + nft_bitmap_size(klen);
 }
 
-static unsigned int nft_bitmap_privsize(const struct nlattr * const nla[])
+static unsigned int nft_bitmap_privsize(const struct nlattr * const nla[],
+					const struct nft_set_desc *desc)
 {
 	u32 klen = ntohl(nla_get_be32(nla[NFTA_SET_KEY_LEN]));
 
@@ -278,7 +296,9 @@ static bool nft_bitmap_estimate(const struct nft_set_desc *desc, u32 features,
 	return true;
 }
 
+static struct nft_set_type nft_bitmap_type;
 static struct nft_set_ops nft_bitmap_ops __read_mostly = {
+	.type		= &nft_bitmap_type,
 	.privsize	= nft_bitmap_privsize,
 	.elemsize	= offsetof(struct nft_bitmap_elem, ext),
 	.estimate	= nft_bitmap_estimate,
@@ -291,17 +311,22 @@ static struct nft_set_ops nft_bitmap_ops __read_mostly = {
 	.activate	= nft_bitmap_activate,
 	.lookup		= nft_bitmap_lookup,
 	.walk		= nft_bitmap_walk,
+	.get		= nft_bitmap_get,
+};
+
+static struct nft_set_type nft_bitmap_type __read_mostly = {
+	.ops		= &nft_bitmap_ops,
 	.owner		= THIS_MODULE,
 };
 
 static int __init nft_bitmap_module_init(void)
 {
-	return nft_register_set(&nft_bitmap_ops);
+	return nft_register_set(&nft_bitmap_type);
 }
 
 static void __exit nft_bitmap_module_exit(void)
 {
-	nft_unregister_set(&nft_bitmap_ops);
+	nft_unregister_set(&nft_bitmap_type);
 }
 
 module_init(nft_bitmap_module_init);

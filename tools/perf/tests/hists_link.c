@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "perf.h"
 #include "tests.h"
 #include "debug.h"
@@ -264,7 +265,7 @@ static int validate_link(struct hists *leader, struct hists *other)
 	return __validate_link(leader, 0) || __validate_link(other, 1);
 }
 
-int test__hists_link(int subtest __maybe_unused)
+int test__hists_link(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = -1;
 	struct hists *hists, *first_hists;

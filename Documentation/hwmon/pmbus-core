@@ -253,7 +253,7 @@ Specifically, it provides the following information.
 PMBus driver platform data
 ==========================
 
-PMBus platform data is defined in include/linux/i2c/pmbus.h. Platform data
+PMBus platform data is defined in include/linux/pmbus.h. Platform data
 currently only provides a flag field with a single bit used.
 
 #define PMBUS_SKIP_STATUS_CHECK (1 << 0)

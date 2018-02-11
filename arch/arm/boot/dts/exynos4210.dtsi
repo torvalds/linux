@@ -64,7 +64,7 @@
 		};
 	};
 
-	sysram: sysram@02020000 {
+	sysram: sysram@2020000 {
 		compatible = "mmio-sram";
 		reg = <0x02020000 0x20000>;
 		#address-cells = <1>;
@@ -151,7 +151,7 @@
 		};
 	};
 
-	pinctrl_2: pinctrl@03860000 {
+	pinctrl_2: pinctrl@3860000 {
 		compatible = "samsung,exynos4210-pinctrl";
 		reg = <0x03860000 0x1000>;
 	};

@@ -356,11 +356,11 @@ _next:
 				if ((wr_sz % 64) == 0)
 					blnPending = 1;
 			}
-			if (blnPending) /* 32 bytes for TX Desc - 8 offset */
+			if (blnPending) { /* 32 bytes for TX Desc - 8 offset */
 				pdesc->txdw0 |= cpu_to_le32(((TXDESC_SIZE +
 						OFFSET_SZ + 8) << OFFSET_SHT) &
 						0x00ff0000);
-			else {
+			} else {
 				pdesc->txdw0 |= cpu_to_le32(((TXDESC_SIZE +
 							      OFFSET_SZ) <<
 							      OFFSET_SHT) &
@@ -385,7 +385,7 @@ _next:
 			if (blnPending)
 				wr_sz += 8;   /* Append 8 bytes */
 			r8712_write_mem(padapter, RTL8712_DMA_H2CCMD, wr_sz,
-				       (u8 *)pdesc);
+					(u8 *)pdesc);
 			pcmdpriv->cmd_seq++;
 			if (pcmd->cmdcode == GEN_CMD_CODE(_CreateBss)) {
 				pcmd->res = H2C_SUCCESS;

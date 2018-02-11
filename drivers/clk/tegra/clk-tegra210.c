@@ -40,6 +40,7 @@
 
 #define CLK_SOURCE_CSITE 0x1d4
 #define CLK_SOURCE_EMC 0x19c
+#define CLK_SOURCE_SOR1 0x410
 
 #define PLLC_BASE 0x80
 #define PLLC_OUT 0x84
@@ -146,7 +147,7 @@
 #define PLLD_SDM_EN_MASK BIT(16)
 
 #define PLLD2_SDM_EN_MASK BIT(31)
-#define PLLD2_SSC_EN_MASK BIT(30)
+#define PLLD2_SSC_EN_MASK 0
 
 #define PLLDP_SS_CFG	0x598
 #define PLLDP_SDM_EN_MASK BIT(31)
@@ -241,6 +242,9 @@
 #define PLL_SDM_COEFF BIT(13)
 #define sdin_din_to_data(din)	((u16)((din) ? : 0xFFFFU))
 #define sdin_data_to_din(dat)	(((dat) == 0xFFFFU) ? 0 : (s16)dat)
+/* This macro returns ndiv effective scaled to SDM range */
+#define sdin_get_n_eff(cfg)	((cfg)->n * PLL_SDM_COEFF + ((cfg)->sdm_data ? \
+		(PLL_SDM_COEFF/2 + sdin_data_to_din((cfg)->sdm_data)) : 0))
 
 /* Tegra CPU clock and reset control regs */
 #define CLK_RST_CONTROLLER_CPU_CMPLX_STATUS	0x470
@@ -261,6 +265,7 @@ static DEFINE_SPINLOCK(pll_d_lock);
 static DEFINE_SPINLOCK(pll_e_lock);
 static DEFINE_SPINLOCK(pll_re_lock);
 static DEFINE_SPINLOCK(pll_u_lock);
+static DEFINE_SPINLOCK(sor1_lock);
 static DEFINE_SPINLOCK(emc_lock);
 
 /* possible OSC frequencies in Hz */
@@ -715,8 +720,6 @@ static void plldss_defaults(const char *pll_name, struct tegra_clk_pll *plldss,
 	plldss->params->defaults_set = true;
 
 	if (val & PLL_ENABLE) {
-		pr_warn("%s already enabled. Postponing set full defaults\n",
-			 pll_name);
 
 		/*
 		 * PLL is ON: check if defaults already set, then set those
@@ -754,6 +757,10 @@ static void plldss_defaults(const char *pll_name, struct tegra_clk_pll *plldss,
 				default_val, PLLDSS_MISC1_CFG_WRITE_MASK &
 				(~PLLDSS_MISC1_CFG_EN_SDM));
 		}
+
+		if (!plldss->params->defaults_set)
+			pr_warn("%s already enabled. Postponing set full defaults\n",
+				 pll_name);
 
 		/* Enable lock detect */
 		if (val & PLLDSS_BASE_LOCK_OVERRIDE) {
@@ -1288,8 +1295,7 @@ static int tegra210_pll_fixed_mdiv_cfg(struct clk_hw *hw,
 			s -= PLL_SDM_COEFF / 2;
 			cfg->sdm_data = sdin_din_to_data(s);
 		}
-		cfg->output_rate *= cfg->n * PLL_SDM_COEFF + PLL_SDM_COEFF/2 +
-					sdin_data_to_din(cfg->sdm_data);
+		cfg->output_rate *= sdin_get_n_eff(cfg);
 		cfg->output_rate /= p * cfg->m * PLL_SDM_COEFF;
 	} else {
 		cfg->output_rate *= cfg->n;
@@ -1314,8 +1320,7 @@ static int tegra210_pll_fixed_mdiv_cfg(struct clk_hw *hw,
  */
 static void tegra210_clk_pll_set_gain(struct tegra_clk_pll_freq_table *cfg)
 {
-	cfg->n = cfg->n * PLL_SDM_COEFF + PLL_SDM_COEFF/2 +
-			sdin_data_to_din(cfg->sdm_data);
+	cfg->n = sdin_get_n_eff(cfg);
 	cfg->m *= PLL_SDM_COEFF;
 }
 
@@ -2204,7 +2209,6 @@ static struct tegra_clk tegra210_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_gpu] = { .dt_id = TEGRA210_CLK_GPU, .present = true },
 	[tegra_clk_pll_g_ref] = { .dt_id = TEGRA210_CLK_PLL_G_REF, .present = true, },
 	[tegra_clk_uartb_8] = { .dt_id = TEGRA210_CLK_UARTB, .present = true },
-	[tegra_clk_vfir] = { .dt_id = TEGRA210_CLK_VFIR, .present = true },
 	[tegra_clk_spdif_in_8] = { .dt_id = TEGRA210_CLK_SPDIF_IN, .present = true },
 	[tegra_clk_spdif_out] = { .dt_id = TEGRA210_CLK_SPDIF_OUT, .present = true },
 	[tegra_clk_vi_10] = { .dt_id = TEGRA210_CLK_VI, .present = true },
@@ -2470,15 +2474,14 @@ static void tegra210_utmi_param_configure(void)
 	reg |= UTMIP_PLL_CFG2_STABLE_COUNT(utmi_parameters[i].stable_count);
 
 	reg &= ~UTMIP_PLL_CFG2_ACTIVE_DLY_COUNT(~0);
-
 	reg |=
 	UTMIP_PLL_CFG2_ACTIVE_DLY_COUNT(utmi_parameters[i].active_delay_count);
 	writel_relaxed(reg, clk_base + UTMIP_PLL_CFG2);
 
 	/* Program UTMIP PLL delay and oscillator frequency counts */
 	reg = readl_relaxed(clk_base + UTMIP_PLL_CFG1);
-	reg &= ~UTMIP_PLL_CFG1_ENABLE_DLY_COUNT(~0);
 
+	reg &= ~UTMIP_PLL_CFG1_ENABLE_DLY_COUNT(~0);
 	reg |=
 	UTMIP_PLL_CFG1_ENABLE_DLY_COUNT(utmi_parameters[i].enable_delay_count);
 
@@ -2494,7 +2497,8 @@ static void tegra210_utmi_param_configure(void)
 	reg &= ~UTMIP_PLL_CFG1_FORCE_PLL_ENABLE_POWERDOWN;
 	reg |= UTMIP_PLL_CFG1_FORCE_PLL_ENABLE_POWERUP;
 	writel_relaxed(reg, clk_base + UTMIP_PLL_CFG1);
-	udelay(1);
+
+	udelay(20);
 
 	/* Enable samplers for SNPS, XUSB_HOST, XUSB_DEV */
 	reg = readl_relaxed(clk_base + UTMIP_PLL_CFG2);
@@ -2552,6 +2556,7 @@ static int tegra210_enable_pllu(void)
 	reg = readl_relaxed(clk_base + pllu.params->ext_misc_reg[0]);
 	reg &= ~BIT(pllu.params->iddq_bit_idx);
 	writel_relaxed(reg, clk_base + pllu.params->ext_misc_reg[0]);
+	udelay(5);
 
 	reg = readl_relaxed(clk_base + PLLU_BASE);
 	reg &= ~GENMASK(20, 0);
@@ -2559,11 +2564,12 @@ static int tegra210_enable_pllu(void)
 	reg |= fentry->n << 8;
 	reg |= fentry->p << 16;
 	writel(reg, clk_base + PLLU_BASE);
+	udelay(1);
 	reg |= PLL_ENABLE;
 	writel(reg, clk_base + PLLU_BASE);
 
-	readl_relaxed_poll_timeout(clk_base + PLLU_BASE, reg,
-				   reg & PLL_BASE_LOCK, 2, 1000);
+	readl_relaxed_poll_timeout_atomic(clk_base + PLLU_BASE, reg,
+					  reg & PLL_BASE_LOCK, 2, 1000);
 	if (!(reg & PLL_BASE_LOCK)) {
 		pr_err("Timed out waiting for PLL_U to lock\n");
 		return -ETIMEDOUT;
@@ -2624,10 +2630,35 @@ static int tegra210_init_pllu(void)
 	return 0;
 }
 
+static const char * const sor1_out_parents[] = {
+	/*
+	 * Bit 0 of the mux selects sor1_pad_clkout, irrespective of bit 1, so
+	 * the sor1_pad_clkout parent appears twice in the list below. This is
+	 * merely to support clk_get_parent() if firmware happened to set
+	 * these bits to 0b11. While not an invalid setting, code should
+	 * always set the bits to 0b01 to select sor1_pad_clkout.
+	 */
+	"sor_safe", "sor1_pad_clkout", "sor1", "sor1_pad_clkout",
+};
+
+static const char * const sor1_parents[] = {
+	"pll_p", "pll_d_out0", "pll_d2_out0", "clk_m",
+};
+
+static u32 sor1_parents_idx[] = { 0, 2, 5, 6 };
+
+static struct tegra_periph_init_data tegra210_periph[] = {
+	TEGRA_INIT_DATA_TABLE("sor1", NULL, NULL, sor1_parents,
+			      CLK_SOURCE_SOR1, 29, 0x7, 0, 0, 8, 1,
+			      TEGRA_DIVIDER_ROUND_UP, 183, 0, tegra_clk_sor1,
+			      sor1_parents_idx, 0, &sor1_lock),
+};
+
 static __init void tegra210_periph_clk_init(void __iomem *clk_base,
 					    void __iomem *pmc_base)
 {
 	struct clk *clk;
+	unsigned int i;
 
 	/* xusb_ss_div2 */
 	clk = clk_register_fixed_factor(NULL, "xusb_ss_div2", "xusb_ss_src", 0,
@@ -2645,6 +2676,12 @@ static __init void tegra210_periph_clk_init(void __iomem *clk_base,
 	clk = tegra_clk_register_periph_fixed("dpaux1", "sor_safe", 0, clk_base,
 					      1, 17, 207);
 	clks[TEGRA210_CLK_DPAUX1] = clk;
+
+	clk = clk_register_mux_table(NULL, "sor1_out", sor1_out_parents,
+				     ARRAY_SIZE(sor1_out_parents), 0,
+				     clk_base + CLK_SOURCE_SOR1, 14, 0x3,
+				     0, NULL, &sor1_lock);
+	clks[TEGRA210_CLK_SOR1_OUT] = clk;
 
 	/* pll_d_dsi_out */
 	clk = clk_register_gate(NULL, "pll_d_dsi_out", "pll_d_out0", 0,
@@ -2690,6 +2727,20 @@ static __init void tegra210_periph_clk_init(void __iomem *clk_base,
 				0, NULL);
 	clks[TEGRA210_CLK_ACLK] = clk;
 
+	for (i = 0; i < ARRAY_SIZE(tegra210_periph); i++) {
+		struct tegra_periph_init_data *init = &tegra210_periph[i];
+		struct clk **clkp;
+
+		clkp = tegra_lookup_dt_id(init->clk_id, tegra210_clks);
+		if (!clkp) {
+			pr_warn("clock %u not found\n", init->clk_id);
+			continue;
+		}
+
+		clk = tegra_clk_register_periph_data(clk_base, init);
+		*clkp = clk;
+	}
+
 	tegra_periph_clk_init(clk_base, pmc_base, tegra210_clks, &pll_p_params);
 }
 
@@ -2699,7 +2750,7 @@ static void __init tegra210_pll_init(void __iomem *clk_base,
 	struct clk *clk;
 
 	/* PLLC */
-	clk = tegra_clk_register_pllxc_tegra210("pll_c", "pll_ref", clk_base,
+	clk = tegra_clk_register_pllc_tegra210("pll_c", "pll_ref", clk_base,
 			pmc, 0, &pll_c_params, NULL);
 	if (!WARN_ON(IS_ERR(clk)))
 		clk_register_clkdev(clk, "pll_c", NULL);
@@ -2798,14 +2849,14 @@ static void __init tegra210_pll_init(void __iomem *clk_base,
 	/* PLLU_60M */
 	clk = clk_register_gate(NULL, "pll_u_60M", "pll_u_out2",
 				CLK_SET_RATE_PARENT, clk_base + PLLU_BASE,
-				23, 0, NULL);
+				23, 0, &pll_u_lock);
 	clk_register_clkdev(clk, "pll_u_60M", NULL);
 	clks[TEGRA210_CLK_PLL_U_60M] = clk;
 
 	/* PLLU_48M */
 	clk = clk_register_gate(NULL, "pll_u_48M", "pll_u_out1",
 				CLK_SET_RATE_PARENT, clk_base + PLLU_BASE,
-				25, 0, NULL);
+				25, 0, &pll_u_lock);
 	clk_register_clkdev(clk, "pll_u_48M", NULL);
 	clks[TEGRA210_CLK_PLL_U_48M] = clk;
 

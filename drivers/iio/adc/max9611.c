@@ -438,10 +438,10 @@ static ssize_t max9611_shunt_resistor_show(struct device *dev,
 	struct max9611_dev *max9611 = iio_priv(dev_to_iio_dev(dev));
 	unsigned int i, r;
 
-	i = max9611->shunt_resistor_uohm / 1000;
-	r = max9611->shunt_resistor_uohm % 1000;
+	i = max9611->shunt_resistor_uohm / 1000000;
+	r = max9611->shunt_resistor_uohm % 1000000;
 
-	return sprintf(buf, "%u.%03u\n", i, r);
+	return sprintf(buf, "%u.%06u\n", i, r);
 }
 
 static IIO_DEVICE_ATTR(in_power_shunt_resistor, 0444,
@@ -460,7 +460,6 @@ static const struct attribute_group max9611_attribute_group = {
 };
 
 static const struct iio_info indio_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= max9611_read_raw,
 	.attrs		= &max9611_attribute_group,
 };
@@ -536,8 +535,8 @@ static int max9611_probe(struct i2c_client *client,
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*max9611));
-	if (IS_ERR(indio_dev))
-		return PTR_ERR(indio_dev);
+	if (!indio_dev)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, indio_dev);
 
@@ -549,8 +548,8 @@ static int max9611_probe(struct i2c_client *client,
 	ret = of_property_read_u32(of_node, shunt_res_prop, &of_shunt);
 	if (ret) {
 		dev_err(&client->dev,
-			"Missing %s property for %s node\n",
-			shunt_res_prop, of_node->full_name);
+			"Missing %s property for %pOF node\n",
+			shunt_res_prop, of_node);
 		return ret;
 	}
 	max9611->shunt_resistor_uohm = of_shunt;
@@ -573,7 +572,6 @@ static int max9611_probe(struct i2c_client *client,
 static struct i2c_driver max9611_driver = {
 	.driver = {
 		   .name = DRIVER_NAME,
-		   .owner = THIS_MODULE,
 		   .of_match_table = max9611_of_table,
 	},
 	.probe = max9611_probe,

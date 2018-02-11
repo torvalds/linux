@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2013 Red Hat, Inc. and Parallels Inc. All rights reserved.
  * Authors: David Chinner and Glauber Costa
@@ -44,6 +45,7 @@ struct list_lru_node {
 	/* for cgroup aware lrus points to per cgroup lists, otherwise NULL */
 	struct list_lru_memcg	*memcg_lrus;
 #endif
+	long nr_items;
 } ____cacheline_aligned_in_smp;
 
 struct list_lru {

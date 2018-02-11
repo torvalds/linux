@@ -26,8 +26,9 @@
  * Authors: Dave Airlie <airlied@redhat.com>
  */
 #include <drm/drmP.h>
+#include <drm/ttm/ttm_page_alloc.h>
+
 #include "ast_drv.h"
-#include <ttm/ttm_page_alloc.h>
 
 static inline struct ast_private *
 ast_bdev(struct ttm_bo_device *bd)
@@ -322,10 +323,8 @@ int ast_bo_create(struct drm_device *dev, int size, int align,
 		return -ENOMEM;
 
 	ret = drm_gem_object_init(dev, &astbo->gem, size);
-	if (ret) {
-		kfree(astbo);
-		return ret;
-	}
+	if (ret)
+		goto error;
 
 	astbo->bo.bdev = &ast->ttm.bdev;
 
@@ -339,10 +338,13 @@ int ast_bo_create(struct drm_device *dev, int size, int align,
 			  align >> PAGE_SHIFT, false, NULL, acc_size,
 			  NULL, NULL, ast_bo_ttm_destroy);
 	if (ret)
-		return ret;
+		goto error;
 
 	*pastbo = astbo;
 	return 0;
+error:
+	kfree(astbo);
+	return ret;
 }
 
 static inline u64 ast_bo_gpu_offset(struct ast_bo *bo)
@@ -375,7 +377,7 @@ int ast_bo_pin(struct ast_bo *bo, u32 pl_flag, u64 *gpu_addr)
 
 int ast_bo_unpin(struct ast_bo *bo)
 {
-	int i, ret;
+	int i;
 	if (!bo->pin_count) {
 		DRM_ERROR("unpin bad %p\n", bo);
 		return 0;
@@ -386,11 +388,7 @@ int ast_bo_unpin(struct ast_bo *bo)
 
 	for (i = 0; i < bo->placement.num_placement ; i++)
 		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
-	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false);
-	if (ret)
-		return ret;
-
-	return 0;
+	return ttm_bo_validate(&bo->bo, &bo->placement, false, false);
 }
 
 int ast_bo_push_sysram(struct ast_bo *bo)

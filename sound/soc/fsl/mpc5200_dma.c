@@ -287,7 +287,7 @@ psc_dma_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_pcm_ops psc_dma_ops = {
+static const struct snd_pcm_ops psc_dma_ops = {
 	.open		= psc_dma_open,
 	.close		= psc_dma_close,
 	.hw_free	= psc_dma_hw_free,
@@ -302,7 +302,6 @@ static int psc_dma_new(struct snd_soc_pcm_runtime *rtd)
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_soc_dai *dai = rtd->cpu_dai;
 	struct snd_pcm *pcm = rtd->pcm;
-	struct psc_dma *psc_dma = snd_soc_dai_get_drvdata(rtd->cpu_dai);
 	size_t size = psc_dma_hardware.buffer_bytes_max;
 	int rc;
 
@@ -357,7 +356,7 @@ static void psc_dma_free(struct snd_pcm *pcm)
 	}
 }
 
-static struct snd_soc_platform_driver mpc5200_audio_dma_platform = {
+static const struct snd_soc_platform_driver mpc5200_audio_dma_platform = {
 	.ops		= &psc_dma_ops,
 	.pcm_new	= &psc_dma_new,
 	.pcm_free	= &psc_dma_free,

@@ -344,39 +344,30 @@ EXPORT_SYMBOL_GPL(smpboot_unregister_percpu_thread);
  * by the client, but only by calling this function.
  * This function can only be called on a registered smp_hotplug_thread.
  */
-int smpboot_update_cpumask_percpu_thread(struct smp_hotplug_thread *plug_thread,
-					 const struct cpumask *new)
+void smpboot_update_cpumask_percpu_thread(struct smp_hotplug_thread *plug_thread,
+					  const struct cpumask *new)
 {
 	struct cpumask *old = plug_thread->cpumask;
-	cpumask_var_t tmp;
+	static struct cpumask tmp;
 	unsigned int cpu;
 
-	if (!alloc_cpumask_var(&tmp, GFP_KERNEL))
-		return -ENOMEM;
-
-	get_online_cpus();
+	lockdep_assert_cpus_held();
 	mutex_lock(&smpboot_threads_lock);
 
 	/* Park threads that were exclusively enabled on the old mask. */
-	cpumask_andnot(tmp, old, new);
-	for_each_cpu_and(cpu, tmp, cpu_online_mask)
+	cpumask_andnot(&tmp, old, new);
+	for_each_cpu_and(cpu, &tmp, cpu_online_mask)
 		smpboot_park_thread(plug_thread, cpu);
 
 	/* Unpark threads that are exclusively enabled on the new mask. */
-	cpumask_andnot(tmp, new, old);
-	for_each_cpu_and(cpu, tmp, cpu_online_mask)
+	cpumask_andnot(&tmp, new, old);
+	for_each_cpu_and(cpu, &tmp, cpu_online_mask)
 		smpboot_unpark_thread(plug_thread, cpu);
 
 	cpumask_copy(old, new);
 
 	mutex_unlock(&smpboot_threads_lock);
-	put_online_cpus();
-
-	free_cpumask_var(tmp);
-
-	return 0;
 }
-EXPORT_SYMBOL_GPL(smpboot_update_cpumask_percpu_thread);
 
 static DEFINE_PER_CPU(atomic_t, cpu_hotplug_state) = ATOMIC_INIT(CPU_POST_DEAD);
 

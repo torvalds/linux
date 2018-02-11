@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * IOMMU mmap management and range allocation functions.
  * Based almost entirely upon the powerpc iommu allocator.

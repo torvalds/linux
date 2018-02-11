@@ -833,7 +833,7 @@ static void __exit nx_fini(void)
 	vio_unregister_driver(&nx_driver.viodriver);
 }
 
-static struct vio_device_id nx_crypto_driver_ids[] = {
+static const struct vio_device_id nx_crypto_driver_ids[] = {
 	{ "ibm,sym-encryption-v1", "ibm,sym-encryption" },
 	{ "", "" }
 };

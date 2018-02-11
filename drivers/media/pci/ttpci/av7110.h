@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _AV7110_H_
 #define _AV7110_H_
 
@@ -93,7 +94,7 @@ struct infrared {
 	u8			inversion;
 	u16			last_key;
 	u16			last_toggle;
-	u8			delay_timer_finished;
+	bool			keypressed;
 };
 
 
@@ -177,7 +178,7 @@ struct av7110 {
 
 	/* CA */
 
-	ca_slot_info_t		ci_slot[2];
+	struct ca_slot_info	ci_slot[2];
 
 	enum av7110_video_mode	vidmode;
 	struct dmxdev		dmxdev;

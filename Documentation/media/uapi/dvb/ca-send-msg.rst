@@ -32,12 +32,20 @@ Arguments
 Description
 -----------
 
-.. note:: This ioctl is undocumented. Documentation is welcome.
+Sends a message via a CI CA module.
 
+.. note::
+
+   Please notice that, on most drivers, this is done by writing
+   to the /dev/adapter?/ca? device node.
 
 Return Value
 ------------
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
-appropriately. The generic error codes are described at the
+On success 0 is returned.
+
+On error -1 is returned, and the ``errno`` variable is set
+appropriately.
+
+Generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

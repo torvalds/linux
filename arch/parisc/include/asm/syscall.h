@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* syscall.h */
 
 #ifndef _ASM_PARISC_SYSCALL_H_

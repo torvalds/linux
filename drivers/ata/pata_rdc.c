@@ -292,7 +292,7 @@ static struct ata_port_operations rdc_pata_ops = {
 	.prereset		= rdc_pata_prereset,
 };
 
-static struct ata_port_info rdc_port_info = {
+static const struct ata_port_info rdc_port_info = {
 
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= ATA_PIO4,

@@ -127,8 +127,7 @@ static int simtec_i2c_probe(struct platform_device *dev)
 	iounmap(pd->reg);
 
  err_res:
-	release_resource(pd->ioarea);
-	kfree(pd->ioarea);
+	release_mem_region(pd->ioarea->start, size);
 
  err:
 	kfree(pd);
@@ -142,8 +141,7 @@ static int simtec_i2c_remove(struct platform_device *dev)
 	i2c_del_adapter(&pd->adap);
 
 	iounmap(pd->reg);
-	release_resource(pd->ioarea);
-	kfree(pd->ioarea);
+	release_mem_region(pd->ioarea->start, resource_size(pd->ioarea));
 	kfree(pd);
 
 	return 0;

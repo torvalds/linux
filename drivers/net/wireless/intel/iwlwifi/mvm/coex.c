@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2017        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2017        Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,7 +69,7 @@
 #include <linux/etherdevice.h>
 #include <net/mac80211.h>
 
-#include "fw-api-coex.h"
+#include "fw/api/coex.h"
 #include "iwl-modparams.h"
 #include "mvm.h"
 #include "iwl-debug.h"
@@ -148,215 +150,6 @@ static const __le64 iwl_ci_mask[][3] = {
 	},
 };
 
-struct corunning_block_luts {
-	u8 range;
-	__le32 lut20[BT_COEX_CORUN_LUT_SIZE];
-};
-
-/*
- * Ranges for the antenna coupling calibration / co-running block LUT:
- *		LUT0: [ 0, 12[
- *		LUT1: [12, 20[
- *		LUT2: [20, 21[
- *		LUT3: [21, 23[
- *		LUT4: [23, 27[
- *		LUT5: [27, 30[
- *		LUT6: [30, 32[
- *		LUT7: [32, 33[
- *		LUT8: [33, - [
- */
-static const struct corunning_block_luts antenna_coupling_ranges[] = {
-	{
-		.range = 0,
-		.lut20 = {
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-		},
-	},
-	{
-		.range = 12,
-		.lut20 = {
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-		},
-	},
-	{
-		.range = 20,
-		.lut20 = {
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-		},
-	},
-	{
-		.range = 21,
-		.lut20 = {
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-		},
-	},
-	{
-		.range = 23,
-		.lut20 = {
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-		},
-	},
-	{
-		.range = 27,
-		.lut20 = {
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-		},
-	},
-	{
-		.range = 30,
-		.lut20 = {
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-		},
-	},
-	{
-		.range = 32,
-		.lut20 = {
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-		},
-	},
-	{
-		.range = 33,
-		.lut20 = {
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
-		},
-	},
-};
-
 static enum iwl_bt_coex_lut_type
 iwl_get_coex_type(struct iwl_mvm *mvm, const struct ieee80211_vif *vif)
 {
@@ -406,7 +199,7 @@ iwl_get_coex_type(struct iwl_mvm *mvm, const struct ieee80211_vif *vif)
 	return ret;
 }
 
-int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
+int iwl_mvm_send_bt_init_conf(struct iwl_mvm *mvm)
 {
 	struct iwl_bt_coex_cmd bt_cmd = {};
 	u32 mode;
@@ -436,9 +229,6 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 	if (IWL_MVM_BT_COEX_SYNC2SCO)
 		bt_cmd.enabled_modules |=
 			cpu_to_le32(BT_COEX_SYNC2SCO_ENABLED);
-
-	if (iwl_mvm_bt_is_plcr_supported(mvm))
-		bt_cmd.enabled_modules |= cpu_to_le32(BT_COEX_CORUN_ENABLED);
 
 	if (iwl_mvm_is_mplut_supported(mvm))
 		bt_cmd.enabled_modules |= cpu_to_le32(BT_COEX_MPLUT_ENABLED);
@@ -560,8 +350,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
 	if (mvmvif->phy_ctxt &&
-	    IWL_COEX_IS_RRC_ON(mvm->last_bt_notif.ttc_rrc_status,
-			       mvmvif->phy_ctxt->id))
+	    (mvm->last_bt_notif.rrc_status & BIT(mvmvif->phy_ctxt->id)))
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
 	IWL_DEBUG_COEX(data->mvm,
@@ -725,17 +514,36 @@ void iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_bt_coex_profile_notif *notif = (void *)pkt->data;
 
-	IWL_DEBUG_COEX(mvm, "BT Coex Notification received\n");
-	IWL_DEBUG_COEX(mvm, "\tBT ci compliance %d\n", notif->bt_ci_compliance);
-	IWL_DEBUG_COEX(mvm, "\tBT primary_ch_lut %d\n",
-		       le32_to_cpu(notif->primary_ch_lut));
-	IWL_DEBUG_COEX(mvm, "\tBT secondary_ch_lut %d\n",
-		       le32_to_cpu(notif->secondary_ch_lut));
-	IWL_DEBUG_COEX(mvm, "\tBT activity grading %d\n",
-		       le32_to_cpu(notif->bt_activity_grading));
+	if (!iwl_mvm_has_new_ats_coex_api(mvm)) {
+		struct iwl_bt_coex_profile_notif_v4 *v4 = (void *)pkt->data;
 
-	/* remember this notification for future use: rssi fluctuations */
-	memcpy(&mvm->last_bt_notif, notif, sizeof(mvm->last_bt_notif));
+		mvm->last_bt_notif.mbox_msg[0] = v4->mbox_msg[0];
+		mvm->last_bt_notif.mbox_msg[1] = v4->mbox_msg[1];
+		mvm->last_bt_notif.mbox_msg[2] = v4->mbox_msg[2];
+		mvm->last_bt_notif.mbox_msg[3] = v4->mbox_msg[3];
+		mvm->last_bt_notif.msg_idx = v4->msg_idx;
+		mvm->last_bt_notif.bt_ci_compliance = v4->bt_ci_compliance;
+		mvm->last_bt_notif.primary_ch_lut = v4->primary_ch_lut;
+		mvm->last_bt_notif.secondary_ch_lut = v4->secondary_ch_lut;
+		mvm->last_bt_notif.bt_activity_grading =
+			v4->bt_activity_grading;
+		mvm->last_bt_notif.ttc_status = v4->ttc_status;
+		mvm->last_bt_notif.rrc_status = v4->rrc_status;
+	} else {
+		/* save this notification for future use: rssi fluctuations */
+		memcpy(&mvm->last_bt_notif, notif, sizeof(mvm->last_bt_notif));
+	}
+
+	IWL_DEBUG_COEX(mvm, "BT Coex Notification received\n");
+	IWL_DEBUG_COEX(mvm, "\tBT ci compliance %d\n",
+		       mvm->last_bt_notif.bt_ci_compliance);
+	IWL_DEBUG_COEX(mvm, "\tBT primary_ch_lut %d\n",
+		       le32_to_cpu(mvm->last_bt_notif.primary_ch_lut));
+	IWL_DEBUG_COEX(mvm, "\tBT secondary_ch_lut %d\n",
+		       le32_to_cpu(mvm->last_bt_notif.secondary_ch_lut));
+	IWL_DEBUG_COEX(mvm, "\tBT activity grading %d\n",
+		       le32_to_cpu(mvm->last_bt_notif.bt_activity_grading));
+
 
 	iwl_mvm_bt_coex_notif_handle(mvm);
 }
@@ -792,7 +600,7 @@ u16 iwl_mvm_coex_agg_time_limit(struct iwl_mvm *mvm,
 	struct iwl_mvm_phy_ctxt *phy_ctxt = mvmvif->phy_ctxt;
 	enum iwl_bt_coex_lut_type lut_type;
 
-	if (IWL_COEX_IS_TTC_ON(mvm->last_bt_notif.ttc_rrc_status, phy_ctxt->id))
+	if (mvm->last_bt_notif.ttc_status & BIT(phy_ctxt->id))
 		return LINK_QUAL_AGG_TIME_LIMIT_DEF;
 
 	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
@@ -816,7 +624,7 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 	struct iwl_mvm_phy_ctxt *phy_ctxt = mvmvif->phy_ctxt;
 	enum iwl_bt_coex_lut_type lut_type;
 
-	if (IWL_COEX_IS_TTC_ON(mvm->last_bt_notif.ttc_rrc_status, phy_ctxt->id))
+	if (mvm->last_bt_notif.ttc_status & BIT(phy_ctxt->id))
 		return true;
 
 	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
@@ -908,59 +716,4 @@ u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 void iwl_mvm_bt_coex_vif_change(struct iwl_mvm *mvm)
 {
 	iwl_mvm_bt_coex_notif_handle(mvm);
-}
-
-void iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
-				   struct iwl_rx_cmd_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	u32 ant_isolation = le32_to_cpup((void *)pkt->data);
-	struct iwl_bt_coex_corun_lut_update_cmd cmd = {};
-	u8 __maybe_unused lower_bound, upper_bound;
-	u8 lut;
-
-	if (!iwl_mvm_bt_is_plcr_supported(mvm))
-		return;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	/* Ignore updates if we are in force mode */
-	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS))
-		return;
-
-	if (ant_isolation ==  mvm->last_ant_isol)
-		return;
-
-	for (lut = 0; lut < ARRAY_SIZE(antenna_coupling_ranges) - 1; lut++)
-		if (ant_isolation < antenna_coupling_ranges[lut + 1].range)
-			break;
-
-	lower_bound = antenna_coupling_ranges[lut].range;
-
-	if (lut < ARRAY_SIZE(antenna_coupling_ranges) - 1)
-		upper_bound = antenna_coupling_ranges[lut + 1].range;
-	else
-		upper_bound = antenna_coupling_ranges[lut].range;
-
-	IWL_DEBUG_COEX(mvm, "Antenna isolation=%d in range [%d,%d[, lut=%d\n",
-		       ant_isolation, lower_bound, upper_bound, lut);
-
-	mvm->last_ant_isol = ant_isolation;
-
-	if (mvm->last_corun_lut == lut)
-		return;
-
-	mvm->last_corun_lut = lut;
-
-	/* For the moment, use the same LUT for 20GHz and 40GHz */
-	memcpy(&cmd.corun_lut20, antenna_coupling_ranges[lut].lut20,
-	       sizeof(cmd.corun_lut20));
-
-	memcpy(&cmd.corun_lut40, antenna_coupling_ranges[lut].lut20,
-	       sizeof(cmd.corun_lut40));
-
-	if (iwl_mvm_send_cmd_pdu(mvm, BT_COEX_UPDATE_CORUN_LUT, 0,
-				 sizeof(cmd), &cmd))
-		IWL_ERR(mvm,
-			"failed to send BT_COEX_UPDATE_CORUN_LUT command\n");
 }

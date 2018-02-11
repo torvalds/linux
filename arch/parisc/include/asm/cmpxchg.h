@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * forked from parisc asm/atomic.h which was:
  *	Copyright (C) 2000 Philipp Rumpf <prumpf@tux.org>

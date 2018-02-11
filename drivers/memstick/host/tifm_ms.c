@@ -538,9 +538,9 @@ static int tifm_ms_set_param(struct memstick_host *msh,
 	return 0;
 }
 
-static void tifm_ms_abort(unsigned long data)
+static void tifm_ms_abort(struct timer_list *t)
 {
-	struct tifm_ms *host = (struct tifm_ms *)data;
+	struct tifm_ms *host = from_timer(host, t, timer);
 
 	dev_dbg(&host->dev->dev, "status %x\n",
 		readl(host->dev->addr + SOCK_MS_STATUS));
@@ -575,7 +575,7 @@ static int tifm_ms_probe(struct tifm_dev *sock)
 	host->dev = sock;
 	host->timeout_jiffies = msecs_to_jiffies(1000);
 
-	setup_timer(&host->timer, tifm_ms_abort, (unsigned long)host);
+	timer_setup(&host->timer, tifm_ms_abort, 0);
 	tasklet_init(&host->notify, tifm_ms_req_tasklet, (unsigned long)msh);
 
 	msh->request = tifm_ms_submit_req;

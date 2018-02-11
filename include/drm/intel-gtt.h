@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Common header for intel-gtt.ko and i915.ko */
 
 #ifndef _DRM_INTEL_GTT_H

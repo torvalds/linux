@@ -101,6 +101,4 @@ bool __igt_timeout(unsigned long timeout, const char *fmt, ...);
 #define igt_timeout(t, fmt, ...) \
 	__igt_timeout((t), KERN_WARNING pr_fmt(fmt), ##__VA_ARGS__)
 
-#define igt_can_mi_store_dword_imm(D) (INTEL_GEN(D) > 2)
-
 #endif /* !__I915_SELFTEST_H__ */

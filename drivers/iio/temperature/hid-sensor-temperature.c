@@ -123,7 +123,6 @@ static int temperature_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info temperature_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &temperature_read_raw,
 	.write_raw = &temperature_write_raw,
 };

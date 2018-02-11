@@ -24,7 +24,7 @@
 #include <linux/usb/r8a66597.h>
 #include <linux/usb/renesas_usbhs.h>
 #include <linux/i2c.h>
-#include <linux/i2c/tsc2007.h>
+#include <linux/platform_data/tsc2007.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/sh_msiof.h>
 #include <linux/spi/mmc_spi.h>

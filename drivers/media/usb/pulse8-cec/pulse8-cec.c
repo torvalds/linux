@@ -51,7 +51,7 @@ MODULE_DESCRIPTION("Pulse Eight HDMI CEC driver");
 MODULE_LICENSE("GPL");
 
 static int debug;
-static int persistent_config = 1;
+static int persistent_config;
 module_param(debug, int, 0644);
 module_param(persistent_config, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (0-1)");
@@ -148,18 +148,15 @@ static void pulse8_irq_work_handler(struct work_struct *work)
 		cec_received_msg(pulse8->adap, &pulse8->rx_msg);
 		break;
 	case MSGCODE_TRANSMIT_SUCCEEDED:
-		cec_transmit_done(pulse8->adap, CEC_TX_STATUS_OK,
-				  0, 0, 0, 0);
+		cec_transmit_attempt_done(pulse8->adap, CEC_TX_STATUS_OK);
 		break;
 	case MSGCODE_TRANSMIT_FAILED_ACK:
-		cec_transmit_done(pulse8->adap, CEC_TX_STATUS_NACK,
-				  0, 1, 0, 0);
+		cec_transmit_attempt_done(pulse8->adap, CEC_TX_STATUS_NACK);
 		break;
 	case MSGCODE_TRANSMIT_FAILED_LINE:
 	case MSGCODE_TRANSMIT_FAILED_TIMEOUT_DATA:
 	case MSGCODE_TRANSMIT_FAILED_TIMEOUT_LINE:
-		cec_transmit_done(pulse8->adap, CEC_TX_STATUS_ERROR,
-				  0, 0, 0, 1);
+		cec_transmit_attempt_done(pulse8->adap, CEC_TX_STATUS_ERROR);
 		break;
 	}
 }
@@ -645,8 +642,7 @@ static const struct cec_adap_ops pulse8_cec_adap_ops = {
 
 static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
 {
-	u32 caps = CEC_CAP_TRANSMIT | CEC_CAP_LOG_ADDRS | CEC_CAP_PHYS_ADDR |
-		CEC_CAP_PASSTHROUGH | CEC_CAP_RC | CEC_CAP_MONITOR_ALL;
+	u32 caps = CEC_CAP_DEFAULTS | CEC_CAP_PHYS_ADDR | CEC_CAP_MONITOR_ALL;
 	struct pulse8 *pulse8;
 	int err = -ENOMEM;
 	struct cec_log_addrs log_addrs = {};
@@ -659,7 +655,7 @@ static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
 
 	pulse8->serio = serio;
 	pulse8->adap = cec_allocate_adapter(&pulse8_cec_adap_ops, pulse8,
-		"HDMI CEC", caps, 1);
+					    dev_name(&serio->dev), caps, 1);
 	err = PTR_ERR_OR_ZERO(pulse8->adap);
 	if (err < 0)
 		goto free_device;
@@ -735,7 +731,7 @@ static void pulse8_ping_eeprom_work_handler(struct work_struct *work)
 	mutex_unlock(&pulse8->config_lock);
 }
 
-static struct serio_device_id pulse8_serio_ids[] = {
+static const struct serio_device_id pulse8_serio_ids[] = {
 	{
 		.type	= SERIO_RS232,
 		.proto	= SERIO_PULSE8_CEC,

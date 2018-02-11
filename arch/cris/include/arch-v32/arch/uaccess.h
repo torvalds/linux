@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Authors:    Hans-Peter Nilsson (hp@axis.com)
  *

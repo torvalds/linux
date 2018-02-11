@@ -50,7 +50,7 @@
 #define SPI_IDLE_SDA_PULL_LOW			(2 << 18)
 #define SPI_IDLE_SDA_PULL_HIGH			(3 << 18)
 #define SPI_IDLE_SDA_MASK			(3 << 18)
-#define SPI_CS_SS_VAL				(1 << 20)
+#define SPI_CS_SW_VAL				(1 << 20)
 #define SPI_CS_SW_HW				(1 << 21)
 /* SPI_CS_POL_INACTIVE bits are default high */
 						/* n from 0 to 3 */
@@ -705,9 +705,9 @@ static u32 tegra_spi_setup_transfer_one(struct spi_device *spi,
 
 		command1 |= SPI_CS_SW_HW;
 		if (spi->mode & SPI_CS_HIGH)
-			command1 |= SPI_CS_SS_VAL;
+			command1 |= SPI_CS_SW_VAL;
 		else
-			command1 &= ~SPI_CS_SS_VAL;
+			command1 &= ~SPI_CS_SW_VAL;
 
 		tegra_spi_writel(tspi, 0, SPI_COMMAND2);
 	} else {
@@ -1083,7 +1083,7 @@ static int tegra_spi_probe(struct platform_device *pdev)
 		goto exit_free_irq;
 	}
 
-	tspi->rst = devm_reset_control_get(&pdev->dev, "spi");
+	tspi->rst = devm_reset_control_get_exclusive(&pdev->dev, "spi");
 	if (IS_ERR(tspi->rst)) {
 		dev_err(&pdev->dev, "can not get reset\n");
 		ret = PTR_ERR(tspi->rst);

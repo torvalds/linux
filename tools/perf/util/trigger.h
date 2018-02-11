@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __TRIGGER_H_
 #define __TRIGGER_H_ 1
 

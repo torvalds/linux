@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #define MAXPACK 50
 #define MAXBUFFERMS 100
 #define MAXSTRIDE 3

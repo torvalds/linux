@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/cris/kernel/process.c
  *
@@ -67,14 +68,6 @@ void hard_reset_now (void)
 #endif
 
 	while(1) /* waiting for RETRIBUTION! */ ;
-}
-
-/*
- * Return saved PC of a blocked thread.
- */
-unsigned long thread_saved_pc(struct task_struct *t)
-{
-	return task_pt_regs(t)->irp;
 }
 
 /* setup the child's kernel stack with a pt_regs and switch_stack on it.

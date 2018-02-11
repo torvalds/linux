@@ -20,6 +20,6 @@ Signal statistics are provided via
 .. note::
 
    Most statistics require the demodulator to be fully locked
-   (e. g. with FE_HAS_LOCK bit set). See
+   (e. g. with :c:type:`FE_HAS_LOCK <fe_status>` bit set). See
    :ref:`Frontend statistics indicators <frontend-stat-properties>` for
    more details.

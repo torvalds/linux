@@ -6,9 +6,6 @@ Applying Patches To The Linux Kernel
 Original by:
 	Jesper Juhl, August 2005
 
-Last update:
-	2016-09-14
-
 .. note::
 
    This document is obsolete.  In most cases, rather than using ``patch``
@@ -344,7 +341,7 @@ possible.
 
 This is a good branch to run for people who want to help out testing
 development kernels but do not want to run some of the really experimental
-stuff (such people should see the sections about -git and -mm kernels below).
+stuff (such people should see the sections about -next and -mm kernels below).
 
 The -rc patches are not incremental, they apply to a base 4.x kernel, just
 like the 4.x.y patches described above. The kernel version before the -rcN
@@ -378,44 +375,6 @@ Here are 3 examples of how to apply these patches::
 	$ patch -p1 < ../patch-4.8-rc5		# apply new 4.8-rc5 patch
 	$ cd ..
 	$ mv linux-4.7.3 linux-4.8-rc5		# rename the kernel source dir
-
-
-The -git kernels
-================
-
-These are daily snapshots of Linus' kernel tree (managed in a git
-repository, hence the name).
-
-These patches are usually released daily and represent the current state of
-Linus's tree. They are more experimental than -rc kernels since they are
-generated automatically without even a cursory glance to see if they are
-sane.
-
--git patches are not incremental and apply either to a base 4.x kernel or
-a base 4.x-rc kernel -- you can see which from their name.
-A patch named 4.7-git1 applies to the 4.7 kernel source and a patch
-named 4.8-rc3-git2 applies to the source of the 4.8-rc3 kernel.
-
-Here are some examples of how to apply these patches::
-
-	# moving from 4.7 to 4.7-git1
-
-	$ cd ~/linux-4.7			# change to the kernel source dir
-	$ patch -p1 < ../patch-4.7-git1		# apply the 4.7-git1 patch
-	$ cd ..
-	$ mv linux-4.7 linux-4.7-git1		# rename the kernel source dir
-
-	# moving from 4.7-git1 to 4.8-rc2-git3
-
-	$ cd ~/linux-4.7-git1			# change to the kernel source dir
-	$ patch -p1 -R < ../patch-4.7-git1	# revert the 4.7-git1 patch
-						# we now have a 4.7 kernel
-	$ patch -p1 < ../patch-4.8-rc2		# apply the 4.8-rc2 patch
-						# the kernel is now 4.8-rc2
-	$ patch -p1 < ../patch-4.8-rc2-git3	# apply the 4.8-rc2-git3 patch
-						# the kernel is now 4.8-rc2-git3
-	$ cd ..
-	$ mv linux-4.7-git1 linux-4.8-rc2-git3	# rename source dir
 
 
 The -mm patches and the linux-next tree

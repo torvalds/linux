@@ -1927,7 +1927,6 @@ static int keystone_get_link_ksettings(struct net_device *ndev,
 	struct netcp_intf *netcp = netdev_priv(ndev);
 	struct phy_device *phy = ndev->phydev;
 	struct gbe_intf *gbe_intf;
-	int ret;
 
 	if (!phy)
 		return -EINVAL;
@@ -1939,11 +1938,10 @@ static int keystone_get_link_ksettings(struct net_device *ndev,
 	if (!gbe_intf->slave)
 		return -EINVAL;
 
-	ret = phy_ethtool_ksettings_get(phy, cmd);
-	if (!ret)
-		cmd->base.port = gbe_intf->slave->phy_port_t;
+	phy_ethtool_ksettings_get(phy, cmd);
+	cmd->base.port = gbe_intf->slave->phy_port_t;
 
-	return ret;
+	return 0;
 }
 
 static int keystone_set_link_ksettings(struct net_device *ndev,
@@ -2505,24 +2503,8 @@ static bool gbe_need_txtstamp(struct gbe_intf *gbe_intf,
 			      const struct netcp_packet *p_info)
 {
 	struct sk_buff *skb = p_info->skb;
-	unsigned int class = ptp_classify_raw(skb);
 
-	if (class == PTP_CLASS_NONE)
-		return false;
-
-	switch (class) {
-	case PTP_CLASS_V1_IPV4:
-	case PTP_CLASS_V1_IPV6:
-	case PTP_CLASS_V2_IPV4:
-	case PTP_CLASS_V2_IPV6:
-	case PTP_CLASS_V2_L2:
-	case (PTP_CLASS_V2_VLAN | PTP_CLASS_L2):
-	case (PTP_CLASS_V2_VLAN | PTP_CLASS_IPV4):
-	case (PTP_CLASS_V2_VLAN | PTP_CLASS_IPV6):
-		return true;
-	}
-
-	return false;
+	return cpts_can_timestamp(gbe_intf->gbe_dev->cpts, skb);
 }
 
 static int gbe_txtstamp_mark_pkt(struct gbe_intf *gbe_intf,
@@ -2763,9 +2745,9 @@ static int gbe_ioctl(void *intf_priv, struct ifreq *req, int cmd)
 	return -EOPNOTSUPP;
 }
 
-static void netcp_ethss_timer(unsigned long arg)
+static void netcp_ethss_timer(struct timer_list *t)
 {
-	struct gbe_priv *gbe_dev = (struct gbe_priv *)arg;
+	struct gbe_priv *gbe_dev = from_timer(gbe_dev, t, timer);
 	struct gbe_intf *gbe_intf;
 	struct gbe_slave *slave;
 
@@ -3634,9 +3616,7 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	}
 	spin_unlock_bh(&gbe_dev->hw_stats_lock);
 
-	init_timer(&gbe_dev->timer);
-	gbe_dev->timer.data	 = (unsigned long)gbe_dev;
-	gbe_dev->timer.function = netcp_ethss_timer;
+	timer_setup(&gbe_dev->timer, netcp_ethss_timer, 0);
 	gbe_dev->timer.expires	 = jiffies + GBE_TIMER_INTERVAL;
 	add_timer(&gbe_dev->timer);
 	*inst_priv = gbe_dev;

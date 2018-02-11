@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright IBM Corp. 2011
  * Author(s): Jan Glauber <jang@linux.vnet.ibm.com>
@@ -7,6 +8,7 @@
 #include <asm/cacheflush.h>
 #include <asm/facility.h>
 #include <asm/pgtable.h>
+#include <asm/pgalloc.h>
 #include <asm/page.h>
 #include <asm/set_memory.h>
 
@@ -191,7 +193,7 @@ static int split_pud_page(pud_t *pudp, unsigned long addr)
 	pud_t new;
 	int i, ro, nx;
 
-	pm_dir = vmem_pmd_alloc();
+	pm_dir = vmem_crst_alloc(_SEGMENT_ENTRY_EMPTY);
 	if (!pm_dir)
 		return -ENOMEM;
 	pmd_addr = pud_pfn(*pudp) << PAGE_SHIFT;
@@ -229,14 +231,14 @@ static void modify_pud_page(pud_t *pudp, unsigned long addr,
 	pgt_set((unsigned long *)pudp, pud_val(new), addr, CRDTE_DTT_REGION3);
 }
 
-static int walk_pud_level(pgd_t *pgd, unsigned long addr, unsigned long end,
+static int walk_pud_level(p4d_t *p4d, unsigned long addr, unsigned long end,
 			  unsigned long flags)
 {
 	unsigned long next;
 	pud_t *pudp;
 	int rc = 0;
 
-	pudp = pud_offset(pgd, addr);
+	pudp = pud_offset(p4d, addr);
 	do {
 		if (pud_none(*pudp))
 			return -EINVAL;
@@ -253,6 +255,26 @@ static int walk_pud_level(pgd_t *pgd, unsigned long addr, unsigned long end,
 			rc = walk_pmd_level(pudp, addr, next, flags);
 		}
 		pudp++;
+		addr = next;
+		cond_resched();
+	} while (addr < end && !rc);
+	return rc;
+}
+
+static int walk_p4d_level(pgd_t *pgd, unsigned long addr, unsigned long end,
+			  unsigned long flags)
+{
+	unsigned long next;
+	p4d_t *p4dp;
+	int rc = 0;
+
+	p4dp = p4d_offset(pgd, addr);
+	do {
+		if (p4d_none(*p4dp))
+			return -EINVAL;
+		next = p4d_addr_end(addr, end);
+		rc = walk_pud_level(p4dp, addr, next, flags);
+		p4dp++;
 		addr = next;
 		cond_resched();
 	} while (addr < end && !rc);
@@ -278,7 +300,7 @@ static int change_page_attr(unsigned long addr, unsigned long end,
 		if (pgd_none(*pgdp))
 			break;
 		next = pgd_addr_end(addr, end);
-		rc = walk_pud_level(pgdp, addr, next, flags);
+		rc = walk_p4d_level(pgdp, addr, next, flags);
 		if (rc)
 			break;
 		cond_resched();
@@ -308,7 +330,7 @@ static void ipte_range(pte_t *pte, unsigned long address, int nr)
 		return;
 	}
 	for (i = 0; i < nr; i++) {
-		__ptep_ipte(address, pte, IPTE_GLOBAL);
+		__ptep_ipte(address, pte, 0, 0, IPTE_GLOBAL);
 		address += PAGE_SIZE;
 		pte++;
 	}
@@ -319,6 +341,7 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 	unsigned long address;
 	int nr, i, j;
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
@@ -326,7 +349,8 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 	for (i = 0; i < numpages;) {
 		address = page_to_phys(page + i);
 		pgd = pgd_offset_k(address);
-		pud = pud_offset(pgd, address);
+		p4d = p4d_offset(pgd, address);
+		pud = pud_offset(p4d, address);
 		pmd = pmd_offset(pud, address);
 		pte = pte_offset_kernel(pmd, address);
 		nr = (unsigned long)pte >> ilog2(sizeof(long));

@@ -29,7 +29,7 @@
 
 #include "i40e_type.h"
 #include "i40e_alloc.h"
-#include "i40e_virtchnl.h"
+#include <linux/avf/virtchnl.h>
 
 /* Prototypes for shared code functions that are not in
  * the standard function pointer structures.  These are
@@ -190,7 +190,7 @@ i40e_status i40e_aq_get_switch_config(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_set_switch_config(struct i40e_hw *hw,
 						u16 flags,
-						u16 valid_flags,
+						u16 valid_flags, u8 mode,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_request_resource(struct i40e_hw *hw,
 				enum i40e_aq_resources_ids resource,
@@ -283,6 +283,22 @@ i40e_status i40e_aq_query_switch_comp_bw_config(struct i40e_hw *hw,
 		struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_resume_port_tx(struct i40e_hw *hw,
 				   struct i40e_asq_cmd_details *cmd_details);
+i40e_status
+i40e_aq_add_cloud_filters_bb(struct i40e_hw *hw, u16 seid,
+			     struct i40e_aqc_cloud_filters_element_bb *filters,
+			     u8 filter_count);
+enum i40e_status_code
+i40e_aq_add_cloud_filters(struct i40e_hw *hw, u16 vsi,
+			  struct i40e_aqc_cloud_filters_element_data *filters,
+			  u8 filter_count);
+enum i40e_status_code
+i40e_aq_rem_cloud_filters(struct i40e_hw *hw, u16 vsi,
+			  struct i40e_aqc_cloud_filters_element_data *filters,
+			  u8 filter_count);
+i40e_status
+i40e_aq_rem_cloud_filters_bb(struct i40e_hw *hw, u16 seid,
+			     struct i40e_aqc_cloud_filters_element_bb *filters,
+			     u8 filter_count);
 i40e_status i40e_read_lldp_cfg(struct i40e_hw *hw,
 			       struct i40e_lldp_variables *lldp_cfg);
 /* i40e_common */
@@ -311,8 +327,6 @@ i40e_status i40e_acquire_nvm(struct i40e_hw *hw,
 void i40e_release_nvm(struct i40e_hw *hw);
 i40e_status i40e_read_nvm_word(struct i40e_hw *hw, u16 offset,
 					 u16 *data);
-i40e_status i40e_read_nvm_buffer(struct i40e_hw *hw, u16 offset,
-					   u16 *words, u16 *data);
 i40e_status i40e_update_nvm_checksum(struct i40e_hw *hw);
 i40e_status i40e_validate_nvm_checksum(struct i40e_hw *hw,
 						 u16 *checksum);
@@ -333,10 +347,10 @@ static inline struct i40e_rx_ptype_decoded decode_rx_desc_ptype(u8 ptype)
 
 /* i40e_common for VF drivers*/
 void i40e_vf_parse_hw_config(struct i40e_hw *hw,
-			     struct i40e_virtchnl_vf_resource *msg);
+			     struct virtchnl_vf_resource *msg);
 i40e_status i40e_vf_reset(struct i40e_hw *hw);
 i40e_status i40e_aq_send_msg_to_pf(struct i40e_hw *hw,
-				enum i40e_virtchnl_ops v_opcode,
+				enum virtchnl_ops v_opcode,
 				i40e_status v_retval,
 				u8 *msg, u16 msglen,
 				struct i40e_asq_cmd_details *cmd_details);
@@ -362,6 +376,15 @@ i40e_status i40e_aq_rx_ctl_write_register(struct i40e_hw *hw,
 				u32 reg_addr, u32 reg_val,
 				struct i40e_asq_cmd_details *cmd_details);
 void i40e_write_rx_ctl(struct i40e_hw *hw, u32 reg_addr, u32 reg_val);
+i40e_status i40e_aq_set_phy_register(struct i40e_hw *hw,
+				     u8 phy_select, u8 dev_addr,
+				     u32 reg_addr, u32 reg_val,
+				     struct i40e_asq_cmd_details *cmd_details);
+i40e_status i40e_aq_get_phy_register(struct i40e_hw *hw,
+				     u8 phy_select, u8 dev_addr,
+				     u32 reg_addr, u32 *reg_val,
+				     struct i40e_asq_cmd_details *cmd_details);
+
 i40e_status i40e_read_phy_register_clause22(struct i40e_hw *hw,
 					    u16 reg, u8 phy_addr, u16 *value);
 i40e_status i40e_write_phy_register_clause22(struct i40e_hw *hw,

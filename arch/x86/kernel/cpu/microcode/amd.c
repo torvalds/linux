@@ -251,7 +251,7 @@ static bool get_builtin_microcode(struct cpio_data *cp, unsigned int family)
 #endif
 }
 
-void __load_ucode_amd(unsigned int cpuid_1_eax, struct cpio_data *ret)
+static void __load_ucode_amd(unsigned int cpuid_1_eax, struct cpio_data *ret)
 {
 	struct ucode_cpu_info *uci;
 	struct cpio_data cp;
@@ -400,9 +400,12 @@ static void update_cache(struct ucode_patch *new_patch)
 
 	list_for_each_entry(p, &microcode_cache, plist) {
 		if (p->equiv_cpu == new_patch->equiv_cpu) {
-			if (p->patch_id >= new_patch->patch_id)
+			if (p->patch_id >= new_patch->patch_id) {
 				/* we already have the latest patch */
+				kfree(new_patch->data);
+				kfree(new_patch);
 				return;
+			}
 
 			list_replace(&p->plist, &new_patch->plist);
 			kfree(p->data);
@@ -467,6 +470,7 @@ static unsigned int verify_patch_size(u8 family, u32 patch_size,
 #define F14H_MPB_MAX_SIZE 1824
 #define F15H_MPB_MAX_SIZE 4096
 #define F16H_MPB_MAX_SIZE 3458
+#define F17H_MPB_MAX_SIZE 3200
 
 	switch (family) {
 	case 0x14:
@@ -477,6 +481,9 @@ static unsigned int verify_patch_size(u8 family, u32 patch_size,
 		break;
 	case 0x16:
 		max_size = F16H_MPB_MAX_SIZE;
+		break;
+	case 0x17:
+		max_size = F17H_MPB_MAX_SIZE;
 		break;
 	default:
 		max_size = F1XH_MPB_MAX_SIZE;

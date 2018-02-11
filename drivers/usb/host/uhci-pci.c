@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * UHCI HCD (Host Controller Driver) PCI Bus Glue.
  *
@@ -131,7 +132,7 @@ static int uhci_pci_init(struct usb_hcd *hcd)
 
 	/* Intel controllers use non-PME wakeup signalling */
 	if (to_pci_dev(uhci_dev(uhci))->vendor == PCI_VENDOR_ID_INTEL)
-		device_set_run_wake(uhci_dev(uhci), 1);
+		device_set_wakeup_capable(uhci_dev(uhci), true);
 
 	/* Set up pointers to PCI-specific functions */
 	uhci->reset_hc = uhci_pci_reset_hc;

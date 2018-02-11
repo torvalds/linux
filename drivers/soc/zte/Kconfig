@@ -2,6 +2,7 @@
 # ZTE SoC drivers
 #
 menuconfig SOC_ZTE
+	depends on ARCH_ZX || COMPILE_TEST
 	bool "ZTE SoC driver support"
 
 if SOC_ZTE

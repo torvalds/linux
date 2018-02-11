@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-y += time.o timer.o hrtimer.o
 obj-y += timekeeping.o ntp.o clocksource.o jiffies.o timer_list.o
 obj-y += timeconv.o timecounter.o alarmtimer.o

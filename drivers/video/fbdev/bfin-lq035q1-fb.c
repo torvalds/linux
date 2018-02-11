@@ -841,7 +841,7 @@ static int bfin_lq035q1_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops bfin_lq035q1_dev_pm_ops = {
+static const struct dev_pm_ops bfin_lq035q1_dev_pm_ops = {
 	.suspend = bfin_lq035q1_suspend,
 	.resume  = bfin_lq035q1_resume,
 };

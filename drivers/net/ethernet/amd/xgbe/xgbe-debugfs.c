@@ -527,3 +527,28 @@ void xgbe_debugfs_exit(struct xgbe_prv_data *pdata)
 	debugfs_remove_recursive(pdata->xgbe_debugfs);
 	pdata->xgbe_debugfs = NULL;
 }
+
+void xgbe_debugfs_rename(struct xgbe_prv_data *pdata)
+{
+	struct dentry *pfile;
+	char *buf;
+
+	if (!pdata->xgbe_debugfs)
+		return;
+
+	buf = kasprintf(GFP_KERNEL, "amd-xgbe-%s", pdata->netdev->name);
+	if (!buf)
+		return;
+
+	if (!strcmp(pdata->xgbe_debugfs->d_name.name, buf))
+		goto out;
+
+	pfile = debugfs_rename(pdata->xgbe_debugfs->d_parent,
+			       pdata->xgbe_debugfs,
+			       pdata->xgbe_debugfs->d_parent, buf);
+	if (!pfile)
+		netdev_err(pdata->netdev, "debugfs_rename failed\n");
+
+out:
+	kfree(buf);
+}

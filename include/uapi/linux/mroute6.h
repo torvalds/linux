@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI__LINUX_MROUTE6_H
 #define _UAPI__LINUX_MROUTE6_H
 
@@ -132,5 +133,17 @@ struct mrt6msg {
 	__u32		im6_pad;		/* padding for 64 bit arch */
 	struct in6_addr	im6_src, im6_dst;
 };
+
+/* ip6mr netlink cache report attributes */
+enum {
+	IP6MRA_CREPORT_UNSPEC,
+	IP6MRA_CREPORT_MSGTYPE,
+	IP6MRA_CREPORT_MIF_ID,
+	IP6MRA_CREPORT_SRC_ADDR,
+	IP6MRA_CREPORT_DST_ADDR,
+	IP6MRA_CREPORT_PKT,
+	__IP6MRA_CREPORT_MAX
+};
+#define IP6MRA_CREPORT_MAX (__IP6MRA_CREPORT_MAX - 1)
 
 #endif /* _UAPI__LINUX_MROUTE6_H */

@@ -52,7 +52,6 @@ struct tipc_subscriber {
 	struct list_head subscrp_list;
 };
 
-static void tipc_subscrp_delete(struct tipc_subscription *sub);
 static void tipc_subscrb_put(struct tipc_subscriber *subscriber);
 
 /**
@@ -134,9 +133,9 @@ void tipc_subscrp_report_overlap(struct tipc_subscription *sub, u32 found_lower,
 				node);
 }
 
-static void tipc_subscrp_timeout(unsigned long data)
+static void tipc_subscrp_timeout(struct timer_list *t)
 {
-	struct tipc_subscription *sub = (struct tipc_subscription *)data;
+	struct tipc_subscription *sub = from_timer(sub, t, timer);
 	struct tipc_subscriber *subscriber = sub->subscriber;
 
 	spin_lock_bh(&subscriber->lock);
@@ -197,15 +196,19 @@ static void tipc_subscrb_subscrp_delete(struct tipc_subscriber *subscriber,
 {
 	struct list_head *subscription_list = &subscriber->subscrp_list;
 	struct tipc_subscription *sub, *temp;
+	u32 timeout;
 
 	spin_lock_bh(&subscriber->lock);
 	list_for_each_entry_safe(sub, temp, subscription_list,  subscrp_list) {
 		if (s && memcmp(s, &sub->evt.s, sizeof(struct tipc_subscr)))
 			continue;
 
-		tipc_nametbl_unsubscribe(sub);
-		list_del(&sub->subscrp_list);
-		tipc_subscrp_delete(sub);
+		timeout = htohl(sub->evt.s.timeout, sub->swap);
+		if (timeout == TIPC_WAIT_FOREVER || del_timer(&sub->timer)) {
+			tipc_nametbl_unsubscribe(sub);
+			list_del(&sub->subscrp_list);
+			tipc_subscrp_put(sub);
+		}
 
 		if (s)
 			break;
@@ -236,18 +239,12 @@ static void tipc_subscrb_delete(struct tipc_subscriber *subscriber)
 	tipc_subscrb_put(subscriber);
 }
 
-static void tipc_subscrp_delete(struct tipc_subscription *sub)
-{
-	u32 timeout = htohl(sub->evt.s.timeout, sub->swap);
-
-	if (timeout == TIPC_WAIT_FOREVER || del_timer(&sub->timer))
-		tipc_subscrp_put(sub);
-}
-
 static void tipc_subscrp_cancel(struct tipc_subscr *s,
 				struct tipc_subscriber *subscriber)
 {
+	tipc_subscrb_get(subscriber);
 	tipc_subscrb_subscrp_delete(subscriber, s);
+	tipc_subscrb_put(subscriber);
 }
 
 static struct tipc_subscription *tipc_subscrp_create(struct net *net,
@@ -306,7 +303,7 @@ static void tipc_subscrp_subscribe(struct net *net, struct tipc_subscr *s,
 	tipc_subscrb_get(subscriber);
 	spin_unlock_bh(&subscriber->lock);
 
-	setup_timer(&sub->timer, tipc_subscrp_timeout, (unsigned long)sub);
+	timer_setup(&sub->timer, tipc_subscrp_timeout, 0);
 	timeout = htohl(sub->evt.s.timeout, swap);
 
 	if (timeout != TIPC_WAIT_FOREVER)

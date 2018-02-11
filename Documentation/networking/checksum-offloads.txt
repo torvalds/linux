@@ -35,6 +35,9 @@ This interface only allows a single checksum to be offloaded.  Where
  encapsulation is used, the packet may have multiple checksum fields in
  different header layers, and the rest will have to be handled by another
  mechanism such as LCO or RCO.
+CRC32c can also be offloaded using this interface, by means of filling
+ skb->csum_start and skb->csum_offset as described above, and setting
+ skb->csum_not_inet: see skbuff.h comment (section 'D') for more details.
 No offloading of the IP header checksum is performed; it is always done in
  software.  This is OK because when we build the IP header, we obviously
  have it in cache, so summing it isn't expensive.  It's also rather short.
@@ -44,14 +47,14 @@ The requirements for GSO are more complicated, because when segmenting an
  (section 'E') for more details.
 
 A driver declares its offload capabilities in netdev->hw_features; see
- Documentation/networking/netdev-features for more.  Note that a device
+ Documentation/networking/netdev-features.txt for more.  Note that a device
  which only advertises NETIF_F_IP[V6]_CSUM must still obey the csum_start
  and csum_offset given in the SKB; if it tries to deduce these itself in
  hardware (as some NICs do) the driver should check that the values in the
  SKB match those which the hardware will deduce, and if not, fall back to
- checksumming in software instead (with skb_checksum_help or one of the
- skb_csum_off_chk* functions as mentioned in include/linux/skbuff.h).  This
- is a pain, but that's what you get when hardware tries to be clever.
+ checksumming in software instead (with skb_csum_hwoffload_help() or one of
+ the skb_checksum_help() / skb_crc32c_csum_help functions, as mentioned in
+ include/linux/skbuff.h).
 
 The stack should, for the most part, assume that checksum offload is
  supported by the underlying device.  The only place that should check is
@@ -60,7 +63,7 @@ The stack should, for the most part, assume that checksum offload is
  may include other offloads besides TX Checksum Offload) and, if they are
  not supported or enabled on the device (determined by netdev->features),
  performs the corresponding offload in software.  In the case of TX
- Checksum Offload, that means calling skb_checksum_help(skb).
+ Checksum Offload, that means calling skb_csum_hwoffload_help(skb, features).
 
 
 LCO: Local Checksum Offload

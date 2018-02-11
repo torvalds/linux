@@ -679,7 +679,7 @@ static void agp_uninorth_remove(struct pci_dev *pdev)
 	agp_put_bridge(bridge);
 }
 
-static struct pci_device_id agp_uninorth_pci_table[] = {
+static const struct pci_device_id agp_uninorth_pci_table[] = {
 	{
 	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
 	.class_mask	= ~0,

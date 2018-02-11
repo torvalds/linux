@@ -336,7 +336,6 @@ enum {
 };
 
 struct gfs2_glock {
-	struct hlist_bl_node gl_list;
 	unsigned long gl_flags;		/* GLF_... */
 	struct lm_lockname gl_name;
 
@@ -374,6 +373,7 @@ struct gfs2_glock {
 			loff_t end;
 		} gl_vm;
 	};
+	struct rcu_head gl_rcu;
 	struct rhash_head gl_node;
 };
 
@@ -386,6 +386,7 @@ enum {
 	GIF_SW_PAGED		= 3,
 	GIF_ORDERED		= 4,
 	GIF_FREE_VFS_INODE      = 5,
+	GIF_GLOP_PENDING	= 6,
 };
 
 struct gfs2_inode {
@@ -605,6 +606,7 @@ enum {
 	SDF_NOJOURNALID		= 6,
 	SDF_RORECOVERY		= 7, /* read only recovery */
 	SDF_SKIP_DLM_UNLOCK	= 8,
+	SDF_FORCE_AIL_FLUSH     = 9,
 };
 
 enum gfs2_freeze_state {
@@ -821,7 +823,6 @@ struct gfs2_sbd {
 	wait_queue_head_t sd_reserving_log_wait;
 
 	unsigned int sd_log_flush_head;
-	u64 sd_log_flush_wrapped;
 
 	spinlock_t sd_ail_lock;
 	struct list_head sd_ail1_list;
@@ -832,7 +833,7 @@ struct gfs2_sbd {
 	atomic_t sd_freeze_state;
 	struct mutex sd_freeze_mutex;
 
-	char sd_fsname[GFS2_FSNAME_LEN];
+	char sd_fsname[GFS2_FSNAME_LEN + 3 * sizeof(int) + 2];
 	char sd_table_name[GFS2_FSNAME_LEN];
 	char sd_proto_name[GFS2_FSNAME_LEN];
 
@@ -857,6 +858,8 @@ static inline void gfs2_sbstats_inc(const struct gfs2_glock *gl, int which)
 	this_cpu_ptr(sdp->sd_lkstats)->lkstats[gl->gl_name.ln_type].stats[which]++;
 	preempt_enable();
 }
+
+extern struct gfs2_rgrpd *gfs2_glock2rgrp(struct gfs2_glock *gl);
 
 #endif /* __INCORE_DOT_H__ */
 

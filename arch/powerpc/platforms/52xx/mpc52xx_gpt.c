@@ -226,7 +226,7 @@ static int mpc52xx_gpt_irq_xlate(struct irq_domain *h, struct device_node *ct,
 	dev_dbg(gpt->dev, "%s: flags=%i\n", __func__, intspec[0]);
 
 	if ((intsize < 1) || (intspec[0] > 3)) {
-		dev_err(gpt->dev, "bad irq specifier in %s\n", ct->full_name);
+		dev_err(gpt->dev, "bad irq specifier in %pOF\n", ct);
 		return -EINVAL;
 	}
 
@@ -331,7 +331,7 @@ mpc52xx_gpt_gpio_setup(struct mpc52xx_gpt_priv *gpt, struct device_node *node)
 	if (!of_find_property(node, "gpio-controller", NULL))
 		return;
 
-	gpt->gc.label = kstrdup(node->full_name, GFP_KERNEL);
+	gpt->gc.label = kasprintf(GFP_KERNEL, "%pOF", node);
 	if (!gpt->gc.label) {
 		dev_err(gpt->dev, "out of memory\n");
 		return;

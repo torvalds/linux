@@ -98,7 +98,6 @@ static void free_buffer_page(struct ion_system_heap *heap,
 	ion_page_pool_free(pool, page);
 }
 
-
 static struct page *alloc_largest_available(struct ion_system_heap *heap,
 					    struct ion_buffer *buffer,
 					    unsigned long size,
@@ -153,7 +152,7 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 		max_order = compound_order(page);
 		i++;
 	}
-	table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
+	table = kmalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
 		goto free_pages;
 
@@ -256,7 +255,6 @@ static struct ion_heap_ops system_heap_ops = {
 static int ion_system_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 				      void *unused)
 {
-
 	struct ion_system_heap *sys_heap = container_of(heap,
 							struct ion_system_heap,
 							heap);
@@ -383,7 +381,7 @@ static int ion_system_contig_heap_allocate(struct ion_heap *heap,
 	for (i = len >> PAGE_SHIFT; i < (1 << order); i++)
 		__free_page(page + i);
 
-	table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
+	table = kmalloc(sizeof(*table), GFP_KERNEL);
 	if (!table) {
 		ret = -ENOMEM;
 		goto free_pages;
@@ -433,7 +431,7 @@ static struct ion_heap *__ion_system_contig_heap_create(void)
 {
 	struct ion_heap *heap;
 
-	heap = kzalloc(sizeof(struct ion_heap), GFP_KERNEL);
+	heap = kzalloc(sizeof(*heap), GFP_KERNEL);
 	if (!heap)
 		return ERR_PTR(-ENOMEM);
 	heap->ops = &kmalloc_ops;

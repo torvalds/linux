@@ -59,6 +59,7 @@
 #define MLXSW_PCI_SW_RESET			0xF0010
 #define MLXSW_PCI_SW_RESET_RST_BIT		BIT(0)
 #define MLXSW_PCI_SW_RESET_TIMEOUT_MSECS	5000
+#define MLXSW_PCI_SW_RESET_WAIT_MSECS		100
 #define MLXSW_PCI_FW_READY			0xA1844
 #define MLXSW_PCI_FW_READY_MASK			0xFFFF
 #define MLXSW_PCI_FW_READY_MAGIC		0x5E
@@ -155,7 +156,7 @@ MLXSW_ITEM32(pci, cqe, byte_count, 0x04, 0, 14);
 /* pci_cqe_trap_id
  * Trap ID that captured the packet.
  */
-MLXSW_ITEM32(pci, cqe, trap_id, 0x08, 0, 8);
+MLXSW_ITEM32(pci, cqe, trap_id, 0x08, 0, 9);
 
 /* pci_cqe_crc
  * Length include CRC. Indicates the length field includes

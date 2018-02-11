@@ -19,6 +19,7 @@
 #include <drm/drm_of.h>
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/iopoll.h>
 #include <linux/irq.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -765,7 +766,6 @@ static const struct drm_encoder_helper_funcs mtk_dsi_encoder_helper_funcs = {
 };
 
 static const struct drm_connector_funcs mtk_dsi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
@@ -900,16 +900,12 @@ static int mtk_dsi_host_detach(struct mipi_dsi_host *host,
 
 static void mtk_dsi_wait_for_idle(struct mtk_dsi *dsi)
 {
-	u32 timeout_ms = 500000; /* total 1s ~ 2s timeout */
+	int ret;
+	u32 val;
 
-	while (timeout_ms--) {
-		if (!(readl(dsi->regs + DSI_INTSTA) & DSI_BUSY))
-			break;
-
-		usleep_range(2, 4);
-	}
-
-	if (timeout_ms == 0) {
+	ret = readl_poll_timeout(dsi->regs + DSI_INTSTA, val, !(val & DSI_BUSY),
+				 4, 2000000);
+	if (ret) {
 		DRM_WARN("polling dsi wait not busy timeout!\n");
 
 		mtk_dsi_enable(dsi);
@@ -933,7 +929,7 @@ static u32 mtk_dsi_recv_cnt(u8 type, u8 *read_data)
 		DRM_INFO("type is 0x02, try again\n");
 		break;
 	default:
-		DRM_INFO("type(0x%x) cannot be non-recognite\n", type);
+		DRM_INFO("type(0x%x) not recognized\n", type);
 		break;
 	}
 
@@ -1051,8 +1047,8 @@ static int mtk_dsi_bind(struct device *dev, struct device *master, void *data)
 
 	ret = mtk_ddp_comp_register(drm, &dsi->ddp_comp);
 	if (ret < 0) {
-		dev_err(dev, "Failed to register component %s: %d\n",
-			dev->of_node->full_name, ret);
+		dev_err(dev, "Failed to register component %pOF: %d\n",
+			dev->of_node, ret);
 		return ret;
 	}
 

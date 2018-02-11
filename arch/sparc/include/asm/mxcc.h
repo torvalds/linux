@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * mxcc.h:  Definitions of the Viking MXCC registers
  *

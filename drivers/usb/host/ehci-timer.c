@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2012 by Alan Stern
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
  */
 
 /* This file is part of ehci-hcd.c */
@@ -424,7 +415,7 @@ static enum hrtimer_restart ehci_hrtimer_func(struct hrtimer *t)
 	 */
 	now = ktime_get();
 	for_each_set_bit(e, &events, EHCI_HRTIMER_NUM_EVENTS) {
-		if (now >= ehci->hr_timeouts[e])
+		if (ktime_compare(now, ehci->hr_timeouts[e]) >= 0)
 			event_handlers[e](ehci);
 		else
 			ehci_enable_event(ehci, e, false);

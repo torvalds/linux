@@ -178,10 +178,6 @@ static const struct nla_policy dcbnl_ieee_policy[DCB_ATTR_IEEE_MAX + 1] = {
 	[DCB_ATTR_IEEE_QCN_STATS]   = {.len = sizeof(struct ieee_qcn_stats)},
 };
 
-static const struct nla_policy dcbnl_ieee_app[DCB_ATTR_IEEE_APP_MAX + 1] = {
-	[DCB_ATTR_IEEE_APP]	    = {.len = sizeof(struct dcb_app)},
-};
-
 /* DCB number of traffic classes nested attributes. */
 static const struct nla_policy dcbnl_featcfg_nest[DCB_FEATCFG_ATTR_MAX + 1] = {
 	[DCB_FEATCFG_ATTR_ALL]      = {.type = NLA_FLAG},
@@ -1463,8 +1459,15 @@ static int dcbnl_ieee_set(struct net_device *netdev, struct nlmsghdr *nlh,
 
 		nla_for_each_nested(attr, ieee[DCB_ATTR_IEEE_APP_TABLE], rem) {
 			struct dcb_app *app_data;
+
 			if (nla_type(attr) != DCB_ATTR_IEEE_APP)
 				continue;
+
+			if (nla_len(attr) < sizeof(struct dcb_app)) {
+				err = -ERANGE;
+				goto err;
+			}
+
 			app_data = nla_data(attr);
 			if (ops->ieee_setapp)
 				err = ops->ieee_setapp(netdev, app_data);
@@ -1935,8 +1938,8 @@ static int __init dcbnl_init(void)
 {
 	INIT_LIST_HEAD(&dcb_app_list);
 
-	rtnl_register(PF_UNSPEC, RTM_GETDCB, dcb_doit, NULL, NULL);
-	rtnl_register(PF_UNSPEC, RTM_SETDCB, dcb_doit, NULL, NULL);
+	rtnl_register(PF_UNSPEC, RTM_GETDCB, dcb_doit, NULL, 0);
+	rtnl_register(PF_UNSPEC, RTM_SETDCB, dcb_doit, NULL, 0);
 
 	return 0;
 }

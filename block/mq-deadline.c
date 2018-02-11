@@ -457,13 +457,12 @@ deadline_var_show(int var, char *page)
 	return sprintf(page, "%d\n", var);
 }
 
-static ssize_t
-deadline_var_store(int *var, const char *page, size_t count)
+static void
+deadline_var_store(int *var, const char *page)
 {
 	char *p = (char *) page;
 
 	*var = simple_strtol(p, &p, 10);
-	return count;
 }
 
 #define SHOW_FUNCTION(__FUNC, __VAR, __CONV)				\
@@ -487,7 +486,7 @@ static ssize_t __FUNC(struct elevator_queue *e, const char *page, size_t count)	
 {									\
 	struct deadline_data *dd = e->elevator_data;			\
 	int __data;							\
-	int ret = deadline_var_store(&__data, (page), count);		\
+	deadline_var_store(&__data, (page));				\
 	if (__data < (MIN))						\
 		__data = (MIN);						\
 	else if (__data > (MAX))					\
@@ -496,7 +495,7 @@ static ssize_t __FUNC(struct elevator_queue *e, const char *page, size_t count)	
 		*(__PTR) = msecs_to_jiffies(__data);			\
 	else								\
 		*(__PTR) = __data;					\
-	return ret;							\
+	return count;							\
 }
 STORE_FUNCTION(deadline_read_expire_store, &dd->fifo_expire[READ], 0, INT_MAX, 1);
 STORE_FUNCTION(deadline_write_expire_store, &dd->fifo_expire[WRITE], 0, INT_MAX, 1);
@@ -658,8 +657,10 @@ static struct elevator_type mq_deadline = {
 #endif
 	.elevator_attrs = deadline_attrs,
 	.elevator_name = "mq-deadline",
+	.elevator_alias = "deadline",
 	.elevator_owner = THIS_MODULE,
 };
+MODULE_ALIAS("mq-deadline-iosched");
 
 static int __init deadline_init(void)
 {

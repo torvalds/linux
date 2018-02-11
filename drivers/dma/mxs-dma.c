@@ -617,7 +617,7 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_dma_cyclic(
 
 	if (period_len > MAX_XFER_BYTES) {
 		dev_err(mxs_dma->dma_device.dev,
-				"maximum period size exceeded: %d > %d\n",
+				"maximum period size exceeded: %zu > %d\n",
 				period_len, MAX_XFER_BYTES);
 		goto err_out;
 	}

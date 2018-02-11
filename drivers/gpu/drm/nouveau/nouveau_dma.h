@@ -140,7 +140,7 @@ BEGIN_IMC0(struct nouveau_channel *chan, int subc, int mthd, u16 data)
 #define WRITE_PUT(val) do {                                                    \
 	mb();                                                   \
 	nouveau_bo_rd32(chan->push.buffer, 0);                                 \
-	nvif_wr32(&chan->user, chan->user_put, ((val) << 2) + chan->push.vma.offset); \
+	nvif_wr32(&chan->user, chan->user_put, ((val) << 2) + chan->push.addr);\
 } while (0)
 
 static inline void

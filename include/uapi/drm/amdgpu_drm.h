@@ -51,6 +51,9 @@ extern "C" {
 #define DRM_AMDGPU_GEM_OP		0x10
 #define DRM_AMDGPU_GEM_USERPTR		0x11
 #define DRM_AMDGPU_WAIT_FENCES		0x12
+#define DRM_AMDGPU_VM			0x13
+#define DRM_AMDGPU_FENCE_TO_HANDLE	0x14
+#define DRM_AMDGPU_SCHED		0x15
 
 #define DRM_IOCTL_AMDGPU_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_CREATE, union drm_amdgpu_gem_create)
 #define DRM_IOCTL_AMDGPU_GEM_MMAP	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_MMAP, union drm_amdgpu_gem_mmap)
@@ -65,6 +68,9 @@ extern "C" {
 #define DRM_IOCTL_AMDGPU_GEM_OP		DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_OP, struct drm_amdgpu_gem_op)
 #define DRM_IOCTL_AMDGPU_GEM_USERPTR	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_USERPTR, struct drm_amdgpu_gem_userptr)
 #define DRM_IOCTL_AMDGPU_WAIT_FENCES	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_WAIT_FENCES, union drm_amdgpu_wait_fences)
+#define DRM_IOCTL_AMDGPU_VM		DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_VM, union drm_amdgpu_vm)
+#define DRM_IOCTL_AMDGPU_FENCE_TO_HANDLE DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_FENCE_TO_HANDLE, union drm_amdgpu_fence_to_handle)
+#define DRM_IOCTL_AMDGPU_SCHED		DRM_IOW(DRM_COMMAND_BASE + DRM_AMDGPU_SCHED, union drm_amdgpu_sched)
 
 #define AMDGPU_GEM_DOMAIN_CPU		0x1
 #define AMDGPU_GEM_DOMAIN_GTT		0x2
@@ -85,6 +91,10 @@ extern "C" {
 #define AMDGPU_GEM_CREATE_SHADOW		(1 << 4)
 /* Flag that allocating the BO should use linear VRAM */
 #define AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS	(1 << 5)
+/* Flag that BO is always valid in this VM */
+#define AMDGPU_GEM_CREATE_VM_ALWAYS_VALID	(1 << 6)
+/* Flag that BO sharing will be explicitly synchronized */
+#define AMDGPU_GEM_CREATE_EXPLICIT_SYNC		(1 << 7)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */
@@ -160,13 +170,22 @@ union drm_amdgpu_bo_list {
 /* unknown cause */
 #define AMDGPU_CTX_UNKNOWN_RESET	3
 
+/* Context priority level */
+#define AMDGPU_CTX_PRIORITY_UNSET       -2048
+#define AMDGPU_CTX_PRIORITY_VERY_LOW    -1023
+#define AMDGPU_CTX_PRIORITY_LOW         -512
+#define AMDGPU_CTX_PRIORITY_NORMAL      0
+/* Selecting a priority above NORMAL requires CAP_SYS_NICE or DRM_MASTER */
+#define AMDGPU_CTX_PRIORITY_HIGH        512
+#define AMDGPU_CTX_PRIORITY_VERY_HIGH   1023
+
 struct drm_amdgpu_ctx_in {
 	/** AMDGPU_CTX_OP_* */
 	__u32	op;
 	/** For future use, no flags defined so far */
 	__u32	flags;
 	__u32	ctx_id;
-	__u32	_pad;
+	__s32	priority;
 };
 
 union drm_amdgpu_ctx_out {
@@ -188,6 +207,41 @@ union drm_amdgpu_ctx_out {
 union drm_amdgpu_ctx {
 	struct drm_amdgpu_ctx_in in;
 	union drm_amdgpu_ctx_out out;
+};
+
+/* vm ioctl */
+#define AMDGPU_VM_OP_RESERVE_VMID	1
+#define AMDGPU_VM_OP_UNRESERVE_VMID	2
+
+struct drm_amdgpu_vm_in {
+	/** AMDGPU_VM_OP_* */
+	__u32	op;
+	__u32	flags;
+};
+
+struct drm_amdgpu_vm_out {
+	/** For future use, no flags defined so far */
+	__u64	flags;
+};
+
+union drm_amdgpu_vm {
+	struct drm_amdgpu_vm_in in;
+	struct drm_amdgpu_vm_out out;
+};
+
+/* sched ioctl */
+#define AMDGPU_SCHED_OP_PROCESS_PRIORITY_OVERRIDE	1
+
+struct drm_amdgpu_sched_in {
+	/* AMDGPU_SCHED_OP_* */
+	__u32	op;
+	__u32	fd;
+	__s32	priority;
+	__u32	flags;
+};
+
+union drm_amdgpu_sched {
+	struct drm_amdgpu_sched_in in;
 };
 
 /*
@@ -409,13 +463,17 @@ struct drm_amdgpu_gem_va {
 #define AMDGPU_HW_IP_UVD          3
 #define AMDGPU_HW_IP_VCE          4
 #define AMDGPU_HW_IP_UVD_ENC      5
-#define AMDGPU_HW_IP_NUM          6
+#define AMDGPU_HW_IP_VCN_DEC      6
+#define AMDGPU_HW_IP_VCN_ENC      7
+#define AMDGPU_HW_IP_NUM          8
 
 #define AMDGPU_HW_IP_INSTANCE_MAX_COUNT 1
 
 #define AMDGPU_CHUNK_ID_IB		0x01
 #define AMDGPU_CHUNK_ID_FENCE		0x02
 #define AMDGPU_CHUNK_ID_DEPENDENCIES	0x03
+#define AMDGPU_CHUNK_ID_SYNCOBJ_IN      0x04
+#define AMDGPU_CHUNK_ID_SYNCOBJ_OUT     0x05
 
 struct drm_amdgpu_cs_chunk {
 	__u32		chunk_id;
@@ -481,6 +539,25 @@ struct drm_amdgpu_cs_chunk_dep {
 struct drm_amdgpu_cs_chunk_fence {
 	__u32 handle;
 	__u32 offset;
+};
+
+struct drm_amdgpu_cs_chunk_sem {
+	__u32 handle;
+};
+
+#define AMDGPU_FENCE_TO_HANDLE_GET_SYNCOBJ	0
+#define AMDGPU_FENCE_TO_HANDLE_GET_SYNCOBJ_FD	1
+#define AMDGPU_FENCE_TO_HANDLE_GET_SYNC_FILE_FD	2
+
+union drm_amdgpu_fence_to_handle {
+	struct {
+		struct drm_amdgpu_fence fence;
+		__u32 what;
+		__u32 pad;
+	} in;
+	struct {
+		__u32 handle;
+	} out;
 };
 
 struct drm_amdgpu_cs_chunk_data {
@@ -579,6 +656,9 @@ struct drm_amdgpu_cs_chunk_data {
 	#define AMDGPU_INFO_SENSOR_VDDNB		0x6
 	/* Subquery id: Query graphics voltage */
 	#define AMDGPU_INFO_SENSOR_VDDGFX		0x7
+/* Number of VRAM page faults on CPU access. */
+#define AMDGPU_INFO_NUM_VRAM_CPU_PAGE_FAULTS	0x1E
+#define AMDGPU_INFO_VRAM_LOST_COUNTER		0x1F
 
 #define AMDGPU_INFO_MMR_SE_INDEX_SHIFT	0
 #define AMDGPU_INFO_MMR_SE_INDEX_MASK	0xff
@@ -732,6 +812,7 @@ struct drm_amdgpu_info_device {
 	__u64 max_memory_clock;
 	/* cu information */
 	__u32 cu_active_number;
+	/* NOTE: cu_ao_mask is INVALID, DON'T use it */
 	__u32 cu_ao_mask;
 	__u32 cu_bitmap[4][4];
 	/** Render backend pipe mask. One render backend is CB+DB. */
@@ -786,6 +867,8 @@ struct drm_amdgpu_info_device {
 	/* max gs wavefront per vgt*/
 	__u32 max_gs_waves_per_vgt;
 	__u32 _pad1;
+	/* always on cu bitmap */
+	__u32 cu_ao_bitmap[4][4];
 };
 
 struct drm_amdgpu_info_hw_ip {
@@ -838,6 +921,7 @@ struct drm_amdgpu_info_vce_clock_table {
 #define AMDGPU_FAMILY_VI			130 /* Iceland, Tonga */
 #define AMDGPU_FAMILY_CZ			135 /* Carrizo, Stoney */
 #define AMDGPU_FAMILY_AI			141 /* Vega10 */
+#define AMDGPU_FAMILY_RV			142 /* Raven */
 
 #if defined(__cplusplus)
 }

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
 ccflags-$(CONFIG_PPC64)		:= $(NO_MINIMAL_TOC)
@@ -36,25 +37,15 @@ obj-$(CONFIG_AXON_RAM)		+= axonram.o
 obj-$(CONFIG_PPC_INDIRECT_PCI)	+= indirect_pci.o
 obj-$(CONFIG_PPC_I8259)		+= i8259.o
 obj-$(CONFIG_IPIC)		+= ipic.o
-obj-$(CONFIG_4xx)		+= uic.o
-obj-$(CONFIG_PPC4xx_OCM)	+= ppc4xx_ocm.o
-obj-$(CONFIG_4xx_SOC)		+= ppc4xx_soc.o
 obj-$(CONFIG_XILINX_VIRTEX)	+= xilinx_intc.o
 obj-$(CONFIG_XILINX_PCI)	+= xilinx_pci.o
 obj-$(CONFIG_OF_RTC)		+= of_rtc.o
-ifeq ($(CONFIG_PCI),y)
-obj-$(CONFIG_4xx)		+= ppc4xx_pci.o
-endif
-obj-$(CONFIG_PPC4xx_HSTA_MSI)	+= ppc4xx_hsta_msi.o
-obj-$(CONFIG_PPC4xx_MSI)	+= ppc4xx_msi.o
-obj-$(CONFIG_PPC4xx_CPM)	+= ppc4xx_cpm.o
-obj-$(CONFIG_PPC4xx_GPIO)	+= ppc4xx_gpio.o
 
 obj-$(CONFIG_CPM)		+= cpm_common.o
+obj-$(CONFIG_CPM1)		+= cpm1.o
 obj-$(CONFIG_CPM2)		+= cpm2.o cpm2_pic.o
 obj-$(CONFIG_QUICC_ENGINE)	+= cpm_common.o
 obj-$(CONFIG_PPC_DCR)		+= dcr.o
-obj-$(CONFIG_8xx)		+= mpc8xx_pic.o cpm1.o
 obj-$(CONFIG_UCODE_PATCH)	+= micropatch.o
 
 obj-$(CONFIG_PPC_MPC512x)	+= mpc5xxx_clocks.o

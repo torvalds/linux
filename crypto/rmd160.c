@@ -256,8 +256,6 @@ static void rmd160_transform(u32 *state, const __le32 *in)
 	state[3] = state[4] + aa + bbb;
 	state[4] = state[0] + bb + ccc;
 	state[0] = ddd;
-
-	return;
 }
 
 static int rmd160_init(struct shash_desc *desc)

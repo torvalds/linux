@@ -191,8 +191,8 @@ static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
 			goto err;
 		}
 		ret = -EINVAL;
-		pr_debug("  irq %d no 0x%x on %s\n", i, oirq.args[0],
-			 oirq.np->full_name);
+		pr_debug("  irq %d no 0x%x on %pOF\n", i, oirq.args[0],
+			 oirq.np);
 		spu->irqs[i] = irq_create_of_mapping(&oirq);
 		if (!spu->irqs[i]) {
 			pr_debug("spu_new: failed to map it !\n");
@@ -243,32 +243,32 @@ static int __init spu_map_device(struct spu *spu)
 	ret = spu_map_resource(spu, 0, (void __iomem**)&spu->local_store,
 			       &spu->local_store_phys);
 	if (ret) {
-		pr_debug("spu_new: failed to map %s resource 0\n",
-			 np->full_name);
+		pr_debug("spu_new: failed to map %pOF resource 0\n",
+			 np);
 		goto out;
 	}
 	ret = spu_map_resource(spu, 1, (void __iomem**)&spu->problem,
 			       &spu->problem_phys);
 	if (ret) {
-		pr_debug("spu_new: failed to map %s resource 1\n",
-			 np->full_name);
+		pr_debug("spu_new: failed to map %pOF resource 1\n",
+			 np);
 		goto out_unmap;
 	}
 	ret = spu_map_resource(spu, 2, (void __iomem**)&spu->priv2, NULL);
 	if (ret) {
-		pr_debug("spu_new: failed to map %s resource 2\n",
-			 np->full_name);
+		pr_debug("spu_new: failed to map %pOF resource 2\n",
+			 np);
 		goto out_unmap;
 	}
 	if (!firmware_has_feature(FW_FEATURE_LPAR))
 		ret = spu_map_resource(spu, 3,
 			       (void __iomem**)&spu->priv1, NULL);
 	if (ret) {
-		pr_debug("spu_new: failed to map %s resource 3\n",
-			 np->full_name);
+		pr_debug("spu_new: failed to map %pOF resource 3\n",
+			 np);
 		goto out_unmap;
 	}
-	pr_debug("spu_new: %s maps:\n", np->full_name);
+	pr_debug("spu_new: %pOF maps:\n", np);
 	pr_debug("  local store   : 0x%016lx -> 0x%p\n",
 		 spu->local_store_phys, spu->local_store);
 	pr_debug("  problem state : 0x%016lx -> 0x%p\n",
@@ -316,8 +316,8 @@ static int __init of_create_spu(struct spu *spu, void *data)
 
 	spu->node = of_node_to_nid(spe);
 	if (spu->node >= MAX_NUMNODES) {
-		printk(KERN_WARNING "SPE %s on node %d ignored,"
-		       " node number too big\n", spe->full_name, spu->node);
+		printk(KERN_WARNING "SPE %pOF on node %d ignored,"
+		       " node number too big\n", spe, spu->node);
 		printk(KERN_WARNING "Check if CONFIG_NUMA is enabled.\n");
 		ret = -ENODEV;
 		goto out;

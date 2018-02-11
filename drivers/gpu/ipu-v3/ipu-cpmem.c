@@ -224,6 +224,12 @@ void ipu_cpmem_set_resolution(struct ipuv3_channel *ch, int xres, int yres)
 }
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_resolution);
 
+void ipu_cpmem_skip_odd_chroma_rows(struct ipuv3_channel *ch)
+{
+	ipu_ch_param_write_field(ch, IPU_FIELD_RDRW, 1);
+}
+EXPORT_SYMBOL_GPL(ipu_cpmem_skip_odd_chroma_rows);
+
 void ipu_cpmem_set_stride(struct ipuv3_channel *ch, int stride)
 {
 	ipu_ch_param_write_field(ch, IPU_FIELD_SLY, stride - 1);

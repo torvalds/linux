@@ -58,7 +58,7 @@
 
 &i2c0 {
 	status = "okay";
-	speed-mode = <0>;
+	clock-frequency = <100000>;
 
 	stmpe1: stmpe811@41 {
 		compatible = "st,stmpe811";

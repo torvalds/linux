@@ -173,8 +173,7 @@
 		regulator-max-microvolt = <3300000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_flexcan_xcvr>;
-		gpio = <&gpio3 5 GPIO_ACTIVE_HIGH>;
-		enable-active-low;
+		gpio = <&gpio3 5 GPIO_ACTIVE_LOW>;
 	};
 
 	reg_lcd_pwr: regulator-lcdpwr {
@@ -308,7 +307,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet1 &pinctrl_enet1_mdio &pinctrl_etnphy0_rst>;
 	phy-mode = "rmii";
-	phy-reset-gpios = <&gpio5 6 GPIO_ACTIVE_HIGH>;
+	phy-reset-gpios = <&gpio5 6 GPIO_ACTIVE_LOW>;
 	phy-supply = <&reg_3v3_etn>;
 	phy-handle = <&etnphy0>;
 	status = "okay";
@@ -343,7 +342,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet2 &pinctrl_etnphy1_rst>;
 	phy-mode = "rmii";
-	phy-reset-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>;
+	phy-reset-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
 	phy-supply = <&reg_3v3_etn>;
 	phy-handle = <&etnphy1>;
 	status = "disabled";
@@ -363,7 +362,7 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	sgtl5000: codec@0a {
+	sgtl5000: codec@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 		#sound-dai-cells = <0>;
@@ -425,7 +424,7 @@
 	display = <&display>;
 	status = "okay";
 
-	display: display@di0 {
+	display: disp0 {
 		bits-per-pixel = <32>;
 		bus-width = <24>;
 		status = "okay";

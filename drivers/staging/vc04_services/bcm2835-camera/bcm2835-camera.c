@@ -642,7 +642,7 @@ static void bm2835_mmal_unlock(struct vb2_queue *vq)
 	mutex_unlock(&dev->mutex);
 }
 
-static struct vb2_ops bm2835_mmal_video_qops = {
+static const struct vb2_ops bm2835_mmal_video_qops = {
 	.queue_setup = queue_setup,
 	.buf_prepare = buffer_prepare,
 	.buf_queue = buffer_queue,
@@ -1456,7 +1456,7 @@ static const struct v4l2_file_operations camera0_fops = {
 	.mmap = vb2_fop_mmap,
 };
 
-static struct video_device vdev_template = {
+static const struct video_device vdev_template = {
 	.name = "camera0",
 	.fops = &camera0_fops,
 	.ioctl_ops = &camera0_ioctl_ops,

@@ -120,32 +120,18 @@ static int rmobile_pd_power_up(struct generic_pm_domain *genpd)
 	return __rmobile_pd_power_up(to_rmobile_pd(genpd), true);
 }
 
-static bool rmobile_pd_active_wakeup(struct device *dev)
-{
-	return true;
-}
-
 static void rmobile_init_pm_domain(struct rmobile_pm_domain *rmobile_pd)
 {
 	struct generic_pm_domain *genpd = &rmobile_pd->genpd;
 	struct dev_power_governor *gov = rmobile_pd->gov;
 
-	genpd->flags = GENPD_FLAG_PM_CLK;
-	genpd->dev_ops.active_wakeup	= rmobile_pd_active_wakeup;
+	genpd->flags |= GENPD_FLAG_PM_CLK | GENPD_FLAG_ACTIVE_WAKEUP;
 	genpd->power_off		= rmobile_pd_power_down;
 	genpd->power_on			= rmobile_pd_power_up;
 	genpd->attach_dev		= cpg_mstp_attach_dev;
 	genpd->detach_dev		= cpg_mstp_detach_dev;
 	__rmobile_pd_power_up(rmobile_pd, false);
 	pm_genpd_init(genpd, gov ? : &simple_qos_governor, false);
-}
-
-static int rmobile_pd_suspend_busy(void)
-{
-	/*
-	 * This domain should not be turned off.
-	 */
-	return -EBUSY;
 }
 
 static int rmobile_pd_suspend_console(void)
@@ -203,8 +189,7 @@ static void __init add_special_pd(struct device_node *np, enum pd_types type)
 		return;
 	}
 
-	pr_debug("Special PM domain %s type %d for %s\n", pd->name, type,
-		 np->full_name);
+	pr_debug("Special PM domain %s type %d for %pOF\n", pd->name, type, np);
 
 	special_pds[num_special_pds].pd = pd;
 	special_pds[num_special_pds].type = type;
@@ -260,8 +245,7 @@ static void __init rmobile_setup_pm_domain(struct device_node *np,
 		 * only be turned off if the CPU is not in use.
 		 */
 		pr_debug("PM domain %s contains CPU\n", name);
-		pd->gov = &pm_domain_always_on_gov;
-		pd->suspend = rmobile_pd_suspend_busy;
+		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 		break;
 
 	case PD_CONSOLE:
@@ -277,8 +261,7 @@ static void __init rmobile_setup_pm_domain(struct device_node *np,
 		 * is not in use.
 		 */
 		pr_debug("PM domain %s contains Coresight-ETM\n", name);
-		pd->gov = &pm_domain_always_on_gov;
-		pd->suspend = rmobile_pd_suspend_busy;
+		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 		break;
 
 	case PD_MEMCTL:
@@ -287,8 +270,7 @@ static void __init rmobile_setup_pm_domain(struct device_node *np,
 		 * should only be turned off if memory is not in use.
 		 */
 		pr_debug("PM domain %s contains MEMCTL\n", name);
-		pd->gov = &pm_domain_always_on_gov;
-		pd->suspend = rmobile_pd_suspend_busy;
+		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 		break;
 
 	case PD_NORMAL:
@@ -342,13 +324,13 @@ static int __init rmobile_init_pm_domains(void)
 	for_each_compatible_node(np, NULL, "renesas,sysc-rmobile") {
 		base = of_iomap(np, 0);
 		if (!base) {
-			pr_warn("%s cannot map reg 0\n", np->full_name);
+			pr_warn("%pOF cannot map reg 0\n", np);
 			continue;
 		}
 
 		pmd = of_get_child_by_name(np, "pm-domains");
 		if (!pmd) {
-			pr_warn("%s lacks pm-domains node\n", np->full_name);
+			pr_warn("%pOF lacks pm-domains node\n", np);
 			continue;
 		}
 

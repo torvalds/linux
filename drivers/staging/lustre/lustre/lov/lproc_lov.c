@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -32,8 +33,8 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 
 #include <linux/statfs.h>
-#include "../include/lprocfs_status.h"
-#include "../include/obd_class.h"
+#include <lprocfs_status.h>
+#include <obd_class.h>
 #include <linux/seq_file.h>
 #include "lov_internal.h"
 
@@ -279,7 +280,7 @@ static struct attribute *lov_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group lov_attr_group = {
+static const struct attribute_group lov_attr_group = {
 	.attrs = lov_attrs,
 };
 

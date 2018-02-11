@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_XTENSA_H__
 #define __NVKM_XTENSA_H__
 #define nvkm_xtensa(p) container_of((p), struct nvkm_xtensa, engine)

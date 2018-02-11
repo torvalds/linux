@@ -26,13 +26,6 @@
 #include <linux/vmalloc.h>
 #include "kexec_internal.h"
 
-/*
- * Declare these symbols weak so that if architecture provides a purgatory,
- * these will be overridden.
- */
-char __weak kexec_purgatory[0];
-size_t __weak kexec_purgatory_size = 0;
-
 static int kexec_calculate_store_digests(struct kimage *image);
 
 /* Architectures can provide this probe function */
@@ -162,16 +155,10 @@ kimage_file_prepare_segments(struct kimage *image, int kernel_fd, int initrd_fd,
 	}
 
 	if (cmdline_len) {
-		image->cmdline_buf = kzalloc(cmdline_len, GFP_KERNEL);
-		if (!image->cmdline_buf) {
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		ret = copy_from_user(image->cmdline_buf, cmdline_ptr,
-				     cmdline_len);
-		if (ret) {
-			ret = -EFAULT;
+		image->cmdline_buf = memdup_user(cmdline_ptr, cmdline_len);
+		if (IS_ERR(image->cmdline_buf)) {
+			ret = PTR_ERR(image->cmdline_buf);
+			image->cmdline_buf = NULL;
 			goto out;
 		}
 
@@ -304,6 +291,14 @@ SYSCALL_DEFINE5(kexec_file_load, int, kernel_fd, int, initrd_fd,
 	if (ret)
 		goto out;
 
+	/*
+	 * Some architecture(like S390) may touch the crash memory before
+	 * machine_kexec_prepare(), we must copy vmcoreinfo data after it.
+	 */
+	ret = kimage_crash_copy_vmcoreinfo(image);
+	if (ret)
+		goto out;
+
 	ret = kexec_calculate_store_digests(image);
 	if (ret)
 		goto out;
@@ -411,9 +406,10 @@ static int locate_mem_hole_bottom_up(unsigned long start, unsigned long end,
 	return 1;
 }
 
-static int locate_mem_hole_callback(u64 start, u64 end, void *arg)
+static int locate_mem_hole_callback(struct resource *res, void *arg)
 {
 	struct kexec_buf *kbuf = (struct kexec_buf *)arg;
+	u64 start = res->start, end = res->end;
 	unsigned long sz = end - start + 1;
 
 	/* Returning 0 will take to next memory range */
@@ -442,7 +438,7 @@ static int locate_mem_hole_callback(u64 start, u64 end, void *arg)
  * func returning non-zero, then zero will be returned.
  */
 int __weak arch_kexec_walk_mem(struct kexec_buf *kbuf,
-			       int (*func)(u64, u64, void *))
+			       int (*func)(struct resource *, void *))
 {
 	if (kbuf->image->type == KEXEC_TYPE_CRASH)
 		return walk_iomem_res_desc(crashk_res.desc,

@@ -921,13 +921,26 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 			 * This is a deref_of (object_reference)
 			 * Get the actual object from the Node (This is the dereference).
 			 * This case may only happen when a local_x or arg_x is
-			 * dereferenced above.
+			 * dereferenced above, or for references to device and
+			 * thermal objects.
 			 */
-			return_desc = acpi_ns_get_attached_object((struct
-								   acpi_namespace_node
-								   *)
-								  operand[0]);
-			acpi_ut_add_reference(return_desc);
+			switch (((struct acpi_namespace_node *)operand[0])->
+				type) {
+			case ACPI_TYPE_DEVICE:
+			case ACPI_TYPE_THERMAL:
+
+				/* These types have no node subobject, return the NS node */
+
+				return_desc = operand[0];
+				break;
+
+			default:
+				/* For most types, get the object attached to the node */
+
+				return_desc = acpi_ns_get_attached_object((struct acpi_namespace_node *)operand[0]);
+				acpi_ut_add_reference(return_desc);
+				break;
+			}
 		} else {
 			/*
 			 * This must be a reference object produced by either the

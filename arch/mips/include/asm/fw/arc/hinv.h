@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ARCS hardware/memory inventory/configuration and system ID definitions.
  */

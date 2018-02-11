@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 static uint32_t gk104_grgpc_data[] = {
 /* 0x0000: gpc_mmio_list_head */
 	0x0000006c,

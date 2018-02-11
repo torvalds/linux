@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * llvm C frontend for perf. Support dynamically compile C file
  *

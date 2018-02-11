@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SPARC_PTRACE_H
 #define __SPARC_PTRACE_H
 
@@ -6,6 +7,7 @@
 #if defined(__sparc__) && defined(__arch64__)
 #ifndef __ASSEMBLY__
 
+#include <linux/compiler.h>
 #include <linux/threads.h>
 #include <asm/switch_to.h>
 

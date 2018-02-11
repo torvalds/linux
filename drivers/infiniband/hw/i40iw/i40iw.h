@@ -119,9 +119,6 @@
 #define I40IW_CQP_COMPL_SQ_WQE_FLUSHED    3
 #define I40IW_CQP_COMPL_RQ_SQ_WQE_FLUSHED 4
 
-#define I40IW_MTU_TO_MSS		40
-#define I40IW_DEFAULT_MSS		1460
-
 struct i40iw_cqp_compl_info {
 	u32 op_ret_val;
 	u16 maj_err_code;
@@ -201,7 +198,6 @@ enum init_completion_state {
 	CEQ_CREATED,
 	ILQ_CREATED,
 	IEQ_CREATED,
-	INET_NOTIFIER,
 	IP_ADDR_REGISTERED,
 	RDMA_DEV_REGISTERED
 };
@@ -527,6 +523,7 @@ enum i40iw_status_code i40iw_add_mac_addr(struct i40iw_device *iwdev,
 int i40iw_modify_qp(struct ib_qp *, struct ib_qp_attr *, int, struct ib_udata *);
 void i40iw_cq_wq_destroy(struct i40iw_device *iwdev, struct i40iw_sc_cq *cq);
 
+void i40iw_cleanup_pending_cqp_op(struct i40iw_device *iwdev);
 void i40iw_rem_pdusecount(struct i40iw_pd *iwpd, struct i40iw_device *iwdev);
 void i40iw_add_pdusecount(struct i40iw_pd *iwpd);
 void i40iw_rem_devusecount(struct i40iw_device *iwdev);

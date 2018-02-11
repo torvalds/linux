@@ -74,7 +74,7 @@ struct thread_info {
 	.task		= &tsk,				\
 	.flags		= 0,				\
 	.cpu		= 0,				\
-	.preempt_count	= 1,				\
+	.preempt_count	= INIT_PREEMPT_COUNT,		\
 	.addr_limit	= KERNEL_DS,			\
 	.ksp            = 0,                            \
 }

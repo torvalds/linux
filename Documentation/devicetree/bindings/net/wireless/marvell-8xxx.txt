@@ -48,7 +48,6 @@ IRQ pin 38 is used as system wakeup source interrupt. wakeup pin 3 is configured
 so that firmware can wakeup host using this device side pin.
 
 &mmc3 {
-	status = "okay";
 	vmmc-supply = <&wlan_en_reg>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;

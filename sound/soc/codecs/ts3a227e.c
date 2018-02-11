@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/regmap.h>
+#include <linux/acpi.h>
 
 #include <sound/core.h>
 #include <sound/jack.h>
@@ -374,11 +375,20 @@ static const struct of_device_id ts3a227e_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ts3a227e_of_match);
 
+#ifdef CONFIG_ACPI
+static struct acpi_device_id ts3a227e_acpi_match[] = {
+	{ "104C227E", 0 },
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, ts3a227e_acpi_match);
+#endif
+
 static struct i2c_driver ts3a227e_driver = {
 	.driver = {
 		.name = "ts3a227e",
 		.pm = &ts3a227e_pm,
 		.of_match_table = of_match_ptr(ts3a227e_of_match),
+		.acpi_match_table = ACPI_PTR(ts3a227e_acpi_match),
 	},
 	.probe = ts3a227e_i2c_probe,
 	.id_table = ts3a227e_i2c_ids,

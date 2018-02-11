@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Exceptions for specific devices. Usually work-arounds for fatal design flaws.
  */
@@ -571,3 +572,182 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2fc0, pci_invalid_bar);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x6f60, pci_invalid_bar);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x6fa0, pci_invalid_bar);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x6fc0, pci_invalid_bar);
+
+/*
+ * Device [1022:7808]
+ * 23. USB Wake on Connect/Disconnect with Low Speed Devices
+ * https://support.amd.com/TechDocs/46837.pdf
+ * Appendix A2
+ * https://support.amd.com/TechDocs/42413.pdf
+ */
+static void pci_fixup_amd_ehci_pme(struct pci_dev *dev)
+{
+	dev_info(&dev->dev, "PME# does not work under D3, disabling it\n");
+	dev->pme_support &= ~((PCI_PM_CAP_PME_D3 | PCI_PM_CAP_PME_D3cold)
+		>> PCI_PM_CAP_PME_SHIFT);
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x7808, pci_fixup_amd_ehci_pme);
+
+/*
+ * Apple MacBook Pro: Avoid [mem 0x7fa00000-0x7fbfffff]
+ *
+ * Using the [mem 0x7fa00000-0x7fbfffff] region, e.g., by assigning it to
+ * the 00:1c.0 Root Port, causes a conflict with [io 0x1804], which is used
+ * for soft poweroff and suspend-to-RAM.
+ *
+ * As far as we know, this is related to the address space, not to the Root
+ * Port itself.  Attaching the quirk to the Root Port is a convenience, but
+ * it could probably also be a standalone DMI quirk.
+ *
+ * https://bugzilla.kernel.org/show_bug.cgi?id=103211
+ */
+static void quirk_apple_mbp_poweroff(struct pci_dev *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct resource *res;
+
+	if ((!dmi_match(DMI_PRODUCT_NAME, "MacBookPro11,4") &&
+	     !dmi_match(DMI_PRODUCT_NAME, "MacBookPro11,5")) ||
+	    pdev->bus->number != 0 || pdev->devfn != PCI_DEVFN(0x1c, 0))
+		return;
+
+	res = request_mem_region(0x7fa00000, 0x200000,
+				 "MacBook Pro poweroff workaround");
+	if (res)
+		dev_info(dev, "claimed %s %pR\n", res->name, res);
+	else
+		dev_info(dev, "can't work around MacBook Pro poweroff issue\n");
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x8c10, quirk_apple_mbp_poweroff);
+
+/*
+ * VMD-enabled root ports will change the source ID for all messages
+ * to the VMD device. Rather than doing device matching with the source
+ * ID, the AER driver should traverse the child device tree, reading
+ * AER registers to find the faulting device.
+ */
+static void quirk_no_aersid(struct pci_dev *pdev)
+{
+	/* VMD Domain */
+	if (is_vmd(pdev->bus))
+		pdev->bus->bus_flags |= PCI_BUS_FLAGS_NO_AERSID;
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2030, quirk_no_aersid);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2031, quirk_no_aersid);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2032, quirk_no_aersid);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2033, quirk_no_aersid);
+
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+
+#define AMD_141b_MMIO_BASE(x)	(0x80 + (x) * 0x8)
+#define AMD_141b_MMIO_BASE_RE_MASK		BIT(0)
+#define AMD_141b_MMIO_BASE_WE_MASK		BIT(1)
+#define AMD_141b_MMIO_BASE_MMIOBASE_MASK	GENMASK(31,8)
+
+#define AMD_141b_MMIO_LIMIT(x)	(0x84 + (x) * 0x8)
+#define AMD_141b_MMIO_LIMIT_MMIOLIMIT_MASK	GENMASK(31,8)
+
+#define AMD_141b_MMIO_HIGH(x)	(0x180 + (x) * 0x4)
+#define AMD_141b_MMIO_HIGH_MMIOBASE_MASK	GENMASK(7,0)
+#define AMD_141b_MMIO_HIGH_MMIOLIMIT_SHIFT	16
+#define AMD_141b_MMIO_HIGH_MMIOLIMIT_MASK	GENMASK(23,16)
+
+/*
+ * The PCI Firmware Spec, rev 3.2, notes that ACPI should optionally allow
+ * configuring host bridge windows using the _PRS and _SRS methods.
+ *
+ * But this is rarely implemented, so we manually enable a large 64bit BAR for
+ * PCIe device on AMD Family 15h (Models 00h-1fh, 30h-3fh, 60h-7fh) Processors
+ * here.
+ */
+static void pci_amd_enable_64bit_bar(struct pci_dev *dev)
+{
+	static const char *name = "PCI Bus 0000:00";
+	struct resource *res, *conflict;
+	u32 base, limit, high;
+	struct pci_dev *other;
+	unsigned i;
+
+	if (!(pci_probe & PCI_BIG_ROOT_WINDOW))
+		return;
+
+	/* Check that we are the only device of that type */
+	other = pci_get_device(dev->vendor, dev->device, NULL);
+	if (other != dev ||
+	    (other = pci_get_device(dev->vendor, dev->device, other))) {
+		/* This is a multi-socket system, don't touch it for now */
+		pci_dev_put(other);
+		return;
+	}
+
+	for (i = 0; i < 8; i++) {
+		pci_read_config_dword(dev, AMD_141b_MMIO_BASE(i), &base);
+		pci_read_config_dword(dev, AMD_141b_MMIO_HIGH(i), &high);
+
+		/* Is this slot free? */
+		if (!(base & (AMD_141b_MMIO_BASE_RE_MASK |
+			      AMD_141b_MMIO_BASE_WE_MASK)))
+			break;
+
+		base >>= 8;
+		base |= high << 24;
+
+		/* Abort if a slot already configures a 64bit BAR. */
+		if (base > 0x10000)
+			return;
+	}
+	if (i == 8)
+		return;
+
+	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	if (!res)
+		return;
+
+	/*
+	 * Allocate a 256GB window directly below the 0xfd00000000 hardware
+	 * limit (see AMD Family 15h Models 30h-3Fh BKDG, sec 2.4.6).
+	 */
+	res->name = name;
+	res->flags = IORESOURCE_PREFETCH | IORESOURCE_MEM |
+		IORESOURCE_MEM_64 | IORESOURCE_WINDOW;
+	res->start = 0xbd00000000ull;
+	res->end = 0xfd00000000ull - 1;
+
+	conflict = request_resource_conflict(&iomem_resource, res);
+	if (conflict) {
+		kfree(res);
+		if (conflict->name != name)
+			return;
+
+		/* We are resuming from suspend; just reenable the window */
+		res = conflict;
+	} else {
+		dev_info(&dev->dev, "adding root bus resource %pR (tainting kernel)\n",
+			 res);
+		add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
+		pci_bus_add_resource(dev->bus, res, 0);
+	}
+
+	base = ((res->start >> 8) & AMD_141b_MMIO_BASE_MMIOBASE_MASK) |
+		AMD_141b_MMIO_BASE_RE_MASK | AMD_141b_MMIO_BASE_WE_MASK;
+	limit = ((res->end + 1) >> 8) & AMD_141b_MMIO_LIMIT_MMIOLIMIT_MASK;
+	high = ((res->start >> 40) & AMD_141b_MMIO_HIGH_MMIOBASE_MASK) |
+		((((res->end + 1) >> 40) << AMD_141b_MMIO_HIGH_MMIOLIMIT_SHIFT)
+		 & AMD_141b_MMIO_HIGH_MMIOLIMIT_MASK);
+
+	pci_write_config_dword(dev, AMD_141b_MMIO_HIGH(i), high);
+	pci_write_config_dword(dev, AMD_141b_MMIO_LIMIT(i), limit);
+	pci_write_config_dword(dev, AMD_141b_MMIO_BASE(i), base);
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x1401, pci_amd_enable_64bit_bar);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x141b, pci_amd_enable_64bit_bar);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x1571, pci_amd_enable_64bit_bar);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x15b1, pci_amd_enable_64bit_bar);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x1601, pci_amd_enable_64bit_bar);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_AMD, 0x1401, pci_amd_enable_64bit_bar);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_AMD, 0x141b, pci_amd_enable_64bit_bar);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_AMD, 0x1571, pci_amd_enable_64bit_bar);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_AMD, 0x15b1, pci_amd_enable_64bit_bar);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_AMD, 0x1601, pci_amd_enable_64bit_bar);
+
+#endif

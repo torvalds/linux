@@ -709,7 +709,7 @@ static irqreturn_t dryice_irq(int irq, void *dev_id)
 		/*If the write wait queue is empty then there is no pending
 		  operations. It means the interrupt is for DryIce -Security.
 		  IRQ must be returned as none.*/
-		if (list_empty_careful(&imxdi->write_wait.task_list))
+		if (list_empty_careful(&imxdi->write_wait.head))
 			return rc;
 
 		/* DSR_WCF clears itself on DSR read */

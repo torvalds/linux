@@ -142,7 +142,7 @@ int pp_atomfwctrl_get_voltage_table_v4(struct pp_hwmgr *hwmgr,
 		}
 	} else if (voltage_mode == VOLTAGE_OBJ_SVID2) {
 		voltage_table->psi1_enable =
-			voltage_object->svid2_voltage_obj.loadline_psi1 & 0x1;
+			(voltage_object->svid2_voltage_obj.loadline_psi1 & 0x20) >> 5;
 		voltage_table->psi0_enable =
 			voltage_object->svid2_voltage_obj.psi0_enable & 0x1;
 		voltage_table->max_vid_step =
@@ -276,7 +276,10 @@ int pp_atomfwctrl_get_avfs_information(struct pp_hwmgr *hwmgr,
 		struct pp_atomfwctrl_avfs_parameters *param)
 {
 	uint16_t idx;
+	uint8_t format_revision, content_revision;
+
 	struct atom_asic_profiling_info_v4_1 *profile;
+	struct atom_asic_profiling_info_v4_2 *profile_v4_2;
 
 	idx = GetIndexIntoMasterDataTable(asic_profiling_info);
 	profile = (struct atom_asic_profiling_info_v4_1 *)
@@ -286,76 +289,172 @@ int pp_atomfwctrl_get_avfs_information(struct pp_hwmgr *hwmgr,
 	if (!profile)
 		return -1;
 
-	param->ulMaxVddc = le32_to_cpu(profile->maxvddc);
-	param->ulMinVddc = le32_to_cpu(profile->minvddc);
-	param->ulMeanNsigmaAcontant0 =
-			le32_to_cpu(profile->avfs_meannsigma_acontant0);
-	param->ulMeanNsigmaAcontant1 =
-			le32_to_cpu(profile->avfs_meannsigma_acontant1);
-	param->ulMeanNsigmaAcontant2 =
-			le32_to_cpu(profile->avfs_meannsigma_acontant2);
-	param->usMeanNsigmaDcTolSigma =
-			le16_to_cpu(profile->avfs_meannsigma_dc_tol_sigma);
-	param->usMeanNsigmaPlatformMean =
-			le16_to_cpu(profile->avfs_meannsigma_platform_mean);
-	param->usMeanNsigmaPlatformSigma =
-			le16_to_cpu(profile->avfs_meannsigma_platform_sigma);
-	param->ulGbVdroopTableCksoffA0 =
-			le32_to_cpu(profile->gb_vdroop_table_cksoff_a0);
-	param->ulGbVdroopTableCksoffA1 =
-			le32_to_cpu(profile->gb_vdroop_table_cksoff_a1);
-	param->ulGbVdroopTableCksoffA2 =
-			le32_to_cpu(profile->gb_vdroop_table_cksoff_a2);
-	param->ulGbVdroopTableCksonA0 =
-			le32_to_cpu(profile->gb_vdroop_table_ckson_a0);
-	param->ulGbVdroopTableCksonA1 =
-			le32_to_cpu(profile->gb_vdroop_table_ckson_a1);
-	param->ulGbVdroopTableCksonA2 =
-			le32_to_cpu(profile->gb_vdroop_table_ckson_a2);
-	param->ulGbFuseTableCksoffM1 =
-			le32_to_cpu(profile->avfsgb_fuse_table_cksoff_m1);
-	param->ulGbFuseTableCksoffM2 =
-			le16_to_cpu(profile->avfsgb_fuse_table_cksoff_m2);
-	param->ulGbFuseTableCksoffB =
-			le32_to_cpu(profile->avfsgb_fuse_table_cksoff_b);
-	param->ulGbFuseTableCksonM1 =
-			le32_to_cpu(profile->avfsgb_fuse_table_ckson_m1);
-	param->ulGbFuseTableCksonM2 =
-			le16_to_cpu(profile->avfsgb_fuse_table_ckson_m2);
-	param->ulGbFuseTableCksonB =
-			le32_to_cpu(profile->avfsgb_fuse_table_ckson_b);
+	format_revision = ((struct atom_common_table_header *)profile)->format_revision;
+	content_revision = ((struct atom_common_table_header *)profile)->content_revision;
 
-	param->ucEnableGbVdroopTableCkson =
-			profile->enable_gb_vdroop_table_ckson;
-	param->ucEnableGbFuseTableCkson =
-			profile->enable_gb_fuse_table_ckson;
-	param->usPsmAgeComfactor =
-			le16_to_cpu(profile->psm_age_comfactor);
+	if (format_revision == 4 && content_revision == 1) {
+		param->ulMaxVddc = le32_to_cpu(profile->maxvddc);
+		param->ulMinVddc = le32_to_cpu(profile->minvddc);
+		param->ulMeanNsigmaAcontant0 =
+				le32_to_cpu(profile->avfs_meannsigma_acontant0);
+		param->ulMeanNsigmaAcontant1 =
+				le32_to_cpu(profile->avfs_meannsigma_acontant1);
+		param->ulMeanNsigmaAcontant2 =
+				le32_to_cpu(profile->avfs_meannsigma_acontant2);
+		param->usMeanNsigmaDcTolSigma =
+				le16_to_cpu(profile->avfs_meannsigma_dc_tol_sigma);
+		param->usMeanNsigmaPlatformMean =
+				le16_to_cpu(profile->avfs_meannsigma_platform_mean);
+		param->usMeanNsigmaPlatformSigma =
+				le16_to_cpu(profile->avfs_meannsigma_platform_sigma);
+		param->ulGbVdroopTableCksoffA0 =
+				le32_to_cpu(profile->gb_vdroop_table_cksoff_a0);
+		param->ulGbVdroopTableCksoffA1 =
+				le32_to_cpu(profile->gb_vdroop_table_cksoff_a1);
+		param->ulGbVdroopTableCksoffA2 =
+				le32_to_cpu(profile->gb_vdroop_table_cksoff_a2);
+		param->ulGbVdroopTableCksonA0 =
+				le32_to_cpu(profile->gb_vdroop_table_ckson_a0);
+		param->ulGbVdroopTableCksonA1 =
+				le32_to_cpu(profile->gb_vdroop_table_ckson_a1);
+		param->ulGbVdroopTableCksonA2 =
+				le32_to_cpu(profile->gb_vdroop_table_ckson_a2);
+		param->ulGbFuseTableCksoffM1 =
+				le32_to_cpu(profile->avfsgb_fuse_table_cksoff_m1);
+		param->ulGbFuseTableCksoffM2 =
+				le32_to_cpu(profile->avfsgb_fuse_table_cksoff_m2);
+		param->ulGbFuseTableCksoffB =
+				le32_to_cpu(profile->avfsgb_fuse_table_cksoff_b);
+		param->ulGbFuseTableCksonM1 =
+				le32_to_cpu(profile->avfsgb_fuse_table_ckson_m1);
+		param->ulGbFuseTableCksonM2 =
+				le32_to_cpu(profile->avfsgb_fuse_table_ckson_m2);
+		param->ulGbFuseTableCksonB =
+				le32_to_cpu(profile->avfsgb_fuse_table_ckson_b);
 
-	param->ulDispclk2GfxclkM1 =
-			le32_to_cpu(profile->dispclk2gfxclk_a);
-	param->ulDispclk2GfxclkM2 =
-			le16_to_cpu(profile->dispclk2gfxclk_b);
-	param->ulDispclk2GfxclkB =
-			le32_to_cpu(profile->dispclk2gfxclk_c);
-	param->ulDcefclk2GfxclkM1 =
-			le32_to_cpu(profile->dcefclk2gfxclk_a);
-	param->ulDcefclk2GfxclkM2 =
-			le16_to_cpu(profile->dcefclk2gfxclk_b);
-	param->ulDcefclk2GfxclkB =
-			le32_to_cpu(profile->dcefclk2gfxclk_c);
-	param->ulPixelclk2GfxclkM1 =
-			le32_to_cpu(profile->pixclk2gfxclk_a);
-	param->ulPixelclk2GfxclkM2 =
-			le16_to_cpu(profile->pixclk2gfxclk_b);
-	param->ulPixelclk2GfxclkB =
-			le32_to_cpu(profile->pixclk2gfxclk_c);
-	param->ulPhyclk2GfxclkM1 =
-			le32_to_cpu(profile->phyclk2gfxclk_a);
-	param->ulPhyclk2GfxclkM2 =
-			le16_to_cpu(profile->phyclk2gfxclk_b);
-	param->ulPhyclk2GfxclkB =
-			le32_to_cpu(profile->phyclk2gfxclk_c);
+		param->ucEnableGbVdroopTableCkson =
+				profile->enable_gb_vdroop_table_ckson;
+		param->ucEnableGbFuseTableCkson =
+				profile->enable_gb_fuse_table_ckson;
+		param->usPsmAgeComfactor =
+				le16_to_cpu(profile->psm_age_comfactor);
+
+		param->ulDispclk2GfxclkM1 =
+				le32_to_cpu(profile->dispclk2gfxclk_a);
+		param->ulDispclk2GfxclkM2 =
+				le32_to_cpu(profile->dispclk2gfxclk_b);
+		param->ulDispclk2GfxclkB =
+				le32_to_cpu(profile->dispclk2gfxclk_c);
+		param->ulDcefclk2GfxclkM1 =
+				le32_to_cpu(profile->dcefclk2gfxclk_a);
+		param->ulDcefclk2GfxclkM2 =
+				le32_to_cpu(profile->dcefclk2gfxclk_b);
+		param->ulDcefclk2GfxclkB =
+				le32_to_cpu(profile->dcefclk2gfxclk_c);
+		param->ulPixelclk2GfxclkM1 =
+				le32_to_cpu(profile->pixclk2gfxclk_a);
+		param->ulPixelclk2GfxclkM2 =
+				le32_to_cpu(profile->pixclk2gfxclk_b);
+		param->ulPixelclk2GfxclkB =
+				le32_to_cpu(profile->pixclk2gfxclk_c);
+		param->ulPhyclk2GfxclkM1 =
+				le32_to_cpu(profile->phyclk2gfxclk_a);
+		param->ulPhyclk2GfxclkM2 =
+				le32_to_cpu(profile->phyclk2gfxclk_b);
+		param->ulPhyclk2GfxclkB =
+				le32_to_cpu(profile->phyclk2gfxclk_c);
+		param->ulAcgGbVdroopTableA0           = 0;
+		param->ulAcgGbVdroopTableA1           = 0;
+		param->ulAcgGbVdroopTableA2           = 0;
+		param->ulAcgGbFuseTableM1             = 0;
+		param->ulAcgGbFuseTableM2             = 0;
+		param->ulAcgGbFuseTableB              = 0;
+		param->ucAcgEnableGbVdroopTable       = 0;
+		param->ucAcgEnableGbFuseTable         = 0;
+	} else if (format_revision == 4 && content_revision == 2) {
+		profile_v4_2 = (struct atom_asic_profiling_info_v4_2 *)profile;
+		param->ulMaxVddc = le32_to_cpu(profile_v4_2->maxvddc);
+		param->ulMinVddc = le32_to_cpu(profile_v4_2->minvddc);
+		param->ulMeanNsigmaAcontant0 =
+				le32_to_cpu(profile_v4_2->avfs_meannsigma_acontant0);
+		param->ulMeanNsigmaAcontant1 =
+				le32_to_cpu(profile_v4_2->avfs_meannsigma_acontant1);
+		param->ulMeanNsigmaAcontant2 =
+				le32_to_cpu(profile_v4_2->avfs_meannsigma_acontant2);
+		param->usMeanNsigmaDcTolSigma =
+				le16_to_cpu(profile_v4_2->avfs_meannsigma_dc_tol_sigma);
+		param->usMeanNsigmaPlatformMean =
+				le16_to_cpu(profile_v4_2->avfs_meannsigma_platform_mean);
+		param->usMeanNsigmaPlatformSigma =
+				le16_to_cpu(profile_v4_2->avfs_meannsigma_platform_sigma);
+		param->ulGbVdroopTableCksoffA0 =
+				le32_to_cpu(profile_v4_2->gb_vdroop_table_cksoff_a0);
+		param->ulGbVdroopTableCksoffA1 =
+				le32_to_cpu(profile_v4_2->gb_vdroop_table_cksoff_a1);
+		param->ulGbVdroopTableCksoffA2 =
+				le32_to_cpu(profile_v4_2->gb_vdroop_table_cksoff_a2);
+		param->ulGbVdroopTableCksonA0 =
+				le32_to_cpu(profile_v4_2->gb_vdroop_table_ckson_a0);
+		param->ulGbVdroopTableCksonA1 =
+				le32_to_cpu(profile_v4_2->gb_vdroop_table_ckson_a1);
+		param->ulGbVdroopTableCksonA2 =
+				le32_to_cpu(profile_v4_2->gb_vdroop_table_ckson_a2);
+		param->ulGbFuseTableCksoffM1 =
+				le32_to_cpu(profile_v4_2->avfsgb_fuse_table_cksoff_m1);
+		param->ulGbFuseTableCksoffM2 =
+				le32_to_cpu(profile_v4_2->avfsgb_fuse_table_cksoff_m2);
+		param->ulGbFuseTableCksoffB =
+				le32_to_cpu(profile_v4_2->avfsgb_fuse_table_cksoff_b);
+		param->ulGbFuseTableCksonM1 =
+				le32_to_cpu(profile_v4_2->avfsgb_fuse_table_ckson_m1);
+		param->ulGbFuseTableCksonM2 =
+				le32_to_cpu(profile_v4_2->avfsgb_fuse_table_ckson_m2);
+		param->ulGbFuseTableCksonB =
+				le32_to_cpu(profile_v4_2->avfsgb_fuse_table_ckson_b);
+
+		param->ucEnableGbVdroopTableCkson =
+				profile_v4_2->enable_gb_vdroop_table_ckson;
+		param->ucEnableGbFuseTableCkson =
+				profile_v4_2->enable_gb_fuse_table_ckson;
+		param->usPsmAgeComfactor =
+				le16_to_cpu(profile_v4_2->psm_age_comfactor);
+
+		param->ulDispclk2GfxclkM1 =
+				le32_to_cpu(profile_v4_2->dispclk2gfxclk_a);
+		param->ulDispclk2GfxclkM2 =
+				le32_to_cpu(profile_v4_2->dispclk2gfxclk_b);
+		param->ulDispclk2GfxclkB =
+				le32_to_cpu(profile_v4_2->dispclk2gfxclk_c);
+		param->ulDcefclk2GfxclkM1 =
+				le32_to_cpu(profile_v4_2->dcefclk2gfxclk_a);
+		param->ulDcefclk2GfxclkM2 =
+				le32_to_cpu(profile_v4_2->dcefclk2gfxclk_b);
+		param->ulDcefclk2GfxclkB =
+				le32_to_cpu(profile_v4_2->dcefclk2gfxclk_c);
+		param->ulPixelclk2GfxclkM1 =
+				le32_to_cpu(profile_v4_2->pixclk2gfxclk_a);
+		param->ulPixelclk2GfxclkM2 =
+				le32_to_cpu(profile_v4_2->pixclk2gfxclk_b);
+		param->ulPixelclk2GfxclkB =
+				le32_to_cpu(profile_v4_2->pixclk2gfxclk_c);
+		param->ulPhyclk2GfxclkM1 =
+				le32_to_cpu(profile->phyclk2gfxclk_a);
+		param->ulPhyclk2GfxclkM2 =
+				le32_to_cpu(profile_v4_2->phyclk2gfxclk_b);
+		param->ulPhyclk2GfxclkB =
+				le32_to_cpu(profile_v4_2->phyclk2gfxclk_c);
+		param->ulAcgGbVdroopTableA0 = le32_to_cpu(profile_v4_2->acg_gb_vdroop_table_a0);
+		param->ulAcgGbVdroopTableA1 = le32_to_cpu(profile_v4_2->acg_gb_vdroop_table_a1);
+		param->ulAcgGbVdroopTableA2 = le32_to_cpu(profile_v4_2->acg_gb_vdroop_table_a2);
+		param->ulAcgGbFuseTableM1 = le32_to_cpu(profile_v4_2->acg_avfsgb_fuse_table_m1);
+		param->ulAcgGbFuseTableM2 = le32_to_cpu(profile_v4_2->acg_avfsgb_fuse_table_m2);
+		param->ulAcgGbFuseTableB = le32_to_cpu(profile_v4_2->acg_avfsgb_fuse_table_b);
+		param->ucAcgEnableGbVdroopTable = le32_to_cpu(profile_v4_2->enable_acg_gb_vdroop_table);
+		param->ucAcgEnableGbFuseTable = le32_to_cpu(profile_v4_2->enable_acg_gb_fuse_table);
+	} else {
+		pr_info("Invalid VBIOS AVFS ProfilingInfo Revision!\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -388,11 +487,33 @@ int pp_atomfwctrl_get_gpio_information(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+int pp_atomfwctrl__get_clk_information_by_clkid(struct pp_hwmgr *hwmgr, BIOS_CLKID id, uint32_t *frequency)
+{
+	struct atom_get_smu_clock_info_parameters_v3_1   parameters;
+	struct atom_get_smu_clock_info_output_parameters_v3_1 *output;
+	uint32_t ix;
+
+	parameters.clk_id = id;
+	parameters.command = GET_SMU_CLOCK_INFO_V3_1_GET_CLOCK_FREQ;
+
+	ix = GetIndexIntoMasterCmdTable(getsmuclockinfo);
+	if (!cgs_atom_exec_cmd_table(hwmgr->device, ix, &parameters)) {
+		output = (struct atom_get_smu_clock_info_output_parameters_v3_1 *)&parameters;
+		*frequency = output->atom_smu_outputclkfreq.smu_clock_freq_hz / 10000;
+	} else {
+		pr_info("Error execute_table getsmuclockinfo!");
+		return -1;
+	}
+
+	return 0;
+}
+
 int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
 			struct pp_atomfwctrl_bios_boot_up_values *boot_values)
 {
 	struct atom_firmware_info_v3_1 *info = NULL;
 	uint16_t ix;
+	uint32_t frequency = 0;
 
 	ix = GetIndexIntoMasterDataTable(firmwareinfo);
 	info = (struct atom_firmware_info_v3_1 *)
@@ -407,11 +528,18 @@ int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
 	boot_values->ulRevision = info->firmware_revision;
 	boot_values->ulGfxClk   = info->bootup_sclk_in10khz;
 	boot_values->ulUClk     = info->bootup_mclk_in10khz;
-	boot_values->ulSocClk   = 0;
 	boot_values->usVddc     = info->bootup_vddc_mv;
 	boot_values->usVddci    = info->bootup_vddci_mv;
 	boot_values->usMvddc    = info->bootup_mvddc_mv;
 	boot_values->usVddGfx   = info->bootup_vddgfx_mv;
+	boot_values->ulSocClk   = 0;
+	boot_values->ulDCEFClk   = 0;
+
+	if (!pp_atomfwctrl__get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_SOCCLK_ID, &frequency))
+		boot_values->ulSocClk   = frequency;
+
+	if (!pp_atomfwctrl__get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_DCEFCLK_ID, &frequency))
+		boot_values->ulDCEFClk   = frequency;
 
 	return 0;
 }

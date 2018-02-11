@@ -23,14 +23,15 @@
 #include <linux/semaphore.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/random.h>
 #include <linux/vmalloc.h>
 
 #define MAX_ENTRIES	1000000
 #define TEST_INSERT_FAIL INT_MAX
 
-static int entries = 50000;
-module_param(entries, int, 0);
-MODULE_PARM_DESC(entries, "Number of entries to add (default: 50000)");
+static int parm_entries = 50000;
+module_param(parm_entries, int, 0);
+MODULE_PARM_DESC(parm_entries, "Number of entries to add (default: 50000)");
 
 static int runs = 4;
 module_param(runs, int, 0);
@@ -56,23 +57,32 @@ static bool enomem_retry = false;
 module_param(enomem_retry, bool, 0);
 MODULE_PARM_DESC(enomem_retry, "Retry insert even if -ENOMEM was returned (default: off)");
 
+struct test_obj_val {
+	int	id;
+	int	tid;
+};
+
 struct test_obj {
-	int			value;
+	struct test_obj_val	value;
 	struct rhash_head	node;
 };
 
+struct test_obj_rhl {
+	struct test_obj_val	value;
+	struct rhlist_head	list_node;
+};
+
 struct thread_data {
+	unsigned int entries;
 	int id;
 	struct task_struct *task;
 	struct test_obj *objs;
 };
 
-static struct test_obj array[MAX_ENTRIES];
-
 static struct rhashtable_params test_rht_params = {
 	.head_offset = offsetof(struct test_obj, node),
 	.key_offset = offsetof(struct test_obj, value),
-	.key_len = sizeof(int),
+	.key_len = sizeof(struct test_obj_val),
 	.hashfn = jhash,
 	.nulls_base = (3U << RHT_BASE_SHIFT),
 };
@@ -80,7 +90,7 @@ static struct rhashtable_params test_rht_params = {
 static struct semaphore prestart_sem;
 static struct semaphore startup_sem = __SEMAPHORE_INITIALIZER(startup_sem, 0);
 
-static int insert_retry(struct rhashtable *ht, struct rhash_head *obj,
+static int insert_retry(struct rhashtable *ht, struct test_obj *obj,
                         const struct rhashtable_params params)
 {
 	int err, retries = -1, enomem_retries = 0;
@@ -88,7 +98,7 @@ static int insert_retry(struct rhashtable *ht, struct rhash_head *obj,
 	do {
 		retries++;
 		cond_resched();
-		err = rhashtable_insert_fast(ht, obj, params);
+		err = rhashtable_insert_fast(ht, &obj->node, params);
 		if (err == -ENOMEM && enomem_retry) {
 			enomem_retries++;
 			err = -EBUSY;
@@ -102,31 +112,34 @@ static int insert_retry(struct rhashtable *ht, struct rhash_head *obj,
 	return err ? : retries;
 }
 
-static int __init test_rht_lookup(struct rhashtable *ht)
+static int __init test_rht_lookup(struct rhashtable *ht, struct test_obj *array,
+				  unsigned int entries)
 {
 	unsigned int i;
 
-	for (i = 0; i < entries * 2; i++) {
+	for (i = 0; i < entries; i++) {
 		struct test_obj *obj;
 		bool expected = !(i % 2);
-		u32 key = i;
+		struct test_obj_val key = {
+			.id = i,
+		};
 
-		if (array[i / 2].value == TEST_INSERT_FAIL)
+		if (array[i / 2].value.id == TEST_INSERT_FAIL)
 			expected = false;
 
 		obj = rhashtable_lookup_fast(ht, &key, test_rht_params);
 
 		if (expected && !obj) {
-			pr_warn("Test failed: Could not find key %u\n", key);
+			pr_warn("Test failed: Could not find key %u\n", key.id);
 			return -ENOENT;
 		} else if (!expected && obj) {
 			pr_warn("Test failed: Unexpected entry found for key %u\n",
-				key);
+				key.id);
 			return -EEXIST;
 		} else if (expected && obj) {
-			if (obj->value != i) {
+			if (obj->value.id != i) {
 				pr_warn("Test failed: Lookup value mismatch %u!=%u\n",
-					obj->value, i);
+					obj->value.id, i);
 				return -EINVAL;
 			}
 		}
@@ -137,7 +150,7 @@ static int __init test_rht_lookup(struct rhashtable *ht)
 	return 0;
 }
 
-static void test_bucket_stats(struct rhashtable *ht)
+static void test_bucket_stats(struct rhashtable *ht, unsigned int entries)
 {
 	unsigned int err, total = 0, chain_len = 0;
 	struct rhashtable_iter hti;
@@ -179,7 +192,8 @@ static void test_bucket_stats(struct rhashtable *ht)
 		pr_warn("Test failed: Total count mismatch ^^^");
 }
 
-static s64 __init test_rhashtable(struct rhashtable *ht)
+static s64 __init test_rhashtable(struct rhashtable *ht, struct test_obj *array,
+				  unsigned int entries)
 {
 	struct test_obj *obj;
 	int err;
@@ -195,8 +209,8 @@ static s64 __init test_rhashtable(struct rhashtable *ht)
 	for (i = 0; i < entries; i++) {
 		struct test_obj *obj = &array[i];
 
-		obj->value = i * 2;
-		err = insert_retry(ht, &obj->node, test_rht_params);
+		obj->value.id = i * 2;
+		err = insert_retry(ht, obj, test_rht_params);
 		if (err > 0)
 			insert_retries += err;
 		else if (err)
@@ -207,18 +221,20 @@ static s64 __init test_rhashtable(struct rhashtable *ht)
 		pr_info("  %u insertions retried due to memory pressure\n",
 			insert_retries);
 
-	test_bucket_stats(ht);
+	test_bucket_stats(ht, entries);
 	rcu_read_lock();
-	test_rht_lookup(ht);
+	test_rht_lookup(ht, array, entries);
 	rcu_read_unlock();
 
-	test_bucket_stats(ht);
+	test_bucket_stats(ht, entries);
 
 	pr_info("  Deleting %d keys\n", entries);
 	for (i = 0; i < entries; i++) {
-		u32 key = i * 2;
+		struct test_obj_val key = {
+			.id = i * 2,
+		};
 
-		if (array[i].value != TEST_INSERT_FAIL) {
+		if (array[i].value.id != TEST_INSERT_FAIL) {
 			obj = rhashtable_lookup_fast(ht, &key, test_rht_params);
 			BUG_ON(!obj);
 
@@ -235,25 +251,246 @@ static s64 __init test_rhashtable(struct rhashtable *ht)
 }
 
 static struct rhashtable ht;
+static struct rhltable rhlt;
+
+static int __init test_rhltable(unsigned int entries)
+{
+	struct test_obj_rhl *rhl_test_objects;
+	unsigned long *obj_in_table;
+	unsigned int i, j, k;
+	int ret, err;
+
+	if (entries == 0)
+		entries = 1;
+
+	rhl_test_objects = vzalloc(sizeof(*rhl_test_objects) * entries);
+	if (!rhl_test_objects)
+		return -ENOMEM;
+
+	ret = -ENOMEM;
+	obj_in_table = vzalloc(BITS_TO_LONGS(entries) * sizeof(unsigned long));
+	if (!obj_in_table)
+		goto out_free;
+
+	/* nulls_base not supported in rhlist interface */
+	test_rht_params.nulls_base = 0;
+	err = rhltable_init(&rhlt, &test_rht_params);
+	if (WARN_ON(err))
+		goto out_free;
+
+	k = prandom_u32();
+	ret = 0;
+	for (i = 0; i < entries; i++) {
+		rhl_test_objects[i].value.id = k;
+		err = rhltable_insert(&rhlt, &rhl_test_objects[i].list_node,
+				      test_rht_params);
+		if (WARN(err, "error %d on element %d\n", err, i))
+			break;
+		if (err == 0)
+			set_bit(i, obj_in_table);
+	}
+
+	if (err)
+		ret = err;
+
+	pr_info("test %d add/delete pairs into rhlist\n", entries);
+	for (i = 0; i < entries; i++) {
+		struct rhlist_head *h, *pos;
+		struct test_obj_rhl *obj;
+		struct test_obj_val key = {
+			.id = k,
+		};
+		bool found;
+
+		rcu_read_lock();
+		h = rhltable_lookup(&rhlt, &key, test_rht_params);
+		if (WARN(!h, "key not found during iteration %d of %d", i, entries)) {
+			rcu_read_unlock();
+			break;
+		}
+
+		if (i) {
+			j = i - 1;
+			rhl_for_each_entry_rcu(obj, pos, h, list_node) {
+				if (WARN(pos == &rhl_test_objects[j].list_node, "old element found, should be gone"))
+					break;
+			}
+		}
+
+		cond_resched_rcu();
+
+		found = false;
+
+		rhl_for_each_entry_rcu(obj, pos, h, list_node) {
+			if (pos == &rhl_test_objects[i].list_node) {
+				found = true;
+				break;
+			}
+		}
+
+		rcu_read_unlock();
+
+		if (WARN(!found, "element %d not found", i))
+			break;
+
+		err = rhltable_remove(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
+		WARN(err, "rhltable_remove: err %d for iteration %d\n", err, i);
+		if (err == 0)
+			clear_bit(i, obj_in_table);
+	}
+
+	if (ret == 0 && err)
+		ret = err;
+
+	for (i = 0; i < entries; i++) {
+		WARN(test_bit(i, obj_in_table), "elem %d allegedly still present", i);
+
+		err = rhltable_insert(&rhlt, &rhl_test_objects[i].list_node,
+				      test_rht_params);
+		if (WARN(err, "error %d on element %d\n", err, i))
+			break;
+		if (err == 0)
+			set_bit(i, obj_in_table);
+	}
+
+	pr_info("test %d random rhlist add/delete operations\n", entries);
+	for (j = 0; j < entries; j++) {
+		u32 i = prandom_u32_max(entries);
+		u32 prand = prandom_u32();
+
+		cond_resched();
+
+		if (prand == 0)
+			prand = prandom_u32();
+
+		if (prand & 1) {
+			prand >>= 1;
+			continue;
+		}
+
+		err = rhltable_remove(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
+		if (test_bit(i, obj_in_table)) {
+			clear_bit(i, obj_in_table);
+			if (WARN(err, "cannot remove element at slot %d", i))
+				continue;
+		} else {
+			if (WARN(err != -ENOENT, "removed non-existant element %d, error %d not %d",
+			     i, err, -ENOENT))
+				continue;
+		}
+
+		if (prand & 1) {
+			prand >>= 1;
+			continue;
+		}
+
+		err = rhltable_insert(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
+		if (err == 0) {
+			if (WARN(test_and_set_bit(i, obj_in_table), "succeeded to insert same object %d", i))
+				continue;
+		} else {
+			if (WARN(!test_bit(i, obj_in_table), "failed to insert object %d", i))
+				continue;
+		}
+
+		if (prand & 1) {
+			prand >>= 1;
+			continue;
+		}
+
+		i = prandom_u32_max(entries);
+		if (test_bit(i, obj_in_table)) {
+			err = rhltable_remove(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
+			WARN(err, "cannot remove element at slot %d", i);
+			if (err == 0)
+				clear_bit(i, obj_in_table);
+		} else {
+			err = rhltable_insert(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
+			WARN(err, "failed to insert object %d", i);
+			if (err == 0)
+				set_bit(i, obj_in_table);
+		}
+	}
+
+	for (i = 0; i < entries; i++) {
+		cond_resched();
+		err = rhltable_remove(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
+		if (test_bit(i, obj_in_table)) {
+			if (WARN(err, "cannot remove element at slot %d", i))
+				continue;
+		} else {
+			if (WARN(err != -ENOENT, "removed non-existant element, error %d not %d",
+				 err, -ENOENT))
+			continue;
+		}
+	}
+
+	rhltable_destroy(&rhlt);
+out_free:
+	vfree(rhl_test_objects);
+	vfree(obj_in_table);
+	return ret;
+}
+
+static int __init test_rhashtable_max(struct test_obj *array,
+				      unsigned int entries)
+{
+	unsigned int i, insert_retries = 0;
+	int err;
+
+	test_rht_params.max_size = roundup_pow_of_two(entries / 8);
+	err = rhashtable_init(&ht, &test_rht_params);
+	if (err)
+		return err;
+
+	for (i = 0; i < ht.max_elems; i++) {
+		struct test_obj *obj = &array[i];
+
+		obj->value.id = i * 2;
+		err = insert_retry(&ht, obj, test_rht_params);
+		if (err > 0)
+			insert_retries += err;
+		else if (err)
+			return err;
+	}
+
+	err = insert_retry(&ht, &array[ht.max_elems], test_rht_params);
+	if (err == -E2BIG) {
+		err = 0;
+	} else {
+		pr_info("insert element %u should have failed with %d, got %d\n",
+				ht.max_elems, -E2BIG, err);
+		if (err == 0)
+			err = -1;
+	}
+
+	rhashtable_destroy(&ht);
+
+	return err;
+}
 
 static int thread_lookup_test(struct thread_data *tdata)
 {
+	unsigned int entries = tdata->entries;
 	int i, err = 0;
 
 	for (i = 0; i < entries; i++) {
 		struct test_obj *obj;
-		int key = (tdata->id << 16) | i;
+		struct test_obj_val key = {
+			.id = i,
+			.tid = tdata->id,
+		};
 
 		obj = rhashtable_lookup_fast(&ht, &key, test_rht_params);
-		if (obj && (tdata->objs[i].value == TEST_INSERT_FAIL)) {
-			pr_err("  found unexpected object %d\n", key);
+		if (obj && (tdata->objs[i].value.id == TEST_INSERT_FAIL)) {
+			pr_err("  found unexpected object %d-%d\n", key.tid, key.id);
 			err++;
-		} else if (!obj && (tdata->objs[i].value != TEST_INSERT_FAIL)) {
-			pr_err("  object %d not found!\n", key);
+		} else if (!obj && (tdata->objs[i].value.id != TEST_INSERT_FAIL)) {
+			pr_err("  object %d-%d not found!\n", key.tid, key.id);
 			err++;
-		} else if (obj && (obj->value != key)) {
-			pr_err("  wrong object returned (got %d, expected %d)\n",
-			       obj->value, key);
+		} else if (obj && memcmp(&obj->value, &key, sizeof(key))) {
+			pr_err("  wrong object returned (got %d-%d, expected %d-%d)\n",
+			       obj->value.tid, obj->value.id, key.tid, key.id);
 			err++;
 		}
 
@@ -271,9 +508,10 @@ static int threadfunc(void *data)
 	if (down_interruptible(&startup_sem))
 		pr_err("  thread[%d]: down_interruptible failed\n", tdata->id);
 
-	for (i = 0; i < entries; i++) {
-		tdata->objs[i].value = (tdata->id << 16) | i;
-		err = insert_retry(&ht, &tdata->objs[i].node, test_rht_params);
+	for (i = 0; i < tdata->entries; i++) {
+		tdata->objs[i].value.id = i;
+		tdata->objs[i].value.tid = tdata->id;
+		err = insert_retry(&ht, &tdata->objs[i], test_rht_params);
 		if (err > 0) {
 			insert_retries += err;
 		} else if (err) {
@@ -294,8 +532,8 @@ static int threadfunc(void *data)
 	}
 
 	for (step = 10; step > 0; step--) {
-		for (i = 0; i < entries; i += step) {
-			if (tdata->objs[i].value == TEST_INSERT_FAIL)
+		for (i = 0; i < tdata->entries; i += step) {
+			if (tdata->objs[i].value.id == TEST_INSERT_FAIL)
 				continue;
 			err = rhashtable_remove_fast(&ht, &tdata->objs[i].node,
 			                             test_rht_params);
@@ -304,7 +542,7 @@ static int threadfunc(void *data)
 				       tdata->id);
 				goto out;
 			}
-			tdata->objs[i].value = TEST_INSERT_FAIL;
+			tdata->objs[i].value.id = TEST_INSERT_FAIL;
 
 			cond_resched();
 		}
@@ -325,16 +563,24 @@ out:
 
 static int __init test_rht_init(void)
 {
+	unsigned int entries;
 	int i, err, started_threads = 0, failed_threads = 0;
 	u64 total_time = 0;
 	struct thread_data *tdata;
 	struct test_obj *objs;
 
-	entries = min(entries, MAX_ENTRIES);
+	if (parm_entries < 0)
+		parm_entries = 1;
+
+	entries = min(parm_entries, MAX_ENTRIES);
 
 	test_rht_params.automatic_shrinking = shrinking;
 	test_rht_params.max_size = max_size ? : roundup_pow_of_two(entries);
 	test_rht_params.nelem_hint = size;
+
+	objs = vzalloc((test_rht_params.max_size + 1) * sizeof(struct test_obj));
+	if (!objs)
+		return -ENOMEM;
 
 	pr_info("Running rhashtable test nelem=%d, max_size=%d, shrinking=%d\n",
 		size, max_size, shrinking);
@@ -343,7 +589,8 @@ static int __init test_rht_init(void)
 		s64 time;
 
 		pr_info("Test %02d:\n", i);
-		memset(&array, 0, sizeof(array));
+		memset(objs, 0, test_rht_params.max_size * sizeof(struct test_obj));
+
 		err = rhashtable_init(&ht, &test_rht_params);
 		if (err < 0) {
 			pr_warn("Test failed: Unable to initialize hashtable: %d\n",
@@ -351,15 +598,21 @@ static int __init test_rht_init(void)
 			continue;
 		}
 
-		time = test_rhashtable(&ht);
+		time = test_rhashtable(&ht, objs, entries);
 		rhashtable_destroy(&ht);
 		if (time < 0) {
+			vfree(objs);
 			pr_warn("Test failed: return code %lld\n", time);
 			return -EINVAL;
 		}
 
 		total_time += time;
 	}
+
+	pr_info("test if its possible to exceed max_size %d: %s\n",
+			test_rht_params.max_size, test_rhashtable_max(objs, entries) == 0 ?
+			"no, ok" : "YES, failed");
+	vfree(objs);
 
 	do_div(total_time, runs);
 	pr_info("Average test time: %llu\n", total_time);
@@ -391,6 +644,7 @@ static int __init test_rht_init(void)
 	}
 	for (i = 0; i < tcount; i++) {
 		tdata[i].id = i;
+		tdata[i].entries = entries;
 		tdata[i].objs = objs + i * entries;
 		tdata[i].task = kthread_run(threadfunc, &tdata[i],
 		                            "rhashtable_thrad[%d]", i);
@@ -412,11 +666,17 @@ static int __init test_rht_init(void)
 			failed_threads++;
 		}
 	}
-	pr_info("Started %d threads, %d failed\n",
-	        started_threads, failed_threads);
 	rhashtable_destroy(&ht);
 	vfree(tdata);
 	vfree(objs);
+
+	/*
+	 * rhltable_remove is very expensive, default values can cause test
+	 * to run for 2 minutes or more,  use a smaller number instead.
+	 */
+	err = test_rhltable(entries / 16);
+	pr_info("Started %d threads, %d failed, rhltable test returns %d\n",
+	        started_threads, failed_threads, err);
 	return 0;
 }
 

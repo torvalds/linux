@@ -326,7 +326,7 @@ static int __init fpu_disable(char *s)
 
 __setup("nofpu", fpu_disable);
 
-int mips_dsp_disabled;
+static int mips_dsp_disabled;
 
 static int __init dsp_disable(char *s)
 {
@@ -564,6 +564,7 @@ static int set_ftlb_enable(struct cpuinfo_mips *c, enum ftlb_flags flags)
 		back_to_back_c0_hazard();
 		break;
 	case CPU_I6400:
+	case CPU_I6500:
 		/* There's no way to disable the FTLB */
 		if (!(flags & FTLB_EN))
 			return 1;
@@ -844,6 +845,8 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_MVH;
 	if (cpu_has_mips_r6 && (config5 & MIPS_CONF5_VP))
 		c->options |= MIPS_CPU_VP;
+	if (config5 & MIPS_CONF5_CA2)
+		c->ases |= MIPS_ASE_MIPS16E2;
 
 	return config5 & MIPS_CONF_M;
 }
@@ -916,9 +919,12 @@ static void decode_configs(struct cpuinfo_mips *c)
 
 #ifndef CONFIG_MIPS_CPS
 	if (cpu_has_mips_r2_r6) {
-		c->core = get_ebase_cpunum();
+		unsigned int core;
+
+		core = get_ebase_cpunum();
 		if (cpu_has_mipsmt)
-			c->core >>= fls(core_nvpes()) - 1;
+			core >>= fls(core_nvpes()) - 1;
+		cpu_set_core(c, core);
 	}
 #endif
 }
@@ -1391,24 +1397,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			     MIPS_CPU_DIVEC | MIPS_CPU_LLSC;
 		c->tlbsize = 48;
 		break;
-	case PRID_IMP_R6000:
-		c->cputype = CPU_R6000;
-		__cpu_name[cpu] = "R6000";
-		set_isa(c, MIPS_CPU_ISA_II);
-		c->fpu_msk31 |= FPU_CSR_CONDX | FPU_CSR_FS;
-		c->options = MIPS_CPU_TLB | MIPS_CPU_FPU |
-			     MIPS_CPU_LLSC;
-		c->tlbsize = 32;
-		break;
-	case PRID_IMP_R6000A:
-		c->cputype = CPU_R6000A;
-		__cpu_name[cpu] = "R6000A";
-		set_isa(c, MIPS_CPU_ISA_II);
-		c->fpu_msk31 |= FPU_CSR_CONDX | FPU_CSR_FS;
-		c->options = MIPS_CPU_TLB | MIPS_CPU_FPU |
-			     MIPS_CPU_LLSC;
-		c->tlbsize = 32;
-		break;
 	case PRID_IMP_RM7000:
 		c->cputype = CPU_RM7000;
 		__cpu_name[cpu] = "RM7000";
@@ -1635,6 +1623,10 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_I6400;
 		__cpu_name[cpu] = "MIPS I6400";
 		break;
+	case PRID_IMP_I6500:
+		c->cputype = CPU_I6500;
+		__cpu_name[cpu] = "MIPS I6500";
+		break;
 	case PRID_IMP_M5150:
 		c->cputype = CPU_M5150;
 		__cpu_name[cpu] = "MIPS M5150";
@@ -1648,6 +1640,17 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 	decode_configs(c);
 
 	spram_config();
+
+	switch (__get_cpu_type(c->cputype)) {
+	case CPU_I6500:
+		c->options |= MIPS_CPU_SHARED_FTLB_ENTRIES;
+		/* fall-through */
+	case CPU_I6400:
+		c->options |= MIPS_CPU_SHARED_FTLB_RAM;
+		/* fall-through */
+	default:
+		break;
+	}
 }
 
 static inline void cpu_probe_alchemy(struct cpuinfo_mips *c, unsigned int cpu)
@@ -1826,6 +1829,12 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_LOONGSON_64:  /* Loongson-2/3 */
 		switch (c->processor_id & PRID_REV_MASK) {
 		case PRID_REV_LOONGSON3A_R2:
+			c->cputype = CPU_LOONGSON3;
+			__cpu_name[cpu] = "ICT Loongson-3";
+			set_elf_platform(cpu, "loongson3a");
+			set_isa(c, MIPS_CPU_ISA_M64R2);
+			break;
+		case PRID_REV_LOONGSON3A_R3:
 			c->cputype = CPU_LOONGSON3;
 			__cpu_name[cpu] = "ICT Loongson-3";
 			set_elf_platform(cpu, "loongson3a");
@@ -2088,4 +2097,36 @@ void cpu_report(void)
 		printk(KERN_INFO "FPU revision is: %08x\n", c->fpu_id);
 	if (cpu_has_msa)
 		pr_info("MSA revision is: %08x\n", c->msa_id);
+}
+
+void cpu_set_cluster(struct cpuinfo_mips *cpuinfo, unsigned int cluster)
+{
+	/* Ensure the core number fits in the field */
+	WARN_ON(cluster > (MIPS_GLOBALNUMBER_CLUSTER >>
+			   MIPS_GLOBALNUMBER_CLUSTER_SHF));
+
+	cpuinfo->globalnumber &= ~MIPS_GLOBALNUMBER_CLUSTER;
+	cpuinfo->globalnumber |= cluster << MIPS_GLOBALNUMBER_CLUSTER_SHF;
+}
+
+void cpu_set_core(struct cpuinfo_mips *cpuinfo, unsigned int core)
+{
+	/* Ensure the core number fits in the field */
+	WARN_ON(core > (MIPS_GLOBALNUMBER_CORE >> MIPS_GLOBALNUMBER_CORE_SHF));
+
+	cpuinfo->globalnumber &= ~MIPS_GLOBALNUMBER_CORE;
+	cpuinfo->globalnumber |= core << MIPS_GLOBALNUMBER_CORE_SHF;
+}
+
+void cpu_set_vpe_id(struct cpuinfo_mips *cpuinfo, unsigned int vpe)
+{
+	/* Ensure the VP(E) ID fits in the field */
+	WARN_ON(vpe > (MIPS_GLOBALNUMBER_VP >> MIPS_GLOBALNUMBER_VP_SHF));
+
+	/* Ensure we're not using VP(E)s without support */
+	WARN_ON(vpe && !IS_ENABLED(CONFIG_MIPS_MT_SMP) &&
+		!IS_ENABLED(CONFIG_CPU_MIPSR6));
+
+	cpuinfo->globalnumber &= ~MIPS_GLOBALNUMBER_VP;
+	cpuinfo->globalnumber |= vpe << MIPS_GLOBALNUMBER_VP_SHF;
 }

@@ -258,7 +258,7 @@ static ssize_t firmware_version_show(struct device *dev,
 
 }
 
-DEVICE_ATTR_RO(firmware_version);
+static DEVICE_ATTR_RO(firmware_version);
 
 static const struct attribute *sst_fw_version_attrs[] = {
 	&dev_attr_firmware_version.attr,
@@ -382,37 +382,6 @@ void sst_context_cleanup(struct intel_sst_drv *ctx)
 }
 EXPORT_SYMBOL_GPL(sst_context_cleanup);
 
-static inline void sst_save_shim64(struct intel_sst_drv *ctx,
-			    void __iomem *shim,
-			    struct sst_shim_regs64 *shim_regs)
-{
-	unsigned long irq_flags;
-
-	spin_lock_irqsave(&ctx->ipc_spin_lock, irq_flags);
-
-	shim_regs->imrx = sst_shim_read64(shim, SST_IMRX);
-	shim_regs->csr = sst_shim_read64(shim, SST_CSR);
-
-
-	spin_unlock_irqrestore(&ctx->ipc_spin_lock, irq_flags);
-}
-
-static inline void sst_restore_shim64(struct intel_sst_drv *ctx,
-				      void __iomem *shim,
-				      struct sst_shim_regs64 *shim_regs)
-{
-	unsigned long irq_flags;
-
-	/*
-	 * we only need to restore IMRX for this case, rest will be
-	 * initialize by FW or driver when firmware is loaded
-	 */
-	spin_lock_irqsave(&ctx->ipc_spin_lock, irq_flags);
-	sst_shim_write64(shim, SST_IMRX, shim_regs->imrx);
-	sst_shim_write64(shim, SST_CSR, shim_regs->csr);
-	spin_unlock_irqrestore(&ctx->ipc_spin_lock, irq_flags);
-}
-
 void sst_configure_runtime_pm(struct intel_sst_drv *ctx)
 {
 	pm_runtime_set_autosuspend_delay(ctx->dev, SST_SUSPEND_DELAY);
@@ -432,8 +401,6 @@ void sst_configure_runtime_pm(struct intel_sst_drv *ctx)
 		pm_runtime_set_active(ctx->dev);
 	else
 		pm_runtime_put_noidle(ctx->dev);
-
-	sst_save_shim64(ctx, ctx->shim, ctx->shim_regs64);
 }
 EXPORT_SYMBOL_GPL(sst_configure_runtime_pm);
 
@@ -457,8 +424,6 @@ static int intel_sst_runtime_suspend(struct device *dev)
 	flush_workqueue(ctx->post_msg_wq);
 
 	ctx->ops->reset(ctx);
-	/* save the shim registers because PMC doesn't save state */
-	sst_save_shim64(ctx, ctx->shim, ctx->shim_regs64);
 
 	return ret;
 }
@@ -499,23 +464,23 @@ static int intel_sst_suspend(struct device *dev)
 	fw_save = kzalloc(sizeof(*fw_save), GFP_KERNEL);
 	if (!fw_save)
 		return -ENOMEM;
-	fw_save->iram = kzalloc(ctx->iram_end - ctx->iram_base, GFP_KERNEL);
+	fw_save->iram = kvzalloc(ctx->iram_end - ctx->iram_base, GFP_KERNEL);
 	if (!fw_save->iram) {
 		ret = -ENOMEM;
 		goto iram;
 	}
-	fw_save->dram = kzalloc(ctx->dram_end - ctx->dram_base, GFP_KERNEL);
+	fw_save->dram = kvzalloc(ctx->dram_end - ctx->dram_base, GFP_KERNEL);
 	if (!fw_save->dram) {
 		ret = -ENOMEM;
 		goto dram;
 	}
-	fw_save->sram = kzalloc(SST_MAILBOX_SIZE, GFP_KERNEL);
+	fw_save->sram = kvzalloc(SST_MAILBOX_SIZE, GFP_KERNEL);
 	if (!fw_save->sram) {
 		ret = -ENOMEM;
 		goto sram;
 	}
 
-	fw_save->ddr = kzalloc(ctx->ddr_end - ctx->ddr_base, GFP_KERNEL);
+	fw_save->ddr = kvzalloc(ctx->ddr_end - ctx->ddr_base, GFP_KERNEL);
 	if (!fw_save->ddr) {
 		ret = -ENOMEM;
 		goto ddr;
@@ -530,11 +495,11 @@ static int intel_sst_suspend(struct device *dev)
 	ctx->ops->reset(ctx);
 	return 0;
 ddr:
-	kfree(fw_save->sram);
+	kvfree(fw_save->sram);
 sram:
-	kfree(fw_save->dram);
+	kvfree(fw_save->dram);
 dram:
-	kfree(fw_save->iram);
+	kvfree(fw_save->iram);
 iram:
 	kfree(fw_save);
 	return ret;
@@ -562,10 +527,10 @@ static int intel_sst_resume(struct device *dev)
 	memcpy32_toio(ctx->mailbox, fw_save->sram, SST_MAILBOX_SIZE);
 	memcpy32_toio(ctx->ddr, fw_save->ddr, ctx->ddr_end - ctx->ddr_base);
 
-	kfree(fw_save->sram);
-	kfree(fw_save->dram);
-	kfree(fw_save->iram);
-	kfree(fw_save->ddr);
+	kvfree(fw_save->sram);
+	kvfree(fw_save->dram);
+	kvfree(fw_save->iram);
+	kvfree(fw_save->ddr);
 	kfree(fw_save);
 
 	block = sst_create_block(ctx, 0, FW_DWNL_ID);

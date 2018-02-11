@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/uaccess.h>
@@ -121,37 +122,3 @@ long strnlen_user(const char __user *str, long count)
 	return 0;
 }
 EXPORT_SYMBOL(strnlen_user);
-
-/**
- * strlen_user: - Get the size of a user string INCLUDING final NUL.
- * @str: The string to measure.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Get the size of a NUL-terminated string in user space.
- *
- * Returns the size of the string INCLUDING the terminating NUL.
- * On exception, returns 0.
- *
- * If there is a limit on the length of a valid string, you may wish to
- * consider using strnlen_user() instead.
- */
-long strlen_user(const char __user *str)
-{
-	unsigned long max_addr, src_addr;
-
-	max_addr = user_addr_max();
-	src_addr = (unsigned long)str;
-	if (likely(src_addr < max_addr)) {
-		unsigned long max = max_addr - src_addr;
-		long retval;
-
-		user_access_begin();
-		retval = do_strnlen_user(str, ~0ul, max);
-		user_access_end();
-		return retval;
-	}
-	return 0;
-}
-EXPORT_SYMBOL(strlen_user);

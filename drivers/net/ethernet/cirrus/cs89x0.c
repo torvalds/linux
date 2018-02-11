@@ -450,11 +450,10 @@ skip_this_frame:
 
 	if (bp + length > lp->end_dma_buff) {
 		int semi_cnt = lp->end_dma_buff - bp;
-		memcpy(skb_put(skb, semi_cnt), bp, semi_cnt);
-		memcpy(skb_put(skb, length - semi_cnt), lp->dma_buff,
-		       length - semi_cnt);
+		skb_put_data(skb, bp, semi_cnt);
+		skb_put_data(skb, lp->dma_buff, length - semi_cnt);
 	} else {
-		memcpy(skb_put(skb, length), bp, length);
+		skb_put_data(skb, bp, length);
 	}
 	bp += (length + 3) & ~3;
 	if (bp >= lp->end_dma_buff)
@@ -1914,3 +1913,7 @@ static struct platform_driver cs89x0_driver = {
 module_platform_driver_probe(cs89x0_driver, cs89x0_platform_probe);
 
 #endif /* CONFIG_CS89x0_PLATFORM */
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Crystal Semiconductor (Now Cirrus Logic) CS89[02]0 network driver");
+MODULE_AUTHOR("Russell Nelson <nelson@crynwr.com>");

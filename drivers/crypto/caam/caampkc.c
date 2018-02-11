@@ -18,6 +18,10 @@
 #define DESC_RSA_PUB_LEN	(2 * CAAM_CMD_SZ + sizeof(struct rsa_pub_pdb))
 #define DESC_RSA_PRIV_F1_LEN	(2 * CAAM_CMD_SZ + \
 				 sizeof(struct rsa_priv_f1_pdb))
+#define DESC_RSA_PRIV_F2_LEN	(2 * CAAM_CMD_SZ + \
+				 sizeof(struct rsa_priv_f2_pdb))
+#define DESC_RSA_PRIV_F3_LEN	(2 * CAAM_CMD_SZ + \
+				 sizeof(struct rsa_priv_f3_pdb))
 
 static void rsa_io_unmap(struct device *dev, struct rsa_edesc *edesc,
 			 struct akcipher_request *req)
@@ -52,6 +56,42 @@ static void rsa_priv_f1_unmap(struct device *dev, struct rsa_edesc *edesc,
 
 	dma_unmap_single(dev, pdb->n_dma, key->n_sz, DMA_TO_DEVICE);
 	dma_unmap_single(dev, pdb->d_dma, key->d_sz, DMA_TO_DEVICE);
+}
+
+static void rsa_priv_f2_unmap(struct device *dev, struct rsa_edesc *edesc,
+			      struct akcipher_request *req)
+{
+	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
+	struct caam_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct caam_rsa_key *key = &ctx->key;
+	struct rsa_priv_f2_pdb *pdb = &edesc->pdb.priv_f2;
+	size_t p_sz = key->p_sz;
+	size_t q_sz = key->p_sz;
+
+	dma_unmap_single(dev, pdb->d_dma, key->d_sz, DMA_TO_DEVICE);
+	dma_unmap_single(dev, pdb->p_dma, p_sz, DMA_TO_DEVICE);
+	dma_unmap_single(dev, pdb->q_dma, q_sz, DMA_TO_DEVICE);
+	dma_unmap_single(dev, pdb->tmp1_dma, p_sz, DMA_TO_DEVICE);
+	dma_unmap_single(dev, pdb->tmp2_dma, q_sz, DMA_TO_DEVICE);
+}
+
+static void rsa_priv_f3_unmap(struct device *dev, struct rsa_edesc *edesc,
+			      struct akcipher_request *req)
+{
+	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
+	struct caam_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct caam_rsa_key *key = &ctx->key;
+	struct rsa_priv_f3_pdb *pdb = &edesc->pdb.priv_f3;
+	size_t p_sz = key->p_sz;
+	size_t q_sz = key->p_sz;
+
+	dma_unmap_single(dev, pdb->p_dma, p_sz, DMA_TO_DEVICE);
+	dma_unmap_single(dev, pdb->q_dma, q_sz, DMA_TO_DEVICE);
+	dma_unmap_single(dev, pdb->dp_dma, p_sz, DMA_TO_DEVICE);
+	dma_unmap_single(dev, pdb->dq_dma, q_sz, DMA_TO_DEVICE);
+	dma_unmap_single(dev, pdb->c_dma, p_sz, DMA_TO_DEVICE);
+	dma_unmap_single(dev, pdb->tmp1_dma, p_sz, DMA_TO_DEVICE);
+	dma_unmap_single(dev, pdb->tmp2_dma, q_sz, DMA_TO_DEVICE);
 }
 
 /* RSA Job Completion handler */
@@ -90,6 +130,42 @@ static void rsa_priv_f1_done(struct device *dev, u32 *desc, u32 err,
 	akcipher_request_complete(req, err);
 }
 
+static void rsa_priv_f2_done(struct device *dev, u32 *desc, u32 err,
+			     void *context)
+{
+	struct akcipher_request *req = context;
+	struct rsa_edesc *edesc;
+
+	if (err)
+		caam_jr_strstatus(dev, err);
+
+	edesc = container_of(desc, struct rsa_edesc, hw_desc[0]);
+
+	rsa_priv_f2_unmap(dev, edesc, req);
+	rsa_io_unmap(dev, edesc, req);
+	kfree(edesc);
+
+	akcipher_request_complete(req, err);
+}
+
+static void rsa_priv_f3_done(struct device *dev, u32 *desc, u32 err,
+			     void *context)
+{
+	struct akcipher_request *req = context;
+	struct rsa_edesc *edesc;
+
+	if (err)
+		caam_jr_strstatus(dev, err);
+
+	edesc = container_of(desc, struct rsa_edesc, hw_desc[0]);
+
+	rsa_priv_f3_unmap(dev, edesc, req);
+	rsa_io_unmap(dev, edesc, req);
+	kfree(edesc);
+
+	akcipher_request_complete(req, err);
+}
+
 static struct rsa_edesc *rsa_edesc_alloc(struct akcipher_request *req,
 					 size_t desclen)
 {
@@ -97,8 +173,8 @@ static struct rsa_edesc *rsa_edesc_alloc(struct akcipher_request *req,
 	struct caam_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
 	struct device *dev = ctx->dev;
 	struct rsa_edesc *edesc;
-	gfp_t flags = (req->base.flags & (CRYPTO_TFM_REQ_MAY_BACKLOG |
-		       CRYPTO_TFM_REQ_MAY_SLEEP)) ? GFP_KERNEL : GFP_ATOMIC;
+	gfp_t flags = (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
+		       GFP_KERNEL : GFP_ATOMIC;
 	int sgc;
 	int sec4_sg_index, sec4_sg_len = 0, sec4_sg_bytes;
 	int src_nents, dst_nents;
@@ -258,6 +334,172 @@ static int set_rsa_priv_f1_pdb(struct akcipher_request *req,
 	return 0;
 }
 
+static int set_rsa_priv_f2_pdb(struct akcipher_request *req,
+			       struct rsa_edesc *edesc)
+{
+	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
+	struct caam_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct caam_rsa_key *key = &ctx->key;
+	struct device *dev = ctx->dev;
+	struct rsa_priv_f2_pdb *pdb = &edesc->pdb.priv_f2;
+	int sec4_sg_index = 0;
+	size_t p_sz = key->p_sz;
+	size_t q_sz = key->p_sz;
+
+	pdb->d_dma = dma_map_single(dev, key->d, key->d_sz, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, pdb->d_dma)) {
+		dev_err(dev, "Unable to map RSA private exponent memory\n");
+		return -ENOMEM;
+	}
+
+	pdb->p_dma = dma_map_single(dev, key->p, p_sz, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, pdb->p_dma)) {
+		dev_err(dev, "Unable to map RSA prime factor p memory\n");
+		goto unmap_d;
+	}
+
+	pdb->q_dma = dma_map_single(dev, key->q, q_sz, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, pdb->q_dma)) {
+		dev_err(dev, "Unable to map RSA prime factor q memory\n");
+		goto unmap_p;
+	}
+
+	pdb->tmp1_dma = dma_map_single(dev, key->tmp1, p_sz, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, pdb->tmp1_dma)) {
+		dev_err(dev, "Unable to map RSA tmp1 memory\n");
+		goto unmap_q;
+	}
+
+	pdb->tmp2_dma = dma_map_single(dev, key->tmp2, q_sz, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, pdb->tmp2_dma)) {
+		dev_err(dev, "Unable to map RSA tmp2 memory\n");
+		goto unmap_tmp1;
+	}
+
+	if (edesc->src_nents > 1) {
+		pdb->sgf |= RSA_PRIV_PDB_SGF_G;
+		pdb->g_dma = edesc->sec4_sg_dma;
+		sec4_sg_index += edesc->src_nents;
+	} else {
+		pdb->g_dma = sg_dma_address(req->src);
+	}
+
+	if (edesc->dst_nents > 1) {
+		pdb->sgf |= RSA_PRIV_PDB_SGF_F;
+		pdb->f_dma = edesc->sec4_sg_dma +
+			     sec4_sg_index * sizeof(struct sec4_sg_entry);
+	} else {
+		pdb->f_dma = sg_dma_address(req->dst);
+	}
+
+	pdb->sgf |= (key->d_sz << RSA_PDB_D_SHIFT) | key->n_sz;
+	pdb->p_q_len = (q_sz << RSA_PDB_Q_SHIFT) | p_sz;
+
+	return 0;
+
+unmap_tmp1:
+	dma_unmap_single(dev, pdb->tmp1_dma, p_sz, DMA_TO_DEVICE);
+unmap_q:
+	dma_unmap_single(dev, pdb->q_dma, q_sz, DMA_TO_DEVICE);
+unmap_p:
+	dma_unmap_single(dev, pdb->p_dma, p_sz, DMA_TO_DEVICE);
+unmap_d:
+	dma_unmap_single(dev, pdb->d_dma, key->d_sz, DMA_TO_DEVICE);
+
+	return -ENOMEM;
+}
+
+static int set_rsa_priv_f3_pdb(struct akcipher_request *req,
+			       struct rsa_edesc *edesc)
+{
+	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
+	struct caam_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct caam_rsa_key *key = &ctx->key;
+	struct device *dev = ctx->dev;
+	struct rsa_priv_f3_pdb *pdb = &edesc->pdb.priv_f3;
+	int sec4_sg_index = 0;
+	size_t p_sz = key->p_sz;
+	size_t q_sz = key->p_sz;
+
+	pdb->p_dma = dma_map_single(dev, key->p, p_sz, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, pdb->p_dma)) {
+		dev_err(dev, "Unable to map RSA prime factor p memory\n");
+		return -ENOMEM;
+	}
+
+	pdb->q_dma = dma_map_single(dev, key->q, q_sz, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, pdb->q_dma)) {
+		dev_err(dev, "Unable to map RSA prime factor q memory\n");
+		goto unmap_p;
+	}
+
+	pdb->dp_dma = dma_map_single(dev, key->dp, p_sz, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, pdb->dp_dma)) {
+		dev_err(dev, "Unable to map RSA exponent dp memory\n");
+		goto unmap_q;
+	}
+
+	pdb->dq_dma = dma_map_single(dev, key->dq, q_sz, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, pdb->dq_dma)) {
+		dev_err(dev, "Unable to map RSA exponent dq memory\n");
+		goto unmap_dp;
+	}
+
+	pdb->c_dma = dma_map_single(dev, key->qinv, p_sz, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, pdb->c_dma)) {
+		dev_err(dev, "Unable to map RSA CRT coefficient qinv memory\n");
+		goto unmap_dq;
+	}
+
+	pdb->tmp1_dma = dma_map_single(dev, key->tmp1, p_sz, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, pdb->tmp1_dma)) {
+		dev_err(dev, "Unable to map RSA tmp1 memory\n");
+		goto unmap_qinv;
+	}
+
+	pdb->tmp2_dma = dma_map_single(dev, key->tmp2, q_sz, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, pdb->tmp2_dma)) {
+		dev_err(dev, "Unable to map RSA tmp2 memory\n");
+		goto unmap_tmp1;
+	}
+
+	if (edesc->src_nents > 1) {
+		pdb->sgf |= RSA_PRIV_PDB_SGF_G;
+		pdb->g_dma = edesc->sec4_sg_dma;
+		sec4_sg_index += edesc->src_nents;
+	} else {
+		pdb->g_dma = sg_dma_address(req->src);
+	}
+
+	if (edesc->dst_nents > 1) {
+		pdb->sgf |= RSA_PRIV_PDB_SGF_F;
+		pdb->f_dma = edesc->sec4_sg_dma +
+			     sec4_sg_index * sizeof(struct sec4_sg_entry);
+	} else {
+		pdb->f_dma = sg_dma_address(req->dst);
+	}
+
+	pdb->sgf |= key->n_sz;
+	pdb->p_q_len = (q_sz << RSA_PDB_Q_SHIFT) | p_sz;
+
+	return 0;
+
+unmap_tmp1:
+	dma_unmap_single(dev, pdb->tmp1_dma, p_sz, DMA_TO_DEVICE);
+unmap_qinv:
+	dma_unmap_single(dev, pdb->c_dma, p_sz, DMA_TO_DEVICE);
+unmap_dq:
+	dma_unmap_single(dev, pdb->dq_dma, q_sz, DMA_TO_DEVICE);
+unmap_dp:
+	dma_unmap_single(dev, pdb->dp_dma, p_sz, DMA_TO_DEVICE);
+unmap_q:
+	dma_unmap_single(dev, pdb->q_dma, q_sz, DMA_TO_DEVICE);
+unmap_p:
+	dma_unmap_single(dev, pdb->p_dma, p_sz, DMA_TO_DEVICE);
+
+	return -ENOMEM;
+}
+
 static int caam_rsa_enc(struct akcipher_request *req)
 {
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
@@ -301,23 +543,13 @@ init_fail:
 	return ret;
 }
 
-static int caam_rsa_dec(struct akcipher_request *req)
+static int caam_rsa_dec_priv_f1(struct akcipher_request *req)
 {
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
 	struct caam_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
-	struct caam_rsa_key *key = &ctx->key;
 	struct device *jrdev = ctx->dev;
 	struct rsa_edesc *edesc;
 	int ret;
-
-	if (unlikely(!key->n || !key->d))
-		return -EINVAL;
-
-	if (req->dst_len < key->n_sz) {
-		req->dst_len = key->n_sz;
-		dev_err(jrdev, "Output buffer length less than parameter n\n");
-		return -EOVERFLOW;
-	}
 
 	/* Allocate extended descriptor */
 	edesc = rsa_edesc_alloc(req, DESC_RSA_PRIV_F1_LEN);
@@ -344,17 +576,147 @@ init_fail:
 	return ret;
 }
 
+static int caam_rsa_dec_priv_f2(struct akcipher_request *req)
+{
+	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
+	struct caam_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct device *jrdev = ctx->dev;
+	struct rsa_edesc *edesc;
+	int ret;
+
+	/* Allocate extended descriptor */
+	edesc = rsa_edesc_alloc(req, DESC_RSA_PRIV_F2_LEN);
+	if (IS_ERR(edesc))
+		return PTR_ERR(edesc);
+
+	/* Set RSA Decrypt Protocol Data Block - Private Key Form #2 */
+	ret = set_rsa_priv_f2_pdb(req, edesc);
+	if (ret)
+		goto init_fail;
+
+	/* Initialize Job Descriptor */
+	init_rsa_priv_f2_desc(edesc->hw_desc, &edesc->pdb.priv_f2);
+
+	ret = caam_jr_enqueue(jrdev, edesc->hw_desc, rsa_priv_f2_done, req);
+	if (!ret)
+		return -EINPROGRESS;
+
+	rsa_priv_f2_unmap(jrdev, edesc, req);
+
+init_fail:
+	rsa_io_unmap(jrdev, edesc, req);
+	kfree(edesc);
+	return ret;
+}
+
+static int caam_rsa_dec_priv_f3(struct akcipher_request *req)
+{
+	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
+	struct caam_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct device *jrdev = ctx->dev;
+	struct rsa_edesc *edesc;
+	int ret;
+
+	/* Allocate extended descriptor */
+	edesc = rsa_edesc_alloc(req, DESC_RSA_PRIV_F3_LEN);
+	if (IS_ERR(edesc))
+		return PTR_ERR(edesc);
+
+	/* Set RSA Decrypt Protocol Data Block - Private Key Form #3 */
+	ret = set_rsa_priv_f3_pdb(req, edesc);
+	if (ret)
+		goto init_fail;
+
+	/* Initialize Job Descriptor */
+	init_rsa_priv_f3_desc(edesc->hw_desc, &edesc->pdb.priv_f3);
+
+	ret = caam_jr_enqueue(jrdev, edesc->hw_desc, rsa_priv_f3_done, req);
+	if (!ret)
+		return -EINPROGRESS;
+
+	rsa_priv_f3_unmap(jrdev, edesc, req);
+
+init_fail:
+	rsa_io_unmap(jrdev, edesc, req);
+	kfree(edesc);
+	return ret;
+}
+
+static int caam_rsa_dec(struct akcipher_request *req)
+{
+	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
+	struct caam_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct caam_rsa_key *key = &ctx->key;
+	int ret;
+
+	if (unlikely(!key->n || !key->d))
+		return -EINVAL;
+
+	if (req->dst_len < key->n_sz) {
+		req->dst_len = key->n_sz;
+		dev_err(ctx->dev, "Output buffer length less than parameter n\n");
+		return -EOVERFLOW;
+	}
+
+	if (key->priv_form == FORM3)
+		ret = caam_rsa_dec_priv_f3(req);
+	else if (key->priv_form == FORM2)
+		ret = caam_rsa_dec_priv_f2(req);
+	else
+		ret = caam_rsa_dec_priv_f1(req);
+
+	return ret;
+}
+
 static void caam_rsa_free_key(struct caam_rsa_key *key)
 {
 	kzfree(key->d);
+	kzfree(key->p);
+	kzfree(key->q);
+	kzfree(key->dp);
+	kzfree(key->dq);
+	kzfree(key->qinv);
+	kzfree(key->tmp1);
+	kzfree(key->tmp2);
 	kfree(key->e);
 	kfree(key->n);
-	key->d = NULL;
-	key->e = NULL;
-	key->n = NULL;
-	key->d_sz = 0;
-	key->e_sz = 0;
-	key->n_sz = 0;
+	memset(key, 0, sizeof(*key));
+}
+
+static void caam_rsa_drop_leading_zeros(const u8 **ptr, size_t *nbytes)
+{
+	while (!**ptr && *nbytes) {
+		(*ptr)++;
+		(*nbytes)--;
+	}
+}
+
+/**
+ * caam_read_rsa_crt - Used for reading dP, dQ, qInv CRT members.
+ * dP, dQ and qInv could decode to less than corresponding p, q length, as the
+ * BER-encoding requires that the minimum number of bytes be used to encode the
+ * integer. dP, dQ, qInv decoded values have to be zero-padded to appropriate
+ * length.
+ *
+ * @ptr   : pointer to {dP, dQ, qInv} CRT member
+ * @nbytes: length in bytes of {dP, dQ, qInv} CRT member
+ * @dstlen: length in bytes of corresponding p or q prime factor
+ */
+static u8 *caam_read_rsa_crt(const u8 *ptr, size_t nbytes, size_t dstlen)
+{
+	u8 *dst;
+
+	caam_rsa_drop_leading_zeros(&ptr, &nbytes);
+	if (!nbytes)
+		return NULL;
+
+	dst = kzalloc(dstlen, GFP_DMA | GFP_KERNEL);
+	if (!dst)
+		return NULL;
+
+	memcpy(dst + (dstlen - nbytes), ptr, nbytes);
+
+	return dst;
 }
 
 /**
@@ -370,10 +732,9 @@ static inline u8 *caam_read_raw_data(const u8 *buf, size_t *nbytes)
 {
 	u8 *val;
 
-	while (!*buf && *nbytes) {
-		buf++;
-		(*nbytes)--;
-	}
+	caam_rsa_drop_leading_zeros(&buf, nbytes);
+	if (!*nbytes)
+		return NULL;
 
 	val = kzalloc(*nbytes, GFP_DMA | GFP_KERNEL);
 	if (!val)
@@ -437,6 +798,64 @@ err:
 	return -ENOMEM;
 }
 
+static void caam_rsa_set_priv_key_form(struct caam_rsa_ctx *ctx,
+				       struct rsa_key *raw_key)
+{
+	struct caam_rsa_key *rsa_key = &ctx->key;
+	size_t p_sz = raw_key->p_sz;
+	size_t q_sz = raw_key->q_sz;
+
+	rsa_key->p = caam_read_raw_data(raw_key->p, &p_sz);
+	if (!rsa_key->p)
+		return;
+	rsa_key->p_sz = p_sz;
+
+	rsa_key->q = caam_read_raw_data(raw_key->q, &q_sz);
+	if (!rsa_key->q)
+		goto free_p;
+	rsa_key->q_sz = q_sz;
+
+	rsa_key->tmp1 = kzalloc(raw_key->p_sz, GFP_DMA | GFP_KERNEL);
+	if (!rsa_key->tmp1)
+		goto free_q;
+
+	rsa_key->tmp2 = kzalloc(raw_key->q_sz, GFP_DMA | GFP_KERNEL);
+	if (!rsa_key->tmp2)
+		goto free_tmp1;
+
+	rsa_key->priv_form = FORM2;
+
+	rsa_key->dp = caam_read_rsa_crt(raw_key->dp, raw_key->dp_sz, p_sz);
+	if (!rsa_key->dp)
+		goto free_tmp2;
+
+	rsa_key->dq = caam_read_rsa_crt(raw_key->dq, raw_key->dq_sz, q_sz);
+	if (!rsa_key->dq)
+		goto free_dp;
+
+	rsa_key->qinv = caam_read_rsa_crt(raw_key->qinv, raw_key->qinv_sz,
+					  q_sz);
+	if (!rsa_key->qinv)
+		goto free_dq;
+
+	rsa_key->priv_form = FORM3;
+
+	return;
+
+free_dq:
+	kzfree(rsa_key->dq);
+free_dp:
+	kzfree(rsa_key->dp);
+free_tmp2:
+	kzfree(rsa_key->tmp2);
+free_tmp1:
+	kzfree(rsa_key->tmp1);
+free_q:
+	kzfree(rsa_key->q);
+free_p:
+	kzfree(rsa_key->p);
+}
+
 static int caam_rsa_set_priv_key(struct crypto_akcipher *tfm, const void *key,
 				 unsigned int keylen)
 {
@@ -483,6 +902,8 @@ static int caam_rsa_set_priv_key(struct crypto_akcipher *tfm, const void *key,
 	memcpy(rsa_key->d, raw_key.d, raw_key.d_sz);
 	memcpy(rsa_key->e, raw_key.e, raw_key.e_sz);
 
+	caam_rsa_set_priv_key_form(ctx, &raw_key);
+
 	return 0;
 
 err:
@@ -490,12 +911,11 @@ err:
 	return -ENOMEM;
 }
 
-static int caam_rsa_max_size(struct crypto_akcipher *tfm)
+static unsigned int caam_rsa_max_size(struct crypto_akcipher *tfm)
 {
 	struct caam_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
-	struct caam_rsa_key *key = &ctx->key;
 
-	return (key->n) ? key->n_sz : -EINVAL;
+	return ctx->key.n_sz;
 }
 
 /* Per session pkc's driver context creation function */

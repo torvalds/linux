@@ -48,8 +48,21 @@
 #ifndef OPA_ADDR_H
 #define OPA_ADDR_H
 
+#include <rdma/opa_smi.h>
+
 #define	OPA_SPECIAL_OUI		(0x00066AULL)
 #define OPA_MAKE_ID(x)          (cpu_to_be64(OPA_SPECIAL_OUI << 40 | (x)))
+#define OPA_TO_IB_UCAST_LID(x) (((x) >= be16_to_cpu(IB_MULTICAST_LID_BASE)) \
+				? 0 : x)
+#define OPA_GID_INDEX		0x1
+/**
+ * 0xF8 - 4 bits of multicast range and 1 bit for collective range
+ * Example: For 24 bit LID space,
+ * Multicast range: 0xF00000 to 0xF7FFFF
+ * Collective range: 0xF80000 to 0xFFFFFE
+ */
+#define OPA_MCAST_NR 0x4 /* Number of top bits set */
+#define OPA_COLLECTIVE_NR 0x1 /* Number of bits after MCAST_NR */
 
 /**
  * ib_is_opa_gid: Returns true if the top 24 bits of the gid
@@ -59,7 +72,7 @@
  *
  * @gid: The Global identifier
  */
-static inline bool ib_is_opa_gid(union ib_gid *gid)
+static inline bool ib_is_opa_gid(const union ib_gid *gid)
 {
 	return ((be64_to_cpu(gid->global.interface_id) >> 40) ==
 		OPA_SPECIAL_OUI);
@@ -72,8 +85,33 @@ static inline bool ib_is_opa_gid(union ib_gid *gid)
  *
  * @gid: The Global identifier
  */
-static inline u32 opa_get_lid_from_gid(union ib_gid *gid)
+static inline u32 opa_get_lid_from_gid(const union ib_gid *gid)
 {
 	return be64_to_cpu(gid->global.interface_id) & 0xFFFFFFFF;
 }
+
+/**
+ * opa_is_extended_lid: Returns true if dlid or slid are
+ * extended.
+ *
+ * @dlid: The DLID
+ * @slid: The SLID
+ */
+static inline bool opa_is_extended_lid(__be32 dlid, __be32 slid)
+{
+	if ((be32_to_cpu(dlid) >=
+	     be16_to_cpu(IB_MULTICAST_LID_BASE)) ||
+	    (be32_to_cpu(slid) >=
+	     be16_to_cpu(IB_MULTICAST_LID_BASE)))
+		return true;
+
+	return false;
+}
+
+/* Get multicast lid base */
+static inline u32 opa_get_mcast_base(u32 nr_top_bits)
+{
+	return (be32_to_cpu(OPA_LID_PERMISSIVE) << (32 - nr_top_bits));
+}
+
 #endif /* OPA_ADDR_H */

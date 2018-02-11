@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_DEVICE_TEGRA_H__
 #define __NVKM_DEVICE_TEGRA_H__
 #include <core/device.h>

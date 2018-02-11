@@ -105,51 +105,60 @@
 
 #if DBG
 #define ODM_RT_TRACE(pDM_Odm, comp, level, fmt)\
-	if (\
-		(comp & pDM_Odm->DebugComponents) &&\
-		(level <= pDM_Odm->DebugLevel || level == ODM_DBG_SERIOUS)\
-	) {\
-		RT_PRINTK fmt;\
-	}
+	do {\
+		if (\
+			(comp & pDM_Odm->DebugComponents) &&\
+			(level <= pDM_Odm->DebugLevel ||\
+			 level == ODM_DBG_SERIOUS)\
+		) {\
+			RT_PRINTK fmt;\
+		} \
+	} while (0)
 
 #define ODM_RT_TRACE_F(pDM_Odm, comp, level, fmt)\
-	if (\
-		(comp & pDM_Odm->DebugComponents) &&\
-		(level <= pDM_Odm->DebugLevel)\
-	) {\
-		RT_PRINTK fmt;\
-	}
+	do {\
+		if (\
+			(comp & pDM_Odm->DebugComponents) &&\
+			(level <= pDM_Odm->DebugLevel)\
+		) {\
+			RT_PRINTK fmt;\
+		} \
+	} while (0)
 
 #define ODM_RT_ASSERT(pDM_Odm, expr, fmt)\
-	if (!expr) {\
-		DbgPrint("Assertion failed! %s at ......\n", #expr);\
-		DbgPrint(\
-			"      ......%s,%s, line =%d\n",\
-			__FILE__,\
-			__func__,\
-			__LINE__\
-		);\
-		RT_PRINTK fmt;\
-		ASSERT(false);\
-	}
+	do {\
+		if (!expr) {\
+			DbgPrint("Assertion failed! %s at ......\n", #expr);\
+			DbgPrint(\
+				"      ......%s,%s, line =%d\n",\
+				__FILE__,\
+				__func__,\
+				__LINE__\
+			);\
+			RT_PRINTK fmt;\
+			ASSERT(false);\
+		} \
+	} while (0)
 #define ODM_dbg_enter() { DbgPrint("==> %s\n", __func__); }
 #define ODM_dbg_exit() { DbgPrint("<== %s\n", __func__); }
 #define ODM_dbg_trace(str) { DbgPrint("%s:%s\n", __func__, str); }
 
 #define ODM_PRINT_ADDR(pDM_Odm, comp, level, title_str, ptr)\
-	if (\
-		(comp & pDM_Odm->DebugComponents) &&\
-		(level <= pDM_Odm->DebugLevel)\
-	) {\
-		int __i;\
-		u8 *__ptr = (u8 *)ptr;\
-		DbgPrint("[ODM] ");\
-		DbgPrint(title_str);\
-		DbgPrint(" ");\
-		for (__i = 0; __i < 6; __i++)\
-			DbgPrint("%02X%s", __ptr[__i], (__i == 5) ? "" : "-");\
-		DbgPrint("\n");\
-	}
+	do {\
+		if (\
+			(comp & pDM_Odm->DebugComponents) &&\
+			(level <= pDM_Odm->DebugLevel)\
+		) {\
+			int __i;\
+			u8 *__ptr = (u8 *)ptr;\
+			DbgPrint("[ODM] ");\
+			DbgPrint(title_str);\
+			DbgPrint(" ");\
+			for (__i = 0; __i < 6; __i++)\
+				DbgPrint("%02X%s", __ptr[__i], (__i == 5) ? "" : "-");\
+			DbgPrint("\n");\
+		} \
+	} while (0)
 #else
 #define ODM_RT_TRACE(pDM_Odm, comp, level, fmt)		no_printk fmt
 #define ODM_RT_TRACE_F(pDM_Odm, comp, level, fmt)	no_printk fmt

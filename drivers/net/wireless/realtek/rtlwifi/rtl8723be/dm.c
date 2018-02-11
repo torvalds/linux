@@ -883,12 +883,8 @@ static void rtl8723be_dm_txpower_tracking_callback_thermalmeter(
 	if ((rtldm->power_index_offset[RF90_PATH_A] != 0) &&
 	    (rtldm->txpower_track_control)) {
 		rtldm->done_txpower = true;
-		if (thermalvalue > rtlefuse->eeprom_thermalmeter)
-			rtl8723be_dm_tx_power_track_set_power(hw, BBSWING, 0,
-							     index_for_channel);
-		else
-			rtl8723be_dm_tx_power_track_set_power(hw, BBSWING, 0,
-							     index_for_channel);
+		rtl8723be_dm_tx_power_track_set_power(hw, BBSWING, 0,
+						      index_for_channel);
 
 		rtldm->swing_idx_cck_base = rtldm->swing_idx_cck;
 		rtldm->swing_idx_ofdm_base[RF90_PATH_A] =
@@ -988,7 +984,8 @@ static void rtl8723be_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
 			sta = rtl_find_sta(hw, mac->bssid);
 			if (sta)
 				rtlpriv->cfg->ops->update_rate_tbl(hw, sta,
-							   p_ra->ratr_state);
+							   p_ra->ratr_state,
+							   true);
 			rcu_read_unlock();
 
 			p_ra->pre_ratr_state = p_ra->ratr_state;

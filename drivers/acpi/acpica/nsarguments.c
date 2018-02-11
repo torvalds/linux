@@ -69,9 +69,14 @@ void acpi_ns_check_argument_types(struct acpi_evaluate_info *info)
 	u8 user_arg_type;
 	u32 i;
 
-	/* If not a predefined name, cannot typecheck args */
-
-	if (!info->predefined) {
+	/*
+	 * If not a predefined name, cannot typecheck args, because
+	 * we have no idea what argument types are expected.
+	 * Also, ignore typecheck if warnings/errors if this method
+	 * has already been evaluated at least once -- in order
+	 * to suppress repetitive messages.
+	 */
+	if (!info->predefined || (info->node->flags & ANOBJ_EVALUATED)) {
 		return;
 	}
 
@@ -93,6 +98,10 @@ void acpi_ns_check_argument_types(struct acpi_evaluate_info *info)
 					      acpi_ut_get_type_name
 					      (user_arg_type),
 					      acpi_ut_get_type_name(arg_type)));
+
+			/* Prevent any additional typechecking for this method */
+
+			info->node->flags |= ANOBJ_EVALUATED;
 		}
 	}
 }
@@ -121,7 +130,7 @@ acpi_ns_check_acpi_compliance(char *pathname,
 	u32 aml_param_count;
 	u32 required_param_count;
 
-	if (!predefined) {
+	if (!predefined || (node->flags & ANOBJ_EVALUATED)) {
 		return;
 	}
 
@@ -214,6 +223,10 @@ acpi_ns_check_argument_count(char *pathname,
 {
 	u32 aml_param_count;
 	u32 required_param_count;
+
+	if (node->flags & ANOBJ_EVALUATED) {
+		return;
+	}
 
 	if (!predefined) {
 		/*

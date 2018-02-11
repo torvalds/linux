@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Copyright (C) 2012 Russell King
  *  With inspiration from the i915 driver
@@ -23,27 +24,27 @@ extern "C" {
 	DRM_##dir(DRM_COMMAND_BASE + DRM_ARMADA_##name, struct drm_armada_##str)
 
 struct drm_armada_gem_create {
-	uint32_t handle;
-	uint32_t size;
+	__u32 handle;
+	__u32 size;
 };
 #define DRM_IOCTL_ARMADA_GEM_CREATE \
 	ARMADA_IOCTL(IOWR, GEM_CREATE, gem_create)
 
 struct drm_armada_gem_mmap {
-	uint32_t handle;
-	uint32_t pad;
-	uint64_t offset;
-	uint64_t size;
-	uint64_t addr;
+	__u32 handle;
+	__u32 pad;
+	__u64 offset;
+	__u64 size;
+	__u64 addr;
 };
 #define DRM_IOCTL_ARMADA_GEM_MMAP \
 	ARMADA_IOCTL(IOWR, GEM_MMAP, gem_mmap)
 
 struct drm_armada_gem_pwrite {
-	uint64_t ptr;
-	uint32_t handle;
-	uint32_t offset;
-	uint32_t size;
+	__u64 ptr;
+	__u32 handle;
+	__u32 offset;
+	__u32 size;
 };
 #define DRM_IOCTL_ARMADA_GEM_PWRITE \
 	ARMADA_IOCTL(IOW, GEM_PWRITE, gem_pwrite)

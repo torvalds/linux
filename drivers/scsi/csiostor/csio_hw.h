@@ -71,6 +71,7 @@
 #define CSIO_MAX_CMD_PER_LUN	32
 #define CSIO_MAX_DDP_BUF_SIZE	(1024 * 1024)
 #define CSIO_MAX_SECTOR_SIZE	128
+#define CSIO_MIN_T6_FW		0x01102D00  /* FW 1.16.45.0 */
 
 /* Interrupts */
 #define CSIO_EXTRA_MSI_IQS	2	/* Extra iqs for INTX/MSI mode
@@ -367,6 +368,9 @@ struct csio_hw_stats {
 #define	CSIO_HWF_HOST_INTR_ENABLED	0x00000200	/* Are host interrupts
 							 * enabled?
 							 */
+#define CSIO_HWF_ROOT_NO_RELAXED_ORDERING 0x00000400	/* Is PCIe relaxed
+							 * ordering enabled
+							 */
 
 #define csio_is_hw_intr_enabled(__hw)	\
 				((__hw)->flags & CSIO_HWF_HW_INTR_ENABLED)
@@ -464,7 +468,7 @@ struct csio_hw {
 	struct csio_pport	pport[CSIO_MAX_PPORTS];	/* Ports (XGMACs) */
 	struct csio_hw_params	params;			/* Hw parameters */
 
-	struct pci_pool		*scsi_pci_pool;		/* PCI pool for SCSI */
+	struct dma_pool		*scsi_dma_pool;		/* DMA pool for SCSI */
 	mempool_t		*mb_mempool;		/* Mailbox memory pool*/
 	mempool_t		*rnode_mempool;		/* rnode memory pool */
 

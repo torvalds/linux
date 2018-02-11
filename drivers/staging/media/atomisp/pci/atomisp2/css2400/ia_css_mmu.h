@@ -15,11 +15,11 @@
 #ifndef __IA_CSS_MMU_H
 #define __IA_CSS_MMU_H
 
-/** @file
+/* @file
  * This file contains one support function for invalidating the CSS MMU cache
  */
 
-/** @brief Invalidate the MMU internal cache.
+/* @brief Invalidate the MMU internal cache.
  * @return	None
  *
  * This function triggers an invalidation of the translate-look-aside

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "Kernel hacking"
 
 config TRACE_IRQFLAGS_SUPPORT
@@ -123,30 +124,36 @@ config SCACHE_DEBUGFS
 
 	  If unsure, say N.
 
-menuconfig MIPS_CPS_NS16550
+menuconfig MIPS_CPS_NS16550_BOOL
 	bool "CPS SMP NS16550 UART output"
 	depends on MIPS_CPS
 	help
 	  Output debug information via an ns16550 compatible UART if exceptions
 	  occur early in the boot process of a secondary core.
 
-if MIPS_CPS_NS16550
+if MIPS_CPS_NS16550_BOOL
+
+config MIPS_CPS_NS16550
+	def_bool MIPS_CPS_NS16550_BASE != 0
 
 config MIPS_CPS_NS16550_BASE
 	hex "UART Base Address"
 	default 0x1b0003f8 if MIPS_MALTA
+	default 0
 	help
 	  The base address of the ns16550 compatible UART on which to output
 	  debug information from the early stages of core startup.
 
+	  This is only used if non-zero.
+
 config MIPS_CPS_NS16550_SHIFT
 	int "UART Register Shift"
-	default 0 if MIPS_MALTA
+	default 0
 	help
 	  The number of bits to shift ns16550 register indices by in order to
 	  form their addresses. That is, log base 2 of the span between
 	  adjacent ns16550 registers in the system.
 
-endif # MIPS_CPS_NS16550
+endif # MIPS_CPS_NS16550_BOOL
 
 endmenu

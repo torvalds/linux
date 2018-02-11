@@ -70,6 +70,13 @@ struct kernfs_super_info {
 };
 #define kernfs_info(SB) ((struct kernfs_super_info *)(SB->s_fs_info))
 
+static inline struct kernfs_node *kernfs_dentry_node(struct dentry *dentry)
+{
+	if (d_really_is_negative(dentry))
+		return NULL;
+	return d_inode(dentry)->i_private;
+}
+
 extern const struct super_operations kernfs_sops;
 extern struct kmem_cache *kernfs_node_cache;
 
@@ -98,6 +105,8 @@ int kernfs_add_one(struct kernfs_node *kn);
 struct kernfs_node *kernfs_new_node(struct kernfs_node *parent,
 				    const char *name, umode_t mode,
 				    unsigned flags);
+struct kernfs_node *kernfs_find_and_get_node_by_ino(struct kernfs_root *root,
+						    unsigned int ino);
 
 /*
  * file.c

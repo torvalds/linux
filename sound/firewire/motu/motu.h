@@ -82,7 +82,10 @@ enum snd_motu_spec_flags {
 	SND_MOTU_SPEC_TX_AESEBU_CHUNK	= 0x0020,
 	SND_MOTU_SPEC_HAS_OPT_IFACE_A	= 0x0040,
 	SND_MOTU_SPEC_HAS_OPT_IFACE_B	= 0x0080,
-	SND_MOTU_SPEC_HAS_MIDI		= 0x0100,
+	SND_MOTU_SPEC_RX_MIDI_2ND_Q	= 0x0100,
+	SND_MOTU_SPEC_RX_MIDI_3RD_Q	= 0x0200,
+	SND_MOTU_SPEC_TX_MIDI_2ND_Q	= 0x0400,
+	SND_MOTU_SPEC_TX_MIDI_3RD_Q	= 0x0800,
 };
 
 #define SND_MOTU_CLOCK_RATE_COUNT	6
@@ -146,6 +149,7 @@ void snd_motu_transaction_unregister(struct snd_motu *motu);
 
 int snd_motu_stream_init_duplex(struct snd_motu *motu);
 void snd_motu_stream_destroy_duplex(struct snd_motu *motu);
+int snd_motu_stream_cache_packet_formats(struct snd_motu *motu);
 int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate);
 void snd_motu_stream_stop_duplex(struct snd_motu *motu);
 int snd_motu_stream_lock_try(struct snd_motu *motu);

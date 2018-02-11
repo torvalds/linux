@@ -497,12 +497,14 @@ static const struct it87_devices it87_devices[] = {
 #define has_vin3_5v(data)	((data)->features & FEAT_VIN3_5V)
 
 struct it87_sio_data {
+	int sioaddr;
 	enum chips type;
 	/* Values read from Super-I/O config space */
 	u8 revision;
 	u8 vid_value;
 	u8 beep_pin;
 	u8 internal;	/* Internal sensors can be labeled */
+	bool need_in7_reroute;
 	/* Features skipped based on config or DMI */
 	u16 skip_in;
 	u8 skip_vid;
@@ -517,6 +519,7 @@ struct it87_sio_data {
  */
 struct it87_data {
 	const struct attribute_group *groups[7];
+	int sioaddr;
 	enum chips type;
 	u32 features;
 	u8 peci_mask;
@@ -532,6 +535,7 @@ struct it87_data {
 	u16 in_internal;	/* Bitfield, internal sensors (for labels) */
 	u16 has_in;		/* Bitfield, voltage sensors enabled */
 	u8 in[NUM_VIN][3];		/* [nr][0]=in, [1]=min, [2]=max */
+	bool need_in7_reroute;
 	u8 has_fan;		/* Bitfield, fans enabled */
 	u16 fan[NUM_FAN][2];	/* Register values, [nr][0]=fan, [1]=min */
 	u8 has_temp;		/* Bitfield, temp sensors enabled */
@@ -2487,6 +2491,7 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 	}
 
 	err = 0;
+	sio_data->sioaddr = sioaddr;
 	sio_data->revision = superio_inb(sioaddr, DEVREV) & 0x0f;
 	pr_info("Found IT%04x%s chip at 0x%x, revision %d\n", chip_type,
 		it87_devices[sio_data->type].suffix,
@@ -2575,6 +2580,7 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 				reg2c |= BIT(1);
 				superio_outb(sioaddr, IT87_SIO_PINX2_REG,
 					     reg2c);
+				sio_data->need_in7_reroute = true;
 				pr_notice("Routing internal VCCH5V to in7.\n");
 			}
 			pr_notice("in7 routed to internal voltage divider, with external pin disabled.\n");
@@ -2761,13 +2767,13 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 		uart6 = sio_data->type == it8782 && (reg & BIT(2));
 
 		/*
-		 * The IT8720F has no VIN7 pin, so VCCH should always be
+		 * The IT8720F has no VIN7 pin, so VCCH5V should always be
 		 * routed internally to VIN7 with an internal divider.
 		 * Curiously, there still is a configuration bit to control
 		 * this, which means it can be set incorrectly. And even
 		 * more curiously, many boards out there are improperly
 		 * configured, even though the IT8720F datasheet claims
-		 * that the internal routing of VCCH to VIN7 is the default
+		 * that the internal routing of VCCH5V to VIN7 is the default
 		 * setting. So we force the internal routing in this case.
 		 *
 		 * On IT8782F, VIN7 is multiplexed with one of the UART6 pins.
@@ -2777,7 +2783,8 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 		if ((sio_data->type == it8720 || uart6) && !(reg & BIT(1))) {
 			reg |= BIT(1);
 			superio_outb(sioaddr, IT87_SIO_PINX2_REG, reg);
-			pr_notice("Routing internal VCCH to in7\n");
+			sio_data->need_in7_reroute = true;
+			pr_notice("Routing internal VCCH5V to in7\n");
 		}
 		if (reg & BIT(0))
 			sio_data->internal |= BIT(0);
@@ -2828,13 +2835,89 @@ exit:
 	return err;
 }
 
+/*
+ * Some chips seem to have default value 0xff for all limit
+ * registers. For low voltage limits it makes no sense and triggers
+ * alarms, so change to 0 instead. For high temperature limits, it
+ * means -1 degree C, which surprisingly doesn't trigger an alarm,
+ * but is still confusing, so change to 127 degrees C.
+ */
+static void it87_check_limit_regs(struct it87_data *data)
+{
+	int i, reg;
+
+	for (i = 0; i < NUM_VIN_LIMIT; i++) {
+		reg = it87_read_value(data, IT87_REG_VIN_MIN(i));
+		if (reg == 0xff)
+			it87_write_value(data, IT87_REG_VIN_MIN(i), 0);
+	}
+	for (i = 0; i < NUM_TEMP_LIMIT; i++) {
+		reg = it87_read_value(data, IT87_REG_TEMP_HIGH(i));
+		if (reg == 0xff)
+			it87_write_value(data, IT87_REG_TEMP_HIGH(i), 127);
+	}
+}
+
+/* Check if voltage monitors are reset manually or by some reason */
+static void it87_check_voltage_monitors_reset(struct it87_data *data)
+{
+	int reg;
+
+	reg = it87_read_value(data, IT87_REG_VIN_ENABLE);
+	if ((reg & 0xff) == 0) {
+		/* Enable all voltage monitors */
+		it87_write_value(data, IT87_REG_VIN_ENABLE, 0xff);
+	}
+}
+
+/* Check if tachometers are reset manually or by some reason */
+static void it87_check_tachometers_reset(struct platform_device *pdev)
+{
+	struct it87_sio_data *sio_data = dev_get_platdata(&pdev->dev);
+	struct it87_data *data = platform_get_drvdata(pdev);
+	u8 mask, fan_main_ctrl;
+
+	mask = 0x70 & ~(sio_data->skip_fan << 4);
+	fan_main_ctrl = it87_read_value(data, IT87_REG_FAN_MAIN_CTRL);
+	if ((fan_main_ctrl & mask) == 0) {
+		/* Enable all fan tachometers */
+		fan_main_ctrl |= mask;
+		it87_write_value(data, IT87_REG_FAN_MAIN_CTRL,
+				 fan_main_ctrl);
+	}
+}
+
+/* Set tachometers to 16-bit mode if needed */
+static void it87_check_tachometers_16bit_mode(struct platform_device *pdev)
+{
+	struct it87_data *data = platform_get_drvdata(pdev);
+	int reg;
+
+	if (!has_fan16_config(data))
+		return;
+
+	reg = it87_read_value(data, IT87_REG_FAN_16BIT);
+	if (~reg & 0x07 & data->has_fan) {
+		dev_dbg(&pdev->dev,
+			"Setting fan1-3 to 16-bit mode\n");
+		it87_write_value(data, IT87_REG_FAN_16BIT,
+				 reg | 0x07);
+	}
+}
+
+static void it87_start_monitoring(struct it87_data *data)
+{
+	it87_write_value(data, IT87_REG_CONFIG,
+			 (it87_read_value(data, IT87_REG_CONFIG) & 0x3e)
+			 | (update_vbat ? 0x41 : 0x01));
+}
+
 /* Called when we have found a new IT87. */
 static void it87_init_device(struct platform_device *pdev)
 {
 	struct it87_sio_data *sio_data = dev_get_platdata(&pdev->dev);
 	struct it87_data *data = platform_get_drvdata(pdev);
 	int tmp, i;
-	u8 mask;
 
 	/*
 	 * For each PWM channel:
@@ -2855,23 +2938,7 @@ static void it87_init_device(struct platform_device *pdev)
 		data->auto_pwm[i][3] = 0x7f;	/* Full speed, hard-coded */
 	}
 
-	/*
-	 * Some chips seem to have default value 0xff for all limit
-	 * registers. For low voltage limits it makes no sense and triggers
-	 * alarms, so change to 0 instead. For high temperature limits, it
-	 * means -1 degree C, which surprisingly doesn't trigger an alarm,
-	 * but is still confusing, so change to 127 degrees C.
-	 */
-	for (i = 0; i < NUM_VIN_LIMIT; i++) {
-		tmp = it87_read_value(data, IT87_REG_VIN_MIN(i));
-		if (tmp == 0xff)
-			it87_write_value(data, IT87_REG_VIN_MIN(i), 0);
-	}
-	for (i = 0; i < NUM_TEMP_LIMIT; i++) {
-		tmp = it87_read_value(data, IT87_REG_TEMP_HIGH(i));
-		if (tmp == 0xff)
-			it87_write_value(data, IT87_REG_TEMP_HIGH(i), 127);
-	}
+	it87_check_limit_regs(data);
 
 	/*
 	 * Temperature channels are not forcibly enabled, as they can be
@@ -2880,38 +2947,19 @@ static void it87_init_device(struct platform_device *pdev)
 	 * run-time through the temp{1-3}_type sysfs accessors if needed.
 	 */
 
-	/* Check if voltage monitors are reset manually or by some reason */
-	tmp = it87_read_value(data, IT87_REG_VIN_ENABLE);
-	if ((tmp & 0xff) == 0) {
-		/* Enable all voltage monitors */
-		it87_write_value(data, IT87_REG_VIN_ENABLE, 0xff);
-	}
+	it87_check_voltage_monitors_reset(data);
 
-	/* Check if tachometers are reset manually or by some reason */
-	mask = 0x70 & ~(sio_data->skip_fan << 4);
+	it87_check_tachometers_reset(pdev);
+
 	data->fan_main_ctrl = it87_read_value(data, IT87_REG_FAN_MAIN_CTRL);
-	if ((data->fan_main_ctrl & mask) == 0) {
-		/* Enable all fan tachometers */
-		data->fan_main_ctrl |= mask;
-		it87_write_value(data, IT87_REG_FAN_MAIN_CTRL,
-				 data->fan_main_ctrl);
-	}
 	data->has_fan = (data->fan_main_ctrl >> 4) & 0x07;
 
-	tmp = it87_read_value(data, IT87_REG_FAN_16BIT);
-
-	/* Set tachometers to 16-bit mode if needed */
-	if (has_fan16_config(data)) {
-		if (~tmp & 0x07 & data->has_fan) {
-			dev_dbg(&pdev->dev,
-				"Setting fan1-3 to 16-bit mode\n");
-			it87_write_value(data, IT87_REG_FAN_16BIT,
-					 tmp | 0x07);
-		}
-	}
+	it87_check_tachometers_16bit_mode(pdev);
 
 	/* Check for additional fans */
 	if (has_five_fans(data)) {
+		tmp = it87_read_value(data, IT87_REG_FAN_16BIT);
+
 		if (tmp & BIT(4))
 			data->has_fan |= BIT(3); /* fan4 enabled */
 		if (tmp & BIT(5))
@@ -2933,10 +2981,7 @@ static void it87_init_device(struct platform_device *pdev)
 			sio_data->skip_pwm |= BIT(5);
 	}
 
-	/* Start monitoring */
-	it87_write_value(data, IT87_REG_CONFIG,
-			 (it87_read_value(data, IT87_REG_CONFIG) & 0x3e)
-			 | (update_vbat ? 0x41 : 0x01));
+	it87_start_monitoring(data);
 }
 
 /* Return 1 if and only if the PWM interface is safe to use */
@@ -2986,8 +3031,6 @@ static int it87_check_pwm(struct device *dev)
 				 "PWM configuration is too broken to be fixed\n");
 		}
 
-		dev_info(dev,
-			 "Detected broken BIOS defaults, disabling PWM interface\n");
 		return 0;
 	} else if (fix_pwm_polarity) {
 		dev_info(dev,
@@ -3020,6 +3063,7 @@ static int it87_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	data->addr = res->start;
+	data->sioaddr = sio_data->sioaddr;
 	data->type = sio_data->type;
 	data->features = it87_devices[sio_data->type].features;
 	data->peci_mask = it87_devices[sio_data->type].peci_mask;
@@ -3058,6 +3102,9 @@ static int it87_probe(struct platform_device *pdev)
 
 	/* Check PWM configuration */
 	enable_pwm_interface = it87_check_pwm(dev);
+	if (!enable_pwm_interface)
+		dev_info(dev,
+			 "Detected broken BIOS defaults, disabling PWM interface\n");
 
 	/* Starting with IT8721F, we handle scaling of internal voltages */
 	if (has_12mv_adc(data)) {
@@ -3085,6 +3132,7 @@ static int it87_probe(struct platform_device *pdev)
 	}
 
 	data->in_internal = sio_data->internal;
+	data->need_in7_reroute = sio_data->need_in7_reroute;
 	data->has_in = 0x3ff & ~sio_data->skip_in;
 
 	if (has_six_temp(data)) {
@@ -3140,9 +3188,71 @@ static int it87_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
+static void __maybe_unused it87_resume_sio(struct platform_device *pdev)
+{
+	struct it87_data *data = dev_get_drvdata(&pdev->dev);
+	int err;
+	int reg2c;
+
+	if (!data->need_in7_reroute)
+		return;
+
+	err = superio_enter(data->sioaddr);
+	if (err) {
+		dev_warn(&pdev->dev,
+			 "Unable to enter Super I/O to reroute in7 (%d)",
+			 err);
+		return;
+	}
+
+	superio_select(data->sioaddr, GPIO);
+
+	reg2c = superio_inb(data->sioaddr, IT87_SIO_PINX2_REG);
+	if (!(reg2c & BIT(1))) {
+		dev_dbg(&pdev->dev,
+			"Routing internal VCCH5V to in7 again");
+
+		reg2c |= BIT(1);
+		superio_outb(data->sioaddr, IT87_SIO_PINX2_REG,
+			     reg2c);
+	}
+
+	superio_exit(data->sioaddr);
+}
+
+static int __maybe_unused it87_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct it87_data *data = dev_get_drvdata(dev);
+
+	it87_resume_sio(pdev);
+
+	mutex_lock(&data->update_lock);
+
+	it87_check_pwm(dev);
+	it87_check_limit_regs(data);
+	it87_check_voltage_monitors_reset(data);
+	it87_check_tachometers_reset(pdev);
+	it87_check_tachometers_16bit_mode(pdev);
+
+	it87_start_monitoring(data);
+
+	/* force update */
+	data->valid = 0;
+
+	mutex_unlock(&data->update_lock);
+
+	it87_update_device(dev);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(it87_dev_pm_ops, NULL, it87_resume);
+
 static struct platform_driver it87_driver = {
 	.driver = {
 		.name	= DRVNAME,
+		.pm     = &it87_dev_pm_ops,
 	},
 	.probe	= it87_probe,
 };

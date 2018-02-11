@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* written by Philipp Rumpf, Copyright (C) 1999 SuSE GmbH Nuernberg
 ** Copyright (C) 2000 Grant Grundler, Hewlett-Packard
 */

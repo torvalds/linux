@@ -114,7 +114,7 @@ static struct cpufreq_driver loongson2_cpufreq_driver = {
 	.attr = cpufreq_generic_attr,
 };
 
-static struct platform_device_id platform_device_ids[] = {
+static const struct platform_device_id platform_device_ids[] = {
 	{
 		.name = "loongson2_cpufreq",
 	},

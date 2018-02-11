@@ -20,17 +20,21 @@
 #define __HOST1X_CHANNEL_H
 
 #include <linux/io.h>
+#include <linux/kref.h>
 
 #include "cdma.h"
 
 struct host1x;
+struct host1x_channel;
+
+struct host1x_channel_list {
+	struct host1x_channel *channels;
+	unsigned long *allocated_channels;
+};
 
 struct host1x_channel {
-	struct list_head list;
-
-	unsigned int refcount;
+	struct kref refcount;
 	unsigned int id;
-	struct mutex reflock;
 	struct mutex submitlock;
 	void __iomem *regs;
 	struct device *dev;
@@ -38,9 +42,10 @@ struct host1x_channel {
 };
 
 /* channel list operations */
-int host1x_channel_list_init(struct host1x *host);
-
-#define host1x_for_each_channel(host, channel)				\
-	list_for_each_entry(channel, &host->chlist.list, list)
+int host1x_channel_list_init(struct host1x_channel_list *chlist,
+			     unsigned int num_channels);
+void host1x_channel_list_free(struct host1x_channel_list *chlist);
+struct host1x_channel *host1x_channel_get_index(struct host1x *host,
+						unsigned int index);
 
 #endif

@@ -1,9 +1,17 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_SPARC64_HUGETLB_H
 #define _ASM_SPARC64_HUGETLB_H
 
 #include <asm/page.h>
 #include <asm-generic/hugetlb.h>
 
+#ifdef CONFIG_HUGETLB_PAGE
+struct pud_huge_patch_entry {
+	unsigned int addr;
+	unsigned int insn;
+};
+extern struct pud_huge_patch_entry __pud_huge_patch, __pud_huge_patch_end;
+#endif
 
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t pte);

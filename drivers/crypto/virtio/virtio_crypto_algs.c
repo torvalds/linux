@@ -27,12 +27,68 @@
 #include <uapi/linux/virtio_crypto.h>
 #include "virtio_crypto_common.h"
 
+
+struct virtio_crypto_ablkcipher_ctx {
+	struct virtio_crypto *vcrypto;
+	struct crypto_tfm *tfm;
+
+	struct virtio_crypto_sym_session_info enc_sess_info;
+	struct virtio_crypto_sym_session_info dec_sess_info;
+};
+
+struct virtio_crypto_sym_request {
+	struct virtio_crypto_request base;
+
+	/* Cipher or aead */
+	uint32_t type;
+	struct virtio_crypto_ablkcipher_ctx *ablkcipher_ctx;
+	struct ablkcipher_request *ablkcipher_req;
+	uint8_t *iv;
+	/* Encryption? */
+	bool encrypt;
+};
+
 /*
  * The algs_lock protects the below global virtio_crypto_active_devs
  * and crypto algorithms registion.
  */
 static DEFINE_MUTEX(algs_lock);
 static unsigned int virtio_crypto_active_devs;
+static void virtio_crypto_ablkcipher_finalize_req(
+	struct virtio_crypto_sym_request *vc_sym_req,
+	struct ablkcipher_request *req,
+	int err);
+
+static void virtio_crypto_dataq_sym_callback
+		(struct virtio_crypto_request *vc_req, int len)
+{
+	struct virtio_crypto_sym_request *vc_sym_req =
+		container_of(vc_req, struct virtio_crypto_sym_request, base);
+	struct ablkcipher_request *ablk_req;
+	int error;
+
+	/* Finish the encrypt or decrypt process */
+	if (vc_sym_req->type == VIRTIO_CRYPTO_SYM_OP_CIPHER) {
+		switch (vc_req->status) {
+		case VIRTIO_CRYPTO_OK:
+			error = 0;
+			break;
+		case VIRTIO_CRYPTO_INVSESS:
+		case VIRTIO_CRYPTO_ERR:
+			error = -EINVAL;
+			break;
+		case VIRTIO_CRYPTO_BADMSG:
+			error = -EBADMSG;
+			break;
+		default:
+			error = -EIO;
+			break;
+		}
+		ablk_req = vc_sym_req->ablkcipher_req;
+		virtio_crypto_ablkcipher_finalize_req(vc_sym_req,
+							ablk_req, error);
+	}
+}
 
 static u64 virtio_crypto_alg_sg_nents_length(struct scatterlist *sg)
 {
@@ -263,7 +319,7 @@ static int virtio_crypto_ablkcipher_setkey(struct crypto_ablkcipher *tfm,
 		struct virtio_crypto *vcrypto =
 				      virtcrypto_get_dev_node(node);
 		if (!vcrypto) {
-			pr_err("virtio_crypto: Could not find a virtio device in the system");
+			pr_err("virtio_crypto: Could not find a virtio device in the system\n");
 			return -ENODEV;
 		}
 
@@ -286,13 +342,14 @@ static int virtio_crypto_ablkcipher_setkey(struct crypto_ablkcipher *tfm,
 }
 
 static int
-__virtio_crypto_ablkcipher_do_req(struct virtio_crypto_request *vc_req,
+__virtio_crypto_ablkcipher_do_req(struct virtio_crypto_sym_request *vc_sym_req,
 		struct ablkcipher_request *req,
 		struct data_queue *data_vq)
 {
 	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
+	struct virtio_crypto_ablkcipher_ctx *ctx = vc_sym_req->ablkcipher_ctx;
+	struct virtio_crypto_request *vc_req = &vc_sym_req->base;
 	unsigned int ivsize = crypto_ablkcipher_ivsize(tfm);
-	struct virtio_crypto_ablkcipher_ctx *ctx = vc_req->ablkcipher_ctx;
 	struct virtio_crypto *vcrypto = ctx->vcrypto;
 	struct virtio_crypto_op_data_req *req_data;
 	int src_nents, dst_nents;
@@ -326,9 +383,9 @@ __virtio_crypto_ablkcipher_do_req(struct virtio_crypto_request *vc_req,
 	}
 
 	vc_req->req_data = req_data;
-	vc_req->type = VIRTIO_CRYPTO_SYM_OP_CIPHER;
+	vc_sym_req->type = VIRTIO_CRYPTO_SYM_OP_CIPHER;
 	/* Head of operation */
-	if (vc_req->encrypt) {
+	if (vc_sym_req->encrypt) {
 		req_data->header.session_id =
 			cpu_to_le64(ctx->enc_sess_info.session_id);
 		req_data->header.opcode =
@@ -383,7 +440,7 @@ __virtio_crypto_ablkcipher_do_req(struct virtio_crypto_request *vc_req,
 	memcpy(iv, req->info, ivsize);
 	sg_init_one(&iv_sg, iv, ivsize);
 	sgs[num_out++] = &iv_sg;
-	vc_req->iv = iv;
+	vc_sym_req->iv = iv;
 
 	/* Source data */
 	for (i = 0; i < src_nents; i++)
@@ -421,15 +478,18 @@ static int virtio_crypto_ablkcipher_encrypt(struct ablkcipher_request *req)
 {
 	struct crypto_ablkcipher *atfm = crypto_ablkcipher_reqtfm(req);
 	struct virtio_crypto_ablkcipher_ctx *ctx = crypto_ablkcipher_ctx(atfm);
-	struct virtio_crypto_request *vc_req = ablkcipher_request_ctx(req);
+	struct virtio_crypto_sym_request *vc_sym_req =
+				ablkcipher_request_ctx(req);
+	struct virtio_crypto_request *vc_req = &vc_sym_req->base;
 	struct virtio_crypto *vcrypto = ctx->vcrypto;
 	/* Use the first data virtqueue as default */
 	struct data_queue *data_vq = &vcrypto->data_vq[0];
 
-	vc_req->ablkcipher_ctx = ctx;
-	vc_req->ablkcipher_req = req;
-	vc_req->encrypt = true;
 	vc_req->dataq = data_vq;
+	vc_req->alg_cb = virtio_crypto_dataq_sym_callback;
+	vc_sym_req->ablkcipher_ctx = ctx;
+	vc_sym_req->ablkcipher_req = req;
+	vc_sym_req->encrypt = true;
 
 	return crypto_transfer_cipher_request_to_engine(data_vq->engine, req);
 }
@@ -438,16 +498,18 @@ static int virtio_crypto_ablkcipher_decrypt(struct ablkcipher_request *req)
 {
 	struct crypto_ablkcipher *atfm = crypto_ablkcipher_reqtfm(req);
 	struct virtio_crypto_ablkcipher_ctx *ctx = crypto_ablkcipher_ctx(atfm);
-	struct virtio_crypto_request *vc_req = ablkcipher_request_ctx(req);
+	struct virtio_crypto_sym_request *vc_sym_req =
+				ablkcipher_request_ctx(req);
+	struct virtio_crypto_request *vc_req = &vc_sym_req->base;
 	struct virtio_crypto *vcrypto = ctx->vcrypto;
 	/* Use the first data virtqueue as default */
 	struct data_queue *data_vq = &vcrypto->data_vq[0];
 
-	vc_req->ablkcipher_ctx = ctx;
-	vc_req->ablkcipher_req = req;
-
-	vc_req->encrypt = false;
 	vc_req->dataq = data_vq;
+	vc_req->alg_cb = virtio_crypto_dataq_sym_callback;
+	vc_sym_req->ablkcipher_ctx = ctx;
+	vc_sym_req->ablkcipher_req = req;
+	vc_sym_req->encrypt = false;
 
 	return crypto_transfer_cipher_request_to_engine(data_vq->engine, req);
 }
@@ -456,7 +518,7 @@ static int virtio_crypto_ablkcipher_init(struct crypto_tfm *tfm)
 {
 	struct virtio_crypto_ablkcipher_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	tfm->crt_ablkcipher.reqsize = sizeof(struct virtio_crypto_request);
+	tfm->crt_ablkcipher.reqsize = sizeof(struct virtio_crypto_sym_request);
 	ctx->tfm = tfm;
 
 	return 0;
@@ -479,11 +541,13 @@ int virtio_crypto_ablkcipher_crypt_req(
 	struct crypto_engine *engine,
 	struct ablkcipher_request *req)
 {
-	struct virtio_crypto_request *vc_req = ablkcipher_request_ctx(req);
+	struct virtio_crypto_sym_request *vc_sym_req =
+				ablkcipher_request_ctx(req);
+	struct virtio_crypto_request *vc_req = &vc_sym_req->base;
 	struct data_queue *data_vq = vc_req->dataq;
 	int ret;
 
-	ret = __virtio_crypto_ablkcipher_do_req(vc_req, req, data_vq);
+	ret = __virtio_crypto_ablkcipher_do_req(vc_sym_req, req, data_vq);
 	if (ret < 0)
 		return ret;
 
@@ -492,14 +556,15 @@ int virtio_crypto_ablkcipher_crypt_req(
 	return 0;
 }
 
-void virtio_crypto_ablkcipher_finalize_req(
-	struct virtio_crypto_request *vc_req,
+static void virtio_crypto_ablkcipher_finalize_req(
+	struct virtio_crypto_sym_request *vc_sym_req,
 	struct ablkcipher_request *req,
 	int err)
 {
-	crypto_finalize_cipher_request(vc_req->dataq->engine, req, err);
-
-	virtcrypto_clear_request(vc_req);
+	crypto_finalize_cipher_request(vc_sym_req->base.dataq->engine,
+					req, err);
+	kzfree(vc_sym_req->iv);
+	virtcrypto_clear_request(&vc_sym_req->base);
 }
 
 static struct crypto_alg virtio_crypto_algs[] = { {

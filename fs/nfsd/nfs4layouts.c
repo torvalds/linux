@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2014 Christoph Hellwig.
  */
@@ -335,7 +336,7 @@ nfsd4_recall_file_layout(struct nfs4_layout_stateid *ls)
 
 	trace_layout_recall(&ls->ls_stid.sc_stateid);
 
-	atomic_inc(&ls->ls_stid.sc_count);
+	refcount_inc(&ls->ls_stid.sc_count);
 	nfsd4_run_cb(&ls->ls_recall);
 
 out_unlock:
@@ -440,7 +441,7 @@ nfsd4_insert_layout(struct nfsd4_layoutget *lgp, struct nfs4_layout_stateid *ls)
 			goto done;
 	}
 
-	atomic_inc(&ls->ls_stid.sc_count);
+	refcount_inc(&ls->ls_stid.sc_count);
 	list_add_tail(&new->lo_perstate, &ls->ls_layouts);
 	new = NULL;
 done:

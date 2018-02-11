@@ -112,7 +112,6 @@ static inline void i2c_pnx_arm_timer(struct i2c_pnx_algo_data *alg_data)
 		jiffies, expires);
 
 	timer->expires = jiffies + expires;
-	timer->data = (unsigned long)alg_data;
 
 	add_timer(timer);
 }
@@ -435,9 +434,9 @@ static irqreturn_t i2c_pnx_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void i2c_pnx_timeout(unsigned long data)
+static void i2c_pnx_timeout(struct timer_list *t)
 {
-	struct i2c_pnx_algo_data *alg_data = (struct i2c_pnx_algo_data *)data;
+	struct i2c_pnx_algo_data *alg_data = from_timer(alg_data, t, mif.timer);
 	u32 ctl;
 
 	dev_err(&alg_data->adapter.dev,
@@ -590,7 +589,7 @@ static u32 i2c_pnx_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm pnx_algorithm = {
+static const struct i2c_algorithm pnx_algorithm = {
 	.master_xfer = i2c_pnx_xfer,
 	.functionality = i2c_pnx_func,
 };
@@ -659,8 +658,7 @@ static int i2c_pnx_probe(struct platform_device *pdev)
 	if (IS_ERR(alg_data->clk))
 		return PTR_ERR(alg_data->clk);
 
-	setup_timer(&alg_data->mif.timer, i2c_pnx_timeout,
-			(unsigned long)alg_data);
+	timer_setup(&alg_data->mif.timer, i2c_pnx_timeout, 0);
 
 	snprintf(alg_data->adapter.name, sizeof(alg_data->adapter.name),
 		 "%s", pdev->name);

@@ -1073,20 +1073,16 @@ static int imxfb_remove(struct platform_device *pdev)
 	imxfb_disable_controller(fbi);
 
 	unregister_framebuffer(info);
-
+	fb_dealloc_cmap(&info->cmap);
 	pdata = dev_get_platdata(&pdev->dev);
 	if (pdata && pdata->exit)
 		pdata->exit(fbi->pdev);
-
-	fb_dealloc_cmap(&info->cmap);
-	kfree(info->pseudo_palette);
-	framebuffer_release(info);
-
 	dma_free_wc(&pdev->dev, fbi->map_size, info->screen_base,
 		    fbi->map_dma);
-
 	iounmap(fbi->regs);
 	release_mem_region(res->start, resource_size(res));
+	kfree(info->pseudo_palette);
+	framebuffer_release(info);
 
 	return 0;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * IPWireless 3G PCMCIA Network Driver
  *
@@ -355,7 +356,7 @@ static struct sk_buff *ipw_packet_received_skb(unsigned char *data,
 	if (skb == NULL)
 		return NULL;
 	skb_reserve(skb, 2);
-	memcpy(skb_put(skb, length), data, length);
+	skb_put_data(skb, data, length);
 
 	return skb;
 }

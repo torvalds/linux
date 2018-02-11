@@ -627,35 +627,38 @@ DEFINE_MUTEX(smack_onlycap_lock);
  * Is the task privileged and allowed to be privileged
  * by the onlycap rule.
  *
- * Returns 1 if the task is allowed to be privileged, 0 if it's not.
+ * Returns true if the task is allowed to be privileged, false if it's not.
  */
-int smack_privileged(int cap)
+bool smack_privileged(int cap)
 {
 	struct smack_known *skp = smk_of_current();
 	struct smack_known_list_elem *sklep;
+	int rc;
 
 	/*
 	 * All kernel tasks are privileged
 	 */
 	if (unlikely(current->flags & PF_KTHREAD))
-		return 1;
+		return true;
 
-	if (!capable(cap))
-		return 0;
+	rc = cap_capable(current_cred(), &init_user_ns, cap,
+				SECURITY_CAP_AUDIT);
+	if (rc)
+		return false;
 
 	rcu_read_lock();
 	if (list_empty(&smack_onlycap_list)) {
 		rcu_read_unlock();
-		return 1;
+		return true;
 	}
 
 	list_for_each_entry_rcu(sklep, &smack_onlycap_list, list) {
 		if (sklep->smk_label == skp) {
 			rcu_read_unlock();
-			return 1;
+			return true;
 		}
 	}
 	rcu_read_unlock();
 
-	return 0;
+	return false;
 }

@@ -27,7 +27,6 @@
 #include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/of.h>
-#include <linux/component.h>
 
 #include "omapdss.h"
 #include "dss.h"
@@ -253,11 +252,6 @@ static int sdi_check_timings(struct omap_dss_device *dssdev,
 	return 0;
 }
 
-static void sdi_set_datapairs(struct omap_dss_device *dssdev, int datapairs)
-{
-	sdi.datapairs = datapairs;
-}
-
 static int sdi_init_regulator(void)
 {
 	struct regulator *vdds_sdi;
@@ -327,8 +321,6 @@ static const struct omapdss_sdi_ops sdi_ops = {
 	.check_timings = sdi_check_timings,
 	.set_timings = sdi_set_timings,
 	.get_timings = sdi_get_timings,
-
-	.set_datapairs = sdi_set_datapairs,
 };
 
 static void sdi_init_output(struct platform_device *pdev)
@@ -353,59 +345,6 @@ static void sdi_uninit_output(struct platform_device *pdev)
 	struct omap_dss_device *out = &sdi.output;
 
 	omapdss_unregister_output(out);
-}
-
-static int sdi_bind(struct device *dev, struct device *master, void *data)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-
-	sdi.pdev = pdev;
-
-	sdi_init_output(pdev);
-
-	return 0;
-}
-
-static void sdi_unbind(struct device *dev, struct device *master, void *data)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-
-	sdi_uninit_output(pdev);
-}
-
-static const struct component_ops sdi_component_ops = {
-	.bind	= sdi_bind,
-	.unbind	= sdi_unbind,
-};
-
-static int sdi_probe(struct platform_device *pdev)
-{
-	return component_add(&pdev->dev, &sdi_component_ops);
-}
-
-static int sdi_remove(struct platform_device *pdev)
-{
-	component_del(&pdev->dev, &sdi_component_ops);
-	return 0;
-}
-
-static struct platform_driver omap_sdi_driver = {
-	.probe		= sdi_probe,
-	.remove         = sdi_remove,
-	.driver         = {
-		.name   = "omapdss_sdi",
-		.suppress_bind_attrs = true,
-	},
-};
-
-int __init sdi_init_platform_driver(void)
-{
-	return platform_driver_register(&omap_sdi_driver);
-}
-
-void sdi_uninit_platform_driver(void)
-{
-	platform_driver_unregister(&omap_sdi_driver);
 }
 
 int sdi_init_port(struct platform_device *pdev, struct device_node *port)

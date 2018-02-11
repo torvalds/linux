@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * NCR 5380 generic driver routines.  These should make it *trivial*
  * to implement 5380 SCSI drivers under Linux with a non-trantor
@@ -1907,8 +1908,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 						switch (extended_msg[2]) {
 						case EXTENDED_SDTR:
 						case EXTENDED_WDTR:
-						case EXTENDED_MODIFY_DATA_POINTER:
-						case EXTENDED_EXTENDED_IDENTIFY:
 							tmp = 0;
 						}
 					} else if (len) {
@@ -1931,18 +1930,14 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					 * reject it.
 					 */
 				default:
-					if (!tmp) {
-						shost_printk(KERN_ERR, instance, "rejecting message ");
-						spi_print_msg(extended_msg);
-						printk("\n");
-					} else if (tmp != EXTENDED_MESSAGE)
-						scmd_printk(KERN_INFO, cmd,
-						            "rejecting unknown message %02x\n",
-						            tmp);
-					else
+					if (tmp == EXTENDED_MESSAGE)
 						scmd_printk(KERN_INFO, cmd,
 						            "rejecting unknown extended message code %02x, length %d\n",
-						            extended_msg[1], extended_msg[0]);
+						            extended_msg[2], extended_msg[1]);
+					else if (tmp)
+						scmd_printk(KERN_INFO, cmd,
+						            "rejecting unknown message code %02x\n",
+						            tmp);
 
 					msgout = MESSAGE_REJECT;
 					NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ATN);
@@ -2296,13 +2291,13 @@ out:
 
 
 /**
- * NCR5380_bus_reset - reset the SCSI bus
+ * NCR5380_host_reset - reset the SCSI host
  * @cmd: SCSI command undergoing EH
  *
  * Returns SUCCESS
  */
 
-static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
+static int NCR5380_host_reset(struct scsi_cmnd *cmd)
 {
 	struct Scsi_Host *instance = cmd->device->host;
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);

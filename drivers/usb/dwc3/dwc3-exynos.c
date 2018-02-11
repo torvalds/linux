@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * dwc3-exynos.c - Samsung EXYNOS DWC3 Specific Glue layer
  *
@@ -5,15 +6,6 @@
  *		http://www.samsung.com
  *
  * Author: Anton Tikhomirov <av.tikhomirov@samsung.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2  of
- * the License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -125,12 +117,16 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 		dev_err(dev, "couldn't get clock\n");
 		return -EINVAL;
 	}
-	clk_prepare_enable(exynos->clk);
+	ret = clk_prepare_enable(exynos->clk);
+	if (ret)
+		return ret;
 
 	exynos->susp_clk = devm_clk_get(dev, "usbdrd30_susp_clk");
 	if (IS_ERR(exynos->susp_clk))
 		exynos->susp_clk = NULL;
-	clk_prepare_enable(exynos->susp_clk);
+	ret = clk_prepare_enable(exynos->susp_clk);
+	if (ret)
+		goto susp_clk_err;
 
 	if (of_device_is_compatible(node, "samsung,exynos7-dwusb3")) {
 		exynos->axius_clk = devm_clk_get(dev, "usbdrd30_axius_clk");
@@ -139,7 +135,9 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 			ret = -ENODEV;
 			goto axius_clk_err;
 		}
-		clk_prepare_enable(exynos->axius_clk);
+		ret = clk_prepare_enable(exynos->axius_clk);
+		if (ret)
+			goto axius_clk_err;
 	} else {
 		exynos->axius_clk = NULL;
 	}
@@ -197,6 +195,7 @@ vdd33_err:
 	clk_disable_unprepare(exynos->axius_clk);
 axius_clk_err:
 	clk_disable_unprepare(exynos->susp_clk);
+susp_clk_err:
 	clk_disable_unprepare(exynos->clk);
 	return ret;
 }

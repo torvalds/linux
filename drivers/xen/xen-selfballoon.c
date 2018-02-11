@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  * Xen selfballoon driver (and optional frontswap self-shrinking driver)
  *
@@ -151,8 +152,8 @@ static unsigned long frontswap_inertia_counter;
 static void frontswap_selfshrink(void)
 {
 	static unsigned long cur_frontswap_pages;
-	static unsigned long last_frontswap_pages;
-	static unsigned long tgt_frontswap_pages;
+	unsigned long last_frontswap_pages;
+	unsigned long tgt_frontswap_pages;
 
 	last_frontswap_pages = cur_frontswap_pages;
 	cur_frontswap_pages = frontswap_curr_pages();

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This file defines the trace event structures that go into the ring
  * buffer directly. They are created via macros so that changes for them

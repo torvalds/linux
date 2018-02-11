@@ -11,6 +11,7 @@ Required properties:
  - reg-names:	Names of the registers.
 		"amac_base":	Address and length of the GMAC registers
 		"idm_base":	Address and length of the GMAC IDM registers
+				(required for NSP and Northstar2)
 		"nicpm_base":	Address and length of the NIC Port Manager
 				registers (required for Northstar2)
  - interrupts:	Interrupt number
@@ -26,5 +27,4 @@ amac0: ethernet@18022000 {
 	      <0x18110000 0x1000>;
 	reg-names = "amac_base", "idm_base";
 	interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
-	status = "disabled";
 };

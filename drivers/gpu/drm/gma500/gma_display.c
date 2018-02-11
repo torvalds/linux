@@ -144,33 +144,32 @@ void gma_crtc_load_lut(struct drm_crtc *crtc)
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	const struct psb_offset *map = &dev_priv->regmap[gma_crtc->pipe];
 	int palreg = map->palette;
+	u16 *r, *g, *b;
 	int i;
 
 	/* The clocks have to be on to load the palette. */
 	if (!crtc->enabled)
 		return;
 
+	r = crtc->gamma_store;
+	g = r + crtc->gamma_size;
+	b = g + crtc->gamma_size;
+
 	if (gma_power_begin(dev, false)) {
 		for (i = 0; i < 256; i++) {
 			REG_WRITE(palreg + 4 * i,
-				  ((gma_crtc->lut_r[i] +
-				  gma_crtc->lut_adj[i]) << 16) |
-				  ((gma_crtc->lut_g[i] +
-				  gma_crtc->lut_adj[i]) << 8) |
-				  (gma_crtc->lut_b[i] +
-				  gma_crtc->lut_adj[i]));
+				  (((*r++ >> 8) + gma_crtc->lut_adj[i]) << 16) |
+				  (((*g++ >> 8) + gma_crtc->lut_adj[i]) << 8) |
+				  ((*b++ >> 8) + gma_crtc->lut_adj[i]));
 		}
 		gma_power_end(dev);
 	} else {
 		for (i = 0; i < 256; i++) {
 			/* FIXME: Why pipe[0] and not pipe[..._crtc->pipe]? */
 			dev_priv->regs.pipe[0].palette[i] =
-				  ((gma_crtc->lut_r[i] +
-				  gma_crtc->lut_adj[i]) << 16) |
-				  ((gma_crtc->lut_g[i] +
-				  gma_crtc->lut_adj[i]) << 8) |
-				  (gma_crtc->lut_b[i] +
-				  gma_crtc->lut_adj[i]);
+				(((*r++ >> 8) + gma_crtc->lut_adj[i]) << 16) |
+				(((*g++ >> 8) + gma_crtc->lut_adj[i]) << 8) |
+				((*b++ >> 8) + gma_crtc->lut_adj[i]);
 		}
 
 	}
@@ -180,15 +179,6 @@ int gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green, u16 *blue,
 		       u32 size,
 		       struct drm_modeset_acquire_ctx *ctx)
 {
-	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
-	int i;
-
-	for (i = 0; i < size; i++) {
-		gma_crtc->lut_r[i] = red[i] >> 8;
-		gma_crtc->lut_g[i] = green[i] >> 8;
-		gma_crtc->lut_b[i] = blue[i] >> 8;
-	}
-
 	gma_crtc_load_lut(crtc);
 
 	return 0;

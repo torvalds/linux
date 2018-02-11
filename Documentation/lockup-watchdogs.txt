@@ -30,7 +30,8 @@ timeout is set through the confusingly named "kernel.panic" sysctl),
 to cause the system to reboot automatically after a specified amount
 of time.
 
-=== Implementation ===
+Implementation
+==============
 
 The soft and hard lockup detectors are built on top of the hrtimer and
 perf subsystems, respectively. A direct consequence of this is that,

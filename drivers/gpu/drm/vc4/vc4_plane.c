@@ -18,12 +18,14 @@
  * into the region of the HVS that it has allocated for us.
  */
 
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_plane_helper.h>
+
+#include "uapi/drm/vc4_drm.h"
 #include "vc4_drv.h"
 #include "vc4_regs.h"
-#include "drm_atomic.h"
-#include "drm_atomic_helper.h"
-#include "drm_fb_cma_helper.h"
-#include "drm_plane_helper.h"
 
 enum vc4_scaling_mode {
 	VC4_SCALING_NONE,
@@ -499,8 +501,8 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	u32 ctl0_offset = vc4_state->dlist_count;
 	const struct hvs_format *format = vc4_get_hvs_format(fb->format->format);
 	int num_planes = drm_format_num_planes(format->drm);
-	u32 scl0, scl1;
-	u32 lbm_size;
+	u32 scl0, scl1, pitch0;
+	u32 lbm_size, tiling;
 	unsigned long irqflags;
 	int ret, i;
 
@@ -541,11 +543,41 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		scl1 = vc4_get_scl_field(state, 0);
 	}
 
+	switch (fb->modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+		tiling = SCALER_CTL0_TILING_LINEAR;
+		pitch0 = VC4_SET_FIELD(fb->pitches[0], SCALER_SRC_PITCH);
+		break;
+
+	case DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED: {
+		/* For T-tiled, the FB pitch is "how many bytes from
+		 * one row to the next, such that pitch * tile_h ==
+		 * tile_size * tiles_per_row."
+		 */
+		u32 tile_size_shift = 12; /* T tiles are 4kb */
+		u32 tile_h_shift = 5; /* 16 and 32bpp are 32 pixels high */
+		u32 tiles_w = fb->pitches[0] >> (tile_size_shift - tile_h_shift);
+
+		tiling = SCALER_CTL0_TILING_256B_OR_T;
+
+		pitch0 = (VC4_SET_FIELD(0, SCALER_PITCH0_TILE_Y_OFFSET) |
+			  VC4_SET_FIELD(0, SCALER_PITCH0_TILE_WIDTH_L) |
+			  VC4_SET_FIELD(tiles_w, SCALER_PITCH0_TILE_WIDTH_R));
+		break;
+	}
+
+	default:
+		DRM_DEBUG_KMS("Unsupported FB tiling flag 0x%16llx",
+			      (long long)fb->modifier);
+		return -EINVAL;
+	}
+
 	/* Control word */
 	vc4_dlist_write(vc4_state,
 			SCALER_CTL0_VALID |
 			(format->pixel_order << SCALER_CTL0_ORDER_SHIFT) |
 			(format->hvs << SCALER_CTL0_PIXEL_FORMAT_SHIFT) |
+			VC4_SET_FIELD(tiling, SCALER_CTL0_TILING) |
 			(vc4_state->is_unity ? SCALER_CTL0_UNITY : 0) |
 			VC4_SET_FIELD(scl0, SCALER_CTL0_SCL0) |
 			VC4_SET_FIELD(scl1, SCALER_CTL0_SCL1));
@@ -599,8 +631,11 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	for (i = 0; i < num_planes; i++)
 		vc4_dlist_write(vc4_state, 0xc0c0c0c0);
 
-	/* Pitch word 0/1/2 */
-	for (i = 0; i < num_planes; i++) {
+	/* Pitch word 0 */
+	vc4_dlist_write(vc4_state, pitch0);
+
+	/* Pitch word 1/2 */
+	for (i = 1; i < num_planes; i++) {
 		vc4_dlist_write(vc4_state,
 				VC4_SET_FIELD(fb->pitches[i], SCALER_SRC_PITCH));
 	}
@@ -735,9 +770,45 @@ void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
 	vc4_state->dlist[vc4_state->ptr0_offset] = addr;
 }
 
+static int vc4_prepare_fb(struct drm_plane *plane,
+			  struct drm_plane_state *state)
+{
+	struct vc4_bo *bo;
+	struct dma_fence *fence;
+	int ret;
+
+	if ((plane->state->fb == state->fb) || !state->fb)
+		return 0;
+
+	bo = to_vc4_bo(&drm_fb_cma_get_gem_obj(state->fb, 0)->base);
+
+	ret = vc4_bo_inc_usecnt(bo);
+	if (ret)
+		return ret;
+
+	fence = reservation_object_get_excl_rcu(bo->resv);
+	drm_atomic_set_fence_for_plane(state, fence);
+
+	return 0;
+}
+
+static void vc4_cleanup_fb(struct drm_plane *plane,
+			   struct drm_plane_state *state)
+{
+	struct vc4_bo *bo;
+
+	if (plane->state->fb == state->fb || !state->fb)
+		return;
+
+	bo = to_vc4_bo(&drm_fb_cma_get_gem_obj(state->fb, 0)->base);
+	vc4_bo_dec_usecnt(bo);
+}
+
 static const struct drm_plane_helper_funcs vc4_plane_helper_funcs = {
 	.atomic_check = vc4_plane_atomic_check,
 	.atomic_update = vc4_plane_atomic_update,
+	.prepare_fb = vc4_prepare_fb,
+	.cleanup_fb = vc4_cleanup_fb,
 };
 
 static void vc4_plane_destroy(struct drm_plane *plane)
@@ -861,7 +932,7 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	ret = drm_universal_plane_init(dev, plane, 0,
 				       &vc4_plane_funcs,
 				       formats, num_formats,
-				       type, NULL);
+				       NULL, type, NULL);
 
 	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
 

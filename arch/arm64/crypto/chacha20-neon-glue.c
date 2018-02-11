@@ -1,7 +1,7 @@
 /*
  * ChaCha20 256-bit cipher algorithm, RFC7539, arm64 NEON functions
  *
- * Copyright (C) 2016 Linaro, Ltd. <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2016 - 2017 Linaro, Ltd. <ard.biesheuvel@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -26,6 +26,7 @@
 
 #include <asm/hwcap.h>
 #include <asm/neon.h>
+#include <asm/simd.h>
 
 asmlinkage void chacha20_block_xor_neon(u32 *state, u8 *dst, const u8 *src);
 asmlinkage void chacha20_4block_xor_neon(u32 *state, u8 *dst, const u8 *src);
@@ -64,7 +65,7 @@ static int chacha20_neon(struct skcipher_request *req)
 	u32 state[16];
 	int err;
 
-	if (req->cryptlen <= CHACHA20_BLOCK_SIZE)
+	if (!may_use_simd() || req->cryptlen <= CHACHA20_BLOCK_SIZE)
 		return crypto_chacha20_crypt(req);
 
 	err = skcipher_walk_virt(&walk, req, true);

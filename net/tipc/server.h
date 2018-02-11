@@ -83,13 +83,16 @@ struct tipc_server {
 int tipc_conn_sendmsg(struct tipc_server *s, int conid,
 		      struct sockaddr_tipc *addr, void *data, size_t len);
 
+bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type,
+			     u32 lower, u32 upper, int *conid);
+void tipc_topsrv_kern_unsubscr(struct net *net, int conid);
+
 /**
  * tipc_conn_terminate - terminate connection with server
  *
  * Note: Must call it in process context since it might sleep
  */
 void tipc_conn_terminate(struct tipc_server *s, int conid);
-
 int tipc_server_start(struct tipc_server *s);
 
 void tipc_server_stop(struct tipc_server *s);

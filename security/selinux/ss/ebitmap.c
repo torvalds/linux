@@ -1,7 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Implementation of the extensible bitmap type.
  *
- * Author : Stephen Smalley, <sds@epoch.ncsc.mil>
+ * Author : Stephen Smalley, <sds@tycho.nsa.gov>
  */
 /*
  * Updated: Hewlett-Packard <paul@paul-moore.com>
@@ -23,6 +24,8 @@
 #include "policydb.h"
 
 #define BITS_PER_U64	(sizeof(u64) * 8)
+
+static struct kmem_cache *ebitmap_node_cachep;
 
 int ebitmap_cmp(struct ebitmap *e1, struct ebitmap *e2)
 {
@@ -54,7 +57,7 @@ int ebitmap_cpy(struct ebitmap *dst, struct ebitmap *src)
 	n = src->node;
 	prev = NULL;
 	while (n) {
-		new = kzalloc(sizeof(*new), GFP_ATOMIC);
+		new = kmem_cache_zalloc(ebitmap_node_cachep, GFP_ATOMIC);
 		if (!new) {
 			ebitmap_destroy(dst);
 			return -ENOMEM;
@@ -162,7 +165,7 @@ int ebitmap_netlbl_import(struct ebitmap *ebmap,
 		if (e_iter == NULL ||
 		    offset >= e_iter->startbit + EBITMAP_SIZE) {
 			e_prev = e_iter;
-			e_iter = kzalloc(sizeof(*e_iter), GFP_ATOMIC);
+			e_iter = kmem_cache_zalloc(ebitmap_node_cachep, GFP_ATOMIC);
 			if (e_iter == NULL)
 				goto netlbl_import_failure;
 			e_iter->startbit = offset - (offset % EBITMAP_SIZE);
@@ -288,7 +291,7 @@ int ebitmap_set_bit(struct ebitmap *e, unsigned long bit, int value)
 					prev->next = n->next;
 				else
 					e->node = n->next;
-				kfree(n);
+				kmem_cache_free(ebitmap_node_cachep, n);
 			}
 			return 0;
 		}
@@ -299,7 +302,7 @@ int ebitmap_set_bit(struct ebitmap *e, unsigned long bit, int value)
 	if (!value)
 		return 0;
 
-	new = kzalloc(sizeof(*new), GFP_ATOMIC);
+	new = kmem_cache_zalloc(ebitmap_node_cachep, GFP_ATOMIC);
 	if (!new)
 		return -ENOMEM;
 
@@ -332,7 +335,7 @@ void ebitmap_destroy(struct ebitmap *e)
 	while (n) {
 		temp = n;
 		n = n->next;
-		kfree(temp);
+		kmem_cache_free(ebitmap_node_cachep, temp);
 	}
 
 	e->highbit = 0;
@@ -400,7 +403,7 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 
 		if (!n || startbit >= n->startbit + EBITMAP_SIZE) {
 			struct ebitmap_node *tmp;
-			tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+			tmp = kmem_cache_zalloc(ebitmap_node_cachep, GFP_KERNEL);
 			if (!tmp) {
 				printk(KERN_ERR
 				       "SELinux: ebitmap: out of memory\n");
@@ -518,4 +521,16 @@ int ebitmap_write(struct ebitmap *e, void *fp)
 			return rc;
 	}
 	return 0;
+}
+
+void ebitmap_cache_init(void)
+{
+	ebitmap_node_cachep = kmem_cache_create("ebitmap_node",
+							sizeof(struct ebitmap_node),
+							0, SLAB_PANIC, NULL);
+}
+
+void ebitmap_cache_destroy(void)
+{
+	kmem_cache_destroy(ebitmap_node_cachep);
 }

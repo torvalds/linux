@@ -141,7 +141,7 @@ snic_request_intr(struct snic *snic)
 				  snic->msix[i].devid);
 		if (ret) {
 			SNIC_HOST_ERR(snic->shost,
-				      "MSI-X: requrest_irq(%d) failed %d\n",
+				      "MSI-X: request_irq(%d) failed %d\n",
 				      i,
 				      ret);
 			snic_free_intr(snic);
@@ -151,7 +151,7 @@ snic_request_intr(struct snic *snic)
 	}
 
 	return ret;
-} /* end of snic_requrest_intr */
+} /* end of snic_request_intr */
 
 int
 snic_set_intr_mode(struct snic *snic)

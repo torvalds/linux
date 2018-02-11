@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -38,18 +39,19 @@
 # include <linux/init.h>
 # include <linux/utsname.h>
 
-#include "../include/cl_object.h"
-#include "../include/llog_swab.h"
-#include "../include/lprocfs_status.h"
-#include "../include/lustre_acl.h"
-#include "../include/lustre_fid.h"
-#include "../include/lustre/lustre_ioctl.h"
-#include "../include/lustre_kernelcomm.h"
-#include "../include/lustre_lmv.h"
-#include "../include/lustre_log.h"
-#include "../include/lustre_param.h"
-#include "../include/lustre_swab.h"
-#include "../include/obd_class.h"
+#include <lustre_errno.h>
+#include <cl_object.h>
+#include <llog_swab.h>
+#include <lprocfs_status.h>
+#include <lustre_acl.h>
+#include <lustre_fid.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <lustre_kernelcomm.h>
+#include <lustre_lmv.h>
+#include <lustre_log.h>
+#include <uapi/linux/lustre/lustre_param.h>
+#include <lustre_swab.h>
+#include <obd_class.h>
 
 #include "mdc_internal.h"
 
@@ -105,7 +107,7 @@ static int mdc_getstatus(struct obd_export *exp, struct lu_fid *rootfid)
 
 	*rootfid = body->mbo_fid1;
 	CDEBUG(D_NET,
-	       "root fid="DFID", last_committed=%llu\n",
+	       "root fid=" DFID ", last_committed=%llu\n",
 	       PFID(rootfid),
 	       lustre_msg_get_last_committed(req->rq_repmsg));
 out:
@@ -713,7 +715,7 @@ static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 		/* allocate a FID for volatile file */
 		rc = mdc_fid_alloc(NULL, exp, &op_data->op_fid2, op_data);
 		if (rc < 0) {
-			CERROR("%s: "DFID" failed to allocate FID: %d\n",
+			CERROR("%s: " DFID " failed to allocate FID: %d\n",
 			       obd->obd_name, PFID(&op_data->op_fid1), rc);
 			/* save the errcode and proceed to close */
 			saved_rc = rc;
@@ -753,7 +755,7 @@ static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 		/*
 		 * TODO: repeat close after errors
 		 */
-		CWARN("%s: close of FID "DFID" failed, file reference will be dropped when this client unmounts or is evicted\n",
+		CWARN("%s: close of FID " DFID " failed, file reference will be dropped when this client unmounts or is evicted\n",
 		      obd->obd_name, PFID(&op_data->op_fid1));
 		rc = -ENOMEM;
 		goto out;
@@ -1150,7 +1152,7 @@ static int mdc_read_page_remote(void *data, struct page *page0)
 	}
 
 	for (npages = 1; npages < max_pages; npages++) {
-		page = page_cache_alloc_cold(inode->i_mapping);
+		page = page_cache_alloc(inode->i_mapping);
 		if (!page)
 			break;
 		page_pool[npages] = page;
@@ -1254,7 +1256,7 @@ static int mdc_read_page(struct obd_export *exp, struct md_op_data *op_data,
 		ptlrpc_req_finished(enq_req);
 
 	if (rc < 0) {
-		CERROR("%s: "DFID" lock enqueue fails: rc = %d\n",
+		CERROR("%s: " DFID " lock enqueue fails: rc = %d\n",
 		       exp->exp_obd->obd_name, PFID(&op_data->op_fid1), rc);
 		return rc;
 	}
@@ -1298,7 +1300,7 @@ static int mdc_read_page(struct obd_export *exp, struct md_op_data *op_data,
 					    rp_param.rp_hash64),
 			       mdc_read_page_remote, &rp_param);
 	if (IS_ERR(page)) {
-		CERROR("%s: read cache page: "DFID" at %llu: rc %ld\n",
+		CERROR("%s: read cache page: " DFID " at %llu: rc %ld\n",
 		       exp->exp_obd->obd_name, PFID(&op_data->op_fid1),
 		       rp_param.rp_off, PTR_ERR(page));
 		rc = PTR_ERR(page);
@@ -1308,7 +1310,7 @@ static int mdc_read_page(struct obd_export *exp, struct md_op_data *op_data,
 	wait_on_page_locked(page);
 	(void)kmap(page);
 	if (!PageUptodate(page)) {
-		CERROR("%s: page not updated: "DFID" at %llu: rc %d\n",
+		CERROR("%s: page not updated: " DFID " at %llu: rc %d\n",
 		       exp->exp_obd->obd_name, PFID(&op_data->op_fid1),
 		       rp_param.rp_off, -5);
 		goto fail;
@@ -1316,7 +1318,7 @@ static int mdc_read_page(struct obd_export *exp, struct md_op_data *op_data,
 	if (!PageChecked(page))
 		SetPageChecked(page);
 	if (PageError(page)) {
-		CERROR("%s: page error: "DFID" at %llu: rc %d\n",
+		CERROR("%s: page error: " DFID " at %llu: rc %d\n",
 		       exp->exp_obd->obd_name, PFID(&op_data->op_fid1),
 		       rp_param.rp_off, -5);
 		goto fail;
@@ -1436,7 +1438,7 @@ static int mdc_ioc_fid2path(struct obd_export *exp, struct getinfo_fid2path *gf)
 	memcpy(key, KEY_FID2PATH, sizeof(KEY_FID2PATH));
 	memcpy(key + cfs_size_round(sizeof(KEY_FID2PATH)), gf, sizeof(*gf));
 
-	CDEBUG(D_IOCTL, "path get "DFID" from %llu #%d\n",
+	CDEBUG(D_IOCTL, "path get " DFID " from %llu #%d\n",
 	       PFID(&gf->gf_fid), gf->gf_recno, gf->gf_linkno);
 
 	if (!fid_is_sane(&gf->gf_fid)) {

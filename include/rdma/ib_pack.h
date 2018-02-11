@@ -37,14 +37,17 @@
 #include <uapi/linux/if_ether.h>
 
 enum {
-	IB_LRH_BYTES  = 8,
-	IB_ETH_BYTES  = 14,
-	IB_VLAN_BYTES = 4,
-	IB_GRH_BYTES  = 40,
-	IB_IP4_BYTES  = 20,
-	IB_UDP_BYTES  = 8,
-	IB_BTH_BYTES  = 12,
-	IB_DETH_BYTES = 8
+	IB_LRH_BYTES		= 8,
+	IB_ETH_BYTES		= 14,
+	IB_VLAN_BYTES		= 4,
+	IB_GRH_BYTES		= 40,
+	IB_IP4_BYTES		= 20,
+	IB_UDP_BYTES		= 8,
+	IB_BTH_BYTES		= 12,
+	IB_DETH_BYTES		= 8,
+	IB_EXT_ATOMICETH_BYTES	= 28,
+	IB_EXT_XRC_BYTES	= 4,
+	IB_ICRC_BYTES		= 4
 };
 
 struct ib_field {

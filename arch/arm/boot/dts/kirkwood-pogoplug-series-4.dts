@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * kirkwood-pogoplug-series-4.dts - Device tree file for PogoPlug Series 4
  * inspired by the board files made by Kevin Mihelich for ArchLinux,

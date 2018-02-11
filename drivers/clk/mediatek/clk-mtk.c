@@ -114,7 +114,7 @@ int mtk_clk_register_gates(struct device_node *node,
 
 	regmap = syscon_node_to_regmap(node);
 	if (IS_ERR(regmap)) {
-		pr_err("Cannot find regmap for %s: %ld\n", node->full_name,
+		pr_err("Cannot find regmap for %pOF: %ld\n", node,
 				PTR_ERR(regmap));
 		return PTR_ERR(regmap);
 	}
