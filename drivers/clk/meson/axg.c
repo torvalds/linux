@@ -804,7 +804,7 @@ static int axg_clkc_probe(struct platform_device *pdev)
 	void __iomem *clk_base;
 	int ret, clkid, i;
 
-	clkc_data = of_device_get_match_data(&pdev->dev);
+	clkc_data = of_device_get_match_data(dev);
 	if (!clkc_data)
 		return -EINVAL;
 
@@ -812,9 +812,9 @@ static int axg_clkc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -EINVAL;
-	clk_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	clk_base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!clk_base) {
-		dev_err(&pdev->dev, "Unable to map clk base\n");
+		dev_err(dev, "Unable to map clk base\n");
 		return -ENXIO;
 	}
 
@@ -849,7 +849,7 @@ static int axg_clkc_probe(struct platform_device *pdev)
 		ret = devm_clk_hw_register(dev,
 					clkc_data->hw_onecell_data->hws[clkid]);
 		if (ret) {
-			dev_err(&pdev->dev, "Clock registration failed\n");
+			dev_err(dev, "Clock registration failed\n");
 			return ret;
 		}
 	}

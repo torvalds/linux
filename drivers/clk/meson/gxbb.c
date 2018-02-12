@@ -1950,7 +1950,7 @@ static int gxbb_clkc_probe(struct platform_device *pdev)
 	int ret, clkid, i;
 	struct device *dev = &pdev->dev;
 
-	clkc_data = of_device_get_match_data(&pdev->dev);
+	clkc_data = of_device_get_match_data(dev);
 	if (!clkc_data)
 		return -EINVAL;
 
