@@ -1588,7 +1588,8 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 		spin_lock(&imp->imp_lock);
 		if (!list_empty(&req->rq_list)) {
 			list_del_init(&req->rq_list);
-			atomic_dec(&req->rq_import->imp_inflight);
+			if (atomic_dec_and_test(&req->rq_import->imp_inflight))
+				wake_up_all(&req->rq_import->imp_recovery_waitq);
 		}
 		spin_unlock(&imp->imp_lock);
 		ptlrpc_rqphase_move(req, RQ_PHASE_NEW);

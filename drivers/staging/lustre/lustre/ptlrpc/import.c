@@ -265,7 +265,6 @@ void ptlrpc_invalidate_import(struct obd_import *imp)
 {
 	struct list_head *tmp, *n;
 	struct ptlrpc_request *req;
-	struct l_wait_info lwi;
 	unsigned int timeout;
 	int rc;
 
@@ -306,19 +305,15 @@ void ptlrpc_invalidate_import(struct obd_import *imp)
 		 * callbacks. Cap it at obd_timeout -- these should all
 		 * have been locally cancelled by ptlrpc_abort_inflight.
 		 */
-		lwi = LWI_TIMEOUT_INTERVAL(
-			cfs_timeout_cap(timeout * HZ),
-			(timeout > 1) ? HZ :
-			HZ / 2,
-			NULL, NULL);
-		rc = l_wait_event(imp->imp_recovery_waitq,
-				  (atomic_read(&imp->imp_inflight) == 0),
-				  &lwi);
-		if (rc) {
+		rc = wait_event_idle_timeout(imp->imp_recovery_waitq,
+					     atomic_read(&imp->imp_inflight) == 0,
+					     obd_timeout * HZ);
+
+		if (rc == 0) {
 			const char *cli_tgt = obd2cli_tgt(imp->imp_obd);
 
-			CERROR("%s: rc = %d waiting for callback (%d != 0)\n",
-			       cli_tgt, rc,
+			CERROR("%s: timeout waiting for callback (%d != 0)\n",
+			       cli_tgt,
 			       atomic_read(&imp->imp_inflight));
 
 			spin_lock(&imp->imp_lock);
@@ -365,7 +360,7 @@ void ptlrpc_invalidate_import(struct obd_import *imp)
 			}
 			spin_unlock(&imp->imp_lock);
 		}
-	} while (rc != 0);
+	} while (rc == 0);
 
 	/*
 	 * Let's additionally check that no new rpcs added to import in
