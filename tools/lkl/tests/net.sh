@@ -119,7 +119,7 @@ run_tests()
         lkl_test_exec $script_dir/net-test --dst 127.0.0.1
         ;;
     "pipe")
-        lkl_test_exec $script_dir/net-test --backend pipe \
+        VALGRIND="" lkl_test_exec $script_dir/net-test --backend pipe \
                       --ifname "$fifo1|$fifo2" \
                       --ip $(ip_host) --netmask-len $TEST_IP_NETMASK \
                       --sleep 1800 >/dev/null &
