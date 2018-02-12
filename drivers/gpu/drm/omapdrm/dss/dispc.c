@@ -396,13 +396,13 @@ static void mgr_fld_write(struct dispc_device *dispc, enum omap_channel channel,
 	const bool need_lock = rfld.reg == DISPC_CONTROL || rfld.reg == DISPC_CONFIG;
 	unsigned long flags;
 
-	if (need_lock)
+	if (need_lock) {
 		spin_lock_irqsave(&dispc->control_lock, flags);
-
-	REG_FLD_MOD(dispc, rfld.reg, val, rfld.high, rfld.low);
-
-	if (need_lock)
+		REG_FLD_MOD(dispc, rfld.reg, val, rfld.high, rfld.low);
 		spin_unlock_irqrestore(&dispc->control_lock, flags);
+	} else {
+		REG_FLD_MOD(dispc, rfld.reg, val, rfld.high, rfld.low);
+	}
 }
 
 static int dispc_get_num_ovls(struct dispc_device *dispc)
