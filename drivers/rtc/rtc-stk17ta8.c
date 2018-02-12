@@ -334,11 +334,11 @@ static int stk17ta8_rtc_probe(struct platform_device *pdev)
 
 	pdata->rtc->ops = &stk17ta8_rtc_ops;
 
-	ret = rtc_register_device(pdata->rtc);
+	ret = sysfs_create_bin_file(&pdev->dev.kobj, &stk17ta8_nvram_attr);
 	if (ret)
 		return ret;
 
-	ret = sysfs_create_bin_file(&pdev->dev.kobj, &stk17ta8_nvram_attr);
+	ret = rtc_register_device(pdata->rtc);
 
 	return ret;
 }
