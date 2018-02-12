@@ -393,14 +393,15 @@ struct clk_mux meson8b_mpeg_clk_sel = {
 	},
 };
 
-struct clk_divider meson8b_mpeg_clk_div = {
-	.reg = (void *)HHI_MPEG_CLK_CNTL,
-	.shift = 0,
-	.width = 7,
-	.lock = &meson_clk_lock,
+struct clk_regmap meson8b_mpeg_clk_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_MPEG_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mpeg_clk_div",
-		.ops = &clk_divider_ops,
+		.ops = &clk_regmap_divider_ops,
 		.parent_names = (const char *[]){ "mpeg_clk_sel" },
 		.num_parents = 1,
 		.flags = (CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED),
@@ -623,10 +624,6 @@ static struct clk_mux *const meson8b_clk_muxes[] = {
 	&meson8b_mpeg_clk_sel,
 };
 
-static struct clk_divider *const meson8b_clk_dividers[] = {
-	&meson8b_mpeg_clk_div,
-};
-
 static struct clk_regmap *const meson8b_clk_regmaps[] = {
 	&meson8b_clk81,
 	&meson8b_ddr,
@@ -706,6 +703,7 @@ static struct clk_regmap *const meson8b_clk_regmaps[] = {
 	&meson8b_ao_ahb_sram,
 	&meson8b_ao_ahb_bus,
 	&meson8b_ao_iface,
+	&meson8b_mpeg_clk_div,
 };
 
 static const struct meson8b_clk_reset_line {
@@ -843,11 +841,6 @@ static int meson8b_clkc_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(meson8b_clk_muxes); i++)
 		meson8b_clk_muxes[i]->reg = clk_base +
 			(u32)meson8b_clk_muxes[i]->reg;
-
-	/* Populate base address for dividers */
-	for (i = 0; i < ARRAY_SIZE(meson8b_clk_dividers); i++)
-		meson8b_clk_dividers[i]->reg = clk_base +
-			(u32)meson8b_clk_dividers[i]->reg;
 
 	/* Populate regmap for the regmap backed clocks */
 	for (i = 0; i < ARRAY_SIZE(meson8b_clk_regmaps); i++)
