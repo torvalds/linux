@@ -2143,7 +2143,7 @@ int ll_prep_inode(struct inode **inode, struct ptlrpc_request *req,
 				md.posix_acl = NULL;
 			}
 #endif
-			rc = -ENOMEM;
+			rc = PTR_ERR(*inode);
 			CERROR("new_inode -fatal: rc %d\n", rc);
 			goto out;
 		}
