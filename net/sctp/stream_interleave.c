@@ -954,12 +954,8 @@ static void sctp_renege_events(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 	__u32 freed = 0;
 	__u16 needed;
 
-	if (chunk) {
-		needed = ntohs(chunk->chunk_hdr->length);
-		needed -= sizeof(struct sctp_idata_chunk);
-	} else {
-		needed = SCTP_DEFAULT_MAXWINDOW;
-	}
+	needed = ntohs(chunk->chunk_hdr->length) -
+		 sizeof(struct sctp_idata_chunk);
 
 	if (skb_queue_empty(&asoc->base.sk->sk_receive_queue)) {
 		freed = sctp_ulpq_renege_list(ulpq, &ulpq->lobby, needed);
