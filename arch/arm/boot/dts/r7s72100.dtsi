@@ -30,35 +30,6 @@
 		spi4 = &spi4;
 	};
 
-	/* External clocks */
-	extal_clk: extal {
-		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		/* If clk present, value must be set by board */
-		clock-frequency = <0>;
-	};
-
-	usb_x1_clk: usb_x1 {
-		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		/* If clk present, value must be set by board */
-		clock-frequency = <0>;
-	};
-
-	rtc_x1_clk: rtc_x1 {
-		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		/* If clk present, value must be set by board to 32678 */
-		clock-frequency = <0>;
-	};
-
-	rtc_x3_clk: rtc_x3 {
-		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		/* If clk present, value must be set by board to 4000000 */
-		clock-frequency = <0>;
-	};
-
 	/* Fixed factor clocks */
 	b_clk: b {
 		#clock-cells = <0>;
@@ -66,20 +37,6 @@
 		clocks = <&cpg_clocks R7S72100_CLK_PLL>;
 		clock-mult = <1>;
 		clock-div = <3>;
-	};
-	p1_clk: p1 {
-		#clock-cells = <0>;
-		compatible = "fixed-factor-clock";
-		clocks = <&cpg_clocks R7S72100_CLK_PLL>;
-		clock-mult = <1>;
-		clock-div = <6>;
-	};
-	p0_clk: p0 {
-		#clock-cells = <0>;
-		compatible = "fixed-factor-clock";
-		clocks = <&cpg_clocks R7S72100_CLK_PLL>;
-		clock-mult = <1>;
-		clock-div = <12>;
 	};
 
 	cpus {
@@ -94,6 +51,44 @@
 			clocks = <&cpg_clocks R7S72100_CLK_I>;
 			next-level-cache = <&L2>;
 		};
+	};
+
+	/* External clocks */
+	extal_clk: extal {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		/* If clk present, value must be set by board */
+		clock-frequency = <0>;
+	};
+
+	p0_clk: p0 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&cpg_clocks R7S72100_CLK_PLL>;
+		clock-mult = <1>;
+		clock-div = <12>;
+	};
+
+	p1_clk: p1 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&cpg_clocks R7S72100_CLK_PLL>;
+		clock-mult = <1>;
+		clock-div = <6>;
+	};
+
+	rtc_x1_clk: rtc_x1 {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		/* If clk present, value must be set by board to 32678 */
+		clock-frequency = <0>;
+	};
+
+	rtc_x3_clk: rtc_x3 {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		/* If clk present, value must be set by board to 4000000 */
+		clock-frequency = <0>;
 	};
 
 	soc {
@@ -688,5 +683,12 @@
 			power-domains = <&cpg_clocks>;
 			status = "disabled";
 		};
+	};
+
+	usb_x1_clk: usb_x1 {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		/* If clk present, value must be set by board */
+		clock-frequency = <0>;
 	};
 };
