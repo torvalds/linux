@@ -590,14 +590,6 @@ static int rv8803_probe(struct i2c_client *client,
 		}
 	}
 
-	rv8803->rtc->ops = &rv8803_rtc_ops;
-	rv8803->rtc->nvram_old_abi = true;
-	err = rtc_register_device(rv8803->rtc);
-	if (err)
-		return err;
-
-	rtc_nvmem_register(rv8803->rtc, &nvmem_cfg);
-
 	err = rv8803_write_reg(rv8803->client, RV8803_EXT, RV8803_EXT_WADA);
 	if (err)
 		return err;
@@ -607,6 +599,14 @@ static int rv8803_probe(struct i2c_client *client,
 		dev_err(&client->dev, "failed to init charger\n");
 		return err;
 	}
+
+	rv8803->rtc->ops = &rv8803_rtc_ops;
+	rv8803->rtc->nvram_old_abi = true;
+	err = rtc_register_device(rv8803->rtc);
+	if (err)
+		return err;
+
+	rtc_nvmem_register(rv8803->rtc, &nvmem_cfg);
 
 	rv8803->rtc->max_user_freq = 1;
 
