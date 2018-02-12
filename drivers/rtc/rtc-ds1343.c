@@ -642,12 +642,15 @@ static int ds1343_probe(struct spi_device *spi)
 	data &= ~(DS1343_OSF | DS1343_IRQF1 | DS1343_IRQF0);
 	regmap_write(priv->map, DS1343_STATUS_REG, data);
 
-	priv->rtc = devm_rtc_device_register(&spi->dev, "ds1343",
-					&ds1343_rtc_ops, THIS_MODULE);
-	if (IS_ERR(priv->rtc)) {
-		dev_err(&spi->dev, "unable to register rtc ds1343\n");
+	priv->rtc = devm_rtc_allocate_device(&spi->dev);
+	if (IS_ERR(priv->rtc))
 		return PTR_ERR(priv->rtc);
-	}
+
+	priv->rtc->ops = &ds1343_rtc_ops;
+
+	res = rtc_register_device(priv->rtc);
+	if (res)
+		return res;
 
 	priv->irq = spi->irq;
 
