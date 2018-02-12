@@ -2054,22 +2054,24 @@ static void dcn10_set_bandwidth(
 		dc->res_pool->display_clock->funcs->set_clock(
 				dc->res_pool->display_clock,
 				context->bw.dcn.calc_clk.dispclk_khz);
-		dc->current_state->bw.dcn.cur_clk.dispclk_khz =
+		context->bw.dcn.cur_clk.dispclk_khz =
 				context->bw.dcn.calc_clk.dispclk_khz;
 	}
 	if (decrease_allowed || context->bw.dcn.calc_clk.dcfclk_khz
 			> dc->current_state->bw.dcn.cur_clk.dcfclk_khz) {
+		context->bw.dcn.cur_clk.dcfclk_khz =
+				context->bw.dcn.calc_clk.dcfclk_khz;
 		smu_req.hard_min_dcefclk_khz =
 				context->bw.dcn.calc_clk.dcfclk_khz;
 	}
 	if (decrease_allowed || context->bw.dcn.calc_clk.fclk_khz
 			> dc->current_state->bw.dcn.cur_clk.fclk_khz) {
+		context->bw.dcn.cur_clk.fclk_khz =
+				context->bw.dcn.calc_clk.fclk_khz;
 		smu_req.hard_min_fclk_khz = context->bw.dcn.calc_clk.fclk_khz;
 	}
 	if (decrease_allowed || context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz
 			> dc->current_state->bw.dcn.cur_clk.dcfclk_deep_sleep_khz) {
-		dc->current_state->bw.dcn.calc_clk.dcfclk_deep_sleep_khz =
-				context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz;
 		context->bw.dcn.cur_clk.dcfclk_deep_sleep_khz =
 				context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz;
 	}
@@ -2084,15 +2086,11 @@ static void dcn10_set_bandwidth(
 	/* Decrease in freq is increase in period so opposite comparison for dram_ccm */
 	if (decrease_allowed || context->bw.dcn.calc_clk.dram_ccm_us
 			< dc->current_state->bw.dcn.cur_clk.dram_ccm_us) {
-		dc->current_state->bw.dcn.calc_clk.dram_ccm_us =
-				context->bw.dcn.calc_clk.dram_ccm_us;
 		context->bw.dcn.cur_clk.dram_ccm_us =
 				context->bw.dcn.calc_clk.dram_ccm_us;
 	}
 	if (decrease_allowed || context->bw.dcn.calc_clk.min_active_dram_ccm_us
 			< dc->current_state->bw.dcn.cur_clk.min_active_dram_ccm_us) {
-		dc->current_state->bw.dcn.calc_clk.min_active_dram_ccm_us =
-				context->bw.dcn.calc_clk.min_active_dram_ccm_us;
 		context->bw.dcn.cur_clk.min_active_dram_ccm_us =
 				context->bw.dcn.calc_clk.min_active_dram_ccm_us;
 	}
