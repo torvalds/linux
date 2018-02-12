@@ -656,10 +656,13 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 /* FSI master support */
 static int fsi_check_access(uint32_t addr, size_t size)
 {
-	if (size != 1 && size != 2 && size != 4)
-		return -EINVAL;
-
-	if ((addr & 0x3) != (size & 0x3))
+	if (size == 4) {
+		if (addr & 0x3)
+			return -EINVAL;
+	} else if (size == 2) {
+		if (addr & 0x1)
+			return -EINVAL;
+	} else if (size != 1)
 		return -EINVAL;
 
 	return 0;
