@@ -283,10 +283,16 @@ static int __init tx4939_rtc_probe(struct platform_device *pdev)
 	if (devm_request_irq(&pdev->dev, irq, tx4939_rtc_interrupt,
 			     0, pdev->name, &pdev->dev) < 0)
 		return -EBUSY;
-	rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-				  &tx4939_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
+
+	rtc->ops = &tx4939_rtc_ops;
+
+	ret = rtc_register_device(rtc);
+	if (ret)
+		return ret;
+
 	pdata->rtc = rtc;
 	ret = sysfs_create_bin_file(&pdev->dev.kobj, &tx4939_rtc_nvram_attr);
 
