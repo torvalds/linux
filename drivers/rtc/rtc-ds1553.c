@@ -330,21 +330,11 @@ static int ds1553_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ds1553_rtc_remove(struct platform_device *pdev)
-{
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
-
-	if (pdata->irq > 0)
-		writeb(0, pdata->ioaddr + RTC_INTERRUPTS);
-	return 0;
-}
-
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:rtc-ds1553");
 
 static struct platform_driver ds1553_rtc_driver = {
 	.probe		= ds1553_rtc_probe,
-	.remove		= ds1553_rtc_remove,
 	.driver		= {
 		.name	= "rtc-ds1553",
 	},
