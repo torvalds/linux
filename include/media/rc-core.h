@@ -23,13 +23,6 @@
 #include <linux/timer.h>
 #include <media/rc-map.h>
 
-extern int rc_core_debug;
-#define IR_dprintk(level, fmt, ...)				\
-do {								\
-	if (rc_core_debug >= level)				\
-		printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__);	\
-} while (0)
-
 /**
  * enum rc_driver_type - type of the RC driver.
  *

@@ -60,12 +60,12 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 		 * space with the maximum time value.
 		 */
 		sample = LIRC_SPACE(LIRC_VALUE_MASK);
-		IR_dprintk(2, "delivering reset sync space to lirc_dev\n");
+		dev_dbg(&dev->dev, "delivering reset sync space to lirc_dev\n");
 
 	/* Carrier reports */
 	} else if (ev.carrier_report) {
 		sample = LIRC_FREQUENCY(ev.carrier);
-		IR_dprintk(2, "carrier report (freq: %d)\n", sample);
+		dev_dbg(&dev->dev, "carrier report (freq: %d)\n", sample);
 
 	/* Packet end */
 	} else if (ev.timeout) {
@@ -77,7 +77,7 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 		dev->gap_duration = ev.duration;
 
 		sample = LIRC_TIMEOUT(ev.duration / 1000);
-		IR_dprintk(2, "timeout report (duration: %d)\n", sample);
+		dev_dbg(&dev->dev, "timeout report (duration: %d)\n", sample);
 
 	/* Normal sample */
 	} else {
@@ -100,8 +100,8 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 
 		sample = ev.pulse ? LIRC_PULSE(ev.duration / 1000) :
 					LIRC_SPACE(ev.duration / 1000);
-		IR_dprintk(2, "delivering %uus %s to lirc_dev\n",
-			   TO_US(ev.duration), TO_STR(ev.pulse));
+		dev_dbg(&dev->dev, "delivering %uus %s to lirc_dev\n",
+			TO_US(ev.duration), TO_STR(ev.pulse));
 	}
 
 	spin_lock_irqsave(&dev->lirc_fh_lock, flags);

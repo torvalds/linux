@@ -65,8 +65,8 @@ int ir_raw_event_store(struct rc_dev *dev, struct ir_raw_event *ev)
 	if (!dev->raw)
 		return -EINVAL;
 
-	IR_dprintk(2, "sample: (%05dus %s)\n",
-		   TO_US(ev->duration), TO_STR(ev->pulse));
+	dev_dbg(&dev->dev, "sample: (%05dus %s)\n",
+		TO_US(ev->duration), TO_STR(ev->pulse));
 
 	if (!kfifo_put(&dev->raw->kfifo, *ev)) {
 		dev_err(&dev->dev, "IR event FIFO is full!\n");
@@ -168,7 +168,7 @@ void ir_raw_event_set_idle(struct rc_dev *dev, bool idle)
 	if (!dev->raw)
 		return;
 
-	IR_dprintk(2, "%s idle mode\n", idle ? "enter" : "leave");
+	dev_dbg(&dev->dev, "%s idle mode\n", idle ? "enter" : "leave");
 
 	if (idle) {
 		dev->raw->this_ev.timeout = true;
