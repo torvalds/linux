@@ -14,7 +14,30 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/gfp.h>
-#include <asm/txx9/tx4939.h>
+
+#define TX4939_RTCCTL_ALME	0x00000080
+#define TX4939_RTCCTL_ALMD	0x00000040
+#define TX4939_RTCCTL_BUSY	0x00000020
+
+#define TX4939_RTCCTL_COMMAND	0x00000007
+#define TX4939_RTCCTL_COMMAND_NOP	0x00000000
+#define TX4939_RTCCTL_COMMAND_GETTIME	0x00000001
+#define TX4939_RTCCTL_COMMAND_SETTIME	0x00000002
+#define TX4939_RTCCTL_COMMAND_GETALARM	0x00000003
+#define TX4939_RTCCTL_COMMAND_SETALARM	0x00000004
+
+#define TX4939_RTCTBC_PM	0x00000080
+#define TX4939_RTCTBC_COMP	0x0000007f
+
+#define TX4939_RTC_REG_RAMSIZE	0x00000100
+#define TX4939_RTC_REG_RWBSIZE	0x00000006
+
+struct tx4939_rtc_reg {
+	__u32 ctl;
+	__u32 adr;
+	__u32 dat;
+	__u32 tbc;
+};
 
 struct tx4939rtc_plat_data {
 	struct rtc_device *rtc;
