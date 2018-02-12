@@ -340,11 +340,8 @@ static int stk17ta8_rtc_probe(struct platform_device *pdev)
 
 static int stk17ta8_rtc_remove(struct platform_device *pdev)
 {
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
-
 	sysfs_remove_bin_file(&pdev->dev.kobj, &stk17ta8_nvram_attr);
-	if (pdata->irq > 0)
-		writeb(0, pdata->ioaddr + RTC_INTERRUPTS);
+
 	return 0;
 }
 
