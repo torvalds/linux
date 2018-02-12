@@ -218,21 +218,21 @@ static bool m48t86_verify_chip(struct platform_device *pdev)
 	return false;
 }
 
-static struct nvmem_config m48t86_nvmem_cfg = {
-	.name = "m48t86_nvram",
-	.word_size = 1,
-	.stride = 1,
-	.size = M48T86_NVRAM_LEN,
-	.reg_read = m48t86_nvram_read,
-	.reg_write = m48t86_nvram_write,
-};
-
 static int m48t86_rtc_probe(struct platform_device *pdev)
 {
 	struct m48t86_rtc_info *info;
 	struct resource *res;
 	unsigned char reg;
 	int err;
+	struct nvmem_config m48t86_nvmem_cfg = {
+		.name = "m48t86_nvram",
+		.word_size = 1,
+		.stride = 1,
+		.size = M48T86_NVRAM_LEN,
+		.reg_read = m48t86_nvram_read,
+		.reg_write = m48t86_nvram_write,
+		.priv = &pdev->dev,
+	};
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -264,8 +264,6 @@ static int m48t86_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(info->rtc);
 
 	info->rtc->ops = &m48t86_rtc_ops;
-
-	m48t86_nvmem_cfg.priv = &pdev->dev;
 	info->rtc->nvram_old_abi = true;
 
 	err = rtc_register_device(info->rtc);
