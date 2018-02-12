@@ -249,11 +249,6 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	if (!priv)
 		return -ENOMEM;
 
-	if (!variant->broken_vblank) {
-		pl111_drm_driver.enable_vblank = pl111_enable_vblank;
-		pl111_drm_driver.disable_vblank = pl111_disable_vblank;
-	}
-
 	drm = drm_dev_alloc(&pl111_drm_driver, dev);
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);

@@ -79,8 +79,6 @@ struct pl111_drm_dev_private {
 };
 
 int pl111_display_init(struct drm_device *dev);
-int pl111_enable_vblank(struct drm_device *drm, unsigned int crtc);
-void pl111_disable_vblank(struct drm_device *drm, unsigned int crtc);
 irqreturn_t pl111_irq(int irq, void *data);
 int pl111_debugfs_init(struct drm_minor *minor);
 
