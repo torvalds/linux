@@ -546,3 +546,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_wdtrst1_default>;
 };
+
+&ibt {
+	status = "okay";
+};

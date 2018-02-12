@@ -424,3 +424,7 @@
 		aspeed,fan-tach-ch = /bits/ 8 <0x03>;
 	};
 };
+
+&ibt {
+	status = "okay";
+};
