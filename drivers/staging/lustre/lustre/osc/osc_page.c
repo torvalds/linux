@@ -759,7 +759,6 @@ out:
 static int osc_lru_alloc(const struct lu_env *env, struct client_obd *cli,
 			 struct osc_page *opg)
 {
-	struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
 	struct osc_io *oio = osc_env_io(env);
 	int rc = 0;
 
@@ -782,9 +781,8 @@ static int osc_lru_alloc(const struct lu_env *env, struct client_obd *cli,
 
 		cond_resched();
 
-		rc = l_wait_event(osc_lru_waitq,
-				  atomic_long_read(cli->cl_lru_left) > 0,
-				  &lwi);
+		rc = l_wait_event_abortable(osc_lru_waitq,
+					    atomic_long_read(cli->cl_lru_left) > 0);
 
 		if (rc < 0)
 			break;

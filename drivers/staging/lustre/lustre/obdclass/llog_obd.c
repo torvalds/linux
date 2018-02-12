@@ -104,7 +104,6 @@ EXPORT_SYMBOL(__llog_ctxt_put);
 
 int llog_cleanup(const struct lu_env *env, struct llog_ctxt *ctxt)
 {
-	struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
 	struct obd_llog_group *olg;
 	int rc, idx;
 
@@ -129,8 +128,8 @@ int llog_cleanup(const struct lu_env *env, struct llog_ctxt *ctxt)
 		CERROR("Error %d while cleaning up ctxt %p\n",
 		       rc, ctxt);
 
-	l_wait_event(olg->olg_waitq,
-		     llog_group_ctxt_null(olg, idx), &lwi);
+	l_wait_event_abortable(olg->olg_waitq,
+			     llog_group_ctxt_null(olg, idx));
 
 	return rc;
 }

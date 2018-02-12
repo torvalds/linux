@@ -1332,7 +1332,6 @@ static bool obd_request_slot_avail(struct client_obd *cli,
 int obd_get_request_slot(struct client_obd *cli)
 {
 	struct obd_request_slot_waiter orsw;
-	struct l_wait_info lwi;
 	int rc;
 
 	spin_lock(&cli->cl_loi_list_lock);
@@ -1347,11 +1346,9 @@ int obd_get_request_slot(struct client_obd *cli)
 	orsw.orsw_signaled = false;
 	spin_unlock(&cli->cl_loi_list_lock);
 
-	lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
-	rc = l_wait_event(orsw.orsw_waitq,
-			  obd_request_slot_avail(cli, &orsw) ||
-			  orsw.orsw_signaled,
-			  &lwi);
+	rc = l_wait_event_abortable(orsw.orsw_waitq,
+				    obd_request_slot_avail(cli, &orsw) ||
+				    orsw.orsw_signaled);
 
 	/*
 	 * Here, we must take the lock to avoid the on-stack 'orsw' to be

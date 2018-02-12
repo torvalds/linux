@@ -879,7 +879,6 @@ static int __ldlm_namespace_free(struct ldlm_namespace *ns, int force)
 	ldlm_namespace_cleanup(ns, force ? LDLM_FL_LOCAL_ONLY : 0);
 
 	if (atomic_read(&ns->ns_bref) > 0) {
-		struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
 		int rc;
 
 		CDEBUG(D_DLMTRACE,
@@ -887,11 +886,12 @@ static int __ldlm_namespace_free(struct ldlm_namespace *ns, int force)
 		       ldlm_ns_name(ns), atomic_read(&ns->ns_bref));
 force_wait:
 		if (force)
-			lwi = LWI_TIMEOUT(msecs_to_jiffies(obd_timeout *
-					  MSEC_PER_SEC) / 4, NULL, NULL);
-
-		rc = l_wait_event(ns->ns_waitq,
-				  atomic_read(&ns->ns_bref) == 0, &lwi);
+			rc = wait_event_idle_timeout(ns->ns_waitq,
+						     atomic_read(&ns->ns_bref) == 0,
+						     obd_timeout * HZ / 4) ? 0 : -ETIMEDOUT;
+		else
+			rc = l_wait_event_abortable(ns->ns_waitq,
+						    atomic_read(&ns->ns_bref) == 0);
 
 		/* Forced cleanups should be able to reclaim all references,
 		 * so it's safe to wait forever... we can't leak locks...

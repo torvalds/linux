@@ -552,14 +552,12 @@ static int osc_destroy(const struct lu_env *env, struct obd_export *exp,
 
 	req->rq_interpret_reply = osc_destroy_interpret;
 	if (!osc_can_send_destroy(cli)) {
-		struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
-
 		/*
 		 * Wait until the number of on-going destroy RPCs drops
 		 * under max_rpc_in_flight
 		 */
-		l_wait_event_exclusive(cli->cl_destroy_waitq,
-				       osc_can_send_destroy(cli), &lwi);
+		l_wait_event_abortable_exclusive(cli->cl_destroy_waitq,
+					       osc_can_send_destroy(cli));
 	}
 
 	/* Do not wait for response */
