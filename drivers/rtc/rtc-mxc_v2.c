@@ -273,7 +273,7 @@ static const struct rtc_class_ops mxc_rtc_ops = {
 	.alarm_irq_enable = mxc_rtc_alarm_irq_enable,
 };
 
-static int mxc_rtc_wait_for_flag(void *__iomem ioaddr, int flag)
+static int mxc_rtc_wait_for_flag(void __iomem *ioaddr, int flag)
 {
 	unsigned int timeout = REG_READ_TIMEOUT;
 
