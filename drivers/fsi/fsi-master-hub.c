@@ -288,10 +288,19 @@ static int hub_master_probe(struct device *dev)
 	hub_master_init(hub);
 
 	rc = fsi_master_register(&hub->master);
-	if (!rc)
-		return 0;
+	if (rc)
+		goto err_release;
 
-	kfree(hub);
+	/* At this point, fsi_master_register performs the device_initialize(),
+	 * and holds the sole reference on master.dev. This means the device
+	 * will be freed (via ->release) during any subsequent call to
+	 * fsi_master_unregister.  We add our own reference to it here, so we
+	 * can perform cleanup (in _remove()) without it being freed before
+	 * we're ready.
+	 */
+	get_device(&hub->master.dev);
+	return 0;
+
 err_release:
 	fsi_slave_release_range(fsi_dev->slave, FSI_HUB_LINK_OFFSET,
 			FSI_HUB_LINK_SIZE * links);
@@ -305,6 +314,12 @@ static int hub_master_remove(struct device *dev)
 	fsi_master_unregister(&hub->master);
 	fsi_slave_release_range(hub->upstream->slave, hub->addr, hub->size);
 	of_node_put(hub->master.dev.of_node);
+
+	/*
+	 * master.dev will likely be ->release()ed after this, which free()s
+	 * the hub
+	 */
+	put_device(&hub->master.dev);
 
 	return 0;
 }
