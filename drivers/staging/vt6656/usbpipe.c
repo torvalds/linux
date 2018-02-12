@@ -194,9 +194,6 @@ static void vnt_submit_rx_urb_complete(struct urb *urb)
 		if (vnt_rx_data(priv, rcb, urb->actual_length)) {
 			rcb->skb = dev_alloc_skb(priv->rx_buf_sz);
 			if (!rcb->skb) {
-				dev_dbg(&priv->usb->dev,
-					"Failed to re-alloc rx skb\n");
-
 				rcb->in_use = false;
 				return;
 			}
