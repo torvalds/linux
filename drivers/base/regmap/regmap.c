@@ -1993,7 +1993,7 @@ out:
 				return -EINVAL;
 			}
 
-			ret = regmap_write(map, reg + (i * map->reg_stride),
+			ret = regmap_write(map, reg + regmap_get_offset(map, i),
 					   ival);
 			if (ret)
 				return ret;
