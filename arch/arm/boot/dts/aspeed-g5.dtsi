@@ -264,7 +264,7 @@
 
 				#address-cells = <1>;
 				#size-cells = <1>;
-				ranges = <0 0x1e789000 0x1000>;
+				ranges = <0x0 0x1e789000 0x1000>;
 
 				lpc_bmc: lpc-bmc@0 {
 					compatible = "aspeed,ast2500-lpc-bmc";
@@ -274,12 +274,11 @@
 				lpc_host: lpc-host@80 {
 					compatible = "aspeed,ast2500-lpc-host", "simple-mfd", "syscon";
 					reg = <0x80 0x1e0>;
+					reg-io-width = <4>;
 
 					#address-cells = <1>;
 					#size-cells = <1>;
-					ranges = <0 0x80 0x1e0>;
-
-					reg-io-width = <4>;
+					ranges = <0x0 0x80 0x1e0>;
 
 					lpc_ctrl: lpc-ctrl@0 {
 						compatible = "aspeed,ast2500-lpc-ctrl";
