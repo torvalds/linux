@@ -865,7 +865,6 @@ static int _fsl_ssi_set_dai_fmt(struct device *dev,
 {
 	struct regmap *regs = ssi->regs;
 	u32 strcr = 0, stcr, srcr, scr, mask;
-	u8 wm;
 
 	ssi->dai_fmt = fmt;
 
@@ -873,8 +872,6 @@ static int _fsl_ssi_set_dai_fmt(struct device *dev,
 		dev_err(dev, "missing baudclk for master mode\n");
 		return -EINVAL;
 	}
-
-	fsl_ssi_setup_regvals(ssi);
 
 	regmap_read(regs, REG_SSI_SCR, &scr);
 	scr &= ~(SSI_SCR_SYN | SSI_SCR_I2S_MODE_MASK);
@@ -989,16 +986,6 @@ static int _fsl_ssi_set_dai_fmt(struct device *dev,
 	regmap_write(regs, REG_SSI_STCR, stcr);
 	regmap_write(regs, REG_SSI_SRCR, srcr);
 	regmap_write(regs, REG_SSI_SCR, scr);
-
-	wm = ssi->fifo_watermark;
-
-	regmap_write(regs, REG_SSI_SFCSR,
-		     SSI_SFCSR_TFWM0(wm) | SSI_SFCSR_RFWM0(wm) |
-		     SSI_SFCSR_TFWM1(wm) | SSI_SFCSR_RFWM1(wm));
-
-	if (ssi->use_dual_fifo)
-		regmap_update_bits(regs, REG_SSI_SCR,
-				   SSI_SCR_TCH_EN, SSI_SCR_TCH_EN);
 
 	if ((fmt & SND_SOC_DAIFMT_FORMAT_MASK) == SND_SOC_DAIFMT_AC97)
 		fsl_ssi_setup_ac97(ssi);
@@ -1247,6 +1234,29 @@ static struct snd_ac97_bus_ops fsl_ssi_ac97_ops = {
 	.read = fsl_ssi_ac97_read,
 	.write = fsl_ssi_ac97_write,
 };
+
+/**
+ * Initialize SSI registers
+ */
+static int fsl_ssi_hw_init(struct fsl_ssi *ssi)
+{
+	u32 wm = ssi->fifo_watermark;
+
+	/* Initialize regvals */
+	fsl_ssi_setup_regvals(ssi);
+
+	/* Set watermarks */
+	regmap_write(ssi->regs, REG_SSI_SFCSR,
+		     SSI_SFCSR_TFWM0(wm) | SSI_SFCSR_RFWM0(wm) |
+		     SSI_SFCSR_TFWM1(wm) | SSI_SFCSR_RFWM1(wm));
+
+	/* Enable Dual FIFO mode */
+	if (ssi->use_dual_fifo)
+		regmap_update_bits(ssi->regs, REG_SSI_SCR,
+				   SSI_SCR_TCH_EN, SSI_SCR_TCH_EN);
+
+	return 0;
+}
 
 /**
  * Make every character in a string lower-case
@@ -1532,6 +1542,9 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 done:
 	if (ssi->dai_fmt)
 		_fsl_ssi_set_dai_fmt(dev, ssi, ssi->dai_fmt);
+
+	/* Initially configures SSI registers */
+	fsl_ssi_hw_init(ssi);
 
 	if (fsl_ssi_is_ac97(ssi)) {
 		u32 ssi_idx;
