@@ -2588,13 +2588,12 @@ static void ptlrpc_wait_replies(struct ptlrpc_service_part *svcpt)
 {
 	while (1) {
 		int rc;
-		struct l_wait_info lwi = LWI_TIMEOUT(10 * HZ,
-						     NULL, NULL);
 
-		rc = l_wait_event(svcpt->scp_waitq,
-				  atomic_read(&svcpt->scp_nreps_difficult) == 0,
-				  &lwi);
-		if (rc == 0)
+		rc = wait_event_idle_timeout(
+			svcpt->scp_waitq,
+			atomic_read(&svcpt->scp_nreps_difficult) == 0,
+			10 * HZ);
+		if (rc > 0)
 			break;
 		CWARN("Unexpectedly long timeout %s %p\n",
 		      svcpt->scp_service->srv_name, svcpt->scp_service);

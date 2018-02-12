@@ -1151,10 +1151,9 @@ out:
 	 */
 	while (sai->sai_sent != sai->sai_replied) {
 		/* in case we're not woken up, timeout wait */
-		struct l_wait_info lwi = LWI_TIMEOUT(msecs_to_jiffies(MSEC_PER_SEC >> 3),
-						     NULL, NULL);
-		l_wait_event(sa_thread->t_ctl_waitq,
-			     sai->sai_sent == sai->sai_replied, &lwi);
+		wait_event_idle_timeout(sa_thread->t_ctl_waitq,
+					sai->sai_sent == sai->sai_replied,
+					HZ>>3);
 	}
 
 	/* release resources held by statahead RPCs */
@@ -1374,7 +1373,6 @@ static int revalidate_statahead_dentry(struct inode *dir,
 {
 	struct ll_inode_info *lli = ll_i2info(dir);
 	struct sa_entry *entry = NULL;
-	struct l_wait_info lwi = { 0 };
 	struct ll_dentry_data *ldd;
 	int rc = 0;
 
@@ -1424,10 +1422,8 @@ static int revalidate_statahead_dentry(struct inode *dir,
 		spin_lock(&lli->lli_sa_lock);
 		sai->sai_index_wait = entry->se_index;
 		spin_unlock(&lli->lli_sa_lock);
-		lwi = LWI_TIMEOUT_INTR(30 * HZ, NULL,
-				       LWI_ON_SIGNAL_NOOP, NULL);
-		rc = l_wait_event(sai->sai_waitq, sa_ready(entry), &lwi);
-		if (rc < 0) {
+		if (0 == wait_event_idle_timeout(sai->sai_waitq,
+						 sa_ready(entry), 30 * HZ)) {
 			/*
 			 * entry may not be ready, so it may be used by inflight
 			 * statahead RPC, don't free it.

@@ -142,7 +142,6 @@ static void sec_do_gc(struct ptlrpc_sec *sec)
 static int sec_gc_main(void *arg)
 {
 	struct ptlrpc_thread *thread = arg;
-	struct l_wait_info lwi;
 
 	unshare_fs_struct();
 
@@ -179,12 +178,9 @@ again:
 
 		/* check ctx list again before sleep */
 		sec_process_ctx_list();
-
-		lwi = LWI_TIMEOUT(msecs_to_jiffies(SEC_GC_INTERVAL * MSEC_PER_SEC),
-				  NULL, NULL);
-		l_wait_event(thread->t_ctl_waitq,
-			     thread_is_stopping(thread),
-			     &lwi);
+		wait_event_idle_timeout(thread->t_ctl_waitq,
+					thread_is_stopping(thread),
+					SEC_GC_INTERVAL * HZ);
 
 		if (thread_test_and_clear_flags(thread, SVC_STOPPING))
 			break;

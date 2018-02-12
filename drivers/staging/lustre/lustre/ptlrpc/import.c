@@ -430,21 +430,19 @@ void ptlrpc_fail_import(struct obd_import *imp, __u32 conn_cnt)
 
 int ptlrpc_reconnect_import(struct obd_import *imp)
 {
-	struct l_wait_info lwi;
-	int secs = obd_timeout * HZ;
 	int rc;
 
 	ptlrpc_pinger_force(imp);
 
 	CDEBUG(D_HA, "%s: recovery started, waiting %u seconds\n",
-	       obd2cli_tgt(imp->imp_obd), secs);
+	       obd2cli_tgt(imp->imp_obd), obd_timeout);
 
-	lwi = LWI_TIMEOUT(secs, NULL, NULL);
-	rc = l_wait_event(imp->imp_recovery_waitq,
-			  !ptlrpc_import_in_recovery(imp), &lwi);
+	rc = wait_event_idle_timeout(imp->imp_recovery_waitq,
+				     !ptlrpc_import_in_recovery(imp),
+				     obd_timeout * HZ);
 	CDEBUG(D_HA, "%s: recovery finished s:%s\n", obd2cli_tgt(imp->imp_obd),
 	       ptlrpc_import_state_name(imp->imp_state));
-	return rc;
+	return rc == 0 ? -ETIMEDOUT : 0;
 }
 EXPORT_SYMBOL(ptlrpc_reconnect_import);
 

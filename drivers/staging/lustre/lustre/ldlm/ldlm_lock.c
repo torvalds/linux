@@ -1349,7 +1349,6 @@ out:
 		if ((flags & LDLM_FL_LVB_READY) && !ldlm_is_lvb_ready(lock)) {
 			__u64 wait_flags = LDLM_FL_LVB_READY |
 				LDLM_FL_DESTROYED | LDLM_FL_FAIL_NOTIFIED;
-			struct l_wait_info lwi;
 
 			if (lock->l_completion_ast) {
 				int err = lock->l_completion_ast(lock,
@@ -1366,13 +1365,10 @@ out:
 				}
 			}
 
-			lwi = LWI_TIMEOUT_INTR(obd_timeout * HZ,
-					       NULL, LWI_ON_SIGNAL_NOOP, NULL);
-
 			/* XXX FIXME see comment on CAN_MATCH in lustre_dlm.h */
-			l_wait_event(lock->l_waitq,
-				     lock->l_flags & wait_flags,
-				     &lwi);
+			wait_event_idle_timeout(lock->l_waitq,
+						lock->l_flags & wait_flags,
+						obd_timeout * HZ);
 			if (!ldlm_is_lvb_ready(lock)) {
 				if (flags & LDLM_FL_TEST_LOCK)
 					LDLM_LOCK_RELEASE(lock);

@@ -934,8 +934,6 @@ static int osc_extent_wait(const struct lu_env *env, struct osc_extent *ext,
 			   enum osc_extent_state state)
 {
 	struct osc_object *obj = ext->oe_obj;
-	struct l_wait_info lwi = LWI_TIMEOUT_INTR(600 * HZ, NULL,
-						  LWI_ON_SIGNAL_NOOP, NULL);
 	int rc = 0;
 
 	osc_object_lock(obj);
@@ -958,17 +956,19 @@ static int osc_extent_wait(const struct lu_env *env, struct osc_extent *ext,
 		osc_extent_release(env, ext);
 
 	/* wait for the extent until its state becomes @state */
-	rc = l_wait_event(ext->oe_waitq, extent_wait_cb(ext, state), &lwi);
-	if (rc == -ETIMEDOUT) {
+	rc = wait_event_idle_timeout(ext->oe_waitq,
+				     extent_wait_cb(ext, state), 600 * HZ);
+	if (rc == 0) {
 		OSC_EXTENT_DUMP(D_ERROR, ext,
 				"%s: wait ext to %u timedout, recovery in progress?\n",
 				cli_name(osc_cli(obj)), state);
 
 		wait_event_idle(ext->oe_waitq, extent_wait_cb(ext, state));
-		rc = 0;
 	}
-	if (rc == 0 && ext->oe_rc < 0)
+	if (ext->oe_rc < 0)
 		rc = ext->oe_rc;
+	else
+		rc = 0;
 	return rc;
 }
 
@@ -1568,11 +1568,8 @@ static int osc_enter_cache(const struct lu_env *env, struct client_obd *cli,
 	struct osc_object *osc = oap->oap_obj;
 	struct lov_oinfo *loi = osc->oo_oinfo;
 	struct osc_cache_waiter ocw;
-	struct l_wait_info lwi;
+	unsigned long timeout = (AT_OFF ? obd_timeout : at_max) * HZ;
 	int rc = -EDQUOT;
-
-	lwi = LWI_TIMEOUT_INTR((AT_OFF ? obd_timeout : at_max) * HZ,
-			       NULL, LWI_ON_SIGNAL_NOOP, NULL);
 
 	OSC_DUMP_GRANT(D_CACHE, cli, "need:%d\n", bytes);
 
@@ -1616,13 +1613,15 @@ static int osc_enter_cache(const struct lu_env *env, struct client_obd *cli,
 		CDEBUG(D_CACHE, "%s: sleeping for cache space @ %p for %p\n",
 		       cli_name(cli), &ocw, oap);
 
-		rc = l_wait_event(ocw.ocw_waitq, ocw_granted(cli, &ocw), &lwi);
+		rc = wait_event_idle_timeout(ocw.ocw_waitq,
+					     ocw_granted(cli, &ocw), timeout);
 
 		spin_lock(&cli->cl_loi_list_lock);
 
-		if (rc < 0) {
-			/* l_wait_event is interrupted by signal, or timed out */
+		if (rc == 0) {
+			/* wait_event is interrupted by signal, or timed out */
 			list_del_init(&ocw.ocw_entry);
+			rc = -ETIMEDOUT;
 			break;
 		}
 		LASSERT(list_empty(&ocw.ocw_entry));

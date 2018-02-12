@@ -997,8 +997,6 @@ static int ldlm_pools_thread_main(void *arg)
 	       "ldlm_poold", current_pid());
 
 	while (1) {
-		struct l_wait_info lwi;
-
 		/*
 		 * Recal all pools on this tick.
 		 */
@@ -1008,12 +1006,10 @@ static int ldlm_pools_thread_main(void *arg)
 		 * Wait until the next check time, or until we're
 		 * stopped.
 		 */
-		lwi = LWI_TIMEOUT(c_time * HZ,
-				  NULL, NULL);
-		l_wait_event(thread->t_ctl_waitq,
-			     thread_is_stopping(thread) ||
-			     thread_is_event(thread),
-			     &lwi);
+		wait_event_idle_timeout(thread->t_ctl_waitq,
+					thread_is_stopping(thread) ||
+					thread_is_event(thread),
+					c_time * HZ);
 
 		if (thread_test_and_clear_flags(thread, SVC_STOPPING))
 			break;

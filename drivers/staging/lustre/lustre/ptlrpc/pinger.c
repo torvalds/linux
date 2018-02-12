@@ -228,7 +228,6 @@ static int ptlrpc_pinger_main(void *arg)
 	/* And now, loop forever, pinging as needed. */
 	while (1) {
 		unsigned long this_ping = cfs_time_current();
-		struct l_wait_info lwi;
 		long time_to_next_wake;
 		struct timeout_item *item;
 		struct list_head *iter;
@@ -266,13 +265,10 @@ static int ptlrpc_pinger_main(void *arg)
 		       cfs_time_add(this_ping,
 				    PING_INTERVAL * HZ));
 		if (time_to_next_wake > 0) {
-			lwi = LWI_TIMEOUT(max_t(long, time_to_next_wake,
-						HZ),
-					  NULL, NULL);
-			l_wait_event(thread->t_ctl_waitq,
-				     thread_is_stopping(thread) ||
-				     thread_is_event(thread),
-				     &lwi);
+			wait_event_idle_timeout(thread->t_ctl_waitq,
+						thread_is_stopping(thread) ||
+						thread_is_event(thread),
+						max_t(long, time_to_next_wake, HZ));
 			if (thread_test_and_clear_flags(thread, SVC_STOPPING))
 				break;
 			/* woken after adding import to reset timer */

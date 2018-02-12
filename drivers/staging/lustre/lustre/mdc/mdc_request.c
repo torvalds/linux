@@ -838,7 +838,6 @@ static int mdc_getpage(struct obd_export *exp, const struct lu_fid *fid,
 	struct ptlrpc_bulk_desc *desc;
 	struct ptlrpc_request *req;
 	wait_queue_head_t waitq;
-	struct l_wait_info lwi;
 	int resends = 0;
 	int rc;
 	int i;
@@ -888,9 +887,7 @@ restart_bulk:
 			       exp->exp_obd->obd_name, -EIO);
 			return -EIO;
 		}
-		lwi = LWI_TIMEOUT_INTR(resends * HZ, NULL, NULL,
-				       NULL);
-		l_wait_event(waitq, 0, &lwi);
+		wait_event_idle_timeout(waitq, 0, resends * HZ);
 
 		goto restart_bulk;
 	}
