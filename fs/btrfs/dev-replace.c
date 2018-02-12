@@ -693,13 +693,13 @@ void btrfs_dev_replace_status(struct btrfs_fs_info *fs_info,
 	btrfs_dev_replace_unlock(dev_replace, 0);
 }
 
-u64 btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
+int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
 	struct btrfs_device *tgt_device = NULL;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = fs_info->tree_root;
-	u64 result;
+	int result;
 	int ret;
 
 	if (sb_rdonly(fs_info->sb))
