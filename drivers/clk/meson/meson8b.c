@@ -370,17 +370,16 @@ static struct meson_clk_cpu meson8b_cpu_clk = {
 };
 
 static u32 mux_table_clk81[]	= { 6, 5, 7 };
-
-struct clk_mux meson8b_mpeg_clk_sel = {
-	.reg = (void *)HHI_MPEG_CLK_CNTL,
-	.mask = 0x7,
-	.shift = 12,
-	.flags = CLK_MUX_READ_ONLY,
-	.table = mux_table_clk81,
-	.lock = &meson_clk_lock,
+static struct clk_regmap meson8b_mpeg_clk_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_MPEG_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 12,
+		.table = mux_table_clk81,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mpeg_clk_sel",
-		.ops = &clk_mux_ro_ops,
+		.ops = &clk_regmap_mux_ro_ops,
 		/*
 		 * FIXME bits 14:12 selects from 8 possible parents:
 		 * xtal, 1'b0 (wtf), fclk_div7, mpll_clkout1, mpll_clkout2,
@@ -620,10 +619,6 @@ static struct meson_clk_mpll *const meson8b_clk_mplls[] = {
 	&meson8b_mpll2,
 };
 
-static struct clk_mux *const meson8b_clk_muxes[] = {
-	&meson8b_mpeg_clk_sel,
-};
-
 static struct clk_regmap *const meson8b_clk_regmaps[] = {
 	&meson8b_clk81,
 	&meson8b_ddr,
@@ -704,6 +699,7 @@ static struct clk_regmap *const meson8b_clk_regmaps[] = {
 	&meson8b_ao_ahb_bus,
 	&meson8b_ao_iface,
 	&meson8b_mpeg_clk_div,
+	&meson8b_mpeg_clk_sel,
 };
 
 static const struct meson8b_clk_reset_line {
@@ -836,11 +832,6 @@ static int meson8b_clkc_probe(struct platform_device *pdev)
 
 	/* Populate the base address for CPU clk */
 	meson8b_cpu_clk.base = clk_base;
-
-	/* Populate base address for muxes */
-	for (i = 0; i < ARRAY_SIZE(meson8b_clk_muxes); i++)
-		meson8b_clk_muxes[i]->reg = clk_base +
-			(u32)meson8b_clk_muxes[i]->reg;
 
 	/* Populate regmap for the regmap backed clocks */
 	for (i = 0; i < ARRAY_SIZE(meson8b_clk_regmaps); i++)

@@ -418,16 +418,16 @@ static const char * const clk81_parent_names[] = {
 	"fclk_div3", "fclk_div5"
 };
 
-static struct clk_mux axg_mpeg_clk_sel = {
-	.reg = (void *)HHI_MPEG_CLK_CNTL,
-	.mask = 0x7,
-	.shift = 12,
-	.flags = CLK_MUX_READ_ONLY,
-	.table = mux_table_clk81,
-	.lock = &meson_clk_lock,
+static struct clk_regmap axg_mpeg_clk_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_MPEG_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 12,
+		.table = mux_table_clk81,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mpeg_clk_sel",
-		.ops = &clk_mux_ro_ops,
+		.ops = &clk_regmap_mux_ro_ops,
 		.parent_names = clk81_parent_names,
 		.num_parents = ARRAY_SIZE(clk81_parent_names),
 	},
@@ -474,14 +474,15 @@ static const char * const axg_sd_emmc_clk0_parent_names[] = {
 };
 
 /* SDcard clock */
-static struct clk_mux axg_sd_emmc_b_clk0_sel = {
-	.reg = (void *)HHI_SD_EMMC_CLK_CNTL,
-	.mask = 0x7,
-	.shift = 25,
-	.lock = &meson_clk_lock,
+static struct clk_regmap axg_sd_emmc_b_clk0_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_SD_EMMC_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 25,
+	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "sd_emmc_b_clk0_sel",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_names = axg_sd_emmc_clk0_parent_names,
 		.num_parents = ARRAY_SIZE(axg_sd_emmc_clk0_parent_names),
 		.flags = CLK_SET_RATE_PARENT,
@@ -519,14 +520,15 @@ static struct clk_regmap axg_sd_emmc_b_clk0 = {
 };
 
 /* EMMC/NAND clock */
-static struct clk_mux axg_sd_emmc_c_clk0_sel = {
-	.reg = (void *)HHI_NAND_CLK_CNTL,
-	.mask = 0x7,
-	.shift = 9,
-	.lock = &meson_clk_lock,
+static struct clk_regmap axg_sd_emmc_c_clk0_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_NAND_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 9,
+	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "sd_emmc_c_clk0_sel",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_names = axg_sd_emmc_clk0_parent_names,
 		.num_parents = ARRAY_SIZE(axg_sd_emmc_clk0_parent_names),
 		.flags = CLK_SET_RATE_PARENT,
@@ -703,12 +705,6 @@ static struct meson_clk_mpll *const axg_clk_mplls[] = {
 	&axg_mpll3,
 };
 
-static struct clk_mux *const axg_clk_muxes[] = {
-	&axg_mpeg_clk_sel,
-	&axg_sd_emmc_b_clk0_sel,
-	&axg_sd_emmc_c_clk0_sel,
-};
-
 static struct clk_regmap *const axg_clk_regmaps[] = {
 	&axg_clk81,
 	&axg_ddr,
@@ -760,6 +756,9 @@ static struct clk_regmap *const axg_clk_regmaps[] = {
 	&axg_mpeg_clk_div,
 	&axg_sd_emmc_b_clk0_div,
 	&axg_sd_emmc_c_clk0_div,
+	&axg_mpeg_clk_sel,
+	&axg_sd_emmc_b_clk0_sel,
+	&axg_sd_emmc_c_clk0_sel,
 };
 
 struct clkc_data {
@@ -767,8 +766,6 @@ struct clkc_data {
 	unsigned int clk_mplls_count;
 	struct meson_clk_pll *const *clk_plls;
 	unsigned int clk_plls_count;
-	struct clk_mux *const *clk_muxes;
-	unsigned int clk_muxes_count;
 	struct clk_hw_onecell_data *hw_onecell_data;
 };
 
@@ -777,8 +774,6 @@ static const struct clkc_data axg_clkc_data = {
 	.clk_mplls_count = ARRAY_SIZE(axg_clk_mplls),
 	.clk_plls = axg_clk_plls,
 	.clk_plls_count = ARRAY_SIZE(axg_clk_plls),
-	.clk_muxes = axg_clk_muxes,
-	.clk_muxes_count = ARRAY_SIZE(axg_clk_muxes),
 	.hw_onecell_data = &axg_hw_onecell_data,
 };
 
@@ -828,11 +823,6 @@ static int axg_clkc_probe(struct platform_device *pdev)
 	/* Populate base address for MPLLs */
 	for (i = 0; i < clkc_data->clk_mplls_count; i++)
 		clkc_data->clk_mplls[i]->base = clk_base;
-
-	/* Populate base address for muxes */
-	for (i = 0; i < clkc_data->clk_muxes_count; i++)
-		clkc_data->clk_muxes[i]->reg = clk_base +
-			(u64)clkc_data->clk_muxes[i]->reg;
 
 	/* Populate regmap for the regmap backed clocks */
 	for (i = 0; i < ARRAY_SIZE(axg_clk_regmaps); i++)
