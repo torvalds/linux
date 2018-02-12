@@ -101,17 +101,6 @@ struct meson_clk_pll_data {
 
 #define to_meson_clk_pll(_hw) container_of(_hw, struct meson_clk_pll, hw)
 
-struct meson_clk_cpu {
-	struct clk_hw hw;
-	void __iomem *base;
-	u16 reg_off;
-	struct notifier_block clk_nb;
-	const struct clk_div_table *div_table;
-};
-
-int meson_clk_cpu_notifier_cb(struct notifier_block *nb, unsigned long event,
-		void *data);
-
 struct meson_clk_mpll_data {
 	struct parm sdm;
 	struct parm sdm_en;
