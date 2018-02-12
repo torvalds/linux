@@ -32,7 +32,6 @@ extern const struct clk_ops meson_aoclk_gate_regmap_ops;
 struct aoclk_cec_32k {
 	struct clk_hw hw;
 	struct regmap *regmap;
-	spinlock_t *lock;
 };
 
 #define to_aoclk_cec_32k(_hw) container_of(_hw, struct aoclk_cec_32k, hw)
