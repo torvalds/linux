@@ -434,7 +434,7 @@ static struct dentry *ll_find_alias(struct inode *inode, struct dentry *dentry)
  */
 struct dentry *ll_splice_alias(struct inode *inode, struct dentry *de)
 {
-	if (inode) {
+	if (inode && !S_ISDIR(inode->i_mode)) {
 		struct dentry *new = ll_find_alias(inode, de);
 
 		if (new) {
@@ -445,8 +445,13 @@ struct dentry *ll_splice_alias(struct inode *inode, struct dentry *de)
 			      new, d_inode(new), d_count(new), new->d_flags);
 			return new;
 		}
+		d_add(de, inode);
+	} else {
+		struct dentry *new = d_splice_alias(inode, de);
+
+		if (new)
+			de = new;
 	}
-	d_add(de, inode);
 	CDEBUG(D_DENTRY, "Add dentry %p inode %p refc %d flags %#x\n",
 	       de, d_inode(de), d_count(de), de->d_flags);
 	return de;
