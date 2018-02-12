@@ -533,7 +533,7 @@ done:
 	return err;
 }
 
-static int rfcomm_sock_getname(struct socket *sock, struct sockaddr *addr, int *len, int peer)
+static int rfcomm_sock_getname(struct socket *sock, struct sockaddr *addr, int peer)
 {
 	struct sockaddr_rc *sa = (struct sockaddr_rc *) addr;
 	struct sock *sk = sock->sk;
@@ -552,8 +552,7 @@ static int rfcomm_sock_getname(struct socket *sock, struct sockaddr *addr, int *
 	else
 		bacpy(&sa->rc_bdaddr, &rfcomm_pi(sk)->src);
 
-	*len = sizeof(struct sockaddr_rc);
-	return 0;
+	return sizeof(struct sockaddr_rc);
 }
 
 static int rfcomm_sock_sendmsg(struct socket *sock, struct msghdr *msg,

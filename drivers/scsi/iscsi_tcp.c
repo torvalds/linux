@@ -732,7 +732,7 @@ static int iscsi_sw_tcp_conn_get_param(struct iscsi_cls_conn *cls_conn,
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct iscsi_sw_tcp_conn *tcp_sw_conn = tcp_conn->dd_data;
 	struct sockaddr_in6 addr;
-	int rc, len;
+	int rc;
 
 	switch(param) {
 	case ISCSI_PARAM_CONN_PORT:
@@ -745,12 +745,12 @@ static int iscsi_sw_tcp_conn_get_param(struct iscsi_cls_conn *cls_conn,
 		}
 		if (param == ISCSI_PARAM_LOCAL_PORT)
 			rc = kernel_getsockname(tcp_sw_conn->sock,
-						(struct sockaddr *)&addr, &len);
+						(struct sockaddr *)&addr);
 		else
 			rc = kernel_getpeername(tcp_sw_conn->sock,
-						(struct sockaddr *)&addr, &len);
+						(struct sockaddr *)&addr);
 		spin_unlock_bh(&conn->session->frwd_lock);
-		if (rc)
+		if (rc < 0)
 			return rc;
 
 		return iscsi_conn_get_addr_param((struct sockaddr_storage *)
@@ -771,7 +771,7 @@ static int iscsi_sw_tcp_host_get_param(struct Scsi_Host *shost,
 	struct iscsi_tcp_conn *tcp_conn;
 	struct iscsi_sw_tcp_conn *tcp_sw_conn;
 	struct sockaddr_in6 addr;
-	int rc, len;
+	int rc;
 
 	switch (param) {
 	case ISCSI_HOST_PARAM_IPADDRESS:
@@ -793,9 +793,9 @@ static int iscsi_sw_tcp_host_get_param(struct Scsi_Host *shost,
 		}
 
 		rc = kernel_getsockname(tcp_sw_conn->sock,
-					(struct sockaddr *)&addr, &len);
+					(struct sockaddr *)&addr);
 		spin_unlock_bh(&session->frwd_lock);
-		if (rc)
+		if (rc < 0)
 			return rc;
 
 		return iscsi_conn_get_addr_param((struct sockaddr_storage *)

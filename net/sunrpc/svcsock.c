@@ -832,12 +832,13 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 	}
 	set_bit(XPT_CONN, &svsk->sk_xprt.xpt_flags);
 
-	err = kernel_getpeername(newsock, sin, &slen);
+	err = kernel_getpeername(newsock, sin);
 	if (err < 0) {
 		net_warn_ratelimited("%s: peername failed (err %d)!\n",
 				     serv->sv_name, -err);
 		goto failed;		/* aborted connection or whatever */
 	}
+	slen = err;
 
 	/* Ideally, we would want to reject connections from unauthorized
 	 * hosts here, but when we get encryption, the IP of the host won't
@@ -866,7 +867,8 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 	if (IS_ERR(newsvsk))
 		goto failed;
 	svc_xprt_set_remote(&newsvsk->sk_xprt, sin, slen);
-	err = kernel_getsockname(newsock, sin, &slen);
+	err = kernel_getsockname(newsock, sin);
+	slen = err;
 	if (unlikely(err < 0)) {
 		dprintk("svc_tcp_accept: kernel_getsockname error %d\n", -err);
 		slen = offsetof(struct sockaddr, sa_data);
@@ -1465,7 +1467,8 @@ int svc_addsock(struct svc_serv *serv, const int fd, char *name_return,
 		err = PTR_ERR(svsk);
 		goto out;
 	}
-	if (kernel_getsockname(svsk->sk_sock, sin, &salen) == 0)
+	salen = kernel_getsockname(svsk->sk_sock, sin);
+	if (salen >= 0)
 		svc_xprt_set_local(&svsk->sk_xprt, sin, salen);
 	svc_add_new_perm_xprt(serv, &svsk->sk_xprt);
 	return svc_one_sock_name(svsk, name_return, len);
@@ -1539,10 +1542,10 @@ static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
 	if (error < 0)
 		goto bummer;
 
-	newlen = len;
-	error = kernel_getsockname(sock, newsin, &newlen);
+	error = kernel_getsockname(sock, newsin);
 	if (error < 0)
 		goto bummer;
+	newlen = error;
 
 	if (protocol == IPPROTO_TCP) {
 		if ((error = kernel_listen(sock, 64)) < 0)

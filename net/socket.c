@@ -1573,8 +1573,9 @@ SYSCALL_DEFINE4(accept4, int, fd, struct sockaddr __user *, upeer_sockaddr,
 		goto out_fd;
 
 	if (upeer_sockaddr) {
-		if (newsock->ops->getname(newsock, (struct sockaddr *)&address,
-					  &len, 2) < 0) {
+		len = newsock->ops->getname(newsock,
+					(struct sockaddr *)&address, 2);
+		if (len < 0) {
 			err = -ECONNABORTED;
 			goto out_fd;
 		}
@@ -1654,7 +1655,7 @@ SYSCALL_DEFINE3(getsockname, int, fd, struct sockaddr __user *, usockaddr,
 {
 	struct socket *sock;
 	struct sockaddr_storage address;
-	int len, err, fput_needed;
+	int err, fput_needed;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
@@ -1664,10 +1665,11 @@ SYSCALL_DEFINE3(getsockname, int, fd, struct sockaddr __user *, usockaddr,
 	if (err)
 		goto out_put;
 
-	err = sock->ops->getname(sock, (struct sockaddr *)&address, &len, 0);
-	if (err)
+	err = sock->ops->getname(sock, (struct sockaddr *)&address, 0);
+	if (err < 0)
 		goto out_put;
-	err = move_addr_to_user(&address, len, usockaddr, usockaddr_len);
+        /* "err" is actually length in this case */
+	err = move_addr_to_user(&address, err, usockaddr, usockaddr_len);
 
 out_put:
 	fput_light(sock->file, fput_needed);
@@ -1685,7 +1687,7 @@ SYSCALL_DEFINE3(getpeername, int, fd, struct sockaddr __user *, usockaddr,
 {
 	struct socket *sock;
 	struct sockaddr_storage address;
-	int len, err, fput_needed;
+	int err, fput_needed;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (sock != NULL) {
@@ -1695,11 +1697,10 @@ SYSCALL_DEFINE3(getpeername, int, fd, struct sockaddr __user *, usockaddr,
 			return err;
 		}
 
-		err =
-		    sock->ops->getname(sock, (struct sockaddr *)&address, &len,
-				       1);
-		if (!err)
-			err = move_addr_to_user(&address, len, usockaddr,
+		err = sock->ops->getname(sock, (struct sockaddr *)&address, 1);
+		if (err >= 0)
+			/* "err" is actually length in this case */
+			err = move_addr_to_user(&address, err, usockaddr,
 						usockaddr_len);
 		fput_light(sock->file, fput_needed);
 	}
@@ -3166,17 +3167,15 @@ int kernel_connect(struct socket *sock, struct sockaddr *addr, int addrlen,
 }
 EXPORT_SYMBOL(kernel_connect);
 
-int kernel_getsockname(struct socket *sock, struct sockaddr *addr,
-			 int *addrlen)
+int kernel_getsockname(struct socket *sock, struct sockaddr *addr)
 {
-	return sock->ops->getname(sock, addr, addrlen, 0);
+	return sock->ops->getname(sock, addr, 0);
 }
 EXPORT_SYMBOL(kernel_getsockname);
 
-int kernel_getpeername(struct socket *sock, struct sockaddr *addr,
-			 int *addrlen)
+int kernel_getpeername(struct socket *sock, struct sockaddr *addr)
 {
-	return sock->ops->getname(sock, addr, addrlen, 1);
+	return sock->ops->getname(sock, addr, 1);
 }
 EXPORT_SYMBOL(kernel_getpeername);
 

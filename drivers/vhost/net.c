@@ -1038,7 +1038,7 @@ static struct socket *get_raw_socket(int fd)
 		struct sockaddr_ll sa;
 		char  buf[MAX_ADDR_LEN];
 	} uaddr;
-	int uaddr_len = sizeof uaddr, r;
+	int r;
 	struct socket *sock = sockfd_lookup(fd, &r);
 
 	if (!sock)
@@ -1050,9 +1050,8 @@ static struct socket *get_raw_socket(int fd)
 		goto err;
 	}
 
-	r = sock->ops->getname(sock, (struct sockaddr *)&uaddr.sa,
-			       &uaddr_len, 0);
-	if (r)
+	r = sock->ops->getname(sock, (struct sockaddr *)&uaddr.sa, 0);
+	if (r < 0)
 		goto err;
 
 	if (uaddr.sa.sll_family != AF_PACKET) {

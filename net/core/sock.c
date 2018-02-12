@@ -1274,7 +1274,8 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 	{
 		char address[128];
 
-		if (sock->ops->getname(sock, (struct sockaddr *)address, &lv, 2))
+		lv = sock->ops->getname(sock, (struct sockaddr *)address, 2);
+		if (lv < 0)
 			return -ENOTCONN;
 		if (lv < len)
 			return -EINVAL;
@@ -2497,7 +2498,7 @@ int sock_no_accept(struct socket *sock, struct socket *newsock, int flags,
 EXPORT_SYMBOL(sock_no_accept);
 
 int sock_no_getname(struct socket *sock, struct sockaddr *saddr,
-		    int *len, int peer)
+		    int peer)
 {
 	return -EOPNOTSUPP;
 }

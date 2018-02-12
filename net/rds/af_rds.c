@@ -110,7 +110,7 @@ void rds_wake_sk_sleep(struct rds_sock *rs)
 }
 
 static int rds_getname(struct socket *sock, struct sockaddr *uaddr,
-		       int *uaddr_len, int peer)
+		       int peer)
 {
 	struct sockaddr_in *sin = (struct sockaddr_in *)uaddr;
 	struct rds_sock *rs = rds_sk_to_rs(sock->sk);
@@ -131,8 +131,7 @@ static int rds_getname(struct socket *sock, struct sockaddr *uaddr,
 
 	sin->sin_family = AF_INET;
 
-	*uaddr_len = sizeof(*sin);
-	return 0;
+	return sizeof(*sin);
 }
 
 /*

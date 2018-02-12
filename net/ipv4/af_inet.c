@@ -723,7 +723,7 @@ EXPORT_SYMBOL(inet_accept);
  *	This does both peername and sockname.
  */
 int inet_getname(struct socket *sock, struct sockaddr *uaddr,
-			int *uaddr_len, int peer)
+			int peer)
 {
 	struct sock *sk		= sock->sk;
 	struct inet_sock *inet	= inet_sk(sk);
@@ -745,8 +745,7 @@ int inet_getname(struct socket *sock, struct sockaddr *uaddr,
 		sin->sin_addr.s_addr = addr;
 	}
 	memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
-	*uaddr_len = sizeof(*sin);
-	return 0;
+	return sizeof(*sin);
 }
 EXPORT_SYMBOL(inet_getname);
 

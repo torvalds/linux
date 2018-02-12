@@ -1584,7 +1584,7 @@ int sock_no_bind(struct socket *, struct sockaddr *, int);
 int sock_no_connect(struct socket *, struct sockaddr *, int, int);
 int sock_no_socketpair(struct socket *, struct socket *);
 int sock_no_accept(struct socket *, struct socket *, int, bool);
-int sock_no_getname(struct socket *, struct sockaddr *, int *, int);
+int sock_no_getname(struct socket *, struct sockaddr *, int);
 __poll_t sock_no_poll(struct file *, struct socket *,
 			  struct poll_table_struct *);
 int sock_no_ioctl(struct socket *, unsigned int, unsigned long);

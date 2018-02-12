@@ -349,7 +349,7 @@ static int l2tp_ip_disconnect(struct sock *sk, int flags)
 }
 
 static int l2tp_ip_getname(struct socket *sock, struct sockaddr *uaddr,
-			   int *uaddr_len, int peer)
+			   int peer)
 {
 	struct sock *sk		= sock->sk;
 	struct inet_sock *inet	= inet_sk(sk);
@@ -370,8 +370,7 @@ static int l2tp_ip_getname(struct socket *sock, struct sockaddr *uaddr,
 		lsa->l2tp_conn_id = lsk->conn_id;
 		lsa->l2tp_addr.s_addr = addr;
 	}
-	*uaddr_len = sizeof(*lsa);
-	return 0;
+	return sizeof(*lsa);
 }
 
 static int l2tp_ip_backlog_recv(struct sock *sk, struct sk_buff *skb)

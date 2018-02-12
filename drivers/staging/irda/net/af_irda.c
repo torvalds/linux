@@ -697,7 +697,7 @@ static int irda_discover_daddr_and_lsap_sel(struct irda_sock *self, char *name)
  *
  */
 static int irda_getname(struct socket *sock, struct sockaddr *uaddr,
-			int *uaddr_len, int peer)
+			int peer)
 {
 	struct sockaddr_irda saddr;
 	struct sock *sk = sock->sk;
@@ -720,11 +720,9 @@ static int irda_getname(struct socket *sock, struct sockaddr *uaddr,
 	pr_debug("%s(), tsap_sel = %#x\n", __func__, saddr.sir_lsap_sel);
 	pr_debug("%s(), addr = %08x\n", __func__, saddr.sir_addr);
 
-	/* uaddr_len come to us uninitialised */
-	*uaddr_len = sizeof (struct sockaddr_irda);
-	memcpy(uaddr, &saddr, *uaddr_len);
+	memcpy(uaddr, &saddr, sizeof (struct sockaddr_irda));
 
-	return 0;
+	return sizeof (struct sockaddr_irda);
 }
 
 /*

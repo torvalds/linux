@@ -470,7 +470,7 @@ EXPORT_SYMBOL_GPL(inet6_destroy_sock);
  */
 
 int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
-		 int *uaddr_len, int peer)
+		 int peer)
 {
 	struct sockaddr_in6 *sin = (struct sockaddr_in6 *)uaddr;
 	struct sock *sk = sock->sk;
@@ -500,8 +500,7 @@ int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 	}
 	sin->sin6_scope_id = ipv6_iface_scope_id(&sin->sin6_addr,
 						 sk->sk_bound_dev_if);
-	*uaddr_len = sizeof(*sin);
-	return 0;
+	return sizeof(*sin);
 }
 EXPORT_SYMBOL(inet6_getname);
 

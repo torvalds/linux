@@ -1388,7 +1388,7 @@ out:
 }
 
 static int ax25_getname(struct socket *sock, struct sockaddr *uaddr,
-	int *uaddr_len, int peer)
+	int peer)
 {
 	struct full_sockaddr_ax25 *fsa = (struct full_sockaddr_ax25 *)uaddr;
 	struct sock *sk = sock->sk;
@@ -1427,7 +1427,7 @@ static int ax25_getname(struct socket *sock, struct sockaddr *uaddr,
 			fsa->fsa_digipeater[0] = null_ax25_address;
 		}
 	}
-	*uaddr_len = sizeof (struct full_sockaddr_ax25);
+	err = sizeof (struct full_sockaddr_ax25);
 
 out:
 	release_sock(sk);

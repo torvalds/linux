@@ -714,7 +714,7 @@ err_put:
 }
 
 static int pppoe_getname(struct socket *sock, struct sockaddr *uaddr,
-		  int *usockaddr_len, int peer)
+		  int peer)
 {
 	int len = sizeof(struct sockaddr_pppox);
 	struct sockaddr_pppox sp;
@@ -726,9 +726,7 @@ static int pppoe_getname(struct socket *sock, struct sockaddr *uaddr,
 
 	memcpy(uaddr, &sp, len);
 
-	*usockaddr_len = len;
-
-	return 0;
+	return len;
 }
 
 static int pppoe_ioctl(struct socket *sock, unsigned int cmd,

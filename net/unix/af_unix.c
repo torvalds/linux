@@ -637,7 +637,7 @@ static int unix_stream_connect(struct socket *, struct sockaddr *,
 			       int addr_len, int flags);
 static int unix_socketpair(struct socket *, struct socket *);
 static int unix_accept(struct socket *, struct socket *, int, bool);
-static int unix_getname(struct socket *, struct sockaddr *, int *, int);
+static int unix_getname(struct socket *, struct sockaddr *, int);
 static __poll_t unix_poll(struct file *, struct socket *, poll_table *);
 static __poll_t unix_dgram_poll(struct file *, struct socket *,
 				    poll_table *);
@@ -1453,7 +1453,7 @@ out:
 }
 
 
-static int unix_getname(struct socket *sock, struct sockaddr *uaddr, int *uaddr_len, int peer)
+static int unix_getname(struct socket *sock, struct sockaddr *uaddr, int peer)
 {
 	struct sock *sk = sock->sk;
 	struct unix_sock *u;
@@ -1476,12 +1476,12 @@ static int unix_getname(struct socket *sock, struct sockaddr *uaddr, int *uaddr_
 	if (!u->addr) {
 		sunaddr->sun_family = AF_UNIX;
 		sunaddr->sun_path[0] = 0;
-		*uaddr_len = sizeof(short);
+		err = sizeof(short);
 	} else {
 		struct unix_address *addr = u->addr;
 
-		*uaddr_len = addr->len;
-		memcpy(sunaddr, addr->name, *uaddr_len);
+		err = addr->len;
+		memcpy(sunaddr, addr->name, addr->len);
 	}
 	unix_state_unlock(sk);
 	sock_put(sk);
