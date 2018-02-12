@@ -1260,7 +1260,6 @@ enum {
 	SVC_STARTING    = 1 << 2,
 	SVC_RUNNING     = 1 << 3,
 	SVC_EVENT       = 1 << 4,
-	SVC_SIGNAL      = 1 << 5,
 };
 
 #define PTLRPC_THR_NAME_LEN		32
@@ -1331,11 +1330,6 @@ static inline int thread_is_running(struct ptlrpc_thread *thread)
 static inline int thread_is_event(struct ptlrpc_thread *thread)
 {
 	return !!(thread->t_flags & SVC_EVENT);
-}
-
-static inline int thread_is_signal(struct ptlrpc_thread *thread)
-{
-	return !!(thread->t_flags & SVC_SIGNAL);
 }
 
 static inline void thread_clear_flags(struct ptlrpc_thread *thread, __u32 flags)

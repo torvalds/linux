@@ -153,7 +153,6 @@ static int sec_gc_main(void *arg)
 	while (1) {
 		struct ptlrpc_sec *sec;
 
-		thread_clear_flags(thread, SVC_SIGNAL);
 		sec_process_ctx_list();
 again:
 		/* go through sec list do gc.
@@ -184,8 +183,7 @@ again:
 		lwi = LWI_TIMEOUT(msecs_to_jiffies(SEC_GC_INTERVAL * MSEC_PER_SEC),
 				  NULL, NULL);
 		l_wait_event(thread->t_ctl_waitq,
-			     thread_is_stopping(thread) ||
-			     thread_is_signal(thread),
+			     thread_is_stopping(thread),
 			     &lwi);
 
 		if (thread_test_and_clear_flags(thread, SVC_STOPPING))
