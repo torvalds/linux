@@ -52,10 +52,10 @@
 
 extern const struct qed_common_ops qed_common_ops_pass;
 
-#define QED_MAJOR_VERSION               8
-#define QED_MINOR_VERSION               10
-#define QED_REVISION_VERSION            11
-#define QED_ENGINEERING_VERSION 21
+#define QED_MAJOR_VERSION		8
+#define QED_MINOR_VERSION		33
+#define QED_REVISION_VERSION		0
+#define QED_ENGINEERING_VERSION		20
 
 #define QED_VERSION						 \
 	((QED_MAJOR_VERSION << 24) | (QED_MINOR_VERSION << 16) | \
@@ -778,8 +778,8 @@ static inline u8 qed_concrete_to_sw_fid(struct qed_dev *cdev,
 	return sw_fid;
 }
 
-#define PURE_LB_TC 8
-#define PKT_LB_TC 9
+#define PKT_LB_TC	9
+#define MAX_NUM_VOQS_E4	20
 
 int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate);
 void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev,

@@ -1474,9 +1474,7 @@ static int ov2659_probe(struct i2c_client *client,
 
 error:
 	v4l2_ctrl_handler_free(&ov2659->ctrls);
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&sd->entity);
-#endif
 	mutex_destroy(&ov2659->lock);
 	return ret;
 }
@@ -1488,9 +1486,7 @@ static int ov2659_remove(struct i2c_client *client)
 
 	v4l2_ctrl_handler_free(&ov2659->ctrls);
 	v4l2_async_unregister_subdev(sd);
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&sd->entity);
-#endif
 	mutex_destroy(&ov2659->lock);
 
 	return 0;

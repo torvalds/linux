@@ -265,12 +265,18 @@ else
 objtool_args += $(call cc-ifversion, -lt, 0405, --no-unreachable)
 endif
 
+ifdef CONFIG_MODVERSIONS
+objtool_o = $(@D)/.tmp_$(@F)
+else
+objtool_o = $(@)
+endif
+
 # 'OBJECT_FILES_NON_STANDARD := y': skip objtool checking for a directory
 # 'OBJECT_FILES_NON_STANDARD_foo.o := 'y': skip objtool checking for a file
 # 'OBJECT_FILES_NON_STANDARD_foo.o := 'n': override directory skip for a file
 cmd_objtool = $(if $(patsubst y%,, \
 	$(OBJECT_FILES_NON_STANDARD_$(basetarget).o)$(OBJECT_FILES_NON_STANDARD)n), \
-	$(__objtool_obj) $(objtool_args) "$(@)";)
+	$(__objtool_obj) $(objtool_args) "$(objtool_o)";)
 objtool_obj = $(if $(patsubst y%,, \
 	$(OBJECT_FILES_NON_STANDARD_$(basetarget).o)$(OBJECT_FILES_NON_STANDARD)n), \
 	$(__objtool_obj))
@@ -286,16 +292,16 @@ objtool_dep = $(objtool_obj)					\
 define rule_cc_o_c
 	$(call echo-cmd,checksrc) $(cmd_checksrc)			  \
 	$(call cmd_and_fixdep,cc_o_c)					  \
-	$(cmd_modversions_c)						  \
 	$(cmd_checkdoc)							  \
 	$(call echo-cmd,objtool) $(cmd_objtool)				  \
+	$(cmd_modversions_c)						  \
 	$(call echo-cmd,record_mcount) $(cmd_record_mcount)
 endef
 
 define rule_as_o_S
 	$(call cmd_and_fixdep,as_o_S)					  \
-	$(cmd_modversions_S)						  \
-	$(call echo-cmd,objtool) $(cmd_objtool)
+	$(call echo-cmd,objtool) $(cmd_objtool)				  \
+	$(cmd_modversions_S)
 endef
 
 # List module undefined symbols (or empty line if not enabled)

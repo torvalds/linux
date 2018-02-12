@@ -85,7 +85,7 @@ struct netlink_ext_ack {
  * to the lack of an output buffer.)
  */
 #define NL_SET_ERR_MSG(extack, msg) do {		\
-	static const char __msg[] = (msg);		\
+	static const char __msg[] = msg;		\
 	struct netlink_ext_ack *__extack = (extack);	\
 							\
 	if (__extack)					\
@@ -101,7 +101,7 @@ struct netlink_ext_ack {
 } while (0)
 
 #define NL_SET_ERR_MSG_ATTR(extack, attr, msg) do {	\
-	static const char __msg[] = (msg);		\
+	static const char __msg[] = msg;		\
 	struct netlink_ext_ack *__extack = (extack);	\
 							\
 	if (__extack) {					\

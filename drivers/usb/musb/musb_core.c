@@ -1687,7 +1687,7 @@ EXPORT_SYMBOL_GPL(musb_mailbox);
 /*-------------------------------------------------------------------------*/
 
 static ssize_t
-musb_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
+mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct musb *musb = dev_to_musb(dev);
 	unsigned long flags;
@@ -1701,7 +1701,7 @@ musb_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 static ssize_t
-musb_mode_store(struct device *dev, struct device_attribute *attr,
+mode_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t n)
 {
 	struct musb	*musb = dev_to_musb(dev);
@@ -1721,10 +1721,10 @@ musb_mode_store(struct device *dev, struct device_attribute *attr,
 
 	return (status == 0) ? n : status;
 }
-static DEVICE_ATTR(mode, 0644, musb_mode_show, musb_mode_store);
+static DEVICE_ATTR_RW(mode);
 
 static ssize_t
-musb_vbus_store(struct device *dev, struct device_attribute *attr,
+vbus_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t n)
 {
 	struct musb	*musb = dev_to_musb(dev);
@@ -1748,7 +1748,7 @@ musb_vbus_store(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-musb_vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
+vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct musb	*musb = dev_to_musb(dev);
 	unsigned long	flags;
@@ -1773,13 +1773,12 @@ musb_vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return sprintf(buf, "Vbus %s, timeout %lu msec\n",
 			vbus ? "on" : "off", val);
 }
-static DEVICE_ATTR(vbus, 0644, musb_vbus_show, musb_vbus_store);
+static DEVICE_ATTR_RW(vbus);
 
 /* Gadget drivers can't know that a host is connected so they might want
  * to start SRP, but users can.  This allows userspace to trigger SRP.
  */
-static ssize_t
-musb_srp_store(struct device *dev, struct device_attribute *attr,
+static ssize_t srp_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t n)
 {
 	struct musb	*musb = dev_to_musb(dev);
@@ -1796,7 +1795,7 @@ musb_srp_store(struct device *dev, struct device_attribute *attr,
 
 	return n;
 }
-static DEVICE_ATTR(srp, 0644, NULL, musb_srp_store);
+static DEVICE_ATTR_WO(srp);
 
 static struct attribute *musb_attributes[] = {
 	&dev_attr_mode.attr,

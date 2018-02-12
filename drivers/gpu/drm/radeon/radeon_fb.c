@@ -306,12 +306,6 @@ out:
 	return ret;
 }
 
-void radeon_fb_output_poll_changed(struct radeon_device *rdev)
-{
-	if (rdev->mode_info.rfbdev)
-		drm_fb_helper_hotplug_event(&rdev->mode_info.rfbdev->helper);
-}
-
 static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfbdev)
 {
 	struct radeon_framebuffer *rfb = &rfbdev->rfb;
@@ -421,20 +415,4 @@ void radeon_fb_remove_connector(struct radeon_device *rdev, struct drm_connector
 {
 	if (rdev->mode_info.rfbdev)
 		drm_fb_helper_remove_one_connector(&rdev->mode_info.rfbdev->helper, connector);
-}
-
-void radeon_fbdev_restore_mode(struct radeon_device *rdev)
-{
-	struct radeon_fbdev *rfbdev = rdev->mode_info.rfbdev;
-	struct drm_fb_helper *fb_helper;
-	int ret;
-
-	if (!rfbdev)
-		return;
-
-	fb_helper = &rfbdev->helper;
-
-	ret = drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper);
-	if (ret)
-		DRM_DEBUG("failed to restore crtc mode\n");
 }

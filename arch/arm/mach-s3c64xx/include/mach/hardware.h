@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* linux/arch/arm/mach-s3c6400/include/mach/hardware.h
  *
  * Copyright 2008 Openmoko, Inc.

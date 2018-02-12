@@ -31,25 +31,8 @@
 
 enum nvme_nvm_admin_opcode {
 	nvme_nvm_admin_identity		= 0xe2,
-	nvme_nvm_admin_get_l2p_tbl	= 0xea,
 	nvme_nvm_admin_get_bb_tbl	= 0xf2,
 	nvme_nvm_admin_set_bb_tbl	= 0xf1,
-};
-
-struct nvme_nvm_hb_rw {
-	__u8			opcode;
-	__u8			flags;
-	__u16			command_id;
-	__le32			nsid;
-	__u64			rsvd2;
-	__le64			metadata;
-	__le64			prp1;
-	__le64			prp2;
-	__le64			spba;
-	__le16			length;
-	__le16			control;
-	__le32			dsmgmt;
-	__le64			slba;
 };
 
 struct nvme_nvm_ph_rw {
@@ -78,19 +61,6 @@ struct nvme_nvm_identity {
 	__le64			prp2;
 	__le32			chnl_off;
 	__u32			rsvd11[5];
-};
-
-struct nvme_nvm_l2ptbl {
-	__u8			opcode;
-	__u8			flags;
-	__u16			command_id;
-	__le32			nsid;
-	__le32			cdw2[4];
-	__le64			prp1;
-	__le64			prp2;
-	__le64			slba;
-	__le32			nlb;
-	__le16			cdw14[6];
 };
 
 struct nvme_nvm_getbbtbl {
@@ -139,9 +109,7 @@ struct nvme_nvm_command {
 	union {
 		struct nvme_common_command common;
 		struct nvme_nvm_identity identity;
-		struct nvme_nvm_hb_rw hb_rw;
 		struct nvme_nvm_ph_rw ph_rw;
-		struct nvme_nvm_l2ptbl l2p;
 		struct nvme_nvm_getbbtbl get_bb;
 		struct nvme_nvm_setbbtbl set_bb;
 		struct nvme_nvm_erase_blk erase;
@@ -167,7 +135,7 @@ struct nvme_nvm_id_group {
 	__u8			num_lun;
 	__u8			num_pln;
 	__u8			rsvd1;
-	__le16			num_blk;
+	__le16			num_chk;
 	__le16			num_pg;
 	__le16			fpg_sz;
 	__le16			csecs;
@@ -234,11 +202,9 @@ struct nvme_nvm_bb_tbl {
 static inline void _nvme_nvm_check_size(void)
 {
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_identity) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_hb_rw) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_ph_rw) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_getbbtbl) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_setbbtbl) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_l2ptbl) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_erase_blk) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_id_group) != 960);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_addr_format) != 16);
@@ -249,50 +215,57 @@ static inline void _nvme_nvm_check_size(void)
 static int init_grps(struct nvm_id *nvm_id, struct nvme_nvm_id *nvme_nvm_id)
 {
 	struct nvme_nvm_id_group *src;
-	struct nvm_id_group *dst;
+	struct nvm_id_group *grp;
+	int sec_per_pg, sec_per_pl, pg_per_blk;
 
 	if (nvme_nvm_id->cgrps != 1)
 		return -EINVAL;
 
 	src = &nvme_nvm_id->groups[0];
-	dst = &nvm_id->grp;
+	grp = &nvm_id->grp;
 
-	dst->mtype = src->mtype;
-	dst->fmtype = src->fmtype;
-	dst->num_ch = src->num_ch;
-	dst->num_lun = src->num_lun;
-	dst->num_pln = src->num_pln;
+	grp->mtype = src->mtype;
+	grp->fmtype = src->fmtype;
 
-	dst->num_pg = le16_to_cpu(src->num_pg);
-	dst->num_blk = le16_to_cpu(src->num_blk);
-	dst->fpg_sz = le16_to_cpu(src->fpg_sz);
-	dst->csecs = le16_to_cpu(src->csecs);
-	dst->sos = le16_to_cpu(src->sos);
+	grp->num_ch = src->num_ch;
+	grp->num_lun = src->num_lun;
 
-	dst->trdt = le32_to_cpu(src->trdt);
-	dst->trdm = le32_to_cpu(src->trdm);
-	dst->tprt = le32_to_cpu(src->tprt);
-	dst->tprm = le32_to_cpu(src->tprm);
-	dst->tbet = le32_to_cpu(src->tbet);
-	dst->tbem = le32_to_cpu(src->tbem);
-	dst->mpos = le32_to_cpu(src->mpos);
-	dst->mccap = le32_to_cpu(src->mccap);
+	grp->num_chk = le16_to_cpu(src->num_chk);
+	grp->csecs = le16_to_cpu(src->csecs);
+	grp->sos = le16_to_cpu(src->sos);
 
-	dst->cpar = le16_to_cpu(src->cpar);
+	pg_per_blk = le16_to_cpu(src->num_pg);
+	sec_per_pg = le16_to_cpu(src->fpg_sz) / grp->csecs;
+	sec_per_pl = sec_per_pg * src->num_pln;
+	grp->clba = sec_per_pl * pg_per_blk;
+	grp->ws_per_chk = pg_per_blk;
 
-	if (dst->fmtype == NVM_ID_FMTYPE_MLC) {
-		memcpy(dst->lptbl.id, src->lptbl.id, 8);
-		dst->lptbl.mlc.num_pairs =
-				le16_to_cpu(src->lptbl.mlc.num_pairs);
+	grp->mpos = le32_to_cpu(src->mpos);
+	grp->cpar = le16_to_cpu(src->cpar);
+	grp->mccap = le32_to_cpu(src->mccap);
 
-		if (dst->lptbl.mlc.num_pairs > NVME_NVM_LP_MLC_PAIRS) {
-			pr_err("nvm: number of MLC pairs not supported\n");
-			return -EINVAL;
-		}
+	grp->ws_opt = grp->ws_min = sec_per_pg;
+	grp->ws_seq = NVM_IO_SNGL_ACCESS;
 
-		memcpy(dst->lptbl.mlc.pairs, src->lptbl.mlc.pairs,
-					dst->lptbl.mlc.num_pairs);
+	if (grp->mpos & 0x020202) {
+		grp->ws_seq = NVM_IO_DUAL_ACCESS;
+		grp->ws_opt <<= 1;
+	} else if (grp->mpos & 0x040404) {
+		grp->ws_seq = NVM_IO_QUAD_ACCESS;
+		grp->ws_opt <<= 2;
 	}
+
+	grp->trdt = le32_to_cpu(src->trdt);
+	grp->trdm = le32_to_cpu(src->trdm);
+	grp->tprt = le32_to_cpu(src->tprt);
+	grp->tprm = le32_to_cpu(src->tprm);
+	grp->tbet = le32_to_cpu(src->tbet);
+	grp->tbem = le32_to_cpu(src->tbem);
+
+	/* 1.2 compatibility */
+	grp->num_pln = src->num_pln;
+	grp->num_pg = le16_to_cpu(src->num_pg);
+	grp->fpg_sz = le16_to_cpu(src->fpg_sz);
 
 	return 0;
 }
@@ -332,62 +305,6 @@ out:
 	return ret;
 }
 
-static int nvme_nvm_get_l2p_tbl(struct nvm_dev *nvmdev, u64 slba, u32 nlb,
-				nvm_l2p_update_fn *update_l2p, void *priv)
-{
-	struct nvme_ns *ns = nvmdev->q->queuedata;
-	struct nvme_nvm_command c = {};
-	u32 len = queue_max_hw_sectors(ns->ctrl->admin_q) << 9;
-	u32 nlb_pr_rq = len / sizeof(u64);
-	u64 cmd_slba = slba;
-	void *entries;
-	int ret = 0;
-
-	c.l2p.opcode = nvme_nvm_admin_get_l2p_tbl;
-	c.l2p.nsid = cpu_to_le32(ns->head->ns_id);
-	entries = kmalloc(len, GFP_KERNEL);
-	if (!entries)
-		return -ENOMEM;
-
-	while (nlb) {
-		u32 cmd_nlb = min(nlb_pr_rq, nlb);
-		u64 elba = slba + cmd_nlb;
-
-		c.l2p.slba = cpu_to_le64(cmd_slba);
-		c.l2p.nlb = cpu_to_le32(cmd_nlb);
-
-		ret = nvme_submit_sync_cmd(ns->ctrl->admin_q,
-				(struct nvme_command *)&c, entries, len);
-		if (ret) {
-			dev_err(ns->ctrl->device,
-				"L2P table transfer failed (%d)\n", ret);
-			ret = -EIO;
-			goto out;
-		}
-
-		if (unlikely(elba > nvmdev->total_secs)) {
-			pr_err("nvm: L2P data from device is out of bounds!\n");
-			ret = -EINVAL;
-			goto out;
-		}
-
-		/* Transform physical address to target address space */
-		nvm_part_to_tgt(nvmdev, entries, cmd_nlb);
-
-		if (update_l2p(cmd_slba, cmd_nlb, entries, priv)) {
-			ret = -EINTR;
-			goto out;
-		}
-
-		cmd_slba += cmd_nlb;
-		nlb -= cmd_nlb;
-	}
-
-out:
-	kfree(entries);
-	return ret;
-}
-
 static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 								u8 *blks)
 {
@@ -397,7 +314,7 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	struct nvme_nvm_command c = {};
 	struct nvme_nvm_bb_tbl *bb_tbl;
-	int nr_blks = geo->blks_per_lun * geo->plane_mode;
+	int nr_blks = geo->nr_chks * geo->plane_mode;
 	int tblsz = sizeof(struct nvme_nvm_bb_tbl) + nr_blks;
 	int ret = 0;
 
@@ -438,7 +355,7 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 		goto out;
 	}
 
-	memcpy(blks, bb_tbl->blk, geo->blks_per_lun * geo->plane_mode);
+	memcpy(blks, bb_tbl->blk, geo->nr_chks * geo->plane_mode);
 out:
 	kfree(bb_tbl);
 	return ret;
@@ -474,10 +391,6 @@ static inline void nvme_nvm_rqtocmd(struct nvm_rq *rqd, struct nvme_ns *ns,
 	c->ph_rw.metadata = cpu_to_le64(rqd->dma_meta_list);
 	c->ph_rw.control = cpu_to_le16(rqd->flags);
 	c->ph_rw.length = cpu_to_le16(rqd->nr_ppas - 1);
-
-	if (rqd->opcode == NVM_OP_HBWRITE || rqd->opcode == NVM_OP_HBREAD)
-		c->hb_rw.slba = cpu_to_le64(nvme_block_nr(ns,
-					rqd->bio->bi_iter.bi_sector));
 }
 
 static void nvme_nvm_end_io(struct request *rq, blk_status_t status)
@@ -596,8 +509,6 @@ static void nvme_nvm_dev_dma_free(void *pool, void *addr,
 
 static struct nvm_dev_ops nvme_nvm_dev_ops = {
 	.identity		= nvme_nvm_identity,
-
-	.get_l2p_tbl		= nvme_nvm_get_l2p_tbl,
 
 	.get_bb_tbl		= nvme_nvm_get_bb_tbl,
 	.set_bb_tbl		= nvme_nvm_set_bb_tbl,
@@ -883,7 +794,7 @@ static ssize_t nvm_dev_attr_show(struct device *dev,
 	} else if (strcmp(attr->name, "num_planes") == 0) {
 		return scnprintf(page, PAGE_SIZE, "%u\n", grp->num_pln);
 	} else if (strcmp(attr->name, "num_blocks") == 0) {	/* u16 */
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->num_blk);
+		return scnprintf(page, PAGE_SIZE, "%u\n", grp->num_chk);
 	} else if (strcmp(attr->name, "num_pages") == 0) {
 		return scnprintf(page, PAGE_SIZE, "%u\n", grp->num_pg);
 	} else if (strcmp(attr->name, "page_size") == 0) {

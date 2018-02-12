@@ -1290,7 +1290,7 @@ struct vme_error_handler *vme_register_error_handler(
 {
 	struct vme_error_handler *handler;
 
-	handler = kmalloc(sizeof(*handler), GFP_KERNEL);
+	handler = kmalloc(sizeof(*handler), GFP_ATOMIC);
 	if (!handler)
 		return NULL;
 

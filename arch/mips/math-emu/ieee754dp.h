@@ -55,6 +55,9 @@ static inline int ieee754dp_finite(union ieee754dp x)
 #define XDPSRS1(v)	\
 	(((v) >> 1) | ((v) & 1))
 
+/* 32bit * 32bit => 64bit unsigned integer multiplication */
+#define DPXMULT(x, y)	((u64)(x) * (u64)y)
+
 /* convert denormal to normalized with extended exponent */
 #define DPDNORMx(m,e) \
 	while ((m >> DP_FBITS) == 0) { m <<= 1; e--; }

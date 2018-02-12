@@ -75,7 +75,7 @@ struct compressed_bio {
 	u32 sums;
 };
 
-void btrfs_init_compress(void);
+void __init btrfs_init_compress(void);
 void btrfs_exit_compress(void);
 
 int btrfs_compress_pages(unsigned int type_level, struct address_space *mapping,
@@ -136,6 +136,8 @@ struct btrfs_compress_op {
 extern const struct btrfs_compress_op btrfs_zlib_compress;
 extern const struct btrfs_compress_op btrfs_lzo_compress;
 extern const struct btrfs_compress_op btrfs_zstd_compress;
+
+const char* btrfs_compress_type2str(enum btrfs_compression_type type);
 
 int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end);
 

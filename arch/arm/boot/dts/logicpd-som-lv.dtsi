@@ -67,33 +67,6 @@
 		gpmc,device-width = <2>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-
-		/* u-boot uses mtdparts=omap2-nand.0:512k(x-loader),1920k(u-boot),128k(u-boot-env),4m(kernel),-(fs) */
-
-		x-loader@0 {
-			label = "x-loader";
-			reg = <0 0x80000>;
-		};
-
-		bootloaders@80000 {
-			label = "u-boot";
-			reg = <0x80000 0x1e0000>;
-		};
-
-		bootloaders_env@260000 {
-			label = "u-boot-env";
-			reg = <0x260000 0x20000>;
-		};
-
-		kernel@280000 {
-			label = "kernel";
-			reg = <0x280000 0x400000>;
-		};
-
-		filesystem@680000 {
-			label = "fs";
-			reg = <0x680000 0>;	/* 0 = MTDPART_SIZ_FULL */
-		};
 	};
 };
 

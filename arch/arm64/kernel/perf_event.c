@@ -925,9 +925,8 @@ static void __armv8pmu_probe_pmu(void *info)
 	pmceid[0] = read_sysreg(pmceid0_el0);
 	pmceid[1] = read_sysreg(pmceid1_el0);
 
-	bitmap_from_u32array(cpu_pmu->pmceid_bitmap,
-			     ARMV8_PMUV3_MAX_COMMON_EVENTS, pmceid,
-			     ARRAY_SIZE(pmceid));
+	bitmap_from_arr32(cpu_pmu->pmceid_bitmap,
+			     pmceid, ARMV8_PMUV3_MAX_COMMON_EVENTS);
 }
 
 static int armv8pmu_probe_pmu(struct arm_pmu *cpu_pmu)

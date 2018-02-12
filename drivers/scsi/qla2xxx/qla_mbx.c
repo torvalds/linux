@@ -17,6 +17,7 @@ static struct mb_cmd_name {
 	{MBC_GET_PORT_DATABASE,		"GPDB"},
 	{MBC_GET_ID_LIST,		"GIDList"},
 	{MBC_GET_LINK_PRIV_STATS,	"Stats"},
+	{MBC_GET_RESOURCE_COUNTS,	"ResCnt"},
 };
 
 static const char *mb_to_str(uint16_t cmd)
@@ -3731,6 +3732,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 	unsigned long   flags;
 	int found;
 	port_id_t id;
+	struct fc_port *fcport;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10b6,
 	    "Entered %s.\n", __func__);
@@ -3753,7 +3755,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		    "Primary port id %02x%02x%02x.\n",
 		    rptid_entry->port_id[2], rptid_entry->port_id[1],
 		    rptid_entry->port_id[0]);
-
+		ha->current_topology = ISP_CFG_NL;
 		qlt_update_host_map(vha, id);
 
 	} else if (rptid_entry->format == 1) {
@@ -3797,6 +3799,8 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 			return;
 		}
 
+		ha->flags.gpsc_supported = 1;
+		ha->current_topology = ISP_CFG_F;
 		/* buffer to buffer credit flag */
 		vha->flags.bbcr_enable = (rptid_entry->u.f1.bbcr & 0xf) != 0;
 
@@ -3862,6 +3866,8 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		    rptid_entry->u.f2.port_name);
 
 		/* N2N.  direct connect */
+		ha->current_topology = ISP_CFG_N;
+		ha->flags.rida_fmt2 = 1;
 		vha->d_id.b.domain = rptid_entry->port_id[2];
 		vha->d_id.b.area = rptid_entry->port_id[1];
 		vha->d_id.b.al_pa = rptid_entry->port_id[0];
@@ -3869,6 +3875,40 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		spin_lock_irqsave(&ha->vport_slock, flags);
 		qlt_update_vp_map(vha, SET_AL_PA);
 		spin_unlock_irqrestore(&ha->vport_slock, flags);
+
+		list_for_each_entry(fcport, &vha->vp_fcports, list) {
+			fcport->scan_state = QLA_FCPORT_SCAN;
+		}
+
+		fcport = qla2x00_find_fcport_by_wwpn(vha,
+		    rptid_entry->u.f2.port_name, 1);
+
+		if (fcport) {
+			fcport->plogi_nack_done_deadline = jiffies + HZ;
+			fcport->scan_state = QLA_FCPORT_FOUND;
+			switch (fcport->disc_state) {
+			case DSC_DELETED:
+				ql_dbg(ql_dbg_disc, vha, 0x210d,
+				    "%s %d %8phC login\n",
+				    __func__, __LINE__, fcport->port_name);
+				qla24xx_fcport_handle_login(vha, fcport);
+				break;
+			case DSC_DELETE_PEND:
+				break;
+			default:
+				qlt_schedule_sess_for_deletion(fcport);
+				break;
+			}
+		} else {
+			id.b.al_pa  = rptid_entry->u.f2.remote_nport_id[0];
+			id.b.area   = rptid_entry->u.f2.remote_nport_id[1];
+			id.b.domain = rptid_entry->u.f2.remote_nport_id[2];
+			qla24xx_post_newsess_work(vha, &id,
+			    rptid_entry->u.f2.port_name,
+			    rptid_entry->u.f2.node_name,
+			    NULL,
+			    FC4_TYPE_UNKNOWN);
+		}
 	}
 }
 
@@ -3940,83 +3980,6 @@ qla24xx_modify_vp_config(scsi_qla_host_t *vha)
 		fc_vport_set_state(vha->fc_vport, FC_VPORT_INITIALIZING);
 	}
 	dma_pool_free(ha->s_dma_pool, vpmod, vpmod_dma);
-
-	return rval;
-}
-
-/*
- * qla24xx_control_vp
- *	Enable a virtual port for given host
- *
- * Input:
- *	ha = adapter block pointer.
- *	vhba = virtual adapter (unused)
- *	index = index number for enabled VP
- *
- * Returns:
- *	qla2xxx local function return status code.
- *
- * Context:
- *	Kernel context.
- */
-int
-qla24xx_control_vp(scsi_qla_host_t *vha, int cmd)
-{
-	int		rval;
-	int		map, pos;
-	struct vp_ctrl_entry_24xx   *vce;
-	dma_addr_t	vce_dma;
-	struct qla_hw_data *ha = vha->hw;
-	int	vp_index = vha->vp_idx;
-	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
-
-	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10c1,
-	    "Entered %s enabling index %d.\n", __func__, vp_index);
-
-	if (vp_index == 0 || vp_index >= ha->max_npiv_vports)
-		return QLA_PARAMETER_ERROR;
-
-	vce = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &vce_dma);
-	if (!vce) {
-		ql_log(ql_log_warn, vha, 0x10c2,
-		    "Failed to allocate VP control IOCB.\n");
-		return QLA_MEMORY_ALLOC_FAILED;
-	}
-
-	vce->entry_type = VP_CTRL_IOCB_TYPE;
-	vce->entry_count = 1;
-	vce->command = cpu_to_le16(cmd);
-	vce->vp_count = cpu_to_le16(1);
-
-	/* index map in firmware starts with 1; decrement index
-	 * this is ok as we never use index 0
-	 */
-	map = (vp_index - 1) / 8;
-	pos = (vp_index - 1) & 7;
-	mutex_lock(&ha->vport_lock);
-	vce->vp_idx_map[map] |= 1 << pos;
-	mutex_unlock(&ha->vport_lock);
-
-	rval = qla2x00_issue_iocb(base_vha, vce, vce_dma, 0);
-	if (rval != QLA_SUCCESS) {
-		ql_dbg(ql_dbg_mbx, vha, 0x10c3,
-		    "Failed to issue VP control IOCB (%x).\n", rval);
-	} else if (vce->entry_status != 0) {
-		ql_dbg(ql_dbg_mbx, vha, 0x10c4,
-		    "Failed to complete IOCB -- error status (%x).\n",
-		    vce->entry_status);
-		rval = QLA_FUNCTION_FAILED;
-	} else if (vce->comp_status != cpu_to_le16(CS_COMPLETE)) {
-		ql_dbg(ql_dbg_mbx, vha, 0x10c5,
-		    "Failed to complete IOCB -- completion status (%x).\n",
-		    le16_to_cpu(vce->comp_status));
-		rval = QLA_FUNCTION_FAILED;
-	} else {
-		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10c6,
-		    "Done %s.\n", __func__);
-	}
-
-	dma_pool_free(ha->s_dma_pool, vce, vce_dma);
 
 	return rval;
 }
@@ -6160,8 +6123,7 @@ int __qla24xx_parse_gpdb(struct scsi_qla_host *vha, fc_port_t *fcport,
 	}
 
 	/* Check for logged in state. */
-	if (current_login_state != PDS_PRLI_COMPLETE &&
-	    last_login_state != PDS_PRLI_COMPLETE) {
+	if (current_login_state != PDS_PRLI_COMPLETE) {
 		ql_dbg(ql_dbg_mbx, vha, 0x119a,
 		    "Unable to verify login-state (%x/%x) for loop_id %x.\n",
 		    current_login_state, last_login_state, fcport->loop_id);
@@ -6348,5 +6310,34 @@ qla2x00_read_sfp_dev(struct scsi_qla_host *vha, char *buf, int count)
 		offset += SFP_BLOCK_SIZE;
 	}
 
+	return rval;
+}
+
+int qla24xx_res_count_wait(struct scsi_qla_host *vha,
+    uint16_t *out_mb, int out_mb_sz)
+{
+	int rval = QLA_FUNCTION_FAILED;
+	mbx_cmd_t mc;
+
+	if (!vha->hw->flags.fw_started)
+		goto done;
+
+	memset(&mc, 0, sizeof(mc));
+	mc.mb[0] = MBC_GET_RESOURCE_COUNTS;
+
+	rval = qla24xx_send_mb_cmd(vha, &mc);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0xffff,
+			"%s:  fail\n", __func__);
+	} else {
+		if (out_mb_sz <= SIZEOF_IOCB_MB_REG)
+			memcpy(out_mb, mc.mb, out_mb_sz);
+		else
+			memcpy(out_mb, mc.mb, SIZEOF_IOCB_MB_REG);
+
+		ql_dbg(ql_dbg_mbx, vha, 0xffff,
+			"%s:  done\n", __func__);
+	}
+done:
 	return rval;
 }

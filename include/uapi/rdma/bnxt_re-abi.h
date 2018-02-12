@@ -82,6 +82,15 @@ struct bnxt_re_qp_resp {
 	__u32 rsvd;
 };
 
+struct bnxt_re_srq_req {
+	__u64 srqva;
+	__u64 srq_handle;
+};
+
+struct bnxt_re_srq_resp {
+	__u32 srqid;
+};
+
 enum bnxt_re_shpg_offt {
 	BNXT_RE_BEG_RESV_OFFT	= 0x00,
 	BNXT_RE_AVID_OFFT	= 0x10,

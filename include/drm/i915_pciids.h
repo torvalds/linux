@@ -373,24 +373,46 @@
 /* CFL S */
 #define INTEL_CFL_S_GT1_IDS(info) \
 	INTEL_VGA_DEVICE(0x3E90, info), /* SRV GT1 */ \
-	INTEL_VGA_DEVICE(0x3E93, info)  /* SRV GT1 */
+	INTEL_VGA_DEVICE(0x3E93, info), /* SRV GT1 */ \
+	INTEL_VGA_DEVICE(0x3E99, info)  /* SRV GT1 */
 
 #define INTEL_CFL_S_GT2_IDS(info) \
 	INTEL_VGA_DEVICE(0x3E91, info), /* SRV GT2 */ \
 	INTEL_VGA_DEVICE(0x3E92, info), /* SRV GT2 */ \
-	INTEL_VGA_DEVICE(0x3E96, info)  /* SRV GT2 */
+	INTEL_VGA_DEVICE(0x3E96, info), /* SRV GT2 */ \
+	INTEL_VGA_DEVICE(0x3E9A, info)  /* SRV GT2 */
 
 /* CFL H */
 #define INTEL_CFL_H_GT2_IDS(info) \
 	INTEL_VGA_DEVICE(0x3E9B, info), /* Halo GT2 */ \
 	INTEL_VGA_DEVICE(0x3E94, info)  /* Halo GT2 */
 
-/* CFL U */
+/* CFL U GT1 */
+#define INTEL_CFL_U_GT1_IDS(info) \
+	INTEL_VGA_DEVICE(0x3EA1, info), \
+	INTEL_VGA_DEVICE(0x3EA4, info)
+
+/* CFL U GT2 */
+#define INTEL_CFL_U_GT2_IDS(info) \
+	INTEL_VGA_DEVICE(0x3EA0, info), \
+	INTEL_VGA_DEVICE(0x3EA3, info), \
+	INTEL_VGA_DEVICE(0x3EA9, info)
+
+/* CFL U GT3 */
 #define INTEL_CFL_U_GT3_IDS(info) \
+	INTEL_VGA_DEVICE(0x3EA2, info), /* ULT GT3 */ \
+	INTEL_VGA_DEVICE(0x3EA5, info), /* ULT GT3 */ \
 	INTEL_VGA_DEVICE(0x3EA6, info), /* ULT GT3 */ \
 	INTEL_VGA_DEVICE(0x3EA7, info), /* ULT GT3 */ \
-	INTEL_VGA_DEVICE(0x3EA8, info), /* ULT GT3 */ \
-	INTEL_VGA_DEVICE(0x3EA5, info)  /* ULT GT3 */
+	INTEL_VGA_DEVICE(0x3EA8, info)  /* ULT GT3 */
+
+#define INTEL_CFL_IDS(info)	   \
+	INTEL_CFL_S_GT1_IDS(info), \
+	INTEL_CFL_S_GT2_IDS(info), \
+	INTEL_CFL_H_GT2_IDS(info), \
+	INTEL_CFL_U_GT1_IDS(info), \
+	INTEL_CFL_U_GT2_IDS(info), \
+	INTEL_CFL_U_GT3_IDS(info)
 
 /* CNL U 2+2 */
 #define INTEL_CNL_U_GT2_IDS(info) \

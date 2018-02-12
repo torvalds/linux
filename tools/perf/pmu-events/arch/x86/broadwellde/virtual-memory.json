@@ -45,6 +45,16 @@
     },
     {
         "EventCode": "0x08",
+        "UMask": "0xe",
+        "BriefDescription": "Demand load Miss in all translation lookaside buffer (TLB) levels causes a page walk that completes of any page size.",
+        "Counter": "0,1,2,3",
+        "EventName": "DTLB_LOAD_MISSES.WALK_COMPLETED",
+        "Errata": "BDM69",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x08",
         "UMask": "0x10",
         "BriefDescription": "Cycles when PMH is busy with page walks",
         "Counter": "0,1,2,3",
@@ -69,6 +79,15 @@
         "BriefDescription": "Load misses that miss the  DTLB and hit the STLB (2M).",
         "Counter": "0,1,2,3",
         "EventName": "DTLB_LOAD_MISSES.STLB_HIT_2M",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x08",
+        "UMask": "0x60",
+        "BriefDescription": "Load operations that miss the first DTLB level but hit the second and do not cause page walks.",
+        "Counter": "0,1,2,3",
+        "EventName": "DTLB_LOAD_MISSES.STLB_HIT",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -118,6 +137,16 @@
     },
     {
         "EventCode": "0x49",
+        "UMask": "0xe",
+        "BriefDescription": "Store misses in all DTLB levels that cause completed page walks.",
+        "Counter": "0,1,2,3",
+        "EventName": "DTLB_STORE_MISSES.WALK_COMPLETED",
+        "Errata": "BDM69",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x49",
         "UMask": "0x10",
         "BriefDescription": "Cycles when PMH is busy with page walks",
         "Counter": "0,1,2,3",
@@ -142,6 +171,15 @@
         "BriefDescription": "Store misses that miss the  DTLB and hit the STLB (2M).",
         "Counter": "0,1,2,3",
         "EventName": "DTLB_STORE_MISSES.STLB_HIT_2M",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x49",
+        "UMask": "0x60",
+        "BriefDescription": "Store operations that miss the first TLB level but hit the second and do not cause page walks.",
+        "Counter": "0,1,2,3",
+        "EventName": "DTLB_STORE_MISSES.STLB_HIT",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -201,6 +239,16 @@
     },
     {
         "EventCode": "0x85",
+        "UMask": "0xe",
+        "BriefDescription": "Misses in all ITLB levels that cause completed page walks.",
+        "Counter": "0,1,2,3",
+        "EventName": "ITLB_MISSES.WALK_COMPLETED",
+        "Errata": "BDM69",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x85",
         "UMask": "0x10",
         "BriefDescription": "Cycles when PMH is busy with page walks",
         "Counter": "0,1,2,3",
@@ -229,6 +277,15 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
+        "EventCode": "0x85",
+        "UMask": "0x60",
+        "BriefDescription": "Operations that miss the first ITLB level but hit the second and do not cause any page walks.",
+        "Counter": "0,1,2,3",
+        "EventName": "ITLB_MISSES.STLB_HIT",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
         "EventCode": "0xAE",
         "UMask": "0x1",
         "BriefDescription": "Flushing of the Instruction TLB (ITLB) pages, includes 4k/2M/4M pages.",
@@ -250,30 +307,10 @@
     },
     {
         "EventCode": "0xBC",
-        "UMask": "0x21",
-        "BriefDescription": "Number of ITLB page walker hits in the L1+FB.",
-        "Counter": "0,1,2,3",
-        "EventName": "PAGE_WALKER_LOADS.ITLB_L1",
-        "Errata": "BDM69, BDM98",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3"
-    },
-    {
-        "EventCode": "0xBC",
         "UMask": "0x12",
         "BriefDescription": "Number of DTLB page walker hits in the L2.",
         "Counter": "0,1,2,3",
         "EventName": "PAGE_WALKER_LOADS.DTLB_L2",
-        "Errata": "BDM69, BDM98",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3"
-    },
-    {
-        "EventCode": "0xBC",
-        "UMask": "0x22",
-        "BriefDescription": "Number of ITLB page walker hits in the L2.",
-        "Counter": "0,1,2,3",
-        "EventName": "PAGE_WALKER_LOADS.ITLB_L2",
         "Errata": "BDM69, BDM98",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3"
@@ -290,20 +327,40 @@
     },
     {
         "EventCode": "0xBC",
-        "UMask": "0x24",
-        "BriefDescription": "Number of ITLB page walker hits in the L3 + XSNP.",
+        "UMask": "0x18",
+        "BriefDescription": "Number of DTLB page walker hits in Memory.",
         "Counter": "0,1,2,3",
-        "EventName": "PAGE_WALKER_LOADS.ITLB_L3",
+        "EventName": "PAGE_WALKER_LOADS.DTLB_MEMORY",
         "Errata": "BDM69, BDM98",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xBC",
-        "UMask": "0x18",
-        "BriefDescription": "Number of DTLB page walker hits in Memory.",
+        "UMask": "0x21",
+        "BriefDescription": "Number of ITLB page walker hits in the L1+FB.",
         "Counter": "0,1,2,3",
-        "EventName": "PAGE_WALKER_LOADS.DTLB_MEMORY",
+        "EventName": "PAGE_WALKER_LOADS.ITLB_L1",
+        "Errata": "BDM69, BDM98",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xBC",
+        "UMask": "0x22",
+        "BriefDescription": "Number of ITLB page walker hits in the L2.",
+        "Counter": "0,1,2,3",
+        "EventName": "PAGE_WALKER_LOADS.ITLB_L2",
+        "Errata": "BDM69, BDM98",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xBC",
+        "UMask": "0x24",
+        "BriefDescription": "Number of ITLB page walker hits in the L3 + XSNP.",
+        "Counter": "0,1,2,3",
+        "EventName": "PAGE_WALKER_LOADS.ITLB_L3",
         "Errata": "BDM69, BDM98",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3"
@@ -326,63 +383,6 @@
         "EventName": "TLB_FLUSH.STLB_ANY",
         "PublicDescription": "This event counts the number of any STLB flush attempts (such as entire, VPID, PCID, InvPage, CR3 write, and so on).",
         "SampleAfterValue": "100007",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x08",
-        "UMask": "0xe",
-        "BriefDescription": "Demand load Miss in all translation lookaside buffer (TLB) levels causes a page walk that completes of any page size.",
-        "Counter": "0,1,2,3",
-        "EventName": "DTLB_LOAD_MISSES.WALK_COMPLETED",
-        "Errata": "BDM69",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x08",
-        "UMask": "0x60",
-        "BriefDescription": "Load operations that miss the first DTLB level but hit the second and do not cause page walks.",
-        "Counter": "0,1,2,3",
-        "EventName": "DTLB_LOAD_MISSES.STLB_HIT",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x49",
-        "UMask": "0xe",
-        "BriefDescription": "Store misses in all DTLB levels that cause completed page walks.",
-        "Counter": "0,1,2,3",
-        "EventName": "DTLB_STORE_MISSES.WALK_COMPLETED",
-        "Errata": "BDM69",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x49",
-        "UMask": "0x60",
-        "BriefDescription": "Store operations that miss the first TLB level but hit the second and do not cause page walks.",
-        "Counter": "0,1,2,3",
-        "EventName": "DTLB_STORE_MISSES.STLB_HIT",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x85",
-        "UMask": "0xe",
-        "BriefDescription": "Misses in all ITLB levels that cause completed page walks.",
-        "Counter": "0,1,2,3",
-        "EventName": "ITLB_MISSES.WALK_COMPLETED",
-        "Errata": "BDM69",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x85",
-        "UMask": "0x60",
-        "BriefDescription": "Operations that miss the first ITLB level but hit the second and do not cause any page walks.",
-        "Counter": "0,1,2,3",
-        "EventName": "ITLB_MISSES.STLB_HIT",
-        "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     }
 ]

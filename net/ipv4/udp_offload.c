@@ -203,6 +203,9 @@ static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 		goto out;
 	}
 
+	if (!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP))
+		goto out;
+
 	if (!pskb_may_pull(skb, sizeof(struct udphdr)))
 		goto out;
 

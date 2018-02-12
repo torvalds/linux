@@ -252,7 +252,7 @@ ocp {
 	/*
 	 * A simple IC with a single bandgap temperature sensor.
 	 */
-	bandgap0: bandgap@0000ED00 {
+	bandgap0: bandgap@0000ed00 {
 		...
 		#thermal-sensor-cells = <0>;
 	};
@@ -330,7 +330,7 @@ ocp {
 	/*
 	 * A simple IC with several bandgap temperature sensors.
 	 */
-	bandgap0: bandgap@0000ED00 {
+	bandgap0: bandgap@0000ed00 {
 		...
 		#thermal-sensor-cells = <1>;
 	};
@@ -458,7 +458,7 @@ ocp {
 	/*
 	 * A simple IC with a single bandgap temperature sensor.
 	 */
-	bandgap0: bandgap@0000ED00 {
+	bandgap0: bandgap@0000ed00 {
 		...
 		#thermal-sensor-cells = <0>;
 	};

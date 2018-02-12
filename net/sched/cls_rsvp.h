@@ -322,7 +322,7 @@ static void rsvp_delete_filter(struct tcf_proto *tp, struct rsvp_filter *f)
 		__rsvp_delete_filter(f);
 }
 
-static void rsvp_destroy(struct tcf_proto *tp)
+static void rsvp_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct rsvp_head *data = rtnl_dereference(tp->root);
 	int h1, h2;
@@ -350,7 +350,8 @@ static void rsvp_destroy(struct tcf_proto *tp)
 	kfree_rcu(data, rcu);
 }
 
-static int rsvp_delete(struct tcf_proto *tp, void *arg, bool *last)
+static int rsvp_delete(struct tcf_proto *tp, void *arg, bool *last,
+		       struct netlink_ext_ack *extack)
 {
 	struct rsvp_head *head = rtnl_dereference(tp->root);
 	struct rsvp_filter *nfp, *f = arg;
@@ -486,7 +487,7 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 		       struct tcf_proto *tp, unsigned long base,
 		       u32 handle,
 		       struct nlattr **tca,
-		       void **arg, bool ovr)
+		       void **arg, bool ovr, struct netlink_ext_ack *extack)
 {
 	struct rsvp_head *data = rtnl_dereference(tp->root);
 	struct rsvp_filter *f, *nfp;
@@ -511,7 +512,7 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 	err = tcf_exts_init(&e, TCA_RSVP_ACT, TCA_RSVP_POLICE);
 	if (err < 0)
 		return err;
-	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, ovr);
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, ovr, extack);
 	if (err < 0)
 		goto errout2;
 

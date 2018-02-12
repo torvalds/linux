@@ -411,6 +411,16 @@ def set_trace_buffer_size():
         print('IO error setting trace buffer size ')
         quit()
 
+def free_trace_buffer():
+    """ Free the trace buffer memory """
+
+    try:
+       open('/sys/kernel/debug/tracing/buffer_size_kb'
+                 , 'w').write("1")
+    except:
+        print('IO error setting trace buffer size ')
+        quit()
+
 def read_trace_data(filename):
     """ Read and parse trace data """
 
@@ -582,5 +592,10 @@ plot_ghz_cpu()
 for root, dirs, files in os.walk('.'):
     for f in files:
         fix_ownership(f)
+
+clear_trace_file()
+# Free the memory
+if interval:
+    free_trace_buffer()
 
 os.chdir('../../')

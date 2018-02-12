@@ -116,7 +116,7 @@ struct qed_ll2_comp_rx_data {
 	u32 opaque_data_1;
 
 	/* GSI only */
-	u32 gid_dst[4];
+	u32 src_qp;
 	u16 qp_id;
 
 	union {

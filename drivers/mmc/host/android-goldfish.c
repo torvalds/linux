@@ -42,13 +42,11 @@
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/clk.h>
-#include <linux/scatterlist.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
 
 #include <asm/types.h>
-#include <asm/io.h>
 #include <linux/uaccess.h>
 
 #define DRIVER_NAME "goldfish_mmc"

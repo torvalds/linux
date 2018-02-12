@@ -543,14 +543,20 @@ int mei_cldev_disable(struct mei_cl_device *cldev)
 	mutex_lock(&bus->device_lock);
 
 	if (!mei_cl_is_connected(cl)) {
-		dev_dbg(bus->dev, "Already disconnected");
+		dev_dbg(bus->dev, "Already disconnected\n");
+		err = 0;
+		goto out;
+	}
+
+	if (bus->dev_state == MEI_DEV_POWER_DOWN) {
+		dev_dbg(bus->dev, "Device is powering down, don't bother with disconnection\n");
 		err = 0;
 		goto out;
 	}
 
 	err = mei_cl_disconnect(cl);
 	if (err < 0)
-		dev_err(bus->dev, "Could not disconnect from the ME client");
+		dev_err(bus->dev, "Could not disconnect from the ME client\n");
 
 out:
 	/* Flush queues and remove any pending read */

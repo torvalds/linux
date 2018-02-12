@@ -673,8 +673,9 @@ static struct sk_buff *vrf_ip_out(struct net_device *vrf_dev,
 				  struct sock *sk,
 				  struct sk_buff *skb)
 {
-	/* don't divert multicast */
-	if (ipv4_is_multicast(ip_hdr(skb)->daddr))
+	/* don't divert multicast or local broadcast */
+	if (ipv4_is_multicast(ip_hdr(skb)->daddr) ||
+	    ipv4_is_lbcast(ip_hdr(skb)->daddr))
 		return skb;
 
 	if (qdisc_tx_is_default(vrf_dev))

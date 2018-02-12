@@ -37,6 +37,9 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	if (!q)
 		return -ENXIO;
 
+	if (bdev_read_only(bdev))
+		return -EPERM;
+
 	if (flags & BLKDEV_DISCARD_SECURE) {
 		if (!blk_queue_secure_erase(q))
 			return -EOPNOTSUPP;
@@ -156,6 +159,9 @@ static int __blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
 	if (!q)
 		return -ENXIO;
 
+	if (bdev_read_only(bdev))
+		return -EPERM;
+
 	bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
 	if ((sector | nr_sects) & bs_mask)
 		return -EINVAL;
@@ -233,6 +239,9 @@ static int __blkdev_issue_write_zeroes(struct block_device *bdev,
 	if (!q)
 		return -ENXIO;
 
+	if (bdev_read_only(bdev))
+		return -EPERM;
+
 	/* Ensure that max_write_zeroes_sectors doesn't overflow bi_size */
 	max_write_zeroes_sectors = bdev_write_zeroes_sectors(bdev);
 
@@ -286,6 +295,9 @@ static int __blkdev_issue_zero_pages(struct block_device *bdev,
 
 	if (!q)
 		return -ENXIO;
+
+	if (bdev_read_only(bdev))
+		return -EPERM;
 
 	while (nr_sects != 0) {
 		bio = next_bio(bio, __blkdev_sectors_to_bio_pages(nr_sects),

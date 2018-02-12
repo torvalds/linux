@@ -96,7 +96,7 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 	return ret;
 }
 
-static void tcf_sample_cleanup(struct tc_action *a, int bind)
+static void tcf_sample_cleanup(struct tc_action *a)
 {
 	struct tcf_sample *s = to_sample(a);
 	struct psample_group *psample_group;
@@ -236,16 +236,14 @@ static __net_init int sample_init_net(struct net *net)
 	return tc_action_net_init(tn, &act_sample_ops);
 }
 
-static void __net_exit sample_exit_net(struct net *net)
+static void __net_exit sample_exit_net(struct list_head *net_list)
 {
-	struct tc_action_net *tn = net_generic(net, sample_net_id);
-
-	tc_action_net_exit(tn);
+	tc_action_net_exit(net_list, sample_net_id);
 }
 
 static struct pernet_operations sample_net_ops = {
 	.init = sample_init_net,
-	.exit = sample_exit_net,
+	.exit_batch = sample_exit_net,
 	.id   = &sample_net_id,
 	.size = sizeof(struct tc_action_net),
 };

@@ -462,7 +462,7 @@ static struct k_itimer * alloc_posix_timer(void)
 		kmem_cache_free(posix_timers_cache, tmr);
 		return NULL;
 	}
-	memset(&tmr->sigq->info, 0, sizeof(siginfo_t));
+	clear_siginfo(&tmr->sigq->info);
 	return tmr;
 }
 

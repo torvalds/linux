@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * comedi/drivers/adv_pci_dio.c
  *

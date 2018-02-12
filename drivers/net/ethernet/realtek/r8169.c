@@ -1395,7 +1395,7 @@ DECLARE_RTL_COND(rtl_ocp_tx_cond)
 {
 	void __iomem *ioaddr = tp->mmio_addr;
 
-	return RTL_R8(IBISR0) & 0x02;
+	return RTL_R8(IBISR0) & 0x20;
 }
 
 static void rtl8168ep_stop_cmac(struct rtl8169_private *tp)
@@ -1403,7 +1403,7 @@ static void rtl8168ep_stop_cmac(struct rtl8169_private *tp)
 	void __iomem *ioaddr = tp->mmio_addr;
 
 	RTL_W8(IBCR2, RTL_R8(IBCR2) & ~0x01);
-	rtl_msleep_loop_wait_low(tp, &rtl_ocp_tx_cond, 50, 2000);
+	rtl_msleep_loop_wait_high(tp, &rtl_ocp_tx_cond, 50, 2000);
 	RTL_W8(IBISR0, RTL_R8(IBISR0) | 0x20);
 	RTL_W8(IBCR0, RTL_R8(IBCR0) & ~0x01);
 }
@@ -1675,31 +1675,22 @@ static void rtl_link_chg_patch(struct rtl8169_private *tp)
 	}
 }
 
-static void __rtl8169_check_link_status(struct net_device *dev,
-					struct rtl8169_private *tp,
-					void __iomem *ioaddr, bool pm)
+static void rtl8169_check_link_status(struct net_device *dev,
+				      struct rtl8169_private *tp,
+				      void __iomem *ioaddr)
 {
 	if (tp->link_ok(ioaddr)) {
 		rtl_link_chg_patch(tp);
 		/* This is to cancel a scheduled suspend if there's one. */
-		if (pm)
-			pm_request_resume(&tp->pci_dev->dev);
+		pm_request_resume(&tp->pci_dev->dev);
 		netif_carrier_on(dev);
 		if (net_ratelimit())
 			netif_info(tp, ifup, dev, "link up\n");
 	} else {
 		netif_carrier_off(dev);
 		netif_info(tp, ifdown, dev, "link down\n");
-		if (pm)
-			pm_schedule_suspend(&tp->pci_dev->dev, 5000);
+		pm_runtime_idle(&tp->pci_dev->dev);
 	}
-}
-
-static void rtl8169_check_link_status(struct net_device *dev,
-				      struct rtl8169_private *tp,
-				      void __iomem *ioaddr)
-{
-	__rtl8169_check_link_status(dev, tp, ioaddr, false);
 }
 
 #define WAKE_ANY (WAKE_PHY | WAKE_MAGIC | WAKE_UCAST | WAKE_BCAST | WAKE_MCAST)
@@ -2244,19 +2235,14 @@ static bool rtl8169_do_counters(struct net_device *dev, u32 counter_cmd)
 	void __iomem *ioaddr = tp->mmio_addr;
 	dma_addr_t paddr = tp->counters_phys_addr;
 	u32 cmd;
-	bool ret;
 
 	RTL_W32(CounterAddrHigh, (u64)paddr >> 32);
+	RTL_R32(CounterAddrHigh);
 	cmd = (u64)paddr & DMA_BIT_MASK(32);
 	RTL_W32(CounterAddrLow, cmd);
 	RTL_W32(CounterAddrLow, cmd | counter_cmd);
 
-	ret = rtl_udelay_loop_wait_low(tp, &rtl_counters_cond, 10, 1000);
-
-	RTL_W32(CounterAddrLow, 0);
-	RTL_W32(CounterAddrHigh, 0);
-
-	return ret;
+	return rtl_udelay_loop_wait_low(tp, &rtl_counters_cond, 10, 1000);
 }
 
 static bool rtl8169_reset_counters(struct net_device *dev)
@@ -4643,16 +4629,6 @@ static void rtl8169_phy_timer(struct timer_list *t)
 	rtl_schedule_task(tp, RTL_FLAG_TASK_PHY_PENDING);
 }
 
-static void rtl8169_release_board(struct pci_dev *pdev, struct net_device *dev,
-				  void __iomem *ioaddr)
-{
-	iounmap(ioaddr);
-	pci_release_regions(pdev);
-	pci_clear_mwi(pdev);
-	pci_disable_device(pdev);
-	free_netdev(dev);
-}
-
 DECLARE_RTL_COND(rtl_phy_reset_cond)
 {
 	return tp->phy_reset_pending(tp);
@@ -4782,14 +4758,6 @@ static int rtl_xmii_ioctl(struct rtl8169_private *tp,
 static int rtl_tbi_ioctl(struct rtl8169_private *tp, struct mii_ioctl_data *data, int cmd)
 {
 	return -EOPNOTSUPP;
-}
-
-static void rtl_disable_msi(struct pci_dev *pdev, struct rtl8169_private *tp)
-{
-	if (tp->features & RTL_FEATURE_MSI) {
-		pci_disable_msi(pdev);
-		tp->features &= ~RTL_FEATURE_MSI;
-	}
 }
 
 static void rtl_init_mdio_ops(struct rtl8169_private *tp)
@@ -7764,7 +7732,7 @@ static void rtl_slow_event_work(struct rtl8169_private *tp)
 		rtl8169_pcierr_interrupt(dev);
 
 	if (status & LinkChg)
-		__rtl8169_check_link_status(dev, tp, tp->mmio_addr, true);
+		rtl8169_check_link_status(dev, tp, tp->mmio_addr);
 
 	rtl_irq_enable_all(tp);
 }
@@ -7977,7 +7945,7 @@ static int rtl_open(struct net_device *dev)
 	rtl_unlock_work(tp);
 
 	tp->saved_wolopts = 0;
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_sync(&pdev->dev);
 
 	rtl8169_check_link_status(dev, tp, ioaddr);
 out:
@@ -8121,8 +8089,10 @@ static int rtl8169_runtime_suspend(struct device *device)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct rtl8169_private *tp = netdev_priv(dev);
 
-	if (!tp->TxDescArray)
+	if (!tp->TxDescArray) {
+		rtl_pll_power_down(tp);
 		return 0;
+	}
 
 	rtl_lock_work(tp);
 	tp->saved_wolopts = __rtl8169_get_wol(tp);
@@ -8164,9 +8134,11 @@ static int rtl8169_runtime_idle(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct net_device *dev = pci_get_drvdata(pdev);
-	struct rtl8169_private *tp = netdev_priv(dev);
 
-	return tp->TxDescArray ? -EBUSY : 0;
+	if (!netif_running(dev) || !netif_carrier_ok(dev))
+		pm_schedule_suspend(device, 10000);
+
+	return -EBUSY;
 }
 
 static const struct dev_pm_ops rtl8169_pm_ops = {
@@ -8213,9 +8185,6 @@ static void rtl_shutdown(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct rtl8169_private *tp = netdev_priv(dev);
-	struct device *d = &pdev->dev;
-
-	pm_runtime_get_sync(d);
 
 	rtl8169_net_suspend(dev);
 
@@ -8233,8 +8202,6 @@ static void rtl_shutdown(struct pci_dev *pdev)
 		pci_wake_from_d3(pdev, true);
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
-
-	pm_runtime_put_noidle(d);
 }
 
 static void rtl_remove_one(struct pci_dev *pdev)
@@ -8256,9 +8223,6 @@ static void rtl_remove_one(struct pci_dev *pdev)
 
 	unregister_netdev(dev);
 
-	dma_free_coherent(&tp->pci_dev->dev, sizeof(*tp->counters),
-			  tp->counters, tp->counters_phys_addr);
-
 	rtl_release_firmware(tp);
 
 	if (pci_dev_run_wake(pdev))
@@ -8266,9 +8230,6 @@ static void rtl_remove_one(struct pci_dev *pdev)
 
 	/* restore original MAC address */
 	rtl_rar_set(tp, dev->perm_addr);
-
-	rtl_disable_msi(pdev, tp);
-	rtl8169_release_board(pdev, dev, tp->mmio_addr);
 }
 
 static const struct net_device_ops rtl_netdev_ops = {
@@ -8445,11 +8406,9 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		       MODULENAME, RTL8169_VERSION);
 	}
 
-	dev = alloc_etherdev(sizeof (*tp));
-	if (!dev) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	dev = devm_alloc_etherdev(&pdev->dev, sizeof (*tp));
+	if (!dev)
+		return -ENOMEM;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	dev->netdev_ops = &rtl_netdev_ops;
@@ -8472,13 +8431,13 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				     PCIE_LINK_STATE_CLKPM);
 
 	/* enable device (incl. PCI PM wakeup and hotplug setup) */
-	rc = pci_enable_device(pdev);
+	rc = pcim_enable_device(pdev);
 	if (rc < 0) {
 		netif_err(tp, probe, dev, "enable failure\n");
-		goto err_out_free_dev_1;
+		return rc;
 	}
 
-	if (pci_set_mwi(pdev) < 0)
+	if (pcim_set_mwi(pdev) < 0)
 		netif_info(tp, probe, dev, "Mem-Wr-Inval unavailable\n");
 
 	/* make sure PCI base addr 1 is MMIO */
@@ -8486,30 +8445,28 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netif_err(tp, probe, dev,
 			  "region #%d not an MMIO resource, aborting\n",
 			  region);
-		rc = -ENODEV;
-		goto err_out_mwi_2;
+		return -ENODEV;
 	}
 
 	/* check for weird/broken PCI region reporting */
 	if (pci_resource_len(pdev, region) < R8169_REGS_SIZE) {
 		netif_err(tp, probe, dev,
 			  "Invalid PCI region size(s), aborting\n");
-		rc = -ENODEV;
-		goto err_out_mwi_2;
+		return -ENODEV;
 	}
 
 	rc = pci_request_regions(pdev, MODULENAME);
 	if (rc < 0) {
 		netif_err(tp, probe, dev, "could not request regions\n");
-		goto err_out_mwi_2;
+		return rc;
 	}
 
 	/* ioremap MMIO region */
-	ioaddr = ioremap(pci_resource_start(pdev, region), R8169_REGS_SIZE);
+	ioaddr = devm_ioremap(&pdev->dev, pci_resource_start(pdev, region),
+			      R8169_REGS_SIZE);
 	if (!ioaddr) {
 		netif_err(tp, probe, dev, "cannot remap MMIO, aborting\n");
-		rc = -EIO;
-		goto err_out_free_res_3;
+		return -EIO;
 	}
 	tp->mmio_addr = ioaddr;
 
@@ -8535,7 +8492,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc < 0) {
 			netif_err(tp, probe, dev, "DMA configuration failed\n");
-			goto err_out_unmap_4;
+			return rc;
 		}
 	}
 
@@ -8697,16 +8654,15 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	tp->rtl_fw = RTL_FIRMWARE_UNKNOWN;
 
-	tp->counters = dma_alloc_coherent (&pdev->dev, sizeof(*tp->counters),
-					   &tp->counters_phys_addr, GFP_KERNEL);
-	if (!tp->counters) {
-		rc = -ENOMEM;
-		goto err_out_msi_5;
-	}
+	tp->counters = dmam_alloc_coherent (&pdev->dev, sizeof(*tp->counters),
+					    &tp->counters_phys_addr,
+					    GFP_KERNEL);
+	if (!tp->counters)
+		return -ENOMEM;
 
 	rc = register_netdev(dev);
 	if (rc < 0)
-		goto err_out_cnt_6;
+		return rc;
 
 	pci_set_drvdata(pdev, dev);
 
@@ -8730,30 +8686,12 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rtl8168_driver_start(tp);
 	}
 
-	if (pci_dev_run_wake(pdev))
-		pm_runtime_put_noidle(&pdev->dev);
-
 	netif_carrier_off(dev);
 
-out:
-	return rc;
+	if (pci_dev_run_wake(pdev))
+		pm_runtime_put_sync(&pdev->dev);
 
-err_out_cnt_6:
-	dma_free_coherent(&pdev->dev, sizeof(*tp->counters), tp->counters,
-			  tp->counters_phys_addr);
-err_out_msi_5:
-	netif_napi_del(&tp->napi);
-	rtl_disable_msi(pdev, tp);
-err_out_unmap_4:
-	iounmap(ioaddr);
-err_out_free_res_3:
-	pci_release_regions(pdev);
-err_out_mwi_2:
-	pci_clear_mwi(pdev);
-	pci_disable_device(pdev);
-err_out_free_dev_1:
-	free_netdev(dev);
-	goto out;
+	return 0;
 }
 
 static struct pci_driver rtl8169_pci_driver = {

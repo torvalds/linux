@@ -86,26 +86,11 @@ void etnaviv_cmdbuf_suballoc_destroy(struct etnaviv_cmdbuf_suballoc *suballoc)
 	kfree(suballoc);
 }
 
-struct etnaviv_cmdbuf *
-etnaviv_cmdbuf_new(struct etnaviv_cmdbuf_suballoc *suballoc, u32 size,
-		   size_t nr_bos, size_t nr_pmrs)
+int etnaviv_cmdbuf_init(struct etnaviv_cmdbuf_suballoc *suballoc,
+			struct etnaviv_cmdbuf *cmdbuf, u32 size)
 {
-	struct etnaviv_cmdbuf *cmdbuf;
-	struct etnaviv_perfmon_request *pmrs;
-	size_t sz = size_vstruct(nr_bos, sizeof(cmdbuf->bo_map[0]),
-				 sizeof(*cmdbuf));
 	int granule_offs, order, ret;
 
-	cmdbuf = kzalloc(sz, GFP_KERNEL);
-	if (!cmdbuf)
-		return NULL;
-
-	sz = sizeof(*pmrs) * nr_pmrs;
-	pmrs = kzalloc(sz, GFP_KERNEL);
-	if (!pmrs)
-		goto out_free_cmdbuf;
-
-	cmdbuf->pmrs = pmrs;
 	cmdbuf->suballoc = suballoc;
 	cmdbuf->size = size;
 
@@ -123,7 +108,7 @@ retry:
 		if (!ret) {
 			dev_err(suballoc->gpu->dev,
 				"Timeout waiting for cmdbuf space\n");
-			return NULL;
+			return -ETIMEDOUT;
 		}
 		goto retry;
 	}
@@ -131,11 +116,7 @@ retry:
 	cmdbuf->suballoc_offset = granule_offs * SUBALLOC_GRANULE;
 	cmdbuf->vaddr = suballoc->vaddr + cmdbuf->suballoc_offset;
 
-	return cmdbuf;
-
-out_free_cmdbuf:
-	kfree(cmdbuf);
-	return NULL;
+	return 0;
 }
 
 void etnaviv_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf)
@@ -151,8 +132,6 @@ void etnaviv_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf)
 	suballoc->free_space = 1;
 	mutex_unlock(&suballoc->lock);
 	wake_up_all(&suballoc->free_event);
-	kfree(cmdbuf->pmrs);
-	kfree(cmdbuf);
 }
 
 u32 etnaviv_cmdbuf_get_va(struct etnaviv_cmdbuf *buf)
