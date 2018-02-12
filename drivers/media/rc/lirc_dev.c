@@ -570,7 +570,7 @@ static long ir_lirc_ioctl(struct file *file, unsigned int cmd,
 				ret = -EINVAL;
 			else if (dev->s_timeout)
 				ret = dev->s_timeout(dev, tmp);
-			else if (!ret)
+			else
 				dev->timeout = tmp;
 		}
 		break;
