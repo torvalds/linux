@@ -525,6 +525,14 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 
 	DBG("%s", dev_name(dev));
 
+	/* Allocate and initialize the DRM device. */
+	ddev = drm_dev_alloc(&omap_drm_driver, dev);
+	if (IS_ERR(ddev))
+		return PTR_ERR(ddev);
+
+	priv->ddev = ddev;
+	ddev->dev_private = priv;
+
 	priv->dev = dev;
 	priv->dss = omapdss_get_dss();
 	priv->dispc = dispc_get_dispc(priv->dss);
@@ -543,16 +551,6 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 	mutex_init(&priv->list_lock);
 	INIT_LIST_HEAD(&priv->obj_list);
 
-	/* Allocate and initialize the DRM device. */
-	ddev = drm_dev_alloc(&omap_drm_driver, priv->dev);
-	if (IS_ERR(ddev)) {
-		ret = PTR_ERR(ddev);
-		goto err_destroy_wq;
-	}
-
-	priv->ddev = ddev;
-	ddev->dev_private = priv;
-
 	/* Get memory bandwidth limits */
 	if (priv->dispc_ops->get_memory_bandwidth_limit)
 		priv->max_bandwidth =
@@ -563,7 +561,7 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 	ret = omap_modeset_init(ddev);
 	if (ret) {
 		dev_err(priv->dev, "omap_modeset_init failed: ret=%d\n", ret);
-		goto err_free_drm_dev;
+		goto err_gem_deinit;
 	}
 
 	/* Initialize vblank handling, start with all CRTCs disabled. */
@@ -599,14 +597,13 @@ err_cleanup_helpers:
 err_cleanup_modeset:
 	drm_mode_config_cleanup(ddev);
 	omap_drm_irq_uninstall(ddev);
-err_free_drm_dev:
+err_gem_deinit:
 	omap_gem_deinit(ddev);
-	drm_dev_unref(ddev);
-err_destroy_wq:
 	destroy_workqueue(priv->wq);
 	omap_disconnect_dssdevs();
 err_crtc_uninit:
 	omap_crtc_pre_uninit();
+	drm_dev_unref(ddev);
 	return ret;
 }
 
@@ -630,12 +627,12 @@ static void omapdrm_cleanup(struct omap_drm_private *priv)
 	omap_drm_irq_uninstall(ddev);
 	omap_gem_deinit(ddev);
 
-	drm_dev_unref(ddev);
-
 	destroy_workqueue(priv->wq);
 
 	omap_disconnect_dssdevs();
 	omap_crtc_pre_uninit();
+
+	drm_dev_unref(ddev);
 }
 
 static int pdev_probe(struct platform_device *pdev)
