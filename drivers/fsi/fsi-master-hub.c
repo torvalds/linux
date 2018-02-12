@@ -254,7 +254,7 @@ static int hub_master_probe(struct device *dev)
 
 	reg = be32_to_cpu(__reg);
 	links = (reg >> 8) & 0xff;
-	dev_info(dev, "hub version %08x (%d links)\n", reg, links);
+	dev_dbg(dev, "hub version %08x (%d links)\n", reg, links);
 
 	rc = fsi_slave_claim_range(fsi_dev->slave, FSI_HUB_LINK_OFFSET,
 			FSI_HUB_LINK_SIZE * links);

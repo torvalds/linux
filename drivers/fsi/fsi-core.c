@@ -207,7 +207,7 @@ static int fsi_slave_report_and_clear_errors(struct fsi_slave *slave)
 	if (rc)
 		return rc;
 
-	dev_info(&slave->dev, "status: 0x%08x, sisc: 0x%08x\n",
+	dev_dbg(&slave->dev, "status: 0x%08x, sisc: 0x%08x\n",
 			be32_to_cpu(stat), be32_to_cpu(irq));
 
 	/* clear interrupts */
@@ -687,7 +687,7 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 		return -EIO;
 	}
 
-	dev_info(&master->dev, "fsi: found chip %08x at %02x:%02x:%02x\n",
+	dev_dbg(&master->dev, "fsi: found chip %08x at %02x:%02x:%02x\n",
 			chip_id, master->idx, link, id);
 
 	rc = fsi_slave_set_smode(master, link, id);
