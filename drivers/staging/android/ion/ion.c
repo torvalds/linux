@@ -564,13 +564,9 @@ void ion_device_add_heap(struct ion_heap *heap)
 		debug_file = debugfs_create_file(debug_name,
 						 0644, dev->debug_root, heap,
 						 &debug_shrink_fops);
-		if (!debug_file) {
-			char buf[256], *path;
-
-			path = dentry_path(dev->debug_root, buf, 256);
-			pr_err("Failed to create heap shrinker debugfs at %s/%s\n",
-			       path, debug_name);
-		}
+		if (!debug_file)
+			pr_err("Failed to create ion heap shrinker debugfs at %s\n",
+			       debug_name);
 	}
 
 	dev->heap_cnt++;
