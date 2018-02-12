@@ -806,7 +806,7 @@ static const struct reset_control_ops meson8b_clk_reset_ops = {
 
 static int meson8b_clkc_probe(struct platform_device *pdev)
 {
-	int ret, clkid, i;
+	int ret, i;
 	struct clk_hw *parent_hw;
 	struct clk *parent_clk;
 	struct device *dev = &pdev->dev;
@@ -844,13 +844,13 @@ static int meson8b_clkc_probe(struct platform_device *pdev)
 	 * register all clks
 	 * CLKID_UNUSED = 0, so skip it and start with CLKID_XTAL = 1
 	 */
-	for (clkid = CLKID_XTAL; clkid < CLK_NR_CLKS; clkid++) {
+	for (i = CLKID_XTAL; i < CLK_NR_CLKS; i++) {
 		/* array might be sparse */
-		if (!meson8b_hw_onecell_data.hws[clkid])
+		if (!meson8b_hw_onecell_data.hws[i])
 			continue;
 
 		/* FIXME convert to devm_clk_register */
-		ret = devm_clk_hw_register(dev, meson8b_hw_onecell_data.hws[clkid]);
+		ret = devm_clk_hw_register(dev, meson8b_hw_onecell_data.hws[i]);
 		if (ret)
 			return ret;
 	}

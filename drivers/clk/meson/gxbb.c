@@ -1947,7 +1947,7 @@ static int gxbb_clkc_probe(struct platform_device *pdev)
 {
 	const struct clkc_data *clkc_data;
 	void __iomem *clk_base;
-	int ret, clkid, i;
+	int ret, i;
 	struct device *dev = &pdev->dev;
 
 	clkc_data = of_device_get_match_data(dev);
@@ -1988,16 +1988,15 @@ static int gxbb_clkc_probe(struct platform_device *pdev)
 	for (i = 0; i < clkc_data->clk_audio_dividers_count; i++)
 		clkc_data->clk_audio_dividers[i]->base = clk_base;
 
-	/*
-	 * register all clks
-	 */
-	for (clkid = 0; clkid < clkc_data->hw_onecell_data->num; clkid++) {
+
+	/* Register all clks */
+	for (i = 0; i < clkc_data->hw_onecell_data->num; i++) {
 		/* array might be sparse */
-		if (!clkc_data->hw_onecell_data->hws[clkid])
+		if (!clkc_data->hw_onecell_data->hws[i])
 			continue;
 
 		ret = devm_clk_hw_register(dev,
-					clkc_data->hw_onecell_data->hws[clkid]);
+					   clkc_data->hw_onecell_data->hws[i]);
 		if (ret)
 			goto iounmap;
 	}
