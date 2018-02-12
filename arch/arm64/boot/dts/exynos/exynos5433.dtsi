@@ -969,6 +969,7 @@
 			ddc = <&hsi2c_11>;
 			samsung,syscon-phandle = <&pmu_system_controller>;
 			samsung,sysreg-phandle = <&syscon_disp>;
+			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
 
