@@ -849,7 +849,6 @@ static int meson8b_clkc_probe(struct platform_device *pdev)
 		if (!meson8b_hw_onecell_data.hws[i])
 			continue;
 
-		/* FIXME convert to devm_clk_register */
 		ret = devm_clk_hw_register(dev, meson8b_hw_onecell_data.hws[i]);
 		if (ret)
 			return ret;

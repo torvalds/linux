@@ -575,12 +575,6 @@ static struct meson_clk_mpll gxbb_mpll2 = {
 	},
 };
 
-/*
- * FIXME The legacy composite clocks (e.g. clk81) are both PLL post-dividers
- * and should be modeled with their respective PLLs via the forthcoming
- * coordinated clock rates feature
- */
-
 static u32 mux_table_clk81[]	= { 0, 2, 3, 4, 5, 6, 7 };
 static const char * const clk81_parent_names[] = {
 	"xtal", "fclk_div7", "mpll1", "mpll2", "fclk_div4",
