@@ -257,33 +257,35 @@ static struct clk_fixed_factor meson8b_fclk_div7 = {
 	},
 };
 
-static struct meson_clk_mpll meson8b_mpll0 = {
-	.sdm = {
-		.reg_off = HHI_MPLL_CNTL7,
-		.shift   = 0,
-		.width   = 14,
+static struct clk_regmap meson8b_mpll0 = {
+	.data = &(struct meson_clk_mpll_data){
+		.sdm = {
+			.reg_off = HHI_MPLL_CNTL7,
+			.shift   = 0,
+			.width   = 14,
+		},
+		.sdm_en = {
+			.reg_off = HHI_MPLL_CNTL7,
+			.shift   = 15,
+			.width   = 1,
+		},
+		.n2 = {
+			.reg_off = HHI_MPLL_CNTL7,
+			.shift   = 16,
+			.width   = 9,
+		},
+		.en = {
+			.reg_off = HHI_MPLL_CNTL7,
+			.shift   = 14,
+			.width   = 1,
+		},
+		.ssen = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 25,
+			.width   = 1,
+		},
+		.lock = &meson_clk_lock,
 	},
-	.sdm_en = {
-		.reg_off = HHI_MPLL_CNTL7,
-		.shift   = 15,
-		.width   = 1,
-	},
-	.n2 = {
-		.reg_off = HHI_MPLL_CNTL7,
-		.shift   = 16,
-		.width   = 9,
-	},
-	.en = {
-		.reg_off = HHI_MPLL_CNTL7,
-		.shift   = 14,
-		.width   = 1,
-	},
-	.ssen = {
-		.reg_off = HHI_MPLL_CNTL,
-		.shift   = 25,
-		.width   = 1,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll0",
 		.ops = &meson_clk_mpll_ops,
@@ -292,28 +294,30 @@ static struct meson_clk_mpll meson8b_mpll0 = {
 	},
 };
 
-static struct meson_clk_mpll meson8b_mpll1 = {
-	.sdm = {
-		.reg_off = HHI_MPLL_CNTL8,
-		.shift   = 0,
-		.width   = 14,
+static struct clk_regmap meson8b_mpll1 = {
+	.data = &(struct meson_clk_mpll_data){
+		.sdm = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 0,
+			.width   = 14,
+		},
+		.sdm_en = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 15,
+			.width   = 1,
+		},
+		.n2 = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 16,
+			.width   = 9,
+		},
+		.en = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 14,
+			.width   = 1,
+		},
+		.lock = &meson_clk_lock,
 	},
-	.sdm_en = {
-		.reg_off = HHI_MPLL_CNTL8,
-		.shift   = 15,
-		.width   = 1,
-	},
-	.n2 = {
-		.reg_off = HHI_MPLL_CNTL8,
-		.shift   = 16,
-		.width   = 9,
-	},
-	.en = {
-		.reg_off = HHI_MPLL_CNTL8,
-		.shift   = 14,
-		.width   = 1,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll1",
 		.ops = &meson_clk_mpll_ops,
@@ -322,28 +326,30 @@ static struct meson_clk_mpll meson8b_mpll1 = {
 	},
 };
 
-static struct meson_clk_mpll meson8b_mpll2 = {
-	.sdm = {
-		.reg_off = HHI_MPLL_CNTL9,
-		.shift   = 0,
-		.width   = 14,
+static struct clk_regmap meson8b_mpll2 = {
+	.data = &(struct meson_clk_mpll_data){
+		.sdm = {
+			.reg_off = HHI_MPLL_CNTL9,
+			.shift   = 0,
+			.width   = 14,
+		},
+		.sdm_en = {
+			.reg_off = HHI_MPLL_CNTL9,
+			.shift   = 15,
+			.width   = 1,
+		},
+		.n2 = {
+			.reg_off = HHI_MPLL_CNTL9,
+			.shift   = 16,
+			.width   = 9,
+		},
+		.en = {
+			.reg_off = HHI_MPLL_CNTL9,
+			.shift   = 14,
+			.width   = 1,
+		},
+		.lock = &meson_clk_lock,
 	},
-	.sdm_en = {
-		.reg_off = HHI_MPLL_CNTL9,
-		.shift   = 15,
-		.width   = 1,
-	},
-	.n2 = {
-		.reg_off = HHI_MPLL_CNTL9,
-		.shift   = 16,
-		.width   = 9,
-	},
-	.en = {
-		.reg_off = HHI_MPLL_CNTL9,
-		.shift   = 14,
-		.width   = 1,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll2",
 		.ops = &meson_clk_mpll_ops,
@@ -613,12 +619,6 @@ static struct meson_clk_pll *const meson8b_clk_plls[] = {
 	&meson8b_sys_pll,
 };
 
-static struct meson_clk_mpll *const meson8b_clk_mplls[] = {
-	&meson8b_mpll0,
-	&meson8b_mpll1,
-	&meson8b_mpll2,
-};
-
 static struct clk_regmap *const meson8b_clk_regmaps[] = {
 	&meson8b_clk81,
 	&meson8b_ddr,
@@ -700,6 +700,9 @@ static struct clk_regmap *const meson8b_clk_regmaps[] = {
 	&meson8b_ao_iface,
 	&meson8b_mpeg_clk_div,
 	&meson8b_mpeg_clk_sel,
+	&meson8b_mpll0,
+	&meson8b_mpll1,
+	&meson8b_mpll2,
 };
 
 static const struct meson8b_clk_reset_line {
@@ -825,10 +828,6 @@ static int meson8b_clkc_probe(struct platform_device *pdev)
 	/* Populate base address for PLLs */
 	for (i = 0; i < ARRAY_SIZE(meson8b_clk_plls); i++)
 		meson8b_clk_plls[i]->base = clk_base;
-
-	/* Populate base address for MPLLs */
-	for (i = 0; i < ARRAY_SIZE(meson8b_clk_mplls); i++)
-		meson8b_clk_mplls[i]->base = clk_base;
 
 	/* Populate the base address for CPU clk */
 	meson8b_cpu_clk.base = clk_base;

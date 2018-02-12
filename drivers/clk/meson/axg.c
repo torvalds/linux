@@ -267,38 +267,40 @@ static struct clk_fixed_factor axg_fclk_div7 = {
 	},
 };
 
-static struct meson_clk_mpll axg_mpll0 = {
-	.sdm = {
-		.reg_off = HHI_MPLL_CNTL7,
-		.shift   = 0,
-		.width   = 14,
+static struct clk_regmap axg_mpll0 = {
+	.data = &(struct meson_clk_mpll_data){
+		.sdm = {
+			.reg_off = HHI_MPLL_CNTL7,
+			.shift   = 0,
+			.width   = 14,
+		},
+		.sdm_en = {
+			.reg_off = HHI_MPLL_CNTL7,
+			.shift   = 15,
+			.width	 = 1,
+		},
+		.n2 = {
+			.reg_off = HHI_MPLL_CNTL7,
+			.shift   = 16,
+			.width   = 9,
+		},
+		.en = {
+			.reg_off = HHI_MPLL_CNTL7,
+			.shift   = 14,
+			.width	 = 1,
+		},
+		.ssen = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 25,
+			.width	 = 1,
+		},
+		.misc = {
+			.reg_off = HHI_PLL_TOP_MISC,
+			.shift   = 0,
+			.width	 = 1,
+		},
+		.lock = &meson_clk_lock,
 	},
-	.sdm_en = {
-		.reg_off = HHI_MPLL_CNTL7,
-		.shift   = 15,
-		.width	 = 1,
-	},
-	.n2 = {
-		.reg_off = HHI_MPLL_CNTL7,
-		.shift   = 16,
-		.width   = 9,
-	},
-	.en = {
-		.reg_off = HHI_MPLL_CNTL7,
-		.shift   = 14,
-		.width	 = 1,
-	},
-	.ssen = {
-		.reg_off = HHI_MPLL_CNTL,
-		.shift   = 25,
-		.width	 = 1,
-	},
-	.misc = {
-		.reg_off = HHI_PLL_TOP_MISC,
-		.shift   = 0,
-		.width	 = 1,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll0",
 		.ops = &meson_clk_mpll_ops,
@@ -307,33 +309,35 @@ static struct meson_clk_mpll axg_mpll0 = {
 	},
 };
 
-static struct meson_clk_mpll axg_mpll1 = {
-	.sdm = {
-		.reg_off = HHI_MPLL_CNTL8,
-		.shift   = 0,
-		.width   = 14,
+static struct clk_regmap axg_mpll1 = {
+	.data = &(struct meson_clk_mpll_data){
+		.sdm = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 0,
+			.width   = 14,
+		},
+		.sdm_en = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 15,
+			.width	 = 1,
+		},
+		.n2 = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 16,
+			.width   = 9,
+		},
+		.en = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 14,
+			.width	 = 1,
+		},
+		.misc = {
+			.reg_off = HHI_PLL_TOP_MISC,
+			.shift   = 1,
+			.width	 = 1,
+		},
+		.lock = &meson_clk_lock,
 	},
-	.sdm_en = {
-		.reg_off = HHI_MPLL_CNTL8,
-		.shift   = 15,
-		.width	 = 1,
-	},
-	.n2 = {
-		.reg_off = HHI_MPLL_CNTL8,
-		.shift   = 16,
-		.width   = 9,
-	},
-	.en = {
-		.reg_off = HHI_MPLL_CNTL8,
-		.shift   = 14,
-		.width	 = 1,
-	},
-	.misc = {
-		.reg_off = HHI_PLL_TOP_MISC,
-		.shift   = 1,
-		.width	 = 1,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll1",
 		.ops = &meson_clk_mpll_ops,
@@ -342,33 +346,35 @@ static struct meson_clk_mpll axg_mpll1 = {
 	},
 };
 
-static struct meson_clk_mpll axg_mpll2 = {
-	.sdm = {
-		.reg_off = HHI_MPLL_CNTL9,
-		.shift   = 0,
-		.width   = 14,
+static struct clk_regmap axg_mpll2 = {
+	.data = &(struct meson_clk_mpll_data){
+		.sdm = {
+			.reg_off = HHI_MPLL_CNTL9,
+			.shift   = 0,
+			.width   = 14,
+		},
+		.sdm_en = {
+			.reg_off = HHI_MPLL_CNTL9,
+			.shift   = 15,
+			.width	 = 1,
+		},
+		.n2 = {
+			.reg_off = HHI_MPLL_CNTL9,
+			.shift   = 16,
+			.width   = 9,
+		},
+		.en = {
+			.reg_off = HHI_MPLL_CNTL9,
+			.shift   = 14,
+			.width	 = 1,
+		},
+		.misc = {
+			.reg_off = HHI_PLL_TOP_MISC,
+			.shift   = 2,
+			.width	 = 1,
+		},
+		.lock = &meson_clk_lock,
 	},
-	.sdm_en = {
-		.reg_off = HHI_MPLL_CNTL9,
-		.shift   = 15,
-		.width	 = 1,
-	},
-	.n2 = {
-		.reg_off = HHI_MPLL_CNTL9,
-		.shift   = 16,
-		.width   = 9,
-	},
-	.en = {
-		.reg_off = HHI_MPLL_CNTL9,
-		.shift   = 14,
-		.width	 = 1,
-	},
-	.misc = {
-		.reg_off = HHI_PLL_TOP_MISC,
-		.shift   = 2,
-		.width	 = 1,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll2",
 		.ops = &meson_clk_mpll_ops,
@@ -377,33 +383,35 @@ static struct meson_clk_mpll axg_mpll2 = {
 	},
 };
 
-static struct meson_clk_mpll axg_mpll3 = {
-	.sdm = {
-		.reg_off = HHI_MPLL3_CNTL0,
-		.shift   = 12,
-		.width   = 14,
+static struct clk_regmap axg_mpll3 = {
+	.data = &(struct meson_clk_mpll_data){
+		.sdm = {
+			.reg_off = HHI_MPLL3_CNTL0,
+			.shift   = 12,
+			.width   = 14,
+		},
+		.sdm_en = {
+			.reg_off = HHI_MPLL3_CNTL0,
+			.shift   = 11,
+			.width	 = 1,
+		},
+		.n2 = {
+			.reg_off = HHI_MPLL3_CNTL0,
+			.shift   = 2,
+			.width   = 9,
+		},
+		.en = {
+			.reg_off = HHI_MPLL3_CNTL0,
+			.shift   = 0,
+			.width	 = 1,
+		},
+		.misc = {
+			.reg_off = HHI_PLL_TOP_MISC,
+			.shift   = 3,
+			.width	 = 1,
+		},
+		.lock = &meson_clk_lock,
 	},
-	.sdm_en = {
-		.reg_off = HHI_MPLL3_CNTL0,
-		.shift   = 11,
-		.width	 = 1,
-	},
-	.n2 = {
-		.reg_off = HHI_MPLL3_CNTL0,
-		.shift   = 2,
-		.width   = 9,
-	},
-	.en = {
-		.reg_off = HHI_MPLL3_CNTL0,
-		.shift   = 0,
-		.width	 = 1,
-	},
-	.misc = {
-		.reg_off = HHI_PLL_TOP_MISC,
-		.shift   = 3,
-		.width	 = 1,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll3",
 		.ops = &meson_clk_mpll_ops,
@@ -698,13 +706,6 @@ static struct meson_clk_pll *const axg_clk_plls[] = {
 	&axg_gp0_pll,
 };
 
-static struct meson_clk_mpll *const axg_clk_mplls[] = {
-	&axg_mpll0,
-	&axg_mpll1,
-	&axg_mpll2,
-	&axg_mpll3,
-};
-
 static struct clk_regmap *const axg_clk_regmaps[] = {
 	&axg_clk81,
 	&axg_ddr,
@@ -759,19 +760,19 @@ static struct clk_regmap *const axg_clk_regmaps[] = {
 	&axg_mpeg_clk_sel,
 	&axg_sd_emmc_b_clk0_sel,
 	&axg_sd_emmc_c_clk0_sel,
+	&axg_mpll0,
+	&axg_mpll1,
+	&axg_mpll2,
+	&axg_mpll3,
 };
 
 struct clkc_data {
-	struct meson_clk_mpll *const *clk_mplls;
-	unsigned int clk_mplls_count;
 	struct meson_clk_pll *const *clk_plls;
 	unsigned int clk_plls_count;
 	struct clk_hw_onecell_data *hw_onecell_data;
 };
 
 static const struct clkc_data axg_clkc_data = {
-	.clk_mplls = axg_clk_mplls,
-	.clk_mplls_count = ARRAY_SIZE(axg_clk_mplls),
 	.clk_plls = axg_clk_plls,
 	.clk_plls_count = ARRAY_SIZE(axg_clk_plls),
 	.hw_onecell_data = &axg_hw_onecell_data,
@@ -819,10 +820,6 @@ static int axg_clkc_probe(struct platform_device *pdev)
 	/* Populate base address for PLLs */
 	for (i = 0; i < clkc_data->clk_plls_count; i++)
 		clkc_data->clk_plls[i]->base = clk_base;
-
-	/* Populate base address for MPLLs */
-	for (i = 0; i < clkc_data->clk_mplls_count; i++)
-		clkc_data->clk_mplls[i]->base = clk_base;
 
 	/* Populate regmap for the regmap backed clocks */
 	for (i = 0; i < ARRAY_SIZE(axg_clk_regmaps); i++)

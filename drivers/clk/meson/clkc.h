@@ -132,9 +132,7 @@ struct meson_clk_cpu {
 int meson_clk_cpu_notifier_cb(struct notifier_block *nb, unsigned long event,
 		void *data);
 
-struct meson_clk_mpll {
-	struct clk_hw hw;
-	void __iomem *base;
+struct meson_clk_mpll_data {
 	struct parm sdm;
 	struct parm sdm_en;
 	struct parm n2;

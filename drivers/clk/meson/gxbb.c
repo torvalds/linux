@@ -482,33 +482,35 @@ static struct clk_fixed_factor gxbb_fclk_div7 = {
 	},
 };
 
-static struct meson_clk_mpll gxbb_mpll0 = {
-	.sdm = {
-		.reg_off = HHI_MPLL_CNTL7,
-		.shift   = 0,
-		.width   = 14,
+static struct clk_regmap gxbb_mpll0 = {
+	.data = &(struct meson_clk_mpll_data){
+		.sdm = {
+			.reg_off = HHI_MPLL_CNTL7,
+			.shift   = 0,
+			.width   = 14,
+		},
+		.sdm_en = {
+			.reg_off = HHI_MPLL_CNTL7,
+			.shift   = 15,
+			.width	 = 1,
+		},
+		.n2 = {
+			.reg_off = HHI_MPLL_CNTL7,
+			.shift   = 16,
+			.width   = 9,
+		},
+		.en = {
+			.reg_off = HHI_MPLL_CNTL7,
+			.shift   = 14,
+			.width	 = 1,
+		},
+		.ssen = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 25,
+			.width	 = 1,
+		},
+		.lock = &meson_clk_lock,
 	},
-	.sdm_en = {
-		.reg_off = HHI_MPLL_CNTL7,
-		.shift   = 15,
-		.width	 = 1,
-	},
-	.n2 = {
-		.reg_off = HHI_MPLL_CNTL7,
-		.shift   = 16,
-		.width   = 9,
-	},
-	.en = {
-		.reg_off = HHI_MPLL_CNTL7,
-		.shift   = 14,
-		.width	 = 1,
-	},
-	.ssen = {
-		.reg_off = HHI_MPLL_CNTL,
-		.shift   = 25,
-		.width	 = 1,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll0",
 		.ops = &meson_clk_mpll_ops,
@@ -517,28 +519,30 @@ static struct meson_clk_mpll gxbb_mpll0 = {
 	},
 };
 
-static struct meson_clk_mpll gxbb_mpll1 = {
-	.sdm = {
-		.reg_off = HHI_MPLL_CNTL8,
-		.shift   = 0,
-		.width   = 14,
+static struct clk_regmap gxbb_mpll1 = {
+	.data = &(struct meson_clk_mpll_data){
+		.sdm = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 0,
+			.width   = 14,
+		},
+		.sdm_en = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 15,
+			.width	 = 1,
+		},
+		.n2 = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 16,
+			.width   = 9,
+		},
+		.en = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 14,
+			.width	 = 1,
+		},
+		.lock = &meson_clk_lock,
 	},
-	.sdm_en = {
-		.reg_off = HHI_MPLL_CNTL8,
-		.shift   = 15,
-		.width	 = 1,
-	},
-	.n2 = {
-		.reg_off = HHI_MPLL_CNTL8,
-		.shift   = 16,
-		.width   = 9,
-	},
-	.en = {
-		.reg_off = HHI_MPLL_CNTL8,
-		.shift   = 14,
-		.width	 = 1,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll1",
 		.ops = &meson_clk_mpll_ops,
@@ -547,28 +551,30 @@ static struct meson_clk_mpll gxbb_mpll1 = {
 	},
 };
 
-static struct meson_clk_mpll gxbb_mpll2 = {
-	.sdm = {
-		.reg_off = HHI_MPLL_CNTL9,
-		.shift   = 0,
-		.width   = 14,
+static struct clk_regmap gxbb_mpll2 = {
+	.data = &(struct meson_clk_mpll_data){
+		.sdm = {
+			.reg_off = HHI_MPLL_CNTL9,
+			.shift   = 0,
+			.width   = 14,
+		},
+		.sdm_en = {
+			.reg_off = HHI_MPLL_CNTL9,
+			.shift   = 15,
+			.width	 = 1,
+		},
+		.n2 = {
+			.reg_off = HHI_MPLL_CNTL9,
+			.shift   = 16,
+			.width   = 9,
+		},
+		.en = {
+			.reg_off = HHI_MPLL_CNTL9,
+			.shift   = 14,
+			.width	 = 1,
+		},
+		.lock = &meson_clk_lock,
 	},
-	.sdm_en = {
-		.reg_off = HHI_MPLL_CNTL9,
-		.shift   = 15,
-		.width	 = 1,
-	},
-	.n2 = {
-		.reg_off = HHI_MPLL_CNTL9,
-		.shift   = 16,
-		.width   = 9,
-	},
-	.en = {
-		.reg_off = HHI_MPLL_CNTL9,
-		.shift   = 14,
-		.width	 = 1,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll2",
 		.ops = &meson_clk_mpll_ops,
@@ -1771,12 +1777,6 @@ static struct meson_clk_pll *const gxl_clk_plls[] = {
 	&gxl_gp0_pll,
 };
 
-static struct meson_clk_mpll *const gxbb_clk_mplls[] = {
-	&gxbb_mpll0,
-	&gxbb_mpll1,
-	&gxbb_mpll2,
-};
-
 static struct meson_clk_audio_divider *const gxbb_audio_dividers[] = {
 	&gxbb_cts_amclk_div,
 };
@@ -1909,11 +1909,12 @@ static struct clk_regmap *const gx_clk_regmaps[] = {
 	&gxbb_vapb_0_sel,
 	&gxbb_vapb_1_sel,
 	&gxbb_vapb_sel,
+	&gxbb_mpll0,
+	&gxbb_mpll1,
+	&gxbb_mpll2,
 };
 
 struct clkc_data {
-	struct meson_clk_mpll *const *clk_mplls;
-	unsigned int clk_mplls_count;
 	struct meson_clk_pll *const *clk_plls;
 	unsigned int clk_plls_count;
 	struct meson_clk_audio_divider *const *clk_audio_dividers;
@@ -1922,8 +1923,6 @@ struct clkc_data {
 };
 
 static const struct clkc_data gxbb_clkc_data = {
-	.clk_mplls = gxbb_clk_mplls,
-	.clk_mplls_count = ARRAY_SIZE(gxbb_clk_mplls),
 	.clk_plls = gxbb_clk_plls,
 	.clk_plls_count = ARRAY_SIZE(gxbb_clk_plls),
 	.clk_audio_dividers = gxbb_audio_dividers,
@@ -1932,8 +1931,6 @@ static const struct clkc_data gxbb_clkc_data = {
 };
 
 static const struct clkc_data gxl_clkc_data = {
-	.clk_mplls = gxbb_clk_mplls,
-	.clk_mplls_count = ARRAY_SIZE(gxbb_clk_mplls),
 	.clk_plls = gxl_clk_plls,
 	.clk_plls_count = ARRAY_SIZE(gxl_clk_plls),
 	.clk_audio_dividers = gxbb_audio_dividers,
@@ -1983,10 +1980,6 @@ static int gxbb_clkc_probe(struct platform_device *pdev)
 	/* Populate base address for PLLs */
 	for (i = 0; i < clkc_data->clk_plls_count; i++)
 		clkc_data->clk_plls[i]->base = clk_base;
-
-	/* Populate base address for MPLLs */
-	for (i = 0; i < clkc_data->clk_mplls_count; i++)
-		clkc_data->clk_mplls[i]->base = clk_base;
 
 	/* Populate base address for the audio dividers */
 	for (i = 0; i < clkc_data->clk_audio_dividers_count; i++)

@@ -68,11 +68,15 @@
 #define N2_MIN	4
 #define N2_MAX	511
 
-#define to_meson_clk_mpll(_hw) container_of(_hw, struct meson_clk_mpll, hw)
+static inline struct meson_clk_mpll_data *
+meson_clk_mpll_data(struct clk_regmap *clk)
+{
+	return (struct meson_clk_mpll_data *)clk->data;
+}
 
 static long rate_from_params(unsigned long parent_rate,
-				      unsigned long sdm,
-				      unsigned long n2)
+			     unsigned int sdm,
+			     unsigned int n2)
 {
 	unsigned long divisor = (SDM_DEN * n2) + sdm;
 
@@ -84,8 +88,8 @@ static long rate_from_params(unsigned long parent_rate,
 
 static void params_from_rate(unsigned long requested_rate,
 			     unsigned long parent_rate,
-			     unsigned long *sdm,
-			     unsigned long *n2)
+			     unsigned int *sdm,
+			     unsigned int *n2)
 {
 	uint64_t div = parent_rate;
 	unsigned long rem = do_div(div, requested_rate);
@@ -105,31 +109,23 @@ static void params_from_rate(unsigned long requested_rate,
 static unsigned long mpll_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
-	struct meson_clk_mpll *mpll = to_meson_clk_mpll(hw);
-	struct parm *p;
-	unsigned long reg, sdm, n2;
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_mpll_data *mpll = meson_clk_mpll_data(clk);
+	unsigned int sdm, n2;
 	long rate;
 
-	p = &mpll->sdm;
-	reg = readl(mpll->base + p->reg_off);
-	sdm = PARM_GET(p->width, p->shift, reg);
-
-	p = &mpll->n2;
-	reg = readl(mpll->base + p->reg_off);
-	n2 = PARM_GET(p->width, p->shift, reg);
+	sdm = meson_parm_read(clk->map, &mpll->sdm);
+	n2 = meson_parm_read(clk->map, &mpll->n2);
 
 	rate = rate_from_params(parent_rate, sdm, n2);
-	if (rate < 0)
-		return 0;
-
-	return rate;
+	return rate < 0 ? 0 : rate;
 }
 
 static long mpll_round_rate(struct clk_hw *hw,
 			    unsigned long rate,
 			    unsigned long *parent_rate)
 {
-	unsigned long sdm, n2;
+	unsigned int sdm, n2;
 
 	params_from_rate(rate, *parent_rate, &sdm, &n2);
 	return rate_from_params(*parent_rate, sdm, n2);
@@ -139,9 +135,9 @@ static int mpll_set_rate(struct clk_hw *hw,
 			 unsigned long rate,
 			 unsigned long parent_rate)
 {
-	struct meson_clk_mpll *mpll = to_meson_clk_mpll(hw);
-	struct parm *p;
-	unsigned long reg, sdm, n2;
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_mpll_data *mpll = meson_clk_mpll_data(clk);
+	unsigned int sdm, n2;
 	unsigned long flags = 0;
 
 	params_from_rate(rate, parent_rate, &sdm, &n2);
@@ -151,34 +147,20 @@ static int mpll_set_rate(struct clk_hw *hw,
 	else
 		__acquire(mpll->lock);
 
-	p = &mpll->sdm;
-	reg = readl(mpll->base + p->reg_off);
-	reg = PARM_SET(p->width, p->shift, reg, sdm);
-	writel(reg, mpll->base + p->reg_off);
+	/* Enable and set the fractional part */
+	meson_parm_write(clk->map, &mpll->sdm, sdm);
+	meson_parm_write(clk->map, &mpll->sdm_en, 1);
 
-	p = &mpll->sdm_en;
-	reg = readl(mpll->base + p->reg_off);
-	reg = PARM_SET(p->width, p->shift, reg, 1);
-	writel(reg, mpll->base + p->reg_off);
+	/* Set additional fractional part enable if required */
+	if (MESON_PARM_APPLICABLE(&mpll->ssen))
+		meson_parm_write(clk->map, &mpll->ssen, 1);
 
-	p = &mpll->ssen;
-	if (p->width != 0) {
-		reg = readl(mpll->base + p->reg_off);
-		reg = PARM_SET(p->width, p->shift, reg, 1);
-		writel(reg, mpll->base + p->reg_off);
-	}
+	/* Set the integer divider part */
+	meson_parm_write(clk->map, &mpll->n2, n2);
 
-	p = &mpll->n2;
-	reg = readl(mpll->base + p->reg_off);
-	reg = PARM_SET(p->width, p->shift, reg, n2);
-	writel(reg, mpll->base + p->reg_off);
-
-	p = &mpll->misc;
-	if (p->width != 0) {
-		reg = readl(mpll->base + p->reg_off);
-		reg = PARM_SET(p->width, p->shift, reg, 1);
-		writel(reg, mpll->base + p->reg_off);
-	}
+	/* Set the magic misc bit if required */
+	if (MESON_PARM_APPLICABLE(&mpll->misc))
+		meson_parm_write(clk->map, &mpll->misc, 1);
 
 	if (mpll->lock)
 		spin_unlock_irqrestore(mpll->lock, flags);
@@ -190,9 +172,8 @@ static int mpll_set_rate(struct clk_hw *hw,
 
 static void mpll_enable_core(struct clk_hw *hw, int enable)
 {
-	struct meson_clk_mpll *mpll = to_meson_clk_mpll(hw);
-	struct parm *p;
-	unsigned long reg;
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_mpll_data *mpll = meson_clk_mpll_data(clk);
 	unsigned long flags = 0;
 
 	if (mpll->lock)
@@ -200,10 +181,7 @@ static void mpll_enable_core(struct clk_hw *hw, int enable)
 	else
 		__acquire(mpll->lock);
 
-	p = &mpll->en;
-	reg = readl(mpll->base + p->reg_off);
-	reg = PARM_SET(p->width, p->shift, reg, enable ? 1 : 0);
-	writel(reg, mpll->base + p->reg_off);
+	meson_parm_write(clk->map, &mpll->en, enable ? 1 : 0);
 
 	if (mpll->lock)
 		spin_unlock_irqrestore(mpll->lock, flags);
@@ -226,16 +204,10 @@ static void mpll_disable(struct clk_hw *hw)
 
 static int mpll_is_enabled(struct clk_hw *hw)
 {
-	struct meson_clk_mpll *mpll = to_meson_clk_mpll(hw);
-	struct parm *p;
-	unsigned long reg;
-	int en;
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_mpll_data *mpll = meson_clk_mpll_data(clk);
 
-	p = &mpll->en;
-	reg = readl(mpll->base + p->reg_off);
-	en = PARM_GET(p->width, p->shift, reg);
-
-	return en;
+	return meson_parm_read(clk->map, &mpll->en);
 }
 
 const struct clk_ops meson_clk_mpll_ro_ops = {
