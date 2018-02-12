@@ -1458,7 +1458,9 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 	bool idle = true;
 
-	intel_runtime_pm_get(dev_priv);
+	/* If the whole device is asleep, the engine must be idle */
+	if (!intel_runtime_pm_get_if_in_use(dev_priv))
+		return true;
 
 	/* First check that no commands are left in the ring */
 	if ((I915_READ_HEAD(engine) & HEAD_ADDR) !=
