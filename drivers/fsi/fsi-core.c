@@ -762,14 +762,20 @@ static void fsi_master_unscan(struct fsi_master *master)
 	device_for_each_child(&master->dev, NULL, fsi_master_remove_slave);
 }
 
+int fsi_master_rescan(struct fsi_master *master)
+{
+	fsi_master_unscan(master);
+	return fsi_master_scan(master);
+}
+EXPORT_SYMBOL_GPL(fsi_master_rescan);
+
 static ssize_t master_rescan_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct fsi_master *master = to_fsi_master(dev);
 	int rc;
 
-	fsi_master_unscan(master);
-	rc = fsi_master_scan(master);
+	rc = fsi_master_rescan(master);
 	if (rc < 0)
 		return rc;
 

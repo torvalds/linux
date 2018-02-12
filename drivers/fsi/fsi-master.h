@@ -40,4 +40,6 @@ struct fsi_master {
 extern int fsi_master_register(struct fsi_master *master);
 extern void fsi_master_unregister(struct fsi_master *master);
 
+extern int fsi_master_rescan(struct fsi_master *master);
+
 #endif /* DRIVERS_FSI_MASTER_H */
