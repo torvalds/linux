@@ -2002,8 +2002,9 @@ static int gxbb_clkc_probe(struct platform_device *pdev)
 			goto iounmap;
 	}
 
-	return of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
-			clkc_data->hw_onecell_data);
+
+	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
+					   clkc_data->hw_onecell_data);
 
 iounmap:
 	iounmap(clk_base);

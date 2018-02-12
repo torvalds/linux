@@ -854,8 +854,8 @@ static int axg_clkc_probe(struct platform_device *pdev)
 		}
 	}
 
-	return of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
-			clkc_data->hw_onecell_data);
+	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
+					   clkc_data->hw_onecell_data);
 }
 
 static struct platform_driver axg_driver = {

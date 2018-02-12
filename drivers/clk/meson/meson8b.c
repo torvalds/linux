@@ -878,8 +878,8 @@ static int meson8b_clkc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	return of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
-			&meson8b_hw_onecell_data);
+	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
+					   &meson8b_hw_onecell_data);
 }
 
 static const struct of_device_id meson8b_clkc_match_table[] = {
