@@ -188,7 +188,7 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 
 	dev->mode_config.fb_base = dma_addr;
 
-	fbi->screen_base = omap_gem_vaddr(fbdev->bo);
+	fbi->screen_buffer = omap_gem_vaddr(fbdev->bo);
 	fbi->screen_size = fbdev->bo->size;
 	fbi->fix.smem_start = dma_addr;
 	fbi->fix.smem_len = fbdev->bo->size;
