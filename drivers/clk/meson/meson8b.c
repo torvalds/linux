@@ -289,7 +289,7 @@ static struct clk_fixed_factor meson8b_fclk_div7 = {
 	},
 };
 
-static struct clk_regmap meson8b_mpll0 = {
+static struct clk_regmap meson8b_mpll0_div = {
 	.data = &(struct meson_clk_mpll_data){
 		.sdm = {
 			.reg_off = HHI_MPLL_CNTL7,
@@ -305,11 +305,6 @@ static struct clk_regmap meson8b_mpll0 = {
 			.reg_off = HHI_MPLL_CNTL7,
 			.shift   = 16,
 			.width   = 9,
-		},
-		.en = {
-			.reg_off = HHI_MPLL_CNTL7,
-			.shift   = 14,
-			.width   = 1,
 		},
 		.ssen = {
 			.reg_off = HHI_MPLL_CNTL,
@@ -319,7 +314,48 @@ static struct clk_regmap meson8b_mpll0 = {
 		.lock = &meson_clk_lock,
 	},
 	.hw.init = &(struct clk_init_data){
+		.name = "mpll0_div",
+		.ops = &meson_clk_mpll_ops,
+		.parent_names = (const char *[]){ "fixed_pll" },
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap meson8b_mpll0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL7,
+		.bit_idx = 14,
+	},
+	.hw.init = &(struct clk_init_data){
 		.name = "mpll0",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "mpll0_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap meson8b_mpll1_div = {
+	.data = &(struct meson_clk_mpll_data){
+		.sdm = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 0,
+			.width   = 14,
+		},
+		.sdm_en = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 15,
+			.width   = 1,
+		},
+		.n2 = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 16,
+			.width   = 9,
+		},
+		.lock = &meson_clk_lock,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mpll1_div",
 		.ops = &meson_clk_mpll_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
@@ -327,31 +363,40 @@ static struct clk_regmap meson8b_mpll0 = {
 };
 
 static struct clk_regmap meson8b_mpll1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL8,
+		.bit_idx = 14,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mpll1",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "mpll1_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap meson8b_mpll2_div = {
 	.data = &(struct meson_clk_mpll_data){
 		.sdm = {
-			.reg_off = HHI_MPLL_CNTL8,
+			.reg_off = HHI_MPLL_CNTL9,
 			.shift   = 0,
 			.width   = 14,
 		},
 		.sdm_en = {
-			.reg_off = HHI_MPLL_CNTL8,
+			.reg_off = HHI_MPLL_CNTL9,
 			.shift   = 15,
 			.width   = 1,
 		},
 		.n2 = {
-			.reg_off = HHI_MPLL_CNTL8,
+			.reg_off = HHI_MPLL_CNTL9,
 			.shift   = 16,
 			.width   = 9,
-		},
-		.en = {
-			.reg_off = HHI_MPLL_CNTL8,
-			.shift   = 14,
-			.width   = 1,
 		},
 		.lock = &meson_clk_lock,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "mpll1",
+		.name = "mpll2_div",
 		.ops = &meson_clk_mpll_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
@@ -359,34 +404,16 @@ static struct clk_regmap meson8b_mpll1 = {
 };
 
 static struct clk_regmap meson8b_mpll2 = {
-	.data = &(struct meson_clk_mpll_data){
-		.sdm = {
-			.reg_off = HHI_MPLL_CNTL9,
-			.shift   = 0,
-			.width   = 14,
-		},
-		.sdm_en = {
-			.reg_off = HHI_MPLL_CNTL9,
-			.shift   = 15,
-			.width   = 1,
-		},
-		.n2 = {
-			.reg_off = HHI_MPLL_CNTL9,
-			.shift   = 16,
-			.width   = 9,
-		},
-		.en = {
-			.reg_off = HHI_MPLL_CNTL9,
-			.shift   = 14,
-			.width   = 1,
-		},
-		.lock = &meson_clk_lock,
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL9,
+		.bit_idx = 14,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll2",
-		.ops = &meson_clk_mpll_ops,
-		.parent_names = (const char *[]){ "fixed_pll" },
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "mpll2_div" },
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -640,6 +667,9 @@ static struct clk_hw_onecell_data meson8b_hw_onecell_data = {
 		[CLKID_MPLL0]		    = &meson8b_mpll0.hw,
 		[CLKID_MPLL1]		    = &meson8b_mpll1.hw,
 		[CLKID_MPLL2]		    = &meson8b_mpll2.hw,
+		[CLKID_MPLL0_DIV]	    = &meson8b_mpll0_div.hw,
+		[CLKID_MPLL1_DIV]	    = &meson8b_mpll1_div.hw,
+		[CLKID_MPLL2_DIV]	    = &meson8b_mpll2_div.hw,
 		[CLK_NR_CLKS]		    = NULL,
 	},
 	.num = CLK_NR_CLKS,
@@ -729,6 +759,9 @@ static struct clk_regmap *const meson8b_clk_regmaps[] = {
 	&meson8b_mpll0,
 	&meson8b_mpll1,
 	&meson8b_mpll2,
+	&meson8b_mpll0_div,
+	&meson8b_mpll1_div,
+	&meson8b_mpll2_div,
 	&meson8b_fixed_pll,
 	&meson8b_vid_pll,
 	&meson8b_sys_pll,

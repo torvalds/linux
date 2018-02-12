@@ -69,7 +69,11 @@
  * will remain defined here.
  */
 
-#define CLK_NR_CLKS		96
+#define CLKID_MPLL0_DIV		96
+#define CLKID_MPLL1_DIV		97
+#define CLKID_MPLL2_DIV		98
+
+#define CLK_NR_CLKS		99
 
 /*
  * include the CLKID and RESETID that have

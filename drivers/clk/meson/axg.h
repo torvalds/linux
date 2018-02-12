@@ -117,8 +117,12 @@
 #define CLKID_SD_EMMC_B_CLK0_DIV		62
 #define CLKID_SD_EMMC_C_CLK0_SEL		63
 #define CLKID_SD_EMMC_C_CLK0_DIV		64
+#define CLKID_MPLL0_DIV				65
+#define CLKID_MPLL1_DIV				66
+#define CLKID_MPLL2_DIV				67
+#define CLKID_MPLL3_DIV				68
 
-#define NR_CLKS					65
+#define NR_CLKS					69
 
 /* include the CLKIDs that have been made part of the DT binding */
 #include <dt-bindings/clock/axg-clkc.h>

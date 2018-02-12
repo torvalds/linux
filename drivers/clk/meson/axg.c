@@ -296,7 +296,7 @@ static struct clk_fixed_factor axg_fclk_div7 = {
 	},
 };
 
-static struct clk_regmap axg_mpll0 = {
+static struct clk_regmap axg_mpll0_div = {
 	.data = &(struct meson_clk_mpll_data){
 		.sdm = {
 			.reg_off = HHI_MPLL_CNTL7,
@@ -312,11 +312,6 @@ static struct clk_regmap axg_mpll0 = {
 			.reg_off = HHI_MPLL_CNTL7,
 			.shift   = 16,
 			.width   = 9,
-		},
-		.en = {
-			.reg_off = HHI_MPLL_CNTL7,
-			.shift   = 14,
-			.width	 = 1,
 		},
 		.ssen = {
 			.reg_off = HHI_MPLL_CNTL,
@@ -331,14 +326,28 @@ static struct clk_regmap axg_mpll0 = {
 		.lock = &meson_clk_lock,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "mpll0",
+		.name = "mpll0_div",
 		.ops = &meson_clk_mpll_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
 	},
 };
 
-static struct clk_regmap axg_mpll1 = {
+static struct clk_regmap axg_mpll0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL7,
+		.bit_idx = 14,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mpll0",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "mpll0_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_mpll1_div = {
 	.data = &(struct meson_clk_mpll_data){
 		.sdm = {
 			.reg_off = HHI_MPLL_CNTL8,
@@ -354,11 +363,6 @@ static struct clk_regmap axg_mpll1 = {
 			.reg_off = HHI_MPLL_CNTL8,
 			.shift   = 16,
 			.width   = 9,
-		},
-		.en = {
-			.reg_off = HHI_MPLL_CNTL8,
-			.shift   = 14,
-			.width	 = 1,
 		},
 		.misc = {
 			.reg_off = HHI_PLL_TOP_MISC,
@@ -368,14 +372,28 @@ static struct clk_regmap axg_mpll1 = {
 		.lock = &meson_clk_lock,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "mpll1",
+		.name = "mpll1_div",
 		.ops = &meson_clk_mpll_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
 	},
 };
 
-static struct clk_regmap axg_mpll2 = {
+static struct clk_regmap axg_mpll1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL8,
+		.bit_idx = 14,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mpll1",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "mpll1_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_mpll2_div = {
 	.data = &(struct meson_clk_mpll_data){
 		.sdm = {
 			.reg_off = HHI_MPLL_CNTL9,
@@ -392,11 +410,6 @@ static struct clk_regmap axg_mpll2 = {
 			.shift   = 16,
 			.width   = 9,
 		},
-		.en = {
-			.reg_off = HHI_MPLL_CNTL9,
-			.shift   = 14,
-			.width	 = 1,
-		},
 		.misc = {
 			.reg_off = HHI_PLL_TOP_MISC,
 			.shift   = 2,
@@ -405,14 +418,28 @@ static struct clk_regmap axg_mpll2 = {
 		.lock = &meson_clk_lock,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "mpll2",
+		.name = "mpll2_div",
 		.ops = &meson_clk_mpll_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
 	},
 };
 
-static struct clk_regmap axg_mpll3 = {
+static struct clk_regmap axg_mpll2 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL9,
+		.bit_idx = 14,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mpll2",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "mpll2_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_mpll3_div = {
 	.data = &(struct meson_clk_mpll_data){
 		.sdm = {
 			.reg_off = HHI_MPLL3_CNTL0,
@@ -429,11 +456,6 @@ static struct clk_regmap axg_mpll3 = {
 			.shift   = 2,
 			.width   = 9,
 		},
-		.en = {
-			.reg_off = HHI_MPLL3_CNTL0,
-			.shift   = 0,
-			.width	 = 1,
-		},
 		.misc = {
 			.reg_off = HHI_PLL_TOP_MISC,
 			.shift   = 3,
@@ -442,10 +464,24 @@ static struct clk_regmap axg_mpll3 = {
 		.lock = &meson_clk_lock,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "mpll3",
+		.name = "mpll3_div",
 		.ops = &meson_clk_mpll_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap axg_mpll3 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL3_CNTL0,
+		.bit_idx = 0,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mpll3",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "mpll3_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -722,6 +758,10 @@ static struct clk_hw_onecell_data axg_hw_onecell_data = {
 		[CLKID_SD_EMMC_C_CLK0_SEL]	= &axg_sd_emmc_c_clk0_sel.hw,
 		[CLKID_SD_EMMC_C_CLK0_DIV]	= &axg_sd_emmc_c_clk0_div.hw,
 		[CLKID_SD_EMMC_C_CLK0]		= &axg_sd_emmc_c_clk0.hw,
+		[CLKID_MPLL0_DIV]		= &axg_mpll0_div.hw,
+		[CLKID_MPLL1_DIV]		= &axg_mpll1_div.hw,
+		[CLKID_MPLL2_DIV]		= &axg_mpll2_div.hw,
+		[CLKID_MPLL3_DIV]		= &axg_mpll3_div.hw,
 		[NR_CLKS]			= NULL,
 	},
 	.num = NR_CLKS,
@@ -786,6 +826,10 @@ static struct clk_regmap *const axg_clk_regmaps[] = {
 	&axg_mpll1,
 	&axg_mpll2,
 	&axg_mpll3,
+	&axg_mpll0_div,
+	&axg_mpll1_div,
+	&axg_mpll2_div,
+	&axg_mpll3_div,
 	&axg_fixed_pll,
 	&axg_sys_pll,
 	&axg_gp0_pll,
