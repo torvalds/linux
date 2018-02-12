@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+/plugin/;
+
+/ {
+	/* overlay_15 - mux overlay */
+
+	fragment@0 {
+		target-path = "/testcase-data/overlay-node/test-bus/i2c-test-bus";
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			test-unittest15 {
+				reg = <11>;
+				compatible = "unittest-i2c-mux";
+				status = "okay";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				i2c@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					test-mux-dev {
+						reg = <32>;
+						compatible = "unittest-i2c-dev";
+						status = "okay";
+					};
+				};
+			};
+		};
+	};
+};

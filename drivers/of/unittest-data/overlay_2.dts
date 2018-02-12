@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+/plugin/;
+
+/ {
+	/* overlay_2 -  enable using label */
+
+	fragment@0 {
+		target = <&unittest2>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};

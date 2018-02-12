@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+/plugin/;
+
+/ {
+	/* overlay_11 */
+	/* overlays 8, 9, 10, 11 application and removal in bad sequence */
+
+	fragment@0 {
+		target-path = "/testcase-data/overlay-node/test-bus";
+		__overlay__ {
+
+			/* suppress DTC warning */
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			test-unittest11 {
+				compatible = "unittest";
+				status = "okay";
+				reg = <11>;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				test-unittest111 {
+					compatible = "unittest";
+					status = "okay";
+					reg = <1>;
+				};
+
+			};
+		};
+	};
+};

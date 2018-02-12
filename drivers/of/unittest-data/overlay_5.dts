@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+/plugin/;
+
+/ {
+	/* overlay_5 - test overlay apply revert */
+
+	fragment@0 {
+		target-path = "/testcase-data/overlay-node/test-bus/test-unittest5";
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};
