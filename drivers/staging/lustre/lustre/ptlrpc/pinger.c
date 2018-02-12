@@ -291,7 +291,6 @@ static struct ptlrpc_thread pinger_thread;
 
 int ptlrpc_start_pinger(void)
 {
-	struct l_wait_info lwi = { 0 };
 	struct task_struct *task;
 	int rc;
 
@@ -310,8 +309,8 @@ int ptlrpc_start_pinger(void)
 		CERROR("cannot start pinger thread: rc = %d\n", rc);
 		return rc;
 	}
-	l_wait_event(pinger_thread.t_ctl_waitq,
-		     thread_is_running(&pinger_thread), &lwi);
+	wait_event_idle(pinger_thread.t_ctl_waitq,
+			thread_is_running(&pinger_thread));
 
 	return 0;
 }
@@ -320,7 +319,6 @@ static int ptlrpc_pinger_remove_timeouts(void);
 
 int ptlrpc_stop_pinger(void)
 {
-	struct l_wait_info lwi = { 0 };
 	int rc = 0;
 
 	if (thread_is_init(&pinger_thread) ||
@@ -331,8 +329,8 @@ int ptlrpc_stop_pinger(void)
 	thread_set_flags(&pinger_thread, SVC_STOPPING);
 	wake_up(&pinger_thread.t_ctl_waitq);
 
-	l_wait_event(pinger_thread.t_ctl_waitq,
-		     thread_is_stopped(&pinger_thread), &lwi);
+	wait_event_idle(pinger_thread.t_ctl_waitq,
+			thread_is_stopped(&pinger_thread));
 
 	return rc;
 }

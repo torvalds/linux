@@ -864,7 +864,6 @@ static int ll_agl_thread(void *arg)
 	struct ll_sb_info	*sbi    = ll_i2sbi(dir);
 	struct ll_statahead_info *sai;
 	struct ptlrpc_thread *thread;
-	struct l_wait_info	lwi    = { 0 };
 
 	sai = ll_sai_get(dir);
 	thread = &sai->sai_agl_thread;
@@ -885,10 +884,9 @@ static int ll_agl_thread(void *arg)
 	wake_up(&thread->t_ctl_waitq);
 
 	while (1) {
-		l_wait_event(thread->t_ctl_waitq,
-			     !list_empty(&sai->sai_agls) ||
-			     !thread_is_running(thread),
-			     &lwi);
+		wait_event_idle(thread->t_ctl_waitq,
+				!list_empty(&sai->sai_agls) ||
+				!thread_is_running(thread));
 
 		if (!thread_is_running(thread))
 			break;
@@ -932,7 +930,6 @@ static int ll_agl_thread(void *arg)
 static void ll_start_agl(struct dentry *parent, struct ll_statahead_info *sai)
 {
 	struct ptlrpc_thread *thread = &sai->sai_agl_thread;
-	struct l_wait_info    lwi    = { 0 };
 	struct ll_inode_info  *plli;
 	struct task_struct *task;
 
@@ -948,9 +945,8 @@ static void ll_start_agl(struct dentry *parent, struct ll_statahead_info *sai)
 		return;
 	}
 
-	l_wait_event(thread->t_ctl_waitq,
-		     thread_is_running(thread) || thread_is_stopped(thread),
-		     &lwi);
+	wait_event_idle(thread->t_ctl_waitq,
+			thread_is_running(thread) || thread_is_stopped(thread));
 }
 
 /* statahead thread main function */
@@ -968,7 +964,6 @@ static int ll_statahead_thread(void *arg)
 	int		       first  = 0;
 	int		       rc     = 0;
 	struct md_op_data *op_data;
-	struct l_wait_info	lwi    = { 0 };
 
 	sai = ll_sai_get(dir);
 	sa_thread = &sai->sai_thread;
@@ -1069,12 +1064,11 @@ static int ll_statahead_thread(void *arg)
 
 			/* wait for spare statahead window */
 			do {
-				l_wait_event(sa_thread->t_ctl_waitq,
-					     !sa_sent_full(sai) ||
-					     sa_has_callback(sai) ||
-					     !list_empty(&sai->sai_agls) ||
-					     !thread_is_running(sa_thread),
-					     &lwi);
+				wait_event_idle(sa_thread->t_ctl_waitq,
+						!sa_sent_full(sai) ||
+						sa_has_callback(sai) ||
+						!list_empty(&sai->sai_agls) ||
+						!thread_is_running(sa_thread));
 				sa_handle_callback(sai);
 
 				spin_lock(&lli->lli_agl_lock);
@@ -1128,11 +1122,10 @@ static int ll_statahead_thread(void *arg)
 	 * for file release to stop me.
 	 */
 	while (thread_is_running(sa_thread)) {
-		l_wait_event(sa_thread->t_ctl_waitq,
-			     sa_has_callback(sai) ||
-			     !agl_list_empty(sai) ||
-			     !thread_is_running(sa_thread),
-			     &lwi);
+		wait_event_idle(sa_thread->t_ctl_waitq,
+				sa_has_callback(sai) ||
+				!agl_list_empty(sai) ||
+				!thread_is_running(sa_thread));
 
 		sa_handle_callback(sai);
 	}
@@ -1145,9 +1138,8 @@ out:
 
 		CDEBUG(D_READA, "stop agl thread: sai %p pid %u\n",
 		       sai, (unsigned int)agl_thread->t_pid);
-		l_wait_event(agl_thread->t_ctl_waitq,
-			     thread_is_stopped(agl_thread),
-			     &lwi);
+		wait_event_idle(agl_thread->t_ctl_waitq,
+				thread_is_stopped(agl_thread));
 	} else {
 		/* Set agl_thread flags anyway. */
 		thread_set_flags(agl_thread, SVC_STOPPED);
@@ -1159,8 +1151,8 @@ out:
 	 */
 	while (sai->sai_sent != sai->sai_replied) {
 		/* in case we're not woken up, timeout wait */
-		lwi = LWI_TIMEOUT(msecs_to_jiffies(MSEC_PER_SEC >> 3),
-				  NULL, NULL);
+		struct l_wait_info lwi = LWI_TIMEOUT(msecs_to_jiffies(MSEC_PER_SEC >> 3),
+						     NULL, NULL);
 		l_wait_event(sa_thread->t_ctl_waitq,
 			     sai->sai_sent == sai->sai_replied, &lwi);
 	}
@@ -1520,7 +1512,6 @@ static int start_statahead_thread(struct inode *dir, struct dentry *dentry)
 {
 	struct ll_inode_info *lli = ll_i2info(dir);
 	struct ll_statahead_info *sai = NULL;
-	struct l_wait_info lwi = { 0 };
 	struct ptlrpc_thread *thread;
 	struct task_struct *task;
 	struct dentry *parent = dentry->d_parent;
@@ -1570,9 +1561,8 @@ static int start_statahead_thread(struct inode *dir, struct dentry *dentry)
 		goto out;
 	}
 
-	l_wait_event(thread->t_ctl_waitq,
-		     thread_is_running(thread) || thread_is_stopped(thread),
-		     &lwi);
+	wait_event_idle(thread->t_ctl_waitq,
+			thread_is_running(thread) || thread_is_stopped(thread));
 	ll_sai_put(sai);
 
 	/*

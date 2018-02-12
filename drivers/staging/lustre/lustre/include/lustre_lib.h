@@ -333,24 +333,7 @@ do {									   \
 	__ret;						  \
 })
 
-#define l_wait_condition(wq, condition)			 \
-({							      \
-	struct l_wait_info lwi = { 0 };			 \
-	l_wait_event(wq, condition, &lwi);		      \
-})
-
-#define l_wait_condition_exclusive(wq, condition)	       \
-({							      \
-	struct l_wait_info lwi = { 0 };			 \
-	l_wait_event_exclusive(wq, condition, &lwi);	    \
-})
-
-#define l_wait_condition_exclusive_head(wq, condition)	  \
-({							      \
-	struct l_wait_info lwi = { 0 };			 \
-	l_wait_event_exclusive_head(wq, condition, &lwi);       \
-})
-
 /** @} lib */
+
 
 #endif /* _LUSTRE_LIB_H */

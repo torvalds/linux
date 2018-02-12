@@ -964,9 +964,8 @@ static int osc_extent_wait(const struct lu_env *env, struct osc_extent *ext,
 				"%s: wait ext to %u timedout, recovery in progress?\n",
 				cli_name(osc_cli(obj)), state);
 
-		lwi = LWI_INTR(NULL, NULL);
-		rc = l_wait_event(ext->oe_waitq, extent_wait_cb(ext, state),
-				  &lwi);
+		wait_event_idle(ext->oe_waitq, extent_wait_cb(ext, state));
+		rc = 0;
 	}
 	if (rc == 0 && ext->oe_rc < 0)
 		rc = ext->oe_rc;

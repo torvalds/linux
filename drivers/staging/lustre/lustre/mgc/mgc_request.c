@@ -601,9 +601,7 @@ static int mgc_requeue_thread(void *data)
 			config_log_put(cld_prev);
 
 		/* Wait a bit to see if anyone else needs a requeue */
-		lwi = (struct l_wait_info) { 0 };
-		l_wait_event(rq_waitq, rq_state & (RQ_NOW | RQ_STOP),
-			     &lwi);
+		wait_event_idle(rq_waitq, rq_state & (RQ_NOW | RQ_STOP));
 		spin_lock(&config_list_lock);
 	}
 

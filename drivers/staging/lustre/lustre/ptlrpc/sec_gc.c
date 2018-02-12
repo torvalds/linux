@@ -197,7 +197,6 @@ again:
 
 int sptlrpc_gc_init(void)
 {
-	struct l_wait_info lwi = { 0 };
 	struct task_struct *task;
 
 	mutex_init(&sec_gc_mutex);
@@ -214,18 +213,16 @@ int sptlrpc_gc_init(void)
 		return PTR_ERR(task);
 	}
 
-	l_wait_event(sec_gc_thread.t_ctl_waitq,
-		     thread_is_running(&sec_gc_thread), &lwi);
+	wait_event_idle(sec_gc_thread.t_ctl_waitq,
+			thread_is_running(&sec_gc_thread));
 	return 0;
 }
 
 void sptlrpc_gc_fini(void)
 {
-	struct l_wait_info lwi = { 0 };
-
 	thread_set_flags(&sec_gc_thread, SVC_STOPPING);
 	wake_up(&sec_gc_thread.t_ctl_waitq);
 
-	l_wait_event(sec_gc_thread.t_ctl_waitq,
-		     thread_is_stopped(&sec_gc_thread), &lwi);
+	wait_event_idle(sec_gc_thread.t_ctl_waitq,
+			thread_is_stopped(&sec_gc_thread));
 }

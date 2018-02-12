@@ -2233,7 +2233,7 @@ static int ptlrpc_hr_main(void *arg)
 	wake_up(&ptlrpc_hr.hr_waitq);
 
 	while (!ptlrpc_hr.hr_stopping) {
-		l_wait_condition(hrt->hrt_waitq, hrt_dont_sleep(hrt, &replies));
+		wait_event_idle(hrt->hrt_waitq, hrt_dont_sleep(hrt, &replies));
 
 		while (!list_empty(&replies)) {
 			struct ptlrpc_reply_state *rs;
@@ -2312,7 +2312,6 @@ static int ptlrpc_start_hr_threads(void)
 
 static void ptlrpc_svcpt_stop_threads(struct ptlrpc_service_part *svcpt)
 {
-	struct l_wait_info lwi = { 0 };
 	struct ptlrpc_thread *thread;
 	LIST_HEAD(zombie);
 
@@ -2341,8 +2340,8 @@ static void ptlrpc_svcpt_stop_threads(struct ptlrpc_service_part *svcpt)
 
 		CDEBUG(D_INFO, "waiting for stopping-thread %s #%u\n",
 		       svcpt->scp_service->srv_thread_name, thread->t_id);
-		l_wait_event(thread->t_ctl_waitq,
-			     thread_is_stopped(thread), &lwi);
+		wait_event_idle(thread->t_ctl_waitq,
+				thread_is_stopped(thread));
 
 		spin_lock(&svcpt->scp_lock);
 	}
@@ -2403,7 +2402,6 @@ int ptlrpc_start_threads(struct ptlrpc_service *svc)
 
 int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 {
-	struct l_wait_info lwi = { 0 };
 	struct ptlrpc_thread *thread;
 	struct ptlrpc_service *svc;
 	struct task_struct *task;
@@ -2499,9 +2497,8 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 	if (!wait)
 		return 0;
 
-	l_wait_event(thread->t_ctl_waitq,
-		     thread_is_running(thread) || thread_is_stopped(thread),
-		     &lwi);
+	wait_event_idle(thread->t_ctl_waitq,
+			thread_is_running(thread) || thread_is_stopped(thread));
 
 	rc = thread_is_stopped(thread) ? thread->t_id : 0;
 	return rc;

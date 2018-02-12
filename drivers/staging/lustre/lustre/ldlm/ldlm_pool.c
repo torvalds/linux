@@ -1031,7 +1031,6 @@ static int ldlm_pools_thread_main(void *arg)
 
 static int ldlm_pools_thread_start(void)
 {
-	struct l_wait_info lwi = { 0 };
 	struct task_struct *task;
 
 	if (ldlm_pools_thread)
@@ -1052,8 +1051,8 @@ static int ldlm_pools_thread_start(void)
 		ldlm_pools_thread = NULL;
 		return PTR_ERR(task);
 	}
-	l_wait_event(ldlm_pools_thread->t_ctl_waitq,
-		     thread_is_running(ldlm_pools_thread), &lwi);
+	wait_event_idle(ldlm_pools_thread->t_ctl_waitq,
+			thread_is_running(ldlm_pools_thread));
 	return 0;
 }
 

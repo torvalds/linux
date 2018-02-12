@@ -833,17 +833,15 @@ static int ldlm_bl_thread_main(void *arg)
 	/* cannot use bltd after this, it is only on caller's stack */
 
 	while (1) {
-		struct l_wait_info lwi = { 0 };
 		struct ldlm_bl_work_item *blwi = NULL;
 		struct obd_export *exp = NULL;
 		int rc;
 
 		rc = ldlm_bl_get_work(blp, &blwi, &exp);
 		if (!rc)
-			l_wait_event_exclusive(blp->blp_waitq,
-					       ldlm_bl_get_work(blp, &blwi,
-								&exp),
-					       &lwi);
+			wait_event_idle_exclusive(blp->blp_waitq,
+						  ldlm_bl_get_work(blp, &blwi,
+								   &exp));
 		atomic_inc(&blp->blp_busy_threads);
 
 		if (ldlm_bl_thread_need_create(blp, blwi))

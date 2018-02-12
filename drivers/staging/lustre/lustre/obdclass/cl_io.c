@@ -1110,10 +1110,8 @@ int cl_sync_io_wait(const struct lu_env *env, struct cl_sync_io *anchor,
 		CERROR("IO failed: %d, still wait for %d remaining entries\n",
 		       rc, atomic_read(&anchor->csi_sync_nr));
 
-		lwi = (struct l_wait_info) { 0 };
-		(void)l_wait_event(anchor->csi_waitq,
-				   atomic_read(&anchor->csi_sync_nr) == 0,
-				   &lwi);
+		wait_event_idle(anchor->csi_waitq,
+				atomic_read(&anchor->csi_sync_nr) == 0);
 	} else {
 		rc = anchor->csi_sync_rc;
 	}

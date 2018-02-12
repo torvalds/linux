@@ -1913,14 +1913,12 @@ void ldlm_cancel_callback(struct ldlm_lock *lock)
 		ldlm_set_bl_done(lock);
 		wake_up_all(&lock->l_waitq);
 	} else if (!ldlm_is_bl_done(lock)) {
-		struct l_wait_info lwi = { 0 };
-
 		/*
 		 * The lock is guaranteed to have been canceled once
 		 * returning from this function.
 		 */
 		unlock_res_and_lock(lock);
-		l_wait_event(lock->l_waitq, is_bl_done(lock), &lwi);
+		wait_event_idle(lock->l_waitq, is_bl_done(lock));
 		lock_res_and_lock(lock);
 	}
 }

@@ -1237,12 +1237,10 @@ static int obd_zombie_is_idle(void)
  */
 void obd_zombie_barrier(void)
 {
-	struct l_wait_info lwi = { 0 };
-
 	if (obd_zombie_pid == current_pid())
 		/* don't wait for myself */
 		return;
-	l_wait_event(obd_zombie_waitq, obd_zombie_is_idle(), &lwi);
+	wait_event_idle(obd_zombie_waitq, obd_zombie_is_idle());
 }
 EXPORT_SYMBOL(obd_zombie_barrier);
 
@@ -1257,10 +1255,8 @@ static int obd_zombie_impexp_thread(void *unused)
 	obd_zombie_pid = current_pid();
 
 	while (!test_bit(OBD_ZOMBIE_STOP, &obd_zombie_flags)) {
-		struct l_wait_info lwi = { 0 };
-
-		l_wait_event(obd_zombie_waitq,
-			     !obd_zombie_impexp_check(NULL), &lwi);
+		wait_event_idle(obd_zombie_waitq,
+				!obd_zombie_impexp_check(NULL));
 		obd_zombie_impexp_cull();
 
 		/*
@@ -1593,7 +1589,6 @@ static inline bool obd_mod_rpc_slot_avail(struct client_obd *cli,
 u16 obd_get_mod_rpc_slot(struct client_obd *cli, __u32 opc,
 			 struct lookup_intent *it)
 {
-	struct l_wait_info lwi = LWI_INTR(NULL, NULL);
 	bool close_req = false;
 	u16 i, max;
 
@@ -1631,8 +1626,8 @@ u16 obd_get_mod_rpc_slot(struct client_obd *cli, __u32 opc,
 		CDEBUG(D_RPCTRACE, "%s: sleeping for a modify RPC slot opc %u, max %hu\n",
 		       cli->cl_import->imp_obd->obd_name, opc, max);
 
-		l_wait_event(cli->cl_mod_rpcs_waitq,
-			     obd_mod_rpc_slot_avail(cli, close_req), &lwi);
+		wait_event_idle(cli->cl_mod_rpcs_waitq,
+				obd_mod_rpc_slot_avail(cli, close_req));
 	} while (true);
 }
 EXPORT_SYMBOL(obd_get_mod_rpc_slot);
