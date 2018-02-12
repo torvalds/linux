@@ -435,16 +435,17 @@ static int ptlrpcd(void *arg)
 	 * new_req_list and ptlrpcd_check() moves them into the set.
 	 */
 	do {
-		struct l_wait_info lwi;
 		int timeout;
 
 		timeout = ptlrpc_set_next_timeout(set);
-		lwi = LWI_TIMEOUT((timeout ? timeout : 1) * HZ,
-				  ptlrpc_expired_set, set);
 
 		lu_context_enter(&env.le_ctx);
 		lu_context_enter(env.le_ses);
-		l_wait_event(set->set_waitq, ptlrpcd_check(&env, pc), &lwi);
+		if (wait_event_idle_timeout(set->set_waitq,
+					    ptlrpcd_check(&env, pc),
+					    (timeout ? timeout : 1) * HZ) == 0)
+			ptlrpc_expired_set(set);
+
 		lu_context_exit(&env.le_ctx);
 		lu_context_exit(env.le_ses);
 

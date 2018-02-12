@@ -2125,9 +2125,8 @@ int ptlrpc_expire_one_request(struct ptlrpc_request *req, int async_unlink)
  * Callback used when waiting on sets with l_wait_event.
  * Always returns 1.
  */
-int ptlrpc_expired_set(void *data)
+void ptlrpc_expired_set(struct ptlrpc_request_set *set)
 {
-	struct ptlrpc_request_set *set = data;
 	struct list_head *tmp;
 	time64_t now = ktime_get_real_seconds();
 
@@ -2156,7 +2155,12 @@ int ptlrpc_expired_set(void *data)
 		 */
 		ptlrpc_expire_one_request(req, 1);
 	}
+}
+static int ptlrpc_expired_set_void(void *data)
+{
+	struct ptlrpc_request_set *set = data;
 
+	ptlrpc_expired_set(set);
 	/*
 	 * When waiting for a whole set, we always break out of the
 	 * sleep so we can recalculate the timeout, or enable interrupts
@@ -2286,7 +2290,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 			 * so we allow interrupts during the timeout.
 			 */
 			lwi = LWI_TIMEOUT_INTR_ALL(HZ,
-						   ptlrpc_expired_set,
+						   ptlrpc_expired_set_void,
 						   ptlrpc_interrupted_set, set);
 		else
 			/*
@@ -2295,7 +2299,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 			 * complete, or an in-flight req times out.
 			 */
 			lwi = LWI_TIMEOUT((timeout ? timeout : 1) * HZ,
-					  ptlrpc_expired_set, set);
+					  ptlrpc_expired_set_void, set);
 
 		rc = l_wait_event(set->set_waitq, ptlrpc_check_set(NULL, set), &lwi);
 
