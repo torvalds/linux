@@ -145,7 +145,6 @@ struct rtc_device {
 
 	bool registered;
 
-	struct nvmem_config *nvmem_config;
 	struct nvmem_device *nvmem;
 	/* Old ABI support */
 	bool nvram_old_abi;
