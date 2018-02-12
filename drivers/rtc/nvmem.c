@@ -87,6 +87,9 @@ static void rtc_nvram_unregister(struct rtc_device *rtc)
 int rtc_nvmem_register(struct rtc_device *rtc,
 		       struct nvmem_config *nvmem_config)
 {
+	if (!IS_ERR_OR_NULL(rtc->nvmem))
+		return -EBUSY;
+
 	if (!nvmem_config)
 		return -ENODEV;
 
