@@ -20,7 +20,7 @@
 
 #include "msm_drv.h"
 #include "msm_kms.h"
-#include "mdp/mdp_kms.h"
+#include "disp/mdp_kms.h"
 #include "mdp5_cfg.h"	/* must be included before mdp5.xml.h */
 #include "mdp5.xml.h"
 #include "mdp5_pipe.h"

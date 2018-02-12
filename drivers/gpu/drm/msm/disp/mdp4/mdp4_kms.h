@@ -22,7 +22,7 @@
 
 #include "msm_drv.h"
 #include "msm_kms.h"
-#include "mdp/mdp_kms.h"
+#include "disp/mdp_kms.h"
 #include "mdp4.xml.h"
 
 struct device_node;
