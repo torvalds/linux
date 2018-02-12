@@ -1368,9 +1368,4 @@
 			status = "disabled";
 		};
 	};
-
-	gpu-subsystem {
-		compatible = "fsl,imx-gpu-subsystem";
-		cores = <&gpu>;
-	};
 };
