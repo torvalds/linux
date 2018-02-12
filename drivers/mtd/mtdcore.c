@@ -953,6 +953,8 @@ EXPORT_SYMBOL_GPL(__put_mtd_device);
  */
 int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
+	instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
+
 	if (!mtd->erasesize || !mtd->_erase)
 		return -ENOTSUPP;
 
@@ -961,7 +963,6 @@ int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
 
-	instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
 	if (!instr->len) {
 		instr->state = MTD_ERASE_DONE;
 		mtd_erase_callback(instr);
