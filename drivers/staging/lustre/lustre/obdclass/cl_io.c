@@ -1097,7 +1097,7 @@ EXPORT_SYMBOL(cl_sync_io_init);
 int cl_sync_io_wait(const struct lu_env *env, struct cl_sync_io *anchor,
 		    long timeout)
 {
-	struct l_wait_info lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(timeout),
+	struct l_wait_info lwi = LWI_TIMEOUT_INTR(timeout * HZ,
 						  NULL, NULL, NULL);
 	int rc;
 

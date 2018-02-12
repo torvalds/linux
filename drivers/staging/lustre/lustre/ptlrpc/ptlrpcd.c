@@ -230,7 +230,7 @@ void ptlrpcd_add_req(struct ptlrpc_request *req)
 
 	spin_lock(&req->rq_lock);
 	if (req->rq_invalid_rqset) {
-		struct l_wait_info lwi = LWI_TIMEOUT(cfs_time_seconds(5),
+		struct l_wait_info lwi = LWI_TIMEOUT(5 * HZ,
 						     back_to_sleep, NULL);
 
 		req->rq_invalid_rqset = 0;
@@ -438,7 +438,7 @@ static int ptlrpcd(void *arg)
 		int timeout;
 
 		timeout = ptlrpc_set_next_timeout(set);
-		lwi = LWI_TIMEOUT(cfs_time_seconds(timeout ? timeout : 1),
+		lwi = LWI_TIMEOUT((timeout ? timeout : 1) * HZ,
 				  ptlrpc_expired_set, set);
 
 		lu_context_enter(&env.le_ctx);

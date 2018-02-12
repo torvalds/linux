@@ -60,7 +60,7 @@ struct obd_device;
 #define OBD_LDLM_DEVICENAME  "ldlm"
 
 #define LDLM_DEFAULT_LRU_SIZE (100 * num_online_cpus())
-#define LDLM_DEFAULT_MAX_ALIVE (cfs_time_seconds(3900)) /* 65 min */
+#define LDLM_DEFAULT_MAX_ALIVE (65 * 60 * HZ) /* 65 min */
 #define LDLM_DEFAULT_PARALLEL_AST_LIMIT 1024
 
 /**

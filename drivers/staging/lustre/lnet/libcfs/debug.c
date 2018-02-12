@@ -113,7 +113,7 @@ static int param_set_delay_minmax(const char *val,
 	if (rc)
 		return -EINVAL;
 
-	d = cfs_time_seconds(sec) / 100;
+	d = sec * HZ / 100;
 	if (d < min || d > max)
 		return -EINVAL;
 

@@ -347,7 +347,7 @@ int ptlrpc_recover_import(struct obd_import *imp, char *new_uuid, int async)
 
 	if (!async) {
 		struct l_wait_info lwi;
-		int secs = cfs_time_seconds(obd_timeout);
+		int secs = obd_timeout * HZ;
 
 		CDEBUG(D_HA, "%s: recovery started, waiting %u seconds\n",
 		       obd2cli_tgt(imp->imp_obd), secs);

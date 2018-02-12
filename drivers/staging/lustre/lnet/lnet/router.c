@@ -808,7 +808,7 @@ lnet_wait_known_routerstate(void)
 			return;
 
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(cfs_time_seconds(1));
+		schedule_timeout(HZ);
 	}
 }
 
@@ -1011,7 +1011,7 @@ lnet_ping_router_locked(struct lnet_peer *rtr)
 
 	if (secs && !rtr->lp_ping_notsent &&
 	    cfs_time_after(now, cfs_time_add(rtr->lp_ping_timestamp,
-					     cfs_time_seconds(secs)))) {
+					     secs * HZ))) {
 		int rc;
 		struct lnet_process_id id;
 		struct lnet_handle_md mdh;
@@ -1185,7 +1185,7 @@ lnet_prune_rc_data(int wait_unlink)
 		CDEBUG(((i & (-i)) == i) ? D_WARNING : D_NET,
 		       "Waiting for rc buffers to unlink\n");
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(cfs_time_seconds(1) / 4);
+		schedule_timeout(HZ / 4);
 
 		lnet_net_lock(LNET_LOCK_EX);
 	}
@@ -1282,7 +1282,7 @@ rescan:
 		else
 			wait_event_interruptible_timeout(the_lnet.ln_rc_waitq,
 							 false,
-							 cfs_time_seconds(1));
+							 HZ);
 	}
 
 	lnet_prune_rc_data(1); /* wait for UNLINK */

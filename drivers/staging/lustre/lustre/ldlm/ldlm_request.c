@@ -288,7 +288,7 @@ noreproc:
 		LDLM_DEBUG(lock, "waiting indefinitely because of NO_TIMEOUT");
 		lwi = LWI_INTR(interrupted_completion_wait, &lwd);
 	} else {
-		lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(timeout),
+		lwi = LWI_TIMEOUT_INTR(timeout * HZ,
 				       ldlm_expired_completion_wait,
 				       interrupted_completion_wait, &lwd);
 	}

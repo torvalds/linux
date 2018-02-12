@@ -141,7 +141,7 @@ static long pinger_check_timeout(unsigned long time)
 	}
 	mutex_unlock(&pinger_mutex);
 
-	return cfs_time_sub(cfs_time_add(time, cfs_time_seconds(timeout)),
+	return cfs_time_sub(cfs_time_add(time, timeout * HZ),
 					 cfs_time_current());
 }
 
@@ -247,7 +247,7 @@ static int ptlrpc_pinger_main(void *arg)
 			if (imp->imp_pingable && imp->imp_next_ping &&
 			    cfs_time_after(imp->imp_next_ping,
 					   cfs_time_add(this_ping,
-							cfs_time_seconds(PING_INTERVAL))))
+							PING_INTERVAL * HZ)))
 				ptlrpc_update_next_ping(imp, 0);
 		}
 		mutex_unlock(&pinger_mutex);
@@ -264,10 +264,10 @@ static int ptlrpc_pinger_main(void *arg)
 		CDEBUG(D_INFO, "next wakeup in " CFS_DURATION_T " (%ld)\n",
 		       time_to_next_wake,
 		       cfs_time_add(this_ping,
-				    cfs_time_seconds(PING_INTERVAL)));
+				    PING_INTERVAL * HZ));
 		if (time_to_next_wake > 0) {
 			lwi = LWI_TIMEOUT(max_t(long, time_to_next_wake,
-						cfs_time_seconds(1)),
+						HZ),
 					  NULL, NULL);
 			l_wait_event(thread->t_ctl_waitq,
 				     thread_is_stopping(thread) ||

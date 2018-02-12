@@ -177,7 +177,7 @@ stt_timer_main(void *arg)
 
 		rc = wait_event_timeout(stt_data.stt_waitq,
 					stt_data.stt_shuttingdown,
-					cfs_time_seconds(STTIMER_SLOTTIME));
+					STTIMER_SLOTTIME * HZ);
 	}
 
 	spin_lock(&stt_data.stt_lock);

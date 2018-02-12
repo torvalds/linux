@@ -126,8 +126,8 @@ static int lov_check_and_wait_active(struct lov_obd *lov, int ost_idx)
 	mutex_unlock(&lov->lov_lock);
 
 	init_waitqueue_head(&waitq);
-	lwi = LWI_TIMEOUT_INTERVAL(cfs_time_seconds(obd_timeout),
-				   cfs_time_seconds(1), NULL, NULL);
+	lwi = LWI_TIMEOUT_INTERVAL(obd_timeout * HZ,
+				   HZ, NULL, NULL);
 
 	rc = l_wait_event(waitq, lov_check_set(lov, ost_idx), &lwi);
 	if (tgt->ltd_active)

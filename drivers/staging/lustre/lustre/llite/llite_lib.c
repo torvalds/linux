@@ -2026,8 +2026,8 @@ void ll_umount_begin(struct super_block *sb)
 	 * to decrement mnt_cnt and hope to finish it within 10sec.
 	 */
 	init_waitqueue_head(&waitq);
-	lwi = LWI_TIMEOUT_INTERVAL(cfs_time_seconds(10),
-				   cfs_time_seconds(1), NULL, NULL);
+	lwi = LWI_TIMEOUT_INTERVAL(10 * HZ,
+				   HZ, NULL, NULL);
 	l_wait_event(waitq, may_umount(sbi->ll_mnt.mnt), &lwi);
 
 	schedule();

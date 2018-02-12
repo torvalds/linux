@@ -3728,8 +3728,8 @@ kiblnd_failover_thread(void *arg)
 		add_wait_queue(&kiblnd_data.kib_failover_waitq, &wait);
 		write_unlock_irqrestore(glock, flags);
 
-		rc = schedule_timeout(long_sleep ? cfs_time_seconds(10) :
-						   cfs_time_seconds(1));
+		rc = schedule_timeout(long_sleep ? 10 * HZ :
+						   HZ);
 		remove_wait_queue(&kiblnd_data.kib_failover_waitq, &wait);
 		write_lock_irqsave(glock, flags);
 

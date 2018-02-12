@@ -970,7 +970,7 @@ lnet_ping_md_unlink(struct lnet_ping_info *pinfo,
 	while (pinfo->pi_features != LNET_PING_FEAT_INVAL) {
 		CDEBUG(D_NET, "Still waiting for ping MD to unlink\n");
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(cfs_time_seconds(1));
+		schedule_timeout(HZ);
 	}
 
 	cfs_restore_sigs(blocked);
@@ -1109,7 +1109,7 @@ lnet_clear_zombies_nis_locked(void)
 				       libcfs_nid2str(ni->ni_nid));
 			}
 			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(cfs_time_seconds(1));
+			schedule_timeout(HZ);
 			lnet_net_lock(LNET_LOCK_EX);
 			continue;
 		}

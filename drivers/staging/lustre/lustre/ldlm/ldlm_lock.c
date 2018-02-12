@@ -1366,7 +1366,7 @@ out:
 				}
 			}
 
-			lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(obd_timeout),
+			lwi = LWI_TIMEOUT_INTR(obd_timeout * HZ,
 					       NULL, LWI_ON_SIGNAL_NOOP, NULL);
 
 			/* XXX FIXME see comment on CAN_MATCH in lustre_dlm.h */

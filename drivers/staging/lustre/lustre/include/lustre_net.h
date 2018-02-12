@@ -2262,7 +2262,7 @@ static inline int ptlrpc_send_limit_expired(struct ptlrpc_request *req)
 {
 	if (req->rq_delay_limit != 0 &&
 	    time_before(cfs_time_add(req->rq_queued_time,
-				     cfs_time_seconds(req->rq_delay_limit)),
+				     req->rq_delay_limit * HZ),
 			cfs_time_current())) {
 		return 1;
 	}

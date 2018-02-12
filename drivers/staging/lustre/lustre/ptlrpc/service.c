@@ -2149,7 +2149,7 @@ static int ptlrpc_main(void *arg)
 			 * Wait for a timeout (unless something else
 			 * happens) before I try again
 			 */
-			svcpt->scp_rqbd_timeout = cfs_time_seconds(1) / 10;
+			svcpt->scp_rqbd_timeout = HZ / 10;
 			CDEBUG(D_RPCTRACE, "Posted buffers: %d\n",
 			       svcpt->scp_nrqbds_posted);
 		}
@@ -2588,7 +2588,7 @@ static void ptlrpc_wait_replies(struct ptlrpc_service_part *svcpt)
 {
 	while (1) {
 		int rc;
-		struct l_wait_info lwi = LWI_TIMEOUT(cfs_time_seconds(10),
+		struct l_wait_info lwi = LWI_TIMEOUT(10 * HZ,
 						     NULL, NULL);
 
 		rc = l_wait_event(svcpt->scp_waitq,
@@ -2660,8 +2660,8 @@ ptlrpc_service_unlink_rqbd(struct ptlrpc_service *svc)
 			 * of sluggish LNDs
 			 */
 			lwi = LWI_TIMEOUT_INTERVAL(
-					cfs_time_seconds(LONG_UNLINK),
-					cfs_time_seconds(1), NULL, NULL);
+					LONG_UNLINK * HZ,
+					HZ, NULL, NULL);
 			rc = l_wait_event(svcpt->scp_waitq,
 					  svcpt->scp_nrqbds_posted == 0, &lwi);
 			if (rc == -ETIMEDOUT) {

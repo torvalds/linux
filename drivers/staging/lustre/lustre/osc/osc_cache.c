@@ -934,7 +934,7 @@ static int osc_extent_wait(const struct lu_env *env, struct osc_extent *ext,
 			   enum osc_extent_state state)
 {
 	struct osc_object *obj = ext->oe_obj;
-	struct l_wait_info lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(600), NULL,
+	struct l_wait_info lwi = LWI_TIMEOUT_INTR(600 * HZ, NULL,
 						  LWI_ON_SIGNAL_NOOP, NULL);
 	int rc = 0;
 
@@ -1571,7 +1571,7 @@ static int osc_enter_cache(const struct lu_env *env, struct client_obd *cli,
 	struct l_wait_info lwi;
 	int rc = -EDQUOT;
 
-	lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(AT_OFF ? obd_timeout : at_max),
+	lwi = LWI_TIMEOUT_INTR((AT_OFF ? obd_timeout : at_max) * HZ,
 			       NULL, LWI_ON_SIGNAL_NOOP, NULL);
 
 	OSC_DUMP_GRANT(D_CACHE, cli, "need:%d\n", bytes);

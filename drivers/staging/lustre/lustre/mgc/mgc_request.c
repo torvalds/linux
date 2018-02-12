@@ -1628,7 +1628,7 @@ restart:
 
 		if (rcl == -ESHUTDOWN &&
 		    atomic_read(&mgc->u.cli.cl_mgc_refcount) > 0 && !retry) {
-			int secs = cfs_time_seconds(obd_timeout);
+			int secs = obd_timeout * HZ;
 			struct obd_import *imp;
 			struct l_wait_info lwi;
 

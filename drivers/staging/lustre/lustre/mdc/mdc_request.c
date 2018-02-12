@@ -888,7 +888,7 @@ restart_bulk:
 			       exp->exp_obd->obd_name, -EIO);
 			return -EIO;
 		}
-		lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(resends), NULL, NULL,
+		lwi = LWI_TIMEOUT_INTR(resends * HZ, NULL, NULL,
 				       NULL);
 		l_wait_event(waitq, 0, &lwi);
 

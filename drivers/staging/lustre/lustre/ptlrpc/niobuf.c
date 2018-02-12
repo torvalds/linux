@@ -270,8 +270,8 @@ int ptlrpc_unregister_bulk(struct ptlrpc_request *req, int async)
 		/* Network access will complete in finite time but the HUGE
 		 * timeout lets us CWARN for visibility of sluggish LNDs
 		 */
-		lwi = LWI_TIMEOUT_INTERVAL(cfs_time_seconds(LONG_UNLINK),
-					   cfs_time_seconds(1), NULL, NULL);
+		lwi = LWI_TIMEOUT_INTERVAL(LONG_UNLINK * HZ,
+					   HZ, NULL, NULL);
 		rc = l_wait_event(*wq, !ptlrpc_client_bulk_active(req), &lwi);
 		if (rc == 0) {
 			ptlrpc_rqphase_move(req, req->rq_next_phase);

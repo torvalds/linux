@@ -163,7 +163,7 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 	LDLM_DEBUG(lock, "client completion callback handler START");
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_CANCEL_BL_CB_RACE)) {
-		int to = cfs_time_seconds(1);
+		int to = HZ;
 
 		while (to > 0) {
 			set_current_state(TASK_INTERRUPTIBLE);
@@ -327,7 +327,7 @@ static void ldlm_handle_gl_callback(struct ptlrpc_request *req,
 	    !lock->l_readers && !lock->l_writers &&
 	    cfs_time_after(cfs_time_current(),
 			   cfs_time_add(lock->l_last_used,
-					cfs_time_seconds(10)))) {
+					10 * HZ))) {
 		unlock_res_and_lock(lock);
 		if (ldlm_bl_to_thread_lock(ns, NULL, lock))
 			ldlm_handle_bl_callback(ns, NULL, lock);

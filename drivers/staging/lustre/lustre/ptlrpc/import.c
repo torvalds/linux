@@ -307,9 +307,9 @@ void ptlrpc_invalidate_import(struct obd_import *imp)
 		 * have been locally cancelled by ptlrpc_abort_inflight.
 		 */
 		lwi = LWI_TIMEOUT_INTERVAL(
-			cfs_timeout_cap(cfs_time_seconds(timeout)),
-			(timeout > 1) ? cfs_time_seconds(1) :
-			cfs_time_seconds(1) / 2,
+			cfs_timeout_cap(timeout * HZ),
+			(timeout > 1) ? HZ :
+			HZ / 2,
 			NULL, NULL);
 		rc = l_wait_event(imp->imp_recovery_waitq,
 				  (atomic_read(&imp->imp_inflight) == 0),
@@ -431,7 +431,7 @@ void ptlrpc_fail_import(struct obd_import *imp, __u32 conn_cnt)
 int ptlrpc_reconnect_import(struct obd_import *imp)
 {
 	struct l_wait_info lwi;
-	int secs = cfs_time_seconds(obd_timeout);
+	int secs = obd_timeout * HZ;
 	int rc;
 
 	ptlrpc_pinger_force(imp);
@@ -1508,14 +1508,13 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 
 		if (AT_OFF) {
 			if (imp->imp_server_timeout)
-				timeout = cfs_time_seconds(obd_timeout / 2);
+				timeout = obd_timeout * HZ / 2;
 			else
-				timeout = cfs_time_seconds(obd_timeout);
+				timeout = obd_timeout * HZ;
 		} else {
 			int idx = import_at_get_index(imp,
 				imp->imp_client->cli_request_portal);
-			timeout = cfs_time_seconds(
-				at_get(&imp->imp_at.iat_service_estimate[idx]));
+			timeout = at_get(&imp->imp_at.iat_service_estimate[idx]) * HZ;
 		}
 
 		lwi = LWI_TIMEOUT_INTR(cfs_timeout_cap(timeout),

@@ -1424,7 +1424,7 @@ static int revalidate_statahead_dentry(struct inode *dir,
 		spin_lock(&lli->lli_sa_lock);
 		sai->sai_index_wait = entry->se_index;
 		spin_unlock(&lli->lli_sa_lock);
-		lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(30), NULL,
+		lwi = LWI_TIMEOUT_INTR(30 * HZ, NULL,
 				       LWI_ON_SIGNAL_NOOP, NULL);
 		rc = l_wait_event(sai->sai_waitq, sa_ready(entry), &lwi);
 		if (rc < 0) {

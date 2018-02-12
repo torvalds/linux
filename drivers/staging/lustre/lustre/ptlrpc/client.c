@@ -766,7 +766,7 @@ int ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 			 * fail_loc
 			 */
 			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(cfs_time_seconds(2));
+			schedule_timeout(2 * HZ);
 			set_current_state(TASK_RUNNING);
 		}
 	}
@@ -2284,7 +2284,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 			 * We still want to block for a limited time,
 			 * so we allow interrupts during the timeout.
 			 */
-			lwi = LWI_TIMEOUT_INTR_ALL(cfs_time_seconds(1),
+			lwi = LWI_TIMEOUT_INTR_ALL(HZ,
 						   ptlrpc_expired_set,
 						   ptlrpc_interrupted_set, set);
 		else
@@ -2293,7 +2293,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 			 * interrupts are allowed. Wait until all
 			 * complete, or an in-flight req times out.
 			 */
-			lwi = LWI_TIMEOUT(cfs_time_seconds(timeout ? timeout : 1),
+			lwi = LWI_TIMEOUT((timeout ? timeout : 1) * HZ,
 					  ptlrpc_expired_set, set);
 
 		rc = l_wait_event(set->set_waitq, ptlrpc_check_set(NULL, set), &lwi);
@@ -2538,8 +2538,8 @@ static int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async)
 		 * Network access will complete in finite time but the HUGE
 		 * timeout lets us CWARN for visibility of sluggish NALs
 		 */
-		lwi = LWI_TIMEOUT_INTERVAL(cfs_time_seconds(LONG_UNLINK),
-					   cfs_time_seconds(1), NULL, NULL);
+		lwi = LWI_TIMEOUT_INTERVAL(LONG_UNLINK * HZ,
+					   HZ, NULL, NULL);
 		rc = l_wait_event(*wq, !ptlrpc_client_recv_or_unlink(request),
 				  &lwi);
 		if (rc == 0) {
