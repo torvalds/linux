@@ -505,7 +505,7 @@ void i40e_free_tx_resources(struct i40e_ring *tx_ring);
 void i40e_free_rx_resources(struct i40e_ring *rx_ring);
 int i40e_napi_poll(struct napi_struct *napi, int budget);
 void i40e_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector);
-u32 i40e_get_tx_pending(struct i40e_ring *ring);
+u32 i40e_get_tx_pending(struct i40e_ring *ring, bool in_sw);
 void i40e_detect_recover_hung(struct i40e_vsi *vsi);
 int __i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size);
 bool __i40e_chk_linearize(struct sk_buff *skb);
