@@ -18,7 +18,6 @@
  */
 
 #include <linux/extcon-provider.h>
-#include <linux/extcon/extcon-gpio.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/init.h>
@@ -28,6 +27,27 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+
+/**
+ * struct gpio_extcon_pdata - A simple GPIO-controlled extcon device.
+ * @extcon_id:		The unique id of specific external connector.
+ * @gpio:		Corresponding GPIO.
+ * @gpio_active_low:	Boolean describing whether gpio active state is 1 or 0
+ *			If true, low state of gpio means active.
+ *			If false, high state of gpio means active.
+ * @debounce:		Debounce time for GPIO IRQ in ms.
+ * @irq_flags:		IRQ Flags (e.g., IRQF_TRIGGER_LOW).
+ * @check_on_resume:	Boolean describing whether to check the state of gpio
+ *			while resuming from sleep.
+ */
+struct gpio_extcon_pdata {
+	unsigned int extcon_id;
+	unsigned gpio;
+	bool gpio_active_low;
+	unsigned long debounce;
+	unsigned long irq_flags;
+	bool check_on_resume;
+};
 
 struct gpio_extcon_data {
 	struct extcon_dev *edev;
