@@ -48,14 +48,9 @@ struct erase_info {
 	uint64_t addr;
 	uint64_t len;
 	uint64_t fail_addr;
-	u_long time;
-	u_long retries;
-	unsigned dev;
-	unsigned cell;
 	void (*callback) (struct erase_info *self);
 	u_long priv;
 	u_char state;
-	struct erase_info *next;
 };
 
 struct mtd_erase_region_info {
