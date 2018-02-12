@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/fsi.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 
 #include "fsi-master.h"
@@ -274,6 +275,7 @@ static int hub_master_probe(struct device *dev)
 
 	hub->master.dev.parent = dev;
 	hub->master.dev.release = hub_master_release;
+	hub->master.dev.of_node = of_node_get(dev_of_node(dev));
 
 	hub->master.n_links = links;
 	hub->master.read = hub_master_read;
@@ -302,6 +304,8 @@ static int hub_master_remove(struct device *dev)
 
 	fsi_master_unregister(&hub->master);
 	fsi_slave_release_range(hub->upstream->slave, hub->addr, hub->size);
+	of_node_put(hub->master.dev.of_node);
+
 	return 0;
 }
 

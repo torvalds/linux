@@ -18,6 +18,7 @@
 #include <linux/fsi.h>
 #include <linux/idr.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
 
@@ -142,6 +143,7 @@ static void fsi_device_release(struct device *_device)
 {
 	struct fsi_device *device = to_fsi_dev(_device);
 
+	of_node_put(device->dev.of_node);
 	kfree(device);
 }
 
@@ -334,6 +336,57 @@ extern void fsi_slave_release_range(struct fsi_slave *slave,
 }
 EXPORT_SYMBOL_GPL(fsi_slave_release_range);
 
+static bool fsi_device_node_matches(struct device *dev, struct device_node *np,
+		uint32_t addr, uint32_t size)
+{
+	unsigned int len, na, ns;
+	const __be32 *prop;
+	uint32_t psize;
+
+	na = of_n_addr_cells(np);
+	ns = of_n_size_cells(np);
+
+	if (na != 1 || ns != 1)
+		return false;
+
+	prop = of_get_property(np, "reg", &len);
+	if (!prop || len != 8)
+		return false;
+
+	if (of_read_number(prop, 1) != addr)
+		return false;
+
+	psize = of_read_number(prop + 1, 1);
+	if (psize != size) {
+		dev_warn(dev,
+			"node %s matches probed address, but not size (got 0x%x, expected 0x%x)",
+			of_node_full_name(np), psize, size);
+	}
+
+	return true;
+}
+
+/* Find a matching node for the slave engine at @address, using @size bytes
+ * of space. Returns NULL if not found, or a matching node with refcount
+ * already incremented.
+ */
+static struct device_node *fsi_device_find_of_node(struct fsi_device *dev)
+{
+	struct device_node *parent, *np;
+
+	parent = dev_of_node(&dev->slave->dev);
+	if (!parent)
+		return NULL;
+
+	for_each_child_of_node(parent, np) {
+		if (fsi_device_node_matches(&dev->dev, np,
+					dev->addr, dev->size))
+			return np;
+	}
+
+	return NULL;
+}
+
 static int fsi_slave_scan(struct fsi_slave *slave)
 {
 	uint32_t engine_addr;
@@ -402,6 +455,7 @@ static int fsi_slave_scan(struct fsi_slave *slave)
 			dev_set_name(&dev->dev, "%02x:%02x:%02x:%02x",
 					slave->master->idx, slave->link,
 					slave->id, i - 2);
+			dev->dev.of_node = fsi_device_find_of_node(dev);
 
 			rc = device_register(&dev->dev);
 			if (rc) {
@@ -558,7 +612,51 @@ static void fsi_slave_release(struct device *dev)
 {
 	struct fsi_slave *slave = to_fsi_slave(dev);
 
+	of_node_put(dev->of_node);
 	kfree(slave);
+}
+
+static bool fsi_slave_node_matches(struct device_node *np,
+		int link, uint8_t id)
+{
+	unsigned int len, na, ns;
+	const __be32 *prop;
+
+	na = of_n_addr_cells(np);
+	ns = of_n_size_cells(np);
+
+	/* Ensure we have the correct format for addresses and sizes in
+	 * reg properties
+	 */
+	if (na != 2 || ns != 0)
+		return false;
+
+	prop = of_get_property(np, "reg", &len);
+	if (!prop || len != 8)
+		return false;
+
+	return (of_read_number(prop, 1) == link) &&
+		(of_read_number(prop + 1, 1) == id);
+}
+
+/* Find a matching node for the slave at (link, id). Returns NULL if none
+ * found, or a matching node with refcount already incremented.
+ */
+static struct device_node *fsi_slave_find_of_node(struct fsi_master *master,
+		int link, uint8_t id)
+{
+	struct device_node *parent, *np;
+
+	parent = dev_of_node(&master->dev);
+	if (!parent)
+		return NULL;
+
+	for_each_child_of_node(parent, np) {
+		if (fsi_slave_node_matches(np, link, id))
+			return np;
+	}
+
+	return NULL;
 }
 
 static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
@@ -623,6 +721,7 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 
 	slave->master = master;
 	slave->dev.parent = &master->dev;
+	slave->dev.of_node = fsi_slave_find_of_node(master, link, id);
 	slave->dev.release = fsi_slave_release;
 	slave->link = link;
 	slave->id = id;
