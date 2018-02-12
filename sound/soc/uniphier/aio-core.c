@@ -904,7 +904,7 @@ void aiodma_ch_set_enable(struct uniphier_aio_sub *sub, int enable)
 	}
 }
 
-u64 aiodma_rb_get_rp(struct uniphier_aio_sub *sub)
+static u64 aiodma_rb_get_rp(struct uniphier_aio_sub *sub)
 {
 	struct regmap *r = sub->aio->chip->regmap;
 	u32 pos_u, pos_l;
