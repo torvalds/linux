@@ -207,8 +207,8 @@ static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)
  */
 int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
 {
-	int ret = -EINVAL;
 	struct inode *inode = dentry->d_inode;
+	int ret;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
 		"%s: called on %pd\n",
@@ -228,16 +228,11 @@ int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
 	setattr_copy(inode, iattr);
 	mark_inode_dirty(inode);
 
-	ret = orangefs_inode_setattr(inode, iattr);
-	gossip_debug(GOSSIP_INODE_DEBUG,
-		"%s: orangefs_inode_setattr returned %d\n",
-		__func__,
-		ret);
-
-	if (!ret && (iattr->ia_valid & ATTR_MODE))
+	if (iattr->ia_valid & ATTR_MODE)
 		/* change mod on a file that has ACLs */
 		ret = posix_acl_chmod(inode, inode->i_mode);
 
+	ret = 0;
 out:
 	gossip_debug(GOSSIP_INODE_DEBUG, "%s: ret:%d:\n", __func__, ret);
 	return ret;
