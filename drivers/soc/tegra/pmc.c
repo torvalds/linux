@@ -599,6 +599,7 @@ int tegra_powergate_sequence_power_up(unsigned int id, struct clk *clk,
 	pg.num_clks = 1;
 	pg.resets = &rst;
 	pg.num_resets = 1;
+	pg.pmc = pmc;
 
 	err = tegra_powergate_power_up(&pg, false);
 	if (err)
