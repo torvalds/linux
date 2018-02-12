@@ -1357,6 +1357,7 @@ qla24xx_abort_sp_done(void *ptr, int res)
 	srb_t *sp = ptr;
 	struct srb_iocb *abt = &sp->u.iocb_cmd;
 
+	del_timer(&sp->u.iocb_cmd.timer);
 	complete(&abt->u.abt.comp);
 }
 
