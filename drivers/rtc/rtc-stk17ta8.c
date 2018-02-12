@@ -328,10 +328,15 @@ static int stk17ta8_rtc_probe(struct platform_device *pdev)
 		}
 	}
 
-	pdata->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-				  &stk17ta8_rtc_ops, THIS_MODULE);
+	pdata->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(pdata->rtc))
 		return PTR_ERR(pdata->rtc);
+
+	pdata->rtc->ops = &stk17ta8_rtc_ops;
+
+	ret = rtc_register_device(pdata->rtc);
+	if (ret)
+		return ret;
 
 	ret = sysfs_create_bin_file(&pdev->dev.kobj, &stk17ta8_nvram_attr);
 
