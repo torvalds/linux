@@ -59,6 +59,7 @@ struct fsi_master_gpio {
 	struct gpio_desc	*gpio_trans;	/* Voltage translator */
 	struct gpio_desc	*gpio_enable;	/* FSI enable */
 	struct gpio_desc	*gpio_mux;	/* Mux control */
+	bool			external_mode;
 };
 
 #define CREATE_TRACE_POINTS
@@ -411,6 +412,12 @@ static int fsi_master_gpio_xfer(struct fsi_master_gpio *master, uint8_t slave,
 	int rc;
 
 	spin_lock_irqsave(&master->cmd_lock, flags);
+
+	if (master->external_mode) {
+		spin_unlock_irqrestore(&master->cmd_lock, flags);
+		return -EBUSY;
+	}
+
 	serial_out(master, cmd);
 	echo_delay(master);
 	rc = poll_for_response(master, slave, resp_len, resp);
@@ -469,6 +476,10 @@ static int fsi_master_gpio_break(struct fsi_master *_master, int link)
 	trace_fsi_master_gpio_break(master);
 
 	spin_lock_irqsave(&master->cmd_lock, flags);
+	if (master->external_mode) {
+		spin_unlock_irqrestore(&master->cmd_lock, flags);
+		return -EBUSY;
+	}
 	set_sda_output(master, 1);
 	sda_out(master, 1);
 	clock_toggle(master, FSI_PRE_BREAK_CLOCKS);
@@ -497,25 +508,84 @@ static void fsi_master_gpio_init(struct fsi_master_gpio *master)
 	clock_zeros(master, FSI_INIT_CLOCKS);
 }
 
+static void fsi_master_gpio_init_external(struct fsi_master_gpio *master)
+{
+	gpiod_direction_output(master->gpio_mux, 0);
+	gpiod_direction_output(master->gpio_trans, 0);
+	gpiod_direction_output(master->gpio_enable, 1);
+	gpiod_direction_input(master->gpio_clk);
+	gpiod_direction_input(master->gpio_data);
+}
+
 static int fsi_master_gpio_link_enable(struct fsi_master *_master, int link)
 {
 	struct fsi_master_gpio *master = to_fsi_master_gpio(_master);
 	unsigned long flags;
+	int rc = -EBUSY;
 
 	if (link != 0)
 		return -ENODEV;
 
 	spin_lock_irqsave(&master->cmd_lock, flags);
-	gpiod_set_value(master->gpio_enable, 1);
+	if (!master->external_mode) {
+		gpiod_set_value(master->gpio_enable, 1);
+		rc = 0;
+	}
 	spin_unlock_irqrestore(&master->cmd_lock, flags);
 
-	return 0;
+	return rc;
 }
+
+static ssize_t external_mode_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct fsi_master_gpio *master = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE - 1, "%u\n",
+			master->external_mode ? 1 : 0);
+}
+
+static ssize_t external_mode_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct fsi_master_gpio *master = dev_get_drvdata(dev);
+	unsigned long flags, val;
+	bool external_mode;
+	int err;
+
+	err = kstrtoul(buf, 0, &val);
+	if (err)
+		return err;
+
+	external_mode = !!val;
+
+	spin_lock_irqsave(&master->cmd_lock, flags);
+
+	if (external_mode == master->external_mode) {
+		spin_unlock_irqrestore(&master->cmd_lock, flags);
+		return count;
+	}
+
+	master->external_mode = external_mode;
+	if (master->external_mode)
+		fsi_master_gpio_init_external(master);
+	else
+		fsi_master_gpio_init(master);
+	spin_unlock_irqrestore(&master->cmd_lock, flags);
+
+	fsi_master_rescan(&master->master);
+
+	return count;
+}
+
+static DEVICE_ATTR(external_mode, 0664,
+		external_mode_show, external_mode_store);
 
 static int fsi_master_gpio_probe(struct platform_device *pdev)
 {
 	struct fsi_master_gpio *master;
 	struct gpio_desc *gpio;
+	int rc;
 
 	master = devm_kzalloc(&pdev->dev, sizeof(*master), GFP_KERNEL);
 	if (!master)
@@ -571,6 +641,10 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 	spin_lock_init(&master->cmd_lock);
 
 	fsi_master_gpio_init(master);
+
+	rc = device_create_file(&pdev->dev, &dev_attr_external_mode);
+	if (rc)
+		return rc;
 
 	return fsi_master_register(&master->master);
 }
