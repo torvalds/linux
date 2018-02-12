@@ -1531,6 +1531,13 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 				t2 |= PORT_WKOC_E | PORT_WKCONN_E;
 				t2 &= ~PORT_WKDISC_E;
 			}
+
+			if ((xhci->quirks & XHCI_U2_DISABLE_WAKE) &&
+			    (hcd->speed < HCD_USB3)) {
+				if (usb_amd_pt_check_port(hcd->self.controller,
+							  port_index))
+					t2 &= ~PORT_WAKE_BITS;
+			}
 		} else
 			t2 &= ~PORT_WAKE_BITS;
 
