@@ -196,6 +196,10 @@ struct l_wait_info {
 #define LUSTRE_FATAL_SIGS (sigmask(SIGKILL) | sigmask(SIGINT) |		\
 			   sigmask(SIGTERM) | sigmask(SIGQUIT) |	\
 			   sigmask(SIGALRM))
+static inline int l_fatal_signal_pending(struct task_struct *p)
+{
+	return signal_pending(p) && sigtestsetmask(&p->pending.signal, LUSTRE_FATAL_SIGS);
+}
 
 /**
  * wait_queue_entry_t of Linux (version < 2.6.34) is a FIFO list for exclusively
@@ -343,6 +347,16 @@ do {									   \
 	int __ret = 0;							\
 	__blocked = cfs_block_sigsinv(LUSTRE_FATAL_SIGS);		\
 	__ret = wait_event_interruptible(wq, condition);		\
+	cfs_restore_sigs(__blocked);					\
+	__ret;								\
+})
+
+#define l_wait_event_abortable_timeout(wq, condition, timeout)		\
+({									\
+	sigset_t __blocked;						\
+	int __ret = 0;							\
+	__blocked = cfs_block_sigsinv(LUSTRE_FATAL_SIGS);		\
+	__ret = wait_event_interruptible_timeout(wq, condition, timeout);\
 	cfs_restore_sigs(__blocked);					\
 	__ret;								\
 })
