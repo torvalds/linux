@@ -196,10 +196,16 @@ static int ds1742_rtc_probe(struct platform_device *pdev)
 
 	pdata->last_jiffies = jiffies;
 	platform_set_drvdata(pdev, pdata);
-	rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-				  &ds1742_rtc_ops, THIS_MODULE);
+
+	rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
+
+	rtc->ops = &ds1742_rtc_ops;
+
+	ret = rtc_register_device(rtc);
+	if (ret)
+		return ret;
 
 	ret = sysfs_create_bin_file(&pdev->dev.kobj, &pdata->nvram_attr);
 	if (ret)
