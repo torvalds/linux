@@ -82,41 +82,21 @@ struct pll_rate_table {
 		.frac		= (_frac),				\
 	}								\
 
-struct pll_params_table {
-	unsigned int reg_off;
-	unsigned int value;
-};
+#define CLK_MESON_PLL_LOCK_LOOP_RST	BIT(0)
 
-#define PLL_PARAM(_reg, _val)						\
-	{								\
-		.reg_off	= (_reg),				\
-		.value		= (_val),				\
-	}
-
-struct pll_setup_params {
-	struct pll_params_table *params_table;
-	unsigned int params_count;
-	/* Workaround for GP0, do not reset before configuring */
-	bool no_init_reset;
-	/* Workaround for GP0, unreset right before checking for lock */
-	bool clear_reset_for_lock;
-	/* Workaround for GXL GP0, reset in the lock checking loop */
-	bool reset_lock_loop;
-};
-
-struct meson_clk_pll {
-	struct clk_hw hw;
-	void __iomem *base;
+struct meson_clk_pll_data {
 	struct parm m;
 	struct parm n;
 	struct parm frac;
 	struct parm od;
 	struct parm od2;
 	struct parm od3;
-	const struct pll_setup_params params;
-	const struct pll_rate_table *rate_table;
-	unsigned int rate_count;
-	spinlock_t *lock;
+	struct parm l;
+	struct parm rst;
+	const struct reg_sequence *init_regs;
+	unsigned int init_count;
+	const struct pll_rate_table *table;
+	u8 flags;
 };
 
 #define to_meson_clk_pll(_hw) container_of(_hw, struct meson_clk_pll, hw)

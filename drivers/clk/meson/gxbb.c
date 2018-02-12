@@ -188,28 +188,39 @@ static const struct pll_rate_table gxl_gp0_pll_rate_table[] = {
 	{ /* sentinel */ },
 };
 
-static struct meson_clk_pll gxbb_fixed_pll = {
-	.m = {
-		.reg_off = HHI_MPLL_CNTL,
-		.shift   = 0,
-		.width   = 9,
+static struct clk_regmap gxbb_fixed_pll = {
+	.data = &(struct meson_clk_pll_data){
+		.m = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.od = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 16,
+			.width   = 2,
+		},
+		.frac = {
+			.reg_off = HHI_MPLL_CNTL2,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.l = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 29,
+			.width   = 1,
+		},
 	},
-	.n = {
-		.reg_off = HHI_MPLL_CNTL,
-		.shift   = 9,
-		.width   = 5,
-	},
-	.od = {
-		.reg_off = HHI_MPLL_CNTL,
-		.shift   = 16,
-		.width   = 2,
-	},
-	.frac = {
-		.reg_off = HHI_MPLL_CNTL2,
-		.shift   = 0,
-		.width   = 12,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "fixed_pll",
 		.ops = &meson_clk_pll_ro_ops,
@@ -230,38 +241,49 @@ static struct clk_fixed_factor gxbb_hdmi_pll_pre_mult = {
 	},
 };
 
-static struct meson_clk_pll gxbb_hdmi_pll = {
-	.m = {
-		.reg_off = HHI_HDMI_PLL_CNTL,
-		.shift   = 0,
-		.width   = 9,
+static struct clk_regmap gxbb_hdmi_pll = {
+	.data = &(struct meson_clk_pll_data){
+		.m = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.frac = {
+			.reg_off = HHI_HDMI_PLL_CNTL2,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.od = {
+			.reg_off = HHI_HDMI_PLL_CNTL2,
+			.shift   = 16,
+			.width   = 2,
+		},
+		.od2 = {
+			.reg_off = HHI_HDMI_PLL_CNTL2,
+			.shift   = 22,
+			.width   = 2,
+		},
+		.od3 = {
+			.reg_off = HHI_HDMI_PLL_CNTL2,
+			.shift   = 18,
+			.width   = 2,
+		},
+		.l = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 28,
+			.width   = 1,
+		},
 	},
-	.n = {
-		.reg_off = HHI_HDMI_PLL_CNTL,
-		.shift   = 9,
-		.width   = 5,
-	},
-	.frac = {
-		.reg_off = HHI_HDMI_PLL_CNTL2,
-		.shift   = 0,
-		.width   = 12,
-	},
-	.od = {
-		.reg_off = HHI_HDMI_PLL_CNTL2,
-		.shift   = 16,
-		.width   = 2,
-	},
-	.od2 = {
-		.reg_off = HHI_HDMI_PLL_CNTL2,
-		.shift   = 22,
-		.width   = 2,
-	},
-	.od3 = {
-		.reg_off = HHI_HDMI_PLL_CNTL2,
-		.shift   = 18,
-		.width   = 2,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "hdmi_pll",
 		.ops = &meson_clk_pll_ro_ops,
@@ -271,43 +293,55 @@ static struct meson_clk_pll gxbb_hdmi_pll = {
 	},
 };
 
-static struct meson_clk_pll gxl_hdmi_pll = {
-	.m = {
-		.reg_off = HHI_HDMI_PLL_CNTL,
-		.shift   = 0,
-		.width   = 9,
+static struct clk_regmap gxl_hdmi_pll = {
+	.data = &(struct meson_clk_pll_data){
+		.m = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.frac = {
+			/*
+			 * On gxl, there is a register shift due to
+			 * HHI_HDMI_PLL_CNTL1 which does not exist on gxbb,
+			 * so we compute the register offset based on the PLL
+			 * base to get it right
+			 */
+			.reg_off = HHI_HDMI_PLL_CNTL + 4,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.od = {
+			.reg_off = HHI_HDMI_PLL_CNTL + 8,
+			.shift   = 21,
+			.width   = 2,
+		},
+		.od2 = {
+			.reg_off = HHI_HDMI_PLL_CNTL + 8,
+			.shift   = 23,
+			.width   = 2,
+		},
+		.od3 = {
+			.reg_off = HHI_HDMI_PLL_CNTL + 8,
+			.shift   = 19,
+			.width   = 2,
+		},
+		.l = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 29,
+			.width   = 1,
+		},
 	},
-	.n = {
-		.reg_off = HHI_HDMI_PLL_CNTL,
-		.shift   = 9,
-		.width   = 5,
-	},
-	.frac = {
-		/*
-		 * On gxl, there is a register shift due to HHI_HDMI_PLL_CNTL1
-		 * which does not exist on gxbb, so we compute the register
-		 * offset based on the PLL base to get it right
-		 */
-		.reg_off = HHI_HDMI_PLL_CNTL + 4,
-		.shift   = 0,
-		.width   = 12,
-	},
-	.od = {
-		.reg_off = HHI_HDMI_PLL_CNTL + 8,
-		.shift   = 21,
-		.width   = 2,
-	},
-	.od2 = {
-		.reg_off = HHI_HDMI_PLL_CNTL + 8,
-		.shift   = 23,
-		.width   = 2,
-	},
-	.od3 = {
-		.reg_off = HHI_HDMI_PLL_CNTL + 8,
-		.shift   = 19,
-		.width   = 2,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "hdmi_pll",
 		.ops = &meson_clk_pll_ro_ops,
@@ -317,23 +351,34 @@ static struct meson_clk_pll gxl_hdmi_pll = {
 	},
 };
 
-static struct meson_clk_pll gxbb_sys_pll = {
-	.m = {
-		.reg_off = HHI_SYS_PLL_CNTL,
-		.shift   = 0,
-		.width   = 9,
+static struct clk_regmap gxbb_sys_pll = {
+	.data = &(struct meson_clk_pll_data){
+		.m = {
+			.reg_off = HHI_SYS_PLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_SYS_PLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.od = {
+			.reg_off = HHI_SYS_PLL_CNTL,
+			.shift   = 10,
+			.width   = 2,
+		},
+		.l = {
+			.reg_off = HHI_SYS_PLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_SYS_PLL_CNTL,
+			.shift   = 29,
+			.width   = 1,
+		},
 	},
-	.n = {
-		.reg_off = HHI_SYS_PLL_CNTL,
-		.shift   = 9,
-		.width   = 5,
-	},
-	.od = {
-		.reg_off = HHI_SYS_PLL_CNTL,
-		.shift   = 10,
-		.width   = 2,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_pll",
 		.ops = &meson_clk_pll_ro_ops,
@@ -343,38 +388,44 @@ static struct meson_clk_pll gxbb_sys_pll = {
 	},
 };
 
-struct pll_params_table gxbb_gp0_params_table[] = {
-	PLL_PARAM(HHI_GP0_PLL_CNTL, 0x6a000228),
-	PLL_PARAM(HHI_GP0_PLL_CNTL2, 0x69c80000),
-	PLL_PARAM(HHI_GP0_PLL_CNTL3, 0x0a5590c4),
-	PLL_PARAM(HHI_GP0_PLL_CNTL4, 0x0000500d),
+const struct reg_sequence gxbb_gp0_init_regs[] = {
+	{ .reg = HHI_GP0_PLL_CNTL,	.def = 0x6a000228 },
+	{ .reg = HHI_GP0_PLL_CNTL2,	.def = 0x69c80000 },
+	{ .reg = HHI_GP0_PLL_CNTL3,	.def = 0x0a5590c4 },
+	{ .reg = HHI_GP0_PLL_CNTL4,	.def = 0x0000500d },
 };
 
-static struct meson_clk_pll gxbb_gp0_pll = {
-	.m = {
-		.reg_off = HHI_GP0_PLL_CNTL,
-		.shift   = 0,
-		.width   = 9,
+static struct clk_regmap gxbb_gp0_pll = {
+	.data = &(struct meson_clk_pll_data){
+		.m = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.od = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 16,
+			.width   = 2,
+		},
+		.l = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 29,
+			.width   = 1,
+		},
+		.table = gxbb_gp0_pll_rate_table,
+		.init_regs = gxbb_gp0_init_regs,
+		.init_count = ARRAY_SIZE(gxbb_gp0_init_regs),
 	},
-	.n = {
-		.reg_off = HHI_GP0_PLL_CNTL,
-		.shift   = 9,
-		.width   = 5,
-	},
-	.od = {
-		.reg_off = HHI_GP0_PLL_CNTL,
-		.shift   = 16,
-		.width   = 2,
-	},
-	.params = {
-		.params_table = gxbb_gp0_params_table,
-		.params_count =	ARRAY_SIZE(gxbb_gp0_params_table),
-		.no_init_reset = true,
-		.clear_reset_for_lock = true,
-	},
-	.rate_table = gxbb_gp0_pll_rate_table,
-	.rate_count = ARRAY_SIZE(gxbb_gp0_pll_rate_table),
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "gp0_pll",
 		.ops = &meson_clk_pll_ops,
@@ -384,40 +435,47 @@ static struct meson_clk_pll gxbb_gp0_pll = {
 	},
 };
 
-struct pll_params_table gxl_gp0_params_table[] = {
-	PLL_PARAM(HHI_GP0_PLL_CNTL, 0x40010250),
-	PLL_PARAM(HHI_GP0_PLL_CNTL1, 0xc084a000),
-	PLL_PARAM(HHI_GP0_PLL_CNTL2, 0xb75020be),
-	PLL_PARAM(HHI_GP0_PLL_CNTL3, 0x0a59a288),
-	PLL_PARAM(HHI_GP0_PLL_CNTL4, 0xc000004d),
-	PLL_PARAM(HHI_GP0_PLL_CNTL5, 0x00078000),
+const struct reg_sequence gxl_gp0_init_regs[] = {
+	{ .reg = HHI_GP0_PLL_CNTL,	.def = 0x40010250 },
+	{ .reg = HHI_GP0_PLL_CNTL1,	.def = 0xc084a000 },
+	{ .reg = HHI_GP0_PLL_CNTL2,	.def = 0xb75020be },
+	{ .reg = HHI_GP0_PLL_CNTL3,	.def = 0x0a59a288 },
+	{ .reg = HHI_GP0_PLL_CNTL4,	.def = 0xc000004d },
+	{ .reg = HHI_GP0_PLL_CNTL5,	.def = 0x00078000 },
 };
 
-static struct meson_clk_pll gxl_gp0_pll = {
-	.m = {
-		.reg_off = HHI_GP0_PLL_CNTL,
-		.shift   = 0,
-		.width   = 9,
+static struct clk_regmap gxl_gp0_pll = {
+	.data = &(struct meson_clk_pll_data){
+		.m = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.od = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 16,
+			.width   = 2,
+		},
+		.l = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 29,
+			.width   = 1,
+		},
+		.table = gxl_gp0_pll_rate_table,
+		.init_regs = gxl_gp0_init_regs,
+		.init_count = ARRAY_SIZE(gxl_gp0_init_regs),
+		.flags = CLK_MESON_PLL_LOCK_LOOP_RST,
 	},
-	.n = {
-		.reg_off = HHI_GP0_PLL_CNTL,
-		.shift   = 9,
-		.width   = 5,
-	},
-	.od = {
-		.reg_off = HHI_GP0_PLL_CNTL,
-		.shift   = 16,
-		.width   = 2,
-	},
-	.params = {
-		.params_table = gxl_gp0_params_table,
-		.params_count =	ARRAY_SIZE(gxl_gp0_params_table),
-		.no_init_reset = true,
-		.reset_lock_loop = true,
-	},
-	.rate_table = gxl_gp0_pll_rate_table,
-	.rate_count = ARRAY_SIZE(gxl_gp0_pll_rate_table),
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "gp0_pll",
 		.ops = &meson_clk_pll_ops,
@@ -1762,20 +1820,14 @@ static struct clk_hw_onecell_data gxl_hw_onecell_data = {
 	.num = NR_CLKS,
 };
 
-/* Convenience tables to populate base addresses in .probe */
-
-static struct meson_clk_pll *const gxbb_clk_plls[] = {
-	&gxbb_fixed_pll,
-	&gxbb_hdmi_pll,
-	&gxbb_sys_pll,
+static struct clk_regmap *const gxbb_clk_regmaps[] = {
 	&gxbb_gp0_pll,
+	&gxbb_hdmi_pll,
 };
 
-static struct meson_clk_pll *const gxl_clk_plls[] = {
-	&gxbb_fixed_pll,
-	&gxl_hdmi_pll,
-	&gxbb_sys_pll,
+static struct clk_regmap *const gxl_clk_regmaps[] = {
 	&gxl_gp0_pll,
+	&gxl_hdmi_pll,
 };
 
 static struct clk_regmap *const gx_clk_regmaps[] = {
@@ -1910,23 +1962,25 @@ static struct clk_regmap *const gx_clk_regmaps[] = {
 	&gxbb_mpll1,
 	&gxbb_mpll2,
 	&gxbb_cts_amclk_div,
+	&gxbb_fixed_pll,
+	&gxbb_sys_pll,
 };
 
 struct clkc_data {
-	struct meson_clk_pll *const *clk_plls;
-	unsigned int clk_plls_count;
+	struct clk_regmap *const *regmap_clks;
+	unsigned int regmap_clks_count;
 	struct clk_hw_onecell_data *hw_onecell_data;
 };
 
 static const struct clkc_data gxbb_clkc_data = {
-	.clk_plls = gxbb_clk_plls,
-	.clk_plls_count = ARRAY_SIZE(gxbb_clk_plls),
+	.regmap_clks = gxbb_clk_regmaps,
+	.regmap_clks_count = ARRAY_SIZE(gxbb_clk_regmaps),
 	.hw_onecell_data = &gxbb_hw_onecell_data,
 };
 
 static const struct clkc_data gxl_clkc_data = {
-	.clk_plls = gxl_clk_plls,
-	.clk_plls_count = ARRAY_SIZE(gxl_clk_plls),
+	.regmap_clks = gxl_clk_regmaps,
+	.regmap_clks_count = ARRAY_SIZE(gxl_clk_regmaps),
 	.hw_onecell_data = &gxl_hw_onecell_data,
 };
 
@@ -1969,13 +2023,13 @@ static int gxbb_clkc_probe(struct platform_device *pdev)
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
-	/* Populate base address for PLLs */
-	for (i = 0; i < clkc_data->clk_plls_count; i++)
-		clkc_data->clk_plls[i]->base = clk_base;
-
 	/* Populate regmap for the common regmap backed clocks */
 	for (i = 0; i < ARRAY_SIZE(gx_clk_regmaps); i++)
 		gx_clk_regmaps[i]->map = map;
+
+	/* Populate regmap for soc specific clocks */
+	for (i = 0; i < clkc_data->regmap_clks_count; i++)
+		clkc_data->regmap_clks[i]->map = map;
 
 	/* Register all clks */
 	for (i = 0; i < clkc_data->hw_onecell_data->num; i++) {

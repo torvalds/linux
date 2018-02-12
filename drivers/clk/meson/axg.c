@@ -22,28 +22,39 @@
 
 static DEFINE_SPINLOCK(meson_clk_lock);
 
-static struct meson_clk_pll axg_fixed_pll = {
-	.m = {
-		.reg_off = HHI_MPLL_CNTL,
-		.shift   = 0,
-		.width   = 9,
+static struct clk_regmap axg_fixed_pll = {
+	.data = &(struct meson_clk_pll_data){
+		.m = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.od = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 16,
+			.width   = 2,
+		},
+		.frac = {
+			.reg_off = HHI_MPLL_CNTL2,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.l = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 29,
+			.width   = 1,
+		},
 	},
-	.n = {
-		.reg_off = HHI_MPLL_CNTL,
-		.shift   = 9,
-		.width   = 5,
-	},
-	.od = {
-		.reg_off = HHI_MPLL_CNTL,
-		.shift   = 16,
-		.width   = 2,
-	},
-	.frac = {
-		.reg_off = HHI_MPLL_CNTL2,
-		.shift   = 0,
-		.width   = 12,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "fixed_pll",
 		.ops = &meson_clk_pll_ro_ops,
@@ -52,23 +63,34 @@ static struct meson_clk_pll axg_fixed_pll = {
 	},
 };
 
-static struct meson_clk_pll axg_sys_pll = {
-	.m = {
-		.reg_off = HHI_SYS_PLL_CNTL,
-		.shift   = 0,
-		.width   = 9,
+static struct clk_regmap axg_sys_pll = {
+	.data = &(struct meson_clk_pll_data){
+		.m = {
+			.reg_off = HHI_SYS_PLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_SYS_PLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.od = {
+			.reg_off = HHI_SYS_PLL_CNTL,
+			.shift   = 16,
+			.width   = 2,
+		},
+		.l = {
+			.reg_off = HHI_SYS_PLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_SYS_PLL_CNTL,
+			.shift   = 29,
+			.width   = 1,
+		},
 	},
-	.n = {
-		.reg_off = HHI_SYS_PLL_CNTL,
-		.shift   = 9,
-		.width   = 5,
-	},
-	.od = {
-		.reg_off = HHI_SYS_PLL_CNTL,
-		.shift   = 16,
-		.width   = 2,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_pll",
 		.ops = &meson_clk_pll_ro_ops,
@@ -169,40 +191,47 @@ static const struct pll_rate_table axg_gp0_pll_rate_table[] = {
 	{ /* sentinel */ },
 };
 
-static struct pll_params_table axg_gp0_params_table[] = {
-	PLL_PARAM(HHI_GP0_PLL_CNTL, 0x40010250),
-	PLL_PARAM(HHI_GP0_PLL_CNTL1, 0xc084a000),
-	PLL_PARAM(HHI_GP0_PLL_CNTL2, 0xb75020be),
-	PLL_PARAM(HHI_GP0_PLL_CNTL3, 0x0a59a288),
-	PLL_PARAM(HHI_GP0_PLL_CNTL4, 0xc000004d),
-	PLL_PARAM(HHI_GP0_PLL_CNTL5, 0x00078000),
+const struct reg_sequence axg_gp0_init_regs[] = {
+	{ .reg = HHI_GP0_PLL_CNTL,	.def = 0x40010250 },
+	{ .reg = HHI_GP0_PLL_CNTL1,	.def = 0xc084a000 },
+	{ .reg = HHI_GP0_PLL_CNTL2,	.def = 0xb75020be },
+	{ .reg = HHI_GP0_PLL_CNTL3,	.def = 0x0a59a288 },
+	{ .reg = HHI_GP0_PLL_CNTL4,	.def = 0xc000004d },
+	{ .reg = HHI_GP0_PLL_CNTL5,	.def = 0x00078000 },
 };
 
-static struct meson_clk_pll axg_gp0_pll = {
-	.m = {
-		.reg_off = HHI_GP0_PLL_CNTL,
-		.shift   = 0,
-		.width   = 9,
+static struct clk_regmap axg_gp0_pll = {
+	.data = &(struct meson_clk_pll_data){
+		.m = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.od = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 16,
+			.width   = 2,
+		},
+		.l = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 29,
+			.width   = 1,
+		},
+		.table = axg_gp0_pll_rate_table,
+		.init_regs = axg_gp0_init_regs,
+		.init_count = ARRAY_SIZE(axg_gp0_init_regs),
+		.flags = CLK_MESON_PLL_LOCK_LOOP_RST,
 	},
-	.n = {
-		.reg_off = HHI_GP0_PLL_CNTL,
-		.shift   = 9,
-		.width   = 5,
-	},
-	.od = {
-		.reg_off = HHI_GP0_PLL_CNTL,
-		.shift   = 16,
-		.width   = 2,
-	},
-	.params = {
-		.params_table = axg_gp0_params_table,
-		.params_count =	ARRAY_SIZE(axg_gp0_params_table),
-		.no_init_reset = true,
-		.reset_lock_loop = true,
-	},
-	.rate_table = axg_gp0_pll_rate_table,
-	.rate_count = ARRAY_SIZE(axg_gp0_pll_rate_table),
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "gp0_pll",
 		.ops = &meson_clk_pll_ops,
@@ -698,14 +727,7 @@ static struct clk_hw_onecell_data axg_hw_onecell_data = {
 	.num = NR_CLKS,
 };
 
-/* Convenience tables to populate base addresses in .probe */
-
-static struct meson_clk_pll *const axg_clk_plls[] = {
-	&axg_fixed_pll,
-	&axg_sys_pll,
-	&axg_gp0_pll,
-};
-
+/* Convenience table to populate regmap in .probe */
 static struct clk_regmap *const axg_clk_regmaps[] = {
 	&axg_clk81,
 	&axg_ddr,
@@ -764,22 +786,13 @@ static struct clk_regmap *const axg_clk_regmaps[] = {
 	&axg_mpll1,
 	&axg_mpll2,
 	&axg_mpll3,
-};
-
-struct clkc_data {
-	struct meson_clk_pll *const *clk_plls;
-	unsigned int clk_plls_count;
-	struct clk_hw_onecell_data *hw_onecell_data;
-};
-
-static const struct clkc_data axg_clkc_data = {
-	.clk_plls = axg_clk_plls,
-	.clk_plls_count = ARRAY_SIZE(axg_clk_plls),
-	.hw_onecell_data = &axg_hw_onecell_data,
+	&axg_fixed_pll,
+	&axg_sys_pll,
+	&axg_gp0_pll,
 };
 
 static const struct of_device_id clkc_match_table[] = {
-	{ .compatible = "amlogic,axg-clkc", .data = &axg_clkc_data },
+	{ .compatible = "amlogic,axg-clkc" },
 	{}
 };
 
@@ -792,15 +805,10 @@ static const struct regmap_config clkc_regmap_config = {
 static int axg_clkc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct clkc_data *clkc_data;
 	struct resource *res;
 	void __iomem *clk_base;
 	struct regmap *map;
 	int ret, i;
-
-	clkc_data = of_device_get_match_data(dev);
-	if (!clkc_data)
-		return -EINVAL;
 
 	/*  Generic clocks and PLLs */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -817,21 +825,16 @@ static int axg_clkc_probe(struct platform_device *pdev)
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
-	/* Populate base address for PLLs */
-	for (i = 0; i < clkc_data->clk_plls_count; i++)
-		clkc_data->clk_plls[i]->base = clk_base;
-
 	/* Populate regmap for the regmap backed clocks */
 	for (i = 0; i < ARRAY_SIZE(axg_clk_regmaps); i++)
 		axg_clk_regmaps[i]->map = map;
 
-	for (i = 0; i < clkc_data->hw_onecell_data->num; i++) {
+	for (i = 0; i < axg_hw_onecell_data.num; i++) {
 		/* array might be sparse */
-		if (!clkc_data->hw_onecell_data->hws[i])
+		if (!axg_hw_onecell_data.hws[i])
 			continue;
 
-		ret = devm_clk_hw_register(dev,
-					   clkc_data->hw_onecell_data->hws[i]);
+		ret = devm_clk_hw_register(dev, axg_hw_onecell_data.hws[i]);
 		if (ret) {
 			dev_err(dev, "Clock registration failed\n");
 			return ret;
@@ -839,7 +842,7 @@ static int axg_clkc_probe(struct platform_device *pdev)
 	}
 
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
-					   clkc_data->hw_onecell_data);
+					   &axg_hw_onecell_data);
 }
 
 static struct platform_driver axg_driver = {

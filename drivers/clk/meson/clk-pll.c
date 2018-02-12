@@ -42,52 +42,36 @@
 
 #include "clkc.h"
 
-#define MESON_PLL_RESET				BIT(29)
-#define MESON_PLL_LOCK				BIT(31)
-
-#define to_meson_clk_pll(_hw) container_of(_hw, struct meson_clk_pll, hw)
+static inline struct meson_clk_pll_data *
+meson_clk_pll_data(struct clk_regmap *clk)
+{
+	return (struct meson_clk_pll_data *)clk->data;
+}
 
 static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 						unsigned long parent_rate)
 {
-	struct meson_clk_pll *pll = to_meson_clk_pll(hw);
-	struct parm *p;
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
 	u64 rate;
 	u16 n, m, frac = 0, od, od2 = 0, od3 = 0;
-	u32 reg;
 
-	p = &pll->n;
-	reg = readl(pll->base + p->reg_off);
-	n = PARM_GET(p->width, p->shift, reg);
+	n = meson_parm_read(clk->map, &pll->n);
+	m = meson_parm_read(clk->map, &pll->m);
+	od = meson_parm_read(clk->map, &pll->od);
 
-	p = &pll->m;
-	reg = readl(pll->base + p->reg_off);
-	m = PARM_GET(p->width, p->shift, reg);
+	if (MESON_PARM_APPLICABLE(&pll->od2))
+		od2 = meson_parm_read(clk->map, &pll->od2);
 
-	p = &pll->od;
-	reg = readl(pll->base + p->reg_off);
-	od = PARM_GET(p->width, p->shift, reg);
-
-	p = &pll->od2;
-	if (p->width) {
-		reg = readl(pll->base + p->reg_off);
-		od2 = PARM_GET(p->width, p->shift, reg);
-	}
-
-	p = &pll->od3;
-	if (p->width) {
-		reg = readl(pll->base + p->reg_off);
-		od3 = PARM_GET(p->width, p->shift, reg);
-	}
+	if (MESON_PARM_APPLICABLE(&pll->od3))
+		od3 = meson_parm_read(clk->map, &pll->od3);
 
 	rate = (u64)m * parent_rate;
 
-	p = &pll->frac;
-	if (p->width) {
-		reg = readl(pll->base + p->reg_off);
-		frac = PARM_GET(p->width, p->shift, reg);
+	if (MESON_PARM_APPLICABLE(&pll->frac)) {
+		frac = meson_parm_read(clk->map, &pll->frac);
 
-		rate += mul_u64_u32_shr(parent_rate, frac, p->width);
+		rate += mul_u64_u32_shr(parent_rate, frac, pll->frac.width);
 	}
 
 	return div_u64(rate, n) >> od >> od2 >> od3;
@@ -96,177 +80,136 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 static long meson_clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 				     unsigned long *parent_rate)
 {
-	struct meson_clk_pll *pll = to_meson_clk_pll(hw);
-	const struct pll_rate_table *rate_table = pll->rate_table;
-	int i;
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+	const struct pll_rate_table *pllt;
 
 	/*
 	 * if the table is missing, just return the current rate
 	 * since we don't have the other available frequencies
 	 */
-	if (!rate_table)
+	if (!pll->table)
 		return meson_clk_pll_recalc_rate(hw, *parent_rate);
 
-	for (i = 0; i < pll->rate_count; i++) {
-		if (rate <= rate_table[i].rate)
-			return rate_table[i].rate;
+	for (pllt = pll->table; pllt->rate; pllt++) {
+		if (rate <= pllt->rate)
+			return pllt->rate;
 	}
 
 	/* else return the smallest value */
-	return rate_table[0].rate;
+	return pll->table[0].rate;
 }
 
-static const struct pll_rate_table *meson_clk_get_pll_settings(struct meson_clk_pll *pll,
-							       unsigned long rate)
+static const struct pll_rate_table *
+meson_clk_get_pll_settings(const struct pll_rate_table *table,
+			   unsigned long rate)
 {
-	const struct pll_rate_table *rate_table = pll->rate_table;
-	int i;
+	const struct pll_rate_table *pllt;
 
-	if (!rate_table)
+	if (!table)
 		return NULL;
 
-	for (i = 0; i < pll->rate_count; i++) {
-		if (rate == rate_table[i].rate)
-			return &rate_table[i];
+	for (pllt = table; pllt->rate; pllt++) {
+		if (rate == pllt->rate)
+			return pllt;
 	}
+
 	return NULL;
 }
 
-/* Specific wait loop for GXL/GXM GP0 PLL */
-static int meson_clk_pll_wait_lock_reset(struct meson_clk_pll *pll,
-					 struct parm *p_n)
+static int meson_clk_pll_wait_lock(struct clk_hw *hw)
 {
-	int delay = 100;
-	u32 reg;
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+	int delay = pll->flags & CLK_MESON_PLL_LOCK_LOOP_RST ?
+		100 : 24000000;
 
-	while (delay > 0) {
-		reg = readl(pll->base + p_n->reg_off);
-		writel(reg | MESON_PLL_RESET, pll->base + p_n->reg_off);
-		udelay(10);
-		writel(reg & ~MESON_PLL_RESET, pll->base + p_n->reg_off);
+	do {
+		/* Specific wait loop for GXL/GXM GP0 PLL */
+		if (pll->flags & CLK_MESON_PLL_LOCK_LOOP_RST) {
+			/* Procedure taken from the vendor kernel */
+			meson_parm_write(clk->map, &pll->rst, 1);
+			udelay(10);
+			meson_parm_write(clk->map, &pll->rst, 0);
+			mdelay(1);
+		}
 
-		/* This delay comes from AMLogic tree clk-gp0-gxl driver */
-		mdelay(1);
-
-		reg = readl(pll->base + p_n->reg_off);
-		if (reg & MESON_PLL_LOCK)
+		/* Is the clock locked now ? */
+		if (meson_parm_read(clk->map, &pll->l))
 			return 0;
+
 		delay--;
-	}
+	} while (delay > 0);
+
 	return -ETIMEDOUT;
 }
 
-static int meson_clk_pll_wait_lock(struct meson_clk_pll *pll,
-				   struct parm *p_n)
+static void meson_clk_pll_init(struct clk_hw *hw)
 {
-	int delay = 24000000;
-	u32 reg;
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
 
-	while (delay > 0) {
-		reg = readl(pll->base + p_n->reg_off);
-
-		if (reg & MESON_PLL_LOCK)
-			return 0;
-		delay--;
+	if (pll->init_count) {
+		meson_parm_write(clk->map, &pll->rst, 1);
+		regmap_multi_reg_write(clk->map, pll->init_regs,
+				       pll->init_count);
+		meson_parm_write(clk->map, &pll->rst, 0);
 	}
-	return -ETIMEDOUT;
-}
-
-static void meson_clk_pll_init_params(struct meson_clk_pll *pll)
-{
-	int i;
-
-	for (i = 0 ; i < pll->params.params_count ; ++i)
-		writel(pll->params.params_table[i].value,
-		       pll->base + pll->params.params_table[i].reg_off);
 }
 
 static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 				  unsigned long parent_rate)
 {
-	struct meson_clk_pll *pll = to_meson_clk_pll(hw);
-	struct parm *p;
-	const struct pll_rate_table *rate_set;
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+	const struct pll_rate_table *pllt;
 	unsigned long old_rate;
-	int ret = 0;
-	u32 reg;
 
 	if (parent_rate == 0 || rate == 0)
 		return -EINVAL;
 
 	old_rate = rate;
 
-	rate_set = meson_clk_get_pll_settings(pll, rate);
-	if (!rate_set)
+	pllt = meson_clk_get_pll_settings(pll->table, rate);
+	if (!pllt)
 		return -EINVAL;
 
-	/* Initialize the PLL in a clean state if specified */
-	if (pll->params.params_count)
-		meson_clk_pll_init_params(pll);
+	/* Put the pll in reset to write the params */
+	meson_parm_write(clk->map, &pll->rst, 1);
 
-	/* PLL reset */
-	p = &pll->n;
-	reg = readl(pll->base + p->reg_off);
-	/* If no_init_reset is provided, avoid resetting at this point */
-	if (!pll->params.no_init_reset)
-		writel(reg | MESON_PLL_RESET, pll->base + p->reg_off);
+	meson_parm_write(clk->map, &pll->n, pllt->n);
+	meson_parm_write(clk->map, &pll->m, pllt->m);
+	meson_parm_write(clk->map, &pll->od, pllt->od);
 
-	reg = PARM_SET(p->width, p->shift, reg, rate_set->n);
-	writel(reg, pll->base + p->reg_off);
+	if (MESON_PARM_APPLICABLE(&pll->od2))
+		meson_parm_write(clk->map, &pll->od2, pllt->od2);
 
-	p = &pll->m;
-	reg = readl(pll->base + p->reg_off);
-	reg = PARM_SET(p->width, p->shift, reg, rate_set->m);
-	writel(reg, pll->base + p->reg_off);
+	if (MESON_PARM_APPLICABLE(&pll->od3))
+		meson_parm_write(clk->map, &pll->od3, pllt->od3);
 
-	p = &pll->od;
-	reg = readl(pll->base + p->reg_off);
-	reg = PARM_SET(p->width, p->shift, reg, rate_set->od);
-	writel(reg, pll->base + p->reg_off);
+	if (MESON_PARM_APPLICABLE(&pll->frac))
+		meson_parm_write(clk->map, &pll->frac, pllt->frac);
 
-	p = &pll->od2;
-	if (p->width) {
-		reg = readl(pll->base + p->reg_off);
-		reg = PARM_SET(p->width, p->shift, reg, rate_set->od2);
-		writel(reg, pll->base + p->reg_off);
-	}
+	/* make sure the reset is cleared at this point */
+	meson_parm_write(clk->map, &pll->rst, 0);
 
-	p = &pll->od3;
-	if (p->width) {
-		reg = readl(pll->base + p->reg_off);
-		reg = PARM_SET(p->width, p->shift, reg, rate_set->od3);
-		writel(reg, pll->base + p->reg_off);
-	}
-
-	p = &pll->frac;
-	if (p->width) {
-		reg = readl(pll->base + p->reg_off);
-		reg = PARM_SET(p->width, p->shift, reg, rate_set->frac);
-		writel(reg, pll->base + p->reg_off);
-	}
-
-	p = &pll->n;
-	/* If clear_reset_for_lock is provided, remove the reset bit here */
-	if (pll->params.clear_reset_for_lock) {
-		reg = readl(pll->base + p->reg_off);
-		writel(reg & ~MESON_PLL_RESET, pll->base + p->reg_off);
-	}
-
-	/* If reset_lock_loop, use a special loop including resetting */
-	if (pll->params.reset_lock_loop)
-		ret = meson_clk_pll_wait_lock_reset(pll, p);
-	else
-		ret = meson_clk_pll_wait_lock(pll, p);
-	if (ret) {
+	if (meson_clk_pll_wait_lock(hw)) {
 		pr_warn("%s: pll did not lock, trying to restore old rate %lu\n",
 			__func__, old_rate);
+		/*
+		 * FIXME: Do we really need/want this HACK ?
+		 * It looks unsafe. what happens if the clock gets into a
+		 * broken state and we can't lock back on the old_rate ? Looks
+		 * like an infinite recursion is possible
+		 */
 		meson_clk_pll_set_rate(hw, old_rate, parent_rate);
 	}
 
-	return ret;
+	return 0;
 }
 
 const struct clk_ops meson_clk_pll_ops = {
+	.init		= meson_clk_pll_init,
 	.recalc_rate	= meson_clk_pll_recalc_rate,
 	.round_rate	= meson_clk_pll_round_rate,
 	.set_rate	= meson_clk_pll_set_rate,
