@@ -1512,7 +1512,7 @@ config RTC_DRV_STARFIRE
 
 config RTC_DRV_TX4939
 	tristate "TX4939 SoC"
-	depends on SOC_TX4939
+	depends on SOC_TX4939 || COMPILE_TEST
 	help
 	  Driver for the internal RTC (Realtime Clock) module found on
 	  Toshiba TX4939 SoC.
