@@ -70,12 +70,6 @@ static int multiblock_erase(int ebnum, int blocks)
 		return err;
 	}
 
-	if (ei.state == MTD_ERASE_FAILED) {
-		pr_err("some erase error occurred at EB %d,"
-		       "blocks %d\n", ebnum, blocks);
-		return -EIO;
-	}
-
 	return 0;
 }
 

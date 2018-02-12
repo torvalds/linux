@@ -24,10 +24,6 @@ int mtdtest_erase_eraseblock(struct mtd_info *mtd, unsigned int ebnum)
 		return err;
 	}
 
-	if (ei.state == MTD_ERASE_FAILED) {
-		pr_info("some erase error occurred at EB %d\n", ebnum);
-		return -EIO;
-	}
 	return 0;
 }
 

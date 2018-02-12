@@ -945,11 +945,9 @@ void __put_mtd_device(struct mtd_info *mtd)
 EXPORT_SYMBOL_GPL(__put_mtd_device);
 
 /*
- * Erase is an asynchronous operation.  Device drivers are supposed
- * to call instr->callback() whenever the operation completes, even
- * if it completes with a failure.
- * Callers are supposed to pass a callback function and wait for it
- * to be called before writing to the block.
+ * Erase is an synchronous operation. Device drivers are epected to return a
+ * negative error code if the operation failed and update instr->fail_addr
+ * to point the portion that was not properly erased.
  */
 int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 {

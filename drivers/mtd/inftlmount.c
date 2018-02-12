@@ -393,9 +393,10 @@ int INFTL_formatblock(struct INFTLrecord *inftl, int block)
 	   mark only the failed block in the bbt. */
 	for (physblock = 0; physblock < inftl->EraseSize;
 	     physblock += instr->len, instr->addr += instr->len) {
-		mtd_erase(inftl->mbd.mtd, instr);
+		int ret;
 
-		if (instr->state == MTD_ERASE_FAILED) {
+		ret = mtd_erase(inftl->mbd.mtd, instr);
+		if (ret) {
 			printk(KERN_WARNING "INFTL: error while formatting block %d\n",
 				block);
 			goto fail;

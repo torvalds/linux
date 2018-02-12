@@ -222,8 +222,6 @@ void mtd_erase_callback(struct erase_info *instr)
 			instr->fail_addr -= part->offset;
 		instr->addr -= part->offset;
 	}
-	if (instr->callback)
-		instr->callback(instr);
 }
 EXPORT_SYMBOL_GPL(mtd_erase_callback);
 

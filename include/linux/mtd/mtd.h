@@ -48,8 +48,6 @@ struct erase_info {
 	uint64_t addr;
 	uint64_t len;
 	uint64_t fail_addr;
-	void (*callback) (struct erase_info *self);
-	u_long priv;
 	u_char state;
 };
 
