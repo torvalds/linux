@@ -100,8 +100,8 @@ static int ir_rc6_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		goto out;
 
 again:
-	IR_dprintk(2, "RC6 decode started at state %i (%uus %s)\n",
-		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "RC6 decode started at state %i (%uus %s)\n",
+		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 
 	if (!geq_margin(ev.duration, RC6_UNIT, RC6_UNIT / 2))
 		return 0;
@@ -170,7 +170,7 @@ again:
 			break;
 
 		if (!(data->header & RC6_STARTBIT_MASK)) {
-			IR_dprintk(1, "RC6 invalid start bit\n");
+			dev_dbg(&dev->dev, "RC6 invalid start bit\n");
 			break;
 		}
 
@@ -187,7 +187,7 @@ again:
 			data->wanted_bits = RC6_6A_NBITS;
 			break;
 		default:
-			IR_dprintk(1, "RC6 unknown mode\n");
+			dev_dbg(&dev->dev, "RC6 unknown mode\n");
 			goto out;
 		}
 		goto again;
@@ -230,13 +230,13 @@ again:
 			scancode = data->body;
 			toggle = data->toggle;
 			protocol = RC_PROTO_RC6_0;
-			IR_dprintk(1, "RC6(0) scancode 0x%04x (toggle: %u)\n",
-				   scancode, toggle);
+			dev_dbg(&dev->dev, "RC6(0) scancode 0x%04x (toggle: %u)\n",
+				scancode, toggle);
 			break;
 
 		case RC6_MODE_6A:
 			if (data->count > CHAR_BIT * sizeof data->body) {
-				IR_dprintk(1, "RC6 too many (%u) data bits\n",
+				dev_dbg(&dev->dev, "RC6 too many (%u) data bits\n",
 					data->count);
 				goto out;
 			}
@@ -262,15 +262,15 @@ again:
 				}
 				break;
 			default:
-				IR_dprintk(1, "RC6(6A) unsupported length\n");
+				dev_dbg(&dev->dev, "RC6(6A) unsupported length\n");
 				goto out;
 			}
 
-			IR_dprintk(1, "RC6(6A) proto 0x%04x, scancode 0x%08x (toggle: %u)\n",
-				   protocol, scancode, toggle);
+			dev_dbg(&dev->dev, "RC6(6A) proto 0x%04x, scancode 0x%08x (toggle: %u)\n",
+				protocol, scancode, toggle);
 			break;
 		default:
-			IR_dprintk(1, "RC6 unknown mode\n");
+			dev_dbg(&dev->dev, "RC6 unknown mode\n");
 			goto out;
 		}
 
@@ -280,8 +280,8 @@ again:
 	}
 
 out:
-	IR_dprintk(1, "RC6 decode failed at state %i (%uus %s)\n",
-		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "RC6 decode failed at state %i (%uus %s)\n",
+		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }

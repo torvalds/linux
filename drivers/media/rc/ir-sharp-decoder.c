@@ -54,8 +54,8 @@ static int ir_sharp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		return 0;
 	}
 
-	IR_dprintk(2, "Sharp decode started at state %d (%uus %s)\n",
-		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "Sharp decode started at state %d (%uus %s)\n",
+		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 
 	switch (data->state) {
 
@@ -149,9 +149,9 @@ static int ir_sharp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		msg = (data->bits >> 15) & 0x7fff;
 		echo = data->bits & 0x7fff;
 		if ((msg ^ echo) != 0x3ff) {
-			IR_dprintk(1,
-				   "Sharp checksum error: received 0x%04x, 0x%04x\n",
-				   msg, echo);
+			dev_dbg(&dev->dev,
+				"Sharp checksum error: received 0x%04x, 0x%04x\n",
+				msg, echo);
 			break;
 		}
 
@@ -159,16 +159,15 @@ static int ir_sharp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		command = bitrev8((msg >> 2) & 0xff);
 
 		scancode = address << 8 | command;
-		IR_dprintk(1, "Sharp scancode 0x%04x\n", scancode);
+		dev_dbg(&dev->dev, "Sharp scancode 0x%04x\n", scancode);
 
 		rc_keydown(dev, RC_PROTO_SHARP, scancode, 0);
 		data->state = STATE_INACTIVE;
 		return 0;
 	}
 
-	IR_dprintk(1, "Sharp decode failed at count %d state %d (%uus %s)\n",
-		   data->count, data->state, TO_US(ev.duration),
-		   TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "Sharp decode failed at count %d state %d (%uus %s)\n",
+		data->count, data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }
