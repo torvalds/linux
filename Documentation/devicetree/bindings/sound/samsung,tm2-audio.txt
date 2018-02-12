@@ -4,9 +4,13 @@ Required properties:
 
  - compatible		 : "samsung,tm2-audio"
  - model		 : the user-visible name of this sound complex
- - audio-codec		 : the phandle of the wm5110 audio codec node,
-			   as described in ../mfd/arizona.txt
- - i2s-controller	 : the phandle of the I2S controller
+ - audio-codec		 : the first entry should be phandle of the wm5110 audio
+			   codec node, as described in ../mfd/arizona.txt;
+			   the second entry should be phandle of the HDMI
+			   transmitter node
+ - i2s-controller	 : the list of phandle and argument tuples pointing to
+			   I2S controllers, the first entry should be I2S0 and
+			   the second one I2S1
  - audio-amplifier	 : the phandle of the MAX98504 amplifier
  - samsung,audio-routing : a list of the connections between audio components;
 			   each entry is a pair of strings, the first being the
@@ -22,8 +26,8 @@ Example:
 
 sound {
 	compatible = "samsung,tm2-audio";
-	audio-codec = <&wm5110>;
-	i2s-controller = <&i2s0>;
+	audio-codec = <&wm5110>, <&hdmi>;
+	i2s-controller = <&i2s0 0>, <&i2s1 0>;
 	audio-amplifier = <&max98504>;
 	mic-bias-gpios = <&gpr3 2 0>;
 	model = "wm5110";
