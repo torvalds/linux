@@ -58,8 +58,8 @@ Description:
 		(RO) RTC-provided time in 24-hour notation (hh:mm:ss)
 
 What:		/sys/class/rtc/rtcX/*/nvmem
-Date:		February 2016
-KernelVersion:	4.6
+Date:		July 2017
+KernelVersion:	4.13
 Contact:	linux-rtc@vger.kernel.org
 Description:
 		(RW) The non volatile storage exported as a raw file, as
