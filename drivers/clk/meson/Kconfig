@@ -3,6 +3,10 @@ config COMMON_CLK_AMLOGIC
 	depends on OF
 	depends on ARCH_MESON || COMPILE_TEST
 
+config COMMON_CLK_REGMAP_MESON
+	bool
+	select REGMAP
+
 config COMMON_CLK_MESON8B
 	bool
 	depends on COMMON_CLK_AMLOGIC
