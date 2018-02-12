@@ -136,9 +136,7 @@ static int cpio_mkslink_line(const char *line)
 	char name[PATH_MAX + 1];
 	char target[PATH_MAX + 1];
 	unsigned int mode;
-	int uid;
-	int gid;
-	int rc = -1;
+	int uid, gid, rc = -1;
 
 	if (5 != sscanf(line, "%" str(PATH_MAX) "s %" str(PATH_MAX) "s %o %d %d", name, target, &mode, &uid, &gid)) {
 		fprintf(stderr, "Unrecognized dir format '%s'", line);
@@ -207,9 +205,7 @@ static int cpio_mkgeneric_line(const char *line, enum generic_types gt)
 {
 	char name[PATH_MAX + 1];
 	unsigned int mode;
-	int uid;
-	int gid;
-	int rc = -1;
+	int uid, gid, rc = -1;
 
 	if (4 != sscanf(line, "%" str(PATH_MAX) "s %o %d %d", name, &mode, &uid, &gid)) {
 		fprintf(stderr, "Unrecognized %s format '%s'",
@@ -296,8 +292,7 @@ static int cpio_mkfile(const char *name, const char *location,
 	char *filebuf = NULL;
 	struct stat buf;
 	long size;
-	int retval, namesize;
-	int file = -1, rc = -1;
+	int retval, namesize, file = -1, rc = -1;
 	unsigned int i;
 
 	mode |= S_IFREG;
@@ -394,15 +389,10 @@ static char *cpio_replace_env(char *new_location)
 static int cpio_mkfile_line(const char *line)
 {
 	char name[PATH_MAX + 1];
-	char *dname = NULL; /* malloc'ed buffer for hard links */
 	char location[PATH_MAX + 1];
+	char *dname = NULL; /* malloc'ed buffer for hard links */
 	unsigned int mode;
-	int 	uid,
-		gid,
-		nlinks = 1,
-		end = 0,
-		dname_len = 0,
-		rc = -1;
+	int uid, gid, nlinks = 1, end = 0, dname_len = 0, rc = -1;
 
 	if (5 > sscanf(line, "%" str(PATH_MAX) "s %" str(PATH_MAX)
 				"s %o %d %d %n",
