@@ -134,10 +134,6 @@
 	};
 };
 
-&mmc1_pins {
-	bias-pull-up;
-};
-
 &ohci0 {
 	status = "okay";
 };
