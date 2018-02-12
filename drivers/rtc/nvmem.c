@@ -14,8 +14,6 @@
 #include <linux/rtc.h>
 #include <linux/sysfs.h>
 
-#include "rtc-core.h"
-
 /*
  * Deprecated ABI compatibility, this should be removed at some point
  */
@@ -105,6 +103,7 @@ int rtc_nvmem_register(struct rtc_device *rtc,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rtc_nvmem_register);
 
 void rtc_nvmem_unregister(struct rtc_device *rtc)
 {

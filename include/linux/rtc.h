@@ -271,4 +271,17 @@ extern int rtc_hctosys_ret;
 #define rtc_hctosys_ret -ENODEV
 #endif
 
+#ifdef CONFIG_RTC_NVMEM
+int rtc_nvmem_register(struct rtc_device *rtc,
+		       struct nvmem_config *nvmem_config);
+void rtc_nvmem_unregister(struct rtc_device *rtc);
+#else
+static inline int rtc_nvmem_register(struct rtc_device *rtc,
+				     struct nvmem_config *nvmem_config)
+{
+	return -ENODEV;
+}
+static inline void rtc_nvmem_unregister(struct rtc_device *rtc) {}
+#endif
+
 #endif /* _LINUX_RTC_H_ */
