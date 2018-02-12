@@ -59,7 +59,6 @@ static int multiblock_erase(int ebnum, int blocks)
 	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	memset(&ei, 0, sizeof(struct erase_info));
-	ei.mtd  = mtd;
 	ei.addr = addr;
 	ei.len  = mtd->erasesize * blocks;
 

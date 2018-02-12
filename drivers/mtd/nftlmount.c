@@ -328,7 +328,6 @@ int NFTL_formatblock(struct NFTLrecord *nftl, int block)
 	memset(instr, 0, sizeof(struct erase_info));
 
 	/* XXX: use async erase interface, XXX: test return code */
-	instr->mtd = nftl->mbd.mtd;
 	instr->addr = block * nftl->EraseSize;
 	instr->len = nftl->EraseSize;
 	if (mtd_erase(mtd, instr)) {

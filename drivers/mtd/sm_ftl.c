@@ -460,7 +460,6 @@ static int sm_erase_block(struct sm_ftl *ftl, int zone_num, uint16_t block,
 	struct mtd_info *mtd = ftl->trans->mtd;
 	struct erase_info erase;
 
-	erase.mtd = mtd;
 	erase.addr = sm_mkoffset(ftl, zone_num, block, 0);
 	erase.len = ftl->block_size;
 

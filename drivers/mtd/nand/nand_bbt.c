@@ -852,7 +852,6 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 		}
 
 		memset(&einfo, 0, sizeof(einfo));
-		einfo.mtd = mtd;
 		einfo.addr = to;
 		einfo.len = 1 << this->bbt_erase_shift;
 		res = nand_erase_nand(mtd, &einfo, 1);

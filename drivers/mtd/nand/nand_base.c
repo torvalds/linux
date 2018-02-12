@@ -527,7 +527,6 @@ static int nand_block_markbad_lowlevel(struct mtd_info *mtd, loff_t ofs)
 
 		/* Attempt erase before marking OOB */
 		memset(&einfo, 0, sizeof(einfo));
-		einfo.mtd = mtd;
 		einfo.addr = ofs;
 		einfo.len = 1ULL << chip->phys_erase_shift;
 		nand_erase_nand(mtd, &einfo, 0);

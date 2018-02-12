@@ -94,7 +94,6 @@ static int mtdoops_erase_block(struct mtdoops_context *cxt, int offset)
 	int ret;
 	int page;
 
-	erase.mtd = mtd;
 	erase.addr = offset;
 	erase.len = mtd->erasesize;
 

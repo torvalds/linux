@@ -275,7 +275,6 @@ static int erase_block(struct partition *part, int block)
 	if (!erase)
 		return -ENOMEM;
 
-	erase->mtd = part->mbd.mtd;
 	erase->addr = part->blocks[block].offset;
 	erase->len = part->block_size;
 

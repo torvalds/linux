@@ -205,23 +205,15 @@ static int part_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	instr->addr += part->offset;
 	ret = part->parent->_erase(part->parent, instr);
-	if (ret) {
-		if (instr->fail_addr != MTD_FAIL_ADDR_UNKNOWN)
-			instr->fail_addr -= part->offset;
-		instr->addr -= part->offset;
-	}
+	if (instr->fail_addr != MTD_FAIL_ADDR_UNKNOWN)
+		instr->fail_addr -= part->offset;
+	instr->addr -= part->offset;
+
 	return ret;
 }
 
 void mtd_erase_callback(struct erase_info *instr)
 {
-	if (instr->mtd->_erase == part_erase) {
-		struct mtd_part *part = mtd_to_part(instr->mtd);
-
-		if (instr->fail_addr != MTD_FAIL_ADDR_UNKNOWN)
-			instr->fail_addr -= part->offset;
-		instr->addr -= part->offset;
-	}
 }
 EXPORT_SYMBOL_GPL(mtd_erase_callback);
 

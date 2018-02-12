@@ -208,8 +208,6 @@ static int find_boot_record(struct INFTLrecord *inftl)
 			if (ip->Reserved0 != ip->firstUnit) {
 				struct erase_info *instr = &inftl->instr;
 
-				instr->mtd = inftl->mbd.mtd;
-
 				/*
 				 * 	Most likely this is using the
 				 * 	undocumented qiuck mount feature.
@@ -385,7 +383,6 @@ int INFTL_formatblock(struct INFTLrecord *inftl, int block)
 	   _first_? */
 
 	/* Use async erase interface, test return code */
-	instr->mtd = inftl->mbd.mtd;
 	instr->addr = block * inftl->EraseSize;
 	instr->len = inftl->mbd.mtd->erasesize;
 	/* Erase one physical eraseblock at a time, even though the NAND api

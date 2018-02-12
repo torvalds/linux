@@ -342,7 +342,6 @@ static int erase_xfer(partition_t *part,
     if (!erase)
             return -ENOMEM;
 
-    erase->mtd = part->mbd.mtd;
     erase->addr = xfer->Offset;
     erase->len = 1 << part->header.EraseUnitSize;
 

@@ -427,7 +427,6 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 			erase->len = length;
 
 		length -= erase->len;
-		erase->mtd = subdev;
 		if ((err = mtd_erase(subdev, erase))) {
 			/* sanity check: should never happen since
 			 * block alignment has been checked above */

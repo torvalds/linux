@@ -333,7 +333,6 @@ static int do_sync_erase(struct ubi_device *ubi, int pnum)
 retry:
 	memset(&ei, 0, sizeof(struct erase_info));
 
-	ei.mtd      = ubi->mtd;
 	ei.addr     = (loff_t)pnum * ubi->peb_size;
 	ei.len      = ubi->peb_size;
 

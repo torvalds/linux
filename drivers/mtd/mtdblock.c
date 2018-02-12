@@ -65,7 +65,6 @@ static int erase_write (struct mtd_info *mtd, unsigned long pos,
 	/*
 	 * First, let's erase the flash block.
 	 */
-	erase.mtd = mtd;
 	erase.addr = pos;
 	erase.len = len;
 

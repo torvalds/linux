@@ -549,8 +549,6 @@ static int mtdswap_erase_block(struct mtdswap_dev *d, struct swap_eb *eb)
 
 retry:
 	memset(&erase, 0, sizeof(struct erase_info));
-
-	erase.mtd	= mtd;
 	erase.addr	= mtdswap_eb_offset(d, eb);
 	erase.len	= mtd->erasesize;
 

@@ -38,13 +38,14 @@
 
 #define MTD_FAIL_ADDR_UNKNOWN -1LL
 
+struct mtd_info;
+
 /*
  * If the erase fails, fail_addr might indicate exactly which block failed. If
  * fail_addr = MTD_FAIL_ADDR_UNKNOWN, the failure was not at the device level
  * or was not specific to any particular block.
  */
 struct erase_info {
-	struct mtd_info *mtd;
 	uint64_t addr;
 	uint64_t len;
 	uint64_t fail_addr;

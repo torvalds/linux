@@ -59,7 +59,6 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 
 	memset(instr, 0, sizeof(*instr));
 
-	instr->mtd = c->mtd;
 	instr->addr = jeb->offset;
 	instr->len = c->sector_size;
 
