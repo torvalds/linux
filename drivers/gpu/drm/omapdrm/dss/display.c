@@ -52,6 +52,8 @@ int omapdss_register_display(struct omap_dss_device *dssdev)
 	if (id < 0)
 		id = disp_num_counter++;
 
+	dssdev->alias_id = id;
+
 	snprintf(dssdev->alias, sizeof(dssdev->alias), "display%d", id);
 
 	/* Use 'label' property for name, if it exists */
