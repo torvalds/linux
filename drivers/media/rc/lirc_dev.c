@@ -249,8 +249,6 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 		goto out_unlock;
 	}
 
-	start = ktime_get();
-
 	if (!dev->tx_ir) {
 		ret = -EINVAL;
 		goto out_unlock;
@@ -342,6 +340,8 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 
 		duration += txbuf[i];
 	}
+
+	start = ktime_get();
 
 	ret = dev->tx_ir(dev, txbuf, count);
 	if (ret < 0)
