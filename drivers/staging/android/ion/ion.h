@@ -193,15 +193,6 @@ struct ion_heap {
 bool ion_buffer_cached(struct ion_buffer *buffer);
 
 /**
- * ion_buffer_fault_user_mappings - fault in user mappings of this buffer
- * @buffer:		buffer
- *
- * indicates whether userspace mappings of this buffer will be faulted
- * in, this can affect how buffers are allocated from the heap.
- */
-bool ion_buffer_fault_user_mappings(struct ion_buffer *buffer);
-
-/**
  * ion_device_add_heap - adds a heap to the ion device
  * @heap:		the heap to add
  */
