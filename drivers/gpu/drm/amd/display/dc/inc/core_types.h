@@ -177,6 +177,15 @@ struct resource_pool {
 	const struct resource_caps *res_cap;
 };
 
+struct dcn_fe_clocks {
+	int dppclk_khz;
+};
+
+struct dcn_fe_bandwidth {
+	struct dcn_fe_clocks calc;
+	struct dcn_fe_clocks cur;
+};
+
 struct stream_resource {
 	struct output_pixel_processor *opp;
 	struct timing_generator *tg;
@@ -195,6 +204,8 @@ struct plane_resource {
 	struct transform *xfm;
 	struct dpp *dpp;
 	uint8_t mpcc_inst;
+
+	struct dcn_fe_bandwidth bw;
 };
 
 struct pipe_ctx {
@@ -247,9 +258,9 @@ struct dce_bw_output {
 
 struct dcn_bw_clocks {
 	int dispclk_khz;
-	int dppclk_khz;
-	bool dppclk_div;
+	int max_dppclk_khz;
 	int dcfclk_khz;
+	int socclk_khz;
 	int dcfclk_deep_sleep_khz;
 	int fclk_khz;
 	int dram_ccm_us;

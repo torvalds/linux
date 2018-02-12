@@ -1684,12 +1684,13 @@ static void update_dchubp_dpp(
 	if (plane_state->update_flags.bits.full_update) {
 		dpp->funcs->dpp_dppclk_control(
 				dpp,
-				context->bw.dcn.calc_clk.dppclk_div,
+				context->bw.dcn.calc_clk.max_dppclk_khz <
+						context->bw.dcn.calc_clk.dispclk_khz,
 				true);
 
-		dc->current_state->bw.dcn.cur_clk.dppclk_div =
-				context->bw.dcn.calc_clk.dppclk_div;
-		context->bw.dcn.cur_clk.dppclk_div = context->bw.dcn.calc_clk.dppclk_div;
+		dc->current_state->bw.dcn.cur_clk.max_dppclk_khz =
+				context->bw.dcn.calc_clk.max_dppclk_khz;
+		context->bw.dcn.cur_clk.max_dppclk_khz = context->bw.dcn.calc_clk.max_dppclk_khz;
 	}
 
 	/* TODO: Need input parameter to tell current DCHUB pipe tie to which OTG

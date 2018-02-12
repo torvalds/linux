@@ -361,21 +361,22 @@ void context_clock_trace(
 	struct dc  *core_dc = dc;
 	struct dal_logger *logger =  core_dc->ctx->logger;
 
-	CLOCK_TRACE("Current: dispclk_khz:%d  dppclk_div:%d  dcfclk_khz:%d\n"
-			"dcfclk_deep_sleep_khz:%d  fclk_khz:%d\n"
+	CLOCK_TRACE("Current: dispclk_khz:%d  max_dppclk_khz:%d  dcfclk_khz:%d\n"
+			"dcfclk_deep_sleep_khz:%d  fclk_khz:%d  socclk_khz:%d\n"
 			"dram_ccm_us:%d  min_active_dram_ccm_us:%d\n",
 			context->bw.dcn.calc_clk.dispclk_khz,
-			context->bw.dcn.calc_clk.dppclk_div,
+			context->bw.dcn.calc_clk.max_dppclk_khz,
 			context->bw.dcn.calc_clk.dcfclk_khz,
 			context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz,
 			context->bw.dcn.calc_clk.fclk_khz,
+			context->bw.dcn.calc_clk.socclk_khz,
 			context->bw.dcn.calc_clk.dram_ccm_us,
 			context->bw.dcn.calc_clk.min_active_dram_ccm_us);
-	CLOCK_TRACE("Calculated: dispclk_khz:%d  dppclk_div:%d  dcfclk_khz:%d\n"
-			"dcfclk_deep_sleep_khz:%d  fclk_khz:%d\n"
+	CLOCK_TRACE("Calculated: dispclk_khz:%d  max_dppclk_khz:%d  dcfclk_khz:%d\n"
+			"dcfclk_deep_sleep_khz:%d  fclk_khz:%d  socclk_khz:%d\n"
 			"dram_ccm_us:%d  min_active_dram_ccm_us:%d\n",
 			context->bw.dcn.calc_clk.dispclk_khz,
-			context->bw.dcn.calc_clk.dppclk_div,
+			context->bw.dcn.calc_clk.max_dppclk_khz,
 			context->bw.dcn.calc_clk.dcfclk_khz,
 			context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz,
 			context->bw.dcn.calc_clk.fclk_khz,

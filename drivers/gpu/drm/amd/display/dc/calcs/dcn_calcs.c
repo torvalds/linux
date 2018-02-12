@@ -996,7 +996,7 @@ bool dcn_validate_bandwidth(
 					dc->debug.min_disp_clk_khz;
 		}
 
-		context->bw.dcn.calc_clk.dppclk_div = (int)(v->dispclk_dppclk_ratio) == 2;
+		context->bw.dcn.calc_clk.max_dppclk_khz = (int)(v->dppclk * 1000);
 
 		for (i = 0, input_idx = 0; i < pool->pipe_count; i++) {
 			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
