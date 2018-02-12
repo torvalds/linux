@@ -2658,6 +2658,9 @@ void mlx5e_activate_priv_channels(struct mlx5e_priv *priv)
 
 	mlx5e_build_channels_tx_maps(priv);
 	mlx5e_activate_channels(&priv->channels);
+	write_lock(&priv->stats_lock);
+	priv->channels_active = true;
+	write_unlock(&priv->stats_lock);
 	netif_tx_start_all_queues(priv->netdev);
 
 	if (MLX5_VPORT_MANAGER(priv->mdev))
@@ -2679,6 +2682,9 @@ void mlx5e_deactivate_priv_channels(struct mlx5e_priv *priv)
 	 */
 	netif_tx_stop_all_queues(priv->netdev);
 	netif_tx_disable(priv->netdev);
+	write_lock(&priv->stats_lock);
+	priv->channels_active = false;
+	write_unlock(&priv->stats_lock);
 	mlx5e_deactivate_channels(&priv->channels);
 }
 
@@ -3223,6 +3229,7 @@ mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		stats->tx_packets = PPORT_802_3_GET(pstats, a_frames_transmitted_ok);
 		stats->tx_bytes   = PPORT_802_3_GET(pstats, a_octets_transmitted_ok);
 	} else {
+		mlx5e_grp_sw_update_stats(priv);
 		stats->rx_packets = sstats->rx_packets;
 		stats->rx_bytes   = sstats->rx_bytes;
 		stats->tx_packets = sstats->tx_packets;
@@ -4248,6 +4255,7 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 			       profile->max_nch(mdev), netdev->mtu);
 
 	mutex_init(&priv->state_lock);
+	rwlock_init(&priv->stats_lock);
 
 	INIT_WORK(&priv->update_carrier_work, mlx5e_update_carrier_work);
 	INIT_WORK(&priv->set_rx_mode_work, mlx5e_set_rx_mode_work);
