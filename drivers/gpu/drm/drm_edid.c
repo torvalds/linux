@@ -2083,6 +2083,8 @@ drm_mode_std(struct drm_connector *connector, struct edid *edid,
 	if (hsize == 1366 && vsize == 768 && vrefresh_rate == 60) {
 		mode = drm_cvt_mode(dev, 1366, 768, vrefresh_rate, 0, 0,
 				    false);
+		if (!mode)
+			return NULL;
 		mode->hdisplay = 1366;
 		mode->hsync_start = mode->hsync_start - 1;
 		mode->hsync_end = mode->hsync_end - 1;
