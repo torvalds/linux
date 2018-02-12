@@ -751,8 +751,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	cmos_rtc.dev = dev;
 	dev_set_drvdata(dev, &cmos_rtc);
 
-	cmos_rtc.rtc = rtc_device_register(driver_name, dev,
-				&cmos_rtc_ops, THIS_MODULE);
+	cmos_rtc.rtc = devm_rtc_allocate_device(dev);
 	if (IS_ERR(cmos_rtc.rtc)) {
 		retval = PTR_ERR(cmos_rtc.rtc);
 		goto cleanup0;
@@ -822,6 +821,11 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 		goto cleanup2;
 	}
 
+	cmos_rtc.rtc->ops = &cmos_rtc_ops;
+	retval = rtc_register_device(cmos_rtc.rtc);
+	if (retval)
+		goto cleanup3;
+
 	dev_info(dev, "%s%s, %zd bytes nvram%s\n",
 		!is_valid_irq(rtc_irq) ? "no alarms" :
 			cmos_rtc.mon_alrm ? "alarms up to one year" :
@@ -833,12 +837,13 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 
 	return 0;
 
+cleanup3:
+	sysfs_remove_bin_file(&dev->kobj, &nvram);
 cleanup2:
 	if (is_valid_irq(rtc_irq))
 		free_irq(rtc_irq, cmos_rtc.rtc);
 cleanup1:
 	cmos_rtc.dev = NULL;
-	rtc_device_unregister(cmos_rtc.rtc);
 cleanup0:
 	if (RTC_IOMAPPED)
 		release_region(ports->start, resource_size(ports));
@@ -869,7 +874,6 @@ static void cmos_do_remove(struct device *dev)
 		hpet_unregister_irq_handler(cmos_interrupt);
 	}
 
-	rtc_device_unregister(cmos->rtc);
 	cmos->rtc = NULL;
 
 	ports = cmos->iomem;
