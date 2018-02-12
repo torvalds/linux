@@ -602,6 +602,8 @@
 	wp-gpios = <&gpio2 3 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&reg_3p3v_sd>;
 	vqmmc-supply = <&reg_3p3v>;
+	no-1-8-v;
+	no-sdio;
 	status = "okay";
 };
 
@@ -613,6 +615,8 @@
 	wp-gpios = <&gpio2 1 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&reg_3p3v_sd>;
 	vqmmc-supply = <&reg_3p3v>;
+	no-1-8-v;
+	no-sdio;
 	status = "okay";
 };
 
@@ -622,7 +626,10 @@
 	bus-width = <8>;
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_3p3v>;
+	no-1-8-v;
 	non-removable;
+	no-sdio;
+	no-sd;
 	status = "okay";
 };
 
