@@ -140,6 +140,12 @@ static inline bool kdump_in_progress(void)
 	return false;
 }
 
+static inline void crash_ipi_callback(struct pt_regs *regs) { }
+
+static inline void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
+{
+}
+
 #endif /* CONFIG_KEXEC_CORE */
 #endif /* ! __ASSEMBLY__ */
 #endif /* __KERNEL__ */
