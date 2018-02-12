@@ -4038,7 +4038,7 @@ static void rt5659_calibrate(struct rt5659_priv *rt5659)
 	regmap_write(rt5659->regmap, RT5659_HP_CHARGE_PUMP_1, 0x0c16);
 }
 
-void rt5659_intel_hd_header_probe_setup(struct rt5659_priv *rt5659)
+static void rt5659_intel_hd_header_probe_setup(struct rt5659_priv *rt5659)
 {
 	int value;
 
