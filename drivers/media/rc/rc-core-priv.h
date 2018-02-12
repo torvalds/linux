@@ -292,11 +292,4 @@ static inline int ir_lirc_register(struct rc_dev *dev) { return 0; }
 static inline void ir_lirc_unregister(struct rc_dev *dev) { }
 #endif
 
-/*
- * Decoder initialization code
- *
- * Those load logic are called during ir-core init, and automatically
- * loads the compiled decoders for their usage with IR raw events
- */
-
 #endif /* _RC_CORE_PRIV */
