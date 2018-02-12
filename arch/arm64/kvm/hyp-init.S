@@ -117,7 +117,6 @@ CPU_BE(	orr	x4, x4, #SCTLR_ELx_EE)
 	/* Set the stack and new vectors */
 	kern_hyp_va	x1
 	mov	sp, x1
-	kern_hyp_va	x2
 	msr	vbar_el2, x2
 
 	/* copy tpidr_el1 into tpidr_el2 for use by HYP */

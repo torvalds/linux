@@ -374,6 +374,7 @@ static inline void *kvm_get_hyp_vector(void)
 			vect = lm_alias(vect);
 	}
 
+	vect = kern_hyp_va(vect);
 	return vect;
 }
 
@@ -387,7 +388,7 @@ static inline int kvm_map_vectors(void)
 #else
 static inline void *kvm_get_hyp_vector(void)
 {
-	return kvm_ksym_ref(__kvm_hyp_vector);
+	return kern_hyp_va(kvm_ksym_ref(__kvm_hyp_vector));
 }
 
 static inline int kvm_map_vectors(void)
