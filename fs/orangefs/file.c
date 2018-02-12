@@ -327,14 +327,8 @@ out:
 			file_accessed(file);
 		} else {
 			file_update_time(file);
-			/*
-			 * Must invalidate to ensure write loop doesn't
-			 * prevent kernel from reading updated
-			 * attribute.  Size probably changed because of
-			 * the write, and other clients could update
-			 * any other attribute.
-			 */
-			orangefs_inode->getattr_time = jiffies - 1;
+			if (*offset > i_size_read(inode))
+				i_size_write(inode, *offset);
 		}
 	}
 

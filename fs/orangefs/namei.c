@@ -383,6 +383,7 @@ static int orangefs_rename(struct inode *old_dir,
 			unsigned int flags)
 {
 	struct orangefs_kernel_op_s *new_op;
+	struct iattr iattr;
 	int ret;
 
 	if (flags)
@@ -392,7 +393,11 @@ static int orangefs_rename(struct inode *old_dir,
 		     "orangefs_rename: called (%pd2 => %pd2) ct=%d\n",
 		     old_dentry, new_dentry, d_count(new_dentry));
 
-	ORANGEFS_I(new_dentry->d_parent->d_inode)->getattr_time = jiffies - 1;
+	new_dir->i_mtime = new_dir->i_ctime = current_time(new_dir);
+	memset(&iattr, 0, sizeof iattr);
+	iattr.ia_valid |= ATTR_MTIME;
+	orangefs_inode_setattr(new_dir, &iattr);
+	mark_inode_dirty_sync(new_dir);
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_RENAME);
 	if (!new_op)
