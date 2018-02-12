@@ -98,7 +98,7 @@ bool regmap_cached(struct regmap *map, unsigned int reg)
 	int ret;
 	unsigned int val;
 
-	if (map->cache == REGCACHE_NONE)
+	if (map->cache_type == REGCACHE_NONE)
 		return false;
 
 	if (!map->cache_ops)
