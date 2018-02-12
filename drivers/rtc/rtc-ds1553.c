@@ -308,10 +308,15 @@ static int ds1553_rtc_probe(struct platform_device *pdev)
 	pdata->last_jiffies = jiffies;
 	platform_set_drvdata(pdev, pdata);
 
-	pdata->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-				  &ds1553_rtc_ops, THIS_MODULE);
+	pdata->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(pdata->rtc))
 		return PTR_ERR(pdata->rtc);
+
+	pdata->rtc->ops = &ds1553_rtc_ops;
+
+	ret = rtc_register_device(pdata->rtc);
+	if (ret)
+		return ret;
 
 	if (pdata->irq > 0) {
 		writeb(0, ioaddr + RTC_INTERRUPTS);
