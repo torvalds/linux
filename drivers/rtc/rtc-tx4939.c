@@ -289,12 +289,13 @@ static int __init tx4939_rtc_probe(struct platform_device *pdev)
 
 	rtc->ops = &tx4939_rtc_ops;
 
-	ret = rtc_register_device(rtc);
+	ret = sysfs_create_bin_file(&pdev->dev.kobj, &tx4939_rtc_nvram_attr);
 	if (ret)
 		return ret;
 
 	pdata->rtc = rtc;
-	ret = sysfs_create_bin_file(&pdev->dev.kobj, &tx4939_rtc_nvram_attr);
+
+	ret = rtc_register_device(rtc);
 
 	return ret;
 }
