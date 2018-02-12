@@ -1270,10 +1270,7 @@ static int __maybe_unused tbnet_suspend(struct device *dev)
 	stop_login(net);
 	if (netif_running(net->dev)) {
 		netif_device_detach(net->dev);
-		tb_ring_stop(net->rx_ring.ring);
-		tb_ring_stop(net->tx_ring.ring);
-		tbnet_free_buffers(&net->rx_ring);
-		tbnet_free_buffers(&net->tx_ring);
+		tbnet_tear_down(net, true);
 	}
 
 	return 0;
