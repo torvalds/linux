@@ -36,7 +36,7 @@
 MODULE_LICENSE("Dual BSD/GPL");
 
 #define WIFI_DRIVER_NAME "mtk_wmt_WIFI_chrdev"
-#define WIFI_DEV_MAJOR 153
+#define WIFI_DEV_MAJOR 155
 
 #define PFX                         "[MTK-WIFI] "
 #define WIFI_LOG_DBG                  3
