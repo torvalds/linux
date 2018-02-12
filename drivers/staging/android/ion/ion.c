@@ -33,11 +33,6 @@
 static struct ion_device *internal_dev;
 static int heap_id;
 
-bool ion_buffer_cached(struct ion_buffer *buffer)
-{
-	return !!(buffer->flags & ION_FLAG_CACHED);
-}
-
 /* this function should only be called while dev->lock is held */
 static void ion_buffer_add(struct ion_device *dev,
 			   struct ion_buffer *buffer)
