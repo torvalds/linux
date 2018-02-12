@@ -76,10 +76,10 @@ irqreturn_t __irq_entry timer_interrupt(int irq, void *dev_id)
 	next_tick = cpuinfo->it_value;
 
 	/* Calculate how many ticks have elapsed. */
+	now = mfctl(16);
 	do {
 		++ticks_elapsed;
 		next_tick += cpt;
-		now = mfctl(16);
 	} while (next_tick - now > cpt);
 
 	/* Store (in CR16 cycles) up to when we are accounting right now. */
@@ -103,16 +103,17 @@ irqreturn_t __irq_entry timer_interrupt(int irq, void *dev_id)
 	 * if one or the other wrapped. If "now" is "bigger" we'll end up
 	 * with a very large unsigned number.
 	 */
-	while (next_tick - mfctl(16) > cpt)
+	now = mfctl(16);
+	while (next_tick - now > cpt)
 		next_tick += cpt;
 
 	/* Program the IT when to deliver the next interrupt.
 	 * Only bottom 32-bits of next_tick are writable in CR16!
 	 * Timer interrupt will be delivered at least a few hundred cycles
-	 * after the IT fires, so if we are too close (<= 500 cycles) to the
+	 * after the IT fires, so if we are too close (<= 8000 cycles) to the
 	 * next cycle, simply skip it.
 	 */
-	if (next_tick - mfctl(16) <= 500)
+	if (next_tick - now <= 8000)
 		next_tick += cpt;
 	mtctl(next_tick, 16);
 
