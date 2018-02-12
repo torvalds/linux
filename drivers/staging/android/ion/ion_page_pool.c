@@ -79,13 +79,9 @@ struct page *ion_page_pool_alloc(struct ion_page_pool *pool)
 
 void ion_page_pool_free(struct ion_page_pool *pool, struct page *page)
 {
-	int ret;
-
 	BUG_ON(pool->order != compound_order(page));
 
-	ret = ion_page_pool_add(pool, page);
-	if (ret)
-		ion_page_pool_free_pages(pool, page);
+	ion_page_pool_add(pool, page);
 }
 
 static int ion_page_pool_total(struct ion_page_pool *pool, bool high)
