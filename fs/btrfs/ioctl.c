@@ -4429,7 +4429,8 @@ static long btrfs_ioctl_dev_replace(struct btrfs_fs_info *fs_info,
 		ret = 0;
 		break;
 	case BTRFS_IOCTL_DEV_REPLACE_CMD_CANCEL:
-		ret = btrfs_dev_replace_cancel(fs_info, p);
+		p->result = __btrfs_dev_replace_cancel(fs_info);
+		ret = 0;
 		break;
 	default:
 		ret = -EINVAL;

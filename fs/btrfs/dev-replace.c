@@ -44,7 +44,6 @@ static void btrfs_dev_replace_update_device_in_mapping_tree(
 						struct btrfs_fs_info *fs_info,
 						struct btrfs_device *srcdev,
 						struct btrfs_device *tgtdev);
-static u64 __btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info);
 static int btrfs_dev_replace_kthread(void *data);
 static int btrfs_dev_replace_continue_on_mount(struct btrfs_fs_info *fs_info);
 
@@ -694,14 +693,7 @@ void btrfs_dev_replace_status(struct btrfs_fs_info *fs_info,
 	btrfs_dev_replace_unlock(dev_replace, 0);
 }
 
-int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info,
-			     struct btrfs_ioctl_dev_replace_args *args)
-{
-	args->result = __btrfs_dev_replace_cancel(fs_info);
-	return 0;
-}
-
-static u64 __btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
+u64 __btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
 	struct btrfs_device *tgt_device = NULL;

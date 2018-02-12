@@ -32,8 +32,7 @@ int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 		int read_src);
 void btrfs_dev_replace_status(struct btrfs_fs_info *fs_info,
 			      struct btrfs_ioctl_dev_replace_args *args);
-int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info,
-			     struct btrfs_ioctl_dev_replace_args *args);
+u64 __btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info);
 void btrfs_dev_replace_suspend_for_unmount(struct btrfs_fs_info *fs_info);
 int btrfs_resume_dev_replace_async(struct btrfs_fs_info *fs_info);
 int btrfs_dev_replace_is_ongoing(struct btrfs_dev_replace *dev_replace);
