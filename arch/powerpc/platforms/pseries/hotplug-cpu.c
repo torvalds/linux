@@ -342,8 +342,6 @@ static void pseries_remove_processor(struct device_node *np)
 	cpu_maps_update_done();
 }
 
-extern int find_and_online_cpu_nid(int cpu);
-
 static int dlpar_online_cpu(struct device_node *dn)
 {
 	int rc = 0;
