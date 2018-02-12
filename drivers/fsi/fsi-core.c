@@ -901,6 +901,7 @@ static DEVICE_ATTR(break, 0200, NULL, master_break_store);
 int fsi_master_register(struct fsi_master *master)
 {
 	int rc;
+	struct device_node *np;
 
 	if (!master)
 		return -EINVAL;
@@ -928,7 +929,9 @@ int fsi_master_register(struct fsi_master *master)
 		return rc;
 	}
 
-	fsi_master_scan(master);
+	np = dev_of_node(&master->dev);
+	if (!of_property_read_bool(np, "no-scan-on-init"))
+		fsi_master_scan(master);
 
 	return 0;
 }
