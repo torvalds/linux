@@ -384,12 +384,10 @@ void ll_i2gids(__u32 *suppgids, struct inode *i1, struct inode *i2)
  */
 static struct dentry *ll_find_alias(struct inode *inode, struct dentry *dentry)
 {
-	struct dentry *alias, *invalid_alias;
+	struct dentry *alias;
 
 	if (hlist_empty(&inode->i_dentry))
 		return NULL;
-
-	invalid_alias = NULL;
 
 	spin_lock(&inode->i_lock);
 	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
@@ -400,22 +398,17 @@ static struct dentry *ll_find_alias(struct inode *inode, struct dentry *dentry)
 		    alias->d_name.hash == dentry->d_name.hash       &&
 		    alias->d_name.len == dentry->d_name.len	 &&
 		    memcmp(alias->d_name.name, dentry->d_name.name,
-			   dentry->d_name.len) == 0)
-			invalid_alias = alias;
-		spin_unlock(&alias->d_lock);
-
-		if (invalid_alias)
-			break;
-	}
-	alias = invalid_alias ?: NULL;
-	if (alias) {
-		spin_lock(&alias->d_lock);
-		dget_dlock(alias);
+			   dentry->d_name.len) == 0) {
+			dget_dlock(alias);
+			spin_unlock(&alias->d_lock);
+			spin_unlock(&inode->i_lock);
+			return alias;
+		}
 		spin_unlock(&alias->d_lock);
 	}
 	spin_unlock(&inode->i_lock);
 
-	return alias;
+	return NULL;
 }
 
 /*
