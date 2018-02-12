@@ -544,15 +544,6 @@ static int ds1305_nvram_write(void *priv, unsigned int off, void *buf,
 	return spi_sync(spi, &m);
 }
 
-static struct nvmem_config ds1305_nvmem_cfg = {
-	.name = "ds1305_nvram",
-	.word_size = 1,
-	.stride = 1,
-	.size = DS1305_NVRAM_LEN,
-	.reg_read = ds1305_nvram_read,
-	.reg_write = ds1305_nvram_write,
-};
-
 /*----------------------------------------------------------------------*/
 
 /*
@@ -566,6 +557,14 @@ static int ds1305_probe(struct spi_device *spi)
 	u8				addr, value;
 	struct ds1305_platform_data	*pdata = dev_get_platdata(&spi->dev);
 	bool				write_ctrl = false;
+	struct nvmem_config ds1305_nvmem_cfg = {
+		.name = "ds1305_nvram",
+		.word_size = 1,
+		.stride = 1,
+		.size = DS1305_NVRAM_LEN,
+		.reg_read = ds1305_nvram_read,
+		.reg_write = ds1305_nvram_write,
+	};
 
 	/* Sanity check board setup data.  This may be hooked up
 	 * in 3wire mode, but we don't care.  Note that unless
