@@ -480,10 +480,15 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 	spin_lock_init(&m48t59->lock);
 	platform_set_drvdata(pdev, m48t59);
 
-	m48t59->rtc = devm_rtc_device_register(&pdev->dev, name, ops,
-						THIS_MODULE);
+	m48t59->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(m48t59->rtc))
 		return PTR_ERR(m48t59->rtc);
+
+	m48t59->rtc->ops = ops;
+
+	ret = rtc_register_device(m48t59->rtc);
+	if (ret)
+		return ret;
 
 	m48t59_nvram_attr.size = pdata->offset;
 
