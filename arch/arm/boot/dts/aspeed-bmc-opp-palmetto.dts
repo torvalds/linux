@@ -2,6 +2,7 @@
 /dts-v1/;
 
 #include "aspeed-g4.dtsi"
+#include <dt-bindings/gpio/aspeed-gpio.h>
 
 / {
 	model = "Palmetto BMC";
@@ -24,6 +25,32 @@
 		vga_memory: framebuffer@5f000000 {
 			no-map;
 			reg = <0x5f000000 0x01000000>; /* 16M */
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		heartbeat {
+			gpios = <&gpio ASPEED_GPIO(R, 4) GPIO_ACTIVE_LOW>;
+		};
+
+		power {
+			gpios = <&gpio ASPEED_GPIO(R, 5) GPIO_ACTIVE_LOW>;
+		};
+
+		identify {
+			gpios = <&gpio ASPEED_GPIO(A, 2) GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		checkstop {
+			label = "checkstop";
+			gpios = <&gpio ASPEED_GPIO(P, 5) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(P, 5)>;
 		};
 	};
 };
