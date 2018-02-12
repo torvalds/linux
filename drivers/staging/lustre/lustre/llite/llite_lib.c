@@ -1984,8 +1984,7 @@ void ll_umount_begin(struct super_block *sb)
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 	struct obd_device *obd;
 	struct obd_ioctl_data *ioc_data;
-	wait_queue_head_t waitq;
-	struct l_wait_info lwi;
+	int cnt = 0;
 
 	CDEBUG(D_VFSTRACE, "VFS Op: superblock %p count %d active %d\n", sb,
 	       sb->s_count, atomic_read(&sb->s_active));
@@ -2021,10 +2020,10 @@ void ll_umount_begin(struct super_block *sb)
 	 * and then continue. For now, we just periodically checking for vfs
 	 * to decrement mnt_cnt and hope to finish it within 10sec.
 	 */
-	init_waitqueue_head(&waitq);
-	lwi = LWI_TIMEOUT_INTERVAL(10 * HZ,
-				   HZ, NULL, NULL);
-	l_wait_event(waitq, may_umount(sbi->ll_mnt.mnt), &lwi);
+	while (cnt < 10 && !may_umount(sbi->ll_mnt.mnt)) {
+		schedule_timeout_uninterruptible(HZ);
+		cnt ++;
+	}
 
 	schedule();
 }
