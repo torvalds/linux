@@ -266,12 +266,13 @@ static int m48t86_rtc_probe(struct platform_device *pdev)
 	info->rtc->ops = &m48t86_rtc_ops;
 
 	m48t86_nvmem_cfg.priv = &pdev->dev;
-	info->rtc->nvmem_config = &m48t86_nvmem_cfg;
 	info->rtc->nvram_old_abi = true;
 
 	err = rtc_register_device(info->rtc);
 	if (err)
 		return err;
+
+	rtc_nvmem_register(info->rtc, &m48t86_nvmem_cfg);
 
 	/* read battery status */
 	reg = m48t86_readb(&pdev->dev, M48T86_D);
