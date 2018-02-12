@@ -23,11 +23,12 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/init.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/slab.h>
-#include <linux/init.h>
+#include <linux/regmap.h>
 
 #include "clkc.h"
 #include "meson8b.h"
@@ -804,15 +805,26 @@ static const struct reset_control_ops meson8b_clk_reset_ops = {
 	.deassert = meson8b_clk_reset_deassert,
 };
 
+static const struct regmap_config clkc_regmap_config = {
+	.reg_bits       = 32,
+	.val_bits       = 32,
+	.reg_stride     = 4,
+};
+
 static int meson8b_clkc_probe(struct platform_device *pdev)
 {
 	int ret, i;
 	struct clk_hw *parent_hw;
 	struct clk *parent_clk;
 	struct device *dev = &pdev->dev;
+	struct regmap *map;
 
 	if (!clk_base)
 		return -ENXIO;
+
+	map = devm_regmap_init_mmio(dev, clk_base, &clkc_regmap_config);
+	if (IS_ERR(map))
+		return PTR_ERR(map);
 
 	/* Populate base address for PLLs */
 	for (i = 0; i < ARRAY_SIZE(meson8b_clk_plls); i++)

@@ -11,10 +11,11 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/init.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/init.h>
+#include <linux/regmap.h>
 
 #include "clkc.h"
 #include "axg.h"
@@ -791,12 +792,19 @@ static const struct of_device_id clkc_match_table[] = {
 	{}
 };
 
+static const struct regmap_config clkc_regmap_config = {
+	.reg_bits       = 32,
+	.val_bits       = 32,
+	.reg_stride     = 4,
+};
+
 static int axg_clkc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct clkc_data *clkc_data;
 	struct resource *res;
 	void __iomem *clk_base;
+	struct regmap *map;
 	int ret, i;
 
 	clkc_data = of_device_get_match_data(dev);
@@ -807,11 +815,16 @@ static int axg_clkc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -EINVAL;
+
 	clk_base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!clk_base) {
 		dev_err(dev, "Unable to map clk base\n");
 		return -ENXIO;
 	}
+
+	map = devm_regmap_init_mmio(dev, clk_base, &clkc_regmap_config);
+	if (IS_ERR(map))
+		return PTR_ERR(map);
 
 	/* Populate base address for PLLs */
 	for (i = 0; i < clkc_data->clk_plls_count; i++)
