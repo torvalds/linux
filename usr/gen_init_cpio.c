@@ -39,7 +39,7 @@ static void push_string(const char *name)
 	offset += name_len;
 }
 
-static void push_pad (void)
+static void push_pad(void)
 {
 	while (offset & 3) {
 		putchar(0);
@@ -274,13 +274,9 @@ static int cpio_mknod(const char *name, unsigned int mode,
 static int cpio_mknod_line(const char *line)
 {
 	char name[PATH_MAX + 1];
-	unsigned int mode;
-	int uid;
-	int gid;
 	char dev_type;
-	unsigned int maj;
-	unsigned int min;
-	int rc = -1;
+	int uid, gid, rc = -1;
+	unsigned int mode, maj, min;
 
 	if (7 != sscanf(line, "%" str(PATH_MAX) "s %o %d %d %c %u %u",
 			 name, &mode, &uid, &gid, &dev_type, &maj, &min)) {
@@ -300,10 +296,8 @@ static int cpio_mkfile(const char *name, const char *location,
 	char *filebuf = NULL;
 	struct stat buf;
 	long size;
-	int file = -1;
-	int retval;
-	int rc = -1;
-	int namesize;
+	int retval, namesize;
+	int file = -1, rc = -1;
 	unsigned int i;
 
 	mode |= S_IFREG;
@@ -403,11 +397,12 @@ static int cpio_mkfile_line(const char *line)
 	char *dname = NULL; /* malloc'ed buffer for hard links */
 	char location[PATH_MAX + 1];
 	unsigned int mode;
-	int uid;
-	int gid;
-	int nlinks = 1;
-	int end = 0, dname_len = 0;
-	int rc = -1;
+	int 	uid,
+		gid,
+		nlinks = 1,
+		end = 0,
+		dname_len = 0,
+		rc = -1;
 
 	if (5 > sscanf(line, "%" str(PATH_MAX) "s %" str(PATH_MAX)
 				"s %o %d %d %n",
@@ -416,8 +411,7 @@ static int cpio_mkfile_line(const char *line)
 		goto fail;
 	}
 	if (end && isgraph(line[end])) {
-		int len;
-		int nend;
+		int len, nend;
 
 		dname = malloc(strlen(line));
 		if (!dname) {
@@ -523,12 +517,11 @@ int main (int argc, char *argv[])
 	FILE *cpio_list;
 	char line[LINE_SIZE];
 	char *args, *type;
-	int ec = 0;
-	int line_nr = 0;
+	int ec = 0, line_nr = 0;
 	const char *filename;
 
 	default_mtime = time(NULL);
-	while (1) {
+	while (true) {
 		int opt = getopt(argc, argv, "t:h");
 		char *invalid;
 
