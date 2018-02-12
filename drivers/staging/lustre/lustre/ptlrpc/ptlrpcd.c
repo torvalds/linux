@@ -230,12 +230,13 @@ void ptlrpcd_add_req(struct ptlrpc_request *req)
 
 	spin_lock(&req->rq_lock);
 	if (req->rq_invalid_rqset) {
-		struct l_wait_info lwi = LWI_TIMEOUT(5 * HZ,
-						     back_to_sleep, NULL);
-
 		req->rq_invalid_rqset = 0;
 		spin_unlock(&req->rq_lock);
-		l_wait_event(req->rq_set_waitq, !req->rq_set, &lwi);
+		if (wait_event_idle_timeout(req->rq_set_waitq,
+					    !req->rq_set,
+					    5 * HZ) == 0)
+			wait_event_idle(req->rq_set_waitq,
+					!req->rq_set);
 	} else if (req->rq_set) {
 		/* If we have a valid "rq_set", just reuse it to avoid double
 		 * linked.

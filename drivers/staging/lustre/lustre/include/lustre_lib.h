@@ -140,10 +140,6 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id);
  * XXX nikita: some ptlrpc daemon threads have races of that sort.
  *
  */
-static inline int back_to_sleep(void *arg)
-{
-	return 0;
-}
 
 #define LWI_ON_SIGNAL_NOOP ((void (*)(void *))(-1))
 

@@ -1496,7 +1496,6 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 	}
 
 	if (ptlrpc_import_in_recovery(imp)) {
-		struct l_wait_info lwi;
 		long timeout;
 
 		if (AT_OFF) {
@@ -1510,10 +1509,12 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 			timeout = at_get(&imp->imp_at.iat_service_estimate[idx]) * HZ;
 		}
 
-		lwi = LWI_TIMEOUT_INTR(cfs_timeout_cap(timeout),
-				       back_to_sleep, LWI_ON_SIGNAL_NOOP, NULL);
-		rc = l_wait_event(imp->imp_recovery_waitq,
-				  !ptlrpc_import_in_recovery(imp), &lwi);
+		if (wait_event_idle_timeout(imp->imp_recovery_waitq,
+					    !ptlrpc_import_in_recovery(imp),
+					    cfs_timeout_cap(timeout)) == 0)
+			l_wait_event_abortable(
+				imp->imp_recovery_waitq,
+				!ptlrpc_import_in_recovery(imp));
 	}
 
 	spin_lock(&imp->imp_lock);
