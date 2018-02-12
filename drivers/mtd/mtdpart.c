@@ -212,11 +212,6 @@ static int part_erase(struct mtd_info *mtd, struct erase_info *instr)
 	return ret;
 }
 
-void mtd_erase_callback(struct erase_info *instr)
-{
-}
-EXPORT_SYMBOL_GPL(mtd_erase_callback);
-
 static int part_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	struct mtd_part *part = mtd_to_part(mtd);

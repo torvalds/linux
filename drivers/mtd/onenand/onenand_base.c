@@ -2143,7 +2143,6 @@ static int onenand_multiblock_erase_verify(struct mtd_info *mtd,
 		if (ret) {
 			printk(KERN_ERR "%s: Failed verify, block %d\n",
 			       __func__, onenand_block(this, addr));
-			instr->state = MTD_ERASE_FAILED;
 			instr->fail_addr = addr;
 			return -1;
 		}
@@ -2172,8 +2171,6 @@ static int onenand_multiblock_erase(struct mtd_info *mtd,
 	int ret = 0;
 	int bdry_block = 0;
 
-	instr->state = MTD_ERASING;
-
 	if (ONENAND_IS_DDP(this)) {
 		loff_t bdry_addr = this->chipsize >> 1;
 		if (addr < bdry_addr && (addr + len) > bdry_addr)
@@ -2187,7 +2184,6 @@ static int onenand_multiblock_erase(struct mtd_info *mtd,
 			printk(KERN_WARNING "%s: attempt to erase a bad block "
 			       "at addr 0x%012llx\n",
 			       __func__, (unsigned long long) addr);
-			instr->state = MTD_ERASE_FAILED;
 			return -EIO;
 		}
 		len -= block_size;
@@ -2227,7 +2223,6 @@ static int onenand_multiblock_erase(struct mtd_info *mtd,
 				printk(KERN_ERR "%s: Failed multiblock erase, "
 				       "block %d\n", __func__,
 				       onenand_block(this, addr));
-				instr->state = MTD_ERASE_FAILED;
 				instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
 				return -EIO;
 			}
@@ -2247,7 +2242,6 @@ static int onenand_multiblock_erase(struct mtd_info *mtd,
 		if (ret) {
 			printk(KERN_ERR "%s: Failed erase, block %d\n",
 			       __func__, onenand_block(this, addr));
-			instr->state = MTD_ERASE_FAILED;
 			instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
 			return -EIO;
 		}
@@ -2259,7 +2253,6 @@ static int onenand_multiblock_erase(struct mtd_info *mtd,
 		/* verify */
 		verify_instr.len = eb_count * block_size;
 		if (onenand_multiblock_erase_verify(mtd, &verify_instr)) {
-			instr->state = verify_instr.state;
 			instr->fail_addr = verify_instr.fail_addr;
 			return -EIO;
 		}
@@ -2294,8 +2287,6 @@ static int onenand_block_by_block_erase(struct mtd_info *mtd,
 		region_end = region->offset + region->erasesize * region->numblocks;
 	}
 
-	instr->state = MTD_ERASING;
-
 	/* Loop through the blocks */
 	while (len) {
 		cond_resched();
@@ -2305,7 +2296,6 @@ static int onenand_block_by_block_erase(struct mtd_info *mtd,
 			printk(KERN_WARNING "%s: attempt to erase a bad block "
 					"at addr 0x%012llx\n",
 					__func__, (unsigned long long) addr);
-			instr->state = MTD_ERASE_FAILED;
 			return -EIO;
 		}
 
@@ -2318,7 +2308,6 @@ static int onenand_block_by_block_erase(struct mtd_info *mtd,
 		if (ret) {
 			printk(KERN_ERR "%s: Failed erase, block %d\n",
 				__func__, onenand_block(this, addr));
-			instr->state = MTD_ERASE_FAILED;
 			instr->fail_addr = addr;
 			return -EIO;
 		}
@@ -2406,12 +2395,6 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	/* Deselect and wake up anyone waiting on the device */
 	onenand_release_device(mtd);
-
-	/* Do call back function */
-	if (!ret) {
-		instr->state = MTD_ERASE_DONE;
-		mtd_erase_callback(instr);
-	}
 
 	return ret;
 }
