@@ -253,8 +253,8 @@ int orangefs_getattr(const struct path *path, struct kstat *stat,
 	struct inode *inode = path->dentry->d_inode;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "orangefs_getattr: called on %pd\n",
-		     path->dentry);
+		     "orangefs_getattr: called on %pd mask %u\n",
+		     path->dentry, request_mask);
 
 	ret = orangefs_inode_getattr(inode,
 	    request_mask & STATX_SIZE ? ORANGEFS_GETATTR_SIZE : 0);

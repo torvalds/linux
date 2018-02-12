@@ -280,12 +280,17 @@ int orangefs_inode_getattr(struct inode *inode, int flags)
 	loff_t inode_size;
 	int ret, type;
 
-	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: called on inode %pU\n", __func__,
-	    get_khandle_from_ino(inode));
+	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: called on inode %pU flags %d\n",
+	    __func__, get_khandle_from_ino(inode), flags);
 
+	spin_lock(&inode->i_lock);
 	/* Must have all the attributes in the mask and be within cache time. */
-	if (!flags && time_before(jiffies, orangefs_inode->getattr_time))
+	if ((!flags && time_before(jiffies, orangefs_inode->getattr_time)) ||
+	    inode->i_state & I_DIRTY) {
+		spin_unlock(&inode->i_lock);
 		return 0;
+	}
+	spin_unlock(&inode->i_lock);
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_GETATTR);
 	if (!new_op)
@@ -306,13 +311,23 @@ int orangefs_inode_getattr(struct inode *inode, int flags)
 	if (ret != 0)
 		goto out;
 
+	spin_lock(&inode->i_lock);
+	/* Must have all the attributes in the mask and be within cache time. */
+	if ((!flags && time_before(jiffies, orangefs_inode->getattr_time)) ||
+	    inode->i_state & I_DIRTY) {
+		gossip_debug(GOSSIP_UTILS_DEBUG, "%s: in cache or dirty\n",
+		    __func__);
+		ret = 0;
+		goto out_unlock;
+	}
+
 	if (!(flags & ORANGEFS_GETATTR_NEW)) {
 		ret = orangefs_inode_is_stale(inode,
 		    &new_op->downcall.resp.getattr.attributes,
 		    new_op->downcall.resp.getattr.link_target);
 		if (ret) {
 			ret = -ESTALE;
-			goto out;
+			goto out_unlock;
 		}
 	}
 
@@ -328,19 +343,15 @@ int orangefs_inode_getattr(struct inode *inode, int flags)
 			inode->i_size = inode_size;
 			inode->i_blkbits = ffs(new_op->downcall.resp.getattr.
 			    attributes.blksize);
-			spin_lock(&inode->i_lock);
 			inode->i_bytes = inode_size;
 			inode->i_blocks =
 			    (inode_size + 512 - inode_size % 512)/512;
-			spin_unlock(&inode->i_lock);
 		}
 		break;
 	case S_IFDIR:
 		if (flags) {
 			inode->i_size = PAGE_SIZE;
-			spin_lock(&inode->i_lock);
 			inode_set_bytes(inode, inode->i_size);
-			spin_unlock(&inode->i_lock);
 		}
 		set_nlink(inode, 1);
 		break;
@@ -353,7 +364,7 @@ int orangefs_inode_getattr(struct inode *inode, int flags)
 			    ORANGEFS_NAME_MAX);
 			if (ret == -E2BIG) {
 				ret = -EIO;
-				goto out;
+				goto out_unlock;
 			}
 			inode->i_link = orangefs_inode->link_target;
 		}
@@ -363,7 +374,7 @@ int orangefs_inode_getattr(struct inode *inode, int flags)
 		/* XXX: ESTALE?  This is what is done if it is not new. */
 		orangefs_make_bad_inode(inode);
 		ret = -ESTALE;
-		goto out;
+		goto out_unlock;
 	}
 
 	inode->i_uid = make_kuid(&init_user_ns, new_op->
@@ -387,6 +398,8 @@ int orangefs_inode_getattr(struct inode *inode, int flags)
 	orangefs_inode->getattr_time = jiffies +
 	    orangefs_getattr_timeout_msecs*HZ/1000;
 	ret = 0;
+out_unlock:
+	spin_unlock(&inode->i_lock);
 out:
 	op_release(new_op);
 	return ret;
