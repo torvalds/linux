@@ -659,7 +659,7 @@ intel_engine_flag(const struct intel_engine_cs *engine)
 }
 
 static inline u32
-intel_read_status_page(struct intel_engine_cs *engine, int reg)
+intel_read_status_page(const struct intel_engine_cs *engine, int reg)
 {
 	/* Ensure that the compiler doesn't optimize away the load. */
 	return READ_ONCE(engine->status_page.page_addr[reg]);
@@ -817,8 +817,8 @@ int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine);
 int intel_init_blt_ring_buffer(struct intel_engine_cs *engine);
 int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine);
 
-u64 intel_engine_get_active_head(struct intel_engine_cs *engine);
-u64 intel_engine_get_last_batch_head(struct intel_engine_cs *engine);
+u64 intel_engine_get_active_head(const struct intel_engine_cs *engine);
+u64 intel_engine_get_last_batch_head(const struct intel_engine_cs *engine);
 
 static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine)
 {
