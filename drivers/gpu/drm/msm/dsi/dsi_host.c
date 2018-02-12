@@ -378,11 +378,16 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 		goto exit;
 	}
 
-	msm_host->byte_intf_clk = msm_clk_get(pdev, "byte_intf");
-	if (IS_ERR(msm_host->byte_intf_clk)) {
-		ret = PTR_ERR(msm_host->byte_intf_clk);
-		pr_debug("%s: can't find byte_intf clock. ret=%d\n",
-			 __func__, ret);
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G &&
+	    cfg_hnd->minor >= MSM_DSI_6G_VER_MINOR_V2_2_1) {
+		msm_host->byte_intf_clk = msm_clk_get(pdev, "byte_intf");
+		if (IS_ERR(msm_host->byte_intf_clk)) {
+			ret = PTR_ERR(msm_host->byte_intf_clk);
+			pr_err("%s: can't find byte_intf clock. ret=%d\n",
+			        __func__, ret);
+			goto exit;
+		}
+	} else {
 		msm_host->byte_intf_clk = NULL;
 	}
 
