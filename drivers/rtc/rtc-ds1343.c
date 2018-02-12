@@ -599,14 +599,10 @@ static const struct rtc_class_ops ds1343_rtc_ops = {
 static int ds1343_probe(struct spi_device *spi)
 {
 	struct ds1343_priv *priv;
-	struct regmap_config config;
+	struct regmap_config config = { .reg_bits = 8, .val_bits = 8,
+					.write_flag_mask = 0x80, };
 	unsigned int data;
 	int res;
-
-	memset(&config, 0, sizeof(config));
-	config.reg_bits = 8;
-	config.val_bits = 8;
-	config.write_flag_mask = 0x80;
 
 	priv = devm_kzalloc(&spi->dev, sizeof(struct ds1343_priv), GFP_KERNEL);
 	if (!priv)
