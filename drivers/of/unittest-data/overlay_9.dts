@@ -2,14 +2,9 @@
 /dts-v1/;
 /plugin/;
 
-/ {
-	/* overlay_9 */
-	/* overlays 8, 9, 10, 11 application and removal in bad sequence */
+/* overlay_9 */
+/* overlays 8, 9, 10, 11 application and removal in bad sequence */
 
-	fragment@0 {
-		target-path = "/testcase-data/overlay-node/test-bus/test-unittest8";
-		__overlay__ {
-			property-foo = "bar";
-		};
-	};
+&unittest8 {
+	property-foo = "bar";
 };

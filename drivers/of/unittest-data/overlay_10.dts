@@ -2,33 +2,26 @@
 /dts-v1/;
 /plugin/;
 
-/ {
-	/* overlay_10 */
-	/* overlays 8, 9, 10, 11 application and removal in bad sequence */
+/* overlay_10 */
+/* overlays 8, 9, 10, 11 application and removal in bad sequence */
 
-	fragment@0 {
-		target-path = "/testcase-data/overlay-node/test-bus";
-		__overlay__ {
+&unittest_test_bus {
+	/* suppress DTC warning */
+	#address-cells = <1>;
+	#size-cells = <0>;
 
-			/* suppress DTC warning */
-			#address-cells = <1>;
-			#size-cells = <0>;
+	test-unittest10 {
+		compatible = "unittest";
+		status = "okay";
+		reg = <10>;
 
-			test-unittest10 {
-				compatible = "unittest";
-				status = "okay";
-				reg = <10>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				test-unittest101 {
-					compatible = "unittest";
-					status = "okay";
-					reg = <1>;
-				};
-
-			};
+		test-unittest101 {
+			compatible = "unittest";
+			status = "okay";
+			reg = <1>;
 		};
 	};
 };

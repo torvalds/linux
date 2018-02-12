@@ -2,22 +2,17 @@
 /dts-v1/;
 /plugin/;
 
-/ {
-	/* overlay_4 - test insertion of a full node */
+/* overlay_4 - test insertion of a full node */
 
-	fragment@0 {
-		target = <&unittestbus>;
-		__overlay__ {
+&unittest_test_bus {
 
-			/* suppress DTC warning */
-			#address-cells = <1>;
-			#size-cells = <0>;
+	/* suppress DTC warning */
+	#address-cells = <1>;
+	#size-cells = <0>;
 
-			test-unittest4 {
-				compatible = "unittest";
-				status = "okay";
-				reg = <4>;
-			};
-		};
+	test-unittest4 {
+		compatible = "unittest";
+		status = "okay";
+		reg = <4>;
 	};
 };

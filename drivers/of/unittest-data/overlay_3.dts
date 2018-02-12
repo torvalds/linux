@@ -2,13 +2,8 @@
 /dts-v1/;
 /plugin/;
 
-/ {
-	/* overlay_3 - disable using label */
+/* overlay_3 - disable using label */
 
-	fragment@0 {
-		target = <&unittest3>;
-		__overlay__ {
-			status = "disabled";
-		};
-	};
+&unittest3 {
+	status = "disabled";
 };
