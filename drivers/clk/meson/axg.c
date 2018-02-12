@@ -447,13 +447,14 @@ static struct clk_divider axg_mpeg_clk_div = {
 	},
 };
 
-static struct clk_gate axg_clk81 = {
-	.reg = (void *)HHI_MPEG_CLK_CNTL,
-	.bit_idx = 7,
-	.lock = &meson_clk_lock,
+static struct clk_regmap axg_clk81 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPEG_CLK_CNTL,
+		.bit_idx = 7,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "clk81",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "mpeg_clk_div" },
 		.num_parents = 1,
 		.flags = (CLK_SET_RATE_PARENT | CLK_IS_CRITICAL),
@@ -501,13 +502,14 @@ static struct clk_divider axg_sd_emmc_b_clk0_div = {
 	},
 };
 
-static struct clk_gate axg_sd_emmc_b_clk0 = {
-	.reg = (void *)HHI_SD_EMMC_CLK_CNTL,
-	.bit_idx = 23,
-	.lock = &meson_clk_lock,
+static struct clk_regmap axg_sd_emmc_b_clk0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_SD_EMMC_CLK_CNTL,
+		.bit_idx = 23,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sd_emmc_b_clk0",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "sd_emmc_b_clk0_div" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -544,13 +546,14 @@ static struct clk_divider axg_sd_emmc_c_clk0_div = {
 	},
 };
 
-static struct clk_gate axg_sd_emmc_c_clk0 = {
-	.reg = (void *)HHI_NAND_CLK_CNTL,
-	.bit_idx = 7,
-	.lock = &meson_clk_lock,
+static struct clk_regmap axg_sd_emmc_c_clk0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_NAND_CLK_CNTL,
+		.bit_idx = 7,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sd_emmc_c_clk0",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "sd_emmc_c_clk0_div" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -697,7 +700,19 @@ static struct meson_clk_mpll *const axg_clk_mplls[] = {
 	&axg_mpll3,
 };
 
-static struct clk_gate *const axg_clk_gates[] = {
+static struct clk_mux *const axg_clk_muxes[] = {
+	&axg_mpeg_clk_sel,
+	&axg_sd_emmc_b_clk0_sel,
+	&axg_sd_emmc_c_clk0_sel,
+};
+
+static struct clk_divider *const axg_clk_dividers[] = {
+	&axg_mpeg_clk_div,
+	&axg_sd_emmc_b_clk0_div,
+	&axg_sd_emmc_c_clk0_div,
+};
+
+static struct clk_regmap *const axg_clk_regmaps[] = {
 	&axg_clk81,
 	&axg_ddr,
 	&axg_audio_locker,
@@ -747,21 +762,7 @@ static struct clk_gate *const axg_clk_gates[] = {
 	&axg_sd_emmc_c_clk0,
 };
 
-static struct clk_mux *const axg_clk_muxes[] = {
-	&axg_mpeg_clk_sel,
-	&axg_sd_emmc_b_clk0_sel,
-	&axg_sd_emmc_c_clk0_sel,
-};
-
-static struct clk_divider *const axg_clk_dividers[] = {
-	&axg_mpeg_clk_div,
-	&axg_sd_emmc_b_clk0_div,
-	&axg_sd_emmc_c_clk0_div,
-};
-
 struct clkc_data {
-	struct clk_gate *const *clk_gates;
-	unsigned int clk_gates_count;
 	struct meson_clk_mpll *const *clk_mplls;
 	unsigned int clk_mplls_count;
 	struct meson_clk_pll *const *clk_plls;
@@ -774,8 +775,6 @@ struct clkc_data {
 };
 
 static const struct clkc_data axg_clkc_data = {
-	.clk_gates = axg_clk_gates,
-	.clk_gates_count = ARRAY_SIZE(axg_clk_gates),
 	.clk_mplls = axg_clk_mplls,
 	.clk_mplls_count = ARRAY_SIZE(axg_clk_mplls),
 	.clk_plls = axg_clk_plls,
@@ -834,11 +833,6 @@ static int axg_clkc_probe(struct platform_device *pdev)
 	for (i = 0; i < clkc_data->clk_mplls_count; i++)
 		clkc_data->clk_mplls[i]->base = clk_base;
 
-	/* Populate base address for gates */
-	for (i = 0; i < clkc_data->clk_gates_count; i++)
-		clkc_data->clk_gates[i]->reg = clk_base +
-			(u64)clkc_data->clk_gates[i]->reg;
-
 	/* Populate base address for muxes */
 	for (i = 0; i < clkc_data->clk_muxes_count; i++)
 		clkc_data->clk_muxes[i]->reg = clk_base +
@@ -848,6 +842,10 @@ static int axg_clkc_probe(struct platform_device *pdev)
 	for (i = 0; i < clkc_data->clk_dividers_count; i++)
 		clkc_data->clk_dividers[i]->reg = clk_base +
 			(u64)clkc_data->clk_dividers[i]->reg;
+
+	/* Populate regmap for the regmap backed clocks */
+	for (i = 0; i < ARRAY_SIZE(axg_clk_regmaps); i++)
+		axg_clk_regmaps[i]->map = map;
 
 	for (i = 0; i < clkc_data->hw_onecell_data->num; i++) {
 		/* array might be sparse */

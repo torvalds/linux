@@ -18,6 +18,9 @@
 #ifndef __CLKC_H
 #define __CLKC_H
 
+#include <linux/clk-provider.h>
+#include "clk-regmap.h"
+
 #define PMASK(width)			GENMASK(width - 1, 0)
 #define SETPMASK(width, shift)		GENMASK(shift + width - 1, shift)
 #define CLRPMASK(width, shift)		(~SETPMASK(width, shift))
@@ -134,16 +137,17 @@ struct meson_clk_audio_divider {
 };
 
 #define MESON_GATE(_name, _reg, _bit)					\
-struct clk_gate _name = { 						\
-	.reg = (void __iomem *) _reg, 					\
-	.bit_idx = (_bit), 						\
-	.lock = &meson_clk_lock,					\
-	.hw.init = &(struct clk_init_data) { 				\
-		.name = #_name,					\
-		.ops = &clk_gate_ops,					\
+struct clk_regmap _name = {						\
+	.data = &(struct clk_regmap_gate_data){				\
+		.offset = (_reg),					\
+		.bit_idx = (_bit),					\
+	},								\
+	.hw.init = &(struct clk_init_data) {				\
+		.name = #_name,						\
+		.ops = &clk_regmap_gate_ops,				\
 		.parent_names = (const char *[]){ "clk81" },		\
 		.num_parents = 1,					\
-		.flags = (CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED), 	\
+		.flags = (CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED),	\
 	},								\
 };
 
