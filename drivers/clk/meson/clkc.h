@@ -142,12 +142,9 @@ struct meson_clk_mpll_data {
 	spinlock_t *lock;
 };
 
-struct meson_clk_audio_divider {
-	struct clk_hw hw;
-	void __iomem *base;
+struct meson_clk_audio_div_data {
 	struct parm div;
 	u8 flags;
-	spinlock_t *lock;
 };
 
 #define MESON_GATE(_name, _reg, _bit)					\

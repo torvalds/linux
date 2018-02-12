@@ -826,14 +826,15 @@ static struct clk_regmap gxbb_cts_amclk_sel = {
 	},
 };
 
-static struct meson_clk_audio_divider gxbb_cts_amclk_div = {
-	.div = {
-		.reg_off = HHI_AUD_CLK_CNTL,
-		.shift   = 0,
-		.width   = 8,
+static struct clk_regmap gxbb_cts_amclk_div = {
+	.data = &(struct meson_clk_audio_div_data){
+		.div = {
+			.reg_off = HHI_AUD_CLK_CNTL,
+			.shift   = 0,
+			.width   = 8,
+		},
+		.flags = CLK_DIVIDER_ROUND_CLOSEST,
 	},
-	.flags = CLK_DIVIDER_ROUND_CLOSEST,
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "cts_amclk_div",
 		.ops = &meson_clk_audio_divider_ops,
@@ -1777,10 +1778,6 @@ static struct meson_clk_pll *const gxl_clk_plls[] = {
 	&gxl_gp0_pll,
 };
 
-static struct meson_clk_audio_divider *const gxbb_audio_dividers[] = {
-	&gxbb_cts_amclk_div,
-};
-
 static struct clk_regmap *const gx_clk_regmaps[] = {
 	&gxbb_clk81,
 	&gxbb_ddr,
@@ -1912,29 +1909,24 @@ static struct clk_regmap *const gx_clk_regmaps[] = {
 	&gxbb_mpll0,
 	&gxbb_mpll1,
 	&gxbb_mpll2,
+	&gxbb_cts_amclk_div,
 };
 
 struct clkc_data {
 	struct meson_clk_pll *const *clk_plls;
 	unsigned int clk_plls_count;
-	struct meson_clk_audio_divider *const *clk_audio_dividers;
-	unsigned int clk_audio_dividers_count;
 	struct clk_hw_onecell_data *hw_onecell_data;
 };
 
 static const struct clkc_data gxbb_clkc_data = {
 	.clk_plls = gxbb_clk_plls,
 	.clk_plls_count = ARRAY_SIZE(gxbb_clk_plls),
-	.clk_audio_dividers = gxbb_audio_dividers,
-	.clk_audio_dividers_count = ARRAY_SIZE(gxbb_audio_dividers),
 	.hw_onecell_data = &gxbb_hw_onecell_data,
 };
 
 static const struct clkc_data gxl_clkc_data = {
 	.clk_plls = gxl_clk_plls,
 	.clk_plls_count = ARRAY_SIZE(gxl_clk_plls),
-	.clk_audio_dividers = gxbb_audio_dividers,
-	.clk_audio_dividers_count = ARRAY_SIZE(gxbb_audio_dividers),
 	.hw_onecell_data = &gxl_hw_onecell_data,
 };
 
@@ -1980,10 +1972,6 @@ static int gxbb_clkc_probe(struct platform_device *pdev)
 	/* Populate base address for PLLs */
 	for (i = 0; i < clkc_data->clk_plls_count; i++)
 		clkc_data->clk_plls[i]->base = clk_base;
-
-	/* Populate base address for the audio dividers */
-	for (i = 0; i < clkc_data->clk_audio_dividers_count; i++)
-		clkc_data->clk_audio_dividers[i]->base = clk_base;
 
 	/* Populate regmap for the common regmap backed clocks */
 	for (i = 0; i < ARRAY_SIZE(gx_clk_regmaps); i++)
