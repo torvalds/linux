@@ -106,7 +106,7 @@ struct axp288_extcon_info {
 };
 
 /* Power up/down reason string array */
-static char *axp288_pwr_up_down_info[] = {
+static const char * const axp288_pwr_up_down_info[] = {
 	"Last wake caused by user pressing the power button",
 	"Last wake caused by a charger insertion",
 	"Last wake caused by a battery insertion",
@@ -124,7 +124,7 @@ static char *axp288_pwr_up_down_info[] = {
  */
 static void axp288_extcon_log_rsi(struct axp288_extcon_info *info)
 {
-	char **rsi;
+	const char * const *rsi;
 	unsigned int val, i, clear_mask = 0;
 	int ret;
 
