@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
@@ -850,24 +851,40 @@ static int axg_clkc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
-	void __iomem *clk_base;
+	void __iomem *clk_base = NULL;
 	struct regmap *map;
 	int ret, i;
 
-	/*  Generic clocks and PLLs */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
+	/* Get the hhi system controller node if available */
+	map = syscon_node_to_regmap(of_get_parent(dev->of_node));
+	if (IS_ERR(map)) {
+		dev_err(dev,
+			"failed to get HHI regmap - Trying obsolete regs\n");
 
-	clk_base = devm_ioremap(dev, res->start, resource_size(res));
-	if (!clk_base) {
-		dev_err(dev, "Unable to map clk base\n");
-		return -ENXIO;
+		/*
+		 * FIXME: HHI registers should be accessed through
+		 * the appropriate system controller. This is required because
+		 * there is more than just clocks in this register space
+		 *
+		 * This fallback method is only provided temporarily until
+		 * all the platform DTs are properly using the syscon node
+		 */
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!res)
+			return -EINVAL;
+
+
+		clk_base = devm_ioremap(dev, res->start, resource_size(res));
+		if (!clk_base) {
+			dev_err(dev, "Unable to map clk base\n");
+			return -ENXIO;
+		}
+
+		map = devm_regmap_init_mmio(dev, clk_base,
+					    &clkc_regmap_config);
+		if (IS_ERR(map))
+			return PTR_ERR(map);
 	}
-
-	map = devm_regmap_init_mmio(dev, clk_base, &clkc_regmap_config);
-	if (IS_ERR(map))
-		return PTR_ERR(map);
 
 	/* Populate regmap for the regmap backed clocks */
 	for (i = 0; i < ARRAY_SIZE(axg_clk_regmaps); i++)
