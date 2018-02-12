@@ -84,21 +84,23 @@ static void rtc_nvram_unregister(struct rtc_device *rtc)
 /*
  * New ABI, uses nvmem
  */
-void rtc_nvmem_register(struct rtc_device *rtc,
-			struct nvmem_config *nvmem_config)
+int rtc_nvmem_register(struct rtc_device *rtc,
+		       struct nvmem_config *nvmem_config)
 {
 	if (!nvmem_config)
-		return;
+		return -ENODEV;
 
 	nvmem_config->dev = &rtc->dev;
 	nvmem_config->owner = rtc->owner;
 	rtc->nvmem = nvmem_register(nvmem_config);
 	if (IS_ERR_OR_NULL(rtc->nvmem))
-		return;
+		return PTR_ERR(rtc->nvmem);
 
 	/* Register the old ABI */
 	if (rtc->nvram_old_abi)
 		rtc_nvram_register(rtc, nvmem_config->size);
+
+	return 0;
 }
 
 void rtc_nvmem_unregister(struct rtc_device *rtc)
