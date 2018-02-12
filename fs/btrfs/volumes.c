@@ -2666,19 +2666,6 @@ error:
 	return ret;
 }
 
-void btrfs_init_dev_replace_tgtdev_for_resume(struct btrfs_fs_info *fs_info,
-					      struct btrfs_device *tgtdev)
-{
-	u32 sectorsize = fs_info->sectorsize;
-
-	WARN_ON(fs_info->fs_devices->rw_devices == 0);
-	tgtdev->io_width = sectorsize;
-	tgtdev->io_align = sectorsize;
-	tgtdev->sector_size = sectorsize;
-	tgtdev->fs_info = fs_info;
-	set_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &tgtdev->dev_state);
-}
-
 static noinline int btrfs_update_device(struct btrfs_trans_handle *trans,
 					struct btrfs_device *device)
 {
