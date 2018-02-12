@@ -1696,6 +1696,11 @@ read_rtc:
 		}
 	}
 
+	ds1307->rtc->ops = chip->rtc_ops ?: &ds13xx_rtc_ops;
+	err = rtc_register_device(ds1307->rtc);
+	if (err)
+		return err;
+
 	if (chip->nvram_size) {
 		ds1307->nvmem_cfg.name = "ds1307_nvram";
 		ds1307->nvmem_cfg.word_size = 1;
@@ -1705,14 +1710,9 @@ read_rtc:
 		ds1307->nvmem_cfg.reg_write = ds1307_nvram_write;
 		ds1307->nvmem_cfg.priv = ds1307;
 
-		ds1307->rtc->nvmem_config = &ds1307->nvmem_cfg;
 		ds1307->rtc->nvram_old_abi = true;
+		rtc_nvmem_register(ds1307->rtc, &ds1307->nvmem_cfg);
 	}
-
-	ds1307->rtc->ops = chip->rtc_ops ?: &ds13xx_rtc_ops;
-	err = rtc_register_device(ds1307->rtc);
-	if (err)
-		return err;
 
 	ds1307_hwmon_register(ds1307);
 	ds1307_clks_register(ds1307);
