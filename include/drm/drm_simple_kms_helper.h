@@ -107,6 +107,24 @@ struct drm_simple_display_pipe_funcs {
 	 */
 	void (*cleanup_fb)(struct drm_simple_display_pipe *pipe,
 			   struct drm_plane_state *plane_state);
+
+	/**
+	 * @enable_vblank:
+	 *
+	 * Optional, called by &drm_crtc_funcs.enable_vblank. Please read
+	 * the documentation for the &drm_crtc_funcs.enable_vblank hook for
+	 * more details.
+	 */
+	int (*enable_vblank)(struct drm_simple_display_pipe *pipe);
+
+	/**
+	 * @disable_vblank:
+	 *
+	 * Optional, called by &drm_crtc_funcs.disable_vblank. Please read
+	 * the documentation for the &drm_crtc_funcs.disable_vblank hook for
+	 * more details.
+	 */
+	void (*disable_vblank)(struct drm_simple_display_pipe *pipe);
 };
 
 /**

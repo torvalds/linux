@@ -92,6 +92,28 @@ static const struct drm_crtc_helper_funcs drm_simple_kms_crtc_helper_funcs = {
 	.atomic_disable = drm_simple_kms_crtc_disable,
 };
 
+static int drm_simple_kms_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(crtc, struct drm_simple_display_pipe, crtc);
+	if (!pipe->funcs || !pipe->funcs->enable_vblank)
+		return 0;
+
+	return pipe->funcs->enable_vblank(pipe);
+}
+
+static void drm_simple_kms_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(crtc, struct drm_simple_display_pipe, crtc);
+	if (!pipe->funcs || !pipe->funcs->disable_vblank)
+		return;
+
+	pipe->funcs->disable_vblank(pipe);
+}
+
 static const struct drm_crtc_funcs drm_simple_kms_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.destroy = drm_crtc_cleanup,
@@ -99,6 +121,8 @@ static const struct drm_crtc_funcs drm_simple_kms_crtc_funcs = {
 	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank = drm_simple_kms_crtc_enable_vblank,
+	.disable_vblank = drm_simple_kms_crtc_disable_vblank,
 };
 
 static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
