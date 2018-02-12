@@ -5,10 +5,6 @@
  * Copyright (C) 2011 Google, Inc.
  */
 
-#include <linux/debugfs.h>
-#include <linux/dma-mapping.h>
-#include <linux/err.h>
-#include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/slab.h>
