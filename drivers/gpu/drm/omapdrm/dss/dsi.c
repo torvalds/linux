@@ -5299,9 +5299,10 @@ static const struct soc_device_attribute dsi_soc_devices[] = {
 	{ .machine = "AM35*",		.data = &dsi_of_data_omap34xx },
 	{ /* sentinel */ }
 };
+
 static int dsi_bind(struct device *dev, struct device *master, void *data)
 {
-	struct platform_device *dsidev = to_platform_device(dev);
+	struct platform_device *pdev = to_platform_device(dev);
 	struct dss_device *dss = dss_get_device(master);
 	const struct soc_device_attribute *soc;
 	const struct dsi_module_id_data *d;
@@ -5311,13 +5312,13 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	struct resource *dsi_mem;
 	struct resource *res;
 
-	dsi = devm_kzalloc(&dsidev->dev, sizeof(*dsi), GFP_KERNEL);
+	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
 		return -ENOMEM;
 
 	dsi->dss = dss;
-	dsi->pdev = dsidev;
-	dev_set_drvdata(&dsidev->dev, dsi);
+	dsi->pdev = pdev;
+	dev_set_drvdata(dev, dsi);
 
 	spin_lock_init(&dsi->irq_lock);
 	spin_lock_init(&dsi->errors_lock);
@@ -5338,29 +5339,29 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	timer_setup(&dsi->te_timer, dsi_te_timeout, 0);
 #endif
 
-	dsi_mem = platform_get_resource_byname(dsidev, IORESOURCE_MEM, "proto");
-	dsi->proto_base = devm_ioremap_resource(&dsidev->dev, dsi_mem);
+	dsi_mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "proto");
+	dsi->proto_base = devm_ioremap_resource(dev, dsi_mem);
 	if (IS_ERR(dsi->proto_base))
 		return PTR_ERR(dsi->proto_base);
 
-	res = platform_get_resource_byname(dsidev, IORESOURCE_MEM, "phy");
-	dsi->phy_base = devm_ioremap_resource(&dsidev->dev, res);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
+	dsi->phy_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(dsi->phy_base))
 		return PTR_ERR(dsi->phy_base);
 
-	res = platform_get_resource_byname(dsidev, IORESOURCE_MEM, "pll");
-	dsi->pll_base = devm_ioremap_resource(&dsidev->dev, res);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pll");
+	dsi->pll_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(dsi->pll_base))
 		return PTR_ERR(dsi->pll_base);
 
-	dsi->irq = platform_get_irq(dsi->pdev, 0);
+	dsi->irq = platform_get_irq(pdev, 0);
 	if (dsi->irq < 0) {
 		DSSERR("platform_get_irq failed\n");
 		return -ENODEV;
 	}
 
-	r = devm_request_irq(&dsidev->dev, dsi->irq, omap_dsi_irq_handler,
-			     IRQF_SHARED, dev_name(&dsidev->dev), dsi);
+	r = devm_request_irq(dev, dsi->irq, omap_dsi_irq_handler,
+			     IRQF_SHARED, dev_name(dev), dsi);
 	if (r < 0) {
 		DSSERR("request_irq failed\n");
 		return r;
@@ -5414,14 +5415,14 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 
 	dsi_init_pll_data(dss, dsi);
 
-	pm_runtime_enable(&dsidev->dev);
+	pm_runtime_enable(dev);
 
 	r = dsi_runtime_get(dsi);
 	if (r)
 		goto err_runtime_get;
 
 	rev = dsi_read_reg(dsi, DSI_REVISION);
-	dev_dbg(&dsidev->dev, "OMAP DSI rev %d.%d\n",
+	dev_dbg(dev, "OMAP DSI rev %d.%d\n",
 	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
 
 	/* DSI on OMAP3 doesn't have register DSI_GNQ, set number
@@ -5442,7 +5443,7 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 		goto err_probe_of;
 	}
 
-	r = of_platform_populate(dsidev->dev.of_node, NULL, NULL, &dsidev->dev);
+	r = of_platform_populate(dev->of_node, NULL, NULL, dev);
 	if (r)
 		DSSERR("Failed to populate DSI child devices: %d\n", r);
 
@@ -5474,7 +5475,7 @@ err_probe_of:
 	dsi_runtime_put(dsi);
 
 err_runtime_get:
-	pm_runtime_disable(&dsidev->dev);
+	pm_runtime_disable(dev);
 	return r;
 }
 
