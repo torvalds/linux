@@ -23,6 +23,7 @@ extern void reloc_got2(unsigned long);
 #define PTRRELOC(x)	((typeof(x)) add_reloc_offset((unsigned long)(x)))
 
 void check_for_initrd(void);
+void mem_topology_setup(void);
 void initmem_init(void);
 void setup_panic(void);
 #define ARCH_PANIC_TIMEOUT 180

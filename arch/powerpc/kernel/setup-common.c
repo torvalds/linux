@@ -888,6 +888,9 @@ void __init setup_arch(char **cmdline_p)
 	/* Check the SMT related command line arguments (ppc64). */
 	check_smt_enabled();
 
+	/* Parse memory topology */
+	mem_topology_setup();
+
 	/* On BookE, setup per-core TLB data structures. */
 	setup_tlb_core_data();
 

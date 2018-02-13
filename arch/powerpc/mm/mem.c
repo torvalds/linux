@@ -212,7 +212,7 @@ walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 EXPORT_SYMBOL_GPL(walk_system_ram_range);
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
-void __init initmem_init(void)
+void __init mem_topology_setup(void)
 {
 	max_low_pfn = max_pfn = memblock_end_of_DRAM() >> PAGE_SHIFT;
 	min_low_pfn = MEMORY_START >> PAGE_SHIFT;
@@ -224,7 +224,10 @@ void __init initmem_init(void)
 	 * memblock_regions
 	 */
 	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
+}
 
+void __init initmem_init(void)
+{
 	/* XXX need to clip this if using highmem? */
 	sparse_memory_present_with_active_regions(0);
 	sparse_init();
