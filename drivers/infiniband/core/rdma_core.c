@@ -486,12 +486,13 @@ int rdma_explicit_destroy(struct ib_uobject *uobject)
 	ret = uobject->type->type_class->remove_commit(uobject,
 						       RDMA_REMOVE_DESTROY);
 	if (ret)
-		return ret;
+		goto out;
 
 	uobject->type = &null_obj_type;
 
+out:
 	up_read(&ucontext->cleanup_rwsem);
-	return 0;
+	return ret;
 }
 
 static void alloc_commit_idr_uobject(struct ib_uobject *uobj)
