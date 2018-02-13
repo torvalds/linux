@@ -323,7 +323,8 @@ static int uverbs_create_cq_handler(struct ib_device *ib_dev,
 	cq->res.type = RDMA_RESTRACK_CQ;
 	rdma_restrack_add(&cq->res);
 
-	ret = uverbs_copy_to(attrs, CREATE_CQ_RESP_CQE, &cq->cqe);
+	ret = uverbs_copy_to(attrs, CREATE_CQ_RESP_CQE, &cq->cqe,
+			     sizeof(cq->cqe));
 	if (ret)
 		goto err_cq;
 
@@ -375,7 +376,7 @@ static int uverbs_destroy_cq_handler(struct ib_device *ib_dev,
 	resp.comp_events_reported  = obj->comp_events_reported;
 	resp.async_events_reported = obj->async_events_reported;
 
-	return uverbs_copy_to(attrs, DESTROY_CQ_RESP, &resp);
+	return uverbs_copy_to(attrs, DESTROY_CQ_RESP, &resp, sizeof(resp));
 }
 
 static DECLARE_UVERBS_METHOD(
