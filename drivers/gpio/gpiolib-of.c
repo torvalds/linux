@@ -263,7 +263,7 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 		desc = of_find_spi_gpio(dev, con_id, &of_flags);
 
 	/* Special handling for regulator GPIOs if used */
-	if (IS_ERR(desc))
+	if (IS_ERR(desc) && PTR_ERR(desc) != -EPROBE_DEFER)
 		desc = of_find_regulator_gpio(dev, con_id, &of_flags);
 
 	if (IS_ERR(desc))
