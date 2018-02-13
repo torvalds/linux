@@ -34,23 +34,23 @@ fib_unreg_unicast_test()
 
 	netns_create "testns"
 
-	ip netns exec testns ip link add dummy0 type dummy
-	ip netns exec testns ip link set dev dummy0 up
+	ip -netns testns link add dummy0 type dummy
+	ip -netns testns link set dev dummy0 up
 
-	ip netns exec testns ip address add 198.51.100.1/24 dev dummy0
-	ip netns exec testns ip -6 address add 2001:db8:1::1/64 dev dummy0
+	ip -netns testns address add 198.51.100.1/24 dev dummy0
+	ip -netns testns -6 address add 2001:db8:1::1/64 dev dummy0
 
-	ip netns exec testns ip route get fibmatch 198.51.100.2 &> /dev/null
+	ip -netns testns route get fibmatch 198.51.100.2 &> /dev/null
 	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 &> /dev/null
-	check_err $?
-
-	ip netns exec testns ip link del dev dummy0
+	ip -netns testns -6 route get fibmatch 2001:db8:1::2 &> /dev/null
 	check_err $?
 
-	ip netns exec testns ip route get fibmatch 198.51.100.2 &> /dev/null
+	ip -netns testns link del dev dummy0
+	check_err $?
+
+	ip -netns testns route get fibmatch 198.51.100.2 &> /dev/null
 	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 &> /dev/null
+	ip -netns testns -6 route get fibmatch 2001:db8:1::2 &> /dev/null
 	check_fail $?
 
 	ip netns del testns
@@ -68,40 +68,40 @@ fib_unreg_multipath_test()
 
 	netns_create "testns"
 
-	ip netns exec testns ip link add dummy0 type dummy
-	ip netns exec testns ip link set dev dummy0 up
+	ip -netns testns link add dummy0 type dummy
+	ip -netns testns link set dev dummy0 up
 
-	ip netns exec testns ip link add dummy1 type dummy
-	ip netns exec testns ip link set dev dummy1 up
+	ip -netns testns link add dummy1 type dummy
+	ip -netns testns link set dev dummy1 up
 
-	ip netns exec testns ip address add 198.51.100.1/24 dev dummy0
-	ip netns exec testns ip -6 address add 2001:db8:1::1/64 dev dummy0
+	ip -netns testns address add 198.51.100.1/24 dev dummy0
+	ip -netns testns -6 address add 2001:db8:1::1/64 dev dummy0
 
-	ip netns exec testns ip address add 192.0.2.1/24 dev dummy1
-	ip netns exec testns ip -6 address add 2001:db8:2::1/64 dev dummy1
+	ip -netns testns address add 192.0.2.1/24 dev dummy1
+	ip -netns testns -6 address add 2001:db8:2::1/64 dev dummy1
 
-	ip netns exec testns ip route add 203.0.113.0/24 \
+	ip -netns testns route add 203.0.113.0/24 \
 		nexthop via 198.51.100.2 dev dummy0 \
 		nexthop via 192.0.2.2 dev dummy1
-	ip netns exec testns ip -6 route add 2001:db8:3::/64 \
+	ip -netns testns -6 route add 2001:db8:3::/64 \
 		nexthop via 2001:db8:1::2 dev dummy0 \
 		nexthop via 2001:db8:2::2 dev dummy1
 
-	ip netns exec testns ip route get fibmatch 203.0.113.1 &> /dev/null
+	ip -netns testns route get fibmatch 203.0.113.1 &> /dev/null
 	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:3::1 &> /dev/null
-	check_err $?
-
-	ip netns exec testns ip link del dev dummy0
+	ip -netns testns -6 route get fibmatch 2001:db8:3::1 &> /dev/null
 	check_err $?
 
-	ip netns exec testns ip route get fibmatch 203.0.113.1 &> /dev/null
+	ip -netns testns link del dev dummy0
+	check_err $?
+
+	ip -netns testns route get fibmatch 203.0.113.1 &> /dev/null
 	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:3::1 &> /dev/null
+	ip -netns testns -6 route get fibmatch 2001:db8:3::1 &> /dev/null
 	# In IPv6 we do not flush the entire multipath route.
 	check_err $?
 
-	ip netns exec testns ip link del dev dummy1
+	ip -netns testns link del dev dummy1
 
 	ip netns del testns
 
@@ -126,26 +126,26 @@ fib_down_unicast_test()
 
 	netns_create "testns"
 
-	ip netns exec testns ip link add dummy0 type dummy
-	ip netns exec testns ip link set dev dummy0 up
+	ip -netns testns link add dummy0 type dummy
+	ip -netns testns link set dev dummy0 up
 
-	ip netns exec testns ip address add 198.51.100.1/24 dev dummy0
-	ip netns exec testns ip -6 address add 2001:db8:1::1/64 dev dummy0
+	ip -netns testns address add 198.51.100.1/24 dev dummy0
+	ip -netns testns -6 address add 2001:db8:1::1/64 dev dummy0
 
-	ip netns exec testns ip route get fibmatch 198.51.100.2 &> /dev/null
+	ip -netns testns route get fibmatch 198.51.100.2 &> /dev/null
 	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 &> /dev/null
-	check_err $?
-
-	ip netns exec testns ip link set dev dummy0 down
+	ip -netns testns -6 route get fibmatch 2001:db8:1::2 &> /dev/null
 	check_err $?
 
-	ip netns exec testns ip route get fibmatch 198.51.100.2 &> /dev/null
+	ip -netns testns link set dev dummy0 down
+	check_err $?
+
+	ip -netns testns route get fibmatch 198.51.100.2 &> /dev/null
 	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 &> /dev/null
+	ip -netns testns -6 route get fibmatch 2001:db8:1::2 &> /dev/null
 	check_fail $?
 
-	ip netns exec testns ip link del dev dummy0
+	ip -netns testns link del dev dummy0
 
 	ip netns del testns
 
@@ -161,31 +161,31 @@ fib_down_multipath_test_do()
 	local down_dev=$1
 	local up_dev=$2
 
-	ip netns exec testns ip route get fibmatch 203.0.113.1 \
+	ip -netns testns route get fibmatch 203.0.113.1 \
 		oif $down_dev &> /dev/null
 	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:3::1 \
+	ip -netns testns -6 route get fibmatch 2001:db8:3::1 \
 		oif $down_dev &> /dev/null
 	check_fail $?
 
-	ip netns exec testns ip route get fibmatch 203.0.113.1 \
+	ip -netns testns route get fibmatch 203.0.113.1 \
 		oif $up_dev &> /dev/null
 	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:3::1 \
+	ip -netns testns -6 route get fibmatch 2001:db8:3::1 \
 		oif $up_dev &> /dev/null
 	check_err $?
 
-	ip netns exec testns ip route get fibmatch 203.0.113.1 | \
+	ip -netns testns route get fibmatch 203.0.113.1 | \
 		grep $down_dev | grep -q "dead linkdown"
 	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:3::1 | \
+	ip -netns testns -6 route get fibmatch 2001:db8:3::1 | \
 		grep $down_dev | grep -q "dead linkdown"
 	check_err $?
 
-	ip netns exec testns ip route get fibmatch 203.0.113.1 | \
+	ip -netns testns route get fibmatch 203.0.113.1 | \
 		grep $up_dev | grep -q "dead linkdown"
 	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:3::1 | \
+	ip -netns testns -6 route get fibmatch 2001:db8:3::1 | \
 		grep $up_dev | grep -q "dead linkdown"
 	check_fail $?
 }
@@ -196,52 +196,52 @@ fib_down_multipath_test()
 
 	netns_create "testns"
 
-	ip netns exec testns ip link add dummy0 type dummy
-	ip netns exec testns ip link set dev dummy0 up
+	ip -netns testns link add dummy0 type dummy
+	ip -netns testns link set dev dummy0 up
 
-	ip netns exec testns ip link add dummy1 type dummy
-	ip netns exec testns ip link set dev dummy1 up
+	ip -netns testns link add dummy1 type dummy
+	ip -netns testns link set dev dummy1 up
 
-	ip netns exec testns ip address add 198.51.100.1/24 dev dummy0
-	ip netns exec testns ip -6 address add 2001:db8:1::1/64 dev dummy0
+	ip -netns testns address add 198.51.100.1/24 dev dummy0
+	ip -netns testns -6 address add 2001:db8:1::1/64 dev dummy0
 
-	ip netns exec testns ip address add 192.0.2.1/24 dev dummy1
-	ip netns exec testns ip -6 address add 2001:db8:2::1/64 dev dummy1
+	ip -netns testns address add 192.0.2.1/24 dev dummy1
+	ip -netns testns -6 address add 2001:db8:2::1/64 dev dummy1
 
-	ip netns exec testns ip route add 203.0.113.0/24 \
+	ip -netns testns route add 203.0.113.0/24 \
 		nexthop via 198.51.100.2 dev dummy0 \
 		nexthop via 192.0.2.2 dev dummy1
-	ip netns exec testns ip -6 route add 2001:db8:3::/64 \
+	ip -netns testns -6 route add 2001:db8:3::/64 \
 		nexthop via 2001:db8:1::2 dev dummy0 \
 		nexthop via 2001:db8:2::2 dev dummy1
 
-	ip netns exec testns ip route get fibmatch 203.0.113.1 &> /dev/null
+	ip -netns testns route get fibmatch 203.0.113.1 &> /dev/null
 	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:3::1 &> /dev/null
+	ip -netns testns -6 route get fibmatch 2001:db8:3::1 &> /dev/null
 	check_err $?
 
-	ip netns exec testns ip link set dev dummy0 down
+	ip -netns testns link set dev dummy0 down
 	check_err $?
 
 	fib_down_multipath_test_do "dummy0" "dummy1"
 
-	ip netns exec testns ip link set dev dummy0 up
+	ip -netns testns link set dev dummy0 up
 	check_err $?
-	ip netns exec testns ip link set dev dummy1 down
+	ip -netns testns link set dev dummy1 down
 	check_err $?
 
 	fib_down_multipath_test_do "dummy1" "dummy0"
 
-	ip netns exec testns ip link set dev dummy0 down
+	ip -netns testns link set dev dummy0 down
 	check_err $?
 
-	ip netns exec testns ip route get fibmatch 203.0.113.1 &> /dev/null
+	ip -netns testns route get fibmatch 203.0.113.1 &> /dev/null
 	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:3::1 &> /dev/null
+	ip -netns testns -6 route get fibmatch 2001:db8:3::1 &> /dev/null
 	check_fail $?
 
-	ip netns exec testns ip link del dev dummy1
-	ip netns exec testns ip link del dev dummy0
+	ip -netns testns link del dev dummy1
+	ip -netns testns link del dev dummy0
 
 	ip netns del testns
 
@@ -267,56 +267,56 @@ fib_carrier_local_test()
 	# Local routes should not be affected when carrier changes.
 	netns_create "testns"
 
-	ip netns exec testns ip link add dummy0 type dummy
-	ip netns exec testns ip link set dev dummy0 up
+	ip -netns testns link add dummy0 type dummy
+	ip -netns testns link set dev dummy0 up
 
-	ip netns exec testns ip link set dev dummy0 carrier on
+	ip -netns testns link set dev dummy0 carrier on
 
-	ip netns exec testns ip address add 198.51.100.1/24 dev dummy0
-	ip netns exec testns ip -6 address add 2001:db8:1::1/64 dev dummy0
+	ip -netns testns address add 198.51.100.1/24 dev dummy0
+	ip -netns testns -6 address add 2001:db8:1::1/64 dev dummy0
 
-	ip netns exec testns ip route get fibmatch 198.51.100.1 &> /dev/null
+	ip -netns testns route get fibmatch 198.51.100.1 &> /dev/null
 	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::1 &> /dev/null
+	ip -netns testns -6 route get fibmatch 2001:db8:1::1 &> /dev/null
 	check_err $?
 
-	ip netns exec testns ip route get fibmatch 198.51.100.1 | \
+	ip -netns testns route get fibmatch 198.51.100.1 | \
 		grep -q "linkdown"
 	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::1 | \
-		grep -q "linkdown"
-	check_fail $?
-
-	ip netns exec testns ip link set dev dummy0 carrier off
-
-	ip netns exec testns ip route get fibmatch 198.51.100.1 &> /dev/null
-	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::1 &> /dev/null
-	check_err $?
-
-	ip netns exec testns ip route get fibmatch 198.51.100.1 | \
-		grep -q "linkdown"
-	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::1 | \
+	ip -netns testns -6 route get fibmatch 2001:db8:1::1 | \
 		grep -q "linkdown"
 	check_fail $?
 
-	ip netns exec testns ip address add 192.0.2.1/24 dev dummy0
-	ip netns exec testns ip -6 address add 2001:db8:2::1/64 dev dummy0
+	ip -netns testns link set dev dummy0 carrier off
 
-	ip netns exec testns ip route get fibmatch 192.0.2.1 &> /dev/null
+	ip -netns testns route get fibmatch 198.51.100.1 &> /dev/null
 	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:2::1 &> /dev/null
+	ip -netns testns -6 route get fibmatch 2001:db8:1::1 &> /dev/null
 	check_err $?
 
-	ip netns exec testns ip route get fibmatch 192.0.2.1 | \
+	ip -netns testns route get fibmatch 198.51.100.1 | \
 		grep -q "linkdown"
 	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:2::1 | \
+	ip -netns testns -6 route get fibmatch 2001:db8:1::1 | \
 		grep -q "linkdown"
 	check_fail $?
 
-	ip netns exec testns ip link del dev dummy0
+	ip -netns testns address add 192.0.2.1/24 dev dummy0
+	ip -netns testns -6 address add 2001:db8:2::1/64 dev dummy0
+
+	ip -netns testns route get fibmatch 192.0.2.1 &> /dev/null
+	check_err $?
+	ip -netns testns -6 route get fibmatch 2001:db8:2::1 &> /dev/null
+	check_err $?
+
+	ip -netns testns route get fibmatch 192.0.2.1 | \
+		grep -q "linkdown"
+	check_fail $?
+	ip -netns testns -6 route get fibmatch 2001:db8:2::1 | \
+		grep -q "linkdown"
+	check_fail $?
+
+	ip -netns testns link del dev dummy0
 
 	ip netns del testns
 
@@ -333,56 +333,56 @@ fib_carrier_unicast_test()
 
 	netns_create "testns"
 
-	ip netns exec testns ip link add dummy0 type dummy
-	ip netns exec testns ip link set dev dummy0 up
+	ip -netns testns link add dummy0 type dummy
+	ip -netns testns link set dev dummy0 up
 
-	ip netns exec testns ip link set dev dummy0 carrier on
+	ip -netns testns link set dev dummy0 carrier on
 
-	ip netns exec testns ip address add 198.51.100.1/24 dev dummy0
-	ip netns exec testns ip -6 address add 2001:db8:1::1/64 dev dummy0
+	ip -netns testns address add 198.51.100.1/24 dev dummy0
+	ip -netns testns -6 address add 2001:db8:1::1/64 dev dummy0
 
-	ip netns exec testns ip route get fibmatch 198.51.100.2 &> /dev/null
+	ip -netns testns route get fibmatch 198.51.100.2 &> /dev/null
 	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 &> /dev/null
+	ip -netns testns -6 route get fibmatch 2001:db8:1::2 &> /dev/null
 	check_err $?
 
-	ip netns exec testns ip route get fibmatch 198.51.100.2 | \
+	ip -netns testns route get fibmatch 198.51.100.2 | \
 		grep -q "linkdown"
 	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 | \
+	ip -netns testns -6 route get fibmatch 2001:db8:1::2 | \
 		grep -q "linkdown"
 	check_fail $?
 
-	ip netns exec testns ip link set dev dummy0 carrier off
+	ip -netns testns link set dev dummy0 carrier off
 
-	ip netns exec testns ip route get fibmatch 198.51.100.2 &> /dev/null
+	ip -netns testns route get fibmatch 198.51.100.2 &> /dev/null
 	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 &> /dev/null
+	ip -netns testns -6 route get fibmatch 2001:db8:1::2 &> /dev/null
 	check_err $?
 
-	ip netns exec testns ip route get fibmatch 198.51.100.2 | \
+	ip -netns testns route get fibmatch 198.51.100.2 | \
 		grep -q "linkdown"
 	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 | \
-		grep -q "linkdown"
-	check_err $?
-
-	ip netns exec testns ip address add 192.0.2.1/24 dev dummy0
-	ip netns exec testns ip -6 address add 2001:db8:2::1/64 dev dummy0
-
-	ip netns exec testns ip route get fibmatch 192.0.2.2 &> /dev/null
-	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:2::2 &> /dev/null
-	check_err $?
-
-	ip netns exec testns ip route get fibmatch 192.0.2.2 | \
-		grep -q "linkdown"
-	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:2::2 | \
+	ip -netns testns -6 route get fibmatch 2001:db8:1::2 | \
 		grep -q "linkdown"
 	check_err $?
 
-	ip netns exec testns ip link del dev dummy0
+	ip -netns testns address add 192.0.2.1/24 dev dummy0
+	ip -netns testns -6 address add 2001:db8:2::1/64 dev dummy0
+
+	ip -netns testns route get fibmatch 192.0.2.2 &> /dev/null
+	check_err $?
+	ip -netns testns -6 route get fibmatch 2001:db8:2::2 &> /dev/null
+	check_err $?
+
+	ip -netns testns route get fibmatch 192.0.2.2 | \
+		grep -q "linkdown"
+	check_err $?
+	ip -netns testns -6 route get fibmatch 2001:db8:2::2 | \
+		grep -q "linkdown"
+	check_err $?
+
+	ip -netns testns link del dev dummy0
 
 	ip netns del testns
 
