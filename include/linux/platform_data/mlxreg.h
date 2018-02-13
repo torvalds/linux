@@ -129,6 +129,7 @@ struct mlxreg_core_platform_data {
  * @mask: top aggregation interrupt common mask;
  * @cell_low: location of low aggregation interrupt register;
  * @mask_low: low aggregation interrupt common mask;
+ * @deferred_nr: I2C adapter number must be exist prior probing execution;
  */
 struct mlxreg_core_hotplug_platform_data {
 	struct mlxreg_core_item *items;
@@ -139,6 +140,7 @@ struct mlxreg_core_hotplug_platform_data {
 	u32 mask;
 	u32 cell_low;
 	u32 mask_low;
+	int deferred_nr;
 };
 
 #endif /* __LINUX_PLATFORM_DATA_MLXREG_H */

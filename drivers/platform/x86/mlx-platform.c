@@ -697,6 +697,8 @@ static int __init mlxplat_dmi_default_matched(const struct dmi_system_id *dmi)
 				ARRAY_SIZE(mlxplat_default_channels[i]);
 	}
 	mlxplat_hotplug = &mlxplat_mlxcpld_default_data;
+	mlxplat_hotplug->deferred_nr =
+		mlxplat_default_channels[i - 1][MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
 
 	return 1;
 };
@@ -711,6 +713,8 @@ static int __init mlxplat_dmi_msn21xx_matched(const struct dmi_system_id *dmi)
 				ARRAY_SIZE(mlxplat_msn21xx_channels);
 	}
 	mlxplat_hotplug = &mlxplat_mlxcpld_msn21xx_data;
+	mlxplat_hotplug->deferred_nr =
+		mlxplat_msn21xx_channels[MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
 
 	return 1;
 };
@@ -725,6 +729,8 @@ static int __init mlxplat_dmi_msn274x_matched(const struct dmi_system_id *dmi)
 				ARRAY_SIZE(mlxplat_msn21xx_channels);
 	}
 	mlxplat_hotplug = &mlxplat_mlxcpld_msn274x_data;
+	mlxplat_hotplug->deferred_nr =
+		mlxplat_msn21xx_channels[MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
 
 	return 1;
 };
@@ -739,6 +745,8 @@ static int __init mlxplat_dmi_msn201x_matched(const struct dmi_system_id *dmi)
 				ARRAY_SIZE(mlxplat_msn21xx_channels);
 	}
 	mlxplat_hotplug = &mlxplat_mlxcpld_msn201x_data;
+	mlxplat_hotplug->deferred_nr =
+		mlxplat_default_channels[i - 1][MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
 
 	return 1;
 };
@@ -753,6 +761,8 @@ static int __init mlxplat_dmi_qmb7xx_matched(const struct dmi_system_id *dmi)
 				ARRAY_SIZE(mlxplat_msn21xx_channels);
 	}
 	mlxplat_hotplug = &mlxplat_mlxcpld_default_ng_data;
+	mlxplat_hotplug->deferred_nr =
+		mlxplat_msn21xx_channels[MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
 
 	return 1;
 };

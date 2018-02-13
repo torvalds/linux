@@ -550,6 +550,7 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 {
 	struct mlxreg_core_hotplug_platform_data *pdata;
 	struct mlxreg_hotplug_priv_data *priv;
+	struct i2c_adapter *deferred_adap;
 	int err;
 
 	pdata = dev_get_platdata(&pdev->dev);
@@ -557,6 +558,12 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get platform data.\n");
 		return -EINVAL;
 	}
+
+	/* Defer probing if the necessary adapter is not configured yet. */
+	deferred_adap = i2c_get_adapter(pdata->deferred_nr);
+	if (!deferred_adap)
+		return -EPROBE_DEFER;
+	i2c_put_adapter(deferred_adap);
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
