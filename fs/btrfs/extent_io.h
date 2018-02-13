@@ -455,6 +455,11 @@ static inline void extent_buffer_get(struct extent_buffer *eb)
 	atomic_inc(&eb->refs);
 }
 
+static inline int extent_buffer_uptodate(struct extent_buffer *eb)
+{
+	return test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
+}
+
 int memcmp_extent_buffer(const struct extent_buffer *eb, const void *ptrv,
 			 unsigned long start, unsigned long len);
 void read_extent_buffer(const struct extent_buffer *eb, void *dst,
@@ -489,7 +494,6 @@ void clear_extent_buffer_dirty(struct extent_buffer *eb);
 int set_extent_buffer_dirty(struct extent_buffer *eb);
 void set_extent_buffer_uptodate(struct extent_buffer *eb);
 void clear_extent_buffer_uptodate(struct extent_buffer *eb);
-int extent_buffer_uptodate(struct extent_buffer *eb);
 int extent_buffer_under_io(struct extent_buffer *eb);
 int map_private_extent_buffer(const struct extent_buffer *eb,
 			      unsigned long offset, unsigned long min_len,

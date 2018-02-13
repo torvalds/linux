@@ -5230,11 +5230,6 @@ void set_extent_buffer_uptodate(struct extent_buffer *eb)
 	}
 }
 
-int extent_buffer_uptodate(struct extent_buffer *eb)
-{
-	return test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
-}
-
 int read_extent_buffer_pages(struct extent_io_tree *tree,
 			     struct extent_buffer *eb, int wait, int mirror_num)
 {
