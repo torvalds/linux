@@ -34,8 +34,11 @@
 #ifdef CONFIG_PSTORE_LZO_COMPRESS
 #include <linux/lzo.h>
 #endif
-#ifdef CONFIG_PSTORE_LZ4_COMPRESS
+#if defined(CONFIG_PSTORE_LZ4_COMPRESS) || defined(CONFIG_PSTORE_LZ4HC_COMPRESS)
 #include <linux/lz4.h>
+#endif
+#ifdef CONFIG_PSTORE_842_COMPRESS
+#include <linux/sw842.h>
 #endif
 #include <linux/string.h>
 #include <linux/timer.h>
@@ -336,20 +339,7 @@ static const struct pstore_zbackend backend_lzo = {
 };
 #endif
 
-#ifdef CONFIG_PSTORE_LZ4_COMPRESS
-static int compress_lz4(const void *in, void *out, size_t inlen, size_t outlen)
-{
-	int ret;
-
-	ret = LZ4_compress_default(in, out, inlen, outlen, workspace);
-	if (!ret) {
-		pr_err("LZ4_compress_default error; compression failed!\n");
-		return -EIO;
-	}
-
-	return ret;
-}
-
+#if defined(CONFIG_PSTORE_LZ4_COMPRESS) || defined(CONFIG_PSTORE_LZ4HC_COMPRESS)
 static int decompress_lz4(void *in, void *out, size_t inlen, size_t outlen)
 {
 	int ret;
@@ -361,6 +351,29 @@ static int decompress_lz4(void *in, void *out, size_t inlen, size_t outlen)
 		 * (< 0) if decompression failed
 		 */
 		pr_err("LZ4_decompress_safe error, ret = %d!\n", ret);
+		return -EIO;
+	}
+
+	return ret;
+}
+
+static void free_lz4(void)
+{
+	kfree(workspace);
+	kfree(big_oops_buf);
+	big_oops_buf = NULL;
+	big_oops_buf_sz = 0;
+}
+#endif
+
+#ifdef CONFIG_PSTORE_LZ4_COMPRESS
+static int compress_lz4(const void *in, void *out, size_t inlen, size_t outlen)
+{
+	int ret;
+
+	ret = LZ4_compress_default(in, out, inlen, outlen, workspace);
+	if (!ret) {
+		pr_err("LZ4_compress_default error; compression failed!\n");
 		return -EIO;
 	}
 
@@ -384,7 +397,101 @@ static void allocate_lz4(void)
 	}
 }
 
-static void free_lz4(void)
+static const struct pstore_zbackend backend_lz4 = {
+	.compress	= compress_lz4,
+	.decompress	= decompress_lz4,
+	.allocate	= allocate_lz4,
+	.free		= free_lz4,
+	.name		= "lz4",
+};
+#endif
+
+#ifdef CONFIG_PSTORE_LZ4HC_COMPRESS
+static int compress_lz4hc(const void *in, void *out,
+			  size_t inlen, size_t outlen)
+{
+	int ret;
+
+	ret = LZ4_compress_HC(in, out, inlen, outlen,
+			      LZ4HC_DEFAULT_CLEVEL, workspace);
+	if (!ret) {
+		pr_err("LZ4_compress_HC error; compression failed!\n");
+		return -EIO;
+	}
+
+	return ret;
+}
+
+static void allocate_lz4hc(void)
+{
+	big_oops_buf_sz = LZ4_compressBound(psinfo->bufsize);
+	big_oops_buf = kmalloc(big_oops_buf_sz, GFP_KERNEL);
+	if (big_oops_buf) {
+		workspace = kmalloc(LZ4HC_MEM_COMPRESS, GFP_KERNEL);
+		if (!workspace) {
+			pr_err("No memory for compression workspace; skipping compression\n");
+			kfree(big_oops_buf);
+			big_oops_buf = NULL;
+		}
+	} else {
+		pr_err("No memory for uncompressed data; skipping compression\n");
+		workspace = NULL;
+	}
+}
+
+static const struct pstore_zbackend backend_lz4hc = {
+	.compress	= compress_lz4hc,
+	.decompress	= decompress_lz4,
+	.allocate	= allocate_lz4hc,
+	.free		= free_lz4,
+	.name		= "lz4hc",
+};
+#endif
+
+#ifdef CONFIG_PSTORE_842_COMPRESS
+static int compress_842(const void *in, void *out, size_t inlen, size_t outlen)
+{
+	int ret;
+
+	ret = sw842_compress(in, inlen, out, (unsigned int *)&outlen, workspace);
+	if (ret) {
+		pr_err("sw842_compress error; compression failed!\n");
+		return ret;
+	}
+
+	return outlen;
+}
+
+static int decompress_842(void *in, void *out, size_t inlen, size_t outlen)
+{
+	int ret;
+
+	ret = sw842_decompress(in, inlen, out, (unsigned int *)&outlen);
+	if (ret) {
+		pr_err("sw842_decompress error, ret = %d!\n", ret);
+		return ret;
+	}
+
+	return outlen;
+}
+
+static void allocate_842(void)
+{
+	big_oops_buf_sz = psinfo->bufsize;
+	big_oops_buf = kmalloc(big_oops_buf_sz, GFP_KERNEL);
+	if (big_oops_buf) {
+		workspace = kmalloc(SW842_MEM_COMPRESS, GFP_KERNEL);
+		if (!workspace) {
+			kfree(big_oops_buf);
+			big_oops_buf = NULL;
+		}
+	} else {
+		pr_err("No memory for uncompressed data; skipping compression\n");
+		workspace = NULL;
+	}
+}
+
+static void free_842(void)
 {
 	kfree(workspace);
 	kfree(big_oops_buf);
@@ -392,12 +499,12 @@ static void free_lz4(void)
 	big_oops_buf_sz = 0;
 }
 
-static const struct pstore_zbackend backend_lz4 = {
-	.compress	= compress_lz4,
-	.decompress	= decompress_lz4,
-	.allocate	= allocate_lz4,
-	.free		= free_lz4,
-	.name		= "lz4",
+static const struct pstore_zbackend backend_842 = {
+	.compress	= compress_842,
+	.decompress	= decompress_842,
+	.allocate	= allocate_842,
+	.free		= free_842,
+	.name		= "842",
 };
 #endif
 
@@ -408,6 +515,10 @@ static const struct pstore_zbackend *zbackend =
 	&backend_lzo;
 #elif defined(CONFIG_PSTORE_LZ4_COMPRESS)
 	&backend_lz4;
+#elif defined(CONFIG_PSTORE_LZ4HC_COMPRESS)
+	&backend_lz4hc;
+#elif defined(CONFIG_PSTORE_842_COMPRESS)
+	&backend_842;
 #else
 	NULL;
 #endif

@@ -19,6 +19,11 @@ choice
         help
           This option chooses compression algorithm.
 
+	  Currently, pstore has support for 5 compression algorithms:
+	  zlib, lzo, lz4, lz4hc and 842.
+
+	  The default compression algorithm is zlib.
+
 config PSTORE_ZLIB_COMPRESS
         bool "ZLIB"
         select ZLIB_DEFLATE
@@ -39,6 +44,21 @@ config PSTORE_LZ4_COMPRESS
         select LZ4_DECOMPRESS
         help
           This option enables LZ4 compression algorithm support.
+
+config PSTORE_LZ4HC_COMPRESS
+	bool "LZ4HC"
+	select LZ4HC_COMPRESS
+	select LZ4_DECOMPRESS
+	help
+	  This option enables LZ4HC (high compression) mode algorithm.
+
+config PSTORE_842_COMPRESS
+	bool "842"
+	select 842_COMPRESS
+	select 842_DECOMPRESS
+	help
+	  This option enables 842 compression algorithm support.
+
 endchoice
 
 config PSTORE_CONSOLE
