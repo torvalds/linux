@@ -234,7 +234,7 @@
 			};
 			pd_gpu@PX30_PD_GPU {
 				reg = <PX30_PD_GPU>;
-				clocks = <&cru ACLK_GPU>;
+				clocks = <&cru SCLK_GPU>;
 				pm_qos = <&qos_gpu>;
 			};
 		};
@@ -966,7 +966,7 @@
 			     <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "GPU", "MMU", "JOB";
 
-		clocks = <&cru ACLK_GPU>;
+		clocks = <&cru SCLK_GPU>;
 		clock-names = "clk_mali";
 		power-domains = <&power PX30_PD_GPU>;
 		operating-points-v2 = <&gpu_opp_table>;

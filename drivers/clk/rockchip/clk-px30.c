@@ -341,7 +341,7 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	COMPOSITE(0, "clk_gpu_src", mux_4plls_p, 0,
 			PX30_CLKSEL_CON(1), 6, 2, MFLAGS, 0, 4, DFLAGS,
 			PX30_CLKGATE_CON(0), 8, GFLAGS),
-	GATE(ACLK_GPU, "clk_gpu", "clk_gpu_src", 0,
+	GATE(SCLK_GPU, "clk_gpu", "clk_gpu_src", 0,
 			PX30_CLKGATE_CON(0), 10, GFLAGS),
 	COMPOSITE_NOMUX(0, "aclk_gpu", "clk_gpu", CLK_IGNORE_UNUSED,
 			PX30_CLKSEL_CON(1), 13, 2, DFLAGS,
