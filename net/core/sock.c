@@ -3386,6 +3386,7 @@ static __net_exit void proto_exit_net(struct net *net)
 static __net_initdata struct pernet_operations proto_net_ops = {
 	.init = proto_init_net,
 	.exit = proto_exit_net,
+	.async = true,
 };
 
 static int __init proto_init(void)
