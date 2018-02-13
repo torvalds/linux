@@ -57,6 +57,25 @@
 		};
 	};
 
+	sound: sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "STI-B2260";
+		status = "okay";
+
+		simple-audio-card,dai-link0 {
+			/* DAC */
+			format = "i2s";
+			mclk-fs = <128>;
+			cpu {
+				sound-dai = <&sti_uni_player0>;
+			};
+
+			codec {
+				sound-dai = <&sti_hdmi>;
+			};
+		};
+	};
+
 	soc {
 		/* Low speed expansion connector */
 		uart0: serial@9830000 {
@@ -179,25 +198,6 @@
 			st,i2c-min-scl-pulse-width-us = <0>;
 			st,i2c-min-sda-pulse-width-us = <5>;
 			status = "okay";
-		};
-
-		sound {
-			compatible = "simple-audio-card";
-			simple-audio-card,name = "STI-B2260";
-			status = "okay";
-
-			simple-audio-card,dai-link@0 {
-				/* DAC */
-				format = "i2s";
-				mclk-fs = <128>;
-				cpu {
-					sound-dai = <&sti_uni_player0>;
-				};
-
-				codec {
-					sound-dai = <&sti_hdmi>;
-				};
-			};
 		};
 
 		miphy28lp_phy: miphy28lp@0 {

@@ -23,6 +23,52 @@
 		};
 	};
 
+	sound: sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "STI-B2120";
+		status = "okay";
+
+		simple-audio-card,dai-link0 {
+			/* HDMI */
+			format = "i2s";
+			mclk-fs = <128>;
+			cpu {
+				sound-dai = <&sti_uni_player0>;
+			};
+
+			codec {
+				sound-dai = <&sti_hdmi>;
+			};
+		};
+
+		simple-audio-card,dai-link1 {
+			/* DAC */
+			format = "i2s";
+			mclk-fs = <256>;
+			frame-inversion = <1>;
+			cpu {
+				sound-dai = <&sti_uni_player2>;
+			};
+
+			codec {
+				sound-dai = <&sti_sasg_codec 1>;
+			};
+		};
+
+		simple-audio-card,dai-link2 {
+			/* SPDIF */
+			format = "left_j";
+			mclk-fs = <128>;
+			cpu {
+				sound-dai = <&sti_uni_player3>;
+			};
+
+			codec {
+				sound-dai = <&sti_sasg_codec 0>;
+			};
+		};
+	};
+
 	soc {
 		sbc_serial0: serial@9530000 {
 			status = "okay";
@@ -147,53 +193,11 @@
 			status = "okay";
 		};
 
-		sti_sasg_codec: sti-sasg-codec {
-			status = "okay";
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_spdif_out>;
-		};
-
-		sound {
-			compatible = "simple-audio-card";
-			simple-audio-card,name = "STI-B2120";
-			status = "okay";
-
-			simple-audio-card,dai-link@0 {
-				/* HDMI */
-				format = "i2s";
-				mclk-fs = <128>;
-				cpu {
-					sound-dai = <&sti_uni_player0>;
-				};
-
-				codec {
-					sound-dai = <&sti_hdmi>;
-				};
-			};
-			simple-audio-card,dai-link@1 {
-				/* DAC */
-				format = "i2s";
-				mclk-fs = <256>;
-				frame-inversion = <1>;
-				cpu {
-					sound-dai = <&sti_uni_player2>;
-				};
-
-				codec {
-					sound-dai = <&sti_sasg_codec 1>;
-				};
-			};
-			simple-audio-card,dai-link@2 {
-				/* SPDIF */
-				format = "left_j";
-				mclk-fs = <128>;
-				cpu {
-					sound-dai = <&sti_uni_player3>;
-				};
-
-				codec {
-					sound-dai = <&sti_sasg_codec 0>;
-				};
+		syscfg_core: core-syscfg@92b0000 {
+			sti_sasg_codec: sti-sasg-codec {
+				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_spdif_out>;
 			};
 		};
 	};

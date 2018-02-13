@@ -178,6 +178,13 @@
 		syscfg_core: core-syscfg@92b0000 {
 			compatible = "st,stih407-core-syscfg", "syscon";
 			reg = <0x92b0000 0x1000>;
+
+			sti_sasg_codec: sti-sasg-codec {
+				compatible = "st,stih407-sas-codec";
+				#sound-dai-cells = <1>;
+				status = "disabled";
+				st,syscfg = <&syscfg_core>;
+			};
 		};
 
 		syscfg_lpm: lpm-syscfg@94b5100 {
@@ -892,13 +899,6 @@
 				<&clk_s_c0_flexgen CLK_EXT2F_A9>;
 
 			status = "disabled";
-		};
-
-		sti_sasg_codec: sti-sasg-codec {
-			compatible = "st,stih407-sas-codec";
-			#sound-dai-cells = <1>;
-			status = "disabled";
-			st,syscfg = <&syscfg_core>;
 		};
 
 		sti_uni_player0: sti-uni-player@8d80000 {
