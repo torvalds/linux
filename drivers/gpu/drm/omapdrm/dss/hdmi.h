@@ -389,4 +389,6 @@ struct omap_hdmi {
 	bool display_enabled;
 };
 
+#define dssdev_to_hdmi(dssdev) container_of(dssdev, struct omap_hdmi, output)
+
 #endif
