@@ -343,8 +343,6 @@ static int dpi_set_dispc_clk(struct dpi_data *dpi, unsigned long pck_req,
 
 static int dpi_set_mode(struct dpi_data *dpi)
 {
-	struct omap_dss_device *out = &dpi->output;
-	enum omap_channel channel = out->dispc_channel;
 	struct videomode *vm = &dpi->vm;
 	int lck_div = 0, pck_div = 0;
 	unsigned long fck = 0;
@@ -352,8 +350,8 @@ static int dpi_set_mode(struct dpi_data *dpi)
 	int r = 0;
 
 	if (dpi->pll)
-		r = dpi_set_pll_clk(dpi, channel, vm->pixelclock, &fck,
-				&lck_div, &pck_div);
+		r = dpi_set_pll_clk(dpi, dpi->output.dispc_channel,
+				    vm->pixelclock, &fck, &lck_div, &pck_div);
 	else
 		r = dpi_set_dispc_clk(dpi, vm->pixelclock, &fck,
 				&lck_div, &pck_div);
@@ -369,16 +367,13 @@ static int dpi_set_mode(struct dpi_data *dpi)
 		vm->pixelclock = pck;
 	}
 
-	dss_mgr_set_timings(channel, vm);
+	dss_mgr_set_timings(&dpi->output, vm);
 
 	return 0;
 }
 
 static void dpi_config_lcd_manager(struct dpi_data *dpi)
 {
-	struct omap_dss_device *out = &dpi->output;
-	enum omap_channel channel = out->dispc_channel;
-
 	dpi->mgr_config.io_pad_mode = DSS_IO_PAD_MODE_BYPASS;
 
 	dpi->mgr_config.stallmode = false;
@@ -388,14 +383,13 @@ static void dpi_config_lcd_manager(struct dpi_data *dpi)
 
 	dpi->mgr_config.lcden_sig_polarity = 0;
 
-	dss_mgr_set_lcd_config(channel, &dpi->mgr_config);
+	dss_mgr_set_lcd_config(&dpi->output, &dpi->mgr_config);
 }
 
 static int dpi_display_enable(struct omap_dss_device *dssdev)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 	struct omap_dss_device *out = &dpi->output;
-	enum omap_channel channel = out->dispc_channel;
 	int r;
 
 	mutex_lock(&dpi->lock);
@@ -416,7 +410,7 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_get_dispc;
 
-	r = dss_dpi_select_source(dpi->dss, out->port_num, channel);
+	r = dss_dpi_select_source(dpi->dss, out->port_num, out->dispc_channel);
 	if (r)
 		goto err_src_sel;
 
@@ -434,7 +428,7 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 
 	mdelay(2);
 
-	r = dss_mgr_enable(channel);
+	r = dss_mgr_enable(&dpi->output);
 	if (r)
 		goto err_mgr_enable;
 
@@ -461,14 +455,14 @@ err_no_out_mgr:
 static void dpi_display_disable(struct omap_dss_device *dssdev)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
-	enum omap_channel channel = dpi->output.dispc_channel;
 
 	mutex_lock(&dpi->lock);
 
-	dss_mgr_disable(channel);
+	dss_mgr_disable(&dpi->output);
 
 	if (dpi->pll) {
-		dss_select_lcd_clk_source(dpi->dss, channel, DSS_CLK_SRC_FCK);
+		dss_select_lcd_clk_source(dpi->dss, dpi->output.dispc_channel,
+					  DSS_CLK_SRC_FCK);
 		dss_pll_disable(dpi->pll);
 	}
 
@@ -658,7 +652,6 @@ static int dpi_connect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
-	enum omap_channel channel = dpi->output.dispc_channel;
 	int r;
 
 	r = dpi_init_regulator(dpi);
@@ -667,7 +660,7 @@ static int dpi_connect(struct omap_dss_device *dssdev,
 
 	dpi_init_pll(dpi);
 
-	r = dss_mgr_connect(channel, dssdev);
+	r = dss_mgr_connect(&dpi->output, dssdev);
 	if (r)
 		return r;
 
@@ -675,7 +668,7 @@ static int dpi_connect(struct omap_dss_device *dssdev,
 	if (r) {
 		DSSERR("failed to connect output to new device: %s\n",
 				dst->name);
-		dss_mgr_disconnect(channel, dssdev);
+		dss_mgr_disconnect(&dpi->output, dssdev);
 		return r;
 	}
 
@@ -686,7 +679,6 @@ static void dpi_disconnect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
-	enum omap_channel channel = dpi->output.dispc_channel;
 
 	WARN_ON(dst != dssdev->dst);
 
@@ -695,7 +687,7 @@ static void dpi_disconnect(struct omap_dss_device *dssdev,
 
 	omapdss_output_unset_device(dssdev);
 
-	dss_mgr_disconnect(channel, dssdev);
+	dss_mgr_disconnect(&dpi->output, dssdev);
 }
 
 static const struct omapdss_dpi_ops dpi_ops = {

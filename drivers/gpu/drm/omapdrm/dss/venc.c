@@ -460,7 +460,6 @@ static const struct venc_config *venc_timings_to_config(struct videomode *vm)
 
 static int venc_power_on(struct omap_dss_device *dssdev)
 {
-	enum omap_channel channel = dssdev->dispc_channel;
 	u32 l;
 	int r;
 
@@ -486,13 +485,13 @@ static int venc_power_on(struct omap_dss_device *dssdev)
 
 	venc_write_reg(VENC_OUTPUT_CONTROL, l);
 
-	dss_mgr_set_timings(channel, &venc.vm);
+	dss_mgr_set_timings(&venc.output, &venc.vm);
 
 	r = regulator_enable(venc.vdda_dac_reg);
 	if (r)
 		goto err1;
 
-	r = dss_mgr_enable(channel);
+	r = dss_mgr_enable(&venc.output);
 	if (r)
 		goto err2;
 
@@ -511,12 +510,10 @@ err0:
 
 static void venc_power_off(struct omap_dss_device *dssdev)
 {
-	enum omap_channel channel = dssdev->dispc_channel;
-
 	venc_write_reg(VENC_OUTPUT_CONTROL, 0);
 	dss_set_dac_pwrdn_bgz(venc.dss, 0);
 
-	dss_mgr_disable(channel);
+	dss_mgr_disable(&venc.output);
 
 	regulator_disable(venc.vdda_dac_reg);
 
@@ -749,14 +746,13 @@ static int venc_get_clocks(struct platform_device *pdev)
 static int venc_connect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
-	enum omap_channel channel = dssdev->dispc_channel;
 	int r;
 
 	r = venc_init_regulator();
 	if (r)
 		return r;
 
-	r = dss_mgr_connect(channel, dssdev);
+	r = dss_mgr_connect(&venc.output, dssdev);
 	if (r)
 		return r;
 
@@ -764,7 +760,7 @@ static int venc_connect(struct omap_dss_device *dssdev,
 	if (r) {
 		DSSERR("failed to connect output to new device: %s\n",
 				dst->name);
-		dss_mgr_disconnect(channel, dssdev);
+		dss_mgr_disconnect(&venc.output, dssdev);
 		return r;
 	}
 
@@ -774,8 +770,6 @@ static int venc_connect(struct omap_dss_device *dssdev,
 static void venc_disconnect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
-	enum omap_channel channel = dssdev->dispc_channel;
-
 	WARN_ON(dst != dssdev->dst);
 
 	if (dst != dssdev->dst)
@@ -783,7 +777,7 @@ static void venc_disconnect(struct omap_dss_device *dssdev,
 
 	omapdss_output_unset_device(dssdev);
 
-	dss_mgr_disconnect(channel, dssdev);
+	dss_mgr_disconnect(&venc.output, dssdev);
 }
 
 static const struct omapdss_atv_ops venc_ops = {

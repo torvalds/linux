@@ -656,20 +656,20 @@ struct dss_mgr_ops {
 int dss_install_mgr_ops(const struct dss_mgr_ops *mgr_ops);
 void dss_uninstall_mgr_ops(void);
 
-int dss_mgr_connect(enum omap_channel channel,
-		struct omap_dss_device *dst);
-void dss_mgr_disconnect(enum omap_channel channel,
-		struct omap_dss_device *dst);
-void dss_mgr_set_timings(enum omap_channel channel,
+int dss_mgr_connect(struct omap_dss_device *dssdev,
+		    struct omap_dss_device *dst);
+void dss_mgr_disconnect(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+void dss_mgr_set_timings(struct omap_dss_device *dssdev,
 		const struct videomode *vm);
-void dss_mgr_set_lcd_config(enum omap_channel channel,
+void dss_mgr_set_lcd_config(struct omap_dss_device *dssdev,
 		const struct dss_lcd_mgr_config *config);
-int dss_mgr_enable(enum omap_channel channel);
-void dss_mgr_disable(enum omap_channel channel);
-void dss_mgr_start_update(enum omap_channel channel);
-int dss_mgr_register_framedone_handler(enum omap_channel channel,
+int dss_mgr_enable(struct omap_dss_device *dssdev);
+void dss_mgr_disable(struct omap_dss_device *dssdev);
+void dss_mgr_start_update(struct omap_dss_device *dssdev);
+int dss_mgr_register_framedone_handler(struct omap_dss_device *dssdev,
 		void (*handler)(void *), void *data);
-void dss_mgr_unregister_framedone_handler(enum omap_channel channel,
+void dss_mgr_unregister_framedone_handler(struct omap_dss_device *dssdev,
 		void (*handler)(void *), void *data);
 
 /* dispc ops */

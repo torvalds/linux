@@ -113,8 +113,6 @@ static int sdi_calc_clock_div(unsigned long pclk,
 
 static void sdi_config_lcd_manager(struct omap_dss_device *dssdev)
 {
-	enum omap_channel channel = dssdev->dispc_channel;
-
 	sdi.mgr_config.io_pad_mode = DSS_IO_PAD_MODE_BYPASS;
 
 	sdi.mgr_config.stallmode = false;
@@ -123,20 +121,18 @@ static void sdi_config_lcd_manager(struct omap_dss_device *dssdev)
 	sdi.mgr_config.video_port_width = 24;
 	sdi.mgr_config.lcden_sig_polarity = 1;
 
-	dss_mgr_set_lcd_config(channel, &sdi.mgr_config);
+	dss_mgr_set_lcd_config(&sdi.output, &sdi.mgr_config);
 }
 
 static int sdi_display_enable(struct omap_dss_device *dssdev)
 {
-	struct omap_dss_device *out = &sdi.output;
-	enum omap_channel channel = dssdev->dispc_channel;
 	struct videomode *vm = &sdi.vm;
 	unsigned long fck;
 	struct dispc_clock_info dispc_cinfo;
 	unsigned long pck;
 	int r;
 
-	if (!out->dispc_channel_connected) {
+	if (!sdi.output.dispc_channel_connected) {
 		DSSERR("failed to enable display: no output/manager\n");
 		return -ENODEV;
 	}
@@ -168,7 +164,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	}
 
 
-	dss_mgr_set_timings(channel, vm);
+	dss_mgr_set_timings(&sdi.output, vm);
 
 	r = dss_set_fck_rate(sdi.dss, fck);
 	if (r)
@@ -187,7 +183,8 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	 * need to care about the shadow register mechanism for pck-free. The
 	 * exact reason for this is unknown.
 	 */
-	dispc_mgr_set_clock_div(channel, &sdi.mgr_config.clock_info);
+	dispc_mgr_set_clock_div(sdi.output.dispc_channel,
+				&sdi.mgr_config.clock_info);
 
 	dss_sdi_init(sdi.dss, sdi.datapairs);
 	r = dss_sdi_enable(sdi.dss);
@@ -195,7 +192,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 		goto err_sdi_enable;
 	mdelay(2);
 
-	r = dss_mgr_enable(channel);
+	r = dss_mgr_enable(&sdi.output);
 	if (r)
 		goto err_mgr_enable;
 
@@ -215,9 +212,7 @@ err_reg_enable:
 
 static void sdi_display_disable(struct omap_dss_device *dssdev)
 {
-	enum omap_channel channel = dssdev->dispc_channel;
-
-	dss_mgr_disable(channel);
+	dss_mgr_disable(&sdi.output);
 
 	dss_sdi_disable(sdi.dss);
 
@@ -274,14 +269,13 @@ static int sdi_init_regulator(void)
 static int sdi_connect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
-	enum omap_channel channel = dssdev->dispc_channel;
 	int r;
 
 	r = sdi_init_regulator();
 	if (r)
 		return r;
 
-	r = dss_mgr_connect(channel, dssdev);
+	r = dss_mgr_connect(&sdi.output, dssdev);
 	if (r)
 		return r;
 
@@ -289,7 +283,7 @@ static int sdi_connect(struct omap_dss_device *dssdev,
 	if (r) {
 		DSSERR("failed to connect output to new device: %s\n",
 				dst->name);
-		dss_mgr_disconnect(channel, dssdev);
+		dss_mgr_disconnect(&sdi.output, dssdev);
 		return r;
 	}
 
@@ -299,8 +293,6 @@ static int sdi_connect(struct omap_dss_device *dssdev,
 static void sdi_disconnect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
-	enum omap_channel channel = dssdev->dispc_channel;
-
 	WARN_ON(dst != dssdev->dst);
 
 	if (dst != dssdev->dst)
@@ -308,7 +300,7 @@ static void sdi_disconnect(struct omap_dss_device *dssdev,
 
 	omapdss_output_unset_device(dssdev);
 
-	dss_mgr_disconnect(channel, dssdev);
+	dss_mgr_disconnect(&sdi.output, dssdev);
 }
 
 static const struct omapdss_sdi_ops sdi_ops = {

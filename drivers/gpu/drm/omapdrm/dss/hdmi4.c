@@ -177,7 +177,6 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 {
 	int r;
 	struct videomode *vm;
-	enum omap_channel channel = dssdev->dispc_channel;
 	struct hdmi_wp_data *wp = &hdmi.wp;
 	struct dss_pll_clock_info hdmi_cinfo = { 0 };
 	unsigned int pc;
@@ -231,9 +230,9 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	hdmi4_configure(&hdmi.core, &hdmi.wp, &hdmi.cfg);
 
 	/* tv size */
-	dss_mgr_set_timings(channel, vm);
+	dss_mgr_set_timings(&hdmi.output, vm);
 
-	r = dss_mgr_enable(channel);
+	r = dss_mgr_enable(&hdmi.output);
 	if (r)
 		goto err_mgr_enable;
 
@@ -247,7 +246,7 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	return 0;
 
 err_vid_enable:
-	dss_mgr_disable(channel);
+	dss_mgr_disable(&hdmi.output);
 err_mgr_enable:
 	hdmi_wp_set_phy_pwr(&hdmi.wp, HDMI_PHYPWRCMD_OFF);
 err_phy_pwr:
@@ -261,13 +260,11 @@ err_pll_enable:
 
 static void hdmi_power_off_full(struct omap_dss_device *dssdev)
 {
-	enum omap_channel channel = dssdev->dispc_channel;
-
 	hdmi_wp_clear_irqenable(&hdmi.wp, ~HDMI_IRQ_CORE);
 
 	hdmi_wp_video_stop(&hdmi.wp);
 
-	dss_mgr_disable(channel);
+	dss_mgr_disable(&hdmi.output);
 
 	hdmi_wp_set_phy_pwr(&hdmi.wp, HDMI_PHYPWRCMD_OFF);
 
@@ -451,14 +448,13 @@ void hdmi4_core_disable(struct omap_dss_device *dssdev)
 static int hdmi_connect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
-	enum omap_channel channel = dssdev->dispc_channel;
 	int r;
 
 	r = hdmi_init_regulator();
 	if (r)
 		return r;
 
-	r = dss_mgr_connect(channel, dssdev);
+	r = dss_mgr_connect(&hdmi.output, dssdev);
 	if (r)
 		return r;
 
@@ -466,7 +462,7 @@ static int hdmi_connect(struct omap_dss_device *dssdev,
 	if (r) {
 		DSSERR("failed to connect output to new device: %s\n",
 				dst->name);
-		dss_mgr_disconnect(channel, dssdev);
+		dss_mgr_disconnect(&hdmi.output, dssdev);
 		return r;
 	}
 
@@ -476,8 +472,6 @@ static int hdmi_connect(struct omap_dss_device *dssdev,
 static void hdmi_disconnect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
-	enum omap_channel channel = dssdev->dispc_channel;
-
 	WARN_ON(dst != dssdev->dst);
 
 	if (dst != dssdev->dst)
@@ -485,7 +479,7 @@ static void hdmi_disconnect(struct omap_dss_device *dssdev,
 
 	omapdss_output_unset_device(dssdev);
 
-	dss_mgr_disconnect(channel, dssdev);
+	dss_mgr_disconnect(&hdmi.output, dssdev);
 }
 
 static int hdmi_read_edid(struct omap_dss_device *dssdev,
