@@ -27,7 +27,8 @@ lock-class.
 State
 -----
 
-The validator tracks lock-class usage history into 4n + 1 separate state bits:
+The validator tracks lock-class usage history into 4 * nSTATEs + 1 separate
+state bits:
 
 - 'ever held in STATE context'
 - 'ever held as readlock in STATE context'
@@ -37,7 +38,6 @@ The validator tracks lock-class usage history into 4n + 1 separate state bits:
 Where STATE can be either one of (kernel/locking/lockdep_states.h)
  - hardirq
  - softirq
- - reclaim_fs
 
 - 'ever used'                                       [ == !unused        ]
 
