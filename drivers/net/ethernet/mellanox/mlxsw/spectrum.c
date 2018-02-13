@@ -582,8 +582,8 @@ mlxsw_sp_span_entry_find(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	return NULL;
 }
 
-static struct mlxsw_sp_span_entry
-*mlxsw_sp_span_entry_get(struct mlxsw_sp_port *port)
+static struct mlxsw_sp_span_entry *
+mlxsw_sp_span_entry_get(struct mlxsw_sp_port *port)
 {
 	struct mlxsw_sp_span_entry *span_entry;
 
