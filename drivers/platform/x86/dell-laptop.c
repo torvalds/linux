@@ -1279,7 +1279,7 @@ static int kbd_get_state(struct kbd_state *state)
 	struct calling_interface_buffer buffer;
 	int ret;
 
-	dell_fill_request(&buffer, 0, 0, 0, 0);
+	dell_fill_request(&buffer, 0x1, 0, 0, 0);
 	ret = dell_send_request(&buffer,
 				CLASS_KBD_BACKLIGHT, SELECT_KBD_BACKLIGHT);
 	if (ret)
