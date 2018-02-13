@@ -935,7 +935,7 @@ struct btrfs_fs_info {
 	struct btrfs_workqueue *extent_workers;
 	struct task_struct *transaction_kthread;
 	struct task_struct *cleaner_kthread;
-	int thread_pool_size;
+	u32 thread_pool_size;
 
 	struct kobject *space_info_kobj;
 

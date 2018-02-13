@@ -345,7 +345,7 @@ static const match_table_t tokens = {
 	{Opt_barrier, "barrier"},
 	{Opt_max_inline, "max_inline=%s"},
 	{Opt_alloc_start, "alloc_start=%s"},
-	{Opt_thread_pool, "thread_pool=%d"},
+	{Opt_thread_pool, "thread_pool=%u"},
 	{Opt_compress, "compress"},
 	{Opt_compress_type, "compress=%s"},
 	{Opt_compress_force, "compress-force"},
@@ -594,12 +594,11 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			ret = match_int(&args[0], &intarg);
 			if (ret) {
 				goto out;
-			} else if (intarg > 0) {
-				info->thread_pool_size = intarg;
-			} else {
+			} else if (intarg == 0) {
 				ret = -EINVAL;
 				goto out;
 			}
+			info->thread_pool_size = intarg;
 			break;
 		case Opt_max_inline:
 			num = match_strdup(&args[0]);
@@ -1284,7 +1283,7 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 		seq_printf(seq, ",max_inline=%llu", info->max_inline);
 	if (info->thread_pool_size !=  min_t(unsigned long,
 					     num_online_cpus() + 2, 8))
-		seq_printf(seq, ",thread_pool=%d", info->thread_pool_size);
+		seq_printf(seq, ",thread_pool=%u", info->thread_pool_size);
 	if (btrfs_test_opt(info, COMPRESS)) {
 		compress_type = btrfs_compress_type2str(info->compress_type);
 		if (btrfs_test_opt(info, FORCE_COMPRESS))
@@ -1690,7 +1689,7 @@ out:
 }
 
 static void btrfs_resize_thread_pool(struct btrfs_fs_info *fs_info,
-				     int new_pool_size, int old_pool_size)
+				     u32 new_pool_size, u32 old_pool_size)
 {
 	if (new_pool_size == old_pool_size)
 		return;
@@ -1758,7 +1757,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	unsigned long old_opts = fs_info->mount_opt;
 	unsigned long old_compress_type = fs_info->compress_type;
 	u64 old_max_inline = fs_info->max_inline;
-	int old_thread_pool_size = fs_info->thread_pool_size;
+	u32 old_thread_pool_size = fs_info->thread_pool_size;
 	unsigned int old_metadata_ratio = fs_info->metadata_ratio;
 	int ret;
 
