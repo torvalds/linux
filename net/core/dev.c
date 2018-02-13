@@ -8934,6 +8934,7 @@ static void __net_exit default_device_exit_batch(struct list_head *net_list)
 static struct pernet_operations __net_initdata default_device_ops = {
 	.exit = default_device_exit,
 	.exit_batch = default_device_exit_batch,
+	.async = true,
 };
 
 /*
