@@ -340,6 +340,7 @@ static int __net_init net_defaults_init_net(struct net *net)
 
 static struct pernet_operations net_defaults_ops = {
 	.init = net_defaults_init_net,
+	.async = true,
 };
 
 static __init int net_defaults_init(void)
