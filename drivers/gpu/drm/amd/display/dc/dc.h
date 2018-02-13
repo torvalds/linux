@@ -60,6 +60,11 @@ struct dc_versions {
 	struct dmcu_version dmcu_version;
 };
 
+struct abm_setting {
+	bool stream_update;
+	unsigned int abm_level;
+};
+
 struct dc_caps {
 	uint32_t max_streams;
 	uint32_t max_links;

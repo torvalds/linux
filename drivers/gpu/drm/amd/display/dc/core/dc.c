@@ -42,6 +42,7 @@
 #include "dmcu.h"
 #include "dpp.h"
 #include "timing_generator.h"
+#include "abm.h"
 #include "virtual/virtual_link_encoder.h"
 
 #include "link_hwss.h"
@@ -1361,6 +1362,13 @@ static void commit_planes_for_stream(struct dc *dc,
 
 			dc->hwss.apply_ctx_for_surface(
 					dc, pipe_ctx->stream, stream_status->plane_count, context);
+
+			if (stream_update->abm_setting.stream_update) {
+				if (dc->res_pool->abm)
+					dc->res_pool->abm->funcs->set_abm_level(
+							dc->res_pool->abm, stream->abm_settings.abm_level);
+				stream->abm_settings.stream_update = 0;
+			}
 		}
 	}
 

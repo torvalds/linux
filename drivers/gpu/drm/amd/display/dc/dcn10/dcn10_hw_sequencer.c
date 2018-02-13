@@ -1780,14 +1780,33 @@ static void update_dchubp_dpp(
 		hubp->funcs->set_blank(hubp, false);
 }
 
+static void dcn10_otg_blank(
+		struct stream_resource stream_res,
+		struct abm *abm,
+		struct dc_stream_state *stream,
+		bool blank)
+{
+
+	if (!blank) {
+		if (stream_res.tg->funcs->set_blank)
+			stream_res.tg->funcs->set_blank(stream_res.tg, blank);
+		if (abm)
+			abm->funcs->set_abm_level(abm, stream->abm_settings.abm_level);
+	} else if (blank) {
+		if (abm)
+			abm->funcs->set_abm_immediate_disable(abm);
+		if (stream_res.tg->funcs->set_blank)
+			stream_res.tg->funcs->set_blank(stream_res.tg, blank);
+	}
+}
 
 static void program_all_pipe_in_tree(
 		struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context)
 {
-
 	if (pipe_ctx->top_pipe == NULL) {
+		bool blank = !is_pipe_tree_visible(pipe_ctx);
 
 		pipe_ctx->stream_res.tg->dlg_otg_param.vready_offset = pipe_ctx->pipe_dlg_param.vready_offset;
 		pipe_ctx->stream_res.tg->dlg_otg_param.vstartup_start = pipe_ctx->pipe_dlg_param.vstartup_start;
@@ -1798,10 +1817,8 @@ static void program_all_pipe_in_tree(
 		pipe_ctx->stream_res.tg->funcs->program_global_sync(
 				pipe_ctx->stream_res.tg);
 
-		if (pipe_ctx->stream_res.tg->funcs->set_blank)
-			pipe_ctx->stream_res.tg->funcs->set_blank(
-					pipe_ctx->stream_res.tg,
-					!is_pipe_tree_visible(pipe_ctx));
+		dcn10_otg_blank(pipe_ctx->stream_res, dc->res_pool->abm,
+				pipe_ctx->stream, blank);
 	}
 
 	if (pipe_ctx->plane_state != NULL) {
@@ -1908,29 +1925,23 @@ static void dcn10_apply_ctx_for_surface(
 {
 	int i;
 	struct timing_generator *tg;
-	struct output_pixel_processor *opp;
 	bool removed_pipe[4] = { false };
 	unsigned int ref_clk_mhz = dc->res_pool->ref_clock_inKhz/1000;
 	bool program_water_mark = false;
 	struct dc_context *ctx = dc->ctx;
-
 	struct pipe_ctx *top_pipe_to_program =
 			find_top_pipe_for_stream(dc, context, stream);
 
 	if (!top_pipe_to_program)
 		return;
 
-	opp = top_pipe_to_program->stream_res.opp;
-
 	tg = top_pipe_to_program->stream_res.tg;
 
 	dcn10_pipe_control_lock(dc, top_pipe_to_program, true);
 
 	if (num_planes == 0) {
-
 		/* OTG blank before remove all front end */
-		if (tg->funcs->set_blank)
-			tg->funcs->set_blank(tg, true);
+		dcn10_otg_blank(top_pipe_to_program->stream_res, dc->res_pool->abm, top_pipe_to_program->stream, true);
 	}
 
 	/* Disconnect unused mpcc */
