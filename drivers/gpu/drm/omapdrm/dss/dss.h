@@ -407,47 +407,55 @@ static inline void dpi_uninit_port(struct device_node *port)
 #endif
 
 /* DISPC */
-void dispc_dump_clocks(struct seq_file *s);
+void dispc_dump_clocks(struct dispc_device *dispc, struct seq_file *s);
 
 int dispc_runtime_get(struct dispc_device *dispc);
 void dispc_runtime_put(struct dispc_device *dispc);
 
-void dispc_enable_sidle(void);
-void dispc_disable_sidle(void);
+void dispc_enable_sidle(struct dispc_device *dispc);
+void dispc_disable_sidle(struct dispc_device *dispc);
 
-void dispc_lcd_enable_signal(bool enable);
-void dispc_pck_free_enable(bool enable);
-void dispc_enable_fifomerge(bool enable);
+void dispc_lcd_enable_signal(struct dispc_device *dispc, bool enable);
+void dispc_pck_free_enable(struct dispc_device *dispc, bool enable);
+void dispc_enable_fifomerge(struct dispc_device *dispc, bool enable);
 
 typedef bool (*dispc_div_calc_func)(int lckd, int pckd, unsigned long lck,
 		unsigned long pck, void *data);
-bool dispc_div_calc(unsigned long dispc,
-		unsigned long pck_min, unsigned long pck_max,
-		dispc_div_calc_func func, void *data);
+bool dispc_div_calc(struct dispc_device *dispc, unsigned long dispc_freq,
+		    unsigned long pck_min, unsigned long pck_max,
+		    dispc_div_calc_func func, void *data);
 
-bool dispc_mgr_timings_ok(enum omap_channel channel, const struct videomode *vm);
-int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
-		struct dispc_clock_info *cinfo);
+bool dispc_mgr_timings_ok(struct dispc_device *dispc,
+			  enum omap_channel channel,
+			  const struct videomode *vm);
+int dispc_calc_clock_rates(struct dispc_device *dispc,
+			   unsigned long dispc_fclk_rate,
+			   struct dispc_clock_info *cinfo);
 
 
-void dispc_ovl_set_fifo_threshold(enum omap_plane_id plane, u32 low,
-				  u32 high);
-void dispc_ovl_compute_fifo_thresholds(enum omap_plane_id plane,
-		u32 *fifo_low, u32 *fifo_high, bool use_fifomerge,
-		bool manual_update);
+void dispc_ovl_set_fifo_threshold(struct dispc_device *dispc,
+				  enum omap_plane_id plane, u32 low, u32 high);
+void dispc_ovl_compute_fifo_thresholds(struct dispc_device *dispc,
+				       enum omap_plane_id plane,
+				       u32 *fifo_low, u32 *fifo_high,
+				       bool use_fifomerge, bool manual_update);
 
-void dispc_mgr_set_clock_div(enum omap_channel channel,
-		const struct dispc_clock_info *cinfo);
-int dispc_mgr_get_clock_div(enum omap_channel channel,
-		struct dispc_clock_info *cinfo);
-void dispc_set_tv_pclk(unsigned long pclk);
+void dispc_mgr_set_clock_div(struct dispc_device *dispc,
+			     enum omap_channel channel,
+			     const struct dispc_clock_info *cinfo);
+int dispc_mgr_get_clock_div(struct dispc_device *dispc,
+			    enum omap_channel channel,
+			    struct dispc_clock_info *cinfo);
+void dispc_set_tv_pclk(struct dispc_device *dispc, unsigned long pclk);
 
-u32 dispc_wb_get_framedone_irq(void);
-bool dispc_wb_go_busy(void);
-void dispc_wb_go(void);
-void dispc_wb_set_channel_in(enum dss_writeback_channel channel);
-int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
-		bool mem_to_mem, const struct videomode *vm);
+u32 dispc_wb_get_framedone_irq(struct dispc_device *dispc);
+bool dispc_wb_go_busy(struct dispc_device *dispc);
+void dispc_wb_go(struct dispc_device *dispc);
+void dispc_wb_set_channel_in(struct dispc_device *dispc,
+			     enum dss_writeback_channel channel);
+int dispc_wb_setup(struct dispc_device *dispc,
+		   const struct omap_dss_writeback_info *wi,
+		   bool mem_to_mem, const struct videomode *vm);
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
 static inline void dss_collect_irq_stats(u32 irqstatus, unsigned int *irq_arr)

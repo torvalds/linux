@@ -704,7 +704,7 @@ static u32 dispc_mgr_get_sync_lost_irq(struct dispc_device *dispc,
 	return mgr_desc[channel].sync_lost_irq;
 }
 
-u32 dispc_wb_get_framedone_irq(void)
+u32 dispc_wb_get_framedone_irq(struct dispc_device *dispc)
 {
 	return DISPC_IRQ_FRAMEDONEWB;
 }
@@ -739,12 +739,12 @@ static void dispc_mgr_go(struct dispc_device *dispc, enum omap_channel channel)
 	mgr_fld_write(channel, DISPC_MGR_FLD_GO, 1);
 }
 
-bool dispc_wb_go_busy(void)
+bool dispc_wb_go_busy(struct dispc_device *dispc)
 {
 	return REG_GET(DISPC_CONTROL2, 6, 6) == 1;
 }
 
-void dispc_wb_go(void)
+void dispc_wb_go(struct dispc_device *dispc)
 {
 	enum omap_plane_id plane = OMAP_DSS_WB;
 	bool enable, go;
@@ -1196,7 +1196,8 @@ static enum omap_channel dispc_ovl_get_channel_out(enum omap_plane_id plane)
 	}
 }
 
-void dispc_wb_set_channel_in(enum dss_writeback_channel channel)
+void dispc_wb_set_channel_in(struct dispc_device *dispc,
+			     enum dss_writeback_channel channel)
 {
 	enum omap_plane_id plane = OMAP_DSS_WB;
 
@@ -1371,10 +1372,10 @@ static void dispc_init_fifos(void)
 		const bool use_fifomerge = false;
 		const bool manual_update = false;
 
-		dispc_ovl_compute_fifo_thresholds(i, &low, &high,
+		dispc_ovl_compute_fifo_thresholds(&dispc, i, &low, &high,
 			use_fifomerge, manual_update);
 
-		dispc_ovl_set_fifo_threshold(i, low, high);
+		dispc_ovl_set_fifo_threshold(&dispc, i, low, high);
 	}
 
 	if (dispc.feat->has_writeback) {
@@ -1382,10 +1383,11 @@ static void dispc_init_fifos(void)
 		const bool use_fifomerge = false;
 		const bool manual_update = false;
 
-		dispc_ovl_compute_fifo_thresholds(OMAP_DSS_WB, &low, &high,
-			use_fifomerge, manual_update);
+		dispc_ovl_compute_fifo_thresholds(&dispc, OMAP_DSS_WB,
+						  &low, &high,
+						  use_fifomerge, manual_update);
 
-		dispc_ovl_set_fifo_threshold(OMAP_DSS_WB, low, high);
+		dispc_ovl_set_fifo_threshold(&dispc, OMAP_DSS_WB, low, high);
 	}
 }
 
@@ -1402,13 +1404,14 @@ static u32 dispc_ovl_get_fifo_size(enum omap_plane_id plane)
 	return size;
 }
 
-void dispc_ovl_set_fifo_threshold(enum omap_plane_id plane, u32 low,
-				  u32 high)
+void dispc_ovl_set_fifo_threshold(struct dispc_device *dispc,
+				  enum omap_plane_id plane,
+				  u32 low, u32 high)
 {
 	u8 hi_start, hi_end, lo_start, lo_end;
 	u32 unit;
 
-	unit = dispc.feat->buffer_size_unit;
+	unit = dispc->feat->buffer_size_unit;
 
 	WARN_ON(low % unit != 0);
 	WARN_ON(high % unit != 0);
@@ -1436,12 +1439,12 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane_id plane, u32 low,
 	 * large for the preload field, set the threshold to the maximum value
 	 * that can be held by the preload register
 	 */
-	if (dispc_has_feature(FEAT_PRELOAD) && dispc.feat->set_max_preload &&
+	if (dispc_has_feature(FEAT_PRELOAD) && dispc->feat->set_max_preload &&
 			plane != OMAP_DSS_WB)
 		dispc_write_reg(DISPC_OVL_PRELOAD(plane), min(high, 0xfffu));
 }
 
-void dispc_enable_fifomerge(bool enable)
+void dispc_enable_fifomerge(struct dispc_device *dispc, bool enable)
 {
 	if (!dispc_has_feature(FEAT_FIFO_MERGE)) {
 		WARN_ON(enable);
@@ -1452,15 +1455,16 @@ void dispc_enable_fifomerge(bool enable)
 	REG_FLD_MOD(DISPC_CONFIG, enable ? 1 : 0, 14, 14);
 }
 
-void dispc_ovl_compute_fifo_thresholds(enum omap_plane_id plane,
-		u32 *fifo_low, u32 *fifo_high, bool use_fifomerge,
-		bool manual_update)
+void dispc_ovl_compute_fifo_thresholds(struct dispc_device *dispc,
+				       enum omap_plane_id plane,
+				       u32 *fifo_low, u32 *fifo_high,
+				       bool use_fifomerge, bool manual_update)
 {
 	/*
 	 * All sizes are in bytes. Both the buffer and burst are made of
 	 * buffer_units, and the fifo thresholds must be buffer_unit aligned.
 	 */
-	unsigned int buf_unit = dispc.feat->buffer_size_unit;
+	unsigned int buf_unit = dispc->feat->buffer_size_unit;
 	unsigned int ovl_fifo_size, total_fifo_size, burst_size;
 	int i;
 
@@ -1469,7 +1473,7 @@ void dispc_ovl_compute_fifo_thresholds(enum omap_plane_id plane,
 
 	if (use_fifomerge) {
 		total_fifo_size = 0;
-		for (i = 0; i < dispc_get_num_ovls(&dispc); ++i)
+		for (i = 0; i < dispc_get_num_ovls(dispc); ++i)
 			total_fifo_size += dispc_ovl_get_fifo_size(i);
 	} else {
 		total_fifo_size = ovl_fifo_size;
@@ -2665,8 +2669,9 @@ static int dispc_ovl_setup(struct dispc_device *dispc,
 	return r;
 }
 
-int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
-		bool mem_to_mem, const struct videomode *vm)
+int dispc_wb_setup(struct dispc_device *dispc,
+		   const struct omap_dss_writeback_info *wi,
+		   bool mem_to_mem, const struct videomode *vm)
 {
 	int r;
 	u32 l;
@@ -2757,7 +2762,7 @@ static void dispc_lcd_enable_signal_polarity(bool act_high)
 	REG_FLD_MOD(DISPC_CONTROL, act_high ? 1 : 0, 29, 29);
 }
 
-void dispc_lcd_enable_signal(bool enable)
+void dispc_lcd_enable_signal(struct dispc_device *dispc, bool enable)
 {
 	if (!dispc_has_feature(FEAT_LCDENABLESIGNAL))
 		return;
@@ -2765,7 +2770,7 @@ void dispc_lcd_enable_signal(bool enable)
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 28, 28);
 }
 
-void dispc_pck_free_enable(bool enable)
+void dispc_pck_free_enable(struct dispc_device *dispc, bool enable)
 {
 	if (!dispc_has_feature(FEAT_PCKFREEENABLE))
 		return;
@@ -2904,7 +2909,7 @@ static void dispc_mgr_set_lcd_config(struct dispc_device *dispc,
 	dispc_mgr_enable_stallmode(channel, config->stallmode);
 	dispc_mgr_enable_fifohandcheck(channel, config->fifohandcheck);
 
-	dispc_mgr_set_clock_div(channel, &config->clock_info);
+	dispc_mgr_set_clock_div(dispc, channel, &config->clock_info);
 
 	dispc_mgr_set_tft_data_lines(channel, config->video_port_width);
 
@@ -2941,7 +2946,8 @@ static bool _dispc_mgr_pclk_ok(enum omap_channel channel,
 		return pclk <= dispc.feat->max_tv_pclk;
 }
 
-bool dispc_mgr_timings_ok(enum omap_channel channel, const struct videomode *vm)
+bool dispc_mgr_timings_ok(struct dispc_device *dispc, enum omap_channel channel,
+			  const struct videomode *vm)
 {
 	if (!_dispc_mgr_size_ok(vm->hactive, vm->vactive))
 		return false;
@@ -3062,7 +3068,7 @@ static void dispc_mgr_set_timings(struct dispc_device *dispc,
 
 	DSSDBG("channel %d xres %u yres %u\n", channel, t.hactive, t.vactive);
 
-	if (!dispc_mgr_timings_ok(channel, &t)) {
+	if (!dispc_mgr_timings_ok(dispc, channel, &t)) {
 		BUG();
 		return;
 	}
@@ -3195,9 +3201,9 @@ static unsigned long dispc_mgr_pclk_rate(enum omap_channel channel)
 	}
 }
 
-void dispc_set_tv_pclk(unsigned long pclk)
+void dispc_set_tv_pclk(struct dispc_device *dispc, unsigned long pclk)
 {
-	dispc.tv_pclk_rate = pclk;
+	dispc->tv_pclk_rate = pclk;
 }
 
 static unsigned long dispc_core_clk_rate(void)
@@ -3249,17 +3255,18 @@ static void dispc_dump_clocks_channel(struct seq_file *s, enum omap_channel chan
 		dispc_mgr_pclk_rate(channel), pcd);
 }
 
-void dispc_dump_clocks(struct seq_file *s)
+void dispc_dump_clocks(struct dispc_device *dispc, struct seq_file *s)
 {
+	enum dss_clk_source dispc_clk_src;
 	int lcd;
 	u32 l;
-	enum dss_clk_source dispc_clk_src = dss_get_dispc_clk_source(dispc.dss);
 
-	if (dispc_runtime_get(&dispc))
+	if (dispc_runtime_get(dispc))
 		return;
 
 	seq_printf(s, "- DISPC -\n");
 
+	dispc_clk_src = dss_get_dispc_clk_source(dispc->dss);
 	seq_printf(s, "dispc fclk source = %s\n",
 			dss_get_clk_source_name(dispc_clk_src));
 
@@ -3281,7 +3288,7 @@ void dispc_dump_clocks(struct seq_file *s)
 	if (dispc_has_feature(FEAT_MGR_LCD3))
 		dispc_dump_clocks_channel(s, OMAP_DSS_CHANNEL_LCD3);
 
-	dispc_runtime_put(&dispc);
+	dispc_runtime_put(dispc);
 }
 
 static int dispc_dump_regs(struct seq_file *s, void *p)
@@ -3482,8 +3489,9 @@ static int dispc_dump_regs(struct seq_file *s, void *p)
 }
 
 /* calculate clock rates using dividers in cinfo */
-int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
-		struct dispc_clock_info *cinfo)
+int dispc_calc_clock_rates(struct dispc_device *dispc,
+			   unsigned long dispc_fclk_rate,
+			   struct dispc_clock_info *cinfo)
 {
 	if (cinfo->lck_div > 255 || cinfo->lck_div == 0)
 		return -EINVAL;
@@ -3496,9 +3504,9 @@ int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 	return 0;
 }
 
-bool dispc_div_calc(unsigned long dispc_freq,
-		unsigned long pck_min, unsigned long pck_max,
-		dispc_div_calc_func func, void *data)
+bool dispc_div_calc(struct dispc_device *dispc, unsigned long dispc_freq,
+		    unsigned long pck_min, unsigned long pck_max,
+		    dispc_div_calc_func func, void *data)
 {
 	int lckd, lckd_start, lckd_stop;
 	int pckd, pckd_start, pckd_stop;
@@ -3514,10 +3522,10 @@ bool dispc_div_calc(unsigned long dispc_freq,
 	min_fck_per_pck = 0;
 #endif
 
-	pckd_hw_min = dispc.feat->min_pcd;
+	pckd_hw_min = dispc->feat->min_pcd;
 	pckd_hw_max = 255;
 
-	lck_max = dss_get_max_fck_rate(dispc.dss);
+	lck_max = dss_get_max_fck_rate(dispc->dss);
 
 	pck_min = pck_min ? pck_min : 1;
 	pck_max = pck_max ? pck_max : ULONG_MAX;
@@ -3556,8 +3564,9 @@ bool dispc_div_calc(unsigned long dispc_freq,
 	return false;
 }
 
-void dispc_mgr_set_clock_div(enum omap_channel channel,
-		const struct dispc_clock_info *cinfo)
+void dispc_mgr_set_clock_div(struct dispc_device *dispc,
+			     enum omap_channel channel,
+			     const struct dispc_clock_info *cinfo)
 {
 	DSSDBG("lck = %lu (%u)\n", cinfo->lck, cinfo->lck_div);
 	DSSDBG("pck = %lu (%u)\n", cinfo->pck, cinfo->pck_div);
@@ -3565,8 +3574,9 @@ void dispc_mgr_set_clock_div(enum omap_channel channel,
 	dispc_mgr_set_lcd_divisor(channel, cinfo->lck_div, cinfo->pck_div);
 }
 
-int dispc_mgr_get_clock_div(enum omap_channel channel,
-		struct dispc_clock_info *cinfo)
+int dispc_mgr_get_clock_div(struct dispc_device *dispc,
+			    enum omap_channel channel,
+			    struct dispc_clock_info *cinfo)
 {
 	unsigned long fck;
 
@@ -3604,12 +3614,12 @@ static void dispc_write_irqenable(struct dispc_device *dispc, u32 mask)
 	dispc_read_reg(DISPC_IRQENABLE);
 }
 
-void dispc_enable_sidle(void)
+void dispc_enable_sidle(struct dispc_device *dispc)
 {
 	REG_FLD_MOD(DISPC_SYSCONFIG, 2, 4, 3);	/* SIDLEMODE: smart idle */
 }
 
-void dispc_disable_sidle(void)
+void dispc_disable_sidle(struct dispc_device *dispc)
 {
 	REG_FLD_MOD(DISPC_SYSCONFIG, 1, 4, 3);	/* SIDLEMODE: no idle */
 }
@@ -4482,7 +4492,7 @@ static void dispc_errata_i734_wa(void)
 
 	/* Set up and enable display manager for LCD1 */
 	dispc_mgr_setup(&dispc, OMAP_DSS_CHANNEL_LCD, &i734.mgri);
-	dispc_calc_clock_rates(dss_get_dispc_clk_rate(dispc.dss),
+	dispc_calc_clock_rates(&dispc, dss_get_dispc_clk_rate(dispc.dss),
 			       &lcd_conf.clock_info);
 	dispc_mgr_set_lcd_config(&dispc, OMAP_DSS_CHANNEL_LCD, &lcd_conf);
 	dispc_mgr_set_timings(&dispc, OMAP_DSS_CHANNEL_LCD, &i734.vm);

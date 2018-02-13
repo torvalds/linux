@@ -191,8 +191,9 @@ static bool dpi_calc_hsdiv_cb(int m_dispc, unsigned long dispc,
 	ctx->pll_cinfo.mX[ctx->clkout_idx] = m_dispc;
 	ctx->pll_cinfo.clkout[ctx->clkout_idx] = dispc;
 
-	return dispc_div_calc(dispc, ctx->pck_min, ctx->pck_max,
-			dpi_calc_dispc_cb, ctx);
+	return dispc_div_calc(ctx->pll->dss->dispc, dispc,
+			      ctx->pck_min, ctx->pck_max,
+			      dpi_calc_dispc_cb, ctx);
 }
 
 
@@ -218,8 +219,9 @@ static bool dpi_calc_dss_cb(unsigned long fck, void *data)
 
 	ctx->fck = fck;
 
-	return dispc_div_calc(fck, ctx->pck_min, ctx->pck_max,
-			dpi_calc_dispc_cb, ctx);
+	return dispc_div_calc(ctx->pll->dss->dispc, fck,
+			      ctx->pck_min, ctx->pck_max,
+			      dpi_calc_dispc_cb, ctx);
 }
 
 static bool dpi_pll_clk_calc(struct dpi_data *dpi, unsigned long pck,
@@ -514,7 +516,7 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 	if (vm->hactive % 8 != 0)
 		return -EINVAL;
 
-	if (!dispc_mgr_timings_ok(channel, vm))
+	if (!dispc_mgr_timings_ok(dpi->dss->dispc, channel, vm))
 		return -EINVAL;
 
 	if (vm->pixelclock == 0)

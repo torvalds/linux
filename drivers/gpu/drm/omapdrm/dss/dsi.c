@@ -1394,18 +1394,18 @@ static int dsi_pll_enable(struct dss_pll *pll)
 	}
 
 	/* XXX PLL does not come out of reset without this... */
-	dispc_pck_free_enable(1);
+	dispc_pck_free_enable(dsi->dss->dispc, 1);
 
 	if (!wait_for_bit_change(dsi, DSI_PLL_STATUS, 0, 1)) {
 		DSSERR("PLL not coming out of reset.\n");
 		r = -ENODEV;
-		dispc_pck_free_enable(0);
+		dispc_pck_free_enable(dsi->dss->dispc, 0);
 		goto err1;
 	}
 
 	/* XXX ... but if left on, we get problems when planes do not
 	 * fill the whole display. No idea about this */
-	dispc_pck_free_enable(0);
+	dispc_pck_free_enable(dsi->dss->dispc, 0);
 
 	r = dsi_pll_power(dsi, DSI_PLL_POWER_ON_ALL);
 
@@ -3972,7 +3972,7 @@ static void dsi_update_screen_dispc(struct dsi_data *dsi)
 	 * the same goes for any DSS interrupts, but for some reason I have not
 	 * seen the problem anywhere else than here.
 	 */
-	dispc_disable_sidle();
+	dispc_disable_sidle(dsi->dss->dispc);
 
 	dsi_perf_mark_start(dsi);
 
@@ -4007,7 +4007,7 @@ static void dsi_te_timeout(struct timer_list *unused)
 static void dsi_handle_framedone(struct dsi_data *dsi, int error)
 {
 	/* SIDLEMODE back to smart-idle */
-	dispc_enable_sidle();
+	dispc_enable_sidle(dsi->dss->dispc);
 
 	if (dsi->te_enabled) {
 		/* enable LP_RX_TO again after the TE */
@@ -4088,7 +4088,7 @@ static int dsi_configure_dispc_clocks(struct dsi_data *dsi)
 	dispc_cinfo.lck_div = dsi->user_dispc_cinfo.lck_div;
 	dispc_cinfo.pck_div = dsi->user_dispc_cinfo.pck_div;
 
-	r = dispc_calc_clock_rates(fck, &dispc_cinfo);
+	r = dispc_calc_clock_rates(dsi->dss->dispc, fck, &dispc_cinfo);
 	if (r) {
 		DSSERR("Failed to calc dispc clocks\n");
 		return r;
@@ -4439,8 +4439,9 @@ static bool dsi_cm_calc_hsdiv_cb(int m_dispc, unsigned long dispc,
 	ctx->dsi_cinfo.mX[HSDIV_DISPC] = m_dispc;
 	ctx->dsi_cinfo.clkout[HSDIV_DISPC] = dispc;
 
-	return dispc_div_calc(dispc, ctx->req_pck_min, ctx->req_pck_max,
-			dsi_cm_calc_dispc_cb, ctx);
+	return dispc_div_calc(ctx->dsi->dss->dispc, dispc,
+			      ctx->req_pck_min, ctx->req_pck_max,
+			      dsi_cm_calc_dispc_cb, ctx);
 }
 
 static bool dsi_cm_calc_pll_cb(int n, int m, unsigned long fint,
@@ -4739,8 +4740,9 @@ static bool dsi_vm_calc_hsdiv_cb(int m_dispc, unsigned long dispc,
 	else
 		pck_max = ctx->req_pck_max;
 
-	return dispc_div_calc(dispc, ctx->req_pck_min, pck_max,
-			dsi_vm_calc_dispc_cb, ctx);
+	return dispc_div_calc(ctx->dsi->dss->dispc, dispc,
+			      ctx->req_pck_min, pck_max,
+			      dsi_vm_calc_dispc_cb, ctx);
 }
 
 static bool dsi_vm_calc_pll_cb(int n, int m, unsigned long fint,

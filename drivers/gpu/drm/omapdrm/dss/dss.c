@@ -274,7 +274,7 @@ int dss_sdi_enable(struct dss_device *dss)
 {
 	unsigned long timeout;
 
-	dispc_pck_free_enable(1);
+	dispc_pck_free_enable(dss->dispc, 1);
 
 	/* Reset SDI PLL */
 	REG_FLD_MOD(dss, DSS_PLL_CONTROL, 1, 18, 18); /* SDI_PLL_SYSRESET */
@@ -304,7 +304,7 @@ int dss_sdi_enable(struct dss_device *dss)
 		}
 	}
 
-	dispc_lcd_enable_signal(1);
+	dispc_lcd_enable_signal(dss->dispc, 1);
 
 	/* Waiting for SDI reset to complete */
 	timeout = jiffies + msecs_to_jiffies(500);
@@ -318,21 +318,21 @@ int dss_sdi_enable(struct dss_device *dss)
 	return 0;
 
  err2:
-	dispc_lcd_enable_signal(0);
+	dispc_lcd_enable_signal(dss->dispc, 0);
  err1:
 	/* Reset SDI PLL */
 	REG_FLD_MOD(dss, DSS_PLL_CONTROL, 0, 18, 18); /* SDI_PLL_SYSRESET */
 
-	dispc_pck_free_enable(0);
+	dispc_pck_free_enable(dss->dispc, 0);
 
 	return -ETIMEDOUT;
 }
 
 void dss_sdi_disable(struct dss_device *dss)
 {
-	dispc_lcd_enable_signal(0);
+	dispc_lcd_enable_signal(dss->dispc, 0);
 
-	dispc_pck_free_enable(0);
+	dispc_pck_free_enable(dss->dispc, 0);
 
 	/* Reset SDI PLL */
 	REG_FLD_MOD(dss, DSS_PLL_CONTROL, 0, 18, 18); /* SDI_PLL_SYSRESET */
@@ -894,7 +894,7 @@ static int dss_debug_dump_clocks(struct seq_file *s, void *p)
 	struct dss_device *dss = s->private;
 
 	dss_dump_clocks(dss, s);
-	dispc_dump_clocks(s);
+	dispc_dump_clocks(dss->dispc, s);
 #ifdef CONFIG_OMAP2_DSS_DSI
 	dsi_dump_clocks(s);
 #endif

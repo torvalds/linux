@@ -71,8 +71,9 @@ static bool dpi_calc_dss_cb(unsigned long fck, void *data)
 
 	ctx->fck = fck;
 
-	return dispc_div_calc(fck, ctx->pck_min, ctx->pck_max,
-			dpi_calc_dispc_cb, ctx);
+	return dispc_div_calc(sdi.dss->dispc, fck,
+			      ctx->pck_min, ctx->pck_max,
+			      dpi_calc_dispc_cb, ctx);
 }
 
 static int sdi_calc_clock_div(unsigned long pclk,
@@ -183,7 +184,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	 * need to care about the shadow register mechanism for pck-free. The
 	 * exact reason for this is unknown.
 	 */
-	dispc_mgr_set_clock_div(sdi.output.dispc_channel,
+	dispc_mgr_set_clock_div(sdi.dss->dispc, sdi.output.dispc_channel,
 				&sdi.mgr_config.clock_info);
 
 	dss_sdi_init(sdi.dss, sdi.datapairs);
@@ -238,7 +239,7 @@ static int sdi_check_timings(struct omap_dss_device *dssdev,
 {
 	enum omap_channel channel = dssdev->dispc_channel;
 
-	if (!dispc_mgr_timings_ok(channel, vm))
+	if (!dispc_mgr_timings_ok(sdi.dss->dispc, channel, vm))
 		return -EINVAL;
 
 	if (vm->pixelclock == 0)
