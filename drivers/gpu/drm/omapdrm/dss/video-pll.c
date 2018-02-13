@@ -190,9 +190,8 @@ struct dss_pll *dss_video_pll_init(struct dss_device *dss,
 	pll->base = pll_base;
 	pll->hw = &dss_dra7_video_pll_hw;
 	pll->ops = &dss_pll_ops;
-	pll->dss = dss;
 
-	r = dss_pll_register(pll);
+	r = dss_pll_register(dss, pll);
 	if (r)
 		return ERR_PTR(r);
 

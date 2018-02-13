@@ -146,7 +146,6 @@ static int hdmi_init_pll_data(struct dss_device *dss,
 	pll->id = DSS_PLL_HDMI;
 	pll->base = hpll->base;
 	pll->clkin = clk;
-	pll->dss = dss;
 
 	if (hpll->wp->version == 4)
 		pll->hw = &dss_omap4_hdmi_pll_hw;
@@ -155,7 +154,7 @@ static int hdmi_init_pll_data(struct dss_device *dss,
 
 	pll->ops = &hdmi_pll_ops;
 
-	r = dss_pll_register(pll);
+	r = dss_pll_register(dss, pll);
 	if (r)
 		return r;
 

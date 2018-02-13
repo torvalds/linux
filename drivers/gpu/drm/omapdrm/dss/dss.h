@@ -267,6 +267,7 @@ struct dss_device {
 		struct dss_debugfs_entry *dss;
 	} debugfs;
 
+	struct dss_pll *plls[4];
 	struct dss_pll	*video1_pll;
 	struct dss_pll	*video2_pll;
 };
@@ -458,10 +459,11 @@ typedef bool (*dss_pll_calc_func)(int n, int m, unsigned long fint,
 typedef bool (*dss_hsdiv_calc_func)(int m_dispc, unsigned long dispc,
 		void *data);
 
-int dss_pll_register(struct dss_pll *pll);
+int dss_pll_register(struct dss_device *dss, struct dss_pll *pll);
 void dss_pll_unregister(struct dss_pll *pll);
-struct dss_pll *dss_pll_find(const char *name);
-struct dss_pll *dss_pll_find_by_src(enum dss_clk_source src);
+struct dss_pll *dss_pll_find(struct dss_device *dss, const char *name);
+struct dss_pll *dss_pll_find_by_src(struct dss_device *dss,
+				    enum dss_clk_source src);
 unsigned int dss_pll_get_clkout_idx_for_src(enum dss_clk_source src);
 int dss_pll_enable(struct dss_pll *pll);
 void dss_pll_disable(struct dss_pll *pll);

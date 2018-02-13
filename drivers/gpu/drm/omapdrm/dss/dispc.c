@@ -3123,7 +3123,7 @@ static unsigned long dispc_fclk_rate(void)
 		struct dss_pll *pll;
 		unsigned int clkout_idx;
 
-		pll = dss_pll_find_by_src(src);
+		pll = dss_pll_find_by_src(dispc.dss, src);
 		clkout_idx = dss_pll_get_clkout_idx_for_src(src);
 
 		r = pll->cinfo.clkout[clkout_idx];
@@ -3150,7 +3150,7 @@ static unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 		struct dss_pll *pll;
 		unsigned int clkout_idx;
 
-		pll = dss_pll_find_by_src(src);
+		pll = dss_pll_find_by_src(dispc.dss, src);
 		clkout_idx = dss_pll_get_clkout_idx_for_src(src);
 
 		r = pll->cinfo.clkout[clkout_idx];

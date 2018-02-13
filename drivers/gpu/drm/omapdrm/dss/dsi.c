@@ -5353,9 +5353,8 @@ static int dsi_init_pll_data(struct dss_device *dss,
 	pll->base = dsi->pll_base;
 	pll->hw = dsi->data->pll_hw;
 	pll->ops = &dsi_pll_ops;
-	pll->dss = dss;
 
-	r = dss_pll_register(pll);
+	r = dss_pll_register(dss, pll);
 	if (r)
 		return r;
 

@@ -58,7 +58,8 @@ static struct dpi_data *dpi_get_data_from_dssdev(struct omap_dss_device *dssdev)
 	return container_of(dssdev, struct dpi_data, output);
 }
 
-static enum dss_clk_source dpi_get_clk_src_dra7xx(enum omap_channel channel)
+static enum dss_clk_source dpi_get_clk_src_dra7xx(struct dpi_data *dpi,
+						  enum omap_channel channel)
 {
 	/*
 	 * Possible clock sources:
@@ -70,23 +71,23 @@ static enum dss_clk_source dpi_get_clk_src_dra7xx(enum omap_channel channel)
 	switch (channel) {
 	case OMAP_DSS_CHANNEL_LCD:
 	{
-		if (dss_pll_find_by_src(DSS_CLK_SRC_PLL1_1))
+		if (dss_pll_find_by_src(dpi->dss, DSS_CLK_SRC_PLL1_1))
 			return DSS_CLK_SRC_PLL1_1;
 		break;
 	}
 	case OMAP_DSS_CHANNEL_LCD2:
 	{
-		if (dss_pll_find_by_src(DSS_CLK_SRC_PLL1_3))
+		if (dss_pll_find_by_src(dpi->dss, DSS_CLK_SRC_PLL1_3))
 			return DSS_CLK_SRC_PLL1_3;
-		if (dss_pll_find_by_src(DSS_CLK_SRC_PLL2_3))
+		if (dss_pll_find_by_src(dpi->dss, DSS_CLK_SRC_PLL2_3))
 			return DSS_CLK_SRC_PLL2_3;
 		break;
 	}
 	case OMAP_DSS_CHANNEL_LCD3:
 	{
-		if (dss_pll_find_by_src(DSS_CLK_SRC_PLL2_1))
+		if (dss_pll_find_by_src(dpi->dss, DSS_CLK_SRC_PLL2_1))
 			return DSS_CLK_SRC_PLL2_1;
-		if (dss_pll_find_by_src(DSS_CLK_SRC_PLL1_3))
+		if (dss_pll_find_by_src(dpi->dss, DSS_CLK_SRC_PLL1_3))
 			return DSS_CLK_SRC_PLL1_3;
 		break;
 	}
@@ -133,7 +134,7 @@ static enum dss_clk_source dpi_get_clk_src(struct dpi_data *dpi)
 		}
 
 	case DSS_MODEL_DRA7:
-		return dpi_get_clk_src_dra7xx(channel);
+		return dpi_get_clk_src_dra7xx(dpi, channel);
 
 	default:
 		return DSS_CLK_SRC_FCK;
@@ -605,7 +606,7 @@ static void dpi_init_pll(struct dpi_data *dpi)
 
 	dpi->clk_src = dpi_get_clk_src(dpi);
 
-	pll = dss_pll_find_by_src(dpi->clk_src);
+	pll = dss_pll_find_by_src(dpi->dss, dpi->clk_src);
 	if (!pll)
 		return;
 
