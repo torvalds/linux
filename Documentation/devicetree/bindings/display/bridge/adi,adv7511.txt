@@ -14,7 +14,13 @@ Required properties:
 		"adi,adv7513"
 		"adi,adv7533"
 
-- reg: I2C slave address
+- reg: I2C slave addresses
+  The ADV7511 internal registers are split into four pages exposed through
+  different I2C addresses, creating four register maps. Each map has it own
+  I2C address and acts as a standard slave device on the I2C bus. The main
+  address is mandatory, others are optional and revert to defaults if not
+  specified.
+
 
 The ADV7511 supports a large number of input data formats that differ by their
 color depth, color format, clock mode, bit justification and random
@@ -70,6 +76,9 @@ Optional properties:
   rather than generate its own timings for HDMI output.
 - clocks: from common clock binding: reference to the CEC clock.
 - clock-names: from common clock binding: must be "cec".
+- reg-names : Names of maps with programmable addresses.
+	It can contain any map needing a non-default address.
+	Possible maps names are : "main", "edid", "cec", "packet"
 
 Required nodes:
 
@@ -88,7 +97,12 @@ Example
 
 	adv7511w: hdmi@39 {
 		compatible = "adi,adv7511w";
-		reg = <39>;
+		/*
+		 * The EDID page will be accessible on address 0x66 on the I2C
+		 * bus. All other maps continue to use their default addresses.
+		 */
+		reg = <0x39>, <0x66>;
+		reg-names = "main", "edid";
 		interrupt-parent = <&gpio3>;
 		interrupts = <29 IRQ_TYPE_EDGE_FALLING>;
 		clocks = <&cec_clock>;
