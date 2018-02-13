@@ -350,13 +350,6 @@ struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_obj_type *type,
 	return type->type_class->alloc_begin(type, ucontext);
 }
 
-static void uverbs_uobject_add(struct ib_uobject *uobject)
-{
-	mutex_lock(&uobject->context->uobjects_lock);
-	list_add(&uobject->list, &uobject->context->uobjects);
-	mutex_unlock(&uobject->context->uobjects_lock);
-}
-
 static int __must_check remove_commit_idr_uobject(struct ib_uobject *uobj,
 						  enum rdma_remove_reason why)
 {
@@ -502,7 +495,6 @@ out:
 
 static void alloc_commit_idr_uobject(struct ib_uobject *uobj)
 {
-	uverbs_uobject_add(uobj);
 	spin_lock(&uobj->context->ufile->idr_lock);
 	/*
 	 * We already allocated this IDR with a NULL object, so
@@ -518,7 +510,6 @@ static void alloc_commit_fd_uobject(struct ib_uobject *uobj)
 	struct ib_uobject_file *uobj_file =
 		container_of(uobj, struct ib_uobject_file, uobj);
 
-	uverbs_uobject_add(&uobj_file->uobj);
 	fd_install(uobj_file->uobj.id, uobj->object);
 	/* This shouldn't be used anymore. Use the file object instead */
 	uobj_file->uobj.id = 0;
@@ -544,6 +535,10 @@ int rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 	/* matches atomic_set(-1) in alloc_uobj */
 	assert_uverbs_usecnt(uobj, true);
 	atomic_set(&uobj->usecnt, 0);
+
+	mutex_lock(&uobj->context->uobjects_lock);
+	list_add(&uobj->list, &uobj->context->uobjects);
+	mutex_unlock(&uobj->context->uobjects_lock);
 
 	uobj->type->type_class->alloc_commit(uobj);
 	up_read(&uobj->context->cleanup_rwsem);
