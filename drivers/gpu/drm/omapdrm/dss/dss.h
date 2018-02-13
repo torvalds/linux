@@ -299,7 +299,8 @@ void dss_runtime_put(struct dss_device *dss);
 
 unsigned long dss_get_dispc_clk_rate(struct dss_device *dss);
 unsigned long dss_get_max_fck_rate(struct dss_device *dss);
-enum omap_dss_output_id dss_get_supported_outputs(enum omap_channel channel);
+enum omap_dss_output_id dss_get_supported_outputs(struct dss_device *dss,
+						  enum omap_channel channel);
 int dss_dpi_select_source(struct dss_device *dss, int port,
 			  enum omap_channel channel);
 void dss_select_hdmi_venc_clk_source(struct dss_device *dss,
@@ -329,8 +330,8 @@ enum dss_clk_source dss_get_dsi_clk_source(struct dss_device *dss,
 enum dss_clk_source dss_get_lcd_clk_source(struct dss_device *dss,
 					   enum omap_channel channel);
 
-void dss_set_venc_output(enum omap_dss_venc_type type);
-void dss_set_dac_pwrdn_bgz(bool enable);
+void dss_set_venc_output(struct dss_device *dss, enum omap_dss_venc_type type);
+void dss_set_dac_pwrdn_bgz(struct dss_device *dss, bool enable);
 
 int dss_set_fck_rate(struct dss_device *dss, unsigned long rate);
 

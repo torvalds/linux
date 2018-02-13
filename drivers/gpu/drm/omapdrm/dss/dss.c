@@ -666,9 +666,10 @@ unsigned long dss_get_max_fck_rate(struct dss_device *dss)
 	return dss->feat->fck_freq_max;
 }
 
-enum omap_dss_output_id dss_get_supported_outputs(enum omap_channel channel)
+enum omap_dss_output_id dss_get_supported_outputs(struct dss_device *dss,
+						  enum omap_channel channel)
 {
-	return dss.feat->outputs[channel];
+	return dss->feat->outputs[channel];
 }
 
 static int dss_setup_default_clock(void)
@@ -697,7 +698,7 @@ static int dss_setup_default_clock(void)
 	return 0;
 }
 
-void dss_set_venc_output(enum omap_dss_venc_type type)
+void dss_set_venc_output(struct dss_device *dss, enum omap_dss_venc_type type)
 {
 	int l = 0;
 
@@ -712,7 +713,7 @@ void dss_set_venc_output(enum omap_dss_venc_type type)
 	REG_FLD_MOD(DSS_CONTROL, l, 6, 6);
 }
 
-void dss_set_dac_pwrdn_bgz(bool enable)
+void dss_set_dac_pwrdn_bgz(struct dss_device *dss, bool enable)
 {
 	REG_FLD_MOD(DSS_CONTROL, enable, 5, 5);	/* DAC Power-Down Control */
 }

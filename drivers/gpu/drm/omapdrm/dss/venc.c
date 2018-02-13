@@ -325,6 +325,7 @@ static struct {
 	struct mutex venc_lock;
 	u32 wss_data;
 	struct regulator *vdda_dac_reg;
+	struct dss_device *dss;
 
 	struct clk	*tv_dac_clk;
 
@@ -468,8 +469,8 @@ static int venc_power_on(struct omap_dss_device *dssdev)
 	venc_reset();
 	venc_write_config(venc_timings_to_config(&venc.vm));
 
-	dss_set_venc_output(venc.type);
-	dss_set_dac_pwrdn_bgz(1);
+	dss_set_venc_output(venc.dss, venc.type);
+	dss_set_dac_pwrdn_bgz(venc.dss, 1);
 
 	l = 0;
 
@@ -499,7 +500,7 @@ err2:
 	regulator_disable(venc.vdda_dac_reg);
 err1:
 	venc_write_reg(VENC_OUTPUT_CONTROL, 0);
-	dss_set_dac_pwrdn_bgz(0);
+	dss_set_dac_pwrdn_bgz(venc.dss, 0);
 
 	venc_runtime_put();
 err0:
@@ -511,7 +512,7 @@ static void venc_power_off(struct omap_dss_device *dssdev)
 	enum omap_channel channel = dssdev->dispc_channel;
 
 	venc_write_reg(VENC_OUTPUT_CONTROL, 0);
-	dss_set_dac_pwrdn_bgz(0);
+	dss_set_dac_pwrdn_bgz(venc.dss, 0);
 
 	dss_mgr_disable(channel);
 
@@ -871,11 +872,13 @@ static const struct soc_device_attribute venc_soc_devices[] = {
 static int venc_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	struct dss_device *dss = dss_get_device(master);
 	u8 rev_id;
 	struct resource *venc_mem;
 	int r;
 
 	venc.pdev = pdev;
+	venc.dss = dss;
 
 	/* The OMAP34xx, OMAP35xx and AM35xx VENC require the TV DAC clock. */
 	if (soc_device_match(venc_soc_devices))
