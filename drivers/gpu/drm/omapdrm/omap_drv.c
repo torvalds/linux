@@ -527,6 +527,7 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 	if (ret)
 		goto err_crtc_uninit;
 
+	priv->dss = omapdss_get_dss();
 	priv->dispc_ops = dispc_get_ops();
 
 	soc = soc_device_match(omapdrm_soc_devices);

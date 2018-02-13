@@ -59,6 +59,7 @@
 #define DISPC_IRQ_ACBIAS_COUNT_STAT3	(1 << 29)
 #define DISPC_IRQ_FRAMEDONE3		(1 << 30)
 
+struct dss_device;
 struct omap_drm_private;
 struct omap_dss_device;
 struct dss_lcd_mgr_config;
@@ -586,7 +587,12 @@ struct omap_dss_driver {
 		const struct hdmi_avi_infoframe *avi);
 };
 
-bool omapdss_is_initialized(void);
+struct dss_device *omapdss_get_dss(void);
+void omapdss_set_dss(struct dss_device *dss);
+static inline bool omapdss_is_initialized(void)
+{
+	return !!omapdss_get_dss();
+}
 
 int omapdss_register_display(struct omap_dss_device *dssdev);
 void omapdss_unregister_display(struct omap_dss_device *dssdev);
@@ -629,8 +635,6 @@ static inline bool omapdss_device_is_enabled(struct omap_dss_device *dssdev)
 
 struct omap_dss_device *
 omapdss_of_find_source_for_first_ep(struct device_node *node);
-
-void omapdss_set_is_initialized(bool set);
 
 struct device_node *dss_of_port_get_parent_device(struct device_node *port);
 u32 dss_of_port_get_port_number(struct device_node *port);

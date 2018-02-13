@@ -20,7 +20,7 @@
 #include <linux/list.h>
 #include "omapdss.h"
 
-static bool dss_initialized;
+static struct dss_device *dss_device;
 static const struct dispc_ops *ops;
 
 static struct list_head omapdss_comp_list;
@@ -31,17 +31,17 @@ struct omapdss_comp_node {
 	bool dss_core_component;
 };
 
-void omapdss_set_is_initialized(bool set)
+struct dss_device *omapdss_get_dss(void)
 {
-	dss_initialized = set;
+	return dss_device;
 }
-EXPORT_SYMBOL(omapdss_set_is_initialized);
+EXPORT_SYMBOL(omapdss_get_dss);
 
-bool omapdss_is_initialized(void)
+void omapdss_set_dss(struct dss_device *dss)
 {
-	return dss_initialized;
+	dss_device = dss;
 }
-EXPORT_SYMBOL(omapdss_is_initialized);
+EXPORT_SYMBOL(omapdss_set_dss);
 
 void dispc_set_ops(const struct dispc_ops *o)
 {
