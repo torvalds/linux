@@ -259,7 +259,7 @@ static void uniphier_aiodma_free(struct snd_pcm *pcm)
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 
-static const struct snd_soc_platform_driver uniphier_soc_platform = {
+static const struct snd_soc_component_driver uniphier_soc_platform = {
 	.pcm_new   = uniphier_aiodma_new,
 	.pcm_free  = uniphier_aiodma_free,
 	.ops       = &uniphier_aiodma_ops,
@@ -313,6 +313,7 @@ int uniphier_aiodma_soc_register_platform(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return devm_snd_soc_register_platform(dev, &uniphier_soc_platform);
+	return devm_snd_soc_register_component(dev, &uniphier_soc_platform,
+					       NULL, 0);
 }
 EXPORT_SYMBOL_GPL(uniphier_aiodma_soc_register_platform);
