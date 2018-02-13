@@ -171,7 +171,8 @@ uint32_t mdp_get_formats(uint32_t *pixel_formats, uint32_t max_formats,
 	return i;
 }
 
-const struct msm_format *mdp_get_format(struct msm_kms *kms, uint32_t format)
+const struct msm_format *mdp_get_format(struct msm_kms *kms, uint32_t format,
+		uint64_t modifier)
 {
 	int i;
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
