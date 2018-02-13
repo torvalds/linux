@@ -196,7 +196,15 @@ static struct ib_uobject *lookup_get_idr_uobject(const struct uverbs_obj_type *t
 		goto free;
 	}
 
-	uverbs_uobject_get(uobj);
+	/*
+	 * The idr_find is guaranteed to return a pointer to something that
+	 * isn't freed yet, or NULL, as the free after idr_remove goes through
+	 * kfree_rcu(). However the object may still have been released and
+	 * kfree() could be called at any time.
+	 */
+	if (!kref_get_unless_zero(&uobj->ref))
+		uobj = ERR_PTR(-ENOENT);
+
 free:
 	rcu_read_unlock();
 	return uobj;
