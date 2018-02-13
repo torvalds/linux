@@ -4624,7 +4624,7 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 
 	dispc_set_ops(&dispc_ops);
 
-	dispc.debugfs = dss_debugfs_create_file("dispc", dispc_dump_regs,
+	dispc.debugfs = dss_debugfs_create_file(dss, "dispc", dispc_dump_regs,
 						&dispc);
 
 	return 0;

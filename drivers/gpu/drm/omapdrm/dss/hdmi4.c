@@ -780,7 +780,8 @@ static int hdmi4_bind(struct device *dev, struct device *master, void *data)
 		return r;
 	}
 
-	hdmi.debugfs = dss_debugfs_create_file("hdmi", hdmi_dump_regs, &hdmi);
+	hdmi.debugfs = dss_debugfs_create_file(dss, "hdmi", hdmi_dump_regs,
+					       &hdmi);
 
 	return 0;
 err:

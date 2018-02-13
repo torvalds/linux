@@ -901,25 +901,22 @@ static int dss_debug_dump_clocks(struct seq_file *s, void *p)
 	return 0;
 }
 
-static struct dentry *dss_debugfs_dir;
-
 static int dss_initialize_debugfs(struct dss_device *dss)
 {
-	dss_debugfs_dir = debugfs_create_dir("omapdss", NULL);
-	if (IS_ERR(dss_debugfs_dir)) {
-		int err = PTR_ERR(dss_debugfs_dir);
+	struct dentry *dir;
 
-		dss_debugfs_dir = NULL;
-		return err;
-	}
+	dir = debugfs_create_dir("omapdss", NULL);
+	if (IS_ERR(dir))
+		return PTR_ERR(dir);
+
+	dss->debugfs.root = dir;
 
 	return 0;
 }
 
-static void dss_uninitialize_debugfs(void)
+static void dss_uninitialize_debugfs(struct dss_device *dss)
 {
-	if (dss_debugfs_dir)
-		debugfs_remove_recursive(dss_debugfs_dir);
+	debugfs_remove_recursive(dss->debugfs.root);
 }
 
 struct dss_debugfs_entry {
@@ -942,8 +939,10 @@ static const struct file_operations dss_debug_fops = {
 	.release	= single_release,
 };
 
-struct dss_debugfs_entry *dss_debugfs_create_file(const char *name,
-		int (*show_fn)(struct seq_file *s, void *data), void *data)
+struct dss_debugfs_entry *
+dss_debugfs_create_file(struct dss_device *dss, const char *name,
+			int (*show_fn)(struct seq_file *s, void *data),
+			void *data)
 {
 	struct dss_debugfs_entry *entry;
 	struct dentry *d;
@@ -955,7 +954,7 @@ struct dss_debugfs_entry *dss_debugfs_create_file(const char *name,
 	entry->show_fn = show_fn;
 	entry->data = data;
 
-	d = debugfs_create_file(name, 0444, dss_debugfs_dir, entry,
+	d = debugfs_create_file(name, 0444, dss->debugfs.root, entry,
 				&dss_debug_fops);
 	if (IS_ERR(d)) {
 		kfree(entry);
@@ -980,7 +979,7 @@ static inline int dss_initialize_debugfs(struct dss_device *dss)
 {
 	return 0;
 }
-static inline void dss_uninitialize_debugfs(void)
+static inline void dss_uninitialize_debugfs(struct dss_device *dss)
 {
 }
 #endif /* CONFIG_OMAP2_DSS_DEBUGFS */
@@ -1472,9 +1471,10 @@ static int dss_probe(struct platform_device *pdev)
 	if (r)
 		goto err_pm_runtime_disable;
 
-	dss->debugfs.clk = dss_debugfs_create_file("clk", dss_debug_dump_clocks,
+	dss->debugfs.clk = dss_debugfs_create_file(dss, "clk",
+						   dss_debug_dump_clocks, dss);
+	dss->debugfs.dss = dss_debugfs_create_file(dss, "dss", dss_dump_regs,
 						   dss);
-	dss->debugfs.dss = dss_debugfs_create_file("dss", dss_dump_regs, dss);
 
 	/* Add all the child devices as components. */
 	device_for_each_child(&pdev->dev, &match, dss_add_child_component);
@@ -1488,7 +1488,7 @@ static int dss_probe(struct platform_device *pdev)
 err_uninit_debugfs:
 	dss_debugfs_remove_file(dss->debugfs.clk);
 	dss_debugfs_remove_file(dss->debugfs.dss);
-	dss_uninitialize_debugfs();
+	dss_uninitialize_debugfs(dss);
 
 err_pm_runtime_disable:
 	pm_runtime_disable(&pdev->dev);
@@ -1517,7 +1517,7 @@ static int dss_remove(struct platform_device *pdev)
 
 	dss_debugfs_remove_file(dss->debugfs.clk);
 	dss_debugfs_remove_file(dss->debugfs.dss);
-	dss_uninitialize_debugfs();
+	dss_uninitialize_debugfs(dss);
 
 	pm_runtime_disable(&pdev->dev);
 

@@ -263,6 +263,7 @@ struct dss_device {
 	const struct dss_features *feat;
 
 	struct {
+		struct dentry *root;
 		struct dss_debugfs_entry *clk;
 		struct dss_debugfs_entry *dss;
 	} debugfs;
@@ -290,12 +291,14 @@ static inline bool dss_mgr_is_lcd(enum omap_channel id)
 
 /* DSS */
 #if defined(CONFIG_OMAP2_DSS_DEBUGFS)
-struct dss_debugfs_entry *dss_debugfs_create_file(const char *name,
-		int (*show_fn)(struct seq_file *s, void *data), void *data);
+struct dss_debugfs_entry *
+dss_debugfs_create_file(struct dss_device *dss, const char *name,
+			int (*show_fn)(struct seq_file *s, void *data),
+			void *data);
 void dss_debugfs_remove_file(struct dss_debugfs_entry *entry);
 #else
 static inline struct dss_debugfs_entry *
-dss_debugfs_create_file(const char *name,
+dss_debugfs_create_file(struct dss_device *dss, const char *name,
 			int (*show_fn)(struct seq_file *s, void *data),
 			void *data)
 {

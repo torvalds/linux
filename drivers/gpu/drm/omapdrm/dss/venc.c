@@ -917,7 +917,8 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 		goto err_probe_of;
 	}
 
-	venc.debugfs = dss_debugfs_create_file("venc", venc_dump_regs, &venc);
+	venc.debugfs = dss_debugfs_create_file(dss, "venc", venc_dump_regs,
+						&venc);
 
 	venc_init_output(pdev);
 

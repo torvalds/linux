@@ -5576,20 +5576,20 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	dsi_runtime_put(dsidev);
 
 	if (dsi->module_id == 0)
-		dsi->debugfs.regs = dss_debugfs_create_file("dsi1_regs",
+		dsi->debugfs.regs = dss_debugfs_create_file(dss, "dsi1_regs",
 							    dsi1_dump_regs,
 							    &dsi);
 	else
-		dsi->debugfs.regs = dss_debugfs_create_file("dsi2_regs",
+		dsi->debugfs.regs = dss_debugfs_create_file(dss, "dsi2_regs",
 							    dsi2_dump_regs,
 							    &dsi);
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
 	if (dsi->module_id == 0)
-		dsi->debugfs.irqs = dss_debugfs_create_file("dsi1_irqs",
+		dsi->debugfs.irqs = dss_debugfs_create_file(dss, "dsi1_irqs",
 							    dsi1_dump_irqs,
 							    &dsi);
 	else
-		dsi->debugfs.irqs = dss_debugfs_create_file("dsi2_irqs",
+		dsi->debugfs.irqs = dss_debugfs_create_file(dss, "dsi2_irqs",
 							    dsi2_dump_irqs,
 							    &dsi);
 #endif
