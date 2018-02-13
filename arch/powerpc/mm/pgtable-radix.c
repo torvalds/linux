@@ -171,13 +171,6 @@ set_the_pte:
 	return 0;
 }
 
-static int __map_kernel_page_nid(unsigned long ea, unsigned long pa,
-			  pgprot_t flags,
-			  unsigned int map_page_size, int nid)
-{
-	return __map_kernel_page(ea, pa, flags, map_page_size, nid, 0, 0);
-}
-
 int radix__map_kernel_page(unsigned long ea, unsigned long pa,
 			  pgprot_t flags,
 			  unsigned int map_page_size)
@@ -860,9 +853,9 @@ static void remove_pagetable(unsigned long start, unsigned long end)
 	radix__flush_tlb_kernel_range(start, end);
 }
 
-int __ref radix__create_section_mapping(unsigned long start, unsigned long end)
+int __ref radix__create_section_mapping(unsigned long start, unsigned long end, int nid)
 {
-	return create_physical_mapping(start, end, -1);
+	return create_physical_mapping(start, end, nid);
 }
 
 int radix__remove_section_mapping(unsigned long start, unsigned long end)
@@ -873,6 +866,13 @@ int radix__remove_section_mapping(unsigned long start, unsigned long end)
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
+static int __map_kernel_page_nid(unsigned long ea, unsigned long pa,
+				 pgprot_t flags, unsigned int map_page_size,
+				 int nid)
+{
+	return __map_kernel_page(ea, pa, flags, map_page_size, nid, 0, 0);
+}
+
 int __meminit radix__vmemmap_create_mapping(unsigned long start,
 				      unsigned long page_size,
 				      unsigned long phys)
