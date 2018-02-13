@@ -85,6 +85,12 @@
 #define MLXPLAT_CPLD_FAN_MASK		GENMASK(3, 0)
 #define MLXPLAT_CPLD_FAN_NG_MASK	GENMASK(5, 0)
 
+/* Default I2C parent bus number */
+#define MLXPLAT_CPLD_PHYS_ADAPTER_DEF_NR	1
+
+/* Maximum number of possible physical buses equipped on system */
+#define MLXPLAT_CPLD_MAX_PHYS_ADAPTER_NUM	16
+
 /* Number of channels in group */
 #define MLXPLAT_CPLD_GRP_CHNL_NUM		8
 
@@ -843,10 +849,48 @@ static const struct dmi_system_id mlxplat_dmi_table[] __initconst = {
 
 MODULE_DEVICE_TABLE(dmi, mlxplat_dmi_table);
 
+static int mlxplat_mlxcpld_verify_bus_topology(int *nr)
+{
+	struct i2c_adapter *search_adap;
+	int shift, i;
+
+	/* Scan adapters from expected id to verify it is free. */
+	*nr = MLXPLAT_CPLD_PHYS_ADAPTER_DEF_NR;
+	for (i = MLXPLAT_CPLD_PHYS_ADAPTER_DEF_NR; i <
+	     MLXPLAT_CPLD_MAX_PHYS_ADAPTER_NUM; i++) {
+		search_adap = i2c_get_adapter(i);
+		if (search_adap) {
+			i2c_put_adapter(search_adap);
+			continue;
+		}
+
+		/* Return if expected parent adapter is free. */
+		if (i == MLXPLAT_CPLD_PHYS_ADAPTER_DEF_NR)
+			return 0;
+		break;
+	}
+
+	/* Return with error if free id for adapter is not found. */
+	if (i == MLXPLAT_CPLD_MAX_PHYS_ADAPTER_NUM)
+		return -ENODEV;
+
+	/* Shift adapter ids, since expected parent adapter is not free. */
+	*nr = i;
+	for (i = 0; i < ARRAY_SIZE(mlxplat_mux_data); i++) {
+		shift = *nr - mlxplat_mux_data[i].parent;
+		mlxplat_mux_data[i].parent = *nr;
+		mlxplat_mux_data[i].base_nr += shift;
+		if (shift > 0)
+			mlxplat_hotplug->shift_nr = shift;
+	}
+
+	return 0;
+}
+
 static int __init mlxplat_init(void)
 {
 	struct mlxplat_priv *priv;
-	int i, err;
+	int i, nr, err;
 
 	if (!dmi_check_system(mlxplat_dmi_table))
 		return -ENODEV;
@@ -866,7 +910,12 @@ static int __init mlxplat_init(void)
 	}
 	platform_set_drvdata(mlxplat_dev, priv);
 
-	priv->pdev_i2c = platform_device_register_simple("i2c_mlxcpld", -1,
+	err = mlxplat_mlxcpld_verify_bus_topology(&nr);
+	if (nr < 0)
+		goto fail_alloc;
+
+	nr = (nr == MLXPLAT_CPLD_MAX_PHYS_ADAPTER_NUM) ? -1 : nr;
+	priv->pdev_i2c = platform_device_register_simple("i2c_mlxcpld", nr,
 							 NULL, 0);
 	if (IS_ERR(priv->pdev_i2c)) {
 		err = PTR_ERR(priv->pdev_i2c);
