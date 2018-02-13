@@ -318,10 +318,12 @@ void ax25_digi_invert(const ax25_digi *, ax25_digi *);
 extern ax25_dev *ax25_dev_list;
 extern spinlock_t ax25_dev_lock;
 
+#if IS_ENABLED(CONFIG_AX25)
 static inline ax25_dev *ax25_dev_ax25dev(struct net_device *dev)
 {
 	return dev->ax25_ptr;
 }
+#endif
 
 ax25_dev *ax25_addr_ax25dev(ax25_address *);
 void ax25_dev_device_up(struct net_device *);

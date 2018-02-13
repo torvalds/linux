@@ -1804,7 +1804,9 @@ struct net_device {
 	struct dn_dev __rcu     *dn_ptr;
 #endif
 	struct inet6_dev __rcu	*ip6_ptr;
+#if IS_ENABLED(CONFIG_AX25)
 	void			*ax25_ptr;
+#endif
 	struct wireless_dev	*ieee80211_ptr;
 	struct wpan_dev		*ieee802154_ptr;
 #if IS_ENABLED(CONFIG_MPLS_ROUTING)
