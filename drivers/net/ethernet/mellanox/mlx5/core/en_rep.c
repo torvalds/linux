@@ -1139,22 +1139,7 @@ bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv)
 	return (rep->vport == FDB_UPLINK_VPORT);
 }
 
-static bool mlx5e_is_vf_vport_rep(struct mlx5e_priv *priv)
-{
-	struct mlx5e_rep_priv *rpriv = priv->ppriv;
-	struct mlx5_eswitch_rep *rep;
-
-	if (!MLX5_ESWITCH_MANAGER(priv->mdev))
-		return false;
-
-	rep = rpriv->rep;
-	if (rep && rep->vport != FDB_UPLINK_VPORT)
-		return true;
-
-	return false;
-}
-
-bool mlx5e_has_offload_stats(const struct net_device *dev, int attr_id)
+static bool mlx5e_rep_has_offload_stats(const struct net_device *dev, int attr_id)
 {
 	switch (attr_id) {
 	case IFLA_OFFLOAD_XSTATS_CPU_HIT:
@@ -1183,8 +1168,8 @@ mlx5e_get_sw_stats64(const struct net_device *dev,
 	return 0;
 }
 
-int mlx5e_get_offload_stats(int attr_id, const struct net_device *dev,
-			    void *sp)
+static int mlx5e_rep_get_offload_stats(int attr_id, const struct net_device *dev,
+				       void *sp)
 {
 	switch (attr_id) {
 	case IFLA_OFFLOAD_XSTATS_CPU_HIT:
@@ -1235,8 +1220,8 @@ static const struct net_device_ops mlx5e_netdev_ops_vf_rep = {
 	.ndo_get_phys_port_name  = mlx5e_rep_get_phys_port_name,
 	.ndo_setup_tc            = mlx5e_rep_setup_tc,
 	.ndo_get_stats64         = mlx5e_vf_rep_get_stats,
-	.ndo_has_offload_stats	 = mlx5e_has_offload_stats,
-	.ndo_get_offload_stats	 = mlx5e_get_offload_stats,
+	.ndo_has_offload_stats	 = mlx5e_rep_has_offload_stats,
+	.ndo_get_offload_stats	 = mlx5e_rep_get_offload_stats,
 	.ndo_change_mtu          = mlx5e_vf_rep_change_mtu,
 };
 
@@ -1247,8 +1232,8 @@ static const struct net_device_ops mlx5e_netdev_ops_uplink_rep = {
 	.ndo_get_phys_port_name  = mlx5e_rep_get_phys_port_name,
 	.ndo_setup_tc            = mlx5e_rep_setup_tc,
 	.ndo_get_stats64         = mlx5e_get_stats,
-	.ndo_has_offload_stats	 = mlx5e_has_offload_stats,
-	.ndo_get_offload_stats	 = mlx5e_get_offload_stats,
+	.ndo_has_offload_stats	 = mlx5e_rep_has_offload_stats,
+	.ndo_get_offload_stats	 = mlx5e_rep_get_offload_stats,
 	.ndo_change_mtu          = mlx5e_uplink_rep_change_mtu,
 };
 
@@ -1550,69 +1535,6 @@ static const struct mlx5e_profile mlx5e_rep_profile = {
 };
 
 /* e-Switch vport representors */
-
-static int
-mlx5e_nic_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
-{
-	struct mlx5e_rep_priv *rpriv = mlx5e_rep_to_rep_priv(rep);
-	struct mlx5e_priv *priv = netdev_priv(rpriv->netdev);
-	struct mlx5_rep_uplink_priv *uplink_priv = &rpriv->uplink_priv;
-	int err;
-
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		err = mlx5e_add_sqs_fwd_rules(priv);
-		if (err)
-			return err;
-	}
-
-	err = mlx5e_rep_neigh_init(rpriv);
-	if (err)
-		goto err_remove_sqs;
-
-	/* init shared tc flow table */
-	err = mlx5e_tc_esw_init(&uplink_priv->tc_ht);
-	if (err)
-		goto  err_neigh_cleanup;
-
-	/* init indirect block notifications */
-	INIT_LIST_HEAD(&uplink_priv->tc_indr_block_priv_list);
-	uplink_priv->netdevice_nb.notifier_call = mlx5e_nic_rep_netdevice_event;
-	err = register_netdevice_notifier(&uplink_priv->netdevice_nb);
-	if (err) {
-		mlx5_core_err(priv->mdev, "Failed to register netdev notifier\n");
-		goto err_indirect_block_cleanup;
-	}
-
-	return 0;
-
-err_indirect_block_cleanup:
-	mlx5e_tc_esw_cleanup(&uplink_priv->tc_ht);
-err_neigh_cleanup:
-	mlx5e_rep_neigh_cleanup(rpriv);
-err_remove_sqs:
-	mlx5e_remove_sqs_fwd_rules(priv);
-	return err;
-}
-
-static void
-mlx5e_nic_rep_unload(struct mlx5_eswitch_rep *rep)
-{
-	struct mlx5e_rep_priv *rpriv = mlx5e_rep_to_rep_priv(rep);
-	struct mlx5e_priv *priv = netdev_priv(rpriv->netdev);
-
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-		mlx5e_remove_sqs_fwd_rules(priv);
-
-	/* clean indirect TC block notifications */
-	unregister_netdevice_notifier(&rpriv->uplink_priv.netdevice_nb);
-	mlx5e_rep_indr_clean_block_privs(rpriv);
-
-	/* clean uplink offloaded TC rules, delete shared tc flow table */
-	mlx5e_tc_esw_cleanup(&rpriv->uplink_priv.tc_ht);
-
-	mlx5e_rep_neigh_cleanup(rpriv);
-}
-
 static int
 mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 {
@@ -1725,17 +1647,4 @@ void mlx5e_rep_unregister_vport_reps(struct mlx5e_priv *priv)
 
 	for (vport = total_vfs - 1; vport >= 0; vport--)
 		mlx5_eswitch_unregister_vport_rep(esw, vport, REP_ETH);
-}
-
-void *mlx5e_alloc_nic_rep_priv(struct mlx5_core_dev *mdev)
-{
-	struct mlx5_eswitch *esw = mdev->priv.eswitch;
-	struct mlx5e_rep_priv *rpriv;
-
-	rpriv = kzalloc(sizeof(*rpriv), GFP_KERNEL);
-	if (!rpriv)
-		return NULL;
-
-	rpriv->rep = &esw->offloads.vport_reps[0];
-	return rpriv;
 }
