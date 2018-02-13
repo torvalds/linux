@@ -323,17 +323,24 @@ void default_machine_kexec(struct kimage *image)
 	kexec_stack.thread_info.cpu = current_thread_info()->cpu;
 
 	/* We need a static PACA, too; copy this CPU's PACA over and switch to
-	 * it.  Also poison per_cpu_offset to catch anyone using non-static
-	 * data.
+	 * it. Also poison per_cpu_offset and NULL lppaca to catch anyone using
+	 * non-static data.
 	 */
 	memcpy(&kexec_paca, get_paca(), sizeof(struct paca_struct));
 	kexec_paca.data_offset = 0xedeaddeadeeeeeeeUL;
+#ifdef CONFIG_PPC_PSERIES
+	kexec_paca.lppaca_ptr = NULL;
+#endif
 	paca_ptrs[kexec_paca.paca_index] = &kexec_paca;
+
 	setup_paca(&kexec_paca);
 
-	/* XXX: If anyone does 'dynamic lppacas' this will also need to be
-	 * switched to a static version!
+	/*
+	 * The lppaca should be unregistered at this point so the HV won't
+	 * touch it. In the case of a crash, none of the lppacas are
+	 * unregistered so there is not much we can do about it here.
 	 */
+
 	/*
 	 * On Book3S, the copy must happen with the MMU off if we are either
 	 * using Radix page tables or we are not in an LPAR since we can

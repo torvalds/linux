@@ -498,7 +498,8 @@ static unsigned long do_h_register_vpa(struct kvm_vcpu *vcpu,
 		 * use 640 bytes of the structure though, so we should accept
 		 * clients that set a size of 640.
 		 */
-		if (len < 640)
+		BUILD_BUG_ON(sizeof(struct lppaca) != 640);
+		if (len < sizeof(struct lppaca))
 			break;
 		vpap = &tvcpu->arch.vpa;
 		err = 0;

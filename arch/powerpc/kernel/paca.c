@@ -23,82 +23,50 @@
 #ifdef CONFIG_PPC_PSERIES
 
 /*
- * The structure which the hypervisor knows about - this structure
- * should not cross a page boundary.  The vpa_init/register_vpa call
- * is now known to fail if the lppaca structure crosses a page
- * boundary.  The lppaca is also used on POWER5 pSeries boxes.
- * The lppaca is 640 bytes long, and cannot readily
- * change since the hypervisor knows its layout, so a 1kB alignment
- * will suffice to ensure that it doesn't cross a page boundary.
+ * See asm/lppaca.h for more detail.
+ *
+ * lppaca structures must must be 1kB in size, L1 cache line aligned,
+ * and not cross 4kB boundary. A 1kB size and 1kB alignment will satisfy
+ * these requirements.
  */
-struct lppaca lppaca[] = {
-	[0 ... (NR_LPPACAS-1)] = {
+static inline void init_lppaca(struct lppaca *lppaca)
+{
+	BUILD_BUG_ON(sizeof(struct lppaca) != 640);
+
+	*lppaca = (struct lppaca) {
 		.desc = cpu_to_be32(0xd397d781),	/* "LpPa" */
-		.size = cpu_to_be16(sizeof(struct lppaca)),
+		.size = cpu_to_be16(0x400),
 		.fpregs_in_use = 1,
 		.slb_count = cpu_to_be16(64),
 		.vmxregs_in_use = 0,
-		.page_ins = 0,
-	},
+		.page_ins = 0, };
 };
 
-static struct lppaca *extra_lppacas;
-static long __initdata lppaca_size;
-
-static void __init allocate_lppacas(int nr_cpus, unsigned long limit)
-{
-	if (early_cpu_has_feature(CPU_FTR_HVMODE))
-		return;
-
-	if (nr_cpus <= NR_LPPACAS)
-		return;
-
-	lppaca_size = PAGE_ALIGN(sizeof(struct lppaca) *
-				 (nr_cpus - NR_LPPACAS));
-	extra_lppacas = __va(memblock_alloc_base(lppaca_size,
-						 PAGE_SIZE, limit));
-}
-
-static struct lppaca * __init new_lppaca(int cpu)
+static struct lppaca * __init new_lppaca(int cpu, unsigned long limit)
 {
 	struct lppaca *lp;
+	size_t size = 0x400;
+
+	BUILD_BUG_ON(size < sizeof(struct lppaca));
 
 	if (early_cpu_has_feature(CPU_FTR_HVMODE))
 		return NULL;
 
-	if (cpu < NR_LPPACAS)
-		return &lppaca[cpu];
-
-	lp = extra_lppacas + (cpu - NR_LPPACAS);
-	*lp = lppaca[0];
+	lp = __va(memblock_alloc_base(size, 0x400, limit));
+	init_lppaca(lp);
 
 	return lp;
 }
 
-static void __init free_lppacas(void)
+static void __init free_lppaca(struct lppaca *lp)
 {
-	long new_size = 0, nr;
+	size_t size = 0x400;
 
 	if (early_cpu_has_feature(CPU_FTR_HVMODE))
 		return;
 
-	if (!lppaca_size)
-		return;
-	nr = num_possible_cpus() - NR_LPPACAS;
-	if (nr > 0)
-		new_size = PAGE_ALIGN(nr * sizeof(struct lppaca));
-	if (new_size >= lppaca_size)
-		return;
-
-	memblock_free(__pa(extra_lppacas) + new_size, lppaca_size - new_size);
-	lppaca_size = new_size;
+	memblock_free(__pa(lp), size);
 }
-
-#else
-
-static inline void allocate_lppacas(int nr_cpus, unsigned long limit) { }
-static inline void free_lppacas(void) { }
-
 #endif /* CONFIG_PPC_BOOK3S */
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -167,7 +135,7 @@ EXPORT_SYMBOL(paca_ptrs);
 void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 {
 #ifdef CONFIG_PPC_PSERIES
-	new_paca->lppaca_ptr = new_lppaca(cpu);
+	new_paca->lppaca_ptr = NULL;
 #endif
 #ifdef CONFIG_PPC_BOOK3E
 	new_paca->kernel_pgd = swapper_pg_dir;
@@ -254,13 +222,15 @@ void __init allocate_pacas(void)
 	printk(KERN_DEBUG "Allocated %lu bytes for %u pacas\n",
 			size, nr_cpu_ids);
 
-	allocate_lppacas(nr_cpu_ids, limit);
-
 	allocate_slb_shadows(nr_cpu_ids, limit);
 
 	/* Can't use for_each_*_cpu, as they aren't functional yet */
-	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
+	for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
 		initialise_paca(paca_ptrs[cpu], cpu);
+#ifdef CONFIG_PPC_PSERIES
+		paca_ptrs[cpu]->lppaca_ptr = new_lppaca(cpu, limit);
+#endif
+	}
 }
 
 void __init free_unused_pacas(void)
@@ -272,6 +242,9 @@ void __init free_unused_pacas(void)
 	for (cpu = 0; cpu < paca_nr_cpu_ids; cpu++) {
 		if (!cpu_possible(cpu)) {
 			unsigned long pa = __pa(paca_ptrs[cpu]);
+#ifdef CONFIG_PPC_PSERIES
+			free_lppaca(paca_ptrs[cpu]->lppaca_ptr);
+#endif
 			memblock_free(pa, sizeof(struct paca_struct));
 			paca_ptrs[cpu] = NULL;
 			size += sizeof(struct paca_struct);
@@ -287,8 +260,6 @@ void __init free_unused_pacas(void)
 
 	if (size)
 		printk(KERN_DEBUG "Freed %lu bytes for unused pacas\n", size);
-
-	free_lppacas();
 
 	paca_nr_cpu_ids = nr_cpu_ids;
 	paca_ptrs_size = new_ptrs_size;
