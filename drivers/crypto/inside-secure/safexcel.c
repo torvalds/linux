@@ -514,8 +514,7 @@ finalize:
 
 	if (!priv->ring[ring].busy) {
 		nreq -= safexcel_try_push_requests(priv, ring, nreq);
-		if (nreq)
-			priv->ring[ring].busy = true;
+		priv->ring[ring].busy = true;
 	}
 
 	priv->ring[ring].requests_left += nreq;
