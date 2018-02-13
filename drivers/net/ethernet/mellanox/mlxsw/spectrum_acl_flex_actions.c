@@ -35,6 +35,7 @@
 
 #include "spectrum_acl_flex_actions.h"
 #include "core_acl_flex_actions.h"
+#include "spectrum_span.h"
 
 #define MLXSW_SP_KVDL_ACT_EXT_SIZE 1
 

@@ -80,6 +80,7 @@ enum mlxsw_sp_resource_id {
 
 struct mlxsw_sp_port;
 struct mlxsw_sp_rif;
+struct mlxsw_sp_span_entry;
 
 struct mlxsw_sp_upper {
 	struct net_device *dev;
@@ -109,25 +110,6 @@ struct mlxsw_sp_mid {
 	u16 mid;
 	bool in_hw;
 	unsigned long *ports_in_mid; /* bits array */
-};
-
-enum mlxsw_sp_span_type {
-	MLXSW_SP_SPAN_EGRESS,
-	MLXSW_SP_SPAN_INGRESS
-};
-
-struct mlxsw_sp_span_inspected_port {
-	struct list_head list;
-	enum mlxsw_sp_span_type type;
-	u8 local_port;
-};
-
-struct mlxsw_sp_span_entry {
-	u8 local_port;
-	bool used;
-	struct list_head bound_ports_list;
-	int ref_count;
-	int id;
 };
 
 enum mlxsw_sp_port_mall_action_type {
@@ -396,16 +378,6 @@ struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find(struct net_device *dev);
 struct mlxsw_sp_port *mlxsw_sp_port_lower_dev_hold(struct net_device *dev);
 void mlxsw_sp_port_dev_put(struct mlxsw_sp_port *mlxsw_sp_port);
 struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find_rcu(struct net_device *dev);
-int mlxsw_sp_span_mirror_add(struct mlxsw_sp_port *from,
-			     struct mlxsw_sp_port *to,
-			     enum mlxsw_sp_span_type type,
-			     bool bind);
-void mlxsw_sp_span_mirror_del(struct mlxsw_sp_port *from,
-			      u8 destination_port,
-			      enum mlxsw_sp_span_type type,
-			      bool bind);
-struct mlxsw_sp_span_entry *
-mlxsw_sp_span_entry_find(struct mlxsw_sp *mlxsw_sp, u8 local_port);
 
 /* spectrum_dcb.c */
 #ifdef CONFIG_MLXSW_SPECTRUM_DCB
