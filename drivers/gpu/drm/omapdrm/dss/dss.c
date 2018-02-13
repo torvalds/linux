@@ -570,25 +570,27 @@ void dss_select_lcd_clk_source(struct dss_device *dss,
 	dss->lcd_clk_source[idx] = clk_src;
 }
 
-enum dss_clk_source dss_get_dispc_clk_source(void)
+enum dss_clk_source dss_get_dispc_clk_source(struct dss_device *dss)
 {
-	return dss.dispc_clk_source;
+	return dss->dispc_clk_source;
 }
 
-enum dss_clk_source dss_get_dsi_clk_source(int dsi_module)
+enum dss_clk_source dss_get_dsi_clk_source(struct dss_device *dss,
+					   int dsi_module)
 {
-	return dss.dsi_clk_source[dsi_module];
+	return dss->dsi_clk_source[dsi_module];
 }
 
-enum dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel)
+enum dss_clk_source dss_get_lcd_clk_source(struct dss_device *dss,
+					   enum omap_channel channel)
 {
-	if (dss.feat->has_lcd_clk_src) {
+	if (dss->feat->has_lcd_clk_src) {
 		int idx = dss_get_channel_index(channel);
-		return dss.lcd_clk_source[idx];
+		return dss->lcd_clk_source[idx];
 	} else {
 		/* LCD_CLK source is the same as DISPC_FCLK source for
 		 * OMAP2 and OMAP3 */
-		return dss.dispc_clk_source;
+		return dss->dispc_clk_source;
 	}
 }
 

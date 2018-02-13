@@ -165,6 +165,7 @@ struct dispc_features {
 static struct {
 	struct platform_device *pdev;
 	void __iomem    *base;
+	struct dss_device *dss;
 
 	int irq;
 	irq_handler_t user_handler;
@@ -3112,7 +3113,7 @@ static unsigned long dispc_fclk_rate(void)
 	unsigned long r;
 	enum dss_clk_source src;
 
-	src = dss_get_dispc_clk_source();
+	src = dss_get_dispc_clk_source(dispc.dss);
 
 	if (src == DSS_CLK_SRC_FCK) {
 		r = dss_get_dispc_clk_rate();
@@ -3139,7 +3140,7 @@ static unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 	if (!dss_mgr_is_lcd(channel))
 		return dispc_fclk_rate();
 
-	src = dss_get_lcd_clk_source(channel);
+	src = dss_get_lcd_clk_source(dispc.dss, channel);
 
 	if (src == DSS_CLK_SRC_FCK) {
 		r = dss_get_dispc_clk_rate();
@@ -3219,7 +3220,7 @@ static void dispc_dump_clocks_channel(struct seq_file *s, enum omap_channel chan
 
 	seq_printf(s, "- %s -\n", mgr_desc[channel].name);
 
-	lcd_clk_src = dss_get_lcd_clk_source(channel);
+	lcd_clk_src = dss_get_lcd_clk_source(dispc.dss, channel);
 
 	seq_printf(s, "%s clk source = %s\n", mgr_desc[channel].name,
 		dss_get_clk_source_name(lcd_clk_src));
@@ -3236,7 +3237,7 @@ void dispc_dump_clocks(struct seq_file *s)
 {
 	int lcd;
 	u32 l;
-	enum dss_clk_source dispc_clk_src = dss_get_dispc_clk_source();
+	enum dss_clk_source dispc_clk_src = dss_get_dispc_clk_source(dispc.dss);
 
 	if (dispc_runtime_get())
 		return;
@@ -4549,12 +4550,14 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	const struct soc_device_attribute *soc;
+	struct dss_device *dss = dss_get_device(master);
 	u32 rev;
 	int r = 0;
 	struct resource *dispc_mem;
 	struct device_node *np = pdev->dev.of_node;
 
 	dispc.pdev = pdev;
+	dispc.dss = dss;
 
 	spin_lock_init(&dispc.control_lock);
 

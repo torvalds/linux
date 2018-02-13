@@ -1286,8 +1286,10 @@ static unsigned long dsi_fclk_rate(struct platform_device *dsidev)
 {
 	unsigned long r;
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	enum dss_clk_source source;
 
-	if (dss_get_dsi_clk_source(dsi->module_id) == DSS_CLK_SRC_FCK) {
+	source = dss_get_dsi_clk_source(dsi->dss, dsi->module_id);
+	if (source == DSS_CLK_SRC_FCK) {
 		/* DSI FCLK source is DSS_CLK_FCK */
 		r = clk_get_rate(dsi->dss_clk);
 	} else {
@@ -1506,8 +1508,8 @@ static void dsi_dump_dsidev_clocks(struct platform_device *dsidev,
 	int dsi_module = dsi->module_id;
 	struct dss_pll *pll = &dsi->pll;
 
-	dispc_clk_src = dss_get_dispc_clk_source();
-	dsi_clk_src = dss_get_dsi_clk_source(dsi_module);
+	dispc_clk_src = dss_get_dispc_clk_source(dsi->dss);
+	dsi_clk_src = dss_get_dsi_clk_source(dsi->dss, dsi_module);
 
 	if (dsi_runtime_get(dsidev))
 		return;
