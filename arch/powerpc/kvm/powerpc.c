@@ -1608,7 +1608,9 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 	kvm_sigset_deactivate(vcpu);
 
+#ifdef CONFIG_ALTIVEC
 out:
+#endif
 	vcpu_put(vcpu);
 	return r;
 }
