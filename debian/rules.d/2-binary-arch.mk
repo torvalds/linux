@@ -636,7 +636,7 @@ ifeq ($(do_tools_perf),true)
 	cd $(builddirpa) && $(kmake) silentoldconfig
 	cd $(builddirpa) && $(kmake) prepare
 	cd $(builddirpa)/tools/perf && \
-		$(kmake) prefix=/usr HAVE_CPLUS_DEMANGLE=1 CROSS_COMPILE=$(CROSS_COMPILE) NO_LIBPYTHON=1 NO_LIBPERL=1 PYTHON=python2.7
+		$(kmake) prefix=/usr HAVE_NO_LIBBFD=1 HAVE_CPUS_DEMANGLE_SUPPORT=1 CROSS_COMPILE=$(CROSS_COMPILE) NO_LIBPYTHON=1 NO_LIBPERL=1 PYTHON=python2.7
 endif
 ifeq ($(do_tools_x86),true)
 	cd $(builddirpa)/tools/power/x86/x86_energy_perf_policy && make CROSS_COMPILE=$(CROSS_COMPILE)
