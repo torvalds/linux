@@ -106,6 +106,23 @@ int __init ftrace_dyn_arch_init(void)
 }
 #endif
 
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
+		       unsigned long addr)
+{
+	unsigned int call[2];
+	int ret;
+
+	make_call(rec->ip, old_addr, call);
+	ret = ftrace_check_current_call(rec->ip, call);
+
+	if (ret)
+		return ret;
+
+	return __ftrace_modify_call(rec->ip, addr, true);
+}
+#endif
+
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 /*
  * Most of this function is copied from arm64.

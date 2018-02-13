@@ -115,3 +115,125 @@ ftrace_call:
 	RESTORE_ABI_STATE
 	ret
 ENDPROC(ftrace_caller)
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+	.macro SAVE_ALL
+	addi	sp, sp, -(PT_SIZE_ON_STACK+16)
+	sd	s0, (PT_SIZE_ON_STACK)(sp)
+	sd	ra, (PT_SIZE_ON_STACK+8)(sp)
+	addi	s0, sp, (PT_SIZE_ON_STACK+16)
+
+	sd x1,  PT_RA(sp)
+	sd x2,  PT_SP(sp)
+	sd x3,  PT_GP(sp)
+	sd x4,  PT_TP(sp)
+	sd x5,  PT_T0(sp)
+	sd x6,  PT_T1(sp)
+	sd x7,  PT_T2(sp)
+	sd x8,  PT_S0(sp)
+	sd x9,  PT_S1(sp)
+	sd x10, PT_A0(sp)
+	sd x11, PT_A1(sp)
+	sd x12, PT_A2(sp)
+	sd x13, PT_A3(sp)
+	sd x14, PT_A4(sp)
+	sd x15, PT_A5(sp)
+	sd x16, PT_A6(sp)
+	sd x17, PT_A7(sp)
+	sd x18, PT_S2(sp)
+	sd x19, PT_S3(sp)
+	sd x20, PT_S4(sp)
+	sd x21, PT_S5(sp)
+	sd x22, PT_S6(sp)
+	sd x23, PT_S7(sp)
+	sd x24, PT_S8(sp)
+	sd x25, PT_S9(sp)
+	sd x26, PT_S10(sp)
+	sd x27, PT_S11(sp)
+	sd x28, PT_T3(sp)
+	sd x29, PT_T4(sp)
+	sd x30, PT_T5(sp)
+	sd x31, PT_T6(sp)
+	.endm
+
+	.macro RESTORE_ALL
+	ld x1,  PT_RA(sp)
+	ld x2,  PT_SP(sp)
+	ld x3,  PT_GP(sp)
+	ld x4,  PT_TP(sp)
+	ld x5,  PT_T0(sp)
+	ld x6,  PT_T1(sp)
+	ld x7,  PT_T2(sp)
+	ld x8,  PT_S0(sp)
+	ld x9,  PT_S1(sp)
+	ld x10, PT_A0(sp)
+	ld x11, PT_A1(sp)
+	ld x12, PT_A2(sp)
+	ld x13, PT_A3(sp)
+	ld x14, PT_A4(sp)
+	ld x15, PT_A5(sp)
+	ld x16, PT_A6(sp)
+	ld x17, PT_A7(sp)
+	ld x18, PT_S2(sp)
+	ld x19, PT_S3(sp)
+	ld x20, PT_S4(sp)
+	ld x21, PT_S5(sp)
+	ld x22, PT_S6(sp)
+	ld x23, PT_S7(sp)
+	ld x24, PT_S8(sp)
+	ld x25, PT_S9(sp)
+	ld x26, PT_S10(sp)
+	ld x27, PT_S11(sp)
+	ld x28, PT_T3(sp)
+	ld x29, PT_T4(sp)
+	ld x30, PT_T5(sp)
+	ld x31, PT_T6(sp)
+
+	ld	s0, (PT_SIZE_ON_STACK)(sp)
+	ld	ra, (PT_SIZE_ON_STACK+8)(sp)
+	addi	sp, sp, (PT_SIZE_ON_STACK+16)
+	.endm
+
+	.macro RESTORE_GRAPH_REG_ARGS
+	ld	a0, PT_T0(sp)
+	ld	a1, PT_T1(sp)
+#ifdef HAVE_FUNCTION_GRAPH_FP_TEST
+	ld	a2, PT_T2(sp)
+#endif
+	.endm
+
+/*
+ * Most of the contents are the same as ftrace_caller.
+ */
+ENTRY(ftrace_regs_caller)
+	/*
+	 * a3: the address of all registers in the stack
+	 */
+	ld	a1, -8(s0)
+	addi	a0, ra, -MCOUNT_INSN_SIZE
+	la	t5, function_trace_op
+	ld	a2, 0(t5)
+	addi	a3, sp, -(PT_SIZE_ON_STACK+16)
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	addi	t0, s0, -8
+	mv	t1, a0
+#ifdef HAVE_FUNCTION_GRAPH_FP_TEST
+	ld	t2, -16(s0)
+#endif
+#endif
+	SAVE_ALL
+
+ftrace_regs_call:
+	.global ftrace_regs_call
+	call	ftrace_stub
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	RESTORE_GRAPH_REG_ARGS
+	call	ftrace_graph_caller
+#endif
+
+	RESTORE_ALL
+	ret
+ENDPROC(ftrace_regs_caller)
+#endif /* CONFIG_DYNAMIC_FTRACE_WITH_REGS */
