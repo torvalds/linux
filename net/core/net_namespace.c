@@ -29,6 +29,7 @@
 
 static LIST_HEAD(pernet_list);
 static struct list_head *first_device = &pernet_list;
+/* Used only if there are !async pernet_operations registered */
 DEFINE_MUTEX(net_mutex);
 
 LIST_HEAD(net_namespace_list);
@@ -41,8 +42,9 @@ struct net init_net = {
 EXPORT_SYMBOL(init_net);
 
 static bool init_net_initialized;
+static unsigned nr_sync_pernet_ops;
 /*
- * net_sem: protects: pernet_list, net_generic_ids,
+ * net_sem: protects: pernet_list, net_generic_ids, nr_sync_pernet_ops,
  * init_net_initialized and first_device pointer.
  */
 DECLARE_RWSEM(net_sem);
@@ -70,11 +72,10 @@ static int net_assign_generic(struct net *net, unsigned int id, void *data)
 {
 	struct net_generic *ng, *old_ng;
 
-	BUG_ON(!mutex_is_locked(&net_mutex));
 	BUG_ON(id < MIN_PERNET_OPS_ID);
 
 	old_ng = rcu_dereference_protected(net->gen,
-					   lockdep_is_held(&net_mutex));
+					   lockdep_is_held(&net_sem));
 	if (old_ng->s.len > id) {
 		old_ng->ptr[id] = data;
 		return 0;
@@ -426,11 +427,14 @@ struct net *copy_net_ns(unsigned long flags,
 	rv = down_read_killable(&net_sem);
 	if (rv < 0)
 		goto put_userns;
-	rv = mutex_lock_killable(&net_mutex);
-	if (rv < 0)
-		goto up_read;
+	if (nr_sync_pernet_ops) {
+		rv = mutex_lock_killable(&net_mutex);
+		if (rv < 0)
+			goto up_read;
+	}
 	rv = setup_net(net, user_ns);
-	mutex_unlock(&net_mutex);
+	if (nr_sync_pernet_ops)
+		mutex_unlock(&net_mutex);
 up_read:
 	up_read(&net_sem);
 	if (rv < 0) {
@@ -487,7 +491,8 @@ static void cleanup_net(struct work_struct *work)
 	spin_unlock_irq(&cleanup_list_lock);
 
 	down_read(&net_sem);
-	mutex_lock(&net_mutex);
+	if (nr_sync_pernet_ops)
+		mutex_lock(&net_mutex);
 
 	/* Don't let anyone else find us. */
 	rtnl_lock();
@@ -522,7 +527,8 @@ static void cleanup_net(struct work_struct *work)
 	list_for_each_entry_reverse(ops, &pernet_list, list)
 		ops_exit_list(ops, &net_exit_list);
 
-	mutex_unlock(&net_mutex);
+	if (nr_sync_pernet_ops)
+		mutex_unlock(&net_mutex);
 
 	/* Free the net generic variables */
 	list_for_each_entry_reverse(ops, &pernet_list, list)
@@ -994,6 +1000,9 @@ again:
 		rcu_barrier();
 		if (ops->id)
 			ida_remove(&net_generic_ids, *ops->id);
+	} else if (!ops->async) {
+		pr_info_once("Pernet operations %ps are sync.\n", ops);
+		nr_sync_pernet_ops++;
 	}
 
 	return error;
@@ -1001,7 +1010,8 @@ again:
 
 static void unregister_pernet_operations(struct pernet_operations *ops)
 {
-	
+	if (!ops->async)
+		BUG_ON(nr_sync_pernet_ops-- == 0);
 	__unregister_pernet_operations(ops);
 	rcu_barrier();
 	if (ops->id)
