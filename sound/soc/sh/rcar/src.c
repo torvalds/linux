@@ -8,6 +8,15 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+/*
+ * you can enable below define if you don't need
+ * SSI interrupt status debug message when debugging
+ * see rsnd_dbg_irq_status()
+ *
+ * #define RSND_DEBUG_NO_IRQ_STATUS 1
+ */
+
 #include "rsnd.h"
 
 #define SRC_NAME "src"
@@ -325,7 +334,10 @@ static void rsnd_src_status_clear(struct rsnd_mod *mod)
 
 static bool rsnd_src_error_occurred(struct rsnd_mod *mod)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
 	u32 val0, val1;
+	u32 status0, status1;
 	bool ret = false;
 
 	val0 = val1 = OUF_SRC(rsnd_mod_id(mod));
@@ -338,9 +350,15 @@ static bool rsnd_src_error_occurred(struct rsnd_mod *mod)
 	if (rsnd_src_sync_is_enabled(mod))
 		val0 = val0 & 0xffff;
 
-	if ((rsnd_mod_read(mod, SCU_SYS_STATUS0) & val0) ||
-	    (rsnd_mod_read(mod, SCU_SYS_STATUS1) & val1))
+	status0 = rsnd_mod_read(mod, SCU_SYS_STATUS0);
+	status1 = rsnd_mod_read(mod, SCU_SYS_STATUS1);
+	if ((status0 & val0) || (status1 & val1)) {
+		rsnd_dbg_irq_status(dev, "%s[%d] err status : 0x%08x, 0x%08x\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod),
+			status0, status1);
+
 		ret = true;
+	}
 
 	return ret;
 }

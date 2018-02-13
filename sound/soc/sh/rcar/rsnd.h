@@ -788,4 +788,14 @@ void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type);
 #define rsnd_mod_confirm_dvc(mdvc)
 #endif
 
+/*
+ * If you don't need interrupt status debug message,
+ * define RSND_DEBUG_NO_IRQ_STATUS as 1 on top of src.c/ssi.c
+ *
+ * #define RSND_DEBUG_NO_IRQ_STATUS 1
+ */
+#define rsnd_dbg_irq_status(dev, param...)		\
+	if (!IS_BUILTIN(RSND_DEBUG_NO_IRQ_STATUS))	\
+		dev_dbg(dev, param)
+
 #endif

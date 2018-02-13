@@ -11,6 +11,15 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+/*
+ * you can enable below define if you don't need
+ * SSI interrupt status debug message when debugging
+ * see rsnd_dbg_irq_status()
+ *
+ * #define RSND_DEBUG_NO_IRQ_STATUS 1
+ */
+
 #include <sound/simple_card_utils.h>
 #include <linux/delay.h>
 #include "rsnd.h"
@@ -603,6 +612,7 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 				 struct rsnd_dai_stream *io)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
 	int is_dma = rsnd_ssi_is_dma_mode(mod);
 	u32 status;
 	bool elapsed = false;
@@ -621,8 +631,12 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 		elapsed = rsnd_ssi_pio_interrupt(mod, io);
 
 	/* DMA only */
-	if (is_dma && (status & (UIRQ | OIRQ)))
+	if (is_dma && (status & (UIRQ | OIRQ))) {
+		rsnd_dbg_irq_status(dev, "%s[%d] err status : 0x%08x\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod), status);
+
 		stop = true;
+	}
 
 	rsnd_ssi_status_clear(mod);
 rsnd_ssi_interrupt_out:
