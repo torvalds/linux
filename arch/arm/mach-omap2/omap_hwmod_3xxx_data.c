@@ -682,11 +682,6 @@ static struct omap_hwmod omap3xxx_dss_venc_hwmod = {
 };
 
 /* I2C1 */
-static struct omap_i2c_dev_attr i2c1_dev_attr = {
-	.fifo_depth	= 8, /* bytes */
-	.flags		= OMAP_I2C_FLAG_BUS_SHIFT_2,
-};
-
 static struct omap_hwmod omap3xxx_i2c1_hwmod = {
 	.name		= "i2c1",
 	.flags		= HWMOD_16BIT_REG | HWMOD_SET_DEFAULT_CLOCKACT,
@@ -699,15 +694,9 @@ static struct omap_hwmod omap3xxx_i2c1_hwmod = {
 		},
 	},
 	.class		= &i2c_class,
-	.dev_attr	= &i2c1_dev_attr,
 };
 
 /* I2C2 */
-static struct omap_i2c_dev_attr i2c2_dev_attr = {
-	.fifo_depth	= 8, /* bytes */
-	.flags = OMAP_I2C_FLAG_BUS_SHIFT_2,
-};
-
 static struct omap_hwmod omap3xxx_i2c2_hwmod = {
 	.name		= "i2c2",
 	.flags		= HWMOD_16BIT_REG | HWMOD_SET_DEFAULT_CLOCKACT,
@@ -720,17 +709,9 @@ static struct omap_hwmod omap3xxx_i2c2_hwmod = {
 		},
 	},
 	.class		= &i2c_class,
-	.dev_attr	= &i2c2_dev_attr,
 };
 
 /* I2C3 */
-static struct omap_i2c_dev_attr i2c3_dev_attr = {
-	.fifo_depth	= 64, /* bytes */
-	.flags = OMAP_I2C_FLAG_BUS_SHIFT_2,
-};
-
-
-
 static struct omap_hwmod omap3xxx_i2c3_hwmod = {
 	.name		= "i2c3",
 	.flags		= HWMOD_16BIT_REG | HWMOD_SET_DEFAULT_CLOCKACT,
@@ -743,7 +724,6 @@ static struct omap_hwmod omap3xxx_i2c3_hwmod = {
 		},
 	},
 	.class		= &i2c_class,
-	.dev_attr	= &i2c3_dev_attr,
 };
 
 /*

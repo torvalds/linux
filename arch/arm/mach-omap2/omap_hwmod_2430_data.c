@@ -75,12 +75,6 @@ static struct omap_hwmod_class i2c_class = {
 	.reset		= &omap_i2c_reset,
 };
 
-static struct omap_i2c_dev_attr i2c_dev_attr = {
-	.fifo_depth	= 8, /* bytes */
-	.flags		= OMAP_I2C_FLAG_BUS_SHIFT_2 |
-			  OMAP_I2C_FLAG_FORCE_19200_INT_CLK,
-};
-
 /* I2C1 */
 static struct omap_hwmod omap2430_i2c1_hwmod = {
 	.name		= "i2c1",
@@ -102,7 +96,6 @@ static struct omap_hwmod omap2430_i2c1_hwmod = {
 		},
 	},
 	.class		= &i2c_class,
-	.dev_attr	= &i2c_dev_attr,
 };
 
 /* I2C2 */
@@ -118,7 +111,6 @@ static struct omap_hwmod omap2430_i2c2_hwmod = {
 		},
 	},
 	.class		= &i2c_class,
-	.dev_attr	= &i2c_dev_attr,
 };
 
 /* gpio5 */
