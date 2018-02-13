@@ -37,6 +37,26 @@
 		device_type = "memory";
 		reg = <0 0x80000000 0 0x40000000>;
 	};
+
+	sound {
+		compatible = "audio-graph-card";
+		label = "UniPhier LD11";
+		widgets = "Headphone", "Headphone Jack";
+		dais = <&i2s_port2
+			&i2s_port4
+			&spdif_port0>;
+	};
+
+	spdif-out {
+		compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
+
+		port@0 {
+			spdif_tx: endpoint {
+				remote-endpoint = <&spdif_hiecout1>;
+			};
+		};
+	};
 };
 
 &serial0 {
@@ -45,6 +65,10 @@
 
 &serial1 {
 	status = "okay";
+};
+
+&spdif_hiecout1 {
+	remote-endpoint = <&spdif_tx>;
 };
 
 &i2c0 {

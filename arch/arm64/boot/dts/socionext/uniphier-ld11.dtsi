@@ -187,6 +187,91 @@
 						     <21 217 3>;
 		};
 
+		audio@56000000 {
+			compatible = "socionext,uniphier-ld11-aio";
+			reg = <0x56000000 0x80000>;
+			interrupts = <0 144 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_aout1>,
+				    <&pinctrl_aoutiec1>;
+			clock-names = "aio";
+			clocks = <&sys_clk 40>;
+			reset-names = "aio";
+			resets = <&sys_rst 40>;
+			#sound-dai-cells = <1>;
+
+			i2s_port0: port@0 {
+				i2s_hdmi: endpoint {
+				};
+			};
+
+			i2s_port1: port@1 {
+				i2s_pcmin2: endpoint {
+				};
+			};
+
+			i2s_port2: port@2 {
+				i2s_line: endpoint {
+					dai-format = "i2s";
+					remote-endpoint = <&evea_line>;
+				};
+			};
+
+			i2s_port3: port@3 {
+				i2s_hpcmout1: endpoint {
+				};
+			};
+
+			i2s_port4: port@4 {
+				i2s_hp: endpoint {
+					dai-format = "i2s";
+					remote-endpoint = <&evea_hp>;
+				};
+			};
+
+			spdif_port0: port@5 {
+				spdif_hiecout1: endpoint {
+				};
+			};
+
+			src_port0: port@6 {
+				i2s_epcmout2: endpoint {
+				};
+			};
+
+			src_port1: port@7 {
+				i2s_epcmout3: endpoint {
+				};
+			};
+
+			comp_spdif_port0: port@8 {
+				comp_spdif_hiecout1: endpoint {
+				};
+			};
+		};
+
+		codec@57900000 {
+			compatible = "socionext,uniphier-evea";
+			reg = <0x57900000 0x1000>;
+			clock-names = "evea", "exiv";
+			clocks = <&sys_clk 41>, <&sys_clk 42>;
+			reset-names = "evea", "exiv", "adamv";
+			resets = <&sys_rst 41>, <&sys_rst 42>, <&adamv_rst 0>;
+			#sound-dai-cells = <1>;
+
+			port@0 {
+				evea_line: endpoint {
+					remote-endpoint = <&i2s_line>;
+				};
+			};
+
+			port@1 {
+				evea_hp: endpoint {
+					remote-endpoint = <&i2s_hp>;
+				};
+			};
+		};
+
 		adamv@57920000 {
 			compatible = "socionext,uniphier-ld11-adamv",
 				     "simple-mfd", "syscon";
@@ -475,3 +560,12 @@
 };
 
 #include "uniphier-pinctrl.dtsi"
+
+&pinctrl_aoutiec1 {
+	drive-strength = <4>;	/* default: 4mA */
+
+	ao1arc {
+		pins = "AO1ARC";
+		drive-strength = <8>;	/* 8mA */
+	};
+};
