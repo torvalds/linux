@@ -1780,4 +1780,3 @@ check_saddr:
 	if (!fl4->saddr)
 		fl4->saddr = FIB_RES_PREFSRC(net, *res);
 }
-EXPORT_SYMBOL_GPL(fib_select_path);

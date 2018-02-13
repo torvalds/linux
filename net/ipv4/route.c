@@ -1847,7 +1847,6 @@ int fib_multipath_hash(const struct fib_info *fi, const struct flowi4 *fl4,
 
 	return mhash >> 1;
 }
-EXPORT_SYMBOL_GPL(fib_multipath_hash);
 #endif /* CONFIG_IP_ROUTE_MULTIPATH */
 
 static int ip_mkroute_input(struct sk_buff *skb,
