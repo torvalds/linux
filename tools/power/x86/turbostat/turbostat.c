@@ -2149,8 +2149,8 @@ dump_nhm_cst_cfg(void)
 
 	get_msr(base_cpu, MSR_PKG_CST_CONFIG_CONTROL, &msr);
 
-#define SNB_C1_AUTO_UNDEMOTE              (1UL << 27)
-#define SNB_C3_AUTO_UNDEMOTE              (1UL << 28)
+#define SNB_C3_AUTO_UNDEMOTE              (1UL << 27)
+#define SNB_C1_AUTO_UNDEMOTE              (1UL << 28)
 
 	fprintf(outf, "cpu%d: MSR_PKG_CST_CONFIG_CONTROL: 0x%08llx", base_cpu, msr);
 
