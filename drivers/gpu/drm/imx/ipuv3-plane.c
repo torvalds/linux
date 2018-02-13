@@ -272,7 +272,7 @@ static void ipu_plane_destroy(struct drm_plane *plane)
 	kfree(ipu_plane);
 }
 
-void ipu_plane_state_reset(struct drm_plane *plane)
+static void ipu_plane_state_reset(struct drm_plane *plane)
 {
 	struct ipu_plane_state *ipu_state;
 
@@ -292,7 +292,8 @@ void ipu_plane_state_reset(struct drm_plane *plane)
 	plane->state = &ipu_state->base;
 }
 
-struct drm_plane_state *ipu_plane_duplicate_state(struct drm_plane *plane)
+static struct drm_plane_state *
+ipu_plane_duplicate_state(struct drm_plane *plane)
 {
 	struct ipu_plane_state *state;
 
@@ -306,8 +307,8 @@ struct drm_plane_state *ipu_plane_duplicate_state(struct drm_plane *plane)
 	return &state->base;
 }
 
-void ipu_plane_destroy_state(struct drm_plane *plane,
-			     struct drm_plane_state *state)
+static void ipu_plane_destroy_state(struct drm_plane *plane,
+				    struct drm_plane_state *state)
 {
 	struct ipu_plane_state *ipu_state = to_ipu_plane_state(state);
 
