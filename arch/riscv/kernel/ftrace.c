@@ -139,4 +139,57 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 		return;
 	*parent = return_hooker;
 }
-#endif
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+extern void ftrace_graph_call(void);
+int ftrace_enable_ftrace_graph_caller(void)
+{
+	unsigned int call[2];
+	static int init_graph = 1;
+	int ret;
+
+	make_call(&ftrace_graph_call, &ftrace_stub, call);
+
+	/*
+	 * When enabling graph tracer for the first time, ftrace_graph_call
+	 * should contains a call to ftrace_stub.  Once it has been disabled,
+	 * the 8-bytes at the position becomes NOPs.
+	 */
+	if (init_graph) {
+		ret = ftrace_check_current_call((unsigned long)&ftrace_graph_call,
+						call);
+		init_graph = 0;
+	} else {
+		ret = ftrace_check_current_call((unsigned long)&ftrace_graph_call,
+						NULL);
+	}
+
+	if (ret)
+		return ret;
+
+	return __ftrace_modify_call((unsigned long)&ftrace_graph_call,
+				    (unsigned long)&prepare_ftrace_return, true);
+}
+
+int ftrace_disable_ftrace_graph_caller(void)
+{
+	unsigned int call[2];
+	int ret;
+
+	make_call(&ftrace_graph_call, &prepare_ftrace_return, call);
+
+	/*
+	 * This is to make sure that ftrace_enable_ftrace_graph_caller
+	 * did the right thing.
+	 */
+	ret = ftrace_check_current_call((unsigned long)&ftrace_graph_call,
+					call);
+
+	if (ret)
+		return ret;
+
+	return __ftrace_modify_call((unsigned long)&ftrace_graph_call,
+				    (unsigned long)&prepare_ftrace_return, false);
+}
+#endif /* CONFIG_DYNAMIC_FTRACE */
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
