@@ -412,13 +412,13 @@ static int __must_check remove_commit_fd_uobject(struct ib_uobject *uobj,
 	return ret;
 }
 
-static void lockdep_check(struct ib_uobject *uobj, bool exclusive)
+static void assert_uverbs_usecnt(struct ib_uobject *uobj, bool exclusive)
 {
 #ifdef CONFIG_LOCKDEP
 	if (exclusive)
-		WARN_ON(atomic_read(&uobj->usecnt) > 0);
+		WARN_ON(atomic_read(&uobj->usecnt) != -1);
 	else
-		WARN_ON(atomic_read(&uobj->usecnt) == -1);
+		WARN_ON(atomic_read(&uobj->usecnt) <= 0);
 #endif
 }
 
@@ -457,7 +457,7 @@ int __must_check rdma_remove_commit_uobject(struct ib_uobject *uobj)
 		WARN(true, "ib_uverbs: Cleanup is running while removing an uobject\n");
 		return 0;
 	}
-	lockdep_check(uobj, true);
+	assert_uverbs_usecnt(uobj, true);
 	ret = _rdma_remove_commit_uobject(uobj, RDMA_REMOVE_DESTROY);
 
 	up_read(&ucontext->cleanup_rwsem);
@@ -487,7 +487,7 @@ int rdma_explicit_destroy(struct ib_uobject *uobject)
 		WARN(true, "ib_uverbs: Cleanup is running while removing an uobject\n");
 		return 0;
 	}
-	lockdep_check(uobject, true);
+	assert_uverbs_usecnt(uobject, true);
 	ret = uobject->type->type_class->remove_commit(uobject,
 						       RDMA_REMOVE_DESTROY);
 	if (ret)
@@ -541,7 +541,7 @@ int rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 	}
 
 	/* matches atomic_set(-1) in alloc_uobj */
-	lockdep_check(uobj, true);
+	assert_uverbs_usecnt(uobj, true);
 	atomic_set(&uobj->usecnt, 0);
 
 	uobj->type->type_class->alloc_commit(uobj);
@@ -578,7 +578,7 @@ static void lookup_put_fd_uobject(struct ib_uobject *uobj, bool exclusive)
 
 void rdma_lookup_put_uobject(struct ib_uobject *uobj, bool exclusive)
 {
-	lockdep_check(uobj, exclusive);
+	assert_uverbs_usecnt(uobj, exclusive);
 	uobj->type->type_class->lookup_put(uobj, exclusive);
 	/*
 	 * In order to unlock an object, either decrease its usecnt for
