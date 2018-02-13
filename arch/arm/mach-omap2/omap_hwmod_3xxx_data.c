@@ -22,7 +22,6 @@
 #include <linux/omap-dma.h>
 #include "l3_3xxx.h"
 #include "l4_3xxx.h"
-#include <linux/platform_data/asoc-ti-mcbsp.h>
 
 #include "soc.h"
 #include "omap_hwmod.h"
@@ -896,7 +895,6 @@ static struct omap_hwmod_class_sysconfig omap3xxx_mcbsp_sysc = {
 static struct omap_hwmod_class omap3xxx_mcbsp_hwmod_class = {
 	.name = "mcbsp",
 	.sysc = &omap3xxx_mcbsp_sysc,
-	.rev  = MCBSP_CONFIG_TYPE3,
 };
 
 /* McBSP functional clock mapping */
@@ -911,7 +909,6 @@ static struct omap_hwmod_opt_clk mcbsp234_opt_clks[] = {
 };
 
 /* mcbsp1 */
-
 static struct omap_hwmod omap3xxx_mcbsp1_hwmod = {
 	.name		= "mcbsp1",
 	.class		= &omap3xxx_mcbsp_hwmod_class,
@@ -928,11 +925,6 @@ static struct omap_hwmod omap3xxx_mcbsp1_hwmod = {
 };
 
 /* mcbsp2 */
-
-static struct omap_mcbsp_dev_attr omap34xx_mcbsp2_dev_attr = {
-	.sidetone	= "mcbsp2_sidetone",
-};
-
 static struct omap_hwmod omap3xxx_mcbsp2_hwmod = {
 	.name		= "mcbsp2",
 	.class		= &omap3xxx_mcbsp_hwmod_class,
@@ -946,15 +938,9 @@ static struct omap_hwmod omap3xxx_mcbsp2_hwmod = {
 	},
 	.opt_clks	= mcbsp234_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(mcbsp234_opt_clks),
-	.dev_attr	= &omap34xx_mcbsp2_dev_attr,
 };
 
 /* mcbsp3 */
-
-static struct omap_mcbsp_dev_attr omap34xx_mcbsp3_dev_attr = {
-	.sidetone	= "mcbsp3_sidetone",
-};
-
 static struct omap_hwmod omap3xxx_mcbsp3_hwmod = {
 	.name		= "mcbsp3",
 	.class		= &omap3xxx_mcbsp_hwmod_class,
@@ -968,12 +954,9 @@ static struct omap_hwmod omap3xxx_mcbsp3_hwmod = {
 	},
 	.opt_clks	= mcbsp234_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(mcbsp234_opt_clks),
-	.dev_attr	= &omap34xx_mcbsp3_dev_attr,
 };
 
 /* mcbsp4 */
-
-
 static struct omap_hwmod omap3xxx_mcbsp4_hwmod = {
 	.name		= "mcbsp4",
 	.class		= &omap3xxx_mcbsp_hwmod_class,
@@ -990,8 +973,6 @@ static struct omap_hwmod omap3xxx_mcbsp4_hwmod = {
 };
 
 /* mcbsp5 */
-
-
 static struct omap_hwmod omap3xxx_mcbsp5_hwmod = {
 	.name		= "mcbsp5",
 	.class		= &omap3xxx_mcbsp_hwmod_class,
@@ -1020,7 +1001,6 @@ static struct omap_hwmod_class omap3xxx_mcbsp_sidetone_hwmod_class = {
 };
 
 /* mcbsp2_sidetone */
-
 static struct omap_hwmod omap3xxx_mcbsp2_sidetone_hwmod = {
 	.name		= "mcbsp2_sidetone",
 	.class		= &omap3xxx_mcbsp_sidetone_hwmod_class,
@@ -1029,7 +1009,6 @@ static struct omap_hwmod omap3xxx_mcbsp2_sidetone_hwmod = {
 };
 
 /* mcbsp3_sidetone */
-
 static struct omap_hwmod omap3xxx_mcbsp3_sidetone_hwmod = {
 	.name		= "mcbsp3_sidetone",
 	.class		= &omap3xxx_mcbsp_sidetone_hwmod_class,

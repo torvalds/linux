@@ -27,8 +27,6 @@
 
 #include <linux/omap-dma.h>
 
-#include <linux/platform_data/asoc-ti-mcbsp.h>
-
 #include "omap_hwmod.h"
 #include "omap_hwmod_common_data.h"
 #include "cm1_44xx.h"
@@ -1679,7 +1677,6 @@ static struct omap_hwmod_class_sysconfig omap44xx_mcbsp_sysc = {
 static struct omap_hwmod_class omap44xx_mcbsp_hwmod_class = {
 	.name	= "mcbsp",
 	.sysc	= &omap44xx_mcbsp_sysc,
-	.rev	= MCBSP_CONFIG_TYPE4,
 };
 
 /* mcbsp1 */

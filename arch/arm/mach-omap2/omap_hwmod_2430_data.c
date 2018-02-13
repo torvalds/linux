@@ -14,7 +14,6 @@
  */
 
 #include <linux/i2c-omap.h>
-#include <linux/platform_data/asoc-ti-mcbsp.h>
 #include <linux/platform_data/hsmmc-omap.h>
 #include <linux/omap-dma.h>
 
@@ -223,7 +222,6 @@ static struct omap_hwmod_class_sysconfig omap2430_mcbsp_sysc = {
 static struct omap_hwmod_class omap2430_mcbsp_hwmod_class = {
 	.name = "mcbsp",
 	.sysc = &omap2430_mcbsp_sysc,
-	.rev  = MCBSP_CONFIG_TYPE2,
 };
 
 static struct omap_hwmod_opt_clk mcbsp_opt_clks[] = {

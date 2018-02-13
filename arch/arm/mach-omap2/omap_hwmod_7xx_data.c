@@ -23,7 +23,6 @@
 #include <linux/i2c-omap.h>
 
 #include <linux/omap-dma.h>
-#include <linux/platform_data/asoc-ti-mcbsp.h>
 
 #include "omap_hwmod.h"
 #include "omap_hwmod_common_data.h"
