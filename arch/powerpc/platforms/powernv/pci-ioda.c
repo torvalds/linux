@@ -2681,14 +2681,23 @@ static struct pnv_ioda_pe *gpe_table_group_to_npe(
 static long pnv_pci_ioda2_npu_set_window(struct iommu_table_group *table_group,
 		int num, struct iommu_table *tbl)
 {
+	struct pnv_ioda_pe *npe = gpe_table_group_to_npe(table_group);
+	int num2 = (num == 0) ? 1 : 0;
 	long ret = pnv_pci_ioda2_set_window(table_group, num, tbl);
 
 	if (ret)
 		return ret;
 
-	ret = pnv_npu_set_window(gpe_table_group_to_npe(table_group), num, tbl);
-	if (ret)
+	if (table_group->tables[num2])
+		pnv_npu_unset_window(npe, num2);
+
+	ret = pnv_npu_set_window(npe, num, tbl);
+	if (ret) {
 		pnv_pci_ioda2_unset_window(table_group, num);
+		if (table_group->tables[num2])
+			pnv_npu_set_window(npe, num2,
+					table_group->tables[num2]);
+	}
 
 	return ret;
 }
@@ -2697,12 +2706,24 @@ static long pnv_pci_ioda2_npu_unset_window(
 		struct iommu_table_group *table_group,
 		int num)
 {
+	struct pnv_ioda_pe *npe = gpe_table_group_to_npe(table_group);
+	int num2 = (num == 0) ? 1 : 0;
 	long ret = pnv_pci_ioda2_unset_window(table_group, num);
 
 	if (ret)
 		return ret;
 
-	return pnv_npu_unset_window(gpe_table_group_to_npe(table_group), num);
+	if (!npe->table_group.tables[num])
+		return 0;
+
+	ret = pnv_npu_unset_window(npe, num);
+	if (ret)
+		return ret;
+
+	if (table_group->tables[num2])
+		ret = pnv_npu_set_window(npe, num2, table_group->tables[num2]);
+
+	return ret;
 }
 
 static void pnv_ioda2_npu_take_ownership(struct iommu_table_group *table_group)
