@@ -5911,6 +5911,18 @@ skip_spare:
 	if (!idlest)
 		return NULL;
 
+	/*
+	 * When comparing groups across NUMA domains, it's possible for the
+	 * local domain to be very lightly loaded relative to the remote
+	 * domains but "imbalance" skews the comparison making remote CPUs
+	 * look much more favourable. When considering cross-domain, add
+	 * imbalance to the runnable load on the remote node and consider
+	 * staying local.
+	 */
+	if ((sd->flags & SD_NUMA) &&
+	    min_runnable_load + imbalance >= this_runnable_load)
+		return NULL;
+
 	if (min_runnable_load > (this_runnable_load + imbalance))
 		return NULL;
 
