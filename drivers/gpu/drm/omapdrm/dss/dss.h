@@ -310,7 +310,7 @@ struct dss_pll *dss_video_pll_init(struct dss_device *dss,
 				   struct regulator *regulator);
 void dss_video_pll_uninit(struct dss_pll *pll);
 
-void dss_ctrl_pll_enable(enum dss_pll_id pll_id, bool enable);
+void dss_ctrl_pll_enable(struct dss_pll *pll, bool enable);
 
 void dss_sdi_init(int datapairs);
 int dss_sdi_enable(void);

@@ -48,7 +48,7 @@ static int hdmi_pll_enable(struct dss_pll *dsspll)
 	r = pm_runtime_get_sync(&pll->pdev->dev);
 	WARN_ON(r < 0);
 
-	dss_ctrl_pll_enable(DSS_PLL_HDMI, true);
+	dss_ctrl_pll_enable(dsspll, true);
 
 	r = hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_BOTHON_ALLCLKS);
 	if (r)
@@ -65,7 +65,7 @@ static void hdmi_pll_disable(struct dss_pll *dsspll)
 
 	hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_ALLOFF);
 
-	dss_ctrl_pll_enable(DSS_PLL_HDMI, false);
+	dss_ctrl_pll_enable(dsspll, false);
 
 	r = pm_runtime_put_sync(&pll->pdev->dev);
 	WARN_ON(r < 0 && r != -ENOSYS);

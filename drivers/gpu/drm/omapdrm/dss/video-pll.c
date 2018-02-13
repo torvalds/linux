@@ -68,7 +68,7 @@ static int dss_video_pll_enable(struct dss_pll *pll)
 	if (r)
 		return r;
 
-	dss_ctrl_pll_enable(pll->id, true);
+	dss_ctrl_pll_enable(pll, true);
 
 	dss_dpll_enable_scp_clk(vpll);
 
@@ -82,7 +82,7 @@ static int dss_video_pll_enable(struct dss_pll *pll)
 
 err_reset:
 	dss_dpll_disable_scp_clk(vpll);
-	dss_ctrl_pll_enable(pll->id, false);
+	dss_ctrl_pll_enable(pll, false);
 	dss_runtime_put(pll->dss);
 
 	return r;
@@ -96,7 +96,7 @@ static void dss_video_pll_disable(struct dss_pll *pll)
 
 	dss_dpll_disable_scp_clk(vpll);
 
-	dss_ctrl_pll_enable(pll->id, false);
+	dss_ctrl_pll_enable(pll, false);
 
 	dss_runtime_put(pll->dss);
 }

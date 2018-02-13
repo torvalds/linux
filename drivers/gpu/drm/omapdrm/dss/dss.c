@@ -152,17 +152,17 @@ static void dss_restore_context(void)
 #undef SR
 #undef RR
 
-void dss_ctrl_pll_enable(enum dss_pll_id pll_id, bool enable)
+void dss_ctrl_pll_enable(struct dss_pll *pll, bool enable)
 {
 	unsigned int shift;
 	unsigned int val;
 
-	if (!dss.syscon_pll_ctrl)
+	if (!pll->dss->syscon_pll_ctrl)
 		return;
 
 	val = !enable;
 
-	switch (pll_id) {
+	switch (pll->id) {
 	case DSS_PLL_VIDEO1:
 		shift = 0;
 		break;
@@ -173,12 +173,13 @@ void dss_ctrl_pll_enable(enum dss_pll_id pll_id, bool enable)
 		shift = 2;
 		break;
 	default:
-		DSSERR("illegal DSS PLL ID %d\n", pll_id);
+		DSSERR("illegal DSS PLL ID %d\n", pll->id);
 		return;
 	}
 
-	regmap_update_bits(dss.syscon_pll_ctrl, dss.syscon_pll_ctrl_offset,
-		1 << shift, val << shift);
+	regmap_update_bits(pll->dss->syscon_pll_ctrl,
+			   pll->dss->syscon_pll_ctrl_offset,
+			   1 << shift, val << shift);
 }
 
 static int dss_ctrl_pll_set_control_mux(enum dss_clk_source clk_src,
