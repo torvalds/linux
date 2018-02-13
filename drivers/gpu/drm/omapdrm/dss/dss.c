@@ -1332,11 +1332,9 @@ static int dss_bind(struct device *dev)
 
 static void dss_unbind(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-
 	omapdss_set_is_initialized(false);
 
-	component_unbind_all(&pdev->dev, NULL);
+	component_unbind_all(dev, NULL);
 }
 
 static const struct component_master_ops dss_component_ops = {
