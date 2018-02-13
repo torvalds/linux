@@ -257,7 +257,9 @@
 			reg = <0x700600 0x50>;
 			#address-cells = <0x1>;
 			#size-cells = <0x0>;
-			clocks = <&CP110_LABEL(clk) 1 21>;
+			clock-names = "core", "axi";
+			clocks = <&CP110_LABEL(clk) 1 21>,
+				 <&CP110_LABEL(clk) 1 17>;
 			status = "disabled";
 		};
 
@@ -266,7 +268,9 @@
 			reg = <0x700680 0x50>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			clocks = <&CP110_LABEL(clk) 1 21>;
+			clock-names = "core", "axi";
+			clocks = <&CP110_LABEL(clk) 1 21>,
+				 <&CP110_LABEL(clk) 1 17>;
 			status = "disabled";
 		};
 
