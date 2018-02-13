@@ -20,6 +20,41 @@
 
 #include "setup.h"
 
+#ifndef CONFIG_SMP
+#define boot_cpuid 0
+#endif
+
+static void *__init alloc_paca_data(unsigned long size, unsigned long align,
+				unsigned long limit, int cpu)
+{
+	unsigned long pa;
+	int nid;
+
+	/*
+	 * boot_cpuid paca is allocated very early before cpu_to_node is up.
+	 * Set bottom-up mode, because the boot CPU should be on node-0,
+	 * which will put its paca in the right place.
+	 */
+	if (cpu == boot_cpuid) {
+		nid = -1;
+		memblock_set_bottom_up(true);
+	} else {
+		nid = early_cpu_to_node(cpu);
+	}
+
+	pa = memblock_alloc_base_nid(size, align, limit, nid, MEMBLOCK_NONE);
+	if (!pa) {
+		pa = memblock_alloc_base(size, align, limit);
+		if (!pa)
+			panic("cannot allocate paca data");
+	}
+
+	if (cpu == boot_cpuid)
+		memblock_set_bottom_up(false);
+
+	return __va(pa);
+}
+
 #ifdef CONFIG_PPC_PSERIES
 
 /*
@@ -52,7 +87,7 @@ static struct lppaca * __init new_lppaca(int cpu, unsigned long limit)
 	if (early_cpu_has_feature(CPU_FTR_HVMODE))
 		return NULL;
 
-	lp = __va(memblock_alloc_base(size, 0x400, limit));
+	lp = alloc_paca_data(size, 0x400, limit, cpu);
 	init_lppaca(lp);
 
 	return lp;
@@ -82,7 +117,7 @@ static struct slb_shadow * __init new_slb_shadow(int cpu, unsigned long limit)
 			return NULL;
 	}
 
-	s = __va(memblock_alloc_base(sizeof(*s), L1_CACHE_BYTES, limit));
+	s = alloc_paca_data(sizeof(*s), L1_CACHE_BYTES, limit, cpu);
 	memset(s, 0, sizeof(*s));
 
 	s->persistent = cpu_to_be32(SLB_NUM_BOLTED);
@@ -170,7 +205,6 @@ void __init allocate_paca_ptrs(void)
 void __init allocate_paca(int cpu)
 {
 	u64 limit;
-	unsigned long pa;
 	struct paca_struct *paca;
 
 	BUG_ON(cpu >= paca_nr_cpu_ids);
@@ -185,9 +219,8 @@ void __init allocate_paca(int cpu)
 	limit = ppc64_rma_size;
 #endif
 
-	pa = memblock_alloc_base(sizeof(struct paca_struct),
-					L1_CACHE_BYTES, limit);
-	paca = __va(pa);
+	paca = alloc_paca_data(sizeof(struct paca_struct), L1_CACHE_BYTES,
+				limit, cpu);
 	paca_ptrs[cpu] = paca;
 	memset(paca, 0, sizeof(struct paca_struct));
 

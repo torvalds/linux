@@ -312,6 +312,10 @@ void __init early_setup(unsigned long dt_ptr)
 	early_init_devtree(__va(dt_ptr));
 
 	/* Now we know the logical id of our boot cpu, setup the paca. */
+	if (boot_cpuid != 0) {
+		/* Poison paca_ptrs[0] again if it's not the boot cpu */
+		memset(&paca_ptrs[0], 0x88, sizeof(paca_ptrs[0]));
+	}
 	setup_paca(paca_ptrs[boot_cpuid]);
 	fixup_boot_paca();
 
