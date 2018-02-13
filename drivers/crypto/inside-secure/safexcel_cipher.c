@@ -456,7 +456,7 @@ static int safexcel_cipher_exit_inv(struct crypto_tfm *tfm)
 	queue_work(priv->ring[ring].workqueue,
 		   &priv->ring[ring].work_data.work);
 
-	wait_for_completion_interruptible(&result.completion);
+	wait_for_completion(&result.completion);
 
 	if (result.error) {
 		dev_warn(priv->dev,
