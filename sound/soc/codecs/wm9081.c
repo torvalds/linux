@@ -1155,7 +1155,7 @@ static int wm9081_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	struct snd_soc_component *component = codec_dai->component;
 	unsigned int reg;
 
-	snd_soc_component_read32(component, WM9081_DAC_DIGITAL_2);
+	reg = snd_soc_component_read32(component, WM9081_DAC_DIGITAL_2);
 
 	if (mute)
 		reg |= WM9081_DAC_MUTE;
