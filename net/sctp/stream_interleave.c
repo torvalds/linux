@@ -3,7 +3,8 @@
  *
  * This file is part of the SCTP kernel implementation
  *
- * These functions manipulate sctp stream queue/scheduling.
+ * These functions implement sctp stream message interleaving, mostly
+ * including I-DATA and I-FORWARD-TSN chunks process.
  *
  * This SCTP implementation is free software;
  * you can redistribute it and/or modify it under the terms of
