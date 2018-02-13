@@ -934,6 +934,7 @@ struct ieee80211_tx_info {
 			u8 ampdu_len;
 			u8 antenna;
 			u16 tx_time;
+			bool is_valid_ack_signal;
 			void *status_driver_data[19 / sizeof(void *)];
 		} status;
 		struct {
