@@ -457,6 +457,42 @@
 		};
 	};
 
+	cdn_dp: dp@fec00000 {
+		compatible = "rockchip,rk3399-cdn-dp";
+		reg = <0x0 0xfec00000 0x0 0x100000>;
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH 0>;
+		assigned-clocks = <&cru SCLK_DP_CORE>;
+		assigned-clock-rates = <100000000>;
+		clocks = <&cru SCLK_DP_CORE>, <&cru PCLK_DP_CTRL>,
+			 <&cru SCLK_SPDIF_REC_DPTX>, <&cru PCLK_VIO_GRF>;
+		clock-names = "core-clk", "pclk", "spdif", "grf";
+		phys = <&tcphy0_dp>, <&tcphy1_dp>;
+		power-domains = <&power RK3399_PD_HDCP>;
+		resets = <&cru SRST_DPTX_SPDIF_REC>, <&cru SRST_P_UPHY0_DPTX>,
+			 <&cru SRST_P_UPHY0_APB>, <&cru SRST_DP_CORE>;
+		reset-names = "spdif", "dptx", "apb", "core";
+		rockchip,grf = <&grf>;
+		#sound-dai-cells = <1>;
+		status = "disabled";
+
+		ports {
+			dp_in: port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				dp_in_vopb: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vopb_out_dp>;
+				};
+
+				dp_in_vopl: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vopl_out_dp>;
+				};
+			};
+		};
+	};
+
 	gic: interrupt-controller@fee00000 {
 		compatible = "arm,gic-v3";
 		#interrupt-cells = <4>;
@@ -1547,6 +1583,11 @@
 				reg = <3>;
 				remote-endpoint = <&mipi1_in_vopl>;
 			};
+
+			vopl_out_dp: endpoint@4 {
+				reg = <4>;
+				remote-endpoint = <&dp_in_vopl>;
+			};
 		};
 	};
 
@@ -1598,6 +1639,11 @@
 			vopb_out_mipi1: endpoint@3 {
 				reg = <3>;
 				remote-endpoint = <&mipi1_in_vopb>;
+			};
+
+			vopb_out_dp: endpoint@4 {
+				reg = <4>;
+				remote-endpoint = <&dp_in_vopb>;
 			};
 		};
 	};
