@@ -703,6 +703,7 @@ int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
 	struct btrfs_device *tgt_device = NULL;
+	struct btrfs_device *src_device = NULL;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = fs_info->tree_root;
 	int result;
@@ -724,6 +725,7 @@ int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED:
 		result = BTRFS_IOCTL_DEV_REPLACE_RESULT_NO_ERROR;
 		tgt_device = dev_replace->tgtdev;
+		src_device = dev_replace->srcdev;
 		dev_replace->tgtdev = NULL;
 		dev_replace->srcdev = NULL;
 		break;
@@ -741,6 +743,12 @@ int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 	}
 	ret = btrfs_commit_transaction(trans);
 	WARN_ON(ret);
+
+	btrfs_info_in_rcu(fs_info,
+		"dev_replace from %s (devid %llu) to %s canceled",
+		btrfs_dev_name(src_device), src_device->devid,
+		btrfs_dev_name(tgt_device));
+
 	if (tgt_device)
 		btrfs_destroy_dev_replace_tgtdev(fs_info, tgt_device);
 
