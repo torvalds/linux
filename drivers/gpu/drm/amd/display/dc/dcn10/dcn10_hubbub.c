@@ -100,7 +100,6 @@ bool hubbub1_verify_allow_pstate_change_high(
 	static unsigned int max_sampled_pstate_wait_us; /* data collection */
 	static bool forced_pstate_allow; /* help with revert wa */
 
-	unsigned int debug_index = 0x7;
 	unsigned int debug_data;
 	unsigned int i;
 
@@ -115,7 +114,9 @@ bool hubbub1_verify_allow_pstate_change_high(
 		forced_pstate_allow = false;
 	}
 
-	/* description "3-0:   Pipe0 cursor0 QOS
+	/* RV1:
+	 * dchubbubdebugind, at: 0x7
+	 * description "3-0:   Pipe0 cursor0 QOS
 	 * 7-4:   Pipe1 cursor0 QOS
 	 * 11-8:  Pipe2 cursor0 QOS
 	 * 15-12: Pipe3 cursor0 QOS
@@ -137,7 +138,8 @@ bool hubbub1_verify_allow_pstate_change_high(
 	 * 31:    SOC pstate change request
 	 */
 
-	REG_WRITE(DCHUBBUB_TEST_DEBUG_INDEX, debug_index);
+
+	REG_WRITE(DCHUBBUB_TEST_DEBUG_INDEX, hubbub->debug_test_index_pstate);
 
 	for (i = 0; i < pstate_wait_timeout_us; i++) {
 		debug_data = REG_READ(DCHUBBUB_TEST_DEBUG_DATA);
@@ -512,5 +514,6 @@ void hubbub1_construct(struct hubbub *hubbub,
 	hubbub->shifts = hubbub_shift;
 	hubbub->masks = hubbub_mask;
 
+	hubbub->debug_test_index_pstate = 0x7;
 }
 
