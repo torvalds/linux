@@ -337,8 +337,8 @@ struct iwl_csr_params {
  *	next step. Supported only in integrated solutions.
  * @ucode_api_max: Highest version of uCode API supported by driver.
  * @ucode_api_min: Lowest version of uCode API supported by driver.
- * @max_inst_size: The maximal length of the fw inst section
- * @max_data_size: The maximal length of the fw data section
+ * @max_inst_size: The maximal length of the fw inst section (only DVM)
+ * @max_data_size: The maximal length of the fw data section (only DVM)
  * @valid_tx_ant: valid transmit antenna
  * @valid_rx_ant: valid receive antenna
  * @non_shared_ant: the antenna that is for WiFi only

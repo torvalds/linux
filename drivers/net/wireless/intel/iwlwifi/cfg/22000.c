@@ -54,7 +54,6 @@
 #include <linux/module.h>
 #include <linux/stringify.h>
 #include "iwl-config.h"
-#include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
 #define IWL_22000_UCODE_API_MAX	38
@@ -115,8 +114,6 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.ucode_api_max = IWL_22000_UCODE_API_MAX,			\
 	.ucode_api_min = IWL_22000_UCODE_API_MIN,			\
 	.device_family = IWL_DEVICE_FAMILY_22000,			\
-	.max_inst_size = IWL60_RTC_INST_SIZE,				\
-	.max_data_size = IWL60_RTC_DATA_SIZE,				\
 	.base_params = &iwl_22000_base_params,				\
 	.led_mode = IWL_LED_RF_STATE,					\
 	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_22000,		\

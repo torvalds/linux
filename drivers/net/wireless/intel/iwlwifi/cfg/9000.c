@@ -54,7 +54,6 @@
 #include <linux/module.h>
 #include <linux/stringify.h>
 #include "iwl-config.h"
-#include "iwl-agn-hw.h"
 #include "fw/file.h"
 
 /* Highest firmware API version supported */
@@ -135,8 +134,6 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 	.ucode_api_max = IWL9000_UCODE_API_MAX,				\
 	.ucode_api_min = IWL9000_UCODE_API_MIN,				\
 	.device_family = IWL_DEVICE_FAMILY_9000,			\
-	.max_inst_size = IWL60_RTC_INST_SIZE,				\
-	.max_data_size = IWL60_RTC_DATA_SIZE,				\
 	.base_params = &iwl9000_base_params,				\
 	.led_mode = IWL_LED_RF_STATE,					\
 	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_9000,		\

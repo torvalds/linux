@@ -7,8 +7,8 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -35,8 +35,8 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,7 +70,6 @@
 #include <linux/module.h>
 #include <linux/stringify.h>
 #include "iwl-config.h"
-#include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
 #define IWL7260_UCODE_API_MAX	17
@@ -162,8 +161,6 @@ static const struct iwl_ht_params iwl7000_ht_params = {
 
 #define IWL_DEVICE_7000_COMMON					\
 	.device_family = IWL_DEVICE_FAMILY_7000,		\
-	.max_inst_size = IWL60_RTC_INST_SIZE,			\
-	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.base_params = &iwl7000_base_params,			\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_7000,	\
