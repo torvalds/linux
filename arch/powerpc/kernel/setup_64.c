@@ -254,6 +254,14 @@ static void cpu_ready_for_interrupts(void)
 	get_paca()->kernel_msr = MSR_KERNEL;
 }
 
+unsigned long spr_default_dscr = 0;
+
+void __init record_spr_defaults(void)
+{
+	if (early_cpu_has_feature(CPU_FTR_DSCR))
+		spr_default_dscr = mfspr(SPRN_DSCR);
+}
+
 /*
  * Early initialization entry point. This is called by head.S
  * with MMU translation disabled. We rely on the "feature" of
