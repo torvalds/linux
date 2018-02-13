@@ -253,6 +253,7 @@ static struct pernet_operations netlink_tap_net_ops = {
 	.exit = netlink_tap_exit_net,
 	.id   = &netlink_tap_net_id,
 	.size = sizeof(struct netlink_tap_net),
+	.async = true,
 };
 
 static bool netlink_filter_tap(const struct sk_buff *skb)
@@ -2723,6 +2724,7 @@ static void __init netlink_add_usersock_entry(void)
 static struct pernet_operations __net_initdata netlink_net_ops = {
 	.init = netlink_net_init,
 	.exit = netlink_net_exit,
+	.async = true,
 };
 
 static inline u32 netlink_hash(const void *data, u32 len, u32 seed)

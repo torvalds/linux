@@ -4557,6 +4557,7 @@ static void __net_exit packet_net_exit(struct net *net)
 static struct pernet_operations packet_net_ops = {
 	.init = packet_net_init,
 	.exit = packet_net_exit,
+	.async = true,
 };
 
 

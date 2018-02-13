@@ -1526,6 +1526,7 @@ static struct pernet_operations audit_net_ops __net_initdata = {
 	.exit = audit_net_exit,
 	.id = &audit_net_id,
 	.size = sizeof(struct audit_net),
+	.async = true,
 };
 
 /* Initialize audit support at boot time. */

@@ -1024,6 +1024,7 @@ static void __net_exit tcp_net_metrics_exit_batch(struct list_head *net_exit_lis
 static __net_initdata struct pernet_operations tcp_net_metrics_ops = {
 	.init		=	tcp_net_metrics_init,
 	.exit_batch	=	tcp_net_metrics_exit_batch,
+	.async		=	true,
 };
 
 void __init tcp_metrics_init(void)

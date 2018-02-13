@@ -6550,6 +6550,7 @@ static void __net_exit addrconf_exit_net(struct net *net)
 static struct pernet_operations addrconf_ops = {
 	.init = addrconf_init_net,
 	.exit = addrconf_exit_net,
+	.async = true,
 };
 
 static struct rtnl_af_ops inet6_ops __read_mostly = {
