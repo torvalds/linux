@@ -1043,6 +1043,12 @@ static int sctp_setsockopt_bindx(struct sock *sk,
 	/* Do the work. */
 	switch (op) {
 	case SCTP_BINDX_ADD_ADDR:
+		/* Allow security module to validate bindx addresses. */
+		err = security_sctp_bind_connect(sk, SCTP_SOCKOPT_BINDX_ADD,
+						 (struct sockaddr *)kaddrs,
+						 addrs_size);
+		if (err)
+			goto out;
 		err = sctp_bindx_add(sk, kaddrs, addrcnt);
 		if (err)
 			goto out;
@@ -1252,6 +1258,7 @@ static int __sctp_connect(struct sock *sk,
 
 	if (assoc_id)
 		*assoc_id = asoc->assoc_id;
+
 	err = sctp_wait_for_connect(asoc, &timeo);
 	/* Note: the asoc may be freed after the return of
 	 * sctp_wait_for_connect.
@@ -1347,7 +1354,16 @@ static int __sctp_setsockopt_connectx(struct sock *sk,
 	if (unlikely(IS_ERR(kaddrs)))
 		return PTR_ERR(kaddrs);
 
+	/* Allow security module to validate connectx addresses. */
+	err = security_sctp_bind_connect(sk, SCTP_SOCKOPT_CONNECTX,
+					 (struct sockaddr *)kaddrs,
+					  addrs_size);
+	if (err)
+		goto out_free;
+
 	err = __sctp_connect(sk, kaddrs, addrs_size, assoc_id);
+
+out_free:
 	kvfree(kaddrs);
 
 	return err;
@@ -1615,6 +1631,7 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 	struct sctp_transport *transport, *chunk_tp;
 	struct sctp_chunk *chunk;
 	union sctp_addr to;
+	struct sctp_af *af;
 	struct sockaddr *msg_name = NULL;
 	struct sctp_sndrcvinfo default_sinfo;
 	struct sctp_sndrcvinfo *sinfo;
@@ -1844,6 +1861,24 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 		}
 
 		scope = sctp_scope(&to);
+
+		/* Label connection socket for first association 1-to-many
+		 * style for client sequence socket()->sendmsg(). This
+		 * needs to be done before sctp_assoc_add_peer() as that will
+		 * set up the initial packet that needs to account for any
+		 * security ip options (CIPSO/CALIPSO) added to the packet.
+		 */
+		af = sctp_get_af_specific(to.sa.sa_family);
+		if (!af) {
+			err = -EINVAL;
+			goto out_unlock;
+		}
+		err = security_sctp_bind_connect(sk, SCTP_SENDMSG_CONNECT,
+						 (struct sockaddr *)&to,
+						 af->sockaddr_len);
+		if (err < 0)
+			goto out_unlock;
+
 		new_asoc = sctp_association_new(ep, sk, scope, GFP_KERNEL);
 		if (!new_asoc) {
 			err = -ENOMEM;
@@ -2909,12 +2944,25 @@ static int sctp_setsockopt_primary_addr(struct sock *sk, char __user *optval,
 {
 	struct sctp_prim prim;
 	struct sctp_transport *trans;
+	struct sctp_af *af;
+	int err;
 
 	if (optlen != sizeof(struct sctp_prim))
 		return -EINVAL;
 
 	if (copy_from_user(&prim, optval, sizeof(struct sctp_prim)))
 		return -EFAULT;
+
+	/* Allow security module to validate address but need address len. */
+	af = sctp_get_af_specific(prim.ssp_addr.ss_family);
+	if (!af)
+		return -EINVAL;
+
+	err = security_sctp_bind_connect(sk, SCTP_PRIMARY_ADDR,
+					 (struct sockaddr *)&prim.ssp_addr,
+					 af->sockaddr_len);
+	if (err)
+		return err;
 
 	trans = sctp_addr_id2transport(sk, &prim.ssp_addr, prim.ssp_assoc_id);
 	if (!trans)
@@ -3246,6 +3294,13 @@ static int sctp_setsockopt_peer_primary_addr(struct sock *sk, char __user *optva
 
 	if (!sctp_assoc_lookup_laddr(asoc, (union sctp_addr *)&prim.sspp_addr))
 		return -EADDRNOTAVAIL;
+
+	/* Allow security module to validate address. */
+	err = security_sctp_bind_connect(sk, SCTP_SET_PEER_PRIMARY_ADDR,
+					 (struct sockaddr *)&prim.sspp_addr,
+					 af->sockaddr_len);
+	if (err)
+		return err;
 
 	/* Create an ASCONF chunk with SET_PRIMARY parameter	*/
 	chunk = sctp_make_asconf_set_prim(asoc,
@@ -8346,6 +8401,8 @@ void sctp_copy_sock(struct sock *newsk, struct sock *sk,
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct inet_sock *newinet;
+	struct sctp_sock *sp = sctp_sk(sk);
+	struct sctp_endpoint *ep = sp->ep;
 
 	newsk->sk_type = sk->sk_type;
 	newsk->sk_bound_dev_if = sk->sk_bound_dev_if;
@@ -8388,7 +8445,10 @@ void sctp_copy_sock(struct sock *newsk, struct sock *sk,
 	if (newsk->sk_flags & SK_FLAGS_TIMESTAMP)
 		net_enable_timestamp();
 
-	security_sk_clone(sk, newsk);
+	/* Set newsk security attributes from orginal sk and connection
+	 * security attribute from ep.
+	 */
+	security_sctp_sk_clone(ep, sk, newsk);
 }
 
 static inline void sctp_copy_descendant(struct sock *sk_to,
