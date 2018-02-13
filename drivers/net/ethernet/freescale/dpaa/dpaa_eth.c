@@ -2766,7 +2766,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 
 	priv->channel = (u16)channel;
 
-	/* Start a thread that will walk the CPUs with affine portals
+	/* Walk the CPUs with affine portals
 	 * and add this pool channel to each's dequeue mask.
 	 */
 	dpaa_eth_add_channel(priv->channel);
