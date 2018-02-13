@@ -6989,7 +6989,7 @@ F:	drivers/input/input-mt.c
 K:	\b(ABS|SYN)_MT_
 
 INSIDE SECURE CRYPTO DRIVER
-M:	Antoine Tenart <antoine.tenart@free-electrons.com>
+M:	Antoine Tenart <antoine.tenart@bootlin.com>
 F:	drivers/crypto/inside-secure/
 S:	Maintained
 L:	linux-crypto@vger.kernel.org
