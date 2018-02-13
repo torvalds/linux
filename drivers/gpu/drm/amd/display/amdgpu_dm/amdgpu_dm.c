@@ -2498,8 +2498,7 @@ static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
 	struct amdgpu_device *adev = crtc->dev->dev_private;
 
 	irq_source = IRQ_TYPE_VBLANK + acrtc->otg_inst;
-	dc_interrupt_set(adev->dm.dc, irq_source, enable);
-	return 0;
+	return dc_interrupt_set(adev->dm.dc, irq_source, enable) ? 0 : -EBUSY;
 }
 
 static int dm_enable_vblank(struct drm_crtc *crtc)
