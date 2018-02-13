@@ -384,7 +384,7 @@ static const match_table_t tokens = {
 	{Opt_check_integrity_print_mask, "check_int_print_mask=%u"},
 	{Opt_rescan_uuid_tree, "rescan_uuid_tree"},
 	{Opt_fatal_errors, "fatal_errors=%s"},
-	{Opt_commit_interval, "commit=%d"},
+	{Opt_commit_interval, "commit=%u"},
 #ifdef CONFIG_BTRFS_DEBUG
 	{Opt_fragment_data, "fragment=data"},
 	{Opt_fragment_metadata, "fragment=metadata"},
@@ -786,24 +786,18 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 		case Opt_commit_interval:
 			intarg = 0;
 			ret = match_int(&args[0], &intarg);
-			if (ret < 0) {
-				btrfs_err(info, "invalid commit interval");
-				ret = -EINVAL;
+			if (ret)
 				goto out;
-			}
-			if (intarg > 0) {
-				if (intarg > 300) {
-					btrfs_warn(info,
-						"excessive commit interval %d",
-						intarg);
-				}
-				info->commit_interval = intarg;
-			} else {
+			if (intarg == 0) {
 				btrfs_info(info,
-					   "using default commit interval %ds",
+					   "using default commit interval %us",
 					   BTRFS_DEFAULT_COMMIT_INTERVAL);
-				info->commit_interval = BTRFS_DEFAULT_COMMIT_INTERVAL;
+				intarg = BTRFS_DEFAULT_COMMIT_INTERVAL;
+			} else if (intarg > 300) {
+				btrfs_warn(info, "excessive commit interval %d",
+					   intarg);
 			}
+			info->commit_interval = intarg;
 			break;
 #ifdef CONFIG_BTRFS_DEBUG
 		case Opt_fragment_all:
@@ -1332,7 +1326,7 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 	if (btrfs_test_opt(info, PANIC_ON_FATAL_ERROR))
 		seq_puts(seq, ",fatal_errors=panic");
 	if (info->commit_interval != BTRFS_DEFAULT_COMMIT_INTERVAL)
-		seq_printf(seq, ",commit=%d", info->commit_interval);
+		seq_printf(seq, ",commit=%u", info->commit_interval);
 #ifdef CONFIG_BTRFS_DEBUG
 	if (btrfs_test_opt(info, FRAGMENT_DATA))
 		seq_puts(seq, ",fragment=data");
