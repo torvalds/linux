@@ -344,7 +344,7 @@ static const match_table_t tokens = {
 	{Opt_nobarrier, "nobarrier"},
 	{Opt_barrier, "barrier"},
 	{Opt_max_inline, "max_inline=%s"},
-	{Opt_alloc_start, "alloc_start=%s"},
+	{Opt_alloc_start, "alloc_start=%s"},		/* deprecated */
 	{Opt_thread_pool, "thread_pool=%u"},
 	{Opt_compress, "compress"},
 	{Opt_compress_type, "compress=%s"},
@@ -370,7 +370,7 @@ static const match_table_t tokens = {
 	{Opt_user_subvol_rm_allowed, "user_subvol_rm_allowed"},
 	{Opt_enospc_debug, "enospc_debug"},
 	{Opt_noenospc_debug, "noenospc_debug"},
-	{Opt_subvolrootid, "subvolrootid=%d"},
+	{Opt_subvolrootid, "subvolrootid=%d"},		/* deprecated */
 	{Opt_defrag, "autodefrag"},
 	{Opt_nodefrag, "noautodefrag"},
 	{Opt_inode_cache, "inode_cache"},
