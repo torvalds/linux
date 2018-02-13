@@ -432,20 +432,18 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 }
 
 /* Called with ring's lock taken */
-static int safexcel_try_push_requests(struct safexcel_crypto_priv *priv,
-				      int ring, int reqs)
+static void safexcel_try_push_requests(struct safexcel_crypto_priv *priv,
+				       int ring)
 {
-	int coal = min_t(int, reqs, EIP197_MAX_BATCH_SZ);
+	int coal = min_t(int, priv->ring[ring].requests, EIP197_MAX_BATCH_SZ);
 
 	if (!coal)
-		return 0;
+		return;
 
 	/* Configure when we want an interrupt */
 	writel(EIP197_HIA_RDR_THRESH_PKT_MODE |
 	       EIP197_HIA_RDR_THRESH_PROC_PKT(coal),
 	       EIP197_HIA_RDR(priv, ring) + EIP197_HIA_xDR_THRESH);
-
-	return coal;
 }
 
 void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring)
@@ -521,12 +519,12 @@ finalize:
 
 	spin_lock_bh(&priv->ring[ring].egress_lock);
 
+	priv->ring[ring].requests += nreq;
+
 	if (!priv->ring[ring].busy) {
-		nreq -= safexcel_try_push_requests(priv, ring, nreq);
+		safexcel_try_push_requests(priv, ring);
 		priv->ring[ring].busy = true;
 	}
-
-	priv->ring[ring].requests_left += nreq;
 
 	spin_unlock_bh(&priv->ring[ring].egress_lock);
 
@@ -631,7 +629,7 @@ static inline void safexcel_handle_result_descriptor(struct safexcel_crypto_priv
 {
 	struct safexcel_request *sreq;
 	struct safexcel_context *ctx;
-	int ret, i, nreq, ndesc, tot_descs, done;
+	int ret, i, nreq, ndesc, tot_descs, handled = 0;
 	bool should_complete;
 
 handle_results:
@@ -667,6 +665,7 @@ handle_results:
 
 		kfree(sreq);
 		tot_descs += ndesc;
+		handled++;
 	}
 
 acknowledge:
@@ -685,11 +684,10 @@ acknowledge:
 requests_left:
 	spin_lock_bh(&priv->ring[ring].egress_lock);
 
-	done = safexcel_try_push_requests(priv, ring,
-					  priv->ring[ring].requests_left);
+	priv->ring[ring].requests -= handled;
+	safexcel_try_push_requests(priv, ring);
 
-	priv->ring[ring].requests_left -= done;
-	if (!done && !priv->ring[ring].requests_left)
+	if (!priv->ring[ring].requests)
 		priv->ring[ring].busy = false;
 
 	spin_unlock_bh(&priv->ring[ring].egress_lock);
@@ -970,7 +968,7 @@ static int safexcel_probe(struct platform_device *pdev)
 			goto err_clk;
 		}
 
-		priv->ring[i].requests_left = 0;
+		priv->ring[i].requests = 0;
 		priv->ring[i].busy = false;
 
 		crypto_init_queue(&priv->ring[i].queue,
