@@ -377,6 +377,33 @@ int snd_emu10k1_free_pages(struct snd_emu10k1 *emu, struct snd_util_memblk *blk)
 	return snd_emu10k1_synth_free(emu, blk);
 }
 
+/*
+ * allocate DMA pages, widening the allocation if necessary
+ *
+ * See the comment above snd_emu10k1_detect_iommu() in emu10k1_main.c why
+ * this might be needed.
+ *
+ * If you modify this function check whether __synth_free_pages() also needs
+ * changes.
+ */
+int snd_emu10k1_alloc_pages_maybe_wider(struct snd_emu10k1 *emu, size_t size,
+					struct snd_dma_buffer *dmab)
+{
+	if (emu->iommu_workaround) {
+		size_t npages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+		size_t size_real = npages * PAGE_SIZE;
+
+		/*
+		 * The device has been observed to accesses up to 256 extra
+		 * bytes, but use 1k to be safe.
+		 */
+		if (size_real < size + 1024)
+			size += PAGE_SIZE;
+	}
+
+	return snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
+				   snd_dma_pci_data(emu->pci), size, dmab);
+}
 
 /*
  * memory allocation using multiple pages (for synth)
@@ -472,7 +499,15 @@ static void __synth_free_pages(struct snd_emu10k1 *emu, int first_page,
 			continue;
 		dmab.area = emu->page_ptr_table[page];
 		dmab.addr = emu->page_addr_table[page];
+
+		/*
+		 * please keep me in sync with logic in
+		 * snd_emu10k1_alloc_pages_maybe_wider()
+		 */
 		dmab.bytes = PAGE_SIZE;
+		if (emu->iommu_workaround)
+			dmab.bytes *= 2;
+
 		snd_dma_free_pages(&dmab);
 		emu->page_addr_table[page] = 0;
 		emu->page_ptr_table[page] = NULL;
@@ -491,9 +526,8 @@ static int synth_alloc_pages(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk 
 	get_single_page_range(emu->memhdr, blk, &first_page, &last_page);
 	/* allocate kernel pages */
 	for (page = first_page; page <= last_page; page++) {
-		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-					snd_dma_pci_data(emu->pci),
-					PAGE_SIZE, &dmab) < 0)
+		if (snd_emu10k1_alloc_pages_maybe_wider(emu, PAGE_SIZE,
+							&dmab) < 0)
 			goto __fail;
 		if (!is_valid_page(emu, dmab.addr)) {
 			snd_dma_free_pages(&dmab);
