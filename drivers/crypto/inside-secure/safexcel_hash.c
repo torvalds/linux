@@ -303,7 +303,7 @@ send_command:
 				   req->state_sz);
 	if (IS_ERR(rdesc)) {
 		ret = PTR_ERR(rdesc);
-		goto cdesc_rollback;
+		goto unmap_result;
 	}
 
 	spin_unlock_bh(&priv->ring[ring].egress_lock);
@@ -315,6 +315,8 @@ send_command:
 	*results = 1;
 	return 0;
 
+unmap_result:
+	dma_unmap_sg(priv->dev, areq->src, req->nents, DMA_TO_DEVICE);
 cdesc_rollback:
 	for (i = 0; i < n_cdesc; i++)
 		safexcel_ring_rollback_wptr(priv, &priv->ring[ring].cdr);
