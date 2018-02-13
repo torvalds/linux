@@ -10,9 +10,8 @@
  */
 
 #include <linux/types.h>
-
-#include <linux/platform_data/gpio-omap.h>
 #include <linux/omap-dma.h>
+
 #include <plat/dmtimer.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 
@@ -570,12 +569,6 @@ struct omap_hwmod omap2xxx_dss_venc_hwmod = {
 	.flags		= HWMOD_NO_IDLEST,
 };
 
-/* gpio dev_attr */
-struct omap_gpio_dev_attr omap2xxx_gpio_dev_attr = {
-	.bank_width = 32,
-	.dbck_flag = false,
-};
-
 /* gpio1 */
 struct omap_hwmod omap2xxx_gpio1_hwmod = {
 	.name		= "gpio1",
@@ -589,7 +582,6 @@ struct omap_hwmod omap2xxx_gpio1_hwmod = {
 		},
 	},
 	.class		= &omap2xxx_gpio_hwmod_class,
-	.dev_attr	= &omap2xxx_gpio_dev_attr,
 };
 
 /* gpio2 */
@@ -605,7 +597,6 @@ struct omap_hwmod omap2xxx_gpio2_hwmod = {
 		},
 	},
 	.class		= &omap2xxx_gpio_hwmod_class,
-	.dev_attr	= &omap2xxx_gpio_dev_attr,
 };
 
 /* gpio3 */
@@ -621,7 +612,6 @@ struct omap_hwmod omap2xxx_gpio3_hwmod = {
 		},
 	},
 	.class		= &omap2xxx_gpio_hwmod_class,
-	.dev_attr	= &omap2xxx_gpio_dev_attr,
 };
 
 /* gpio4 */
@@ -637,7 +627,6 @@ struct omap_hwmod omap2xxx_gpio4_hwmod = {
 		},
 	},
 	.class		= &omap2xxx_gpio_hwmod_class,
-	.dev_attr	= &omap2xxx_gpio_dev_attr,
 };
 
 /* mcspi1 */

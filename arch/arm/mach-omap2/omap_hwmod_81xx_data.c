@@ -17,7 +17,6 @@
 
 #include <linux/types.h>
 
-#include <linux/platform_data/gpio-omap.h>
 #include <linux/platform_data/hsmmc-omap.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <plat/dmtimer.h>
@@ -490,11 +489,6 @@ static struct omap_hwmod_class dm81xx_gpio_hwmod_class = {
 	.rev	= 2,
 };
 
-static struct omap_gpio_dev_attr gpio_dev_attr = {
-	.bank_width	= 32,
-	.dbck_flag	= true,
-};
-
 static struct omap_hwmod_opt_clk gpio1_opt_clks[] = {
 	{ .role = "dbclk", .clk = "sysclk18_ck" },
 };
@@ -512,7 +506,6 @@ static struct omap_hwmod dm81xx_gpio1_hwmod = {
 	},
 	.opt_clks	= gpio1_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio1_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 static struct omap_hwmod_ocp_if dm81xx_l4_ls__gpio1 = {
@@ -539,7 +532,6 @@ static struct omap_hwmod dm81xx_gpio2_hwmod = {
 	},
 	.opt_clks	= gpio2_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio2_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 static struct omap_hwmod_ocp_if dm81xx_l4_ls__gpio2 = {

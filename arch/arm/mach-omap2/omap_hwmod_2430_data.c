@@ -134,7 +134,6 @@ static struct omap_hwmod omap2430_gpio5_hwmod = {
 		},
 	},
 	.class		= &omap2xxx_gpio_hwmod_class,
-	.dev_attr	= &omap2xxx_gpio_dev_attr,
 };
 
 /* dma attributes */

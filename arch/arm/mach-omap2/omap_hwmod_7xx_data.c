@@ -18,7 +18,6 @@
  */
 
 #include <linux/io.h>
-#include <linux/platform_data/gpio-omap.h>
 #include <linux/platform_data/hsmmc-omap.h>
 #include <linux/power/smartreflex.h>
 #include <linux/i2c-omap.h>
@@ -818,12 +817,6 @@ static struct omap_hwmod_class dra7xx_gpio_hwmod_class = {
 	.rev	= 2,
 };
 
-/* gpio dev_attr */
-static struct omap_gpio_dev_attr gpio_dev_attr = {
-	.bank_width	= 32,
-	.dbck_flag	= true,
-};
-
 /* gpio1 */
 static struct omap_hwmod_opt_clk gpio1_opt_clks[] = {
 	{ .role = "dbclk", .clk = "gpio1_dbclk" },
@@ -844,7 +837,6 @@ static struct omap_hwmod dra7xx_gpio1_hwmod = {
 	},
 	.opt_clks	= gpio1_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio1_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 /* gpio2 */
@@ -867,7 +859,6 @@ static struct omap_hwmod dra7xx_gpio2_hwmod = {
 	},
 	.opt_clks	= gpio2_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio2_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 /* gpio3 */
@@ -890,7 +881,6 @@ static struct omap_hwmod dra7xx_gpio3_hwmod = {
 	},
 	.opt_clks	= gpio3_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio3_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 /* gpio4 */
@@ -913,7 +903,6 @@ static struct omap_hwmod dra7xx_gpio4_hwmod = {
 	},
 	.opt_clks	= gpio4_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio4_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 /* gpio5 */
@@ -936,7 +925,6 @@ static struct omap_hwmod dra7xx_gpio5_hwmod = {
 	},
 	.opt_clks	= gpio5_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio5_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 /* gpio6 */
@@ -959,7 +947,6 @@ static struct omap_hwmod dra7xx_gpio6_hwmod = {
 	},
 	.opt_clks	= gpio6_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio6_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 /* gpio7 */
@@ -982,7 +969,6 @@ static struct omap_hwmod dra7xx_gpio7_hwmod = {
 	},
 	.opt_clks	= gpio7_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio7_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 /* gpio8 */
@@ -1005,7 +991,6 @@ static struct omap_hwmod dra7xx_gpio8_hwmod = {
 	},
 	.opt_clks	= gpio8_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio8_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 /*

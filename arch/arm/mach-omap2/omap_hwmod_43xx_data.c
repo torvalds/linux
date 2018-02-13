@@ -14,7 +14,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/platform_data/gpio-omap.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include "omap_hwmod.h"
 #include "omap_hwmod_33xx_43xx_common_data.h"
@@ -107,7 +106,6 @@ static struct omap_hwmod am43xx_gpio0_hwmod = {
 	},
 	.opt_clks	= gpio0_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio0_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 static struct omap_hwmod_class_sysconfig am43xx_synctimer_sysc = {
@@ -288,7 +286,6 @@ static struct omap_hwmod am43xx_gpio4_hwmod = {
 	},
 	.opt_clks	= gpio4_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio4_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 static struct omap_hwmod_opt_clk gpio5_opt_clks[] = {
@@ -309,7 +306,6 @@ static struct omap_hwmod am43xx_gpio5_hwmod = {
 	},
 	.opt_clks	= gpio5_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio5_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 static struct omap_hwmod_class am43xx_ocp2scp_hwmod_class = {
