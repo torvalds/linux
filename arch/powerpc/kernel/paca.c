@@ -20,7 +20,7 @@
 
 #include "setup.h"
 
-#ifdef CONFIG_PPC_BOOK3S
+#ifdef CONFIG_PPC_PSERIES
 
 /*
  * The structure which the hypervisor knows about - this structure
@@ -47,6 +47,9 @@ static long __initdata lppaca_size;
 
 static void __init allocate_lppacas(int nr_cpus, unsigned long limit)
 {
+	if (early_cpu_has_feature(CPU_FTR_HVMODE))
+		return;
+
 	if (nr_cpus <= NR_LPPACAS)
 		return;
 
@@ -60,6 +63,9 @@ static struct lppaca * __init new_lppaca(int cpu)
 {
 	struct lppaca *lp;
 
+	if (early_cpu_has_feature(CPU_FTR_HVMODE))
+		return NULL;
+
 	if (cpu < NR_LPPACAS)
 		return &lppaca[cpu];
 
@@ -72,6 +78,9 @@ static struct lppaca * __init new_lppaca(int cpu)
 static void __init free_lppacas(void)
 {
 	long new_size = 0, nr;
+
+	if (early_cpu_has_feature(CPU_FTR_HVMODE))
+		return;
 
 	if (!lppaca_size)
 		return;
@@ -157,9 +166,10 @@ EXPORT_SYMBOL(paca);
 
 void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 {
-#ifdef CONFIG_PPC_BOOK3S
+#ifdef CONFIG_PPC_PSERIES
 	new_paca->lppaca_ptr = new_lppaca(cpu);
-#else
+#endif
+#ifdef CONFIG_PPC_BOOK3E
 	new_paca->kernel_pgd = swapper_pg_dir;
 #endif
 	new_paca->lock_token = 0x8000;

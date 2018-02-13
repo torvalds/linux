@@ -2,6 +2,8 @@
 #ifndef _ASM_POWERPC_PLPAR_WRAPPERS_H
 #define _ASM_POWERPC_PLPAR_WRAPPERS_H
 
+#ifdef CONFIG_PPC_PSERIES
+
 #include <linux/string.h>
 #include <linux/irqflags.h>
 
@@ -339,5 +341,7 @@ static inline long plpar_get_cpu_characteristics(struct h_cpu_char_result *p)
 
 	return rc;
 }
+
+#endif /* CONFIG_PPC_PSERIES */
 
 #endif /* _ASM_POWERPC_PLPAR_WRAPPERS_H */
