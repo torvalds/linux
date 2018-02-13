@@ -62,14 +62,14 @@ static const struct wm_adsp_region *cs47l24_dsp_regions[] = {
 static int cs47l24_adsp_power_ev(struct snd_soc_dapm_widget *w,
 				 struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct arizona *arizona = dev_get_drvdata(component->dev->parent);
 	unsigned int v;
 	int ret;
 
 	ret = regmap_read(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, &v);
 	if (ret != 0) {
-		dev_err(codec->dev, "Failed to read SYSCLK state: %d\n", ret);
+		dev_err(component->dev, "Failed to read SYSCLK state: %d\n", ret);
 		return ret;
 	}
 
@@ -931,10 +931,10 @@ static const struct snd_soc_dapm_route cs47l24_dapm_routes[] = {
 	{ "DSP3 Voice Trigger", "Switch", "DSP3" },
 };
 
-static int cs47l24_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
+static int cs47l24_set_fll(struct snd_soc_component *component, int fll_id, int source,
 			  unsigned int Fref, unsigned int Fout)
 {
-	struct cs47l24_priv *cs47l24 = snd_soc_codec_get_drvdata(codec);
+	struct cs47l24_priv *cs47l24 = snd_soc_component_get_drvdata(component);
 
 	switch (fll_id) {
 	case CS47L24_FLL1:
@@ -1118,33 +1118,32 @@ static irqreturn_t cs47l24_adsp2_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int cs47l24_codec_probe(struct snd_soc_codec *codec)
+static int cs47l24_component_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
-	struct cs47l24_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct cs47l24_priv *priv = snd_soc_component_get_drvdata(component);
 	struct arizona *arizona = priv->core.arizona;
 	int ret;
 
 	arizona->dapm = dapm;
-	snd_soc_codec_init_regmap(codec, arizona->regmap);
+	snd_soc_component_init_regmap(component, arizona->regmap);
 
-	ret = arizona_init_spk(codec);
+	ret = arizona_init_spk(component);
 	if (ret < 0)
 		return ret;
 
-	arizona_init_gpio(codec);
-	arizona_init_mono(codec);
+	arizona_init_gpio(component);
+	arizona_init_mono(component);
 
-	ret = wm_adsp2_codec_probe(&priv->core.adsp[1], codec);
+	ret = wm_adsp2_component_probe(&priv->core.adsp[1], component);
 	if (ret)
 		goto err_adsp2_codec_probe;
 
-	ret = wm_adsp2_codec_probe(&priv->core.adsp[2], codec);
+	ret = wm_adsp2_component_probe(&priv->core.adsp[2], component);
 	if (ret)
 		goto err_adsp2_codec_probe;
 
-	ret = snd_soc_add_codec_controls(codec,
+	ret = snd_soc_add_component_controls(component,
 					 &arizona_adsp2_rate_controls[1], 2);
 	if (ret)
 		goto err_adsp2_codec_probe;
@@ -1154,22 +1153,20 @@ static int cs47l24_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 
 err_adsp2_codec_probe:
-	wm_adsp2_codec_remove(&priv->core.adsp[1], codec);
-	wm_adsp2_codec_remove(&priv->core.adsp[2], codec);
+	wm_adsp2_component_remove(&priv->core.adsp[1], component);
+	wm_adsp2_component_remove(&priv->core.adsp[2], component);
 
 	return ret;
 }
 
-static int cs47l24_codec_remove(struct snd_soc_codec *codec)
+static void cs47l24_component_remove(struct snd_soc_component *component)
 {
-	struct cs47l24_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct cs47l24_priv *priv = snd_soc_component_get_drvdata(component);
 
-	wm_adsp2_codec_remove(&priv->core.adsp[1], codec);
-	wm_adsp2_codec_remove(&priv->core.adsp[2], codec);
+	wm_adsp2_component_remove(&priv->core.adsp[1], component);
+	wm_adsp2_component_remove(&priv->core.adsp[2], component);
 
 	priv->core.arizona->dapm = NULL;
-
-	return 0;
 }
 
 #define CS47L24_DIG_VU 0x0200
@@ -1190,25 +1187,22 @@ static struct snd_compr_ops cs47l24_compr_ops = {
 	.copy		= wm_adsp_compr_copy,
 };
 
-static const struct snd_soc_codec_driver soc_codec_dev_cs47l24 = {
-	.probe = cs47l24_codec_probe,
-	.remove = cs47l24_codec_remove,
-
-	.idle_bias_off = true,
-
-	.set_sysclk = arizona_set_sysclk,
-	.set_pll = cs47l24_set_fll,
-
-	.component_driver = {
-		.name			= DRV_NAME,
-		.compr_ops		= &cs47l24_compr_ops,
-		.controls		= cs47l24_snd_controls,
-		.num_controls		= ARRAY_SIZE(cs47l24_snd_controls),
-		.dapm_widgets		= cs47l24_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(cs47l24_dapm_widgets),
-		.dapm_routes		= cs47l24_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(cs47l24_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_cs47l24 = {
+	.probe			= cs47l24_component_probe,
+	.remove			= cs47l24_component_remove,
+	.set_sysclk		= arizona_set_sysclk,
+	.set_pll		= cs47l24_set_fll,
+	.name			= DRV_NAME,
+	.compr_ops		= &cs47l24_compr_ops,
+	.controls		= cs47l24_snd_controls,
+	.num_controls		= ARRAY_SIZE(cs47l24_snd_controls),
+	.dapm_widgets		= cs47l24_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(cs47l24_dapm_widgets),
+	.dapm_routes		= cs47l24_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(cs47l24_dapm_routes),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int cs47l24_probe(struct platform_device *pdev)
@@ -1299,10 +1293,11 @@ static int cs47l24_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_dsp_irq;
 
-	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_cs47l24,
+	ret = devm_snd_soc_register_component(&pdev->dev,
+				      &soc_component_dev_cs47l24,
 				      cs47l24_dai, ARRAY_SIZE(cs47l24_dai));
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to register component: %d\n", ret);
 		goto err_spk_irqs;
 	}
 
@@ -1321,7 +1316,6 @@ static int cs47l24_remove(struct platform_device *pdev)
 	struct cs47l24_priv *cs47l24 = platform_get_drvdata(pdev);
 	struct arizona *arizona = cs47l24->core.arizona;
 
-	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	wm_adsp2_remove(&cs47l24->core.adsp[1]);
