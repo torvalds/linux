@@ -1447,6 +1447,7 @@ static void __net_exit arp_net_exit(struct net *net)
 static struct pernet_operations arp_net_ops = {
 	.init = arp_net_init,
 	.exit = arp_net_exit,
+	.async = true,
 };
 
 static int __init arp_proc_init(void)

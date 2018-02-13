@@ -104,6 +104,7 @@ static void __net_exit udplite4_proc_exit_net(struct net *net)
 static struct pernet_operations udplite4_net_ops = {
 	.init = udplite4_proc_init_net,
 	.exit = udplite4_proc_exit_net,
+	.async = true,
 };
 
 static __init int udplite4_proc_init(void)

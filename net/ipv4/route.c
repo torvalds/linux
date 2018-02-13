@@ -417,6 +417,7 @@ static void __net_exit ip_rt_do_proc_exit(struct net *net)
 static struct pernet_operations ip_rt_proc_ops __net_initdata =  {
 	.init = ip_rt_do_proc_init,
 	.exit = ip_rt_do_proc_exit,
+	.async = true,
 };
 
 static int __init ip_rt_proc_init(void)
@@ -2994,6 +2995,7 @@ static __net_exit void sysctl_route_net_exit(struct net *net)
 static __net_initdata struct pernet_operations sysctl_route_ops = {
 	.init = sysctl_route_net_init,
 	.exit = sysctl_route_net_exit,
+	.async = true,
 };
 #endif
 
@@ -3007,6 +3009,7 @@ static __net_init int rt_genid_init(struct net *net)
 
 static __net_initdata struct pernet_operations rt_genid_ops = {
 	.init = rt_genid_init,
+	.async = true,
 };
 
 static int __net_init ipv4_inetpeer_init(struct net *net)
@@ -3032,6 +3035,7 @@ static void __net_exit ipv4_inetpeer_exit(struct net *net)
 static __net_initdata struct pernet_operations ipv4_inetpeer_ops = {
 	.init	=	ipv4_inetpeer_init,
 	.exit	=	ipv4_inetpeer_exit,
+	.async	=	true,
 };
 
 #ifdef CONFIG_IP_ROUTE_CLASSID

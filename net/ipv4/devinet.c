@@ -2469,6 +2469,7 @@ static __net_exit void devinet_exit_net(struct net *net)
 static __net_initdata struct pernet_operations devinet_ops = {
 	.init = devinet_init_net,
 	.exit = devinet_exit_net,
+	.async = true,
 };
 
 static struct rtnl_af_ops inet_af_ops __read_mostly = {

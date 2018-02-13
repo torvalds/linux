@@ -1156,6 +1156,7 @@ static __net_exit void raw_exit_net(struct net *net)
 static __net_initdata struct pernet_operations raw_net_ops = {
 	.init = raw_init_net,
 	.exit = raw_exit_net,
+	.async = true,
 };
 
 int __init raw_proc_init(void)
