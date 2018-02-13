@@ -809,8 +809,8 @@ int __init lirc_dev_init(void)
 		return retval;
 	}
 
-	pr_info("IR Remote Control driver registered, major %d\n",
-						MAJOR(lirc_base_dev));
+	pr_debug("IR Remote Control driver registered, major %d\n",
+		 MAJOR(lirc_base_dev));
 
 	return 0;
 }
