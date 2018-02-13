@@ -303,13 +303,13 @@ static void hdmi_display_get_timings(struct omap_dss_device *dssdev,
 	*vm = hdmi.cfg.vm;
 }
 
-static void hdmi_dump_regs(struct seq_file *s)
+static int hdmi_dump_regs(struct seq_file *s, void *p)
 {
 	mutex_lock(&hdmi.lock);
 
 	if (hdmi_runtime_get()) {
 		mutex_unlock(&hdmi.lock);
-		return;
+		return 0;
 	}
 
 	hdmi_wp_dump(&hdmi.wp, s);
@@ -319,6 +319,7 @@ static void hdmi_dump_regs(struct seq_file *s)
 
 	hdmi_runtime_put();
 	mutex_unlock(&hdmi.lock);
+	return 0;
 }
 
 static int read_edid(u8 *buf, int len)
@@ -779,7 +780,7 @@ static int hdmi4_bind(struct device *dev, struct device *master, void *data)
 		return r;
 	}
 
-	dss_debugfs_create_file("hdmi", hdmi_dump_regs);
+	hdmi.debugfs = dss_debugfs_create_file("hdmi", hdmi_dump_regs, &hdmi);
 
 	return 0;
 err:
@@ -790,6 +791,8 @@ err:
 static void hdmi4_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+
+	dss_debugfs_remove_file(hdmi.debugfs);
 
 	if (hdmi.audio_pdev)
 		platform_device_unregister(hdmi.audio_pdev);

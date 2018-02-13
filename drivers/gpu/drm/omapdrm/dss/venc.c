@@ -327,6 +327,8 @@ static struct {
 	struct regulator *vdda_dac_reg;
 	struct dss_device *dss;
 
+	struct dss_debugfs_entry *debugfs;
+
 	struct clk	*tv_dac_clk;
 
 	struct videomode vm;
@@ -670,12 +672,12 @@ static int venc_init_regulator(void)
 	return 0;
 }
 
-static void venc_dump_regs(struct seq_file *s)
+static int venc_dump_regs(struct seq_file *s, void *p)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, venc_read_reg(r))
 
 	if (venc_runtime_get())
-		return;
+		return 0;
 
 	DUMPREG(VENC_F_CONTROL);
 	DUMPREG(VENC_VIDOUT_CTRL);
@@ -722,6 +724,7 @@ static void venc_dump_regs(struct seq_file *s)
 	venc_runtime_put();
 
 #undef DUMPREG
+	return 0;
 }
 
 static int venc_get_clocks(struct platform_device *pdev)
@@ -914,7 +917,7 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 		goto err_probe_of;
 	}
 
-	dss_debugfs_create_file("venc", venc_dump_regs);
+	venc.debugfs = dss_debugfs_create_file("venc", venc_dump_regs, &venc);
 
 	venc_init_output(pdev);
 
@@ -929,6 +932,8 @@ err_runtime_get:
 static void venc_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+
+	dss_debugfs_remove_file(venc.debugfs);
 
 	venc_uninit_output(pdev);
 

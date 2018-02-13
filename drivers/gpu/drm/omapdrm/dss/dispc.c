@@ -167,6 +167,8 @@ static struct {
 	void __iomem    *base;
 	struct dss_device *dss;
 
+	struct dss_debugfs_entry *debugfs;
+
 	int irq;
 	irq_handler_t user_handler;
 	void *user_data;
@@ -3268,7 +3270,7 @@ void dispc_dump_clocks(struct seq_file *s)
 	dispc_runtime_put();
 }
 
-static void dispc_dump_regs(struct seq_file *s)
+static int dispc_dump_regs(struct seq_file *s, void *p)
 {
 	int i, j;
 	const char *mgr_names[] = {
@@ -3289,7 +3291,7 @@ static void dispc_dump_regs(struct seq_file *s)
 #define DUMPREG(r) seq_printf(s, "%-50s %08x\n", #r, dispc_read_reg(r))
 
 	if (dispc_runtime_get())
-		return;
+		return 0;
 
 	/* DISPC common registers */
 	DUMPREG(DISPC_REVISION);
@@ -3461,6 +3463,8 @@ static void dispc_dump_regs(struct seq_file *s)
 
 #undef DISPC_REG
 #undef DUMPREG
+
+	return 0;
 }
 
 /* calculate clock rates using dividers in cinfo */
@@ -4620,7 +4624,8 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 
 	dispc_set_ops(&dispc_ops);
 
-	dss_debugfs_create_file("dispc", dispc_dump_regs);
+	dispc.debugfs = dss_debugfs_create_file("dispc", dispc_dump_regs,
+						&dispc);
 
 	return 0;
 
@@ -4632,6 +4637,8 @@ err_runtime_get:
 static void dispc_unbind(struct device *dev, struct device *master,
 			       void *data)
 {
+	dss_debugfs_remove_file(dispc.debugfs);
+
 	dispc_set_ops(NULL);
 
 	pm_runtime_disable(dev);

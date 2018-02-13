@@ -361,6 +361,8 @@ struct omap_hdmi {
 	struct platform_device *pdev;
 	struct dss_device *dss;
 
+	struct dss_debugfs_entry *debugfs;
+
 	struct hdmi_wp_data	wp;
 	struct hdmi_pll_data	pll;
 	struct hdmi_phy_data	phy;

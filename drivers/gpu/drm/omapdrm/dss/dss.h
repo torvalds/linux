@@ -25,6 +25,10 @@
 
 #include "omapdss.h"
 
+struct dss_debugfs_entry;
+struct platform_device;
+struct seq_file;
+
 #define MAX_DSS_LCD_MANAGERS	3
 #define MAX_NUM_DSI		2
 
@@ -233,9 +237,6 @@ struct dss_lcd_mgr_config {
 	int lcden_sig_polarity;
 };
 
-struct seq_file;
-struct platform_device;
-
 #define DSS_SZ_REGS			SZ_512
 
 struct dss_device {
@@ -261,6 +262,11 @@ struct dss_device {
 
 	const struct dss_features *feat;
 
+	struct {
+		struct dss_debugfs_entry *clk;
+		struct dss_debugfs_entry *dss;
+	} debugfs;
+
 	struct dss_pll	*video1_pll;
 	struct dss_pll	*video2_pll;
 };
@@ -283,12 +289,20 @@ static inline bool dss_mgr_is_lcd(enum omap_channel id)
 
 /* DSS */
 #if defined(CONFIG_OMAP2_DSS_DEBUGFS)
-int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *));
+struct dss_debugfs_entry *dss_debugfs_create_file(const char *name,
+		int (*show_fn)(struct seq_file *s, void *data), void *data);
+void dss_debugfs_remove_file(struct dss_debugfs_entry *entry);
 #else
-static inline int dss_debugfs_create_file(const char *name,
-					  void (*write)(struct seq_file *))
+static inline struct dss_debugfs_entry *
+dss_debugfs_create_file(const char *name,
+			int (*show_fn)(struct seq_file *s, void *data),
+			void *data)
 {
-	return 0;
+	return NULL;
+}
+
+static inline void dss_debugfs_remove_file(struct dss_debugfs_entry *entry)
+{
 }
 #endif /* CONFIG_OMAP2_DSS_DEBUGFS */
 
@@ -359,9 +373,6 @@ static inline void sdi_uninit_port(struct device_node *port)
 /* DSI */
 
 #ifdef CONFIG_OMAP2_DSS_DSI
-
-struct dentry;
-struct file_operations;
 
 void dsi_dump_clocks(struct seq_file *s);
 

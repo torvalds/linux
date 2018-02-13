@@ -401,6 +401,10 @@ struct dsi_data {
 #endif
 	int debug_read;
 	int debug_write;
+	struct {
+		struct dss_debugfs_entry *irqs;
+		struct dss_debugfs_entry *regs;
+	} debugfs;
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
 	spinlock_t irq_stats_lock;
@@ -1660,18 +1664,20 @@ static void dsi_dump_dsidev_irqs(struct platform_device *dsidev,
 #undef PIS
 }
 
-static void dsi1_dump_irqs(struct seq_file *s)
+static int dsi1_dump_irqs(struct seq_file *s, void *p)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_id(0);
 
 	dsi_dump_dsidev_irqs(dsidev, s);
+	return 0;
 }
 
-static void dsi2_dump_irqs(struct seq_file *s)
+static int dsi2_dump_irqs(struct seq_file *s, void *p)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_id(1);
 
 	dsi_dump_dsidev_irqs(dsidev, s);
+	return 0;
 }
 #endif
 
@@ -1759,18 +1765,20 @@ static void dsi_dump_dsidev_regs(struct platform_device *dsidev,
 #undef DUMPREG
 }
 
-static void dsi1_dump_regs(struct seq_file *s)
+static int dsi1_dump_regs(struct seq_file *s, void *p)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_id(0);
 
 	dsi_dump_dsidev_regs(dsidev, s);
+	return 0;
 }
 
-static void dsi2_dump_regs(struct seq_file *s)
+static int dsi2_dump_regs(struct seq_file *s, void *p)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_id(1);
 
 	dsi_dump_dsidev_regs(dsidev, s);
+	return 0;
 }
 
 enum dsi_cio_power_state {
@@ -5569,15 +5577,22 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	dsi_runtime_put(dsidev);
 
 	if (dsi->module_id == 0)
-		dss_debugfs_create_file("dsi1_regs", dsi1_dump_regs);
-	else if (dsi->module_id == 1)
-		dss_debugfs_create_file("dsi2_regs", dsi2_dump_regs);
-
+		dsi->debugfs.regs = dss_debugfs_create_file("dsi1_regs",
+							    dsi1_dump_regs,
+							    &dsi);
+	else
+		dsi->debugfs.regs = dss_debugfs_create_file("dsi2_regs",
+							    dsi2_dump_regs,
+							    &dsi);
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
 	if (dsi->module_id == 0)
-		dss_debugfs_create_file("dsi1_irqs", dsi1_dump_irqs);
-	else if (dsi->module_id == 1)
-		dss_debugfs_create_file("dsi2_irqs", dsi2_dump_irqs);
+		dsi->debugfs.irqs = dss_debugfs_create_file("dsi1_irqs",
+							    dsi1_dump_irqs,
+							    &dsi);
+	else
+		dsi->debugfs.irqs = dss_debugfs_create_file("dsi2_irqs",
+							    dsi2_dump_irqs,
+							    &dsi);
 #endif
 
 	return 0;
@@ -5595,6 +5610,9 @@ static void dsi_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *dsidev = to_platform_device(dev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+
+	dss_debugfs_remove_file(dsi->debugfs.irqs);
+	dss_debugfs_remove_file(dsi->debugfs.regs);
 
 	of_platform_depopulate(&dsidev->dev);
 
