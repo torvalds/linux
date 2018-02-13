@@ -27,8 +27,9 @@ module_param_named(job_hang_limit, etnaviv_job_hang_limit, int , 0444);
 static int etnaviv_hw_jobs_limit = 2;
 module_param_named(hw_job_limit, etnaviv_hw_jobs_limit, int , 0444);
 
-struct dma_fence *etnaviv_sched_dependency(struct drm_sched_job *sched_job,
-					   struct drm_sched_entity *entity)
+static struct dma_fence *
+etnaviv_sched_dependency(struct drm_sched_job *sched_job,
+			 struct drm_sched_entity *entity)
 {
 	struct etnaviv_gem_submit *submit = to_etnaviv_submit(sched_job);
 	struct dma_fence *fence;
@@ -78,7 +79,7 @@ struct dma_fence *etnaviv_sched_dependency(struct drm_sched_job *sched_job,
 	return NULL;
 }
 
-struct dma_fence *etnaviv_sched_run_job(struct drm_sched_job *sched_job)
+static struct dma_fence *etnaviv_sched_run_job(struct drm_sched_job *sched_job)
 {
 	struct etnaviv_gem_submit *submit = to_etnaviv_submit(sched_job);
 	struct dma_fence *fence = NULL;
