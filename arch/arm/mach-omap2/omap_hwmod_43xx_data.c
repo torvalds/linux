@@ -14,7 +14,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/platform_data/spi-omap2-mcspi.h>
 #include "omap_hwmod.h"
 #include "omap_hwmod_33xx_43xx_common_data.h"
 #include "prcm43xx.h"
@@ -237,7 +236,6 @@ static struct omap_hwmod am43xx_spi2_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &mcspi_attrib,
 };
 
 static struct omap_hwmod am43xx_spi3_hwmod = {
@@ -251,7 +249,6 @@ static struct omap_hwmod am43xx_spi3_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &mcspi_attrib,
 };
 
 static struct omap_hwmod am43xx_spi4_hwmod = {
@@ -265,7 +262,6 @@ static struct omap_hwmod am43xx_spi4_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &mcspi_attrib,
 };
 
 static struct omap_hwmod_opt_clk gpio4_opt_clks[] = {

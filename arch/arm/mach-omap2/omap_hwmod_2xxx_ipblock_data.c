@@ -12,8 +12,6 @@
 #include <linux/types.h>
 #include <linux/omap-dma.h>
 
-#include <linux/platform_data/spi-omap2-mcspi.h>
-
 #include "omap_hwmod.h"
 #include "omap_hwmod_common_data.h"
 #include "cm-regbits-24xx.h"
@@ -159,7 +157,6 @@ static struct omap_hwmod_class_sysconfig omap2xxx_mcspi_sysc = {
 struct omap_hwmod_class omap2xxx_mcspi_class = {
 	.name	= "mcspi",
 	.sysc	= &omap2xxx_mcspi_sysc,
-	.rev	= OMAP2_MCSPI_REV,
 };
 
 /*
@@ -593,10 +590,6 @@ struct omap_hwmod omap2xxx_gpio4_hwmod = {
 };
 
 /* mcspi1 */
-static struct omap2_mcspi_dev_attr omap_mcspi1_dev_attr = {
-	.num_chipselect = 4,
-};
-
 struct omap_hwmod omap2xxx_mcspi1_hwmod = {
 	.name		= "mcspi1",
 	.main_clk	= "mcspi1_fck",
@@ -608,14 +601,9 @@ struct omap_hwmod omap2xxx_mcspi1_hwmod = {
 		},
 	},
 	.class		= &omap2xxx_mcspi_class,
-	.dev_attr	= &omap_mcspi1_dev_attr,
 };
 
 /* mcspi2 */
-static struct omap2_mcspi_dev_attr omap_mcspi2_dev_attr = {
-	.num_chipselect = 2,
-};
-
 struct omap_hwmod omap2xxx_mcspi2_hwmod = {
 	.name		= "mcspi2",
 	.main_clk	= "mcspi2_fck",
@@ -627,7 +615,6 @@ struct omap_hwmod omap2xxx_mcspi2_hwmod = {
 		},
 	},
 	.class		= &omap2xxx_mcspi_class,
-	.dev_attr	= &omap_mcspi2_dev_attr,
 };
 
 static struct omap_hwmod_class omap2xxx_counter_hwmod_class = {

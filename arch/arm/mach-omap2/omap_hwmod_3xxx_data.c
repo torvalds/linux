@@ -23,7 +23,6 @@
 #include "l3_3xxx.h"
 #include "l4_3xxx.h"
 #include <linux/platform_data/asoc-ti-mcbsp.h>
-#include <linux/platform_data/spi-omap2-mcspi.h>
 
 #include "soc.h"
 #include "omap_hwmod.h"
@@ -1189,14 +1188,9 @@ static struct omap_hwmod_class_sysconfig omap34xx_mcspi_sysc = {
 static struct omap_hwmod_class omap34xx_mcspi_class = {
 	.name = "mcspi",
 	.sysc = &omap34xx_mcspi_sysc,
-	.rev = OMAP3_MCSPI_REV,
 };
 
 /* mcspi1 */
-static struct omap2_mcspi_dev_attr omap_mcspi1_dev_attr = {
-	.num_chipselect = 4,
-};
-
 static struct omap_hwmod omap34xx_mcspi1 = {
 	.name		= "mcspi1",
 	.main_clk	= "mcspi1_fck",
@@ -1208,14 +1202,9 @@ static struct omap_hwmod omap34xx_mcspi1 = {
 		},
 	},
 	.class		= &omap34xx_mcspi_class,
-	.dev_attr       = &omap_mcspi1_dev_attr,
 };
 
 /* mcspi2 */
-static struct omap2_mcspi_dev_attr omap_mcspi2_dev_attr = {
-	.num_chipselect = 2,
-};
-
 static struct omap_hwmod omap34xx_mcspi2 = {
 	.name		= "mcspi2",
 	.main_clk	= "mcspi2_fck",
@@ -1227,16 +1216,9 @@ static struct omap_hwmod omap34xx_mcspi2 = {
 		},
 	},
 	.class		= &omap34xx_mcspi_class,
-	.dev_attr       = &omap_mcspi2_dev_attr,
 };
 
 /* mcspi3 */
-
-
-static struct omap2_mcspi_dev_attr omap_mcspi3_dev_attr = {
-	.num_chipselect = 2,
-};
-
 static struct omap_hwmod omap34xx_mcspi3 = {
 	.name		= "mcspi3",
 	.main_clk	= "mcspi3_fck",
@@ -1248,16 +1230,9 @@ static struct omap_hwmod omap34xx_mcspi3 = {
 		},
 	},
 	.class		= &omap34xx_mcspi_class,
-	.dev_attr       = &omap_mcspi3_dev_attr,
 };
 
 /* mcspi4 */
-
-
-static struct omap2_mcspi_dev_attr omap_mcspi4_dev_attr = {
-	.num_chipselect = 1,
-};
-
 static struct omap_hwmod omap34xx_mcspi4 = {
 	.name		= "mcspi4",
 	.main_clk	= "mcspi4_fck",
@@ -1269,7 +1244,6 @@ static struct omap_hwmod omap34xx_mcspi4 = {
 		},
 	},
 	.class		= &omap34xx_mcspi_class,
-	.dev_attr       = &omap_mcspi4_dev_attr,
 };
 
 /* usbhsotg */

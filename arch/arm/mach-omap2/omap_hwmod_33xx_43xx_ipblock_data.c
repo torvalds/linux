@@ -17,7 +17,6 @@
 #include <linux/types.h>
 
 #include <linux/platform_data/hsmmc-omap.h>
-#include <linux/platform_data/spi-omap2-mcspi.h>
 #include "omap_hwmod.h"
 #include "i2c.h"
 #include "wd_timer.h"
@@ -879,13 +878,9 @@ static struct omap_hwmod_class_sysconfig am33xx_mcspi_sysc = {
 struct omap_hwmod_class am33xx_spi_hwmod_class = {
 	.name		= "mcspi",
 	.sysc		= &am33xx_mcspi_sysc,
-	.rev		= OMAP4_MCSPI_REV,
 };
 
 /* spi0 */
-struct omap2_mcspi_dev_attr mcspi_attrib = {
-	.num_chipselect	= 2,
-};
 struct omap_hwmod am33xx_spi0_hwmod = {
 	.name		= "spi0",
 	.class		= &am33xx_spi_hwmod_class,
@@ -896,7 +891,6 @@ struct omap_hwmod am33xx_spi0_hwmod = {
 			.modulemode	= MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &mcspi_attrib,
 };
 
 /* spi1 */
@@ -910,7 +904,6 @@ struct omap_hwmod am33xx_spi1_hwmod = {
 			.modulemode	= MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &mcspi_attrib,
 };
 
 /*

@@ -18,7 +18,6 @@
 #include <linux/types.h>
 
 #include <linux/platform_data/hsmmc-omap.h>
-#include <linux/platform_data/spi-omap2-mcspi.h>
 
 #include "omap_hwmod_common_data.h"
 #include "cm81xx.h"
@@ -1118,11 +1117,6 @@ static struct omap_hwmod_class_sysconfig dm816x_mcspi_sysc = {
 static struct omap_hwmod_class dm816x_mcspi_class = {
 	.name = "mcspi",
 	.sysc = &dm816x_mcspi_sysc,
-	.rev = OMAP3_MCSPI_REV,
-};
-
-static struct omap2_mcspi_dev_attr dm816x_mcspi1_dev_attr = {
-	.num_chipselect = 4,
 };
 
 static struct omap_hwmod dm81xx_mcspi1_hwmod = {
@@ -1136,7 +1130,6 @@ static struct omap_hwmod dm81xx_mcspi1_hwmod = {
 		},
 	},
 	.class		= &dm816x_mcspi_class,
-	.dev_attr	= &dm816x_mcspi1_dev_attr,
 };
 
 static struct omap_hwmod_ocp_if dm81xx_l4_ls__mcspi1 = {
