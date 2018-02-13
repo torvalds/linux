@@ -48,8 +48,6 @@
 #include "omapdss.h"
 #include "dss.h"
 
-#define DSS_SZ_REGS			SZ_512
-
 struct dss_reg {
 	u16 idx;
 };
@@ -90,32 +88,7 @@ struct dss_features {
 	bool has_lcd_clk_src;
 };
 
-static struct {
-	struct platform_device *pdev;
-	void __iomem    *base;
-	struct regmap	*syscon_pll_ctrl;
-	u32		syscon_pll_ctrl_offset;
-
-	struct clk	*parent_clk;
-	struct clk	*dss_clk;
-	unsigned long	dss_clk_rate;
-
-	unsigned long	cache_req_pck;
-	unsigned long	cache_prate;
-	struct dispc_clock_info cache_dispc_cinfo;
-
-	enum dss_clk_source dsi_clk_source[MAX_NUM_DSI];
-	enum dss_clk_source dispc_clk_source;
-	enum dss_clk_source lcd_clk_source[MAX_DSS_LCD_MANAGERS];
-
-	bool		ctx_valid;
-	u32		ctx[DSS_SZ_REGS / sizeof(u32)];
-
-	const struct dss_features *feat;
-
-	struct dss_pll	*video1_pll;
-	struct dss_pll	*video2_pll;
-} dss;
+static struct dss_device dss;
 
 static const char * const dss_generic_clk_source_names[] = {
 	[DSS_CLK_SRC_FCK]	= "FCK",

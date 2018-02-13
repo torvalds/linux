@@ -235,6 +235,35 @@ struct dss_lcd_mgr_config {
 struct seq_file;
 struct platform_device;
 
+#define DSS_SZ_REGS			SZ_512
+
+struct dss_device {
+	struct platform_device *pdev;
+	void __iomem    *base;
+	struct regmap	*syscon_pll_ctrl;
+	u32		syscon_pll_ctrl_offset;
+
+	struct clk	*parent_clk;
+	struct clk	*dss_clk;
+	unsigned long	dss_clk_rate;
+
+	unsigned long	cache_req_pck;
+	unsigned long	cache_prate;
+	struct dispc_clock_info cache_dispc_cinfo;
+
+	enum dss_clk_source dsi_clk_source[MAX_NUM_DSI];
+	enum dss_clk_source dispc_clk_source;
+	enum dss_clk_source lcd_clk_source[MAX_DSS_LCD_MANAGERS];
+
+	bool		ctx_valid;
+	u32		ctx[DSS_SZ_REGS / sizeof(u32)];
+
+	const struct dss_features *feat;
+
+	struct dss_pll	*video1_pll;
+	struct dss_pll	*video2_pll;
+};
+
 /* core */
 static inline int dss_set_min_bus_tput(struct device *dev, unsigned long tput)
 {
