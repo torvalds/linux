@@ -975,8 +975,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		/* Check for overlaps */
 		r = -EEXIST;
 		kvm_for_each_memslot(slot, __kvm_memslots(kvm, as_id)) {
-			if ((slot->id >= KVM_USER_MEM_SLOTS) ||
-			    (slot->id == id))
+			if (slot->id == id)
 				continue;
 			if (!((base_gfn + npages <= slot->base_gfn) ||
 			      (base_gfn >= slot->base_gfn + slot->npages)))
