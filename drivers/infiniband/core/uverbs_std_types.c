@@ -234,8 +234,11 @@ static void create_udata(struct uverbs_attr_bundle *ctx,
 		uverbs_attr_get(ctx, UVERBS_UHW_OUT);
 
 	if (!IS_ERR(uhw_in)) {
-		udata->inbuf = uhw_in->ptr_attr.ptr;
 		udata->inlen = uhw_in->ptr_attr.len;
+		if (uverbs_attr_ptr_is_inline(uhw_in))
+			udata->inbuf = &uhw_in->uattr->data;
+		else
+			udata->inbuf = uhw_in->ptr_attr.ptr;
 	} else {
 		udata->inbuf = NULL;
 		udata->inlen = 0;
