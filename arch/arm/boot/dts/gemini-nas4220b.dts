@@ -30,7 +30,7 @@
 		#size-cells = <0>;
 
 		button@29 {
-			debounce_interval = <50>;
+			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_SETUP>;
 			label = "Backup button";
@@ -38,7 +38,7 @@
 			gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
 		};
 		button@31 {
-			debounce_interval = <50>;
+			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_RESTART>;
 			label = "Softreset button";

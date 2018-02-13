@@ -30,7 +30,7 @@
 		#size-cells = <0>;
 
 		button@28 {
-			debounce_interval = <50>;
+			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_SETUP>;
 			label = "Reset to defaults";

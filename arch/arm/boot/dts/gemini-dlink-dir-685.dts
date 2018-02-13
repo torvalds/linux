@@ -28,7 +28,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		button-esc {
-			debounce_interval = <50>;
+			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_ESC>;
 			label = "reset";
@@ -36,7 +36,7 @@
 			gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
 		};
 		button-eject {
-			debounce_interval = <50>;
+			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_EJECTCD>;
 			label = "unmount";

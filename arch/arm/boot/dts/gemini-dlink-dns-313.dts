@@ -34,7 +34,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		button-esc {
-			debounce_interval = <50>;
+			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_ESC>;
 			label = "reset";
