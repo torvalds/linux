@@ -953,6 +953,11 @@ static int amdgpu_cgs_get_active_displays_info(struct cgs_device *cgs_device,
 								(amdgpu_crtc->v_border * 2);
 					mode_info->vblank_time_us = vblank_lines * line_time_us;
 					mode_info->refresh_rate = drm_mode_vrefresh(&amdgpu_crtc->hw_mode);
+					/* we have issues with mclk switching with refresh rates
+					 * over 120 hz on the non-DC code.
+					 */
+					if (mode_info->refresh_rate > 120)
+						mode_info->vblank_time_us = 0;
 					mode_info = NULL;
 				}
 			}
