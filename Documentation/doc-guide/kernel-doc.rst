@@ -277,7 +277,7 @@ named ``Return``.
 
   #) If the descriptive text you provide has lines that begin with
      some phrase followed by a colon, each of those phrases will be taken
-     as a new section heading, with probably won't produce the desired
+     as a new section heading, which probably won't produce the desired
      effect.
 
 Structure, union, and enumeration documentation
@@ -324,22 +324,22 @@ It is possible to document nested structs unions, like::
           struct {
             int arg1;
             int arg2;
-	  }
+        }
           struct {
             void *arg3;
             int arg4;
-	  }
-	}
-	union {
+          }
+        }
+        union {
           struct {
             int arg1;
             int arg2;
-	  } st1;
+          } st1;
           struct {
             void *arg1;
             int arg2;
-	  } st2;
-	} bar;
+          } st2;
+        } bar;
       };
 
 .. note::
