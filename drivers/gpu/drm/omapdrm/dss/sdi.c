@@ -141,7 +141,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_reg_enable;
 
-	r = dispc_runtime_get();
+	r = dispc_runtime_get(sdi.dss->dispc);
 	if (r)
 		goto err_get_dispc;
 
@@ -203,7 +203,7 @@ err_mgr_enable:
 err_sdi_enable:
 err_set_dss_clock_div:
 err_calc_clock_div:
-	dispc_runtime_put();
+	dispc_runtime_put(sdi.dss->dispc);
 err_get_dispc:
 	regulator_disable(sdi.vdds_sdi_reg);
 err_reg_enable:
@@ -216,7 +216,7 @@ static void sdi_display_disable(struct omap_dss_device *dssdev)
 
 	dss_sdi_disable(sdi.dss);
 
-	dispc_runtime_put();
+	dispc_runtime_put(sdi.dss->dispc);
 
 	regulator_disable(sdi.vdds_sdi_reg);
 }

@@ -406,7 +406,7 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 			goto err_reg_enable;
 	}
 
-	r = dispc_runtime_get();
+	r = dispc_runtime_get(dpi->dss->dispc);
 	if (r)
 		goto err_get_dispc;
 
@@ -442,7 +442,7 @@ err_set_mode:
 		dss_pll_disable(dpi->pll);
 err_pll_init:
 err_src_sel:
-	dispc_runtime_put();
+	dispc_runtime_put(dpi->dss->dispc);
 err_get_dispc:
 	if (dpi->vdds_dsi_reg)
 		regulator_disable(dpi->vdds_dsi_reg);
@@ -466,7 +466,7 @@ static void dpi_display_disable(struct omap_dss_device *dssdev)
 		dss_pll_disable(dpi->pll);
 	}
 
-	dispc_runtime_put();
+	dispc_runtime_put(dpi->dss->dispc);
 
 	if (dpi->vdds_dsi_reg)
 		regulator_disable(dpi->vdds_dsi_reg);

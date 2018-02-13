@@ -25,6 +25,7 @@
 
 #include "omapdss.h"
 
+struct dispc_device;
 struct dss_debugfs_entry;
 struct platform_device;
 struct seq_file;
@@ -272,6 +273,7 @@ struct dss_device {
 	struct dss_pll	*video1_pll;
 	struct dss_pll	*video2_pll;
 
+	struct dispc_device *dispc;
 	const struct dispc_ops *dispc_ops;
 };
 
@@ -407,8 +409,8 @@ static inline void dpi_uninit_port(struct device_node *port)
 /* DISPC */
 void dispc_dump_clocks(struct seq_file *s);
 
-int dispc_runtime_get(void);
-void dispc_runtime_put(void);
+int dispc_runtime_get(struct dispc_device *dispc);
+void dispc_runtime_put(struct dispc_device *dispc);
 
 void dispc_enable_sidle(void);
 void dispc_disable_sidle(void);

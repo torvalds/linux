@@ -956,7 +956,7 @@ static int venc_runtime_suspend(struct device *dev)
 	if (venc.tv_dac_clk)
 		clk_disable_unprepare(venc.tv_dac_clk);
 
-	dispc_runtime_put();
+	dispc_runtime_put(venc.dss->dispc);
 
 	return 0;
 }
@@ -965,7 +965,7 @@ static int venc_runtime_resume(struct device *dev)
 {
 	int r;
 
-	r = dispc_runtime_get();
+	r = dispc_runtime_get(venc.dss->dispc);
 	if (r < 0)
 		return r;
 

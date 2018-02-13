@@ -814,16 +814,19 @@ static int hdmi5_remove(struct platform_device *pdev)
 
 static int hdmi_runtime_suspend(struct device *dev)
 {
-	dispc_runtime_put();
+	struct omap_hdmi *hdmi = dev_get_drvdata(dev);
+
+	dispc_runtime_put(hdmi->dss->dispc);
 
 	return 0;
 }
 
 static int hdmi_runtime_resume(struct device *dev)
 {
+	struct omap_hdmi *hdmi = dev_get_drvdata(dev);
 	int r;
 
-	r = dispc_runtime_get();
+	r = dispc_runtime_get(hdmi->dss->dispc);
 	if (r < 0)
 		return r;
 

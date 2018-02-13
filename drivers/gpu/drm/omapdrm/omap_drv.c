@@ -69,7 +69,7 @@ static void omap_atomic_commit_tail(struct drm_atomic_state *old_state)
 	struct drm_device *dev = old_state->dev;
 	struct omap_drm_private *priv = dev->dev_private;
 
-	priv->dispc_ops->runtime_get();
+	priv->dispc_ops->runtime_get(priv->dispc);
 
 	/* Apply the atomic update. */
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
@@ -113,7 +113,7 @@ static void omap_atomic_commit_tail(struct drm_atomic_state *old_state)
 
 	drm_atomic_helper_cleanup_planes(dev, old_state);
 
-	priv->dispc_ops->runtime_put();
+	priv->dispc_ops->runtime_put(priv->dispc);
 }
 
 static const struct drm_mode_config_helper_funcs omap_mode_config_helper_funcs = {
@@ -191,7 +191,7 @@ cleanup:
 static int omap_modeset_init_properties(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
-	unsigned int num_planes = priv->dispc_ops->get_num_ovls();
+	unsigned int num_planes = priv->dispc_ops->get_num_ovls(priv->dispc);
 
 	priv->zorder_prop = drm_property_create_range(dev, 0, "zorder", 0,
 						      num_planes - 1);
@@ -205,8 +205,8 @@ static int omap_modeset_init(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_dss_device *dssdev = NULL;
-	int num_ovls = priv->dispc_ops->get_num_ovls();
-	int num_mgrs = priv->dispc_ops->get_num_mgrs();
+	int num_ovls = priv->dispc_ops->get_num_ovls(priv->dispc);
+	int num_mgrs = priv->dispc_ops->get_num_mgrs(priv->dispc);
 	int num_crtcs, crtc_idx, plane_idx;
 	int ret;
 	u32 plane_crtc_mask;
@@ -521,6 +521,7 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 
 	priv->dev = dev;
 	priv->dss = omapdss_get_dss();
+	priv->dispc = dispc_get_dispc(priv->dss);
 	priv->dispc_ops = dispc_get_ops(priv->dss);
 
 	omap_crtc_pre_init(priv);
@@ -549,7 +550,7 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 	/* Get memory bandwidth limits */
 	if (priv->dispc_ops->get_memory_bandwidth_limit)
 		priv->max_bandwidth =
-				priv->dispc_ops->get_memory_bandwidth_limit();
+			priv->dispc_ops->get_memory_bandwidth_limit(priv->dispc);
 
 	omap_gem_init(ddev);
 

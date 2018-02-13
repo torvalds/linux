@@ -44,6 +44,12 @@ void omapdss_set_dss(struct dss_device *dss)
 }
 EXPORT_SYMBOL(omapdss_set_dss);
 
+struct dispc_device *dispc_get_dispc(struct dss_device *dss)
+{
+	return dss->dispc;
+}
+EXPORT_SYMBOL(dispc_get_dispc);
+
 const struct dispc_ops *dispc_get_ops(struct dss_device *dss)
 {
 	return dss->dispc_ops;

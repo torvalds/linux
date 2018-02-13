@@ -5523,7 +5523,7 @@ static int dsi_runtime_suspend(struct device *dev)
 	/* wait for current handler to finish before turning the DSI off */
 	synchronize_irq(dsi->irq);
 
-	dispc_runtime_put();
+	dispc_runtime_put(dsi->dss->dispc);
 
 	return 0;
 }
@@ -5533,7 +5533,7 @@ static int dsi_runtime_resume(struct device *dev)
 	struct dsi_data *dsi = dev_get_drvdata(dev);
 	int r;
 
-	r = dispc_runtime_get();
+	r = dispc_runtime_get(dsi->dss->dispc);
 	if (r)
 		return r;
 

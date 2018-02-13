@@ -51,6 +51,7 @@ struct omap_drm_private {
 	u32 omaprev;
 
 	struct dss_device *dss;
+	struct dispc_device *dispc;
 	const struct dispc_ops *dispc_ops;
 
 	unsigned int num_crtcs;
