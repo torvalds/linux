@@ -330,7 +330,7 @@ struct dsi_of_data {
 };
 
 struct dsi_data {
-	struct platform_device *pdev;
+	struct device *dev;
 	void __iomem *proto_base;
 	void __iomem *phy_base;
 	void __iomem *pll_base;
@@ -1144,7 +1144,7 @@ static int dsi_runtime_get(struct dsi_data *dsi)
 
 	DSSDBG("dsi_runtime_get\n");
 
-	r = pm_runtime_get_sync(&dsi->pdev->dev);
+	r = pm_runtime_get_sync(dsi->dev);
 	WARN_ON(r < 0);
 	return r < 0 ? r : 0;
 }
@@ -1155,7 +1155,7 @@ static void dsi_runtime_put(struct dsi_data *dsi)
 
 	DSSDBG("dsi_runtime_put\n");
 
-	r = pm_runtime_put_sync(&dsi->pdev->dev);
+	r = pm_runtime_put_sync(dsi->dev);
 	WARN_ON(r < 0 && r != -ENOSYS);
 }
 
@@ -1166,7 +1166,7 @@ static int dsi_regulator_init(struct dsi_data *dsi)
 	if (dsi->vdds_dsi_reg != NULL)
 		return 0;
 
-	vdds_dsi = devm_regulator_get(&dsi->pdev->dev, "vdd");
+	vdds_dsi = devm_regulator_get(dsi->dev, "vdd");
 
 	if (IS_ERR(vdds_dsi)) {
 		if (PTR_ERR(vdds_dsi) != -EPROBE_DEFER)
@@ -4951,7 +4951,7 @@ static int dsi_get_clocks(struct dsi_data *dsi)
 {
 	struct clk *clk;
 
-	clk = devm_clk_get(&dsi->pdev->dev, "fck");
+	clk = devm_clk_get(dsi->dev, "fck");
 	if (IS_ERR(clk)) {
 		DSSERR("can't get fck\n");
 		return PTR_ERR(clk);
@@ -5046,7 +5046,7 @@ static void dsi_init_output(struct dsi_data *dsi)
 {
 	struct omap_dss_device *out = &dsi->output;
 
-	out->dev = &dsi->pdev->dev;
+	out->dev = dsi->dev;
 	out->id = dsi->module_id == 0 ?
 			OMAP_DSS_OUTPUT_DSI1 : OMAP_DSS_OUTPUT_DSI2;
 
@@ -5068,7 +5068,7 @@ static void dsi_uninit_output(struct dsi_data *dsi)
 
 static int dsi_probe_of(struct dsi_data *dsi)
 {
-	struct device_node *node = dsi->pdev->dev.of_node;
+	struct device_node *node = dsi->dev->of_node;
 	struct property *prop;
 	u32 lane_arr[10];
 	int len, num_pins;
@@ -5082,7 +5082,7 @@ static int dsi_probe_of(struct dsi_data *dsi)
 
 	prop = of_find_property(ep, "lanes", &len);
 	if (prop == NULL) {
-		dev_err(&dsi->pdev->dev, "failed to find lane data\n");
+		dev_err(dsi->dev, "failed to find lane data\n");
 		r = -EINVAL;
 		goto err;
 	}
@@ -5091,14 +5091,14 @@ static int dsi_probe_of(struct dsi_data *dsi)
 
 	if (num_pins < 4 || num_pins % 2 != 0 ||
 		num_pins > dsi->num_lanes_supported * 2) {
-		dev_err(&dsi->pdev->dev, "bad number of lanes\n");
+		dev_err(dsi->dev, "bad number of lanes\n");
 		r = -EINVAL;
 		goto err;
 	}
 
 	r = of_property_read_u32_array(ep, "lanes", lane_arr, num_pins);
 	if (r) {
-		dev_err(&dsi->pdev->dev, "failed to read lane data\n");
+		dev_err(dsi->dev, "failed to read lane data\n");
 		goto err;
 	}
 
@@ -5108,7 +5108,7 @@ static int dsi_probe_of(struct dsi_data *dsi)
 
 	r = dsi_configure_pins(&dsi->output, &pin_cfg);
 	if (r) {
-		dev_err(&dsi->pdev->dev, "failed to configure pins");
+		dev_err(dsi->dev, "failed to configure pins");
 		goto err;
 	}
 
@@ -5214,7 +5214,7 @@ static int dsi_init_pll_data(struct dss_device *dss, struct dsi_data *dsi)
 	struct clk *clk;
 	int r;
 
-	clk = devm_clk_get(&dsi->pdev->dev, "sys_clk");
+	clk = devm_clk_get(dsi->dev, "sys_clk");
 	if (IS_ERR(clk)) {
 		DSSERR("can't get sys_clk\n");
 		return PTR_ERR(clk);
@@ -5317,7 +5317,7 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 		return -ENOMEM;
 
 	dsi->dss = dss;
-	dsi->pdev = pdev;
+	dsi->dev = dev;
 	dev_set_drvdata(dev, dsi);
 
 	spin_lock_init(&dsi->irq_lock);
