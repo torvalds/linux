@@ -2823,7 +2823,7 @@ void reweight_task(struct task_struct *p, int prio)
 }
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
-# ifdef CONFIG_SMP
+#ifdef CONFIG_SMP
 /*
  * All this does is approximate the hierarchical proportion which includes that
  * global sum we all love to hate.
@@ -2974,7 +2974,7 @@ static long calc_group_runnable(struct cfs_rq *cfs_rq, long shares)
 
 	return clamp_t(long, runnable, MIN_SHARES, shares);
 }
-# endif /* CONFIG_SMP */
+#endif /* CONFIG_SMP */
 
 static inline int throttled_hierarchy(struct cfs_rq *cfs_rq);
 
