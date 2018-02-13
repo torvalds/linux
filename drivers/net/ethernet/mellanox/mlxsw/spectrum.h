@@ -124,7 +124,6 @@ struct mlxsw_sp_span_inspected_port {
 
 struct mlxsw_sp_span_entry {
 	u8 local_port;
-	bool used;
 	struct list_head bound_ports_list;
 	int ref_count;
 	int id;

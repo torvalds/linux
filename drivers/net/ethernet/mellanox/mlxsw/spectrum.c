@@ -534,7 +534,7 @@ mlxsw_sp_span_entry_create(struct mlxsw_sp_port *port)
 	/* find a free entry to use */
 	index = -1;
 	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
-		if (!mlxsw_sp->span.entries[i].used) {
+		if (!mlxsw_sp->span.entries[i].ref_count) {
 			index = i;
 			span_entry = &mlxsw_sp->span.entries[i];
 			break;
@@ -549,7 +549,6 @@ mlxsw_sp_span_entry_create(struct mlxsw_sp_port *port)
 	if (err)
 		return NULL;
 
-	span_entry->used = true;
 	span_entry->id = index;
 	span_entry->ref_count = 1;
 	span_entry->local_port = local_port;
@@ -565,7 +564,6 @@ static void mlxsw_sp_span_entry_destroy(struct mlxsw_sp *mlxsw_sp,
 
 	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, false);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
-	span_entry->used = false;
 }
 
 struct mlxsw_sp_span_entry *
@@ -576,7 +574,7 @@ mlxsw_sp_span_entry_find(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
 		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span.entries[i];
 
-		if (curr->used && curr->local_port == local_port)
+		if (curr->ref_count && curr->local_port == local_port)
 			return curr;
 	}
 	return NULL;
