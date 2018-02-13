@@ -454,11 +454,11 @@ static void rtnl_lock_unregistering_all(void)
 void rtnl_link_unregister(struct rtnl_link_ops *ops)
 {
 	/* Close the race with cleanup_net() */
-	mutex_lock(&net_mutex);
+	down_write(&net_sem);
 	rtnl_lock_unregistering_all();
 	__rtnl_link_unregister(ops);
 	rtnl_unlock();
-	mutex_unlock(&net_mutex);
+	up_write(&net_sem);
 }
 EXPORT_SYMBOL_GPL(rtnl_link_unregister);
 
