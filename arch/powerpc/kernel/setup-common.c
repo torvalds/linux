@@ -577,12 +577,6 @@ void __init smp_setup_cpu_maps(void)
 	setup_nr_cpu_ids();
 
 	free_unused_pacas();
-
-	for_each_possible_cpu(cpu) {
-		if (cpu == smp_processor_id())
-			continue;
-		set_hard_smp_processor_id(cpu, cpu_to_phys_id[cpu]);
-	}
 }
 #endif /* CONFIG_SMP */
 
@@ -848,6 +842,23 @@ static __init void print_system_info(void)
 	pr_info("-----------------------------------------------------\n");
 }
 
+#ifdef CONFIG_SMP
+static void smp_setup_pacas(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		if (cpu == smp_processor_id())
+			continue;
+		allocate_paca(cpu);
+		set_hard_smp_processor_id(cpu, cpu_to_phys_id[cpu]);
+	}
+
+	memblock_free(__pa(cpu_to_phys_id), nr_cpu_ids * sizeof(u32));
+	cpu_to_phys_id = NULL;
+}
+#endif
+
 /*
  * Called into from start_kernel this initializes memblock, which is used
  * to manage page allocation until mem_init is called.
@@ -915,6 +926,7 @@ void __init setup_arch(char **cmdline_p)
 	 * so smp_release_cpus() does nothing for them.
 	 */
 #ifdef CONFIG_SMP
+	smp_setup_pacas();
 	smp_release_cpus();
 #endif
 

@@ -255,12 +255,14 @@ extern void copy_mm_to_paca(struct mm_struct *mm);
 extern struct paca_struct **paca_ptrs;
 extern void initialise_paca(struct paca_struct *new_paca, int cpu);
 extern void setup_paca(struct paca_struct *new_paca);
-extern void allocate_pacas(void);
+extern void allocate_paca_ptrs(void);
+extern void allocate_paca(int cpu);
 extern void free_unused_pacas(void);
 
 #else /* CONFIG_PPC64 */
 
-static inline void allocate_pacas(void) { };
+static inline void allocate_paca_ptrs(void) { };
+static inline void allocate_paca(int cpu) { };
 static inline void free_unused_pacas(void) { };
 
 #endif /* CONFIG_PPC64 */

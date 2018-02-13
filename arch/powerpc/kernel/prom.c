@@ -365,7 +365,6 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	DBG("boot cpu: logical %d physical %d\n", found,
 	    be32_to_cpu(intserv[found_thread]));
 	boot_cpuid = found;
-	set_hard_smp_processor_id(found, be32_to_cpu(intserv[found_thread]));
 
 	/*
 	 * PAPR defines "logical" PVR values for cpus that
@@ -403,7 +402,9 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 		cur_cpu_spec->cpu_features &= ~CPU_FTR_SMT;
 	else if (!dt_cpu_ftrs_in_use())
 		cur_cpu_spec->cpu_features |= CPU_FTR_SMT;
+	allocate_paca(boot_cpuid);
 #endif
+	set_hard_smp_processor_id(found, be32_to_cpu(intserv[found_thread]));
 
 	return 0;
 }
@@ -744,7 +745,7 @@ void __init early_init_devtree(void *params)
 	 * FIXME .. and the initrd too? */
 	move_device_tree();
 
-	allocate_pacas();
+	allocate_paca_ptrs();
 
 	DBG("Scanning CPUs ...\n");
 

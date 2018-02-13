@@ -57,16 +57,6 @@ static struct lppaca * __init new_lppaca(int cpu, unsigned long limit)
 
 	return lp;
 }
-
-static void __init free_lppaca(struct lppaca *lp)
-{
-	size_t size = 0x400;
-
-	if (early_cpu_has_feature(CPU_FTR_HVMODE))
-		return;
-
-	memblock_free(__pa(lp), size);
-}
 #endif /* CONFIG_PPC_BOOK3S */
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -166,12 +156,24 @@ void setup_paca(struct paca_struct *new_paca)
 
 static int __initdata paca_nr_cpu_ids;
 static int __initdata paca_ptrs_size;
+static int __initdata paca_struct_size;
 
-void __init allocate_pacas(void)
+void __init allocate_paca_ptrs(void)
+{
+	paca_nr_cpu_ids = nr_cpu_ids;
+
+	paca_ptrs_size = sizeof(struct paca_struct *) * nr_cpu_ids;
+	paca_ptrs = __va(memblock_alloc(paca_ptrs_size, 0));
+	memset(paca_ptrs, 0x88, paca_ptrs_size);
+}
+
+void __init allocate_paca(int cpu)
 {
 	u64 limit;
-	unsigned long size = 0;
-	int cpu;
+	unsigned long pa;
+	struct paca_struct *paca;
+
+	BUG_ON(cpu >= paca_nr_cpu_ids);
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	/*
@@ -183,69 +185,30 @@ void __init allocate_pacas(void)
 	limit = ppc64_rma_size;
 #endif
 
-	paca_nr_cpu_ids = nr_cpu_ids;
+	pa = memblock_alloc_base(sizeof(struct paca_struct),
+					L1_CACHE_BYTES, limit);
+	paca = __va(pa);
+	paca_ptrs[cpu] = paca;
+	memset(paca, 0, sizeof(struct paca_struct));
 
-	paca_ptrs_size = sizeof(struct paca_struct *) * nr_cpu_ids;
-	paca_ptrs = __va(memblock_alloc_base(paca_ptrs_size, 0, limit));
-	memset(paca_ptrs, 0, paca_ptrs_size);
-
-	size += paca_ptrs_size;
-
-	for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
-		unsigned long pa;
-
-		pa = memblock_alloc_base(sizeof(struct paca_struct),
-						L1_CACHE_BYTES, limit);
-		paca_ptrs[cpu] = __va(pa);
-		memset(paca_ptrs[cpu], 0, sizeof(struct paca_struct));
-
-		size += sizeof(struct paca_struct);
-	}
-
-	printk(KERN_DEBUG "Allocated %lu bytes for %u pacas\n",
-			size, nr_cpu_ids);
-
-	/* Can't use for_each_*_cpu, as they aren't functional yet */
-	for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
-		struct paca_struct *paca = paca_ptrs[cpu];
-
-		initialise_paca(paca, cpu);
+	initialise_paca(paca, cpu);
 #ifdef CONFIG_PPC_PSERIES
-		paca->lppaca_ptr = new_lppaca(cpu, limit);
+	paca->lppaca_ptr = new_lppaca(cpu, limit);
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
-		paca->slb_shadow_ptr = new_slb_shadow(cpu, limit);
+	paca->slb_shadow_ptr = new_slb_shadow(cpu, limit);
 #endif
-	}
+	paca_struct_size += sizeof(struct paca_struct);
 }
 
 void __init free_unused_pacas(void)
 {
-	unsigned long size = 0;
 	int new_ptrs_size;
-	int cpu;
-
-	for (cpu = 0; cpu < paca_nr_cpu_ids; cpu++) {
-		if (!cpu_possible(cpu)) {
-			unsigned long pa = __pa(paca_ptrs[cpu]);
-#ifdef CONFIG_PPC_PSERIES
-			free_lppaca(paca_ptrs[cpu]->lppaca_ptr);
-#endif
-			memblock_free(pa, sizeof(struct paca_struct));
-			paca_ptrs[cpu] = NULL;
-			size += sizeof(struct paca_struct);
-		}
-	}
 
 	new_ptrs_size = sizeof(struct paca_struct *) * nr_cpu_ids;
-	if (new_ptrs_size < paca_ptrs_size) {
+	if (new_ptrs_size < paca_ptrs_size)
 		memblock_free(__pa(paca_ptrs) + new_ptrs_size,
 					paca_ptrs_size - new_ptrs_size);
-		size += paca_ptrs_size - new_ptrs_size;
-	}
-
-	if (size)
-		printk(KERN_DEBUG "Freed %lu bytes for unused pacas\n", size);
 
 	paca_nr_cpu_ids = nr_cpu_ids;
 	paca_ptrs_size = new_ptrs_size;
@@ -258,6 +221,9 @@ void __init free_unused_pacas(void)
 		paca_ptrs[boot_cpuid]->slb_shadow_ptr = NULL;
 	}
 #endif
+
+	printk(KERN_DEBUG "Allocated %u bytes for %u pacas\n",
+			paca_ptrs_size + paca_struct_size, nr_cpu_ids);
 }
 
 void copy_mm_to_paca(struct mm_struct *mm)
