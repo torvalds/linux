@@ -735,6 +735,11 @@ void __init kvm_spinlock_init(void)
 	if (!kvm_para_has_feature(KVM_FEATURE_PV_UNHALT))
 		return;
 
+	if (kvm_para_has_hint(KVM_HINTS_DEDICATED)) {
+		static_branch_disable(&virt_spin_lock_key);
+		return;
+	}
+
 	__pv_init_lock_hash();
 	pv_lock_ops.queued_spin_lock_slowpath = __pv_queued_spin_lock_slowpath;
 	pv_lock_ops.queued_spin_unlock = PV_CALLEE_SAVE(__pv_queued_spin_unlock);
