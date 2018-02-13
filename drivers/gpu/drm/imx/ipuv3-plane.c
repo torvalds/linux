@@ -22,6 +22,7 @@
 #include <drm/drm_plane_helper.h>
 
 #include "video/imx-ipu-v3.h"
+#include "imx-drm.h"
 #include "ipuv3-plane.h"
 
 struct ipu_plane_state {
