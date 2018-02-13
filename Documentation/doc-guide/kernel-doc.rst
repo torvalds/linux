@@ -117,6 +117,7 @@ Example kernel-doc function comment::
    *
    * Longer description of foobar.
    *
+   * Context: Interrupt / locking context of foobar.
    * Return: Description of return value of foobar.
    */
   int foobar(int argument1, char *argument2)
@@ -216,6 +217,9 @@ The general format of a function and function-like macro kernel-doc comment is::
    *
    * The longer description may have multiple paragraphs.
    *
+   * Context: Describes whether the function can sleep, what locks it takes,
+   *          releases, or expects to be held. It can extend over multiple
+   *          lines.
    * Return: Describe the return value of foobar.
    *
    * The return value description can also have multiple paragraphs, and should
@@ -225,6 +229,24 @@ The general format of a function and function-like macro kernel-doc comment is::
 The brief description following the function name may span multiple lines, and
 ends with an argument description, a blank comment line, or the end of the
 comment block.
+
+Function context
+~~~~~~~~~~~~~~~~
+
+The context in which a function can be called should be described in a
+section named ``Context``. This should include whether the function
+sleeps or can be called from interrupt context, as well as what locks
+it takes, releases and expects to be held by its caller.
+
+Examples::
+
+  * Context: Any context.
+  * Context: Any context. Takes and releases the RCU lock.
+  * Context: Any context. Expects <lock> to be held by caller.
+  * Context: Process context. May sleep if @gfp flags permit.
+  * Context: Process context. Takes and releases <mutex>.
+  * Context: Softirq or process context. Takes and releases <lock>, BH-safe.
+  * Context: Interrupt context.
 
 Return values
 ~~~~~~~~~~~~~
@@ -347,6 +369,9 @@ Typedefs with function prototypes can also be documented::
    * @arg2: description of arg2
    *
    * Description of the type.
+   *
+   * Context: Locking context.
+   * Return: Meaning of the return value.
    */
    typedef void (*type_name)(struct v4l2_ctrl *arg1, void *arg2);
 
