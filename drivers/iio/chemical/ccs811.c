@@ -32,7 +32,7 @@
 #define CCS811_ALG_RESULT_DATA	0x02
 #define CCS811_RAW_DATA		0x03
 #define CCS811_HW_ID		0x20
-#define CCS881_HW_ID_VALUE	0x81
+#define CCS811_HW_ID_VALUE	0x81
 #define CCS811_HW_VERSION	0x21
 #define CCS811_HW_VERSION_VALUE	0x10
 #define CCS811_HW_VERSION_MASK	0xF0
@@ -353,7 +353,7 @@ static int ccs811_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	if (ret != CCS881_HW_ID_VALUE) {
+	if (ret != CCS811_HW_ID_VALUE) {
 		dev_err(&client->dev, "hardware id doesn't match CCS81x\n");
 		return -ENODEV;
 	}
