@@ -154,7 +154,7 @@ The ``@argument:`` descriptions may span multiple lines.
    the previous line, e. g.::
 
       * @argument: some long description
-      *       that continues on next lines
+      *            that continues on next lines
 
    or::
 
