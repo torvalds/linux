@@ -6,154 +6,155 @@
 
 ret=0
 
-check_err()
-{
-	if [ $ret -eq 0 ]; then
-		ret=$1
-	fi
-}
+PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
 
-check_fail()
+log_test()
 {
-	if [ $1 -eq 0 ]; then
+	local rc=$1
+	local expected=$2
+	local msg="$3"
+
+	if [ ${rc} -eq ${expected} ]; then
+		printf "        %-60s  [ OK ]\n" "${msg}"
+	else
 		ret=1
+		printf "        %-60s  [FAIL]\n" "${msg}"
+		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		echo
+			echo "hit enter to continue, 'q' to quit"
+			read a
+			[ "$a" = "q" ] && exit 1
+		fi
 	fi
 }
 
-netns_create()
+setup()
 {
-	local testns=$1
+	set -e
+	ip netns add testns
+	ip -netns testns link set dev lo up
 
-	ip netns add $testns
-	ip netns exec $testns ip link set dev lo up
+	ip -netns testns link add dummy0 type dummy
+	ip -netns testns link set dev dummy0 up
+	ip -netns testns address add 198.51.100.1/24 dev dummy0
+	ip -netns testns -6 address add 2001:db8:1::1/64 dev dummy0
+	set +e
+
+}
+
+cleanup()
+{
+	ip -netns testns link del dev dummy0 &> /dev/null
+	ip netns del testns
 }
 
 fib_unreg_unicast_test()
 {
-	ret=0
+	echo
+	echo "Single path route test"
 
-	netns_create "testns"
+	setup
 
-	ip netns exec testns ip link add dummy0 type dummy
-	ip netns exec testns ip link set dev dummy0 up
+	echo "    Start point"
+	ip -netns testns route get fibmatch 198.51.100.2 &> /dev/null
+	log_test $? 0 "IPv4 fibmatch"
+	ip -netns testns -6 route get fibmatch 2001:db8:1::2 &> /dev/null
+	log_test $? 0 "IPv6 fibmatch"
 
-	ip netns exec testns ip address add 198.51.100.1/24 dev dummy0
-	ip netns exec testns ip -6 address add 2001:db8:1::1/64 dev dummy0
+	set -e
+	ip -netns testns link del dev dummy0
+	set +e
 
-	ip netns exec testns ip route get fibmatch 198.51.100.2 &> /dev/null
-	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 &> /dev/null
-	check_err $?
+	echo "    Nexthop device deleted"
+	ip -netns testns route get fibmatch 198.51.100.2 &> /dev/null
+	log_test $? 2 "IPv4 fibmatch - no route"
+	ip -netns testns -6 route get fibmatch 2001:db8:1::2 &> /dev/null
+	log_test $? 2 "IPv6 fibmatch - no route"
 
-	ip netns exec testns ip link del dev dummy0
-	check_err $?
-
-	ip netns exec testns ip route get fibmatch 198.51.100.2 &> /dev/null
-	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 &> /dev/null
-	check_fail $?
-
-	ip netns del testns
-
-	if [ $ret -ne 0 ]; then
-		echo "FAIL: unicast route test"
-		return 1
-	fi
-	echo "PASS: unicast route test"
+	cleanup
 }
 
 fib_unreg_multipath_test()
 {
-	ret=0
 
-	netns_create "testns"
+	echo
+	echo "Multipath route test"
 
-	ip netns exec testns ip link add dummy0 type dummy
-	ip netns exec testns ip link set dev dummy0 up
+	setup
 
-	ip netns exec testns ip link add dummy1 type dummy
-	ip netns exec testns ip link set dev dummy1 up
+	set -e
+	ip -netns testns link add dummy1 type dummy
+	ip -netns testns link set dev dummy1 up
+	ip -netns testns address add 192.0.2.1/24 dev dummy1
+	ip -netns testns -6 address add 2001:db8:2::1/64 dev dummy1
 
-	ip netns exec testns ip address add 198.51.100.1/24 dev dummy0
-	ip netns exec testns ip -6 address add 2001:db8:1::1/64 dev dummy0
-
-	ip netns exec testns ip address add 192.0.2.1/24 dev dummy1
-	ip netns exec testns ip -6 address add 2001:db8:2::1/64 dev dummy1
-
-	ip netns exec testns ip route add 203.0.113.0/24 \
+	ip -netns testns route add 203.0.113.0/24 \
 		nexthop via 198.51.100.2 dev dummy0 \
 		nexthop via 192.0.2.2 dev dummy1
-	ip netns exec testns ip -6 route add 2001:db8:3::/64 \
+	ip -netns testns -6 route add 2001:db8:3::/64 \
 		nexthop via 2001:db8:1::2 dev dummy0 \
 		nexthop via 2001:db8:2::2 dev dummy1
+	set +e
 
-	ip netns exec testns ip route get fibmatch 203.0.113.1 &> /dev/null
-	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:3::1 &> /dev/null
-	check_err $?
+	echo "    Start point"
+	ip -netns testns route get fibmatch 203.0.113.1 &> /dev/null
+	log_test $? 0 "IPv4 fibmatch"
+	ip -netns testns -6 route get fibmatch 2001:db8:3::1 &> /dev/null
+	log_test $? 0 "IPv6 fibmatch"
 
-	ip netns exec testns ip link del dev dummy0
-	check_err $?
+	set -e
+	ip -netns testns link del dev dummy0
+	set +e
 
-	ip netns exec testns ip route get fibmatch 203.0.113.1 &> /dev/null
-	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:3::1 &> /dev/null
+	echo "    One nexthop device deleted"
+	ip -netns testns route get fibmatch 203.0.113.1 &> /dev/null
+	log_test $? 2 "IPv4 - multipath route removed on delete"
+
+	ip -netns testns -6 route get fibmatch 2001:db8:3::1 &> /dev/null
 	# In IPv6 we do not flush the entire multipath route.
-	check_err $?
+	log_test $? 0 "IPv6 - multipath down to single path"
 
-	ip netns exec testns ip link del dev dummy1
+	set -e
+	ip -netns testns link del dev dummy1
+	set +e
 
-	ip netns del testns
+	echo "    Second nexthop device deleted"
+	ip -netns testns -6 route get fibmatch 2001:db8:3::1 &> /dev/null
+	log_test $? 2 "IPv6 - no route"
 
-	if [ $ret -ne 0 ]; then
-		echo "FAIL: multipath route test"
-		return 1
-	fi
-	echo "PASS: multipath route test"
+	cleanup
 }
 
 fib_unreg_test()
 {
-	echo "Running netdev unregister tests"
-
 	fib_unreg_unicast_test
 	fib_unreg_multipath_test
 }
 
 fib_down_unicast_test()
 {
-	ret=0
+	echo
+	echo "Single path, admin down"
 
-	netns_create "testns"
+	setup
 
-	ip netns exec testns ip link add dummy0 type dummy
-	ip netns exec testns ip link set dev dummy0 up
+	echo "    Start point"
+	ip -netns testns route get fibmatch 198.51.100.2 &> /dev/null
+	log_test $? 0 "IPv4 fibmatch"
+	ip -netns testns -6 route get fibmatch 2001:db8:1::2 &> /dev/null
+	log_test $? 0 "IPv6 fibmatch"
 
-	ip netns exec testns ip address add 198.51.100.1/24 dev dummy0
-	ip netns exec testns ip -6 address add 2001:db8:1::1/64 dev dummy0
+	set -e
+	ip -netns testns link set dev dummy0 down
+	set +e
 
-	ip netns exec testns ip route get fibmatch 198.51.100.2 &> /dev/null
-	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 &> /dev/null
-	check_err $?
+	echo "    Route deleted on down"
+	ip -netns testns route get fibmatch 198.51.100.2 &> /dev/null
+	log_test $? 2 "IPv4 fibmatch"
+	ip -netns testns -6 route get fibmatch 2001:db8:1::2 &> /dev/null
+	log_test $? 2 "IPv6 fibmatch"
 
-	ip netns exec testns ip link set dev dummy0 down
-	check_err $?
-
-	ip netns exec testns ip route get fibmatch 198.51.100.2 &> /dev/null
-	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 &> /dev/null
-	check_fail $?
-
-	ip netns exec testns ip link del dev dummy0
-
-	ip netns del testns
-
-	if [ $ret -ne 0 ]; then
-		echo "FAIL: unicast route test"
-		return 1
-	fi
-	echo "PASS: unicast route test"
+	cleanup
 }
 
 fib_down_multipath_test_do()
@@ -161,242 +162,229 @@ fib_down_multipath_test_do()
 	local down_dev=$1
 	local up_dev=$2
 
-	ip netns exec testns ip route get fibmatch 203.0.113.1 \
+	ip -netns testns route get fibmatch 203.0.113.1 \
 		oif $down_dev &> /dev/null
-	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:3::1 \
+	log_test $? 2 "IPv4 fibmatch on down device"
+	ip -netns testns -6 route get fibmatch 2001:db8:3::1 \
 		oif $down_dev &> /dev/null
-	check_fail $?
+	log_test $? 2 "IPv6 fibmatch on down device"
 
-	ip netns exec testns ip route get fibmatch 203.0.113.1 \
+	ip -netns testns route get fibmatch 203.0.113.1 \
 		oif $up_dev &> /dev/null
-	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:3::1 \
+	log_test $? 0 "IPv4 fibmatch on up device"
+	ip -netns testns -6 route get fibmatch 2001:db8:3::1 \
 		oif $up_dev &> /dev/null
-	check_err $?
+	log_test $? 0 "IPv6 fibmatch on up device"
 
-	ip netns exec testns ip route get fibmatch 203.0.113.1 | \
+	ip -netns testns route get fibmatch 203.0.113.1 | \
 		grep $down_dev | grep -q "dead linkdown"
-	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:3::1 | \
+	log_test $? 0 "IPv4 flags on down device"
+	ip -netns testns -6 route get fibmatch 2001:db8:3::1 | \
 		grep $down_dev | grep -q "dead linkdown"
-	check_err $?
+	log_test $? 0 "IPv6 flags on down device"
 
-	ip netns exec testns ip route get fibmatch 203.0.113.1 | \
+	ip -netns testns route get fibmatch 203.0.113.1 | \
 		grep $up_dev | grep -q "dead linkdown"
-	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:3::1 | \
+	log_test $? 1 "IPv4 flags on up device"
+	ip -netns testns -6 route get fibmatch 2001:db8:3::1 | \
 		grep $up_dev | grep -q "dead linkdown"
-	check_fail $?
+	log_test $? 1 "IPv6 flags on up device"
 }
 
 fib_down_multipath_test()
 {
-	ret=0
+	echo
+	echo "Admin down multipath"
 
-	netns_create "testns"
+	setup
 
-	ip netns exec testns ip link add dummy0 type dummy
-	ip netns exec testns ip link set dev dummy0 up
+	set -e
+	ip -netns testns link add dummy1 type dummy
+	ip -netns testns link set dev dummy1 up
 
-	ip netns exec testns ip link add dummy1 type dummy
-	ip netns exec testns ip link set dev dummy1 up
+	ip -netns testns address add 192.0.2.1/24 dev dummy1
+	ip -netns testns -6 address add 2001:db8:2::1/64 dev dummy1
 
-	ip netns exec testns ip address add 198.51.100.1/24 dev dummy0
-	ip netns exec testns ip -6 address add 2001:db8:1::1/64 dev dummy0
-
-	ip netns exec testns ip address add 192.0.2.1/24 dev dummy1
-	ip netns exec testns ip -6 address add 2001:db8:2::1/64 dev dummy1
-
-	ip netns exec testns ip route add 203.0.113.0/24 \
+	ip -netns testns route add 203.0.113.0/24 \
 		nexthop via 198.51.100.2 dev dummy0 \
 		nexthop via 192.0.2.2 dev dummy1
-	ip netns exec testns ip -6 route add 2001:db8:3::/64 \
+	ip -netns testns -6 route add 2001:db8:3::/64 \
 		nexthop via 2001:db8:1::2 dev dummy0 \
 		nexthop via 2001:db8:2::2 dev dummy1
+	set +e
 
-	ip netns exec testns ip route get fibmatch 203.0.113.1 &> /dev/null
-	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:3::1 &> /dev/null
-	check_err $?
+	echo "    Verify start point"
+	ip -netns testns route get fibmatch 203.0.113.1 &> /dev/null
+	log_test $? 0 "IPv4 fibmatch"
 
-	ip netns exec testns ip link set dev dummy0 down
-	check_err $?
+	ip -netns testns -6 route get fibmatch 2001:db8:3::1 &> /dev/null
+	log_test $? 0 "IPv6 fibmatch"
 
+	set -e
+	ip -netns testns link set dev dummy0 down
+	set +e
+
+	echo "    One device down, one up"
 	fib_down_multipath_test_do "dummy0" "dummy1"
 
-	ip netns exec testns ip link set dev dummy0 up
-	check_err $?
-	ip netns exec testns ip link set dev dummy1 down
-	check_err $?
+	set -e
+	ip -netns testns link set dev dummy0 up
+	ip -netns testns link set dev dummy1 down
+	set +e
 
+	echo "    Other device down and up"
 	fib_down_multipath_test_do "dummy1" "dummy0"
 
-	ip netns exec testns ip link set dev dummy0 down
-	check_err $?
+	set -e
+	ip -netns testns link set dev dummy0 down
+	set +e
 
-	ip netns exec testns ip route get fibmatch 203.0.113.1 &> /dev/null
-	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:3::1 &> /dev/null
-	check_fail $?
+	echo "    Both devices down"
+	ip -netns testns route get fibmatch 203.0.113.1 &> /dev/null
+	log_test $? 2 "IPv4 fibmatch"
+	ip -netns testns -6 route get fibmatch 2001:db8:3::1 &> /dev/null
+	log_test $? 2 "IPv6 fibmatch"
 
-	ip netns exec testns ip link del dev dummy1
-	ip netns exec testns ip link del dev dummy0
-
-	ip netns del testns
-
-	if [ $ret -ne 0 ]; then
-		echo "FAIL: multipath route test"
-		return 1
-	fi
-	echo "PASS: multipath route test"
+	ip -netns testns link del dev dummy1
+	cleanup
 }
 
 fib_down_test()
 {
-	echo "Running netdev down tests"
-
 	fib_down_unicast_test
 	fib_down_multipath_test
 }
 
+# Local routes should not be affected when carrier changes.
 fib_carrier_local_test()
 {
-	ret=0
+	echo
+	echo "Local carrier tests - single path"
 
-	# Local routes should not be affected when carrier changes.
-	netns_create "testns"
+	setup
 
-	ip netns exec testns ip link add dummy0 type dummy
-	ip netns exec testns ip link set dev dummy0 up
+	set -e
+	ip -netns testns link set dev dummy0 carrier on
+	set +e
 
-	ip netns exec testns ip link set dev dummy0 carrier on
+	echo "    Start point"
+	ip -netns testns route get fibmatch 198.51.100.1 &> /dev/null
+	log_test $? 0 "IPv4 fibmatch"
+	ip -netns testns -6 route get fibmatch 2001:db8:1::1 &> /dev/null
+	log_test $? 0 "IPv6 fibmatch"
 
-	ip netns exec testns ip address add 198.51.100.1/24 dev dummy0
-	ip netns exec testns ip -6 address add 2001:db8:1::1/64 dev dummy0
-
-	ip netns exec testns ip route get fibmatch 198.51.100.1 &> /dev/null
-	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::1 &> /dev/null
-	check_err $?
-
-	ip netns exec testns ip route get fibmatch 198.51.100.1 | \
+	ip -netns testns route get fibmatch 198.51.100.1 | \
 		grep -q "linkdown"
-	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::1 | \
+	log_test $? 1 "IPv4 - no linkdown flag"
+	ip -netns testns -6 route get fibmatch 2001:db8:1::1 | \
 		grep -q "linkdown"
-	check_fail $?
+	log_test $? 1 "IPv6 - no linkdown flag"
 
-	ip netns exec testns ip link set dev dummy0 carrier off
+	set -e
+	ip -netns testns link set dev dummy0 carrier off
+	sleep 1
+	set +e
 
-	ip netns exec testns ip route get fibmatch 198.51.100.1 &> /dev/null
-	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::1 &> /dev/null
-	check_err $?
+	echo "    Carrier off on nexthop"
+	ip -netns testns route get fibmatch 198.51.100.1 &> /dev/null
+	log_test $? 0 "IPv4 fibmatch"
+	ip -netns testns -6 route get fibmatch 2001:db8:1::1 &> /dev/null
+	log_test $? 0 "IPv6 fibmatch"
 
-	ip netns exec testns ip route get fibmatch 198.51.100.1 | \
+	ip -netns testns route get fibmatch 198.51.100.1 | \
 		grep -q "linkdown"
-	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::1 | \
+	log_test $? 1 "IPv4 - linkdown flag set"
+	ip -netns testns -6 route get fibmatch 2001:db8:1::1 | \
 		grep -q "linkdown"
-	check_fail $?
+	log_test $? 1 "IPv6 - linkdown flag set"
 
-	ip netns exec testns ip address add 192.0.2.1/24 dev dummy0
-	ip netns exec testns ip -6 address add 2001:db8:2::1/64 dev dummy0
+	set -e
+	ip -netns testns address add 192.0.2.1/24 dev dummy0
+	ip -netns testns -6 address add 2001:db8:2::1/64 dev dummy0
+	set +e
 
-	ip netns exec testns ip route get fibmatch 192.0.2.1 &> /dev/null
-	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:2::1 &> /dev/null
-	check_err $?
+	echo "    Route to local address with carrier down"
+	ip -netns testns route get fibmatch 192.0.2.1 &> /dev/null
+	log_test $? 0 "IPv4 fibmatch"
+	ip -netns testns -6 route get fibmatch 2001:db8:2::1 &> /dev/null
+	log_test $? 0 "IPv6 fibmatch"
 
-	ip netns exec testns ip route get fibmatch 192.0.2.1 | \
+	ip -netns testns route get fibmatch 192.0.2.1 | \
 		grep -q "linkdown"
-	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:2::1 | \
+	log_test $? 1 "IPv4 linkdown flag set"
+	ip -netns testns -6 route get fibmatch 2001:db8:2::1 | \
 		grep -q "linkdown"
-	check_fail $?
+	log_test $? 1 "IPv6 linkdown flag set"
 
-	ip netns exec testns ip link del dev dummy0
-
-	ip netns del testns
-
-	if [ $ret -ne 0 ]; then
-		echo "FAIL: local route carrier test"
-		return 1
-	fi
-	echo "PASS: local route carrier test"
+	cleanup
 }
 
 fib_carrier_unicast_test()
 {
 	ret=0
 
-	netns_create "testns"
+	echo
+	echo "Single path route carrier test"
 
-	ip netns exec testns ip link add dummy0 type dummy
-	ip netns exec testns ip link set dev dummy0 up
+	setup
 
-	ip netns exec testns ip link set dev dummy0 carrier on
+	set -e
+	ip -netns testns link set dev dummy0 carrier on
+	set +e
 
-	ip netns exec testns ip address add 198.51.100.1/24 dev dummy0
-	ip netns exec testns ip -6 address add 2001:db8:1::1/64 dev dummy0
+	echo "    Start point"
+	ip -netns testns route get fibmatch 198.51.100.2 &> /dev/null
+	log_test $? 0 "IPv4 fibmatch"
+	ip -netns testns -6 route get fibmatch 2001:db8:1::2 &> /dev/null
+	log_test $? 0 "IPv6 fibmatch"
 
-	ip netns exec testns ip route get fibmatch 198.51.100.2 &> /dev/null
-	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 &> /dev/null
-	check_err $?
-
-	ip netns exec testns ip route get fibmatch 198.51.100.2 | \
+	ip -netns testns route get fibmatch 198.51.100.2 | \
 		grep -q "linkdown"
-	check_fail $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 | \
+	log_test $? 1 "IPv4 no linkdown flag"
+	ip -netns testns -6 route get fibmatch 2001:db8:1::2 | \
 		grep -q "linkdown"
-	check_fail $?
+	log_test $? 1 "IPv6 no linkdown flag"
 
-	ip netns exec testns ip link set dev dummy0 carrier off
+	set -e
+	ip -netns testns link set dev dummy0 carrier off
+	set +e
 
-	ip netns exec testns ip route get fibmatch 198.51.100.2 &> /dev/null
-	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 &> /dev/null
-	check_err $?
+	echo "    Carrier down"
+	ip -netns testns route get fibmatch 198.51.100.2 &> /dev/null
+	log_test $? 0 "IPv4 fibmatch"
+	ip -netns testns -6 route get fibmatch 2001:db8:1::2 &> /dev/null
+	log_test $? 0 "IPv6 fibmatch"
 
-	ip netns exec testns ip route get fibmatch 198.51.100.2 | \
+	ip -netns testns route get fibmatch 198.51.100.2 | \
 		grep -q "linkdown"
-	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 | \
+	log_test $? 0 "IPv4 linkdown flag set"
+	ip -netns testns -6 route get fibmatch 2001:db8:1::2 | \
 		grep -q "linkdown"
-	check_err $?
+	log_test $? 0 "IPv6 linkdown flag set"
 
-	ip netns exec testns ip address add 192.0.2.1/24 dev dummy0
-	ip netns exec testns ip -6 address add 2001:db8:2::1/64 dev dummy0
+	set -e
+	ip -netns testns address add 192.0.2.1/24 dev dummy0
+	ip -netns testns -6 address add 2001:db8:2::1/64 dev dummy0
+	set +e
 
-	ip netns exec testns ip route get fibmatch 192.0.2.2 &> /dev/null
-	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:2::2 &> /dev/null
-	check_err $?
+	echo "    Second address added with carrier down"
+	ip -netns testns route get fibmatch 192.0.2.2 &> /dev/null
+	log_test $? 0 "IPv4 fibmatch"
+	ip -netns testns -6 route get fibmatch 2001:db8:2::2 &> /dev/null
+	log_test $? 0 "IPv6 fibmatch"
 
-	ip netns exec testns ip route get fibmatch 192.0.2.2 | \
+	ip -netns testns route get fibmatch 192.0.2.2 | \
 		grep -q "linkdown"
-	check_err $?
-	ip netns exec testns ip -6 route get fibmatch 2001:db8:2::2 | \
+	log_test $? 0 "IPv4 linkdown flag set"
+	ip -netns testns -6 route get fibmatch 2001:db8:2::2 | \
 		grep -q "linkdown"
-	check_err $?
+	log_test $? 0 "IPv6 linkdown flag set"
 
-	ip netns exec testns ip link del dev dummy0
-
-	ip netns del testns
-
-	if [ $ret -ne 0 ]; then
-		echo "FAIL: unicast route carrier test"
-		return 1
-	fi
-	echo "PASS: unicast route carrier test"
+	cleanup
 }
 
 fib_carrier_test()
 {
-	echo "Running netdev carrier change tests"
-
 	fib_carrier_local_test
 	fib_carrier_unicast_test
 }
@@ -423,6 +411,9 @@ if [ $? -ne 0 ]; then
 	echo "SKIP: iproute2 too old, missing fibmatch"
 	exit 0
 fi
+
+# start clean
+cleanup &> /dev/null
 
 fib_test
 
