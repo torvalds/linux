@@ -47,7 +47,7 @@ static bool ah_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		 */
 		pr_debug("Dropping evil AH tinygram.\n");
 		par->hotdrop = true;
-		return 0;
+		return false;
 	}
 
 	return spi_match(ahinfo->spis[0], ahinfo->spis[1],
