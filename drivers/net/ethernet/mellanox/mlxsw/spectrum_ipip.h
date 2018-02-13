@@ -40,7 +40,7 @@
 #include <linux/if_tunnel.h>
 
 struct ip_tunnel_parm
-mlxsw_sp_ipip_netdev_parms(const struct net_device *ol_dev);
+mlxsw_sp_ipip_netdev_parms4(const struct net_device *ol_dev);
 
 union mlxsw_sp_l3addr
 mlxsw_sp_ipip_netdev_saddr(enum mlxsw_sp_l3proto proto,
@@ -57,7 +57,9 @@ struct mlxsw_sp_ipip_entry {
 	struct mlxsw_sp_rif_ipip_lb *ol_lb;
 	struct mlxsw_sp_fib_entry *decap_fib_entry;
 	struct list_head ipip_list_node;
-	struct ip_tunnel_parm parms;
+	union {
+		struct ip_tunnel_parm parms4;
+	};
 };
 
 struct mlxsw_sp_ipip_ops {
