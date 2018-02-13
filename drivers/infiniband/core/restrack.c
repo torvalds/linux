@@ -63,7 +63,6 @@ static struct ib_device *res_to_dev(struct rdma_restrack_entry *res)
 {
 	enum rdma_restrack_type type = res->type;
 	struct ib_device *dev;
-	struct ib_xrcd *xrcd;
 	struct ib_pd *pd;
 	struct ib_cq *cq;
 	struct ib_qp *qp;
@@ -80,10 +79,6 @@ static struct ib_device *res_to_dev(struct rdma_restrack_entry *res)
 	case RDMA_RESTRACK_QP:
 		qp = container_of(res, struct ib_qp, res);
 		dev = qp->device;
-		break;
-	case RDMA_RESTRACK_XRCD:
-		xrcd = container_of(res, struct ib_xrcd, res);
-		dev = xrcd->device;
 		break;
 	default:
 		WARN_ONCE(true, "Wrong resource tracking type %u\n", type);
