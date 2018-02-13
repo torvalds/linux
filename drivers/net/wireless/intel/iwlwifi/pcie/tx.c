@@ -2397,7 +2397,13 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		goto out_err;
 	iwl_pcie_txq_build_tfd(trans, txq, tb1_phys, tb1_len, false);
 
-	if (amsdu) {
+	/*
+	 * If gso_size wasn't set, don't give the frame "amsdu treatment"
+	 * (adding subframes, etc.).
+	 * This can happen in some testing flows when the amsdu was already
+	 * pre-built, and we just need to send the resulting skb.
+	 */
+	if (amsdu && skb_shinfo(skb)->gso_size) {
 		if (unlikely(iwl_fill_data_tbs_amsdu(trans, skb, txq, hdr_len,
 						     out_meta, dev_cmd,
 						     tb1_len)))
