@@ -507,7 +507,7 @@ static ssize_t show_info(struct device *dev, struct device_attribute *devattr,
 {
 	u32 response[MSG_FIELD_MAX];
 	unsigned int info;
-	int ret;
+	ssize_t ret;
 
 	ret = generic_show(DPFE_CMD_GET_INFO, response, dev, buf);
 	if (ret)
@@ -531,7 +531,7 @@ static ssize_t show_refresh(struct device *dev,
 	unsigned int offset;
 	u8 refresh, sr_abort, ppre, thermal_offs, tuf;
 	u32 mr4;
-	int ret;
+	ssize_t ret;
 
 	ret = generic_show(DPFE_CMD_GET_REFRESH, response, dev, buf);
 	if (ret)
@@ -588,7 +588,7 @@ static ssize_t show_vendor(struct device *dev, struct device_attribute *devattr,
 	struct private_data *priv;
 	void __iomem *info;
 	unsigned int offset;
-	int ret;
+	ssize_t ret;
 
 	ret = generic_show(DPFE_CMD_GET_VENDOR, response, dev, buf);
 	if (ret)
