@@ -35,11 +35,13 @@ TEST_GEN_PROGS_EXTENDED = test_libbpf_open
 
 include ../lib.mk
 
-BPFOBJ := $(OUTPUT)/libbpf.a cgroup_helpers.c
+BPFOBJ := $(OUTPUT)/libbpf.a
 
 $(TEST_GEN_PROGS): $(BPFOBJ)
 
 $(TEST_GEN_PROGS_EXTENDED): $(OUTPUT)/libbpf.a
+
+$(OUTPUT)/test_dev_cgroup: cgroup_helpers.c
 
 .PHONY: force
 
