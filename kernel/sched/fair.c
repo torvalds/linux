@@ -5751,9 +5751,8 @@ wake_affine_weight(struct sched_domain *sd, struct task_struct *p,
 }
 
 static int wake_affine(struct sched_domain *sd, struct task_struct *p,
-		       int prev_cpu, int sync)
+		       int this_cpu, int prev_cpu, int sync)
 {
-	int this_cpu = smp_processor_id();
 	int target = nr_cpumask_bits;
 
 	if (sched_feat(WA_IDLE))
@@ -6376,7 +6375,7 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 		if (cpu == prev_cpu)
 			goto pick_cpu;
 
-		new_cpu = wake_affine(affine_sd, p, prev_cpu, sync);
+		new_cpu = wake_affine(affine_sd, p, cpu, prev_cpu, sync);
 	}
 
 	if (sd && !(sd_flag & SD_BALANCE_FORK)) {
