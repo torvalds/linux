@@ -30,32 +30,37 @@
 #include <net/xdp.h>
 
 /* Interrupt Throttling and Rate Limiting Goodies */
-
-#define I40E_MAX_ITR               0x0FF0  /* reg uses 2 usec resolution */
-#define I40E_MIN_ITR               0x0001  /* reg uses 2 usec resolution */
-#define I40E_ITR_100K              0x0005
-#define I40E_ITR_50K               0x000A
-#define I40E_ITR_20K               0x0019
-#define I40E_ITR_18K               0x001B
-#define I40E_ITR_8K                0x003E
-#define I40E_ITR_4K                0x007A
-#define I40E_MAX_INTRL             0x3B    /* reg uses 4 usec resolution */
-#define I40E_ITR_RX_DEF            (ITR_REG_TO_USEC(I40E_ITR_20K) | \
-				    I40E_ITR_DYNAMIC)
-#define I40E_ITR_TX_DEF            (ITR_REG_TO_USEC(I40E_ITR_20K) | \
-				    I40E_ITR_DYNAMIC)
-#define I40E_ITR_DYNAMIC           0x8000  /* use top bit as a flag */
-#define I40E_MIN_INT_RATE          250     /* ~= 1000000 / (I40E_MAX_ITR * 2) */
-#define I40E_MAX_INT_RATE          500000  /* == 1000000 / (I40E_MIN_ITR * 2) */
 #define I40E_DEFAULT_IRQ_WORK      256
-#define ITR_TO_REG(setting) ((setting & ~I40E_ITR_DYNAMIC) >> 1)
-#define ITR_IS_DYNAMIC(setting) (!!(setting & I40E_ITR_DYNAMIC))
-#define ITR_REG_TO_USEC(itr_reg) (itr_reg << 1)
+
+/* The datasheet for the X710 and XL710 indicate that the maximum value for
+ * the ITR is 8160usec which is then called out as 0xFF0 with a 2usec
+ * resolution. 8160 is 0x1FE0 when written out in hex. So instead of storing
+ * the register value which is divided by 2 lets use the actual values and
+ * avoid an excessive amount of translation.
+ */
+#define I40E_ITR_DYNAMIC	0x8000	/* use top bit as a flag */
+#define I40E_ITR_MASK		0x1FFE	/* mask for ITR register value */
+#define I40E_MIN_ITR		     2	/* reg uses 2 usec resolution */
+#define I40E_ITR_100K		    10	/* all values below must be even */
+#define I40E_ITR_50K		    20
+#define I40E_ITR_20K		    50
+#define I40E_ITR_18K		    60
+#define I40E_ITR_8K		   122
+#define I40E_MAX_ITR		  8160	/* maximum value as per datasheet */
+#define ITR_TO_REG(setting) ((setting) & ~I40E_ITR_DYNAMIC)
+#define ITR_REG_ALIGN(setting) __ALIGN_MASK(setting, ~I40E_ITR_MASK)
+#define ITR_IS_DYNAMIC(setting) (!!((setting) & I40E_ITR_DYNAMIC))
+
+#define I40E_ITR_RX_DEF		(I40E_ITR_20K | I40E_ITR_DYNAMIC)
+#define I40E_ITR_TX_DEF		(I40E_ITR_20K | I40E_ITR_DYNAMIC)
+
 /* 0x40 is the enable bit for interrupt rate limiting, and must be set if
  * the value of the rate limit is non-zero
  */
 #define INTRL_ENA                  BIT(6)
+#define I40E_MAX_INTRL             0x3B    /* reg uses 4 usec resolution */
 #define INTRL_REG_TO_USEC(intrl) ((intrl & ~INTRL_ENA) << 2)
+
 /**
  * i40e_intrl_usec_to_reg - convert interrupt rate limit to register
  * @intrl: interrupt rate limit to convert
@@ -382,8 +387,7 @@ struct i40e_ring {
 	 * these values always store the USER setting, and must be converted
 	 * before programming to a register.
 	 */
-	u16 rx_itr_setting;
-	u16 tx_itr_setting;
+	u16 itr_setting;
 
 	u16 count;			/* Number of descriptors */
 	u16 reg_idx;			/* HW register index of the ring */
@@ -459,21 +463,21 @@ static inline void set_ring_xdp(struct i40e_ring *ring)
 	ring->flags |= I40E_TXR_FLAGS_XDP;
 }
 
-enum i40e_latency_range {
-	I40E_LOWEST_LATENCY = 0,
-	I40E_LOW_LATENCY = 1,
-	I40E_BULK_LATENCY = 2,
-};
+#define I40E_ITR_ADAPTIVE_MIN_INC	0x0002
+#define I40E_ITR_ADAPTIVE_MIN_USECS	0x0002
+#define I40E_ITR_ADAPTIVE_MAX_USECS	0x007e
+#define I40E_ITR_ADAPTIVE_LATENCY	0x8000
+#define I40E_ITR_ADAPTIVE_BULK		0x0000
+#define ITR_IS_BULK(x) (!((x) & I40E_ITR_ADAPTIVE_LATENCY))
 
 struct i40e_ring_container {
-	/* array of pointers to rings */
-	struct i40e_ring *ring;
+	struct i40e_ring *ring;		/* pointer to linked list of ring(s) */
+	unsigned long next_update;	/* jiffies value of next update */
 	unsigned int total_bytes;	/* total bytes processed this int */
 	unsigned int total_packets;	/* total packets processed this int */
-	unsigned long last_itr_update;	/* jiffies of last ITR update */
 	u16 count;
-	enum i40e_latency_range latency_range;
-	u16 itr;
+	u16 target_itr;			/* target ITR setting for ring(s) */
+	u16 current_itr;		/* current ITR setting for ring(s) */
 };
 
 /* iterator for handling rings in ring container */

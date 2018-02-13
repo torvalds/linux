@@ -3449,15 +3449,20 @@ static void i40e_vsi_configure_msix(struct i40e_vsi *vsi)
 	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
 		struct i40e_q_vector *q_vector = vsi->q_vectors[i];
 
-		q_vector->itr_countdown = ITR_COUNTDOWN_START;
-		q_vector->rx.itr = ITR_TO_REG(vsi->rx_rings[i]->rx_itr_setting);
-		q_vector->rx.latency_range = I40E_LOW_LATENCY;
+		q_vector->rx.next_update = jiffies + 1;
+		q_vector->rx.target_itr =
+			ITR_TO_REG(vsi->rx_rings[i]->itr_setting);
 		wr32(hw, I40E_PFINT_ITRN(I40E_RX_ITR, vector - 1),
-		     q_vector->rx.itr);
-		q_vector->tx.itr = ITR_TO_REG(vsi->tx_rings[i]->tx_itr_setting);
-		q_vector->tx.latency_range = I40E_LOW_LATENCY;
+		     q_vector->rx.target_itr);
+		q_vector->rx.current_itr = q_vector->rx.target_itr;
+
+		q_vector->tx.next_update = jiffies + 1;
+		q_vector->tx.target_itr =
+			ITR_TO_REG(vsi->tx_rings[i]->itr_setting);
 		wr32(hw, I40E_PFINT_ITRN(I40E_TX_ITR, vector - 1),
-		     q_vector->tx.itr);
+		     q_vector->tx.target_itr);
+		q_vector->tx.current_itr = q_vector->tx.target_itr;
+
 		wr32(hw, I40E_PFINT_RATEN(vector - 1),
 		     i40e_intrl_usec_to_reg(vsi->int_rate_limit));
 
@@ -3558,13 +3563,14 @@ static void i40e_configure_msi_and_legacy(struct i40e_vsi *vsi)
 	u32 val;
 
 	/* set the ITR configuration */
-	q_vector->itr_countdown = ITR_COUNTDOWN_START;
-	q_vector->rx.itr = ITR_TO_REG(vsi->rx_rings[0]->rx_itr_setting);
-	q_vector->rx.latency_range = I40E_LOW_LATENCY;
-	wr32(hw, I40E_PFINT_ITR0(I40E_RX_ITR), q_vector->rx.itr);
-	q_vector->tx.itr = ITR_TO_REG(vsi->tx_rings[0]->tx_itr_setting);
-	q_vector->tx.latency_range = I40E_LOW_LATENCY;
-	wr32(hw, I40E_PFINT_ITR0(I40E_TX_ITR), q_vector->tx.itr);
+	q_vector->rx.next_update = jiffies + 1;
+	q_vector->rx.target_itr = ITR_TO_REG(vsi->rx_rings[0]->itr_setting);
+	wr32(hw, I40E_PFINT_ITR0(I40E_RX_ITR), q_vector->rx.target_itr);
+	q_vector->rx.current_itr = q_vector->rx.target_itr;
+	q_vector->tx.next_update = jiffies + 1;
+	q_vector->tx.target_itr = ITR_TO_REG(vsi->tx_rings[0]->itr_setting);
+	wr32(hw, I40E_PFINT_ITR0(I40E_TX_ITR), q_vector->tx.target_itr);
+	q_vector->tx.current_itr = q_vector->tx.target_itr;
 
 	i40e_enable_misc_int_causes(pf);
 
@@ -9215,6 +9221,17 @@ static void i40e_rebuild(struct i40e_pf *pf, bool reinit, bool lock_acquired)
 	}
 	i40e_get_oem_version(&pf->hw);
 
+	if (test_bit(__I40E_EMP_RESET_INTR_RECEIVED, pf->state) &&
+	    ((hw->aq.fw_maj_ver == 4 && hw->aq.fw_min_ver <= 33) ||
+	     hw->aq.fw_maj_ver < 4) && hw->mac.type == I40E_MAC_XL710) {
+		/* The following delay is necessary for 4.33 firmware and older
+		 * to recover after EMP reset. 200 ms should suffice but we
+		 * put here 300 ms to be sure that FW is ready to operate
+		 * after reset.
+		 */
+		mdelay(300);
+	}
+
 	/* re-verify the eeprom if we just had an EMP reset */
 	if (test_and_clear_bit(__I40E_EMP_RESET_INTR_RECEIVED, pf->state))
 		i40e_verify_eeprom(pf);
@@ -10018,7 +10035,7 @@ static int i40e_alloc_rings(struct i40e_vsi *vsi)
 		ring->dcb_tc = 0;
 		if (vsi->back->hw_features & I40E_HW_WB_ON_ITR_CAPABLE)
 			ring->flags = I40E_TXR_FLAGS_WB_ON_ITR;
-		ring->tx_itr_setting = pf->tx_itr_default;
+		ring->itr_setting = pf->tx_itr_default;
 		vsi->tx_rings[i] = ring++;
 
 		if (!i40e_enabled_xdp_vsi(vsi))
@@ -10036,7 +10053,7 @@ static int i40e_alloc_rings(struct i40e_vsi *vsi)
 		if (vsi->back->hw_features & I40E_HW_WB_ON_ITR_CAPABLE)
 			ring->flags = I40E_TXR_FLAGS_WB_ON_ITR;
 		set_ring_xdp(ring);
-		ring->tx_itr_setting = pf->tx_itr_default;
+		ring->itr_setting = pf->tx_itr_default;
 		vsi->xdp_rings[i] = ring++;
 
 setup_rx:
@@ -10049,7 +10066,7 @@ setup_rx:
 		ring->count = vsi->num_desc;
 		ring->size = 0;
 		ring->dcb_tc = 0;
-		ring->rx_itr_setting = pf->rx_itr_default;
+		ring->itr_setting = pf->rx_itr_default;
 		vsi->rx_rings[i] = ring;
 	}
 
@@ -10327,9 +10344,6 @@ static int i40e_vsi_alloc_q_vector(struct i40e_vsi *vsi, int v_idx, int cpu)
 	if (vsi->netdev)
 		netif_napi_add(vsi->netdev, &q_vector->napi,
 			       i40e_napi_poll, NAPI_POLL_WEIGHT);
-
-	q_vector->rx.latency_range = I40E_LOW_LATENCY;
-	q_vector->tx.latency_range = I40E_LOW_LATENCY;
 
 	/* tie q_vector and vsi together */
 	vsi->q_vectors[v_idx] = q_vector;

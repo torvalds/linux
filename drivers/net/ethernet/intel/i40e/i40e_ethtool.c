@@ -2244,14 +2244,14 @@ static int __i40e_get_coalesce(struct net_device *netdev,
 	rx_ring = vsi->rx_rings[queue];
 	tx_ring = vsi->tx_rings[queue];
 
-	if (ITR_IS_DYNAMIC(rx_ring->rx_itr_setting))
+	if (ITR_IS_DYNAMIC(rx_ring->itr_setting))
 		ec->use_adaptive_rx_coalesce = 1;
 
-	if (ITR_IS_DYNAMIC(tx_ring->tx_itr_setting))
+	if (ITR_IS_DYNAMIC(tx_ring->itr_setting))
 		ec->use_adaptive_tx_coalesce = 1;
 
-	ec->rx_coalesce_usecs = rx_ring->rx_itr_setting & ~I40E_ITR_DYNAMIC;
-	ec->tx_coalesce_usecs = tx_ring->tx_itr_setting & ~I40E_ITR_DYNAMIC;
+	ec->rx_coalesce_usecs = rx_ring->itr_setting & ~I40E_ITR_DYNAMIC;
+	ec->tx_coalesce_usecs = tx_ring->itr_setting & ~I40E_ITR_DYNAMIC;
 
 	/* we use the _usecs_high to store/set the interrupt rate limit
 	 * that the hardware supports, that almost but not quite
@@ -2311,34 +2311,35 @@ static void i40e_set_itr_per_queue(struct i40e_vsi *vsi,
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_q_vector *q_vector;
-	u16 vector, intrl;
+	u16 intrl;
 
 	intrl = i40e_intrl_usec_to_reg(vsi->int_rate_limit);
 
-	rx_ring->rx_itr_setting = ec->rx_coalesce_usecs;
-	tx_ring->tx_itr_setting = ec->tx_coalesce_usecs;
+	rx_ring->itr_setting = ITR_REG_ALIGN(ec->rx_coalesce_usecs);
+	tx_ring->itr_setting = ITR_REG_ALIGN(ec->tx_coalesce_usecs);
 
 	if (ec->use_adaptive_rx_coalesce)
-		rx_ring->rx_itr_setting |= I40E_ITR_DYNAMIC;
+		rx_ring->itr_setting |= I40E_ITR_DYNAMIC;
 	else
-		rx_ring->rx_itr_setting &= ~I40E_ITR_DYNAMIC;
+		rx_ring->itr_setting &= ~I40E_ITR_DYNAMIC;
 
 	if (ec->use_adaptive_tx_coalesce)
-		tx_ring->tx_itr_setting |= I40E_ITR_DYNAMIC;
+		tx_ring->itr_setting |= I40E_ITR_DYNAMIC;
 	else
-		tx_ring->tx_itr_setting &= ~I40E_ITR_DYNAMIC;
+		tx_ring->itr_setting &= ~I40E_ITR_DYNAMIC;
 
 	q_vector = rx_ring->q_vector;
-	q_vector->rx.itr = ITR_TO_REG(rx_ring->rx_itr_setting);
-	vector = vsi->base_vector + q_vector->v_idx;
-	wr32(hw, I40E_PFINT_ITRN(I40E_RX_ITR, vector - 1), q_vector->rx.itr);
+	q_vector->rx.target_itr = ITR_TO_REG(rx_ring->itr_setting);
 
 	q_vector = tx_ring->q_vector;
-	q_vector->tx.itr = ITR_TO_REG(tx_ring->tx_itr_setting);
-	vector = vsi->base_vector + q_vector->v_idx;
-	wr32(hw, I40E_PFINT_ITRN(I40E_TX_ITR, vector - 1), q_vector->tx.itr);
+	q_vector->tx.target_itr = ITR_TO_REG(tx_ring->itr_setting);
 
-	wr32(hw, I40E_PFINT_RATEN(vector - 1), intrl);
+	/* The interrupt handler itself will take care of programming
+	 * the Tx and Rx ITR values based on the values we have entered
+	 * into the q_vector, no need to write the values now.
+	 */
+
+	wr32(hw, I40E_PFINT_RATEN(q_vector->reg_idx), intrl);
 	i40e_flush(hw);
 }
 
@@ -2364,11 +2365,11 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 		vsi->work_limit = ec->tx_max_coalesced_frames_irq;
 
 	if (queue < 0) {
-		cur_rx_itr = vsi->rx_rings[0]->rx_itr_setting;
-		cur_tx_itr = vsi->tx_rings[0]->tx_itr_setting;
+		cur_rx_itr = vsi->rx_rings[0]->itr_setting;
+		cur_tx_itr = vsi->tx_rings[0]->itr_setting;
 	} else if (queue < vsi->num_queue_pairs) {
-		cur_rx_itr = vsi->rx_rings[queue]->rx_itr_setting;
-		cur_tx_itr = vsi->tx_rings[queue]->tx_itr_setting;
+		cur_rx_itr = vsi->rx_rings[queue]->itr_setting;
+		cur_tx_itr = vsi->tx_rings[queue]->itr_setting;
 	} else {
 		netif_info(pf, drv, netdev, "Invalid queue value, queue range is 0 - %d\n",
 			   vsi->num_queue_pairs - 1);
@@ -2396,7 +2397,7 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	if (ec->rx_coalesce_usecs > (I40E_MAX_ITR << 1)) {
+	if (ec->rx_coalesce_usecs > I40E_MAX_ITR) {
 		netif_info(pf, drv, netdev, "Invalid value, rx-usecs range is 0-8160\n");
 		return -EINVAL;
 	}
@@ -2407,16 +2408,16 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	if (ec->tx_coalesce_usecs > (I40E_MAX_ITR << 1)) {
+	if (ec->tx_coalesce_usecs > I40E_MAX_ITR) {
 		netif_info(pf, drv, netdev, "Invalid value, tx-usecs range is 0-8160\n");
 		return -EINVAL;
 	}
 
 	if (ec->use_adaptive_rx_coalesce && !cur_rx_itr)
-		ec->rx_coalesce_usecs = I40E_MIN_ITR << 1;
+		ec->rx_coalesce_usecs = I40E_MIN_ITR;
 
 	if (ec->use_adaptive_tx_coalesce && !cur_tx_itr)
-		ec->tx_coalesce_usecs = I40E_MIN_ITR << 1;
+		ec->tx_coalesce_usecs = I40E_MIN_ITR;
 
 	intrl_reg = i40e_intrl_usec_to_reg(ec->rx_coalesce_usecs_high);
 	vsi->int_rate_limit = INTRL_REG_TO_USEC(intrl_reg);
@@ -4406,6 +4407,8 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 	}
 
 flags_complete:
+	changed_flags = orig_flags ^ new_flags;
+
 	/* Before we finalize any flag changes, we need to perform some
 	 * checks to ensure that the changes are supported and safe.
 	 */
@@ -4415,13 +4418,17 @@ flags_complete:
 	    !(pf->hw_features & I40E_HW_ATR_EVICT_CAPABLE))
 		return -EOPNOTSUPP;
 
-	/* Disable FW LLDP not supported if NPAR active or if FW
-	 * API version < 1.7
+	/* If the driver detected FW LLDP was disabled on init, this flag could
+	 * be set, however we do not support _changing_ the flag if NPAR is
+	 * enabled or FW API version < 1.7.  There are situations where older
+	 * FW versions/NPAR enabled PFs could disable LLDP, however we _must_
+	 * not allow the user to enable/disable LLDP with this flag on
+	 * unsupported FW versions.
 	 */
-	if (new_flags & I40E_FLAG_DISABLE_FW_LLDP) {
+	if (changed_flags & I40E_FLAG_DISABLE_FW_LLDP) {
 		if (pf->hw.func_caps.npar_enable) {
 			dev_warn(&pf->pdev->dev,
-				 "Unable to stop FW LLDP if NPAR active\n");
+				 "Unable to change FW LLDP if NPAR active\n");
 			return -EOPNOTSUPP;
 		}
 
@@ -4429,7 +4436,7 @@ flags_complete:
 		    (pf->hw.aq.api_maj_ver == 1 &&
 		     pf->hw.aq.api_min_ver < 7)) {
 			dev_warn(&pf->pdev->dev,
-				 "FW ver does not support stopping FW LLDP\n");
+				 "FW ver does not support changing FW LLDP\n");
 			return -EOPNOTSUPP;
 		}
 	}
@@ -4439,14 +4446,16 @@ flags_complete:
 	 * something else has modified the flags variable since we copied it
 	 * originally. We'll just punt with an error and log something in the
 	 * message buffer.
+	 *
+	 * This is the point of no return for this function.  We need to have
+	 * checked any discrepancies or misconfigurations and returned
+	 * EOPNOTSUPP before updating pf->flags here.
 	 */
 	if (cmpxchg64(&pf->flags, orig_flags, new_flags) != orig_flags) {
 		dev_warn(&pf->pdev->dev,
 			 "Unable to update pf->flags as it was modified by another thread...\n");
 		return -EAGAIN;
 	}
-
-	changed_flags = orig_flags ^ new_flags;
 
 	/* Process any additional changes needed as a result of flag changes.
 	 * The changed_flags value reflects the list of bits that were
@@ -4478,6 +4487,12 @@ flags_complete:
 			/* not a fatal problem, just keep going */
 		}
 	}
+
+	if ((changed_flags & pf->flags &
+	     I40E_FLAG_LINK_DOWN_ON_CLOSE_ENABLED) &&
+	    (pf->flags & I40E_FLAG_MFP_ENABLED))
+		dev_warn(&pf->pdev->dev,
+			 "Turning on link-down-on-close flag may affect other partitions\n");
 
 	if (changed_flags & I40E_FLAG_DISABLE_FW_LLDP) {
 		if (pf->flags & I40E_FLAG_DISABLE_FW_LLDP) {

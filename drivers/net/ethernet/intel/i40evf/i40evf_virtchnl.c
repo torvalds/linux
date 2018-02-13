@@ -344,6 +344,7 @@ void i40evf_disable_queues(struct i40evf_adapter *adapter)
 void i40evf_map_queues(struct i40evf_adapter *adapter)
 {
 	struct virtchnl_irq_map_info *vimi;
+	struct virtchnl_vector_map *vecmap;
 	int v_idx, q_vectors, len;
 	struct i40e_q_vector *q_vector;
 
@@ -367,17 +368,22 @@ void i40evf_map_queues(struct i40evf_adapter *adapter)
 	vimi->num_vectors = adapter->num_msix_vectors;
 	/* Queue vectors first */
 	for (v_idx = 0; v_idx < q_vectors; v_idx++) {
-		q_vector = adapter->q_vectors + v_idx;
-		vimi->vecmap[v_idx].vsi_id = adapter->vsi_res->vsi_id;
-		vimi->vecmap[v_idx].vector_id = v_idx + NONQ_VECS;
-		vimi->vecmap[v_idx].txq_map = q_vector->ring_mask;
-		vimi->vecmap[v_idx].rxq_map = q_vector->ring_mask;
+		q_vector = &adapter->q_vectors[v_idx];
+		vecmap = &vimi->vecmap[v_idx];
+
+		vecmap->vsi_id = adapter->vsi_res->vsi_id;
+		vecmap->vector_id = v_idx + NONQ_VECS;
+		vecmap->txq_map = q_vector->ring_mask;
+		vecmap->rxq_map = q_vector->ring_mask;
+		vecmap->rxitr_idx = I40E_RX_ITR;
+		vecmap->txitr_idx = I40E_TX_ITR;
 	}
 	/* Misc vector last - this is only for AdminQ messages */
-	vimi->vecmap[v_idx].vsi_id = adapter->vsi_res->vsi_id;
-	vimi->vecmap[v_idx].vector_id = 0;
-	vimi->vecmap[v_idx].txq_map = 0;
-	vimi->vecmap[v_idx].rxq_map = 0;
+	vecmap = &vimi->vecmap[v_idx];
+	vecmap->vsi_id = adapter->vsi_res->vsi_id;
+	vecmap->vector_id = 0;
+	vecmap->txq_map = 0;
+	vecmap->rxq_map = 0;
 
 	adapter->aq_required &= ~I40EVF_FLAG_AQ_MAP_VECTORS;
 	i40evf_send_pf_msg(adapter, VIRTCHNL_OP_CONFIG_IRQ_MAP,
