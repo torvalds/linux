@@ -191,8 +191,7 @@ out_unlock:
 	kfree(vxlan_work);
 }
 
-void mlx5e_vxlan_queue_work(struct mlx5e_priv *priv, sa_family_t sa_family,
-			    u16 port, int add)
+void mlx5e_vxlan_queue_work(struct mlx5e_priv *priv, u16 port, int add)
 {
 	struct mlx5e_vxlan_work *vxlan_work;
 
@@ -207,7 +206,6 @@ void mlx5e_vxlan_queue_work(struct mlx5e_priv *priv, sa_family_t sa_family,
 
 	vxlan_work->priv = priv;
 	vxlan_work->port = port;
-	vxlan_work->sa_family = sa_family;
 	queue_work(priv->wq, &vxlan_work->work);
 }
 
