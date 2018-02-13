@@ -1455,11 +1455,11 @@ static const struct regulator_desc rk809_reg[] = {
 		.owner = THIS_MODULE,
 	},
 	RK817_DESC_SWITCH(RK809_ID_SW1, "SWITCH_REG1", "vcc8",
-			  RK817_POWER_EN_REG(3), ENABLE_MASK(2),
-			  ENABLE_MASK(2), DISABLE_VAL(2)),
-	RK817_DESC_SWITCH(RK809_ID_SW2, "SWITCH_REG2", "vcc9",
 			  RK817_POWER_EN_REG(3), ENABLE_MASK(3),
 			  ENABLE_MASK(3), DISABLE_VAL(3)),
+	RK817_DESC_SWITCH(RK809_ID_SW2, "SWITCH_REG2", "vcc9",
+			  RK817_POWER_EN_REG(3), ENABLE_MASK(2),
+			  ENABLE_MASK(2), DISABLE_VAL(2)),
 };
 
 static int rk808_regulator_dt_parse_pdata(struct device *dev,
