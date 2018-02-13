@@ -629,6 +629,7 @@ static void __net_exit netfilter_net_exit(struct net *net)
 static struct pernet_operations netfilter_net_ops = {
 	.init = netfilter_net_init,
 	.exit = netfilter_net_exit,
+	.async = true,
 };
 
 int __init netfilter_init(void)
