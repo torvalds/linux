@@ -193,6 +193,9 @@ struct orangefs_inode_s {
 	sector_t last_failed_block_index_read;
 
 	unsigned long getattr_time;
+	int attr_valid;
+	kuid_t attr_uid;
+	kgid_t attr_gid;
 
 	DECLARE_HASHTABLE(xattr_cache, 4);
 };
@@ -345,7 +348,8 @@ struct inode *orangefs_new_inode(struct super_block *sb,
 			      dev_t dev,
 			      struct orangefs_object_kref *ref);
 
-int orangefs_setattr(struct dentry *dentry, struct iattr *iattr);
+int __orangefs_setattr(struct inode *, struct iattr *);
+int orangefs_setattr(struct dentry *, struct iattr *);
 
 int orangefs_getattr(const struct path *path, struct kstat *stat,
 		     u32 request_mask, unsigned int flags);
@@ -403,7 +407,7 @@ int orangefs_inode_getattr(struct inode *, int);
 
 int orangefs_inode_check_changed(struct inode *inode);
 
-int orangefs_inode_setattr(struct inode *inode, struct iattr *iattr);
+int orangefs_inode_setattr(struct inode *inode);
 
 bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op);
 

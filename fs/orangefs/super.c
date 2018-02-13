@@ -155,17 +155,8 @@ static void orangefs_destroy_inode(struct inode *inode)
 static int orangefs_write_inode(struct inode *inode,
 				struct writeback_control *wbc)
 {
-	struct iattr iattr;
 	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_write_inode\n");
-	iattr.ia_valid = ATTR_MODE | ATTR_UID | ATTR_GID | ATTR_ATIME |
-	    ATTR_ATIME_SET | ATTR_MTIME | ATTR_MTIME_SET | ATTR_CTIME;
-	iattr.ia_mode = inode->i_mode;
-	iattr.ia_uid = inode->i_uid;
-	iattr.ia_gid = inode->i_gid;
-	iattr.ia_atime = inode->i_atime;
-	iattr.ia_mtime = inode->i_mtime;
-	iattr.ia_ctime = inode->i_ctime;
-	return orangefs_inode_setattr(inode, &iattr);
+	return orangefs_inode_setattr(inode);
 }
 
 /*

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * (C) 2001 Clemson University and The University of Chicago
+ * Copyright 2018 Omnibond Systems, L.L.C.
  *
  * See COPYING in top-level directory.
  */
@@ -202,22 +203,31 @@ static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)
 	return ret;
 }
 
-/*
- * Change attributes of an object referenced by dentry.
- */
-int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
+int __orangefs_setattr(struct inode *inode, struct iattr *iattr)
 {
-	struct inode *inode = dentry->d_inode;
 	int ret;
 
-	gossip_debug(GOSSIP_INODE_DEBUG,
-		"%s: called on %pd\n",
-		__func__,
-		dentry);
-
-	ret = setattr_prepare(dentry, iattr);
-	if (ret)
-		goto out;
+	if (iattr->ia_valid & ATTR_MODE) {
+		if (iattr->ia_mode & (S_ISVTX)) {
+			if (is_root_handle(inode)) {
+				/*
+				 * allow sticky bit to be set on root (since
+				 * it shows up that way by default anyhow),
+				 * but don't show it to the server
+				 */
+				iattr->ia_mode -= S_ISVTX;
+			} else {
+				gossip_debug(GOSSIP_UTILS_DEBUG,
+					     "User attempted to set sticky bit on non-root directory; returning EINVAL.\n");
+				return -EINVAL;
+			}
+		}
+		if (iattr->ia_mode & (S_ISUID)) {
+			gossip_debug(GOSSIP_UTILS_DEBUG,
+				     "Attempting to set setuid bit (not supported); returning EINVAL.\n");
+			return -EINVAL;
+		}
+	}
 
 	if (iattr->ia_valid & ATTR_SIZE) {
 		ret = orangefs_setattr_size(inode, iattr);
@@ -225,7 +235,24 @@ int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
 			goto out;
 	}
 
+again:
+	spin_lock(&inode->i_lock);
+	if (ORANGEFS_I(inode)->attr_valid) {
+		if (uid_eq(ORANGEFS_I(inode)->attr_uid, current_fsuid()) &&
+		    gid_eq(ORANGEFS_I(inode)->attr_gid, current_fsgid())) {
+			ORANGEFS_I(inode)->attr_valid = iattr->ia_valid;
+		} else {
+			spin_unlock(&inode->i_lock);
+			write_inode_now(inode, 1);
+			goto again;
+		}
+	} else {
+		ORANGEFS_I(inode)->attr_valid = iattr->ia_valid;
+		ORANGEFS_I(inode)->attr_uid = current_fsuid();
+		ORANGEFS_I(inode)->attr_gid = current_fsgid();
+	}
 	setattr_copy(inode, iattr);
+	spin_unlock(&inode->i_lock);
 	mark_inode_dirty(inode);
 
 	if (iattr->ia_valid & ATTR_MODE)
@@ -234,7 +261,25 @@ int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
 
 	ret = 0;
 out:
-	gossip_debug(GOSSIP_INODE_DEBUG, "%s: ret:%d:\n", __func__, ret);
+	return ret;
+}
+
+/*
+ * Change attributes of an object referenced by dentry.
+ */
+int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
+{
+	int ret;
+	gossip_debug(GOSSIP_INODE_DEBUG, "__orangefs_setattr: called on %pd\n",
+	    dentry);
+	ret = setattr_prepare(dentry, iattr);
+	if (ret)
+	        goto out;
+	ret = __orangefs_setattr(d_inode(dentry), iattr);
+	sync_inode_metadata(d_inode(dentry), 1);
+out:
+	gossip_debug(GOSSIP_INODE_DEBUG, "orangefs_setattr: returning %d\n",
+	    ret);
 	return ret;
 }
 
@@ -300,7 +345,7 @@ int orangefs_update_time(struct inode *inode, struct timespec64 *time, int flags
 		iattr.ia_valid |= ATTR_CTIME;
 	if (flags & S_MTIME)
 		iattr.ia_valid |= ATTR_MTIME;
-	return orangefs_inode_setattr(inode, &iattr);
+	return __orangefs_setattr(inode, &iattr);
 }
 
 /* ORANGEFS2 implementation of VFS inode operations for files */
@@ -360,6 +405,7 @@ static int orangefs_set_inode(struct inode *inode, void *data)
 	struct orangefs_object_kref *ref = (struct orangefs_object_kref *) data;
 	ORANGEFS_I(inode)->refn.fs_id = ref->fs_id;
 	ORANGEFS_I(inode)->refn.khandle = ref->khandle;
+	ORANGEFS_I(inode)->attr_valid = 0;
 	hash_init(ORANGEFS_I(inode)->xattr_cache);
 	return 0;
 }
