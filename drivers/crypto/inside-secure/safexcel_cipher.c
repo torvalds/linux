@@ -446,7 +446,7 @@ static int safexcel_cipher_exit_inv(struct crypto_tfm *tfm)
 	if (!priv->ring[ring].need_dequeue)
 		safexcel_dequeue(priv, ring);
 
-	wait_for_completion_interruptible(&result.completion);
+	wait_for_completion(&result.completion);
 
 	if (result.error) {
 		dev_warn(priv->dev,
