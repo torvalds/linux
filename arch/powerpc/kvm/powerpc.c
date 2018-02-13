@@ -1345,7 +1345,7 @@ static int kvmppc_emulate_mmio_vsx_loadstore(struct kvm_vcpu *vcpu,
 int kvmppc_handle_load128_by2x64(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		unsigned int rt, int is_default_endian)
 {
-	enum emulation_result emulated;
+	enum emulation_result emulated = EMULATE_DONE;
 
 	while (vcpu->arch.mmio_vmx_copy_nums) {
 		emulated = __kvmppc_handle_load(run, vcpu, rt, 8,
