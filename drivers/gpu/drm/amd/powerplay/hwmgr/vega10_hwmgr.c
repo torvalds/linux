@@ -3165,10 +3165,10 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 		minimum_clocks.memoryClock = stable_pstate_mclk;
 	}
 
-	disable_mclk_switching_for_frame_lock = phm_cap_enabled(
-				    hwmgr->platform_descriptor.platformCaps,
-				    PHM_PlatformCaps_DisableMclkSwitchingForFrameLock);
-	disable_mclk_switching_for_vr = PP_CAP(PHM_PlatformCaps_DisableMclkSwitchForVR);
+	disable_mclk_switching_for_frame_lock =
+		PP_CAP(PHM_PlatformCaps_DisableMclkSwitchingForFrameLock);
+	disable_mclk_switching_for_vr =
+		PP_CAP(PHM_PlatformCaps_DisableMclkSwitchForVR);
 	force_mclk_high = PP_CAP(PHM_PlatformCaps_ForceMclkHigh);
 
 	disable_mclk_switching = (info.display_count > 1) ||
