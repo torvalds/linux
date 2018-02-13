@@ -381,7 +381,7 @@ static const match_table_t tokens = {
 	{Opt_skip_balance, "skip_balance"},
 	{Opt_check_integrity, "check_int"},
 	{Opt_check_integrity_including_extent_data, "check_int_data"},
-	{Opt_check_integrity_print_mask, "check_int_print_mask=%d"},
+	{Opt_check_integrity_print_mask, "check_int_print_mask=%u"},
 	{Opt_rescan_uuid_tree, "rescan_uuid_tree"},
 	{Opt_fatal_errors, "fatal_errors=%s"},
 	{Opt_commit_interval, "commit=%d"},
@@ -756,17 +756,11 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			break;
 		case Opt_check_integrity_print_mask:
 			ret = match_int(&args[0], &intarg);
-			if (ret) {
+			if (ret)
 				goto out;
-			} else if (intarg >= 0) {
-				info->check_integrity_print_mask = intarg;
-				btrfs_info(info,
-					   "check_integrity_print_mask 0x%x",
-					   info->check_integrity_print_mask);
-			} else {
-				ret = -EINVAL;
-				goto out;
-			}
+			info->check_integrity_print_mask = intarg;
+			btrfs_info(info, "check_integrity_print_mask 0x%x",
+				   info->check_integrity_print_mask);
 			break;
 #else
 		case Opt_check_integrity_including_extent_data:
