@@ -75,10 +75,6 @@
  */
 #define OMAP_TIMER_ERRATA_I103_I767			0x80000000
 
-struct omap_timer_capability_dev_attr {
-	u32 timer_capability;
-};
-
 struct timer_regs {
 	u32 tidr;
 	u32 tier;

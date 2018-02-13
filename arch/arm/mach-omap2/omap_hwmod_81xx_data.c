@@ -19,7 +19,6 @@
 
 #include <linux/platform_data/hsmmc-omap.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
-#include <plat/dmtimer.h>
 
 #include "omap_hwmod_common_data.h"
 #include "cm81xx.h"
@@ -648,15 +647,10 @@ static struct omap_hwmod_class dm816x_timer_hwmod_class = {
 	.sysc = &dm816x_timer_sysc,
 };
 
-static struct omap_timer_capability_dev_attr capability_alwon_dev_attr = {
-	.timer_capability	= OMAP_TIMER_ALWON,
-};
-
 static struct omap_hwmod dm814x_timer1_hwmod = {
 	.name		= "timer1",
 	.clkdm_name	= "alwon_l3s_clkdm",
 	.main_clk	= "timer1_fck",
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &dm816x_timer_hwmod_class,
 	.flags		= HWMOD_NO_IDLEST,
 };
@@ -678,7 +672,6 @@ static struct omap_hwmod dm816x_timer1_hwmod = {
 			.modulemode = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &dm816x_timer_hwmod_class,
 };
 
@@ -693,7 +686,6 @@ static struct omap_hwmod dm814x_timer2_hwmod = {
 	.name		= "timer2",
 	.clkdm_name	= "alwon_l3s_clkdm",
 	.main_clk	= "timer2_fck",
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &dm816x_timer_hwmod_class,
 	.flags		= HWMOD_NO_IDLEST,
 };
@@ -715,7 +707,6 @@ static struct omap_hwmod dm816x_timer2_hwmod = {
 			.modulemode = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &dm816x_timer_hwmod_class,
 };
 
@@ -736,7 +727,6 @@ static struct omap_hwmod dm816x_timer3_hwmod = {
 			.modulemode = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &dm816x_timer_hwmod_class,
 };
 
@@ -757,7 +747,6 @@ static struct omap_hwmod dm816x_timer4_hwmod = {
 			.modulemode = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &dm816x_timer_hwmod_class,
 };
 
@@ -778,7 +767,6 @@ static struct omap_hwmod dm816x_timer5_hwmod = {
 			.modulemode = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &dm816x_timer_hwmod_class,
 };
 
@@ -799,7 +787,6 @@ static struct omap_hwmod dm816x_timer6_hwmod = {
 			.modulemode = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &dm816x_timer_hwmod_class,
 };
 
@@ -820,7 +807,6 @@ static struct omap_hwmod dm816x_timer7_hwmod = {
 			.modulemode = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &dm816x_timer_hwmod_class,
 };
 
