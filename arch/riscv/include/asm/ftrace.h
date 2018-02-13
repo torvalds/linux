@@ -9,6 +9,7 @@
 #define HAVE_FUNCTION_GRAPH_FP_TEST
 #endif
 
+#define ARCH_SUPPORTS_FTRACE_OPS 1
 #ifndef __ASSEMBLY__
 void _mcount(void);
 static inline unsigned long ftrace_call_adjust(unsigned long addr)

@@ -74,9 +74,12 @@ ENTRY(ftrace_caller)
 	/*
 	 * a0: the address in the caller when calling ftrace_caller
 	 * a1: the caller's return address
+	 * a2: the address of global variable function_trace_op
 	 */
 	ld	a1, -8(s0)
 	addi	a0, ra, -MCOUNT_INSN_SIZE
+	la	t5, function_trace_op
+	ld	a2, 0(t5)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	/*
