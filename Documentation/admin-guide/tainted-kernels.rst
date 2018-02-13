@@ -6,34 +6,34 @@ counter. This indicates that the kernel has been tainted by some
 mechanism.  The string is followed by a series of position-sensitive
 characters, each representing a particular tainted value.
 
-  1) 'G' if all modules loaded have a GPL or compatible license, 'P' if
+ 1)  ``G`` if all modules loaded have a GPL or compatible license, ``P`` if
      any proprietary module has been loaded.  Modules without a
      MODULE_LICENSE or with a MODULE_LICENSE that is not recognised by
      insmod as GPL compatible are assumed to be proprietary.
 
-  2) ``F`` if any module was force loaded by ``insmod -f``, ``' '`` if all
+ 2)  ``F`` if any module was force loaded by ``insmod -f``, ``' '`` if all
      modules were loaded normally.
 
-  3) ``S`` if the oops occurred on an SMP kernel running on hardware that
+ 3)  ``S`` if the oops occurred on an SMP kernel running on hardware that
      hasn't been certified as safe to run multiprocessor.
      Currently this occurs only on various Athlons that are not
      SMP capable.
 
-  4) ``R`` if a module was force unloaded by ``rmmod -f``, ``' '`` if all
+ 4)  ``R`` if a module was force unloaded by ``rmmod -f``, ``' '`` if all
      modules were unloaded normally.
 
-  5) ``M`` if any processor has reported a Machine Check Exception,
+ 5)  ``M`` if any processor has reported a Machine Check Exception,
      ``' '`` if no Machine Check Exceptions have occurred.
 
-  6) ``B`` if a page-release function has found a bad page reference or
+ 6)  ``B`` if a page-release function has found a bad page reference or
      some unexpected page flags.
 
-  7) ``U`` if a user or user application specifically requested that the
+ 7)  ``U`` if a user or user application specifically requested that the
      Tainted flag be set, ``' '`` otherwise.
 
-  8) ``D`` if the kernel has died recently, i.e. there was an OOPS or BUG.
+ 8)  ``D`` if the kernel has died recently, i.e. there was an OOPS or BUG.
 
-  9) ``A`` if the ACPI table has been overridden.
+ 9)  ``A`` if the ACPI table has been overridden.
 
  10) ``W`` if a warning has previously been issued by the kernel.
      (Though some warnings may set more specific taint flags.)
