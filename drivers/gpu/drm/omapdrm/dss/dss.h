@@ -297,8 +297,8 @@ struct dss_device *dss_get_device(struct device *dev);
 int dss_runtime_get(struct dss_device *dss);
 void dss_runtime_put(struct dss_device *dss);
 
-unsigned long dss_get_dispc_clk_rate(void);
-unsigned long dss_get_max_fck_rate(void);
+unsigned long dss_get_dispc_clk_rate(struct dss_device *dss);
+unsigned long dss_get_max_fck_rate(struct dss_device *dss);
 enum omap_dss_output_id dss_get_supported_outputs(enum omap_channel channel);
 int dss_dpi_select_source(struct dss_device *dss, int port,
 			  enum omap_channel channel);
@@ -332,11 +332,11 @@ enum dss_clk_source dss_get_lcd_clk_source(struct dss_device *dss,
 void dss_set_venc_output(enum omap_dss_venc_type type);
 void dss_set_dac_pwrdn_bgz(bool enable);
 
-int dss_set_fck_rate(unsigned long rate);
+int dss_set_fck_rate(struct dss_device *dss, unsigned long rate);
 
 typedef bool (*dss_div_calc_func)(unsigned long fck, void *data);
-bool dss_div_calc(unsigned long pck, unsigned long fck_min,
-		dss_div_calc_func func, void *data);
+bool dss_div_calc(struct dss_device *dss, unsigned long pck,
+		  unsigned long fck_min, dss_div_calc_func func, void *data);
 
 /* SDI */
 #ifdef CONFIG_OMAP2_DSS_SDI

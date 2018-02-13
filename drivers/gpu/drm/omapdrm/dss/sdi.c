@@ -99,7 +99,8 @@ static int sdi_calc_clock_div(unsigned long pclk,
 			ctx.pck_min = 0;
 		ctx.pck_max = pclk + 1000 * i * i * i;
 
-		ok = dss_div_calc(pclk, ctx.pck_min, dpi_calc_dss_cb, &ctx);
+		ok = dss_div_calc(sdi.dss, pclk, ctx.pck_min,
+				  dpi_calc_dss_cb, &ctx);
 		if (ok) {
 			*fck = ctx.fck;
 			*dispc_cinfo = ctx.dispc_cinfo;
@@ -169,7 +170,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 
 	dss_mgr_set_timings(channel, vm);
 
-	r = dss_set_fck_rate(fck);
+	r = dss_set_fck_rate(sdi.dss, fck);
 	if (r)
 		goto err_set_dss_clock_div;
 

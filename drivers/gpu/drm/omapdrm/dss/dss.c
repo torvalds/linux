@@ -594,8 +594,8 @@ enum dss_clk_source dss_get_lcd_clk_source(struct dss_device *dss,
 	}
 }
 
-bool dss_div_calc(unsigned long pck, unsigned long fck_min,
-		dss_div_calc_func func, void *data)
+bool dss_div_calc(struct dss_device *dss, unsigned long pck,
+		  unsigned long fck_min, dss_div_calc_func func, void *data)
 {
 	int fckd, fckd_start, fckd_stop;
 	unsigned long fck;
@@ -604,24 +604,24 @@ bool dss_div_calc(unsigned long pck, unsigned long fck_min,
 	unsigned long prate;
 	unsigned int m;
 
-	fck_hw_max = dss.feat->fck_freq_max;
+	fck_hw_max = dss->feat->fck_freq_max;
 
-	if (dss.parent_clk == NULL) {
+	if (dss->parent_clk == NULL) {
 		unsigned int pckd;
 
 		pckd = fck_hw_max / pck;
 
 		fck = pck * pckd;
 
-		fck = clk_round_rate(dss.dss_clk, fck);
+		fck = clk_round_rate(dss->dss_clk, fck);
 
 		return func(fck, data);
 	}
 
-	fckd_hw_max = dss.feat->fck_div_max;
+	fckd_hw_max = dss->feat->fck_div_max;
 
-	m = dss.feat->dss_fck_multiplier;
-	prate = clk_get_rate(dss.parent_clk);
+	m = dss->feat->dss_fck_multiplier;
+	prate = clk_get_rate(dss->parent_clk);
 
 	fck_min = fck_min ? fck_min : 1;
 
@@ -638,33 +638,32 @@ bool dss_div_calc(unsigned long pck, unsigned long fck_min,
 	return false;
 }
 
-int dss_set_fck_rate(unsigned long rate)
+int dss_set_fck_rate(struct dss_device *dss, unsigned long rate)
 {
 	int r;
 
 	DSSDBG("set fck to %lu\n", rate);
 
-	r = clk_set_rate(dss.dss_clk, rate);
+	r = clk_set_rate(dss->dss_clk, rate);
 	if (r)
 		return r;
 
-	dss.dss_clk_rate = clk_get_rate(dss.dss_clk);
+	dss->dss_clk_rate = clk_get_rate(dss->dss_clk);
 
-	WARN_ONCE(dss.dss_clk_rate != rate,
-			"clk rate mismatch: %lu != %lu", dss.dss_clk_rate,
-			rate);
+	WARN_ONCE(dss->dss_clk_rate != rate, "clk rate mismatch: %lu != %lu",
+		  dss->dss_clk_rate, rate);
 
 	return 0;
 }
 
-unsigned long dss_get_dispc_clk_rate(void)
+unsigned long dss_get_dispc_clk_rate(struct dss_device *dss)
 {
-	return dss.dss_clk_rate;
+	return dss->dss_clk_rate;
 }
 
-unsigned long dss_get_max_fck_rate(void)
+unsigned long dss_get_max_fck_rate(struct dss_device *dss)
 {
-	return dss.feat->fck_freq_max;
+	return dss->feat->fck_freq_max;
 }
 
 enum omap_dss_output_id dss_get_supported_outputs(enum omap_channel channel)
@@ -691,7 +690,7 @@ static int dss_setup_default_clock(void)
 		fck = DIV_ROUND_UP(prate, fck_div) * dss.feat->dss_fck_multiplier;
 	}
 
-	r = dss_set_fck_rate(fck);
+	r = dss_set_fck_rate(&dss, fck);
 	if (r)
 		return r;
 

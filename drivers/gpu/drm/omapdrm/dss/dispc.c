@@ -3116,7 +3116,7 @@ static unsigned long dispc_fclk_rate(void)
 	src = dss_get_dispc_clk_source(dispc.dss);
 
 	if (src == DSS_CLK_SRC_FCK) {
-		r = dss_get_dispc_clk_rate();
+		r = dss_get_dispc_clk_rate(dispc.dss);
 	} else {
 		struct dss_pll *pll;
 		unsigned int clkout_idx;
@@ -3143,7 +3143,7 @@ static unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 	src = dss_get_lcd_clk_source(dispc.dss, channel);
 
 	if (src == DSS_CLK_SRC_FCK) {
-		r = dss_get_dispc_clk_rate();
+		r = dss_get_dispc_clk_rate(dispc.dss);
 	} else {
 		struct dss_pll *pll;
 		unsigned int clkout_idx;
@@ -3499,7 +3499,7 @@ bool dispc_div_calc(unsigned long dispc_freq,
 	pckd_hw_min = dispc.feat->min_pcd;
 	pckd_hw_max = 255;
 
-	lck_max = dss_get_max_fck_rate();
+	lck_max = dss_get_max_fck_rate(dispc.dss);
 
 	pck_min = pck_min ? pck_min : 1;
 	pck_max = pck_max ? pck_max : ULONG_MAX;
@@ -4460,7 +4460,7 @@ static void dispc_errata_i734_wa(void)
 
 	/* Set up and enable display manager for LCD1 */
 	dispc_mgr_setup(OMAP_DSS_CHANNEL_LCD, &i734.mgri);
-	dispc_calc_clock_rates(dss_get_dispc_clk_rate(),
+	dispc_calc_clock_rates(dss_get_dispc_clk_rate(dispc.dss),
 			       &lcd_conf.clock_info);
 	dispc_mgr_set_lcd_config(OMAP_DSS_CHANNEL_LCD, &lcd_conf);
 	dispc_mgr_set_timings(OMAP_DSS_CHANNEL_LCD, &i734.vm);

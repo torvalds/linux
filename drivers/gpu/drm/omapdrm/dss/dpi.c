@@ -207,7 +207,7 @@ static bool dpi_calc_pll_cb(int n, int m, unsigned long fint,
 	ctx->pll_cinfo.clkdco = clkdco;
 
 	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco,
-		ctx->pck_min, dss_get_max_fck_rate(),
+		ctx->pck_min, dss_get_max_fck_rate(ctx->pll->dss),
 		dpi_calc_hsdiv_cb, ctx);
 }
 
@@ -256,7 +256,8 @@ static bool dpi_pll_clk_calc(struct dpi_data *dpi, unsigned long pck,
 	}
 }
 
-static bool dpi_dss_clk_calc(unsigned long pck, struct dpi_clk_calc_ctx *ctx)
+static bool dpi_dss_clk_calc(struct dpi_data *dpi, unsigned long pck,
+			     struct dpi_clk_calc_ctx *ctx)
 {
 	int i;
 
@@ -277,7 +278,8 @@ static bool dpi_dss_clk_calc(unsigned long pck, struct dpi_clk_calc_ctx *ctx)
 			ctx->pck_min = 0;
 		ctx->pck_max = pck + 1000 * i * i * i;
 
-		ok = dss_div_calc(pck, ctx->pck_min, dpi_calc_dss_cb, ctx);
+		ok = dss_div_calc(dpi->dss, pck, ctx->pck_min,
+				  dpi_calc_dss_cb, ctx);
 		if (ok)
 			return ok;
 	}
@@ -321,11 +323,11 @@ static int dpi_set_dispc_clk(struct dpi_data *dpi, unsigned long pck_req,
 	int r;
 	bool ok;
 
-	ok = dpi_dss_clk_calc(pck_req, &ctx);
+	ok = dpi_dss_clk_calc(dpi, pck_req, &ctx);
 	if (!ok)
 		return -EINVAL;
 
-	r = dss_set_fck_rate(ctx.fck);
+	r = dss_set_fck_rate(dpi->dss, ctx.fck);
 	if (r)
 		return r;
 
@@ -530,7 +532,7 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 
 		fck = ctx.pll_cinfo.clkout[ctx.clkout_idx];
 	} else {
-		ok = dpi_dss_clk_calc(vm->pixelclock, &ctx);
+		ok = dpi_dss_clk_calc(dpi, vm->pixelclock, &ctx);
 		if (!ok)
 			return -EINVAL;
 
