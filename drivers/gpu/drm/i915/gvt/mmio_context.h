@@ -49,4 +49,6 @@ void intel_gvt_switch_mmio(struct intel_vgpu *pre,
 
 void intel_gvt_init_engine_mmio_context(struct intel_gvt *gvt);
 
+bool is_inhibit_context(struct i915_gem_context *ctx, int ring_id);
+
 #endif

@@ -295,6 +295,16 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 
 #define CTX_CONTEXT_CONTROL_VAL	0x03
 
+bool is_inhibit_context(struct i915_gem_context *ctx, int ring_id)
+{
+	u32 *reg_state = ctx->engine[ring_id].lrc_reg_state;
+	u32 inhibit_mask =
+		_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
+
+	return inhibit_mask ==
+		(reg_state[CTX_CONTEXT_CONTROL_VAL] & inhibit_mask);
+}
+
 /* Switch ring mmio values (context). */
 static void switch_mmio(struct intel_vgpu *pre,
 			struct intel_vgpu *next,
@@ -302,9 +312,6 @@ static void switch_mmio(struct intel_vgpu *pre,
 {
 	struct drm_i915_private *dev_priv;
 	struct intel_vgpu_submission *s;
-	u32 *reg_state, ctx_ctrl;
-	u32 inhibit_mask =
-		_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
 	struct engine_mmio *mmio;
 	u32 old_v, new_v;
 
@@ -329,16 +336,13 @@ static void switch_mmio(struct intel_vgpu *pre,
 		// restore
 		if (next) {
 			s = &next->submission;
-			reg_state =
-				s->shadow_ctx->engine[ring_id].lrc_reg_state;
-			ctx_ctrl = reg_state[CTX_CONTEXT_CONTROL_VAL];
 			/*
-			 * if it is an inhibit context, load in_context mmio
-			 * into HW by mmio write. If it is not, skip this mmio
-			 * write.
+			 * No need to restore the mmio which is in context state
+			 * image if it's not inhibit context, it will restore
+			 * itself.
 			 */
 			if (mmio->in_context &&
-			    (ctx_ctrl & inhibit_mask) != inhibit_mask)
+			    !is_inhibit_context(s->shadow_ctx, ring_id))
 				continue;
 
 			if (mmio->mask)
