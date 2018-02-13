@@ -1898,6 +1898,9 @@ int snd_emu10k1_create(struct snd_card *card,
 		err = -ENOMEM;
 		goto error;
 	}
+	dev_dbg(card->dev, "page table address range is %.8lx:%.8lx\n",
+		(unsigned long)emu->ptb_pages.addr,
+		(unsigned long)(emu->ptb_pages.addr + emu->ptb_pages.bytes));
 
 	emu->page_ptr_table = vmalloc(emu->max_cache_pages * sizeof(void *));
 	emu->page_addr_table = vmalloc(emu->max_cache_pages *
@@ -1912,6 +1915,11 @@ int snd_emu10k1_create(struct snd_card *card,
 		err = -ENOMEM;
 		goto error;
 	}
+	dev_dbg(card->dev, "silent page range is %.8lx:%.8lx\n",
+		(unsigned long)emu->silent_page.addr,
+		(unsigned long)(emu->silent_page.addr +
+				emu->silent_page.bytes));
+
 	emu->memhdr = snd_util_memhdr_new(emu->max_cache_pages * PAGE_SIZE);
 	if (emu->memhdr == NULL) {
 		err = -ENOMEM;

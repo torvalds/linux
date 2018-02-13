@@ -34,7 +34,10 @@
  * aligned pages in others
  */
 #define __set_ptb_entry(emu,page,addr) \
-	(((u32 *)(emu)->ptb_pages.area)[page] = cpu_to_le32(((addr) << (emu->address_mode)) | (page)))
+	(((__le32 *)(emu)->ptb_pages.area)[page] = \
+	 cpu_to_le32(((addr) << (emu->address_mode)) | (page)))
+#define __get_ptb_entry(emu, page) \
+	(le32_to_cpu(((__le32 *)(emu)->ptb_pages.area)[page]))
 
 #define UNIT_PAGES		(PAGE_SIZE / EMUPAGESIZE)
 #define MAX_ALIGN_PAGES0		(MAXPAGES0 / UNIT_PAGES)
@@ -44,8 +47,7 @@
 /* get offset address from aligned page */
 #define aligned_page_offset(page)	((page) << PAGE_SHIFT)
 
-#if PAGE_SIZE == 4096
-/* page size == EMUPAGESIZE */
+#if PAGE_SIZE == EMUPAGESIZE && !IS_ENABLED(CONFIG_DYNAMIC_DEBUG)
 /* fill PTB entrie(s) corresponding to page with addr */
 #define set_ptb_entry(emu,page,addr)	__set_ptb_entry(emu,page,addr)
 /* fill PTB entrie(s) corresponding to page with silence pointer */
@@ -58,6 +60,8 @@ static inline void set_ptb_entry(struct snd_emu10k1 *emu, int page, dma_addr_t a
 	page *= UNIT_PAGES;
 	for (i = 0; i < UNIT_PAGES; i++, page++) {
 		__set_ptb_entry(emu, page, addr);
+		dev_dbg(emu->card->dev, "mapped page %d to entry %.8x\n", page,
+			(unsigned int)__get_ptb_entry(emu, page));
 		addr += EMUPAGESIZE;
 	}
 }
@@ -65,9 +69,12 @@ static inline void set_silent_ptb(struct snd_emu10k1 *emu, int page)
 {
 	int i;
 	page *= UNIT_PAGES;
-	for (i = 0; i < UNIT_PAGES; i++, page++)
+	for (i = 0; i < UNIT_PAGES; i++, page++) {
 		/* do not increment ptr */
 		__set_ptb_entry(emu, page, emu->silent_page.addr);
+		dev_dbg(emu->card->dev, "mapped silent page %d to entry %.8x\n",
+			page, (unsigned int)__get_ptb_entry(emu, page));
+	}
 }
 #endif /* PAGE_SIZE */
 
