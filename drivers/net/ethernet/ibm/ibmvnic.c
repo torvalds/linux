@@ -1460,14 +1460,14 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 		return 0;
 	}
 
-	netif_carrier_on(netdev);
-
 	/* kick napi */
 	for (i = 0; i < adapter->req_rx_queues; i++)
 		napi_schedule(&adapter->napi[i]);
 
 	if (adapter->reset_reason != VNIC_RESET_FAILOVER)
 		netdev_notify_peers(netdev);
+
+	netif_carrier_on(netdev);
 
 	return 0;
 }
