@@ -361,7 +361,7 @@ static const match_table_t tokens = {
 	{Opt_norecovery, "norecovery"},
 	{Opt_flushoncommit, "flushoncommit"},
 	{Opt_noflushoncommit, "noflushoncommit"},
-	{Opt_ratio, "metadata_ratio=%d"},
+	{Opt_ratio, "metadata_ratio=%u"},
 	{Opt_discard, "discard"},
 	{Opt_nodiscard, "nodiscard"},
 	{Opt_space_cache, "space_cache"},
@@ -657,16 +657,11 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			break;
 		case Opt_ratio:
 			ret = match_int(&args[0], &intarg);
-			if (ret) {
+			if (ret)
 				goto out;
-			} else if (intarg >= 0) {
-				info->metadata_ratio = intarg;
-				btrfs_info(info, "metadata ratio %d",
-					   info->metadata_ratio);
-			} else {
-				ret = -EINVAL;
-				goto out;
-			}
+			info->metadata_ratio = intarg;
+			btrfs_info(info, "metadata ratio %u",
+				   info->metadata_ratio);
 			break;
 		case Opt_discard:
 			btrfs_set_and_info(info, DISCARD,
@@ -1339,8 +1334,7 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 				info->check_integrity_print_mask);
 #endif
 	if (info->metadata_ratio)
-		seq_printf(seq, ",metadata_ratio=%d",
-				info->metadata_ratio);
+		seq_printf(seq, ",metadata_ratio=%u", info->metadata_ratio);
 	if (btrfs_test_opt(info, PANIC_ON_FATAL_ERROR))
 		seq_puts(seq, ",fatal_errors=panic");
 	if (info->commit_interval != BTRFS_DEFAULT_COMMIT_INTERVAL)
