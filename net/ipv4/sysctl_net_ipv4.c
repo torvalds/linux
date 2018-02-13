@@ -1219,6 +1219,7 @@ static __net_exit void ipv4_sysctl_exit_net(struct net *net)
 static __net_initdata struct pernet_operations ipv4_sysctl_ops = {
 	.init = ipv4_sysctl_init_net,
 	.exit = ipv4_sysctl_exit_net,
+	.async = true,
 };
 
 static __init int sysctl_ipv4_init(void)
