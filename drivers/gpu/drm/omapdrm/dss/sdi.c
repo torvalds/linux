@@ -31,6 +31,7 @@
 
 static struct {
 	struct platform_device *pdev;
+	struct dss_device *dss;
 
 	bool update_enabled;
 	struct regulator *vdds_sdi_reg;
@@ -187,8 +188,8 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	 */
 	dispc_mgr_set_clock_div(channel, &sdi.mgr_config.clock_info);
 
-	dss_sdi_init(sdi.datapairs);
-	r = dss_sdi_enable();
+	dss_sdi_init(sdi.dss, sdi.datapairs);
+	r = dss_sdi_enable(sdi.dss);
 	if (r)
 		goto err_sdi_enable;
 	mdelay(2);
@@ -200,7 +201,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	return 0;
 
 err_mgr_enable:
-	dss_sdi_disable();
+	dss_sdi_disable(sdi.dss);
 err_sdi_enable:
 err_set_dss_clock_div:
 err_calc_clock_div:
@@ -217,7 +218,7 @@ static void sdi_display_disable(struct omap_dss_device *dssdev)
 
 	dss_mgr_disable(channel);
 
-	dss_sdi_disable();
+	dss_sdi_disable(sdi.dss);
 
 	dispc_runtime_put();
 
@@ -345,7 +346,8 @@ static void sdi_uninit_output(struct platform_device *pdev)
 	omapdss_unregister_output(out);
 }
 
-int sdi_init_port(struct platform_device *pdev, struct device_node *port)
+int sdi_init_port(struct dss_device *dss, struct platform_device *pdev,
+		  struct device_node *port)
 {
 	struct device_node *ep;
 	u32 datapairs;
@@ -362,6 +364,7 @@ int sdi_init_port(struct platform_device *pdev, struct device_node *port)
 	}
 
 	sdi.datapairs = datapairs;
+	sdi.dss = dss;
 
 	of_node_put(ep);
 

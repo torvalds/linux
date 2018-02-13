@@ -312,9 +312,9 @@ void dss_video_pll_uninit(struct dss_pll *pll);
 
 void dss_ctrl_pll_enable(struct dss_pll *pll, bool enable);
 
-void dss_sdi_init(int datapairs);
-int dss_sdi_enable(void);
-void dss_sdi_disable(void);
+void dss_sdi_init(struct dss_device *dss, int datapairs);
+int dss_sdi_enable(struct dss_device *dss);
+void dss_sdi_disable(struct dss_device *dss);
 
 void dss_select_dsi_clk_source(int dsi_module,
 		enum dss_clk_source clk_src);
@@ -335,11 +335,13 @@ bool dss_div_calc(unsigned long pck, unsigned long fck_min,
 
 /* SDI */
 #ifdef CONFIG_OMAP2_DSS_SDI
-int sdi_init_port(struct platform_device *pdev, struct device_node *port);
+int sdi_init_port(struct dss_device *dss, struct platform_device *pdev,
+		  struct device_node *port);
 void sdi_uninit_port(struct device_node *port);
 #else
-static inline int sdi_init_port(struct platform_device *pdev,
-		struct device_node *port)
+static inline int sdi_init_port(struct dss_device *dss,
+				struct platform_device *pdev,
+				struct device_node *port)
 {
 	return 0;
 }

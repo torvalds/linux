@@ -248,7 +248,7 @@ static int dss_ctrl_pll_set_control_mux(enum dss_clk_source clk_src,
 	return 0;
 }
 
-void dss_sdi_init(int datapairs)
+void dss_sdi_init(struct dss_device *dss, int datapairs)
 {
 	u32 l;
 
@@ -267,7 +267,7 @@ void dss_sdi_init(int datapairs)
 	dss_write_reg(DSS_PLL_CONTROL, l);
 }
 
-int dss_sdi_enable(void)
+int dss_sdi_enable(struct dss_device *dss)
 {
 	unsigned long timeout;
 
@@ -325,7 +325,7 @@ int dss_sdi_enable(void)
 	return -ETIMEDOUT;
 }
 
-void dss_sdi_disable(void)
+void dss_sdi_disable(struct dss_device *dss)
 {
 	dispc_lcd_enable_signal(0);
 
@@ -1150,7 +1150,7 @@ static int dss_init_ports(struct platform_device *pdev)
 			dpi_init_port(pdev, port, dss.feat->model);
 			break;
 		case OMAP_DISPLAY_TYPE_SDI:
-			sdi_init_port(pdev, port);
+			sdi_init_port(&dss, pdev, port);
 			break;
 		default:
 			break;
