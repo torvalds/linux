@@ -793,7 +793,7 @@ static struct mlxsw_sp_vr *mlxsw_sp_vr_create(struct mlxsw_sp *mlxsw_sp,
 
 	vr = mlxsw_sp_vr_find_unused(mlxsw_sp);
 	if (!vr) {
-		NL_SET_ERR_MSG(extack, "spectrum: Exceeded number of supported virtual routers");
+		NL_SET_ERR_MSG_MOD(extack, "Exceeded number of supported virtual routers");
 		return ERR_PTR(-EBUSY);
 	}
 	vr->fib4 = mlxsw_sp_fib_create(mlxsw_sp, vr, MLXSW_SP_L3_PROTO_IPV4);
@@ -5796,7 +5796,7 @@ static int mlxsw_sp_router_fib_rule_event(unsigned long event,
 	}
 
 	if (err < 0)
-		NL_SET_ERR_MSG(extack, "spectrum: FIB rules not supported. Aborting offload");
+		NL_SET_ERR_MSG_MOD(extack, "FIB rules not supported. Aborting offload");
 
 	return err;
 }
@@ -6035,7 +6035,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 
 	err = mlxsw_sp_rif_index_alloc(mlxsw_sp, &rif_index);
 	if (err) {
-		NL_SET_ERR_MSG(extack, "spectrum: Exceeded number of supported router interfaces");
+		NL_SET_ERR_MSG_MOD(extack, "Exceeded number of supported router interfaces");
 		goto err_rif_index_alloc;
 	}
 

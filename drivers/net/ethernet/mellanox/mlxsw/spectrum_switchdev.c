@@ -1819,7 +1819,7 @@ mlxsw_sp_bridge_8021q_port_join(struct mlxsw_sp_bridge_device *bridge_device,
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 
 	if (is_vlan_dev(bridge_port->dev)) {
-		NL_SET_ERR_MSG(extack, "spectrum: Can not enslave a VLAN device to a VLAN-aware bridge");
+		NL_SET_ERR_MSG_MOD(extack, "Can not enslave a VLAN device to a VLAN-aware bridge");
 		return -EINVAL;
 	}
 
@@ -1885,7 +1885,7 @@ mlxsw_sp_bridge_8021d_port_join(struct mlxsw_sp_bridge_device *bridge_device,
 	u16 vid;
 
 	if (!is_vlan_dev(bridge_port->dev)) {
-		NL_SET_ERR_MSG(extack, "spectrum: Only VLAN devices can be enslaved to a VLAN-unaware bridge");
+		NL_SET_ERR_MSG_MOD(extack, "Only VLAN devices can be enslaved to a VLAN-unaware bridge");
 		return -EINVAL;
 	}
 	vid = vlan_dev_vlan_id(bridge_port->dev);
@@ -1895,7 +1895,7 @@ mlxsw_sp_bridge_8021d_port_join(struct mlxsw_sp_bridge_device *bridge_device,
 		return -EINVAL;
 
 	if (mlxsw_sp_port_is_br_member(mlxsw_sp_port, bridge_device->dev)) {
-		NL_SET_ERR_MSG(extack, "spectrum: Can not bridge VLAN uppers of the same port");
+		NL_SET_ERR_MSG_MOD(extack, "Can not bridge VLAN uppers of the same port");
 		return -EINVAL;
 	}
 

@@ -4236,13 +4236,11 @@ mlxsw_sp_master_lag_check(struct mlxsw_sp *mlxsw_sp,
 	u16 lag_id;
 
 	if (mlxsw_sp_lag_index_get(mlxsw_sp, lag_dev, &lag_id) != 0) {
-		NL_SET_ERR_MSG(extack,
-			       "spectrum: Exceeded number of supported LAG devices");
+		NL_SET_ERR_MSG_MOD(extack, "Exceeded number of supported LAG devices");
 		return false;
 	}
 	if (lag_upper_info->tx_type != NETDEV_LAG_TX_TYPE_HASH) {
-		NL_SET_ERR_MSG(extack,
-			       "spectrum: LAG device using unsupported Tx type");
+		NL_SET_ERR_MSG_MOD(extack, "LAG device using unsupported Tx type");
 		return false;
 	}
 	return true;
@@ -4484,8 +4482,7 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 		    !netif_is_lag_master(upper_dev) &&
 		    !netif_is_bridge_master(upper_dev) &&
 		    !netif_is_ovs_master(upper_dev)) {
-			NL_SET_ERR_MSG(extack,
-				       "spectrum: Unknown upper device type");
+			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
 			return -EINVAL;
 		}
 		if (!info->linking)
@@ -4494,8 +4491,7 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 		    (!netif_is_bridge_master(upper_dev) ||
 		     !mlxsw_sp_bridge_device_is_offloaded(mlxsw_sp,
 							  upper_dev))) {
-			NL_SET_ERR_MSG(extack,
-				       "spectrum: Enslaving a port to a device that already has an upper device is not supported");
+			NL_SET_ERR_MSG_MOD(extack, "Enslaving a port to a device that already has an upper device is not supported");
 			return -EINVAL;
 		}
 		if (netif_is_lag_master(upper_dev) &&
@@ -4503,24 +4499,20 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 					       info->upper_info, extack))
 			return -EINVAL;
 		if (netif_is_lag_master(upper_dev) && vlan_uses_dev(dev)) {
-			NL_SET_ERR_MSG(extack,
-				       "spectrum: Master device is a LAG master and this device has a VLAN");
+			NL_SET_ERR_MSG_MOD(extack, "Master device is a LAG master and this device has a VLAN");
 			return -EINVAL;
 		}
 		if (netif_is_lag_port(dev) && is_vlan_dev(upper_dev) &&
 		    !netif_is_lag_master(vlan_dev_real_dev(upper_dev))) {
-			NL_SET_ERR_MSG(extack,
-				       "spectrum: Can not put a VLAN on a LAG port");
+			NL_SET_ERR_MSG_MOD(extack, "Can not put a VLAN on a LAG port");
 			return -EINVAL;
 		}
 		if (netif_is_ovs_master(upper_dev) && vlan_uses_dev(dev)) {
-			NL_SET_ERR_MSG(extack,
-				       "spectrum: Master device is an OVS master and this device has a VLAN");
+			NL_SET_ERR_MSG_MOD(extack, "Master device is an OVS master and this device has a VLAN");
 			return -EINVAL;
 		}
 		if (netif_is_ovs_port(dev) && is_vlan_dev(upper_dev)) {
-			NL_SET_ERR_MSG(extack,
-				       "spectrum: Can not put a VLAN on an OVS port");
+			NL_SET_ERR_MSG_MOD(extack, "Can not put a VLAN on an OVS port");
 			return -EINVAL;
 		}
 		break;
@@ -4633,7 +4625,7 @@ static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 	case NETDEV_PRECHANGEUPPER:
 		upper_dev = info->upper_dev;
 		if (!netif_is_bridge_master(upper_dev)) {
-			NL_SET_ERR_MSG(extack, "spectrum: VLAN devices only support bridge and VRF uppers");
+			NL_SET_ERR_MSG_MOD(extack, "VLAN devices only support bridge and VRF uppers");
 			return -EINVAL;
 		}
 		if (!info->linking)
@@ -4642,7 +4634,7 @@ static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 		    (!netif_is_bridge_master(upper_dev) ||
 		     !mlxsw_sp_bridge_device_is_offloaded(mlxsw_sp,
 							  upper_dev))) {
-			NL_SET_ERR_MSG(extack, "spectrum: Enslaving a port to a device that already has an upper device is not supported");
+			NL_SET_ERR_MSG_MOD(extack, "Enslaving a port to a device that already has an upper device is not supported");
 			return -EINVAL;
 		}
 		break;
