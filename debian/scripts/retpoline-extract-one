@@ -1,0 +1,270 @@
+#!/bin/bash
+
+exec </dev/null
+
+object="$1"
+src="$2"
+bit16="$3"
+
+SECTION=".discard.retpoline_safe"
+
+# Form an associative lookup for the symbol numbers in the ELF symbol table.
+# Uses 8 character 0 expanded hexadecimal key for ease of consumption.
+__symbolmap_init()
+{
+	readelf -W --syms "$1" |
+		awk '($4 == "SECTION" && $1 ~ /^[0-9]*:/) { printf("%08x %08x\n", int($1), int($7)); }' | \
+	while read symbol_num section_num
+	do
+		echo "symbolmap_$symbol_num='$section_num'"
+	done
+}
+symbolmap_init()
+{
+	eval $(__symbolmap_init "$1")
+}
+symbolmap()
+{
+	eval RET="\$symbolmap_$1"
+	if [ "$RET" = '' ]; then
+		echo "symbolmap: $1: invalid section" 1>&2
+		exit 1
+	fi
+}
+
+# Form an associative lookup for the section numbers in the ELF symbol table.
+# Uses 8 character 0 expanded hexadecimal key for ease of consumption.
+__sectionmap_init()
+{
+	readelf -W --headers "$1" | \
+		awk '
+						{ sub("\\[", ""); sub("\\]", ""); }
+                        ($1 ~ /^[0-9][0-9]*/)   { printf("%08x %s %s %s\n", int($1), $2, $3, $4); }
+		' | \
+	{
+		while read section_num section_name section_type section_vma
+		do
+			echo "sectionmap_$section_num='$section_name'"
+			echo "sectionvma_$section_num='$section_vma'"
+			case "$section_type" in
+			REL|RELA) section_relocation="$section_type" ;;
+			esac
+		done
+		echo "section_relocation='$section_relocation'"
+	}
+}
+sectionmap_init()
+{
+	eval $(__sectionmap_init "$1")
+}
+sectionmap()
+{
+	eval RET="\$sectionmap_$1"
+	if [ "$RET" = '' ]; then
+		echo "sectionmap: $1: invalid section" 1>&2
+		exit 1
+	fi
+}
+sectionvma()
+{
+	eval RET="\$sectionvma_$1"
+	if [ "$RET" = '' ]; then
+		echo "sectionvma: $1: invalid section" 1>&2
+		exit 1
+	fi
+}
+
+# Read and parse the hex-dump output.
+hex="[0-9a-f]"
+hex_8="$hex$hex$hex$hex$hex$hex$hex$hex"
+hexspc="[0-9a-f ]"
+hexspc_8="$hexspc$hexspc$hexspc$hexspc$hexspc$hexspc$hexspc$hexspc"
+
+raw32()
+{
+	readelf --hex-dump "$2" "$1" 2>/dev/null |
+	sed \
+		-e '/^Hex/d' -e '/^$/d' -e '/^ *NOTE/d' \
+		-e 's/  *[^ ][^ ]*  *\('"$hex_8"'\) \('"$hexspc_8"'\) \('"$hexspc_8"'\) \('"$hexspc_8"'\) .*/\1 \2 \3 \4 /' \
+		-e 's/\('"$hex$hex"'\)\('"$hex$hex"'\)\('"$hex$hex"'\)\('"$hex$hex"'\) /\4\3\2\1 /g' \
+		-e 's/ $//g' -e 's/ /\n/g'
+}
+#-e 's/\([^ ][^ ][^ ][^ ][^ ][^ ][^ ][^ ]\) \([^ ][^ ][^ ][^ ][^ ][^ ][^ ][^ ]\) /\2\1 /g' \
+
+rela()
+{
+	#file="$(basename "$1")"
+	file="$1"
+
+	# Read relocation information for a 64bit binary.  Each relocation entry
+	# is 3 long longs so we collect 6 quads here.  Note that the dump is in
+	# listed in increasing byte order not withstanding the quad split.
+	#
+	# The record says to take the value of <symbol> add <symbol offset> and
+	# shove that into <write offset> in the segment of the <symbol>.
+	#
+	# Format:
+	#  <write offset>	64 bits
+	#  <symbol number>	32 bits
+	#  <relocation type>	32 bits
+	#  <symbol offset>	64 bits
+	raw32 "$1" ".rela$SECTION" | \
+	{
+		a1=''; a2=''; a3=''; a4=''; a5=''
+		while read a6
+		do
+			[ "$a1" = '' ] && { a1="$a6"; continue; }
+			[ "$a2" = '' ] && { a2="$a6"; continue; }
+			[ "$a3" = '' ] && { a3="$a6"; continue; }
+			[ "$a4" = '' ] && { a4="$a6"; continue; }
+			[ "$a5" = '' ] && { a5="$a6"; continue; }
+
+			#echo ">$a1< >$a2< >$a3< >$a4< >$a5< >$a6<" 1>&2
+			#echo "type<$a3> symbol<$a4> offset<$a2$a1> addr<$a6a5>" 1>&2
+
+			symbolmap "$a4"; section_num="$RET"
+			#echo "section_num<$section_num>" 1>&2
+
+			sectionmap "$section_num"; section="$RET"
+			sectionvma "$section_num"; vma="$RET"
+			#echo "section<$section> vma<$vma>" 1>&2
+
+			# Adjust the segment addressing by the segment offset.
+			printf -v addr "%u" "0x$a6$a5"
+			printf -v vma "%u" "0x$vma"
+			let offset="$addr + $vma"
+			printf -v offset "%x" "$offset"
+
+			echo "$file-$section-$offset"
+
+			a1=''; a2=''; a3=''; a4=''; a5=''
+		done
+	} | sed -e 's/-00*\([0-9a-f]\)/-\1/'
+}
+
+# Form an associative lookup for the raw contents for an ELF section.
+# Uses 8 character 0 expanded hexadecimal key for ease of consumption.
+contentmap_init()
+{
+	raw32 "$1" "$2" >"$tmp"
+	let offset=0
+	while read value
+	do
+		printf -v offset_hex "%08x" $offset
+		eval contentmap_$offset_hex=\'$value\'
+
+		let offset="$offset + 4"
+	done <"$tmp"
+	rm -f "$tmp"
+}
+contentmap()
+{
+	eval RET="\$contentmap_$1"
+	if [ "$RET" = '' ]; then
+		echo "contentmap: $1: invalid offset" 1>&2
+		exit 1
+	fi
+}
+
+rel()
+{
+	# Load up the current contents of the $SECTION segment
+	# as the offsets (see below) are recorded there and we will need
+	# those to calculate the actuall address.
+	contentmap_init "$1" "$SECTION"
+
+	#file="$(basename "$1")"
+	file="$1"
+
+	# Read relocation information for a 32bit binary.  Each relocation entry
+	# is 3 longs so we collect 3 quads here.  Note that the dump is in
+	# listed in increasing byte order not withstanding the quad split.
+	#
+	# The record says to take the value of <symbol> and add that to the
+	# existing contents of <write offset> in the segment of the <symbol>.
+	#
+	# Format:
+	#  <write offset>	32 bits
+	#  <symbol number>	24 bits
+	#  <relocation type>	 8 bits
+	raw32 "$1" ".rel$SECTION" | \
+	{
+		a1=''
+		while read a2
+		do
+			[ "$a1" = '' ] && { a1="$a2"; continue; }
+
+			#echo ">$a1< >$a2<"
+			contentmap "$a1"; offset="$RET"
+			symbolmap "00${a2%??}"; section_num="$RET"
+
+			sectionmap "$section_num"; section="$RET"
+			sectionvma "$section_num"; vma="$RET"
+			#echo ">$a1< >$a2< >$offset< >$section<"
+
+			echo "$file-$section-$offset"
+
+			a1=''
+		done
+	} | sed -e 's/-00*\([0-9a-f]\)/-\1/'
+}
+
+tmp=$(mktemp --tmpdir "retpoline-extract-XXXXXX")
+
+disassemble()
+{
+	local object="$1"
+	local src="$2"
+	local options="$3"
+	local selector="$4"
+
+	objdump $options --disassemble --no-show-raw-insn "$object" | \
+	awk -F' ' '
+		BEGIN				{ file="'"$object"'"; src="'"$src"'"; }
+		/Disassembly of section/        { segment=$4; sub(":", "", segment); }
+		/^[0-9a-f][0-9a-f]* <.*>:/      { tag=$0; sub(".*<", "", tag); sub(">.*", "", tag); }
+		$0 ~ /(call|jmp)q?  *\*0x[0-9a-f]*\(%rip\)/ {
+			next
+		}
+		$0 ~ /(call|jmp)q?  *\*.*%/ {
+			sub(":", "", $1);
+			if ('"$selector"') {
+				offset=$1
+				$1=tag
+				print(file "-" segment "-" offset " " src " " segment " " $0);
+			}
+		}
+	'
+}
+
+# Accumulate potentially vunerable indirect call/jmp sequences.  We do this
+# by examining the raw disassembly for affected forms, recording the location
+# of each.
+case "$bit16" in
+'')	disassemble "$object" "$src" '' 'segment != ".init.text"' ;;
+*)	disassemble "$object" "$src" '--disassembler-options=i8086' 'segment != ".init.text" && segment != ".text32" && segment != ".text64"'
+	disassemble "$object" "$src" '--disassembler-options=i386' 'segment == ".text32"'
+	disassemble "$object" "$src" '--disassembler-options=x86-64' 'segment == ".text64"'
+	;;
+esac | sort -k 1b,1 >"$object.ur-detected"
+[ ! -s "$object.ur-detected" ] && rm -f "$object.ur-detected"
+
+# Load up the symbol table and section mappings.
+symbolmap_init "$object"
+sectionmap_init "$object"
+
+# Accumulate annotated safe indirect call/jmp sequences.  We do this by examining
+# the $SECTION sections (and their associated relocation information),
+# each entry represents the address of an instruction which has been marked
+# as ok.
+case "$section_relocation" in
+REL)	rel "$object" ;;
+RELA)	rela "$object" ;;
+esac | sort -k 1b,1 >"$object.ur-safe"
+[ ! -s "$object.ur-safe" ] && rm -f "$object.ur-safe"
+
+# We will perform the below join on the summarised and sorted fragments
+# formed above.  This is performed in retpoline-check.
+#join -v 1 -j 1 "$tmp.extracted" "$tmp.safe" | sed -s 's/[^ ]*  *//'
+
+rm -f "$tmp"

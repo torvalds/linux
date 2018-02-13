@@ -1,0 +1,56 @@
+#!/bin/bash
+
+if [ "$#" -ne 1 ]; then
+	echo "Usage: $0 <pocket>" 1>&2
+	exit 1
+fi
+pocket="$1"
+
+case "$pocket" in
+proposed)			pocket_list="-$pocket -updates -release" ;;
+updates|security)		pocket_list="-$pocket -release" ;;
+release)			pocket_list="-release" ;;
+*)
+	echo "$0: $pocket: unknown archive pocket" 1>&2
+	exit 1
+	;;
+esac
+
+# find our changelog.
+debian=$(awk -F= '($1 == "DEBIAN") { print $2 }' <debian/debian.env)
+
+# identify the current series
+series=$(dpkg-parsechangelog -l"$debian/changelog" -SDistribution)
+if [ "$series" = "UNRELEASED" ]; then
+	series=$(dpkg-parsechangelog -l"$debian/changelog" -c1 -o1 -SDistribution)
+fi
+
+# Determine if we have any updates.
+: >"debian/dkms-versions.new"
+while read package version
+do
+	for pocket_raw in $pocket_list
+	do
+		pocket="${pocket_raw#-release}"
+		read x x pocket_version x <<EOL
+$(rmadison -a source -s "$series$pocket" $package)
+EOL
+		[ "$pocket_version" != '' ] && break
+	done
+	if [ "$pocket_version" = '' ]; then
+		echo "$0: $package: no version found in $pocket_list" 1>&2
+		exit 1
+	else
+		echo "$package: $pocket_version found in $pocket_raw"
+	fi
+	if [ "$version" != "$pocket_version" ]; then
+		echo "$package: updated to $pocket_version"
+	fi
+	echo "$package $pocket_version" >>"debian/dkms-versions.new"
+done <"debian/dkms-versions"
+if ! cmp -s "debian/dkms-versions.new" "debian/dkms-versions"; then
+	mv -f "debian/dkms-versions.new" "debian/dkms-versions"
+	git commit -a -s -m "UBUNTU: update dkms package versions"
+else
+	rm -f "debian/dkms-versions.new"
+fi

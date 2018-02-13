@@ -35,14 +35,22 @@ include $(DROOT)/rules.d/1-maintainer.mk
 
 do_linux_tools=$(sort $(filter-out false,$(do_tools_usbip) $(do_tools_cpupower) $(do_tools_perf) $(do_tools_x86)))
 do_cloud_tools=$(sort $(filter-out false,$(do_tools_hyperv)))
-do_tools_common=true
+do_tools_common?=true
+do_tools_host?=false
 
 # Don't build tools or udebs in a cross compile environment.
 ifneq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
 	do_tools=false
 	disable_d_i=true
 	do_zfs=false
-	do_zfs_disable:=$(shell cat $(DROOT)/zfs-modules.ignore >>$(prev_abidir)/../modules.ignore)
+endif
+
+# Are any of the kernel signing options enabled.
+any_signed=$(sort $(filter-out false,$(uefi_signed) $(opal_signed)))
+ifeq ($(any_signed),true)
+bin_pkg_name=$(bin_pkg_name_unsigned)
+else
+bin_pkg_name=$(bin_pkg_name_signed)
 endif
 
 # Stages -- support both DEB_STAGE=stage1 and DEB_BUILD_PROFILE=bootstrap
@@ -66,6 +74,9 @@ ifeq ($(do_mainline_build),true)
 	do_tools=false
 	no_dumpfile=1
 	do_zfs=false
+	skipabi=true
+	skipmodule=true
+	skipretpoline=true
 endif
 
 # Disable tools build and packaging if do_tools != true
@@ -73,6 +84,11 @@ ifneq ($(do_tools),true)
 	do_linux_tools=
 	do_cloud_tools=
 	do_tools_common=
+	do_tools_host=
+endif
+
+ifeq ($(do_zfs),false)
+	do_zfs_disable:=$(shell cat $(DROOT)/zfs-modules.ignore >>$(prev_abidir)/../modules.ignore)
 endif
 
 # Either tools package needs the common source preparation
@@ -80,9 +96,14 @@ do_any_tools=$(sort $(filter-out false,$(do_linux_tools) $(do_cloud_tools)))
 
 # autopkgtest -- rebuild support
 #  only build the first flavour on the assumption it is representative
-ifeq ($(DEB_BUILD_PROFILE),autopkgtest)
+ifneq ($(filter autopkgtest,$(DEB_BUILD_PROFILES)),)
 flavours := $(firstword $(flavours))
+disable_d_i=true
 endif
+
+# Versions of dkms packages.
+dkms_zfs_linux_version=$(shell gawk '/^zfs-linux / { print $$2; }' debian/dkms-versions)
+dkms_spl_linux_version=$(shell gawk '/^spl-linux / { print $$2; }' debian/dkms-versions)
 
 # Debian Build System targets
 binary: binary-indep binary-arch
@@ -112,6 +133,9 @@ clean: debian/control
 	# Install the copyright information.
 	cp $(DEBIAN)/copyright debian/copyright
 
+	# Install the retpoline extractor.
+	cp $(DROOT)/scripts/retpoline-extract-one scripts/ubuntu-retpoline-extract-one
+
 	# If we have a reconstruct script use it.
 	[ -f $(DEBIAN)/reconstruct ] && bash $(DEBIAN)/reconstruct
 
@@ -120,7 +144,8 @@ clean: debian/control
 
 distclean: clean
 	rm -rf $(DROOT)/control debian/changelog \
-		debian/control debian/control.stub debian/copyright
+		debian/control debian/control.stub debian/copyright \
+		scripts/ubuntu-retpoline-extract-one
 
 # Builds the image, arch headers and debug packages
 include $(DROOT)/rules.d/2-binary-arch.mk
@@ -146,17 +171,19 @@ $(DEBIAN)/control.stub: 				\
 	  cat $$i | sed -e 's/PKGVER/$(release)/g'                              \
 	        -e 's/ABINUM/$(abinum)/g'                                       \
 		-e 's/SRCPKGNAME/$(src_pkg_name)/g'                             \
-		-e 's/=HUMAN=/$(human_arch)/g'                                    \
+		-e 's/=HUMAN=/$(human_arch)/g'                                  \
+		-e 's/=SERIES=/$(series)/g'                                     \
 	  > $$new;								\
 	done
 	flavours="$(sort $(wildcard $(DEBIAN)/control.d/vars.* $(DEBIAN)/sub-flavours/*.vars))";\
 	for i in $$flavours; do							\
-	  $(SHELL) $(DROOT)/scripts/control-create $$i |				\
+	  $(SHELL) $(DROOT)/scripts/control-create $$i "$(any_signed)" |	\
 		sed -e 's/PKGVER/$(release)/g'                                  \
 		-e 's/ABINUM/$(abinum)/g'                                       \
 		-e 's/SRCPKGNAME/$(src_pkg_name)/g'                             \
-		-e 's/=HUMAN=/$(human_arch)/g'                                    \
-		>> $(DEBIAN)/control.stub;						\
+		-e 's/=HUMAN=/$(human_arch)/g'                                  \
+		-e 's/=SERIES=/$(series)/g'                                     \
+		>> $(DEBIAN)/control.stub;                                      \
 	done
 
 .PHONY: debian/control

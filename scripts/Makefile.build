@@ -247,6 +247,12 @@ cmd_gen_ksymdeps = \
 	$(CONFIG_SHELL) $(srctree)/scripts/gen_ksymdeps.sh $@ >> $(dot-target).cmd
 endif
 
+ifdef CONFIG_RETPOLINE
+cmd_ubuntu_retpoline = $(CONFIG_SHELL) $(srctree)/scripts/ubuntu-retpoline-extract-one $(@) $(<) "$(filter -m16 %code16gcc.h,$(a_flags))";
+else
+cmd_ubuntu_retpoline =
+endif
+
 define rule_cc_o_c
 	$(call cmd,checksrc)
 	$(call cmd_and_fixdep,cc_o_c)
@@ -254,6 +260,7 @@ define rule_cc_o_c
 	$(call cmd,checkdoc)
 	$(call cmd,objtool)
 	$(call cmd,modversions_c)
+	$(call cmd,ubuntu-retpoline)
 	$(call cmd,record_mcount)
 endef
 
@@ -262,6 +269,7 @@ define rule_as_o_S
 	$(call cmd,gen_ksymdeps)
 	$(call cmd,objtool)
 	$(call cmd,modversions_S)
+	$(call cmd,ubuntu-retpoline)
 endef
 
 # List module undefined symbols (or empty line if not enabled)

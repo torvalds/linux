@@ -1,0 +1,129 @@
+#!/bin/bash -e
+#
+# This script is intended as a helper when rebasing from its master branch.
+#
+
+LOCAL_BRANCH=
+RELEASE_REPO=
+SOURCE_RELEASE_BRANCH=
+
+function out()
+{
+	local rc="${?}"
+	trap - EXIT INT TERM HUP
+	[ "${rc}" -eq 0 ] || echo "Error: Script failed"
+	exit "${rc}"
+}
+
+trap out EXIT INT TERM HUP
+
+if [ -f debian/debian.env ]; then
+	source debian/debian.env
+fi
+
+if [ ! -d "${DEBIAN}" ]; then
+	echo You must run this script from the top directory of this repository.
+	exit 1
+fi
+
+CONF="${DEBIAN}"/etc/update.conf
+if [ -f "${CONF}" ]; then
+	source "${CONF}"
+fi
+
+usage="$0 [-r RELEASE_REPO] [ -b REMOTE_BRANCH ] [-l LOCAL_BRANCH] [-d]"$'\n\n'
+usage+="-r RELEASE_REPO		Git repository to fetch the reference branch from."$'\n'
+usage+="-b REMOTE_BRANCH	Remote branch to fetch from."$'\n'
+usage+="-l LOCAL_BRANCH		Use LOCAL_BRANCH as the reference branch."$'\n'
+usage+="-d 			Dry run (do not rebase)."
+
+#
+# command line options:
+# [-r RELEASE_REPO]  - override default git repository.
+# [-b REMOTE_BRANCH] - override default remote branch.
+# [-l LOCAL_BRANCH]  - do not fetch from remote repo, use a local branch.
+
+while getopts "r:b:l:d" opt; do
+	case $opt in
+	r ) RELEASE_REPO="$OPTARG" ;;
+	b ) SOURCE_RELEASE_BRANCH="$OPTARG" ;;
+	l ) LOCAL_BRANCH="$OPTARG" ;;
+	d ) DRY_RUN=1 ;;
+	\? ) echo "usage: ${usage}"; exit ;;
+	esac
+done
+shift $((OPTIND - 1))
+
+if [ -z "${LOCAL_BRANCH}" ]; then
+	if [ -z "${RELEASE_REPO}" ] || [ -z "${SOURCE_RELEASE_BRANCH}" ]; then
+		echo Missing update.conf or missing parameters for remote repo and branch.
+		exit 1
+	fi
+	#
+	# Fetch the upstream branch.
+	#
+	git fetch "${RELEASE_REPO}"
+	git fetch "${RELEASE_REPO}" "${SOURCE_RELEASE_BRANCH}"
+	LOCAL_BRANCH=FETCH_HEAD
+fi
+
+if [ "$DEBIAN" = "debian.master" ]; then
+	echo "This is a master kernel, no rebase should be needed, please report if otherwise"
+	exit 0
+fi
+
+if [ "$DEBIAN_MASTER" = "" ]; then
+	echo "DEBIAN_MASTER should be defined either in ${DEBIAN}/etc/update.conf or the environment"
+	exit 1
+fi
+
+#
+# Find the most recent tag on given upstream branch, then
+# rebase against it. This avoids the case where there have been some
+# commits since the last official tag.
+#
+MASTER_COMMIT=$(git log --pretty=one "${LOCAL_BRANCH}" "${DEBIAN_MASTER}" | \
+    awk '
+	/Ubuntu-/ {
+		if (match($0, /UBUNTU: Ubuntu-/)) {
+				print $1
+				exit
+                        }
+                }
+        '
+)
+#
+# Find the current merge point where current branch was based.
+#
+BASE_COMMIT=$(git log --pretty=one "${DEBIAN_MASTER}" | \
+    awk '
+	/Ubuntu-/ {
+		if (match($0, /UBUNTU: Ubuntu-/)) {
+				print $1
+				exit
+                        }
+                }
+        '
+)
+if [ "${MASTER_COMMIT}" = "${BASE_COMMIT}" ]; then
+	echo Already up to date.
+	exit 0
+fi
+
+if [ -z "${MASTER_COMMIT}" ] || [ -z "${BASE_COMMIT}" ]; then
+	echo "Could not find either master or base commit."
+	echo "master commit: ${MASTER_COMMIT}"
+	echo "base commit: ${BASE_COMMIT}"
+	exit 1
+fi
+
+MASTER_VERSION=$(git show --format=%s -s "$MASTER_COMMIT" | sed 's/^UBUNTU: //')
+BASE_VERSION=$(git show --format=%s -s "$BASE_COMMIT" | sed 's/^UBUNTU: //')
+echo "Rebase still needed between $BASE_VERSION and $MASTER_VERSION."
+
+if [ "${DRY_RUN}" ]; then
+	echo "DRY RUN: git rebase --onto ${MASTER_COMMIT} ${BASE_COMMIT}"
+	exit 0
+fi
+
+git rebase --onto "${MASTER_COMMIT}" "${BASE_COMMIT}"

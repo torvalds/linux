@@ -18,12 +18,14 @@ do-binary-udebs: debian/control
 	imagelist=$$(cat $(CURDIR)/$(DEBIAN)/d-i/kernel-versions | grep ^${arch} | gawk '{print $$3}') && \
 	for f in $$imagelist; do \
 	  i=$(release)-$(abinum)-$$f; \
-	  dpkg -x $$(ls ../linux-image-$$i\_$(release)-$(revision)_${arch}.deb) \
-		debian/d-i-${arch}; \
-	  if [ -f ../linux-image-extra-$$i\_$(release)-$(revision)_${arch}.deb ] ; then \
-	    dpkg -x ../linux-image-extra-$$i\_$(release)-$(revision)_${arch}.deb \
-		  debian/d-i-${arch}; \
-	  fi; \
+          for f in \
+		../linux-image-$$i\_$(release)-$(revision)_${arch}.deb \
+		../linux-image-unsigned-$$i\_$(release)-$(revision)_${arch}.deb \
+		../linux-modules-$$i\_$(release)-$(revision)_${arch}.deb \
+		../linux-modules-extra-$$i\_$(release)-$(revision)_${arch}.deb; \
+	  do \
+		  [ -f $$f ] && dpkg -x $$f debian/d-i-${arch}; \
+	  done; \
 	  /sbin/depmod -b debian/d-i-${arch} $$i; \
 	done
 

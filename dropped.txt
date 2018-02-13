@@ -1,4 +1,5 @@
 This is the list of patches/features which have been temporarily
-reverted or disabled for Q:
+reverted or disabled for DD:
 
-UBUNTU: SAUCE: AppArmor: basic networking rules
+tools/hv/lsvmbus -- convert to python3 (mostly upstream now)
+bpf, arm32: fix stack var offset in jit

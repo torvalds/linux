@@ -1,0 +1,12 @@
+# retpoline v1.0
+arch/x86/pci/pcbios.c .text pci_bios_read lcall *(%esi)
+arch/x86/pci/pcbios.c .text pci_bios_read lcall *(%esi)
+arch/x86/pci/pcbios.c .text pci_bios_write lcall *(%esi)
+arch/x86/pci/pcbios.c .text pcibios_get_irq_routing_table lcall *(%esi)
+arch/x86/pci/pcbios.c .text pcibios_set_irq_routing lcall *(%esi)
+arch/x86/power/hibernate_asm_32.S .text done jmp *%ebx
+arch/x86/power/hibernate_asm_32.S .text restore_image jmp *%eax
+drivers/video/fbdev/uvesafb.c .text uvesafb_pan_display call *(%edi)
+drivers/video/fbdev/uvesafb.c .text uvesafb_setpalette.isra.10 call *(%esi)
+drivers/video/fbdev/vesafb.c .text vesafb_pan_display call *(%edi)
+drivers/video/fbdev/vesafb.c .text vesafb_setcolreg call *(%esi)

@@ -1,6 +1,12 @@
 #!/bin/bash
 
+export LC_ALL=C.UTF-8
+
+if [ "$#" = "1" ]; then
+	set - $(echo "$1" | sed -e 's/-/ /')
+fi
 if [ "$#" != "2" ]; then
+	echo "Usage: $0 <version>" 1>&2
 	echo "Usage: $0 <release> <revision>" 1>&2
 	exit 1
 fi
@@ -26,7 +32,7 @@ fwinfo=$abidir/fwinfo
 test -d $tmpdir || mkdir $tmpdir
 
 package_prefixes() {
-	__package_prefixes="$@"
+	: # no longer used ...
 }
 
 getall() {
@@ -37,41 +43,82 @@ getall() {
 
 	for sub in $@; do
 		if [ -f $abidir/$arch/$sub ]; then
-			echo "Exists: $sub"
+			echo "Existing $sub($arch)..."
 			continue
 		fi
-		echo -n "Fetching $sub($arch)..."
-		prefixes=""
+		echo "Fetching $sub($arch)..."
+		getall_set "linux-buildinfo" "$arch" "$sub" || \
+		getall_set "linux-image-unsigned linux-modules linux-modules-extra" "$arch" "$sub" || \
+		getall_set "linux-image-unsigned linux-modules" "$arch" "$sub" || \
+		getall_set "linux-image linux-modules linux-modules-extra" "$arch" "$sub" || \
+		getall_set "linux-image linux-modules" "$arch" "$sub" || \
+		getall_set "linux-image linux-image-extra" "$arch" "$sub" || \
+		getall_set "linux-image" "$arch" "$sub" || \
+		{ echo "FAILED"; exit 1; }
+	done
+}
+getall_set()
+{
+	prefixes="$1"
+	arch="$2"
+	sub="$3"
+	(
+		echo -n "  set:"
 		filenames=""
 		cd $tmpdir
-		for prefix in $__package_prefixes
+		found=1
+		for prefix in $prefixes
 		do
+			echo -n " $prefix="
+			if [ "$found" = 0 ]; then
+				echo -n "-"
+				continue
+			fi
 			filename=${prefix}-${verabi}-${sub}_${verfull}_${arch}.deb
 			for r in "${repo_list[@]}"
 			do
 				if ! [ -f $filename ]; then
 					$WGET $r/$filename
+					rc="$?"
+					# If this was not successful or a valid error
+					# return from the server all bets are off, bail.
+					[ "$rc" != 0 -a "$rc" != 8 ] && return 1
 				fi
 				if [ -f $filename ]; then
-					prefixes="$prefixes $prefix"
+					echo -n "y"
 					filenames="$filenames $filename"
 					break
 				fi
 			done
+			if [ ! -f "$filename" ]; then
+				echo -n "n"
+				found=0
+			fi
 		done
-		if [ "$filenames" != "" ]; then
-			echo -n "extracting$prefixes..."
-			for filename in $filenames
-			do
-				dpkg-deb --extract $filename tmp
-			done
+		echo ""
+		if [ "$found" = 0 ]; then
+			return 1
+		fi
+		echo "  extracting..."
+		for filename in $filenames
+		do
+			dpkg-deb --extract $filename tmp
+		done
+		# FORM 1: linux-image et al extracted here.
+		if [ -d tmp/boot ]; then
+			echo "  images..."
 			find tmp -name "*.ko" | while read f; do
 				modinfo $f | grep ^firmware >> $fwinfo
 			done
 			if [ -f tmp/boot/abi-* ]; then
 				mv tmp/boot/abi-* $abidir/$arch/$sub
 			else
-				echo -n "NO ABI FILE..."
+				echo "    NO ABI FILE"
+			fi
+			if [ -f tmp/boot/retpoline-* ]; then
+				mv tmp/boot/retpoline-* $abidir/$arch/$sub.retpoline
+			else
+				echo "    NO RETPOLINE FILE"
 			fi
 			(cd tmp; find lib/modules/$verabi-$sub/kernel -name '*.ko') | \
 				sed -e 's/.*\/\([^\/]*\)\.ko/\1/' | sort > \
@@ -91,15 +138,23 @@ getall() {
 						print ""
 					}' | sort -u >$abidir/$arch/$sub.compiler
 				version=`cat $abidir/$arch/$sub.compiler`
-				echo -n "$version..."
+				echo "    $version"
 			)
-			rm -rf tmp $filenames
-			echo "done."
+		# FORM 2: moduleinfo packages
+		# cranky-fix -- modinfo supported
 		else
-			echo "FAILED."
+			echo "  buildinfo..."
+			base="tmp/usr/lib/linux/${verabi}-${sub}"
+			mv "$base/abi" "$abidir/$arch/$sub"
+			for comp in 'modules' 'retpoline' 'compiler'
+			do
+				mv "$base/$comp" "$abidir/$arch/$sub.$comp"
+			done
+			cat "$base/fwinfo" >>"$fwinfo"
 		fi
-		cd $origdir
-	done
+		rm -rf tmp $filenames
+		echo "  done"
+	)
 }
 
 # MAIN
@@ -110,8 +165,6 @@ echo $abi > $abidir/abiname
 
 # NOTE: The flavours are hardcoded, because they may have changed from the
 # current build.
-
-__package_prefixes="linux-image"
 
 . $DEBIAN/etc/getabis
 

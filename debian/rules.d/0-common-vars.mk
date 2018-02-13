@@ -6,6 +6,9 @@ comma = ,
 #
 src_pkg_name=$(shell sed -n '1s/^\(.*\) (.*).*$$/\1/p' $(DEBIAN)/changelog)
 
+# Get the series
+series=$(shell dpkg-parsechangelog -l$(DEBIAN)/changelog | sed -ne 's/^Distribution: *//p' | sed -e 's/-\(security\|updates\|proposed\)$$//')
+
 # Get some version info
 release := $(shell sed -n '1s/^$(src_pkg_name).*(\(.*\)-.*).*$$/\1/p' $(DEBIAN)/changelog)
 revisions := $(shell sed -n 's/^$(src_pkg_name)\ .*($(release)-\(.*\)).*$$/\1/p' $(DEBIAN)/changelog | tac)
@@ -14,6 +17,12 @@ prev_revisions := $(filter-out $(revision),0.0 $(revisions))
 prev_revision := $(word $(words $(prev_revisions)),$(prev_revisions))
 
 prev_fullver ?= $(shell dpkg-parsechangelog -l$(DEBIAN)/changelog -o1 -c1 | sed -ne 's/^Version: *//p')
+
+# Get upstream version info
+upstream_version := $(shell sed -n 's/^VERSION = \(.*\)$$/\1/p' Makefile)
+upstream_patchlevel := $(shell sed -n 's/^PATCHLEVEL = \(.*\)$$/\1/p' Makefile)
+upstream_extraversion := $(shell sed -n 's/^EXTRAVERSION = \(.*\)$$/\1/p' Makefile)
+upstream_tag := "v$(upstream_version).$(upstream_patchlevel)$(upstream_extraversion)"
 
 family=ubuntu
 
@@ -30,6 +39,7 @@ AUTOBUILD=
 ifneq ($(AUTOBUILD),)
 skipabi		= true
 skipmodule	= true
+skipretpoline	= true
 skipdbg		= true
 gitver=$(shell if test -f .git/HEAD; then cat .git/HEAD; else uuidgen; fi)
 gitverpre=$(shell echo $(gitver) | cut -b -3)
@@ -123,8 +133,11 @@ stampdir	:= $(CURDIR)/debian/stamps
 # are places that you'll find linux-image hard coded, but I guess thats OK since the
 # assumption that the binary package always starts with linux-image will never change.
 #
-bin_pkg_name=linux-image-$(abi_release)
-extra_pkg_name=linux-image-extra-$(abi_release)
+bin_pkg_name_signed=linux-image-$(abi_release)
+bin_pkg_name_unsigned=linux-image-unsigned-$(abi_release)
+mods_pkg_name=linux-modules-$(abi_release)
+mods_extra_pkg_name=linux-modules-extra-$(abi_release)
+bldinfo_pkg_name=linux-buildinfo-$(abi_release)
 hdrs_pkg_name=linux-headers-$(abi_release)
 indep_hdrs_pkg_name=$(src_pkg_name)-headers-$(abi_release)
 
@@ -177,6 +190,7 @@ tools_flavour_pkg_name=linux-tools-$(abi_release)
 cloud_pkg_name=$(src_pkg_name)-cloud-tools-$(abi_release)
 cloud_common_pkg_name=$(src_pkg_name)-cloud-tools-common
 cloud_flavour_pkg_name=linux-cloud-tools-$(abi_release)
+hosttools_pkg_name=$(src_pkg_name)-tools-host
 
 # The general flavour specific image package.
 do_flavour_image_package=true
@@ -226,7 +240,7 @@ kmake = make ARCH=$(build_arch) \
 	LOCALVERSION= localver-extra= \
 	CFLAGS_MODULE="-DPKG_ABI=$(abinum)"
 ifneq ($(LOCAL_ENV_CC),)
-kmake += CC=$(LOCAL_ENV_CC) DISTCC_HOSTS=$(LOCAL_ENV_DISTCC_HOSTS)
+kmake += CC="$(LOCAL_ENV_CC)" DISTCC_HOSTS="$(LOCAL_ENV_DISTCC_HOSTS)"
 endif
 
 # Locking is required in parallel builds to prevent loss of contents

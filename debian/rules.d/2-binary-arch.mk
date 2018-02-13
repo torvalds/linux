@@ -29,7 +29,7 @@ $(stampdir)/stamp-prepare-tree-%: $(commonconfdir)/config.common.$(family) $(arc
 		rsync -a --exclude debian --exclude debian.master --exclude $(DEBIAN) * $(builddir)/build-$*
 	cat $^ | sed -e 's/.*CONFIG_VERSION_SIGNATURE.*/CONFIG_VERSION_SIGNATURE="Ubuntu $(release)-$(revision)-$* $(raw_kernelversion)"/' > $(builddir)/build-$*/.config
 	find $(builddir)/build-$* -name "*.ko" | xargs rm -f
-	$(build_cd) $(kmake) $(build_O) -j1 silentoldconfig prepare scripts
+	$(build_cd) $(kmake) $(build_O) -j1 syncconfig prepare scripts
 	touch $@
 
 # Used by developers as a shortcut to prepare a tree for compilation.
@@ -39,54 +39,47 @@ prepare-%: $(stampdir)/stamp-prepare-%
 build-%: $(stampdir)/stamp-build-%
 	@echo Debug: $@
 
-define build_zfs =
-	#
-	# SPL/ZFS wants a fully built kernel before you can configure and build.
-	# It seems to be impossible to tease out the application configuration
-	# from the modules, but at least one can build just the modules.
-	#
-	install -d $(builddir)/build-$*/spl
-	rsync -a --exclude=dkms.conf --delete spl/ $(builddir)/build-$*/spl/
-	cd $(builddir)/build-$*/spl; sh autogen.sh; sh configure $(splopts)
-	$(kmake) -C $(builddir)/build-$*/spl/module $(conc_level)
-
-	install -d $(builddir)/build-$*/zfs
-	rsync -a --exclude=dkms.conf --delete zfs/ $(builddir)/build-$*/zfs/
-	cd $(builddir)/build-$*/zfs; sh autogen.sh; sh configure $(zfsopts)
-	$(kmake) -C $(builddir)/build-$*/zfs/module $(conc_level)
-endef
-
 # Do the actual build, including image and modules
 $(stampdir)/stamp-build-%: target_flavour = $*
-$(stampdir)/stamp-build-%: splopts  = --with-linux=$(CURDIR)
-$(stampdir)/stamp-build-%: splopts += --with-linux-obj=$(builddir)/build-$*
-$(stampdir)/stamp-build-%: zfsopts  = $(splopts)
-$(stampdir)/stamp-build-%: zfsopts += --with-spl=$(builddir)/build-$*/spl
-$(stampdir)/stamp-build-%: zfsopts += --with-spl-obj=$(builddir)/build-$*/spl
-$(stampdir)/stamp-build-%: zfsopts += --prefix=/usr --with-config=kernel
 $(stampdir)/stamp-build-%: bldimg = $(call custom_override,build_image,$*)
-$(stampdir)/stamp-build-%: enable_zfs = $(call custom_override,do_zfs,$*)
 $(stampdir)/stamp-build-%: $(stampdir)/stamp-prepare-%
 	@echo Debug: $@ build_image $(build_image) bldimg $(bldimg)
 	$(build_cd) $(kmake) $(build_O) $(conc_level) $(bldimg) modules $(if $(filter true,$(do_dtbs)),dtbs)
 
-	$(if $(filter true,$(enable_zfs)),$(call build_zfs))
-
 	@touch $@
 
-define install_zfs =
-	cd $(builddir)/build-$*/spl/module; \
-		$(kmake) -C $(builddir)/build-$* SUBDIRS=`pwd` modules_install $(splopts)
-	cd $(builddir)/build-$*/zfs/module; \
-		$(kmake) -C $(builddir)/build-$* SUBDIRS=`pwd` modules_install $(zfsopts)
+define build_dkms_sign =
+	$(shell set -x; if grep -q CONFIG_MODULE_SIG=y $(1)/.config; then
+			echo $(1)/scripts/sign-file $(MODHASHALGO) $(MODSECKEY) $(MODPUBKEY);
+		else
+			echo "-";
+		fi
+	)
+endef
+define build_dkms =
+	$(SHELL) $(DROOT)/scripts/dkms-build $(dkms_dir) $(abi_release)-$* '$(call build_dkms_sign,$(builddir)/build-$*)' $(1) $(2) $(3) $(4)
+endef
+
+define install_control =
+	for which in $(3);							\
+	do									\
+		template="$(DROOT)/templates/$(2).$$which.in";			\
+		script="$(DROOT)/$(1).$$which";					\
+		sed -e 's/@abiname@/$(abi_release)/g'				\
+		    -e 's/@localversion@/-$*/g'					\
+		    -e 's/@image-stem@/$(instfile)/g'				\
+			<"$$template" >"$$script";				\
+	done
 endef
 
 # Install the finished build
-install-%: pkgdir = $(CURDIR)/debian/$(bin_pkg_name)-$*
-install-%: pkgdir_ex = $(CURDIR)/debian/$(extra_pkg_name)-$*
+install-%: pkgdir_bin = $(CURDIR)/debian/$(bin_pkg_name)-$*
+install-%: pkgdir = $(CURDIR)/debian/$(mods_pkg_name)-$*
+install-%: pkgdir_ex = $(CURDIR)/debian/$(mods_extra_pkg_name)-$*
+install-%: pkgdir_bldinfo = $(CURDIR)/debian/$(bldinfo_pkg_name)-$*
 install-%: bindoc = $(pkgdir)/usr/share/doc/$(bin_pkg_name)-$*
 install-%: dbgpkgdir = $(CURDIR)/debian/$(bin_pkg_name)-$*-dbgsym
-install-%: signed = $(CURDIR)/debian/$(bin_pkg_name)-signed
+install-%: signingv = $(CURDIR)/debian/$(bin_pkg_name)-signing/$(release)-$(revision)
 install-%: toolspkgdir = $(CURDIR)/debian/$(tools_flavour_pkg_name)-$*
 install-%: cloudpkgdir = $(CURDIR)/debian/$(cloud_flavour_pkg_name)-$*
 install-%: basepkg = $(hdrs_pkg_name)
@@ -99,20 +92,17 @@ install-%: MODHASHALGO=sha512
 install-%: MODSECKEY=$(builddir)/build-$*/certs/signing_key.pem
 install-%: MODPUBKEY=$(builddir)/build-$*/certs/signing_key.x509
 install-%: build_dir=$(builddir)/build-$*
+install-%: dkms_dir=$(builddir)/build-$*/dkms
 install-%: enable_zfs = $(call custom_override,do_zfs,$*)
-install-%: splopts  = INSTALL_MOD_STRIP=1
-install-%: splopts += INSTALL_MOD_PATH=$(pkgdir)/
-install-%: splopts += INSTALL_MOD_DIR=kernel/zfs
-install-%: splopts += $(conc_level)
-install-%: zfsopts  = $(splopts)
-install-%: checks-%
+install-%: $(stampdir)/stamp-build-% install-headers
 	@echo Debug: $@ kernel_file $(kernel_file) kernfile $(kernfile) install_file $(install_file) instfile $(instfile)
 	dh_testdir
 	dh_testroot
-	dh_clean -k -p$(bin_pkg_name)-$*
-	dh_clean -k -p$(hdrs_pkg_name)-$*
+	dh_prep -p$(bin_pkg_name)-$*
+	dh_prep -p$(mods_pkg_name)-$*
+	dh_prep -p$(hdrs_pkg_name)-$*
 ifneq ($(skipdbg),true)
-	dh_clean -k -p$(dbg_pkg_name)-$*
+	dh_prep -p$(bin_pkg_name)-$*-dbgsym
 endif
 
 	# The main image
@@ -120,29 +110,33 @@ endif
 	# generate a zImage automatically out of the box
 ifeq ($(compress_file),)
 	install -m600 -D $(builddir)/build-$*/$(kernfile) \
-		$(pkgdir)/boot/$(instfile)-$(abi_release)-$*
+		$(pkgdir_bin)/boot/$(instfile)-$(abi_release)-$*
 else
-	install -d $(pkgdir)/boot
+	install -d $(pkgdir_bin)/boot
 	gzip -c9v $(builddir)/build-$*/$(kernfile) > \
-		$(pkgdir)/boot/$(instfile)-$(abi_release)-$*
-	chmod 600 $(pkgdir)/boot/$(instfile)-$(abi_release)-$*
+		$(pkgdir_bin)/boot/$(instfile)-$(abi_release)-$*
+	chmod 600 $(pkgdir_bin)/boot/$(instfile)-$(abi_release)-$*
 endif
 
 ifeq ($(uefi_signed),true)
-	install -d $(signed)/$(release)-$(revision)
+	install -d $(signingv)
 	# Check to see if this supports handoff, if not do not sign it.
 	# Check the identification area magic and version >= 0x020b
-	handoff=`dd if="$(pkgdir)/boot/$(instfile)-$(abi_release)-$*" bs=1 skip=514 count=6 2>/dev/null | od -s | gawk '($$1 == 0 && $$2 == 25672 && $$3 == 21362 && $$4 >= 523) { print "GOOD" }'`; \
+	handoff=`dd if="$(pkgdir_bin)/boot/$(instfile)-$(abi_release)-$*" bs=1 skip=514 count=6 2>/dev/null | od -s | gawk '($$1 == 0 && $$2 == 25672 && $$3 == 21362 && $$4 >= 523) { print "GOOD" }'`; \
 	if [ "$$handoff" = "GOOD" ]; then \
-		cp -p $(pkgdir)/boot/$(instfile)-$(abi_release)-$* \
-			$(signed)/$(release)-$(revision)/$(instfile)-$(abi_release)-$*.efi; \
+		cp -p $(pkgdir_bin)/boot/$(instfile)-$(abi_release)-$* \
+			$(signingv)/$(instfile)-$(abi_release)-$*.efi; \
 	fi
 endif
+ifeq ($(opal_signed),true)
+	install -d $(signingv)
+	cp -p $(pkgdir_bin)/boot/$(instfile)-$(abi_release)-$* \
+		$(signingv)/$(instfile)-$(abi_release)-$*.opal;
+endif
 
+	install -d $(pkgdir)/boot
 	install -m644 $(builddir)/build-$*/.config \
 		$(pkgdir)/boot/config-$(abi_release)-$*
-	install -m644 $(abidir)/$* \
-		$(pkgdir)/boot/abi-$(abi_release)-$*
 	install -m600 $(builddir)/build-$*/System.map \
 		$(pkgdir)/boot/System.map-$(abi_release)-$*
 	if [ "$(filter true,$(do_dtbs))" ]; then \
@@ -163,8 +157,6 @@ endif
 		INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH=$(pkgdir)/ \
 		INSTALL_FW_PATH=$(pkgdir)/lib/firmware/$(abi_release)-$*
 
-	$(if $(filter true,$(enable_zfs)),$(call install_zfs))
-
 	#
 	# Build module blacklists:
 	#  - blacklist all watchdog drivers (LP:1432837)
@@ -181,6 +173,7 @@ endif
 	echo "# Autogenerated watchdog blacklist" \
 		>>$(pkgdir)/lib/modprobe.d/blacklist_$(src_pkg_name)_$(abi_release)-$*.conf
 	ls -1 $(pkgdir)/lib/modules/$(abi_release)-$*/kernel/drivers/watchdog/ | \
+		grep -v '^bcm2835_wdt$$' | \
 		sed -e 's/^/blacklist /' -e 's/.ko$$//' | \
 		sort -u \
 		>>$(pkgdir)/lib/modprobe.d/blacklist_$(src_pkg_name)_$(abi_release)-$*.conf
@@ -226,24 +219,16 @@ endif
 		$(pkgdir)/lib/modules/$(abi_release)-$*/initrd/; \
 	fi
 
-	# Now the image scripts
-	install -d $(pkgdir)/DEBIAN
-	for script in postinst postrm preinst prerm; do				\
-	  sed -e 's/=V/$(abi_release)-$*/g' -e 's/=K/$(instfile)/g'		\
-	      -e 's/=L/$(loader)/g'         -e 's@=B@$(build_arch)@g'		\
-	       $(DROOT)/control-scripts/$$script > $(pkgdir)/DEBIAN/$$script;	\
-	  chmod 755 $(pkgdir)/DEBIAN/$$script;					\
-	done
+	echo "interest linux-update-$(abi_release)-$*" >"$(DROOT)/$(bin_pkg_name)-$*.triggers"
+	install -d $(pkgdir_bin)/usr/lib/linux/triggers
+	$(call install_control,$(bin_pkg_name)-$*,image,postinst postrm preinst prerm)
+	install -d $(pkgdir)/usr/lib/linux/triggers
+	$(call install_control,$(mods_pkg_name)-$*,extra,postinst postrm)
 ifeq ($(do_extras_package),true)
 	# Install the postinit/postrm scripts in the extras package.
 	if [ -f $(DEBIAN)/control.d/$(target_flavour).inclusion-list ] ; then	\
-		install -d $(pkgdir_ex)/DEBIAN;					\
-		for script in postinst postrm ; do				\
-			sed -e 's/=V/$(abi_release)-$*/g' -e 's/=K/$(instfile)/g'		\
-			    -e 's/=L/$(loader)/g'         -e 's@=B@$(build_arch)@g'		\
-			    debian/control-scripts/extra-post > $(pkgdir_ex)/DEBIAN/$$script; \
-			chmod 755 $(pkgdir_ex)/DEBIAN/$$script;			\
-		done;								\
+		install -d $(pkgdir_ex)/usr/lib/linux/triggers; \
+		$(call install_control,$(mods_extra_pkg_name)-$*,extra,postinst postrm); \
 	fi
 endif
 
@@ -262,16 +247,7 @@ ifneq ($(skipsub),true)
 		/sbin/depmod -b debian/$(bin_pkg_name)-$$sub		\
 			-ea -F debian/$(bin_pkg_name)-$$sub/boot/System.map-$(abi_release)-$* \
 			$(abi_release)-$*;					\
-		install -d debian/$(bin_pkg_name)-$$sub/DEBIAN;	\
-		for script in postinst postrm preinst prerm; do			\
-			sed -e 's/=V/$(abi_release)-$*/g'			\
-			    -e 's/=K/$(instfile)/g'				\
-			    -e 's/=L/$(loader)/g'				\
-			    -e 's@=B@$(build_arch)@g'				\
-				$(DROOT)/control-scripts/$$script >		\
-				debian/$(bin_pkg_name)-$$sub/DEBIAN/$$script;\
-			chmod 755  debian/$(bin_pkg_name)-$$sub/DEBIAN/$$script;\
-		done;								\
+		$(call install_control,$(bin_pkg_name)--$$sub,image,postinst postrm preinst prerm); \
 	done
 endif
 
@@ -309,10 +285,12 @@ endif
 		sed -e 's/.*CONFIG_DEBUG_INFO=.*/# CONFIG_DEBUG_INFO is not set/g' > \
 		$(hdrdir)/.config
 	chmod 644 $(hdrdir)/.config
-	$(kmake) O=$(hdrdir) -j1 silentoldconfig prepare scripts
+	$(kmake) O=$(hdrdir) -j1 syncconfig prepare scripts
 	# We'll symlink this stuff
 	rm -f $(hdrdir)/Makefile
 	rm -rf $(hdrdir)/include2 $(hdrdir)/source
+	# We do not need the retpoline information.
+	find $(hdrdir) -name \*.o.ur-\* | xargs rm -f
 	# Copy over the compilation version.
 	cp "$(builddir)/build-$*/include/generated/compile.h" \
 		"$(hdrdir)/include/generated/compile.h"
@@ -323,6 +301,8 @@ ifeq ($(build_arch),powerpc)
 	mkdir -p $(hdrdir)/arch/powerpc/lib
 	cp $(builddir)/build-$*/arch/powerpc/lib/*.o $(hdrdir)/arch/powerpc/lib
 endif
+	# Copy over the new retpoline extractor.
+	cp scripts/ubuntu-retpoline-extract-one $(hdrdir)/scripts
 	# Script to symlink everything up
 	$(SHELL) $(DROOT)/scripts/link-headers "$(hdrdir)" "$(indeppkg)" "$*"
 	# The build symlink
@@ -334,13 +314,7 @@ endif
 		$(hdrdir)/Module.symvers
 
 	# Now the header scripts
-	install -d $(CURDIR)/debian/$(basepkg)-$*/DEBIAN
-	for script in postinst; do						\
-	  sed -e 's/=V/$(abi_release)-$*/g' -e 's/=K/$(instfile)/g'	\
-		$(DROOT)/control-scripts/headers-$$script > 			\
-			$(CURDIR)/debian/$(basepkg)-$*/DEBIAN/$$script;		\
-	  chmod 755 $(CURDIR)/debian/$(basepkg)-$*/DEBIAN/$$script;		\
-	done
+	$(call install_control,$(hdrs_pkg_name)-$*,headers,postinst)
 
 	# At the end of the package prep, call the tests
 	DPKG_ARCH="$(arch)" KERN_ARCH="$(build_arch)" FLAVOUR="$*"	\
@@ -375,6 +349,9 @@ ifeq ($(do_tools_usbip),true)
 	$(LN) ../../$(src_pkg_name)-tools-$(abi_release)/usbip $(toolspkgdir)/usr/lib/linux-tools/$(abi_release)-$*
 	$(LN) ../../$(src_pkg_name)-tools-$(abi_release)/usbipd $(toolspkgdir)/usr/lib/linux-tools/$(abi_release)-$*
 endif
+ifeq ($(do_tools_acpidbg),true)
+	$(LN) ../../$(src_pkg_name)-tools-$(abi_release)/acpidbg $(toolspkgdir)/usr/lib/linux-tools/$(abi_release)-$*
+endif
 ifeq ($(do_tools_cpupower),true)
 	$(LN) ../../$(src_pkg_name)-tools-$(abi_release)/cpupower $(toolspkgdir)/usr/lib/linux-tools/$(abi_release)-$*
 endif
@@ -397,6 +374,63 @@ ifeq ($(do_tools_hyperv),true)
 endif
 endif
 
+	# Build a temporary "installed headers" directory.
+	install -d $(dkms_dir) $(dkms_dir)/headers $(dkms_dir)/build $(dkms_dir)/source
+	cp -rp "$(hdrdir)" "$(indep_hdrdir)" "$(dkms_dir)/headers"
+
+	$(if $(filter true,$(enable_zfs)),$(call build_dkms, $(mods_pkg_name)-$*, $(pkgdir)/lib/modules/$(abi_release)-$*/kernel, spl, pool/universe/s/spl-linux/spl-dkms_$(dkms_spl_linux_version)_all.deb))
+	$(if $(filter true,$(enable_zfs)),$(call build_dkms, $(mods_pkg_name)-$*, $(pkgdir)/lib/modules/$(abi_release)-$*/kernel, zfs, pool/universe/z/zfs-linux/zfs-dkms_$(dkms_zfs_linux_version)_all.deb))
+
+	# Build the final ABI information.
+	install -d $(abidir)
+	sed -e 's/^\(.\+\)[[:space:]]\+\(.\+\)[[:space:]]\(.\+\)$$/\3 \2 \1/'	\
+		$(builddir)/build-$*/Module.symvers | sort > $(abidir)/$*
+
+	# Build the final ABI modules information.
+	find $(pkgdir_bin) $(pkgdir) $(pkgdir_ex) -name \*.ko | \
+		sed -e 's/.*\/\([^\/]*\)\.ko/\1/' | sort > $(abidir)/$*.modules
+
+	# Build the final ABI firmware information.
+	find $(pkgdir_bin) $(pkgdir) $(pkgdir_ex) -name \*.ko | \
+	while read ko; do \
+		/sbin/modinfo $$ko | grep ^firmware || true; \
+	done | sort -u >$(abidir)/$*.fwinfo
+
+	# Build the final ABI compiler information.
+	ko=$$(find $(pkgdir_bin) $(pkgdir) $(pkgdir_ex) -name \*.ko | head -1); \
+	readelf -p .comment "$$ko" | gawk ' \
+		($$1 == "[") { \
+			printf("%s", $$3); \
+			for (n=4; n<=NF; n++) { \
+				printf(" %s", $$n); \
+			} \
+			print "" \
+		}' | sort -u >$(abidir)/$*.compiler
+
+	# Build the final ABI retpoline information.
+	if grep -q CONFIG_RETPOLINE=y $(builddir)/build-$*/.config; then \
+		echo "# retpoline v1.0" >$(abidir)/$*.retpoline; \
+		$(SHELL) $(DROOT)/scripts/retpoline-extract $(builddir)/build-$* $(CURDIR) | \
+			sort >>$(abidir)/$*.retpoline; \
+	else \
+		echo "# RETPOLINE NOT ENABLED" >$(abidir)/$*.retpoline; \
+	fi
+
+	# Build the buildinfo package content.
+	install -d $(pkgdir_bldinfo)/usr/lib/linux/$(abi_release)-$*
+	install -m644 $(builddir)/build-$*/.config \
+		$(pkgdir_bldinfo)/usr/lib/linux/$(abi_release)-$*/config
+	install -m644 $(abidir)/$* \
+		$(pkgdir_bldinfo)/usr/lib/linux/$(abi_release)-$*/abi
+	install -m644 $(abidir)/$*.modules \
+		$(pkgdir_bldinfo)/usr/lib/linux/$(abi_release)-$*/modules
+	install -m644 $(abidir)/$*.fwinfo \
+		$(pkgdir_bldinfo)/usr/lib/linux/$(abi_release)-$*/fwinfo
+	install -m644 $(abidir)/$*.retpoline \
+		$(pkgdir_bldinfo)/usr/lib/linux/$(abi_release)-$*/retpoline
+	install -m644 $(abidir)/$*.compiler \
+		$(pkgdir_bldinfo)/usr/lib/linux/$(abi_release)-$*/compiler
+
 headers_tmp := $(CURDIR)/debian/tmp-headers
 headers_dir := $(CURDIR)/debian/linux-libc-dev
 
@@ -408,7 +442,9 @@ install-arch-headers:
 	@echo Debug: $@
 	dh_testdir
 	dh_testroot
-	dh_clean -k -plinux-libc-dev
+ifeq ($(do_libc_dev_package),true)
+	dh_prep -plinux-libc-dev
+endif
 
 	rm -rf $(headers_tmp)
 	install -d $(headers_tmp) $(headers_dir)/usr/include/
@@ -418,7 +454,7 @@ install-arch-headers:
 	sed -e 's/^# \(CONFIG_MODVERSIONS\) is not set$$/\1=y/' \
 	  -e 's/.*CONFIG_LOCALVERSION_AUTO.*/# CONFIG_LOCALVERSION_AUTO is not set/' \
 	  $(headers_tmp)/.config.old > $(headers_tmp)/.config
-	$(hmake) silentoldconfig
+	$(hmake) syncconfig
 	$(hmake) headers_install
 
 	( cd $(headers_tmp)/install/include/ && \
@@ -430,6 +466,26 @@ install-arch-headers:
 
 	rm -rf $(headers_tmp)
 
+define dh_all
+	dh_installchangelogs -p$(1)
+	dh_installdocs -p$(1)
+	dh_compress -p$(1)
+	dh_fixperms -p$(1) -X/boot/
+	dh_shlibdeps -p$(1) $(shlibdeps_opts)
+	dh_installdeb -p$(1)
+	dh_installdebconf -p$(1)
+	$(lockme) dh_gencontrol -p$(1) -- -Vlinux:rprovides='$(rprovides)'
+	dh_md5sums -p$(1)
+	dh_builddeb -p$(1)
+endef
+define newline
+
+
+endef
+define dh_all_inline
+        $(subst ${newline},; \${newline},$(call dh_all,$(1)))
+endef
+
 binary-arch-headers: install-arch-headers
 	@echo Debug: $@
 	dh_testdir
@@ -439,88 +495,56 @@ ifneq ($(DEBIAN),debian.master)
 	echo "non-master branch building linux-libc-dev, aborting"
 	exit 1
 endif
-	dh_installchangelogs -plinux-libc-dev
-	dh_installdocs -plinux-libc-dev
-	dh_compress -plinux-libc-dev
-	dh_fixperms -plinux-libc-dev
-	dh_installdeb -plinux-libc-dev
-	$(lockme) dh_gencontrol -plinux-libc-dev -- $(libc_dev_version)
-	dh_md5sums -plinux-libc-dev
-	dh_builddeb -plinux-libc-dev
+	$(call dh_all,linux-libc-dev)
 endif
 
 binary-%: pkgimg = $(bin_pkg_name)-$*
-binary-%: pkgimg_ex = $(extra_pkg_name)-$*
+binary-%: pkgimg_mods = $(mods_pkg_name)-$*
+binary-%: pkgimg_ex = $(mods_extra_pkg_name)-$*
+binary-%: pkgdir_ex = $(CURDIR)/debian/$(extra_pkg_name)-$*
+binary-%: pkgbldinfo = $(bldinfo_pkg_name)-$*
 binary-%: pkghdr = $(hdrs_pkg_name)-$*
 binary-%: dbgpkg = $(bin_pkg_name)-$*-dbgsym
 binary-%: dbgpkgdir = $(CURDIR)/debian/$(bin_pkg_name)-$*-dbgsym
 binary-%: pkgtools = $(tools_flavour_pkg_name)-$*
 binary-%: pkgcloud = $(cloud_flavour_pkg_name)-$*
-binary-%: rprovides = $(if $(filter true,$(call custom_override,do_zfs,$*)),$(comma) spl-dkms$(comma) zfs-dkms)
+binary-%: rprovides = $(if $(filter true,$(call custom_override,do_zfs,$*)),spl-modules$(comma) spl-dkms$(comma) zfs-modules$(comma) zfs-dkms$(comma))
 binary-%: target_flavour = $*
-binary-%: install-%
+binary-%: checks-%
 	@echo Debug: $@
 	dh_testdir
 	dh_testroot
 
-	dh_installchangelogs -p$(pkgimg)
-	dh_installdocs -p$(pkgimg)
-	dh_compress -p$(pkgimg)
-	dh_fixperms -p$(pkgimg) -X/boot/
-	dh_installdeb -p$(pkgimg)
-	dh_shlibdeps -p$(pkgimg) $(shlibdeps_opts)
-	$(lockme) dh_gencontrol -p$(pkgimg) -- -Vlinux:rprovides='$(rprovides)'
-	dh_md5sums -p$(pkgimg)
-	dh_builddeb -p$(pkgimg) -- -Zbzip2 -z9
+	$(call dh_all,$(pkgimg))
+	$(call dh_all,$(pkgimg_mods))
 
 ifeq ($(do_extras_package),true)
+  ifeq ($(ship_extras_package),false)
+	# If $(ship_extras_package) is explicitly set to false, then do not
+	# construct the linux-image-extra package; instead just log all of the
+	# "extra" modules which were pointlessly built yet won't be shipped.
+	find $(pkgdir_ex) -name '*.ko' | sort \
+		| sed 's|^$(pkgdir_ex)/|NOT-SHIPPED |' \
+		| tee -a $(target_flavour).not-shipped.log;
+  else
 	if [ -f $(DEBIAN)/control.d/$(target_flavour).inclusion-list ] ; then \
-		dh_installchangelogs -p$(pkgimg_ex); \
-		dh_installdocs -p$(pkgimg_ex); \
-		dh_compress -p$(pkgimg_ex); \
-		dh_fixperms -p$(pkgimg_ex) -X/boot/; \
-		dh_installdeb -p$(pkgimg_ex); \
-		dh_shlibdeps -p$(pkgimg_ex) $(shlibdeps_opts); \
-		$(lockme) dh_gencontrol -p$(pkgimg_ex); \
-		dh_md5sums -p$(pkgimg_ex); \
-		dh_builddeb -p$(pkgimg_ex) -- -Zbzip2 -z9; \
+		$(call dh_all_inline,$(pkgimg_ex)); \
 	fi
+  endif
 endif
 
-	dh_installchangelogs -p$(pkghdr)
-	dh_installdocs -p$(pkghdr)
-	dh_compress -p$(pkghdr)
-	dh_fixperms -p$(pkghdr)
-	dh_shlibdeps -p$(pkghdr) $(shlibdeps_opts)
-	dh_installdeb -p$(pkghdr)
-	$(lockme) dh_gencontrol -p$(pkghdr)
-	dh_md5sums -p$(pkghdr)
-	dh_builddeb -p$(pkghdr)
+	$(call dh_all,$(pkgbldinfo))
+	$(call dh_all,$(pkghdr))
 
 ifneq ($(skipsub),true)
 	@set -e; for sub in $($(*)_sub); do		\
-		pkg=$(bin_pkg_name)-$$sub;	\
-		dh_installchangelogs -p$$pkg;		\
-		dh_installdocs -p$$pkg;			\
-		dh_compress -p$$pkg;			\
-		dh_fixperms -p$$pkg -X/boot/;		\
-		dh_shlibdeps -p$$pkg $(shlibdeps_opts);	\
-		dh_installdeb -p$$pkg;			\
-		$(lockme) dh_gencontrol -p$$pkg;			\
-		dh_md5sums -p$$pkg;			\
-		dh_builddeb -p$$pkg;			\
+		pkg=$(bin_pkg_name)-$$sub;		\
+		$(call dh_all_inline,$$pkg);		\
 	done
 endif
 
 ifneq ($(skipdbg),true)
-	dh_installchangelogs -p$(dbgpkg)
-	dh_installdocs -p$(dbgpkg)
-	dh_compress -p$(dbgpkg)
-	dh_fixperms -p$(dbgpkg)
-	dh_installdeb -p$(dbgpkg)
-	$(lockme) dh_gencontrol -p$(dbgpkg)
-	dh_md5sums -p$(dbgpkg)
-	dh_builddeb -p$(dbgpkg)
+	$(call dh_all,$(dbgpkg))
 
 	# Hokay...here's where we do a little twiddling...
 	# Renaming the debug package prevents it from getting into
@@ -545,26 +569,10 @@ ifneq ($(skipdbg),true)
 endif
 
 ifeq ($(do_linux_tools),true)
-	dh_installchangelogs -p$(pkgtools)
-	dh_installdocs -p$(pkgtools)
-	dh_compress -p$(pkgtools)
-	dh_fixperms -p$(pkgtools)
-	dh_shlibdeps -p$(pkgtools) $(shlibdeps_opts)
-	dh_installdeb -p$(pkgtools)
-	$(lockme) dh_gencontrol -p$(pkgtools)
-	dh_md5sums -p$(pkgtools)
-	dh_builddeb -p$(pkgtools)
+	$(call dh_all,$(pkgtools))
 endif
 ifeq ($(do_cloud_tools),true)
-	dh_installchangelogs -p$(pkgcloud)
-	dh_installdocs -p$(pkgcloud)
-	dh_compress -p$(pkgcloud)
-	dh_fixperms -p$(pkgcloud)
-	dh_shlibdeps -p$(pkgcloud) $(shlibdeps_opts)
-	dh_installdeb -p$(pkgcloud)
-	$(lockme) dh_gencontrol -p$(pkgcloud)
-	dh_md5sums -p$(pkgcloud)
-	dh_builddeb -p$(pkgcloud)
+	$(call dh_all,$(pkgcloud))
 endif
 
 ifneq ($(full_build),false)
@@ -598,6 +606,9 @@ ifeq ($(do_tools_usbip),true)
 	cd $(builddirpa)/tools/usb/usbip && ./configure --prefix=$(builddirpa)/tools/usb/usbip/bin
 	cd $(builddirpa)/tools/usb/usbip && make install CFLAGS="-g -O2 -static" CROSS_COMPILE=$(CROSS_COMPILE)
 endif
+ifeq ($(do_tools_acpidbg),true)
+	cd $(builddirpa)/tools/power/acpi && make clean && make CFLAGS="-g -O2 -static -I$(builddirpa)/include" CROSS_COMPILE=$(CROSS_COMPILE) acpidbg
+endif
 ifeq ($(do_tools_cpupower),true)
 	# Allow for multiple installed versions of cpupower and libcpupower.so:
 	# Override LIB_MIN in order to to generate a versioned .so named
@@ -613,10 +624,10 @@ ifeq ($(do_tools_perf),true)
 	sed -e 's/^# \(CONFIG_MODVERSIONS\) is not set$$/\1=y/' \
 	  -e 's/.*CONFIG_LOCALVERSION_AUTO.*/# CONFIG_LOCALVERSION_AUTO is not set/' \
 	  $(builddirpa)/.config.old > $(builddirpa)/.config
-	cd $(builddirpa) && $(kmake) silentoldconfig
+	cd $(builddirpa) && $(kmake) syncconfig
 	cd $(builddirpa) && $(kmake) prepare
 	cd $(builddirpa)/tools/perf && \
-		$(kmake) prefix=/usr HAVE_CPLUS_DEMANGLE=1 CROSS_COMPILE=$(CROSS_COMPILE) NO_LIBPYTHON=1 NO_LIBPERL=1 PYTHON=python2.7
+		$(kmake) prefix=/usr HAVE_NO_LIBBFD=1 HAVE_CPUS_DEMANGLE_SUPPORT=1 CROSS_COMPILE=$(CROSS_COMPILE) NO_LIBPYTHON=1 NO_LIBPERL=1 PYTHON=python2.7
 endif
 ifeq ($(do_tools_x86),true)
 	cd $(builddirpa)/tools/power/x86/x86_energy_perf_policy && make CROSS_COMPILE=$(CROSS_COMPILE)
@@ -642,6 +653,10 @@ ifeq ($(do_tools_usbip),true)
 	install -m755 $(builddirpa)/tools/usb/usbip/bin/sbin/usbip \
 		$(toolspkgdir)/usr/lib/$(src_pkg_name)-tools-$(abi_release)
 	install -m755 $(builddirpa)/tools/usb/usbip/bin/sbin/usbipd \
+		$(toolspkgdir)/usr/lib/$(src_pkg_name)-tools-$(abi_release)
+endif
+ifeq ($(do_tools_acpidbg),true)
+	install -m755 $(builddirpa)/tools/power/acpi/acpidbg \
 		$(toolspkgdir)/usr/lib/$(src_pkg_name)-tools-$(abi_release)
 endif
 ifeq ($(do_tools_cpupower),true)
@@ -682,40 +697,22 @@ binary-perarch: cloudpkg = $(cloud_pkg_name)
 binary-perarch: install-perarch
 	@echo Debug: $@
 ifeq ($(do_linux_tools),true)
-	dh_strip -p$(toolspkg)
-	dh_installchangelogs -p$(toolspkg)
-	dh_installdocs -p$(toolspkg)
-	dh_compress -p$(toolspkg)
-	dh_fixperms -p$(toolspkg)
-	dh_shlibdeps -p$(toolspkg) $(shlibdeps_opts)
-	dh_installdeb -p$(toolspkg)
-	$(lockme) dh_gencontrol -p$(toolspkg)
-	dh_md5sums -p$(toolspkg)
-	dh_builddeb -p$(toolspkg)
+	$(call dh_all,$(toolspkg))
 endif
 ifeq ($(do_cloud_tools),true)
-	dh_strip -p$(cloudpkg)
-	dh_installchangelogs -p$(cloudpkg)
-	dh_installdocs -p$(cloudpkg)
-	dh_compress -p$(cloudpkg)
-	dh_fixperms -p$(cloudpkg)
-	dh_shlibdeps -p$(cloudpkg) $(shlibdeps_opts)
-	dh_installdeb -p$(cloudpkg)
-	$(lockme) dh_gencontrol -p$(cloudpkg)
-	dh_md5sums -p$(cloudpkg)
-	dh_builddeb -p$(cloudpkg)
+	$(call dh_all,$(cloudpkg))
 endif
 
-binary-debs: signed = $(CURDIR)/debian/$(bin_pkg_name)-signed
-binary-debs: signedv = $(CURDIR)/debian/$(bin_pkg_name)-signed/$(release)-$(revision)
-binary-debs: signed_tar = $(src_pkg_name)_$(release)-$(revision)_$(arch).tar.gz
+binary-debs: signing = $(CURDIR)/debian/$(bin_pkg_name)-signing
+binary-debs: signingv = $(CURDIR)/debian/$(bin_pkg_name)-signing/$(release)-$(revision)
+binary-debs: signing_tar = $(src_pkg_name)_$(release)-$(revision)_$(arch).tar.gz
 binary-debs: binary-perarch $(addprefix binary-,$(flavours))
 	@echo Debug: $@
-ifeq ($(uefi_signed),true)
-	echo $(release)-$(revision) > $(signedv)/version
-	cd $(signedv) && ls *.efi >flavours
-	cd $(signed) && tar czvf ../../../$(signed_tar) .
-	dpkg-distaddfile $(signed_tar) raw-uefi -
+ifeq ($(any_signed),true)
+	install -d $(signingv)/control
+	{ echo "tarball"; } >$(signingv)/control/options
+	cd $(signing) && tar czvf ../../../$(signing_tar) .
+	dpkg-distaddfile $(signing_tar) raw-signing -
 endif
 
 build-arch-deps-$(do_flavour_image_package) += $(addprefix $(stampdir)/stamp-build-,$(flavours))

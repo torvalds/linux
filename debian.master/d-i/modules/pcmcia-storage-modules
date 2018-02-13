@@ -1,0 +1,6 @@
+pata_pcmcia ?
+qlogic_cs ?
+fdomain_cs ?
+aha152x_cs ?
+nsp_cs ?
+sym53c500_cs ?

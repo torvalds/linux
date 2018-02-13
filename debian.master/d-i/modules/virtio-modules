@@ -1,0 +1,11 @@
+virtio_balloon ?
+virtio_pci ?
+virtio_ring ?
+virtio-rng ?
+virtio_scsi ?
+hv_vmbus ?
+hv_utils ?
+hv_netvsc ?
+hv_mouse ?
+hv_storvsc ?
+hv_balloon ?

@@ -1,0 +1,203 @@
+Package: kernel-image
+Provides: ext3-modules, ext4-modules, squashfs-modules
+Provides_amd64: efi-modules, ext3-modules, ext4-modules, squashfs-modules
+Provides_i386: efi-modules, ext3-modules, ext4-modules, squashfs-modules
+Provides_ppc64el: ext3-modules, ext4-modules, fat-modules, squashfs-modules
+Provides_s390x: ext3-modules, ext4-modules, ppp-modules, squashfs-modules
+Description: kernel image and system map
+
+Package: dasd-modules
+Depends: kernel-image, storage-core-modules
+Priority: standard
+Description: DASD storage support
+
+Package: dasd-extra-modules
+Depends: dasd-modules
+Priority: extra
+Description: DASD storage support -- extras
+
+Package: fat-modules
+Depends: kernel-image
+Priority: standard
+Description: FAT filesystem support
+ This includes Windows FAT and VFAT support.
+
+Package: fb-modules
+Depends: kernel-image
+Priority: standard
+Description: Framebuffer modules
+
+Package: firewire-core-modules
+Depends: kernel-image, storage-core-modules
+Priority: standard
+Description: Firewire (IEEE-1394) Support
+
+Package: floppy-modules
+Depends: kernel-image
+Priority: standard
+Description: Floppy driver support
+
+Package: fs-core-modules
+Depends: kernel-image
+Priority: standard
+Provides: ext2-modules, jfs-modules, reiserfs-modules, xfs-modules
+Description: Base filesystem modules
+ This includes jfs, reiserfs and xfs.
+
+Package: fs-secondary-modules
+Depends: kernel-image, fat-modules
+Priority: standard
+Provides: btrfs-modules, ntfs-modules, hfs-modules
+Description: Extra filesystem modules
+ This includes support for Windows NTFS and MacOS HFS/HFSPlus
+
+Package: input-modules
+Depends: kernel-image, usb-modules
+Priority: standard
+Description: Support for various input methods
+
+Package: md-modules
+Depends: kernel-image
+Priority: standard
+Provides: crypto-dm-modules
+Description: Multi-device support (raid, device-mapper, lvm)
+
+Package: nic-modules
+Depends: kernel-image, nic-shared-modules, virtio-modules
+Priority: standard
+Description: Network interface support
+
+Package: nic-pcmcia-modules
+Depends: kernel-image, nic-shared-modules, nic-modules
+Priority: standard
+Description: PCMCIA network interface support
+
+Package: nic-usb-modules
+Depends: kernel-image, nic-shared-modules, usb-modules
+Priority: standard
+Description: USB network interface support
+
+Package: nic-shared-modules
+Depends: kernel-image, crypto-modules
+Priority: standard
+Description: nic shared modules
+  This package contains modules which support nic modules
+
+Package: parport-modules
+Depends: kernel-image
+Priority: standard
+Description: Parallel port support
+
+Package: pata-modules
+Depends: kernel-image, storage-core-modules
+Priority: standard
+Description: PATA support modules
+
+Package: pcmcia-modules
+Depends: kernel-image
+Priority: standard
+Description: PCMCIA Modules
+
+Package: pcmcia-storage-modules
+Depends: kernel-image, scsi-modules
+Priority: standard
+Description: PCMCIA storage support
+
+Package: plip-modules
+Depends: kernel-image, nic-shared-modules, parport-modules
+Priority: standard
+Description: PLIP (parallel port) networking support
+
+Package: ppp-modules
+Depends: kernel-image, nic-shared-modules, serial-modules
+Priority: standard
+Description: PPP (serial port) networking support
+
+Package: sata-modules
+Depends: kernel-image, storage-core-modules
+Priority: standard
+Description: SATA storage support
+
+Package: scsi-modules
+Depends: kernel-image, storage-core-modules
+Priority: standard
+Description: SCSI storage support
+
+Package: serial-modules
+Depends: kernel-image
+Priority: standard
+Description: Serial port support
+
+Package: storage-core-modules
+Depends: kernel-image
+Priority: standard
+Provides: loop-modules
+Description: Core storage support
+ Includes core SCSI, LibATA, USB-Storage. Also includes related block
+ devices for CD, Disk and Tape medium (and IDE Floppy).
+
+Package: usb-modules
+Depends: kernel-image, storage-core-modules
+Priority: standard
+Description: Core USB support
+
+Package: nfs-modules
+Priority: standard
+Depends: kernel-image
+Description: NFS filesystem drivers
+ Includes the NFS client driver, and supporting modules.
+
+Package: block-modules
+Priority: standard
+Provides: nbd-modules
+Depends: kernel-image, storage-core-modules, parport-modules, virtio-modules
+Description: Block storage devices
+ This package contains the block storage devices, including DAC960 and
+ paraide.
+
+Package: message-modules
+Priority: standard
+Depends: kernel-image, storage-core-modules, scsi-modules
+Description: Fusion and i2o storage modules
+ This package containes the fusion and i2o storage modules.
+
+Package: crypto-modules
+Priority: extra
+Depends: kernel-image
+Description: crypto modules
+ This package contains crypto modules.
+
+Package: virtio-modules
+Priority: standard
+Depends: kernel-image
+Description: VirtIO Modules
+ Includes modules for VirtIO (virtual machine, generally kvm guests)
+
+Package: socket-modules
+Depends: kernel-image
+Priority: standard
+Description: Unix socket support
+
+Package: mouse-modules
+Depends: kernel-image, input-modules, usb-modules
+Priority: extra
+Description: Mouse support
+ This package contains mouse drivers for the Linux kernel.
+
+Package: vlan-modules
+Depends: kernel-image
+Priority: extra
+Description: vlan modules
+ This package contains vlan (8021.Q) modules.
+
+Package: ipmi-modules
+Depends: kernel-image
+Priority: standard
+Description: ipmi modules
+
+Package: multipath-modules
+Depends: kernel-image
+Priority: extra
+Description: DM-Multipath support
+  This package contains modules for device-mapper multipath support.
+

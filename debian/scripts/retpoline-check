@@ -1,0 +1,47 @@
+#!/bin/bash
+
+flavour="$1"
+prev_abidir="$2"
+curr_abidir="$3"
+skipretpoline="$4"
+
+echo "II: Checking retpoline indirections for $flavour...";
+
+if [ "$skipretpoline" = 'true' ]; then
+	echo "manual request ignoring retpoline delta"
+fi
+
+if [ -f "$prev_abidir/ignore.retpoline" -o \
+     -f "$prev_abidir/$flavour.ignore.retpoline" ]; then
+	echo "explicitly ignoring retpoline delta"
+	skipretpoline='true'
+fi
+
+prev="$prev_abidir/$flavour.retpoline"
+curr="$curr_abidir/$flavour.retpoline"
+if [ ! -f "$prev" ]; then
+	echo "previous retpoline file missing!"
+	echo "   $prev"
+	prev="/dev/null"
+fi
+if [ ! -f "$curr" ]; then
+	echo "current retpoline file missing!"
+	echo "   $curr"
+	curr="/dev/null"
+fi
+
+echo "II: retpoline delta in this package..."
+rc=0
+diff -u "$prev" "$curr" || true
+count=$( diff -u "$prev" "$curr" | grep '^+[^+]' | wc -l )
+if [ "$count" != 0 ]; then
+	rc=1
+	echo "WW: $count new retpoline sequences detected"
+fi
+
+echo "II: Done";
+if [ "$skipretpoline" = 'true' -a "$rc" -ne 0 ]; then
+	echo "II: ignoring errors"
+	exit 0
+fi
+exit "$rc"

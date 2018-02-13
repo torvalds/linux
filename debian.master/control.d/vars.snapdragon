@@ -1,0 +1,6 @@
+arch="arm64"
+supported="Generic Snapdragon"
+target="Geared toward desktop,server and embedded systems."
+desc="=HUMAN= SMP"
+bootloader="flash-kernel [arm64]"
+provides="kvm-api-4, redhat-cluster-modules, ivtv-modules"

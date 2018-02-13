@@ -42,6 +42,23 @@ fi
 		echo "rm -f '$name'"
 	done
 
+	# Identify files with execute permissions added since the proffered tag.
+	git diff "$tag.." --raw --no-renames | awk -F '[: \t]' '{print $2, $3, $NF }' | \
+	while IFS=" " read old new name
+	do
+		# Exclude files in debian* directories
+		if [[ "$name" =~ ^debian ]]; then
+			continue
+		fi
+
+		old=$( printf "0%s" $old )
+		new=$( printf "0%s" $new )
+		changed=$(( (old ^ new) & 0111 ))
+		if [ "$changed" -ne 0 ]; then
+			echo "chmod +x '$name'"
+		fi
+	done
+
 	# All done, make sure this does not complete in error.
 	echo "exit 0"
 ) >"$reconstruct"
@@ -52,7 +69,7 @@ fi
 	git diff "$tag.." --raw --no-renames | awk '(/^:000000 120000/ && $5 == "A") { print $NF }' | \
 	while read name
 	do
-		echo "extend-diff-ignore=$name"
+		echo "extend-diff-ignore=^$name\$"
 	done
 ) >"$options.update"
 

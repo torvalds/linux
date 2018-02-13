@@ -1,0 +1,56 @@
+#!/bin/bash
+
+debian="$1"
+abi="$2"
+abi=${abi%~*}
+
+. "$debian/etc/kernelconfig"
+
+fail=0
+
+failure()
+{
+	echo "EE: $@" 1>&2
+	fail=1
+}
+
+abi_check()
+{
+	local abidir="$1"
+	local arch="$2"
+	local flavour="$3"
+
+	local abidir="$abidir/$arch"
+
+	if [ ! -f "$abidir/$flavour" -a \
+	     ! -f "$abidir/$flavour.ignore" -a \
+	     ! -f "$abidir/ignore" ]
+	then
+		failure "$arch/$flavour ABI symbol file missing"
+	fi
+
+	if [ ! -f "$abidir/$flavour.modules" -a \
+	     ! -f "$abidir/$flavour.ignore.modules" -a \
+	     ! -f "$abidir/ignore.modules" ]
+	then
+		failure "$arch/$flavour ABI modules file missing"
+	fi
+
+	if [ ! -f "$abidir/$flavour.retpoline" -a \
+	     ! -f "$abidir/$flavour.ignore.retpoline" -a \
+	     ! -f "$abidir/ignore.retpoline" ]
+	then
+		failure "$arch/$flavour ABI retpoline file missing"
+	fi
+}
+
+for arch in $archs
+do
+	for flavour in $(ls -1 "$debian/config/$arch/config.flavour."*)
+	do
+		flavour=$(echo "$flavour" | sed -e 's@.*/config.flavour.@@')
+		abi_check "$debian/abi/$abi" "$arch" "$flavour"
+	done
+done
+
+exit "$fail"

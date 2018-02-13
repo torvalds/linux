@@ -1,0 +1,145 @@
+#!/bin/bash
+set -e
+
+dkms_dir="$1"
+abi_flavour="$2"
+sign="$3"
+pkgname="$4"
+pkgdir="$5"
+package="$6"
+shift 6
+
+srcdir=$(pwd)
+cd "$dkms_dir" || exit 1
+
+built_using_record()
+{
+	local subst="$1"
+	local built_using="$2"
+	if [ ! -f "$subst" ]; then
+		touch "$subst"
+	fi
+	if ! grep -s "^linux:BuiltUsing=" "$subst"; then
+		echo "linux:BuiltUsing=" >>"$subst"
+	fi
+	sed -i -e "s/^\(linux:BuiltUsing=.*\)/\1$built_using, /" "$subst"
+}
+
+# Download and extract the DKMS package -- note there may be more
+# than one package to install.
+for package_path in "$@"
+do
+	echo "II: dkms-build downloading $package ($(basename $package_path))"
+	rpackage=$( echo "$package_path" | sed -e 's@.*/@@' -e 's@_.*@@' )
+	lpackage=$( echo "$rpackage" | sed -e 's@=.*@@' )
+
+	case "$package_path" in
+	pool/*)
+		for pool in $( apt-cache policy | grep '^ [^ ]' | sort -r -n -k 1,1 -s | \
+		    awk '
+			($2 ~ /^http/) {
+			    if (!($2 in E)) {
+				E[$2]=1;
+				print $2;
+			    }
+			}
+		    ')
+		do
+			wget "$pool/$package_path" && break || true
+		done
+		;;
+	http*:*)
+		wget "$package_path"
+		;;
+	*/*)
+		cp -p "$package_path" .
+		;;
+	*)
+		apt-get download "$rpackage"
+		;;
+	esac
+	dpkg -x "$lpackage"_*.deb "$package"
+
+	for lpackage_path in "$lpackage"_*.deb
+	do
+		break
+	done
+	lversion=$( echo "$lpackage_path" | sed -e 's@.*/@@' -e 's@_[^_]*$@@' -e 's@.*_@@')
+	built_using_record "$srcdir/debian/$pkgname.substvars" "$built_using$lpackage (= $lversion)"
+done
+
+# Pick out the package/version from the dkms.conf.
+for dkms_conf in "$package/usr/src"/*/"dkms.conf"
+do
+	break
+done
+# It seems some packages have a # in the name which works fine if the
+# package is installed directly, but not so much if we build it out
+# of the normal location.
+sed -i -e '/^PACKAGE_NAME=/ s/#//g' "$dkms_conf"
+cat - <<'EOF' >>"$dkms_conf"
+POST_BUILD="ubuntu-save-objects ${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build ${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/objects $POST_BUILD"
+EOF
+ubuntu_script="$(dirname "$dkms_conf")/ubuntu-save-objects"
+cat - <<'EOF' >"$ubuntu_script"
+#!/bin/sh
+from="$1"
+to="$2"
+script="$3"
+shift 2
+
+# Copy the objects.
+echo "II: copying objects to '$to'"
+mkdir -p "$to"
+(cd "$from" && find -name \*.o -o -name \*.o.ur-\* | cpio -Lpd "$to")
+
+# Call the original post_install script if there is one.
+[ "$script" = '' ] && exit 0
+
+shift
+exec "$(dirname "$0")/$script" "$@"
+EOF
+chmod +x "$ubuntu_script"
+dkms_package=$( sed -ne 's/PACKAGE_NAME="\(.*\)"/\1/p' "$dkms_conf" )
+dkms_version=$( sed -ne 's/PACKAGE_VERSION="\(.*\)"/\1/p' "$dkms_conf" )
+
+# Build the DKMS binaries.
+echo "II: dkms-build building $package"
+rc=0
+/usr/sbin/dkms build --no-prepare-kernel --no-clean-kernel \
+	-k "$abi_flavour" \
+	--sourcetree "$dkms_dir/source" \
+	--dkmstree "$dkms_dir/build" \
+	--kernelsourcedir "$dkms_dir/headers/linux-headers-$abi_flavour" \
+	"$dkms_conf" || rc=1
+
+# Find the log and add it to our own.
+for log in "$dkms_dir/build/$dkms_package/$dkms_version/$abi_flavour"/*/"log/make.log"
+do
+	break
+done
+cat "$log"
+
+# If this build failed then exit here.
+[ "$rc" != 0 ] && exit "$rc"
+
+# Install and optionally sign the modules we have built.
+pkgdir="$pkgdir/$package"
+echo "II: dkms-build installing $package into $pkgdir"
+install -d "$pkgdir"
+find "$dkms_dir/build/$dkms_package/$dkms_version/$abi_version" -name \*.ko |
+while read module; do
+	vmodule=$( basename "$module" )
+	case "$sign" in
+	--*)
+		echo "copying $vmodule"
+		cp "$module" "$pkgdir"
+		;;
+	*)
+		echo "signing $vmodule"
+		$sign "$module" "$pkgdir/$vmodule"
+		;;
+	esac
+done
+
+echo "II: dkms-build build $package complete"

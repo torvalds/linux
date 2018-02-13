@@ -1,0 +1,16 @@
+dm-crypt ?
+dm-mirror ?
+dm-raid ?
+dm-snapshot ?
+dm-zero ?
+faulty ?
+linear ?
+multipath ?
+raid0 ?
+raid1 ?
+raid10 ?
+raid456 ?
+
+# Extras
+dm-raid45 ?
+dm-loop ?

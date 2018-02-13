@@ -7,7 +7,7 @@ build_needed=0
 for trigger in ${ADT_TEST_TRIGGERS:-force}
 do
 	case "$trigger" in
-	linux/*|linux-lts-*/*|linux-meta*/*)		;;
+	linux/*|linux-lts-*/*|linux-meta*/*|linux-oem*/*)	;;
 	*)						build_needed=1 ;;
 	esac
 done
@@ -17,4 +17,4 @@ if [ "$build_needed" -eq 0 ]; then
 fi
 
 set -e
-dpkg-buildpackage -rfakeroot -us -uc -b
+dpkg-buildpackage -rfakeroot -us -uc -b -Pautopkgtest

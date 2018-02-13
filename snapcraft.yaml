@@ -1,0 +1,36 @@
+name: pc-kernel
+version: null
+version-script: |
+    . debian/debian.env
+    dpkg-parsechangelog -l $DEBIAN/changelog -S version
+summary: The Ubuntu generic Linux kernel
+description: This Ubuntu generic Linux kernel
+grade: stable
+confinement: strict
+type: kernel
+
+parts:
+  kernel:
+    plugin: kernel
+    source: .
+    source-type: git
+    kconfigflavour: generic
+    kconfigs:
+      - CONFIG_DEBUG_INFO=n
+    override-build: |
+      cp debian/scripts/retpoline-extract-one \
+        $SNAPCRAFT_PART_BUILD/scripts/ubuntu-retpoline-extract-one
+      snapcraftctl build
+    kernel-with-firmware: false
+  firmware:
+    plugin: nil
+    stage-packages:
+      - linux-firmware
+    organize:
+      lib/firmware: firmware
+    prime:
+      - -usr
+      - -lib
+    build-packages:
+      - cpio
+      - libssl-dev
