@@ -723,7 +723,7 @@ extern void radix_kvm_prefetch_workaround(struct mm_struct *mm)
 		for (; sib <= cpu_last_thread_sibling(cpu) && !flush; sib++) {
 			if (sib == cpu)
 				continue;
-			if (paca[sib].kvm_hstate.kvm_vcpu)
+			if (paca_ptrs[sib]->kvm_hstate.kvm_vcpu)
 				flush = true;
 		}
 		if (flush)

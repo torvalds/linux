@@ -170,12 +170,12 @@ static inline const struct cpumask *cpu_sibling_mask(int cpu)
 #ifdef CONFIG_PPC64
 static inline int get_hard_smp_processor_id(int cpu)
 {
-	return paca[cpu].hw_cpu_id;
+	return paca_ptrs[cpu]->hw_cpu_id;
 }
 
 static inline void set_hard_smp_processor_id(int cpu, int phys)
 {
-	paca[cpu].hw_cpu_id = phys;
+	paca_ptrs[cpu]->hw_cpu_id = phys;
 }
 #else
 /* 32-bit */

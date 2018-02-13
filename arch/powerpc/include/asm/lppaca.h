@@ -103,7 +103,7 @@ struct lppaca {
 
 extern struct lppaca lppaca[];
 
-#define lppaca_of(cpu)	(*paca[cpu].lppaca_ptr)
+#define lppaca_of(cpu)	(*paca_ptrs[cpu]->lppaca_ptr)
 
 /*
  * We are using a non architected field to determine if a partition is

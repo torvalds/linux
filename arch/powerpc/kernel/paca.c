@@ -161,8 +161,8 @@ static void __init allocate_slb_shadows(int nr_cpus, int limit) { }
  * processors.  The processor VPD array needs one entry per physical
  * processor (not thread).
  */
-struct paca_struct *paca;
-EXPORT_SYMBOL(paca);
+struct paca_struct **paca_ptrs __read_mostly;
+EXPORT_SYMBOL(paca_ptrs);
 
 void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 {
@@ -213,11 +213,13 @@ void setup_paca(struct paca_struct *new_paca)
 
 }
 
-static int __initdata paca_size;
+static int __initdata paca_nr_cpu_ids;
+static int __initdata paca_ptrs_size;
 
 void __init allocate_pacas(void)
 {
 	u64 limit;
+	unsigned long size = 0;
 	int cpu;
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -230,13 +232,27 @@ void __init allocate_pacas(void)
 	limit = ppc64_rma_size;
 #endif
 
-	paca_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpu_ids);
+	paca_nr_cpu_ids = nr_cpu_ids;
 
-	paca = __va(memblock_alloc_base(paca_size, PAGE_SIZE, limit));
-	memset(paca, 0, paca_size);
+	paca_ptrs_size = sizeof(struct paca_struct *) * nr_cpu_ids;
+	paca_ptrs = __va(memblock_alloc_base(paca_ptrs_size, 0, limit));
+	memset(paca_ptrs, 0, paca_ptrs_size);
 
-	printk(KERN_DEBUG "Allocated %u bytes for %u pacas at %p\n",
-		paca_size, nr_cpu_ids, paca);
+	size += paca_ptrs_size;
+
+	for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
+		unsigned long pa;
+
+		pa = memblock_alloc_base(sizeof(struct paca_struct),
+						L1_CACHE_BYTES, limit);
+		paca_ptrs[cpu] = __va(pa);
+		memset(paca_ptrs[cpu], 0, sizeof(struct paca_struct));
+
+		size += sizeof(struct paca_struct);
+	}
+
+	printk(KERN_DEBUG "Allocated %lu bytes for %u pacas\n",
+			size, nr_cpu_ids);
 
 	allocate_lppacas(nr_cpu_ids, limit);
 
@@ -244,26 +260,38 @@ void __init allocate_pacas(void)
 
 	/* Can't use for_each_*_cpu, as they aren't functional yet */
 	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
-		initialise_paca(&paca[cpu], cpu);
+		initialise_paca(paca_ptrs[cpu], cpu);
 }
 
 void __init free_unused_pacas(void)
 {
-	int new_size;
+	unsigned long size = 0;
+	int new_ptrs_size;
+	int cpu;
 
-	new_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpu_ids);
+	for (cpu = 0; cpu < paca_nr_cpu_ids; cpu++) {
+		if (!cpu_possible(cpu)) {
+			unsigned long pa = __pa(paca_ptrs[cpu]);
+			memblock_free(pa, sizeof(struct paca_struct));
+			paca_ptrs[cpu] = NULL;
+			size += sizeof(struct paca_struct);
+		}
+	}
 
-	if (new_size >= paca_size)
-		return;
+	new_ptrs_size = sizeof(struct paca_struct *) * nr_cpu_ids;
+	if (new_ptrs_size < paca_ptrs_size) {
+		memblock_free(__pa(paca_ptrs) + new_ptrs_size,
+					paca_ptrs_size - new_ptrs_size);
+		size += paca_ptrs_size - new_ptrs_size;
+	}
 
-	memblock_free(__pa(paca) + new_size, paca_size - new_size);
-
-	printk(KERN_DEBUG "Freed %u bytes for unused pacas\n",
-		paca_size - new_size);
-
-	paca_size = new_size;
+	if (size)
+		printk(KERN_DEBUG "Freed %lu bytes for unused pacas\n", size);
 
 	free_lppacas();
+
+	paca_nr_cpu_ids = nr_cpu_ids;
+	paca_ptrs_size = new_ptrs_size;
 }
 
 void copy_mm_to_paca(struct mm_struct *mm)

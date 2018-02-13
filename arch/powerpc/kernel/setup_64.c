@@ -110,7 +110,7 @@ void __init setup_tlb_core_data(void)
 		if (cpu_first_thread_sibling(boot_cpuid) == first)
 			first = boot_cpuid;
 
-		paca[cpu].tcd_ptr = &paca[first].tcd;
+		paca_ptrs[cpu]->tcd_ptr = &paca_ptrs[first]->tcd;
 
 		/*
 		 * If we have threads, we need either tlbsrx.
@@ -304,7 +304,7 @@ void __init early_setup(unsigned long dt_ptr)
 	early_init_devtree(__va(dt_ptr));
 
 	/* Now we know the logical id of our boot cpu, setup the paca. */
-	setup_paca(&paca[boot_cpuid]);
+	setup_paca(paca_ptrs[boot_cpuid]);
 	fixup_boot_paca();
 
 	/*
@@ -628,15 +628,15 @@ void __init exc_lvl_early_init(void)
 	for_each_possible_cpu(i) {
 		sp = memblock_alloc(THREAD_SIZE, THREAD_SIZE);
 		critirq_ctx[i] = (struct thread_info *)__va(sp);
-		paca[i].crit_kstack = __va(sp + THREAD_SIZE);
+		paca_ptrs[i]->crit_kstack = __va(sp + THREAD_SIZE);
 
 		sp = memblock_alloc(THREAD_SIZE, THREAD_SIZE);
 		dbgirq_ctx[i] = (struct thread_info *)__va(sp);
-		paca[i].dbg_kstack = __va(sp + THREAD_SIZE);
+		paca_ptrs[i]->dbg_kstack = __va(sp + THREAD_SIZE);
 
 		sp = memblock_alloc(THREAD_SIZE, THREAD_SIZE);
 		mcheckirq_ctx[i] = (struct thread_info *)__va(sp);
-		paca[i].mc_kstack = __va(sp + THREAD_SIZE);
+		paca_ptrs[i]->mc_kstack = __va(sp + THREAD_SIZE);
 	}
 
 	if (cpu_has_feature(CPU_FTR_DEBUG_LVL_EXC))
@@ -693,20 +693,20 @@ void __init emergency_stack_init(void)
 		ti = __va(memblock_alloc_base(THREAD_SIZE, THREAD_SIZE, limit));
 		memset(ti, 0, THREAD_SIZE);
 		emerg_stack_init_thread_info(ti, i);
-		paca[i].emergency_sp = (void *)ti + THREAD_SIZE;
+		paca_ptrs[i]->emergency_sp = (void *)ti + THREAD_SIZE;
 
 #ifdef CONFIG_PPC_BOOK3S_64
 		/* emergency stack for NMI exception handling. */
 		ti = __va(memblock_alloc_base(THREAD_SIZE, THREAD_SIZE, limit));
 		memset(ti, 0, THREAD_SIZE);
 		emerg_stack_init_thread_info(ti, i);
-		paca[i].nmi_emergency_sp = (void *)ti + THREAD_SIZE;
+		paca_ptrs[i]->nmi_emergency_sp = (void *)ti + THREAD_SIZE;
 
 		/* emergency stack for machine check exception handling. */
 		ti = __va(memblock_alloc_base(THREAD_SIZE, THREAD_SIZE, limit));
 		memset(ti, 0, THREAD_SIZE);
 		emerg_stack_init_thread_info(ti, i);
-		paca[i].mc_emergency_sp = (void *)ti + THREAD_SIZE;
+		paca_ptrs[i]->mc_emergency_sp = (void *)ti + THREAD_SIZE;
 #endif
 	}
 }
@@ -762,7 +762,7 @@ void __init setup_per_cpu_areas(void)
 	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
 	for_each_possible_cpu(cpu) {
                 __per_cpu_offset[cpu] = delta + pcpu_unit_offsets[cpu];
-		paca[cpu].data_offset = __per_cpu_offset[cpu];
+		paca_ptrs[cpu]->data_offset = __per_cpu_offset[cpu];
 	}
 }
 #endif
@@ -875,8 +875,9 @@ static void init_fallback_flush(void)
 	memset(l1d_flush_fallback_area, 0, l1d_size * 2);
 
 	for_each_possible_cpu(cpu) {
-		paca[cpu].rfi_flush_fallback_area = l1d_flush_fallback_area;
-		paca[cpu].l1d_flush_size = l1d_size;
+		struct paca_struct *paca = paca_ptrs[cpu];
+		paca->rfi_flush_fallback_area = l1d_flush_fallback_area;
+		paca->l1d_flush_size = l1d_size;
 	}
 }
 

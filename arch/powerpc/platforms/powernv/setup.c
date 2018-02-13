@@ -254,7 +254,7 @@ static void pnv_kexec_wait_secondaries_down(void)
 			if (i != notified) {
 				printk(KERN_INFO "kexec: waiting for cpu %d "
 				       "(physical %d) to enter OPAL\n",
-				       i, paca[i].hw_cpu_id);
+				       i, paca_ptrs[i]->hw_cpu_id);
 				notified = i;
 			}
 
@@ -266,7 +266,7 @@ static void pnv_kexec_wait_secondaries_down(void)
 			if (timeout-- == 0) {
 				printk(KERN_ERR "kexec: timed out waiting for "
 				       "cpu %d (physical %d) to enter OPAL\n",
-				       i, paca[i].hw_cpu_id);
+				       i, paca_ptrs[i]->hw_cpu_id);
 				break;
 			}
 		}

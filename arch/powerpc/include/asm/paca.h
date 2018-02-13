@@ -249,10 +249,10 @@ struct paca_struct {
 	void *rfi_flush_fallback_area;
 	u64 l1d_flush_size;
 #endif
-};
+} ____cacheline_aligned;
 
 extern void copy_mm_to_paca(struct mm_struct *mm);
-extern struct paca_struct *paca;
+extern struct paca_struct **paca_ptrs;
 extern void initialise_paca(struct paca_struct *new_paca, int cpu);
 extern void setup_paca(struct paca_struct *new_paca);
 extern void allocate_pacas(void);

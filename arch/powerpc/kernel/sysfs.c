@@ -600,7 +600,7 @@ void __init record_spr_defaults(void)
 	if (cpu_has_feature(CPU_FTR_DSCR)) {
 		dscr_default = mfspr(SPRN_DSCR);
 		for (cpu = 0; cpu < nr_cpu_ids; cpu++)
-			paca[cpu].dscr_default = dscr_default;
+			paca_ptrs[cpu]->dscr_default = dscr_default;
 	}
 }
 #endif /* CONFIG_PPC64 */

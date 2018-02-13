@@ -168,24 +168,25 @@ static void kexec_prepare_cpus_wait(int wait_state)
 	 * are correctly onlined.  If somehow we start a CPU on boot with RTAS
 	 * start-cpu, but somehow that CPU doesn't write callin_cpu_map[] in
 	 * time, the boot CPU will timeout.  If it does eventually execute
-	 * stuff, the secondary will start up (paca[].cpu_start was written) and
-	 * get into a peculiar state.  If the platform supports
-	 * smp_ops->take_timebase(), the secondary CPU will probably be spinning
-	 * in there.  If not (i.e. pseries), the secondary will continue on and
-	 * try to online itself/idle/etc. If it survives that, we need to find
-	 * these possible-but-not-online-but-should-be CPUs and chaperone them
-	 * into kexec_smp_wait().
+	 * stuff, the secondary will start up (paca_ptrs[]->cpu_start was
+	 * written) and get into a peculiar state.
+	 * If the platform supports smp_ops->take_timebase(), the secondary CPU
+	 * will probably be spinning in there.  If not (i.e. pseries), the
+	 * secondary will continue on and try to online itself/idle/etc. If it
+	 * survives that, we need to find these
+	 * possible-but-not-online-but-should-be CPUs and chaperone them into
+	 * kexec_smp_wait().
 	 */
 	for_each_online_cpu(i) {
 		if (i == my_cpu)
 			continue;
 
-		while (paca[i].kexec_state < wait_state) {
+		while (paca_ptrs[i]->kexec_state < wait_state) {
 			barrier();
 			if (i != notified) {
 				printk(KERN_INFO "kexec: waiting for cpu %d "
 				       "(physical %d) to enter %i state\n",
-				       i, paca[i].hw_cpu_id, wait_state);
+				       i, paca_ptrs[i]->hw_cpu_id, wait_state);
 				notified = i;
 			}
 		}
@@ -327,8 +328,7 @@ void default_machine_kexec(struct kimage *image)
 	 */
 	memcpy(&kexec_paca, get_paca(), sizeof(struct paca_struct));
 	kexec_paca.data_offset = 0xedeaddeadeeeeeeeUL;
-	paca = (struct paca_struct *)RELOC_HIDE(&kexec_paca, 0) -
-		kexec_paca.paca_index;
+	paca_ptrs[kexec_paca.paca_index] = &kexec_paca;
 	setup_paca(&kexec_paca);
 
 	/* XXX: If anyone does 'dynamic lppacas' this will also need to be

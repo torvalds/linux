@@ -80,7 +80,7 @@ static int pnv_save_sprs_for_deep_states(void)
 
 	for_each_possible_cpu(cpu) {
 		uint64_t pir = get_hard_smp_processor_id(cpu);
-		uint64_t hsprg0_val = (uint64_t)&paca[cpu];
+		uint64_t hsprg0_val = (uint64_t)paca_ptrs[cpu];
 
 		rc = opal_slw_set_reg(pir, SPRN_HSPRG0, hsprg0_val);
 		if (rc != 0)
@@ -173,12 +173,12 @@ static void pnv_alloc_idle_core_states(void)
 		for (j = 0; j < threads_per_core; j++) {
 			int cpu = first_cpu + j;
 
-			paca[cpu].core_idle_state_ptr = core_idle_state;
-			paca[cpu].thread_idle_state = PNV_THREAD_RUNNING;
-			paca[cpu].thread_mask = 1 << j;
+			paca_ptrs[cpu]->core_idle_state_ptr = core_idle_state;
+			paca_ptrs[cpu]->thread_idle_state = PNV_THREAD_RUNNING;
+			paca_ptrs[cpu]->thread_mask = 1 << j;
 			if (!cpu_has_feature(CPU_FTR_POWER9_DD1))
 				continue;
-			paca[cpu].thread_sibling_pacas =
+			paca_ptrs[cpu]->thread_sibling_pacas =
 				kmalloc_node(paca_ptr_array_size,
 					     GFP_KERNEL, node);
 		}
@@ -749,7 +749,8 @@ static int __init pnv_init_idle_states(void)
 			for (i = 0; i < threads_per_core; i++) {
 				int j = base_cpu + i;
 
-				paca[j].thread_sibling_pacas[idx] = &paca[cpu];
+				paca_ptrs[j]->thread_sibling_pacas[idx] =
+					paca_ptrs[cpu];
 			}
 		}
 	}
