@@ -215,10 +215,8 @@ struct dsi_reg { u16 module; u16 idx; };
 typedef void (*omap_dsi_isr_t) (void *arg, u32 mask);
 struct dsi_data;
 
-static int dsi_display_init_dispc(struct dsi_data *dsi,
-	enum omap_channel channel);
-static void dsi_display_uninit_dispc(struct dsi_data *dsi,
-	enum omap_channel channel);
+static int dsi_display_init_dispc(struct dsi_data *dsi);
+static void dsi_display_uninit_dispc(struct dsi_data *dsi);
 
 static int dsi_vc_send_null(struct dsi_data *dsi, int channel);
 
@@ -3845,7 +3843,7 @@ static int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 		return -ENODEV;
 	}
 
-	r = dsi_display_init_dispc(dsi, dispc_channel);
+	r = dsi_display_init_dispc(dsi);
 	if (r)
 		goto err_init_dispc;
 
@@ -3895,7 +3893,7 @@ err_mgr_enable:
 		dsi_vc_enable(dsi, channel, false);
 	}
 err_pix_fmt:
-	dsi_display_uninit_dispc(dsi, dispc_channel);
+	dsi_display_uninit_dispc(dsi);
 err_init_dispc:
 	return r;
 }
@@ -3918,7 +3916,7 @@ static void dsi_disable_video_output(struct omap_dss_device *dssdev, int channel
 
 	dss_mgr_disable(dispc_channel);
 
-	dsi_display_uninit_dispc(dsi, dispc_channel);
+	dsi_display_uninit_dispc(dsi);
 }
 
 static void dsi_update_screen_dispc(struct dsi_data *dsi)
@@ -4104,9 +4102,9 @@ static int dsi_configure_dispc_clocks(struct dsi_data *dsi)
 	return 0;
 }
 
-static int dsi_display_init_dispc(struct dsi_data *dsi,
-				  enum omap_channel channel)
+static int dsi_display_init_dispc(struct dsi_data *dsi)
 {
+	enum omap_channel channel = dsi->output.dispc_channel;
 	int r;
 
 	dss_select_lcd_clk_source(dsi->dss, channel, dsi->module_id == 0 ?
@@ -4167,9 +4165,10 @@ err:
 	return r;
 }
 
-static void dsi_display_uninit_dispc(struct dsi_data *dsi,
-				     enum omap_channel channel)
+static void dsi_display_uninit_dispc(struct dsi_data *dsi)
 {
+	enum omap_channel channel = dsi->output.dispc_channel;
+
 	if (dsi->mode == OMAP_DSS_DSI_CMD_MODE)
 		dss_mgr_unregister_framedone_handler(channel,
 				dsi_framedone_irq_callback, dsi);
