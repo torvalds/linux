@@ -603,7 +603,8 @@ static ssize_t show_vendor(struct device *dev, struct device_attribute *devattr,
 		       readl_relaxed(info + DRAM_VENDOR_MR6) & DRAM_VENDOR_MASK,
 		       readl_relaxed(info + DRAM_VENDOR_MR7) & DRAM_VENDOR_MASK,
 		       readl_relaxed(info + DRAM_VENDOR_MR8) & DRAM_VENDOR_MASK,
-		       readl_relaxed(info + DRAM_VENDOR_ERROR));
+		       readl_relaxed(info + DRAM_VENDOR_ERROR) &
+				     DRAM_VENDOR_MASK);
 }
 
 static int brcmstb_dpfe_resume(struct platform_device *pdev)
