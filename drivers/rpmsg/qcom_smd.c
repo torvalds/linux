@@ -205,7 +205,7 @@ struct qcom_smd_channel {
 	struct smd_channel_info_pair *info;
 	struct smd_channel_info_word_pair *info_word;
 
-	struct mutex tx_lock;
+	spinlock_t tx_lock;
 	wait_queue_head_t fblockread_event;
 
 	void *tx_fifo;
@@ -729,6 +729,7 @@ static int __qcom_smd_send(struct qcom_smd_channel *channel, const void *data,
 {
 	__le32 hdr[5] = { cpu_to_le32(len), };
 	int tlen = sizeof(hdr) + len;
+	unsigned long flags;
 	int ret;
 
 	/* Word aligned channels only accept word size aligned data */
@@ -739,9 +740,11 @@ static int __qcom_smd_send(struct qcom_smd_channel *channel, const void *data,
 	if (tlen >= channel->fifo_size)
 		return -EINVAL;
 
-	ret = mutex_lock_interruptible(&channel->tx_lock);
-	if (ret)
-		return ret;
+	/* Highlight the fact that if we enter the loop below we might sleep */
+	if (wait)
+		might_sleep();
+
+	spin_lock_irqsave(&channel->tx_lock, flags);
 
 	while (qcom_smd_get_tx_avail(channel) < tlen &&
 	       channel->state == SMD_CHANNEL_OPENED) {
@@ -753,7 +756,7 @@ static int __qcom_smd_send(struct qcom_smd_channel *channel, const void *data,
 		SET_TX_CHANNEL_FLAG(channel, fBLOCKREADINTR, 0);
 
 		/* Wait without holding the tx_lock */
-		mutex_unlock(&channel->tx_lock);
+		spin_unlock_irqrestore(&channel->tx_lock, flags);
 
 		ret = wait_event_interruptible(channel->fblockread_event,
 				       qcom_smd_get_tx_avail(channel) >= tlen ||
@@ -761,9 +764,7 @@ static int __qcom_smd_send(struct qcom_smd_channel *channel, const void *data,
 		if (ret)
 			return ret;
 
-		ret = mutex_lock_interruptible(&channel->tx_lock);
-		if (ret)
-			return ret;
+		spin_lock_irqsave(&channel->tx_lock, flags);
 
 		SET_TX_CHANNEL_FLAG(channel, fBLOCKREADINTR, 1);
 	}
@@ -787,7 +788,7 @@ static int __qcom_smd_send(struct qcom_smd_channel *channel, const void *data,
 	qcom_smd_signal_channel(channel);
 
 out_unlock:
-	mutex_unlock(&channel->tx_lock);
+	spin_unlock_irqrestore(&channel->tx_lock, flags);
 
 	return ret;
 }
@@ -1090,7 +1091,7 @@ static struct qcom_smd_channel *qcom_smd_create_channel(struct qcom_smd_edge *ed
 	if (!channel->name)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_init(&channel->tx_lock);
+	spin_lock_init(&channel->tx_lock);
 	spin_lock_init(&channel->recv_lock);
 	init_waitqueue_head(&channel->fblockread_event);
 	init_waitqueue_head(&channel->state_change_event);
