@@ -2909,8 +2909,7 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	else
 		disable_mclk_switching = ((1 < info.display_count) ||
 					  disable_mclk_switching_for_frame_lock ||
-					  smu7_vblank_too_short(hwmgr, mode_info.vblank_time_us) ||
-					  (mode_info.refresh_rate > 120));
+					  smu7_vblank_too_short(hwmgr, mode_info.vblank_time_us));
 
 	sclk = smu7_ps->performance_levels[0].engine_clock;
 	mclk = smu7_ps->performance_levels[0].memory_clock;
