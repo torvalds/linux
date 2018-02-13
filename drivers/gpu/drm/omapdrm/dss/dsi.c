@@ -439,14 +439,9 @@ static bool dsi_perf;
 module_param(dsi_perf, bool, 0644);
 #endif
 
-static inline struct dsi_data *dsi_get_dsidrv_data(struct platform_device *dsidev)
+static inline struct dsi_data *to_dsi_data(struct omap_dss_device *dssdev)
 {
-	return dev_get_drvdata(&dsidev->dev);
-}
-
-static inline struct platform_device *dsi_get_dsidev_from_dssdev(struct omap_dss_device *dssdev)
-{
-	return to_platform_device(dssdev->dev);
+	return dev_get_drvdata(dssdev->dev);
 }
 
 static struct dsi_data *dsi_get_dsi_from_id(int module)
@@ -467,7 +462,7 @@ static struct dsi_data *dsi_get_dsi_from_id(int module)
 
 	out = omap_dss_get_output(id);
 
-	return out ? dsi_get_dsidrv_data(to_platform_device(out->dev)) : NULL;
+	return out ? to_dsi_data(out) : NULL;
 }
 
 static inline void dsi_write_reg(struct dsi_data *dsi,
@@ -501,16 +496,14 @@ static inline u32 dsi_read_reg(struct dsi_data *dsi, const struct dsi_reg idx)
 
 static void dsi_bus_lock(struct omap_dss_device *dssdev)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 
 	down(&dsi->bus_lock);
 }
 
 static void dsi_bus_unlock(struct omap_dss_device *dssdev)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 
 	up(&dsi->bus_lock);
 }
@@ -2534,8 +2527,7 @@ static int dsi_vc_config_source(struct dsi_data *dsi, int channel,
 static void dsi_vc_enable_hs(struct omap_dss_device *dssdev, int channel,
 		bool enable)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 
 	DSSDBG("dsi_vc_enable_hs(%d, %d)\n", channel, enable);
 
@@ -2658,8 +2650,7 @@ static int dsi_vc_send_bta(struct dsi_data *dsi, int channel)
 
 static int dsi_vc_send_bta_sync(struct omap_dss_device *dssdev, int channel)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 	DECLARE_COMPLETION_ONSTACK(completion);
 	int r = 0;
 	u32 err;
@@ -2861,8 +2852,7 @@ static int dsi_vc_write_nosync_common(struct dsi_data *dsi, int channel,
 static int dsi_vc_dcs_write_nosync(struct omap_dss_device *dssdev, int channel,
 		u8 *data, int len)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 
 	return dsi_vc_write_nosync_common(dsi, channel, data, len,
 			DSS_DSI_CONTENT_DCS);
@@ -2871,8 +2861,7 @@ static int dsi_vc_dcs_write_nosync(struct omap_dss_device *dssdev, int channel,
 static int dsi_vc_generic_write_nosync(struct omap_dss_device *dssdev, int channel,
 		u8 *data, int len)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 
 	return dsi_vc_write_nosync_common(dsi, channel, data, len,
 			DSS_DSI_CONTENT_GENERIC);
@@ -2882,8 +2871,7 @@ static int dsi_vc_write_common(struct omap_dss_device *dssdev,
 			       int channel, u8 *data, int len,
 			       enum dss_dsi_content_type type)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 	int r;
 
 	r = dsi_vc_write_nosync_common(dsi, channel, data, len, type);
@@ -3088,8 +3076,7 @@ err:
 static int dsi_vc_dcs_read(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
 		u8 *buf, int buflen)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 	int r;
 
 	r = dsi_vc_dcs_send_read_request(dsi, channel, dcs_cmd);
@@ -3119,8 +3106,7 @@ err:
 static int dsi_vc_generic_read(struct omap_dss_device *dssdev, int channel,
 		u8 *reqdata, int reqlen, u8 *buf, int buflen)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 	int r;
 
 	r = dsi_vc_generic_send_read_request(dsi, channel, reqdata, reqlen);
@@ -3147,8 +3133,7 @@ static int dsi_vc_generic_read(struct omap_dss_device *dssdev, int channel,
 static int dsi_vc_set_max_rx_packet_size(struct omap_dss_device *dssdev, int channel,
 		u16 len)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 
 	return dsi_vc_send_short(dsi, channel,
 			MIPI_DSI_SET_MAXIMUM_RETURN_PACKET_SIZE, len, 0);
@@ -3782,8 +3767,7 @@ static void dsi_proto_timings(struct dsi_data *dsi)
 static int dsi_configure_pins(struct omap_dss_device *dssdev,
 		const struct omap_dsi_pin_config *pin_cfg)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 	int num_pins;
 	const int *pins;
 	struct dsi_lane_config lanes[DSI_MAX_NR_LANES];
@@ -3848,8 +3832,7 @@ static int dsi_configure_pins(struct omap_dss_device *dssdev,
 
 static int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 	enum omap_channel dispc_channel = dssdev->dispc_channel;
 	int bpp = dsi_get_pixel_size(dsi->pix_fmt);
 	struct omap_dss_device *out = &dsi->output;
@@ -3919,8 +3902,7 @@ err_init_dispc:
 
 static void dsi_disable_video_output(struct omap_dss_device *dssdev, int channel)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 	enum omap_channel dispc_channel = dssdev->dispc_channel;
 
 	if (dsi->mode == OMAP_DSS_DSI_VIDEO_MODE) {
@@ -4076,8 +4058,7 @@ static void dsi_framedone_irq_callback(void *data)
 static int dsi_update(struct omap_dss_device *dssdev, int channel,
 		void (*callback)(int, void *), void *data)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 	u16 dw, dh;
 
 	dsi_perf_mark_setup(dsi);
@@ -4285,8 +4266,7 @@ static void dsi_display_uninit_dsi(struct dsi_data *dsi, bool disconnect_lanes,
 
 static int dsi_display_enable(struct omap_dss_device *dssdev)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 	int r = 0;
 
 	DSSDBG("dsi_display_enable\n");
@@ -4320,8 +4300,7 @@ err_get_dsi:
 static void dsi_display_disable(struct omap_dss_device *dssdev,
 		bool disconnect_lanes, bool enter_ulps)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 
 	DSSDBG("dsi_display_disable\n");
 
@@ -4343,8 +4322,7 @@ static void dsi_display_disable(struct omap_dss_device *dssdev,
 
 static int dsi_enable_te(struct omap_dss_device *dssdev, bool enable)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 
 	dsi->te_enabled = enable;
 	return 0;
@@ -4830,8 +4808,7 @@ static bool dsi_vm_calc(struct dsi_data *dsi,
 static int dsi_set_config(struct omap_dss_device *dssdev,
 		const struct omap_dss_dsi_config *config)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 	struct dsi_clk_calc_ctx ctx;
 	bool ok;
 	int r;
@@ -4918,8 +4895,7 @@ static enum omap_channel dsi_get_channel(struct dsi_data *dsi)
 
 static int dsi_request_vc(struct omap_dss_device *dssdev, int *channel)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(dsi->vc); i++) {
@@ -4936,8 +4912,7 @@ static int dsi_request_vc(struct omap_dss_device *dssdev, int *channel)
 
 static int dsi_set_vc_id(struct omap_dss_device *dssdev, int channel, int vc_id)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 
 	if (vc_id < 0 || vc_id > 3) {
 		DSSERR("VC ID out of range\n");
@@ -4962,8 +4937,7 @@ static int dsi_set_vc_id(struct omap_dss_device *dssdev, int channel, int vc_id)
 
 static void dsi_release_vc(struct omap_dss_device *dssdev, int channel)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 
 	if ((channel >= 0 && channel <= 3) &&
 		dsi->vc[channel].dssdev == dssdev) {
@@ -4991,8 +4965,7 @@ static int dsi_get_clocks(struct dsi_data *dsi)
 static int dsi_connect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = to_dsi_data(dssdev);
 	enum omap_channel dispc_channel = dssdev->dispc_channel;
 	int r;
 
@@ -5507,13 +5480,12 @@ err_runtime_get:
 
 static void dsi_unbind(struct device *dev, struct device *master, void *data)
 {
-	struct platform_device *dsidev = to_platform_device(dev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct dsi_data *dsi = dev_get_drvdata(dev);
 
 	dss_debugfs_remove_file(dsi->debugfs.irqs);
 	dss_debugfs_remove_file(dsi->debugfs.regs);
 
-	of_platform_depopulate(&dsidev->dev);
+	of_platform_depopulate(dev);
 
 	WARN_ON(dsi->scp_clk_refcount > 0);
 
@@ -5521,7 +5493,7 @@ static void dsi_unbind(struct device *dev, struct device *master, void *data)
 
 	dsi_uninit_output(dsi);
 
-	pm_runtime_disable(&dsidev->dev);
+	pm_runtime_disable(dev);
 
 	if (dsi->vdds_dsi_reg != NULL && dsi->vdds_dsi_enabled) {
 		regulator_disable(dsi->vdds_dsi_reg);
@@ -5547,8 +5519,7 @@ static int dsi_remove(struct platform_device *pdev)
 
 static int dsi_runtime_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(pdev);
+	struct dsi_data *dsi = dev_get_drvdata(dev);
 
 	dsi->is_enabled = false;
 	/* ensure the irq handler sees the is_enabled value */
@@ -5563,8 +5534,7 @@ static int dsi_runtime_suspend(struct device *dev)
 
 static int dsi_runtime_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(pdev);
+	struct dsi_data *dsi = dev_get_drvdata(dev);
 	int r;
 
 	r = dispc_runtime_get();
