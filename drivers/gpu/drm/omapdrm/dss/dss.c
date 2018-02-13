@@ -345,7 +345,7 @@ static void dss_dump_clocks(struct seq_file *s)
 	const char *fclk_name;
 	unsigned long fclk_rate;
 
-	if (dss_runtime_get())
+	if (dss_runtime_get(&dss))
 		return;
 
 	seq_printf(s, "- DSS -\n");
@@ -357,7 +357,7 @@ static void dss_dump_clocks(struct seq_file *s)
 			fclk_name,
 			fclk_rate);
 
-	dss_runtime_put();
+	dss_runtime_put(&dss);
 }
 #endif
 
@@ -365,7 +365,7 @@ static void dss_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, dss_read_reg(r))
 
-	if (dss_runtime_get())
+	if (dss_runtime_get(&dss))
 		return;
 
 	DUMPREG(DSS_REVISION);
@@ -379,7 +379,7 @@ static void dss_dump_regs(struct seq_file *s)
 		DUMPREG(DSS_SDI_STATUS);
 	}
 
-	dss_runtime_put();
+	dss_runtime_put(&dss);
 #undef DUMPREG
 }
 
@@ -837,25 +837,30 @@ static void dss_put_clocks(void)
 		clk_put(dss.parent_clk);
 }
 
-int dss_runtime_get(void)
+int dss_runtime_get(struct dss_device *dss)
 {
 	int r;
 
 	DSSDBG("dss_runtime_get\n");
 
-	r = pm_runtime_get_sync(&dss.pdev->dev);
+	r = pm_runtime_get_sync(&dss->pdev->dev);
 	WARN_ON(r < 0);
 	return r < 0 ? r : 0;
 }
 
-void dss_runtime_put(void)
+void dss_runtime_put(struct dss_device *dss)
 {
 	int r;
 
 	DSSDBG("dss_runtime_put\n");
 
-	r = pm_runtime_put_sync(&dss.pdev->dev);
+	r = pm_runtime_put_sync(&dss->pdev->dev);
 	WARN_ON(r < 0 && r != -ENOSYS && r != -EBUSY);
+}
+
+struct dss_device *dss_get_device(struct device *dev)
+{
+	return &dss;
 }
 
 /* DEBUGFS */
@@ -1223,13 +1228,15 @@ static int dss_video_pll_probe(struct platform_device *pdev)
 	}
 
 	if (of_property_match_string(np, "reg-names", "pll1") >= 0) {
-		dss.video1_pll = dss_video_pll_init(pdev, 0, pll_regulator);
+		dss.video1_pll = dss_video_pll_init(&dss, pdev, 0,
+						    pll_regulator);
 		if (IS_ERR(dss.video1_pll))
 			return PTR_ERR(dss.video1_pll);
 	}
 
 	if (of_property_match_string(np, "reg-names", "pll2") >= 0) {
-		dss.video2_pll = dss_video_pll_init(pdev, 1, pll_regulator);
+		dss.video2_pll = dss_video_pll_init(&dss, pdev, 1,
+						    pll_regulator);
 		if (IS_ERR(dss.video2_pll)) {
 			dss_video_pll_uninit(dss.video1_pll);
 			return PTR_ERR(dss.video2_pll);
@@ -1311,16 +1318,16 @@ static int dss_add_child_component(struct device *dev, void *data)
 	return 0;
 }
 
-static int dss_probe_hardware(void)
+static int dss_probe_hardware(struct dss_device *dss)
 {
 	u32 rev;
 	int r;
 
-	r = dss_runtime_get();
+	r = dss_runtime_get(dss);
 	if (r)
 		return r;
 
-	dss.dss_clk_rate = clk_get_rate(dss.dss_clk);
+	dss->dss_clk_rate = clk_get_rate(dss->dss_clk);
 
 	/* Select DPLL */
 	REG_FLD_MOD(DSS_CONTROL, 0, 0, 0);
@@ -1332,16 +1339,16 @@ static int dss_probe_hardware(void)
 	REG_FLD_MOD(DSS_CONTROL, 1, 3, 3);	/* venc clock 4x enable */
 	REG_FLD_MOD(DSS_CONTROL, 0, 2, 2);	/* venc clock mode = normal */
 #endif
-	dss.dsi_clk_source[0] = DSS_CLK_SRC_FCK;
-	dss.dsi_clk_source[1] = DSS_CLK_SRC_FCK;
-	dss.dispc_clk_source = DSS_CLK_SRC_FCK;
-	dss.lcd_clk_source[0] = DSS_CLK_SRC_FCK;
-	dss.lcd_clk_source[1] = DSS_CLK_SRC_FCK;
+	dss->dsi_clk_source[0] = DSS_CLK_SRC_FCK;
+	dss->dsi_clk_source[1] = DSS_CLK_SRC_FCK;
+	dss->dispc_clk_source = DSS_CLK_SRC_FCK;
+	dss->lcd_clk_source[0] = DSS_CLK_SRC_FCK;
+	dss->lcd_clk_source[1] = DSS_CLK_SRC_FCK;
 
 	rev = dss_read_reg(DSS_REVISION);
 	pr_info("OMAP DSS rev %d.%d\n", FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
 
-	dss_runtime_put();
+	dss_runtime_put(dss);
 
 	return 0;
 }
@@ -1397,7 +1404,7 @@ static int dss_probe(struct platform_device *pdev)
 	/* Enable runtime PM and probe the hardware. */
 	pm_runtime_enable(&pdev->dev);
 
-	r = dss_probe_hardware();
+	r = dss_probe_hardware(&dss);
 	if (r)
 		goto err_pm_runtime_disable;
 

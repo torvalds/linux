@@ -5322,7 +5322,8 @@ static const struct dss_pll_hw dss_omap5_dsi_pll_hw = {
 	.has_refsel = true,
 };
 
-static int dsi_init_pll_data(struct platform_device *dsidev)
+static int dsi_init_pll_data(struct dss_device *dss,
+			     struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct dss_pll *pll = &dsi->pll;
@@ -5341,6 +5342,7 @@ static int dsi_init_pll_data(struct platform_device *dsidev)
 	pll->base = dsi->pll_base;
 	pll->hw = dsi->data->pll_hw;
 	pll->ops = &dsi_pll_ops;
+	pll->dss = dss;
 
 	r = dss_pll_register(pll);
 	if (r)
@@ -5417,6 +5419,7 @@ static const struct soc_device_attribute dsi_soc_devices[] = {
 static int dsi_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *dsidev = to_platform_device(dev);
+	struct dss_device *dss = dss_get_device(master);
 	const struct soc_device_attribute *soc;
 	const struct dsi_module_id_data *d;
 	u32 rev;
@@ -5525,7 +5528,7 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	if (r)
 		return r;
 
-	dsi_init_pll_data(dsidev);
+	dsi_init_pll_data(dss, dsidev);
 
 	pm_runtime_enable(&dsidev->dev);
 

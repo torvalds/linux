@@ -128,7 +128,8 @@ static const struct dss_pll_hw dss_omap5_hdmi_pll_hw = {
 	.has_refsel = true,
 };
 
-static int hdmi_init_pll_data(struct platform_device *pdev,
+static int hdmi_init_pll_data(struct dss_device *dss,
+			      struct platform_device *pdev,
 			      struct hdmi_pll_data *hpll)
 {
 	struct dss_pll *pll = &hpll->pll;
@@ -145,6 +146,7 @@ static int hdmi_init_pll_data(struct platform_device *pdev,
 	pll->id = DSS_PLL_HDMI;
 	pll->base = hpll->base;
 	pll->clkin = clk;
+	pll->dss = dss;
 
 	if (hpll->wp->version == 4)
 		pll->hw = &dss_omap4_hdmi_pll_hw;
@@ -160,8 +162,8 @@ static int hdmi_init_pll_data(struct platform_device *pdev,
 	return 0;
 }
 
-int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll,
-	struct hdmi_wp_data *wp)
+int hdmi_pll_init(struct dss_device *dss, struct platform_device *pdev,
+		  struct hdmi_pll_data *pll, struct hdmi_wp_data *wp)
 {
 	int r;
 	struct resource *res;
@@ -174,7 +176,7 @@ int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll,
 	if (IS_ERR(pll->base))
 		return PTR_ERR(pll->base);
 
-	r = hdmi_init_pll_data(pdev, pll);
+	r = hdmi_init_pll_data(dss, pdev, pll);
 	if (r) {
 		DSSERR("failed to init HDMI PLL\n");
 		return r;

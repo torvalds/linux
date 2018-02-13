@@ -191,6 +191,7 @@ struct dss_pll_hw {
 struct dss_pll {
 	const char *name;
 	enum dss_pll_id id;
+	struct dss_device *dss;
 
 	struct clk *clkin;
 	struct regulator *regulator;
@@ -291,8 +292,10 @@ static inline int dss_debugfs_create_file(const char *name,
 }
 #endif /* CONFIG_OMAP2_DSS_DEBUGFS */
 
-int dss_runtime_get(void);
-void dss_runtime_put(void);
+struct dss_device *dss_get_device(struct device *dev);
+
+int dss_runtime_get(struct dss_device *dss);
+void dss_runtime_put(struct dss_device *dss);
 
 unsigned long dss_get_dispc_clk_rate(void);
 unsigned long dss_get_max_fck_rate(void);
@@ -302,8 +305,9 @@ void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select);
 const char *dss_get_clk_source_name(enum dss_clk_source clk_src);
 
 /* DSS VIDEO PLL */
-struct dss_pll *dss_video_pll_init(struct platform_device *pdev, int id,
-	struct regulator *regulator);
+struct dss_pll *dss_video_pll_init(struct dss_device *dss,
+				   struct platform_device *pdev, int id,
+				   struct regulator *regulator);
 void dss_video_pll_uninit(struct dss_pll *pll);
 
 void dss_ctrl_pll_enable(enum dss_pll_id pll_id, bool enable);

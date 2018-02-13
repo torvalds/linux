@@ -718,6 +718,7 @@ static int hdmi_audio_register(struct device *dev)
 static int hdmi5_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	struct dss_device *dss = dss_get_device(master);
 	int r;
 	int irq;
 
@@ -735,7 +736,7 @@ static int hdmi5_bind(struct device *dev, struct device *master, void *data)
 	if (r)
 		return r;
 
-	r = hdmi_pll_init(pdev, &hdmi.pll, &hdmi.wp);
+	r = hdmi_pll_init(dss, pdev, &hdmi.pll, &hdmi.wp);
 	if (r)
 		return r;
 
