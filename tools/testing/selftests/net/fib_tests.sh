@@ -282,6 +282,7 @@ fib_carrier_local_test()
 
 	set -e
 	ip -netns testns link set dev dummy0 carrier off
+	sleep 1
 	set +e
 
 	echo "    Carrier off on nexthop"
