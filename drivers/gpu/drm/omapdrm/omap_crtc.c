@@ -117,12 +117,10 @@ static int omap_crtc_dss_connect(struct omap_drm_private *priv,
 		enum omap_channel channel,
 		struct omap_dss_device *dst)
 {
-	const struct dispc_ops *dispc_ops = dispc_get_ops();
-
 	if (omap_crtc_output[channel])
 		return -EINVAL;
 
-	if ((dispc_ops->mgr_get_supported_outputs(channel) & dst->id) == 0)
+	if (!(priv->dispc_ops->mgr_get_supported_outputs(channel) & dst->id))
 		return -EINVAL;
 
 	omap_crtc_output[channel] = dst;

@@ -18,10 +18,11 @@
 #include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/list.h>
+
+#include "dss.h"
 #include "omapdss.h"
 
 static struct dss_device *dss_device;
-static const struct dispc_ops *ops;
 
 static struct list_head omapdss_comp_list;
 
@@ -43,15 +44,9 @@ void omapdss_set_dss(struct dss_device *dss)
 }
 EXPORT_SYMBOL(omapdss_set_dss);
 
-void dispc_set_ops(const struct dispc_ops *o)
+const struct dispc_ops *dispc_get_ops(struct dss_device *dss)
 {
-	ops = o;
-}
-EXPORT_SYMBOL(dispc_set_ops);
-
-const struct dispc_ops *dispc_get_ops(void)
-{
-	return ops;
+	return dss->dispc_ops;
 }
 EXPORT_SYMBOL(dispc_get_ops);
 

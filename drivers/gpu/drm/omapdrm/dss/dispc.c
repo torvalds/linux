@@ -4622,7 +4622,7 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 
 	dispc_runtime_put();
 
-	dispc_set_ops(&dispc_ops);
+	dss->dispc_ops = &dispc_ops;
 
 	dispc.debugfs = dss_debugfs_create_file(dss, "dispc", dispc_dump_regs,
 						&dispc);
@@ -4637,9 +4637,11 @@ err_runtime_get:
 static void dispc_unbind(struct device *dev, struct device *master,
 			       void *data)
 {
+	struct dss_device *dss = dispc.dss;
+
 	dss_debugfs_remove_file(dispc.debugfs);
 
-	dispc_set_ops(NULL);
+	dss->dispc_ops = NULL;
 
 	pm_runtime_disable(dev);
 

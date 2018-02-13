@@ -271,6 +271,8 @@ struct dss_device {
 	struct dss_pll *plls[4];
 	struct dss_pll	*video1_pll;
 	struct dss_pll	*video2_pll;
+
+	const struct dispc_ops *dispc_ops;
 };
 
 /* core */

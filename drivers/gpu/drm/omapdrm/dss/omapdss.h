@@ -733,8 +733,7 @@ struct dispc_ops {
 	const u32 *(*ovl_get_color_modes)(enum omap_plane_id plane);
 };
 
-void dispc_set_ops(const struct dispc_ops *o);
-const struct dispc_ops *dispc_get_ops(void);
+const struct dispc_ops *dispc_get_ops(struct dss_device *dss);
 
 bool omapdss_component_is_display(struct device_node *node);
 bool omapdss_component_is_output(struct device_node *node);
