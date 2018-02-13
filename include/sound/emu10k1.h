@@ -1718,7 +1718,6 @@ struct snd_emu10k1 {
 	struct snd_dma_buffer p16v_buffer;
 
 	struct snd_util_memhdr *memhdr;		/* page allocation list */
-	struct snd_emu10k1_memblk *reserved_page;	/* reserved page */
 
 	struct list_head mapped_link_head;
 	struct list_head mapped_order_link_head;

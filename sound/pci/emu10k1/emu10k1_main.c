@@ -1272,12 +1272,6 @@ static int snd_emu10k1_free(struct snd_emu10k1 *emu)
 	release_firmware(emu->dock_fw);
 	if (emu->irq >= 0)
 		free_irq(emu->irq, emu);
-	/* remove reserved page */
-	if (emu->reserved_page) {
-		snd_emu10k1_synth_free(emu,
-			(struct snd_util_memblk *)emu->reserved_page);
-		emu->reserved_page = NULL;
-	}
 	snd_util_memhdr_free(emu->memhdr);
 	if (emu->silent_page.area)
 		snd_dma_free_pages(&emu->silent_page);
@@ -1992,11 +1986,6 @@ int snd_emu10k1_create(struct snd_card *card,
 		SPCS_CHANNELNUM_LEFT | SPCS_SOURCENUM_UNSPEC |
 		SPCS_GENERATIONSTATUS | 0x00001200 |
 		0x00000000 | SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT;
-
-	emu->reserved_page = (struct snd_emu10k1_memblk *)
-		snd_emu10k1_synth_alloc(emu, 4096);
-	if (emu->reserved_page)
-		emu->reserved_page->map_locked = 1;
 
 	/* Clear silent pages and set up pointers */
 	memset(emu->silent_page.area, 0, PAGE_SIZE);

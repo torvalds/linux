@@ -102,7 +102,7 @@ static void emu10k1_memblk_init(struct snd_emu10k1_memblk *blk)
  */
 static int search_empty_map_area(struct snd_emu10k1 *emu, int npages, struct list_head **nextp)
 {
-	int page = 0, found_page = -ENOMEM;
+	int page = 1, found_page = -ENOMEM;
 	int max_size = npages;
 	int size;
 	struct list_head *candidate = &emu->mapped_link_head;
@@ -147,6 +147,10 @@ static int map_memblk(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *blk)
 	page = search_empty_map_area(emu, blk->pages, &next);
 	if (page < 0) /* not found */
 		return page;
+	if (page == 0) {
+		dev_err(emu->card->dev, "trying to map zero (reserved) page\n");
+		return -EINVAL;
+	}
 	/* insert this block in the proper position of mapped list */
 	list_add_tail(&blk->mapped_link, next);
 	/* append this as a newest block in order list */
@@ -177,7 +181,7 @@ static int unmap_memblk(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *blk)
 		q = get_emu10k1_memblk(p, mapped_link);
 		start_page = q->mapped_page + q->pages;
 	} else
-		start_page = 0;
+		start_page = 1;
 	if ((p = blk->mapped_link.next) != &emu->mapped_link_head) {
 		q = get_emu10k1_memblk(p, mapped_link);
 		end_page = q->mapped_page;
