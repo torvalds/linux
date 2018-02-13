@@ -505,3 +505,8 @@ enum dc_edid_status dm_helpers_read_local_edid(
 
 	return edid_status;
 }
+
+void dm_set_dcn_clocks(struct dc_context *ctx, struct dc_clocks *clks)
+{
+	/* TODO: something */
+}

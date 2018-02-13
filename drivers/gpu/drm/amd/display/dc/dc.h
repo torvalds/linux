@@ -184,6 +184,17 @@ enum wm_report_mode {
 	WM_REPORT_OVERRIDE = 1,
 };
 
+struct dc_clocks {
+	int dispclk_khz;
+	int max_dppclk_khz;
+	int dcfclk_khz;
+	int socclk_khz;
+	int dcfclk_deep_sleep_khz;
+	int fclk_khz;
+	int dram_ccm_us;
+	int min_active_dram_ccm_us;
+};
+
 struct dc_debug {
 	bool surface_visual_confirm;
 	bool sanity_checks;

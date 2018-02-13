@@ -108,5 +108,8 @@ enum dc_edid_status dm_helpers_read_local_edid(
 		struct dc_link *link,
 		struct dc_sink *sink);
 
+void dm_set_dcn_clocks(
+		struct dc_context *ctx,
+		struct dc_clocks *clks);
 
 #endif /* __DM_HELPERS__ */

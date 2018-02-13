@@ -256,20 +256,9 @@ struct dce_bw_output {
 	int blackout_recovery_time_us;
 };
 
-struct dcn_bw_clocks {
-	int dispclk_khz;
-	int max_dppclk_khz;
-	int dcfclk_khz;
-	int socclk_khz;
-	int dcfclk_deep_sleep_khz;
-	int fclk_khz;
-	int dram_ccm_us;
-	int min_active_dram_ccm_us;
-};
-
 struct dcn_bw_output {
-	struct dcn_bw_clocks cur_clk;
-	struct dcn_bw_clocks calc_clk;
+	struct dc_clocks cur_clk;
+	struct dc_clocks calc_clk;
 	struct dcn_watermark_set watermarks;
 };
 
