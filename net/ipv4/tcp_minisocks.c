@@ -578,7 +578,7 @@ EXPORT_SYMBOL(tcp_create_openreq_child);
 
 struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 			   struct request_sock *req,
-			   bool fastopen)
+			   bool fastopen, bool *req_stolen)
 {
 	struct tcp_options_received tmp_opt;
 	struct sock *child;
@@ -785,6 +785,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 
 	sock_rps_save_rxhash(child, skb);
 	tcp_synack_rtt_meas(child, req);
+	*req_stolen = !own_req;
 	return inet_csk_complete_hashdance(sk, child, req, own_req);
 
 listen_overflow:
