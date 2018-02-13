@@ -20,7 +20,6 @@
 #include <linux/set_memory.h>
 #include <linux/kallsyms.h>
 
-#include <net/xdp.h>
 #include <net/sch_generic.h>
 
 #include <uapi/linux/filter.h>
@@ -30,6 +29,7 @@ struct sk_buff;
 struct sock;
 struct seccomp_data;
 struct bpf_prog_aux;
+struct xdp_rxq_info;
 
 /* ArgX, context and stack frame pointer register positions. Note,
  * Arg1, Arg2, Arg3, etc are used as argument mappings of function
