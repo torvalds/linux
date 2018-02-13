@@ -521,7 +521,7 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 
 	priv->dev = dev;
 
-	omap_crtc_pre_init();
+	omap_crtc_pre_init(priv);
 
 	ret = omap_connect_dssdevs();
 	if (ret)

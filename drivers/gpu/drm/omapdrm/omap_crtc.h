@@ -32,7 +32,7 @@ struct videomode;
 
 struct videomode *omap_crtc_timings(struct drm_crtc *crtc);
 enum omap_channel omap_crtc_channel(struct drm_crtc *crtc);
-void omap_crtc_pre_init(void);
+void omap_crtc_pre_init(struct omap_drm_private *priv);
 void omap_crtc_pre_uninit(void);
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 		struct drm_plane *plane, struct omap_dss_device *dssdev);

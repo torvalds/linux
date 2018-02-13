@@ -113,7 +113,8 @@ static struct omap_crtc *omap_crtcs[8];
 static struct omap_dss_device *omap_crtc_output[8];
 
 /* we can probably ignore these until we support command-mode panels: */
-static int omap_crtc_dss_connect(enum omap_channel channel,
+static int omap_crtc_dss_connect(struct omap_drm_private *priv,
+		enum omap_channel channel,
 		struct omap_dss_device *dst)
 {
 	const struct dispc_ops *dispc_ops = dispc_get_ops();
@@ -130,14 +131,16 @@ static int omap_crtc_dss_connect(enum omap_channel channel,
 	return 0;
 }
 
-static void omap_crtc_dss_disconnect(enum omap_channel channel,
+static void omap_crtc_dss_disconnect(struct omap_drm_private *priv,
+		enum omap_channel channel,
 		struct omap_dss_device *dst)
 {
 	omap_crtc_output[channel] = NULL;
 	dst->dispc_channel_connected = false;
 }
 
-static void omap_crtc_dss_start_update(enum omap_channel channel)
+static void omap_crtc_dss_start_update(struct omap_drm_private *priv,
+				       enum omap_channel channel)
 {
 }
 
@@ -207,10 +210,10 @@ static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 }
 
 
-static int omap_crtc_dss_enable(enum omap_channel channel)
+static int omap_crtc_dss_enable(struct omap_drm_private *priv,
+				enum omap_channel channel)
 {
 	struct omap_crtc *omap_crtc = omap_crtcs[channel];
-	struct omap_drm_private *priv = omap_crtc->base.dev->dev_private;
 
 	priv->dispc_ops->mgr_set_timings(omap_crtc->channel, &omap_crtc->vm);
 	omap_crtc_set_enabled(&omap_crtc->base, true);
@@ -218,14 +221,16 @@ static int omap_crtc_dss_enable(enum omap_channel channel)
 	return 0;
 }
 
-static void omap_crtc_dss_disable(enum omap_channel channel)
+static void omap_crtc_dss_disable(struct omap_drm_private *priv,
+				  enum omap_channel channel)
 {
 	struct omap_crtc *omap_crtc = omap_crtcs[channel];
 
 	omap_crtc_set_enabled(&omap_crtc->base, false);
 }
 
-static void omap_crtc_dss_set_timings(enum omap_channel channel,
+static void omap_crtc_dss_set_timings(struct omap_drm_private *priv,
+		enum omap_channel channel,
 		const struct videomode *vm)
 {
 	struct omap_crtc *omap_crtc = omap_crtcs[channel];
@@ -233,25 +238,25 @@ static void omap_crtc_dss_set_timings(enum omap_channel channel,
 	omap_crtc->vm = *vm;
 }
 
-static void omap_crtc_dss_set_lcd_config(enum omap_channel channel,
+static void omap_crtc_dss_set_lcd_config(struct omap_drm_private *priv,
+		enum omap_channel channel,
 		const struct dss_lcd_mgr_config *config)
 {
 	struct omap_crtc *omap_crtc = omap_crtcs[channel];
-	struct omap_drm_private *priv = omap_crtc->base.dev->dev_private;
 
 	DBG("%s", omap_crtc->name);
 	priv->dispc_ops->mgr_set_lcd_config(omap_crtc->channel, config);
 }
 
 static int omap_crtc_dss_register_framedone(
-		enum omap_channel channel,
+		struct omap_drm_private *priv, enum omap_channel channel,
 		void (*handler)(void *), void *data)
 {
 	return 0;
 }
 
 static void omap_crtc_dss_unregister_framedone(
-		enum omap_channel channel,
+		struct omap_drm_private *priv, enum omap_channel channel,
 		void (*handler)(void *), void *data)
 {
 }
@@ -669,11 +674,11 @@ static const char *channel_names[] = {
 	[OMAP_DSS_CHANNEL_LCD3] = "lcd3",
 };
 
-void omap_crtc_pre_init(void)
+void omap_crtc_pre_init(struct omap_drm_private *priv)
 {
 	memset(omap_crtcs, 0, sizeof(omap_crtcs));
 
-	dss_install_mgr_ops(&mgr_ops);
+	dss_install_mgr_ops(&mgr_ops, priv);
 }
 
 void omap_crtc_pre_uninit(void)

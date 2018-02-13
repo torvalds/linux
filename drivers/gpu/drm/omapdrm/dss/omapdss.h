@@ -59,6 +59,7 @@
 #define DISPC_IRQ_ACBIAS_COUNT_STAT3	(1 << 29)
 #define DISPC_IRQ_FRAMEDONE3		(1 << 30)
 
+struct omap_drm_private;
 struct omap_dss_device;
 struct dss_lcd_mgr_config;
 struct snd_aes_iec958;
@@ -635,25 +636,35 @@ struct device_node *dss_of_port_get_parent_device(struct device_node *port);
 u32 dss_of_port_get_port_number(struct device_node *port);
 
 struct dss_mgr_ops {
-	int (*connect)(enum omap_channel channel,
-		struct omap_dss_device *dst);
-	void (*disconnect)(enum omap_channel channel,
-		struct omap_dss_device *dst);
+	int (*connect)(struct omap_drm_private *priv,
+		       enum omap_channel channel,
+		       struct omap_dss_device *dst);
+	void (*disconnect)(struct omap_drm_private *priv,
+			   enum omap_channel channel,
+			   struct omap_dss_device *dst);
 
-	void (*start_update)(enum omap_channel channel);
-	int (*enable)(enum omap_channel channel);
-	void (*disable)(enum omap_channel channel);
-	void (*set_timings)(enum omap_channel channel,
-			const struct videomode *vm);
-	void (*set_lcd_config)(enum omap_channel channel,
-			const struct dss_lcd_mgr_config *config);
-	int (*register_framedone_handler)(enum omap_channel channel,
+	void (*start_update)(struct omap_drm_private *priv,
+			     enum omap_channel channel);
+	int (*enable)(struct omap_drm_private *priv,
+		      enum omap_channel channel);
+	void (*disable)(struct omap_drm_private *priv,
+			enum omap_channel channel);
+	void (*set_timings)(struct omap_drm_private *priv,
+			    enum omap_channel channel,
+			    const struct videomode *vm);
+	void (*set_lcd_config)(struct omap_drm_private *priv,
+			       enum omap_channel channel,
+			       const struct dss_lcd_mgr_config *config);
+	int (*register_framedone_handler)(struct omap_drm_private *priv,
+			enum omap_channel channel,
 			void (*handler)(void *), void *data);
-	void (*unregister_framedone_handler)(enum omap_channel channel,
+	void (*unregister_framedone_handler)(struct omap_drm_private *priv,
+			enum omap_channel channel,
 			void (*handler)(void *), void *data);
 };
 
-int dss_install_mgr_ops(const struct dss_mgr_ops *mgr_ops);
+int dss_install_mgr_ops(const struct dss_mgr_ops *mgr_ops,
+			struct omap_drm_private *priv);
 void dss_uninstall_mgr_ops(void);
 
 int dss_mgr_connect(struct omap_dss_device *dssdev,
