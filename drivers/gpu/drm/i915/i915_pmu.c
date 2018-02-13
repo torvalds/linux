@@ -409,22 +409,32 @@ static int i915_pmu_event_init(struct perf_event *event)
 	return 0;
 }
 
+static u64 __get_rc6(struct drm_i915_private *i915)
+{
+	u64 val;
+
+	val = intel_rc6_residency_ns(i915,
+				     IS_VALLEYVIEW(i915) ?
+				     VLV_GT_RENDER_RC6 :
+				     GEN6_GT_GFX_RC6);
+
+	if (HAS_RC6p(i915))
+		val += intel_rc6_residency_ns(i915, GEN6_GT_GFX_RC6p);
+
+	if (HAS_RC6pp(i915))
+		val += intel_rc6_residency_ns(i915, GEN6_GT_GFX_RC6pp);
+
+	return val;
+}
+
 static u64 get_rc6(struct drm_i915_private *i915, bool locked)
 {
+#if IS_ENABLED(CONFIG_PM)
 	unsigned long flags;
 	u64 val;
 
 	if (intel_runtime_pm_get_if_in_use(i915)) {
-		val = intel_rc6_residency_ns(i915, IS_VALLEYVIEW(i915) ?
-						   VLV_GT_RENDER_RC6 :
-						   GEN6_GT_GFX_RC6);
-
-		if (HAS_RC6p(i915))
-			val += intel_rc6_residency_ns(i915, GEN6_GT_GFX_RC6p);
-
-		if (HAS_RC6pp(i915))
-			val += intel_rc6_residency_ns(i915, GEN6_GT_GFX_RC6pp);
-
+		val = __get_rc6(i915);
 		intel_runtime_pm_put(i915);
 
 		/*
@@ -481,6 +491,9 @@ static u64 get_rc6(struct drm_i915_private *i915, bool locked)
 	}
 
 	return val;
+#else
+	return __get_rc6(i915);
+#endif
 }
 
 static u64 __i915_pmu_event_read(struct perf_event *event, bool locked)
