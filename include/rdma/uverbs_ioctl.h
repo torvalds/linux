@@ -276,10 +276,7 @@ struct uverbs_object_tree_def {
  */
 
 struct uverbs_ptr_attr {
-	union {
-		u64		data;
-		void	__user *ptr;
-	};
+	u64		data;
 	u16		len;
 	/* Combination of bits from enum UVERBS_ATTR_F_XXXX */
 	u16		flags;
@@ -361,7 +358,7 @@ static inline int uverbs_copy_to(const struct uverbs_attr_bundle *attrs_bundle,
 		return PTR_ERR(attr);
 
 	min_size = min_t(size_t, attr->ptr_attr.len, size);
-	if (copy_to_user(attr->ptr_attr.ptr, from, min_size))
+	if (copy_to_user(u64_to_user_ptr(attr->ptr_attr.data), from, min_size))
 		return -EFAULT;
 
 	flags = attr->ptr_attr.flags | UVERBS_ATTR_F_VALID_OUTPUT;
@@ -396,7 +393,8 @@ static inline int _uverbs_copy_from(void *to,
 
 	if (uverbs_attr_ptr_is_inline(attr))
 		memcpy(to, &attr->ptr_attr.data, attr->ptr_attr.len);
-	else if (copy_from_user(to, attr->ptr_attr.ptr, attr->ptr_attr.len))
+	else if (copy_from_user(to, u64_to_user_ptr(attr->ptr_attr.data),
+				attr->ptr_attr.len))
 		return -EFAULT;
 
 	return 0;

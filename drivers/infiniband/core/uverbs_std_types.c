@@ -238,14 +238,14 @@ static void create_udata(struct uverbs_attr_bundle *ctx,
 		if (uverbs_attr_ptr_is_inline(uhw_in))
 			udata->inbuf = &uhw_in->uattr->data;
 		else
-			udata->inbuf = uhw_in->ptr_attr.ptr;
+			udata->inbuf = u64_to_user_ptr(uhw_in->ptr_attr.data);
 	} else {
 		udata->inbuf = NULL;
 		udata->inlen = 0;
 	}
 
 	if (!IS_ERR(uhw_out)) {
-		udata->outbuf = uhw_out->ptr_attr.ptr;
+		udata->outbuf = u64_to_user_ptr(uhw_out->ptr_attr.data);
 		udata->outlen = uhw_out->ptr_attr.len;
 	} else {
 		udata->outbuf = NULL;
