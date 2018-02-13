@@ -74,7 +74,7 @@ static u32 i2c_cy8ctouch_read(struct cy8c_touch *ts,  u8 *buf, u32 num)
 
 	xfer_msg[1].addr = client->addr;
 	xfer_msg[1].len = num;
-	xfer_msg[1].flags |= I2C_M_RD;
+	xfer_msg[1].flags = I2C_M_RD;
 	xfer_msg[1].buf = buf;
 
 	ret = i2c_transfer(client->adapter, xfer_msg, ARRAY_SIZE(xfer_msg));
