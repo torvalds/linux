@@ -56,6 +56,50 @@ static __ref void *early_alloc_pgtable(unsigned long size)
 	return pt;
 }
 
+static int early_map_kernel_page(unsigned long ea, unsigned long pa,
+			  pgprot_t flags,
+			  unsigned int map_page_size)
+{
+	pgd_t *pgdp;
+	pud_t *pudp;
+	pmd_t *pmdp;
+	pte_t *ptep;
+
+	pgdp = pgd_offset_k(ea);
+	if (pgd_none(*pgdp)) {
+		pudp = early_alloc_pgtable(PUD_TABLE_SIZE);
+		BUG_ON(pudp == NULL);
+		pgd_populate(&init_mm, pgdp, pudp);
+	}
+	pudp = pud_offset(pgdp, ea);
+	if (map_page_size == PUD_SIZE) {
+		ptep = (pte_t *)pudp;
+		goto set_the_pte;
+	}
+	if (pud_none(*pudp)) {
+		pmdp = early_alloc_pgtable(PMD_TABLE_SIZE);
+		BUG_ON(pmdp == NULL);
+		pud_populate(&init_mm, pudp, pmdp);
+	}
+	pmdp = pmd_offset(pudp, ea);
+	if (map_page_size == PMD_SIZE) {
+		ptep = pmdp_ptep(pmdp);
+		goto set_the_pte;
+	}
+	if (!pmd_present(*pmdp)) {
+		ptep = early_alloc_pgtable(PAGE_SIZE);
+		BUG_ON(ptep == NULL);
+		pmd_populate_kernel(&init_mm, pmdp, ptep);
+	}
+	ptep = pte_offset_kernel(pmdp, ea);
+
+set_the_pte:
+	set_pte_at(&init_mm, ea, ptep, pfn_pte(pa >> PAGE_SHIFT, flags));
+	smp_wmb();
+	return 0;
+}
+
+
 int radix__map_kernel_page(unsigned long ea, unsigned long pa,
 			  pgprot_t flags,
 			  unsigned int map_page_size)
@@ -68,54 +112,28 @@ int radix__map_kernel_page(unsigned long ea, unsigned long pa,
 	 * Make sure task size is correct as per the max adddr
 	 */
 	BUILD_BUG_ON(TASK_SIZE_USER64 > RADIX_PGTABLE_RANGE);
-	if (slab_is_available()) {
-		pgdp = pgd_offset_k(ea);
-		pudp = pud_alloc(&init_mm, pgdp, ea);
-		if (!pudp)
-			return -ENOMEM;
-		if (map_page_size == PUD_SIZE) {
-			ptep = (pte_t *)pudp;
-			goto set_the_pte;
-		}
-		pmdp = pmd_alloc(&init_mm, pudp, ea);
-		if (!pmdp)
-			return -ENOMEM;
-		if (map_page_size == PMD_SIZE) {
-			ptep = pmdp_ptep(pmdp);
-			goto set_the_pte;
-		}
-		ptep = pte_alloc_kernel(pmdp, ea);
-		if (!ptep)
-			return -ENOMEM;
-	} else {
-		pgdp = pgd_offset_k(ea);
-		if (pgd_none(*pgdp)) {
-			pudp = early_alloc_pgtable(PUD_TABLE_SIZE);
-			BUG_ON(pudp == NULL);
-			pgd_populate(&init_mm, pgdp, pudp);
-		}
-		pudp = pud_offset(pgdp, ea);
-		if (map_page_size == PUD_SIZE) {
-			ptep = (pte_t *)pudp;
-			goto set_the_pte;
-		}
-		if (pud_none(*pudp)) {
-			pmdp = early_alloc_pgtable(PMD_TABLE_SIZE);
-			BUG_ON(pmdp == NULL);
-			pud_populate(&init_mm, pudp, pmdp);
-		}
-		pmdp = pmd_offset(pudp, ea);
-		if (map_page_size == PMD_SIZE) {
-			ptep = pmdp_ptep(pmdp);
-			goto set_the_pte;
-		}
-		if (!pmd_present(*pmdp)) {
-			ptep = early_alloc_pgtable(PAGE_SIZE);
-			BUG_ON(ptep == NULL);
-			pmd_populate_kernel(&init_mm, pmdp, ptep);
-		}
-		ptep = pte_offset_kernel(pmdp, ea);
+
+	if (!slab_is_available())
+		return early_map_kernel_page(ea, pa, flags, map_page_size);
+
+	pgdp = pgd_offset_k(ea);
+	pudp = pud_alloc(&init_mm, pgdp, ea);
+	if (!pudp)
+		return -ENOMEM;
+	if (map_page_size == PUD_SIZE) {
+		ptep = (pte_t *)pudp;
+		goto set_the_pte;
 	}
+	pmdp = pmd_alloc(&init_mm, pudp, ea);
+	if (!pmdp)
+		return -ENOMEM;
+	if (map_page_size == PMD_SIZE) {
+		ptep = pmdp_ptep(pmdp);
+		goto set_the_pte;
+	}
+	ptep = pte_alloc_kernel(pmdp, ea);
+	if (!ptep)
+		return -ENOMEM;
 
 set_the_pte:
 	set_pte_at(&init_mm, ea, ptep, pfn_pte(pa >> PAGE_SHIFT, flags));
