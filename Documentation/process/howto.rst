@@ -374,14 +374,6 @@ bugs is one of the best ways to get merits among other developers, because
 not many people like wasting time fixing other people's bugs.
 
 To work in the already reported bug reports, go to https://bugzilla.kernel.org.
-If you want to be advised of the future bug reports, you can subscribe to the
-bugme-new mailing list (only new bug reports are mailed here) or to the
-bugme-janitor mailing list (every change in the bugzilla is mailed here)
-
-	https://lists.linux-foundation.org/mailman/listinfo/bugme-new
-
-	https://lists.linux-foundation.org/mailman/listinfo/bugme-janitors
-
 
 
 Mailing lists
