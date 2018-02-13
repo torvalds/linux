@@ -390,6 +390,7 @@ static void __net_exit wext_pernet_exit(struct net *net)
 static struct pernet_operations wext_pernet_ops = {
 	.init = wext_pernet_init,
 	.exit = wext_pernet_exit,
+	.async = true,
 };
 
 static int __init wireless_nlevent_init(void)
