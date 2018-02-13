@@ -818,7 +818,6 @@ static void sata_rcar_init_module(struct sata_rcar_priv *priv)
 static void sata_rcar_init_controller(struct ata_host *host)
 {
 	struct sata_rcar_priv *priv = host->private_data;
-	void __iomem *base = priv->base;
 
 	/* reset and setup phy */
 	switch (priv->type) {
