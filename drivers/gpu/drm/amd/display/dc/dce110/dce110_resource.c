@@ -846,6 +846,16 @@ static bool dce110_validate_bandwidth(
 	return result;
 }
 
+enum dc_status dce110_validate_plane(const struct dc_plane_state *plane_state,
+				     struct dc_caps *caps)
+{
+	if (((plane_state->dst_rect.width * 2) < plane_state->src_rect.width) ||
+	    ((plane_state->dst_rect.height * 2) < plane_state->src_rect.height))
+		return DC_FAIL_SURFACE_VALIDATE;
+
+	return DC_OK;
+}
+
 static bool dce110_validate_surface_sets(
 		struct dc_state *context)
 {
@@ -1021,6 +1031,7 @@ static const struct resource_funcs dce110_res_pool_funcs = {
 	.link_enc_create = dce110_link_encoder_create,
 	.validate_guaranteed = dce110_validate_guaranteed,
 	.validate_bandwidth = dce110_validate_bandwidth,
+	.validate_plane = dce110_validate_plane,
 	.acquire_idle_pipe_for_layer = dce110_acquire_underlay,
 	.add_stream_to_ctx = dce110_add_stream_to_ctx,
 	.validate_global = dce110_validate_global
