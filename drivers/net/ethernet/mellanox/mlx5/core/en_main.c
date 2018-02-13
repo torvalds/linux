@@ -2821,7 +2821,7 @@ static void mlx5e_query_mtu(struct mlx5_core_dev *mdev,
 	*mtu = MLX5E_HW2SW_MTU(params, hw_mtu);
 }
 
-static int mlx5e_set_dev_port_mtu(struct mlx5e_priv *priv)
+int mlx5e_set_dev_port_mtu(struct mlx5e_priv *priv)
 {
 	struct mlx5e_params *params = &priv->channels.params;
 	struct net_device *netdev = priv->netdev;
@@ -2901,7 +2901,7 @@ void mlx5e_activate_priv_channels(struct mlx5e_priv *priv)
 	mlx5e_activate_channels(&priv->channels);
 	netif_tx_start_all_queues(priv->netdev);
 
-	if (MLX5_ESWITCH_MANAGER(priv->mdev))
+	if (mlx5e_is_vport_rep(priv))
 		mlx5e_add_sqs_fwd_rules(priv);
 
 	mlx5e_wait_channels_min_rx_wqes(&priv->channels);
@@ -2912,7 +2912,7 @@ void mlx5e_deactivate_priv_channels(struct mlx5e_priv *priv)
 {
 	mlx5e_redirect_rqts_to_drop(priv);
 
-	if (MLX5_ESWITCH_MANAGER(priv->mdev))
+	if (mlx5e_is_vport_rep(priv))
 		mlx5e_remove_sqs_fwd_rules(priv);
 
 	/* FIXME: This is a W/A only for tx timeout watch dog false alarm when
@@ -3164,7 +3164,7 @@ err_close_tises:
 	return err;
 }
 
-void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv)
+static void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv)
 {
 	int tc;
 
@@ -3409,7 +3409,8 @@ static int mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
-		return mlx5e_setup_tc_cls_flower(priv, type_data, MLX5E_TC_INGRESS);
+		return mlx5e_setup_tc_cls_flower(priv, type_data, MLX5E_TC_INGRESS |
+						 MLX5E_TC_NIC_OFFLOAD);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -3452,7 +3453,7 @@ static int mlx5e_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	}
 }
 
-static void
+void
 mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
@@ -3596,7 +3597,7 @@ static int set_feature_tc_num_filters(struct net_device *netdev, bool enable)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 
-	if (!enable && mlx5e_tc_num_filters(priv)) {
+	if (!enable && mlx5e_tc_num_filters(priv, MLX5E_TC_NIC_OFFLOAD)) {
 		netdev_err(netdev,
 			   "Active offloaded tc filters, can't turn hw_tc_offload off\n");
 		return -EINVAL;
@@ -4607,12 +4608,6 @@ static void mlx5e_set_netdev_dev_addr(struct net_device *netdev)
 	}
 }
 
-#if IS_ENABLED(CONFIG_MLX5_ESWITCH)
-static const struct switchdev_ops mlx5e_switchdev_ops = {
-	.switchdev_port_attr_get	= mlx5e_attr_get,
-};
-#endif
-
 static void mlx5e_build_nic_netdev(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
@@ -4722,12 +4717,6 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	netdev->priv_flags       |= IFF_UNICAST_FLT;
 
 	mlx5e_set_netdev_dev_addr(netdev);
-
-#if IS_ENABLED(CONFIG_MLX5_ESWITCH)
-	if (MLX5_ESWITCH_MANAGER(mdev))
-		netdev->switchdev_ops = &mlx5e_switchdev_ops;
-#endif
-
 	mlx5e_ipsec_build_netdev(priv);
 	mlx5e_tls_build_netdev(priv);
 }
@@ -4908,7 +4897,7 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 		mlx5e_monitor_counter_init(priv);
 
 	if (MLX5_ESWITCH_MANAGER(priv->mdev))
-		mlx5e_register_vport_reps(priv);
+		mlx5e_rep_register_vport_reps(priv);
 
 	if (netdev->reg_state != NETREG_REGISTERED)
 		return;
@@ -4943,7 +4932,7 @@ static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 	queue_work(priv->wq, &priv->set_rx_mode_work);
 
 	if (MLX5_ESWITCH_MANAGER(priv->mdev))
-		mlx5e_unregister_vport_reps(priv);
+		mlx5e_rep_unregister_vport_reps(priv);
 
 	if (mlx5e_monitor_counter_supported(priv))
 		mlx5e_monitor_counter_cleanup(priv);

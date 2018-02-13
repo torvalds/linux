@@ -775,6 +775,7 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 			     struct mlx5e_wqe_frag_info *wi, u32 cqe_bcnt);
 
 void mlx5e_update_stats(struct mlx5e_priv *priv);
+void mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
 
 void mlx5e_init_l2_addr(struct mlx5e_priv *priv);
 int mlx5e_self_test_num(struct mlx5e_priv *priv);
@@ -939,7 +940,6 @@ int mlx5e_create_tis(struct mlx5_core_dev *mdev, int tc,
 void mlx5e_destroy_tis(struct mlx5_core_dev *mdev, u32 tisn);
 
 int mlx5e_create_tises(struct mlx5e_priv *priv);
-void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv);
 int mlx5e_close(struct net_device *netdev);
 int mlx5e_open(struct net_device *netdev);
 void mlx5e_update_ndo_stats(struct mlx5e_priv *priv);
@@ -948,6 +948,7 @@ void mlx5e_queue_update_stats(struct mlx5e_priv *priv);
 int mlx5e_bits_invert(unsigned long a, int size);
 
 typedef int (*change_hw_mtu_cb)(struct mlx5e_priv *priv);
+int mlx5e_set_dev_port_mtu(struct mlx5e_priv *priv);
 int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 		     change_hw_mtu_cb set_mtu_cb);
 

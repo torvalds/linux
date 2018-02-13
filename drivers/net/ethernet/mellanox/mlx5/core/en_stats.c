@@ -486,7 +486,7 @@ static int mlx5e_grp_802_3_fill_stats(struct mlx5e_priv *priv, u64 *data,
 #define MLX5_BASIC_PPCNT_SUPPORTED(mdev) \
 	(MLX5_CAP_GEN(mdev, pcam_reg) ? MLX5_CAP_PCAM_REG(mdev, ppcnt) : 1)
 
-static void mlx5e_grp_802_3_update_stats(struct mlx5e_priv *priv)
+void mlx5e_grp_802_3_update_stats(struct mlx5e_priv *priv)
 {
 	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
 	struct mlx5_core_dev *mdev = priv->mdev;
