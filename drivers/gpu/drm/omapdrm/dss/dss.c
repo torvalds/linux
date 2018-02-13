@@ -69,9 +69,11 @@ struct dss_reg {
 	dss_write_reg(idx, FLD_MOD(dss_read_reg(idx), val, start, end))
 
 struct dss_ops {
-	int (*dpi_select_source)(int port, enum omap_channel channel);
-	int (*select_lcd_source)(enum omap_channel channel,
-		enum dss_clk_source clk_src);
+	int (*dpi_select_source)(struct dss_device *dss, int port,
+				 enum omap_channel channel);
+	int (*select_lcd_source)(struct dss_device *dss,
+				 enum omap_channel channel,
+				 enum dss_clk_source clk_src);
 };
 
 struct dss_features {
@@ -432,8 +434,8 @@ static void dss_select_dispc_clk_source(enum dss_clk_source clk_src)
 	dss.dispc_clk_source = clk_src;
 }
 
-void dss_select_dsi_clk_source(int dsi_module,
-		enum dss_clk_source clk_src)
+void dss_select_dsi_clk_source(struct dss_device *dss, int dsi_module,
+			       enum dss_clk_source clk_src)
 {
 	int b, pos;
 
@@ -457,11 +459,12 @@ void dss_select_dsi_clk_source(int dsi_module,
 	pos = dsi_module == 0 ? 1 : 10;
 	REG_FLD_MOD(DSS_CONTROL, b, pos, pos);	/* DSIx_CLK_SWITCH */
 
-	dss.dsi_clk_source[dsi_module] = clk_src;
+	dss->dsi_clk_source[dsi_module] = clk_src;
 }
 
-static int dss_lcd_clk_mux_dra7(enum omap_channel channel,
-	enum dss_clk_source clk_src)
+static int dss_lcd_clk_mux_dra7(struct dss_device *dss,
+				enum omap_channel channel,
+				enum dss_clk_source clk_src)
 {
 	const u8 ctrl_bits[] = {
 		[OMAP_DSS_CHANNEL_LCD] = 0,
@@ -487,8 +490,9 @@ static int dss_lcd_clk_mux_dra7(enum omap_channel channel,
 	return 0;
 }
 
-static int dss_lcd_clk_mux_omap5(enum omap_channel channel,
-	enum dss_clk_source clk_src)
+static int dss_lcd_clk_mux_omap5(struct dss_device *dss,
+				 enum omap_channel channel,
+				 enum dss_clk_source clk_src)
 {
 	const u8 ctrl_bits[] = {
 		[OMAP_DSS_CHANNEL_LCD] = 0,
@@ -517,8 +521,9 @@ static int dss_lcd_clk_mux_omap5(enum omap_channel channel,
 	return 0;
 }
 
-static int dss_lcd_clk_mux_omap4(enum omap_channel channel,
-	enum dss_clk_source clk_src)
+static int dss_lcd_clk_mux_omap4(struct dss_device *dss,
+				 enum omap_channel channel,
+				 enum dss_clk_source clk_src)
 {
 	const u8 ctrl_bits[] = {
 		[OMAP_DSS_CHANNEL_LCD] = 0,
@@ -545,23 +550,24 @@ static int dss_lcd_clk_mux_omap4(enum omap_channel channel,
 	return 0;
 }
 
-void dss_select_lcd_clk_source(enum omap_channel channel,
-		enum dss_clk_source clk_src)
+void dss_select_lcd_clk_source(struct dss_device *dss,
+			       enum omap_channel channel,
+			       enum dss_clk_source clk_src)
 {
 	int idx = dss_get_channel_index(channel);
 	int r;
 
-	if (!dss.feat->has_lcd_clk_src) {
+	if (!dss->feat->has_lcd_clk_src) {
 		dss_select_dispc_clk_source(clk_src);
-		dss.lcd_clk_source[idx] = clk_src;
+		dss->lcd_clk_source[idx] = clk_src;
 		return;
 	}
 
-	r = dss.feat->ops->select_lcd_source(channel, clk_src);
+	r = dss->feat->ops->select_lcd_source(dss, channel, clk_src);
 	if (r)
 		return;
 
-	dss.lcd_clk_source[idx] = clk_src;
+	dss->lcd_clk_source[idx] = clk_src;
 }
 
 enum dss_clk_source dss_get_dispc_clk_source(void)
@@ -710,11 +716,12 @@ void dss_set_dac_pwrdn_bgz(bool enable)
 	REG_FLD_MOD(DSS_CONTROL, enable, 5, 5);	/* DAC Power-Down Control */
 }
 
-void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select src)
+void dss_select_hdmi_venc_clk_source(struct dss_device *dss,
+				     enum dss_hdmi_venc_clk_source_select src)
 {
 	enum omap_dss_output_id outputs;
 
-	outputs = dss.feat->outputs[OMAP_DSS_CHANNEL_DIGIT];
+	outputs = dss->feat->outputs[OMAP_DSS_CHANNEL_DIGIT];
 
 	/* Complain about invalid selections */
 	WARN_ON((src == DSS_VENC_TV_CLK) && !(outputs & OMAP_DSS_OUTPUT_VENC));
@@ -726,7 +733,8 @@ void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select src)
 		REG_FLD_MOD(DSS_CONTROL, src, 15, 15);	/* VENC_HDMI_SWITCH */
 }
 
-static int dss_dpi_select_source_omap2_omap3(int port, enum omap_channel channel)
+static int dss_dpi_select_source_omap2_omap3(struct dss_device *dss, int port,
+					     enum omap_channel channel)
 {
 	if (channel != OMAP_DSS_CHANNEL_LCD)
 		return -EINVAL;
@@ -734,7 +742,8 @@ static int dss_dpi_select_source_omap2_omap3(int port, enum omap_channel channel
 	return 0;
 }
 
-static int dss_dpi_select_source_omap4(int port, enum omap_channel channel)
+static int dss_dpi_select_source_omap4(struct dss_device *dss, int port,
+				       enum omap_channel channel)
 {
 	int val;
 
@@ -754,7 +763,8 @@ static int dss_dpi_select_source_omap4(int port, enum omap_channel channel)
 	return 0;
 }
 
-static int dss_dpi_select_source_omap5(int port, enum omap_channel channel)
+static int dss_dpi_select_source_omap5(struct dss_device *dss, int port,
+				       enum omap_channel channel)
 {
 	int val;
 
@@ -780,11 +790,12 @@ static int dss_dpi_select_source_omap5(int port, enum omap_channel channel)
 	return 0;
 }
 
-static int dss_dpi_select_source_dra7xx(int port, enum omap_channel channel)
+static int dss_dpi_select_source_dra7xx(struct dss_device *dss, int port,
+					enum omap_channel channel)
 {
 	switch (port) {
 	case 0:
-		return dss_dpi_select_source_omap5(port, channel);
+		return dss_dpi_select_source_omap5(dss, port, channel);
 	case 1:
 		if (channel != OMAP_DSS_CHANNEL_LCD2)
 			return -EINVAL;
@@ -800,9 +811,10 @@ static int dss_dpi_select_source_dra7xx(int port, enum omap_channel channel)
 	return 0;
 }
 
-int dss_dpi_select_source(int port, enum omap_channel channel)
+int dss_dpi_select_source(struct dss_device *dss, int port,
+			  enum omap_channel channel)
 {
-	return dss.feat->ops->dpi_select_source(port, channel);
+	return dss->feat->ops->dpi_select_source(dss, port, channel);
 }
 
 static int dss_get_clocks(void)
@@ -1147,7 +1159,7 @@ static int dss_init_ports(struct platform_device *pdev)
 
 		switch (dss.feat->ports[i]) {
 		case OMAP_DISPLAY_TYPE_DPI:
-			dpi_init_port(pdev, port, dss.feat->model);
+			dpi_init_port(&dss, pdev, port, dss.feat->model);
 			break;
 		case OMAP_DISPLAY_TYPE_SDI:
 			sdi_init_port(&dss, pdev, port);

@@ -300,8 +300,10 @@ void dss_runtime_put(struct dss_device *dss);
 unsigned long dss_get_dispc_clk_rate(void);
 unsigned long dss_get_max_fck_rate(void);
 enum omap_dss_output_id dss_get_supported_outputs(enum omap_channel channel);
-int dss_dpi_select_source(int port, enum omap_channel channel);
-void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select);
+int dss_dpi_select_source(struct dss_device *dss, int port,
+			  enum omap_channel channel);
+void dss_select_hdmi_venc_clk_source(struct dss_device *dss,
+				     enum dss_hdmi_venc_clk_source_select src);
 const char *dss_get_clk_source_name(enum dss_clk_source clk_src);
 
 /* DSS VIDEO PLL */
@@ -316,10 +318,11 @@ void dss_sdi_init(struct dss_device *dss, int datapairs);
 int dss_sdi_enable(struct dss_device *dss);
 void dss_sdi_disable(struct dss_device *dss);
 
-void dss_select_dsi_clk_source(int dsi_module,
-		enum dss_clk_source clk_src);
-void dss_select_lcd_clk_source(enum omap_channel channel,
-		enum dss_clk_source clk_src);
+void dss_select_dsi_clk_source(struct dss_device *dss, int dsi_module,
+			       enum dss_clk_source clk_src);
+void dss_select_lcd_clk_source(struct dss_device *dss,
+			       enum omap_channel channel,
+			       enum dss_clk_source clk_src);
 enum dss_clk_source dss_get_dispc_clk_source(void);
 enum dss_clk_source dss_get_dsi_clk_source(int dsi_module);
 enum dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel);
@@ -365,12 +368,14 @@ void dsi_irq_handler(void);
 
 /* DPI */
 #ifdef CONFIG_OMAP2_DSS_DPI
-int dpi_init_port(struct platform_device *pdev, struct device_node *port,
-		  enum dss_model dss_model);
+int dpi_init_port(struct dss_device *dss, struct platform_device *pdev,
+		  struct device_node *port, enum dss_model dss_model);
 void dpi_uninit_port(struct device_node *port);
 #else
-static inline int dpi_init_port(struct platform_device *pdev,
-		struct device_node *port, enum dss_model dss_model)
+static inline int dpi_init_port(struct dss_device *port,
+				struct platform_device *pdev,
+				struct device_node *port,
+				enum dss_model dss_model)
 {
 	return 0;
 }

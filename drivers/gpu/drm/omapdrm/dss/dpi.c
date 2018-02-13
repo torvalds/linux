@@ -38,6 +38,7 @@
 struct dpi_data {
 	struct platform_device *pdev;
 	enum dss_model dss_model;
+	struct dss_device *dss;
 
 	struct regulator *vdds_dsi_reg;
 	enum dss_clk_source clk_src;
@@ -302,7 +303,7 @@ static int dpi_set_pll_clk(struct dpi_data *dpi, enum omap_channel channel,
 	if (r)
 		return r;
 
-	dss_select_lcd_clk_source(channel, dpi->clk_src);
+	dss_select_lcd_clk_source(dpi->dss, channel, dpi->clk_src);
 
 	dpi->mgr_config.clock_info = ctx.dispc_cinfo;
 
@@ -412,7 +413,7 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_get_dispc;
 
-	r = dss_dpi_select_source(out->port_num, channel);
+	r = dss_dpi_select_source(dpi->dss, out->port_num, channel);
 	if (r)
 		goto err_src_sel;
 
@@ -464,7 +465,7 @@ static void dpi_display_disable(struct omap_dss_device *dssdev)
 	dss_mgr_disable(channel);
 
 	if (dpi->pll) {
-		dss_select_lcd_clk_source(channel, DSS_CLK_SRC_FCK);
+		dss_select_lcd_clk_source(dpi->dss, channel, DSS_CLK_SRC_FCK);
 		dss_pll_disable(dpi->pll);
 	}
 
@@ -748,8 +749,8 @@ static void dpi_uninit_output_port(struct device_node *port)
 	omapdss_unregister_output(out);
 }
 
-int dpi_init_port(struct platform_device *pdev, struct device_node *port,
-		  enum dss_model dss_model)
+int dpi_init_port(struct dss_device *dss, struct platform_device *pdev,
+		  struct device_node *port, enum dss_model dss_model)
 {
 	struct dpi_data *dpi;
 	struct device_node *ep;
@@ -776,6 +777,7 @@ int dpi_init_port(struct platform_device *pdev, struct device_node *port,
 
 	dpi->pdev = pdev;
 	dpi->dss_model = dss_model;
+	dpi->dss = dss;
 	port->data = dpi;
 
 	mutex_init(&dpi->lock);

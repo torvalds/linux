@@ -359,6 +359,7 @@ static inline bool hdmi_mode_has_audio(struct hdmi_config *cfg)
 struct omap_hdmi {
 	struct mutex lock;
 	struct platform_device *pdev;
+	struct dss_device *dss;
 
 	struct hdmi_wp_data	wp;
 	struct hdmi_pll_data	pll;

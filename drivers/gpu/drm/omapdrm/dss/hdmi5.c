@@ -149,7 +149,7 @@ static int hdmi_power_on_core(struct omap_dss_device *dssdev)
 		goto err_runtime_get;
 
 	/* Make selection of HDMI in DSS */
-	dss_select_hdmi_venc_clk_source(DSS_HDMI_M_PCLK);
+	dss_select_hdmi_venc_clk_source(hdmi.dss, DSS_HDMI_M_PCLK);
 
 	hdmi.core_enabled = true;
 
@@ -723,6 +723,7 @@ static int hdmi5_bind(struct device *dev, struct device *master, void *data)
 	int irq;
 
 	hdmi.pdev = pdev;
+	hdmi.dss = dss;
 	dev_set_drvdata(&pdev->dev, &hdmi);
 
 	mutex_init(&hdmi.lock);
