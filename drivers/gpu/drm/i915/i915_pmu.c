@@ -285,26 +285,41 @@ static u64 count_interrupts(struct drm_i915_private *i915)
 	return sum;
 }
 
-static void i915_pmu_event_destroy(struct perf_event *event)
-{
-	WARN_ON(event->parent);
-}
-
-static int engine_event_init(struct perf_event *event)
+static void engine_event_destroy(struct perf_event *event)
 {
 	struct drm_i915_private *i915 =
 		container_of(event->pmu, typeof(*i915), pmu.base);
+	struct intel_engine_cs *engine;
 
-	if (!intel_engine_lookup_user(i915, engine_event_class(event),
-				      engine_event_instance(event)))
-		return -ENODEV;
+	engine = intel_engine_lookup_user(i915,
+					  engine_event_class(event),
+					  engine_event_instance(event));
+	if (WARN_ON_ONCE(!engine))
+		return;
 
-	switch (engine_event_sample(event)) {
+	if (engine_event_sample(event) == I915_SAMPLE_BUSY &&
+	    intel_engine_supports_stats(engine))
+		intel_disable_engine_stats(engine);
+}
+
+static void i915_pmu_event_destroy(struct perf_event *event)
+{
+	WARN_ON(event->parent);
+
+	if (is_engine_event(event))
+		engine_event_destroy(event);
+}
+
+static int
+engine_event_status(struct intel_engine_cs *engine,
+		    enum drm_i915_pmu_engine_sample sample)
+{
+	switch (sample) {
 	case I915_SAMPLE_BUSY:
 	case I915_SAMPLE_WAIT:
 		break;
 	case I915_SAMPLE_SEMA:
-		if (INTEL_GEN(i915) < 6)
+		if (INTEL_GEN(engine->i915) < 6)
 			return -ENODEV;
 		break;
 	default:
@@ -312,6 +327,30 @@ static int engine_event_init(struct perf_event *event)
 	}
 
 	return 0;
+}
+
+static int engine_event_init(struct perf_event *event)
+{
+	struct drm_i915_private *i915 =
+		container_of(event->pmu, typeof(*i915), pmu.base);
+	struct intel_engine_cs *engine;
+	u8 sample;
+	int ret;
+
+	engine = intel_engine_lookup_user(i915, engine_event_class(event),
+					  engine_event_instance(event));
+	if (!engine)
+		return -ENODEV;
+
+	sample = engine_event_sample(event);
+	ret = engine_event_status(engine, sample);
+	if (ret)
+		return ret;
+
+	if (sample == I915_SAMPLE_BUSY && intel_engine_supports_stats(engine))
+		ret = intel_enable_engine_stats(engine);
+
+	return ret;
 }
 
 static int i915_pmu_event_init(struct perf_event *event)
@@ -387,7 +426,7 @@ static u64 __i915_pmu_event_read(struct perf_event *event)
 		if (WARN_ON_ONCE(!engine)) {
 			/* Do nothing */
 		} else if (sample == I915_SAMPLE_BUSY &&
-			   engine->pmu.busy_stats) {
+			   intel_engine_supports_stats(engine)) {
 			val = ktime_to_ns(intel_engine_get_busy_time(engine));
 		} else {
 			val = engine->pmu.sample[sample].cur;
@@ -442,12 +481,6 @@ again:
 	local64_add(new - prev, &event->count);
 }
 
-static bool engine_needs_busy_stats(struct intel_engine_cs *engine)
-{
-	return intel_engine_supports_stats(engine) &&
-	       (engine->pmu.enable & BIT(I915_SAMPLE_BUSY));
-}
-
 static void i915_pmu_enable(struct perf_event *event)
 {
 	struct drm_i915_private *i915 =
@@ -487,21 +520,7 @@ static void i915_pmu_enable(struct perf_event *event)
 
 		GEM_BUG_ON(sample >= I915_PMU_SAMPLE_BITS);
 		GEM_BUG_ON(engine->pmu.enable_count[sample] == ~0);
-		if (engine->pmu.enable_count[sample]++ == 0) {
-			/*
-			 * Enable engine busy stats tracking if needed or
-			 * alternatively cancel the scheduled disable.
-			 *
-			 * If the delayed disable was pending, cancel it and
-			 * in this case do not enable since it already is.
-			 */
-			if (engine_needs_busy_stats(engine) &&
-			    !engine->pmu.busy_stats) {
-				engine->pmu.busy_stats = true;
-				if (!cancel_delayed_work(&engine->pmu.disable_busy_stats))
-					intel_enable_engine_stats(engine);
-			}
-		}
+		engine->pmu.enable_count[sample]++;
 	}
 
 	/*
@@ -512,14 +531,6 @@ static void i915_pmu_enable(struct perf_event *event)
 	local64_set(&event->hw.prev_count, __i915_pmu_event_read(event));
 
 	spin_unlock_irqrestore(&i915->pmu.lock, flags);
-}
-
-static void __disable_busy_stats(struct work_struct *work)
-{
-	struct intel_engine_cs *engine =
-	       container_of(work, typeof(*engine), pmu.disable_busy_stats.work);
-
-	intel_disable_engine_stats(engine);
 }
 
 static void i915_pmu_disable(struct perf_event *event)
@@ -545,26 +556,8 @@ static void i915_pmu_disable(struct perf_event *event)
 		 * Decrement the reference count and clear the enabled
 		 * bitmask when the last listener on an event goes away.
 		 */
-		if (--engine->pmu.enable_count[sample] == 0) {
+		if (--engine->pmu.enable_count[sample] == 0)
 			engine->pmu.enable &= ~BIT(sample);
-			if (!engine_needs_busy_stats(engine) &&
-			    engine->pmu.busy_stats) {
-				engine->pmu.busy_stats = false;
-				/*
-				 * We request a delayed disable to handle the
-				 * rapid on/off cycles on events, which can
-				 * happen when tools like perf stat start, in a
-				 * nicer way.
-				 *
-				 * In addition, this also helps with busy stats
-				 * accuracy with background CPU offline/online
-				 * migration events.
-				 */
-				queue_delayed_work(system_wq,
-						   &engine->pmu.disable_busy_stats,
-						   round_jiffies_up_relative(HZ));
-			}
-		}
 	}
 
 	GEM_BUG_ON(bit >= I915_PMU_MASK_BITS);
@@ -797,8 +790,6 @@ static void i915_pmu_unregister_cpuhp_state(struct drm_i915_private *i915)
 
 void i915_pmu_register(struct drm_i915_private *i915)
 {
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
 	int ret;
 
 	if (INTEL_GEN(i915) <= 2) {
@@ -820,10 +811,6 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	hrtimer_init(&i915->pmu.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	i915->pmu.timer.function = i915_sample;
 
-	for_each_engine(engine, i915, id)
-		INIT_DELAYED_WORK(&engine->pmu.disable_busy_stats,
-				  __disable_busy_stats);
-
 	ret = perf_pmu_register(&i915->pmu.base, "i915", -1);
 	if (ret)
 		goto err;
@@ -843,20 +830,12 @@ err:
 
 void i915_pmu_unregister(struct drm_i915_private *i915)
 {
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
 	if (!i915->pmu.base.event_init)
 		return;
 
 	WARN_ON(i915->pmu.enable);
 
 	hrtimer_cancel(&i915->pmu.timer);
-
-	for_each_engine(engine, i915, id) {
-		GEM_BUG_ON(engine->pmu.busy_stats);
-		flush_delayed_work(&engine->pmu.disable_busy_stats);
-	}
 
 	i915_pmu_unregister_cpuhp_state(i915);
 
