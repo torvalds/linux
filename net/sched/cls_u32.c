@@ -96,7 +96,7 @@ struct tc_u_hnode {
 
 struct tc_u_common {
 	struct tc_u_hnode __rcu	*hlist;
-	struct tcf_block	*block;
+	void			*ptr;
 	int			refcnt;
 	struct idr		handle_idr;
 	struct hlist_node	hnode;
@@ -330,9 +330,25 @@ static struct hlist_head *tc_u_common_hash;
 #define U32_HASH_SHIFT 10
 #define U32_HASH_SIZE (1 << U32_HASH_SHIFT)
 
+static void *tc_u_common_ptr(const struct tcf_proto *tp)
+{
+	struct tcf_block *block = tp->chain->block;
+
+	/* The block sharing is currently supported only
+	 * for classless qdiscs. In that case we use block
+	 * for tc_u_common identification. In case the
+	 * block is not shared, block->q is a valid pointer
+	 * and we can use that. That works for classful qdiscs.
+	 */
+	if (tcf_block_shared(block))
+		return block;
+	else
+		return block->q;
+}
+
 static unsigned int tc_u_hash(const struct tcf_proto *tp)
 {
-	return hash_ptr(tp->chain->block, U32_HASH_SHIFT);
+	return hash_ptr(tc_u_common_ptr(tp), U32_HASH_SHIFT);
 }
 
 static struct tc_u_common *tc_u_common_find(const struct tcf_proto *tp)
@@ -342,7 +358,7 @@ static struct tc_u_common *tc_u_common_find(const struct tcf_proto *tp)
 
 	h = tc_u_hash(tp);
 	hlist_for_each_entry(tc, &tc_u_common_hash[h], hnode) {
-		if (tc->block == tp->chain->block)
+		if (tc->ptr == tc_u_common_ptr(tp))
 			return tc;
 	}
 	return NULL;
@@ -371,7 +387,7 @@ static int u32_init(struct tcf_proto *tp)
 			kfree(root_ht);
 			return -ENOBUFS;
 		}
-		tp_c->block = tp->chain->block;
+		tp_c->ptr = tc_u_common_ptr(tp);
 		INIT_HLIST_NODE(&tp_c->hnode);
 		idr_init(&tp_c->handle_idr);
 
