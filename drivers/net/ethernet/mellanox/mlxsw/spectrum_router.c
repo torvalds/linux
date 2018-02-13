@@ -1,10 +1,10 @@
 /*
  * drivers/net/ethernet/mellanox/mlxsw/spectrum_router.c
- * Copyright (c) 2016-2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016-2018 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
  * Copyright (c) 2016 Ido Schimmel <idosch@mellanox.com>
  * Copyright (c) 2016 Yotam Gigi <yotamg@mellanox.com>
- * Copyright (c) 2017 Petr Machata <petrm@mellanox.com>
+ * Copyright (c) 2017-2018 Petr Machata <petrm@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -1020,9 +1020,11 @@ mlxsw_sp_ipip_entry_alloc(struct mlxsw_sp *mlxsw_sp,
 			  enum mlxsw_sp_ipip_type ipipt,
 			  struct net_device *ol_dev)
 {
+	const struct mlxsw_sp_ipip_ops *ipip_ops;
 	struct mlxsw_sp_ipip_entry *ipip_entry;
 	struct mlxsw_sp_ipip_entry *ret = NULL;
 
+	ipip_ops = mlxsw_sp->router->ipip_ops_arr[ipipt];
 	ipip_entry = kzalloc(sizeof(*ipip_entry), GFP_KERNEL);
 	if (!ipip_entry)
 		return ERR_PTR(-ENOMEM);
@@ -1036,7 +1038,15 @@ mlxsw_sp_ipip_entry_alloc(struct mlxsw_sp *mlxsw_sp,
 
 	ipip_entry->ipipt = ipipt;
 	ipip_entry->ol_dev = ol_dev;
-	ipip_entry->parms = mlxsw_sp_ipip_netdev_parms(ol_dev);
+
+	switch (ipip_ops->ul_proto) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		ipip_entry->parms4 = mlxsw_sp_ipip_netdev_parms4(ol_dev);
+		break;
+	case MLXSW_SP_L3_PROTO_IPV6:
+		WARN_ON(1);
+		break;
+	}
 
 	return ipip_entry;
 
