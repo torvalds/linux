@@ -1873,7 +1873,7 @@ sub process_file($) {
 	    }
 	    elsif (/$doc_decl/o) {
 		$identifier = $1;
-		if (/\s*([\w\s]+?)\s*-/) {
+		if (/\s*([\w\s]+?)(\(\))?\s*-/) {
 		    $identifier = $1;
 		}
 
