@@ -510,37 +510,22 @@ static const struct soc_device_attribute omapdrm_soc_devices[] = {
 	{ /* sentinel */ }
 };
 
-static int pdev_probe(struct platform_device *pdev)
+static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 {
 	const struct soc_device_attribute *soc;
-	struct omap_drm_private *priv;
 	struct drm_device *ddev;
 	unsigned int i;
 	int ret;
 
-	DBG("%s", pdev->name);
+	DBG("%s", dev_name(dev));
 
-	if (omapdss_is_initialized() == false)
-		return -EPROBE_DEFER;
-
-	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to set the DMA mask\n");
-		return ret;
-	}
+	priv->dev = dev;
 
 	omap_crtc_pre_init();
 
 	ret = omap_connect_dssdevs();
 	if (ret)
 		goto err_crtc_uninit;
-
-	/* Allocate and initialize the driver private structure. */
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		ret = -ENOMEM;
-		goto err_disconnect_dssdevs;
-	}
 
 	priv->dispc_ops = dispc_get_ops();
 
@@ -552,14 +537,14 @@ static int pdev_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&priv->obj_list);
 
 	/* Allocate and initialize the DRM device. */
-	ddev = drm_dev_alloc(&omap_drm_driver, &pdev->dev);
+	ddev = drm_dev_alloc(&omap_drm_driver, priv->dev);
 	if (IS_ERR(ddev)) {
 		ret = PTR_ERR(ddev);
-		goto err_free_priv;
+		goto err_destroy_wq;
 	}
 
+	priv->ddev = ddev;
 	ddev->dev_private = priv;
-	platform_set_drvdata(pdev, ddev);
 
 	/* Get memory bandwidth limits */
 	if (priv->dispc_ops->get_memory_bandwidth_limit)
@@ -570,14 +555,14 @@ static int pdev_probe(struct platform_device *pdev)
 
 	ret = omap_modeset_init(ddev);
 	if (ret) {
-		dev_err(&pdev->dev, "omap_modeset_init failed: ret=%d\n", ret);
+		dev_err(priv->dev, "omap_modeset_init failed: ret=%d\n", ret);
 		goto err_free_drm_dev;
 	}
 
 	/* Initialize vblank handling, start with all CRTCs disabled. */
 	ret = drm_vblank_init(ddev, priv->num_crtcs);
 	if (ret) {
-		dev_err(&pdev->dev, "could not init vblank\n");
+		dev_err(priv->dev, "could not init vblank\n");
 		goto err_cleanup_modeset;
 	}
 
@@ -610,20 +595,17 @@ err_cleanup_modeset:
 err_free_drm_dev:
 	omap_gem_deinit(ddev);
 	drm_dev_unref(ddev);
-err_free_priv:
+err_destroy_wq:
 	destroy_workqueue(priv->wq);
-	kfree(priv);
-err_disconnect_dssdevs:
 	omap_disconnect_dssdevs();
 err_crtc_uninit:
 	omap_crtc_pre_uninit();
 	return ret;
 }
 
-static int pdev_remove(struct platform_device *pdev)
+static void omapdrm_cleanup(struct omap_drm_private *priv)
 {
-	struct drm_device *ddev = platform_get_drvdata(pdev);
-	struct omap_drm_private *priv = ddev->dev_private;
+	struct drm_device *ddev = priv->ddev;
 
 	DBG("");
 
@@ -645,10 +627,45 @@ static int pdev_remove(struct platform_device *pdev)
 	drm_dev_unref(ddev);
 
 	destroy_workqueue(priv->wq);
-	kfree(priv);
 
 	omap_disconnect_dssdevs();
 	omap_crtc_pre_uninit();
+}
+
+static int pdev_probe(struct platform_device *pdev)
+{
+	struct omap_drm_private *priv;
+	int ret;
+
+	if (omapdss_is_initialized() == false)
+		return -EPROBE_DEFER;
+
+	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to set the DMA mask\n");
+		return ret;
+	}
+
+	/* Allocate and initialize the driver private structure. */
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, priv);
+
+	ret = omapdrm_init(priv, &pdev->dev);
+	if (ret < 0)
+		kfree(priv);
+
+	return ret;
+}
+
+static int pdev_remove(struct platform_device *pdev)
+{
+	struct omap_drm_private *priv = platform_get_drvdata(pdev);
+
+	omapdrm_cleanup(priv);
+	kfree(priv);
 
 	return 0;
 }
@@ -692,7 +709,8 @@ static int omap_drm_resume_all_displays(void)
 
 static int omap_drm_suspend(struct device *dev)
 {
-	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	struct omap_drm_private *priv = dev_get_drvdata(dev);
+	struct drm_device *drm_dev = priv->ddev;
 
 	drm_kms_helper_poll_disable(drm_dev);
 
@@ -705,7 +723,8 @@ static int omap_drm_suspend(struct device *dev)
 
 static int omap_drm_resume(struct device *dev)
 {
-	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	struct omap_drm_private *priv = dev_get_drvdata(dev);
+	struct drm_device *drm_dev = priv->ddev;
 
 	drm_modeset_lock_all(drm_dev);
 	omap_drm_resume_all_displays();

@@ -46,6 +46,8 @@
 struct omap_drm_usergart;
 
 struct omap_drm_private {
+	struct drm_device *ddev;
+	struct device *dev;
 	u32 omaprev;
 
 	const struct dispc_ops *dispc_ops;
