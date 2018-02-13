@@ -450,12 +450,12 @@ static int syr82x_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *
 		config.driver_data = syr82x;
 		if (syr82x->dev->of_node)
 			config.of_node = pdev->of_node[0];
-			if (reg_data && reg_data->constraints.name)
-				rail_name = reg_data->constraints.name;
-			else
-				rail_name = regulators[0].name;
-			reg_data->supply_regulator = rail_name;
-	
+		if (reg_data && reg_data->constraints.name)
+			rail_name = reg_data->constraints.name;
+		else
+			rail_name = regulators[0].name;
+		reg_data->supply_regulator = rail_name;
+
 		config.init_data =reg_data;
 		sy_rdev = regulator_register(&regulators[0],&config);
 		if (IS_ERR(sy_rdev)) {
