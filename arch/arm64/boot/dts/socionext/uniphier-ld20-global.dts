@@ -9,6 +9,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/gpio/uniphier-gpio.h>
 #include "uniphier-ld20.dtsi"
 
 / {
@@ -43,6 +44,7 @@
 		label = "UniPhier LD20";
 		widgets = "Headphone", "Headphone Jack";
 		dais = <&i2s_port2
+			&i2s_port3
 			&i2s_port4
 			&spdif_port0>;
 	};
@@ -67,12 +69,32 @@
 	status = "okay";
 };
 
+&i2s_hpcmout1 {
+	dai-format = "i2s";
+	remote-endpoint = <&tas_speaker>;
+};
+
 &spdif_hiecout1 {
 	remote-endpoint = <&spdif_tx>;
 };
 
 &i2c0 {
 	status = "okay";
+
+	tas5707@1b {
+		compatible = "ti,tas5711";
+		reg = <0x1b>;
+		reset-gpios = <&gpio UNIPHIER_GPIO_PORT(0, 0) GPIO_ACTIVE_LOW>;
+		pdn-gpios = <&gpio UNIPHIER_GPIO_PORT(0, 1) GPIO_ACTIVE_LOW>;
+		#sound-dai-cells = <0>;
+
+		port@0 {
+			tas_speaker: endpoint {
+				dai-format = "i2s";
+				remote-endpoint = <&i2s_hpcmout1>;
+			};
+		};
+	};
 };
 
 &nand {
