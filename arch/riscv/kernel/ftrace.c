@@ -151,7 +151,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 		return;
 
 	err = ftrace_push_return_trace(old, self_addr, &trace.depth,
-				       frame_pointer, NULL);
+				       frame_pointer, parent);
 	if (err == -EBUSY)
 		return;
 	*parent = return_hooker;
