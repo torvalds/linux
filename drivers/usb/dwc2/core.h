@@ -819,6 +819,7 @@ struct dwc2_hregs_backup {
  * @plat:               The platform specific configuration data. This can be
  *                      removed once all SoCs support usb transceiver.
  * @supplies:           Definition of USB power supplies
+ * @vbus_supply:        Regulator supplying vbus.
  * @phyif:              PHY interface width
  * @lock:		Spinlock that protects all the driver data structures
  * @priv:		Stores a pointer to the struct usb_hcd
@@ -958,6 +959,7 @@ struct dwc2_hsotg {
 	struct usb_phy *uphy;
 	struct dwc2_hsotg_plat *plat;
 	struct regulator_bulk_data supplies[DWC2_NUM_SUPPLIES];
+	struct regulator *vbus_supply;
 	u32 phyif;
 
 	spinlock_t lock;
