@@ -253,6 +253,7 @@ static struct pernet_operations netlink_tap_net_ops = {
 	.exit = netlink_tap_exit_net,
 	.id   = &netlink_tap_net_id,
 	.size = sizeof(struct netlink_tap_net),
+	.async = true,
 };
 
 static bool netlink_filter_tap(const struct sk_buff *skb)
