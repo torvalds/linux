@@ -1228,14 +1228,14 @@ static int hns_roce_v2_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
 	roce_set_field(val1, HNS_ROCE_VF_MB5_TOKEN_MASK,
 		       HNS_ROCE_VF_MB5_TOKEN_SHIFT, token);
 
-	__raw_writeq(cpu_to_le64(in_param), hcr + 0);
-	__raw_writeq(cpu_to_le64(out_param), hcr + 2);
+	writeq(in_param, hcr + 0);
+	writeq(out_param, hcr + 2);
 
 	/* Memory barrier */
 	wmb();
 
-	__raw_writel(cpu_to_le32(val0), hcr + 4);
-	__raw_writel(cpu_to_le32(val1), hcr + 5);
+	writel(val0, hcr + 4);
+	writel(val1, hcr + 5);
 
 	mmiowb();
 
