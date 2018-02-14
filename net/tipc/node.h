@@ -65,6 +65,7 @@ void tipc_node_check_dest(struct net *net, u32 onode,
 			  struct tipc_media_addr *maddr,
 			  bool *respond, bool *dupl_addr);
 void tipc_node_delete_links(struct net *net, int bearer_id);
+void tipc_node_apply_tolerance(struct net *net, struct tipc_bearer *b);
 int tipc_node_get_linkname(struct net *net, u32 bearer_id, u32 node,
 			   char *linkname, size_t len);
 int tipc_node_xmit(struct net *net, struct sk_buff_head *list, u32 dnode,

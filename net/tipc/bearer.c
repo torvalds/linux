@@ -946,11 +946,11 @@ int tipc_nl_bearer_add(struct sk_buff *skb, struct genl_info *info)
 
 int tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info)
 {
-	int err;
-	char *name;
 	struct tipc_bearer *b;
 	struct nlattr *attrs[TIPC_NLA_BEARER_MAX + 1];
 	struct net *net = sock_net(skb->sk);
+	char *name;
+	int err;
 
 	if (!info->attrs[TIPC_NLA_BEARER])
 		return -EINVAL;
@@ -982,8 +982,10 @@ int tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info)
 			return err;
 		}
 
-		if (props[TIPC_NLA_PROP_TOL])
+		if (props[TIPC_NLA_PROP_TOL]) {
 			b->tolerance = nla_get_u32(props[TIPC_NLA_PROP_TOL]);
+			tipc_node_apply_tolerance(net, b);
+		}
 		if (props[TIPC_NLA_PROP_PRIO])
 			b->priority = nla_get_u32(props[TIPC_NLA_PROP_PRIO]);
 		if (props[TIPC_NLA_PROP_WIN])

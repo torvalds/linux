@@ -1618,6 +1618,30 @@ discard:
 	kfree_skb(skb);
 }
 
+void tipc_node_apply_tolerance(struct net *net, struct tipc_bearer *b)
+{
+	struct tipc_net *tn = tipc_net(net);
+	int bearer_id = b->identity;
+	struct sk_buff_head xmitq;
+	struct tipc_link_entry *e;
+	struct tipc_node *n;
+
+	__skb_queue_head_init(&xmitq);
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(n, &tn->node_list, list) {
+		tipc_node_write_lock(n);
+		e = &n->links[bearer_id];
+		if (e->link)
+			tipc_link_set_tolerance(e->link, b->tolerance, &xmitq);
+		tipc_node_write_unlock(n);
+		tipc_bearer_xmit(net, bearer_id, &xmitq, &e->maddr);
+	}
+
+	rcu_read_unlock();
+}
+
 int tipc_nl_peer_rm(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net *net = sock_net(skb->sk);
