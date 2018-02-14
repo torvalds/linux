@@ -47,7 +47,7 @@
 #include <linux/decompress/mm.h>
 
 #ifdef CONFIG_X86_5LEVEL
-unsigned int pgtable_l5_enabled __ro_after_init = 1;
+unsigned int pgtable_l5_enabled __ro_after_init;
 unsigned int pgdir_shift __ro_after_init = 48;
 unsigned int ptrs_per_p4d __ro_after_init = 512;
 #endif
@@ -728,6 +728,12 @@ void choose_random_location(unsigned long input,
 		warn("KASLR disabled: 'nokaslr' on cmdline.");
 		return;
 	}
+
+#ifdef CONFIG_X86_5LEVEL
+	if (__read_cr4() & X86_CR4_LA57) {
+		pgtable_l5_enabled = 1;
+	}
+#endif
 
 	boot_params->hdr.loadflags |= KASLR_FLAG;
 
