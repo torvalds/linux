@@ -85,8 +85,12 @@ static struct addr_marker address_markers[] = {
 	[VMALLOC_START_NR]	= { 0UL,		"vmalloc() Area" },
 	[VMEMMAP_START_NR]	= { 0UL,		"Vmemmap" },
 #ifdef CONFIG_KASAN
-	[KASAN_SHADOW_START_NR]	= { KASAN_SHADOW_START,	"KASAN shadow" },
-	[KASAN_SHADOW_END_NR]	= { KASAN_SHADOW_END,	"KASAN shadow end" },
+	/*
+	 * These fields get initialized with the (dynamic)
+	 * KASAN_SHADOW_{START,END} values in pt_dump_init().
+	 */
+	[KASAN_SHADOW_START_NR]	= { 0UL,		"KASAN shadow" },
+	[KASAN_SHADOW_END_NR]	= { 0UL,		"KASAN shadow end" },
 #endif
 #ifdef CONFIG_MODIFY_LDT_SYSCALL
 	[LDT_NR]		= { 0UL,		"LDT remap" },
@@ -570,6 +574,10 @@ static int __init pt_dump_init(void)
 	address_markers[VMEMMAP_START_NR].start_address = VMEMMAP_START;
 #ifdef CONFIG_MODIFY_LDT_SYSCALL
 	address_markers[LDT_NR].start_address = LDT_BASE_ADDR;
+#endif
+#ifdef CONFIG_KASAN
+	address_markers[KASAN_SHADOW_START_NR].start_address = KASAN_SHADOW_START;
+	address_markers[KASAN_SHADOW_END_NR].start_address = KASAN_SHADOW_END;
 #endif
 #endif
 #ifdef CONFIG_X86_32
