@@ -914,8 +914,8 @@ static int btrfs_parse_subvol_options(const char *options, fmode_t flags,
 {
 	substring_t args[MAX_OPT_ARGS];
 	char *opts, *orig, *p;
-	char *num = NULL;
 	int error = 0;
+	u64 subvolid;
 
 	if (!options)
 		return 0;
@@ -945,18 +945,15 @@ static int btrfs_parse_subvol_options(const char *options, fmode_t flags,
 			}
 			break;
 		case Opt_subvolid:
-			num = match_strdup(&args[0]);
-			if (num) {
-				*subvol_objectid = memparse(num, NULL);
-				kfree(num);
-				/* we want the original fs_tree */
-				if (!*subvol_objectid)
-					*subvol_objectid =
-						BTRFS_FS_TREE_OBJECTID;
-			} else {
-				error = -EINVAL;
+			error = match_u64(&args[0], &subvolid);
+			if (error)
 				goto out;
-			}
+
+			/* we want the original fs_tree */
+			if (subvolid == 0)
+				subvolid = BTRFS_FS_TREE_OBJECTID;
+
+			*subvol_objectid = subvolid;
 			break;
 		case Opt_subvolrootid:
 			pr_warn("BTRFS: 'subvolrootid' mount option is deprecated and has no effect\n");
