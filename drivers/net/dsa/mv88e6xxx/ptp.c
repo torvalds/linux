@@ -27,8 +27,6 @@
 #define TAI_EVENT_WORK_INTERVAL msecs_to_jiffies(100)
 
 #define cc_to_chip(cc) container_of(cc, struct mv88e6xxx_chip, tstamp_cc)
-#define ptp_to_chip(ptp) container_of(ptp, struct mv88e6xxx_chip, \
-				      ptp_clock_info)
 #define dw_overflow_to_chip(dw) container_of(dw, struct mv88e6xxx_chip, \
 					     overflow_work)
 #define dw_tai_event_to_chip(dw) container_of(dw, struct mv88e6xxx_chip, \
@@ -359,6 +357,7 @@ int mv88e6xxx_ptp_setup(struct mv88e6xxx_chip *chip)
 	chip->ptp_clock_info.settime64	= mv88e6xxx_ptp_settime;
 	chip->ptp_clock_info.enable	= mv88e6xxx_ptp_enable;
 	chip->ptp_clock_info.verify	= mv88e6xxx_ptp_verify;
+	chip->ptp_clock_info.do_aux_work = mv88e6xxx_hwtstamp_work;
 
 	chip->ptp_clock = ptp_clock_register(&chip->ptp_clock_info, chip->dev);
 	if (IS_ERR(chip->ptp_clock))

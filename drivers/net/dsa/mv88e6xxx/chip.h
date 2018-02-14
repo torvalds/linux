@@ -164,6 +164,32 @@ struct mv88e6xxx_irq {
 	unsigned int nirqs;
 };
 
+/* state flags for mv88e6xxx_port_hwtstamp::state */
+enum {
+	MV88E6XXX_HWTSTAMP_ENABLED,
+	MV88E6XXX_HWTSTAMP_TX_IN_PROGRESS,
+};
+
+struct mv88e6xxx_port_hwtstamp {
+	/* Port index */
+	int port_id;
+
+	/* Timestamping state */
+	unsigned long state;
+
+	/* Resources for receive timestamping */
+	struct sk_buff_head rx_queue;
+	struct sk_buff_head rx_queue2;
+
+	/* Resources for transmit timestamping */
+	unsigned long tx_tstamp_start;
+	struct sk_buff *tx_skb;
+	u16 tx_seq_id;
+
+	/* Current timestamp configuration */
+	struct hwtstamp_config tstamp_config;
+};
+
 struct mv88e6xxx_chip {
 	const struct mv88e6xxx_info *info;
 
@@ -236,6 +262,9 @@ struct mv88e6xxx_chip {
 	struct ptp_pin_desc	pin_config[MV88E6XXX_MAX_GPIO];
 	u16 trig_config;
 	u16 evcap_config;
+
+	/* Per-port timestamping resources. */
+	struct mv88e6xxx_port_hwtstamp port_hwtstamp[DSA_MAX_PORTS];
 };
 
 struct mv88e6xxx_bus_ops {

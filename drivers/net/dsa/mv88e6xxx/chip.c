@@ -36,6 +36,7 @@
 #include "chip.h"
 #include "global1.h"
 #include "global2.h"
+#include "hwtstamp.h"
 #include "phy.h"
 #include "port.h"
 #include "ptp.h"
@@ -2093,9 +2094,13 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 	if (err)
 		goto unlock;
 
-	/* Setup PTP Hardware Clock */
+	/* Setup PTP Hardware Clock and timestamping */
 	if (chip->info->ptp_support) {
 		err = mv88e6xxx_ptp_setup(chip);
+		if (err)
+			goto unlock;
+
+		err = mv88e6xxx_hwtstamp_setup(chip);
 		if (err)
 			goto unlock;
 	}
@@ -3932,6 +3937,11 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.port_mdb_del           = mv88e6xxx_port_mdb_del,
 	.crosschip_bridge_join	= mv88e6xxx_crosschip_bridge_join,
 	.crosschip_bridge_leave	= mv88e6xxx_crosschip_bridge_leave,
+	.port_hwtstamp_set	= mv88e6xxx_port_hwtstamp_set,
+	.port_hwtstamp_get	= mv88e6xxx_port_hwtstamp_get,
+	.port_txtstamp		= mv88e6xxx_port_txtstamp,
+	.port_rxtstamp		= mv88e6xxx_port_rxtstamp,
+	.get_ts_info		= mv88e6xxx_get_ts_info,
 };
 
 static struct dsa_switch_driver mv88e6xxx_switch_drv = {
@@ -4074,8 +4084,10 @@ static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 	struct dsa_switch *ds = dev_get_drvdata(&mdiodev->dev);
 	struct mv88e6xxx_chip *chip = ds->priv;
 
-	if (chip->info->ptp_support)
+	if (chip->info->ptp_support) {
+		mv88e6xxx_hwtstamp_free(chip);
 		mv88e6xxx_ptp_free(chip);
+	}
 
 	mv88e6xxx_phy_destroy(chip);
 	mv88e6xxx_unregister_switch(chip);
