@@ -988,74 +988,69 @@ static int wilc_spi_clear_int_ext(struct wilc *wilc, u32 val)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
 	int ret;
+	u32 flags;
+	u32 tbl_ctl;
 
 	if (g_spi.has_thrpt_enh) {
 		ret = spi_internal_write(wilc, 0xe844 - WILC_SPI_REG_BASE,
 					 val);
-	} else {
-		u32 flags;
+		return ret;
+	}
 
-		flags = val & (BIT(MAX_NUM_INT) - 1);
-		if (flags) {
-			int i;
+	flags = val & (BIT(MAX_NUM_INT) - 1);
+	if (flags) {
+		int i;
 
-			ret = 1;
-			for (i = 0; i < g_spi.nint; i++) {
-				/*
-				 * No matter what you write 1 or 0,
-				 * it will clear interrupt.
-				 */
-				if (flags & 1)
-					ret = wilc_spi_write_reg(wilc, 0x10c8 + i * 4, 1);
-				if (!ret)
-					break;
-				flags >>= 1;
-			}
-			if (!ret) {
-				dev_err(&spi->dev,
-					"Failed wilc_spi_write_reg, set reg %x ...\n",
-					0x10c8 + i * 4);
-				goto _fail_;
-			}
-			for (i = g_spi.nint; i < MAX_NUM_INT; i++) {
-				if (flags & 1)
-					dev_err(&spi->dev,
-						"Unexpected interrupt cleared %d...\n",
-						i);
-				flags >>= 1;
-			}
-		}
-
-		{
-			u32 tbl_ctl;
-
-			tbl_ctl = 0;
-			/* select VMM table 0 */
-			if ((val & SEL_VMM_TBL0) == SEL_VMM_TBL0)
-				tbl_ctl |= BIT(0);
-			/* select VMM table 1 */
-			if ((val & SEL_VMM_TBL1) == SEL_VMM_TBL1)
-				tbl_ctl |= BIT(1);
-
-			ret = wilc_spi_write_reg(wilc, WILC_VMM_TBL_CTL,
-						 tbl_ctl);
-			if (!ret) {
-				dev_err(&spi->dev,
-					"fail write reg vmm_tbl_ctl...\n");
-				goto _fail_;
-			}
-
-			if ((val & EN_VMM) == EN_VMM) {
-				/*
-				 * enable vmm transfer.
-				 */
+		ret = 1;
+		for (i = 0; i < g_spi.nint; i++) {
+			/*
+			 * No matter what you write 1 or 0,
+			 * it will clear interrupt.
+			 */
+			if (flags & 1)
 				ret = wilc_spi_write_reg(wilc,
-							 WILC_VMM_CORE_CTL, 1);
-				if (!ret) {
-					dev_err(&spi->dev, "fail write reg vmm_core_ctl...\n");
-					goto _fail_;
-				}
-			}
+							 0x10c8 + i * 4, 1);
+			if (!ret)
+				break;
+			flags >>= 1;
+		}
+		if (!ret) {
+			dev_err(&spi->dev,
+				"Failed wilc_spi_write_reg, set reg %x ...\n",
+				0x10c8 + i * 4);
+			goto _fail_;
+		}
+		for (i = g_spi.nint; i < MAX_NUM_INT; i++) {
+			if (flags & 1)
+				dev_err(&spi->dev,
+					"Unexpected interrupt cleared %d...\n",
+					i);
+			flags >>= 1;
+		}
+	}
+
+	tbl_ctl = 0;
+	/* select VMM table 0 */
+	if ((val & SEL_VMM_TBL0) == SEL_VMM_TBL0)
+		tbl_ctl |= BIT(0);
+	/* select VMM table 1 */
+	if ((val & SEL_VMM_TBL1) == SEL_VMM_TBL1)
+		tbl_ctl |= BIT(1);
+
+	ret = wilc_spi_write_reg(wilc, WILC_VMM_TBL_CTL, tbl_ctl);
+	if (!ret) {
+		dev_err(&spi->dev, "fail write reg vmm_tbl_ctl...\n");
+		goto _fail_;
+	}
+
+	if ((val & EN_VMM) == EN_VMM) {
+		/*
+		 * enable vmm transfer.
+		 */
+		ret = wilc_spi_write_reg(wilc, WILC_VMM_CORE_CTL, 1);
+		if (!ret) {
+			dev_err(&spi->dev, "fail write reg vmm_core_ctl...\n");
+			goto _fail_;
 		}
 	}
 _fail_:
