@@ -1404,7 +1404,6 @@ static void cryp_algs_unregister_all(void)
 static int ux500_cryp_probe(struct platform_device *pdev)
 {
 	int ret;
-	int cryp_error = 0;
 	struct resource *res = NULL;
 	struct resource *res_irq = NULL;
 	struct cryp_device_data *device_data;
@@ -1478,15 +1477,13 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 		goto out_clk_unprepare;
 	}
 
-	cryp_error = cryp_check(device_data);
-	if (cryp_error != 0) {
+	if (cryp_check(device_data)) {
 		dev_err(dev, "[%s]: cryp_init() failed!", __func__);
 		ret = -EINVAL;
 		goto out_power;
 	}
 
-	cryp_error = cryp_configure_protection(device_data, &prot);
-	if (cryp_error != 0) {
+	if (cryp_configure_protection(device_data, &prot)) {
 		dev_err(dev, "[%s]: cryp_configure_protection() failed!",
 			__func__);
 		ret = -EINVAL;
