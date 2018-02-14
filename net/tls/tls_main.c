@@ -299,7 +299,8 @@ static int do_tls_getsockopt_tx(struct sock *sk, char __user *optval,
 			goto out;
 		}
 		lock_sock(sk);
-		memcpy(crypto_info_aes_gcm_128->iv, ctx->iv,
+		memcpy(crypto_info_aes_gcm_128->iv,
+		       ctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE,
 		       TLS_CIPHER_AES_GCM_128_IV_SIZE);
 		release_sock(sk);
 		if (copy_to_user(optval,
