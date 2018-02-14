@@ -104,7 +104,6 @@
 #include <linux/ipv6_route.h>
 #include <linux/route.h>
 #include <linux/sockios.h>
-#include <linux/atalk.h>
 #include <net/busy_poll.h>
 #include <linux/errqueue.h>
 

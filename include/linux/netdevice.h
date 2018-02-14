@@ -1798,11 +1798,17 @@ struct net_device {
 #if IS_ENABLED(CONFIG_TIPC)
 	struct tipc_bearer __rcu *tipc_ptr;
 #endif
+#if IS_ENABLED(CONFIG_IRDA) || IS_ENABLED(CONFIG_ATALK)
 	void 			*atalk_ptr;
+#endif
 	struct in_device __rcu	*ip_ptr;
+#if IS_ENABLED(CONFIG_DECNET)
 	struct dn_dev __rcu     *dn_ptr;
+#endif
 	struct inet6_dev __rcu	*ip6_ptr;
+#if IS_ENABLED(CONFIG_AX25)
 	void			*ax25_ptr;
+#endif
 	struct wireless_dev	*ieee80211_ptr;
 	struct wpan_dev		*ieee802154_ptr;
 #if IS_ENABLED(CONFIG_MPLS_ROUTING)
