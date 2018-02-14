@@ -16,6 +16,8 @@
 #include <linux/irq.h>
 #include <linux/gpio/consumer.h>
 #include <linux/phy.h>
+#include <linux/ptp_clock_kernel.h>
+#include <linux/timecounter.h>
 #include <net/dsa.h>
 
 #ifndef UINT64_MAX
@@ -126,6 +128,9 @@ struct mv88e6xxx_info {
 	 */
 	u8 atu_move_port_mask;
 	const struct mv88e6xxx_ops *ops;
+
+	/* Supports PTP */
+	bool ptp_support;
 };
 
 struct mv88e6xxx_atu_entry {
@@ -210,6 +215,16 @@ struct mv88e6xxx_chip {
 	int watchdog_irq;
 	int atu_prob_irq;
 	int vtu_prob_irq;
+
+	/* This cyclecounter abstracts the switch PTP time.
+	 * reg_lock must be held for any operation that read()s.
+	 */
+	struct cyclecounter	tstamp_cc;
+	struct timecounter	tstamp_tc;
+	struct delayed_work	overflow_work;
+
+	struct ptp_clock	*ptp_clock;
+	struct ptp_clock_info	ptp_clock_info;
 };
 
 struct mv88e6xxx_bus_ops {
