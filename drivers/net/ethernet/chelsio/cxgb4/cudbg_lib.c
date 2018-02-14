@@ -884,7 +884,8 @@ static int cudbg_memory_read(struct cudbg_init *pdbg_init, int win,
 	u32 win_pf, memoffset, mem_aperture, mem_base;
 	struct adapter *adap = pdbg_init->adap;
 	u32 pos, offset, resid;
-	u32 *buf;
+	u32 *res_buf;
+	u64 *buf;
 	int ret;
 
 	/* Argument sanity checks ...
@@ -892,10 +893,10 @@ static int cudbg_memory_read(struct cudbg_init *pdbg_init, int win,
 	if (addr & 0x3 || (uintptr_t)hbuf & 0x3)
 		return -EINVAL;
 
-	buf = (u32 *)hbuf;
+	buf = (u64 *)hbuf;
 
-	/* Try to do 32-bit reads.  Residual will be handled later. */
-	resid = len & 0x3;
+	/* Try to do 64-bit reads.  Residual will be handled later. */
+	resid = len & 0x7;
 	len -= resid;
 
 	ret = t4_memory_rw_init(adap, win, mtype, &memoffset, &mem_base,
@@ -916,10 +917,10 @@ static int cudbg_memory_read(struct cudbg_init *pdbg_init, int win,
 
 	/* Transfer data from the adapter */
 	while (len > 0) {
-		*buf++ = le32_to_cpu((__force __le32)
-				     t4_read_reg(adap, mem_base + offset));
-		offset += sizeof(u32);
-		len -= sizeof(u32);
+		*buf++ = le64_to_cpu((__force __le64)
+				     t4_read_reg64(adap, mem_base + offset));
+		offset += sizeof(u64);
+		len -= sizeof(u64);
 
 		/* If we've reached the end of our current window aperture,
 		 * move the PCI-E Memory Window on to the next.
@@ -931,10 +932,28 @@ static int cudbg_memory_read(struct cudbg_init *pdbg_init, int win,
 		}
 	}
 
-	/* Transfer residual */
+	res_buf = (u32 *)buf;
+	/* Read residual in 32-bit multiples */
+	while (resid > sizeof(u32)) {
+		*res_buf++ = le32_to_cpu((__force __le32)
+					 t4_read_reg(adap, mem_base + offset));
+		offset += sizeof(u32);
+		resid -= sizeof(u32);
+
+		/* If we've reached the end of our current window aperture,
+		 * move the PCI-E Memory Window on to the next.
+		 */
+		if (offset == mem_aperture) {
+			pos += mem_aperture;
+			offset = 0;
+			t4_memory_update_win(adap, win, pos | win_pf);
+		}
+	}
+
+	/* Transfer residual < 32-bits */
 	if (resid)
 		t4_memory_rw_residual(adap, resid, mem_base + offset,
-				      (u8 *)buf, T4_MEMORY_READ);
+				      (u8 *)res_buf, T4_MEMORY_READ);
 
 	return 0;
 }
