@@ -23,8 +23,6 @@ from tdc_helper import *
 
 import TdcPlugin
 
-USE_NS = True
-
 class PluginMgr:
     def __init__(self, argparser):
         super().__init__()
@@ -107,16 +105,13 @@ def replace_keywords(cmd):
     return subcmd
 
 
-def exec_cmd(args, pm, stage, command, nsonly=True):
+def exec_cmd(args, pm, stage, command):
     """
     Perform any required modifications on an executable command, then run
     it in a subprocess and return the results.
     """
     if len(command.strip()) == 0:
         return None, None
-    if (USE_NS and nsonly):
-        command = 'ip netns exec $NS ' + command
-
     if '$' in command:
         command = replace_keywords(command)
 
@@ -264,39 +259,6 @@ def test_runner(pm, args, filtered_tests):
     pm.call_post_suite(index)
 
     return tap
-
-
-def ns_create(args, pm):
-    """
-    Create the network namespace in which the tests will be run and set up
-    the required network devices for it.
-    """
-    if (USE_NS):
-        cmd = 'ip netns add $NS'
-        exec_cmd(args, pm, 'pre', cmd, False)
-        cmd = 'ip link add $DEV0 type veth peer name $DEV1'
-        exec_cmd(args, pm, 'pre', cmd, False)
-        cmd = 'ip link set $DEV1 netns $NS'
-        exec_cmd(args, pm, 'pre', cmd, False)
-        cmd = 'ip link set $DEV0 up'
-        exec_cmd(args, pm, 'pre', cmd, False)
-        cmd = 'ip -n $NS link set $DEV1 up'
-        exec_cmd(args, pm, 'pre', cmd, False)
-        cmd = 'ip link set $DEV2 netns $NS'
-        exec_cmd(args, pm, 'pre', cmd, False)
-        cmd = 'ip -n $NS link set $DEV2 up'
-        exec_cmd(args, pm, 'pre', cmd, False)
-
-
-def ns_destroy(args, pm):
-    """
-    Destroy the network namespace for testing (and any associated network
-    devices as well)
-    """
-    if (USE_NS):
-        cmd = 'ip netns delete $NS'
-        exec_cmd(args, pm, 'post', cmd, False)
-
 
 def has_blank_ids(idlist):
     """
@@ -579,16 +541,11 @@ def set_operation_mode(pm, args):
             list_test_cases(alltests)
             exit(0)
 
-    ns_create(args, pm)
-
     if len(alltests):
         catresults = test_runner(pm, args, alltests)
     else:
         catresults = 'No tests found\n'
     print('All test results: \n\n{}'.format(catresults))
-
-    ns_destroy(args, pm)
-
 
 def main():
     """
