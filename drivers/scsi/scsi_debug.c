@@ -4315,7 +4315,10 @@ static void setup_inject(struct sdebug_queue *sqp,
  * SCSI_MLQUEUE_HOST_BUSY if temporarily out of resources.
  */
 static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
-			 int scsi_result, int delta_jiff, int ndelay)
+			 int scsi_result,
+			 int (*pfp)(struct scsi_cmnd *,
+				    struct sdebug_dev_info *),
+			 int delta_jiff, int ndelay)
 {
 	unsigned long iflags;
 	int k, num_in_q, qdepth, inject;
@@ -4331,9 +4334,6 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	}
 	sdp = cmnd->device;
 
-	if (unlikely(sdebug_verbose && scsi_result))
-		sdev_printk(KERN_INFO, sdp, "%s: non-zero result=0x%x\n",
-			    __func__, scsi_result);
 	if (delta_jiff == 0)
 		goto respond_in_thread;
 
@@ -4388,7 +4388,6 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	sqcp = &sqp->qc_arr[k];
 	sqcp->a_cmnd = cmnd;
 	cmnd->host_scribble = (unsigned char *)sqcp;
-	cmnd->result = scsi_result;
 	sd_dp = sqcp->sd_dp;
 	spin_unlock_irqrestore(&sqp->qc_lock, iflags);
 	if (unlikely(sdebug_every_nth && sdebug_any_injecting_opt))
@@ -4398,6 +4397,22 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		if (sd_dp == NULL)
 			return SCSI_MLQUEUE_HOST_BUSY;
 	}
+
+	cmnd->result = pfp != NULL ? pfp(cmnd, devip) : 0;
+	if (cmnd->result & SDEG_RES_IMMED_MASK) {
+		/*
+		 * This is the F_DELAY_OVERR case. No delay.
+		 */
+		cmnd->result &= ~SDEG_RES_IMMED_MASK;
+		delta_jiff = ndelay = 0;
+	}
+	if (cmnd->result == 0 && scsi_result != 0)
+		cmnd->result = scsi_result;
+
+	if (unlikely(sdebug_verbose && cmnd->result))
+		sdev_printk(KERN_INFO, sdp, "%s: non-zero result=0x%x\n",
+			    __func__, cmnd->result);
+
 	if (delta_jiff > 0 || ndelay > 0) {
 		ktime_t kt;
 
@@ -4440,7 +4455,10 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	return 0;
 
 respond_in_thread:	/* call back to mid-layer using invocation thread */
-	cmnd->result = scsi_result;
+	cmnd->result = pfp != NULL ? pfp(cmnd, devip) : 0;
+	cmnd->result &= ~SDEG_RES_IMMED_MASK;
+	if (cmnd->result == 0 && scsi_result != 0)
+		cmnd->result = scsi_result;
 	cmnd->scsi_done(cmnd);
 	return 0;
 }
@@ -5628,6 +5646,7 @@ static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 	struct sdebug_dev_info *devip;
 	u8 *cmd = scp->cmnd;
 	int (*r_pfp)(struct scsi_cmnd *, struct sdebug_dev_info *);
+	int (*pfp)(struct scsi_cmnd *, struct sdebug_dev_info *) = NULL;
 	int k, na;
 	int errsts = 0;
 	u32 flags;
@@ -5749,19 +5768,13 @@ static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 			return 0;	/* ignore command: make trouble */
 	}
 	if (likely(oip->pfp))
-		errsts = oip->pfp(scp, devip);	/* calls a resp_* function */
-	else if (r_pfp)	/* if leaf function ptr NULL, try the root's */
-		errsts = r_pfp(scp, devip);
-	if (errsts & SDEG_RES_IMMED_MASK) {
-		errsts &= ~SDEG_RES_IMMED_MASK;
-		flags |= F_DELAY_OVERR;
-		flags &= ~F_LONG_DELAY;
-	}
-
+		pfp = oip->pfp;	/* calls a resp_* function */
+	else
+		pfp = r_pfp;    /* if leaf function ptr NULL, try the root's */
 
 fini:
 	if (F_DELAY_OVERR & flags)
-		return schedule_resp(scp, devip, errsts, 0, 0);
+		return schedule_resp(scp, devip, errsts, pfp, 0, 0);
 	else if ((sdebug_jdelay || sdebug_ndelay) && (flags & F_LONG_DELAY)) {
 		/*
 		 * If any delay is active, want F_LONG_DELAY to be at least 1
@@ -5771,14 +5784,14 @@ fini:
 		int jdelay = (sdebug_jdelay < 2) ? 1 : sdebug_jdelay;
 
 		jdelay = mult_frac(USER_HZ * jdelay, HZ, USER_HZ);
-		return schedule_resp(scp, devip, errsts, jdelay, 0);
+		return schedule_resp(scp, devip, errsts, pfp, jdelay, 0);
 	} else
-		return schedule_resp(scp, devip, errsts, sdebug_jdelay,
+		return schedule_resp(scp, devip, errsts, pfp, sdebug_jdelay,
 				     sdebug_ndelay);
 check_cond:
-	return schedule_resp(scp, devip, check_condition_result, 0, 0);
+	return schedule_resp(scp, devip, check_condition_result, NULL, 0, 0);
 err_out:
-	return schedule_resp(scp, NULL, DID_NO_CONNECT << 16, 0, 0);
+	return schedule_resp(scp, NULL, DID_NO_CONNECT << 16, NULL, 0, 0);
 }
 
 static struct scsi_host_template sdebug_driver_template = {
