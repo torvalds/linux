@@ -70,3 +70,14 @@
 &usb2 {
 	status = "okay";
 };
+
+&eth {
+	status = "okay";
+	phy-handle = <&ethphy>;
+};
+
+&mdio {
+	ethphy: ethphy@1 {
+		reg = <1>;
+	};
+};

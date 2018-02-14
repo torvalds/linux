@@ -113,6 +113,19 @@
 	};
 };
 
+&eth {
+	status = "okay";
+	phy-mode = "rmii";
+	pinctrl-0 = <&pinctrl_ether_rmii>;
+	phy-handle = <&ethphy>;
+};
+
+&mdio {
+	ethphy: ethphy@1 {
+		reg = <1>;
+	};
+};
+
 &nand {
 	status = "okay";
 };
