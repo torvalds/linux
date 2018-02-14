@@ -791,6 +791,18 @@ static int ibmvnic_login(struct net_device *netdev)
 	return 0;
 }
 
+static void release_login_buffer(struct ibmvnic_adapter *adapter)
+{
+	kfree(adapter->login_buf);
+	adapter->login_buf = NULL;
+}
+
+static void release_login_rsp_buffer(struct ibmvnic_adapter *adapter)
+{
+	kfree(adapter->login_rsp_buf);
+	adapter->login_rsp_buf = NULL;
+}
+
 static void release_resources(struct ibmvnic_adapter *adapter)
 {
 	int i;
@@ -813,6 +825,8 @@ static void release_resources(struct ibmvnic_adapter *adapter)
 			}
 		}
 	}
+
+	release_login_rsp_buffer(adapter);
 }
 
 static int set_link_state(struct ibmvnic_adapter *adapter, u8 link_state)
@@ -3013,6 +3027,7 @@ static void send_login(struct ibmvnic_adapter *adapter)
 	struct vnic_login_client_data *vlcd;
 	int i;
 
+	release_login_rsp_buffer(adapter);
 	client_data_len = vnic_client_data_len(adapter);
 
 	buffer_size =
@@ -3708,6 +3723,7 @@ static int handle_login_rsp(union ibmvnic_crq *login_rsp_crq,
 
 	dma_unmap_single(dev, adapter->login_buf_token, adapter->login_buf_sz,
 			 DMA_BIDIRECTIONAL);
+	release_login_buffer(adapter);
 	dma_unmap_single(dev, adapter->login_rsp_buf_token,
 			 adapter->login_rsp_buf_sz, DMA_BIDIRECTIONAL);
 
