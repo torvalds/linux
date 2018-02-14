@@ -19,8 +19,6 @@
 #include <asm/processor.h>
 #include <asm/sclp.h>
 
-typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
-
 /* Transactional Memory Execution related macros */
 #define IS_TE_ENABLED(vcpu)	((vcpu->arch.sie_block->ecb & ECB_TE))
 #define TDB_FORMAT1		1
