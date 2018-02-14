@@ -20,6 +20,12 @@ typedef unsigned long	pgprotval_t;
 
 typedef struct { pteval_t pte; } pte_t;
 
+#ifdef CONFIG_X86_5LEVEL
+extern unsigned int pgtable_l5_enabled;
+#else
+#define pgtable_l5_enabled 0
+#endif
+
 #endif	/* !__ASSEMBLY__ */
 
 #define SHARED_KERNEL_PMD	0
