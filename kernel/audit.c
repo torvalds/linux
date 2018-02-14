@@ -2313,31 +2313,19 @@ EXPORT_SYMBOL(audit_log_task_info);
 void audit_log_link_denied(const char *operation, const struct path *link)
 {
 	struct audit_buffer *ab;
-	struct audit_names *name;
 
 	if (!audit_enabled || audit_dummy_context())
-		return;
-
-	name = kzalloc(sizeof(*name), GFP_NOFS);
-	if (!name)
 		return;
 
 	/* Generate AUDIT_ANOM_LINK with subject, operation, outcome. */
 	ab = audit_log_start(current->audit_context, GFP_KERNEL,
 			     AUDIT_ANOM_LINK);
 	if (!ab)
-		goto out;
+		return;
 	audit_log_format(ab, "op=%s", operation);
 	audit_log_task_info(ab, current);
 	audit_log_format(ab, " res=0");
 	audit_log_end(ab);
-
-	/* Generate AUDIT_PATH record with object. */
-	name->type = AUDIT_TYPE_NORMAL;
-	audit_copy_inode(name, link->dentry, d_backing_inode(link->dentry));
-	audit_log_name(current->audit_context, name, link, 0, NULL);
-out:
-	kfree(name);
 }
 
 /**
