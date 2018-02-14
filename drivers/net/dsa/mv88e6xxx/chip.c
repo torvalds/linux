@@ -2843,6 +2843,7 @@ static const struct mv88e6xxx_ops mv88e6240_ops = {
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
 	.serdes_power = mv88e6352_serdes_power,
+	.avb_ops = &mv88e6352_avb_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6290_ops = {
@@ -2879,6 +2880,7 @@ static const struct mv88e6xxx_ops mv88e6290_ops = {
 	.vtu_getnext = mv88e6390_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6390_g1_vtu_loadpurge,
 	.serdes_power = mv88e6390_serdes_power,
+	.avb_ops = &mv88e6390_avb_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6320_ops = {
@@ -2913,6 +2915,7 @@ static const struct mv88e6xxx_ops mv88e6320_ops = {
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6185_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6185_g1_vtu_loadpurge,
+	.avb_ops = &mv88e6352_avb_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6321_ops = {
@@ -2945,6 +2948,7 @@ static const struct mv88e6xxx_ops mv88e6321_ops = {
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6185_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6185_g1_vtu_loadpurge,
+	.avb_ops = &mv88e6352_avb_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6341_ops = {
@@ -2981,6 +2985,7 @@ static const struct mv88e6xxx_ops mv88e6341_ops = {
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
+	.avb_ops = &mv88e6390_avb_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6350_ops = {
@@ -3049,6 +3054,7 @@ static const struct mv88e6xxx_ops mv88e6351_ops = {
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
+	.avb_ops = &mv88e6352_avb_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6352_ops = {
@@ -3086,6 +3092,7 @@ static const struct mv88e6xxx_ops mv88e6352_ops = {
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
 	.serdes_power = mv88e6352_serdes_power,
+	.avb_ops = &mv88e6352_avb_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6390_ops = {
@@ -3124,6 +3131,7 @@ static const struct mv88e6xxx_ops mv88e6390_ops = {
 	.vtu_getnext = mv88e6390_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6390_g1_vtu_loadpurge,
 	.serdes_power = mv88e6390_serdes_power,
+	.avb_ops = &mv88e6390_avb_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6390x_ops = {
@@ -3162,6 +3170,7 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.vtu_getnext = mv88e6390_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6390_g1_vtu_loadpurge,
 	.serdes_power = mv88e6390_serdes_power,
+	.avb_ops = &mv88e6390_avb_ops,
 };
 
 static const struct mv88e6xxx_info mv88e6xxx_table[] = {

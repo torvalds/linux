@@ -146,6 +146,7 @@ struct mv88e6xxx_vtu_entry {
 
 struct mv88e6xxx_bus_ops;
 struct mv88e6xxx_irq_ops;
+struct mv88e6xxx_avb_ops;
 
 struct mv88e6xxx_irq {
 	u16 masked;
@@ -344,6 +345,9 @@ struct mv88e6xxx_ops {
 			   struct mv88e6xxx_vtu_entry *entry);
 	int (*vtu_loadpurge)(struct mv88e6xxx_chip *chip,
 			     struct mv88e6xxx_vtu_entry *entry);
+
+	/* Interface to the AVB/PTP registers */
+	const struct mv88e6xxx_avb_ops *avb_ops;
 };
 
 struct mv88e6xxx_irq_ops {
@@ -353,6 +357,24 @@ struct mv88e6xxx_irq_ops {
 	int (*irq_setup)(struct mv88e6xxx_chip *chip);
 	/* Reset the hardware to stop generating the interrupt */
 	void (*irq_free)(struct mv88e6xxx_chip *chip);
+};
+
+struct mv88e6xxx_avb_ops {
+	/* Access port-scoped Precision Time Protocol registers */
+	int (*port_ptp_read)(struct mv88e6xxx_chip *chip, int port, int addr,
+			     u16 *data, int len);
+	int (*port_ptp_write)(struct mv88e6xxx_chip *chip, int port, int addr,
+			      u16 data);
+
+	/* Access global Precision Time Protocol registers */
+	int (*ptp_read)(struct mv88e6xxx_chip *chip, int addr, u16 *data,
+			int len);
+	int (*ptp_write)(struct mv88e6xxx_chip *chip, int addr, u16 data);
+
+	/* Access global Time Application Interface registers */
+	int (*tai_read)(struct mv88e6xxx_chip *chip, int addr, u16 *data,
+			int len);
+	int (*tai_write)(struct mv88e6xxx_chip *chip, int addr, u16 data);
 };
 
 #define STATS_TYPE_PORT		BIT(0)

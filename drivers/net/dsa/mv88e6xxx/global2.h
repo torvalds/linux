@@ -149,7 +149,26 @@
 #define MV88E6390_G2_EEPROM_ADDR_MASK	0xffff
 
 /* Offset 0x16: AVB Command Register */
-#define MV88E6352_G2_AVB_CMD		0x16
+#define MV88E6352_G2_AVB_CMD			0x16
+#define MV88E6352_G2_AVB_CMD_BUSY		0x8000
+#define MV88E6352_G2_AVB_CMD_OP_READ		0x4000
+#define MV88E6352_G2_AVB_CMD_OP_READ_INCR	0x6000
+#define MV88E6352_G2_AVB_CMD_OP_WRITE		0x3000
+#define MV88E6390_G2_AVB_CMD_OP_READ		0x0000
+#define MV88E6390_G2_AVB_CMD_OP_READ_INCR	0x4000
+#define MV88E6390_G2_AVB_CMD_OP_WRITE		0x6000
+#define MV88E6352_G2_AVB_CMD_PORT_MASK		0x0f00
+#define MV88E6352_G2_AVB_CMD_PORT_TAIGLOBAL	0xe
+#define MV88E6352_G2_AVB_CMD_PORT_PTPGLOBAL	0xf
+#define MV88E6390_G2_AVB_CMD_PORT_MASK		0x1f00
+#define MV88E6390_G2_AVB_CMD_PORT_TAIGLOBAL	0x1e
+#define MV88E6390_G2_AVB_CMD_PORT_PTPGLOBAL	0x1f
+#define MV88E6352_G2_AVB_CMD_BLOCK_PTP		0
+#define MV88E6352_G2_AVB_CMD_BLOCK_AVB		1
+#define MV88E6352_G2_AVB_CMD_BLOCK_QAV		2
+#define MV88E6352_G2_AVB_CMD_BLOCK_QVB		3
+#define MV88E6352_G2_AVB_CMD_BLOCK_MASK		0x00e0
+#define MV88E6352_G2_AVB_CMD_ADDR_MASK		0x001f
 
 /* Offset 0x17: AVB Data Register */
 #define MV88E6352_G2_AVB_DATA		0x17
@@ -271,6 +290,9 @@ int mv88e6xxx_g2_pot_clear(struct mv88e6xxx_chip *chip);
 
 extern const struct mv88e6xxx_irq_ops mv88e6097_watchdog_ops;
 extern const struct mv88e6xxx_irq_ops mv88e6390_watchdog_ops;
+
+extern const struct mv88e6xxx_avb_ops mv88e6352_avb_ops;
+extern const struct mv88e6xxx_avb_ops mv88e6390_avb_ops;
 
 #else /* !CONFIG_NET_DSA_MV88E6XXX_GLOBAL2 */
 
@@ -406,6 +428,9 @@ static inline int mv88e6xxx_g2_pot_clear(struct mv88e6xxx_chip *chip)
 
 static const struct mv88e6xxx_irq_ops mv88e6097_watchdog_ops = {};
 static const struct mv88e6xxx_irq_ops mv88e6390_watchdog_ops = {};
+
+static const struct mv88e6xxx_avb_ops mv88e6352_avb_ops = {};
+static const struct mv88e6xxx_avb_ops mv88e6390_avb_ops = {};
 
 #endif /* CONFIG_NET_DSA_MV88E6XXX_GLOBAL2 */
 
