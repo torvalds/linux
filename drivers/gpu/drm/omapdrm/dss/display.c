@@ -28,19 +28,12 @@
 
 #include "omapdss.h"
 
-static void omapdss_default_get_timings(struct omap_dss_device *dssdev,
-					struct videomode *vm)
-{
-	*vm = dssdev->panel.vm;
-}
-
 static LIST_HEAD(panel_list);
 static DEFINE_MUTEX(panel_list_mutex);
 static int disp_num_counter;
 
 int omapdss_register_display(struct omap_dss_device *dssdev)
 {
-	struct omap_dss_driver *drv = dssdev->driver;
 	int id;
 
 	/*
@@ -59,9 +52,6 @@ int omapdss_register_display(struct omap_dss_device *dssdev)
 	if (dssdev->name == NULL)
 		dssdev->name = devm_kasprintf(dssdev->dev, GFP_KERNEL,
 					      "display%u", id);
-
-	if (drv && drv->get_timings == NULL)
-		drv->get_timings = omapdss_default_get_timings;
 
 	mutex_lock(&panel_list_mutex);
 	list_add_tail(&dssdev->panel_list, &panel_list);
