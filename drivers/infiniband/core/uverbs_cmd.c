@@ -1030,14 +1030,14 @@ static struct ib_ucq_object *create_cq(struct ib_uverbs_file *file,
 	resp.response_length = offsetof(typeof(resp), response_length) +
 		sizeof(resp.response_length);
 
+	cq->res.type = RDMA_RESTRACK_CQ;
+	rdma_restrack_add(&cq->res);
+
 	ret = cb(file, obj, &resp, ucore, context);
 	if (ret)
 		goto err_cb;
 
 	uobj_alloc_commit(&obj->uobject);
-	cq->res.type = RDMA_RESTRACK_CQ;
-	rdma_restrack_add(&cq->res);
-
 	return obj;
 
 err_cb:
