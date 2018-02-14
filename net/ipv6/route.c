@@ -2671,14 +2671,7 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 		if (err)
 			goto out;
 		rt->dst.lwtstate = lwtstate_get(lwtstate);
-		if (lwtunnel_output_redirect(rt->dst.lwtstate)) {
-			rt->dst.lwtstate->orig_output = rt->dst.output;
-			rt->dst.output = lwtunnel_output;
-		}
-		if (lwtunnel_input_redirect(rt->dst.lwtstate)) {
-			rt->dst.lwtstate->orig_input = rt->dst.input;
-			rt->dst.input = lwtunnel_input;
-		}
+		lwtunnel_set_redirect(&rt->dst);
 	}
 
 	ipv6_addr_prefix(&rt->rt6i_dst.addr, &cfg->fc_dst, cfg->fc_dst_len);
