@@ -10,16 +10,33 @@
 # Normal rules
 #
 .*
+*.a
+*.bin
+*.bz2
+*.c.[012]*.*
+*.dtb
+*.dtb.S
+*.dwo
+*.elf
+*.gcno
+*.gz
+*.i
+*.ko
+*.ll
+*.lst
+*.lz4
+*.lzma
+*.lzo
+*.mod.c
 *.o
 *.o.*
-*.a
+*.order
+*.patch
 *.s
 *.ko
 *.so
 *.so.dbg
-*.mod.c
-*.i
-*.lst
+*.su
 *.symtypes
 *.order
 *.elf
@@ -29,24 +46,11 @@
 *.bz2
 *.lzma
 *.xz
-*.lz4
-*.lzo
-*.patch
-*.gcno
-*.ll
-modules.builtin
 Module.symvers
+modules.builtin
 *.dwo
 *.su
 *.c.[012]*.*
-arch/arm/boot/zImage-dtb
-uImage
-*.rej
-build.log
-u-boot/
-uboot/
-cryptodev/*.md5
-tools/spi/include/
 
 #
 # Top-level generic files
@@ -60,6 +64,11 @@ tools/spi/include/
 /vmlinuz
 /System.map
 /Module.markers
+
+#
+# RPM spec file (make rpm-pkg)
+#
+/*.spec
 
 #
 # Debian directory (make deb-pkg)
