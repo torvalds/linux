@@ -54,12 +54,11 @@ static int uniphier_aio_comprdma_new(struct snd_soc_pcm_runtime *rtd)
 		dma_dir = DMA_TO_DEVICE;
 
 	sub->compr_addr = dma_map_single(dev, sub->compr_area, size, dma_dir);
-	ret = dma_mapping_error(dev, sub->compr_addr);
-	if (ret) {
+	if (dma_mapping_error(dev, sub->compr_addr)) {
 		kfree(sub->compr_area);
 		sub->compr_area = NULL;
 
-		return ret;
+		return -ENOMEM;
 	}
 
 	sub->compr_bytes = size;
