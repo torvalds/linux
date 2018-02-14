@@ -477,14 +477,6 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 	return ret;
 }
 
-/**
- * Uses CRT_HOTPLUG_EN and CRT_HOTPLUG_STAT to detect CRT presence.
- *
- * Not for i915G/i915GM
- *
- * \return true if CRT is connected.
- * \return false if CRT is disconnected.
- */
 static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
