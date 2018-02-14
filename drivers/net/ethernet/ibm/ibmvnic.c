@@ -1636,6 +1636,7 @@ restart_poll:
 				   be16_to_cpu(next->rx_comp.rc));
 			/* free the entry */
 			next->rx_comp.first = 0;
+			dev_kfree_skb_any(rx_buff->skb);
 			remove_buff_from_pool(adapter, rx_buff);
 			continue;
 		}
