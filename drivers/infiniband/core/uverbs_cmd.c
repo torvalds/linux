@@ -1970,8 +1970,15 @@ static int modify_qp(struct ib_uverbs_file *file,
 		goto release_qp;
 	}
 
+	if ((cmd->base.attr_mask & IB_QP_AV) &&
+	    !rdma_is_port_valid(qp->device, cmd->base.dest.port_num)) {
+		ret = -EINVAL;
+		goto release_qp;
+	}
+
 	if ((cmd->base.attr_mask & IB_QP_ALT_PATH) &&
-	    !rdma_is_port_valid(qp->device, cmd->base.alt_port_num)) {
+	    (!rdma_is_port_valid(qp->device, cmd->base.alt_port_num) ||
+	    !rdma_is_port_valid(qp->device, cmd->base.alt_dest.port_num))) {
 		ret = -EINVAL;
 		goto release_qp;
 	}
