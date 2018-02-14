@@ -166,6 +166,7 @@ struct aic31xx_priv {
 	unsigned int sysclk;
 	u8 p_div;
 	int rate_div_line;
+	bool master_dapm_route_applied;
 };
 
 struct aic31xx_rate_divs {
@@ -670,6 +671,29 @@ aic310x_audio_map[] = {
 	{"SPK", NULL, "SPK ClassD"},
 };
 
+/*
+ * Always connected DAPM routes for codec clock master modes.
+ * If the codec is the master on the I2S bus, we need to power on components
+ * to have valid DAC_CLK and also the DACs and ADC for playback/capture.
+ * Otherwise the codec will not generate clocks on the bus.
+ */
+static const struct snd_soc_dapm_route
+common31xx_cm_audio_map[] = {
+	{"DAC Left Input", "Off", "DAC IN"},
+	{"DAC Right Input", "Off", "DAC IN"},
+
+	{"HPL", NULL, "DAC Left"},
+	{"HPR", NULL, "DAC Right"},
+};
+
+static const struct snd_soc_dapm_route
+aic31xx_cm_audio_map[] = {
+	{"MIC1LP P-Terminal", "Off", "MIC1LP"},
+	{"MIC1RP P-Terminal", "Off", "MIC1RP"},
+	{"MIC1LM P-Terminal", "Off", "MIC1LM"},
+	{"MIC1LM M-Terminal", "Off", "MIC1LM"},
+};
+
 static int aic31xx_add_controls(struct snd_soc_component *component)
 {
 	int ret = 0;
@@ -912,6 +936,53 @@ static int aic31xx_dac_mute(struct snd_soc_dai *codec_dai, int mute)
 	return 0;
 }
 
+static int aic31xx_clock_master_routes(struct snd_soc_component *component,
+				       unsigned int fmt)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct aic31xx_priv *aic31xx = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	fmt &= SND_SOC_DAIFMT_MASTER_MASK;
+	if (fmt == SND_SOC_DAIFMT_CBS_CFS &&
+	    aic31xx->master_dapm_route_applied) {
+		/*
+		 * Remove the DAPM route(s) for codec clock master modes,
+		 * if applied
+		 */
+		ret = snd_soc_dapm_del_routes(dapm, common31xx_cm_audio_map,
+					ARRAY_SIZE(common31xx_cm_audio_map));
+		if (!ret && !(aic31xx->codec_type & DAC31XX_BIT))
+			ret = snd_soc_dapm_del_routes(dapm,
+					aic31xx_cm_audio_map,
+					ARRAY_SIZE(aic31xx_cm_audio_map));
+
+		if (ret)
+			return ret;
+
+		aic31xx->master_dapm_route_applied = false;
+	} else if (fmt != SND_SOC_DAIFMT_CBS_CFS &&
+		   !aic31xx->master_dapm_route_applied) {
+		/*
+		 * Add the needed DAPM route(s) for codec clock master modes,
+		 * if it is not done already
+		 */
+		ret = snd_soc_dapm_add_routes(dapm, common31xx_cm_audio_map,
+					ARRAY_SIZE(common31xx_cm_audio_map));
+		if (!ret && !(aic31xx->codec_type & DAC31XX_BIT))
+			ret = snd_soc_dapm_add_routes(dapm,
+					aic31xx_cm_audio_map,
+					ARRAY_SIZE(aic31xx_cm_audio_map));
+
+		if (ret)
+			return ret;
+
+		aic31xx->master_dapm_route_applied = true;
+	}
+
+	return 0;
+}
+
 static int aic31xx_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			       unsigned int fmt)
 {
@@ -992,7 +1063,7 @@ static int aic31xx_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			    AIC31XX_BCLKINV_MASK,
 			    iface_reg2);
 
-	return 0;
+	return aic31xx_clock_master_routes(component, fmt);
 }
 
 static int aic31xx_set_dai_sysclk(struct snd_soc_dai *codec_dai,
