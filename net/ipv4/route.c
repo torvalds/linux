@@ -1509,7 +1509,6 @@ struct rtable *rt_dst_alloc(struct net_device *dev,
 		rt->rt_pmtu = 0;
 		rt->rt_gateway = 0;
 		rt->rt_uses_gateway = 0;
-		rt->rt_table_id = 0;
 		INIT_LIST_HEAD(&rt->rt_uncached);
 
 		rt->dst.output = ip_output;
@@ -1727,8 +1726,6 @@ rt_cache:
 	}
 
 	rth->rt_is_input = 1;
-	if (res->table)
-		rth->rt_table_id = res->table->tb_id;
 	RT_CACHE_STAT_INC(in_slow_tot);
 
 	rth->dst.input = ip_forward;
@@ -2001,8 +1998,6 @@ local_input:
 	rth->dst.tclassid = itag;
 #endif
 	rth->rt_is_input = 1;
-	if (res->table)
-		rth->rt_table_id = res->table->tb_id;
 
 	RT_CACHE_STAT_INC(in_slow_tot);
 	if (res->type == RTN_UNREACHABLE) {
@@ -2231,8 +2226,6 @@ add:
 		return ERR_PTR(-ENOBUFS);
 
 	rth->rt_iif = orig_oif;
-	if (res->table)
-		rth->rt_table_id = res->table->tb_id;
 
 	RT_CACHE_STAT_INC(out_slow_tot);
 
@@ -2762,7 +2755,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		rt->rt_flags |= RTCF_NOTIFY;
 
 	if (rtm->rtm_flags & RTM_F_LOOKUP_TABLE)
-		table_id = rt->rt_table_id;
+		table_id = res.table ? res.table->tb_id : 0;
 
 	if (rtm->rtm_flags & RTM_F_FIB_MATCH) {
 		if (!res.fi) {

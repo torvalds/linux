@@ -736,7 +736,6 @@ static int vrf_rtable_create(struct net_device *dev)
 		return -ENOMEM;
 
 	rth->dst.output	= vrf_output;
-	rth->rt_table_id = vrf->tb_id;
 
 	rcu_assign_pointer(vrf->rth, rth);
 
