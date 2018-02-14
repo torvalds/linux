@@ -835,7 +835,6 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 	struct spi_device *spi = to_spi_device(wilc->dev);
 	u32 reg;
 	u32 chipid;
-
 	static int isinit;
 
 	if (isinit) {
@@ -864,20 +863,25 @@ static int wilc_spi_init(struct wilc *wilc, bool resume)
 		 * is removed but chip isn't reset
 		 */
 		g_spi.crc_off = 1;
-		dev_err(&spi->dev, "Failed internal read protocol with CRC on, retrying with CRC off...\n");
+		dev_err(&spi->dev,
+			"Failed read with CRC on, retrying with CRC off\n");
 		if (!spi_internal_read(wilc, WILC_SPI_PROTOCOL_OFFSET, &reg)) {
-			/* Reaad failed with both CRC on and off, something went bad */
-			dev_err(&spi->dev,
-				"Failed internal read protocol...\n");
+			/*
+			 * Read failed with both CRC on and off,
+			 * something went bad
+			 */
+			dev_err(&spi->dev, "Failed internal read protocol\n");
 			return 0;
 		}
 	}
-	if (g_spi.crc_off == 0)	{
+	if (g_spi.crc_off == 0) {
 		reg &= ~0xc; /* disable crc checking */
 		reg &= ~0x70;
 		reg |= (0x5 << 4);
 		if (!spi_internal_write(wilc, WILC_SPI_PROTOCOL_OFFSET, reg)) {
-			dev_err(&spi->dev, "[wilc spi %d]: Failed internal write protocol reg...\n", __LINE__);
+			dev_err(&spi->dev,
+				"[wilc spi %d]: Failed internal write reg\n",
+				__LINE__);
 			return 0;
 		}
 		g_spi.crc_off = 1;
