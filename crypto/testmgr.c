@@ -3904,6 +3904,21 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "xts(speck64)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = speck64_xts_enc_tv_template,
+					.count = ARRAY_SIZE(speck64_xts_enc_tv_template)
+				},
+				.dec = {
+					.vecs = speck64_xts_dec_tv_template,
+					.count = ARRAY_SIZE(speck64_xts_dec_tv_template)
+				}
+			}
+		}
+	}, {
 		.alg = "xts(twofish)",
 		.test = alg_test_skcipher,
 		.suite = {
