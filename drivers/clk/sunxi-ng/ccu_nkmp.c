@@ -134,6 +134,7 @@ static int ccu_nkmp_set_rate(struct clk_hw *hw, unsigned long rate,
 			   unsigned long parent_rate)
 {
 	struct ccu_nkmp *nkmp = hw_to_ccu_nkmp(hw);
+	u32 n_mask, k_mask, m_mask, p_mask;
 	struct _ccu_nkmp _nkmp;
 	unsigned long flags;
 	u32 reg;
@@ -149,18 +150,20 @@ static int ccu_nkmp_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	ccu_nkmp_find_best(parent_rate, rate, &_nkmp);
 
+	n_mask = GENMASK(nkmp->n.width + nkmp->n.shift - 1, nkmp->n.shift);
+	k_mask = GENMASK(nkmp->k.width + nkmp->k.shift - 1, nkmp->k.shift);
+	m_mask = GENMASK(nkmp->m.width + nkmp->m.shift - 1, nkmp->m.shift);
+	p_mask = GENMASK(nkmp->p.width + nkmp->p.shift - 1, nkmp->p.shift);
+
 	spin_lock_irqsave(nkmp->common.lock, flags);
 
 	reg = readl(nkmp->common.base + nkmp->common.reg);
-	reg &= ~GENMASK(nkmp->n.width + nkmp->n.shift - 1, nkmp->n.shift);
-	reg &= ~GENMASK(nkmp->k.width + nkmp->k.shift - 1, nkmp->k.shift);
-	reg &= ~GENMASK(nkmp->m.width + nkmp->m.shift - 1, nkmp->m.shift);
-	reg &= ~GENMASK(nkmp->p.width + nkmp->p.shift - 1, nkmp->p.shift);
+	reg &= ~(n_mask | k_mask | m_mask | p_mask);
 
-	reg |= (_nkmp.n - nkmp->n.offset) << nkmp->n.shift;
-	reg |= (_nkmp.k - nkmp->k.offset) << nkmp->k.shift;
-	reg |= (_nkmp.m - nkmp->m.offset) << nkmp->m.shift;
-	reg |= ilog2(_nkmp.p) << nkmp->p.shift;
+	reg |= ((_nkmp.n - nkmp->n.offset) << nkmp->n.shift) & n_mask;
+	reg |= ((_nkmp.k - nkmp->k.offset) << nkmp->k.shift) & k_mask;
+	reg |= ((_nkmp.m - nkmp->m.offset) << nkmp->m.shift) & m_mask;
+	reg |= (ilog2(_nkmp.p) << nkmp->p.shift) & p_mask;
 
 	writel(reg, nkmp->common.base + nkmp->common.reg);
 
