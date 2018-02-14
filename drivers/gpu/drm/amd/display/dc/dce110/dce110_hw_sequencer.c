@@ -1320,10 +1320,8 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 	resource_build_info_frame(pipe_ctx);
 	dce110_update_info_frame(pipe_ctx);
-	if (!pipe_ctx_old->stream) {
-		if (!pipe_ctx->stream->dpms_off)
-			core_link_enable_stream(context, pipe_ctx);
-	}
+	if (!pipe_ctx_old->stream)
+		core_link_enable_stream(context, pipe_ctx);
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
 

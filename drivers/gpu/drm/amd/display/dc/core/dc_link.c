@@ -2297,8 +2297,12 @@ void core_link_enable_stream(
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&
 		core_dc->apply_edp_fast_boot_optimization) {
 		core_dc->apply_edp_fast_boot_optimization = false;
+		pipe_ctx->stream->dpms_off = false;
 		return;
 	}
+
+	if (pipe_ctx->stream->dpms_off)
+		return;
 
 	status = enable_link(state, pipe_ctx);
 
