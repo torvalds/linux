@@ -157,7 +157,18 @@ void dw_hdmi_audio_enable(struct dw_hdmi *hdmi);
 void dw_hdmi_audio_disable(struct dw_hdmi *hdmi);
 
 /* PHY configuration */
+void dw_hdmi_phy_i2c_set_addr(struct dw_hdmi *hdmi, u8 address);
 void dw_hdmi_phy_i2c_write(struct dw_hdmi *hdmi, unsigned short data,
 			   unsigned char addr);
+
+void dw_hdmi_phy_gen2_pddq(struct dw_hdmi *hdmi, u8 enable);
+void dw_hdmi_phy_gen2_txpwron(struct dw_hdmi *hdmi, u8 enable);
+void dw_hdmi_phy_reset(struct dw_hdmi *hdmi);
+
+enum drm_connector_status dw_hdmi_phy_read_hpd(struct dw_hdmi *hdmi,
+					       void *data);
+void dw_hdmi_phy_update_hpd(struct dw_hdmi *hdmi, void *data,
+			    bool force, bool disabled, bool rxsense);
+void dw_hdmi_phy_setup_hpd(struct dw_hdmi *hdmi, void *data);
 
 #endif /* __IMX_HDMI_H__ */

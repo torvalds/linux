@@ -302,7 +302,7 @@ static void meson_hdmi_phy_setup_mode(struct meson_dw_hdmi *dw_hdmi,
 	}
 }
 
-static inline void dw_hdmi_phy_reset(struct meson_dw_hdmi *dw_hdmi)
+static inline void meson_dw_hdmi_phy_reset(struct meson_dw_hdmi *dw_hdmi)
 {
 	struct meson_drm *priv = dw_hdmi->priv;
 
@@ -409,9 +409,9 @@ static int dw_hdmi_phy_init(struct dw_hdmi *hdmi, void *data,
 	msleep(100);
 
 	/* Reset PHY 3 times in a row */
-	dw_hdmi_phy_reset(dw_hdmi);
-	dw_hdmi_phy_reset(dw_hdmi);
-	dw_hdmi_phy_reset(dw_hdmi);
+	meson_dw_hdmi_phy_reset(dw_hdmi);
+	meson_dw_hdmi_phy_reset(dw_hdmi);
+	meson_dw_hdmi_phy_reset(dw_hdmi);
 
 	/* Temporary Disable VENC video stream */
 	if (priv->venc.hdmi_use_enci)
