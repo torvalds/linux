@@ -1430,6 +1430,7 @@ config X86_PAE
 
 config X86_5LEVEL
 	bool "Enable 5-level page tables support"
+	select DYNAMIC_MEMORY_LAYOUT
 	depends on X86_64
 	---help---
 	  5-level paging enables access to larger address space:
@@ -2143,10 +2144,17 @@ config PHYSICAL_ALIGN
 
 	  Don't change this unless you know what you are doing.
 
+config DYNAMIC_MEMORY_LAYOUT
+	bool
+	---help---
+	  This option makes base addresses of vmalloc and vmemmap as well as
+	  __PAGE_OFFSET movable during boot.
+
 config RANDOMIZE_MEMORY
 	bool "Randomize the kernel memory sections"
 	depends on X86_64
 	depends on RANDOMIZE_BASE
+	select DYNAMIC_MEMORY_LAYOUT
 	default RANDOMIZE_BASE
 	---help---
 	   Randomizes the base virtual address of kernel memory sections

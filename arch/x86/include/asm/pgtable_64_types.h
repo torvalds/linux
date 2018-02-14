@@ -100,13 +100,13 @@ typedef struct { pteval_t pte; } pte_t;
 # define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
 #endif
 
-#ifdef CONFIG_RANDOMIZE_MEMORY
+#ifdef CONFIG_DYNAMIC_MEMORY_LAYOUT
 # define VMALLOC_START		vmalloc_base
 # define VMEMMAP_START		vmemmap_base
 #else
 # define VMALLOC_START		__VMALLOC_BASE
 # define VMEMMAP_START		__VMEMMAP_BASE
-#endif /* CONFIG_RANDOMIZE_MEMORY */
+#endif /* CONFIG_DYNAMIC_MEMORY_LAYOUT */
 
 #define VMALLOC_END		(VMALLOC_START + _AC((VMALLOC_SIZE_TB << 40) - 1, UL))
 
