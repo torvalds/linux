@@ -1397,7 +1397,7 @@ static int sahara_probe(struct platform_device *pdev)
 	int err;
 	int i;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(struct sahara_dev), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
