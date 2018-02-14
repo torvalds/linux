@@ -221,25 +221,39 @@ static int iwl_fill_paging_mem(struct iwl_fw_runtime *fwrt,
 	sec_idx++;
 
 	/*
-	 * copy the paging blocks to the dram
-	 * loop index start from 1 since that CSS block already copied to dram
-	 * and CSS index is 0.
-	 * loop stop at num_of_paging_blk since that last block is not full.
+	 * Copy the paging blocks to the dram.  The loop index starts
+	 * from 1 since the CSS block (index 0) was already copied to
+	 * dram.  We use num_of_paging_blk + 1 to account for that.
 	 */
-	for (idx = 1; idx < fwrt->num_of_paging_blk; idx++) {
+	for (idx = 1; idx < fwrt->num_of_paging_blk + 1; idx++) {
 		struct iwl_fw_paging *block = &fwrt->fw_paging_db[idx];
+		int remaining = image->sec[sec_idx].len - offset;
+		int len = block->fw_paging_size;
 
-		if (block->fw_paging_size > image->sec[sec_idx].len - offset) {
+		/*
+		 * For the last block, we copy all that is remaining,
+		 * for all other blocks, we copy fw_paging_size at a
+		 * time. */
+		if (idx == fwrt->num_of_paging_blk) {
+			len = remaining;
+			if (remaining !=
+			    fwrt->num_of_pages_in_last_blk * FW_PAGING_SIZE) {
+				IWL_ERR(fwrt,
+					"Paging: last block contains more data than expected %d\n",
+					remaining);
+				ret = -EINVAL;
+				goto err;
+			}
+		} else if (block->fw_paging_size > remaining) {
 			IWL_ERR(fwrt,
-				"Paging: paging size is larger than remaining data in block %d\n",
-				idx);
+				"Paging: not enough data in other in block %d (%d)\n",
+				idx, remaining);
 			ret = -EINVAL;
 			goto err;
 		}
 
 		memcpy(page_address(block->fw_paging_block),
-		       image->sec[sec_idx].data + offset,
-		       block->fw_paging_size);
+		       image->sec[sec_idx].data + offset, len);
 		dma_sync_single_for_device(fwrt->trans->dev,
 					   block->fw_paging_phys,
 					   block->fw_paging_size,
@@ -247,40 +261,9 @@ static int iwl_fill_paging_mem(struct iwl_fw_runtime *fwrt,
 
 		IWL_DEBUG_FW(fwrt,
 			     "Paging: copied %d paging bytes to block %d\n",
-			     block->fw_paging_size, idx);
+			     len, idx);
 
 		offset += block->fw_paging_size;
-
-		if (offset > image->sec[sec_idx].len) {
-			IWL_ERR(fwrt,
-				"Paging: offset goes over section size\n");
-			ret = -EINVAL;
-			goto err;
-		}
-	}
-
-	/* copy the last paging block */
-	if (fwrt->num_of_pages_in_last_blk > 0) {
-		struct iwl_fw_paging *block = &fwrt->fw_paging_db[idx];
-
-		if (image->sec[sec_idx].len - offset > block->fw_paging_size) {
-			IWL_ERR(fwrt,
-				"Paging: last block is larger than paging size\n");
-			ret = -EINVAL;
-			goto err;
-		}
-
-		memcpy(page_address(block->fw_paging_block),
-		       image->sec[sec_idx].data + offset,
-		       image->sec[sec_idx].len - offset);
-		dma_sync_single_for_device(fwrt->trans->dev,
-					   block->fw_paging_phys,
-					   block->fw_paging_size,
-					   DMA_BIDIRECTIONAL);
-
-		IWL_DEBUG_FW(fwrt,
-			     "Paging: copied %d pages in the last block %d\n",
-			     fwrt->num_of_pages_in_last_blk, idx);
 	}
 
 	return 0;
