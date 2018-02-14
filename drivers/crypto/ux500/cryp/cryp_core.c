@@ -1478,7 +1478,7 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 	}
 
 	if (cryp_check(device_data)) {
-		dev_err(dev, "[%s]: cryp_init() failed!", __func__);
+		dev_err(dev, "[%s]: cryp_check() failed!", __func__);
 		ret = -EINVAL;
 		goto out_power;
 	}
