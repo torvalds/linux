@@ -825,6 +825,8 @@ static void release_resources(struct ibmvnic_adapter *adapter)
 			}
 		}
 	}
+	kfree(adapter->napi);
+	adapter->napi = NULL;
 
 	release_login_rsp_buffer(adapter);
 }
