@@ -569,14 +569,16 @@ static inline p4dval_t p4d_val(p4d_t p4d)
 
 static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
 {
-	pgdval_t val = native_pgd_val(pgd);
-
-	PVOP_VCALL2(pv_mmu_ops.set_pgd, pgdp, val);
+	if (pgtable_l5_enabled)
+		PVOP_VCALL2(pv_mmu_ops.set_pgd, pgdp, native_pgd_val(pgd));
+	else
+		set_p4d((p4d_t *)(pgdp), (p4d_t) { pgd.pgd });
 }
 
 static inline void pgd_clear(pgd_t *pgdp)
 {
-	set_pgd(pgdp, __pgd(0));
+	if (pgtable_l5_enabled)
+		set_pgd(pgdp, __pgd(0));
 }
 
 #endif  /* CONFIG_PGTABLE_LEVELS == 5 */
