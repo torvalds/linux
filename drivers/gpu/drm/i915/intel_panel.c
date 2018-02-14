@@ -419,8 +419,9 @@ static uint32_t scale(uint32_t source_val,
 	source_val = clamp(source_val, source_min, source_max);
 
 	/* avoid overflows */
-	target_val = DIV_ROUND_CLOSEST_ULL((uint64_t)(source_val - source_min) *
-			(target_max - target_min), source_max - source_min);
+	target_val = mul_u32_u32(source_val - source_min,
+				 target_max - target_min);
+	target_val = DIV_ROUND_CLOSEST_ULL(target_val, source_max - source_min);
 	target_val += target_min;
 
 	return target_val;
