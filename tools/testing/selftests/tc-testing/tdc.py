@@ -209,20 +209,41 @@ def set_args(parser):
     """
     Set the command line arguments for tdc.
     """
-    parser.add_argument('-p', '--path', type=str,
-                        help='The full path to the tc executable to use')
-    parser.add_argument('-c', '--category', type=str, nargs='?', const='+c',
-                        help='Run tests only from the specified category, or if no category is specified, list known categories.')
-    parser.add_argument('-f', '--file', type=str,
-                        help='Run tests from the specified file')
-    parser.add_argument('-l', '--list', type=str, nargs='?', const="++", metavar='CATEGORY',
-                        help='List all test cases, or those only within the specified category')
-    parser.add_argument('-s', '--show', type=str, nargs=1, metavar='ID', dest='showID',
-                        help='Display the test case with specified id')
-    parser.add_argument('-e', '--execute', type=str, nargs=1, metavar='ID',
-                        help='Execute the single test case with specified ID')
-    parser.add_argument('-i', '--id', action='store_true', dest='gen_id',
-                        help='Generate ID numbers for new test cases')
+    parser.add_argument(
+        '-p', '--path', type=str,
+        help='The full path to the tc executable to use')
+    sg = parser.add_argument_group(
+        'selection', 'select which test cases: ' +
+        'files plus directories; filtered by categories plus testids')
+    ag = parser.add_argument_group(
+        'action', 'select action to perform on selected test cases')
+
+    sg.add_argument(
+        '-D', '--directory', nargs='+', metavar='DIR',
+        help='Collect tests from the specified directory(ies) ' +
+        '(default [tc-tests])')
+    sg.add_argument(
+        '-f', '--file', nargs='+', metavar='FILE',
+        help='Run tests from the specified file(s)')
+    sg.add_argument(
+        '-c', '--category', nargs='*', metavar='CATG', default=['+c'],
+        help='Run tests only from the specified category/ies, ' +
+        'or if no category/ies is/are specified, list known categories.')
+    sg.add_argument(
+        '-e', '--execute', nargs='+', metavar='ID',
+        help='Execute the specified test cases with specified IDs')
+    ag.add_argument(
+        '-l', '--list', action='store_true',
+        help='List all test cases, or those only within the specified category')
+    ag.add_argument(
+        '-s', '--show', action='store_true', dest='showID',
+        help='Display the selected test cases')
+    ag.add_argument(
+        '-i', '--id', action='store_true', dest='gen_id',
+        help='Generate ID numbers for new test cases')
+    parser.add_argument(
+        '-v', '--verbose', action='count', default=0,
+        help='Show the commands that are being run')
     parser.add_argument('-d', '--device',
                         help='Execute the test case in flower category')
     return parser
@@ -257,7 +278,16 @@ def check_case_id(alltests):
     Check for duplicate test case IDs.
     """
     idl = get_id_list(alltests)
+    # print('check_case_id:  idl is {}'.format(idl))
+    # answer = list()
+    # for x in idl:
+    #     print('Looking at {}'.format(x))
+    #     print('what the heck is idl.count(x)???   {}'.format(idl.count(x)))
+    #     if idl.count(x) > 1:
+    #         answer.append(x)
+    #         print(' ... append it {}'.format(x))
     return [x for x in idl if idl.count(x) > 1]
+    return answer
 
 
 def does_id_exist(alltests, newid):
@@ -300,28 +330,96 @@ def generate_case_ids(alltests):
         json.dump(testlist, outfile, indent=4)
         outfile.close()
 
+def filter_tests_by_id(args, testlist):
+    '''
+    Remove tests from testlist that are not in the named id list.
+    If id list is empty, return empty list.
+    '''
+    newlist = list()
+    if testlist and args.execute:
+        target_ids = args.execute
+
+        if isinstance(target_ids, list) and (len(target_ids) > 0):
+            newlist = list(filter(lambda x: x['id'] in target_ids, testlist))
+    return newlist
+
+def filter_tests_by_category(args, testlist):
+    '''
+    Remove tests from testlist that are not in a named category.
+    '''
+    answer = list()
+    if args.category and testlist:
+        test_ids = list()
+        for catg in set(args.category):
+            if catg == '+c':
+                continue
+            print('considering category {}'.format(catg))
+            for tc in testlist:
+                if catg in tc['category'] and tc['id'] not in test_ids:
+                    answer.append(tc)
+                    test_ids.append(tc['id'])
+
+    return answer
 
 def get_test_cases(args):
     """
     If a test case file is specified, retrieve tests from that file.
     Otherwise, glob for all json files in subdirectories and load from
     each one.
+    Also, if requested, filter by category, and add tests matching
+    certain ids.
     """
     import fnmatch
-    if args.file != None:
-        if not os.path.isfile(args.file):
-            print("The specified test case file " + args.file + " does not exist.")
-            exit(1)
-        flist = [args.file]
-    else:
-        flist = []
-        for root, dirnames, filenames in os.walk('tc-tests'):
+
+    flist = []
+    testdirs = ['tc-tests']
+
+    if args.file:
+        # at least one file was specified - remove the default directory
+        testdirs = []
+
+        for ff in args.file:
+            if not os.path.isfile(ff):
+                print("IGNORING file " + ff + " \n\tBECAUSE does not exist.")
+            else:
+                flist.append(os.path.abspath(ff))
+
+    if args.directory:
+        testdirs = args.directory
+
+    for testdir in testdirs:
+        for root, dirnames, filenames in os.walk(testdir):
             for filename in fnmatch.filter(filenames, '*.json'):
-                flist.append(os.path.join(root, filename))
-    alltests = list()
+                candidate = os.path.abspath(os.path.join(root, filename))
+                if candidate not in testdirs:
+                    flist.append(candidate)
+
+    alltestcases = list()
     for casefile in flist:
-        alltests = alltests + (load_from_file(casefile))
-    return alltests
+        alltestcases = alltestcases + (load_from_file(casefile))
+
+    allcatlist = get_test_categories(alltestcases)
+    allidlist = get_id_list(alltestcases)
+
+    testcases_by_cats = get_categorized_testlist(alltestcases, allcatlist)
+    idtestcases = filter_tests_by_id(args, alltestcases)
+    cattestcases = filter_tests_by_category(args, alltestcases)
+
+    cat_ids = [x['id'] for x in cattestcases]
+    if args.execute:
+        if args.category:
+            alltestcases = cattestcases + [x for x in idtestcases if x['id'] not in cat_ids]
+        else:
+            alltestcases = idtestcases
+    else:
+        if cat_ids:
+            alltestcases = cattestcases
+        else:
+            # just accept the existing value of alltestcases,
+            # which has been filtered by file/directory
+            pass
+
+    return allcatlist, allidlist, testcases_by_cats, alltestcases
 
 
 def set_operation_mode(args):
@@ -330,10 +428,9 @@ def set_operation_mode(args):
     what the script should do for this run, and call the appropriate
     function.
     """
-    alltests = get_test_cases(args)
+    ucat, idlist, testcases, alltests = get_test_cases(args)
 
     if args.gen_id:
-        idlist = get_id_list(alltests)
         if (has_blank_ids(idlist)):
             alltests = generate_case_ids(alltests)
         else:
@@ -347,41 +444,19 @@ def set_operation_mode(args):
         print("Please correct them before continuing.")
         exit(1)
 
-    ucat = get_test_categories(alltests)
-
     if args.showID:
-        show_test_case_by_id(alltests, args.showID[0])
+        for atest in alltests:
+            print_test_case(atest)
         exit(0)
 
-    if args.execute:
-        target_id = args.execute[0]
-    else:
-        target_id = ""
-
-    if args.category:
-        if (args.category == '+c'):
-            print("Available categories:")
-            print_sll(ucat)
-            exit(0)
-        else:
-            target_category = args.category
-    else:
-        target_category = ""
-
-
-    testcases = get_categorized_testlist(alltests, ucat)
+    if isinstance(args.category, list) and (len(args.category) == 0):
+        print("Available categories:")
+        print_sll(ucat)
+        exit(0)
 
     if args.list:
-        if (args.list == "++"):
+        if args.list:
             list_test_cases(alltests)
-            exit(0)
-        elif(len(args.list) > 0):
-            if (args.list not in ucat):
-                print("Unknown category " + args.list)
-                print("Available categories:")
-                print_sll(ucat)
-                exit(1)
-            list_test_cases(testcases[args.list])
             exit(0)
 
     if (os.geteuid() != 0):
@@ -390,24 +465,8 @@ def set_operation_mode(args):
 
     ns_create()
 
-    if (len(target_category) == 0):
-        if (len(target_id) > 0):
-            alltests = list(filter(lambda x: target_id in x['id'], alltests))
-            if (len(alltests) == 0):
-                print("Cannot find a test case with ID matching " + target_id)
-                exit(1)
-        catresults = test_runner(alltests, args)
-        print("All test results: " + "\n\n" + catresults)
-    elif (len(target_category) > 0):
-        if (target_category == "flower") and args.device == None:
-            print("Please specify a NIC device (-d) to run category flower")
-            exit(1)
-        if (target_category not in ucat):
-            print("Specified category is not present in this file.")
-            exit(1)
-        else:
-            catresults = test_runner(testcases[target_category], args)
-            print("Category " + target_category + "\n\n" + catresults)
+    catresults = test_runner(alltests, args)
+    print('All test results: \n\n{}'.format(catresults))
 
     ns_destroy()
 
