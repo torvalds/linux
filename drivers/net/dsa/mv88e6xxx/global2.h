@@ -230,6 +230,11 @@ static inline int mv88e6xxx_g2_require(struct mv88e6xxx_chip *chip)
 	return 0;
 }
 
+int mv88e6xxx_g2_read(struct mv88e6xxx_chip *chip, int reg, u16 *val);
+int mv88e6xxx_g2_write(struct mv88e6xxx_chip *chip, int reg, u16 val);
+int mv88e6xxx_g2_update(struct mv88e6xxx_chip *chip, int reg, u16 update);
+int mv88e6xxx_g2_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask);
+
 int mv88e6352_g2_irl_init_all(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_g2_irl_init_all(struct mv88e6xxx_chip *chip, int port);
 
@@ -277,6 +282,26 @@ static inline int mv88e6xxx_g2_require(struct mv88e6xxx_chip *chip)
 	}
 
 	return 0;
+}
+
+static int mv88e6xxx_g2_read(struct mv88e6xxx_chip *chip, int reg, u16 *val)
+{
+	return -EOPNOTSUPP;
+}
+
+static int mv88e6xxx_g2_write(struct mv88e6xxx_chip *chip, int reg, u16 val)
+{
+	return -EOPNOTSUPP;
+}
+
+static int mv88e6xxx_g2_update(struct mv88e6xxx_chip *chip, int reg, u16 update)
+{
+	return -EOPNOTSUPP;
+}
+
+static int mv88e6xxx_g2_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
+{
+	return -EOPNOTSUPP;
 }
 
 static inline int mv88e6352_g2_irl_init_all(struct mv88e6xxx_chip *chip,
