@@ -397,8 +397,11 @@ intel_panel_detect(struct drm_i915_private *dev_priv)
 
 /**
  * scale - scale values from one range to another
- *
  * @source_val: value in range [@source_min..@source_max]
+ * @source_min: minimum legal value for @source_val
+ * @source_max: maximum legal value for @source_val
+ * @target_min: corresponding target value for @source_min
+ * @target_max: corresponding target value for @source_max
  *
  * Return @source_val in range [@source_min..@source_max] scaled to range
  * [@target_min..@target_max].
