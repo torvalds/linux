@@ -348,9 +348,7 @@ static inline bool kasan_page_table(struct seq_file *m, struct pg_state *st,
 				void *pt)
 {
 	if (__pa(pt) == __pa(kasan_zero_pmd) ||
-#ifdef CONFIG_X86_5LEVEL
-	    __pa(pt) == __pa(kasan_zero_p4d) ||
-#endif
+	    (pgtable_l5_enabled && __pa(pt) == __pa(kasan_zero_p4d)) ||
 	    __pa(pt) == __pa(kasan_zero_pud)) {
 		pgprotval_t prot = pte_flags(kasan_zero_pte[0]);
 		note_page(m, st, __pgprot(prot), 5);
