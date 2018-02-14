@@ -69,7 +69,7 @@ struct ccs811_reading {
 	__be16 voc;
 	u8 status;
 	u8 error;
-	__be16 resistance;
+	__be16 raw_data;
 } __attribute__((__packed__));
 
 struct ccs811_data {
@@ -210,12 +210,12 @@ static int ccs811_read_raw(struct iio_dev *indio_dev,
 
 		switch (chan->type) {
 		case IIO_VOLTAGE:
-			*val = be16_to_cpu(data->buffer.resistance) &
+			*val = be16_to_cpu(data->buffer.raw_data) &
 					   CCS811_VOLTAGE_MASK;
 			ret = IIO_VAL_INT;
 			break;
 		case IIO_CURRENT:
-			*val = be16_to_cpu(data->buffer.resistance) >> 10;
+			*val = be16_to_cpu(data->buffer.raw_data) >> 10;
 			ret = IIO_VAL_INT;
 			break;
 		case IIO_CONCENTRATION:
