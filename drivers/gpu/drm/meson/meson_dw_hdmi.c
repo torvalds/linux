@@ -140,6 +140,7 @@ struct meson_dw_hdmi {
 	struct clk *venci_clk;
 	struct regulator *hdmi_supply;
 	u32 irq_stat;
+	struct dw_hdmi *hdmi;
 };
 #define encoder_to_meson_dw_hdmi(x) \
 	container_of(x, struct meson_dw_hdmi, encoder)
@@ -878,9 +879,12 @@ static int meson_dw_hdmi_bind(struct device *dev, struct device *master,
 	dw_plat_data->input_bus_format = MEDIA_BUS_FMT_YUV8_1X24;
 	dw_plat_data->input_bus_encoding = V4L2_YCBCR_ENC_709;
 
-	ret = dw_hdmi_bind(pdev, encoder, &meson_dw_hdmi->dw_plat_data);
-	if (ret)
-		return ret;
+	platform_set_drvdata(pdev, meson_dw_hdmi);
+
+	meson_dw_hdmi->hdmi = dw_hdmi_bind(pdev, encoder,
+					   &meson_dw_hdmi->dw_plat_data);
+	if (IS_ERR(meson_dw_hdmi->hdmi))
+		return PTR_ERR(meson_dw_hdmi->hdmi);
 
 	DRM_DEBUG_DRIVER("HDMI controller initialized\n");
 
@@ -890,7 +894,9 @@ static int meson_dw_hdmi_bind(struct device *dev, struct device *master,
 static void meson_dw_hdmi_unbind(struct device *dev, struct device *master,
 				   void *data)
 {
-	dw_hdmi_unbind(dev);
+	struct meson_dw_hdmi *meson_dw_hdmi = dev_get_drvdata(dev);
+
+	dw_hdmi_unbind(meson_dw_hdmi->hdmi);
 }
 
 static const struct component_ops meson_dw_hdmi_ops = {

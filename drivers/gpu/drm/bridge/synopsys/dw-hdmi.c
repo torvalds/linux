@@ -2543,8 +2543,6 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	if (hdmi->i2c)
 		dw_hdmi_i2c_init(hdmi);
 
-	platform_set_drvdata(pdev, hdmi);
-
 	return hdmi;
 
 err_iahb:
@@ -2594,25 +2592,23 @@ static void __dw_hdmi_remove(struct dw_hdmi *hdmi)
 /* -----------------------------------------------------------------------------
  * Probe/remove API, used from platforms based on the DRM bridge API.
  */
-int dw_hdmi_probe(struct platform_device *pdev,
-		  const struct dw_hdmi_plat_data *plat_data)
+struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
+			      const struct dw_hdmi_plat_data *plat_data)
 {
 	struct dw_hdmi *hdmi;
 
 	hdmi = __dw_hdmi_probe(pdev, plat_data);
 	if (IS_ERR(hdmi))
-		return PTR_ERR(hdmi);
+		return hdmi;
 
 	drm_bridge_add(&hdmi->bridge);
 
-	return 0;
+	return hdmi;
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_probe);
 
-void dw_hdmi_remove(struct platform_device *pdev)
+void dw_hdmi_remove(struct dw_hdmi *hdmi)
 {
-	struct dw_hdmi *hdmi = platform_get_drvdata(pdev);
-
 	drm_bridge_remove(&hdmi->bridge);
 
 	__dw_hdmi_remove(hdmi);
@@ -2622,31 +2618,30 @@ EXPORT_SYMBOL_GPL(dw_hdmi_remove);
 /* -----------------------------------------------------------------------------
  * Bind/unbind API, used from platforms based on the component framework.
  */
-int dw_hdmi_bind(struct platform_device *pdev, struct drm_encoder *encoder,
-		 const struct dw_hdmi_plat_data *plat_data)
+struct dw_hdmi *dw_hdmi_bind(struct platform_device *pdev,
+			     struct drm_encoder *encoder,
+			     const struct dw_hdmi_plat_data *plat_data)
 {
 	struct dw_hdmi *hdmi;
 	int ret;
 
 	hdmi = __dw_hdmi_probe(pdev, plat_data);
 	if (IS_ERR(hdmi))
-		return PTR_ERR(hdmi);
+		return hdmi;
 
 	ret = drm_bridge_attach(encoder, &hdmi->bridge, NULL);
 	if (ret) {
-		dw_hdmi_remove(pdev);
+		dw_hdmi_remove(hdmi);
 		DRM_ERROR("Failed to initialize bridge with drm\n");
-		return ret;
+		return ERR_PTR(ret);
 	}
 
-	return 0;
+	return hdmi;
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_bind);
 
-void dw_hdmi_unbind(struct device *dev)
+void dw_hdmi_unbind(struct dw_hdmi *hdmi)
 {
-	struct dw_hdmi *hdmi = dev_get_drvdata(dev);
-
 	__dw_hdmi_remove(hdmi);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_unbind);
