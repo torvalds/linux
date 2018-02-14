@@ -101,6 +101,7 @@ int ir_raw_event_store_edge(struct rc_dev *dev, bool pulse)
 	ev.duration = ktime_to_ns(ktime_sub(now, dev->raw->last_event));
 	ev.pulse = !pulse;
 
+	spin_lock(&dev->raw->edge_spinlock);
 	rc = ir_raw_event_store(dev, &ev);
 
 	dev->raw->last_event = now;
@@ -112,6 +113,7 @@ int ir_raw_event_store_edge(struct rc_dev *dev, bool pulse)
 		mod_timer(&dev->raw->edge_handle,
 			  jiffies + msecs_to_jiffies(15));
 	}
+	spin_unlock(&dev->raw->edge_spinlock);
 
 	return rc;
 }
@@ -462,12 +464,26 @@ int ir_raw_encode_scancode(enum rc_proto protocol, u32 scancode,
 }
 EXPORT_SYMBOL(ir_raw_encode_scancode);
 
-static void edge_handle(struct timer_list *t)
+/**
+ * ir_raw_edge_handle() - Handle ir_raw_event_store_edge() processing
+ *
+ * @t:		timer_list
+ *
+ * This callback is armed by ir_raw_event_store_edge(). It does two things:
+ * first of all, rather than calling ir_raw_event_handle() for each
+ * edge and waking up the rc thread, 15 ms after the first edge
+ * ir_raw_event_handle() is called. Secondly, generate a timeout event
+ * no more IR is received after the rc_dev timeout.
+ */
+static void ir_raw_edge_handle(struct timer_list *t)
 {
 	struct ir_raw_event_ctrl *raw = from_timer(raw, t, edge_handle);
 	struct rc_dev *dev = raw->dev;
-	ktime_t interval = ktime_sub(ktime_get(), dev->raw->last_event);
+	unsigned long flags;
+	ktime_t interval;
 
+	spin_lock_irqsave(&dev->raw->edge_spinlock, flags);
+	interval = ktime_sub(ktime_get(), dev->raw->last_event);
 	if (ktime_to_ns(interval) >= dev->timeout) {
 		DEFINE_IR_RAW_EVENT(ev);
 
@@ -480,6 +496,7 @@ static void edge_handle(struct timer_list *t)
 			  jiffies + nsecs_to_jiffies(dev->timeout -
 						     ktime_to_ns(interval)));
 	}
+	spin_unlock_irqrestore(&dev->raw->edge_spinlock, flags);
 
 	ir_raw_event_handle(dev);
 }
@@ -528,7 +545,8 @@ int ir_raw_event_prepare(struct rc_dev *dev)
 
 	dev->raw->dev = dev;
 	dev->change_protocol = change_protocol;
-	timer_setup(&dev->raw->edge_handle, edge_handle, 0);
+	spin_lock_init(&dev->raw->edge_spinlock);
+	timer_setup(&dev->raw->edge_handle, ir_raw_edge_handle, 0);
 	INIT_KFIFO(dev->raw->kfifo);
 
 	return 0;

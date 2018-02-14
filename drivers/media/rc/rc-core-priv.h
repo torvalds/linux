@@ -50,8 +50,9 @@ struct ir_raw_event_ctrl {
 	DECLARE_KFIFO(kfifo, struct ir_raw_event, MAX_IR_EVENT_SIZE);
 	ktime_t				last_event;	/* when last event occurred */
 	struct rc_dev			*dev;		/* pointer to the parent rc_dev */
-	/* edge driver */
-	struct timer_list edge_handle;
+	/* handle delayed ir_raw_event_store_edge processing */
+	spinlock_t			edge_spinlock;
+	struct timer_list		edge_handle;
 
 	/* raw decoder state follows */
 	struct ir_raw_event prev_ev;
