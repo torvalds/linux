@@ -102,6 +102,7 @@ struct dsa_platform_data {
 };
 
 struct packet_type;
+struct dsa_switch;
 
 struct dsa_device_ops {
 	struct sk_buff *(*xmit)(struct sk_buff *skb, struct net_device *dev);
@@ -484,6 +485,10 @@ struct dsa_switch_ops {
 				     struct ifreq *ifr);
 	int	(*port_hwtstamp_set)(struct dsa_switch *ds, int port,
 				     struct ifreq *ifr);
+	bool	(*port_txtstamp)(struct dsa_switch *ds, int port,
+				 struct sk_buff *clone, unsigned int type);
+	bool	(*port_rxtstamp)(struct dsa_switch *ds, int port,
+				 struct sk_buff *skb, unsigned int type);
 };
 
 struct dsa_switch_driver {

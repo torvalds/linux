@@ -21,6 +21,7 @@
 #include <net/tc_act/tc_mirred.h>
 #include <linux/if_bridge.h>
 #include <linux/netpoll.h>
+#include <linux/ptp_classify.h>
 
 #include "dsa_priv.h"
 
@@ -401,6 +402,30 @@ static inline netdev_tx_t dsa_slave_netpoll_send_skb(struct net_device *dev,
 	return NETDEV_TX_OK;
 }
 
+static void dsa_skb_tx_timestamp(struct dsa_slave_priv *p,
+				 struct sk_buff *skb)
+{
+	struct dsa_switch *ds = p->dp->ds;
+	struct sk_buff *clone;
+	unsigned int type;
+
+	type = ptp_classify_raw(skb);
+	if (type == PTP_CLASS_NONE)
+		return;
+
+	if (!ds->ops->port_txtstamp)
+		return;
+
+	clone = skb_clone_sk(skb);
+	if (!clone)
+		return;
+
+	if (ds->ops->port_txtstamp(ds, p->dp->index, clone, type))
+		return;
+
+	kfree_skb(clone);
+}
+
 static netdev_tx_t dsa_slave_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
@@ -412,6 +437,11 @@ static netdev_tx_t dsa_slave_xmit(struct sk_buff *skb, struct net_device *dev)
 	s->tx_packets++;
 	s->tx_bytes += skb->len;
 	u64_stats_update_end(&s->syncp);
+
+	/* Identify PTP protocol packets, clone them, and pass them to the
+	 * switch driver
+	 */
+	dsa_skb_tx_timestamp(p, skb);
 
 	/* Transmit function may have to reallocate the original SKB,
 	 * in which case it must have freed it. Only free it here on error.
