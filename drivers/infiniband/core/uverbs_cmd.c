@@ -978,6 +978,9 @@ static struct ib_ucq_object *create_cq(struct ib_uverbs_file *file,
 	struct ib_uverbs_ex_create_cq_resp resp;
 	struct ib_cq_init_attr attr = {};
 
+	if (!ib_dev->create_cq)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	if (cmd->comp_vector >= file->device->num_comp_vectors)
 		return ERR_PTR(-EINVAL);
 
@@ -2947,6 +2950,11 @@ int ib_uverbs_ex_create_wq(struct ib_uverbs_file *file,
 		wq_init_attr.create_flags = cmd.create_flags;
 	obj->uevent.events_reported = 0;
 	INIT_LIST_HEAD(&obj->uevent.event_list);
+
+	if (!pd->device->create_wq) {
+		err = -EOPNOTSUPP;
+		goto err_put_cq;
+	}
 	wq = pd->device->create_wq(pd, &wq_init_attr, uhw);
 	if (IS_ERR(wq)) {
 		err = PTR_ERR(wq);
@@ -3090,7 +3098,12 @@ int ib_uverbs_ex_modify_wq(struct ib_uverbs_file *file,
 		wq_attr.flags = cmd.flags;
 		wq_attr.flags_mask = cmd.flags_mask;
 	}
+	if (!wq->device->modify_wq) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
 	ret = wq->device->modify_wq(wq, &wq_attr, cmd.attr_mask, uhw);
+out:
 	uobj_put_obj_read(wq);
 	return ret;
 }
@@ -3187,6 +3200,11 @@ int ib_uverbs_ex_create_rwq_ind_table(struct ib_uverbs_file *file,
 
 	init_attr.log_ind_tbl_size = cmd.log_ind_tbl_size;
 	init_attr.ind_tbl = wqs;
+
+	if (!ib_dev->create_rwq_ind_table) {
+		err = -EOPNOTSUPP;
+		goto err_uobj;
+	}
 	rwq_ind_tbl = ib_dev->create_rwq_ind_table(ib_dev, &init_attr, uhw);
 
 	if (IS_ERR(rwq_ind_tbl)) {
@@ -3775,6 +3793,9 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 	struct ib_uverbs_ex_query_device  cmd;
 	struct ib_device_attr attr = {0};
 	int err;
+
+	if (!ib_dev->query_device)
+		return -EOPNOTSUPP;
 
 	if (ucore->inlen < sizeof(cmd))
 		return -EINVAL;
