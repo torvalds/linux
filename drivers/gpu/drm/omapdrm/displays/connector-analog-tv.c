@@ -154,22 +154,6 @@ static int tvc_check_timings(struct omap_dss_device *dssdev,
 	return in->ops.atv->check_timings(in, vm);
 }
 
-static u32 tvc_get_wss(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	return in->ops.atv->get_wss(in);
-}
-
-static int tvc_set_wss(struct omap_dss_device *dssdev, u32 wss)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	return in->ops.atv->set_wss(in, wss);
-}
-
 static struct omap_dss_driver tvc_driver = {
 	.connect		= tvc_connect,
 	.disconnect		= tvc_disconnect,
@@ -180,9 +164,6 @@ static struct omap_dss_driver tvc_driver = {
 	.set_timings		= tvc_set_timings,
 	.get_timings		= tvc_get_timings,
 	.check_timings		= tvc_check_timings,
-
-	.get_wss		= tvc_get_wss,
-	.set_wss		= tvc_set_wss,
 };
 
 static int tvc_probe(struct platform_device *pdev)
