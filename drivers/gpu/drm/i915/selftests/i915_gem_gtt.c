@@ -927,7 +927,7 @@ static int shrink_boom(struct drm_i915_private *i915,
 
 		explode = fake_dma_object(i915, size);
 		if (IS_ERR(explode)) {
-			err = PTR_ERR(purge);
+			err = PTR_ERR(explode);
 			goto err_purge;
 		}
 
