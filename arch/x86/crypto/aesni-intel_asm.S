@@ -230,6 +230,10 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 	mov	%arg5, %r13		# %xmm13 holds HashKey<<1 (mod poly)
 	and	$-16, %r13
 	mov	%r13, %r12
+
+	CALC_AAD_HASH %xmm13 %xmm0 %xmm1 %xmm2 %xmm3 %xmm4 \
+	%xmm5 %xmm6
+	mov %r13, %r12
 .endm
 
 # GCM_ENC_DEC Encodes/Decodes given data. Assumes that the passed gcm_context
@@ -497,6 +501,45 @@ _read_next_byte_lt8_\@:
 _done_read_partial_block_\@:
 .endm
 
+# CALC_AAD_HASH: Calculates the hash of the data which will not be encrypted.
+# clobbers r10-11, xmm14
+.macro CALC_AAD_HASH HASHKEY TMP1 TMP2 TMP3 TMP4 TMP5 \
+	TMP6 TMP7
+	MOVADQ	   SHUF_MASK(%rip), %xmm14
+	mov	   arg8, %r10		# %r10 = AAD
+	mov	   arg9, %r11		# %r11 = aadLen
+	pxor	   \TMP7, \TMP7
+	pxor	   \TMP6, \TMP6
+
+	cmp	   $16, %r11
+	jl	   _get_AAD_rest\@
+_get_AAD_blocks\@:
+	movdqu	   (%r10), \TMP7
+	PSHUFB_XMM   %xmm14, \TMP7 # byte-reflect the AAD data
+	pxor	   \TMP7, \TMP6
+	GHASH_MUL  \TMP6, \HASHKEY, \TMP1, \TMP2, \TMP3, \TMP4, \TMP5
+	add	   $16, %r10
+	sub	   $16, %r11
+	cmp	   $16, %r11
+	jge	   _get_AAD_blocks\@
+
+	movdqu	   \TMP6, \TMP7
+
+	/* read the last <16B of AAD */
+_get_AAD_rest\@:
+	cmp	   $0, %r11
+	je	   _get_AAD_done\@
+
+	READ_PARTIAL_BLOCK %r10, %r11, \TMP1, \TMP7
+	PSHUFB_XMM   %xmm14, \TMP7 # byte-reflect the AAD data
+	pxor	   \TMP6, \TMP7
+	GHASH_MUL  \TMP7, \HASHKEY, \TMP1, \TMP2, \TMP3, \TMP4, \TMP5
+	movdqu \TMP7, \TMP6
+
+_get_AAD_done\@:
+	movdqu \TMP6, AadHash(%arg2)
+.endm
+
 /*
 * if a = number of total plaintext bytes
 * b = floor(a/16)
@@ -505,43 +548,15 @@ _done_read_partial_block_\@:
 * the ciphertext
 * %r10, %r11, %r12, %rax, %xmm5, %xmm6, %xmm7, %xmm8, %xmm9 registers
 * are clobbered
-* arg1, %arg3, %arg4, %r14 are used as a pointer only, not modified
+* arg1, %arg2, %arg3, %r14 are used as a pointer only, not modified
 */
 
 
 .macro INITIAL_BLOCKS_ENC_DEC TMP1 TMP2 TMP3 TMP4 TMP5 XMM0 XMM1 \
-XMM2 XMM3 XMM4 XMMDst TMP6 TMP7 i i_seq operation
-        MOVADQ     SHUF_MASK(%rip), %xmm14
-	mov	   arg8, %r10           # %r10 = AAD
-	mov	   arg9, %r11           # %r11 = aadLen
-	pxor	   %xmm\i, %xmm\i
-	pxor	   \XMM2, \XMM2
+	XMM2 XMM3 XMM4 XMMDst TMP6 TMP7 i i_seq operation
 
-	cmp	   $16, %r11
-	jl	   _get_AAD_rest\@
-_get_AAD_blocks\@:
-	movdqu	   (%r10), %xmm\i
-	PSHUFB_XMM   %xmm14, %xmm\i # byte-reflect the AAD data
-	pxor	   %xmm\i, \XMM2
-	GHASH_MUL  \XMM2, \TMP3, \TMP1, \TMP2, \TMP4, \TMP5, \XMM1
-	add	   $16, %r10
-	sub	   $16, %r11
-	cmp	   $16, %r11
-	jge	   _get_AAD_blocks\@
+	movdqu AadHash(%arg2), %xmm\i		    # XMM0 = Y0
 
-	movdqu	   \XMM2, %xmm\i
-
-	/* read the last <16B of AAD */
-_get_AAD_rest\@:
-	cmp	   $0, %r11
-	je	   _get_AAD_done\@
-
-	READ_PARTIAL_BLOCK %r10, %r11, \TMP1, %xmm\i
-	PSHUFB_XMM   %xmm14, %xmm\i # byte-reflect the AAD data
-	pxor	   \XMM2, %xmm\i
-	GHASH_MUL  %xmm\i, \TMP3, \TMP1, \TMP2, \TMP4, \TMP5, \XMM1
-
-_get_AAD_done\@:
 	xor	   %r11, %r11 # initialise the data pointer offset as zero
 	# start AES for num_initial_blocks blocks
 
