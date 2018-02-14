@@ -933,6 +933,35 @@ static int ibmvnic_open(struct net_device *netdev)
 	return rc;
 }
 
+static void clean_rx_pools(struct ibmvnic_adapter *adapter)
+{
+	struct ibmvnic_rx_pool *rx_pool;
+	u64 rx_entries;
+	int rx_scrqs;
+	int i, j;
+
+	if (!adapter->rx_pool)
+		return;
+
+	rx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
+	rx_entries = adapter->req_rx_add_entries_per_subcrq;
+
+	/* Free any remaining skbs in the rx buffer pools */
+	for (i = 0; i < rx_scrqs; i++) {
+		rx_pool = &adapter->rx_pool[i];
+		if (!rx_pool)
+			continue;
+
+		netdev_dbg(adapter->netdev, "Cleaning rx_pool[%d]\n", i);
+		for (j = 0; j < rx_entries; j++) {
+			if (rx_pool->rx_buff[j].skb) {
+				dev_kfree_skb_any(rx_pool->rx_buff[j].skb);
+				rx_pool->rx_buff[j].skb = NULL;
+			}
+		}
+	}
+}
+
 static void clean_tx_pools(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_tx_pool *tx_pool;
@@ -1010,7 +1039,7 @@ static int __ibmvnic_close(struct net_device *netdev)
 			}
 		}
 	}
-
+	clean_rx_pools(adapter);
 	clean_tx_pools(adapter);
 	adapter->state = VNIC_CLOSED;
 	return rc;
