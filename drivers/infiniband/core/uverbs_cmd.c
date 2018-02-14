@@ -603,10 +603,8 @@ ssize_t ib_uverbs_close_xrcd(struct ib_uverbs_file *file,
 
 	uobj  = uobj_get_write(uobj_get_type(xrcd), cmd.xrcd_handle,
 			       file->ucontext);
-	if (IS_ERR(uobj)) {
-		mutex_unlock(&file->device->xrcd_tree_mutex);
+	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
-	}
 
 	ret = uobj_remove_commit(uobj);
 	return ret ?: in_len;
