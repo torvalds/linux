@@ -179,6 +179,9 @@ void rt6_disable_ip(struct net_device *dev, unsigned long event);
 void rt6_sync_down_dev(struct net_device *dev, unsigned long event);
 void rt6_multipath_rebalance(struct rt6_info *rt);
 
+void rt6_uncached_list_add(struct rt6_info *rt);
+void rt6_uncached_list_del(struct rt6_info *rt);
+
 static inline const struct rt6_info *skb_rt6_info(const struct sk_buff *skb)
 {
 	const struct dst_entry *dst = skb_dst(skb);
