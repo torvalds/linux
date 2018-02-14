@@ -40,6 +40,15 @@ config DRM_SUN4I_BACKEND
 	  do some alpha blending and feed graphics to TCON. If M is
 	  selected the module will be called sun4i-backend.
 
+config DRM_SUN8I_DW_HDMI
+	tristate "Support for Allwinner version of DesignWare HDMI"
+	depends on DRM_SUN4I
+	select DRM_DW_HDMI
+	help
+	  Choose this option if you have an Allwinner SoC with the
+	  DesignWare HDMI controller with custom HDMI PHY. If M is
+	  selected the module will be called sun8i_dw_hdmi.
+
 config DRM_SUN8I_MIXER
 	tristate "Support for Allwinner Display Engine 2.0 Mixer"
 	default MACH_SUN8I
