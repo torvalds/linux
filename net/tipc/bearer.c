@@ -1130,7 +1130,7 @@ err_out:
 	return err;
 }
 
-int tipc_nl_media_set(struct sk_buff *skb, struct genl_info *info)
+int __tipc_nl_media_set(struct sk_buff *skb, struct genl_info *info)
 {
 	int err;
 	char *name;
@@ -1148,22 +1148,17 @@ int tipc_nl_media_set(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 	name = nla_data(attrs[TIPC_NLA_MEDIA_NAME]);
 
-	rtnl_lock();
 	m = tipc_media_find(name);
-	if (!m) {
-		rtnl_unlock();
+	if (!m)
 		return -EINVAL;
-	}
 
 	if (attrs[TIPC_NLA_MEDIA_PROP]) {
 		struct nlattr *props[TIPC_NLA_PROP_MAX + 1];
 
 		err = tipc_nl_parse_link_prop(attrs[TIPC_NLA_MEDIA_PROP],
 					      props);
-		if (err) {
-			rtnl_unlock();
+		if (err)
 			return err;
-		}
 
 		if (props[TIPC_NLA_PROP_TOL])
 			m->tolerance = nla_get_u32(props[TIPC_NLA_PROP_TOL]);
@@ -1172,7 +1167,17 @@ int tipc_nl_media_set(struct sk_buff *skb, struct genl_info *info)
 		if (props[TIPC_NLA_PROP_WIN])
 			m->window = nla_get_u32(props[TIPC_NLA_PROP_WIN]);
 	}
-	rtnl_unlock();
 
 	return 0;
+}
+
+int tipc_nl_media_set(struct sk_buff *skb, struct genl_info *info)
+{
+	int err;
+
+	rtnl_lock();
+	err = __tipc_nl_media_set(skb, info);
+	rtnl_unlock();
+
+	return err;
 }
