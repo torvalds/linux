@@ -171,6 +171,26 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 #define TKEYP	T1
 #endif
 
+.macro FUNC_SAVE
+	push	%r12
+	push	%r13
+	push	%r14
+	mov	%rsp, %r14
+#
+# states of %xmm registers %xmm6:%xmm15 not saved
+# all %xmm registers are clobbered
+#
+	sub	$VARIABLE_OFFSET, %rsp
+	and	$~63, %rsp
+.endm
+
+
+.macro FUNC_RESTORE
+	mov	%r14, %rsp
+	pop	%r14
+	pop	%r13
+	pop	%r12
+.endm
 
 #ifdef __x86_64__
 /* GHASH_MUL MACRO to implement: Data*HashKey mod (128,127,126,121,0)
@@ -1131,16 +1151,7 @@ _esb_loop_\@:
 *
 *****************************************************************************/
 ENTRY(aesni_gcm_dec)
-	push	%r12
-	push	%r13
-	push	%r14
-	mov	%rsp, %r14
-/*
-* states of %xmm registers %xmm6:%xmm15 not saved
-* all %xmm registers are clobbered
-*/
-	sub	$VARIABLE_OFFSET, %rsp
-	and	$~63, %rsp                        # align rsp to 64 bytes
+	FUNC_SAVE
 	mov	%arg6, %r12
 	movdqu	(%r12), %xmm13			  # %xmm13 = HashKey
         movdqa  SHUF_MASK(%rip), %xmm2
@@ -1310,10 +1321,7 @@ _T_1_decrypt:
 _T_16_decrypt:
 	movdqu	%xmm0, (%r10)
 _return_T_done_decrypt:
-	mov	%r14, %rsp
-	pop	%r14
-	pop	%r13
-	pop	%r12
+	FUNC_RESTORE
 	ret
 ENDPROC(aesni_gcm_dec)
 
@@ -1394,21 +1402,11 @@ ENDPROC(aesni_gcm_dec)
 * poly = x^128 + x^127 + x^126 + x^121 + 1
 ***************************************************************************/
 ENTRY(aesni_gcm_enc)
-	push	%r12
-	push	%r13
-	push	%r14
-	mov	%rsp, %r14
-#
-# states of %xmm registers %xmm6:%xmm15 not saved
-# all %xmm registers are clobbered
-#
-	sub	$VARIABLE_OFFSET, %rsp
-	and	$~63, %rsp
+	FUNC_SAVE
 	mov	%arg6, %r12
 	movdqu	(%r12), %xmm13
         movdqa  SHUF_MASK(%rip), %xmm2
 	PSHUFB_XMM %xmm2, %xmm13
-
 
 # precompute HashKey<<1 mod poly from the HashKey (required for GHASH)
 
@@ -1577,10 +1575,7 @@ _T_1_encrypt:
 _T_16_encrypt:
 	movdqu	%xmm0, (%r10)
 _return_T_done_encrypt:
-	mov	%r14, %rsp
-	pop	%r14
-	pop	%r13
-	pop	%r12
+	FUNC_RESTORE
 	ret
 ENDPROC(aesni_gcm_enc)
 
