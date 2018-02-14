@@ -193,6 +193,7 @@ static inline unsigned int io_apic_read(unsigned int apic, unsigned int reg)
 extern void setup_IO_APIC(void);
 extern void enable_IO_APIC(void);
 extern void disable_IO_APIC(void);
+extern void restore_boot_irq_mode(void);
 extern int IO_APIC_get_PCI_irq_vector(int bus, int devfn, int pin);
 extern void print_IO_APICs(void);
 #else  /* !CONFIG_X86_IO_APIC */
@@ -232,6 +233,7 @@ static inline void io_apic_init_mappings(void) { }
 
 static inline void setup_IO_APIC(void) { }
 static inline void enable_IO_APIC(void) { }
+static inline void restore_boot_irq_mode(void) { }
 
 #endif
 

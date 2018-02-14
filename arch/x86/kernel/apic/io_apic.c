@@ -1448,6 +1448,11 @@ void disable_IO_APIC(void)
 	 */
 	clear_IO_APIC();
 
+	restore_boot_irq_mode();
+}
+
+void restore_boot_irq_mode(void)
+{
 	if (!nr_legacy_irqs())
 		return;
 
