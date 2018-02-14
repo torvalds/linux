@@ -506,7 +506,7 @@ static void tcpm_log_source_caps(struct tcpm_port *port)
 	}
 }
 
-static int tcpm_seq_show(struct seq_file *s, void *v)
+static int tcpm_debug_show(struct seq_file *s, void *v)
 {
 	struct tcpm_port *port = (struct tcpm_port *)s->private;
 	int tail;
@@ -523,18 +523,7 @@ static int tcpm_seq_show(struct seq_file *s, void *v)
 
 	return 0;
 }
-
-static int tcpm_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, tcpm_seq_show, inode->i_private);
-}
-
-static const struct file_operations tcpm_debug_operations = {
-	.open		= tcpm_debug_open,
-	.llseek		= seq_lseek,
-	.read		= seq_read,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(tcpm_debug);
 
 static struct dentry *rootdir;
 
@@ -550,7 +539,7 @@ static int tcpm_debugfs_init(struct tcpm_port *port)
 
 	port->dentry = debugfs_create_file(dev_name(port->dev),
 					   S_IFREG | 0444, rootdir,
-					   port, &tcpm_debug_operations);
+					   port, &tcpm_debug_fops);
 
 	return 0;
 }
