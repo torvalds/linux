@@ -352,30 +352,45 @@ chv_update_csc(const struct intel_plane_state *plane_state)
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	enum plane_id plane_id = plane->id;
+	/*
+	 * |r|   | c0 c1 c2 |   |cr|
+	 * |g| = | c3 c4 c5 | x |y |
+	 * |b|   | c6 c7 c8 |   |cb|
+	 *
+	 * Coefficients are s3.12.
+	 *
+	 * Cb and Cr apparently come in as signed already, and
+	 * we always get full range data in on account of CLRC0/1.
+	 */
+	static const s16 csc_matrix[][9] = {
+		/* BT.601 full range YCbCr -> full range RGB */
+		[DRM_COLOR_YCBCR_BT601] = {
+			 5743, 4096,     0,
+			-2925, 4096, -1410,
+			    0, 4096,  7258,
+		},
+		/* BT.709 full range YCbCr -> full range RGB */
+		[DRM_COLOR_YCBCR_BT709] = {
+			 6450, 4096,     0,
+			-1917, 4096,  -767,
+			    0, 4096,  7601,
+		},
+	};
+	const s16 *csc = csc_matrix[plane_state->base.color_encoding];
 
 	/* Seems RGB data bypasses the CSC always */
 	if (!intel_format_is_yuv(fb->format->format))
 		return;
 
-	/*
-	 * BT.601 full range YCbCr -> full range RGB
-	 *
-	 * |r|   | 5743 4096     0|   |cr|
-	 * |g| = |-2925 4096 -1410| x |y |
-	 * |b|   |    0 4096  7258|   |cb|
-	 *
-	 * Cb and Cr apparently come in as signed already,
-	 * and we get full range data in on account of CLRC0/1
-	 */
 	I915_WRITE_FW(SPCSCYGOFF(plane_id), SPCSC_OOFF(0) | SPCSC_IOFF(0));
 	I915_WRITE_FW(SPCSCCBOFF(plane_id), SPCSC_OOFF(0) | SPCSC_IOFF(0));
 	I915_WRITE_FW(SPCSCCROFF(plane_id), SPCSC_OOFF(0) | SPCSC_IOFF(0));
 
-	I915_WRITE_FW(SPCSCC01(plane_id), SPCSC_C1(4096) | SPCSC_C0(5743));
-	I915_WRITE_FW(SPCSCC23(plane_id), SPCSC_C1(-2925) | SPCSC_C0(0));
-	I915_WRITE_FW(SPCSCC45(plane_id), SPCSC_C1(-1410) | SPCSC_C0(4096));
-	I915_WRITE_FW(SPCSCC67(plane_id), SPCSC_C1(4096) | SPCSC_C0(0));
-	I915_WRITE_FW(SPCSCC8(plane_id), SPCSC_C0(7258));
+	I915_WRITE_FW(SPCSCC01(plane_id), SPCSC_C1(csc[1]) | SPCSC_C0(csc[0]));
+	I915_WRITE_FW(SPCSCC23(plane_id), SPCSC_C1(csc[3]) | SPCSC_C0(csc[2]));
+	I915_WRITE_FW(SPCSCC45(plane_id), SPCSC_C1(csc[5]) | SPCSC_C0(csc[4]));
+	I915_WRITE_FW(SPCSCC67(plane_id), SPCSC_C1(csc[7]) | SPCSC_C0(csc[6]));
+	I915_WRITE_FW(SPCSCC8(plane_id), SPCSC_C0(csc[8]));
 
 	I915_WRITE_FW(SPCSCYGICLAMP(plane_id), SPCSC_IMAX(1023) | SPCSC_IMIN(0));
 	I915_WRITE_FW(SPCSCCBICLAMP(plane_id), SPCSC_IMAX(512) | SPCSC_IMIN(-512));
@@ -475,6 +490,9 @@ static u32 vlv_sprite_ctl(const struct intel_crtc_state *crtc_state,
 		MISSING_CASE(fb->format->format);
 		return 0;
 	}
+
+	if (plane_state->base.color_encoding == DRM_COLOR_YCBCR_BT709)
+		sprctl |= SP_YUV_FORMAT_BT709;
 
 	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
 		sprctl |= SP_TILED;
@@ -628,6 +646,9 @@ static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
 		MISSING_CASE(fb->format->format);
 		return 0;
 	}
+
+	if (plane_state->base.color_encoding == DRM_COLOR_YCBCR_BT709)
+		sprctl |= SPRITE_YUV_TO_RGB_CSC_FORMAT_BT709;
 
 	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
 		sprctl |= SPRITE_TILED;
@@ -784,6 +805,9 @@ static u32 g4x_sprite_ctl(const struct intel_crtc_state *crtc_state,
 		MISSING_CASE(fb->format->format);
 		return 0;
 	}
+
+	if (plane_state->base.color_encoding == DRM_COLOR_YCBCR_BT709)
+		dvscntr |= DVS_YUV_FORMAT_BT709;
 
 	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
 		dvscntr |= DVS_TILED;
@@ -1500,6 +1524,13 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 	drm_plane_create_rotation_property(&intel_plane->base,
 					   DRM_MODE_ROTATE_0,
 					   supported_rotations);
+
+	drm_plane_create_color_properties(&intel_plane->base,
+					  BIT(DRM_COLOR_YCBCR_BT601) |
+					  BIT(DRM_COLOR_YCBCR_BT709),
+					  BIT(DRM_COLOR_YCBCR_LIMITED_RANGE),
+					  DRM_COLOR_YCBCR_BT601,
+					  DRM_COLOR_YCBCR_LIMITED_RANGE);
 
 	drm_plane_helper_add(&intel_plane->base, &intel_plane_helper_funcs);
 
