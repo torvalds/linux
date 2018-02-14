@@ -1210,7 +1210,6 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	uint32_t		dif_bytes;
 	uint8_t			bundling = 1;
 	uint16_t		blk_size;
-	uint8_t			*clr_ptr;
 	struct crc_context	*crc_ctx_pkt = NULL;
 	struct qla_hw_data	*ha;
 	uint8_t			additional_fcpcdb_len;
@@ -1252,14 +1251,10 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 
 	/* Allocate CRC context from global pool */
 	crc_ctx_pkt = sp->u.scmd.ctx =
-	    dma_pool_alloc(ha->dl_dma_pool, GFP_ATOMIC, &crc_ctx_dma);
+	    dma_pool_zalloc(ha->dl_dma_pool, GFP_ATOMIC, &crc_ctx_dma);
 
 	if (!crc_ctx_pkt)
 		goto crc_queuing_error;
-
-	/* Zero out CTX area. */
-	clr_ptr = (uint8_t *)crc_ctx_pkt;
-	memset(clr_ptr, 0, sizeof(*crc_ctx_pkt));
 
 	crc_ctx_pkt->crc_ctx_dma = crc_ctx_dma;
 
@@ -3074,7 +3069,7 @@ sufficient_dsds:
 		}
 
 		memset(ctx, 0, sizeof(struct ct6_dsd));
-		ctx->fcp_cmnd = dma_pool_alloc(ha->fcp_cmnd_dma_pool,
+		ctx->fcp_cmnd = dma_pool_zalloc(ha->fcp_cmnd_dma_pool,
 			GFP_ATOMIC, &ctx->fcp_cmnd_dma);
 		if (!ctx->fcp_cmnd) {
 			ql_log(ql_log_fatal, vha, 0x3011,
@@ -3127,7 +3122,6 @@ sufficient_dsds:
 		host_to_fcp_swap((uint8_t *)&cmd_pkt->lun, sizeof(cmd_pkt->lun));
 
 		/* build FCP_CMND IU */
-		memset(ctx->fcp_cmnd, 0, sizeof(struct fcp_cmnd));
 		int_to_scsilun(cmd->device->lun, &ctx->fcp_cmnd->lun);
 		ctx->fcp_cmnd->additional_cdb_len = additional_cdb_len;
 

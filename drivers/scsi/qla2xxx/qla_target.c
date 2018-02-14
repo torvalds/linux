@@ -2871,7 +2871,6 @@ qlt_build_ctio_crc2_pkt(struct qla_qpair *qpair, struct qla_tgt_prm *prm)
 	uint32_t		data_bytes;
 	uint32_t		dif_bytes;
 	uint8_t			bundling = 1;
-	uint8_t			*clr_ptr;
 	struct crc_context	*crc_ctx_pkt = NULL;
 	struct qla_hw_data	*ha;
 	struct ctio_crc2_to_fw	*pkt;
@@ -3000,14 +2999,10 @@ qlt_build_ctio_crc2_pkt(struct qla_qpair *qpair, struct qla_tgt_prm *prm)
 
 	/* Allocate CRC context from global pool */
 	crc_ctx_pkt = cmd->ctx =
-	    dma_pool_alloc(ha->dl_dma_pool, GFP_ATOMIC, &crc_ctx_dma);
+	    dma_pool_zalloc(ha->dl_dma_pool, GFP_ATOMIC, &crc_ctx_dma);
 
 	if (!crc_ctx_pkt)
 		goto crc_queuing_error;
-
-	/* Zero out CTX area. */
-	clr_ptr = (uint8_t *)crc_ctx_pkt;
-	memset(clr_ptr, 0, sizeof(*crc_ctx_pkt));
 
 	crc_ctx_pkt->crc_ctx_dma = crc_ctx_dma;
 	INIT_LIST_HEAD(&crc_ctx_pkt->dsd_list);
