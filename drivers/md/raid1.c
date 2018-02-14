@@ -1102,6 +1102,8 @@ static void alloc_behind_master_bio(struct r1bio *r1_bio,
 		goto skip_copy;
 	}
 
+	behind_bio->bi_write_hint = bio->bi_write_hint;
+
 	while (i < vcnt && size) {
 		struct page *page;
 		int len = min_t(int, PAGE_SIZE, size);
