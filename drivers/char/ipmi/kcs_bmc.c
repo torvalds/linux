@@ -95,6 +95,7 @@ static void kcs_bmc_handle_data(struct kcs_bmc *kcs_bmc)
 	switch (kcs_bmc->phase) {
 	case KCS_PHASE_WRITE_START:
 		kcs_bmc->phase = KCS_PHASE_WRITE_DATA;
+		/* fall through */
 
 	case KCS_PHASE_WRITE_DATA:
 		if (kcs_bmc->data_in_idx < KCS_MSG_BUFSIZ) {
