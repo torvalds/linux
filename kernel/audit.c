@@ -2315,6 +2315,9 @@ void audit_log_link_denied(const char *operation, const struct path *link)
 	struct audit_buffer *ab;
 	struct audit_names *name;
 
+	if (!audit_enabled || audit_dummy_context())
+		return;
+
 	name = kzalloc(sizeof(*name), GFP_NOFS);
 	if (!name)
 		return;
