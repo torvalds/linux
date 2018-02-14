@@ -1018,6 +1018,12 @@ int pvcalls_front_release(struct socket *sock)
 
 		pvcalls_front_free_map(bedata, map);
 	} else {
+		wake_up(&bedata->inflight_req);
+		wake_up(&map->passive.inflight_accept_req);
+
+		while (atomic_read(&map->refcount) > 1)
+			cpu_relax();
+
 		spin_lock(&bedata->socket_lock);
 		list_del(&map->list);
 		spin_unlock(&bedata->socket_lock);
