@@ -729,6 +729,7 @@ static unsigned int intel_wm_method2(unsigned int pixel_rate,
  * intel_calculate_wm - calculate watermark level
  * @pixel_rate: pixel clock
  * @wm: chip FIFO params
+ * @fifo_size: size of the FIFO buffer
  * @cpp: bytes per pixel
  * @latency_ns: memory latency for the platform
  *
@@ -5866,6 +5867,7 @@ void ilk_wm_get_hw_state(struct drm_device *dev)
 
 /**
  * intel_update_watermarks - update FIFO watermark values based on current modes
+ * @crtc: the #intel_crtc on which to compute the WM
  *
  * Calculate watermark values for the various WM regs based on current mode
  * and plane configuration.
