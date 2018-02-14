@@ -573,7 +573,6 @@ static const struct intel_device_info intel_coffeelake_gt3_info = {
 
 static const struct intel_device_info intel_cannonlake_info = {
 	GEN10_FEATURES,
-	.is_alpha_support = 1,
 	.platform = INTEL_CANNONLAKE,
 	.gen = 10,
 	.gt = 2,
