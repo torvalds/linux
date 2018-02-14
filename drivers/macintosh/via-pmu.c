@@ -198,7 +198,7 @@ static const struct file_operations pmu_battery_proc_fops;
 static const struct file_operations pmu_options_proc_fops;
 
 #ifdef CONFIG_ADB
-struct adb_driver via_pmu_driver = {
+const struct adb_driver via_pmu_driver = {
 	"PMU",
 	pmu_probe,
 	pmu_init,
