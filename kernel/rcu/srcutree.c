@@ -532,7 +532,6 @@ static void srcu_gp_end(struct srcu_struct *sp)
 	unsigned long flags;
 	unsigned long gpseq;
 	int idx;
-	int idxnext;
 	unsigned long mask;
 	struct srcu_data *sdp;
 	struct srcu_node *snp;
@@ -556,7 +555,6 @@ static void srcu_gp_end(struct srcu_struct *sp)
 
 	/* Initiate callback invocation as needed. */
 	idx = rcu_seq_ctr(gpseq) % ARRAY_SIZE(snp->srcu_have_cbs);
-	idxnext = (idx + 1) % ARRAY_SIZE(snp->srcu_have_cbs);
 	rcu_for_each_node_breadth_first(sp, snp) {
 		spin_lock_irq_rcu_node(snp);
 		cbs = false;
