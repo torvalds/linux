@@ -1601,6 +1601,12 @@ void intel_bios_cleanup(struct drm_i915_private *dev_priv)
 	dev_priv->vbt.sdvo_lvds_vbt_mode = NULL;
 	kfree(dev_priv->vbt.lfp_lvds_vbt_mode);
 	dev_priv->vbt.lfp_lvds_vbt_mode = NULL;
+	kfree(dev_priv->vbt.dsi.data);
+	dev_priv->vbt.dsi.data = NULL;
+	kfree(dev_priv->vbt.dsi.pps);
+	dev_priv->vbt.dsi.pps = NULL;
+	kfree(dev_priv->vbt.dsi.config);
+	dev_priv->vbt.dsi.config = NULL;
 }
 
 /**
