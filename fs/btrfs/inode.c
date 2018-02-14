@@ -8322,13 +8322,13 @@ static void btrfs_end_dio_bio(struct bio *bio)
 		err = dip->subio_endio(dip->inode, btrfs_io_bio(bio), err);
 
 	if (err) {
-		dip->errors = 1;
-
 		/*
-		 * before atomic variable goto zero, we must make sure
-		 * dip->errors is perceived to be set.
+		 * We want to perceive the errors flag being set before
+		 * decrementing the reference count. We don't need a barrier
+		 * since atomic operations with a return value are fully
+		 * ordered as per atomic_t.txt
 		 */
-		smp_mb__before_atomic();
+		dip->errors = 1;
 	}
 
 	/* if there are more bios still pending for this dio, just exit */
@@ -8516,10 +8516,11 @@ submit:
 out_err:
 	dip->errors = 1;
 	/*
-	 * before atomic variable goto zero, we must
-	 * make sure dip->errors is perceived to be set.
+	 * Before atomic variable goto zero, we must  make sure dip->errors is
+	 * perceived to be set. This ordering is ensured by the fact that an
+	 * atomic operations with a return value are fully ordered as per
+	 * atomic_t.txt
 	 */
-	smp_mb__before_atomic();
 	if (atomic_dec_and_test(&dip->pending_bios))
 		bio_io_error(dip->orig_bio);
 
