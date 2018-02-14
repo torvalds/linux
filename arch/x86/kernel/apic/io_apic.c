@@ -1438,19 +1438,6 @@ void native_disable_io_apic(void)
 		disconnect_bsp_APIC(ioapic_i8259.pin != -1);
 }
 
-/*
- * Not an __init, needed by the reboot code
- */
-void disable_IO_APIC(void)
-{
-	/*
-	 * Clear the IO-APIC before rebooting:
-	 */
-	clear_IO_APIC();
-
-	restore_boot_irq_mode();
-}
-
 void restore_boot_irq_mode(void)
 {
 	if (!nr_legacy_irqs())
