@@ -356,12 +356,37 @@ _zero_cipher_left_\@:
 	ENCRYPT_SINGLE_BLOCK	%xmm0, %xmm1        # Encrypt(K, Yn)
 	movdqu %xmm0, PBlockEncKey(%arg2)
 
+	cmp	$16, %arg5
+	jge _large_enough_update_\@
+
 	lea (%arg4,%r11,1), %r10
 	mov %r13, %r12
 	READ_PARTIAL_BLOCK %r10 %r12 %xmm2 %xmm1
+	jmp _data_read_\@
 
+_large_enough_update_\@:
+	sub	$16, %r11
+	add	%r13, %r11
+
+	# receive the last <16 Byte block
+	movdqu	(%arg4, %r11, 1), %xmm1
+
+	sub	%r13, %r11
+	add	$16, %r11
+
+	lea	SHIFT_MASK+16(%rip), %r12
+	# adjust the shuffle mask pointer to be able to shift 16-r13 bytes
+	# (r13 is the number of bytes in plaintext mod 16)
+	sub	%r13, %r12
+	# get the appropriate shuffle mask
+	movdqu	(%r12), %xmm2
+	# shift right 16-r13 bytes
+	PSHUFB_XMM  %xmm2, %xmm1
+
+_data_read_\@:
 	lea ALL_F+16(%rip), %r12
 	sub %r13, %r12
+
 .ifc \operation, dec
 	movdqa  %xmm1, %xmm2
 .endif
