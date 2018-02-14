@@ -20,6 +20,7 @@
 
 struct stm32_pwm {
 	struct pwm_chip chip;
+	struct mutex lock; /* protect pwm config/enable */
 	struct clk *clk;
 	struct regmap *regmap;
 	u32 max_arr;
@@ -212,9 +213,23 @@ static int stm32_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	return ret;
 }
 
+static int stm32_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *pwm,
+				  struct pwm_state *state)
+{
+	struct stm32_pwm *priv = to_stm32_pwm_dev(chip);
+	int ret;
+
+	/* protect common prescaler for all active channels */
+	mutex_lock(&priv->lock);
+	ret = stm32_pwm_apply(chip, pwm, state);
+	mutex_unlock(&priv->lock);
+
+	return ret;
+}
+
 static const struct pwm_ops stm32pwm_ops = {
 	.owner = THIS_MODULE,
-	.apply = stm32_pwm_apply,
+	.apply = stm32_pwm_apply_locked,
 };
 
 static int stm32_pwm_set_breakinput(struct stm32_pwm *priv,
@@ -334,6 +349,7 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
+	mutex_init(&priv->lock);
 	priv->regmap = ddata->regmap;
 	priv->clk = ddata->clk;
 	priv->max_arr = ddata->max_arr;
