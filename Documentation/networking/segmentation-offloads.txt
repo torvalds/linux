@@ -49,6 +49,10 @@ datagram into multiple IPv4 fragments.  Many of the requirements for UDP
 fragmentation offload are the same as TSO.  However the IPv4 ID for
 fragments should not increment as a single IPv4 datagram is fragmented.
 
+UFO is deprecated: modern kernels will no longer generate UFO skbs, but can
+still receive them from tuntap and similar devices. Offload of UDP-based
+tunnel protocols is still supported.
+
 IPIP, SIT, GRE, UDP Tunnel, and Remote Checksum Offloads
 ========================================================
 
