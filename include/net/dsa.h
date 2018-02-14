@@ -19,6 +19,7 @@
 #include <linux/workqueue.h>
 #include <linux/of.h>
 #include <linux/ethtool.h>
+#include <linux/net_tstamp.h>
 #include <net/devlink.h>
 #include <net/switchdev.h>
 
@@ -368,6 +369,12 @@ struct dsa_switch_ops {
 			   struct ethtool_wolinfo *w);
 
 	/*
+	 * ethtool timestamp info
+	 */
+	int	(*get_ts_info)(struct dsa_switch *ds, int port,
+			       struct ethtool_ts_info *ts);
+
+	/*
 	 * Suspend and resume
 	 */
 	int	(*suspend)(struct dsa_switch *ds);
@@ -469,6 +476,14 @@ struct dsa_switch_ops {
 					 int port, struct net_device *br);
 	void	(*crosschip_bridge_leave)(struct dsa_switch *ds, int sw_index,
 					  int port, struct net_device *br);
+
+	/*
+	 * PTP functionality
+	 */
+	int	(*port_hwtstamp_get)(struct dsa_switch *ds, int port,
+				     struct ifreq *ifr);
+	int	(*port_hwtstamp_set)(struct dsa_switch *ds, int port,
+				     struct ifreq *ifr);
 };
 
 struct dsa_switch_driver {
