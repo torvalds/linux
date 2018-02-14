@@ -872,6 +872,8 @@ int perf_event_query_prog_array(struct perf_event *event, void __user *info)
 		return -EINVAL;
 	if (copy_from_user(&query, uquery, sizeof(query)))
 		return -EFAULT;
+	if (query.ids_len > BPF_TRACE_MAX_PROGS)
+		return -E2BIG;
 
 	mutex_lock(&bpf_event_mutex);
 	ret = bpf_prog_array_copy_info(event->tp_event->prog_array,

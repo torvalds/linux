@@ -1590,7 +1590,7 @@ int bpf_prog_array_copy_to_user(struct bpf_prog_array __rcu *progs,
 	 * so always copy 'cnt' prog_ids to the user.
 	 * In a rare race the user will see zero prog_ids
 	 */
-	ids = kcalloc(cnt, sizeof(u32), GFP_USER);
+	ids = kcalloc(cnt, sizeof(u32), GFP_USER | __GFP_NOWARN);
 	if (!ids)
 		return -ENOMEM;
 	rcu_read_lock();
