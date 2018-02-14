@@ -813,7 +813,7 @@ err_out:
 	return err;
 }
 
-int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info)
+int __tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info)
 {
 	int err;
 	char *name;
@@ -835,17 +835,24 @@ int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info)
 
 	name = nla_data(attrs[TIPC_NLA_BEARER_NAME]);
 
-	rtnl_lock();
 	bearer = tipc_bearer_find(net, name);
-	if (!bearer) {
-		rtnl_unlock();
+	if (!bearer)
 		return -EINVAL;
-	}
 
 	bearer_disable(net, bearer);
-	rtnl_unlock();
 
 	return 0;
+}
+
+int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info)
+{
+	int err;
+
+	rtnl_lock();
+	err = __tipc_nl_bearer_disable(skb, info);
+	rtnl_unlock();
+
+	return err;
 }
 
 int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)

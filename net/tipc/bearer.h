@@ -188,6 +188,7 @@ extern struct tipc_media udp_media_info;
 #endif
 
 int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info);
+int __tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_bearer_dump(struct sk_buff *skb, struct netlink_callback *cb);
 int tipc_nl_bearer_get(struct sk_buff *skb, struct genl_info *info);
