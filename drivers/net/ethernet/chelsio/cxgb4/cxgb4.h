@@ -1488,6 +1488,11 @@ u32 t4_read_pcie_cfg4(struct adapter *adap, int reg);
 u32 t4_get_util_window(struct adapter *adap);
 void t4_setup_memwin(struct adapter *adap, u32 memwin_base, u32 window);
 
+int t4_memory_rw_init(struct adapter *adap, int win, int mtype, u32 *mem_off,
+		      u32 *mem_base, u32 *mem_aperture);
+void t4_memory_update_win(struct adapter *adap, int win, u32 addr);
+void t4_memory_rw_residual(struct adapter *adap, u32 off, u32 addr, u8 *buf,
+			   int dir);
 #define T4_MEMORY_WRITE	0
 #define T4_MEMORY_READ	1
 int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr, u32 len,
