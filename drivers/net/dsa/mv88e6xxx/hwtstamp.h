@@ -34,6 +34,15 @@
 /* Offset 0x02: Timestamp Arrival Capture Pointers */
 #define MV88E6XXX_PTP_TS_ARRIVAL_PTR	0x02
 
+/* Offset 0x07: PTP Global Configuration */
+#define MV88E6341_PTP_CFG			0x07
+#define MV88E6341_PTP_CFG_UPDATE		0x8000
+#define MV88E6341_PTP_CFG_IDX_MASK		0x7f00
+#define MV88E6341_PTP_CFG_DATA_MASK		0x00ff
+#define MV88E6341_PTP_CFG_MODE_IDX		0x0
+#define MV88E6341_PTP_CFG_MODE_TS_AT_PHY	0x00
+#define MV88E6341_PTP_CFG_MODE_TS_AT_MAC	0x80
+
 /* Offset 0x08: PTP Interrupt Status */
 #define MV88E6XXX_PTP_IRQ_STATUS	0x08
 

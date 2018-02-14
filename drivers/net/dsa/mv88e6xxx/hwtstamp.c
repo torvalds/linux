@@ -563,6 +563,19 @@ int mv88e6xxx_hwtstamp_setup(struct mv88e6xxx_chip *chip)
 	if (err)
 		return err;
 
+	/* 88E6341 devices default to timestamping at the PHY, but this has
+	 * a hardware issue that results in unreliable timestamps. Force
+	 * these devices to timestamp at the MAC.
+	 */
+	if (chip->info->family == MV88E6XXX_FAMILY_6341) {
+		u16 val = MV88E6341_PTP_CFG_UPDATE |
+			  MV88E6341_PTP_CFG_MODE_IDX |
+			  MV88E6341_PTP_CFG_MODE_TS_AT_MAC;
+		err = mv88e6xxx_ptp_write(chip, MV88E6341_PTP_CFG, val);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }
 
