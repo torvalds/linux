@@ -1413,11 +1413,11 @@ static void atp885_init(struct Scsi_Host *shpnt)
 			atpdev->global_map[m] = 0;
 			for (k = 0; k < 4; k++) {
 				atp_writew_base(atpdev, 0x3c, n++);
-				((unsigned long *)&setupdata[m][0])[k] = atp_readl_base(atpdev, 0x38);
+				((u32 *)&setupdata[m][0])[k] = atp_readl_base(atpdev, 0x38);
 			}
 			for (k = 0; k < 4; k++) {
 				atp_writew_base(atpdev, 0x3c, n++);
-				((unsigned long *)&atpdev->sp[m][0])[k] = atp_readl_base(atpdev, 0x38);
+				((u32 *)&atpdev->sp[m][0])[k] = atp_readl_base(atpdev, 0x38);
 			}
 			n += 8;
 		}
