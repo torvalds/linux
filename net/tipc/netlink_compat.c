@@ -285,10 +285,6 @@ static int __tipc_nl_compat_doit(struct tipc_nl_compat_cmd_doit *cmd,
 	if (!trans_buf)
 		return -ENOMEM;
 
-	err = (*cmd->transcode)(cmd, trans_buf, msg);
-	if (err)
-		goto trans_out;
-
 	attrbuf = kmalloc((tipc_genl_family.maxattr + 1) *
 			sizeof(struct nlattr *), GFP_KERNEL);
 	if (!attrbuf) {
@@ -296,27 +292,32 @@ static int __tipc_nl_compat_doit(struct tipc_nl_compat_cmd_doit *cmd,
 		goto trans_out;
 	}
 
-	err = nla_parse(attrbuf, tipc_genl_family.maxattr,
-			(const struct nlattr *)trans_buf->data,
-			trans_buf->len, NULL, NULL);
-	if (err)
-		goto parse_out;
-
 	doit_buf = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!doit_buf) {
 		err = -ENOMEM;
-		goto parse_out;
+		goto attrbuf_out;
 	}
-
-	doit_buf->sk = msg->dst_sk;
 
 	memset(&info, 0, sizeof(info));
 	info.attrs = attrbuf;
 
+	err = (*cmd->transcode)(cmd, trans_buf, msg);
+	if (err)
+		goto doit_out;
+
+	err = nla_parse(attrbuf, tipc_genl_family.maxattr,
+			(const struct nlattr *)trans_buf->data,
+			trans_buf->len, NULL, NULL);
+	if (err)
+		goto doit_out;
+
+	doit_buf->sk = msg->dst_sk;
+
 	err = (*cmd->doit)(doit_buf, &info);
+doit_out:
 
 	kfree_skb(doit_buf);
-parse_out:
+attrbuf_out:
 	kfree(attrbuf);
 trans_out:
 	kfree_skb(trans_buf);
