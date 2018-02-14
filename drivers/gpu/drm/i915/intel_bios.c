@@ -1589,6 +1589,21 @@ out:
 }
 
 /**
+ * intel_bios_cleanup - Free any resources allocated by intel_bios_init()
+ * @dev_priv: i915 device instance
+ */
+void intel_bios_cleanup(struct drm_i915_private *dev_priv)
+{
+	kfree(dev_priv->vbt.child_dev);
+	dev_priv->vbt.child_dev = NULL;
+	dev_priv->vbt.child_dev_num = 0;
+	kfree(dev_priv->vbt.sdvo_lvds_vbt_mode);
+	dev_priv->vbt.sdvo_lvds_vbt_mode = NULL;
+	kfree(dev_priv->vbt.lfp_lvds_vbt_mode);
+	dev_priv->vbt.lfp_lvds_vbt_mode = NULL;
+}
+
+/**
  * intel_bios_is_tv_present - is integrated TV present in VBT
  * @dev_priv:	i915 device instance
  *
