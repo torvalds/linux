@@ -10,8 +10,8 @@
 #include <linux/errno.h>
 #include <linux/acpi.h>
 #include <linux/pci-acpi.h>
-#include <linux/pcieport_if.h>
 
+#include "pcieport_if.h"
 #include "aer/aerdrv.h"
 #include "../pci.h"
 #include "portdrv.h"

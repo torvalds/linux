@@ -15,9 +15,9 @@
 #include <linux/pm_runtime.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <linux/pcieport_if.h>
 #include <linux/aer.h>
 
+#include "pcieport_if.h"
 #include "../pci.h"
 #include "portdrv.h"
 

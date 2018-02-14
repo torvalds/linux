@@ -13,7 +13,7 @@
 #include <linux/errno.h>
 #include <linux/pm.h>
 
-#include <linux/pcieport_if.h>
+#include "pcieport_if.h"
 #include "portdrv.h"
 
 static int pcie_port_bus_match(struct device *dev, struct device_driver *drv);

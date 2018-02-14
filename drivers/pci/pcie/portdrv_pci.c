@@ -15,11 +15,11 @@
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/init.h>
-#include <linux/pcieport_if.h>
 #include <linux/aer.h>
 #include <linux/dmi.h>
 #include <linux/pci-aspm.h>
 
+#include "pcieport_if.h"
 #include "../pci.h"
 #include "portdrv.h"
 
