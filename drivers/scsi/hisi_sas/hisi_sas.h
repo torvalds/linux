@@ -99,12 +99,43 @@ struct hisi_sas_hw_error {
 	const struct hisi_sas_hw_error *sub;
 };
 
+struct hisi_sas_rst {
+	struct hisi_hba *hisi_hba;
+	struct completion *completion;
+	struct work_struct work;
+	bool done;
+};
+
+#define HISI_SAS_RST_WORK_INIT(r, c) \
+	{	.hisi_hba = hisi_hba, \
+		.completion = &c, \
+		.work = __WORK_INITIALIZER(r.work, \
+				hisi_sas_sync_rst_work_handler), \
+		.done = false, \
+		}
+
+#define HISI_SAS_DECLARE_RST_WORK_ON_STACK(r) \
+	DECLARE_COMPLETION_ONSTACK(c); \
+	DECLARE_WORK(w, hisi_sas_sync_rst_work_handler); \
+	struct hisi_sas_rst r = HISI_SAS_RST_WORK_INIT(r, c)
+
+enum hisi_sas_bit_err_type {
+	HISI_SAS_ERR_SINGLE_BIT_ECC = 0x0,
+	HISI_SAS_ERR_MULTI_BIT_ECC = 0x1,
+};
+
+enum hisi_sas_phy_event {
+	HISI_PHYE_PHY_UP   = 0U,
+	HISI_PHYE_LINK_RESET,
+	HISI_PHYES_NUM,
+};
+
 struct hisi_sas_phy {
+	struct work_struct	works[HISI_PHYES_NUM];
 	struct hisi_hba	*hisi_hba;
 	struct hisi_sas_port	*port;
 	struct asd_sas_phy	sas_phy;
 	struct sas_identify	identify;
-	struct work_struct	phyup_ws;
 	u64		port_id; /* from hw */
 	u64		dev_sas_addr;
 	u64		frame_rcvd_size;
@@ -205,13 +236,16 @@ struct hisi_sas_hw {
 	void (*phy_set_linkrate)(struct hisi_hba *hisi_hba, int phy_no,
 			struct sas_phy_linkrates *linkrates);
 	enum sas_linkrate (*phy_get_max_linkrate)(void);
-	void (*free_device)(struct hisi_hba *hisi_hba,
+	void (*clear_itct)(struct hisi_hba *hisi_hba,
 			    struct hisi_sas_device *dev);
+	void (*free_device)(struct hisi_sas_device *sas_dev);
 	int (*get_wideport_bitmap)(struct hisi_hba *hisi_hba, int port_id);
 	void (*dereg_device)(struct hisi_hba *hisi_hba,
 				struct domain_device *device);
 	int (*soft_reset)(struct hisi_hba *hisi_hba);
 	u32 (*get_phys_state)(struct hisi_hba *hisi_hba);
+	int (*write_gpio)(struct hisi_hba *hisi_hba, u8 reg_type,
+				u8 reg_index, u8 reg_count, u8 *write_data);
 	int max_command_entries;
 	int complete_hdr_size;
 };
@@ -225,6 +259,7 @@ struct hisi_hba {
 	struct device *dev;
 
 	void __iomem *regs;
+	void __iomem *sgpio_regs;
 	struct regmap *ctrl;
 	u32 ctrl_reset_reg;
 	u32 ctrl_reset_sts_reg;
@@ -409,7 +444,8 @@ extern void hisi_sas_stop_phys(struct hisi_hba *hisi_hba);
 extern void hisi_sas_init_add(struct hisi_hba *hisi_hba);
 extern int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost);
 extern void hisi_sas_free(struct hisi_hba *hisi_hba);
-extern u8 hisi_sas_get_ata_protocol(u8 cmd, int direction);
+extern u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis,
+				int direction);
 extern struct hisi_sas_port *to_hisi_sas_port(struct asd_sas_port *sas_port);
 extern void hisi_sas_sata_done(struct sas_task *task,
 			    struct hisi_sas_slot *slot);
@@ -425,5 +461,9 @@ extern void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba,
 				    struct hisi_sas_slot *slot);
 extern void hisi_sas_init_mem(struct hisi_hba *hisi_hba);
 extern void hisi_sas_rst_work_handler(struct work_struct *work);
+extern void hisi_sas_sync_rst_work_handler(struct work_struct *work);
 extern void hisi_sas_kill_tasklets(struct hisi_hba *hisi_hba);
+extern bool hisi_sas_notify_phy_event(struct hisi_sas_phy *phy,
+				enum hisi_sas_phy_event event);
+extern void hisi_sas_release_tasks(struct hisi_hba *hisi_hba);
 #endif

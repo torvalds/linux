@@ -303,7 +303,8 @@ int msm_perf_debugfs_init(struct drm_minor *minor);
 void msm_perf_debugfs_cleanup(struct msm_drm_private *priv);
 #else
 static inline int msm_debugfs_late_init(struct drm_device *dev) { return 0; }
-static inline void msm_rd_dump_submit(struct msm_gem_submit *submit) {}
+static inline void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit,
+		const char *fmt, ...) {}
 static inline void msm_rd_debugfs_cleanup(struct msm_drm_private *priv) {}
 static inline void msm_perf_debugfs_cleanup(struct msm_drm_private *priv) {}
 #endif

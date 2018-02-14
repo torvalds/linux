@@ -272,15 +272,10 @@ static int mt8173_rt5650_dev_probe(struct platform_device *pdev)
 	}
 	mt8173_rt5650_codecs[1].of_node = mt8173_rt5650_codecs[0].of_node;
 
-	if (of_find_node_by_name(platform_node, "codec-capture")) {
-		np = of_get_child_by_name(pdev->dev.of_node, "codec-capture");
-		if (!np) {
-			dev_err(&pdev->dev,
-				"%s: Can't find codec-capture DT node\n",
-				__func__);
-			return -EINVAL;
-		}
+	np = of_get_child_by_name(pdev->dev.of_node, "codec-capture");
+	if (np) {
 		ret = snd_soc_of_get_dai_name(np, &codec_capture_dai);
+		of_node_put(np);
 		if (ret < 0) {
 			dev_err(&pdev->dev,
 				"%s codec_capture_dai name fail %d\n",

@@ -1325,27 +1325,30 @@ static int parse_perf_probe_event_name(char **arg, struct perf_probe_event *pev)
 {
 	char *ptr;
 
-	ptr = strchr(*arg, ':');
+	ptr = strpbrk_esc(*arg, ":");
 	if (ptr) {
 		*ptr = '\0';
 		if (!pev->sdt && !is_c_func_name(*arg))
 			goto ng_name;
-		pev->group = strdup(*arg);
+		pev->group = strdup_esc(*arg);
 		if (!pev->group)
 			return -ENOMEM;
 		*arg = ptr + 1;
 	} else
 		pev->group = NULL;
-	if (!pev->sdt && !is_c_func_name(*arg)) {
+
+	pev->event = strdup_esc(*arg);
+	if (pev->event == NULL)
+		return -ENOMEM;
+
+	if (!pev->sdt && !is_c_func_name(pev->event)) {
+		zfree(&pev->event);
 ng_name:
+		zfree(&pev->group);
 		semantic_error("%s is bad for event name -it must "
 			       "follow C symbol-naming rule.\n", *arg);
 		return -EINVAL;
 	}
-	pev->event = strdup(*arg);
-	if (pev->event == NULL)
-		return -ENOMEM;
-
 	return 0;
 }
 
@@ -1373,7 +1376,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 			arg++;
 	}
 
-	ptr = strpbrk(arg, ";=@+%");
+	ptr = strpbrk_esc(arg, ";=@+%");
 	if (pev->sdt) {
 		if (ptr) {
 			if (*ptr != '@') {
@@ -1387,7 +1390,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 				pev->target = build_id_cache__origname(tmp);
 				free(tmp);
 			} else
-				pev->target = strdup(ptr + 1);
+				pev->target = strdup_esc(ptr + 1);
 			if (!pev->target)
 				return -ENOMEM;
 			*ptr = '\0';
@@ -1421,13 +1424,14 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 	 *
 	 * Otherwise, we consider arg to be a function specification.
 	 */
-	if (!strpbrk(arg, "+@%") && (ptr = strpbrk(arg, ";:")) != NULL) {
+	if (!strpbrk_esc(arg, "+@%")) {
+		ptr = strpbrk_esc(arg, ";:");
 		/* This is a file spec if it includes a '.' before ; or : */
-		if (memchr(arg, '.', ptr - arg))
+		if (ptr && memchr(arg, '.', ptr - arg))
 			file_spec = true;
 	}
 
-	ptr = strpbrk(arg, ";:+@%");
+	ptr = strpbrk_esc(arg, ";:+@%");
 	if (ptr) {
 		nc = *ptr;
 		*ptr++ = '\0';
@@ -1436,7 +1440,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 	if (arg[0] == '\0')
 		tmp = NULL;
 	else {
-		tmp = strdup(arg);
+		tmp = strdup_esc(arg);
 		if (tmp == NULL)
 			return -ENOMEM;
 	}
@@ -1469,12 +1473,12 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 		arg = ptr;
 		c = nc;
 		if (c == ';') {	/* Lazy pattern must be the last part */
-			pp->lazy_line = strdup(arg);
+			pp->lazy_line = strdup(arg); /* let leave escapes */
 			if (pp->lazy_line == NULL)
 				return -ENOMEM;
 			break;
 		}
-		ptr = strpbrk(arg, ";:+@%");
+		ptr = strpbrk_esc(arg, ";:+@%");
 		if (ptr) {
 			nc = *ptr;
 			*ptr++ = '\0';
@@ -1501,7 +1505,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 				semantic_error("SRC@SRC is not allowed.\n");
 				return -EINVAL;
 			}
-			pp->file = strdup(arg);
+			pp->file = strdup_esc(arg);
 			if (pp->file == NULL)
 				return -ENOMEM;
 			break;
@@ -2573,7 +2577,8 @@ int show_perf_probe_events(struct strfilter *filter)
 }
 
 static int get_new_event_name(char *buf, size_t len, const char *base,
-			      struct strlist *namelist, bool allow_suffix)
+			      struct strlist *namelist, bool ret_event,
+			      bool allow_suffix)
 {
 	int i, ret;
 	char *p, *nbase;
@@ -2584,13 +2589,13 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 	if (!nbase)
 		return -ENOMEM;
 
-	/* Cut off the dot suffixes (e.g. .const, .isra)*/
-	p = strchr(nbase, '.');
+	/* Cut off the dot suffixes (e.g. .const, .isra) and version suffixes */
+	p = strpbrk(nbase, ".@");
 	if (p && p != nbase)
 		*p = '\0';
 
 	/* Try no suffix number */
-	ret = e_snprintf(buf, len, "%s", nbase);
+	ret = e_snprintf(buf, len, "%s%s", nbase, ret_event ? "__return" : "");
 	if (ret < 0) {
 		pr_debug("snprintf() failed: %d\n", ret);
 		goto out;
@@ -2625,6 +2630,14 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 
 out:
 	free(nbase);
+
+	/* Final validation */
+	if (ret >= 0 && !is_c_func_name(buf)) {
+		pr_warning("Internal error: \"%s\" is an invalid event name.\n",
+			   buf);
+		ret = -EINVAL;
+	}
+
 	return ret;
 }
 
@@ -2681,8 +2694,8 @@ static int probe_trace_event__set_name(struct probe_trace_event *tev,
 		group = PERFPROBE_GROUP;
 
 	/* Get an unused new event name */
-	ret = get_new_event_name(buf, 64, event,
-				 namelist, allow_suffix);
+	ret = get_new_event_name(buf, 64, event, namelist,
+				 tev->point.retprobe, allow_suffix);
 	if (ret < 0)
 		return ret;
 
@@ -2792,16 +2805,40 @@ static int find_probe_functions(struct map *map, char *name,
 	int found = 0;
 	struct symbol *sym;
 	struct rb_node *tmp;
+	const char *norm, *ver;
+	char *buf = NULL;
+	bool cut_version = true;
 
 	if (map__load(map) < 0)
 		return 0;
 
+	/* If user gives a version, don't cut off the version from symbols */
+	if (strchr(name, '@'))
+		cut_version = false;
+
 	map__for_each_symbol(map, sym, tmp) {
-		if (strglobmatch(sym->name, name)) {
+		norm = arch__normalize_symbol_name(sym->name);
+		if (!norm)
+			continue;
+
+		if (cut_version) {
+			/* We don't care about default symbol or not */
+			ver = strchr(norm, '@');
+			if (ver) {
+				buf = strndup(norm, ver - norm);
+				if (!buf)
+					return -ENOMEM;
+				norm = buf;
+			}
+		}
+
+		if (strglobmatch(norm, name)) {
 			found++;
 			if (syms && found < probe_conf.max_probes)
 				syms[found - 1] = sym;
 		}
+		if (buf)
+			zfree(&buf);
 	}
 
 	return found;
@@ -2847,7 +2884,7 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	 * same name but different addresses, this lists all the symbols.
 	 */
 	num_matched_functions = find_probe_functions(map, pp->function, syms);
-	if (num_matched_functions == 0) {
+	if (num_matched_functions <= 0) {
 		pr_err("Failed to find symbol %s in %s\n", pp->function,
 			pev->target ? : "kernel");
 		ret = -ENOENT;

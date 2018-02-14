@@ -2922,7 +2922,9 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 
 		gen_iv = build.key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV;
 		iv_spc = build.key->conf.flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE;
-		mmic = build.key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC;
+		mmic = build.key->conf.flags &
+			(IEEE80211_KEY_FLAG_GENERATE_MMIC |
+			 IEEE80211_KEY_FLAG_PUT_MIC_SPACE);
 
 		/* don't handle software crypto */
 		if (!(build.key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))

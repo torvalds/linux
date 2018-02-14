@@ -174,8 +174,6 @@ static inline void get_current_time(u8 *timeval_buf, int buf_len)
 /* struct scsi_cmnd transfer buffer access utilities */
 enum xfer_buf_dir	{TO_XFER_BUF, FROM_XFER_BUF};
 
-int rtsx_read_pci_cfg_byte(u8 bus, u8 dev, u8 func, u8 offset, u8 *val);
-
 #define _MSG_TRACE
 
 #include "trace.h"

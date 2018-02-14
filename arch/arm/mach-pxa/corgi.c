@@ -26,7 +26,7 @@
 #include <linux/gpio.h>
 #include <linux/backlight.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 #include <linux/io.h>
 #include <linux/regulator/machine.h>
 #include <linux/spi/spi.h>
@@ -606,24 +606,6 @@ static void __init corgi_init_spi(void)
 static inline void corgi_init_spi(void) {}
 #endif
 
-static struct mtd_partition sharpsl_nand_partitions[] = {
-	{
-		.name = "System Area",
-		.offset = 0,
-		.size = 7 * 1024 * 1024,
-	},
-	{
-		.name = "Root Filesystem",
-		.offset = 7 * 1024 * 1024,
-		.size = 25 * 1024 * 1024,
-	},
-	{
-		.name = "Home Filesystem",
-		.offset = MTDPART_OFS_APPEND,
-		.size = MTDPART_SIZ_FULL,
-	},
-};
-
 static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
 
 static struct nand_bbt_descr sharpsl_bbt = {
@@ -633,10 +615,16 @@ static struct nand_bbt_descr sharpsl_bbt = {
 	.pattern = scan_ff_pattern
 };
 
+static const char * const probes[] = {
+	"cmdlinepart",
+	"ofpart",
+	"sharpslpart",
+	NULL,
+};
+
 static struct sharpsl_nand_platform_data sharpsl_nand_platform_data = {
 	.badblock_pattern	= &sharpsl_bbt,
-	.partitions		= sharpsl_nand_partitions,
-	.nr_partitions		= ARRAY_SIZE(sharpsl_nand_partitions),
+	.part_parsers		= probes,
 };
 
 static struct resource sharpsl_nand_resources[] = {
@@ -749,9 +737,6 @@ static void __init corgi_init(void)
 	i2c_register_board_info(0, ARRAY_AND_SIZE(corgi_i2c_devices));
 
 	platform_scoop_config = &corgi_pcmcia_config;
-
-	if (machine_is_husky())
-		sharpsl_nand_partitions[1].size = 53 * 1024 * 1024;
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 

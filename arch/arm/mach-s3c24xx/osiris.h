@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright 2005 Simtec Electronics
  *	http://www.simtec.co.uk/products/
@@ -5,11 +6,7 @@
  *
  * OSIRIS - CPLD control constants
  * OSIRIS - Memory map definitions
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #ifndef __MACH_S3C24XX_OSIRIS_H
 #define __MACH_S3C24XX_OSIRIS_H __FILE__

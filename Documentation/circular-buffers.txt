@@ -220,8 +220,7 @@ before it writes the new tail pointer, which will erase the item.
 
 Note the use of READ_ONCE() and smp_load_acquire() to read the
 opposition index.  This prevents the compiler from discarding and
-reloading its cached value - which some compilers will do across
-smp_read_barrier_depends().  This isn't strictly needed if you can
+reloading its cached value.  This isn't strictly needed if you can
 be sure that the opposition index will _only_ be used the once.
 The smp_load_acquire() additionally forces the CPU to order against
 subsequent memory references.  Similarly, smp_store_release() is used

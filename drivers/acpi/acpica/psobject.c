@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -372,16 +372,10 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 			 * external declaration opcode. Setting walk_state->Aml to
 			 * walk_state->parser_state.Aml + 2 moves increments the
 			 * walk_state->Aml past the object type and the paramcount of the
-			 * external opcode. For the error message, only print the AML
-			 * offset. We could attempt to print the name but this may cause
-			 * a segmentation fault when printing the namepath because the
-			 * AML may be incorrect.
+			 * external opcode.
 			 */
-			acpi_os_printf
-			    ("// Invalid external declaration at AML offset 0x%x.\n",
-			     walk_state->aml -
-			     walk_state->parser_state.aml_start);
 			walk_state->aml = walk_state->parser_state.aml + 2;
+			walk_state->parser_state.aml = walk_state->aml;
 			return_ACPI_STATUS(AE_CTRL_PARSE_CONTINUE);
 		}
 #endif

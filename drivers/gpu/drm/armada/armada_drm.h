@@ -84,7 +84,6 @@ void armada_drm_queue_unref_work(struct drm_device *,
 extern const struct drm_mode_config_funcs armada_drm_mode_config_funcs;
 
 int armada_fbdev_init(struct drm_device *);
-void armada_fbdev_lastclose(struct drm_device *);
 void armada_fbdev_fini(struct drm_device *);
 
 int armada_overlay_plane_create(struct drm_device *, unsigned long);

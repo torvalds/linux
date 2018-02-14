@@ -58,7 +58,7 @@ static bool comp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		 */
 		pr_debug("Dropping evil IPComp tinygram.\n");
 		par->hotdrop = true;
-		return 0;
+		return false;
 	}
 
 	return spi_match(compinfo->spis[0], compinfo->spis[1],

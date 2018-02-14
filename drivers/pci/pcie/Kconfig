@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # PCI Express Port Bus Configuration
 #
@@ -92,7 +93,7 @@ config PCIE_PME
 
 config PCIE_DPC
 	bool "PCIe Downstream Port Containment support"
-	depends on PCIEPORTBUS
+	depends on PCIEPORTBUS && PCIEAER
 	default n
 	help
 	  This enables PCI Express Downstream Port Containment (DPC)

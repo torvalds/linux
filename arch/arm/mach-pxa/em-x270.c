@@ -32,7 +32,7 @@
 #include <linux/apm-emulation.h>
 #include <linux/i2c.h>
 #include <linux/platform_data/pca953x.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 #include <linux/regulator/userspace-consumer.h>
 
 #include <asm/mach-types.h>

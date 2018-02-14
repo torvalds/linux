@@ -2567,6 +2567,7 @@ ia_css_debug_mode_enable_dma_channel(int dma_id,
 	return rc;
 }
 
+static
 void dtrace_dot(const char *fmt, ...)
 {
 	va_list ap;

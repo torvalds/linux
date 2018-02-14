@@ -397,12 +397,12 @@ int stk_sensor_init(struct stk_camera *dev)
 /* V4L2_PIX_FMT_UYVY */
 static struct regval ov_fmt_uyvy[] = {
 	{REG_TSLB, TSLB_YLAST|0x08 },
-	{ 0x4f, 0x80 }, 	/* "matrix coefficient 1" */
-	{ 0x50, 0x80 }, 	/* "matrix coefficient 2" */
+	{ 0x4f, 0x80 },		/* "matrix coefficient 1" */
+	{ 0x50, 0x80 },		/* "matrix coefficient 2" */
 	{ 0x51, 0    },		/* vb */
-	{ 0x52, 0x22 }, 	/* "matrix coefficient 4" */
-	{ 0x53, 0x5e }, 	/* "matrix coefficient 5" */
-	{ 0x54, 0x80 }, 	/* "matrix coefficient 6" */
+	{ 0x52, 0x22 },		/* "matrix coefficient 4" */
+	{ 0x53, 0x5e },		/* "matrix coefficient 5" */
+	{ 0x54, 0x80 },		/* "matrix coefficient 6" */
 	{REG_COM13, COM13_UVSAT|COM13_CMATRIX},
 	{REG_COM15, COM15_R00FF },
 	{0xff, 0xff}, /* END MARKER */
@@ -410,12 +410,12 @@ static struct regval ov_fmt_uyvy[] = {
 /* V4L2_PIX_FMT_YUYV */
 static struct regval ov_fmt_yuyv[] = {
 	{REG_TSLB, 0 },
-	{ 0x4f, 0x80 }, 	/* "matrix coefficient 1" */
-	{ 0x50, 0x80 }, 	/* "matrix coefficient 2" */
+	{ 0x4f, 0x80 },		/* "matrix coefficient 1" */
+	{ 0x50, 0x80 },		/* "matrix coefficient 2" */
 	{ 0x51, 0    },		/* vb */
-	{ 0x52, 0x22 }, 	/* "matrix coefficient 4" */
-	{ 0x53, 0x5e }, 	/* "matrix coefficient 5" */
-	{ 0x54, 0x80 }, 	/* "matrix coefficient 6" */
+	{ 0x52, 0x22 },		/* "matrix coefficient 4" */
+	{ 0x53, 0x5e },		/* "matrix coefficient 5" */
+	{ 0x54, 0x80 },		/* "matrix coefficient 6" */
 	{REG_COM13, COM13_UVSAT|COM13_CMATRIX},
 	{REG_COM15, COM15_R00FF },
 	{0xff, 0xff}, /* END MARKER */
@@ -426,13 +426,13 @@ static struct regval ov_fmt_rgbr[] = {
 	{ REG_RGB444, 0 },	/* No RGB444 please */
 	{REG_TSLB, 0x00},
 	{ REG_COM1, 0x0 },
-	{ REG_COM9, 0x38 }, 	/* 16x gain ceiling; 0x8 is reserved bit */
-	{ 0x4f, 0xb3 }, 	/* "matrix coefficient 1" */
-	{ 0x50, 0xb3 }, 	/* "matrix coefficient 2" */
+	{ REG_COM9, 0x38 },	/* 16x gain ceiling; 0x8 is reserved bit */
+	{ 0x4f, 0xb3 },		/* "matrix coefficient 1" */
+	{ 0x50, 0xb3 },		/* "matrix coefficient 2" */
 	{ 0x51, 0    },		/* vb */
-	{ 0x52, 0x3d }, 	/* "matrix coefficient 4" */
-	{ 0x53, 0xa7 }, 	/* "matrix coefficient 5" */
-	{ 0x54, 0xe4 }, 	/* "matrix coefficient 6" */
+	{ 0x52, 0x3d },		/* "matrix coefficient 4" */
+	{ 0x53, 0xa7 },		/* "matrix coefficient 5" */
+	{ 0x54, 0xe4 },		/* "matrix coefficient 6" */
 	{ REG_COM13, COM13_GAMMA },
 	{ REG_COM15, COM15_RGB565|COM15_R00FF },
 	{ 0xff, 0xff },
@@ -443,13 +443,13 @@ static struct regval ov_fmt_rgbp[] = {
 	{ REG_RGB444, 0 },	/* No RGB444 please */
 	{REG_TSLB, TSLB_BYTEORD },
 	{ REG_COM1, 0x0 },
-	{ REG_COM9, 0x38 }, 	/* 16x gain ceiling; 0x8 is reserved bit */
-	{ 0x4f, 0xb3 }, 	/* "matrix coefficient 1" */
-	{ 0x50, 0xb3 }, 	/* "matrix coefficient 2" */
+	{ REG_COM9, 0x38 },	/* 16x gain ceiling; 0x8 is reserved bit */
+	{ 0x4f, 0xb3 },		/* "matrix coefficient 1" */
+	{ 0x50, 0xb3 },		/* "matrix coefficient 2" */
 	{ 0x51, 0    },		/* vb */
-	{ 0x52, 0x3d }, 	/* "matrix coefficient 4" */
-	{ 0x53, 0xa7 }, 	/* "matrix coefficient 5" */
-	{ 0x54, 0xe4 }, 	/* "matrix coefficient 6" */
+	{ 0x52, 0x3d },		/* "matrix coefficient 4" */
+	{ 0x53, 0xa7 },		/* "matrix coefficient 5" */
+	{ 0x54, 0xe4 },		/* "matrix coefficient 6" */
 	{ REG_COM13, COM13_GAMMA },
 	{ REG_COM15, COM15_RGB565|COM15_R00FF },
 	{ 0xff, 0xff },

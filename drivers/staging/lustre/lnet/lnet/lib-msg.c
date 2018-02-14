@@ -433,7 +433,7 @@ lnet_complete_msg_locked(struct lnet_msg *msg, int cpt)
 	}
 
 	lnet_msg_decommit(msg, cpt, status);
-	lnet_msg_free(msg);
+	kfree(msg);
 	return 0;
 }
 
@@ -466,7 +466,7 @@ lnet_finalize(struct lnet_ni *ni, struct lnet_msg *msg, int status)
 	if (!msg->msg_tx_committed && !msg->msg_rx_committed) {
 		/* not committed to network yet */
 		LASSERT(!msg->msg_onactivelist);
-		lnet_msg_free(msg);
+		kfree(msg);
 		return;
 	}
 
@@ -546,19 +546,15 @@ lnet_msg_container_cleanup(struct lnet_msg_container *container)
 		LASSERT(msg->msg_onactivelist);
 		msg->msg_onactivelist = 0;
 		list_del(&msg->msg_activelist);
-		lnet_msg_free(msg);
+		kfree(msg);
 		count++;
 	}
 
 	if (count > 0)
 		CERROR("%d active msg on exit\n", count);
 
-	if (container->msc_finalizers) {
-		LIBCFS_FREE(container->msc_finalizers,
-			    container->msc_nfinalizers *
-			    sizeof(*container->msc_finalizers));
-		container->msc_finalizers = NULL;
-	}
+	kvfree(container->msc_finalizers);
+	container->msc_finalizers = NULL;
 	container->msc_init = 0;
 }
 
@@ -573,9 +569,9 @@ lnet_msg_container_setup(struct lnet_msg_container *container, int cpt)
 	/* number of CPUs */
 	container->msc_nfinalizers = cfs_cpt_weight(lnet_cpt_table(), cpt);
 
-	LIBCFS_CPT_ALLOC(container->msc_finalizers, lnet_cpt_table(), cpt,
-			 container->msc_nfinalizers *
-			 sizeof(*container->msc_finalizers));
+	container->msc_finalizers = kvzalloc_cpt(container->msc_nfinalizers *
+						 sizeof(*container->msc_finalizers),
+						 GFP_KERNEL, cpt);
 
 	if (!container->msc_finalizers) {
 		CERROR("Failed to allocate message finalizers\n");

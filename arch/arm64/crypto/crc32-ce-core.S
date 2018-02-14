@@ -50,7 +50,7 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 
-	.text
+	.section	".rodata", "a"
 	.align		6
 	.cpu		generic+crypto+crc
 
@@ -115,12 +115,13 @@
 	 * uint crc32_pmull_le(unsigned char const *buffer,
 	 *                     size_t len, uint crc32)
 	 */
+	.text
 ENTRY(crc32_pmull_le)
-	adr		x3, .Lcrc32_constants
+	adr_l		x3, .Lcrc32_constants
 	b		0f
 
 ENTRY(crc32c_pmull_le)
-	adr		x3, .Lcrc32c_constants
+	adr_l		x3, .Lcrc32c_constants
 
 0:	bic		LEN, LEN, #15
 	ld1		{v1.16b-v4.16b}, [BUF], #0x40

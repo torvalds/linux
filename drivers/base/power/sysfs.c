@@ -108,16 +108,10 @@ static ssize_t control_show(struct device *dev, struct device_attribute *attr,
 static ssize_t control_store(struct device * dev, struct device_attribute *attr,
 			     const char * buf, size_t n)
 {
-	char *cp;
-	int len = n;
-
-	cp = memchr(buf, '\n', n);
-	if (cp)
-		len = cp - buf;
 	device_lock(dev);
-	if (len == sizeof ctrl_auto - 1 && strncmp(buf, ctrl_auto, len) == 0)
+	if (sysfs_streq(buf, ctrl_auto))
 		pm_runtime_allow(dev);
-	else if (len == sizeof ctrl_on - 1 && strncmp(buf, ctrl_on, len) == 0)
+	else if (sysfs_streq(buf, ctrl_on))
 		pm_runtime_forbid(dev);
 	else
 		n = -EINVAL;
@@ -125,9 +119,9 @@ static ssize_t control_store(struct device * dev, struct device_attribute *attr,
 	return n;
 }
 
-static DEVICE_ATTR(control, 0644, control_show, control_store);
+static DEVICE_ATTR_RW(control);
 
-static ssize_t rtpm_active_time_show(struct device *dev,
+static ssize_t runtime_active_time_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	int ret;
@@ -138,9 +132,9 @@ static ssize_t rtpm_active_time_show(struct device *dev,
 	return ret;
 }
 
-static DEVICE_ATTR(runtime_active_time, 0444, rtpm_active_time_show, NULL);
+static DEVICE_ATTR_RO(runtime_active_time);
 
-static ssize_t rtpm_suspended_time_show(struct device *dev,
+static ssize_t runtime_suspended_time_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	int ret;
@@ -152,9 +146,9 @@ static ssize_t rtpm_suspended_time_show(struct device *dev,
 	return ret;
 }
 
-static DEVICE_ATTR(runtime_suspended_time, 0444, rtpm_suspended_time_show, NULL);
+static DEVICE_ATTR_RO(runtime_suspended_time);
 
-static ssize_t rtpm_status_show(struct device *dev,
+static ssize_t runtime_status_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	const char *p;
@@ -184,7 +178,7 @@ static ssize_t rtpm_status_show(struct device *dev,
 	return sprintf(buf, p);
 }
 
-static DEVICE_ATTR(runtime_status, 0444, rtpm_status_show, NULL);
+static DEVICE_ATTR_RO(runtime_status);
 
 static ssize_t autosuspend_delay_ms_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -211,26 +205,25 @@ static ssize_t autosuspend_delay_ms_store(struct device *dev,
 	return n;
 }
 
-static DEVICE_ATTR(autosuspend_delay_ms, 0644, autosuspend_delay_ms_show,
-		autosuspend_delay_ms_store);
+static DEVICE_ATTR_RW(autosuspend_delay_ms);
 
-static ssize_t pm_qos_resume_latency_show(struct device *dev,
-					  struct device_attribute *attr,
-					  char *buf)
+static ssize_t pm_qos_resume_latency_us_show(struct device *dev,
+					     struct device_attribute *attr,
+					     char *buf)
 {
 	s32 value = dev_pm_qos_requested_resume_latency(dev);
 
 	if (value == 0)
 		return sprintf(buf, "n/a\n");
-	else if (value == PM_QOS_RESUME_LATENCY_NO_CONSTRAINT)
+	if (value == PM_QOS_RESUME_LATENCY_NO_CONSTRAINT)
 		value = 0;
 
 	return sprintf(buf, "%d\n", value);
 }
 
-static ssize_t pm_qos_resume_latency_store(struct device *dev,
-					   struct device_attribute *attr,
-					   const char *buf, size_t n)
+static ssize_t pm_qos_resume_latency_us_store(struct device *dev,
+					      struct device_attribute *attr,
+					      const char *buf, size_t n)
 {
 	s32 value;
 	int ret;
@@ -245,7 +238,7 @@ static ssize_t pm_qos_resume_latency_store(struct device *dev,
 
 		if (value == 0)
 			value = PM_QOS_RESUME_LATENCY_NO_CONSTRAINT;
-	} else if (!strcmp(buf, "n/a") || !strcmp(buf, "n/a\n")) {
+	} else if (sysfs_streq(buf, "n/a")) {
 		value = 0;
 	} else {
 		return -EINVAL;
@@ -256,26 +249,25 @@ static ssize_t pm_qos_resume_latency_store(struct device *dev,
 	return ret < 0 ? ret : n;
 }
 
-static DEVICE_ATTR(pm_qos_resume_latency_us, 0644,
-		   pm_qos_resume_latency_show, pm_qos_resume_latency_store);
+static DEVICE_ATTR_RW(pm_qos_resume_latency_us);
 
-static ssize_t pm_qos_latency_tolerance_show(struct device *dev,
-					     struct device_attribute *attr,
-					     char *buf)
+static ssize_t pm_qos_latency_tolerance_us_show(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
 {
 	s32 value = dev_pm_qos_get_user_latency_tolerance(dev);
 
 	if (value < 0)
 		return sprintf(buf, "auto\n");
-	else if (value == PM_QOS_LATENCY_ANY)
+	if (value == PM_QOS_LATENCY_ANY)
 		return sprintf(buf, "any\n");
 
 	return sprintf(buf, "%d\n", value);
 }
 
-static ssize_t pm_qos_latency_tolerance_store(struct device *dev,
-					      struct device_attribute *attr,
-					      const char *buf, size_t n)
+static ssize_t pm_qos_latency_tolerance_us_store(struct device *dev,
+						 struct device_attribute *attr,
+						 const char *buf, size_t n)
 {
 	s32 value;
 	int ret;
@@ -285,9 +277,9 @@ static ssize_t pm_qos_latency_tolerance_store(struct device *dev,
 		if (value < 0)
 			return -EINVAL;
 	} else {
-		if (!strcmp(buf, "auto") || !strcmp(buf, "auto\n"))
+		if (sysfs_streq(buf, "auto"))
 			value = PM_QOS_LATENCY_TOLERANCE_NO_CONSTRAINT;
-		else if (!strcmp(buf, "any") || !strcmp(buf, "any\n"))
+		else if (sysfs_streq(buf, "any"))
 			value = PM_QOS_LATENCY_ANY;
 		else
 			return -EINVAL;
@@ -296,8 +288,7 @@ static ssize_t pm_qos_latency_tolerance_store(struct device *dev,
 	return ret < 0 ? ret : n;
 }
 
-static DEVICE_ATTR(pm_qos_latency_tolerance_us, 0644,
-		   pm_qos_latency_tolerance_show, pm_qos_latency_tolerance_store);
+static DEVICE_ATTR_RW(pm_qos_latency_tolerance_us);
 
 static ssize_t pm_qos_no_power_off_show(struct device *dev,
 					struct device_attribute *attr,
@@ -323,49 +314,39 @@ static ssize_t pm_qos_no_power_off_store(struct device *dev,
 	return ret < 0 ? ret : n;
 }
 
-static DEVICE_ATTR(pm_qos_no_power_off, 0644,
-		   pm_qos_no_power_off_show, pm_qos_no_power_off_store);
+static DEVICE_ATTR_RW(pm_qos_no_power_off);
 
 #ifdef CONFIG_PM_SLEEP
 static const char _enabled[] = "enabled";
 static const char _disabled[] = "disabled";
 
-static ssize_t
-wake_show(struct device * dev, struct device_attribute *attr, char * buf)
+static ssize_t wakeup_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	return sprintf(buf, "%s\n", device_can_wakeup(dev)
 		? (device_may_wakeup(dev) ? _enabled : _disabled)
 		: "");
 }
 
-static ssize_t
-wake_store(struct device * dev, struct device_attribute *attr,
-	const char * buf, size_t n)
+static ssize_t wakeup_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t n)
 {
-	char *cp;
-	int len = n;
-
 	if (!device_can_wakeup(dev))
 		return -EINVAL;
 
-	cp = memchr(buf, '\n', n);
-	if (cp)
-		len = cp - buf;
-	if (len == sizeof _enabled - 1
-			&& strncmp(buf, _enabled, sizeof _enabled - 1) == 0)
+	if (sysfs_streq(buf, _enabled))
 		device_set_wakeup_enable(dev, 1);
-	else if (len == sizeof _disabled - 1
-			&& strncmp(buf, _disabled, sizeof _disabled - 1) == 0)
+	else if (sysfs_streq(buf, _disabled))
 		device_set_wakeup_enable(dev, 0);
 	else
 		return -EINVAL;
 	return n;
 }
 
-static DEVICE_ATTR(wakeup, 0644, wake_show, wake_store);
+static DEVICE_ATTR_RW(wakeup);
 
 static ssize_t wakeup_count_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+				 struct device_attribute *attr, char *buf)
 {
 	unsigned long count = 0;
 	bool enabled = false;
@@ -379,10 +360,11 @@ static ssize_t wakeup_count_show(struct device *dev,
 	return enabled ? sprintf(buf, "%lu\n", count) : sprintf(buf, "\n");
 }
 
-static DEVICE_ATTR(wakeup_count, 0444, wakeup_count_show, NULL);
+static DEVICE_ATTR_RO(wakeup_count);
 
 static ssize_t wakeup_active_count_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+					struct device_attribute *attr,
+					char *buf)
 {
 	unsigned long count = 0;
 	bool enabled = false;
@@ -396,11 +378,11 @@ static ssize_t wakeup_active_count_show(struct device *dev,
 	return enabled ? sprintf(buf, "%lu\n", count) : sprintf(buf, "\n");
 }
 
-static DEVICE_ATTR(wakeup_active_count, 0444, wakeup_active_count_show, NULL);
+static DEVICE_ATTR_RO(wakeup_active_count);
 
 static ssize_t wakeup_abort_count_show(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+				       struct device_attribute *attr,
+				       char *buf)
 {
 	unsigned long count = 0;
 	bool enabled = false;
@@ -414,7 +396,7 @@ static ssize_t wakeup_abort_count_show(struct device *dev,
 	return enabled ? sprintf(buf, "%lu\n", count) : sprintf(buf, "\n");
 }
 
-static DEVICE_ATTR(wakeup_abort_count, 0444, wakeup_abort_count_show, NULL);
+static DEVICE_ATTR_RO(wakeup_abort_count);
 
 static ssize_t wakeup_expire_count_show(struct device *dev,
 					struct device_attribute *attr,
@@ -432,10 +414,10 @@ static ssize_t wakeup_expire_count_show(struct device *dev,
 	return enabled ? sprintf(buf, "%lu\n", count) : sprintf(buf, "\n");
 }
 
-static DEVICE_ATTR(wakeup_expire_count, 0444, wakeup_expire_count_show, NULL);
+static DEVICE_ATTR_RO(wakeup_expire_count);
 
 static ssize_t wakeup_active_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+				  struct device_attribute *attr, char *buf)
 {
 	unsigned int active = 0;
 	bool enabled = false;
@@ -449,10 +431,11 @@ static ssize_t wakeup_active_show(struct device *dev,
 	return enabled ? sprintf(buf, "%u\n", active) : sprintf(buf, "\n");
 }
 
-static DEVICE_ATTR(wakeup_active, 0444, wakeup_active_show, NULL);
+static DEVICE_ATTR_RO(wakeup_active);
 
-static ssize_t wakeup_total_time_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t wakeup_total_time_ms_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
 {
 	s64 msec = 0;
 	bool enabled = false;
@@ -466,10 +449,10 @@ static ssize_t wakeup_total_time_show(struct device *dev,
 	return enabled ? sprintf(buf, "%lld\n", msec) : sprintf(buf, "\n");
 }
 
-static DEVICE_ATTR(wakeup_total_time_ms, 0444, wakeup_total_time_show, NULL);
+static DEVICE_ATTR_RO(wakeup_total_time_ms);
 
-static ssize_t wakeup_max_time_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t wakeup_max_time_ms_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
 {
 	s64 msec = 0;
 	bool enabled = false;
@@ -483,10 +466,11 @@ static ssize_t wakeup_max_time_show(struct device *dev,
 	return enabled ? sprintf(buf, "%lld\n", msec) : sprintf(buf, "\n");
 }
 
-static DEVICE_ATTR(wakeup_max_time_ms, 0444, wakeup_max_time_show, NULL);
+static DEVICE_ATTR_RO(wakeup_max_time_ms);
 
-static ssize_t wakeup_last_time_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t wakeup_last_time_ms_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
 {
 	s64 msec = 0;
 	bool enabled = false;
@@ -500,12 +484,12 @@ static ssize_t wakeup_last_time_show(struct device *dev,
 	return enabled ? sprintf(buf, "%lld\n", msec) : sprintf(buf, "\n");
 }
 
-static DEVICE_ATTR(wakeup_last_time_ms, 0444, wakeup_last_time_show, NULL);
+static DEVICE_ATTR_RO(wakeup_last_time_ms);
 
 #ifdef CONFIG_PM_AUTOSLEEP
-static ssize_t wakeup_prevent_sleep_time_show(struct device *dev,
-					      struct device_attribute *attr,
-					      char *buf)
+static ssize_t wakeup_prevent_sleep_time_ms_show(struct device *dev,
+						 struct device_attribute *attr,
+						 char *buf)
 {
 	s64 msec = 0;
 	bool enabled = false;
@@ -519,40 +503,39 @@ static ssize_t wakeup_prevent_sleep_time_show(struct device *dev,
 	return enabled ? sprintf(buf, "%lld\n", msec) : sprintf(buf, "\n");
 }
 
-static DEVICE_ATTR(wakeup_prevent_sleep_time_ms, 0444,
-		   wakeup_prevent_sleep_time_show, NULL);
+static DEVICE_ATTR_RO(wakeup_prevent_sleep_time_ms);
 #endif /* CONFIG_PM_AUTOSLEEP */
 #endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_PM_ADVANCED_DEBUG
-static ssize_t rtpm_usagecount_show(struct device *dev,
-				    struct device_attribute *attr, char *buf)
+static ssize_t runtime_usage_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", atomic_read(&dev->power.usage_count));
 }
+static DEVICE_ATTR_RO(runtime_usage);
 
-static ssize_t rtpm_children_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
+static ssize_t runtime_active_kids_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
 {
 	return sprintf(buf, "%d\n", dev->power.ignore_children ?
 		0 : atomic_read(&dev->power.child_count));
 }
+static DEVICE_ATTR_RO(runtime_active_kids);
 
-static ssize_t rtpm_enabled_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t runtime_enabled_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
 {
-	if ((dev->power.disable_depth) && (dev->power.runtime_auto == false))
+	if (dev->power.disable_depth && (dev->power.runtime_auto == false))
 		return sprintf(buf, "disabled & forbidden\n");
-	else if (dev->power.disable_depth)
+	if (dev->power.disable_depth)
 		return sprintf(buf, "disabled\n");
-	else if (dev->power.runtime_auto == false)
+	if (dev->power.runtime_auto == false)
 		return sprintf(buf, "forbidden\n");
 	return sprintf(buf, "enabled\n");
 }
-
-static DEVICE_ATTR(runtime_usage, 0444, rtpm_usagecount_show, NULL);
-static DEVICE_ATTR(runtime_active_kids, 0444, rtpm_children_show, NULL);
-static DEVICE_ATTR(runtime_enabled, 0444, rtpm_enabled_show, NULL);
+static DEVICE_ATTR_RO(runtime_enabled);
 
 #ifdef CONFIG_PM_SLEEP
 static ssize_t async_show(struct device *dev, struct device_attribute *attr,
@@ -566,23 +549,16 @@ static ssize_t async_show(struct device *dev, struct device_attribute *attr,
 static ssize_t async_store(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t n)
 {
-	char *cp;
-	int len = n;
-
-	cp = memchr(buf, '\n', n);
-	if (cp)
-		len = cp - buf;
-	if (len == sizeof _enabled - 1 && strncmp(buf, _enabled, len) == 0)
+	if (sysfs_streq(buf, _enabled))
 		device_enable_async_suspend(dev);
-	else if (len == sizeof _disabled - 1 &&
-		 strncmp(buf, _disabled, len) == 0)
+	else if (sysfs_streq(buf, _disabled))
 		device_disable_async_suspend(dev);
 	else
 		return -EINVAL;
 	return n;
 }
 
-static DEVICE_ATTR(async, 0644, async_show, async_store);
+static DEVICE_ATTR_RW(async);
 
 #endif /* CONFIG_PM_SLEEP */
 #endif /* CONFIG_PM_ADVANCED_DEBUG */

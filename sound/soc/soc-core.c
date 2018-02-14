@@ -173,7 +173,7 @@ static ssize_t codec_reg_show(struct device *dev,
 	return soc_codec_reg_show(rtd->codec, buf, PAGE_SIZE, 0);
 }
 
-static DEVICE_ATTR(codec_reg, 0444, codec_reg_show, NULL);
+static DEVICE_ATTR_RO(codec_reg);
 
 static ssize_t pmdown_time_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -1161,11 +1161,6 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 		}
 
 		rtd->platform = platform;
-	}
-	if (!rtd->platform) {
-		dev_err(card->dev, "ASoC: platform %s not registered\n",
-			dai_link->platform_name);
-		goto _err_defer;
 	}
 
 	soc_add_pcm_runtime(card, rtd);

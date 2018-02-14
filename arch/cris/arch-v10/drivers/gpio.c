@@ -50,7 +50,7 @@ static ssize_t gpio_write(struct file *file, const char __user *buf,
 	size_t count, loff_t *off);
 static int gpio_open(struct inode *inode, struct file *filp);
 static int gpio_release(struct inode *inode, struct file *filp);
-static unsigned int gpio_poll(struct file *filp, struct poll_table_struct *wait);
+static __poll_t gpio_poll(struct file *filp, struct poll_table_struct *wait);
 
 /* private data per open() of this driver */
 
@@ -141,9 +141,9 @@ static unsigned long dir_g_shadow; /* 1=output */
 #define USE_PORTS(priv) ((priv)->minor <= GPIO_MINOR_B)
 
 
-static unsigned int gpio_poll(struct file *file, poll_table *wait)
+static __poll_t gpio_poll(struct file *file, poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	struct gpio_private *priv = file->private_data;
 	unsigned long data;
 	unsigned long flags;
@@ -173,7 +173,7 @@ static unsigned int gpio_poll(struct file *file, poll_table *wait)
 
 	if ((data & priv->highalarm) ||
 	    (~data & priv->lowalarm)) {
-		mask = POLLIN|POLLRDNORM;
+		mask = EPOLLIN|EPOLLRDNORM;
 	}
 
 out:

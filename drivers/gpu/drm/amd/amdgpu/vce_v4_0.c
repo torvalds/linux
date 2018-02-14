@@ -32,12 +32,11 @@
 #include "soc15_common.h"
 #include "mmsch_v1_0.h"
 
-#include "vega10/soc15ip.h"
-#include "vega10/VCE/vce_4_0_offset.h"
-#include "vega10/VCE/vce_4_0_default.h"
-#include "vega10/VCE/vce_4_0_sh_mask.h"
-#include "vega10/MMHUB/mmhub_1_0_offset.h"
-#include "vega10/MMHUB/mmhub_1_0_sh_mask.h"
+#include "vce/vce_4_0_offset.h"
+#include "vce/vce_4_0_default.h"
+#include "vce/vce_4_0_sh_mask.h"
+#include "mmhub/mmhub_1_0_offset.h"
+#include "mmhub/mmhub_1_0_sh_mask.h"
 
 #define VCE_STATUS_VCPU_REPORT_FW_LOADED_MASK	0x02
 
@@ -243,37 +242,49 @@ static int vce_v4_0_sriov_start(struct amdgpu_device *adev)
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VM_CTRL), 0);
 
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
-		    MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR0),
+			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
+						mmVCE_LMI_VCPU_CACHE_40BIT_BAR0),
 						adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].mc_addr >> 8);
-		    MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR1),
-						adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].mc_addr >> 8);
-		    MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR2),
-						adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].mc_addr >> 8);
+			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
+						mmVCE_LMI_VCPU_CACHE_64BIT_BAR0),
+						(adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].mc_addr >> 40) & 0xff);
 		} else {
-		    MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR0),
+			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
+						mmVCE_LMI_VCPU_CACHE_40BIT_BAR0),
 						adev->vce.gpu_addr >> 8);
-		    MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR1),
-						adev->vce.gpu_addr >> 8);
-		    MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR2),
-						adev->vce.gpu_addr >> 8);
+			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
+						mmVCE_LMI_VCPU_CACHE_64BIT_BAR0),
+						(adev->vce.gpu_addr >> 40) & 0xff);
 		}
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
+						mmVCE_LMI_VCPU_CACHE_40BIT_BAR1),
+						adev->vce.gpu_addr >> 8);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
+						mmVCE_LMI_VCPU_CACHE_64BIT_BAR1),
+						(adev->vce.gpu_addr >> 40) & 0xff);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
+						mmVCE_LMI_VCPU_CACHE_40BIT_BAR2),
+						adev->vce.gpu_addr >> 8);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
+						mmVCE_LMI_VCPU_CACHE_64BIT_BAR2),
+						(adev->vce.gpu_addr >> 40) & 0xff);
 
 		offset = AMDGPU_VCE_FIRMWARE_OFFSET;
 		size = VCE_V4_0_FW_SIZE;
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_OFFSET0),
-					    offset & 0x7FFFFFFF);
+					offset & ~0x0f000000);
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_SIZE0), size);
 
-		offset += size;
+		offset = (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) ? offset + size : 0;
 		size = VCE_V4_0_STACK_SIZE;
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_OFFSET1),
-					    offset & 0x7FFFFFFF);
+					(offset & ~0x0f000000) | (1 << 24));
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_SIZE1), size);
 
 		offset += size;
 		size = VCE_V4_0_DATA_SIZE;
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_OFFSET2),
-					    offset & 0x7FFFFFFF);
+					(offset & ~0x0f000000) | (2 << 24));
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_SIZE2), size);
 
 		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_CTRL2), ~0x100, 0);
@@ -412,7 +423,7 @@ static int vce_v4_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	size  = (VCE_V4_0_STACK_SIZE + VCE_V4_0_DATA_SIZE) * 2;
+	size  = VCE_V4_0_STACK_SIZE + VCE_V4_0_DATA_SIZE;
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		size += VCE_V4_0_FW_SIZE;
 
@@ -927,10 +938,10 @@ static int vce_v4_0_set_powergating_state(void *handle,
 #endif
 
 static void vce_v4_0_ring_emit_ib(struct amdgpu_ring *ring,
-		struct amdgpu_ib *ib, unsigned int vm_id, bool ctx_switch)
+		struct amdgpu_ib *ib, unsigned int vmid, bool ctx_switch)
 {
 	amdgpu_ring_write(ring, VCE_CMD_IB_VM);
-	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, vmid);
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));
 	amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr));
 	amdgpu_ring_write(ring, ib->length_dw);
@@ -954,25 +965,26 @@ static void vce_v4_0_ring_insert_end(struct amdgpu_ring *ring)
 }
 
 static void vce_v4_0_emit_vm_flush(struct amdgpu_ring *ring,
-			 unsigned int vm_id, uint64_t pd_addr)
+			 unsigned int vmid, uint64_t pd_addr)
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
-	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vm_id);
+	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vmid);
+	uint64_t flags = AMDGPU_PTE_VALID;
 	unsigned eng = ring->vm_inv_eng;
 
-	pd_addr = amdgpu_gart_get_vm_pde(ring->adev, pd_addr);
-	pd_addr |= AMDGPU_PTE_VALID;
+	amdgpu_gart_get_vm_pde(ring->adev, -1, &pd_addr, &flags);
+	pd_addr |= flags;
 
 	amdgpu_ring_write(ring, VCE_CMD_REG_WRITE);
-	amdgpu_ring_write(ring,	(hub->ctx0_ptb_addr_hi32 + vm_id * 2) << 2);
+	amdgpu_ring_write(ring,	(hub->ctx0_ptb_addr_hi32 + vmid * 2) << 2);
 	amdgpu_ring_write(ring, upper_32_bits(pd_addr));
 
 	amdgpu_ring_write(ring, VCE_CMD_REG_WRITE);
-	amdgpu_ring_write(ring,	(hub->ctx0_ptb_addr_lo32 + vm_id * 2) << 2);
+	amdgpu_ring_write(ring,	(hub->ctx0_ptb_addr_lo32 + vmid * 2) << 2);
 	amdgpu_ring_write(ring, lower_32_bits(pd_addr));
 
 	amdgpu_ring_write(ring, VCE_CMD_REG_WAIT);
-	amdgpu_ring_write(ring,	(hub->ctx0_ptb_addr_lo32 + vm_id * 2) << 2);
+	amdgpu_ring_write(ring,	(hub->ctx0_ptb_addr_lo32 + vmid * 2) << 2);
 	amdgpu_ring_write(ring, 0xffffffff);
 	amdgpu_ring_write(ring, lower_32_bits(pd_addr));
 
@@ -984,8 +996,8 @@ static void vce_v4_0_emit_vm_flush(struct amdgpu_ring *ring,
 	/* wait for flush */
 	amdgpu_ring_write(ring, VCE_CMD_REG_WAIT);
 	amdgpu_ring_write(ring, (hub->vm_inv_eng0_ack + eng) << 2);
-	amdgpu_ring_write(ring, 1 << vm_id);
-	amdgpu_ring_write(ring, 1 << vm_id);
+	amdgpu_ring_write(ring, 1 << vmid);
+	amdgpu_ring_write(ring, 1 << vmid);
 }
 
 static int vce_v4_0_set_interrupt_state(struct amdgpu_device *adev,

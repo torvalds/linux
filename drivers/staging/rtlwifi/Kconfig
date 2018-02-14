@@ -6,17 +6,7 @@ config R8822BE
 	This is the staging driver for Realtek RTL8822BE 802.11ac PCIe
 	wireless network adapters.
 
-config RTLHALMAC_ST
-	tristate
-	depends on R8822BE
-	default m
-
-config RTLPHYDM_ST
-	tristate
-	depends on R8822BE
-	default m
-
 config RTLWIFI_DEBUG_ST
-	boolean
+	bool
 	depends on R8822BE
 	default y

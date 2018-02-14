@@ -27,12 +27,8 @@
 
 #define DP_BRANCH_DEVICE_ID_1 0x0010FA
 #define DP_BRANCH_DEVICE_ID_2 0x0022B9
-#define DP_SINK_DEVICE_ID_1 0x4CE000
 #define DP_BRANCH_DEVICE_ID_3 0x00001A
 #define DP_BRANCH_DEVICE_ID_4 0x0080e1
-#define DP_BRANCH_DEVICE_ID_5 0x006037
-#define DP_SINK_DEVICE_ID_2 0x001CF8
-
 
 enum ddc_result {
 	DDC_RESULT_UNKNOWN = 0,
@@ -115,40 +111,11 @@ struct av_sync_data {
 	uint8_t aud_del_ins3;/* DPCD 0002Dh */
 };
 
-/*DP to VGA converter*/
-static const uint8_t DP_VGA_CONVERTER_ID_1[] = "mVGAa";
-/*DP to Dual link DVI converter*/
-static const uint8_t DP_DVI_CONVERTER_ID_1[] = "m2DVIa";
 /*Travis*/
 static const uint8_t DP_VGA_LVDS_CONVERTER_ID_2[] = "sivarT";
 /*Nutmeg*/
 static const uint8_t DP_VGA_LVDS_CONVERTER_ID_3[] = "dnomlA";
-/*DP to VGA converter*/
-static const uint8_t DP_VGA_CONVERTER_ID_4[] = "DpVga";
 /*DP to Dual link DVI converter*/
 static const uint8_t DP_DVI_CONVERTER_ID_4[] = "m2DVIa";
-/*DP to Dual link DVI converter 2*/
-static const uint8_t DP_DVI_CONVERTER_ID_42[] = "v2DVIa";
-
-static const uint8_t DP_SINK_DEV_STRING_ID2_REV0[] = "\0\0\0\0\0\0";
-
-/* Identifies second generation PSR TCON from Parade: Device ID string:
- * yy-xx-**-**-**-**
- */
-/* xx - Hw ID high byte */
-static const uint32_t DP_SINK_DEV_STRING_ID2_REV1_HW_ID_HIGH_BYTE =
-	0x06;
-
-/* yy - HW ID low byte, the same silicon has several package/feature flavors */
-static const uint32_t DP_SINK_DEV_STRING_ID2_REV1_HW_ID_LOW_BYTE1 =
-	0x61;
-static const uint32_t DP_SINK_DEV_STRING_ID2_REV1_HW_ID_LOW_BYTE2 =
-	0x62;
-static const uint32_t DP_SINK_DEV_STRING_ID2_REV1_HW_ID_LOW_BYTE3 =
-	0x63;
-static const uint32_t DP_SINK_DEV_STRING_ID2_REV1_HW_ID_LOW_BYTE4 =
-	0x72;
-static const uint32_t DP_SINK_DEV_STRING_ID2_REV1_HW_ID_LOW_BYTE5 =
-	0x73;
 
 #endif /* __DAL_DDC_SERVICE_TYPES_H__ */

@@ -165,7 +165,7 @@ static int brcmf_proto_bcdc_cmplt(struct brcmf_pub *drvr, u32 id, u32 len)
 
 static int
 brcmf_proto_bcdc_query_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
-			    void *buf, uint len)
+			    void *buf, uint len, int *fwerr)
 {
 	struct brcmf_bcdc *bcdc = (struct brcmf_bcdc *)drvr->proto->pd;
 	struct brcmf_proto_bcdc_dcmd *msg = &bcdc->msg;
@@ -175,6 +175,7 @@ brcmf_proto_bcdc_query_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 
 	brcmf_dbg(BCDC, "Enter, cmd %d len %d\n", cmd, len);
 
+	*fwerr = 0;
 	ret = brcmf_proto_bcdc_msg(drvr, ifidx, cmd, buf, len, false);
 	if (ret < 0) {
 		brcmf_err("brcmf_proto_bcdc_msg failed w/status %d\n",
@@ -211,25 +212,27 @@ retry:
 		memcpy(buf, info, len);
 	}
 
+	ret = 0;
+
 	/* Check the ERROR flag */
 	if (flags & BCDC_DCMD_ERROR)
-		ret = le32_to_cpu(msg->status);
-
+		*fwerr = le32_to_cpu(msg->status);
 done:
 	return ret;
 }
 
 static int
 brcmf_proto_bcdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
-			  void *buf, uint len)
+			  void *buf, uint len, int *fwerr)
 {
 	struct brcmf_bcdc *bcdc = (struct brcmf_bcdc *)drvr->proto->pd;
 	struct brcmf_proto_bcdc_dcmd *msg = &bcdc->msg;
-	int ret = 0;
+	int ret;
 	u32 flags, id;
 
 	brcmf_dbg(BCDC, "Enter, cmd %d len %d\n", cmd, len);
 
+	*fwerr = 0;
 	ret = brcmf_proto_bcdc_msg(drvr, ifidx, cmd, buf, len, true);
 	if (ret < 0)
 		goto done;
@@ -249,9 +252,11 @@ brcmf_proto_bcdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 		goto done;
 	}
 
+	ret = 0;
+
 	/* Check the ERROR flag */
 	if (flags & BCDC_DCMD_ERROR)
-		ret = le32_to_cpu(msg->status);
+		*fwerr = le32_to_cpu(msg->status);
 
 done:
 	return ret;

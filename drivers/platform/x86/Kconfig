@@ -36,6 +36,20 @@ config ACER_WMI
 	  If you have an ACPI-WMI compatible Acer/ Wistron laptop, say Y or M
 	  here.
 
+config ACER_WIRELESS
+        tristate "Acer Wireless Radio Control Driver"
+        depends on ACPI
+        depends on INPUT
+        ---help---
+          The Acer Wireless Radio Control handles the airplane mode hotkey
+          present on new Acer laptops.
+
+          Say Y or M here if you have an Acer notebook with an airplane mode
+          hotkey.
+
+          If you choose to compile this driver as a module the module will be
+          called acer-wireless.
+
 config ACERHDF
 	tristate "Acer Aspire One temperature and fan driver"
 	depends on ACPI && THERMAL
@@ -243,6 +257,18 @@ config AMILO_RFKILL
 	---help---
 	  This is a driver for enabling wifi on some Fujitsu-Siemens Amilo
 	  laptops.
+
+config GPD_POCKET_FAN
+	tristate "GPD Pocket Fan Controller support"
+	depends on ACPI
+	depends on THERMAL
+	---help---
+	  Driver for the GPD Pocket vendor specific FAN02501 ACPI device
+	  which controls the fan speed on the GPD Pocket.
+
+	  Without this driver the fan on the Pocket will stay off independent
+	  of the CPU temperature. Say Y or M if the kernel may be used on a
+	  GPD pocket.
 
 config TC1100_WMI
 	tristate "HP Compaq TC1100 Tablet WMI Extras"
@@ -812,9 +838,8 @@ config TOSHIBA_WMI
 
 config ACPI_CMPC
 	tristate "CMPC Laptop Extras"
-	depends on ACPI
+	depends on ACPI && INPUT
 	depends on RFKILL || RFKILL=n
-	select INPUT
 	select BACKLIGHT_CLASS_DEVICE
 	help
 	  Support for Intel Classmate PC ACPI devices, including some
@@ -949,7 +974,7 @@ config INTEL_IMR
 	  If you are running on a Galileo/Quark say Y here.
 
 config INTEL_PMC_CORE
-	bool "Intel PMC Core driver"
+	tristate "Intel PMC Core driver"
 	depends on PCI
 	---help---
 	  The Intel Platform Controller Hub for Intel Core SoCs provides access
@@ -958,7 +983,10 @@ config INTEL_PMC_CORE
 	  exposed by the Power Management Controller.
 
 	  Supported features:
-		- SLP_S0_RESIDENCY counter.
+		- SLP_S0_RESIDENCY counter
+		- PCH IP Power Gating status
+		- LTR Ignore
+		- MPHY/PLL gating status (Sunrisepoint PCH only)
 
 config IBM_RTL
 	tristate "Device driver to enable PRTL support"
@@ -1131,7 +1159,6 @@ config INTEL_TELEMETRY
 
 config MLX_PLATFORM
 	tristate "Mellanox Technologies platform support"
-	depends on X86_64
 	---help---
 	  This option enables system support for the Mellanox Technologies
 	  platform. The Mellanox systems provide data center networking
@@ -1140,14 +1167,6 @@ config MLX_PLATFORM
 	  connection.
 
 	  If you have a Mellanox system, say Y or M here.
-
-config MLX_CPLD_PLATFORM
-	tristate "Mellanox platform hotplug driver support"
-	select HWMON
-	select I2C
-	---help---
-	  This driver handles hot-plug events for the power suppliers, power
-	  cables and fans on the wide range Mellanox IB and Ethernet systems.
 
 config INTEL_TURBO_MAX_3
 	bool "Intel Turbo Boost Max Technology 3.0 enumeration driver"
@@ -1169,6 +1188,17 @@ config SILEAD_DMI
 	  into the tablet model specific version of the driver shipped
 	  with the OS-image for the device. This option supplies the missing
 	  information. Enable this for x86 tablets with Silead touchscreens.
+
+config INTEL_CHTDC_TI_PWRBTN
+	tristate "Intel Cherry Trail Dollar Cove TI power button driver"
+	depends on INTEL_SOC_PMIC_CHTDC_TI
+	depends on INPUT
+	---help---
+	  This option adds a power button driver driver for Dollar Cove TI
+	  PMIC on Intel Cherry Trail devices.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel_chtdc_ti_pwrbtn.
 
 endif # X86_PLATFORM_DEVICES
 

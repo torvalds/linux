@@ -39,8 +39,6 @@ struct vc4_dev {
 	struct vc4_dsi *dsi1;
 	struct vc4_vec *vec;
 
-	struct drm_fbdev_cma *fbdev;
-
 	struct vc4_hang_state *hang_state;
 
 	/* The kernel-space BO cache.  Tracks buffers that have been

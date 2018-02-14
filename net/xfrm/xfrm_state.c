@@ -317,7 +317,7 @@ retry:
 
 	if (!type && try_load) {
 		request_module("xfrm-offload-%d-%d", family, proto);
-		try_load = 0;
+		try_load = false;
 		goto retry;
 	}
 
@@ -2056,6 +2056,13 @@ int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optval, int optlen
 	struct xfrm_mgr *km;
 	struct xfrm_policy *pol = NULL;
 
+	if (!optval && !optlen) {
+		xfrm_sk_policy_insert(sk, XFRM_POLICY_IN, NULL);
+		xfrm_sk_policy_insert(sk, XFRM_POLICY_OUT, NULL);
+		__sk_dst_reset(sk);
+		return 0;
+	}
+
 	if (optlen <= 0 || optlen > PAGE_SIZE)
 		return -EMSGSIZE;
 
@@ -2272,8 +2279,6 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload)
 			goto error;
 	}
 
-	x->km.state = XFRM_STATE_VALID;
-
 error:
 	return err;
 }
@@ -2282,7 +2287,13 @@ EXPORT_SYMBOL(__xfrm_init_state);
 
 int xfrm_init_state(struct xfrm_state *x)
 {
-	return __xfrm_init_state(x, true, false);
+	int err;
+
+	err = __xfrm_init_state(x, true, false);
+	if (!err)
+		x->km.state = XFRM_STATE_VALID;
+
+	return err;
 }
 
 EXPORT_SYMBOL(xfrm_init_state);

@@ -30,10 +30,10 @@
 
 #include <linux/mutex.h>
 
-#include "dmxdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
+#include <media/dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
 #include "ttusbdecfe.h"
 
 static int debug;
@@ -127,7 +127,6 @@ struct ttusb_dec {
 	struct urb		*irq_urb;
 	dma_addr_t		irq_dma_handle;
 	void			*iso_buffer;
-	dma_addr_t		iso_dma_handle;
 	struct urb		*iso_urb[ISO_BUF_COUNT];
 	int			iso_stream_count;
 	struct mutex		iso_mutex;
@@ -1185,11 +1184,7 @@ static void ttusb_dec_free_iso_urbs(struct ttusb_dec *dec)
 
 	for (i = 0; i < ISO_BUF_COUNT; i++)
 		usb_free_urb(dec->iso_urb[i]);
-
-	pci_free_consistent(NULL,
-			    ISO_FRAME_SIZE * (FRAMES_PER_ISO_BUF *
-					      ISO_BUF_COUNT),
-			    dec->iso_buffer, dec->iso_dma_handle);
+	kfree(dec->iso_buffer);
 }
 
 static int ttusb_dec_alloc_iso_urbs(struct ttusb_dec *dec)
@@ -1198,15 +1193,10 @@ static int ttusb_dec_alloc_iso_urbs(struct ttusb_dec *dec)
 
 	dprintk("%s\n", __func__);
 
-	dec->iso_buffer = pci_zalloc_consistent(NULL,
-						ISO_FRAME_SIZE * (FRAMES_PER_ISO_BUF * ISO_BUF_COUNT),
-						&dec->iso_dma_handle);
-
-	if (!dec->iso_buffer) {
-		dprintk("%s: pci_alloc_consistent - not enough memory\n",
-			__func__);
+	dec->iso_buffer = kcalloc(FRAMES_PER_ISO_BUF * ISO_BUF_COUNT,
+			ISO_FRAME_SIZE, GFP_KERNEL);
+	if (!dec->iso_buffer)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < ISO_BUF_COUNT; i++) {
 		struct urb *urb;

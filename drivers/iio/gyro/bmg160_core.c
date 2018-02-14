@@ -27,7 +27,6 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/regmap.h>
-#include <linux/delay.h>
 #include "bmg160.h"
 
 #define BMG160_IRQ_NAME		"bmg160_event"

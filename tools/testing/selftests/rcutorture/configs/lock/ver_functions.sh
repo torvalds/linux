@@ -38,6 +38,5 @@ per_version_boot_params () {
 	echo $1 `locktorture_param_onoff "$1" "$2"` \
 		locktorture.stat_interval=15 \
 		locktorture.shutdown_secs=$3 \
-		locktorture.torture_runnable=1 \
 		locktorture.verbose=1
 }

@@ -21,7 +21,7 @@
 #define _VIVID_RADIO_TX_H_
 
 ssize_t vivid_radio_tx_write(struct file *, const char __user *, size_t, loff_t *);
-unsigned int vivid_radio_tx_poll(struct file *file, struct poll_table_struct *wait);
+__poll_t vivid_radio_tx_poll(struct file *file, struct poll_table_struct *wait);
 
 int vidioc_g_modulator(struct file *file, void *fh, struct v4l2_modulator *a);
 int vidioc_s_modulator(struct file *file, void *fh, const struct v4l2_modulator *a);

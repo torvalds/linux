@@ -186,7 +186,7 @@
 			device_type = "par_io";
 			num-ports = <7>;
 
-			pio3: ucc_pin@03 {
+			pio3: ucc_pin@3 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					3  4  3  0  2  0  /* MDIO */
@@ -208,7 +208,7 @@
 					1 12  1  0  1  0 	/* TX_EN */
 					1 13  2  0  1  0>;	/* CRS */
 			};
-			pio4: ucc_pin@04 {
+			pio4: ucc_pin@4 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					3 31  2  0  1  0 	/* RX_CLK (CLK7) */
@@ -228,7 +228,7 @@
 					1 30  1  0  1  0 	/* TX_EN */
 					1 31  2  0  1  0>;	/* CRS */
 			};
-			pio5: ucc_pin@05 {
+			pio5: ucc_pin@5 {
 				pio-map = <
 				/*
 				 *    		      open       has
@@ -352,12 +352,12 @@
 			reg = <0x2320 0x18>;
 			compatible = "fsl,ucc-mdio";
 
-			phy3: ethernet-phy@03 {
+			phy3: ethernet-phy@3 {
 				interrupt-parent = <&ipic>;
 				interrupts = <17 0x8>;
 				reg = <0x3>;
 			};
-			phy4: ethernet-phy@04 {
+			phy4: ethernet-phy@4 {
 				interrupt-parent = <&ipic>;
 				interrupts = <18 0x8>;
 				reg = <0x4>;

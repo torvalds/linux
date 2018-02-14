@@ -116,8 +116,15 @@ ifdef INSTALL_PATH
 
 	@# Ask all targets to emit their test scripts
 	echo "#!/bin/sh" > $(ALL_SCRIPT)
-	echo "cd \$$(dirname \$$0)" >> $(ALL_SCRIPT)
+	echo "BASE_DIR=\$$(realpath \$$(dirname \$$0))" >> $(ALL_SCRIPT)
+	echo "cd \$$BASE_DIR" >> $(ALL_SCRIPT)
 	echo "ROOT=\$$PWD" >> $(ALL_SCRIPT)
+	echo "if [ \"\$$1\" = \"--summary\" ]; then" >> $(ALL_SCRIPT)
+	echo "  OUTPUT=\$$BASE_DIR/output.log" >> $(ALL_SCRIPT)
+	echo "  cat /dev/null > \$$OUTPUT" >> $(ALL_SCRIPT)
+	echo "else" >> $(ALL_SCRIPT)
+	echo "  OUTPUT=/dev/stdout" >> $(ALL_SCRIPT)
+	echo "fi" >> $(ALL_SCRIPT)
 
 	for TARGET in $(TARGETS); do \
 		BUILD_TARGET=$$BUILD/$$TARGET;	\

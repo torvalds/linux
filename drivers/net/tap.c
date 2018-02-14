@@ -330,9 +330,6 @@ rx_handler_result_t tap_handle_frame(struct sk_buff **pskb)
 	if (!q)
 		return RX_HANDLER_PASS;
 
-	if (__skb_array_full(&q->skb_array))
-		goto drop;
-
 	skb_push(skb, ETH_HLEN);
 
 	/* Apply the forward feature mask so that we perform segmentation
@@ -348,7 +345,7 @@ rx_handler_result_t tap_handle_frame(struct sk_buff **pskb)
 			goto drop;
 
 		if (!segs) {
-			if (skb_array_produce(&q->skb_array, skb))
+			if (ptr_ring_produce(&q->ring, skb))
 				goto drop;
 			goto wake_up;
 		}
@@ -358,7 +355,7 @@ rx_handler_result_t tap_handle_frame(struct sk_buff **pskb)
 			struct sk_buff *nskb = segs->next;
 
 			segs->next = NULL;
-			if (skb_array_produce(&q->skb_array, segs)) {
+			if (ptr_ring_produce(&q->ring, segs)) {
 				kfree_skb(segs);
 				kfree_skb_list(nskb);
 				break;
@@ -375,12 +372,12 @@ rx_handler_result_t tap_handle_frame(struct sk_buff **pskb)
 		    !(features & NETIF_F_CSUM_MASK) &&
 		    skb_checksum_help(skb))
 			goto drop;
-		if (skb_array_produce(&q->skb_array, skb))
+		if (ptr_ring_produce(&q->ring, skb))
 			goto drop;
 	}
 
 wake_up:
-	wake_up_interruptible_poll(sk_sleep(&q->sk), POLLIN | POLLRDNORM | POLLRDBAND);
+	wake_up_interruptible_poll(sk_sleep(&q->sk), EPOLLIN | EPOLLRDNORM | EPOLLRDBAND);
 	return RX_HANDLER_CONSUMED;
 
 drop:
@@ -490,14 +487,14 @@ static void tap_sock_write_space(struct sock *sk)
 
 	wqueue = sk_sleep(sk);
 	if (wqueue && waitqueue_active(wqueue))
-		wake_up_interruptible_poll(wqueue, POLLOUT | POLLWRNORM | POLLWRBAND);
+		wake_up_interruptible_poll(wqueue, EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND);
 }
 
 static void tap_sock_destruct(struct sock *sk)
 {
 	struct tap_queue *q = container_of(sk, struct tap_queue, sk);
 
-	skb_array_cleanup(&q->skb_array);
+	ptr_ring_cleanup(&q->ring, __skb_array_destroy_skb);
 }
 
 static int tap_open(struct inode *inode, struct file *file)
@@ -517,7 +514,7 @@ static int tap_open(struct inode *inode, struct file *file)
 					     &tap_proto, 0);
 	if (!q)
 		goto err;
-	if (skb_array_init(&q->skb_array, tap->dev->tx_queue_len, GFP_KERNEL)) {
+	if (ptr_ring_init(&q->ring, tap->dev->tx_queue_len, GFP_KERNEL)) {
 		sk_free(&q->sk);
 		goto err;
 	}
@@ -546,7 +543,7 @@ static int tap_open(struct inode *inode, struct file *file)
 
 	err = tap_set_queue(tap, file, q);
 	if (err) {
-		/* tap_sock_destruct() will take care of freeing skb_array */
+		/* tap_sock_destruct() will take care of freeing ptr_ring */
 		goto err_put;
 	}
 
@@ -572,10 +569,10 @@ static int tap_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static unsigned int tap_poll(struct file *file, poll_table *wait)
+static __poll_t tap_poll(struct file *file, poll_table *wait)
 {
 	struct tap_queue *q = file->private_data;
-	unsigned int mask = POLLERR;
+	__poll_t mask = EPOLLERR;
 
 	if (!q)
 		goto out;
@@ -583,13 +580,13 @@ static unsigned int tap_poll(struct file *file, poll_table *wait)
 	mask = 0;
 	poll_wait(file, &q->wq.wait, wait);
 
-	if (!skb_array_empty(&q->skb_array))
-		mask |= POLLIN | POLLRDNORM;
+	if (!ptr_ring_empty(&q->ring))
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	if (sock_writeable(&q->sk) ||
 	    (!test_and_set_bit(SOCKWQ_ASYNC_NOSPACE, &q->sock.flags) &&
 	     sock_writeable(&q->sk)))
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 
 out:
 	return mask;
@@ -844,7 +841,7 @@ static ssize_t tap_do_read(struct tap_queue *q,
 					TASK_INTERRUPTIBLE);
 
 		/* Read frames from the queue */
-		skb = skb_array_consume(&q->skb_array);
+		skb = ptr_ring_consume(&q->ring);
 		if (skb)
 			break;
 		if (noblock) {
@@ -1176,7 +1173,7 @@ static int tap_peek_len(struct socket *sock)
 {
 	struct tap_queue *q = container_of(sock, struct tap_queue,
 					       sock);
-	return skb_array_peek_len(&q->skb_array);
+	return PTR_RING_PEEK_CALL(&q->ring, __skb_array_len_with_tag);
 }
 
 /* Ops structure to mimic raw sockets with tun */
@@ -1202,7 +1199,7 @@ struct socket *tap_get_socket(struct file *file)
 }
 EXPORT_SYMBOL_GPL(tap_get_socket);
 
-struct skb_array *tap_get_skb_array(struct file *file)
+struct ptr_ring *tap_get_ptr_ring(struct file *file)
 {
 	struct tap_queue *q;
 
@@ -1211,29 +1208,30 @@ struct skb_array *tap_get_skb_array(struct file *file)
 	q = file->private_data;
 	if (!q)
 		return ERR_PTR(-EBADFD);
-	return &q->skb_array;
+	return &q->ring;
 }
-EXPORT_SYMBOL_GPL(tap_get_skb_array);
+EXPORT_SYMBOL_GPL(tap_get_ptr_ring);
 
 int tap_queue_resize(struct tap_dev *tap)
 {
 	struct net_device *dev = tap->dev;
 	struct tap_queue *q;
-	struct skb_array **arrays;
+	struct ptr_ring **rings;
 	int n = tap->numqueues;
 	int ret, i = 0;
 
-	arrays = kmalloc_array(n, sizeof(*arrays), GFP_KERNEL);
-	if (!arrays)
+	rings = kmalloc_array(n, sizeof(*rings), GFP_KERNEL);
+	if (!rings)
 		return -ENOMEM;
 
 	list_for_each_entry(q, &tap->queue_list, next)
-		arrays[i++] = &q->skb_array;
+		rings[i++] = &q->ring;
 
-	ret = skb_array_resize_multiple(arrays, n,
-					dev->tx_queue_len, GFP_KERNEL);
+	ret = ptr_ring_resize_multiple(rings, n,
+				       dev->tx_queue_len, GFP_KERNEL,
+				       __skb_array_destroy_skb);
 
-	kfree(arrays);
+	kfree(rings);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(tap_queue_resize);

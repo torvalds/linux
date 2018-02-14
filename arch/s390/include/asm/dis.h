@@ -9,7 +9,7 @@
 #ifndef __ASM_S390_DIS_H__
 #define __ASM_S390_DIS_H__
 
-#include <generated/dis.h>
+#include <asm/dis-defs.h>
 
 static inline int insn_length(unsigned char code)
 {

@@ -6,6 +6,9 @@
 #include "cgroup.h"
 #include "evlist.h"
 #include <linux/stringify.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 int nr_cgroups;
 

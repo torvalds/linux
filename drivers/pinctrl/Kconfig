@@ -63,6 +63,20 @@ config PINCTRL_AS3722
 	  open drain configuration for the GPIO pins of AS3722 devices. It also
 	  supports the GPIO functionality through gpiolib.
 
+config PINCTRL_AXP209
+	tristate "X-Powers AXP209 PMIC pinctrl and GPIO Support"
+	depends on MFD_AXP20X
+	depends on OF
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB
+	help
+	  AXP PMICs provides multiple GPIOs that can be muxed for different
+	  functions. This driver bundles a pinctrl driver to select the function
+	  muxing and a GPIO driver to handle the GPIO when the GPIO function is
+	  selected.
+	  Say yes to enable pinctrl and GPIO support for the AXP209 PMIC
+
 config PINCTRL_BF54x
 	def_bool y if BF54x
 	select PINCTRL_ADI2
@@ -342,6 +356,17 @@ config PINCTRL_RK805
 	select GENERIC_PINCONF
 	help
 	  This selects the pinctrl driver for RK805.
+
+config PINCTRL_OCELOT
+	bool "Pinctrl driver for the Microsemi Ocelot SoCs"
+	default y
+	depends on OF
+	depends on MSCC_OCELOT || COMPILE_TEST
+	select GPIOLIB
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select REGMAP_MMIO
 
 source "drivers/pinctrl/aspeed/Kconfig"
 source "drivers/pinctrl/bcm/Kconfig"

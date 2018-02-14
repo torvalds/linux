@@ -7,7 +7,7 @@
 #define __DVB_PLL_H__
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #define DVB_PLL_UNDEFINED               0
 #define DVB_PLL_THOMSON_DTT7579         1

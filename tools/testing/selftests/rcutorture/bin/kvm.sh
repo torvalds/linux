@@ -1,8 +1,7 @@
 #!/bin/bash
 #
 # Run a series of 14 tests under KVM.  These are not particularly
-# well-selected or well-tuned, but are the current set.  Run from the
-# top level of the source tree.
+# well-selected or well-tuned, but are the current set.
 #
 # Edit the definitions below to set the locations of the various directories,
 # as well as the test duration.
@@ -33,6 +32,8 @@ args="$*"
 T=${TMPDIR-/tmp}/kvm.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
+
+cd `dirname $scriptname`/../../../../../
 
 dur=$((30*60))
 dryrun=""
@@ -70,7 +71,7 @@ usage () {
 	echo "       --kmake-arg kernel-make-arguments"
 	echo "       --mac nn:nn:nn:nn:nn:nn"
 	echo "       --no-initrd"
-	echo "       --qemu-args qemu-system-..."
+	echo "       --qemu-args qemu-arguments"
 	echo "       --qemu-cmd qemu-system-..."
 	echo "       --results absolute-pathname"
 	echo "       --torture rcu"
@@ -150,7 +151,7 @@ do
 		TORTURE_INITRD=""; export TORTURE_INITRD
 		;;
 	--qemu-args|--qemu-arg)
-		checkarg --qemu-args "-qemu args" $# "$2" '^-' '^error'
+		checkarg --qemu-args "(qemu arguments)" $# "$2" '^-' '^error'
 		TORTURE_QEMU_ARG="$2"
 		shift
 		;;
@@ -238,7 +239,6 @@ BEGIN {
 }
 
 END {
-	alldone = 0;
 	batch = 0;
 	nc = -1;
 
@@ -331,8 +331,7 @@ awk < $T/cfgcpu.pack \
 # Dump out the scripting required to run one test batch.
 function dump(first, pastlast, batchnum)
 {
-	print "echo ----Start batch " batchnum ": `date`";
-	print "echo ----Start batch " batchnum ": `date` >> " rd "/log";
+	print "echo ----Start batch " batchnum ": `date` | tee -a " rd "log";
 	print "needqemurun="
 	jn=1
 	for (j = first; j < pastlast; j++) {
@@ -349,21 +348,18 @@ function dump(first, pastlast, batchnum)
 			ovf = "-ovf";
 		else
 			ovf = "";
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build. `date`";
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build. `date` >> " rd "/log";
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build. `date` | tee -a " rd "log";
 		print "rm -f " builddir ".*";
 		print "touch " builddir ".wait";
 		print "mkdir " builddir " > /dev/null 2>&1 || :";
 		print "mkdir " rd cfr[jn] " || :";
 		print "kvm-test-1-run.sh " CONFIGDIR cf[j], builddir, rd cfr[jn], dur " \"" TORTURE_QEMU_ARG "\" \"" TORTURE_BOOTARGS "\" > " rd cfr[jn]  "/kvm-test-1-run.sh.out 2>&1 &"
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date`";
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date` >> " rd "/log";
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date` | tee -a " rd "log";
 		print "while test -f " builddir ".wait"
 		print "do"
 		print "\tsleep 1"
 		print "done"
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Build complete. `date`";
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Build complete. `date` >> " rd "/log";
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Build complete. `date` | tee -a " rd "log";
 		jn++;
 	}
 	for (j = 1; j < jn; j++) {
@@ -371,8 +367,7 @@ function dump(first, pastlast, batchnum)
 		print "rm -f " builddir ".ready"
 		print "if test -f \"" rd cfr[j] "/builtkernel\""
 		print "then"
-		print "\techo ----", cfr[j], cpusr[j] ovf ": Kernel present. `date`";
-		print "\techo ----", cfr[j], cpusr[j] ovf ": Kernel present. `date` >> " rd "/log";
+		print "\techo ----", cfr[j], cpusr[j] ovf ": Kernel present. `date` | tee -a " rd "log";
 		print "\tneedqemurun=1"
 		print "fi"
 	}
@@ -386,31 +381,26 @@ function dump(first, pastlast, batchnum)
 		njitter = ja[1];
 	if (TORTURE_BUILDONLY && njitter != 0) {
 		njitter = 0;
-		print "echo Build-only run, so suppressing jitter >> " rd "/log"
+		print "echo Build-only run, so suppressing jitter | tee -a " rd "log"
 	}
 	if (TORTURE_BUILDONLY) {
 		print "needqemurun="
 	}
 	print "if test -n \"$needqemurun\""
 	print "then"
-	print "\techo ---- Starting kernels. `date`";
-	print "\techo ---- Starting kernels. `date` >> " rd "/log";
+	print "\techo ---- Starting kernels. `date` | tee -a " rd "log";
 	for (j = 0; j < njitter; j++)
 		print "\tjitter.sh " j " " dur " " ja[2] " " ja[3] "&"
 	print "\twait"
-	print "\techo ---- All kernel runs complete. `date`";
-	print "\techo ---- All kernel runs complete. `date` >> " rd "/log";
+	print "\techo ---- All kernel runs complete. `date` | tee -a " rd "log";
 	print "else"
 	print "\twait"
-	print "\techo ---- No kernel runs. `date`";
-	print "\techo ---- No kernel runs. `date` >> " rd "/log";
+	print "\techo ---- No kernel runs. `date` | tee -a " rd "log";
 	print "fi"
 	for (j = 1; j < jn; j++) {
 		builddir=KVM "/b" j
-		print "echo ----", cfr[j], cpusr[j] ovf ": Build/run results:";
-		print "echo ----", cfr[j], cpusr[j] ovf ": Build/run results: >> " rd "/log";
-		print "cat " rd cfr[j]  "/kvm-test-1-run.sh.out";
-		print "cat " rd cfr[j]  "/kvm-test-1-run.sh.out >> " rd "/log";
+		print "echo ----", cfr[j], cpusr[j] ovf ": Build/run results: | tee -a " rd "log";
+		print "cat " rd cfr[j]  "/kvm-test-1-run.sh.out | tee -a " rd "log";
 	}
 }
 

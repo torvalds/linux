@@ -117,10 +117,9 @@ static inline unsigned int tipc_node(__u32 addr)
 /*
  * Publication scopes when binding port names and port name sequences
  */
-
-#define TIPC_ZONE_SCOPE		1
-#define TIPC_CLUSTER_SCOPE	2
-#define TIPC_NODE_SCOPE		3
+#define TIPC_ZONE_SCOPE         1
+#define TIPC_CLUSTER_SCOPE      2
+#define TIPC_NODE_SCOPE         3
 
 /*
  * Limiting values for messages

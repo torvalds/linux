@@ -660,12 +660,14 @@ static inline void blkg_rwstat_reset(struct blkg_rwstat *rwstat)
 static inline void blkg_rwstat_add_aux(struct blkg_rwstat *to,
 				       struct blkg_rwstat *from)
 {
-	struct blkg_rwstat v = blkg_rwstat_read(from);
+	u64 sum[BLKG_RWSTAT_NR];
 	int i;
 
 	for (i = 0; i < BLKG_RWSTAT_NR; i++)
-		atomic64_add(atomic64_read(&v.aux_cnt[i]) +
-			     atomic64_read(&from->aux_cnt[i]),
+		sum[i] = percpu_counter_sum_positive(&from->cpu_cnt[i]);
+
+	for (i = 0; i < BLKG_RWSTAT_NR; i++)
+		atomic64_add(sum[i] + atomic64_read(&from->aux_cnt[i]),
 			     &to->aux_cnt[i]);
 }
 

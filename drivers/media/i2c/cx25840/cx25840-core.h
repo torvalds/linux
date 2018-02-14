@@ -118,7 +118,7 @@ static inline bool is_cx23888(struct cx25840_state *state)
 }
 
 /* ----------------------------------------------------------------------- */
-/* cx25850-core.c 							   */
+/* cx25850-core.c							   */
 int cx25840_write(struct i2c_client *client, u16 addr, u8 value);
 int cx25840_write4(struct i2c_client *client, u16 addr, u32 value);
 u8 cx25840_read(struct i2c_client *client, u16 addr);

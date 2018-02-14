@@ -371,7 +371,7 @@ static char *translate_scan(struct adapter *padapter,
 		u8 *wpsie_ptr = NULL;
 		uint wps_ielen = 0;
 
-		u8 *ie_ptr = pnetwork->network.IEs + ie_offset;
+		u8 *ie_ptr;
 		total_ielen = pnetwork->network.IELength - ie_offset;
 
 		if (pnetwork->network.Reserved[0] == 2) { /*  Probe Request */
@@ -967,7 +967,7 @@ static int rtw_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 			break;
 
 		default :
-			ret = -EINVAL;;
+			ret = -EINVAL;
 			RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_err_, ("\n Mode: %s is not supported \n", iw_operation_mode[wrqu->mode]));
 			goto exit;
 	}

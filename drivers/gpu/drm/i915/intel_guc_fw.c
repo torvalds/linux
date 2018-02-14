@@ -30,17 +30,14 @@
 #include "intel_guc_fw.h"
 #include "i915_drv.h"
 
-#define SKL_FW_MAJOR 6
-#define SKL_FW_MINOR 1
+#define SKL_FW_MAJOR 9
+#define SKL_FW_MINOR 33
 
-#define BXT_FW_MAJOR 8
-#define BXT_FW_MINOR 7
+#define BXT_FW_MAJOR 9
+#define BXT_FW_MINOR 29
 
 #define KBL_FW_MAJOR 9
-#define KBL_FW_MINOR 14
-
-#define GLK_FW_MAJOR 10
-#define GLK_FW_MINOR 56
+#define KBL_FW_MINOR 39
 
 #define GUC_FW_PATH(platform, major, minor) \
        "i915/" __stringify(platform) "_guc_ver" __stringify(major) "_" __stringify(minor) ".bin"
@@ -54,66 +51,96 @@ MODULE_FIRMWARE(I915_BXT_GUC_UCODE);
 #define I915_KBL_GUC_UCODE GUC_FW_PATH(kbl, KBL_FW_MAJOR, KBL_FW_MINOR)
 MODULE_FIRMWARE(I915_KBL_GUC_UCODE);
 
-#define I915_GLK_GUC_UCODE GUC_FW_PATH(glk, GLK_FW_MAJOR, GLK_FW_MINOR)
+static void guc_fw_select(struct intel_uc_fw *guc_fw)
+{
+	struct intel_guc *guc = container_of(guc_fw, struct intel_guc, fw);
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
+	GEM_BUG_ON(guc_fw->type != INTEL_UC_FW_TYPE_GUC);
+
+	if (!HAS_GUC(dev_priv))
+		return;
+
+	if (i915_modparams.guc_firmware_path) {
+		guc_fw->path = i915_modparams.guc_firmware_path;
+		guc_fw->major_ver_wanted = 0;
+		guc_fw->minor_ver_wanted = 0;
+	} else if (IS_SKYLAKE(dev_priv)) {
+		guc_fw->path = I915_SKL_GUC_UCODE;
+		guc_fw->major_ver_wanted = SKL_FW_MAJOR;
+		guc_fw->minor_ver_wanted = SKL_FW_MINOR;
+	} else if (IS_BROXTON(dev_priv)) {
+		guc_fw->path = I915_BXT_GUC_UCODE;
+		guc_fw->major_ver_wanted = BXT_FW_MAJOR;
+		guc_fw->minor_ver_wanted = BXT_FW_MINOR;
+	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
+		guc_fw->path = I915_KBL_GUC_UCODE;
+		guc_fw->major_ver_wanted = KBL_FW_MAJOR;
+		guc_fw->minor_ver_wanted = KBL_FW_MINOR;
+	} else {
+		DRM_WARN("%s: No firmware known for this platform!\n",
+			 intel_uc_fw_type_repr(guc_fw->type));
+	}
+}
 
 /**
- * intel_guc_fw_select() - selects GuC firmware for uploading
+ * intel_guc_fw_init_early() - initializes GuC firmware struct
+ * @guc: intel_guc struct
  *
- * @guc:	intel_guc struct
- *
- * Return: zero when we know firmware, non-zero in other case
+ * On platforms with GuC selects firmware for uploading
  */
-int intel_guc_fw_select(struct intel_guc *guc)
+void intel_guc_fw_init_early(struct intel_guc *guc)
+{
+	struct intel_uc_fw *guc_fw = &guc->fw;
+
+	intel_uc_fw_init(guc_fw, INTEL_UC_FW_TYPE_GUC);
+	guc_fw_select(guc_fw);
+}
+
+static void guc_prepare_xfer(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
-	intel_uc_fw_init(&guc->fw, INTEL_UC_FW_TYPE_GUC);
+	/* Must program this register before loading the ucode with DMA */
+	I915_WRITE(GUC_SHIM_CONTROL, GUC_DISABLE_SRAM_INIT_TO_ZEROES |
+				     GUC_ENABLE_READ_CACHE_LOGIC |
+				     GUC_ENABLE_MIA_CACHING |
+				     GUC_ENABLE_READ_CACHE_FOR_SRAM_DATA |
+				     GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA |
+				     GUC_ENABLE_MIA_CLOCK_GATING);
 
-	if (i915_modparams.guc_firmware_path) {
-		guc->fw.path = i915_modparams.guc_firmware_path;
-		guc->fw.major_ver_wanted = 0;
-		guc->fw.minor_ver_wanted = 0;
-	} else if (IS_SKYLAKE(dev_priv)) {
-		guc->fw.path = I915_SKL_GUC_UCODE;
-		guc->fw.major_ver_wanted = SKL_FW_MAJOR;
-		guc->fw.minor_ver_wanted = SKL_FW_MINOR;
-	} else if (IS_BROXTON(dev_priv)) {
-		guc->fw.path = I915_BXT_GUC_UCODE;
-		guc->fw.major_ver_wanted = BXT_FW_MAJOR;
-		guc->fw.minor_ver_wanted = BXT_FW_MINOR;
-	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
-		guc->fw.path = I915_KBL_GUC_UCODE;
-		guc->fw.major_ver_wanted = KBL_FW_MAJOR;
-		guc->fw.minor_ver_wanted = KBL_FW_MINOR;
-	} else if (IS_GEMINILAKE(dev_priv)) {
-		guc->fw.path = I915_GLK_GUC_UCODE;
-		guc->fw.major_ver_wanted = GLK_FW_MAJOR;
-		guc->fw.minor_ver_wanted = GLK_FW_MINOR;
-	} else {
-		DRM_ERROR("No GuC firmware known for platform with GuC!\n");
-		return -ENOENT;
+	if (IS_GEN9_LP(dev_priv))
+		I915_WRITE(GEN9LP_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
+	else
+		I915_WRITE(GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
+
+	if (IS_GEN9(dev_priv)) {
+		/* DOP Clock Gating Enable for GuC clocks */
+		I915_WRITE(GEN7_MISCCPCTL, (GEN8_DOP_CLOCK_GATE_GUC_ENABLE |
+					    I915_READ(GEN7_MISCCPCTL)));
+
+		/* allows for 5us (in 10ns units) before GT can go to RC6 */
+		I915_WRITE(GUC_ARAT_C6DIS, 0x1FF);
 	}
-
-	return 0;
 }
 
-/*
- * Read the GuC status register (GUC_STATUS) and store it in the
- * specified location; then return a boolean indicating whether
- * the value matches either of two values representing completion
- * of the GuC boot process.
- *
- * This is used for polling the GuC status in a wait_for()
- * loop below.
- */
-static inline bool guc_ucode_response(struct drm_i915_private *dev_priv,
-				      u32 *status)
+/* Copy RSA signature from the fw image to HW for verification */
+static int guc_xfer_rsa(struct intel_guc *guc, struct i915_vma *vma)
 {
-	u32 val = I915_READ(GUC_STATUS);
-	u32 uk_val = val & GS_UKERNEL_MASK;
-	*status = val;
-	return (uk_val == GS_UKERNEL_READY ||
-		((val & GS_MIA_CORE_STATE) && uk_val == GS_UKERNEL_LAPIC_DONE));
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_uc_fw *guc_fw = &guc->fw;
+	struct sg_table *sg = vma->pages;
+	u32 rsa[UOS_RSA_SCRATCH_COUNT];
+	int i;
+
+	if (sg_pcopy_to_buffer(sg->sgl, sg->nents, rsa, sizeof(rsa),
+			       guc_fw->rsa_offset) != sizeof(rsa))
+		return -EINVAL;
+
+	for (i = 0; i < UOS_RSA_SCRATCH_COUNT; i++)
+		I915_WRITE(UOS_RSA_SCRATCH(i), rsa[i]);
+
+	return 0;
 }
 
 /*
@@ -122,29 +149,19 @@ static inline bool guc_ucode_response(struct drm_i915_private *dev_priv,
  * Architecturally, the DMA engine is bidirectional, and can potentially even
  * transfer between GTT locations. This functionality is left out of the API
  * for now as there is no need for it.
- *
- * Note that GuC needs the CSS header plus uKernel code to be copied by the
- * DMA engine in one operation, whereas the RSA signature is loaded via MMIO.
  */
-static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv,
-			      struct i915_vma *vma)
+static int guc_xfer_ucode(struct intel_guc *guc, struct i915_vma *vma)
 {
-	struct intel_uc_fw *guc_fw = &dev_priv->guc.fw;
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_uc_fw *guc_fw = &guc->fw;
 	unsigned long offset;
-	struct sg_table *sg = vma->pages;
-	u32 status, rsa[UOS_RSA_SCRATCH_MAX_COUNT];
-	int i, ret = 0;
+	u32 status;
+	int ret;
 
-	/* where RSA signature starts */
-	offset = guc_fw->rsa_offset;
-
-	/* Copy RSA signature from the fw image to HW for verification */
-	sg_pcopy_to_buffer(sg->sgl, sg->nents, rsa, sizeof(rsa), offset);
-	for (i = 0; i < UOS_RSA_SCRATCH_MAX_COUNT; i++)
-		I915_WRITE(UOS_RSA_SCRATCH(i), rsa[i]);
-
-	/* The header plus uCode will be copied to WOPCM via DMA, excluding any
-	 * other components */
+	/*
+	 * The header plus uCode will be copied to WOPCM via DMA, excluding any
+	 * other components
+	 */
 	I915_WRITE(DMA_COPY_SIZE, guc_fw->header_size + guc_fw->ucode_size);
 
 	/* Set the source address for the new blob */
@@ -162,25 +179,54 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv,
 	/* Finally start the DMA */
 	I915_WRITE(DMA_CTRL, _MASKED_BIT_ENABLE(UOS_MOVE | START_DMA));
 
+	/* Wait for DMA to finish */
+	ret = __intel_wait_for_register_fw(dev_priv, DMA_CTRL, START_DMA, 0,
+					   2, 100, &status);
+	DRM_DEBUG_DRIVER("GuC DMA status %#x\n", status);
+
+	return ret;
+}
+
+/*
+ * Read the GuC status register (GUC_STATUS) and store it in the
+ * specified location; then return a boolean indicating whether
+ * the value matches either of two values representing completion
+ * of the GuC boot process.
+ *
+ * This is used for polling the GuC status in a wait_for()
+ * loop below.
+ */
+static inline bool guc_ready(struct intel_guc *guc, u32 *status)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	u32 val = I915_READ(GUC_STATUS);
+	u32 uk_val = val & GS_UKERNEL_MASK;
+
+	*status = val;
+	return (uk_val == GS_UKERNEL_READY) ||
+		((val & GS_MIA_CORE_STATE) && (uk_val == GS_UKERNEL_LAPIC_DONE));
+}
+
+static int guc_wait_ucode(struct intel_guc *guc)
+{
+	u32 status;
+	int ret;
+
 	/*
-	 * Wait for the DMA to complete & the GuC to start up.
+	 * Wait for the GuC to start up.
 	 * NB: Docs recommend not using the interrupt for completion.
 	 * Measurements indicate this should take no more than 20ms, so a
 	 * timeout here indicates that the GuC has failed and is unusable.
 	 * (Higher levels of the driver will attempt to fall back to
 	 * execlist mode if this happens.)
 	 */
-	ret = wait_for(guc_ucode_response(dev_priv, &status), 100);
-
-	DRM_DEBUG_DRIVER("DMA status 0x%x, GuC status 0x%x\n",
-			I915_READ(DMA_CTRL), status);
+	ret = wait_for(guc_ready(guc, &status), 100);
+	DRM_DEBUG_DRIVER("GuC status %#x\n", status);
 
 	if ((status & GS_BOOTROM_MASK) == GS_BOOTROM_RSA_FAILED) {
 		DRM_ERROR("GuC firmware signature verification failed\n");
 		ret = -ENOEXEC;
 	}
-
-	DRM_DEBUG_DRIVER("returning %d\n", ret);
 
 	return ret;
 }
@@ -188,7 +234,7 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv,
 /*
  * Load the GuC firmware blob into the MinuteIA.
  */
-static int guc_ucode_xfer(struct intel_uc_fw *guc_fw, struct i915_vma *vma)
+static int guc_fw_xfer(struct intel_uc_fw *guc_fw, struct i915_vma *vma)
 {
 	struct intel_guc *guc = container_of(guc_fw, struct intel_guc, fw);
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
@@ -198,34 +244,24 @@ static int guc_ucode_xfer(struct intel_uc_fw *guc_fw, struct i915_vma *vma)
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
-	/* Enable MIA caching. GuC clock gating is disabled. */
-	I915_WRITE(GUC_SHIM_CONTROL, GUC_SHIM_CONTROL_VALUE);
+	guc_prepare_xfer(guc);
 
-	/* WaDisableMinuteIaClockGating:bxt */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1)) {
-		I915_WRITE(GUC_SHIM_CONTROL, (I915_READ(GUC_SHIM_CONTROL) &
-					      ~GUC_ENABLE_MIA_CLOCK_GATING));
-	}
+	/*
+	 * Note that GuC needs the CSS header plus uKernel code to be copied
+	 * by the DMA engine in one operation, whereas the RSA signature is
+	 * loaded via MMIO.
+	 */
+	ret = guc_xfer_rsa(guc, vma);
+	if (ret)
+		DRM_WARN("GuC firmware signature xfer error %d\n", ret);
 
-	/* WaC6DisallowByGfxPause:bxt */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_B0))
-		I915_WRITE(GEN6_GFXPAUSE, 0x30FFF);
+	ret = guc_xfer_ucode(guc, vma);
+	if (ret)
+		DRM_WARN("GuC firmware code xfer error %d\n", ret);
 
-	if (IS_GEN9_LP(dev_priv))
-		I915_WRITE(GEN9LP_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
-	else
-		I915_WRITE(GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
-
-	if (IS_GEN9(dev_priv)) {
-		/* DOP Clock Gating Enable for GuC clocks */
-		I915_WRITE(GEN7_MISCCPCTL, (GEN8_DOP_CLOCK_GATE_GUC_ENABLE |
-					    I915_READ(GEN7_MISCCPCTL)));
-
-		/* allows for 5us (in 10ns units) before GT can go to RC6 */
-		I915_WRITE(GUC_ARAT_C6DIS, 0x1FF);
-	}
-
-	ret = guc_ucode_xfer_dma(dev_priv, vma);
+	ret = guc_wait_ucode(guc);
+	if (ret)
+		DRM_ERROR("GuC firmware xfer error %d\n", ret);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
@@ -247,5 +283,5 @@ static int guc_ucode_xfer(struct intel_uc_fw *guc_fw, struct i915_vma *vma)
  */
 int intel_guc_fw_upload(struct intel_guc *guc)
 {
-	return intel_uc_fw_upload(&guc->fw, guc_ucode_xfer);
+	return intel_uc_fw_upload(&guc->fw, guc_fw_xfer);
 }

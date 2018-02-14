@@ -39,6 +39,7 @@ struct drm_minor;
 struct dma_buf_attachment;
 struct drm_display_mode;
 struct drm_mode_create_dumb;
+struct drm_printer;
 
 /* driver capabilities and requirements mask */
 #define DRIVER_USE_AGP			0x1
@@ -429,6 +430,20 @@ struct drm_driver {
 	void (*gem_close_object) (struct drm_gem_object *, struct drm_file *);
 
 	/**
+	 * @gem_print_info:
+	 *
+	 * If driver subclasses struct &drm_gem_object, it can implement this
+	 * optional hook for printing additional driver specific info.
+	 *
+	 * drm_printf_indent() should be used in the callback passing it the
+	 * indent argument.
+	 *
+	 * This callback is called from drm_gem_print_info().
+	 */
+	void (*gem_print_info)(struct drm_printer *p, unsigned int indent,
+			       const struct drm_gem_object *obj);
+
+	/**
 	 * @gem_create_object: constructor for gem objects
 	 *
 	 * Hook for allocating the GEM object struct, for use by core
@@ -592,13 +607,6 @@ struct drm_driver {
 	int dev_priv_size;
 };
 
-__printf(6, 7)
-void drm_dev_printk(const struct device *dev, const char *level,
-		    unsigned int category, const char *function_name,
-		    const char *prefix, const char *format, ...);
-__printf(3, 4)
-void drm_printk(const char *level, unsigned int category,
-		const char *format, ...);
 extern unsigned int drm_debug;
 
 int drm_dev_init(struct drm_device *dev,

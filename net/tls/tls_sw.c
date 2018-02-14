@@ -214,7 +214,11 @@ static int tls_do_encryption(struct tls_context *tls_ctx,
 	aead_request_set_ad(aead_req, TLS_AAD_SPACE_SIZE);
 	aead_request_set_crypt(aead_req, ctx->sg_aead_in, ctx->sg_aead_out,
 			       data_len, tls_ctx->iv);
-	rc = crypto_aead_encrypt(aead_req);
+
+	aead_request_set_callback(aead_req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				  crypto_req_done, &ctx->async_wait);
+
+	rc = crypto_wait_req(crypto_aead_encrypt(aead_req), &ctx->async_wait);
 
 	ctx->sg_encrypted_data[0].offset -= tls_ctx->prepend_size;
 	ctx->sg_encrypted_data[0].length += tls_ctx->prepend_size;
@@ -577,6 +581,8 @@ alloc_payload:
 		get_page(page);
 		sg = ctx->sg_plaintext_data + ctx->sg_plaintext_num_elem;
 		sg_set_page(sg, page, copy, offset);
+		sg_unmark_end(sg);
+
 		ctx->sg_plaintext_num_elem++;
 
 		sk_mem_charge(sk, copy);
@@ -662,6 +668,8 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx)
 		rc = -ENOMEM;
 		goto out;
 	}
+
+	crypto_init_wait(&sw_ctx->async_wait);
 
 	ctx->priv_ctx = (struct tls_offload_context *)sw_ctx;
 
