@@ -558,11 +558,11 @@ int chv_calc_dpll_params(int refclk, struct dpll *clock)
 }
 
 #define INTELPllInvalid(s)   do { /* DRM_DEBUG(s); */ return false; } while (0)
-/**
+
+/*
  * Returns whether the given set of divisors are valid for a given refclk with
  * the given connectors.
  */
-
 static bool intel_PLL_is_valid(struct drm_i915_private *dev_priv,
 			       const struct intel_limit *limit,
 			       const struct dpll *clock)
@@ -4756,8 +4756,7 @@ int skl_update_scaler_crtc(struct intel_crtc_state *state)
 
 /**
  * skl_update_scaler_plane - Stages update to scaler state for a given plane.
- *
- * @state: crtc's scaler state
+ * @crtc_state: crtc's scaler state
  * @plane_state: atomic plane state to update
  *
  * Return
@@ -4954,6 +4953,7 @@ static void intel_crtc_dpms_overlay_disable(struct intel_crtc *intel_crtc)
 /**
  * intel_post_enable_primary - Perform operations after enabling primary plane
  * @crtc: the CRTC whose primary plane was just enabled
+ * @new_crtc_state: the enabling state
  *
  * Performs potentially sleeping operations that must be done after the primary
  * plane is enabled, such as updating FBC and IPS.  Note that this may be
@@ -12619,7 +12619,7 @@ static void add_rps_boost_after_vblank(struct drm_crtc *crtc,
 /**
  * intel_prepare_plane_fb - Prepare fb for usage on plane
  * @plane: drm plane to prepare for
- * @fb: framebuffer to prepare for presentation
+ * @new_state: the plane state being prepared
  *
  * Prepares a framebuffer for usage on a display plane.  Generally this
  * involves pinning the underlying object and updating the frontbuffer tracking
@@ -12737,7 +12737,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 /**
  * intel_cleanup_plane_fb - Cleans up an fb after plane use
  * @plane: drm plane to clean up for
- * @fb: old framebuffer that was on plane
+ * @old_state: the state from the previous modeset
  *
  * Cleans up a framebuffer that has just been removed from a plane.
  *
