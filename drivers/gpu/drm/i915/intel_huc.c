@@ -118,7 +118,8 @@ void intel_huc_init_early(struct intel_huc *huc)
 
 /**
  * huc_ucode_xfer() - DMA's the firmware
- * @dev_priv: the drm_i915_private device
+ * @huc_fw: the firmware descriptor
+ * @vma: the firmware image (bound into the GGTT)
  *
  * Transfer the firmware image to RAM for execution by the microcontroller.
  *
