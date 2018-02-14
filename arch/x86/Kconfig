@@ -1431,6 +1431,7 @@ config X86_PAE
 config X86_5LEVEL
 	bool "Enable 5-level page tables support"
 	select DYNAMIC_MEMORY_LAYOUT
+	select SPARSEMEM_VMEMMAP
 	depends on X86_64
 	---help---
 	  5-level paging enables access to larger address space:

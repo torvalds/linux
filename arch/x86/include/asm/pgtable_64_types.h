@@ -95,7 +95,7 @@ extern unsigned int ptrs_per_p4d;
  * range must not overlap with anything except the KASAN shadow area, which
  * is correct as KASAN disables KASLR.
  */
-#define MAXMEM			_AC(__AC(1, UL) << MAX_PHYSMEM_BITS, UL)
+#define MAXMEM			(1UL << MAX_PHYSMEM_BITS)
 
 #define LDT_PGD_ENTRY_L4	-3UL
 #define LDT_PGD_ENTRY_L5	-112UL
