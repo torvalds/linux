@@ -376,7 +376,7 @@ static int do_tls_setsockopt_tx(struct sock *sk, char __user *optval,
 	rc = copy_from_user(crypto_info, optval, sizeof(*crypto_info));
 	if (rc) {
 		rc = -EFAULT;
-		goto out;
+		goto err_crypto_info;
 	}
 
 	/* check version */
