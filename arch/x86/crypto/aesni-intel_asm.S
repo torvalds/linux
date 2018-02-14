@@ -112,6 +112,14 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 				// (for Karatsuba purposes)
 #define	VARIABLE_OFFSET	16*8
 
+#define AadHash 16*0
+#define AadLen 16*1
+#define InLen (16*1)+8
+#define PBlockEncKey 16*2
+#define OrigIV 16*3
+#define CurCount 16*4
+#define PBlockLen 16*5
+
 #define arg1 rdi
 #define arg2 rsi
 #define arg3 rdx
@@ -122,6 +130,7 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 #define arg8 STACK_OFFSET+16(%r14)
 #define arg9 STACK_OFFSET+24(%r14)
 #define arg10 STACK_OFFSET+32(%r14)
+#define arg11 STACK_OFFSET+40(%r14)
 #define keysize 2*15*16(%arg1)
 #endif
 
@@ -196,9 +205,9 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 # GCM_INIT initializes a gcm_context struct to prepare for encoding/decoding.
 # Clobbers rax, r10-r13 and xmm0-xmm6, %xmm13
 .macro GCM_INIT
-	mov	%arg6, %r12
+	mov	arg7, %r12
 	movdqu	(%r12), %xmm13
-	movdqa  SHUF_MASK(%rip), %xmm2
+	movdqa	SHUF_MASK(%rip), %xmm2
 	PSHUFB_XMM %xmm2, %xmm13
 
 	# precompute HashKey<<1 mod poly from the HashKey (required for GHASH)
@@ -218,7 +227,7 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 	pand	POLY(%rip), %xmm2
 	pxor	%xmm2, %xmm13
 	movdqa	%xmm13, HashKey(%rsp)
-	mov	%arg4, %r13			# %xmm13 holds HashKey<<1 (mod poly)
+	mov	%arg5, %r13		# %xmm13 holds HashKey<<1 (mod poly)
 	and	$-16, %r13
 	mov	%r13, %r12
 .endm
@@ -272,18 +281,18 @@ _four_cipher_left_\@:
 	GHASH_LAST_4	%xmm9, %xmm10, %xmm11, %xmm12, %xmm13, %xmm14, \
 %xmm15, %xmm1, %xmm2, %xmm3, %xmm4, %xmm8
 _zero_cipher_left_\@:
-	mov	%arg4, %r13
-	and	$15, %r13			# %r13 = arg4 (mod 16)
+	mov	%arg5, %r13
+	and	$15, %r13			# %r13 = arg5 (mod 16)
 	je	_multiple_of_16_bytes_\@
 
 	# Handle the last <16 Byte block separately
 	paddd ONE(%rip), %xmm0                # INCR CNT to get Yn
-        movdqa SHUF_MASK(%rip), %xmm10
+	movdqa SHUF_MASK(%rip), %xmm10
 	PSHUFB_XMM %xmm10, %xmm0
 
 	ENCRYPT_SINGLE_BLOCK	%xmm0, %xmm1        # Encrypt(K, Yn)
 
-	lea (%arg3,%r11,1), %r10
+	lea (%arg4,%r11,1), %r10
 	mov %r13, %r12
 	READ_PARTIAL_BLOCK %r10 %r12 %xmm2 %xmm1
 
@@ -321,13 +330,13 @@ _zero_cipher_left_\@:
 	MOVQ_R64_XMM %xmm0, %rax
 	cmp $8, %r13
 	jle _less_than_8_bytes_left_\@
-	mov %rax, (%arg2 , %r11, 1)
+	mov %rax, (%arg3 , %r11, 1)
 	add $8, %r11
 	psrldq $8, %xmm0
 	MOVQ_R64_XMM %xmm0, %rax
 	sub $8, %r13
 _less_than_8_bytes_left_\@:
-	mov %al,  (%arg2, %r11, 1)
+	mov %al,  (%arg3, %r11, 1)
 	add $1, %r11
 	shr $8, %rax
 	sub $1, %r13
@@ -339,11 +348,11 @@ _multiple_of_16_bytes_\@:
 # Output: Authorization Tag (AUTH_TAG)
 # Clobbers rax, r10-r12, and xmm0, xmm1, xmm5-xmm15
 .macro GCM_COMPLETE
-	mov	arg8, %r12		  # %r13 = aadLen (number of bytes)
+	mov	arg9, %r12		  # %r13 = aadLen (number of bytes)
 	shl	$3, %r12		  # convert into number of bits
 	movd	%r12d, %xmm15		  # len(A) in %xmm15
-	shl	$3, %arg4		  # len(C) in bits (*128)
-	MOVQ_R64_XMM	%arg4, %xmm1
+	shl	$3, %arg5		  # len(C) in bits (*128)
+	MOVQ_R64_XMM	%arg5, %xmm1
 	pslldq	$8, %xmm15		  # %xmm15 = len(A)||0x0000000000000000
 	pxor	%xmm1, %xmm15		  # %xmm15 = len(A)||len(C)
 	pxor	%xmm15, %xmm8
@@ -352,13 +361,13 @@ _multiple_of_16_bytes_\@:
 	movdqa SHUF_MASK(%rip), %xmm10
 	PSHUFB_XMM %xmm10, %xmm8
 
-	mov	%arg5, %rax		  # %rax = *Y0
+	mov	%arg6, %rax		  # %rax = *Y0
 	movdqu	(%rax), %xmm0		  # %xmm0 = Y0
 	ENCRYPT_SINGLE_BLOCK	%xmm0,  %xmm1	  # E(K, Y0)
 	pxor	%xmm8, %xmm0
 _return_T_\@:
-	mov	arg9, %r10                     # %r10 = authTag
-	mov	arg10, %r11                    # %r11 = auth_tag_len
+	mov	arg10, %r10                     # %r10 = authTag
+	mov	arg11, %r11                    # %r11 = auth_tag_len
 	cmp	$16, %r11
 	je	_T_16_\@
 	cmp	$8, %r11
@@ -496,15 +505,15 @@ _done_read_partial_block_\@:
 * the ciphertext
 * %r10, %r11, %r12, %rax, %xmm5, %xmm6, %xmm7, %xmm8, %xmm9 registers
 * are clobbered
-* arg1, %arg2, %arg3, %r14 are used as a pointer only, not modified
+* arg1, %arg3, %arg4, %r14 are used as a pointer only, not modified
 */
 
 
 .macro INITIAL_BLOCKS_ENC_DEC TMP1 TMP2 TMP3 TMP4 TMP5 XMM0 XMM1 \
 XMM2 XMM3 XMM4 XMMDst TMP6 TMP7 i i_seq operation
         MOVADQ     SHUF_MASK(%rip), %xmm14
-	mov	   arg7, %r10           # %r10 = AAD
-	mov	   arg8, %r11           # %r11 = aadLen
+	mov	   arg8, %r10           # %r10 = AAD
+	mov	   arg9, %r11           # %r11 = aadLen
 	pxor	   %xmm\i, %xmm\i
 	pxor	   \XMM2, \XMM2
 
@@ -536,7 +545,7 @@ _get_AAD_done\@:
 	xor	   %r11, %r11 # initialise the data pointer offset as zero
 	# start AES for num_initial_blocks blocks
 
-	mov	   %arg5, %rax                      # %rax = *Y0
+	mov	   %arg6, %rax                      # %rax = *Y0
 	movdqu	   (%rax), \XMM0                    # XMM0 = Y0
 	PSHUFB_XMM   %xmm14, \XMM0
 
@@ -573,9 +582,9 @@ aes_loop_initial_\@:
 	AESENCLAST \TMP1, %xmm\index         # Last Round
 .endr
 .irpc index, \i_seq
-	movdqu	   (%arg3 , %r11, 1), \TMP1
+	movdqu	   (%arg4 , %r11, 1), \TMP1
 	pxor	   \TMP1, %xmm\index
-	movdqu	   %xmm\index, (%arg2 , %r11, 1)
+	movdqu	   %xmm\index, (%arg3 , %r11, 1)
 	# write back plaintext/ciphertext for num_initial_blocks
 	add	   $16, %r11
 
@@ -694,34 +703,34 @@ aes_loop_pre_done\@:
 	AESENCLAST \TMP2, \XMM2
 	AESENCLAST \TMP2, \XMM3
 	AESENCLAST \TMP2, \XMM4
-	movdqu	   16*0(%arg3 , %r11 , 1), \TMP1
+	movdqu	   16*0(%arg4 , %r11 , 1), \TMP1
 	pxor	   \TMP1, \XMM1
 .ifc \operation, dec
-	movdqu     \XMM1, 16*0(%arg2 , %r11 , 1)
+	movdqu     \XMM1, 16*0(%arg3 , %r11 , 1)
 	movdqa     \TMP1, \XMM1
 .endif
-	movdqu	   16*1(%arg3 , %r11 , 1), \TMP1
+	movdqu	   16*1(%arg4 , %r11 , 1), \TMP1
 	pxor	   \TMP1, \XMM2
 .ifc \operation, dec
-	movdqu     \XMM2, 16*1(%arg2 , %r11 , 1)
+	movdqu     \XMM2, 16*1(%arg3 , %r11 , 1)
 	movdqa     \TMP1, \XMM2
 .endif
-	movdqu	   16*2(%arg3 , %r11 , 1), \TMP1
+	movdqu	   16*2(%arg4 , %r11 , 1), \TMP1
 	pxor	   \TMP1, \XMM3
 .ifc \operation, dec
-	movdqu     \XMM3, 16*2(%arg2 , %r11 , 1)
+	movdqu     \XMM3, 16*2(%arg3 , %r11 , 1)
 	movdqa     \TMP1, \XMM3
 .endif
-	movdqu	   16*3(%arg3 , %r11 , 1), \TMP1
+	movdqu	   16*3(%arg4 , %r11 , 1), \TMP1
 	pxor	   \TMP1, \XMM4
 .ifc \operation, dec
-	movdqu     \XMM4, 16*3(%arg2 , %r11 , 1)
+	movdqu     \XMM4, 16*3(%arg3 , %r11 , 1)
 	movdqa     \TMP1, \XMM4
 .else
-	movdqu     \XMM1, 16*0(%arg2 , %r11 , 1)
-	movdqu     \XMM2, 16*1(%arg2 , %r11 , 1)
-	movdqu     \XMM3, 16*2(%arg2 , %r11 , 1)
-	movdqu     \XMM4, 16*3(%arg2 , %r11 , 1)
+	movdqu     \XMM1, 16*0(%arg3 , %r11 , 1)
+	movdqu     \XMM2, 16*1(%arg3 , %r11 , 1)
+	movdqu     \XMM3, 16*2(%arg3 , %r11 , 1)
+	movdqu     \XMM4, 16*3(%arg3 , %r11 , 1)
 .endif
 
 	add	   $64, %r11
@@ -739,7 +748,7 @@ _initial_blocks_done\@:
 /*
 * encrypt 4 blocks at a time
 * ghash the 4 previously encrypted ciphertext blocks
-* arg1, %arg2, %arg3 are used as pointers only, not modified
+* arg1, %arg3, %arg4 are used as pointers only, not modified
 * %r11 is the data offset value
 */
 .macro GHASH_4_ENCRYPT_4_PARALLEL_ENC TMP1 TMP2 TMP3 TMP4 TMP5 \
@@ -883,18 +892,18 @@ aes_loop_par_enc_done:
 	AESENCLAST \TMP3, \XMM4
 	movdqa    HashKey_k(%rsp), \TMP5
 	PCLMULQDQ 0x00, \TMP5, \TMP2          # TMP2 = (a1+a0)*(b1+b0)
-	movdqu	  (%arg3,%r11,1), \TMP3
+	movdqu	  (%arg4,%r11,1), \TMP3
 	pxor	  \TMP3, \XMM1                 # Ciphertext/Plaintext XOR EK
-	movdqu	  16(%arg3,%r11,1), \TMP3
+	movdqu	  16(%arg4,%r11,1), \TMP3
 	pxor	  \TMP3, \XMM2                 # Ciphertext/Plaintext XOR EK
-	movdqu	  32(%arg3,%r11,1), \TMP3
+	movdqu	  32(%arg4,%r11,1), \TMP3
 	pxor	  \TMP3, \XMM3                 # Ciphertext/Plaintext XOR EK
-	movdqu	  48(%arg3,%r11,1), \TMP3
+	movdqu	  48(%arg4,%r11,1), \TMP3
 	pxor	  \TMP3, \XMM4                 # Ciphertext/Plaintext XOR EK
-        movdqu    \XMM1, (%arg2,%r11,1)        # Write to the ciphertext buffer
-        movdqu    \XMM2, 16(%arg2,%r11,1)      # Write to the ciphertext buffer
-        movdqu    \XMM3, 32(%arg2,%r11,1)      # Write to the ciphertext buffer
-        movdqu    \XMM4, 48(%arg2,%r11,1)      # Write to the ciphertext buffer
+        movdqu    \XMM1, (%arg3,%r11,1)        # Write to the ciphertext buffer
+        movdqu    \XMM2, 16(%arg3,%r11,1)      # Write to the ciphertext buffer
+        movdqu    \XMM3, 32(%arg3,%r11,1)      # Write to the ciphertext buffer
+        movdqu    \XMM4, 48(%arg3,%r11,1)      # Write to the ciphertext buffer
 	PSHUFB_XMM %xmm15, \XMM1        # perform a 16 byte swap
 	PSHUFB_XMM %xmm15, \XMM2	# perform a 16 byte swap
 	PSHUFB_XMM %xmm15, \XMM3	# perform a 16 byte swap
@@ -947,7 +956,7 @@ aes_loop_par_enc_done:
 /*
 * decrypt 4 blocks at a time
 * ghash the 4 previously decrypted ciphertext blocks
-* arg1, %arg2, %arg3 are used as pointers only, not modified
+* arg1, %arg3, %arg4 are used as pointers only, not modified
 * %r11 is the data offset value
 */
 .macro GHASH_4_ENCRYPT_4_PARALLEL_DEC TMP1 TMP2 TMP3 TMP4 TMP5 \
@@ -1091,21 +1100,21 @@ aes_loop_par_dec_done:
 	AESENCLAST \TMP3, \XMM4
 	movdqa    HashKey_k(%rsp), \TMP5
 	PCLMULQDQ 0x00, \TMP5, \TMP2          # TMP2 = (a1+a0)*(b1+b0)
-	movdqu	  (%arg3,%r11,1), \TMP3
+	movdqu	  (%arg4,%r11,1), \TMP3
 	pxor	  \TMP3, \XMM1                 # Ciphertext/Plaintext XOR EK
-	movdqu	  \XMM1, (%arg2,%r11,1)        # Write to plaintext buffer
+	movdqu	  \XMM1, (%arg3,%r11,1)        # Write to plaintext buffer
 	movdqa    \TMP3, \XMM1
-	movdqu	  16(%arg3,%r11,1), \TMP3
+	movdqu	  16(%arg4,%r11,1), \TMP3
 	pxor	  \TMP3, \XMM2                 # Ciphertext/Plaintext XOR EK
-	movdqu	  \XMM2, 16(%arg2,%r11,1)      # Write to plaintext buffer
+	movdqu	  \XMM2, 16(%arg3,%r11,1)      # Write to plaintext buffer
 	movdqa    \TMP3, \XMM2
-	movdqu	  32(%arg3,%r11,1), \TMP3
+	movdqu	  32(%arg4,%r11,1), \TMP3
 	pxor	  \TMP3, \XMM3                 # Ciphertext/Plaintext XOR EK
-	movdqu	  \XMM3, 32(%arg2,%r11,1)      # Write to plaintext buffer
+	movdqu	  \XMM3, 32(%arg3,%r11,1)      # Write to plaintext buffer
 	movdqa    \TMP3, \XMM3
-	movdqu	  48(%arg3,%r11,1), \TMP3
+	movdqu	  48(%arg4,%r11,1), \TMP3
 	pxor	  \TMP3, \XMM4                 # Ciphertext/Plaintext XOR EK
-	movdqu	  \XMM4, 48(%arg2,%r11,1)      # Write to plaintext buffer
+	movdqu	  \XMM4, 48(%arg3,%r11,1)      # Write to plaintext buffer
 	movdqa    \TMP3, \XMM4
 	PSHUFB_XMM %xmm15, \XMM1        # perform a 16 byte swap
 	PSHUFB_XMM %xmm15, \XMM2	# perform a 16 byte swap
@@ -1278,6 +1287,8 @@ _esb_loop_\@:
 .endm
 /*****************************************************************************
 * void aesni_gcm_dec(void *aes_ctx,    // AES Key schedule. Starts on a 16 byte boundary.
+*                   struct gcm_context_data *data
+*                                      // Context data
 *                   u8 *out,           // Plaintext output. Encrypt in-place is allowed.
 *                   const u8 *in,      // Ciphertext input
 *                   u64 plaintext_len, // Length of data in bytes for decryption.
@@ -1367,6 +1378,8 @@ ENDPROC(aesni_gcm_dec)
 
 /*****************************************************************************
 * void aesni_gcm_enc(void *aes_ctx,      // AES Key schedule. Starts on a 16 byte boundary.
+*                    struct gcm_context_data *data
+*                                        // Context data
 *                    u8 *out,            // Ciphertext output. Encrypt in-place is allowed.
 *                    const u8 *in,       // Plaintext input
 *                    u64 plaintext_len,  // Length of data in bytes for encryption.
