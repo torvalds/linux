@@ -69,12 +69,6 @@ static int i40e_reset(struct i40e_pf *pf);
 static void i40e_rebuild(struct i40e_pf *pf, bool reinit, bool lock_acquired);
 static void i40e_fdir_sb_setup(struct i40e_pf *pf);
 static int i40e_veb_get_bw_info(struct i40e_veb *veb);
-static int i40e_add_del_cloud_filter(struct i40e_vsi *vsi,
-				     struct i40e_cloud_filter *filter,
-				     bool add);
-static int i40e_add_del_cloud_filter_big_buf(struct i40e_vsi *vsi,
-					     struct i40e_cloud_filter *filter,
-					     bool add);
 static int i40e_get_capabilities(struct i40e_pf *pf,
 				 enum i40e_admin_queue_opc list_type);
 
@@ -6841,8 +6835,8 @@ i40e_set_cld_element(struct i40e_cloud_filter *filter,
  * Add or delete a cloud filter for a specific flow spec.
  * Returns 0 if the filter were successfully added.
  **/
-static int i40e_add_del_cloud_filter(struct i40e_vsi *vsi,
-				     struct i40e_cloud_filter *filter, bool add)
+int i40e_add_del_cloud_filter(struct i40e_vsi *vsi,
+			      struct i40e_cloud_filter *filter, bool add)
 {
 	struct i40e_aqc_cloud_filters_element_data cld_filter;
 	struct i40e_pf *pf = vsi->back;
@@ -6908,9 +6902,9 @@ static int i40e_add_del_cloud_filter(struct i40e_vsi *vsi,
  * Add or delete a cloud filter for a specific flow spec using big buffer.
  * Returns 0 if the filter were successfully added.
  **/
-static int i40e_add_del_cloud_filter_big_buf(struct i40e_vsi *vsi,
-					     struct i40e_cloud_filter *filter,
-					     bool add)
+int i40e_add_del_cloud_filter_big_buf(struct i40e_vsi *vsi,
+				      struct i40e_cloud_filter *filter,
+				      bool add)
 {
 	struct i40e_aqc_cloud_filters_element_bb cld_filter;
 	struct i40e_pf *pf = vsi->back;
