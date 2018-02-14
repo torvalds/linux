@@ -347,7 +347,7 @@ static int rxe_match_dgid(struct rxe_dev *rxe, struct sk_buff *skb)
 
 	return ib_find_cached_gid_by_port(&rxe->ib_dev, pdgid,
 					  IB_GID_TYPE_ROCE_UDP_ENCAP,
-					  1, rxe->ndev, NULL);
+					  1, skb->dev, NULL);
 }
 
 /* rxe_rcv is called from the interface driver */
