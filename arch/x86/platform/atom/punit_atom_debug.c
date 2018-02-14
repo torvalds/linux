@@ -109,18 +109,7 @@ static int punit_dev_state_show(struct seq_file *seq_file, void *unused)
 
 	return 0;
 }
-
-static int punit_dev_state_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, punit_dev_state_show, inode->i_private);
-}
-
-static const struct file_operations punit_dev_state_ops = {
-	.open		= punit_dev_state_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(punit_dev_state);
 
 static struct dentry *punit_dbg_file;
 
@@ -132,9 +121,9 @@ static int punit_dbgfs_register(struct punit_device *punit_device)
 	if (!punit_dbg_file)
 		return -ENXIO;
 
-	dev_state = debugfs_create_file("dev_power_state", S_IFREG | S_IRUGO,
+	dev_state = debugfs_create_file("dev_power_state", 0444,
 					punit_dbg_file, punit_device,
-					&punit_dev_state_ops);
+					&punit_dev_state_fops);
 	if (!dev_state) {
 		pr_err("punit_dev_state register failed\n");
 		debugfs_remove(punit_dbg_file);
