@@ -579,10 +579,6 @@ def set_operation_mode(pm, args):
             list_test_cases(alltests)
             exit(0)
 
-    if (os.geteuid() != 0):
-        print("This script must be run with root privileges.\n")
-        exit(1)
-
     ns_create(args, pm)
 
     if len(alltests):
