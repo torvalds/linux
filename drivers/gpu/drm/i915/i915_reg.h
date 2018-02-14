@@ -6105,6 +6105,7 @@ enum {
 #define _DVSACNTR		0x72180
 #define   DVS_ENABLE		(1<<31)
 #define   DVS_GAMMA_ENABLE	(1<<30)
+#define   DVS_YUV_RANGE_CORRECTION_DISABLE	(1<<27)
 #define   DVS_PIXFORMAT_MASK	(3<<25)
 #define   DVS_FORMAT_YUV422	(0<<25)
 #define   DVS_FORMAT_RGBX101010	(1<<25)
@@ -6173,6 +6174,7 @@ enum {
 #define _SPRA_CTL		0x70280
 #define   SPRITE_ENABLE			(1<<31)
 #define   SPRITE_GAMMA_ENABLE		(1<<30)
+#define   SPRITE_YUV_RANGE_CORRECTION_DISABLE	(1<<28)
 #define   SPRITE_PIXFORMAT_MASK		(7<<25)
 #define   SPRITE_FORMAT_YUV422		(0<<25)
 #define   SPRITE_FORMAT_RGBX101010	(1<<25)
@@ -6364,6 +6366,7 @@ enum {
 #define _PLANE_CTL_3_A				0x70380
 #define   PLANE_CTL_ENABLE			(1 << 31)
 #define   PLANE_CTL_PIPE_GAMMA_ENABLE		(1 << 30)   /* Pre-GLK */
+#define   PLANE_CTL_YUV_RANGE_CORRECTION_DISABLE	(1 << 28)
 /*
  * ICL+ uses the same PLANE_CTL_FORMAT bits, but the field definition
  * expanded to include bit 23 as well. However, the shift-24 based values
@@ -6438,6 +6441,7 @@ enum {
 #define _PLANE_COLOR_CTL_2_A			0x702CC /* GLK+ */
 #define _PLANE_COLOR_CTL_3_A			0x703CC /* GLK+ */
 #define   PLANE_COLOR_PIPE_GAMMA_ENABLE		(1 << 30)
+#define   PLANE_COLOR_YUV_RANGE_CORRECTION_DISABLE	(1 << 28)
 #define   PLANE_COLOR_PIPE_CSC_ENABLE		(1 << 23)
 #define   PLANE_COLOR_CSC_MODE_BYPASS			(0 << 17)
 #define   PLANE_COLOR_CSC_MODE_YUV601_TO_RGB709		(1 << 17)
