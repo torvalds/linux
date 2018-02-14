@@ -3565,6 +3565,9 @@ u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 	plane_color_ctl |= PLANE_COLOR_PLANE_GAMMA_DISABLE;
 	plane_color_ctl |= glk_plane_color_ctl_alpha(fb->format->format);
 
+	if (intel_format_is_yuv(fb->format->format))
+		plane_color_ctl |= PLANE_COLOR_CSC_MODE_YUV601_TO_RGB709;
+
 	return plane_color_ctl;
 }
 

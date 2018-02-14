@@ -41,8 +41,7 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
-static bool
-format_is_yuv(uint32_t format)
+bool intel_format_is_yuv(u32 format)
 {
 	switch (format) {
 	case DRM_FORMAT_YUYV:
@@ -266,6 +265,7 @@ skl_update_plane(struct intel_plane *plane,
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		I915_WRITE_FW(PLANE_COLOR_CTL(pipe, plane_id),
 			      plane_state->color_ctl);
+
 	if (key->flags) {
 		I915_WRITE_FW(PLANE_KEYVAL(pipe, plane_id), key->min_value);
 		I915_WRITE_FW(PLANE_KEYMAX(pipe, plane_id), key->max_value);
@@ -354,7 +354,7 @@ chv_update_csc(const struct intel_plane_state *plane_state)
 	enum plane_id plane_id = plane->id;
 
 	/* Seems RGB data bypasses the CSC always */
-	if (!format_is_yuv(fb->format->format))
+	if (!intel_format_is_yuv(fb->format->format))
 		return;
 
 	/*
@@ -399,7 +399,7 @@ vlv_update_clrc(const struct intel_plane_state *plane_state)
 	enum plane_id plane_id = plane->id;
 	int contrast, brightness, sh_scale, sh_sin, sh_cos;
 
-	if (format_is_yuv(fb->format->format)) {
+	if (intel_format_is_yuv(fb->format->format)) {
 		/*
 		 * Expand limited range to full range:
 		 * Contrast is applied first and is used to expand Y range.
@@ -1024,7 +1024,7 @@ intel_check_sprite_plane(struct intel_plane *plane,
 		src_y = src->y1 >> 16;
 		src_h = drm_rect_height(src) >> 16;
 
-		if (format_is_yuv(fb->format->format)) {
+		if (intel_format_is_yuv(fb->format->format)) {
 			src_x &= ~1;
 			src_w &= ~1;
 
