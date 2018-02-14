@@ -346,7 +346,6 @@ _zero_cipher_left_\@:
 	pxor	%xmm0, %xmm8
 .endif
 
-	GHASH_MUL %xmm8, %xmm13, %xmm9, %xmm10, %xmm11, %xmm5, %xmm6
 	movdqu %xmm8, AadHash(%arg2)
 .ifc \operation, enc
 	# GHASH computation for the last <16 byte block
@@ -379,6 +378,15 @@ _multiple_of_16_bytes_\@:
 .macro GCM_COMPLETE
 	movdqu AadHash(%arg2), %xmm8
 	movdqu HashKey(%rsp), %xmm13
+
+	mov PBlockLen(%arg2), %r12
+
+	cmp $0, %r12
+	je _partial_done\@
+
+	GHASH_MUL %xmm8, %xmm13, %xmm9, %xmm10, %xmm11, %xmm5, %xmm6
+
+_partial_done\@:
 	mov AadLen(%arg2), %r12  # %r13 = aadLen (number of bytes)
 	shl	$3, %r12		  # convert into number of bits
 	movd	%r12d, %xmm15		  # len(A) in %xmm15
