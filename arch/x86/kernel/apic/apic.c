@@ -1414,7 +1414,7 @@ static void lapic_setup_esr(void)
  * Used to setup local APIC while initializing BSP or bringing up APs.
  * Always called with preemption disabled.
  */
-void setup_local_APIC(void)
+static void setup_local_APIC(void)
 {
 	int cpu = smp_processor_id();
 	unsigned int value, queued;
