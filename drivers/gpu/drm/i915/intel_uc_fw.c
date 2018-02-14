@@ -197,11 +197,12 @@ fail:
 
 /**
  * intel_uc_fw_upload - load uC firmware using custom loader
- *
  * @uc_fw: uC firmware
- * @loader: custom uC firmware loader function
+ * @xfer: custom uC firmware loader function
  *
  * Loads uC firmware using custom loader and updates internal flags.
+ *
+ * Return: 0 on success, non-zero on failure.
  */
 int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 		       int (*xfer)(struct intel_uc_fw *uc_fw,
