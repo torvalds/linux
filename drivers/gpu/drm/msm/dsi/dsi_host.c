@@ -1063,10 +1063,8 @@ static void dsi_tx_buf_free(struct msm_dsi_host *msm_host)
 
 	if (msm_host->tx_gem_obj) {
 		msm_gem_put_iova(msm_host->tx_gem_obj, 0);
-		mutex_lock(&dev->struct_mutex);
-		msm_gem_free_object(msm_host->tx_gem_obj);
+		drm_gem_object_put_unlocked(msm_host->tx_gem_obj);
 		msm_host->tx_gem_obj = NULL;
-		mutex_unlock(&dev->struct_mutex);
 	}
 
 	if (msm_host->tx_buf)
