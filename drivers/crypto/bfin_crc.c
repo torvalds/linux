@@ -588,10 +588,8 @@ static int bfin_crypto_crc_probe(struct platform_device *pdev)
 	int ret;
 
 	crc = devm_kzalloc(dev, sizeof(*crc), GFP_KERNEL);
-	if (!crc) {
-		dev_err(&pdev->dev, "fail to malloc bfin_crypto_crc\n");
+	if (!crc)
 		return -ENOMEM;
-	}
 
 	crc->dev = dev;
 
