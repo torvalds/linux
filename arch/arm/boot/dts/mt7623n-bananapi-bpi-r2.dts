@@ -235,6 +235,28 @@
 	vqmmc-supply = <&reg_3p3v>;
 };
 
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_default>;
+	status = "okay";
+
+	pcie@0,0 {
+		status = "okay";
+	};
+
+	pcie@1,0 {
+		status = "okay";
+	};
+};
+
+&pcie0_phy {
+	status = "okay";
+};
+
+&pcie1_phy {
+	status = "okay";
+};
+
 &pio {
 	cir_pins_a:cir@0 {
 		pins-cir {
@@ -399,6 +421,14 @@
 			pinmux = <MT7623_PIN_106_MSDC1_CLK_FUNC_MSDC1_CLK>;
 			drive-strength = <MTK_DRIVE_4mA>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
+		};
+	};
+
+	pcie_default: pcie_pin_default {
+		pins_cmd_dat {
+			pinmux = <MT7623_PIN_208_AUD_EXT_CK1_FUNC_PCIE0_PERST_N>,
+				 <MT7623_PIN_209_AUD_EXT_CK2_FUNC_PCIE1_PERST_N>;
+			bias-disable;
 		};
 	};
 
