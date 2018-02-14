@@ -428,13 +428,14 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr, 
 #define p4d_none(a)  pud_none(__pud(p4d_val(a)))
 #endif
 
-#if PTRS_PER_P4D > 1
-
 static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr, unsigned long P)
 {
 	int i;
 	p4d_t *start, *p4d_start;
 	pgprotval_t prot;
+
+	if (PTRS_PER_P4D == 1)
+		return walk_pud_level(m, st, __p4d(pgd_val(addr)), P);
 
 	p4d_start = start = (p4d_t *)pgd_page_vaddr(addr);
 
@@ -455,11 +456,8 @@ static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr, 
 	}
 }
 
-#else
-#define walk_p4d_level(m,s,a,p) walk_pud_level(m,s,__p4d(pgd_val(a)),p)
-#define pgd_large(a) p4d_large(__p4d(pgd_val(a)))
-#define pgd_none(a)  p4d_none(__p4d(pgd_val(a)))
-#endif
+#define pgd_large(a) (pgtable_l5_enabled ? pgd_large(a) : p4d_large(__p4d(pgd_val(a))))
+#define pgd_none(a)  (pgtable_l5_enabled ? pgd_none(a) : p4d_none(__p4d(pgd_val(a))))
 
 static inline bool is_hypervisor_range(int idx)
 {

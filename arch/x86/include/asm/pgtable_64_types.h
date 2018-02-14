@@ -26,6 +26,9 @@ extern unsigned int pgtable_l5_enabled;
 #define pgtable_l5_enabled 0
 #endif
 
+extern unsigned int pgdir_shift;
+extern unsigned int ptrs_per_p4d;
+
 #endif	/* !__ASSEMBLY__ */
 
 #define SHARED_KERNEL_PMD	0
@@ -35,16 +38,17 @@ extern unsigned int pgtable_l5_enabled;
 /*
  * PGDIR_SHIFT determines what a top-level page table entry can map
  */
-#define PGDIR_SHIFT	48
+#define PGDIR_SHIFT	pgdir_shift
 #define PTRS_PER_PGD	512
 
 /*
  * 4th level page in 5-level paging case
  */
-#define P4D_SHIFT	39
-#define PTRS_PER_P4D	512
-#define P4D_SIZE	(_AC(1, UL) << P4D_SHIFT)
-#define P4D_MASK	(~(P4D_SIZE - 1))
+#define P4D_SHIFT		39
+#define MAX_PTRS_PER_P4D	512
+#define PTRS_PER_P4D		ptrs_per_p4d
+#define P4D_SIZE		(_AC(1, UL) << P4D_SHIFT)
+#define P4D_MASK		(~(P4D_SIZE - 1))
 
 #define MAX_POSSIBLE_PHYSMEM_BITS	52
 
@@ -53,8 +57,9 @@ extern unsigned int pgtable_l5_enabled;
 /*
  * PGDIR_SHIFT determines what a top-level page table entry can map
  */
-#define PGDIR_SHIFT	39
-#define PTRS_PER_PGD	512
+#define PGDIR_SHIFT		39
+#define PTRS_PER_PGD		512
+#define MAX_PTRS_PER_P4D	1
 
 #endif /* CONFIG_X86_5LEVEL */
 
