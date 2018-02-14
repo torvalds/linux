@@ -456,7 +456,7 @@ static int tpo_td043_check_timings(struct omap_dss_device *dssdev,
 	return in->ops.dpi->check_timings(in, vm);
 }
 
-static struct omap_dss_driver tpo_td043_ops = {
+static const struct omap_dss_driver tpo_td043_ops = {
 	.connect	= tpo_td043_connect,
 	.disconnect	= tpo_td043_disconnect,
 

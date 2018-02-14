@@ -362,7 +362,7 @@ static int td028ttec1_panel_check_timings(struct omap_dss_device *dssdev,
 	return in->ops.dpi->check_timings(in, vm);
 }
 
-static struct omap_dss_driver td028ttec1_ops = {
+static const struct omap_dss_driver td028ttec1_ops = {
 	.connect	= td028ttec1_panel_connect,
 	.disconnect	= td028ttec1_panel_disconnect,
 

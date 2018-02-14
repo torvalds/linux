@@ -693,7 +693,7 @@ static int acx565akm_check_timings(struct omap_dss_device *dssdev,
 	return in->ops.sdi->check_timings(in, vm);
 }
 
-static struct omap_dss_driver acx565akm_ops = {
+static const struct omap_dss_driver acx565akm_ops = {
 	.connect	= acx565akm_connect,
 	.disconnect	= acx565akm_disconnect,
 

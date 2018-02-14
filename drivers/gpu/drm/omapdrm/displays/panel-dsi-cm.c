@@ -1210,7 +1210,7 @@ static void dsicm_get_size(struct omap_dss_device *dssdev,
 	*height = ddata->height_mm;
 }
 
-static struct omap_dss_driver dsicm_ops = {
+static const struct omap_dss_driver dsicm_ops = {
 	.connect	= dsicm_connect,
 	.disconnect	= dsicm_disconnect,
 

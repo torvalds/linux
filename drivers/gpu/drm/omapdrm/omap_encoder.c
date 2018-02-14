@@ -94,7 +94,7 @@ static void omap_encoder_disable(struct drm_encoder *encoder)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
 	struct omap_dss_device *dssdev = omap_encoder->dssdev;
-	struct omap_dss_driver *dssdrv = dssdev->driver;
+	const struct omap_dss_driver *dssdrv = dssdev->driver;
 
 	dssdrv->disable(dssdev);
 }
@@ -106,7 +106,7 @@ static int omap_encoder_update(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
 	struct omap_dss_device *dssdev = omap_encoder->dssdev;
-	struct omap_dss_driver *dssdrv = dssdev->driver;
+	const struct omap_dss_driver *dssdrv = dssdev->driver;
 	int ret;
 
 	if (dssdrv->check_timings) {
@@ -137,7 +137,7 @@ static void omap_encoder_enable(struct drm_encoder *encoder)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
 	struct omap_dss_device *dssdev = omap_encoder->dssdev;
-	struct omap_dss_driver *dssdrv = dssdev->driver;
+	const struct omap_dss_driver *dssdrv = dssdev->driver;
 	int r;
 
 	omap_encoder_update(encoder, omap_crtc_channel(encoder->crtc),

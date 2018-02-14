@@ -297,7 +297,7 @@ static void dvic_disable_hpd(struct omap_dss_device *dssdev)
 	mutex_unlock(&ddata->hpd_lock);
 }
 
-static struct omap_dss_driver dvic_driver = {
+static const struct omap_dss_driver dvic_driver = {
 	.connect	= dvic_connect,
 	.disconnect	= dvic_disconnect,
 

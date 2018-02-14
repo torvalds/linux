@@ -466,7 +466,7 @@ struct omap_dss_device {
 
 	const char *name;
 
-	struct omap_dss_driver *driver;
+	const struct omap_dss_driver *driver;
 
 	union {
 		const struct omapdss_dpi_ops *dpi;

@@ -154,7 +154,7 @@ static int tvc_check_timings(struct omap_dss_device *dssdev,
 	return in->ops.atv->check_timings(in, vm);
 }
 
-static struct omap_dss_driver tvc_driver = {
+static const struct omap_dss_driver tvc_driver = {
 	.connect		= tvc_connect,
 	.disconnect		= tvc_disconnect,
 

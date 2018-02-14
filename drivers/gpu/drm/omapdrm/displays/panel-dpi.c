@@ -153,7 +153,7 @@ static int panel_dpi_check_timings(struct omap_dss_device *dssdev,
 	return in->ops.dpi->check_timings(in, vm);
 }
 
-static struct omap_dss_driver panel_dpi_ops = {
+static const struct omap_dss_driver panel_dpi_ops = {
 	.connect	= panel_dpi_connect,
 	.disconnect	= panel_dpi_disconnect,
 

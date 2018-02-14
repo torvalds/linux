@@ -228,7 +228,7 @@ static int lb035q02_check_timings(struct omap_dss_device *dssdev,
 	return in->ops.dpi->check_timings(in, vm);
 }
 
-static struct omap_dss_driver lb035q02_ops = {
+static const struct omap_dss_driver lb035q02_ops = {
 	.connect	= lb035q02_connect,
 	.disconnect	= lb035q02_disconnect,
 

@@ -269,7 +269,7 @@ static int hdmic_set_infoframe(struct omap_dss_device *dssdev,
 	return in->ops.hdmi->set_infoframe(in, avi);
 }
 
-static struct omap_dss_driver hdmic_driver = {
+static const struct omap_dss_driver hdmic_driver = {
 	.connect		= hdmic_connect,
 	.disconnect		= hdmic_disconnect,
 

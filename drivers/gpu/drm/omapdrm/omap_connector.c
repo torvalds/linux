@@ -62,7 +62,7 @@ static enum drm_connector_status omap_connector_detect(
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
 	struct omap_dss_device *dssdev = omap_connector->dssdev;
-	struct omap_dss_driver *dssdrv = dssdev->driver;
+	const struct omap_dss_driver *dssdrv = dssdev->driver;
 	enum drm_connector_status ret;
 
 	if (dssdrv->detect) {
@@ -107,7 +107,7 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
 	struct omap_dss_device *dssdev = omap_connector->dssdev;
-	struct omap_dss_driver *dssdrv = dssdev->driver;
+	const struct omap_dss_driver *dssdrv = dssdev->driver;
 	struct drm_device *dev = connector->dev;
 	int n = 0;
 
@@ -170,7 +170,7 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
 	struct omap_dss_device *dssdev = omap_connector->dssdev;
-	struct omap_dss_driver *dssdrv = dssdev->driver;
+	const struct omap_dss_driver *dssdrv = dssdev->driver;
 	struct videomode vm = {0};
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *new_mode;

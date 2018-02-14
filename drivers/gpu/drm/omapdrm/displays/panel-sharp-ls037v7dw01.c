@@ -192,7 +192,7 @@ static int sharp_ls_check_timings(struct omap_dss_device *dssdev,
 	return in->ops.dpi->check_timings(in, vm);
 }
 
-static struct omap_dss_driver sharp_ls_ops = {
+static const struct omap_dss_driver sharp_ls_ops = {
 	.connect	= sharp_ls_connect,
 	.disconnect	= sharp_ls_disconnect,
 
