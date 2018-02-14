@@ -85,9 +85,42 @@ def prepare_env(cmdlist):
             print("\nError message:")
             print(foutput)
             print("\nAborting test run.")
-            ns_destroy()
-            exit(1)
+            # ns_destroy()
+            raise Exception('prepare_env did not complete successfully')
 
+def run_one_test(index, tidx):
+    result = True
+    tresult = ""
+    tap = ""
+    print("Test " + tidx["id"] + ": " + tidx["name"])
+    prepare_env(tidx["setup"])
+    (p, procout) = exec_cmd(tidx["cmdUnderTest"])
+    exit_code = p.returncode
+
+    if (exit_code != int(tidx["expExitCode"])):
+        result = False
+        print("exit:", exit_code, int(tidx["expExitCode"]))
+        print(procout)
+    else:
+        match_pattern = re.compile(str(tidx["matchPattern"]),
+                                   re.DOTALL | re.MULTILINE)
+        (p, procout) = exec_cmd(tidx["verifyCmd"])
+        match_index = re.findall(match_pattern, procout)
+        if len(match_index) != int(tidx["matchCount"]):
+            result = False
+
+    if not result:
+        tresult += "not "
+    tresult += "ok {} - {} # {}\n".format(str(index), tidx['id'], tidx["name"])
+    tap += tresult
+
+    if result == False:
+        tap += procout
+
+    prepare_env(tidx["teardown"])
+    index += 1
+
+    return tap
 
 def test_runner(filtered_tests, args):
     """
@@ -104,37 +137,27 @@ def test_runner(filtered_tests, args):
     tap = str(index) + ".." + str(tcount) + "\n"
 
     for tidx in testlist:
-        result = True
-        tresult = ""
         if "flower" in tidx["category"] and args.device == None:
             continue
-        print("Test " + tidx["id"] + ": " + tidx["name"])
-        prepare_env(tidx["setup"])
-        (p, procout) = exec_cmd(tidx["cmdUnderTest"])
-        exit_code = p.returncode
-
-        if (exit_code != int(tidx["expExitCode"])):
-            result = False
-            print("exit:", exit_code, int(tidx["expExitCode"]))
-            print(procout)
-        else:
-            match_pattern = re.compile(str(tidx["matchPattern"]), re.DOTALL)
-            (p, procout) = exec_cmd(tidx["verifyCmd"])
-            match_index = re.findall(match_pattern, procout)
-            if len(match_index) != int(tidx["matchCount"]):
-                result = False
-
-        if result == True:
-            tresult += "ok "
-        else:
-            tresult += "not ok "
-        tap += tresult + str(index) + " " + tidx["id"] + " " + tidx["name"] + "\n"
-
-        if result == False:
-            tap += procout
-
-        prepare_env(tidx["teardown"])
+        try:
+            badtest = tidx  # in case it goes bad
+            tap += run_one_test(index, tidx)
+        except Exception as ee:
+            print('Exception {} (caught in test_runner, running test {} {} {})'.
+                  format(ee, index, tidx['id'], tidx['name']))
+            break
         index += 1
+
+    count = index
+    tap += 'about to flush the tap output if tests need to be skipped\n'
+    if tcount + 1 != index:
+        for tidx in testlist[index - 1:]:
+            msg = 'skipped - previous setup or teardown failed'
+            tap += 'ok {} - {} # {} {} {} \n'.format(
+                count, tidx['id'], msg, index, badtest.get('id', '--Unknown--'))
+            count += 1
+
+    tap += 'done flushing skipped test tap output\n'
 
     return tap
 
