@@ -1105,10 +1105,12 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 
 	bitmap_zero(s->shadow_ctx_desc_updated, I915_NUM_ENGINES);
 
-	s->workloads = kmem_cache_create("gvt-g_vgpu_workload",
-			sizeof(struct intel_vgpu_workload), 0,
-			SLAB_HWCACHE_ALIGN,
-			NULL);
+	s->workloads = kmem_cache_create_usercopy("gvt-g_vgpu_workload",
+						  sizeof(struct intel_vgpu_workload), 0,
+						  SLAB_HWCACHE_ALIGN,
+						  offsetof(struct intel_vgpu_workload, rb_tail),
+						  sizeof_field(struct intel_vgpu_workload, rb_tail),
+						  NULL);
 
 	if (!s->workloads) {
 		ret = -ENOMEM;
