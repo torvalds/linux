@@ -11291,7 +11291,8 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 			goto fail_log;
 		}
 		if (!strstr(bpf_vlog, expected_err) && !reject_from_alignment) {
-			printf("FAIL\nUnexpected error message!\n");
+			printf("FAIL\nUnexpected error message!\n\tEXP: %s\n\tRES: %s\n",
+			      expected_err, bpf_vlog);
 			goto fail_log;
 		}
 	}
