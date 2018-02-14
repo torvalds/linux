@@ -87,10 +87,10 @@ SKB_GSO_UDP_TUNNEL_CSUM.  These two additional tunnel types reflect the
 fact that the outer header also requests to have a non-zero checksum
 included in the outer header.
 
-Finally there is SKB_GSO_REMCSUM which indicates that a given tunnel header
-has requested a remote checksum offload.  In this case the inner headers
-will be left with a partial checksum and only the outer header checksum
-will be computed.
+Finally there is SKB_GSO_TUNNEL_REMCSUM which indicates that a given tunnel
+header has requested a remote checksum offload.  In this case the inner
+headers will be left with a partial checksum and only the outer header
+checksum will be computed.
 
 Generic Segmentation Offload
 ============================
