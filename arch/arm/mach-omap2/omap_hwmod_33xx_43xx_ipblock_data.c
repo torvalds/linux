@@ -14,6 +14,8 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/types.h>
+
 #include <linux/platform_data/gpio-omap.h>
 #include <linux/platform_data/hsmmc-omap.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>

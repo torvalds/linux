@@ -9,6 +9,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/types.h>
+
 #include <linux/platform_data/gpio-omap.h>
 #include <linux/omap-dma.h>
 #include <plat/dmtimer.h>
