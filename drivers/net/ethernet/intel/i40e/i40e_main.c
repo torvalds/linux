@@ -215,8 +215,8 @@ static int i40e_get_lump(struct i40e_pf *pf, struct i40e_lump_tracking *pile,
 
 	if (!pile || needed == 0 || id >= I40E_PILE_VALID_BIT) {
 		dev_info(&pf->pdev->dev,
-			 "param err: pile=%p needed=%d id=0x%04x\n",
-			 pile, needed, id);
+			 "param err: pile=%s needed=%d id=0x%04x\n",
+			 pile ? "<valid>" : "<null>", needed, id);
 		return -EINVAL;
 	}
 
@@ -1380,14 +1380,7 @@ struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
 
 		ether_addr_copy(f->macaddr, macaddr);
 		f->vlan = vlan;
-		/* If we're in overflow promisc mode, set the state directly
-		 * to failed, so we don't bother to try sending the filter
-		 * to the hardware.
-		 */
-		if (test_bit(__I40E_VSI_OVERFLOW_PROMISC, vsi->state))
-			f->state = I40E_FILTER_FAILED;
-		else
-			f->state = I40E_FILTER_NEW;
+		f->state = I40E_FILTER_NEW;
 		INIT_HLIST_NODE(&f->hlist);
 
 		key = i40e_addr_to_hkey(macaddr);
@@ -2116,17 +2109,16 @@ void i40e_aqc_del_filters(struct i40e_vsi *vsi, const char *vsi_name,
  * @list: the list of filters to send to firmware
  * @add_head: Position in the add hlist
  * @num_add: the number of filters to add
- * @promisc_change: set to true on exit if promiscuous mode was forced on
  *
  * Send a request to firmware via AdminQ to add a chunk of filters. Will set
- * promisc_changed to true if the firmware has run out of space for more
- * filters.
+ * __I40E_VSI_OVERFLOW_PROMISC bit in vsi->state if the firmware has run out of
+ * space for more filters.
  */
 static
 void i40e_aqc_add_filters(struct i40e_vsi *vsi, const char *vsi_name,
 			  struct i40e_aqc_add_macvlan_element_data *list,
 			  struct i40e_new_mac_filter *add_head,
-			  int num_add, bool *promisc_changed)
+			  int num_add)
 {
 	struct i40e_hw *hw = &vsi->back->hw;
 	int aq_err, fcnt;
@@ -2136,7 +2128,6 @@ void i40e_aqc_add_filters(struct i40e_vsi *vsi, const char *vsi_name,
 	fcnt = i40e_update_filter_state(num_add, list, add_head);
 
 	if (fcnt != num_add) {
-		*promisc_changed = true;
 		set_bit(__I40E_VSI_OVERFLOW_PROMISC, vsi->state);
 		dev_warn(&vsi->back->pdev->dev,
 			 "Error %s adding RX filters on %s, promiscuous mode forced on\n",
@@ -2177,11 +2168,13 @@ i40e_aqc_broadcast_filter(struct i40e_vsi *vsi, const char *vsi_name,
 							    NULL);
 	}
 
-	if (aq_ret)
+	if (aq_ret) {
+		set_bit(__I40E_VSI_OVERFLOW_PROMISC, vsi->state);
 		dev_warn(&vsi->back->pdev->dev,
-			 "Error %s setting broadcast promiscuous mode on %s\n",
+			 "Error %s, forcing overflow promiscuous on %s\n",
 			 i40e_aq_str(hw, hw->aq.asq_last_status),
 			 vsi_name);
+	}
 
 	return aq_ret;
 }
@@ -2267,9 +2260,9 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 	struct i40e_mac_filter *f;
 	struct i40e_new_mac_filter *new, *add_head = NULL;
 	struct i40e_hw *hw = &vsi->back->hw;
+	bool old_overflow, new_overflow;
 	unsigned int failed_filters = 0;
 	unsigned int vlan_filters = 0;
-	bool promisc_changed = false;
 	char vsi_name[16] = "PF";
 	int filter_list_len = 0;
 	i40e_status aq_ret = 0;
@@ -2290,6 +2283,8 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 	while (test_and_set_bit(__I40E_VSI_SYNCING_FILTERS, vsi->state))
 		usleep_range(1000, 2000);
 	pf = vsi->back;
+
+	old_overflow = test_bit(__I40E_VSI_OVERFLOW_PROMISC, vsi->state);
 
 	if (vsi->netdev) {
 		changed_flags = vsi->current_netdev_flags ^ vsi->netdev->flags;
@@ -2423,12 +2418,6 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 
 		num_add = 0;
 		hlist_for_each_entry_safe(new, h, &tmp_add_list, hlist) {
-			if (test_bit(__I40E_VSI_OVERFLOW_PROMISC,
-				     vsi->state)) {
-				new->state = I40E_FILTER_FAILED;
-				continue;
-			}
-
 			/* handle broadcast filters by updating the broadcast
 			 * promiscuous flag instead of adding a MAC filter.
 			 */
@@ -2464,15 +2453,14 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			/* flush a full buffer */
 			if (num_add == filter_list_len) {
 				i40e_aqc_add_filters(vsi, vsi_name, add_list,
-						     add_head, num_add,
-						     &promisc_changed);
+						     add_head, num_add);
 				memset(add_list, 0, list_size);
 				num_add = 0;
 			}
 		}
 		if (num_add) {
 			i40e_aqc_add_filters(vsi, vsi_name, add_list, add_head,
-					     num_add, &promisc_changed);
+					     num_add);
 		}
 		/* Now move all of the filters from the temp add list back to
 		 * the VSI's list.
@@ -2501,24 +2489,16 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 	}
 	spin_unlock_bh(&vsi->mac_filter_hash_lock);
 
-	/* If promiscuous mode has changed, we need to calculate a new
-	 * threshold for when we are safe to exit
-	 */
-	if (promisc_changed)
-		vsi->promisc_threshold = (vsi->active_filters * 3) / 4;
-
 	/* Check if we are able to exit overflow promiscuous mode. We can
 	 * safely exit if we didn't just enter, we no longer have any failed
 	 * filters, and we have reduced filters below the threshold value.
 	 */
-	if (test_bit(__I40E_VSI_OVERFLOW_PROMISC, vsi->state) &&
-	    !promisc_changed && !failed_filters &&
-	    (vsi->active_filters < vsi->promisc_threshold)) {
+	if (old_overflow && !failed_filters &&
+	    vsi->active_filters < vsi->promisc_threshold) {
 		dev_info(&pf->pdev->dev,
 			 "filter logjam cleared on %s, leaving overflow promiscuous mode\n",
 			 vsi_name);
 		clear_bit(__I40E_VSI_OVERFLOW_PROMISC, vsi->state);
-		promisc_changed = true;
 		vsi->promisc_threshold = 0;
 	}
 
@@ -2527,6 +2507,14 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		clear_bit(__I40E_VSI_OVERFLOW_PROMISC, vsi->state);
 		goto out;
 	}
+
+	new_overflow = test_bit(__I40E_VSI_OVERFLOW_PROMISC, vsi->state);
+
+	/* If we are entering overflow promiscuous, we need to calculate a new
+	 * threshold for when we are safe to exit
+	 */
+	if (!old_overflow && new_overflow)
+		vsi->promisc_threshold = (vsi->active_filters * 3) / 4;
 
 	/* check for changes in promiscuous modes */
 	if (changed_flags & IFF_ALLMULTI) {
@@ -2548,12 +2536,11 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		}
 	}
 
-	if ((changed_flags & IFF_PROMISC) || promisc_changed) {
+	if ((changed_flags & IFF_PROMISC) || old_overflow != new_overflow) {
 		bool cur_promisc;
 
 		cur_promisc = (!!(vsi->current_netdev_flags & IFF_PROMISC) ||
-			       test_bit(__I40E_VSI_OVERFLOW_PROMISC,
-					vsi->state));
+			       new_overflow);
 		aq_ret = i40e_set_promiscuous(pf, cur_promisc);
 		if (aq_ret) {
 			retval = i40e_aq_rc_to_posix(aq_ret,
@@ -5381,7 +5368,7 @@ out:
  * @vsi: VSI to be configured
  *
  **/
-int i40e_get_link_speed(struct i40e_vsi *vsi)
+static int i40e_get_link_speed(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
 
@@ -9954,18 +9941,17 @@ static int i40e_vsi_clear(struct i40e_vsi *vsi)
 
 	mutex_lock(&pf->switch_mutex);
 	if (!pf->vsi[vsi->idx]) {
-		dev_err(&pf->pdev->dev, "pf->vsi[%d] is NULL, just free vsi[%d](%p,type %d)\n",
-			vsi->idx, vsi->idx, vsi, vsi->type);
+		dev_err(&pf->pdev->dev, "pf->vsi[%d] is NULL, just free vsi[%d](type %d)\n",
+			vsi->idx, vsi->idx, vsi->type);
 		goto unlock_vsi;
 	}
 
 	if (pf->vsi[vsi->idx] != vsi) {
 		dev_err(&pf->pdev->dev,
-			"pf->vsi[%d](%p, type %d) != vsi[%d](%p,type %d): no free!\n",
+			"pf->vsi[%d](type %d) != vsi[%d](type %d): no free!\n",
 			pf->vsi[vsi->idx]->idx,
-			pf->vsi[vsi->idx],
 			pf->vsi[vsi->idx]->type,
-			vsi->idx, vsi, vsi->type);
+			vsi->idx, vsi->type);
 		goto unlock_vsi;
 	}
 
@@ -11103,6 +11089,16 @@ static int i40e_sw_init(struct i40e_pf *pf)
 		/* IWARP needs one extra vector for CQP just like MISC.*/
 		pf->num_iwarp_msix = (int)num_online_cpus() + 1;
 	}
+	/* Stopping the FW LLDP engine is only supported on the
+	 * XL710 with a FW ver >= 1.7.  Also, stopping FW LLDP
+	 * engine is not supported if NPAR is functioning on this
+	 * part
+	 */
+	if (pf->hw.mac.type == I40E_MAC_XL710 &&
+	    !pf->hw.func_caps.npar_enable &&
+	    (pf->hw.aq.api_maj_ver > 1 ||
+	     (pf->hw.aq.api_maj_ver == 1 && pf->hw.aq.api_min_ver > 6)))
+		pf->hw_features |= I40E_HW_STOPPABLE_FW_LLDP;
 
 #ifdef CONFIG_PCI_IOV
 	if (pf->hw.func_caps.num_vfs && pf->hw.partition_id == 1) {

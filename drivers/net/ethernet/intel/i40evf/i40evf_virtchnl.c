@@ -465,7 +465,7 @@ void i40evf_add_ether_addrs(struct i40evf_adapter *adapter)
 		more = true;
 	}
 
-	veal = kzalloc(len, GFP_KERNEL);
+	veal = kzalloc(len, GFP_ATOMIC);
 	if (!veal) {
 		spin_unlock_bh(&adapter->mac_vlan_list_lock);
 		return;
@@ -538,7 +538,7 @@ void i40evf_del_ether_addrs(struct i40evf_adapter *adapter)
 		      (count * sizeof(struct virtchnl_ether_addr));
 		more = true;
 	}
-	veal = kzalloc(len, GFP_KERNEL);
+	veal = kzalloc(len, GFP_ATOMIC);
 	if (!veal) {
 		spin_unlock_bh(&adapter->mac_vlan_list_lock);
 		return;
@@ -612,7 +612,7 @@ void i40evf_add_vlans(struct i40evf_adapter *adapter)
 		      (count * sizeof(u16));
 		more = true;
 	}
-	vvfl = kzalloc(len, GFP_KERNEL);
+	vvfl = kzalloc(len, GFP_ATOMIC);
 	if (!vvfl) {
 		spin_unlock_bh(&adapter->mac_vlan_list_lock);
 		return;
@@ -684,7 +684,7 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter)
 		      (count * sizeof(u16));
 		more = true;
 	}
-	vvfl = kzalloc(len, GFP_KERNEL);
+	vvfl = kzalloc(len, GFP_ATOMIC);
 	if (!vvfl) {
 		spin_unlock_bh(&adapter->mac_vlan_list_lock);
 		return;
@@ -1037,7 +1037,7 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 			i40evf_print_link_message(adapter);
 			break;
 		case VIRTCHNL_EVENT_RESET_IMPENDING:
-			dev_info(&adapter->pdev->dev, "PF reset warning received\n");
+			dev_info(&adapter->pdev->dev, "Reset warning received from the PF\n");
 			if (!(adapter->flags & I40EVF_FLAG_RESET_PENDING)) {
 				adapter->flags |= I40EVF_FLAG_RESET_PENDING;
 				dev_info(&adapter->pdev->dev, "Scheduling reset task\n");
