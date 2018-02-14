@@ -855,7 +855,7 @@ int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
-int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
+int __tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
 {
 	int err;
 	char *bearer;
@@ -897,15 +897,18 @@ int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
 			prio = nla_get_u32(props[TIPC_NLA_PROP_PRIO]);
 	}
 
+	return tipc_enable_bearer(net, bearer, domain, prio, attrs);
+}
+
+int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
+{
+	int err;
+
 	rtnl_lock();
-	err = tipc_enable_bearer(net, bearer, domain, prio, attrs);
-	if (err) {
-		rtnl_unlock();
-		return err;
-	}
+	err = __tipc_nl_bearer_enable(skb, info);
 	rtnl_unlock();
 
-	return 0;
+	return err;
 }
 
 int tipc_nl_bearer_add(struct sk_buff *skb, struct genl_info *info)
