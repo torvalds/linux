@@ -132,3 +132,14 @@ all.config
 
 # Kdevelop4
 *.kdev4
+
+
+# own
+arch/arm/boot/zImage-dtb
+uImage
+*.rej
+build.log
+u-boot/
+uboot/
+cryptodev/*.md5
+tools/spi/include/
