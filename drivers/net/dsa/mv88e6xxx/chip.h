@@ -41,6 +41,8 @@
 #define MV88E6XXX_MAX_PVT_SWITCHES	32
 #define MV88E6XXX_MAX_PVT_PORTS		16
 
+#define MV88E6XXX_MAX_GPIO	16
+
 enum mv88e6xxx_egress_mode {
 	MV88E6XXX_EGRESS_MODE_UNMODIFIED,
 	MV88E6XXX_EGRESS_MODE_UNTAGGED,
@@ -107,6 +109,7 @@ struct mv88e6xxx_info {
 	const char *name;
 	unsigned int num_databases;
 	unsigned int num_ports;
+	unsigned int num_gpio;
 	unsigned int max_vid;
 	unsigned int port_base_addr;
 	unsigned int global1_addr;
@@ -151,6 +154,7 @@ struct mv88e6xxx_vtu_entry {
 
 struct mv88e6xxx_bus_ops;
 struct mv88e6xxx_irq_ops;
+struct mv88e6xxx_gpio_ops;
 struct mv88e6xxx_avb_ops;
 
 struct mv88e6xxx_irq {
@@ -215,6 +219,9 @@ struct mv88e6xxx_chip {
 	int watchdog_irq;
 	int atu_prob_irq;
 	int vtu_prob_irq;
+
+	/* GPIO resources */
+	u8 gpio_data[2];
 
 	/* This cyclecounter abstracts the switch PTP time.
 	 * reg_lock must be held for any operation that read()s.
@@ -361,6 +368,9 @@ struct mv88e6xxx_ops {
 	int (*vtu_loadpurge)(struct mv88e6xxx_chip *chip,
 			     struct mv88e6xxx_vtu_entry *entry);
 
+	/* GPIO operations */
+	const struct mv88e6xxx_gpio_ops *gpio_ops;
+
 	/* Interface to the AVB/PTP registers */
 	const struct mv88e6xxx_avb_ops *avb_ops;
 };
@@ -372,6 +382,24 @@ struct mv88e6xxx_irq_ops {
 	int (*irq_setup)(struct mv88e6xxx_chip *chip);
 	/* Reset the hardware to stop generating the interrupt */
 	void (*irq_free)(struct mv88e6xxx_chip *chip);
+};
+
+struct mv88e6xxx_gpio_ops {
+	/* Get/set data on GPIO pin */
+	int (*get_data)(struct mv88e6xxx_chip *chip, unsigned int pin);
+	int (*set_data)(struct mv88e6xxx_chip *chip, unsigned int pin,
+			int value);
+
+	/* get/set GPIO direction */
+	int (*get_dir)(struct mv88e6xxx_chip *chip, unsigned int pin);
+	int (*set_dir)(struct mv88e6xxx_chip *chip, unsigned int pin,
+		       bool input);
+
+	/* get/set GPIO pin control */
+	int (*get_pctl)(struct mv88e6xxx_chip *chip, unsigned int pin,
+			int *func);
+	int (*set_pctl)(struct mv88e6xxx_chip *chip, unsigned int pin,
+			int func);
 };
 
 struct mv88e6xxx_avb_ops {
@@ -421,6 +449,11 @@ static inline unsigned int mv88e6xxx_num_ports(struct mv88e6xxx_chip *chip)
 static inline u16 mv88e6xxx_port_mask(struct mv88e6xxx_chip *chip)
 {
 	return GENMASK(mv88e6xxx_num_ports(chip) - 1, 0);
+}
+
+static inline unsigned int mv88e6xxx_num_gpio(struct mv88e6xxx_chip *chip)
+{
+	return chip->info->num_gpio;
 }
 
 int mv88e6xxx_read(struct mv88e6xxx_chip *chip, int addr, int reg, u16 *val);

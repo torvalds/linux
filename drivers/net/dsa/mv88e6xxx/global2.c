@@ -798,6 +798,7 @@ int mv88e6xxx_g2_smi_phy_write(struct mv88e6xxx_chip *chip, struct mii_bus *bus,
 						   val);
 }
 
+/* Offset 0x1B: Watchdog Control */
 static int mv88e6097_watchdog_action(struct mv88e6xxx_chip *chip, int irq)
 {
 	u16 reg;
