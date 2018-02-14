@@ -24,28 +24,13 @@
  */
 
 #include <asm/unaligned.h>
+#include <crypto/speck.h>
 #include <linux/bitops.h>
 #include <linux/crypto.h>
 #include <linux/init.h>
 #include <linux/module.h>
 
 /* Speck128 */
-
-#define SPECK128_BLOCK_SIZE	16
-
-#define SPECK128_128_KEY_SIZE	16
-#define SPECK128_128_NROUNDS	32
-
-#define SPECK128_192_KEY_SIZE	24
-#define SPECK128_192_NROUNDS	33
-
-#define SPECK128_256_KEY_SIZE	32
-#define SPECK128_256_NROUNDS	34
-
-struct speck128_tfm_ctx {
-	u64 round_keys[SPECK128_256_NROUNDS];
-	int nrounds;
-};
 
 static __always_inline void speck128_round(u64 *x, u64 *y, u64 k)
 {
@@ -65,9 +50,9 @@ static __always_inline void speck128_unround(u64 *x, u64 *y, u64 k)
 	*x = rol64(*x, 8);
 }
 
-static void speck128_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+void crypto_speck128_encrypt(const struct speck128_tfm_ctx *ctx,
+			     u8 *out, const u8 *in)
 {
-	const struct speck128_tfm_ctx *ctx = crypto_tfm_ctx(tfm);
 	u64 y = get_unaligned_le64(in);
 	u64 x = get_unaligned_le64(in + 8);
 	int i;
@@ -78,10 +63,16 @@ static void speck128_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	put_unaligned_le64(y, out);
 	put_unaligned_le64(x, out + 8);
 }
+EXPORT_SYMBOL_GPL(crypto_speck128_encrypt);
 
-static void speck128_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+static void speck128_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	const struct speck128_tfm_ctx *ctx = crypto_tfm_ctx(tfm);
+	crypto_speck128_encrypt(crypto_tfm_ctx(tfm), out, in);
+}
+
+void crypto_speck128_decrypt(const struct speck128_tfm_ctx *ctx,
+			     u8 *out, const u8 *in)
+{
 	u64 y = get_unaligned_le64(in);
 	u64 x = get_unaligned_le64(in + 8);
 	int i;
@@ -92,11 +83,16 @@ static void speck128_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	put_unaligned_le64(y, out);
 	put_unaligned_le64(x, out + 8);
 }
+EXPORT_SYMBOL_GPL(crypto_speck128_decrypt);
 
-static int speck128_setkey(struct crypto_tfm *tfm, const u8 *key,
+static void speck128_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+{
+	crypto_speck128_decrypt(crypto_tfm_ctx(tfm), out, in);
+}
+
+int crypto_speck128_setkey(struct speck128_tfm_ctx *ctx, const u8 *key,
 			   unsigned int keylen)
 {
-	struct speck128_tfm_ctx *ctx = crypto_tfm_ctx(tfm);
 	u64 l[3];
 	u64 k;
 	int i;
@@ -138,21 +134,15 @@ static int speck128_setkey(struct crypto_tfm *tfm, const u8 *key,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(crypto_speck128_setkey);
+
+static int speck128_setkey(struct crypto_tfm *tfm, const u8 *key,
+			   unsigned int keylen)
+{
+	return crypto_speck128_setkey(crypto_tfm_ctx(tfm), key, keylen);
+}
 
 /* Speck64 */
-
-#define SPECK64_BLOCK_SIZE	8
-
-#define SPECK64_96_KEY_SIZE	12
-#define SPECK64_96_NROUNDS	26
-
-#define SPECK64_128_KEY_SIZE	16
-#define SPECK64_128_NROUNDS	27
-
-struct speck64_tfm_ctx {
-	u32 round_keys[SPECK64_128_NROUNDS];
-	int nrounds;
-};
 
 static __always_inline void speck64_round(u32 *x, u32 *y, u32 k)
 {
@@ -172,9 +162,9 @@ static __always_inline void speck64_unround(u32 *x, u32 *y, u32 k)
 	*x = rol32(*x, 8);
 }
 
-static void speck64_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+void crypto_speck64_encrypt(const struct speck64_tfm_ctx *ctx,
+			    u8 *out, const u8 *in)
 {
-	const struct speck64_tfm_ctx *ctx = crypto_tfm_ctx(tfm);
 	u32 y = get_unaligned_le32(in);
 	u32 x = get_unaligned_le32(in + 4);
 	int i;
@@ -185,10 +175,16 @@ static void speck64_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	put_unaligned_le32(y, out);
 	put_unaligned_le32(x, out + 4);
 }
+EXPORT_SYMBOL_GPL(crypto_speck64_encrypt);
 
-static void speck64_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+static void speck64_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	const struct speck64_tfm_ctx *ctx = crypto_tfm_ctx(tfm);
+	crypto_speck64_encrypt(crypto_tfm_ctx(tfm), out, in);
+}
+
+void crypto_speck64_decrypt(const struct speck64_tfm_ctx *ctx,
+			    u8 *out, const u8 *in)
+{
 	u32 y = get_unaligned_le32(in);
 	u32 x = get_unaligned_le32(in + 4);
 	int i;
@@ -199,11 +195,16 @@ static void speck64_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	put_unaligned_le32(y, out);
 	put_unaligned_le32(x, out + 4);
 }
+EXPORT_SYMBOL_GPL(crypto_speck64_decrypt);
 
-static int speck64_setkey(struct crypto_tfm *tfm, const u8 *key,
+static void speck64_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+{
+	crypto_speck64_decrypt(crypto_tfm_ctx(tfm), out, in);
+}
+
+int crypto_speck64_setkey(struct speck64_tfm_ctx *ctx, const u8 *key,
 			  unsigned int keylen)
 {
-	struct speck64_tfm_ctx *ctx = crypto_tfm_ctx(tfm);
 	u32 l[3];
 	u32 k;
 	int i;
@@ -235,6 +236,13 @@ static int speck64_setkey(struct crypto_tfm *tfm, const u8 *key,
 	}
 
 	return 0;
+}
+EXPORT_SYMBOL_GPL(crypto_speck64_setkey);
+
+static int speck64_setkey(struct crypto_tfm *tfm, const u8 *key,
+			  unsigned int keylen)
+{
+	return crypto_speck64_setkey(crypto_tfm_ctx(tfm), key, keylen);
 }
 
 /* Algorithm definitions */
