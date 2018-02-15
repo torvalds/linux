@@ -710,14 +710,6 @@ blk_status_t btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
 	return 0;
 }
 
-unsigned long btrfs_async_submit_limit(struct btrfs_fs_info *info)
-{
-	unsigned long limit = min_t(unsigned long,
-				    info->thread_pool_size,
-				    info->fs_devices->open_devices);
-	return 256 * limit;
-}
-
 static void run_one_async_start(struct btrfs_work *work)
 {
 	struct async_submit_bio *async;
