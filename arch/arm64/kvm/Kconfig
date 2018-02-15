@@ -58,7 +58,7 @@ config KVM_ARM_PMU
 	  virtual machines.
 
 config KVM_INDIRECT_VECTORS
-       def_bool KVM && HARDEN_BRANCH_PREDICTOR
+       def_bool KVM && (HARDEN_BRANCH_PREDICTOR || HARDEN_EL2_VECTORS)
 
 source drivers/vhost/Kconfig
 

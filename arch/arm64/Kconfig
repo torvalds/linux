@@ -904,6 +904,22 @@ config HARDEN_BRANCH_PREDICTOR
 
 	  If unsure, say Y.
 
+config HARDEN_EL2_VECTORS
+	bool "Harden EL2 vector mapping against system register leak" if EXPERT
+	default y
+	help
+	  Speculation attacks against some high-performance processors can
+	  be used to leak privileged information such as the vector base
+	  register, resulting in a potential defeat of the EL2 layout
+	  randomization.
+
+	  This config option will map the vectors to a fixed location,
+	  independent of the EL2 code mapping, so that revealing VBAR_EL2
+	  to an attacker does not give away any extra information. This
+	  only gets enabled on affected CPUs.
+
+	  If unsure, say Y.
+
 menuconfig ARMV8_DEPRECATED
 	bool "Emulate deprecated/obsolete ARMv8 instructions"
 	depends on COMPAT
