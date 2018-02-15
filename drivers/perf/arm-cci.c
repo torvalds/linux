@@ -8,6 +8,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/perf_event.h>
@@ -371,14 +372,14 @@ static int probe_cci400_revision(void)
 		return CCI400_R1;
 }
 
-static const struct cci_pmu_model *probe_cci_model(struct platform_device *pdev)
+static const struct cci_pmu_model *probe_cci_model(void)
 {
 	if (platform_has_secure_cci_access())
 		return &cci_pmu_models[probe_cci400_revision()];
 	return NULL;
 }
 #else	/* !CONFIG_ARM_CCI400_PMU */
-static inline struct cci_pmu_model *probe_cci_model(struct platform_device *pdev)
+static inline struct cci_pmu_model *probe_cci_model(void)
 {
 	return NULL;
 }
@@ -1589,20 +1590,6 @@ static const struct of_device_id arm_cci_pmu_matches[] = {
 	{},
 };
 
-static inline const struct cci_pmu_model *get_cci_model(struct platform_device *pdev)
-{
-	const struct of_device_id *match = of_match_node(arm_cci_pmu_matches,
-							pdev->dev.of_node);
-	if (!match)
-		return NULL;
-	if (match->data)
-		return match->data;
-
-	dev_warn(&pdev->dev, "DEPRECATED compatible property,"
-			 "requires secure access to CCI registers");
-	return probe_cci_model(pdev);
-}
-
 static bool is_duplicate_irq(int irq, int *irqs, int nr_irqs)
 {
 	int i;
@@ -1614,7 +1601,7 @@ static bool is_duplicate_irq(int irq, int *irqs, int nr_irqs)
 	return false;
 }
 
-static struct cci_pmu *cci_pmu_alloc(struct platform_device *pdev)
+static struct cci_pmu *cci_pmu_alloc(struct device *dev)
 {
 	struct cci_pmu *cci_pmu;
 	const struct cci_pmu_model *model;
@@ -1624,28 +1611,33 @@ static struct cci_pmu *cci_pmu_alloc(struct platform_device *pdev)
 	 * them explicitly on an error, as it would end up in driver
 	 * detach.
 	 */
-	model = get_cci_model(pdev);
+	model = of_device_get_match_data(dev);
 	if (!model) {
-		dev_warn(&pdev->dev, "CCI PMU version not supported\n");
+		dev_warn(dev,
+			 "DEPRECATED compatible property, requires secure access to CCI registers");
+		model = probe_cci_model();
+	}
+	if (!model) {
+		dev_warn(dev, "CCI PMU version not supported\n");
 		return ERR_PTR(-ENODEV);
 	}
 
-	cci_pmu = devm_kzalloc(&pdev->dev, sizeof(*cci_pmu), GFP_KERNEL);
+	cci_pmu = devm_kzalloc(dev, sizeof(*cci_pmu), GFP_KERNEL);
 	if (!cci_pmu)
 		return ERR_PTR(-ENOMEM);
 
 	cci_pmu->model = model;
-	cci_pmu->irqs = devm_kcalloc(&pdev->dev, CCI_PMU_MAX_HW_CNTRS(model),
+	cci_pmu->irqs = devm_kcalloc(dev, CCI_PMU_MAX_HW_CNTRS(model),
 					sizeof(*cci_pmu->irqs), GFP_KERNEL);
 	if (!cci_pmu->irqs)
 		return ERR_PTR(-ENOMEM);
-	cci_pmu->hw_events.events = devm_kcalloc(&pdev->dev,
+	cci_pmu->hw_events.events = devm_kcalloc(dev,
 					     CCI_PMU_MAX_HW_CNTRS(model),
 					     sizeof(*cci_pmu->hw_events.events),
 					     GFP_KERNEL);
 	if (!cci_pmu->hw_events.events)
 		return ERR_PTR(-ENOMEM);
-	cci_pmu->hw_events.used_mask = devm_kcalloc(&pdev->dev,
+	cci_pmu->hw_events.used_mask = devm_kcalloc(dev,
 						BITS_TO_LONGS(CCI_PMU_MAX_HW_CNTRS(model)),
 						sizeof(*cci_pmu->hw_events.used_mask),
 						GFP_KERNEL);
@@ -1661,7 +1653,7 @@ static int cci_pmu_probe(struct platform_device *pdev)
 	struct cci_pmu *cci_pmu;
 	int i, ret, irq;
 
-	cci_pmu = cci_pmu_alloc(pdev);
+	cci_pmu = cci_pmu_alloc(&pdev->dev);
 	if (IS_ERR(cci_pmu))
 		return PTR_ERR(cci_pmu);
 
