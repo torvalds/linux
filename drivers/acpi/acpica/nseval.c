@@ -187,6 +187,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 	 * 3) The object is not a method -- just return it's current value
 	 */
 	switch (acpi_ns_get_type(info->node)) {
+	case ACPI_TYPE_ANY:
 	case ACPI_TYPE_DEVICE:
 	case ACPI_TYPE_EVENT:
 	case ACPI_TYPE_MUTEX:
@@ -194,11 +195,12 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 	case ACPI_TYPE_THERMAL:
 	case ACPI_TYPE_LOCAL_SCOPE:
 		/*
-		 * 1) Disallow evaluation of certain object types. For these,
-		 *    object evaluation is undefined and not supported.
+		 * 1) Disallow evaluation of these object types. For these,
+		 *    object evaluation is undefined.
 		 */
 		ACPI_ERROR((AE_INFO,
-			    "%s: Evaluation of object type [%s] is not supported",
+			    "%s: This object type [%s] "
+			    "never contains data and cannot be evaluated",
 			    info->full_pathname,
 			    acpi_ut_get_type_name(info->node->type)));
 
