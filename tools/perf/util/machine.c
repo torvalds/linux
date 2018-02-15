@@ -151,7 +151,7 @@ struct machine *machine__new_kallsyms(void)
 	 *    ask for not using the kcore parsing code, once this one is fixed
 	 *    to create a map per module.
 	 */
-	if (machine && __machine__load_kallsyms(machine, "/proc/kallsyms", MAP__FUNCTION, true) <= 0) {
+	if (machine && machine__load_kallsyms(machine, "/proc/kallsyms", MAP__FUNCTION) <= 0) {
 		machine__delete(machine);
 		machine = NULL;
 	}
@@ -991,11 +991,11 @@ int machines__create_kernel_maps(struct machines *machines, pid_t pid)
 	return machine__create_kernel_maps(machine);
 }
 
-int __machine__load_kallsyms(struct machine *machine, const char *filename,
-			     enum map_type type, bool no_kcore)
+int machine__load_kallsyms(struct machine *machine, const char *filename,
+			     enum map_type type)
 {
 	struct map *map = machine__kernel_map(machine);
-	int ret = __dso__load_kallsyms(map->dso, filename, map, no_kcore);
+	int ret = __dso__load_kallsyms(map->dso, filename, map, true);
 
 	if (ret > 0) {
 		dso__set_loaded(map->dso, type);
@@ -1008,12 +1008,6 @@ int __machine__load_kallsyms(struct machine *machine, const char *filename,
 	}
 
 	return ret;
-}
-
-int machine__load_kallsyms(struct machine *machine, const char *filename,
-			   enum map_type type)
-{
-	return __machine__load_kallsyms(machine, filename, type, false);
 }
 
 int machine__load_vmlinux_path(struct machine *machine, enum map_type type)
