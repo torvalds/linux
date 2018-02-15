@@ -605,7 +605,8 @@ static struct tc_cookie *nla_memdup_cookie(struct nlattr **tb)
 
 struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 				    struct nlattr *nla, struct nlattr *est,
-				    char *name, int ovr, int bind)
+				    char *name, int ovr, int bind,
+				    struct netlink_ext_ack *extack)
 {
 	struct tc_action *a;
 	struct tc_action_ops *a_o;
@@ -726,7 +727,7 @@ static void cleanup_a(struct list_head *actions, int ovr)
 
 int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 		    struct nlattr *est, char *name, int ovr, int bind,
-		    struct list_head *actions)
+		    struct list_head *actions, struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct tc_action *act;
@@ -738,7 +739,8 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 		return err;
 
 	for (i = 1; i <= TCA_ACT_MAX_PRIO && tb[i]; i++) {
-		act = tcf_action_init_1(net, tp, tb[i], est, name, ovr, bind);
+		act = tcf_action_init_1(net, tp, tb[i], est, name, ovr, bind,
+					extack);
 		if (IS_ERR(act)) {
 			err = PTR_ERR(act);
 			goto err;
@@ -1062,12 +1064,14 @@ tcf_add_notify(struct net *net, struct nlmsghdr *n, struct list_head *actions,
 }
 
 static int tcf_action_add(struct net *net, struct nlattr *nla,
-			  struct nlmsghdr *n, u32 portid, int ovr)
+			  struct nlmsghdr *n, u32 portid, int ovr,
+			  struct netlink_ext_ack *extack)
 {
 	int ret = 0;
 	LIST_HEAD(actions);
 
-	ret = tcf_action_init(net, NULL, nla, NULL, NULL, ovr, 0, &actions);
+	ret = tcf_action_init(net, NULL, nla, NULL, NULL, ovr, 0, &actions,
+			      extack);
 	if (ret)
 		return ret;
 
@@ -1115,7 +1119,8 @@ static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n,
 		if (n->nlmsg_flags & NLM_F_REPLACE)
 			ovr = 1;
 replay:
-		ret = tcf_action_add(net, tca[TCA_ACT_TAB], n, portid, ovr);
+		ret = tcf_action_add(net, tca[TCA_ACT_TAB], n, portid, ovr,
+				     extack);
 		if (ret == -EAGAIN)
 			goto replay;
 		break;
