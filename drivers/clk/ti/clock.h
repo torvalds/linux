@@ -34,6 +34,7 @@ struct clk_omap_mux {
 	u32			*table;
 	u32			mask;
 	u8			shift;
+	s8			latch;
 	u8			flags;
 };
 
