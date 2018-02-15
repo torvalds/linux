@@ -2542,44 +2542,38 @@ int regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 
 	if (regmap_volatile_range(map, reg, val_count) || map->cache_bypass ||
 	    map->cache_type == REGCACHE_NONE) {
-		int chunk_stride = map->reg_stride;
-		size_t chunk_size = val_bytes;
-		size_t chunk_count = val_count;
+		size_t chunk_count, chunk_bytes;
+		size_t chunk_regs = val_count;
 
 		if (!map->bus->read) {
 			ret = -ENOTSUPP;
 			goto out;
 		}
 
-		if (!map->use_single_read) {
-			if (map->max_raw_read)
-				chunk_size = map->max_raw_read;
-			else
-				chunk_size = val_len;
-			if (chunk_size % val_bytes)
-				chunk_size -= chunk_size % val_bytes;
-			chunk_count = val_len / chunk_size;
-			chunk_stride *= chunk_size / val_bytes;
-		}
+		if (map->use_single_read)
+			chunk_regs = 1;
+		else if (map->max_raw_read && val_len > map->max_raw_read)
+			chunk_regs = map->max_raw_read / val_bytes;
 
-		/* Read bytes that fit into a multiple of chunk_size */
+		chunk_count = val_count / chunk_regs;
+		chunk_bytes = chunk_regs * val_bytes;
+
+		/* Read bytes that fit into whole chunks */
 		for (i = 0; i < chunk_count; i++) {
-			ret = _regmap_raw_read(map,
-					       reg + (i * chunk_stride),
-					       val + (i * chunk_size),
-					       chunk_size);
+			ret = _regmap_raw_read(map, reg, val, chunk_bytes);
 			if (ret != 0)
-				return ret;
+				goto out;
+
+			reg += regmap_get_offset(map, chunk_regs);
+			val += chunk_bytes;
+			val_len -= chunk_bytes;
 		}
 
 		/* Read remaining bytes */
-		if (chunk_size * i < val_len) {
-			ret = _regmap_raw_read(map,
-					       reg + (i * chunk_stride),
-					       val + (i * chunk_size),
-					       val_len - i * chunk_size);
+		if (val_len) {
+			ret = _regmap_raw_read(map, reg, val, val_len);
 			if (ret != 0)
-				return ret;
+				goto out;
 		}
 	} else {
 		/* Otherwise go word by word for the cache; should be low
