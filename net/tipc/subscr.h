@@ -56,7 +56,7 @@ struct tipc_conn;
  */
 struct tipc_subscription {
 	struct kref kref;
-	struct tipc_server *server;
+	struct net *net;
 	struct timer_list timer;
 	struct list_head nameseq_list;
 	struct list_head sub_list;
@@ -66,7 +66,7 @@ struct tipc_subscription {
 	spinlock_t lock; /* serialize up/down and timer events */
 };
 
-struct tipc_subscription *tipc_sub_subscribe(struct tipc_server *srv,
+struct tipc_subscription *tipc_sub_subscribe(struct net *net,
 					     struct tipc_subscr *s,
 					     int conid);
 void tipc_sub_unsubscribe(struct tipc_subscription *sub);

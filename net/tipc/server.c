@@ -49,7 +49,37 @@
 #define CF_CONNECTED		1
 #define CF_SERVER		2
 
-#define sock2con(x) ((struct tipc_conn *)(x)->sk_user_data)
+#define TIPC_SERVER_NAME_LEN	32
+
+/**
+ * struct tipc_server - TIPC server structure
+ * @conn_idr: identifier set of connection
+ * @idr_lock: protect the connection identifier set
+ * @idr_in_use: amount of allocated identifier entry
+ * @net: network namspace instance
+ * @rcvbuf_cache: memory cache of server receive buffer
+ * @rcv_wq: receive workqueue
+ * @send_wq: send workqueue
+ * @max_rcvbuf_size: maximum permitted receive message length
+ * @tipc_conn_new: callback will be called when new connection is incoming
+ * @tipc_conn_release: callback will be called before releasing the connection
+ * @tipc_conn_recvmsg: callback will be called when message arrives
+ * @saddr: TIPC server address
+ * @name: server name
+ * @imp: message importance
+ * @type: socket type
+ */
+struct tipc_server {
+	struct idr conn_idr;
+	spinlock_t idr_lock; /* for idr list */
+	int idr_in_use;
+	struct net *net;
+	struct workqueue_struct *rcv_wq;
+	struct workqueue_struct *send_wq;
+	int max_rcvbuf_size;
+	struct sockaddr_tipc *saddr;
+	char name[TIPC_SERVER_NAME_LEN];
+};
 
 /**
  * struct tipc_conn - TIPC connection structure
@@ -92,6 +122,11 @@ struct outqueue_entry {
 static void tipc_recv_work(struct work_struct *work);
 static void tipc_send_work(struct work_struct *work);
 static void tipc_clean_outqueues(struct tipc_conn *con);
+
+static struct tipc_conn *sock2con(struct sock *sk)
+{
+	return sk->sk_user_data;
+}
 
 static bool connected(struct tipc_conn *con)
 {
@@ -198,14 +233,17 @@ static void tipc_register_callbacks(struct socket *sock, struct tipc_conn *con)
 static void tipc_con_delete_sub(struct tipc_conn *con, struct tipc_subscr *s)
 {
 	struct list_head *sub_list = &con->sub_list;
+	struct tipc_net *tn = tipc_net(con->server->net);
 	struct tipc_subscription *sub, *tmp;
 
 	spin_lock_bh(&con->sub_lock);
 	list_for_each_entry_safe(sub, tmp, sub_list, sub_list) {
-		if (!s || !memcmp(s, &sub->evt.s, sizeof(*s)))
+		if (!s || !memcmp(s, &sub->evt.s, sizeof(*s))) {
 			tipc_sub_unsubscribe(sub);
-		else if (s)
+			atomic_dec(&tn->subscription_count);
+		} else if (s) {
 			break;
+		}
 	}
 	spin_unlock_bh(&con->sub_lock);
 }
@@ -220,8 +258,7 @@ static void tipc_close_conn(struct tipc_conn *con)
 
 	if (disconnect) {
 		sk->sk_user_data = NULL;
-		if (con->conid)
-			tipc_con_delete_sub(con, NULL);
+		tipc_con_delete_sub(con, NULL);
 	}
 	write_unlock_bh(&sk->sk_callback_lock);
 
@@ -272,15 +309,21 @@ static int tipc_con_rcv_sub(struct tipc_server *srv,
 			    struct tipc_conn *con,
 			    struct tipc_subscr *s)
 {
+	struct tipc_net *tn = tipc_net(srv->net);
 	struct tipc_subscription *sub;
 
 	if (tipc_sub_read(s, filter) & TIPC_SUB_CANCEL) {
 		tipc_con_delete_sub(con, s);
 		return 0;
 	}
-	sub = tipc_sub_subscribe(srv, s, con->conid);
+	if (atomic_read(&tn->subscription_count) >= TIPC_MAX_SUBSCR) {
+		pr_warn("Subscription rejected, max (%u)\n", TIPC_MAX_SUBSCR);
+		return -1;
+	}
+	sub = tipc_sub_subscribe(srv->net, s, con->conid);
 	if (!sub)
 		return -1;
+	atomic_inc(&tn->subscription_count);
 	spin_lock_bh(&con->sub_lock);
 	list_add(&sub->sub_list, &con->sub_list);
 	spin_unlock_bh(&con->sub_lock);
@@ -426,13 +469,14 @@ static void tipc_clean_outqueues(struct tipc_conn *con)
 /* tipc_conn_queue_evt - interrupt level call from a subscription instance
  * The queued job is launched in tipc_send_to_sock()
  */
-void tipc_conn_queue_evt(struct tipc_server *s, int conid,
+void tipc_conn_queue_evt(struct net *net, int conid,
 			 u32 event, struct tipc_event *evt)
 {
+	struct tipc_server *srv = tipc_topsrv(net);
 	struct outqueue_entry *e;
 	struct tipc_conn *con;
 
-	con = tipc_conn_lookup(s, conid);
+	con = tipc_conn_lookup(srv, conid);
 	if (!con)
 		return;
 
@@ -448,7 +492,7 @@ void tipc_conn_queue_evt(struct tipc_server *s, int conid,
 	list_add_tail(&e->list, &con->outqueue);
 	spin_unlock_bh(&con->outqueue_lock);
 
-	if (queue_work(s->send_wq, &con->swork))
+	if (queue_work(srv->send_wq, &con->swork))
 		return;
 err:
 	conn_put(con);
@@ -620,41 +664,71 @@ static int tipc_work_start(struct tipc_server *s)
 	return 0;
 }
 
-int tipc_server_start(struct tipc_server *s)
+int tipc_topsrv_start(struct net *net)
 {
+	struct tipc_net *tn = tipc_net(net);
+	const char name[] = "topology_server";
+	struct sockaddr_tipc *saddr;
+	struct tipc_server *srv;
 	int ret;
 
-	spin_lock_init(&s->idr_lock);
-	idr_init(&s->conn_idr);
-	s->idr_in_use = 0;
+	saddr = kzalloc(sizeof(*saddr), GFP_ATOMIC);
+	if (!saddr)
+		return -ENOMEM;
+	saddr->family			= AF_TIPC;
+	saddr->addrtype			= TIPC_ADDR_NAMESEQ;
+	saddr->addr.nameseq.type	= TIPC_TOP_SRV;
+	saddr->addr.nameseq.lower	= TIPC_TOP_SRV;
+	saddr->addr.nameseq.upper	= TIPC_TOP_SRV;
+	saddr->scope			= TIPC_NODE_SCOPE;
 
-	ret = tipc_work_start(s);
+	srv = kzalloc(sizeof(*srv), GFP_ATOMIC);
+	if (!srv) {
+		kfree(saddr);
+		return -ENOMEM;
+	}
+	srv->net			= net;
+	srv->saddr			= saddr;
+	srv->max_rcvbuf_size		= sizeof(struct tipc_subscr);
+
+	strncpy(srv->name, name, strlen(name) + 1);
+	tn->topsrv = srv;
+	atomic_set(&tn->subscription_count, 0);
+
+	spin_lock_init(&srv->idr_lock);
+	idr_init(&srv->conn_idr);
+	srv->idr_in_use = 0;
+
+	ret = tipc_work_start(srv);
 	if (ret < 0)
 		return ret;
 
-	ret = tipc_open_listening_sock(s);
+	ret = tipc_open_listening_sock(srv);
 	if (ret < 0)
-		tipc_work_stop(s);
+		tipc_work_stop(srv);
 
 	return ret;
 }
 
-void tipc_server_stop(struct tipc_server *s)
+void tipc_topsrv_stop(struct net *net)
 {
+	struct tipc_server *srv = tipc_topsrv(net);
 	struct tipc_conn *con;
 	int id;
 
-	spin_lock_bh(&s->idr_lock);
-	for (id = 0; s->idr_in_use; id++) {
-		con = idr_find(&s->conn_idr, id);
+	spin_lock_bh(&srv->idr_lock);
+	for (id = 0; srv->idr_in_use; id++) {
+		con = idr_find(&srv->conn_idr, id);
 		if (con) {
-			spin_unlock_bh(&s->idr_lock);
+			spin_unlock_bh(&srv->idr_lock);
 			tipc_close_conn(con);
-			spin_lock_bh(&s->idr_lock);
+			spin_lock_bh(&srv->idr_lock);
 		}
 	}
-	spin_unlock_bh(&s->idr_lock);
+	spin_unlock_bh(&srv->idr_lock);
 
-	tipc_work_stop(s);
-	idr_destroy(&s->conn_idr);
+	tipc_work_stop(srv);
+	idr_destroy(&srv->conn_idr);
+	kfree(srv->saddr);
+	kfree(srv);
 }
