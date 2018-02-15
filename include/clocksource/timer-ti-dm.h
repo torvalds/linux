@@ -1,6 +1,4 @@
 /*
- * arch/arm/plat-omap/include/plat/dmtimer.h
- *
  * OMAP Dual-Mode Timers
  *
  * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com/
@@ -36,8 +34,8 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 
-#ifndef __ASM_ARCH_DMTIMER_H
-#define __ASM_ARCH_DMTIMER_H
+#ifndef __CLOCKSOURCE_DMTIMER_H
+#define __CLOCKSOURCE_DMTIMER_H
 
 /* clock sources */
 #define OMAP_TIMER_SRC_SYS_CLK			0x00
@@ -426,4 +424,4 @@ static inline void __omap_dm_timer_write_status(struct omap_dm_timer *timer,
 	writel_relaxed(value, timer->irq_stat);
 }
 #endif /* CONFIG_ARCH_OMAP1 || CONFIG_ARCH_OMAP2PLUS */
-#endif /* __ASM_ARCH_DMTIMER_H */
+#endif /* __CLOCKSOURCE_DMTIMER_H */
