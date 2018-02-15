@@ -484,6 +484,61 @@ static const struct attribute_group ufs_sysfs_power_descriptor_group = {
 	.attrs = ufs_sysfs_power_descriptor,
 };
 
+#define UFS_STRING_DESCRIPTOR(_name, _pname)				\
+static ssize_t _name##_show(struct device *dev,				\
+	struct device_attribute *attr, char *buf)			\
+{									\
+	u8 index;							\
+	struct ufs_hba *hba = dev_get_drvdata(dev);			\
+	int ret;							\
+	int desc_len = QUERY_DESC_MAX_SIZE;				\
+	u8 *desc_buf;							\
+	desc_buf = kzalloc(QUERY_DESC_MAX_SIZE, GFP_ATOMIC);		\
+	if (!desc_buf)							\
+		return -ENOMEM;						\
+	ret = ufshcd_query_descriptor_retry(hba,			\
+		UPIU_QUERY_OPCODE_READ_DESC, QUERY_DESC_IDN_DEVICE,	\
+		0, 0, desc_buf, &desc_len);				\
+	if (ret) {							\
+		ret = -EINVAL;						\
+		goto out;						\
+	}								\
+	index = desc_buf[DEVICE_DESC_PARAM##_pname];			\
+	memset(desc_buf, 0, QUERY_DESC_MAX_SIZE);			\
+	if (ufshcd_read_string_desc(hba, index, desc_buf,		\
+		QUERY_DESC_MAX_SIZE, true)) {				\
+		ret = -EINVAL;						\
+		goto out;						\
+	}								\
+	ret = snprintf(buf, PAGE_SIZE, "%s\n",				\
+		desc_buf + QUERY_DESC_HDR_SIZE);			\
+out:									\
+	kfree(desc_buf);						\
+	return ret;							\
+}									\
+static DEVICE_ATTR_RO(_name)
+
+UFS_STRING_DESCRIPTOR(manufacturer_name, _MANF_NAME);
+UFS_STRING_DESCRIPTOR(product_name, _PRDCT_NAME);
+UFS_STRING_DESCRIPTOR(oem_id, _OEM_ID);
+UFS_STRING_DESCRIPTOR(serial_number, _SN);
+UFS_STRING_DESCRIPTOR(product_revision, _PRDCT_REV);
+
+static struct attribute *ufs_sysfs_string_descriptors[] = {
+	&dev_attr_manufacturer_name.attr,
+	&dev_attr_product_name.attr,
+	&dev_attr_oem_id.attr,
+	&dev_attr_serial_number.attr,
+	&dev_attr_product_revision.attr,
+	NULL,
+};
+
+static const struct attribute_group ufs_sysfs_string_descriptors_group = {
+	.name = "string_descriptors",
+	.attrs = ufs_sysfs_string_descriptors,
+};
+
+
 static const struct attribute_group *ufs_sysfs_groups[] = {
 	&ufs_sysfs_default_group,
 	&ufs_sysfs_device_descriptor_group,
@@ -491,6 +546,7 @@ static const struct attribute_group *ufs_sysfs_groups[] = {
 	&ufs_sysfs_geometry_descriptor_group,
 	&ufs_sysfs_health_descriptor_group,
 	&ufs_sysfs_power_descriptor_group,
+	&ufs_sysfs_string_descriptors_group,
 	NULL,
 };
 
