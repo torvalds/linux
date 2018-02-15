@@ -90,6 +90,7 @@ static struct cci_pmu_model cci_pmu_models[];
 struct cci_pmu {
 	void __iomem *base;
 	struct pmu pmu;
+	int cpu;
 	int nr_irqs;
 	int *irqs;
 	unsigned long active_irqs;
@@ -99,11 +100,11 @@ struct cci_pmu {
 	int num_cntrs;
 	atomic_t active_events;
 	struct mutex reserve_mutex;
-	struct hlist_node node;
-	cpumask_t cpus;
 };
 
 #define to_cci_pmu(c)	(container_of(c, struct cci_pmu, pmu))
+
+static struct cci_pmu *g_cci_pmu;
 
 enum cci_models {
 #ifdef CONFIG_ARM_CCI400_PMU
@@ -1325,7 +1326,6 @@ static int cci_pmu_event_init(struct perf_event *event)
 	struct cci_pmu *cci_pmu = to_cci_pmu(event->pmu);
 	atomic_t *active_events = &cci_pmu->active_events;
 	int err = 0;
-	int cpu;
 
 	if (event->attr.type != event->pmu->type)
 		return -ENOENT;
@@ -1352,10 +1352,9 @@ static int cci_pmu_event_init(struct perf_event *event)
 	 * the event being installed into its context, so the PMU's CPU can't
 	 * change under our feet.
 	 */
-	cpu = cpumask_first(&cci_pmu->cpus);
-	if (event->cpu < 0 || cpu < 0)
+	if (event->cpu < 0)
 		return -EINVAL;
-	event->cpu = cpu;
+	event->cpu = cci_pmu->cpu;
 
 	event->destroy = hw_perf_event_destroy;
 	if (!atomic_inc_not_zero(active_events)) {
@@ -1382,11 +1381,7 @@ static ssize_t pmu_cpumask_attr_show(struct device *dev,
 	struct pmu *pmu = dev_get_drvdata(dev);
 	struct cci_pmu *cci_pmu = to_cci_pmu(pmu);
 
-	int n = scnprintf(buf, PAGE_SIZE - 1, "%*pbl",
-			  cpumask_pr_args(&cci_pmu->cpus));
-	buf[n++] = '\n';
-	buf[n] = '\0';
-	return n;
+	return cpumap_print_to_pagebuf(true, buf, cpumask_of(cci_pmu->cpu));
 }
 
 static struct device_attribute pmu_cpumask_attr =
@@ -1455,21 +1450,19 @@ static int cci_pmu_init(struct cci_pmu *cci_pmu, struct platform_device *pdev)
 	return perf_pmu_register(&cci_pmu->pmu, name, -1);
 }
 
-static int cci_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int cci_pmu_offline_cpu(unsigned int cpu)
 {
-	struct cci_pmu *cci_pmu = hlist_entry_safe(node, struct cci_pmu, node);
-	unsigned int target;
+	int target;
 
-	if (!cpumask_test_and_clear_cpu(cpu, &cci_pmu->cpus))
+	if (!g_cci_pmu || cpu != g_cci_pmu->cpu)
 		return 0;
+
 	target = cpumask_any_but(cpu_online_mask, cpu);
 	if (target >= nr_cpu_ids)
 		return 0;
-	/*
-	 * TODO: migrate context once core races on event->ctx have
-	 * been fixed.
-	 */
-	cpumask_set_cpu(target, &cci_pmu->cpus);
+
+	perf_pmu_migrate_context(&g_cci_pmu->pmu, cpu, target);
+	g_cci_pmu->cpu = target;
 	return 0;
 }
 
@@ -1706,7 +1699,7 @@ static int cci_pmu_probe(struct platform_device *pdev)
 	raw_spin_lock_init(&cci_pmu->hw_events.pmu_lock);
 	mutex_init(&cci_pmu->reserve_mutex);
 	atomic_set(&cci_pmu->active_events, 0);
-	cpumask_set_cpu(get_cpu(), &cci_pmu->cpus);
+	cci_pmu->cpu = get_cpu();
 
 	ret = cci_pmu_init(cci_pmu, pdev);
 	if (ret) {
@@ -1714,9 +1707,11 @@ static int cci_pmu_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	cpuhp_state_add_instance_nocalls(CPUHP_AP_PERF_ARM_CCI_ONLINE,
-					 &cci_pmu->node);
+	cpuhp_setup_state_nocalls(CPUHP_AP_PERF_ARM_CCI_ONLINE,
+				  "perf/arm/cci:online", NULL,
+				  cci_pmu_offline_cpu);
 	put_cpu();
+	g_cci_pmu = cci_pmu;
 	pr_info("ARM %s PMU driver probed", cci_pmu->model->name);
 	return 0;
 }
@@ -1729,19 +1724,6 @@ static struct platform_driver cci_pmu_driver = {
 	.probe = cci_pmu_probe,
 };
 
-static int __init cci_platform_init(void)
-{
-	int ret;
-
-	ret = cpuhp_setup_state_multi(CPUHP_AP_PERF_ARM_CCI_ONLINE,
-				      "perf/arm/cci:online", NULL,
-				      cci_pmu_offline_cpu);
-	if (ret)
-		return ret;
-
-	return platform_driver_register(&cci_pmu_driver);
-}
-
-device_initcall(cci_platform_init);
+builtin_platform_driver(cci_pmu_driver);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ARM CCI PMU support");
