@@ -516,10 +516,7 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 	if ((fsopt->flags & CEPH_MOUNT_OPT_DCACHE) == 0)
 		seq_puts(m, ",nodcache");
 	if (fsopt->flags & CEPH_MOUNT_OPT_FSCACHE) {
-		if (fsopt->fscache_uniq)
-			seq_printf(m, ",fsc=%s", fsopt->fscache_uniq);
-		else
-			seq_puts(m, ",fsc");
+		seq_show_option(m, "fsc", fsopt->fscache_uniq);
 	}
 	if (fsopt->flags & CEPH_MOUNT_OPT_NOPOOLPERM)
 		seq_puts(m, ",nopoolperm");
@@ -532,7 +529,7 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 #endif
 
 	if (fsopt->mds_namespace)
-		seq_printf(m, ",mds_namespace=%s", fsopt->mds_namespace);
+		seq_show_option(m, "mds_namespace", fsopt->mds_namespace);
 	if (fsopt->wsize)
 		seq_printf(m, ",wsize=%d", fsopt->wsize);
 	if (fsopt->rsize != CEPH_MAX_READ_SIZE)
