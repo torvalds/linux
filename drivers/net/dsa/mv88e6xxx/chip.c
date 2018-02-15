@@ -714,9 +714,12 @@ static void mv88e6xxx_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
 	for (i = 0, j = 0; i < ARRAY_SIZE(mv88e6xxx_hw_stats); i++) {
 		stat = &mv88e6xxx_hw_stats[i];
 		if (stat->type & types) {
+			mutex_lock(&chip->reg_lock);
 			data[j] = _mv88e6xxx_get_ethtool_stat(chip, stat, port,
 							      bank1_select,
 							      histogram);
+			mutex_unlock(&chip->reg_lock);
+
 			j++;
 		}
 	}
@@ -764,14 +767,13 @@ static void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds, int port,
 	mutex_lock(&chip->reg_lock);
 
 	ret = mv88e6xxx_stats_snapshot(chip, port);
-	if (ret < 0) {
-		mutex_unlock(&chip->reg_lock);
+	mutex_unlock(&chip->reg_lock);
+
+	if (ret < 0)
 		return;
-	}
 
 	mv88e6xxx_get_stats(chip, port, data);
 
-	mutex_unlock(&chip->reg_lock);
 }
 
 static int mv88e6xxx_stats_set_histogram(struct mv88e6xxx_chip *chip)
