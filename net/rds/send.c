@@ -649,7 +649,6 @@ static void rds_send_remove_from_sock(struct list_head *messages, int status)
 				rm->rdma.op_notifier = NULL;
 			}
 			was_on_sock = 1;
-			rm->m_rs = NULL;
 		}
 		spin_unlock(&rs->rs_lock);
 
@@ -756,9 +755,6 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 		 */
 		if (!test_and_clear_bit(RDS_MSG_ON_CONN, &rm->m_flags)) {
 			spin_unlock_irqrestore(&cp->cp_lock, flags);
-			spin_lock_irqsave(&rm->m_rs_lock, flags);
-			rm->m_rs = NULL;
-			spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 			continue;
 		}
 		list_del_init(&rm->m_conn_item);
@@ -774,7 +770,6 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 		__rds_send_complete(rs, rm, RDS_RDMA_CANCELED);
 		spin_unlock(&rs->rs_lock);
 
-		rm->m_rs = NULL;
 		spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 
 		rds_message_put(rm);
@@ -798,7 +793,6 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 		__rds_send_complete(rs, rm, RDS_RDMA_CANCELED);
 		spin_unlock(&rs->rs_lock);
 
-		rm->m_rs = NULL;
 		spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 
 		rds_message_put(rm);
@@ -849,6 +843,7 @@ static int rds_send_queue_rm(struct rds_sock *rs, struct rds_connection *conn,
 		list_add_tail(&rm->m_sock_item, &rs->rs_send_queue);
 		set_bit(RDS_MSG_ON_SOCK, &rm->m_flags);
 		rds_message_addref(rm);
+		sock_hold(rds_rs_to_sk(rs));
 		rm->m_rs = rs;
 
 		/* The code ordering is a little weird, but we're

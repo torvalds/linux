@@ -58,7 +58,7 @@ EXPORT_SYMBOL_GPL(rds_message_addref);
  */
 static void rds_message_purge(struct rds_message *rm)
 {
-	unsigned long i;
+	unsigned long i, flags;
 
 	if (unlikely(test_bit(RDS_MSG_PAGEVEC, &rm->m_flags)))
 		return;
@@ -69,6 +69,12 @@ static void rds_message_purge(struct rds_message *rm)
 		__free_page(sg_page(&rm->data.op_sg[i]));
 	}
 	rm->data.op_nents = 0;
+	spin_lock_irqsave(&rm->m_rs_lock, flags);
+	if (rm->m_rs) {
+		sock_put(rds_rs_to_sk(rm->m_rs));
+		rm->m_rs = NULL;
+	}
+	spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 
 	if (rm->rdma.op_active)
 		rds_rdma_free_op(&rm->rdma);
