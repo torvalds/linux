@@ -591,10 +591,8 @@ static int fill_powernow_table(struct powernow_k8_data *data,
 
 	powernow_table = kzalloc((sizeof(*powernow_table)
 		* (data->numps + 1)), GFP_KERNEL);
-	if (!powernow_table) {
-		pr_err("powernow_table memory alloc failure\n");
+	if (!powernow_table)
 		return -ENOMEM;
-	}
 
 	for (j = 0; j < data->numps; j++) {
 		int freq;
@@ -760,10 +758,8 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 	/* fill in data->powernow_table */
 	powernow_table = kzalloc((sizeof(*powernow_table)
 		* (data->acpi_data.state_count + 1)), GFP_KERNEL);
-	if (!powernow_table) {
-		pr_debug("powernow_table memory alloc failure\n");
+	if (!powernow_table)
 		goto err_out;
-	}
 
 	/* fill in data */
 	data->numps = data->acpi_data.state_count;
@@ -1042,10 +1038,8 @@ static int powernowk8_cpu_init(struct cpufreq_policy *pol)
 		return -ENODEV;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		pr_err("unable to alloc powernow_k8_data\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->cpu = pol->cpu;
 
