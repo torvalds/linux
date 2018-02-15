@@ -550,6 +550,59 @@ static const struct attribute_group *ufs_sysfs_groups[] = {
 	NULL,
 };
 
+#define UFS_LUN_DESC_PARAM(_pname, _puname, _duname, _size)		\
+static ssize_t _pname##_show(struct device *dev,			\
+	struct device_attribute *attr, char *buf)			\
+{									\
+	struct scsi_device *sdev = to_scsi_device(dev);			\
+	struct ufs_hba *hba = shost_priv(sdev->host);			\
+	u8 lun = ufshcd_scsi_to_upiu_lun(sdev->lun);			\
+	if (!ufs_is_valid_unit_desc_lun(lun))				\
+		return -EINVAL;						\
+	return ufs_sysfs_read_desc_param(hba, QUERY_DESC_IDN_##_duname,	\
+		lun, _duname##_DESC_PARAM##_puname, buf, _size);	\
+}									\
+static DEVICE_ATTR_RO(_pname)
+
+#define UFS_UNIT_DESC_PARAM(_name, _uname, _size)			\
+	UFS_LUN_DESC_PARAM(_name, _uname, UNIT, _size)
+
+UFS_UNIT_DESC_PARAM(boot_lun_id, _BOOT_LUN_ID, 1);
+UFS_UNIT_DESC_PARAM(lun_write_protect, _LU_WR_PROTECT, 1);
+UFS_UNIT_DESC_PARAM(lun_queue_depth, _LU_Q_DEPTH, 1);
+UFS_UNIT_DESC_PARAM(psa_sensitive, _PSA_SENSITIVE, 1);
+UFS_UNIT_DESC_PARAM(lun_memory_type, _MEM_TYPE, 1);
+UFS_UNIT_DESC_PARAM(data_reliability, _DATA_RELIABILITY, 1);
+UFS_UNIT_DESC_PARAM(logical_block_size, _LOGICAL_BLK_SIZE, 1);
+UFS_UNIT_DESC_PARAM(logical_block_count, _LOGICAL_BLK_COUNT, 8);
+UFS_UNIT_DESC_PARAM(erase_block_size, _ERASE_BLK_SIZE, 4);
+UFS_UNIT_DESC_PARAM(provisioning_type, _PROVISIONING_TYPE, 1);
+UFS_UNIT_DESC_PARAM(physical_memory_resourse_count, _PHY_MEM_RSRC_CNT, 8);
+UFS_UNIT_DESC_PARAM(context_capabilities, _CTX_CAPABILITIES, 2);
+UFS_UNIT_DESC_PARAM(large_unit_granularity, _LARGE_UNIT_SIZE_M1, 1);
+
+static struct attribute *ufs_sysfs_unit_descriptor[] = {
+	&dev_attr_boot_lun_id.attr,
+	&dev_attr_lun_write_protect.attr,
+	&dev_attr_lun_queue_depth.attr,
+	&dev_attr_psa_sensitive.attr,
+	&dev_attr_lun_memory_type.attr,
+	&dev_attr_data_reliability.attr,
+	&dev_attr_logical_block_size.attr,
+	&dev_attr_logical_block_count.attr,
+	&dev_attr_erase_block_size.attr,
+	&dev_attr_provisioning_type.attr,
+	&dev_attr_physical_memory_resourse_count.attr,
+	&dev_attr_context_capabilities.attr,
+	&dev_attr_large_unit_granularity.attr,
+	NULL,
+};
+
+const struct attribute_group ufs_sysfs_unit_descriptor_group = {
+	.name = "unit_descriptor",
+	.attrs = ufs_sysfs_unit_descriptor,
+};
+
 void ufs_sysfs_add_nodes(struct device *dev)
 {
 	int ret;
