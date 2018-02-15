@@ -295,6 +295,7 @@ union acpi_parse_object *acpi_ps_get_child(union acpi_parse_object *op)
 
 	case AML_BUFFER_OP:
 	case AML_PACKAGE_OP:
+	case AML_VARIABLE_PACKAGE_OP:
 	case AML_METHOD_OP:
 	case AML_IF_OP:
 	case AML_WHILE_OP:
