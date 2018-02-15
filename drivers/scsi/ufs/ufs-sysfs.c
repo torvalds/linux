@@ -577,6 +577,61 @@ static const struct attribute_group ufs_sysfs_flags_group = {
 	.attrs = ufs_sysfs_device_flags,
 };
 
+#define UFS_ATTRIBUTE(_name, _uname)					\
+static ssize_t _name##_show(struct device *dev,				\
+	struct device_attribute *attr, char *buf)			\
+{									\
+	struct ufs_hba *hba = dev_get_drvdata(dev);			\
+	u32 value;							\
+	if (ufshcd_query_attr(hba, UPIU_QUERY_OPCODE_READ_ATTR,		\
+		QUERY_ATTR_IDN##_uname, 0, 0, &value))			\
+		return -EINVAL;						\
+	return sprintf(buf, "0x%08X\n", value);				\
+}									\
+static DEVICE_ATTR_RO(_name)
+
+UFS_ATTRIBUTE(boot_lun_enabled, _BOOT_LU_EN);
+UFS_ATTRIBUTE(current_power_mode, _POWER_MODE);
+UFS_ATTRIBUTE(active_icc_level, _ACTIVE_ICC_LVL);
+UFS_ATTRIBUTE(ooo_data_enabled, _OOO_DATA_EN);
+UFS_ATTRIBUTE(bkops_status, _BKOPS_STATUS);
+UFS_ATTRIBUTE(purge_status, _PURGE_STATUS);
+UFS_ATTRIBUTE(max_data_in_size, _MAX_DATA_IN);
+UFS_ATTRIBUTE(max_data_out_size, _MAX_DATA_OUT);
+UFS_ATTRIBUTE(reference_clock_frequency, _REF_CLK_FREQ);
+UFS_ATTRIBUTE(configuration_descriptor_lock, _CONF_DESC_LOCK);
+UFS_ATTRIBUTE(max_number_of_rtt, _MAX_NUM_OF_RTT);
+UFS_ATTRIBUTE(exception_event_control, _EE_CONTROL);
+UFS_ATTRIBUTE(exception_event_status, _EE_STATUS);
+UFS_ATTRIBUTE(ffu_status, _FFU_STATUS);
+UFS_ATTRIBUTE(psa_state, _PSA_STATE);
+UFS_ATTRIBUTE(psa_data_size, _PSA_DATA_SIZE);
+
+static struct attribute *ufs_sysfs_attributes[] = {
+	&dev_attr_boot_lun_enabled.attr,
+	&dev_attr_current_power_mode.attr,
+	&dev_attr_active_icc_level.attr,
+	&dev_attr_ooo_data_enabled.attr,
+	&dev_attr_bkops_status.attr,
+	&dev_attr_purge_status.attr,
+	&dev_attr_max_data_in_size.attr,
+	&dev_attr_max_data_out_size.attr,
+	&dev_attr_reference_clock_frequency.attr,
+	&dev_attr_configuration_descriptor_lock.attr,
+	&dev_attr_max_number_of_rtt.attr,
+	&dev_attr_exception_event_control.attr,
+	&dev_attr_exception_event_status.attr,
+	&dev_attr_ffu_status.attr,
+	&dev_attr_psa_state.attr,
+	&dev_attr_psa_data_size.attr,
+	NULL,
+};
+
+static const struct attribute_group ufs_sysfs_attributes_group = {
+	.name = "attributes",
+	.attrs = ufs_sysfs_attributes,
+};
+
 static const struct attribute_group *ufs_sysfs_groups[] = {
 	&ufs_sysfs_default_group,
 	&ufs_sysfs_device_descriptor_group,
@@ -586,6 +641,7 @@ static const struct attribute_group *ufs_sysfs_groups[] = {
 	&ufs_sysfs_power_descriptor_group,
 	&ufs_sysfs_string_descriptors_group,
 	&ufs_sysfs_flags_group,
+	&ufs_sysfs_attributes_group,
 	NULL,
 };
 
@@ -640,6 +696,30 @@ static struct attribute *ufs_sysfs_unit_descriptor[] = {
 const struct attribute_group ufs_sysfs_unit_descriptor_group = {
 	.name = "unit_descriptor",
 	.attrs = ufs_sysfs_unit_descriptor,
+};
+
+static ssize_t dyn_cap_needed_attribute_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	u32 value;
+	struct scsi_device *sdev = to_scsi_device(dev);
+	struct ufs_hba *hba = shost_priv(sdev->host);
+	u8 lun = ufshcd_scsi_to_upiu_lun(sdev->lun);
+
+	if (ufshcd_query_attr(hba, UPIU_QUERY_OPCODE_READ_ATTR,
+		QUERY_ATTR_IDN_DYN_CAP_NEEDED, lun, 0, &value))
+		return -EINVAL;
+	return sprintf(buf, "0x%08X\n", value);
+}
+static DEVICE_ATTR_RO(dyn_cap_needed_attribute);
+
+static struct attribute *ufs_sysfs_lun_attributes[] = {
+	&dev_attr_dyn_cap_needed_attribute.attr,
+	NULL,
+};
+
+const struct attribute_group ufs_sysfs_lun_attributes_group = {
+	.attrs = ufs_sysfs_lun_attributes,
 };
 
 void ufs_sysfs_add_nodes(struct device *dev)
