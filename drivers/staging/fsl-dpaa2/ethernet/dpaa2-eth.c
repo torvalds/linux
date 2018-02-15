@@ -1864,7 +1864,6 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 	if (err)
 		goto close;
 
-
 	return 0;
 
 close:
