@@ -82,7 +82,6 @@ struct tipc_conn {
 struct outqueue_entry {
 	struct list_head list;
 	struct kvec iov;
-	struct sockaddr_tipc dest;
 };
 
 static void tipc_recv_work(struct work_struct *work);
@@ -93,7 +92,6 @@ static void tipc_conn_kref_release(struct kref *kref)
 {
 	struct tipc_conn *con = container_of(kref, struct tipc_conn, kref);
 	struct tipc_server *s = con->server;
-	struct sockaddr_tipc *saddr = s->saddr;
 	struct socket *sock = con->sock;
 	struct sock *sk;
 
@@ -103,8 +101,6 @@ static void tipc_conn_kref_release(struct kref *kref)
 			__module_get(sock->ops->owner);
 			__module_get(sk->sk_prot_creator->owner);
 		}
-		saddr->scope = -TIPC_NODE_SCOPE;
-		kernel_bind(sock, (struct sockaddr *)saddr, sizeof(*saddr));
 		sock_release(sock);
 		con->sock = NULL;
 	}
@@ -325,36 +321,24 @@ static struct socket *tipc_create_listen_sock(struct tipc_conn *con)
 {
 	struct tipc_server *s = con->server;
 	struct socket *sock = NULL;
+	int imp = TIPC_CRITICAL_IMPORTANCE;
 	int ret;
 
 	ret = sock_create_kern(s->net, AF_TIPC, SOCK_SEQPACKET, 0, &sock);
 	if (ret < 0)
 		return NULL;
 	ret = kernel_setsockopt(sock, SOL_TIPC, TIPC_IMPORTANCE,
-				(char *)&s->imp, sizeof(s->imp));
+				(char *)&imp, sizeof(imp));
 	if (ret < 0)
 		goto create_err;
 	ret = kernel_bind(sock, (struct sockaddr *)s->saddr, sizeof(*s->saddr));
 	if (ret < 0)
 		goto create_err;
 
-	switch (s->type) {
-	case SOCK_STREAM:
-	case SOCK_SEQPACKET:
-		con->rx_action = tipc_accept_from_sock;
-
-		ret = kernel_listen(sock, 0);
-		if (ret < 0)
-			goto create_err;
-		break;
-	case SOCK_DGRAM:
-	case SOCK_RDM:
-		con->rx_action = tipc_receive_from_sock;
-		break;
-	default:
-		pr_err("Unknown socket type %d\n", s->type);
+	con->rx_action = tipc_accept_from_sock;
+	ret = kernel_listen(sock, 0);
+	if (ret < 0)
 		goto create_err;
-	}
 
 	/* As server's listening socket owner and creator is the same module,
 	 * we have to decrease TIPC module reference count to guarantee that
@@ -444,7 +428,7 @@ static void tipc_clean_outqueues(struct tipc_conn *con)
 }
 
 int tipc_conn_sendmsg(struct tipc_server *s, int conid,
-		      struct sockaddr_tipc *addr, void *data, size_t len)
+		      void *data, size_t len)
 {
 	struct outqueue_entry *e;
 	struct tipc_conn *con;
@@ -463,9 +447,6 @@ int tipc_conn_sendmsg(struct tipc_server *s, int conid,
 		conn_put(con);
 		return -ENOMEM;
 	}
-
-	if (addr)
-		memcpy(&e->dest, addr, sizeof(struct sockaddr_tipc));
 
 	spin_lock_bh(&con->outqueue_lock);
 	list_add_tail(&e->list, &con->outqueue);
@@ -575,10 +556,6 @@ static void tipc_send_to_sock(struct tipc_conn *con)
 		if (con->sock) {
 			memset(&msg, 0, sizeof(msg));
 			msg.msg_flags = MSG_DONTWAIT;
-			if (s->type == SOCK_DGRAM || s->type == SOCK_RDM) {
-				msg.msg_name = &e->dest;
-				msg.msg_namelen = sizeof(struct sockaddr_tipc);
-			}
 			ret = kernel_sendmsg(con->sock, &msg, &e->iov, 1,
 					     e->iov.iov_len);
 			if (ret == -EWOULDBLOCK || ret == 0) {
@@ -591,6 +568,7 @@ static void tipc_send_to_sock(struct tipc_conn *con)
 			evt = e->iov.iov_base;
 			tipc_send_kern_top_evt(s->net, evt);
 		}
+
 		/* Don't starve users filling buffers */
 		if (++count >= MAX_SEND_MSG_COUNT) {
 			cond_resched();

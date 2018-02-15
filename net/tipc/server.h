@@ -79,12 +79,10 @@ struct tipc_server {
 				 void *buf, size_t len);
 	struct sockaddr_tipc *saddr;
 	char name[TIPC_SERVER_NAME_LEN];
-	int imp;
-	int type;
 };
 
 int tipc_conn_sendmsg(struct tipc_server *s, int conid,
-		      struct sockaddr_tipc *addr, void *data, size_t len);
+		      void *data, size_t len);
 
 bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type, u32 lower,
 			     u32 upper, u32 filter, int *conid);

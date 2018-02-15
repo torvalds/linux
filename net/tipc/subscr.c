@@ -81,7 +81,7 @@ static void tipc_subscrp_send_event(struct tipc_subscription *sub,
 	sub->evt.found_upper = htohl(found_upper, sub->swap);
 	sub->evt.port.ref = htohl(port_ref, sub->swap);
 	sub->evt.port.node = htohl(node, sub->swap);
-	tipc_conn_sendmsg(tn->topsrv, subscriber->conid, NULL,
+	tipc_conn_sendmsg(tn->topsrv, subscriber->conid,
 			  msg_sect.iov_base, msg_sect.iov_len);
 }
 
@@ -375,8 +375,6 @@ int tipc_topsrv_start(struct net *net)
 	}
 	topsrv->net			= net;
 	topsrv->saddr			= saddr;
-	topsrv->imp			= TIPC_CRITICAL_IMPORTANCE;
-	topsrv->type			= SOCK_SEQPACKET;
 	topsrv->max_rcvbuf_size		= sizeof(struct tipc_subscr);
 	topsrv->tipc_conn_recvmsg	= tipc_subscrb_rcv_cb;
 	topsrv->tipc_conn_new		= tipc_subscrb_connect_cb;
