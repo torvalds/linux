@@ -230,7 +230,8 @@
 			"generic-ahci";
 			reg = <0x540000 0x30000>;
 			interrupts = <ICU_GRP_NSR 107 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&CP110_LABEL(clk) 1 15>;
+			clocks = <&CP110_LABEL(clk) 1 15>,
+				 <&CP110_LABEL(clk) 1 16>;
 			status = "disabled";
 		};
 
