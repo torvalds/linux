@@ -806,14 +806,16 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 	struct omap_dm_timer *timer;
 	struct resource *mem, *irq;
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
 	const struct dmtimer_platform_data *pdata;
 	int ret;
 
-	match = of_match_device(of_match_ptr(omap_timer_match), dev);
-	pdata = match ? match->data : dev->platform_data;
+	pdata = of_device_get_match_data(dev);
+	if (!pdata)
+		pdata = dev_get_platdata(dev);
+	else
+		dev->platform_data = (void *)pdata;
 
-	if (!pdata && !dev->of_node) {
+	if (!pdata) {
 		dev_err(dev, "%s: no platform data.\n", __func__);
 		return -ENODEV;
 	}
