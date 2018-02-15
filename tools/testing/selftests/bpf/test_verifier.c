@@ -57,6 +57,9 @@
 #define F_NEEDS_EFFICIENT_UNALIGNED_ACCESS	(1 << 0)
 #define F_LOAD_WITH_STRICT_ALIGNMENT		(1 << 1)
 
+#define UNPRIV_SYSCTL "kernel/unprivileged_bpf_disabled"
+static bool unpriv_disabled = false;
+
 struct bpf_test {
 	const char *descr;
 	struct bpf_insn	insns[MAX_INSNS];
@@ -11291,7 +11294,8 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 			goto fail_log;
 		}
 		if (!strstr(bpf_vlog, expected_err) && !reject_from_alignment) {
-			printf("FAIL\nUnexpected error message!\n");
+			printf("FAIL\nUnexpected error message!\n\tEXP: %s\n\tRES: %s\n",
+			      expected_err, bpf_vlog);
 			goto fail_log;
 		}
 	}
@@ -11375,9 +11379,20 @@ out:
 	return ret;
 }
 
+static void get_unpriv_disabled()
+{
+	char buf[2];
+	FILE *fd;
+
+	fd = fopen("/proc/sys/"UNPRIV_SYSCTL, "r");
+	if (fgets(buf, 2, fd) == buf && atoi(buf))
+		unpriv_disabled = true;
+	fclose(fd);
+}
+
 static int do_test(bool unpriv, unsigned int from, unsigned int to)
 {
-	int i, passes = 0, errors = 0;
+	int i, passes = 0, errors = 0, skips = 0;
 
 	for (i = from; i < to; i++) {
 		struct bpf_test *test = &tests[i];
@@ -11385,7 +11400,10 @@ static int do_test(bool unpriv, unsigned int from, unsigned int to)
 		/* Program types that are not supported by non-root we
 		 * skip right away.
 		 */
-		if (!test->prog_type) {
+		if (!test->prog_type && unpriv_disabled) {
+			printf("#%d/u %s SKIP\n", i, test->descr);
+			skips++;
+		} else if (!test->prog_type) {
 			if (!unpriv)
 				set_admin(false);
 			printf("#%d/u %s ", i, test->descr);
@@ -11394,13 +11412,17 @@ static int do_test(bool unpriv, unsigned int from, unsigned int to)
 				set_admin(true);
 		}
 
-		if (!unpriv) {
+		if (unpriv) {
+			printf("#%d/p %s SKIP\n", i, test->descr);
+			skips++;
+		} else {
 			printf("#%d/p %s ", i, test->descr);
 			do_test_single(test, false, &passes, &errors);
 		}
 	}
 
-	printf("Summary: %d PASSED, %d FAILED\n", passes, errors);
+	printf("Summary: %d PASSED, %d SKIPPED, %d FAILED\n", passes,
+	       skips, errors);
 	return errors ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
@@ -11426,6 +11448,13 @@ int main(int argc, char **argv)
 			from = t;
 			to   = t + 1;
 		}
+	}
+
+	get_unpriv_disabled();
+	if (unpriv && unpriv_disabled) {
+		printf("Cannot run as unprivileged user with sysctl %s.\n",
+		       UNPRIV_SYSCTL);
+		return EXIT_FAILURE;
 	}
 
 	setrlimit(RLIMIT_MEMLOCK, unpriv ? &rlim : &rinf);

@@ -508,10 +508,6 @@ err:
 static const int caller_saved[CALLER_SAVED_REGS] = {
 	BPF_REG_0, BPF_REG_1, BPF_REG_2, BPF_REG_3, BPF_REG_4, BPF_REG_5
 };
-#define CALLEE_SAVED_REGS 5
-static const int callee_saved[CALLEE_SAVED_REGS] = {
-	BPF_REG_6, BPF_REG_7, BPF_REG_8, BPF_REG_9
-};
 
 static void __mark_reg_not_init(struct bpf_reg_state *reg);
 
