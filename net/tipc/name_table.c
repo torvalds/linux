@@ -412,18 +412,22 @@ found:
  * sequence overlapping with the requested sequence
  */
 static void tipc_nameseq_subscribe(struct name_seq *nseq,
-				   struct tipc_subscription *s,
-				   bool status)
+				   struct tipc_subscription *sub)
 {
 	struct sub_seq *sseq = nseq->sseqs;
 	struct tipc_name_seq ns;
+	struct tipc_subscr *s = &sub->evt.s;
+	bool no_status;
 
-	tipc_subscrp_convert_seq(&s->evt.s.seq, s->swap, &ns);
+	ns.type = tipc_sub_read(s, seq.type);
+	ns.lower = tipc_sub_read(s, seq.lower);
+	ns.upper = tipc_sub_read(s, seq.upper);
+	no_status = tipc_sub_read(s, filter) & TIPC_SUB_NO_STATUS;
 
-	tipc_subscrp_get(s);
-	list_add(&s->nameseq_list, &nseq->subscriptions);
+	tipc_subscrp_get(sub);
+	list_add(&sub->nameseq_list, &nseq->subscriptions);
 
-	if (!status || !sseq)
+	if (no_status || !sseq)
 		return;
 
 	while (sseq != &nseq->sseqs[nseq->first_free]) {
@@ -433,7 +437,7 @@ static void tipc_nameseq_subscribe(struct name_seq *nseq,
 			int must_report = 1;
 
 			list_for_each_entry(crs, &info->zone_list, zone_list) {
-				tipc_subscrp_report_overlap(s, sseq->lower,
+				tipc_subscrp_report_overlap(sub, sseq->lower,
 							    sseq->upper,
 							    TIPC_PUBLISHED,
 							    crs->ref, crs->node,
@@ -808,11 +812,12 @@ int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower, u32 ref,
 /**
  * tipc_nametbl_subscribe - add a subscription object to the name table
  */
-void tipc_nametbl_subscribe(struct tipc_subscription *s, bool status)
+void tipc_nametbl_subscribe(struct tipc_subscription *sub)
 {
-	struct tipc_server *srv = s->server;
+	struct tipc_server *srv = sub->server;
 	struct tipc_net *tn = tipc_net(srv->net);
-	u32 type = tipc_subscrp_convert_seq_type(s->evt.s.seq.type, s->swap);
+	struct tipc_subscr *s = &sub->evt.s;
+	u32 type = tipc_sub_read(s, seq.type);
 	int index = hash(type);
 	struct name_seq *seq;
 	struct tipc_name_seq ns;
@@ -823,10 +828,12 @@ void tipc_nametbl_subscribe(struct tipc_subscription *s, bool status)
 		seq = tipc_nameseq_create(type, &tn->nametbl->seq_hlist[index]);
 	if (seq) {
 		spin_lock_bh(&seq->lock);
-		tipc_nameseq_subscribe(seq, s, status);
+		tipc_nameseq_subscribe(seq, sub);
 		spin_unlock_bh(&seq->lock);
 	} else {
-		tipc_subscrp_convert_seq(&s->evt.s.seq, s->swap, &ns);
+		ns.type = tipc_sub_read(s, seq.type);
+		ns.lower = tipc_sub_read(s, seq.lower);
+		ns.upper = tipc_sub_read(s, seq.upper);
 		pr_warn("Failed to create subscription for {%u,%u,%u}\n",
 			ns.type, ns.lower, ns.upper);
 	}
@@ -836,19 +843,20 @@ void tipc_nametbl_subscribe(struct tipc_subscription *s, bool status)
 /**
  * tipc_nametbl_unsubscribe - remove a subscription object from name table
  */
-void tipc_nametbl_unsubscribe(struct tipc_subscription *s)
+void tipc_nametbl_unsubscribe(struct tipc_subscription *sub)
 {
-	struct tipc_server *srv = s->server;
+	struct tipc_server *srv = sub->server;
+	struct tipc_subscr *s = &sub->evt.s;
 	struct tipc_net *tn = tipc_net(srv->net);
 	struct name_seq *seq;
-	u32 type = tipc_subscrp_convert_seq_type(s->evt.s.seq.type, s->swap);
+	u32 type = tipc_sub_read(s, seq.type);
 
 	spin_lock_bh(&tn->nametbl_lock);
 	seq = nametbl_find_seq(srv->net, type);
 	if (seq != NULL) {
 		spin_lock_bh(&seq->lock);
-		list_del_init(&s->nameseq_list);
-		tipc_subscrp_put(s);
+		list_del_init(&sub->nameseq_list);
+		tipc_subscrp_put(sub);
 		if (!seq->first_free && list_empty(&seq->subscriptions)) {
 			hlist_del_init_rcu(&seq->ns_list);
 			kfree(seq->sseqs);

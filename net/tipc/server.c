@@ -98,18 +98,6 @@ static bool connected(struct tipc_conn *con)
 	return con && test_bit(CF_CONNECTED, &con->flags);
 }
 
-/**
- * htohl - convert value to endianness used by destination
- * @in: value to convert
- * @swap: non-zero if endianness must be reversed
- *
- * Returns converted value
- */
-static u32 htohl(u32 in, int swap)
-{
-	return swap ? swab32(in) : in;
-}
-
 static void tipc_conn_kref_release(struct kref *kref)
 {
 	struct tipc_conn *con = container_of(kref, struct tipc_conn, kref);
@@ -285,21 +273,12 @@ static int tipc_con_rcv_sub(struct tipc_server *srv,
 			    struct tipc_subscr *s)
 {
 	struct tipc_subscription *sub;
-	bool status;
-	int swap;
 
-	/* Determine subscriber's endianness */
-	swap = !(s->filter & (TIPC_SUB_PORTS | TIPC_SUB_SERVICE |
-			      TIPC_SUB_CANCEL));
-
-	/* Detect & process a subscription cancellation request */
-	if (s->filter & htohl(TIPC_SUB_CANCEL, swap)) {
-		s->filter &= ~htohl(TIPC_SUB_CANCEL, swap);
+	if (tipc_sub_read(s, filter) & TIPC_SUB_CANCEL) {
 		tipc_con_delete_sub(con, s);
 		return 0;
 	}
-	status = !(s->filter & htohl(TIPC_SUB_NO_STATUS, swap));
-	sub = tipc_subscrp_subscribe(srv, s, con->conid, swap, status);
+	sub = tipc_subscrp_subscribe(srv, s, con->conid);
 	if (!sub)
 		return -1;
 
