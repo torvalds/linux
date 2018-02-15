@@ -621,7 +621,7 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 			goto err_out;
 		err = -EINVAL;
 		kind = tb[TCA_ACT_KIND];
-		if (kind == NULL)
+		if (!kind)
 			goto err_out;
 		if (nla_strlcpy(act_name, kind, IFNAMSIZ) >= IFNAMSIZ)
 			goto err_out;
@@ -822,7 +822,7 @@ static int tca_get_fill(struct sk_buff *skb, struct list_head *actions,
 	t->tca__pad2 = 0;
 
 	nest = nla_nest_start(skb, TCA_ACT_TAB);
-	if (nest == NULL)
+	if (!nest)
 		goto out_nlmsg_trim;
 
 	if (tcf_action_dump(skb, actions, bind, ref) < 0)
@@ -934,7 +934,7 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 	t->tca__pad2 = 0;
 
 	nest = nla_nest_start(skb, TCA_ACT_TAB);
-	if (nest == NULL)
+	if (!nest)
 		goto out_module_put;
 
 	err = ops->walk(net, skb, &dcb, RTM_DELACTION, ops);
@@ -1007,10 +1007,10 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 		return ret;
 
 	if (event == RTM_DELACTION && n->nlmsg_flags & NLM_F_ROOT) {
-		if (tb[1] != NULL)
+		if (tb[1])
 			return tca_action_flush(net, tb[1], n, portid);
-		else
-			return -EINVAL;
+
+		return -EINVAL;
 	}
 
 	for (i = 1; i <= TCA_ACT_MAX_PRIO && tb[i]; i++) {

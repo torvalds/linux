@@ -87,12 +87,13 @@ struct tc_action_ops {
 		       struct tcf_result *);
 	int     (*dump)(struct sk_buff *, struct tc_action *, int, int);
 	void	(*cleanup)(struct tc_action *);
-	int     (*lookup)(struct net *, struct tc_action **, u32);
+	int     (*lookup)(struct net *net, struct tc_action **a, u32 index);
 	int     (*init)(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action **act, int ovr,
 			int bind);
 	int     (*walk)(struct net *, struct sk_buff *,
-			struct netlink_callback *, int, const struct tc_action_ops *);
+			struct netlink_callback *, int,
+			const struct tc_action_ops *);
 	void	(*stats_update)(struct tc_action *, u64, u32, u64);
 	struct net_device *(*get_dev)(const struct tc_action *a);
 };
