@@ -1588,17 +1588,6 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 		return -1;
 
 	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);
-	/*
-	 * Have we already created the kernel maps for this machine?
-	 *
-	 * This should have happened earlier, when we processed the kernel MMAP
-	 * events, but for older perf.data files there was no such thing, so do
-	 * it now.
-	 */
-	if (sample->cpumode == PERF_RECORD_MISC_KERNEL &&
-	    machine__kernel_map(machine) == NULL)
-		machine__create_kernel_maps(machine);
-
 	thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, sample->ip, al);
 	dump_printf(" ...... dso: %s\n",
 		    al->map ? al->map->dso->long_name :
