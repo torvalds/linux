@@ -202,7 +202,8 @@ nla_put_failure:
 
 int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 		       struct netlink_callback *cb, int type,
-		       const struct tc_action_ops *ops)
+		       const struct tc_action_ops *ops,
+		       struct netlink_ext_ack *extack)
 {
 	struct tcf_idrinfo *idrinfo = tn->idrinfo;
 
@@ -211,7 +212,8 @@ int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 	} else if (type == RTM_GETACTION) {
 		return tcf_dump_walker(idrinfo, skb, cb);
 	} else {
-		WARN(1, "tcf_generic_walker: unknown action %d\n", type);
+		WARN(1, "tcf_generic_walker: unknown command %d\n", type);
+		NL_SET_ERR_MSG(extack, "tcf_generic_walker: unknown command");
 		return -EINVAL;
 	}
 }

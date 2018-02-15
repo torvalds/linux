@@ -140,7 +140,8 @@ static inline void tc_action_net_exit(struct list_head *net_list,
 
 int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 		       struct netlink_callback *cb, int type,
-		       const struct tc_action_ops *ops);
+		       const struct tc_action_ops *ops,
+		       struct netlink_ext_ack *extack);
 int tcf_idr_search(struct tc_action_net *tn, struct tc_action **a, u32 index);
 bool tcf_idr_check(struct tc_action_net *tn, u32 index, struct tc_action **a,
 		    int bind);

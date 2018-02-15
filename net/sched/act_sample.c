@@ -207,7 +207,7 @@ static int tcf_sample_walker(struct net *net, struct sk_buff *skb,
 {
 	struct tc_action_net *tn = net_generic(net, sample_net_id);
 
-	return tcf_generic_walker(tn, skb, cb, type, ops);
+	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
 static int tcf_sample_search(struct net *net, struct tc_action **a, u32 index,

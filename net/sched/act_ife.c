@@ -829,7 +829,7 @@ static int tcf_ife_walker(struct net *net, struct sk_buff *skb,
 {
 	struct tc_action_net *tn = net_generic(net, ife_net_id);
 
-	return tcf_generic_walker(tn, skb, cb, type, ops);
+	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
 static int tcf_ife_search(struct net *net, struct tc_action **a, u32 index,
