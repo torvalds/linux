@@ -4069,7 +4069,7 @@ static void mlx5e_set_netdev_dev_addr(struct net_device *netdev)
 	}
 }
 
-#if IS_ENABLED(CONFIG_NET_SWITCHDEV) && IS_ENABLED(CONFIG_MLX5_ESWITCH)
+#if IS_ENABLED(CONFIG_MLX5_ESWITCH)
 static const struct switchdev_ops mlx5e_switchdev_ops = {
 	.switchdev_port_attr_get	= mlx5e_attr_get,
 };
@@ -4175,7 +4175,7 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 
 	mlx5e_set_netdev_dev_addr(netdev);
 
-#if IS_ENABLED(CONFIG_NET_SWITCHDEV) && IS_ENABLED(CONFIG_MLX5_ESWITCH)
+#if IS_ENABLED(CONFIG_MLX5_ESWITCH)
 	if (MLX5_VPORT_MANAGER(mdev))
 		netdev->switchdev_ops = &mlx5e_switchdev_ops;
 #endif
