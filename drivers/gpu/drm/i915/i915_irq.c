@@ -1416,6 +1416,14 @@ gen8_cs_irq_handler(struct intel_engine_cs *engine, u32 iir, int test_shift)
 static void gen8_gt_irq_ack(struct drm_i915_private *dev_priv,
 			    u32 master_ctl, u32 gt_iir[4])
 {
+#define GEN8_GT_IRQS (GEN8_GT_RCS_IRQ | \
+		      GEN8_GT_BCS_IRQ | \
+		      GEN8_GT_VCS1_IRQ | \
+		      GEN8_GT_VCS2_IRQ | \
+		      GEN8_GT_VECS_IRQ | \
+		      GEN8_GT_PM_IRQ | \
+		      GEN8_GT_GUC_IRQ)
+
 	if (master_ctl & (GEN8_GT_RCS_IRQ | GEN8_GT_BCS_IRQ)) {
 		gt_iir[0] = I915_READ_FW(GEN8_GT_IIR(0));
 		if (gt_iir[0])
@@ -1446,31 +1454,34 @@ static void gen8_gt_irq_ack(struct drm_i915_private *dev_priv,
 }
 
 static void gen8_gt_irq_handler(struct drm_i915_private *dev_priv,
-				u32 gt_iir[4])
+				u32 master_ctl, u32 gt_iir[4])
 {
-	if (gt_iir[0]) {
+	if (master_ctl & (GEN8_GT_RCS_IRQ | GEN8_GT_BCS_IRQ)) {
 		gen8_cs_irq_handler(dev_priv->engine[RCS],
 				    gt_iir[0], GEN8_RCS_IRQ_SHIFT);
 		gen8_cs_irq_handler(dev_priv->engine[BCS],
 				    gt_iir[0], GEN8_BCS_IRQ_SHIFT);
 	}
 
-	if (gt_iir[1]) {
+	if (master_ctl & (GEN8_GT_VCS1_IRQ | GEN8_GT_VCS2_IRQ)) {
 		gen8_cs_irq_handler(dev_priv->engine[VCS],
 				    gt_iir[1], GEN8_VCS1_IRQ_SHIFT);
 		gen8_cs_irq_handler(dev_priv->engine[VCS2],
 				    gt_iir[1], GEN8_VCS2_IRQ_SHIFT);
 	}
 
-	if (gt_iir[3])
+	if (master_ctl & GEN8_GT_VECS_IRQ) {
 		gen8_cs_irq_handler(dev_priv->engine[VECS],
 				    gt_iir[3], GEN8_VECS_IRQ_SHIFT);
+	}
 
-	if (gt_iir[2] & dev_priv->pm_rps_events)
-		gen6_rps_irq_handler(dev_priv, gt_iir[2]);
+	if (master_ctl & (GEN8_GT_PM_IRQ | GEN8_GT_GUC_IRQ)) {
+		if (gt_iir[2] & dev_priv->pm_rps_events)
+			gen6_rps_irq_handler(dev_priv, gt_iir[2]);
 
-	if (gt_iir[2] & dev_priv->pm_guc_events)
-		gen9_guc_irq_handler(dev_priv, gt_iir[2]);
+		if (gt_iir[2] & dev_priv->pm_guc_events)
+			gen9_guc_irq_handler(dev_priv, gt_iir[2]);
+	}
 }
 
 static bool bxt_port_hotplug_long_detect(enum port port, u32 val)
@@ -2085,9 +2096,9 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 
 	do {
 		u32 master_ctl, iir;
-		u32 gt_iir[4] = {};
 		u32 pipe_stats[I915_MAX_PIPES] = {};
 		u32 hotplug_status = 0;
+		u32 gt_iir[4];
 		u32 ier = 0;
 
 		master_ctl = I915_READ(GEN8_MASTER_IRQ) & ~GEN8_MASTER_IRQ_CONTROL;
@@ -2140,7 +2151,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 		I915_WRITE(GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
 		POSTING_READ(GEN8_MASTER_IRQ);
 
-		gen8_gt_irq_handler(dev_priv, gt_iir);
+		gen8_gt_irq_handler(dev_priv, master_ctl, gt_iir);
 
 		if (hotplug_status)
 			i9xx_hpd_irq_handler(dev_priv, hotplug_status);
@@ -2675,10 +2686,9 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 
 static irqreturn_t gen8_irq_handler(int irq, void *arg)
 {
-	struct drm_device *dev = arg;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(arg);
 	u32 master_ctl;
-	u32 gt_iir[4] = {};
+	u32 gt_iir[4];
 
 	if (!intel_irqs_enabled(dev_priv))
 		return IRQ_NONE;
@@ -2690,18 +2700,19 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 
 	I915_WRITE_FW(GEN8_MASTER_IRQ, 0);
 
-	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
-	disable_rpm_wakeref_asserts(dev_priv);
-
 	/* Find, clear, then process each source of interrupt */
 	gen8_gt_irq_ack(dev_priv, master_ctl, gt_iir);
-	gen8_gt_irq_handler(dev_priv, gt_iir);
-	gen8_de_irq_handler(dev_priv, master_ctl);
+
+	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
+	if (master_ctl & ~GEN8_GT_IRQS) {
+		disable_rpm_wakeref_asserts(dev_priv);
+		gen8_de_irq_handler(dev_priv, master_ctl);
+		enable_rpm_wakeref_asserts(dev_priv);
+	}
 
 	I915_WRITE_FW(GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
-	POSTING_READ_FW(GEN8_MASTER_IRQ);
 
-	enable_rpm_wakeref_asserts(dev_priv);
+	gen8_gt_irq_handler(dev_priv, master_ctl, gt_iir);
 
 	return IRQ_HANDLED;
 }
