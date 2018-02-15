@@ -94,7 +94,7 @@ static void dw8250_force_idle(struct uart_port *p)
 	struct uart_8250_port *up = up_to_u8250p(p);
 
 	serial8250_clear_and_reinit_fifos(up);
-	(void)p->serial_in(p, UART_RX);
+	(void)serial_port_in(p, UART_RX);
 }
 
 static void dw8250_check_lcr(struct uart_port *p, int value)
@@ -104,7 +104,7 @@ static void dw8250_check_lcr(struct uart_port *p, int value)
 
 	/* Make sure LCR write wasn't ignored */
 	while (tries--) {
-		unsigned int lcr = p->serial_in(p, UART_LCR);
+		unsigned int lcr = serial_port_in(p, UART_LCR);
 
 		if ((value & ~UART_LCR_SPAR) == (lcr & ~UART_LCR_SPAR))
 			return;
@@ -224,10 +224,10 @@ static int dw8250_handle_irq(struct uart_port *p)
 	 */
 	if (!up->dma && (iir == UART_IIR_RX_TIMEOUT)) {
 		spin_lock_irqsave(&p->lock, flags);
-		status = p->serial_in(p, UART_LSR);
+		status = serial_port_in(p, UART_LSR);
 
 		if (!(status & (UART_LSR_DR | UART_LSR_BI)))
-			(void) p->serial_in(p, UART_RX);
+			(void)serial_port_in(p, UART_RX);
 
 		spin_unlock_irqrestore(&p->lock, flags);
 	}
@@ -237,7 +237,7 @@ static int dw8250_handle_irq(struct uart_port *p)
 
 	if (iir == UART_IIR_BUSY) {
 		/* Clear the USR */
-		(void)p->serial_in(p, d->usr_reg);
+		(void)serial_port_in(p, d->usr_reg);
 
 		return 1;
 	}
