@@ -266,10 +266,94 @@ static const struct attribute_group ufs_sysfs_interconnect_descriptor_group = {
 	.attrs = ufs_sysfs_interconnect_descriptor,
 };
 
+#define UFS_GEOMETRY_DESC_PARAM(_name, _uname, _size)			\
+	UFS_DESC_PARAM(_name, _uname, GEOMETRY, _size)
+
+UFS_GEOMETRY_DESC_PARAM(raw_device_capacity, _DEV_CAP, 8);
+UFS_GEOMETRY_DESC_PARAM(max_number_of_luns, _MAX_NUM_LUN, 1);
+UFS_GEOMETRY_DESC_PARAM(segment_size, _SEG_SIZE, 4);
+UFS_GEOMETRY_DESC_PARAM(allocation_unit_size, _ALLOC_UNIT_SIZE, 1);
+UFS_GEOMETRY_DESC_PARAM(min_addressable_block_size, _MIN_BLK_SIZE, 1);
+UFS_GEOMETRY_DESC_PARAM(optimal_read_block_size, _OPT_RD_BLK_SIZE, 1);
+UFS_GEOMETRY_DESC_PARAM(optimal_write_block_size, _OPT_WR_BLK_SIZE, 1);
+UFS_GEOMETRY_DESC_PARAM(max_in_buffer_size, _MAX_IN_BUF_SIZE, 1);
+UFS_GEOMETRY_DESC_PARAM(max_out_buffer_size, _MAX_OUT_BUF_SIZE, 1);
+UFS_GEOMETRY_DESC_PARAM(rpmb_rw_size, _RPMB_RW_SIZE, 1);
+UFS_GEOMETRY_DESC_PARAM(dyn_capacity_resource_policy, _DYN_CAP_RSRC_PLC, 1);
+UFS_GEOMETRY_DESC_PARAM(data_ordering, _DATA_ORDER, 1);
+UFS_GEOMETRY_DESC_PARAM(max_number_of_contexts, _MAX_NUM_CTX, 1);
+UFS_GEOMETRY_DESC_PARAM(sys_data_tag_unit_size, _TAG_UNIT_SIZE, 1);
+UFS_GEOMETRY_DESC_PARAM(sys_data_tag_resource_size, _TAG_RSRC_SIZE, 1);
+UFS_GEOMETRY_DESC_PARAM(secure_removal_types, _SEC_RM_TYPES, 1);
+UFS_GEOMETRY_DESC_PARAM(memory_types, _MEM_TYPES, 2);
+UFS_GEOMETRY_DESC_PARAM(sys_code_memory_max_alloc_units,
+	_SCM_MAX_NUM_UNITS, 4);
+UFS_GEOMETRY_DESC_PARAM(sys_code_memory_capacity_adjustment_factor,
+	_SCM_CAP_ADJ_FCTR, 2);
+UFS_GEOMETRY_DESC_PARAM(non_persist_memory_max_alloc_units,
+	_NPM_MAX_NUM_UNITS, 4);
+UFS_GEOMETRY_DESC_PARAM(non_persist_memory_capacity_adjustment_factor,
+	_NPM_CAP_ADJ_FCTR, 2);
+UFS_GEOMETRY_DESC_PARAM(enh1_memory_max_alloc_units,
+	_ENM1_MAX_NUM_UNITS, 4);
+UFS_GEOMETRY_DESC_PARAM(enh1_memory_capacity_adjustment_factor,
+	_ENM1_CAP_ADJ_FCTR, 2);
+UFS_GEOMETRY_DESC_PARAM(enh2_memory_max_alloc_units,
+	_ENM2_MAX_NUM_UNITS, 4);
+UFS_GEOMETRY_DESC_PARAM(enh2_memory_capacity_adjustment_factor,
+	_ENM2_CAP_ADJ_FCTR, 2);
+UFS_GEOMETRY_DESC_PARAM(enh3_memory_max_alloc_units,
+	_ENM3_MAX_NUM_UNITS, 4);
+UFS_GEOMETRY_DESC_PARAM(enh3_memory_capacity_adjustment_factor,
+	_ENM3_CAP_ADJ_FCTR, 2);
+UFS_GEOMETRY_DESC_PARAM(enh4_memory_max_alloc_units,
+	_ENM4_MAX_NUM_UNITS, 4);
+UFS_GEOMETRY_DESC_PARAM(enh4_memory_capacity_adjustment_factor,
+	_ENM4_CAP_ADJ_FCTR, 2);
+
+static struct attribute *ufs_sysfs_geometry_descriptor[] = {
+	&dev_attr_raw_device_capacity.attr,
+	&dev_attr_max_number_of_luns.attr,
+	&dev_attr_segment_size.attr,
+	&dev_attr_allocation_unit_size.attr,
+	&dev_attr_min_addressable_block_size.attr,
+	&dev_attr_optimal_read_block_size.attr,
+	&dev_attr_optimal_write_block_size.attr,
+	&dev_attr_max_in_buffer_size.attr,
+	&dev_attr_max_out_buffer_size.attr,
+	&dev_attr_rpmb_rw_size.attr,
+	&dev_attr_dyn_capacity_resource_policy.attr,
+	&dev_attr_data_ordering.attr,
+	&dev_attr_max_number_of_contexts.attr,
+	&dev_attr_sys_data_tag_unit_size.attr,
+	&dev_attr_sys_data_tag_resource_size.attr,
+	&dev_attr_secure_removal_types.attr,
+	&dev_attr_memory_types.attr,
+	&dev_attr_sys_code_memory_max_alloc_units.attr,
+	&dev_attr_sys_code_memory_capacity_adjustment_factor.attr,
+	&dev_attr_non_persist_memory_max_alloc_units.attr,
+	&dev_attr_non_persist_memory_capacity_adjustment_factor.attr,
+	&dev_attr_enh1_memory_max_alloc_units.attr,
+	&dev_attr_enh1_memory_capacity_adjustment_factor.attr,
+	&dev_attr_enh2_memory_max_alloc_units.attr,
+	&dev_attr_enh2_memory_capacity_adjustment_factor.attr,
+	&dev_attr_enh3_memory_max_alloc_units.attr,
+	&dev_attr_enh3_memory_capacity_adjustment_factor.attr,
+	&dev_attr_enh4_memory_max_alloc_units.attr,
+	&dev_attr_enh4_memory_capacity_adjustment_factor.attr,
+	NULL,
+};
+
+static const struct attribute_group ufs_sysfs_geometry_descriptor_group = {
+	.name = "geometry_descriptor",
+	.attrs = ufs_sysfs_geometry_descriptor,
+};
+
 static const struct attribute_group *ufs_sysfs_groups[] = {
 	&ufs_sysfs_default_group,
 	&ufs_sysfs_device_descriptor_group,
 	&ufs_sysfs_interconnect_descriptor_group,
+	&ufs_sysfs_geometry_descriptor_group,
 	NULL,
 };
 
