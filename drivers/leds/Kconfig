@@ -521,7 +521,7 @@ config LEDS_MC13783
 	depends on LEDS_CLASS
 	depends on MFD_MC13XXX
 	help
-	  This option enable support for on-chip LED drivers found
+	  This option enables support for on-chip LED drivers found
 	  on Freescale Semiconductor MC13783/MC13892/MC34708 PMIC.
 
 config LEDS_NS2
@@ -544,7 +544,7 @@ config LEDS_NETXBIG
 	depends on MACH_KIRKWOOD
 	default y
 	help
-	  This option enable support for LEDs found on the LaCie 2Big
+	  This option enables support for LEDs found on the LaCie 2Big
 	  and 5Big Network v2 boards. The LEDs are wired to a CPLD and are
 	  controlled through a GPIO extension bus.
 
@@ -674,7 +674,7 @@ config LEDS_SYSCON
 	depends on MFD_SYSCON
 	depends on OF
 	help
-	  This option enabled support for the LEDs on syscon type
+	  This option enables support for the LEDs on syscon type
 	  devices. This will only work with device tree enabled
 	  devices.
 
@@ -691,8 +691,8 @@ config LEDS_MLXCPLD
 	depends on X86 && DMI
 	depends on LEDS_CLASS
 	help
-	  This option enabled support for the LEDs on the Mellanox
-	  boards. Say Y to enabled these.
+	  This option enables support for the LEDs on the Mellanox
+	  boards. Say Y to enable these.
 
 config LEDS_USER
 	tristate "Userspace LED support"
