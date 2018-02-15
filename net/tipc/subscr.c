@@ -51,7 +51,7 @@ static void tipc_sub_send_event(struct tipc_subscription *sub,
 	tipc_evt_write(evt, found_upper, found_upper);
 	tipc_evt_write(evt, port.ref, port);
 	tipc_evt_write(evt, port.node, node);
-	tipc_conn_queue_evt(sub->net, sub->conid, event, evt);
+	tipc_topsrv_queue_evt(sub->net, sub->conid, event, evt);
 }
 
 /**

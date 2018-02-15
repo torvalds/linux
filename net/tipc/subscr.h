@@ -37,7 +37,7 @@
 #ifndef _TIPC_SUBSCR_H
 #define _TIPC_SUBSCR_H
 
-#include "server.h"
+#include "topsrv.h"
 
 #define TIPC_MAX_SUBSCR         65535
 #define TIPC_MAX_PUBLICATIONS   65535
