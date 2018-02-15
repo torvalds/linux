@@ -43,7 +43,7 @@
 #define TIPC_MAX_PUBLICATIONS	65535
 
 struct tipc_subscription;
-struct tipc_subscriber;
+struct tipc_conn;
 
 /**
  * struct tipc_subscription - TIPC network topology subscription object
@@ -58,19 +58,22 @@ struct tipc_subscriber;
  */
 struct tipc_subscription {
 	struct kref kref;
-	struct tipc_subscriber *subscriber;
 	struct net *net;
 	struct timer_list timer;
 	struct list_head nameseq_list;
 	struct list_head subscrp_list;
-	int swap;
 	struct tipc_event evt;
+	int conid;
+	bool swap;
+	bool inactive;
+	spinlock_t lock; /* serialize up/down and timer events */
 };
 
-struct tipc_subscriber *tipc_subscrb_create(int conid);
-void tipc_subscrb_delete(struct tipc_subscriber *subscriber);
-int tipc_subscrb_rcv(struct net *net, int conid, void *usr_data,
-		     void *buf, size_t len);
+struct tipc_subscription *tipc_subscrp_subscribe(struct net *net,
+						 struct tipc_subscr *s,
+						 int conid, bool swap,
+						 bool status);
+void tipc_sub_delete(struct tipc_subscription *sub);
 int tipc_subscrp_check_overlap(struct tipc_name_seq *seq, u32 found_lower,
 			       u32 found_upper);
 void tipc_subscrp_report_overlap(struct tipc_subscription *sub,

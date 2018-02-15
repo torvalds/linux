@@ -77,7 +77,7 @@ struct tipc_server {
 };
 
 int tipc_conn_sendmsg(struct tipc_server *s, int conid,
-		      void *data, size_t len);
+		      u32 evt, void *data, size_t len);
 
 bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type, u32 lower,
 			     u32 upper, u32 filter, int *conid);
