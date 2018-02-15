@@ -333,9 +333,8 @@ mlx5e_copy_skb_header_mpwqe(struct device *pdev,
 	len = ALIGN(headlen_pg, sizeof(long));
 	dma_sync_single_for_cpu(pdev, dma_info->addr + offset, len,
 				DMA_FROM_DEVICE);
-	skb_copy_to_linear_data_offset(skb, 0,
-				       page_address(dma_info->page) + offset,
-				       len);
+	skb_copy_to_linear_data(skb, page_address(dma_info->page) + offset, len);
+
 	if (unlikely(offset + headlen > PAGE_SIZE)) {
 		dma_info++;
 		headlen_pg = len;
