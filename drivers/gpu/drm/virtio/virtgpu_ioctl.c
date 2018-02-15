@@ -518,6 +518,8 @@ static int virtio_gpu_get_caps_ioctl(struct drm_device *dev,
 
 	ret = wait_event_timeout(vgdev->resp_wq,
 				 atomic_read(&cache_ent->is_valid), 5 * HZ);
+	if (!ret)
+		return -EBUSY;
 
 	ptr = cache_ent->caps_cache;
 

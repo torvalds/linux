@@ -85,47 +85,46 @@ static const struct hvs_format {
 	u32 drm; /* DRM_FORMAT_* */
 	u32 hvs; /* HVS_FORMAT_* */
 	u32 pixel_order;
-	bool has_alpha;
 } hvs_formats[] = {
 	{
 		.drm = DRM_FORMAT_XRGB8888, .hvs = HVS_PIXEL_FORMAT_RGBA8888,
-		.pixel_order = HVS_PIXEL_ORDER_ABGR, .has_alpha = false,
+		.pixel_order = HVS_PIXEL_ORDER_ABGR,
 	},
 	{
 		.drm = DRM_FORMAT_ARGB8888, .hvs = HVS_PIXEL_FORMAT_RGBA8888,
-		.pixel_order = HVS_PIXEL_ORDER_ABGR, .has_alpha = true,
+		.pixel_order = HVS_PIXEL_ORDER_ABGR,
 	},
 	{
 		.drm = DRM_FORMAT_ABGR8888, .hvs = HVS_PIXEL_FORMAT_RGBA8888,
-		.pixel_order = HVS_PIXEL_ORDER_ARGB, .has_alpha = true,
+		.pixel_order = HVS_PIXEL_ORDER_ARGB,
 	},
 	{
 		.drm = DRM_FORMAT_XBGR8888, .hvs = HVS_PIXEL_FORMAT_RGBA8888,
-		.pixel_order = HVS_PIXEL_ORDER_ARGB, .has_alpha = false,
+		.pixel_order = HVS_PIXEL_ORDER_ARGB,
 	},
 	{
 		.drm = DRM_FORMAT_RGB565, .hvs = HVS_PIXEL_FORMAT_RGB565,
-		.pixel_order = HVS_PIXEL_ORDER_XRGB, .has_alpha = false,
+		.pixel_order = HVS_PIXEL_ORDER_XRGB,
 	},
 	{
 		.drm = DRM_FORMAT_BGR565, .hvs = HVS_PIXEL_FORMAT_RGB565,
-		.pixel_order = HVS_PIXEL_ORDER_XBGR, .has_alpha = false,
+		.pixel_order = HVS_PIXEL_ORDER_XBGR,
 	},
 	{
 		.drm = DRM_FORMAT_ARGB1555, .hvs = HVS_PIXEL_FORMAT_RGBA5551,
-		.pixel_order = HVS_PIXEL_ORDER_ABGR, .has_alpha = true,
+		.pixel_order = HVS_PIXEL_ORDER_ABGR,
 	},
 	{
 		.drm = DRM_FORMAT_XRGB1555, .hvs = HVS_PIXEL_FORMAT_RGBA5551,
-		.pixel_order = HVS_PIXEL_ORDER_ABGR, .has_alpha = false,
+		.pixel_order = HVS_PIXEL_ORDER_ABGR,
 	},
 	{
 		.drm = DRM_FORMAT_RGB888, .hvs = HVS_PIXEL_FORMAT_RGB888,
-		.pixel_order = HVS_PIXEL_ORDER_XRGB, .has_alpha = false,
+		.pixel_order = HVS_PIXEL_ORDER_XRGB,
 	},
 	{
 		.drm = DRM_FORMAT_BGR888, .hvs = HVS_PIXEL_FORMAT_RGB888,
-		.pixel_order = HVS_PIXEL_ORDER_XBGR, .has_alpha = false,
+		.pixel_order = HVS_PIXEL_ORDER_XBGR,
 	},
 	{
 		.drm = DRM_FORMAT_YUV422,
@@ -622,7 +621,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	/* Position Word 2: Source Image Size, Alpha Mode */
 	vc4_state->pos2_offset = vc4_state->dlist_count;
 	vc4_dlist_write(vc4_state,
-			VC4_SET_FIELD(format->has_alpha ?
+			VC4_SET_FIELD(fb->format->has_alpha ?
 				      SCALER_POS2_ALPHA_MODE_PIPELINE :
 				      SCALER_POS2_ALPHA_MODE_FIXED,
 				      SCALER_POS2_ALPHA_MODE) |

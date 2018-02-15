@@ -1607,9 +1607,6 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
 	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
 
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
-
 	if (intel_sdvo->pixel_clock_min > mode->clock)
 		return MODE_CLOCK_LOW;
 

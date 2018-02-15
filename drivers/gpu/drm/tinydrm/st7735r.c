@@ -40,19 +40,14 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 {
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
-	struct device *dev = tdev->drm->dev;
 	int ret;
 	u8 addr_mode;
 
 	DRM_DEBUG_KMS("\n");
 
-	mipi_dbi_hw_reset(mipi);
-
-	ret = mipi_dbi_command(mipi, MIPI_DCS_SOFT_RESET);
-	if (ret) {
-		DRM_DEV_ERROR(dev, "Error sending command %d\n", ret);
+	ret = mipi_dbi_poweron_reset(mipi);
+	if (ret)
 		return;
-	}
 
 	msleep(150);
 
@@ -102,7 +97,7 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	msleep(20);
 
-	mipi_dbi_pipe_enable(pipe, crtc_state);
+	mipi_dbi_enable_flush(mipi);
 }
 
 static const struct drm_simple_display_pipe_funcs jd_t18003_t01_pipe_funcs = {

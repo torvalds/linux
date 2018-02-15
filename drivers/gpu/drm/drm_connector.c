@@ -205,9 +205,14 @@ int drm_connector_init(struct drm_device *dev,
 	connector->dev = dev;
 	connector->funcs = funcs;
 
-	ret = ida_simple_get(&config->connector_ida, 0, 0, GFP_KERNEL);
-	if (ret < 0)
+	/* connector index is used with 32bit bitmasks */
+	ret = ida_simple_get(&config->connector_ida, 0, 32, GFP_KERNEL);
+	if (ret < 0) {
+		DRM_DEBUG_KMS("Failed to allocate %s connector index: %d\n",
+			      drm_connector_enum_list[connector_type].name,
+			      ret);
 		goto out_put;
+	}
 	connector->index = ret;
 	ret = 0;
 

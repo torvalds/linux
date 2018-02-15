@@ -304,9 +304,6 @@ intel_crt_mode_valid(struct drm_connector *connector,
 	int max_dotclk = dev_priv->max_dotclk_freq;
 	int max_clock;
 
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
-
 	if (mode->clock < 25000)
 		return MODE_CLOCK_LOW;
 

@@ -2087,6 +2087,9 @@ static bool drm_dp_get_vc_payload_bw(int dp_link_bw,
 	case DP_LINK_BW_5_4:
 		*out = 10 * dp_link_count;
 		break;
+	case DP_LINK_BW_8_1:
+		*out = 15 * dp_link_count;
+		break;
 	}
 	return true;
 }

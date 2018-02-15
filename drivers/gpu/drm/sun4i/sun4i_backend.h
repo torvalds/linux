@@ -72,6 +72,7 @@
 #define SUN4I_BACKEND_ATTCTL_REG0_LAY_PIPESEL(x)		((x) << 15)
 #define SUN4I_BACKEND_ATTCTL_REG0_LAY_PRISEL_MASK	GENMASK(11, 10)
 #define SUN4I_BACKEND_ATTCTL_REG0_LAY_PRISEL(x)			((x) << 10)
+#define SUN4I_BACKEND_ATTCTL_REG0_LAY_VDOEN		BIT(1)
 
 #define SUN4I_BACKEND_ATTCTL_REG1(l)		(0x8a0 + (0x4 * (l)))
 #define SUN4I_BACKEND_ATTCTL_REG1_LAY_HSCAFCT		GENMASK(15, 14)
@@ -111,7 +112,9 @@
 #define SUN4I_BACKEND_SPRALPHACTL_REG		0x90c
 #define SUN4I_BACKEND_IYUVCTL_REG		0x920
 #define SUN4I_BACKEND_IYUVADD_REG(c)		(0x930 + (0x4 * (c)))
-#define SUN4I_BACKEND_IYUVLINEWITDTH_REG(c)	(0x940 + (0x4 * (c)))
+
+#define SUN4I_BACKEND_IYUVLINEWIDTH_REG(c)	(0x940 + (0x4 * (c)))
+
 #define SUN4I_BACKEND_YGCOEF_REG(c)		(0x950 + (0x4 * (c)))
 #define SUN4I_BACKEND_YGCONS_REG		0x95c
 #define SUN4I_BACKEND_URCOEF_REG(c)		(0x960 + (0x4 * (c)))
@@ -143,8 +146,13 @@
 #define SUN4I_BACKEND_HWCCOLORTAB_OFF		0x4c00
 #define SUN4I_BACKEND_PIPE_OFF(p)		(0x5000 + (0x400 * (p)))
 
+#define SUN4I_BACKEND_NUM_LAYERS		4
+#define SUN4I_BACKEND_NUM_ALPHA_LAYERS		1
+#define SUN4I_BACKEND_NUM_FRONTEND_LAYERS	1
+
 struct sun4i_backend {
 	struct sunxi_engine	engine;
+	struct sun4i_frontend	*frontend;
 
 	struct reset_control	*reset;
 
@@ -154,6 +162,10 @@ struct sun4i_backend {
 
 	struct clk		*sat_clk;
 	struct reset_control	*sat_reset;
+
+	/* Protects against races in the frontend teardown */
+	spinlock_t		frontend_lock;
+	bool			frontend_teardown;
 };
 
 static inline struct sun4i_backend *
@@ -170,5 +182,9 @@ int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 				       int layer, struct drm_plane *plane);
 int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 				      int layer, struct drm_plane *plane);
+int sun4i_backend_update_layer_frontend(struct sun4i_backend *backend,
+					int layer, uint32_t in_fmt);
+int sun4i_backend_update_layer_zpos(struct sun4i_backend *backend,
+				    int layer, struct drm_plane *plane);
 
 #endif /* _SUN4I_BACKEND_H_ */

@@ -1,11 +1,16 @@
-THS8135 Video DAC
------------------
+THS8134 and THS8135 Video DAC
+-----------------------------
 
-This is the binding for Texas Instruments THS8135 Video DAC bridge.
+This is the binding for Texas Instruments THS8134, THS8134A, THS8134B and
+THS8135 Video DAC bridges.
 
 Required properties:
 
-- compatible: Must be "ti,ths8135"
+- compatible: Must be one of
+  "ti,ths8134"
+  "ti,ths8134a," "ti,ths8134"
+  "ti,ths8134b", "ti,ths8134"
+  "ti,ths8135"
 
 Required nodes:
 

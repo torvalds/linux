@@ -22,6 +22,7 @@
  */
 #include <linux/firmware.h>
 #include <drm/drmP.h>
+#include <drm/drm_cache.h>
 #include "amdgpu.h"
 #include "gmc_v8_0.h"
 #include "amdgpu_ucode.h"
@@ -1085,6 +1086,7 @@ static int gmc_v8_0_sw_init(void *handle)
 	 */
 	adev->need_dma32 = false;
 	dma_bits = adev->need_dma32 ? 32 : 40;
+	adev->need_swiotlb = drm_get_max_iomem() > ((u64)1 << dma_bits);
 	r = pci_set_dma_mask(adev->pdev, DMA_BIT_MASK(dma_bits));
 	if (r) {
 		adev->need_dma32 = true;
@@ -1096,6 +1098,7 @@ static int gmc_v8_0_sw_init(void *handle)
 		pci_set_consistent_dma_mask(adev->pdev, DMA_BIT_MASK(32));
 		pr_warn("amdgpu: No coherent DMA available\n");
 	}
+	adev->need_swiotlb = drm_get_max_iomem() > ((u64)1 << dma_bits);
 
 	r = gmc_v8_0_init_microcode(adev);
 	if (r) {

@@ -100,8 +100,9 @@ static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 	if (!crtc_state->enable)
 		return 0; /* nothing to check when disabling or disabled */
 
-	clip.x2 = crtc_state->adjusted_mode.hdisplay;
-	clip.y2 = crtc_state->adjusted_mode.vdisplay;
+	if (crtc_state->enable)
+		drm_mode_get_hv_timing(&crtc_state->mode,
+				       &clip.x2, &clip.y2);
 
 	ret = drm_atomic_helper_check_plane_state(plane_state, crtc_state,
 						  &clip,
