@@ -626,12 +626,11 @@ static int cc_cipher_process(struct skcipher_request *req,
 	/* The IV we are handed may be allocted from the stack so
 	 * we must copy it to a DMAable buffer before use.
 	 */
-	req_ctx->iv = kmalloc(ivsize, flags);
+	req_ctx->iv = kmemdup(iv, ivsize, flags);
 	if (!req_ctx->iv) {
 		rc = -ENOMEM;
 		goto exit_process;
 	}
-	memcpy(req_ctx->iv, iv, ivsize);
 
 	/*For CTS in case of data size aligned to 16 use CBC mode*/
 	if (((nbytes % AES_BLOCK_SIZE) == 0) &&
