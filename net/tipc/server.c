@@ -33,6 +33,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "subscr.h"
 #include "server.h"
 #include "core.h"
 #include "socket.h"
@@ -182,7 +183,6 @@ static void tipc_register_callbacks(struct socket *sock, struct tipc_conn *con)
 
 static void tipc_close_conn(struct tipc_conn *con)
 {
-	struct tipc_server *s = con->server;
 	struct sock *sk = con->sock->sk;
 	bool disconnect = false;
 
@@ -191,7 +191,7 @@ static void tipc_close_conn(struct tipc_conn *con)
 	if (disconnect) {
 		sk->sk_user_data = NULL;
 		if (con->conid)
-			s->tipc_conn_release(con->conid, con->usr_data);
+			tipc_subscrb_delete(con->usr_data);
 	}
 	write_unlock_bh(&sk->sk_callback_lock);
 
@@ -240,7 +240,6 @@ static int tipc_receive_from_sock(struct tipc_conn *con)
 {
 	struct tipc_server *s = con->server;
 	struct sock *sk = con->sock->sk;
-	struct sockaddr_tipc addr;
 	struct msghdr msg = {};
 	struct kvec iov;
 	void *buf;
@@ -254,7 +253,7 @@ static int tipc_receive_from_sock(struct tipc_conn *con)
 
 	iov.iov_base = buf;
 	iov.iov_len = s->max_rcvbuf_size;
-	msg.msg_name = &addr;
+	msg.msg_name = NULL;
 	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &iov, 1, iov.iov_len);
 	ret = sock_recvmsg(con->sock, &msg, MSG_DONTWAIT);
 	if (ret <= 0) {
@@ -264,8 +263,8 @@ static int tipc_receive_from_sock(struct tipc_conn *con)
 
 	read_lock_bh(&sk->sk_callback_lock);
 	if (test_bit(CF_CONNECTED, &con->flags))
-		ret = s->tipc_conn_recvmsg(sock_net(con->sock->sk), con->conid,
-					   &addr, con->usr_data, buf, ret);
+		ret = tipc_subscrb_rcv(sock_net(con->sock->sk), con->conid,
+				       con->usr_data, buf, ret);
 	read_unlock_bh(&sk->sk_callback_lock);
 	kmem_cache_free(s->rcvbuf_cache, buf);
 	if (ret < 0)
@@ -284,7 +283,6 @@ out_close:
 
 static int tipc_accept_from_sock(struct tipc_conn *con)
 {
-	struct tipc_server *s = con->server;
 	struct socket *sock = con->sock;
 	struct socket *newsock;
 	struct tipc_conn *newcon;
@@ -305,7 +303,8 @@ static int tipc_accept_from_sock(struct tipc_conn *con)
 	tipc_register_callbacks(newsock, newcon);
 
 	/* Notify that new connection is incoming */
-	newcon->usr_data = s->tipc_conn_new(newcon->conid);
+	newcon->usr_data = tipc_subscrb_create(newcon->conid);
+
 	if (!newcon->usr_data) {
 		sock_release(newsock);
 		conn_put(newcon);
@@ -489,7 +488,7 @@ bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type, u32 lower,
 
 	*conid = con->conid;
 	s = con->server;
-	scbr = s->tipc_conn_new(*conid);
+	scbr = tipc_subscrb_create(*conid);
 	if (!scbr) {
 		conn_put(con);
 		return false;
@@ -497,7 +496,7 @@ bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type, u32 lower,
 
 	con->usr_data = scbr;
 	con->sock = NULL;
-	s->tipc_conn_recvmsg(net, *conid, NULL, scbr, &sub, sizeof(sub));
+	tipc_subscrb_rcv(net, *conid, scbr, &sub, sizeof(sub));
 	return true;
 }
 
@@ -513,7 +512,7 @@ void tipc_topsrv_kern_unsubscr(struct net *net, int conid)
 	test_and_clear_bit(CF_CONNECTED, &con->flags);
 	srv = con->server;
 	if (con->conid)
-		srv->tipc_conn_release(con->conid, con->usr_data);
+		tipc_subscrb_delete(con->usr_data);
 	conn_put(con);
 	conn_put(con);
 }

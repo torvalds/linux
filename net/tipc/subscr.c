@@ -220,7 +220,7 @@ static void tipc_subscrb_subscrp_delete(struct tipc_subscriber *subscriber,
 	spin_unlock_bh(&subscriber->lock);
 }
 
-static struct tipc_subscriber *tipc_subscrb_create(int conid)
+struct tipc_subscriber *tipc_subscrb_create(int conid)
 {
 	struct tipc_subscriber *subscriber;
 
@@ -237,7 +237,7 @@ static struct tipc_subscriber *tipc_subscrb_create(int conid)
 	return subscriber;
 }
 
-static void tipc_subscrb_delete(struct tipc_subscriber *subscriber)
+void tipc_subscrb_delete(struct tipc_subscriber *subscriber)
 {
 	tipc_subscrb_subscrp_delete(subscriber, NULL);
 	tipc_subscrb_put(subscriber);
@@ -315,16 +315,10 @@ static int tipc_subscrp_subscribe(struct net *net, struct tipc_subscr *s,
 	return 0;
 }
 
-/* Handle one termination request for the subscriber */
-static void tipc_subscrb_release_cb(int conid, void *usr_data)
-{
-	tipc_subscrb_delete((struct tipc_subscriber *)usr_data);
-}
-
-/* Handle one request to create a new subscription for the subscriber */
-static int tipc_subscrb_rcv_cb(struct net *net, int conid,
-			       struct sockaddr_tipc *addr, void *usr_data,
-			       void *buf, size_t len)
+/* Handle one request to create a new subscription for the subscriber
+ */
+int tipc_subscrb_rcv(struct net *net, int conid, void *usr_data,
+		     void *buf, size_t len)
 {
 	struct tipc_subscriber *subscriber = usr_data;
 	struct tipc_subscr *s = (struct tipc_subscr *)buf;
@@ -343,12 +337,6 @@ static int tipc_subscrb_rcv_cb(struct net *net, int conid,
 	}
 	status = !(s->filter & htohl(TIPC_SUB_NO_STATUS, swap));
 	return tipc_subscrp_subscribe(net, s, subscriber, swap, status);
-}
-
-/* Handle one request to establish a new subscriber */
-static void *tipc_subscrb_connect_cb(int conid)
-{
-	return (void *)tipc_subscrb_create(conid);
 }
 
 int tipc_topsrv_start(struct net *net)
@@ -376,9 +364,6 @@ int tipc_topsrv_start(struct net *net)
 	topsrv->net			= net;
 	topsrv->saddr			= saddr;
 	topsrv->max_rcvbuf_size		= sizeof(struct tipc_subscr);
-	topsrv->tipc_conn_recvmsg	= tipc_subscrb_rcv_cb;
-	topsrv->tipc_conn_new		= tipc_subscrb_connect_cb;
-	topsrv->tipc_conn_release	= tipc_subscrb_release_cb;
 
 	strncpy(topsrv->name, name, strlen(name) + 1);
 	tn->topsrv = topsrv;

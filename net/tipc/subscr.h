@@ -67,6 +67,10 @@ struct tipc_subscription {
 	struct tipc_event evt;
 };
 
+struct tipc_subscriber *tipc_subscrb_create(int conid);
+void tipc_subscrb_delete(struct tipc_subscriber *subscriber);
+int tipc_subscrb_rcv(struct net *net, int conid, void *usr_data,
+		     void *buf, size_t len);
 int tipc_subscrp_check_overlap(struct tipc_name_seq *seq, u32 found_lower,
 			       u32 found_upper);
 void tipc_subscrp_report_overlap(struct tipc_subscription *sub,
