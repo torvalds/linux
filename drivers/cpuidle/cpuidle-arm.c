@@ -129,7 +129,6 @@ static int __init arm_idle_init_cpu(int cpu)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		pr_err("Failed to allocate cpuidle device\n");
 		ret = -ENOMEM;
 		goto out_unregister_drv;
 	}
