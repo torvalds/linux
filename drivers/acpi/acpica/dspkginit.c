@@ -389,11 +389,12 @@ static void
 acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 {
 	acpi_status status;
+	acpi_status status2;
 	union acpi_generic_state scope_info;
 	union acpi_operand_object *element = *element_ptr;
 	struct acpi_namespace_node *resolved_node;
 	struct acpi_namespace_node *original_node;
-	char *external_path = NULL;
+	char *external_path = "";
 	acpi_object_type type;
 
 	ACPI_FUNCTION_TRACE(ds_resolve_package_element);
@@ -417,17 +418,40 @@ acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 				ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
 				NULL, &resolved_node);
 	if (ACPI_FAILURE(status)) {
-		status = acpi_ns_externalize_name(ACPI_UINT32_MAX,
-						  (char *)element->reference.
-						  aml, NULL, &external_path);
+#if defined ACPI_IGNORE_PACKAGE_RESOLUTION_ERRORS && !defined ACPI_APPLICATION
+		/*
+		 * For the kernel-resident ACPICA, optionally be silent about the
+		 * NOT_FOUND case. Although this is potentially a serious problem,
+		 * it can generate a lot of noise/errors on platforms whose
+		 * firmware carries around a bunch of unused Package objects.
+		 * To disable these errors, define ACPI_IGNORE_PACKAGE_RESOLUTION_ERRORS
+		 * in the OS-specific header.
+		 *
+		 * All errors are always reported for ACPICA applications such as
+		 * acpi_exec.
+		 */
+		if (status == AE_NOT_FOUND) {
+
+			/* Reference name not found, set the element to NULL */
+
+			acpi_ut_remove_reference(*element_ptr);
+			*element_ptr = NULL;
+			return_VOID;
+		}
+#endif
+		status2 = acpi_ns_externalize_name(ACPI_UINT32_MAX,
+						   (char *)element->reference.
+						   aml, NULL, &external_path);
 
 		ACPI_EXCEPTION((AE_INFO, status,
-				"Could not find/resolve named package element: %s",
+				"While resolving a named reference package element - %s",
 				external_path));
+		if (ACPI_SUCCESS(status2)) {
+			ACPI_FREE(external_path);
+		}
 
-		/* Not found, set the element to NULL */
+		/* Could not resolve name, set the element to NULL */
 
-		ACPI_FREE(external_path);
 		acpi_ut_remove_reference(*element_ptr);
 		*element_ptr = NULL;
 		return_VOID;
