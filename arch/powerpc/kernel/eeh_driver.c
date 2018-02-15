@@ -384,7 +384,8 @@ static void *eeh_report_resume(void *data, void *userdata)
 	eeh_pcid_put(dev);
 	pci_uevent_ers(dev, PCI_ERS_RESULT_RECOVERED);
 #ifdef CONFIG_PCI_IOV
-	eeh_ops->notify_resume(eeh_dev_to_pdn(edev));
+	if (eeh_ops->notify_resume && eeh_dev_to_pdn(edev))
+		eeh_ops->notify_resume(eeh_dev_to_pdn(edev));
 #endif
 	return NULL;
 }
