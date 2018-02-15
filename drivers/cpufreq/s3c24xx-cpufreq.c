@@ -473,10 +473,8 @@ int __init s3c_cpufreq_setboard(struct s3c_cpufreq_board *board)
 	 * initdata. */
 
 	ours = kzalloc(sizeof(*ours), GFP_KERNEL);
-	if (ours == NULL) {
-		pr_err("%s: no memory\n", __func__);
+	if (!ours)
 		return -ENOMEM;
-	}
 
 	*ours = *board;
 	cpu_cur.board = ours;
@@ -562,10 +560,8 @@ static int s3c_cpufreq_build_freq(void)
 	size++;
 
 	ftab = kzalloc(sizeof(*ftab) * size, GFP_KERNEL);
-	if (!ftab) {
-		pr_err("%s: no memory for tables\n", __func__);
+	if (!ftab)
 		return -ENOMEM;
-	}
 
 	ftab_size = size;
 
