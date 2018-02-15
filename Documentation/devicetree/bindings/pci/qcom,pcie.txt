@@ -189,6 +189,10 @@
 	Value type: <phandle>
 	Definition: A phandle to the analog power supply for IC which generates
 		    reference clock
+- vddpe-3v3-supply:
+	Usage: optional
+	Value type: <phandle>
+	Definition: A phandle to the PCIe endpoint power supply
 
 - phys:
 	Usage: required for apq8084
