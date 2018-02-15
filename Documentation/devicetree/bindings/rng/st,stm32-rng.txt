@@ -13,6 +13,7 @@ Required properties:
 
 Optional properties:
 - resets : The reset to properly start RNG
+- clock-error-detect : Enable the clock detection management
 
 Example:
 
