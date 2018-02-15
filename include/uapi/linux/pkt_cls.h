@@ -555,7 +555,8 @@ enum {
 #define	TCF_EM_VLAN		6
 #define	TCF_EM_CANID		7
 #define	TCF_EM_IPSET		8
-#define	TCF_EM_MAX		8
+#define	TCF_EM_IPT		9
+#define	TCF_EM_MAX		9
 
 enum {
 	TCF_EM_PROG_TC
