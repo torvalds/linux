@@ -694,6 +694,15 @@ config LEDS_MLXCPLD
 	  This option enables support for the LEDs on the Mellanox
 	  boards. Say Y to enable these.
 
+config LEDS_MLXREG
+	tristate "LED support for the Mellanox switches management control"
+	depends on LEDS_CLASS
+	help
+	  This option enables support for the LEDs on the Mellanox Ethernet and
+	  InfiniBand switches. The driver can be activated by the platform device
+	  device add call. Say Y to enable these. To compile this driver as a
+	  module, choose 'M' here: the module will be called leds-mlxreg.
+
 config LEDS_USER
 	tristate "Userspace LED support"
 	depends on LEDS_CLASS
