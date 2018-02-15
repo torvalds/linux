@@ -85,6 +85,13 @@
 			gpios = <&gpioa 0 GPIO_ACTIVE_HIGH>;
 		};
 	};
+
+	usbotg_hs_phy: usb-phy {
+		#phy-cells = <0>;
+		compatible = "usb-nop-xceiv";
+		clocks = <&rcc 0 STM32F7_AHB1_CLOCK(OTGHSULPI)>;
+		clock-names = "main_clk";
+	};
 };
 
 &cec {
@@ -99,6 +106,15 @@
 
 &usart1 {
 	pinctrl-0 = <&usart1_pins_a>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&usbotg_hs {
+	dr_mode = "otg";
+	phys = <&usbotg_hs_phy>;
+	phy-names = "usb2-phy";
+	pinctrl-0 = <&usbotg_hs_pins_a>;
 	pinctrl-names = "default";
 	status = "okay";
 };
