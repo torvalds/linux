@@ -1493,7 +1493,7 @@ static long kvm_s390_get_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 		return -EINVAL;
 
 	/* Is this guest using storage keys? */
-	if (!mm_use_skey(current->mm))
+	if (!mm_uses_skeys(current->mm))
 		return KVM_S390_GET_SKEYS_NONE;
 
 	/* Enforce sane limit on memory allocation */
@@ -2066,6 +2066,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	kvm->arch.css_support = 0;
 	kvm->arch.use_irqchip = 0;
 	kvm->arch.use_pfmfi = sclp.has_pfmfi;
+	kvm->arch.use_skf = sclp.has_skey;
 	kvm->arch.epoch = 0;
 
 	spin_lock_init(&kvm->arch.start_stop_lock);
