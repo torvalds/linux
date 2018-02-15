@@ -448,11 +448,8 @@ static int cci_probe_ports(struct device_node *np)
 	if (!ports)
 		return -ENOMEM;
 
-	for_each_child_of_node(np, cp) {
+	for_each_available_child_of_node(np, cp) {
 		if (!of_match_node(arm_cci_ctrl_if_matches, cp))
-			continue;
-
-		if (!of_device_is_available(cp))
 			continue;
 
 		i = nb_ace + nb_ace_lite;
@@ -534,7 +531,7 @@ static int cci_probe(void)
 	struct resource res;
 
 	np = of_find_matching_node(NULL, arm_cci_matches);
-	if(!np || !of_device_is_available(np))
+	if (!of_device_is_available(np))
 		return -ENODEV;
 
 	ret = of_address_to_resource(np, 0, &res);
