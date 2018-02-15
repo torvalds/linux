@@ -988,7 +988,10 @@ i915_next_seqno_set(void *data, u64 val)
 	if (ret)
 		return ret;
 
+	intel_runtime_pm_get(dev_priv);
 	ret = i915_gem_set_global_seqno(dev, val);
+	intel_runtime_pm_put(dev_priv);
+
 	mutex_unlock(&dev->struct_mutex);
 
 	return ret;
@@ -2464,24 +2467,11 @@ static int i915_guc_log_control_get(void *data, u64 *val)
 static int i915_guc_log_control_set(void *data, u64 val)
 {
 	struct drm_i915_private *dev_priv = data;
-	int ret;
 
 	if (!HAS_GUC(dev_priv))
 		return -ENODEV;
 
-	if (!dev_priv->guc.log.vma)
-		return -EINVAL;
-
-	ret = mutex_lock_interruptible(&dev_priv->drm.struct_mutex);
-	if (ret)
-		return ret;
-
-	intel_runtime_pm_get(dev_priv);
-	ret = i915_guc_log_control(dev_priv, val);
-	intel_runtime_pm_put(dev_priv);
-
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-	return ret;
+	return intel_guc_log_control(&dev_priv->guc, val);
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_guc_log_control_fops,
@@ -2518,15 +2508,19 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	u32 stat[3];
 	enum pipe pipe;
 	bool enabled = false;
+	bool sink_support;
 
 	if (!HAS_PSR(dev_priv))
 		return -ENODEV;
 
+	sink_support = dev_priv->psr.sink_support;
+	seq_printf(m, "Sink_Support: %s\n", yesno(sink_support));
+	if (!sink_support)
+		return 0;
+
 	intel_runtime_pm_get(dev_priv);
 
 	mutex_lock(&dev_priv->psr.lock);
-	seq_printf(m, "Sink_Support: %s\n", yesno(dev_priv->psr.sink_support));
-	seq_printf(m, "Source_OK: %s\n", yesno(dev_priv->psr.source_ok));
 	seq_printf(m, "Enabled: %s\n", yesno((bool)dev_priv->psr.enabled));
 	seq_printf(m, "Active: %s\n", yesno(dev_priv->psr.active));
 	seq_printf(m, "Busy frontbuffer bits: 0x%03x\n",
@@ -2584,9 +2578,9 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		seq_printf(m, "Performance_Counter: %u\n", psrperf);
 	}
 	if (dev_priv->psr.psr2_support) {
-		u32 psr2 = I915_READ(EDP_PSR2_STATUS_CTL);
+		u32 psr2 = I915_READ(EDP_PSR2_STATUS);
 
-		seq_printf(m, "EDP_PSR2_STATUS_CTL: %x [%s]\n",
+		seq_printf(m, "EDP_PSR2_STATUS: %x [%s]\n",
 			   psr2, psr2_live_status(psr2));
 	}
 	mutex_unlock(&dev_priv->psr.lock);
@@ -2710,7 +2704,8 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 	if (!HAS_RUNTIME_PM(dev_priv))
 		seq_puts(m, "Runtime power management not supported\n");
 
-	seq_printf(m, "GPU idle: %s\n", yesno(!dev_priv->gt.awake));
+	seq_printf(m, "GPU idle: %s (epoch %u)\n",
+		   yesno(!dev_priv->gt.awake), dev_priv->gt.epoch);
 	seq_printf(m, "IRQs disabled: %s\n",
 		   yesno(!intel_irqs_enabled(dev_priv)));
 #ifdef CONFIG_PM
@@ -3143,8 +3138,8 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 
 	intel_runtime_pm_get(dev_priv);
 
-	seq_printf(m, "GT awake? %s\n",
-		   yesno(dev_priv->gt.awake));
+	seq_printf(m, "GT awake? %s (epoch %u)\n",
+		   yesno(dev_priv->gt.awake), dev_priv->gt.epoch);
 	seq_printf(m, "Global active requests: %d\n",
 		   dev_priv->gt.active_requests);
 	seq_printf(m, "CS timestamp frequency: %u kHz\n",
@@ -3363,7 +3358,10 @@ static void drrs_status_per_crtc(struct seq_file *m,
 
 		/* disable_drrs() will make drrs->dp NULL */
 		if (!drrs->dp) {
-			seq_puts(m, "Idleness DRRS: Disabled");
+			seq_puts(m, "Idleness DRRS: Disabled\n");
+			if (dev_priv->psr.enabled)
+				seq_puts(m,
+				"\tAs PSR is enabled, DRRS is not enabled\n");
 			mutex_unlock(&drrs->mutex);
 			return;
 		}
@@ -4606,6 +4604,46 @@ static const struct file_operations i915_hpd_storm_ctl_fops = {
 	.write = i915_hpd_storm_ctl_write
 };
 
+static int i915_drrs_ctl_set(void *data, u64 val)
+{
+	struct drm_i915_private *dev_priv = data;
+	struct drm_device *dev = &dev_priv->drm;
+	struct intel_crtc *intel_crtc;
+	struct intel_encoder *encoder;
+	struct intel_dp *intel_dp;
+
+	if (INTEL_GEN(dev_priv) < 7)
+		return -ENODEV;
+
+	drm_modeset_lock_all(dev);
+	for_each_intel_crtc(dev, intel_crtc) {
+		if (!intel_crtc->base.state->active ||
+					!intel_crtc->config->has_drrs)
+			continue;
+
+		for_each_encoder_on_crtc(dev, &intel_crtc->base, encoder) {
+			if (encoder->type != INTEL_OUTPUT_EDP)
+				continue;
+
+			DRM_DEBUG_DRIVER("Manually %sabling DRRS. %llu\n",
+						val ? "en" : "dis", val);
+
+			intel_dp = enc_to_intel_dp(&encoder->base);
+			if (val)
+				intel_edp_drrs_enable(intel_dp,
+							intel_crtc->config);
+			else
+				intel_edp_drrs_disable(intel_dp,
+							intel_crtc->config);
+		}
+	}
+	drm_modeset_unlock_all(dev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(i915_drrs_ctl_fops, NULL, i915_drrs_ctl_set, "%llu\n");
+
 static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_capabilities", i915_capabilities, 0},
 	{"i915_gem_objects", i915_gem_object_info, 0},
@@ -4683,7 +4721,8 @@ static const struct i915_debugfs_files {
 	{"i915_dp_test_active", &i915_displayport_test_active_fops},
 	{"i915_guc_log_control", &i915_guc_log_control_fops},
 	{"i915_hpd_storm_ctl", &i915_hpd_storm_ctl_fops},
-	{"i915_ipc_status", &i915_ipc_status_fops}
+	{"i915_ipc_status", &i915_ipc_status_fops},
+	{"i915_drrs_ctl", &i915_drrs_ctl_fops}
 };
 
 int i915_debugfs_register(struct drm_i915_private *dev_priv)

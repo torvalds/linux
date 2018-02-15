@@ -543,9 +543,7 @@ static void fill_page_dma_32(struct i915_address_space *vm,
 static int
 setup_scratch_page(struct i915_address_space *vm, gfp_t gfp)
 {
-	struct page *page = NULL;
-	dma_addr_t addr;
-	int order;
+	unsigned long size;
 
 	/*
 	 * In order to utilize 64K pages for an object with a size < 2M, we will
@@ -559,48 +557,47 @@ setup_scratch_page(struct i915_address_space *vm, gfp_t gfp)
 	 * TODO: we should really consider write-protecting the scratch-page and
 	 * sharing between ppgtt
 	 */
+	size = I915_GTT_PAGE_SIZE_4K;
 	if (i915_vm_is_48bit(vm) &&
 	    HAS_PAGE_SIZES(vm->i915, I915_GTT_PAGE_SIZE_64K)) {
-		order = get_order(I915_GTT_PAGE_SIZE_64K);
-		page = alloc_pages(gfp | __GFP_ZERO | __GFP_NOWARN, order);
-		if (page) {
-			addr = dma_map_page(vm->dma, page, 0,
-					    I915_GTT_PAGE_SIZE_64K,
-					    PCI_DMA_BIDIRECTIONAL);
-			if (unlikely(dma_mapping_error(vm->dma, addr))) {
-				__free_pages(page, order);
-				page = NULL;
-			}
-
-			if (!IS_ALIGNED(addr, I915_GTT_PAGE_SIZE_64K)) {
-				dma_unmap_page(vm->dma, addr,
-					       I915_GTT_PAGE_SIZE_64K,
-					       PCI_DMA_BIDIRECTIONAL);
-				__free_pages(page, order);
-				page = NULL;
-			}
-		}
+		size = I915_GTT_PAGE_SIZE_64K;
+		gfp |= __GFP_NOWARN;
 	}
+	gfp |= __GFP_ZERO | __GFP_RETRY_MAYFAIL;
 
-	if (!page) {
-		order = 0;
-		page = alloc_page(gfp | __GFP_ZERO);
+	do {
+		int order = get_order(size);
+		struct page *page;
+		dma_addr_t addr;
+
+		page = alloc_pages(gfp, order);
 		if (unlikely(!page))
-			return -ENOMEM;
+			goto skip;
 
-		addr = dma_map_page(vm->dma, page, 0, PAGE_SIZE,
+		addr = dma_map_page(vm->dma, page, 0, size,
 				    PCI_DMA_BIDIRECTIONAL);
-		if (unlikely(dma_mapping_error(vm->dma, addr))) {
-			__free_page(page);
+		if (unlikely(dma_mapping_error(vm->dma, addr)))
+			goto free_page;
+
+		if (unlikely(!IS_ALIGNED(addr, size)))
+			goto unmap_page;
+
+		vm->scratch_page.page = page;
+		vm->scratch_page.daddr = addr;
+		vm->scratch_page.order = order;
+		return 0;
+
+unmap_page:
+		dma_unmap_page(vm->dma, addr, size, PCI_DMA_BIDIRECTIONAL);
+free_page:
+		__free_pages(page, order);
+skip:
+		if (size == I915_GTT_PAGE_SIZE_4K)
 			return -ENOMEM;
-		}
-	}
 
-	vm->scratch_page.page = page;
-	vm->scratch_page.daddr = addr;
-	vm->scratch_page.order = order;
-
-	return 0;
+		size = I915_GTT_PAGE_SIZE_4K;
+		gfp &= ~__GFP_NOWARN;
+	} while (1);
 }
 
 static void cleanup_scratch_page(struct i915_address_space *vm)
@@ -2370,9 +2367,10 @@ int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
 			       struct sg_table *pages)
 {
 	do {
-		if (dma_map_sg(&obj->base.dev->pdev->dev,
-			       pages->sgl, pages->nents,
-			       PCI_DMA_BIDIRECTIONAL))
+		if (dma_map_sg_attrs(&obj->base.dev->pdev->dev,
+				     pages->sgl, pages->nents,
+				     PCI_DMA_BIDIRECTIONAL,
+				     DMA_ATTR_NO_WARN))
 			return 0;
 
 		/* If the DMA remap fails, one cause can be that we have

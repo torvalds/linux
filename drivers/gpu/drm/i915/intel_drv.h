@@ -1507,7 +1507,8 @@ u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 		  const struct intel_plane_state *plane_state);
 u32 skl_plane_stride(const struct drm_framebuffer *fb, int plane,
 		     unsigned int rotation);
-int skl_check_plane_surface(struct intel_plane_state *plane_state);
+int skl_check_plane_surface(const struct intel_crtc_state *crtc_state,
+			    struct intel_plane_state *plane_state);
 int i9xx_check_plane_surface(struct intel_plane_state *plane_state);
 
 /* intel_csr.c */
@@ -1590,8 +1591,7 @@ static inline unsigned int intel_dp_unused_lane_mask(int lane_count)
 bool intel_dp_read_dpcd(struct intel_dp *intel_dp);
 int intel_dp_link_required(int pixel_clock, int bpp);
 int intel_dp_max_data_rate(int max_link_clock, int max_lanes);
-bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
-				  struct intel_digital_port *port);
+bool intel_digital_port_connected(struct intel_encoder *encoder);
 
 /* intel_dp_aux_backlight.c */
 int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector);
@@ -1760,6 +1760,7 @@ static inline void intel_backlight_device_unregister(struct intel_connector *con
 
 
 /* intel_psr.c */
+#define CAN_PSR(dev_priv) (HAS_PSR(dev_priv) && dev_priv->psr.sink_support)
 void intel_psr_enable(struct intel_dp *intel_dp,
 		      const struct intel_crtc_state *crtc_state);
 void intel_psr_disable(struct intel_dp *intel_dp,
@@ -1932,6 +1933,8 @@ void skl_update_plane(struct intel_plane *plane,
 		      const struct intel_plane_state *plane_state);
 void skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc);
 bool skl_plane_get_hw_state(struct intel_plane *plane);
+bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,
+		       enum pipe pipe, enum plane_id plane_id);
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_i915_private *dev_priv);

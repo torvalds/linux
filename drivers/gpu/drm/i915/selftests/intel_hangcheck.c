@@ -33,6 +33,7 @@ struct hang {
 	struct drm_i915_private *i915;
 	struct drm_i915_gem_object *hws;
 	struct drm_i915_gem_object *obj;
+	struct i915_gem_context *ctx;
 	u32 *seqno;
 	u32 *batch;
 };
@@ -45,9 +46,15 @@ static int hang_init(struct hang *h, struct drm_i915_private *i915)
 	memset(h, 0, sizeof(*h));
 	h->i915 = i915;
 
+	h->ctx = kernel_context(i915);
+	if (IS_ERR(h->ctx))
+		return PTR_ERR(h->ctx);
+
 	h->hws = i915_gem_object_create_internal(i915, PAGE_SIZE);
-	if (IS_ERR(h->hws))
-		return PTR_ERR(h->hws);
+	if (IS_ERR(h->hws)) {
+		err = PTR_ERR(h->hws);
+		goto err_ctx;
+	}
 
 	h->obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 	if (IS_ERR(h->obj)) {
@@ -79,6 +86,8 @@ err_obj:
 	i915_gem_object_put(h->obj);
 err_hws:
 	i915_gem_object_put(h->hws);
+err_ctx:
+	kernel_context_close(h->ctx);
 	return err;
 }
 
@@ -196,9 +205,7 @@ unpin_vma:
 }
 
 static struct drm_i915_gem_request *
-hang_create_request(struct hang *h,
-		    struct intel_engine_cs *engine,
-		    struct i915_gem_context *ctx)
+hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *rq;
 	int err;
@@ -225,7 +232,7 @@ hang_create_request(struct hang *h,
 		h->batch = vaddr;
 	}
 
-	rq = i915_gem_request_alloc(engine, ctx);
+	rq = i915_gem_request_alloc(engine, h->ctx);
 	if (IS_ERR(rq))
 		return rq;
 
@@ -244,6 +251,58 @@ static u32 hws_seqno(const struct hang *h,
 	return READ_ONCE(h->seqno[rq->fence.context % (PAGE_SIZE/sizeof(u32))]);
 }
 
+struct wedge_me {
+	struct delayed_work work;
+	struct drm_i915_private *i915;
+	const void *symbol;
+};
+
+static void wedge_me(struct work_struct *work)
+{
+	struct wedge_me *w = container_of(work, typeof(*w), work.work);
+
+	pr_err("%pS timed out, cancelling all further testing.\n",
+	       w->symbol);
+	i915_gem_set_wedged(w->i915);
+}
+
+static void __init_wedge(struct wedge_me *w,
+			 struct drm_i915_private *i915,
+			 long timeout,
+			 const void *symbol)
+{
+	w->i915 = i915;
+	w->symbol = symbol;
+
+	INIT_DELAYED_WORK_ONSTACK(&w->work, wedge_me);
+	schedule_delayed_work(&w->work, timeout);
+}
+
+static void __fini_wedge(struct wedge_me *w)
+{
+	cancel_delayed_work_sync(&w->work);
+	destroy_delayed_work_on_stack(&w->work);
+	w->i915 = NULL;
+}
+
+#define wedge_on_timeout(W, DEV, TIMEOUT)				\
+	for (__init_wedge((W), (DEV), (TIMEOUT), __builtin_return_address(0)); \
+	     (W)->i915;							\
+	     __fini_wedge((W)))
+
+static noinline int
+flush_test(struct drm_i915_private *i915, unsigned int flags)
+{
+	struct wedge_me w;
+
+	cond_resched();
+
+	wedge_on_timeout(&w, i915, HZ)
+		i915_gem_wait_for_idle(i915, flags);
+
+	return i915_terminally_wedged(&i915->gpu_error) ? -EIO : 0;
+}
+
 static void hang_fini(struct hang *h)
 {
 	*h->batch = MI_BATCH_BUFFER_END;
@@ -255,7 +314,9 @@ static void hang_fini(struct hang *h)
 	i915_gem_object_unpin_map(h->hws);
 	i915_gem_object_put(h->hws);
 
-	i915_gem_wait_for_idle(h->i915, I915_WAIT_LOCKED);
+	kernel_context_close(h->ctx);
+
+	flush_test(h->i915, I915_WAIT_LOCKED);
 }
 
 static bool wait_for_hang(struct hang *h, struct drm_i915_gem_request *rq)
@@ -290,7 +351,7 @@ static int igt_hang_sanitycheck(void *arg)
 		if (!intel_engine_can_store_dword(engine))
 			continue;
 
-		rq = hang_create_request(&h, engine, i915->kernel_context);
+		rq = hang_create_request(&h, engine);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			pr_err("Failed to create request for %s, err=%d\n",
@@ -427,8 +488,7 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 				struct drm_i915_gem_request *rq;
 
 				mutex_lock(&i915->drm.struct_mutex);
-				rq = hang_create_request(&h, engine,
-							 i915->kernel_context);
+				rq = hang_create_request(&h, engine);
 				if (IS_ERR(rq)) {
 					err = PTR_ERR(rq);
 					mutex_unlock(&i915->drm.struct_mutex);
@@ -487,7 +547,9 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 		if (err)
 			break;
 
-		cond_resched();
+		err = flush_test(i915, 0);
+		if (err)
+			break;
 	}
 
 	if (i915_terminally_wedged(&i915->gpu_error))
@@ -633,8 +695,7 @@ static int __igt_reset_engine_others(struct drm_i915_private *i915,
 				struct drm_i915_gem_request *rq;
 
 				mutex_lock(&i915->drm.struct_mutex);
-				rq = hang_create_request(&h, engine,
-							 i915->kernel_context);
+				rq = hang_create_request(&h, engine);
 				if (IS_ERR(rq)) {
 					err = PTR_ERR(rq);
 					mutex_unlock(&i915->drm.struct_mutex);
@@ -726,7 +787,9 @@ unwind:
 		if (err)
 			break;
 
-		cond_resched();
+		err = flush_test(i915, 0);
+		if (err)
+			break;
 	}
 
 	if (i915_terminally_wedged(&i915->gpu_error))
@@ -787,7 +850,7 @@ static int igt_wait_reset(void *arg)
 	if (err)
 		goto unlock;
 
-	rq = hang_create_request(&h, i915->engine[RCS], i915->kernel_context);
+	rq = hang_create_request(&h, i915->engine[RCS]);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto fini;
@@ -866,7 +929,7 @@ static int igt_reset_queue(void *arg)
 		if (!intel_engine_can_store_dword(engine))
 			continue;
 
-		prev = hang_create_request(&h, engine, i915->kernel_context);
+		prev = hang_create_request(&h, engine);
 		if (IS_ERR(prev)) {
 			err = PTR_ERR(prev);
 			goto fini;
@@ -880,9 +943,7 @@ static int igt_reset_queue(void *arg)
 			struct drm_i915_gem_request *rq;
 			unsigned int reset_count;
 
-			rq = hang_create_request(&h,
-						 engine,
-						 i915->kernel_context);
+			rq = hang_create_request(&h, engine);
 			if (IS_ERR(rq)) {
 				err = PTR_ERR(rq);
 				goto fini;
@@ -952,6 +1013,10 @@ static int igt_reset_queue(void *arg)
 		i915_gem_chipset_flush(i915);
 
 		i915_gem_request_put(prev);
+
+		err = flush_test(i915, I915_WAIT_LOCKED);
+		if (err)
+			break;
 	}
 
 fini:
@@ -989,7 +1054,7 @@ static int igt_handle_error(void *arg)
 	if (err)
 		goto err_unlock;
 
-	rq = hang_create_request(&h, engine, i915->kernel_context);
+	rq = hang_create_request(&h, engine);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_fini;

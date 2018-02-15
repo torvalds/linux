@@ -56,14 +56,6 @@
 #include "intel_drv.h"
 #include "i915_drv.h"
 
-static bool is_edp_psr(struct intel_dp *intel_dp)
-{
-	if (!intel_dp_is_edp(intel_dp))
-		return false;
-
-	return intel_dp->psr_dpcd[0] & DP_PSR_IS_SUPPORTED;
-}
-
 static bool vlv_is_psr_active_on_pipe(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -358,10 +350,7 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 		&crtc_state->base.adjusted_mode;
 	int psr_setup_time;
 
-	if (!HAS_PSR(dev_priv))
-		return;
-
-	if (!is_edp_psr(intel_dp))
+	if (!CAN_PSR(dev_priv))
 		return;
 
 	if (!i915_modparams.enable_psr) {
@@ -476,7 +465,7 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp,
 			chicken |= PSR2_ADD_VERTICAL_LINE_COUNT;
 		I915_WRITE(CHICKEN_TRANS(cpu_transcoder), chicken);
 
-		I915_WRITE(EDP_PSR_DEBUG_CTL,
+		I915_WRITE(EDP_PSR_DEBUG,
 			   EDP_PSR_DEBUG_MASK_MEMUP |
 			   EDP_PSR_DEBUG_MASK_HPD |
 			   EDP_PSR_DEBUG_MASK_LPSP |
@@ -490,7 +479,7 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp,
 		 * preventing  other hw tracking issues now we can rely
 		 * on frontbuffer tracking.
 		 */
-		I915_WRITE(EDP_PSR_DEBUG_CTL,
+		I915_WRITE(EDP_PSR_DEBUG,
 			   EDP_PSR_DEBUG_MASK_MEMUP |
 			   EDP_PSR_DEBUG_MASK_HPD |
 			   EDP_PSR_DEBUG_MASK_LPSP);
@@ -514,6 +503,9 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 	if (!crtc_state->has_psr)
 		return;
 
+	if (WARN_ON(!CAN_PSR(dev_priv)))
+		return;
+
 	WARN_ON(dev_priv->drrs.dp);
 	mutex_lock(&dev_priv->psr.lock);
 	if (dev_priv->psr.enabled) {
@@ -522,8 +514,6 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 	}
 
 	dev_priv->psr.psr2_support = crtc_state->has_psr2;
-	dev_priv->psr.source_ok = true;
-
 	dev_priv->psr.busy_frontbuffer_bits = 0;
 
 	dev_priv->psr.setup_vsc(intel_dp, crtc_state);
@@ -599,7 +589,7 @@ static void hsw_psr_disable(struct intel_dp *intel_dp,
 					0);
 
 		if (dev_priv->psr.psr2_support) {
-			psr_status = EDP_PSR2_STATUS_CTL;
+			psr_status = EDP_PSR2_STATUS;
 			psr_status_mask = EDP_PSR2_STATUS_STATE_MASK;
 
 			I915_WRITE(EDP_PSR2_CTL,
@@ -607,7 +597,7 @@ static void hsw_psr_disable(struct intel_dp *intel_dp,
 				   ~(EDP_PSR2_ENABLE | EDP_SU_TRACK_ENABLE));
 
 		} else {
-			psr_status = EDP_PSR_STATUS_CTL;
+			psr_status = EDP_PSR_STATUS;
 			psr_status_mask = EDP_PSR_STATUS_STATE_MASK;
 
 			I915_WRITE(EDP_PSR_CTL,
@@ -646,6 +636,9 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 	if (!old_crtc_state->has_psr)
 		return;
 
+	if (WARN_ON(!CAN_PSR(dev_priv)))
+		return;
+
 	mutex_lock(&dev_priv->psr.lock);
 	if (!dev_priv->psr.enabled) {
 		mutex_unlock(&dev_priv->psr.lock);
@@ -679,19 +672,19 @@ static void intel_psr_work(struct work_struct *work)
 	if (HAS_DDI(dev_priv)) {
 		if (dev_priv->psr.psr2_support) {
 			if (intel_wait_for_register(dev_priv,
-						EDP_PSR2_STATUS_CTL,
-						EDP_PSR2_STATUS_STATE_MASK,
-						0,
-						50)) {
+						    EDP_PSR2_STATUS,
+						    EDP_PSR2_STATUS_STATE_MASK,
+						    0,
+						    50)) {
 				DRM_ERROR("Timed out waiting for PSR2 Idle for re-enable\n");
 				return;
 			}
 		} else {
 			if (intel_wait_for_register(dev_priv,
-						EDP_PSR_STATUS_CTL,
-						EDP_PSR_STATUS_STATE_MASK,
-						0,
-						50)) {
+						    EDP_PSR_STATUS,
+						    EDP_PSR_STATUS_STATE_MASK,
+						    0,
+						    50)) {
 				DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");
 				return;
 			}
@@ -796,7 +789,7 @@ void intel_psr_single_frame_update(struct drm_i915_private *dev_priv,
 	enum pipe pipe;
 	u32 val;
 
-	if (!HAS_PSR(dev_priv))
+	if (!CAN_PSR(dev_priv))
 		return;
 
 	/*
@@ -845,7 +838,7 @@ void intel_psr_invalidate(struct drm_i915_private *dev_priv,
 	struct drm_crtc *crtc;
 	enum pipe pipe;
 
-	if (!HAS_PSR(dev_priv))
+	if (!CAN_PSR(dev_priv))
 		return;
 
 	mutex_lock(&dev_priv->psr.lock);
@@ -885,7 +878,7 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 	struct drm_crtc *crtc;
 	enum pipe pipe;
 
-	if (!HAS_PSR(dev_priv))
+	if (!CAN_PSR(dev_priv))
 		return;
 
 	mutex_lock(&dev_priv->psr.lock);
@@ -925,6 +918,9 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 
 	dev_priv->psr_mmio_base = IS_HASWELL(dev_priv) ?
 		HSW_EDP_PSR_BASE : BDW_EDP_PSR_BASE;
+
+	if (!dev_priv->psr.sink_support)
+		return;
 
 	/* Per platform default: all disabled. */
 	if (i915_modparams.enable_psr == -1)

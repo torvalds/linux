@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016 Intel Corporation
+ * Copyright © 2014-2017 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,49 +22,12 @@
  *
  */
 
-#include <linux/bitops.h>
-#include <linux/kernel.h>
-#include <linux/random.h>
-#include <linux/slab.h>
-#include <linux/types.h>
+#ifndef _INTEL_GUC_ADS_H_
+#define _INTEL_GUC_ADS_H_
 
-#include "i915_random.h"
+struct intel_guc;
 
-u64 i915_prandom_u64_state(struct rnd_state *rnd)
-{
-	u64 x;
+int intel_guc_ads_create(struct intel_guc *guc);
+void intel_guc_ads_destroy(struct intel_guc *guc);
 
-	x = prandom_u32_state(rnd);
-	x <<= 32;
-	x |= prandom_u32_state(rnd);
-
-	return x;
-}
-
-void i915_random_reorder(unsigned int *order, unsigned int count,
-			 struct rnd_state *state)
-{
-	unsigned int i, j;
-
-	for (i = 0; i < count; i++) {
-		BUILD_BUG_ON(sizeof(unsigned int) > sizeof(u32));
-		j = i915_prandom_u32_max_state(count, state);
-		swap(order[i], order[j]);
-	}
-}
-
-unsigned int *i915_random_order(unsigned int count, struct rnd_state *state)
-{
-	unsigned int *order, i;
-
-	order = kmalloc_array(count, sizeof(*order),
-			      GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
-	if (!order)
-		return order;
-
-	for (i = 0; i < count; i++)
-		order[i] = i;
-
-	i915_random_reorder(order, count, state);
-	return order;
-}
+#endif

@@ -3694,10 +3694,17 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 	struct intel_crtc_state *cstate;
 	enum pipe pipe;
 	int level, latency;
-	int sagv_block_time_us = IS_GEN9(dev_priv) ? 30 : 20;
+	int sagv_block_time_us;
 
 	if (!intel_has_sagv(dev_priv))
 		return false;
+
+	if (IS_GEN9(dev_priv))
+		sagv_block_time_us = 30;
+	else if (IS_GEN10(dev_priv))
+		sagv_block_time_us = 20;
+	else
+		sagv_block_time_us = 10;
 
 	/*
 	 * SKL+ workaround: bspec recommends we disable the SAGV when we have
@@ -3778,7 +3785,8 @@ skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 	ddb_size = INTEL_INFO(dev_priv)->ddb_size;
 	WARN_ON(ddb_size == 0);
 
-	ddb_size -= 4; /* 4 blocks for bypass path allocation */
+	if (INTEL_GEN(dev_priv) < 11)
+		ddb_size -= 4; /* 4 blocks for bypass path allocation */
 
 	/*
 	 * If the state doesn't change the active CRTC's, then there's
@@ -4311,7 +4319,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 */
 static uint_fixed_16_16_t
 skl_wm_method1(const struct drm_i915_private *dev_priv, uint32_t pixel_rate,
-	       uint8_t cpp, uint32_t latency)
+	       uint8_t cpp, uint32_t latency, uint32_t dbuf_block_size)
 {
 	uint32_t wm_intermediate_val;
 	uint_fixed_16_16_t ret;
@@ -4320,7 +4328,7 @@ skl_wm_method1(const struct drm_i915_private *dev_priv, uint32_t pixel_rate,
 		return FP_16_16_MAX;
 
 	wm_intermediate_val = latency * pixel_rate * cpp;
-	ret = div_fixed16(wm_intermediate_val, 1000 * 512);
+	ret = div_fixed16(wm_intermediate_val, 1000 * dbuf_block_size);
 
 	if (INTEL_GEN(dev_priv) >= 10)
 		ret = add_fixed16_u32(ret, 1);
@@ -4430,6 +4438,12 @@ skl_compute_plane_wm_params(const struct drm_i915_private *dev_priv,
 	wp->plane_pixel_rate = skl_adjusted_plane_pixel_rate(cstate,
 							     intel_pstate);
 
+	if (INTEL_GEN(dev_priv) >= 11 &&
+	    fb->modifier == I915_FORMAT_MOD_Yf_TILED && wp->cpp == 8)
+		wp->dbuf_block_size = 256;
+	else
+		wp->dbuf_block_size = 512;
+
 	if (drm_rotation_90_or_270(pstate->rotation)) {
 
 		switch (wp->cpp) {
@@ -4456,7 +4470,8 @@ skl_compute_plane_wm_params(const struct drm_i915_private *dev_priv,
 	wp->plane_bytes_per_line = wp->width * wp->cpp;
 	if (wp->y_tiled) {
 		interm_pbpl = DIV_ROUND_UP(wp->plane_bytes_per_line *
-					   wp->y_min_scanlines, 512);
+					   wp->y_min_scanlines,
+					   wp->dbuf_block_size);
 
 		if (INTEL_GEN(dev_priv) >= 10)
 			interm_pbpl++;
@@ -4464,10 +4479,12 @@ skl_compute_plane_wm_params(const struct drm_i915_private *dev_priv,
 		wp->plane_blocks_per_line = div_fixed16(interm_pbpl,
 							wp->y_min_scanlines);
 	} else if (wp->x_tiled && IS_GEN9(dev_priv)) {
-		interm_pbpl = DIV_ROUND_UP(wp->plane_bytes_per_line, 512);
+		interm_pbpl = DIV_ROUND_UP(wp->plane_bytes_per_line,
+					   wp->dbuf_block_size);
 		wp->plane_blocks_per_line = u32_to_fixed16(interm_pbpl);
 	} else {
-		interm_pbpl = DIV_ROUND_UP(wp->plane_bytes_per_line, 512) + 1;
+		interm_pbpl = DIV_ROUND_UP(wp->plane_bytes_per_line,
+					   wp->dbuf_block_size) + 1;
 		wp->plane_blocks_per_line = u32_to_fixed16(interm_pbpl);
 	}
 
@@ -4497,6 +4514,7 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	struct intel_atomic_state *state =
 		to_intel_atomic_state(cstate->base.state);
 	bool apply_memory_bw_wa = skl_needs_memory_bw_wa(state);
+	uint32_t min_disp_buf_needed;
 
 	if (latency == 0 ||
 	    !intel_wm_plane_visible(cstate, intel_pstate)) {
@@ -4514,7 +4532,7 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		latency += 15;
 
 	method1 = skl_wm_method1(dev_priv, wp->plane_pixel_rate,
-				 wp->cpp, latency);
+				 wp->cpp, latency, wp->dbuf_block_size);
 	method2 = skl_wm_method2(wp->plane_pixel_rate,
 				 cstate->base.adjusted_mode.crtc_htotal,
 				 latency,
@@ -4524,7 +4542,8 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		selected_result = max_fixed16(method2, wp->y_tile_minimum);
 	} else {
 		if ((wp->cpp * cstate->base.adjusted_mode.crtc_htotal /
-		     512 < 1) && (wp->plane_bytes_per_line / 512 < 1))
+		     wp->dbuf_block_size < 1) &&
+		     (wp->plane_bytes_per_line / wp->dbuf_block_size < 1))
 			selected_result = method2;
 		else if (ddb_allocation >=
 			 fixed16_to_u32_round_up(wp->plane_blocks_per_line))
@@ -4554,7 +4573,31 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		}
 	}
 
-	if (res_blocks >= ddb_allocation || res_lines > 31) {
+	if (INTEL_GEN(dev_priv) >= 11) {
+		if (wp->y_tiled) {
+			uint32_t extra_lines;
+			uint_fixed_16_16_t fp_min_disp_buf_needed;
+
+			if (res_lines % wp->y_min_scanlines == 0)
+				extra_lines = wp->y_min_scanlines;
+			else
+				extra_lines = wp->y_min_scanlines * 2 -
+					      res_lines % wp->y_min_scanlines;
+
+			fp_min_disp_buf_needed = mul_u32_fixed16(res_lines +
+						extra_lines,
+						wp->plane_blocks_per_line);
+			min_disp_buf_needed = fixed16_to_u32_round_up(
+						fp_min_disp_buf_needed);
+		} else {
+			min_disp_buf_needed = DIV_ROUND_UP(res_blocks * 11, 10);
+		}
+	} else {
+		min_disp_buf_needed = res_blocks;
+	}
+
+	if (res_blocks >= ddb_allocation || res_lines > 31 ||
+	    min_disp_buf_needed >= ddb_allocation) {
 		*enabled = false;
 
 		/*
@@ -4790,8 +4833,10 @@ static void skl_write_plane_wm(struct intel_crtc *intel_crtc,
 
 	skl_ddb_entry_write(dev_priv, PLANE_BUF_CFG(pipe, plane_id),
 			    &ddb->plane[pipe][plane_id]);
-	skl_ddb_entry_write(dev_priv, PLANE_NV12_BUF_CFG(pipe, plane_id),
-			    &ddb->y_plane[pipe][plane_id]);
+	if (INTEL_GEN(dev_priv) < 11)
+		skl_ddb_entry_write(dev_priv,
+				    PLANE_NV12_BUF_CFG(pipe, plane_id),
+				    &ddb->y_plane[pipe][plane_id]);
 }
 
 static void skl_write_cursor_wm(struct intel_crtc *intel_crtc,
@@ -6626,9 +6671,29 @@ static void gen9_enable_rc6(struct drm_i915_private *dev_priv)
 
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 
-	/* 2c: Program Coarse Power Gating Policies. */
-	I915_WRITE(GEN9_MEDIA_PG_IDLE_HYSTERESIS, 25);
-	I915_WRITE(GEN9_RENDER_PG_IDLE_HYSTERESIS, 25);
+	/*
+	 * 2c: Program Coarse Power Gating Policies.
+	 *
+	 * Bspec's guidance is to use 25us (really 25 * 1280ns) here. What we
+	 * use instead is a more conservative estimate for the maximum time
+	 * it takes us to service a CS interrupt and submit a new ELSP - that
+	 * is the time which the GPU is idle waiting for the CPU to select the
+	 * next request to execute. If the idle hysteresis is less than that
+	 * interrupt service latency, the hardware will automatically gate
+	 * the power well and we will then incur the wake up cost on top of
+	 * the service latency. A similar guide from intel_pstate is that we
+	 * do not want the enable hysteresis to less than the wakeup latency.
+	 *
+	 * igt/gem_exec_nop/sequential provides a rough estimate for the
+	 * service latency, and puts it around 10us for Broadwell (and other
+	 * big core) and around 40us for Broxton (and other low power cores).
+	 * [Note that for legacy ringbuffer submission, this is less than 1us!]
+	 * However, the wakeup latency on Broxton is closer to 100us. To be
+	 * conservative, we have to factor in a context switch on top (due
+	 * to ksoftirqd).
+	 */
+	I915_WRITE(GEN9_MEDIA_PG_IDLE_HYSTERESIS, 250);
+	I915_WRITE(GEN9_RENDER_PG_IDLE_HYSTERESIS, 250);
 
 	/* 3a: Enable RC6 */
 	I915_WRITE(GEN6_RC6_THRESHOLD, 37500); /* 37.5/125ms per EI */
@@ -9150,7 +9215,8 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val
 }
 
 int sandybridge_pcode_write_timeout(struct drm_i915_private *dev_priv,
-				    u32 mbox, u32 val, int timeout_us)
+				    u32 mbox, u32 val,
+				    int fast_timeout_us, int slow_timeout_ms)
 {
 	int status;
 
@@ -9173,7 +9239,8 @@ int sandybridge_pcode_write_timeout(struct drm_i915_private *dev_priv,
 
 	if (__intel_wait_for_register_fw(dev_priv,
 					 GEN6_PCODE_MAILBOX, GEN6_PCODE_READY, 0,
-					 timeout_us, 0, NULL)) {
+					 fast_timeout_us, slow_timeout_ms,
+					 NULL)) {
 		DRM_ERROR("timeout waiting for pcode write of 0x%08x to mbox %x to finish for %ps\n",
 			  val, mbox, __builtin_return_address(0));
 		return -ETIMEDOUT;

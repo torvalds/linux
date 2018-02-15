@@ -161,12 +161,16 @@ i915_priotree_fini(struct drm_i915_private *i915, struct i915_priotree *pt)
 
 	GEM_BUG_ON(!list_empty(&pt->link));
 
-	/* Everyone we depended upon (the fences we wait to be signaled)
+	/*
+	 * Everyone we depended upon (the fences we wait to be signaled)
 	 * should retire before us and remove themselves from our list.
 	 * However, retirement is run independently on each timeline and
 	 * so we may be called out-of-order.
 	 */
 	list_for_each_entry_safe(dep, next, &pt->signalers_list, signal_link) {
+		GEM_BUG_ON(!i915_priotree_signaled(dep->signaler));
+		GEM_BUG_ON(!list_empty(&dep->dfs_link));
+
 		list_del(&dep->wait_link);
 		if (dep->flags & I915_DEPENDENCY_ALLOC)
 			i915_dependency_free(i915, dep);
@@ -174,6 +178,9 @@ i915_priotree_fini(struct drm_i915_private *i915, struct i915_priotree *pt)
 
 	/* Remove ourselves from everyone who depends upon us */
 	list_for_each_entry_safe(dep, next, &pt->waiters_list, wait_link) {
+		GEM_BUG_ON(dep->signaler != pt);
+		GEM_BUG_ON(!list_empty(&dep->dfs_link));
+
 		list_del(&dep->signal_link);
 		if (dep->flags & I915_DEPENDENCY_ALLOC)
 			i915_dependency_free(i915, dep);
@@ -267,6 +274,8 @@ static void mark_busy(struct drm_i915_private *i915)
 	intel_display_power_get(i915, POWER_DOMAIN_GT_IRQ);
 
 	i915->gt.awake = true;
+	if (unlikely(++i915->gt.epoch == 0)) /* keep 0 as invalid */
+		i915->gt.epoch = 1;
 
 	intel_enable_gt_powersave(i915);
 	i915_update_gfx_val(i915);
@@ -436,7 +445,10 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	spin_lock_irq(&request->lock);
 	if (request->waitboost)
 		atomic_dec(&request->i915->gt_pm.rps.num_waiters);
-	dma_fence_signal_locked(&request->fence);
+	if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &request->fence.flags))
+		dma_fence_signal_locked(&request->fence);
+	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &request->fence.flags))
+		intel_engine_cancel_signaling(request);
 	spin_unlock_irq(&request->lock);
 
 	i915_priotree_fini(request->i915, &request->priotree);
@@ -530,6 +542,8 @@ void __i915_gem_request_unsubmit(struct drm_i915_gem_request *request)
 	 */
 	GEM_BUG_ON(!request->global_seqno);
 	GEM_BUG_ON(request->global_seqno != engine->timeline->seqno);
+	GEM_BUG_ON(i915_seqno_passed(intel_engine_get_seqno(engine),
+				     request->global_seqno));
 	engine->timeline->seqno--;
 
 	/* We may be recursing from the signal callback of another i915 fence */
@@ -691,6 +705,17 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 		if (ret)
 			goto err_unreserve;
 
+		/*
+		 * We've forced the client to stall and catch up with whatever
+		 * backlog there might have been. As we are assuming that we
+		 * caused the mempressure, now is an opportune time to
+		 * recover as much memory from the request pool as is possible.
+		 * Having already penalized the client to stall, we spend
+		 * a little extra time to re-optimise page allocation.
+		 */
+		kmem_cache_shrink(dev_priv->requests);
+		rcu_barrier(); /* Recover the TYPESAFE_BY_RCU pages */
+
 		req = kmem_cache_alloc(dev_priv->requests, GFP_KERNEL);
 		if (!req) {
 			ret = -ENOMEM;
@@ -722,6 +747,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 
 	/* No zalloc, must clear what we need by hand */
 	req->global_seqno = 0;
+	req->signaling.wait.seqno = 0;
 	req->file_priv = NULL;
 	req->batch = NULL;
 	req->capture_list = NULL;

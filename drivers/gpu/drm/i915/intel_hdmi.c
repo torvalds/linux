@@ -1567,7 +1567,10 @@ intel_hdmi_dp_dual_mode_detect(struct drm_connector *connector, bool has_edid)
 	 * there's nothing connected to the port.
 	 */
 	if (type == DRM_DP_DUAL_MODE_UNKNOWN) {
-		if (has_edid &&
+		/* An overridden EDID imply that we want this port for testing.
+		 * Make sure not to set limits for that port.
+		 */
+		if (has_edid && !connector->override_edid &&
 		    intel_bios_is_port_dp_dual_mode(dev_priv, port)) {
 			DRM_DEBUG_KMS("Assuming DP dual mode adaptor presence based on VBT\n");
 			type = DRM_DP_DUAL_MODE_TYPE1_DVI;
@@ -1932,9 +1935,43 @@ static u8 cnp_port_to_ddc_pin(struct drm_i915_private *dev_priv,
 	case PORT_D:
 		ddc_pin = GMBUS_PIN_4_CNP;
 		break;
+	case PORT_F:
+		ddc_pin = GMBUS_PIN_3_BXT;
+		break;
 	default:
 		MISSING_CASE(port);
 		ddc_pin = GMBUS_PIN_1_BXT;
+		break;
+	}
+	return ddc_pin;
+}
+
+static u8 icl_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
+{
+	u8 ddc_pin;
+
+	switch (port) {
+	case PORT_A:
+		ddc_pin = GMBUS_PIN_1_BXT;
+		break;
+	case PORT_B:
+		ddc_pin = GMBUS_PIN_2_BXT;
+		break;
+	case PORT_C:
+		ddc_pin = GMBUS_PIN_9_TC1_ICP;
+		break;
+	case PORT_D:
+		ddc_pin = GMBUS_PIN_10_TC2_ICP;
+		break;
+	case PORT_E:
+		ddc_pin = GMBUS_PIN_11_TC3_ICP;
+		break;
+	case PORT_F:
+		ddc_pin = GMBUS_PIN_12_TC4_ICP;
+		break;
+	default:
+		MISSING_CASE(port);
+		ddc_pin = GMBUS_PIN_2_BXT;
 		break;
 	}
 	return ddc_pin;
@@ -1982,6 +2019,8 @@ static u8 intel_hdmi_ddc_pin(struct drm_i915_private *dev_priv,
 		ddc_pin = bxt_port_to_ddc_pin(dev_priv, port);
 	else if (HAS_PCH_CNP(dev_priv))
 		ddc_pin = cnp_port_to_ddc_pin(dev_priv, port);
+	else if (IS_ICELAKE(dev_priv))
+		ddc_pin = icl_port_to_ddc_pin(dev_priv, port);
 	else
 		ddc_pin = g4x_port_to_ddc_pin(dev_priv, port);
 
@@ -2052,7 +2091,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 
 	if (WARN_ON(port == PORT_A))
 		return;
-	intel_encoder->hpd_pin = intel_hpd_pin(port);
+	intel_encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);
 
 	if (HAS_DDI(dev_priv))
 		intel_connector->get_hw_state = intel_ddi_connector_get_hw_state;

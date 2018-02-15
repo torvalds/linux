@@ -227,7 +227,7 @@ struct bdb_general_features {
 #define DEVICE_TYPE_COMPOSITE_OUTPUT	(1 << 9)
 #define DEVICE_TYPE_DUAL_CHANNEL	(1 << 8)
 #define DEVICE_TYPE_HIGH_SPEED_LINK	(1 << 6)
-#define DEVICE_TYPE_LVDS_SINGALING	(1 << 5)
+#define DEVICE_TYPE_LVDS_SIGNALING	(1 << 5)
 #define DEVICE_TYPE_TMDS_DVI_SIGNALING	(1 << 4)
 #define DEVICE_TYPE_VIDEO_SIGNALING	(1 << 3)
 #define DEVICE_TYPE_DISPLAYPORT_OUTPUT	(1 << 2)
@@ -243,7 +243,7 @@ struct bdb_general_features {
 	 DEVICE_TYPE_MIPI_OUTPUT |		\
 	 DEVICE_TYPE_COMPOSITE_OUTPUT |		\
 	 DEVICE_TYPE_DUAL_CHANNEL |		\
-	 DEVICE_TYPE_LVDS_SINGALING |		\
+	 DEVICE_TYPE_LVDS_SIGNALING |		\
 	 DEVICE_TYPE_TMDS_DVI_SIGNALING |	\
 	 DEVICE_TYPE_VIDEO_SIGNALING |		\
 	 DEVICE_TYPE_DISPLAYPORT_OUTPUT |	\
@@ -253,7 +253,7 @@ struct bdb_general_features {
 	(DEVICE_TYPE_INTERNAL_CONNECTOR |	\
 	 DEVICE_TYPE_MIPI_OUTPUT |		\
 	 DEVICE_TYPE_COMPOSITE_OUTPUT |		\
-	 DEVICE_TYPE_LVDS_SINGALING |		\
+	 DEVICE_TYPE_LVDS_SIGNALING |		\
 	 DEVICE_TYPE_TMDS_DVI_SIGNALING |	\
 	 DEVICE_TYPE_VIDEO_SIGNALING |		\
 	 DEVICE_TYPE_DISPLAYPORT_OUTPUT |	\
@@ -299,6 +299,8 @@ struct bdb_general_features {
 #define DVO_PORT_DPA		10
 #define DVO_PORT_DPE		11				/* 193 */
 #define DVO_PORT_HDMIE		12				/* 193 */
+#define DVO_PORT_DPF		13				/* N/A */
+#define DVO_PORT_HDMIF		14				/* N/A */
 #define DVO_PORT_MIPIA		21				/* 171 */
 #define DVO_PORT_MIPIB		22				/* 171 */
 #define DVO_PORT_MIPIC		23				/* 171 */
@@ -317,6 +319,11 @@ enum vbt_gmbus_ddi {
 	DDC_BUS_DDI_D,
 	DDC_BUS_DDI_F,
 };
+
+#define VBT_DP_MAX_LINK_RATE_HBR3	0
+#define VBT_DP_MAX_LINK_RATE_HBR2	1
+#define VBT_DP_MAX_LINK_RATE_HBR	2
+#define VBT_DP_MAX_LINK_RATE_LBR	3
 
 /*
  * The child device config, aka the display device data structure, provides a

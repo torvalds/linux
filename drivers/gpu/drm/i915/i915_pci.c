@@ -571,12 +571,25 @@ static const struct intel_device_info intel_coffeelake_gt3_info = {
 	.ddb_size = 1024, \
 	GLK_COLORS
 
-static const struct intel_device_info intel_cannonlake_gt2_info = {
+static const struct intel_device_info intel_cannonlake_info = {
 	GEN10_FEATURES,
 	.is_alpha_support = 1,
 	.platform = INTEL_CANNONLAKE,
 	.gen = 10,
 	.gt = 2,
+};
+
+#define GEN11_FEATURES \
+	GEN10_FEATURES, \
+	.gen = 11, \
+	.ddb_size = 2048, \
+	.has_csr = 0
+
+static const struct intel_device_info intel_icelake_11_info = {
+	GEN11_FEATURES,
+	.platform = INTEL_ICELAKE,
+	.is_alpha_support = 1,
+	.has_resource_streamer = 0,
 };
 
 /*
@@ -636,8 +649,7 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_CFL_U_GT1_IDS(&intel_coffeelake_gt1_info),
 	INTEL_CFL_U_GT2_IDS(&intel_coffeelake_gt2_info),
 	INTEL_CFL_U_GT3_IDS(&intel_coffeelake_gt3_info),
-	INTEL_CNL_U_GT2_IDS(&intel_cannonlake_gt2_info),
-	INTEL_CNL_Y_GT2_IDS(&intel_cannonlake_gt2_info),
+	INTEL_CNL_IDS(&intel_cannonlake_info),
 	{0, 0, 0}
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
