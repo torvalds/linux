@@ -745,6 +745,12 @@
 				};
 			};
 
+			sec_AO: ao-secure@140 {
+				compatible = "amlogic,meson-gx-ao-secure", "syscon";
+				reg = <0x0 0x140 0x0 0x140>;
+				amlogic,has-chip-id;
+			};
+
 			pwm_AO_ab: pwm@7000 {
 				compatible = "amlogic,meson-axg-ao-pwm";
 				reg = <0x0 0x07000 0x0 0x20>;
