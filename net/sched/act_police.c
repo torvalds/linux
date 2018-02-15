@@ -58,7 +58,8 @@ static struct tc_action_ops act_police_ops;
 
 static int tcf_act_police_walker(struct net *net, struct sk_buff *skb,
 				 struct netlink_callback *cb, int type,
-				 const struct tc_action_ops *ops)
+				 const struct tc_action_ops *ops,
+				 struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, police_net_id);
 
