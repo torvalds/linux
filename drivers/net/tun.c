@@ -1489,27 +1489,23 @@ static struct sk_buff *tun_napi_alloc_frags(struct tun_file *tfile,
 	skb->truesize += skb->data_len;
 
 	for (i = 1; i < it->nr_segs; i++) {
+		struct page_frag *pfrag = &current->task_frag;
 		size_t fragsz = it->iov[i].iov_len;
-		unsigned long offset;
-		struct page *page;
-		void *data;
 
 		if (fragsz == 0 || fragsz > PAGE_SIZE) {
 			err = -EINVAL;
 			goto free;
 		}
 
-		local_bh_disable();
-		data = napi_alloc_frag(fragsz);
-		local_bh_enable();
-		if (!data) {
+		if (!skb_page_frag_refill(fragsz, pfrag, GFP_KERNEL)) {
 			err = -ENOMEM;
 			goto free;
 		}
 
-		page = virt_to_head_page(data);
-		offset = data - page_address(page);
-		skb_fill_page_desc(skb, i - 1, page, offset, fragsz);
+		skb_fill_page_desc(skb, i - 1, pfrag->page,
+				   pfrag->offset, fragsz);
+		page_ref_inc(pfrag->page);
+		pfrag->offset += fragsz;
 	}
 
 	return skb;
