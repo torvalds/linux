@@ -572,12 +572,6 @@ static int init_implementation_adapter_regs_xsl(struct cxl *adapter, struct pci_
 /* For the PSL this is a multiple for 0 < n <= 7: */
 #define PSL_2048_250MHZ_CYCLES 1
 
-static void write_timebase_ctrl_psl9(struct cxl *adapter)
-{
-	cxl_p1_write(adapter, CXL_PSL9_TB_CTLSTAT,
-		     TBSYNC_CNT(2 * PSL_2048_250MHZ_CYCLES));
-}
-
 static void write_timebase_ctrl_psl8(struct cxl *adapter)
 {
 	cxl_p1_write(adapter, CXL_PSL_TB_CTLSTAT,
@@ -639,7 +633,8 @@ static void cxl_setup_psl_timebase(struct cxl *adapter, struct pci_dev *dev)
 	 * Setup PSL Timebase Control and Status register
 	 * with the recommended Timebase Sync Count value
 	 */
-	adapter->native->sl_ops->write_timebase_ctrl(adapter);
+	if (adapter->native->sl_ops->write_timebase_ctrl)
+		adapter->native->sl_ops->write_timebase_ctrl(adapter);
 
 	/* Enable PSL Timebase */
 	cxl_p1_write(adapter, CXL_PSL_Control, 0x0000000000000000);
@@ -1805,7 +1800,6 @@ static const struct cxl_service_layer_ops psl9_ops = {
 	.psl_irq_dump_registers = cxl_native_irq_dump_regs_psl9,
 	.err_irq_dump_registers = cxl_native_err_irq_dump_regs_psl9,
 	.debugfs_stop_trace = cxl_stop_trace_psl9,
-	.write_timebase_ctrl = write_timebase_ctrl_psl9,
 	.timebase_read = timebase_read_psl9,
 	.capi_mode = OPAL_PHB_CAPI_MODE_CAPI,
 	.needs_reset_before_disable = true,
