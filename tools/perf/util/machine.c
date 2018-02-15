@@ -1262,15 +1262,15 @@ int machine__create_kernel_maps(struct machine *machine)
 	return 0;
 }
 
-static void machine__set_kernel_mmap_len(struct machine *machine,
-					 union perf_event *event)
+static void machine__set_kernel_mmap(struct machine *machine,
+				     u64 start, u64 end)
 {
 	int i;
 
 	for (i = 0; i < MAP__NR_TYPES; i++) {
-		machine->vmlinux_maps[i]->start = event->mmap.start;
-		machine->vmlinux_maps[i]->end   = (event->mmap.start +
-						   event->mmap.len);
+		machine->vmlinux_maps[i]->start = start;
+		machine->vmlinux_maps[i]->end   = end;
+
 		/*
 		 * Be a bit paranoid here, some perf.data file came with
 		 * a zero sized synthesized MMAP event for the kernel.
@@ -1375,7 +1375,8 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		if (strstr(kernel->long_name, "vmlinux"))
 			dso__set_short_name(kernel, "[kernel.vmlinux]", false);
 
-		machine__set_kernel_mmap_len(machine, event);
+		machine__set_kernel_mmap(machine, event->mmap.start,
+					 event->mmap.start + event->mmap.len);
 
 		/*
 		 * Avoid using a zero address (kptr_restrict) for the ref reloc
