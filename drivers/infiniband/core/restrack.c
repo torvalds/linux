@@ -7,7 +7,6 @@
 #include <rdma/restrack.h>
 #include <linux/mutex.h>
 #include <linux/sched/task.h>
-#include <linux/uaccess.h>
 #include <linux/pid_namespace.h>
 
 void rdma_restrack_init(struct rdma_restrack_root *res)
@@ -88,6 +87,21 @@ static struct ib_device *res_to_dev(struct rdma_restrack_entry *res)
 	return dev;
 }
 
+static bool res_is_user(struct rdma_restrack_entry *res)
+{
+	switch (res->type) {
+	case RDMA_RESTRACK_PD:
+		return container_of(res, struct ib_pd, res)->uobject;
+	case RDMA_RESTRACK_CQ:
+		return container_of(res, struct ib_cq, res)->uobject;
+	case RDMA_RESTRACK_QP:
+		return container_of(res, struct ib_qp, res)->uobject;
+	default:
+		WARN_ONCE(true, "Wrong resource tracking type %u\n", res->type);
+		return false;
+	}
+}
+
 void rdma_restrack_add(struct rdma_restrack_entry *res)
 {
 	struct ib_device *dev = res_to_dev(res);
@@ -95,7 +109,7 @@ void rdma_restrack_add(struct rdma_restrack_entry *res)
 	if (!dev)
 		return;
 
-	if (!uaccess_kernel()) {
+	if (res_is_user(res)) {
 		get_task_struct(current);
 		res->task = current;
 		res->kern_name = NULL;
