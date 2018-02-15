@@ -47,7 +47,7 @@
 #include <linux/platform_device.h>
 #include <linux/platform_data/dmtimer-omap.h>
 
-#include <plat/dmtimer.h>
+#include <clocksource/timer-ti-dm.h>
 
 static u32 omap_reserved_systimers;
 static LIST_HEAD(omap_timer_list);
