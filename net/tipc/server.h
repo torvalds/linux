@@ -2,6 +2,7 @@
  * net/tipc/server.h: Include file for TIPC server code
  *
  * Copyright (c) 2012-2013, Wind River Systems
+ * Copyright (c) 2017, Ericsson AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

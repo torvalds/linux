@@ -134,33 +134,29 @@ void tipc_subscrp_get(struct tipc_subscription *subscription)
 	kref_get(&subscription->kref);
 }
 
-static struct tipc_subscription *tipc_subscrp_create(struct tipc_server *srv,
-						     struct tipc_subscr *s,
-						     int conid)
+struct tipc_subscription *tipc_sub_subscribe(struct tipc_server *srv,
+					     struct tipc_subscr *s,
+					     int conid)
 {
 	struct tipc_net *tn = tipc_net(srv->net);
 	struct tipc_subscription *sub;
 	u32 filter = tipc_sub_read(s, filter);
+	u32 timeout;
 
-	/* Refuse subscription if global limit exceeded */
-	if (atomic_read(&tn->subscription_count) >= TIPC_MAX_SUBSCRIPTIONS) {
-		pr_warn("Subscription rejected, limit reached (%u)\n",
-			TIPC_MAX_SUBSCRIPTIONS);
+	if (atomic_read(&tn->subscription_count) >= TIPC_MAX_SUBSCR) {
+		pr_warn("Subscription rejected, max (%u)\n", TIPC_MAX_SUBSCR);
 		return NULL;
 	}
-
-	/* Allocate subscription object */
+	if ((filter & TIPC_SUB_PORTS && filter & TIPC_SUB_SERVICE) ||
+	    (tipc_sub_read(s, seq.lower) > tipc_sub_read(s, seq.upper))) {
+		pr_warn("Subscription rejected, illegal request\n");
+		return NULL;
+	}
 	sub = kmalloc(sizeof(*sub), GFP_ATOMIC);
 	if (!sub) {
 		pr_warn("Subscription rejected, no memory\n");
 		return NULL;
 	}
-
-	/* Initialize subscription object */
-	if (filter & TIPC_SUB_PORTS && filter & TIPC_SUB_SERVICE)
-		goto err;
-	if (tipc_sub_read(s, seq.lower) > tipc_sub_read(s, seq.upper))
-		goto err;
 	sub->server = srv;
 	sub->conid = conid;
 	sub->inactive = false;
@@ -168,24 +164,6 @@ static struct tipc_subscription *tipc_subscrp_create(struct tipc_server *srv,
 	spin_lock_init(&sub->lock);
 	atomic_inc(&tn->subscription_count);
 	kref_init(&sub->kref);
-	return sub;
-err:
-	pr_warn("Subscription rejected, illegal request\n");
-	kfree(sub);
-	return NULL;
-}
-
-struct tipc_subscription *tipc_subscrp_subscribe(struct tipc_server *srv,
-						 struct tipc_subscr *s,
-						 int conid)
-{
-	struct tipc_subscription *sub = NULL;
-	u32 timeout;
-
-	sub = tipc_subscrp_create(srv, s, conid);
-	if (!sub)
-		return NULL;
-
 	tipc_nametbl_subscribe(sub);
 	timer_setup(&sub->timer, tipc_subscrp_timeout, 0);
 	timeout = tipc_sub_read(&sub->evt.s, timeout);
@@ -194,7 +172,7 @@ struct tipc_subscription *tipc_subscrp_subscribe(struct tipc_server *srv,
 	return sub;
 }
 
-void tipc_sub_delete(struct tipc_subscription *sub)
+void tipc_sub_unsubscribe(struct tipc_subscription *sub)
 {
 	tipc_nametbl_unsubscribe(sub);
 	if (sub->evt.s.timeout != TIPC_WAIT_FOREVER)

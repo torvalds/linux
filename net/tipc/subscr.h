@@ -1,7 +1,7 @@
 /*
  * net/tipc/subscr.h: Include file for TIPC network topology service
  *
- * Copyright (c) 2003-2006, Ericsson AB
+ * Copyright (c) 2003-2017, Ericsson AB
  * Copyright (c) 2005-2007, 2012-2013, Wind River Systems
  * All rights reserved.
  *
@@ -39,8 +39,8 @@
 
 #include "server.h"
 
-#define TIPC_MAX_SUBSCRIPTIONS	65535
-#define TIPC_MAX_PUBLICATIONS	65535
+#define TIPC_MAX_SUBSCR         65535
+#define TIPC_MAX_PUBLICATIONS   65535
 
 struct tipc_subscription;
 struct tipc_conn;
@@ -66,10 +66,10 @@ struct tipc_subscription {
 	spinlock_t lock; /* serialize up/down and timer events */
 };
 
-struct tipc_subscription *tipc_subscrp_subscribe(struct tipc_server *srv,
-						 struct tipc_subscr *s,
-						 int conid);
-void tipc_sub_delete(struct tipc_subscription *sub);
+struct tipc_subscription *tipc_sub_subscribe(struct tipc_server *srv,
+					     struct tipc_subscr *s,
+					     int conid);
+void tipc_sub_unsubscribe(struct tipc_subscription *sub);
 
 int tipc_subscrp_check_overlap(struct tipc_name_seq *seq, u32 found_lower,
 			       u32 found_upper);
