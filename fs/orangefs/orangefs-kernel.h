@@ -442,6 +442,7 @@ extern const struct dentry_operations orangefs_dentry_operations;
 #define ORANGEFS_OP_CANCELLATION  4   /* this is a cancellation */
 #define ORANGEFS_OP_NO_MUTEX      8   /* don't acquire request_mutex */
 #define ORANGEFS_OP_ASYNC         16  /* Queue it, but don't wait */
+#define ORANGEFS_OP_WRITEBACK     32
 
 int service_operation(struct orangefs_kernel_op_s *op,
 		      const char *op_name,

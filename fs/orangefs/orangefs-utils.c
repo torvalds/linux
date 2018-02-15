@@ -430,7 +430,7 @@ int orangefs_inode_setattr(struct inode *inode)
 	spin_unlock(&inode->i_lock);
 
 	ret = service_operation(new_op, __func__,
-	    get_interruptible_flag(inode));
+	    get_interruptible_flag(inode) | ORANGEFS_OP_WRITEBACK);
 	gossip_debug(GOSSIP_UTILS_DEBUG,
 	    "orangefs_inode_setattr: returning %d\n", ret);
 	if (ret)
