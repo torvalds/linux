@@ -536,6 +536,22 @@ static void reset_back_end_for_pipe(
 		/* DPMS may already disable */
 		if (!pipe_ctx->stream->dpms_off)
 			core_link_disable_stream(pipe_ctx, FREE_ACQUIRED_RESOURCE);
+		else if (pipe_ctx->stream_res.audio) {
+			/*
+			 * if stream is already disabled outside of commit streams path,
+			 * audio disable was skipped. Need to do it here
+			 */
+			pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
+
+			if (dc->caps.dynamic_audio == true) {
+				/*we have to dynamic arbitrate the audio endpoints*/
+				pipe_ctx->stream_res.audio = NULL;
+				/*we free the resource, need reset is_audio_acquired*/
+				update_audio_usage(&dc->current_state->res_ctx, dc->res_pool, pipe_ctx->stream_res.audio, false);
+			}
+
+		}
+
 	}
 
 	/* by upper caller loop, parent pipe: pipe0, will be reset last.
