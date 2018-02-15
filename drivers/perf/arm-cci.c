@@ -16,8 +16,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
-extern void __iomem *const cci_ctrl_base;
-
 #define DRIVER_NAME		"ARM-CCI PMU"
 
 #define CCI_PMCR		0x0100
@@ -90,6 +88,7 @@ static struct cci_pmu_model cci_pmu_models[];
 
 struct cci_pmu {
 	void __iomem *base;
+	void __iomem *ctrl_base;
 	struct pmu pmu;
 	int cpu;
 	int nr_irqs;
@@ -360,10 +359,10 @@ static int cci400_validate_hw_event(struct cci_pmu *cci_pmu, unsigned long hw_ev
 	return -ENOENT;
 }
 
-static int probe_cci400_revision(void)
+static int probe_cci400_revision(struct cci_pmu *cci_pmu)
 {
 	int rev;
-	rev = readl_relaxed(cci_ctrl_base + CCI_PID2) & CCI_PID2_REV_MASK;
+	rev = readl_relaxed(cci_pmu->ctrl_base + CCI_PID2) & CCI_PID2_REV_MASK;
 	rev >>= CCI_PID2_REV_SHIFT;
 
 	if (rev < CCI400_R1_PX)
@@ -372,14 +371,14 @@ static int probe_cci400_revision(void)
 		return CCI400_R1;
 }
 
-static const struct cci_pmu_model *probe_cci_model(void)
+static const struct cci_pmu_model *probe_cci_model(struct cci_pmu *cci_pmu)
 {
 	if (platform_has_secure_cci_access())
-		return &cci_pmu_models[probe_cci400_revision()];
+		return &cci_pmu_models[probe_cci400_revision(cci_pmu)];
 	return NULL;
 }
 #else	/* !CONFIG_ARM_CCI400_PMU */
-static inline struct cci_pmu_model *probe_cci_model(void)
+static inline struct cci_pmu_model *probe_cci_model(struct cci_pmu *cci_pmu)
 {
 	return NULL;
 }
@@ -662,8 +661,8 @@ static void __cci_pmu_enable_nosync(struct cci_pmu *cci_pmu)
 	u32 val;
 
 	/* Enable all the PMU counters. */
-	val = readl_relaxed(cci_ctrl_base + CCI_PMCR) | CCI_PMCR_CEN;
-	writel(val, cci_ctrl_base + CCI_PMCR);
+	val = readl_relaxed(cci_pmu->ctrl_base + CCI_PMCR) | CCI_PMCR_CEN;
+	writel(val, cci_pmu->ctrl_base + CCI_PMCR);
 }
 
 /* Should be called with cci_pmu->hw_events->pmu_lock held */
@@ -674,13 +673,13 @@ static void __cci_pmu_enable_sync(struct cci_pmu *cci_pmu)
 }
 
 /* Should be called with cci_pmu->hw_events->pmu_lock held */
-static void __cci_pmu_disable(void)
+static void __cci_pmu_disable(struct cci_pmu *cci_pmu)
 {
 	u32 val;
 
 	/* Disable all the PMU counters. */
-	val = readl_relaxed(cci_ctrl_base + CCI_PMCR) & ~CCI_PMCR_CEN;
-	writel(val, cci_ctrl_base + CCI_PMCR);
+	val = readl_relaxed(cci_pmu->ctrl_base + CCI_PMCR) & ~CCI_PMCR_CEN;
+	writel(val, cci_pmu->ctrl_base + CCI_PMCR);
 }
 
 static ssize_t cci_pmu_format_show(struct device *dev,
@@ -782,9 +781,9 @@ pmu_restore_counters(struct cci_pmu *cci_pmu, unsigned long *mask)
  * Returns the number of programmable counters actually implemented
  * by the cci
  */
-static u32 pmu_get_max_counters(void)
+static u32 pmu_get_max_counters(struct cci_pmu *cci_pmu)
 {
-	return (readl_relaxed(cci_ctrl_base + CCI_PMCR) &
+	return (readl_relaxed(cci_pmu->ctrl_base + CCI_PMCR) &
 		CCI_PMCR_NCNT_MASK) >> CCI_PMCR_NCNT_SHIFT;
 }
 
@@ -965,7 +964,7 @@ static void cci5xx_pmu_write_counters(struct cci_pmu *cci_pmu, unsigned long *ma
 		pmu_set_event(cci_pmu, i, event->hw.config_base);
 	}
 
-	__cci_pmu_disable();
+	__cci_pmu_disable(cci_pmu);
 
 	pmu_restore_counters(cci_pmu, saved_mask);
 }
@@ -1026,7 +1025,7 @@ static irqreturn_t pmu_handle_irq(int irq_num, void *dev)
 	raw_spin_lock_irqsave(&events->pmu_lock, flags);
 
 	/* Disable the PMU while we walk through the counters */
-	__cci_pmu_disable();
+	__cci_pmu_disable(cci_pmu);
 	/*
 	 * Iterate over counters and update the corresponding perf events.
 	 * This should work regardless of whether we have per-counter overflow
@@ -1108,7 +1107,7 @@ static void cci_pmu_disable(struct pmu *pmu)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&hw_events->pmu_lock, flags);
-	__cci_pmu_disable();
+	__cci_pmu_disable(cci_pmu);
 	raw_spin_unlock_irqrestore(&hw_events->pmu_lock, flags);
 }
 
@@ -1438,7 +1437,7 @@ static int cci_pmu_init(struct cci_pmu *cci_pmu, struct platform_device *pdev)
 	};
 
 	cci_pmu->plat_device = pdev;
-	num_cntrs = pmu_get_max_counters();
+	num_cntrs = pmu_get_max_counters(cci_pmu);
 	if (num_cntrs > cci_pmu->model->num_hw_cntrs) {
 		dev_warn(&pdev->dev,
 			"PMU implements more counters(%d) than supported by"
@@ -1611,20 +1610,22 @@ static struct cci_pmu *cci_pmu_alloc(struct device *dev)
 	 * them explicitly on an error, as it would end up in driver
 	 * detach.
 	 */
+	cci_pmu = devm_kzalloc(dev, sizeof(*cci_pmu), GFP_KERNEL);
+	if (!cci_pmu)
+		return ERR_PTR(-ENOMEM);
+
+	cci_pmu->ctrl_base = *(void __iomem **)dev->platform_data;
+
 	model = of_device_get_match_data(dev);
 	if (!model) {
 		dev_warn(dev,
 			 "DEPRECATED compatible property, requires secure access to CCI registers");
-		model = probe_cci_model();
+		model = probe_cci_model(cci_pmu);
 	}
 	if (!model) {
 		dev_warn(dev, "CCI PMU version not supported\n");
 		return ERR_PTR(-ENODEV);
 	}
-
-	cci_pmu = devm_kzalloc(dev, sizeof(*cci_pmu), GFP_KERNEL);
-	if (!cci_pmu)
-		return ERR_PTR(-ENOMEM);
 
 	cci_pmu->model = model;
 	cci_pmu->irqs = devm_kcalloc(dev, CCI_PMU_MAX_HW_CNTRS(model),

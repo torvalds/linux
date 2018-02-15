@@ -25,9 +25,8 @@
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 
-/* Referenced read-only by the PMU driver; see drivers/perf/arm-cci.c */
-void __iomem *cci_ctrl_base;
-static unsigned long cci_ctrl_phys;
+static void __iomem *cci_ctrl_base __ro_after_init;
+static unsigned long cci_ctrl_phys __ro_after_init;
 
 #ifdef CONFIG_ARM_CCI400_PORT_CTRL
 struct cci_nb_ports {
@@ -56,6 +55,15 @@ static const struct of_device_id arm_cci_matches[] = {
 	{},
 };
 
+static const struct of_dev_auxdata arm_cci_auxdata[] = {
+	OF_DEV_AUXDATA("arm,cci-400-pmu", 0, NULL, &cci_ctrl_base),
+	OF_DEV_AUXDATA("arm,cci-400-pmu,r0", 0, NULL, &cci_ctrl_base),
+	OF_DEV_AUXDATA("arm,cci-400-pmu,r1", 0, NULL, &cci_ctrl_base),
+	OF_DEV_AUXDATA("arm,cci-500-pmu,r0", 0, NULL, &cci_ctrl_base),
+	OF_DEV_AUXDATA("arm,cci-550-pmu,r0", 0, NULL, &cci_ctrl_base),
+	{}
+};
+
 #define DRIVER_NAME		"ARM-CCI"
 
 static int cci_platform_probe(struct platform_device *pdev)
@@ -63,7 +71,8 @@ static int cci_platform_probe(struct platform_device *pdev)
 	if (!cci_probed())
 		return -ENODEV;
 
-	return of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	return of_platform_populate(pdev->dev.of_node, NULL,
+				    arm_cci_auxdata, &pdev->dev);
 }
 
 static struct platform_driver cci_platform_driver = {
