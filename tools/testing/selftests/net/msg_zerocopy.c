@@ -14,6 +14,9 @@
  * - SOCK_DGRAM
  * - SOCK_RAW
  *
+ * PF_RDS
+ * - SOCK_SEQPACKET
+ *
  * Start this program on two connected hosts, one in send mode and
  * the other with option '-r' to put it in receiver mode.
  *
@@ -53,6 +56,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <linux/rds.h>
 
 #ifndef SO_EE_ORIGIN_ZEROCOPY
 #define SO_EE_ORIGIN_ZEROCOPY		5
@@ -300,9 +304,14 @@ static int do_setup_tx(int domain, int type, int protocol)
 	if (cfg_zerocopy)
 		do_setsockopt(fd, SOL_SOCKET, SO_ZEROCOPY, 1);
 
-	if (domain != PF_PACKET)
+	if (domain != PF_PACKET && domain != PF_RDS)
 		if (connect(fd, (void *) &cfg_dst_addr, cfg_alen))
 			error(1, errno, "connect");
+
+	if (domain == PF_RDS) {
+		if (bind(fd, (void *) &cfg_src_addr, cfg_alen))
+			error(1, errno, "bind");
+	}
 
 	return fd;
 }
@@ -444,6 +453,13 @@ static void do_tx(int domain, int type, int protocol)
 		msg.msg_iovlen++;
 	}
 
+	if (domain == PF_RDS) {
+		msg.msg_name = &cfg_dst_addr;
+		msg.msg_namelen =  (cfg_dst_addr.ss_family == AF_INET ?
+				    sizeof(struct sockaddr_in) :
+				    sizeof(struct sockaddr_in6));
+	}
+
 	iov[2].iov_base = payload;
 	iov[2].iov_len = cfg_payload_len;
 	msg.msg_iovlen++;
@@ -555,6 +571,40 @@ static void do_flush_datagram(int fd, int type)
 	bytes += cfg_payload_len;
 }
 
+
+static void do_recvmsg(int fd)
+{
+	int ret, off = 0;
+	char *buf;
+	struct iovec iov;
+	struct msghdr msg;
+	struct sockaddr_storage din;
+
+	buf = calloc(cfg_payload_len, sizeof(char));
+	iov.iov_base = buf;
+	iov.iov_len = cfg_payload_len;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.msg_name = &din;
+	msg.msg_namelen = sizeof(din);
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+
+	ret = recvmsg(fd, &msg, MSG_TRUNC);
+
+	if (ret == -1)
+		error(1, errno, "recv");
+	if (ret != cfg_payload_len)
+		error(1, 0, "recv: ret=%u != %u", ret, cfg_payload_len);
+
+	if (memcmp(buf + off, payload, ret))
+		error(1, 0, "recv: data mismatch");
+
+	free(buf);
+	packets++;
+	bytes += cfg_payload_len;
+}
+
 static void do_rx(int domain, int type, int protocol)
 {
 	uint64_t tstop;
@@ -566,6 +616,8 @@ static void do_rx(int domain, int type, int protocol)
 	do {
 		if (type == SOCK_STREAM)
 			do_flush_tcp(fd);
+		else if (domain == PF_RDS)
+			do_recvmsg(fd);
 		else
 			do_flush_datagram(fd, type);
 
@@ -610,6 +662,7 @@ static void parse_opts(int argc, char **argv)
 				    40 /* max tcp options */;
 	int c;
 	char *daddr = NULL, *saddr = NULL;
+	char *cfg_test;
 
 	cfg_payload_len = max_payload_len;
 
@@ -667,6 +720,14 @@ static void parse_opts(int argc, char **argv)
 			break;
 		}
 	}
+
+	cfg_test = argv[argc - 1];
+	if (strcmp(cfg_test, "rds") == 0) {
+		if (!daddr)
+			error(1, 0, "-D <server addr> required for PF_RDS\n");
+		if (!cfg_rx && !saddr)
+			error(1, 0, "-S <client addr> required for PF_RDS\n");
+	}
 	setup_sockaddr(cfg_family, daddr, &cfg_dst_addr);
 	setup_sockaddr(cfg_family, saddr, &cfg_src_addr);
 
@@ -699,6 +760,8 @@ int main(int argc, char **argv)
 		do_test(cfg_family, SOCK_STREAM, 0);
 	else if (!strcmp(cfg_test, "udp"))
 		do_test(cfg_family, SOCK_DGRAM, 0);
+	else if (!strcmp(cfg_test, "rds"))
+		do_test(PF_RDS, SOCK_SEQPACKET, 0);
 	else
 		error(1, 0, "unknown cfg_test %s", cfg_test);
 
