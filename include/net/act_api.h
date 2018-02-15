@@ -90,7 +90,7 @@ struct tc_action_ops {
 	int     (*lookup)(struct net *net, struct tc_action **a, u32 index);
 	int     (*init)(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action **act, int ovr,
-			int bind);
+			int bind, struct netlink_ext_ack *extack);
 	int     (*walk)(struct net *, struct sk_buff *,
 			struct netlink_callback *, int,
 			const struct tc_action_ops *);

@@ -680,9 +680,10 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 
 	/* backward compatibility for policer */
 	if (name == NULL)
-		err = a_o->init(net, tb[TCA_ACT_OPTIONS], est, &a, ovr, bind);
+		err = a_o->init(net, tb[TCA_ACT_OPTIONS], est, &a, ovr, bind,
+				extack);
 	else
-		err = a_o->init(net, nla, est, &a, ovr, bind);
+		err = a_o->init(net, nla, est, &a, ovr, bind, extack);
 	if (err < 0)
 		goto err_mod;
 
