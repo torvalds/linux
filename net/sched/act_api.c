@@ -938,8 +938,10 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 		goto out_module_put;
 
 	err = ops->walk(net, skb, &dcb, RTM_DELACTION, ops);
-	if (err <= 0)
+	if (err <= 0) {
+		nla_nest_cancel(skb, nest);
 		goto out_module_put;
+	}
 
 	nla_nest_end(skb, nest);
 
