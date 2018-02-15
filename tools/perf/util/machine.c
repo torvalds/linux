@@ -48,6 +48,27 @@ static void machine__threads_init(struct machine *machine)
 	}
 }
 
+static int machine__set_mmap_name(struct machine *machine)
+{
+	if (machine__is_host(machine)) {
+		if (symbol_conf.vmlinux_name)
+			machine->mmap_name = strdup(symbol_conf.vmlinux_name);
+		else
+			machine->mmap_name = strdup("[kernel.kallsyms]");
+	} else if (machine__is_default_guest(machine)) {
+		if (symbol_conf.default_guest_vmlinux_name)
+			machine->mmap_name = strdup(symbol_conf.default_guest_vmlinux_name);
+		else
+			machine->mmap_name = strdup("[guest.kernel.kallsyms]");
+	} else {
+		if (asprintf(&machine->mmap_name, "[guest.kernel.kallsyms.%d]",
+			 machine->pid) < 0)
+			machine->mmap_name = NULL;
+	}
+
+	return machine->mmap_name ? 0 : -ENOMEM;
+}
+
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 {
 	int err = -ENOMEM;
@@ -75,6 +96,9 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 	if (machine->root_dir == NULL)
 		return -ENOMEM;
 
+	if (machine__set_mmap_name(machine))
+		goto out;
+
 	if (pid != HOST_KERNEL_ID) {
 		struct thread *thread = machine__findnew_thread(machine, -1,
 								pid);
@@ -92,8 +116,10 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 	err = 0;
 
 out:
-	if (err)
+	if (err) {
 		zfree(&machine->root_dir);
+		zfree(&machine->mmap_name);
+	}
 	return 0;
 }
 
@@ -186,6 +212,7 @@ void machine__exit(struct machine *machine)
 	dsos__exit(&machine->dsos);
 	machine__exit_vdso(machine);
 	zfree(&machine->root_dir);
+	zfree(&machine->mmap_name);
 	zfree(&machine->current_tid);
 
 	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
@@ -326,20 +353,6 @@ void machines__process_guests(struct machines *machines,
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		process(pos, data);
 	}
-}
-
-char *machine__mmap_name(struct machine *machine, char *bf, size_t size)
-{
-	if (machine__is_host(machine))
-		snprintf(bf, size, "[%s]", "kernel.kallsyms");
-	else if (machine__is_default_guest(machine))
-		snprintf(bf, size, "[%s]", "guest.kernel.kallsyms");
-	else {
-		snprintf(bf, size, "[%s.%d]", "guest.kernel.kallsyms",
-			 machine->pid);
-	}
-
-	return bf;
 }
 
 void machines__set_id_hdr_size(struct machines *machines, u16 id_hdr_size)
@@ -777,25 +790,13 @@ size_t machine__fprintf(struct machine *machine, FILE *fp)
 
 static struct dso *machine__get_kernel(struct machine *machine)
 {
-	const char *vmlinux_name = NULL;
+	const char *vmlinux_name = machine->mmap_name;
 	struct dso *kernel;
 
 	if (machine__is_host(machine)) {
-		vmlinux_name = symbol_conf.vmlinux_name;
-		if (!vmlinux_name)
-			vmlinux_name = DSO__NAME_KALLSYMS;
-
 		kernel = machine__findnew_kernel(machine, vmlinux_name,
 						 "[kernel]", DSO_TYPE_KERNEL);
 	} else {
-		char bf[PATH_MAX];
-
-		if (machine__is_default_guest(machine))
-			vmlinux_name = symbol_conf.default_guest_vmlinux_name;
-		if (!vmlinux_name)
-			vmlinux_name = machine__mmap_name(machine, bf,
-							  sizeof(bf));
-
 		kernel = machine__findnew_kernel(machine, vmlinux_name,
 						 "[guest.kernel]",
 						 DSO_TYPE_GUEST_KERNEL);
@@ -1295,7 +1296,6 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 					      union perf_event *event)
 {
 	struct map *map;
-	char kmmap_prefix[PATH_MAX];
 	enum dso_kernel_type kernel_type;
 	bool is_kernel_mmap;
 
@@ -1303,15 +1303,14 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 	if (machine__uses_kcore(machine))
 		return 0;
 
-	machine__mmap_name(machine, kmmap_prefix, sizeof(kmmap_prefix));
 	if (machine__is_host(machine))
 		kernel_type = DSO_TYPE_KERNEL;
 	else
 		kernel_type = DSO_TYPE_GUEST_KERNEL;
 
 	is_kernel_mmap = memcmp(event->mmap.filename,
-				kmmap_prefix,
-				strlen(kmmap_prefix) - 1) == 0;
+				machine->mmap_name,
+				strlen(machine->mmap_name) - 1) == 0;
 	if (event->mmap.filename[0] == '/' ||
 	    (!is_kernel_mmap && event->mmap.filename[0] == '[')) {
 		map = machine__findnew_module_map(machine, event->mmap.start,
@@ -1322,7 +1321,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		map->end = map->start + event->mmap.len;
 	} else if (is_kernel_mmap) {
 		const char *symbol_name = (event->mmap.filename +
-				strlen(kmmap_prefix));
+				strlen(machine->mmap_name));
 		/*
 		 * Should be there already, from the build-id table in
 		 * the header.
@@ -1363,7 +1362,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		up_read(&machine->dsos.lock);
 
 		if (kernel == NULL)
-			kernel = machine__findnew_dso(machine, kmmap_prefix);
+			kernel = machine__findnew_dso(machine, machine->mmap_name);
 		if (kernel == NULL)
 			goto out_problem;
 

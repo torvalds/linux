@@ -43,6 +43,7 @@ struct machine {
 	bool		  comm_exec;
 	bool		  kptr_restrict_warned;
 	char		  *root_dir;
+	char		  *mmap_name;
 	struct threads    threads[THREADS__TABLE_SIZE];
 	struct vdso_info  *vdso_info;
 	struct perf_env   *env;
@@ -142,8 +143,6 @@ struct machine *machines__find(struct machines *machines, pid_t pid);
 struct machine *machines__findnew(struct machines *machines, pid_t pid);
 
 void machines__set_id_hdr_size(struct machines *machines, u16 id_hdr_size);
-char *machine__mmap_name(struct machine *machine, char *bf, size_t size);
-
 void machines__set_comm_exec(struct machines *machines, bool comm_exec);
 
 struct machine *machine__new_host(void);
