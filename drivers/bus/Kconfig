@@ -48,14 +48,6 @@ config ARM_CCI5xx_PMU
 
 	  If unsure, say Y
 
-config ARM_CCN
-	tristate "ARM CCN driver support"
-	depends on ARM || ARM64
-	depends on PERF_EVENTS
-	help
-	  PMU (perf) driver supporting the ARM CCN (Cache Coherent Network)
-	  interconnect.
-
 config BRCMSTB_GISB_ARB
 	bool "Broadcom STB GISB bus arbiter"
 	depends on ARM || ARM64 || MIPS

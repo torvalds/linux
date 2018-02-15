@@ -5,6 +5,13 @@
 menu "Performance monitor support"
 	depends on PERF_EVENTS
 
+config ARM_CCN
+	tristate "ARM CCN driver support"
+	depends on ARM || ARM64
+	help
+	  PMU (perf) driver supporting the ARM CCN (Cache Coherent Network)
+	  interconnect.
+
 config ARM_PMU
 	depends on ARM || ARM64
 	bool "ARM PMU framework"
