@@ -759,7 +759,7 @@
 			};
 
 			pwm_AO_cd: pwm@2000 {
-				compatible = "amlogic,axg-ao-pwm";
+				compatible = "amlogic,meson-axg-ao-pwm";
 				reg = <0x0 0x02000  0x0 0x20>;
 				#pwm-cells = <3>;
 				status = "disabled";
