@@ -38,9 +38,9 @@
 #include "name_table.h"
 #include "subscr.h"
 
-static void tipc_subscrp_send_event(struct tipc_subscription *sub,
-				    u32 found_lower, u32 found_upper,
-				    u32 event, u32 port, u32 node)
+static void tipc_sub_send_event(struct tipc_subscription *sub,
+				u32 found_lower, u32 found_upper,
+				u32 event, u32 port, u32 node)
 {
 	struct tipc_event *evt = &sub->evt;
 
@@ -55,13 +55,13 @@ static void tipc_subscrp_send_event(struct tipc_subscription *sub,
 }
 
 /**
- * tipc_subscrp_check_overlap - test for subscription overlap with the
+ * tipc_sub_check_overlap - test for subscription overlap with the
  * given values
  *
  * Returns 1 if there is overlap, otherwise 0.
  */
-int tipc_subscrp_check_overlap(struct tipc_name_seq *seq, u32 found_lower,
-			       u32 found_upper)
+int tipc_sub_check_overlap(struct tipc_name_seq *seq, u32 found_lower,
+			   u32 found_upper)
 {
 	if (found_lower < seq->lower)
 		found_lower = seq->lower;
@@ -72,20 +72,20 @@ int tipc_subscrp_check_overlap(struct tipc_name_seq *seq, u32 found_lower,
 	return 1;
 }
 
-void tipc_subscrp_report_overlap(struct tipc_subscription *sub,
-				 u32 found_lower, u32 found_upper,
-				 u32 event, u32 port, u32 node,
-				 u32 scope, int must)
+void tipc_sub_report_overlap(struct tipc_subscription *sub,
+			     u32 found_lower, u32 found_upper,
+			     u32 event, u32 port, u32 node,
+			     u32 scope, int must)
 {
-	struct tipc_name_seq seq;
 	struct tipc_subscr *s = &sub->evt.s;
 	u32 filter = tipc_sub_read(s, filter);
+	struct tipc_name_seq seq;
 
 	seq.type = tipc_sub_read(s, seq.type);
 	seq.lower = tipc_sub_read(s, seq.lower);
 	seq.upper = tipc_sub_read(s, seq.upper);
 
-	if (!tipc_subscrp_check_overlap(&seq, found_lower, found_upper))
+	if (!tipc_sub_check_overlap(&seq, found_lower, found_upper))
 		return;
 
 	if (!must && !(filter & TIPC_SUB_PORTS))
@@ -95,24 +95,24 @@ void tipc_subscrp_report_overlap(struct tipc_subscription *sub,
 	if (filter & TIPC_SUB_NODE_SCOPE && scope != TIPC_NODE_SCOPE)
 		return;
 	spin_lock(&sub->lock);
-	tipc_subscrp_send_event(sub, found_lower, found_upper,
-				event, port, node);
+	tipc_sub_send_event(sub, found_lower, found_upper,
+			    event, port, node);
 	spin_unlock(&sub->lock);
 }
 
-static void tipc_subscrp_timeout(struct timer_list *t)
+static void tipc_sub_timeout(struct timer_list *t)
 {
 	struct tipc_subscription *sub = from_timer(sub, t, timer);
 	struct tipc_subscr *s = &sub->evt.s;
 
 	spin_lock(&sub->lock);
-	tipc_subscrp_send_event(sub, s->seq.lower, s->seq.upper,
-				TIPC_SUBSCR_TIMEOUT, 0, 0);
+	tipc_sub_send_event(sub, s->seq.lower, s->seq.upper,
+			    TIPC_SUBSCR_TIMEOUT, 0, 0);
 	sub->inactive = true;
 	spin_unlock(&sub->lock);
 }
 
-static void tipc_subscrp_kref_release(struct kref *kref)
+static void tipc_sub_kref_release(struct kref *kref)
 {
 	struct tipc_subscription *sub;
 	struct tipc_net *tn;
@@ -124,12 +124,12 @@ static void tipc_subscrp_kref_release(struct kref *kref)
 	kfree(sub);
 }
 
-void tipc_subscrp_put(struct tipc_subscription *subscription)
+void tipc_sub_put(struct tipc_subscription *subscription)
 {
-	kref_put(&subscription->kref, tipc_subscrp_kref_release);
+	kref_put(&subscription->kref, tipc_sub_kref_release);
 }
 
-void tipc_subscrp_get(struct tipc_subscription *subscription)
+void tipc_sub_get(struct tipc_subscription *subscription)
 {
 	kref_get(&subscription->kref);
 }
@@ -139,8 +139,8 @@ struct tipc_subscription *tipc_sub_subscribe(struct tipc_server *srv,
 					     int conid)
 {
 	struct tipc_net *tn = tipc_net(srv->net);
-	struct tipc_subscription *sub;
 	u32 filter = tipc_sub_read(s, filter);
+	struct tipc_subscription *sub;
 	u32 timeout;
 
 	if (atomic_read(&tn->subscription_count) >= TIPC_MAX_SUBSCR) {
@@ -165,7 +165,7 @@ struct tipc_subscription *tipc_sub_subscribe(struct tipc_server *srv,
 	atomic_inc(&tn->subscription_count);
 	kref_init(&sub->kref);
 	tipc_nametbl_subscribe(sub);
-	timer_setup(&sub->timer, tipc_subscrp_timeout, 0);
+	timer_setup(&sub->timer, tipc_sub_timeout, 0);
 	timeout = tipc_sub_read(&sub->evt.s, timeout);
 	if (timeout != TIPC_WAIT_FOREVER)
 		mod_timer(&sub->timer, jiffies + msecs_to_jiffies(timeout));
@@ -177,16 +177,16 @@ void tipc_sub_unsubscribe(struct tipc_subscription *sub)
 	tipc_nametbl_unsubscribe(sub);
 	if (sub->evt.s.timeout != TIPC_WAIT_FOREVER)
 		del_timer_sync(&sub->timer);
-	list_del(&sub->subscrp_list);
-	tipc_subscrp_put(sub);
+	list_del(&sub->sub_list);
+	tipc_sub_put(sub);
 }
 
 int tipc_topsrv_start(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	const char name[] = "topology_server";
-	struct tipc_server *topsrv;
 	struct sockaddr_tipc *saddr;
+	struct tipc_server *topsrv;
 
 	saddr = kzalloc(sizeof(*saddr), GFP_ATOMIC);
 	if (!saddr)

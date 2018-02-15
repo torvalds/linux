@@ -326,10 +326,10 @@ static struct publication *tipc_nameseq_insert_publ(struct net *net,
 
 	/* Any subscriptions waiting for notification?  */
 	list_for_each_entry_safe(s, st, &nseq->subscriptions, nameseq_list) {
-		tipc_subscrp_report_overlap(s, publ->lower, publ->upper,
-					    TIPC_PUBLISHED, publ->ref,
-					    publ->node, publ->scope,
-					    created_subseq);
+		tipc_sub_report_overlap(s, publ->lower, publ->upper,
+					TIPC_PUBLISHED, publ->ref,
+					publ->node, publ->scope,
+					created_subseq);
 	}
 	return publ;
 }
@@ -397,10 +397,9 @@ found:
 
 	/* Notify any waiting subscriptions */
 	list_for_each_entry_safe(s, st, &nseq->subscriptions, nameseq_list) {
-		tipc_subscrp_report_overlap(s, publ->lower, publ->upper,
-					    TIPC_WITHDRAWN, publ->ref,
-					    publ->node, publ->scope,
-					    removed_subseq);
+		tipc_sub_report_overlap(s, publ->lower, publ->upper,
+					TIPC_WITHDRAWN, publ->ref, publ->node,
+					publ->scope, removed_subseq);
 	}
 
 	return publ;
@@ -424,25 +423,25 @@ static void tipc_nameseq_subscribe(struct name_seq *nseq,
 	ns.upper = tipc_sub_read(s, seq.upper);
 	no_status = tipc_sub_read(s, filter) & TIPC_SUB_NO_STATUS;
 
-	tipc_subscrp_get(sub);
+	tipc_sub_get(sub);
 	list_add(&sub->nameseq_list, &nseq->subscriptions);
 
 	if (no_status || !sseq)
 		return;
 
 	while (sseq != &nseq->sseqs[nseq->first_free]) {
-		if (tipc_subscrp_check_overlap(&ns, sseq->lower, sseq->upper)) {
+		if (tipc_sub_check_overlap(&ns, sseq->lower, sseq->upper)) {
 			struct publication *crs;
 			struct name_info *info = sseq->info;
 			int must_report = 1;
 
 			list_for_each_entry(crs, &info->zone_list, zone_list) {
-				tipc_subscrp_report_overlap(sub, sseq->lower,
-							    sseq->upper,
-							    TIPC_PUBLISHED,
-							    crs->ref, crs->node,
-							    crs->scope,
-							    must_report);
+				tipc_sub_report_overlap(sub, sseq->lower,
+							sseq->upper,
+							TIPC_PUBLISHED,
+							crs->ref, crs->node,
+							crs->scope,
+							must_report);
 				must_report = 0;
 			}
 		}
@@ -856,7 +855,7 @@ void tipc_nametbl_unsubscribe(struct tipc_subscription *sub)
 	if (seq != NULL) {
 		spin_lock_bh(&seq->lock);
 		list_del_init(&sub->nameseq_list);
-		tipc_subscrp_put(sub);
+		tipc_sub_put(sub);
 		if (!seq->first_free && list_empty(&seq->subscriptions)) {
 			hlist_del_init_rcu(&seq->ns_list);
 			kfree(seq->sseqs);

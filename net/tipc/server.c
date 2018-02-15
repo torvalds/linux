@@ -201,7 +201,7 @@ static void tipc_con_delete_sub(struct tipc_conn *con, struct tipc_subscr *s)
 	struct tipc_subscription *sub, *tmp;
 
 	spin_lock_bh(&con->sub_lock);
-	list_for_each_entry_safe(sub, tmp, sub_list, subscrp_list) {
+	list_for_each_entry_safe(sub, tmp, sub_list, sub_list) {
 		if (!s || !memcmp(s, &sub->evt.s, sizeof(*s)))
 			tipc_sub_unsubscribe(sub);
 		else if (s)
@@ -281,9 +281,8 @@ static int tipc_con_rcv_sub(struct tipc_server *srv,
 	sub = tipc_sub_subscribe(srv, s, con->conid);
 	if (!sub)
 		return -1;
-
 	spin_lock_bh(&con->sub_lock);
-	list_add(&sub->subscrp_list, &con->sub_list);
+	list_add(&sub->sub_list, &con->sub_list);
 	spin_unlock_bh(&con->sub_lock);
 	return 0;
 }
