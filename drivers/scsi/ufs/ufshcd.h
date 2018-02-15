@@ -985,4 +985,6 @@ static inline void ufshcd_vops_dbg_register_dump(struct ufs_hba *hba)
 		hba->vops->dbg_register_dump(hba);
 }
 
+extern struct ufs_pm_lvl_states ufs_pm_lvl_states[];
+
 #endif /* End of Header */
