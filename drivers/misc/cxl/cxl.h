@@ -365,6 +365,9 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_PSL_TFC_An_AE (1ull << (63-30)) /* Restart PSL with address error */
 #define CXL_PSL_TFC_An_R  (1ull << (63-31)) /* Restart PSL transaction */
 
+/****** CXL_PSL_DEBUG *****************************************************/
+#define CXL_PSL_DEBUG_CDC  (1ull << (63-27)) /* Coherent Data cache support */
+
 /****** CXL_XSL9_IERAT_ERAT - CAIA 2 **********************************/
 #define CXL_XSL9_IERAT_MLPID    (1ull << (63-0))  /* Match LPID */
 #define CXL_XSL9_IERAT_MPID     (1ull << (63-1))  /* Match PID */
@@ -659,6 +662,7 @@ struct cxl_native {
 	irq_hw_number_t err_hwirq;
 	unsigned int err_virq;
 	u64 ps_off;
+	bool no_data_cache; /* set if no data cache on the card */
 	const struct cxl_service_layer_ops *sl_ops;
 };
 
