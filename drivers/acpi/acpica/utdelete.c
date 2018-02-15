@@ -332,8 +332,10 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 
 	/* Now the object can be safely deleted */
 
-	ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS, "Deleting Object %p [%s]\n",
-			  object, acpi_ut_get_object_type_name(object)));
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_ALLOCATIONS,
+			      "%s: Deleting Object %p [%s]\n",
+			      ACPI_GET_FUNCTION_NAME, object,
+			      acpi_ut_get_object_type_name(object)));
 
 	acpi_ut_delete_object_desc(object);
 	return_VOID;
@@ -444,9 +446,10 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 				      object));
 		}
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
-				  "Obj %p Type %.2X Refs %.2X [Decremented]\n",
-				  object, object->common.type, new_count));
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_ALLOCATIONS,
+				      "%s: Obj %p Type %.2X Refs %.2X [Decremented]\n",
+				      ACPI_GET_FUNCTION_NAME, object,
+				      object->common.type, new_count));
 
 		/* Actually delete the object on a reference count of zero */
 
@@ -747,9 +750,10 @@ void acpi_ut_remove_reference(union acpi_operand_object *object)
 		return;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
-			  "Obj %p Current Refs=%X [To Be Decremented]\n",
-			  object, object->common.reference_count));
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_ALLOCATIONS,
+			      "%s: Obj %p Current Refs=%X [To Be Decremented]\n",
+			      ACPI_GET_FUNCTION_NAME, object,
+			      object->common.reference_count));
 
 	/*
 	 * Decrement the reference count, and only actually delete the object

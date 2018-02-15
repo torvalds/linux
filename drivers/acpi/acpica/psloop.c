@@ -165,7 +165,7 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 		}
 
 		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-				  "Final argument count: %u pass %u\n",
+				  "Final argument count: %8.8X pass %u\n",
 				  walk_state->arg_count,
 				  walk_state->pass_number));
 
@@ -581,7 +581,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 		/* Check for arguments that need to be processed */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-				  "Parseloop: argument count: %u\n",
+				  "Parseloop: argument count: %8.8X\n",
 				  walk_state->arg_count));
 
 		if (walk_state->arg_count) {

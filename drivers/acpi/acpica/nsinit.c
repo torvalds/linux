@@ -286,7 +286,7 @@ error_exit:
  * RETURN:      Status
  *
  * DESCRIPTION: Callback from acpi_walk_namespace. Invoked for every object
- *              within the  namespace.
+ *              within the namespace.
  *
  *              Currently, the only objects that require initialization are:
  *              1) Methods
@@ -400,6 +400,10 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 			break;
 		}
 
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_PARSE,
+				      "%s: Completing resolution of Package elements\n",
+				      ACPI_GET_FUNCTION_NAME));
+
 		/*
 		 * Resolve all named references in package objects (and all
 		 * sub-packages). This action has been deferred until the entire
@@ -409,6 +413,7 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 		status = acpi_ut_walk_package_tree(obj_desc, NULL,
 						   acpi_ds_init_package_element,
 						   NULL);
+
 		obj_desc->package.flags |= AOPOBJ_DATA_VALID;
 		break;
 

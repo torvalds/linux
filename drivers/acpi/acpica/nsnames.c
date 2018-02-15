@@ -354,6 +354,9 @@ char *acpi_ns_get_normalized_pathname(struct acpi_namespace_node *node,
 	(void)acpi_ns_build_normalized_path(node, name_buffer, size,
 					    no_trailing);
 
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_NAMES, "%s: Path \"%s\"\n",
+			      ACPI_GET_FUNCTION_NAME, name_buffer));
+
 	return_PTR(name_buffer);
 }
 

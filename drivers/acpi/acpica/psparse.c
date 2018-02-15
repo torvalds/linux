@@ -454,7 +454,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 			  walk_state->parser_state.aml_size));
 
 	if (!walk_state->parser_state.aml) {
-		return_ACPI_STATUS(AE_NULL_OBJECT);
+		return_ACPI_STATUS(AE_BAD_ADDRESS);
 	}
 
 	/* Create and initialize a new thread state */

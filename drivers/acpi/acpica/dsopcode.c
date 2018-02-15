@@ -603,8 +603,8 @@ acpi_ds_eval_data_object_operands(struct acpi_walk_state *walk_state,
 
 	if (!op->common.value.arg) {
 		ACPI_ERROR((AE_INFO,
-			    "Dispatch: Missing child while executing TermArg for %X",
-			    op->common.aml_opcode));
+			    "Missing child while evaluating opcode %4.4X, Op %p",
+			    op->common.aml_opcode, op));
 		return_ACPI_STATUS(AE_OK);
 	}
 

@@ -269,9 +269,10 @@ void *acpi_os_acquire_object(struct acpi_memory_list *cache)
 		cache->current_depth--;
 
 		ACPI_MEM_TRACKING(cache->hits++);
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "Object %p from %s cache\n", object,
-				  cache->list_name));
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_EXEC,
+				      "%s: Object %p from %s cache\n",
+				      ACPI_GET_FUNCTION_NAME, object,
+				      cache->list_name));
 
 		status = acpi_ut_release_mutex(ACPI_MTX_CACHES);
 		if (ACPI_FAILURE(status)) {

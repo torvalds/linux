@@ -147,7 +147,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 	char *path;
 	u32 flags;
 
-	ACPI_FUNCTION_TRACE(ds_load1_begin_op);
+	ACPI_FUNCTION_TRACE_PTR(ds_load1_begin_op, walk_state->op);
 
 	op = walk_state->op;
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH, "Op=%p State=%p\n", op,

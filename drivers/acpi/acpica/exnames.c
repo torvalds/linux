@@ -174,13 +174,10 @@ static acpi_status acpi_ex_name_segment(u8 ** in_aml_address, char *name_string)
 		return_ACPI_STATUS(AE_CTRL_PENDING);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_LOAD, "Bytes from stream:\n"));
-
 	for (index = 0;
 	     (index < ACPI_NAME_SIZE)
 	     && (acpi_ut_valid_name_char(*aml_address, 0)); index++) {
 		char_buf[index] = *aml_address++;
-		ACPI_DEBUG_PRINT((ACPI_DB_LOAD, "%c\n", char_buf[index]));
 	}
 
 	/* Valid name segment  */
@@ -192,9 +189,9 @@ static acpi_status acpi_ex_name_segment(u8 ** in_aml_address, char *name_string)
 		char_buf[4] = '\0';
 
 		if (name_string) {
-			strcat(name_string, char_buf);
 			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
-					  "Appended to - %s\n", name_string));
+					  "Appending NameSeg %s\n", char_buf));
+			strcat(name_string, char_buf);
 		} else {
 			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 					  "No Name string - %s\n", char_buf));
