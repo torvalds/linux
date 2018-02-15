@@ -29,6 +29,8 @@
 #include "i915_drv.h"
 #include "i915_selftest.h"
 
+#define GEN(x) .gen = (x), .gen_mask = BIT((x) - 1)
+
 #define GEN_DEFAULT_PIPEOFFSETS \
 	.pipe_offsets = { PIPE_A_OFFSET, PIPE_B_OFFSET, \
 			  PIPE_C_OFFSET, PIPE_EDP_OFFSET }, \
@@ -63,7 +65,8 @@
 	.page_sizes = I915_GTT_PAGE_SIZE_4K
 
 #define GEN2_FEATURES \
-	.gen = 2, .num_pipes = 1, \
+	GEN(2), \
+	.num_pipes = 1, \
 	.has_overlay = 1, .overlay_needs_physical = 1, \
 	.has_gmch_display = 1, \
 	.hws_needs_physical = 1, \
@@ -100,7 +103,8 @@ static const struct intel_device_info intel_i865g_info = {
 };
 
 #define GEN3_FEATURES \
-	.gen = 3, .num_pipes = 2, \
+	GEN(3), \
+	.num_pipes = 2, \
 	.has_gmch_display = 1, \
 	.ring_mask = RENDER_RING, \
 	.has_snoop = true, \
@@ -163,7 +167,8 @@ static const struct intel_device_info intel_pineview_info = {
 };
 
 #define GEN4_FEATURES \
-	.gen = 4, .num_pipes = 2, \
+	GEN(4), \
+	.num_pipes = 2, \
 	.has_hotplug = 1, \
 	.has_gmch_display = 1, \
 	.ring_mask = RENDER_RING, \
@@ -205,7 +210,8 @@ static const struct intel_device_info intel_gm45_info = {
 };
 
 #define GEN5_FEATURES \
-	.gen = 5, .num_pipes = 2, \
+	GEN(5), \
+	.num_pipes = 2, \
 	.has_hotplug = 1, \
 	.ring_mask = RENDER_RING | BSD_RING, \
 	.has_snoop = true, \
@@ -227,7 +233,8 @@ static const struct intel_device_info intel_ironlake_m_info = {
 };
 
 #define GEN6_FEATURES \
-	.gen = 6, .num_pipes = 2, \
+	GEN(6), \
+	.num_pipes = 2, \
 	.has_hotplug = 1, \
 	.has_fbc = 1, \
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
@@ -270,7 +277,8 @@ static const struct intel_device_info intel_sandybridge_m_gt2_info = {
 };
 
 #define GEN7_FEATURES  \
-	.gen = 7, .num_pipes = 3, \
+	GEN(7), \
+	.num_pipes = 3, \
 	.has_hotplug = 1, \
 	.has_fbc = 1, \
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
@@ -324,7 +332,7 @@ static const struct intel_device_info intel_ivybridge_q_info = {
 
 static const struct intel_device_info intel_valleyview_info = {
 	.platform = INTEL_VALLEYVIEW,
-	.gen = 7,
+	GEN(7),
 	.is_lp = 1,
 	.num_pipes = 2,
 	.has_psr = 1,
@@ -385,7 +393,7 @@ static const struct intel_device_info intel_haswell_gt3_info = {
 
 #define BDW_PLATFORM \
 	GEN8_FEATURES, \
-	.gen = 8, \
+	GEN(8), \
 	.platform = INTEL_BROADWELL
 
 static const struct intel_device_info intel_broadwell_gt1_info = {
@@ -413,7 +421,8 @@ static const struct intel_device_info intel_broadwell_gt3_info = {
 };
 
 static const struct intel_device_info intel_cherryview_info = {
-	.gen = 8, .num_pipes = 3,
+	GEN(8),
+	.num_pipes = 3,
 	.has_hotplug = 1,
 	.is_lp = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
@@ -452,7 +461,7 @@ static const struct intel_device_info intel_cherryview_info = {
 
 #define SKL_PLATFORM \
 	GEN9_FEATURES, \
-	.gen = 9, \
+	GEN(9), \
 	.platform = INTEL_SKYLAKE
 
 static const struct intel_device_info intel_skylake_gt1_info = {
@@ -481,7 +490,7 @@ static const struct intel_device_info intel_skylake_gt4_info = {
 };
 
 #define GEN9_LP_FEATURES \
-	.gen = 9, \
+	GEN(9), \
 	.is_lp = 1, \
 	.has_hotplug = 1, \
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING, \
@@ -526,7 +535,7 @@ static const struct intel_device_info intel_geminilake_info = {
 
 #define KBL_PLATFORM \
 	GEN9_FEATURES, \
-	.gen = 9, \
+	GEN(9),  \
 	.platform = INTEL_KABYLAKE
 
 static const struct intel_device_info intel_kabylake_gt1_info = {
@@ -547,7 +556,7 @@ static const struct intel_device_info intel_kabylake_gt3_info = {
 
 #define CFL_PLATFORM \
 	GEN9_FEATURES, \
-	.gen = 9, \
+	GEN(9), \
 	.platform = INTEL_COFFEELAKE
 
 static const struct intel_device_info intel_coffeelake_gt1_info = {
@@ -573,14 +582,14 @@ static const struct intel_device_info intel_coffeelake_gt3_info = {
 
 static const struct intel_device_info intel_cannonlake_info = {
 	GEN10_FEATURES,
+	GEN(10),
 	.platform = INTEL_CANNONLAKE,
-	.gen = 10,
 	.gt = 2,
 };
 
 #define GEN11_FEATURES \
 	GEN10_FEATURES, \
-	.gen = 11, \
+	GEN(11), \
 	.ddb_size = 2048, \
 	.has_csr = 0
 
@@ -590,6 +599,8 @@ static const struct intel_device_info intel_icelake_11_info = {
 	.is_alpha_support = 1,
 	.has_resource_streamer = 0,
 };
+
+#undef GEN
 
 /*
  * Make sure any device matches here are from most specific to most
