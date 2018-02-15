@@ -120,7 +120,7 @@
 };
 
 &usbotg_hs {
-	dr_mode = "host";
+	dr_mode = "otg";
 	phys = <&usbotg_hs_phy>;
 	phy-names = "usb2-phy";
 	pinctrl-0 = <&usbotg_hs_pins_a>;
