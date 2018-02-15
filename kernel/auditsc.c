@@ -1511,13 +1511,10 @@ void __audit_syscall_entry(int major, unsigned long a1, unsigned long a2,
 	struct audit_context *context = tsk->audit_context;
 	enum audit_state     state;
 
-	if (!context)
+	if (!audit_enabled || !context)
 		return;
 
 	BUG_ON(context->in_syscall || context->name_count);
-
-	if (!audit_enabled)
-		return;
 
 	state = context->state;
 	if (state == AUDIT_DISABLED)
