@@ -879,9 +879,12 @@ static void nfs4_put_deleg_lease(struct nfs4_file *fp)
 {
 	struct file *filp = NULL;
 
+	WARN_ON_ONCE(!fp->fi_delegees);
+
 	spin_lock(&fp->fi_lock);
-	if (fp->fi_deleg_file && --fp->fi_delegees == 0)
+	if (--fp->fi_delegees == 0) {
 		swap(filp, fp->fi_deleg_file);
+	}
 	spin_unlock(&fp->fi_lock);
 
 	if (filp) {
