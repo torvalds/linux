@@ -56,6 +56,15 @@ config VIDEO_TDA9840
 	  To compile this driver as a module, choose M here: the
 	  module will be called tda9840.
 
+config VIDEO_TDA1997X
+	tristate "NXP TDA1997x HDMI receiver"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  V4L2 subdevice driver for the NXP TDA1997x HDMI receivers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tda1997x.
+
 config VIDEO_TEA6415C
 	tristate "Philips TEA6415C audio processor"
 	depends on I2C
