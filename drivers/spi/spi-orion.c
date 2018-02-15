@@ -762,8 +762,8 @@ static int orion_spi_probe(struct platform_device *pdev)
 			}
 			if (spi->unused_hw_gpio == -1) {
 				dev_info(&pdev->dev,
-					"Selected unused HW CS#%d "
-					"for any GPIO CSes\n", i);
+					"Selected unused HW CS#%d for any GPIO CSes\n",
+					i);
 				spi->unused_hw_gpio = i;
 			}
 		}
