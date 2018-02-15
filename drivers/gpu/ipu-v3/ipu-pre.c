@@ -129,10 +129,13 @@ ipu_pre_lookup_by_phandle(struct device *dev, const char *name, int index)
 		if (pre_node == pre->dev->of_node) {
 			mutex_unlock(&ipu_pre_list_mutex);
 			device_link_add(dev, pre->dev, DL_FLAG_AUTOREMOVE);
+			of_node_put(pre_node);
 			return pre;
 		}
 	}
 	mutex_unlock(&ipu_pre_list_mutex);
+
+	of_node_put(pre_node);
 
 	return NULL;
 }
