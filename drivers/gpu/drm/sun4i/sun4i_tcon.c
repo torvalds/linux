@@ -394,10 +394,10 @@ static void sun4i_tcon0_mode_set_rgb(struct sun4i_tcon *tcon,
 		     SUN4I_TCON0_BASIC3_H_SYNC(hsync));
 
 	/* Setup the polarity of the various signals */
-	if (!(mode->flags & DRM_MODE_FLAG_PHSYNC))
+	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
 		val |= SUN4I_TCON0_IO_POL_HSYNC_POSITIVE;
 
-	if (!(mode->flags & DRM_MODE_FLAG_PVSYNC))
+	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
 		val |= SUN4I_TCON0_IO_POL_VSYNC_POSITIVE;
 
 	regmap_update_bits(tcon->regs, SUN4I_TCON0_IO_POL_REG,
