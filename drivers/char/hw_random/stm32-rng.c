@@ -26,6 +26,7 @@
 
 #define RNG_CR 0x00
 #define RNG_CR_RNGEN BIT(2)
+#define RNG_CR_CED BIT(5)
 
 #define RNG_SR 0x04
 #define RNG_SR_SEIS BIT(6)
@@ -48,6 +49,7 @@ struct stm32_rng_private {
 	void __iomem *base;
 	struct clk *clk;
 	struct reset_control *rst;
+	bool ced;
 };
 
 static int stm32_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
@@ -101,7 +103,11 @@ static int stm32_rng_init(struct hwrng *rng)
 	if (err)
 		return err;
 
-	writel_relaxed(RNG_CR_RNGEN, priv->base + RNG_CR);
+	if (priv->ced)
+		writel_relaxed(RNG_CR_RNGEN, priv->base + RNG_CR);
+	else
+		writel_relaxed(RNG_CR_RNGEN | RNG_CR_CED,
+			       priv->base + RNG_CR);
 
 	/* clear error indicators */
 	writel_relaxed(0, priv->base + RNG_SR);
@@ -148,6 +154,8 @@ static int stm32_rng_probe(struct platform_device *ofdev)
 		udelay(2);
 		reset_control_deassert(priv->rst);
 	}
+
+	priv->ced = of_property_read_bool(np, "clock-error-detect");
 
 	dev_set_drvdata(dev, priv);
 
