@@ -52,22 +52,19 @@ static u32 htohl(u32 in, int swap)
 
 static void tipc_subscrp_send_event(struct tipc_subscription *sub,
 				    u32 found_lower, u32 found_upper,
-				    u32 event, u32 port_ref, u32 node)
+				    u32 event, u32 port, u32 node)
 {
-	struct tipc_net *tn = net_generic(sub->net, tipc_net_id);
-	struct kvec msg_sect;
+	struct tipc_event *evt = &sub->evt;
+	bool swap = sub->swap;
 
 	if (sub->inactive)
 		return;
-	msg_sect.iov_base = (void *)&sub->evt;
-	msg_sect.iov_len = sizeof(struct tipc_event);
-	sub->evt.event = htohl(event, sub->swap);
-	sub->evt.found_lower = htohl(found_lower, sub->swap);
-	sub->evt.found_upper = htohl(found_upper, sub->swap);
-	sub->evt.port.ref = htohl(port_ref, sub->swap);
-	sub->evt.port.node = htohl(node, sub->swap);
-	tipc_conn_sendmsg(tn->topsrv, sub->conid, event,
-			  msg_sect.iov_base, msg_sect.iov_len);
+	evt->event = htohl(event, swap);
+	evt->found_lower = htohl(found_lower, swap);
+	evt->found_upper = htohl(found_upper, swap);
+	evt->port.ref = htohl(port, swap);
+	evt->port.node = htohl(node, swap);
+	tipc_conn_queue_evt(sub->server, sub->conid, event, evt);
 }
 
 /**
@@ -137,10 +134,11 @@ static void tipc_subscrp_timeout(struct timer_list *t)
 
 static void tipc_subscrp_kref_release(struct kref *kref)
 {
-	struct tipc_subscription *sub = container_of(kref,
-						     struct tipc_subscription,
-						     kref);
-	struct tipc_net *tn = net_generic(sub->net, tipc_net_id);
+	struct tipc_subscription *sub;
+	struct tipc_net *tn;
+
+	sub = container_of(kref, struct tipc_subscription, kref);
+	tn = tipc_net(sub->server->net);
 
 	atomic_dec(&tn->subscription_count);
 	kfree(sub);
@@ -156,11 +154,11 @@ void tipc_subscrp_get(struct tipc_subscription *subscription)
 	kref_get(&subscription->kref);
 }
 
-static struct tipc_subscription *tipc_subscrp_create(struct net *net,
+static struct tipc_subscription *tipc_subscrp_create(struct tipc_server *srv,
 						     struct tipc_subscr *s,
 						     int conid, bool swap)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_net *tn = tipc_net(srv->net);
 	struct tipc_subscription *sub;
 	u32 filter = htohl(s->filter, swap);
 
@@ -179,7 +177,7 @@ static struct tipc_subscription *tipc_subscrp_create(struct net *net,
 	}
 
 	/* Initialize subscription object */
-	sub->net = net;
+	sub->server = srv;
 	sub->conid = conid;
 	sub->inactive = false;
 	if (((filter & TIPC_SUB_PORTS) && (filter & TIPC_SUB_SERVICE)) ||
@@ -197,7 +195,7 @@ static struct tipc_subscription *tipc_subscrp_create(struct net *net,
 	return sub;
 }
 
-struct tipc_subscription *tipc_subscrp_subscribe(struct net *net,
+struct tipc_subscription *tipc_subscrp_subscribe(struct tipc_server *srv,
 						 struct tipc_subscr *s,
 						 int conid, bool swap,
 						 bool status)
@@ -205,7 +203,7 @@ struct tipc_subscription *tipc_subscrp_subscribe(struct net *net,
 	struct tipc_subscription *sub = NULL;
 	u32 timeout;
 
-	sub = tipc_subscrp_create(net, s, conid, swap);
+	sub = tipc_subscrp_create(srv, s, conid, swap);
 	if (!sub)
 		return NULL;
 

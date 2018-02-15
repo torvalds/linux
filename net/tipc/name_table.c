@@ -810,14 +810,15 @@ int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower, u32 ref,
  */
 void tipc_nametbl_subscribe(struct tipc_subscription *s, bool status)
 {
-	struct tipc_net *tn = net_generic(s->net, tipc_net_id);
+	struct tipc_server *srv = s->server;
+	struct tipc_net *tn = tipc_net(srv->net);
 	u32 type = tipc_subscrp_convert_seq_type(s->evt.s.seq.type, s->swap);
 	int index = hash(type);
 	struct name_seq *seq;
 	struct tipc_name_seq ns;
 
 	spin_lock_bh(&tn->nametbl_lock);
-	seq = nametbl_find_seq(s->net, type);
+	seq = nametbl_find_seq(srv->net, type);
 	if (!seq)
 		seq = tipc_nameseq_create(type, &tn->nametbl->seq_hlist[index]);
 	if (seq) {
@@ -837,12 +838,13 @@ void tipc_nametbl_subscribe(struct tipc_subscription *s, bool status)
  */
 void tipc_nametbl_unsubscribe(struct tipc_subscription *s)
 {
-	struct tipc_net *tn = net_generic(s->net, tipc_net_id);
+	struct tipc_server *srv = s->server;
+	struct tipc_net *tn = tipc_net(srv->net);
 	struct name_seq *seq;
 	u32 type = tipc_subscrp_convert_seq_type(s->evt.s.seq.type, s->swap);
 
 	spin_lock_bh(&tn->nametbl_lock);
-	seq = nametbl_find_seq(s->net, type);
+	seq = nametbl_find_seq(srv->net, type);
 	if (seq != NULL) {
 		spin_lock_bh(&seq->lock);
 		list_del_init(&s->nameseq_list);

@@ -49,7 +49,6 @@ struct tipc_conn;
  * struct tipc_subscription - TIPC network topology subscription object
  * @subscriber: pointer to its subscriber
  * @seq: name sequence associated with subscription
- * @net: point to network namespace
  * @timer: timer governing subscription duration (optional)
  * @nameseq_list: adjacent subscriptions in name sequence's subscription list
  * @subscrp_list: adjacent subscriptions in subscriber's subscription list
@@ -58,7 +57,7 @@ struct tipc_conn;
  */
 struct tipc_subscription {
 	struct kref kref;
-	struct net *net;
+	struct tipc_server *server;
 	struct timer_list timer;
 	struct list_head nameseq_list;
 	struct list_head subscrp_list;
@@ -69,7 +68,7 @@ struct tipc_subscription {
 	spinlock_t lock; /* serialize up/down and timer events */
 };
 
-struct tipc_subscription *tipc_subscrp_subscribe(struct net *net,
+struct tipc_subscription *tipc_subscrp_subscribe(struct tipc_server *srv,
 						 struct tipc_subscr *s,
 						 int conid, bool swap,
 						 bool status);

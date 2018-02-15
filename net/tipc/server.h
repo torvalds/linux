@@ -36,6 +36,7 @@
 #ifndef _TIPC_SERVER_H
 #define _TIPC_SERVER_H
 
+#include "core.h"
 #include <linux/idr.h>
 #include <linux/tipc.h>
 #include <net/net_namespace.h>
@@ -68,7 +69,6 @@ struct tipc_server {
 	spinlock_t idr_lock;
 	int idr_in_use;
 	struct net *net;
-	struct kmem_cache *rcvbuf_cache;
 	struct workqueue_struct *rcv_wq;
 	struct workqueue_struct *send_wq;
 	int max_rcvbuf_size;
@@ -76,19 +76,13 @@ struct tipc_server {
 	char name[TIPC_SERVER_NAME_LEN];
 };
 
-int tipc_conn_sendmsg(struct tipc_server *s, int conid,
-		      u32 evt, void *data, size_t len);
+void tipc_conn_queue_evt(struct tipc_server *s, int conid,
+			 u32 event, struct tipc_event *evt);
 
 bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type, u32 lower,
 			     u32 upper, u32 filter, int *conid);
 void tipc_topsrv_kern_unsubscr(struct net *net, int conid);
 
-/**
- * tipc_conn_terminate - terminate connection with server
- *
- * Note: Must call it in process context since it might sleep
- */
-void tipc_conn_terminate(struct tipc_server *s, int conid);
 int tipc_server_start(struct tipc_server *s);
 
 void tipc_server_stop(struct tipc_server *s);
