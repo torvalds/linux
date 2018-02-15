@@ -112,7 +112,7 @@
 	vcc5v_otg: vcc5v-otg-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpiob 2 0>;
+		gpio = <&gpiob 2 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vcc5_host1";
 		regulator-always-on;
 	};
