@@ -650,7 +650,7 @@ static int download_firmware(struct ll_device *lldev)
 			break;
 		case ACTION_DELAY:	/* sleep */
 			bt_dev_info(lldev->hu.hdev, "sleep command in scr");
-			mdelay(((struct bts_action_delay *)action_ptr)->msec);
+			msleep(((struct bts_action_delay *)action_ptr)->msec);
 			break;
 		}
 		len -= (sizeof(struct bts_action) +
