@@ -141,7 +141,8 @@ static int capture_enum_frameintervals(struct file *file, void *fh,
 
 	fie.code = cc->codes[0];
 
-	ret = v4l2_subdev_call(priv->src_sd, pad, enum_frame_interval, NULL, &fie);
+	ret = v4l2_subdev_call(priv->src_sd, pad, enum_frame_interval,
+			       NULL, &fie);
 	if (ret)
 		return ret;
 
