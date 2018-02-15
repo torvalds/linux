@@ -630,7 +630,7 @@ static int sysc_init_dts_quirks(struct sysc *ddata)
 	for (i = 0; i < ARRAY_SIZE(sysc_dts_quirks); i++) {
 		prop = of_get_property(np, sysc_dts_quirks[i].name, &len);
 		if (!prop)
-			break;
+			continue;
 
 		ddata->cfg.quirks |= sysc_dts_quirks[i].mask;
 	}
