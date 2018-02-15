@@ -212,5 +212,26 @@ static inline  bool can_reduce_fps(struct v4l2_bt_timings *bt)
 	return false;
 }
 
+/**
+ * struct v4l2_hdmi_rx_colorimetry - describes the HDMI colorimetry information
+ * @colorspace:		enum v4l2_colorspace, the colorspace
+ * @ycbcr_enc:		enum v4l2_ycbcr_encoding, Y'CbCr encoding
+ * @quantization:	enum v4l2_quantization, colorspace quantization
+ * @xfer_func:		enum v4l2_xfer_func, colorspace transfer function
+ */
+struct v4l2_hdmi_colorimetry {
+	enum v4l2_colorspace colorspace;
+	enum v4l2_ycbcr_encoding ycbcr_enc;
+	enum v4l2_quantization quantization;
+	enum v4l2_xfer_func xfer_func;
+};
+
+struct hdmi_avi_infoframe;
+struct hdmi_vendor_infoframe;
+
+struct v4l2_hdmi_colorimetry
+v4l2_hdmi_rx_colorimetry(const struct hdmi_avi_infoframe *avi,
+			 const struct hdmi_vendor_infoframe *hdmi,
+			 unsigned int height);
 
 #endif
