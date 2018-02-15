@@ -890,7 +890,7 @@ struct sk_buff *skb_morph(struct sk_buff *dst, struct sk_buff *src)
 }
 EXPORT_SYMBOL_GPL(skb_morph);
 
-static int mm_account_pinned_pages(struct mmpin *mmp, size_t size)
+int mm_account_pinned_pages(struct mmpin *mmp, size_t size)
 {
 	unsigned long max_pg, num_pg, new_pg, old_pg;
 	struct user_struct *user;
@@ -919,14 +919,16 @@ static int mm_account_pinned_pages(struct mmpin *mmp, size_t size)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mm_account_pinned_pages);
 
-static void mm_unaccount_pinned_pages(struct mmpin *mmp)
+void mm_unaccount_pinned_pages(struct mmpin *mmp)
 {
 	if (mmp->user) {
 		atomic_long_sub(mmp->num_pg, &mmp->user->locked_vm);
 		free_uid(mmp->user);
 	}
 }
+EXPORT_SYMBOL_GPL(mm_unaccount_pinned_pages);
 
 struct ubuf_info *sock_zerocopy_alloc(struct sock *sk, size_t size)
 {
