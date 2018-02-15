@@ -2138,6 +2138,8 @@ static int wcn36xx_smd_hw_scan_ind(struct wcn36xx *wcn, void *buf, size_t len)
 	case WCN36XX_HAL_SCAN_IND_COMPLETED:
 		mutex_lock(&wcn->scan_lock);
 		wcn->scan_req = NULL;
+		if (wcn->scan_aborted)
+			scan_info.aborted = true;
 		mutex_unlock(&wcn->scan_lock);
 		ieee80211_scan_completed(wcn->hw, &scan_info);
 		break;

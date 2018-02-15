@@ -666,15 +666,12 @@ static void wcn36xx_cancel_hw_scan(struct ieee80211_hw *hw,
 {
 	struct wcn36xx *wcn = hw->priv;
 
-	if (!wcn36xx_smd_stop_hw_scan(wcn)) {
-		struct cfg80211_scan_info scan_info = { .aborted = true };
-
-		ieee80211_scan_completed(wcn->hw, &scan_info);
-	}
-
 	mutex_lock(&wcn->scan_lock);
 	wcn->scan_aborted = true;
 	mutex_unlock(&wcn->scan_lock);
+
+	/* ieee80211_scan_completed will be called on FW scan indication */
+	wcn36xx_smd_stop_hw_scan(wcn);
 
 	cancel_work_sync(&wcn->scan_work);
 }
