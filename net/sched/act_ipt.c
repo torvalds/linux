@@ -310,7 +310,8 @@ static int tcf_ipt_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops);
 }
 
-static int tcf_ipt_search(struct net *net, struct tc_action **a, u32 index)
+static int tcf_ipt_search(struct net *net, struct tc_action **a, u32 index,
+			  struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, ipt_net_id);
 
@@ -358,7 +359,8 @@ static int tcf_xt_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops);
 }
 
-static int tcf_xt_search(struct net *net, struct tc_action **a, u32 index)
+static int tcf_xt_search(struct net *net, struct tc_action **a, u32 index,
+			 struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, xt_net_id);
 

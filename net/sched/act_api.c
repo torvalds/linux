@@ -901,7 +901,7 @@ static struct tc_action *tcf_action_get_1(struct net *net, struct nlattr *nla,
 		goto err_out;
 	}
 	err = -ENOENT;
-	if (ops->lookup(net, &a, index) == 0)
+	if (ops->lookup(net, &a, index, extack) == 0)
 		goto err_mod;
 
 	module_put(ops->owner);
