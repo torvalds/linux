@@ -403,7 +403,7 @@ static bool dce_abm_set_backlight_level(
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
 
-	dm_logger_write(abm->ctx->logger, LOG_BACKLIGHT,
+	DC_LOG_BACKLIGHT(abm->ctx->logger,
 			"New Backlight level: %d (0x%X)\n",
 			backlight_level, backlight_level);
 

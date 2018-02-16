@@ -264,7 +264,7 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 	/* Only call if supported */
 	if (tg->funcs->configure_crc)
 		return tg->funcs->configure_crc(tg, &param);
-	dm_logger_write(dc->ctx->logger, LOG_WARNING, "CRC capture not supported.");
+	DC_LOG_WARNING(dc->ctx->logger,  "CRC capture not supported.");
 	return false;
 }
 
@@ -297,7 +297,7 @@ bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream,
 
 	if (tg->funcs->get_crc)
 		return tg->funcs->get_crc(tg, r_cr, g_y, b_cb);
-	dm_logger_write(dc->ctx->logger, LOG_WARNING, "CRC capture not supported.");
+	DC_LOG_WARNING(dc->ctx->logger,  "CRC capture not supported.");
 	return false;
 }
 
@@ -618,7 +618,7 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 
 	dc->config = init_params->flags;
 
-	dm_logger_write(dc->ctx->logger, LOG_DC,
+	DC_LOG_DC(dc->ctx->logger,
 			"Display Core initialized\n");
 
 
@@ -888,7 +888,7 @@ bool dc_commit_state(struct dc *dc, struct dc_state *context)
 	if (false == context_changed(dc, context))
 		return DC_OK;
 
-	dm_logger_write(dc->ctx->logger, LOG_DC, "%s: %d streams\n",
+	DC_LOG_DC(dc->ctx->logger,  "%s: %d streams\n",
 				__func__, context->stream_count);
 
 	for (i = 0; i < context->stream_count; i++) {

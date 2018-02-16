@@ -335,7 +335,7 @@ static void power_on_plane(
 		hubp_pg_control(hws, plane_id, true);
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 0);
-		dm_logger_write(hws->ctx->logger, LOG_DEBUG,
+		DC_LOG_DEBUG(hws->ctx->logger,
 				"Un-gated front end for pipe %d\n", plane_id);
 	}
 }
@@ -572,7 +572,7 @@ static void reset_back_end_for_pipe(
 		return;
 
 	pipe_ctx->stream = NULL;
-	dm_logger_write(dc->ctx->logger, LOG_DEBUG,
+	DC_LOG_DEBUG(dc->ctx->logger,
 					"Reset back end for pipe %d, tg:%d\n",
 					pipe_ctx->pipe_idx, pipe_ctx->stream_res.tg->inst);
 }
@@ -632,7 +632,7 @@ static void plane_atomic_power_down(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		dpp->funcs->dpp_reset(dpp);
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 0);
-		dm_logger_write(dc->ctx->logger, LOG_DEBUG,
+		DC_LOG_DEBUG(dc->ctx->logger,
 				"Power gated front end %d\n", pipe_ctx->pipe_idx);
 	}
 }
@@ -679,7 +679,7 @@ static void dcn10_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 	apply_DEGVIDCN10_253_wa(dc);
 
-	dm_logger_write(dc->ctx->logger, LOG_DC,
+	DC_LOG_DC(dc->ctx->logger,
 					"Power down front end %d\n",
 					pipe_ctx->pipe_idx);
 }
@@ -1102,7 +1102,7 @@ static void dcn10_enable_per_frame_crtc_position_reset(
 		struct dc *core_dc,
 		struct pipe_ctx *pipe_ctx)
 {
-	dm_logger_write(core_dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+	DC_LOG_BANDWIDTH_CALCS(core_dc->ctx->logger,
 			"\n============== DML TTU Output parameters [%d] ==============\n"
 			"qos_level_low_wm: %d, \n"
 			"qos_level_high_wm: %d, \n"
@@ -1132,7 +1132,7 @@ static void dcn10_enable_per_frame_crtc_position_reset(
 			pipe_ctx->ttu_regs.refcyc_per_req_delivery_pre_c
 			);
 
-	dm_logger_write(core_dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+	DC_LOG_BANDWIDTH_CALCS(core_dc->ctx->logger,
 			"\n============== DML DLG Output parameters [%d] ==============\n"
 			"refcyc_h_blank_end: %d, \n"
 			"dlg_vblank_end: %d, \n"
@@ -1167,7 +1167,7 @@ static void dcn10_enable_per_frame_crtc_position_reset(
 			pipe_ctx->dlg_regs.refcyc_per_pte_group_nom_l
 			);
 
-	dm_logger_write(core_dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+	DC_LOG_BANDWIDTH_CALCS(core_dc->ctx->logger,
 			"\ndst_y_per_meta_row_nom_l: %d, \n"
 			"refcyc_per_meta_chunk_nom_l: %d, \n"
 			"refcyc_per_line_delivery_pre_l: %d, \n"
@@ -1197,7 +1197,7 @@ static void dcn10_enable_per_frame_crtc_position_reset(
 			pipe_ctx->dlg_regs.refcyc_per_line_delivery_c
 			);
 
-	dm_logger_write(core_dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+	DC_LOG_BANDWIDTH_CALCS(core_dc->ctx->logger,
 			"\n============== DML RQ Output parameters [%d] ==============\n"
 			"chunk_size: %d \n"
 			"min_chunk_size: %d \n"
@@ -1330,7 +1330,7 @@ static void dcn10_enable_plane(
 
 /* TODO: enable/disable in dm as per update type.
 	if (plane_state) {
-		dm_logger_write(dc->ctx->logger, LOG_DC,
+		DC_LOG_DC(dc->ctx->logger,
 				"Pipe:%d 0x%x: addr hi:0x%x, "
 				"addr low:0x%x, "
 				"src: %d, %d, %d,"
@@ -1348,7 +1348,7 @@ static void dcn10_enable_plane(
 				plane_state->dst_rect.width,
 				plane_state->dst_rect.height);
 
-		dm_logger_write(dc->ctx->logger, LOG_DC,
+		DC_LOG_DC(dc->ctx->logger,
 				"Pipe %d: width, height, x, y         format:%d\n"
 				"viewport:%d, %d, %d, %d\n"
 				"recout:  %d, %d, %d, %d\n",
@@ -1959,7 +1959,7 @@ static void dcn10_apply_ctx_for_surface(
 			plane_atomic_disconnect(dc, old_pipe_ctx);
 			removed_pipe[i] = true;
 
-			dm_logger_write(dc->ctx->logger, LOG_DC,
+			DC_LOG_DC(dc->ctx->logger,
 					"Reset mpcc for pipe %d\n",
 					old_pipe_ctx->pipe_idx);
 		}
@@ -2002,7 +2002,7 @@ static void dcn10_apply_ctx_for_surface(
 			dcn10_verify_allow_pstate_change_high(dc);
 		}
 	}
-/*	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+/*	DC_LOG_BANDWIDTH_CALCS(dc->ctx->logger,
 			"\n============== Watermark parameters ==============\n"
 			"a.urgent_ns: %d \n"
 			"a.cstate_enter_plus_exit: %d \n"
@@ -2025,7 +2025,7 @@ static void dcn10_apply_ctx_for_surface(
 			context->bw.dcn.watermarks.b.cstate_pstate.pstate_change_ns,
 			context->bw.dcn.watermarks.b.pte_meta_urgent_ns
 			);
-	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+	DC_LOG_BANDWIDTH_CALCS(dc->ctx->logger,
 			"\nc.urgent_ns: %d \n"
 			"c.cstate_enter_plus_exit: %d \n"
 			"c.cstate_exit: %d \n"
@@ -2268,7 +2268,7 @@ static void dcn10_wait_for_mpcc_disconnect(
 			res_pool->mpc->funcs->wait_for_idle(res_pool->mpc, mpcc_inst);
 			pipe_ctx->stream_res.opp->mpcc_disconnect_pending[mpcc_inst] = false;
 			hubp->funcs->set_blank(hubp, true);
-			/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
+			/*DC_LOG_ERROR(dc->ctx->logger,
 					"[debug_mpo: wait_for_mpcc finished waiting on mpcc %d]\n",
 					i);*/
 		}

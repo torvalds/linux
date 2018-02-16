@@ -120,13 +120,13 @@ static void wait_for_fbc_state_changed(
 	}
 
 	if (counter == 10) {
-		dm_logger_write(
-			cp110->base.ctx->logger, LOG_WARNING,
+		DC_LOG_WARNING(
+			cp110->base.ctx->logger,
 			"%s: wait counter exceeded, changes to HW not applied",
 			__func__);
 	} else {
-		dm_logger_write(
-			cp110->base.ctx->logger, LOG_SYNC,
+		DC_LOG_SYNC(
+			cp110->base.ctx->logger,
 			"FBC status changed to %d", enabled);
 	}
 
@@ -310,8 +310,8 @@ void dce110_compressor_program_compressed_surface_address_and_pitch(
 	if (compressor->min_compress_ratio == FBC_COMPRESS_RATIO_1TO1)
 		fbc_pitch = fbc_pitch / 8;
 	else
-		dm_logger_write(
-			compressor->ctx->logger, LOG_WARNING,
+		DC_LOG_WARNING(
+			compressor->ctx->logger,
 			"%s: Unexpected DCE11 compression ratio",
 			__func__);
 

@@ -63,7 +63,7 @@ static void wait_for_training_aux_rd_interval(
 
 	udelay(default_wait_in_micro_secs);
 
-	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
+	DC_LOG_HW_LINK_TRAINING(link->ctx->logger,
 		"%s:\n wait = %d\n",
 		__func__,
 		default_wait_in_micro_secs);
@@ -79,7 +79,7 @@ static void dpcd_set_training_pattern(
 		&dpcd_pattern.raw,
 		1);
 
-	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
+	DC_LOG_HW_LINK_TRAINING(link->ctx->logger,
 		"%s\n %x pattern = %x\n",
 		__func__,
 		DP_TRAINING_PATTERN_SET,
@@ -116,7 +116,7 @@ static void dpcd_set_link_settings(
 	core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
 	&downspread.raw, sizeof(downspread));
 
-	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
+	DC_LOG_HW_LINK_TRAINING(link->ctx->logger,
 		"%s\n %x rate = %x\n %x lane = %x\n %x spread = %x\n",
 		__func__,
 		DP_LINK_BW_SET,
@@ -151,7 +151,7 @@ static enum dpcd_training_patterns
 		break;
 	default:
 		ASSERT(0);
-		dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
+		DC_LOG_HW_LINK_TRAINING(link->ctx->logger,
 			"%s: Invalid HW Training pattern: %d\n",
 			__func__, pattern);
 		break;
@@ -184,7 +184,7 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 	dpcd_lt_buffer[DP_TRAINING_PATTERN_SET - dpcd_base_lt_offset]
 		= dpcd_pattern.raw;
 
-	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
+	DC_LOG_HW_LINK_TRAINING(link->ctx->logger,
 		"%s\n %x pattern = %x\n",
 		__func__,
 		DP_TRAINING_PATTERN_SET,
@@ -219,7 +219,7 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 		dpcd_lane,
 		size_in_bytes);
 
-	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
+	DC_LOG_HW_LINK_TRAINING(link->ctx->logger,
 		"%s:\n %x VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
 		__func__,
 		DP_TRAINING_LANE0_SET,
@@ -456,13 +456,13 @@ static void get_lane_status_and_drive_settings(
 
 	ln_status_updated->raw = dpcd_buf[2];
 
-	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
+	DC_LOG_HW_LINK_TRAINING(link->ctx->logger,
 		"%s:\n%x Lane01Status = %x\n %x Lane23Status = %x\n ",
 		__func__,
 		DP_LANE0_1_STATUS, dpcd_buf[0],
 		DP_LANE2_3_STATUS, dpcd_buf[1]);
 
-	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
+	DC_LOG_HW_LINK_TRAINING(link->ctx->logger,
 		"%s:\n %x Lane01AdjustRequest = %x\n %x Lane23AdjustRequest = %x\n",
 		__func__,
 		DP_ADJUST_REQUEST_LANE0_1,
@@ -556,7 +556,7 @@ static void dpcd_set_lane_settings(
 	}
 	*/
 
-	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
+	DC_LOG_HW_LINK_TRAINING(link->ctx->logger,
 		"%s\n %x VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
 		__func__,
 		DP_TRAINING_LANE0_SET,
@@ -669,7 +669,7 @@ static bool perform_post_lt_adj_req_sequence(
 		}
 
 		if (!req_drv_setting_changed) {
-			dm_logger_write(link->ctx->logger, LOG_WARNING,
+			DC_LOG_WARNING(link->ctx->logger,
 				"%s: Post Link Training Adjust Request Timed out\n",
 				__func__);
 
@@ -677,7 +677,7 @@ static bool perform_post_lt_adj_req_sequence(
 			return true;
 		}
 	}
-	dm_logger_write(link->ctx->logger, LOG_WARNING,
+	DC_LOG_WARNING(link->ctx->logger,
 		"%s: Post Link Training Adjust Request limit reached\n",
 		__func__);
 
@@ -885,7 +885,7 @@ static enum link_training_result perform_clock_recovery_sequence(
 
 	if (retry_count >= LINK_TRAINING_MAX_CR_RETRY) {
 		ASSERT(0);
-		dm_logger_write(link->ctx->logger, LOG_ERROR,
+		DC_LOG_ERROR(link->ctx->logger,
 			"%s: Link Training Error, could not get CR after %d tries. Possibly voltage swing issue",
 			__func__,
 			LINK_TRAINING_MAX_CR_RETRY);
@@ -1606,7 +1606,7 @@ static bool hpd_rx_irq_check_link_loss_status(
 	if (sink_status_changed ||
 		!hpd_irq_dpcd_data->bytes.lane_status_updated.bits.INTERLANE_ALIGN_DONE) {
 
-		dm_logger_write(link->ctx->logger, LOG_HW_HPD_IRQ,
+		DC_LOG_HW_HPD_IRQ(link->ctx->logger,
 			"%s: Link Status changed.\n", __func__);
 
 		return_code = true;
@@ -1620,7 +1620,7 @@ static bool hpd_rx_irq_check_link_loss_status(
 			sizeof(irq_reg_rx_power_state));
 
 		if (dpcd_result != DC_OK) {
-			dm_logger_write(link->ctx->logger, LOG_HW_HPD_IRQ,
+			DC_LOG_HW_HPD_IRQ(link->ctx->logger,
 				"%s: DPCD read failed to obtain power state.\n",
 				__func__);
 		} else {
@@ -1982,7 +1982,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 	 * PSR and device auto test, refer to function handle_sst_hpd_irq
 	 * in DAL2.1*/
 
-	dm_logger_write(link->ctx->logger, LOG_HW_HPD_IRQ,
+	DC_LOG_HW_HPD_IRQ(link->ctx->logger,
 		"%s: Got short pulse HPD on link %d\n",
 		__func__, link->link_index);
 
@@ -1997,7 +1997,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 		*out_hpd_irq_dpcd_data = hpd_irq_dpcd_data;
 
 	if (result != DC_OK) {
-		dm_logger_write(link->ctx->logger, LOG_HW_HPD_IRQ,
+		DC_LOG_HW_HPD_IRQ(link->ctx->logger,
 			"%s: DPCD read failed to obtain irq data\n",
 			__func__);
 		return false;
@@ -2016,7 +2016,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 	}
 
 	if (!allow_hpd_rx_irq(link)) {
-		dm_logger_write(link->ctx->logger, LOG_HW_HPD_IRQ,
+		DC_LOG_HW_HPD_IRQ(link->ctx->logger,
 			"%s: skipping HPD handling on %d\n",
 			__func__, link->link_index);
 		return false;

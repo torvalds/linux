@@ -606,7 +606,7 @@ static uint32_t dce110_timing_generator_v_get_vblank_counter(struct timing_gener
 static bool dce110_timing_generator_v_did_triggered_reset_occur(
 	struct timing_generator *tg)
 {
-	dm_logger_write(tg->ctx->logger, LOG_ERROR,
+	DC_LOG_ERROR(tg->ctx->logger,
 					"Timing Sync not supported on underlay pipe\n");
 	return false;
 }
@@ -615,7 +615,7 @@ static void dce110_timing_generator_v_setup_global_swap_lock(
 	struct timing_generator *tg,
 	const struct dcp_gsl_params *gsl_params)
 {
-	dm_logger_write(tg->ctx->logger, LOG_ERROR,
+	DC_LOG_ERROR(tg->ctx->logger,
 					"Timing Sync not supported on underlay pipe\n");
 	return;
 }
@@ -624,7 +624,7 @@ static void dce110_timing_generator_v_enable_reset_trigger(
 	struct timing_generator *tg,
 	int source_tg_inst)
 {
-	dm_logger_write(tg->ctx->logger, LOG_ERROR,
+	DC_LOG_ERROR(tg->ctx->logger,
 					"Timing Sync not supported on underlay pipe\n");
 	return;
 }
@@ -632,7 +632,7 @@ static void dce110_timing_generator_v_enable_reset_trigger(
 static void dce110_timing_generator_v_disable_reset_trigger(
 	struct timing_generator *tg)
 {
-	dm_logger_write(tg->ctx->logger, LOG_ERROR,
+	DC_LOG_ERROR(tg->ctx->logger,
 						"Timing Sync not supported on underlay pipe\n");
 	return;
 }
@@ -640,7 +640,7 @@ static void dce110_timing_generator_v_disable_reset_trigger(
 static void dce110_timing_generator_v_tear_down_global_swap_lock(
 	struct timing_generator *tg)
 {
-	dm_logger_write(tg->ctx->logger, LOG_ERROR,
+	DC_LOG_ERROR(tg->ctx->logger,
 						"Timing Sync not supported on underlay pipe\n");
 	return;
 }

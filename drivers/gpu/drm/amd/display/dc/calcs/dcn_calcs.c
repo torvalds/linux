@@ -1242,7 +1242,7 @@ unsigned int dcn_find_dcfclk_suits_all(
 	else
 		dcf_clk =  dc->dcn_soc->dcfclkv_min0p65*1000;
 
-	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+	DC_LOG_BANDWIDTH_CALCS(dc->ctx->logger,
 		"\tdcf_clk for voltage = %d\n", dcf_clk);
 	return dcf_clk;
 }
@@ -1441,7 +1441,7 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 {
 	kernel_fpu_begin();
-	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+	DC_LOG_BANDWIDTH_CALCS(dc->ctx->logger,
 			"sr_exit_time: %d ns\n"
 			"sr_enter_plus_exit_time: %d ns\n"
 			"urgent_latency: %d ns\n"
@@ -1510,7 +1510,7 @@ void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 			dc->dcn_soc->vmm_page_size,
 			dc->dcn_soc->dram_clock_change_latency * 1000,
 			dc->dcn_soc->return_bus_width);
-	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+	DC_LOG_BANDWIDTH_CALCS(dc->ctx->logger,
 			"rob_buffer_size_in_kbyte: %d\n"
 			"det_buffer_size_in_kbyte: %d\n"
 			"dpp_output_buffer_pixels: %d\n"

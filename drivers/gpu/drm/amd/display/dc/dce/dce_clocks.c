@@ -292,7 +292,7 @@ static enum dm_pp_clocks_state dce_get_required_clocks_state(
 
 	low_req_clk = i + 1;
 	if (low_req_clk > clk->max_clks_state) {
-		dm_logger_write(clk->ctx->logger, LOG_WARNING,
+		DC_LOG_WARNING(clk->ctx->logger,
 				"%s: clocks unsupported disp_clk %d pix_clk %d",
 				__func__,
 				req_clocks->display_clk_khz,
@@ -312,7 +312,7 @@ static bool dce_clock_set_min_clocks_state(
 
 	if (clocks_state > clk->max_clks_state) {
 		/*Requested state exceeds max supported state.*/
-		dm_logger_write(clk->ctx->logger, LOG_WARNING,
+		DC_LOG_WARNING(clk->ctx->logger,
 				"Requested state exceeds max supported state");
 		return false;
 	} else if (clocks_state == clk->cur_min_clks_state) {

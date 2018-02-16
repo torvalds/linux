@@ -104,8 +104,8 @@ bool dal_irq_service_set(
 		find_irq_source_info(irq_service, source);
 
 	if (!info) {
-		dm_logger_write(
-			irq_service->ctx->logger, LOG_ERROR,
+		DC_LOG_ERROR(
+			irq_service->ctx->logger,
 			"%s: cannot find irq info table entry for %d\n",
 			__func__,
 			source);
@@ -142,8 +142,8 @@ bool dal_irq_service_ack(
 		find_irq_source_info(irq_service, source);
 
 	if (!info) {
-		dm_logger_write(
-			irq_service->ctx->logger, LOG_ERROR,
+		DC_LOG_ERROR(
+			irq_service->ctx->logger,
 			"%s: cannot find irq info table entry for %d\n",
 			__func__,
 			source);

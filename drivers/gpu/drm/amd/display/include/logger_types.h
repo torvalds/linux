@@ -29,6 +29,39 @@
 #include "os_types.h"
 
 #define MAX_NAME_LEN 32
+#define DC_LOG_ERROR(a, b, ...) dm_logger_write(a, LOG_ERROR, b, ## __VA_ARGS__)
+#define DC_LOG_WARNING(a, b, ...) dm_logger_write(a, LOG_WARNING, b, ## __VA_ARGS__)
+#define DC_LOG_DEBUG(a, b, ...) dm_logger_write(a, LOG_DEBUG, b, ## __VA_ARGS__)
+#define DC_LOG_DC(a, b, ...) dm_logger_write(a, LOG_DC, b, ## __VA_ARGS__)
+#define DC_LOG_DTN(a, b, ...) dm_logger_write(a, LOG_DTN, b, ## __VA_ARGS__)
+#define DC_LOG_SURFACE(a, b, ...) dm_logger_write(a, LOG_SURFACE, b, ## __VA_ARGS__)
+#define DC_LOG_HW_HOTPLUG(a, b, ...) dm_logger_write(a, LOG_HW_HOTPLUG, b, ## __VA_ARGS__)
+#define DC_LOG_HW_LINK_TRAINING(a, b, ...) dm_logger_write(a, LOG_HW_LINK_TRAINING, b, ## __VA_ARGS__)
+#define DC_LOG_HW_SET_MODE(a, b, ...) dm_logger_write(a, LOG_HW_SET_MODE, b, ## __VA_ARGS__)
+#define DC_LOG_HW_RESUME_S3(a, b, ...) dm_logger_write(a, LOG_HW_RESUME_S3, b, ## __VA_ARGS__)
+#define DC_LOG_HW_AUDIO(a, b, ...) dm_logger_write(a, LOG_HW_AUDIO, b, ## __VA_ARGS__)
+#define DC_LOG_HW_HPD_IRQ(a, b, ...) dm_logger_write(a, LOG_HW_HPD_IRQ, b, ## __VA_ARGS__)
+#define DC_LOG_MST(a, b, ...) dm_logger_write(a, LOG_MST, b, ## __VA_ARGS__)
+#define DC_LOG_SCALER(a, b, ...) dm_logger_write(a, LOG_SCALER, b, ## __VA_ARGS__)
+#define DC_LOG_BIOS(a, b, ...) dm_logger_write(a, LOG_BIOS, b, ## __VA_ARGS__)
+#define DC_LOG_BANDWIDTH_CALCS(a, b, ...) dm_logger_write(a, LOG_BANDWIDTH_CALCS, b, ## __VA_ARGS__)
+#define DC_LOG_BANDWIDTH_VALIDATION(a, b, ...) dm_logger_write(a, LOG_BANDWIDTH_VALIDATION, b, ## __VA_ARGS__)
+#define DC_LOG_I2C_AUX(a, b, ...) dm_logger_write(a, LOG_I2C_AUX, b, ## __VA_ARGS__)
+#define DC_LOG_SYNC(a, b, ...) dm_logger_write(a, LOG_SYNC, b, ## __VA_ARGS__)
+#define DC_LOG_BACKLIGHT(a, b, ...) dm_logger_write(a, LOG_BACKLIGHT, b, ## __VA_ARGS__)
+#define DC_LOG_FEATURE_OVERRIDE(a, b, ...) dm_logger_write(a, LOG_FEATURE_OVERRIDE, b, ## __VA_ARGS__)
+#define DC_LOG_DETECTION_EDID_PARSER(a, b, ...) dm_logger_write(a, LOG_DETECTION_EDID_PARSER, b, ## __VA_ARGS__)
+#define DC_LOG_DETECTION_DP_CAPS(a, b, ...) dm_logger_write(a, LOG_DETECTION_DP_CAPS, b, ## __VA_ARGS__)
+#define DC_LOG_RESOURCE(a, b, ...) dm_logger_write(a, LOG_RESOURCE, b, ## __VA_ARGS__)
+#define DC_LOG_DML(a, b, ...) dm_logger_write(a, LOG_DML, b, ## __VA_ARGS__)
+#define DC_LOG_EVENT_MODE_SET(a, b, ...) dm_logger_write(a, LOG_EVENT_MODE_SET, b, ## __VA_ARGS__)
+#define DC_LOG_EVENT_DETECTION(a, b, ...) dm_logger_write(a, LOG_EVENT_DETECTION, b, ## __VA_ARGS__)
+#define DC_LOG_EVENT_LINK_TRAINING(a, b, ...) dm_logger_write(a, LOG_EVENT_LINK_TRAINING, b, ## __VA_ARGS__)
+#define DC_LOG_EVENT_LINK_LOSS(a, b, ...) dm_logger_write(a, LOG_EVENT_LINK_LOSS, b, ## __VA_ARGS__)
+#define DC_LOG_EVENT_UNDERFLOW(a, b, ...) dm_logger_write(a, LOG_EVENT_UNDERFLOW, b, ## __VA_ARGS__)
+#define DC_LOG_IF_TRACE(a, b, ...) dm_logger_write(a, LOG_IF_TRACE, b, ## __VA_ARGS__)
+#define DC_LOG_PERF_TRACE(a, b, ...) dm_logger_write(a, LOG_PERF_TRACE, b, ## __VA_ARGS__)
+
 
 struct dal_logger;
 

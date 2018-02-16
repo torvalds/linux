@@ -893,7 +893,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 		/* May need to re-check lb size after this in some obscure scenario */
 		calculate_inits_and_adj_vp(pipe_ctx, &recout_skip);
 
-	dm_logger_write(pipe_ctx->stream->ctx->logger, LOG_SCALER,
+	DC_LOG_SCALER(pipe_ctx->stream->ctx->logger,
 				"%s: Viewport:\nheight:%d width:%d x:%d "
 				"y:%d\n dst_rect:\nheight:%d width:%d x:%d "
 				"y:%d\n",

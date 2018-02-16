@@ -816,7 +816,7 @@ void hwss_edp_wait_for_hpd_ready(
 	dal_gpio_destroy_irq(&hpd);
 
 	if (false == edp_hpd_high) {
-		dm_logger_write(ctx->logger, LOG_ERROR,
+		DC_LOG_ERROR(ctx->logger,
 				"%s: wait timed out!\n", __func__);
 	}
 }
@@ -840,7 +840,7 @@ void hwss_edp_power_control(
 	if (power_up != is_panel_powered_on(hwseq)) {
 		/* Send VBIOS command to prompt eDP panel power */
 
-		dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
+		DC_LOG_HW_RESUME_S3(ctx->logger,
 				"%s: Panel Power action: %s\n",
 				__func__, (power_up ? "On":"Off"));
 
@@ -856,11 +856,11 @@ void hwss_edp_power_control(
 		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
 
 		if (bp_result != BP_RESULT_OK)
-			dm_logger_write(ctx->logger, LOG_ERROR,
+			DC_LOG_ERROR(ctx->logger,
 					"%s: Panel Power bp_result: %d\n",
 					__func__, bp_result);
 	} else {
-		dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
+		DC_LOG_HW_RESUME_S3(ctx->logger,
 				"%s: Skipping Panel Power action: %s\n",
 				__func__, (power_up ? "On":"Off"));
 	}
@@ -886,7 +886,7 @@ void hwss_edp_backlight_control(
 	}
 
 	if (enable && is_panel_backlight_on(hws)) {
-		dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
+		DC_LOG_HW_RESUME_S3(ctx->logger,
 				"%s: panel already powered up. Do nothing.\n",
 				__func__);
 		return;
@@ -894,7 +894,7 @@ void hwss_edp_backlight_control(
 
 	/* Send VBIOS command to control eDP panel backlight */
 
-	dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
+	DC_LOG_HW_RESUME_S3(ctx->logger,
 			"%s: backlight action: %s\n",
 			__func__, (enable ? "On":"Off"));
 
@@ -2762,7 +2762,7 @@ static void dce110_program_front_end_for_pipe(
 	if (pipe_ctx->plane_state->update_flags.bits.full_update)
 		dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
 
-	dm_logger_write(dc->ctx->logger, LOG_SURFACE,
+	DC_LOG_SURFACE(dc->ctx->logger,
 			"Pipe:%d 0x%x: addr hi:0x%x, "
 			"addr low:0x%x, "
 			"src: %d, %d, %d,"
@@ -2785,7 +2785,7 @@ static void dce110_program_front_end_for_pipe(
 			pipe_ctx->plane_state->clip_rect.width,
 			pipe_ctx->plane_state->clip_rect.height);
 
-	dm_logger_write(dc->ctx->logger, LOG_SURFACE,
+	DC_LOG_SURFACE(dc->ctx->logger,
 			"Pipe %d: width, height, x, y\n"
 			"viewport:%d, %d, %d, %d\n"
 			"recout:  %d, %d, %d, %d\n",

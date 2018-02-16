@@ -670,7 +670,7 @@ static void dce110_xfmv_set_pixel_storage_depth(
 	if (!(xfm_dce->lb_pixel_depth_supported & depth)) {
 		/*we should use unsupported capabilities
 		 *  unless it is required by w/a*/
-		dm_logger_write(xfm->ctx->logger, LOG_WARNING,
+		DC_LOG_WARNING(xfm->ctx->logger,
 			"%s: Capability not supported",
 			__func__);
 	}

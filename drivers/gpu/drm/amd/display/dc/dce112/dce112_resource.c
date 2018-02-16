@@ -722,8 +722,8 @@ bool dce112_validate_bandwidth(
 {
 	bool result = false;
 
-	dm_logger_write(
-		dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+	DC_LOG_BANDWIDTH_CALCS(
+		dc->ctx->logger,
 		"%s: start",
 		__func__);
 
@@ -737,7 +737,7 @@ bool dce112_validate_bandwidth(
 		result = true;
 
 	if (!result)
-		dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_VALIDATION,
+		DC_LOG_BANDWIDTH_VALIDATION(dc->ctx->logger,
 			"%s: Bandwidth validation failed!",
 			__func__);
 

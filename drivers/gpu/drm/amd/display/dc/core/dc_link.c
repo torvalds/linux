@@ -47,7 +47,7 @@
 #include "dce/dce_11_0_sh_mask.h"
 
 #define LINK_INFO(...) \
-	dm_logger_write(dc_ctx->logger, LOG_HW_HOTPLUG, \
+	DC_LOG_HW_HOTPLUG(dc_ctx->logger,  \
 		__VA_ARGS__)
 
 /*******************************************************************************
@@ -677,11 +677,11 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 
 		switch (edid_status) {
 		case EDID_BAD_CHECKSUM:
-			dm_logger_write(link->ctx->logger, LOG_ERROR,
+			DC_LOG_ERROR(link->ctx->logger,
 				"EDID checksum invalid.\n");
 			break;
 		case EDID_NO_RESPONSE:
-			dm_logger_write(link->ctx->logger, LOG_ERROR,
+			DC_LOG_ERROR(link->ctx->logger,
 				"No EDID read.\n");
 		default:
 			break;
@@ -712,7 +712,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 					"%s: [Block %d] ", sink->edid_caps.display_name, i);
 		}
 
-		dm_logger_write(link->ctx->logger, LOG_DETECTION_EDID_PARSER,
+		DC_LOG_DETECTION_EDID_PARSER(link->ctx->logger,
 			"%s: "
 			"manufacturer_id = %X, "
 			"product_id = %X, "
@@ -733,7 +733,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			sink->edid_caps.audio_mode_count);
 
 		for (i = 0; i < sink->edid_caps.audio_mode_count; i++) {
-			dm_logger_write(link->ctx->logger, LOG_DETECTION_EDID_PARSER,
+			DC_LOG_DETECTION_EDID_PARSER(link->ctx->logger,
 				"%s: mode number = %d, "
 				"format_code = %d, "
 				"channel_count = %d, "
@@ -984,7 +984,7 @@ static bool construct(
 		}
 		break;
 	default:
-		dm_logger_write(dc_ctx->logger, LOG_WARNING,
+		DC_LOG_WARNING(dc_ctx->logger,
 			"Unsupported Connector type:%d!\n", link->link_id.id);
 		goto create_fail;
 	}
@@ -1175,7 +1175,7 @@ static void dpcd_configure_panel_mode(
 			ASSERT(result == DDC_RESULT_SUCESSFULL);
 		}
 	}
-	dm_logger_write(link->ctx->logger, LOG_DETECTION_DP_CAPS,
+	DC_LOG_DETECTION_DP_CAPS(link->ctx->logger,
 			"Link: %d eDP panel mode supported: %d "
 			"eDP panel mode enabled: %d \n",
 			link->link_index,
@@ -1965,7 +1965,7 @@ bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 
 	use_smooth_brightness = dmcu->funcs->is_dmcu_initialized(dmcu);
 
-	dm_logger_write(link->ctx->logger, LOG_BACKLIGHT,
+	DC_LOG_BACKLIGHT(link->ctx->logger,
 			"New Backlight level: %d (0x%X)\n", level, level);
 
 	if (dc_is_embedded_signal(link->connector_signal)) {
@@ -2150,20 +2150,20 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 					link, pipe_ctx->stream_res.stream_enc, &proposed_table);
 	}
 	else
-		dm_logger_write(link->ctx->logger, LOG_WARNING,
+		DC_LOG_WARNING(link->ctx->logger,
 				"Failed to update"
 				"MST allocation table for"
 				"pipe idx:%d\n",
 				pipe_ctx->pipe_idx);
 
-	dm_logger_write(link->ctx->logger, LOG_MST,
+	DC_LOG_MST(link->ctx->logger,
 			"%s  "
 			"stream_count: %d: \n ",
 			__func__,
 			link->mst_stream_alloc_table.stream_count);
 
 	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
-		dm_logger_write(link->ctx->logger, LOG_MST,
+		DC_LOG_MST(link->ctx->logger,
 		"stream_enc[%d]: 0x%x      "
 		"stream[%d].vcp_id: %d      "
 		"stream[%d].slot_count: %d\n",
@@ -2240,7 +2240,7 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 				link, pipe_ctx->stream_res.stream_enc, &proposed_table);
 		}
 		else {
-				dm_logger_write(link->ctx->logger, LOG_WARNING,
+				DC_LOG_WARNING(link->ctx->logger,
 						"Failed to update"
 						"MST allocation table for"
 						"pipe idx:%d\n",
@@ -2248,14 +2248,14 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 		}
 	}
 
-	dm_logger_write(link->ctx->logger, LOG_MST,
+	DC_LOG_MST(link->ctx->logger,
 			"%s"
 			"stream_count: %d: ",
 			__func__,
 			link->mst_stream_alloc_table.stream_count);
 
 	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
-		dm_logger_write(link->ctx->logger, LOG_MST,
+		DC_LOG_MST(link->ctx->logger,
 		"stream_enc[%d]: 0x%x      "
 		"stream[%d].vcp_id: %d      "
 		"stream[%d].slot_count: %d\n",
@@ -2307,8 +2307,8 @@ void core_link_enable_stream(
 	status = enable_link(state, pipe_ctx);
 
 	if (status != DC_OK) {
-			dm_logger_write(pipe_ctx->stream->ctx->logger,
-			LOG_WARNING, "enabling link %u failed: %d\n",
+			DC_LOG_WARNING(pipe_ctx->stream->ctx->logger,
+			 "enabling link %u failed: %d\n",
 			pipe_ctx->stream->sink->link->link_index,
 			status);
 

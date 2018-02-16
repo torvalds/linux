@@ -129,8 +129,8 @@ static uint32_t lpt_memory_control_config(struct dce112_compressor *cp110,
 				LOW_POWER_TILING_NUM_PIPES);
 			break;
 		default:
-			dm_logger_write(
-				cp110->base.ctx->logger, LOG_WARNING,
+			DC_LOG_WARNING(
+				cp110->base.ctx->logger,
 				"%s: Invalid LPT NUM_PIPES!!!",
 				__func__);
 			break;
@@ -175,8 +175,8 @@ static uint32_t lpt_memory_control_config(struct dce112_compressor *cp110,
 				LOW_POWER_TILING_NUM_BANKS);
 			break;
 		default:
-			dm_logger_write(
-				cp110->base.ctx->logger, LOG_WARNING,
+			DC_LOG_WARNING(
+				cp110->base.ctx->logger,
 				"%s: Invalid LPT NUM_BANKS!!!",
 				__func__);
 			break;
@@ -209,8 +209,8 @@ static uint32_t lpt_memory_control_config(struct dce112_compressor *cp110,
 				LOW_POWER_TILING_PIPE_INTERLEAVE_SIZE);
 			break;
 		default:
-			dm_logger_write(
-				cp110->base.ctx->logger, LOG_WARNING,
+			DC_LOG_WARNING(
+				cp110->base.ctx->logger,
 				"%s: Invalid LPT INTERLEAVE_SIZE!!!",
 				__func__);
 			break;
@@ -253,15 +253,15 @@ static uint32_t lpt_memory_control_config(struct dce112_compressor *cp110,
 				LOW_POWER_TILING_ROW_SIZE);
 			break;
 		default:
-			dm_logger_write(
-				cp110->base.ctx->logger, LOG_WARNING,
+			DC_LOG_WARNING(
+				cp110->base.ctx->logger,
 				"%s: Invalid LPT ROW_SIZE!!!",
 				__func__);
 			break;
 		}
 	} else {
-		dm_logger_write(
-			cp110->base.ctx->logger, LOG_WARNING,
+		DC_LOG_WARNING(
+			cp110->base.ctx->logger,
 			"%s: LPT MC Configuration is not provided",
 			__func__);
 	}
@@ -311,8 +311,8 @@ static void wait_for_fbc_state_changed(
 	}
 
 	if (counter == 10) {
-		dm_logger_write(
-			cp110->base.ctx->logger, LOG_WARNING,
+		DC_LOG_WARNING(
+			cp110->base.ctx->logger,
 			"%s: wait counter exceeded, changes to HW not applied",
 			__func__);
 	}
@@ -525,8 +525,8 @@ void dce112_compressor_program_compressed_surface_address_and_pitch(
 	if (compressor->min_compress_ratio == FBC_COMPRESS_RATIO_1TO1)
 		fbc_pitch = fbc_pitch / 8;
 	else
-		dm_logger_write(
-			compressor->ctx->logger, LOG_WARNING,
+		DC_LOG_WARNING(
+			compressor->ctx->logger,
 			"%s: Unexpected DCE11 compression ratio",
 			__func__);
 
@@ -690,8 +690,8 @@ void dce112_compressor_program_lpt_control(
 			LOW_POWER_TILING_MODE);
 		break;
 	default:
-		dm_logger_write(
-			compressor->ctx->logger, LOG_WARNING,
+		DC_LOG_WARNING(
+			compressor->ctx->logger,
 			"%s: Invalid selected DRAM channels for LPT!!!",
 			__func__);
 		break;

@@ -274,7 +274,7 @@ static bool read_command(
 
 	if (request->payload.address_space ==
 		I2CAUX_TRANSACTION_ADDRESS_SPACE_DPCD) {
-		dm_logger_write(engine->base.ctx->logger, LOG_I2C_AUX, "READ: addr:0x%x  value:0x%x Result:%d",
+		DC_LOG_I2C_AUX(engine->base.ctx->logger,  "READ: addr:0x%x  value:0x%x Result:%d",
 				request->payload.address,
 				request->payload.data[0],
 				ctx.operation_succeeded);
@@ -483,7 +483,7 @@ static bool write_command(
 
 	if (request->payload.address_space ==
 		I2CAUX_TRANSACTION_ADDRESS_SPACE_DPCD) {
-		dm_logger_write(engine->base.ctx->logger, LOG_I2C_AUX, "WRITE: addr:0x%x  value:0x%x Result:%d",
+		DC_LOG_I2C_AUX(engine->base.ctx->logger,  "WRITE: addr:0x%x  value:0x%x Result:%d",
 				request->payload.address,
 				request->payload.data[0],
 				ctx.operation_succeeded);

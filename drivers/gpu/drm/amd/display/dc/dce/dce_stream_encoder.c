@@ -277,8 +277,8 @@ static void dce110_update_hdmi_info_packet(
 #endif
 	default:
 		/* invalid HW packet index */
-		dm_logger_write(
-			ctx->logger, LOG_WARNING,
+		DC_LOG_WARNING(
+			ctx->logger,
 			"Invalid HW packet index: %s()\n",
 			__func__);
 		return;
@@ -1386,7 +1386,7 @@ static void dce110_se_setup_hdmi_audio(
 			     crtc_info->requested_pixel_clock,
 			     crtc_info->calculated_pixel_clock,
 			     &audio_clock_info);
-	dm_logger_write(enc->ctx->logger, LOG_HW_AUDIO,
+	DC_LOG_HW_AUDIO(enc->ctx->logger,
 			"\n%s:Input::requested_pixel_clock = %d"	\
 			"calculated_pixel_clock = %d \n", __func__,	\
 			crtc_info->requested_pixel_clock,		\

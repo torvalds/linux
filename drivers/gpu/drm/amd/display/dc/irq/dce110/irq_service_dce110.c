@@ -181,8 +181,8 @@ bool dal_irq_service_dummy_set(
 	const struct irq_source_info *info,
 	bool enable)
 {
-	dm_logger_write(
-		irq_service->ctx->logger, LOG_ERROR,
+	DC_LOG_ERROR(
+		irq_service->ctx->logger,
 		"%s: called for non-implemented irq source\n",
 		__func__);
 	return false;
@@ -192,8 +192,8 @@ bool dal_irq_service_dummy_ack(
 	struct irq_service *irq_service,
 	const struct irq_source_info *info)
 {
-	dm_logger_write(
-		irq_service->ctx->logger, LOG_ERROR,
+	DC_LOG_ERROR(
+		irq_service->ctx->logger,
 		"%s: called for non-implemented irq source\n",
 		__func__);
 	return false;
