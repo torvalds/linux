@@ -293,7 +293,8 @@ static void mv88e6xxx_get_rxts(struct mv88e6xxx_chip *chip,
 			       struct sk_buff *skb, u16 reg,
 			       struct sk_buff_head *rxq)
 {
-	u16 buf[4] = { 0 }, status, timelo, timehi, seq_id;
+	u16 buf[4] = { 0 }, status, seq_id;
+	u64 ns, timelo, timehi;
 	struct skb_shared_hwtstamps *shwt;
 	int err;
 
@@ -321,7 +322,7 @@ static void mv88e6xxx_get_rxts(struct mv88e6xxx_chip *chip,
 	 */
 	for ( ; skb; skb = skb_dequeue(rxq)) {
 		if (mv88e6xxx_ts_valid(status) && seq_match(skb, seq_id)) {
-			u64 ns = timehi << 16 | timelo;
+			ns = timehi << 16 | timelo;
 
 			mutex_lock(&chip->reg_lock);
 			ns = timecounter_cyc2time(&chip->tstamp_tc, ns);
