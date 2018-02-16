@@ -79,9 +79,11 @@ static int dwc2_backup_global_registers(struct dwc2_hsotg *hsotg)
 	gr->gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
 	gr->grxfsiz = dwc2_readl(hsotg->regs + GRXFSIZ);
 	gr->gnptxfsiz = dwc2_readl(hsotg->regs + GNPTXFSIZ);
-	gr->hptxfsiz = dwc2_readl(hsotg->regs + HPTXFSIZ);
 	gr->gdfifocfg = dwc2_readl(hsotg->regs + GDFIFOCFG);
 	gr->pcgcctl1 = dwc2_readl(hsotg->regs + PCGCCTL1);
+	gr->glpmcfg = dwc2_readl(hsotg->regs + GLPMCFG);
+	gr->gi2cctl = dwc2_readl(hsotg->regs + GI2CCTL);
+	gr->pcgcctl = dwc2_readl(hsotg->regs + PCGCTL);
 
 	gr->valid = true;
 	return 0;
@@ -116,9 +118,11 @@ static int dwc2_restore_global_registers(struct dwc2_hsotg *hsotg)
 	dwc2_writel(gr->gahbcfg, hsotg->regs + GAHBCFG);
 	dwc2_writel(gr->grxfsiz, hsotg->regs + GRXFSIZ);
 	dwc2_writel(gr->gnptxfsiz, hsotg->regs + GNPTXFSIZ);
-	dwc2_writel(gr->hptxfsiz, hsotg->regs + HPTXFSIZ);
 	dwc2_writel(gr->gdfifocfg, hsotg->regs + GDFIFOCFG);
 	dwc2_writel(gr->pcgcctl1, hsotg->regs + PCGCCTL1);
+	dwc2_writel(gr->glpmcfg, hsotg->regs + GLPMCFG);
+	dwc2_writel(gr->pcgcctl, hsotg->regs + PCGCTL);
+	dwc2_writel(gr->gi2cctl, hsotg->regs + GI2CCTL);
 
 	return 0;
 }

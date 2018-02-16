@@ -640,7 +640,7 @@ struct dwc2_hw_params {
  * @grxfsiz:		Backup of GRXFSIZ register
  * @gnptxfsiz:		Backup of GNPTXFSIZ register
  * @gi2cctl:		Backup of GI2CCTL register
- * @hptxfsiz:		Backup of HPTXFSIZ register
+ * @glpmcfg:		Backup of GLPMCFG register
  * @gdfifocfg:		Backup of GDFIFOCFG register
  * @gpwrdn:		Backup of GPWRDN register
  */
@@ -652,7 +652,7 @@ struct dwc2_gregs_backup {
 	u32 grxfsiz;
 	u32 gnptxfsiz;
 	u32 gi2cctl;
-	u32 hptxfsiz;
+	u32 glpmcfg;
 	u32 pcgcctl;
 	u32 pcgcctl1;
 	u32 gdfifocfg;
@@ -700,6 +700,7 @@ struct dwc2_dregs_backup {
  * @hcintmsk:		Backup of HCINTMSK register
  * @hptr0:		Backup of HPTR0 register
  * @hfir:		Backup of HFIR register
+ * @hptxfsiz:		Backup of HPTXFSIZ register
  */
 struct dwc2_hregs_backup {
 	u32 hcfg;
@@ -707,6 +708,7 @@ struct dwc2_hregs_backup {
 	u32 hcintmsk[MAX_EPS_CHANNELS];
 	u32 hprt0;
 	u32 hfir;
+	u32 hptxfsiz;
 	bool valid;
 };
 

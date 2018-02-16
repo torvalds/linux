@@ -5318,6 +5318,7 @@ int dwc2_backup_host_registers(struct dwc2_hsotg *hsotg)
 
 	hr->hprt0 = dwc2_read_hprt0(hsotg);
 	hr->hfir = dwc2_readl(hsotg->regs + HFIR);
+	hr->hptxfsiz = dwc2_readl(hsotg->regs + HPTXFSIZ);
 	hr->valid = true;
 
 	return 0;
@@ -5354,6 +5355,7 @@ int dwc2_restore_host_registers(struct dwc2_hsotg *hsotg)
 
 	dwc2_writel(hr->hprt0, hsotg->regs + HPRT0);
 	dwc2_writel(hr->hfir, hsotg->regs + HFIR);
+	dwc2_writel(hr->hptxfsiz, hsotg->regs + HPTXFSIZ);
 	hsotg->frame_number = 0;
 
 	return 0;
