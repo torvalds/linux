@@ -968,9 +968,8 @@ static void sctp_renege_events(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 						       needed);
 	}
 
-	if (chunk && freed >= needed)
-		if (sctp_ulpevent_idata(ulpq, chunk, gfp) <= 0)
-			sctp_intl_start_pd(ulpq, gfp);
+	if (freed >= needed && sctp_ulpevent_idata(ulpq, chunk, gfp) <= 0)
+		sctp_intl_start_pd(ulpq, gfp);
 
 	sk_mem_reclaim(asoc->base.sk);
 }
