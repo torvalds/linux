@@ -871,6 +871,7 @@ static int sdio_clear_int_ext(struct wilc *wilc, u32 val)
 {
 	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
 	int ret;
+	int vmm_ctl;
 
 	if (g_sdio.has_thrpt_enh3) {
 		u32 reg;
@@ -909,84 +910,79 @@ static int sdio_clear_int_ext(struct wilc *wilc, u32 val)
 				goto _fail_;
 			}
 		}
-	} else {
-		if (g_sdio.irq_gpio) {
-			/* see below. has_thrpt_enh2 uses register 0xf8 to clear interrupts. */
-			/* Cannot clear multiple interrupts. Must clear each interrupt individually */
-			u32 flags;
+		return 1;
+	}
+	if (g_sdio.irq_gpio) {
+		/* see below. has_thrpt_enh2 uses register 0xf8 to clear interrupts. */
+		/* Cannot clear multiple interrupts. Must clear each interrupt individually */
+		u32 flags;
 
-			flags = val & (BIT(MAX_NUM_INT) - 1);
-			if (flags) {
-				int i;
+		flags = val & (BIT(MAX_NUM_INT) - 1);
+		if (flags) {
+			int i;
 
-				ret = 1;
-				for (i = 0; i < g_sdio.nint; i++) {
-					if (flags & 1) {
-						struct sdio_cmd52 cmd;
+			ret = 1;
+			for (i = 0; i < g_sdio.nint; i++) {
+				if (flags & 1) {
+					struct sdio_cmd52 cmd;
 
-						cmd.read_write = 1;
-						cmd.function = 0;
-						cmd.raw = 0;
-						cmd.address = 0xf8;
-						cmd.data = BIT(i);
+					cmd.read_write = 1;
+					cmd.function = 0;
+					cmd.raw = 0;
+					cmd.address = 0xf8;
+					cmd.data = BIT(i);
 
-						ret = wilc_sdio_cmd52(wilc, &cmd);
-						if (ret) {
-							dev_err(&func->dev,
-								"Failed cmd52, set 0xf8 data (%d) ...\n",
-								__LINE__);
-							goto _fail_;
-						}
+					ret = wilc_sdio_cmd52(wilc, &cmd);
+					if (ret) {
+						dev_err(&func->dev,
+							"Failed cmd52, set 0xf8 data (%d) ...\n",
+							__LINE__);
+						goto _fail_;
 					}
-					if (!ret)
-						break;
-					flags >>= 1;
 				}
 				if (!ret)
-					goto _fail_;
-				for (i = g_sdio.nint; i < MAX_NUM_INT; i++) {
-					if (flags & 1)
-						dev_err(&func->dev,
-							"Unexpected interrupt cleared %d...\n",
-							i);
-					flags >>= 1;
-				}
+					break;
+				flags >>= 1;
 			}
-		}
-
-		{
-			u32 vmm_ctl;
-
-			vmm_ctl = 0;
-			/* select VMM table 0 */
-			if ((val & SEL_VMM_TBL0) == SEL_VMM_TBL0)
-				vmm_ctl |= BIT(0);
-			/* select VMM table 1 */
-			if ((val & SEL_VMM_TBL1) == SEL_VMM_TBL1)
-				vmm_ctl |= BIT(1);
-			/* enable VMM */
-			if ((val & EN_VMM) == EN_VMM)
-				vmm_ctl |= BIT(2);
-
-			if (vmm_ctl) {
-				struct sdio_cmd52 cmd;
-
-				cmd.read_write = 1;
-				cmd.function = 0;
-				cmd.raw = 0;
-				cmd.address = 0xf6;
-				cmd.data = vmm_ctl;
-				ret = wilc_sdio_cmd52(wilc, &cmd);
-				if (ret) {
+			if (!ret)
+				goto _fail_;
+			for (i = g_sdio.nint; i < MAX_NUM_INT; i++) {
+				if (flags & 1)
 					dev_err(&func->dev,
-						"Failed cmd52, set 0xf6 data (%d) ...\n",
-						__LINE__);
-					goto _fail_;
-				}
+						"Unexpected interrupt cleared %d...\n",
+						i);
+				flags >>= 1;
 			}
 		}
 	}
 
+	vmm_ctl = 0;
+	/* select VMM table 0 */
+	if ((val & SEL_VMM_TBL0) == SEL_VMM_TBL0)
+		vmm_ctl |= BIT(0);
+	/* select VMM table 1 */
+	if ((val & SEL_VMM_TBL1) == SEL_VMM_TBL1)
+		vmm_ctl |= BIT(1);
+	/* enable VMM */
+	if ((val & EN_VMM) == EN_VMM)
+		vmm_ctl |= BIT(2);
+
+	if (vmm_ctl) {
+		struct sdio_cmd52 cmd;
+
+		cmd.read_write = 1;
+		cmd.function = 0;
+		cmd.raw = 0;
+		cmd.address = 0xf6;
+		cmd.data = vmm_ctl;
+		ret = wilc_sdio_cmd52(wilc, &cmd);
+		if (ret) {
+			dev_err(&func->dev,
+				"Failed cmd52, set 0xf6 data (%d) ...\n",
+				__LINE__);
+			goto _fail_;
+		}
+	}
 	return 1;
 _fail_:
 	return 0;
