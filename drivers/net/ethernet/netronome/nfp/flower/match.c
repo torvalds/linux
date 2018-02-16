@@ -181,6 +181,26 @@ nfp_flower_compile_ipv4(struct nfp_flower_ipv4 *frame,
 		frame->tos = flow_ip->tos;
 		frame->ttl = flow_ip->ttl;
 	}
+
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_TCP)) {
+		struct flow_dissector_key_tcp *tcp;
+		u32 tcp_flags;
+
+		tcp = skb_flow_dissector_target(flow->dissector,
+						FLOW_DISSECTOR_KEY_TCP, target);
+		tcp_flags = be16_to_cpu(tcp->flags);
+
+		if (tcp_flags & TCPHDR_FIN)
+			frame->flags |= NFP_FL_TCP_FLAG_FIN;
+		if (tcp_flags & TCPHDR_SYN)
+			frame->flags |= NFP_FL_TCP_FLAG_SYN;
+		if (tcp_flags & TCPHDR_RST)
+			frame->flags |= NFP_FL_TCP_FLAG_RST;
+		if (tcp_flags & TCPHDR_PSH)
+			frame->flags |= NFP_FL_TCP_FLAG_PSH;
+		if (tcp_flags & TCPHDR_URG)
+			frame->flags |= NFP_FL_TCP_FLAG_URG;
+	}
 }
 
 static void

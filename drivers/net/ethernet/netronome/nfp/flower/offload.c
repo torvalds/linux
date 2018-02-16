@@ -44,11 +44,16 @@
 #include "../nfp_net.h"
 #include "../nfp_port.h"
 
+#define NFP_FLOWER_SUPPORTED_TCPFLAGS \
+	(TCPHDR_FIN | TCPHDR_SYN | TCPHDR_RST | \
+	 TCPHDR_PSH | TCPHDR_URG)
+
 #define NFP_FLOWER_WHITELIST_DISSECTOR \
 	(BIT(FLOW_DISSECTOR_KEY_CONTROL) | \
 	 BIT(FLOW_DISSECTOR_KEY_BASIC) | \
 	 BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) | \
 	 BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_TCP) | \
 	 BIT(FLOW_DISSECTOR_KEY_PORTS) | \
 	 BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) | \
 	 BIT(FLOW_DISSECTOR_KEY_VLAN) | \
@@ -285,6 +290,35 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			 * remainder of the key to ensure we can offload.
 			 */
 			return -EOPNOTSUPP;
+		}
+	}
+
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_TCP)) {
+		struct flow_dissector_key_tcp *tcp;
+		u32 tcp_flags;
+
+		tcp = skb_flow_dissector_target(flow->dissector,
+						FLOW_DISSECTOR_KEY_TCP,
+						flow->key);
+		tcp_flags = be16_to_cpu(tcp->flags);
+
+		if (tcp_flags & ~NFP_FLOWER_SUPPORTED_TCPFLAGS)
+			return -EOPNOTSUPP;
+
+		/* We only support PSH and URG flags when either
+		 * FIN, SYN or RST is present as well.
+		 */
+		if ((tcp_flags & (TCPHDR_PSH | TCPHDR_URG)) &&
+		    !(tcp_flags & (TCPHDR_FIN | TCPHDR_SYN | TCPHDR_RST)))
+			return -EOPNOTSUPP;
+
+		/* We need to store TCP flags in the IPv4 key space, thus
+		 * we need to ensure we include a IPv4 key layer if we have
+		 * not done so already.
+		 */
+		if (!(key_layer & NFP_FLOWER_LAYER_IPV4)) {
+			key_layer |= NFP_FLOWER_LAYER_IPV4;
+			key_size += sizeof(struct nfp_flower_ipv4);
 		}
 	}
 

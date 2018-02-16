@@ -61,6 +61,13 @@
 #define NFP_FLOWER_MASK_MPLS_BOS	BIT(8)
 #define NFP_FLOWER_MASK_MPLS_Q		BIT(0)
 
+/* Compressed HW representation of TCP Flags */
+#define NFP_FL_TCP_FLAG_URG		BIT(4)
+#define NFP_FL_TCP_FLAG_PSH		BIT(3)
+#define NFP_FL_TCP_FLAG_RST		BIT(2)
+#define NFP_FL_TCP_FLAG_SYN		BIT(1)
+#define NFP_FL_TCP_FLAG_FIN		BIT(0)
+
 #define NFP_FL_SC_ACT_DROP		0x80000000
 #define NFP_FL_SC_ACT_USER		0x7D000000
 #define NFP_FL_SC_ACT_POPV		0x6A000000
@@ -257,7 +264,7 @@ struct nfp_flower_tp_ports {
  *    3                   2                   1
  *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- * |    DSCP   |ECN|   protocol    |           reserved            |
+ * |    DSCP   |ECN|   protocol    |      ttl      |     flags     |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |                        ipv4_addr_src                          |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -268,7 +275,7 @@ struct nfp_flower_ipv4 {
 	u8 tos;
 	u8 proto;
 	u8 ttl;
-	u8 reserved;
+	u8 flags;
 	__be32 ipv4_src;
 	__be32 ipv4_dst;
 };
