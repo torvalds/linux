@@ -64,7 +64,7 @@
  *
  * @hsotg: Programming view of the DWC_otg controller
  */
-static int dwc2_backup_global_registers(struct dwc2_hsotg *hsotg)
+int dwc2_backup_global_registers(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_gregs_backup *gr;
 
@@ -96,7 +96,7 @@ static int dwc2_backup_global_registers(struct dwc2_hsotg *hsotg)
  *
  * @hsotg: Programming view of the DWC_otg controller
  */
-static int dwc2_restore_global_registers(struct dwc2_hsotg *hsotg)
+int dwc2_restore_global_registers(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_gregs_backup *gr;
 

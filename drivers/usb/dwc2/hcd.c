@@ -5360,3 +5360,226 @@ int dwc2_restore_host_registers(struct dwc2_hsotg *hsotg)
 
 	return 0;
 }
+
+/**
+ * dwc2_host_enter_hibernation() - Put controller in Hibernation.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ */
+int dwc2_host_enter_hibernation(struct dwc2_hsotg *hsotg)
+{
+	unsigned long flags;
+	int ret = 0;
+	u32 hprt0;
+	u32 pcgcctl;
+	u32 gusbcfg;
+	u32 gpwrdn;
+
+	dev_dbg(hsotg->dev, "Preparing host for hibernation\n");
+	ret = dwc2_backup_global_registers(hsotg);
+	if (ret) {
+		dev_err(hsotg->dev, "%s: failed to backup global registers\n",
+			__func__);
+		return ret;
+	}
+	ret = dwc2_backup_host_registers(hsotg);
+	if (ret) {
+		dev_err(hsotg->dev, "%s: failed to backup host registers\n",
+			__func__);
+		return ret;
+	}
+
+	/* Enter USB Suspend Mode */
+	hprt0 = dwc2_readl(hsotg->regs + HPRT0);
+	hprt0 |= HPRT0_SUSP;
+	hprt0 &= ~HPRT0_ENA;
+	dwc2_writel(hprt0, hsotg->regs + HPRT0);
+
+	/* Wait for the HPRT0.PrtSusp register field to be set */
+	if (dwc2_hsotg_wait_bit_set(hsotg, HPRT0, HPRT0_SUSP, 300))
+		dev_warn(hsotg->dev, "Suspend wasn't genereted\n");
+
+	/*
+	 * We need to disable interrupts to prevent servicing of any IRQ
+	 * during going to hibernation
+	 */
+	spin_lock_irqsave(&hsotg->lock, flags);
+	hsotg->lx_state = DWC2_L2;
+
+	gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
+	if (gusbcfg & GUSBCFG_ULPI_UTMI_SEL) {
+		/* ULPI interface */
+		/* Suspend the Phy Clock */
+		pcgcctl = dwc2_readl(hsotg->regs + PCGCTL);
+		pcgcctl |= PCGCTL_STOPPCLK;
+		dwc2_writel(pcgcctl, hsotg->regs + PCGCTL);
+		udelay(10);
+
+		gpwrdn = dwc2_readl(hsotg->regs + GPWRDN);
+		gpwrdn |= GPWRDN_PMUACTV;
+		dwc2_writel(gpwrdn, hsotg->regs + GPWRDN);
+		udelay(10);
+	} else {
+		/* UTMI+ Interface */
+		gpwrdn = dwc2_readl(hsotg->regs + GPWRDN);
+		gpwrdn |= GPWRDN_PMUACTV;
+		dwc2_writel(gpwrdn, hsotg->regs + GPWRDN);
+		udelay(10);
+
+		pcgcctl = dwc2_readl(hsotg->regs + PCGCTL);
+		pcgcctl |= PCGCTL_STOPPCLK;
+		dwc2_writel(pcgcctl, hsotg->regs + PCGCTL);
+		udelay(10);
+	}
+
+	/* Enable interrupts from wake up logic */
+	gpwrdn = dwc2_readl(hsotg->regs + GPWRDN);
+	gpwrdn |= GPWRDN_PMUINTSEL;
+	dwc2_writel(gpwrdn, hsotg->regs + GPWRDN);
+	udelay(10);
+
+	/* Unmask host mode interrupts in GPWRDN */
+	gpwrdn = dwc2_readl(hsotg->regs + GPWRDN);
+	gpwrdn |= GPWRDN_DISCONN_DET_MSK;
+	gpwrdn |= GPWRDN_LNSTSCHG_MSK;
+	gpwrdn |= GPWRDN_STS_CHGINT_MSK;
+	dwc2_writel(gpwrdn, hsotg->regs + GPWRDN);
+	udelay(10);
+
+	/* Enable Power Down Clamp */
+	gpwrdn = dwc2_readl(hsotg->regs + GPWRDN);
+	gpwrdn |= GPWRDN_PWRDNCLMP;
+	dwc2_writel(gpwrdn, hsotg->regs + GPWRDN);
+	udelay(10);
+
+	/* Switch off VDD */
+	gpwrdn = dwc2_readl(hsotg->regs + GPWRDN);
+	gpwrdn |= GPWRDN_PWRDNSWTCH;
+	dwc2_writel(gpwrdn, hsotg->regs + GPWRDN);
+
+	hsotg->hibernated = 1;
+	hsotg->bus_suspended = 1;
+	dev_dbg(hsotg->dev, "Host hibernation completed\n");
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+	return ret;
+}
+
+/*
+ * dwc2_host_exit_hibernation()
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ * @rem_wakeup: indicates whether resume is initiated by Device or Host.
+ * @param reset: indicates whether resume is initiated by Reset.
+ *
+ * Return: non-zero if failed to enter to hibernation.
+ *
+ * This function is for exiting from Host mode hibernation by
+ * Host Initiated Resume/Reset and Device Initiated Remote-Wakeup.
+ */
+int dwc2_host_exit_hibernation(struct dwc2_hsotg *hsotg, int rem_wakeup,
+			       int reset)
+{
+	u32 gpwrdn;
+	u32 hprt0;
+	int ret = 0;
+	struct dwc2_gregs_backup *gr;
+	struct dwc2_hregs_backup *hr;
+
+	gr = &hsotg->gr_backup;
+	hr = &hsotg->hr_backup;
+
+	dev_dbg(hsotg->dev,
+		"%s: called with rem_wakeup = %d reset = %d\n",
+		__func__, rem_wakeup, reset);
+
+	dwc2_hib_restore_common(hsotg, rem_wakeup, 1);
+	hsotg->hibernated = 0;
+
+	/*
+	 * This step is not described in functional spec but if not wait for
+	 * this delay, mismatch interrupts occurred because just after restore
+	 * core is in Device mode(gintsts.curmode == 0)
+	 */
+	mdelay(100);
+
+	/* Clear all pending interupts */
+	dwc2_writel(0xffffffff, hsotg->regs + GINTSTS);
+
+	/* De-assert Restore */
+	gpwrdn = dwc2_readl(hsotg->regs + GPWRDN);
+	gpwrdn &= ~GPWRDN_RESTORE;
+	dwc2_writel(gpwrdn, hsotg->regs + GPWRDN);
+	udelay(10);
+
+	/* Restore GUSBCFG, HCFG */
+	dwc2_writel(gr->gusbcfg, hsotg->regs + GUSBCFG);
+	dwc2_writel(hr->hcfg, hsotg->regs + HCFG);
+
+	/* De-assert Wakeup Logic */
+	gpwrdn = dwc2_readl(hsotg->regs + GPWRDN);
+	gpwrdn &= ~GPWRDN_PMUACTV;
+	dwc2_writel(gpwrdn, hsotg->regs + GPWRDN);
+	udelay(10);
+
+	hprt0 = hr->hprt0;
+	hprt0 |= HPRT0_PWR;
+	hprt0 &= ~HPRT0_ENA;
+	hprt0 &= ~HPRT0_SUSP;
+	dwc2_writel(hprt0, hsotg->regs + HPRT0);
+
+	hprt0 = hr->hprt0;
+	hprt0 |= HPRT0_PWR;
+	hprt0 &= ~HPRT0_ENA;
+	hprt0 &= ~HPRT0_SUSP;
+
+	if (reset) {
+		hprt0 |= HPRT0_RST;
+		dwc2_writel(hprt0, hsotg->regs + HPRT0);
+
+		/* Wait for Resume time and then program HPRT again */
+		mdelay(60);
+		hprt0 &= ~HPRT0_RST;
+		dwc2_writel(hprt0, hsotg->regs + HPRT0);
+	} else {
+		hprt0 |= HPRT0_RES;
+		dwc2_writel(hprt0, hsotg->regs + HPRT0);
+
+		/* Wait for Resume time and then program HPRT again */
+		mdelay(100);
+		hprt0 &= ~HPRT0_RES;
+		dwc2_writel(hprt0, hsotg->regs + HPRT0);
+	}
+	/* Clear all interrupt status */
+	hprt0 = dwc2_readl(hsotg->regs + HPRT0);
+	hprt0 |= HPRT0_CONNDET;
+	hprt0 |= HPRT0_ENACHG;
+	hprt0 &= ~HPRT0_ENA;
+	dwc2_writel(hprt0, hsotg->regs + HPRT0);
+
+	hprt0 = dwc2_readl(hsotg->regs + HPRT0);
+
+	/* Clear all pending interupts */
+	dwc2_writel(0xffffffff, hsotg->regs + GINTSTS);
+
+	/* Restore global registers */
+	ret = dwc2_restore_global_registers(hsotg);
+	if (ret) {
+		dev_err(hsotg->dev, "%s: failed to restore registers\n",
+			__func__);
+		return ret;
+	}
+
+	/* Restore host registers */
+	ret = dwc2_restore_host_registers(hsotg);
+	if (ret) {
+		dev_err(hsotg->dev, "%s: failed to restore host registers\n",
+			__func__);
+		return ret;
+	}
+
+	hsotg->hibernated = 0;
+	hsotg->bus_suspended = 0;
+	hsotg->lx_state = DWC2_L0;
+	dev_dbg(hsotg->dev, "Host hibernation restore complete\n");
+	return ret;
+}
