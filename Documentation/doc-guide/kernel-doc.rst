@@ -250,10 +250,14 @@ It is possible to document nested structs and unions, like::
        * @memb2: second member of anonymous union/anonymous struct
        * @memb3: third member of anonymous union/anonymous struct
        * @memb4: fourth member of anonymous union/anonymous struct
+       * @bar: non-anonymous union
+       * @bar.st1: struct st1 inside @bar
+       * @bar.st2: struct st2 inside @bar
        * @bar.st1.memb1: first member of struct st1 on union bar
        * @bar.st1.memb2: second member of struct st1 on union bar
        * @bar.st2.memb1: first member of struct st2 on union bar
        * @bar.st2.memb2: second member of struct st2 on union bar
+       */
       struct nested_foobar {
         /* Anonymous union/struct*/
         union {
