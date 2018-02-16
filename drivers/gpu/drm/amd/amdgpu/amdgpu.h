@@ -393,8 +393,6 @@ struct dma_buf *amdgpu_gem_prime_export(struct drm_device *dev,
 					int flags);
 struct drm_gem_object *amdgpu_gem_prime_import(struct drm_device *dev,
 					    struct dma_buf *dma_buf);
-int amdgpu_gem_prime_pin(struct drm_gem_object *obj);
-void amdgpu_gem_prime_unpin(struct drm_gem_object *obj);
 struct reservation_object *amdgpu_gem_prime_res_obj(struct drm_gem_object *);
 void *amdgpu_gem_prime_vmap(struct drm_gem_object *obj);
 void amdgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
