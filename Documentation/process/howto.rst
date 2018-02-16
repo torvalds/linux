@@ -213,13 +213,6 @@ will learn the basics of getting your patch into the Linux kernel tree,
 and possibly be pointed in the direction of what to go work on next, if
 you do not already have an idea.
 
-If you already have a chunk of code that you want to put into the kernel
-tree, but need some help getting it in the proper form, the
-kernel-mentors project was created to help you out with this.  It is a
-mailing list, and can be found at:
-
-	https://selenic.com/mailman/listinfo/kernel-mentors
-
 Before making any actual modifications to the Linux kernel code, it is
 imperative to understand how the code in question works.  For this
 purpose, nothing is better than reading through it directly (most tricky
