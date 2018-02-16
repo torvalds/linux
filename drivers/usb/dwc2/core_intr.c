@@ -643,6 +643,116 @@ static u32 dwc2_read_common_intr(struct dwc2_hsotg *hsotg)
 }
 
 /*
+ * GPWRDN interrupt handler.
+ *
+ * The GPWRDN interrupts are those that occur in both Host and
+ * Device mode while core is in hibernated state.
+ */
+static void dwc2_handle_gpwrdn_intr(struct dwc2_hsotg *hsotg)
+{
+	u32 gpwrdn;
+	int linestate;
+
+	gpwrdn = dwc2_readl(hsotg->regs + GPWRDN);
+	/* clear all interrupt */
+	dwc2_writel(gpwrdn, hsotg->regs + GPWRDN);
+	linestate = (gpwrdn & GPWRDN_LINESTATE_MASK) >> GPWRDN_LINESTATE_SHIFT;
+	dev_dbg(hsotg->dev,
+		"%s: dwc2_handle_gpwrdwn_intr called gpwrdn= %08x\n", __func__,
+		gpwrdn);
+
+	if ((gpwrdn & GPWRDN_DISCONN_DET) &&
+	    (gpwrdn & GPWRDN_DISCONN_DET_MSK) && !linestate) {
+		u32 gpwrdn_tmp;
+
+		dev_dbg(hsotg->dev, "%s: GPWRDN_DISCONN_DET\n", __func__);
+
+		/* Switch-on voltage to the core */
+		gpwrdn_tmp = dwc2_readl(hsotg->regs + GPWRDN);
+		gpwrdn_tmp &= ~GPWRDN_PWRDNSWTCH;
+		dwc2_writel(gpwrdn_tmp, hsotg->regs + GPWRDN);
+		udelay(10);
+
+		/* Reset core */
+		gpwrdn_tmp = dwc2_readl(hsotg->regs + GPWRDN);
+		gpwrdn_tmp &= ~GPWRDN_PWRDNRSTN;
+		dwc2_writel(gpwrdn_tmp, hsotg->regs + GPWRDN);
+		udelay(10);
+
+		/* Disable Power Down Clamp */
+		gpwrdn_tmp = dwc2_readl(hsotg->regs + GPWRDN);
+		gpwrdn_tmp &= ~GPWRDN_PWRDNCLMP;
+		dwc2_writel(gpwrdn_tmp, hsotg->regs + GPWRDN);
+		udelay(10);
+
+		/* Deassert reset core */
+		gpwrdn_tmp = dwc2_readl(hsotg->regs + GPWRDN);
+		gpwrdn_tmp |= GPWRDN_PWRDNRSTN;
+		dwc2_writel(gpwrdn_tmp, hsotg->regs + GPWRDN);
+		udelay(10);
+
+		/* Disable PMU interrupt */
+		gpwrdn_tmp = dwc2_readl(hsotg->regs + GPWRDN);
+		gpwrdn_tmp &= ~GPWRDN_PMUINTSEL;
+		dwc2_writel(gpwrdn_tmp, hsotg->regs + GPWRDN);
+
+		/* De-assert Wakeup Logic */
+		gpwrdn_tmp = dwc2_readl(hsotg->regs + GPWRDN);
+		gpwrdn_tmp &= ~GPWRDN_PMUACTV;
+		dwc2_writel(gpwrdn_tmp, hsotg->regs + GPWRDN);
+
+		hsotg->hibernated = 0;
+
+		if (gpwrdn & GPWRDN_IDSTS) {
+			hsotg->op_state = OTG_STATE_B_PERIPHERAL;
+			dwc2_core_init(hsotg, false);
+			dwc2_enable_global_interrupts(hsotg);
+			dwc2_hsotg_core_init_disconnected(hsotg, false);
+			dwc2_hsotg_core_connect(hsotg);
+		} else {
+			hsotg->op_state = OTG_STATE_A_HOST;
+
+			/* Initialize the Core for Host mode */
+			dwc2_core_init(hsotg, false);
+			dwc2_enable_global_interrupts(hsotg);
+			dwc2_hcd_start(hsotg);
+		}
+	}
+
+	if ((gpwrdn & GPWRDN_LNSTSCHG) &&
+	    (gpwrdn & GPWRDN_LNSTSCHG_MSK) && linestate) {
+		dev_dbg(hsotg->dev, "%s: GPWRDN_LNSTSCHG\n", __func__);
+		if (hsotg->hw_params.hibernation &&
+		    hsotg->hibernated) {
+			if (gpwrdn & GPWRDN_IDSTS) {
+				dwc2_exit_hibernation(hsotg, 0, 0, 0);
+				call_gadget(hsotg, resume);
+			} else {
+				dwc2_exit_hibernation(hsotg, 1, 0, 1);
+			}
+		}
+	}
+	if ((gpwrdn & GPWRDN_RST_DET) && (gpwrdn & GPWRDN_RST_DET_MSK)) {
+		dev_dbg(hsotg->dev, "%s: GPWRDN_RST_DET\n", __func__);
+		if (!linestate && (gpwrdn & GPWRDN_BSESSVLD))
+			dwc2_exit_hibernation(hsotg, 0, 1, 0);
+	}
+	if ((gpwrdn & GPWRDN_STS_CHGINT) &&
+	    (gpwrdn & GPWRDN_STS_CHGINT_MSK) && linestate) {
+		dev_dbg(hsotg->dev, "%s: GPWRDN_STS_CHGINT\n", __func__);
+		if (hsotg->hw_params.hibernation &&
+		    hsotg->hibernated) {
+			if (gpwrdn & GPWRDN_IDSTS) {
+				dwc2_exit_hibernation(hsotg, 0, 0, 0);
+				call_gadget(hsotg, resume);
+			} else {
+				dwc2_exit_hibernation(hsotg, 1, 0, 1);
+			}
+		}
+	}
+}
+
+/*
  * Common interrupt handler
  *
  * The common interrupts are those that occur in both Host and Device mode.
@@ -671,6 +781,13 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 	gintsts = dwc2_read_common_intr(hsotg);
 	if (gintsts & ~GINTSTS_PRTINT)
 		retval = IRQ_HANDLED;
+
+	/* In case of hibernated state gintsts must not work */
+	if (hsotg->hibernated) {
+		dwc2_handle_gpwrdn_intr(hsotg);
+		retval = IRQ_HANDLED;
+		goto out;
+	}
 
 	if (gintsts & GINTSTS_MODEMIS)
 		dwc2_handle_mode_mismatch_intr(hsotg);

@@ -2241,7 +2241,7 @@ static int dwc2_hcd_endpoint_reset(struct dwc2_hsotg *hsotg,
  * @hsotg:         Programming view of the DWC_otg controller
  * @initial_setup: If true then this is the first init for this instance.
  */
-static int dwc2_core_init(struct dwc2_hsotg *hsotg, bool initial_setup)
+int dwc2_core_init(struct dwc2_hsotg *hsotg, bool initial_setup)
 {
 	u32 usbcfg, otgctl;
 	int retval;
