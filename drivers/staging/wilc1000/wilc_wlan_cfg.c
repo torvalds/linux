@@ -484,15 +484,17 @@ int wilc_wlan_cfg_get_wid_value(u16 wid, u8 *buffer, u32 buffer_size)
 		} while (1);
 	} else if (type == CFG_STR_CMD) {
 		do {
-			if (g_cfg_str[i].id == WID_NIL)
+			u32 id = g_cfg_str[i].id;
+
+			if (id == WID_NIL)
 				break;
 
-			if (g_cfg_str[i].id == wid) {
+			if (id == wid) {
 				u32 size = g_cfg_str[i].str[0] |
 						(g_cfg_str[i].str[1] << 8);
 
 				if (buffer_size >= size) {
-					if (g_cfg_str[i].id == WID_SITE_SURVEY_RESULTS)	{
+					if (id == WID_SITE_SURVEY_RESULTS) {
 						static int toggle;
 
 						i += toggle;
