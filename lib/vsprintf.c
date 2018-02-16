@@ -693,6 +693,11 @@ char *symbol_string(char *buf, char *end, void *ptr,
 #endif
 }
 
+static const struct printf_spec default_dec_spec = {
+	.base = 10,
+	.precision = -1,
+};
+
 static noinline_for_stack
 char *resource_string(char *buf, char *end, struct resource *res,
 		      struct printf_spec spec, const char *fmt)
@@ -721,11 +726,6 @@ char *resource_string(char *buf, char *end, struct resource *res,
 		.field_width = 2,
 		.precision = -1,
 		.flags = SMALL | ZEROPAD,
-	};
-	static const struct printf_spec dec_spec = {
-		.base = 10,
-		.precision = -1,
-		.flags = 0,
 	};
 	static const struct printf_spec str_spec = {
 		.field_width = -1,
@@ -760,10 +760,10 @@ char *resource_string(char *buf, char *end, struct resource *res,
 		specp = &mem_spec;
 	} else if (res->flags & IORESOURCE_IRQ) {
 		p = string(p, pend, "irq ", str_spec);
-		specp = &dec_spec;
+		specp = &default_dec_spec;
 	} else if (res->flags & IORESOURCE_DMA) {
 		p = string(p, pend, "dma ", str_spec);
-		specp = &dec_spec;
+		specp = &default_dec_spec;
 	} else if (res->flags & IORESOURCE_BUS) {
 		p = string(p, pend, "bus ", str_spec);
 		specp = &bus_spec;
@@ -903,9 +903,6 @@ char *bitmap_list_string(char *buf, char *end, unsigned long *bitmap,
 	int cur, rbot, rtop;
 	bool first = true;
 
-	/* reused to print numbers */
-	spec = (struct printf_spec){ .base = 10 };
-
 	rbot = cur = find_first_bit(bitmap, nr_bits);
 	while (cur < nr_bits) {
 		rtop = cur;
@@ -920,13 +917,13 @@ char *bitmap_list_string(char *buf, char *end, unsigned long *bitmap,
 		}
 		first = false;
 
-		buf = number(buf, end, rbot, spec);
+		buf = number(buf, end, rbot, default_dec_spec);
 		if (rbot < rtop) {
 			if (buf < end)
 				*buf = '-';
 			buf++;
 
-			buf = number(buf, end, rtop, spec);
+			buf = number(buf, end, rtop, default_dec_spec);
 		}
 
 		rbot = cur;
