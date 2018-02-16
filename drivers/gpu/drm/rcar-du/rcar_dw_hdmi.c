@@ -75,11 +75,13 @@ static int rcar_dw_hdmi_probe(struct platform_device *pdev)
 		return PTR_ERR(hdmi);
 
 	platform_set_drvdata(pdev, hdmi);
+
+	return 0;
 }
 
 static int rcar_dw_hdmi_remove(struct platform_device *pdev)
 {
-	struct dw_hdmi *hdmi = platform_get_drvdata(dev);
+	struct dw_hdmi *hdmi = platform_get_drvdata(pdev);
 
 	dw_hdmi_remove(hdmi);
 
