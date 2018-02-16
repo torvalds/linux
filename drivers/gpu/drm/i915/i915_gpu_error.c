@@ -1021,8 +1021,8 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->engine = __active_get_engine_id(&obj->frontbuffer_write);
 
 	err->gtt_offset = vma->node.start;
-	err->read_domains = obj->base.read_domains;
-	err->write_domain = obj->base.write_domain;
+	err->read_domains = obj->read_domains;
+	err->write_domain = obj->write_domain;
 	err->fence_reg = vma->fence ? vma->fence->id : -1;
 	err->tiling = i915_gem_object_get_tiling(obj);
 	err->dirty = obj->mm.dirty;

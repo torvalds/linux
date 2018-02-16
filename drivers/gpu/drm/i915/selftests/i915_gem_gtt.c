@@ -113,8 +113,8 @@ fake_dma_object(struct drm_i915_private *i915, u64 size)
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
 	i915_gem_object_init(obj, &fake_ops);
 
-	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
-	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
+	obj->write_domain = I915_GEM_DOMAIN_CPU;
+	obj->read_domains = I915_GEM_DOMAIN_CPU;
 	obj->cache_level = I915_CACHE_NONE;
 
 	/* Preallocate the "backing storage" */

@@ -150,8 +150,8 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   get_global_flag(obj),
 		   get_pin_mapped_flag(obj),
 		   obj->base.size / 1024,
-		   obj->base.read_domains,
-		   obj->base.write_domain,
+		   obj->read_domains,
+		   obj->write_domain,
 		   i915_cache_level_str(dev_priv, obj->cache_level),
 		   obj->mm.dirty ? " dirty" : "",
 		   obj->mm.madv == I915_MADV_DONTNEED ? " purgeable" : "");

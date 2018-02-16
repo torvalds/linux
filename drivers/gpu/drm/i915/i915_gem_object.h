@@ -148,6 +148,21 @@ struct drm_i915_gem_object {
 #define I915_BO_CACHE_COHERENT_FOR_WRITE BIT(1)
 	unsigned int cache_dirty:1;
 
+	/**
+	 * @read_domains: Read memory domains.
+	 *
+	 * These monitor which caches contain read/write data related to the
+	 * object. When transitioning from one set of domains to another,
+	 * the driver is called to ensure that caches are suitably flushed and
+	 * invalidated.
+	 */
+	u16 read_domains;
+
+	/**
+	 * @write_domain: Corresponding unique write memory domain.
+	 */
+	u16 write_domain;
+
 	atomic_t frontbuffer_bits;
 	unsigned int frontbuffer_ggtt_origin; /* write once */
 	struct i915_gem_active frontbuffer_write;

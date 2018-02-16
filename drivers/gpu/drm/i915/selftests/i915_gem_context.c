@@ -215,8 +215,8 @@ static int cpu_fill(struct drm_i915_gem_object *obj, u32 value)
 	}
 
 	i915_gem_obj_finish_shmem_access(obj);
-	obj->base.read_domains = I915_GEM_DOMAIN_GTT | I915_GEM_DOMAIN_CPU;
-	obj->base.write_domain = 0;
+	obj->read_domains = I915_GEM_DOMAIN_GTT | I915_GEM_DOMAIN_CPU;
+	obj->write_domain = 0;
 	return 0;
 }
 

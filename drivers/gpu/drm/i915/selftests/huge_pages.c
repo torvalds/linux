@@ -178,8 +178,8 @@ huge_pages_object(struct drm_i915_private *i915,
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
 	i915_gem_object_init(obj, &huge_page_ops);
 
-	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
-	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
+	obj->write_domain = I915_GEM_DOMAIN_CPU;
+	obj->read_domains = I915_GEM_DOMAIN_CPU;
 	obj->cache_level = I915_CACHE_NONE;
 
 	obj->mm.page_mask = page_mask;
@@ -329,8 +329,8 @@ fake_huge_pages_object(struct drm_i915_private *i915, u64 size, bool single)
 	else
 		i915_gem_object_init(obj, &fake_ops);
 
-	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
-	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
+	obj->write_domain = I915_GEM_DOMAIN_CPU;
+	obj->read_domains = I915_GEM_DOMAIN_CPU;
 	obj->cache_level = I915_CACHE_NONE;
 
 	return obj;

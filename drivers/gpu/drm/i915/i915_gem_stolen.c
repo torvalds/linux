@@ -516,7 +516,7 @@ _i915_gem_object_create_stolen(struct drm_i915_private *dev_priv,
 	i915_gem_object_init(obj, &i915_gem_object_stolen_ops);
 
 	obj->stolen = stolen;
-	obj->base.read_domains = I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT;
+	obj->read_domains = I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT;
 	cache_level = HAS_LLC(dev_priv) ? I915_CACHE_LLC : I915_CACHE_NONE;
 	i915_gem_object_set_cache_coherency(obj, cache_level);
 
