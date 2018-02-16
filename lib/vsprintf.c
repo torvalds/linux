@@ -693,6 +693,11 @@ char *symbol_string(char *buf, char *end, void *ptr,
 #endif
 }
 
+static const struct printf_spec default_str_spec = {
+	.field_width = -1,
+	.precision = -1,
+};
+
 static const struct printf_spec default_dec_spec = {
 	.base = 10,
 	.precision = -1,
@@ -1461,10 +1466,6 @@ char *format_flags(char *buf, char *end, unsigned long flags,
 					const struct trace_print_flags *names)
 {
 	unsigned long mask;
-	const struct printf_spec strspec = {
-		.field_width = -1,
-		.precision = -1,
-	};
 	const struct printf_spec numspec = {
 		.flags = SPECIAL|SMALL,
 		.field_width = -1,
@@ -1477,7 +1478,7 @@ char *format_flags(char *buf, char *end, unsigned long flags,
 		if ((flags & mask) != mask)
 			continue;
 
-		buf = string(buf, end, names->name, strspec);
+		buf = string(buf, end, names->name, default_str_spec);
 
 		flags &= ~mask;
 		if (flags) {
@@ -1535,22 +1536,18 @@ char *device_node_gen_full_name(const struct device_node *np, char *buf, char *e
 {
 	int depth;
 	const struct device_node *parent = np->parent;
-	static const struct printf_spec strspec = {
-		.field_width = -1,
-		.precision = -1,
-	};
 
 	/* special case for root node */
 	if (!parent)
-		return string(buf, end, "/", strspec);
+		return string(buf, end, "/", default_str_spec);
 
 	for (depth = 0; parent->parent; depth++)
 		parent = parent->parent;
 
 	for ( ; depth >= 0; depth--) {
-		buf = string(buf, end, "/", strspec);
+		buf = string(buf, end, "/", default_str_spec);
 		buf = string(buf, end, device_node_name_for_depth(np, depth),
-			     strspec);
+			     default_str_spec);
 	}
 	return buf;
 }
