@@ -278,6 +278,10 @@ static int atiixp_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	};
 	const struct ata_port_info *ppi[] = { &info, &info };
 
+	/* SB600 doesn't have secondary port wired */
+	if((pdev->device == PCI_DEVICE_ID_ATI_IXP600_IDE))
+		ppi[1] = &ata_dummy_port_info;
+
 	return ata_pci_bmdma_init_one(pdev, ppi, &atiixp_sht, NULL,
 				      ATA_HOST_PARALLEL_SCAN);
 }

@@ -67,10 +67,10 @@ logic applies to the "wp-inverted" property.
 CD and WP lines can be implemented on the hardware in one of two ways: as GPIOs,
 specified in cd-gpios and wp-gpios properties, or as dedicated pins. Polarity of
 dedicated pins can be specified, using *-inverted properties. GPIO polarity can
-also be specified using the OF_GPIO_ACTIVE_LOW flag. This creates an ambiguity
+also be specified using the GPIO_ACTIVE_LOW flag. This creates an ambiguity
 in the latter case. We choose to use the XOR logic for GPIO CD and WP lines.
 This means, the two properties are "superimposed," for example leaving the
-OF_GPIO_ACTIVE_LOW flag clear and specifying the respective *-inverted
+GPIO_ACTIVE_LOW flag clear and specifying the respective *-inverted property
 property results in a double-inversion and actually means the "normal" line
 polarity is in effect.
 

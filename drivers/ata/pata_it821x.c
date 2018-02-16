@@ -683,7 +683,7 @@ static u8 *it821x_firmware_command(struct ata_port *ap, u8 cmd, int len)
 			ioread16_rep(ap->ioaddr.data_addr, buf, len/2);
 			return (u8 *)buf;
 		}
-		mdelay(1);
+		usleep_range(500, 1000);
 	}
 	kfree(buf);
 	printk(KERN_ERR "it821x_firmware_command: timeout\n");

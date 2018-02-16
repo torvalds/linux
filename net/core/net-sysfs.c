@@ -295,9 +295,30 @@ static ssize_t carrier_changes_show(struct device *dev,
 	struct net_device *netdev = to_net_dev(dev);
 
 	return sprintf(buf, fmt_dec,
-		       atomic_read(&netdev->carrier_changes));
+		       atomic_read(&netdev->carrier_up_count) +
+		       atomic_read(&netdev->carrier_down_count));
 }
 static DEVICE_ATTR_RO(carrier_changes);
+
+static ssize_t carrier_up_count_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct net_device *netdev = to_net_dev(dev);
+
+	return sprintf(buf, fmt_dec, atomic_read(&netdev->carrier_up_count));
+}
+static DEVICE_ATTR_RO(carrier_up_count);
+
+static ssize_t carrier_down_count_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	struct net_device *netdev = to_net_dev(dev);
+
+	return sprintf(buf, fmt_dec, atomic_read(&netdev->carrier_down_count));
+}
+static DEVICE_ATTR_RO(carrier_down_count);
 
 /* read-write attributes */
 
@@ -325,29 +346,6 @@ static ssize_t flags_store(struct device *dev, struct device_attribute *attr,
 }
 NETDEVICE_SHOW_RW(flags, fmt_hex);
 
-static int change_tx_queue_len(struct net_device *dev, unsigned long new_len)
-{
-	unsigned int orig_len = dev->tx_queue_len;
-	int res;
-
-	if (new_len != (unsigned int)new_len)
-		return -ERANGE;
-
-	if (new_len != orig_len) {
-		dev->tx_queue_len = new_len;
-		res = call_netdevice_notifiers(NETDEV_CHANGE_TX_QUEUE_LEN, dev);
-		res = notifier_to_errno(res);
-		if (res) {
-			netdev_err(dev,
-				   "refused to change device tx_queue_len\n");
-			dev->tx_queue_len = orig_len;
-			return -EFAULT;
-		}
-	}
-
-	return 0;
-}
-
 static ssize_t tx_queue_len_store(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t len)
@@ -355,7 +353,7 @@ static ssize_t tx_queue_len_store(struct device *dev,
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	return netdev_store(dev, attr, buf, len, change_tx_queue_len);
+	return netdev_store(dev, attr, buf, len, dev_change_tx_queue_len);
 }
 NETDEVICE_SHOW_RW(tx_queue_len, fmt_dec);
 
@@ -547,6 +545,8 @@ static struct attribute *net_class_attrs[] __ro_after_init = {
 	&dev_attr_phys_port_name.attr,
 	&dev_attr_phys_switch_id.attr,
 	&dev_attr_proto_down.attr,
+	&dev_attr_carrier_up_count.attr,
+	&dev_attr_carrier_down_count.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(net_class);
@@ -961,7 +961,7 @@ net_rx_queue_update_kobjects(struct net_device *dev, int old_num, int new_num)
 	while (--i >= new_num) {
 		struct kobject *kobj = &dev->_rx[i].kobj;
 
-		if (!atomic_read(&dev_net(dev)->count))
+		if (!refcount_read(&dev_net(dev)->count))
 			kobj->uevent_suppress = 1;
 		if (dev->sysfs_rx_queue_group)
 			sysfs_remove_group(kobj, dev->sysfs_rx_queue_group);
@@ -1367,7 +1367,7 @@ netdev_queue_update_kobjects(struct net_device *dev, int old_num, int new_num)
 	while (--i >= new_num) {
 		struct netdev_queue *queue = dev->_tx + i;
 
-		if (!atomic_read(&dev_net(dev)->count))
+		if (!refcount_read(&dev_net(dev)->count))
 			queue->kobj.uevent_suppress = 1;
 #ifdef CONFIG_BQL
 		sysfs_remove_group(&queue->kobj, &dql_group);
@@ -1558,7 +1558,7 @@ void netdev_unregister_kobject(struct net_device *ndev)
 {
 	struct device *dev = &ndev->dev;
 
-	if (!atomic_read(&dev_net(ndev)->count))
+	if (!refcount_read(&dev_net(ndev)->count))
 		dev_set_uevent_suppress(dev, 1);
 
 	kobject_get(&dev->kobj);

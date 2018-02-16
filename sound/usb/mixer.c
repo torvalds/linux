@@ -656,10 +656,14 @@ static int get_term_name(struct mixer_build *state, struct usb_audio_term *iterm
 			 unsigned char *name, int maxlen, int term_only)
 {
 	struct iterm_name_combo *names;
+	int len;
 
-	if (iterm->name)
-		return snd_usb_copy_string_desc(state, iterm->name,
+	if (iterm->name) {
+		len = snd_usb_copy_string_desc(state, iterm->name,
 						name, maxlen);
+		if (len)
+			return len;
+	}
 
 	/* virtual type - not a real terminal */
 	if (iterm->type >> 16) {

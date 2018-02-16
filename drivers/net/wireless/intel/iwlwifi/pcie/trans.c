@@ -176,6 +176,13 @@ out:
 	kfree(buf);
 }
 
+static void iwl_trans_pcie_sw_reset(struct iwl_trans *trans)
+{
+	/* Reset entire device - do controller reset (results in SHRD_HW_RST) */
+	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
+	usleep_range(5000, 6000);
+}
+
 static void iwl_pcie_free_fw_monitor(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -446,7 +453,7 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 	__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
 				 CSR_GP_CNTRL_REG_FLAG_XTAL_ON);
 
-	iwl_pcie_sw_reset(trans);
+	iwl_trans_pcie_sw_reset(trans);
 
 	/*
 	 * Set "initialization complete" bit to move adapter from
@@ -487,7 +494,7 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 				 apmg_xtal_cfg_reg |
 				 SHR_APMG_XTAL_CFG_XTAL_ON_REQ);
 
-	iwl_pcie_sw_reset(trans);
+	iwl_trans_pcie_sw_reset(trans);
 
 	/* Enable LP XTAL by indirect access through CSR */
 	apmg_gp1_reg = iwl_trans_pcie_read_shr(trans, SHR_APMG_GP1_REG);
@@ -580,7 +587,7 @@ static void iwl_pcie_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 		return;
 	}
 
-	iwl_pcie_sw_reset(trans);
+	iwl_trans_pcie_sw_reset(trans);
 
 	/*
 	 * Clear "initialization complete" bit to move adapter from
@@ -915,13 +922,8 @@ static int iwl_pcie_load_cpu_sections(struct iwl_trans *trans,
 void iwl_pcie_apply_destination(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	const struct iwl_fw_dbg_dest_tlv *dest = trans->dbg_dest_tlv;
+	const struct iwl_fw_dbg_dest_tlv_v1 *dest = trans->dbg_dest_tlv;
 	int i;
-
-	if (dest->version)
-		IWL_ERR(trans,
-			"DBG DEST version is %d - expect issues\n",
-			dest->version);
 
 	IWL_INFO(trans, "Applying debug destination %s\n",
 		 get_fw_dbg_mode_string(dest->monitor_mode));
@@ -1270,7 +1272,7 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 	/* Stop the device, and put it in low power state */
 	iwl_pcie_apm_stop(trans, false);
 
-	iwl_pcie_sw_reset(trans);
+	iwl_trans_pcie_sw_reset(trans);
 
 	/*
 	 * Upon stop, the IVAR table gets erased, so msi-x won't
@@ -1744,7 +1746,7 @@ static int _iwl_trans_pcie_start_hw(struct iwl_trans *trans, bool low_power)
 		return err;
 	}
 
-	iwl_pcie_sw_reset(trans);
+	iwl_trans_pcie_sw_reset(trans);
 
 	err = iwl_pcie_apm_init(trans);
 	if (err)
@@ -2816,8 +2818,17 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 			 * Update pointers to reflect actual values after
 			 * shifting
 			 */
-			base = iwl_read_prph(trans, base) <<
-			       trans->dbg_dest_tlv->base_shift;
+			if (trans->dbg_dest_tlv->version) {
+				base = (iwl_read_prph(trans, base) &
+					IWL_LDBG_M2S_BUF_BA_MSK) <<
+				       trans->dbg_dest_tlv->base_shift;
+				base *= IWL_M2S_UNIT_SIZE;
+				base += trans->cfg->smem_offset;
+			} else {
+				base = iwl_read_prph(trans, base) <<
+				       trans->dbg_dest_tlv->base_shift;
+			}
+
 			iwl_trans_read_mem(trans, base, fw_mon_data->data,
 					   monitor_len / sizeof(u32));
 		} else if (trans->dbg_dest_tlv->monitor_mode == MARBH_MODE) {
@@ -2865,21 +2876,36 @@ static struct iwl_trans_dump_data
 		       trans_pcie->fw_mon_size;
 		monitor_len = trans_pcie->fw_mon_size;
 	} else if (trans->dbg_dest_tlv) {
-		u32 base, end;
+		u32 base, end, cfg_reg;
 
-		base = le32_to_cpu(trans->dbg_dest_tlv->base_reg);
-		end = le32_to_cpu(trans->dbg_dest_tlv->end_reg);
+		if (trans->dbg_dest_tlv->version == 1) {
+			cfg_reg = le32_to_cpu(trans->dbg_dest_tlv->base_reg);
+			cfg_reg = iwl_read_prph(trans, cfg_reg);
+			base = (cfg_reg & IWL_LDBG_M2S_BUF_BA_MSK) <<
+				trans->dbg_dest_tlv->base_shift;
+			base *= IWL_M2S_UNIT_SIZE;
+			base += trans->cfg->smem_offset;
 
-		base = iwl_read_prph(trans, base) <<
-		       trans->dbg_dest_tlv->base_shift;
-		end = iwl_read_prph(trans, end) <<
-		      trans->dbg_dest_tlv->end_shift;
+			monitor_len =
+				(cfg_reg & IWL_LDBG_M2S_BUF_SIZE_MSK) >>
+				trans->dbg_dest_tlv->end_shift;
+			monitor_len *= IWL_M2S_UNIT_SIZE;
+		} else {
+			base = le32_to_cpu(trans->dbg_dest_tlv->base_reg);
+			end = le32_to_cpu(trans->dbg_dest_tlv->end_reg);
 
-		/* Make "end" point to the actual end */
-		if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_8000 ||
-		    trans->dbg_dest_tlv->monitor_mode == MARBH_MODE)
-			end += (1 << trans->dbg_dest_tlv->end_shift);
-		monitor_len = end - base;
+			base = iwl_read_prph(trans, base) <<
+			       trans->dbg_dest_tlv->base_shift;
+			end = iwl_read_prph(trans, end) <<
+			      trans->dbg_dest_tlv->end_shift;
+
+			/* Make "end" point to the actual end */
+			if (trans->cfg->device_family >=
+			    IWL_DEVICE_FAMILY_8000 ||
+			    trans->dbg_dest_tlv->monitor_mode == MARBH_MODE)
+				end += (1 << trans->dbg_dest_tlv->end_shift);
+			monitor_len = end - base;
+		}
 		len += sizeof(*data) + sizeof(struct iwl_fw_error_dump_fw_mon) +
 		       monitor_len;
 	} else {
@@ -3025,6 +3051,7 @@ static void iwl_trans_pcie_resume(struct iwl_trans *trans)
 	.write_mem = iwl_trans_pcie_write_mem,				\
 	.configure = iwl_trans_pcie_configure,				\
 	.set_pmi = iwl_trans_pcie_set_pmi,				\
+	.sw_reset = iwl_trans_pcie_sw_reset,				\
 	.grab_nic_access = iwl_trans_pcie_grab_nic_access,		\
 	.release_nic_access = iwl_trans_pcie_release_nic_access,	\
 	.set_bits_mask = iwl_trans_pcie_set_bits_mask,			\
@@ -3250,9 +3277,9 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 		hw_status = iwl_read_prph(trans, UMAG_GEN_HW_STATUS);
 		if (hw_status & UMAG_GEN_HW_IS_FPGA)
-			trans->cfg = &iwla000_2ax_cfg_qnj_hr_f0;
+			trans->cfg = &iwl22000_2ax_cfg_qnj_hr_f0;
 		else
-			trans->cfg = &iwla000_2ac_cfg_hr;
+			trans->cfg = &iwl22000_2ac_cfg_hr;
 	}
 #endif
 

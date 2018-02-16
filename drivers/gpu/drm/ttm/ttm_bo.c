@@ -170,7 +170,8 @@ void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
 		list_add_tail(&bo->lru, &man->lru[bo->priority]);
 		kref_get(&bo->list_kref);
 
-		if (bo->ttm && !(bo->ttm->page_flags & TTM_PAGE_FLAG_SG)) {
+		if (bo->ttm && !(bo->ttm->page_flags &
+				 (TTM_PAGE_FLAG_SG | TTM_PAGE_FLAG_SWAPPED))) {
 			list_add_tail(&bo->swap,
 				      &bo->glob->swap_lru[bo->priority]);
 			kref_get(&bo->list_kref);
@@ -1726,7 +1727,7 @@ int ttm_bo_swapout(struct ttm_bo_global *glob, struct ttm_operation_ctx *ctx)
 	kref_get(&bo->list_kref);
 
 	if (!list_empty(&bo->ddestroy)) {
-		ret = ttm_bo_cleanup_refs(bo, false, false, true);
+		ret = ttm_bo_cleanup_refs(bo, false, false, locked);
 		kref_put(&bo->list_kref, ttm_bo_release_list);
 		return ret;
 	}
@@ -1779,8 +1780,8 @@ out:
 	 * Unreserve without putting on LRU to avoid swapping out an
 	 * already swapped buffer.
 	 */
-
-	reservation_object_unlock(bo->resv);
+	if (locked)
+		reservation_object_unlock(bo->resv);
 	kref_put(&bo->list_kref, ttm_bo_release_list);
 	return ret;
 }

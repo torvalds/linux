@@ -36,10 +36,10 @@
  */
 
 #include <linux/videodev2.h>
-#include <media/v4l2-tpg-colors.h>
+#include <media/tpg/v4l2-tpg.h>
 
 /* sRGB colors with range [0-255] */
-const struct color tpg_colors[TPG_COLOR_MAX] = {
+const struct tpg_rbg_color8 tpg_colors[TPG_COLOR_MAX] = {
 	/*
 	 * Colors to test colorspace conversion: converting these colors
 	 * to other colorspaces will never lead to out-of-gamut colors.
@@ -597,7 +597,7 @@ const unsigned short tpg_linear_to_rec709[255 * 16 + 1] = {
 };
 
 /* Generated table */
-const struct color16 tpg_csc_colors[V4L2_COLORSPACE_DCI_P3 + 1][V4L2_XFER_FUNC_SMPTE2084 + 1][TPG_COLOR_CSC_BLACK + 1] = {
+const struct tpg_rbg_color16 tpg_csc_colors[V4L2_COLORSPACE_DCI_P3 + 1][V4L2_XFER_FUNC_SMPTE2084 + 1][TPG_COLOR_CSC_BLACK + 1] = {
 	[V4L2_COLORSPACE_SMPTE170M][V4L2_XFER_FUNC_709][0] = { 2939, 2939, 2939 },
 	[V4L2_COLORSPACE_SMPTE170M][V4L2_XFER_FUNC_709][1] = { 2953, 2963, 586 },
 	[V4L2_COLORSPACE_SMPTE170M][V4L2_XFER_FUNC_709][2] = { 0, 2967, 2937 },
@@ -1392,7 +1392,7 @@ int main(int argc, char **argv)
 	printf("\n};\n\n");
 
 	printf("/* Generated table */\n");
-	printf("const struct color16 tpg_csc_colors[V4L2_COLORSPACE_DCI_P3 + 1][V4L2_XFER_FUNC_SMPTE2084 + 1][TPG_COLOR_CSC_BLACK + 1] = {\n");
+	printf("const struct tpg_rbg_color16 tpg_csc_colors[V4L2_COLORSPACE_DCI_P3 + 1][V4L2_XFER_FUNC_SMPTE2084 + 1][TPG_COLOR_CSC_BLACK + 1] = {\n");
 	for (c = 0; c <= V4L2_COLORSPACE_DCI_P3; c++) {
 		for (x = 1; x <= V4L2_XFER_FUNC_SMPTE2084; x++) {
 			for (i = 0; i <= TPG_COLOR_CSC_BLACK; i++) {

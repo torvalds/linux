@@ -100,7 +100,7 @@ static int lm75_read(struct device *dev, enum hwmon_sensor_types type,
 		switch (attr) {
 		case hwmon_chip_update_interval:
 			*val = data->sample_time;
-			break;;
+			break;
 		default:
 			return -EINVAL;
 		}

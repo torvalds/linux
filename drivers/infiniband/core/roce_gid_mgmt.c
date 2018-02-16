@@ -410,15 +410,18 @@ static void enum_all_gids_of_dev_cb(struct ib_device *ib_dev,
 	rtnl_unlock();
 }
 
-/* This function will rescan all of the network devices in the system
- * and add their gids, as needed, to the relevant RoCE devices. */
-int roce_rescan_device(struct ib_device *ib_dev)
+/**
+ * rdma_roce_rescan_device - Rescan all of the network devices in the system
+ * and add their gids, as needed, to the relevant RoCE devices.
+ *
+ * @device:         the rdma device
+ */
+void rdma_roce_rescan_device(struct ib_device *ib_dev)
 {
 	ib_enum_roce_netdev(ib_dev, pass_all_filter, NULL,
 			    enum_all_gids_of_dev_cb, NULL);
-
-	return 0;
 }
+EXPORT_SYMBOL(rdma_roce_rescan_device);
 
 static void callback_for_addr_gid_device_scan(struct ib_device *device,
 					      u8 port,

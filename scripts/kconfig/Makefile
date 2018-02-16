@@ -34,6 +34,8 @@ config: $(obj)/conf
 nconfig: $(obj)/nconf
 	$< $(silent) $(Kconfig)
 
+# This has become an internal implementation detail and is now deprecated
+# for external use.
 silentoldconfig: $(obj)/conf
 	$(Q)mkdir -p include/config include/generated
 	$(Q)test -e include/generated/autoksyms.h || \
@@ -92,6 +94,8 @@ PHONY += oldnoconfig savedefconfig defconfig
 # on its behavior (sets new symbols to their default value but not 'n') with the
 # counter-intuitive name.
 oldnoconfig: olddefconfig
+	@echo "  WARNING: \"oldnoconfig\" target will be removed after Linux 4.19"
+	@echo "            Please use \"olddefconfig\" instead, which is an alias."
 
 savedefconfig: $(obj)/conf
 	$< $(silent) --$@=defconfig $(Kconfig)
@@ -142,7 +146,6 @@ help:
 	@echo  '  oldconfig	  - Update current config utilising a provided .config as base'
 	@echo  '  localmodconfig  - Update current config disabling modules not loaded'
 	@echo  '  localyesconfig  - Update current config converting local mods to core'
-	@echo  '  silentoldconfig - Same as oldconfig, but quietly, additionally update deps'
 	@echo  '  defconfig	  - New config with default from ARCH supplied defconfig'
 	@echo  '  savedefconfig   - Save current config as ./defconfig (minimal config)'
 	@echo  '  allnoconfig	  - New config where all options are answered with no'
@@ -151,8 +154,8 @@ help:
 	@echo  '  alldefconfig    - New config with all symbols set to default'
 	@echo  '  randconfig	  - New config with random answer to all options'
 	@echo  '  listnewconfig   - List new options'
-	@echo  '  olddefconfig	  - Same as silentoldconfig but sets new symbols to their'
-	@echo  '                    default value'
+	@echo  '  olddefconfig	  - Same as oldconfig but sets new symbols to their'
+	@echo  '                    default value without prompting'
 	@echo  '  kvmconfig	  - Enable additional options for kvm guest kernel support'
 	@echo  '  xenconfig       - Enable additional options for xen dom0 and guest kernel support'
 	@echo  '  tinyconfig	  - Configure the tiniest possible kernel'
@@ -191,6 +194,7 @@ gconf-objs	:= gconf.o zconf.tab.o
 
 hostprogs-y := conf nconf mconf kxgettext qconf gconf
 
+targets		+= zconf.tab.c zconf.lex.c
 clean-files	:= qconf.moc .tmp_qtcheck .tmp_gtkcheck
 clean-files	+= zconf.tab.c zconf.lex.c gconf.glade.h
 clean-files     += config.pot linux.pot
@@ -205,13 +209,11 @@ always := dochecklxdialog
 
 # Add environment specific flags
 HOST_EXTRACFLAGS += $(shell $(CONFIG_SHELL) $(srctree)/$(src)/check.sh $(HOSTCC) $(HOSTCFLAGS))
+HOST_EXTRACXXFLAGS += $(shell $(CONFIG_SHELL) $(srctree)/$(src)/check.sh $(HOSTCXX) $(HOSTCXXFLAGS))
 
 # generated files seem to need this to find local include files
 HOSTCFLAGS_zconf.lex.o	:= -I$(src)
 HOSTCFLAGS_zconf.tab.o	:= -I$(src)
-
-LEX_PREFIX_zconf	:= zconf
-YACC_PREFIX_zconf	:= zconf
 
 HOSTLOADLIBES_qconf	= $(KC_QT_LIBS)
 HOSTCXXFLAGS_qconf.o	= $(KC_QT_CFLAGS)

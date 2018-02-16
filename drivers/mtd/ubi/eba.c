@@ -384,7 +384,7 @@ static int leb_write_lock(struct ubi_device *ubi, int vol_id, int lnum)
 }
 
 /**
- * leb_write_lock - lock logical eraseblock for writing.
+ * leb_write_trylock - try to lock logical eraseblock for writing.
  * @ubi: UBI device description object
  * @vol_id: volume ID
  * @lnum: logical eraseblock number

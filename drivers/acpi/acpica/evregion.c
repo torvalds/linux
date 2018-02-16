@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -298,6 +298,16 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 		ACPI_EXCEPTION((AE_INFO, status, "Returned by Handler for [%s]",
 				acpi_ut_get_region_name(region_obj->region.
 							space_id)));
+
+		/*
+		 * Special case for an EC timeout. These are seen so frequently
+		 * that an additional error message is helpful
+		 */
+		if ((region_obj->region.space_id == ACPI_ADR_SPACE_EC) &&
+		    (status == AE_TIME)) {
+			ACPI_ERROR((AE_INFO,
+				    "Timeout from EC hardware or EC device driver"));
+		}
 	}
 
 	if (!(handler_desc->address_space.handler_flags &

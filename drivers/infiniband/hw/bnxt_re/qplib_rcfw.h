@@ -167,7 +167,7 @@ struct bnxt_qplib_rcfw {
 #define FIRMWARE_TIMED_OUT		3
 	wait_queue_head_t	waitq;
 	int			(*aeq_handler)(struct bnxt_qplib_rcfw *,
-					       struct creq_func_event *);
+					       void *, void *);
 	u32			seq_num;
 
 	/* Bar region info */
@@ -199,9 +199,8 @@ int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
 				   struct bnxt_qplib_rcfw *rcfw,
 				   int msix_vector,
 				   int cp_bar_reg_off, int virt_fn,
-				   int (*aeq_handler)
-					(struct bnxt_qplib_rcfw *,
-					 struct creq_func_event *));
+				   int (*aeq_handler)(struct bnxt_qplib_rcfw *,
+						      void *aeqe, void *obj));
 
 struct bnxt_qplib_rcfw_sbuf *bnxt_qplib_rcfw_alloc_sbuf(
 				struct bnxt_qplib_rcfw *rcfw,

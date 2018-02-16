@@ -38,7 +38,8 @@ static struct sk_buff **esp4_gro_receive(struct sk_buff **head,
 	__be32 spi;
 	int err;
 
-	skb_pull(skb, offset);
+	if (!pskb_pull(skb, offset))
+		return NULL;
 
 	if ((err = xfrm_parse_spi(skb, IPPROTO_ESP, &spi, &seq)) != 0)
 		goto out;
@@ -108,75 +109,39 @@ static void esp4_gso_encap(struct xfrm_state *x, struct sk_buff *skb)
 static struct sk_buff *esp4_gso_segment(struct sk_buff *skb,
 				        netdev_features_t features)
 {
-	__u32 seq;
-	int err = 0;
-	struct sk_buff *skb2;
 	struct xfrm_state *x;
 	struct ip_esp_hdr *esph;
 	struct crypto_aead *aead;
-	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	netdev_features_t esp_features = features;
 	struct xfrm_offload *xo = xfrm_offload(skb);
 
 	if (!xo)
-		goto out;
+		return ERR_PTR(-EINVAL);
 
-	seq = xo->seq.low;
+	if (!(skb_shinfo(skb)->gso_type & SKB_GSO_ESP))
+		return ERR_PTR(-EINVAL);
 
 	x = skb->sp->xvec[skb->sp->len - 1];
 	aead = x->data;
 	esph = ip_esp_hdr(skb);
 
 	if (esph->spi != x->id.spi)
-		goto out;
+		return ERR_PTR(-EINVAL);
 
 	if (!pskb_may_pull(skb, sizeof(*esph) + crypto_aead_ivsize(aead)))
-		goto out;
+		return ERR_PTR(-EINVAL);
 
 	__skb_pull(skb, sizeof(*esph) + crypto_aead_ivsize(aead));
 
 	skb->encap_hdr_csum = 1;
 
-	if (!(features & NETIF_F_HW_ESP))
+	if (!(features & NETIF_F_HW_ESP) || !x->xso.offload_handle ||
+	    (x->xso.dev != skb->dev))
 		esp_features = features & ~(NETIF_F_SG | NETIF_F_CSUM_MASK);
 
-	segs = x->outer_mode->gso_segment(x, skb, esp_features);
-	if (IS_ERR_OR_NULL(segs))
-		goto out;
+	xo->flags |= XFRM_GSO_SEGMENT;
 
-	__skb_pull(skb, skb->data - skb_mac_header(skb));
-
-	skb2 = segs;
-	do {
-		struct sk_buff *nskb = skb2->next;
-
-		xo = xfrm_offload(skb2);
-		xo->flags |= XFRM_GSO_SEGMENT;
-		xo->seq.low = seq;
-		xo->seq.hi = xfrm_replay_seqhi(x, seq);
-
-		if(!(features & NETIF_F_HW_ESP))
-			xo->flags |= CRYPTO_FALLBACK;
-
-		x->outer_mode->xmit(x, skb2);
-
-		err = x->type_offload->xmit(x, skb2, esp_features);
-		if (err) {
-			kfree_skb_list(segs);
-			return ERR_PTR(err);
-		}
-
-		if (!skb_is_gso(skb2))
-			seq++;
-		else
-			seq += skb_shinfo(skb2)->gso_segs;
-
-		skb_push(skb2, skb2->mac_len);
-		skb2 = nskb;
-	} while (skb2);
-
-out:
-	return segs;
+	return x->outer_mode->gso_segment(x, skb, esp_features);
 }
 
 static int esp_input_tail(struct xfrm_state *x, struct sk_buff *skb)
@@ -203,6 +168,7 @@ static int esp_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features_
 	struct crypto_aead *aead;
 	struct esp_info esp;
 	bool hw_offload = true;
+	__u32 seq;
 
 	esp.inplace = true;
 
@@ -241,22 +207,29 @@ static int esp_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features_
 			return esp.nfrags;
 	}
 
+	seq = xo->seq.low;
+
 	esph = esp.esph;
 	esph->spi = x->id.spi;
 
 	skb_push(skb, -skb_network_offset(skb));
 
 	if (xo->flags & XFRM_GSO_SEGMENT) {
-		esph->seq_no = htonl(xo->seq.low);
-	} else {
-		ip_hdr(skb)->tot_len = htons(skb->len);
-		ip_send_check(ip_hdr(skb));
+		esph->seq_no = htonl(seq);
+
+		if (!skb_is_gso(skb))
+			xo->seq.low++;
+		else
+			xo->seq.low += skb_shinfo(skb)->gso_segs;
 	}
+
+	esp.seqno = cpu_to_be64(seq + ((u64)xo->seq.hi << 32));
+
+	ip_hdr(skb)->tot_len = htons(skb->len);
+	ip_send_check(ip_hdr(skb));
 
 	if (hw_offload)
 		return 0;
-
-	esp.seqno = cpu_to_be64(xo->seq.low + ((u64)xo->seq.hi << 32));
 
 	err = esp_output_tail(x, skb, &esp);
 	if (err)

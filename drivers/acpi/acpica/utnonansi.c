@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -140,7 +140,7 @@ int acpi_ut_stricmp(char *string1, char *string2)
 	return (c1 - c2);
 }
 
-#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION)
+#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION) || defined (ACPI_DEBUG_OUTPUT)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_safe_strcpy, acpi_ut_safe_strcat, acpi_ut_safe_strncat
@@ -199,4 +199,13 @@ acpi_ut_safe_strncat(char *dest,
 	strncat(dest, source, max_transfer_length);
 	return (FALSE);
 }
+
+void acpi_ut_safe_strncpy(char *dest, char *source, acpi_size dest_size)
+{
+	/* Always terminate destination string */
+
+	strncpy(dest, source, dest_size);
+	dest[dest_size - 1] = 0;
+}
+
 #endif

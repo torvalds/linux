@@ -1185,8 +1185,7 @@ static int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
 
 static int
 mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
-			    const struct switchdev_obj_port_vlan *vlan,
-			    struct switchdev_trans *trans)
+			    const struct switchdev_obj_port_vlan *vlan)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
@@ -1295,8 +1294,7 @@ static int _mv88e6xxx_port_vlan_add(struct mv88e6xxx_chip *chip, int port,
 }
 
 static void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
-				    const struct switchdev_obj_port_vlan *vlan,
-				    struct switchdev_trans *trans)
+				    const struct switchdev_obj_port_vlan *vlan)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
@@ -1725,9 +1723,11 @@ static int mv88e6xxx_setup_message_port(struct mv88e6xxx_chip *chip, int port)
 
 static int mv88e6xxx_setup_egress_floods(struct mv88e6xxx_chip *chip, int port)
 {
-	bool flood = port == dsa_upstream_port(chip->ds);
+	struct dsa_switch *ds = chip->ds;
+	bool flood;
 
 	/* Upstream ports flood frames with unknown unicast or multicast DA */
+	flood = dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port);
 	if (chip->info->ops->port_set_egress_floods)
 		return chip->info->ops->port_set_egress_floods(chip, port,
 							       flood, flood);
@@ -1740,6 +1740,39 @@ static int mv88e6xxx_serdes_power(struct mv88e6xxx_chip *chip, int port,
 {
 	if (chip->info->ops->serdes_power)
 		return chip->info->ops->serdes_power(chip, port, on);
+
+	return 0;
+}
+
+static int mv88e6xxx_setup_upstream_port(struct mv88e6xxx_chip *chip, int port)
+{
+	struct dsa_switch *ds = chip->ds;
+	int upstream_port;
+	int err;
+
+	upstream_port = dsa_upstream_port(ds, port);
+	if (chip->info->ops->port_set_upstream_port) {
+		err = chip->info->ops->port_set_upstream_port(chip, port,
+							      upstream_port);
+		if (err)
+			return err;
+	}
+
+	if (port == upstream_port) {
+		if (chip->info->ops->set_cpu_port) {
+			err = chip->info->ops->set_cpu_port(chip,
+							    upstream_port);
+			if (err)
+				return err;
+		}
+
+		if (chip->info->ops->set_egress_port) {
+			err = chip->info->ops->set_egress_port(chip,
+							       upstream_port);
+			if (err)
+				return err;
+		}
+	}
 
 	return 0;
 }
@@ -1814,13 +1847,9 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	if (err)
 		return err;
 
-	reg = 0;
-	if (chip->info->ops->port_set_upstream_port) {
-		err = chip->info->ops->port_set_upstream_port(
-			chip, port, dsa_upstream_port(ds));
-		if (err)
-			return err;
-	}
+	err = mv88e6xxx_setup_upstream_port(chip, port);
+	if (err)
+		return err;
 
 	err = mv88e6xxx_port_set_8021q_mode(chip, port,
 				MV88E6XXX_PORT_CTL2_8021Q_MODE_DISABLED);
@@ -1946,20 +1975,7 @@ static int mv88e6xxx_set_ageing_time(struct dsa_switch *ds,
 static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 {
 	struct dsa_switch *ds = chip->ds;
-	u32 upstream_port = dsa_upstream_port(ds);
 	int err;
-
-	if (chip->info->ops->set_cpu_port) {
-		err = chip->info->ops->set_cpu_port(chip, upstream_port);
-		if (err)
-			return err;
-	}
-
-	if (chip->info->ops->set_egress_port) {
-		err = chip->info->ops->set_egress_port(chip, upstream_port);
-		if (err)
-			return err;
-	}
 
 	/* Disable remote management, and set the switch's DSA device number. */
 	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL2,
@@ -3741,6 +3757,7 @@ static enum dsa_tag_protocol mv88e6xxx_get_tag_protocol(struct dsa_switch *ds,
 	return chip->info->tag_protocol;
 }
 
+#if IS_ENABLED(CONFIG_NET_DSA_LEGACY)
 static const char *mv88e6xxx_drv_probe(struct device *dsa_dev,
 				       struct device *host_dev, int sw_addr,
 				       void **priv)
@@ -3788,10 +3805,10 @@ free:
 
 	return NULL;
 }
+#endif
 
 static int mv88e6xxx_port_mdb_prepare(struct dsa_switch *ds, int port,
-				      const struct switchdev_obj_port_mdb *mdb,
-				      struct switchdev_trans *trans)
+				      const struct switchdev_obj_port_mdb *mdb)
 {
 	/* We don't need any dynamic resource from the kernel (yet),
 	 * so skip the prepare phase.
@@ -3801,8 +3818,7 @@ static int mv88e6xxx_port_mdb_prepare(struct dsa_switch *ds, int port,
 }
 
 static void mv88e6xxx_port_mdb_add(struct dsa_switch *ds, int port,
-				   const struct switchdev_obj_port_mdb *mdb,
-				   struct switchdev_trans *trans)
+				   const struct switchdev_obj_port_mdb *mdb)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 
@@ -3829,7 +3845,9 @@ static int mv88e6xxx_port_mdb_del(struct dsa_switch *ds, int port,
 }
 
 static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
+#if IS_ENABLED(CONFIG_NET_DSA_LEGACY)
 	.probe			= mv88e6xxx_drv_probe,
+#endif
 	.get_tag_protocol	= mv88e6xxx_get_tag_protocol,
 	.setup			= mv88e6xxx_setup,
 	.adjust_link		= mv88e6xxx_adjust_link,
@@ -3958,11 +3976,19 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 			if (err)
 				goto out_g1_irq;
 		}
+
+		err = mv88e6xxx_g1_atu_prob_irq_setup(chip);
+		if (err)
+			goto out_g2_irq;
+
+		err = mv88e6xxx_g1_vtu_prob_irq_setup(chip);
+		if (err)
+			goto out_g1_atu_prob_irq;
 	}
 
 	err = mv88e6xxx_mdios_register(chip, np);
 	if (err)
-		goto out_g2_irq;
+		goto out_g1_vtu_prob_irq;
 
 	err = mv88e6xxx_register_switch(chip);
 	if (err)
@@ -3972,6 +3998,12 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 
 out_mdio:
 	mv88e6xxx_mdios_unregister(chip);
+out_g1_vtu_prob_irq:
+	if (chip->irq > 0)
+		mv88e6xxx_g1_vtu_prob_irq_free(chip);
+out_g1_atu_prob_irq:
+	if (chip->irq > 0)
+		mv88e6xxx_g1_atu_prob_irq_free(chip);
 out_g2_irq:
 	if (chip->info->g2_irqs > 0 && chip->irq > 0)
 		mv88e6xxx_g2_irq_free(chip);
@@ -3995,6 +4027,8 @@ static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 	mv88e6xxx_mdios_unregister(chip);
 
 	if (chip->irq > 0) {
+		mv88e6xxx_g1_vtu_prob_irq_free(chip);
+		mv88e6xxx_g1_atu_prob_irq_free(chip);
 		if (chip->info->g2_irqs > 0)
 			mv88e6xxx_g2_irq_free(chip);
 		mutex_lock(&chip->reg_lock);

@@ -585,8 +585,8 @@ static int amdgpu_vce_validate_bo(struct amdgpu_cs_parser *p, uint32_t ib_idx,
 
 	for (i = 0; i < bo->placement.num_placement; ++i) {
 		bo->placements[i].fpfn = max(bo->placements[i].fpfn, fpfn);
-		bo->placements[i].lpfn = bo->placements[i].fpfn ?
-			min(bo->placements[i].fpfn, lpfn) : lpfn;
+		bo->placements[i].lpfn = bo->placements[i].lpfn ?
+			min(bo->placements[i].lpfn, lpfn) : lpfn;
 	}
 	return ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 }

@@ -25,7 +25,7 @@ perf-y += builtin-data.o
 perf-y += builtin-version.o
 perf-y += builtin-c2c.o
 
-perf-$(CONFIG_AUDIT) += builtin-trace.o
+perf-$(CONFIG_TRACE) += builtin-trace.o
 perf-$(CONFIG_LIBELF) += builtin-probe.o
 
 perf-y += bench/
@@ -50,6 +50,6 @@ libperf-y += util/
 libperf-y += arch/
 libperf-y += ui/
 libperf-y += scripts/
-libperf-$(CONFIG_AUDIT) += trace/beauty/
+libperf-$(CONFIG_TRACE) += trace/beauty/
 
 gtk-y += ui/gtk/

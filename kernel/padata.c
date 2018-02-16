@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * padata.c - generic interface to process data streams in parallel
  *

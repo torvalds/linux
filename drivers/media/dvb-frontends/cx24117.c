@@ -32,7 +32,7 @@
 #include <linux/firmware.h>
 
 #include "tuner-i2c.h"
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "cx24117.h"
 
 

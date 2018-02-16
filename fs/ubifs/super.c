@@ -379,9 +379,7 @@ out:
 	}
 done:
 	clear_inode(inode);
-#ifdef CONFIG_UBIFS_FS_ENCRYPTION
-	fscrypt_put_encryption_info(inode, NULL);
-#endif
+	fscrypt_put_encryption_info(inode);
 }
 
 static void ubifs_dirty_inode(struct inode *inode, int flags)

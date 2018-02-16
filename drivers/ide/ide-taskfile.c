@@ -232,7 +232,6 @@ void ide_pio_bytes(ide_drive_t *drive, struct ide_cmd *cmd,
 	unsigned int offset;
 	u8 *buf;
 
-	cursg = cmd->cursg;
 	if (cursg == NULL)
 		cursg = cmd->cursg = sg;
 

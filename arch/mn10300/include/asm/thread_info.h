@@ -79,8 +79,6 @@ struct thread_info {
 	.addr_limit	= KERNEL_DS,		\
 }
 
-#define init_thread_info	(init_thread_union.thread_info)
-#define init_stack		(init_thread_union.stack)
 #define init_uregs							\
 	((struct pt_regs *)						\
 	 ((unsigned long) init_stack + THREAD_SIZE - sizeof(struct pt_regs)))

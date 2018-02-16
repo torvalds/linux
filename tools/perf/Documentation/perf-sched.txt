@@ -74,6 +74,10 @@ OPTIONS
 --dump-raw-trace=::
         Display verbose dump of the sched data.
 
+-f::
+--force::
+	Don't complain, do it.
+
 OPTIONS for 'perf sched map'
 ----------------------------
 

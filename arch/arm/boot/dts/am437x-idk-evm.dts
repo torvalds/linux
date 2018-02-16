@@ -519,3 +519,17 @@
 &cpu {
 	cpu0-supply = <&tps>;
 };
+
+&cpu0_opp_table {
+	/*
+	 * Supply voltage supervisor on board will not allow opp50 so
+	 * disable it and set opp100 as suspend OPP.
+	 */
+	opp50@300000000 {
+		status = "disabled";
+	};
+
+	opp100@600000000 {
+		opp-suspend;
+	};
+};

@@ -77,7 +77,7 @@ include ../scripts/utilities.mak
 #
 # Define NO_ZLIB if you do not want to support compressed kernel modules
 #
-# Define LIBBABELTRACE if you DO want libbabeltrace support
+# Define NO_LIBBABELTRACE if you do not want libbabeltrace support
 # for CTF data format.
 #
 # Define NO_LZMA if you do not want to support compressed (xz) kernel modules
@@ -97,6 +97,8 @@ include ../scripts/utilities.mak
 # Define LIBCLANGLLVM if you DO want builtin clang and llvm support.
 # When selected, pass LLVM_CONFIG=/path/to/llvm-config to `make' if
 # llvm-config is not in $PATH.
+
+# Define NO_CORESIGHT if you do not want support for CoreSight trace decoding.
 
 # As per kernel Makefile, avoid funny character set dependencies
 unexport LC_ALL
@@ -462,6 +464,13 @@ prctl_option_tbl := $(srctree)/tools/perf/trace/beauty/prctl_option.sh
 $(prctl_option_array): $(prctl_hdr_dir)/prctl.h $(prctl_option_tbl)
 	$(Q)$(SHELL) '$(prctl_option_tbl)' $(prctl_hdr_dir) > $@
 
+arch_errno_name_array := $(beauty_outdir)/arch_errno_name_array.c
+arch_errno_hdr_dir := $(srctree)/tools
+arch_errno_tbl := $(srctree)/tools/perf/trace/beauty/arch_errno_names.sh
+
+$(arch_errno_name_array): $(arch_errno_tbl)
+	$(Q)$(SHELL) '$(arch_errno_tbl)' $(CC) $(arch_errno_hdr_dir) > $@
+
 all: shell_compatibility_test $(ALL_PROGRAMS) $(LANG_BINDINGS) $(OTHER_PROGRAMS)
 
 $(OUTPUT)python/perf.so: $(PYTHON_EXT_SRCS) $(PYTHON_EXT_DEPS) $(LIBTRACEEVENT_DYNAMIC_LIST)
@@ -565,7 +574,8 @@ prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders $(drm_ioc
 	$(vhost_virtio_ioctl_array) \
 	$(madvise_behavior_array) \
 	$(perf_ioctl_array) \
-	$(prctl_option_array)
+	$(prctl_option_array) \
+	$(arch_errno_name_array)
 
 $(OUTPUT)%.o: %.c prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
@@ -847,7 +857,8 @@ clean:: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clea
 		$(OUTPUT)$(kcmp_type_array) \
 		$(OUTPUT)$(vhost_virtio_ioctl_array) \
 		$(OUTPUT)$(perf_ioctl_array) \
-		$(OUTPUT)$(prctl_option_array)
+		$(OUTPUT)$(prctl_option_array) \
+		$(OUTPUT)$(arch_errno_name_array)
 	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) clean
 
 #

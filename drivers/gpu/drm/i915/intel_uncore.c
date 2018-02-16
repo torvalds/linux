@@ -1452,7 +1452,7 @@ static const struct reg_whitelist {
 } reg_read_whitelist[] = { {
 	.offset_ldw = RING_TIMESTAMP(RENDER_RING_BASE),
 	.offset_udw = RING_TIMESTAMP_UDW(RENDER_RING_BASE),
-	.gen_mask = INTEL_GEN_MASK(4, 10),
+	.gen_mask = INTEL_GEN_MASK(4, 11),
 	.size = 8
 } };
 
@@ -1767,12 +1767,14 @@ int __intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
 }
 
 /**
- * intel_wait_for_register - wait until register matches expected state
+ * __intel_wait_for_register - wait until register matches expected state
  * @dev_priv: the i915 device
  * @reg: the register to read
  * @mask: mask to apply to register value
  * @value: expected value
- * @timeout_ms: timeout in millisecond
+ * @fast_timeout_us: fast timeout in microsecond for atomic/tight wait
+ * @slow_timeout_ms: slow timeout in millisecond
+ * @out_value: optional placeholder to hold registry value
  *
  * This routine waits until the target register @reg contains the expected
  * @value after applying the @mask, i.e. it waits until ::
@@ -1783,14 +1785,17 @@ int __intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
  *
  * Returns 0 if the register matches the desired condition, or -ETIMEOUT.
  */
-int intel_wait_for_register(struct drm_i915_private *dev_priv,
+int __intel_wait_for_register(struct drm_i915_private *dev_priv,
 			    i915_reg_t reg,
 			    u32 mask,
 			    u32 value,
-			    unsigned int timeout_ms)
+			    unsigned int fast_timeout_us,
+			    unsigned int slow_timeout_ms,
+			    u32 *out_value)
 {
 	unsigned fw =
 		intel_uncore_forcewake_for_reg(dev_priv, reg, FW_REG_READ);
+	u32 reg_value;
 	int ret;
 
 	might_sleep();
@@ -1800,14 +1805,18 @@ int intel_wait_for_register(struct drm_i915_private *dev_priv,
 
 	ret = __intel_wait_for_register_fw(dev_priv,
 					   reg, mask, value,
-					   2, 0, NULL);
+					   fast_timeout_us, 0, &reg_value);
 
 	intel_uncore_forcewake_put__locked(dev_priv, fw);
 	spin_unlock_irq(&dev_priv->uncore.lock);
 
 	if (ret)
-		ret = wait_for((I915_READ_NOTRACE(reg) & mask) == value,
-			       timeout_ms);
+		ret = __wait_for(reg_value = I915_READ_NOTRACE(reg),
+				 (reg_value & mask) == value,
+				 slow_timeout_ms * 1000, 10, 1000);
+
+	if (out_value)
+		*out_value = reg_value;
 
 	return ret;
 }
@@ -1936,8 +1945,7 @@ int intel_reset_guc(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	if (!HAS_GUC(dev_priv))
-		return -EINVAL;
+	GEM_BUG_ON(!HAS_GUC(dev_priv));
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 	ret = gen6_hw_domain_reset(dev_priv, GEN9_GRDOM_GUC);

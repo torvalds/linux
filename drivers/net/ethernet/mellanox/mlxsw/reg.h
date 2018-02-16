@@ -4827,6 +4827,42 @@ static inline void mlxsw_reg_ratr_counter_pack(char *payload, u64 counter_index,
 	mlxsw_reg_ratr_counter_set_type_set(payload, set_type);
 }
 
+/* RDPM - Router DSCP to Priority Mapping
+ * --------------------------------------
+ * Controls the mapping from DSCP field to switch priority on routed packets
+ */
+#define MLXSW_REG_RDPM_ID 0x8009
+#define MLXSW_REG_RDPM_BASE_LEN 0x00
+#define MLXSW_REG_RDPM_DSCP_ENTRY_REC_LEN 0x01
+#define MLXSW_REG_RDPM_DSCP_ENTRY_REC_MAX_COUNT 64
+#define MLXSW_REG_RDPM_LEN 0x40
+#define MLXSW_REG_RDPM_LAST_ENTRY (MLXSW_REG_RDPM_BASE_LEN + \
+				   MLXSW_REG_RDPM_LEN - \
+				   MLXSW_REG_RDPM_DSCP_ENTRY_REC_LEN)
+
+MLXSW_REG_DEFINE(rdpm, MLXSW_REG_RDPM_ID, MLXSW_REG_RDPM_LEN);
+
+/* reg_dscp_entry_e
+ * Enable update of the specific entry
+ * Access: Index
+ */
+MLXSW_ITEM8_INDEXED(reg, rdpm, dscp_entry_e, MLXSW_REG_RDPM_LAST_ENTRY, 7, 1,
+		    -MLXSW_REG_RDPM_DSCP_ENTRY_REC_LEN, 0x00, false);
+
+/* reg_dscp_entry_prio
+ * Switch Priority
+ * Access: RW
+ */
+MLXSW_ITEM8_INDEXED(reg, rdpm, dscp_entry_prio, MLXSW_REG_RDPM_LAST_ENTRY, 0, 4,
+		    -MLXSW_REG_RDPM_DSCP_ENTRY_REC_LEN, 0x00, false);
+
+static inline void mlxsw_reg_rdpm_pack(char *payload, unsigned short index,
+				       u8 prio)
+{
+	mlxsw_reg_rdpm_dscp_entry_e_set(payload, index, 1);
+	mlxsw_reg_rdpm_dscp_entry_prio_set(payload, index, prio);
+}
+
 /* RICNT - Router Interface Counter Register
  * -----------------------------------------
  * The RICNT register retrieves per port performance counters
@@ -7640,6 +7676,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(rtar),
 	MLXSW_REG(ratr),
 	MLXSW_REG(rtdp),
+	MLXSW_REG(rdpm),
 	MLXSW_REG(ricnt),
 	MLXSW_REG(rrcr),
 	MLXSW_REG(ralta),

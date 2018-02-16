@@ -970,12 +970,16 @@ static void amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
 	amdgpu_gart_get_vm_pde(p->adev, AMDGPU_VM_PDB0,
 			       &dst, &flags);
 
-	if (parent->base.bo->shadow) {
-		pd_addr = amdgpu_bo_gpu_offset(parent->base.bo->shadow);
-		pde = pd_addr + (entry - parent->entries) * 8;
-		p->func(p, pde, dst, 1, 0, flags);
+	if (p->func == amdgpu_vm_cpu_set_ptes) {
+		pd_addr = (unsigned long)amdgpu_bo_kptr(parent->base.bo);
+	} else {
+		if (parent->base.bo->shadow) {
+			pd_addr = amdgpu_bo_gpu_offset(parent->base.bo->shadow);
+			pde = pd_addr + (entry - parent->entries) * 8;
+			p->func(p, pde, dst, 1, 0, flags);
+		}
+		pd_addr = amdgpu_bo_gpu_offset(parent->base.bo);
 	}
-	pd_addr = amdgpu_bo_gpu_offset(parent->base.bo);
 	pde = pd_addr + (entry - parent->entries) * 8;
 	p->func(p, pde, dst, 1, 0, flags);
 }
@@ -2258,12 +2262,12 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 {
 	const unsigned align = min(AMDGPU_VM_PTB_ALIGN_SIZE,
 		AMDGPU_VM_PTE_COUNT(adev) * 8);
+	uint64_t init_pde_value = 0, flags;
 	unsigned ring_instance;
 	struct amdgpu_ring *ring;
 	struct drm_sched_rq *rq;
+	unsigned long size;
 	int r, i;
-	u64 flags;
-	uint64_t init_pde_value = 0;
 
 	vm->va = RB_ROOT_CACHED;
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; i++)
@@ -2314,29 +2318,21 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		flags |= (AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
 				AMDGPU_GEM_CREATE_SHADOW);
 
-	r = amdgpu_bo_create(adev,
-			     amdgpu_vm_bo_size(adev, adev->vm_manager.root_level),
-			     align, true,
-			     AMDGPU_GEM_DOMAIN_VRAM,
-			     flags,
-			     NULL, NULL, init_pde_value, &vm->root.base.bo);
+	size = amdgpu_vm_bo_size(adev, adev->vm_manager.root_level);
+	r = amdgpu_bo_create(adev, size, align, true, AMDGPU_GEM_DOMAIN_VRAM,
+			     flags, NULL, NULL, init_pde_value,
+			     &vm->root.base.bo);
 	if (r)
 		goto error_free_sched_entity;
 
+	r = amdgpu_bo_reserve(vm->root.base.bo, true);
+	if (r)
+		goto error_free_root;
+
 	vm->root.base.vm = vm;
 	list_add_tail(&vm->root.base.bo_list, &vm->root.base.bo->va);
-	INIT_LIST_HEAD(&vm->root.base.vm_status);
-
-	if (vm->use_cpu_for_update) {
-		r = amdgpu_bo_reserve(vm->root.base.bo, false);
-		if (r)
-			goto error_free_root;
-
-		r = amdgpu_bo_kmap(vm->root.base.bo, NULL);
-		amdgpu_bo_unreserve(vm->root.base.bo);
-		if (r)
-			goto error_free_root;
-	}
+	list_add_tail(&vm->root.base.vm_status, &vm->evicted);
+	amdgpu_bo_unreserve(vm->root.base.bo);
 
 	if (pasid) {
 		unsigned long flags;
@@ -2478,17 +2474,21 @@ bool amdgpu_vm_pasid_fault_credit(struct amdgpu_device *adev,
 
 	spin_lock(&adev->vm_manager.pasid_lock);
 	vm = idr_find(&adev->vm_manager.pasid_idr, pasid);
-	spin_unlock(&adev->vm_manager.pasid_lock);
-	if (!vm)
+	if (!vm) {
 		/* VM not found, can't track fault credit */
+		spin_unlock(&adev->vm_manager.pasid_lock);
 		return true;
+	}
 
 	/* No lock needed. only accessed by IRQ handler */
-	if (!vm->fault_credit)
+	if (!vm->fault_credit) {
 		/* Too many faults in this VM */
+		spin_unlock(&adev->vm_manager.pasid_lock);
 		return false;
+	}
 
 	vm->fault_credit--;
+	spin_unlock(&adev->vm_manager.pasid_lock);
 	return true;
 }
 

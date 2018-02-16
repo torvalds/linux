@@ -990,6 +990,7 @@ out_destroy:
 	kernfs_remove(kn);
 	return ret;
 }
+
 static void l3_qos_cfg_update(void *arg)
 {
 	bool *enable = arg;
@@ -997,8 +998,17 @@ static void l3_qos_cfg_update(void *arg)
 	wrmsrl(IA32_L3_QOS_CFG, *enable ? L3_QOS_CDP_ENABLE : 0ULL);
 }
 
-static int set_l3_qos_cfg(struct rdt_resource *r, bool enable)
+static void l2_qos_cfg_update(void *arg)
 {
+	bool *enable = arg;
+
+	wrmsrl(IA32_L2_QOS_CFG, *enable ? L2_QOS_CDP_ENABLE : 0ULL);
+}
+
+static int set_cache_qos_cfg(int level, bool enable)
+{
+	void (*update)(void *arg);
+	struct rdt_resource *r_l;
 	cpumask_var_t cpu_mask;
 	struct rdt_domain *d;
 	int cpu;
@@ -1006,16 +1016,24 @@ static int set_l3_qos_cfg(struct rdt_resource *r, bool enable)
 	if (!zalloc_cpumask_var(&cpu_mask, GFP_KERNEL))
 		return -ENOMEM;
 
-	list_for_each_entry(d, &r->domains, list) {
+	if (level == RDT_RESOURCE_L3)
+		update = l3_qos_cfg_update;
+	else if (level == RDT_RESOURCE_L2)
+		update = l2_qos_cfg_update;
+	else
+		return -EINVAL;
+
+	r_l = &rdt_resources_all[level];
+	list_for_each_entry(d, &r_l->domains, list) {
 		/* Pick one CPU from each domain instance to update MSR */
 		cpumask_set_cpu(cpumask_any(&d->cpu_mask), cpu_mask);
 	}
 	cpu = get_cpu();
 	/* Update QOS_CFG MSR on this cpu if it's in cpu_mask. */
 	if (cpumask_test_cpu(cpu, cpu_mask))
-		l3_qos_cfg_update(&enable);
+		update(&enable);
 	/* Update QOS_CFG MSR on all other cpus in cpu_mask. */
-	smp_call_function_many(cpu_mask, l3_qos_cfg_update, &enable, 1);
+	smp_call_function_many(cpu_mask, update, &enable, 1);
 	put_cpu();
 
 	free_cpumask_var(cpu_mask);
@@ -1023,37 +1041,67 @@ static int set_l3_qos_cfg(struct rdt_resource *r, bool enable)
 	return 0;
 }
 
-static int cdp_enable(void)
+static int cdp_enable(int level, int data_type, int code_type)
 {
-	struct rdt_resource *r_l3data = &rdt_resources_all[RDT_RESOURCE_L3DATA];
-	struct rdt_resource *r_l3code = &rdt_resources_all[RDT_RESOURCE_L3CODE];
-	struct rdt_resource *r_l3 = &rdt_resources_all[RDT_RESOURCE_L3];
+	struct rdt_resource *r_ldata = &rdt_resources_all[data_type];
+	struct rdt_resource *r_lcode = &rdt_resources_all[code_type];
+	struct rdt_resource *r_l = &rdt_resources_all[level];
 	int ret;
 
-	if (!r_l3->alloc_capable || !r_l3data->alloc_capable ||
-	    !r_l3code->alloc_capable)
+	if (!r_l->alloc_capable || !r_ldata->alloc_capable ||
+	    !r_lcode->alloc_capable)
 		return -EINVAL;
 
-	ret = set_l3_qos_cfg(r_l3, true);
+	ret = set_cache_qos_cfg(level, true);
 	if (!ret) {
-		r_l3->alloc_enabled = false;
-		r_l3data->alloc_enabled = true;
-		r_l3code->alloc_enabled = true;
+		r_l->alloc_enabled = false;
+		r_ldata->alloc_enabled = true;
+		r_lcode->alloc_enabled = true;
 	}
 	return ret;
 }
 
-static void cdp_disable(void)
+static int cdpl3_enable(void)
 {
-	struct rdt_resource *r = &rdt_resources_all[RDT_RESOURCE_L3];
+	return cdp_enable(RDT_RESOURCE_L3, RDT_RESOURCE_L3DATA,
+			  RDT_RESOURCE_L3CODE);
+}
+
+static int cdpl2_enable(void)
+{
+	return cdp_enable(RDT_RESOURCE_L2, RDT_RESOURCE_L2DATA,
+			  RDT_RESOURCE_L2CODE);
+}
+
+static void cdp_disable(int level, int data_type, int code_type)
+{
+	struct rdt_resource *r = &rdt_resources_all[level];
 
 	r->alloc_enabled = r->alloc_capable;
 
-	if (rdt_resources_all[RDT_RESOURCE_L3DATA].alloc_enabled) {
-		rdt_resources_all[RDT_RESOURCE_L3DATA].alloc_enabled = false;
-		rdt_resources_all[RDT_RESOURCE_L3CODE].alloc_enabled = false;
-		set_l3_qos_cfg(r, false);
+	if (rdt_resources_all[data_type].alloc_enabled) {
+		rdt_resources_all[data_type].alloc_enabled = false;
+		rdt_resources_all[code_type].alloc_enabled = false;
+		set_cache_qos_cfg(level, false);
 	}
+}
+
+static void cdpl3_disable(void)
+{
+	cdp_disable(RDT_RESOURCE_L3, RDT_RESOURCE_L3DATA, RDT_RESOURCE_L3CODE);
+}
+
+static void cdpl2_disable(void)
+{
+	cdp_disable(RDT_RESOURCE_L2, RDT_RESOURCE_L2DATA, RDT_RESOURCE_L2CODE);
+}
+
+static void cdp_disable_all(void)
+{
+	if (rdt_resources_all[RDT_RESOURCE_L3DATA].alloc_enabled)
+		cdpl3_disable();
+	if (rdt_resources_all[RDT_RESOURCE_L2DATA].alloc_enabled)
+		cdpl2_disable();
 }
 
 static int parse_rdtgroupfs_options(char *data)
@@ -1062,12 +1110,29 @@ static int parse_rdtgroupfs_options(char *data)
 	int ret = 0;
 
 	while ((token = strsep(&o, ",")) != NULL) {
-		if (!*token)
-			return -EINVAL;
+		if (!*token) {
+			ret = -EINVAL;
+			goto out;
+		}
 
-		if (!strcmp(token, "cdp"))
-			ret = cdp_enable();
+		if (!strcmp(token, "cdp")) {
+			ret = cdpl3_enable();
+			if (ret)
+				goto out;
+		} else if (!strcmp(token, "cdpl2")) {
+			ret = cdpl2_enable();
+			if (ret)
+				goto out;
+		} else {
+			ret = -EINVAL;
+			goto out;
+		}
 	}
+
+	return 0;
+
+out:
+	pr_err("Invalid mount option \"%s\"\n", token);
 
 	return ret;
 }
@@ -1223,7 +1288,7 @@ out_mongrp:
 out_info:
 	kernfs_remove(kn_info);
 out_cdp:
-	cdp_disable();
+	cdp_disable_all();
 out:
 	rdt_last_cmd_clear();
 	mutex_unlock(&rdtgroup_mutex);
@@ -1383,7 +1448,7 @@ static void rdt_kill_sb(struct super_block *sb)
 	/*Put everything back to default values. */
 	for_each_alloc_enabled_rdt_resource(r)
 		reset_all_ctrls(r);
-	cdp_disable();
+	cdp_disable_all();
 	rmdir_all_sub();
 	static_branch_disable_cpuslocked(&rdt_alloc_enable_key);
 	static_branch_disable_cpuslocked(&rdt_mon_enable_key);

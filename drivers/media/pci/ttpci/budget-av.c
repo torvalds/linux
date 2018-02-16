@@ -51,7 +51,7 @@
 #include <linux/input.h>
 #include <linux/spinlock.h>
 
-#include "dvb_ca_en50221.h"
+#include <media/dvb_ca_en50221.h>
 
 #define DEBICICAM		0x02420000
 
@@ -1181,14 +1181,14 @@ static u8 read_pwm(struct budget_av *budget_av)
 #define SUBID_DVBS_KNC1_PLUS		0x0011
 #define SUBID_DVBS_TYPHOON		0x4f56
 #define SUBID_DVBS_CINERGY1200		0x1154
-#define SUBID_DVBS_CYNERGY1200N 	0x1155
+#define SUBID_DVBS_CYNERGY1200N		0x1155
 #define SUBID_DVBS_TV_STAR		0x0014
 #define SUBID_DVBS_TV_STAR_PLUS_X4	0x0015
 #define SUBID_DVBS_TV_STAR_CI		0x0016
 #define SUBID_DVBS2_KNC1		0x0018
 #define SUBID_DVBS2_KNC1_OEM		0x0019
-#define SUBID_DVBS_EASYWATCH_1  	0x001a
-#define SUBID_DVBS_EASYWATCH_2  	0x001b
+#define SUBID_DVBS_EASYWATCH_1		0x001a
+#define SUBID_DVBS_EASYWATCH_2		0x001b
 #define SUBID_DVBS2_EASYWATCH		0x001d
 #define SUBID_DVBS_EASYWATCH		0x001e
 

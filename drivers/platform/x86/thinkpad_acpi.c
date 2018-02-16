@@ -214,6 +214,10 @@ enum tpacpi_hkey_event_t {
 	/* AC-related events */
 	TP_HKEY_EV_AC_CHANGED		= 0x6040, /* AC status changed */
 
+	/* Further user-interface events */
+	TP_HKEY_EV_PALM_DETECTED	= 0x60b0, /* palm hoveres keyboard */
+	TP_HKEY_EV_PALM_UNDETECTED	= 0x60b1, /* palm removed */
+
 	/* Misc */
 	TP_HKEY_EV_RFKILL_CHANGED	= 0x7000, /* rfkill switch changed */
 };
@@ -2113,12 +2117,10 @@ static int hotkey_gmms_get_tablet_mode(int s, int *has_tablet_mode)
 			      TP_ACPI_MULTI_MODE_FLAT;
 		break;
 	case 4:
-		valid_modes = TP_ACPI_MULTI_MODE_LAPTOP |
-			      TP_ACPI_MULTI_MODE_TABLET |
-			      TP_ACPI_MULTI_MODE_STAND |
-			      TP_ACPI_MULTI_MODE_TENT;
-		break;
 	case 5:
+		/* In mode 4, FLAT is not specified as a valid mode. However,
+		 * it can be seen at least on the X1 Yoga 2nd Generation.
+		 */
 		valid_modes = TP_ACPI_MULTI_MODE_LAPTOP |
 			      TP_ACPI_MULTI_MODE_FLAT |
 			      TP_ACPI_MULTI_MODE_TABLET |
@@ -4078,6 +4080,12 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 		hotkey_tablet_mode_notify_change();
 		*send_acpi_ev = false;
 		break;
+
+	case TP_HKEY_EV_PALM_DETECTED:
+	case TP_HKEY_EV_PALM_UNDETECTED:
+		/* palm detected hovering the keyboard, forward to user-space
+		 * via netlink for consumption */
+		return true;
 
 	default:
 		pr_warn("unknown possible thermal alarm or keyboard event received\n");

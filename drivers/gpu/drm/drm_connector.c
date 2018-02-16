@@ -761,6 +761,13 @@ static const struct drm_prop_enum_list drm_tv_subconnector_enum_list[] = {
 DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
 		 drm_tv_subconnector_enum_list)
 
+static struct drm_prop_enum_list drm_cp_enum_list[] = {
+	{ DRM_MODE_CONTENT_PROTECTION_UNDESIRED, "Undesired" },
+	{ DRM_MODE_CONTENT_PROTECTION_DESIRED, "Desired" },
+	{ DRM_MODE_CONTENT_PROTECTION_ENABLED, "Enabled" },
+};
+DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
+
 /**
  * DOC: standard connector properties
  *
@@ -822,14 +829,50 @@ DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
  * 	should update this value using drm_mode_connector_set_tile_property().
  * 	Userspace cannot change this property.
  * link-status:
- *      Connector link-status property to indicate the status of link. The default
- *      value of link-status is "GOOD". If something fails during or after modeset,
- *      the kernel driver may set this to "BAD" and issue a hotplug uevent. Drivers
- *      should update this value using drm_mode_connector_set_link_status_property().
+ *      Connector link-status property to indicate the status of link. The
+ *      default value of link-status is "GOOD". If something fails during or
+ *      after modeset, the kernel driver may set this to "BAD" and issue a
+ *      hotplug uevent. Drivers should update this value using
+ *      drm_mode_connector_set_link_status_property().
  * non_desktop:
  * 	Indicates the output should be ignored for purposes of displaying a
  * 	standard desktop environment or console. This is most likely because
  * 	the output device is not rectilinear.
+ * Content Protection:
+ *	This property is used by userspace to request the kernel protect future
+ *	content communicated over the link. When requested, kernel will apply
+ *	the appropriate means of protection (most often HDCP), and use the
+ *	property to tell userspace the protection is active.
+ *
+ *	Drivers can set this up by calling
+ *	drm_connector_attach_content_protection_property() on initialization.
+ *
+ *	The value of this property can be one of the following:
+ *
+ *	- DRM_MODE_CONTENT_PROTECTION_UNDESIRED = 0
+ *		The link is not protected, content is transmitted in the clear.
+ *	- DRM_MODE_CONTENT_PROTECTION_DESIRED = 1
+ *		Userspace has requested content protection, but the link is not
+ *		currently protected. When in this state, kernel should enable
+ *		Content Protection as soon as possible.
+ *	- DRM_MODE_CONTENT_PROTECTION_ENABLED = 2
+ *		Userspace has requested content protection, and the link is
+ *		protected. Only the driver can set the property to this value.
+ *		If userspace attempts to set to ENABLED, kernel will return
+ *		-EINVAL.
+ *
+ *	A few guidelines:
+ *
+ *	- DESIRED state should be preserved until userspace de-asserts it by
+ *	  setting the property to UNDESIRED. This means ENABLED should only
+ *	  transition to UNDESIRED when the user explicitly requests it.
+ *	- If the state is DESIRED, kernel should attempt to re-authenticate the
+ *	  link whenever possible. This includes across disable/enable, dpms,
+ *	  hotplug, downstream device changes, link status failures, etc..
+ *	- Userspace is responsible for polling the property to determine when
+ *	  the value transitions from ENABLED to DESIRED. This signifies the link
+ *	  is no longer protected and userspace should take appropriate action
+ *	  (whatever that might be).
  *
  * Connectors also have one standardized atomic property:
  *
@@ -1129,6 +1172,42 @@ int drm_connector_attach_scaling_mode_property(struct drm_connector *connector,
 	return 0;
 }
 EXPORT_SYMBOL(drm_connector_attach_scaling_mode_property);
+
+/**
+ * drm_connector_attach_content_protection_property - attach content protection
+ * property
+ *
+ * @connector: connector to attach CP property on.
+ *
+ * This is used to add support for content protection on select connectors.
+ * Content Protection is intentionally vague to allow for different underlying
+ * technologies, however it is most implemented by HDCP.
+ *
+ * The content protection will be set to &drm_connector_state.content_protection
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_connector_attach_content_protection_property(
+		struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop;
+
+	prop = drm_property_create_enum(dev, 0, "Content Protection",
+					drm_cp_enum_list,
+					ARRAY_SIZE(drm_cp_enum_list));
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&connector->base, prop,
+				   DRM_MODE_CONTENT_PROTECTION_UNDESIRED);
+
+	connector->content_protection_property = prop;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_connector_attach_content_protection_property);
 
 /**
  * drm_mode_create_aspect_ratio_property - create aspect ratio property

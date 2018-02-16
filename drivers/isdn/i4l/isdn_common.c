@@ -1227,32 +1227,32 @@ out:
 	return retval;
 }
 
-static unsigned int
+static __poll_t
 isdn_poll(struct file *file, poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	unsigned int minor = iminor(file_inode(file));
 	int drvidx = isdn_minor2drv(minor - ISDN_MINOR_CTRL);
 
 	mutex_lock(&isdn_mutex);
 	if (minor == ISDN_MINOR_STATUS) {
 		poll_wait(file, &(dev->info_waitq), wait);
-		/* mask = POLLOUT | POLLWRNORM; */
+		/* mask = EPOLLOUT | EPOLLWRNORM; */
 		if (file->private_data) {
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 		}
 		goto out;
 	}
 	if (minor >= ISDN_MINOR_CTRL && minor <= ISDN_MINOR_CTRLMAX) {
 		if (drvidx < 0) {
 			/* driver deregistered while file open */
-			mask = POLLHUP;
+			mask = EPOLLHUP;
 			goto out;
 		}
 		poll_wait(file, &(dev->drv[drvidx]->st_waitq), wait);
-		mask = POLLOUT | POLLWRNORM;
+		mask = EPOLLOUT | EPOLLWRNORM;
 		if (dev->drv[drvidx]->stavail) {
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 		}
 		goto out;
 	}
@@ -1262,7 +1262,7 @@ isdn_poll(struct file *file, poll_table *wait)
 		goto out;
 	}
 #endif
-	mask = POLLERR;
+	mask = EPOLLERR;
 out:
 	mutex_unlock(&isdn_mutex);
 	return mask;

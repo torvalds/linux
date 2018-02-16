@@ -1719,9 +1719,9 @@ cnp_setup_backlight(struct intel_connector *connector, enum pipe unused)
 	u32 pwm_ctl, val;
 
 	/*
-	 * CNP has the BXT implementation of backlight, but with only
-	 * one controller. Future platforms could have multiple controllers
-	 * so let's make this extensible and prepared for the future.
+	 * CNP has the BXT implementation of backlight, but with only one
+	 * controller. TODO: ICP has multiple controllers but we only use
+	 * controller 0 for now.
 	 */
 	panel->backlight.controller = 0;
 
@@ -1865,7 +1865,7 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 		panel->backlight.set = bxt_set_backlight;
 		panel->backlight.get = bxt_get_backlight;
 		panel->backlight.hz_to_pwm = bxt_hz_to_pwm;
-	} else if (HAS_PCH_CNP(dev_priv)) {
+	} else if (HAS_PCH_CNP(dev_priv) || HAS_PCH_ICP(dev_priv)) {
 		panel->backlight.setup = cnp_setup_backlight;
 		panel->backlight.enable = cnp_enable_backlight;
 		panel->backlight.disable = cnp_disable_backlight;

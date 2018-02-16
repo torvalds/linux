@@ -37,18 +37,6 @@ menuconfig IP_SCTP
 
 if IP_SCTP
 
-config NET_SCTPPROBE
-	tristate "SCTP: Association probing"
-        depends on PROC_FS && KPROBES
-        ---help---
-        This module allows for capturing the changes to SCTP association
-        state in response to incoming packets. It is used for debugging
-        SCTP congestion control algorithms. If you don't understand
-        what was just said, you don't need it: say N.
-
-        To compile this code as a module, choose M here: the
-        module will be called sctp_probe.
-
 config SCTP_DBG_OBJCNT
 	bool "SCTP: Debug object counts"
 	depends on PROC_FS

@@ -23,6 +23,7 @@
  */
 
 #include "intel_guc.h"
+#include "intel_guc_ads.h"
 #include "intel_guc_submission.h"
 #include "i915_drv.h"
 
@@ -63,6 +64,7 @@ void intel_guc_init_early(struct intel_guc *guc)
 {
 	intel_guc_fw_init_early(guc);
 	intel_guc_ct_init_early(&guc->ct);
+	intel_guc_log_init_early(guc);
 
 	mutex_init(&guc->send_mutex);
 	guc->send = intel_guc_send_nop;
@@ -86,8 +88,10 @@ int intel_guc_init_wq(struct intel_guc *guc)
 	 */
 	guc->log.runtime.flush_wq = alloc_ordered_workqueue("i915-guc_log",
 						WQ_HIGHPRI | WQ_FREEZABLE);
-	if (!guc->log.runtime.flush_wq)
+	if (!guc->log.runtime.flush_wq) {
+		DRM_ERROR("Couldn't allocate workqueue for GuC log\n");
 		return -ENOMEM;
+	}
 
 	/*
 	 * Even though both sending GuC action, and adding a new workitem to
@@ -108,6 +112,8 @@ int intel_guc_init_wq(struct intel_guc *guc)
 							  WQ_HIGHPRI);
 		if (!guc->preempt_wq) {
 			destroy_workqueue(guc->log.runtime.flush_wq);
+			DRM_ERROR("Couldn't allocate workqueue for GuC "
+				  "preemption\n");
 			return -ENOMEM;
 		}
 	}
@@ -163,10 +169,25 @@ int intel_guc_init(struct intel_guc *guc)
 		return ret;
 	GEM_BUG_ON(!guc->shared_data);
 
+	ret = intel_guc_log_create(guc);
+	if (ret)
+		goto err_shared;
+
+	ret = intel_guc_ads_create(guc);
+	if (ret)
+		goto err_log;
+	GEM_BUG_ON(!guc->ads_vma);
+
 	/* We need to notify the guc whenever we change the GGTT */
 	i915_ggtt_enable_guc(dev_priv);
 
 	return 0;
+
+err_log:
+	intel_guc_log_destroy(guc);
+err_shared:
+	guc_shared_data_destroy(guc);
+	return ret;
 }
 
 void intel_guc_fini(struct intel_guc *guc)
@@ -174,6 +195,8 @@ void intel_guc_fini(struct intel_guc *guc)
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
 	i915_ggtt_disable_guc(dev_priv);
+	intel_guc_ads_destroy(guc);
+	intel_guc_log_destroy(guc);
 	guc_shared_data_destroy(guc);
 }
 
@@ -195,6 +218,19 @@ static u32 get_core_family(struct drm_i915_private *dev_priv)
 		MISSING_CASE(gen);
 		return GUC_CORE_FAMILY_UNKNOWN;
 	}
+}
+
+static u32 get_log_verbosity_flags(void)
+{
+	if (i915_modparams.guc_log_level > 0) {
+		u32 verbosity = i915_modparams.guc_log_level - 1;
+
+		GEM_BUG_ON(verbosity > GUC_LOG_VERBOSITY_MAX);
+		return verbosity << GUC_LOG_VERBOSITY_SHIFT;
+	}
+
+	GEM_BUG_ON(i915_modparams.enable_guc < 0);
+	return GUC_LOG_DISABLED;
 }
 
 /*
@@ -229,12 +265,7 @@ void intel_guc_init_params(struct intel_guc *guc)
 
 	params[GUC_CTL_LOG_PARAMS] = guc->log.flags;
 
-	if (i915_modparams.guc_log_level >= 0) {
-		params[GUC_CTL_DEBUG] =
-			i915_modparams.guc_log_level << GUC_LOG_VERBOSITY_SHIFT;
-	} else {
-		params[GUC_CTL_DEBUG] = GUC_LOG_DISABLED;
-	}
+	params[GUC_CTL_DEBUG] = get_log_verbosity_flags();
 
 	/* If GuC submission is enabled, set up additional parameters here */
 	if (USES_GUC_SUBMISSION(dev_priv)) {
@@ -427,7 +458,7 @@ int intel_guc_resume(struct drm_i915_private *dev_priv)
 	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
 		return 0;
 
-	if (i915_modparams.guc_log_level >= 0)
+	if (i915_modparams.guc_log_level)
 		gen9_enable_guc_interrupts(dev_priv);
 
 	data[0] = INTEL_GUC_ACTION_EXIT_S_STATE;

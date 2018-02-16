@@ -1615,6 +1615,35 @@ void intel_ddi_disable_transcoder_func(struct drm_i915_private *dev_priv,
 	I915_WRITE(reg, val);
 }
 
+int intel_ddi_toggle_hdcp_signalling(struct intel_encoder *intel_encoder,
+				     bool enable)
+{
+	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	enum pipe pipe = 0;
+	int ret = 0;
+	uint32_t tmp;
+
+	if (WARN_ON(!intel_display_power_get_if_enabled(dev_priv,
+						intel_encoder->power_domain)))
+		return -ENXIO;
+
+	if (WARN_ON(!intel_encoder->get_hw_state(intel_encoder, &pipe))) {
+		ret = -EIO;
+		goto out;
+	}
+
+	tmp = I915_READ(TRANS_DDI_FUNC_CTL(pipe));
+	if (enable)
+		tmp |= TRANS_DDI_HDCP_SIGNALLING;
+	else
+		tmp &= ~TRANS_DDI_HDCP_SIGNALLING;
+	I915_WRITE(TRANS_DDI_FUNC_CTL(pipe), tmp);
+out:
+	intel_display_power_put(dev_priv, intel_encoder->power_domain);
+	return ret;
+}
+
 bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 {
 	struct drm_device *dev = intel_connector->base.dev;
@@ -2404,6 +2433,48 @@ static void intel_enable_ddi_hdmi(struct intel_encoder *encoder,
 					  crtc_state->hdmi_high_tmds_clock_ratio,
 					  crtc_state->hdmi_scrambling);
 
+	/* Display WA #1143: skl,kbl,cfl */
+	if (IS_GEN9_BC(dev_priv)) {
+		/*
+		 * For some reason these chicken bits have been
+		 * stuffed into a transcoder register, event though
+		 * the bits affect a specific DDI port rather than
+		 * a specific transcoder.
+		 */
+		static const enum transcoder port_to_transcoder[] = {
+			[PORT_A] = TRANSCODER_EDP,
+			[PORT_B] = TRANSCODER_A,
+			[PORT_C] = TRANSCODER_B,
+			[PORT_D] = TRANSCODER_C,
+			[PORT_E] = TRANSCODER_A,
+		};
+		enum transcoder transcoder = port_to_transcoder[port];
+		u32 val;
+
+		val = I915_READ(CHICKEN_TRANS(transcoder));
+
+		if (port == PORT_E)
+			val |= DDIE_TRAINING_OVERRIDE_ENABLE |
+				DDIE_TRAINING_OVERRIDE_VALUE;
+		else
+			val |= DDI_TRAINING_OVERRIDE_ENABLE |
+				DDI_TRAINING_OVERRIDE_VALUE;
+
+		I915_WRITE(CHICKEN_TRANS(transcoder), val);
+		POSTING_READ(CHICKEN_TRANS(transcoder));
+
+		udelay(1);
+
+		if (port == PORT_E)
+			val &= ~(DDIE_TRAINING_OVERRIDE_ENABLE |
+				 DDIE_TRAINING_OVERRIDE_VALUE);
+		else
+			val &= ~(DDI_TRAINING_OVERRIDE_ENABLE |
+				 DDI_TRAINING_OVERRIDE_VALUE);
+
+		I915_WRITE(CHICKEN_TRANS(transcoder), val);
+	}
+
 	/* In HDMI/DVI mode, the port width, and swing/emphasis values
 	 * are ignored so nothing special needs to be done besides
 	 * enabling the port.
@@ -2423,6 +2494,11 @@ static void intel_enable_ddi(struct intel_encoder *encoder,
 		intel_enable_ddi_hdmi(encoder, crtc_state, conn_state);
 	else
 		intel_enable_ddi_dp(encoder, crtc_state, conn_state);
+
+	/* Enable hdcp if it's desired */
+	if (conn_state->content_protection ==
+	    DRM_MODE_CONTENT_PROTECTION_DESIRED)
+		intel_hdcp_enable(to_intel_connector(conn_state->connector));
 }
 
 static void intel_disable_ddi_dp(struct intel_encoder *encoder,
@@ -2457,6 +2533,8 @@ static void intel_disable_ddi(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *old_crtc_state,
 			      const struct drm_connector_state *old_conn_state)
 {
+	intel_hdcp_disable(to_intel_connector(old_conn_state->connector));
+
 	if (intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_HDMI))
 		intel_disable_ddi_hdmi(encoder, old_crtc_state, old_conn_state);
 	else
@@ -2867,6 +2945,10 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	case PORT_E:
 		intel_dig_port->ddi_io_power_domain =
 			POWER_DOMAIN_PORT_DDI_E_IO;
+		break;
+	case PORT_F:
+		intel_dig_port->ddi_io_power_domain =
+			POWER_DOMAIN_PORT_DDI_F_IO;
 		break;
 	default:
 		MISSING_CASE(port);

@@ -38,9 +38,11 @@
  */
 #define HSW_CXT_TOTAL_SIZE		(17 * PAGE_SIZE)
 
+#define DEFAULT_LR_CONTEXT_RENDER_SIZE	(22 * PAGE_SIZE)
 #define GEN8_LR_CONTEXT_RENDER_SIZE	(20 * PAGE_SIZE)
 #define GEN9_LR_CONTEXT_RENDER_SIZE	(22 * PAGE_SIZE)
 #define GEN10_LR_CONTEXT_RENDER_SIZE	(18 * PAGE_SIZE)
+#define GEN11_LR_CONTEXT_RENDER_SIZE	(14 * PAGE_SIZE)
 
 #define GEN8_LR_CONTEXT_OTHER_SIZE	( 2 * PAGE_SIZE)
 
@@ -157,6 +159,9 @@ __intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 		switch (INTEL_GEN(dev_priv)) {
 		default:
 			MISSING_CASE(INTEL_GEN(dev_priv));
+			return DEFAULT_LR_CONTEXT_RENDER_SIZE;
+		case 11:
+			return GEN11_LR_CONTEXT_RENDER_SIZE;
 		case 10:
 			return GEN10_LR_CONTEXT_RENDER_SIZE;
 		case 9:
@@ -1389,7 +1394,8 @@ int init_workarounds_ring(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 	int err;
 
-	WARN_ON(engine->id != RCS);
+	if (GEM_WARN_ON(engine->id != RCS))
+		return -EINVAL;
 
 	dev_priv->workarounds.count = 0;
 	dev_priv->workarounds.hw_whitelist_count[engine->id] = 0;
@@ -1943,24 +1949,42 @@ intel_engine_lookup_user(struct drm_i915_private *i915, u8 class, u8 instance)
  */
 int intel_enable_engine_stats(struct intel_engine_cs *engine)
 {
+	struct intel_engine_execlists *execlists = &engine->execlists;
 	unsigned long flags;
+	int err = 0;
 
 	if (!intel_engine_supports_stats(engine))
 		return -ENODEV;
 
+	tasklet_disable(&execlists->tasklet);
 	spin_lock_irqsave(&engine->stats.lock, flags);
-	if (engine->stats.enabled == ~0)
-		goto busy;
-	if (engine->stats.enabled++ == 0)
+
+	if (unlikely(engine->stats.enabled == ~0)) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
+	if (engine->stats.enabled++ == 0) {
+		const struct execlist_port *port = execlists->port;
+		unsigned int num_ports = execlists_num_ports(execlists);
+
 		engine->stats.enabled_at = ktime_get();
+
+		/* XXX submission method oblivious? */
+		while (num_ports-- && port_isset(port)) {
+			engine->stats.active++;
+			port++;
+		}
+
+		if (engine->stats.active)
+			engine->stats.start = engine->stats.enabled_at;
+	}
+
+unlock:
 	spin_unlock_irqrestore(&engine->stats.lock, flags);
+	tasklet_enable(&execlists->tasklet);
 
-	return 0;
-
-busy:
-	spin_unlock_irqrestore(&engine->stats.lock, flags);
-
-	return -EBUSY;
+	return err;
 }
 
 static ktime_t __intel_engine_get_busy_time(struct intel_engine_cs *engine)

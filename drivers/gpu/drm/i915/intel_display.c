@@ -2387,6 +2387,20 @@ static unsigned int intel_fb_modifier_to_tiling(uint64_t fb_modifier)
 	}
 }
 
+/*
+ * From the Sky Lake PRM:
+ * "The Color Control Surface (CCS) contains the compression status of
+ *  the cache-line pairs. The compression state of the cache-line pair
+ *  is specified by 2 bits in the CCS. Each CCS cache-line represents
+ *  an area on the main surface of 16 x16 sets of 128 byte Y-tiled
+ *  cache-line-pairs. CCS is always Y tiled."
+ *
+ * Since cache line pairs refers to horizontally adjacent cache lines,
+ * each cache line in the CCS corresponds to an area of 32x16 cache
+ * lines on the main surface. Since each pixel is 4 bytes, this gives
+ * us a ratio of one byte in the CCS for each 8x16 pixels in the
+ * main surface.
+ */
 static const struct drm_format_info ccs_formats[] = {
 	{ .format = DRM_FORMAT_XRGB8888, .depth = 24, .num_planes = 2, .cpp = { 4, 1, }, .hsub = 8, .vsub = 16, },
 	{ .format = DRM_FORMAT_XBGR8888, .depth = 24, .num_planes = 2, .cpp = { 4, 1, }, .hsub = 8, .vsub = 16, },
@@ -2917,14 +2931,19 @@ static bool skl_check_main_ccs_coordinates(struct intel_plane_state *plane_state
 	return true;
 }
 
-static int skl_check_main_surface(struct intel_plane_state *plane_state)
+static int skl_check_main_surface(const struct intel_crtc_state *crtc_state,
+				  struct intel_plane_state *plane_state)
 {
+	struct drm_i915_private *dev_priv =
+		to_i915(plane_state->base.plane->dev);
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	unsigned int rotation = plane_state->base.rotation;
 	int x = plane_state->base.src.x1 >> 16;
 	int y = plane_state->base.src.y1 >> 16;
 	int w = drm_rect_width(&plane_state->base.src) >> 16;
 	int h = drm_rect_height(&plane_state->base.src) >> 16;
+	int dst_x = plane_state->base.dst.x1;
+	int pipe_src_w = crtc_state->pipe_src_w;
 	int max_width = skl_max_plane_width(fb, 0, rotation);
 	int max_height = 4096;
 	u32 alignment, offset, aux_offset = plane_state->aux.offset;
@@ -2933,6 +2952,24 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 		DRM_DEBUG_KMS("requested Y/RGB source size %dx%d too big (limit %dx%d)\n",
 			      w, h, max_width, max_height);
 		return -EINVAL;
+	}
+
+	/*
+	 * Display WA #1175: cnl,glk
+	 * Planes other than the cursor may cause FIFO underflow and display
+	 * corruption if starting less than 4 pixels from the right edge of
+	 * the screen.
+	 * Besides the above WA fix the similar problem, where planes other
+	 * than the cursor ending less than 4 pixels from the left edge of the
+	 * screen may cause FIFO underflow and display corruption.
+	 */
+	if ((IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) &&
+	    (dst_x + w < 4 || dst_x > pipe_src_w - 4)) {
+		DRM_DEBUG_KMS("requested plane X %s position %d invalid (valid range %d-%d)\n",
+			      dst_x + w < 4 ? "end" : "start",
+			      dst_x + w < 4 ? dst_x + w : dst_x,
+			      4, pipe_src_w - 4);
+		return -ERANGE;
 	}
 
 	intel_add_fb_offsets(&x, &y, plane_state, 0);
@@ -3027,6 +3064,7 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 static int skl_check_ccs_aux_surface(struct intel_plane_state *plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(plane_state->base.crtc);
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	int src_x = plane_state->base.src.x1 >> 16;
@@ -3037,17 +3075,8 @@ static int skl_check_ccs_aux_surface(struct intel_plane_state *plane_state)
 	int y = src_y / vsub;
 	u32 offset;
 
-	switch (plane->id) {
-	case PLANE_PRIMARY:
-	case PLANE_SPRITE0:
-		break;
-	default:
-		DRM_DEBUG_KMS("RC support only on plane 1 and 2\n");
-		return -EINVAL;
-	}
-
-	if (crtc->pipe == PIPE_C) {
-		DRM_DEBUG_KMS("No RC support on pipe C\n");
+	if (!skl_plane_has_ccs(dev_priv, crtc->pipe, plane->id)) {
+		DRM_DEBUG_KMS("No RC support on %s\n", plane->base.name);
 		return -EINVAL;
 	}
 
@@ -3067,7 +3096,8 @@ static int skl_check_ccs_aux_surface(struct intel_plane_state *plane_state)
 	return 0;
 }
 
-int skl_check_plane_surface(struct intel_plane_state *plane_state)
+int skl_check_plane_surface(const struct intel_crtc_state *crtc_state,
+			    struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	unsigned int rotation = plane_state->base.rotation;
@@ -3107,7 +3137,7 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 		plane_state->aux.y = 0;
 	}
 
-	ret = skl_check_main_surface(plane_state);
+	ret = skl_check_main_surface(crtc_state, plane_state);
 	if (ret)
 		return ret;
 
@@ -4757,7 +4787,7 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 		return ret;
 
 	/* check colorkey */
-	if (plane_state->ckey.flags != I915_SET_COLORKEY_NONE) {
+	if (plane_state->ckey.flags) {
 		DRM_DEBUG_KMS("[PLANE:%d:%s] scaling with color key not allowed",
 			      intel_plane->base.base.id,
 			      intel_plane->base.name);
@@ -5641,6 +5671,8 @@ enum intel_display_power_domain intel_port_to_power_domain(enum port port)
 		return POWER_DOMAIN_PORT_DDI_D_LANES;
 	case PORT_E:
 		return POWER_DOMAIN_PORT_DDI_E_LANES;
+	case PORT_F:
+		return POWER_DOMAIN_PORT_DDI_F_LANES;
 	default:
 		MISSING_CASE(port);
 		return POWER_DOMAIN_PORT_OTHER;
@@ -5661,8 +5693,8 @@ static u64 get_crtc_power_domains(struct drm_crtc *crtc,
 	if (!crtc_state->base.active)
 		return 0;
 
-	mask = BIT(POWER_DOMAIN_PIPE(pipe));
-	mask |= BIT(POWER_DOMAIN_TRANSCODER(transcoder));
+	mask = BIT_ULL(POWER_DOMAIN_PIPE(pipe));
+	mask |= BIT_ULL(POWER_DOMAIN_TRANSCODER(transcoder));
 	if (crtc_state->pch_pfit.enabled ||
 	    crtc_state->pch_pfit.force_thru)
 		mask |= BIT_ULL(POWER_DOMAIN_PIPE_PANEL_FITTER(pipe));
@@ -5674,7 +5706,7 @@ static u64 get_crtc_power_domains(struct drm_crtc *crtc,
 	}
 
 	if (HAS_DDI(dev_priv) && crtc_state->has_audio)
-		mask |= BIT(POWER_DOMAIN_AUDIO);
+		mask |= BIT_ULL(POWER_DOMAIN_AUDIO);
 
 	if (crtc_state->shared_dpll)
 		mask |= BIT_ULL(POWER_DOMAIN_PLLS);
@@ -8504,7 +8536,10 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 
 	val = I915_READ(PLANE_CTL(pipe, plane_id));
 
-	pixel_format = val & PLANE_CTL_FORMAT_MASK;
+	if (INTEL_GEN(dev_priv) >= 11)
+		pixel_format = val & ICL_PLANE_CTL_FORMAT_MASK;
+	else
+		pixel_format = val & PLANE_CTL_FORMAT_MASK;
 
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
 		alpha = I915_READ(PLANE_COLOR_CTL(pipe, plane_id));
@@ -12533,7 +12568,13 @@ static int do_rps_boost(struct wait_queue_entry *_wait,
 	struct wait_rps_boost *wait = container_of(_wait, typeof(*wait), wait);
 	struct drm_i915_gem_request *rq = wait->request;
 
-	gen6_rps_boost(rq, NULL);
+	/*
+	 * If we missed the vblank, but the request is already running it
+	 * is reasonable to assume that it will complete before the next
+	 * vblank without our intervention, so leave RPS alone.
+	 */
+	if (!i915_gem_request_started(rq))
+		gen6_rps_boost(rq, NULL);
 	i915_gem_request_put(rq);
 
 	drm_crtc_vblank_put(wait->crtc);
@@ -12762,7 +12803,7 @@ intel_check_primary_plane(struct intel_plane *plane,
 
 	if (INTEL_GEN(dev_priv) >= 9) {
 		/* use scaler when colorkey is not required */
-		if (state->ckey.flags == I915_SET_COLORKEY_NONE) {
+		if (!state->ckey.flags) {
 			min_scale = 1;
 			max_scale = skl_max_scale(to_intel_crtc(crtc), crtc_state);
 		}
@@ -12785,7 +12826,7 @@ intel_check_primary_plane(struct intel_plane *plane,
 		return 0;
 
 	if (INTEL_GEN(dev_priv) >= 9) {
-		ret = skl_check_plane_surface(state);
+		ret = skl_check_plane_surface(crtc_state, state);
 		if (ret)
 			return ret;
 
@@ -12963,8 +13004,6 @@ static bool intel_primary_plane_format_mod_supported(struct drm_plane *plane,
 		return i965_mod_supported(format, modifier);
 	else
 		return i8xx_mod_supported(format, modifier);
-
-	unreachable();
 }
 
 static bool intel_cursor_plane_format_mod_supported(struct drm_plane *plane,
@@ -13172,21 +13211,14 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	else
 		primary->i9xx_plane = (enum i9xx_plane_id) pipe;
 	primary->id = PLANE_PRIMARY;
-	primary->frontbuffer_bit = INTEL_FRONTBUFFER_PRIMARY(pipe);
+	primary->frontbuffer_bit = INTEL_FRONTBUFFER(pipe, primary->id);
 	primary->check_plane = intel_check_primary_plane;
 
-	if (INTEL_GEN(dev_priv) >= 10) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		intel_primary_formats = skl_primary_formats;
 		num_formats = ARRAY_SIZE(skl_primary_formats);
-		modifiers = skl_format_modifiers_ccs;
 
-		primary->update_plane = skl_update_plane;
-		primary->disable_plane = skl_disable_plane;
-		primary->get_hw_state = skl_plane_get_hw_state;
-	} else if (INTEL_GEN(dev_priv) >= 9) {
-		intel_primary_formats = skl_primary_formats;
-		num_formats = ARRAY_SIZE(skl_primary_formats);
-		if (pipe < PIPE_C)
+		if (skl_plane_has_ccs(dev_priv, pipe, PLANE_PRIMARY))
 			modifiers = skl_format_modifiers_ccs;
 		else
 			modifiers = skl_format_modifiers_noccs;
@@ -13300,7 +13332,7 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 	cursor->pipe = pipe;
 	cursor->i9xx_plane = (enum i9xx_plane_id) pipe;
 	cursor->id = PLANE_CURSOR;
-	cursor->frontbuffer_bit = INTEL_FRONTBUFFER_CURSOR(pipe);
+	cursor->frontbuffer_bit = INTEL_FRONTBUFFER(pipe, cursor->id);
 
 	if (IS_I845G(dev_priv) || IS_I865G(dev_priv)) {
 		cursor->update_plane = i845_update_cursor;
@@ -13616,7 +13648,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		if (found || IS_GEN9_BC(dev_priv))
 			intel_ddi_init(dev_priv, PORT_A);
 
-		/* DDI B, C and D detection is indicated by the SFUSE_STRAP
+		/* DDI B, C, D, and F detection is indicated by the SFUSE_STRAP
 		 * register */
 		found = I915_READ(SFUSE_STRAP);
 
@@ -13626,6 +13658,8 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 			intel_ddi_init(dev_priv, PORT_C);
 		if (found & SFUSE_STRAP_DDID_DETECTED)
 			intel_ddi_init(dev_priv, PORT_D);
+		if (found & SFUSE_STRAP_DDIF_DETECTED)
+			intel_ddi_init(dev_priv, PORT_F);
 		/*
 		 * On SKL we don't have a way to detect DDI-E so we rely on VBT.
 		 */
@@ -15263,6 +15297,10 @@ static void intel_hpd_poll_fini(struct drm_device *dev)
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		if (connector->modeset_retry_work.func)
 			cancel_work_sync(&connector->modeset_retry_work);
+		if (connector->hdcp_shim) {
+			cancel_delayed_work_sync(&connector->hdcp_check_work);
+			cancel_work_sync(&connector->hdcp_prop_work);
+		}
 	}
 	drm_connector_list_iter_end(&conn_iter);
 }

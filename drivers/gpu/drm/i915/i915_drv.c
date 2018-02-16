@@ -55,6 +55,7 @@
 
 static struct drm_driver driver;
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 static unsigned int i915_load_fail_count;
 
 bool __i915_inject_load_failure(const char *func, int line)
@@ -70,6 +71,7 @@ bool __i915_inject_load_failure(const char *func, int line)
 
 	return false;
 }
+#endif
 
 #define FDO_BUG_URL "https://bugs.freedesktop.org/enter_bug.cgi?product=DRI"
 #define FDO_BUG_MSG "Please file a bug at " FDO_BUG_URL " against DRM/Intel " \
@@ -107,8 +109,12 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 
 static bool i915_error_injected(struct drm_i915_private *dev_priv)
 {
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 	return i915_modparams.inject_load_failure &&
 	       i915_load_fail_count == i915_modparams.inject_load_failure;
+#else
+	return false;
+#endif
 }
 
 #define i915_load_error(dev_priv, fmt, ...)				     \
@@ -176,96 +182,103 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 	 * of only checking the first one.
 	 */
 	while ((pch = pci_get_class(PCI_CLASS_BRIDGE_ISA << 8, pch))) {
-		if (pch->vendor == PCI_VENDOR_ID_INTEL) {
-			unsigned short id = pch->device & INTEL_PCH_DEVICE_ID_MASK;
+		unsigned short id;
 
-			dev_priv->pch_id = id;
+		if (pch->vendor != PCI_VENDOR_ID_INTEL)
+			continue;
 
-			if (id == INTEL_PCH_IBX_DEVICE_ID_TYPE) {
-				dev_priv->pch_type = PCH_IBX;
-				DRM_DEBUG_KMS("Found Ibex Peak PCH\n");
-				WARN_ON(!IS_GEN5(dev_priv));
-			} else if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
-				dev_priv->pch_type = PCH_CPT;
-				DRM_DEBUG_KMS("Found CougarPoint PCH\n");
-				WARN_ON(!IS_GEN6(dev_priv) &&
-					!IS_IVYBRIDGE(dev_priv));
-			} else if (id == INTEL_PCH_PPT_DEVICE_ID_TYPE) {
-				/* PantherPoint is CPT compatible */
-				dev_priv->pch_type = PCH_CPT;
-				DRM_DEBUG_KMS("Found PantherPoint PCH\n");
-				WARN_ON(!IS_GEN6(dev_priv) &&
-					!IS_IVYBRIDGE(dev_priv));
-			} else if (id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
-				dev_priv->pch_type = PCH_LPT;
-				DRM_DEBUG_KMS("Found LynxPoint PCH\n");
-				WARN_ON(!IS_HASWELL(dev_priv) &&
-					!IS_BROADWELL(dev_priv));
-				WARN_ON(IS_HSW_ULT(dev_priv) ||
-					IS_BDW_ULT(dev_priv));
-			} else if (id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) {
-				dev_priv->pch_type = PCH_LPT;
-				DRM_DEBUG_KMS("Found LynxPoint LP PCH\n");
-				WARN_ON(!IS_HASWELL(dev_priv) &&
-					!IS_BROADWELL(dev_priv));
-				WARN_ON(!IS_HSW_ULT(dev_priv) &&
-					!IS_BDW_ULT(dev_priv));
-			} else if (id == INTEL_PCH_WPT_DEVICE_ID_TYPE) {
-				/* WildcatPoint is LPT compatible */
-				dev_priv->pch_type = PCH_LPT;
-				DRM_DEBUG_KMS("Found WildcatPoint PCH\n");
-				WARN_ON(!IS_HASWELL(dev_priv) &&
-					!IS_BROADWELL(dev_priv));
-				WARN_ON(IS_HSW_ULT(dev_priv) ||
-					IS_BDW_ULT(dev_priv));
-			} else if (id == INTEL_PCH_WPT_LP_DEVICE_ID_TYPE) {
-				/* WildcatPoint is LPT compatible */
-				dev_priv->pch_type = PCH_LPT;
-				DRM_DEBUG_KMS("Found WildcatPoint LP PCH\n");
-				WARN_ON(!IS_HASWELL(dev_priv) &&
-					!IS_BROADWELL(dev_priv));
-				WARN_ON(!IS_HSW_ULT(dev_priv) &&
-					!IS_BDW_ULT(dev_priv));
-			} else if (id == INTEL_PCH_SPT_DEVICE_ID_TYPE) {
-				dev_priv->pch_type = PCH_SPT;
-				DRM_DEBUG_KMS("Found SunrisePoint PCH\n");
-				WARN_ON(!IS_SKYLAKE(dev_priv) &&
-					!IS_KABYLAKE(dev_priv));
-			} else if (id == INTEL_PCH_SPT_LP_DEVICE_ID_TYPE) {
-				dev_priv->pch_type = PCH_SPT;
-				DRM_DEBUG_KMS("Found SunrisePoint LP PCH\n");
-				WARN_ON(!IS_SKYLAKE(dev_priv) &&
-					!IS_KABYLAKE(dev_priv));
-			} else if (id == INTEL_PCH_KBP_DEVICE_ID_TYPE) {
-				dev_priv->pch_type = PCH_KBP;
-				DRM_DEBUG_KMS("Found Kaby Lake PCH (KBP)\n");
-				WARN_ON(!IS_SKYLAKE(dev_priv) &&
-					!IS_KABYLAKE(dev_priv) &&
-					!IS_COFFEELAKE(dev_priv));
-			} else if (id == INTEL_PCH_CNP_DEVICE_ID_TYPE) {
-				dev_priv->pch_type = PCH_CNP;
-				DRM_DEBUG_KMS("Found Cannon Lake PCH (CNP)\n");
-				WARN_ON(!IS_CANNONLAKE(dev_priv) &&
-					!IS_COFFEELAKE(dev_priv));
-			} else if (id == INTEL_PCH_CNP_LP_DEVICE_ID_TYPE) {
-				dev_priv->pch_type = PCH_CNP;
-				DRM_DEBUG_KMS("Found Cannon Lake LP PCH (CNP-LP)\n");
-				WARN_ON(!IS_CANNONLAKE(dev_priv) &&
-					!IS_COFFEELAKE(dev_priv));
-			} else if (id == INTEL_PCH_P2X_DEVICE_ID_TYPE ||
-				   id == INTEL_PCH_P3X_DEVICE_ID_TYPE ||
-				   (id == INTEL_PCH_QEMU_DEVICE_ID_TYPE &&
-				    pch->subsystem_vendor ==
-					    PCI_SUBVENDOR_ID_REDHAT_QUMRANET &&
-				    pch->subsystem_device ==
-					    PCI_SUBDEVICE_ID_QEMU)) {
-				dev_priv->pch_type =
-					intel_virt_detect_pch(dev_priv);
-			} else
-				continue;
+		id = pch->device & INTEL_PCH_DEVICE_ID_MASK;
 
-			break;
+		dev_priv->pch_id = id;
+
+		if (id == INTEL_PCH_IBX_DEVICE_ID_TYPE) {
+			dev_priv->pch_type = PCH_IBX;
+			DRM_DEBUG_KMS("Found Ibex Peak PCH\n");
+			WARN_ON(!IS_GEN5(dev_priv));
+		} else if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
+			dev_priv->pch_type = PCH_CPT;
+			DRM_DEBUG_KMS("Found CougarPoint PCH\n");
+			WARN_ON(!IS_GEN6(dev_priv) &&
+				!IS_IVYBRIDGE(dev_priv));
+		} else if (id == INTEL_PCH_PPT_DEVICE_ID_TYPE) {
+			/* PantherPoint is CPT compatible */
+			dev_priv->pch_type = PCH_CPT;
+			DRM_DEBUG_KMS("Found PantherPoint PCH\n");
+			WARN_ON(!IS_GEN6(dev_priv) &&
+				!IS_IVYBRIDGE(dev_priv));
+		} else if (id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
+			dev_priv->pch_type = PCH_LPT;
+			DRM_DEBUG_KMS("Found LynxPoint PCH\n");
+			WARN_ON(!IS_HASWELL(dev_priv) &&
+				!IS_BROADWELL(dev_priv));
+			WARN_ON(IS_HSW_ULT(dev_priv) ||
+				IS_BDW_ULT(dev_priv));
+		} else if (id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) {
+			dev_priv->pch_type = PCH_LPT;
+			DRM_DEBUG_KMS("Found LynxPoint LP PCH\n");
+			WARN_ON(!IS_HASWELL(dev_priv) &&
+				!IS_BROADWELL(dev_priv));
+			WARN_ON(!IS_HSW_ULT(dev_priv) &&
+				!IS_BDW_ULT(dev_priv));
+		} else if (id == INTEL_PCH_WPT_DEVICE_ID_TYPE) {
+			/* WildcatPoint is LPT compatible */
+			dev_priv->pch_type = PCH_LPT;
+			DRM_DEBUG_KMS("Found WildcatPoint PCH\n");
+			WARN_ON(!IS_HASWELL(dev_priv) &&
+				!IS_BROADWELL(dev_priv));
+			WARN_ON(IS_HSW_ULT(dev_priv) ||
+				IS_BDW_ULT(dev_priv));
+		} else if (id == INTEL_PCH_WPT_LP_DEVICE_ID_TYPE) {
+			/* WildcatPoint is LPT compatible */
+			dev_priv->pch_type = PCH_LPT;
+			DRM_DEBUG_KMS("Found WildcatPoint LP PCH\n");
+			WARN_ON(!IS_HASWELL(dev_priv) &&
+				!IS_BROADWELL(dev_priv));
+			WARN_ON(!IS_HSW_ULT(dev_priv) &&
+				!IS_BDW_ULT(dev_priv));
+		} else if (id == INTEL_PCH_SPT_DEVICE_ID_TYPE) {
+			dev_priv->pch_type = PCH_SPT;
+			DRM_DEBUG_KMS("Found SunrisePoint PCH\n");
+			WARN_ON(!IS_SKYLAKE(dev_priv) &&
+				!IS_KABYLAKE(dev_priv));
+		} else if (id == INTEL_PCH_SPT_LP_DEVICE_ID_TYPE) {
+			dev_priv->pch_type = PCH_SPT;
+			DRM_DEBUG_KMS("Found SunrisePoint LP PCH\n");
+			WARN_ON(!IS_SKYLAKE(dev_priv) &&
+				!IS_KABYLAKE(dev_priv));
+		} else if (id == INTEL_PCH_KBP_DEVICE_ID_TYPE) {
+			dev_priv->pch_type = PCH_KBP;
+			DRM_DEBUG_KMS("Found Kaby Lake PCH (KBP)\n");
+			WARN_ON(!IS_SKYLAKE(dev_priv) &&
+				!IS_KABYLAKE(dev_priv) &&
+				!IS_COFFEELAKE(dev_priv));
+		} else if (id == INTEL_PCH_CNP_DEVICE_ID_TYPE) {
+			dev_priv->pch_type = PCH_CNP;
+			DRM_DEBUG_KMS("Found Cannon Lake PCH (CNP)\n");
+			WARN_ON(!IS_CANNONLAKE(dev_priv) &&
+				!IS_COFFEELAKE(dev_priv));
+		} else if (id == INTEL_PCH_CNP_LP_DEVICE_ID_TYPE) {
+			dev_priv->pch_type = PCH_CNP;
+			DRM_DEBUG_KMS("Found Cannon Lake LP PCH (CNP-LP)\n");
+			WARN_ON(!IS_CANNONLAKE(dev_priv) &&
+				!IS_COFFEELAKE(dev_priv));
+		} else if (id == INTEL_PCH_ICP_DEVICE_ID_TYPE) {
+			dev_priv->pch_type = PCH_ICP;
+			DRM_DEBUG_KMS("Found Ice Lake PCH\n");
+			WARN_ON(!IS_ICELAKE(dev_priv));
+		} else if (id == INTEL_PCH_P2X_DEVICE_ID_TYPE ||
+			   id == INTEL_PCH_P3X_DEVICE_ID_TYPE ||
+			   (id == INTEL_PCH_QEMU_DEVICE_ID_TYPE &&
+			    pch->subsystem_vendor ==
+			    PCI_SUBVENDOR_ID_REDHAT_QUMRANET &&
+			    pch->subsystem_device ==
+			    PCI_SUBDEVICE_ID_QEMU)) {
+			dev_priv->pch_type = intel_virt_detect_pch(dev_priv);
+		} else {
+			continue;
 		}
+
+		break;
 	}
 	if (!pch)
 		DRM_DEBUG_KMS("No PCH found.\n");
@@ -622,7 +635,7 @@ static void i915_gem_fini(struct drm_i915_private *dev_priv)
 	i915_gem_contexts_fini(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
-	intel_uc_fini_wq(dev_priv);
+	intel_uc_fini_misc(dev_priv);
 	i915_gem_cleanup_userptr(dev_priv);
 
 	i915_gem_drain_freed_objects(dev_priv);
@@ -1842,6 +1855,8 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	if (IS_GEN9_LP(dev_priv) ||
 	    !(dev_priv->suspended_to_idle && dev_priv->csr.dmc_payload))
 		intel_power_domains_init_hw(dev_priv, true);
+	else
+		intel_display_set_init_power(dev_priv, true);
 
 	i915_gem_sanitize(dev_priv);
 
@@ -2594,6 +2609,11 @@ static int intel_runtime_suspend(struct device *kdev)
 
 		intel_runtime_pm_enable_interrupts(dev_priv);
 
+		intel_guc_resume(dev_priv);
+
+		i915_gem_init_swizzling(dev_priv);
+		i915_gem_restore_fences(dev_priv);
+
 		enable_rpm_wakeref_asserts(dev_priv);
 
 		return ret;
@@ -2659,8 +2679,6 @@ static int intel_runtime_resume(struct device *kdev)
 	if (intel_uncore_unclaimed_mmio(dev_priv))
 		DRM_DEBUG_DRIVER("Unclaimed access during suspend, bios?\n");
 
-	intel_guc_resume(dev_priv);
-
 	if (IS_GEN9_LP(dev_priv)) {
 		bxt_disable_dc9(dev_priv);
 		bxt_display_core_init(dev_priv, true);
@@ -2675,14 +2693,16 @@ static int intel_runtime_resume(struct device *kdev)
 
 	intel_uncore_runtime_resume(dev_priv);
 
+	intel_runtime_pm_enable_interrupts(dev_priv);
+
+	intel_guc_resume(dev_priv);
+
 	/*
 	 * No point of rolling back things in case of an error, as the best
 	 * we can do is to hope that things will still work (and disable RPM).
 	 */
 	i915_gem_init_swizzling(dev_priv);
 	i915_gem_restore_fences(dev_priv);
-
-	intel_runtime_pm_enable_interrupts(dev_priv);
 
 	/*
 	 * On VLV/CHV display interrupts are part of the display

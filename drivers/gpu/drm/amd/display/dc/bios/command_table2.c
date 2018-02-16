@@ -118,7 +118,7 @@ static void init_dig_encoder_control(struct bios_parser *bp)
 		bp->cmd_tbl.dig_encoder_control = encoder_control_digx_v1_5;
 		break;
 	default:
-		dm_error("Don't have dig_encoder_control for v%d\n", version);
+		dm_output_to_console("Don't have dig_encoder_control for v%d\n", version);
 		bp->cmd_tbl.dig_encoder_control = NULL;
 		break;
 	}
@@ -206,7 +206,7 @@ static void init_transmitter_control(struct bios_parser *bp)
 		bp->cmd_tbl.transmitter_control = transmitter_control_v1_6;
 		break;
 	default:
-		dm_error("Don't have transmitter_control for v%d\n", crev);
+		dm_output_to_console("Don't have transmitter_control for v%d\n", crev);
 		bp->cmd_tbl.transmitter_control = NULL;
 		break;
 	}
@@ -270,7 +270,7 @@ static void init_set_pixel_clock(struct bios_parser *bp)
 		bp->cmd_tbl.set_pixel_clock = set_pixel_clock_v7;
 		break;
 	default:
-		dm_error("Don't have set_pixel_clock for v%d\n",
+		dm_output_to_console("Don't have set_pixel_clock for v%d\n",
 			 BIOS_CMD_TABLE_PARA_REVISION(setpixelclock));
 		bp->cmd_tbl.set_pixel_clock = NULL;
 		break;
@@ -383,7 +383,7 @@ static void init_set_crtc_timing(struct bios_parser *bp)
 			set_crtc_using_dtd_timing_v3;
 		break;
 	default:
-		dm_error("Don't have set_crtc_timing for v%d\n", dtd_version);
+		dm_output_to_console("Don't have set_crtc_timing for v%d\n", dtd_version);
 		bp->cmd_tbl.set_crtc_timing = NULL;
 		break;
 	}
@@ -503,7 +503,7 @@ static void init_select_crtc_source(struct bios_parser *bp)
 		bp->cmd_tbl.select_crtc_source = select_crtc_source_v3;
 		break;
 	default:
-		dm_error("Don't select_crtc_source enable_crtc for v%d\n",
+		dm_output_to_console("Don't select_crtc_source enable_crtc for v%d\n",
 			 BIOS_CMD_TABLE_PARA_REVISION(selectcrtc_source));
 		bp->cmd_tbl.select_crtc_source = NULL;
 		break;
@@ -572,7 +572,7 @@ static void init_enable_crtc(struct bios_parser *bp)
 		bp->cmd_tbl.enable_crtc = enable_crtc_v1;
 		break;
 	default:
-		dm_error("Don't have enable_crtc for v%d\n",
+		dm_output_to_console("Don't have enable_crtc for v%d\n",
 			 BIOS_CMD_TABLE_PARA_REVISION(enablecrtc));
 		bp->cmd_tbl.enable_crtc = NULL;
 		break;
@@ -670,7 +670,7 @@ static void init_enable_disp_power_gating(
 				enable_disp_power_gating_v2_1;
 		break;
 	default:
-		dm_error("Don't enable_disp_power_gating enable_crtc for v%d\n",
+		dm_output_to_console("Don't enable_disp_power_gating enable_crtc for v%d\n",
 			 BIOS_CMD_TABLE_PARA_REVISION(enabledisppowergating));
 		bp->cmd_tbl.enable_disp_power_gating = NULL;
 		break;
@@ -721,7 +721,7 @@ static void init_set_dce_clock(struct bios_parser *bp)
 		bp->cmd_tbl.set_dce_clock = set_dce_clock_v2_1;
 		break;
 	default:
-		dm_error("Don't have set_dce_clock for v%d\n",
+		dm_output_to_console("Don't have set_dce_clock for v%d\n",
 			 BIOS_CMD_TABLE_PARA_REVISION(setdceclock));
 		bp->cmd_tbl.set_dce_clock = NULL;
 		break;

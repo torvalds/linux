@@ -21,6 +21,7 @@
 #include "builtin.h"
 #include "util/color.h"
 #include "util/debug.h"
+#include "util/env.h"
 #include "util/event.h"
 #include "util/evlist.h"
 #include <subcmd/exec-cmd.h>
@@ -45,18 +46,17 @@
 
 #include <errno.h>
 #include <inttypes.h>
-#include <libaudit.h> /* FIXME: Still needed for audit_errno_to_name */
 #include <poll.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <linux/err.h>
 #include <linux/filter.h>
-#include <linux/audit.h>
 #include <linux/kernel.h>
 #include <linux/random.h>
 #include <linux/stringify.h>
 #include <linux/time64.h>
+#include <fcntl.h>
 
 #include "sane_ctype.h"
 
@@ -111,6 +111,7 @@ struct trace {
 	bool			summary;
 	bool			summary_only;
 	bool			show_comm;
+	bool			print_sample;
 	bool			show_tool_stats;
 	bool			trace_syscalls;
 	bool			kernel_syscallchains;
@@ -545,9 +546,10 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 	  { .scnprintf	= SCA_STRARRAY, \
 	    .parm	= &strarray__##array, }
 
+#include "trace/beauty/arch_errno_names.c"
 #include "trace/beauty/eventfd.c"
-#include "trace/beauty/flock.c"
 #include "trace/beauty/futex_op.c"
+#include "trace/beauty/futex_val3.c"
 #include "trace/beauty/mmap.c"
 #include "trace/beauty/mode_t.c"
 #include "trace/beauty/msg_flags.c"
@@ -610,7 +612,8 @@ static struct syscall_fmt {
 	{ .name	    = "fstat", .alias = "newfstat", },
 	{ .name	    = "fstatat", .alias = "newfstatat", },
 	{ .name	    = "futex",
-	  .arg = { [1] = { .scnprintf = SCA_FUTEX_OP, /* op */ }, }, },
+	  .arg = { [1] = { .scnprintf = SCA_FUTEX_OP, /* op */ },
+		   [5] = { .scnprintf = SCA_FUTEX_VAL3, /* val3 */ }, }, },
 	{ .name	    = "futimesat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* fd */ }, }, },
 	{ .name	    = "getitimer",
@@ -622,6 +625,7 @@ static struct syscall_fmt {
 	  .arg = { [2] = { .scnprintf = SCA_GETRANDOM_FLAGS, /* flags */ }, }, },
 	{ .name	    = "getrlimit",
 	  .arg = { [0] = STRARRAY(resource, rlimit_resources), }, },
+	{ .name	    = "gettid",	    .errpid = true, },
 	{ .name	    = "ioctl",
 	  .arg = {
 #if defined(__i386__) || defined(__x86_64__)
@@ -819,7 +823,7 @@ static size_t fprintf_duration(unsigned long t, bool calculated, FILE *fp)
 	size_t printed = fprintf(fp, "(");
 
 	if (!calculated)
-		printed += fprintf(fp, "     ?   ");
+		printed += fprintf(fp, "         ");
 	else if (duration >= 1.0)
 		printed += color_fprintf(fp, PERF_COLOR_RED, "%6.3f ms", duration);
 	else if (duration >= 0.01)
@@ -1554,10 +1558,9 @@ static void thread__update_stats(struct thread_trace *ttrace,
 	update_stats(stats, duration);
 }
 
-static int trace__printf_interrupted_entry(struct trace *trace, struct perf_sample *sample)
+static int trace__printf_interrupted_entry(struct trace *trace)
 {
 	struct thread_trace *ttrace;
-	u64 duration;
 	size_t printed;
 
 	if (trace->current == NULL)
@@ -1568,11 +1571,26 @@ static int trace__printf_interrupted_entry(struct trace *trace, struct perf_samp
 	if (!ttrace->entry_pending)
 		return 0;
 
-	duration = sample->time - ttrace->entry_time;
-
-	printed  = trace__fprintf_entry_head(trace, trace->current, duration, true, ttrace->entry_time, trace->output);
+	printed  = trace__fprintf_entry_head(trace, trace->current, 0, false, ttrace->entry_time, trace->output);
 	printed += fprintf(trace->output, "%-70s) ...\n", ttrace->entry_str);
 	ttrace->entry_pending = false;
+
+	return printed;
+}
+
+static int trace__fprintf_sample(struct trace *trace, struct perf_evsel *evsel,
+				 struct perf_sample *sample, struct thread *thread)
+{
+	int printed = 0;
+
+	if (trace->print_sample) {
+		double ts = (double)sample->time / NSEC_PER_MSEC;
+
+		printed += fprintf(trace->output, "%22s %10.3f %s %d/%d [%d]\n",
+				   perf_evsel__name(evsel), ts,
+				   thread__comm_str(thread),
+				   sample->pid, sample->tid, sample->cpu);
+	}
 
 	return printed;
 }
@@ -1597,6 +1615,8 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	if (ttrace == NULL)
 		goto out_put;
 
+	trace__fprintf_sample(trace, evsel, sample, thread);
+
 	args = perf_evsel__sc_tp_ptr(evsel, args, sample);
 
 	if (ttrace->entry_str == NULL) {
@@ -1606,7 +1626,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	}
 
 	if (!(trace->duration_filter || trace->summary_only || trace->min_stack))
-		trace__printf_interrupted_entry(trace, sample);
+		trace__printf_interrupted_entry(trace);
 
 	ttrace->entry_time = sample->time;
 	msg = ttrace->entry_str;
@@ -1641,9 +1661,12 @@ static int trace__resolve_callchain(struct trace *trace, struct perf_evsel *evse
 				    struct callchain_cursor *cursor)
 {
 	struct addr_location al;
+	int max_stack = evsel->attr.sample_max_stack ?
+			evsel->attr.sample_max_stack :
+			trace->max_stack;
 
 	if (machine__resolve(trace->host, &al, sample) < 0 ||
-	    thread__resolve_callchain(al.thread, cursor, evsel, sample, NULL, NULL, trace->max_stack))
+	    thread__resolve_callchain(al.thread, cursor, evsel, sample, NULL, NULL, max_stack))
 		return -1;
 
 	return 0;
@@ -1657,6 +1680,14 @@ static int trace__fprintf_callchain(struct trace *trace, struct perf_sample *sam
 				        EVSEL__PRINT_UNKNOWN_AS_ADDR;
 
 	return sample__fprintf_callchain(sample, 38, print_opts, &callchain_cursor, trace->output);
+}
+
+static const char *errno_to_name(struct perf_evsel *evsel, int err)
+{
+	struct perf_env *env = perf_evsel__env(evsel);
+	const char *arch_name = perf_env__arch(env);
+
+	return arch_syscalls__strerrno(arch_name, err);
 }
 
 static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
@@ -1678,6 +1709,8 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
 		goto out_put;
+
+	trace__fprintf_sample(trace, evsel, sample, thread);
 
 	if (trace->summary)
 		thread__update_stats(ttrace, id, sample);
@@ -1729,7 +1762,7 @@ signed_print:
 errno_print: {
 		char bf[STRERR_BUFSIZE];
 		const char *emsg = str_error_r(-ret, bf, sizeof(bf)),
-			   *e = audit_errno_to_name(-ret);
+			   *e = errno_to_name(evsel, -ret);
 
 		fprintf(trace->output, ") = -1 %s %s", e, emsg);
 	}
@@ -1910,7 +1943,7 @@ static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 		}
 	}
 
-	trace__printf_interrupted_entry(trace, sample);
+	trace__printf_interrupted_entry(trace);
 	trace__fprintf_tstamp(trace, sample->time, trace->output);
 
 	if (trace->trace_syscalls)
@@ -2221,6 +2254,9 @@ static int trace__add_syscall_newtp(struct trace *trace)
 	if (perf_evsel__init_sc_tp_uint_field(sys_exit, ret))
 		goto out_delete_sys_exit;
 
+	perf_evsel__config_callchain(sys_enter, &trace->opts, &callchain_param);
+	perf_evsel__config_callchain(sys_exit, &trace->opts, &callchain_param);
+
 	perf_evlist__add(evlist, sys_enter);
 	perf_evlist__add(evlist, sys_exit);
 
@@ -2317,6 +2353,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		pgfault_maj = perf_evsel__new_pgfault(PERF_COUNT_SW_PAGE_FAULTS_MAJ);
 		if (pgfault_maj == NULL)
 			goto out_error_mem;
+		perf_evsel__config_callchain(pgfault_maj, &trace->opts, &callchain_param);
 		perf_evlist__add(evlist, pgfault_maj);
 	}
 
@@ -2324,6 +2361,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		pgfault_min = perf_evsel__new_pgfault(PERF_COUNT_SW_PAGE_FAULTS_MIN);
 		if (pgfault_min == NULL)
 			goto out_error_mem;
+		perf_evsel__config_callchain(pgfault_min, &trace->opts, &callchain_param);
 		perf_evlist__add(evlist, pgfault_min);
 	}
 
@@ -2344,45 +2382,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		goto out_delete_evlist;
 	}
 
-	perf_evlist__config(evlist, &trace->opts, NULL);
-
-	if (callchain_param.enabled) {
-		bool use_identifier = false;
-
-		if (trace->syscalls.events.sys_exit) {
-			perf_evsel__config_callchain(trace->syscalls.events.sys_exit,
-						     &trace->opts, &callchain_param);
-			use_identifier = true;
-		}
-
-		if (pgfault_maj) {
-			perf_evsel__config_callchain(pgfault_maj, &trace->opts, &callchain_param);
-			use_identifier = true;
-		}
-
-		if (pgfault_min) {
-			perf_evsel__config_callchain(pgfault_min, &trace->opts, &callchain_param);
-			use_identifier = true;
-		}
-
-		if (use_identifier) {
-		       /*
-			* Now we have evsels with different sample_ids, use
-			* PERF_SAMPLE_IDENTIFIER to map from sample to evsel
-			* from a fixed position in each ring buffer record.
-			*
-			* As of this the changeset introducing this comment, this
-			* isn't strictly needed, as the fields that can come before
-			* PERF_SAMPLE_ID are all used, but we'll probably disable
-			* some of those for things like copying the payload of
-			* pointer syscall arguments, and for vfs_getname we don't
-			* need PERF_SAMPLE_ADDR and PERF_SAMPLE_IP, so do this
-			* here as a warning we need to use PERF_SAMPLE_IDENTIFIER.
-			*/
-			perf_evlist__set_sample_bit(evlist, IDENTIFIER);
-			perf_evlist__reset_sample_bit(evlist, ID);
-		}
-	}
+	perf_evlist__config(evlist, &trace->opts, &callchain_param);
 
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
@@ -2437,7 +2437,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (err < 0)
 		goto out_error_apply_filters;
 
-	err = perf_evlist__mmap(evlist, trace->opts.mmap_pages, false);
+	err = perf_evlist__mmap(evlist, trace->opts.mmap_pages);
 	if (err < 0)
 		goto out_error_mmap;
 
@@ -2455,6 +2455,18 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	trace->multiple_threads = thread_map__pid(evlist->threads, 0) == -1 ||
 				  evlist->threads->nr > 1 ||
 				  perf_evlist__first(evlist)->attr.inherit;
+
+	/*
+	 * Now that we already used evsel->attr to ask the kernel to setup the
+	 * events, lets reuse evsel->attr.sample_max_stack as the limit in
+	 * trace__resolve_callchain(), allowing per-event max-stack settings
+	 * to override an explicitely set --max-stack global setting.
+	 */
+	evlist__for_each_entry(evlist, evsel) {
+		if ((evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN) &&
+		    evsel->attr.sample_max_stack == 0)
+			evsel->attr.sample_max_stack = trace->max_stack;
+	}
 again:
 	before = trace->nr_events;
 
@@ -3046,6 +3058,8 @@ int cmd_trace(int argc, const char **argv)
 		     "Set the maximum stack depth when parsing the callchain, "
 		     "anything beyond the specified depth will be ignored. "
 		     "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
+	OPT_BOOLEAN(0, "print-sample", &trace.print_sample,
+			"print the PERF_RECORD_SAMPLE PERF_SAMPLE_ info, for debugging"),
 	OPT_UINTEGER(0, "proc-map-timeout", &trace.opts.proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
 	OPT_UINTEGER('D', "delay", &trace.opts.initial_delay,
@@ -3097,8 +3111,9 @@ int cmd_trace(int argc, const char **argv)
 	}
 
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
-	if ((trace.min_stack || max_stack_user_set) && !callchain_param.enabled && trace.trace_syscalls)
+	if ((trace.min_stack || max_stack_user_set) && !callchain_param.enabled) {
 		record_opts__parse_callchain(&trace.opts, &callchain_param, "dwarf", false);
+	}
 #endif
 
 	if (callchain_param.enabled) {

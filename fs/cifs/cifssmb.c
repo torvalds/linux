@@ -43,6 +43,7 @@
 #include "cifs_unicode.h"
 #include "cifs_debug.h"
 #include "fscache.h"
+#include "smbdirect.h"
 
 #ifdef CONFIG_CIFS_POSIX
 static struct {
@@ -1454,6 +1455,7 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	struct cifs_readdata *rdata = mid->callback_data;
 	char *buf = server->smallbuf;
 	unsigned int buflen = get_rfc1002_length(buf) + 4;
+	bool use_rdma_mr = false;
 
 	cifs_dbg(FYI, "%s: mid=%llu offset=%llu bytes=%u\n",
 		 __func__, mid->mid, rdata->offset, rdata->bytes);
@@ -1542,8 +1544,11 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		 rdata->iov[0].iov_base, server->total_read);
 
 	/* how much data is in the response? */
-	data_len = server->ops->read_data_length(buf);
-	if (data_offset + data_len > buflen) {
+#ifdef CONFIG_CIFS_SMB_DIRECT
+	use_rdma_mr = rdata->mr;
+#endif
+	data_len = server->ops->read_data_length(buf, use_rdma_mr);
+	if (!use_rdma_mr && (data_offset + data_len > buflen)) {
 		/* data_len is corrupt -- discard frame */
 		rdata->result = -EIO;
 		return cifs_readv_discard(server, mid);
@@ -1923,6 +1928,12 @@ cifs_writedata_release(struct kref *refcount)
 {
 	struct cifs_writedata *wdata = container_of(refcount,
 					struct cifs_writedata, refcount);
+#ifdef CONFIG_CIFS_SMB_DIRECT
+	if (wdata->mr) {
+		smbd_deregister_mr(wdata->mr);
+		wdata->mr = NULL;
+	}
+#endif
 
 	if (wdata->cfile)
 		cifsFileInfo_put(wdata->cfile);
@@ -4822,10 +4833,11 @@ CIFSGetDFSRefer(const unsigned int xid, struct cifs_ses *ses,
 	*target_nodes = NULL;
 
 	cifs_dbg(FYI, "In GetDFSRefer the path %s\n", search_name);
-	if (ses == NULL)
+	if (ses == NULL || ses->tcon_ipc == NULL)
 		return -ENODEV;
+
 getDFSRetry:
-	rc = smb_init(SMB_COM_TRANSACTION2, 15, NULL, (void **) &pSMB,
+	rc = smb_init(SMB_COM_TRANSACTION2, 15, ses->tcon_ipc, (void **) &pSMB,
 		      (void **) &pSMBr);
 	if (rc)
 		return rc;
@@ -4833,7 +4845,7 @@ getDFSRetry:
 	/* server pointer checked in called function,
 	but should never be null here anyway */
 	pSMB->hdr.Mid = get_next_mid(ses->server);
-	pSMB->hdr.Tid = ses->ipc_tid;
+	pSMB->hdr.Tid = ses->tcon_ipc->tid;
 	pSMB->hdr.Uid = ses->Suid;
 	if (ses->capabilities & CAP_STATUS32)
 		pSMB->hdr.Flags2 |= SMBFLG2_ERR_STATUS;
@@ -6331,9 +6343,7 @@ SetEARetry:
 	pSMB->InformationLevel =
 		cpu_to_le16(SMB_SET_FILE_EA);
 
-	parm_data =
-		(struct fealist *) (((char *) &pSMB->hdr.Protocol) +
-				       offset);
+	parm_data = (void *)pSMB + offsetof(struct smb_hdr, Protocol) + offset;
 	pSMB->ParameterOffset = cpu_to_le16(param_offset);
 	pSMB->DataOffset = cpu_to_le16(offset);
 	pSMB->SetupCount = 1;

@@ -163,3 +163,12 @@ This requests that the NIC receive all possible frames, including errored
 frames (such as bad FCS, etc).  This can be helpful when sniffing a link with
 bad packets on it.  Some NICs may receive more packets if also put into normal
 PROMISC mode.
+
+*  rx-gro-hw
+
+This requests that the NIC enables Hardware GRO (generic receive offload).
+Hardware GRO is basically the exact reverse of TSO, and is generally
+stricter than Hardware LRO.  A packet stream merged by Hardware GRO must
+be re-segmentable by GSO or TSO back to the exact original packet stream.
+Hardware GRO is dependent on RXCSUM since every packet successfully merged
+by hardware must also have the checksum verified by hardware.

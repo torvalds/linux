@@ -15,7 +15,6 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/max77693-common.h>
 #include <linux/mfd/max77843-private.h>

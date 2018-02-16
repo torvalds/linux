@@ -369,10 +369,6 @@ nf_nat_ipv6_out(void *priv, struct sk_buff *skb,
 #endif
 	unsigned int ret;
 
-	/* root is playing with raw sockets. */
-	if (skb->len < sizeof(struct ipv6hdr))
-		return NF_ACCEPT;
-
 	ret = nf_nat_ipv6_fn(priv, skb, state, do_chain);
 #ifdef CONFIG_XFRM
 	if (ret != NF_DROP && ret != NF_STOLEN &&
@@ -407,10 +403,6 @@ nf_nat_ipv6_local_fn(void *priv, struct sk_buff *skb,
 	enum ip_conntrack_info ctinfo;
 	unsigned int ret;
 	int err;
-
-	/* root is playing with raw sockets. */
-	if (skb->len < sizeof(struct ipv6hdr))
-		return NF_ACCEPT;
 
 	ret = nf_nat_ipv6_fn(priv, skb, state, do_chain);
 	if (ret != NF_DROP && ret != NF_STOLEN &&

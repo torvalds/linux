@@ -18,6 +18,8 @@
 #include <asm/pgtable.h>
 #include <asm/kexec.h>
 
+#include "setup.h"
+
 #ifdef CONFIG_PPC_BOOK3S
 
 /*
@@ -208,15 +210,14 @@ void __init allocate_pacas(void)
 	u64 limit;
 	int cpu;
 
-	limit = ppc64_rma_size;
-
 #ifdef CONFIG_PPC_BOOK3S_64
 	/*
-	 * We can't take SLB misses on the paca, and we want to access them
-	 * in real mode, so allocate them within the RMA and also within
-	 * the first segment.
+	 * We access pacas in real mode, and cannot take SLB faults
+	 * on them when in virtual mode, so allocate them accordingly.
 	 */
-	limit = min(0x10000000ULL, limit);
+	limit = min(ppc64_bolted_size(), ppc64_rma_size);
+#else
+	limit = ppc64_rma_size;
 #endif
 
 	paca_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpu_ids);

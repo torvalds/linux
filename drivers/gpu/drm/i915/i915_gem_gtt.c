@@ -377,6 +377,7 @@ static gen6_pte_t iris_pte_encode(dma_addr_t addr,
 static struct page *vm_alloc_page(struct i915_address_space *vm, gfp_t gfp)
 {
 	struct pagevec *pvec = &vm->free_pages;
+	struct pagevec stash;
 
 	if (I915_SELFTEST_ONLY(should_fail(&vm->fault_attr, 1)))
 		i915_gem_shrink_all(vm->i915);
@@ -395,7 +396,15 @@ static struct page *vm_alloc_page(struct i915_address_space *vm, gfp_t gfp)
 	if (likely(pvec->nr))
 		return pvec->pages[--pvec->nr];
 
-	/* Otherwise batch allocate pages to amoritize cost of set_pages_wc. */
+	/*
+	 * Otherwise batch allocate pages to amoritize cost of set_pages_wc.
+	 *
+	 * We have to be careful as page allocation may trigger the shrinker
+	 * (via direct reclaim) which will fill up the WC stash underneath us.
+	 * So we add our WB pages into a temporary pvec on the stack and merge
+	 * them into the WC stash after all the allocations are complete.
+	 */
+	pagevec_init(&stash);
 	do {
 		struct page *page;
 
@@ -403,15 +412,24 @@ static struct page *vm_alloc_page(struct i915_address_space *vm, gfp_t gfp)
 		if (unlikely(!page))
 			break;
 
-		pvec->pages[pvec->nr++] = page;
-	} while (pagevec_space(pvec));
+		stash.pages[stash.nr++] = page;
+	} while (stash.nr < pagevec_space(pvec));
 
-	if (unlikely(!pvec->nr))
-		return NULL;
+	if (stash.nr) {
+		int nr = min_t(int, stash.nr, pagevec_space(pvec));
+		struct page **pages = stash.pages + stash.nr - nr;
 
-	set_pages_array_wc(pvec->pages, pvec->nr);
+		if (nr && !set_pages_array_wc(pages, nr)) {
+			memcpy(pvec->pages + pvec->nr,
+			       pages, sizeof(pages[0]) * nr);
+			pvec->nr += nr;
+			stash.nr -= nr;
+		}
 
-	return pvec->pages[--pvec->nr];
+		pagevec_release(&stash);
+	}
+
+	return likely(pvec->nr) ? pvec->pages[--pvec->nr] : NULL;
 }
 
 static void vm_free_pages_release(struct i915_address_space *vm,
@@ -525,9 +543,7 @@ static void fill_page_dma_32(struct i915_address_space *vm,
 static int
 setup_scratch_page(struct i915_address_space *vm, gfp_t gfp)
 {
-	struct page *page = NULL;
-	dma_addr_t addr;
-	int order;
+	unsigned long size;
 
 	/*
 	 * In order to utilize 64K pages for an object with a size < 2M, we will
@@ -541,48 +557,47 @@ setup_scratch_page(struct i915_address_space *vm, gfp_t gfp)
 	 * TODO: we should really consider write-protecting the scratch-page and
 	 * sharing between ppgtt
 	 */
+	size = I915_GTT_PAGE_SIZE_4K;
 	if (i915_vm_is_48bit(vm) &&
 	    HAS_PAGE_SIZES(vm->i915, I915_GTT_PAGE_SIZE_64K)) {
-		order = get_order(I915_GTT_PAGE_SIZE_64K);
-		page = alloc_pages(gfp | __GFP_ZERO | __GFP_NOWARN, order);
-		if (page) {
-			addr = dma_map_page(vm->dma, page, 0,
-					    I915_GTT_PAGE_SIZE_64K,
-					    PCI_DMA_BIDIRECTIONAL);
-			if (unlikely(dma_mapping_error(vm->dma, addr))) {
-				__free_pages(page, order);
-				page = NULL;
-			}
-
-			if (!IS_ALIGNED(addr, I915_GTT_PAGE_SIZE_64K)) {
-				dma_unmap_page(vm->dma, addr,
-					       I915_GTT_PAGE_SIZE_64K,
-					       PCI_DMA_BIDIRECTIONAL);
-				__free_pages(page, order);
-				page = NULL;
-			}
-		}
+		size = I915_GTT_PAGE_SIZE_64K;
+		gfp |= __GFP_NOWARN;
 	}
+	gfp |= __GFP_ZERO | __GFP_RETRY_MAYFAIL;
 
-	if (!page) {
-		order = 0;
-		page = alloc_page(gfp | __GFP_ZERO);
+	do {
+		int order = get_order(size);
+		struct page *page;
+		dma_addr_t addr;
+
+		page = alloc_pages(gfp, order);
 		if (unlikely(!page))
-			return -ENOMEM;
+			goto skip;
 
-		addr = dma_map_page(vm->dma, page, 0, PAGE_SIZE,
+		addr = dma_map_page(vm->dma, page, 0, size,
 				    PCI_DMA_BIDIRECTIONAL);
-		if (unlikely(dma_mapping_error(vm->dma, addr))) {
-			__free_page(page);
+		if (unlikely(dma_mapping_error(vm->dma, addr)))
+			goto free_page;
+
+		if (unlikely(!IS_ALIGNED(addr, size)))
+			goto unmap_page;
+
+		vm->scratch_page.page = page;
+		vm->scratch_page.daddr = addr;
+		vm->scratch_page.order = order;
+		return 0;
+
+unmap_page:
+		dma_unmap_page(vm->dma, addr, size, PCI_DMA_BIDIRECTIONAL);
+free_page:
+		__free_pages(page, order);
+skip:
+		if (size == I915_GTT_PAGE_SIZE_4K)
 			return -ENOMEM;
-		}
-	}
 
-	vm->scratch_page.page = page;
-	vm->scratch_page.daddr = addr;
-	vm->scratch_page.order = order;
-
-	return 0;
+		size = I915_GTT_PAGE_SIZE_4K;
+		gfp &= ~__GFP_NOWARN;
+	} while (1);
 }
 
 static void cleanup_scratch_page(struct i915_address_space *vm)
@@ -1341,15 +1356,18 @@ static int gen8_ppgtt_alloc_pd(struct i915_address_space *vm,
 		int count = gen8_pte_count(start, length);
 
 		if (pt == vm->scratch_pt) {
+			pd->used_pdes++;
+
 			pt = alloc_pt(vm);
-			if (IS_ERR(pt))
+			if (IS_ERR(pt)) {
+				pd->used_pdes--;
 				goto unwind;
+			}
 
 			if (count < GEN8_PTES || intel_vgpu_active(vm->i915))
 				gen8_initialize_pt(vm, pt);
 
 			gen8_ppgtt_set_pde(vm, pd, pt, pde);
-			pd->used_pdes++;
 			GEM_BUG_ON(pd->used_pdes > I915_PDES);
 		}
 
@@ -1373,13 +1391,16 @@ static int gen8_ppgtt_alloc_pdp(struct i915_address_space *vm,
 
 	gen8_for_each_pdpe(pd, pdp, start, length, pdpe) {
 		if (pd == vm->scratch_pd) {
+			pdp->used_pdpes++;
+
 			pd = alloc_pd(vm);
-			if (IS_ERR(pd))
+			if (IS_ERR(pd)) {
+				pdp->used_pdpes--;
 				goto unwind;
+			}
 
 			gen8_initialize_pd(vm, pd);
 			gen8_ppgtt_set_pdpe(vm, pdp, pd, pdpe);
-			pdp->used_pdpes++;
 			GEM_BUG_ON(pdp->used_pdpes > i915_pdpes_per_pdp(vm));
 
 			mark_tlbs_dirty(i915_vm_to_ppgtt(vm));
@@ -2287,12 +2308,23 @@ static void gen8_check_and_clear_faults(struct drm_i915_private *dev_priv)
 	u32 fault = I915_READ(GEN8_RING_FAULT_REG);
 
 	if (fault & RING_FAULT_VALID) {
+		u32 fault_data0, fault_data1;
+		u64 fault_addr;
+
+		fault_data0 = I915_READ(GEN8_FAULT_TLB_DATA0);
+		fault_data1 = I915_READ(GEN8_FAULT_TLB_DATA1);
+		fault_addr = ((u64)(fault_data1 & FAULT_VA_HIGH_BITS) << 44) |
+			     ((u64)fault_data0 << 12);
+
 		DRM_DEBUG_DRIVER("Unexpected fault\n"
-				 "\tAddr: 0x%08lx\n"
+				 "\tAddr: 0x%08x_%08x\n"
+				 "\tAddress space: %s\n"
 				 "\tEngine ID: %d\n"
 				 "\tSource ID: %d\n"
 				 "\tType: %d\n",
-				 fault & PAGE_MASK,
+				 upper_32_bits(fault_addr),
+				 lower_32_bits(fault_addr),
+				 fault_data1 & FAULT_GTT_SEL ? "GGTT" : "PPGTT",
 				 GEN8_RING_FAULT_ENGINE_ID(fault),
 				 RING_FAULT_SRCID(fault),
 				 RING_FAULT_FAULT_TYPE(fault));
@@ -2335,9 +2367,10 @@ int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
 			       struct sg_table *pages)
 {
 	do {
-		if (dma_map_sg(&obj->base.dev->pdev->dev,
-			       pages->sgl, pages->nents,
-			       PCI_DMA_BIDIRECTIONAL))
+		if (dma_map_sg_attrs(&obj->base.dev->pdev->dev,
+				     pages->sgl, pages->nents,
+				     PCI_DMA_BIDIRECTIONAL,
+				     DMA_ATTR_NO_WARN))
 			return 0;
 
 		/* If the DMA remap fails, one cause can be that we have

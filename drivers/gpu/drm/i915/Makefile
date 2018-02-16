@@ -83,6 +83,7 @@ i915-y += i915_cmd_parser.o \
 i915-y += intel_uc.o \
 	  intel_uc_fw.o \
 	  intel_guc.o \
+	  intel_guc_ads.o \
 	  intel_guc_ct.o \
 	  intel_guc_fw.o \
 	  intel_guc_log.o \
@@ -108,6 +109,7 @@ i915-y += intel_audio.o \
 	  intel_fbc.o \
 	  intel_fifo_underrun.o \
 	  intel_frontbuffer.o \
+	  intel_hdcp.o \
 	  intel_hotplug.o \
 	  intel_modes.o \
 	  intel_overlay.o \

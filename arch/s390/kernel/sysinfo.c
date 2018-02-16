@@ -89,6 +89,8 @@ static void stsi_1_1_1(struct seq_file *m, struct sysinfo_1_1_1 *info)
 	EBCASC(info->model_temp_cap, sizeof(info->model_temp_cap));
 	seq_printf(m, "Manufacturer:         %-16.16s\n", info->manufacturer);
 	seq_printf(m, "Type:                 %-4.4s\n", info->type);
+	if (info->lic)
+		seq_printf(m, "LIC Identifier:       %016lx\n", info->lic);
 	/*
 	 * Sigh: the model field has been renamed with System z9
 	 * to model_capacity and a new model field has been added

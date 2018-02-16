@@ -1,18 +1,5 @@
-/*
- * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
 
 #ifndef _CC_CRYPTO_CTX_H_
 #define _CC_CRYPTO_CTX_H_
@@ -21,7 +8,7 @@
 
 /* context size */
 #ifndef CC_CTX_SIZE_LOG2
-#if (CC_SUPPORT_SHA > 256)
+#if (CC_DEV_SHA_MAX > 256)
 #define CC_CTX_SIZE_LOG2 8
 #else
 #define CC_CTX_SIZE_LOG2 7
@@ -72,7 +59,7 @@
 #define CC_SHA384_BLOCK_SIZE 128
 #define CC_SHA512_BLOCK_SIZE 128
 
-#if (CC_SUPPORT_SHA > 256)
+#if (CC_DEV_SHA_MAX > 256)
 #define CC_DIGEST_SIZE_MAX CC_SHA512_DIGEST_SIZE
 #define CC_HASH_BLOCK_SIZE_MAX CC_SHA512_BLOCK_SIZE /*1024b*/
 #else /* Only up to SHA256 */
@@ -81,15 +68,6 @@
 #endif
 
 #define CC_HMAC_BLOCK_SIZE_MAX CC_HASH_BLOCK_SIZE_MAX
-
-#define CC_MULTI2_SYSTEM_KEY_SIZE		32
-#define CC_MULTI2_DATA_KEY_SIZE		8
-#define CC_MULTI2_SYSTEM_N_DATA_KEY_SIZE \
-		(CC_MULTI2_SYSTEM_KEY_SIZE + CC_MULTI2_DATA_KEY_SIZE)
-#define	CC_MULTI2_BLOCK_SIZE					8
-#define	CC_MULTI2_IV_SIZE					8
-#define	CC_MULTI2_MIN_NUM_ROUNDS				8
-#define	CC_MULTI2_MAX_NUM_ROUNDS				128
 
 #define CC_DRV_ALG_MAX_BLOCK_SIZE CC_HASH_BLOCK_SIZE_MAX
 
@@ -166,14 +144,6 @@ enum drv_hash_hw_mode {
 	DRV_HASH_HW_SHA384 = 12,
 	DRV_HASH_HW_GHASH = 6,
 	DRV_HASH_HW_RESERVE32B = S32_MAX
-};
-
-enum drv_multi2_mode {
-	DRV_MULTI2_NULL = -1,
-	DRV_MULTI2_ECB = 0,
-	DRV_MULTI2_CBC = 1,
-	DRV_MULTI2_OFB = 2,
-	DRV_MULTI2_RESERVE32B = S32_MAX
 };
 
 /* drv_crypto_key_type[1:0] is mapped to cipher_do[1:0] */

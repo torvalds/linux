@@ -2463,7 +2463,6 @@ static int fm10k_handle_resume(struct fm10k_intfc *interface)
 	return err;
 }
 
-#ifdef CONFIG_PM
 /**
  * fm10k_resume - Generic PM resume hook
  * @dev: generic device structure
@@ -2472,7 +2471,7 @@ static int fm10k_handle_resume(struct fm10k_intfc *interface)
  * suspend or hibernation. This function does not need to handle lower PCIe
  * device state as the stack takes care of that for us.
  **/
-static int fm10k_resume(struct device *dev)
+static int __maybe_unused fm10k_resume(struct device *dev)
 {
 	struct fm10k_intfc *interface = pci_get_drvdata(to_pci_dev(dev));
 	struct net_device *netdev = interface->netdev;
@@ -2499,7 +2498,7 @@ static int fm10k_resume(struct device *dev)
  * system suspend or hibernation. This function does not need to handle lower
  * PCIe device state as the stack takes care of that for us.
  **/
-static int fm10k_suspend(struct device *dev)
+static int __maybe_unused fm10k_suspend(struct device *dev)
 {
 	struct fm10k_intfc *interface = pci_get_drvdata(to_pci_dev(dev));
 	struct net_device *netdev = interface->netdev;
@@ -2510,8 +2509,6 @@ static int fm10k_suspend(struct device *dev)
 
 	return 0;
 }
-
-#endif /* CONFIG_PM */
 
 /**
  * fm10k_io_error_detected - called when PCI error is detected
@@ -2643,11 +2640,9 @@ static struct pci_driver fm10k_driver = {
 	.id_table		= fm10k_pci_tbl,
 	.probe			= fm10k_probe,
 	.remove			= fm10k_remove,
-#ifdef CONFIG_PM
 	.driver = {
 		.pm		= &fm10k_pm_ops,
 	},
-#endif /* CONFIG_PM */
 	.sriov_configure	= fm10k_iov_configure,
 	.err_handler		= &fm10k_err_handler
 };

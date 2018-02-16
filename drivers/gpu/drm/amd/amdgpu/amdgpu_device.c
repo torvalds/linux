@@ -1874,8 +1874,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	 * ignore it */
 	vga_client_register(adev->pdev, adev, NULL, amdgpu_device_vga_set_decode);
 
-	if (amdgpu_runtime_pm == 1)
-		runtime = true;
 	if (amdgpu_device_is_px(ddev))
 		runtime = true;
 	if (!pci_is_thunderbolt_attached(adev->pdev))
@@ -2619,7 +2617,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	uint64_t reset_flags = 0;
 	int i, r, resched;
 
-	if (!amdgpu_device_ip_check_soft_reset(adev)) {
+	if (!force && !amdgpu_device_ip_check_soft_reset(adev)) {
 		DRM_INFO("No hardware hang detected. Did some blocks stall?\n");
 		return 0;
 	}

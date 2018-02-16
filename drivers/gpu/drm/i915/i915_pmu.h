@@ -94,6 +94,14 @@ struct i915_pmu {
 	 * struct intel_engine_cs.
 	 */
 	struct i915_pmu_sample sample[__I915_NUM_PMU_SAMPLERS];
+	/**
+	 * @i915_attr: Memory block holding device attributes.
+	 */
+	void *i915_attr;
+	/**
+	 * @pmu_attr: Memory block holding device attributes.
+	 */
+	void *pmu_attr;
 };
 
 #ifdef CONFIG_PERF_EVENTS

@@ -665,9 +665,9 @@ out_err:
 }
 
 static const struct i2c_device_id tpm_tis_i2c_table[] = {
-	{"tpm_i2c_infineon", 0},
-	{"slb9635tt", 0},
-	{"slb9645tt", 1},
+	{"tpm_i2c_infineon"},
+	{"slb9635tt"},
+	{"slb9645tt"},
 	{},
 };
 
@@ -675,24 +675,9 @@ MODULE_DEVICE_TABLE(i2c, tpm_tis_i2c_table);
 
 #ifdef CONFIG_OF
 static const struct of_device_id tpm_tis_i2c_of_match[] = {
-	{
-		.name = "tpm_i2c_infineon",
-		.type = "tpm",
-		.compatible = "infineon,tpm_i2c_infineon",
-		.data = (void *)0
-	},
-	{
-		.name = "slb9635tt",
-		.type = "tpm",
-		.compatible = "infineon,slb9635tt",
-		.data = (void *)0
-	},
-	{
-		.name = "slb9645tt",
-		.type = "tpm",
-		.compatible = "infineon,slb9645tt",
-		.data = (void *)1
-	},
+	{.compatible = "infineon,tpm_i2c_infineon"},
+	{.compatible = "infineon,slb9635tt"},
+	{.compatible = "infineon,slb9645tt"},
 	{},
 };
 MODULE_DEVICE_TABLE(of, tpm_tis_i2c_of_match);

@@ -1,5 +1,5 @@
 menuconfig ARCH_MEDIATEK
-	bool "Mediatek MT65xx & MT81xx SoC"
+	bool "MediaTek SoC Support"
 	depends on ARCH_MULTI_V7
 	select ARM_GIC
 	select PINCTRL
