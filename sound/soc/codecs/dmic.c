@@ -19,6 +19,7 @@
  *
  */
 
+#include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
@@ -29,33 +30,32 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
-static int dmic_daiops_trigger(struct snd_pcm_substream *substream,
-		int cmd, struct snd_soc_dai *dai)
-{
-	struct gpio_desc *dmic_en = snd_soc_dai_get_drvdata(dai);
+struct dmic {
+	struct gpio_desc *gpio_en;
+	int wakeup_delay;
+};
 
-	if (!dmic_en)
-		return 0;
+static int dmic_aif_event(struct snd_soc_dapm_widget *w,
+			  struct snd_kcontrol *kcontrol, int event) {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct dmic *dmic = snd_soc_codec_get_drvdata(codec);
 
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_RESUME:
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		gpiod_set_value(dmic_en, 1);
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		if (dmic->gpio_en)
+			gpiod_set_value(dmic->gpio_en, 1);
+
+		if (dmic->wakeup_delay)
+			msleep(dmic->wakeup_delay);
 		break;
-	case SNDRV_PCM_TRIGGER_STOP:
-	case SNDRV_PCM_TRIGGER_SUSPEND:
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		gpiod_set_value(dmic_en, 0);
+	case SND_SOC_DAPM_POST_PMD:
+		if (dmic->gpio_en)
+			gpiod_set_value(dmic->gpio_en, 0);
 		break;
 	}
 
 	return 0;
 }
-
-static const struct snd_soc_dai_ops dmic_dai_ops = {
-	.trigger	= dmic_daiops_trigger,
-};
 
 static struct snd_soc_dai_driver dmic_dai = {
 	.name = "dmic-hifi",
@@ -68,26 +68,33 @@ static struct snd_soc_dai_driver dmic_dai = {
 			| SNDRV_PCM_FMTBIT_S24_LE
 			| SNDRV_PCM_FMTBIT_S16_LE,
 	},
-	.ops    = &dmic_dai_ops,
 };
 
 static int dmic_component_probe(struct snd_soc_component *component)
 {
-	struct gpio_desc *dmic_en;
+	struct dmic *dmic;
 
-	dmic_en = devm_gpiod_get_optional(component->dev,
-					"dmicen", GPIOD_OUT_LOW);
-	if (IS_ERR(dmic_en))
-		return PTR_ERR(dmic_en);
+	dmic = devm_kzalloc(component->dev, sizeof(*dmic), GFP_KERNEL);
+	if (!dmic)
+		return -ENOMEM;
 
-	snd_soc_component_set_drvdata(component, dmic_en);
+	dmic->gpio_en = devm_gpiod_get_optional(component->dev,
+						"dmicen", GPIOD_OUT_LOW);
+	if (IS_ERR(dmic->gpio_en))
+		return PTR_ERR(dmic->gpio_en);
+
+	device_property_read_u32(component->dev, "wakeup-delay-ms",
+				 &dmic->wakeup_delay);
+
+	snd_soc_component_set_drvdata(component, dmic);
 
 	return 0;
 }
 
 static const struct snd_soc_dapm_widget dmic_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_OUT("DMIC AIF", "Capture", 0,
-			     SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT_E("DMIC AIF", "Capture", 0,
+			       SND_SOC_NOPM, 0, 0, dmic_aif_event,
+			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_INPUT("DMic"),
 };
 
