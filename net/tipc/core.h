@@ -64,7 +64,7 @@ struct tipc_bearer;
 struct tipc_bc_base;
 struct tipc_link;
 struct tipc_name_table;
-struct tipc_server;
+struct tipc_topsrv;
 struct tipc_monitor;
 
 #define TIPC_MOD_VER "2.0.0"
@@ -112,7 +112,7 @@ struct tipc_net {
 	struct list_head dist_queue;
 
 	/* Topology subscription server */
-	struct tipc_server *topsrv;
+	struct tipc_topsrv *topsrv;
 	atomic_t subscription_count;
 };
 
@@ -131,7 +131,7 @@ static inline struct list_head *tipc_nodes(struct net *net)
 	return &tipc_net(net)->node_list;
 }
 
-static inline struct tipc_server *tipc_topsrv(struct net *net)
+static inline struct tipc_topsrv *tipc_topsrv(struct net *net)
 {
 	return tipc_net(net)->topsrv;
 }

@@ -120,7 +120,7 @@ struct publication *tipc_nametbl_insert_publ(struct net *net, u32 type,
 struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
 					     u32 lower, u32 node, u32 ref,
 					     u32 key);
-void tipc_nametbl_subscribe(struct tipc_subscription *s, bool status);
+void tipc_nametbl_subscribe(struct tipc_subscription *s);
 void tipc_nametbl_unsubscribe(struct tipc_subscription *s);
 int tipc_nametbl_init(struct net *net);
 void tipc_nametbl_stop(struct net *net);
