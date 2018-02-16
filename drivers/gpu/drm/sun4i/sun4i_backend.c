@@ -275,12 +275,16 @@ int sun4i_backend_update_layer_zpos(struct sun4i_backend *backend, int layer,
 				    struct drm_plane *plane)
 {
 	struct drm_plane_state *state = plane->state;
+	struct sun4i_layer_state *p_state = state_to_sun4i_layer_state(state);
 	unsigned int priority = state->normalized_zpos;
+	unsigned int pipe = p_state->pipe;
 
-	DRM_DEBUG_DRIVER("Setting layer %d's priority to %d\n", layer, priority);
-
+	DRM_DEBUG_DRIVER("Setting layer %d's priority to %d and pipe %d\n",
+			 layer, priority, pipe);
 	regmap_update_bits(backend->engine.regs, SUN4I_BACKEND_ATTCTL_REG0(layer),
+			   SUN4I_BACKEND_ATTCTL_REG0_LAY_PIPESEL_MASK |
 			   SUN4I_BACKEND_ATTCTL_REG0_LAY_PRISEL_MASK,
+			   SUN4I_BACKEND_ATTCTL_REG0_LAY_PIPESEL(p_state->pipe) |
 			   SUN4I_BACKEND_ATTCTL_REG0_LAY_PRISEL(priority));
 
 	return 0;
@@ -325,12 +329,15 @@ static void sun4i_backend_atomic_begin(struct sunxi_engine *engine,
 static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 				      struct drm_crtc_state *crtc_state)
 {
+	struct drm_plane_state *plane_states[SUN4I_BACKEND_NUM_LAYERS] = { 0 };
 	struct drm_atomic_state *state = crtc_state->state;
 	struct drm_device *drm = state->dev;
 	struct drm_plane *plane;
 	unsigned int num_planes = 0;
 	unsigned int num_alpha_planes = 0;
 	unsigned int num_frontend_planes = 0;
+	unsigned int current_pipe = 0;
+	unsigned int i;
 
 	DRM_DEBUG_DRIVER("Starting checking our planes\n");
 
@@ -361,8 +368,18 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 		if (fb->format->has_alpha)
 			num_alpha_planes++;
 
+		DRM_DEBUG_DRIVER("Plane zpos is %d\n",
+				 plane_state->normalized_zpos);
+
+		/* Sort our planes by Zpos */
+		plane_states[plane_state->normalized_zpos] = plane_state;
+
 		num_planes++;
 	}
+
+	/* All our planes were disabled, bail out */
+	if (!num_planes)
+		return 0;
 
 	/*
 	 * The hardware is a bit unusual here.
@@ -398,6 +415,25 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 	if (num_alpha_planes > SUN4I_BACKEND_NUM_ALPHA_LAYERS) {
 		DRM_DEBUG_DRIVER("Too many planes with alpha, rejecting...\n");
 		return -EINVAL;
+	}
+
+	/* We can't have an alpha plane at the lowest position */
+	if (plane_states[0]->fb->format->has_alpha)
+		return -EINVAL;
+
+	for (i = 1; i < num_planes; i++) {
+		struct drm_plane_state *p_state = plane_states[i];
+		struct drm_framebuffer *fb = p_state->fb;
+		struct sun4i_layer_state *s_state = state_to_sun4i_layer_state(p_state);
+
+		/*
+		 * The only alpha position is the lowest plane of the
+		 * second pipe.
+		 */
+		if (fb->format->has_alpha)
+			current_pipe++;
+
+		s_state->pipe = current_pipe;
 	}
 
 	if (num_frontend_planes > SUN4I_BACKEND_NUM_FRONTEND_LAYERS) {

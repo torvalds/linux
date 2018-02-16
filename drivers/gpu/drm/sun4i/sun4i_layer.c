@@ -220,12 +220,6 @@ struct drm_plane **sun4i_layers_init(struct drm_device *drm,
 
 		drm_plane_create_zpos_immutable_property(&layer->plane, i);
 
-		DRM_DEBUG_DRIVER("Assigning %s plane to pipe %d\n",
-				 i ? "overlay" : "primary", plane->pipe);
-		regmap_update_bits(engine->regs, SUN4I_BACKEND_ATTCTL_REG0(i),
-				   SUN4I_BACKEND_ATTCTL_REG0_LAY_PIPESEL_MASK,
-				   SUN4I_BACKEND_ATTCTL_REG0_LAY_PIPESEL(plane->pipe));
-
 		layer->id = i;
 		planes[i] = &layer->plane;
 	};
