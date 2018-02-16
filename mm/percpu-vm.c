@@ -37,7 +37,7 @@ static struct page **pcpu_get_pages(void)
 	lockdep_assert_held(&pcpu_alloc_mutex);
 
 	if (!pages)
-		pages = pcpu_mem_zalloc(pages_size);
+		pages = pcpu_mem_zalloc(pages_size, 0);
 	return pages;
 }
 
@@ -73,17 +73,20 @@ static void pcpu_free_pages(struct pcpu_chunk *chunk,
  * @pages: array to put the allocated pages into, indexed by pcpu_page_idx()
  * @page_start: page index of the first page to be allocated
  * @page_end: page index of the last page to be allocated + 1
+ * @gfp: allocation flags passed to the underlying allocator
  *
  * Allocate pages [@page_start,@page_end) into @pages for all units.
  * The allocation is for @chunk.  Percpu core doesn't care about the
  * content of @pages and will pass it verbatim to pcpu_map_pages().
  */
 static int pcpu_alloc_pages(struct pcpu_chunk *chunk,
-			    struct page **pages, int page_start, int page_end)
+			    struct page **pages, int page_start, int page_end,
+			    gfp_t gfp)
 {
-	const gfp_t gfp = GFP_KERNEL | __GFP_HIGHMEM | __GFP_COLD;
 	unsigned int cpu, tcpu;
 	int i;
+
+	gfp |= GFP_KERNEL | __GFP_HIGHMEM | __GFP_COLD;
 
 	for_each_possible_cpu(cpu) {
 		for (i = page_start; i < page_end; i++) {
@@ -262,6 +265,7 @@ static void pcpu_post_map_flush(struct pcpu_chunk *chunk,
  * @chunk: chunk of interest
  * @page_start: the start page
  * @page_end: the end page
+ * @gfp: allocation flags passed to the underlying memory allocator
  *
  * For each cpu, populate and map pages [@page_start,@page_end) into
  * @chunk.
@@ -270,7 +274,7 @@ static void pcpu_post_map_flush(struct pcpu_chunk *chunk,
  * pcpu_alloc_mutex, does GFP_KERNEL allocation.
  */
 static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
-			       int page_start, int page_end)
+			       int page_start, int page_end, gfp_t gfp)
 {
 	struct page **pages;
 
@@ -278,7 +282,7 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
 	if (!pages)
 		return -ENOMEM;
 
-	if (pcpu_alloc_pages(chunk, pages, page_start, page_end))
+	if (pcpu_alloc_pages(chunk, pages, page_start, page_end, gfp))
 		return -ENOMEM;
 
 	if (pcpu_map_pages(chunk, pages, page_start, page_end)) {
@@ -325,12 +329,12 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
 	pcpu_free_pages(chunk, pages, page_start, page_end);
 }
 
-static struct pcpu_chunk *pcpu_create_chunk(void)
+static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
 {
 	struct pcpu_chunk *chunk;
 	struct vm_struct **vms;
 
-	chunk = pcpu_alloc_chunk();
+	chunk = pcpu_alloc_chunk(gfp);
 	if (!chunk)
 		return NULL;
 
