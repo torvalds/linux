@@ -3646,7 +3646,7 @@ static inline bool __skb_checksum_validate_needed(struct sk_buff *skb,
 	return true;
 }
 
-/* For small packets <= CHECKSUM_BREAK peform checksum complete directly
+/* For small packets <= CHECKSUM_BREAK perform checksum complete directly
  * in checksum_init.
  */
 #define CHECKSUM_BREAK 76
