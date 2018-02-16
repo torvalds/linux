@@ -232,8 +232,10 @@ static inline void tcp_process(struct net_device *dev, struct txq_entry_t *tqe)
 					 (u32)tcp_hdr_ptr[11];
 
 				for (i = 0; i < tcp_session; i++) {
+					u32 j = ack_session_info[i].seq_num;
+
 					if (i < 2 * MAX_TCP_SESSION &&
-					    ack_session_info[i].seq_num == seq_no) {
+					    j == seq_no) {
 						update_tcp_session(i, ack_no);
 						break;
 					}
