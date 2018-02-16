@@ -913,8 +913,11 @@ static int sdio_clear_int_ext(struct wilc *wilc, u32 val)
 		return 1;
 	}
 	if (g_sdio.irq_gpio) {
-		/* see below. has_thrpt_enh2 uses register 0xf8 to clear interrupts. */
-		/* Cannot clear multiple interrupts. Must clear each interrupt individually */
+		/* has_thrpt_enh2 uses register 0xf8 to clear interrupts. */
+		/*
+		 * Cannot clear multiple interrupts.
+		 * Must clear each interrupt individually.
+		 */
 		u32 flags;
 
 		flags = val & (BIT(MAX_NUM_INT) - 1);
