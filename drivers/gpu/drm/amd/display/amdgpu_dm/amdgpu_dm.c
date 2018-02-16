@@ -4687,8 +4687,6 @@ static int dm_update_planes_state(struct dc *dc,
 	bool pflip_needed  = !state->allow_modeset;
 	int ret = 0;
 
-	if (pflip_needed)
-		return ret;
 
 	/* Add new planes */
 	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
@@ -4703,6 +4701,8 @@ static int dm_update_planes_state(struct dc *dc,
 
 		/* Remove any changed/removed planes */
 		if (!enable) {
+			if (pflip_needed)
+				continue;
 
 			if (!old_plane_crtc)
 				continue;
@@ -4747,6 +4747,8 @@ static int dm_update_planes_state(struct dc *dc,
 			if (!dm_new_crtc_state->stream)
 				continue;
 
+			if (pflip_needed)
+				continue;
 
 			WARN_ON(dm_new_plane_state->dc_state);
 
