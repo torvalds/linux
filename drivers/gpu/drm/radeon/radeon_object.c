@@ -204,11 +204,7 @@ int radeon_bo_create(struct radeon_device *rdev,
 	bo = kzalloc(sizeof(struct radeon_bo), GFP_KERNEL);
 	if (bo == NULL)
 		return -ENOMEM;
-	r = drm_gem_object_init(rdev->ddev, &bo->gem_base, size);
-	if (unlikely(r)) {
-		kfree(bo);
-		return r;
-	}
+	drm_gem_private_object_init(rdev->ddev, &bo->gem_base, size);
 	bo->rdev = rdev;
 	bo->surface_reg = -1;
 	INIT_LIST_HEAD(&bo->list);
