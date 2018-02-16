@@ -4815,6 +4815,7 @@ int dwc2_backup_device_registers(struct dwc2_hsotg *hsotg)
 
 		dr->doeptsiz[i] = dwc2_readl(hsotg->regs + DOEPTSIZ(i));
 		dr->doepdma[i] = dwc2_readl(hsotg->regs + DOEPDMA(i));
+		dr->dtxfsiz[i] = dwc2_readl(hsotg->regs + DPTXFSIZN(i));
 	}
 	dr->valid = true;
 	return 0;
@@ -4855,6 +4856,7 @@ int dwc2_restore_device_registers(struct dwc2_hsotg *hsotg)
 		dwc2_writel(dr->diepctl[i], hsotg->regs + DIEPCTL(i));
 		dwc2_writel(dr->dieptsiz[i], hsotg->regs + DIEPTSIZ(i));
 		dwc2_writel(dr->diepdma[i], hsotg->regs + DIEPDMA(i));
+		dwc2_writel(dr->dtxfsiz[i], hsotg->regs + DPTXFSIZN(i));
 
 		/* Restore OUT EPs */
 		dwc2_writel(dr->doepctl[i], hsotg->regs + DOEPCTL(i));
