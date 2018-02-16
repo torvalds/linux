@@ -1180,7 +1180,7 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 		rc = bnxt_qplib_create_qp(&rdev->qplib_res, &qp->qplib_qp);
 		if (rc) {
 			dev_err(rdev_to_dev(rdev), "Failed to create HW QP");
-			goto fail;
+			goto free_umem;
 		}
 	}
 
@@ -1208,6 +1208,13 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 	return &qp->ib_qp;
 qp_destroy:
 	bnxt_qplib_destroy_qp(&rdev->qplib_res, &qp->qplib_qp);
+free_umem:
+	if (udata) {
+		if (qp->rumem)
+			ib_umem_release(qp->rumem);
+		if (qp->sumem)
+			ib_umem_release(qp->sumem);
+	}
 fail:
 	kfree(qp);
 	return ERR_PTR(rc);
