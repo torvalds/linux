@@ -4411,9 +4411,10 @@ nfs4_set_delegation(struct nfs4_client *clp, struct svc_fh *fh,
 		return ERR_PTR(-ENOMEM);
 
 	get_nfs4_file(fp);
+	dp->dl_stid.sc_file = fp;
+
 	spin_lock(&state_lock);
 	spin_lock(&fp->fi_lock);
-	dp->dl_stid.sc_file = fp;
 	if (!fp->fi_deleg_file) {
 		spin_unlock(&fp->fi_lock);
 		spin_unlock(&state_lock);
