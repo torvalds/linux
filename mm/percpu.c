@@ -454,9 +454,6 @@ static void pcpu_next_fit_region(struct pcpu_chunk *chunk, int alloc_bits,
  * This is to facilitate passing through whitelisted flags.  The
  * returned memory is always zeroed.
  *
- * CONTEXT:
- * Does GFP_KERNEL allocation.
- *
  * RETURNS:
  * Pointer to the allocated area on success, NULL on failure.
  */
@@ -466,10 +463,9 @@ static void *pcpu_mem_zalloc(size_t size, gfp_t gfp)
 		return NULL;
 
 	if (size <= PAGE_SIZE)
-		return kzalloc(size, gfp | GFP_KERNEL);
+		return kzalloc(size, gfp);
 	else
-		return __vmalloc(size, gfp | GFP_KERNEL | __GFP_ZERO,
-				 PAGE_KERNEL);
+		return __vmalloc(size, gfp | __GFP_ZERO, PAGE_KERNEL);
 }
 
 /**
@@ -1344,6 +1340,8 @@ static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
 static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
 				 gfp_t gfp)
 {
+	/* whitelisted flags that can be passed to the backing allocators */
+	gfp_t pcpu_gfp = gfp & (GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
 	bool is_atomic = (gfp & GFP_KERNEL) != GFP_KERNEL;
 	bool do_warn = !(gfp & __GFP_NOWARN);
 	static int warn_limit = 10;
@@ -1426,7 +1424,7 @@ restart:
 	}
 
 	if (list_empty(&pcpu_slot[pcpu_nr_slots - 1])) {
-		chunk = pcpu_create_chunk(0);
+		chunk = pcpu_create_chunk(pcpu_gfp);
 		if (!chunk) {
 			err = "failed to allocate new chunk";
 			goto fail;
@@ -1455,7 +1453,7 @@ area_found:
 					   page_start, page_end) {
 			WARN_ON(chunk->immutable);
 
-			ret = pcpu_populate_chunk(chunk, rs, re, 0);
+			ret = pcpu_populate_chunk(chunk, rs, re, pcpu_gfp);
 
 			spin_lock_irqsave(&pcpu_lock, flags);
 			if (ret) {
@@ -1576,7 +1574,7 @@ void __percpu *__alloc_reserved_percpu(size_t size, size_t align)
 static void pcpu_balance_workfn(struct work_struct *work)
 {
 	/* gfp flags passed to underlying allocators */
-	const gfp_t gfp = __GFP_NORETRY | __GFP_NOWARN;
+	const gfp_t gfp = GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN;
 	LIST_HEAD(to_free);
 	struct list_head *free_head = &pcpu_slot[pcpu_nr_slots - 1];
 	struct pcpu_chunk *chunk, *next;

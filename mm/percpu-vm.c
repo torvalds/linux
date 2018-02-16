@@ -37,7 +37,7 @@ static struct page **pcpu_get_pages(void)
 	lockdep_assert_held(&pcpu_alloc_mutex);
 
 	if (!pages)
-		pages = pcpu_mem_zalloc(pages_size, 0);
+		pages = pcpu_mem_zalloc(pages_size, GFP_KERNEL);
 	return pages;
 }
 
@@ -86,7 +86,7 @@ static int pcpu_alloc_pages(struct pcpu_chunk *chunk,
 	unsigned int cpu, tcpu;
 	int i;
 
-	gfp |= GFP_KERNEL | __GFP_HIGHMEM;
+	gfp |= __GFP_HIGHMEM;
 
 	for_each_possible_cpu(cpu) {
 		for (i = page_start; i < page_end; i++) {
