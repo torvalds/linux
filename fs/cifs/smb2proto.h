@@ -204,5 +204,7 @@ extern enum securityEnum smb2_select_sectype(struct TCP_Server_Info *,
 					enum securityEnum);
 #ifdef CONFIG_CIFS_SMB311
 extern int smb311_crypto_shash_allocate(struct TCP_Server_Info *server);
+extern int smb311_update_preauth_hash(struct cifs_ses *ses,
+				      struct kvec *iov, int nvec);
 #endif
 #endif			/* _SMB2PROTO_H */

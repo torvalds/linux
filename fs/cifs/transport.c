@@ -37,6 +37,7 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
+#include "smb2proto.h"
 #include "smbdirect.h"
 
 /* Max number of iovectors we can use off the stack when sending requests. */
@@ -751,6 +752,12 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	if (rc < 0)
 		goto out;
 
+#ifdef CONFIG_CIFS_SMB311
+	if (ses->status == CifsNew)
+		smb311_update_preauth_hash(ses, rqst->rq_iov+1,
+					   rqst->rq_nvec-1);
+#endif
+
 	if (timeout == CIFS_ASYNC_OP)
 		goto out;
 
@@ -788,6 +795,16 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		*resp_buf_type = CIFS_LARGE_BUFFER;
 	else
 		*resp_buf_type = CIFS_SMALL_BUFFER;
+
+#ifdef CONFIG_CIFS_SMB311
+	if (ses->status == CifsNew) {
+		struct kvec iov = {
+			.iov_base = buf + 4,
+			.iov_len = get_rfc1002_length(buf)
+		};
+		smb311_update_preauth_hash(ses, &iov, 1);
+	}
+#endif
 
 	credits = ses->server->ops->get_credits(midQ);
 

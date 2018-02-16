@@ -264,6 +264,7 @@ struct smb2_negotiate_req {
 #define SMB311_SALT_SIZE			32
 /* Hash Algorithm Types */
 #define SMB2_PREAUTH_INTEGRITY_SHA512	cpu_to_le16(0x0001)
+#define SMB2_PREAUTH_HASH_SIZE 64
 
 struct smb2_preauth_neg_context {
 	__le16	ContextType; /* 1 */
