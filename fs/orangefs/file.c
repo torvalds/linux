@@ -44,7 +44,7 @@ static int flush_racache(struct inode *inode)
 /*
  * Post and wait for the I/O upcall to finish
  */
-static ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
+ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
 		loff_t *offset, struct iov_iter *iter,
 		size_t total_size, loff_t readahead_size)
 {
@@ -240,7 +240,7 @@ out:
  * augmented/extended metadata attached to the file.
  * Note: File extended attributes override any mount options.
  */
-static ssize_t do_readv_writev(enum ORANGEFS_io_type type, struct file *file,
+ssize_t do_readv_writev(enum ORANGEFS_io_type type, struct file *file,
 		loff_t *offset, struct iov_iter *iter)
 {
 	struct inode *inode = file->f_mapping->host;
@@ -341,65 +341,11 @@ out:
 	return ret;
 }
 
-/*
- * Read data from a specified offset in a file (referenced by inode).
- * Data may be placed either in a user or kernel buffer.
- */
-ssize_t orangefs_inode_read(struct inode *inode,
-			    struct iov_iter *iter,
-			    loff_t *offset,
-			    loff_t readahead_size)
+static ssize_t orangefs_file_read_iter(struct kiocb *iocb,
+    struct iov_iter *iter)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
-	size_t count = iov_iter_count(iter);
-	size_t bufmap_size;
-	ssize_t ret = -EINVAL;
-
 	orangefs_stats.reads++;
-
-	bufmap_size = orangefs_bufmap_size_query();
-	if (count > bufmap_size) {
-		gossip_debug(GOSSIP_FILE_DEBUG,
-			     "%s: count is too large (%zd/%zd)!\n",
-			     __func__, count, bufmap_size);
-		return -EINVAL;
-	}
-
-	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "%s(%pU) %zd@%llu\n",
-		     __func__,
-		     &orangefs_inode->refn.khandle,
-		     count,
-		     llu(*offset));
-
-	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, offset, iter,
-			count, readahead_size);
-	if (ret > 0)
-		*offset += ret;
-
-	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "%s(%pU): Value(%zd) returned.\n",
-		     __func__,
-		     &orangefs_inode->refn.khandle,
-		     ret);
-
-	return ret;
-}
-
-static ssize_t orangefs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
-{
-	struct file *file = iocb->ki_filp;
-	loff_t pos = iocb->ki_pos;
-	ssize_t rc = 0;
-
-	gossip_debug(GOSSIP_FILE_DEBUG, "orangefs_file_read_iter\n");
-
-	orangefs_stats.reads++;
-
-	rc = do_readv_writev(ORANGEFS_IO_READ, file, &pos, iter);
-	iocb->ki_pos = pos;
-
-	return rc;
+	return generic_file_read_iter(iocb, iter);
 }
 
 static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
@@ -407,6 +353,8 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *ite
 	struct file *file = iocb->ki_filp;
 	loff_t pos;
 	ssize_t rc;
+
+	truncate_inode_pages(file->f_mapping, 0);
 
 	gossip_debug(GOSSIP_FILE_DEBUG, "orangefs_file_write_iter\n");
 

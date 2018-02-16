@@ -369,11 +369,6 @@ ssize_t orangefs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 struct inode *orangefs_iget(struct super_block *sb,
 			 struct orangefs_object_kref *ref);
 
-ssize_t orangefs_inode_read(struct inode *inode,
-			    struct iov_iter *iter,
-			    loff_t *offset,
-			    loff_t readahead_size);
-
 /*
  * defined in devorangefs-req.c
  */
@@ -383,6 +378,14 @@ int orangefs_dev_init(void);
 void orangefs_dev_cleanup(void);
 int is_daemon_in_service(void);
 bool __is_daemon_in_service(void);
+
+/*
+ * defined in file.c
+ */
+ssize_t wait_for_direct_io(enum ORANGEFS_io_type, struct inode *, loff_t *,
+    struct iov_iter *, size_t, loff_t);
+ssize_t do_readv_writev(enum ORANGEFS_io_type, struct file *, loff_t *,
+    struct iov_iter *);
 
 /*
  * defined in orangefs-utils.c

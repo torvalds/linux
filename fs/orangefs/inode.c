@@ -17,37 +17,25 @@
 
 static int orangefs_readpage(struct file *file, struct page *page)
 {
-	int ret;
-	int max_block;
-	ssize_t bytes_read = 0;
 	struct inode *inode = page->mapping->host;
-	const __u32 blocksize = PAGE_SIZE;
-	const __u32 blockbits = PAGE_SHIFT;
-	struct iov_iter to;
-	struct bio_vec bv = {.bv_page = page, .bv_len = PAGE_SIZE};
+	struct iov_iter iter;
+	struct bio_vec bv;
+	ssize_t ret;
+	loff_t off;
 
-	iov_iter_bvec(&to, READ, &bv, 1, PAGE_SIZE);
+	off = page_offset(page);
+	bv.bv_page = page;
+	bv.bv_len = PAGE_SIZE;
+	bv.bv_offset = 0;
+	iov_iter_bvec(&iter, READ, &bv, 1, PAGE_SIZE);
 
-	gossip_debug(GOSSIP_INODE_DEBUG,
-		    "orangefs_readpage called with page %p\n",
-		     page);
-
-	max_block = ((inode->i_size / blocksize) + 1);
-
-	if (page->index < max_block) {
-		loff_t blockptr_offset = (((loff_t) page->index) << blockbits);
-
-		bytes_read = orangefs_inode_read(inode,
-						 &to,
-						 &blockptr_offset,
-						 inode->i_size);
-	}
+	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, &off, &iter,
+	    PAGE_SIZE, inode->i_size);
 	/* this will only zero remaining unread portions of the page data */
-	iov_iter_zero(~0U, &to);
+	iov_iter_zero(~0U, &iter);
 	/* takes care of potential aliasing */
 	flush_dcache_page(page);
-	if (bytes_read < 0) {
-		ret = bytes_read;
+	if (ret < 0) {
 		SetPageError(page);
 	} else {
 		SetPageUptodate(page);
@@ -84,22 +72,17 @@ static int orangefs_releasepage(struct page *page, gfp_t foo)
 	return 0;
 }
 
-/*
- * Having a direct_IO entry point in the address_space_operations
- * struct causes the kernel to allows us to use O_DIRECT on
- * open. Nothing will ever call this thing, but in the future we
- * will need to be able to use O_DIRECT on open in order to support
- * AIO. Modeled after NFS, they do this too.
- */
-
 static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 				  struct iov_iter *iter)
 {
-	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "orangefs_direct_IO: %pD\n",
-		     iocb->ki_filp);
-
-	return -EINVAL;
+	struct file *file = iocb->ki_filp;
+	loff_t pos = *(&iocb->ki_pos);
+	/*
+	 * This cannot happen until write_iter becomes
+	 * generic_file_write_iter.
+	 */
+	BUG_ON(iov_iter_rw(iter) != READ);
+	return do_readv_writev(ORANGEFS_IO_READ, file, &pos, iter);
 }
 
 /** ORANGEFS2 implementation of address space operations */
