@@ -362,6 +362,8 @@ struct usb3phy_reg {
  * @usb3tousb2_en: the register of type-c force usb2 to usb2 enable.
  * @external_psm: the register of type-c phy external psm clock.
  * @pipe_status: the register of type-c phy pipe status.
+ * @usb3_host_disable: the register of type-c usb3 host disable.
+ * @usb3_host_port: the register of type-c usb3 host port.
  */
 struct rockchip_usb3phy_port_cfg {
 	unsigned int reg;
@@ -369,6 +371,8 @@ struct rockchip_usb3phy_port_cfg {
 	struct usb3phy_reg usb3tousb2_en;
 	struct usb3phy_reg external_psm;
 	struct usb3phy_reg pipe_status;
+	struct usb3phy_reg usb3_host_disable;
+	struct usb3phy_reg usb3_host_port;
 };
 
 struct rockchip_typec_phy {
@@ -440,6 +444,8 @@ static const struct rockchip_usb3phy_port_cfg rk3399_usb3phy_port_cfgs[] = {
 		.usb3tousb2_en	= { 0xe580, 3, 19 },
 		.external_psm	= { 0xe588, 14, 30 },
 		.pipe_status	= { 0xe5c0, 0, 0 },
+		.usb3_host_disable = { 0x2434, 0, 16 },
+		.usb3_host_port = { 0x2434, 12, 28 },
 	},
 	{
 		.reg = 0xff800000,
@@ -447,6 +453,8 @@ static const struct rockchip_usb3phy_port_cfg rk3399_usb3phy_port_cfgs[] = {
 		.usb3tousb2_en	= { 0xe58c, 3, 19 },
 		.external_psm	= { 0xe594, 14, 30 },
 		.pipe_status	= { 0xe5c0, 16, 16 },
+		.usb3_host_disable = { 0x2444, 0, 16 },
+		.usb3_host_port = { 0x2444, 12, 28 },
 	},
 	{ /* sentinel */ }
 };
@@ -879,6 +887,9 @@ static int rockchip_usb3_phy_power_on(struct phy *phy)
 		regmap_read(tcphy->grf_regs, reg->offset, &val);
 		if (!(val & BIT(reg->enable_bit))) {
 			tcphy->mode |= new_mode & (MODE_DFP_USB | MODE_UFP_USB);
+			/* enable usb3 host */
+			property_enable(tcphy, &cfg->usb3_host_disable, 0);
+			property_enable(tcphy, &cfg->usb3_host_port, 1);
 			goto unlock_ret;
 		}
 		usleep_range(10, 20);
