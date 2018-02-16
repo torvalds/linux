@@ -2291,11 +2291,67 @@ static int tun_validate(struct nlattr *tb[], struct nlattr *data[],
 	return -EINVAL;
 }
 
+static size_t tun_get_size(const struct net_device *dev)
+{
+	BUILD_BUG_ON(sizeof(u32) != sizeof(uid_t));
+	BUILD_BUG_ON(sizeof(u32) != sizeof(gid_t));
+
+	return nla_total_size(sizeof(uid_t)) + /* OWNER */
+	       nla_total_size(sizeof(gid_t)) + /* GROUP */
+	       nla_total_size(sizeof(u8)) + /* TYPE */
+	       nla_total_size(sizeof(u8)) + /* PI */
+	       nla_total_size(sizeof(u8)) + /* VNET_HDR */
+	       nla_total_size(sizeof(u8)) + /* PERSIST */
+	       nla_total_size(sizeof(u8)) + /* MULTI_QUEUE */
+	       nla_total_size(sizeof(u32)) + /* NUM_QUEUES */
+	       nla_total_size(sizeof(u32)) + /* NUM_DISABLED_QUEUES */
+	       0;
+}
+
+static int tun_fill_info(struct sk_buff *skb, const struct net_device *dev)
+{
+	struct tun_struct *tun = netdev_priv(dev);
+
+	if (nla_put_u8(skb, IFLA_TUN_TYPE, tun->flags & TUN_TYPE_MASK))
+		goto nla_put_failure;
+	if (uid_valid(tun->owner) &&
+	    nla_put_u32(skb, IFLA_TUN_OWNER,
+			from_kuid_munged(current_user_ns(), tun->owner)))
+		goto nla_put_failure;
+	if (gid_valid(tun->group) &&
+	    nla_put_u32(skb, IFLA_TUN_GROUP,
+			from_kgid_munged(current_user_ns(), tun->group)))
+		goto nla_put_failure;
+	if (nla_put_u8(skb, IFLA_TUN_PI, !(tun->flags & IFF_NO_PI)))
+		goto nla_put_failure;
+	if (nla_put_u8(skb, IFLA_TUN_VNET_HDR, !!(tun->flags & IFF_VNET_HDR)))
+		goto nla_put_failure;
+	if (nla_put_u8(skb, IFLA_TUN_PERSIST, !!(tun->flags & IFF_PERSIST)))
+		goto nla_put_failure;
+	if (nla_put_u8(skb, IFLA_TUN_MULTI_QUEUE,
+		       !!(tun->flags & IFF_MULTI_QUEUE)))
+		goto nla_put_failure;
+	if (tun->flags & IFF_MULTI_QUEUE) {
+		if (nla_put_u32(skb, IFLA_TUN_NUM_QUEUES, tun->numqueues))
+			goto nla_put_failure;
+		if (nla_put_u32(skb, IFLA_TUN_NUM_DISABLED_QUEUES,
+				tun->numdisabled))
+			goto nla_put_failure;
+	}
+
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
 static struct rtnl_link_ops tun_link_ops __read_mostly = {
 	.kind		= DRV_NAME,
 	.priv_size	= sizeof(struct tun_struct),
 	.setup		= tun_setup,
 	.validate	= tun_validate,
+	.get_size       = tun_get_size,
+	.fill_info      = tun_fill_info,
 };
 
 static void tun_sock_write_space(struct sock *sk)
