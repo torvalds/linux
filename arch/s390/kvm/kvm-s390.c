@@ -699,6 +699,8 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 		mutex_lock(&kvm->lock);
 		if (!kvm->created_vcpus) {
 			kvm->arch.use_cmma = 1;
+			/* Not compatible with cmma. */
+			kvm->arch.use_pfmfi = 0;
 			ret = 0;
 		}
 		mutex_unlock(&kvm->lock);
@@ -1603,7 +1605,7 @@ static int kvm_s390_get_cmma_bits(struct kvm *kvm,
 		return -EINVAL;
 	/* CMMA is disabled or was not used, or the buffer has length zero */
 	bufsize = min(args->count, KVM_S390_CMMA_SIZE_MAX);
-	if (!bufsize || !kvm->mm->context.use_cmma) {
+	if (!bufsize || !kvm->mm->context.uses_cmm) {
 		memset(args, 0, sizeof(*args));
 		return 0;
 	}
@@ -1680,7 +1682,7 @@ static int kvm_s390_get_cmma_bits(struct kvm *kvm,
 /*
  * This function sets the CMMA attributes for the given pages. If the input
  * buffer has zero length, no action is taken, otherwise the attributes are
- * set and the mm->context.use_cmma flag is set.
+ * set and the mm->context.uses_cmm flag is set.
  */
 static int kvm_s390_set_cmma_bits(struct kvm *kvm,
 				  const struct kvm_s390_cmma_log *args)
@@ -1730,9 +1732,9 @@ static int kvm_s390_set_cmma_bits(struct kvm *kvm,
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	up_read(&kvm->mm->mmap_sem);
 
-	if (!kvm->mm->context.use_cmma) {
+	if (!kvm->mm->context.uses_cmm) {
 		down_write(&kvm->mm->mmap_sem);
-		kvm->mm->context.use_cmma = 1;
+		kvm->mm->context.uses_cmm = 1;
 		up_write(&kvm->mm->mmap_sem);
 	}
 out:
@@ -2043,6 +2045,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	kvm->arch.css_support = 0;
 	kvm->arch.use_irqchip = 0;
+	kvm->arch.use_pfmfi = sclp.has_pfmfi;
 	kvm->arch.epoch = 0;
 
 	spin_lock_init(&kvm->arch.start_stop_lock);
@@ -2469,8 +2472,6 @@ int kvm_s390_vcpu_setup_cmma(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->cbrlo = get_zeroed_page(GFP_KERNEL);
 	if (!vcpu->arch.sie_block->cbrlo)
 		return -ENOMEM;
-
-	vcpu->arch.sie_block->ecb2 &= ~ECB2_PFMFI;
 	return 0;
 }
 
@@ -2506,7 +2507,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	if (test_kvm_facility(vcpu->kvm, 73))
 		vcpu->arch.sie_block->ecb |= ECB_TE;
 
-	if (test_kvm_facility(vcpu->kvm, 8) && sclp.has_pfmfi)
+	if (test_kvm_facility(vcpu->kvm, 8) && vcpu->kvm->arch.use_pfmfi)
 		vcpu->arch.sie_block->ecb2 |= ECB2_PFMFI;
 	if (test_kvm_facility(vcpu->kvm, 130))
 		vcpu->arch.sie_block->ecb2 |= ECB2_IEP;
@@ -3038,7 +3039,7 @@ retry:
 
 	if (kvm_check_request(KVM_REQ_START_MIGRATION, vcpu)) {
 		/*
-		 * Disable CMMA virtualization; we will emulate the ESSA
+		 * Disable CMM virtualization; we will emulate the ESSA
 		 * instruction manually, in order to provide additional
 		 * functionalities needed for live migration.
 		 */
@@ -3048,11 +3049,11 @@ retry:
 
 	if (kvm_check_request(KVM_REQ_STOP_MIGRATION, vcpu)) {
 		/*
-		 * Re-enable CMMA virtualization if CMMA is available and
-		 * was used.
+		 * Re-enable CMM virtualization if CMMA is available and
+		 * CMM has been used.
 		 */
 		if ((vcpu->kvm->arch.use_cmma) &&
-		    (vcpu->kvm->mm->context.use_cmma))
+		    (vcpu->kvm->mm->context.uses_cmm))
 			vcpu->arch.sie_block->ecb2 |= ECB2_CMMA;
 		goto retry;
 	}

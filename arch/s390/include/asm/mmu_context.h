@@ -31,7 +31,7 @@ static inline int init_new_context(struct task_struct *tsk,
 		(current->mm && current->mm->context.alloc_pgste);
 	mm->context.has_pgste = 0;
 	mm->context.use_skey = 0;
-	mm->context.use_cmma = 0;
+	mm->context.uses_cmm = 0;
 #endif
 	switch (mm->context.asce_limit) {
 	case _REGION2_SIZE:
