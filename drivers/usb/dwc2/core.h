@@ -1153,6 +1153,9 @@ void dwc2_flush_rx_fifo(struct dwc2_hsotg *hsotg);
 void dwc2_enable_global_interrupts(struct dwc2_hsotg *hcd);
 void dwc2_disable_global_interrupts(struct dwc2_hsotg *hcd);
 
+void dwc2_hib_restore_common(struct dwc2_hsotg *hsotg, int rem_wakeup,
+			     int is_host);
+
 void dwc2_enable_acg(struct dwc2_hsotg *hsotg);
 
 /* This function should be called on every hardware interrupt. */

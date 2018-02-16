@@ -242,6 +242,142 @@ int dwc2_enter_partial_power_down(struct dwc2_hsotg *hsotg)
 }
 
 /**
+ * dwc2_restore_essential_regs() - Restore essiential regs of core.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ * @rmode: Restore mode, enabled in case of remote-wakeup.
+ * @is_host: Host or device mode.
+ */
+static void dwc2_restore_essential_regs(struct dwc2_hsotg *hsotg, int rmode,
+					int is_host)
+{
+	u32 pcgcctl;
+	struct dwc2_gregs_backup *gr;
+	struct dwc2_dregs_backup *dr;
+	struct dwc2_hregs_backup *hr;
+
+	gr = &hsotg->gr_backup;
+	dr = &hsotg->dr_backup;
+	hr = &hsotg->hr_backup;
+
+	dev_dbg(hsotg->dev, "%s: restoring essential regs\n", __func__);
+
+	/* Load restore values for [31:14] bits */
+	pcgcctl = (gr->pcgcctl & 0xffffc000);
+	/* If High Speed */
+	if (is_host) {
+		if (!(pcgcctl & PCGCTL_P2HD_PRT_SPD_MASK))
+			pcgcctl |= BIT(17);
+	} else {
+		if (!(pcgcctl & PCGCTL_P2HD_DEV_ENUM_SPD_MASK))
+			pcgcctl |= BIT(17);
+	}
+	dwc2_writel(pcgcctl, hsotg->regs + PCGCTL);
+
+	/* Umnask global Interrupt in GAHBCFG and restore it */
+	dwc2_writel(gr->gahbcfg | GAHBCFG_GLBL_INTR_EN, hsotg->regs + GAHBCFG);
+
+	/* Clear all pending interupts */
+	dwc2_writel(0xffffffff, hsotg->regs + GINTSTS);
+
+	/* Unmask restore done interrupt */
+	dwc2_writel(GINTSTS_RESTOREDONE, hsotg->regs + GINTMSK);
+
+	/* Restore GUSBCFG and HCFG/DCFG */
+	dwc2_writel(gr->gusbcfg, hsotg->regs + GUSBCFG);
+
+	if (is_host) {
+		dwc2_writel(hr->hcfg, hsotg->regs + HCFG);
+		if (rmode)
+			pcgcctl |= PCGCTL_RESTOREMODE;
+		dwc2_writel(pcgcctl, hsotg->regs + PCGCTL);
+		udelay(10);
+
+		pcgcctl |= PCGCTL_ESS_REG_RESTORED;
+		dwc2_writel(pcgcctl, hsotg->regs + PCGCTL);
+		udelay(10);
+	} else {
+		dwc2_writel(dr->dcfg, hsotg->regs + DCFG);
+		if (!rmode)
+			pcgcctl |= PCGCTL_RESTOREMODE | PCGCTL_RSTPDWNMODULE;
+		dwc2_writel(pcgcctl, hsotg->regs + PCGCTL);
+		udelay(10);
+
+		pcgcctl |= PCGCTL_ESS_REG_RESTORED;
+		dwc2_writel(pcgcctl, hsotg->regs + PCGCTL);
+		udelay(10);
+	}
+}
+
+/**
+ * dwc2_hib_restore_common() - Common part of restore routine.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ * @rem_wakeup: Remote-wakeup, enabled in case of remote-wakeup.
+ * @is_host: Host or device mode.
+ */
+void dwc2_hib_restore_common(struct dwc2_hsotg *hsotg, int rem_wakeup,
+			     int is_host)
+{
+	u32 gpwrdn;
+
+	/* Switch-on voltage to the core */
+	gpwrdn = dwc2_readl(hsotg->regs + GPWRDN);
+	gpwrdn &= ~GPWRDN_PWRDNSWTCH;
+	dwc2_writel(gpwrdn, hsotg->regs + GPWRDN);
+	udelay(10);
+
+	/* Reset core */
+	gpwrdn = dwc2_readl(hsotg->regs + GPWRDN);
+	gpwrdn &= ~GPWRDN_PWRDNRSTN;
+	dwc2_writel(gpwrdn, hsotg->regs + GPWRDN);
+	udelay(10);
+
+	/* Enable restore from PMU */
+	gpwrdn = dwc2_readl(hsotg->regs + GPWRDN);
+	gpwrdn |= GPWRDN_RESTORE;
+	dwc2_writel(gpwrdn, hsotg->regs + GPWRDN);
+	udelay(10);
+
+	/* Disable Power Down Clamp */
+	gpwrdn = dwc2_readl(hsotg->regs + GPWRDN);
+	gpwrdn &= ~GPWRDN_PWRDNCLMP;
+	dwc2_writel(gpwrdn, hsotg->regs + GPWRDN);
+	udelay(50);
+
+	if (!is_host && rem_wakeup)
+		udelay(70);
+
+	/* Deassert reset core */
+	gpwrdn = dwc2_readl(hsotg->regs + GPWRDN);
+	gpwrdn |= GPWRDN_PWRDNRSTN;
+	dwc2_writel(gpwrdn, hsotg->regs + GPWRDN);
+	udelay(10);
+
+	/* Disable PMU interrupt */
+	gpwrdn = dwc2_readl(hsotg->regs + GPWRDN);
+	gpwrdn &= ~GPWRDN_PMUINTSEL;
+	dwc2_writel(gpwrdn, hsotg->regs + GPWRDN);
+	udelay(10);
+
+	/* Set Restore Essential Regs bit in PCGCCTL register */
+	dwc2_restore_essential_regs(hsotg, rem_wakeup, is_host);
+
+	/*
+	 * Wait For Restore_done Interrupt. This mechanism of polling the
+	 * interrupt is introduced to avoid any possible race conditions
+	 */
+	if (dwc2_hsotg_wait_bit_set(hsotg, GINTSTS, GINTSTS_RESTOREDONE,
+				    20000)) {
+		dev_dbg(hsotg->dev,
+			"%s: Restore Done wan't generated here\n",
+			__func__);
+	} else {
+		dev_dbg(hsotg->dev, "restore done  generated here\n");
+	}
+}
+
+/**
  * dwc2_wait_for_mode() - Waits for the controller mode.
  * @hsotg:	Programming view of the DWC_otg controller.
  * @host_mode:	If true, waits for host mode, otherwise device mode.
