@@ -211,34 +211,6 @@ Example::
       int d;
   };
 
-In-line member documentation comments
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The structure members may also be documented in-line within the definition.
-There are two styles, single-line comments where both the opening ``/**`` and
-closing ``*/`` are on the same line, and multi-line comments where they are each
-on a line of their own, like all other kernel-doc comments::
-
-  /**
-   * struct foo - Brief description.
-   * @foo: The Foo member.
-   */
-  struct foo {
-        int foo;
-        /**
-         * @bar: The Bar member.
-         */
-        int bar;
-        /**
-         * @baz: The Baz member.
-         *
-         * Here, the member description may contain several paragraphs.
-         */
-        int baz;
-        /** @foobar: Single line description. */
-        int foobar;
-  };
-
 Nested structs/unions
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -289,6 +261,34 @@ It is possible to document nested structs and unions, like::
       ``@foo.bar:``
    #) When the nested struct/union is anonymous, the member ``bar`` in it
       should be documented as ``@bar:``
+
+In-line member documentation comments
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The structure members may also be documented in-line within the definition.
+There are two styles, single-line comments where both the opening ``/**`` and
+closing ``*/`` are on the same line, and multi-line comments where they are each
+on a line of their own, like all other kernel-doc comments::
+
+  /**
+   * struct foo - Brief description.
+   * @foo: The Foo member.
+   */
+  struct foo {
+        int foo;
+        /**
+         * @bar: The Bar member.
+         */
+        int bar;
+        /**
+         * @baz: The Baz member.
+         *
+         * Here, the member description may contain several paragraphs.
+         */
+        int baz;
+        /** @foobar: Single line description. */
+        int foobar;
+  };
 
 Typedef documentation
 ---------------------
