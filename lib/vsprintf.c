@@ -698,6 +698,12 @@ static const struct printf_spec default_str_spec = {
 	.precision = -1,
 };
 
+static const struct printf_spec default_flag_spec = {
+	.base = 16,
+	.precision = -1,
+	.flags = SPECIAL | SMALL,
+};
+
 static const struct printf_spec default_dec_spec = {
 	.base = 10,
 	.precision = -1,
@@ -736,11 +742,6 @@ char *resource_string(char *buf, char *end, struct resource *res,
 		.field_width = -1,
 		.precision = 10,
 		.flags = LEFT,
-	};
-	static const struct printf_spec flag_spec = {
-		.base = 16,
-		.precision = -1,
-		.flags = SPECIAL | SMALL,
 	};
 
 	/* 32-bit res (sizeof==4): 10 chars in dec, 10 in hex ("0x" + 8)
@@ -798,7 +799,7 @@ char *resource_string(char *buf, char *end, struct resource *res,
 			p = string(p, pend, " disabled", str_spec);
 	} else {
 		p = string(p, pend, " flags ", str_spec);
-		p = number(p, pend, res->flags, flag_spec);
+		p = number(p, pend, res->flags, default_flag_spec);
 	}
 	*p++ = ']';
 	*p = '\0';
@@ -1466,12 +1467,6 @@ char *format_flags(char *buf, char *end, unsigned long flags,
 					const struct trace_print_flags *names)
 {
 	unsigned long mask;
-	const struct printf_spec numspec = {
-		.flags = SPECIAL|SMALL,
-		.field_width = -1,
-		.precision = -1,
-		.base = 16,
-	};
 
 	for ( ; flags && names->name; names++) {
 		mask = names->mask;
@@ -1489,7 +1484,7 @@ char *format_flags(char *buf, char *end, unsigned long flags,
 	}
 
 	if (flags)
-		buf = number(buf, end, flags, numspec);
+		buf = number(buf, end, flags, default_flag_spec);
 
 	return buf;
 }
