@@ -190,6 +190,7 @@ config CIFS_NFSD_EXPORT
 config CIFS_SMB311
 	bool "SMB3.1.1 network file system support (Experimental)"
 	depends on CIFS
+	select CRYPTO_SHA512
 
 	help
 	  This enables experimental support for the newest, SMB3.1.1, dialect.
