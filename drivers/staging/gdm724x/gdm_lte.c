@@ -308,7 +308,8 @@ static int gdm_lte_emulate_ndp(struct sk_buff *skb_in, u32 nic_type)
 		       sizeof(struct neighbour_advertisement));
 
 		icmp6_out.icmp6_cksum = icmp6_checksum(&ipv6_out,
-					(u16 *)icmp_na, sizeof(icmp_na));
+						       (u16 *)icmp_na,
+						       sizeof(icmp_na));
 	} else {
 		return -EINVAL;
 	}
