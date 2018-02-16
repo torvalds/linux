@@ -44,6 +44,7 @@
 #include "armv7-m.dtsi"
 #include <dt-bindings/clock/stm32h7-clks.h>
 #include <dt-bindings/mfd/stm32h7-rcc.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	clocks {
@@ -344,6 +345,20 @@
 			clocks = <&rcc VREF_CK>;
 			regulator-min-microvolt = <1500000>;
 			regulator-max-microvolt = <2500000>;
+			status = "disabled";
+		};
+
+		rtc: rtc@58004000 {
+			compatible = "st,stm32h7-rtc";
+			reg = <0x58004000 0x400>;
+			clocks = <&rcc RTCAPB_CK>, <&rcc RTC_CK>;
+			clock-names = "pclk", "rtc_ck";
+			assigned-clocks = <&rcc RTC_CK>;
+			assigned-clock-parents = <&rcc LSE_CK>;
+			interrupt-parent = <&exti>;
+			interrupts = <17 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "alarm";
+			st,syscfg = <&pwrcfg>;
 			status = "disabled";
 		};
 
