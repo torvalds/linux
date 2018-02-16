@@ -290,7 +290,7 @@ static void serial8250_backup_timeout(unsigned long data)
 		serial_out(up, UART_IER, 0);
 	}
 
-	iir = serial_in(up, UART_IIR);
+	iir = serial_in_iir(up, 0);
 
 	/*
 	 * This should be a safe test for anyone who doesn't trust the
@@ -300,14 +300,15 @@ static void serial8250_backup_timeout(unsigned long data)
 	 */
 	lsr = serial_in(up, UART_LSR);
 	up->lsr_saved_flags |= lsr & LSR_SAVE_FLAGS;
-	if ((iir & UART_IIR_NO_INT) && (up->ier & UART_IER_THRI) &&
+	if ((iir == UART_IIR_NO_INT) &&
+	    (up->ier & UART_IER_THRI) &&
 	    (!uart_circ_empty(&up->port.state->xmit) || up->port.x_char) &&
 	    (lsr & UART_LSR_THRE)) {
-		iir &= ~(UART_IIR_ID | UART_IIR_NO_INT);
+		iir &= ~(UART_IIR_MASK);
 		iir |= UART_IIR_THRI;
 	}
 
-	if (!(iir & UART_IIR_NO_INT))
+	if (iir != UART_IIR_NO_INT)
 		serial8250_tx_chars(up);
 
 	if (up->port.irq)

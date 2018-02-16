@@ -584,7 +584,7 @@ static irqreturn_t omap8250_irq(int irq, void *dev_id)
 #endif
 
 	serial8250_rpm_get(up);
-	iir = serial_port_in(port, UART_IIR);
+	iir = serial_in_iir(up, 0);
 	ret = serial8250_handle_irq(port, iir);
 	serial8250_rpm_put(up);
 
@@ -1019,7 +1019,7 @@ err:
 
 static bool handle_rx_dma(struct uart_8250_port *up, unsigned int iir)
 {
-	switch (iir & 0x3f) {
+	switch (iir & (UART_IIR_MASK | UART_IIR_EXT_MASK)) {
 	case UART_IIR_RLSI:
 	case UART_IIR_RX_TIMEOUT:
 	case UART_IIR_RDI:
@@ -1043,8 +1043,8 @@ static int omap_8250_dma_handle_irq(struct uart_port *port)
 
 	serial8250_rpm_get(up);
 
-	iir = serial_port_in(port, UART_IIR);
-	if (iir & UART_IIR_NO_INT) {
+	iir = serial_in_iir(up, UART_IIR_EXT_MASK);
+	if (iir == UART_IIR_NO_INT) {
 		serial8250_rpm_put(up);
 		return 0;
 	}
