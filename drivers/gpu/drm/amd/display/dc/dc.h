@@ -186,14 +186,12 @@ enum wm_report_mode {
 
 struct dc_clocks {
 	int dispclk_khz;
-	int max_dppclk_khz;
 	int max_supported_dppclk_khz;
+	int dppclk_khz;
 	int dcfclk_khz;
 	int socclk_khz;
 	int dcfclk_deep_sleep_khz;
 	int fclk_khz;
-	int dram_ccm_us;
-	int min_active_dram_ccm_us;
 };
 
 struct dc_debug {
