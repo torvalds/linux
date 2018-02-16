@@ -928,6 +928,8 @@ struct dwc2_hregs_backup {
  * @ctrl_req:           Request for EP0 control packets.
  * @ep0_state:          EP0 control transfers state
  * @test_mode:          USB test mode requested by the host
+ * @remote_wakeup_allowed: True if device is allowed to wake-up host by
+ *                      remote-wakeup signalling
  * @setup_desc_dma:	EP0 setup stage desc chain DMA address
  * @setup_desc:		EP0 setup stage desc chain pointer
  * @ctrl_in_desc_dma:	EP0 IN data phase desc chain DMA address
@@ -1082,6 +1084,7 @@ struct dwc2_hsotg {
 	struct usb_gadget gadget;
 	unsigned int enabled:1;
 	unsigned int connected:1;
+	unsigned int remote_wakeup_allowed:1;
 	struct dwc2_hsotg_ep *eps_in[MAX_EPS_CHANNELS];
 	struct dwc2_hsotg_ep *eps_out[MAX_EPS_CHANNELS];
 #endif /* CONFIG_USB_DWC2_PERIPHERAL || CONFIG_USB_DWC2_DUAL_ROLE */

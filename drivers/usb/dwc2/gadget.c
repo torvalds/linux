@@ -1640,6 +1640,10 @@ static int dwc2_hsotg_process_req_feature(struct dwc2_hsotg *hsotg,
 	switch (recip) {
 	case USB_RECIP_DEVICE:
 		switch (wValue) {
+		case USB_DEVICE_REMOTE_WAKEUP:
+			hsotg->remote_wakeup_allowed = 1;
+			break;
+
 		case USB_DEVICE_TEST_MODE:
 			if ((wIndex & 0xff) != 0)
 				return -EINVAL;
@@ -4624,6 +4628,7 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg)
 	hsotg->gadget.max_speed = USB_SPEED_HIGH;
 	hsotg->gadget.ops = &dwc2_hsotg_gadget_ops;
 	hsotg->gadget.name = dev_name(dev);
+	hsotg->remote_wakeup_allowed = 0;
 
 	if (hsotg->params.lpm)
 		hsotg->gadget.lpm_capable = true;
