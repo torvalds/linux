@@ -1131,15 +1131,13 @@ static inline bool dwc2_is_hs_iot(struct dwc2_hsotg *hsotg)
  * and the DWC_otg controller
  */
 int dwc2_core_reset(struct dwc2_hsotg *hsotg, bool skip_wait);
-int dwc2_core_reset_and_force_dr_mode(struct dwc2_hsotg *hsotg);
 int dwc2_enter_partial_power_down(struct dwc2_hsotg *hsotg);
 int dwc2_exit_partial_power_down(struct dwc2_hsotg *hsotg, bool restore);
 int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg, int is_host);
 int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, int rem_wakeup,
-			  int reset, int is_host);
+		int reset, int is_host);
 
-bool dwc2_force_mode_if_needed(struct dwc2_hsotg *hsotg, bool host);
-void dwc2_clear_force_mode(struct dwc2_hsotg *hsotg);
+void dwc2_force_mode(struct dwc2_hsotg *hsotg, bool host);
 void dwc2_force_dr_mode(struct dwc2_hsotg *hsotg);
 
 bool dwc2_is_controller_alive(struct dwc2_hsotg *hsotg);

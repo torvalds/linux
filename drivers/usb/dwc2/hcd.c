@@ -141,7 +141,7 @@ static int dwc2_fs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 			dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
 
 			/* Reset after a PHY select */
-			retval = dwc2_core_reset_and_force_dr_mode(hsotg);
+			retval = dwc2_core_reset(hsotg, false);
 
 			if (retval) {
 				dev_err(hsotg->dev,
@@ -239,7 +239,7 @@ static int dwc2_hs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 		dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
 
 		/* Reset after setting the PHY parameters */
-		retval = dwc2_core_reset_and_force_dr_mode(hsotg);
+		retval = dwc2_core_reset(hsotg, false);
 		if (retval) {
 			dev_err(hsotg->dev,
 				"%s: Reset failed, aborting", __func__);
@@ -2270,7 +2270,7 @@ int dwc2_core_init(struct dwc2_hsotg *hsotg, bool initial_setup)
 	 * needed to in order to properly detect various parameters).
 	 */
 	if (!initial_setup) {
-		retval = dwc2_core_reset_and_force_dr_mode(hsotg);
+		retval = dwc2_core_reset(hsotg, false);
 		if (retval) {
 			dev_err(hsotg->dev, "%s(): Reset failed, aborting\n",
 				__func__);

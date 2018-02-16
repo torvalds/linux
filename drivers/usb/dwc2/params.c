@@ -640,18 +640,14 @@ static void dwc2_get_host_hwparams(struct dwc2_hsotg *hsotg)
 	struct dwc2_hw_params *hw = &hsotg->hw_params;
 	u32 gnptxfsiz;
 	u32 hptxfsiz;
-	bool forced;
 
 	if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL)
 		return;
 
-	forced = dwc2_force_mode_if_needed(hsotg, true);
+	dwc2_force_mode(hsotg, true);
 
 	gnptxfsiz = dwc2_readl(hsotg->regs + GNPTXFSIZ);
 	hptxfsiz = dwc2_readl(hsotg->regs + HPTXFSIZ);
-
-	if (forced)
-		dwc2_clear_force_mode(hsotg);
 
 	hw->host_nperio_tx_fifo_size = (gnptxfsiz & FIFOSIZE_DEPTH_MASK) >>
 				       FIFOSIZE_DEPTH_SHIFT;
@@ -667,14 +663,13 @@ static void dwc2_get_host_hwparams(struct dwc2_hsotg *hsotg)
 static void dwc2_get_dev_hwparams(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_hw_params *hw = &hsotg->hw_params;
-	bool forced;
 	u32 gnptxfsiz;
 	int fifo, fifo_count;
 
 	if (hsotg->dr_mode == USB_DR_MODE_HOST)
 		return;
 
-	forced = dwc2_force_mode_if_needed(hsotg, false);
+	dwc2_force_mode(hsotg, false);
 
 	gnptxfsiz = dwc2_readl(hsotg->regs + GNPTXFSIZ);
 
@@ -685,9 +680,6 @@ static void dwc2_get_dev_hwparams(struct dwc2_hsotg *hsotg)
 			(dwc2_readl(hsotg->regs + DPTXFSIZN(fifo)) &
 			 FIFOSIZE_DEPTH_MASK) >> FIFOSIZE_DEPTH_SHIFT;
 	}
-
-	if (forced)
-		dwc2_clear_force_mode(hsotg);
 
 	hw->dev_nperio_tx_fifo_size = (gnptxfsiz & FIFOSIZE_DEPTH_MASK) >>
 				       FIFOSIZE_DEPTH_SHIFT;
