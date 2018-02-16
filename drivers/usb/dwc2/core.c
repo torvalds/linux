@@ -449,6 +449,44 @@ static bool dwc2_iddig_filter_enabled(struct dwc2_hsotg *hsotg)
 }
 
 /*
+ * dwc2_enter_hibernation() - Common function to enter hibernation.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ * @is_host: True if core is in host mode.
+ *
+ * Return: 0 if successful, negative error code otherwise
+ */
+int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg, int is_host)
+{
+	if (hsotg->params.power_down != DWC2_POWER_DOWN_PARAM_HIBERNATION)
+		return -ENOTSUPP;
+
+	if (is_host)
+		return dwc2_host_enter_hibernation(hsotg);
+	else
+		return dwc2_gadget_enter_hibernation(hsotg);
+}
+
+/*
+ * dwc2_exit_hibernation() - Common function to exit from hibernation.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ * @rem_wakeup: Remote-wakeup, enabled in case of remote-wakeup.
+ * @reset: Enabled in case of restore with reset.
+ * @is_host: True if core is in host mode.
+ *
+ * Return: 0 if successful, negative error code otherwise
+ */
+int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, int rem_wakeup,
+			  int reset, int is_host)
+{
+	if (is_host)
+		return dwc2_host_exit_hibernation(hsotg, rem_wakeup, reset);
+	else
+		return dwc2_gadget_exit_hibernation(hsotg, rem_wakeup, reset);
+}
+
+/*
  * Do core a soft reset of the core.  Be careful with this because it
  * resets all the internal state machines of the core.
  */
