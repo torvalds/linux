@@ -484,32 +484,44 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 		 * state is active
 		 */
 		dsts = dwc2_readl(hsotg->regs + DSTS);
-		dev_dbg(hsotg->dev, "DSTS=0x%0x\n", dsts);
+		dev_dbg(hsotg->dev, "%s: DSTS=0x%0x\n", __func__, dsts);
 		dev_dbg(hsotg->dev,
-			"DSTS.Suspend Status=%d HWCFG4.Power Optimize=%d\n",
+			"DSTS.Suspend Status=%d HWCFG4.Power Optimize=%d HWCFG4.Hibernation=%d\n",
 			!!(dsts & DSTS_SUSPSTS),
-			hsotg->hw_params.power_optimized);
-		if ((dsts & DSTS_SUSPSTS) && hsotg->hw_params.power_optimized) {
-			/* Ignore suspend request before enumeration */
-			if (!dwc2_is_device_connected(hsotg)) {
-				dev_dbg(hsotg->dev,
-					"ignore suspend request before enumeration\n");
-				return;
+			hsotg->hw_params.power_optimized,
+			hsotg->hw_params.hibernation);
+
+		/* Ignore suspend request before enumeration */
+		if (!dwc2_is_device_connected(hsotg)) {
+			dev_dbg(hsotg->dev,
+				"ignore suspend request before enumeration\n");
+			return;
+		}
+		if (dsts & DSTS_SUSPSTS) {
+			if (hsotg->hw_params.power_optimized) {
+				ret = dwc2_enter_partial_power_down(hsotg);
+				if (ret) {
+					if (ret != -ENOTSUPP)
+						dev_err(hsotg->dev,
+							"%s: enter partial_power_down failed\n",
+							__func__);
+					goto skip_power_saving;
+				}
+
+				udelay(100);
+
+				/* Ask phy to be suspended */
+				if (!IS_ERR_OR_NULL(hsotg->uphy))
+					usb_phy_set_suspend(hsotg->uphy, true);
 			}
 
-			ret = dwc2_enter_partial_power_down(hsotg);
-			if (ret) {
-				if (ret != -ENOTSUPP)
+			if (hsotg->hw_params.hibernation) {
+				ret = dwc2_enter_hibernation(hsotg, 0);
+				if (ret && ret != -ENOTSUPP)
 					dev_err(hsotg->dev,
-						"enter power_down failed\n");
-				goto skip_power_saving;
+						"%s: enter hibernation failed\n",
+						__func__);
 			}
-
-			udelay(100);
-
-			/* Ask phy to be suspended */
-			if (!IS_ERR_OR_NULL(hsotg->uphy))
-				usb_phy_set_suspend(hsotg->uphy, true);
 skip_power_saving:
 			/*
 			 * Change to L2 (suspend) state before releasing
