@@ -4364,7 +4364,7 @@ static int _dwc2_hcd_suspend(struct usb_hcd *hcd)
 	if (hsotg->op_state == OTG_STATE_B_PERIPHERAL)
 		goto unlock;
 
-	if (!hsotg->params.power_down)
+	if (hsotg->params.power_down != DWC2_POWER_DOWN_PARAM_PARTIAL)
 		goto skip_power_saving;
 
 	/*
@@ -4419,7 +4419,7 @@ static int _dwc2_hcd_resume(struct usb_hcd *hcd)
 	if (hsotg->lx_state != DWC2_L2)
 		goto unlock;
 
-	if (!hsotg->params.power_down) {
+	if (hsotg->params.power_down != DWC2_POWER_DOWN_PARAM_PARTIAL) {
 		hsotg->lx_state = DWC2_L0;
 		goto unlock;
 	}

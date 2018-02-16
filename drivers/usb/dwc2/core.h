@@ -426,7 +426,8 @@ enum dwc2_ep0_state {
  *			power_down in both peripheral and host mode when
  *			needed.
  *			0 - No (default)
- *			1 - Yes
+ *			1 - Partial power down
+ *			2 - Hibernation
  * @lpm:		Enable LPM support.
  *			0 - No
  *			1 - Yes
@@ -498,7 +499,12 @@ struct dwc2_core_params {
 	bool reload_ctl;
 	bool uframe_sched;
 	bool external_id_pin_ctl;
-	bool power_down;
+
+	int power_down;
+#define DWC2_POWER_DOWN_PARAM_NONE		0
+#define DWC2_POWER_DOWN_PARAM_PARTIAL		1
+#define DWC2_POWER_DOWN_PARAM_HIBERNATION	2
+
 	bool lpm;
 	bool lpm_clock_gating;
 	bool besl;
@@ -579,6 +585,7 @@ struct dwc2_core_params {
  *                       2 - FS pins shared with UTMI+ pins
  *                       3 - FS pins shared with ULPI pins
  * @total_fifo_size:    Total internal RAM for FIFOs (bytes)
+ * @hibernation		Is hibernation enabled?
  * @utmi_phy_data_width UTMI+ PHY data width
  *                       0 - 8 bits
  *                       1 - 16 bits
@@ -612,6 +619,7 @@ struct dwc2_hw_params {
 	unsigned num_dev_perio_in_ep:4;
 	unsigned total_fifo_size:16;
 	unsigned power_optimized:1;
+	unsigned hibernation:1;
 	unsigned utmi_phy_data_width:2;
 	unsigned lpm_mode:1;
 	u32 snpsid;

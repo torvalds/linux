@@ -469,6 +469,38 @@ static void dwc2_check_param_phy_utmi_width(struct dwc2_hsotg *hsotg)
 		dwc2_set_param_phy_utmi_width(hsotg);
 }
 
+static void dwc2_check_param_power_down(struct dwc2_hsotg *hsotg)
+{
+	int param = hsotg->params.power_down;
+
+	switch (param) {
+	case DWC2_POWER_DOWN_PARAM_NONE:
+		break;
+	case DWC2_POWER_DOWN_PARAM_PARTIAL:
+		if (hsotg->hw_params.power_optimized)
+			break;
+		dev_dbg(hsotg->dev,
+			"Partial power down isn't supported by HW\n");
+		param = DWC2_POWER_DOWN_PARAM_NONE;
+		break;
+	case DWC2_POWER_DOWN_PARAM_HIBERNATION:
+		if (hsotg->hw_params.hibernation)
+			break;
+		dev_dbg(hsotg->dev,
+			"Hibernation isn't supported by HW\n");
+		param = DWC2_POWER_DOWN_PARAM_NONE;
+		break;
+	default:
+		dev_err(hsotg->dev,
+			"%s: Invalid parameter power_down=%d\n",
+			__func__, param);
+		param = DWC2_POWER_DOWN_PARAM_NONE;
+		break;
+	}
+
+	hsotg->params.power_down = param;
+}
+
 static void dwc2_check_param_tx_fifo_sizes(struct dwc2_hsotg *hsotg)
 {
 	int fifo_count;
@@ -529,6 +561,7 @@ static void dwc2_check_params(struct dwc2_hsotg *hsotg)
 	dwc2_check_param_phy_type(hsotg);
 	dwc2_check_param_speed(hsotg);
 	dwc2_check_param_phy_utmi_width(hsotg);
+	dwc2_check_param_power_down(hsotg);
 	CHECK_BOOL(enable_dynamic_fifo, hw->enable_dynamic_fifo);
 	CHECK_BOOL(en_multiple_tx_fifo, hw->en_multiple_tx_fifo);
 	CHECK_BOOL(i2c_enable, hw->i2c_enable);
@@ -729,6 +762,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 			     GHWCFG4_NUM_IN_EPS_SHIFT;
 	hw->dma_desc_enable = !!(hwcfg4 & GHWCFG4_DESC_DMA);
 	hw->power_optimized = !!(hwcfg4 & GHWCFG4_POWER_OPTIMIZ);
+	hw->hibernation = !!(hwcfg4 & GHWCFG4_HIBER);
 	hw->utmi_phy_data_width = (hwcfg4 & GHWCFG4_UTMI_PHY_DATA_WIDTH_MASK) >>
 				  GHWCFG4_UTMI_PHY_DATA_WIDTH_SHIFT;
 	hw->acg_enable = !!(hwcfg4 & GHWCFG4_ACG_SUPPORTED);

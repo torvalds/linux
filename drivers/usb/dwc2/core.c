@@ -138,7 +138,7 @@ int dwc2_exit_partial_power_down(struct dwc2_hsotg *hsotg, bool restore)
 	u32 pcgcctl;
 	int ret = 0;
 
-	if (!hsotg->params.power_down)
+	if (hsotg->params.power_down != DWC2_POWER_DOWN_PARAM_PARTIAL)
 		return -ENOTSUPP;
 
 	pcgcctl = dwc2_readl(hsotg->regs + PCGCTL);
