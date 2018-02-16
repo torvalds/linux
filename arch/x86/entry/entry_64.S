@@ -275,15 +275,8 @@ GLOBAL(entry_SYSCALL_64_after_hwframe)
 	 * depending on paging mode) in the address.
 	 */
 #ifdef CONFIG_X86_5LEVEL
-	testl	$1, pgtable_l5_enabled(%rip)
-	jz	1f
-	shl	$(64 - 57), %rcx
-	sar	$(64 - 57), %rcx
-	jmp	2f
-1:
-	shl	$(64 - 48), %rcx
-	sar	$(64 - 48), %rcx
-2:
+	ALTERNATIVE "shl $(64 - 48), %rcx; sar $(64 - 48), %rcx", \
+		"shl $(64 - 57), %rcx; sar $(64 - 57), %rcx", X86_FEATURE_LA57
 #else
 	shl	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
 	sar	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx

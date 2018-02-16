@@ -21,7 +21,10 @@ typedef unsigned long	pgprotval_t;
 typedef struct { pteval_t pte; } pte_t;
 
 #ifdef CONFIG_X86_5LEVEL
-extern unsigned int pgtable_l5_enabled;
+extern unsigned int __pgtable_l5_enabled;
+#ifndef pgtable_l5_enabled
+#define pgtable_l5_enabled cpu_feature_enabled(X86_FEATURE_LA57)
+#endif
 #else
 #define pgtable_l5_enabled 0
 #endif

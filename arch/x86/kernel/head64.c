@@ -32,6 +32,11 @@
 #include <asm/microcode.h>
 #include <asm/kasan.h>
 
+#ifdef CONFIG_X86_5LEVEL
+#undef pgtable_l5_enabled
+#define pgtable_l5_enabled __pgtable_l5_enabled
+#endif
+
 /*
  * Manage page tables very early on.
  */
@@ -40,8 +45,8 @@ static unsigned int __initdata next_early_pgt;
 pmdval_t early_pmd_flags = __PAGE_KERNEL_LARGE & ~(_PAGE_GLOBAL | _PAGE_NX);
 
 #ifdef CONFIG_X86_5LEVEL
-unsigned int pgtable_l5_enabled __ro_after_init;
-EXPORT_SYMBOL(pgtable_l5_enabled);
+unsigned int __pgtable_l5_enabled __ro_after_init;
+EXPORT_SYMBOL(__pgtable_l5_enabled);
 unsigned int pgdir_shift __ro_after_init = 39;
 EXPORT_SYMBOL(pgdir_shift);
 unsigned int ptrs_per_p4d __ro_after_init = 1;
