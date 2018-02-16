@@ -1943,7 +1943,7 @@ static void dcn10_apply_ctx_for_surface(
 			if (old_pipe_ctx->stream_res.tg == tg &&
 				old_pipe_ctx->plane_res.hubp &&
 				old_pipe_ctx->plane_res.hubp->opp_id != 0xf) {
-				dcn10_disable_plane(dc, pipe_ctx);
+				dcn10_disable_plane(dc, old_pipe_ctx);
 				/*
 				 * power down fe will unlock when calling reset, need
 				 * to lock it back here. Messy, need rework.
