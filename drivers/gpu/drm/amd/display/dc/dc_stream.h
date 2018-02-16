@@ -70,7 +70,8 @@ struct dc_stream_state {
 	bool ignore_msa_timing_param;
 	/* TODO: custom INFO packets */
 	/* TODO: ABM info (DMCU) */
-	/* TODO: PSR info */
+	/* PSR info */
+	unsigned char psr_version;
 	/* TODO: CEA VIC */
 
 	/* from core_stream struct */

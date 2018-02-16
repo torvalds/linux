@@ -2436,7 +2436,7 @@ static void set_vsc_info_packet(
 	unsigned int i;
 
 	/*VSC packet set to 2 when DP revision >= 1.2*/
-	if (stream->sink->link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_12) {
+	if (stream->psr_version != 0) {
 		vscPacketRevision = 2;
 	}
 
