@@ -279,6 +279,7 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		if (pipes[i].stream != NULL &&
+			!pipes[i].top_pipe &&
 			pipes[i].stream->sink != NULL &&
 			pipes[i].stream->sink->link != NULL &&
 			pipes[i].stream_res.stream_enc != NULL &&

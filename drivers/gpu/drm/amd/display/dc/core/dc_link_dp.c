@@ -709,6 +709,22 @@ static enum hw_dp_training_pattern get_supported_tp(struct dc_link *link)
 	return HW_DP_TRAINING_PATTERN_2;
 }
 
+static enum link_training_result get_cr_failure(enum dc_lane_count ln_count,
+					union lane_status *dpcd_lane_status)
+{
+	enum link_training_result result = LINK_TRAINING_SUCCESS;
+
+	if (ln_count >= LANE_COUNT_ONE && !dpcd_lane_status[0].bits.CR_DONE_0)
+		result = LINK_TRAINING_CR_FAIL_LANE0;
+	else if (ln_count >= LANE_COUNT_TWO && !dpcd_lane_status[1].bits.CR_DONE_0)
+		result = LINK_TRAINING_CR_FAIL_LANE1;
+	else if (ln_count >= LANE_COUNT_FOUR && !dpcd_lane_status[2].bits.CR_DONE_0)
+		result = LINK_TRAINING_CR_FAIL_LANE23;
+	else if (ln_count >= LANE_COUNT_FOUR && !dpcd_lane_status[3].bits.CR_DONE_0)
+		result = LINK_TRAINING_CR_FAIL_LANE23;
+	return result;
+}
+
 static enum link_training_result perform_channel_equalization_sequence(
 	struct dc_link *link,
 	struct link_training_settings *lt_settings)
@@ -771,7 +787,7 @@ static enum link_training_result perform_channel_equalization_sequence(
 
 }
 
-static bool perform_clock_recovery_sequence(
+static enum link_training_result perform_clock_recovery_sequence(
 	struct dc_link *link,
 	struct link_training_settings *lt_settings)
 {
@@ -846,11 +862,11 @@ static bool perform_clock_recovery_sequence(
 
 		/* 5. check CR done*/
 		if (is_cr_done(lane_count, dpcd_lane_status))
-			return true;
+			return LINK_TRAINING_SUCCESS;
 
 		/* 6. max VS reached*/
 		if (is_max_vs_reached(lt_settings))
-			return false;
+			break;
 
 		/* 7. same voltage*/
 		/* Note: VS same for all lanes,
@@ -876,13 +892,13 @@ static bool perform_clock_recovery_sequence(
 
 	}
 
-	return false;
+	return get_cr_failure(lane_count, dpcd_lane_status);
 }
 
-static inline bool perform_link_training_int(
+static inline enum link_training_result perform_link_training_int(
 	struct dc_link *link,
 	struct link_training_settings *lt_settings,
-	bool status)
+	enum link_training_result status)
 {
 	union lane_count_set lane_count_set = { {0} };
 	union dpcd_training_pattern dpcd_pattern = { {0} };
@@ -903,9 +919,9 @@ static inline bool perform_link_training_int(
 			get_supported_tp(link) == HW_DP_TRAINING_PATTERN_4)
 		return status;
 
-	if (status &&
+	if (status == LINK_TRAINING_SUCCESS &&
 		perform_post_lt_adj_req_sequence(link, lt_settings) == false)
-		status = false;
+		status = LINK_TRAINING_LQA_FAIL;
 
 	lane_count_set.bits.LANE_COUNT_SET = lt_settings->link_settings.lane_count;
 	lane_count_set.bits.ENHANCED_FRAMING = 1;
@@ -928,6 +944,8 @@ enum link_training_result dc_link_dp_perform_link_training(
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
 
 	char *link_rate = "Unknown";
+	char *lt_result = "Unknown";
+
 	struct link_training_settings lt_settings;
 
 	memset(&lt_settings, '\0', sizeof(lt_settings));
@@ -951,22 +969,16 @@ enum link_training_result dc_link_dp_perform_link_training(
 
 	/* 2. perform link training (set link training done
 	 *  to false is done as well)*/
-	if (!perform_clock_recovery_sequence(link, &lt_settings)) {
-		status = LINK_TRAINING_CR_FAIL;
-	} else {
+	status = perform_clock_recovery_sequence(link, &lt_settings);
+	if (status == LINK_TRAINING_SUCCESS) {
 		status = perform_channel_equalization_sequence(link,
 				&lt_settings);
 	}
 
 	if ((status == LINK_TRAINING_SUCCESS) || !skip_video_pattern) {
-		if (!perform_link_training_int(link,
+		status = perform_link_training_int(link,
 				&lt_settings,
-				status == LINK_TRAINING_SUCCESS)) {
-			/* the next link training setting in this case
-			 * would be the same as CR failure case.
-			 */
-			status = LINK_TRAINING_CR_FAIL;
-		}
+				status);
 	}
 
 	/* 6. print status message*/
@@ -991,13 +1003,37 @@ enum link_training_result dc_link_dp_perform_link_training(
 		break;
 	}
 
+	switch (status) {
+	case LINK_TRAINING_SUCCESS:
+		lt_result = "pass";
+		break;
+	case LINK_TRAINING_CR_FAIL_LANE0:
+		lt_result = "CR failed lane0";
+		break;
+	case LINK_TRAINING_CR_FAIL_LANE1:
+		lt_result = "CR failed lane1";
+		break;
+	case LINK_TRAINING_CR_FAIL_LANE23:
+		lt_result = "CR failed lane23";
+		break;
+	case LINK_TRAINING_EQ_FAIL_CR:
+		lt_result = "CR failed in EQ";
+		break;
+	case LINK_TRAINING_EQ_FAIL_EQ:
+		lt_result = "EQ failed";
+		break;
+	case LINK_TRAINING_LQA_FAIL:
+		lt_result = "LQA failed";
+		break;
+	default:
+		break;
+	}
+
 	/* Connectivity log: link training */
 	CONN_MSG_LT(link, "%sx%d %s VS=%d, PE=%d",
 			link_rate,
 			lt_settings.link_settings.lane_count,
-			(status ==  LINK_TRAINING_SUCCESS) ? "pass" :
-			((status == LINK_TRAINING_CR_FAIL) ? "CR failed" :
-			"EQ failed"),
+			lt_result,
 			lt_settings.lane_settings[0].VOLTAGE_SWING,
 			lt_settings.lane_settings[0].PRE_EMPHASIS);
 
@@ -1114,6 +1150,7 @@ bool dp_hbr_verify_link_cap(
 				link->connector_signal,
 				dp_cs_id,
 				cur);
+
 
 		if (skip_link_training)
 			success = true;
@@ -1279,7 +1316,10 @@ static bool decide_fallback_link_setting(
 		return false;
 
 	switch (training_result) {
-	case LINK_TRAINING_CR_FAIL:
+	case LINK_TRAINING_CR_FAIL_LANE0:
+	case LINK_TRAINING_CR_FAIL_LANE1:
+	case LINK_TRAINING_CR_FAIL_LANE23:
+	case LINK_TRAINING_LQA_FAIL:
 	{
 		if (!reached_minimum_link_rate
 				(current_link_setting->link_rate)) {
@@ -1290,8 +1330,18 @@ static bool decide_fallback_link_setting(
 				(current_link_setting->lane_count)) {
 			current_link_setting->link_rate =
 				initial_link_settings.link_rate;
-			current_link_setting->lane_count =
-				reduce_lane_count(
+			if (training_result == LINK_TRAINING_CR_FAIL_LANE0)
+				return false;
+			else if (training_result == LINK_TRAINING_CR_FAIL_LANE1)
+				current_link_setting->lane_count =
+						LANE_COUNT_ONE;
+			else if (training_result ==
+					LINK_TRAINING_CR_FAIL_LANE23)
+				current_link_setting->lane_count =
+						LANE_COUNT_TWO;
+			else
+				current_link_setting->lane_count =
+					reduce_lane_count(
 					current_link_setting->lane_count);
 		} else {
 			return false;
