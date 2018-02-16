@@ -163,6 +163,9 @@ static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
 			     &sun4i_backend_layer_helper_funcs);
 	layer->backend = backend;
 
+	drm_plane_create_zpos_property(&layer->plane, 0, 0,
+				       SUN4I_BACKEND_NUM_LAYERS - 1);
+
 	return layer;
 }
 
@@ -189,8 +192,6 @@ struct drm_plane **sun4i_layers_init(struct drm_device *drm,
 				i ? "overlay" : "primary");
 			return ERR_CAST(layer);
 		};
-
-		drm_plane_create_zpos_immutable_property(&layer->plane, i);
 
 		layer->id = i;
 		planes[i] = &layer->plane;
