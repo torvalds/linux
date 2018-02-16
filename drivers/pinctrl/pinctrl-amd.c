@@ -40,6 +40,19 @@
 #include "pinctrl-utils.h"
 #include "pinctrl-amd.h"
 
+static int amd_gpio_get_direction(struct gpio_chip *gc, unsigned offset)
+{
+	unsigned long flags;
+	u32 pin_reg;
+	struct amd_gpio *gpio_dev = gpiochip_get_data(gc);
+
+	raw_spin_lock_irqsave(&gpio_dev->lock, flags);
+	pin_reg = readl(gpio_dev->base + offset * 4);
+	raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
+
+	return !(pin_reg & BIT(OUTPUT_ENABLE_OFF));
+}
+
 static int amd_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 {
 	unsigned long flags;
@@ -845,6 +858,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 #endif
 
 	gpio_dev->pdev = pdev;
+	gpio_dev->gc.get_direction	= amd_gpio_get_direction;
 	gpio_dev->gc.direction_input	= amd_gpio_direction_input;
 	gpio_dev->gc.direction_output	= amd_gpio_direction_output;
 	gpio_dev->gc.get			= amd_gpio_get_value;
