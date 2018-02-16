@@ -127,7 +127,7 @@ no_mainmenu_stmt: /* empty */
 	 * later regardless of whether it comes from the 'prompt' in
 	 * mainmenu_stmt or here
 	 */
-	menu_add_prompt(P_MENU, strdup("Linux Kernel Configuration"), NULL);
+	menu_add_prompt(P_MENU, xstrdup("Linux Kernel Configuration"), NULL);
 };
 
 
