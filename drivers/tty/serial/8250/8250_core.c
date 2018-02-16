@@ -140,7 +140,8 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 		if (l == i->head && pass_counter++ > PASS_LIMIT) {
 			/* If we hit this, we're dead. */
 			printk_ratelimited(KERN_ERR
-				"serial8250: too much work for irq%d\n", irq);
+				"serial8250: too much work for irq%d (iir: 0x%02x)\n",
+				irq, serial_port_in(port, UART_IIR));
 			break;
 		}
 	} while (l != end);
