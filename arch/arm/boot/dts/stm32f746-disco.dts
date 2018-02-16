@@ -42,6 +42,7 @@
 
 /dts-v1/;
 #include "stm32f746.dtsi"
+#include "stm32f746-pinctrl.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {

@@ -42,11 +42,12 @@
 
 /dts-v1/;
 #include "stm32f746.dtsi"
+#include "stm32f769-pinctrl.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {
 	model = "STMicroelectronics STM32F769-DISCO board";
-	compatible = "st,stm32f769-disco", "st,stm32f7";
+	compatible = "st,stm32f769-disco", "st,stm32f769";
 
 	chosen {
 		bootargs = "root=/dev/ram";
