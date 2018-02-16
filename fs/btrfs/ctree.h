@@ -2969,7 +2969,7 @@ static inline void free_fs_info(struct btrfs_fs_info *fs_info)
 	kfree(fs_info->super_copy);
 	kfree(fs_info->super_for_commit);
 	security_free_mnt_opts(&fs_info->security_opts);
-	kfree(fs_info);
+	kvfree(fs_info);
 }
 
 /* tree mod log functions from ctree.c */
