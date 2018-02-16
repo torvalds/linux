@@ -855,10 +855,14 @@ irq_thread_check_affinity(struct irq_desc *desc, struct irqaction *action)
 	 * This code is triggered unconditionally. Check the affinity
 	 * mask pointer. For CPU_MASK_OFFSTACK=n this is optimized out.
 	 */
-	if (cpumask_available(desc->irq_common_data.affinity))
-		cpumask_copy(mask, desc->irq_common_data.affinity);
-	else
+	if (cpumask_available(desc->irq_common_data.affinity)) {
+		const struct cpumask *m;
+
+		m = irq_data_get_effective_affinity_mask(&desc->irq_data);
+		cpumask_copy(mask, m);
+	} else {
 		valid = false;
+	}
 	raw_spin_unlock_irq(&desc->lock);
 
 	if (valid)
