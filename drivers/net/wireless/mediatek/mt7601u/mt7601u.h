@@ -147,7 +147,8 @@ enum {
  * @rx_lock:		protects @rx_q.
  * @con_mon_lock:	protects @ap_bssid, @bcn_*, @avg_rssi.
  * @mutex:		ensures exclusive access from mac80211 callbacks.
- * @vendor_req_mutex:	protects @vend_buf, ensures atomicity of split writes.
+ * @vendor_req_mutex:	protects @vend_buf, ensures atomicity of read/write
+ *			accesses
  * @reg_atomic_mutex:	ensures atomicity of indirect register accesses
  *			(accesses to RF and BBP).
  * @hw_atomic_mutex:	ensures exclusive access to HW during critical
