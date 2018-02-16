@@ -785,20 +785,51 @@ int bnxt_re_query_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr)
 	return 0;
 }
 
+static unsigned long bnxt_re_lock_cqs(struct bnxt_re_qp *qp)
+	__acquires(&qp->scq->cq_lock) __acquires(&qp->rcq->cq_lock)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&qp->scq->cq_lock, flags);
+	if (qp->rcq != qp->scq)
+		spin_lock(&qp->rcq->cq_lock);
+	else
+		__acquire(&qp->rcq->cq_lock);
+
+	return flags;
+}
+
+static void bnxt_re_unlock_cqs(struct bnxt_re_qp *qp,
+			       unsigned long flags)
+	__releases(&qp->scq->cq_lock) __releases(&qp->rcq->cq_lock)
+{
+	if (qp->rcq != qp->scq)
+		spin_unlock(&qp->rcq->cq_lock);
+	else
+		__release(&qp->rcq->cq_lock);
+	spin_unlock_irqrestore(&qp->scq->cq_lock, flags);
+}
+
 /* Queue Pairs */
 int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
 {
 	struct bnxt_re_qp *qp = container_of(ib_qp, struct bnxt_re_qp, ib_qp);
 	struct bnxt_re_dev *rdev = qp->rdev;
 	int rc;
+	unsigned int flags;
 
 	bnxt_qplib_flush_cqn_wq(&qp->qplib_qp);
-	bnxt_qplib_del_flush_qp(&qp->qplib_qp);
 	rc = bnxt_qplib_destroy_qp(&rdev->qplib_res, &qp->qplib_qp);
 	if (rc) {
 		dev_err(rdev_to_dev(rdev), "Failed to destroy HW QP");
 		return rc;
 	}
+
+	flags = bnxt_re_lock_cqs(qp);
+	bnxt_qplib_clean_qp(&qp->qplib_qp);
+	bnxt_re_unlock_cqs(qp, flags);
+	bnxt_qplib_free_qp_res(&rdev->qplib_res, &qp->qplib_qp);
+
 	if (ib_qp->qp_type == IB_QPT_GSI && rdev->qp1_sqp) {
 		rc = bnxt_qplib_destroy_ah(&rdev->qplib_res,
 					   &rdev->sqp_ah->qplib_ah);
@@ -808,7 +839,7 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
 			return rc;
 		}
 
-		bnxt_qplib_del_flush_qp(&qp->qplib_qp);
+		bnxt_qplib_clean_qp(&qp->qplib_qp);
 		rc = bnxt_qplib_destroy_qp(&rdev->qplib_res,
 					   &rdev->qp1_sqp->qplib_qp);
 		if (rc) {
@@ -1067,6 +1098,7 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 			goto fail;
 		}
 		qp->qplib_qp.scq = &cq->qplib_cq;
+		qp->scq = cq;
 	}
 
 	if (qp_init_attr->recv_cq) {
@@ -1078,6 +1110,7 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 			goto fail;
 		}
 		qp->qplib_qp.rcq = &cq->qplib_cq;
+		qp->rcq = cq;
 	}
 
 	if (qp_init_attr->srq) {
@@ -1608,7 +1641,7 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 			dev_dbg(rdev_to_dev(rdev),
 				"Move QP = %p out of flush list\n",
 				qp);
-			bnxt_qplib_del_flush_qp(&qp->qplib_qp);
+			bnxt_qplib_clean_qp(&qp->qplib_qp);
 		}
 	}
 	if (qp_attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY) {
