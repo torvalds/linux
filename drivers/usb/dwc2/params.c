@@ -252,6 +252,20 @@ static void dwc2_set_param_tx_fifo_sizes(struct dwc2_hsotg *hsotg)
 		p->g_tx_fifo_size[i] = depth_average;
 }
 
+static void dwc2_set_param_power_down(struct dwc2_hsotg *hsotg)
+{
+	int val;
+
+	if (hsotg->hw_params.hibernation)
+		val = 2;
+	else if (hsotg->hw_params.power_optimized)
+		val = 1;
+	else
+		val = 0;
+
+	hsotg->params.power_down = val;
+}
+
 /**
  * dwc2_set_default_params() - Set all core parameters to their
  * auto-detected default values.
@@ -266,6 +280,7 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 	dwc2_set_param_phy_type(hsotg);
 	dwc2_set_param_speed(hsotg);
 	dwc2_set_param_phy_utmi_width(hsotg);
+	dwc2_set_param_power_down(hsotg);
 	p->phy_ulpi_ddr = false;
 	p->phy_ulpi_ext_vbus = false;
 
@@ -278,7 +293,6 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 	p->reload_ctl = (hw->snpsid >= DWC2_CORE_REV_2_92a);
 	p->uframe_sched = true;
 	p->external_id_pin_ctl = false;
-	p->power_down = false;
 	p->lpm = true;
 	p->lpm_clock_gating = true;
 	p->besl = true;
