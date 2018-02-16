@@ -165,7 +165,7 @@ int dwc2_exit_partial_power_down(struct dwc2_hsotg *hsotg, bool restore)
 				return ret;
 			}
 		} else {
-			ret = dwc2_restore_device_registers(hsotg);
+			ret = dwc2_restore_device_registers(hsotg, 0);
 			if (ret) {
 				dev_err(hsotg->dev, "%s: failed to restore device registers\n",
 					__func__);

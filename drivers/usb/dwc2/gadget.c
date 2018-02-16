@@ -4827,11 +4827,13 @@ int dwc2_backup_device_registers(struct dwc2_hsotg *hsotg)
  * if controller power were disabled.
  *
  * @hsotg: Programming view of the DWC_otg controller
+ * @remote_wakeup: Indicates whether resume is initiated by Device or Host.
+ *
+ * Return: 0 if successful, negative error code otherwise
  */
-int dwc2_restore_device_registers(struct dwc2_hsotg *hsotg)
+int dwc2_restore_device_registers(struct dwc2_hsotg *hsotg, int remote_wakeup)
 {
 	struct dwc2_dregs_backup *dr;
-	u32 dctl;
 	int i;
 
 	dev_dbg(hsotg->dev, "%s\n", __func__);
@@ -4845,29 +4847,41 @@ int dwc2_restore_device_registers(struct dwc2_hsotg *hsotg)
 	}
 	dr->valid = false;
 
-	dwc2_writel(dr->dcfg, hsotg->regs + DCFG);
-	dwc2_writel(dr->dctl, hsotg->regs + DCTL);
+	if (!remote_wakeup)
+		dwc2_writel(dr->dctl, hsotg->regs + DCTL);
+
 	dwc2_writel(dr->daintmsk, hsotg->regs + DAINTMSK);
 	dwc2_writel(dr->diepmsk, hsotg->regs + DIEPMSK);
 	dwc2_writel(dr->doepmsk, hsotg->regs + DOEPMSK);
 
 	for (i = 0; i < hsotg->num_of_eps; i++) {
 		/* Restore IN EPs */
-		dwc2_writel(dr->diepctl[i], hsotg->regs + DIEPCTL(i));
 		dwc2_writel(dr->dieptsiz[i], hsotg->regs + DIEPTSIZ(i));
 		dwc2_writel(dr->diepdma[i], hsotg->regs + DIEPDMA(i));
-		dwc2_writel(dr->dtxfsiz[i], hsotg->regs + DPTXFSIZN(i));
-
-		/* Restore OUT EPs */
-		dwc2_writel(dr->doepctl[i], hsotg->regs + DOEPCTL(i));
 		dwc2_writel(dr->doeptsiz[i], hsotg->regs + DOEPTSIZ(i));
+		/** WA for enabled EPx's IN in DDMA mode. On entering to
+		 * hibernation wrong value read and saved from DIEPDMAx,
+		 * as result BNA interrupt asserted on hibernation exit
+		 * by restoring from saved area.
+		 */
+		if (hsotg->params.g_dma_desc &&
+		    (dr->diepctl[i] & DXEPCTL_EPENA))
+			dr->diepdma[i] = hsotg->eps_in[i]->desc_list_dma;
+		dwc2_writel(dr->dtxfsiz[i], hsotg->regs + DPTXFSIZN(i));
+		dwc2_writel(dr->diepctl[i], hsotg->regs + DIEPCTL(i));
+		/* Restore OUT EPs */
+		dwc2_writel(dr->doeptsiz[i], hsotg->regs + DOEPTSIZ(i));
+		/* WA for enabled EPx's OUT in DDMA mode. On entering to
+		 * hibernation wrong value read and saved from DOEPDMAx,
+		 * as result BNA interrupt asserted on hibernation exit
+		 * by restoring from saved area.
+		 */
+		if (hsotg->params.g_dma_desc &&
+		    (dr->doepctl[i] & DXEPCTL_EPENA))
+			dr->doepdma[i] = hsotg->eps_out[i]->desc_list_dma;
 		dwc2_writel(dr->doepdma[i], hsotg->regs + DOEPDMA(i));
+		dwc2_writel(dr->doepctl[i], hsotg->regs + DOEPCTL(i));
 	}
-
-	/* Set the Power-On Programming done bit */
-	dctl = dwc2_readl(hsotg->regs + DCTL);
-	dctl |= DCTL_PWRONPRGDONE;
-	dwc2_writel(dctl, hsotg->regs + DCTL);
 
 	return 0;
 }
