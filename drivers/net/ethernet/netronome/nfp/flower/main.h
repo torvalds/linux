@@ -41,6 +41,7 @@
 #include <linux/time64.h>
 #include <linux/types.h>
 #include <net/pkt_cls.h>
+#include <net/tcp.h>
 #include <linux/workqueue.h>
 
 struct net_device;
