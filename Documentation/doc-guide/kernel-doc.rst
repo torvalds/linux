@@ -237,7 +237,7 @@ on a line of their own, like all other kernel-doc comments::
         int baz;
         /** @foobar: Single line description. */
         int foobar;
-  }
+  };
 
 Nested structs/unions
 ~~~~~~~~~~~~~~~~~~~~~
