@@ -458,6 +458,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	}
 
 	platform_set_drvdata(dev, hsotg);
+	hsotg->hibernated = 0;
 
 	dwc2_debugfs_init(hsotg);
 
