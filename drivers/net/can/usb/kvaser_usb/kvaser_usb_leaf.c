@@ -125,16 +125,8 @@ struct kvaser_cmd_simple {
 struct kvaser_cmd_cardinfo {
 	u8 tid;
 	u8 nchannels;
-	union {
-		struct {
-			__le32 serial_number;
-			__le32 padding;
-		} __packed leaf0;
-		struct {
-			__le32 serial_number_low;
-			__le32 serial_number_high;
-		} __packed usbcan0;
-	} __packed;
+	__le32 serial_number;
+	__le32 padding0;
 	__le32 clock_resolution;
 	__le32 mfgdate;
 	u8 ean[8];
@@ -147,7 +139,7 @@ struct kvaser_cmd_cardinfo {
 			u8 padding;
 		} __packed usbcan1;
 	} __packed;
-	__le16 padding;
+	__le16 padding1;
 } __packed;
 
 struct leaf_cmd_softinfo {
