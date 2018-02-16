@@ -605,8 +605,7 @@ static struct tc_cookie *nla_memdup_cookie(struct nlattr **tb)
 
 struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 				    struct nlattr *nla, struct nlattr *est,
-				    char *name, int ovr, int bind,
-				    struct netlink_ext_ack *extack)
+				    char *name, int ovr, int bind)
 {
 	struct tc_action *a;
 	struct tc_action_ops *a_o;
@@ -622,7 +621,7 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 			goto err_out;
 		err = -EINVAL;
 		kind = tb[TCA_ACT_KIND];
-		if (!kind)
+		if (kind == NULL)
 			goto err_out;
 		if (nla_strlcpy(act_name, kind, IFNAMSIZ) >= IFNAMSIZ)
 			goto err_out;
@@ -727,7 +726,7 @@ static void cleanup_a(struct list_head *actions, int ovr)
 
 int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 		    struct nlattr *est, char *name, int ovr, int bind,
-		    struct list_head *actions, struct netlink_ext_ack *extack)
+		    struct list_head *actions)
 {
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct tc_action *act;
@@ -739,8 +738,7 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 		return err;
 
 	for (i = 1; i <= TCA_ACT_MAX_PRIO && tb[i]; i++) {
-		act = tcf_action_init_1(net, tp, tb[i], est, name, ovr, bind,
-					extack);
+		act = tcf_action_init_1(net, tp, tb[i], est, name, ovr, bind);
 		if (IS_ERR(act)) {
 			err = PTR_ERR(act);
 			goto err;
@@ -824,7 +822,7 @@ static int tca_get_fill(struct sk_buff *skb, struct list_head *actions,
 	t->tca__pad2 = 0;
 
 	nest = nla_nest_start(skb, TCA_ACT_TAB);
-	if (!nest)
+	if (nest == NULL)
 		goto out_nlmsg_trim;
 
 	if (tcf_action_dump(skb, actions, bind, ref) < 0)
@@ -936,7 +934,7 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 	t->tca__pad2 = 0;
 
 	nest = nla_nest_start(skb, TCA_ACT_TAB);
-	if (!nest)
+	if (nest == NULL)
 		goto out_module_put;
 
 	err = ops->walk(net, skb, &dcb, RTM_DELACTION, ops);
@@ -1009,10 +1007,10 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 		return ret;
 
 	if (event == RTM_DELACTION && n->nlmsg_flags & NLM_F_ROOT) {
-		if (tb[1])
+		if (tb[1] != NULL)
 			return tca_action_flush(net, tb[1], n, portid);
-
-		return -EINVAL;
+		else
+			return -EINVAL;
 	}
 
 	for (i = 1; i <= TCA_ACT_MAX_PRIO && tb[i]; i++) {
@@ -1064,14 +1062,12 @@ tcf_add_notify(struct net *net, struct nlmsghdr *n, struct list_head *actions,
 }
 
 static int tcf_action_add(struct net *net, struct nlattr *nla,
-			  struct nlmsghdr *n, u32 portid, int ovr,
-			  struct netlink_ext_ack *extack)
+			  struct nlmsghdr *n, u32 portid, int ovr)
 {
 	int ret = 0;
 	LIST_HEAD(actions);
 
-	ret = tcf_action_init(net, NULL, nla, NULL, NULL, ovr, 0, &actions,
-			      extack);
+	ret = tcf_action_init(net, NULL, nla, NULL, NULL, ovr, 0, &actions);
 	if (ret)
 		return ret;
 
@@ -1119,8 +1115,7 @@ static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n,
 		if (n->nlmsg_flags & NLM_F_REPLACE)
 			ovr = 1;
 replay:
-		ret = tcf_action_add(net, tca[TCA_ACT_TAB], n, portid, ovr,
-				     extack);
+		ret = tcf_action_add(net, tca[TCA_ACT_TAB], n, portid, ovr);
 		if (ret == -EAGAIN)
 			goto replay;
 		break;

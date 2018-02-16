@@ -80,12 +80,12 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	bool exists = false;
 	int ret;
 
-	if (!nla)
+	if (nla == NULL)
 		return -EINVAL;
 	ret = nla_parse_nested(tb, TCA_MIRRED_MAX, nla, mirred_policy, NULL);
 	if (ret < 0)
 		return ret;
-	if (!tb[TCA_MIRRED_PARMS])
+	if (tb[TCA_MIRRED_PARMS] == NULL)
 		return -EINVAL;
 	parm = nla_data(tb[TCA_MIRRED_PARMS]);
 
@@ -117,7 +117,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	}
 
 	if (!exists) {
-		if (!dev)
+		if (dev == NULL)
 			return -EINVAL;
 		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_mirred_ops, bind, true);
