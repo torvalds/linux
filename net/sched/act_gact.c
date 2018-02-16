@@ -56,7 +56,7 @@ static const struct nla_policy gact_policy[TCA_GACT_MAX + 1] = {
 
 static int tcf_gact_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a,
-			 int ovr, int bind)
+			 int ovr, int bind, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, gact_net_id);
 	struct nlattr *tb[TCA_GACT_MAX + 1];
@@ -201,14 +201,16 @@ nla_put_failure:
 
 static int tcf_gact_walker(struct net *net, struct sk_buff *skb,
 			   struct netlink_callback *cb, int type,
-			   const struct tc_action_ops *ops)
+			   const struct tc_action_ops *ops,
+			   struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, gact_net_id);
 
-	return tcf_generic_walker(tn, skb, cb, type, ops);
+	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_gact_search(struct net *net, struct tc_action **a, u32 index)
+static int tcf_gact_search(struct net *net, struct tc_action **a, u32 index,
+			   struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, gact_net_id);
 
