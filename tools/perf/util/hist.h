@@ -91,7 +91,6 @@ struct hist_entry_iter {
 	int curr;
 
 	bool hide_unresolved;
-	int max_stack;
 
 	struct perf_evsel *evsel;
 	struct perf_sample *sample;
