@@ -35,10 +35,10 @@
 
 #include "8250.h"
 
-/* Offsets for the DesignWare specific registers */
+/* Byte aligned offsets for the DesignWare specific registers */
 #define DW_UART_USR	0x1f /* UART Status Register */
-#define DW_UART_CPR	0xf4 /* Component Parameter Register */
-#define DW_UART_UCV	0xf8 /* UART Component Version */
+#define DW_UART_CPR	0x3d /* Component Parameter Register */
+#define DW_UART_UCV	0x3e /* UART Component Version */
 
 /* Offsets for the Octeon specific registers */
 #define OCTEON_UART_USR	0x27 /* UART Status Register */
@@ -380,9 +380,9 @@ static void dw8250_setup_port(struct uart_port *p)
 	 * ADDITIONAL_FEATURES are not enabled. No need to go any further.
 	 */
 	if (p->iotype == UPIO_MEM32BE)
-		reg = ioread32be(p->membase + DW_UART_UCV);
+		reg = ioread32be(p->membase + (DW_UART_UCV << p->regshift));
 	else
-		reg = readl(p->membase + DW_UART_UCV);
+		reg = readl(p->membase + (DW_UART_UCV << p->regshift));
 	if (!reg)
 		return;
 
@@ -390,9 +390,9 @@ static void dw8250_setup_port(struct uart_port *p)
 		(reg >> 24) & 0xff, (reg >> 16) & 0xff, (reg >> 8) & 0xff);
 
 	if (p->iotype == UPIO_MEM32BE)
-		reg = ioread32be(p->membase + DW_UART_CPR);
+		reg = ioread32be(p->membase + (DW_UART_CPR << p->regshift));
 	else
-		reg = readl(p->membase + DW_UART_CPR);
+		reg = readl(p->membase + (DW_UART_CPR << p->regshift));
 	if (!reg)
 		return;
 
