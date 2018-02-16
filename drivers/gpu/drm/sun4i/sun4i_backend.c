@@ -92,13 +92,8 @@ void sun4i_backend_layer_enable(struct sun4i_backend *backend,
 			   SUN4I_BACKEND_MODCTL_LAY_EN(layer), val);
 }
 
-static int sun4i_backend_drm_format_to_layer(struct drm_plane *plane,
-					     u32 format, u32 *mode)
+static int sun4i_backend_drm_format_to_layer(u32 format, u32 *mode)
 {
-	if (plane && (plane->type == DRM_PLANE_TYPE_PRIMARY) &&
-	    (format == DRM_FORMAT_ARGB8888))
-		format = DRM_FORMAT_XRGB8888;
-
 	switch (format) {
 	case DRM_FORMAT_ARGB8888:
 		*mode = SUN4I_BACKEND_LAY_FBFMT_ARGB8888;
@@ -191,8 +186,7 @@ int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 	DRM_DEBUG_DRIVER("Switching display backend interlaced mode %s\n",
 			 interlaced ? "on" : "off");
 
-	ret = sun4i_backend_drm_format_to_layer(plane, fb->format->format,
-						&val);
+	ret = sun4i_backend_drm_format_to_layer(fb->format->format, &val);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Invalid format\n");
 		return ret;
@@ -211,7 +205,7 @@ int sun4i_backend_update_layer_frontend(struct sun4i_backend *backend,
 	u32 val;
 	int ret;
 
-	ret = sun4i_backend_drm_format_to_layer(NULL, fmt, &val);
+	ret = sun4i_backend_drm_format_to_layer(fmt, &val);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Invalid format\n");
 		return ret;
