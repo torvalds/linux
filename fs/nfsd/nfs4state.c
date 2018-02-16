@@ -889,7 +889,7 @@ static void nfs4_put_deleg_lease(struct nfs4_delegation *dp)
 	spin_unlock(&fp->fi_lock);
 
 	if (filp) {
-		vfs_setlease(filp, F_UNLCK, NULL, (void **)&fp);
+		vfs_setlease(filp, F_UNLCK, NULL, (void **)&dp);
 		fput(filp);
 	}
 }
@@ -3957,13 +3957,9 @@ static bool
 nfsd_break_deleg_cb(struct file_lock *fl)
 {
 	bool ret = false;
-	struct nfs4_file *fp = (struct nfs4_file *)fl->fl_owner;
-	struct nfs4_delegation *dp;
+	struct nfs4_delegation *dp = (struct nfs4_delegation *)fl->fl_owner;
+	struct nfs4_file *fp = dp->dl_stid.sc_file;
 
-	if (!fp) {
-		WARN(1, "(%p)->fl_owner NULL\n", fl);
-		return ret;
-	}
 	if (fp->fi_had_conflict) {
 		WARN(1, "duplicate break on %p\n", fp);
 		return ret;
@@ -4309,7 +4305,8 @@ static bool nfsd4_cb_channel_good(struct nfs4_client *clp)
 	return clp->cl_minorversion && clp->cl_cb_state == NFSD4_CB_UNKNOWN;
 }
 
-static struct file_lock *nfs4_alloc_init_lease(struct nfs4_file *fp, int flag)
+static struct file_lock *nfs4_alloc_init_lease(struct nfs4_delegation *dp,
+						int flag)
 {
 	struct file_lock *fl;
 
@@ -4320,7 +4317,7 @@ static struct file_lock *nfs4_alloc_init_lease(struct nfs4_file *fp, int flag)
 	fl->fl_flags = FL_DELEG;
 	fl->fl_type = flag == NFS4_OPEN_DELEGATE_READ? F_RDLCK: F_WRLCK;
 	fl->fl_end = OFFSET_MAX;
-	fl->fl_owner = (fl_owner_t)fp;
+	fl->fl_owner = (fl_owner_t)dp;
 	fl->fl_pid = current->tgid;
 	return fl;
 }
@@ -4344,7 +4341,7 @@ static int nfs4_setlease(struct nfs4_delegation *dp)
 	struct file *filp;
 	int status = 0;
 
-	fl = nfs4_alloc_init_lease(fp, NFS4_OPEN_DELEGATE_READ);
+	fl = nfs4_alloc_init_lease(dp, NFS4_OPEN_DELEGATE_READ);
 	if (!fl)
 		return -ENOMEM;
 	filp = find_readable_file(fp);
