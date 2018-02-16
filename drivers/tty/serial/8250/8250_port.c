@@ -1846,8 +1846,22 @@ static bool handle_rx_dma(struct uart_8250_port *up, unsigned int iir)
 	return up->dma->rx_dma(up);
 }
 
-/*
- * This handles the interrupt from one port.
+/**
+ * serial8250_handle_irq - Handles the generic 8250 interrupts
+ * @port:	UART port structure holding the IRQ generating port
+ * @iir:	Interrupt Identification Register containing the masked
+ * 		interrupt source, such as supplied via serial_in_IIR()
+ *
+ * Handle the following generic 8250 common interrupts
+ * o Modem Status Interrupt
+ * o Transmitter holding register empty
+ * o Receiver Data Interrupt
+ * o Receiver Line Status Interrupt
+ * o RX Timeout Interrupt
+ *
+ * Other interrupts are expected to be handled by the caller where needed.
+ *
+ * Returns 0 when an interrupt was not handled, 1 otherwise.
  */
 int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 {
@@ -1855,7 +1869,11 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	unsigned long flags;
 	struct uart_8250_port *up = up_to_u8250p(port);
 
-	if (iir == UART_IIR_NO_INT)
+	if ((iir != UART_IIR_MSI) &&
+	    (iir != UART_IIR_THRI) &&
+	    (iir != UART_IIR_RDI) &&
+	    (iir != UART_IIR_RLSI) &&
+	    (iir != UART_IIR_RX_TIMEOUT))
 		return 0;
 
 	spin_lock_irqsave(&port->lock, flags);
