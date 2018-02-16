@@ -46,7 +46,7 @@ struct div4_clk {
 	unsigned int shift;
 };
 
-static struct div4_clk div4_clks[] = {
+static const struct div4_clk div4_clks[] = {
 	{ "zg", "pll0", CPG_FRQCRA, 16 },
 	{ "m3", "pll1", CPG_FRQCRA, 12 },
 	{ "b",  "pll1", CPG_FRQCRA,  8 },
@@ -79,7 +79,7 @@ sh73a0_cpg_register_clock(struct device_node *np, struct sh73a0_cpg *cpg,
 {
 	const struct clk_div_table *table = NULL;
 	unsigned int shift, reg, width;
-	const char *parent_name;
+	const char *parent_name = NULL;
 	unsigned int mult = 1;
 	unsigned int div = 1;
 
@@ -135,7 +135,7 @@ sh73a0_cpg_register_clock(struct device_node *np, struct sh73a0_cpg *cpg,
 		shift = 24;
 		width = 5;
 	} else {
-		struct div4_clk *c;
+		const struct div4_clk *c;
 
 		for (c = div4_clks; c->name; c++) {
 			if (!strcmp(name, c->name)) {
