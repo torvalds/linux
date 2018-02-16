@@ -7,6 +7,7 @@
  * Licensed under the GPL-2.
  */
 
+#include <linux/acpi.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -69,10 +70,19 @@ static const struct of_device_id adau7002_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, adau7002_dt_ids);
 #endif
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id adau7002_acpi_match[] = {
+	{ "ADAU7002", 0 },
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, adau7002_acpi_match);
+#endif
+
 static struct platform_driver adau7002_driver = {
 	.driver = {
 		.name = "adau7002",
 		.of_match_table	= of_match_ptr(adau7002_dt_ids),
+		.acpi_match_table = ACPI_PTR(adau7002_acpi_match),
 	},
 	.probe = adau7002_probe,
 	.remove = adau7002_remove,
