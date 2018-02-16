@@ -187,6 +187,7 @@ static int acm_wb_alloc(struct acm *acm)
 		wb = &acm->wb[wbn];
 		if (!wb->use) {
 			wb->use = 1;
+			wb->len = 0;
 			return wbn;
 		}
 		wbn = (wbn + 1) % ACM_NW;
@@ -818,16 +819,18 @@ static int acm_tty_write(struct tty_struct *tty,
 static void acm_tty_flush_chars(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
-	struct acm_wb *cur = acm->putbuffer;
+	struct acm_wb *cur;
 	int err;
 	unsigned long flags;
 
+	spin_lock_irqsave(&acm->write_lock, flags);
+
+	cur = acm->putbuffer;
 	if (!cur) /* nothing to do */
-		return;
+		goto out;
 
 	acm->putbuffer = NULL;
 	err = usb_autopm_get_interface_async(acm->control);
-	spin_lock_irqsave(&acm->write_lock, flags);
 	if (err < 0) {
 		cur->use = 0;
 		acm->putbuffer = cur;
