@@ -321,10 +321,10 @@ static void dwc2_handle_session_req_intr(struct dwc2_hsotg *hsotg)
 
 	if (dwc2_is_device_mode(hsotg)) {
 		if (hsotg->lx_state == DWC2_L2) {
-			ret = dwc2_exit_hibernation(hsotg, true);
+			ret = dwc2_exit_partial_power_down(hsotg, true);
 			if (ret && (ret != -ENOTSUPP))
 				dev_err(hsotg->dev,
-					"exit hibernation failed\n");
+					"exit power_down failed\n");
 		}
 
 		/*
@@ -417,16 +417,16 @@ static void dwc2_handle_wakeup_detected_intr(struct dwc2_hsotg *hsotg)
 			/* Clear Remote Wakeup Signaling */
 			dctl &= ~DCTL_RMTWKUPSIG;
 			dwc2_writel(dctl, hsotg->regs + DCTL);
-			ret = dwc2_exit_hibernation(hsotg, true);
+			ret = dwc2_exit_partial_power_down(hsotg, true);
 			if (ret && (ret != -ENOTSUPP))
-				dev_err(hsotg->dev, "exit hibernation failed\n");
+				dev_err(hsotg->dev, "exit power_down failed\n");
 
 			call_gadget(hsotg, resume);
 		}
 		/* Change to L0 state */
 		hsotg->lx_state = DWC2_L0;
 	} else {
-		if (hsotg->params.hibernation)
+		if (hsotg->params.power_down)
 			return;
 
 		if (hsotg->lx_state != DWC2_L1) {
@@ -497,11 +497,11 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 				return;
 			}
 
-			ret = dwc2_enter_hibernation(hsotg);
+			ret = dwc2_enter_partial_power_down(hsotg);
 			if (ret) {
 				if (ret != -ENOTSUPP)
 					dev_err(hsotg->dev,
-						"enter hibernation failed\n");
+						"enter power_down failed\n");
 				goto skip_power_saving;
 			}
 

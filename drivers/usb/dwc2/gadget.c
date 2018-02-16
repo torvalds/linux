@@ -3527,7 +3527,7 @@ irq_retry:
 
 		/* This event must be used only if controller is suspended */
 		if (hsotg->lx_state == DWC2_L2) {
-			dwc2_exit_hibernation(hsotg, true);
+			dwc2_exit_partial_power_down(hsotg, true);
 			hsotg->lx_state = DWC2_L0;
 		}
 	}
@@ -4374,11 +4374,11 @@ static int dwc2_hsotg_vbus_session(struct usb_gadget *gadget, int is_active)
 	spin_lock_irqsave(&hsotg->lock, flags);
 
 	/*
-	 * If controller is hibernated, it must exit from hibernation
+	 * If controller is hibernated, it must exit from power_down
 	 * before being initialized / de-initialized
 	 */
 	if (hsotg->lx_state == DWC2_L2)
-		dwc2_exit_hibernation(hsotg, false);
+		dwc2_exit_partial_power_down(hsotg, false);
 
 	if (is_active) {
 		hsotg->op_state = OTG_STATE_B_PERIPHERAL;

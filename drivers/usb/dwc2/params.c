@@ -278,7 +278,7 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 	p->reload_ctl = (hw->snpsid >= DWC2_CORE_REV_2_92a);
 	p->uframe_sched = true;
 	p->external_id_pin_ctl = false;
-	p->hibernation = false;
+	p->power_down = false;
 	p->lpm = true;
 	p->lpm_clock_gating = true;
 	p->besl = true;

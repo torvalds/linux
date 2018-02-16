@@ -128,17 +128,17 @@ static int dwc2_restore_global_registers(struct dwc2_hsotg *hsotg)
 }
 
 /**
- * dwc2_exit_hibernation() - Exit controller from Partial Power Down.
+ * dwc2_exit_partial_power_down() - Exit controller from Partial Power Down.
  *
  * @hsotg: Programming view of the DWC_otg controller
  * @restore: Controller registers need to be restored
  */
-int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, bool restore)
+int dwc2_exit_partial_power_down(struct dwc2_hsotg *hsotg, bool restore)
 {
 	u32 pcgcctl;
 	int ret = 0;
 
-	if (!hsotg->params.hibernation)
+	if (!hsotg->params.power_down)
 		return -ENOTSUPP;
 
 	pcgcctl = dwc2_readl(hsotg->regs + PCGCTL);
@@ -182,16 +182,16 @@ int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, bool restore)
 }
 
 /**
- * dwc2_enter_hibernation() - Put controller in Partial Power Down.
+ * dwc2_enter_partial_power_down() - Put controller in Partial Power Down.
  *
  * @hsotg: Programming view of the DWC_otg controller
  */
-int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg)
+int dwc2_enter_partial_power_down(struct dwc2_hsotg *hsotg)
 {
 	u32 pcgcctl;
 	int ret = 0;
 
-	if (!hsotg->params.hibernation)
+	if (!hsotg->params.power_down)
 		return -ENOTSUPP;
 
 	/* Backup all registers */
@@ -220,7 +220,7 @@ int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg)
 
 	/*
 	 * Clear any pending interrupts since dwc2 will not be able to
-	 * clear them after entering hibernation.
+	 * clear them after entering partial_power_down.
 	 */
 	dwc2_writel(0xffffffff, hsotg->regs + GINTSTS);
 

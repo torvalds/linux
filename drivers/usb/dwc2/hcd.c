@@ -3397,10 +3397,10 @@ static void dwc2_port_suspend(struct dwc2_hsotg *hsotg, u16 windex)
 	hsotg->bus_suspended = true;
 
 	/*
-	 * If hibernation is supported, Phy clock will be suspended
+	 * If power_down is supported, Phy clock will be suspended
 	 * after registers are backuped.
 	 */
-	if (!hsotg->params.hibernation) {
+	if (!hsotg->params.power_down) {
 		/* Suspend the Phy Clock */
 		pcgctl = dwc2_readl(hsotg->regs + PCGCTL);
 		pcgctl |= PCGCTL_STOPPCLK;
@@ -3432,10 +3432,10 @@ static void dwc2_port_resume(struct dwc2_hsotg *hsotg)
 	spin_lock_irqsave(&hsotg->lock, flags);
 
 	/*
-	 * If hibernation is supported, Phy clock is already resumed
+	 * If power_down is supported, Phy clock is already resumed
 	 * after registers restore.
 	 */
-	if (!hsotg->params.hibernation) {
+	if (!hsotg->params.power_down) {
 		pcgctl = dwc2_readl(hsotg->regs + PCGCTL);
 		pcgctl &= ~PCGCTL_STOPPCLK;
 		dwc2_writel(pcgctl, hsotg->regs + PCGCTL);
@@ -4364,7 +4364,7 @@ static int _dwc2_hcd_suspend(struct usb_hcd *hcd)
 	if (hsotg->op_state == OTG_STATE_B_PERIPHERAL)
 		goto unlock;
 
-	if (!hsotg->params.hibernation)
+	if (!hsotg->params.power_down)
 		goto skip_power_saving;
 
 	/*
@@ -4378,12 +4378,12 @@ static int _dwc2_hcd_suspend(struct usb_hcd *hcd)
 		dwc2_writel(hprt0, hsotg->regs + HPRT0);
 	}
 
-	/* Enter hibernation */
-	ret = dwc2_enter_hibernation(hsotg);
+	/* Enter partial_power_down */
+	ret = dwc2_enter_partial_power_down(hsotg);
 	if (ret) {
 		if (ret != -ENOTSUPP)
 			dev_err(hsotg->dev,
-				"enter hibernation failed\n");
+				"enter partial_power_down failed\n");
 		goto skip_power_saving;
 	}
 
@@ -4394,7 +4394,7 @@ static int _dwc2_hcd_suspend(struct usb_hcd *hcd)
 		spin_lock_irqsave(&hsotg->lock, flags);
 	}
 
-	/* After entering hibernation, hardware is no more accessible */
+	/* After entering partial_power_down, hardware is no more accessible */
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
 skip_power_saving:
@@ -4419,7 +4419,7 @@ static int _dwc2_hcd_resume(struct usb_hcd *hcd)
 	if (hsotg->lx_state != DWC2_L2)
 		goto unlock;
 
-	if (!hsotg->params.hibernation) {
+	if (!hsotg->params.power_down) {
 		hsotg->lx_state = DWC2_L0;
 		goto unlock;
 	}
@@ -4441,10 +4441,10 @@ static int _dwc2_hcd_resume(struct usb_hcd *hcd)
 		spin_lock_irqsave(&hsotg->lock, flags);
 	}
 
-	/* Exit hibernation */
-	ret = dwc2_exit_hibernation(hsotg, true);
+	/* Exit partial_power_down */
+	ret = dwc2_exit_partial_power_down(hsotg, true);
 	if (ret && (ret != -ENOTSUPP))
-		dev_err(hsotg->dev, "exit hibernation failed\n");
+		dev_err(hsotg->dev, "exit partial_power_down failed\n");
 
 	hsotg->lx_state = DWC2_L0;
 
