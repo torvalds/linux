@@ -574,7 +574,7 @@ struct snd_soc_codec_driver soc_codec_dev_ak4458 = {
 	},
 };
 
-const struct regmap_config ak4458_regmap = {
+static const struct regmap_config ak4458_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
@@ -584,7 +584,7 @@ const struct regmap_config ak4458_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-const struct dev_pm_ops ak4458_pm = {
+static const struct dev_pm_ops ak4458_pm = {
 	SET_RUNTIME_PM_OPS(ak4458_runtime_suspend, ak4458_runtime_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				pm_runtime_force_resume)
