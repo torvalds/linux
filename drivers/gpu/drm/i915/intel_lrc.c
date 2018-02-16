@@ -644,8 +644,6 @@ done:
 		port_assign(port, last);
 
 	/* We must always keep the beast fed if we have work piled up */
-	GEM_BUG_ON(port_isset(execlists->port) &&
-		   !execlists_is_active(execlists, EXECLISTS_ACTIVE_USER));
 	GEM_BUG_ON(execlists->first && !port_isset(execlists->port));
 
 unlock:
@@ -655,6 +653,9 @@ unlock:
 		execlists_set_active(execlists, EXECLISTS_ACTIVE_USER);
 		execlists_submit_ports(engine);
 	}
+
+	GEM_BUG_ON(port_isset(execlists->port) &&
+		   !execlists_is_active(execlists, EXECLISTS_ACTIVE_USER));
 }
 
 void
