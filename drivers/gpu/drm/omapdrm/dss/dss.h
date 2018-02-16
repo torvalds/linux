@@ -238,6 +238,8 @@ struct dss_device {
 	struct regmap	*syscon_pll_ctrl;
 	u32		syscon_pll_ctrl_offset;
 
+	struct platform_device *drm_pdev;
+
 	struct clk	*parent_clk;
 	struct clk	*dss_clk;
 	unsigned long	dss_clk_rate;

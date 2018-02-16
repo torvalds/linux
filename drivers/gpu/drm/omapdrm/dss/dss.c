@@ -1315,6 +1315,7 @@ static const struct soc_device_attribute dss_soc_devices[] = {
 static int dss_bind(struct device *dev)
 {
 	struct dss_device *dss = dev_get_drvdata(dev);
+	struct platform_device *drm_pdev;
 	int r;
 
 	r = component_bind_all(dev, NULL);
@@ -1325,11 +1326,23 @@ static int dss_bind(struct device *dev)
 
 	omapdss_set_dss(dss);
 
+	drm_pdev = platform_device_register_simple("omapdrm", 0, NULL, 0);
+	if (IS_ERR(drm_pdev)) {
+		component_unbind_all(dev, NULL);
+		return PTR_ERR(drm_pdev);
+	}
+
+	dss->drm_pdev = drm_pdev;
+
 	return 0;
 }
 
 static void dss_unbind(struct device *dev)
 {
+	struct dss_device *dss = dev_get_drvdata(dev);
+
+	platform_device_unregister(dss->drm_pdev);
+
 	omapdss_set_dss(NULL);
 
 	component_unbind_all(dev, NULL);
