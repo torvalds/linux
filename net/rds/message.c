@@ -33,6 +33,9 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/skbuff.h>
+#include <linux/list.h>
+#include <linux/errqueue.h>
 
 #include "rds.h"
 
@@ -53,20 +56,92 @@ void rds_message_addref(struct rds_message *rm)
 }
 EXPORT_SYMBOL_GPL(rds_message_addref);
 
+static inline bool skb_zcookie_add(struct sk_buff *skb, u32 cookie)
+{
+	struct sock_exterr_skb *serr = SKB_EXT_ERR(skb);
+	int ncookies;
+	u32 *ptr;
+
+	if (serr->ee.ee_origin != SO_EE_ORIGIN_ZCOOKIE)
+		return false;
+	ncookies = serr->ee.ee_data;
+	if (ncookies == SO_EE_ORIGIN_MAX_ZCOOKIES)
+		return false;
+	ptr = skb_put(skb, sizeof(u32));
+	*ptr = cookie;
+	serr->ee.ee_data = ++ncookies;
+	return true;
+}
+
+static void rds_rm_zerocopy_callback(struct rds_sock *rs,
+				     struct rds_znotifier *znotif)
+{
+	struct sock *sk = rds_rs_to_sk(rs);
+	struct sk_buff *skb, *tail;
+	struct sock_exterr_skb *serr;
+	unsigned long flags;
+	struct sk_buff_head *q;
+	u32 cookie = znotif->z_cookie;
+
+	q = &sk->sk_error_queue;
+	spin_lock_irqsave(&q->lock, flags);
+	tail = skb_peek_tail(q);
+
+	if (tail && skb_zcookie_add(tail, cookie)) {
+		spin_unlock_irqrestore(&q->lock, flags);
+		mm_unaccount_pinned_pages(&znotif->z_mmp);
+		consume_skb(rds_skb_from_znotifier(znotif));
+		sk->sk_error_report(sk);
+		return;
+	}
+
+	skb = rds_skb_from_znotifier(znotif);
+	serr = SKB_EXT_ERR(skb);
+	memset(&serr->ee, 0, sizeof(serr->ee));
+	serr->ee.ee_errno = 0;
+	serr->ee.ee_origin = SO_EE_ORIGIN_ZCOOKIE;
+	serr->ee.ee_info = 0;
+	WARN_ON(!skb_zcookie_add(skb, cookie));
+
+	__skb_queue_tail(q, skb);
+
+	spin_unlock_irqrestore(&q->lock, flags);
+	sk->sk_error_report(sk);
+
+	mm_unaccount_pinned_pages(&znotif->z_mmp);
+}
+
 /*
  * This relies on dma_map_sg() not touching sg[].page during merging.
  */
 static void rds_message_purge(struct rds_message *rm)
 {
-	unsigned long i;
+	unsigned long i, flags;
+	bool zcopy = false;
 
 	if (unlikely(test_bit(RDS_MSG_PAGEVEC, &rm->m_flags)))
 		return;
 
+	spin_lock_irqsave(&rm->m_rs_lock, flags);
+	if (rm->m_rs) {
+		struct rds_sock *rs = rm->m_rs;
+
+		if (rm->data.op_mmp_znotifier) {
+			zcopy = true;
+			rds_rm_zerocopy_callback(rs, rm->data.op_mmp_znotifier);
+			rm->data.op_mmp_znotifier = NULL;
+		}
+		sock_put(rds_rs_to_sk(rs));
+		rm->m_rs = NULL;
+	}
+	spin_unlock_irqrestore(&rm->m_rs_lock, flags);
+
 	for (i = 0; i < rm->data.op_nents; i++) {
-		rdsdebug("putting data page %p\n", (void *)sg_page(&rm->data.op_sg[i]));
 		/* XXX will have to put_page for page refs */
-		__free_page(sg_page(&rm->data.op_sg[i]));
+		if (!zcopy)
+			__free_page(sg_page(&rm->data.op_sg[i]));
+		else
+			put_page(sg_page(&rm->data.op_sg[i]));
 	}
 	rm->data.op_nents = 0;
 
@@ -266,12 +341,14 @@ struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned in
 	return rm;
 }
 
-int rds_message_copy_from_user(struct rds_message *rm, struct iov_iter *from)
+int rds_message_copy_from_user(struct rds_message *rm, struct iov_iter *from,
+			       bool zcopy)
 {
 	unsigned long to_copy, nbytes;
 	unsigned long sg_off;
 	struct scatterlist *sg;
 	int ret = 0;
+	int length = iov_iter_count(from);
 
 	rm->m_inc.i_hdr.h_len = cpu_to_be32(iov_iter_count(from));
 
@@ -280,6 +357,53 @@ int rds_message_copy_from_user(struct rds_message *rm, struct iov_iter *from)
 	 */
 	sg = rm->data.op_sg;
 	sg_off = 0; /* Dear gcc, sg->page will be null from kzalloc. */
+
+	if (zcopy) {
+		int total_copied = 0;
+		struct sk_buff *skb;
+
+		skb = alloc_skb(SO_EE_ORIGIN_MAX_ZCOOKIES * sizeof(u32),
+				GFP_KERNEL);
+		if (!skb)
+			return -ENOMEM;
+		rm->data.op_mmp_znotifier = RDS_ZCOPY_SKB(skb);
+		if (mm_account_pinned_pages(&rm->data.op_mmp_znotifier->z_mmp,
+					    length)) {
+			ret = -ENOMEM;
+			goto err;
+		}
+		while (iov_iter_count(from)) {
+			struct page *pages;
+			size_t start;
+			ssize_t copied;
+
+			copied = iov_iter_get_pages(from, &pages, PAGE_SIZE,
+						    1, &start);
+			if (copied < 0) {
+				struct mmpin *mmp;
+				int i;
+
+				for (i = 0; i < rm->data.op_nents; i++)
+					put_page(sg_page(&rm->data.op_sg[i]));
+				mmp = &rm->data.op_mmp_znotifier->z_mmp;
+				mm_unaccount_pinned_pages(mmp);
+				ret = -EFAULT;
+				goto err;
+			}
+			total_copied += copied;
+			iov_iter_advance(from, copied);
+			length -= copied;
+			sg_set_page(sg, pages, copied, start);
+			rm->data.op_nents++;
+			sg++;
+		}
+		WARN_ON_ONCE(length != 0);
+		return ret;
+err:
+		consume_skb(skb);
+		rm->data.op_mmp_znotifier = NULL;
+		return ret;
+	} /* zcopy */
 
 	while (iov_iter_count(from)) {
 		if (!sg_page(sg)) {

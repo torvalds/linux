@@ -466,6 +466,9 @@ struct ubuf_info {
 
 #define skb_uarg(SKB)	((struct ubuf_info *)(skb_shinfo(SKB)->destructor_arg))
 
+int mm_account_pinned_pages(struct mmpin *mmp, size_t size);
+void mm_unaccount_pinned_pages(struct mmpin *mmp);
+
 struct ubuf_info *sock_zerocopy_alloc(struct sock *sk, size_t size);
 struct ubuf_info *sock_zerocopy_realloc(struct sock *sk, size_t size,
 					struct ubuf_info *uarg);

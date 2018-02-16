@@ -594,6 +594,8 @@ int rds_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 
 	if (msg_flags & MSG_OOB)
 		goto out;
+	if (msg_flags & MSG_ERRQUEUE)
+		return sock_recv_errqueue(sk, msg, size, SOL_IP, IP_RECVERR);
 
 	while (1) {
 		/* If there are pending notifications, do those - and nothing else */
