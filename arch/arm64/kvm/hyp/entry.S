@@ -172,40 +172,27 @@ ENTRY(__fpsimd_guest_restore)
 	// x1: vcpu
 	// x2-x29,lr: vcpu regs
 	// vcpu x0-x1 on the stack
-	stp	x2, x3, [sp, #-16]!
-	stp	x4, lr, [sp, #-16]!
+	stp	x2, x3, [sp, #-144]!
+	stp	x4, x5, [sp, #16]
+	stp	x6, x7, [sp, #32]
+	stp	x8, x9, [sp, #48]
+	stp	x10, x11, [sp, #64]
+	stp	x12, x13, [sp, #80]
+	stp	x14, x15, [sp, #96]
+	stp	x16, x17, [sp, #112]
+	stp	x18, lr, [sp, #128]
 
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
-	mrs	x2, cptr_el2
-	bic	x2, x2, #CPTR_EL2_TFP
-	msr	cptr_el2, x2
-alternative_else
-	mrs	x2, cpacr_el1
-	orr	x2, x2, #CPACR_EL1_FPEN
-	msr	cpacr_el1, x2
-alternative_endif
-	isb
+	bl	__hyp_switch_fpsimd
 
-	mov	x3, x1
-
-	ldr	x0, [x3, #VCPU_HOST_CONTEXT]
-	kern_hyp_va x0
-	add	x0, x0, #CPU_GP_REG_OFFSET(CPU_FP_REGS)
-	bl	__fpsimd_save_state
-
-	add	x2, x3, #VCPU_CONTEXT
-	add	x0, x2, #CPU_GP_REG_OFFSET(CPU_FP_REGS)
-	bl	__fpsimd_restore_state
-
-	// Skip restoring fpexc32 for AArch64 guests
-	mrs	x1, hcr_el2
-	tbnz	x1, #HCR_RW_SHIFT, 1f
-	ldr	x4, [x3, #VCPU_FPEXC32_EL2]
-	msr	fpexc32_el2, x4
-1:
-	ldp	x4, lr, [sp], #16
-	ldp	x2, x3, [sp], #16
-	ldp	x0, x1, [sp], #16
-
+	ldp	x4, x5, [sp, #16]
+	ldp	x6, x7, [sp, #32]
+	ldp	x8, x9, [sp, #48]
+	ldp	x10, x11, [sp, #64]
+	ldp	x12, x13, [sp, #80]
+	ldp	x14, x15, [sp, #96]
+	ldp	x16, x17, [sp, #112]
+	ldp	x18, lr, [sp, #128]
+	ldp	x0, x1, [sp, #144]
+	ldp	x2, x3, [sp], #160
 	eret
 ENDPROC(__fpsimd_guest_restore)

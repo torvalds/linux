@@ -318,6 +318,30 @@ static bool __hyp_text __skip_instr(struct kvm_vcpu *vcpu)
 	}
 }
 
+void __hyp_text __hyp_switch_fpsimd(u64 esr __always_unused,
+				    struct kvm_vcpu *vcpu)
+{
+	kvm_cpu_context_t *host_ctxt;
+
+	if (has_vhe())
+		write_sysreg(read_sysreg(cpacr_el1) | CPACR_EL1_FPEN,
+			     cpacr_el1);
+	else
+		write_sysreg(read_sysreg(cptr_el2) & ~(u64)CPTR_EL2_TFP,
+			     cptr_el2);
+
+	isb();
+
+	host_ctxt = kern_hyp_va(vcpu->arch.host_cpu_context);
+	__fpsimd_save_state(&host_ctxt->gp_regs.fp_regs);
+	__fpsimd_restore_state(&vcpu->arch.ctxt.gp_regs.fp_regs);
+
+	/* Skip restoring fpexc32 for AArch64 guests */
+	if (!(read_sysreg(hcr_el2) & HCR_RW))
+		write_sysreg(vcpu->arch.ctxt.sys_regs[FPEXC32_EL2],
+			     fpexc32_el2);
+}
+
 /*
  * Return true when we were able to fixup the guest exit and should return to
  * the guest, false when we should restore the host state and return to the
