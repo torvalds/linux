@@ -173,11 +173,13 @@ static inline int update_tcp_session(u32 index, u32 ack)
 static inline int add_tcp_pending_ack(u32 ack, u32 session_index,
 				      struct txq_entry_t *txqe)
 {
-	if (pending_base + pending_acks < MAX_PENDING_ACKS) {
-		pending_acks_info[pending_base + pending_acks].ack_num = ack;
-		pending_acks_info[pending_base + pending_acks].txqe = txqe;
-		pending_acks_info[pending_base + pending_acks].session_index = session_index;
-		txqe->tcp_pending_ack_idx = pending_base + pending_acks;
+	u32 i = pending_base + pending_acks;
+
+	if (i < MAX_PENDING_ACKS) {
+		pending_acks_info[i].ack_num = ack;
+		pending_acks_info[i].txqe = txqe;
+		pending_acks_info[i].session_index = session_index;
+		txqe->tcp_pending_ack_idx = i;
 		pending_acks++;
 	}
 	return 0;
