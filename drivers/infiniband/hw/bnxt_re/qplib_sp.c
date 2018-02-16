@@ -52,18 +52,6 @@ const struct bnxt_qplib_gid bnxt_qplib_gid_zero = {{ 0, 0, 0, 0, 0, 0, 0, 0,
 
 /* Device */
 
-static bool bnxt_qplib_is_atomic_cap(struct bnxt_qplib_rcfw *rcfw)
-{
-	int rc;
-	u16 pcie_ctl2;
-
-	rc = pcie_capability_read_word(rcfw->pdev, PCI_EXP_DEVCTL2,
-				       &pcie_ctl2);
-	if (rc)
-		return false;
-	return !!(pcie_ctl2 & PCI_EXP_DEVCTL2_ATOMIC_REQ);
-}
-
 static void bnxt_qplib_query_version(struct bnxt_qplib_rcfw *rcfw,
 				     char *fw_ver)
 {
@@ -165,7 +153,7 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 		attr->tqm_alloc_reqs[i * 4 + 3] = *(++tqm_alloc);
 	}
 
-	attr->is_atomic = bnxt_qplib_is_atomic_cap(rcfw);
+	attr->is_atomic = 0;
 bail:
 	bnxt_qplib_rcfw_free_sbuf(rcfw, sbuf);
 	return rc;

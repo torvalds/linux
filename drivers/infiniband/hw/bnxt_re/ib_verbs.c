@@ -174,10 +174,8 @@ int bnxt_re_query_device(struct ib_device *ibdev,
 	ib_attr->max_pd = dev_attr->max_pd;
 	ib_attr->max_qp_rd_atom = dev_attr->max_qp_rd_atom;
 	ib_attr->max_qp_init_rd_atom = dev_attr->max_qp_init_rd_atom;
-	if (dev_attr->is_atomic) {
-		ib_attr->atomic_cap = IB_ATOMIC_HCA;
-		ib_attr->masked_atomic_cap = IB_ATOMIC_HCA;
-	}
+	ib_attr->atomic_cap = IB_ATOMIC_NONE;
+	ib_attr->masked_atomic_cap = IB_ATOMIC_NONE;
 
 	ib_attr->max_ee_rd_atom = 0;
 	ib_attr->max_res_rd_atom = 0;
