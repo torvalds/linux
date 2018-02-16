@@ -496,12 +496,15 @@ static int clusterip_tg_check(const struct xt_tgchk_param *par)
 				return PTR_ERR(config);
 		}
 	}
-	cipinfo->config = config;
 
 	ret = nf_ct_netns_get(par->net, par->family);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_info("cannot load conntrack support for proto=%u\n",
 			par->family);
+		clusterip_config_entry_put(par->net, config);
+		clusterip_config_put(config);
+		return ret;
+	}
 
 	if (!par->net->xt.clusterip_deprecated_warning) {
 		pr_info("ipt_CLUSTERIP is deprecated and it will removed soon, "
@@ -509,6 +512,7 @@ static int clusterip_tg_check(const struct xt_tgchk_param *par)
 		par->net->xt.clusterip_deprecated_warning = true;
 	}
 
+	cipinfo->config = config;
 	return ret;
 }
 
