@@ -371,11 +371,7 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 	bo = kzalloc(sizeof(struct amdgpu_bo), GFP_KERNEL);
 	if (bo == NULL)
 		return -ENOMEM;
-	r = drm_gem_object_init(adev->ddev, &bo->gem_base, size);
-	if (unlikely(r)) {
-		kfree(bo);
-		return r;
-	}
+	drm_gem_private_object_init(adev->ddev, &bo->gem_base, size);
 	INIT_LIST_HEAD(&bo->shadow_list);
 	INIT_LIST_HEAD(&bo->va);
 	bo->preferred_domains = domain & (AMDGPU_GEM_DOMAIN_VRAM |
