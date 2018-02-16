@@ -1232,7 +1232,7 @@ F:	arch/arm/boot/dts/aspeed-*
 F:	drivers/*/*aspeed*
 
 ARM/ATMEL AT91 Clock Support
-M:	Boris Brezillon <boris.brezillon@free-electrons.com>
+M:	Boris Brezillon <boris.brezillon@bootlin.com>
 S:	Maintained
 F:	drivers/clk/at91
 
@@ -4644,7 +4644,7 @@ F:	Documentation/gpu/meson.rst
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DRM DRIVERS FOR ATMEL HLCDC
-M:	Boris Brezillon <boris.brezillon@free-electrons.com>
+M:	Boris Brezillon <boris.brezillon@bootlin.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
 F:	drivers/gpu/drm/atmel-hlcdc/
@@ -8412,7 +8412,7 @@ F:	include/uapi/drm/armada_drm.h
 F:	Documentation/devicetree/bindings/display/armada/
 
 MARVELL CRYPTO DRIVER
-M:	Boris Brezillon <boris.brezillon@free-electrons.com>
+M:	Boris Brezillon <boris.brezillon@bootlin.com>
 M:	Arnaud Ebalard <arno@natisbad.org>
 F:	drivers/crypto/marvell/
 S:	Maintained
@@ -9034,7 +9034,7 @@ F:	mm/
 MEMORY TECHNOLOGY DEVICES (MTD)
 M:	David Woodhouse <dwmw2@infradead.org>
 M:	Brian Norris <computersforpeace@gmail.com>
-M:	Boris Brezillon <boris.brezillon@free-electrons.com>
+M:	Boris Brezillon <boris.brezillon@bootlin.com>
 M:	Marek Vasut <marek.vasut@gmail.com>
 M:	Richard Weinberger <richard@nod.at>
 M:	Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>
@@ -9452,7 +9452,7 @@ S:	Supported
 F:	drivers/net/ethernet/myricom/myri10ge/
 
 NAND FLASH SUBSYSTEM
-M:	Boris Brezillon <boris.brezillon@free-electrons.com>
+M:	Boris Brezillon <boris.brezillon@bootlin.com>
 R:	Richard Weinberger <richard@nod.at>
 L:	linux-mtd@lists.infradead.org
 W:	http://www.linux-mtd.infradead.org/
