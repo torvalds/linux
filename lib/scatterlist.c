@@ -474,6 +474,133 @@ int sg_alloc_table_from_pages(struct sg_table *sgt, struct page **pages,
 }
 EXPORT_SYMBOL(sg_alloc_table_from_pages);
 
+#ifdef CONFIG_SGL_ALLOC
+
+/**
+ * sgl_alloc_order - allocate a scatterlist and its pages
+ * @length: Length in bytes of the scatterlist. Must be at least one
+ * @order: Second argument for alloc_pages()
+ * @chainable: Whether or not to allocate an extra element in the scatterlist
+ *	for scatterlist chaining purposes
+ * @gfp: Memory allocation flags
+ * @nent_p: [out] Number of entries in the scatterlist that have pages
+ *
+ * Returns: A pointer to an initialized scatterlist or %NULL upon failure.
+ */
+struct scatterlist *sgl_alloc_order(unsigned long long length,
+				    unsigned int order, bool chainable,
+				    gfp_t gfp, unsigned int *nent_p)
+{
+	struct scatterlist *sgl, *sg;
+	struct page *page;
+	unsigned int nent, nalloc;
+	u32 elem_len;
+
+	nent = round_up(length, PAGE_SIZE << order) >> (PAGE_SHIFT + order);
+	/* Check for integer overflow */
+	if (length > (nent << (PAGE_SHIFT + order)))
+		return NULL;
+	nalloc = nent;
+	if (chainable) {
+		/* Check for integer overflow */
+		if (nalloc + 1 < nalloc)
+			return NULL;
+		nalloc++;
+	}
+	sgl = kmalloc_array(nalloc, sizeof(struct scatterlist),
+			    (gfp & ~GFP_DMA) | __GFP_ZERO);
+	if (!sgl)
+		return NULL;
+
+	sg_init_table(sgl, nalloc);
+	sg = sgl;
+	while (length) {
+		elem_len = min_t(u64, length, PAGE_SIZE << order);
+		page = alloc_pages(gfp, order);
+		if (!page) {
+			sgl_free(sgl);
+			return NULL;
+		}
+
+		sg_set_page(sg, page, elem_len, 0);
+		length -= elem_len;
+		sg = sg_next(sg);
+	}
+	WARN_ONCE(length, "length = %lld\n", length);
+	if (nent_p)
+		*nent_p = nent;
+	return sgl;
+}
+EXPORT_SYMBOL(sgl_alloc_order);
+
+/**
+ * sgl_alloc - allocate a scatterlist and its pages
+ * @length: Length in bytes of the scatterlist
+ * @gfp: Memory allocation flags
+ * @nent_p: [out] Number of entries in the scatterlist
+ *
+ * Returns: A pointer to an initialized scatterlist or %NULL upon failure.
+ */
+struct scatterlist *sgl_alloc(unsigned long long length, gfp_t gfp,
+			      unsigned int *nent_p)
+{
+	return sgl_alloc_order(length, 0, false, gfp, nent_p);
+}
+EXPORT_SYMBOL(sgl_alloc);
+
+/**
+ * sgl_free_n_order - free a scatterlist and its pages
+ * @sgl: Scatterlist with one or more elements
+ * @nents: Maximum number of elements to free
+ * @order: Second argument for __free_pages()
+ *
+ * Notes:
+ * - If several scatterlists have been chained and each chain element is
+ *   freed separately then it's essential to set nents correctly to avoid that a
+ *   page would get freed twice.
+ * - All pages in a chained scatterlist can be freed at once by setting @nents
+ *   to a high number.
+ */
+void sgl_free_n_order(struct scatterlist *sgl, int nents, int order)
+{
+	struct scatterlist *sg;
+	struct page *page;
+	int i;
+
+	for_each_sg(sgl, sg, nents, i) {
+		if (!sg)
+			break;
+		page = sg_page(sg);
+		if (page)
+			__free_pages(page, order);
+	}
+	kfree(sgl);
+}
+EXPORT_SYMBOL(sgl_free_n_order);
+
+/**
+ * sgl_free_order - free a scatterlist and its pages
+ * @sgl: Scatterlist with one or more elements
+ * @order: Second argument for __free_pages()
+ */
+void sgl_free_order(struct scatterlist *sgl, int order)
+{
+	sgl_free_n_order(sgl, INT_MAX, order);
+}
+EXPORT_SYMBOL(sgl_free_order);
+
+/**
+ * sgl_free - free a scatterlist and its pages
+ * @sgl: Scatterlist with one or more elements
+ */
+void sgl_free(struct scatterlist *sgl)
+{
+	sgl_free_order(sgl, 0);
+}
+EXPORT_SYMBOL(sgl_free);
+
+#endif /* CONFIG_SGL_ALLOC */
+
 void __sg_page_iter_start(struct sg_page_iter *piter,
 			  struct scatterlist *sglist, unsigned int nents,
 			  unsigned long pgoffset)

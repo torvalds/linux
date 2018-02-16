@@ -31,6 +31,7 @@
 #include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
 #include <linux/prefetch.h>
+#include <linux/reciprocal_div.h>
 
 #include <asm/sync_bitops.h>
 
@@ -72,7 +73,7 @@ static struct netvsc_device *alloc_net_device(void)
 
 	init_waitqueue_head(&net_device->wait_drain);
 	net_device->destroy = false;
-	atomic_set(&net_device->open_cnt, 0);
+
 	net_device->max_pkt = RNDIS_MAX_PKT_DEFAULT;
 	net_device->pkt_align = RNDIS_PKT_ALIGN_DEFAULT;
 
@@ -266,6 +267,11 @@ static int netvsc_init_buf(struct hv_device *device,
 	/* Get receive buffer area. */
 	buf_size = device_info->recv_sections * device_info->recv_section_size;
 	buf_size = roundup(buf_size, PAGE_SIZE);
+
+	/* Legacy hosts only allow smaller receive buffer */
+	if (net_device->nvsp_version <= NVSP_PROTOCOL_VERSION_2)
+		buf_size = min_t(unsigned int, buf_size,
+				 NETVSC_RECEIVE_BUFFER_SIZE_LEGACY);
 
 	net_device->recv_buf = vzalloc(buf_size);
 	if (!net_device->recv_buf) {
@@ -588,14 +594,11 @@ void netvsc_device_remove(struct hv_device *device)
  * Get the percentage of available bytes to write in the ring.
  * The return value is in range from 0 to 100.
  */
-static inline u32 hv_ringbuf_avail_percent(
-		struct hv_ring_buffer_info *ring_info)
+static u32 hv_ringbuf_avail_percent(const struct hv_ring_buffer_info *ring_info)
 {
-	u32 avail_read, avail_write;
+	u32 avail_write = hv_get_bytes_to_write(ring_info);
 
-	hv_get_ringbuffer_availbytes(ring_info, &avail_read, &avail_write);
-
-	return avail_write * 100 / ring_info->ring_datasize;
+	return reciprocal_divide(avail_write  * 100, netvsc_ring_reciprocal);
 }
 
 static inline void netvsc_free_send_slot(struct netvsc_device *net_device,
@@ -698,26 +701,26 @@ static u32 netvsc_get_next_send_section(struct netvsc_device *net_device)
 	return NETVSC_INVALID_INDEX;
 }
 
-static u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
-				   unsigned int section_index,
-				   u32 pend_size,
-				   struct hv_netvsc_packet *packet,
-				   struct rndis_message *rndis_msg,
-				   struct hv_page_buffer *pb,
-				   struct sk_buff *skb)
+static void netvsc_copy_to_send_buf(struct netvsc_device *net_device,
+				    unsigned int section_index,
+				    u32 pend_size,
+				    struct hv_netvsc_packet *packet,
+				    struct rndis_message *rndis_msg,
+				    struct hv_page_buffer *pb,
+				    bool xmit_more)
 {
 	char *start = net_device->send_buf;
 	char *dest = start + (section_index * net_device->send_section_size)
 		     + pend_size;
 	int i;
-	u32 msg_size = 0;
 	u32 padding = 0;
-	u32 remain = packet->total_data_buflen % net_device->pkt_align;
 	u32 page_count = packet->cp_partial ? packet->rmsg_pgcnt :
 		packet->page_buf_cnt;
+	u32 remain;
 
 	/* Add padding */
-	if (skb->xmit_more && remain && !packet->cp_partial) {
+	remain = packet->total_data_buflen & (net_device->pkt_align - 1);
+	if (xmit_more && remain) {
 		padding = net_device->pkt_align - remain;
 		rndis_msg->msg_len += padding;
 		packet->total_data_buflen += padding;
@@ -729,16 +732,11 @@ static u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
 		u32 len = pb[i].len;
 
 		memcpy(dest, (src + offset), len);
-		msg_size += len;
 		dest += len;
 	}
 
-	if (padding) {
+	if (padding)
 		memset(dest, 0, padding);
-		msg_size += padding;
-	}
-
-	return msg_size;
 }
 
 static inline int netvsc_send_pkt(
@@ -831,12 +829,13 @@ static inline void move_pkt_msd(struct hv_netvsc_packet **msd_send,
 }
 
 /* RCU already held by caller */
-int netvsc_send(struct net_device_context *ndev_ctx,
+int netvsc_send(struct net_device *ndev,
 		struct hv_netvsc_packet *packet,
 		struct rndis_message *rndis_msg,
 		struct hv_page_buffer *pb,
 		struct sk_buff *skb)
 {
+	struct net_device_context *ndev_ctx = netdev_priv(ndev);
 	struct netvsc_device *net_device
 		= rcu_dereference_bh(ndev_ctx->nvdev);
 	struct hv_device *device = ndev_ctx->device_ctx;
@@ -847,8 +846,7 @@ int netvsc_send(struct net_device_context *ndev_ctx,
 	struct multi_send_data *msdp;
 	struct hv_netvsc_packet *msd_send = NULL, *cur_send = NULL;
 	struct sk_buff *msd_skb = NULL;
-	bool try_batch;
-	bool xmit_more = (skb != NULL) ? skb->xmit_more : false;
+	bool try_batch, xmit_more;
 
 	/* If device is rescinded, return error and packet will get dropped. */
 	if (unlikely(!net_device || net_device->destroy))
@@ -899,10 +897,17 @@ int netvsc_send(struct net_device_context *ndev_ctx,
 		}
 	}
 
+	/* Keep aggregating only if stack says more data is coming
+	 * and not doing mixed modes send and not flow blocked
+	 */
+	xmit_more = skb->xmit_more &&
+		!packet->cp_partial &&
+		!netif_xmit_stopped(netdev_get_tx_queue(ndev, packet->q_idx));
+
 	if (section_index != NETVSC_INVALID_INDEX) {
 		netvsc_copy_to_send_buf(net_device,
 					section_index, msd_len,
-					packet, rndis_msg, pb, skb);
+					packet, rndis_msg, pb, xmit_more);
 
 		packet->send_buf_index = section_index;
 
@@ -922,7 +927,7 @@ int netvsc_send(struct net_device_context *ndev_ctx,
 		if (msdp->skb)
 			dev_consume_skb_any(msdp->skb);
 
-		if (xmit_more && !packet->cp_partial) {
+		if (xmit_more) {
 			msdp->skb = skb;
 			msdp->pkt = packet;
 			msdp->count++;
@@ -1085,7 +1090,7 @@ static int netvsc_receive(struct net_device *ndev,
 		u32 buflen = vmxferpage_packet->ranges[i].byte_count;
 
 		/* Pass it to the upper layer */
-		status = rndis_filter_receive(ndev, net_device, device,
+		status = rndis_filter_receive(ndev, net_device,
 					      channel, data, buflen);
 	}
 
@@ -1249,7 +1254,6 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 				const struct netvsc_device_info *device_info)
 {
 	int i, ret = 0;
-	int ring_size = device_info->ring_size;
 	struct netvsc_device *net_device;
 	struct net_device *ndev = hv_get_drvdata(device);
 	struct net_device_context *net_device_ctx = netdev_priv(ndev);
@@ -1260,8 +1264,6 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 
 	for (i = 0; i < VRSS_SEND_TAB_SIZE; i++)
 		net_device_ctx->tx_table[i] = 0;
-
-	net_device->ring_size = ring_size;
 
 	/* Because the device uses NAPI, all the interrupt batching and
 	 * control is done via Net softirq, not the channel handling
@@ -1289,10 +1291,9 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 		       netvsc_poll, NAPI_POLL_WEIGHT);
 
 	/* Open the channel */
-	ret = vmbus_open(device->channel, ring_size * PAGE_SIZE,
-			 ring_size * PAGE_SIZE, NULL, 0,
-			 netvsc_channel_cb,
-			 net_device->chan_table);
+	ret = vmbus_open(device->channel, netvsc_ring_bytes,
+			 netvsc_ring_bytes,  NULL, 0,
+			 netvsc_channel_cb, net_device->chan_table);
 
 	if (ret != 0) {
 		netif_napi_del(&net_device->chan_table[0].napi);

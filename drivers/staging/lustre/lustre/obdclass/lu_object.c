@@ -1932,8 +1932,10 @@ int lu_global_init(void)
 
 	LU_CONTEXT_KEY_INIT(&lu_global_key);
 	result = lu_context_key_register(&lu_global_key);
-	if (result != 0)
+	if (result != 0) {
+		lu_ref_global_fini();
 		return result;
+	}
 
 	/*
 	 * At this level, we don't know what tags are needed, so allocate them
@@ -1943,17 +1945,31 @@ int lu_global_init(void)
 	down_write(&lu_sites_guard);
 	result = lu_env_init(&lu_shrink_env, LCT_SHRINKER);
 	up_write(&lu_sites_guard);
-	if (result != 0)
+	if (result != 0) {
+		lu_context_key_degister(&lu_global_key);
+		lu_ref_global_fini();
 		return result;
+	}
 
 	/*
 	 * seeks estimation: 3 seeks to read a record from oi, one to read
 	 * inode, one for ea. Unfortunately setting this high value results in
 	 * lu_object/inode cache consuming all the memory.
 	 */
-	register_shrinker(&lu_site_shrinker);
+	result = register_shrinker(&lu_site_shrinker);
+	if (result != 0) {
+		/* Order explained in lu_global_fini(). */
+		lu_context_key_degister(&lu_global_key);
 
-	return result;
+		down_write(&lu_sites_guard);
+		lu_env_fini(&lu_shrink_env);
+		up_write(&lu_sites_guard);
+
+		lu_ref_global_fini();
+		return result;
+	}
+
+	return 0;
 }
 
 /**

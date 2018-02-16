@@ -108,6 +108,7 @@ struct nvmf_ctrl_options {
  *			       fabric implementation of NVMe fabrics.
  * @entry:		Used by the fabrics library to add the new
  *			registration entry to its linked-list internal tree.
+ * @module:             Transport module reference
  * @name:		Name of the NVMe fabric driver implementation.
  * @required_opts:	sysfs command-line options that must be specified
  *			when adding a new NVMe controller.
@@ -126,6 +127,7 @@ struct nvmf_ctrl_options {
  */
 struct nvmf_transport_ops {
 	struct list_head	entry;
+	struct module		*module;
 	const char		*name;
 	int			required_opts;
 	int			allowed_opts;

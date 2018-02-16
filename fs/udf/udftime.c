@@ -62,6 +62,11 @@ udf_disk_stamp_to_time(struct timespec *dest, struct timestamp src)
 	dest->tv_sec -= offset * 60;
 	dest->tv_nsec = 1000 * (src.centiseconds * 10000 +
 			src.hundredsOfMicroseconds * 100 + src.microseconds);
+	/*
+	 * Sanitize nanosecond field since reportedly some filesystems are
+	 * recorded with bogus sub-second values.
+	 */
+	dest->tv_nsec %= NSEC_PER_SEC;
 	return dest;
 }
 

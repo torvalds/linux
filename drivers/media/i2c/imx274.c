@@ -634,7 +634,7 @@ static int imx274_regmap_util_write_table_8(struct regmap *regmap,
 					    const struct reg_8 table[],
 					    u16 wait_ms_addr, u16 end_addr)
 {
-	int err;
+	int err = 0;
 	const struct reg_8 *next;
 	u8 val;
 
@@ -655,6 +655,8 @@ static int imx274_regmap_util_write_table_8(struct regmap *regmap,
 				err = regmap_bulk_write(regmap, range_start,
 							&range_vals[0],
 							range_count);
+			else
+				err = 0;
 
 			if (err)
 				return err;

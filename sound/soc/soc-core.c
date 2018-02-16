@@ -173,7 +173,7 @@ static ssize_t codec_reg_show(struct device *dev,
 	return soc_codec_reg_show(rtd->codec, buf, PAGE_SIZE, 0);
 }
 
-static DEVICE_ATTR(codec_reg, 0444, codec_reg_show, NULL);
+static DEVICE_ATTR_RO(codec_reg);
 
 static ssize_t pmdown_time_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -213,7 +213,7 @@ static umode_t soc_dev_attr_is_visible(struct kobject *kobj,
 
 	if (attr == &dev_attr_pmdown_time.attr)
 		return attr->mode; /* always visible */
-	return rtd->codec ? attr->mode : 0; /* enabled only with codec */
+	return rtd->num_codecs ? attr->mode : 0; /* enabled only with codec */
 }
 
 static const struct attribute_group soc_dapm_dev_group = {
@@ -349,120 +349,84 @@ static void soc_init_codec_debugfs(struct snd_soc_component *component)
 			"ASoC: Failed to create codec register debugfs file\n");
 }
 
-static ssize_t codec_list_read_file(struct file *file, char __user *user_buf,
-				    size_t count, loff_t *ppos)
+static int codec_list_seq_show(struct seq_file *m, void *v)
 {
-	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	ssize_t len, ret = 0;
 	struct snd_soc_codec *codec;
-
-	if (!buf)
-		return -ENOMEM;
 
 	mutex_lock(&client_mutex);
 
-	list_for_each_entry(codec, &codec_list, list) {
-		len = snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
-			       codec->component.name);
-		if (len >= 0)
-			ret += len;
-		if (ret > PAGE_SIZE) {
-			ret = PAGE_SIZE;
-			break;
-		}
-	}
+	list_for_each_entry(codec, &codec_list, list)
+		seq_printf(m, "%s\n", codec->component.name);
 
 	mutex_unlock(&client_mutex);
 
-	if (ret >= 0)
-		ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+	return 0;
+}
 
-	kfree(buf);
-
-	return ret;
+static int codec_list_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, codec_list_seq_show, NULL);
 }
 
 static const struct file_operations codec_list_fops = {
-	.read = codec_list_read_file,
-	.llseek = default_llseek,/* read accesses f_pos */
+	.open = codec_list_seq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
-static ssize_t dai_list_read_file(struct file *file, char __user *user_buf,
-				  size_t count, loff_t *ppos)
+static int dai_list_seq_show(struct seq_file *m, void *v)
 {
-	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	ssize_t len, ret = 0;
 	struct snd_soc_component *component;
 	struct snd_soc_dai *dai;
 
-	if (!buf)
-		return -ENOMEM;
-
 	mutex_lock(&client_mutex);
 
-	list_for_each_entry(component, &component_list, list) {
-		list_for_each_entry(dai, &component->dai_list, list) {
-			len = snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
-				dai->name);
-			if (len >= 0)
-				ret += len;
-			if (ret > PAGE_SIZE) {
-				ret = PAGE_SIZE;
-				break;
-			}
-		}
-	}
+	list_for_each_entry(component, &component_list, list)
+		list_for_each_entry(dai, &component->dai_list, list)
+			seq_printf(m, "%s\n", dai->name);
 
 	mutex_unlock(&client_mutex);
 
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+	return 0;
+}
 
-	kfree(buf);
-
-	return ret;
+static int dai_list_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dai_list_seq_show, NULL);
 }
 
 static const struct file_operations dai_list_fops = {
-	.read = dai_list_read_file,
-	.llseek = default_llseek,/* read accesses f_pos */
+	.open = dai_list_seq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
-static ssize_t platform_list_read_file(struct file *file,
-				       char __user *user_buf,
-				       size_t count, loff_t *ppos)
+static int platform_list_seq_show(struct seq_file *m, void *v)
 {
-	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	ssize_t len, ret = 0;
 	struct snd_soc_platform *platform;
-
-	if (!buf)
-		return -ENOMEM;
 
 	mutex_lock(&client_mutex);
 
-	list_for_each_entry(platform, &platform_list, list) {
-		len = snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
-			       platform->component.name);
-		if (len >= 0)
-			ret += len;
-		if (ret > PAGE_SIZE) {
-			ret = PAGE_SIZE;
-			break;
-		}
-	}
+	list_for_each_entry(platform, &platform_list, list)
+		seq_printf(m, "%s\n", platform->component.name);
 
 	mutex_unlock(&client_mutex);
 
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+	return 0;
+}
 
-	kfree(buf);
-
-	return ret;
+static int platform_list_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, platform_list_seq_show, NULL);
 }
 
 static const struct file_operations platform_list_fops = {
-	.read = platform_list_read_file,
-	.llseek = default_llseek,/* read accesses f_pos */
+	.open = platform_list_seq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
 static void soc_init_card_debugfs(struct snd_soc_card *card)
@@ -490,7 +454,6 @@ static void soc_cleanup_card_debugfs(struct snd_soc_card *card)
 {
 	debugfs_remove_recursive(card->debugfs_card_root);
 }
-
 
 static void snd_soc_debugfs_init(void)
 {
@@ -590,14 +553,23 @@ struct snd_soc_component *snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 {
 	struct snd_soc_rtdcom_list *rtdcom;
 
+	if (!driver_name)
+		return NULL;
+
 	for_each_rtdcom(rtd, rtdcom) {
-		if ((rtdcom->component->driver->name == driver_name) ||
-		    strcmp(rtdcom->component->driver->name, driver_name) == 0)
+		const char *component_name = rtdcom->component->driver->name;
+
+		if (!component_name)
+			continue;
+
+		if ((component_name == driver_name) ||
+		    strcmp(component_name, driver_name) == 0)
 			return rtdcom->component;
 	}
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(snd_soc_rtdcom_lookup);
 
 struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
 		const char *dai_link, int stream)
@@ -1392,6 +1364,17 @@ static int soc_init_dai_link(struct snd_soc_card *card,
 	return 0;
 }
 
+void snd_soc_disconnect_sync(struct device *dev)
+{
+	struct snd_soc_component *component = snd_soc_lookup_component(dev, NULL);
+
+	if (!component || !component->card)
+		return;
+
+	snd_card_disconnect_sync(component->card->snd_card);
+}
+EXPORT_SYMBOL_GPL(snd_soc_disconnect_sync);
+
 /**
  * snd_soc_add_dai_link - Add a DAI link dynamically
  * @card: The ASoC card to which the DAI link is added
@@ -1945,7 +1928,9 @@ int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 	}
 
 	/* Flip the polarity for the "CPU" end of a CODEC<->CODEC link */
-	if (cpu_dai->codec) {
+	/* the component which has non_legacy_dai_naming is Codec */
+	if (cpu_dai->codec ||
+	    cpu_dai->component->driver->non_legacy_dai_naming) {
 		unsigned int inv_dai_fmt;
 
 		inv_dai_fmt = dai_fmt & ~SND_SOC_DAIFMT_MASTER_MASK;
@@ -3149,7 +3134,7 @@ static struct snd_soc_dai *soc_add_dai(struct snd_soc_component *component,
 	if (!dai->driver->ops)
 		dai->driver->ops = &null_dai_ops;
 
-	list_add(&dai->list, &component->dai_list);
+	list_add_tail(&dai->list, &component->dai_list);
 	component->num_dai++;
 
 	dev_dbg(dev, "ASoC: Registered DAI '%s'\n", dai->name);
@@ -3175,8 +3160,6 @@ static int snd_soc_register_dais(struct snd_soc_component *component,
 	int ret;
 
 	dev_dbg(dev, "ASoC: dai register %s #%zu\n", dev_name(dev), count);
-
-	component->dai_drv = dai_drv;
 
 	for (i = 0; i < count; i++) {
 
@@ -4354,6 +4337,7 @@ int snd_soc_get_dai_name(struct of_phandle_args *args,
 							     args,
 							     dai_name);
 		} else {
+			struct snd_soc_dai *dai;
 			int id = -1;
 
 			switch (args->args_count) {
@@ -4375,7 +4359,14 @@ int snd_soc_get_dai_name(struct of_phandle_args *args,
 
 			ret = 0;
 
-			*dai_name = pos->dai_drv[id].name;
+			/* find target DAI */
+			list_for_each_entry(dai, &pos->dai_list, list) {
+				if (id == 0)
+					break;
+				id--;
+			}
+
+			*dai_name = dai->driver->name;
 			if (!*dai_name)
 				*dai_name = pos->name;
 		}

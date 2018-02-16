@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	drivers/pci/setup-irq.c
  *
@@ -25,7 +26,7 @@ void pci_assign_irq(struct pci_dev *dev)
 	struct pci_host_bridge *hbrg = pci_find_host_bridge(dev->bus);
 
 	if (!(hbrg->map_irq)) {
-		dev_dbg(&dev->dev, "runtime IRQ mapping not provided by arch\n");
+		pci_dbg(dev, "runtime IRQ mapping not provided by arch\n");
 		return;
 	}
 
@@ -55,7 +56,7 @@ void pci_assign_irq(struct pci_dev *dev)
 	}
 	dev->irq = irq;
 
-	dev_dbg(&dev->dev, "assign IRQ: got %d\n", dev->irq);
+	pci_dbg(dev, "assign IRQ: got %d\n", dev->irq);
 
 	/* Always tell the device, so the driver knows what is
 	   the real IRQ to use; the device does not use it. */

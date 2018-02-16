@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's Exynos3250 SoC device tree source
  *
@@ -11,10 +12,6 @@
  * Note: This file does not include device nodes for all the controllers in
  * Exynos3250 SoC. As device tree coverage for Exynos3250 increases, additional
  * nodes can be added to this file.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "exynos4-cpu-thermal.dtsi"
@@ -164,31 +161,31 @@
 			syscon = <&pmu_system_controller>;
 		};
 
-		pd_cam: cam-power-domain@10023C00 {
+		pd_cam: cam-power-domain@10023c00 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023C00 0x20>;
 			#power-domain-cells = <0>;
 		};
 
-		pd_mfc: mfc-power-domain@10023C40 {
+		pd_mfc: mfc-power-domain@10023c40 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023C40 0x20>;
 			#power-domain-cells = <0>;
 		};
 
-		pd_g3d: g3d-power-domain@10023C60 {
+		pd_g3d: g3d-power-domain@10023c60 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023C60 0x20>;
 			#power-domain-cells = <0>;
 		};
 
-		pd_lcd0: lcd0-power-domain@10023C80 {
+		pd_lcd0: lcd0-power-domain@10023c80 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023C80 0x20>;
 			#power-domain-cells = <0>;
 		};
 
-		pd_isp: isp-power-domain@10023CA0 {
+		pd_isp: isp-power-domain@10023ca0 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023CA0 0x20>;
 			#power-domain-cells = <0>;
@@ -204,7 +201,7 @@
 						 <&cmu CLK_FIN_PLL>;
 		};
 
-		cmu_dmc: clock-controller@105C0000 {
+		cmu_dmc: clock-controller@105c0000 {
 			compatible = "samsung,exynos3250-cmu-dmc";
 			reg = <0x105C0000 0x2000>;
 			#clock-cells = <1>;
@@ -219,7 +216,7 @@
 			status = "disabled";
 		};
 
-		tmu: tmu@100C0000 {
+		tmu: tmu@100c0000 {
 			compatible = "samsung,exynos3250-tmu";
 			reg = <0x100C0000 0x100>;
 			interrupts = <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>;
@@ -287,7 +284,7 @@
 			status = "disabled";
 		};
 
-		sysmmu_jpeg: sysmmu@11A60000 {
+		sysmmu_jpeg: sysmmu@11a60000 {
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x11a60000 0x1000>;
 			interrupts = <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>,
@@ -313,7 +310,7 @@
 			status = "disabled";
 		};
 
-		dsi_0: dsi@11C80000 {
+		dsi_0: dsi@11c80000 {
 			compatible = "samsung,exynos3250-mipi-dsi";
 			reg = <0x11C80000 0x10000>;
 			interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
@@ -328,7 +325,7 @@
 			status = "disabled";
 		};
 
-		sysmmu_fimd0: sysmmu@11E20000 {
+		sysmmu_fimd0: sysmmu@11e20000 {
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x11e20000 0x1000>;
 			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>,
@@ -386,7 +383,7 @@
 			status = "disabled";
 		};
 
-		exynos_usbphy: exynos-usbphy@125B0000 {
+		exynos_usbphy: exynos-usbphy@125b0000 {
 			compatible = "samsung,exynos3250-usb2-phy";
 			reg = <0x125B0000 0x100>;
 			samsung,pmureg-phandle = <&pmu_system_controller>;
@@ -425,7 +422,7 @@
 			};
 		};
 
-		adc: adc@126C0000 {
+		adc: adc@126c0000 {
 			compatible = "samsung,exynos3250-adc",
 				     "samsung,exynos-adc-v2";
 			reg = <0x126C0000 0x100>;
@@ -544,7 +541,7 @@
 			status = "disabled";
 		};
 
-		i2c_4: i2c@138A0000 {
+		i2c_4: i2c@138a0000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "samsung,s3c2440-i2c";
@@ -557,7 +554,7 @@
 			status = "disabled";
 		};
 
-		i2c_5: i2c@138B0000 {
+		i2c_5: i2c@138b0000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "samsung,s3c2440-i2c";
@@ -570,7 +567,7 @@
 			status = "disabled";
 		};
 
-		i2c_6: i2c@138C0000 {
+		i2c_6: i2c@138c0000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "samsung,s3c2440-i2c";
@@ -583,7 +580,7 @@
 			status = "disabled";
 		};
 
-		i2c_7: i2c@138D0000 {
+		i2c_7: i2c@138d0000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "samsung,s3c2440-i2c";
@@ -641,7 +638,7 @@
 			status = "disabled";
 		};
 
-		pwm: pwm@139D0000 {
+		pwm: pwm@139d0000 {
 			compatible = "samsung,exynos4210-pwm";
 			reg = <0x139D0000 0x1000>;
 			interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,

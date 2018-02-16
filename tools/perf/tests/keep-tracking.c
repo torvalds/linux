@@ -95,7 +95,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 		goto out_err;
 	}
 
-	CHECK__(perf_evlist__mmap(evlist, UINT_MAX, false));
+	CHECK__(perf_evlist__mmap(evlist, UINT_MAX));
 
 	/*
 	 * First, test that a 'comm' event can be found when the event is

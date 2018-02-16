@@ -75,6 +75,8 @@ static unsigned int prof_sel = MLX5_DEFAULT_PROF;
 module_param_named(prof_sel, prof_sel, uint, 0444);
 MODULE_PARM_DESC(prof_sel, "profile selector. Valid range 0 - 2");
 
+static u32 sw_owner_id[4];
+
 enum {
 	MLX5_ATOMIC_REQ_MODE_BE = 0x0,
 	MLX5_ATOMIC_REQ_MODE_HOST_ENDIANNESS = 0x1,
@@ -550,6 +552,15 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 			 set_hca_cap,
 			 cache_line_128byte,
 			 cache_line_size() == 128 ? 1 : 0);
+
+	if (MLX5_CAP_GEN_MAX(dev, dct))
+		MLX5_SET(cmd_hca_cap, set_hca_cap, dct, 1);
+
+	if (MLX5_CAP_GEN_MAX(dev, num_vhca_ports))
+		MLX5_SET(cmd_hca_cap,
+			 set_hca_cap,
+			 num_vhca_ports,
+			 MLX5_CAP_GEN_MAX(dev, num_vhca_ports));
 
 	err = set_caps(dev, set_ctx, set_sz,
 		       MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE);
@@ -1107,7 +1118,7 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto reclaim_boot_pages;
 	}
 
-	err = mlx5_cmd_init_hca(dev);
+	err = mlx5_cmd_init_hca(dev, sw_owner_id);
 	if (err) {
 		dev_err(&pdev->dev, "init hca failed\n");
 		goto err_pagealloc_stop;
@@ -1642,6 +1653,8 @@ static void mlx5_core_verify_params(void)
 static int __init init(void)
 {
 	int err;
+
+	get_random_bytes(&sw_owner_id, sizeof(sw_owner_id));
 
 	mlx5_core_verify_params();
 	mlx5_register_debugfs();

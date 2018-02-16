@@ -15,9 +15,8 @@
 #include <linux/bitops.h>
 #include <linux/stringify.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/utsname.h>
-#include <unistd.h>
+#include <linux/time64.h>
 
 #include "evlist.h"
 #include "evsel.h"
@@ -37,6 +36,7 @@
 #include <api/fs/fs.h>
 #include "asm/bug.h"
 #include "tool.h"
+#include "time-utils.h"
 
 #include "sane_ctype.h"
 
@@ -1182,6 +1182,20 @@ static int write_stat(struct feat_fd *ff __maybe_unused,
 	return 0;
 }
 
+static int write_sample_time(struct feat_fd *ff,
+			     struct perf_evlist *evlist)
+{
+	int ret;
+
+	ret = do_write(ff, &evlist->first_sample_time,
+		       sizeof(evlist->first_sample_time));
+	if (ret < 0)
+		return ret;
+
+	return do_write(ff, &evlist->last_sample_time,
+			sizeof(evlist->last_sample_time));
+}
+
 static void print_hostname(struct feat_fd *ff, FILE *fp)
 {
 	fprintf(fp, "# hostname : %s\n", ff->ph->env.hostname);
@@ -1505,6 +1519,28 @@ static void print_group_desc(struct feat_fd *ff, FILE *fp)
 				fprintf(fp, "}\n");
 		}
 	}
+}
+
+static void print_sample_time(struct feat_fd *ff, FILE *fp)
+{
+	struct perf_session *session;
+	char time_buf[32];
+	double d;
+
+	session = container_of(ff->ph, struct perf_session, header);
+
+	timestamp__scnprintf_usec(session->evlist->first_sample_time,
+				  time_buf, sizeof(time_buf));
+	fprintf(fp, "# time of first sample : %s\n", time_buf);
+
+	timestamp__scnprintf_usec(session->evlist->last_sample_time,
+				  time_buf, sizeof(time_buf));
+	fprintf(fp, "# time of last sample : %s\n", time_buf);
+
+	d = (double)(session->evlist->last_sample_time -
+		session->evlist->first_sample_time) / NSEC_PER_MSEC;
+
+	fprintf(fp, "# sample duration : %10.3f ms\n", d);
 }
 
 static int __event_process_build_id(struct build_id_event *bev,
@@ -2148,6 +2184,27 @@ out_free_caches:
 	return -1;
 }
 
+static int process_sample_time(struct feat_fd *ff, void *data __maybe_unused)
+{
+	struct perf_session *session;
+	u64 first_sample_time, last_sample_time;
+	int ret;
+
+	session = container_of(ff->ph, struct perf_session, header);
+
+	ret = do_read_u64(ff, &first_sample_time);
+	if (ret)
+		return -1;
+
+	ret = do_read_u64(ff, &last_sample_time);
+	if (ret)
+		return -1;
+
+	session->evlist->first_sample_time = first_sample_time;
+	session->evlist->last_sample_time = last_sample_time;
+	return 0;
+}
+
 struct feature_ops {
 	int (*write)(struct feat_fd *ff, struct perf_evlist *evlist);
 	void (*print)(struct feat_fd *ff, FILE *fp);
@@ -2205,6 +2262,7 @@ static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPN(AUXTRACE,	auxtrace,	false),
 	FEAT_OPN(STAT,		stat,		false),
 	FEAT_OPN(CACHE,		cache,		true),
+	FEAT_OPR(SAMPLE_TIME,	sample_time,	false),
 };
 
 struct header_print_data {
@@ -3256,6 +3314,74 @@ int perf_event__synthesize_attrs(struct perf_tool *tool,
 	}
 
 	return err;
+}
+
+static bool has_unit(struct perf_evsel *counter)
+{
+	return counter->unit && *counter->unit;
+}
+
+static bool has_scale(struct perf_evsel *counter)
+{
+	return counter->scale != 1;
+}
+
+int perf_event__synthesize_extra_attr(struct perf_tool *tool,
+				      struct perf_evlist *evsel_list,
+				      perf_event__handler_t process,
+				      bool is_pipe)
+{
+	struct perf_evsel *counter;
+	int err;
+
+	/*
+	 * Synthesize other events stuff not carried within
+	 * attr event - unit, scale, name
+	 */
+	evlist__for_each_entry(evsel_list, counter) {
+		if (!counter->supported)
+			continue;
+
+		/*
+		 * Synthesize unit and scale only if it's defined.
+		 */
+		if (has_unit(counter)) {
+			err = perf_event__synthesize_event_update_unit(tool, counter, process);
+			if (err < 0) {
+				pr_err("Couldn't synthesize evsel unit.\n");
+				return err;
+			}
+		}
+
+		if (has_scale(counter)) {
+			err = perf_event__synthesize_event_update_scale(tool, counter, process);
+			if (err < 0) {
+				pr_err("Couldn't synthesize evsel counter.\n");
+				return err;
+			}
+		}
+
+		if (counter->own_cpus) {
+			err = perf_event__synthesize_event_update_cpus(tool, counter, process);
+			if (err < 0) {
+				pr_err("Couldn't synthesize evsel cpus.\n");
+				return err;
+			}
+		}
+
+		/*
+		 * Name is needed only for pipe output,
+		 * perf.data carries event names.
+		 */
+		if (is_pipe) {
+			err = perf_event__synthesize_event_update_name(tool, counter, process);
+			if (err < 0) {
+				pr_err("Couldn't synthesize evsel name.\n");
+				return err;
+			}
+		}
+	}
+	return 0;
 }
 
 int perf_event__process_attr(struct perf_tool *tool __maybe_unused,

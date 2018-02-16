@@ -587,5 +587,8 @@ int i40iw_inet6addr_event(struct notifier_block *notifier,
 int i40iw_net_event(struct notifier_block *notifier,
 		    unsigned long event,
 		    void *ptr);
+int i40iw_netdevice_event(struct notifier_block *notifier,
+			  unsigned long event,
+			  void *ptr);
 
 #endif

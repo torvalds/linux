@@ -27,7 +27,7 @@
 #include <linux/mutex.h>
 #include <asm/unaligned.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "xc4000.h"
 #include "tuner-i2c.h"
@@ -1036,7 +1036,10 @@ skip_std_specific:
 		dprintk(1, "load scode failed %d\n", rc);
 
 check_device:
-	rc = xc4000_readreg(priv, XREG_PRODUCT_ID, &hwmodel);
+	if (xc4000_readreg(priv, XREG_PRODUCT_ID, &hwmodel) < 0) {
+		printk(KERN_ERR "Unable to read tuner registers.\n");
+		goto fail;
+	}
 
 	if (xc_get_version(priv, &hw_major, &hw_minor, &fw_major,
 			   &fw_minor) != 0) {

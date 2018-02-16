@@ -483,7 +483,7 @@ bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 /**
  * tipc_link_bc_create - create new link to be used for broadcast
  * @n: pointer to associated node
- * @mtu: mtu to be used
+ * @mtu: mtu to be used initially if no peers
  * @window: send window to be used
  * @inputq: queue to put messages ready for delivery
  * @namedq: queue to put binding table update messages ready for delivery

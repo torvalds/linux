@@ -28,7 +28,7 @@
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
 #include <asm/div64.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "dst_priv.h"
 #include "dst_common.h"
 

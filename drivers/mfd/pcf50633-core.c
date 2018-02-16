@@ -149,7 +149,7 @@ pcf50633_client_dev_register(struct pcf50633 *pcf, const char *name,
 
 	*pdev = platform_device_alloc(name, -1);
 	if (!*pdev) {
-		dev_err(pcf->dev, "Falied to allocate %s\n", name);
+		dev_err(pcf->dev, "Failed to allocate %s\n", name);
 		return;
 	}
 

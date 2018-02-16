@@ -985,11 +985,14 @@ static const struct sctp_sm_table_entry *sctp_chunk_event_lookup(
 	if (state > SCTP_STATE_MAX)
 		return &bug;
 
+	if (cid == SCTP_CID_I_DATA)
+		cid = SCTP_CID_DATA;
+
 	if (cid <= SCTP_CID_BASE_MAX)
 		return &chunk_event_table[cid][state];
 
 	if (net->sctp.prsctp_enable) {
-		if (cid == SCTP_CID_FWD_TSN)
+		if (cid == SCTP_CID_FWD_TSN || cid == SCTP_CID_I_FWD_TSN)
 			return &prsctp_chunk_event_table[0][state];
 	}
 

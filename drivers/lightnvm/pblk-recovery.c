@@ -111,18 +111,18 @@ int pblk_recov_setup_rq(struct pblk *pblk, struct pblk_c_ctx *c_ctx,
 	return 0;
 }
 
-__le64 *pblk_recov_get_lba_list(struct pblk *pblk, struct line_emeta *emeta_buf)
+int pblk_recov_check_emeta(struct pblk *pblk, struct line_emeta *emeta_buf)
 {
 	u32 crc;
 
 	crc = pblk_calc_emeta_crc(pblk, emeta_buf);
 	if (le32_to_cpu(emeta_buf->crc) != crc)
-		return NULL;
+		return 1;
 
 	if (le32_to_cpu(emeta_buf->header.identifier) != PBLK_MAGIC)
-		return NULL;
+		return 1;
 
-	return emeta_to_lbas(pblk, emeta_buf);
+	return 0;
 }
 
 static int pblk_recov_l2p_from_emeta(struct pblk *pblk, struct pblk_line *line)
@@ -137,7 +137,7 @@ static int pblk_recov_l2p_from_emeta(struct pblk *pblk, struct pblk_line *line)
 	u64 nr_valid_lbas, nr_lbas = 0;
 	u64 i;
 
-	lba_list = pblk_recov_get_lba_list(pblk, emeta_buf);
+	lba_list = emeta_to_lbas(pblk, emeta_buf);
 	if (!lba_list)
 		return 1;
 
@@ -149,7 +149,7 @@ static int pblk_recov_l2p_from_emeta(struct pblk *pblk, struct pblk_line *line)
 		struct ppa_addr ppa;
 		int pos;
 
-		ppa = addr_to_pblk_ppa(pblk, i, line->id);
+		ppa = addr_to_gen_ppa(pblk, i, line->id);
 		pos = pblk_ppa_to_pos(geo, ppa);
 
 		/* Do not update bad blocks */
@@ -188,7 +188,7 @@ static int pblk_calc_sec_in_line(struct pblk *pblk, struct pblk_line *line)
 	int nr_bb = bitmap_weight(line->blk_bitmap, lm->blk_per_line);
 
 	return lm->sec_per_line - lm->smeta_sec - lm->emeta_sec[0] -
-				nr_bb * geo->sec_per_blk;
+				nr_bb * geo->sec_per_chk;
 }
 
 struct pblk_recov_alloc {
@@ -263,12 +263,12 @@ next_read_rq:
 		int pos;
 
 		ppa = addr_to_gen_ppa(pblk, r_ptr_int, line->id);
-		pos = pblk_dev_ppa_to_pos(geo, ppa);
+		pos = pblk_ppa_to_pos(geo, ppa);
 
 		while (test_bit(pos, line->blk_bitmap)) {
 			r_ptr_int += pblk->min_write_pgs;
 			ppa = addr_to_gen_ppa(pblk, r_ptr_int, line->id);
-			pos = pblk_dev_ppa_to_pos(geo, ppa);
+			pos = pblk_ppa_to_pos(geo, ppa);
 		}
 
 		for (j = 0; j < pblk->min_write_pgs; j++, i++, r_ptr_int++)
@@ -288,7 +288,7 @@ next_read_rq:
 	/* At this point, the read should not fail. If it does, it is a problem
 	 * we cannot recover from here. Need FTL log.
 	 */
-	if (rqd->error) {
+	if (rqd->error && rqd->error != NVM_RSP_WARN_HIGHECC) {
 		pr_err("pblk: L2P recovery failed (%d)\n", rqd->error);
 		return -EINTR;
 	}
@@ -411,12 +411,12 @@ next_pad_rq:
 		int pos;
 
 		w_ptr = pblk_alloc_page(pblk, line, pblk->min_write_pgs);
-		ppa = addr_to_pblk_ppa(pblk, w_ptr, line->id);
+		ppa = addr_to_gen_ppa(pblk, w_ptr, line->id);
 		pos = pblk_ppa_to_pos(geo, ppa);
 
 		while (test_bit(pos, line->blk_bitmap)) {
 			w_ptr += pblk->min_write_pgs;
-			ppa = addr_to_pblk_ppa(pblk, w_ptr, line->id);
+			ppa = addr_to_gen_ppa(pblk, w_ptr, line->id);
 			pos = pblk_ppa_to_pos(geo, ppa);
 		}
 
@@ -541,12 +541,12 @@ next_rq:
 
 		w_ptr = pblk_alloc_page(pblk, line, pblk->min_write_pgs);
 		ppa = addr_to_gen_ppa(pblk, w_ptr, line->id);
-		pos = pblk_dev_ppa_to_pos(geo, ppa);
+		pos = pblk_ppa_to_pos(geo, ppa);
 
 		while (test_bit(pos, line->blk_bitmap)) {
 			w_ptr += pblk->min_write_pgs;
 			ppa = addr_to_gen_ppa(pblk, w_ptr, line->id);
-			pos = pblk_dev_ppa_to_pos(geo, ppa);
+			pos = pblk_ppa_to_pos(geo, ppa);
 		}
 
 		for (j = 0; j < pblk->min_write_pgs; j++, i++, w_ptr++)
@@ -672,12 +672,12 @@ next_rq:
 
 		paddr = pblk_alloc_page(pblk, line, pblk->min_write_pgs);
 		ppa = addr_to_gen_ppa(pblk, paddr, line->id);
-		pos = pblk_dev_ppa_to_pos(geo, ppa);
+		pos = pblk_ppa_to_pos(geo, ppa);
 
 		while (test_bit(pos, line->blk_bitmap)) {
 			paddr += pblk->min_write_pgs;
 			ppa = addr_to_gen_ppa(pblk, paddr, line->id);
-			pos = pblk_dev_ppa_to_pos(geo, ppa);
+			pos = pblk_ppa_to_pos(geo, ppa);
 		}
 
 		for (j = 0; j < pblk->min_write_pgs; j++, i++, paddr++)
@@ -817,7 +817,7 @@ static u64 pblk_line_emeta_start(struct pblk *pblk, struct pblk_line *line)
 
 	while (emeta_secs) {
 		emeta_start--;
-		ppa = addr_to_pblk_ppa(pblk, emeta_start, line->id);
+		ppa = addr_to_gen_ppa(pblk, emeta_start, line->id);
 		pos = pblk_ppa_to_pos(geo, ppa);
 		if (!test_bit(pos, line->blk_bitmap))
 			emeta_secs--;
@@ -938,6 +938,11 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 			goto next;
 		}
 
+		if (pblk_recov_check_emeta(pblk, line->emeta->buf)) {
+			pblk_recov_l2p_from_oob(pblk, line);
+			goto next;
+		}
+
 		if (pblk_recov_l2p_from_emeta(pblk, line))
 			pblk_recov_l2p_from_oob(pblk, line);
 
@@ -984,10 +989,8 @@ next:
 	}
 	spin_unlock(&l_mg->free_lock);
 
-	if (is_next) {
+	if (is_next)
 		pblk_line_erase(pblk, l_mg->data_next);
-		pblk_rl_free_lines_dec(&pblk->rl, l_mg->data_next);
-	}
 
 out:
 	if (found_lines != recovered_lines)

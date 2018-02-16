@@ -261,8 +261,8 @@ struct saa7134_card_ir {
 #define SAA7134_BOARD_SABRENT_TV_PCB05     115
 #define SAA7134_BOARD_10MOONSTVMASTER3     116
 #define SAA7134_BOARD_AVERMEDIA_SUPER_007  117
-#define SAA7134_BOARD_BEHOLD_401  	118
-#define SAA7134_BOARD_BEHOLD_403  	119
+#define SAA7134_BOARD_BEHOLD_401	118
+#define SAA7134_BOARD_BEHOLD_403	119
 #define SAA7134_BOARD_BEHOLD_403FM	120
 #define SAA7134_BOARD_BEHOLD_405	121
 #define SAA7134_BOARD_BEHOLD_405FM	122
@@ -581,7 +581,7 @@ struct saa7134_dev {
 	/* config info */
 	unsigned int               board;
 	unsigned int               tuner_type;
-	unsigned int 		   radio_type;
+	unsigned int		   radio_type;
 	unsigned char		   tuner_addr;
 	unsigned char		   radio_addr;
 
@@ -592,7 +592,7 @@ struct saa7134_dev {
 	struct i2c_adapter         i2c_adap;
 	struct i2c_client          i2c_client;
 	unsigned char              eedata[256];
-	int 			   has_rds;
+	int			   has_rds;
 
 	/* video overlay */
 	struct v4l2_framebuffer    ovbuf;

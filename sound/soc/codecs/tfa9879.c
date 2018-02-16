@@ -316,6 +316,7 @@ static const struct of_device_id tfa9879_of_match[] = {
 	{ .compatible = "nxp,tfa9879", },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, tfa9879_of_match);
 
 static struct i2c_driver tfa9879_i2c_driver = {
 	.driver = {

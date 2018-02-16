@@ -200,7 +200,7 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 
 	memset(props, 0, sizeof(*props));
 
-	props->sys_image_guid = hr_dev->sys_image_guid;
+	props->sys_image_guid = cpu_to_be32(hr_dev->sys_image_guid);
 	props->max_mr_size = (u64)(~(0ULL));
 	props->page_size_cap = hr_dev->caps.page_size_cap;
 	props->vendor_id = hr_dev->vendor_id;
@@ -636,7 +636,6 @@ err_unmap_dmpt:
 	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->mr_table.mtpt_table);
 
 err_unmap_mtt:
-	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->mr_table.mtt_table);
 	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE))
 		hns_roce_cleanup_hem_table(hr_dev,
 					   &hr_dev->mr_table.mtt_cqe_table);
@@ -748,12 +747,10 @@ int hns_roce_init(struct hns_roce_dev *hr_dev)
 		goto error_failed_cmd_init;
 	}
 
-	if (hr_dev->cmd_mod) {
-		ret = hns_roce_init_eq_table(hr_dev);
-		if (ret) {
-			dev_err(dev, "eq init failed!\n");
-			goto error_failed_eq_table;
-		}
+	ret = hr_dev->hw->init_eq(hr_dev);
+	if (ret) {
+		dev_err(dev, "eq init failed!\n");
+		goto error_failed_eq_table;
 	}
 
 	if (hr_dev->cmd_mod) {
@@ -805,8 +802,7 @@ error_failed_init_hem:
 		hns_roce_cmd_use_polling(hr_dev);
 
 error_failed_use_event:
-	if (hr_dev->cmd_mod)
-		hns_roce_cleanup_eq_table(hr_dev);
+	hr_dev->hw->cleanup_eq(hr_dev);
 
 error_failed_eq_table:
 	hns_roce_cmd_cleanup(hr_dev);
@@ -837,8 +833,7 @@ void hns_roce_exit(struct hns_roce_dev *hr_dev)
 	if (hr_dev->cmd_mod)
 		hns_roce_cmd_use_polling(hr_dev);
 
-	if (hr_dev->cmd_mod)
-		hns_roce_cleanup_eq_table(hr_dev);
+	hr_dev->hw->cleanup_eq(hr_dev);
 	hns_roce_cmd_cleanup(hr_dev);
 	if (hr_dev->hw->cmq_exit)
 		hr_dev->hw->cmq_exit(hr_dev);

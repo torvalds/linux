@@ -2158,7 +2158,9 @@ __qla2x00_alloc_iocbs(struct qla_qpair *qpair, srb_t *sp)
 skip_cmd_array:
 	/* Check for room on request queue. */
 	if (req->cnt < req_cnt + 2) {
-		if (ha->mqenable || IS_QLA83XX(ha) || IS_QLA27XX(ha))
+		if (qpair->use_shadow_reg)
+			cnt = *req->out_ptr;
+		else if (ha->mqenable || IS_QLA83XX(ha) || IS_QLA27XX(ha))
 			cnt = RD_REG_DWORD(&reg->isp25mq.req_q_out);
 		else if (IS_P3P_TYPE(ha))
 			cnt = RD_REG_DWORD(&reg->isp82.req_q_out);
@@ -2392,25 +2394,12 @@ qla2x00_els_dcmd_iocb_timeout(void *data)
 	srb_t *sp = data;
 	fc_port_t *fcport = sp->fcport;
 	struct scsi_qla_host *vha = sp->vha;
-	struct qla_hw_data *ha = vha->hw;
 	struct srb_iocb *lio = &sp->u.iocb_cmd;
-	unsigned long flags = 0;
 
 	ql_dbg(ql_dbg_io, vha, 0x3069,
 	    "%s Timeout, hdl=%x, portid=%02x%02x%02x\n",
 	    sp->name, sp->handle, fcport->d_id.b.domain, fcport->d_id.b.area,
 	    fcport->d_id.b.al_pa);
-
-	/* Abort the exchange */
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	if (ha->isp_ops->abort_command(sp)) {
-		ql_dbg(ql_dbg_io, vha, 0x3070,
-		    "mbx abort_command failed.\n");
-	} else {
-		ql_dbg(ql_dbg_io, vha, 0x3071,
-		    "mbx abort_command success.\n");
-	}
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	complete(&lio->u.els_logo.comp);
 }
@@ -2631,7 +2620,7 @@ qla2x00_els_dcmd2_sp_done(void *ptr, int res)
 	struct scsi_qla_host *vha = sp->vha;
 
 	ql_dbg(ql_dbg_io + ql_dbg_disc, vha, 0x3072,
-	    "%s ELS hdl=%x, portid=%06x done %8pC\n",
+	    "%s ELS hdl=%x, portid=%06x done %8phC\n",
 	    sp->name, sp->handle, fcport->d_id.b24, fcport->port_name);
 
 	complete(&lio->u.els_plogi.comp);
@@ -3286,7 +3275,9 @@ qla24xx_abort_iocb(srb_t *sp, struct abort_entry_24xx *abt_iocb)
 	memset(abt_iocb, 0, sizeof(struct abort_entry_24xx));
 	abt_iocb->entry_type = ABORT_IOCB_TYPE;
 	abt_iocb->entry_count = 1;
-	abt_iocb->handle = cpu_to_le32(MAKE_HANDLE(req->id, sp->handle));
+	abt_iocb->handle =
+	     cpu_to_le32(MAKE_HANDLE(aio->u.abt.req_que_no,
+		 aio->u.abt.cmd_hndl));
 	abt_iocb->nport_handle = cpu_to_le16(sp->fcport->loop_id);
 	abt_iocb->handle_to_abort =
 	    cpu_to_le32(MAKE_HANDLE(req->id, aio->u.abt.cmd_hndl));
@@ -3294,7 +3285,7 @@ qla24xx_abort_iocb(srb_t *sp, struct abort_entry_24xx *abt_iocb)
 	abt_iocb->port_id[1] = sp->fcport->d_id.b.area;
 	abt_iocb->port_id[2] = sp->fcport->d_id.b.domain;
 	abt_iocb->vp_index = vha->vp_idx;
-	abt_iocb->req_que_no = cpu_to_le16(req->id);
+	abt_iocb->req_que_no = cpu_to_le16(aio->u.abt.req_que_no);
 	/* Send the command to the firmware */
 	wmb();
 }
@@ -3381,6 +3372,40 @@ qla_nvme_ls(srb_t *sp, struct pt_ls4_request *cmd_pkt)
 	return rval;
 }
 
+static void
+qla25xx_ctrlvp_iocb(srb_t *sp, struct vp_ctrl_entry_24xx *vce)
+{
+	int map, pos;
+
+	vce->entry_type = VP_CTRL_IOCB_TYPE;
+	vce->handle = sp->handle;
+	vce->entry_count = 1;
+	vce->command = cpu_to_le16(sp->u.iocb_cmd.u.ctrlvp.cmd);
+	vce->vp_count = cpu_to_le16(1);
+
+	/*
+	 * index map in firmware starts with 1; decrement index
+	 * this is ok as we never use index 0
+	 */
+	map = (sp->u.iocb_cmd.u.ctrlvp.vp_index - 1) / 8;
+	pos = (sp->u.iocb_cmd.u.ctrlvp.vp_index - 1) & 7;
+	vce->vp_idx_map[map] |= 1 << pos;
+}
+
+static void
+qla24xx_prlo_iocb(srb_t *sp, struct logio_entry_24xx *logio)
+{
+	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
+	logio->control_flags =
+	    cpu_to_le16(LCF_COMMAND_PRLO|LCF_IMPL_PRLO);
+
+	logio->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+	logio->port_id[0] = sp->fcport->d_id.b.al_pa;
+	logio->port_id[1] = sp->fcport->d_id.b.area;
+	logio->port_id[2] = sp->fcport->d_id.b.domain;
+	logio->vp_index = sp->fcport->vha->vp_idx;
+}
+
 int
 qla2x00_start_sp(srb_t *sp)
 {
@@ -3458,6 +3483,12 @@ qla2x00_start_sp(srb_t *sp)
 	case SRB_NACK_PRLI:
 	case SRB_NACK_LOGO:
 		qla2x00_send_notify_ack_iocb(sp, pkt);
+		break;
+	case SRB_CTRL_VP:
+		qla25xx_ctrlvp_iocb(sp, pkt);
+		break;
+	case SRB_PRLO_CMD:
+		qla24xx_prlo_iocb(sp, pkt);
 		break;
 	default:
 		break;

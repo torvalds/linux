@@ -42,8 +42,6 @@
 #include "mvm.h"
 #include "debugfs.h"
 
-#define RS_NAME "iwl-mvm-rs"
-
 #define IWL_RATE_MAX_WINDOW		62	/* # tx in history window */
 
 /* Calculations of success ratio are done in fixed point where 12800 is 100%.
@@ -809,7 +807,7 @@ static int rs_collect_tlc_data(struct iwl_mvm *mvm,
 		return -EINVAL;
 
 	if (tbl->column != RS_COLUMN_INVALID) {
-		struct lq_sta_pers *pers = &mvmsta->lq_sta.pers;
+		struct lq_sta_pers *pers = &mvmsta->lq_sta.rs_drv.pers;
 
 		pers->tx_stats[tbl->column][scale_index].total += attempts;
 		pers->tx_stats[tbl->column][scale_index].success += successes;
@@ -1206,7 +1204,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	u8 lq_color = RS_DRV_DATA_LQ_COLOR_GET(tlc_info);
 	u32 tx_resp_hwrate = (uintptr_t)info->status.status_driver_data[1];
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta;
+	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta.rs_drv;
 
 	/* Treat uninitialized rate scaling data same as non-existing. */
 	if (!lq_sta) {
@@ -1416,13 +1414,13 @@ done:
 /*
  * mac80211 sends us Tx status
  */
-static void rs_mac80211_tx_status(void *mvm_r,
-				  struct ieee80211_supported_band *sband,
-				  struct ieee80211_sta *sta, void *priv_sta,
-				  struct sk_buff *skb)
+static void rs_drv_mac80211_tx_status(void *mvm_r,
+				      struct ieee80211_supported_band *sband,
+				      struct ieee80211_sta *sta, void *priv_sta,
+				      struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct iwl_op_mode *op_mode = (struct iwl_op_mode *)mvm_r;
+	struct iwl_op_mode *op_mode = mvm_r;
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
@@ -1877,12 +1875,10 @@ static int rs_switch_to_column(struct iwl_mvm *mvm,
 	struct rs_rate *rate = &search_tbl->rate;
 	const struct rs_tx_column *column = &rs_tx_columns[col_id];
 	const struct rs_tx_column *curr_column = &rs_tx_columns[tbl->column];
-	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
-		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	unsigned long rate_mask = 0;
 	u32 rate_idx = 0;
 
-	memcpy(search_tbl, tbl, sz);
+	memcpy(search_tbl, tbl, offsetof(struct iwl_scale_tbl_info, win));
 
 	rate->sgi = column->sgi;
 	rate->ant = column->ant;
@@ -2787,9 +2783,10 @@ out:
 
 /* Save info about RSSI of last Rx */
 void rs_update_last_rssi(struct iwl_mvm *mvm,
-			 struct iwl_lq_sta *lq_sta,
+			 struct iwl_mvm_sta *mvmsta,
 			 struct ieee80211_rx_status *rx_status)
 {
+	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta.rs_drv;
 	int i;
 
 	lq_sta->pers.chains = rx_status->chains;
@@ -2858,15 +2855,15 @@ static void rs_initialize_lq(struct iwl_mvm *mvm,
 	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, init);
 }
 
-static void rs_get_rate(void *mvm_r, struct ieee80211_sta *sta, void *mvm_sta,
-			struct ieee80211_tx_rate_control *txrc)
+static void rs_drv_get_rate(void *mvm_r, struct ieee80211_sta *sta,
+			    void *mvm_sta,
+			    struct ieee80211_tx_rate_control *txrc)
 {
-	struct sk_buff *skb = txrc->skb;
-	struct iwl_op_mode *op_mode __maybe_unused =
-			(struct iwl_op_mode *)mvm_r;
+	struct iwl_op_mode *op_mode = mvm_r;
 	struct iwl_mvm *mvm __maybe_unused = IWL_OP_MODE_GET_MVM(op_mode);
+	struct sk_buff *skb = txrc->skb;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct iwl_lq_sta *lq_sta = mvm_sta;
+	struct iwl_lq_sta *lq_sta;
 	struct rs_rate *optimal_rate;
 	u32 last_ucode_rate;
 
@@ -2878,18 +2875,14 @@ static void rs_get_rate(void *mvm_r, struct ieee80211_sta *sta, void *mvm_sta,
 		mvm_sta = NULL;
 	}
 
-	/* TODO: handle rate_idx_mask and rate_idx_mcs_mask */
-
-	/* Treat uninitialized rate scaling data same as non-existing. */
-	if (lq_sta && !lq_sta->pers.drv) {
-		IWL_DEBUG_RATE(mvm, "Rate scaling not initialized yet.\n");
-		mvm_sta = NULL;
-	}
-
 	/* Send management frames and NO_ACK data using lowest rate. */
 	if (rate_control_send_low(sta, mvm_sta, txrc))
 		return;
 
+	if (!mvm_sta)
+		return;
+
+	lq_sta = mvm_sta;
 	iwl_mvm_hwrate_to_tx_rate(lq_sta->last_rate_n_flags,
 				  info->band, &info->control.rates[0]);
 	info->control.rates[0].count = 1;
@@ -2906,13 +2899,13 @@ static void rs_get_rate(void *mvm_r, struct ieee80211_sta *sta, void *mvm_sta,
 	}
 }
 
-static void *rs_alloc_sta(void *mvm_rate, struct ieee80211_sta *sta,
-			  gfp_t gfp)
+static void *rs_drv_alloc_sta(void *mvm_rate, struct ieee80211_sta *sta,
+			      gfp_t gfp)
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_op_mode *op_mode = (struct iwl_op_mode *)mvm_rate;
 	struct iwl_mvm *mvm  = IWL_OP_MODE_GET_MVM(op_mode);
-	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta;
+	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta.rs_drv;
 
 	IWL_DEBUG_RATE(mvm, "create station rate scale window\n");
 
@@ -2926,7 +2919,7 @@ static void *rs_alloc_sta(void *mvm_rate, struct ieee80211_sta *sta,
 	memset(lq_sta->pers.chain_signal, 0, sizeof(lq_sta->pers.chain_signal));
 	lq_sta->pers.last_rssi = S8_MIN;
 
-	return &mvmsta->lq_sta;
+	return lq_sta;
 }
 
 static int rs_vht_highest_rx_mcs_index(struct ieee80211_sta_vht_cap *vht_cap,
@@ -3043,7 +3036,7 @@ static void rs_vht_init(struct iwl_mvm *mvm,
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-static void iwl_mvm_reset_frame_stats(struct iwl_mvm *mvm)
+void iwl_mvm_reset_frame_stats(struct iwl_mvm *mvm)
 {
 	spin_lock_bh(&mvm->drv_stats_lock);
 	memset(&mvm->drv_rx_stats, 0, sizeof(mvm->drv_rx_stats));
@@ -3111,15 +3104,15 @@ void iwl_mvm_update_frame_stats(struct iwl_mvm *mvm, u32 rate, bool agg)
 /*
  * Called after adding a new station to initialize rate scaling
  */
-void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			  enum nl80211_band band, bool init)
+static void rs_drv_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			     enum nl80211_band band, bool init)
 {
 	int i, j;
 	struct ieee80211_hw *hw = mvm->hw;
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta;
+	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta.rs_drv;
 	struct ieee80211_supported_band *sband;
 	unsigned long supp; /* must be unsigned long for for_each_set_bit */
 
@@ -3194,16 +3187,15 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	rs_initialize_lq(mvm, sta, lq_sta, band, init);
 }
 
-static void rs_rate_update(void *mvm_r,
-			   struct ieee80211_supported_band *sband,
-			   struct cfg80211_chan_def *chandef,
-			   struct ieee80211_sta *sta, void *priv_sta,
-			   u32 changed)
+static void rs_drv_rate_update(void *mvm_r,
+			       struct ieee80211_supported_band *sband,
+			       struct cfg80211_chan_def *chandef,
+			       struct ieee80211_sta *sta,
+			       void *priv_sta, u32 changed)
 {
+	struct iwl_op_mode *op_mode = mvm_r;
+	struct iwl_mvm *mvm __maybe_unused = IWL_OP_MODE_GET_MVM(op_mode);
 	u8 tid;
-	struct iwl_op_mode *op_mode  =
-			(struct iwl_op_mode *)mvm_r;
-	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
 	if (!iwl_mvm_sta_from_mac80211(sta)->vif)
 		return;
@@ -3385,7 +3377,7 @@ static void rs_bfer_active_iter(void *_data,
 {
 	struct rs_bfer_active_iter_data *data = _data;
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	struct iwl_lq_cmd *lq_cmd = &mvmsta->lq_sta.lq;
+	struct iwl_lq_cmd *lq_cmd = &mvmsta->lq_sta.rs_drv.lq;
 	u32 ss_params = le32_to_cpu(lq_cmd->ss_params);
 
 	if (sta == data->exclude_sta)
@@ -3497,7 +3489,8 @@ static void rs_set_lq_ss_params(struct iwl_mvm *mvm,
 
 	/* Disallow BFER on another STA if active and we're a higher priority */
 	if (rs_bfer_priority_cmp(mvmsta, bfer_mvmsta) > 0) {
-		struct iwl_lq_cmd *bfersta_lq_cmd = &bfer_mvmsta->lq_sta.lq;
+		struct iwl_lq_cmd *bfersta_lq_cmd =
+			&bfer_mvmsta->lq_sta.rs_drv.lq;
 		u32 bfersta_ss_params = le32_to_cpu(bfersta_lq_cmd->ss_params);
 
 		bfersta_ss_params &= ~LQ_SS_BFER_ALLOWED;
@@ -3569,14 +3562,14 @@ static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 {
 	return hw->priv;
 }
+
 /* rate scale requires free function to be implemented */
 static void rs_free(void *mvm_rate)
 {
 	return;
 }
 
-static void rs_free_sta(void *mvm_r, struct ieee80211_sta *sta,
-			void *mvm_sta)
+static void rs_free_sta(void *mvm_r, struct ieee80211_sta *sta, void *mvm_sta)
 {
 	struct iwl_op_mode *op_mode __maybe_unused = mvm_r;
 	struct iwl_mvm *mvm __maybe_unused = IWL_OP_MODE_GET_MVM(op_mode);
@@ -3586,7 +3579,7 @@ static void rs_free_sta(void *mvm_r, struct ieee80211_sta *sta,
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-int rs_pretty_print_rate(char *buf, const u32 rate)
+int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 {
 
 	char *type, *bw;
@@ -3597,10 +3590,10 @@ int rs_pretty_print_rate(char *buf, const u32 rate)
 	    !(rate & RATE_MCS_VHT_MSK)) {
 		int index = iwl_hwrate_to_plcp_idx(rate);
 
-		return sprintf(buf, "Legacy | ANT: %s Rate: %s Mbps\n",
-			       rs_pretty_ant(ant),
-			       index == IWL_RATE_INVALID ? "BAD" :
-			       iwl_rate_mcs[index].mbps);
+		return scnprintf(buf, bufsz, "Legacy | ANT: %s Rate: %s Mbps\n",
+				 rs_pretty_ant(ant),
+				 index == IWL_RATE_INVALID ? "BAD" :
+				 iwl_rate_mcs[index].mbps);
 	}
 
 	if (rate & RATE_MCS_VHT_MSK) {
@@ -3634,12 +3627,13 @@ int rs_pretty_print_rate(char *buf, const u32 rate)
 		bw = "BAD BW";
 	}
 
-	return sprintf(buf, "%s | ANT: %s BW: %s MCS: %d NSS: %d %s%s%s%s\n",
-		       type, rs_pretty_ant(ant), bw, mcs, nss,
-		       (rate & RATE_MCS_SGI_MSK) ? "SGI " : "NGI ",
-		       (rate & RATE_MCS_STBC_MSK) ? "STBC " : "",
-		       (rate & RATE_MCS_LDPC_MSK) ? "LDPC " : "",
-		       (rate & RATE_MCS_BF_MSK) ? "BF " : "");
+	return scnprintf(buf, bufsz,
+			 "%s | ANT: %s BW: %s MCS: %d NSS: %d %s%s%s%s\n",
+			 type, rs_pretty_ant(ant), bw, mcs, nss,
+			 (rate & RATE_MCS_SGI_MSK) ? "SGI " : "NGI ",
+			 (rate & RATE_MCS_STBC_MSK) ? "STBC " : "",
+			 (rate & RATE_MCS_LDPC_MSK) ? "LDPC " : "",
+			 (rate & RATE_MCS_BF_MSK) ? "BF " : "");
 }
 
 /**
@@ -3696,65 +3690,70 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 	int desc = 0;
 	int i = 0;
 	ssize_t ret;
+	static const size_t bufsz = 2048;
 
 	struct iwl_lq_sta *lq_sta = file->private_data;
 	struct iwl_mvm_sta *mvmsta =
-		container_of(lq_sta, struct iwl_mvm_sta, lq_sta);
+		container_of(lq_sta, struct iwl_mvm_sta, lq_sta.rs_drv);
 	struct iwl_mvm *mvm;
 	struct iwl_scale_tbl_info *tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 	struct rs_rate *rate = &tbl->rate;
 	u32 ss_params;
 
 	mvm = lq_sta->pers.drv;
-	buff = kmalloc(2048, GFP_KERNEL);
+	buff = kmalloc(bufsz, GFP_KERNEL);
 	if (!buff)
 		return -ENOMEM;
 
-	desc += sprintf(buff+desc, "sta_id %d\n", lq_sta->lq.sta_id);
-	desc += sprintf(buff+desc, "failed=%d success=%d rate=0%lX\n",
-			lq_sta->total_failed, lq_sta->total_success,
-			lq_sta->active_legacy_rate);
-	desc += sprintf(buff+desc, "fixed rate 0x%X\n",
-			lq_sta->pers.dbg_fixed_rate);
-	desc += sprintf(buff+desc, "valid_tx_ant %s%s%s\n",
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "sta_id %d\n", lq_sta->lq.sta_id);
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "failed=%d success=%d rate=0%lX\n",
+			  lq_sta->total_failed, lq_sta->total_success,
+			  lq_sta->active_legacy_rate);
+	desc += scnprintf(buff + desc, bufsz - desc, "fixed rate 0x%X\n",
+			  lq_sta->pers.dbg_fixed_rate);
+	desc += scnprintf(buff + desc, bufsz - desc, "valid_tx_ant %s%s%s\n",
 	    (iwl_mvm_get_valid_tx_ant(mvm) & ANT_A) ? "ANT_A," : "",
 	    (iwl_mvm_get_valid_tx_ant(mvm) & ANT_B) ? "ANT_B," : "",
 	    (iwl_mvm_get_valid_tx_ant(mvm) & ANT_C) ? "ANT_C" : "");
-	desc += sprintf(buff+desc, "lq type %s\n",
-			(is_legacy(rate)) ? "legacy" :
-			is_vht(rate) ? "VHT" : "HT");
+	desc += scnprintf(buff + desc, bufsz - desc, "lq type %s\n",
+			  (is_legacy(rate)) ? "legacy" :
+			  is_vht(rate) ? "VHT" : "HT");
 	if (!is_legacy(rate)) {
-		desc += sprintf(buff + desc, " %s",
+		desc += scnprintf(buff + desc, bufsz - desc, " %s",
 		   (is_siso(rate)) ? "SISO" : "MIMO2");
-		desc += sprintf(buff + desc, " %s",
+		desc += scnprintf(buff + desc, bufsz - desc, " %s",
 				(is_ht20(rate)) ? "20MHz" :
 				(is_ht40(rate)) ? "40MHz" :
 				(is_ht80(rate)) ? "80MHz" :
 				(is_ht160(rate)) ? "160MHz" : "BAD BW");
-		desc += sprintf(buff + desc, " %s %s %s %s\n",
+		desc += scnprintf(buff + desc, bufsz - desc, " %s %s %s %s\n",
 				(rate->sgi) ? "SGI" : "NGI",
 				(rate->ldpc) ? "LDPC" : "BCC",
 				(lq_sta->is_agg) ? "AGG on" : "",
 				(mvmsta->tlc_amsdu) ? "AMSDU on" : "");
 	}
-	desc += sprintf(buff+desc, "last tx rate=0x%X\n",
+	desc += scnprintf(buff + desc, bufsz - desc, "last tx rate=0x%X\n",
 			lq_sta->last_rate_n_flags);
-	desc += sprintf(buff+desc,
+	desc += scnprintf(buff + desc, bufsz - desc,
 			"general: flags=0x%X mimo-d=%d s-ant=0x%x d-ant=0x%x\n",
 			lq_sta->lq.flags,
 			lq_sta->lq.mimo_delim,
 			lq_sta->lq.single_stream_ant_msk,
 			lq_sta->lq.dual_stream_ant_msk);
 
-	desc += sprintf(buff+desc,
+	desc += scnprintf(buff + desc, bufsz - desc,
 			"agg: time_limit=%d dist_start_th=%d frame_cnt_limit=%d\n",
 			le16_to_cpu(lq_sta->lq.agg_time_limit),
 			lq_sta->lq.agg_disable_start_th,
 			lq_sta->lq.agg_frame_cnt_limit);
 
-	desc += sprintf(buff+desc, "reduced tpc=%d\n", lq_sta->lq.reduced_tpc);
+	desc += scnprintf(buff + desc, bufsz - desc, "reduced tpc=%d\n",
+			  lq_sta->lq.reduced_tpc);
 	ss_params = le32_to_cpu(lq_sta->lq.ss_params);
-	desc += sprintf(buff+desc, "single stream params: %s%s%s%s\n",
+	desc += scnprintf(buff + desc, bufsz - desc,
+			"single stream params: %s%s%s%s\n",
 			(ss_params & LQ_SS_PARAMS_VALID) ?
 			"VALID" : "INVALID",
 			(ss_params & LQ_SS_BFER_ALLOWED) ?
@@ -3763,7 +3762,7 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 			", STBC" : "",
 			(ss_params & LQ_SS_FORCE) ?
 			", FORCE" : "");
-	desc += sprintf(buff+desc,
+	desc += scnprintf(buff + desc, bufsz - desc,
 			"Start idx [0]=0x%x [1]=0x%x [2]=0x%x [3]=0x%x\n",
 			lq_sta->lq.initial_rate_index[0],
 			lq_sta->lq.initial_rate_index[1],
@@ -3773,8 +3772,9 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++) {
 		u32 r = le32_to_cpu(lq_sta->lq.rs_table[i]);
 
-		desc += sprintf(buff+desc, " rate[%d] 0x%X ", i, r);
-		desc += rs_pretty_print_rate(buff+desc, r);
+		desc += scnprintf(buff + desc, bufsz - desc,
+				  " rate[%d] 0x%X ", i, r);
+		desc += rs_pretty_print_rate(buff + desc, bufsz - desc, r);
 	}
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);
@@ -3987,12 +3987,13 @@ static ssize_t iwl_dbgfs_ss_force_write(struct iwl_lq_sta *lq_sta, char *buf,
 
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(ss_force, 32);
 
-static void rs_add_debugfs(void *mvm, void *priv_sta, struct dentry *dir)
+static void rs_drv_add_sta_debugfs(void *mvm, void *priv_sta,
+				   struct dentry *dir)
 {
 	struct iwl_lq_sta *lq_sta = priv_sta;
 	struct iwl_mvm_sta *mvmsta;
 
-	mvmsta = container_of(lq_sta, struct iwl_mvm_sta, lq_sta);
+	mvmsta = container_of(lq_sta, struct iwl_mvm_sta, lq_sta.rs_drv);
 
 	if (!mvmsta->vif)
 		return;
@@ -4014,7 +4015,7 @@ err:
 	IWL_ERR((struct iwl_mvm *)mvm, "Can't create debugfs entity\n");
 }
 
-static void rs_remove_debugfs(void *mvm, void *mvm_sta)
+void rs_remove_sta_debugfs(void *mvm, void *mvm_sta)
 {
 }
 #endif
@@ -4024,50 +4025,53 @@ static void rs_remove_debugfs(void *mvm, void *mvm_sta)
  * the station is added. Since mac80211 calls this function before a
  * station is added we ignore it.
  */
-static void rs_rate_init_stub(void *mvm_r,
-			      struct ieee80211_supported_band *sband,
-			      struct cfg80211_chan_def *chandef,
-			      struct ieee80211_sta *sta, void *mvm_sta)
+static void rs_rate_init_ops(void *mvm_r,
+			     struct ieee80211_supported_band *sband,
+			     struct cfg80211_chan_def *chandef,
+			     struct ieee80211_sta *sta, void *mvm_sta)
 {
 }
 
-static const struct rate_control_ops rs_mvm_ops = {
+/* ops for rate scaling implemented in the driver */
+static const struct rate_control_ops rs_mvm_ops_drv = {
 	.name = RS_NAME,
-	.tx_status = rs_mac80211_tx_status,
-	.get_rate = rs_get_rate,
-	.rate_init = rs_rate_init_stub,
+	.tx_status = rs_drv_mac80211_tx_status,
+	.get_rate = rs_drv_get_rate,
+	.rate_init = rs_rate_init_ops,
 	.alloc = rs_alloc,
 	.free = rs_free,
-	.alloc_sta = rs_alloc_sta,
+	.alloc_sta = rs_drv_alloc_sta,
 	.free_sta = rs_free_sta,
-	.rate_update = rs_rate_update,
+	.rate_update = rs_drv_rate_update,
 #ifdef CONFIG_MAC80211_DEBUGFS
-	.add_sta_debugfs = rs_add_debugfs,
-	.remove_sta_debugfs = rs_remove_debugfs,
+	.add_sta_debugfs = rs_drv_add_sta_debugfs,
+	.remove_sta_debugfs = rs_remove_sta_debugfs,
 #endif
 };
 
+void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			  enum nl80211_band band, bool init)
+{
+	if (iwl_mvm_has_tlc_offload(mvm))
+		rs_fw_rate_init(mvm, sta, band);
+	else
+		rs_drv_rate_init(mvm, sta, band, init);
+}
+
 int iwl_mvm_rate_control_register(void)
 {
-	return ieee80211_rate_control_register(&rs_mvm_ops);
+	return ieee80211_rate_control_register(&rs_mvm_ops_drv);
 }
 
 void iwl_mvm_rate_control_unregister(void)
 {
-	ieee80211_rate_control_unregister(&rs_mvm_ops);
+	ieee80211_rate_control_unregister(&rs_mvm_ops_drv);
 }
 
-/**
- * iwl_mvm_tx_protection - Gets LQ command, change it to enable/disable
- * Tx protection, according to this request and previous requests,
- * and send the LQ command.
- * @mvmsta: The station
- * @enable: Enable Tx protection?
- */
-int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
-			  bool enable)
+static int rs_drv_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
+				bool enable)
 {
-	struct iwl_lq_cmd *lq = &mvmsta->lq_sta.lq;
+	struct iwl_lq_cmd *lq = &mvmsta->lq_sta.rs_drv.lq;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -4082,4 +4086,18 @@ int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 	}
 
 	return iwl_mvm_send_lq_cmd(mvm, lq, false);
+}
+
+/**
+ * iwl_mvm_tx_protection - ask FW to enable RTS/CTS protection
+ * @mvmsta: The station
+ * @enable: Enable Tx protection?
+ */
+int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
+			  bool enable)
+{
+	if (iwl_mvm_has_tlc_offload(mvm))
+		return rs_fw_tx_protection(mvm, mvmsta, enable);
+	else
+		return rs_drv_tx_protection(mvm, mvmsta, enable);
 }

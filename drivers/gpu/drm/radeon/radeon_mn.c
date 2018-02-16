@@ -124,6 +124,7 @@ static void radeon_mn_invalidate_range_start(struct mmu_notifier *mn,
 					     unsigned long end)
 {
 	struct radeon_mn *rmn = container_of(mn, struct radeon_mn, mn);
+	struct ttm_operation_ctx ctx = { false, false };
 	struct interval_tree_node *it;
 
 	/* notification is exclusive, but interval is inclusive */
@@ -157,7 +158,7 @@ static void radeon_mn_invalidate_range_start(struct mmu_notifier *mn,
 				DRM_ERROR("(%ld) failed to wait for user bo\n", r);
 
 			radeon_ttm_placement_from_domain(bo, RADEON_GEM_DOMAIN_CPU);
-			r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
+			r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 			if (r)
 				DRM_ERROR("(%ld) failed to validate user bo\n", r);
 

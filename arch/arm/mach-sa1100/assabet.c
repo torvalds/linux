@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <linux/gpio/gpio-reg.h>
 #include <linux/ioport.h>
 #include <linux/platform_data/sa11x0-serial.h>
 #include <linux/serial_core.h>
@@ -61,19 +62,44 @@
 unsigned long SCR_value = ASSABET_SCR_INIT;
 EXPORT_SYMBOL(SCR_value);
 
-static unsigned long BCR_value = ASSABET_BCR_DB1110;
+static struct gpio_chip *assabet_bcr_gc;
 
+static const char *assabet_names[] = {
+	"cf_pwr", "cf_gfx_reset", "nsoft_reset", "irda_fsel",
+	"irda_md0", "irda_md1", "stereo_loopback", "ncf_bus_on",
+	"audio_pwr_on", "light_pwr_on", "lcd16data", "lcd_pwr_on",
+	"rs232_on", "nred_led", "ngreen_led", "vib_on",
+	"com_dtr", "com_rts", "radio_wake_mod", "i2c_enab",
+	"tvir_enab", "qmute", "radio_pwr_on", "spkr_off",
+	"rs232_valid", "com_dcd", "com_cts", "com_dsr",
+	"radio_cts", "radio_dsr", "radio_dcd", "radio_ri",
+};
+
+/* The old deprecated interface */
 void ASSABET_BCR_frob(unsigned int mask, unsigned int val)
 {
-	unsigned long flags;
+	unsigned long m = mask, v = val;
 
-	local_irq_save(flags);
-	BCR_value = (BCR_value & ~mask) | val;
-	ASSABET_BCR = BCR_value;
-	local_irq_restore(flags);
+	assabet_bcr_gc->set_multiple(assabet_bcr_gc, &m, &v);
 }
-
 EXPORT_SYMBOL(ASSABET_BCR_frob);
+
+static int __init assabet_init_gpio(void __iomem *reg, u32 def_val)
+{
+	struct gpio_chip *gc;
+
+	writel_relaxed(def_val, reg);
+
+	gc = gpio_reg_init(NULL, reg, -1, 32, "assabet", 0xff000000, def_val,
+			   assabet_names, NULL, NULL);
+
+	if (IS_ERR(gc))
+		return PTR_ERR(gc);
+
+	assabet_bcr_gc = gc;
+
+	return gc->base;
+}
 
 /*
  * The codec reset goes to three devices, so we need to release
@@ -146,7 +172,7 @@ static void adv7171_write(unsigned reg, unsigned val)
 	unsigned gpdr = GPDR;
 	unsigned gplr = GPLR;
 
-	ASSABET_BCR = BCR_value | ASSABET_BCR_AUDIO_ON;
+	ASSABET_BCR_frob(ASSABET_BCR_AUDIO_ON, ASSABET_BCR_AUDIO_ON);
 	udelay(100);
 
 	GPCR = SDA | SCK | MOD; /* clear L3 mode to ensure UDA1341 doesn't respond */
@@ -457,14 +483,6 @@ static void __init assabet_init(void)
 	sa11x0_ppc_configure_mcp();
 
 	if (machine_has_neponset()) {
-		/*
-		 * Angel sets this, but other bootloaders may not.
-		 *
-		 * This must precede any driver calls to BCR_set()
-		 * or BCR_clear().
-		 */
-		ASSABET_BCR = BCR_value = ASSABET_BCR_DB1111;
-
 #ifndef CONFIG_ASSABET_NEPONSET
 		printk( "Warning: Neponset detected but full support "
 			"hasn't been configured in the kernel\n" );
@@ -748,12 +766,31 @@ static int __init assabet_leds_init(void)
 fs_initcall(assabet_leds_init);
 #endif
 
+void __init assabet_init_irq(void)
+{
+	u32 def_val;
+
+	sa1100_init_irq();
+
+	if (machine_has_neponset())
+		def_val = ASSABET_BCR_DB1111;
+	else
+		def_val = ASSABET_BCR_DB1110;
+
+	/*
+	 * Angel sets this, but other bootloaders may not.
+	 *
+	 * This must precede any driver calls to BCR_set() or BCR_clear().
+	 */
+	assabet_init_gpio((void *)&ASSABET_BCR, def_val);
+}
+
 MACHINE_START(ASSABET, "Intel-Assabet")
 	.atag_offset	= 0x100,
 	.fixup		= fixup_assabet,
 	.map_io		= assabet_map_io,
 	.nr_irqs	= SA1100_NR_IRQS,
-	.init_irq	= sa1100_init_irq,
+	.init_irq	= assabet_init_irq,
 	.init_time	= sa1100_timer_init,
 	.init_machine	= assabet_init,
 	.init_late	= sa11x0_init_late,

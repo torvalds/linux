@@ -45,6 +45,13 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	/* fixed crystal dedicated to mpc258x */
+	clk16m: clk16m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <16000000>;
+	};
+
 	panel: panel {
 		compatible = "edt,et057090dhu";
 		backlight = <&bl>;
@@ -70,6 +77,17 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 	};
+
+	reg_usbh_vbus: regulator-usbh-vbus {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbh_reg>;
+		regulator-name = "VCC_USB[1-4]";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio4 7 GPIO_ACTIVE_LOW>;
+		vin-supply = <&reg_5v0>;
+	};
 };
 
 &bl {
@@ -88,6 +106,24 @@
 	status = "okay";
 };
 
+&ecspi3 {
+	status = "okay";
+
+	mcp2515: can@0 {
+		compatible = "microchip,mcp2515";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_can_int>;
+		reg = <0>;
+		clocks = <&clk16m>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+		spi-max-frequency = <10000000>;
+		vdd-supply = <&reg_3v3>;
+		xceiver-supply = <&reg_5v0>;
+		status = "okay";
+	};
+};
+
 &fec1 {
 	status = "okay";
 };
@@ -97,7 +133,7 @@
 
 	/* M41T0M6 real time clock on carrier board */
 	rtc: m41t0m6@68 {
-		compatible = "st,m41t00";
+		compatible = "st,m41t0";
 		reg = <0x68>;
 	};
 };
@@ -147,5 +183,6 @@
 &usdhc1 {
 	keep-power-in-suspend;
 	wakeup-source;
+	vmmc-supply = <&reg_3v3>;
 	status = "okay";
 };

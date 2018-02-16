@@ -338,10 +338,10 @@ static int bt_bmc_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static unsigned int bt_bmc_poll(struct file *file, poll_table *wait)
+static __poll_t bt_bmc_poll(struct file *file, poll_table *wait)
 {
 	struct bt_bmc *bt_bmc = file_bt_bmc(file);
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	u8 ctrl;
 
 	poll_wait(file, &bt_bmc->queue, wait);
@@ -349,10 +349,10 @@ static unsigned int bt_bmc_poll(struct file *file, poll_table *wait)
 	ctrl = bt_inb(bt_bmc, BT_CTRL);
 
 	if (ctrl & BT_CTRL_H2B_ATN)
-		mask |= POLLIN;
+		mask |= EPOLLIN;
 
 	if (!(ctrl & (BT_CTRL_H_BUSY | BT_CTRL_B2H_ATN)))
-		mask |= POLLOUT;
+		mask |= EPOLLOUT;
 
 	return mask;
 }

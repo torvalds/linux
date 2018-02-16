@@ -11,7 +11,7 @@ Required properties:
 
 Examples:
 
-lpi2c7: lpi2c7@40A50000 {
+lpi2c7: lpi2c7@40a50000 {
 	compatible = "fsl,imx8dv-lpi2c";
 	reg = <0x40A50000 0x10000>;
 	interrupt-parent = <&intc>;

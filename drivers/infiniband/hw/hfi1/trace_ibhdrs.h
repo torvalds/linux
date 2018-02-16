@@ -101,7 +101,7 @@ u8 hfi1_trace_opa_hdr_len(struct hfi1_opa_header *opah);
 u8 hfi1_trace_packet_hdr_len(struct hfi1_packet *packet);
 const char *hfi1_trace_get_packet_l4_str(u8 l4);
 void hfi1_trace_parse_9b_bth(struct ib_other_headers *ohdr,
-			     u8 *ack, u8 *becn, u8 *fecn, u8 *mig,
+			     u8 *ack, bool *becn, bool *fecn, u8 *mig,
 			     u8 *se, u8 *pad, u8 *opcode, u8 *tver,
 			     u16 *pkey, u32 *psn, u32 *qpn);
 void hfi1_trace_parse_9b_hdr(struct ib_header *hdr, bool sc5,
@@ -112,19 +112,19 @@ void hfi1_trace_parse_16b_bth(struct ib_other_headers *ohdr,
 			      u8 *pad, u8 *se, u8 *tver,
 			      u32 *psn, u32 *qpn);
 void hfi1_trace_parse_16b_hdr(struct hfi1_16b_header *hdr,
-			      u8 *age, u8 *becn, u8 *fecn,
+			      u8 *age, bool *becn, bool *fecn,
 			      u8 *l4, u8 *rc, u8 *sc,
 			      u16 *entropy, u16 *len, u16 *pkey,
 			      u32 *dlid, u32 *slid);
 
 const char *hfi1_trace_fmt_lrh(struct trace_seq *p, bool bypass,
-			       u8 age, u8 becn, u8 fecn, u8 l4,
+			       u8 age, bool becn, bool fecn, u8 l4,
 			       u8 lnh, const char *lnh_name, u8 lver,
 			       u8 rc, u8 sc, u8 sl, u16 entropy,
 			       u16 len, u16 pkey, u32 dlid, u32 slid);
 
 const char *hfi1_trace_fmt_bth(struct trace_seq *p, bool bypass,
-			       u8 ack, u8 becn, u8 fecn, u8 mig,
+			       u8 ack, bool becn, bool fecn, u8 mig,
 			       u8 se, u8 pad, u8 opcode, const char *opname,
 			       u8 tver, u16 pkey, u32 psn, u32 qpn);
 
@@ -148,8 +148,8 @@ DECLARE_EVENT_CLASS(hfi1_input_ibhdr_template,
 			__field(u8, etype)
 			__field(u8, ack)
 			__field(u8, age)
-			__field(u8, becn)
-			__field(u8, fecn)
+			__field(bool, becn)
+			__field(bool, fecn)
 			__field(u8, l2)
 			__field(u8, l4)
 			__field(u8, lnh)
@@ -290,8 +290,8 @@ DECLARE_EVENT_CLASS(hfi1_output_ibhdr_template,
 			__field(u8, hdr_type)
 			__field(u8, ack)
 			__field(u8, age)
-			__field(u8, becn)
-			__field(u8, fecn)
+			__field(bool, becn)
+			__field(bool, fecn)
 			__field(u8, l4)
 			__field(u8, lnh)
 			__field(u8, lver)

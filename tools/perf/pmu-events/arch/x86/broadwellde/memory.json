@@ -95,7 +95,6 @@
         "BriefDescription": "Counts the number of times a class of instructions that may cause a transactional abort was executed. Since this is the count of execution, it may not always cause a transactional abort.",
         "Counter": "0,1,2,3",
         "EventName": "TX_EXEC.MISC1",
-        "PublicDescription": "Unfriendly TSX abort triggered by  a flowmarker.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -171,11 +170,11 @@
     {
         "EventCode": "0xc8",
         "UMask": "0x4",
-        "BriefDescription": "Number of times HLE abort was triggered",
+        "BriefDescription": "Number of times HLE abort was triggered (PEBS)",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "HLE_RETIRED.ABORTED",
-        "PublicDescription": "Number of times HLE abort was triggered.",
+        "PublicDescription": "Number of times HLE abort was triggered (PEBS).",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -252,11 +251,11 @@
     {
         "EventCode": "0xc9",
         "UMask": "0x4",
-        "BriefDescription": "Number of times RTM abort was triggered",
+        "BriefDescription": "Number of times RTM abort was triggered (PEBS)",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "RTM_RETIRED.ABORTED",
-        "PublicDescription": "Number of times RTM abort was triggered .",
+        "PublicDescription": "Number of times RTM abort was triggered (PEBS).",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3"
     },

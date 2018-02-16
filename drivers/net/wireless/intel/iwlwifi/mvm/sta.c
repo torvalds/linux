@@ -1439,6 +1439,13 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 			goto err;
 	}
 
+	/*
+	 * if rs is registered with mac80211, then "add station" will be handled
+	 * via the corresponding ops, otherwise need to notify rate scaling here
+	 */
+	if (iwl_mvm_has_tlc_offload(mvm))
+		iwl_mvm_rs_add_sta(mvm, mvm_sta);
+
 update_fw:
 	ret = iwl_mvm_sta_send_to_fw(mvm, sta, sta_update, sta_flags);
 	if (ret)
@@ -1762,7 +1769,7 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 	}
 
 	/*
-	 * For a000 firmware and on we cannot add queue to a station unknown
+	 * For 22000 firmware and on we cannot add queue to a station unknown
 	 * to firmware so enable queue here - after the station was added
 	 */
 	if (iwl_mvm_has_new_tx_api(mvm))
@@ -1885,7 +1892,7 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		return ret;
 
 	/*
-	 * For a000 firmware and on we cannot add queue to a station unknown
+	 * For 22000 firmware and on we cannot add queue to a station unknown
 	 * to firmware so enable queue here - after the station was added
 	 */
 	if (iwl_mvm_has_new_tx_api(mvm)) {
@@ -2064,7 +2071,7 @@ int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	/*
 	 * Enable cab queue after the ADD_STA command is sent.
-	 * This is needed for a000 firmware which won't accept SCD_QUEUE_CFG
+	 * This is needed for 22000 firmware which won't accept SCD_QUEUE_CFG
 	 * command with unknown station id, and for FW that doesn't support
 	 * station API since the cab queue is not included in the
 	 * tfd_queue_mask.
@@ -2530,7 +2537,7 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			    tid_data->next_reclaimed);
 
 	/*
-	 * In A000 HW, the next_reclaimed index is only 8 bit, so we'll need
+	 * In 22000 HW, the next_reclaimed index is only 8 bit, so we'll need
 	 * to align the wrap around of ssn so we compare relevant values.
 	 */
 	normalized_ssn = tid_data->ssn;
@@ -2574,6 +2581,13 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		.frame_limit = buf_size,
 		.aggregate = true,
 	};
+
+	/*
+	 * When FW supports TLC_OFFLOAD, it also implements Tx aggregation
+	 * manager, so this function should never be called in this case.
+	 */
+	if (WARN_ON_ONCE(iwl_mvm_has_tlc_offload(mvm)))
+		return -EINVAL;
 
 	BUILD_BUG_ON((sizeof(mvmsta->agg_tids) * BITS_PER_BYTE)
 		     != IWL_MAX_TID_COUNT);
@@ -2672,12 +2686,12 @@ out:
 	 */
 	mvmsta->max_agg_bufsize =
 		min(mvmsta->max_agg_bufsize, buf_size);
-	mvmsta->lq_sta.lq.agg_frame_cnt_limit = mvmsta->max_agg_bufsize;
+	mvmsta->lq_sta.rs_drv.lq.agg_frame_cnt_limit = mvmsta->max_agg_bufsize;
 
 	IWL_DEBUG_HT(mvm, "Tx aggregation enabled on ra = %pM tid = %d\n",
 		     sta->addr, tid);
 
-	return iwl_mvm_send_lq_cmd(mvm, &mvmsta->lq_sta.lq, false);
+	return iwl_mvm_send_lq_cmd(mvm, &mvmsta->lq_sta.rs_drv.lq, false);
 }
 
 static void iwl_mvm_unreserve_agg_queue(struct iwl_mvm *mvm,
@@ -3615,7 +3629,7 @@ u16 iwl_mvm_tid_queued(struct iwl_mvm *mvm, struct iwl_mvm_tid_data *tid_data)
 	u16 sn = IEEE80211_SEQ_TO_SN(tid_data->seq_number);
 
 	/*
-	 * In A000 HW, the next_reclaimed index is only 8 bit, so we'll need
+	 * In 22000 HW, the next_reclaimed index is only 8 bit, so we'll need
 	 * to align the wrap around of ssn so we compare relevant values.
 	 */
 	if (mvm->trans->cfg->gen2)

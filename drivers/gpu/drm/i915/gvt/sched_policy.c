@@ -50,6 +50,7 @@ static bool vgpu_has_pending_workload(struct intel_vgpu *vgpu)
 struct vgpu_sched_data {
 	struct list_head lru_list;
 	struct intel_vgpu *vgpu;
+	bool active;
 
 	ktime_t sched_in_time;
 	ktime_t sched_out_time;
@@ -308,8 +309,15 @@ static int tbs_sched_init_vgpu(struct intel_vgpu *vgpu)
 
 static void tbs_sched_clean_vgpu(struct intel_vgpu *vgpu)
 {
+	struct intel_gvt *gvt = vgpu->gvt;
+	struct gvt_sched_data *sched_data = gvt->scheduler.sched_data;
+
 	kfree(vgpu->sched_data);
 	vgpu->sched_data = NULL;
+
+	/* this vgpu id has been removed */
+	if (idr_is_empty(&gvt->vgpu_idr))
+		hrtimer_cancel(&sched_data->timer);
 }
 
 static void tbs_sched_start_schedule(struct intel_vgpu *vgpu)
@@ -325,6 +333,7 @@ static void tbs_sched_start_schedule(struct intel_vgpu *vgpu)
 	if (!hrtimer_active(&sched_data->timer))
 		hrtimer_start(&sched_data->timer, ktime_add_ns(ktime_get(),
 			sched_data->period), HRTIMER_MODE_ABS);
+	vgpu_data->active = true;
 }
 
 static void tbs_sched_stop_schedule(struct intel_vgpu *vgpu)
@@ -332,6 +341,7 @@ static void tbs_sched_stop_schedule(struct intel_vgpu *vgpu)
 	struct vgpu_sched_data *vgpu_data = vgpu->sched_data;
 
 	list_del_init(&vgpu_data->lru_list);
+	vgpu_data->active = false;
 }
 
 static struct intel_gvt_sched_policy_ops tbs_schedule_ops = {
@@ -367,9 +377,17 @@ void intel_vgpu_clean_sched_policy(struct intel_vgpu *vgpu)
 
 void intel_vgpu_start_schedule(struct intel_vgpu *vgpu)
 {
-	gvt_dbg_core("vgpu%d: start schedule\n", vgpu->id);
+	struct vgpu_sched_data *vgpu_data = vgpu->sched_data;
 
-	vgpu->gvt->scheduler.sched_ops->start_schedule(vgpu);
+	if (!vgpu_data->active) {
+		gvt_dbg_core("vgpu%d: start schedule\n", vgpu->id);
+		vgpu->gvt->scheduler.sched_ops->start_schedule(vgpu);
+	}
+}
+
+void intel_gvt_kick_schedule(struct intel_gvt *gvt)
+{
+	intel_gvt_request_service(gvt, INTEL_GVT_REQUEST_EVENT_SCHED);
 }
 
 void intel_vgpu_stop_schedule(struct intel_vgpu *vgpu)
@@ -377,6 +395,10 @@ void intel_vgpu_stop_schedule(struct intel_vgpu *vgpu)
 	struct intel_gvt_workload_scheduler *scheduler =
 		&vgpu->gvt->scheduler;
 	int ring_id;
+	struct vgpu_sched_data *vgpu_data = vgpu->sched_data;
+
+	if (!vgpu_data->active)
+		return;
 
 	gvt_dbg_core("vgpu%d: stop schedule\n", vgpu->id);
 

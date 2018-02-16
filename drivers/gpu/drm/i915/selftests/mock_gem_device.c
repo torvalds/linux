@@ -85,6 +85,8 @@ static void mock_device_release(struct drm_device *dev)
 
 	i915_gemfs_fini(i915);
 
+	drm_mode_config_cleanup(&i915->drm);
+
 	drm_dev_fini(&i915->drm);
 	put_device(&i915->drm.pdev->dev);
 }
@@ -179,20 +181,15 @@ struct drm_i915_private *mock_gem_device(void)
 		I915_GTT_PAGE_SIZE_64K |
 		I915_GTT_PAGE_SIZE_2M;
 
-	spin_lock_init(&i915->mm.object_stat_lock);
 	mock_uncore_init(i915);
+	i915_gem_init__mm(i915);
 
 	init_waitqueue_head(&i915->gpu_error.wait_queue);
 	init_waitqueue_head(&i915->gpu_error.reset_queue);
 
 	i915->wq = alloc_ordered_workqueue("mock", 0);
 	if (!i915->wq)
-		goto put_device;
-
-	INIT_WORK(&i915->mm.free_work, __i915_gem_free_work);
-	init_llist_head(&i915->mm.free_list);
-	INIT_LIST_HEAD(&i915->mm.unbound_list);
-	INIT_LIST_HEAD(&i915->mm.bound_list);
+		goto err_drv;
 
 	mock_init_contexts(i915);
 
@@ -271,6 +268,9 @@ err_objects:
 	kmem_cache_destroy(i915->objects);
 err_wq:
 	destroy_workqueue(i915->wq);
+err_drv:
+	drm_mode_config_cleanup(&i915->drm);
+	drm_dev_fini(&i915->drm);
 put_device:
 	put_device(&pdev->dev);
 err:

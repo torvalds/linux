@@ -553,7 +553,6 @@ static void sdma_hw_clean_up_task(unsigned long opaque)
 
 static inline struct sdma_txreq *get_txhead(struct sdma_engine *sde)
 {
-	smp_read_barrier_depends(); /* see sdma_update_tail() */
 	return sde->tx_ring[sde->tx_head & sde->sdma_mask];
 }
 
@@ -1276,13 +1275,15 @@ bail:
 	return -ENOMEM;
 }
 
-/*
- * Clean up allocated memory.
+/**
+ * sdma_clean()  Clean up allocated memory
+ * @dd:          struct hfi1_devdata
+ * @num_engines: num sdma engines
  *
- * This routine is can be called regardless of the success of sdma_init()
- *
+ * This routine can be called regardless of the success of
+ * sdma_init()
  */
-static void sdma_clean(struct hfi1_devdata *dd, size_t num_engines)
+void sdma_clean(struct hfi1_devdata *dd, size_t num_engines)
 {
 	size_t i;
 	struct sdma_engine *sde;
@@ -1387,7 +1388,8 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 		    num_engines, descq_cnt);
 
 	/* alloc memory for array of send engines */
-	dd->per_sdma = kcalloc(num_engines, sizeof(*dd->per_sdma), GFP_KERNEL);
+	dd->per_sdma = kcalloc_node(num_engines, sizeof(*dd->per_sdma),
+				    GFP_KERNEL, dd->node);
 	if (!dd->per_sdma)
 		return ret;
 
@@ -1618,7 +1620,6 @@ void sdma_exit(struct hfi1_devdata *dd)
 		 */
 		sdma_finalput(&sde->state);
 	}
-	sdma_clean(dd, dd->num_sdma);
 }
 
 /*

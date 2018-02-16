@@ -901,14 +901,14 @@ static ssize_t host_show_legacy_board(struct device *dev,
 	return snprintf(buf, 20, "%d\n", h->legacy_board ? 1 : 0);
 }
 
-static DEVICE_ATTR(raid_level, S_IRUGO, raid_level_show, NULL);
-static DEVICE_ATTR(lunid, S_IRUGO, lunid_show, NULL);
-static DEVICE_ATTR(unique_id, S_IRUGO, unique_id_show, NULL);
+static DEVICE_ATTR_RO(raid_level);
+static DEVICE_ATTR_RO(lunid);
+static DEVICE_ATTR_RO(unique_id);
 static DEVICE_ATTR(rescan, S_IWUSR, NULL, host_store_rescan);
-static DEVICE_ATTR(sas_address, S_IRUGO, sas_address_show, NULL);
+static DEVICE_ATTR_RO(sas_address);
 static DEVICE_ATTR(hp_ssd_smart_path_enabled, S_IRUGO,
 			host_show_hp_ssd_smart_path_enabled, NULL);
-static DEVICE_ATTR(path_info, S_IRUGO, path_info_show, NULL);
+static DEVICE_ATTR_RO(path_info);
 static DEVICE_ATTR(hp_ssd_smart_path_status, S_IWUSR|S_IRUGO|S_IROTH,
 		host_show_hp_ssd_smart_path_status,
 		host_store_hp_ssd_smart_path_status);
@@ -3518,7 +3518,7 @@ out:
 
 	if (rc != IO_OK)
 		hpsa_show_dev_msg(KERN_INFO, h, encl_dev,
-			"Error, could not get enclosure information\n");
+			"Error, could not get enclosure information");
 }
 
 static u64 hpsa_get_sas_address_from_report_physical(struct ctlr_info *h,
@@ -4619,21 +4619,13 @@ sglist_finished:
 	return 0;
 }
 
-#define BUFLEN 128
 static inline void warn_zero_length_transfer(struct ctlr_info *h,
 						u8 *cdb, int cdb_len,
 						const char *func)
 {
-	char buf[BUFLEN];
-	int outlen;
-	int i;
-
-	outlen = scnprintf(buf, BUFLEN,
-				"%s: Blocking zero-length request: CDB:", func);
-	for (i = 0; i < cdb_len; i++)
-		outlen += scnprintf(buf+outlen, BUFLEN - outlen,
-					"%02hhx", cdb[i]);
-	dev_warn(&h->pdev->dev, "%s\n", buf);
+	dev_warn(&h->pdev->dev,
+		 "%s: Blocking zero-length request: CDB:%*phN\n",
+		 func, cdb_len, cdb);
 }
 
 #define IO_ACCEL_INELIGIBLE 1
@@ -8222,8 +8214,6 @@ static void hpsa_set_ioaccel_status(struct ctlr_info *h)
 		device = h->dev[i];
 
 		if (!device)
-			continue;
-		if (!device->scsi3addr)
 			continue;
 		if (!hpsa_vpd_page_supported(h, device->scsi3addr,
 						HPSA_VPD_LV_IOACCEL_STATUS))

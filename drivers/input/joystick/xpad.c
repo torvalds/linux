@@ -84,9 +84,6 @@
 #include <linux/usb/input.h>
 #include <linux/usb/quirks.h>
 
-#define DRIVER_AUTHOR "Marko Friedemann <mfr@bmx-chemnitz.de>"
-#define DRIVER_DESC "X-Box pad driver"
-
 #define XPAD_PKT_LEN 64
 
 /* xbox d-pads should map to buttons, as is required for DDR pads
@@ -1943,6 +1940,6 @@ static struct usb_driver xpad_driver = {
 
 module_usb_driver(xpad_driver);
 
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Marko Friedemann <mfr@bmx-chemnitz.de>");
+MODULE_DESCRIPTION("X-Box pad driver");
 MODULE_LICENSE("GPL");

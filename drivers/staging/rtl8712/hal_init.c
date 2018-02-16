@@ -336,7 +336,6 @@ uint rtl8712_hal_init(struct _adapter *padapter)
 		    r8712_read32(padapter, RCR));
 	val32 = r8712_read32(padapter, RCR);
 	r8712_write32(padapter, RCR, (val32 | BIT(25))); /* Append PHY status */
-	val32 = 0;
 	val32 = r8712_read32(padapter, 0x10250040);
 	r8712_write32(padapter,  0x10250040, (val32 & 0x00FFFFFF));
 	/* for usb rx aggregation */

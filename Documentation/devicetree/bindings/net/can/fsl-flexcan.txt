@@ -18,6 +18,12 @@ Optional properties:
 
 - xceiver-supply: Regulator that powers the CAN transceiver
 
+- big-endian: This means the registers of FlexCAN controller are big endian.
+              This is optional property.i.e. if this property is not present in
+              device tree node then controller is assumed to be little endian.
+              if this property is present then controller is assumed to be big
+              endian.
+
 Example:
 
 	can@1c000 {

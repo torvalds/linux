@@ -600,7 +600,7 @@ static void longhaul_setup_voltagescaling(void)
 	/* Calculate kHz for one voltage step */
 	kHz_step = (highest_speed - min_vid_speed) / numvscales;
 
-	cpufreq_for_each_entry(freq_pos, longhaul_table) {
+	cpufreq_for_each_entry_idx(freq_pos, longhaul_table, j) {
 		speed = freq_pos->frequency;
 		if (speed > min_vid_speed)
 			pos = (speed - min_vid_speed) / kHz_step + minvid.pos;
@@ -609,7 +609,7 @@ static void longhaul_setup_voltagescaling(void)
 		freq_pos->driver_data |= mV_vrm_table[pos] << 8;
 		vid = vrm_mV_table[mV_vrm_table[pos]];
 		pr_info("f: %d kHz, index: %d, vid: %d mV\n",
-			speed, (int)(freq_pos - longhaul_table), vid.mV);
+			speed, j, vid.mV);
 	}
 
 	can_scale_voltage = 1;
@@ -894,7 +894,7 @@ static int longhaul_cpu_init(struct cpufreq_policy *policy)
 	if ((longhaul_version != TYPE_LONGHAUL_V1) && (scale_voltage != 0))
 		longhaul_setup_voltagescaling();
 
-	policy->cpuinfo.transition_latency = 200000;	/* nsec */
+	policy->transition_delay_us = 200000;	/* usec */
 
 	return cpufreq_table_validate_and_show(policy, longhaul_table);
 }

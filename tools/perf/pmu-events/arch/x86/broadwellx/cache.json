@@ -11,11 +11,28 @@
     },
     {
         "EventCode": "0x24",
-        "UMask": "0x41",
-        "BriefDescription": "Demand Data Read requests that hit L2 cache",
+        "UMask": "0x22",
+        "BriefDescription": "RFO requests that miss L2 cache.",
         "Counter": "0,1,2,3",
-        "EventName": "L2_RQSTS.DEMAND_DATA_RD_HIT",
-        "PublicDescription": "This event counts the number of demand Data Read requests that hit L2 cache. Only not rejected loads are counted.",
+        "EventName": "L2_RQSTS.RFO_MISS",
+        "SampleAfterValue": "200003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x24",
+        "UMask": "0x24",
+        "BriefDescription": "L2 cache misses when fetching instructions.",
+        "Counter": "0,1,2,3",
+        "EventName": "L2_RQSTS.CODE_RD_MISS",
+        "SampleAfterValue": "200003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x24",
+        "UMask": "0x27",
+        "BriefDescription": "Demand requests that miss L2 cache.",
+        "Counter": "0,1,2,3",
+        "EventName": "L2_RQSTS.ALL_DEMAND_MISS",
         "SampleAfterValue": "200003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -26,6 +43,43 @@
         "Counter": "0,1,2,3",
         "EventName": "L2_RQSTS.L2_PF_MISS",
         "PublicDescription": "This event counts the number of requests from the L2 hardware prefetchers that miss L2 cache.",
+        "SampleAfterValue": "200003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x24",
+        "UMask": "0x3f",
+        "BriefDescription": "All requests that miss L2 cache.",
+        "Counter": "0,1,2,3",
+        "EventName": "L2_RQSTS.MISS",
+        "SampleAfterValue": "200003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x24",
+        "UMask": "0x41",
+        "BriefDescription": "Demand Data Read requests that hit L2 cache",
+        "Counter": "0,1,2,3",
+        "EventName": "L2_RQSTS.DEMAND_DATA_RD_HIT",
+        "PublicDescription": "This event counts the number of demand Data Read requests that hit L2 cache. Only not rejected loads are counted.",
+        "SampleAfterValue": "200003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x24",
+        "UMask": "0x42",
+        "BriefDescription": "RFO requests that hit L2 cache.",
+        "Counter": "0,1,2,3",
+        "EventName": "L2_RQSTS.RFO_HIT",
+        "SampleAfterValue": "200003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x24",
+        "UMask": "0x44",
+        "BriefDescription": "L2 cache hits when fetching instructions, code reads.",
+        "Counter": "0,1,2,3",
+        "EventName": "L2_RQSTS.CODE_RD_HIT",
         "SampleAfterValue": "200003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -71,11 +125,29 @@
     },
     {
         "EventCode": "0x24",
+        "UMask": "0xe7",
+        "BriefDescription": "Demand requests to L2 cache.",
+        "Counter": "0,1,2,3",
+        "EventName": "L2_RQSTS.ALL_DEMAND_REFERENCES",
+        "SampleAfterValue": "200003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x24",
         "UMask": "0xf8",
         "BriefDescription": "Requests from L2 hardware prefetchers",
         "Counter": "0,1,2,3",
         "EventName": "L2_RQSTS.ALL_PF",
         "PublicDescription": "This event counts the total number of requests from the L2 hardware prefetchers.",
+        "SampleAfterValue": "200003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x24",
+        "UMask": "0xff",
+        "BriefDescription": "All L2 requests.",
+        "Counter": "0,1,2,3",
+        "EventName": "L2_RQSTS.REFERENCES",
         "SampleAfterValue": "200003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -131,6 +203,27 @@
         "CounterHTOff": "2"
     },
     {
+        "EventCode": "0x48",
+        "UMask": "0x1",
+        "BriefDescription": "Cycles with L1D load Misses outstanding from any thread on physical core.",
+        "Counter": "2",
+        "EventName": "L1D_PEND_MISS.PENDING_CYCLES_ANY",
+        "AnyThread": "1",
+        "CounterMask": "1",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "2"
+    },
+    {
+        "EventCode": "0x48",
+        "UMask": "0x2",
+        "BriefDescription": "Cycles a demand request was blocked due to Fill Buffers inavailability.",
+        "Counter": "0,1,2,3",
+        "EventName": "L1D_PEND_MISS.FB_FULL",
+        "CounterMask": "1",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
         "EventCode": "0x51",
         "UMask": "0x1",
         "BriefDescription": "L1D data line replacements",
@@ -153,12 +246,35 @@
     },
     {
         "EventCode": "0x60",
+        "UMask": "0x1",
+        "BriefDescription": "Cycles when offcore outstanding Demand Data Read transactions are present in SuperQueue (SQ), queue to uncore",
+        "Counter": "0,1,2,3",
+        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_DATA_RD",
+        "CounterMask": "1",
+        "Errata": "BDM76",
+        "PublicDescription": "This event counts cycles when offcore outstanding Demand Data Read transactions are present in the super queue (SQ). A transaction is considered to be in the Offcore outstanding state between L2 miss and transaction completion sent to requestor (SQ de-allocation).",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x60",
+        "UMask": "0x1",
+        "BriefDescription": "Cycles with at least 6 offcore outstanding Demand Data Read transactions in uncore queue.",
+        "Counter": "0,1,2,3",
+        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD_GE_6",
+        "CounterMask": "6",
+        "Errata": "BDM76",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x60",
         "UMask": "0x2",
         "BriefDescription": "Offcore outstanding code reads transactions in SuperQueue (SQ), queue to uncore, every cycle",
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_CODE_RD",
         "Errata": "BDM76",
-        "PublicDescription": "This event counts the number of offcore outstanding Code Reads transactions in the super queue every cycle. The \"Offcore outstanding\" state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFCORE_REQUESTS.",
+        "PublicDescription": "This event counts the number of offcore outstanding Code Reads transactions in the super queue every cycle. The Offcore outstanding state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFCORE_REQUESTS.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -175,24 +291,24 @@
     },
     {
         "EventCode": "0x60",
+        "UMask": "0x4",
+        "BriefDescription": "Offcore outstanding demand rfo reads transactions in SuperQueue (SQ), queue to uncore, every cycle",
+        "Counter": "0,1,2,3",
+        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_RFO",
+        "CounterMask": "1",
+        "Errata": "BDM76",
+        "PublicDescription": "This event counts the number of offcore outstanding demand rfo Reads transactions in the super queue every cycle. The Offcore outstanding state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFCORE_REQUESTS.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x60",
         "UMask": "0x8",
         "BriefDescription": "Offcore outstanding cacheable Core Data Read transactions in SuperQueue (SQ), queue to uncore",
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.ALL_DATA_RD",
         "Errata": "BDM76",
         "PublicDescription": "This event counts the number of offcore outstanding cacheable Core Data Read transactions in the super queue every cycle. A transaction is considered to be in the Offcore outstanding state between L2 miss and transaction completion sent to requestor (SQ de-allocation). See corresponding Umask under OFFCORE_REQUESTS.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x60",
-        "UMask": "0x1",
-        "BriefDescription": "Cycles when offcore outstanding Demand Data Read transactions are present in SuperQueue (SQ), queue to uncore",
-        "Counter": "0,1,2,3",
-        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_DATA_RD",
-        "CounterMask": "1",
-        "Errata": "BDM76",
-        "PublicDescription": "This event counts cycles when offcore outstanding Demand Data Read transactions are present in the super queue (SQ). A transaction is considered to be in the Offcore outstanding state between L2 miss and transaction completion sent to requestor (SQ de-allocation).",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -205,18 +321,6 @@
         "CounterMask": "1",
         "Errata": "BDM76",
         "PublicDescription": "This event counts cycles when offcore outstanding cacheable Core Data Read transactions are present in the super queue. A transaction is considered to be in the Offcore outstanding state between L2 miss and transaction completion sent to requestor (SQ de-allocation). See corresponding Umask under OFFCORE_REQUESTS.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x60",
-        "UMask": "0x4",
-        "BriefDescription": "Offcore outstanding demand rfo reads transactions in SuperQueue (SQ), queue to uncore, every cycle",
-        "Counter": "0,1,2,3",
-        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_RFO",
-        "CounterMask": "1",
-        "Errata": "BDM76",
-        "PublicDescription": "This event counts the number of offcore outstanding demand rfo Reads transactions in the super queue every cycle. The \"Offcore outstanding\" state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFCORE_REQUESTS.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -266,7 +370,7 @@
         "BriefDescription": "Demand and prefetch data reads",
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_REQUESTS.ALL_DATA_RD",
-        "PublicDescription": "This event counts the demand and prefetch data reads. All Core Data Reads include cacheable \"Demands\" and L2 prefetchers (not L3 prefetchers). Counting also covers reads due to page walks resulted from any request type.",
+        "PublicDescription": "This event counts the demand and prefetch data reads. All Core Data Reads include cacheable Demands and L2 prefetchers (not L3 prefetchers). Counting also covers reads due to page walks resulted from any request type.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -281,26 +385,35 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
+        "EventCode": "0xB7, 0xBB",
+        "UMask": "0x1",
+        "BriefDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "Counter": "0,1,2,3",
+        "EventName": "OFFCORE_RESPONSE",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
         "EventCode": "0xD0",
         "UMask": "0x11",
-        "BriefDescription": "Retired load uops that miss the STLB.",
+        "BriefDescription": "Retired load uops that miss the STLB. (Precise Event - PEBS)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_UOPS_RETIRED.STLB_MISS_LOADS",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts load uops with true STLB miss retired to the architected path. True STLB miss is an uop triggering page walk that gets completed without blocks, and later gets retired. This page walk can end up with or without a fault.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts load uops with true STLB miss retired to the architected path. True STLB miss is an uop triggering page walk that gets completed without blocks, and later gets retired. This page walk can end up with or without a fault.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xD0",
         "UMask": "0x12",
-        "BriefDescription": "Retired store uops that miss the STLB.",
+        "BriefDescription": "Retired store uops that miss the STLB. (Precise Event - PEBS)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_UOPS_RETIRED.STLB_MISS_STORES",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts store uops with true STLB miss retired to the architected path. True STLB miss is an uop triggering page walk that gets completed without blocks, and later gets retired. This page walk can end up with or without a fault.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts store uops true STLB miss retired to the architected path. True STLB miss is an uop triggering page walk that gets completed without blocks, and later gets retired. This page walk can end up with or without a fault.",
         "SampleAfterValue": "100003",
         "L1_Hit_Indication": "1",
         "CounterHTOff": "0,1,2,3"
@@ -308,37 +421,37 @@
     {
         "EventCode": "0xD0",
         "UMask": "0x21",
-        "BriefDescription": "Retired load uops with locked access.",
+        "BriefDescription": "Retired load uops with locked access. (Precise Event - PEBS)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_UOPS_RETIRED.LOCK_LOADS",
         "Errata": "BDM35",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts load uops with locked access retired to the architected path.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts load uops with locked access retired to the architected path.",
         "SampleAfterValue": "100007",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xD0",
         "UMask": "0x41",
-        "BriefDescription": "Retired load uops that split across a cacheline boundary.",
+        "BriefDescription": "Retired load uops that split across a cacheline boundary.(Precise Event - PEBS)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_UOPS_RETIRED.SPLIT_LOADS",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts line-splitted load uops retired to the architected path. A line split is across 64B cache-line which includes a page split (4K).",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts line-splitted load uops retired to the architected path. A line split is across 64B cache-line which includes a page split (4K).",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xD0",
         "UMask": "0x42",
-        "BriefDescription": "Retired store uops that split across a cacheline boundary.",
+        "BriefDescription": "Retired store uops that split across a cacheline boundary. (Precise Event - PEBS)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_UOPS_RETIRED.SPLIT_STORES",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts line-splitted store uops retired to the architected path. A line split is across 64B cache-line which includes a page split (4K).",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts line-splitted store uops retired to the architected path. A line split is across 64B cache-line which includes a page split (4K).",
         "SampleAfterValue": "100003",
         "L1_Hit_Indication": "1",
         "CounterHTOff": "0,1,2,3"
@@ -346,24 +459,24 @@
     {
         "EventCode": "0xD0",
         "UMask": "0x81",
-        "BriefDescription": "All retired load uops.",
+        "BriefDescription": "All retired load uops. (Precise Event - PEBS)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_UOPS_RETIRED.ALL_LOADS",
-        "PublicDescription": "This event counts load uops retired to the architected path with a filter on bits 0 and 1 applied.\nNote: This event counts AVX-256bit load/store double-pump memory uops as a single uop at retirement. This event also counts SW prefetches.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts load uops retired to the architected path with a filter on bits 0 and 1 applied.\nNote: This event ?ounts AVX-256bit load/store double-pump memory uops as a single uop at retirement. This event also counts SW prefetches.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xD0",
         "UMask": "0x82",
-        "BriefDescription": "All retired store uops.",
+        "BriefDescription": "Retired store uops that split across a cacheline boundary. (Precise Event - PEBS)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_UOPS_RETIRED.ALL_STORES",
-        "PublicDescription": "This event counts store uops retired to the architected path with a filter on bits 0 and 1 applied.\nNote: This event counts AVX-256bit load/store double-pump memory uops as a single uop at retirement.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts store uops retired to the architected path with a filter on bits 0 and 1 applied.\nNote: This event ?ounts AVX-256bit load/store double-pump memory uops as a single uop at retirement.",
         "SampleAfterValue": "2000003",
         "L1_Hit_Indication": "1",
         "CounterHTOff": "0,1,2,3"
@@ -371,69 +484,69 @@
     {
         "EventCode": "0xD1",
         "UMask": "0x1",
-        "BriefDescription": "Retired load uops with L1 cache hits as data sources.",
+        "BriefDescription": "Retired load uops with L1 cache hits as data sources. (Precise Event - PEBS)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L1_HIT",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were hits in the nearest-level (L1) cache.\nNote: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load. This event also counts SW prefetches independent of the actual data source.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data source were hits in the nearest-level (L1) cache.\nNote: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load. This event also counts SW prefetches independent of the actual data source.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xD1",
         "UMask": "0x2",
-        "BriefDescription": "Retired load uops with L2 cache hits as data sources.",
+        "BriefDescription": "Retired load uops with L2 cache hits as data sources. (Precise Event - PEBS)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L2_HIT",
         "Errata": "BDM35",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were hits in the mid-level (L2) cache.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were hits in the mid-level (L2) cache.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xD1",
         "UMask": "0x4",
-        "BriefDescription": "Retired load uops which data sources were data hits in L3 without snoops required.",
+        "BriefDescription": "Hit in last-level (L3) cache. Excludes Unknown data-source. (Precise Event - PEBS)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L3_HIT",
         "Errata": "BDM100",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were data hits in the last-level (L3) cache without snoops required.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were data hits in the last-level (L3) cache without snoops required.",
         "SampleAfterValue": "50021",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xD1",
         "UMask": "0x8",
-        "BriefDescription": "Retired load uops misses in L1 cache as data sources.",
+        "BriefDescription": "Retired load uops misses in L1 cache as data sources. Uses PEBS.",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L1_MISS",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were misses in the nearest-level (L1) cache. Counting excludes unknown and UC data source.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were misses in the nearest-level (L1) cache. Counting excludes unknown and UC data source.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xD1",
         "UMask": "0x10",
-        "BriefDescription": "Miss in mid-level (L2) cache. Excludes Unknown data-source.",
+        "BriefDescription": "Retired load uops with L2 cache misses as data sources. Uses PEBS.",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L2_MISS",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were misses in the mid-level (L2) cache. Counting excludes unknown and UC data source.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were misses in the mid-level (L2) cache. Counting excludes unknown and UC data source.",
         "SampleAfterValue": "50021",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xD1",
         "UMask": "0x20",
-        "BriefDescription": "Miss in last-level (L3) cache. Excludes Unknown data-source.",
+        "BriefDescription": "Miss in last-level (L3) cache. Excludes Unknown data-source. (Precise Event - PEBS).",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
@@ -445,84 +558,83 @@
     {
         "EventCode": "0xD1",
         "UMask": "0x40",
-        "BriefDescription": "Retired load uops which data sources were load uops missed L1 but hit FB due to preceding miss to the same cache line with data not ready.",
+        "BriefDescription": "Retired load uops which data sources were load uops missed L1 but hit FB due to preceding miss to the same cache line with data not ready. (Precise Event - PEBS)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_UOPS_RETIRED.HIT_LFB",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were load uops missed L1 but hit a fill buffer due to a preceding miss to the same cache line with the data not ready.\nNote: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were load uops missed L1 but hit a fill buffer due to a preceding miss to the same cache line with the data not ready.\nNote: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xD2",
         "UMask": "0x1",
-        "BriefDescription": "Retired load uops which data sources were L3 hit and cross-core snoop missed in on-pkg core cache.",
+        "BriefDescription": "Retired load uops which data sources were L3 hit and cross-core snoop missed in on-pkg core cache. (Precise Event - PEBS)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_MISS",
         "Errata": "BDM100",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were L3 Hit and a cross-core snoop missed in the on-pkg core cache.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were L3 Hit and a cross-core snoop missed in the on-pkg core cache.",
         "SampleAfterValue": "20011",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xD2",
         "UMask": "0x2",
-        "BriefDescription": "Retired load uops which data sources were L3 and cross-core snoop hits in on-pkg core cache.",
+        "BriefDescription": "Retired load uops which data sources were L3 and cross-core snoop hits in on-pkg core cache. (Precise Event - PEBS)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_HIT",
         "Errata": "BDM100",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were L3 hit and a cross-core snoop hit in the on-pkg core cache.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were L3 hit and a cross-core snoop hit in the on-pkg core cache.",
         "SampleAfterValue": "20011",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xD2",
         "UMask": "0x4",
-        "BriefDescription": "Retired load uops which data sources were HitM responses from shared L3.",
+        "BriefDescription": "Retired load uops which data sources were HitM responses from shared L3. (Precise Event - PEBS)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_HITM",
         "Errata": "BDM100",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were HitM responses from a core on same socket (shared L3).",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were HitM responses from a core on same socket (shared L3).",
         "SampleAfterValue": "20011",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xD2",
         "UMask": "0x8",
-        "BriefDescription": "Retired load uops which data sources were hits in L3 without snoops required.",
+        "BriefDescription": "Retired load uops which data sources were hits in L3 without snoops required. (Precise Event - PEBS)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_NONE",
         "Errata": "BDM100",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were hits in the last-level (L3) cache without snoops required.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were hits in the last-level (L3) cache without snoops required.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xD3",
         "UMask": "0x1",
-        "BriefDescription": "Data from local DRAM either Snoop not needed or Snoop Miss (RspI)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_UOPS_L3_MISS_RETIRED.LOCAL_DRAM",
         "Errata": "BDE70, BDM100",
-        "PublicDescription": "Retired load uop whose Data Source was: local DRAM either Snoop not needed or Snoop Miss (RspI).",
+        "PublicDescription": "This event counts retired load uops where the data came from local DRAM. This does not include hardware prefetches. This is a precise event.",
         "SampleAfterValue": "100007",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xD3",
         "UMask": "0x4",
-        "BriefDescription": "Retired load uop whose Data Source was: remote DRAM either Snoop not needed or Snoop Miss (RspI)",
+        "BriefDescription": "Retired load uop whose Data Source was: remote DRAM either Snoop not needed or Snoop Miss (RspI) (Precise Event)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
@@ -534,7 +646,7 @@
     {
         "EventCode": "0xD3",
         "UMask": "0x10",
-        "BriefDescription": "Retired load uop whose Data Source was: Remote cache HITM",
+        "BriefDescription": "Retired load uop whose Data Source was: Remote cache HITM (Precise Event)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
@@ -546,7 +658,7 @@
     {
         "EventCode": "0xD3",
         "UMask": "0x20",
-        "BriefDescription": "Retired load uop whose Data Source was: forwarded from remote cache",
+        "BriefDescription": "Retired load uop whose Data Source was: forwarded from remote cache (Precise Event)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
@@ -695,119 +807,6 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "EventCode": "0x24",
-        "UMask": "0x42",
-        "BriefDescription": "RFO requests that hit L2 cache.",
-        "Counter": "0,1,2,3",
-        "EventName": "L2_RQSTS.RFO_HIT",
-        "SampleAfterValue": "200003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x24",
-        "UMask": "0x22",
-        "BriefDescription": "RFO requests that miss L2 cache.",
-        "Counter": "0,1,2,3",
-        "EventName": "L2_RQSTS.RFO_MISS",
-        "SampleAfterValue": "200003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x24",
-        "UMask": "0x44",
-        "BriefDescription": "L2 cache hits when fetching instructions, code reads.",
-        "Counter": "0,1,2,3",
-        "EventName": "L2_RQSTS.CODE_RD_HIT",
-        "SampleAfterValue": "200003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x24",
-        "UMask": "0x24",
-        "BriefDescription": "L2 cache misses when fetching instructions.",
-        "Counter": "0,1,2,3",
-        "EventName": "L2_RQSTS.CODE_RD_MISS",
-        "SampleAfterValue": "200003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x24",
-        "UMask": "0x27",
-        "BriefDescription": "Demand requests that miss L2 cache.",
-        "Counter": "0,1,2,3",
-        "EventName": "L2_RQSTS.ALL_DEMAND_MISS",
-        "SampleAfterValue": "200003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x24",
-        "UMask": "0xe7",
-        "BriefDescription": "Demand requests to L2 cache.",
-        "Counter": "0,1,2,3",
-        "EventName": "L2_RQSTS.ALL_DEMAND_REFERENCES",
-        "SampleAfterValue": "200003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x24",
-        "UMask": "0x3f",
-        "BriefDescription": "All requests that miss L2 cache.",
-        "Counter": "0,1,2,3",
-        "EventName": "L2_RQSTS.MISS",
-        "SampleAfterValue": "200003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x24",
-        "UMask": "0xff",
-        "BriefDescription": "All L2 requests.",
-        "Counter": "0,1,2,3",
-        "EventName": "L2_RQSTS.REFERENCES",
-        "SampleAfterValue": "200003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xB7, 0xBB",
-        "UMask": "0x1",
-        "BriefDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
-        "Counter": "0,1,2,3",
-        "EventName": "OFFCORE_RESPONSE",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3"
-    },
-    {
-        "EventCode": "0x60",
-        "UMask": "0x1",
-        "BriefDescription": "Cycles with at least 6 offcore outstanding Demand Data Read transactions in uncore queue.",
-        "Counter": "0,1,2,3",
-        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD_GE_6",
-        "CounterMask": "6",
-        "Errata": "BDM76",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x48",
-        "UMask": "0x1",
-        "BriefDescription": "Cycles with L1D load Misses outstanding from any thread on physical core.",
-        "Counter": "2",
-        "EventName": "L1D_PEND_MISS.PENDING_CYCLES_ANY",
-        "AnyThread": "1",
-        "CounterMask": "1",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "2"
-    },
-    {
-        "EventCode": "0x48",
-        "UMask": "0x2",
-        "BriefDescription": "Cycles a demand request was blocked due to Fill Buffers inavailability.",
-        "Counter": "0,1,2,3",
-        "EventName": "L1D_PEND_MISS.FB_FULL",
-        "CounterMask": "1",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
         "Offcore": "1",
         "EventCode": "0xB7, 0xBB",
         "UMask": "0x1",
@@ -816,6 +815,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_REQUESTS.LLC_HIT.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts all requests that hit in the L3 Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -828,6 +828,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_READS.LLC_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts all data/code/rfo reads (demand & prefetch) that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -840,6 +841,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_READS.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts all data/code/rfo reads (demand & prefetch) that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -852,6 +854,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_CODE_RD.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts all demand & prefetch code reads that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -864,6 +867,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.LLC_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts all demand & prefetch RFOs that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -876,6 +880,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts all demand & prefetch RFOs that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -888,6 +893,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.LLC_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts all demand & prefetch data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -900,6 +906,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.LLC_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts all demand & prefetch data reads that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -912,6 +919,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_LLC_CODE_RD.LLC_HIT.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts prefetch (that bring data to LLC only) code reads that hit in the L3 Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -924,6 +932,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_LLC_RFO.LLC_HIT.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that hit in the L3 Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -936,6 +945,20 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.LLC_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts all demand data writes (RFOs) that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "Offcore": "1",
+        "EventCode": "0xB7, 0xBB",
+        "UMask": "0x1",
+        "BriefDescription": "Counts all demand data writes (RFOs) that hit in the L3",
+        "MSRValue": "0x3f803c0002",
+        "Counter": "0,1,2,3",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.LLC_HIT.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts all demand data writes (RFOs) that hit in the L3 Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     }

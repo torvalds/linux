@@ -37,12 +37,12 @@ DECLARE_EVENT_CLASS(dwc3_log_io,
 );
 
 DEFINE_EVENT(dwc3_log_io, dwc3_readl,
-	TP_PROTO(void *base, u32 offset, u32 value),
+	TP_PROTO(void __iomem *base, u32 offset, u32 value),
 	TP_ARGS(base, offset, value)
 );
 
 DEFINE_EVENT(dwc3_log_io, dwc3_writel,
-	TP_PROTO(void *base, u32 offset, u32 value),
+	TP_PROTO(void __iomem *base, u32 offset, u32 value),
 	TP_ARGS(base, offset, value)
 );
 

@@ -45,7 +45,7 @@ static unsigned int build_pm4_header(unsigned int opcode, size_t packet_size)
 
 	header.u32All = 0;
 	header.opcode = opcode;
-	header.count = packet_size/sizeof(uint32_t) - 2;
+	header.count = packet_size / 4 - 2;
 	header.type = PM4_TYPE_3;
 
 	return header.u32All;
@@ -55,15 +55,27 @@ static void pm_calc_rlib_size(struct packet_manager *pm,
 				unsigned int *rlib_size,
 				bool *over_subscription)
 {
-	unsigned int process_count, queue_count;
+	unsigned int process_count, queue_count, compute_queue_count;
 	unsigned int map_queue_size;
+	unsigned int max_proc_per_quantum = 1;
+	struct kfd_dev *dev = pm->dqm->dev;
 
 	process_count = pm->dqm->processes_count;
 	queue_count = pm->dqm->queue_count;
+	compute_queue_count = queue_count - pm->dqm->sdma_queue_count;
 
-	/* check if there is over subscription*/
+	/* check if there is over subscription
+	 * Note: the arbitration between the number of VMIDs and
+	 * hws_max_conc_proc has been done in
+	 * kgd2kfd_device_init().
+	 */
 	*over_subscription = false;
-	if ((process_count > 1) || queue_count > get_queues_num(pm->dqm)) {
+
+	if (dev->max_proc_per_quantum > 1)
+		max_proc_per_quantum = dev->max_proc_per_quantum;
+
+	if ((process_count > max_proc_per_quantum) ||
+	    compute_queue_count > get_queues_num(pm->dqm)) {
 		*over_subscription = true;
 		pr_debug("Over subscribed runlist\n");
 	}
@@ -116,9 +128,23 @@ static int pm_create_runlist(struct packet_manager *pm, uint32_t *buffer,
 			uint64_t ib, size_t ib_size_in_dwords, bool chain)
 {
 	struct pm4_mes_runlist *packet;
+	int concurrent_proc_cnt = 0;
+	struct kfd_dev *kfd = pm->dqm->dev;
 
 	if (WARN_ON(!ib))
 		return -EFAULT;
+
+	/* Determine the number of processes to map together to HW:
+	 * it can not exceed the number of VMIDs available to the
+	 * scheduler, and it is determined by the smaller of the number
+	 * of processes in the runlist and kfd module parameter
+	 * hws_max_conc_proc.
+	 * Note: the arbitration between the number of VMIDs and
+	 * hws_max_conc_proc has been done in
+	 * kgd2kfd_device_init().
+	 */
+	concurrent_proc_cnt = min(pm->dqm->processes_count,
+			kfd->max_proc_per_quantum);
 
 	packet = (struct pm4_mes_runlist *)buffer;
 
@@ -130,6 +156,7 @@ static int pm_create_runlist(struct packet_manager *pm, uint32_t *buffer,
 	packet->bitfields4.chain = chain ? 1 : 0;
 	packet->bitfields4.offload_polling = 0;
 	packet->bitfields4.valid = 1;
+	packet->bitfields4.process_cnt = concurrent_proc_cnt;
 	packet->ordinal2 = lower_32_bits(ib);
 	packet->bitfields3.ib_base_hi = upper_32_bits(ib);
 
@@ -251,6 +278,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 		return retval;
 
 	*rl_size_bytes = alloc_size_bytes;
+	pm->ib_size_bytes = alloc_size_bytes;
 
 	pr_debug("Building runlist ib process count: %d queues count %d\n",
 		pm->dqm->processes_count, pm->dqm->queue_count);
@@ -564,3 +592,26 @@ void pm_release_ib(struct packet_manager *pm)
 	}
 	mutex_unlock(&pm->lock);
 }
+
+#if defined(CONFIG_DEBUG_FS)
+
+int pm_debugfs_runlist(struct seq_file *m, void *data)
+{
+	struct packet_manager *pm = data;
+
+	mutex_lock(&pm->lock);
+
+	if (!pm->allocated) {
+		seq_puts(m, "  No active runlist\n");
+		goto out;
+	}
+
+	seq_hex_dump(m, "  ", DUMP_PREFIX_OFFSET, 32, 4,
+		     pm->ib_buffer_obj->cpu_ptr, pm->ib_size_bytes, false);
+
+out:
+	mutex_unlock(&pm->lock);
+	return 0;
+}
+
+#endif

@@ -65,8 +65,7 @@ error_bad_value:
 }
 
 static
-DEVICE_ATTR(i2400m_idle_timeout, S_IWUSR,
-	    NULL, i2400m_idle_timeout_store);
+DEVICE_ATTR_WO(i2400m_idle_timeout);
 
 static
 struct attribute *i2400m_dev_attrs[] = {

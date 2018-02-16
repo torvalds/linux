@@ -2760,9 +2760,6 @@ static void
 vmxnet3_adjust_rx_ring_size(struct vmxnet3_adapter *adapter)
 {
 	size_t sz, i, ring0_size, ring1_size, comp_size;
-	struct vmxnet3_rx_queue	*rq = &adapter->rx_queue[0];
-
-
 	if (adapter->netdev->mtu <= VMXNET3_MAX_SKB_BUF_SIZE -
 				    VMXNET3_MAX_ETH_HDR_SIZE) {
 		adapter->skb_buf_size = adapter->netdev->mtu +
@@ -2794,7 +2791,8 @@ vmxnet3_adjust_rx_ring_size(struct vmxnet3_adapter *adapter)
 	comp_size = ring0_size + ring1_size;
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		rq = &adapter->rx_queue[i];
+		struct vmxnet3_rx_queue	*rq = &adapter->rx_queue[i];
+
 		rq->rx_ring[0].size = ring0_size;
 		rq->rx_ring[1].size = ring1_size;
 		rq->comp_ring.size = comp_size;

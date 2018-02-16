@@ -163,6 +163,7 @@
 
 &usb0 {
 	status = "okay";
+	disable-over-current;
 };
 
 &watchdog1 {

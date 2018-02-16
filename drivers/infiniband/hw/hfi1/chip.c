@@ -1083,6 +1083,7 @@ static int qos_rmt_entries(struct hfi1_devdata *dd, unsigned int *mp,
 static void clear_full_mgmt_pkey(struct hfi1_pportdata *ppd);
 static int wait_link_transfer_active(struct hfi1_devdata *dd, int wait_ms);
 static void clear_rsm_rule(struct hfi1_devdata *dd, u8 rule_index);
+static void update_xmit_counters(struct hfi1_pportdata *ppd, u16 link_width);
 
 /*
  * Error interrupt table entry.  This is used as input to the interrupt
@@ -6518,11 +6519,12 @@ static void _dc_start(struct hfi1_devdata *dd)
 	if (!dd->dc_shutdown)
 		return;
 
-	/*
-	 * Take the 8051 out of reset, wait until 8051 is ready, and set host
-	 * version bit.
-	 */
-	release_and_wait_ready_8051_firmware(dd);
+	/* Take the 8051 out of reset */
+	write_csr(dd, DC_DC8051_CFG_RST, 0ull);
+	/* Wait until 8051 is ready */
+	if (wait_fm_ready(dd, TIMEOUT_8051_START))
+		dd_dev_err(dd, "%s: timeout starting 8051 firmware\n",
+			   __func__);
 
 	/* Take away reset for LCB and RX FPE (set in lcb_shutdown). */
 	write_csr(dd, DCC_CFG_RESET, 0x10);
@@ -6902,6 +6904,32 @@ void handle_freeze(struct work_struct *work)
 	wake_up(&dd->event_queue);
 
 	/* no longer frozen */
+}
+
+/**
+ * update_xmit_counters - update PortXmitWait/PortVlXmitWait
+ * counters.
+ * @ppd: info of physical Hfi port
+ * @link_width: new link width after link up or downgrade
+ *
+ * Update the PortXmitWait and PortVlXmitWait counters after
+ * a link up or downgrade event to reflect a link width change.
+ */
+static void update_xmit_counters(struct hfi1_pportdata *ppd, u16 link_width)
+{
+	int i;
+	u16 tx_width;
+	u16 link_speed;
+
+	tx_width = tx_link_width(link_width);
+	link_speed = get_link_speed(ppd->link_speed_active);
+
+	/*
+	 * There are C_VL_COUNT number of PortVLXmitWait counters.
+	 * Adding 1 to C_VL_COUNT to include the PortXmitWait counter.
+	 */
+	for (i = 0; i < C_VL_COUNT + 1; i++)
+		get_xmit_wait_counters(ppd, tx_width, link_speed, i);
 }
 
 /*
@@ -7525,18 +7553,29 @@ void handle_verify_cap(struct work_struct *work)
 	set_link_state(ppd, HLS_GOING_UP);
 }
 
-/*
- * Apply the link width downgrade enabled policy against the current active
- * link widths.
+/**
+ * apply_link_downgrade_policy - Apply the link width downgrade enabled
+ * policy against the current active link widths.
+ * @ppd: info of physical Hfi port
+ * @refresh_widths: True indicates link downgrade event
+ * @return: True indicates a successful link downgrade. False indicates
+ *	    link downgrade event failed and the link will bounce back to
+ *	    default link width.
  *
- * Called when the enabled policy changes or the active link widths change.
+ * Called when the enabled policy changes or the active link widths
+ * change.
+ * Refresh_widths indicates that a link downgrade occurred. The
+ * link_downgraded variable is set by refresh_widths and
+ * determines the success/failure of the policy application.
  */
-void apply_link_downgrade_policy(struct hfi1_pportdata *ppd, int refresh_widths)
+bool apply_link_downgrade_policy(struct hfi1_pportdata *ppd,
+				 bool refresh_widths)
 {
 	int do_bounce = 0;
 	int tries;
 	u16 lwde;
 	u16 tx, rx;
+	bool link_downgraded = refresh_widths;
 
 	/* use the hls lock to avoid a race with actual link up */
 	tries = 0;
@@ -7570,6 +7609,7 @@ retry:
 	    ppd->link_width_downgrade_rx_active == 0) {
 		/* the 8051 reported a dead link as a downgrade */
 		dd_dev_err(ppd->dd, "Link downgrade is really a link down, ignoring\n");
+		link_downgraded = false;
 	} else if (lwde == 0) {
 		/* downgrade is disabled */
 
@@ -7586,6 +7626,7 @@ retry:
 				   ppd->link_width_downgrade_tx_active,
 				   ppd->link_width_downgrade_rx_active);
 			do_bounce = 1;
+			link_downgraded = false;
 		}
 	} else if ((lwde & ppd->link_width_downgrade_tx_active) == 0 ||
 		   (lwde & ppd->link_width_downgrade_rx_active) == 0) {
@@ -7597,6 +7638,7 @@ retry:
 			   lwde, ppd->link_width_downgrade_tx_active,
 			   ppd->link_width_downgrade_rx_active);
 		do_bounce = 1;
+		link_downgraded = false;
 	}
 
 done:
@@ -7608,6 +7650,8 @@ done:
 		set_link_state(ppd, HLS_DN_OFFLINE);
 		start_link(ppd);
 	}
+
+	return link_downgraded;
 }
 
 /*
@@ -7621,7 +7665,8 @@ void handle_link_downgrade(struct work_struct *work)
 							link_downgrade_work);
 
 	dd_dev_info(ppd->dd, "8051: Link width downgrade\n");
-	apply_link_downgrade_policy(ppd, 1);
+	if (apply_link_downgrade_policy(ppd, true))
+		update_xmit_counters(ppd, ppd->link_width_downgrade_tx_active);
 }
 
 static char *dcc_err_string(char *buf, int buf_len, u64 flags)
@@ -8263,8 +8308,8 @@ static irqreturn_t sdma_interrupt(int irq, void *data)
 		/* handle the interrupt(s) */
 		sdma_engine_interrupt(sde, status);
 	} else {
-		dd_dev_err_ratelimited(dd, "SDMA engine %u interrupt, but no status bits set\n",
-				       sde->this_idx);
+		dd_dev_info_ratelimited(dd, "SDMA engine %u interrupt, but no status bits set\n",
+					sde->this_idx);
 	}
 	return IRQ_HANDLED;
 }
@@ -8564,22 +8609,26 @@ int write_lcb_csr(struct hfi1_devdata *dd, u32 addr, u64 data)
 }
 
 /*
- * If the 8051 is in reset mode (dd->dc_shutdown == 1), this function
- * will still continue executing.
- *
  * Returns:
  *	< 0 = Linux error, not able to get access
  *	> 0 = 8051 command RETURN_CODE
  */
-static int _do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
-			    u64 *out_data)
+static int do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
+			   u64 *out_data)
 {
 	u64 reg, completed;
 	int return_code;
 	unsigned long timeout;
 
-	lockdep_assert_held(&dd->dc8051_lock);
 	hfi1_cdbg(DC8051, "type %d, data 0x%012llx", type, in_data);
+
+	mutex_lock(&dd->dc8051_lock);
+
+	/* We can't send any commands to the 8051 if it's in reset */
+	if (dd->dc_shutdown) {
+		return_code = -ENODEV;
+		goto fail;
+	}
 
 	/*
 	 * If an 8051 host command timed out previously, then the 8051 is
@@ -8681,29 +8730,6 @@ static int _do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
 	write_csr(dd, DC_DC8051_CFG_HOST_CMD_0, 0);
 
 fail:
-	return return_code;
-}
-
-/*
- * Returns:
- *	< 0 = Linux error, not able to get access
- *	> 0 = 8051 command RETURN_CODE
- */
-static int do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
-			   u64 *out_data)
-{
-	int return_code;
-
-	mutex_lock(&dd->dc8051_lock);
-	/* We can't send any commands to the 8051 if it's in reset */
-	if (dd->dc_shutdown) {
-		return_code = -ENODEV;
-		goto fail;
-	}
-
-	return_code = _do_8051_command(dd, type, in_data, out_data);
-
-fail:
 	mutex_unlock(&dd->dc8051_lock);
 	return return_code;
 }
@@ -8713,35 +8739,22 @@ static int set_physical_link_state(struct hfi1_devdata *dd, u64 state)
 	return do_8051_command(dd, HCMD_CHANGE_PHY_STATE, state, NULL);
 }
 
-static int _load_8051_config(struct hfi1_devdata *dd, u8 field_id,
-			     u8 lane_id, u32 config_data)
+int load_8051_config(struct hfi1_devdata *dd, u8 field_id,
+		     u8 lane_id, u32 config_data)
 {
 	u64 data;
 	int ret;
 
-	lockdep_assert_held(&dd->dc8051_lock);
 	data = (u64)field_id << LOAD_DATA_FIELD_ID_SHIFT
 		| (u64)lane_id << LOAD_DATA_LANE_ID_SHIFT
 		| (u64)config_data << LOAD_DATA_DATA_SHIFT;
-	ret = _do_8051_command(dd, HCMD_LOAD_CONFIG_DATA, data, NULL);
+	ret = do_8051_command(dd, HCMD_LOAD_CONFIG_DATA, data, NULL);
 	if (ret != HCMD_SUCCESS) {
 		dd_dev_err(dd,
 			   "load 8051 config: field id %d, lane %d, err %d\n",
 			   (int)field_id, (int)lane_id, ret);
 	}
 	return ret;
-}
-
-int load_8051_config(struct hfi1_devdata *dd, u8 field_id,
-		     u8 lane_id, u32 config_data)
-{
-	int return_code;
-
-	mutex_lock(&dd->dc8051_lock);
-	return_code = _load_8051_config(dd, field_id, lane_id, config_data);
-	mutex_unlock(&dd->dc8051_lock);
-
-	return return_code;
 }
 
 /*
@@ -8859,14 +8872,13 @@ int write_host_interface_version(struct hfi1_devdata *dd, u8 version)
 	u32 frame;
 	u32 mask;
 
-	lockdep_assert_held(&dd->dc8051_lock);
 	mask = (HOST_INTERFACE_VERSION_MASK << HOST_INTERFACE_VERSION_SHIFT);
 	read_8051_config(dd, RESERVED_REGISTERS, GENERAL_CONFIG, &frame);
 	/* Clear, then set field */
 	frame &= ~mask;
 	frame |= ((u32)version << HOST_INTERFACE_VERSION_SHIFT);
-	return _load_8051_config(dd, RESERVED_REGISTERS, GENERAL_CONFIG,
-				 frame);
+	return load_8051_config(dd, RESERVED_REGISTERS, GENERAL_CONFIG,
+				frame);
 }
 
 void read_misc_status(struct hfi1_devdata *dd, u8 *ver_major, u8 *ver_minor,
@@ -9269,6 +9281,14 @@ static int set_local_link_attributes(struct hfi1_pportdata *ppd)
 				rx_polarity_inversion, ppd->local_tx_rate);
 	if (ret != HCMD_SUCCESS)
 		goto set_local_link_attributes_fail;
+
+	ret = write_host_interface_version(dd, HOST_INTERFACE_VERSION);
+	if (ret != HCMD_SUCCESS) {
+		dd_dev_err(dd,
+			   "Failed to set host interface version, return 0x%x\n",
+			   ret);
+		goto set_local_link_attributes_fail;
+	}
 
 	/*
 	 * DC supports continuous updates.
@@ -10621,6 +10641,14 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		add_rcvctrl(dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
 
 		handle_linkup_change(dd, 1);
+
+		/*
+		 * After link up, a new link width will have been set.
+		 * Update the xmit counters with regards to the new
+		 * link width.
+		 */
+		update_xmit_counters(ppd, ppd->link_width_active);
+
 		ppd->host_link_state = HLS_UP_INIT;
 		update_statusp(ppd, IB_PORT_INIT);
 		break;
@@ -12984,7 +13012,14 @@ static void disable_intx(struct pci_dev *pdev)
 	pci_intx(pdev, 0);
 }
 
-static void clean_up_interrupts(struct hfi1_devdata *dd)
+/**
+ * hfi1_clean_up_interrupts() - Free all IRQ resources
+ * @dd: valid device data data structure
+ *
+ * Free the MSI or INTx IRQs and assoicated PCI resources,
+ * if they have been allocated.
+ */
+void hfi1_clean_up_interrupts(struct hfi1_devdata *dd)
 {
 	int i;
 
@@ -13345,7 +13380,7 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
 	return 0;
 
 fail:
-	clean_up_interrupts(dd);
+	hfi1_clean_up_interrupts(dd);
 	return ret;
 }
 
@@ -14772,7 +14807,6 @@ void hfi1_start_cleanup(struct hfi1_devdata *dd)
 	aspm_exit(dd);
 	free_cntrs(dd);
 	free_rcverr(dd);
-	clean_up_interrupts(dd);
 	finish_chip_resources(dd);
 }
 
@@ -14944,9 +14978,8 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 
 		if (num_vls < HFI1_MIN_VLS_SUPPORTED ||
 		    num_vls > HFI1_MAX_VLS_SUPPORTED) {
-			hfi1_early_err(&pdev->dev,
-				       "Invalid num_vls %u, using %u VLs\n",
-				    num_vls, HFI1_MAX_VLS_SUPPORTED);
+			dd_dev_err(dd, "Invalid num_vls %u, using %u VLs\n",
+				   num_vls, HFI1_MAX_VLS_SUPPORTED);
 			num_vls = HFI1_MAX_VLS_SUPPORTED;
 		}
 		ppd->vls_supported = num_vls;
@@ -15229,7 +15262,7 @@ bail_free_rcverr:
 bail_free_cntrs:
 	free_cntrs(dd);
 bail_clear_intr:
-	clean_up_interrupts(dd);
+	hfi1_clean_up_interrupts(dd);
 bail_cleanup:
 	hfi1_pcie_ddcleanup(dd);
 bail_free:

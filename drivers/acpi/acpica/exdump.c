@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -617,10 +617,11 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 	u32 length;
 	u32 index;
 
-	ACPI_FUNCTION_NAME(ex_dump_operand)
+	ACPI_FUNCTION_NAME(ex_dump_operand);
 
-	    /* Check if debug output enabled */
-	    if (!ACPI_IS_DEBUG_ENABLED(ACPI_LV_EXEC, _COMPONENT)) {
+	/* Check if debug output enabled */
+
+	if (!ACPI_IS_DEBUG_ENABLED(ACPI_LV_EXEC, _COMPONENT)) {
 		return;
 	}
 
@@ -904,7 +905,7 @@ void
 acpi_ex_dump_operands(union acpi_operand_object **operands,
 		      const char *opcode_name, u32 num_operands)
 {
-	ACPI_FUNCTION_NAME(ex_dump_operands);
+	ACPI_FUNCTION_TRACE(ex_dump_operands);
 
 	if (!opcode_name) {
 		opcode_name = "UNKNOWN";
@@ -928,7 +929,7 @@ acpi_ex_dump_operands(union acpi_operand_object **operands,
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 			  "**** End operand dump for [%s]\n", opcode_name));
-	return;
+	return_VOID;
 }
 
 /*******************************************************************************

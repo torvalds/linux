@@ -97,6 +97,7 @@ static void watchdog_check_min_max_timeout(struct watchdog_device *wdd)
 
 /**
  * watchdog_init_timeout() - initialize the timeout field
+ * @wdd: watchdog device
  * @timeout_parm: timeout module parameter
  * @dev: Device that stores the timeout-sec property
  *

@@ -59,6 +59,9 @@
 #include <net/sctp/sm.h>
 #include <net/sctp/structs.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/sctp.h>
+
 static struct sctp_packet *sctp_abort_pkt_new(
 					struct net *net,
 					const struct sctp_endpoint *ep,
@@ -3013,7 +3016,7 @@ enum sctp_disposition sctp_sf_eat_data_6_2(struct net *net,
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 	}
 
-	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_data_chunk)))
+	if (!sctp_chunk_length_valid(chunk, sctp_datachk_len(&asoc->stream)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
@@ -3034,7 +3037,7 @@ enum sctp_disposition sctp_sf_eat_data_6_2(struct net *net,
 	case SCTP_IERROR_PROTO_VIOLATION:
 		return sctp_sf_abort_violation(net, ep, asoc, chunk, commands,
 					       (u8 *)chunk->subh.data_hdr,
-					       sizeof(struct sctp_datahdr));
+					       sctp_datahdr_len(&asoc->stream));
 	default:
 		BUG();
 	}
@@ -3133,7 +3136,7 @@ enum sctp_disposition sctp_sf_eat_data_fast_4_4(
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 	}
 
-	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_data_chunk)))
+	if (!sctp_chunk_length_valid(chunk, sctp_datachk_len(&asoc->stream)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
@@ -3150,7 +3153,7 @@ enum sctp_disposition sctp_sf_eat_data_fast_4_4(
 	case SCTP_IERROR_PROTO_VIOLATION:
 		return sctp_sf_abort_violation(net, ep, asoc, chunk, commands,
 					       (u8 *)chunk->subh.data_hdr,
-					       sizeof(struct sctp_datahdr));
+					       sctp_datahdr_len(&asoc->stream));
 	default:
 		BUG();
 	}
@@ -3218,6 +3221,8 @@ enum sctp_disposition sctp_sf_eat_sack_6_2(struct net *net,
 	struct sctp_chunk *chunk = arg;
 	struct sctp_sackhdr *sackh;
 	__u32 ctsn;
+
+	trace_sctp_probe(ep, asoc, chunk);
 
 	if (!sctp_vtag_verify(chunk, asoc))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
@@ -3957,7 +3962,6 @@ enum sctp_disposition sctp_sf_eat_fwd_tsn(struct net *net,
 {
 	struct sctp_fwdtsn_hdr *fwdtsn_hdr;
 	struct sctp_chunk *chunk = arg;
-	struct sctp_fwdtsn_skip *skip;
 	__u16 len;
 	__u32 tsn;
 
@@ -3971,7 +3975,7 @@ enum sctp_disposition sctp_sf_eat_fwd_tsn(struct net *net,
 		return sctp_sf_unk_chunk(net, ep, asoc, type, arg, commands);
 
 	/* Make sure that the FORWARD_TSN chunk has valid length.  */
-	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_fwdtsn_chunk)))
+	if (!sctp_chunk_length_valid(chunk, sctp_ftsnchk_len(&asoc->stream)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
@@ -3990,14 +3994,11 @@ enum sctp_disposition sctp_sf_eat_fwd_tsn(struct net *net,
 	if (sctp_tsnmap_check(&asoc->peer.tsn_map, tsn) < 0)
 		goto discard_noforce;
 
-	/* Silently discard the chunk if stream-id is not valid */
-	sctp_walk_fwdtsn(skip, chunk) {
-		if (ntohs(skip->stream) >= asoc->stream.incnt)
-			goto discard_noforce;
-	}
+	if (!asoc->stream.si->validate_ftsn(chunk))
+		goto discard_noforce;
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPORT_FWDTSN, SCTP_U32(tsn));
-	if (len > sizeof(struct sctp_fwdtsn_hdr))
+	if (len > sctp_ftsnhdr_len(&asoc->stream))
 		sctp_add_cmd_sf(commands, SCTP_CMD_PROCESS_FWDTSN,
 				SCTP_CHUNK(chunk));
 
@@ -4028,7 +4029,6 @@ enum sctp_disposition sctp_sf_eat_fwd_tsn_fast(
 {
 	struct sctp_fwdtsn_hdr *fwdtsn_hdr;
 	struct sctp_chunk *chunk = arg;
-	struct sctp_fwdtsn_skip *skip;
 	__u16 len;
 	__u32 tsn;
 
@@ -4042,7 +4042,7 @@ enum sctp_disposition sctp_sf_eat_fwd_tsn_fast(
 		return sctp_sf_unk_chunk(net, ep, asoc, type, arg, commands);
 
 	/* Make sure that the FORWARD_TSN chunk has a valid length.  */
-	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_fwdtsn_chunk)))
+	if (!sctp_chunk_length_valid(chunk, sctp_ftsnchk_len(&asoc->stream)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
@@ -4061,14 +4061,11 @@ enum sctp_disposition sctp_sf_eat_fwd_tsn_fast(
 	if (sctp_tsnmap_check(&asoc->peer.tsn_map, tsn) < 0)
 		goto gen_shutdown;
 
-	/* Silently discard the chunk if stream-id is not valid */
-	sctp_walk_fwdtsn(skip, chunk) {
-		if (ntohs(skip->stream) >= asoc->stream.incnt)
-			goto gen_shutdown;
-	}
+	if (!asoc->stream.si->validate_ftsn(chunk))
+		goto gen_shutdown;
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPORT_FWDTSN, SCTP_U32(tsn));
-	if (len > sizeof(struct sctp_fwdtsn_hdr))
+	if (len > sctp_ftsnhdr_len(&asoc->stream))
 		sctp_add_cmd_sf(commands, SCTP_CMD_PROCESS_FWDTSN,
 				SCTP_CHUNK(chunk));
 
@@ -6244,14 +6241,12 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	struct sctp_chunk *err;
 	enum sctp_verb deliver;
 	size_t datalen;
-	u8 ordered = 0;
-	u16 ssn, sid;
 	__u32 tsn;
 	int tmp;
 
 	data_hdr = (struct sctp_datahdr *)chunk->skb->data;
 	chunk->subh.data_hdr = data_hdr;
-	skb_pull(chunk->skb, sizeof(*data_hdr));
+	skb_pull(chunk->skb, sctp_datahdr_len(&asoc->stream));
 
 	tsn = ntohl(data_hdr->tsn);
 	pr_debug("%s: TSN 0x%x\n", __func__, tsn);
@@ -6299,7 +6294,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 * Actually, allow a little bit of overflow (up to a MTU).
 	 */
 	datalen = ntohs(chunk->chunk_hdr->length);
-	datalen -= sizeof(struct sctp_data_chunk);
+	datalen -= sctp_datachk_len(&asoc->stream);
 
 	deliver = SCTP_CMD_CHUNK_ULP;
 
@@ -6394,7 +6389,6 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 		SCTP_INC_STATS(net, SCTP_MIB_INORDERCHUNKS);
 		if (chunk->asoc)
 			chunk->asoc->stats.iodchunks++;
-		ordered = 1;
 	}
 
 	/* RFC 2960 6.5 Stream Identifier and Stream Sequence Number
@@ -6405,8 +6399,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 * with cause set to "Invalid Stream Identifier" (See Section 3.3.10)
 	 * and discard the DATA chunk.
 	 */
-	sid = ntohs(data_hdr->stream);
-	if (sid >= asoc->stream.incnt) {
+	if (ntohs(data_hdr->stream) >= asoc->stream.incnt) {
 		/* Mark tsn as received even though we drop it */
 		sctp_add_cmd_sf(commands, SCTP_CMD_REPORT_TSN, SCTP_U32(tsn));
 
@@ -6427,8 +6420,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 * SSN is smaller then the next expected one.  If it is, it wrapped
 	 * and is invalid.
 	 */
-	ssn = ntohs(data_hdr->ssn);
-	if (ordered && SSN_lt(ssn, sctp_ssn_peek(&asoc->stream, in, sid)))
+	if (!asoc->stream.si->validate_data(chunk))
 		return SCTP_IERROR_PROTO_VIOLATION;
 
 	/* Send the data up to the user.  Note:  Schedule  the

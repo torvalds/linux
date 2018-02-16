@@ -61,14 +61,14 @@ static void si_dma_ring_set_wptr(struct amdgpu_ring *ring)
 
 static void si_dma_ring_emit_ib(struct amdgpu_ring *ring,
 				struct amdgpu_ib *ib,
-				unsigned vm_id, bool ctx_switch)
+				unsigned vmid, bool ctx_switch)
 {
 	/* The indirect buffer packet must end on an 8 DW boundary in the DMA ring.
 	 * Pad as necessary with NOPs.
 	 */
 	while ((lower_32_bits(ring->wptr) & 7) != 5)
 		amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0));
-	amdgpu_ring_write(ring, DMA_IB_PACKET(DMA_PACKET_INDIRECT_BUFFER, vm_id, 0));
+	amdgpu_ring_write(ring, DMA_IB_PACKET(DMA_PACKET_INDIRECT_BUFFER, vmid, 0));
 	amdgpu_ring_write(ring, (ib->gpu_addr & 0xFFFFFFE0));
 	amdgpu_ring_write(ring, (ib->length_dw << 12) | (upper_32_bits(ib->gpu_addr) & 0xFF));
 
@@ -221,7 +221,7 @@ static int si_dma_ring_test_ring(struct amdgpu_ring *ring)
 	u32 tmp;
 	u64 gpu_addr;
 
-	r = amdgpu_wb_get(adev, &index);
+	r = amdgpu_device_wb_get(adev, &index);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to allocate wb slot\n", r);
 		return r;
@@ -234,7 +234,7 @@ static int si_dma_ring_test_ring(struct amdgpu_ring *ring)
 	r = amdgpu_ring_alloc(ring, 4);
 	if (r) {
 		DRM_ERROR("amdgpu: dma failed to lock ring %d (%d).\n", ring->idx, r);
-		amdgpu_wb_free(adev, index);
+		amdgpu_device_wb_free(adev, index);
 		return r;
 	}
 
@@ -252,13 +252,13 @@ static int si_dma_ring_test_ring(struct amdgpu_ring *ring)
 	}
 
 	if (i < adev->usec_timeout) {
-		DRM_INFO("ring test on %d succeeded in %d usecs\n", ring->idx, i);
+		DRM_DEBUG("ring test on %d succeeded in %d usecs\n", ring->idx, i);
 	} else {
 		DRM_ERROR("amdgpu: ring %d test failed (0x%08X)\n",
 			  ring->idx, tmp);
 		r = -EINVAL;
 	}
-	amdgpu_wb_free(adev, index);
+	amdgpu_device_wb_free(adev, index);
 
 	return r;
 }
@@ -281,7 +281,7 @@ static int si_dma_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	u64 gpu_addr;
 	long r;
 
-	r = amdgpu_wb_get(adev, &index);
+	r = amdgpu_device_wb_get(adev, &index);
 	if (r) {
 		dev_err(adev->dev, "(%ld) failed to allocate wb slot\n", r);
 		return r;
@@ -317,7 +317,7 @@ static int si_dma_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	}
 	tmp = le32_to_cpu(adev->wb.wb[index]);
 	if (tmp == 0xDEADBEEF) {
-		DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
+		DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
 		r = 0;
 	} else {
 		DRM_ERROR("amdgpu: ib test failed (0x%08X)\n", tmp);
@@ -328,7 +328,7 @@ err1:
 	amdgpu_ib_free(adev, &ib, NULL);
 	dma_fence_put(f);
 err0:
-	amdgpu_wb_free(adev, index);
+	amdgpu_device_wb_free(adev, index);
 	return r;
 }
 
@@ -473,25 +473,25 @@ static void si_dma_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
  * using sDMA (VI).
  */
 static void si_dma_ring_emit_vm_flush(struct amdgpu_ring *ring,
-				      unsigned vm_id, uint64_t pd_addr)
+				      unsigned vmid, uint64_t pd_addr)
 {
 	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
-	if (vm_id < 8)
-		amdgpu_ring_write(ring, (0xf << 16) | (VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vm_id));
+	if (vmid < 8)
+		amdgpu_ring_write(ring, (0xf << 16) | (VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vmid));
 	else
-		amdgpu_ring_write(ring, (0xf << 16) | (VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + (vm_id - 8)));
+		amdgpu_ring_write(ring, (0xf << 16) | (VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + (vmid - 8)));
 	amdgpu_ring_write(ring, pd_addr >> 12);
 
 	/* bits 0-7 are the VM contexts0-7 */
 	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
 	amdgpu_ring_write(ring, (0xf << 16) | (VM_INVALIDATE_REQUEST));
-	amdgpu_ring_write(ring, 1 << vm_id);
+	amdgpu_ring_write(ring, 1 << vmid);
 
 	/* wait for invalidate to complete */
 	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_POLL_REG_MEM, 0, 0, 0, 0));
 	amdgpu_ring_write(ring, VM_INVALIDATE_REQUEST);
 	amdgpu_ring_write(ring, 0xff << 16); /* retry */
-	amdgpu_ring_write(ring, 1 << vm_id); /* mask */
+	amdgpu_ring_write(ring, 1 << vmid); /* mask */
 	amdgpu_ring_write(ring, 0); /* value */
 	amdgpu_ring_write(ring, (0 << 28) | 0x20); /* func(always) | poll interval */
 }

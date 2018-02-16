@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /**
  * PCI Endpoint *Controller* (EPC) header file
  *
  * Copyright (C) 2017 Texas Instruments
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 of
- * the License as published by the Free Software Foundation.
  */
 
 #ifndef __LINUX_PCI_EPC_H
@@ -39,17 +36,20 @@ enum pci_epc_irq_type {
  * @owner: the module owner containing the ops
  */
 struct pci_epc_ops {
-	int	(*write_header)(struct pci_epc *pci_epc,
+	int	(*write_header)(struct pci_epc *epc, u8 func_no,
 				struct pci_epf_header *hdr);
-	int	(*set_bar)(struct pci_epc *epc, enum pci_barno bar,
+	int	(*set_bar)(struct pci_epc *epc, u8 func_no,
+			   enum pci_barno bar,
 			   dma_addr_t bar_phys, size_t size, int flags);
-	void	(*clear_bar)(struct pci_epc *epc, enum pci_barno bar);
-	int	(*map_addr)(struct pci_epc *epc, phys_addr_t addr,
-			    u64 pci_addr, size_t size);
-	void	(*unmap_addr)(struct pci_epc *epc, phys_addr_t addr);
-	int	(*set_msi)(struct pci_epc *epc, u8 interrupts);
-	int	(*get_msi)(struct pci_epc *epc);
-	int	(*raise_irq)(struct pci_epc *pci_epc,
+	void	(*clear_bar)(struct pci_epc *epc, u8 func_no,
+			     enum pci_barno bar);
+	int	(*map_addr)(struct pci_epc *epc, u8 func_no,
+			    phys_addr_t addr, u64 pci_addr, size_t size);
+	void	(*unmap_addr)(struct pci_epc *epc, u8 func_no,
+			      phys_addr_t addr);
+	int	(*set_msi)(struct pci_epc *epc, u8 func_no, u8 interrupts);
+	int	(*get_msi)(struct pci_epc *epc, u8 func_no);
+	int	(*raise_irq)(struct pci_epc *epc, u8 func_no,
 			     enum pci_epc_irq_type type, u8 interrupt_num);
 	int	(*start)(struct pci_epc *epc);
 	void	(*stop)(struct pci_epc *epc);
@@ -124,17 +124,21 @@ void pci_epc_destroy(struct pci_epc *epc);
 int pci_epc_add_epf(struct pci_epc *epc, struct pci_epf *epf);
 void pci_epc_linkup(struct pci_epc *epc);
 void pci_epc_remove_epf(struct pci_epc *epc, struct pci_epf *epf);
-int pci_epc_write_header(struct pci_epc *epc, struct pci_epf_header *hdr);
-int pci_epc_set_bar(struct pci_epc *epc, enum pci_barno bar,
+int pci_epc_write_header(struct pci_epc *epc, u8 func_no,
+			 struct pci_epf_header *hdr);
+int pci_epc_set_bar(struct pci_epc *epc, u8 func_no,
+		    enum pci_barno bar,
 		    dma_addr_t bar_phys, size_t size, int flags);
-void pci_epc_clear_bar(struct pci_epc *epc, int bar);
-int pci_epc_map_addr(struct pci_epc *epc, phys_addr_t phys_addr,
+void pci_epc_clear_bar(struct pci_epc *epc, u8 func_no, int bar);
+int pci_epc_map_addr(struct pci_epc *epc, u8 func_no,
+		     phys_addr_t phys_addr,
 		     u64 pci_addr, size_t size);
-void pci_epc_unmap_addr(struct pci_epc *epc, phys_addr_t phys_addr);
-int pci_epc_set_msi(struct pci_epc *epc, u8 interrupts);
-int pci_epc_get_msi(struct pci_epc *epc);
-int pci_epc_raise_irq(struct pci_epc *epc, enum pci_epc_irq_type type,
-		      u8 interrupt_num);
+void pci_epc_unmap_addr(struct pci_epc *epc, u8 func_no,
+			phys_addr_t phys_addr);
+int pci_epc_set_msi(struct pci_epc *epc, u8 func_no, u8 interrupts);
+int pci_epc_get_msi(struct pci_epc *epc, u8 func_no);
+int pci_epc_raise_irq(struct pci_epc *epc, u8 func_no,
+		      enum pci_epc_irq_type type, u8 interrupt_num);
 int pci_epc_start(struct pci_epc *epc);
 void pci_epc_stop(struct pci_epc *epc);
 struct pci_epc *pci_epc_get(const char *epc_name);

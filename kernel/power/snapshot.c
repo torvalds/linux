@@ -1645,8 +1645,7 @@ static unsigned long free_unnecessary_pages(void)
  * [number of saveable pages] - [number of pages that can be freed in theory]
  *
  * where the second term is the sum of (1) reclaimable slab pages, (2) active
- * and (3) inactive anonymous pages, (4) active and (5) inactive file pages,
- * minus mapped file pages.
+ * and (3) inactive anonymous pages, (4) active and (5) inactive file pages.
  */
 static unsigned long minimum_image_size(unsigned long saveable)
 {
@@ -1656,8 +1655,7 @@ static unsigned long minimum_image_size(unsigned long saveable)
 		+ global_node_page_state(NR_ACTIVE_ANON)
 		+ global_node_page_state(NR_INACTIVE_ANON)
 		+ global_node_page_state(NR_ACTIVE_FILE)
-		+ global_node_page_state(NR_INACTIVE_FILE)
-		- global_node_page_state(NR_FILE_MAPPED);
+		+ global_node_page_state(NR_INACTIVE_FILE);
 
 	return saveable <= size ? 0 : saveable - size;
 }

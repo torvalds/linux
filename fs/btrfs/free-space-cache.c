@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/math64.h>
 #include <linux/ratelimit.h>
+#include <linux/error-injection.h>
 #include "ctree.h"
 #include "free-space-cache.h"
 #include "transaction.h"
@@ -332,6 +333,7 @@ static int io_ctl_init(struct btrfs_io_ctl *io_ctl, struct inode *inode,
 
 	return 0;
 }
+ALLOW_ERROR_INJECTION(io_ctl_init, ERRNO);
 
 static void io_ctl_free(struct btrfs_io_ctl *io_ctl)
 {
@@ -993,8 +995,7 @@ update_cache_item(struct btrfs_trans_handle *trans,
 	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
 	if (ret < 0) {
 		clear_extent_bit(&BTRFS_I(inode)->io_tree, 0, inode->i_size - 1,
-				 EXTENT_DIRTY | EXTENT_DELALLOC, 0, 0, NULL,
-				 GFP_NOFS);
+				 EXTENT_DIRTY | EXTENT_DELALLOC, 0, 0, NULL);
 		goto fail;
 	}
 	leaf = path->nodes[0];
@@ -1008,7 +1009,7 @@ update_cache_item(struct btrfs_trans_handle *trans,
 			clear_extent_bit(&BTRFS_I(inode)->io_tree, 0,
 					 inode->i_size - 1,
 					 EXTENT_DIRTY | EXTENT_DELALLOC, 0, 0,
-					 NULL, GFP_NOFS);
+					 NULL);
 			btrfs_release_path(path);
 			goto fail;
 		}
@@ -1105,8 +1106,7 @@ static int flush_dirty_cache(struct inode *inode)
 	ret = btrfs_wait_ordered_range(inode, 0, (u64)-1);
 	if (ret)
 		clear_extent_bit(&BTRFS_I(inode)->io_tree, 0, inode->i_size - 1,
-				 EXTENT_DIRTY | EXTENT_DELALLOC, 0, 0, NULL,
-				 GFP_NOFS);
+				 EXTENT_DIRTY | EXTENT_DELALLOC, 0, 0, NULL);
 
 	return ret;
 }
@@ -1127,8 +1127,7 @@ cleanup_write_cache_enospc(struct inode *inode,
 {
 	io_ctl_drop_pages(io_ctl);
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, 0,
-			     i_size_read(inode) - 1, cached_state,
-			     GFP_NOFS);
+			     i_size_read(inode) - 1, cached_state);
 }
 
 static int __btrfs_wait_cache_io(struct btrfs_root *root,
@@ -1322,7 +1321,7 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	io_ctl_drop_pages(io_ctl);
 
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, 0,
-			     i_size_read(inode) - 1, &cached_state, GFP_NOFS);
+			     i_size_read(inode) - 1, &cached_state);
 
 	/*
 	 * at this point the pages are under IO and we're happy,

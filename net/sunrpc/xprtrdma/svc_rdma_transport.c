@@ -58,6 +58,7 @@
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
+static int svc_rdma_post_recv(struct svcxprt_rdma *xprt);
 static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *, int);
 static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 					struct net *net,
@@ -320,6 +321,8 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	list_add_tail(&ctxt->list, &xprt->sc_rq_dto_q);
 	spin_unlock(&xprt->sc_rq_dto_lock);
 
+	svc_rdma_post_recv(xprt);
+
 	set_bit(XPT_DATA, &xprt->sc_xprt.xpt_flags);
 	if (test_bit(RDMAXPRT_CONN_PENDING, &xprt->sc_flags))
 		goto out;
@@ -404,7 +407,8 @@ static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,
 	return cma_xprt;
 }
 
-int svc_rdma_post_recv(struct svcxprt_rdma *xprt, gfp_t flags)
+static int
+svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 {
 	struct ib_recv_wr recv_wr, *bad_recv_wr;
 	struct svc_rdma_op_ctxt *ctxt;
@@ -423,7 +427,7 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt, gfp_t flags)
 			pr_err("svcrdma: Too many sges (%d)\n", sge_no);
 			goto err_put_ctxt;
 		}
-		page = alloc_page(flags);
+		page = alloc_page(GFP_KERNEL);
 		if (!page)
 			goto err_put_ctxt;
 		ctxt->pages[sge_no] = page;
@@ -457,21 +461,6 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt, gfp_t flags)
 	svc_rdma_unmap_dma(ctxt);
 	svc_rdma_put_context(ctxt, 1);
 	return -ENOMEM;
-}
-
-int svc_rdma_repost_recv(struct svcxprt_rdma *xprt, gfp_t flags)
-{
-	int ret = 0;
-
-	ret = svc_rdma_post_recv(xprt, flags);
-	if (ret) {
-		pr_err("svcrdma: could not post a receive buffer, err=%d.\n",
-		       ret);
-		pr_err("svcrdma: closing transport %p.\n", xprt);
-		set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
-		ret = -ENOTCONN;
-	}
-	return ret;
 }
 
 static void
@@ -833,7 +822,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 
 	/* Post receive buffers */
 	for (i = 0; i < newxprt->sc_max_requests; i++) {
-		ret = svc_rdma_post_recv(newxprt, GFP_KERNEL);
+		ret = svc_rdma_post_recv(newxprt);
 		if (ret) {
 			dprintk("svcrdma: failure posting receive buffers\n");
 			goto errout;

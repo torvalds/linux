@@ -265,7 +265,7 @@
     {
         "EventCode": "0x60",
         "UMask": "0x2",
-        "BriefDescription": "Offcore outstanding Code Reads transactions in the SuperQueue (SQ), queue to uncore, every cycle. ",
+        "BriefDescription": "Offcore outstanding Code Reads transactions in the SuperQueue (SQ), queue to uncore, every cycle.",
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_CODE_RD",
         "PublicDescription": "Counts the number of offcore outstanding Code Reads transactions in the super queue every cycle. The 'Offcore outstanding' state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFCORE_REQUESTS.",
@@ -398,22 +398,24 @@
     {
         "EventCode": "0xD0",
         "UMask": "0x11",
-        "BriefDescription": "Retired load instructions that miss the STLB.",
+        "BriefDescription": "Retired load instructions that miss the STLB. (Precise Event)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_INST_RETIRED.STLB_MISS_LOADS",
+        "PublicDescription": "Retired load instructions that miss the STLB.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xD0",
         "UMask": "0x12",
-        "BriefDescription": "Retired store instructions that miss the STLB.",
+        "BriefDescription": "Retired store instructions that miss the STLB. (Precise Event)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_INST_RETIRED.STLB_MISS_STORES",
+        "PublicDescription": "Retired store instructions that miss the STLB.",
         "SampleAfterValue": "100003",
         "L1_Hit_Indication": "1",
         "CounterHTOff": "0,1,2,3"
@@ -421,7 +423,7 @@
     {
         "EventCode": "0xD0",
         "UMask": "0x21",
-        "BriefDescription": "Retired load instructions with locked access.",
+        "BriefDescription": "Retired load instructions with locked access. (Precise Event)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
@@ -432,24 +434,22 @@
     {
         "EventCode": "0xD0",
         "UMask": "0x41",
-        "BriefDescription": "Retired load instructions that split across a cacheline boundary.",
+        "BriefDescription": "Retired load instructions that split across a cacheline boundary. (Precise Event)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_INST_RETIRED.SPLIT_LOADS",
-        "PublicDescription": "Counts retired load instructions that split across a cacheline boundary.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0xD0",
         "UMask": "0x42",
-        "BriefDescription": "Retired store instructions that split across a cacheline boundary.",
+        "BriefDescription": "Retired store instructions that split across a cacheline boundary. (Precise Event)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_INST_RETIRED.SPLIT_STORES",
-        "PublicDescription": "Counts retired store instructions that split across a cacheline boundary.",
         "SampleAfterValue": "100003",
         "L1_Hit_Indication": "1",
         "CounterHTOff": "0,1,2,3"
@@ -457,7 +457,7 @@
     {
         "EventCode": "0xD0",
         "UMask": "0x81",
-        "BriefDescription": "All retired load instructions.",
+        "BriefDescription": "All retired load instructions. (Precise Event)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
@@ -468,11 +468,12 @@
     {
         "EventCode": "0xD0",
         "UMask": "0x82",
-        "BriefDescription": "All retired store instructions.",
+        "BriefDescription": "All retired store instructions. (Precise Event)",
         "Data_LA": "1",
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_INST_RETIRED.ALL_STORES",
+        "PublicDescription": "All retired store instructions.",
         "SampleAfterValue": "2000003",
         "L1_Hit_Indication": "1",
         "CounterHTOff": "0,1,2,3"
@@ -485,7 +486,7 @@
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_RETIRED.L1_HIT",
-        "PublicDescription": "Counts retired load instructions with at least one uop that hit in the L1 data cache. This event includes all SW prefetches and lock instructions regardless of the data source.",
+        "PublicDescription": "Counts retired load instructions with at least one uop that hit in the L1 data cache. This event includes all SW prefetches and lock instructions regardless of the data source.\r\n",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -509,7 +510,7 @@
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_RETIRED.L3_HIT",
-        "PublicDescription": "Counts retired load instructions with at least one uop that hit in the L3 cache. ",
+        "PublicDescription": "Retired load instructions with L3 cache hits as data sources.",
         "SampleAfterValue": "50021",
         "CounterHTOff": "0,1,2,3"
     },
@@ -545,7 +546,7 @@
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_RETIRED.L3_MISS",
-        "PublicDescription": "Counts retired load instructions with at least one uop that missed in the L3 cache. ",
+        "PublicDescription": "Retired load instructions missed L3 cache as data sources.",
         "SampleAfterValue": "100007",
         "CounterHTOff": "0,1,2,3"
     },
@@ -557,7 +558,7 @@
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_RETIRED.FB_HIT",
-        "PublicDescription": "Counts retired load instructions with at least one uop was load missed in L1 but hit FB (Fill Buffers) due to preceding miss to the same cache line with data not ready. ",
+        "PublicDescription": "Counts retired load instructions with at least one uop was load missed in L1 but hit FB (Fill Buffers) due to preceding miss to the same cache line with data not ready. \r\n",
         "SampleAfterValue": "100007",
         "CounterHTOff": "0,1,2,3"
     },
@@ -616,7 +617,6 @@
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_L3_MISS_RETIRED.LOCAL_DRAM",
-        "PublicDescription": "Retired load instructions which data sources missed L3 but serviced from local DRAM.",
         "SampleAfterValue": "100007",
         "CounterHTOff": "0,1,2,3"
     },
@@ -639,7 +639,6 @@
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_L3_MISS_RETIRED.REMOTE_HITM",
-        "PublicDescription": "Retired load instructions whose data sources was remote HITM.",
         "SampleAfterValue": "100007",
         "CounterHTOff": "0,1,2,3"
     },
@@ -648,9 +647,9 @@
         "UMask": "0x8",
         "BriefDescription": "Retired load instructions whose data sources was forwarded from a remote cache",
         "Data_LA": "1",
+        "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "MEM_LOAD_L3_MISS_RETIRED.REMOTE_FWD",
-        "PublicDescription": "Retired load instructions whose data sources was forwarded from a remote cache.",
         "SampleAfterValue": "100007",
         "CounterHTOff": "0,1,2,3"
     },
@@ -697,7 +696,7 @@
     {
         "EventCode": "0xF2",
         "UMask": "0x2",
-        "BriefDescription": "Counts the number of lines that are evicted by L2 cache when triggered by an L2 cache fill. Those lines can be either in modified state or clean state. Modified lines may either be written back to L3 or directly written to memory and not allocated in L3.  Clean lines may either be allocated in L3 or dropped ",
+        "BriefDescription": "Counts the number of lines that are evicted by L2 cache when triggered by an L2 cache fill. Those lines can be either in modified state or clean state. Modified lines may either be written back to L3 or directly written to memory and not allocated in L3.  Clean lines may either be allocated in L3 or dropped",
         "Counter": "0,1,2,3",
         "EventName": "L2_LINES_OUT.NON_SILENT",
         "PublicDescription": "Counts the number of lines that are evicted by L2 cache when triggered by an L2 cache fill. Those lines can be either in modified state or clean state. Modified lines may either be written back to L3 or directly written to memory and not allocated in L3.  Clean lines may either be allocated in L3 or dropped.",
@@ -742,7 +741,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts demand data reads that have any response type.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts demand data reads that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -755,7 +754,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts demand data reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts demand data reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -768,7 +767,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts demand data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts demand data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -781,7 +780,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "tbd; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -794,7 +793,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts demand data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts demand data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -807,7 +806,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts demand data reads that hit in the L3.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts demand data reads that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -820,7 +819,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand data writes (RFOs) that have any response type.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand data writes (RFOs) that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -833,7 +832,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand data writes (RFOs) that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand data writes (RFOs) that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -846,7 +845,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand data writes (RFOs) that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand data writes (RFOs) that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -859,7 +858,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "tbd; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -872,7 +871,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand data writes (RFOs) that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand data writes (RFOs) that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -885,7 +884,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand data writes (RFOs) that hit in the L3.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand data writes (RFOs) that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -898,7 +897,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand code reads that have any response type.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand code reads that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -911,7 +910,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand code reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand code reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -924,7 +923,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand code reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand code reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -937,7 +936,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "tbd; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -950,7 +949,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand code reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand code reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -963,7 +962,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand code reads that hit in the L3.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand code reads that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -976,7 +975,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that have any response type.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -989,7 +988,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1002,7 +1001,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1015,7 +1014,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "tbd; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1028,7 +1027,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1041,7 +1040,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that hit in the L3.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1054,7 +1053,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that have any response type.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1067,7 +1066,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1080,7 +1079,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1093,7 +1092,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "tbd; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1106,7 +1105,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1119,7 +1118,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that hit in the L3.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1132,7 +1131,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that have any response type.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1145,7 +1144,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1158,7 +1157,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1171,7 +1170,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "tbd; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1184,7 +1183,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1197,7 +1196,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that hit in the L3.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1210,7 +1209,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that have any response type.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1223,7 +1222,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1236,7 +1235,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1249,7 +1248,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "tbd; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1262,7 +1261,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1275,7 +1274,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that hit in the L3.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1288,7 +1287,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L1D_AND_SW.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that have any response type.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1301,7 +1300,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L1D_AND_SW.L3_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1314,7 +1313,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L1D_AND_SW.L3_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1327,7 +1326,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L1D_AND_SW.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "tbd; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1340,7 +1339,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L1D_AND_SW.L3_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1353,7 +1352,85 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L1D_AND_SW.L3_HIT.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that hit in the L3.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "Offcore": "1",
+        "EventCode": "0xB7, 0xBB",
+        "UMask": "0x1",
+        "BriefDescription": "Counts any other requests that have any response type.",
+        "MSRValue": "0x0000018000 ",
+        "Counter": "0,1,2,3",
+        "EventName": "OFFCORE_RESPONSE.OTHER.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts any other requests that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "Offcore": "1",
+        "EventCode": "0xB7, 0xBB",
+        "UMask": "0x1",
+        "BriefDescription": "Counts any other requests that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.",
+        "MSRValue": "0x01003c8000 ",
+        "Counter": "0,1,2,3",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.NO_SNOOP_NEEDED",
+        "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts any other requests that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "Offcore": "1",
+        "EventCode": "0xB7, 0xBB",
+        "UMask": "0x1",
+        "BriefDescription": "Counts any other requests that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.",
+        "MSRValue": "0x04003c8000 ",
+        "Counter": "0,1,2,3",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.HIT_OTHER_CORE_NO_FWD",
+        "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts any other requests that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "Offcore": "1",
+        "EventCode": "0xB7, 0xBB",
+        "UMask": "0x1",
+        "BriefDescription": "OTHER & L3_HIT & SNOOP_HIT_WITH_FWD",
+        "MSRValue": "0x08003c8000 ",
+        "Counter": "0,1,2,3",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SNOOP_HIT_WITH_FWD",
+        "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "Offcore": "1",
+        "EventCode": "0xB7, 0xBB",
+        "UMask": "0x1",
+        "BriefDescription": "Counts any other requests that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.",
+        "MSRValue": "0x10003c8000 ",
+        "Counter": "0,1,2,3",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.HITM_OTHER_CORE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts any other requests that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "Offcore": "1",
+        "EventCode": "0xB7, 0xBB",
+        "UMask": "0x1",
+        "BriefDescription": "Counts any other requests that hit in the L3.",
+        "MSRValue": "0x3f803c8000 ",
+        "Counter": "0,1,2,3",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.ANY_SNOOP",
+        "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts any other requests that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1366,7 +1443,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch data reads that have any response type.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch data reads that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1379,7 +1456,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch data reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch data reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1392,7 +1469,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1405,7 +1482,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "tbd; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1418,7 +1495,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1431,7 +1508,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch data reads that hit in the L3.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all prefetch data reads that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1444,7 +1521,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch RFOs that have any response type.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts prefetch RFOs that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1457,7 +1534,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch RFOs that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts prefetch RFOs that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1470,7 +1547,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch RFOs that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts prefetch RFOs that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1483,7 +1560,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "tbd; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1496,7 +1573,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch RFOs that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts prefetch RFOs that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1509,7 +1586,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch RFOs that hit in the L3.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts prefetch RFOs that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1522,7 +1599,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch data reads that have any response type.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand & prefetch data reads that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1535,7 +1612,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch data reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand & prefetch data reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1548,7 +1625,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand & prefetch data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1561,7 +1638,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "tbd; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1574,7 +1651,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand & prefetch data reads that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1587,7 +1664,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch data reads that hit in the L3.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand & prefetch data reads that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1600,7 +1677,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch RFOs that have any response type.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand & prefetch RFOs that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1613,7 +1690,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch RFOs that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand & prefetch RFOs that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1626,7 +1703,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch RFOs that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand & prefetch RFOs that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1639,7 +1716,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "tbd; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1652,7 +1729,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.HITM_OTHER_CORE",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch RFOs that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand & prefetch RFOs that hit in the L3 and the snoop to one of the sibling cores hits the line in M state and the line is forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1665,7 +1742,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch RFOs that hit in the L3.; Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "PublicDescription": "Counts all demand & prefetch RFOs that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     }

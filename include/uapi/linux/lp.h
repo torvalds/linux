@@ -8,6 +8,8 @@
 #ifndef _UAPI_LINUX_LP_H
 #define _UAPI_LINUX_LP_H
 
+#include <linux/types.h>
+#include <linux/ioctl.h>
 
 /*
  * Per POSIX guidelines, this module reserves the LP and lp prefixes
@@ -88,7 +90,15 @@
 #define LPGETSTATS  0x060d  /* get statistics (struct lp_stats) */
 #endif
 #define LPGETFLAGS  0x060e  /* get status flags */
-#define LPSETTIMEOUT 0x060f /* set parport timeout */
+#define LPSETTIMEOUT_OLD 0x060f /* set parport timeout */
+#define LPSETTIMEOUT_NEW \
+	_IOW(0x6, 0xf, __s64[2]) /* set parport timeout */
+#if __BITS_PER_LONG == 64
+#define LPSETTIMEOUT LPSETTIMEOUT_OLD
+#else
+#define LPSETTIMEOUT (sizeof(time_t) > sizeof(__kernel_long_t) ? \
+	LPSETTIMEOUT_NEW : LPSETTIMEOUT_OLD)
+#endif
 
 /* timeout for printk'ing a timeout, in jiffies (100ths of a second).
    This is also used for re-checking error conditions if LP_ABORT is

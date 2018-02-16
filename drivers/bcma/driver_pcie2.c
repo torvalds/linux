@@ -83,7 +83,8 @@ static void bcma_core_pcie2_hw_ltr_war(struct bcma_drv_pcie2 *pcie2)
 		bcma_core_pcie2_set_ltr_vals(pcie2);
 
 		/* TODO:
-		si_core_wrapperreg(pcie2, 3, 0x60, 0x8080, 0); */
+		 *si_core_wrapperreg(pcie2, 3, 0x60, 0x8080, 0);
+		 */
 
 		/* enable the LTR */
 		devstsctr2 |= PCIE2_CAP_DEVSTSCTRL2_LTRENAB;

@@ -430,7 +430,7 @@ static long wdtpci_ioctl(struct file *file, unsigned int cmd,
 		if (wdtpci_set_heartbeat(new_heartbeat))
 			return -EINVAL;
 		wdtpci_ping();
-		/* Fall */
+		/* fall through */
 	case WDIOC_GETTIMEOUT:
 		return put_user(heartbeat, p);
 	default:

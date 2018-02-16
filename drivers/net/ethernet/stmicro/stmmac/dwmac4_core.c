@@ -17,15 +17,25 @@
 #include <linux/slab.h>
 #include <linux/ethtool.h>
 #include <linux/io.h>
+#include <net/dsa.h>
 #include "stmmac_pcs.h"
 #include "dwmac4.h"
 
-static void dwmac4_core_init(struct mac_device_info *hw, int mtu)
+static void dwmac4_core_init(struct mac_device_info *hw,
+			     struct net_device *dev)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	u32 value = readl(ioaddr + GMAC_CONFIG);
+	int mtu = dev->mtu;
 
 	value |= GMAC_CORE_INIT;
+
+	/* Clear ACS bit because Ethernet switch tagging formats such as
+	 * Broadcom tags can look like invalid LLC/SNAP packets and cause the
+	 * hardware to truncate packets on reception.
+	 */
+	if (netdev_uses_dsa(dev))
+		value &= ~GMAC_CONFIG_ACS;
 
 	if (mtu > 1500)
 		value |= GMAC_CONFIG_2K;
@@ -51,10 +61,9 @@ static void dwmac4_core_init(struct mac_device_info *hw, int mtu)
 
 	writel(value, ioaddr + GMAC_CONFIG);
 
-	/* Mask GMAC interrupts */
-	value = GMAC_INT_DEFAULT_MASK;
-	if (hw->pmt)
-		value |= GMAC_INT_PMT_EN;
+	/* Enable GMAC interrupts */
+	value = GMAC_INT_DEFAULT_ENABLE;
+
 	if (hw->pcs)
 		value |= GMAC_PCS_IRQ_DEFAULT;
 
@@ -562,10 +571,12 @@ static int dwmac4_irq_status(struct mac_device_info *hw,
 			     struct stmmac_extra_stats *x)
 {
 	void __iomem *ioaddr = hw->pcsr;
-	u32 intr_status;
+	u32 intr_status = readl(ioaddr + GMAC_INT_STATUS);
+	u32 intr_enable = readl(ioaddr + GMAC_INT_EN);
 	int ret = 0;
 
-	intr_status = readl(ioaddr + GMAC_INT_STATUS);
+	/* Discard disabled bits */
+	intr_status &= intr_enable;
 
 	/* Not used events (e.g. MMC interrupts) are not handled. */
 	if ((intr_status & mmc_tx_irq))

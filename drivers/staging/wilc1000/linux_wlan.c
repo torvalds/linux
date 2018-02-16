@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "wilc_wfi_cfgoperations.h"
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
@@ -694,7 +695,7 @@ static int wlan_initialize_threads(struct net_device *dev)
 	wilc = vif->wilc;
 
 	wilc->txq_thread = kthread_run(linux_wlan_txq_task, (void *)dev,
-				     "K_TXQ_TASK");
+				       "K_TXQ_TASK");
 	if (IS_ERR(wilc->txq_thread)) {
 		netdev_err(dev, "couldn't create TXQ thread\n");
 		wilc->close = 0;
@@ -910,13 +911,13 @@ static void wilc_set_multicast_list(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC)
 		return;
 
-	if ((dev->flags & IFF_ALLMULTI) ||
-	    (dev->mc.count) > WILC_MULTICAST_TABLE_SIZE) {
+	if (dev->flags & IFF_ALLMULTI ||
+	    dev->mc.count > WILC_MULTICAST_TABLE_SIZE) {
 		wilc_setup_multicast_filter(vif, false, 0);
 		return;
 	}
 
-	if ((dev->mc.count) == 0) {
+	if (dev->mc.count == 0) {
 		wilc_setup_multicast_filter(vif, true, 0);
 		return;
 	}
@@ -1029,7 +1030,7 @@ static int wilc_mac_close(struct net_device *ndev)
 	if (!hif_drv)
 		return 0;
 
-	if ((wl->open_ifcs) > 0)
+	if (wl->open_ifcs > 0)
 		wl->open_ifcs--;
 	else
 		return 0;

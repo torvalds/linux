@@ -40,7 +40,7 @@ struct srcu_data {
 	unsigned long srcu_unlock_count[2];	/* Unlocks per CPU. */
 
 	/* Update-side state. */
-	raw_spinlock_t __private lock ____cacheline_internodealigned_in_smp;
+	spinlock_t __private lock ____cacheline_internodealigned_in_smp;
 	struct rcu_segcblist srcu_cblist;	/* List of callbacks.*/
 	unsigned long srcu_gp_seq_needed;	/* Furthest future GP needed. */
 	unsigned long srcu_gp_seq_needed_exp;	/* Furthest future exp GP. */
@@ -58,7 +58,7 @@ struct srcu_data {
  * Node in SRCU combining tree, similar in function to rcu_data.
  */
 struct srcu_node {
-	raw_spinlock_t __private lock;
+	spinlock_t __private lock;
 	unsigned long srcu_have_cbs[4];		/* GP seq for children */
 						/*  having CBs, but only */
 						/*  is > ->srcu_gq_seq. */
@@ -78,7 +78,7 @@ struct srcu_struct {
 	struct srcu_node *level[RCU_NUM_LVLS + 1];
 						/* First node at each level. */
 	struct mutex srcu_cb_mutex;		/* Serialize CB preparation. */
-	raw_spinlock_t __private lock;		/* Protect counters */
+	spinlock_t __private lock;		/* Protect counters */
 	struct mutex srcu_gp_mutex;		/* Serialize GP work. */
 	unsigned int srcu_idx;			/* Current rdr array element. */
 	unsigned long srcu_gp_seq;		/* Grace-period seq #. */
@@ -107,7 +107,7 @@ struct srcu_struct {
 #define __SRCU_STRUCT_INIT(name)					\
 	{								\
 		.sda = &name##_srcu_data,				\
-		.lock = __RAW_SPIN_LOCK_UNLOCKED(name.lock),		\
+		.lock = __SPIN_LOCK_UNLOCKED(name.lock),		\
 		.srcu_gp_seq_needed = 0 - 1,				\
 		__SRCU_DEP_MAP_INIT(name)				\
 	}

@@ -115,7 +115,7 @@ qed_sp_fcoe_func_start(struct qed_hwfn *p_hwfn,
 	struct qed_fcoe_pf_params *fcoe_pf_params = NULL;
 	struct fcoe_init_ramrod_params *p_ramrod = NULL;
 	struct fcoe_init_func_ramrod_data *p_data;
-	struct fcoe_conn_context *p_cxt = NULL;
+	struct e4_fcoe_conn_context *p_cxt = NULL;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	struct qed_cxt_info cxt_info;
@@ -167,7 +167,7 @@ qed_sp_fcoe_func_start(struct qed_hwfn *p_hwfn,
 	}
 	p_cxt = cxt_info.p_cxt;
 	SET_FIELD(p_cxt->tstorm_ag_context.flags3,
-		  TSTORM_FCOE_CONN_AG_CTX_DUMMY_TIMER_CF_EN, 1);
+		  E4_TSTORM_FCOE_CONN_AG_CTX_DUMMY_TIMER_CF_EN, 1);
 
 	fcoe_pf_params->dummy_icid = (u16)dummy_cid;
 
@@ -568,7 +568,7 @@ int qed_fcoe_alloc(struct qed_hwfn *p_hwfn)
 
 void qed_fcoe_setup(struct qed_hwfn *p_hwfn)
 {
-	struct fcoe_task_context *p_task_ctx = NULL;
+	struct e4_fcoe_task_context *p_task_ctx = NULL;
 	int rc;
 	u32 i;
 
@@ -580,13 +580,13 @@ void qed_fcoe_setup(struct qed_hwfn *p_hwfn)
 		if (rc)
 			continue;
 
-		memset(p_task_ctx, 0, sizeof(struct fcoe_task_context));
+		memset(p_task_ctx, 0, sizeof(struct e4_fcoe_task_context));
 		SET_FIELD(p_task_ctx->timer_context.logical_client_0,
 			  TIMERS_CONTEXT_VALIDLC0, 1);
 		SET_FIELD(p_task_ctx->timer_context.logical_client_1,
 			  TIMERS_CONTEXT_VALIDLC1, 1);
 		SET_FIELD(p_task_ctx->tstorm_ag_context.flags0,
-			  TSTORM_FCOE_TASK_AG_CTX_CONNECTION_TYPE, 1);
+			  E4_TSTORM_FCOE_TASK_AG_CTX_CONNECTION_TYPE, 1);
 	}
 }
 

@@ -3086,7 +3086,7 @@ static int s5p_jpeg_runtime_resume(struct device *dev)
 	for (i = 0; i < jpeg->variant->num_clocks; i++) {
 		ret = clk_prepare_enable(jpeg->clocks[i]);
 		if (ret) {
-			while (--i > 0)
+			while (--i >= 0)
 				clk_disable_unprepare(jpeg->clocks[i]);
 			return ret;
 		}

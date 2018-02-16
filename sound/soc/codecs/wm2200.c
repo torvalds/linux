@@ -98,6 +98,8 @@ struct wm2200_priv {
 
 	int rev;
 	int sysclk;
+
+	unsigned int symmetric_rates:1;
 };
 
 #define WM2200_DSP_RANGE_BASE (WM2200_MAX_REGISTER + 1)
@@ -1550,7 +1552,7 @@ static const struct snd_soc_dapm_route wm2200_dapm_routes[] = {
 
 static int wm2200_probe(struct snd_soc_codec *codec)
 {
-	struct wm2200_priv *wm2200 = dev_get_drvdata(codec->dev);
+	struct wm2200_priv *wm2200 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	wm2200->codec = codec;
@@ -1758,7 +1760,7 @@ static int wm2200_hw_params(struct snd_pcm_substream *substream,
 	lrclk = bclk_rates[bclk] / params_rate(params);
 	dev_dbg(codec->dev, "Setting %dHz LRCLK\n", bclk_rates[bclk] / lrclk);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK ||
-	    dai->symmetric_rates)
+	    wm2200->symmetric_rates)
 		snd_soc_update_bits(codec, WM2200_AUDIO_IF_1_7,
 				    WM2200_AIF1RX_BCPF_MASK, lrclk);
 	else
@@ -2059,13 +2061,14 @@ static int wm2200_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 static int wm2200_dai_probe(struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
+	struct wm2200_priv *wm2200 = snd_soc_codec_get_drvdata(codec);
 	unsigned int val = 0;
 	int ret;
 
 	ret = snd_soc_read(codec, WM2200_GPIO_CTRL_1);
 	if (ret >= 0) {
 		if ((ret & WM2200_GP1_FN_MASK) != 0) {
-			dai->symmetric_rates = true;
+			wm2200->symmetric_rates = true;
 			val = WM2200_AIF1TX_LRCLK_SRC;
 		}
 	} else {

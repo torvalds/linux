@@ -1122,6 +1122,7 @@ struct cq_context {
 #define LPFC_CQ_CNT_256		0x0
 #define LPFC_CQ_CNT_512		0x1
 #define LPFC_CQ_CNT_1024	0x2
+#define LPFC_CQ_CNT_WORD7	0x3
 	uint32_t word1;
 #define lpfc_cq_eq_id_SHIFT		22	/* Version 0 Only */
 #define lpfc_cq_eq_id_MASK		0x000000FF
@@ -1129,7 +1130,7 @@ struct cq_context {
 #define lpfc_cq_eq_id_2_SHIFT		0 	/* Version 2 Only */
 #define lpfc_cq_eq_id_2_MASK		0x0000FFFF
 #define lpfc_cq_eq_id_2_WORD		word1
-	uint32_t reserved0;
+	uint32_t lpfc_cq_context_count;		/* Version 2 Only */
 	uint32_t reserved1;
 };
 
@@ -1193,6 +1194,9 @@ struct lpfc_mbx_cq_create_set {
 #define lpfc_mbx_cq_create_set_arm_SHIFT	31
 #define lpfc_mbx_cq_create_set_arm_MASK		0x00000001
 #define lpfc_mbx_cq_create_set_arm_WORD		word2
+#define lpfc_mbx_cq_create_set_cq_cnt_SHIFT	16
+#define lpfc_mbx_cq_create_set_cq_cnt_MASK	0x00007FFF
+#define lpfc_mbx_cq_create_set_cq_cnt_WORD	word2
 #define lpfc_mbx_cq_create_set_num_cq_SHIFT	0
 #define lpfc_mbx_cq_create_set_num_cq_MASK	0x0000FFFF
 #define lpfc_mbx_cq_create_set_num_cq_WORD	word2

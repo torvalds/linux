@@ -93,11 +93,6 @@ static const struct v4l2_fract webcam_intervals[VIVID_WEBCAM_IVALS] = {
 	{  1, 60 },
 };
 
-static const struct v4l2_discrete_probe webcam_probe = {
-	webcam_sizes,
-	VIVID_WEBCAM_SIZES
-};
-
 static int vid_cap_queue_setup(struct vb2_queue *vq,
 		       unsigned *nbuffers, unsigned *nplanes,
 		       unsigned sizes[], struct device *alloc_devs[])
@@ -578,7 +573,9 @@ int vivid_try_fmt_vid_cap(struct file *file, void *priv,
 	mp->field = vivid_field_cap(dev, mp->field);
 	if (vivid_is_webcam(dev)) {
 		const struct v4l2_frmsize_discrete *sz =
-			v4l2_find_nearest_format(&webcam_probe, mp->width, mp->height);
+			v4l2_find_nearest_format(webcam_sizes,
+						 VIVID_WEBCAM_SIZES,
+						 mp->width, mp->height);
 
 		w = sz->width;
 		h = sz->height;

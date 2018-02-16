@@ -130,6 +130,7 @@ struct bcm2835_i2s_dev {
 	struct regmap				*i2s_regmap;
 	struct clk				*clk;
 	bool					clk_prepared;
+	int					clk_rate;
 };
 
 static void bcm2835_i2s_start_clock(struct bcm2835_i2s_dev *dev)
@@ -419,10 +420,19 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* Clock should only be set up here if CPU is clock master */
-	if (bit_clock_master) {
-		ret = clk_set_rate(dev->clk, bclk_rate);
-		if (ret)
-			return ret;
+	if (bit_clock_master &&
+	    (!dev->clk_prepared || dev->clk_rate != bclk_rate)) {
+		if (dev->clk_prepared)
+			bcm2835_i2s_stop_clock(dev);
+
+		if (dev->clk_rate != bclk_rate) {
+			ret = clk_set_rate(dev->clk, bclk_rate);
+			if (ret)
+				return ret;
+			dev->clk_rate = bclk_rate;
+		}
+
+		bcm2835_i2s_start_clock(dev);
 	}
 
 	/* Setup the frame format */
@@ -617,8 +627,6 @@ static int bcm2835_i2s_prepare(struct snd_pcm_substream *substream,
 {
 	struct bcm2835_i2s_dev *dev = snd_soc_dai_get_drvdata(dai);
 	uint32_t cs_reg;
-
-	bcm2835_i2s_start_clock(dev);
 
 	/*
 	 * Clear both FIFOs if the one that should be started
