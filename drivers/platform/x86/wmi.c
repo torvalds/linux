@@ -933,12 +933,11 @@ static int wmi_dev_probe(struct device *dev)
 			goto probe_failure;
 		}
 
-		buf = kmalloc(strlen(wdriver->driver.name) + 5, GFP_KERNEL);
+		buf = kasprintf(GFP_KERNEL, "wmi/%s", wdriver->driver.name);
 		if (!buf) {
 			ret = -ENOMEM;
 			goto probe_string_failure;
 		}
-		sprintf(buf, "wmi/%s", wdriver->driver.name);
 		wblock->char_dev.minor = MISC_DYNAMIC_MINOR;
 		wblock->char_dev.name = buf;
 		wblock->char_dev.fops = &wmi_fops;
