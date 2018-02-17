@@ -14,3 +14,4 @@ Linux Tracing Technologies
    tracepoints
    events
    events-kmem
+   events-power
