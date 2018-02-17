@@ -1,7 +1,8 @@
-            Uprobe-tracer: Uprobe-based Event Tracing
-            =========================================
+=========================================
+Uprobe-tracer: Uprobe-based Event Tracing
+=========================================
 
-           Documentation written by Srikar Dronamraju
+:Author: Srikar Dronamraju
 
 
 Overview
@@ -19,6 +20,8 @@ user to calculate the offset of the probepoint in the object.
 
 Synopsis of uprobe_tracer
 -------------------------
+::
+
   p[:[GRP/]EVENT] PATH:OFFSET [FETCHARGS] : Set a uprobe
   r[:[GRP/]EVENT] PATH:OFFSET [FETCHARGS] : Set a return uprobe (uretprobe)
   -:[GRP/]EVENT                           : Clear uprobe or uretprobe event
@@ -57,7 +60,7 @@ x86-64 uses x64).
 String type is a special type, which fetches a "null-terminated" string from
 user space.
 Bitfield is another special type, which takes 3 parameters, bit-width, bit-
-offset, and container-size (usually 32). The syntax is;
+offset, and container-size (usually 32). The syntax is::
 
  b<bit-width>@<bit-offset>/<container-size>
 
@@ -74,28 +77,28 @@ the third is the number of probe miss-hits.
 Usage examples
 --------------
  * Add a probe as a new uprobe event, write a new definition to uprobe_events
-as below: (sets a uprobe at an offset of 0x4245c0 in the executable /bin/bash)
+   as below (sets a uprobe at an offset of 0x4245c0 in the executable /bin/bash)::
 
     echo 'p /bin/bash:0x4245c0' > /sys/kernel/debug/tracing/uprobe_events
 
- * Add a probe as a new uretprobe event:
+ * Add a probe as a new uretprobe event::
 
     echo 'r /bin/bash:0x4245c0' > /sys/kernel/debug/tracing/uprobe_events
 
- * Unset registered event:
+ * Unset registered event::
 
     echo '-:p_bash_0x4245c0' >> /sys/kernel/debug/tracing/uprobe_events
 
- * Print out the events that are registered:
+ * Print out the events that are registered::
 
     cat /sys/kernel/debug/tracing/uprobe_events
 
- * Clear all events:
+ * Clear all events::
 
     echo > /sys/kernel/debug/tracing/uprobe_events
 
 Following example shows how to dump the instruction pointer and %ax register
-at the probed text address. Probe zfree function in /bin/zsh:
+at the probed text address. Probe zfree function in /bin/zsh::
 
     # cd /sys/kernel/debug/tracing/
     # cat /proc/`pgrep zsh`/maps | grep /bin/zsh | grep r-xp
@@ -103,24 +106,27 @@ at the probed text address. Probe zfree function in /bin/zsh:
     # objdump -T /bin/zsh | grep -w zfree
     0000000000446420 g    DF .text  0000000000000012  Base        zfree
 
-  0x46420 is the offset of zfree in object /bin/zsh that is loaded at
-  0x00400000. Hence the command to uprobe would be:
+0x46420 is the offset of zfree in object /bin/zsh that is loaded at
+0x00400000. Hence the command to uprobe would be::
 
     # echo 'p:zfree_entry /bin/zsh:0x46420 %ip %ax' > uprobe_events
 
-  And the same for the uretprobe would be:
+And the same for the uretprobe would be::
 
     # echo 'r:zfree_exit /bin/zsh:0x46420 %ip %ax' >> uprobe_events
 
-Please note: User has to explicitly calculate the offset of the probe-point
-in the object. We can see the events that are registered by looking at the
-uprobe_events file.
+.. note:: User has to explicitly calculate the offset of the probe-point
+	in the object.
+
+We can see the events that are registered by looking at the uprobe_events file.
+::
 
     # cat uprobe_events
     p:uprobes/zfree_entry /bin/zsh:0x00046420 arg1=%ip arg2=%ax
     r:uprobes/zfree_exit /bin/zsh:0x00046420 arg1=%ip arg2=%ax
 
-Format of events can be seen by viewing the file events/uprobes/zfree_entry/format
+Format of events can be seen by viewing the file events/uprobes/zfree_entry/format.
+::
 
     # cat events/uprobes/zfree_entry/format
     name: zfree_entry
@@ -139,16 +145,18 @@ Format of events can be seen by viewing the file events/uprobes/zfree_entry/form
     print fmt: "(%lx) arg1=%lx arg2=%lx", REC->__probe_ip, REC->arg1, REC->arg2
 
 Right after definition, each event is disabled by default. For tracing these
-events, you need to enable it by:
+events, you need to enable it by::
 
     # echo 1 > events/uprobes/enable
 
 Lets disable the event after sleeping for some time.
+::
 
     # sleep 20
     # echo 0 > events/uprobes/enable
 
 And you can see the traced information via /sys/kernel/debug/tracing/trace.
+::
 
     # cat trace
     # tracer: nop
