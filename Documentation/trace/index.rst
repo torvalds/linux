@@ -12,3 +12,4 @@ Linux Tracing Technologies
    kprobetrace
    uprobetracer
    tracepoints
+   events
