@@ -57,4 +57,6 @@ void intel_vgpu_start_schedule(struct intel_vgpu *vgpu);
 
 void intel_vgpu_stop_schedule(struct intel_vgpu *vgpu);
 
+void intel_gvt_kick_schedule(struct intel_gvt *gvt);
+
 #endif

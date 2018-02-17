@@ -1776,7 +1776,7 @@ static int ocfs2_dir_foreach_blk_id(struct inode *inode,
 		 * readdir(2), then we might be pointing to an invalid
 		 * dirent right now.  Scan from the start of the block
 		 * to make sure. */
-		if (inode_cmp_iversion(inode, *f_version)) {
+		if (!inode_eq_iversion(inode, *f_version)) {
 			for (i = 0; i < i_size_read(inode) && i < offset; ) {
 				de = (struct ocfs2_dir_entry *)
 					(data->id_data + i);
@@ -1870,7 +1870,7 @@ static int ocfs2_dir_foreach_blk_el(struct inode *inode,
 		 * readdir(2), then we might be pointing to an invalid
 		 * dirent right now.  Scan from the start of the block
 		 * to make sure. */
-		if (inode_cmp_iversion(inode, *f_version)) {
+		if (!inode_eq_iversion(inode, *f_version)) {
 			for (i = 0; i < sb->s_blocksize && i < offset; ) {
 				de = (struct ocfs2_dir_entry *) (bh->b_data + i);
 				/* It's too expensive to do a full
@@ -1958,7 +1958,7 @@ int ocfs2_readdir(struct file *file, struct dir_context *ctx)
 
 	trace_ocfs2_readdir((unsigned long long)OCFS2_I(inode)->ip_blkno);
 
-	error = ocfs2_inode_lock_atime(inode, file->f_path.mnt, &lock_level);
+	error = ocfs2_inode_lock_atime(inode, file->f_path.mnt, &lock_level, 1);
 	if (lock_level && error >= 0) {
 		/* We release EX lock which used to update atime
 		 * and get PR lock again to reduce contention

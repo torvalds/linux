@@ -1924,7 +1924,6 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 	struct wacom_features *features = &wacom_wac->features;
 	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
 	int i;
-	bool is_touch_on = value;
 	bool do_report = false;
 
 	/*
@@ -1969,16 +1968,17 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 		break;
 
 	case WACOM_HID_WD_MUTE_DEVICE:
-		if (wacom_wac->shared->touch_input && value) {
-			wacom_wac->shared->is_touch_on = !wacom_wac->shared->is_touch_on;
-			is_touch_on = wacom_wac->shared->is_touch_on;
-		}
-
-		/* fall through*/
 	case WACOM_HID_WD_TOUCHONOFF:
 		if (wacom_wac->shared->touch_input) {
+			bool *is_touch_on = &wacom_wac->shared->is_touch_on;
+
+			if (equivalent_usage == WACOM_HID_WD_MUTE_DEVICE && value)
+				*is_touch_on = !(*is_touch_on);
+			else if (equivalent_usage == WACOM_HID_WD_TOUCHONOFF)
+				*is_touch_on = value;
+
 			input_report_switch(wacom_wac->shared->touch_input,
-					    SW_MUTE_DEVICE, !is_touch_on);
+					    SW_MUTE_DEVICE, !(*is_touch_on));
 			input_sync(wacom_wac->shared->touch_input);
 		}
 		break;
@@ -2085,7 +2085,29 @@ static void wacom_wac_pen_usage_mapping(struct hid_device *hdev,
 		wacom_map_usage(input, usage, field, EV_KEY, BTN_STYLUS2, 0);
 		break;
 	case HID_DG_TOOLSERIALNUMBER:
+		features->quirks |= WACOM_QUIRK_TOOLSERIAL;
 		wacom_map_usage(input, usage, field, EV_MSC, MSC_SERIAL, 0);
+
+		/* Adjust AES usages to match modern convention */
+		if (usage->hid == WACOM_HID_WT_SERIALNUMBER && field->report_size == 16) {
+			if (field->index + 2 < field->report->maxfield) {
+				struct hid_field *a = field->report->field[field->index + 1];
+				struct hid_field *b = field->report->field[field->index + 2];
+
+				if (a->maxusage > 0 && a->usage[0].hid == HID_DG_TOOLSERIALNUMBER && a->report_size == 32 &&
+				    b->maxusage > 0 && b->usage[0].hid == 0xFF000000 && b->report_size == 8) {
+					features->quirks |= WACOM_QUIRK_AESPEN;
+					usage->hid = WACOM_HID_WD_TOOLTYPE;
+					field->logical_minimum = S16_MIN;
+					field->logical_maximum = S16_MAX;
+					a->logical_minimum = S32_MIN;
+					a->logical_maximum = S32_MAX;
+					b->usage[0].hid = WACOM_HID_WD_SERIALHI;
+					b->logical_minimum = 0;
+					b->logical_maximum = U8_MAX;
+				}
+			}
+		}
 		break;
 	case WACOM_HID_WD_SENSE:
 		features->quirks |= WACOM_QUIRK_SENSE;
@@ -2093,15 +2115,18 @@ static void wacom_wac_pen_usage_mapping(struct hid_device *hdev,
 		break;
 	case WACOM_HID_WD_SERIALHI:
 		wacom_map_usage(input, usage, field, EV_ABS, ABS_MISC, 0);
-		set_bit(EV_KEY, input->evbit);
-		input_set_capability(input, EV_KEY, BTN_TOOL_PEN);
-		input_set_capability(input, EV_KEY, BTN_TOOL_RUBBER);
-		input_set_capability(input, EV_KEY, BTN_TOOL_BRUSH);
-		input_set_capability(input, EV_KEY, BTN_TOOL_PENCIL);
-		input_set_capability(input, EV_KEY, BTN_TOOL_AIRBRUSH);
-		if (!(features->device_type & WACOM_DEVICETYPE_DIRECT)) {
-			input_set_capability(input, EV_KEY, BTN_TOOL_MOUSE);
-			input_set_capability(input, EV_KEY, BTN_TOOL_LENS);
+
+		if (!(features->quirks & WACOM_QUIRK_AESPEN)) {
+			set_bit(EV_KEY, input->evbit);
+			input_set_capability(input, EV_KEY, BTN_TOOL_PEN);
+			input_set_capability(input, EV_KEY, BTN_TOOL_RUBBER);
+			input_set_capability(input, EV_KEY, BTN_TOOL_BRUSH);
+			input_set_capability(input, EV_KEY, BTN_TOOL_PENCIL);
+			input_set_capability(input, EV_KEY, BTN_TOOL_AIRBRUSH);
+			if (!(features->device_type & WACOM_DEVICETYPE_DIRECT)) {
+				input_set_capability(input, EV_KEY, BTN_TOOL_MOUSE);
+				input_set_capability(input, EV_KEY, BTN_TOOL_LENS);
+			}
 		}
 		break;
 	case WACOM_HID_WD_FINGERWHEEL:
@@ -4390,6 +4415,12 @@ static const struct wacom_features wacom_features_0x360 =
 static const struct wacom_features wacom_features_0x361 =
 	{ "Wacom Intuos Pro L", 62200, 43200, 8191, 63,
 	  INTUOSP2_BT, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9, .touch_max = 10 };
+static const struct wacom_features wacom_features_0x37A =
+	{ "Wacom One by Wacom S", 15200, 9500, 2047, 63,
+	  BAMBOO_PEN, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+static const struct wacom_features wacom_features_0x37B =
+	{ "Wacom One by Wacom M", 21600, 13500, 2047, 63,
+	  BAMBOO_PEN, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 
 static const struct wacom_features wacom_features_HID_ANY_ID =
 	{ "Wacom HID", .type = HID_GENERIC, .oVid = HID_ANY_ID, .oPid = HID_ANY_ID };
@@ -4558,6 +4589,8 @@ const struct hid_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x343) },
 	{ BT_DEVICE_WACOM(0x360) },
 	{ BT_DEVICE_WACOM(0x361) },
+	{ USB_DEVICE_WACOM(0x37A) },
+	{ USB_DEVICE_WACOM(0x37B) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },

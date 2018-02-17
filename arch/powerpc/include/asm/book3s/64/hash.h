@@ -9,11 +9,6 @@
  *
  */
 #define H_PTE_NONE_MASK		_PAGE_HPTEFLAGS
-#define H_PAGE_F_GIX_SHIFT	56
-#define H_PAGE_BUSY		_RPAGE_RSV1 /* software: PTE & hash are busy */
-#define H_PAGE_F_SECOND		_RPAGE_RSV2	/* HPTE is in 2ndary HPTEG */
-#define H_PAGE_F_GIX		(_RPAGE_RSV3 | _RPAGE_RSV4 | _RPAGE_RPN44)
-#define H_PAGE_HASHPTE		_RPAGE_RPN43	/* PTE has associated HPTE */
 
 #ifdef CONFIG_PPC_64K_PAGES
 #include <asm/book3s/64/hash-64k.h>
@@ -28,7 +23,8 @@
 				 H_PUD_INDEX_SIZE + H_PGD_INDEX_SIZE + PAGE_SHIFT)
 #define H_PGTABLE_RANGE		(ASM_CONST(1) << H_PGTABLE_EADDR_SIZE)
 
-#if defined(CONFIG_TRANSPARENT_HUGEPAGE) &&  defined(CONFIG_PPC_64K_PAGES)
+#if (defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLB_PAGE)) && \
+	defined(CONFIG_PPC_64K_PAGES)
 /*
  * only with hash 64k we need to use the second half of pmd page table
  * to store pointer to deposited pgtable_t
@@ -36,6 +32,16 @@
 #define H_PMD_CACHE_INDEX	(H_PMD_INDEX_SIZE + 1)
 #else
 #define H_PMD_CACHE_INDEX	H_PMD_INDEX_SIZE
+#endif
+/*
+ * We store the slot details in the second half of page table.
+ * Increase the pud level table so that hugetlb ptes can be stored
+ * at pud level.
+ */
+#if defined(CONFIG_HUGETLB_PAGE) &&  defined(CONFIG_PPC_64K_PAGES)
+#define H_PUD_CACHE_INDEX	(H_PUD_INDEX_SIZE + 1)
+#else
+#define H_PUD_CACHE_INDEX	(H_PUD_INDEX_SIZE)
 #endif
 /*
  * Define the address range of the kernel non-linear virtual area
@@ -166,6 +172,9 @@ static inline int hash__pte_none(pte_t pte)
 {
 	return (pte_val(pte) & ~H_PTE_NONE_MASK) == 0;
 }
+
+unsigned long pte_get_hash_gslot(unsigned long vpn, unsigned long shift,
+		int ssize, real_pte_t rpte, unsigned int subpg_index);
 
 /* This low level function performs the actual PTE insertion
  * Setting the PTE depends on the MMU type and other factors. It's

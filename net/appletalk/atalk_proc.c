@@ -226,7 +226,6 @@ static int atalk_seq_socket_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations atalk_seq_interface_fops = {
-	.owner		= THIS_MODULE,
 	.open		= atalk_seq_interface_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -234,7 +233,6 @@ static const struct file_operations atalk_seq_interface_fops = {
 };
 
 static const struct file_operations atalk_seq_route_fops = {
-	.owner		= THIS_MODULE,
 	.open		= atalk_seq_route_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -242,7 +240,6 @@ static const struct file_operations atalk_seq_route_fops = {
 };
 
 static const struct file_operations atalk_seq_socket_fops = {
-	.owner		= THIS_MODULE,
 	.open		= atalk_seq_socket_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

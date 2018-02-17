@@ -10,3 +10,4 @@ userfaultfd
 mlock-intersect-test
 mlock-random-test
 virtual_address_range
+gup_benchmark

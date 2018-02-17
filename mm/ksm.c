@@ -2302,7 +2302,7 @@ next_mm:
 
 /**
  * ksm_do_scan  - the ksm scanner main worker function.
- * @scan_npages - number of pages we want to scan before we return.
+ * @scan_npages:  number of pages we want to scan before we return.
  */
 static void ksm_do_scan(unsigned int scan_npages)
 {

@@ -635,6 +635,7 @@
 # define DP_SET_POWER_D0                    0x1
 # define DP_SET_POWER_D3                    0x2
 # define DP_SET_POWER_MASK                  0x3
+# define DP_SET_POWER_D3_AUX_ON             0x5
 
 #define DP_EDP_DPCD_REV			    0x700    /* eDP 1.2 */
 # define DP_EDP_11			    0x00

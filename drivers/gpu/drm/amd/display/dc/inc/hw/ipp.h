@@ -85,8 +85,10 @@ struct ipp_funcs {
 	/* setup ipp to expand/convert input to pixel processor internal format */
 	void (*ipp_setup)(
 		struct input_pixel_processor *ipp,
-		enum surface_pixel_format input_format,
-		enum expansion_mode mode);
+		enum surface_pixel_format format,
+		enum expansion_mode mode,
+		struct csc_transform input_csc_color_matrix,
+		enum dc_color_space input_color_space);
 
 	/* DCE function to setup IPP.  TODO: see if we can consolidate to setup */
 	void (*ipp_program_prescale)(

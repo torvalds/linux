@@ -1162,6 +1162,8 @@ static bool blk_mq_mark_tag_wait(struct blk_mq_hw_ctx **hctx,
 	return true;
 }
 
+#define BLK_MQ_RESOURCE_DELAY	3		/* ms units */
+
 bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list,
 			     bool got_budget)
 {
@@ -1169,6 +1171,7 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list,
 	struct request *rq, *nxt;
 	bool no_tag = false;
 	int errors, queued;
+	blk_status_t ret = BLK_STS_OK;
 
 	if (list_empty(list))
 		return false;
@@ -1181,7 +1184,6 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list,
 	errors = queued = 0;
 	do {
 		struct blk_mq_queue_data bd;
-		blk_status_t ret;
 
 		rq = list_first_entry(list, struct request, queuelist);
 		if (!blk_mq_get_driver_tag(rq, &hctx, false)) {
@@ -1226,7 +1228,7 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list,
 		}
 
 		ret = q->mq_ops->queue_rq(hctx, &bd);
-		if (ret == BLK_STS_RESOURCE) {
+		if (ret == BLK_STS_RESOURCE || ret == BLK_STS_DEV_RESOURCE) {
 			/*
 			 * If an I/O scheduler has been configured and we got a
 			 * driver tag for the next request already, free it
@@ -1257,6 +1259,8 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list,
 	 * that is where we will continue on next queue run.
 	 */
 	if (!list_empty(list)) {
+		bool needs_restart;
+
 		spin_lock(&hctx->lock);
 		list_splice_init(list, &hctx->dispatch);
 		spin_unlock(&hctx->lock);
@@ -1280,10 +1284,17 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list,
 		 * - Some but not all block drivers stop a queue before
 		 *   returning BLK_STS_RESOURCE. Two exceptions are scsi-mq
 		 *   and dm-rq.
+		 *
+		 * If driver returns BLK_STS_RESOURCE and SCHED_RESTART
+		 * bit is set, run queue after a delay to avoid IO stalls
+		 * that could otherwise occur if the queue is idle.
 		 */
-		if (!blk_mq_sched_needs_restart(hctx) ||
+		needs_restart = blk_mq_sched_needs_restart(hctx);
+		if (!needs_restart ||
 		    (no_tag && list_empty_careful(&hctx->dispatch_wait.entry)))
 			blk_mq_run_hw_queue(hctx, true);
+		else if (needs_restart && (ret == BLK_STS_RESOURCE))
+			blk_mq_delay_run_hw_queue(hctx, BLK_MQ_RESOURCE_DELAY);
 	}
 
 	return (queued + errors) != 0;
@@ -1764,6 +1775,7 @@ static blk_status_t __blk_mq_issue_directly(struct blk_mq_hw_ctx *hctx,
 		*cookie = new_cookie;
 		break;
 	case BLK_STS_RESOURCE:
+	case BLK_STS_DEV_RESOURCE:
 		__blk_mq_requeue_request(rq);
 		break;
 	default:
@@ -1826,7 +1838,7 @@ static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 	hctx_lock(hctx, &srcu_idx);
 
 	ret = __blk_mq_try_issue_directly(hctx, rq, cookie, false);
-	if (ret == BLK_STS_RESOURCE)
+	if (ret == BLK_STS_RESOURCE || ret == BLK_STS_DEV_RESOURCE)
 		blk_mq_sched_insert_request(rq, false, true, false);
 	else if (ret != BLK_STS_OK)
 		blk_mq_end_request(rq, ret);

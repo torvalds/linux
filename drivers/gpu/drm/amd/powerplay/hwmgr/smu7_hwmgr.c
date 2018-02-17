@@ -2722,9 +2722,6 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 		}
 	}
 
-	smu7_ps->vce_clks.evclk = hwmgr->vce_arbiter.evclk;
-	smu7_ps->vce_clks.ecclk = hwmgr->vce_arbiter.ecclk;
-
 	cgs_get_active_displays_info(hwmgr->device, &info);
 
 	minimum_clocks.engineClock = hwmgr->display_config.min_core_set_clock;
@@ -2752,38 +2749,6 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 
 		minimum_clocks.engineClock = stable_pstate_sclk;
 		minimum_clocks.memoryClock = stable_pstate_mclk;
-	}
-
-	if (minimum_clocks.engineClock < hwmgr->gfx_arbiter.sclk)
-		minimum_clocks.engineClock = hwmgr->gfx_arbiter.sclk;
-
-	if (minimum_clocks.memoryClock < hwmgr->gfx_arbiter.mclk)
-		minimum_clocks.memoryClock = hwmgr->gfx_arbiter.mclk;
-
-	smu7_ps->sclk_threshold = hwmgr->gfx_arbiter.sclk_threshold;
-
-	if (0 != hwmgr->gfx_arbiter.sclk_over_drive) {
-		PP_ASSERT_WITH_CODE((hwmgr->gfx_arbiter.sclk_over_drive <=
-				hwmgr->platform_descriptor.overdriveLimit.engineClock),
-				"Overdrive sclk exceeds limit",
-				hwmgr->gfx_arbiter.sclk_over_drive =
-						hwmgr->platform_descriptor.overdriveLimit.engineClock);
-
-		if (hwmgr->gfx_arbiter.sclk_over_drive >= hwmgr->gfx_arbiter.sclk)
-			smu7_ps->performance_levels[1].engine_clock =
-					hwmgr->gfx_arbiter.sclk_over_drive;
-	}
-
-	if (0 != hwmgr->gfx_arbiter.mclk_over_drive) {
-		PP_ASSERT_WITH_CODE((hwmgr->gfx_arbiter.mclk_over_drive <=
-				hwmgr->platform_descriptor.overdriveLimit.memoryClock),
-				"Overdrive mclk exceeds limit",
-				hwmgr->gfx_arbiter.mclk_over_drive =
-						hwmgr->platform_descriptor.overdriveLimit.memoryClock);
-
-		if (hwmgr->gfx_arbiter.mclk_over_drive >= hwmgr->gfx_arbiter.mclk)
-			smu7_ps->performance_levels[1].memory_clock =
-					hwmgr->gfx_arbiter.mclk_over_drive;
 	}
 
 	disable_mclk_switching_for_frame_lock = phm_cap_enabled(
@@ -4339,9 +4304,9 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 
 		for (i = 0; i < pcie_table->count; i++)
 			size += sprintf(buf + size, "%d: %s %s\n", i,
-					(pcie_table->dpm_levels[i].value == 0) ? "2.5GB, x8" :
-					(pcie_table->dpm_levels[i].value == 1) ? "5.0GB, x16" :
-					(pcie_table->dpm_levels[i].value == 2) ? "8.0GB, x16" : "",
+					(pcie_table->dpm_levels[i].value == 0) ? "2.5GT/s, x8" :
+					(pcie_table->dpm_levels[i].value == 1) ? "5.0GT/s, x16" :
+					(pcie_table->dpm_levels[i].value == 2) ? "8.0GT/s, x16" : "",
 					(i == now) ? "*" : "");
 		break;
 	default:
@@ -4686,6 +4651,25 @@ static int smu7_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int smu7_get_max_high_clocks(struct pp_hwmgr *hwmgr,
+					struct amd_pp_simple_clock_info *clocks)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	struct smu7_single_dpm_table *sclk_table = &(data->dpm_table.sclk_table);
+	struct smu7_single_dpm_table *mclk_table = &(data->dpm_table.mclk_table);
+
+	if (clocks == NULL)
+		return -EINVAL;
+
+	clocks->memory_max_clock = mclk_table->count > 1 ?
+				mclk_table->dpm_levels[mclk_table->count-1].value :
+				mclk_table->dpm_levels[0].value;
+	clocks->engine_max_clock = sclk_table->count > 1 ?
+				sclk_table->dpm_levels[sclk_table->count-1].value :
+				sclk_table->dpm_levels[0].value;
+	return 0;
+}
+
 static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.backend_init = &smu7_hwmgr_backend_init,
 	.backend_fini = &smu7_hwmgr_backend_fini,
@@ -4738,6 +4722,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.disable_smc_firmware_ctf = smu7_thermal_disable_alert,
 	.start_thermal_controller = smu7_start_thermal_controller,
 	.notify_cac_buffer_info = smu7_notify_cac_buffer_info,
+	.get_max_high_clocks = smu7_get_max_high_clocks,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,

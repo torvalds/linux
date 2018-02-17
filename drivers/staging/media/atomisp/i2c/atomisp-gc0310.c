@@ -1370,13 +1370,9 @@ static int gc0310_probe(struct i2c_client *client)
 	dev->fmt_idx = 0;
 	v4l2_i2c_subdev_init(&(dev->sd), client, &gc0310_ops);
 
-	if (ACPI_COMPANION(&client->dev))
-		pdata = gmin_camera_platform_data(&dev->sd,
-						  ATOMISP_INPUT_FORMAT_RAW_8,
-						  atomisp_bayer_order_grbg);
-	else
-		pdata = client->dev.platform_data;
-
+	pdata = gmin_camera_platform_data(&dev->sd,
+					  ATOMISP_INPUT_FORMAT_RAW_8,
+					  atomisp_bayer_order_grbg);
 	if (!pdata) {
 		ret = -EINVAL;
 		goto out_free;

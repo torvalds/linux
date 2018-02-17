@@ -187,10 +187,19 @@ struct gfs2_rgrp {
 	__be32 rg_flags;
 	__be32 rg_free;
 	__be32 rg_dinodes;
-	__be32 __pad;
+	union {
+		__be32 __pad;
+		__be32 rg_skip; /* Distance to the next rgrp in fs blocks */
+	};
 	__be64 rg_igeneration;
+	/* The following 3 fields are duplicated from gfs2_rindex to reduce
+	   reliance on the rindex */
+	__be64 rg_data0;     /* First data location */
+	__be32 rg_data;      /* Number of data blocks in rgrp */
+	__be32 rg_bitbytes;  /* Number of bytes in data bitmaps */
+	__be32 rg_crc;       /* crc32 of the structure with this field 0 */
 
-	__u8 rg_reserved[80]; /* Several fields from gfs1 now reserved */
+	__u8 rg_reserved[60]; /* Several fields from gfs1 now reserved */
 };
 
 /*
@@ -394,7 +403,36 @@ struct gfs2_ea_header {
  * Log header structure
  */
 
-#define GFS2_LOG_HEAD_UNMOUNT	0x00000001	/* log is clean */
+#define GFS2_LOG_HEAD_UNMOUNT		0x00000001 /* log is clean */
+#define GFS2_LOG_HEAD_FLUSH_NORMAL	0x00000002 /* normal log flush */
+#define GFS2_LOG_HEAD_FLUSH_SYNC	0x00000004 /* Sync log flush */
+#define GFS2_LOG_HEAD_FLUSH_SHUTDOWN	0x00000008 /* Shutdown log flush */
+#define GFS2_LOG_HEAD_FLUSH_FREEZE	0x00000010 /* Freeze flush */
+#define GFS2_LOG_HEAD_RECOVERY		0x00000020 /* Journal recovery */
+#define GFS2_LOG_HEAD_USERSPACE		0x80000000 /* Written by gfs2-utils */
+
+/* Log flush callers */
+#define GFS2_LFC_SHUTDOWN		0x00000100
+#define GFS2_LFC_JDATA_WPAGES		0x00000200
+#define GFS2_LFC_SET_FLAGS		0x00000400
+#define GFS2_LFC_AIL_EMPTY_GL		0x00000800
+#define GFS2_LFC_AIL_FLUSH		0x00001000
+#define GFS2_LFC_RGRP_GO_SYNC		0x00002000
+#define GFS2_LFC_INODE_GO_SYNC		0x00004000
+#define GFS2_LFC_INODE_GO_INVAL		0x00008000
+#define GFS2_LFC_FREEZE_GO_SYNC		0x00010000
+#define GFS2_LFC_KILL_SB		0x00020000
+#define GFS2_LFC_DO_SYNC		0x00040000
+#define GFS2_LFC_INPLACE_RESERVE	0x00080000
+#define GFS2_LFC_WRITE_INODE		0x00100000
+#define GFS2_LFC_MAKE_FS_RO		0x00200000
+#define GFS2_LFC_SYNC_FS		0x00400000
+#define GFS2_LFC_EVICT_INODE		0x00800000
+#define GFS2_LFC_TRANS_END		0x01000000
+#define GFS2_LFC_LOGD_JFLUSH_REQD	0x02000000
+#define GFS2_LFC_LOGD_AIL_FLUSH_REQD	0x04000000
+
+#define LH_V1_SIZE (offsetofend(struct gfs2_log_header, lh_hash))
 
 struct gfs2_log_header {
 	struct gfs2_meta_header lh_header;
@@ -403,7 +441,21 @@ struct gfs2_log_header {
 	__be32 lh_flags;	/* GFS2_LOG_HEAD_... */
 	__be32 lh_tail;		/* Block number of log tail */
 	__be32 lh_blkno;
-	__be32 lh_hash;
+	__be32 lh_hash;		/* crc up to here with this field 0 */
+
+	/* Version 2 additional fields start here */
+	__be32 lh_crc;		/* crc32c from lh_nsec to end of block */
+	__be32 lh_nsec;		/* Nanoseconds of timestamp */
+	__be64 lh_sec;		/* Seconds of timestamp */
+	__be64 lh_addr;		/* Block addr of this log header (absolute) */
+	__be64 lh_jinode;	/* Journal inode number */
+	__be64 lh_statfs_addr;	/* Local statfs inode number */
+	__be64 lh_quota_addr;	/* Local quota change inode number */
+
+	/* Statfs local changes (i.e. diff from global statfs) */
+	__be64 lh_local_total;
+	__be64 lh_local_free;
+	__be64 lh_local_dinodes;
 };
 
 /*

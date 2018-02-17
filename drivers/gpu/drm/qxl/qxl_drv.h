@@ -111,6 +111,8 @@ struct qxl_bo_list {
 struct qxl_crtc {
 	struct drm_crtc base;
 	int index;
+
+	struct qxl_bo *cursor_bo;
 };
 
 struct qxl_output {

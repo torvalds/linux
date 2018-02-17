@@ -173,7 +173,7 @@ static ssize_t codec_reg_show(struct device *dev,
 	return soc_codec_reg_show(rtd->codec, buf, PAGE_SIZE, 0);
 }
 
-static DEVICE_ATTR(codec_reg, 0444, codec_reg_show, NULL);
+static DEVICE_ATTR_RO(codec_reg);
 
 static ssize_t pmdown_time_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -553,9 +553,17 @@ struct snd_soc_component *snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 {
 	struct snd_soc_rtdcom_list *rtdcom;
 
+	if (!driver_name)
+		return NULL;
+
 	for_each_rtdcom(rtd, rtdcom) {
-		if ((rtdcom->component->driver->name == driver_name) ||
-		    strcmp(rtdcom->component->driver->name, driver_name) == 0)
+		const char *component_name = rtdcom->component->driver->name;
+
+		if (!component_name)
+			continue;
+
+		if ((component_name == driver_name) ||
+		    strcmp(component_name, driver_name) == 0)
 			return rtdcom->component;
 	}
 

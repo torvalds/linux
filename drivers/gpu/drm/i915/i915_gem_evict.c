@@ -46,7 +46,7 @@ static bool ggtt_is_idle(struct drm_i915_private *i915)
 	       return false;
 
        for_each_engine(engine, i915, id) {
-	       if (engine->last_retired_context != i915->kernel_context)
+	       if (!intel_engine_has_kernel_context(engine))
 		       return false;
        }
 
@@ -73,6 +73,7 @@ static int ggtt_flush(struct drm_i915_private *i915)
 	if (err)
 		return err;
 
+	GEM_BUG_ON(!ggtt_is_idle(i915));
 	return 0;
 }
 
@@ -216,6 +217,7 @@ search_again:
 		if (ret)
 			return ret;
 
+		cond_resched();
 		goto search_again;
 	}
 

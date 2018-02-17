@@ -662,17 +662,58 @@ asmlinkage void handle_bad_stack(struct pt_regs *regs)
 }
 #endif
 
-asmlinkage void do_serror(struct pt_regs *regs, unsigned int esr)
+void __noreturn arm64_serror_panic(struct pt_regs *regs, u32 esr)
 {
-	nmi_enter();
-
 	console_verbose();
 
 	pr_crit("SError Interrupt on CPU%d, code 0x%08x -- %s\n",
 		smp_processor_id(), esr, esr_get_class_string(esr));
-	__show_regs(regs);
+	if (regs)
+		__show_regs(regs);
 
-	panic("Asynchronous SError Interrupt");
+	nmi_panic(regs, "Asynchronous SError Interrupt");
+
+	cpu_park_loop();
+	unreachable();
+}
+
+bool arm64_is_fatal_ras_serror(struct pt_regs *regs, unsigned int esr)
+{
+	u32 aet = arm64_ras_serror_get_severity(esr);
+
+	switch (aet) {
+	case ESR_ELx_AET_CE:	/* corrected error */
+	case ESR_ELx_AET_UEO:	/* restartable, not yet consumed */
+		/*
+		 * The CPU can make progress. We may take UEO again as
+		 * a more severe error.
+		 */
+		return false;
+
+	case ESR_ELx_AET_UEU:	/* Uncorrected Unrecoverable */
+	case ESR_ELx_AET_UER:	/* Uncorrected Recoverable */
+		/*
+		 * The CPU can't make progress. The exception may have
+		 * been imprecise.
+		 */
+		return true;
+
+	case ESR_ELx_AET_UC:	/* Uncontainable or Uncategorized error */
+	default:
+		/* Error has been silently propagated */
+		arm64_serror_panic(regs, esr);
+	}
+}
+
+asmlinkage void do_serror(struct pt_regs *regs, unsigned int esr)
+{
+	nmi_enter();
+
+	/* non-RAS errors are not containable */
+	if (!arm64_is_ras_serror(esr) || arm64_is_fatal_ras_serror(regs, esr))
+		arm64_serror_panic(regs, esr);
+
+	nmi_exit();
 }
 
 void __pte_error(const char *file, int line, unsigned long val)

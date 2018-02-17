@@ -27,6 +27,7 @@ config THUNDER_NIC_PF
 
 config THUNDER_NIC_VF
 	tristate "Thunder Virtual function driver"
+	imply CAVIUM_PTP
 	depends on 64BIT
 	---help---
 	  This driver supports Thunder's NIC virtual function
@@ -49,6 +50,18 @@ config	THUNDER_NIC_RGX
 	---help---
 	  This driver supports configuring XCV block of RGX interface
 	  present on CN81XX chip.
+
+config CAVIUM_PTP
+	tristate "Cavium PTP coprocessor as PTP clock"
+	depends on 64BIT
+	imply PTP_1588_CLOCK
+	default y
+	---help---
+	  This driver adds support for the Precision Time Protocol Clocks and
+	  Timestamping coprocessor (PTP) found on Cavium processors.
+	  PTP provides timestamping mechanism that is suitable for use in IEEE 1588
+	  Precision Time Protocol or other purposes.  Timestamps can be used in
+	  BGX, TNS, GTI, and NIC blocks.
 
 config LIQUIDIO
 	tristate "Cavium LiquidIO support"

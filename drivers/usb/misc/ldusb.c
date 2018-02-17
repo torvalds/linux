@@ -409,23 +409,23 @@ exit:
 /**
  *	ld_usb_poll
  */
-static unsigned int ld_usb_poll(struct file *file, poll_table *wait)
+static __poll_t ld_usb_poll(struct file *file, poll_table *wait)
 {
 	struct ld_usb *dev;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	dev = file->private_data;
 
 	if (!dev->intf)
-		return POLLERR | POLLHUP;
+		return EPOLLERR | EPOLLHUP;
 
 	poll_wait(file, &dev->read_wait, wait);
 	poll_wait(file, &dev->write_wait, wait);
 
 	if (dev->ring_head != dev->ring_tail)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	if (!dev->interrupt_out_busy)
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 
 	return mask;
 }

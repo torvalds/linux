@@ -1,6 +1,4 @@
 /*
- * linux/drivers/video/omap2/dss/sdi.c
- *
  * Copyright (C) 2009 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
  *

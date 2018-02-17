@@ -101,12 +101,16 @@ enum ip_conntrack_status {
 	IPS_HELPER_BIT = 13,
 	IPS_HELPER = (1 << IPS_HELPER_BIT),
 
+	/* Conntrack has been offloaded to flow table. */
+	IPS_OFFLOAD_BIT = 14,
+	IPS_OFFLOAD = (1 << IPS_OFFLOAD_BIT),
+
 	/* Be careful here, modifying these bits can make things messy,
 	 * so don't let users modify them directly.
 	 */
 	IPS_UNCHANGEABLE_MASK = (IPS_NAT_DONE_MASK | IPS_NAT_MASK |
 				 IPS_EXPECTED | IPS_CONFIRMED | IPS_DYING |
-				 IPS_SEQ_ADJUST | IPS_TEMPLATE),
+				 IPS_SEQ_ADJUST | IPS_TEMPLATE | IPS_OFFLOAD),
 
 	__IPS_MAX_BIT = 14,
 };

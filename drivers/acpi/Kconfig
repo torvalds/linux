@@ -79,7 +79,12 @@ config ACPI_DEBUGGER_USER
 endif
 
 config ACPI_SPCR_TABLE
-	bool
+	bool "ACPI Serial Port Console Redirection Support"
+	default y if X86
+	help
+	  Enable support for Serial Port Console Redirection (SPCR) Table.
+	  This table provides information about the configuration of the
+	  earlycon console.
 
 config ACPI_LPIT
 	bool

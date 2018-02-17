@@ -144,7 +144,7 @@ static ssize_t tty_read(struct file *, char __user *, size_t, loff_t *);
 static ssize_t tty_write(struct file *, const char __user *, size_t, loff_t *);
 ssize_t redirected_tty_write(struct file *, const char __user *,
 							size_t, loff_t *);
-static unsigned int tty_poll(struct file *, poll_table *);
+static __poll_t tty_poll(struct file *, poll_table *);
 static int tty_open(struct inode *, struct file *);
 long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 #ifdef CONFIG_COMPAT
@@ -443,9 +443,9 @@ static ssize_t hung_up_tty_write(struct file *file, const char __user *buf,
 }
 
 /* No kernel lock held - none needed ;) */
-static unsigned int hung_up_tty_poll(struct file *filp, poll_table *wait)
+static __poll_t hung_up_tty_poll(struct file *filp, poll_table *wait)
 {
-	return POLLIN | POLLOUT | POLLERR | POLLHUP | POLLRDNORM | POLLWRNORM;
+	return EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP | EPOLLRDNORM | EPOLLWRNORM;
 }
 
 static long hung_up_tty_ioctl(struct file *file, unsigned int cmd,
@@ -533,7 +533,7 @@ void tty_wakeup(struct tty_struct *tty)
 			tty_ldisc_deref(ld);
 		}
 	}
-	wake_up_interruptible_poll(&tty->write_wait, POLLOUT);
+	wake_up_interruptible_poll(&tty->write_wait, EPOLLOUT);
 }
 
 EXPORT_SYMBOL_GPL(tty_wakeup);
@@ -867,7 +867,7 @@ static ssize_t tty_read(struct file *file, char __user *buf, size_t count,
 static void tty_write_unlock(struct tty_struct *tty)
 {
 	mutex_unlock(&tty->atomic_write_lock);
-	wake_up_interruptible_poll(&tty->write_wait, POLLOUT);
+	wake_up_interruptible_poll(&tty->write_wait, EPOLLOUT);
 }
 
 static int tty_write_lock(struct tty_struct *tty, int ndelay)
@@ -1323,6 +1323,9 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx)
 			"%s: %s driver does not set tty->port. This will crash the kernel later. Fix the driver!\n",
 			__func__, tty->driver->name);
 
+	retval = tty_ldisc_lock(tty, 5 * HZ);
+	if (retval)
+		goto err_release_lock;
 	tty->port->itty = tty;
 
 	/*
@@ -1333,6 +1336,7 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx)
 	retval = tty_ldisc_setup(tty, tty->link);
 	if (retval)
 		goto err_release_tty;
+	tty_ldisc_unlock(tty);
 	/* Return the tty locked so that it cannot vanish under the caller */
 	return tty;
 
@@ -1345,9 +1349,11 @@ err_module_put:
 
 	/* call the tty release_tty routine to clean out this slot */
 err_release_tty:
-	tty_unlock(tty);
+	tty_ldisc_unlock(tty);
 	tty_info_ratelimited(tty, "ldisc open failed (%d), clearing slot %d\n",
 			     retval, idx);
+err_release_lock:
+	tty_unlock(tty);
 	release_tty(tty, idx);
 	return ERR_PTR(retval);
 }
@@ -1476,6 +1482,8 @@ static void release_tty(struct tty_struct *tty, int idx)
 	if (tty->link)
 		tty->link->port->itty = NULL;
 	tty_buffer_cancel_work(tty->port);
+	if (tty->link)
+		tty_buffer_cancel_work(tty->link->port);
 
 	tty_kref_put(tty->link);
 	tty_kref_put(tty);
@@ -1659,21 +1667,21 @@ int tty_release(struct inode *inode, struct file *filp)
 
 		if (tty->count <= 1) {
 			if (waitqueue_active(&tty->read_wait)) {
-				wake_up_poll(&tty->read_wait, POLLIN);
+				wake_up_poll(&tty->read_wait, EPOLLIN);
 				do_sleep++;
 			}
 			if (waitqueue_active(&tty->write_wait)) {
-				wake_up_poll(&tty->write_wait, POLLOUT);
+				wake_up_poll(&tty->write_wait, EPOLLOUT);
 				do_sleep++;
 			}
 		}
 		if (o_tty && o_tty->count <= 1) {
 			if (waitqueue_active(&o_tty->read_wait)) {
-				wake_up_poll(&o_tty->read_wait, POLLIN);
+				wake_up_poll(&o_tty->read_wait, EPOLLIN);
 				do_sleep++;
 			}
 			if (waitqueue_active(&o_tty->write_wait)) {
-				wake_up_poll(&o_tty->write_wait, POLLOUT);
+				wake_up_poll(&o_tty->write_wait, EPOLLOUT);
 				do_sleep++;
 			}
 		}
@@ -2055,11 +2063,11 @@ retry_open:
  *	may be re-entered freely by other callers.
  */
 
-static unsigned int tty_poll(struct file *filp, poll_table *wait)
+static __poll_t tty_poll(struct file *filp, poll_table *wait)
 {
 	struct tty_struct *tty = file_tty(filp);
 	struct tty_ldisc *ld;
-	int ret = 0;
+	__poll_t ret = 0;
 
 	if (tty_paranoia_check(tty, file_inode(filp), "tty_poll"))
 		return 0;

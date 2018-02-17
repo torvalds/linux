@@ -1,9 +1,7 @@
-# arch/arm/mach-s3c64xx/Makefile
+# SPDX-License-Identifier: GPL-2.0
 #
 # Copyright 2008 Openmoko, Inc.
 # Copyright 2008 Simtec Electronics
-#
-# Licensed under GPLv2
 
 ccflags-$(CONFIG_ARCH_MULTIPLATFORM) := -I$(srctree)/$(src)/include -I$(srctree)/arch/arm/plat-samsung/include
 asflags-$(CONFIG_ARCH_MULTIPLATFORM) := -I$(srctree)/$(src)/include -I$(srctree)/arch/arm/plat-samsung/include

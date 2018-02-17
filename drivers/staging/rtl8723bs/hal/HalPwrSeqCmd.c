@@ -50,7 +50,7 @@ u8 HalPwrSeqCmdParsing(
 	WLAN_PWR_CFG PwrSeqCmd[]
 )
 {
-	WLAN_PWR_CFG PwrCfgCmd = {0};
+	WLAN_PWR_CFG PwrCfgCmd;
 	u8 bPollingBit = false;
 	u32 AryIdx = 0;
 	u8 value = 0;

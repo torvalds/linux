@@ -26,9 +26,8 @@ static struct afs_volume *afs_alloc_volume(struct afs_mount_params *params,
 					   unsigned long type_mask)
 {
 	struct afs_server_list *slist;
-	struct afs_server *server;
 	struct afs_volume *volume;
-	int ret = -ENOMEM, nr_servers = 0, i, j;
+	int ret = -ENOMEM, nr_servers = 0, i;
 
 	for (i = 0; i < vldb->nr_servers; i++)
 		if (vldb->fs_mask[i] & type_mask)
@@ -58,50 +57,10 @@ static struct afs_volume *afs_alloc_volume(struct afs_mount_params *params,
 
 	refcount_set(&slist->usage, 1);
 	volume->servers = slist;
-
-	/* Make sure a records exists for each server this volume occupies. */
-	for (i = 0; i < nr_servers; i++) {
-		if (!(vldb->fs_mask[i] & type_mask))
-			continue;
-
-		server = afs_lookup_server(params->cell, params->key,
-					   &vldb->fs_server[i]);
-		if (IS_ERR(server)) {
-			ret = PTR_ERR(server);
-			if (ret == -ENOENT)
-				continue;
-			goto error_2;
-		}
-
-		/* Insertion-sort by server pointer */
-		for (j = 0; j < slist->nr_servers; j++)
-			if (slist->servers[j].server >= server)
-				break;
-		if (j < slist->nr_servers) {
-			if (slist->servers[j].server == server) {
-				afs_put_server(params->net, server);
-				continue;
-			}
-
-			memmove(slist->servers + j + 1,
-				slist->servers + j,
-				(slist->nr_servers - j) * sizeof(struct afs_server_entry));
-		}
-
-		slist->servers[j].server = server;
-		slist->nr_servers++;
-	}
-
-	if (slist->nr_servers == 0) {
-		ret = -EDESTADDRREQ;
-		goto error_2;
-	}
-
 	return volume;
 
-error_2:
-	afs_put_serverlist(params->net, slist);
 error_1:
+	afs_put_cell(params->net, volume->cell);
 	kfree(volume);
 error_0:
 	return ERR_PTR(ret);
@@ -327,7 +286,7 @@ static int afs_update_volume_status(struct afs_volume *volume, struct key *key)
 
 	/* See if the volume's server list got updated. */
 	new = afs_alloc_server_list(volume->cell, key,
-				      vldb, (1 << volume->type));
+				    vldb, (1 << volume->type));
 	if (IS_ERR(new)) {
 		ret = PTR_ERR(new);
 		goto error_vldb;

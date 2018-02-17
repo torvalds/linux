@@ -156,7 +156,6 @@ xfs_dir2_block_to_sf(
 	xfs_dir2_sf_hdr_t	*sfhp)		/* shortform directory hdr */
 {
 	xfs_dir2_data_hdr_t	*hdr;		/* block header */
-	xfs_dir2_block_tail_t	*btp;		/* block tail pointer */
 	xfs_dir2_data_entry_t	*dep;		/* data entry pointer */
 	xfs_inode_t		*dp;		/* incore directory inode */
 	xfs_dir2_data_unused_t	*dup;		/* unused data pointer */
@@ -192,9 +191,8 @@ xfs_dir2_block_to_sf(
 	/*
 	 * Set up to loop over the block's entries.
 	 */
-	btp = xfs_dir2_block_tail_p(args->geo, hdr);
 	ptr = (char *)dp->d_ops->data_entry_p(hdr);
-	endptr = (char *)xfs_dir2_block_leaf_p(btp);
+	endptr = xfs_dir3_data_endp(args->geo, hdr);
 	sfep = xfs_dir2_sf_firstentry(sfp);
 	/*
 	 * Loop over the active and unused entries.
@@ -630,7 +628,7 @@ xfs_dir2_sf_check(
 #endif	/* DEBUG */
 
 /* Verify the consistency of an inline directory. */
-int
+xfs_failaddr_t
 xfs_dir2_sf_verify(
 	struct xfs_inode		*ip)
 {
@@ -665,7 +663,7 @@ xfs_dir2_sf_verify(
 	 */
 	if (size <= offsetof(struct xfs_dir2_sf_hdr, parent) ||
 	    size < xfs_dir2_sf_hdr_size(sfp->i8count))
-		return -EFSCORRUPTED;
+		return __this_address;
 
 	endp = (char *)sfp + size;
 
@@ -674,7 +672,7 @@ xfs_dir2_sf_verify(
 	i8count = ino > XFS_DIR2_MAX_SHORT_INUM;
 	error = xfs_dir_ino_validate(mp, ino);
 	if (error)
-		return error;
+		return __this_address;
 	offset = dops->data_first_offset;
 
 	/* Check all reported entries */
@@ -686,11 +684,11 @@ xfs_dir2_sf_verify(
 		 * within the data buffer.
 		 */
 		if (((char *)sfep + sizeof(*sfep)) >= endp)
-			return -EFSCORRUPTED;
+			return __this_address;
 
 		/* Don't allow names with known bad length. */
 		if (sfep->namelen == 0)
-			return -EFSCORRUPTED;
+			return __this_address;
 
 		/*
 		 * Check that the variable-length part of the structure is
@@ -699,23 +697,23 @@ xfs_dir2_sf_verify(
 		 */
 		next_sfep = dops->sf_nextentry(sfp, sfep);
 		if (endp < (char *)next_sfep)
-			return -EFSCORRUPTED;
+			return __this_address;
 
 		/* Check that the offsets always increase. */
 		if (xfs_dir2_sf_get_offset(sfep) < offset)
-			return -EFSCORRUPTED;
+			return __this_address;
 
 		/* Check the inode number. */
 		ino = dops->sf_get_ino(sfp, sfep);
 		i8count += ino > XFS_DIR2_MAX_SHORT_INUM;
 		error = xfs_dir_ino_validate(mp, ino);
 		if (error)
-			return error;
+			return __this_address;
 
 		/* Check the file type. */
 		filetype = dops->sf_get_ftype(sfep);
 		if (filetype >= XFS_DIR3_FT_MAX)
-			return -EFSCORRUPTED;
+			return __this_address;
 
 		offset = xfs_dir2_sf_get_offset(sfep) +
 				dops->data_entsize(sfep->namelen);
@@ -723,16 +721,16 @@ xfs_dir2_sf_verify(
 		sfep = next_sfep;
 	}
 	if (i8count != sfp->i8count)
-		return -EFSCORRUPTED;
+		return __this_address;
 	if ((void *)sfep != (void *)endp)
-		return -EFSCORRUPTED;
+		return __this_address;
 
 	/* Make sure this whole thing ought to be in local format. */
 	if (offset + (sfp->count + 2) * (uint)sizeof(xfs_dir2_leaf_entry_t) +
 	    (uint)sizeof(xfs_dir2_block_tail_t) > mp->m_dir_geo->blksize)
-		return -EFSCORRUPTED;
+		return __this_address;
 
-	return 0;
+	return NULL;
 }
 
 /*

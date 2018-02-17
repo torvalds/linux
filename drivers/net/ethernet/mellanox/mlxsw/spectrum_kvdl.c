@@ -286,6 +286,32 @@ static void mlxsw_sp_kvdl_parts_fini(struct mlxsw_sp *mlxsw_sp)
 		mlxsw_sp_kvdl_part_fini(mlxsw_sp, i);
 }
 
+static u64 mlxsw_sp_kvdl_part_occ(struct mlxsw_sp_kvdl_part *part)
+{
+	unsigned int nr_entries;
+	int bit = -1;
+	u64 occ = 0;
+
+	nr_entries = (part->info->end_index -
+		      part->info->start_index + 1) /
+		      part->info->alloc_size;
+	while ((bit = find_next_bit(part->usage, nr_entries, bit + 1))
+		< nr_entries)
+		occ += part->info->alloc_size;
+	return occ;
+}
+
+u64 mlxsw_sp_kvdl_occ_get(const struct mlxsw_sp *mlxsw_sp)
+{
+	struct mlxsw_sp_kvdl_part *part;
+	u64 occ = 0;
+
+	list_for_each_entry(part, &mlxsw_sp->kvdl->parts_list, list)
+		occ += mlxsw_sp_kvdl_part_occ(part);
+
+	return occ;
+}
+
 int mlxsw_sp_kvdl_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_kvdl *kvdl;

@@ -63,8 +63,6 @@ void amdgpu_driver_unload_kms(struct drm_device *dev)
 		pm_runtime_forbid(dev->dev);
 	}
 
-	amdgpu_amdkfd_device_fini(adev);
-
 	amdgpu_acpi_fini(adev);
 
 	amdgpu_device_fini(adev);
@@ -159,9 +157,6 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 				"Error during ACPI methods call\n");
 	}
 
-	amdgpu_amdkfd_device_probe(adev);
-	amdgpu_amdkfd_device_init(adev);
-
 	if (amdgpu_device_is_px(dev)) {
 		pm_runtime_use_autosuspend(dev->dev);
 		pm_runtime_set_autosuspend_delay(dev->dev, 5000);
@@ -170,9 +165,6 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		pm_runtime_mark_last_busy(dev->dev);
 		pm_runtime_put_autosuspend(dev->dev);
 	}
-
-	if (amdgpu_sriov_vf(adev))
-		amdgpu_virt_release_full_gpu(adev, true);
 
 out:
 	if (r) {
@@ -558,6 +550,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	}
 	case AMDGPU_INFO_DEV_INFO: {
 		struct drm_amdgpu_info_device dev_info = {};
+		uint64_t vm_size;
 
 		dev_info.device_id = dev->pdev->device;
 		dev_info.chip_rev = adev->rev_id;
@@ -585,8 +578,17 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_FUSION;
 		if (amdgpu_sriov_vf(adev))
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_PREEMPTION;
+
+		vm_size = adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
 		dev_info.virtual_address_offset = AMDGPU_VA_RESERVED_SIZE;
-		dev_info.virtual_address_max = (uint64_t)adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
+		dev_info.virtual_address_max =
+			min(vm_size, AMDGPU_VA_HOLE_START);
+
+		vm_size -= AMDGPU_VA_RESERVED_SIZE;
+		if (vm_size > AMDGPU_VA_HOLE_START) {
+			dev_info.high_va_offset = AMDGPU_VA_HOLE_END;
+			dev_info.high_va_max = AMDGPU_VA_HOLE_END | vm_size;
+		}
 		dev_info.virtual_address_alignment = max((int)PAGE_SIZE, AMDGPU_GPU_PAGE_SIZE);
 		dev_info.pte_fragment_size = (1 << adev->vm_manager.fragment_size) * AMDGPU_GPU_PAGE_SIZE;
 		dev_info.gart_page_size = AMDGPU_GPU_PAGE_SIZE;
@@ -786,9 +788,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
  */
 void amdgpu_driver_lastclose_kms(struct drm_device *dev)
 {
-	struct amdgpu_device *adev = dev->dev_private;
-
-	amdgpu_fbdev_restore_mode(adev);
+	drm_fb_helper_lastclose(dev);
 	vga_switcheroo_process_delayed_switch();
 }
 

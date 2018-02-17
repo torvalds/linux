@@ -53,6 +53,14 @@ Optional Properties:
   to ensure the integrated PHY is used. The absence of this property indicates
   the muxers should be configured so that the external PHY is used.
 
+- reset-gpios: The GPIO phandle and specifier for the PHY reset signal.
+
+- reset-assert-us: Delay after the reset was asserted in microseconds.
+  If this property is missing the delay will be skipped.
+
+- reset-deassert-us: Delay after the reset was deasserted in microseconds.
+  If this property is missing the delay will be skipped.
+
 Example:
 
 ethernet-phy@0 {
@@ -60,4 +68,8 @@ ethernet-phy@0 {
 	interrupt-parent = <&PIC>;
 	interrupts = <35 IRQ_TYPE_EDGE_RISING>;
 	reg = <0>;
+
+	reset-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+	reset-assert-us = <1000>;
+	reset-deassert-us = <2000>;
 };

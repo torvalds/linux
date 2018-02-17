@@ -839,19 +839,19 @@ static int bsg_release(struct inode *inode, struct file *file)
 	return bsg_put_device(bd);
 }
 
-static unsigned int bsg_poll(struct file *file, poll_table *wait)
+static __poll_t bsg_poll(struct file *file, poll_table *wait)
 {
 	struct bsg_device *bd = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, &bd->wq_done, wait);
 	poll_wait(file, &bd->wq_free, wait);
 
 	spin_lock_irq(&bd->lock);
 	if (!list_empty(&bd->done_list))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	if (bd->queued_cmds < bd->max_queue)
-		mask |= POLLOUT;
+		mask |= EPOLLOUT;
 	spin_unlock_irq(&bd->lock);
 
 	return mask;

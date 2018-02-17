@@ -564,11 +564,17 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 		case INET_DIAG_BC_JMP:
 			yes = 0;
 			break;
+		case INET_DIAG_BC_S_EQ:
+			yes = entry->sport == op[1].no;
+			break;
 		case INET_DIAG_BC_S_GE:
 			yes = entry->sport >= op[1].no;
 			break;
 		case INET_DIAG_BC_S_LE:
 			yes = entry->sport <= op[1].no;
+			break;
+		case INET_DIAG_BC_D_EQ:
+			yes = entry->dport == op[1].no;
 			break;
 		case INET_DIAG_BC_D_GE:
 			yes = entry->dport >= op[1].no;
@@ -802,8 +808,10 @@ static int inet_diag_bc_audit(const struct nlattr *attr,
 			if (!valid_devcond(bc, len, &min_len))
 				return -EINVAL;
 			break;
+		case INET_DIAG_BC_S_EQ:
 		case INET_DIAG_BC_S_GE:
 		case INET_DIAG_BC_S_LE:
+		case INET_DIAG_BC_D_EQ:
 		case INET_DIAG_BC_D_GE:
 		case INET_DIAG_BC_D_LE:
 			if (!valid_port_comparison(bc, len, &min_len))

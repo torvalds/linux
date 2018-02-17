@@ -48,6 +48,8 @@
 #include "oss/oss_2_0_d.h"
 #include "oss/oss_2_0_sh_mask.h"
 
+#define NUM_SIMD_PER_CU 0x4 /* missing from the gfx_7 IP headers */
+
 #define GFX7_NUM_GFX_RINGS     1
 #define GFX7_MEC_HPD_SIZE      2048
 
@@ -2085,7 +2087,7 @@ static int gfx_v7_0_ring_test_ring(struct amdgpu_ring *ring)
 		DRM_UDELAY(1);
 	}
 	if (i < adev->usec_timeout) {
-		DRM_INFO("ring test on %d succeeded in %d usecs\n", ring->idx, i);
+		DRM_DEBUG("ring test on %d succeeded in %d usecs\n", ring->idx, i);
 	} else {
 		DRM_ERROR("amdgpu: ring %d test failed (scratch(0x%04X)=0x%08X)\n",
 			  ring->idx, scratch, tmp);
@@ -2252,7 +2254,7 @@ static void gfx_v7_0_ring_emit_fence_compute(struct amdgpu_ring *ring,
  */
 static void gfx_v7_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 				      struct amdgpu_ib *ib,
-				      unsigned vm_id, bool ctx_switch)
+				      unsigned vmid, bool ctx_switch)
 {
 	u32 header, control = 0;
 
@@ -2267,7 +2269,7 @@ static void gfx_v7_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 	else
 		header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
 
-	control |= ib->length_dw | (vm_id << 24);
+	control |= ib->length_dw | (vmid << 24);
 
 	amdgpu_ring_write(ring, header);
 	amdgpu_ring_write(ring,
@@ -2281,9 +2283,9 @@ static void gfx_v7_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 
 static void gfx_v7_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
 					  struct amdgpu_ib *ib,
-					  unsigned vm_id, bool ctx_switch)
+					  unsigned vmid, bool ctx_switch)
 {
-	u32 control = INDIRECT_BUFFER_VALID | ib->length_dw | (vm_id << 24);
+	u32 control = INDIRECT_BUFFER_VALID | ib->length_dw | (vmid << 24);
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
 	amdgpu_ring_write(ring,
@@ -2365,7 +2367,7 @@ static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	}
 	tmp = RREG32(scratch);
 	if (tmp == 0xDEADBEEF) {
-		DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
+		DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
 		r = 0;
 	} else {
 		DRM_ERROR("amdgpu: ib test failed (scratch(0x%04X)=0x%08X)\n",
@@ -2551,29 +2553,8 @@ static int gfx_v7_0_cp_gfx_start(struct amdgpu_device *adev)
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_SET_CONTEXT_REG, 2));
 	amdgpu_ring_write(ring, mmPA_SC_RASTER_CONFIG - PACKET3_SET_CONTEXT_REG_START);
-	switch (adev->asic_type) {
-	case CHIP_BONAIRE:
-		amdgpu_ring_write(ring, 0x16000012);
-		amdgpu_ring_write(ring, 0x00000000);
-		break;
-	case CHIP_KAVERI:
-		amdgpu_ring_write(ring, 0x00000000); /* XXX */
-		amdgpu_ring_write(ring, 0x00000000);
-		break;
-	case CHIP_KABINI:
-	case CHIP_MULLINS:
-		amdgpu_ring_write(ring, 0x00000000); /* XXX */
-		amdgpu_ring_write(ring, 0x00000000);
-		break;
-	case CHIP_HAWAII:
-		amdgpu_ring_write(ring, 0x3a00161a);
-		amdgpu_ring_write(ring, 0x0000002e);
-		break;
-	default:
-		amdgpu_ring_write(ring, 0x00000000);
-		amdgpu_ring_write(ring, 0x00000000);
-		break;
-	}
+	amdgpu_ring_write(ring, adev->gfx.config.rb_config[0][0].raster_config);
+	amdgpu_ring_write(ring, adev->gfx.config.rb_config[0][0].raster_config_1);
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_PREAMBLE_CNTL, 0));
 	amdgpu_ring_write(ring, PACKET3_PREAMBLE_END_CLEAR_STATE);
@@ -3258,19 +3239,19 @@ static void gfx_v7_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
  * using the CP (CIK).
  */
 static void gfx_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
-					unsigned vm_id, uint64_t pd_addr)
+					unsigned vmid, uint64_t pd_addr)
 {
 	int usepfp = (ring->funcs->type == AMDGPU_RING_TYPE_GFX);
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
 	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(usepfp) |
 				 WRITE_DATA_DST_SEL(0)));
-	if (vm_id < 8) {
+	if (vmid < 8) {
 		amdgpu_ring_write(ring,
-				  (mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vm_id));
+				  (mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vmid));
 	} else {
 		amdgpu_ring_write(ring,
-				  (mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vm_id - 8));
+				  (mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vmid - 8));
 	}
 	amdgpu_ring_write(ring, 0);
 	amdgpu_ring_write(ring, pd_addr >> 12);
@@ -3281,7 +3262,7 @@ static void gfx_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 				 WRITE_DATA_DST_SEL(0)));
 	amdgpu_ring_write(ring, mmVM_INVALIDATE_REQUEST);
 	amdgpu_ring_write(ring, 0);
-	amdgpu_ring_write(ring, 1 << vm_id);
+	amdgpu_ring_write(ring, 1 << vmid);
 
 	/* wait for the invalidate to complete */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WAIT_REG_MEM, 5));
@@ -5298,6 +5279,11 @@ static void gfx_v7_0_get_cu_info(struct amdgpu_device *adev)
 
 	cu_info->number = active_cu_number;
 	cu_info->ao_cu_mask = ao_cu_mask;
+	cu_info->simd_per_cu = NUM_SIMD_PER_CU;
+	cu_info->max_waves_per_simd = 10;
+	cu_info->max_scratch_slots_per_cu = 32;
+	cu_info->wave_front_size = 64;
+	cu_info->lds_size = 64;
 }
 
 const struct amdgpu_ip_block_version gfx_v7_0_ip_block =

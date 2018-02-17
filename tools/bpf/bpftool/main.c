@@ -38,7 +38,6 @@
 #include <errno.h>
 #include <getopt.h>
 #include <linux/bpf.h>
-#include <linux/version.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -85,7 +84,7 @@ static int do_help(int argc, char **argv)
 		"       %s batch file FILE\n"
 		"       %s version\n"
 		"\n"
-		"       OBJECT := { prog | map }\n"
+		"       OBJECT := { prog | map | cgroup }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, bin_name, bin_name);
@@ -95,21 +94,13 @@ static int do_help(int argc, char **argv)
 
 static int do_version(int argc, char **argv)
 {
-	unsigned int version[3];
-
-	version[0] = LINUX_VERSION_CODE >> 16;
-	version[1] = LINUX_VERSION_CODE >> 8 & 0xf;
-	version[2] = LINUX_VERSION_CODE & 0xf;
-
 	if (json_output) {
 		jsonw_start_object(json_wtr);
 		jsonw_name(json_wtr, "version");
-		jsonw_printf(json_wtr, "\"%u.%u.%u\"",
-			     version[0], version[1], version[2]);
+		jsonw_printf(json_wtr, "\"%s\"", BPFTOOL_VERSION);
 		jsonw_end_object(json_wtr);
 	} else {
-		printf("%s v%u.%u.%u\n", bin_name,
-		       version[0], version[1], version[2]);
+		printf("%s v%s\n", bin_name, BPFTOOL_VERSION);
 	}
 	return 0;
 }
@@ -173,6 +164,7 @@ static const struct cmd cmds[] = {
 	{ "batch",	do_batch },
 	{ "prog",	do_prog },
 	{ "map",	do_map },
+	{ "cgroup",	do_cgroup },
 	{ "version",	do_version },
 	{ 0 }
 };

@@ -34,9 +34,6 @@ static inline const struct iommu_ops *of_iommu_configure(struct device *dev,
 
 extern struct of_device_id __iommu_of_table;
 
-typedef int (*of_iommu_init_fn)(struct device_node *);
-
-#define IOMMU_OF_DECLARE(name, compat, fn) \
-	_OF_DECLARE(iommu, name, compat, fn, of_iommu_init_fn)
+#define IOMMU_OF_DECLARE(name, compat)	OF_DECLARE_1(iommu, name, compat, NULL)
 
 #endif /* __OF_IOMMU_H */

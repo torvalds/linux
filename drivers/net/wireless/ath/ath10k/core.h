@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -67,7 +67,6 @@
 
 /* NAPI poll budget */
 #define ATH10K_NAPI_BUDGET      64
-#define ATH10K_NAPI_QUOTA_LIMIT 60
 
 /* SMBIOS type containing Board Data File Name Extension */
 #define ATH10K_SMBIOS_BDF_EXT_TYPE 0xF8
@@ -93,6 +92,7 @@ enum ath10k_bus {
 	ATH10K_BUS_AHB,
 	ATH10K_BUS_SDIO,
 	ATH10K_BUS_USB,
+	ATH10K_BUS_SNOC,
 };
 
 static inline const char *ath10k_bus_str(enum ath10k_bus bus)
@@ -106,6 +106,8 @@ static inline const char *ath10k_bus_str(enum ath10k_bus bus)
 		return "sdio";
 	case ATH10K_BUS_USB:
 		return "usb";
+	case ATH10K_BUS_SNOC:
+		return "snoc";
 	}
 
 	return "unknown";
@@ -364,11 +366,11 @@ struct ath10k_sta {
 	struct rate_info txrate;
 
 	struct work_struct update_wk;
+	u64 rx_duration;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	/* protected by conf_mutex */
 	bool aggr_mode;
-	u64 rx_duration;
 #endif
 };
 
@@ -458,14 +460,17 @@ struct ath10k_ce_crash_hdr {
 	struct ath10k_ce_crash_data entries[];
 };
 
+#define MAX_MEM_DUMP_TYPE	5
+
 /* used for crash-dump storage, protected by data-lock */
 struct ath10k_fw_crash_data {
-	bool crashed_since_read;
-
 	guid_t guid;
-	struct timespec timestamp;
+	struct timespec64 timestamp;
 	__le32 registers[REG_DUMP_COUNT_QCA988X];
 	struct ath10k_ce_crash_data ce_crash_data[CE_COUNT_MAX];
+
+	u8 *ramdump_buf;
+	size_t ramdump_buf_len;
 };
 
 struct ath10k_debug {
@@ -488,12 +493,9 @@ struct ath10k_debug {
 	/* protected by conf_mutex */
 	u64 fw_dbglog_mask;
 	u32 fw_dbglog_level;
-	u32 pktlog_filter;
 	u32 reg_addr;
 	u32 nf_cal_period;
 	void *cal_data;
-
-	struct ath10k_fw_crash_data *fw_crash_data;
 };
 
 enum ath10k_state {
@@ -614,6 +616,12 @@ enum ath10k_fw_features {
 
 	/* Firmware does not support power save in station mode. */
 	ATH10K_FW_FEATURE_NO_PS = 17,
+
+	/* Firmware allows management tx by reference instead of by value. */
+	ATH10K_FW_FEATURE_MGMT_TX_BY_REF = 18,
+
+	/* Firmware load is done externally, not by bmi */
+	ATH10K_FW_FEATURE_NON_BMI = 19,
 
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
@@ -963,6 +971,14 @@ struct ath10k {
 	} spectral;
 #endif
 
+	u32 pktlog_filter;
+
+#ifdef CONFIG_DEV_COREDUMP
+	struct {
+		struct ath10k_fw_crash_data *fw_crash_data;
+	} coredump;
+#endif
+
 	struct {
 		/* protected by conf_mutex */
 		struct ath10k_fw_components utf_mode_fw;
@@ -1015,6 +1031,8 @@ static inline bool ath10k_peer_stats_enabled(struct ath10k *ar)
 
 	return false;
 }
+
+extern unsigned long ath10k_coredump_mask;
 
 struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 				  enum ath10k_bus bus,

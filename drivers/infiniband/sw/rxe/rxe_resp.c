@@ -863,8 +863,7 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 
 			if (pkt->mask & RXE_IMMDT_MASK) {
 				uwc->wc_flags |= IB_WC_WITH_IMM;
-				uwc->ex.imm_data =
-					(__u32 __force)immdt_imm(pkt);
+				uwc->ex.imm_data = immdt_imm(pkt);
 			}
 
 			if (pkt->mask & RXE_IETH_MASK) {
@@ -1210,7 +1209,7 @@ static enum resp_states do_class_d1e_error(struct rxe_qp *qp)
 	}
 }
 
-void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify)
+static void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify)
 {
 	struct sk_buff *skb;
 

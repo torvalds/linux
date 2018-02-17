@@ -1054,7 +1054,8 @@ static int mtk_hdmi_setup_vendor_specific_infoframe(struct mtk_hdmi *hdmi,
 	u8 buffer[10];
 	ssize_t err;
 
-	err = drm_hdmi_vendor_infoframe_from_display_mode(&frame, mode);
+	err = drm_hdmi_vendor_infoframe_from_display_mode(&frame,
+							  &hdmi->conn, mode);
 	if (err) {
 		dev_err(hdmi->dev,
 			"Failed to get vendor infoframe from mode: %zd\n", err);
@@ -1222,7 +1223,6 @@ static int mtk_hdmi_conn_get_modes(struct drm_connector *conn)
 	drm_mode_connector_update_edid_property(conn, edid);
 
 	ret = drm_add_edid_modes(conn, edid);
-	drm_edid_to_eld(conn, edid);
 	kfree(edid);
 	return ret;
 }

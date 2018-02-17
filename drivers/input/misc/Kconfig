@@ -268,20 +268,6 @@ config INPUT_GPIO_BEEPER
 	  To compile this driver as a module, choose M here: the
 	  module will be called gpio-beeper.
 
-config INPUT_GPIO_TILT_POLLED
-	tristate "Polled GPIO tilt switch"
-	depends on GPIOLIB || COMPILE_TEST
-	select INPUT_POLLDEV
-	help
-	  This driver implements support for tilt switches connected
-	  to GPIO pins that are not capable of generating interrupts.
-
-	  The list of gpios to use and the mapping of their states
-	  to specific angles is done via platform data.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called gpio_tilt_polled.
-
 config INPUT_GPIO_DECODER
 	tristate "Polled GPIO Decoder Input driver"
 	depends on GPIOLIB || COMPILE_TEST
@@ -468,7 +454,7 @@ config INPUT_TPS65218_PWRBUTTON
 	tristate "TPS65218 Power button driver"
 	depends on (MFD_TPS65217 || MFD_TPS65218)
 	help
-	  Say Y here if you want to enable power buttong reporting for
+	  Say Y here if you want to enable power button reporting for
 	  TPS65217 and TPS65218 Power Management IC devices.
 
 	  To compile this driver as a module, choose M here. The module will

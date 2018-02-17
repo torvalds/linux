@@ -146,8 +146,7 @@ static void ll_free_sbi(struct super_block *sb)
 	kfree(sbi);
 }
 
-static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
-				    struct vfsmount *mnt)
+static int client_common_fill_super(struct super_block *sb, char *md, char *dt)
 {
 	struct inode *root = NULL;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
@@ -236,7 +235,9 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 				   "An MDT (md %s) is performing recovery, of which this client is not a part. Please wait for recovery to complete, abort, or time out.\n",
 				   md);
 		goto out;
-	} else if (err) {
+	}
+
+	if (err) {
 		CERROR("cannot connect to %s: rc = %d\n", md, err);
 		goto out;
 	}
@@ -865,7 +866,7 @@ void ll_lli_init(struct ll_inode_info *lli)
 	mutex_init(&lli->lli_layout_mutex);
 }
 
-int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
+int ll_fill_super(struct super_block *sb)
 {
 	struct lustre_profile *lprof = NULL;
 	struct lustre_sb_info *lsi = s2lsi(sb);
@@ -942,7 +943,7 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	}
 
 	/* connections, registrations, sb setup */
-	err = client_common_fill_super(sb, md, dt, mnt);
+	err = client_common_fill_super(sb, md, dt);
 	if (!err)
 		sbi->ll_client_common_fill_super_succeeded = 1;
 

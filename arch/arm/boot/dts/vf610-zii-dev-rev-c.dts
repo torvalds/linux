@@ -73,7 +73,7 @@
 				#size-cells = <0>;
 				reg = <0>;
 				dsa,member = <0 0>;
-				eeprom-length = <512>;
+				eeprom-length = <65536>;
 				interrupt-parent = <&gpio0>;
 				interrupts = <27 IRQ_TYPE_LEVEL_LOW>;
 				interrupt-controller;
@@ -170,7 +170,7 @@
 				#size-cells = <0>;
 				reg = <0>;
 				dsa,member = <0 1>;
-				eeprom-length = <512>;
+				eeprom-length = <65536>;
 				interrupt-parent = <&gpio0>;
 				interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
 				interrupt-controller;

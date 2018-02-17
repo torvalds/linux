@@ -849,28 +849,26 @@ static const struct tpm_input_header tpm2_selftest_header = {
 static int tpm2_do_selftest(struct tpm_chip *chip)
 {
 	int rc;
-	unsigned int delay_msec = 20;
+	unsigned int delay_msec = 10;
 	long duration;
 	struct tpm2_cmd cmd;
 
 	duration = jiffies_to_msecs(
 		tpm2_calc_ordinal_duration(chip, TPM2_CC_SELF_TEST));
 
-	while (duration > 0) {
+	while (1) {
 		cmd.header.in = tpm2_selftest_header;
 		cmd.params.selftest_in.full_test = 0;
 
 		rc = tpm_transmit_cmd(chip, NULL, &cmd, TPM2_SELF_TEST_IN_SIZE,
 				      0, 0, "continue selftest");
 
-		if (rc != TPM2_RC_TESTING)
+		if (rc != TPM2_RC_TESTING || delay_msec >= duration)
 			break;
 
-		tpm_msleep(delay_msec);
-		duration -= delay_msec;
-
-		/* wait longer the next round */
+		/* wait longer than before */
 		delay_msec *= 2;
+		tpm_msleep(delay_msec);
 	}
 
 	return rc;

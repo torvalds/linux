@@ -236,6 +236,14 @@ static int wcn36xx_dxe_init_descs(struct device *dev, struct wcn36xx_dxe_ch *wcn
 	return 0;
 }
 
+static void wcn36xx_dxe_deinit_descs(struct device *dev, struct wcn36xx_dxe_ch *wcn_ch)
+{
+	size_t size;
+
+	size = wcn_ch->desc_num * sizeof(struct wcn36xx_dxe_desc);
+	dma_free_coherent(dev, size,wcn_ch->cpu_addr, wcn_ch->dma_addr);
+}
+
 static void wcn36xx_dxe_init_tx_bd(struct wcn36xx_dxe_ch *ch,
 				   struct wcn36xx_dxe_mem_pool *pool)
 {
@@ -722,7 +730,11 @@ int wcn36xx_dxe_init(struct wcn36xx *wcn)
 	/***************************************/
 	/* Init descriptors for TX LOW channel */
 	/***************************************/
-	wcn36xx_dxe_init_descs(wcn->dev, &wcn->dxe_tx_l_ch);
+	ret = wcn36xx_dxe_init_descs(wcn->dev, &wcn->dxe_tx_l_ch);
+	if (ret) {
+		dev_err(wcn->dev, "Error allocating descriptor\n");
+		return ret;
+	}
 	wcn36xx_dxe_init_tx_bd(&wcn->dxe_tx_l_ch, &wcn->data_mem_pool);
 
 	/* Write channel head to a NEXT register */
@@ -740,7 +752,12 @@ int wcn36xx_dxe_init(struct wcn36xx *wcn)
 	/***************************************/
 	/* Init descriptors for TX HIGH channel */
 	/***************************************/
-	wcn36xx_dxe_init_descs(wcn->dev, &wcn->dxe_tx_h_ch);
+	ret = wcn36xx_dxe_init_descs(wcn->dev, &wcn->dxe_tx_h_ch);
+	if (ret) {
+		dev_err(wcn->dev, "Error allocating descriptor\n");
+		goto out_err_txh_ch;
+	}
+
 	wcn36xx_dxe_init_tx_bd(&wcn->dxe_tx_h_ch, &wcn->mgmt_mem_pool);
 
 	/* Write channel head to a NEXT register */
@@ -760,7 +777,12 @@ int wcn36xx_dxe_init(struct wcn36xx *wcn)
 	/***************************************/
 	/* Init descriptors for RX LOW channel */
 	/***************************************/
-	wcn36xx_dxe_init_descs(wcn->dev, &wcn->dxe_rx_l_ch);
+	ret = wcn36xx_dxe_init_descs(wcn->dev, &wcn->dxe_rx_l_ch);
+	if (ret) {
+		dev_err(wcn->dev, "Error allocating descriptor\n");
+		goto out_err_rxl_ch;
+	}
+
 
 	/* For RX we need to preallocated buffers */
 	wcn36xx_dxe_ch_alloc_skb(wcn, &wcn->dxe_rx_l_ch);
@@ -790,7 +812,11 @@ int wcn36xx_dxe_init(struct wcn36xx *wcn)
 	/***************************************/
 	/* Init descriptors for RX HIGH channel */
 	/***************************************/
-	wcn36xx_dxe_init_descs(wcn->dev, &wcn->dxe_rx_h_ch);
+	ret = wcn36xx_dxe_init_descs(wcn->dev, &wcn->dxe_rx_h_ch);
+	if (ret) {
+		dev_err(wcn->dev, "Error allocating descriptor\n");
+		goto out_err_rxh_ch;
+	}
 
 	/* For RX we need to prealocat buffers */
 	wcn36xx_dxe_ch_alloc_skb(wcn, &wcn->dxe_rx_h_ch);
@@ -819,11 +845,19 @@ int wcn36xx_dxe_init(struct wcn36xx *wcn)
 
 	ret = wcn36xx_dxe_request_irqs(wcn);
 	if (ret < 0)
-		goto out_err;
+		goto out_err_irq;
 
 	return 0;
 
-out_err:
+out_err_irq:
+	wcn36xx_dxe_deinit_descs(wcn->dev, &wcn->dxe_rx_h_ch);
+out_err_rxh_ch:
+	wcn36xx_dxe_deinit_descs(wcn->dev, &wcn->dxe_rx_l_ch);
+out_err_rxl_ch:
+	wcn36xx_dxe_deinit_descs(wcn->dev, &wcn->dxe_tx_h_ch);
+out_err_txh_ch:
+	wcn36xx_dxe_deinit_descs(wcn->dev, &wcn->dxe_tx_l_ch);
+
 	return ret;
 }
 

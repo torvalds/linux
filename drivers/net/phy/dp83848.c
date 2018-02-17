@@ -95,8 +95,6 @@ MODULE_DEVICE_TABLE(mdio, dp83848_tbl);
 		.config_init	= genphy_config_init,		\
 		.suspend	= genphy_suspend,		\
 		.resume		= genphy_resume,		\
-		.config_aneg	= genphy_config_aneg,		\
-		.read_status	= genphy_read_status,		\
 								\
 		/* IRQ related */				\
 		.ack_interrupt	= dp83848_ack_interrupt,	\

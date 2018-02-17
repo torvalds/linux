@@ -1129,10 +1129,8 @@ int wl12xx_acx_config_hangover(struct wl1271 *wl);
 int wlcore_acx_average_rssi(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			    s8 *avg_rssi);
 
-#ifdef CONFIG_PM
 int wl1271_acx_default_rx_filter_enable(struct wl1271 *wl, bool enable,
 					enum rx_filter_action action);
 int wl1271_acx_set_rx_filter(struct wl1271 *wl, u8 index, bool enable,
 			     struct wl12xx_rx_filter *filter);
-#endif /* CONFIG_PM */
 #endif /* __WL1271_ACX_H__ */

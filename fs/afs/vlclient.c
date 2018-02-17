@@ -23,7 +23,7 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 	struct afs_uvldbentry__xdr *uvldb;
 	struct afs_vldb_entry *entry;
 	bool new_only = false;
-	u32 tmp;
+	u32 tmp, nr_servers;
 	int i, ret;
 
 	_enter("");
@@ -36,6 +36,10 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 	uvldb = call->buffer;
 	entry = call->reply[0];
 
+	nr_servers = ntohl(uvldb->nServers);
+	if (nr_servers > AFS_NMAXNSERVERS)
+		nr_servers = AFS_NMAXNSERVERS;
+
 	for (i = 0; i < ARRAY_SIZE(uvldb->name) - 1; i++)
 		entry->name[i] = (u8)ntohl(uvldb->name[i]);
 	entry->name[i] = 0;
@@ -44,14 +48,14 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 	/* If there is a new replication site that we can use, ignore all the
 	 * sites that aren't marked as new.
 	 */
-	for (i = 0; i < AFS_NMAXNSERVERS; i++) {
+	for (i = 0; i < nr_servers; i++) {
 		tmp = ntohl(uvldb->serverFlags[i]);
 		if (!(tmp & AFS_VLSF_DONTUSE) &&
 		    (tmp & AFS_VLSF_NEWREPSITE))
 			new_only = true;
 	}
 
-	for (i = 0; i < AFS_NMAXNSERVERS; i++) {
+	for (i = 0; i < nr_servers; i++) {
 		struct afs_uuid__xdr *xdr;
 		struct afs_uuid *uuid;
 		int j;
