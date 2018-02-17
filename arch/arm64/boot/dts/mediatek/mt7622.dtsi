@@ -102,6 +102,18 @@
 		#reset-cells = <1>;
 	};
 
+	pwrap: pwrap@10001000 {
+		compatible = "mediatek,mt7622-pwrap";
+		reg = <0 0x10001000 0 0x250>;
+		reg-names = "pwrap";
+		clocks = <&infracfg CLK_INFRA_PMIC_PD>, <&pwrap_clk>;
+		clock-names = "spi", "wrap";
+		resets = <&infracfg MT7622_INFRA_PMIC_WRAP_RST>;
+		reset-names = "pwrap";
+		interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
 	pericfg: pericfg@10002000 {
 		compatible = "mediatek,mt7622-pericfg",
 			     "syscon";

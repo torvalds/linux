@@ -10,6 +10,7 @@
 #include <dt-bindings/input/input.h>
 
 #include "mt7622.dtsi"
+#include "mt6380.dtsi"
 
 / {
 	model = "MediaTek MT7622 RFB1 board";
@@ -220,6 +221,13 @@
 			groups = "watchdog";
 		};
 	};
+};
+
+&pwrap {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pmic_bus_pins>;
+
+	status = "okay";
 };
 
 &uart0 {
