@@ -16,3 +16,4 @@ Linux Tracing Technologies
    events-kmem
    events-power
    events-nmi
+   events-msr
