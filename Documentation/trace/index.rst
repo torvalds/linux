@@ -13,3 +13,4 @@ Linux Tracing Technologies
    uprobetracer
    tracepoints
    events
+   events-kmem
