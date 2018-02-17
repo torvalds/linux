@@ -15,3 +15,4 @@ Linux Tracing Technologies
    events
    events-kmem
    events-power
+   events-nmi
