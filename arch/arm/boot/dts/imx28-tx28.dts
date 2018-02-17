@@ -65,8 +65,8 @@
 		usbotg = &usb0;
 	};
 
-	memory {
-		reg = <0 0>; /* will be filled in by U-Boot */
+	memory@40000000 {
+		reg = <0x40000000 0>; /* will be filled in by U-Boot */
 	};
 
 	onewire {
