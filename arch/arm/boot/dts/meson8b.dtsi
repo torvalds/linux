@@ -250,6 +250,18 @@
 	clock-names = "core";
 };
 
+&i2c_AO {
+	clocks = <&clkc CLKID_CLK81>;
+};
+
+&i2c_A {
+	clocks = <&clkc CLKID_I2C>;
+};
+
+&i2c_B {
+	clocks = <&clkc CLKID_I2C>;
+};
+
 &L2 {
 	arm,data-latency = <3 3 3>;
 	arm,tag-latency = <2 2 2>;
