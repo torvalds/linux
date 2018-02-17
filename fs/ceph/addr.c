@@ -15,6 +15,7 @@
 #include "mds_client.h"
 #include "cache.h"
 #include <linux/ceph/osd_client.h>
+#include <linux/ceph/striper.h>
 
 /*
  * Ceph address space ops.

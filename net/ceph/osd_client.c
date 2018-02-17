@@ -20,6 +20,7 @@
 #include <linux/ceph/decode.h>
 #include <linux/ceph/auth.h>
 #include <linux/ceph/pagelist.h>
+#include <linux/ceph/striper.h>
 
 #define OSD_OPREPLY_FRONT_LEN	512
 

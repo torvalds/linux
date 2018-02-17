@@ -7,6 +7,10 @@
 
 struct ceph_file_layout;
 
+void ceph_calc_file_object_mapping(struct ceph_file_layout *l,
+				   u64 off, u64 len,
+				   u64 *objno, u64 *objoff, u32 *xlen);
+
 struct ceph_object_extent {
 	struct list_head oe_item;
 	u64 oe_objno;

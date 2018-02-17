@@ -5,7 +5,7 @@
 #include "super.h"
 #include "mds_client.h"
 #include "ioctl.h"
-
+#include <linux/ceph/striper.h>
 
 /*
  * ioctls
