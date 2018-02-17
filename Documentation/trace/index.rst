@@ -11,3 +11,4 @@ Linux Tracing Technologies
    ftrace-uses
    kprobetrace
    uprobetracer
+   tracepoints
