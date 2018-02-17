@@ -150,6 +150,9 @@ struct rtc_device {
 	bool nvram_old_abi;
 	struct bin_attribute *nvram;
 
+	time64_t range_min;
+	timeu64_t range_max;
+
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
 	struct work_struct uie_task;
 	struct timer_list uie_timer;

@@ -70,6 +70,13 @@ int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm)
 	if (err != 0)
 		return err;
 
+	if (rtc->range_min != rtc->range_max) {
+		time64_t time = rtc_tm_to_time64(tm);
+
+		if (time < rtc->range_min || time > rtc->range_max)
+			return -ERANGE;
+	}
+
 	err = mutex_lock_interruptible(&rtc->ops_lock);
 	if (err)
 		return err;
@@ -373,6 +380,13 @@ int rtc_set_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 	err = rtc_valid_tm(&alarm->time);
 	if (err != 0)
 		return err;
+
+	if (rtc->range_min != rtc->range_max) {
+		time64_t time = rtc_tm_to_time64(&alarm->time);
+
+		if (time < rtc->range_min || time > rtc->range_max)
+			return -ERANGE;
+	}
 
 	err = mutex_lock_interruptible(&rtc->ops_lock);
 	if (err)

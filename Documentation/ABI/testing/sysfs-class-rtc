@@ -43,6 +43,14 @@ Contact:	linux-rtc@vger.kernel.org
 Description:
 		(RO) The name of the RTC corresponding to this sysfs directory
 
+What:		/sys/class/rtc/rtcX/range
+Date:		January 2018
+KernelVersion:	4.16
+Contact:	linux-rtc@vger.kernel.org
+Description:
+		Valid time range for the RTC, as seconds from epoch, formatted
+		as [min, max]
+
 What:		/sys/class/rtc/rtcX/since_epoch
 Date:		March 2006
 KernelVersion:	2.6.17
