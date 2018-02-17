@@ -147,6 +147,13 @@
 		#clock-cells = <1>;
 	};
 
+	pio: pinctrl@10211000 {
+		compatible = "mediatek,mt7622-pinctrl";
+		reg = <0 0x10211000 0 0x1000>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
 	gic: interrupt-controller@10300000 {
 		compatible = "arm,gic-400";
 		interrupt-controller;
