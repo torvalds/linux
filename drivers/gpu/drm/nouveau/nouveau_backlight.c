@@ -268,12 +268,12 @@ nouveau_backlight_init(struct drm_device *dev)
 	struct nvif_device *device = &drm->client.device;
 	struct drm_connector *connector;
 
+	INIT_LIST_HEAD(&drm->bl_connectors);
+
 	if (apple_gmux_present()) {
 		NV_INFO(drm, "Apple GMUX detected: not registering Nouveau backlight interface\n");
 		return 0;
 	}
-
-	INIT_LIST_HEAD(&drm->bl_connectors);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->connector_type != DRM_MODE_CONNECTOR_LVDS &&
