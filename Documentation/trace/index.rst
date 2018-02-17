@@ -19,3 +19,4 @@ Linux Tracing Technologies
    events-msr
    mmiotrace
    hwlat_detector
+   intel_th
