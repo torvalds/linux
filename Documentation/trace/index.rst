@@ -18,3 +18,4 @@ Linux Tracing Technologies
    events-nmi
    events-msr
    mmiotrace
+   hwlat_detector

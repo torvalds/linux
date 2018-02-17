@@ -1,4 +1,8 @@
-Introduction:
+=========================
+Hardware Latency Detector
+=========================
+
+Introduction
 -------------
 
 The tracer hwlat_detector is a special purpose tracer that is used to
@@ -28,7 +32,7 @@ Note that the hwlat detector should *NEVER* be used in a production environment.
 It is intended to be run manually to determine if the hardware platform has a
 problem with long system firmware service routines.
 
-Usage:
+Usage
 ------
 
 Write the ASCII text "hwlat" into the current_tracer file of the tracing system
@@ -36,16 +40,16 @@ Write the ASCII text "hwlat" into the current_tracer file of the tracing system
 redefine the threshold in microseconds (us) above which latency spikes will
 be taken into account.
 
-Example:
+Example::
 
 	# echo hwlat > /sys/kernel/tracing/current_tracer
 	# echo 100 > /sys/kernel/tracing/tracing_thresh
 
 The /sys/kernel/tracing/hwlat_detector interface contains the following files:
 
-width			- time period to sample with CPUs held (usecs)
-			  must be less than the total window size (enforced)
-window			- total period of sampling, width being inside (usecs)
+  - width - time period to sample with CPUs held (usecs)
+            must be less than the total window size (enforced)
+  - window - total period of sampling, width being inside (usecs)
 
 By default the width is set to 500,000 and window to 1,000,000, meaning that
 for every 1,000,000 usecs (1s) the hwlat detector will spin for 500,000 usecs
@@ -67,11 +71,11 @@ The following tracing directory files are used by the hwlat_detector:
 
 in /sys/kernel/tracing:
 
- tracing_threshold	- minimum latency value to be considered (usecs)
- tracing_max_latency	- maximum hardware latency actually observed (usecs)
- tracing_cpumask	- the CPUs to move the hwlat thread across
- hwlat_detector/width	- specified amount of time to spin within window (usecs)
- hwlat_detector/window	- amount of time between (width) runs (usecs)
+ - tracing_threshold	- minimum latency value to be considered (usecs)
+ - tracing_max_latency	- maximum hardware latency actually observed (usecs)
+ - tracing_cpumask	- the CPUs to move the hwlat thread across
+ - hwlat_detector/width	- specified amount of time to spin within window (usecs)
+ - hwlat_detector/window	- amount of time between (width) runs (usecs)
 
 The hwlat detector's kernel thread will migrate across each CPU specified in
 tracing_cpumask between each window. To limit the migration, either modify
