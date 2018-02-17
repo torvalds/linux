@@ -28,6 +28,10 @@ OPTIONS
 <command>...::
 	Any command you can specify in a shell.
 
+-f::
+--force::
+	Don't do ownership validation
+
 -t::
 --type=::
 	Select the memory operation type: load or store (default: load,store)

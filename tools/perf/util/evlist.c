@@ -1086,11 +1086,30 @@ int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages)
 
 int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target)
 {
+	bool all_threads = (target->per_thread && target->system_wide);
 	struct cpu_map *cpus;
 	struct thread_map *threads;
 
+	/*
+	 * If specify '-a' and '--per-thread' to perf record, perf record
+	 * will override '--per-thread'. target->per_thread = false and
+	 * target->system_wide = true.
+	 *
+	 * If specify '--per-thread' only to perf record,
+	 * target->per_thread = true and target->system_wide = false.
+	 *
+	 * So target->per_thread && target->system_wide is false.
+	 * For perf record, thread_map__new_str doesn't call
+	 * thread_map__new_all_cpus. That will keep perf record's
+	 * current behavior.
+	 *
+	 * For perf stat, it allows the case that target->per_thread and
+	 * target->system_wide are all true. It means to collect system-wide
+	 * per-thread data. thread_map__new_str will call
+	 * thread_map__new_all_cpus to enumerate all threads.
+	 */
 	threads = thread_map__new_str(target->pid, target->tid, target->uid,
-				      target->per_thread);
+				      all_threads);
 
 	if (!threads)
 		return -1;
