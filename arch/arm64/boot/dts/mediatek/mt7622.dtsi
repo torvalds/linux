@@ -550,6 +550,37 @@
 		#reset-cells = <1>;
 	};
 
+	eth: ethernet@1b100000 {
+		compatible = "mediatek,mt7622-eth",
+			     "mediatek,mt2701-eth",
+			     "syscon";
+		reg = <0 0x1b100000 0 0x20000>;
+		interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_SPI 224 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_SPI 225 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&topckgen CLK_TOP_ETH_SEL>,
+			 <&ethsys CLK_ETH_ESW_EN>,
+			 <&ethsys CLK_ETH_GP0_EN>,
+			 <&ethsys CLK_ETH_GP1_EN>,
+			 <&ethsys CLK_ETH_GP2_EN>,
+			 <&sgmiisys CLK_SGMII_TX250M_EN>,
+			 <&sgmiisys CLK_SGMII_RX250M_EN>,
+			 <&sgmiisys CLK_SGMII_CDR_REF>,
+			 <&sgmiisys CLK_SGMII_CDR_FB>,
+			 <&topckgen CLK_TOP_SGMIIPLL>,
+			 <&apmixedsys CLK_APMIXED_ETH2PLL>;
+		clock-names = "ethif", "esw", "gp0", "gp1", "gp2",
+			      "sgmii_tx250m", "sgmii_rx250m",
+			      "sgmii_cdr_ref", "sgmii_cdr_fb", "sgmii_ck",
+			      "eth2pll";
+		power-domains = <&scpsys MT7622_POWER_DOMAIN_ETHSYS>;
+		mediatek,ethsys = <&ethsys>;
+		mediatek,sgmiisys = <&sgmiisys>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
 	sgmiisys: sgmiisys@1b128000 {
 		compatible = "mediatek,mt7622-sgmiisys",
 			     "syscon";
