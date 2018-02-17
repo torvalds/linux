@@ -1268,7 +1268,7 @@ static int flexrm_startup(struct mbox_chan *chan)
 	}
 
 	/* Allocate completion memory */
-	ring->cmpl_base = dma_pool_alloc(ring->mbox->cmpl_pool,
+	ring->cmpl_base = dma_pool_zalloc(ring->mbox->cmpl_pool,
 					 GFP_KERNEL, &ring->cmpl_dma_base);
 	if (!ring->cmpl_base) {
 		dev_err(ring->mbox->dev,
@@ -1277,7 +1277,6 @@ static int flexrm_startup(struct mbox_chan *chan)
 		ret = -ENOMEM;
 		goto fail_free_bd_memory;
 	}
-	memset(ring->cmpl_base, 0, RING_CMPL_SIZE);
 
 	/* Request IRQ */
 	if (ring->irq == UINT_MAX) {
