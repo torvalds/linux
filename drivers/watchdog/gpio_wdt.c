@@ -80,7 +80,8 @@ static int gpio_wdt_stop(struct watchdog_device *wdd)
 
 	if (!priv->always_running) {
 		gpio_wdt_disable(priv);
-		clear_bit(WDOG_HW_RUNNING, &wdd->status);
+	} else {
+		set_bit(WDOG_HW_RUNNING, &wdd->status);
 	}
 
 	return 0;

@@ -4488,7 +4488,6 @@ unregister_ftrace_function_probe_func(char *glob, struct trace_array *tr,
 		func_g.type = filter_parse_regex(glob, strlen(glob),
 						 &func_g.search, &not);
 		func_g.len = strlen(func_g.search);
-		func_g.search = glob;
 
 		/* we do not support '!' for function probes */
 		if (WARN_ON(not))

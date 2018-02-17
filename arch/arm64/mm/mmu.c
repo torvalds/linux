@@ -117,6 +117,10 @@ static bool pgattr_change_is_safe(u64 old, u64 new)
 	if ((old | new) & PTE_CONT)
 		return false;
 
+	/* Transitioning from Global to Non-Global is safe */
+	if (((old ^ new) == PTE_NG) && (new & PTE_NG))
+		return true;
+
 	return ((old ^ new) & ~mask) == 0;
 }
 
@@ -524,6 +528,37 @@ static int __init parse_rodata(char *arg)
 	return strtobool(arg, &rodata_enabled);
 }
 early_param("rodata", parse_rodata);
+
+#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
+static int __init map_entry_trampoline(void)
+{
+	extern char __entry_tramp_text_start[];
+
+	pgprot_t prot = rodata_enabled ? PAGE_KERNEL_ROX : PAGE_KERNEL_EXEC;
+	phys_addr_t pa_start = __pa_symbol(__entry_tramp_text_start);
+
+	/* The trampoline is always mapped and can therefore be global */
+	pgprot_val(prot) &= ~PTE_NG;
+
+	/* Map only the text into the trampoline page table */
+	memset(tramp_pg_dir, 0, PGD_SIZE);
+	__create_pgd_mapping(tramp_pg_dir, pa_start, TRAMP_VALIAS, PAGE_SIZE,
+			     prot, pgd_pgtable_alloc, 0);
+
+	/* Map both the text and data into the kernel page table */
+	__set_fixmap(FIX_ENTRY_TRAMP_TEXT, pa_start, prot);
+	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
+		extern char __entry_tramp_data_start[];
+
+		__set_fixmap(FIX_ENTRY_TRAMP_DATA,
+			     __pa_symbol(__entry_tramp_data_start),
+			     PAGE_KERNEL_RO);
+	}
+
+	return 0;
+}
+core_initcall(map_entry_trampoline);
+#endif
 
 /*
  * Create fine-grained mappings for the kernel.

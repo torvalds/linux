@@ -17,6 +17,9 @@
 
 #include <linux/types.h>
 #include <linux/jump_label.h>
+#include <uapi/linux/psci.h>
+
+#include <kvm/arm_psci.h>
 
 #include <asm/kvm_asm.h>
 #include <asm/kvm_emulate.h>
@@ -51,7 +54,7 @@ static void __hyp_text __activate_traps_vhe(void)
 	val &= ~CPACR_EL1_FPEN;
 	write_sysreg(val, cpacr_el1);
 
-	write_sysreg(__kvm_hyp_vector, vbar_el1);
+	write_sysreg(kvm_get_hyp_vector(), vbar_el1);
 }
 
 static void __hyp_text __activate_traps_nvhe(void)
@@ -362,6 +365,14 @@ again:
 		}
 
 		/* 0 falls through to be handled out of EL2 */
+	}
+
+	if (cpus_have_const_cap(ARM64_HARDEN_BP_POST_GUEST_EXIT)) {
+		u32 midr = read_cpuid_id();
+
+		/* Apply BTAC predictors mitigation to all Falkor chips */
+		if ((midr & MIDR_CPU_MODEL_MASK) == MIDR_QCOM_FALKOR_V1)
+			__qcom_hyp_sanitize_btac_predictors();
 	}
 
 	fp_enabled = __fpsimd_enabled();

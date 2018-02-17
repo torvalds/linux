@@ -1211,23 +1211,6 @@ void assert_panel_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)
 	     pipe_name(pipe));
 }
 
-static void assert_cursor(struct drm_i915_private *dev_priv,
-			  enum pipe pipe, bool state)
-{
-	bool cur_state;
-
-	if (IS_I845G(dev_priv) || IS_I865G(dev_priv))
-		cur_state = I915_READ(CURCNTR(PIPE_A)) & CURSOR_ENABLE;
-	else
-		cur_state = I915_READ(CURCNTR(pipe)) & CURSOR_MODE;
-
-	I915_STATE_WARN(cur_state != state,
-	     "cursor on pipe %c assertion failure (expected %s, current %s)\n",
-			pipe_name(pipe), onoff(state), onoff(cur_state));
-}
-#define assert_cursor_enabled(d, p) assert_cursor(d, p, true)
-#define assert_cursor_disabled(d, p) assert_cursor(d, p, false)
-
 void assert_pipe(struct drm_i915_private *dev_priv,
 		 enum pipe pipe, bool state)
 {
@@ -1255,77 +1238,25 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 			pipe_name(pipe), onoff(state), onoff(cur_state));
 }
 
-static void assert_plane(struct drm_i915_private *dev_priv,
-			 enum plane plane, bool state)
+static void assert_plane(struct intel_plane *plane, bool state)
 {
-	u32 val;
-	bool cur_state;
+	bool cur_state = plane->get_hw_state(plane);
 
-	val = I915_READ(DSPCNTR(plane));
-	cur_state = !!(val & DISPLAY_PLANE_ENABLE);
 	I915_STATE_WARN(cur_state != state,
-	     "plane %c assertion failure (expected %s, current %s)\n",
-			plane_name(plane), onoff(state), onoff(cur_state));
+			"%s assertion failure (expected %s, current %s)\n",
+			plane->base.name, onoff(state), onoff(cur_state));
 }
 
-#define assert_plane_enabled(d, p) assert_plane(d, p, true)
-#define assert_plane_disabled(d, p) assert_plane(d, p, false)
+#define assert_plane_enabled(p) assert_plane(p, true)
+#define assert_plane_disabled(p) assert_plane(p, false)
 
-static void assert_planes_disabled(struct drm_i915_private *dev_priv,
-				   enum pipe pipe)
+static void assert_planes_disabled(struct intel_crtc *crtc)
 {
-	int i;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_plane *plane;
 
-	/* Primary planes are fixed to pipes on gen4+ */
-	if (INTEL_GEN(dev_priv) >= 4) {
-		u32 val = I915_READ(DSPCNTR(pipe));
-		I915_STATE_WARN(val & DISPLAY_PLANE_ENABLE,
-		     "plane %c assertion failure, should be disabled but not\n",
-		     plane_name(pipe));
-		return;
-	}
-
-	/* Need to check both planes against the pipe */
-	for_each_pipe(dev_priv, i) {
-		u32 val = I915_READ(DSPCNTR(i));
-		enum pipe cur_pipe = (val & DISPPLANE_SEL_PIPE_MASK) >>
-			DISPPLANE_SEL_PIPE_SHIFT;
-		I915_STATE_WARN((val & DISPLAY_PLANE_ENABLE) && pipe == cur_pipe,
-		     "plane %c assertion failure, should be off on pipe %c but is still active\n",
-		     plane_name(i), pipe_name(pipe));
-	}
-}
-
-static void assert_sprites_disabled(struct drm_i915_private *dev_priv,
-				    enum pipe pipe)
-{
-	int sprite;
-
-	if (INTEL_GEN(dev_priv) >= 9) {
-		for_each_sprite(dev_priv, pipe, sprite) {
-			u32 val = I915_READ(PLANE_CTL(pipe, sprite));
-			I915_STATE_WARN(val & PLANE_CTL_ENABLE,
-			     "plane %d assertion failure, should be off on pipe %c but is still active\n",
-			     sprite, pipe_name(pipe));
-		}
-	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		for_each_sprite(dev_priv, pipe, sprite) {
-			u32 val = I915_READ(SPCNTR(pipe, PLANE_SPRITE0 + sprite));
-			I915_STATE_WARN(val & SP_ENABLE,
-			     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
-			     sprite_name(pipe, sprite), pipe_name(pipe));
-		}
-	} else if (INTEL_GEN(dev_priv) >= 7) {
-		u32 val = I915_READ(SPRCTL(pipe));
-		I915_STATE_WARN(val & SPRITE_ENABLE,
-		     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
-		     plane_name(pipe), pipe_name(pipe));
-	} else if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv)) {
-		u32 val = I915_READ(DVSCNTR(pipe));
-		I915_STATE_WARN(val & DVS_ENABLE,
-		     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
-		     plane_name(pipe), pipe_name(pipe));
-	}
+	for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane)
+		assert_plane_disabled(plane);
 }
 
 static void assert_vblank_disabled(struct drm_crtc *crtc)
@@ -1926,9 +1857,7 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 
 	DRM_DEBUG_KMS("enabling pipe %c\n", pipe_name(pipe));
 
-	assert_planes_disabled(dev_priv, pipe);
-	assert_cursor_disabled(dev_priv, pipe);
-	assert_sprites_disabled(dev_priv, pipe);
+	assert_planes_disabled(crtc);
 
 	/*
 	 * A pipe without a PLL won't actually be able to drive bits from
@@ -1997,9 +1926,7 @@ static void intel_disable_pipe(struct intel_crtc *crtc)
 	 * Make sure planes won't keep trying to pump pixels to us,
 	 * or we might hang the display.
 	 */
-	assert_planes_disabled(dev_priv, pipe);
-	assert_cursor_disabled(dev_priv, pipe);
-	assert_sprites_disabled(dev_priv, pipe);
+	assert_planes_disabled(crtc);
 
 	reg = PIPECONF(cpu_transcoder);
 	val = I915_READ(reg);
@@ -2829,6 +2756,23 @@ intel_set_plane_visible(struct intel_crtc_state *crtc_state,
 		      crtc_state->active_planes);
 }
 
+static void intel_plane_disable_noatomic(struct intel_crtc *crtc,
+					 struct intel_plane *plane)
+{
+	struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(crtc->base.state);
+	struct intel_plane_state *plane_state =
+		to_intel_plane_state(plane->base.state);
+
+	intel_set_plane_visible(crtc_state, plane_state, false);
+
+	if (plane->id == PLANE_PRIMARY)
+		intel_pre_disable_primary_noatomic(&crtc->base);
+
+	trace_intel_disable_plane(&plane->base, crtc);
+	plane->disable_plane(plane, crtc);
+}
+
 static void
 intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 			     struct intel_initial_plane_config *plane_config)
@@ -2886,12 +2830,7 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	 * simplest solution is to just disable the primary plane now and
 	 * pretend the BIOS never had it enabled.
 	 */
-	intel_set_plane_visible(to_intel_crtc_state(crtc_state),
-				to_intel_plane_state(plane_state),
-				false);
-	intel_pre_disable_primary_noatomic(&intel_crtc->base);
-	trace_intel_disable_plane(primary, intel_crtc);
-	intel_plane->disable_plane(intel_plane, intel_crtc);
+	intel_plane_disable_noatomic(intel_crtc, intel_plane);
 
 	return;
 
@@ -3395,6 +3334,31 @@ static void i9xx_disable_primary_plane(struct intel_plane *primary,
 	POSTING_READ_FW(DSPCNTR(plane));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
+static bool i9xx_plane_get_hw_state(struct intel_plane *primary)
+{
+
+	struct drm_i915_private *dev_priv = to_i915(primary->base.dev);
+	enum intel_display_power_domain power_domain;
+	enum plane plane = primary->plane;
+	enum pipe pipe = primary->pipe;
+	bool ret;
+
+	/*
+	 * Not 100% correct for planes that can move between pipes,
+	 * but that's only the case for gen2-4 which don't have any
+	 * display power wells.
+	 */
+	power_domain = POWER_DOMAIN_PIPE(pipe);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+		return false;
+
+	ret = I915_READ(DSPCNTR(plane)) & DISPLAY_PLANE_ENABLE;
+
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 static u32
@@ -4973,7 +4937,8 @@ void hsw_enable_ips(struct intel_crtc *crtc)
 	 * a vblank wait.
 	 */
 
-	assert_plane_enabled(dev_priv, crtc->plane);
+	assert_plane_enabled(to_intel_plane(crtc->base.primary));
+
 	if (IS_BROADWELL(dev_priv)) {
 		mutex_lock(&dev_priv->rps.hw_lock);
 		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0xc0000000));
@@ -5005,7 +4970,8 @@ void hsw_disable_ips(struct intel_crtc *crtc)
 	if (!crtc->config->ips_enabled)
 		return;
 
-	assert_plane_enabled(dev_priv, crtc->plane);
+	assert_plane_enabled(to_intel_plane(crtc->base.primary));
+
 	if (IS_BROADWELL(dev_priv)) {
 		mutex_lock(&dev_priv->rps.hw_lock);
 		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0));
@@ -6000,6 +5966,7 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	enum intel_display_power_domain domain;
+	struct intel_plane *plane;
 	u64 domains;
 	struct drm_atomic_state *state;
 	struct intel_crtc_state *crtc_state;
@@ -6008,11 +5975,12 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc,
 	if (!intel_crtc->active)
 		return;
 
-	if (crtc->primary->state->visible) {
-		intel_pre_disable_primary_noatomic(crtc);
+	for_each_intel_plane_on_crtc(&dev_priv->drm, intel_crtc, plane) {
+		const struct intel_plane_state *plane_state =
+			to_intel_plane_state(plane->base.state);
 
-		intel_crtc_disable_planes(crtc, 1 << drm_plane_index(crtc->primary));
-		crtc->primary->state->visible = false;
+		if (plane_state->base.visible)
+			intel_plane_disable_noatomic(intel_crtc, plane);
 	}
 
 	state = drm_atomic_state_alloc(crtc->dev);
@@ -9577,6 +9545,23 @@ static void i845_disable_cursor(struct intel_plane *plane,
 	i845_update_cursor(plane, NULL, NULL);
 }
 
+static bool i845_cursor_get_hw_state(struct intel_plane *plane)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum intel_display_power_domain power_domain;
+	bool ret;
+
+	power_domain = POWER_DOMAIN_PIPE(PIPE_A);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+		return false;
+
+	ret = I915_READ(CURCNTR(PIPE_A)) & CURSOR_ENABLE;
+
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
+}
+
 static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 			   const struct intel_plane_state *plane_state)
 {
@@ -9770,6 +9755,28 @@ static void i9xx_disable_cursor(struct intel_plane *plane,
 	i9xx_update_cursor(plane, NULL, NULL);
 }
 
+static bool i9xx_cursor_get_hw_state(struct intel_plane *plane)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum intel_display_power_domain power_domain;
+	enum pipe pipe = plane->pipe;
+	bool ret;
+
+	/*
+	 * Not 100% correct for planes that can move between pipes,
+	 * but that's only the case for gen2-3 which don't have any
+	 * display power wells.
+	 */
+	power_domain = POWER_DOMAIN_PIPE(pipe);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+		return false;
+
+	ret = I915_READ(CURCNTR(pipe)) & CURSOR_MODE;
+
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
+}
 
 /* VESA 640x480x72Hz mode to set on the pipe */
 static struct drm_display_mode load_detect_mode = {
@@ -13240,6 +13247,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 		primary->update_plane = skylake_update_primary_plane;
 		primary->disable_plane = skylake_disable_primary_plane;
+		primary->get_hw_state = skl_plane_get_hw_state;
 	} else if (INTEL_GEN(dev_priv) >= 9) {
 		intel_primary_formats = skl_primary_formats;
 		num_formats = ARRAY_SIZE(skl_primary_formats);
@@ -13250,6 +13258,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 		primary->update_plane = skylake_update_primary_plane;
 		primary->disable_plane = skylake_disable_primary_plane;
+		primary->get_hw_state = skl_plane_get_hw_state;
 	} else if (INTEL_GEN(dev_priv) >= 4) {
 		intel_primary_formats = i965_primary_formats;
 		num_formats = ARRAY_SIZE(i965_primary_formats);
@@ -13257,6 +13266,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 		primary->update_plane = i9xx_update_primary_plane;
 		primary->disable_plane = i9xx_disable_primary_plane;
+		primary->get_hw_state = i9xx_plane_get_hw_state;
 	} else {
 		intel_primary_formats = i8xx_primary_formats;
 		num_formats = ARRAY_SIZE(i8xx_primary_formats);
@@ -13264,6 +13274,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 		primary->update_plane = i9xx_update_primary_plane;
 		primary->disable_plane = i9xx_disable_primary_plane;
+		primary->get_hw_state = i9xx_plane_get_hw_state;
 	}
 
 	if (INTEL_GEN(dev_priv) >= 9)
@@ -13353,10 +13364,12 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 	if (IS_I845G(dev_priv) || IS_I865G(dev_priv)) {
 		cursor->update_plane = i845_update_cursor;
 		cursor->disable_plane = i845_disable_cursor;
+		cursor->get_hw_state = i845_cursor_get_hw_state;
 		cursor->check_plane = i845_check_cursor;
 	} else {
 		cursor->update_plane = i9xx_update_cursor;
 		cursor->disable_plane = i9xx_disable_cursor;
+		cursor->get_hw_state = i9xx_cursor_get_hw_state;
 		cursor->check_plane = i9xx_check_cursor;
 	}
 
@@ -14704,8 +14717,11 @@ void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 	DRM_DEBUG_KMS("disabling pipe %c due to force quirk\n",
 		      pipe_name(pipe));
 
-	assert_plane_disabled(dev_priv, PLANE_A);
-	assert_plane_disabled(dev_priv, PLANE_B);
+	WARN_ON(I915_READ(DSPCNTR(PLANE_A)) & DISPLAY_PLANE_ENABLE);
+	WARN_ON(I915_READ(DSPCNTR(PLANE_B)) & DISPLAY_PLANE_ENABLE);
+	WARN_ON(I915_READ(DSPCNTR(PLANE_C)) & DISPLAY_PLANE_ENABLE);
+	WARN_ON(I915_READ(CURCNTR(PIPE_A)) & CURSOR_MODE);
+	WARN_ON(I915_READ(CURCNTR(PIPE_B)) & CURSOR_MODE);
 
 	I915_WRITE(PIPECONF(pipe), 0);
 	POSTING_READ(PIPECONF(pipe));
@@ -14716,22 +14732,36 @@ void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 	POSTING_READ(DPLL(pipe));
 }
 
-static bool
-intel_check_plane_mapping(struct intel_crtc *crtc)
+static bool intel_plane_mapping_ok(struct intel_crtc *crtc,
+				   struct intel_plane *primary)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	u32 val;
+	enum plane plane = primary->plane;
+	u32 val = I915_READ(DSPCNTR(plane));
 
-	if (INTEL_INFO(dev_priv)->num_pipes == 1)
-		return true;
+	return (val & DISPLAY_PLANE_ENABLE) == 0 ||
+		(val & DISPPLANE_SEL_PIPE_MASK) == DISPPLANE_SEL_PIPE(crtc->pipe);
+}
 
-	val = I915_READ(DSPCNTR(!crtc->plane));
+static void
+intel_sanitize_plane_mapping(struct drm_i915_private *dev_priv)
+{
+	struct intel_crtc *crtc;
 
-	if ((val & DISPLAY_PLANE_ENABLE) &&
-	    (!!(val & DISPPLANE_SEL_PIPE_MASK) == crtc->pipe))
-		return false;
+	if (INTEL_GEN(dev_priv) >= 4)
+		return;
 
-	return true;
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		struct intel_plane *plane =
+			to_intel_plane(crtc->base.primary);
+
+		if (intel_plane_mapping_ok(crtc, plane))
+			continue;
+
+		DRM_DEBUG_KMS("%s attached to the wrong pipe, disabling plane\n",
+			      plane->base.name);
+		intel_plane_disable_noatomic(crtc, plane);
+	}
 }
 
 static bool intel_crtc_has_encoders(struct intel_crtc *crtc)
@@ -14787,31 +14817,13 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 
 		/* Disable everything but the primary plane */
 		for_each_intel_plane_on_crtc(dev, crtc, plane) {
-			if (plane->base.type == DRM_PLANE_TYPE_PRIMARY)
-				continue;
+			const struct intel_plane_state *plane_state =
+				to_intel_plane_state(plane->base.state);
 
-			trace_intel_disable_plane(&plane->base, crtc);
-			plane->disable_plane(plane, crtc);
+			if (plane_state->base.visible &&
+			    plane->base.type != DRM_PLANE_TYPE_PRIMARY)
+				intel_plane_disable_noatomic(crtc, plane);
 		}
-	}
-
-	/* We need to sanitize the plane -> pipe mapping first because this will
-	 * disable the crtc (and hence change the state) if it is wrong. Note
-	 * that gen4+ has a fixed plane -> pipe mapping.  */
-	if (INTEL_GEN(dev_priv) < 4 && !intel_check_plane_mapping(crtc)) {
-		bool plane;
-
-		DRM_DEBUG_KMS("[CRTC:%d:%s] wrong plane connection detected!\n",
-			      crtc->base.base.id, crtc->base.name);
-
-		/* Pipe has the wrong plane attached and the plane is active.
-		 * Temporarily change the plane mapping and disable everything
-		 * ...  */
-		plane = crtc->plane;
-		crtc->base.primary->state->visible = true;
-		crtc->plane = !plane;
-		intel_crtc_disable_noatomic(&crtc->base, ctx);
-		crtc->plane = plane;
 	}
 
 	/* Adjust the state of the output pipe according to whether we
@@ -14918,24 +14930,21 @@ void i915_redisable_vga(struct drm_i915_private *dev_priv)
 	intel_display_power_put(dev_priv, POWER_DOMAIN_VGA);
 }
 
-static bool primary_get_hw_state(struct intel_plane *plane)
-{
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-
-	return I915_READ(DSPCNTR(plane->plane)) & DISPLAY_PLANE_ENABLE;
-}
-
 /* FIXME read out full plane state for all planes */
 static void readout_plane_state(struct intel_crtc *crtc)
 {
-	struct intel_plane *primary = to_intel_plane(crtc->base.primary);
-	bool visible;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(crtc->base.state);
+	struct intel_plane *plane;
 
-	visible = crtc->active && primary_get_hw_state(primary);
+	for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
+		struct intel_plane_state *plane_state =
+			to_intel_plane_state(plane->base.state);
+		bool visible = plane->get_hw_state(plane);
 
-	intel_set_plane_visible(to_intel_crtc_state(crtc->base.state),
-				to_intel_plane_state(primary->base.state),
-				visible);
+		intel_set_plane_visible(crtc_state, plane_state, visible);
+	}
 }
 
 static void intel_modeset_readout_hw_state(struct drm_device *dev)
@@ -15136,6 +15145,8 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 
 	/* HW state is read out, now we need to sanitize this mess. */
 	get_encoder_power_domains(dev_priv);
+
+	intel_sanitize_plane_mapping(dev_priv);
 
 	for_each_intel_encoder(dev, encoder) {
 		intel_sanitize_encoder(encoder);

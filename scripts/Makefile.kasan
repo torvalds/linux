@@ -30,5 +30,10 @@ else
     endif
 endif
 
+ifdef CONFIG_KASAN_EXTRA
 CFLAGS_KASAN += $(call cc-option, -fsanitize-address-use-after-scope)
+endif
+
+CFLAGS_KASAN_NOSANITIZE := -fno-builtin
+
 endif

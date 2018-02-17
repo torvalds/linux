@@ -5322,14 +5322,15 @@ static int vmx_deliver_nested_posted_interrupt(struct kvm_vcpu *vcpu,
 
 	if (is_guest_mode(vcpu) &&
 	    vector == vmx->nested.posted_intr_nv) {
-		/* the PIR and ON have been set by L1. */
-		kvm_vcpu_trigger_posted_interrupt(vcpu, true);
 		/*
 		 * If a posted intr is not recognized by hardware,
 		 * we will accomplish it in the next vmentry.
 		 */
 		vmx->nested.pi_pending = true;
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
+		/* the PIR and ON have been set by L1. */
+		if (!kvm_vcpu_trigger_posted_interrupt(vcpu, true))
+			kvm_vcpu_kick(vcpu);
 		return 0;
 	}
 	return -1;
@@ -11245,7 +11246,6 @@ static int vmx_check_nested_events(struct kvm_vcpu *vcpu, bool external_intr)
 		if (block_nested_events)
 			return -EBUSY;
 		nested_vmx_inject_exception_vmexit(vcpu, exit_qual);
-		vcpu->arch.exception.pending = false;
 		return 0;
 	}
 

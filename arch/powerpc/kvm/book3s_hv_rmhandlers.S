@@ -1387,6 +1387,26 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	blt	deliver_guest_interrupt
 
 guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
+	/* Save more register state  */
+	mfdar	r6
+	mfdsisr	r7
+	std	r6, VCPU_DAR(r9)
+	stw	r7, VCPU_DSISR(r9)
+	/* don't overwrite fault_dar/fault_dsisr if HDSI */
+	cmpwi	r12,BOOK3S_INTERRUPT_H_DATA_STORAGE
+	beq	mc_cont
+	std	r6, VCPU_FAULT_DAR(r9)
+	stw	r7, VCPU_FAULT_DSISR(r9)
+
+	/* See if it is a machine check */
+	cmpwi	r12, BOOK3S_INTERRUPT_MACHINE_CHECK
+	beq	machine_check_realmode
+mc_cont:
+#ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
+	addi	r3, r9, VCPU_TB_RMEXIT
+	mr	r4, r9
+	bl	kvmhv_accumulate_time
+#endif
 #ifdef CONFIG_KVM_XICS
 	/* We are exiting, pull the VP from the XIVE */
 	lwz	r0, VCPU_XIVE_PUSHED(r9)
@@ -1424,26 +1444,6 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	eieio
 1:
 #endif /* CONFIG_KVM_XICS */
-	/* Save more register state  */
-	mfdar	r6
-	mfdsisr	r7
-	std	r6, VCPU_DAR(r9)
-	stw	r7, VCPU_DSISR(r9)
-	/* don't overwrite fault_dar/fault_dsisr if HDSI */
-	cmpwi	r12,BOOK3S_INTERRUPT_H_DATA_STORAGE
-	beq	mc_cont
-	std	r6, VCPU_FAULT_DAR(r9)
-	stw	r7, VCPU_FAULT_DSISR(r9)
-
-	/* See if it is a machine check */
-	cmpwi	r12, BOOK3S_INTERRUPT_MACHINE_CHECK
-	beq	machine_check_realmode
-mc_cont:
-#ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
-	addi	r3, r9, VCPU_TB_RMEXIT
-	mr	r4, r9
-	bl	kvmhv_accumulate_time
-#endif
 
 	mr 	r3, r12
 	/* Increment exit count, poke other threads to exit */

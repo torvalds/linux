@@ -7668,6 +7668,22 @@ nfs4_stat_to_errno(int stat)
 	.p_name = #proc,	\
 }
 
+#if defined(CONFIG_NFS_V4_1)
+#define PROC41(proc, argtype, restype)				\
+	PROC(proc, argtype, restype)
+#else
+#define PROC41(proc, argtype, restype)				\
+	STUB(proc)
+#endif
+
+#if defined(CONFIG_NFS_V4_2)
+#define PROC42(proc, argtype, restype)				\
+	PROC(proc, argtype, restype)
+#else
+#define PROC42(proc, argtype, restype)				\
+	STUB(proc)
+#endif
+
 const struct rpc_procinfo nfs4_procedures[] = {
 	PROC(READ,		enc_read,		dec_read),
 	PROC(WRITE,		enc_write,		dec_write),
@@ -7688,7 +7704,6 @@ const struct rpc_procinfo nfs4_procedures[] = {
 	PROC(ACCESS,		enc_access,		dec_access),
 	PROC(GETATTR,		enc_getattr,		dec_getattr),
 	PROC(LOOKUP,		enc_lookup,		dec_lookup),
-	PROC(LOOKUPP,		enc_lookupp,		dec_lookupp),
 	PROC(LOOKUP_ROOT,	enc_lookup_root,	dec_lookup_root),
 	PROC(REMOVE,		enc_remove,		dec_remove),
 	PROC(RENAME,		enc_rename,		dec_rename),
@@ -7707,33 +7722,30 @@ const struct rpc_procinfo nfs4_procedures[] = {
 	PROC(RELEASE_LOCKOWNER,	enc_release_lockowner,	dec_release_lockowner),
 	PROC(SECINFO,		enc_secinfo,		dec_secinfo),
 	PROC(FSID_PRESENT,	enc_fsid_present,	dec_fsid_present),
-#if defined(CONFIG_NFS_V4_1)
-	PROC(EXCHANGE_ID,	enc_exchange_id,	dec_exchange_id),
-	PROC(CREATE_SESSION,	enc_create_session,	dec_create_session),
-	PROC(DESTROY_SESSION,	enc_destroy_session,	dec_destroy_session),
-	PROC(SEQUENCE,		enc_sequence,		dec_sequence),
-	PROC(GET_LEASE_TIME,	enc_get_lease_time,	dec_get_lease_time),
-	PROC(RECLAIM_COMPLETE,	enc_reclaim_complete,	dec_reclaim_complete),
-	PROC(GETDEVICEINFO,	enc_getdeviceinfo,	dec_getdeviceinfo),
-	PROC(LAYOUTGET,		enc_layoutget,		dec_layoutget),
-	PROC(LAYOUTCOMMIT,	enc_layoutcommit,	dec_layoutcommit),
-	PROC(LAYOUTRETURN,	enc_layoutreturn,	dec_layoutreturn),
-	PROC(SECINFO_NO_NAME,	enc_secinfo_no_name,	dec_secinfo_no_name),
-	PROC(TEST_STATEID,	enc_test_stateid,	dec_test_stateid),
-	PROC(FREE_STATEID,	enc_free_stateid,	dec_free_stateid),
+	PROC41(EXCHANGE_ID,	enc_exchange_id,	dec_exchange_id),
+	PROC41(CREATE_SESSION,	enc_create_session,	dec_create_session),
+	PROC41(DESTROY_SESSION,	enc_destroy_session,	dec_destroy_session),
+	PROC41(SEQUENCE,	enc_sequence,		dec_sequence),
+	PROC41(GET_LEASE_TIME,	enc_get_lease_time,	dec_get_lease_time),
+	PROC41(RECLAIM_COMPLETE,enc_reclaim_complete,	dec_reclaim_complete),
+	PROC41(GETDEVICEINFO,	enc_getdeviceinfo,	dec_getdeviceinfo),
+	PROC41(LAYOUTGET,	enc_layoutget,		dec_layoutget),
+	PROC41(LAYOUTCOMMIT,	enc_layoutcommit,	dec_layoutcommit),
+	PROC41(LAYOUTRETURN,	enc_layoutreturn,	dec_layoutreturn),
+	PROC41(SECINFO_NO_NAME,	enc_secinfo_no_name,	dec_secinfo_no_name),
+	PROC41(TEST_STATEID,	enc_test_stateid,	dec_test_stateid),
+	PROC41(FREE_STATEID,	enc_free_stateid,	dec_free_stateid),
 	STUB(GETDEVICELIST),
-	PROC(BIND_CONN_TO_SESSION,
+	PROC41(BIND_CONN_TO_SESSION,
 			enc_bind_conn_to_session, dec_bind_conn_to_session),
-	PROC(DESTROY_CLIENTID,	enc_destroy_clientid,	dec_destroy_clientid),
-#endif /* CONFIG_NFS_V4_1 */
-#ifdef CONFIG_NFS_V4_2
-	PROC(SEEK,		enc_seek,		dec_seek),
-	PROC(ALLOCATE,		enc_allocate,		dec_allocate),
-	PROC(DEALLOCATE,	enc_deallocate,		dec_deallocate),
-	PROC(LAYOUTSTATS,	enc_layoutstats,	dec_layoutstats),
-	PROC(CLONE,		enc_clone,		dec_clone),
-	PROC(COPY,		enc_copy,		dec_copy),
-#endif /* CONFIG_NFS_V4_2 */
+	PROC41(DESTROY_CLIENTID,enc_destroy_clientid,	dec_destroy_clientid),
+	PROC42(SEEK,		enc_seek,		dec_seek),
+	PROC42(ALLOCATE,	enc_allocate,		dec_allocate),
+	PROC42(DEALLOCATE,	enc_deallocate,		dec_deallocate),
+	PROC42(LAYOUTSTATS,	enc_layoutstats,	dec_layoutstats),
+	PROC42(CLONE,		enc_clone,		dec_clone),
+	PROC42(COPY,		enc_copy,		dec_copy),
+	PROC(LOOKUPP,		enc_lookupp,		dec_lookupp),
 };
 
 static unsigned int nfs_version4_counts[ARRAY_SIZE(nfs4_procedures)];

@@ -318,22 +318,39 @@ static void scsi_init_cmd_errh(struct scsi_cmnd *cmd)
 		cmd->cmd_len = scsi_command_size(cmd->cmnd);
 }
 
+/*
+ * Decrement the host_busy counter and wake up the error handler if necessary.
+ * Avoid as follows that the error handler is not woken up if shost->host_busy
+ * == shost->host_failed: use call_rcu() in scsi_eh_scmd_add() in combination
+ * with an RCU read lock in this function to ensure that this function in its
+ * entirety either finishes before scsi_eh_scmd_add() increases the
+ * host_failed counter or that it notices the shost state change made by
+ * scsi_eh_scmd_add().
+ */
+static void scsi_dec_host_busy(struct Scsi_Host *shost)
+{
+	unsigned long flags;
+
+	rcu_read_lock();
+	atomic_dec(&shost->host_busy);
+	if (unlikely(scsi_host_in_recovery(shost))) {
+		spin_lock_irqsave(shost->host_lock, flags);
+		if (shost->host_failed || shost->host_eh_scheduled)
+			scsi_eh_wakeup(shost);
+		spin_unlock_irqrestore(shost->host_lock, flags);
+	}
+	rcu_read_unlock();
+}
+
 void scsi_device_unbusy(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost = sdev->host;
 	struct scsi_target *starget = scsi_target(sdev);
-	unsigned long flags;
 
-	atomic_dec(&shost->host_busy);
+	scsi_dec_host_busy(shost);
+
 	if (starget->can_queue > 0)
 		atomic_dec(&starget->target_busy);
-
-	if (unlikely(scsi_host_in_recovery(shost) &&
-		     (shost->host_failed || shost->host_eh_scheduled))) {
-		spin_lock_irqsave(shost->host_lock, flags);
-		scsi_eh_wakeup(shost);
-		spin_unlock_irqrestore(shost->host_lock, flags);
-	}
 
 	atomic_dec(&sdev->device_busy);
 }
@@ -1532,7 +1549,7 @@ starved:
 		list_add_tail(&sdev->starved_entry, &shost->starved_list);
 	spin_unlock_irq(shost->host_lock);
 out_dec:
-	atomic_dec(&shost->host_busy);
+	scsi_dec_host_busy(shost);
 	return 0;
 }
 
@@ -1993,7 +2010,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return BLK_STS_OK;
 
 out_dec_host_busy:
-	atomic_dec(&shost->host_busy);
+	scsi_dec_host_busy(shost);
 out_dec_target_busy:
 	if (scsi_target(sdev)->can_queue > 0)
 		atomic_dec(&scsi_target(sdev)->target_busy);

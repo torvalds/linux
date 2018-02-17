@@ -193,11 +193,18 @@ int crypto_ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
 			unsigned int keylen)
 {
 	unsigned long alignmask = crypto_ahash_alignmask(tfm);
+	int err;
 
 	if ((unsigned long)key & alignmask)
-		return ahash_setkey_unaligned(tfm, key, keylen);
+		err = ahash_setkey_unaligned(tfm, key, keylen);
+	else
+		err = tfm->setkey(tfm, key, keylen);
 
-	return tfm->setkey(tfm, key, keylen);
+	if (err)
+		return err;
+
+	crypto_ahash_clear_flags(tfm, CRYPTO_TFM_NEED_KEY);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_setkey);
 
@@ -370,7 +377,12 @@ EXPORT_SYMBOL_GPL(crypto_ahash_finup);
 
 int crypto_ahash_digest(struct ahash_request *req)
 {
-	return crypto_ahash_op(req, crypto_ahash_reqtfm(req)->digest);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+
+	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
+		return -ENOKEY;
+
+	return crypto_ahash_op(req, tfm->digest);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_digest);
 
@@ -456,7 +468,6 @@ static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
 	struct ahash_alg *alg = crypto_ahash_alg(hash);
 
 	hash->setkey = ahash_nosetkey;
-	hash->has_setkey = false;
 	hash->export = ahash_no_export;
 	hash->import = ahash_no_import;
 
@@ -471,7 +482,8 @@ static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
 
 	if (alg->setkey) {
 		hash->setkey = alg->setkey;
-		hash->has_setkey = true;
+		if (!(alg->halg.base.cra_flags & CRYPTO_ALG_OPTIONAL_KEY))
+			crypto_ahash_set_flags(hash, CRYPTO_TFM_NEED_KEY);
 	}
 	if (alg->export)
 		hash->export = alg->export;
@@ -654,6 +666,17 @@ struct hash_alg_common *ahash_attr_alg(struct rtattr *rta, u32 type, u32 mask)
 	return IS_ERR(alg) ? ERR_CAST(alg) : __crypto_hash_alg_common(alg);
 }
 EXPORT_SYMBOL_GPL(ahash_attr_alg);
+
+bool crypto_hash_alg_has_setkey(struct hash_alg_common *halg)
+{
+	struct crypto_alg *alg = &halg->base;
+
+	if (alg->cra_type != &crypto_ahash_type)
+		return crypto_shash_alg_has_setkey(__crypto_shash_alg(alg));
+
+	return __crypto_ahash_alg(alg)->setkey != NULL;
+}
+EXPORT_SYMBOL_GPL(crypto_hash_alg_has_setkey);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Asynchronous cryptographic hash type");
