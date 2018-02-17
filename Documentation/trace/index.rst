@@ -20,3 +20,4 @@ Linux Tracing Technologies
    mmiotrace
    hwlat_detector
    intel_th
+   stm
