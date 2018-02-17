@@ -7,4 +7,5 @@ Linux Tracing Technologies
 
    ftrace-design
    tracepoint-analysis
+   ftrace
    ftrace-uses
