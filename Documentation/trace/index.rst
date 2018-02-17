@@ -17,3 +17,4 @@ Linux Tracing Technologies
    events-power
    events-nmi
    events-msr
+   mmiotrace

@@ -1,4 +1,6 @@
-		In-kernel memory-mapped I/O tracing
+===================================
+In-kernel memory-mapped I/O tracing
+===================================
 
 
 Home page and links to optional user space tools:
@@ -31,30 +33,35 @@ is no way to automatically detect if you are losing events due to CPUs racing.
 
 Usage Quick Reference
 ---------------------
+::
 
-$ mount -t debugfs debugfs /sys/kernel/debug
-$ echo mmiotrace > /sys/kernel/debug/tracing/current_tracer
-$ cat /sys/kernel/debug/tracing/trace_pipe > mydump.txt &
-Start X or whatever.
-$ echo "X is up" > /sys/kernel/debug/tracing/trace_marker
-$ echo nop > /sys/kernel/debug/tracing/current_tracer
-Check for lost events.
+	$ mount -t debugfs debugfs /sys/kernel/debug
+	$ echo mmiotrace > /sys/kernel/debug/tracing/current_tracer
+	$ cat /sys/kernel/debug/tracing/trace_pipe > mydump.txt &
+	Start X or whatever.
+	$ echo "X is up" > /sys/kernel/debug/tracing/trace_marker
+	$ echo nop > /sys/kernel/debug/tracing/current_tracer
+	Check for lost events.
 
 
 Usage
 -----
 
 Make sure debugfs is mounted to /sys/kernel/debug.
-If not (requires root privileges):
-$ mount -t debugfs debugfs /sys/kernel/debug
+If not (requires root privileges)::
+
+	$ mount -t debugfs debugfs /sys/kernel/debug
 
 Check that the driver you are about to trace is not loaded.
 
-Activate mmiotrace (requires root privileges):
-$ echo mmiotrace > /sys/kernel/debug/tracing/current_tracer
+Activate mmiotrace (requires root privileges)::
 
-Start storing the trace:
-$ cat /sys/kernel/debug/tracing/trace_pipe > mydump.txt &
+	$ echo mmiotrace > /sys/kernel/debug/tracing/current_tracer
+
+Start storing the trace::
+
+	$ cat /sys/kernel/debug/tracing/trace_pipe > mydump.txt &
+
 The 'cat' process should stay running (sleeping) in the background.
 
 Load the driver you want to trace and use it. Mmiotrace will only catch MMIO
@@ -66,30 +73,42 @@ This makes it easier to see which part of the (huge) trace corresponds to
 which action. It is recommended to place descriptive markers about what you
 do.
 
-Shut down mmiotrace (requires root privileges):
-$ echo nop > /sys/kernel/debug/tracing/current_tracer
+Shut down mmiotrace (requires root privileges)::
+
+	$ echo nop > /sys/kernel/debug/tracing/current_tracer
+
 The 'cat' process exits. If it does not, kill it by issuing 'fg' command and
 pressing ctrl+c.
 
-Check that mmiotrace did not lose events due to a buffer filling up. Either
-$ grep -i lost mydump.txt
-which tells you exactly how many events were lost, or use
-$ dmesg
+Check that mmiotrace did not lose events due to a buffer filling up. Either::
+
+	$ grep -i lost mydump.txt
+
+which tells you exactly how many events were lost, or use::
+
+	$ dmesg
+
 to view your kernel log and look for "mmiotrace has lost events" warning. If
 events were lost, the trace is incomplete. You should enlarge the buffers and
 try again. Buffers are enlarged by first seeing how large the current buffers
-are:
-$ cat /sys/kernel/debug/tracing/buffer_size_kb
+are::
+
+	$ cat /sys/kernel/debug/tracing/buffer_size_kb
+
 gives you a number. Approximately double this number and write it back, for
-instance:
-$ echo 128000 > /sys/kernel/debug/tracing/buffer_size_kb
+instance::
+
+	$ echo 128000 > /sys/kernel/debug/tracing/buffer_size_kb
+
 Then start again from the top.
 
 If you are doing a trace for a driver project, e.g. Nouveau, you should also
-do the following before sending your results:
-$ lspci -vvv > lspci.txt
-$ dmesg > dmesg.txt
-$ tar zcf pciid-nick-mmiotrace.tar.gz mydump.txt lspci.txt dmesg.txt
+do the following before sending your results::
+
+	$ lspci -vvv > lspci.txt
+	$ dmesg > dmesg.txt
+	$ tar zcf pciid-nick-mmiotrace.tar.gz mydump.txt lspci.txt dmesg.txt
+
 and then send the .tar.gz file. The trace compresses considerably. Replace
 "pciid" and "nick" with the PCI ID or model name of your piece of hardware
 under investigation and your nickname.
@@ -148,17 +167,18 @@ zero if it is not recorded. PID is always zero as tracing MMIO accesses
 originating in user space memory is not yet supported.
 
 For instance, the following awk filter will pass all 32-bit writes that target
-physical addresses in the range [0xfb73ce40, 0xfb800000[
+physical addresses in the range [0xfb73ce40, 0xfb800000]
+::
 
-$ awk '/W 4 / { adr=strtonum($5); if (adr >= 0xfb73ce40 &&
-adr < 0xfb800000) print; }'
+	$ awk '/W 4 / { adr=strtonum($5); if (adr >= 0xfb73ce40 &&
+	adr < 0xfb800000) print; }'
 
 
 Tools for Developers
 --------------------
 
 The user space tools include utilities for:
-- replacing numeric addresses and values with hardware register names
-- replaying MMIO logs, i.e., re-executing the recorded writes
+  - replacing numeric addresses and values with hardware register names
+  - replaying MMIO logs, i.e., re-executing the recorded writes
 
 
