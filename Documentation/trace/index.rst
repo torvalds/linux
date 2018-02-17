@@ -6,4 +6,5 @@ Linux Tracing Technologies
    :maxdepth: 2
 
    ftrace-design
+   tracepoint-analysis
    ftrace-uses
