@@ -11,6 +11,7 @@
 #include <dt-bindings/clock/mt7622-clk.h>
 #include <dt-bindings/power/mt7622-power.h>
 #include <dt-bindings/reset/mt7622-reset.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	compatible = "mediatek,mt7622";
@@ -74,6 +75,7 @@
 				 <&apmixedsys CLK_APMIXED_MAIN_CORE_EN>;
 			clock-names = "cpu", "intermediate";
 			operating-points-v2 = <&cpu_opp_table>;
+			#cooling-cells = <2>;
 			enable-method = "psci";
 			clock-frequency = <1300000000>;
 		};
@@ -118,6 +120,58 @@
 		secmon_reserved: secmon@43000000 {
 			reg = <0 0x43000000 0 0x30000>;
 			no-map;
+		};
+	};
+
+	thermal-zones {
+		cpu_thermal: cpu-thermal {
+			polling-delay-passive = <1000>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&thermal 0>;
+
+			trips {
+				cpu_passive: cpu-passive {
+					temperature = <47000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpu_active: cpu-active {
+					temperature = <67000>;
+					hysteresis = <2000>;
+					type = "active";
+				};
+
+				cpu_hot: cpu-hot {
+					temperature = <87000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+
+				cpu-crit {
+					temperature = <107000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_passive>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+
+				map1 {
+					trip = <&cpu_active>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+
+				map2 {
+					trip = <&cpu_hot>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
 		};
 	};
 
@@ -176,6 +230,16 @@
 		clock-names = "hif_sel";
 	};
 
+	cir: cir@10009000 {
+		compatible = "mediatek,mt7622-cir";
+		reg = <0 0x10009000 0 0x1000>;
+		interrupts = <GIC_SPI 175 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&infracfg CLK_INFRA_IRRX_PD>,
+			 <&topckgen CLK_TOP_AXI_SEL>;
+		clock-names = "clk", "bus";
+		status = "disabled";
+	};
+
 	sysirq: interrupt-controller@10200620 {
 		compatible = "mediatek,mt7622-sysirq",
 			     "mediatek,mt6577-sysirq";
@@ -183,6 +247,18 @@
 		#interrupt-cells = <3>;
 		interrupt-parent = <&gic>;
 		reg = <0 0x10200620 0 0x20>;
+	};
+
+	efuse: efuse@10206000 {
+		compatible = "mediatek,mt7622-efuse",
+			     "mediatek,efuse";
+		reg = <0 0x10206000 0 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		thermal_calibration: calib@198 {
+			reg = <0x198 0xc>;
+		};
 	};
 
 	apmixedsys: apmixedsys@10209000 {
@@ -199,11 +275,34 @@
 		#clock-cells = <1>;
 	};
 
+	rng: rng@1020f000 {
+		compatible = "mediatek,mt7622-rng",
+			     "mediatek,mt7623-rng";
+		reg = <0 0x1020f000 0 0x1000>;
+		clocks = <&infracfg CLK_INFRA_TRNG>;
+		clock-names = "rng";
+	};
+
 	pio: pinctrl@10211000 {
 		compatible = "mediatek,mt7622-pinctrl";
 		reg = <0 0x10211000 0 0x1000>;
 		gpio-controller;
 		#gpio-cells = <2>;
+	};
+
+	watchdog: watchdog@10212000 {
+		compatible = "mediatek,mt7622-wdt",
+			     "mediatek,mt6589-wdt";
+		reg = <0 0x10212000 0 0x800>;
+	};
+
+	rtc: rtc@10212800 {
+		compatible = "mediatek,mt7622-rtc",
+			     "mediatek,soc-rtc";
+		reg = <0 0x10212800 0 0x200>;
+		interrupts = <GIC_SPI 129 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&topckgen CLK_TOP_RTC>;
+		clock-names = "rtc";
 	};
 
 	gic: interrupt-controller@10300000 {
@@ -217,6 +316,14 @@
 		      <0 0x10360000 0 0x2000>;
 	};
 
+	auxadc: adc@11001000 {
+		compatible = "mediatek,mt7622-auxadc";
+		reg = <0 0x11001000 0 0x1000>;
+		clocks = <&pericfg CLK_PERI_AUXADC_PD>;
+		clock-names = "main";
+		#io-channel-cells = <1>;
+	};
+
 	uart0: serial@11002000 {
 		compatible = "mediatek,mt7622-uart",
 			     "mediatek,mt6577-uart";
@@ -224,6 +331,163 @@
 		interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&topckgen CLK_TOP_UART_SEL>,
 			 <&pericfg CLK_PERI_UART1_PD>;
+		clock-names = "baud", "bus";
+		status = "disabled";
+	};
+
+	uart1: serial@11003000 {
+		compatible = "mediatek,mt7622-uart",
+			     "mediatek,mt6577-uart";
+		reg = <0 0x11003000 0 0x400>;
+		interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&topckgen CLK_TOP_UART_SEL>,
+			 <&pericfg CLK_PERI_UART1_PD>;
+		clock-names = "baud", "bus";
+		status = "disabled";
+	};
+
+	uart2: serial@11004000 {
+		compatible = "mediatek,mt7622-uart",
+			     "mediatek,mt6577-uart";
+		reg = <0 0x11004000 0 0x400>;
+		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&topckgen CLK_TOP_UART_SEL>,
+			 <&pericfg CLK_PERI_UART2_PD>;
+		clock-names = "baud", "bus";
+		status = "disabled";
+	};
+
+	uart3: serial@11005000 {
+		compatible = "mediatek,mt7622-uart",
+			     "mediatek,mt6577-uart";
+		reg = <0 0x11005000 0 0x400>;
+		interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&topckgen CLK_TOP_UART_SEL>,
+			 <&pericfg CLK_PERI_UART3_PD>;
+		clock-names = "baud", "bus";
+		status = "disabled";
+	};
+
+	pwm: pwm@11006000 {
+		compatible = "mediatek,mt7622-pwm";
+		reg = <0 0x11006000 0 0x1000>;
+		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&topckgen CLK_TOP_PWM_SEL>,
+			 <&pericfg CLK_PERI_PWM_PD>,
+			 <&pericfg CLK_PERI_PWM1_PD>,
+			 <&pericfg CLK_PERI_PWM2_PD>,
+			 <&pericfg CLK_PERI_PWM3_PD>,
+			 <&pericfg CLK_PERI_PWM4_PD>,
+			 <&pericfg CLK_PERI_PWM5_PD>,
+			 <&pericfg CLK_PERI_PWM6_PD>;
+		clock-names = "top", "main", "pwm1", "pwm2", "pwm3", "pwm4",
+			      "pwm5", "pwm6";
+		status = "disabled";
+	};
+
+	i2c0: i2c@11007000 {
+		compatible = "mediatek,mt7622-i2c";
+		reg = <0 0x11007000 0 0x90>,
+		      <0 0x11000100 0 0x80>;
+		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_LOW>;
+		clock-div = <16>;
+		clocks = <&pericfg CLK_PERI_I2C0_PD>,
+			 <&pericfg CLK_PERI_AP_DMA_PD>;
+		clock-names = "main", "dma";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	i2c1: i2c@11008000 {
+		compatible = "mediatek,mt7622-i2c";
+		reg = <0 0x11008000 0 0x90>,
+		      <0 0x11000180 0 0x80>;
+		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_LOW>;
+		clock-div = <16>;
+		clocks = <&pericfg CLK_PERI_I2C1_PD>,
+			 <&pericfg CLK_PERI_AP_DMA_PD>;
+		clock-names = "main", "dma";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	i2c2: i2c@11009000 {
+		compatible = "mediatek,mt7622-i2c";
+		reg = <0 0x11009000 0 0x90>,
+		      <0 0x11000200 0 0x80>;
+		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_LOW>;
+		clock-div = <16>;
+		clocks = <&pericfg CLK_PERI_I2C2_PD>,
+			 <&pericfg CLK_PERI_AP_DMA_PD>;
+		clock-names = "main", "dma";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	spi0: spi@1100a000 {
+		compatible = "mediatek,mt7622-spi";
+		reg = <0 0x1100a000 0 0x100>;
+		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&topckgen CLK_TOP_SYSPLL3_D2>,
+			 <&topckgen CLK_TOP_SPI0_SEL>,
+			 <&pericfg CLK_PERI_SPI0_PD>;
+		clock-names = "parent-clk", "sel-clk", "spi-clk";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	thermal: thermal@1100b000 {
+		#thermal-sensor-cells = <1>;
+		compatible = "mediatek,mt7622-thermal";
+		reg = <0 0x1100b000 0 0x1000>;
+		interrupts = <0 78 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&pericfg CLK_PERI_THERM_PD>,
+			 <&pericfg CLK_PERI_AUXADC_PD>;
+		clock-names = "therm", "auxadc";
+		resets = <&pericfg MT7622_PERI_THERM_SW_RST>;
+		reset-names = "therm";
+		mediatek,auxadc = <&auxadc>;
+		mediatek,apmixedsys = <&apmixedsys>;
+		nvmem-cells = <&thermal_calibration>;
+		nvmem-cell-names = "calibration-data";
+	};
+
+	btif: serial@1100c000 {
+		compatible = "mediatek,mt7622-btif",
+			     "mediatek,mtk-btif";
+		reg = <0 0x1100c000 0 0x1000>;
+		interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&pericfg CLK_PERI_BTIF_PD>;
+		clock-names = "main";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		status = "disabled";
+	};
+
+	spi1: spi@11016000 {
+		compatible = "mediatek,mt7622-spi";
+		reg = <0 0x11016000 0 0x100>;
+		interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&topckgen CLK_TOP_SYSPLL3_D2>,
+			 <&topckgen CLK_TOP_SPI1_SEL>,
+			 <&pericfg CLK_PERI_SPI1_PD>;
+		clock-names = "parent-clk", "sel-clk", "spi-clk";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	uart4: serial@11019000 {
+		compatible = "mediatek,mt7622-uart",
+			     "mediatek,mt6577-uart";
+		reg = <0 0x11019000 0 0x400>;
+		interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&topckgen CLK_TOP_UART_SEL>,
+			 <&pericfg CLK_PERI_UART4_PD>;
 		clock-names = "baud", "bus";
 		status = "disabled";
 	};
