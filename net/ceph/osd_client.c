@@ -103,13 +103,12 @@ static int calc_layout(struct ceph_file_layout *layout, u64 off, u64 *plen,
 			u64 *objnum, u64 *objoff, u64 *objlen)
 {
 	u64 orig_len = *plen;
-	int r;
+	u32 xlen;
 
 	/* object extent? */
-	r = ceph_calc_file_object_mapping(layout, off, orig_len, objnum,
-					  objoff, objlen);
-	if (r < 0)
-		return r;
+	ceph_calc_file_object_mapping(layout, off, orig_len, objnum,
+					  objoff, &xlen);
+	*objlen = xlen;
 	if (*objlen < orig_len) {
 		*plen = *objlen;
 		dout(" skipping last %llu, final file extent %llu~%llu\n",
@@ -117,7 +116,6 @@ static int calc_layout(struct ceph_file_layout *layout, u64 off, u64 *plen,
 	}
 
 	dout("calc_layout objnum=%llx %llu~%llu\n", *objnum, *objoff, *objlen);
-
 	return 0;
 }
 

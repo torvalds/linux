@@ -2153,9 +2153,9 @@ bool ceph_osds_changed(const struct ceph_osds *old_acting,
  * objno     |      0      |      1      |      2      |      3      |      4
  * objsetno  |                    0                    |                    1
  */
-int ceph_calc_file_object_mapping(struct ceph_file_layout *l,
+void ceph_calc_file_object_mapping(struct ceph_file_layout *l,
 				   u64 off, u64 len,
-				   u64 *objno, u64 *objoff, u64 *xlen)
+				   u64 *objno, u64 *objoff, u32 *xlen)
 {
 	u32 stripes_per_object = l->object_size / l->stripe_unit;
 	u64 blockno;	/* which su in the file (i.e. globally) */
@@ -2173,8 +2173,6 @@ int ceph_calc_file_object_mapping(struct ceph_file_layout *l,
 	*objno = objsetno * l->stripe_count + stripepos;
 	*objoff = objsetpos * l->stripe_unit + blockoff;
 	*xlen = min_t(u64, len, l->stripe_unit - blockoff);
-
-	return 0;
 }
 EXPORT_SYMBOL(ceph_calc_file_object_mapping);
 
