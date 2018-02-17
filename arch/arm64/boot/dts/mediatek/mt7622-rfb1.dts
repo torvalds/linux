@@ -8,6 +8,7 @@
 
 /dts-v1/;
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
 
 #include "mt7622.dtsi"
 #include "mt6380.dtsi"
@@ -53,6 +54,14 @@
 		reg = <0 0x40000000 0 0x3F000000>;
 	};
 
+	reg_1p8v: regulator-1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
 	reg_3p3v: regulator-3p3v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-3.3V";
@@ -89,12 +98,44 @@
 			function = "emmc", "emmc_rst";
 			groups = "emmc";
 		};
+
+		/* "NDL0","NDL1","NDL2","NDL3","NDL4","NDL5","NDL6","NDL7",
+		 * "NRB","NCLE" pins are used as DAT0,DAT1,DAT2,DAT3,DAT4,
+		 * DAT5,DAT6,DAT7,CMD,CLK for eMMC respectively
+		 */
+		conf-cmd-dat {
+			pins = "NDL0", "NDL1", "NDL2",
+			       "NDL3", "NDL4", "NDL5",
+			       "NDL6", "NDL7", "NRB";
+			input-enable;
+			bias-pull-up;
+		};
+
+		conf-clk {
+			pins = "NCLE";
+			bias-pull-down;
+		};
 	};
 
 	emmc_pins_uhs: emmc-pins-uhs {
 		mux {
 			function = "emmc";
 			groups = "emmc";
+		};
+
+		conf-cmd-dat {
+			pins = "NDL0", "NDL1", "NDL2",
+			       "NDL3", "NDL4", "NDL5",
+			       "NDL6", "NDL7", "NRB";
+			input-enable;
+			drive-strength = <4>;
+			bias-pull-up;
+		};
+
+		conf-clk {
+			pins = "NCLE";
+			drive-strength = <4>;
+			bias-pull-down;
 		};
 	};
 
@@ -194,12 +235,45 @@
 			function = "sd";
 			groups = "sd_0";
 		};
+
+		/* "I2S2_OUT, "I2S4_IN"", "I2S3_IN", "I2S2_IN",
+		 *  "I2S4_OUT", "I2S3_OUT" are used as DAT0, DAT1,
+		 *  DAT2, DAT3, CMD, CLK for SD respectively.
+		 */
+		conf-cmd-data {
+			pins = "I2S2_OUT", "I2S4_IN", "I2S3_IN",
+			       "I2S2_IN","I2S4_OUT";
+			input-enable;
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+		conf-clk {
+			pins = "I2S3_OUT";
+			drive-strength = <12>;
+			bias-pull-down;
+		};
+		conf-cd {
+			pins = "TXD3";
+			bias-pull-up;
+		};
 	};
 
 	sd0_pins_uhs: sd0-pins-uhs {
 		mux {
 			function = "sd";
 			groups = "sd_0";
+		};
+
+		conf-cmd-data {
+			pins = "I2S2_OUT", "I2S4_IN", "I2S3_IN",
+			       "I2S2_IN","I2S4_OUT";
+			input-enable;
+			bias-pull-up;
+		};
+
+		conf-clk {
+			pins = "I2S3_OUT";
+			bias-pull-down;
 		};
 	};
 
@@ -309,6 +383,38 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pins>;
 	status = "okay";
+};
+
+&mmc0 {
+	pinctrl-names = "default", "state_uhs";
+	pinctrl-0 = <&emmc_pins_default>;
+	pinctrl-1 = <&emmc_pins_uhs>;
+	status = "okay";
+	bus-width = <8>;
+	max-frequency = <50000000>;
+	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_1p8v>;
+	assigned-clocks = <&topckgen CLK_TOP_MSDC30_0_SEL>;
+	assigned-clock-parents = <&topckgen CLK_TOP_UNIV48M>;
+	non-removable;
+};
+
+&mmc1 {
+	pinctrl-names = "default", "state_uhs";
+	pinctrl-0 = <&sd0_pins_default>;
+	pinctrl-1 = <&sd0_pins_uhs>;
+	status = "okay";
+	bus-width = <4>;
+	max-frequency = <50000000>;
+	cap-sd-highspeed;
+	r_smpl = <1>;
+	cd-gpios = <&pio 81 GPIO_ACTIVE_LOW>;
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_3p3v>;
+	assigned-clocks = <&topckgen CLK_TOP_MSDC30_1_SEL>;
+	assigned-clock-parents = <&topckgen CLK_TOP_UNIV48M>;
 };
 
 &nandc {
