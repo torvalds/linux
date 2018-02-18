@@ -67,7 +67,8 @@ static s32 FillH2CCmd_88E(struct adapter *adapt, u8 ElementID, u32 CmdLen, u8 *p
 
 
 	if (!adapt->bFWReady) {
-		DBG_88E("FillH2CCmd_88E(): return H2C cmd because fw is not ready\n");
+		DBG_88E("%s(): return H2C cmd because fw is not ready\n",
+			__func__);
 		return ret;
 	}
 
