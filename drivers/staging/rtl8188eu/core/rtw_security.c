@@ -18,6 +18,7 @@
 #include <drv_types.h>
 #include <wifi.h>
 #include <osdep_intf.h>
+#include <net/lib80211.h>
 
 /* WEP related ===== */
 
@@ -195,48 +196,57 @@ void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
 
 }
 
-void rtw_wep_decrypt(struct adapter  *padapter, u8 *precvframe)
+int rtw_wep_decrypt(struct adapter  *padapter, u8 *precvframe)
 {
-	/*  exclude ICV */
-	u8	crc[4];
-	struct arc4context	 mycontext;
-	int	length;
-	u32	keylength;
-	u8	*pframe, *payload, *iv, wepkey[16];
-	u8	 keyindex;
 	struct	rx_pkt_attrib	 *prxattrib = &(((struct recv_frame *)precvframe)->attrib);
-	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
 
-
-	pframe = (unsigned char *)((struct recv_frame *)precvframe)->pkt->data;
-
-	/* start to decrypt recvframe */
 	if ((prxattrib->encrypt == _WEP40_) || (prxattrib->encrypt == _WEP104_)) {
-		iv = pframe+prxattrib->hdrlen;
-		keyindex = prxattrib->key_index;
-		keylength = psecuritypriv->dot11DefKeylen[keyindex];
-		memcpy(&wepkey[0], iv, 3);
-		memcpy(&wepkey[3], &psecuritypriv->dot11DefKey[keyindex].skey[0], keylength);
-		length = ((struct recv_frame *)precvframe)->pkt->len-prxattrib->hdrlen-prxattrib->iv_len;
+		struct	security_priv	*psecuritypriv = &padapter->securitypriv;
+		struct sk_buff *skb = ((struct recv_frame *)precvframe)->pkt;
+		u8 *pframe = skb->data;
+		void *crypto_private = NULL;
+		int status = _SUCCESS;
+		const int keyindex = prxattrib->key_index;
+		struct lib80211_crypto_ops *crypto_ops = try_then_request_module(lib80211_get_crypto_ops("WEP"), "lib80211_crypt_wep");
+		char iv[4], icv[4];
 
-		payload = pframe+prxattrib->iv_len+prxattrib->hdrlen;
-
-		/* decrypt payload include icv */
-		arcfour_init(&mycontext, wepkey, 3+keylength);
-		arcfour_encrypt(&mycontext, payload, payload,  length);
-
-		/* calculate icv and compare the icv */
-		*((__le32 *)crc) = getcrc32(payload, length - 4);
-
-		if (crc[3] != payload[length-1] ||
-		    crc[2] != payload[length-2] ||
-		    crc[1] != payload[length-3] ||
-		    crc[0] != payload[length-4]) {
-			RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
-				 ("rtw_wep_decrypt:icv error crc (%4ph)!=payload (%4ph)\n",
-				 &crc, &payload[length-4]));
+		if (!crypto_ops) {
+			status = _FAIL;
+			goto exit;
 		}
+
+		memcpy(iv, pframe + prxattrib->hdrlen, 4);
+		memcpy(icv, pframe + skb->len - 4, 4);
+
+		crypto_private = crypto_ops->init(keyindex);
+		if (!crypto_private) {
+			status = _FAIL;
+			goto exit;
+		}
+		if (crypto_ops->set_key(psecuritypriv->dot11DefKey[keyindex].skey,
+					psecuritypriv->dot11DefKeylen[keyindex], NULL, crypto_private) < 0) {
+			status = _FAIL;
+			goto exit;
+		}
+		if (crypto_ops->decrypt_mpdu(skb, prxattrib->hdrlen, crypto_private)) {
+			status = _FAIL;
+			goto exit;
+		}
+
+		memmove(pframe, pframe + 4, prxattrib->hdrlen);
+		skb_push(skb, 4);
+		skb_put(skb, 4);
+
+		memcpy(pframe + prxattrib->hdrlen, iv, 4);
+		memcpy(pframe + skb->len - 4, icv, 4);
+
+exit:
+		if (crypto_ops && crypto_private)
+			crypto_ops->deinit(crypto_private);
+		return status;
 	}
+
+	return _FAIL;
 }
 
 /* 3		===== TKIP related ===== */
