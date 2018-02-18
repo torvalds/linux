@@ -180,6 +180,7 @@ struct sst_block {
  * @status : stream current state
  * @prev : stream prev state
  * @lock : stream mutex for protecting state
+ * @alloc_param : parameters used for stream (re-)allocation
  * @pcm_substream : PCM substream
  * @period_elapsed : PCM period elapsed callback
  * @sfreq : stream sampling freq
@@ -189,6 +190,7 @@ struct stream_info {
 	unsigned int		status;
 	unsigned int		prev;
 	struct mutex		lock;
+	struct snd_sst_alloc_mrfld alloc_param;
 
 	void			*pcm_substream;
 	void (*period_elapsed)(void *pcm_substream);
@@ -429,6 +431,7 @@ struct intel_sst_ops {
 	void (*post_download)(struct intel_sst_drv *sst);
 };
 
+int sst_realloc_stream(struct intel_sst_drv *sst_drv_ctx, int str_id);
 int sst_pause_stream(struct intel_sst_drv *sst_drv_ctx, int id);
 int sst_resume_stream(struct intel_sst_drv *sst_drv_ctx, int id);
 int sst_drop_stream(struct intel_sst_drv *sst_drv_ctx, int id);

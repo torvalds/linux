@@ -35,29 +35,31 @@
 
 int sst_alloc_stream_mrfld(struct intel_sst_drv *sst_drv_ctx, void *params)
 {
-	struct snd_sst_alloc_mrfld alloc_param;
+	struct snd_pcm_params *pcm_params;
 	struct snd_sst_params *str_params;
 	struct snd_sst_tstamp fw_tstamp;
 	struct stream_info *str_info;
-	struct snd_sst_alloc_response *response;
-	unsigned int str_id, pipe_id, task_id;
-	int i, num_ch, ret = 0;
-	void *data = NULL;
+	int i, num_ch, str_id;
 
 	dev_dbg(sst_drv_ctx->dev, "Enter\n");
 
 	str_params = (struct snd_sst_params *)params;
-	memset(&alloc_param, 0, sizeof(alloc_param));
-	alloc_param.operation = str_params->ops;
-	alloc_param.codec_type = str_params->codec;
-	alloc_param.sg_count = str_params->aparams.sg_count;
-	alloc_param.ring_buf_info[0].addr =
-		str_params->aparams.ring_buf_info[0].addr;
-	alloc_param.ring_buf_info[0].size =
-		str_params->aparams.ring_buf_info[0].size;
-	alloc_param.frag_size = str_params->aparams.frag_size;
+	str_id = str_params->stream_id;
+	str_info = get_stream_info(sst_drv_ctx, str_id);
+	if (!str_info)
+		return -EINVAL;
 
-	memcpy(&alloc_param.codec_params, &str_params->sparams,
+	memset(&str_info->alloc_param, 0, sizeof(str_info->alloc_param));
+	str_info->alloc_param.operation = str_params->ops;
+	str_info->alloc_param.codec_type = str_params->codec;
+	str_info->alloc_param.sg_count = str_params->aparams.sg_count;
+	str_info->alloc_param.ring_buf_info[0].addr =
+		str_params->aparams.ring_buf_info[0].addr;
+	str_info->alloc_param.ring_buf_info[0].size =
+		str_params->aparams.ring_buf_info[0].size;
+	str_info->alloc_param.frag_size = str_params->aparams.frag_size;
+
+	memcpy(&str_info->alloc_param.codec_params, &str_params->sparams,
 			sizeof(struct snd_sst_stream_params));
 
 	/*
@@ -67,46 +69,62 @@ int sst_alloc_stream_mrfld(struct intel_sst_drv *sst_drv_ctx, void *params)
 	 * Currently hardcoding as per FW reqm.
 	 */
 	num_ch = sst_get_num_channel(str_params);
+	pcm_params = &str_info->alloc_param.codec_params.uc.pcm_params;
 	for (i = 0; i < 8; i++) {
 		if (i < num_ch)
-			alloc_param.codec_params.uc.pcm_params.channel_map[i] = i;
+			pcm_params->channel_map[i] = i;
 		else
-			alloc_param.codec_params.uc.pcm_params.channel_map[i] = 0xFF;
+			pcm_params->channel_map[i] = 0xff;
 	}
 
-	str_id = str_params->stream_id;
-	str_info = get_stream_info(sst_drv_ctx, str_id);
-	if (str_info == NULL) {
-		dev_err(sst_drv_ctx->dev, "get stream info returned null\n");
-		return -EINVAL;
-	}
-
-	pipe_id = str_params->device_type;
-	task_id = str_params->task;
 	sst_drv_ctx->streams[str_id].status = STREAM_INIT;
 	sst_drv_ctx->streams[str_id].prev = STREAM_UN_INIT;
-	sst_drv_ctx->streams[str_id].pipe_id = pipe_id;
-	sst_drv_ctx->streams[str_id].task_id = task_id;
+	sst_drv_ctx->streams[str_id].pipe_id = str_params->device_type;
+	sst_drv_ctx->streams[str_id].task_id = str_params->task;
 	sst_drv_ctx->streams[str_id].num_ch = num_ch;
 
 	if (sst_drv_ctx->info.lpe_viewpt_rqd)
-		alloc_param.ts = sst_drv_ctx->info.mailbox_start +
+		str_info->alloc_param.ts = sst_drv_ctx->info.mailbox_start +
 			sst_drv_ctx->tstamp + (str_id * sizeof(fw_tstamp));
 	else
-		alloc_param.ts = sst_drv_ctx->mailbox_add +
+		str_info->alloc_param.ts = sst_drv_ctx->mailbox_add +
 			sst_drv_ctx->tstamp + (str_id * sizeof(fw_tstamp));
 
 	dev_dbg(sst_drv_ctx->dev, "alloc tstamp location = 0x%x\n",
-			alloc_param.ts);
+			str_info->alloc_param.ts);
 	dev_dbg(sst_drv_ctx->dev, "assigned pipe id 0x%x to task %d\n",
-			pipe_id, task_id);
+			str_info->pipe_id, str_info->task_id);
 
-	/* allocate device type context */
+	return sst_realloc_stream(sst_drv_ctx, str_id);
+}
+
+/**
+ * sst_realloc_stream - Send msg for (re-)allocating a stream using the
+ * @sst_drv_ctx  intel_sst_drv context pointer
+ * @str_id:	 stream ID
+ *
+ * Send a msg for (re-)allocating a stream using the parameters previously
+ * passed to sst_alloc_stream_mrfld() for the same stream ID.
+ * Return: 0 or negative errno value.
+ */
+int sst_realloc_stream(struct intel_sst_drv *sst_drv_ctx, int str_id)
+{
+	struct snd_sst_alloc_response *response;
+	struct stream_info *str_info;
+	void *data = NULL;
+	int ret;
+
+	str_info = get_stream_info(sst_drv_ctx, str_id);
+	if (!str_info)
+		return -EINVAL;
+
 	dev_dbg(sst_drv_ctx->dev, "Alloc for str %d pipe %#x\n",
-			str_id, pipe_id);
-	ret = sst_prepare_and_post_msg(sst_drv_ctx, task_id, IPC_CMD,
-			IPC_IA_ALLOC_STREAM_MRFLD, pipe_id, sizeof(alloc_param),
-			&alloc_param, &data, true, true, false, true);
+		str_id, str_info->pipe_id);
+
+	ret = sst_prepare_and_post_msg(sst_drv_ctx, str_info->task_id, IPC_CMD,
+			IPC_IA_ALLOC_STREAM_MRFLD, str_info->pipe_id,
+			sizeof(str_info->alloc_param), &str_info->alloc_param,
+			&data, true, true, false, true);
 
 	if (ret < 0) {
 		dev_err(sst_drv_ctx->dev, "FW alloc failed ret %d\n", ret);
