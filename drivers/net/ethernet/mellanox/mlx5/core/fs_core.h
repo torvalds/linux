@@ -48,6 +48,7 @@ enum fs_node_type {
 
 enum fs_flow_table_type {
 	FS_FT_NIC_RX          = 0x0,
+	FS_FT_NIC_TX          = 0x1,
 	FS_FT_ESW_EGRESS_ACL  = 0x2,
 	FS_FT_ESW_INGRESS_ACL = 0x3,
 	FS_FT_FDB             = 0X4,
@@ -75,6 +76,7 @@ struct mlx5_flow_steering {
 	struct mlx5_flow_root_namespace **esw_ingress_root_ns;
 	struct mlx5_flow_root_namespace	*sniffer_tx_root_ns;
 	struct mlx5_flow_root_namespace	*sniffer_rx_root_ns;
+	struct mlx5_flow_root_namespace	*egress_root_ns;
 };
 
 struct fs_node {
