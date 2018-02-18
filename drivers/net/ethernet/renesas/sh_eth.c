@@ -962,20 +962,16 @@ static void sh_eth_set_default_cpu_data(struct sh_eth_cpu_data *cd)
 
 static int sh_eth_check_reset(struct net_device *ndev)
 {
-	int ret = 0;
-	int cnt = 100;
+	int cnt;
 
-	while (cnt > 0) {
+	for (cnt = 100; cnt > 0; cnt--) {
 		if (!(sh_eth_read(ndev, EDMR) & EDMR_SRST_GETHER))
-			break;
+			return 0;
 		mdelay(1);
-		cnt--;
 	}
-	if (cnt <= 0) {
-		netdev_err(ndev, "Device reset failed\n");
-		ret = -ETIMEDOUT;
-	}
-	return ret;
+
+	netdev_err(ndev, "Device reset failed\n");
+	return -ETIMEDOUT;
 }
 
 static int sh_eth_reset(struct net_device *ndev)
