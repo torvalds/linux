@@ -9,7 +9,7 @@
 /*
  * References:
  *   DAQ-STC Technical Reference Manual
-*/
+ */
 
 #ifndef _COMEDI_NI_STC_H
 #define _COMEDI_NI_STC_H
