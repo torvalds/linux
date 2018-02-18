@@ -10206,7 +10206,7 @@ ONENAND FLASH DRIVER
 M:	Kyungmin Park <kyungmin.park@samsung.com>
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
-F:	drivers/mtd/onenand/
+F:	drivers/mtd/nand/onenand/
 F:	include/linux/mtd/onenand*.h
 
 ONSTREAM SCSI TAPE DRIVER
