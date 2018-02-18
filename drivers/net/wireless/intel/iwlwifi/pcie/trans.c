@@ -1709,29 +1709,6 @@ static void iwl_pcie_irq_set_affinity(struct iwl_trans *trans)
 	}
 }
 
-static const char *queue_name(struct device *dev,
-			      struct iwl_trans_pcie *trans_p, int i)
-{
-	if (trans_p->shared_vec_mask) {
-		int vec = trans_p->shared_vec_mask &
-			  IWL_SHARED_IRQ_FIRST_RSS ? 1 : 0;
-
-		if (i == 0)
-			return DRV_NAME ": shared IRQ";
-
-		return devm_kasprintf(dev, GFP_KERNEL,
-				      DRV_NAME ": queue %d", i + vec);
-	}
-	if (i == 0)
-		return DRV_NAME ": default queue";
-
-	if (i == trans_p->alloc_vecs - 1)
-		return DRV_NAME ": exception";
-
-	return devm_kasprintf(dev, GFP_KERNEL,
-			      DRV_NAME  ": queue %d", i);
-}
-
 static int iwl_pcie_init_msix_handler(struct pci_dev *pdev,
 				      struct iwl_trans_pcie *trans_pcie)
 {

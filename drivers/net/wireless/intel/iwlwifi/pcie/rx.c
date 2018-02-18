@@ -417,8 +417,8 @@ static struct page *iwl_pcie_rx_alloc_page(struct iwl_trans *trans,
  * iwl_pcie_rxq_restock. The latter function will update the HW to use the newly
  * allocated buffers.
  */
-static void iwl_pcie_rxq_alloc_rbs(struct iwl_trans *trans, gfp_t priority,
-				   struct iwl_rxq *rxq)
+void iwl_pcie_rxq_alloc_rbs(struct iwl_trans *trans, gfp_t priority,
+			    struct iwl_rxq *rxq)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_mem_buffer *rxb;
@@ -474,7 +474,7 @@ static void iwl_pcie_rxq_alloc_rbs(struct iwl_trans *trans, gfp_t priority,
 	}
 }
 
-static void iwl_pcie_free_rbs_pool(struct iwl_trans *trans)
+void iwl_pcie_free_rbs_pool(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int i;
@@ -986,7 +986,7 @@ static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 	iwl_pcie_enable_rx_wake(trans, true);
 }
 
-static void iwl_pcie_rx_init_rxb_lists(struct iwl_rxq *rxq)
+void iwl_pcie_rx_init_rxb_lists(struct iwl_rxq *rxq)
 {
 	lockdep_assert_held(&rxq->lock);
 
@@ -996,7 +996,7 @@ static void iwl_pcie_rx_init_rxb_lists(struct iwl_rxq *rxq)
 	rxq->used_count = 0;
 }
 
-static int iwl_pcie_dummy_napi_poll(struct napi_struct *napi, int budget)
+int iwl_pcie_dummy_napi_poll(struct napi_struct *napi, int budget)
 {
 	WARN_ON(1);
 	return 0;
@@ -1477,20 +1477,6 @@ static struct iwl_trans_pcie *iwl_pcie_get_trans_pcie(struct msix_entry *entry)
 	struct msix_entry *entries = entry - queue;
 
 	return container_of(entries, struct iwl_trans_pcie, msix_entries[0]);
-}
-
-static inline void iwl_pcie_clear_irq(struct iwl_trans *trans,
-				      struct msix_entry *entry)
-{
-	/*
-	 * Before sending the interrupt the HW disables it to prevent
-	 * a nested interrupt. This is done by writing 1 to the corresponding
-	 * bit in the mask register. After handling the interrupt, it should be
-	 * re-enabled by clearing this bit. This register is defined as
-	 * write 1 clear (W1C) register, meaning that it's being clear
-	 * by writing 1 to the bit.
-	 */
-	iwl_write32(trans, CSR_MSIX_AUTOMASK_ST_AD, BIT(entry->entry));
 }
 
 /*

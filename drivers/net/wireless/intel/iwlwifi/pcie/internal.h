@@ -45,6 +45,7 @@
 #include "iwl-debug.h"
 #include "iwl-io.h"
 #include "iwl-op-mode.h"
+#include "iwl-drv.h"
 
 /* We need 2 entries for the TX command and header, and another one might
  * be needed for potential data in the SKB's head. The remaining ones can
@@ -639,6 +640,20 @@ IWL_TRANS_GET_PCIE_TRANS(struct iwl_trans *trans)
 	return (void *)trans->trans_specific;
 }
 
+static inline void iwl_pcie_clear_irq(struct iwl_trans *trans,
+				      struct msix_entry *entry)
+{
+	/*
+	 * Before sending the interrupt the HW disables it to prevent
+	 * a nested interrupt. This is done by writing 1 to the corresponding
+	 * bit in the mask register. After handling the interrupt, it should be
+	 * re-enabled by clearing this bit. This register is defined as
+	 * write 1 clear (W1C) register, meaning that it's being clear
+	 * by writing 1 to the bit.
+	 */
+	iwl_write32(trans, CSR_MSIX_AUTOMASK_ST_AD, BIT(entry->entry));
+}
+
 static inline struct iwl_trans *
 iwl_trans_pcie_get_trans(struct iwl_trans_pcie *trans_pcie)
 {
@@ -666,6 +681,11 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id);
 irqreturn_t iwl_pcie_irq_rx_msix_handler(int irq, void *dev_id);
 int iwl_pcie_rx_stop(struct iwl_trans *trans);
 void iwl_pcie_rx_free(struct iwl_trans *trans);
+void iwl_pcie_free_rbs_pool(struct iwl_trans *trans);
+void iwl_pcie_rx_init_rxb_lists(struct iwl_rxq *rxq);
+int iwl_pcie_dummy_napi_poll(struct napi_struct *napi, int budget);
+void iwl_pcie_rxq_alloc_rbs(struct iwl_trans *trans, gfp_t priority,
+			    struct iwl_rxq *rxq);
 
 /*****************************************************
 * ICT - interrupt handling
@@ -890,6 +910,29 @@ static inline void *iwl_pcie_get_tfd(struct iwl_trans *trans,
 		idx = iwl_pcie_get_cmd_index(txq, idx);
 
 	return txq->tfds + trans_pcie->tfd_size * idx;
+}
+
+static inline const char *queue_name(struct device *dev,
+				     struct iwl_trans_pcie *trans_p, int i)
+{
+	if (trans_p->shared_vec_mask) {
+		int vec = trans_p->shared_vec_mask &
+			  IWL_SHARED_IRQ_FIRST_RSS ? 1 : 0;
+
+		if (i == 0)
+			return DRV_NAME ": shared IRQ";
+
+		return devm_kasprintf(dev, GFP_KERNEL,
+				      DRV_NAME ": queue %d", i + vec);
+	}
+	if (i == 0)
+		return DRV_NAME ": default queue";
+
+	if (i == trans_p->alloc_vecs - 1)
+		return DRV_NAME ": exception";
+
+	return devm_kasprintf(dev, GFP_KERNEL,
+			      DRV_NAME  ": queue %d", i);
 }
 
 static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
