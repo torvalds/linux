@@ -1700,7 +1700,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (devpriv->ai_cmd_running) {
 		dev_err(dev->class_dev,
-			"s626_ai_cmd: Another ai_cmd is running\n");
+			"%s: Another ai_cmd is running\n", __func__);
 		return -EBUSY;
 	}
 	/* disable interrupt */
