@@ -758,27 +758,26 @@ static void imx_mctrl_check(struct imx_port *sport)
 static irqreturn_t imx_int(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
-	unsigned int sts;
-	unsigned int sts2;
+	unsigned int usr1, usr2;
 	irqreturn_t ret = IRQ_NONE;
 
-	sts = readl(sport->port.membase + USR1);
-	sts2 = readl(sport->port.membase + USR2);
+	usr1 = readl(sport->port.membase + USR1);
+	usr2 = readl(sport->port.membase + USR2);
 
-	if (!sport->dma_is_enabled && (sts & (USR1_RRDY | USR1_AGTIM))) {
+	if (!sport->dma_is_enabled && (usr1 & (USR1_RRDY | USR1_AGTIM))) {
 		imx_rxint(irq, dev_id);
 		ret = IRQ_HANDLED;
 	}
 
-	if ((sts & USR1_TRDY &&
+	if ((usr1 & USR1_TRDY &&
 	     readl(sport->port.membase + UCR1) & UCR1_TXMPTYEN) ||
-	    (sts2 & USR2_TXDC &&
+	    (usr2 & USR2_TXDC &&
 	     readl(sport->port.membase + UCR4) & UCR4_TCEN)) {
 		imx_txint(irq, dev_id);
 		ret = IRQ_HANDLED;
 	}
 
-	if (sts & USR1_DTRD) {
+	if (usr1 & USR1_DTRD) {
 		unsigned long flags;
 
 		writel(USR1_DTRD, sport->port.membase + USR1);
@@ -790,17 +789,17 @@ static irqreturn_t imx_int(int irq, void *dev_id)
 		ret = IRQ_HANDLED;
 	}
 
-	if (sts & USR1_RTSD) {
+	if (usr1 & USR1_RTSD) {
 		imx_rtsint(irq, dev_id);
 		ret = IRQ_HANDLED;
 	}
 
-	if (sts & USR1_AWAKE) {
+	if (usr1 & USR1_AWAKE) {
 		writel(USR1_AWAKE, sport->port.membase + USR1);
 		ret = IRQ_HANDLED;
 	}
 
-	if (sts2 & USR2_ORE) {
+	if (usr2 & USR2_ORE) {
 		sport->port.icount.overrun++;
 		writel(USR2_ORE, sport->port.membase + USR2);
 		ret = IRQ_HANDLED;
