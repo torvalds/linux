@@ -494,8 +494,6 @@ int sst_prepare_and_post_msg(struct intel_sst_drv *sst,
 
 void sst_process_pending_msg(struct work_struct *work);
 int sst_assign_pvt_id(struct intel_sst_drv *sst_drv_ctx);
-void sst_init_stream(struct stream_info *stream,
-		int codec, int sst_id, int ops, u8 slot);
 int sst_validate_strid(struct intel_sst_drv *sst_drv_ctx, int str_id);
 struct stream_info *get_stream_info(struct intel_sst_drv *sst_drv_ctx,
 		int str_id);

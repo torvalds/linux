@@ -83,6 +83,8 @@ int sst_alloc_stream_mrfld(struct intel_sst_drv *sst_drv_ctx, void *params)
 
 	pipe_id = str_params->device_type;
 	task_id = str_params->task;
+	sst_drv_ctx->streams[str_id].status = STREAM_INIT;
+	sst_drv_ctx->streams[str_id].prev = STREAM_UN_INIT;
 	sst_drv_ctx->streams[str_id].pipe_id = pipe_id;
 	sst_drv_ctx->streams[str_id].task_id = task_id;
 	sst_drv_ctx->streams[str_id].num_ch = num_ch;
@@ -100,9 +102,6 @@ int sst_alloc_stream_mrfld(struct intel_sst_drv *sst_drv_ctx, void *params)
 			pipe_id, task_id);
 
 	/* allocate device type context */
-	sst_init_stream(&sst_drv_ctx->streams[str_id], alloc_param.codec_type,
-			str_id, alloc_param.operation, 0);
-
 	dev_dbg(sst_drv_ctx->dev, "Alloc for str %d pipe %#x\n",
 			str_id, pipe_id);
 	ret = sst_prepare_and_post_msg(sst_drv_ctx, task_id, IPC_CMD,
