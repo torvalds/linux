@@ -8,6 +8,7 @@
 #include <linux/init.h>
 #include <linux/mfd/da8xx-cfgchip.h>
 #include <linux/phy/phy.h>
+#include <linux/platform_data/phy-da8xx-usb.h>
 #include <linux/platform_data/usb-davinci.h>
 #include <linux/platform_device.h>
 #include <linux/usb/musb.h>
@@ -40,6 +41,11 @@ static struct platform_device da8xx_usb_phy = {
 
 int __init da8xx_register_usb_phy(void)
 {
+	struct da8xx_usb_phy_platform_data pdata;
+
+	pdata.cfgchip = da8xx_get_cfgchip();
+	da8xx_usb_phy.dev.platform_data = &pdata;
+
 	return platform_device_register(&da8xx_usb_phy);
 }
 

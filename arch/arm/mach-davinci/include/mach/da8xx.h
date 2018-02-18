@@ -18,6 +18,7 @@
 #include <linux/spi/spi.h>
 #include <linux/platform_data/davinci_asp.h>
 #include <linux/reboot.h>
+#include <linux/regmap.h>
 #include <linux/videodev2.h>
 
 #include <mach/serial.h>
@@ -123,7 +124,7 @@ void da8xx_rproc_reserve_cma(void);
 int da8xx_register_rproc(void);
 int da850_register_gpio(void);
 int da830_register_gpio(void);
-int da8xx_register_cfgchip(void);
+struct regmap *da8xx_get_cfgchip(void);
 
 extern struct platform_device da8xx_serial_device[];
 extern struct emac_platform_data da8xx_emac_pdata;
