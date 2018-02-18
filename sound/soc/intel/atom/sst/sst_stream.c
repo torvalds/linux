@@ -302,7 +302,29 @@ int sst_resume_stream(struct intel_sst_drv *sst_drv_ctx, int str_id)
 		return -EINVAL;
 	if (str_info->status == STREAM_RUNNING)
 		return 0;
-	if (str_info->status == STREAM_PAUSED) {
+
+	if (str_info->resume_status == STREAM_PAUSED &&
+	    str_info->resume_prev == STREAM_RUNNING) {
+		/*
+		 * Stream was running before suspend and re-created on resume,
+		 * start it to get back to running state.
+		 */
+		dev_dbg(sst_drv_ctx->dev, "restart recreated stream after resume\n");
+		str_info->status = STREAM_RUNNING;
+		str_info->prev = STREAM_PAUSED;
+		retval = sst_start_stream(sst_drv_ctx, str_id);
+		str_info->resume_status = STREAM_UN_INIT;
+	} else if (str_info->resume_status == STREAM_PAUSED &&
+		   str_info->resume_prev == STREAM_INIT) {
+		/*
+		 * Stream was idle before suspend and re-created on resume,
+		 * keep it as is.
+		 */
+		dev_dbg(sst_drv_ctx->dev, "leaving recreated stream idle after resume\n");
+		str_info->status = STREAM_INIT;
+		str_info->prev = STREAM_PAUSED;
+		str_info->resume_status = STREAM_UN_INIT;
+	} else if (str_info->status == STREAM_PAUSED) {
 		retval = sst_prepare_and_post_msg(sst_drv_ctx, str_info->task_id,
 				IPC_CMD, IPC_IA_RESUME_STREAM_MRFLD,
 				str_info->pipe_id, 0, NULL, NULL,

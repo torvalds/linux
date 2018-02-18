@@ -179,6 +179,8 @@ struct sst_block {
  *
  * @status : stream current state
  * @prev : stream prev state
+ * @resume_status : stream current state to restore on resume
+ * @resume_prev : stream prev state to restore on resume
  * @lock : stream mutex for protecting state
  * @alloc_param : parameters used for stream (re-)allocation
  * @pcm_substream : PCM substream
@@ -189,6 +191,8 @@ struct sst_block {
 struct stream_info {
 	unsigned int		status;
 	unsigned int		prev;
+	unsigned int		resume_status;
+	unsigned int		resume_prev;
 	struct mutex		lock;
 	struct snd_sst_alloc_mrfld alloc_param;
 
