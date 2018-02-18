@@ -46,6 +46,13 @@
 #define TRACER_BLOCK_SIZE_BYTE 256
 #define TRACES_PER_BLOCK 32
 
+#define TRACER_MAX_PARAMS 7
+#define MESSAGE_HASH_BITS 6
+#define MESSAGE_HASH_SIZE BIT(MESSAGE_HASH_BITS)
+
+#define MASK_52_7 (0x1FFFFFFFFFFF80)
+#define MASK_6_0  (0x7F)
+
 struct mlx5_fw_tracer {
 	struct mlx5_core_dev *dev;
 	bool owner;
@@ -77,6 +84,21 @@ struct mlx5_fw_tracer {
 
 	u64 last_timestamp;
 	struct work_struct handle_traces_work;
+	struct hlist_head hash[MESSAGE_HASH_SIZE];
+	struct list_head ready_strings_list;
+};
+
+struct tracer_string_format {
+	char *string;
+	int params[TRACER_MAX_PARAMS];
+	int num_of_params;
+	int last_param_num;
+	u8 event_id;
+	u32 tmsn;
+	struct hlist_node hlist;
+	struct list_head list;
+	u32 timestamp;
+	bool lost;
 };
 
 enum mlx5_fw_tracer_ownership_state {

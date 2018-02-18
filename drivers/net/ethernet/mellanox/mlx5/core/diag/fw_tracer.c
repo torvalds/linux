@@ -29,8 +29,9 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
+#define CREATE_TRACE_POINTS
 #include "fw_tracer.h"
+#include "fw_tracer_tracepoint.h"
 
 static int mlx5_query_mtrc_caps(struct mlx5_fw_tracer *tracer)
 {
@@ -332,6 +333,109 @@ static void mlx5_fw_tracer_arm(struct mlx5_core_dev *dev)
 		mlx5_core_warn(dev, "FWTracer: Failed to arm tracer event %d\n", err);
 }
 
+static const char *VAL_PARM		= "%llx";
+static const char *REPLACE_64_VAL_PARM	= "%x%x";
+static const char *PARAM_CHAR		= "%";
+
+static int mlx5_tracer_message_hash(u32 message_id)
+{
+	return jhash_1word(message_id, 0) & (MESSAGE_HASH_SIZE - 1);
+}
+
+static struct tracer_string_format *mlx5_tracer_message_insert(struct mlx5_fw_tracer *tracer,
+							       struct tracer_event *tracer_event)
+{
+	struct hlist_head *head =
+		&tracer->hash[mlx5_tracer_message_hash(tracer_event->string_event.tmsn)];
+	struct tracer_string_format *cur_string;
+
+	cur_string = kzalloc(sizeof(*cur_string), GFP_KERNEL);
+	if (!cur_string)
+		return NULL;
+
+	hlist_add_head(&cur_string->hlist, head);
+
+	return cur_string;
+}
+
+static struct tracer_string_format *mlx5_tracer_get_string(struct mlx5_fw_tracer *tracer,
+							   struct tracer_event *tracer_event)
+{
+	struct tracer_string_format *cur_string;
+	u32 str_ptr, offset;
+	int i;
+
+	str_ptr = tracer_event->string_event.string_param;
+
+	for (i = 0; i < tracer->str_db.num_string_db; i++) {
+		if (str_ptr > tracer->str_db.base_address_out[i] &&
+		    str_ptr < tracer->str_db.base_address_out[i] +
+		    tracer->str_db.size_out[i]) {
+			offset = str_ptr - tracer->str_db.base_address_out[i];
+			/* add it to the hash */
+			cur_string = mlx5_tracer_message_insert(tracer, tracer_event);
+			if (!cur_string)
+				return NULL;
+			cur_string->string = (char *)(tracer->str_db.buffer[i] +
+							offset);
+			return cur_string;
+		}
+	}
+
+	return NULL;
+}
+
+static void mlx5_tracer_clean_message(struct tracer_string_format *str_frmt)
+{
+	hlist_del(&str_frmt->hlist);
+	kfree(str_frmt);
+}
+
+static int mlx5_tracer_get_num_of_params(char *str)
+{
+	char *substr, *pstr = str;
+	int num_of_params = 0;
+
+	/* replace %llx with %x%x */
+	substr = strstr(pstr, VAL_PARM);
+	while (substr) {
+		memcpy(substr, REPLACE_64_VAL_PARM, 4);
+		pstr = substr;
+		substr = strstr(pstr, VAL_PARM);
+	}
+
+	/* count all the % characters */
+	substr = strstr(str, PARAM_CHAR);
+	while (substr) {
+		num_of_params += 1;
+		str = substr + 1;
+		substr = strstr(str, PARAM_CHAR);
+	}
+
+	return num_of_params;
+}
+
+static struct tracer_string_format *mlx5_tracer_message_find(struct hlist_head *head,
+							     u8 event_id, u32 tmsn)
+{
+	struct tracer_string_format *message;
+
+	hlist_for_each_entry(message, head, hlist)
+		if (message->event_id == event_id && message->tmsn == tmsn)
+			return message;
+
+	return NULL;
+}
+
+static struct tracer_string_format *mlx5_tracer_message_get(struct mlx5_fw_tracer *tracer,
+							    struct tracer_event *tracer_event)
+{
+	struct hlist_head *head =
+		&tracer->hash[mlx5_tracer_message_hash(tracer_event->string_event.tmsn)];
+
+	return mlx5_tracer_message_find(head, tracer_event->event_id, tracer_event->string_event.tmsn);
+}
+
 static void poll_trace(struct mlx5_fw_tracer *tracer,
 		       struct tracer_event *tracer_event, u64 *trace)
 {
@@ -396,6 +500,128 @@ static u64 get_block_timestamp(struct mlx5_fw_tracer *tracer, u64 *ts_event)
 	return tracer_event.timestamp_event.timestamp;
 }
 
+static void mlx5_fw_tracer_clean_print_hash(struct mlx5_fw_tracer *tracer)
+{
+	struct tracer_string_format *str_frmt;
+	struct hlist_node *n;
+	int i;
+
+	for (i = 0; i < MESSAGE_HASH_SIZE; i++) {
+		hlist_for_each_entry_safe(str_frmt, n, &tracer->hash[i], hlist)
+			mlx5_tracer_clean_message(str_frmt);
+	}
+}
+
+static void mlx5_fw_tracer_clean_ready_list(struct mlx5_fw_tracer *tracer)
+{
+	struct tracer_string_format *str_frmt, *tmp_str;
+
+	list_for_each_entry_safe(str_frmt, tmp_str, &tracer->ready_strings_list,
+				 list)
+		list_del(&str_frmt->list);
+}
+
+static void mlx5_tracer_print_trace(struct tracer_string_format *str_frmt,
+				    struct mlx5_core_dev *dev,
+				    u64 trace_timestamp)
+{
+	char	tmp[512];
+
+	snprintf(tmp, sizeof(tmp), str_frmt->string,
+		 str_frmt->params[0],
+		 str_frmt->params[1],
+		 str_frmt->params[2],
+		 str_frmt->params[3],
+		 str_frmt->params[4],
+		 str_frmt->params[5],
+		 str_frmt->params[6]);
+
+	trace_mlx5_fw(dev->tracer, trace_timestamp, str_frmt->lost,
+		      str_frmt->event_id, tmp);
+
+	/* remove it from hash */
+	mlx5_tracer_clean_message(str_frmt);
+}
+
+static int mlx5_tracer_handle_string_trace(struct mlx5_fw_tracer *tracer,
+					   struct tracer_event *tracer_event)
+{
+	struct tracer_string_format *cur_string;
+
+	if (tracer_event->string_event.tdsn == 0) {
+		cur_string = mlx5_tracer_get_string(tracer, tracer_event);
+		if (!cur_string)
+			return -1;
+
+		cur_string->num_of_params = mlx5_tracer_get_num_of_params(cur_string->string);
+		cur_string->last_param_num = 0;
+		cur_string->event_id = tracer_event->event_id;
+		cur_string->tmsn = tracer_event->string_event.tmsn;
+		cur_string->timestamp = tracer_event->string_event.timestamp;
+		cur_string->lost = tracer_event->lost_event;
+		if (cur_string->num_of_params == 0) /* trace with no params */
+			list_add_tail(&cur_string->list, &tracer->ready_strings_list);
+	} else {
+		cur_string = mlx5_tracer_message_get(tracer, tracer_event);
+		if (!cur_string) {
+			pr_debug("%s Got string event for unknown string tdsm: %d\n",
+				 __func__, tracer_event->string_event.tmsn);
+			return -1;
+		}
+		cur_string->last_param_num += 1;
+		if (cur_string->last_param_num > TRACER_MAX_PARAMS) {
+			pr_debug("%s Number of params exceeds the max (%d)\n",
+				 __func__, TRACER_MAX_PARAMS);
+			list_add_tail(&cur_string->list, &tracer->ready_strings_list);
+			return 0;
+		}
+		/* keep the new parameter */
+		cur_string->params[cur_string->last_param_num - 1] =
+			tracer_event->string_event.string_param;
+		if (cur_string->last_param_num == cur_string->num_of_params)
+			list_add_tail(&cur_string->list, &tracer->ready_strings_list);
+	}
+
+	return 0;
+}
+
+static void mlx5_tracer_handle_timestamp_trace(struct mlx5_fw_tracer *tracer,
+					       struct tracer_event *tracer_event)
+{
+	struct tracer_timestamp_event timestamp_event =
+						tracer_event->timestamp_event;
+	struct tracer_string_format *str_frmt, *tmp_str;
+	struct mlx5_core_dev *dev = tracer->dev;
+	u64 trace_timestamp;
+
+	list_for_each_entry_safe(str_frmt, tmp_str, &tracer->ready_strings_list, list) {
+		list_del(&str_frmt->list);
+		if (str_frmt->timestamp < (timestamp_event.timestamp & MASK_6_0))
+			trace_timestamp = (timestamp_event.timestamp & MASK_52_7) |
+					  (str_frmt->timestamp & MASK_6_0);
+		else
+			trace_timestamp = ((timestamp_event.timestamp & MASK_52_7) - 1) |
+					  (str_frmt->timestamp & MASK_6_0);
+
+		mlx5_tracer_print_trace(str_frmt, dev, trace_timestamp);
+	}
+}
+
+static int mlx5_tracer_handle_trace(struct mlx5_fw_tracer *tracer,
+				    struct tracer_event *tracer_event)
+{
+	if (tracer_event->type == TRACER_EVENT_TYPE_STRING) {
+		mlx5_tracer_handle_string_trace(tracer, tracer_event);
+	} else if (tracer_event->type == TRACER_EVENT_TYPE_TIMESTAMP) {
+		if (!tracer_event->timestamp_event.unreliable)
+			mlx5_tracer_handle_timestamp_trace(tracer, tracer_event);
+	} else {
+		pr_debug("%s Got unrecognised type %d for parsing, exiting..\n",
+			 __func__, tracer_event->type);
+	}
+	return 0;
+}
+
 static void mlx5_fw_tracer_handle_traces(struct work_struct *work)
 {
 	struct mlx5_fw_tracer *tracer =
@@ -452,8 +678,10 @@ static void mlx5_fw_tracer_handle_traces(struct work_struct *work)
 		}
 
 		/* Parse events */
-		for (i = 0; i < TRACES_PER_BLOCK ; i++)
+		for (i = 0; i < TRACES_PER_BLOCK ; i++) {
 			poll_trace(tracer, &tracer_event, &tmp_trace_block[i]);
+			mlx5_tracer_handle_trace(tracer, &tracer_event);
+		}
 
 		tracer->buff.consumer_index =
 			(tracer->buff.consumer_index + 1) & (block_count - 1);
@@ -578,6 +806,7 @@ struct mlx5_fw_tracer *mlx5_fw_tracer_create(struct mlx5_core_dev *dev)
 
 	tracer->dev = dev;
 
+	INIT_LIST_HEAD(&tracer->ready_strings_list);
 	INIT_WORK(&tracer->ownership_change_work, mlx5_fw_tracer_ownership_change);
 	INIT_WORK(&tracer->read_fw_strings_work, mlx5_tracer_read_strings_db);
 	INIT_WORK(&tracer->handle_traces_work, mlx5_fw_tracer_handle_traces);
@@ -675,6 +904,8 @@ void mlx5_fw_tracer_destroy(struct mlx5_fw_tracer *tracer)
 		return;
 
 	cancel_work_sync(&tracer->read_fw_strings_work);
+	mlx5_fw_tracer_clean_ready_list(tracer);
+	mlx5_fw_tracer_clean_print_hash(tracer);
 	mlx5_fw_tracer_free_strings_db(tracer);
 	mlx5_fw_tracer_destroy_log_buf(tracer);
 	flush_workqueue(tracer->work_queue);
