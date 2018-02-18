@@ -50,6 +50,19 @@
 		stdout-path = "serial2:115200n8";
 	};
 
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+
+		button-recovery {
+			label = "Recovery";
+			linux,code = <KEY_VENDOR>;
+			press-threshold-microvolt = <0>;
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -279,6 +292,10 @@
 			rockchip,pins = <4 28 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&saradc {
+	status = "okay";
 };
 
 &spdif {
