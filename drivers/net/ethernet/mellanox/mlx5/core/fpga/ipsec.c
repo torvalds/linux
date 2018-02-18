@@ -33,8 +33,12 @@
 
 #include <linux/rhashtable.h>
 #include <linux/mlx5/driver.h>
+#include <linux/mlx5/fs_helpers.h>
+#include <linux/mlx5/fs.h>
+#include <linux/rbtree.h>
 
 #include "mlx5_core.h"
+#include "fs_cmd.h"
 #include "fpga/ipsec.h"
 #include "fpga/sdk.h"
 #include "fpga/core.h"
@@ -75,6 +79,12 @@ struct mlx5_fpga_esp_xfrm {
 	struct mlx5_accel_esp_xfrm	accel_xfrm;
 };
 
+struct mlx5_fpga_ipsec_rule {
+	struct rb_node			node;
+	struct fs_fte			*fte;
+	struct mlx5_fpga_ipsec_sa_ctx	*ctx;
+};
+
 static const struct rhashtable_params rhash_sa = {
 	.key_len = FIELD_SIZEOF(struct mlx5_fpga_ipsec_sa_ctx, hw_sa),
 	.key_offset = offsetof(struct mlx5_fpga_ipsec_sa_ctx, hw_sa),
@@ -84,10 +94,14 @@ static const struct rhashtable_params rhash_sa = {
 };
 
 struct mlx5_fpga_ipsec {
+	struct mlx5_fpga_device *fdev;
 	struct list_head pending_cmds;
 	spinlock_t pending_cmds_lock; /* Protects pending_cmds */
 	u32 caps[MLX5_ST_SZ_DW(ipsec_extended_cap)];
 	struct mlx5_fpga_conn *conn;
+
+	struct notifier_block	fs_notifier_ingress_bypass;
+	struct notifier_block	fs_notifier_egress;
 
 	/* Map hardware SA           -->  SA context
 	 *     (mlx5_fpga_ipsec_sa)       (mlx5_fpga_ipsec_sa_ctx)
@@ -96,6 +110,12 @@ struct mlx5_fpga_ipsec {
 	 */
 	struct rhashtable sa_hash;	/* hw_sa -> mlx5_fpga_ipsec_sa_ctx */
 	struct mutex sa_hash_lock;
+
+	/* Tree holding all rules for this fpga device
+	 * Key for searching a rule (mlx5_fpga_ipsec_rule) is (ft, id)
+	 */
+	struct rb_root rules_rb;
+	struct mutex rules_rb_lock; /* rules lock */
 };
 
 static bool mlx5_fpga_is_ipsec_device(struct mlx5_core_dev *mdev)
@@ -498,6 +518,127 @@ mlx5_fpga_ipsec_build_hw_sa(struct mlx5_core_dev *mdev,
 		hw_sa->ipsec_sa_v1.flags |= MLX5_FPGA_IPSEC_SA_IPV6;
 }
 
+static bool is_full_mask(const void *p, size_t len)
+{
+	WARN_ON(len % 4);
+
+	return !memchr_inv(p, 0xff, len);
+}
+
+static bool validate_fpga_full_mask(struct mlx5_core_dev *dev,
+				    const u32 *match_c,
+				    const u32 *match_v)
+{
+	const void *misc_params_c = MLX5_ADDR_OF(fte_match_param,
+						 match_c,
+						 misc_parameters);
+	const void *headers_c = MLX5_ADDR_OF(fte_match_param,
+					     match_c,
+					     outer_headers);
+	const void *headers_v = MLX5_ADDR_OF(fte_match_param,
+					     match_v,
+					     outer_headers);
+
+	if (mlx5_fs_is_outer_ipv4_flow(dev, headers_c, headers_v)) {
+		const void *s_ipv4_c = MLX5_ADDR_OF(fte_match_set_lyr_2_4,
+						    headers_c,
+						    src_ipv4_src_ipv6.ipv4_layout.ipv4);
+		const void *d_ipv4_c = MLX5_ADDR_OF(fte_match_set_lyr_2_4,
+						    headers_c,
+						    dst_ipv4_dst_ipv6.ipv4_layout.ipv4);
+
+		if (!is_full_mask(s_ipv4_c, MLX5_FLD_SZ_BYTES(ipv4_layout,
+							      ipv4)) ||
+		    !is_full_mask(d_ipv4_c, MLX5_FLD_SZ_BYTES(ipv4_layout,
+							      ipv4)))
+			return false;
+	} else {
+		const void *s_ipv6_c = MLX5_ADDR_OF(fte_match_set_lyr_2_4,
+						    headers_c,
+						    src_ipv4_src_ipv6.ipv6_layout.ipv6);
+		const void *d_ipv6_c = MLX5_ADDR_OF(fte_match_set_lyr_2_4,
+						    headers_c,
+						    dst_ipv4_dst_ipv6.ipv6_layout.ipv6);
+
+		if (!is_full_mask(s_ipv6_c, MLX5_FLD_SZ_BYTES(ipv6_layout,
+							      ipv6)) ||
+		    !is_full_mask(d_ipv6_c, MLX5_FLD_SZ_BYTES(ipv6_layout,
+							      ipv6)))
+			return false;
+	}
+
+	if (!is_full_mask(MLX5_ADDR_OF(fte_match_set_misc, misc_params_c,
+				       outer_esp_spi),
+			  MLX5_FLD_SZ_BYTES(fte_match_set_misc, outer_esp_spi)))
+		return false;
+
+	return true;
+}
+
+static bool mlx5_is_fpga_ipsec_rule(struct mlx5_core_dev *dev,
+				    u8 match_criteria_enable,
+				    const u32 *match_c,
+				    const u32 *match_v)
+{
+	u32 ipsec_dev_caps = mlx5_accel_ipsec_device_caps(dev);
+	bool ipv6_flow;
+
+	ipv6_flow = mlx5_fs_is_outer_ipv6_flow(dev, match_c, match_v);
+
+	if (!(match_criteria_enable & MLX5_MATCH_OUTER_HEADERS) ||
+	    mlx5_fs_is_outer_udp_flow(match_c, match_v) ||
+	    mlx5_fs_is_outer_tcp_flow(match_c, match_v) ||
+	    mlx5_fs_is_vxlan_flow(match_c) ||
+	    !(mlx5_fs_is_outer_ipv4_flow(dev, match_c, match_v) ||
+	      ipv6_flow))
+		return false;
+
+	if (!(ipsec_dev_caps & MLX5_ACCEL_IPSEC_CAP_DEVICE))
+		return false;
+
+	if (!(ipsec_dev_caps & MLX5_ACCEL_IPSEC_CAP_ESP) &&
+	    mlx5_fs_is_outer_ipsec_flow(match_c))
+		return false;
+
+	if (!(ipsec_dev_caps & MLX5_ACCEL_IPSEC_CAP_IPV6) &&
+	    ipv6_flow)
+		return false;
+
+	if (!validate_fpga_full_mask(dev, match_c, match_v))
+		return false;
+
+	return true;
+}
+
+static bool mlx5_is_fpga_egress_ipsec_rule(struct mlx5_core_dev *dev,
+					   u8 match_criteria_enable,
+					   const u32 *match_c,
+					   const u32 *match_v,
+					   struct mlx5_flow_act *flow_act)
+{
+	const void *outer_c = MLX5_ADDR_OF(fte_match_param, match_c,
+					   outer_headers);
+	bool is_dmac = MLX5_GET(fte_match_set_lyr_2_4, outer_c, dmac_47_16) ||
+			MLX5_GET(fte_match_set_lyr_2_4, outer_c, dmac_15_0);
+	bool is_smac = MLX5_GET(fte_match_set_lyr_2_4, outer_c, smac_47_16) ||
+			MLX5_GET(fte_match_set_lyr_2_4, outer_c, smac_15_0);
+	int ret;
+
+	ret = mlx5_is_fpga_ipsec_rule(dev, match_criteria_enable, match_c,
+				      match_v);
+	if (!ret)
+		return ret;
+
+	if (is_dmac || is_smac ||
+	    (match_criteria_enable &
+	     ~(MLX5_MATCH_OUTER_HEADERS | MLX5_MATCH_MISC_PARAMETERS)) ||
+	    (flow_act->action & ~(MLX5_FLOW_CONTEXT_ACTION_ENCRYPT | MLX5_FLOW_CONTEXT_ACTION_ALLOW)) ||
+	     flow_act->has_flow_tag)
+		return false;
+
+	return true;
+}
+
 void *mlx5_fpga_ipsec_create_sa_ctx(struct mlx5_core_dev *mdev,
 				    struct mlx5_accel_esp_xfrm *accel_xfrm,
 				    const __be32 saddr[4],
@@ -587,6 +728,73 @@ exists:
 	return context;
 }
 
+static void *
+mlx5_fpga_ipsec_fs_create_sa_ctx(struct mlx5_core_dev *mdev,
+				 struct fs_fte *fte,
+				 bool is_egress)
+{
+	struct mlx5_accel_esp_xfrm *accel_xfrm;
+	__be32 saddr[4], daddr[4], spi;
+	struct mlx5_flow_group *fg;
+	bool is_ipv6 = false;
+
+	fs_get_obj(fg, fte->node.parent);
+	/* validate */
+	if (is_egress &&
+	    !mlx5_is_fpga_egress_ipsec_rule(mdev,
+					    fg->mask.match_criteria_enable,
+					    fg->mask.match_criteria,
+					    fte->val,
+					    &fte->action))
+		return ERR_PTR(-EINVAL);
+	else if (!mlx5_is_fpga_ipsec_rule(mdev,
+					  fg->mask.match_criteria_enable,
+					  fg->mask.match_criteria,
+					  fte->val))
+		return ERR_PTR(-EINVAL);
+
+	/* get xfrm context */
+	accel_xfrm =
+		(struct mlx5_accel_esp_xfrm *)fte->action.esp_id;
+
+	/* IPs */
+	if (mlx5_fs_is_outer_ipv4_flow(mdev, fg->mask.match_criteria,
+				       fte->val)) {
+		memcpy(&saddr[3],
+		       MLX5_ADDR_OF(fte_match_set_lyr_2_4,
+				    fte->val,
+				    src_ipv4_src_ipv6.ipv4_layout.ipv4),
+				    sizeof(saddr[3]));
+		memcpy(&daddr[3],
+		       MLX5_ADDR_OF(fte_match_set_lyr_2_4,
+				    fte->val,
+				    dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
+				    sizeof(daddr[3]));
+	} else {
+		memcpy(saddr,
+		       MLX5_ADDR_OF(fte_match_param,
+				    fte->val,
+				    outer_headers.src_ipv4_src_ipv6.ipv6_layout.ipv6),
+				    sizeof(saddr));
+		memcpy(daddr,
+		       MLX5_ADDR_OF(fte_match_param,
+				    fte->val,
+				    outer_headers.dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
+				    sizeof(daddr));
+		is_ipv6 = true;
+	}
+
+	/* SPI */
+	spi = MLX5_GET_BE(typeof(spi),
+			  fte_match_param, fte->val,
+			  misc_parameters.outer_esp_spi);
+
+	/* create */
+	return mlx5_fpga_ipsec_create_sa_ctx(mdev, accel_xfrm,
+					     saddr, daddr,
+					     spi, is_ipv6);
+}
+
 static void
 mlx5_fpga_ipsec_release_sa_ctx(struct mlx5_fpga_ipsec_sa_ctx *sa_ctx)
 {
@@ -623,6 +831,389 @@ void mlx5_fpga_ipsec_delete_sa_ctx(void *context)
 	mutex_unlock(&fpga_xfrm->lock);
 }
 
+static inline struct mlx5_fpga_ipsec_rule *
+_rule_search(struct rb_root *root, struct fs_fte *fte)
+{
+	struct rb_node *node = root->rb_node;
+
+	while (node) {
+		struct mlx5_fpga_ipsec_rule *rule =
+				container_of(node, struct mlx5_fpga_ipsec_rule,
+					     node);
+
+		if (rule->fte < fte)
+			node = node->rb_left;
+		else if (rule->fte > fte)
+			node = node->rb_right;
+		else
+			return rule;
+	}
+	return NULL;
+}
+
+static struct mlx5_fpga_ipsec_rule *
+rule_search(struct mlx5_fpga_ipsec *ipsec_dev, struct fs_fte *fte)
+{
+	struct mlx5_fpga_ipsec_rule *rule;
+
+	mutex_lock(&ipsec_dev->rules_rb_lock);
+	rule = _rule_search(&ipsec_dev->rules_rb, fte);
+	mutex_unlock(&ipsec_dev->rules_rb_lock);
+
+	return rule;
+}
+
+static inline int _rule_insert(struct rb_root *root,
+			       struct mlx5_fpga_ipsec_rule *rule)
+{
+	struct rb_node **new = &root->rb_node, *parent = NULL;
+
+	/* Figure out where to put new node */
+	while (*new) {
+		struct mlx5_fpga_ipsec_rule *this =
+				container_of(*new, struct mlx5_fpga_ipsec_rule,
+					     node);
+
+		parent = *new;
+		if (rule->fte < this->fte)
+			new = &((*new)->rb_left);
+		else if (rule->fte > this->fte)
+			new = &((*new)->rb_right);
+		else
+			return -EEXIST;
+	}
+
+	/* Add new node and rebalance tree. */
+	rb_link_node(&rule->node, parent, new);
+	rb_insert_color(&rule->node, root);
+
+	return 0;
+}
+
+static int rule_insert(struct mlx5_fpga_ipsec *ipsec_dev,
+		       struct mlx5_fpga_ipsec_rule *rule)
+{
+	int ret;
+
+	mutex_lock(&ipsec_dev->rules_rb_lock);
+	ret = _rule_insert(&ipsec_dev->rules_rb, rule);
+	mutex_unlock(&ipsec_dev->rules_rb_lock);
+
+	return ret;
+}
+
+static inline void _rule_delete(struct mlx5_fpga_ipsec *ipsec_dev,
+				struct mlx5_fpga_ipsec_rule *rule)
+{
+	struct rb_root *root = &ipsec_dev->rules_rb;
+
+	mutex_lock(&ipsec_dev->rules_rb_lock);
+	rb_erase(&rule->node, root);
+	mutex_unlock(&ipsec_dev->rules_rb_lock);
+}
+
+static void rule_delete(struct mlx5_fpga_ipsec *ipsec_dev,
+			struct mlx5_fpga_ipsec_rule *rule)
+{
+	_rule_delete(ipsec_dev, rule);
+	kfree(rule);
+}
+
+struct mailbox_mod {
+	uintptr_t			saved_esp_id;
+	u32				saved_action;
+	u32				saved_outer_esp_spi_value;
+};
+
+static void restore_spec_mailbox(struct fs_fte *fte,
+				 struct mailbox_mod *mbox_mod)
+{
+	char *misc_params_v = MLX5_ADDR_OF(fte_match_param,
+					   fte->val,
+					   misc_parameters);
+
+	MLX5_SET(fte_match_set_misc, misc_params_v, outer_esp_spi,
+		 mbox_mod->saved_outer_esp_spi_value);
+	fte->action.action |= mbox_mod->saved_action;
+	fte->action.esp_id = (uintptr_t)mbox_mod->saved_esp_id;
+}
+
+static void modify_spec_mailbox(struct mlx5_core_dev *mdev,
+				struct fs_fte *fte,
+				struct mailbox_mod *mbox_mod)
+{
+	char *misc_params_v = MLX5_ADDR_OF(fte_match_param,
+					   fte->val,
+					   misc_parameters);
+
+	mbox_mod->saved_esp_id = fte->action.esp_id;
+	mbox_mod->saved_action = fte->action.action &
+			(MLX5_FLOW_CONTEXT_ACTION_ENCRYPT |
+			 MLX5_FLOW_CONTEXT_ACTION_DECRYPT);
+	mbox_mod->saved_outer_esp_spi_value =
+			MLX5_GET(fte_match_set_misc, misc_params_v,
+				 outer_esp_spi);
+
+	fte->action.esp_id = 0;
+	fte->action.action &= ~(MLX5_FLOW_CONTEXT_ACTION_ENCRYPT |
+				MLX5_FLOW_CONTEXT_ACTION_DECRYPT);
+	if (!MLX5_CAP_FLOWTABLE(mdev,
+				flow_table_properties_nic_receive.ft_field_support.outer_esp_spi))
+		MLX5_SET(fte_match_set_misc, misc_params_v, outer_esp_spi, 0);
+}
+
+static enum fs_flow_table_type egress_to_fs_ft(bool egress)
+{
+	return egress ? FS_FT_NIC_TX : FS_FT_NIC_RX;
+}
+
+static int fpga_ipsec_fs_create_flow_group(struct mlx5_core_dev *dev,
+					   struct mlx5_flow_table *ft,
+					   u32 *in,
+					   unsigned int *group_id,
+					   bool is_egress)
+{
+	int (*create_flow_group)(struct mlx5_core_dev *dev,
+				 struct mlx5_flow_table *ft, u32 *in,
+				 unsigned int *group_id) =
+		mlx5_fs_cmd_get_default(egress_to_fs_ft(is_egress))->create_flow_group;
+	char *misc_params_c = MLX5_ADDR_OF(create_flow_group_in, in,
+					   match_criteria.misc_parameters);
+	u32 saved_outer_esp_spi_mask;
+	u8 match_criteria_enable;
+	int ret;
+
+	if (MLX5_CAP_FLOWTABLE(dev,
+			       flow_table_properties_nic_receive.ft_field_support.outer_esp_spi))
+		return create_flow_group(dev, ft, in, group_id);
+
+	match_criteria_enable =
+		MLX5_GET(create_flow_group_in, in, match_criteria_enable);
+	saved_outer_esp_spi_mask =
+		MLX5_GET(fte_match_set_misc, misc_params_c, outer_esp_spi);
+	if (!match_criteria_enable || !saved_outer_esp_spi_mask)
+		return create_flow_group(dev, ft, in, group_id);
+
+	MLX5_SET(fte_match_set_misc, misc_params_c, outer_esp_spi, 0);
+
+	if (!(*misc_params_c) &&
+	    !memcmp(misc_params_c, misc_params_c + 1, MLX5_ST_SZ_BYTES(fte_match_set_misc) - 1))
+		MLX5_SET(create_flow_group_in, in, match_criteria_enable,
+			 match_criteria_enable & ~MLX5_MATCH_MISC_PARAMETERS);
+
+	ret = create_flow_group(dev, ft, in, group_id);
+
+	MLX5_SET(fte_match_set_misc, misc_params_c, outer_esp_spi, saved_outer_esp_spi_mask);
+	MLX5_SET(create_flow_group_in, in, match_criteria_enable, match_criteria_enable);
+
+	return ret;
+}
+
+static int fpga_ipsec_fs_create_fte(struct mlx5_core_dev *dev,
+				    struct mlx5_flow_table *ft,
+				    struct mlx5_flow_group *fg,
+				    struct fs_fte *fte,
+				    bool is_egress)
+{
+	int (*create_fte)(struct mlx5_core_dev *dev,
+			  struct mlx5_flow_table *ft,
+			  struct mlx5_flow_group *fg,
+			  struct fs_fte *fte) =
+		mlx5_fs_cmd_get_default(egress_to_fs_ft(is_egress))->create_fte;
+	struct mlx5_fpga_device *fdev = dev->fpga;
+	struct mlx5_fpga_ipsec *fipsec = fdev->ipsec;
+	struct mlx5_fpga_ipsec_rule *rule;
+	bool is_esp = fte->action.esp_id;
+	struct mailbox_mod mbox_mod;
+	int ret;
+
+	if (!is_esp ||
+	    !(fte->action.action &
+	      (MLX5_FLOW_CONTEXT_ACTION_ENCRYPT |
+	       MLX5_FLOW_CONTEXT_ACTION_DECRYPT)))
+		return create_fte(dev, ft, fg, fte);
+
+	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
+	if (!rule)
+		return -ENOMEM;
+
+	rule->ctx = mlx5_fpga_ipsec_fs_create_sa_ctx(dev, fte, is_egress);
+	if (IS_ERR(rule->ctx)) {
+		kfree(rule);
+		return PTR_ERR(rule->ctx);
+	}
+
+	rule->fte = fte;
+	WARN_ON(rule_insert(fipsec, rule));
+
+	modify_spec_mailbox(dev, fte, &mbox_mod);
+	ret = create_fte(dev, ft, fg, fte);
+	restore_spec_mailbox(fte, &mbox_mod);
+	if (ret) {
+		_rule_delete(fipsec, rule);
+		mlx5_fpga_ipsec_delete_sa_ctx(rule->ctx);
+		kfree(rule);
+	}
+
+	return ret;
+}
+
+static int fpga_ipsec_fs_update_fte(struct mlx5_core_dev *dev,
+				    struct mlx5_flow_table *ft,
+				    unsigned int group_id,
+				    int modify_mask,
+				    struct fs_fte *fte,
+				    bool is_egress)
+{
+	int (*update_fte)(struct mlx5_core_dev *dev,
+			  struct mlx5_flow_table *ft,
+			  unsigned int group_id,
+			  int modify_mask,
+			  struct fs_fte *fte) =
+		mlx5_fs_cmd_get_default(egress_to_fs_ft(is_egress))->update_fte;
+	bool is_esp = fte->action.esp_id;
+	struct mailbox_mod mbox_mod;
+	int ret;
+
+	if (!is_esp ||
+	    !(fte->action.action &
+	      (MLX5_FLOW_CONTEXT_ACTION_ENCRYPT |
+	       MLX5_FLOW_CONTEXT_ACTION_DECRYPT)))
+		return update_fte(dev, ft, group_id, modify_mask, fte);
+
+	modify_spec_mailbox(dev, fte, &mbox_mod);
+	ret = update_fte(dev, ft, group_id, modify_mask, fte);
+	restore_spec_mailbox(fte, &mbox_mod);
+
+	return ret;
+}
+
+static int fpga_ipsec_fs_delete_fte(struct mlx5_core_dev *dev,
+				    struct mlx5_flow_table *ft,
+				    struct fs_fte *fte,
+				    bool is_egress)
+{
+	int (*delete_fte)(struct mlx5_core_dev *dev,
+			  struct mlx5_flow_table *ft,
+			  struct fs_fte *fte) =
+		mlx5_fs_cmd_get_default(egress_to_fs_ft(is_egress))->delete_fte;
+	struct mlx5_fpga_device *fdev = dev->fpga;
+	struct mlx5_fpga_ipsec *fipsec = fdev->ipsec;
+	struct mlx5_fpga_ipsec_rule *rule;
+	bool is_esp = fte->action.esp_id;
+	struct mailbox_mod mbox_mod;
+	int ret;
+
+	if (!is_esp ||
+	    !(fte->action.action &
+	      (MLX5_FLOW_CONTEXT_ACTION_ENCRYPT |
+	       MLX5_FLOW_CONTEXT_ACTION_DECRYPT)))
+		return delete_fte(dev, ft, fte);
+
+	rule = rule_search(fipsec, fte);
+	if (!rule)
+		return -ENOENT;
+
+	mlx5_fpga_ipsec_delete_sa_ctx(rule->ctx);
+	rule_delete(fipsec, rule);
+
+	modify_spec_mailbox(dev, fte, &mbox_mod);
+	ret = delete_fte(dev, ft, fte);
+	restore_spec_mailbox(fte, &mbox_mod);
+
+	return ret;
+}
+
+static int
+mlx5_fpga_ipsec_fs_create_flow_group_egress(struct mlx5_core_dev *dev,
+					    struct mlx5_flow_table *ft,
+					    u32 *in,
+					    unsigned int *group_id)
+{
+	return fpga_ipsec_fs_create_flow_group(dev, ft, in, group_id, true);
+}
+
+static int
+mlx5_fpga_ipsec_fs_create_fte_egress(struct mlx5_core_dev *dev,
+				     struct mlx5_flow_table *ft,
+				     struct mlx5_flow_group *fg,
+				     struct fs_fte *fte)
+{
+	return fpga_ipsec_fs_create_fte(dev, ft, fg, fte, true);
+}
+
+static int
+mlx5_fpga_ipsec_fs_update_fte_egress(struct mlx5_core_dev *dev,
+				     struct mlx5_flow_table *ft,
+				     unsigned int group_id,
+				     int modify_mask,
+				     struct fs_fte *fte)
+{
+	return fpga_ipsec_fs_update_fte(dev, ft, group_id, modify_mask, fte,
+					true);
+}
+
+static int
+mlx5_fpga_ipsec_fs_delete_fte_egress(struct mlx5_core_dev *dev,
+				     struct mlx5_flow_table *ft,
+				     struct fs_fte *fte)
+{
+	return fpga_ipsec_fs_delete_fte(dev, ft, fte, true);
+}
+
+static int
+mlx5_fpga_ipsec_fs_create_flow_group_ingress(struct mlx5_core_dev *dev,
+					     struct mlx5_flow_table *ft,
+					     u32 *in,
+					     unsigned int *group_id)
+{
+	return fpga_ipsec_fs_create_flow_group(dev, ft, in, group_id, false);
+}
+
+static int
+mlx5_fpga_ipsec_fs_create_fte_ingress(struct mlx5_core_dev *dev,
+				      struct mlx5_flow_table *ft,
+				      struct mlx5_flow_group *fg,
+				      struct fs_fte *fte)
+{
+	return fpga_ipsec_fs_create_fte(dev, ft, fg, fte, false);
+}
+
+static int
+mlx5_fpga_ipsec_fs_update_fte_ingress(struct mlx5_core_dev *dev,
+				      struct mlx5_flow_table *ft,
+				      unsigned int group_id,
+				      int modify_mask,
+				      struct fs_fte *fte)
+{
+	return fpga_ipsec_fs_update_fte(dev, ft, group_id, modify_mask, fte,
+					false);
+}
+
+static int
+mlx5_fpga_ipsec_fs_delete_fte_ingress(struct mlx5_core_dev *dev,
+				      struct mlx5_flow_table *ft,
+				      struct fs_fte *fte)
+{
+	return fpga_ipsec_fs_delete_fte(dev, ft, fte, false);
+}
+
+static struct mlx5_flow_cmds fpga_ipsec_ingress;
+static struct mlx5_flow_cmds fpga_ipsec_egress;
+
+const struct mlx5_flow_cmds *mlx5_fs_cmd_get_default_ipsec_fpga_cmds(enum fs_flow_table_type type)
+{
+	switch (type) {
+	case FS_FT_NIC_RX:
+		return &fpga_ipsec_ingress;
+	case FS_FT_NIC_TX:
+		return &fpga_ipsec_egress;
+	default:
+		WARN_ON(true);
+		return NULL;
+	}
+}
+
 int mlx5_fpga_ipsec_init(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_fpga_conn_attr init_attr = {0};
@@ -636,6 +1227,8 @@ int mlx5_fpga_ipsec_init(struct mlx5_core_dev *mdev)
 	fdev->ipsec = kzalloc(sizeof(*fdev->ipsec), GFP_KERNEL);
 	if (!fdev->ipsec)
 		return -ENOMEM;
+
+	fdev->ipsec->fdev = fdev;
 
 	err = mlx5_fpga_get_sbu_caps(fdev, sizeof(fdev->ipsec->caps),
 				     fdev->ipsec->caps);
@@ -666,6 +1259,9 @@ int mlx5_fpga_ipsec_init(struct mlx5_core_dev *mdev)
 		goto err_destroy_conn;
 	mutex_init(&fdev->ipsec->sa_hash_lock);
 
+	fdev->ipsec->rules_rb = RB_ROOT;
+	mutex_init(&fdev->ipsec->rules_rb_lock);
+
 	err = mlx5_fpga_ipsec_enable_supported_caps(mdev);
 	if (err) {
 		mlx5_fpga_err(fdev, "Failed to enable IPSec extended capabilities: %d\n",
@@ -687,6 +1283,17 @@ error:
 	return err;
 }
 
+static void destroy_rules_rb(struct rb_root *root)
+{
+	struct mlx5_fpga_ipsec_rule *r, *tmp;
+
+	rbtree_postorder_for_each_entry_safe(r, tmp, root, node) {
+		rb_erase(&r->node, root);
+		mlx5_fpga_ipsec_delete_sa_ctx(r->ctx);
+		kfree(r);
+	}
+}
+
 void mlx5_fpga_ipsec_cleanup(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_fpga_device *fdev = mdev->fpga;
@@ -694,11 +1301,55 @@ void mlx5_fpga_ipsec_cleanup(struct mlx5_core_dev *mdev)
 	if (!mlx5_fpga_is_ipsec_device(mdev))
 		return;
 
+	destroy_rules_rb(&fdev->ipsec->rules_rb);
 	rhashtable_destroy(&fdev->ipsec->sa_hash);
 
 	mlx5_fpga_sbu_conn_destroy(fdev->ipsec->conn);
 	kfree(fdev->ipsec);
 	fdev->ipsec = NULL;
+}
+
+void mlx5_fpga_ipsec_build_fs_cmds(void)
+{
+	/* ingress */
+	fpga_ipsec_ingress.create_flow_table =
+		mlx5_fs_cmd_get_default(egress_to_fs_ft(false))->create_flow_table;
+	fpga_ipsec_ingress.destroy_flow_table =
+		mlx5_fs_cmd_get_default(egress_to_fs_ft(false))->destroy_flow_table;
+	fpga_ipsec_ingress.modify_flow_table =
+		mlx5_fs_cmd_get_default(egress_to_fs_ft(false))->modify_flow_table;
+	fpga_ipsec_ingress.create_flow_group =
+		mlx5_fpga_ipsec_fs_create_flow_group_ingress;
+	fpga_ipsec_ingress.destroy_flow_group =
+		 mlx5_fs_cmd_get_default(egress_to_fs_ft(false))->destroy_flow_group;
+	fpga_ipsec_ingress.create_fte =
+		mlx5_fpga_ipsec_fs_create_fte_ingress;
+	fpga_ipsec_ingress.update_fte =
+		mlx5_fpga_ipsec_fs_update_fte_ingress;
+	fpga_ipsec_ingress.delete_fte =
+		mlx5_fpga_ipsec_fs_delete_fte_ingress;
+	fpga_ipsec_ingress.update_root_ft =
+		mlx5_fs_cmd_get_default(egress_to_fs_ft(false))->update_root_ft;
+
+	/* egress */
+	fpga_ipsec_egress.create_flow_table =
+		mlx5_fs_cmd_get_default(egress_to_fs_ft(true))->create_flow_table;
+	fpga_ipsec_egress.destroy_flow_table =
+		mlx5_fs_cmd_get_default(egress_to_fs_ft(true))->destroy_flow_table;
+	fpga_ipsec_egress.modify_flow_table =
+		mlx5_fs_cmd_get_default(egress_to_fs_ft(true))->modify_flow_table;
+	fpga_ipsec_egress.create_flow_group =
+		mlx5_fpga_ipsec_fs_create_flow_group_egress;
+	fpga_ipsec_egress.destroy_flow_group =
+		mlx5_fs_cmd_get_default(egress_to_fs_ft(true))->destroy_flow_group;
+	fpga_ipsec_egress.create_fte =
+		mlx5_fpga_ipsec_fs_create_fte_egress;
+	fpga_ipsec_egress.update_fte =
+		mlx5_fpga_ipsec_fs_update_fte_egress;
+	fpga_ipsec_egress.delete_fte =
+		mlx5_fpga_ipsec_fs_delete_fte_egress;
+	fpga_ipsec_egress.update_root_ft =
+		mlx5_fs_cmd_get_default(egress_to_fs_ft(true))->update_root_ft;
 }
 
 static int
@@ -782,4 +1433,77 @@ void mlx5_fpga_esp_destroy_xfrm(struct mlx5_accel_esp_xfrm *xfrm)
 				     accel_xfrm);
 	/* assuming no sa_ctx are connected to this xfrm_ctx */
 	kfree(fpga_xfrm);
+}
+
+int mlx5_fpga_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
+			      const struct mlx5_accel_esp_xfrm_attrs *attrs)
+{
+	struct mlx5_core_dev *mdev = xfrm->mdev;
+	struct mlx5_fpga_device *fdev = mdev->fpga;
+	struct mlx5_fpga_ipsec *fipsec = fdev->ipsec;
+	struct mlx5_fpga_esp_xfrm *fpga_xfrm;
+	struct mlx5_ifc_fpga_ipsec_sa org_hw_sa;
+
+	int err = 0;
+
+	if (!memcmp(&xfrm->attrs, attrs, sizeof(xfrm->attrs)))
+		return 0;
+
+	if (!mlx5_fpga_esp_validate_xfrm_attrs(mdev, attrs)) {
+		mlx5_core_warn(mdev, "Tried to create an esp with unsupported attrs\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (is_v2_sadb_supported(fipsec)) {
+		mlx5_core_warn(mdev, "Modify esp is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	fpga_xfrm = container_of(xfrm, struct mlx5_fpga_esp_xfrm, accel_xfrm);
+
+	mutex_lock(&fpga_xfrm->lock);
+
+	if (!fpga_xfrm->sa_ctx)
+		/* Unbounded xfrm, chane only sw attrs */
+		goto change_sw_xfrm_attrs;
+
+	/* copy original hw sa */
+	memcpy(&org_hw_sa, &fpga_xfrm->sa_ctx->hw_sa, sizeof(org_hw_sa));
+	mutex_lock(&fipsec->sa_hash_lock);
+	/* remove original hw sa from hash */
+	WARN_ON(rhashtable_remove_fast(&fipsec->sa_hash,
+				       &fpga_xfrm->sa_ctx->hash, rhash_sa));
+	/* update hw_sa with new xfrm attrs*/
+	mlx5_fpga_ipsec_build_hw_xfrm(xfrm->mdev, attrs,
+				      &fpga_xfrm->sa_ctx->hw_sa);
+	/* try to insert new hw_sa to hash */
+	err = rhashtable_insert_fast(&fipsec->sa_hash,
+				     &fpga_xfrm->sa_ctx->hash, rhash_sa);
+	if (err)
+		goto rollback_sa;
+
+	/* modify device with new hw_sa */
+	err = mlx5_fpga_ipsec_update_hw_sa(fdev, &fpga_xfrm->sa_ctx->hw_sa,
+					   MLX5_FPGA_IPSEC_CMD_OP_MOD_SA_V2);
+	fpga_xfrm->sa_ctx->hw_sa.ipsec_sa_v1.cmd = 0;
+	if (err)
+		WARN_ON(rhashtable_remove_fast(&fipsec->sa_hash,
+					       &fpga_xfrm->sa_ctx->hash,
+					       rhash_sa));
+rollback_sa:
+	if (err) {
+		/* return original hw_sa to hash */
+		memcpy(&fpga_xfrm->sa_ctx->hw_sa, &org_hw_sa,
+		       sizeof(org_hw_sa));
+		WARN_ON(rhashtable_insert_fast(&fipsec->sa_hash,
+					       &fpga_xfrm->sa_ctx->hash,
+					       rhash_sa));
+	}
+	mutex_unlock(&fipsec->sa_hash_lock);
+
+change_sw_xfrm_attrs:
+	if (!err)
+		memcpy(&xfrm->attrs, attrs, sizeof(xfrm->attrs));
+	mutex_unlock(&fpga_xfrm->lock);
+	return err;
 }

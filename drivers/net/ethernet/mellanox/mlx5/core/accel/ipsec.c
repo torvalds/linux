@@ -100,3 +100,10 @@ void mlx5_accel_esp_destroy_xfrm(struct mlx5_accel_esp_xfrm *xfrm)
 	mlx5_fpga_esp_destroy_xfrm(xfrm);
 }
 EXPORT_SYMBOL_GPL(mlx5_accel_esp_destroy_xfrm);
+
+int mlx5_accel_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
+			       const struct mlx5_accel_esp_xfrm_attrs *attrs)
+{
+	return mlx5_fpga_esp_modify_xfrm(xfrm, attrs);
+}
+EXPORT_SYMBOL_GPL(mlx5_accel_esp_modify_xfrm);

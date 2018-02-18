@@ -35,6 +35,7 @@
 #define __MLX5_FPGA_IPSEC_H__
 
 #include "accel/ipsec.h"
+#include "fs_cmd.h"
 
 #ifdef CONFIG_MLX5_FPGA
 
@@ -52,12 +53,18 @@ void mlx5_fpga_ipsec_delete_sa_ctx(void *context);
 
 int mlx5_fpga_ipsec_init(struct mlx5_core_dev *mdev);
 void mlx5_fpga_ipsec_cleanup(struct mlx5_core_dev *mdev);
+void mlx5_fpga_ipsec_build_fs_cmds(void);
 
 struct mlx5_accel_esp_xfrm *
 mlx5_fpga_esp_create_xfrm(struct mlx5_core_dev *mdev,
 			  const struct mlx5_accel_esp_xfrm_attrs *attrs,
 			  u32 flags);
 void mlx5_fpga_esp_destroy_xfrm(struct mlx5_accel_esp_xfrm *xfrm);
+int mlx5_fpga_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
+			      const struct mlx5_accel_esp_xfrm_attrs *attrs);
+
+const struct mlx5_flow_cmds *
+mlx5_fs_cmd_get_default_ipsec_fpga_cmds(enum fs_flow_table_type type);
 
 #else
 
@@ -101,6 +108,10 @@ static inline void mlx5_fpga_ipsec_cleanup(struct mlx5_core_dev *mdev)
 {
 }
 
+static inline void mlx5_fpga_ipsec_build_fs_cmds(void)
+{
+}
+
 static inline struct mlx5_accel_esp_xfrm *
 mlx5_fpga_esp_create_xfrm(struct mlx5_core_dev *mdev,
 			  const struct mlx5_accel_esp_xfrm_attrs *attrs,
@@ -111,6 +122,19 @@ mlx5_fpga_esp_create_xfrm(struct mlx5_core_dev *mdev,
 
 static inline void mlx5_fpga_esp_destroy_xfrm(struct mlx5_accel_esp_xfrm *xfrm)
 {
+}
+
+static inline int
+mlx5_fpga_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
+			  const struct mlx5_accel_esp_xfrm_attrs *attrs)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline const struct mlx5_flow_cmds *
+mlx5_fs_cmd_get_default_ipsec_fpga_cmds(enum fs_flow_table_type type)
+{
+	return mlx5_fs_cmd_get_default(type);
 }
 
 #endif /* CONFIG_MLX5_FPGA */
