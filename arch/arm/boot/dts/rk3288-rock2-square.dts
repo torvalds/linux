@@ -321,3 +321,7 @@
 &usb_host1 {
 	status = "okay";
 };
+
+&usb_otg {
+	status = "okay";
+};
