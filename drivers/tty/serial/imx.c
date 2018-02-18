@@ -205,7 +205,6 @@ struct imx_port {
 	struct mctrl_gpios *gpios;
 
 	/* DMA fields */
-	unsigned int		dma_is_inited:1;
 	unsigned int		dma_is_enabled:1;
 	unsigned int		dma_is_rxing:1;
 	unsigned int		dma_is_txing:1;
@@ -1114,8 +1113,6 @@ static void imx_uart_dma_exit(struct imx_port *sport)
 		dma_release_channel(sport->dma_chan_tx);
 		sport->dma_chan_tx = NULL;
 	}
-
-	sport->dma_is_inited = 0;
 }
 
 static int imx_uart_dma_init(struct imx_port *sport)
@@ -1168,8 +1165,6 @@ static int imx_uart_dma_init(struct imx_port *sport)
 		goto err;
 	}
 
-	sport->dma_is_inited = 1;
-
 	return 0;
 err:
 	imx_uart_dma_exit(sport);
@@ -1217,6 +1212,7 @@ static int imx_startup(struct uart_port *port)
 	struct imx_port *sport = (struct imx_port *)port;
 	int retval, i;
 	unsigned long flags, temp;
+	int dma_is_inited = 0;
 
 	retval = clk_prepare_enable(sport->clk_per);
 	if (retval)
@@ -1241,8 +1237,8 @@ static int imx_startup(struct uart_port *port)
 	writel(temp & ~UCR4_DREN, sport->port.membase + UCR4);
 
 	/* Can we enable the DMA support? */
-	if (!uart_console(port) && !sport->dma_is_inited)
-		imx_uart_dma_init(sport);
+	if (!uart_console(port) && imx_uart_dma_init(sport) == 0)
+		dma_is_inited = 1;
 
 	spin_lock_irqsave(&sport->port.lock, flags);
 	/* Reset fifo's and state machines */
@@ -1261,7 +1257,7 @@ static int imx_startup(struct uart_port *port)
 	writel(USR1_RTSD | USR1_DTRD, sport->port.membase + USR1);
 	writel(USR2_ORE, sport->port.membase + USR2);
 
-	if (sport->dma_is_inited && !sport->dma_is_enabled)
+	if (dma_is_inited && !sport->dma_is_enabled)
 		imx_enable_dma(sport);
 
 	temp = readl(sport->port.membase + UCR1) & ~UCR1_RRDYEN;
