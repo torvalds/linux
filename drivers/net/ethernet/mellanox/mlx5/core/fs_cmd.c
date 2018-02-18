@@ -106,7 +106,7 @@ static int mlx5_cmd_stub_update_fte(struct mlx5_core_dev *dev,
 
 static int mlx5_cmd_stub_delete_fte(struct mlx5_core_dev *dev,
 				    struct mlx5_flow_table *ft,
-				    unsigned int index)
+				    struct fs_fte *fte)
 {
 	return 0;
 }
@@ -436,7 +436,7 @@ static int mlx5_cmd_update_fte(struct mlx5_core_dev *dev,
 
 static int mlx5_cmd_delete_fte(struct mlx5_core_dev *dev,
 			       struct mlx5_flow_table *ft,
-			       unsigned int index)
+			       struct fs_fte *fte)
 {
 	u32 out[MLX5_ST_SZ_DW(delete_fte_out)] = {0};
 	u32 in[MLX5_ST_SZ_DW(delete_fte_in)]   = {0};
@@ -444,7 +444,7 @@ static int mlx5_cmd_delete_fte(struct mlx5_core_dev *dev,
 	MLX5_SET(delete_fte_in, in, opcode, MLX5_CMD_OP_DELETE_FLOW_TABLE_ENTRY);
 	MLX5_SET(delete_fte_in, in, table_type, ft->type);
 	MLX5_SET(delete_fte_in, in, table_id, ft->id);
-	MLX5_SET(delete_fte_in, in, flow_index, index);
+	MLX5_SET(delete_fte_in, in, flow_index, fte->index);
 	if (ft->vport) {
 		MLX5_SET(delete_fte_in, in, vport_number, ft->vport);
 		MLX5_SET(delete_fte_in, in, other_vport, 1);

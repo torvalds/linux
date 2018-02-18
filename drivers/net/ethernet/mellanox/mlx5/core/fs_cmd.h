@@ -72,7 +72,7 @@ struct mlx5_flow_cmds {
 
 	int (*delete_fte)(struct mlx5_core_dev *dev,
 			  struct mlx5_flow_table *ft,
-			  unsigned int index);
+			  struct fs_fte *fte);
 
 	int (*update_root_ft)(struct mlx5_core_dev *dev,
 			      struct mlx5_flow_table *ft,

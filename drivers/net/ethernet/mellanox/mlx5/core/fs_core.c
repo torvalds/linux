@@ -520,7 +520,7 @@ static void del_hw_fte(struct fs_node *node)
 	dev = get_dev(&ft->node);
 	root = find_root(&ft->node);
 	if (node->active) {
-		err = root->cmds->delete_fte(dev, ft, fte->index);
+		err = root->cmds->delete_fte(dev, ft, fte);
 		if (err)
 			mlx5_core_warn(dev,
 				       "flow steering can't delete fte in index %d of flow group id %d\n",
