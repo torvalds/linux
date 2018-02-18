@@ -781,8 +781,7 @@ static irqreturn_t imx_int(int irq, void *dev_id)
 	if (sts & USR1_DTRD) {
 		unsigned long flags;
 
-		if (sts & USR1_DTRD)
-			writel(USR1_DTRD, sport->port.membase + USR1);
+		writel(USR1_DTRD, sport->port.membase + USR1);
 
 		spin_lock_irqsave(&sport->port.lock, flags);
 		imx_mctrl_check(sport);
