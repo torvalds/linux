@@ -180,6 +180,8 @@ whint_mode=%s          Control which write hints are passed down to block
                        down hints. In "user-based" mode, f2fs tries to pass
                        down hints given by users. And in "fs-based" mode, f2fs
                        passes down hints with its policy.
+alloc_mode=%s          Adjust block allocation policy, which supports "reuse"
+                       and "default".
 
 ================================================================================
 DEBUGFS ENTRIES
