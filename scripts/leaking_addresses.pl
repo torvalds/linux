@@ -462,6 +462,10 @@ sub parse_file
 		return;
 	}
 
+	if (! -T $file) {
+		return;
+	}
+
 	if (skip_parse($file)) {
 		dprint "skipping file: $file\n";
 		return;
