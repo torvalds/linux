@@ -37,8 +37,6 @@
 
 #define MUX_TX_MAX_SIZE 2048
 
-#define gdm_tty_send(n, d, l, i, c, b) (\
-	n->tty_dev->send_func(n->tty_dev->priv_dev, d, l, i, c, b))
 #define gdm_tty_recv(n, c) (\
 	n->tty_dev->recv_func(n->tty_dev->priv_dev, c))
 #define gdm_tty_send_control(n, r, v, d, l) (\
@@ -191,13 +189,12 @@ static int gdm_tty_write(struct tty_struct *tty, const unsigned char *buf,
 
 	while (1) {
 		sending_len = min(MUX_TX_MAX_SIZE, remain);
-		gdm_tty_send(gdm,
-			     (void *)(buf + sent_len),
-			     sending_len,
-			     gdm->index,
-			     gdm_tty_send_complete,
-			     gdm
-			    );
+		gdm->tty_dev->send_func(gdm->tty_dev->priv_dev,
+					(void *)(buf + sent_len),
+					sending_len,
+					gdm->index,
+					gdm_tty_send_complete,
+					gdm);
 		sent_len += sending_len;
 		remain -= sending_len;
 		if (remain <= 0)
