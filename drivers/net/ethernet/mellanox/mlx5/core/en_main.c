@@ -106,9 +106,8 @@ static u16 mlx5e_get_rq_headroom(struct mlx5e_params *params)
 }
 
 void mlx5e_init_rq_type_params(struct mlx5_core_dev *mdev,
-			       struct mlx5e_params *params, u8 rq_type)
+			       struct mlx5e_params *params)
 {
-	params->rq_wq_type = rq_type;
 	params->lro_wqe_sz = MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;
 	switch (params->rq_wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
@@ -135,15 +134,14 @@ void mlx5e_init_rq_type_params(struct mlx5_core_dev *mdev,
 
 static bool slow_pci_heuristic(struct mlx5_core_dev *mdev);
 
-static void mlx5e_set_rq_params(struct mlx5_core_dev *mdev,
-				struct mlx5e_params *params)
+static void mlx5e_set_rq_type(struct mlx5_core_dev *mdev,
+			      struct mlx5e_params *params)
 {
-	u8 rq_type = mlx5e_check_fragmented_striding_rq_cap(mdev) &&
+	params->rq_wq_type = mlx5e_check_fragmented_striding_rq_cap(mdev) &&
 		!slow_pci_heuristic(mdev) &&
 		!params->xdp_prog && !MLX5_IPSEC_DEV(mdev) ?
 		MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ :
 		MLX5_WQ_TYPE_LINKED_LIST;
-	mlx5e_init_rq_type_params(mdev, params, rq_type);
 }
 
 static void mlx5e_update_carrier(struct mlx5e_priv *priv)
@@ -3736,7 +3734,7 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 		bpf_prog_put(old_prog);
 
 	if (reset) /* change RQ type according to priv->xdp_prog */
-		mlx5e_set_rq_params(priv->mdev, &priv->channels.params);
+		mlx5e_set_rq_type(priv->mdev, &priv->channels.params);
 
 	if (was_opened && reset)
 		mlx5e_open_locked(netdev);
@@ -4029,7 +4027,8 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 	MLX5E_SET_PFLAG(params, MLX5E_PFLAG_RX_CQE_COMPRESS, params->rx_cqe_compress_def);
 
 	/* RQ */
-	mlx5e_set_rq_params(mdev, params);
+	mlx5e_set_rq_type(mdev, params);
+	mlx5e_init_rq_type_params(mdev, params);
 
 	/* HW LRO */
 
