@@ -37,9 +37,6 @@
 
 #define MUX_TX_MAX_SIZE 2048
 
-#define gdm_tty_send_control(n, r, v, d, l) (\
-	n->tty_dev->send_control(n->tty_dev->priv_dev, r, v, d, l))
-
 #define GDM_TTY_READY(gdm) (gdm && gdm->tty_dev && gdm->port.count)
 
 static struct tty_driver *gdm_driver[TTY_MAX_COUNT];
