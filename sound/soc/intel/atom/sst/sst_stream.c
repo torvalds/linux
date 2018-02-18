@@ -253,7 +253,7 @@ int sst_pause_stream(struct intel_sst_drv *sst_drv_ctx, int str_id)
 		if (retval == 0) {
 			str_info->prev = str_info->status;
 			str_info->status = STREAM_PAUSED;
-		} else if (retval == SST_ERR_INVALID_STREAM_ID) {
+		} else if (retval == -SST_ERR_INVALID_STREAM_ID) {
 			retval = -EINVAL;
 			mutex_lock(&sst_drv_ctx->sst_lock);
 			sst_clean_stream(str_info);
