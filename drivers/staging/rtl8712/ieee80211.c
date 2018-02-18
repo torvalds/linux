@@ -166,7 +166,8 @@ static uint r8712_get_rateset_len(u8 *rateset)
 
 int r8712_generate_ie(struct registry_priv *pregistrypriv)
 {
-	int sz = 0, rate_len;
+	int rate_len;
+	uint sz = 0;
 	struct wlan_bssid_ex *pdev_network = &pregistrypriv->dev_network;
 	u8 *ie = pdev_network->IEs;
 	u16 beaconPeriod = (u16)pdev_network->Configuration.BeaconPeriod;
