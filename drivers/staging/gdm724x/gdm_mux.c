@@ -657,7 +657,11 @@ static struct usb_driver gdm_mux_driver = {
 
 static int __init gdm_usb_mux_init(void)
 {
-	register_lte_tty_driver();
+	int ret;
+
+	ret = register_lte_tty_driver();
+	if (ret)
+		return ret;
 
 	return usb_register(&gdm_mux_driver);
 }
