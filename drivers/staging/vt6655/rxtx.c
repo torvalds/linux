@@ -1080,7 +1080,6 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 	else if (fifo_ctl & FIFOCTL_AUTO_FB_1)
 		byFBOption = AUTO_FB_1;
 
-
 	/* Set RrvTime/RTS/CTS Buffer */
 	wTxBufSize = sizeof(struct vnt_tx_fifo_head);
 	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {/* 802.11g packet */
