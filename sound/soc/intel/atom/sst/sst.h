@@ -65,9 +65,7 @@ enum sst_stream_states {
 	STREAM_UN_INIT	= 0,	/* Freed/Not used stream */
 	STREAM_RUNNING	= 1,	/* Running */
 	STREAM_PAUSED	= 2,	/* Paused stream */
-	STREAM_DECODE	= 3,	/* stream is in decoding only state */
-	STREAM_INIT	= 4,	/* stream init, waiting for data */
-	STREAM_RESET	= 5,	/* force reset on recovery */
+	STREAM_INIT	= 3,	/* stream init, waiting for data */
 };
 
 enum sst_ram_type {
