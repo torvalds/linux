@@ -1257,7 +1257,7 @@ static int imx_startup(struct uart_port *port)
 	writel(USR1_RTSD | USR1_DTRD, sport->port.membase + USR1);
 	writel(USR2_ORE, sport->port.membase + USR2);
 
-	if (dma_is_inited && !sport->dma_is_enabled)
+	if (dma_is_inited)
 		imx_enable_dma(sport);
 
 	temp = readl(sport->port.membase + UCR1) & ~UCR1_RRDYEN;
