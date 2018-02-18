@@ -758,21 +758,47 @@ static void imx_mctrl_check(struct imx_port *sport)
 static irqreturn_t imx_int(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
-	unsigned int usr1, usr2;
+	unsigned int usr1, usr2, ucr1, ucr2, ucr3, ucr4;
 	irqreturn_t ret = IRQ_NONE;
 
 	usr1 = readl(sport->port.membase + USR1);
 	usr2 = readl(sport->port.membase + USR2);
+	ucr1 = readl(sport->port.membase + UCR1);
+	ucr2 = readl(sport->port.membase + UCR2);
+	ucr3 = readl(sport->port.membase + UCR3);
+	ucr4 = readl(sport->port.membase + UCR4);
 
-	if (!sport->dma_is_enabled && (usr1 & (USR1_RRDY | USR1_AGTIM))) {
+	/*
+	 * Even if a condition is true that can trigger an irq only handle it if
+	 * the respective irq source is enabled. This prevents some undesired
+	 * actions, for example if a character that sits in the RX FIFO and that
+	 * should be fetched via DMA is tried to be fetched using PIO. Or the
+	 * receiver is currently off and so reading from URXD0 results in an
+	 * exception. So just mask the (raw) status bits for disabled irqs.
+	 */
+	if ((ucr1 & UCR1_RRDYEN) == 0)
+		usr1 &= ~USR1_RRDY;
+	if ((ucr2 & UCR2_ATEN) == 0)
+		usr1 &= ~USR1_AGTIM;
+	if ((ucr1 & UCR1_TXMPTYEN) == 0)
+		usr1 &= ~USR1_TRDY;
+	if ((ucr4 & UCR4_TCEN) == 0)
+		usr2 &= ~USR2_TXDC;
+	if ((ucr3 & UCR3_DTRDEN) == 0)
+		usr1 &= ~USR1_DTRD;
+	if ((ucr1 & UCR1_RTSDEN) == 0)
+		usr1 &= ~USR1_RTSD;
+	if ((ucr3 & UCR3_AWAKEN) == 0)
+		usr1 &= ~USR1_AWAKE;
+	if ((ucr4 & UCR4_OREN) == 0)
+		usr2 &= ~USR2_ORE;
+
+	if (usr1 & (USR1_RRDY | USR1_AGTIM)) {
 		imx_rxint(irq, dev_id);
 		ret = IRQ_HANDLED;
 	}
 
-	if ((usr1 & USR1_TRDY &&
-	     readl(sport->port.membase + UCR1) & UCR1_TXMPTYEN) ||
-	    (usr2 & USR2_TXDC &&
-	     readl(sport->port.membase + UCR4) & UCR4_TCEN)) {
+	if ((usr1 & USR1_TRDY) || (usr2 & USR2_TXDC)) {
 		imx_txint(irq, dev_id);
 		ret = IRQ_HANDLED;
 	}
