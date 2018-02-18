@@ -909,6 +909,7 @@ struct ibmvnic_tx_buff {
 	union sub_crq indir_arr[6];
 	u8 hdr_data[140];
 	dma_addr_t indir_dma;
+	int num_entries;
 };
 
 struct ibmvnic_tx_pool {

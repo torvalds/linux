@@ -1467,6 +1467,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if ((*hdrs >> 7) & 1) {
 		build_hdr_descs_arr(tx_buff, &num_entries, *hdrs);
 		tx_crq.v1.n_crq_elem = num_entries;
+		tx_buff->num_entries = num_entries;
 		tx_buff->indir_arr[0] = tx_crq;
 		tx_buff->indir_dma = dma_map_single(dev, tx_buff->indir_arr,
 						    sizeof(tx_buff->indir_arr),
@@ -1515,7 +1516,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		goto out;
 	}
 
-	if (atomic_inc_return(&tx_scrq->used)
+	if (atomic_add_return(num_entries, &tx_scrq->used)
 					>= adapter->req_tx_entries_per_subcrq) {
 		netdev_info(netdev, "Stopping queue %d\n", queue_num);
 		netif_stop_subqueue(netdev, queue_num);
@@ -2468,6 +2469,7 @@ static int ibmvnic_complete_tx(struct ibmvnic_adapter *adapter,
 restart_loop:
 	while (pending_scrq(adapter, scrq)) {
 		unsigned int pool = scrq->pool_index;
+		int num_entries = 0;
 
 		next = ibmvnic_next_scrq(adapter, scrq);
 		for (i = 0; i < next->tx_comp.num_comps; i++) {
@@ -2498,6 +2500,8 @@ restart_loop:
 				txbuff->skb = NULL;
 			}
 
+			num_entries += txbuff->num_entries;
+
 			adapter->tx_pool[pool].free_map[adapter->tx_pool[pool].
 						     producer_index] = index;
 			adapter->tx_pool[pool].producer_index =
@@ -2507,7 +2511,7 @@ restart_loop:
 		/* remove tx_comp scrq*/
 		next->tx_comp.first = 0;
 
-		if (atomic_sub_return(next->tx_comp.num_comps, &scrq->used) <=
+		if (atomic_sub_return(num_entries, &scrq->used) <=
 		    (adapter->req_tx_entries_per_subcrq / 2) &&
 		    __netif_subqueue_stopped(adapter->netdev,
 					     scrq->pool_index)) {
