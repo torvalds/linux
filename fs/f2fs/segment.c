@@ -2250,6 +2250,11 @@ static unsigned int __get_next_segno(struct f2fs_sb_info *sbi, int type)
 
 	if (SIT_I(sbi)->last_victim[ALLOC_NEXT])
 		return SIT_I(sbi)->last_victim[ALLOC_NEXT];
+
+	/* find segments from 0 to reuse freed segments */
+	if (sbi->alloc_mode == ALLOC_MODE_REUSE)
+		return 0;
+
 	return CURSEG_I(sbi, type)->segno;
 }
 

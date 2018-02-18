@@ -1107,6 +1107,11 @@ enum {
 	WHINT_MODE_FS,		/* pass down hints with F2FS policy */
 };
 
+enum {
+	ALLOC_MODE_DEFAULT,	/* stay default */
+	ALLOC_MODE_REUSE,	/* reuse segments as much as possible */
+};
+
 struct f2fs_sb_info {
 	struct super_block *sb;			/* pointer to VFS super block */
 	struct proc_dir_entry *s_proc;		/* proc entry */
@@ -1293,6 +1298,9 @@ struct f2fs_sb_info {
 #endif
 	/* For which write hints are passed down to block layer */
 	int whint_mode;
+
+	/* segment allocation policy */
+	int alloc_mode;
 };
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION

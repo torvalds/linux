@@ -130,6 +130,7 @@ enum {
 	Opt_jqfmt_vfsv0,
 	Opt_jqfmt_vfsv1,
 	Opt_whint,
+	Opt_alloc,
 	Opt_err,
 };
 
@@ -184,6 +185,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_jqfmt_vfsv0, "jqfmt=vfsv0"},
 	{Opt_jqfmt_vfsv1, "jqfmt=vfsv1"},
 	{Opt_whint, "whint_mode=%s"},
+	{Opt_alloc, "alloc_mode=%s"},
 	{Opt_err, NULL},
 };
 
@@ -694,6 +696,23 @@ static int parse_options(struct super_block *sb, char *options)
 			} else if (strlen(name) == 8 &&
 					!strncmp(name, "fs-based", 8)) {
 				sbi->whint_mode = WHINT_MODE_FS;
+			} else {
+				kfree(name);
+				return -EINVAL;
+			}
+			kfree(name);
+			break;
+		case Opt_alloc:
+			name = match_strdup(&args[0]);
+			if (!name)
+				return -ENOMEM;
+
+			if (strlen(name) == 7 &&
+					!strncmp(name, "default", 7)) {
+				sbi->alloc_mode = ALLOC_MODE_DEFAULT;
+			} else if (strlen(name) == 5 &&
+					!strncmp(name, "reuse", 5)) {
+				sbi->alloc_mode = ALLOC_MODE_REUSE;
 			} else {
 				kfree(name);
 				return -EINVAL;
@@ -1265,6 +1284,10 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 	else if (sbi->whint_mode == WHINT_MODE_FS)
 		seq_printf(seq, ",whint_mode=%s", "fs-based");
 
+	if (sbi->alloc_mode == ALLOC_MODE_DEFAULT)
+		seq_printf(seq, ",alloc_mode=%s", "default");
+	else if (sbi->alloc_mode == ALLOC_MODE_REUSE)
+		seq_printf(seq, ",alloc_mode=%s", "reuse");
 	return 0;
 }
 
@@ -1274,6 +1297,7 @@ static void default_options(struct f2fs_sb_info *sbi)
 	sbi->active_logs = NR_CURSEG_TYPE;
 	sbi->inline_xattr_size = DEFAULT_INLINE_XATTR_ADDRS;
 	sbi->whint_mode = WHINT_MODE_OFF;
+	sbi->alloc_mode = ALLOC_MODE_DEFAULT;
 
 	set_opt(sbi, BG_GC);
 	set_opt(sbi, INLINE_XATTR);
@@ -1315,6 +1339,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	bool need_stop_gc = false;
 	bool no_extent_cache = !test_opt(sbi, EXTENT_CACHE);
 	int old_whint_mode = sbi->whint_mode;
+	int old_alloc_mode = sbi->alloc_mode;
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	struct f2fs_fault_info ffi = sbi->fault_info;
 #endif
@@ -1464,6 +1489,7 @@ restore_opts:
 		sbi->s_qf_names[i] = s_qf_names[i];
 	}
 #endif
+	sbi->alloc_mode = old_alloc_mode;
 	sbi->whint_mode = old_whint_mode;
 	sbi->mount_opt = org_mount_opt;
 	sbi->active_logs = active_logs;
