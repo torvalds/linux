@@ -365,7 +365,6 @@ void sst_init_stream(struct stream_info *stream,
 {
 	stream->status = STREAM_INIT;
 	stream->prev = STREAM_UN_INIT;
-	stream->ops = ops;
 }
 
 int sst_validate_strid(

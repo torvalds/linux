@@ -181,21 +181,15 @@ struct sst_block {
  *
  * @status : stream current state
  * @prev : stream prev state
- * @ops : stream operation pb/cp/drm...
- * @bufs: stream buffer list
  * @lock : stream mutex for protecting state
  * @pcm_substream : PCM substream
  * @period_elapsed : PCM period elapsed callback
  * @sfreq : stream sampling freq
- * @str_type : stream type
  * @cumm_bytes : cummulative bytes decoded
- * @str_type : stream type
- * @src : stream source
  */
 struct stream_info {
 	unsigned int		status;
 	unsigned int		prev;
-	unsigned int		ops;
 	struct mutex		lock;
 
 	void			*pcm_substream;
@@ -212,7 +206,6 @@ struct stream_info {
 
 	unsigned int		num_ch;
 	unsigned int		pipe_id;
-	unsigned int		str_id;
 	unsigned int		task_id;
 };
 
