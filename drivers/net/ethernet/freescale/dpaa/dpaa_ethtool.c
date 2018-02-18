@@ -211,7 +211,7 @@ static int dpaa_set_pauseparam(struct net_device *net_dev,
 	if (epause->rx_pause)
 		newadv = ADVERTISED_Pause | ADVERTISED_Asym_Pause;
 	if (epause->tx_pause)
-		newadv |= ADVERTISED_Asym_Pause;
+		newadv ^= ADVERTISED_Asym_Pause;
 
 	oldadv = phydev->advertising &
 			(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
