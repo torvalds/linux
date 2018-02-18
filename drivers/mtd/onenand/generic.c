@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/mtd/onenand/generic.c
- *
  *  Copyright (c) 2005 Samsung Electronics
  *  Kyungmin Park <kyungmin.park@samsung.com>
  *

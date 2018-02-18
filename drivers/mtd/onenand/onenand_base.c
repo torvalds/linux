@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/mtd/onenand/onenand_base.c
- *
  *  Copyright © 2005-2009 Samsung Electronics
  *  Copyright © 2007 Nokia Corporation
  *

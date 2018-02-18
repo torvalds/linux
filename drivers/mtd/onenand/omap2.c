@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/mtd/onenand/omap2.c
- *
  *  OneNAND driver for OMAP2 / OMAP3
  *
  *  Copyright © 2005-2006 Nokia Corporation

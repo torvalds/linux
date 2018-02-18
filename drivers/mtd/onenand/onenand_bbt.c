@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/drivers/mtd/onenand/onenand_bbt.c
- *
  *  Bad Block Table support for the OneNAND driver
  *
  *  Copyright(c) 2005 Samsung Electronics
