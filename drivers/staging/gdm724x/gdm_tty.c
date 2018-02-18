@@ -37,8 +37,6 @@
 
 #define MUX_TX_MAX_SIZE 2048
 
-#define gdm_tty_recv(n, c) (\
-	n->tty_dev->recv_func(n->tty_dev->priv_dev, c))
 #define gdm_tty_send_control(n, r, v, d, l) (\
 	n->tty_dev->send_control(n->tty_dev->priv_dev, r, v, d, l))
 
@@ -144,7 +142,8 @@ static int gdm_tty_recv_complete(void *data,
 
 	if (!GDM_TTY_READY(gdm)) {
 		if (complete == RECV_PACKET_PROCESS_COMPLETE)
-			gdm_tty_recv(gdm, gdm_tty_recv_complete);
+			gdm->tty_dev->recv_func(gdm->tty_dev->priv_dev,
+						gdm_tty_recv_complete);
 		return TO_HOST_PORT_CLOSE;
 	}
 
@@ -158,7 +157,8 @@ static int gdm_tty_recv_complete(void *data,
 	}
 
 	if (complete == RECV_PACKET_PROCESS_COMPLETE)
-		gdm_tty_recv(gdm, gdm_tty_recv_complete);
+		gdm->tty_dev->recv_func(gdm->tty_dev->priv_dev,
+					gdm_tty_recv_complete);
 
 	return 0;
 }
@@ -253,7 +253,8 @@ int register_lte_tty_device(struct tty_dev *tty_dev, struct device *device)
 	}
 
 	for (i = 0; i < MAX_ISSUE_NUM; i++)
-		gdm_tty_recv(gdm, gdm_tty_recv_complete);
+		gdm->tty_dev->recv_func(gdm->tty_dev->priv_dev,
+					gdm_tty_recv_complete);
 
 	return 0;
 }
