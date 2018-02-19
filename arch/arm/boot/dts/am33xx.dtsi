@@ -964,6 +964,7 @@
 			ti,hwmods = "emif";
 			sram = <&pm_sram_code
 				&pm_sram_data>;
+			ti,no-idle;
 		};
 
 		gpmc: gpmc@50000000 {
