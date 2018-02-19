@@ -1346,9 +1346,9 @@ EXPORT_SYMBOL(drm_mode_connector_list_update);
  * modeline in fb_mode_option will be parsed instead.
  *
  * This uses the same parameters as the fb modedb.c, except for an extra
- * force-enable, force-enable-digital and force-disable bit at the end:
+ * force-enable, force-enable-digital and force-disable bit at the end::
  *
- * <xres>x<yres>[M][R][-<bpp>][@<refresh>][i][m][eDd]
+ *	<xres>x<yres>[M][R][-<bpp>][@<refresh>][i][m][eDd]
  *
  * The intermediate drm_cmdline_mode structure is required to store additional
  * options from the command line modline like the force-enable/disable flag.
