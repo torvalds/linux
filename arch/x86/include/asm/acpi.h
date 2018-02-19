@@ -31,6 +31,7 @@
 #include <asm/mmu.h>
 #include <asm/mpspec.h>
 #include <asm/realmode.h>
+#include <asm/x86_init.h>
 
 #ifdef CONFIG_ACPI_APEI
 # include <asm/pgtable_types.h>
@@ -131,6 +132,12 @@ static inline void arch_acpi_set_pdc_bits(u32 *buf)
 static inline bool acpi_has_cpu_in_madt(void)
 {
 	return !!acpi_lapic;
+}
+
+#define ACPI_HAVE_ARCH_GET_ROOT_POINTER
+static inline u64 acpi_arch_get_root_pointer(void)
+{
+	return x86_init.acpi.get_root_pointer();
 }
 
 #else /* !CONFIG_ACPI */

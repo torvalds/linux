@@ -30,6 +30,7 @@ int __init iommu_init_noop(void) { return 0; }
 void iommu_shutdown_noop(void) { }
 bool __init bool_x86_init_noop(void) { return false; }
 void x86_op_int_noop(int cpu) { }
+u64 u64_x86_init_noop(void) { return 0; }
 
 /*
  * The platform setup functions are preset with the default functions
@@ -90,6 +91,10 @@ struct x86_init_ops x86_init __initdata = {
 		.guest_late_init	= x86_init_noop,
 		.x2apic_available	= bool_x86_init_noop,
 		.init_mem_mapping	= x86_init_noop,
+	},
+
+	.acpi = {
+		.get_root_pointer	= u64_x86_init_noop,
 	},
 };
 

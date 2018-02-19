@@ -131,6 +131,14 @@ struct x86_hyper_init {
 };
 
 /**
+ * struct x86_init_acpi - x86 ACPI init functions
+ * @get_root_pointer:		get RSDP address
+ */
+struct x86_init_acpi {
+	u64 (*get_root_pointer)(void);
+};
+
+/**
  * struct x86_init_ops - functions for platform specific setup
  *
  */
@@ -144,6 +152,7 @@ struct x86_init_ops {
 	struct x86_init_iommu		iommu;
 	struct x86_init_pci		pci;
 	struct x86_hyper_init		hyper;
+	struct x86_init_acpi		acpi;
 };
 
 /**
