@@ -279,7 +279,7 @@ static void btrfs_kobject_uevent(struct block_device *bdev,
 			&disk_to_dev(bdev->bd_disk)->kobj);
 }
 
-void btrfs_cleanup_fs_uuids(void)
+void __exit btrfs_cleanup_fs_uuids(void)
 {
 	struct btrfs_fs_devices *fs_devices;
 
