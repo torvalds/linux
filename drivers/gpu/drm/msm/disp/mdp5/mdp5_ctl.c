@@ -468,6 +468,8 @@ u32 mdp_ctl_flush_mask_lm(int lm)
 	case 0:  return MDP5_CTL_FLUSH_LM0;
 	case 1:  return MDP5_CTL_FLUSH_LM1;
 	case 2:  return MDP5_CTL_FLUSH_LM2;
+	case 3:  return MDP5_CTL_FLUSH_LM3;
+	case 4:  return MDP5_CTL_FLUSH_LM4;
 	case 5:  return MDP5_CTL_FLUSH_LM5;
 	default: return 0;
 	}
