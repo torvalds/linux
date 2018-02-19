@@ -308,8 +308,11 @@ static int do_tls_getsockopt_tx(struct sock *sk, char __user *optval,
 			goto out;
 		}
 		lock_sock(sk);
-		memcpy(crypto_info_aes_gcm_128->iv, ctx->iv,
+		memcpy(crypto_info_aes_gcm_128->iv,
+		       ctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE,
 		       TLS_CIPHER_AES_GCM_128_IV_SIZE);
+		memcpy(crypto_info_aes_gcm_128->rec_seq, ctx->rec_seq,
+		       TLS_CIPHER_AES_GCM_128_REC_SEQ_SIZE);
 		release_sock(sk);
 		if (copy_to_user(optval,
 				 crypto_info_aes_gcm_128,
@@ -375,7 +378,7 @@ static int do_tls_setsockopt_tx(struct sock *sk, char __user *optval,
 	rc = copy_from_user(crypto_info, optval, sizeof(*crypto_info));
 	if (rc) {
 		rc = -EFAULT;
-		goto out;
+		goto err_crypto_info;
 	}
 
 	/* check version */
