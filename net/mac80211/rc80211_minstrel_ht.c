@@ -669,7 +669,7 @@ minstrel_aggr_check(struct ieee80211_sta *pubsta, struct sk_buff *skb)
 	if (unlikely(skb->protocol == cpu_to_be16(ETH_P_PAE)))
 		return;
 
-	tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
+	tid = ieee80211_get_tid(hdr);
 	if (likely(sta->ampdu_mlme.tid_tx[tid]))
 		return;
 

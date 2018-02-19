@@ -1189,7 +1189,7 @@ static void ieee80211_rx_reorder_ampdu(struct ieee80211_rx_data *rx,
 
 	ack_policy = *ieee80211_get_qos_ctl(hdr) &
 		     IEEE80211_QOS_CTL_ACK_POLICY_MASK;
-	tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
+	tid = ieee80211_get_tid(hdr);
 
 	tid_agg_rx = rcu_dereference(sta->ampdu_mlme.tid_rx[tid]);
 	if (!tid_agg_rx) {
@@ -1528,9 +1528,7 @@ ieee80211_rx_h_uapsd_and_pspoll(struct ieee80211_rx_data *rx)
 		   ieee80211_has_pm(hdr->frame_control) &&
 		   (ieee80211_is_data_qos(hdr->frame_control) ||
 		    ieee80211_is_qos_nullfunc(hdr->frame_control))) {
-		u8 tid;
-
-		tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
+		u8 tid = ieee80211_get_tid(hdr);
 
 		ieee80211_sta_uapsd_trigger(&rx->sta->sta, tid);
 	}

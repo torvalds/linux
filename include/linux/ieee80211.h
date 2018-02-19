@@ -8,6 +8,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -2499,6 +2500,17 @@ static inline u8 *ieee80211_get_qos_ctl(struct ieee80211_hdr *hdr)
 		return (u8 *)hdr + 30;
 	else
 		return (u8 *)hdr + 24;
+}
+
+/**
+ * ieee80211_get_tid - get qos TID
+ * @hdr: the frame
+ */
+static inline u8 ieee80211_get_tid(struct ieee80211_hdr *hdr)
+{
+	u8 *qc = ieee80211_get_qos_ctl(hdr);
+
+	return qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 }
 
 /**
