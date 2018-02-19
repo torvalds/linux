@@ -694,9 +694,9 @@ void tipc_topsrv_stop(struct net *net)
 	}
 	__module_get(lsock->ops->owner);
 	__module_get(lsock->sk->sk_prot_creator->owner);
-	sock_release(lsock);
 	srv->listener = NULL;
 	spin_unlock_bh(&srv->idr_lock);
+	sock_release(lsock);
 	tipc_topsrv_work_stop(srv);
 	idr_destroy(&srv->conn_idr);
 	kfree(srv);
