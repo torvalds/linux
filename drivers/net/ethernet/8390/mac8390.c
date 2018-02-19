@@ -168,7 +168,6 @@ static void slow_sane_block_output(struct net_device *dev, int count,
 				   const unsigned char *buf, int start_page);
 static void word_memcpy_tocard(unsigned long tp, const void *fp, int count);
 static void word_memcpy_fromcard(void *tp, unsigned long fp, int count);
-static u32 mac8390_msg_enable;
 
 static enum mac8390_type __init mac8390_ident(struct nubus_rsrc *fres)
 {
@@ -299,8 +298,6 @@ static bool __init mac8390_init(struct net_device *dev,
 	int offset;
 	volatile unsigned short *i;
 
-	printk_once(KERN_INFO pr_fmt("%s"), version);
-
 	dev->irq = SLOT2IRQ(ndev->board->slot);
 	/* This is getting to be a habit */
 	dev->base_addr = (ndev->board->slot_addr |
@@ -398,8 +395,6 @@ struct net_device * __init mac8390_probe(int unit)
 	struct net_device *dev;
 	struct nubus_rsrc *ndev = NULL;
 	int err = -ENODEV;
-	struct ei_device *ei_local;
-
 	static unsigned int slots;
 
 	enum mac8390_type cardtype;
@@ -440,9 +435,6 @@ struct net_device * __init mac8390_probe(int unit)
 
 	if (!ndev)
 		goto out;
-
-	 ei_local = netdev_priv(dev);
-	 ei_local->msg_enable = mac8390_msg_enable;
 
 	err = register_netdev(dev);
 	if (err)
