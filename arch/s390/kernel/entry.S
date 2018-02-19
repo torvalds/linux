@@ -14,6 +14,7 @@
 #include <asm/processor.h>
 #include <asm/cache.h>
 #include <asm/ctl_reg.h>
+#include <asm/dwarf.h>
 #include <asm/errno.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
@@ -230,7 +231,7 @@ _PIF_WORK	= (_PIF_PER_TRAP | _PIF_SYSCALL_RESTART)
 	.hidden \name
 	.type \name,@function
 \name:
-	.cfi_startproc
+	CFI_STARTPROC
 #ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
 	exrl	0,0f
 #else
@@ -239,7 +240,7 @@ _PIF_WORK	= (_PIF_PER_TRAP | _PIF_SYSCALL_RESTART)
 #endif
 	j	.
 0:	br	\reg
-	.cfi_endproc
+	CFI_ENDPROC
 	.endm
 
 	GEN_BR_THUNK __s390x_indirect_jump_r1use_r9,%r9,%r1
