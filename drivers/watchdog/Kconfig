@@ -1009,6 +1009,7 @@ config WAFER_WDT
 config I6300ESB_WDT
 	tristate "Intel 6300ESB Timer/Watchdog"
 	depends on PCI
+	select WATCHDOG_CORE
 	---help---
 	  Hardware driver for the watchdog timer built into the Intel
 	  6300ESB controller hub.
