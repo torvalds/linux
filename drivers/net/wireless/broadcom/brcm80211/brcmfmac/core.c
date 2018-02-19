@@ -1013,6 +1013,11 @@ int brcmf_bus_started(struct device *dev)
 	/* signal bus ready */
 	brcmf_bus_change_state(bus_if, BRCMF_BUS_UP);
 
+	/* do bus specific preinit here */
+	ret = brcmf_bus_preinit(ifp->drvr->bus_if);
+	if (ret < 0)
+		goto fail;
+
 	/* Bus is ready, do any initialization */
 	ret = brcmf_c_preinit_dcmds(ifp);
 	if (ret < 0)
