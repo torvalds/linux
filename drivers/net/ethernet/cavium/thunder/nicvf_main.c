@@ -67,11 +67,6 @@ module_param(cpi_alg, int, S_IRUGO);
 MODULE_PARM_DESC(cpi_alg,
 		 "PFC algorithm (0=none, 1=VLAN, 2=VLAN16, 3=IP Diffserv)");
 
-struct nicvf_xdp_tx {
-	u64 dma_addr;
-	u8  qidx;
-};
-
 static inline u8 nicvf_netdev_qidx(struct nicvf *nic, u8 qidx)
 {
 	if (nic->sqs_mode)
@@ -507,29 +502,14 @@ static int nicvf_init_resources(struct nicvf *nic)
 	return 0;
 }
 
-static void nicvf_unmap_page(struct nicvf *nic, struct page *page, u64 dma_addr)
-{
-	/* Check if it's a recycled page, if not unmap the DMA mapping.
-	 * Recycled page holds an extra reference.
-	 */
-	if (page_ref_count(page) == 1) {
-		dma_addr &= PAGE_MASK;
-		dma_unmap_page_attrs(&nic->pdev->dev, dma_addr,
-				     RCV_FRAG_LEN + XDP_HEADROOM,
-				     DMA_FROM_DEVICE,
-				     DMA_ATTR_SKIP_CPU_SYNC);
-	}
-}
-
 static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 				struct cqe_rx_t *cqe_rx, struct snd_queue *sq,
 				struct rcv_queue *rq, struct sk_buff **skb)
 {
 	struct xdp_buff xdp;
 	struct page *page;
-	struct nicvf_xdp_tx *xdp_tx = NULL;
 	u32 action;
-	u16 len, err, offset = 0;
+	u16 len, offset = 0;
 	u64 dma_addr, cpu_addr;
 	void *orig_data;
 
@@ -543,7 +523,7 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 	cpu_addr = (u64)phys_to_virt(cpu_addr);
 	page = virt_to_page((void *)cpu_addr);
 
-	xdp.data_hard_start = page_address(page) + RCV_BUF_HEADROOM;
+	xdp.data_hard_start = page_address(page);
 	xdp.data = (void *)cpu_addr;
 	xdp_set_data_meta_invalid(&xdp);
 	xdp.data_end = xdp.data + len;
@@ -563,7 +543,18 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 
 	switch (action) {
 	case XDP_PASS:
-		nicvf_unmap_page(nic, page, dma_addr);
+		/* Check if it's a recycled page, if not
+		 * unmap the DMA mapping.
+		 *
+		 * Recycled page holds an extra reference.
+		 */
+		if (page_ref_count(page) == 1) {
+			dma_addr &= PAGE_MASK;
+			dma_unmap_page_attrs(&nic->pdev->dev, dma_addr,
+					     RCV_FRAG_LEN + XDP_PACKET_HEADROOM,
+					     DMA_FROM_DEVICE,
+					     DMA_ATTR_SKIP_CPU_SYNC);
+		}
 
 		/* Build SKB and pass on packet to network stack */
 		*skb = build_skb(xdp.data,
@@ -576,20 +567,6 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 	case XDP_TX:
 		nicvf_xdp_sq_append_pkt(nic, sq, (u64)xdp.data, dma_addr, len);
 		return true;
-	case XDP_REDIRECT:
-		/* Save DMA address for use while transmitting */
-		xdp_tx = (struct nicvf_xdp_tx *)page_address(page);
-		xdp_tx->dma_addr = dma_addr;
-		xdp_tx->qidx = nicvf_netdev_qidx(nic, cqe_rx->rq_idx);
-
-		err = xdp_do_redirect(nic->pnicvf->netdev, &xdp, prog);
-		if (!err)
-			return true;
-
-		/* Free the page on error */
-		nicvf_unmap_page(nic, page, dma_addr);
-		put_page(page);
-		break;
 	default:
 		bpf_warn_invalid_xdp_action(action);
 		/* fall through */
@@ -597,7 +574,18 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 		trace_xdp_exception(nic->netdev, prog, action);
 		/* fall through */
 	case XDP_DROP:
-		nicvf_unmap_page(nic, page, dma_addr);
+		/* Check if it's a recycled page, if not
+		 * unmap the DMA mapping.
+		 *
+		 * Recycled page holds an extra reference.
+		 */
+		if (page_ref_count(page) == 1) {
+			dma_addr &= PAGE_MASK;
+			dma_unmap_page_attrs(&nic->pdev->dev, dma_addr,
+					     RCV_FRAG_LEN + XDP_PACKET_HEADROOM,
+					     DMA_FROM_DEVICE,
+					     DMA_ATTR_SKIP_CPU_SYNC);
+		}
 		put_page(page);
 		return true;
 	}
@@ -1864,50 +1852,6 @@ static int nicvf_xdp(struct net_device *netdev, struct netdev_bpf *xdp)
 	}
 }
 
-static int nicvf_xdp_xmit(struct net_device *netdev, struct xdp_buff *xdp)
-{
-	struct nicvf *nic = netdev_priv(netdev);
-	struct nicvf *snic = nic;
-	struct nicvf_xdp_tx *xdp_tx;
-	struct snd_queue *sq;
-	struct page *page;
-	int err, qidx;
-
-	if (!netif_running(netdev) || !nic->xdp_prog)
-		return -EINVAL;
-
-	page = virt_to_page(xdp->data);
-	xdp_tx = (struct nicvf_xdp_tx *)page_address(page);
-	qidx = xdp_tx->qidx;
-
-	if (xdp_tx->qidx >= nic->xdp_tx_queues)
-		return -EINVAL;
-
-	/* Get secondary Qset's info */
-	if (xdp_tx->qidx >= MAX_SND_QUEUES_PER_QS) {
-		qidx = xdp_tx->qidx / MAX_SND_QUEUES_PER_QS;
-		snic = (struct nicvf *)nic->snicvf[qidx - 1];
-		if (!snic)
-			return -EINVAL;
-		qidx = xdp_tx->qidx % MAX_SND_QUEUES_PER_QS;
-	}
-
-	sq = &snic->qs->sq[qidx];
-	err = nicvf_xdp_sq_append_pkt(snic, sq, (u64)xdp->data,
-				      xdp_tx->dma_addr,
-				      xdp->data_end - xdp->data);
-	if (err)
-		return -ENOMEM;
-
-	nicvf_xdp_sq_doorbell(snic, sq, qidx);
-	return 0;
-}
-
-static void nicvf_xdp_flush(struct net_device *dev)
-{
-	return;
-}
-
 static int nicvf_config_hwtstamp(struct net_device *netdev, struct ifreq *ifr)
 {
 	struct hwtstamp_config config;
@@ -1986,8 +1930,6 @@ static const struct net_device_ops nicvf_netdev_ops = {
 	.ndo_fix_features       = nicvf_fix_features,
 	.ndo_set_features       = nicvf_set_features,
 	.ndo_bpf		= nicvf_xdp,
-	.ndo_xdp_xmit		= nicvf_xdp_xmit,
-	.ndo_xdp_flush          = nicvf_xdp_flush,
 	.ndo_do_ioctl           = nicvf_ioctl,
 };
 

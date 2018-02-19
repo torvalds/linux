@@ -51,7 +51,7 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 	unsigned int psize;
 	int ssize;
 	real_pte_t rpte;
-	int i;
+	int i, offset;
 
 	i = batch->index;
 
@@ -67,6 +67,10 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 		psize = get_slice_psize(mm, addr);
 		/* Mask the address for the correct page size */
 		addr &= ~((1UL << mmu_psize_defs[psize].shift) - 1);
+		if (unlikely(psize == MMU_PAGE_16G))
+			offset = PTRS_PER_PUD;
+		else
+			offset = PTRS_PER_PMD;
 #else
 		BUG();
 		psize = pte_pagesize_index(mm, addr, pte); /* shutup gcc */
@@ -78,6 +82,7 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 		 * support 64k pages, this might be different from the
 		 * hardware page size encoded in the slice table. */
 		addr &= PAGE_MASK;
+		offset = PTRS_PER_PTE;
 	}
 
 
@@ -91,7 +96,7 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 	}
 	WARN_ON(vsid == 0);
 	vpn = hpt_vpn(addr, vsid, ssize);
-	rpte = __real_pte(__pte(pte), ptep);
+	rpte = __real_pte(__pte(pte), ptep, offset);
 
 	/*
 	 * Check if we have an active batch on this CPU. If not, just

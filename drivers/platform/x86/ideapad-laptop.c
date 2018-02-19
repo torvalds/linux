@@ -113,7 +113,7 @@ MODULE_PARM_DESC(no_bt_rfkill, "No rfkill for bluetooth.");
 /*
  * ACPI Helpers
  */
-#define IDEAPAD_EC_TIMEOUT (100) /* in ms */
+#define IDEAPAD_EC_TIMEOUT (200) /* in ms */
 
 static int read_method_int(acpi_handle handle, const char *method, int *val)
 {

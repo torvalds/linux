@@ -472,7 +472,7 @@ int cudbg_collect_cim_la(struct cudbg_init *pdbg_init,
 
 	if (is_t6(padap->params.chip)) {
 		size = padap->params.cim_la_size / 10 + 1;
-		size *= 11 * sizeof(u32);
+		size *= 10 * sizeof(u32);
 	} else {
 		size = padap->params.cim_la_size / 8;
 		size *= 8 * sizeof(u32);

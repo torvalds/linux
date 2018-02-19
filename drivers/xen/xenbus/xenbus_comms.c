@@ -309,6 +309,7 @@ static int process_msg(void)
 			goto out;
 
 		if (req->state == xb_req_state_wait_reply) {
+			req->msg.req_id = req->caller_req_id;
 			req->msg.type = state.msg.type;
 			req->msg.len = state.msg.len;
 			req->body = state.body;
