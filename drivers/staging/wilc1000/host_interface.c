@@ -2430,7 +2430,7 @@ static void Handle_SetMulticastFilter(struct wilc_vif *vif,
 	*cur_byte++ = ((hif_set_mc->cnt >> 16) & 0xFF);
 	*cur_byte++ = ((hif_set_mc->cnt >> 24) & 0xFF);
 
-	if ((hif_set_mc->cnt) > 0)
+	if (hif_set_mc->cnt > 0)
 		memcpy(cur_byte, wilc_multicast_mac_addr_list,
 		       ((hif_set_mc->cnt) * ETH_ALEN));
 
