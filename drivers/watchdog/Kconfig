@@ -904,6 +904,7 @@ config F71808E_WDT
 config SP5100_TCO
 	tristate "AMD/ATI SP5100 TCO Timer/Watchdog"
 	depends on X86 && PCI
+	select WATCHDOG_CORE
 	---help---
 	  Hardware watchdog driver for the AMD/ATI SP5100 chipset. The TCO
 	  (Total Cost of Ownership) timer is a watchdog timer that will reboot
