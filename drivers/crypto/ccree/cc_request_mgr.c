@@ -148,7 +148,7 @@ int cc_req_mgr_init(struct cc_drvdata *drvdata)
 	set_dout_dlli(&req_mgr_h->compl_desc, req_mgr_h->dummy_comp_buff_dma,
 		      sizeof(u32), NS_BIT, 1);
 	set_flow_mode(&req_mgr_h->compl_desc, BYPASS);
-	set_queue_last_ind(&req_mgr_h->compl_desc);
+	set_queue_last_ind(drvdata, &req_mgr_h->compl_desc);
 
 	return 0;
 
@@ -531,7 +531,7 @@ int send_request_init(struct cc_drvdata *drvdata, struct cc_hw_desc *desc,
 	if (rc)
 		return rc;
 
-	set_queue_last_ind(&desc[(len - 1)]);
+	set_queue_last_ind(drvdata, &desc[(len - 1)]);
 
 	/*
 	 * We are about to push command to the HW via the command registers
@@ -610,7 +610,7 @@ static void proc_completions(struct cc_drvdata *drvdata)
 static inline u32 cc_axi_comp_count(struct cc_drvdata *drvdata)
 {
 	return FIELD_GET(AXIM_MON_COMP_VALUE,
-			 cc_ioread(drvdata, CC_REG(AXIM_MON_COMP)));
+			 cc_ioread(drvdata, drvdata->axim_mon_offset));
 }
 
 /* Deferred service handler, run as interrupt-fired tasklet */

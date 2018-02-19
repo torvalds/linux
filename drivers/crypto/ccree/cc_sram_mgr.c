@@ -33,6 +33,19 @@ void cc_sram_mgr_fini(struct cc_drvdata *drvdata)
 int cc_sram_mgr_init(struct cc_drvdata *drvdata)
 {
 	struct cc_sram_ctx *ctx;
+	dma_addr_t start = 0;
+	struct device *dev = drvdata_to_dev(drvdata);
+
+	if (drvdata->hw_rev < CC_HW_REV_712) {
+		/* Pool starts after ROM bytes */
+		start = (dma_addr_t)cc_ioread(drvdata,
+					      CC_REG(HOST_SEP_SRAM_THRESHOLD));
+
+		if ((start & 0x3) != 0) {
+			dev_err(dev, "Invalid SRAM offset %pad\n", &start);
+			return -EINVAL;
+		}
+	}
 
 	/* Allocate "this" context */
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
@@ -40,6 +53,7 @@ int cc_sram_mgr_init(struct cc_drvdata *drvdata)
 	if (!ctx)
 		return -ENOMEM;
 
+	ctx->sram_free_offset = start;
 	drvdata->sram_mgr_handle = ctx;
 
 	return 0;

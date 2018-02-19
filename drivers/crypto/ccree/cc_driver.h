@@ -36,15 +36,18 @@
 extern bool cc_dump_desc;
 extern bool cc_dump_bytes;
 
-#define DRV_MODULE_VERSION "3.0"
+#define DRV_MODULE_VERSION "4.0"
 
-#define CC_DEV_NAME_STR "ccree"
+enum cc_hw_rev {
+	CC_HW_REV_630 = 630,
+	CC_HW_REV_710 = 710,
+	CC_HW_REV_712 = 712
+};
+
 #define CC_COHERENT_CACHE_PARAMS 0xEEE
 
 /* Maximum DMA mask supported by IP */
 #define DMA_BIT_MASK_LEN 48
-
-#define CC_DEV_SIGNATURE 0xDCC71200UL
 
 #define CC_AXI_IRQ_MASK ((1 << CC_AXIM_CFG_BRESPMASK_BIT_SHIFT) | \
 			  (1 << CC_AXIM_CFG_RRESPMASK_BIT_SHIFT) | \
@@ -122,6 +125,10 @@ struct cc_drvdata {
 	void *debugfs;
 	struct clk *clk;
 	bool coherent;
+	char *hw_rev_name;
+	enum cc_hw_rev hw_rev;
+	u32 hash_len_sz;
+	u32 axim_mon_offset;
 };
 
 struct cc_crypto_alg {
@@ -147,6 +154,7 @@ struct cc_alg_template {
 	int cipher_mode;
 	int flow_mode; /* Note: currently, refers to the cipher mode only. */
 	int auth_mode;
+	u32 min_hw_rev;
 	unsigned int data_unit;
 	struct cc_drvdata *drvdata;
 };
@@ -188,6 +196,13 @@ static inline gfp_t cc_gfp_flags(struct crypto_async_request *req)
 {
 	return (req->flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
 			GFP_KERNEL : GFP_ATOMIC;
+}
+
+static inline void set_queue_last_ind(struct cc_drvdata *drvdata,
+				      struct cc_hw_desc *pdesc)
+{
+	if (drvdata->hw_rev >= CC_HW_REV_712)
+		set_queue_last_ind_bit(pdesc);
 }
 
 #endif /*__CC_DRIVER_H__*/

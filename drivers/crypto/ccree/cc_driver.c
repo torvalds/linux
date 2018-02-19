@@ -35,6 +35,34 @@ bool cc_dump_bytes;
 module_param_named(dump_bytes, cc_dump_bytes, bool, 0600);
 MODULE_PARM_DESC(cc_dump_bytes, "Dump buffers to kernel log as debugging aid");
 
+struct cc_hw_data {
+	char *name;
+	enum cc_hw_rev rev;
+	u32 sig;
+};
+
+/* Hardware revisions defs. */
+
+static const struct cc_hw_data cc712_hw = {
+	.name = "712", .rev = CC_HW_REV_712, .sig =  0xDCC71200U
+};
+
+static const struct cc_hw_data cc710_hw = {
+	.name = "710", .rev = CC_HW_REV_710, .sig =  0xDCC63200U
+};
+
+static const struct cc_hw_data cc630p_hw = {
+	.name = "630P", .rev = CC_HW_REV_630, .sig = 0xDCC63000U
+};
+
+static const struct of_device_id arm_ccree_dev_of_match[] = {
+	{ .compatible = "arm,cryptocell-712-ree", .data = &cc712_hw },
+	{ .compatible = "arm,cryptocell-710-ree", .data = &cc710_hw },
+	{ .compatible = "arm,cryptocell-630p-ree", .data = &cc630p_hw },
+	{}
+};
+MODULE_DEVICE_TABLE(of, arm_ccree_dev_of_match);
+
 void __dump_byte_array(const char *name, const u8 *buf, size_t len)
 {
 	char prefix[64];
@@ -128,9 +156,12 @@ int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe)
 	cc_iowrite(drvdata, CC_REG(HOST_ICR), val);
 
 	/* Unmask relevant interrupt cause */
-	val = (unsigned int)(~(CC_COMP_IRQ_MASK | CC_AXI_ERR_IRQ_MASK |
-			       CC_GPR0_IRQ_MASK));
-	cc_iowrite(drvdata, CC_REG(HOST_IMR), val);
+	val = CC_COMP_IRQ_MASK | CC_AXI_ERR_IRQ_MASK;
+
+	if (drvdata->hw_rev >= CC_HW_REV_712)
+		val |= CC_GPR0_IRQ_MASK;
+
+	cc_iowrite(drvdata, CC_REG(HOST_IMR), ~val);
 
 	cache_params = (drvdata->coherent ? CC_COHERENT_CACHE_PARAMS : 0x0);
 
@@ -157,11 +188,29 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	struct device_node *np = dev->of_node;
 	u32 signature_val;
 	u64 dma_mask;
+	const struct cc_hw_data *hw_rev;
+	const struct of_device_id *dev_id;
 	int rc = 0;
 
 	new_drvdata = devm_kzalloc(dev, sizeof(*new_drvdata), GFP_KERNEL);
 	if (!new_drvdata)
 		return -ENOMEM;
+
+	dev_id = of_match_node(arm_ccree_dev_of_match, np);
+	if (!dev_id)
+		return -ENODEV;
+
+	hw_rev = (struct cc_hw_data *)dev_id->data;
+	new_drvdata->hw_rev_name = hw_rev->name;
+	new_drvdata->hw_rev = hw_rev->rev;
+
+	if (hw_rev->rev >= CC_HW_REV_712) {
+		new_drvdata->hash_len_sz = HASH_LEN_SIZE_712;
+		new_drvdata->axim_mon_offset = CC_REG(AXIM_MON_COMP);
+	} else {
+		new_drvdata->hash_len_sz = HASH_LEN_SIZE_630;
+		new_drvdata->axim_mon_offset = CC_REG(AXIM_MON_COMP8);
+	}
 
 	platform_set_drvdata(plat_dev, new_drvdata);
 	new_drvdata->plat_dev = plat_dev;
@@ -228,9 +277,9 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	/* Verify correct mapping */
 	signature_val = cc_ioread(new_drvdata, CC_REG(HOST_SIGNATURE));
-	if (signature_val != CC_DEV_SIGNATURE) {
+	if (signature_val != hw_rev->sig) {
 		dev_err(dev, "Invalid CC signature: SIGNATURE=0x%08X != expected=0x%08X\n",
-			signature_val, (u32)CC_DEV_SIGNATURE);
+			signature_val, hw_rev->sig);
 		rc = -EINVAL;
 		goto post_clk_err;
 	}
@@ -238,8 +287,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	/* Display HW versions */
 	dev_info(dev, "ARM CryptoCell %s Driver: HW version 0x%08X, Driver version %s\n",
-		 CC_DEV_NAME_STR,
-		 cc_ioread(new_drvdata, CC_REG(HOST_VERSION)),
+		 hw_rev->name, cc_ioread(new_drvdata, CC_REG(HOST_VERSION)),
 		 DRV_MODULE_VERSION);
 
 	rc = init_cc_regs(new_drvdata, true);
@@ -429,12 +477,6 @@ static int ccree_remove(struct platform_device *plat_dev)
 
 	return 0;
 }
-
-static const struct of_device_id arm_ccree_dev_of_match[] = {
-	{.compatible = "arm,cryptocell-712-ree"},
-	{}
-};
-MODULE_DEVICE_TABLE(of, arm_ccree_dev_of_match);
 
 static struct platform_driver ccree_driver = {
 	.driver = {

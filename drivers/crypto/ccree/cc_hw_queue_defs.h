@@ -217,7 +217,7 @@ static inline void hw_desc_init(struct cc_hw_desc *pdesc)
  *
  * @pdesc: pointer HW descriptor struct
  */
-static inline void set_queue_last_ind(struct cc_hw_desc *pdesc)
+static inline void set_queue_last_ind_bit(struct cc_hw_desc *pdesc)
 {
 	pdesc->word[3] |= FIELD_PREP(WORD3_QUEUE_LAST_IND, 1);
 }

@@ -35,7 +35,6 @@ static const u32 sha224_init[] = {
 static const u32 sha256_init[] = {
 	SHA256_H7, SHA256_H6, SHA256_H5, SHA256_H4,
 	SHA256_H3, SHA256_H2, SHA256_H1, SHA256_H0 };
-#if (CC_DEV_SHA_MAX > 256)
 static const u32 digest_len_sha512_init[] = {
 	0x00000080, 0x00000000, 0x00000000, 0x00000000 };
 static u64 sha384_init[] = {
@@ -44,7 +43,6 @@ static u64 sha384_init[] = {
 static u64 sha512_init[] = {
 	SHA512_H7, SHA512_H6, SHA512_H5, SHA512_H4,
 	SHA512_H3, SHA512_H2, SHA512_H1, SHA512_H0 };
-#endif
 
 static void cc_setup_xcbc(struct ahash_request *areq, struct cc_hw_desc desc[],
 			  unsigned int *seq_size);
@@ -136,18 +134,14 @@ static void cc_init_req(struct device *dev, struct ahash_req_ctx *state,
 
 			memcpy(state->digest_buff, ctx->digest_buff,
 			       ctx->inter_digestsize);
-#if (CC_DEV_SHA_MAX > 256)
 			if (ctx->hash_mode == DRV_HASH_SHA512 ||
 			    ctx->hash_mode == DRV_HASH_SHA384)
 				memcpy(state->digest_bytes_len,
-				       digest_len_sha512_init, HASH_LEN_SIZE);
+				       digest_len_sha512_init,
+				       ctx->drvdata->hash_len_sz);
 			else
-				memcpy(state->digest_bytes_len,
-				       digest_len_init, HASH_LEN_SIZE);
-#else
-			memcpy(state->digest_bytes_len, digest_len_init,
-			       HASH_LEN_SIZE);
-#endif
+				memcpy(state->digest_bytes_len, digest_len_init,
+				       ctx->drvdata->hash_len_sz);
 		}
 
 		if (ctx->hash_mode != DRV_HASH_NULL) {
@@ -186,14 +180,14 @@ static int cc_map_req(struct device *dev, struct ahash_req_ctx *state,
 	if (ctx->hw_mode != DRV_CIPHER_XCBC_MAC) {
 		state->digest_bytes_len_dma_addr =
 			dma_map_single(dev, state->digest_bytes_len,
-				       HASH_LEN_SIZE, DMA_BIDIRECTIONAL);
+				       HASH_MAX_LEN_SIZE, DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(dev, state->digest_bytes_len_dma_addr)) {
 			dev_err(dev, "Mapping digest len %u B at va=%pK for DMA failed\n",
-				HASH_LEN_SIZE, state->digest_bytes_len);
+				HASH_MAX_LEN_SIZE, state->digest_bytes_len);
 			goto unmap_digest_buf;
 		}
 		dev_dbg(dev, "Mapped digest len %u B at va=%pK to dma=%pad\n",
-			HASH_LEN_SIZE, state->digest_bytes_len,
+			HASH_MAX_LEN_SIZE, state->digest_bytes_len,
 			&state->digest_bytes_len_dma_addr);
 	}
 
@@ -218,7 +212,7 @@ static int cc_map_req(struct device *dev, struct ahash_req_ctx *state,
 unmap_digest_len:
 	if (state->digest_bytes_len_dma_addr) {
 		dma_unmap_single(dev, state->digest_bytes_len_dma_addr,
-				 HASH_LEN_SIZE, DMA_BIDIRECTIONAL);
+				 HASH_MAX_LEN_SIZE, DMA_BIDIRECTIONAL);
 		state->digest_bytes_len_dma_addr = 0;
 	}
 unmap_digest_buf:
@@ -243,7 +237,7 @@ static void cc_unmap_req(struct device *dev, struct ahash_req_ctx *state,
 	}
 	if (state->digest_bytes_len_dma_addr) {
 		dma_unmap_single(dev, state->digest_bytes_len_dma_addr,
-				 HASH_LEN_SIZE, DMA_BIDIRECTIONAL);
+				 HASH_MAX_LEN_SIZE, DMA_BIDIRECTIONAL);
 		dev_dbg(dev, "Unmapped digest-bytes-len buffer: digest_bytes_len_dma_addr=%pad\n",
 			&state->digest_bytes_len_dma_addr);
 		state->digest_bytes_len_dma_addr = 0;
@@ -331,7 +325,7 @@ static int cc_fin_result(struct cc_hw_desc *desc, struct ahash_request *req,
 	/* TODO */
 	set_dout_dlli(&desc[idx], state->digest_result_dma_addr, digestsize,
 		      NS_BIT, 1);
-	set_queue_last_ind(&desc[idx]);
+	set_queue_last_ind(ctx->drvdata, &desc[idx]);
 	set_flow_mode(&desc[idx], S_HASH_to_DOUT);
 	set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
 	set_cipher_config1(&desc[idx], HASH_PADDING_DISABLED);
@@ -373,7 +367,7 @@ static int cc_fin_hmac(struct cc_hw_desc *desc, struct ahash_request *req,
 	set_cipher_mode(&desc[idx], ctx->hw_mode);
 	set_din_sram(&desc[idx],
 		     cc_digest_len_addr(ctx->drvdata, ctx->hash_mode),
-		     HASH_LEN_SIZE);
+		     ctx->drvdata->hash_len_sz);
 	set_cipher_config1(&desc[idx], HASH_PADDING_ENABLED);
 	set_flow_mode(&desc[idx], S_DIN_to_HASH);
 	set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
@@ -464,10 +458,10 @@ static int cc_hash_digest(struct ahash_request *req)
 
 	if (is_hmac) {
 		set_din_type(&desc[idx], DMA_DLLI,
-			     state->digest_bytes_len_dma_addr, HASH_LEN_SIZE,
-			     NS_BIT);
+			     state->digest_bytes_len_dma_addr,
+			     ctx->drvdata->hash_len_sz, NS_BIT);
 	} else {
-		set_din_const(&desc[idx], 0, HASH_LEN_SIZE);
+		set_din_const(&desc[idx], 0, ctx->drvdata->hash_len_sz);
 		if (nbytes)
 			set_cipher_config1(&desc[idx], HASH_PADDING_ENABLED);
 		else
@@ -484,7 +478,7 @@ static int cc_hash_digest(struct ahash_request *req)
 		hw_desc_init(&desc[idx]);
 		set_cipher_mode(&desc[idx], ctx->hw_mode);
 		set_dout_dlli(&desc[idx], state->digest_buff_dma_addr,
-			      HASH_LEN_SIZE, NS_BIT, 0);
+			      ctx->drvdata->hash_len_sz, NS_BIT, 0);
 		set_flow_mode(&desc[idx], S_HASH_to_DOUT);
 		set_setup_mode(&desc[idx], SETUP_WRITE_STATE1);
 		set_cipher_do(&desc[idx], DO_PAD);
@@ -522,7 +516,7 @@ static int cc_restore_hash(struct cc_hw_desc *desc, struct cc_hash_ctx *ctx,
 	set_cipher_mode(&desc[idx], ctx->hw_mode);
 	set_cipher_config1(&desc[idx], HASH_PADDING_DISABLED);
 	set_din_type(&desc[idx], DMA_DLLI, state->digest_bytes_len_dma_addr,
-		     HASH_LEN_SIZE, NS_BIT);
+		     ctx->drvdata->hash_len_sz, NS_BIT);
 	set_flow_mode(&desc[idx], S_DIN_to_HASH);
 	set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
 	idx++;
@@ -593,8 +587,8 @@ static int cc_hash_update(struct ahash_request *req)
 	hw_desc_init(&desc[idx]);
 	set_cipher_mode(&desc[idx], ctx->hw_mode);
 	set_dout_dlli(&desc[idx], state->digest_bytes_len_dma_addr,
-		      HASH_LEN_SIZE, NS_BIT, 1);
-	set_queue_last_ind(&desc[idx]);
+		      ctx->drvdata->hash_len_sz, NS_BIT, 1);
+	set_queue_last_ind(ctx->drvdata, &desc[idx]);
 	set_flow_mode(&desc[idx], S_HASH_to_DOUT);
 	set_setup_mode(&desc[idx], SETUP_WRITE_STATE1);
 	idx++;
@@ -717,7 +711,7 @@ static int cc_hash_final(struct ahash_request *req)
 	set_cipher_do(&desc[idx], DO_PAD);
 	set_cipher_mode(&desc[idx], ctx->hw_mode);
 	set_dout_dlli(&desc[idx], state->digest_bytes_len_dma_addr,
-		      HASH_LEN_SIZE, NS_BIT, 0);
+		      ctx->drvdata->hash_len_sz, NS_BIT, 0);
 	set_setup_mode(&desc[idx], SETUP_WRITE_STATE1);
 	set_flow_mode(&desc[idx], S_HASH_to_DOUT);
 	idx++;
@@ -804,7 +798,7 @@ static int cc_hash_setkey(struct crypto_ahash *ahash, const u8 *key,
 			/* Load the hash current length*/
 			hw_desc_init(&desc[idx]);
 			set_cipher_mode(&desc[idx], ctx->hw_mode);
-			set_din_const(&desc[idx], 0, HASH_LEN_SIZE);
+			set_din_const(&desc[idx], 0, ctx->drvdata->hash_len_sz);
 			set_cipher_config1(&desc[idx], HASH_PADDING_ENABLED);
 			set_flow_mode(&desc[idx], S_DIN_to_HASH);
 			set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
@@ -886,7 +880,7 @@ static int cc_hash_setkey(struct crypto_ahash *ahash, const u8 *key,
 		/* Load the hash current length*/
 		hw_desc_init(&desc[idx]);
 		set_cipher_mode(&desc[idx], ctx->hw_mode);
-		set_din_const(&desc[idx], 0, HASH_LEN_SIZE);
+		set_din_const(&desc[idx], 0, ctx->drvdata->hash_len_sz);
 		set_flow_mode(&desc[idx], S_DIN_to_HASH);
 		set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
 		idx++;
@@ -1204,7 +1198,7 @@ static int cc_mac_update(struct ahash_request *req)
 	set_cipher_mode(&desc[idx], ctx->hw_mode);
 	set_dout_dlli(&desc[idx], state->digest_buff_dma_addr,
 		      ctx->inter_digestsize, NS_BIT, 1);
-	set_queue_last_ind(&desc[idx]);
+	set_queue_last_ind(ctx->drvdata, &desc[idx]);
 	set_flow_mode(&desc[idx], S_AES_to_DOUT);
 	set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
 	idx++;
@@ -1328,7 +1322,7 @@ static int cc_mac_final(struct ahash_request *req)
 	/* TODO */
 	set_dout_dlli(&desc[idx], state->digest_result_dma_addr,
 		      digestsize, NS_BIT, 1);
-	set_queue_last_ind(&desc[idx]);
+	set_queue_last_ind(ctx->drvdata, &desc[idx]);
 	set_flow_mode(&desc[idx], S_AES_to_DOUT);
 	set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
 	set_cipher_mode(&desc[idx], ctx->hw_mode);
@@ -1410,7 +1404,7 @@ static int cc_mac_finup(struct ahash_request *req)
 	/* TODO */
 	set_dout_dlli(&desc[idx], state->digest_result_dma_addr,
 		      digestsize, NS_BIT, 1);
-	set_queue_last_ind(&desc[idx]);
+	set_queue_last_ind(ctx->drvdata, &desc[idx]);
 	set_flow_mode(&desc[idx], S_AES_to_DOUT);
 	set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
 	set_cipher_mode(&desc[idx], ctx->hw_mode);
@@ -1488,7 +1482,7 @@ static int cc_mac_digest(struct ahash_request *req)
 	hw_desc_init(&desc[idx]);
 	set_dout_dlli(&desc[idx], state->digest_result_dma_addr,
 		      CC_AES_BLOCK_SIZE, NS_BIT, 1);
-	set_queue_last_ind(&desc[idx]);
+	set_queue_last_ind(ctx->drvdata, &desc[idx]);
 	set_flow_mode(&desc[idx], S_AES_to_DOUT);
 	set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
 	set_cipher_config0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
@@ -1520,8 +1514,8 @@ static int cc_hash_export(struct ahash_request *req, void *out)
 	memcpy(out, state->digest_buff, ctx->inter_digestsize);
 	out += ctx->inter_digestsize;
 
-	memcpy(out, state->digest_bytes_len, HASH_LEN_SIZE);
-	out += HASH_LEN_SIZE;
+	memcpy(out, state->digest_bytes_len, ctx->drvdata->hash_len_sz);
+	out += ctx->drvdata->hash_len_sz;
 
 	memcpy(out, &curr_buff_cnt, sizeof(u32));
 	out += sizeof(u32);
@@ -1549,8 +1543,8 @@ static int cc_hash_import(struct ahash_request *req, const void *in)
 	memcpy(state->digest_buff, in, ctx->inter_digestsize);
 	in += ctx->inter_digestsize;
 
-	memcpy(state->digest_bytes_len, in, HASH_LEN_SIZE);
-	in += HASH_LEN_SIZE;
+	memcpy(state->digest_bytes_len, in, ctx->drvdata->hash_len_sz);
+	in += ctx->drvdata->hash_len_sz;
 
 	/* Sanity check the data as much as possible */
 	memcpy(&tmp, in, sizeof(u32));
@@ -1576,10 +1570,11 @@ struct cc_hash_template {
 	int hw_mode;
 	int inter_digestsize;
 	struct cc_drvdata *drvdata;
+	u32 min_hw_rev;
 };
 
 #define CC_STATE_SIZE(_x) \
-	((_x) + HASH_LEN_SIZE + CC_MAX_HASH_BLCK_SIZE + (2 * sizeof(u32)))
+	((_x) + HASH_MAX_LEN_SIZE + CC_MAX_HASH_BLCK_SIZE + (2 * sizeof(u32)))
 
 /* hash descriptors */
 static struct cc_hash_template driver_hash[] = {
@@ -1608,6 +1603,7 @@ static struct cc_hash_template driver_hash[] = {
 		.hash_mode = DRV_HASH_SHA1,
 		.hw_mode = DRV_HASH_HW_SHA1,
 		.inter_digestsize = SHA1_DIGEST_SIZE,
+		.min_hw_rev = CC_HW_REV_630,
 	},
 	{
 		.name = "sha256",
@@ -1632,6 +1628,7 @@ static struct cc_hash_template driver_hash[] = {
 		.hash_mode = DRV_HASH_SHA256,
 		.hw_mode = DRV_HASH_HW_SHA256,
 		.inter_digestsize = SHA256_DIGEST_SIZE,
+		.min_hw_rev = CC_HW_REV_630,
 	},
 	{
 		.name = "sha224",
@@ -1656,8 +1653,8 @@ static struct cc_hash_template driver_hash[] = {
 		.hash_mode = DRV_HASH_SHA224,
 		.hw_mode = DRV_HASH_HW_SHA256,
 		.inter_digestsize = SHA256_DIGEST_SIZE,
+		.min_hw_rev = CC_HW_REV_630,
 	},
-#if (CC_DEV_SHA_MAX > 256)
 	{
 		.name = "sha384",
 		.driver_name = "sha384-ccree",
@@ -1681,6 +1678,7 @@ static struct cc_hash_template driver_hash[] = {
 		.hash_mode = DRV_HASH_SHA384,
 		.hw_mode = DRV_HASH_HW_SHA512,
 		.inter_digestsize = SHA512_DIGEST_SIZE,
+		.min_hw_rev = CC_HW_REV_712,
 	},
 	{
 		.name = "sha512",
@@ -1705,8 +1703,8 @@ static struct cc_hash_template driver_hash[] = {
 		.hash_mode = DRV_HASH_SHA512,
 		.hw_mode = DRV_HASH_HW_SHA512,
 		.inter_digestsize = SHA512_DIGEST_SIZE,
+		.min_hw_rev = CC_HW_REV_712,
 	},
-#endif
 	{
 		.name = "md5",
 		.driver_name = "md5-ccree",
@@ -1730,6 +1728,7 @@ static struct cc_hash_template driver_hash[] = {
 		.hash_mode = DRV_HASH_MD5,
 		.hw_mode = DRV_HASH_HW_MD5,
 		.inter_digestsize = MD5_DIGEST_SIZE,
+		.min_hw_rev = CC_HW_REV_630,
 	},
 	{
 		.mac_name = "xcbc(aes)",
@@ -1752,6 +1751,7 @@ static struct cc_hash_template driver_hash[] = {
 		.hash_mode = DRV_HASH_NULL,
 		.hw_mode = DRV_CIPHER_XCBC_MAC,
 		.inter_digestsize = AES_BLOCK_SIZE,
+		.min_hw_rev = CC_HW_REV_630,
 	},
 	{
 		.mac_name = "cmac(aes)",
@@ -1774,6 +1774,7 @@ static struct cc_hash_template driver_hash[] = {
 		.hash_mode = DRV_HASH_NULL,
 		.hw_mode = DRV_CIPHER_CMAC,
 		.inter_digestsize = AES_BLOCK_SIZE,
+		.min_hw_rev = CC_HW_REV_630,
 	},
 };
 
@@ -1829,6 +1830,7 @@ int cc_init_hash_sram(struct cc_drvdata *drvdata)
 	cc_sram_addr_t sram_buff_ofs = hash_handle->digest_len_sram_addr;
 	unsigned int larval_seq_len = 0;
 	struct cc_hw_desc larval_seq[CC_DIGEST_SIZE_MAX / sizeof(u32)];
+	bool large_sha_supported = (drvdata->hw_rev >= CC_HW_REV_712);
 	int rc = 0;
 
 	/* Copy-to-sram digest-len */
@@ -1842,18 +1844,18 @@ int cc_init_hash_sram(struct cc_drvdata *drvdata)
 	sram_buff_ofs += sizeof(digest_len_init);
 	larval_seq_len = 0;
 
-#if (CC_DEV_SHA_MAX > 256)
-	/* Copy-to-sram digest-len for sha384/512 */
-	cc_set_sram_desc(digest_len_sha512_init, sram_buff_ofs,
-			 ARRAY_SIZE(digest_len_sha512_init),
-			 larval_seq, &larval_seq_len);
-	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
-	if (rc)
-		goto init_digest_const_err;
+	if (large_sha_supported) {
+		/* Copy-to-sram digest-len for sha384/512 */
+		cc_set_sram_desc(digest_len_sha512_init, sram_buff_ofs,
+				 ARRAY_SIZE(digest_len_sha512_init),
+				 larval_seq, &larval_seq_len);
+		rc = send_request_init(drvdata, larval_seq, larval_seq_len);
+		if (rc)
+			goto init_digest_const_err;
 
-	sram_buff_ofs += sizeof(digest_len_sha512_init);
-	larval_seq_len = 0;
-#endif
+		sram_buff_ofs += sizeof(digest_len_sha512_init);
+		larval_seq_len = 0;
+	}
 
 	/* The initial digests offset */
 	hash_handle->larval_digest_sram_addr = sram_buff_ofs;
@@ -1894,23 +1896,23 @@ int cc_init_hash_sram(struct cc_drvdata *drvdata)
 	sram_buff_ofs += sizeof(sha256_init);
 	larval_seq_len = 0;
 
-#if (CC_DEV_SHA_MAX > 256)
-	cc_set_sram_desc((u32 *)sha384_init, sram_buff_ofs,
-			 (ARRAY_SIZE(sha384_init) * 2), larval_seq,
-			 &larval_seq_len);
-	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
-	if (rc)
-		goto init_digest_const_err;
-	sram_buff_ofs += sizeof(sha384_init);
-	larval_seq_len = 0;
+	if (large_sha_supported) {
+		cc_set_sram_desc((u32 *)sha384_init, sram_buff_ofs,
+				 (ARRAY_SIZE(sha384_init) * 2), larval_seq,
+				 &larval_seq_len);
+		rc = send_request_init(drvdata, larval_seq, larval_seq_len);
+		if (rc)
+			goto init_digest_const_err;
+		sram_buff_ofs += sizeof(sha384_init);
+		larval_seq_len = 0;
 
-	cc_set_sram_desc((u32 *)sha512_init, sram_buff_ofs,
-			 (ARRAY_SIZE(sha512_init) * 2), larval_seq,
-			 &larval_seq_len);
-	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
-	if (rc)
-		goto init_digest_const_err;
-#endif
+		cc_set_sram_desc((u32 *)sha512_init, sram_buff_ofs,
+				 (ARRAY_SIZE(sha512_init) * 2), larval_seq,
+				 &larval_seq_len);
+		rc = send_request_init(drvdata, larval_seq, larval_seq_len);
+		if (rc)
+			goto init_digest_const_err;
+	}
 
 init_digest_const_err:
 	return rc;
@@ -1955,15 +1957,14 @@ int cc_hash_alloc(struct cc_drvdata *drvdata)
 	drvdata->hash_handle = hash_handle;
 
 	sram_size_to_alloc = sizeof(digest_len_init) +
-#if (CC_DEV_SHA_MAX > 256)
-			sizeof(digest_len_sha512_init) +
-			sizeof(sha384_init) +
-			sizeof(sha512_init) +
-#endif
 			sizeof(md5_init) +
 			sizeof(sha1_init) +
 			sizeof(sha224_init) +
 			sizeof(sha256_init);
+
+	if (drvdata->hw_rev >= CC_HW_REV_712)
+		sram_size_to_alloc += sizeof(digest_len_sha512_init) +
+			sizeof(sha384_init) + sizeof(sha512_init);
 
 	sram_buff = cc_sram_alloc(drvdata, sram_size_to_alloc);
 	if (sram_buff == NULL_SRAM_ADDR) {
@@ -1986,6 +1987,10 @@ int cc_hash_alloc(struct cc_drvdata *drvdata)
 	for (alg = 0; alg < ARRAY_SIZE(driver_hash); alg++) {
 		struct cc_hash_alg *t_alg;
 		int hw_mode = driver_hash[alg].hw_mode;
+
+		/* We either support both HASH and MAC or none */
+		if (driver_hash[alg].min_hw_rev > drvdata->hw_rev)
+			continue;
 
 		/* register hmac version */
 		t_alg = cc_alloc_hash_alg(&driver_hash[alg], dev, true);
@@ -2204,12 +2209,10 @@ static const void *cc_larval_digest(struct device *dev, u32 mode)
 		return sha224_init;
 	case DRV_HASH_SHA256:
 		return sha256_init;
-#if (CC_DEV_SHA_MAX > 256)
 	case DRV_HASH_SHA384:
 		return sha384_init;
 	case DRV_HASH_SHA512:
 		return sha512_init;
-#endif
 	default:
 		dev_err(dev, "Invalid hash mode (%d)\n", mode);
 		return md5_init;
@@ -2248,7 +2251,6 @@ cc_sram_addr_t cc_larval_digest_addr(void *drvdata, u32 mode)
 			sizeof(md5_init) +
 			sizeof(sha1_init) +
 			sizeof(sha224_init));
-#if (CC_DEV_SHA_MAX > 256)
 	case DRV_HASH_SHA384:
 		return (hash_handle->larval_digest_sram_addr +
 			sizeof(md5_init) +
@@ -2262,7 +2264,6 @@ cc_sram_addr_t cc_larval_digest_addr(void *drvdata, u32 mode)
 			sizeof(sha224_init) +
 			sizeof(sha256_init) +
 			sizeof(sha384_init));
-#endif
 	default:
 		dev_err(dev, "Invalid hash mode (%d)\n", mode);
 	}

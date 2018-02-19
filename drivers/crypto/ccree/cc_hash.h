@@ -12,15 +12,11 @@
 
 #define HMAC_IPAD_CONST	0x36363636
 #define HMAC_OPAD_CONST	0x5C5C5C5C
-#if (CC_DEV_SHA_MAX > 256)
-#define HASH_LEN_SIZE 16
+#define HASH_LEN_SIZE_712 16
+#define HASH_LEN_SIZE_630 8
+#define HASH_MAX_LEN_SIZE HASH_LEN_SIZE_712
 #define CC_MAX_HASH_DIGEST_SIZE	SHA512_DIGEST_SIZE
 #define CC_MAX_HASH_BLCK_SIZE SHA512_BLOCK_SIZE
-#else
-#define HASH_LEN_SIZE 8
-#define CC_MAX_HASH_DIGEST_SIZE	SHA256_DIGEST_SIZE
-#define CC_MAX_HASH_BLCK_SIZE SHA256_BLOCK_SIZE
-#endif
 
 #define XCBC_MAC_K1_OFFSET 0
 #define XCBC_MAC_K2_OFFSET 16
@@ -43,7 +39,7 @@ struct ahash_req_ctx {
 	u8 digest_result_buff[CC_MAX_HASH_DIGEST_SIZE] ____cacheline_aligned;
 	u8 digest_buff[CC_MAX_HASH_DIGEST_SIZE] ____cacheline_aligned;
 	u8 opad_digest_buff[CC_MAX_HASH_DIGEST_SIZE] ____cacheline_aligned;
-	u8 digest_bytes_len[HASH_LEN_SIZE] ____cacheline_aligned;
+	u8 digest_bytes_len[HASH_MAX_LEN_SIZE] ____cacheline_aligned;
 	struct async_gen_req_ctx gen_ctx ____cacheline_aligned;
 	enum cc_req_dma_buf_type data_dma_buf_type;
 	dma_addr_t opad_digest_dma_addr;

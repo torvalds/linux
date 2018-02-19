@@ -6,17 +6,6 @@
 
 #include <linux/types.h>
 
-/* context size */
-#ifndef CC_CTX_SIZE_LOG2
-#if (CC_DEV_SHA_MAX > 256)
-#define CC_CTX_SIZE_LOG2 8
-#else
-#define CC_CTX_SIZE_LOG2 7
-#endif
-#endif
-#define CC_CTX_SIZE BIT(CC_CTX_SIZE_LOG2)
-#define CC_DRV_CTX_SIZE_WORDS (CC_CTX_SIZE >> 2)
-
 #define CC_DRV_DES_IV_SIZE 8
 #define CC_DRV_DES_BLOCK_SIZE 8
 
@@ -59,13 +48,8 @@
 #define CC_SHA384_BLOCK_SIZE 128
 #define CC_SHA512_BLOCK_SIZE 128
 
-#if (CC_DEV_SHA_MAX > 256)
 #define CC_DIGEST_SIZE_MAX CC_SHA512_DIGEST_SIZE
 #define CC_HASH_BLOCK_SIZE_MAX CC_SHA512_BLOCK_SIZE /*1024b*/
-#else /* Only up to SHA256 */
-#define CC_DIGEST_SIZE_MAX CC_SHA256_DIGEST_SIZE
-#define CC_HASH_BLOCK_SIZE_MAX CC_SHA256_BLOCK_SIZE /*512b*/
-#endif
 
 #define CC_HMAC_BLOCK_SIZE_MAX CC_HASH_BLOCK_SIZE_MAX
 

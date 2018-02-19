@@ -32,6 +32,9 @@ void cc_set_ree_fips_status(struct cc_drvdata *drvdata, bool status)
 {
 	int val = CC_FIPS_SYNC_REE_STATUS;
 
+	if (drvdata->hw_rev < CC_HW_REV_712)
+		return;
+
 	val |= (status ? CC_FIPS_SYNC_MODULE_OK : CC_FIPS_SYNC_MODULE_ERROR);
 
 	cc_iowrite(drvdata, CC_REG(HOST_GPR0), val);
@@ -41,8 +44,8 @@ void cc_fips_fini(struct cc_drvdata *drvdata)
 {
 	struct cc_fips_handle *fips_h = drvdata->fips_handle;
 
-	if (!fips_h)
-		return; /* Not allocated */
+	if (drvdata->hw_rev < CC_HW_REV_712 || !fips_h)
+		return;
 
 	/* Kill tasklet */
 	tasklet_kill(&fips_h->tasklet);
@@ -54,6 +57,9 @@ void cc_fips_fini(struct cc_drvdata *drvdata)
 void fips_handler(struct cc_drvdata *drvdata)
 {
 	struct cc_fips_handle *fips_handle_ptr = drvdata->fips_handle;
+
+	if (drvdata->hw_rev < CC_HW_REV_712)
+		return;
 
 	tasklet_schedule(&fips_handle_ptr->tasklet);
 }
@@ -94,6 +100,9 @@ int cc_fips_init(struct cc_drvdata *p_drvdata)
 {
 	struct cc_fips_handle *fips_h;
 	struct device *dev = drvdata_to_dev(p_drvdata);
+
+	if (p_drvdata->hw_rev < CC_HW_REV_712)
+		return 0;
 
 	fips_h = kzalloc(sizeof(*fips_h), GFP_KERNEL);
 	if (!fips_h)
