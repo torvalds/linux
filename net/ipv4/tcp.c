@@ -453,6 +453,7 @@ void tcp_init_sock(struct sock *sk)
 	sk->sk_rcvbuf = sock_net(sk)->ipv4.sysctl_tcp_rmem[1];
 
 	sk_sockets_allocated_inc(sk);
+	sk->sk_route_forced_caps = NETIF_F_GSO;
 }
 EXPORT_SYMBOL(tcp_init_sock);
 
