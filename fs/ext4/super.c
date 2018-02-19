@@ -448,6 +448,7 @@ void __ext4_error(struct super_block *sb, const char *function,
 	if (unlikely(ext4_forced_shutdown(EXT4_SB(sb))))
 		return;
 
+	trace_ext4_error(sb, function, line);
 	if (ext4_error_ratelimit(sb)) {
 		va_start(args, fmt);
 		vaf.fmt = fmt;
@@ -472,6 +473,7 @@ void __ext4_error_inode(struct inode *inode, const char *function,
 	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
 		return;
 
+	trace_ext4_error(inode->i_sb, function, line);
 	es->s_last_error_ino = cpu_to_le32(inode->i_ino);
 	es->s_last_error_block = cpu_to_le64(block);
 	if (ext4_error_ratelimit(inode->i_sb)) {
@@ -507,6 +509,7 @@ void __ext4_error_file(struct file *file, const char *function,
 	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
 		return;
 
+	trace_ext4_error(inode->i_sb, function, line);
 	es = EXT4_SB(inode->i_sb)->s_es;
 	es->s_last_error_ino = cpu_to_le32(inode->i_ino);
 	if (ext4_error_ratelimit(inode->i_sb)) {
@@ -719,6 +722,7 @@ __acquires(bitlock)
 	if (unlikely(ext4_forced_shutdown(EXT4_SB(sb))))
 		return;
 
+	trace_ext4_error(sb, function, line);
 	es->s_last_error_ino = cpu_to_le32(ino);
 	es->s_last_error_block = cpu_to_le64(block);
 	__save_error_info(sb, function, line);
