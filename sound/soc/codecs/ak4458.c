@@ -167,8 +167,8 @@ static const struct soc_enum ak4458_dif_enum =
 static int get_digfil(struct snd_kcontrol *kcontrol,
 		      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct ak4458_priv *ak4458 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct ak4458_priv *ak4458 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.enumerated.item[0] = ak4458->digfil;
 
@@ -178,8 +178,8 @@ static int get_digfil(struct snd_kcontrol *kcontrol,
 static int set_digfil(struct snd_kcontrol *kcontrol,
 		      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct ak4458_priv *ak4458 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct ak4458_priv *ak4458 = snd_soc_component_get_drvdata(component);
 	int num;
 
 	num = ucontrol->value.enumerated.item[0];
@@ -189,17 +189,17 @@ static int set_digfil(struct snd_kcontrol *kcontrol,
 	ak4458->digfil = num;
 
 	/* write SD bit */
-	snd_soc_update_bits(codec, AK4458_01_CONTROL2,
+	snd_soc_component_update_bits(component, AK4458_01_CONTROL2,
 			    AK4458_SD_MASK,
 			    ((ak4458->digfil & 0x02) << 4));
 
 	/* write SLOW bit */
-	snd_soc_update_bits(codec, AK4458_02_CONTROL3,
+	snd_soc_component_update_bits(component, AK4458_02_CONTROL3,
 			    AK4458_SLOW_MASK,
 			    (ak4458->digfil & 0x01));
 
 	/* write SSLOW bit */
-	snd_soc_update_bits(codec, AK4458_05_CONTROL4,
+	snd_soc_component_update_bits(component, AK4458_05_CONTROL4,
 			    AK4458_SSLOW_MASK,
 			    ((ak4458->digfil & 0x04) >> 2));
 
@@ -259,17 +259,17 @@ static const struct snd_soc_dapm_route ak4458_intercon[] = {
 	{"AK4458 AOUTD",	NULL,	"AK4458 DAC4"},
 };
 
-static int ak4458_rstn_control(struct snd_soc_codec *codec, int bit)
+static int ak4458_rstn_control(struct snd_soc_component *component, int bit)
 {
 	int ret;
 
 	if (bit)
-		ret = snd_soc_update_bits(codec,
+		ret = snd_soc_component_update_bits(component,
 					  AK4458_00_CONTROL1,
 					  AK4458_RSTN_MASK,
 					  0x1);
 	else
-		ret = snd_soc_update_bits(codec,
+		ret = snd_soc_component_update_bits(component,
 					  AK4458_00_CONTROL1,
 					  AK4458_RSTN_MASK,
 					  0x0);
@@ -280,8 +280,8 @@ static int ak4458_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct ak4458_priv *ak4458 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct ak4458_priv *ak4458 = snd_soc_component_get_drvdata(component);
 	int pcm_width = max(params_physical_width(params), ak4458->slot_width);
 	int nfs1;
 	u8 format;
@@ -290,7 +290,7 @@ static int ak4458_hw_params(struct snd_pcm_substream *substream,
 	ak4458->fs = nfs1;
 
 	/* Master Clock Frequency Auto Setting Mode Enable */
-	snd_soc_update_bits(codec, AK4458_00_CONTROL1, 0x80, 0x80);
+	snd_soc_component_update_bits(component, AK4458_00_CONTROL1, 0x80, 0x80);
 
 	switch (pcm_width) {
 	case 16:
@@ -321,19 +321,19 @@ static int ak4458_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, AK4458_00_CONTROL1,
+	snd_soc_component_update_bits(component, AK4458_00_CONTROL1,
 			    AK4458_DIF_MASK, format);
 
-	ak4458_rstn_control(codec, 0);
-	ak4458_rstn_control(codec, 1);
+	ak4458_rstn_control(component, 0);
+	ak4458_rstn_control(component, 1);
 
 	return 0;
 }
 
 static int ak4458_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct ak4458_priv *ak4458 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct ak4458_priv *ak4458 = snd_soc_component_get_drvdata(component);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS: /* Slave Mode */
@@ -342,7 +342,7 @@ static int ak4458_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_CBS_CFM:
 	case SND_SOC_DAIFMT_CBM_CFS:
 	default:
-		dev_err(codec->dev, "Master mode unsupported\n");
+		dev_err(component->dev, "Master mode unsupported\n");
 		return -EINVAL;
 	}
 
@@ -354,13 +354,13 @@ static int ak4458_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		ak4458->fmt = fmt & SND_SOC_DAIFMT_FORMAT_MASK;
 		break;
 	default:
-		dev_err(codec->dev, "Audio format 0x%02X unsupported\n",
+		dev_err(component->dev, "Audio format 0x%02X unsupported\n",
 			fmt & SND_SOC_DAIFMT_FORMAT_MASK);
 		return -EINVAL;
 	}
 
-	ak4458_rstn_control(codec, 0);
-	ak4458_rstn_control(codec, 1);
+	ak4458_rstn_control(component, 0);
+	ak4458_rstn_control(component, 1);
 
 	return 0;
 }
@@ -369,27 +369,27 @@ static const int att_speed[] = { 4080, 2040, 510, 255 };
 
 static int ak4458_set_dai_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct ak4458_priv *ak4458 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct ak4458_priv *ak4458 = snd_soc_component_get_drvdata(component);
 	int nfs, ndt, ret, reg;
 	int ats;
 
 	nfs = ak4458->fs;
 
-	reg = snd_soc_read(codec, AK4458_0B_CONTROL7);
+	reg = snd_soc_component_read32(component, AK4458_0B_CONTROL7);
 	ats = (reg & AK4458_ATS_MASK) >> AK4458_ATS_SHIFT;
 
 	ndt = att_speed[ats] / (nfs / 1000);
 
 	if (mute) {
-		ret = snd_soc_update_bits(codec, AK4458_01_CONTROL2,  0x01, 1);
+		ret = snd_soc_component_update_bits(component, AK4458_01_CONTROL2,  0x01, 1);
 		mdelay(ndt);
 		if (ak4458->mute_gpiod)
 			gpiod_set_value_cansleep(ak4458->mute_gpiod, 1);
 	} else {
 		if (ak4458->mute_gpiod)
 			gpiod_set_value_cansleep(ak4458->mute_gpiod, 0);
-		ret = snd_soc_update_bits(codec, AK4458_01_CONTROL2, 0x01, 0);
+		ret = snd_soc_component_update_bits(component, AK4458_01_CONTROL2, 0x01, 0);
 		mdelay(ndt);
 	}
 
@@ -399,8 +399,8 @@ static int ak4458_set_dai_mute(struct snd_soc_dai *dai, int mute)
 static int ak4458_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 			       unsigned int rx_mask, int slots, int slot_width)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct ak4458_priv *ak4458 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct ak4458_priv *ak4458 = snd_soc_component_get_drvdata(component);
 	int mode;
 
 	ak4458->slots = slots;
@@ -421,7 +421,7 @@ static int ak4458_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		break;
 	}
 
-	snd_soc_update_bits(codec, AK4458_0A_CONTROL6,
+	snd_soc_component_update_bits(component, AK4458_0A_CONTROL6,
 			    AK4458_MODE_MASK,
 			    mode);
 
@@ -493,9 +493,9 @@ static void ak4458_power_on(struct ak4458_priv *ak4458)
 	}
 }
 
-static void ak4458_init(struct snd_soc_codec *codec)
+static void ak4458_init(struct snd_soc_component *component)
 {
-	struct ak4458_priv *ak4458 = snd_soc_codec_get_drvdata(codec);
+	struct ak4458_priv *ak4458 = snd_soc_component_get_drvdata(component);
 
 	/* External Mute ON */
 	if (ak4458->mute_gpiod)
@@ -503,30 +503,28 @@ static void ak4458_init(struct snd_soc_codec *codec)
 
 	ak4458_power_on(ak4458);
 
-	snd_soc_update_bits(codec, AK4458_00_CONTROL1,
+	snd_soc_component_update_bits(component, AK4458_00_CONTROL1,
 			    0x80, 0x80);   /* ACKS bit = 1; 10000000 */
 
-	ak4458_rstn_control(codec, 1);
+	ak4458_rstn_control(component, 1);
 }
 
-static int ak4458_probe(struct snd_soc_codec *codec)
+static int ak4458_probe(struct snd_soc_component *component)
 {
-	struct ak4458_priv *ak4458 = snd_soc_codec_get_drvdata(codec);
+	struct ak4458_priv *ak4458 = snd_soc_component_get_drvdata(component);
 
-	ak4458_init(codec);
+	ak4458_init(component);
 
 	ak4458->fs = 48000;
 
 	return 0;
 }
 
-static int ak4458_remove(struct snd_soc_codec *codec)
+static void ak4458_remove(struct snd_soc_component *component)
 {
-	struct ak4458_priv *ak4458 = snd_soc_codec_get_drvdata(codec);
+	struct ak4458_priv *ak4458 = snd_soc_component_get_drvdata(component);
 
 	ak4458_power_off(ak4458);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -561,17 +559,19 @@ static int __maybe_unused ak4458_runtime_resume(struct device *dev)
 }
 #endif /* CONFIG_PM */
 
-struct snd_soc_codec_driver soc_codec_dev_ak4458 = {
-	.probe = ak4458_probe,
-	.remove = ak4458_remove,
-	.component_driver = {
-		.controls = ak4458_snd_controls,
-		.num_controls = ARRAY_SIZE(ak4458_snd_controls),
-		.dapm_widgets = ak4458_dapm_widgets,
-		.num_dapm_widgets = ARRAY_SIZE(ak4458_dapm_widgets),
-		.dapm_routes = ak4458_intercon,
-		.num_dapm_routes = ARRAY_SIZE(ak4458_intercon),
-	},
+struct snd_soc_component_driver soc_codec_dev_ak4458 = {
+	.probe			= ak4458_probe,
+	.remove			= ak4458_remove,
+	.controls		= ak4458_snd_controls,
+	.num_controls		= ARRAY_SIZE(ak4458_snd_controls),
+	.dapm_widgets		= ak4458_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(ak4458_dapm_widgets),
+	.dapm_routes		= ak4458_intercon,
+	.num_dapm_routes	= ARRAY_SIZE(ak4458_intercon),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ak4458_regmap = {
@@ -616,7 +616,7 @@ static int ak4458_i2c_probe(struct i2c_client *i2c)
 	if (IS_ERR(ak4458->mute_gpiod))
 		return PTR_ERR(ak4458->mute_gpiod);
 
-	ret = snd_soc_register_codec(ak4458->dev, &soc_codec_dev_ak4458,
+	ret = devm_snd_soc_register_component(ak4458->dev, &soc_codec_dev_ak4458,
 				     &ak4458_dai, 1);
 	if (ret < 0) {
 		dev_err(ak4458->dev, "Failed to register CODEC: %d\n", ret);
@@ -630,7 +630,6 @@ static int ak4458_i2c_probe(struct i2c_client *i2c)
 
 static int ak4458_i2c_remove(struct i2c_client *i2c)
 {
-	snd_soc_unregister_codec(&i2c->dev);
 	pm_runtime_disable(&i2c->dev);
 
 	return 0;
