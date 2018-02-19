@@ -951,12 +951,17 @@ mdp5_crtc_atomic_print_state(struct drm_printer *p,
 	if (WARN_ON(!pipeline))
 		return;
 
+	if (mdp5_cstate->ctl)
+		drm_printf(p, "\tctl=%d\n", mdp5_ctl_get_ctl_id(mdp5_cstate->ctl));
+
 	drm_printf(p, "\thwmixer=%s\n", pipeline->mixer ?
 			pipeline->mixer->name : "(null)");
 
 	if (mdp5_kms->caps & MDP_CAP_SRC_SPLIT)
 		drm_printf(p, "\tright hwmixer=%s\n", pipeline->r_mixer ?
 			   pipeline->r_mixer->name : "(null)");
+
+	drm_printf(p, "\tcmd_mode=%d\n", mdp5_cstate->cmd_mode);
 }
 
 static void mdp5_crtc_reset(struct drm_crtc *crtc)
