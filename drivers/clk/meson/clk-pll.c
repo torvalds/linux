@@ -2,6 +2,9 @@
  * Copyright (c) 2015 Endless Mobile, Inc.
  * Author: Carlo Caione <carlo@endlessm.com>
  *
+ * Copyright (c) 2018 Baylibre, SAS.
+ * Author: Jerome Brunet <jbrunet@baylibre.com>
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
  * version 2, as published by the Free Software Foundation.
@@ -27,7 +30,7 @@
  *                |        |
  *               FREF     VCO
  *
- * out = (in * M / N) >> OD
+ * out = in * (m + frac / frac_max) / (n << sum(ods))
  */
 
 #include <linux/clk-provider.h>
@@ -48,33 +51,85 @@ meson_clk_pll_data(struct clk_regmap *clk)
 	return (struct meson_clk_pll_data *)clk->data;
 }
 
+static unsigned long __pll_params_to_rate(unsigned long parent_rate,
+					  const struct pll_rate_table *pllt,
+					  u16 frac,
+					  struct meson_clk_pll_data *pll)
+{
+	u64 rate = (u64)parent_rate * pllt->m;
+	unsigned int od = pllt->od + pllt->od2 + pllt->od3;
+
+	if (frac && MESON_PARM_APPLICABLE(&pll->frac)) {
+		u64 frac_rate = (u64)parent_rate * frac;
+
+		rate += DIV_ROUND_UP_ULL(frac_rate,
+					 (1 << pll->frac.width));
+	}
+
+	return DIV_ROUND_UP_ULL(rate, pllt->n << od);
+}
+
 static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 						unsigned long parent_rate)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
-	u64 rate;
-	u16 n, m, frac = 0, od, od2 = 0, od3 = 0;
+	struct pll_rate_table pllt;
+	u16 frac;
 
-	n = meson_parm_read(clk->map, &pll->n);
-	m = meson_parm_read(clk->map, &pll->m);
-	od = meson_parm_read(clk->map, &pll->od);
+	pllt.n = meson_parm_read(clk->map, &pll->n);
+	pllt.m = meson_parm_read(clk->map, &pll->m);
+	pllt.od = meson_parm_read(clk->map, &pll->od);
 
-	if (MESON_PARM_APPLICABLE(&pll->od2))
-		od2 = meson_parm_read(clk->map, &pll->od2);
+	pllt.od2 = MESON_PARM_APPLICABLE(&pll->od2) ?
+		meson_parm_read(clk->map, &pll->od2) :
+		0;
 
-	if (MESON_PARM_APPLICABLE(&pll->od3))
-		od3 = meson_parm_read(clk->map, &pll->od3);
+	pllt.od3 = MESON_PARM_APPLICABLE(&pll->od3) ?
+		meson_parm_read(clk->map, &pll->od3) :
+		0;
 
-	rate = (u64)m * parent_rate;
+	frac = MESON_PARM_APPLICABLE(&pll->frac) ?
+		meson_parm_read(clk->map, &pll->frac) :
+		0;
 
-	if (MESON_PARM_APPLICABLE(&pll->frac)) {
-		frac = meson_parm_read(clk->map, &pll->frac);
+	return __pll_params_to_rate(parent_rate, &pllt, frac, pll);
+}
 
-		rate += mul_u64_u32_shr(parent_rate, frac, pll->frac.width);
-	}
+static u16 __pll_params_with_frac(unsigned long rate,
+				  unsigned long parent_rate,
+				  const struct pll_rate_table *pllt,
+				  struct meson_clk_pll_data *pll)
+{
+	u16 frac_max = (1 << pll->frac.width);
+	u64 val = (u64)rate * pllt->n;
 
-	return div_u64(rate, n) >> od >> od2 >> od3;
+	val <<= pllt->od + pllt->od2 + pllt->od3;
+	val = div_u64(val * frac_max, parent_rate);
+	val -= pllt->m * frac_max;
+
+	return min((u16)val, (u16)(frac_max - 1));
+}
+
+static const struct pll_rate_table *
+meson_clk_get_pll_settings(unsigned long rate,
+			   struct meson_clk_pll_data *pll)
+{
+	const struct pll_rate_table *table = pll->table;
+	unsigned int i = 0;
+
+	if (!table)
+		return NULL;
+
+	/* Find the first table element exceeding rate */
+	while (table[i].rate && table[i].rate <= rate)
+		i++;
+
+	/* Select the setting of the rounded down rate */
+	if (i != 0)
+		i--;
+
+	return (struct pll_rate_table *)&table[i];
 }
 
 static long meson_clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
@@ -82,39 +137,24 @@ static long meson_clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
-	const struct pll_rate_table *pllt;
+	const struct pll_rate_table *pllt =
+		meson_clk_get_pll_settings(rate, pll);
+	u16 frac;
 
-	/*
-	 * if the table is missing, just return the current rate
-	 * since we don't have the other available frequencies
-	 */
-	if (!pll->table)
+	if (!pllt)
 		return meson_clk_pll_recalc_rate(hw, *parent_rate);
 
-	for (pllt = pll->table; pllt->rate; pllt++) {
-		if (rate <= pllt->rate)
-			return pllt->rate;
-	}
+	if (!MESON_PARM_APPLICABLE(&pll->frac)
+	    || rate == pllt->rate)
+		return pllt->rate;
 
-	/* else return the smallest value */
-	return pll->table[0].rate;
-}
+	/*
+	 * The rate provided by the setting is not an exact match, let's
+	 * try to improve the result using the fractional parameter
+	 */
+	frac = __pll_params_with_frac(rate, *parent_rate, pllt, pll);
 
-static const struct pll_rate_table *
-meson_clk_get_pll_settings(const struct pll_rate_table *table,
-			   unsigned long rate)
-{
-	const struct pll_rate_table *pllt;
-
-	if (!table)
-		return NULL;
-
-	for (pllt = table; pllt->rate; pllt++) {
-		if (rate == pllt->rate)
-			return pllt;
-	}
-
-	return NULL;
+	return __pll_params_to_rate(*parent_rate, pllt, frac, pll);
 }
 
 static int meson_clk_pll_wait_lock(struct clk_hw *hw)
@@ -154,13 +194,14 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
 	const struct pll_rate_table *pllt;
 	unsigned long old_rate;
+	u16 frac = 0;
 
 	if (parent_rate == 0 || rate == 0)
 		return -EINVAL;
 
 	old_rate = rate;
 
-	pllt = meson_clk_get_pll_settings(pll->table, rate);
+	pllt = meson_clk_get_pll_settings(rate, pll);
 	if (!pllt)
 		return -EINVAL;
 
@@ -177,8 +218,10 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (MESON_PARM_APPLICABLE(&pll->od3))
 		meson_parm_write(clk->map, &pll->od3, pllt->od3);
 
-	if (MESON_PARM_APPLICABLE(&pll->frac))
-		meson_parm_write(clk->map, &pll->frac, pllt->frac);
+	if (MESON_PARM_APPLICABLE(&pll->frac)) {
+		frac = __pll_params_with_frac(rate, parent_rate, pllt, pll);
+		meson_parm_write(clk->map, &pll->frac, frac);
+	}
 
 	/* make sure the reset is cleared at this point */
 	meson_parm_write(clk->map, &pll->rst, 0);

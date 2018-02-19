@@ -61,7 +61,6 @@ struct pll_rate_table {
 	u16		od;
 	u16		od2;
 	u16		od3;
-	u16		frac;
 };
 
 #define PLL_RATE(_r, _m, _n, _od)					\
@@ -70,17 +69,7 @@ struct pll_rate_table {
 		.m		= (_m),					\
 		.n		= (_n),					\
 		.od		= (_od),				\
-	}								\
-
-#define PLL_FRAC_RATE(_r, _m, _n, _od, _od2, _frac)			\
-	{								\
-		.rate		= (_r),					\
-		.m		= (_m),					\
-		.n		= (_n),					\
-		.od		= (_od),				\
-		.od2		= (_od2),				\
-		.frac		= (_frac),				\
-	}								\
+	}
 
 struct meson_clk_pll_data {
 	struct parm m;
