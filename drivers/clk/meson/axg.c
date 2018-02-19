@@ -193,7 +193,7 @@ static const struct pll_rate_table axg_gp0_pll_rate_table[] = {
 };
 
 const struct reg_sequence axg_gp0_init_regs[] = {
-	{ .reg = HHI_GP0_PLL_CNTL1,	.def = 0xc084a000 },
+	{ .reg = HHI_GP0_PLL_CNTL1,	.def = 0xc084b000 },
 	{ .reg = HHI_GP0_PLL_CNTL2,	.def = 0xb75020be },
 	{ .reg = HHI_GP0_PLL_CNTL3,	.def = 0x0a59a288 },
 	{ .reg = HHI_GP0_PLL_CNTL4,	.def = 0xc000004d },
@@ -217,6 +217,11 @@ static struct clk_regmap axg_gp0_pll = {
 			.reg_off = HHI_GP0_PLL_CNTL,
 			.shift   = 16,
 			.width   = 2,
+		},
+		.frac = {
+			.reg_off = HHI_GP0_PLL_CNTL1,
+			.shift   = 0,
+			.width   = 10,
 		},
 		.l = {
 			.reg_off = HHI_GP0_PLL_CNTL,
