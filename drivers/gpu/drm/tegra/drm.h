@@ -119,104 +119,7 @@ void *tegra_drm_alloc(struct tegra_drm *tegra, size_t size, dma_addr_t *iova);
 void tegra_drm_free(struct tegra_drm *tegra, size_t size, void *virt,
 		    dma_addr_t iova);
 
-struct tegra_dc_soc_info;
-struct tegra_output;
-
-struct tegra_dc_stats {
-	unsigned long frames;
-	unsigned long vblank;
-	unsigned long underflow;
-	unsigned long overflow;
-};
-
-struct tegra_dc {
-	struct host1x_client client;
-	struct host1x_syncpt *syncpt;
-	struct device *dev;
-	spinlock_t lock;
-
-	struct drm_crtc base;
-	unsigned int powergate;
-	int pipe;
-
-	struct clk *clk;
-	struct reset_control *rst;
-	void __iomem *regs;
-	int irq;
-
-	struct tegra_output *rgb;
-
-	struct tegra_dc_stats stats;
-	struct list_head list;
-
-	struct drm_info_list *debugfs_files;
-	struct drm_minor *minor;
-	struct dentry *debugfs;
-
-	/* page-flip handling */
-	struct drm_pending_vblank_event *event;
-
-	const struct tegra_dc_soc_info *soc;
-
-	struct iommu_domain *domain;
-};
-
-static inline struct tegra_dc *
-host1x_client_to_dc(struct host1x_client *client)
-{
-	return container_of(client, struct tegra_dc, client);
-}
-
-static inline struct tegra_dc *to_tegra_dc(struct drm_crtc *crtc)
-{
-	return crtc ? container_of(crtc, struct tegra_dc, base) : NULL;
-}
-
-static inline void tegra_dc_writel(struct tegra_dc *dc, u32 value,
-				   unsigned int offset)
-{
-	trace_dc_writel(dc->dev, offset, value);
-	writel(value, dc->regs + (offset << 2));
-}
-
-static inline u32 tegra_dc_readl(struct tegra_dc *dc, unsigned int offset)
-{
-	u32 value = readl(dc->regs + (offset << 2));
-
-	trace_dc_readl(dc->dev, offset, value);
-
-	return value;
-}
-
-struct tegra_dc_window {
-	struct {
-		unsigned int x;
-		unsigned int y;
-		unsigned int w;
-		unsigned int h;
-	} src;
-	struct {
-		unsigned int x;
-		unsigned int y;
-		unsigned int w;
-		unsigned int h;
-	} dst;
-	unsigned int bits_per_pixel;
-	unsigned int stride[2];
-	unsigned long base[3];
-	bool bottom_up;
-
-	struct tegra_bo_tiling tiling;
-	u32 format;
-	u32 swap;
-};
-
-/* from dc.c */
-void tegra_dc_commit(struct tegra_dc *dc);
-int tegra_dc_state_setup_clock(struct tegra_dc *dc,
-			       struct drm_crtc_state *crtc_state,
-			       struct clk *clk, unsigned long pclk,
-			       unsigned int div);
+struct cec_notifier;
 
 struct tegra_output {
 	struct device_node *of_node;
@@ -225,6 +128,7 @@ struct tegra_output {
 	struct drm_panel *panel;
 	struct i2c_adapter *ddc;
 	const struct edid *edid;
+	struct cec_notifier *notifier;
 	unsigned int hpd_irq;
 	int hpd_gpio;
 	enum of_gpio_flags hpd_gpio_flags;
@@ -242,12 +146,6 @@ static inline struct tegra_output *connector_to_output(struct drm_connector *c)
 {
 	return container_of(c, struct tegra_output, connector);
 }
-
-/* from rgb.c */
-int tegra_dc_rgb_probe(struct tegra_dc *dc);
-int tegra_dc_rgb_remove(struct tegra_dc *dc);
-int tegra_dc_rgb_init(struct drm_device *drm, struct tegra_dc *dc);
-int tegra_dc_rgb_exit(struct tegra_dc *dc);
 
 /* from output.c */
 int tegra_output_probe(struct tegra_output *output);

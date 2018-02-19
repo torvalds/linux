@@ -29,18 +29,17 @@
  *
  */
 
-#include <storage_class.h>
 
 #include "queue_local.h"
 
 #ifndef __INLINE_QUEUE__
-#define STORAGE_CLASS_QUEUE_H STORAGE_CLASS_EXTERN
+#define STORAGE_CLASS_QUEUE_H extern
 #define STORAGE_CLASS_QUEUE_C 
 /* #include "queue_public.h" */
 #include "ia_css_queue.h"
 #else  /* __INLINE_QUEUE__ */
-#define STORAGE_CLASS_QUEUE_H STORAGE_CLASS_INLINE
-#define STORAGE_CLASS_QUEUE_C STORAGE_CLASS_INLINE
+#define STORAGE_CLASS_QUEUE_H static inline
+#define STORAGE_CLASS_QUEUE_C static inline
 #include "queue_private.h"
 #endif /* __INLINE_QUEUE__ */
 

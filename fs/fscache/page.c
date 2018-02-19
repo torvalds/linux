@@ -1175,7 +1175,7 @@ void __fscache_uncache_all_inode_pages(struct fscache_cookie *cookie,
 		return;
 	}
 
-	pagevec_init(&pvec, 0);
+	pagevec_init(&pvec);
 	next = 0;
 	do {
 		if (!pagevec_lookup(&pvec, mapping, &next))

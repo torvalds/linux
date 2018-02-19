@@ -218,7 +218,7 @@ static u32 sdio_read32(struct intf_hdl *pintfhdl, u32 addr)
 	} else {
 		u8 *ptmpbuf;
 
-		ptmpbuf = (u8 *)rtw_malloc(8);
+		ptmpbuf = rtw_malloc(8);
 		if (NULL == ptmpbuf) {
 			DBG_8192C(KERN_ERR "%s: Allocate memory FAIL!(size =8) addr = 0x%x\n", __func__, addr);
 			return SDIO_ERR_VAL32;
@@ -594,7 +594,7 @@ static s32 _sdio_local_read(
 	}
 
 	n = RND4(cnt);
-	ptmpbuf = (u8 *)rtw_malloc(n);
+	ptmpbuf = rtw_malloc(n);
 	if (!ptmpbuf)
 		return (-1);
 
@@ -637,7 +637,7 @@ s32 sdio_local_read(
 	}
 
 	n = RND4(cnt);
-	ptmpbuf = (u8 *)rtw_malloc(n);
+	ptmpbuf = rtw_malloc(n);
 	if (!ptmpbuf)
 		return (-1);
 
@@ -684,7 +684,7 @@ s32 sdio_local_write(
 		return err;
 	}
 
-	ptmpbuf = (u8 *)rtw_malloc(cnt);
+	ptmpbuf = rtw_malloc(cnt);
 	if (!ptmpbuf)
 		return (-1);
 
@@ -1108,7 +1108,7 @@ void sd_int_dpc(struct adapter *padapter)
 		struct c2h_evt_hdr_88xx *c2h_evt;
 
 		DBG_8192C("%s: C2H Command\n", __func__);
-		c2h_evt = (struct c2h_evt_hdr_88xx *)rtw_zmalloc(16);
+		c2h_evt = rtw_zmalloc(16);
 		if (c2h_evt != NULL) {
 			if (rtw_hal_c2h_evt_read(padapter, (u8 *)c2h_evt) == _SUCCESS) {
 				if (c2h_id_filter_ccx_8723b((u8 *)c2h_evt)) {

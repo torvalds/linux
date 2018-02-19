@@ -23,7 +23,6 @@ dtb-$(CONFIG_DT_NONE) += \
 	bcm63268-comtrend-vr-3032u.dtb \
 	bcm93384wvg.dtb \
 	bcm93384wvg_viper.dtb \
-	bcm96358nb4ser.dtb \
 	bcm96368mvwg.dtb \
 	bcm9ejtagprb.dtb \
 	bcm97125cbmb.dtb \
@@ -36,9 +35,3 @@ dtb-$(CONFIG_DT_NONE) += \
 	bcm97435svmb.dtb
 
 obj-y				+= $(patsubst %.dtb, %.dtb.o, $(dtb-y))
-
-# Force kbuild to make empty built-in.o if necessary
-obj-				+= dummy.o
-
-always				:= $(dtb-y)
-clean-files			:= *.dtb *.dtb.S

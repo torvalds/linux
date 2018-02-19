@@ -12,7 +12,7 @@ static void finish_transmit_midi_msg(struct snd_ff *ff, unsigned int port,
 				     int rcode)
 {
 	struct snd_rawmidi_substream *substream =
-				ACCESS_ONCE(ff->rx_midi_substreams[port]);
+				READ_ONCE(ff->rx_midi_substreams[port]);
 
 	if (rcode_is_permanent_error(rcode)) {
 		ff->rx_midi_error[port] = true;
@@ -60,7 +60,7 @@ static inline void fill_midi_buf(struct snd_ff *ff, unsigned int port,
 static void transmit_midi_msg(struct snd_ff *ff, unsigned int port)
 {
 	struct snd_rawmidi_substream *substream =
-			ACCESS_ONCE(ff->rx_midi_substreams[port]);
+			READ_ONCE(ff->rx_midi_substreams[port]);
 	u8 *buf = (u8 *)ff->msg_buf[port];
 	int i, len;
 
@@ -159,7 +159,7 @@ static void handle_midi_msg(struct fw_card *card, struct fw_request *request,
 		 */
 		index = (quad >> 8) & 0xff;
 		if (index > 0) {
-			substream = ACCESS_ONCE(ff->tx_midi_substreams[0]);
+			substream = READ_ONCE(ff->tx_midi_substreams[0]);
 			if (substream != NULL) {
 				byte = quad & 0xff;
 				snd_rawmidi_receive(substream, &byte, 1);
@@ -169,7 +169,7 @@ static void handle_midi_msg(struct fw_card *card, struct fw_request *request,
 		/* Message in second port. */
 		index = (quad >> 24) & 0xff;
 		if (index > 0) {
-			substream = ACCESS_ONCE(ff->tx_midi_substreams[1]);
+			substream = READ_ONCE(ff->tx_midi_substreams[1]);
 			if (substream != NULL) {
 				byte = (quad >> 16) & 0xff;
 				snd_rawmidi_receive(substream, &byte, 1);

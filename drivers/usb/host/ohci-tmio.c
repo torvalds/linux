@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * OHCI HCD(Host Controller Driver) for USB.
  *
@@ -18,10 +19,6 @@
  * Written from sparse documentation from Toshiba and Sharp's driver
  * for the 2.4 kernel,
  *	usb-ohci-tc6393.c(C) Copyright 2004 Lineo Solutions, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /*#include <linux/fs.h>

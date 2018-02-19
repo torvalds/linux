@@ -715,7 +715,7 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 		/* warning!!!! We are retrieving the virtual ptr in the sw_data
 		 * field as a 32bit value. Will not work on 64bit machines
 		 */
-		page = (struct page *)GET_SW_DATA0(desc);
+		page = (struct page *)GET_SW_DATA0(ndesc);
 
 		if (likely(dma_buff && buf_len && page)) {
 			dma_unmap_page(netcp->dev, dma_buff, PAGE_SIZE,
@@ -906,7 +906,7 @@ static int netcp_allocate_rx_buf(struct netcp_intf *netcp, int fdq)
 		sw_data[0] = (u32)bufptr;
 	} else {
 		/* Allocate a secondary receive queue entry */
-		page = alloc_page(GFP_ATOMIC | GFP_DMA | __GFP_COLD);
+		page = alloc_page(GFP_ATOMIC | GFP_DMA);
 		if (unlikely(!page)) {
 			dev_warn_ratelimited(netcp->ndev_dev, "Secondary page alloc failed\n");
 			goto fail;
@@ -1887,7 +1887,7 @@ static int netcp_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	/* setup tc must be called under rtnl lock */
 	ASSERT_RTNL();
 
-	if (type != TC_SETUP_MQPRIO)
+	if (type != TC_SETUP_QDISC_MQPRIO)
 		return -EOPNOTSUPP;
 
 	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;

@@ -18,7 +18,7 @@ static inline u32 peek32(u32 addr)
 	return readl(addr + mmio750);
 }
 
-static inline void poke32(u32 data, u32 addr)
+static inline void poke32(u32 addr, u32 data)
 {
 	writel(data, addr + mmio750);
 }

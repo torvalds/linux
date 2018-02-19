@@ -3,7 +3,7 @@
 #include "ddk750_reg.h"
 #include "ddk750_power.h"
 
-void ddk750_set_dpms(DPMS_t state)
+void ddk750_set_dpms(enum dpms state)
 {
 	unsigned int value;
 

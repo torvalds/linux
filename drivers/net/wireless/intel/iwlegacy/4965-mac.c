@@ -1480,7 +1480,7 @@ il4965_get_ac_from_tid(u16 tid)
 static inline int
 il4965_get_fifo_from_tid(u16 tid)
 {
-	const u8 ac_to_fifo[] = {
+	static const u8 ac_to_fifo[] = {
 		IL_TX_FIFO_VO,
 		IL_TX_FIFO_VI,
 		IL_TX_FIFO_BE,
@@ -4074,9 +4074,9 @@ il4965_hdl_alive(struct il_priv *il, struct il_rx_buf *rxb)
  * used for calibrating the TXPOWER.
  */
 static void
-il4965_bg_stats_periodic(unsigned long data)
+il4965_bg_stats_periodic(struct timer_list *t)
 {
-	struct il_priv *il = (struct il_priv *)data;
+	struct il_priv *il = from_timer(il, t, stats_periodic);
 
 	if (test_bit(S_EXIT_PENDING, &il->status))
 		return;
@@ -6258,10 +6258,9 @@ il4965_setup_deferred_work(struct il_priv *il)
 
 	INIT_WORK(&il->txpower_work, il4965_bg_txpower_work);
 
-	setup_timer(&il->stats_periodic, il4965_bg_stats_periodic,
-		    (unsigned long)il);
+	timer_setup(&il->stats_periodic, il4965_bg_stats_periodic, 0);
 
-	setup_timer(&il->watchdog, il_bg_watchdog, (unsigned long)il);
+	timer_setup(&il->watchdog, il_bg_watchdog, 0);
 
 	tasklet_init(&il->irq_tasklet,
 		     (void (*)(unsigned long))il4965_irq_tasklet,

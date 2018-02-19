@@ -428,9 +428,9 @@ exit_noskb:
 		nfc_hci_driver_failure(hdev, r);
 }
 
-static void nfc_hci_cmd_timeout(unsigned long data)
+static void nfc_hci_cmd_timeout(struct timer_list *t)
 {
-	struct nfc_hci_dev *hdev = (struct nfc_hci_dev *)data;
+	struct nfc_hci_dev *hdev = from_timer(hdev, t, cmd_timer);
 
 	schedule_work(&hdev->msg_tx_work);
 }
@@ -1004,9 +1004,7 @@ int nfc_hci_register_device(struct nfc_hci_dev *hdev)
 
 	INIT_WORK(&hdev->msg_tx_work, nfc_hci_msg_tx_work);
 
-	init_timer(&hdev->cmd_timer);
-	hdev->cmd_timer.data = (unsigned long)hdev;
-	hdev->cmd_timer.function = nfc_hci_cmd_timeout;
+	timer_setup(&hdev->cmd_timer, nfc_hci_cmd_timeout, 0);
 
 	skb_queue_head_init(&hdev->rx_hcp_frags);
 

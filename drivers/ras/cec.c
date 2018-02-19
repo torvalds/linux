@@ -169,11 +169,9 @@ static void cec_mod_timer(struct timer_list *t, unsigned long interval)
 	mod_timer(t, round_jiffies(iv));
 }
 
-static void cec_timer_fn(unsigned long data)
+static void cec_timer_fn(struct timer_list *unused)
 {
-	struct ce_array *ca = (struct ce_array *)data;
-
-	do_spring_cleaning(ca);
+	do_spring_cleaning(&ce_arr);
 
 	cec_mod_timer(&cec_timer, timer_interval);
 }
@@ -510,7 +508,7 @@ void __init cec_init(void)
 	if (create_debugfs_nodes())
 		return;
 
-	setup_timer(&cec_timer, cec_timer_fn, (unsigned long)&ce_arr);
+	timer_setup(&cec_timer, cec_timer_fn, 0);
 	cec_mod_timer(&cec_timer, CEC_TIMER_DEFAULT_INTERVAL);
 
 	pr_info("Correctable Errors collector initialized.\n");

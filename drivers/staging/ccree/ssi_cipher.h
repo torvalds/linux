@@ -27,11 +27,11 @@
 #include "ssi_buffer_mgr.h"
 
 /* Crypto cipher flags */
-#define CC_CRYPTO_CIPHER_KEY_KFDE0    (1 << 0)
-#define CC_CRYPTO_CIPHER_KEY_KFDE1    (1 << 1)
-#define CC_CRYPTO_CIPHER_KEY_KFDE2    (1 << 2)
-#define CC_CRYPTO_CIPHER_KEY_KFDE3    (1 << 3)
-#define CC_CRYPTO_CIPHER_DU_SIZE_512B (1 << 4)
+#define CC_CRYPTO_CIPHER_KEY_KFDE0	BIT(0)
+#define CC_CRYPTO_CIPHER_KEY_KFDE1	BIT(1)
+#define CC_CRYPTO_CIPHER_KEY_KFDE2	BIT(2)
+#define CC_CRYPTO_CIPHER_KEY_KFDE3	BIT(3)
+#define CC_CRYPTO_CIPHER_DU_SIZE_512B	BIT(4)
 
 #define CC_CRYPTO_CIPHER_KEY_KFDE_MASK (CC_CRYPTO_CIPHER_KEY_KFDE0 | CC_CRYPTO_CIPHER_KEY_KFDE1 | CC_CRYPTO_CIPHER_KEY_KFDE2 | CC_CRYPTO_CIPHER_KEY_KFDE3)
 
@@ -43,6 +43,7 @@ struct blkcipher_req_ctx {
 	u32 out_nents;
 	u32 out_mlli_nents;
 	u8 *backup_info; /*store iv for generated IV flow*/
+	u8 *iv;
 	bool is_giv;
 	struct mlli_params mlli_params;
 };
@@ -75,7 +76,7 @@ struct arm_hw_key_info {
 
 static inline bool ssi_is_hw_key(struct crypto_tfm *tfm)
 {
-	return 0;
+	return false;
 }
 
 #endif /* CRYPTO_TFM_REQ_HW_KEY */

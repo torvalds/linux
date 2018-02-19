@@ -154,12 +154,12 @@ static void *chcr_uld_add(const struct cxgb4_lld_info *lld)
 	struct uld_ctx *u_ctx;
 
 	/* Create the device and add it in the device list */
+	if (!(lld->ulp_crypto & ULP_CRYPTO_LOOKASIDE))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	/* Create the device and add it in the device list */
 	u_ctx = kzalloc(sizeof(*u_ctx), GFP_KERNEL);
 	if (!u_ctx) {
-		u_ctx = ERR_PTR(-ENOMEM);
-		goto out;
-	}
-	if (!(lld->ulp_crypto & ULP_CRYPTO_LOOKASIDE)) {
 		u_ctx = ERR_PTR(-ENOMEM);
 		goto out;
 	}
@@ -224,7 +224,7 @@ static int chcr_uld_state_change(void *handle, enum cxgb4_state state)
 static int __init chcr_crypto_init(void)
 {
 	if (cxgb4_register_uld(CXGB4_ULD_CRYPTO, &chcr_uld_info))
-		pr_err("ULD register fail: No chcr crypto support in cxgb4");
+		pr_err("ULD register fail: No chcr crypto support in cxgb4\n");
 
 	return 0;
 }

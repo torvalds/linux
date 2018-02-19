@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus Bridged-Phy Bus driver
  *
  * Copyright 2016 Google Inc.
- *
- * Released under the GPLv2 only.
  */
 
 #ifndef __GBPHY_H

@@ -51,7 +51,7 @@ Example 1:
 	/*
 	 * TZ1090 PDC block
 	 */
-	pdc: pdc@0x02006000 {
+	pdc: pdc@02006000 {
 		// This is an interrupt controller node.
 		interrupt-controller;
 

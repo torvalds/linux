@@ -16,6 +16,8 @@
 #include <linux/msi.h>
 #include <linux/slab.h>
 
+#include "internals.h"
+
 /**
  * alloc_msi_entry - Allocate an initialize msi_entry
  * @dev:	Pointer to the device for which this is allocated
@@ -100,13 +102,14 @@ int msi_domain_set_affinity(struct irq_data *irq_data,
 	return ret;
 }
 
-static void msi_domain_activate(struct irq_domain *domain,
-				struct irq_data *irq_data)
+static int msi_domain_activate(struct irq_domain *domain,
+			       struct irq_data *irq_data, bool early)
 {
 	struct msi_msg msg;
 
 	BUG_ON(irq_chip_compose_msi_msg(irq_data, &msg));
 	irq_chip_write_msi_msg(irq_data, &msg);
+	return 0;
 }
 
 static void msi_domain_deactivate(struct irq_domain *domain,
@@ -336,6 +339,40 @@ int msi_domain_populate_irqs(struct irq_domain *domain, struct device *dev,
 	return ret;
 }
 
+/*
+ * Carefully check whether the device can use reservation mode. If
+ * reservation mode is enabled then the early activation will assign a
+ * dummy vector to the device. If the PCI/MSI device does not support
+ * masking of the entry then this can result in spurious interrupts when
+ * the device driver is not absolutely careful. But even then a malfunction
+ * of the hardware could result in a spurious interrupt on the dummy vector
+ * and render the device unusable. If the entry can be masked then the core
+ * logic will prevent the spurious interrupt and reservation mode can be
+ * used. For now reservation mode is restricted to PCI/MSI.
+ */
+static bool msi_check_reservation_mode(struct irq_domain *domain,
+				       struct msi_domain_info *info,
+				       struct device *dev)
+{
+	struct msi_desc *desc;
+
+	if (domain->bus_token != DOMAIN_BUS_PCI_MSI)
+		return false;
+
+	if (!(info->flags & MSI_FLAG_MUST_REACTIVATE))
+		return false;
+
+	if (IS_ENABLED(CONFIG_PCI_MSI) && pci_msi_ignore_mask)
+		return false;
+
+	/*
+	 * Checking the first MSI descriptor is sufficient. MSIX supports
+	 * masking and MSI does so when the maskbit is set.
+	 */
+	desc = first_msi_entry(dev);
+	return desc->msi_attrib.is_msix || desc->msi_attrib.maskbit;
+}
+
 /**
  * msi_domain_alloc_irqs - Allocate interrupts from a MSI interrupt domain
  * @domain:	The domain to allocate from
@@ -350,9 +387,11 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 {
 	struct msi_domain_info *info = domain->host_data;
 	struct msi_domain_ops *ops = info->ops;
-	msi_alloc_info_t arg;
+	struct irq_data *irq_data;
 	struct msi_desc *desc;
+	msi_alloc_info_t arg;
 	int i, ret, virq;
+	bool can_reserve;
 
 	ret = msi_domain_prepare_irqs(domain, dev, nvec, &arg);
 	if (ret)
@@ -373,12 +412,16 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 			return ret;
 		}
 
-		for (i = 0; i < desc->nvec_used; i++)
+		for (i = 0; i < desc->nvec_used; i++) {
 			irq_set_msi_desc_off(virq, i, desc);
+			irq_debugfs_copy_devname(virq + i, dev);
+		}
 	}
 
 	if (ops->msi_finish)
 		ops->msi_finish(&arg, 0);
+
+	can_reserve = msi_check_reservation_mode(domain, info, dev);
 
 	for_each_msi_entry(desc, dev) {
 		virq = desc->irq;
@@ -392,15 +435,42 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 		 * the MSI entries before the PCI layer enables MSI in the
 		 * card. Otherwise the card latches a random msi message.
 		 */
-		if (info->flags & MSI_FLAG_ACTIVATE_EARLY) {
-			struct irq_data *irq_data;
+		if (!(info->flags & MSI_FLAG_ACTIVATE_EARLY))
+			continue;
 
-			irq_data = irq_domain_get_irq_data(domain, desc->irq);
-			irq_domain_activate_irq(irq_data);
-		}
+		irq_data = irq_domain_get_irq_data(domain, desc->irq);
+		if (!can_reserve)
+			irqd_clr_can_reserve(irq_data);
+		ret = irq_domain_activate_irq(irq_data, can_reserve);
+		if (ret)
+			goto cleanup;
 	}
 
+	/*
+	 * If these interrupts use reservation mode, clear the activated bit
+	 * so request_irq() will assign the final vector.
+	 */
+	if (can_reserve) {
+		for_each_msi_entry(desc, dev) {
+			irq_data = irq_domain_get_irq_data(domain, desc->irq);
+			irqd_clr_activated(irq_data);
+		}
+	}
 	return 0;
+
+cleanup:
+	for_each_msi_entry(desc, dev) {
+		struct irq_data *irqd;
+
+		if (desc->irq == virq)
+			break;
+
+		irqd = irq_domain_get_irq_data(domain, desc->irq);
+		if (irqd_is_activated(irqd))
+			irq_domain_deactivate_irq(irqd);
+	}
+	msi_domain_free_irqs(domain, dev);
+	return ret;
 }
 
 /**

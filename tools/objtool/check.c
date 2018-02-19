@@ -428,6 +428,40 @@ static void add_ignores(struct objtool_file *file)
 }
 
 /*
+ * FIXME: For now, just ignore any alternatives which add retpolines.  This is
+ * a temporary hack, as it doesn't allow ORC to unwind from inside a retpoline.
+ * But it at least allows objtool to understand the control flow *around* the
+ * retpoline.
+ */
+static int add_nospec_ignores(struct objtool_file *file)
+{
+	struct section *sec;
+	struct rela *rela;
+	struct instruction *insn;
+
+	sec = find_section_by_name(file->elf, ".rela.discard.nospec");
+	if (!sec)
+		return 0;
+
+	list_for_each_entry(rela, &sec->rela_list, list) {
+		if (rela->sym->type != STT_SECTION) {
+			WARN("unexpected relocation symbol type in %s", sec->name);
+			return -1;
+		}
+
+		insn = find_insn(file, rela->sym->sec, rela->addend);
+		if (!insn) {
+			WARN("bad .discard.nospec entry");
+			return -1;
+		}
+
+		insn->ignore_alts = true;
+	}
+
+	return 0;
+}
+
+/*
  * Find the destination instructions for all jumps.
  */
 static int add_jump_destinations(struct objtool_file *file)
@@ -456,6 +490,13 @@ static int add_jump_destinations(struct objtool_file *file)
 		} else if (rela->sym->sec->idx) {
 			dest_sec = rela->sym->sec;
 			dest_off = rela->sym->sym.st_value + rela->addend + 4;
+		} else if (strstr(rela->sym->name, "_indirect_thunk_")) {
+			/*
+			 * Retpoline jumps are really dynamic jumps in
+			 * disguise, so convert them accordingly.
+			 */
+			insn->type = INSN_JUMP_DYNAMIC;
+			continue;
 		} else {
 			/* sibling call */
 			insn->jump_dest = 0;
@@ -502,11 +543,18 @@ static int add_call_destinations(struct objtool_file *file)
 			dest_off = insn->offset + insn->len + insn->immediate;
 			insn->call_dest = find_symbol_by_offset(insn->sec,
 								dest_off);
+			/*
+			 * FIXME: Thanks to retpolines, it's now considered
+			 * normal for a function to call within itself.  So
+			 * disable this warning for now.
+			 */
+#if 0
 			if (!insn->call_dest) {
 				WARN_FUNC("can't find call dest symbol at offset 0x%lx",
 					  insn->sec, insn->offset, dest_off);
 				return -1;
 			}
+#endif
 		} else if (rela->sym->type == STT_SECTION) {
 			insn->call_dest = find_symbol_by_offset(rela->sym->sec,
 								rela->addend+4);
@@ -671,12 +719,6 @@ static int add_special_section_alts(struct objtool_file *file)
 		return ret;
 
 	list_for_each_entry_safe(special_alt, tmp, &special_alts, list) {
-		alt = malloc(sizeof(*alt));
-		if (!alt) {
-			WARN("malloc failed");
-			ret = -1;
-			goto out;
-		}
 
 		orig_insn = find_insn(file, special_alt->orig_sec,
 				      special_alt->orig_off);
@@ -686,6 +728,10 @@ static int add_special_section_alts(struct objtool_file *file)
 			ret = -1;
 			goto out;
 		}
+
+		/* Ignore retpoline alternatives. */
+		if (orig_insn->ignore_alts)
+			continue;
 
 		new_insn = NULL;
 		if (!special_alt->group || special_alt->new_len) {
@@ -710,6 +756,13 @@ static int add_special_section_alts(struct objtool_file *file)
 					      &new_insn);
 			if (ret)
 				goto out;
+		}
+
+		alt = malloc(sizeof(*alt));
+		if (!alt) {
+			WARN("malloc failed");
+			ret = -1;
+			goto out;
 		}
 
 		alt->insn = new_insn;
@@ -1027,6 +1080,10 @@ static int decode_sections(struct objtool_file *file)
 		return ret;
 
 	add_ignores(file);
+
+	ret = add_nospec_ignores(file);
+	if (ret)
+		return ret;
 
 	ret = add_jump_destinations(file);
 	if (ret)
@@ -1757,11 +1814,14 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 		if (insn->dead_end)
 			return 0;
 
-		insn = next_insn;
-		if (!insn) {
+		if (!next_insn) {
+			if (state.cfa.base == CFI_UNDEFINED)
+				return 0;
 			WARN("%s: unexpected end of section", sec->name);
 			return 1;
 		}
+
+		insn = next_insn;
 	}
 
 	return 0;

@@ -46,7 +46,7 @@ Example:
 /* ... */
 
 	Node of the MFD chip
-		max77686: max77686@09 {
+		max77686: max77686@9 {
 			compatible = "maxim,max77686";
 			interrupt-parent = <&wakeup_eint>;
 			interrupts = <26 0>;
@@ -71,7 +71,7 @@ Example:
 /* ... */
 
 	Node of the MFD chip
-		max77802: max77802@09 {
+		max77802: max77802@9 {
 			compatible = "maxim,max77802";
 			interrupt-parent = <&wakeup_eint>;
 			interrupts = <26 0>;

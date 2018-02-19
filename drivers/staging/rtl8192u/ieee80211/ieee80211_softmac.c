@@ -391,10 +391,10 @@ static void ieee80211_send_beacon(struct ieee80211_device *ieee)
 }
 
 
-static void ieee80211_send_beacon_cb(unsigned long _ieee)
+static void ieee80211_send_beacon_cb(struct timer_list *t)
 {
 	struct ieee80211_device *ieee =
-		(struct ieee80211_device *) _ieee;
+		from_timer(ieee, t, beacon_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ieee->beacon_lock, flags);
@@ -1251,9 +1251,11 @@ void ieee80211_associate_abort(struct ieee80211_device *ieee)
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
 
-static void ieee80211_associate_abort_cb(unsigned long dev)
+static void ieee80211_associate_abort_cb(struct timer_list *t)
 {
-	ieee80211_associate_abort((struct ieee80211_device *) dev);
+	struct ieee80211_device *dev = from_timer(dev, t, associate_timer);
+
+	ieee80211_associate_abort(dev);
 }
 
 
@@ -2718,11 +2720,9 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 	ieee->enable_rx_imm_BA = true;
 	ieee->tx_pending.txb = NULL;
 
-	setup_timer(&ieee->associate_timer, ieee80211_associate_abort_cb,
-		    (unsigned long)ieee);
+	timer_setup(&ieee->associate_timer, ieee80211_associate_abort_cb, 0);
 
-	setup_timer(&ieee->beacon_timer, ieee80211_send_beacon_cb,
-		    (unsigned long)ieee);
+	timer_setup(&ieee->beacon_timer, ieee80211_send_beacon_cb, 0);
 
 
 	INIT_DELAYED_WORK(&ieee->start_ibss_wq, ieee80211_start_ibss_wq);
@@ -2948,8 +2948,9 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 				  struct ieee_param *param, int param_len)
 {
 	int ret = 0;
+	const char *module = NULL;
 
-	struct ieee80211_crypto_ops *ops;
+	struct ieee80211_crypto_ops *ops = NULL;
 	struct ieee80211_crypt_data **crypt;
 
 	struct ieee80211_security sec = {
@@ -2995,19 +2996,17 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 	    strcmp(param->u.crypt.alg, "TKIP"))
 		goto skip_host_crypt;
 
-	ops = ieee80211_get_crypto_ops(param->u.crypt.alg);
-	if (ops == NULL && strcmp(param->u.crypt.alg, "WEP") == 0) {
-		request_module("ieee80211_crypt_wep");
-		ops = ieee80211_get_crypto_ops(param->u.crypt.alg);
-		//set WEP40 first, it will be modified according to WEP104 or WEP40 at other place
-	} else if (ops == NULL && strcmp(param->u.crypt.alg, "TKIP") == 0) {
-		request_module("ieee80211_crypt_tkip");
-		ops = ieee80211_get_crypto_ops(param->u.crypt.alg);
-	} else if (ops == NULL && strcmp(param->u.crypt.alg, "CCMP") == 0) {
-		request_module("ieee80211_crypt_ccmp");
-		ops = ieee80211_get_crypto_ops(param->u.crypt.alg);
-	}
-	if (ops == NULL) {
+	//set WEP40 first, it will be modified according to WEP104 or WEP40 at other place
+	if (!strcmp(param->u.crypt.alg, "WEP"))
+		module = "ieee80211_crypt_wep";
+	else if (!strcmp(param->u.crypt.alg, "TKIP"))
+		module = "ieee80211_crypt_tkip";
+	else if (!strcmp(param->u.crypt.alg, "CCMP"))
+		module = "ieee80211_crypt_ccmp";
+	if (module)
+		ops = try_then_request_module(ieee80211_get_crypto_ops(param->u.crypt.alg),
+					      module);
+	if (!ops) {
 		printk("unknown crypto alg '%s'\n", param->u.crypt.alg);
 		param->u.crypt.err = IEEE_CRYPT_ERR_UNKNOWN_ALG;
 		ret = -EINVAL;

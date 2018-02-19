@@ -75,6 +75,10 @@ These nodes must have the following properties:
 - reg: Specifies the base physical address and size of the ITS
   registers.
 
+Optional:
+- socionext,synquacer-pre-its: (u32, u32) tuple describing the untranslated
+  address and size of the pre-ITS window.
+
 The main GIC node must contain the appropriate #address-cells,
 #size-cells and ranges properties for the reg property of all ITS
 nodes.

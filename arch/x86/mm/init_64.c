@@ -184,7 +184,7 @@ static __ref void *spp_getpage(void)
 	void *ptr;
 
 	if (after_bootmem)
-		ptr = (void *) get_zeroed_page(GFP_ATOMIC | __GFP_NOTRACK);
+		ptr = (void *) get_zeroed_page(GFP_ATOMIC);
 	else
 		ptr = alloc_bootmem_pages(PAGE_SIZE);
 
@@ -1173,11 +1173,17 @@ void __init mem_init(void)
 
 	/* clear_bss() already clear the empty_zero_page */
 
-	register_page_bootmem_info();
-
 	/* this will put all memory onto the freelists */
 	free_all_bootmem();
 	after_bootmem = 1;
+
+	/*
+	 * Must be done after boot memory is put on freelist, because here we
+	 * might set fields in deferred struct pages that have not yet been
+	 * initialized, and free_all_bootmem() initializes all the reserved
+	 * deferred pages for us.
+	 */
+	register_page_bootmem_info();
 
 	/* Register memory areas for /proc/kcore */
 	kclist_add(&kcore_vsyscall, (void *)VSYSCALL_ADDR,
@@ -1399,7 +1405,6 @@ static int __meminit vmemmap_populate_hugepages(unsigned long start,
 			vmemmap_verify((pte_t *)pmd, node, addr, next);
 			continue;
 		}
-		pr_warn_once("vmemmap: falling back to regular page backing\n");
 		if (vmemmap_populate_basepages(addr, next, node))
 			return -ENOMEM;
 	}
@@ -1426,16 +1431,16 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 
 #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HAVE_BOOTMEM_INFO_NODE)
 void register_page_bootmem_memmap(unsigned long section_nr,
-				  struct page *start_page, unsigned long size)
+				  struct page *start_page, unsigned long nr_pages)
 {
 	unsigned long addr = (unsigned long)start_page;
-	unsigned long end = (unsigned long)(start_page + size);
+	unsigned long end = (unsigned long)(start_page + nr_pages);
 	unsigned long next;
 	pgd_t *pgd;
 	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
-	unsigned int nr_pages;
+	unsigned int nr_pmd_pages;
 	struct page *page;
 
 	for (; addr < end; addr = next) {
@@ -1482,9 +1487,9 @@ void register_page_bootmem_memmap(unsigned long section_nr,
 			if (pmd_none(*pmd))
 				continue;
 
-			nr_pages = 1 << (get_order(PMD_SIZE));
+			nr_pmd_pages = 1 << get_order(PMD_SIZE);
 			page = pmd_page(*pmd);
-			while (nr_pages--)
+			while (nr_pmd_pages--)
 				get_page_bootmem(section_nr, page++,
 						 SECTION_INFO);
 		}

@@ -29,7 +29,7 @@ extern cpumask_t cpu_foreign_map[];
 
 /* Map from cpu id to sequential logical cpu number.  This will only
    not be idempotent when cpus failed to come on-line.	*/
-extern int __cpu_number_map[NR_CPUS];
+extern int __cpu_number_map[CONFIG_MIPS_NR_CPU_NR_MAP];
 #define cpu_number_map(cpu)  __cpu_number_map[cpu]
 
 /* The reverse map from sequential logical cpu number to cpu id.  */

@@ -109,6 +109,8 @@ struct kobject *efi_kobj;
 /*
  * Let's not leave out systab information that snuck into
  * the efivars driver
+ * Note, do not add more fields in systab sysfs file as it breaks sysfs
+ * one value per file rule!
  */
 static ssize_t systab_show(struct kobject *kobj,
 			   struct kobj_attribute *attr, char *buf)
@@ -143,8 +145,7 @@ static ssize_t systab_show(struct kobject *kobj,
 	return str - buf;
 }
 
-static struct kobj_attribute efi_attr_systab =
-			__ATTR(systab, 0400, systab_show, NULL);
+static struct kobj_attribute efi_attr_systab = __ATTR_RO_MODE(systab, 0400);
 
 #define EFI_FIELD(var) efi.var
 

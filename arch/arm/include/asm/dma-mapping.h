@@ -191,13 +191,6 @@ extern int arm_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 			unsigned long attrs);
 
 /*
- * This can be called during early boot to increase the size of the atomic
- * coherent DMA pool above the default value of 256KiB. It must be called
- * before postcore_initcall.
- */
-extern void __init init_dma_coherent_pool_size(unsigned long size);
-
-/*
  * For SA-1111, IXP425, and ADI systems  the dma-mapping functions are "magic"
  * and utilize bounce buffers as needed to work around limited DMA windows.
  *

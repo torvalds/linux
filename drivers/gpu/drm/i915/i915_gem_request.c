@@ -186,7 +186,7 @@ i915_priotree_init(struct i915_priotree *pt)
 	INIT_LIST_HEAD(&pt->signalers_list);
 	INIT_LIST_HEAD(&pt->waiters_list);
 	INIT_LIST_HEAD(&pt->link);
-	pt->priority = INT_MIN;
+	pt->priority = I915_PRIORITY_INVALID;
 }
 
 static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
@@ -416,7 +416,7 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 
 	spin_lock_irq(&request->lock);
 	if (request->waitboost)
-		atomic_dec(&request->i915->rps.num_waiters);
+		atomic_dec(&request->i915->gt_pm.rps.num_waiters);
 	dma_fence_signal_locked(&request->fence);
 	spin_unlock_irq(&request->lock);
 
@@ -556,7 +556,16 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 	switch (state) {
 	case FENCE_COMPLETE:
 		trace_i915_gem_request_submit(request);
+		/*
+		 * We need to serialize use of the submit_request() callback with its
+		 * hotplugging performed during an emergency i915_gem_set_wedged().
+		 * We use the RCU mechanism to mark the critical section in order to
+		 * force i915_gem_set_wedged() to wait until the submit_request() is
+		 * completed before proceeding.
+		 */
+		rcu_read_lock();
 		request->engine->submit_request(request);
+		rcu_read_unlock();
 		break;
 
 	case FENCE_FREE:
@@ -586,6 +595,13 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	int ret;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+
+	/*
+	 * Preempt contexts are reserved for exclusive use to inject a
+	 * preemption context switch. They are never to be used for any trivial
+	 * request!
+	 */
+	GEM_BUG_ON(ctx == dev_priv->preempt_context);
 
 	/* ABI: Before userspace accesses the GPU (e.g. execbuffer), report
 	 * EIO if the GPU is already wedged.
@@ -1021,11 +1037,27 @@ static bool busywait_stop(unsigned long timeout, unsigned int cpu)
 	return this_cpu != cpu;
 }
 
-bool __i915_spin_request(const struct drm_i915_gem_request *req,
-			 u32 seqno, int state, unsigned long timeout_us)
+static bool __i915_spin_request(const struct drm_i915_gem_request *req,
+				u32 seqno, int state, unsigned long timeout_us)
 {
 	struct intel_engine_cs *engine = req->engine;
 	unsigned int irq, cpu;
+
+	GEM_BUG_ON(!seqno);
+
+	/*
+	 * Only wait for the request if we know it is likely to complete.
+	 *
+	 * We don't track the timestamps around requests, nor the average
+	 * request length, so we do not have a good indicator that this
+	 * request will complete within the timeout. What we do know is the
+	 * order in which requests are executed by the engine and so we can
+	 * tell if the request has started. If the request hasn't started yet,
+	 * it is a fair assumption that it will not complete within our
+	 * relatively short timeout.
+	 */
+	if (!i915_seqno_passed(intel_engine_get_seqno(engine), seqno - 1))
+		return false;
 
 	/* When waiting for high frequency requests, e.g. during synchronous
 	 * rendering split between the CPU and GPU, the finite amount of time
@@ -1040,12 +1072,8 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
 	irq = atomic_read(&engine->irq_count);
 	timeout_us += local_clock_us(&cpu);
 	do {
-		if (seqno != i915_gem_request_global_seqno(req))
-			break;
-
-		if (i915_seqno_passed(intel_engine_get_seqno(req->engine),
-				      seqno))
-			return true;
+		if (i915_seqno_passed(intel_engine_get_seqno(engine), seqno))
+			return seqno == i915_gem_request_global_seqno(req);
 
 		/* Seqno are meant to be ordered *before* the interrupt. If
 		 * we see an interrupt without a corresponding seqno advance,
@@ -1156,7 +1184,7 @@ restart:
 	GEM_BUG_ON(!i915_sw_fence_signaled(&req->submit));
 
 	/* Optimistic short spin before touching IRQs */
-	if (i915_spin_request(req, state, 5))
+	if (__i915_spin_request(req, wait.seqno, state, 5))
 		goto complete;
 
 	set_current_state(state);
@@ -1213,7 +1241,7 @@ wakeup:
 			continue;
 
 		/* Only spin if we know the GPU is processing this request */
-		if (i915_spin_request(req, state, 2))
+		if (__i915_spin_request(req, wait.seqno, state, 2))
 			break;
 
 		if (!intel_wait_check_request(&wait, req)) {

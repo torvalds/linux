@@ -7,3 +7,6 @@ zoffset.h
 setup
 setup.bin
 setup.elf
+fdimage
+mtools.conf
+image.iso

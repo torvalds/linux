@@ -7,6 +7,7 @@
  */
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <asm/processor.h>
 #include <asm/user32.h>
 #include <asm/unistd.h>
@@ -209,7 +210,6 @@ typedef struct compat_siginfo {
 } compat_siginfo_t;
 
 #define COMPAT_OFF_T_MAX	0x7fffffff
-#define COMPAT_LOFF_T_MAX	0x7fffffffffffffffL
 
 struct compat_ipc64_perm {
 	compat_key_t key;

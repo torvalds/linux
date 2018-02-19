@@ -195,7 +195,6 @@ EXPORT_SYMBOL_GPL(snd_pcm_stream_unlock_irqrestore);
 
 int snd_pcm_info(struct snd_pcm_substream *substream, struct snd_pcm_info *info)
 {
-	struct snd_pcm_runtime *runtime;
 	struct snd_pcm *pcm = substream->pcm;
 	struct snd_pcm_str *pstr = substream->pstr;
 
@@ -211,7 +210,6 @@ int snd_pcm_info(struct snd_pcm_substream *substream, struct snd_pcm_info *info)
 	info->subdevices_count = pstr->substream_count;
 	info->subdevices_avail = pstr->substream_count - pstr->substream_opened;
 	strlcpy(info->subname, substream->name, sizeof(info->subname));
-	runtime = substream->runtime;
 
 	return 0;
 }
@@ -2582,7 +2580,7 @@ static snd_pcm_sframes_t forward_appl_ptr(struct snd_pcm_substream *substream,
 	return ret < 0 ? ret : frames;
 }
 
-/* decrease the appl_ptr; returns the processed frames or a negative error */
+/* decrease the appl_ptr; returns the processed frames or zero for error */
 static snd_pcm_sframes_t rewind_appl_ptr(struct snd_pcm_substream *substream,
 					 snd_pcm_uframes_t frames,
 					 snd_pcm_sframes_t avail)
@@ -2599,7 +2597,12 @@ static snd_pcm_sframes_t rewind_appl_ptr(struct snd_pcm_substream *substream,
 	if (appl_ptr < 0)
 		appl_ptr += runtime->boundary;
 	ret = pcm_lib_apply_appl_ptr(substream, appl_ptr);
-	return ret < 0 ? ret : frames;
+	/* NOTE: we return zero for errors because PulseAudio gets depressed
+	 * upon receiving an error from rewind ioctl and stops processing
+	 * any longer.  Returning zero means that no rewind is done, so
+	 * it's not absolutely wrong to answer like that.
+	 */
+	return ret < 0 ? 0 : frames;
 }
 
 static snd_pcm_sframes_t snd_pcm_playback_rewind(struct snd_pcm_substream *substream,

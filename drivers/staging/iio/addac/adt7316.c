@@ -2087,13 +2087,11 @@ EXPORT_SYMBOL_GPL(adt7316_pm_ops);
 static const struct iio_info adt7316_info = {
 	.attrs = &adt7316_attribute_group,
 	.event_attrs = &adt7316_event_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct iio_info adt7516_info = {
 	.attrs = &adt7516_attribute_group,
 	.event_attrs = &adt7516_event_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 /*

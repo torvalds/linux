@@ -63,6 +63,8 @@ struct thread_info {
 void arch_setup_new_exec(void);
 #define arch_setup_new_exec     arch_setup_new_exec
 
+void arch_release_task_struct(struct task_struct *tsk);
+
 #endif
 
 /*
@@ -92,6 +94,8 @@ void arch_setup_new_exec(void);
 #define TIF_RESTORE_SIGMASK	20
 #define TIF_SINGLESTEP		21
 #define TIF_32BIT		22	/* 32bit process */
+#define TIF_SVE			23	/* Scalable Vector Extension in use */
+#define TIF_SVE_VL_INHERIT	24	/* Inherit sve_vl_onexec across exec */
 
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
@@ -105,6 +109,7 @@ void arch_setup_new_exec(void);
 #define _TIF_UPROBE		(1 << TIF_UPROBE)
 #define _TIF_FSCHECK		(1 << TIF_FSCHECK)
 #define _TIF_32BIT		(1 << TIF_32BIT)
+#define _TIF_SVE		(1 << TIF_SVE)
 
 #define _TIF_WORK_MASK		(_TIF_NEED_RESCHED | _TIF_SIGPENDING | \
 				 _TIF_NOTIFY_RESUME | _TIF_FOREIGN_FPSTATE | \

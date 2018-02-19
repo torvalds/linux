@@ -574,10 +574,10 @@ void r8712_surveydone_event_callback(struct _adapter *adapter, u8 *pbuf)
 				set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 
 				if (r8712_select_and_join_from_scan(pmlmepriv)
-				    == _SUCCESS)
+				    == _SUCCESS) {
 					mod_timer(&pmlmepriv->assoc_timer, jiffies +
 						  msecs_to_jiffies(MAX_JOIN_TIMEOUT));
-				else {
+				} else {
 					struct wlan_bssid_ex *pdev_network =
 					  &(adapter->registrypriv.dev_network);
 					u8 *pibss =

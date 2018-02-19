@@ -1160,7 +1160,7 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	struct ceph_inode_info *ci = cap->ci;
 	struct inode *inode = &ci->vfs_inode;
 	struct cap_msg_args arg;
-	int held, revoking, dropping;
+	int held, revoking;
 	int wake = 0;
 	int delayed = 0;
 	int ret;
@@ -1168,7 +1168,6 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	held = cap->issued | cap->implemented;
 	revoking = cap->implemented & ~cap->issued;
 	retain &= ~revoking;
-	dropping = cap->issued & ~retain;
 
 	dout("__send_cap %p cap %p session %p %s -> %s (revoking %s)\n",
 	     inode, cap, cap->session,
@@ -1712,7 +1711,7 @@ void ceph_check_caps(struct ceph_inode_info *ci, int flags,
 
 	/* if we are unmounting, flush any unused caps immediately. */
 	if (mdsc->stopping)
-		is_delayed = 1;
+		is_delayed = true;
 
 	spin_lock(&ci->i_ceph_lock);
 
@@ -3189,8 +3188,8 @@ static void handle_cap_flush_ack(struct inode *inode, u64 flush_tid,
 	int dirty = le32_to_cpu(m->dirty);
 	int cleaned = 0;
 	bool drop = false;
-	bool wake_ci = 0;
-	bool wake_mdsc = 0;
+	bool wake_ci = false;
+	bool wake_mdsc = false;
 
 	list_for_each_entry_safe(cf, tmp_cf, &ci->i_cap_flush_list, i_list) {
 		if (cf->tid == flush_tid)

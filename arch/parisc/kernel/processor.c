@@ -184,6 +184,9 @@ static int __init processor_probe(struct parisc_device *dev)
 	p->txn_addr = txn_addr;	/* save CPU IRQ address */
 	p->cpu_num = cpu_info.cpu_num;
 	p->cpu_loc = cpu_info.cpu_loc;
+
+	store_cpu_topology(cpuid);
+
 #ifdef CONFIG_SMP
 	/*
 	** FIXME: review if any other initialization is clobbered
@@ -325,6 +328,8 @@ int __init init_per_cpu(int cpunum)
 	set_firmware_width();
 	ret = pdc_coproc_cfg(&coproc_cfg);
 
+	store_cpu_topology(cpunum);
+
 	if(ret >= 0 && coproc_cfg.ccr_functional) {
 		mtctl(coproc_cfg.ccr_functional, 10);  /* 10 == Coprocessor Control Reg */
 
@@ -387,6 +392,14 @@ show_cpuinfo (struct seq_file *m, void *v)
 		seq_printf(m, "cpu MHz\t\t: %d.%06d\n",
 				 boot_cpu_data.cpu_hz / 1000000,
 				 boot_cpu_data.cpu_hz % 1000000  );
+
+#ifdef CONFIG_PARISC_CPU_TOPOLOGY
+		seq_printf(m, "physical id\t: %d\n",
+				topology_physical_package_id(cpu));
+		seq_printf(m, "siblings\t: %d\n",
+				cpumask_weight(topology_core_cpumask(cpu)));
+		seq_printf(m, "core id\t\t: %d\n", topology_core_id(cpu));
+#endif
 
 		seq_printf(m, "capabilities\t:");
 		if (boot_cpu_data.pdc.capabilities & PDC_MODEL_OS32)

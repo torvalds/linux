@@ -125,19 +125,17 @@ static int tegra124_dfll_fcpu_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	platform_set_drvdata(pdev, soc);
-
 	return 0;
 }
 
 static int tegra124_dfll_fcpu_remove(struct platform_device *pdev)
 {
-	struct tegra_dfll_soc_data *soc = platform_get_drvdata(pdev);
-	int err;
+	struct tegra_dfll_soc_data *soc;
 
-	err = tegra_dfll_unregister(pdev);
-	if (err < 0)
-		dev_err(&pdev->dev, "failed to unregister DFLL: %d\n", err);
+	soc = tegra_dfll_unregister(pdev);
+	if (IS_ERR(soc))
+		dev_err(&pdev->dev, "failed to unregister DFLL: %ld\n",
+			PTR_ERR(soc));
 
 	tegra_cvb_remove_opp_table(soc->dev, soc->cvb, soc->max_freq);
 

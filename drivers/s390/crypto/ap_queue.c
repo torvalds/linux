@@ -627,16 +627,14 @@ struct ap_queue *ap_queue_create(ap_qid_t qid, int device_type)
 	aq->ap_dev.device.release = ap_queue_device_release;
 	aq->ap_dev.device.type = &ap_queue_type;
 	aq->ap_dev.device_type = device_type;
-	/* CEX6 toleration: map to CEX5 */
-	if (device_type == AP_DEVICE_TYPE_CEX6)
-		aq->ap_dev.device_type = AP_DEVICE_TYPE_CEX5;
 	aq->qid = qid;
 	aq->state = AP_STATE_RESET_START;
 	aq->interrupt = AP_INTR_DISABLED;
 	spin_lock_init(&aq->lock);
+	INIT_LIST_HEAD(&aq->list);
 	INIT_LIST_HEAD(&aq->pendingq);
 	INIT_LIST_HEAD(&aq->requestq);
-	setup_timer(&aq->timeout, ap_request_timeout, (unsigned long) aq);
+	timer_setup(&aq->timeout, ap_request_timeout, 0);
 
 	return aq;
 }

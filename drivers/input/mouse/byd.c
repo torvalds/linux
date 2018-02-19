@@ -227,6 +227,7 @@
 
 struct byd_data {
 	struct timer_list timer;
+	struct psmouse *psmouse;
 	s32 abs_x;
 	s32 abs_y;
 	typeof(jiffies) last_touch_time;
@@ -251,10 +252,10 @@ static void byd_report_input(struct psmouse *psmouse)
 	input_sync(dev);
 }
 
-static void byd_clear_touch(unsigned long data)
+static void byd_clear_touch(struct timer_list *t)
 {
-	struct psmouse *psmouse = (struct psmouse *)data;
-	struct byd_data *priv = psmouse->private;
+	struct byd_data *priv = from_timer(priv, t, timer);
+	struct psmouse *psmouse = priv->psmouse;
 
 	serio_pause_rx(psmouse->ps2dev.serio);
 	priv->touch = false;
@@ -478,7 +479,8 @@ int byd_init(struct psmouse *psmouse)
 	if (!priv)
 		return -ENOMEM;
 
-	setup_timer(&priv->timer, byd_clear_touch, (unsigned long) psmouse);
+	priv->psmouse = psmouse;
+	timer_setup(&priv->timer, byd_clear_touch, 0);
 
 	psmouse->private = priv;
 	psmouse->disconnect = byd_disconnect;

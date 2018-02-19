@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * F81532/F81534 USB to Serial Ports Bridge
  *
  * F81532 => 2 Serial Ports
  * F81534 => 4 Serial Ports
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Copyright (C) 2016 Feature Integration Technology Inc., (Fintek)
  * Copyright (C) 2016 Tom Tsai (Tom_Tsai@fintek.com.tw)
@@ -39,9 +35,11 @@
 #define F81534_UART_OFFSET		0x10
 #define F81534_DIVISOR_LSB_REG		(0x00 + F81534_UART_BASE_ADDRESS)
 #define F81534_DIVISOR_MSB_REG		(0x01 + F81534_UART_BASE_ADDRESS)
+#define F81534_INTERRUPT_ENABLE_REG	(0x01 + F81534_UART_BASE_ADDRESS)
 #define F81534_FIFO_CONTROL_REG		(0x02 + F81534_UART_BASE_ADDRESS)
 #define F81534_LINE_CONTROL_REG		(0x03 + F81534_UART_BASE_ADDRESS)
 #define F81534_MODEM_CONTROL_REG	(0x04 + F81534_UART_BASE_ADDRESS)
+#define F81534_LINE_STATUS_REG		(0x05 + F81534_UART_BASE_ADDRESS)
 #define F81534_MODEM_STATUS_REG		(0x06 + F81534_UART_BASE_ADDRESS)
 #define F81534_CONFIG1_REG		(0x09 + F81534_UART_BASE_ADDRESS)
 
@@ -126,9 +124,13 @@ struct f81534_serial_private {
 
 struct f81534_port_private {
 	struct mutex mcr_mutex;
+	struct mutex lcr_mutex;
+	struct work_struct lsr_work;
+	struct usb_serial_port *port;
 	unsigned long tx_empty;
 	spinlock_t msr_lock;
 	u8 shadow_mcr;
+	u8 shadow_lcr;
 	u8 shadow_msr;
 	u8 phy_num;
 };
@@ -461,6 +463,7 @@ static u32 f81534_calc_baud_divisor(u32 baudrate, u32 clockrate)
 static int f81534_set_port_config(struct usb_serial_port *port, u32 baudrate,
 					u8 lcr)
 {
+	struct f81534_port_private *port_priv = usb_get_serial_port_data(port);
 	u32 divisor;
 	int status;
 	u8 value;
@@ -489,35 +492,65 @@ static int f81534_set_port_config(struct usb_serial_port *port, u32 baudrate,
 	}
 
 	divisor = f81534_calc_baud_divisor(baudrate, F81534_MAX_BAUDRATE);
+
+	mutex_lock(&port_priv->lcr_mutex);
+
 	value = UART_LCR_DLAB;
 	status = f81534_set_port_register(port, F81534_LINE_CONTROL_REG,
 						value);
 	if (status) {
 		dev_err(&port->dev, "%s: set LCR failed\n", __func__);
-		return status;
+		goto out_unlock;
 	}
 
 	value = divisor & 0xff;
 	status = f81534_set_port_register(port, F81534_DIVISOR_LSB_REG, value);
 	if (status) {
 		dev_err(&port->dev, "%s: set DLAB LSB failed\n", __func__);
-		return status;
+		goto out_unlock;
 	}
 
 	value = (divisor >> 8) & 0xff;
 	status = f81534_set_port_register(port, F81534_DIVISOR_MSB_REG, value);
 	if (status) {
 		dev_err(&port->dev, "%s: set DLAB MSB failed\n", __func__);
-		return status;
+		goto out_unlock;
 	}
 
-	status = f81534_set_port_register(port, F81534_LINE_CONTROL_REG, lcr);
+	value = lcr | (port_priv->shadow_lcr & UART_LCR_SBC);
+	status = f81534_set_port_register(port, F81534_LINE_CONTROL_REG,
+						value);
 	if (status) {
 		dev_err(&port->dev, "%s: set LCR failed\n", __func__);
-		return status;
+		goto out_unlock;
 	}
 
-	return 0;
+	port_priv->shadow_lcr = value;
+out_unlock:
+	mutex_unlock(&port_priv->lcr_mutex);
+
+	return status;
+}
+
+static void f81534_break_ctl(struct tty_struct *tty, int break_state)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct f81534_port_private *port_priv = usb_get_serial_port_data(port);
+	int status;
+
+	mutex_lock(&port_priv->lcr_mutex);
+
+	if (break_state)
+		port_priv->shadow_lcr |= UART_LCR_SBC;
+	else
+		port_priv->shadow_lcr &= ~UART_LCR_SBC;
+
+	status = f81534_set_port_register(port, F81534_LINE_CONTROL_REG,
+					port_priv->shadow_lcr);
+	if (status)
+		dev_err(&port->dev, "set break failed: %d\n", status);
+
+	mutex_unlock(&port_priv->lcr_mutex);
 }
 
 static int f81534_update_mctrl(struct usb_serial_port *port, unsigned int set,
@@ -1015,6 +1048,8 @@ static void f81534_process_per_serial_block(struct usb_serial_port *port,
 				tty_insert_flip_char(&port->port, 0,
 						TTY_OVERRUN);
 			}
+
+			schedule_work(&port_priv->lsr_work);
 		}
 
 		if (port->port.console && port->sysrq) {
@@ -1162,6 +1197,21 @@ static int f81534_attach(struct usb_serial *serial)
 	return 0;
 }
 
+static void f81534_lsr_worker(struct work_struct *work)
+{
+	struct f81534_port_private *port_priv;
+	struct usb_serial_port *port;
+	int status;
+	u8 tmp;
+
+	port_priv = container_of(work, struct f81534_port_private, lsr_work);
+	port = port_priv->port;
+
+	status = f81534_get_port_register(port, F81534_LINE_STATUS_REG, &tmp);
+	if (status)
+		dev_warn(&port->dev, "read LSR failed: %d\n", status);
+}
+
 static int f81534_port_probe(struct usb_serial_port *port)
 {
 	struct f81534_port_private *port_priv;
@@ -1173,6 +1223,8 @@ static int f81534_port_probe(struct usb_serial_port *port)
 
 	spin_lock_init(&port_priv->msr_lock);
 	mutex_init(&port_priv->mcr_mutex);
+	mutex_init(&port_priv->lcr_mutex);
+	INIT_WORK(&port_priv->lsr_work, f81534_lsr_worker);
 
 	/* Assign logic-to-phy mapping */
 	ret = f81534_logic_to_phy_port(port->serial, port);
@@ -1180,10 +1232,30 @@ static int f81534_port_probe(struct usb_serial_port *port)
 		return ret;
 
 	port_priv->phy_num = ret;
+	port_priv->port = port;
 	usb_set_serial_port_data(port, port_priv);
 	dev_dbg(&port->dev, "%s: port_number: %d, phy_num: %d\n", __func__,
 			port->port_number, port_priv->phy_num);
 
+	/*
+	 * The F81532/534 will hang-up when enable LSR interrupt in IER and
+	 * occur data overrun. So we'll disable the LSR interrupt in probe()
+	 * and submit the LSR worker to clear LSR state when reported LSR error
+	 * bit with bulk-in data in f81534_process_per_serial_block().
+	 */
+	ret = f81534_set_port_register(port, F81534_INTERRUPT_ENABLE_REG,
+			UART_IER_RDI | UART_IER_THRI | UART_IER_MSI);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int f81534_port_remove(struct usb_serial_port *port)
+{
+	struct f81534_port_private *port_priv = usb_get_serial_port_data(port);
+
+	flush_work(&port_priv->lsr_work);
 	return 0;
 }
 
@@ -1317,6 +1389,8 @@ static struct usb_serial_driver f81534_device = {
 	.calc_num_ports =	f81534_calc_num_ports,
 	.attach =		f81534_attach,
 	.port_probe =		f81534_port_probe,
+	.port_remove =		f81534_port_remove,
+	.break_ctl =		f81534_break_ctl,
 	.dtr_rts =		f81534_dtr_rts,
 	.process_read_urb =	f81534_process_read_urb,
 	.ioctl =		f81534_ioctl,

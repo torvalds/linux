@@ -71,25 +71,6 @@ static void shrinker_unlock(struct drm_i915_private *dev_priv, bool unlock)
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 }
 
-static bool any_vma_pinned(struct drm_i915_gem_object *obj)
-{
-	struct i915_vma *vma;
-
-	list_for_each_entry(vma, &obj->vma_list, obj_link) {
-		/* Only GGTT vma may be permanently pinned, and are always
-		 * at the start of the list. We can stop hunting as soon
-		 * as we see a ppGTT vma.
-		 */
-		if (!i915_vma_is_ggtt(vma))
-			break;
-
-		if (i915_vma_is_pinned(vma))
-			return true;
-	}
-
-	return false;
-}
-
 static bool swap_available(void)
 {
 	return get_nr_swap_pages() > 0;
@@ -97,9 +78,6 @@ static bool swap_available(void)
 
 static bool can_release_pages(struct drm_i915_gem_object *obj)
 {
-	if (!obj->mm.pages)
-		return false;
-
 	/* Consider only shrinkable ojects. */
 	if (!i915_gem_object_is_shrinkable(obj))
 		return false;
@@ -115,7 +93,13 @@ static bool can_release_pages(struct drm_i915_gem_object *obj)
 	if (atomic_read(&obj->mm.pages_pin_count) > obj->bind_count)
 		return false;
 
-	if (any_vma_pinned(obj))
+	/* If any vma are "permanently" pinned, it will prevent us from
+	 * reclaiming the obj->mm.pages. We only allow scanout objects to claim
+	 * a permanent pin, along with a few others like the context objects.
+	 * To simplify the scan, and to avoid walking the list of vma under the
+	 * object, we just check the count of its permanently pinned.
+	 */
+	if (READ_ONCE(obj->pin_global))
 		return false;
 
 	/* We can only return physical pages to the system if we can either
@@ -129,7 +113,7 @@ static bool unsafe_drop_pages(struct drm_i915_gem_object *obj)
 {
 	if (i915_gem_object_unbind(obj) == 0)
 		__i915_gem_object_put_pages(obj, I915_MM_SHRINKER);
-	return !READ_ONCE(obj->mm.pages);
+	return !i915_gem_object_has_pages(obj);
 }
 
 /**
@@ -178,6 +162,18 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 	if (!shrinker_lock(dev_priv, &unlock))
 		return 0;
 
+	/*
+	 * When shrinking the active list, also consider active contexts.
+	 * Active contexts are pinned until they are retired, and so can
+	 * not be simply unbound to retire and unpin their pages. To shrink
+	 * the contexts, we must wait until the gpu is idle.
+	 *
+	 * We don't care about errors here; if we cannot wait upon the GPU,
+	 * we will free as much as we can and hope to get a second chance.
+	 */
+	if (flags & I915_SHRINK_ACTIVE)
+		i915_gem_wait_for_idle(dev_priv, I915_WAIT_LOCKED);
+
 	trace_i915_gem_shrink(dev_priv, target, flags);
 	i915_gem_retire_requests(dev_priv);
 
@@ -217,15 +213,20 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 			continue;
 
 		INIT_LIST_HEAD(&still_in_list);
+
+		/*
+		 * We serialize our access to unreferenced objects through
+		 * the use of the struct_mutex. While the objects are not
+		 * yet freed (due to RCU then a workqueue) we still want
+		 * to be able to shrink their pages, so they remain on
+		 * the unbound/bound list until actually freed.
+		 */
+		spin_lock(&dev_priv->mm.obj_lock);
 		while (count < target &&
 		       (obj = list_first_entry_or_null(phase->list,
 						       typeof(*obj),
-						       global_link))) {
-			list_move_tail(&obj->global_link, &still_in_list);
-			if (!obj->mm.pages) {
-				list_del_init(&obj->global_link);
-				continue;
-			}
+						       mm.link))) {
+			list_move_tail(&obj->mm.link, &still_in_list);
 
 			if (flags & I915_SHRINK_PURGEABLE &&
 			    obj->mm.madv != I915_MADV_DONTNEED)
@@ -243,20 +244,24 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 			if (!can_release_pages(obj))
 				continue;
 
+			spin_unlock(&dev_priv->mm.obj_lock);
+
 			if (unsafe_drop_pages(obj)) {
 				/* May arrive from get_pages on another bo */
 				mutex_lock_nested(&obj->mm.lock,
 						  I915_MM_SHRINKER);
-				if (!obj->mm.pages) {
+				if (!i915_gem_object_has_pages(obj)) {
 					__i915_gem_object_invalidate(obj);
-					list_del_init(&obj->global_link);
 					count += obj->base.size >> PAGE_SHIFT;
 				}
 				mutex_unlock(&obj->mm.lock);
-				scanned += obj->base.size >> PAGE_SHIFT;
 			}
+			scanned += obj->base.size >> PAGE_SHIFT;
+
+			spin_lock(&dev_priv->mm.obj_lock);
 		}
 		list_splice_tail(&still_in_list, phase->list);
+		spin_unlock(&dev_priv->mm.obj_lock);
 	}
 
 	if (flags & I915_SHRINK_BOUND)
@@ -302,28 +307,39 @@ unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 static unsigned long
 i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 {
-	struct drm_i915_private *dev_priv =
+	struct drm_i915_private *i915 =
 		container_of(shrinker, struct drm_i915_private, mm.shrinker);
 	struct drm_i915_gem_object *obj;
-	unsigned long count;
-	bool unlock;
+	unsigned long num_objects = 0;
+	unsigned long count = 0;
 
-	if (!shrinker_lock(dev_priv, &unlock))
-		return 0;
-
-	i915_gem_retire_requests(dev_priv);
-
-	count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_link)
-		if (can_release_pages(obj))
+	spin_lock(&i915->mm.obj_lock);
+	list_for_each_entry(obj, &i915->mm.unbound_list, mm.link)
+		if (can_release_pages(obj)) {
 			count += obj->base.size >> PAGE_SHIFT;
+			num_objects++;
+		}
 
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_link) {
-		if (!i915_gem_object_is_active(obj) && can_release_pages(obj))
+	list_for_each_entry(obj, &i915->mm.bound_list, mm.link)
+		if (!i915_gem_object_is_active(obj) && can_release_pages(obj)) {
 			count += obj->base.size >> PAGE_SHIFT;
+			num_objects++;
+		}
+	spin_unlock(&i915->mm.obj_lock);
+
+	/* Update our preferred vmscan batch size for the next pass.
+	 * Our rough guess for an effective batch size is roughly 2
+	 * available GEM objects worth of pages. That is we don't want
+	 * the shrinker to fire, until it is worth the cost of freeing an
+	 * entire GEM object.
+	 */
+	if (num_objects) {
+		unsigned long avg = 2 * count / num_objects;
+
+		i915->mm.shrinker.batch =
+			max((i915->mm.shrinker.batch + avg) >> 1,
+			    128ul /* default SHRINK_BATCH */);
 	}
-
-	shrinker_unlock(dev_priv, unlock);
 
 	return count;
 }
@@ -400,10 +416,6 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 		container_of(nb, struct drm_i915_private, mm.oom_notifier);
 	struct drm_i915_gem_object *obj;
 	unsigned long unevictable, bound, unbound, freed_pages;
-	bool unlock;
-
-	if (!shrinker_lock_uninterruptible(dev_priv, &unlock, 5000))
-		return NOTIFY_DONE;
 
 	freed_pages = i915_gem_shrink_all(dev_priv);
 
@@ -412,26 +424,20 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	 * being pointed to by hardware.
 	 */
 	unbound = bound = unevictable = 0;
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_link) {
-		if (!obj->mm.pages)
-			continue;
-
+	spin_lock(&dev_priv->mm.obj_lock);
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, mm.link) {
 		if (!can_release_pages(obj))
 			unevictable += obj->base.size >> PAGE_SHIFT;
 		else
 			unbound += obj->base.size >> PAGE_SHIFT;
 	}
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_link) {
-		if (!obj->mm.pages)
-			continue;
-
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, mm.link) {
 		if (!can_release_pages(obj))
 			unevictable += obj->base.size >> PAGE_SHIFT;
 		else
 			bound += obj->base.size >> PAGE_SHIFT;
 	}
-
-	shrinker_unlock(dev_priv, unlock);
+	spin_unlock(&dev_priv->mm.obj_lock);
 
 	if (freed_pages || unbound || bound)
 		pr_info("Purging GPU memory, %lu pages freed, "
@@ -498,6 +504,7 @@ void i915_gem_shrinker_init(struct drm_i915_private *dev_priv)
 	dev_priv->mm.shrinker.scan_objects = i915_gem_shrinker_scan;
 	dev_priv->mm.shrinker.count_objects = i915_gem_shrinker_count;
 	dev_priv->mm.shrinker.seeks = DEFAULT_SEEKS;
+	dev_priv->mm.shrinker.batch = 4096;
 	WARN_ON(register_shrinker(&dev_priv->mm.shrinker));
 
 	dev_priv->mm.oom_notifier.notifier_call = i915_gem_shrinker_oom;

@@ -257,8 +257,8 @@ enum rx_desc_status_bits {
 	RXFSD = 0x00000800,	/* first descriptor */
 	RXLSD = 0x00000400,	/* last descriptor */
 	ErrorSummary = 0x80,	/* error summary */
-	RUNT = 0x40,		/* runt packet received */
-	LONG = 0x20,		/* long packet received */
+	RUNTPKT = 0x40,		/* runt packet received */
+	LONGPKT = 0x20,		/* long packet received */
 	FAE = 0x10,		/* frame align error */
 	CRC = 0x08,		/* crc error */
 	RXER = 0x04,		/* receive error */
@@ -426,8 +426,8 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 static int netdev_open(struct net_device *dev);
 static void getlinktype(struct net_device *dev);
 static void getlinkstatus(struct net_device *dev);
-static void netdev_timer(unsigned long data);
-static void reset_timer(unsigned long data);
+static void netdev_timer(struct timer_list *t);
+static void reset_timer(struct timer_list *t);
 static void fealnx_tx_timeout(struct net_device *dev);
 static void init_ring(struct net_device *dev);
 static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev);
@@ -909,17 +909,13 @@ static int netdev_open(struct net_device *dev)
 		printk(KERN_DEBUG "%s: Done netdev_open().\n", dev->name);
 
 	/* Set the timer to check for link beat. */
-	init_timer(&np->timer);
+	timer_setup(&np->timer, netdev_timer, 0);
 	np->timer.expires = RUN_AT(3 * HZ);
-	np->timer.data = (unsigned long) dev;
-	np->timer.function = netdev_timer;
 
 	/* timer handler */
 	add_timer(&np->timer);
 
-	init_timer(&np->reset_timer);
-	np->reset_timer.data = (unsigned long) dev;
-	np->reset_timer.function = reset_timer;
+	timer_setup(&np->reset_timer, reset_timer, 0);
 	np->reset_timer_armed = 0;
 	return rc;
 }
@@ -1082,10 +1078,10 @@ static void allocate_rx_buffers(struct net_device *dev)
 }
 
 
-static void netdev_timer(unsigned long data)
+static void netdev_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *) data;
-	struct netdev_private *np = netdev_priv(dev);
+	struct netdev_private *np = from_timer(np, t, timer);
+	struct net_device *dev = np->mii.dev;
 	void __iomem *ioaddr = np->mem;
 	int old_crvalue = np->crvalue;
 	unsigned int old_linkok = np->linkok;
@@ -1171,10 +1167,10 @@ static void enable_rxtx(struct net_device *dev)
 }
 
 
-static void reset_timer(unsigned long data)
+static void reset_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *) data;
-	struct netdev_private *np = netdev_priv(dev);
+	struct netdev_private *np = from_timer(np, t, reset_timer);
+	struct net_device *dev = np->mii.dev;
 	unsigned long flags;
 
 	printk(KERN_WARNING "%s: resetting tx and rx machinery\n", dev->name);
@@ -1632,7 +1628,7 @@ static int netdev_rx(struct net_device *dev)
 					       dev->name, rx_status);
 
 				dev->stats.rx_errors++;	/* end of a packet. */
-				if (rx_status & (LONG | RUNT))
+				if (rx_status & (LONGPKT | RUNTPKT))
 					dev->stats.rx_length_errors++;
 				if (rx_status & RXER)
 					dev->stats.rx_frame_errors++;

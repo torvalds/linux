@@ -23,6 +23,7 @@
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -730,14 +731,23 @@ static int mdc_slave_config(struct dma_chan *chan,
 	return 0;
 }
 
+static int mdc_alloc_chan_resources(struct dma_chan *chan)
+{
+	struct mdc_chan *mchan = to_mdc_chan(chan);
+	struct device *dev = mdma2dev(mchan->mdma);
+
+	return pm_runtime_get_sync(dev);
+}
+
 static void mdc_free_chan_resources(struct dma_chan *chan)
 {
 	struct mdc_chan *mchan = to_mdc_chan(chan);
 	struct mdc_dma *mdma = mchan->mdma;
+	struct device *dev = mdma2dev(mdma);
 
 	mdc_terminate_all(chan);
-
 	mdma->soc->disable_chan(mchan);
+	pm_runtime_put(dev);
 }
 
 static irqreturn_t mdc_chan_irq(int irq, void *dev_id)
@@ -854,6 +864,22 @@ static const struct of_device_id mdc_dma_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mdc_dma_of_match);
 
+static int img_mdc_runtime_suspend(struct device *dev)
+{
+	struct mdc_dma *mdma = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(mdma->clk);
+
+	return 0;
+}
+
+static int img_mdc_runtime_resume(struct device *dev)
+{
+	struct mdc_dma *mdma = dev_get_drvdata(dev);
+
+	return clk_prepare_enable(mdma->clk);
+}
+
 static int mdc_dma_probe(struct platform_device *pdev)
 {
 	struct mdc_dma *mdma;
@@ -882,10 +908,6 @@ static int mdc_dma_probe(struct platform_device *pdev)
 	mdma->clk = devm_clk_get(&pdev->dev, "sys");
 	if (IS_ERR(mdma->clk))
 		return PTR_ERR(mdma->clk);
-
-	ret = clk_prepare_enable(mdma->clk);
-	if (ret)
-		return ret;
 
 	dma_cap_zero(mdma->dma_dev.cap_mask);
 	dma_cap_set(DMA_SLAVE, mdma->dma_dev.cap_mask);
@@ -919,12 +941,13 @@ static int mdc_dma_probe(struct platform_device *pdev)
 				   "img,max-burst-multiplier",
 				   &mdma->max_burst_mult);
 	if (ret)
-		goto disable_clk;
+		return ret;
 
 	mdma->dma_dev.dev = &pdev->dev;
 	mdma->dma_dev.device_prep_slave_sg = mdc_prep_slave_sg;
 	mdma->dma_dev.device_prep_dma_cyclic = mdc_prep_dma_cyclic;
 	mdma->dma_dev.device_prep_dma_memcpy = mdc_prep_dma_memcpy;
+	mdma->dma_dev.device_alloc_chan_resources = mdc_alloc_chan_resources;
 	mdma->dma_dev.device_free_chan_resources = mdc_free_chan_resources;
 	mdma->dma_dev.device_tx_status = mdc_tx_status;
 	mdma->dma_dev.device_issue_pending = mdc_issue_pending;
@@ -945,15 +968,14 @@ static int mdc_dma_probe(struct platform_device *pdev)
 		mchan->mdma = mdma;
 		mchan->chan_nr = i;
 		mchan->irq = platform_get_irq(pdev, i);
-		if (mchan->irq < 0) {
-			ret = mchan->irq;
-			goto disable_clk;
-		}
+		if (mchan->irq < 0)
+			return mchan->irq;
+
 		ret = devm_request_irq(&pdev->dev, mchan->irq, mdc_chan_irq,
 				       IRQ_TYPE_LEVEL_HIGH,
 				       dev_name(&pdev->dev), mchan);
 		if (ret < 0)
-			goto disable_clk;
+			return ret;
 
 		mchan->vc.desc_free = mdc_desc_free;
 		vchan_init(&mchan->vc, &mdma->dma_dev);
@@ -962,14 +984,19 @@ static int mdc_dma_probe(struct platform_device *pdev)
 	mdma->desc_pool = dmam_pool_create(dev_name(&pdev->dev), &pdev->dev,
 					   sizeof(struct mdc_hw_list_desc),
 					   4, 0);
-	if (!mdma->desc_pool) {
-		ret = -ENOMEM;
-		goto disable_clk;
+	if (!mdma->desc_pool)
+		return -ENOMEM;
+
+	pm_runtime_enable(&pdev->dev);
+	if (!pm_runtime_enabled(&pdev->dev)) {
+		ret = img_mdc_runtime_resume(&pdev->dev);
+		if (ret)
+			return ret;
 	}
 
 	ret = dma_async_device_register(&mdma->dma_dev);
 	if (ret)
-		goto disable_clk;
+		goto suspend;
 
 	ret = of_dma_controller_register(pdev->dev.of_node, mdc_of_xlate, mdma);
 	if (ret)
@@ -982,8 +1009,10 @@ static int mdc_dma_probe(struct platform_device *pdev)
 
 unregister:
 	dma_async_device_unregister(&mdma->dma_dev);
-disable_clk:
-	clk_disable_unprepare(mdma->clk);
+suspend:
+	if (!pm_runtime_enabled(&pdev->dev))
+		img_mdc_runtime_suspend(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 	return ret;
 }
 
@@ -1004,14 +1033,47 @@ static int mdc_dma_remove(struct platform_device *pdev)
 		tasklet_kill(&mchan->vc.task);
 	}
 
-	clk_disable_unprepare(mdma->clk);
+	pm_runtime_disable(&pdev->dev);
+	if (!pm_runtime_status_suspended(&pdev->dev))
+		img_mdc_runtime_suspend(&pdev->dev);
 
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int img_mdc_suspend_late(struct device *dev)
+{
+	struct mdc_dma *mdma = dev_get_drvdata(dev);
+	int i;
+
+	/* Check that all channels are idle */
+	for (i = 0; i < mdma->nr_channels; i++) {
+		struct mdc_chan *mchan = &mdma->channels[i];
+
+		if (unlikely(mchan->desc))
+			return -EBUSY;
+	}
+
+	return pm_runtime_force_suspend(dev);
+}
+
+static int img_mdc_resume_early(struct device *dev)
+{
+	return pm_runtime_force_resume(dev);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static const struct dev_pm_ops img_mdc_pm_ops = {
+	SET_RUNTIME_PM_OPS(img_mdc_runtime_suspend,
+			   img_mdc_runtime_resume, NULL)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(img_mdc_suspend_late,
+				     img_mdc_resume_early)
+};
+
 static struct platform_driver mdc_dma_driver = {
 	.driver = {
 		.name = "img-mdc-dma",
+		.pm = &img_mdc_pm_ops,
 		.of_match_table = of_match_ptr(mdc_dma_of_match),
 	},
 	.probe = mdc_dma_probe,

@@ -129,19 +129,13 @@ static struct kobj_attribute ocfs2_attr_filecheck_set =
 					ocfs2_filecheck_show,
 					ocfs2_filecheck_store);
 
-static int ocfs2_filecheck_sysfs_wait(atomic_t *p)
-{
-	schedule();
-	return 0;
-}
-
 static void
 ocfs2_filecheck_sysfs_free(struct ocfs2_filecheck_sysfs_entry *entry)
 {
 	struct ocfs2_filecheck_entry *p;
 
 	if (!atomic_dec_and_test(&entry->fs_count))
-		wait_on_atomic_t(&entry->fs_count, ocfs2_filecheck_sysfs_wait,
+		wait_on_atomic_t(&entry->fs_count, atomic_t_wait,
 				 TASK_UNINTERRUPTIBLE);
 
 	spin_lock(&entry->fs_fcheck->fc_lock);

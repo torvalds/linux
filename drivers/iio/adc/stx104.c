@@ -172,7 +172,6 @@ static int stx104_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info stx104_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = stx104_read_raw,
 	.write_raw = stx104_write_raw
 };

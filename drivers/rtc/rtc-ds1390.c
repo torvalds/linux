@@ -216,9 +216,16 @@ static int ds1390_probe(struct spi_device *spi)
 	return res;
 }
 
+static const struct of_device_id ds1390_of_match[] = {
+	{ .compatible = "dallas,ds1390" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, ds1390_of_match);
+
 static struct spi_driver ds1390_driver = {
 	.driver = {
 		.name	= "rtc-ds1390",
+		.of_match_table = of_match_ptr(ds1390_of_match),
 	},
 	.probe	= ds1390_probe,
 };

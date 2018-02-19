@@ -151,21 +151,17 @@ EXPORT_SYMBOL(ieee80211_stop_rx_ba_session);
  * After accepting the AddBA Request we activated a timer,
  * resetting it after each frame that arrives from the originator.
  */
-static void sta_rx_agg_session_timer_expired(unsigned long data)
+static void sta_rx_agg_session_timer_expired(struct timer_list *t)
 {
-	/* not an elegant detour, but there is no choice as the timer passes
-	 * only one argument, and various sta_info are needed here, so init
-	 * flow in sta_info_create gives the TID as data, while the timer_to_id
-	 * array gives the sta through container_of */
-	u8 *ptid = (u8 *)data;
-	u8 *timer_to_id = ptid - *ptid;
-	struct sta_info *sta = container_of(timer_to_id, struct sta_info,
-					 timer_to_tid[0]);
+	struct tid_ampdu_rx *tid_rx_timer =
+		from_timer(tid_rx_timer, t, session_timer);
+	struct sta_info *sta = tid_rx_timer->sta;
+	u8 tid = tid_rx_timer->tid;
 	struct tid_ampdu_rx *tid_rx;
 	unsigned long timeout;
 
 	rcu_read_lock();
-	tid_rx = rcu_dereference(sta->ampdu_mlme.tid_rx[*ptid]);
+	tid_rx = rcu_dereference(sta->ampdu_mlme.tid_rx[tid]);
 	if (!tid_rx) {
 		rcu_read_unlock();
 		return;
@@ -180,21 +176,18 @@ static void sta_rx_agg_session_timer_expired(unsigned long data)
 	rcu_read_unlock();
 
 	ht_dbg(sta->sdata, "RX session timer expired on %pM tid %d\n",
-	       sta->sta.addr, (u16)*ptid);
+	       sta->sta.addr, tid);
 
-	set_bit(*ptid, sta->ampdu_mlme.tid_rx_timer_expired);
+	set_bit(tid, sta->ampdu_mlme.tid_rx_timer_expired);
 	ieee80211_queue_work(&sta->local->hw, &sta->ampdu_mlme.work);
 }
 
-static void sta_rx_agg_reorder_timer_expired(unsigned long data)
+static void sta_rx_agg_reorder_timer_expired(struct timer_list *t)
 {
-	u8 *ptid = (u8 *)data;
-	u8 *timer_to_id = ptid - *ptid;
-	struct sta_info *sta = container_of(timer_to_id, struct sta_info,
-			timer_to_tid[0]);
+	struct tid_ampdu_rx *tid_rx = from_timer(tid_rx, t, reorder_timer);
 
 	rcu_read_lock();
-	ieee80211_release_reorder_timeout(sta, *ptid);
+	ieee80211_release_reorder_timeout(tid_rx->sta, tid_rx->tid);
 	rcu_read_unlock();
 }
 
@@ -356,14 +349,12 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 	spin_lock_init(&tid_agg_rx->reorder_lock);
 
 	/* rx timer */
-	setup_deferrable_timer(&tid_agg_rx->session_timer,
-			       sta_rx_agg_session_timer_expired,
-			       (unsigned long)&sta->timer_to_tid[tid]);
+	timer_setup(&tid_agg_rx->session_timer,
+		    sta_rx_agg_session_timer_expired, TIMER_DEFERRABLE);
 
 	/* rx reorder timer */
-	setup_timer(&tid_agg_rx->reorder_timer,
-		    sta_rx_agg_reorder_timer_expired,
-		    (unsigned long)&sta->timer_to_tid[tid]);
+	timer_setup(&tid_agg_rx->reorder_timer,
+		    sta_rx_agg_reorder_timer_expired, 0);
 
 	/* prepare reordering buffer */
 	tid_agg_rx->reorder_buf =
@@ -399,6 +390,8 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 	tid_agg_rx->auto_seq = auto_seq;
 	tid_agg_rx->started = false;
 	tid_agg_rx->reorder_buf_filtered = 0;
+	tid_agg_rx->tid = tid;
+	tid_agg_rx->sta = sta;
 	status = WLAN_STATUS_SUCCESS;
 
 	/* activate it for RX */
@@ -459,7 +452,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 }
 
 void ieee80211_manage_rx_ba_offl(struct ieee80211_vif *vif,
-				 const u8 *addr, unsigned int bit)
+				 const u8 *addr, unsigned int tid)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_local *local = sdata->local;
@@ -470,7 +463,7 @@ void ieee80211_manage_rx_ba_offl(struct ieee80211_vif *vif,
 	if (!sta)
 		goto unlock;
 
-	set_bit(bit, sta->ampdu_mlme.tid_rx_manage_offl);
+	set_bit(tid, sta->ampdu_mlme.tid_rx_manage_offl);
 	ieee80211_queue_work(&local->hw, &sta->ampdu_mlme.work);
  unlock:
 	rcu_read_unlock();

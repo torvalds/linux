@@ -601,9 +601,9 @@ tda998x_reset(struct tda998x_priv *priv)
  * we have seen a HPD inactive->active transition.  This code implements
  * that delay.
  */
-static void tda998x_edid_delay_done(unsigned long data)
+static void tda998x_edid_delay_done(struct timer_list *t)
 {
-	struct tda998x_priv *priv = (struct tda998x_priv *)data;
+	struct tda998x_priv *priv = from_timer(priv, t, edid_delay_timer);
 
 	priv->edid_delay_active = false;
 	wake_up(&priv->edid_delay_waitq);
@@ -1492,8 +1492,7 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 
 	mutex_init(&priv->mutex);	/* protect the page access */
 	init_waitqueue_head(&priv->edid_delay_waitq);
-	setup_timer(&priv->edid_delay_timer, tda998x_edid_delay_done,
-		    (unsigned long)priv);
+	timer_setup(&priv->edid_delay_timer, tda998x_edid_delay_done, 0);
 	INIT_WORK(&priv->detect_work, tda998x_detect_work);
 
 	/* wake up the device: */
@@ -1746,7 +1745,7 @@ static const struct of_device_id tda998x_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, tda998x_dt_ids);
 #endif
 
-static struct i2c_device_id tda998x_ids[] = {
+static const struct i2c_device_id tda998x_ids[] = {
 	{ "tda998x", 0 },
 	{ }
 };

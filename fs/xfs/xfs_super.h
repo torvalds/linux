@@ -30,7 +30,7 @@ extern void xfs_qm_exit(void);
 
 #ifdef CONFIG_XFS_POSIX_ACL
 # define XFS_ACL_STRING		"ACLs, "
-# define set_posix_acl_flag(sb)	((sb)->s_flags |= MS_POSIXACL)
+# define set_posix_acl_flag(sb)	((sb)->s_flags |= SB_POSIXACL)
 #else
 # define XFS_ACL_STRING
 # define set_posix_acl_flag(sb)	do { } while (0)

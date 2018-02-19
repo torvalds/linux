@@ -50,7 +50,7 @@ static struct ippp_ccp_reset *isdn_ppp_ccp_reset_alloc(struct ippp_struct *is);
 static void isdn_ppp_ccp_reset_free(struct ippp_struct *is);
 static void isdn_ppp_ccp_reset_free_state(struct ippp_struct *is,
 					  unsigned char id);
-static void isdn_ppp_ccp_timer_callback(unsigned long closure);
+static void isdn_ppp_ccp_timer_callback(struct timer_list *t);
 static struct ippp_ccp_reset_state *isdn_ppp_ccp_reset_alloc_state(struct ippp_struct *is,
 								   unsigned char id);
 static void isdn_ppp_ccp_reset_trans(struct ippp_struct *is,
@@ -2327,10 +2327,10 @@ static void isdn_ppp_ccp_reset_free_state(struct ippp_struct *is,
 
 /* The timer callback function which is called when a ResetReq has timed out,
    aka has never been answered by a ResetAck */
-static void isdn_ppp_ccp_timer_callback(unsigned long closure)
+static void isdn_ppp_ccp_timer_callback(struct timer_list *t)
 {
 	struct ippp_ccp_reset_state *rs =
-		(struct ippp_ccp_reset_state *)closure;
+		from_timer(rs, t, timer);
 
 	if (!rs) {
 		printk(KERN_ERR "ippp_ccp: timer cb with zero closure.\n");
@@ -2376,8 +2376,7 @@ static struct ippp_ccp_reset_state *isdn_ppp_ccp_reset_alloc_state(struct ippp_s
 		rs->state = CCPResetIdle;
 		rs->is = is;
 		rs->id = id;
-		setup_timer(&rs->timer, isdn_ppp_ccp_timer_callback,
-			    (unsigned long)rs);
+		timer_setup(&rs->timer, isdn_ppp_ccp_timer_callback, 0);
 		is->reset->rs[id] = rs;
 	}
 	return rs;

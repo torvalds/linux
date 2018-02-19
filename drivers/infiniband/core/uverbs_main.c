@@ -128,6 +128,7 @@ static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL] = ib_uverbs_ex_create_rwq_ind_table,
 	[IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL] = ib_uverbs_ex_destroy_rwq_ind_table,
 	[IB_USER_VERBS_EX_CMD_MODIFY_QP]        = ib_uverbs_ex_modify_qp,
+	[IB_USER_VERBS_EX_CMD_MODIFY_CQ]        = ib_uverbs_ex_modify_cq,
 };
 
 static void ib_uverbs_add_one(struct ib_device *device);
@@ -763,7 +764,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 			}
 
 			if (!access_ok(VERIFY_WRITE,
-				       (void __user *) (unsigned long) ex_hdr.response,
+				       u64_to_user_ptr(ex_hdr.response),
 				       (hdr.out_words + ex_hdr.provider_out_words) * 8)) {
 				ret = -EFAULT;
 				goto out;
@@ -775,19 +776,17 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 			}
 		}
 
-		INIT_UDATA_BUF_OR_NULL(&ucore, buf, (unsigned long) ex_hdr.response,
-				       hdr.in_words * 8, hdr.out_words * 8);
+		ib_uverbs_init_udata_buf_or_null(&ucore, buf,
+					u64_to_user_ptr(ex_hdr.response),
+					hdr.in_words * 8, hdr.out_words * 8);
 
-		INIT_UDATA_BUF_OR_NULL(&uhw,
-				       buf + ucore.inlen,
-				       (unsigned long) ex_hdr.response + ucore.outlen,
-				       ex_hdr.provider_in_words * 8,
-				       ex_hdr.provider_out_words * 8);
+		ib_uverbs_init_udata_buf_or_null(&uhw,
+					buf + ucore.inlen,
+					u64_to_user_ptr(ex_hdr.response) + ucore.outlen,
+					ex_hdr.provider_in_words * 8,
+					ex_hdr.provider_out_words * 8);
 
-		ret = uverbs_ex_cmd_table[command](file,
-						   ib_dev,
-						   &ucore,
-						   &uhw);
+		ret = uverbs_ex_cmd_table[command](file, ib_dev, &ucore, &uhw);
 		if (!ret)
 			ret = written_count;
 	} else {

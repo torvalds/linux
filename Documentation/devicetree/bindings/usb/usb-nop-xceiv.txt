@@ -2,6 +2,7 @@ USB NOP PHY
 
 Required properties:
 - compatible: should be usb-nop-xceiv
+- #phy-cells: Must be 0
 
 Optional properties:
 - clocks: phandle to the PHY clock. Use as per Documentation/devicetree
@@ -33,6 +34,7 @@ Example:
 		reset-gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
 		vbus-detect-gpio = <&gpio2 13 GPIO_ACTIVE_HIGH>;
 		vbus-regulator = <&vbus_regulator>;
+		#phy-cells = <0>;
 	};
 
 hsusb1_phy is a NOP USB PHY device that gets its clock from an oscillator

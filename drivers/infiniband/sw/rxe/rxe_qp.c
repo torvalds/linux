@@ -275,8 +275,8 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 	qp->qp_timeout_jiffies = 0; /* Can't be set for UD/UC in modify_qp */
 	if (init->qp_type == IB_QPT_RC) {
-		setup_timer(&qp->rnr_nak_timer, rnr_nak_timer, (unsigned long)qp);
-		setup_timer(&qp->retrans_timer, retransmit_timer, (unsigned long)qp);
+		timer_setup(&qp->rnr_nak_timer, rnr_nak_timer, 0);
+		timer_setup(&qp->retrans_timer, retransmit_timer, 0);
 	}
 	return 0;
 }

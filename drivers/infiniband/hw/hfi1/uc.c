@@ -80,7 +80,7 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 			goto bail;
 		/* We are in the error state, flush the work request. */
 		smp_read_barrier_depends(); /* see post_one_send() */
-		if (qp->s_last == ACCESS_ONCE(qp->s_head))
+		if (qp->s_last == READ_ONCE(qp->s_head))
 			goto bail;
 		/* If DMAs are in progress, we can't flush immediately. */
 		if (iowait_sdma_pending(&priv->s_iowait)) {
@@ -93,7 +93,6 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		goto done_free_tx;
 	}
 
-	ps->s_txreq->phdr.hdr.hdr_type = priv->hdr_type;
 	if (priv->hdr_type == HFI1_PKT_TYPE_9B) {
 		/* header size in 32-bit words LRH+BTH = (8+12)/4. */
 		hwords = 5;
@@ -121,7 +120,7 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 			goto bail;
 		/* Check if send work queue is empty. */
 		smp_read_barrier_depends(); /* see post_one_send() */
-		if (qp->s_cur == ACCESS_ONCE(qp->s_head)) {
+		if (qp->s_cur == READ_ONCE(qp->s_head)) {
 			clear_ahg(qp);
 			goto bail;
 		}
@@ -463,7 +462,7 @@ last_imm:
 		wc.status = IB_WC_SUCCESS;
 		wc.qp = &qp->ibqp;
 		wc.src_qp = qp->remote_qpn;
-		wc.slid = rdma_ah_get_dlid(&qp->remote_ah_attr);
+		wc.slid = rdma_ah_get_dlid(&qp->remote_ah_attr) & U16_MAX;
 		/*
 		 * It seems that IB mandates the presence of an SL in a
 		 * work completion only for the UD transport (see section

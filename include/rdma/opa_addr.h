@@ -97,15 +97,15 @@ static inline u32 opa_get_lid_from_gid(const union ib_gid *gid)
  * @dlid: The DLID
  * @slid: The SLID
  */
-static inline bool opa_is_extended_lid(u32 dlid, u32 slid)
+static inline bool opa_is_extended_lid(__be32 dlid, __be32 slid)
 {
 	if ((be32_to_cpu(dlid) >=
 	     be16_to_cpu(IB_MULTICAST_LID_BASE)) ||
 	    (be32_to_cpu(slid) >=
 	     be16_to_cpu(IB_MULTICAST_LID_BASE)))
 		return true;
-	else
-		return false;
+
+	return false;
 }
 
 /* Get multicast lid base */

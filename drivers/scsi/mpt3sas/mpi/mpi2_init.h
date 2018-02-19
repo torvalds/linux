@@ -7,7 +7,7 @@
  *         Title:  MPI SCSI initiator mode messages and structures
  * Creation Date:  June 23, 2006
  *
- * mpi2_init.h Version:  02.00.20
+ * mpi2_init.h Version:  02.00.21
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -55,6 +55,8 @@
  * 08-26-15  02.00.18  Added SCSITASKMGMT_MSGFLAGS for Target Reset.
  * 12-18-15  02.00.19  Added EEDPObservedValue added to SCSI IO Reply message.
  * 01-04-16  02.00.20  Modified EEDP reported values in SCSI IO Reply message.
+ * 01-21-16  02.00.21  Modified MPI26_SCSITASKMGMT_MSGFLAGS_PCIE* defines to
+ *                     be unique within first 32 characters.
  * --------------------------------------------------------------------------
  */
 
@@ -374,6 +376,11 @@ typedef struct _MPI2_SCSI_IO_REPLY {
 } MPI2_SCSI_IO_REPLY, *PTR_MPI2_SCSI_IO_REPLY,
 	Mpi2SCSIIOReply_t, *pMpi2SCSIIOReply_t;
 
+/*SCSI IO Reply MsgFlags bits */
+#define MPI26_SCSIIO_REPLY_MSGFLAGS_REFTAG_OBSERVED_VALID     (0x01)
+#define MPI26_SCSIIO_REPLY_MSGFLAGS_GUARD_OBSERVED_VALID      (0x02)
+#define MPI26_SCSIIO_REPLY_MSGFLAGS_APPTAG_OBSERVED_VALID     (0x04)
+
 /*SCSI IO Reply SCSIStatus values (SAM-4 status codes) */
 
 #define MPI2_SCSI_STATUS_GOOD                   (0x00)
@@ -447,11 +454,13 @@ typedef struct _MPI2_SCSI_TASK_MANAGE_REQUEST {
 /*MsgFlags bits */
 
 #define MPI2_SCSITASKMGMT_MSGFLAGS_MASK_TARGET_RESET    (0x18)
+#define MPI26_SCSITASKMGMT_MSGFLAGS_HOT_RESET_PCIE        (0x00)
 #define MPI2_SCSITASKMGMT_MSGFLAGS_LINK_RESET           (0x00)
 #define MPI2_SCSITASKMGMT_MSGFLAGS_NEXUS_RESET_SRST     (0x08)
 #define MPI2_SCSITASKMGMT_MSGFLAGS_SAS_HARD_LINK_RESET  (0x10)
 
 #define MPI2_SCSITASKMGMT_MSGFLAGS_DO_NOT_SEND_TASK_IU  (0x01)
+#define MPI26_SCSITASKMGMT_MSGFLAGS_PROTOCOL_LVL_RST_PCIE (0x18)
 
 /*SCSI Task Management Reply Message */
 typedef struct _MPI2_SCSI_TASK_MANAGE_REPLY {

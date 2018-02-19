@@ -798,7 +798,7 @@ void odm_txpowertracking_callback_thermal_meter(void *dm_void)
 
 		if (xtal_offset_eanble != 0 &&
 		    cali_info->txpowertrack_control &&
-		    (rtlefu->eeprom_thermalmeter != 0xff)) {
+		    rtlefu->eeprom_thermalmeter != 0xff) {
 			ODM_RT_TRACE(
 				dm, ODM_COMP_TX_PWR_TRACK,
 				"**********Enter Xtal Tracking**********\n");

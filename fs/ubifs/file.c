@@ -1406,7 +1406,7 @@ int ubifs_update_time(struct inode *inode, struct timespec *time,
 	if (flags & S_MTIME)
 		inode->i_mtime = *time;
 
-	if (!(inode->i_sb->s_flags & MS_LAZYTIME))
+	if (!(inode->i_sb->s_flags & SB_LAZYTIME))
 		iflags |= I_DIRTY_SYNC;
 
 	release = ui->dirty;

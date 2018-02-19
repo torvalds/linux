@@ -49,10 +49,9 @@ struct arch {
 	void		*priv;
 	unsigned int	model;
 	unsigned int	family;
-	int		(*init)(struct arch *arch);
+	int		(*init)(struct arch *arch, char *cpuid);
 	bool		(*ins_is_fused)(struct arch *arch, const char *ins1,
 					const char *ins2);
-	int		(*cpuid_parse)(struct arch *arch, char *cpuid);
 	struct		{
 		char comment_char;
 		char skip_functions_char;
@@ -132,10 +131,10 @@ static struct arch architectures[] = {
 	},
 	{
 		.name = "x86",
+		.init = x86__annotate_init,
 		.instructions = x86__instructions,
 		.nr_instructions = ARRAY_SIZE(x86__instructions),
 		.ins_is_fused = x86__ins_is_fused,
-		.cpuid_parse = x86__cpuid_parse,
 		.objdump =  {
 			.comment_char = '#',
 		},
@@ -166,7 +165,7 @@ static void ins__delete(struct ins_operands *ops)
 static int ins__raw_scnprintf(struct ins *ins, char *bf, size_t size,
 			      struct ins_operands *ops)
 {
-	return scnprintf(bf, size, "%-6.6s %s", ins->name, ops->raw);
+	return scnprintf(bf, size, "%-6s %s", ins->name, ops->raw);
 }
 
 int ins__scnprintf(struct ins *ins, char *bf, size_t size,
@@ -231,12 +230,12 @@ static int call__scnprintf(struct ins *ins, char *bf, size_t size,
 			   struct ins_operands *ops)
 {
 	if (ops->target.name)
-		return scnprintf(bf, size, "%-6.6s %s", ins->name, ops->target.name);
+		return scnprintf(bf, size, "%-6s %s", ins->name, ops->target.name);
 
 	if (ops->target.addr == 0)
 		return ins__raw_scnprintf(ins, bf, size, ops);
 
-	return scnprintf(bf, size, "%-6.6s *%" PRIx64, ins->name, ops->target.addr);
+	return scnprintf(bf, size, "%-6s *%" PRIx64, ins->name, ops->target.addr);
 }
 
 static struct ins_ops call_ops = {
@@ -300,7 +299,7 @@ static int jump__scnprintf(struct ins *ins, char *bf, size_t size,
 			c++;
 	}
 
-	return scnprintf(bf, size, "%-6.6s %.*s%" PRIx64,
+	return scnprintf(bf, size, "%-6s %.*s%" PRIx64,
 			 ins->name, c ? c - ops->raw : 0, ops->raw,
 			 ops->target.offset);
 }
@@ -373,7 +372,7 @@ static int lock__scnprintf(struct ins *ins, char *bf, size_t size,
 	if (ops->locked.ins.ops == NULL)
 		return ins__raw_scnprintf(ins, bf, size, ops);
 
-	printed = scnprintf(bf, size, "%-6.6s ", ins->name);
+	printed = scnprintf(bf, size, "%-6s ", ins->name);
 	return printed + ins__scnprintf(&ops->locked.ins, bf + printed,
 					size - printed, ops->locked.ops);
 }
@@ -449,7 +448,7 @@ out_free_source:
 static int mov__scnprintf(struct ins *ins, char *bf, size_t size,
 			   struct ins_operands *ops)
 {
-	return scnprintf(bf, size, "%-6.6s %s,%s", ins->name,
+	return scnprintf(bf, size, "%-6s %s,%s", ins->name,
 			 ops->source.name ?: ops->source.raw,
 			 ops->target.name ?: ops->target.raw);
 }
@@ -489,7 +488,7 @@ static int dec__parse(struct arch *arch __maybe_unused, struct ins_operands *ops
 static int dec__scnprintf(struct ins *ins, char *bf, size_t size,
 			   struct ins_operands *ops)
 {
-	return scnprintf(bf, size, "%-6.6s %s", ins->name,
+	return scnprintf(bf, size, "%-6s %s", ins->name,
 			 ops->target.name ?: ops->target.raw);
 }
 
@@ -501,7 +500,7 @@ static struct ins_ops dec_ops = {
 static int nop__scnprintf(struct ins *ins __maybe_unused, char *bf, size_t size,
 			  struct ins_operands *ops __maybe_unused)
 {
-	return scnprintf(bf, size, "%-6.6s", "nop");
+	return scnprintf(bf, size, "%-6s", "nop");
 }
 
 static struct ins_ops nop_ops = {
@@ -925,7 +924,7 @@ void disasm_line__free(struct disasm_line *dl)
 int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw)
 {
 	if (raw || !dl->ins.ops)
-		return scnprintf(bf, size, "%-6.6s %s", dl->ins.name, dl->ops.raw);
+		return scnprintf(bf, size, "%-6s %s", dl->ins.name, dl->ops.raw);
 
 	return ins__scnprintf(&dl->ins, bf, size, &dl->ops);
 }
@@ -1457,15 +1456,12 @@ int symbol__disassemble(struct symbol *sym, struct map *map,
 		*parch = arch;
 
 	if (arch->init) {
-		err = arch->init(arch);
+		err = arch->init(arch, cpuid);
 		if (err) {
 			pr_err("%s: failed to initialize %s arch priv area\n", __func__, arch->name);
 			return err;
 		}
 	}
-
-	if (arch->cpuid_parse && cpuid)
-		arch->cpuid_parse(arch, cpuid);
 
 	pr_debug("%s: filename=%s, sym=%s, start=%#" PRIx64 ", end=%#" PRIx64 "\n", __func__,
 		 symfs_filename, sym->name, map->unmap_ip(map, sym->start),

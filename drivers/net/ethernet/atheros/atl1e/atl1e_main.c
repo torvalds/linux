@@ -130,9 +130,10 @@ static inline void atl1e_irq_reset(struct atl1e_adapter *adapter)
  * atl1e_phy_config - Timer Call-back
  * @data: pointer to netdev cast into an unsigned long
  */
-static void atl1e_phy_config(unsigned long data)
+static void atl1e_phy_config(struct timer_list *t)
 {
-	struct atl1e_adapter *adapter = (struct atl1e_adapter *) data;
+	struct atl1e_adapter *adapter = from_timer(adapter, t,
+						   phy_config_timer);
 	struct atl1e_hw *hw = &adapter->hw;
 	unsigned long flags;
 
@@ -2361,8 +2362,7 @@ static int atl1e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netif_napi_add(netdev, &adapter->napi, atl1e_clean, 64);
 
-	setup_timer(&adapter->phy_config_timer, atl1e_phy_config,
-		    (unsigned long)adapter);
+	timer_setup(&adapter->phy_config_timer, atl1e_phy_config, 0);
 
 	/* get user settings */
 	atl1e_check_options(adapter);

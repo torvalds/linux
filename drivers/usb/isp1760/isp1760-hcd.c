@@ -1259,10 +1259,11 @@ leave:
 #define SLOT_TIMEOUT 300
 #define SLOT_CHECK_PERIOD 200
 static struct timer_list errata2_timer;
+static struct usb_hcd *errata2_timer_hcd;
 
-static void errata2_function(unsigned long data)
+static void errata2_function(struct timer_list *unused)
 {
-	struct usb_hcd *hcd = (struct usb_hcd *) data;
+	struct usb_hcd *hcd = errata2_timer_hcd;
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 	int slot;
 	struct ptd ptd;
@@ -1334,7 +1335,8 @@ static int isp1760_run(struct usb_hcd *hcd)
 	if (retval)
 		return retval;
 
-	setup_timer(&errata2_timer, errata2_function, (unsigned long)hcd);
+	errata2_timer_hcd = hcd;
+	timer_setup(&errata2_timer, errata2_function, 0);
 	errata2_timer.expires = jiffies + msecs_to_jiffies(SLOT_CHECK_PERIOD);
 	add_timer(&errata2_timer);
 

@@ -54,7 +54,7 @@
 		stdout-path = &uart4;
 	};
 
-	display@di0 {
+	disp0 {
 		compatible = "fsl,imx-parallel-display";
 		interface-pix-fmt = "bgr666";
 		pinctrl-names = "default";
@@ -209,7 +209,7 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	codec: sgtl5000@0a {
+	codec: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 		clocks = <&clks IMX6QDL_CLK_CKO>;

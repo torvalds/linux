@@ -41,7 +41,7 @@ enum nec_state {
 /**
  * ir_nec_decode() - Decode one NEC pulse or space
  * @dev:	the struct rc_dev descriptor of the device
- * @duration:	the struct ir_raw_event descriptor of the pulse/space
+ * @ev:		the struct ir_raw_event descriptor of the pulse/space
  *
  * This function returns -EINVAL if the pulse violates the state machine
  */
@@ -87,8 +87,6 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 			data->state = STATE_BIT_PULSE;
 			return 0;
 		} else if (eq_margin(ev.duration, NEC_REPEAT_SPACE, NEC_UNIT / 2)) {
-			rc_repeat(dev);
-			IR_dprintk(1, "Repeat last key\n");
 			data->state = STATE_TRAILER_PULSE;
 			return 0;
 		}
@@ -151,19 +149,26 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		if (!geq_margin(ev.duration, NEC_TRAILER_SPACE, NEC_UNIT / 2))
 			break;
 
-		address     = bitrev8((data->bits >> 24) & 0xff);
-		not_address = bitrev8((data->bits >> 16) & 0xff);
-		command	    = bitrev8((data->bits >>  8) & 0xff);
-		not_command = bitrev8((data->bits >>  0) & 0xff);
+		if (data->count == NEC_NBITS) {
+			address     = bitrev8((data->bits >> 24) & 0xff);
+			not_address = bitrev8((data->bits >> 16) & 0xff);
+			command	    = bitrev8((data->bits >>  8) & 0xff);
+			not_command = bitrev8((data->bits >>  0) & 0xff);
 
-		scancode = ir_nec_bytes_to_scancode(address, not_address,
-						    command, not_command,
-						    &rc_proto);
+			scancode = ir_nec_bytes_to_scancode(address,
+							    not_address,
+							    command,
+							    not_command,
+							    &rc_proto);
 
-		if (data->is_nec_x)
-			data->necx_repeat = true;
+			if (data->is_nec_x)
+				data->necx_repeat = true;
 
-		rc_keydown(dev, rc_proto, scancode, 0);
+			rc_keydown(dev, rc_proto, scancode, 0);
+		} else {
+			rc_repeat(dev);
+		}
+
 		data->state = STATE_INACTIVE;
 		return 0;
 	}
@@ -178,7 +183,6 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
  * ir_nec_scancode_to_raw() - encode an NEC scancode ready for modulation.
  * @protocol:	specific protocol to use
  * @scancode:	a single NEC scancode.
- * @raw:	raw data to be modulated.
  */
 static u32 ir_nec_scancode_to_raw(enum rc_proto protocol, u32 scancode)
 {

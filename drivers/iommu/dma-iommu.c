@@ -292,18 +292,7 @@ int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 		/* ...then finally give it a kicking to make sure it fits */
 		base_pfn = max_t(unsigned long, base_pfn,
 				domain->geometry.aperture_start >> order);
-		end_pfn = min_t(unsigned long, end_pfn,
-				domain->geometry.aperture_end >> order);
 	}
-	/*
-	 * PCI devices may have larger DMA masks, but still prefer allocating
-	 * within a 32-bit mask to avoid DAC addressing. Such limitations don't
-	 * apply to the typical platform device, so for those we may as well
-	 * leave the cache limit at the top of their range to save an rb_last()
-	 * traversal on every allocation.
-	 */
-	if (dev && dev_is_pci(dev))
-		end_pfn &= DMA_BIT_MASK(32) >> order;
 
 	/* start_pfn is always nonzero for an already-initialised domain */
 	if (iovad->start_pfn) {
@@ -312,16 +301,11 @@ int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 			pr_warn("Incompatible range for DMA domain\n");
 			return -EFAULT;
 		}
-		/*
-		 * If we have devices with different DMA masks, move the free
-		 * area cache limit down for the benefit of the smaller one.
-		 */
-		iovad->dma_32bit_pfn = min(end_pfn + 1, iovad->dma_32bit_pfn);
 
 		return 0;
 	}
 
-	init_iova_domain(iovad, 1UL << order, base_pfn, end_pfn);
+	init_iova_domain(iovad, 1UL << order, base_pfn);
 	if (!dev)
 		return 0;
 
@@ -386,10 +370,12 @@ static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 
 	/* Try to get PCI devices a SAC address */
 	if (dma_limit > DMA_BIT_MASK(32) && dev_is_pci(dev))
-		iova = alloc_iova_fast(iovad, iova_len, DMA_BIT_MASK(32) >> shift);
+		iova = alloc_iova_fast(iovad, iova_len,
+				       DMA_BIT_MASK(32) >> shift, false);
 
 	if (!iova)
-		iova = alloc_iova_fast(iovad, iova_len, dma_limit >> shift);
+		iova = alloc_iova_fast(iovad, iova_len, dma_limit >> shift,
+				       true);
 
 	return (dma_addr_t)iova << shift;
 }

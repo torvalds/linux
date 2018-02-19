@@ -69,6 +69,8 @@ struct sa1100fb_info {
 
 	const struct sa1100fb_mach_info *inf;
 	struct clk *clk;
+
+	u32 pseudo_palette[16];
 };
 
 #define TO_INF(ptr,member)	container_of(ptr,struct sa1100fb_info,member)

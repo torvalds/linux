@@ -24,7 +24,7 @@
 
  \return none, MMU[ID].page_table_base_index = base_index
  */
-STORAGE_CLASS_EXTERN void mmu_set_page_table_base_index(
+extern void mmu_set_page_table_base_index(
 	const mmu_ID_t		ID,
 	const hrt_data		base_index);
 
@@ -35,7 +35,7 @@ STORAGE_CLASS_EXTERN void mmu_set_page_table_base_index(
 
  \return MMU[ID].page_table_base_index
  */
-STORAGE_CLASS_EXTERN hrt_data mmu_get_page_table_base_index(
+extern hrt_data mmu_get_page_table_base_index(
 	const mmu_ID_t		ID);
 
 /*! Invalidate the page table cache of MMU[ID]
@@ -44,7 +44,7 @@ STORAGE_CLASS_EXTERN hrt_data mmu_get_page_table_base_index(
 
  \return none
  */
-STORAGE_CLASS_EXTERN void mmu_invalidate_cache(
+extern void mmu_invalidate_cache(
 	const mmu_ID_t		ID);
 
 
@@ -52,7 +52,7 @@ STORAGE_CLASS_EXTERN void mmu_invalidate_cache(
 
  \return none
  */
-STORAGE_CLASS_EXTERN void mmu_invalidate_cache_all(void);
+extern void mmu_invalidate_cache_all(void);
 
 /*! Write to a control register of MMU[ID]
 

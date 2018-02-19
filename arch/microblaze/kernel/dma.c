@@ -13,6 +13,7 @@
 #include <linux/dma-debug.h>
 #include <linux/export.h>
 #include <linux/bug.h>
+#include <asm/cacheflush.h>
 
 #define NOT_COHERENT_CACHE
 
@@ -50,6 +51,22 @@ static void dma_direct_free_coherent(struct device *dev, size_t size,
 #else
 	free_pages((unsigned long)vaddr, get_order(size));
 #endif
+}
+
+static inline void __dma_sync(unsigned long paddr,
+			      size_t size, enum dma_data_direction direction)
+{
+	switch (direction) {
+	case DMA_TO_DEVICE:
+	case DMA_BIDIRECTIONAL:
+		flush_dcache_range(paddr, paddr + size);
+		break;
+	case DMA_FROM_DEVICE:
+		invalidate_dcache_range(paddr, paddr + size);
+		break;
+	default:
+		BUG();
+	}
 }
 
 static int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl,

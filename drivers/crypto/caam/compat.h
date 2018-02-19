@@ -32,6 +32,7 @@
 #include <crypto/aes.h>
 #include <crypto/ctr.h>
 #include <crypto/des.h>
+#include <crypto/gcm.h>
 #include <crypto/sha.h>
 #include <crypto/md5.h>
 #include <crypto/internal/aead.h>

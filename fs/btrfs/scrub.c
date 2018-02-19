@@ -231,7 +231,7 @@ struct scrub_warning {
 	struct btrfs_path	*path;
 	u64			extent_item_size;
 	const char		*errstr;
-	sector_t		sector;
+	u64			physical;
 	u64			logical;
 	struct btrfs_device	*dev;
 };
@@ -797,10 +797,10 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 	 */
 	for (i = 0; i < ipath->fspath->elem_cnt; ++i)
 		btrfs_warn_in_rcu(fs_info,
-				  "%s at logical %llu on dev %s, sector %llu, root %llu, inode %llu, offset %llu, length %llu, links %u (path: %s)",
+"%s at logical %llu on dev %s, physical %llu, root %llu, inode %llu, offset %llu, length %llu, links %u (path: %s)",
 				  swarn->errstr, swarn->logical,
 				  rcu_str_deref(swarn->dev->name),
-				  (unsigned long long)swarn->sector,
+				  swarn->physical,
 				  root, inum, offset,
 				  min(isize - offset, (u64)PAGE_SIZE), nlink,
 				  (char *)(unsigned long)ipath->fspath->val[i]);
@@ -810,10 +810,10 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 
 err:
 	btrfs_warn_in_rcu(fs_info,
-			  "%s at logical %llu on dev %s, sector %llu, root %llu, inode %llu, offset %llu: path resolving failed with ret=%d",
+			  "%s at logical %llu on dev %s, physical %llu, root %llu, inode %llu, offset %llu: path resolving failed with ret=%d",
 			  swarn->errstr, swarn->logical,
 			  rcu_str_deref(swarn->dev->name),
-			  (unsigned long long)swarn->sector,
+			  swarn->physical,
 			  root, inum, offset, ret);
 
 	free_ipath(ipath);
@@ -845,7 +845,7 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 	if (!path)
 		return;
 
-	swarn.sector = (sblock->pagev[0]->physical) >> 9;
+	swarn.physical = sblock->pagev[0]->physical;
 	swarn.logical = sblock->pagev[0]->logical;
 	swarn.errstr = errstr;
 	swarn.dev = NULL;
@@ -868,10 +868,10 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 						      item_size, &ref_root,
 						      &ref_level);
 			btrfs_warn_in_rcu(fs_info,
-				"%s at logical %llu on dev %s, sector %llu: metadata %s (level %d) in tree %llu",
+"%s at logical %llu on dev %s, physical %llu: metadata %s (level %d) in tree %llu",
 				errstr, swarn.logical,
 				rcu_str_deref(dev->name),
-				(unsigned long long)swarn.sector,
+				swarn.physical,
 				ref_level ? "node" : "leaf",
 				ret < 0 ? -1 : ref_level,
 				ret < 0 ? -1 : ref_root);
@@ -883,7 +883,7 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 		swarn.dev = dev;
 		iterate_extent_inodes(fs_info, found_key.objectid,
 					extent_item_pos, 1,
-					scrub_print_warning_inode, &swarn);
+					scrub_print_warning_inode, &swarn, false);
 	}
 
 out:
@@ -1047,7 +1047,7 @@ static void scrub_fixup_nodatasum(struct btrfs_work *work)
 	 * can be found.
 	 */
 	ret = iterate_inodes_from_logical(fixup->logical, fs_info, path,
-					  scrub_fixup_readpage, fixup);
+					  scrub_fixup_readpage, fixup, false);
 	if (ret < 0) {
 		uncorrectable = 1;
 		goto out;
@@ -4390,7 +4390,7 @@ static void copy_nocow_pages_worker(struct btrfs_work *work)
 	}
 
 	ret = iterate_inodes_from_logical(logical, fs_info, path,
-					  record_inode_for_nocow, nocow_ctx);
+			record_inode_for_nocow, nocow_ctx, false);
 	if (ret != 0 && ret != -ENOENT) {
 		btrfs_warn(fs_info,
 			   "iterate_inodes_from_logical() failed: log %llu, phys %llu, len %llu, mir %u, ret %d",

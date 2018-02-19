@@ -154,7 +154,6 @@ struct mvebu_comphy_priv {
 	void __iomem *base;
 	struct regmap *regmap;
 	struct device *dev;
-	int modes[MVEBU_COMPHY_LANES];
 };
 
 struct mvebu_comphy_lane {

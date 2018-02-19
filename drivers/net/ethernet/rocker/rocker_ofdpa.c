@@ -1983,9 +1983,9 @@ err_out:
 	return err;
 }
 
-static void ofdpa_fdb_cleanup(unsigned long data)
+static void ofdpa_fdb_cleanup(struct timer_list *t)
 {
-	struct ofdpa *ofdpa = (struct ofdpa *)data;
+	struct ofdpa *ofdpa = from_timer(ofdpa, t, fdb_cleanup_timer);
 	struct ofdpa_port *ofdpa_port;
 	struct ofdpa_fdb_tbl_entry *entry;
 	struct hlist_node *tmp;
@@ -2368,8 +2368,7 @@ static int ofdpa_init(struct rocker *rocker)
 	hash_init(ofdpa->neigh_tbl);
 	spin_lock_init(&ofdpa->neigh_tbl_lock);
 
-	setup_timer(&ofdpa->fdb_cleanup_timer, ofdpa_fdb_cleanup,
-		    (unsigned long) ofdpa);
+	timer_setup(&ofdpa->fdb_cleanup_timer, ofdpa_fdb_cleanup, 0);
 	mod_timer(&ofdpa->fdb_cleanup_timer, jiffies);
 
 	ofdpa->ageing_time = BR_DEFAULT_AGEING_TIME;

@@ -11,7 +11,7 @@ do_reset() {
 fail() { #msg
     do_reset
     echo $1
-    exit $FAIL
+    exit_fail
 }
 
 yield() {

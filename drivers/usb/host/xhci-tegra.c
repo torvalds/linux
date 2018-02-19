@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * NVIDIA Tegra xHCI host controller driver
  *
  * Copyright (C) 2014 NVIDIA Corporation
  * Copyright (C) 2014 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -771,7 +768,7 @@ static int tegra_xusb_load_firmware(struct tegra_xusb *tegra)
 	struct device *dev = tegra->dev;
 	const struct firmware *fw;
 	unsigned long timeout;
-	time_t timestamp;
+	time64_t timestamp;
 	struct tm time;
 	u64 address;
 	u32 value;
@@ -877,7 +874,7 @@ static int tegra_xusb_load_firmware(struct tegra_xusb *tegra)
 	}
 
 	timestamp = le32_to_cpu(header->fwimg_created_time);
-	time_to_tm(timestamp, 0, &time);
+	time64_to_tm(timestamp, 0, &time);
 
 	dev_info(dev, "Firmware timestamp: %ld-%02d-%02d %02d:%02d:%02d UTC\n",
 		 time.tm_year + 1900, time.tm_mon + 1, time.tm_mday,

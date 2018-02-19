@@ -715,7 +715,7 @@ tca6507_led_dt_init(struct i2c_client *client)
 		if (of_property_match_string(child, "compatible", "gpio") >= 0)
 			led.flags |= TCA6507_MAKE_GPIO;
 		ret = of_property_read_u32(child, "reg", &reg);
-		if (ret != 0 || reg < 0 || reg >= NUM_LEDS)
+		if (ret != 0 || reg >= NUM_LEDS)
 			continue;
 
 		tca_leds[reg] = led;

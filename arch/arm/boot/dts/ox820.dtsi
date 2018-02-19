@@ -173,7 +173,7 @@
 				};
 			};
 
-			gpio0: gpio@000000 {
+			gpio0: gpio@0 {
 				compatible = "oxsemi,ox820-gpio";
 				reg = <0x000000 0x100000>;
 				interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;

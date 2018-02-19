@@ -178,7 +178,7 @@ static struct ent *idtoname_lookup(struct cache_detail *, struct ent *);
 static struct ent *idtoname_update(struct cache_detail *, struct ent *,
 				   struct ent *);
 
-static struct cache_detail idtoname_cache_template = {
+static const struct cache_detail idtoname_cache_template = {
 	.owner		= THIS_MODULE,
 	.hash_size	= ENT_HASHMAX,
 	.name		= "nfs4.idtoname",
@@ -341,7 +341,7 @@ static struct ent *nametoid_update(struct cache_detail *, struct ent *,
 				   struct ent *);
 static int         nametoid_parse(struct cache_detail *, char *, int);
 
-static struct cache_detail nametoid_cache_template = {
+static const struct cache_detail nametoid_cache_template = {
 	.owner		= THIS_MODULE,
 	.hash_size	= ENT_HASHMAX,
 	.name		= "nfs4.nametoid",

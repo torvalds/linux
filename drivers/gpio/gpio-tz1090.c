@@ -232,7 +232,7 @@ static int tz1090_gpio_request(struct gpio_chip *chip, unsigned int offset)
 	struct tz1090_gpio_bank *bank = gpiochip_get_data(chip);
 	int ret;
 
-	ret = pinctrl_request_gpio(chip->base + offset);
+	ret = pinctrl_gpio_request(chip->base + offset);
 	if (ret)
 		return ret;
 
@@ -246,7 +246,7 @@ static void tz1090_gpio_free(struct gpio_chip *chip, unsigned int offset)
 {
 	struct tz1090_gpio_bank *bank = gpiochip_get_data(chip);
 
-	pinctrl_free_gpio(chip->base + offset);
+	pinctrl_gpio_free(chip->base + offset);
 
 	tz1090_gpio_clear_bit(bank, REG_GPIO_BIT_EN, offset);
 }

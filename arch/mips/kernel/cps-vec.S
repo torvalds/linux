@@ -235,6 +235,7 @@ LEAF(mips_cps_core_init)
 	has_mt	t0, 3f
 
 	.set	push
+	.set	MIPS_ISA_LEVEL_RAW
 	.set	mt
 
 	/* Only allow 1 TC per VPE to execute... */
@@ -388,6 +389,7 @@ LEAF(mips_cps_boot_vpes)
 #elif defined(CONFIG_MIPS_MT)
 
 	.set	push
+	.set	MIPS_ISA_LEVEL_RAW
 	.set	mt
 
 	/* If the core doesn't support MT then return */

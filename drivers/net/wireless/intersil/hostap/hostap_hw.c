@@ -2794,9 +2794,9 @@ static void prism2_check_sta_fw_version(local_info_t *local)
 }
 
 
-static void hostap_passive_scan(unsigned long data)
+static void hostap_passive_scan(struct timer_list *t)
 {
-	local_info_t *local = (local_info_t *) data;
+	local_info_t *local = from_timer(local, t, passive_scan_timer);
 	struct net_device *dev = local->dev;
 	u16 chan;
 
@@ -2869,10 +2869,10 @@ static void handle_comms_qual_update(struct work_struct *work)
  * used to monitor that local->last_tick_timer is being updated. If not,
  * interrupt busy-loop is assumed and driver tries to recover by masking out
  * some events. */
-static void hostap_tick_timer(unsigned long data)
+static void hostap_tick_timer(struct timer_list *t)
 {
 	static unsigned long last_inquire = 0;
-	local_info_t *local = (local_info_t *) data;
+	local_info_t *local = from_timer(local, t, tick_timer);
 	local->last_tick_timer = jiffies;
 
 	/* Inquire CommTallies every 10 seconds to keep the statistics updated
@@ -3225,13 +3225,8 @@ while (0)
 
 	lib80211_crypt_info_init(&local->crypt_info, dev->name, &local->lock);
 
-	init_timer(&local->passive_scan_timer);
-	local->passive_scan_timer.data = (unsigned long) local;
-	local->passive_scan_timer.function = hostap_passive_scan;
-
-	init_timer(&local->tick_timer);
-	local->tick_timer.data = (unsigned long) local;
-	local->tick_timer.function = hostap_tick_timer;
+	timer_setup(&local->passive_scan_timer, hostap_passive_scan, 0);
+	timer_setup(&local->tick_timer, hostap_tick_timer, 0);
 	local->tick_timer.expires = jiffies + 2 * HZ;
 	add_timer(&local->tick_timer);
 

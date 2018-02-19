@@ -34,6 +34,24 @@
 #include "rt5670.h"
 #include "rt5670-dsp.h"
 
+#define RT5670_DEV_GPIO     BIT(0)
+#define RT5670_IN2_DIFF     BIT(1)
+#define RT5670_DMIC_EN      BIT(2)
+#define RT5670_DMIC1_IN2P   BIT(3)
+#define RT5670_DMIC1_GPIO6  BIT(4)
+#define RT5670_DMIC1_GPIO7  BIT(5)
+#define RT5670_DMIC2_INR    BIT(6)
+#define RT5670_DMIC2_GPIO8  BIT(7)
+#define RT5670_DMIC3_GPIO5  BIT(8)
+#define RT5670_JD_MODE1     BIT(9)
+#define RT5670_JD_MODE2     BIT(10)
+#define RT5670_JD_MODE3     BIT(11)
+
+static unsigned long rt5670_quirk;
+static unsigned int quirk_override;
+module_param_named(quirk, quirk_override, uint, 0444);
+MODULE_PARM_DESC(quirk, "Board-specific quirk override");
+
 #define RT5670_DEVICE_ID 0x6271
 
 #define RT5670_PR_RANGE_BASE (0xff + 1)
@@ -2582,6 +2600,24 @@ static int rt5670_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	return 0;
 }
 
+static int rt5670_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
+{
+	struct snd_soc_codec *codec = dai->codec;
+
+	dev_dbg(codec->dev, "%s ratio=%d\n", __func__, ratio);
+	if (dai->id != RT5670_AIF1)
+		return 0;
+
+	if ((ratio % 50) == 0)
+		snd_soc_update_bits(codec, RT5670_GEN_CTRL3,
+			RT5670_TDM_DATA_MODE_SEL, RT5670_TDM_DATA_MODE_50FS);
+	else
+		snd_soc_update_bits(codec, RT5670_GEN_CTRL3,
+			RT5670_TDM_DATA_MODE_SEL, RT5670_TDM_DATA_MODE_NOR);
+
+	return 0;
+}
+
 static int rt5670_set_bias_level(struct snd_soc_codec *codec,
 			enum snd_soc_bias_level level)
 {
@@ -2712,6 +2748,7 @@ static const struct snd_soc_dai_ops rt5670_aif_dai_ops = {
 	.set_fmt = rt5670_set_dai_fmt,
 	.set_tdm_slot = rt5670_set_tdm_slot,
 	.set_pll = rt5670_set_dai_pll,
+	.set_bclk_ratio = rt5670_set_bclk_ratio,
 };
 
 static struct snd_soc_dai_driver rt5670_dai[] = {
@@ -2808,56 +2845,84 @@ static const struct acpi_device_id rt5670_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, rt5670_acpi_match);
 #endif
 
-static const struct dmi_system_id dmi_platform_intel_braswell[] = {
+static int rt5670_quirk_cb(const struct dmi_system_id *id)
+{
+	rt5670_quirk = (unsigned long)id->driver_data;
+	return 1;
+}
+
+static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 	{
+		.callback = rt5670_quirk_cb,
 		.ident = "Intel Braswell",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
 			DMI_MATCH(DMI_BOARD_NAME, "Braswell CRB"),
 		},
+		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
+						 RT5670_DMIC1_IN2P |
+						 RT5670_DEV_GPIO |
+						 RT5670_JD_MODE1),
 	},
 	{
+		.callback = rt5670_quirk_cb,
 		.ident = "Dell Wyse 3040",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Wyse 3040"),
 		},
+		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
+						 RT5670_DMIC1_IN2P |
+						 RT5670_DEV_GPIO |
+						 RT5670_JD_MODE1),
 	},
 	{
+		.callback = rt5670_quirk_cb,
 		.ident = "Lenovo Thinkpad Tablet 10",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad 10"),
 		},
+		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
+						 RT5670_DMIC1_IN2P |
+						 RT5670_DEV_GPIO |
+						 RT5670_JD_MODE1),
 	},
 	{
+		.callback = rt5670_quirk_cb,
 		.ident = "Lenovo Thinkpad Tablet 10",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad Tablet B"),
 		},
+		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
+						 RT5670_DMIC1_IN2P |
+						 RT5670_DEV_GPIO |
+						 RT5670_JD_MODE1),
 	},
-	{}
-};
-
-static const struct dmi_system_id dmi_platform_intel_bytcht_jdmode2[] = {
 	{
+		.callback = rt5670_quirk_cb,
 		.ident = "Lenovo Thinkpad Tablet 10",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Miix 2 10"),
 		},
+		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
+						 RT5670_DMIC1_IN2P |
+						 RT5670_DEV_GPIO |
+						 RT5670_JD_MODE2),
 	},
-	{}
-};
-
-static const struct dmi_system_id dmi_platform_intel_bytcht_jdmode3[] = {
 	{
+		.callback = rt5670_quirk_cb,
 		.ident = "Dell Venue 8 Pro 5855",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Venue 8 Pro 5855"),
 		},
+		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
+						 RT5670_DMIC2_INR |
+						 RT5670_DEV_GPIO |
+						 RT5670_JD_MODE3),
 	},
 	{}
 };
@@ -2881,21 +2946,61 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 	if (pdata)
 		rt5670->pdata = *pdata;
 
-	if (dmi_check_system(dmi_platform_intel_braswell)) {
-		rt5670->pdata.dmic_en = true;
-		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_IN2P;
+	dmi_check_system(dmi_platform_intel_quirks);
+	if (quirk_override) {
+		dev_info(&i2c->dev, "Overriding quirk 0x%x => 0x%x\n",
+			 (unsigned int)rt5670_quirk, quirk_override);
+		rt5670_quirk = quirk_override;
+	}
+
+	if (rt5670_quirk & RT5670_DEV_GPIO) {
 		rt5670->pdata.dev_gpio = true;
+		dev_info(&i2c->dev, "quirk dev_gpio\n");
+	}
+	if (rt5670_quirk & RT5670_IN2_DIFF) {
+		rt5670->pdata.in2_diff = true;
+		dev_info(&i2c->dev, "quirk IN2_DIFF\n");
+	}
+	if (rt5670_quirk & RT5670_DMIC_EN) {
+		rt5670->pdata.dmic_en = true;
+		dev_info(&i2c->dev, "quirk DMIC enabled\n");
+	}
+	if (rt5670_quirk & RT5670_DMIC1_IN2P) {
+		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_IN2P;
+		dev_info(&i2c->dev, "quirk DMIC1 on IN2P pin\n");
+	}
+	if (rt5670_quirk & RT5670_DMIC1_GPIO6) {
+		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_GPIO6;
+		dev_info(&i2c->dev, "quirk DMIC1 on GPIO6 pin\n");
+	}
+	if (rt5670_quirk & RT5670_DMIC1_GPIO7) {
+		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_GPIO7;
+		dev_info(&i2c->dev, "quirk DMIC1 on GPIO7 pin\n");
+	}
+	if (rt5670_quirk & RT5670_DMIC2_INR) {
+		rt5670->pdata.dmic2_data_pin = RT5670_DMIC_DATA_IN3N;
+		dev_info(&i2c->dev, "quirk DMIC2 on INR pin\n");
+	}
+	if (rt5670_quirk & RT5670_DMIC2_GPIO8) {
+		rt5670->pdata.dmic2_data_pin = RT5670_DMIC_DATA_GPIO8;
+		dev_info(&i2c->dev, "quirk DMIC2 on GPIO8 pin\n");
+	}
+	if (rt5670_quirk & RT5670_DMIC3_GPIO5) {
+		rt5670->pdata.dmic3_data_pin = RT5670_DMIC_DATA_GPIO5;
+		dev_info(&i2c->dev, "quirk DMIC3 on GPIO5 pin\n");
+	}
+
+	if (rt5670_quirk & RT5670_JD_MODE1) {
 		rt5670->pdata.jd_mode = 1;
-	} else if (dmi_check_system(dmi_platform_intel_bytcht_jdmode2)) {
-		rt5670->pdata.dmic_en = true;
-		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_IN2P;
-		rt5670->pdata.dev_gpio = true;
+		dev_info(&i2c->dev, "quirk JD mode 1\n");
+	}
+	if (rt5670_quirk & RT5670_JD_MODE2) {
 		rt5670->pdata.jd_mode = 2;
-	} else if (dmi_check_system(dmi_platform_intel_bytcht_jdmode3)) {
-		rt5670->pdata.dmic_en = true;
-		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_IN2P;
-		rt5670->pdata.dev_gpio = true;
+		dev_info(&i2c->dev, "quirk JD mode 2\n");
+	}
+	if (rt5670_quirk & RT5670_JD_MODE3) {
 		rt5670->pdata.jd_mode = 3;
+		dev_info(&i2c->dev, "quirk JD mode 3\n");
 	}
 
 	rt5670->regmap = devm_regmap_init_i2c(i2c, &rt5670_regmap);

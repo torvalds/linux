@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/usb/core/endpoint.c
  *
@@ -6,7 +7,6 @@
  * (C) Copyright 2006 Novell Inc.
  *
  * Released under the GPLv2 only.
- * SPDX-License-Identifier: GPL-2.0
  *
  * Endpoint sysfs stuff
  */

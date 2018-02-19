@@ -112,7 +112,7 @@ static void handle_hss(struct fw_card *card, struct fw_request *request,
 	}
 
 	if (length >= 1) {
-		stream = ACCESS_ONCE(scs->input);
+		stream = READ_ONCE(scs->input);
 		if (stream)
 			midi_input_packet(scs, stream, data, length);
 	}
@@ -183,7 +183,7 @@ static void scs_output_work(struct work_struct *work)
 	if (scs->transaction_running)
 		return;
 
-	stream = ACCESS_ONCE(scs->output);
+	stream = READ_ONCE(scs->output);
 	if (!stream || scs->error) {
 		scs->output_idle = true;
 		wake_up(&scs->idle_wait);
@@ -291,9 +291,9 @@ static void midi_capture_trigger(struct snd_rawmidi_substream *stream, int up)
 
 	if (up) {
 		scs->input_escape_count = 0;
-		ACCESS_ONCE(scs->input) = stream;
+		WRITE_ONCE(scs->input, stream);
 	} else {
-		ACCESS_ONCE(scs->input) = NULL;
+		WRITE_ONCE(scs->input, NULL);
 	}
 }
 
@@ -319,10 +319,10 @@ static void midi_playback_trigger(struct snd_rawmidi_substream *stream, int up)
 		scs->transaction_bytes = 0;
 		scs->error = false;
 
-		ACCESS_ONCE(scs->output) = stream;
+		WRITE_ONCE(scs->output, stream);
 		schedule_work(&scs->work);
 	} else {
-		ACCESS_ONCE(scs->output) = NULL;
+		WRITE_ONCE(scs->output, NULL);
 	}
 }
 static void midi_playback_drain(struct snd_rawmidi_substream *stream)

@@ -21,6 +21,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/scatterlist.h>
+#include <linux/swiotlb.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
@@ -2407,12 +2408,12 @@ static void sdhci_tasklet_finish(unsigned long param)
 		;
 }
 
-static void sdhci_timeout_timer(unsigned long data)
+static void sdhci_timeout_timer(struct timer_list *t)
 {
 	struct sdhci_host *host;
 	unsigned long flags;
 
-	host = (struct sdhci_host*)data;
+	host = from_timer(host, t, timer);
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -2429,12 +2430,12 @@ static void sdhci_timeout_timer(unsigned long data)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
-static void sdhci_timeout_data_timer(unsigned long data)
+static void sdhci_timeout_data_timer(struct timer_list *t)
 {
 	struct sdhci_host *host;
 	unsigned long flags;
 
-	host = (struct sdhci_host *)data;
+	host = from_timer(host, t, data_timer);
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -3238,7 +3239,7 @@ int sdhci_setup_host(struct sdhci_host *host)
 	 * available.
 	 */
 	ret = mmc_regulator_get_supply(mmc);
-	if (ret == -EPROBE_DEFER)
+	if (ret)
 		return ret;
 
 	DBG("Version:   0x%08x | Present:  0x%08x\n",
@@ -3651,22 +3652,29 @@ int sdhci_setup_host(struct sdhci_host *host)
 	spin_lock_init(&host->lock);
 
 	/*
-	 * Maximum number of segments. Depends on if the hardware
-	 * can do scatter/gather or not.
-	 */
-	if (host->flags & SDHCI_USE_ADMA)
-		mmc->max_segs = SDHCI_MAX_SEGS;
-	else if (host->flags & SDHCI_USE_SDMA)
-		mmc->max_segs = 1;
-	else /* PIO */
-		mmc->max_segs = SDHCI_MAX_SEGS;
-
-	/*
 	 * Maximum number of sectors in one transfer. Limited by SDMA boundary
 	 * size (512KiB). Note some tuning modes impose a 4MiB limit, but this
 	 * is less anyway.
 	 */
 	mmc->max_req_size = 524288;
+
+	/*
+	 * Maximum number of segments. Depends on if the hardware
+	 * can do scatter/gather or not.
+	 */
+	if (host->flags & SDHCI_USE_ADMA) {
+		mmc->max_segs = SDHCI_MAX_SEGS;
+	} else if (host->flags & SDHCI_USE_SDMA) {
+		mmc->max_segs = 1;
+		if (swiotlb_max_segment()) {
+			unsigned int max_req_size = (1 << IO_TLB_SHIFT) *
+						IO_TLB_SEGSIZE;
+			mmc->max_req_size = min(mmc->max_req_size,
+						max_req_size);
+		}
+	} else { /* PIO */
+		mmc->max_segs = SDHCI_MAX_SEGS;
+	}
 
 	/*
 	 * Maximum segment size. Could be one segment with the maximum number
@@ -3749,9 +3757,8 @@ int __sdhci_add_host(struct sdhci_host *host)
 	tasklet_init(&host->finish_tasklet,
 		sdhci_tasklet_finish, (unsigned long)host);
 
-	setup_timer(&host->timer, sdhci_timeout_timer, (unsigned long)host);
-	setup_timer(&host->data_timer, sdhci_timeout_data_timer,
-		    (unsigned long)host);
+	timer_setup(&host->timer, sdhci_timeout_timer, 0);
+	timer_setup(&host->data_timer, sdhci_timeout_data_timer, 0);
 
 	init_waitqueue_head(&host->buf_ready_int);
 

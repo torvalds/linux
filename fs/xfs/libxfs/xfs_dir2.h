@@ -324,4 +324,21 @@ xfs_dir2_leaf_tail_p(struct xfs_da_geometry *geo, struct xfs_dir2_leaf *lp)
 		  sizeof(struct xfs_dir2_leaf_tail));
 }
 
+/*
+ * The Linux API doesn't pass down the total size of the buffer
+ * we read into down to the filesystem.  With the filldir concept
+ * it's not needed for correct information, but the XFS dir2 leaf
+ * code wants an estimate of the buffer size to calculate it's
+ * readahead window and size the buffers used for mapping to
+ * physical blocks.
+ *
+ * Try to give it an estimate that's good enough, maybe at some
+ * point we can change the ->readdir prototype to include the
+ * buffer size.  For now we use the current glibc buffer size.
+ * musl libc hardcodes 2k and dietlibc uses PAGE_SIZE.
+ */
+#define XFS_READDIR_BUFSIZE	(32768)
+
+unsigned char xfs_dir3_get_dtype(struct xfs_mount *mp, uint8_t filetype);
+
 #endif	/* __XFS_DIR2_H__ */

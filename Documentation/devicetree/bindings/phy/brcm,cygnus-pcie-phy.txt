@@ -15,7 +15,7 @@ Required properties For the child node:
 - #phy-cells: must be 0
 
 Example:
-	pcie_phy: phy@0301d0a0 {
+	pcie_phy: phy@301d0a0 {
 		compatible = "brcm,cygnus-pcie-phy";
 		reg = <0x0301d0a0 0x14>;
 

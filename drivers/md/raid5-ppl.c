@@ -758,7 +758,8 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 				 (unsigned long long)sector);
 
 			rdev = conf->disks[dd_idx].rdev;
-			if (!rdev) {
+			if (!rdev || (!test_bit(In_sync, &rdev->flags) &&
+				      sector >= rdev->recovery_offset)) {
 				pr_debug("%s:%*s data member disk %d missing\n",
 					 __func__, indent, "", dd_idx);
 				update_parity = false;
@@ -1296,8 +1297,7 @@ int ppl_init_log(struct r5conf *conf)
 
 	if (ret) {
 		goto err;
-	} else if (!mddev->pers &&
-		   mddev->recovery_cp == 0 && !mddev->degraded &&
+	} else if (!mddev->pers && mddev->recovery_cp == 0 &&
 		   ppl_conf->recovered_entries > 0 &&
 		   ppl_conf->mismatch_count == 0) {
 		/*

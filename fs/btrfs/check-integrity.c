@@ -613,7 +613,7 @@ static void btrfsic_dev_state_hashtable_add(
 		struct btrfsic_dev_state_hashtable *h)
 {
 	const unsigned int hashval =
-	    (((unsigned int)((uintptr_t)ds->bdev)) &
+	    (((unsigned int)((uintptr_t)ds->bdev->bd_dev)) &
 	     (BTRFSIC_DEV2STATE_HASHTABLE_SIZE - 1));
 
 	list_add(&ds->collision_resolving_node, h->table + hashval);
@@ -2803,7 +2803,7 @@ static void __btrfsic_submit_bio(struct bio *bio)
 	mutex_lock(&btrfsic_mutex);
 	/* since btrfsic_submit_bio() is also called before
 	 * btrfsic_mount(), this might return NULL */
-	dev_state = btrfsic_dev_state_lookup(bio_dev(bio));
+	dev_state = btrfsic_dev_state_lookup(bio_dev(bio) + bio->bi_partno);
 	if (NULL != dev_state &&
 	    (bio_op(bio) == REQ_OP_WRITE) && bio_has_data(bio)) {
 		unsigned int i = 0;
@@ -2913,7 +2913,7 @@ int btrfsic_mount(struct btrfs_fs_info *fs_info,
 	state = kvzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state) {
 		pr_info("btrfs check-integrity: allocation failed!\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	if (!btrfsic_is_initialized) {
@@ -2945,7 +2945,7 @@ int btrfsic_mount(struct btrfs_fs_info *fs_info,
 		if (NULL == ds) {
 			pr_info("btrfs check-integrity: kmalloc() failed!\n");
 			mutex_unlock(&btrfsic_mutex);
-			return -1;
+			return -ENOMEM;
 		}
 		ds->bdev = device->bdev;
 		ds->state = state;

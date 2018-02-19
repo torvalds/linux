@@ -13,6 +13,7 @@
 #include <net/act_api.h>
 #include <net/netlink.h>
 #include <net/pkt_cls.h>
+#include <net/sch_generic.h>
 
 /*
  * Passing parameters to the root seems to be done more awkwardly than really
@@ -96,9 +97,11 @@ static int tcindex_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 
 	f = tcindex_lookup(p, key);
 	if (!f) {
+		struct Qdisc *q = tcf_block_q(tp->chain->block);
+
 		if (!p->fall_through)
 			return -1;
-		res->classid = TC_H_MAKE(TC_H_MAJ(tp->q->handle), key);
+		res->classid = TC_H_MAKE(TC_H_MAJ(q->handle), key);
 		res->class = 0;
 		pr_debug("alg 0x%x\n", res->classid);
 		return 0;

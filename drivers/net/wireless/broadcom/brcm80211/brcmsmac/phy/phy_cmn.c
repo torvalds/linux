@@ -1916,7 +1916,7 @@ void wlc_phy_txpower_update_shm(struct brcms_phy *pi)
 				     pi->hwpwr_txcur);
 
 		for (j = TXP_FIRST_OFDM; j <= TXP_LAST_OFDM; j++) {
-			const u8 ucode_ofdm_rates[] = {
+			static const u8 ucode_ofdm_rates[] = {
 				0x0c, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6c
 			};
 			offset = wlapi_bmac_rate_shm_offset(

@@ -101,7 +101,8 @@ enum {
 	IB_USER_VERBS_EX_CMD_MODIFY_WQ,
 	IB_USER_VERBS_EX_CMD_DESTROY_WQ,
 	IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL,
-	IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL
+	IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL,
+	IB_USER_VERBS_EX_CMD_MODIFY_CQ
 };
 
 /*
@@ -123,6 +124,12 @@ struct ib_uverbs_async_event_desc {
 
 struct ib_uverbs_comp_event_desc {
 	__u64 cq_handle;
+};
+
+struct ib_uverbs_cq_moderation_caps {
+	__u16     max_cq_moderation_count;
+	__u16     max_cq_moderation_period;
+	__u32     reserved;
 };
 
 /*
@@ -263,6 +270,7 @@ struct ib_uverbs_ex_query_device_resp {
 	__u32  max_wq_type_rq;
 	__u32 raw_packet_caps;
 	struct ib_uverbs_tm_caps tm_caps;
+	struct ib_uverbs_cq_moderation_caps cq_moderation_caps;
 };
 
 struct ib_uverbs_query_port {
@@ -1149,6 +1157,18 @@ struct ib_uverbs_ex_create_rwq_ind_table_resp {
 struct ib_uverbs_ex_destroy_rwq_ind_table  {
 	__u32 comp_mask;
 	__u32 ind_tbl_handle;
+};
+
+struct ib_uverbs_cq_moderation {
+	__u16 cq_count;
+	__u16 cq_period;
+};
+
+struct ib_uverbs_ex_modify_cq {
+	__u32 cq_handle;
+	__u32 attr_mask;
+	struct ib_uverbs_cq_moderation attr;
+	__u32 reserved;
 };
 
 #define IB_DEVICE_NAME_MAX 64

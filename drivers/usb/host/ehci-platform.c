@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Generic platform ehci driver
  *
@@ -16,8 +17,6 @@
  * Copyright 2000-2002 David Brownell
  * Copyright 1999 Linus Torvalds
  * Copyright 1999 Gregory P. Smith
- *
- * Licensed under the GNU/GPL. See COPYING for details.
  */
 #include <linux/acpi.h>
 #include <linux/clk.h>
@@ -40,12 +39,11 @@
 
 #define DRIVER_DESC "EHCI generic platform driver"
 #define EHCI_MAX_CLKS 4
-#define EHCI_MAX_RSTS 4
 #define hcd_to_ehci_priv(h) ((struct ehci_platform_priv *)hcd_to_ehci(h)->priv)
 
 struct ehci_platform_priv {
 	struct clk *clks[EHCI_MAX_CLKS];
-	struct reset_control *rsts[EHCI_MAX_RSTS];
+	struct reset_control *rsts;
 	struct phy **phys;
 	int num_phys;
 	bool reset_on_resume;
@@ -151,7 +149,7 @@ static int ehci_platform_probe(struct platform_device *dev)
 	struct usb_ehci_pdata *pdata = dev_get_platdata(&dev->dev);
 	struct ehci_platform_priv *priv;
 	struct ehci_hcd *ehci;
-	int err, irq, phy_num, clk = 0, rst;
+	int err, irq, phy_num, clk = 0;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -239,21 +237,15 @@ static int ehci_platform_probe(struct platform_device *dev)
 		}
 	}
 
-	for (rst = 0; rst < EHCI_MAX_RSTS; rst++) {
-		priv->rsts[rst] = devm_reset_control_get_shared_by_index(
-					&dev->dev, rst);
-		if (IS_ERR(priv->rsts[rst])) {
-			err = PTR_ERR(priv->rsts[rst]);
-			if (err == -EPROBE_DEFER)
-				goto err_reset;
-			priv->rsts[rst] = NULL;
-			break;
-		}
-
-		err = reset_control_deassert(priv->rsts[rst]);
-		if (err)
-			goto err_reset;
+	priv->rsts = devm_reset_control_array_get_optional_shared(&dev->dev);
+	if (IS_ERR(priv->rsts)) {
+		err = PTR_ERR(priv->rsts);
+		goto err_put_clks;
 	}
+
+	err = reset_control_deassert(priv->rsts);
+	if (err)
+		goto err_put_clks;
 
 	if (pdata->big_endian_desc)
 		ehci->big_endian_desc = 1;
@@ -310,8 +302,7 @@ err_power:
 	if (pdata->power_off)
 		pdata->power_off(dev);
 err_reset:
-	while (--rst >= 0)
-		reset_control_assert(priv->rsts[rst]);
+	reset_control_assert(priv->rsts);
 err_put_clks:
 	while (--clk >= 0)
 		clk_put(priv->clks[clk]);
@@ -329,15 +320,14 @@ static int ehci_platform_remove(struct platform_device *dev)
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	struct usb_ehci_pdata *pdata = dev_get_platdata(&dev->dev);
 	struct ehci_platform_priv *priv = hcd_to_ehci_priv(hcd);
-	int clk, rst;
+	int clk;
 
 	usb_remove_hcd(hcd);
 
 	if (pdata->power_off)
 		pdata->power_off(dev);
 
-	for (rst = 0; rst < EHCI_MAX_RSTS && priv->rsts[rst]; rst++)
-		reset_control_assert(priv->rsts[rst]);
+	reset_control_assert(priv->rsts);
 
 	for (clk = 0; clk < EHCI_MAX_CLKS && priv->clks[clk]; clk++)
 		clk_put(priv->clks[clk]);

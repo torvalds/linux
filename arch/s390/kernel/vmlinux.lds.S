@@ -60,12 +60,7 @@ SECTIONS
 
 	RO_DATA_SECTION(PAGE_SIZE)
 
-#ifdef CONFIG_SHARED_KERNEL
-	. = ALIGN(0x100000);	/* VM shared segments are 1MB aligned */
-#endif
-
 	. = ALIGN(PAGE_SIZE);
-	_eshared = .;		/* End of shareable data */
 	_sdata = .;		/* Start of data section */
 
 	. = ALIGN(PAGE_SIZE);
@@ -103,6 +98,29 @@ SECTIONS
 
 	.exit.data : {
 		EXIT_DATA
+	}
+
+	/*
+	 * struct alt_inst entries. From the header (alternative.h):
+	 * "Alternative instructions for different CPU types or capabilities"
+	 * Think locking instructions on spinlocks.
+	 * Note, that it is a part of __init region.
+	 */
+	. = ALIGN(8);
+	.altinstructions : {
+		__alt_instructions = .;
+		*(.altinstructions)
+		__alt_instructions_end = .;
+	}
+
+	/*
+	 * And here are the replacement instructions. The linker sticks
+	 * them as binary blobs. The .altinstructions has enough data to
+	 * get the address and the length of them to patch the kernel safely.
+	 * Note, that it is a part of __init region.
+	 */
+	.altinstr_replacement : {
+		*(.altinstr_replacement)
 	}
 
 	/* early.c uses stsi, which requires page aligned data. */

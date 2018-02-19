@@ -272,6 +272,7 @@ int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 	}
 
 	ctxt->channel = chandef->chan;
+	ctxt->width = chandef->width;
 	return iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
 				      chains_static, chains_dynamic,
 				      action, 0);

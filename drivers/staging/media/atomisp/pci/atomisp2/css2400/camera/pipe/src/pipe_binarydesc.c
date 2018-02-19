@@ -22,6 +22,7 @@
 #include <assert_support.h>
 /* HRT_GDC_N */
 #include "gdc_device.h"
+#include <linux/kernel.h>
 
 /* This module provides a binary descriptions to used to find a binary. Since,
  * every stage is associated with a binary, it implicity helps stage
@@ -147,11 +148,9 @@ enum ia_css_err sh_css_bds_factor_get_numerator_denominator(
 	unsigned int *bds_factor_denominator)
 {
 	unsigned int i;
-	unsigned int bds_list_size = sizeof(bds_factors_list) /
-				sizeof(struct sh_css_bds_factor);
 
 	/* Loop over all bds factors until a match is found */
-	for (i = 0; i < bds_list_size; i++) {
+	for (i = 0; i < ARRAY_SIZE(bds_factors_list); i++) {
 		if (bds_factors_list[i].bds_factor == bds_factor) {
 			*bds_factor_numerator = bds_factors_list[i].numerator;
 			*bds_factor_denominator = bds_factors_list[i].denominator;
@@ -170,8 +169,6 @@ enum ia_css_err binarydesc_calculate_bds_factor(
 	unsigned int *bds_factor)
 {
 	unsigned int i;
-	unsigned int bds_list_size = sizeof(bds_factors_list) /
-	    sizeof(struct sh_css_bds_factor);
 	unsigned int in_w = input_res.width,
 	    in_h = input_res.height,
 	    out_w = output_res.width, out_h = output_res.height;
@@ -186,7 +183,7 @@ enum ia_css_err binarydesc_calculate_bds_factor(
 	assert(out_w != 0 && out_h != 0);
 
 	/* Loop over all bds factors until a match is found */
-	for (i = 0; i < bds_list_size; i++) {
+	for (i = 0; i < ARRAY_SIZE(bds_factors_list); i++) {
 		unsigned num = bds_factors_list[i].numerator;
 		unsigned den = bds_factors_list[i].denominator;
 

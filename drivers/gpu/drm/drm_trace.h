@@ -62,5 +62,5 @@ TRACE_EVENT(drm_vblank_event_delivered,
 
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_PATH ../../drivers/gpu/drm
 #include <trace/define_trace.h>

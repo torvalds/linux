@@ -1340,7 +1340,8 @@ void rtl8723e_card_disable(struct ieee80211_hw *hw)
 }
 
 void rtl8723e_interrupt_recognized(struct ieee80211_hw *hw,
-				   u32 *p_inta, u32 *p_intb)
+				   u32 *p_inta, u32 *p_intb,
+				   u32 *p_intc, u32 *p_intd)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
@@ -1943,7 +1944,7 @@ static void rtl8723e_update_hal_rate_table(struct ieee80211_hw *hw,
 
 static void rtl8723e_update_hal_rate_mask(struct ieee80211_hw *hw,
 					  struct ieee80211_sta *sta,
-					  u8 rssi_level)
+					  u8 rssi_level, bool update_bw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
@@ -2074,12 +2075,13 @@ static void rtl8723e_update_hal_rate_mask(struct ieee80211_hw *hw,
 }
 
 void rtl8723e_update_hal_rate_tbl(struct ieee80211_hw *hw,
-				  struct ieee80211_sta *sta, u8 rssi_level)
+				  struct ieee80211_sta *sta, u8 rssi_level,
+				  bool update_bw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	if (rtlpriv->dm.useramask)
-		rtl8723e_update_hal_rate_mask(hw, sta, rssi_level);
+		rtl8723e_update_hal_rate_mask(hw, sta, rssi_level, update_bw);
 	else
 		rtl8723e_update_hal_rate_table(hw, sta);
 }
@@ -2103,7 +2105,7 @@ bool rtl8723e_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
-	enum rf_pwrstate e_rfpowerstate_toset, cur_rfstate;
+	enum rf_pwrstate e_rfpowerstate_toset;
 	u8 u1tmp;
 	bool b_actuallyset = false;
 
@@ -2121,8 +2123,6 @@ bool rtl8723e_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 		ppsc->rfchange_inprogress = true;
 		spin_unlock(&rtlpriv->locks.rf_ps_lock);
 	}
-
-	cur_rfstate = ppsc->rfpwr_state;
 
 	rtl_write_byte(rtlpriv, REG_GPIO_IO_SEL_2,
 		       rtl_read_byte(rtlpriv, REG_GPIO_IO_SEL_2)&~(BIT(1)));

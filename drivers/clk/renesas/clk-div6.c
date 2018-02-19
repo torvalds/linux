@@ -14,8 +14,10 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/pm.h>
 #include <linux/slab.h>
 
 #include "clk-div6.h"
@@ -32,6 +34,7 @@
  * @src_shift: Shift to access the register bits to select the parent clock
  * @src_width: Number of register bits to select the parent clock (may be 0)
  * @parents: Array to map from valid parent clocks indices to hardware indices
+ * @nb: Notifier block to save/restore clock state for system resume
  */
 struct div6_clock {
 	struct clk_hw hw;
@@ -40,6 +43,7 @@ struct div6_clock {
 	u32 src_shift;
 	u32 src_width;
 	u8 *parents;
+	struct notifier_block nb;
 };
 
 #define to_div6_clock(_hw) container_of(_hw, struct div6_clock, hw)
@@ -176,6 +180,29 @@ static const struct clk_ops cpg_div6_clock_ops = {
 	.set_rate = cpg_div6_clock_set_rate,
 };
 
+static int cpg_div6_clock_notifier_call(struct notifier_block *nb,
+					unsigned long action, void *data)
+{
+	struct div6_clock *clock = container_of(nb, struct div6_clock, nb);
+
+	switch (action) {
+	case PM_EVENT_RESUME:
+		/*
+		 * TODO: This does not yet support DIV6 clocks with multiple
+		 * parents, as the parent selection bits are not restored.
+		 * Fortunately so far such DIV6 clocks are found only on
+		 * R/SH-Mobile SoCs, while the resume functionality is only
+		 * needed on R-Car Gen3.
+		 */
+		if (__clk_get_enable_count(clock->hw.clk))
+			cpg_div6_clock_enable(&clock->hw);
+		else
+			cpg_div6_clock_disable(&clock->hw);
+		return NOTIFY_OK;
+	}
+
+	return NOTIFY_DONE;
+}
 
 /**
  * cpg_div6_register - Register a DIV6 clock
@@ -183,11 +210,13 @@ static const struct clk_ops cpg_div6_clock_ops = {
  * @num_parents: Number of parent clocks of the DIV6 clock (1, 4, or 8)
  * @parent_names: Array containing the names of the parent clocks
  * @reg: Mapped register used to control the DIV6 clock
+ * @notifiers: Optional notifier chain to save/restore state for system resume
  */
 struct clk * __init cpg_div6_register(const char *name,
 				      unsigned int num_parents,
 				      const char **parent_names,
-				      void __iomem *reg)
+				      void __iomem *reg,
+				      struct raw_notifier_head *notifiers)
 {
 	unsigned int valid_parents;
 	struct clk_init_data init;
@@ -258,6 +287,11 @@ struct clk * __init cpg_div6_register(const char *name,
 	if (IS_ERR(clk))
 		goto free_parents;
 
+	if (notifiers) {
+		clock->nb.notifier_call = cpg_div6_clock_notifier_call;
+		raw_notifier_chain_register(notifiers, &clock->nb);
+	}
+
 	return clk;
 
 free_parents:
@@ -301,7 +335,7 @@ static void __init cpg_div6_clock_init(struct device_node *np)
 	for (i = 0; i < num_parents; i++)
 		parent_names[i] = of_clk_get_parent_name(np, i);
 
-	clk = cpg_div6_register(clk_name, num_parents, parent_names, reg);
+	clk = cpg_div6_register(clk_name, num_parents, parent_names, reg, NULL);
 	if (IS_ERR(clk)) {
 		pr_err("%s: failed to register %s DIV6 clock (%ld)\n",
 		       __func__, np->name, PTR_ERR(clk));

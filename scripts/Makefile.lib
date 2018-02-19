@@ -5,24 +5,25 @@ ccflags-y  += $(EXTRA_CFLAGS)
 cppflags-y += $(EXTRA_CPPFLAGS)
 ldflags-y  += $(EXTRA_LDFLAGS)
 
-#
-# flags that take effect in sub directories
-export KBUILD_SUBDIR_ASFLAGS := $(KBUILD_SUBDIR_ASFLAGS) $(subdir-asflags-y)
-export KBUILD_SUBDIR_CCFLAGS := $(KBUILD_SUBDIR_CCFLAGS) $(subdir-ccflags-y)
+# flags that take effect in current and sub directories
+KBUILD_AFLAGS += $(subdir-asflags-y)
+KBUILD_CFLAGS += $(subdir-ccflags-y)
 
 # Figure out what we need to build from the various variables
 # ===========================================================================
 
 # When an object is listed to be built compiled-in and modular,
 # only build the compiled-in version
-
 obj-m := $(filter-out $(obj-y),$(obj-m))
 
 # Libraries are always collected in one lib file.
 # Filter out objects already built-in
-
 lib-y := $(filter-out $(obj-y), $(sort $(lib-y) $(lib-m)))
 
+# Determine modorder.
+# Unfortunately, we don't have information about ordering between -y
+# and -m subdirs.  Just put -y's first.
+modorder	:= $(patsubst %/,%/modules.order, $(filter %/, $(obj-y)) $(obj-m:.o=.ko))
 
 # Handle objects in subdirs
 # ---------------------------------------------------------------------------
@@ -30,12 +31,6 @@ lib-y := $(filter-out $(obj-y), $(sort $(lib-y) $(lib-m)))
 #   and add the directory to the list of dirs to descend into: $(subdir-y)
 # o if we encounter foo/ in $(obj-m), remove it from $(obj-m)
 #   and add the directory to the list of dirs to descend into: $(subdir-m)
-
-# Determine modorder.
-# Unfortunately, we don't have information about ordering between -y
-# and -m subdirs.  Just put -y's first.
-modorder	:= $(patsubst %/,%/modules.order, $(filter %/, $(obj-y)) $(obj-m:.o=.ko))
-
 __subdir-y	:= $(patsubst %/,%,$(filter %/, $(obj-y)))
 subdir-y	+= $(__subdir-y)
 __subdir-m	:= $(patsubst %/,%,$(filter %/, $(obj-m)))
@@ -44,10 +39,9 @@ obj-y		:= $(patsubst %/, %/built-in.o, $(obj-y))
 obj-m		:= $(filter-out %/, $(obj-m))
 
 # Subdirectories we need to descend into
-
 subdir-ym	:= $(sort $(subdir-y) $(subdir-m))
 
-# if $(foo-objs) exists, foo.o is a composite object
+# if $(foo-objs), $(foo-y), or $(foo-m) exists, foo.o is a composite object
 multi-used-y := $(sort $(foreach m,$(obj-y), $(if $(strip $($(m:.o=-objs)) $($(m:.o=-y))), $(m))))
 multi-used-m := $(sort $(foreach m,$(obj-m), $(if $(strip $($(m:.o=-objs)) $($(m:.o=-y)) $($(m:.o=-m))), $(m))))
 multi-used   := $(multi-used-y) $(multi-used-m)
@@ -57,18 +51,19 @@ single-used-m := $(sort $(filter-out $(multi-used-m),$(obj-m)))
 # objects depend on those (obviously)
 multi-objs-y := $(foreach m, $(multi-used-y), $($(m:.o=-objs)) $($(m:.o=-y)))
 multi-objs-m := $(foreach m, $(multi-used-m), $($(m:.o=-objs)) $($(m:.o=-y)))
-multi-objs   := $(multi-objs-y) $(multi-objs-m)
 
 # $(subdir-obj-y) is the list of objects in $(obj-y) which uses dir/ to
 # tell kbuild to descend
 subdir-obj-y := $(filter %/built-in.o, $(obj-y))
 
-# $(obj-dirs) is a list of directories that contain object files
-obj-dirs := $(dir $(multi-objs) $(obj-y))
-
 # Replace multi-part objects by their individual parts, look at local dir only
-real-objs-y := $(foreach m, $(filter-out $(subdir-obj-y), $(obj-y)), $(if $(strip $($(m:.o=-objs)) $($(m:.o=-y))),$($(m:.o=-objs)) $($(m:.o=-y)),$(m))) $(extra-y)
+real-objs-y := $(foreach m, $(filter-out $(subdir-obj-y), $(obj-y)), $(if $(strip $($(m:.o=-objs)) $($(m:.o=-y))),$($(m:.o=-objs)) $($(m:.o=-y)),$(m)))
 real-objs-m := $(foreach m, $(obj-m), $(if $(strip $($(m:.o=-objs)) $($(m:.o=-y)) $($(m:.o=-m))),$($(m:.o=-objs)) $($(m:.o=-y)) $($(m:.o=-m)),$(m)))
+
+# DTB
+# If CONFIG_OF_ALL_DTBS is enabled, all DT blobs are built
+extra-y				+= $(dtb-y)
+extra-$(CONFIG_OF_ALL_DTBS)	+= $(dtb-)
 
 # Add subdir path
 
@@ -88,11 +83,9 @@ multi-used-m	:= $(addprefix $(obj)/,$(multi-used-m))
 multi-objs-y	:= $(addprefix $(obj)/,$(multi-objs-y))
 multi-objs-m	:= $(addprefix $(obj)/,$(multi-objs-m))
 subdir-ym	:= $(addprefix $(obj)/,$(subdir-ym))
-obj-dirs	:= $(addprefix $(obj)/,$(obj-dirs))
 
 # These flags are needed for modversions and compiling, so we define them here
-# already
-# $(modname_flags) #defines KBUILD_MODNAME as the name of the module it will
+# $(modname_flags) defines KBUILD_MODNAME as the name of the module it will
 # end up in (or would, if it gets compiled in)
 # Note: Files that end up in two or more modules are compiled without the
 #       KBUILD_MODNAME definition. The reason is that any made-up name would
@@ -102,10 +95,10 @@ basename_flags = -DKBUILD_BASENAME=$(call name-fix,$(basetarget))
 modname_flags  = $(if $(filter 1,$(words $(modname))),\
                  -DKBUILD_MODNAME=$(call name-fix,$(modname)))
 
-orig_c_flags   = $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) $(KBUILD_SUBDIR_CCFLAGS) \
+orig_c_flags   = $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) \
                  $(ccflags-y) $(CFLAGS_$(basetarget).o)
 _c_flags       = $(filter-out $(CFLAGS_REMOVE_$(basetarget).o), $(orig_c_flags))
-orig_a_flags   = $(KBUILD_CPPFLAGS) $(KBUILD_AFLAGS) $(KBUILD_SUBDIR_ASFLAGS) \
+orig_a_flags   = $(KBUILD_CPPFLAGS) $(KBUILD_AFLAGS) \
                  $(asflags-y) $(AFLAGS_$(basetarget).o)
 _a_flags       = $(filter-out $(AFLAGS_REMOVE_$(basetarget).o), $(orig_a_flags))
 _cpp_flags     = $(KBUILD_CPPFLAGS) $(cppflags-y) $(CPPFLAGS_$(@F))

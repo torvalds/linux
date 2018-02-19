@@ -22,13 +22,19 @@ config OPENRISC
 	select HAVE_UID16
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_CLOCKEVENTS_BROADCAST
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
+	select GENERIC_SMP_IDLE_THREAD
 	select MODULES_USE_ELF_RELA
 	select HAVE_DEBUG_STACKOVERFLOW
 	select OR1K_PIC
 	select CPU_NO_EFFICIENT_FFS if !OPENRISC_HAVE_INST_FF1
 	select NO_BOOTMEM
+	select ARCH_USE_QUEUED_SPINLOCKS
+	select ARCH_USE_QUEUED_RWLOCKS
+	select OMPIC if SMP
+	select ARCH_WANT_FRAME_POINTERS
 
 config CPU_BIG_ENDIAN
 	def_bool y
@@ -56,6 +62,12 @@ config TRACE_IRQFLAGS_SUPPORT
 config GENERIC_CSUM
         def_bool y
 
+config STACKTRACE_SUPPORT
+	def_bool y
+
+config LOCKDEP_SUPPORT
+	def_bool  y
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -72,6 +84,17 @@ config OR1K_1200
 	  Generic OpenRISC 1200 architecture
 
 endchoice
+
+config DCACHE_WRITETHROUGH
+	bool "Have write through data caches"
+	default n
+	help
+	  Select this if your implementation features write through data caches.
+	  Selecting 'N' here will allow the kernel to force flushing of data
+	  caches at relevant times. Most OpenRISC implementations support write-
+	  through data caches.
+
+	  If unsure say N here
 
 config OPENRISC_BUILTIN_DTB
         string "Builtin DTB"
@@ -105,8 +128,19 @@ config OPENRISC_HAVE_INST_DIV
 endmenu
 
 config NR_CPUS
-	int
-	default "1"
+	int "Maximum number of CPUs (2-32)"
+	range 2 32
+	depends on SMP
+	default "2"
+
+config SMP
+	bool "Symmetric Multi-Processing support"
+	help
+	  This enables support for systems with more than one CPU. If you have
+	  a system with only one CPU, say N. If you have a system with more
+	  than one CPU, say Y.
+
+	  If you don't know what to do here, say N.
 
 source kernel/Kconfig.hz
 source kernel/Kconfig.preempt
@@ -124,6 +158,17 @@ config OPENRISC_NO_SPR_SR_DSX
 
 	  Say N here if you know that your OpenRISC processor has
 	  SPR_SR_DSX bit implemented. Say Y if you are unsure.
+
+config OPENRISC_HAVE_SHADOW_GPRS
+	bool "Support for shadow gpr files" if !SMP
+	default y if SMP
+	help
+	  Say Y here if your OpenRISC processor features shadowed
+	  register files. They will in such case be used as a
+	  scratch reg storage on exception entry.
+
+	  On SMP systems, this feature is mandatory.
+	  On a unicore system it's safe to say N here if you are unsure.
 
 config CMDLINE
         string "Default kernel command string"

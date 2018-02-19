@@ -80,7 +80,10 @@ int ssi_buffer_mgr_map_hash_request_update(struct ssi_drvdata *drvdata, void *ct
 
 void ssi_buffer_mgr_unmap_hash_request(struct device *dev, void *ctx, struct scatterlist *src, bool do_revert);
 
-void ssi_buffer_mgr_copy_scatterlist_portion(u8 *dest, struct scatterlist *sg, u32 to_skip, u32 end, enum ssi_sg_cpy_direct direct);
+void ssi_buffer_mgr_copy_scatterlist_portion(struct device *dev, u8 *dest,
+					     struct scatterlist *sg,
+					     u32 to_skip, u32 end,
+					     enum ssi_sg_cpy_direct direct);
 
 void ssi_buffer_mgr_zero_sgl(struct scatterlist *sgl, u32 data_len);
 

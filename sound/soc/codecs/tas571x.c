@@ -697,7 +697,8 @@ static int tas571x_i2c_probe(struct i2c_client *client,
 		return PTR_ERR(priv->mclk);
 	}
 
-	BUG_ON(priv->chip->num_supply_names > TAS571X_MAX_SUPPLIES);
+	if (WARN_ON(priv->chip->num_supply_names > TAS571X_MAX_SUPPLIES))
+		return -EINVAL;
 	for (i = 0; i < priv->chip->num_supply_names; i++)
 		priv->supplies[i].supply = priv->chip->supply_names[i];
 

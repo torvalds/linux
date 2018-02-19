@@ -784,7 +784,7 @@ static void hil_mlcs_process(unsigned long unused)
 
 /************************* Keepalive timer task *********************/
 
-static void hil_mlcs_timer(unsigned long data)
+static void hil_mlcs_timer(struct timer_list *unused)
 {
 	hil_mlcs_probe = 1;
 	tasklet_schedule(&hil_mlcs_tasklet);
@@ -998,7 +998,7 @@ int hil_mlc_unregister(hil_mlc *mlc)
 
 static int __init hil_mlc_init(void)
 {
-	setup_timer(&hil_mlcs_kicker, &hil_mlcs_timer, 0);
+	timer_setup(&hil_mlcs_kicker, &hil_mlcs_timer, 0);
 	mod_timer(&hil_mlcs_kicker, jiffies + HZ);
 
 	tasklet_enable(&hil_mlcs_tasklet);

@@ -350,8 +350,8 @@ static int iomap_zero(struct inode *inode, loff_t pos, unsigned offset,
 static int iomap_dax_zero(loff_t pos, unsigned offset, unsigned bytes,
 		struct iomap *iomap)
 {
-	sector_t sector = iomap->blkno +
-		(((pos & ~(PAGE_SIZE - 1)) - iomap->offset) >> 9);
+	sector_t sector = (iomap->addr +
+			   (pos & PAGE_MASK) - iomap->offset) >> 9;
 
 	return __dax_zero_page_range(iomap->bdev, iomap->dax_dev, sector,
 			offset, bytes);
@@ -510,11 +510,12 @@ static int iomap_to_fiemap(struct fiemap_extent_info *fi,
 		flags |= FIEMAP_EXTENT_MERGED;
 	if (iomap->flags & IOMAP_F_SHARED)
 		flags |= FIEMAP_EXTENT_SHARED;
+	if (iomap->flags & IOMAP_F_DATA_INLINE)
+		flags |= FIEMAP_EXTENT_DATA_INLINE;
 
 	return fiemap_fill_next_extent(fi, iomap->offset,
-			iomap->blkno != IOMAP_NULL_BLOCK ? iomap->blkno << 9: 0,
+			iomap->addr != IOMAP_NULL_ADDR ? iomap->addr : 0,
 			iomap->length, flags);
-
 }
 
 static loff_t
@@ -830,7 +831,7 @@ iomap_dio_zero(struct iomap_dio *dio, struct iomap *iomap, loff_t pos,
 	bio = bio_alloc(GFP_KERNEL, 1);
 	bio_set_dev(bio, iomap->bdev);
 	bio->bi_iter.bi_sector =
-		iomap->blkno + ((pos - iomap->offset) >> 9);
+		(iomap->addr + pos - iomap->offset) >> 9;
 	bio->bi_private = dio;
 	bio->bi_end_io = iomap_dio_bio_end_io;
 
@@ -855,6 +856,7 @@ iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
 	struct bio *bio;
 	bool need_zeroout = false;
 	int nr_pages, ret;
+	size_t copied = 0;
 
 	if ((pos | length | align) & ((1 << blkbits) - 1))
 		return -EINVAL;
@@ -866,7 +868,7 @@ iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
 		/*FALLTHRU*/
 	case IOMAP_UNWRITTEN:
 		if (!(dio->flags & IOMAP_DIO_WRITE)) {
-			iov_iter_zero(length, dio->submit.iter);
+			length = iov_iter_zero(length, dio->submit.iter);
 			dio->size += length;
 			return length;
 		}
@@ -903,13 +905,16 @@ iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
 	}
 
 	do {
-		if (dio->error)
+		size_t n;
+		if (dio->error) {
+			iov_iter_revert(dio->submit.iter, copied);
 			return 0;
+		}
 
 		bio = bio_alloc(GFP_KERNEL, nr_pages);
 		bio_set_dev(bio, iomap->bdev);
 		bio->bi_iter.bi_sector =
-			iomap->blkno + ((pos - iomap->offset) >> 9);
+			(iomap->addr + pos - iomap->offset) >> 9;
 		bio->bi_write_hint = dio->iocb->ki_hint;
 		bio->bi_private = dio;
 		bio->bi_end_io = iomap_dio_bio_end_io;
@@ -917,20 +922,24 @@ iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
 		ret = bio_iov_iter_get_pages(bio, &iter);
 		if (unlikely(ret)) {
 			bio_put(bio);
-			return ret;
+			return copied ? copied : ret;
 		}
 
+		n = bio->bi_iter.bi_size;
 		if (dio->flags & IOMAP_DIO_WRITE) {
 			bio_set_op_attrs(bio, REQ_OP_WRITE, REQ_SYNC | REQ_IDLE);
-			task_io_account_write(bio->bi_iter.bi_size);
+			task_io_account_write(n);
 		} else {
 			bio_set_op_attrs(bio, REQ_OP_READ, 0);
 			if (dio->flags & IOMAP_DIO_DIRTY)
 				bio_set_pages_dirty(bio);
 		}
 
-		dio->size += bio->bi_iter.bi_size;
-		pos += bio->bi_iter.bi_size;
+		iov_iter_advance(dio->submit.iter, n);
+
+		dio->size += n;
+		pos += n;
+		copied += n;
 
 		nr_pages = iov_iter_npages(&iter, BIO_MAX_PAGES);
 
@@ -946,9 +955,7 @@ iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
 		if (pad)
 			iomap_dio_zero(dio, iomap, pos, fs_block_size - pad);
 	}
-
-	iov_iter_advance(dio->submit.iter, length);
-	return length;
+	return copied;
 }
 
 ssize_t
@@ -1056,7 +1063,7 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 
 			if (!(iocb->ki_flags & IOCB_HIPRI) ||
 			    !dio->submit.last_queue ||
-			    !blk_mq_poll(dio->submit.last_queue,
+			    !blk_poll(dio->submit.last_queue,
 					 dio->submit.cookie))
 				io_schedule();
 		}

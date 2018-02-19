@@ -145,9 +145,13 @@
 
 #define SYS_ID_AA64PFR0_EL1		sys_reg(3, 0, 0, 4, 0)
 #define SYS_ID_AA64PFR1_EL1		sys_reg(3, 0, 0, 4, 1)
+#define SYS_ID_AA64ZFR0_EL1		sys_reg(3, 0, 0, 4, 4)
 
 #define SYS_ID_AA64DFR0_EL1		sys_reg(3, 0, 0, 5, 0)
 #define SYS_ID_AA64DFR1_EL1		sys_reg(3, 0, 0, 5, 1)
+
+#define SYS_ID_AA64AFR0_EL1		sys_reg(3, 0, 0, 5, 4)
+#define SYS_ID_AA64AFR1_EL1		sys_reg(3, 0, 0, 5, 5)
 
 #define SYS_ID_AA64ISAR0_EL1		sys_reg(3, 0, 0, 6, 0)
 #define SYS_ID_AA64ISAR1_EL1		sys_reg(3, 0, 0, 6, 1)
@@ -160,6 +164,8 @@
 #define SYS_ACTLR_EL1			sys_reg(3, 0, 1, 0, 1)
 #define SYS_CPACR_EL1			sys_reg(3, 0, 1, 0, 2)
 
+#define SYS_ZCR_EL1			sys_reg(3, 0, 1, 2, 0)
+
 #define SYS_TTBR0_EL1			sys_reg(3, 0, 2, 0, 0)
 #define SYS_TTBR1_EL1			sys_reg(3, 0, 2, 0, 1)
 #define SYS_TCR_EL1			sys_reg(3, 0, 2, 0, 2)
@@ -171,6 +177,99 @@
 #define SYS_ESR_EL1			sys_reg(3, 0, 5, 2, 0)
 #define SYS_FAR_EL1			sys_reg(3, 0, 6, 0, 0)
 #define SYS_PAR_EL1			sys_reg(3, 0, 7, 4, 0)
+
+/*** Statistical Profiling Extension ***/
+/* ID registers */
+#define SYS_PMSIDR_EL1			sys_reg(3, 0, 9, 9, 7)
+#define SYS_PMSIDR_EL1_FE_SHIFT		0
+#define SYS_PMSIDR_EL1_FT_SHIFT		1
+#define SYS_PMSIDR_EL1_FL_SHIFT		2
+#define SYS_PMSIDR_EL1_ARCHINST_SHIFT	3
+#define SYS_PMSIDR_EL1_LDS_SHIFT	4
+#define SYS_PMSIDR_EL1_ERND_SHIFT	5
+#define SYS_PMSIDR_EL1_INTERVAL_SHIFT	8
+#define SYS_PMSIDR_EL1_INTERVAL_MASK	0xfUL
+#define SYS_PMSIDR_EL1_MAXSIZE_SHIFT	12
+#define SYS_PMSIDR_EL1_MAXSIZE_MASK	0xfUL
+#define SYS_PMSIDR_EL1_COUNTSIZE_SHIFT	16
+#define SYS_PMSIDR_EL1_COUNTSIZE_MASK	0xfUL
+
+#define SYS_PMBIDR_EL1			sys_reg(3, 0, 9, 10, 7)
+#define SYS_PMBIDR_EL1_ALIGN_SHIFT	0
+#define SYS_PMBIDR_EL1_ALIGN_MASK	0xfU
+#define SYS_PMBIDR_EL1_P_SHIFT		4
+#define SYS_PMBIDR_EL1_F_SHIFT		5
+
+/* Sampling controls */
+#define SYS_PMSCR_EL1			sys_reg(3, 0, 9, 9, 0)
+#define SYS_PMSCR_EL1_E0SPE_SHIFT	0
+#define SYS_PMSCR_EL1_E1SPE_SHIFT	1
+#define SYS_PMSCR_EL1_CX_SHIFT		3
+#define SYS_PMSCR_EL1_PA_SHIFT		4
+#define SYS_PMSCR_EL1_TS_SHIFT		5
+#define SYS_PMSCR_EL1_PCT_SHIFT		6
+
+#define SYS_PMSCR_EL2			sys_reg(3, 4, 9, 9, 0)
+#define SYS_PMSCR_EL2_E0HSPE_SHIFT	0
+#define SYS_PMSCR_EL2_E2SPE_SHIFT	1
+#define SYS_PMSCR_EL2_CX_SHIFT		3
+#define SYS_PMSCR_EL2_PA_SHIFT		4
+#define SYS_PMSCR_EL2_TS_SHIFT		5
+#define SYS_PMSCR_EL2_PCT_SHIFT		6
+
+#define SYS_PMSICR_EL1			sys_reg(3, 0, 9, 9, 2)
+
+#define SYS_PMSIRR_EL1			sys_reg(3, 0, 9, 9, 3)
+#define SYS_PMSIRR_EL1_RND_SHIFT	0
+#define SYS_PMSIRR_EL1_INTERVAL_SHIFT	8
+#define SYS_PMSIRR_EL1_INTERVAL_MASK	0xffffffUL
+
+/* Filtering controls */
+#define SYS_PMSFCR_EL1			sys_reg(3, 0, 9, 9, 4)
+#define SYS_PMSFCR_EL1_FE_SHIFT		0
+#define SYS_PMSFCR_EL1_FT_SHIFT		1
+#define SYS_PMSFCR_EL1_FL_SHIFT		2
+#define SYS_PMSFCR_EL1_B_SHIFT		16
+#define SYS_PMSFCR_EL1_LD_SHIFT		17
+#define SYS_PMSFCR_EL1_ST_SHIFT		18
+
+#define SYS_PMSEVFR_EL1			sys_reg(3, 0, 9, 9, 5)
+#define SYS_PMSEVFR_EL1_RES0		0x0000ffff00ff0f55UL
+
+#define SYS_PMSLATFR_EL1		sys_reg(3, 0, 9, 9, 6)
+#define SYS_PMSLATFR_EL1_MINLAT_SHIFT	0
+
+/* Buffer controls */
+#define SYS_PMBLIMITR_EL1		sys_reg(3, 0, 9, 10, 0)
+#define SYS_PMBLIMITR_EL1_E_SHIFT	0
+#define SYS_PMBLIMITR_EL1_FM_SHIFT	1
+#define SYS_PMBLIMITR_EL1_FM_MASK	0x3UL
+#define SYS_PMBLIMITR_EL1_FM_STOP_IRQ	(0 << SYS_PMBLIMITR_EL1_FM_SHIFT)
+
+#define SYS_PMBPTR_EL1			sys_reg(3, 0, 9, 10, 1)
+
+/* Buffer error reporting */
+#define SYS_PMBSR_EL1			sys_reg(3, 0, 9, 10, 3)
+#define SYS_PMBSR_EL1_COLL_SHIFT	16
+#define SYS_PMBSR_EL1_S_SHIFT		17
+#define SYS_PMBSR_EL1_EA_SHIFT		18
+#define SYS_PMBSR_EL1_DL_SHIFT		19
+#define SYS_PMBSR_EL1_EC_SHIFT		26
+#define SYS_PMBSR_EL1_EC_MASK		0x3fUL
+
+#define SYS_PMBSR_EL1_EC_BUF		(0x0UL << SYS_PMBSR_EL1_EC_SHIFT)
+#define SYS_PMBSR_EL1_EC_FAULT_S1	(0x24UL << SYS_PMBSR_EL1_EC_SHIFT)
+#define SYS_PMBSR_EL1_EC_FAULT_S2	(0x25UL << SYS_PMBSR_EL1_EC_SHIFT)
+
+#define SYS_PMBSR_EL1_FAULT_FSC_SHIFT	0
+#define SYS_PMBSR_EL1_FAULT_FSC_MASK	0x3fUL
+
+#define SYS_PMBSR_EL1_BUF_BSC_SHIFT	0
+#define SYS_PMBSR_EL1_BUF_BSC_MASK	0x3fUL
+
+#define SYS_PMBSR_EL1_BUF_BSC_FULL	(0x1UL << SYS_PMBSR_EL1_BUF_BSC_SHIFT)
+
+/*** End of Statistical Profiling Extension ***/
 
 #define SYS_PMINTENSET_EL1		sys_reg(3, 0, 9, 14, 1)
 #define SYS_PMINTENCLR_EL1		sys_reg(3, 0, 9, 14, 2)
@@ -250,6 +349,8 @@
 
 #define SYS_PMCCFILTR_EL0		sys_reg (3, 3, 14, 15, 7)
 
+#define SYS_ZCR_EL2			sys_reg(3, 4, 1, 2, 0)
+
 #define SYS_DACR32_EL2			sys_reg(3, 4, 3, 0, 0)
 #define SYS_IFSR32_EL2			sys_reg(3, 4, 5, 0, 1)
 #define SYS_FPEXC32_EL2			sys_reg(3, 4, 5, 3, 0)
@@ -318,6 +419,10 @@
 #define SCTLR_EL1_CP15BEN	(1 << 5)
 
 /* id_aa64isar0 */
+#define ID_AA64ISAR0_DP_SHIFT		44
+#define ID_AA64ISAR0_SM4_SHIFT		40
+#define ID_AA64ISAR0_SM3_SHIFT		36
+#define ID_AA64ISAR0_SHA3_SHIFT		32
 #define ID_AA64ISAR0_RDM_SHIFT		28
 #define ID_AA64ISAR0_ATOMICS_SHIFT	20
 #define ID_AA64ISAR0_CRC32_SHIFT	16
@@ -332,6 +437,7 @@
 #define ID_AA64ISAR1_DPB_SHIFT		0
 
 /* id_aa64pfr0 */
+#define ID_AA64PFR0_SVE_SHIFT		32
 #define ID_AA64PFR0_GIC_SHIFT		24
 #define ID_AA64PFR0_ASIMD_SHIFT		20
 #define ID_AA64PFR0_FP_SHIFT		16
@@ -340,6 +446,7 @@
 #define ID_AA64PFR0_EL1_SHIFT		4
 #define ID_AA64PFR0_EL0_SHIFT		0
 
+#define ID_AA64PFR0_SVE			0x1
 #define ID_AA64PFR0_FP_NI		0xf
 #define ID_AA64PFR0_FP_SUPPORTED	0x0
 #define ID_AA64PFR0_ASIMD_NI		0xf
@@ -439,6 +546,20 @@
 #define ID_AA64MMFR0_TGRAN_SHIFT	ID_AA64MMFR0_TGRAN64_SHIFT
 #define ID_AA64MMFR0_TGRAN_SUPPORTED	ID_AA64MMFR0_TGRAN64_SUPPORTED
 #endif
+
+
+/*
+ * The ZCR_ELx_LEN_* definitions intentionally include bits [8:4] which
+ * are reserved by the SVE architecture for future expansion of the LEN
+ * field, with compatible semantics.
+ */
+#define ZCR_ELx_LEN_SHIFT	0
+#define ZCR_ELx_LEN_SIZE	9
+#define ZCR_ELx_LEN_MASK	0x1ff
+
+#define CPACR_EL1_ZEN_EL1EN	(1 << 16) /* enable EL1 access */
+#define CPACR_EL1_ZEN_EL0EN	(1 << 17) /* enable EL0 access, if EL1EN set */
+#define CPACR_EL1_ZEN		(CPACR_EL1_ZEN_EL1EN | CPACR_EL1_ZEN_EL0EN)
 
 
 /* Safe value for MPIDR_EL1: Bit31:RES1, Bit30:U:0, Bit24:MT:0 */

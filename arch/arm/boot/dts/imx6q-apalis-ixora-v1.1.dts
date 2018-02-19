@@ -77,7 +77,7 @@
 		};
 	};
 
-	lcd_display: display@di0 {
+	lcd_display: disp0 {
 		compatible = "fsl,imx-parallel-display";
 		#address-cells = <1>;
 		#size-cells = <0>;

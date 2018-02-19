@@ -1286,7 +1286,6 @@ MODULE_DEVICE_TABLE(of, nbpf_match);
 static int nbpf_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *of_id = of_match_device(nbpf_match, dev);
 	struct device_node *np = dev->of_node;
 	struct nbpf_device *nbpf;
 	struct dma_device *dma_dev;
@@ -1300,10 +1299,10 @@ static int nbpf_probe(struct platform_device *pdev)
 	BUILD_BUG_ON(sizeof(struct nbpf_desc_page) > PAGE_SIZE);
 
 	/* DT only */
-	if (!np || !of_id || !of_id->data)
+	if (!np)
 		return -ENODEV;
 
-	cfg = of_id->data;
+	cfg = of_device_get_match_data(dev);
 	num_channels = cfg->num_channels;
 
 	nbpf = devm_kzalloc(dev, sizeof(*nbpf) + num_channels *

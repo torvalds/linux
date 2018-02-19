@@ -7,6 +7,10 @@
 		reg = <0x80000000 0x8000000>; /* 128 MB */
 	};
 
+	chosen {
+		stdout-path = &uart3;
+	};
+
 	ocp {
 		i2c0 {
 			compatible = "i2c-cbus-gpio";

@@ -1673,6 +1673,7 @@ struct aac_dev
 	struct aac_hba_map_info	hba_map[AAC_MAX_BUSES][AAC_MAX_TARGETS];
 	u8			adapter_shutdown;
 	u32			handle_pci_error;
+	bool			init_reset;
 };
 
 #define aac_adapter_interrupt(dev) \
@@ -1724,6 +1725,7 @@ struct aac_dev
 #define FIB_CONTEXT_FLAG_NATIVE_HBA		(0x00000010)
 #define FIB_CONTEXT_FLAG_NATIVE_HBA_TMF	(0x00000020)
 #define FIB_CONTEXT_FLAG_SCSI_CMD	(0x00000040)
+#define FIB_CONTEXT_FLAG_EH_RESET	(0x00000080)
 
 /*
  *	Define the command values

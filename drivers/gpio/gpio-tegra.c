@@ -141,14 +141,14 @@ static void tegra_gpio_disable(struct tegra_gpio_info *tgi, unsigned int gpio)
 
 static int tegra_gpio_request(struct gpio_chip *chip, unsigned int offset)
 {
-	return pinctrl_request_gpio(offset);
+	return pinctrl_gpio_request(offset);
 }
 
 static void tegra_gpio_free(struct gpio_chip *chip, unsigned int offset)
 {
 	struct tegra_gpio_info *tgi = gpiochip_get_data(chip);
 
-	pinctrl_free_gpio(offset);
+	pinctrl_gpio_free(offset);
 	tegra_gpio_disable(tgi, offset);
 }
 
@@ -565,6 +565,7 @@ static const struct dev_pm_ops tegra_gpio_pm_ops = {
  * than their parents, so it won't report false recursion.
  */
 static struct lock_class_key gpio_lock_class;
+static struct lock_class_key gpio_request_class;
 
 static int tegra_gpio_probe(struct platform_device *pdev)
 {
@@ -670,7 +671,8 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 
 		bank = &tgi->bank_info[GPIO_BANK(gpio)];
 
-		irq_set_lockdep_class(irq, &gpio_lock_class);
+		irq_set_lockdep_class(irq, &gpio_lock_class,
+				      &gpio_request_class);
 		irq_set_chip_data(irq, bank);
 		irq_set_chip_and_handler(irq, &tgi->ic, handle_simple_irq);
 	}

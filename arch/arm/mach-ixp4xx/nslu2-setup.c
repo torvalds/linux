@@ -25,7 +25,7 @@
 #include <linux/leds.h>
 #include <linux/reboot.h>
 #include <linux/i2c.h>
-#include <linux/i2c-gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/io.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -69,9 +69,14 @@ static struct platform_device nslu2_flash = {
 	.resource		= &nslu2_flash_resource,
 };
 
-static struct i2c_gpio_platform_data nslu2_i2c_gpio_data = {
-	.sda_pin		= NSLU2_SDA_PIN,
-	.scl_pin		= NSLU2_SCL_PIN,
+static struct gpiod_lookup_table nslu2_i2c_gpiod_table = {
+	.dev_id		= "i2c-gpio",
+	.table		= {
+		GPIO_LOOKUP_IDX("IXP4XX_GPIO_CHIP", NSLU2_SDA_PIN,
+				NULL, 0, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+		GPIO_LOOKUP_IDX("IXP4XX_GPIO_CHIP", NSLU2_SCL_PIN,
+				NULL, 1, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+	},
 };
 
 static struct i2c_board_info __initdata nslu2_i2c_board_info [] = {
@@ -116,7 +121,7 @@ static struct platform_device nslu2_i2c_gpio = {
 	.name			= "i2c-gpio",
 	.id			= 0,
 	.dev	 = {
-		.platform_data	= &nslu2_i2c_gpio_data,
+		.platform_data	= NULL,
 	},
 };
 
@@ -251,6 +256,7 @@ static void __init nslu2_init(void)
 	nslu2_flash_resource.end =
 		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;
 
+	gpiod_add_lookup_table(&nslu2_i2c_gpiod_table);
 	i2c_register_board_info(0, nslu2_i2c_board_info,
 				ARRAY_SIZE(nslu2_i2c_board_info));
 

@@ -93,17 +93,10 @@ static void set_tls_desc(struct task_struct *p, int idx,
 	cpu = get_cpu();
 
 	while (n-- > 0) {
-		if (LDT_empty(info) || LDT_zero(info)) {
+		if (LDT_empty(info) || LDT_zero(info))
 			memset(desc, 0, sizeof(*desc));
-		} else {
+		else
 			fill_ldt(desc, info);
-
-			/*
-			 * Always set the accessed bit so that the CPU
-			 * doesn't try to write to the (read-only) GDT.
-			 */
-			desc->type |= 1;
-		}
 		++info;
 		++desc;
 	}

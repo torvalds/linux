@@ -1,0 +1,32 @@
+* HDMI CEC GPIO driver
+
+The HDMI CEC GPIO module supports CEC implementations where the CEC line
+is hooked up to a pull-up GPIO line and - optionally - the HPD line is
+hooked up to another GPIO line.
+
+Required properties:
+  - compatible: value must be "cec-gpio".
+  - cec-gpios: gpio that the CEC line is connected to. The line should be
+    tagged as open drain.
+
+If the CEC line is associated with an HDMI receiver/transmitter, then the
+following property is also required:
+
+  - hdmi-phandle - phandle to the HDMI controller, see also cec.txt.
+
+If the CEC line is not associated with an HDMI receiver/transmitter, then
+the following property is optional:
+
+  - hpd-gpios: gpio that the HPD line is connected to.
+
+Example for the Raspberry Pi 3 where the CEC line is connected to
+pin 26 aka BCM7 aka CE1 on the GPIO pin header and the HPD line is
+connected to pin 11 aka BCM17:
+
+#include <dt-bindings/gpio/gpio.h>
+
+cec-gpio {
+       compatible = "cec-gpio";
+       cec-gpios = <&gpio 7 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+       hpd-gpios = <&gpio 17 GPIO_ACTIVE_HIGH>;
+};

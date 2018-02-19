@@ -3652,9 +3652,9 @@ bttv_irq_wakeup_vbi(struct bttv *btv, struct bttv_buffer *wakeup,
 	wake_up(&wakeup->vb.done);
 }
 
-static void bttv_irq_timeout(unsigned long data)
+static void bttv_irq_timeout(struct timer_list *t)
 {
-	struct bttv *btv = (struct bttv *)data;
+	struct bttv *btv = from_timer(btv, t, timeout);
 	struct bttv_buffer_set old,new;
 	struct bttv_buffer *ovbi;
 	struct bttv_buffer *item;
@@ -4043,7 +4043,7 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	INIT_LIST_HEAD(&btv->capture);
 	INIT_LIST_HEAD(&btv->vcapture);
 
-	setup_timer(&btv->timeout, bttv_irq_timeout, (unsigned long)btv);
+	timer_setup(&btv->timeout, bttv_irq_timeout, 0);
 
 	btv->i2c_rc = -1;
 	btv->tuner_type  = UNSET;

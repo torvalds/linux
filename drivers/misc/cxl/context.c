@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/sched/mm.h>
+#include <linux/mmu_context.h>
 #include <asm/cputable.h>
 #include <asm/current.h>
 #include <asm/copro.h>
@@ -267,6 +268,8 @@ int __detach_context(struct cxl_context *ctx)
 
 	/* Decrease the mm count on the context */
 	cxl_context_mm_count_put(ctx);
+	if (ctx->mm)
+		mm_context_remove_copro(ctx->mm);
 	ctx->mm = NULL;
 
 	return 0;

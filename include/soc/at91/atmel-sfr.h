@@ -17,6 +17,7 @@
 /* 0x08 ~ 0x0c: Reserved */
 #define AT91_SFR_OHCIICR	0x10	/* OHCI INT Configuration Register */
 #define AT91_SFR_OHCIISR	0x14	/* OHCI INT Status Register */
+#define AT91_SFR_UTMICKTRIM	0x30	/* UTMI Clock Trimming Register */
 #define AT91_SFR_I2SCLKSEL	0x90	/* I2SC Register */
 
 /* Field definitions */
@@ -28,5 +29,6 @@
 					 AT91_OHCIICR_SUSPEND_B | \
 					 AT91_OHCIICR_SUSPEND_C)
 
+#define AT91_UTMICKTRIM_FREQ	GENMASK(1, 0)
 
 #endif /* _LINUX_MFD_SYSCON_ATMEL_SFR_H */

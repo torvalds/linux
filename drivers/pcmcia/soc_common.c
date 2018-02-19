@@ -456,9 +456,9 @@ static void soc_common_check_status(struct soc_pcmcia_socket *skt)
 }
 
 /* Let's poll for events in addition to IRQs since IRQ only is unreliable... */
-static void soc_common_pcmcia_poll_event(unsigned long dummy)
+static void soc_common_pcmcia_poll_event(struct timer_list *t)
 {
-	struct soc_pcmcia_socket *skt = (struct soc_pcmcia_socket *)dummy;
+	struct soc_pcmcia_socket *skt = from_timer(skt, t, poll_timer);
 	debug(skt, 4, "polling for events\n");
 
 	mod_timer(&skt->poll_timer, jiffies + SOC_PCMCIA_POLL_PERIOD);
@@ -794,8 +794,7 @@ int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 
 	skt->cs_state = dead_socket;
 
-	setup_timer(&skt->poll_timer, soc_common_pcmcia_poll_event,
-		    (unsigned long)skt);
+	timer_setup(&skt->poll_timer, soc_common_pcmcia_poll_event, 0);
 	skt->poll_timer.expires = jiffies + SOC_PCMCIA_POLL_PERIOD;
 
 	ret = request_resource(&iomem_resource, &skt->res_skt);

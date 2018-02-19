@@ -127,7 +127,7 @@ void nitrox_config_pkt_input_rings(struct nitrox_device *ndev)
 		 * size and interrupt threshold.
 		 */
 		offset = NPS_PKT_IN_INSTR_BADDRX(i);
-		nitrox_write_csr(ndev, NPS_PKT_IN_INSTR_BADDRX(i), cmdq->dma);
+		nitrox_write_csr(ndev, offset, cmdq->dma);
 
 		/* configure ring size */
 		offset = NPS_PKT_IN_INSTR_RSIZEX(i);

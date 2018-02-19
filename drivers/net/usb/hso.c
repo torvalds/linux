@@ -76,7 +76,6 @@
 
 #define MOD_AUTHOR			"Option Wireless"
 #define MOD_DESCRIPTION			"USB High Speed Option driver"
-#define MOD_LICENSE			"GPL"
 
 #define HSO_MAX_NET_DEVICES		10
 #define HSO__MAX_MTU			2048
@@ -2263,7 +2262,6 @@ static void hso_serial_common_free(struct hso_serial *serial)
 static int hso_serial_common_create(struct hso_serial *serial, int num_urbs,
 				    int rx_size, int tx_size)
 {
-	struct device *dev;
 	int minor;
 	int i;
 
@@ -2277,7 +2275,6 @@ static int hso_serial_common_create(struct hso_serial *serial, int num_urbs,
 	serial->parent->dev = tty_port_register_device_attr(&serial->port,
 			tty_drv, minor, &serial->parent->interface->dev,
 			serial->parent, hso_serial_dev_groups);
-	dev = serial->parent->dev;
 
 	/* fill in specific data for later use */
 	serial->minor = minor;
@@ -3288,7 +3285,7 @@ module_exit(hso_exit);
 
 MODULE_AUTHOR(MOD_AUTHOR);
 MODULE_DESCRIPTION(MOD_DESCRIPTION);
-MODULE_LICENSE(MOD_LICENSE);
+MODULE_LICENSE("GPL");
 
 /* change the debug level (eg: insmod hso.ko debug=0x04) */
 MODULE_PARM_DESC(debug, "debug level mask [0x01 | 0x02 | 0x04 | 0x08 | 0x10]");

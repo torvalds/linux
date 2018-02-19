@@ -207,7 +207,7 @@ static void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter)
 	__set_bit(GPCMD_SET_READ_AHEAD, filter->write_ok);
 }
 
-int blk_verify_command(unsigned char *cmd, fmode_t has_write_perm)
+int blk_verify_command(unsigned char *cmd, fmode_t mode)
 {
 	struct blk_cmd_filter *filter = &blk_default_cmd_filter;
 
@@ -220,7 +220,7 @@ int blk_verify_command(unsigned char *cmd, fmode_t has_write_perm)
 		return 0;
 
 	/* Write-safe commands require a writable open */
-	if (test_bit(cmd[0], filter->write_ok) && has_write_perm)
+	if (test_bit(cmd[0], filter->write_ok) && (mode & FMODE_WRITE))
 		return 0;
 
 	return -EPERM;
@@ -234,7 +234,7 @@ static int blk_fill_sghdr_rq(struct request_queue *q, struct request *rq,
 
 	if (copy_from_user(req->cmd, hdr->cmdp, hdr->cmd_len))
 		return -EFAULT;
-	if (blk_verify_command(req->cmd, mode & FMODE_WRITE))
+	if (blk_verify_command(req->cmd, mode))
 		return -EPERM;
 
 	/*
@@ -469,7 +469,7 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 	if (in_len && copy_from_user(buffer, sic->data + cmdlen, in_len))
 		goto error;
 
-	err = blk_verify_command(req->cmd, mode & FMODE_WRITE);
+	err = blk_verify_command(req->cmd, mode);
 	if (err)
 		goto error;
 

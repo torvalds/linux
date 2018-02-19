@@ -155,7 +155,8 @@ static int sdio_irq_thread(void *_host)
 		 * holding of the host lock does not cover too much work
 		 * that doesn't require that lock to be held.
 		 */
-		ret = __mmc_claim_host(host, &host->sdio_irq_thread_abort);
+		ret = __mmc_claim_host(host, NULL,
+				       &host->sdio_irq_thread_abort);
 		if (ret)
 			break;
 		ret = process_sdio_pending_irqs(host);

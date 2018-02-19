@@ -1477,10 +1477,12 @@ static void init_vgachip(struct fb_info *info)
 		mdelay(100);
 		/* mode */
 		vga_wgfx(cinfo->regbase, CL_GR31, 0x00);
-	case BT_GD5480:  /* fall through */
+		/* fall through */
+	case BT_GD5480:
 		/* from Klaus' NetBSD driver: */
 		vga_wgfx(cinfo->regbase, CL_GR2F, 0x00);
-	case BT_ALPINE:  /* fall through */
+		/* fall through */
+	case BT_ALPINE:
 		/* put blitter into 542x compat */
 		vga_wgfx(cinfo->regbase, CL_GR33, 0x00);
 		break;

@@ -110,7 +110,8 @@ static int nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res,
 	clnt = nsm_create(host->net, host->nodename);
 	if (IS_ERR(clnt)) {
 		dprintk("lockd: failed to create NSM upcall transport, "
-			"status=%ld, net=%p\n", PTR_ERR(clnt), host->net);
+			"status=%ld, net=%x\n", PTR_ERR(clnt),
+			host->net->ns.inum);
 		return PTR_ERR(clnt);
 	}
 

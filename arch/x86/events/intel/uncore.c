@@ -975,10 +975,10 @@ static void uncore_pci_remove(struct pci_dev *pdev)
 	int i, phys_id, pkg;
 
 	phys_id = uncore_pcibus_to_physid(pdev->bus);
-	pkg = topology_phys_to_logical_pkg(phys_id);
 
 	box = pci_get_drvdata(pdev);
 	if (!box) {
+		pkg = topology_phys_to_logical_pkg(phys_id);
 		for (i = 0; i < UNCORE_EXTRA_PCI_DEV_MAX; i++) {
 			if (uncore_extra_pci_dev[pkg].dev[i] == pdev) {
 				uncore_extra_pci_dev[pkg].dev[i] = NULL;
@@ -994,7 +994,7 @@ static void uncore_pci_remove(struct pci_dev *pdev)
 		return;
 
 	pci_set_drvdata(pdev, NULL);
-	pmu->boxes[pkg] = NULL;
+	pmu->boxes[box->pkgid] = NULL;
 	if (atomic_dec_return(&pmu->activeboxes) == 0)
 		uncore_pmu_unregister(pmu);
 	uncore_box_exit(box);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * USB Attached SCSI
  * Note that this is not the same as the USB Mass Storage driver
@@ -5,8 +6,6 @@
  * Copyright Hans de Goede <hdegoede@redhat.com> for Red Hat, Inc. 2013 - 2016
  * Copyright Matthew Wilcox for Intel Corp, 2010
  * Copyright Sarah Sharp for Intel Corp, 2010
- *
- * Distributed under the terms of the GNU GPL, version two.
  */
 
 #include <linux/blkdev.h>
@@ -668,6 +667,7 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 		break;
 	case DMA_BIDIRECTIONAL:
 		cmdinfo->state |= ALLOC_DATA_IN_URB | SUBMIT_DATA_IN_URB;
+		/* fall through */
 	case DMA_TO_DEVICE:
 		cmdinfo->state |= ALLOC_DATA_OUT_URB | SUBMIT_DATA_OUT_URB;
 	case DMA_NONE:

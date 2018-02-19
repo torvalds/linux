@@ -281,9 +281,9 @@ static bool cadet_has_rds_data(struct cadet *dev)
 }
 
 
-static void cadet_handler(unsigned long data)
+static void cadet_handler(struct timer_list *t)
 {
-	struct cadet *dev = (void *)data;
+	struct cadet *dev = from_timer(dev, t, readtimer);
 
 	/* Service the RDS fifo */
 	if (mutex_trylock(&dev->lock)) {
@@ -309,7 +309,6 @@ static void cadet_handler(unsigned long data)
 	/*
 	 * Clean up and exit
 	 */
-	setup_timer(&dev->readtimer, cadet_handler, data);
 	dev->readtimer.expires = jiffies + msecs_to_jiffies(50);
 	add_timer(&dev->readtimer);
 }
@@ -318,7 +317,7 @@ static void cadet_start_rds(struct cadet *dev)
 {
 	dev->rdsstat = 1;
 	outb(0x80, dev->io);        /* Select RDS fifo */
-	setup_timer(&dev->readtimer, cadet_handler, (unsigned long)dev);
+	timer_setup(&dev->readtimer, cadet_handler, 0);
 	dev->readtimer.expires = jiffies + msecs_to_jiffies(50);
 	add_timer(&dev->readtimer);
 }

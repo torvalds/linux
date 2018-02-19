@@ -185,7 +185,6 @@ typedef struct compat_siginfo {
 } compat_siginfo_t;
 
 #define COMPAT_OFF_T_MAX	0x7fffffff
-#define COMPAT_LOFF_T_MAX	0x7fffffffffffffffL
 
 /*
  * A pointer passed in from user mode. This should not

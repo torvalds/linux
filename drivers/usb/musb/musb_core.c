@@ -1,35 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * MUSB OTG driver core code
  *
  * Copyright 2005 Mentor Graphics Corporation
  * Copyright (C) 2005-2006 by Texas Instruments
  * Copyright (C) 2006-2007 Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- * NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
- * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
 /*
@@ -485,9 +460,9 @@ void musb_load_testpacket(struct musb *musb)
 /*
  * Handles OTG hnp timeouts, such as b_ase0_brst
  */
-static void musb_otg_timer_func(unsigned long data)
+static void musb_otg_timer_func(struct timer_list *t)
 {
-	struct musb	*musb = (struct musb *)data;
+	struct musb	*musb = from_timer(musb, t, otg_timer);
 	unsigned long	flags;
 
 	spin_lock_irqsave(&musb->lock, flags);
@@ -767,6 +742,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 		case OTG_STATE_B_IDLE:
 			if (!musb->is_active)
 				break;
+			/* fall through */
 		case OTG_STATE_B_PERIPHERAL:
 			musb_g_suspend(musb);
 			musb->is_active = musb->g.b_hnp_enable;
@@ -2330,7 +2306,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	if (status < 0)
 		goto fail3;
 
-	setup_timer(&musb->otg_timer, musb_otg_timer_func, (unsigned long) musb);
+	timer_setup(&musb->otg_timer, musb_otg_timer_func, 0);
 
 	/* attach to the IRQ */
 	if (request_irq(nIrq, musb->isr, IRQF_SHARED, dev_name(dev), musb)) {

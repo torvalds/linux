@@ -122,7 +122,9 @@
 			  "J9 Header Pin33",
 			  "IR In",
 			  "HDMI CEC",
-			  "SYS LED";
+			  "SYS LED",
+			  /* GPIO_TEST_N */
+			  "";
 };
 
 &pinctrl_periphs {
@@ -163,9 +165,7 @@
 			  "WIFI 32K", "Bluetooth Enable",
 			  "Bluetooth WAKE HOST",
 			  /* Bank GPIOCLK */
-			  "", "J9 Header Pin39",
-			  /* GPIO_TEST_N */
-			  "";
+			  "", "J9 Header Pin39";
 };
 
 &pwm_AO_ab {

@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/gcd.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -293,16 +294,99 @@ int arizona_init_gpio(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(arizona_init_gpio);
 
-int arizona_init_notifiers(struct snd_soc_codec *codec)
+int arizona_init_common(struct arizona *arizona)
 {
-	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct arizona *arizona = priv->arizona;
+	struct arizona_pdata *pdata = &arizona->pdata;
+	unsigned int val, mask;
+	int i;
 
 	BLOCKING_INIT_NOTIFIER_HEAD(&arizona->notifier);
 
+	for (i = 0; i < ARIZONA_MAX_OUTPUT; ++i) {
+		/* Default is 0 so noop with defaults */
+		if (pdata->out_mono[i])
+			val = ARIZONA_OUT1_MONO;
+		else
+			val = 0;
+
+		regmap_update_bits(arizona->regmap,
+				   ARIZONA_OUTPUT_PATH_CONFIG_1L + (i * 8),
+				   ARIZONA_OUT1_MONO, val);
+	}
+
+	for (i = 0; i < ARIZONA_MAX_PDM_SPK; i++) {
+		if (pdata->spk_mute[i])
+			regmap_update_bits(arizona->regmap,
+					   ARIZONA_PDM_SPK1_CTRL_1 + (i * 2),
+					   ARIZONA_SPK1_MUTE_ENDIAN_MASK |
+					   ARIZONA_SPK1_MUTE_SEQ1_MASK,
+					   pdata->spk_mute[i]);
+
+		if (pdata->spk_fmt[i])
+			regmap_update_bits(arizona->regmap,
+					   ARIZONA_PDM_SPK1_CTRL_2 + (i * 2),
+					   ARIZONA_SPK1_FMT_MASK,
+					   pdata->spk_fmt[i]);
+	}
+
+	for (i = 0; i < ARIZONA_MAX_INPUT; i++) {
+		/* Default for both is 0 so noop with defaults */
+		val = pdata->dmic_ref[i] << ARIZONA_IN1_DMIC_SUP_SHIFT;
+		if (pdata->inmode[i] & ARIZONA_INMODE_DMIC)
+			val |= 1 << ARIZONA_IN1_MODE_SHIFT;
+
+		switch (arizona->type) {
+		case WM8998:
+		case WM1814:
+			regmap_update_bits(arizona->regmap,
+				ARIZONA_ADC_DIGITAL_VOLUME_1L + (i * 8),
+				ARIZONA_IN1L_SRC_SE_MASK,
+				(pdata->inmode[i] & ARIZONA_INMODE_SE)
+					<< ARIZONA_IN1L_SRC_SE_SHIFT);
+
+			regmap_update_bits(arizona->regmap,
+				ARIZONA_ADC_DIGITAL_VOLUME_1R + (i * 8),
+				ARIZONA_IN1R_SRC_SE_MASK,
+				(pdata->inmode[i] & ARIZONA_INMODE_SE)
+					<< ARIZONA_IN1R_SRC_SE_SHIFT);
+
+			mask = ARIZONA_IN1_DMIC_SUP_MASK |
+			       ARIZONA_IN1_MODE_MASK;
+			break;
+		default:
+			if (pdata->inmode[i] & ARIZONA_INMODE_SE)
+				val |= 1 << ARIZONA_IN1_SINGLE_ENDED_SHIFT;
+
+			mask = ARIZONA_IN1_DMIC_SUP_MASK |
+			       ARIZONA_IN1_MODE_MASK |
+			       ARIZONA_IN1_SINGLE_ENDED_MASK;
+			break;
+		}
+
+		regmap_update_bits(arizona->regmap,
+				   ARIZONA_IN1L_CONTROL + (i * 8),
+				   mask, val);
+	}
+
 	return 0;
 }
-EXPORT_SYMBOL_GPL(arizona_init_notifiers);
+EXPORT_SYMBOL_GPL(arizona_init_common);
+
+int arizona_init_vol_limit(struct arizona *arizona)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(arizona->pdata.out_vol_limit); ++i) {
+		if (arizona->pdata.out_vol_limit[i])
+			regmap_update_bits(arizona->regmap,
+					   ARIZONA_DAC_VOLUME_LIMIT_1L + i * 4,
+					   ARIZONA_OUT1L_VOL_LIM_MASK,
+					   arizona->pdata.out_vol_limit[i]);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_init_vol_limit);
 
 const char * const arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 	"None",
@@ -2694,6 +2778,80 @@ int arizona_lhpf_coeff_put(struct snd_kcontrol *kcontrol,
 	return snd_soc_bytes_put(kcontrol, ucontrol);
 }
 EXPORT_SYMBOL_GPL(arizona_lhpf_coeff_put);
+
+int arizona_of_get_audio_pdata(struct arizona *arizona)
+{
+	struct arizona_pdata *pdata = &arizona->pdata;
+	struct device_node *np = arizona->dev->of_node;
+	struct property *prop;
+	const __be32 *cur;
+	u32 val;
+	u32 pdm_val[ARIZONA_MAX_PDM_SPK];
+	int ret;
+	int count = 0;
+
+	count = 0;
+	of_property_for_each_u32(np, "wlf,inmode", prop, cur, val) {
+		if (count == ARRAY_SIZE(pdata->inmode))
+			break;
+
+		pdata->inmode[count] = val;
+		count++;
+	}
+
+	count = 0;
+	of_property_for_each_u32(np, "wlf,dmic-ref", prop, cur, val) {
+		if (count == ARRAY_SIZE(pdata->dmic_ref))
+			break;
+
+		pdata->dmic_ref[count] = val;
+		count++;
+	}
+
+	count = 0;
+	of_property_for_each_u32(np, "wlf,out-mono", prop, cur, val) {
+		if (count == ARRAY_SIZE(pdata->out_mono))
+			break;
+
+		pdata->out_mono[count] = !!val;
+		count++;
+	}
+
+	count = 0;
+	of_property_for_each_u32(np, "wlf,max-channels-clocked", prop, cur, val) {
+		if (count == ARRAY_SIZE(pdata->max_channels_clocked))
+			break;
+
+		pdata->max_channels_clocked[count] = val;
+		count++;
+	}
+
+	count = 0;
+	of_property_for_each_u32(np, "wlf,out-volume-limit", prop, cur, val) {
+		if (count == ARRAY_SIZE(pdata->out_vol_limit))
+			break;
+
+		pdata->out_vol_limit[count] = val;
+		count++;
+	}
+
+	ret = of_property_read_u32_array(np, "wlf,spk-fmt",
+					 pdm_val, ARRAY_SIZE(pdm_val));
+
+	if (ret >= 0)
+		for (count = 0; count < ARRAY_SIZE(pdata->spk_fmt); ++count)
+			pdata->spk_fmt[count] = pdm_val[count];
+
+	ret = of_property_read_u32_array(np, "wlf,spk-mute",
+					 pdm_val, ARRAY_SIZE(pdm_val));
+
+	if (ret >= 0)
+		for (count = 0; count < ARRAY_SIZE(pdata->spk_mute); ++count)
+			pdata->spk_mute[count] = pdm_val[count];
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_of_get_audio_pdata);
 
 MODULE_DESCRIPTION("ASoC Wolfson Arizona class device support");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

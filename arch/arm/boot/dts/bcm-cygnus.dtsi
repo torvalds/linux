@@ -96,14 +96,14 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		otp: otp@0301c800 {
+		otp: otp@301c800 {
 			compatible = "brcm,ocotp";
 			reg = <0x0301c800 0x2c>;
 			brcm,ocotp-size = <2048>;
 			status = "disabled";
 		};
 
-		pcie_phy: phy@0301d0a0 {
+		pcie_phy: phy@301d0a0 {
 			compatible = "brcm,cygnus-pcie-phy";
 			reg = <0x0301d0a0 0x14>;
 			#address-cells = <1>;
@@ -120,7 +120,7 @@
 			};
 		};
 
-		pinctrl: pinctrl@0301d0c8 {
+		pinctrl: pinctrl@301d0c8 {
 			compatible = "brcm,cygnus-pinmux";
 			reg = <0x0301d0c8 0x30>,
 			      <0x0301d24c 0x2c>;
@@ -141,7 +141,7 @@
 			};
 		};
 
-		mailbox: mailbox@03024024 {
+		mailbox: mailbox@3024024 {
 			compatible = "brcm,iproc-mailbox";
 			reg = <0x03024024 0x40>;
 			interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
@@ -150,7 +150,7 @@
 			#mbox-cells = <1>;
 		};
 
-		gpio_crmu: gpio@03024800 {
+		gpio_crmu: gpio@3024800 {
 			compatible = "brcm,cygnus-crmu-gpio";
 			reg = <0x03024800 0x50>,
 			      <0x03024008 0x18>;
@@ -473,6 +473,16 @@
 			status = "disabled";
 		};
 
+		clcd: clcd@180a0000 {
+			compatible = "arm,pl111", "arm,primecell";
+			reg = <0x180a0000 0x1000>;
+			interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "combined";
+			clocks = <&axi41_clk>, <&apb_clk>;
+			clock-names = "clcdclk", "apb_pclk";
+			status = "disabled";
+		};
+
 		v3d: v3d@180a2000 {
 			compatible = "brcm,cygnus-v3d";
 			reg = <0x180a2000 0x1000>;
@@ -572,6 +582,14 @@
 			clocks = <&asiu_clks BCM_CYGNUS_ASIU_ADC_CLK>;
 			clock-names = "tsc_clk";
 			interrupts = <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		pwm: pwm@180aa500 {
+			compatible = "brcm,kona-pwm";
+			reg = <0x180aa500 0xc4>;
+			#pwm-cells = <3>;
+			clocks = <&asiu_clks BCM_CYGNUS_ASIU_PWM_CLK>;
 			status = "disabled";
 		};
 

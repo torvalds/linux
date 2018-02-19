@@ -268,6 +268,15 @@ MODULE_PARM_DESC(ql2xautodetectsfp,
 		 "Detect SFP range and set appropriate distance.\n"
 		 "1 (Default): Enable\n");
 
+int ql2xenablemsix = 1;
+module_param(ql2xenablemsix, int, 0444);
+MODULE_PARM_DESC(ql2xenablemsix,
+		 "Set to enable MSI or MSI-X interrupt mechanism.\n"
+		 " Default is 1, enable MSI-X interrupt mechanism.\n"
+		 " 0 -- enable traditional pin-based mechanism.\n"
+		 " 1 -- enable MSI-X interrupt mechanism.\n"
+		 " 2 -- enable MSI interrupt mechanism.\n");
+
 /*
  * SCSI host template entry points
  */
@@ -330,12 +339,10 @@ struct scsi_transport_template *qla2xxx_transport_vport_template = NULL;
  */
 
 __inline__ void
-qla2x00_start_timer(scsi_qla_host_t *vha, void *func, unsigned long interval)
+qla2x00_start_timer(scsi_qla_host_t *vha, unsigned long interval)
 {
-	init_timer(&vha->timer);
+	timer_setup(&vha->timer, qla2x00_timer, 0);
 	vha->timer.expires = jiffies + interval * HZ;
-	vha->timer.data = (unsigned long)vha;
-	vha->timer.function = (void (*)(unsigned long))func;
 	add_timer(&vha->timer);
 	vha->timer_active = 1;
 }
@@ -388,7 +395,7 @@ static void qla_init_base_qpair(struct scsi_qla_host *vha, struct req_que *req,
 	INIT_LIST_HEAD(&ha->base_qpair->nvme_done_list);
 	ha->base_qpair->enable_class_2 = ql2xenableclass2;
 	/* init qpair to this cpu. Will adjust at run time. */
-	qla_cpu_update(rsp->qpair, smp_processor_id());
+	qla_cpu_update(rsp->qpair, raw_smp_processor_id());
 	ha->base_qpair->pdev = ha->pdev;
 
 	if (IS_QLA27XX(ha) || IS_QLA83XX(ha))
@@ -424,7 +431,7 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
 
 	qla_init_base_qpair(vha, req, rsp);
 
-	if (ql2xmqsupport && ha->max_qpairs) {
+	if ((ql2xmqsupport || ql2xnvmeenable) && ha->max_qpairs) {
 		ha->queue_pair_map = kcalloc(ha->max_qpairs, sizeof(struct qla_qpair *),
 			GFP_KERNEL);
 		if (!ha->queue_pair_map) {
@@ -1967,7 +1974,8 @@ skip_pio:
 	/* Determine queue resources */
 	ha->max_req_queues = ha->max_rsp_queues = 1;
 	ha->msix_count = QLA_BASE_VECTORS;
-	if (!ql2xmqsupport || (!IS_QLA25XX(ha) && !IS_QLA81XX(ha)))
+	if (!ql2xmqsupport || !ql2xnvmeenable ||
+	    (!IS_QLA25XX(ha) && !IS_QLA81XX(ha)))
 		goto mqiobase_exit;
 
 	ha->mqiobase = ioremap(pci_resource_start(ha->pdev, 3),
@@ -2064,7 +2072,7 @@ qla83xx_iospace_config(struct qla_hw_data *ha)
 		 * By default, driver uses at least two msix vectors
 		 * (default & rspq)
 		 */
-		if (ql2xmqsupport) {
+		if (ql2xmqsupport || ql2xnvmeenable) {
 			/* MB interrupt uses 1 vector */
 			ha->max_req_queues = ha->msix_count - 1;
 
@@ -3082,9 +3090,17 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		ql_dbg(ql_dbg_init, base_vha, 0x0192,
 			"blk/scsi-mq enabled, HW queues = %d.\n", host->nr_hw_queues);
-	} else
-		ql_dbg(ql_dbg_init, base_vha, 0x0193,
-			"blk/scsi-mq disabled.\n");
+	} else {
+		if (ql2xnvmeenable) {
+			host->nr_hw_queues = ha->max_qpairs;
+			ql_dbg(ql_dbg_init, base_vha, 0x0194,
+			    "FC-NVMe support is enabled, HW queues=%d\n",
+			    host->nr_hw_queues);
+		} else {
+			ql_dbg(ql_dbg_init, base_vha, 0x0193,
+			    "blk/scsi-mq disabled.\n");
+		}
+	}
 
 	qlt_probe_one_stage1(base_vha, ha);
 
@@ -3247,7 +3263,7 @@ skip_dpc:
 	base_vha->host->irq = ha->pdev->irq;
 
 	/* Initialized the timer */
-	qla2x00_start_timer(base_vha, qla2x00_timer, WATCH_INTERVAL);
+	qla2x00_start_timer(base_vha, WATCH_INTERVAL);
 	ql_dbg(ql_dbg_init, base_vha, 0x00ef,
 	    "Started qla2x00_timer with "
 	    "interval=%d.\n", WATCH_INTERVAL);
@@ -4745,7 +4761,7 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 		if (pla)
 			qlt_plogi_ack_unref(vha, pla);
 		else
-			qla24xx_async_gnl(vha, fcport);
+			qla24xx_async_gffid(vha, fcport);
 	}
 
 	if (free_fcport) {
@@ -5996,8 +6012,9 @@ qla2x00_rst_aen(scsi_qla_host_t *vha)
 * Context: Interrupt
 ***************************************************************************/
 void
-qla2x00_timer(scsi_qla_host_t *vha)
+qla2x00_timer(struct timer_list *t)
 {
+	scsi_qla_host_t *vha = from_timer(vha, t, timer);
 	unsigned long	cpu_flags = 0;
 	int		start_dpc = 0;
 	int		index;
@@ -6293,7 +6310,7 @@ qla2xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	switch (state) {
 	case pci_channel_io_normal:
 		ha->flags.eeh_busy = 0;
-		if (ql2xmqsupport) {
+		if (ql2xmqsupport || ql2xnvmeenable) {
 			set_bit(QPAIR_ONLINE_CHECK_NEEDED, &vha->dpc_flags);
 			qla2xxx_wake_dpc(vha);
 		}
@@ -6310,7 +6327,7 @@ qla2xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		pci_disable_device(pdev);
 		/* Return back all IOs */
 		qla2x00_abort_all_cmds(vha, DID_RESET << 16);
-		if (ql2xmqsupport) {
+		if (ql2xmqsupport || ql2xnvmeenable) {
 			set_bit(QPAIR_ONLINE_CHECK_NEEDED, &vha->dpc_flags);
 			qla2xxx_wake_dpc(vha);
 		}
@@ -6318,7 +6335,7 @@ qla2xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	case pci_channel_io_perm_failure:
 		ha->flags.pci_channel_io_perm_failure = 1;
 		qla2x00_abort_all_cmds(vha, DID_NO_CONNECT << 16);
-		if (ql2xmqsupport) {
+		if (ql2xmqsupport || ql2xnvmeenable) {
 			set_bit(QPAIR_ONLINE_CHECK_NEEDED, &vha->dpc_flags);
 			qla2xxx_wake_dpc(vha);
 		}

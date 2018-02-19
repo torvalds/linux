@@ -9,7 +9,6 @@
 #ifndef _LINUX_LIRC_DEV_H
 #define _LINUX_LIRC_DEV_H
 
-#define MAX_IRCTL_DEVICES 8
 #define BUFLEN            16
 
 #include <linux/slab.h>
@@ -18,6 +17,8 @@
 #include <linux/poll.h>
 #include <linux/kfifo.h>
 #include <media/lirc.h>
+#include <linux/device.h>
+#include <linux/cdev.h>
 
 struct lirc_buffer {
 	wait_queue_head_t wait_poll;
@@ -112,84 +113,69 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
 }
 
 /**
- * struct lirc_driver - Defines the parameters on a LIRC driver
+ * struct lirc_dev - represents a LIRC device
  *
- * @name:		this string will be used for logs
- *
- * @minor:		indicates minor device (/dev/lirc) number for
- *			registered driver if caller fills it with negative
- *			value, then the first free minor number will be used
- *			(if available).
- *
- * @code_length:	length of the remote control key code expressed in bits.
- *
- * @buffer_size:	Number of FIFO buffers with @chunk_size size. If zero,
- *			creates a buffer with BUFLEN size (16 bytes).
- *
+ * @name:		used for logging
+ * @minor:		the minor device (/dev/lircX) number for the device
+ * @code_length:	length of a remote control key code expressed in bits
  * @features:		lirc compatible hardware features, like LIRC_MODE_RAW,
  *			LIRC_CAN\_\*, as defined at include/media/lirc.h.
- *
+ * @buffer_size:	Number of FIFO buffers with @chunk_size size.
+ *			Only used if @rbuf is NULL.
  * @chunk_size:		Size of each FIFO buffer.
- *
- * @data:		it may point to any driver data and this pointer will
- *			be passed to all callback functions.
- *
- * @min_timeout:	Minimum timeout for record. Valid only if
- *			LIRC_CAN_SET_REC_TIMEOUT is defined.
- *
- * @max_timeout:	Maximum timeout for record. Valid only if
- *			LIRC_CAN_SET_REC_TIMEOUT is defined.
- *
- * @rbuf:		if not NULL, it will be used as a read buffer, you will
+ *			Only used if @rbuf is NULL.
+ * @data:		private per-driver data
+ * @buf:		if %NULL, lirc_dev will allocate and manage the buffer,
+ *			otherwise allocated by the caller which will
  *			have to write to the buffer by other means, like irq's
  *			(see also lirc_serial.c).
- *
- * @rdev:		Pointed to struct rc_dev associated with the LIRC
- *			device.
- *
- * @fops:		file_operations for drivers which don't fit the current
- *			driver model.
- *			Some ioctl's can be directly handled by lirc_dev if the
- *			driver's ioctl function is NULL or if it returns
- *			-ENOIOCTLCMD (see also lirc_serial.c).
- *
- * @dev:		pointer to the struct device associated with the LIRC
- *			device.
- *
+ * @buf_internal:	whether lirc_dev has allocated the read buffer or not
+ * @rdev:		&struct rc_dev associated with the device
+ * @fops:		&struct file_operations for the device
  * @owner:		the module owning this struct
+ * @attached:		if the device is still live
+ * @open:		open count for the device's chardev
+ * @mutex:		serialises file_operations calls
+ * @dev:		&struct device assigned to the device
+ * @cdev:		&struct cdev assigned to the device
  */
-struct lirc_driver {
+struct lirc_dev {
 	char name[40];
-	int minor;
+	unsigned int minor;
 	__u32 code_length;
-	unsigned int buffer_size; /* in chunks holding one code each */
 	__u32 features;
 
+	unsigned int buffer_size; /* in chunks holding one code each */
 	unsigned int chunk_size;
+	struct lirc_buffer *buf;
+	bool buf_internal;
 
 	void *data;
-	int min_timeout;
-	int max_timeout;
-	struct lirc_buffer *rbuf;
 	struct rc_dev *rdev;
 	const struct file_operations *fops;
-	struct device *dev;
 	struct module *owner;
+
+	bool attached;
+	int open;
+
+	struct mutex mutex; /* protect from simultaneous accesses */
+
+	struct device dev;
+	struct cdev cdev;
 };
 
-/* following functions can be called ONLY from user context
- *
- * returns negative value on error or minor number
- * of the registered device if success
- * contents of the structure pointed by p is copied
- */
-extern int lirc_register_driver(struct lirc_driver *d);
+struct lirc_dev *lirc_allocate_device(void);
 
-/* returns negative value on error or 0 if success
-*/
-extern int lirc_unregister_driver(int minor);
+void lirc_free_device(struct lirc_dev *d);
 
-/* Returns the private data stored in the lirc_driver
+int lirc_register_device(struct lirc_dev *d);
+
+void lirc_unregister_device(struct lirc_dev *d);
+
+/* Must be called in the open fop before lirc_get_pdata() can be used */
+void lirc_init_pdata(struct inode *inode, struct file *file);
+
+/* Returns the private data stored in the lirc_dev
  * associated with the given device file pointer.
  */
 void *lirc_get_pdata(struct file *file);

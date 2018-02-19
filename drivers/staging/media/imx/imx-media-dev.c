@@ -440,6 +440,11 @@ unlock:
 	return media_device_register(&imxmd->md);
 }
 
+static const struct v4l2_async_notifier_operations imx_media_subdev_ops = {
+	.bound = imx_media_subdev_bound,
+	.complete = imx_media_probe_complete,
+};
+
 /*
  * adds controls to a video device from an entity subdevice.
  * Continues upstream from the entity's sink pads.
@@ -608,8 +613,7 @@ static int imx_media_probe(struct platform_device *pdev)
 
 	/* prepare the async subdev notifier and register it */
 	imxmd->subdev_notifier.subdevs = imxmd->async_ptrs;
-	imxmd->subdev_notifier.bound = imx_media_subdev_bound;
-	imxmd->subdev_notifier.complete = imx_media_probe_complete;
+	imxmd->subdev_notifier.ops = &imx_media_subdev_ops;
 	ret = v4l2_async_notifier_register(&imxmd->v4l2_dev,
 					   &imxmd->subdev_notifier);
 	if (ret) {

@@ -441,9 +441,11 @@ static void print_cfs_group_stats(struct seq_file *m, int cpu, struct task_group
 		P_SCHEDSTAT(se->statistics.wait_count);
 	}
 	P(se->load.weight);
+	P(se->runnable_weight);
 #ifdef CONFIG_SMP
 	P(se->avg.load_avg);
 	P(se->avg.util_avg);
+	P(se->avg.runnable_load_avg);
 #endif
 
 #undef PN_SCHEDSTAT
@@ -558,16 +560,19 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 	SEQ_printf(m, "  .%-30s: %d\n", "nr_running", cfs_rq->nr_running);
 	SEQ_printf(m, "  .%-30s: %ld\n", "load", cfs_rq->load.weight);
 #ifdef CONFIG_SMP
+	SEQ_printf(m, "  .%-30s: %ld\n", "runnable_weight", cfs_rq->runnable_weight);
 	SEQ_printf(m, "  .%-30s: %lu\n", "load_avg",
 			cfs_rq->avg.load_avg);
 	SEQ_printf(m, "  .%-30s: %lu\n", "runnable_load_avg",
-			cfs_rq->runnable_load_avg);
+			cfs_rq->avg.runnable_load_avg);
 	SEQ_printf(m, "  .%-30s: %lu\n", "util_avg",
 			cfs_rq->avg.util_avg);
-	SEQ_printf(m, "  .%-30s: %ld\n", "removed_load_avg",
-			atomic_long_read(&cfs_rq->removed_load_avg));
-	SEQ_printf(m, "  .%-30s: %ld\n", "removed_util_avg",
-			atomic_long_read(&cfs_rq->removed_util_avg));
+	SEQ_printf(m, "  .%-30s: %ld\n", "removed.load_avg",
+			cfs_rq->removed.load_avg);
+	SEQ_printf(m, "  .%-30s: %ld\n", "removed.util_avg",
+			cfs_rq->removed.util_avg);
+	SEQ_printf(m, "  .%-30s: %ld\n", "removed.runnable_sum",
+			cfs_rq->removed.runnable_sum);
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	SEQ_printf(m, "  .%-30s: %lu\n", "tg_load_avg_contrib",
 			cfs_rq->tg_load_avg_contrib);
@@ -1004,10 +1009,13 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
 		   "nr_involuntary_switches", (long long)p->nivcsw);
 
 	P(se.load.weight);
+	P(se.runnable_weight);
 #ifdef CONFIG_SMP
 	P(se.avg.load_sum);
+	P(se.avg.runnable_load_sum);
 	P(se.avg.util_sum);
 	P(se.avg.load_avg);
+	P(se.avg.runnable_load_avg);
 	P(se.avg.util_avg);
 	P(se.avg.last_update_time);
 #endif

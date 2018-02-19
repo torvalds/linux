@@ -115,7 +115,7 @@ endif
 
 source "arch/unicore32/mm/Kconfig"
 
-comment "Floating poing support"
+comment "Floating point support"
 
 config UNICORE_FPU_F64
 	def_bool y if !ARCH_FPGA

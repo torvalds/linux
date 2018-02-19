@@ -167,8 +167,7 @@ void exynos_enter_aftr(void)
 
 	exynos_pm_central_suspend();
 
-	if (of_machine_is_compatible("samsung,exynos4212") ||
-	    of_machine_is_compatible("samsung,exynos4412")) {
+	if (of_machine_is_compatible("samsung,exynos4412")) {
 		/* Setting SEQ_OPTION register */
 		pmu_raw_writel(S5P_USE_STANDBY_WFI0 | S5P_USE_STANDBY_WFE0,
 			       S5P_CENTRAL_SEQ_OPTION);

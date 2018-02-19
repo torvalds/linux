@@ -27,6 +27,15 @@ typedef struct xpaddr {
 	phys_addr_t paddr;
 } xpaddr_t;
 
+#ifdef CONFIG_X86_64
+#define XEN_PHYSICAL_MASK	__sme_clr((1UL << 52) - 1)
+#else
+#define XEN_PHYSICAL_MASK	__PHYSICAL_MASK
+#endif
+
+#define XEN_PTE_MFN_MASK	((pteval_t)(((signed long)PAGE_MASK) & \
+					    XEN_PHYSICAL_MASK))
+
 #define XMADDR(x)	((xmaddr_t) { .maddr = (x) })
 #define XPADDR(x)	((xpaddr_t) { .paddr = (x) })
 
@@ -278,7 +287,7 @@ static inline unsigned long bfn_to_local_pfn(unsigned long mfn)
 
 static inline unsigned long pte_mfn(pte_t pte)
 {
-	return (pte.pte & PTE_PFN_MASK) >> PAGE_SHIFT;
+	return (pte.pte & XEN_PTE_MFN_MASK) >> PAGE_SHIFT;
 }
 
 static inline pte_t mfn_pte(unsigned long page_nr, pgprot_t pgprot)

@@ -1002,9 +1002,12 @@ static int pnv_pci_vf_resource_shift(struct pci_dev *dev, int offset)
 	}
 
 	/*
-	 * After doing so, there would be a "hole" in the /proc/iomem when
-	 * offset is a positive value. It looks like the device return some
-	 * mmio back to the system, which actually no one could use it.
+	 * Since M64 BAR shares segments among all possible 256 PEs,
+	 * we have to shift the beginning of PF IOV BAR to make it start from
+	 * the segment which belongs to the PE number assigned to the first VF.
+	 * This creates a "hole" in the /proc/iomem which could be used for
+	 * allocating other resources so we reserve this area below and
+	 * release when IOV is released.
 	 */
 	for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {
 		res = &dev->resource[i + PCI_IOV_RESOURCES];
@@ -1018,7 +1021,22 @@ static int pnv_pci_vf_resource_shift(struct pci_dev *dev, int offset)
 		dev_info(&dev->dev, "VF BAR%d: %pR shifted to %pR (%sabling %d VFs shifted by %d)\n",
 			 i, &res2, res, (offset > 0) ? "En" : "Dis",
 			 num_vfs, offset);
+
+		if (offset < 0) {
+			devm_release_resource(&dev->dev, &pdn->holes[i]);
+			memset(&pdn->holes[i], 0, sizeof(pdn->holes[i]));
+		}
+
 		pci_update_resource(dev, i + PCI_IOV_RESOURCES);
+
+		if (offset > 0) {
+			pdn->holes[i].start = res2.start;
+			pdn->holes[i].end = res2.start + size * offset - 1;
+			pdn->holes[i].flags = IORESOURCE_BUS;
+			pdn->holes[i].name = "pnv_iov_reserved";
+			devm_request_resource(&dev->dev, res->parent,
+					&pdn->holes[i]);
+		}
 	}
 	return 0;
 }
@@ -2779,7 +2797,7 @@ static long pnv_pci_ioda2_table_alloc_pages(int nid, __u64 bus_offset,
 	if (!levels || (levels > POWERNV_IOMMU_MAX_LEVELS))
 		return -EINVAL;
 
-	if ((window_size > memory_hotplug_max()) || !is_power_of_2(window_size))
+	if (!is_power_of_2(window_size))
 		return -EINVAL;
 
 	/* Adjust direct table size from window_size and levels */
@@ -3293,8 +3311,7 @@ static void pnv_pci_ioda_fixup(void)
 	pnv_pci_ioda_create_dbgfs();
 
 #ifdef CONFIG_EEH
-	eeh_init();
-	eeh_addr_cache_build();
+	pnv_eeh_post_init();
 #endif
 }
 

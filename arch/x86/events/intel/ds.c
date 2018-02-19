@@ -3,16 +3,19 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 
+#include <asm/cpu_entry_area.h>
 #include <asm/perf_event.h>
+#include <asm/tlbflush.h>
 #include <asm/insn.h>
 
 #include "../perf_event.h"
 
+/* Waste a full page so it can be mapped into the cpu_entry_area */
+DEFINE_PER_CPU_PAGE_ALIGNED(struct debug_store, cpu_debug_store);
+
 /* The size of a BTS record in bytes: */
 #define BTS_RECORD_SIZE		24
 
-#define BTS_BUFFER_SIZE		(PAGE_SIZE << 4)
-#define PEBS_BUFFER_SIZE	(PAGE_SIZE << 4)
 #define PEBS_FIXUP_SIZE		PAGE_SIZE
 
 /*
@@ -279,17 +282,67 @@ void fini_debug_store_on_cpu(int cpu)
 
 static DEFINE_PER_CPU(void *, insn_buffer);
 
+static void ds_update_cea(void *cea, void *addr, size_t size, pgprot_t prot)
+{
+	unsigned long start = (unsigned long)cea;
+	phys_addr_t pa;
+	size_t msz = 0;
+
+	pa = virt_to_phys(addr);
+
+	preempt_disable();
+	for (; msz < size; msz += PAGE_SIZE, pa += PAGE_SIZE, cea += PAGE_SIZE)
+		cea_set_pte(cea, pa, prot);
+
+	/*
+	 * This is a cross-CPU update of the cpu_entry_area, we must shoot down
+	 * all TLB entries for it.
+	 */
+	flush_tlb_kernel_range(start, start + size);
+	preempt_enable();
+}
+
+static void ds_clear_cea(void *cea, size_t size)
+{
+	unsigned long start = (unsigned long)cea;
+	size_t msz = 0;
+
+	preempt_disable();
+	for (; msz < size; msz += PAGE_SIZE, cea += PAGE_SIZE)
+		cea_set_pte(cea, 0, PAGE_NONE);
+
+	flush_tlb_kernel_range(start, start + size);
+	preempt_enable();
+}
+
+static void *dsalloc_pages(size_t size, gfp_t flags, int cpu)
+{
+	unsigned int order = get_order(size);
+	int node = cpu_to_node(cpu);
+	struct page *page;
+
+	page = __alloc_pages_node(node, flags | __GFP_ZERO, order);
+	return page ? page_address(page) : NULL;
+}
+
+static void dsfree_pages(const void *buffer, size_t size)
+{
+	if (buffer)
+		free_pages((unsigned long)buffer, get_order(size));
+}
+
 static int alloc_pebs_buffer(int cpu)
 {
-	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
-	int node = cpu_to_node(cpu);
-	int max;
-	void *buffer, *ibuffer;
+	struct cpu_hw_events *hwev = per_cpu_ptr(&cpu_hw_events, cpu);
+	struct debug_store *ds = hwev->ds;
+	size_t bsiz = x86_pmu.pebs_buffer_size;
+	int max, node = cpu_to_node(cpu);
+	void *buffer, *ibuffer, *cea;
 
 	if (!x86_pmu.pebs)
 		return 0;
 
-	buffer = kzalloc_node(x86_pmu.pebs_buffer_size, GFP_KERNEL, node);
+	buffer = dsalloc_pages(bsiz, GFP_KERNEL, cpu);
 	if (unlikely(!buffer))
 		return -ENOMEM;
 
@@ -300,99 +353,94 @@ static int alloc_pebs_buffer(int cpu)
 	if (x86_pmu.intel_cap.pebs_format < 2) {
 		ibuffer = kzalloc_node(PEBS_FIXUP_SIZE, GFP_KERNEL, node);
 		if (!ibuffer) {
-			kfree(buffer);
+			dsfree_pages(buffer, bsiz);
 			return -ENOMEM;
 		}
 		per_cpu(insn_buffer, cpu) = ibuffer;
 	}
-
-	max = x86_pmu.pebs_buffer_size / x86_pmu.pebs_record_size;
-
-	ds->pebs_buffer_base = (u64)(unsigned long)buffer;
+	hwev->ds_pebs_vaddr = buffer;
+	/* Update the cpu entry area mapping */
+	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers.pebs_buffer;
+	ds->pebs_buffer_base = (unsigned long) cea;
+	ds_update_cea(cea, buffer, bsiz, PAGE_KERNEL);
 	ds->pebs_index = ds->pebs_buffer_base;
-	ds->pebs_absolute_maximum = ds->pebs_buffer_base +
-		max * x86_pmu.pebs_record_size;
-
+	max = x86_pmu.pebs_record_size * (bsiz / x86_pmu.pebs_record_size);
+	ds->pebs_absolute_maximum = ds->pebs_buffer_base + max;
 	return 0;
 }
 
 static void release_pebs_buffer(int cpu)
 {
-	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+	struct cpu_hw_events *hwev = per_cpu_ptr(&cpu_hw_events, cpu);
+	void *cea;
 
-	if (!ds || !x86_pmu.pebs)
+	if (!x86_pmu.pebs)
 		return;
 
 	kfree(per_cpu(insn_buffer, cpu));
 	per_cpu(insn_buffer, cpu) = NULL;
 
-	kfree((void *)(unsigned long)ds->pebs_buffer_base);
-	ds->pebs_buffer_base = 0;
+	/* Clear the fixmap */
+	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers.pebs_buffer;
+	ds_clear_cea(cea, x86_pmu.pebs_buffer_size);
+	dsfree_pages(hwev->ds_pebs_vaddr, x86_pmu.pebs_buffer_size);
+	hwev->ds_pebs_vaddr = NULL;
 }
 
 static int alloc_bts_buffer(int cpu)
 {
-	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
-	int node = cpu_to_node(cpu);
-	int max, thresh;
-	void *buffer;
+	struct cpu_hw_events *hwev = per_cpu_ptr(&cpu_hw_events, cpu);
+	struct debug_store *ds = hwev->ds;
+	void *buffer, *cea;
+	int max;
 
 	if (!x86_pmu.bts)
 		return 0;
 
-	buffer = kzalloc_node(BTS_BUFFER_SIZE, GFP_KERNEL | __GFP_NOWARN, node);
+	buffer = dsalloc_pages(BTS_BUFFER_SIZE, GFP_KERNEL | __GFP_NOWARN, cpu);
 	if (unlikely(!buffer)) {
 		WARN_ONCE(1, "%s: BTS buffer allocation failure\n", __func__);
 		return -ENOMEM;
 	}
-
-	max = BTS_BUFFER_SIZE / BTS_RECORD_SIZE;
-	thresh = max / 16;
-
-	ds->bts_buffer_base = (u64)(unsigned long)buffer;
+	hwev->ds_bts_vaddr = buffer;
+	/* Update the fixmap */
+	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers.bts_buffer;
+	ds->bts_buffer_base = (unsigned long) cea;
+	ds_update_cea(cea, buffer, BTS_BUFFER_SIZE, PAGE_KERNEL);
 	ds->bts_index = ds->bts_buffer_base;
-	ds->bts_absolute_maximum = ds->bts_buffer_base +
-		max * BTS_RECORD_SIZE;
-	ds->bts_interrupt_threshold = ds->bts_absolute_maximum -
-		thresh * BTS_RECORD_SIZE;
-
+	max = BTS_RECORD_SIZE * (BTS_BUFFER_SIZE / BTS_RECORD_SIZE);
+	ds->bts_absolute_maximum = ds->bts_buffer_base + max;
+	ds->bts_interrupt_threshold = ds->bts_absolute_maximum - (max / 16);
 	return 0;
 }
 
 static void release_bts_buffer(int cpu)
 {
-	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+	struct cpu_hw_events *hwev = per_cpu_ptr(&cpu_hw_events, cpu);
+	void *cea;
 
-	if (!ds || !x86_pmu.bts)
+	if (!x86_pmu.bts)
 		return;
 
-	kfree((void *)(unsigned long)ds->bts_buffer_base);
-	ds->bts_buffer_base = 0;
+	/* Clear the fixmap */
+	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers.bts_buffer;
+	ds_clear_cea(cea, BTS_BUFFER_SIZE);
+	dsfree_pages(hwev->ds_bts_vaddr, BTS_BUFFER_SIZE);
+	hwev->ds_bts_vaddr = NULL;
 }
 
 static int alloc_ds_buffer(int cpu)
 {
-	int node = cpu_to_node(cpu);
-	struct debug_store *ds;
+	struct debug_store *ds = &get_cpu_entry_area(cpu)->cpu_debug_store;
 
-	ds = kzalloc_node(sizeof(*ds), GFP_KERNEL, node);
-	if (unlikely(!ds))
-		return -ENOMEM;
-
+	memset(ds, 0, sizeof(*ds));
 	per_cpu(cpu_hw_events, cpu).ds = ds;
-
 	return 0;
 }
 
 static void release_ds_buffer(int cpu)
 {
-	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
-
-	if (!ds)
-		return;
-
 	per_cpu(cpu_hw_events, cpu).ds = NULL;
-	kfree(ds);
 }
 
 void release_ds_buffers(void)
@@ -402,16 +450,22 @@ void release_ds_buffers(void)
 	if (!x86_pmu.bts && !x86_pmu.pebs)
 		return;
 
-	get_online_cpus();
-	for_each_online_cpu(cpu)
+	for_each_possible_cpu(cpu)
+		release_ds_buffer(cpu);
+
+	for_each_possible_cpu(cpu) {
+		/*
+		 * Again, ignore errors from offline CPUs, they will no longer
+		 * observe cpu_hw_events.ds and not program the DS_AREA when
+		 * they come up.
+		 */
 		fini_debug_store_on_cpu(cpu);
+	}
 
 	for_each_possible_cpu(cpu) {
 		release_pebs_buffer(cpu);
 		release_bts_buffer(cpu);
-		release_ds_buffer(cpu);
 	}
-	put_online_cpus();
 }
 
 void reserve_ds_buffers(void)
@@ -430,8 +484,6 @@ void reserve_ds_buffers(void)
 
 	if (!x86_pmu.pebs)
 		pebs_err = 1;
-
-	get_online_cpus();
 
 	for_each_possible_cpu(cpu) {
 		if (alloc_ds_buffer(cpu)) {
@@ -469,11 +521,14 @@ void reserve_ds_buffers(void)
 		if (x86_pmu.pebs && !pebs_err)
 			x86_pmu.pebs_active = 1;
 
-		for_each_online_cpu(cpu)
+		for_each_possible_cpu(cpu) {
+			/*
+			 * Ignores wrmsr_on_cpu() errors for offline CPUs they
+			 * will get this call through intel_pmu_cpu_starting().
+			 */
 			init_debug_store_on_cpu(cpu);
+		}
 	}
-
-	put_online_cpus();
 }
 
 /*

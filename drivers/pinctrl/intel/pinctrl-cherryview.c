@@ -491,7 +491,7 @@ static const struct chv_community north_community = {
 	.ngpio_ranges = ARRAY_SIZE(north_gpio_ranges),
 	.ngpios = ARRAY_SIZE(north_pins),
 	/*
-	 * North community can benerate GPIO interrupts only for the first
+	 * North community can generate GPIO interrupts only for the first
 	 * 8 interrupts. The upper half (8-15) can only be used to trigger
 	 * GPEs.
 	 */
@@ -1523,7 +1523,7 @@ static void chv_gpio_irq_handler(struct irq_desc *desc)
 		unsigned irq, offset;
 
 		offset = pctrl->intr_lines[intr_line];
-		irq = irq_find_mapping(gc->irqdomain, offset);
+		irq = irq_find_mapping(gc->irq.domain, offset);
 		generic_handle_irq(irq);
 	}
 
@@ -1585,7 +1585,7 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 	chip->label = dev_name(pctrl->dev);
 	chip->parent = pctrl->dev;
 	chip->base = -1;
-	chip->irq_need_valid_mask = need_valid_mask;
+	chip->irq.need_valid_mask = need_valid_mask;
 
 	ret = devm_gpiochip_add_data(pctrl->dev, chip, pctrl);
 	if (ret) {
@@ -1617,7 +1617,23 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 		intsel >>= CHV_PADCTRL0_INTSEL_SHIFT;
 
 		if (need_valid_mask && intsel >= pctrl->community->nirqs)
-			clear_bit(i, chip->irq_valid_mask);
+			clear_bit(i, chip->irq.valid_mask);
+	}
+
+	/*
+	 * The same set of machines in chv_no_valid_mask[] have incorrectly
+	 * configured GPIOs that generate spurious interrupts so we use
+	 * this same list to apply another quirk for them.
+	 *
+	 * See also https://bugzilla.kernel.org/show_bug.cgi?id=197953.
+	 */
+	if (!need_valid_mask) {
+		/*
+		 * Mask all interrupts the community is able to generate
+		 * but leave the ones that can only generate GPEs unmasked.
+		 */
+		chv_writel(GENMASK(31, pctrl->community->nirqs),
+			   pctrl->regs + CHV_INTMASK);
 	}
 
 	/* Clear all interrupts */

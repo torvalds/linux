@@ -11,7 +11,7 @@ enum gpio_lookup_flags {
 	GPIO_OPEN_DRAIN = (1 << 1),
 	GPIO_OPEN_SOURCE = (1 << 2),
 	GPIO_SLEEP_MAINTAIN_VALUE = (0 << 3),
-	GPIO_SLEEP_MAY_LOOSE_VALUE = (1 << 3),
+	GPIO_SLEEP_MAY_LOSE_VALUE = (1 << 3),
 };
 
 /**

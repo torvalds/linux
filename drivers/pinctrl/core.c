@@ -733,14 +733,14 @@ int pinctrl_get_group_selector(struct pinctrl_dev *pctldev,
 }
 
 /**
- * pinctrl_request_gpio() - request a single pin to be used as GPIO
+ * pinctrl_gpio_request() - request a single pin to be used as GPIO
  * @gpio: the GPIO pin number from the GPIO subsystem number space
  *
  * This function should *ONLY* be used from gpiolib-based GPIO drivers,
  * as part of their gpio_request() semantics, platforms and individual drivers
  * shall *NOT* request GPIO pins to be muxed in.
  */
-int pinctrl_request_gpio(unsigned gpio)
+int pinctrl_gpio_request(unsigned gpio)
 {
 	struct pinctrl_dev *pctldev;
 	struct pinctrl_gpio_range *range;
@@ -765,17 +765,17 @@ int pinctrl_request_gpio(unsigned gpio)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(pinctrl_request_gpio);
+EXPORT_SYMBOL_GPL(pinctrl_gpio_request);
 
 /**
- * pinctrl_free_gpio() - free control on a single pin, currently used as GPIO
+ * pinctrl_gpio_free() - free control on a single pin, currently used as GPIO
  * @gpio: the GPIO pin number from the GPIO subsystem number space
  *
  * This function should *ONLY* be used from gpiolib-based GPIO drivers,
  * as part of their gpio_free() semantics, platforms and individual drivers
  * shall *NOT* request GPIO pins to be muxed out.
  */
-void pinctrl_free_gpio(unsigned gpio)
+void pinctrl_gpio_free(unsigned gpio)
 {
 	struct pinctrl_dev *pctldev;
 	struct pinctrl_gpio_range *range;
@@ -795,7 +795,7 @@ void pinctrl_free_gpio(unsigned gpio)
 
 	mutex_unlock(&pctldev->mutex);
 }
-EXPORT_SYMBOL_GPL(pinctrl_free_gpio);
+EXPORT_SYMBOL_GPL(pinctrl_gpio_free);
 
 static int pinctrl_gpio_direction(unsigned gpio, bool input)
 {

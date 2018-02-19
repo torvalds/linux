@@ -593,13 +593,16 @@ void __fd_install(struct files_struct *files, unsigned int fd,
 {
 	struct fdtable *fdt;
 
-	might_sleep();
 	rcu_read_lock_sched();
 
-	while (unlikely(files->resize_in_progress)) {
+	if (unlikely(files->resize_in_progress)) {
 		rcu_read_unlock_sched();
-		wait_event(files->resize_wait, !files->resize_in_progress);
-		rcu_read_lock_sched();
+		spin_lock(&files->file_lock);
+		fdt = files_fdtable(files);
+		BUG_ON(fdt->fd[fd] != NULL);
+		rcu_assign_pointer(fdt->fd[fd], file);
+		spin_unlock(&files->file_lock);
+		return;
 	}
 	/* coupled with smp_wmb() in expand_fdtable() */
 	smp_rmb();
@@ -632,7 +635,6 @@ int __close_fd(struct files_struct *files, unsigned fd)
 	if (!file)
 		goto out_unlock;
 	rcu_assign_pointer(fdt->fd[fd], NULL);
-	__clear_close_on_exec(fd, fdt);
 	__put_unused_fd(files, fd);
 	spin_unlock(&files->file_lock);
 	return filp_close(file, files);

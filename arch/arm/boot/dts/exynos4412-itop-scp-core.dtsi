@@ -26,7 +26,7 @@
 		reg = <0x40000000 0x40000000>;
 	};
 
-	firmware@0203F000 {
+	firmware@203f000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x0203F000 0x1000>;
 	};

@@ -267,11 +267,12 @@ static struct component_match *vimc_add_subdevs(struct vimc_device *vimc)
 						PLATFORM_DEVID_AUTO,
 						&pdata,
 						sizeof(pdata));
-		if (!vimc->subdevs[i]) {
+		if (IS_ERR(vimc->subdevs[i])) {
+			match = ERR_CAST(vimc->subdevs[i]);
 			while (--i >= 0)
 				platform_device_unregister(vimc->subdevs[i]);
 
-			return ERR_PTR(-ENOMEM);
+			return match;
 		}
 
 		component_match_add(&vimc->pdev.dev, &match, vimc_comp_compare,

@@ -16,10 +16,9 @@
 #include <linux/cpumask.h>
 #include <asm/frame.h>
 
-static inline void load_sp0(struct tss_struct *tss,
-			     struct thread_struct *thread)
+static inline void load_sp0(unsigned long sp0)
 {
-	PVOP_VCALL2(pv_cpu_ops.load_sp0, tss, thread);
+	PVOP_VCALL1(pv_cpu_ops.load_sp0, sp0);
 }
 
 /* The paravirtualized CPUID instruction. */
@@ -928,6 +927,15 @@ extern void default_banner(void);
 	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_usergs_sysret64),	\
 		  CLBR_NONE,						\
 		  jmp PARA_INDIRECT(pv_cpu_ops+PV_CPU_usergs_sysret64))
+
+#ifdef CONFIG_DEBUG_ENTRY
+#define SAVE_FLAGS(clobbers)                                        \
+	PARA_SITE(PARA_PATCH(pv_irq_ops, PV_IRQ_save_fl), clobbers, \
+		  PV_SAVE_REGS(clobbers | CLBR_CALLEE_SAVE);        \
+		  call PARA_INDIRECT(pv_irq_ops+PV_IRQ_save_fl);    \
+		  PV_RESTORE_REGS(clobbers | CLBR_CALLEE_SAVE);)
+#endif
+
 #endif	/* CONFIG_X86_32 */
 
 #endif /* __ASSEMBLY__ */

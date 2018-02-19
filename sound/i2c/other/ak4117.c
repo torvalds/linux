@@ -35,7 +35,7 @@ MODULE_LICENSE("GPL");
 
 #define AK4117_ADDR			0x00 /* fixed address */
 
-static void snd_ak4117_timer(unsigned long data);
+static void snd_ak4117_timer(struct timer_list *t);
 
 static void reg_write(struct ak4117 *ak4117, unsigned char reg, unsigned char val)
 {
@@ -91,7 +91,7 @@ int snd_ak4117_create(struct snd_card *card, ak4117_read_t *read, ak4117_write_t
 	chip->read = read;
 	chip->write = write;
 	chip->private_data = private_data;
-	setup_timer(&chip->timer, snd_ak4117_timer, (unsigned long)chip);
+	timer_setup(&chip->timer, snd_ak4117_timer, 0);
 
 	for (reg = 0; reg < 5; reg++)
 		chip->regmap[reg] = pgm[reg];
@@ -529,9 +529,9 @@ int snd_ak4117_check_rate_and_errors(struct ak4117 *ak4117, unsigned int flags)
 	return res;
 }
 
-static void snd_ak4117_timer(unsigned long data)
+static void snd_ak4117_timer(struct timer_list *t)
 {
-	struct ak4117 *chip = (struct ak4117 *)data;
+	struct ak4117 *chip = from_timer(chip, t, timer);
 
 	if (chip->init)
 		return;

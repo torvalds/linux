@@ -9,7 +9,7 @@ config USB_CHIPIDEA
 	  Dual-role switch (ID, OTG FSM, sysfs), Host-only, and
 	  Peripheral-only.
 
-	  When compiled dynamically, the module will be called ci-hdrc.ko.
+	  When compiled dynamically, the module will be called ci_hdrc.ko.
 
 if USB_CHIPIDEA
 

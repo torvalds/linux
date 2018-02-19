@@ -1132,7 +1132,7 @@ static int fdp1_device_process(struct fdp1_ctx *ctx)
  * mem2mem callbacks
  */
 
-/**
+/*
  * job_ready() - check whether an instance is ready to be scheduled to run
  */
 static int fdp1_m2m_job_ready(void *priv)

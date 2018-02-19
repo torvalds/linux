@@ -31,7 +31,7 @@ Required properties:
 
 Example:
 
-spdif: spdif@01c21000 {
+spdif: spdif@1c21000 {
 	compatible = "allwinner,sun4i-a10-spdif";
 	reg = <0x01c21000 0x40>;
 	interrupts = <13>;

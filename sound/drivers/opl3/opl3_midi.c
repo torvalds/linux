@@ -238,10 +238,10 @@ static int opl3_get_voice(struct snd_opl3 *opl3, int instr_4op,
 /*
  * System timer interrupt function
  */
-void snd_opl3_timer_func(unsigned long data)
+void snd_opl3_timer_func(struct timer_list *t)
 {
 
-	struct snd_opl3 *opl3 = (struct snd_opl3 *)data;
+	struct snd_opl3 *opl3 = from_timer(opl3, t, tlist);
 	unsigned long flags;
 	int again = 0;
 	int i;

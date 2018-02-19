@@ -33,9 +33,28 @@ struct rxrpc_abort_buffer {
 };
 
 /*
+ * Arrange for a keepalive ping a certain time after we last transmitted.  This
+ * lets the far side know we're still interested in this call and helps keep
+ * the route through any intervening firewall open.
+ *
+ * Receiving a response to the ping will prevent the ->expect_rx_by timer from
+ * expiring.
+ */
+static void rxrpc_set_keepalive(struct rxrpc_call *call)
+{
+	unsigned long now = jiffies, keepalive_at = call->next_rx_timo / 6;
+
+	keepalive_at += now;
+	WRITE_ONCE(call->keepalive_at, keepalive_at);
+	rxrpc_reduce_call_timer(call, keepalive_at, now,
+				rxrpc_timer_set_for_keepalive);
+}
+
+/*
  * Fill out an ACK packet.
  */
-static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
+static size_t rxrpc_fill_out_ack(struct rxrpc_connection *conn,
+				 struct rxrpc_call *call,
 				 struct rxrpc_ack_buffer *pkt,
 				 rxrpc_seq_t *_hard_ack,
 				 rxrpc_seq_t *_top,
@@ -77,8 +96,8 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
 		} while (before_eq(seq, top));
 	}
 
-	mtu = call->conn->params.peer->if_mtu;
-	mtu -= call->conn->params.peer->hdrsize;
+	mtu = conn->params.peer->if_mtu;
+	mtu -= conn->params.peer->hdrsize;
 	jmax = (call->nr_jumbo_bad > 3) ? 1 : rxrpc_rx_jumbo_max;
 	pkt->ackinfo.rxMTU	= htonl(rxrpc_rx_mtu);
 	pkt->ackinfo.maxMTU	= htonl(mtu);
@@ -94,7 +113,8 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
 /*
  * Send an ACK call packet.
  */
-int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping)
+int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
+			  rxrpc_serial_t *_serial)
 {
 	struct rxrpc_connection *conn = NULL;
 	struct rxrpc_ack_buffer *pkt;
@@ -148,7 +168,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping)
 		}
 		call->ackr_reason = 0;
 	}
-	n = rxrpc_fill_out_ack(call, pkt, &hard_ack, &top, reason);
+	n = rxrpc_fill_out_ack(conn, call, pkt, &hard_ack, &top, reason);
 
 	spin_unlock_bh(&call->lock);
 
@@ -164,6 +184,8 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping)
 			   ntohl(pkt->ack.firstPacket),
 			   ntohl(pkt->ack.serial),
 			   pkt->ack.reason, pkt->ack.nAcks);
+	if (_serial)
+		*_serial = serial;
 
 	if (ping) {
 		call->ping_serial = serial;
@@ -201,6 +223,8 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping)
 				call->ackr_seen = top;
 			spin_unlock_bh(&call->lock);
 		}
+
+		rxrpc_set_keepalive(call);
 	}
 
 out:
@@ -220,6 +244,16 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
 	struct kvec iov[1];
 	rxrpc_serial_t serial;
 	int ret;
+
+	/* Don't bother sending aborts for a client call once the server has
+	 * hard-ACK'd all of its request data.  After that point, we're not
+	 * going to stop the operation proceeding, and whilst we might limit
+	 * the reply, it's not worth it if we can send a new call on the same
+	 * channel instead, thereby closing off this call.
+	 */
+	if (rxrpc_is_client_call(call) &&
+	    test_bit(RXRPC_CALL_TX_LAST, &call->flags))
+		return 0;
 
 	spin_lock_bh(&call->lock);
 	if (call->conn)
@@ -312,7 +346,8 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	 * ACKs if a DATA packet appears to have been lost.
 	 */
 	if (!(sp->hdr.flags & RXRPC_LAST_PACKET) &&
-	    (retrans ||
+	    (test_and_clear_bit(RXRPC_CALL_EV_ACK_LOST, &call->events) ||
+	     retrans ||
 	     call->cong_mode == RXRPC_CALL_SLOW_START ||
 	     (call->peer->rtt_usage < 3 && sp->hdr.seq & 1) ||
 	     ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000),
@@ -359,8 +394,23 @@ done:
 		if (whdr.flags & RXRPC_REQUEST_ACK) {
 			call->peer->rtt_last_req = now;
 			trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_data, serial);
+			if (call->peer->rtt_usage > 1) {
+				unsigned long nowj = jiffies, ack_lost_at;
+
+				ack_lost_at = nsecs_to_jiffies(2 * call->peer->rtt);
+				if (ack_lost_at < 1)
+					ack_lost_at = 1;
+
+				ack_lost_at += nowj;
+				WRITE_ONCE(call->ack_lost_at, ack_lost_at);
+				rxrpc_reduce_call_timer(call, ack_lost_at, nowj,
+							rxrpc_timer_set_for_lost_ack);
+			}
 		}
 	}
+
+	rxrpc_set_keepalive(call);
+
 	_leave(" = %d [%u]", ret, call->peer->maxdata);
 	return ret;
 

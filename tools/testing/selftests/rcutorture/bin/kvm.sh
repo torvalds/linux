@@ -30,7 +30,7 @@
 scriptname=$0
 args="$*"
 
-T=/tmp/kvm.sh.$$
+T=${TMPDIR-/tmp}/kvm.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 
@@ -222,7 +222,7 @@ do
 		exit 1
 	fi
 done
-sort -k2nr $T/cfgcpu > $T/cfgcpu.sort
+sort -k2nr $T/cfgcpu -T="$T" > $T/cfgcpu.sort
 
 # Use a greedy bin-packing algorithm, sorting the list accordingly.
 awk < $T/cfgcpu.sort > $T/cfgcpu.pack -v ncpus=$cpus '

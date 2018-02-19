@@ -79,15 +79,15 @@
 	};
 
 	soc {
-		ocram: sram@00900000 {
+		ocram: sram@900000 {
 			compatible = "mmio-sram";
 			reg = <0x00900000 0x40000>;
 			clocks = <&clks IMX6QDL_CLK_OCRAM>;
 		};
 
-		aips-bus@02000000 { /* AIPS1 */
-			spba-bus@02000000 {
-				ecspi5: ecspi@02018000 {
+		aips-bus@2000000 { /* AIPS1 */
+			spba-bus@2000000 {
+				ecspi5: ecspi@2018000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
@@ -102,12 +102,12 @@
 				};
 			};
 
-			iomuxc: iomuxc@020e0000 {
+			iomuxc: iomuxc@20e0000 {
 				compatible = "fsl,imx6q-iomuxc";
 			};
 		};
 
-		sata: sata@02200000 {
+		sata: sata@2200000 {
 			compatible = "fsl,imx6q-ahci";
 			reg = <0x02200000 0x4000>;
 			interrupts = <0 39 IRQ_TYPE_LEVEL_HIGH>;
@@ -118,7 +118,7 @@
 			status = "disabled";
 		};
 
-		gpu_vg: gpu@02204000 {
+		gpu_vg: gpu@2204000 {
 			compatible = "vivante,gc";
 			reg = <0x02204000 0x4000>;
 			interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
@@ -128,7 +128,7 @@
 			power-domains = <&pd_pu>;
 		};
 
-		ipu2: ipu@02800000 {
+		ipu2: ipu@2800000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "fsl,imx6q-ipu";

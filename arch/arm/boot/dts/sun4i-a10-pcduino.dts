@@ -62,8 +62,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_pcduino>;
 
 		tx {
 			label = "pcduino:green:tx";
@@ -76,26 +74,24 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
-		pinctrl-names = "default";
-		pinctrl-0 = <&key_pins_pcduino>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		button@0 {
+		back {
 			label = "Key Back";
 			linux,code = <KEY_BACK>;
 			gpios = <&pio 7 17 GPIO_ACTIVE_LOW>;
 		};
 
-		button@1 {
+		home {
 			label = "Key Home";
 			linux,code = <KEY_HOME>;
 			gpios = <&pio 7 18 GPIO_ACTIVE_LOW>;
 		};
 
-		button@2 {
+		menu {
 			label = "Key Menu";
 			linux,code = <KEY_MENU>;
 			gpios = <&pio 7 19 GPIO_ACTIVE_LOW>;
@@ -116,8 +112,6 @@
 };
 
 &emac {
-	pinctrl-names = "default";
-	pinctrl-0 = <&emac_pins_a>;
 	phy = <&phy1>;
 	status = "okay";
 };
@@ -127,8 +121,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -146,8 +138,6 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
@@ -168,17 +158,7 @@
 };
 
 &pio {
-	led_pins_pcduino: led_pins@0 {
-		pins = "PH15", "PH16";
-		function = "gpio_out";
-	};
-
-	key_pins_pcduino: key_pins@0 {
-		pins = "PH17", "PH18", "PH19";
-		function = "gpio_in";
-	};
-
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
+	usb0_id_detect_pin: usb0-id-detect-pin {
 		pins = "PH4";
 		function = "gpio_in";
 		bias-pull-up;
@@ -214,7 +194,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 

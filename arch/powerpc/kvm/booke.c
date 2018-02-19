@@ -599,9 +599,9 @@ static void arm_next_watchdog(struct kvm_vcpu *vcpu)
 	spin_unlock_irqrestore(&vcpu->arch.wdt_lock, flags);
 }
 
-void kvmppc_watchdog_func(unsigned long data)
+void kvmppc_watchdog_func(struct timer_list *t)
 {
-	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
+	struct kvm_vcpu *vcpu = from_timer(vcpu, t, arch.wdt_timer);
 	u32 tsr, new_tsr;
 	int final;
 
@@ -1412,8 +1412,7 @@ int kvmppc_subarch_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	/* setup watchdog timer once */
 	spin_lock_init(&vcpu->arch.wdt_lock);
-	setup_timer(&vcpu->arch.wdt_timer, kvmppc_watchdog_func,
-		    (unsigned long)vcpu);
+	timer_setup(&vcpu->arch.wdt_timer, kvmppc_watchdog_func, 0);
 
 	/*
 	 * Clear DBSR.MRR to avoid guest debug interrupt as

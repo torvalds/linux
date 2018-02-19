@@ -1495,9 +1495,9 @@ static int xm_check_link(struct net_device *dev)
  * get an interrupt when carrier is detected, need to poll for
  * link coming up.
  */
-static void xm_link_timer(unsigned long arg)
+static void xm_link_timer(struct timer_list *t)
 {
-	struct skge_port *skge = (struct skge_port *) arg;
+	struct skge_port *skge = from_timer(skge, t, link_timer);
 	struct net_device *dev = skge->netdev;
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
@@ -3897,7 +3897,7 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 
 	/* Only used for Genesis XMAC */
 	if (is_genesis(hw))
-	    setup_timer(&skge->link_timer, xm_link_timer, (unsigned long) skge);
+	    timer_setup(&skge->link_timer, xm_link_timer, 0);
 	else {
 		dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
 		                   NETIF_F_RXCSUM;
@@ -4081,7 +4081,6 @@ static void skge_remove(struct pci_dev *pdev)
 	if (hw->ports > 1) {
 		skge_write32(hw, B0_IMSK, 0);
 		skge_read32(hw, B0_IMSK);
-		free_irq(pdev->irq, hw);
 	}
 	spin_unlock_irq(&hw->hw_lock);
 

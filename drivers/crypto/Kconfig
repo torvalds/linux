@@ -199,22 +199,8 @@ config CRYPTO_CRC32_S390
 
 	  It is available with IBM z13 or later.
 
-config CRYPTO_DEV_MV_CESA
-	tristate "Marvell's Cryptographic Engine"
-	depends on PLAT_ORION
-	select CRYPTO_AES
-	select CRYPTO_BLKCIPHER
-	select CRYPTO_HASH
-	select SRAM
-	help
-	  This driver allows you to utilize the Cryptographic Engines and
-	  Security Accelerator (CESA) which can be found on the Marvell Orion
-	  and Kirkwood SoCs, such as QNAP's TS-209.
-
-	  Currently the driver supports AES in ECB and CBC mode without DMA.
-
 config CRYPTO_DEV_MARVELL_CESA
-	tristate "New Marvell's Cryptographic Engine driver"
+	tristate "Marvell's Cryptographic Engine driver"
 	depends on PLAT_ORION || ARCH_MVEBU
 	select CRYPTO_AES
 	select CRYPTO_DES
@@ -223,11 +209,9 @@ config CRYPTO_DEV_MARVELL_CESA
 	select SRAM
 	help
 	  This driver allows you to utilize the Cryptographic Engines and
-	  Security Accelerator (CESA) which can be found on the Armada 370.
+	  Security Accelerator (CESA) which can be found on MVEBU and ORION
+	  platforms.
 	  This driver supports CPU offload through DMA transfers.
-
-	  This driver is aimed at replacing the mv_cesa driver. This will only
-	  happen once it has received proper testing.
 
 config CRYPTO_DEV_NIAGARA2
        tristate "Niagara2 Stream Processing Unit driver"
@@ -315,6 +299,10 @@ config CRYPTO_DEV_PPC4XX
 	tristate "Driver AMCC PPC4xx crypto accelerator"
 	depends on PPC && 4xx
 	select CRYPTO_HASH
+	select CRYPTO_AEAD
+	select CRYPTO_AES
+	select CRYPTO_CCM
+	select CRYPTO_GCM
 	select CRYPTO_BLKCIPHER
 	help
 	  This option allows you to have support for AMCC crypto acceleration.
@@ -438,6 +426,20 @@ config CRYPTO_DEV_S5P
 	  This option allows you to have support for S5P crypto acceleration.
 	  Select this to offload Samsung S5PV210 or S5PC110, Exynos from AES
 	  algorithms execution.
+
+config CRYPTO_DEV_EXYNOS_HASH
+	bool "Support for Samsung Exynos HASH accelerator"
+	depends on CRYPTO_DEV_S5P
+	depends on !CRYPTO_DEV_EXYNOS_RNG && CRYPTO_DEV_EXYNOS_RNG!=m
+	select CRYPTO_SHA1
+	select CRYPTO_MD5
+	select CRYPTO_SHA256
+	help
+	  Select this to offload Exynos from HASH MD5/SHA1/SHA256.
+	  This will select software SHA1, MD5 and SHA256 as they are
+	  needed for small and zero-size messages.
+	  HASH algorithms will be disabled if EXYNOS_RNG
+	  is enabled due to hw conflict.
 
 config CRYPTO_DEV_NX
 	bool "Support for IBM PowerPC Nest (NX) cryptographic acceleration"

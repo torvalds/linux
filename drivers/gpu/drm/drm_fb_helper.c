@@ -910,6 +910,9 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 	if (!drm_fbdev_emulation || !fb_helper)
 		return;
 
+	cancel_work_sync(&fb_helper->resume_work);
+	cancel_work_sync(&fb_helper->dirty_work);
+
 	info = fb_helper->fbdev;
 	if (info) {
 		if (info->cmap.len)
@@ -917,9 +920,6 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 		framebuffer_release(info);
 	}
 	fb_helper->fbdev = NULL;
-
-	cancel_work_sync(&fb_helper->resume_work);
-	cancel_work_sync(&fb_helper->dirty_work);
 
 	mutex_lock(&kernel_fb_helper_lock);
 	if (!list_empty(&fb_helper->kernel_fb_list)) {
@@ -1809,6 +1809,10 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 
 	if (crtc_count == 0 || sizes.fb_width == -1 || sizes.fb_height == -1) {
 		DRM_INFO("Cannot find any crtc or sizes\n");
+
+		/* First time: disable all crtc's.. */
+		if (!fb_helper->deferred_setup && !READ_ONCE(fb_helper->dev->master))
+			restore_fbdev_mode(fb_helper);
 		return -EAGAIN;
 	}
 
@@ -2033,6 +2037,9 @@ static bool drm_connector_enabled(struct drm_connector *connector, bool strict)
 {
 	bool enable;
 
+	if (connector->display_info.non_desktop)
+		return false;
+
 	if (strict)
 		enable = connector->status == connector_status_connected;
 	else
@@ -2052,7 +2059,8 @@ static void drm_enable_connectors(struct drm_fb_helper *fb_helper,
 		connector = fb_helper->connector_info[i]->connector;
 		enabled[i] = drm_connector_enabled(connector, true);
 		DRM_DEBUG_KMS("connector %d enabled? %s\n", connector->base.id,
-			  enabled[i] ? "yes" : "no");
+			      connector->display_info.non_desktop ? "non desktop" : enabled[i] ? "yes" : "no");
+
 		any_enabled |= enabled[i];
 	}
 
@@ -2266,7 +2274,7 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 	if (modes[n] == NULL)
 		return best_score;
 
-	crtcs = kzalloc(fb_helper->connector_count *
+	crtcs = kcalloc(fb_helper->connector_count,
 			sizeof(struct drm_fb_helper_crtc *), GFP_KERNEL);
 	if (!crtcs)
 		return best_score;

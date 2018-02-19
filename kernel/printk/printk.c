@@ -2190,7 +2190,7 @@ again:
 		}
 
 		if (console_seq < log_first_seq) {
-			len = sprintf(text, "** %u printk messages dropped ** ",
+			len = sprintf(text, "** %u printk messages dropped **\n",
 				      (unsigned)(log_first_seq - console_seq));
 
 			/* messages are gone, move to first one */
@@ -3141,9 +3141,6 @@ void dump_stack_print_info(const char *log_lvl)
 void show_regs_print_info(const char *log_lvl)
 {
 	dump_stack_print_info(log_lvl);
-
-	printk("%stask: %p task.stack: %p\n",
-	       log_lvl, current, task_stack_page(current));
 }
 
 #endif

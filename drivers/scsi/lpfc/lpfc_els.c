@@ -3131,9 +3131,9 @@ lpfc_cancel_retry_delay_tmo(struct lpfc_vport *vport, struct lpfc_nodelist *nlp)
  * to the event associated with the ndlp.
  **/
 void
-lpfc_els_retry_delay(unsigned long ptr)
+lpfc_els_retry_delay(struct timer_list *t)
 {
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) ptr;
+	struct lpfc_nodelist *ndlp = from_timer(ndlp, t, nlp_delayfunc);
 	struct lpfc_vport *vport = ndlp->vport;
 	struct lpfc_hba   *phba = vport->phba;
 	unsigned long flags;
@@ -5394,10 +5394,6 @@ lpfc_els_rdp_cmpl(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context,
 					(len + pcmd), vport, ndlp);
 	len += lpfc_rdp_res_fec_desc((struct fc_fec_rdp_desc *)(len + pcmd),
 			&rdp_context->link_stat);
-	/* Check if nport is logged, BZ190632 */
-	if (!(ndlp->nlp_flag & NLP_RPI_REGISTERED))
-		goto lpfc_skip_descriptor;
-
 	len += lpfc_rdp_res_bbc_desc((struct fc_rdp_bbc_desc *)(len + pcmd),
 				     &rdp_context->link_stat, vport);
 	len += lpfc_rdp_res_oed_temp_desc(phba,
@@ -5418,7 +5414,6 @@ lpfc_els_rdp_cmpl(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context,
 	len += lpfc_rdp_res_opd_desc((struct fc_rdp_opd_sfp_desc *)(len + pcmd),
 				     rdp_context->page_a0, vport);
 
-lpfc_skip_descriptor:
 	rdp_res->length = cpu_to_be32(len - 8);
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
 
@@ -5540,7 +5535,6 @@ lpfc_els_rcv_rdp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
 	rdp_req = (struct fc_rdp_req_frame *) pcmd->virt;
 
-
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "2422 ELS RDP Request "
 			 "dec len %d tag x%x port_id %d len %d\n",
@@ -5549,12 +5543,6 @@ lpfc_els_rcv_rdp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			 be32_to_cpu(rdp_req->nport_id_desc.nport_id),
 			 be32_to_cpu(rdp_req->nport_id_desc.length));
 
-	if (!(ndlp->nlp_flag & NLP_RPI_REGISTERED) &&
-	    !phba->cfg_enable_SmartSAN) {
-		rjt_err = LSRJT_UNABLE_TPC;
-		rjt_expl = LSEXP_PORT_LOGIN_REQ;
-		goto error;
-	}
 	if (sizeof(struct fc_rdp_nport_desc) !=
 			be32_to_cpu(rdp_req->rdp_des_length))
 		goto rjt_logerr;
@@ -7385,9 +7373,9 @@ lpfc_els_rcv_fan(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
  * lpfc_els_timeout_handler() to work on the posted event WORKER_ELS_TMO.
  **/
 void
-lpfc_els_timeout(unsigned long ptr)
+lpfc_els_timeout(struct timer_list *t)
 {
-	struct lpfc_vport *vport = (struct lpfc_vport *) ptr;
+	struct lpfc_vport *vport = from_timer(vport, t, els_tmofunc);
 	struct lpfc_hba   *phba = vport->phba;
 	uint32_t tmo_posted;
 	unsigned long iflag;
@@ -7430,6 +7418,8 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 	timeout = (uint32_t)(phba->fc_ratov << 1);
 
 	pring = lpfc_phba_elsring(phba);
+	if (unlikely(!pring))
+		return;
 
 	if ((phba->pport->load_flag & FC_UNLOADING))
 		return;
@@ -9017,9 +9007,9 @@ lpfc_issue_els_npiv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
  * posted event WORKER_FABRIC_BLOCK_TMO.
  **/
 void
-lpfc_fabric_block_timeout(unsigned long ptr)
+lpfc_fabric_block_timeout(struct timer_list *t)
 {
-	struct lpfc_hba  *phba = (struct lpfc_hba *) ptr;
+	struct lpfc_hba  *phba = from_timer(phba, t, fabric_block_timer);
 	unsigned long iflags;
 	uint32_t tmo_posted;
 
@@ -9310,6 +9300,9 @@ void lpfc_fabric_abort_nport(struct lpfc_nodelist *ndlp)
 
 	pring = lpfc_phba_elsring(phba);
 
+	if (unlikely(!pring))
+		return;
+
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry_safe(piocb, tmp_iocb, &phba->fabric_iocb_list,
 				 list) {
@@ -9416,7 +9409,7 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 				rxid, 1);
 
 			/* Check if TXQ queue needs to be serviced */
-			if (!(list_empty(&pring->txq)))
+			if (pring && !list_empty(&pring->txq))
 				lpfc_worker_wake_up(phba);
 			return;
 		}

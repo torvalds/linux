@@ -62,7 +62,6 @@ static void irttp_run_rx_queue(struct tsap_cb *self);
 static void irttp_flush_queues(struct tsap_cb *self);
 static void irttp_fragment_skb(struct tsap_cb *self, struct sk_buff *skb);
 static struct sk_buff *irttp_reassemble_skb(struct tsap_cb *self);
-static void irttp_todo_expired(unsigned long data);
 static int irttp_param_max_sdu_size(void *instance, irda_param_t *param,
 				    int get);
 
@@ -160,9 +159,9 @@ static inline void irttp_start_todo_timer(struct tsap_cb *self, int timeout)
  * killed (need user context), and we can't guarantee that here...
  * Jean II
  */
-static void irttp_todo_expired(unsigned long data)
+static void irttp_todo_expired(struct timer_list *t)
 {
-	struct tsap_cb *self = (struct tsap_cb *) data;
+	struct tsap_cb *self = from_timer(self, t, todo_timer);
 
 	/* Check that we still exist */
 	if (!self || self->magic != TTP_TSAP_MAGIC)
@@ -374,7 +373,7 @@ static int irttp_param_max_sdu_size(void *instance, irda_param_t *param,
 static void irttp_init_tsap(struct tsap_cb *tsap)
 {
 	spin_lock_init(&tsap->lock);
-	init_timer(&tsap->todo_timer);
+	timer_setup(&tsap->todo_timer, irttp_todo_expired, 0);
 
 	skb_queue_head_init(&tsap->rx_queue);
 	skb_queue_head_init(&tsap->tx_queue);
@@ -409,10 +408,6 @@ struct tsap_cb *irttp_open_tsap(__u8 stsap_sel, int credit, notify_t *notify)
 
 	/* Initialize internal objects */
 	irttp_init_tsap(self);
-
-	/* Initialise todo timer */
-	self->todo_timer.data     = (unsigned long) self;
-	self->todo_timer.function = &irttp_todo_expired;
 
 	/* Initialize callbacks for IrLMP to use */
 	irda_notify_init(&ttp_notify);

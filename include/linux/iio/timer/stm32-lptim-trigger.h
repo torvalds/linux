@@ -16,11 +16,14 @@
 #define LPTIM2_OUT	"lptim2_out"
 #define LPTIM3_OUT	"lptim3_out"
 
-#if IS_ENABLED(CONFIG_IIO_STM32_LPTIMER_TRIGGER)
+#if IS_REACHABLE(CONFIG_IIO_STM32_LPTIMER_TRIGGER)
 bool is_stm32_lptim_trigger(struct iio_trigger *trig);
 #else
 static inline bool is_stm32_lptim_trigger(struct iio_trigger *trig)
 {
+#if IS_ENABLED(CONFIG_IIO_STM32_LPTIMER_TRIGGER)
+	pr_warn_once("stm32 lptim_trigger not linked in\n");
+#endif
 	return false;
 }
 #endif

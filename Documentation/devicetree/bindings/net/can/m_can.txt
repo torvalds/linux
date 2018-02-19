@@ -45,7 +45,7 @@ Required properties:
 
 Example:
 SoC dtsi:
-m_can1: can@020e8000 {
+m_can1: can@20e8000 {
 	compatible = "bosch,m_can";
 	reg = <0x020e8000 0x4000>, <0x02298000 0x4000>;
 	reg-names = "m_can", "message_ram";

@@ -34,7 +34,7 @@ do
 	sed -r \
 		-e 's/([ \t(])(__user|__force|__iomem)[ \t]/\1/g' \
 		-e 's/__attribute_const__([ \t]|$)/\1/g' \
-		-e 's@^#include <linux/compiler.h>@@' \
+		-e 's@^#include <linux/compiler(|_types).h>@@' \
 		-e 's/(^|[^a-zA-Z0-9])__packed([^a-zA-Z0-9_]|$)/\1__attribute__((packed))\2/g' \
 		-e 's/(^|[ \t(])(inline|asm|volatile)([ \t(]|$)/\1__\2__\3/g' \
 		-e 's@#(ifndef|define|endif[ \t]*/[*])[ \t]*_UAPI@#\1 @' \

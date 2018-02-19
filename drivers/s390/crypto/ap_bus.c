@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright IBM Corp. 2006, 2012
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -7,20 +8,6 @@
  *	      Holger Dengler <hd@linux.vnet.ibm.com>
  *
  * Adjunct processor bus.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define KMSG_COMPONENT "ap"
@@ -174,6 +161,18 @@ static int ap_configuration_available(void)
 static int ap_apft_available(void)
 {
 	return test_facility(15);
+}
+
+/*
+ * ap_qact_available(): Test if the PQAP(QACT) subfunction is available.
+ *
+ * Returns 1 if the QACT subfunction is available.
+ */
+static inline int ap_qact_available(void)
+{
+	if (ap_configuration)
+		return ap_configuration->qact;
+	return 0;
 }
 
 /**
@@ -362,13 +361,13 @@ void ap_wait(enum ap_wait wait)
 
 /**
  * ap_request_timeout(): Handling of request timeouts
- * @data: Holds the AP device.
+ * @t: timer making this callback
  *
  * Handles request timeouts.
  */
-void ap_request_timeout(unsigned long data)
+void ap_request_timeout(struct timer_list *t)
 {
-	struct ap_queue *aq = (struct ap_queue *) data;
+	struct ap_queue *aq = from_timer(aq, t, timeout);
 
 	if (ap_suspend_flag)
 		return;
@@ -988,6 +987,47 @@ static int ap_select_domain(void)
 }
 
 /*
+ * This function checks the type and returns either 0 for not
+ * supported or the highest compatible type value (which may
+ * include the input type value).
+ */
+static int ap_get_compatible_type(ap_qid_t qid, int rawtype, unsigned int func)
+{
+	int comp_type = 0;
+
+	/* < CEX2A is not supported */
+	if (rawtype < AP_DEVICE_TYPE_CEX2A)
+		return 0;
+	/* up to CEX6 known and fully supported */
+	if (rawtype <= AP_DEVICE_TYPE_CEX6)
+		return rawtype;
+	/*
+	 * unknown new type > CEX6, check for compatibility
+	 * to the highest known and supported type which is
+	 * currently CEX6 with the help of the QACT function.
+	 */
+	if (ap_qact_available()) {
+		struct ap_queue_status status;
+		union ap_qact_ap_info apinfo = {0};
+
+		apinfo.mode = (func >> 26) & 0x07;
+		apinfo.cat = AP_DEVICE_TYPE_CEX6;
+		status = ap_qact(qid, 0, &apinfo);
+		if (status.response_code == AP_RESPONSE_NORMAL
+		    && apinfo.cat >= AP_DEVICE_TYPE_CEX2A
+		    && apinfo.cat <= AP_DEVICE_TYPE_CEX6)
+			comp_type = apinfo.cat;
+	}
+	if (!comp_type)
+		AP_DBF(DBF_WARN, "queue=%02x.%04x unable to map type %d\n",
+		       AP_QID_CARD(qid), AP_QID_QUEUE(qid), rawtype);
+	else if (comp_type != rawtype)
+		AP_DBF(DBF_INFO, "queue=%02x.%04x map type %d to %d\n",
+		       AP_QID_CARD(qid), AP_QID_QUEUE(qid), rawtype, comp_type);
+	return comp_type;
+}
+
+/*
  * helper function to be used with bus_find_dev
  * matches for the card device with the given id
  */
@@ -1014,8 +1054,8 @@ static void ap_scan_bus(struct work_struct *unused)
 	struct ap_card *ac;
 	struct device *dev;
 	ap_qid_t qid;
-	int depth = 0, type = 0;
-	unsigned int functions = 0;
+	int comp_type, depth = 0, type = 0;
+	unsigned int func = 0;
 	int rc, id, dom, borked, domains, defdomdevs = 0;
 
 	AP_DBF(DBF_DEBUG, "ap_scan_bus running\n");
@@ -1066,12 +1106,12 @@ static void ap_scan_bus(struct work_struct *unused)
 				}
 				continue;
 			}
-			rc = ap_query_queue(qid, &depth, &type, &functions);
+			rc = ap_query_queue(qid, &depth, &type, &func);
 			if (dev) {
 				spin_lock_bh(&aq->lock);
 				if (rc == -ENODEV ||
 				    /* adapter reconfiguration */
-				    (ac && ac->functions != functions))
+				    (ac && ac->functions != func))
 					aq->state = AP_STATE_BORKED;
 				borked = aq->state == AP_STATE_BORKED;
 				spin_unlock_bh(&aq->lock);
@@ -1087,11 +1127,14 @@ static void ap_scan_bus(struct work_struct *unused)
 			}
 			if (rc)
 				continue;
-			/* new queue device needed */
+			/* a new queue device is needed, check out comp type */
+			comp_type = ap_get_compatible_type(qid, type, func);
+			if (!comp_type)
+				continue;
+			/* maybe a card device needs to be created first */
 			if (!ac) {
-				/* but first create the card device */
-				ac = ap_card_create(id, depth,
-						    type, functions);
+				ac = ap_card_create(id, depth, type,
+						    comp_type, func);
 				if (!ac)
 					continue;
 				ac->ap_dev.device.bus = &ap_bus_type;
@@ -1109,7 +1152,7 @@ static void ap_scan_bus(struct work_struct *unused)
 				get_device(&ac->ap_dev.device);
 			}
 			/* now create the new queue device */
-			aq = ap_queue_create(qid, type);
+			aq = ap_queue_create(qid, comp_type);
 			if (!aq)
 				continue;
 			aq->card = ac;
@@ -1147,7 +1190,7 @@ out:
 	mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ);
 }
 
-static void ap_config_timeout(unsigned long ptr)
+static void ap_config_timeout(struct timer_list *unused)
 {
 	if (ap_suspend_flag)
 		return;
@@ -1250,7 +1293,7 @@ int __init ap_module_init(void)
 		goto out_bus;
 
 	/* Setup the AP bus rescan timer. */
-	setup_timer(&ap_config_timer, ap_config_timeout, 0);
+	timer_setup(&ap_config_timer, ap_config_timeout, 0);
 
 	/*
 	 * Setup the high resultion poll timer.

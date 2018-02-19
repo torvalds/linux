@@ -218,7 +218,7 @@ static inline int buf_map_to_sec4_sg(struct device *jrdev,
 }
 
 /* Map state->caam_ctx, and add it to link table */
-static inline int ctx_map_to_sec4_sg(u32 *desc, struct device *jrdev,
+static inline int ctx_map_to_sec4_sg(struct device *jrdev,
 				     struct caam_hash_state *state, int ctx_len,
 				     struct sec4_sg_entry *sec4_sg, u32 flag)
 {
@@ -773,7 +773,7 @@ static int ahash_update_ctx(struct ahash_request *req)
 		edesc->src_nents = src_nents;
 		edesc->sec4_sg_bytes = sec4_sg_bytes;
 
-		ret = ctx_map_to_sec4_sg(desc, jrdev, state, ctx->ctx_len,
+		ret = ctx_map_to_sec4_sg(jrdev, state, ctx->ctx_len,
 					 edesc->sec4_sg, DMA_BIDIRECTIONAL);
 		if (ret)
 			goto unmap_ctx;
@@ -871,9 +871,8 @@ static int ahash_final_ctx(struct ahash_request *req)
 	desc = edesc->hw_desc;
 
 	edesc->sec4_sg_bytes = sec4_sg_bytes;
-	edesc->src_nents = 0;
 
-	ret = ctx_map_to_sec4_sg(desc, jrdev, state, ctx->ctx_len,
+	ret = ctx_map_to_sec4_sg(jrdev, state, ctx->ctx_len,
 				 edesc->sec4_sg, DMA_TO_DEVICE);
 	if (ret)
 		goto unmap_ctx;
@@ -967,7 +966,7 @@ static int ahash_finup_ctx(struct ahash_request *req)
 
 	edesc->src_nents = src_nents;
 
-	ret = ctx_map_to_sec4_sg(desc, jrdev, state, ctx->ctx_len,
+	ret = ctx_map_to_sec4_sg(jrdev, state, ctx->ctx_len,
 				 edesc->sec4_sg, DMA_TO_DEVICE);
 	if (ret)
 		goto unmap_ctx;
@@ -1123,7 +1122,6 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 		dev_err(jrdev, "unable to map dst\n");
 		goto unmap;
 	}
-	edesc->src_nents = 0;
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
@@ -1205,7 +1203,6 @@ static int ahash_update_no_ctx(struct ahash_request *req)
 
 		edesc->src_nents = src_nents;
 		edesc->sec4_sg_bytes = sec4_sg_bytes;
-		edesc->dst_dma = 0;
 
 		ret = buf_map_to_sec4_sg(jrdev, edesc->sec4_sg, state);
 		if (ret)
@@ -1417,7 +1414,6 @@ static int ahash_update_first(struct ahash_request *req)
 		}
 
 		edesc->src_nents = src_nents;
-		edesc->dst_dma = 0;
 
 		ret = ahash_edesc_add_src(ctx, edesc, req, mapped_nents, 0, 0,
 					  to_hash);

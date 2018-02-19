@@ -106,6 +106,7 @@ struct ccid3_hc_tx_sock {
 	u8				tx_last_win_count;
 	ktime_t				tx_t_last_win_count;
 	struct timer_list		tx_no_feedback_timer;
+	struct sock			*sk;
 	ktime_t				tx_t_ld;
 	ktime_t				tx_t_nom;
 	struct tfrc_tx_hist_entry	*tx_hist;

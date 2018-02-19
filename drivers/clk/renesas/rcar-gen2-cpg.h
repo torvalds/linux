@@ -34,9 +34,9 @@ struct rcar_gen2_cpg_pll_config {
 };
 
 struct clk *rcar_gen2_cpg_clk_register(struct device *dev,
-				       const struct cpg_core_clk *core,
-				       const struct cpg_mssr_info *info,
-				       struct clk **clks, void __iomem *base);
+	const struct cpg_core_clk *core, const struct cpg_mssr_info *info,
+	struct clk **clks, void __iomem *base,
+	struct raw_notifier_head *notifiers);
 int rcar_gen2_cpg_init(const struct rcar_gen2_cpg_pll_config *config,
 		       unsigned int pll0_div, u32 mode);
 

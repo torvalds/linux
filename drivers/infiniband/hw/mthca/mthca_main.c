@@ -473,11 +473,11 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 		goto err_unmap_eqp;
 	}
 
-       mdev->cq_table.table = mthca_alloc_icm_table(mdev, init_hca->cqc_base,
-						    dev_lim->cqc_entry_sz,
-						    mdev->limits.num_cqs,
-						    mdev->limits.reserved_cqs,
-						    0, 0);
+	mdev->cq_table.table = mthca_alloc_icm_table(mdev, init_hca->cqc_base,
+						     dev_lim->cqc_entry_sz,
+						     mdev->limits.num_cqs,
+						     mdev->limits.reserved_cqs,
+						     0, 0);
 	if (!mdev->cq_table.table) {
 		mthca_err(mdev, "Failed to map CQ context memory, aborting.\n");
 		err = -ENOMEM;

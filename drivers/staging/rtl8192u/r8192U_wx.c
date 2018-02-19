@@ -964,7 +964,7 @@ struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 	return wstats;
 }
 
-struct iw_handler_def  r8192_wx_handlers_def = {
+const struct iw_handler_def  r8192_wx_handlers_def = {
 	.standard = r8192_wx_handlers,
 	.num_standard = ARRAY_SIZE(r8192_wx_handlers),
 	.private = r8192_private_handler,

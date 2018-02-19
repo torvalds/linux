@@ -295,7 +295,7 @@ again:
 	order = alloc_order;
 
 	/* Try to obtain pages, decreasing order if necessary */
-	gfp = GFP_ATOMIC | __GFP_COLD | __GFP_COMP | __GFP_NOWARN;
+	gfp = GFP_ATOMIC | __GFP_COMP | __GFP_NOWARN;
 	while (order >= 0) {
 		pages = alloc_pages_node(node, gfp, order);
 		if (pages)

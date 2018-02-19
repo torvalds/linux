@@ -26,7 +26,7 @@
 #include <linux/mfd/max77693.h>
 #include <linux/mfd/max77693-common.h>
 #include <linux/mfd/max77693-private.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/regmap.h>
 #include <linux/irqdomain.h>
 

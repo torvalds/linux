@@ -472,8 +472,8 @@ static const struct pinctrl_pin_desc uniphier_ld11_pins[] = {
 
 static const unsigned aout_pins[] = {135, 136, 137, 138, 139, 140, 141, 142};
 static const int aout_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0};
-static const unsigned emmc_pins[] = {18, 19, 20, 21, 22, 23, 24, 25};
-static const int emmc_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0};
+static const unsigned int emmc_pins[] = {19, 20, 21, 22, 23, 24, 25};
+static const int emmc_muxvals[] = {0, 0, 0, 0, 0, 0, 0};
 static const unsigned emmc_dat8_pins[] = {26, 27, 28, 29};
 static const int emmc_dat8_muxvals[] = {0, 0, 0, 0};
 static const unsigned ether_rmii_pins[] = {6, 7, 8, 9, 10, 11, 12, 13, 14, 15,

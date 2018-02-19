@@ -348,7 +348,6 @@ static int at91_adc_reenable_trigger(struct iio_trigger *trig)
 }
 
 static const struct iio_trigger_ops at91_adc_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = &at91_adc_configure_trigger,
 	.try_reenable = &at91_adc_reenable_trigger,
 };
@@ -584,7 +583,6 @@ static int at91_adc_write_raw(struct iio_dev *indio_dev,
 static const struct iio_info at91_adc_info = {
 	.read_raw = &at91_adc_read_raw,
 	.write_raw = &at91_adc_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static void at91_adc_hw_init(struct at91_adc_state *st)

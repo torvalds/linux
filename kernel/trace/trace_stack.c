@@ -78,7 +78,7 @@ check_stack(unsigned long ip, unsigned long *stack)
 {
 	unsigned long this_size, flags; unsigned long *p, *top, *start;
 	static int tracer_frame;
-	int frame_size = ACCESS_ONCE(tracer_frame);
+	int frame_size = READ_ONCE(tracer_frame);
 	int i, x;
 
 	this_size = ((unsigned long)stack) & (THREAD_SIZE-1);
@@ -207,6 +207,10 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip,
 	/* no atomic needed, we only modify this variable by this cpu */
 	__this_cpu_inc(disable_stack_tracer);
 	if (__this_cpu_read(disable_stack_tracer) != 1)
+		goto out;
+
+	/* If rcu is not watching, then save stack trace can fail */
+	if (!rcu_is_watching())
 		goto out;
 
 	ip += MCOUNT_INSN_SIZE;

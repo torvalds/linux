@@ -17,7 +17,6 @@
  */
 
 #include <asm/segment.h>
-#include <generated/utsrelease.h>
 #include <asm/boot.h>
 #include <asm/page_types.h>
 #include <asm/setup.h>

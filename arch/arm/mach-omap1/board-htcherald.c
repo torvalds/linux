@@ -391,7 +391,7 @@ static struct omap_usb_config htcherald_usb_config __initdata = {
 };
 
 /* LCD Device resources */
-static struct omap_lcd_config htcherald_lcd_config __initdata = {
+static const struct omap_lcd_config htcherald_lcd_config __initconst = {
 	.ctrl_name	= "internal",
 };
 

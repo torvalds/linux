@@ -23,7 +23,6 @@
  */
 
 #include <linux/dma-debug.h>
-#include <linux/kmemcheck.h>
 #include <linux/dma-mapping.h>
 
 extern const struct dma_map_ops or1k_dma_map_ops;

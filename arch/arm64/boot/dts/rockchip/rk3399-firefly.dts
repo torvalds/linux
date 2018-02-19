@@ -49,6 +49,10 @@
 	model = "Firefly-RK3399 Board";
 	compatible = "firefly,firefly-rk3399", "rockchip,rk3399";
 
+	chosen {
+		stdout-path = "serial2:1500000n8";
+	};
+
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		enable-gpios = <&gpio1 RK_PB5 GPIO_ACTIVE_HIGH>;
@@ -252,6 +256,13 @@
 	snps,reset-delays-us = <0 10000 50000>;
 	tx_delay = <0x28>;
 	rx_delay = <0x11>;
+	status = "okay";
+};
+
+&hdmi {
+	ddc-i2c-bus = <&i2c3>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_cec>;
 	status = "okay";
 };
 
@@ -727,4 +738,20 @@
 &usbdrd_dwc3_1 {
 	status = "okay";
 	dr_mode = "host";
+};
+
+&vopb {
+	status = "okay";
+};
+
+&vopb_mmu {
+	status = "okay";
+};
+
+&vopl {
+	status = "okay";
+};
+
+&vopl_mmu {
+	status = "okay";
 };

@@ -394,6 +394,7 @@ int bnxt_re_add_gid(struct ib_device *ibdev, u8 port_num,
 	ctx->idx = tbl_idx;
 	ctx->refcnt = 1;
 	ctx_tbl[tbl_idx] = ctx;
+	*context = ctx;
 
 	return rc;
 }
@@ -665,7 +666,6 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 	struct bnxt_re_ah *ah;
 	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
 	int rc;
-	u16 vlan_tag;
 	u8 nw_type;
 
 	struct ib_gid_attr sgid_attr;
@@ -711,11 +711,8 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 				grh->sgid_index);
 			goto fail;
 		}
-		if (sgid_attr.ndev) {
-			if (is_vlan_dev(sgid_attr.ndev))
-				vlan_tag = vlan_dev_vlan_id(sgid_attr.ndev);
+		if (sgid_attr.ndev)
 			dev_put(sgid_attr.ndev);
-		}
 		/* Get network header type for this GID */
 		nw_type = ib_gid_to_network_type(sgid_attr.gid_type, &sgid);
 		switch (nw_type) {
@@ -728,14 +725,6 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 		default:
 			ah->qplib_ah.nw_type = CMDQ_CREATE_AH_TYPE_V1;
 			break;
-		}
-		rc = rdma_addr_find_l2_eth_by_grh(&sgid, &grh->dgid,
-						  ah_attr->roce.dmac, &vlan_tag,
-						  &sgid_attr.ndev->ifindex,
-						  NULL);
-		if (rc) {
-			dev_err(rdev_to_dev(rdev), "Failed to get dmac\n");
-			goto fail;
 		}
 	}
 
@@ -796,6 +785,7 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
 	struct bnxt_re_dev *rdev = qp->rdev;
 	int rc;
 
+	bnxt_qplib_flush_cqn_wq(&qp->qplib_qp);
 	bnxt_qplib_del_flush_qp(&qp->qplib_qp);
 	rc = bnxt_qplib_destroy_qp(&rdev->qplib_res, &qp->qplib_qp);
 	if (rc) {
@@ -1643,7 +1633,7 @@ static int bnxt_re_build_qp1_send_v2(struct bnxt_re_qp *qp,
 	u8 ip_version = 0;
 	u16 vlan_id = 0xFFFF;
 	void *buf;
-	int i, rc = 0, size;
+	int i, rc = 0;
 
 	memset(&qp->qp1_hdr, 0, sizeof(qp->qp1_hdr));
 
@@ -1760,7 +1750,7 @@ static int bnxt_re_build_qp1_send_v2(struct bnxt_re_qp *qp,
 	/* Pack the QP1 to the transmit buffer */
 	buf = bnxt_qplib_get_qp1_sq_buf(&qp->qplib_qp, &sge);
 	if (buf) {
-		size = ib_ud_header_pack(&qp->qp1_hdr, buf);
+		ib_ud_header_pack(&qp->qp1_hdr, buf);
 		for (i = wqe->num_sge; i; i--) {
 			wqe->sg_list[i].addr = wqe->sg_list[i - 1].addr;
 			wqe->sg_list[i].lkey = wqe->sg_list[i - 1].lkey;
@@ -2216,7 +2206,7 @@ static int bnxt_re_post_recv_shadow_qp(struct bnxt_re_dev *rdev,
 				       struct ib_recv_wr *wr)
 {
 	struct bnxt_qplib_swqe wqe;
-	int rc = 0, payload_sz = 0;
+	int rc = 0;
 
 	memset(&wqe, 0, sizeof(wqe));
 	while (wr) {
@@ -2231,8 +2221,7 @@ static int bnxt_re_post_recv_shadow_qp(struct bnxt_re_dev *rdev,
 			rc = -EINVAL;
 			break;
 		}
-		payload_sz = bnxt_re_build_sgl(wr->sg_list, wqe.sg_list,
-					       wr->num_sge);
+		bnxt_re_build_sgl(wr->sg_list, wqe.sg_list, wr->num_sge);
 		wqe.wr_id = wr->wr_id;
 		wqe.type = BNXT_QPLIB_SWQE_TYPE_RECV;
 
@@ -2569,7 +2558,7 @@ static void bnxt_re_process_req_wc(struct ib_wc *wc, struct bnxt_qplib_cqe *cqe)
 static int bnxt_re_check_packet_type(u16 raweth_qp1_flags,
 				     u16 raweth_qp1_flags2)
 {
-	bool is_udp = false, is_ipv6 = false, is_ipv4 = false;
+	bool is_ipv6 = false, is_ipv4 = false;
 
 	/* raweth_qp1_flags Bit 9-6 indicates itype */
 	if ((raweth_qp1_flags & CQ_RES_RAWETH_QP1_RAWETH_QP1_FLAGS_ITYPE_ROCE)
@@ -2580,7 +2569,6 @@ static int bnxt_re_check_packet_type(u16 raweth_qp1_flags,
 	    CQ_RES_RAWETH_QP1_RAWETH_QP1_FLAGS2_IP_CS_CALC &&
 	    raweth_qp1_flags2 &
 	    CQ_RES_RAWETH_QP1_RAWETH_QP1_FLAGS2_L4_CS_CALC) {
-		is_udp = true;
 		/* raweth_qp1_flags2 Bit 8 indicates ip_type. 0-v4 1 - v6 */
 		(raweth_qp1_flags2 &
 		 CQ_RES_RAWETH_QP1_RAWETH_QP1_FLAGS2_IP_TYPE) ?
@@ -2781,6 +2769,32 @@ static void bnxt_re_process_res_rawqp1_wc(struct ib_wc *wc,
 	wc->wc_flags |= IB_WC_GRH;
 }
 
+static bool bnxt_re_is_vlan_pkt(struct bnxt_qplib_cqe *orig_cqe,
+				u16 *vid, u8 *sl)
+{
+	bool ret = false;
+	u32 metadata;
+	u16 tpid;
+
+	metadata = orig_cqe->raweth_qp1_metadata;
+	if (orig_cqe->raweth_qp1_flags2 &
+		CQ_RES_RAWETH_QP1_RAWETH_QP1_FLAGS2_META_FORMAT_VLAN) {
+		tpid = ((metadata &
+			 CQ_RES_RAWETH_QP1_RAWETH_QP1_METADATA_TPID_MASK) >>
+			 CQ_RES_RAWETH_QP1_RAWETH_QP1_METADATA_TPID_SFT);
+		if (tpid == ETH_P_8021Q) {
+			*vid = metadata &
+			       CQ_RES_RAWETH_QP1_RAWETH_QP1_METADATA_VID_MASK;
+			*sl = (metadata &
+			       CQ_RES_RAWETH_QP1_RAWETH_QP1_METADATA_PRI_MASK) >>
+			       CQ_RES_RAWETH_QP1_RAWETH_QP1_METADATA_PRI_SFT;
+			ret = true;
+		}
+	}
+
+	return ret;
+}
+
 static void bnxt_re_process_res_rc_wc(struct ib_wc *wc,
 				      struct bnxt_qplib_cqe *cqe)
 {
@@ -2800,12 +2814,14 @@ static void bnxt_re_process_res_shadow_qp_wc(struct bnxt_re_qp *qp,
 					     struct ib_wc *wc,
 					     struct bnxt_qplib_cqe *cqe)
 {
-	u32 tbl_idx;
 	struct bnxt_re_dev *rdev = qp->rdev;
 	struct bnxt_re_qp *qp1_qp = NULL;
 	struct bnxt_qplib_cqe *orig_cqe = NULL;
 	struct bnxt_re_sqp_entries *sqp_entry = NULL;
 	int nw_type;
+	u32 tbl_idx;
+	u16 vlan_id;
+	u8 sl;
 
 	tbl_idx = cqe->wr_id;
 
@@ -2820,6 +2836,11 @@ static void bnxt_re_process_res_shadow_qp_wc(struct bnxt_re_qp *qp,
 	wc->ex.imm_data = orig_cqe->immdata;
 	wc->src_qp = orig_cqe->src_qp;
 	memcpy(wc->smac, orig_cqe->smac, ETH_ALEN);
+	if (bnxt_re_is_vlan_pkt(orig_cqe, &vlan_id, &sl)) {
+		wc->vlan_id = vlan_id;
+		wc->sl = sl;
+		wc->wc_flags |= IB_WC_WITH_VLAN;
+	}
 	wc->port_num = 1;
 	wc->vendor_err = orig_cqe->status;
 
@@ -3008,8 +3029,10 @@ int bnxt_re_req_notify_cq(struct ib_cq *ib_cq,
 			  enum ib_cq_notify_flags ib_cqn_flags)
 {
 	struct bnxt_re_cq *cq = container_of(ib_cq, struct bnxt_re_cq, ib_cq);
-	int type = 0;
+	int type = 0, rc = 0;
+	unsigned long flags;
 
+	spin_lock_irqsave(&cq->cq_lock, flags);
 	/* Trigger on the very next completion */
 	if (ib_cqn_flags & IB_CQ_NEXT_COMP)
 		type = DBR_DBR_TYPE_CQ_ARMALL;
@@ -3019,12 +3042,15 @@ int bnxt_re_req_notify_cq(struct ib_cq *ib_cq,
 
 	/* Poll to see if there are missed events */
 	if ((ib_cqn_flags & IB_CQ_REPORT_MISSED_EVENTS) &&
-	    !(bnxt_qplib_is_cq_empty(&cq->qplib_cq)))
-		return 1;
-
+	    !(bnxt_qplib_is_cq_empty(&cq->qplib_cq))) {
+		rc = 1;
+		goto exit;
+	}
 	bnxt_qplib_req_notify_cq(&cq->qplib_cq, type);
 
-	return 0;
+exit:
+	spin_unlock_irqrestore(&cq->cq_lock, flags);
+	return rc;
 }
 
 /* Memory Regions */

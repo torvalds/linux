@@ -917,13 +917,13 @@ static const struct dev_pm_ops stm_dev_pm_ops = {
 
 static const struct amba_id stm_ids[] = {
 	{
-		.id     = 0x0003b962,
-		.mask   = 0x0003ffff,
+		.id     = 0x000bb962,
+		.mask   = 0x000fffff,
 		.data	= "STM32",
 	},
 	{
-		.id	= 0x0003b963,
-		.mask	= 0x0003ffff,
+		.id	= 0x000bb963,
+		.mask	= 0x000fffff,
 		.data	= "STM500",
 	},
 	{ 0, 0},

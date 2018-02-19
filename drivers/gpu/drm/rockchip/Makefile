@@ -13,5 +13,6 @@ rockchipdrm-$(CONFIG_ROCKCHIP_CDN_DP) += cdn-dp-core.o cdn-dp-reg.o
 rockchipdrm-$(CONFIG_ROCKCHIP_DW_HDMI) += dw_hdmi-rockchip.o
 rockchipdrm-$(CONFIG_ROCKCHIP_DW_MIPI_DSI) += dw-mipi-dsi.o
 rockchipdrm-$(CONFIG_ROCKCHIP_INNO_HDMI) += inno_hdmi.o
+rockchipdrm-$(CONFIG_ROCKCHIP_LVDS) += rockchip_lvds.o
 
 obj-$(CONFIG_DRM_ROCKCHIP) += rockchipdrm.o

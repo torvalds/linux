@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * u_serial.c - utilities for USB gadget "serial port"/TTY support
  *
@@ -9,10 +10,6 @@
  * Copyright (C) 1999 - 2002 Greg Kroah-Hartman (greg@kroah.com)
  * Copyright (C) 2000 Peter Berger (pberger@brimson.com)
  * Copyright (C) 2000 Al Borchers (alborchers@steinerpoint.com)
- *
- * This software is distributed under the terms of the GNU General
- * Public License ("GPL") as published by the Free Software Foundation,
- * either version 2 of that License or (at your option) any later version.
  */
 
 /* #define VERBOSE_DEBUG */
@@ -1078,6 +1075,7 @@ static void gs_complete_out(struct usb_ep *ep, struct usb_request *req)
 	default:
 		pr_warn("%s: unexpected %s status %d\n",
 			__func__, ep->name, req->status);
+		/* fall through */
 	case 0:
 		/* normal completion */
 		spin_lock(&info->con_lock);

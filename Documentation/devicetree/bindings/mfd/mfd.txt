@@ -41,7 +41,7 @@ foo@1000 {
 	compatible = "syscon", "simple-mfd";
 	reg = <0x01000 0x1000>;
 
-	led@08.0 {
+	led@8.0 {
 		compatible = "register-bit-led";
 		offset = <0x08>;
 		mask = <0x01>;

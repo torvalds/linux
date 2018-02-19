@@ -169,16 +169,14 @@ enum rtl8192c_h2c_cmd {
 #define MAX_BASE_NUM_IN_PHY_REG_PG_24G  6
 #define MAX_BASE_NUM_IN_PHY_REG_PG_5G	5
 
-#define RTL8192EE_SEG_NUM		1 /* 0:2 seg, 1: 4 seg, 2: 8 seg */
+#define BUFDESC_SEG_NUM		1 /* 0:2 seg, 1: 4 seg, 2: 8 seg */
 
 #define DEL_SW_IDX_SZ		30
-#define BAND_NUM			3
 
 /* For now, it's just for 8192ee
  * but not OK yet, keep it 0
  */
-#define DMA_IS_64BIT 0
-#define RTL8192EE_SEG_NUM		1 /* 0:2 seg, 1: 4 seg, 2: 8 seg */
+#define RTL8192EE_SEG_NUM		BUFDESC_SEG_NUM
 
 enum rf_tx_num {
 	RF_1TX = 0,
@@ -561,6 +559,11 @@ enum rf_type {
 	RF_1T2R = 1,
 	RF_2T2R = 2,
 	RF_2T2R_GREEN = 3,
+	RF_2T3R = 4,
+	RF_2T4R = 5,
+	RF_3T3R = 6,
+	RF_3T4R = 7,
+	RF_4T4R = 8,
 };
 
 enum ht_channel_width {
@@ -706,6 +709,7 @@ enum rtl_var_map {
 	RTL_IMR_RXFOVW,		/*Receive FIFO Overflow */
 	RTL_IMR_RDU,		/*Receive Descriptor Unavailable */
 	RTL_IMR_ATIMEND,	/*For 92C,ATIM Window End Interrupt */
+	RTL_IMR_H2CDOK,		/*H2C Queue DMA OK Interrupt */
 	RTL_IMR_BDOK,		/*Beacon Queue DMA OK Interrup */
 	RTL_IMR_HIGHDOK,	/*High Queue DMA OK Interrupt */
 	RTL_IMR_COMDOK,		/*Command Queue DMA OK Interrupt*/
@@ -1014,10 +1018,17 @@ struct init_gain {
 };
 
 struct wireless_stats {
-	unsigned long txbytesunicast;
-	unsigned long txbytesmulticast;
-	unsigned long txbytesbroadcast;
-	unsigned long rxbytesunicast;
+	u64 txbytesunicast;
+	u64 txbytesmulticast;
+	u64 txbytesbroadcast;
+	u64 rxbytesunicast;
+
+	u64 txbytesunicast_inperiod;
+	u64 rxbytesunicast_inperiod;
+	u32 txbytesunicast_inperiod_tp;
+	u32 rxbytesunicast_inperiod_tp;
+	u64 txbytesunicast_last;
+	u64 rxbytesunicast_last;
 
 	long rx_snr_db[4];
 	/*Correct smoothed ss in Dbm, only used
@@ -1314,7 +1325,6 @@ struct rssi_sta {
 };
 
 struct rtl_tid_data {
-	u16 seq_number;
 	struct rtl_ht_agg agg;
 };
 
@@ -1323,6 +1333,7 @@ struct rtl_sta_info {
 	struct rtl_tid_data tids[MAX_TID_COUNT];
 	/* just used for ap adhoc or mesh*/
 	struct rssi_sta rssi_stat;
+	u8 rssi_level;
 	u16 wireless_mode;
 	u8 ratr_index;
 	u8 mimo_ps;
@@ -1589,7 +1600,7 @@ struct rtl_hal {
 	bool enter_pnp_sleep;
 	bool wake_from_pnp_sleep;
 	bool wow_enabled;
-	__kernel_time_t last_suspend_sec;
+	time64_t last_suspend_sec;
 	u32 wowlan_fwsize;
 	u8 *wowlan_firmware;
 
@@ -1735,21 +1746,6 @@ struct rtl_dm {
 
 	s8	swing_diff_2g;
 	s8	swing_diff_5g;
-
-	u8 delta_swing_table_idx_24gccka_p[DEL_SW_IDX_SZ];
-	u8 delta_swing_table_idx_24gccka_n[DEL_SW_IDX_SZ];
-	u8 delta_swing_table_idx_24gcckb_p[DEL_SW_IDX_SZ];
-	u8 delta_swing_table_idx_24gcckb_n[DEL_SW_IDX_SZ];
-	u8 delta_swing_table_idx_24ga_p[DEL_SW_IDX_SZ];
-	u8 delta_swing_table_idx_24ga_n[DEL_SW_IDX_SZ];
-	u8 delta_swing_table_idx_24gb_p[DEL_SW_IDX_SZ];
-	u8 delta_swing_table_idx_24gb_n[DEL_SW_IDX_SZ];
-	u8 delta_swing_table_idx_5ga_p[BAND_NUM][DEL_SW_IDX_SZ];
-	u8 delta_swing_table_idx_5ga_n[BAND_NUM][DEL_SW_IDX_SZ];
-	u8 delta_swing_table_idx_5gb_p[BAND_NUM][DEL_SW_IDX_SZ];
-	u8 delta_swing_table_idx_5gb_n[BAND_NUM][DEL_SW_IDX_SZ];
-	u8 delta_swing_table_idx_24ga_p_8188e[DEL_SW_IDX_SZ];
-	u8 delta_swing_table_idx_24ga_n_8188e[DEL_SW_IDX_SZ];
 
 	/* DMSP */
 	bool supp_phymode_switch;
@@ -1958,8 +1954,6 @@ struct rtl_ps_ctl {
 	u8 gtk_offload_enable;
 	/* Used for WOL, indicates the reason for waking event.*/
 	u32 wakeup_reason;
-	/* Record the last waking time for comparison with setting key. */
-	u64 last_wakeup_time;
 };
 
 struct rtl_stats {
@@ -2105,7 +2099,8 @@ struct rtl_hal_ops {
 	void (*read_chip_version)(struct ieee80211_hw *hw);
 	void (*read_eeprom_info) (struct ieee80211_hw *hw);
 	void (*interrupt_recognized) (struct ieee80211_hw *hw,
-				      u32 *p_inta, u32 *p_intb);
+				      u32 *p_inta, u32 *p_intb,
+				      u32 *p_intc, u32 *p_intd);
 	int (*hw_init) (struct ieee80211_hw *hw);
 	void (*hw_disable) (struct ieee80211_hw *hw);
 	void (*hw_suspend) (struct ieee80211_hw *hw);
@@ -2127,7 +2122,8 @@ struct rtl_hal_ops {
 	void (*get_hw_reg) (struct ieee80211_hw *hw, u8 variable, u8 *val);
 	void (*set_hw_reg) (struct ieee80211_hw *hw, u8 variable, u8 *val);
 	void (*update_rate_tbl) (struct ieee80211_hw *hw,
-			      struct ieee80211_sta *sta, u8 rssi_level);
+			      struct ieee80211_sta *sta, u8 rssi_leve,
+			      bool update_bw);
 	void (*pre_fill_tx_bd_desc)(struct ieee80211_hw *hw, u8 *tx_bd_desc,
 				    u8 *desc, u8 queue_index,
 				    struct sk_buff *skb, dma_addr_t addr);
@@ -2148,6 +2144,9 @@ struct rtl_hal_ops {
 	void (*fill_tx_cmddesc) (struct ieee80211_hw *hw, u8 *pdesc,
 				 bool firstseg, bool lastseg,
 				 struct sk_buff *skb);
+	void (*fill_tx_special_desc)(struct ieee80211_hw *hw,
+				     u8 *pdesc, u8 *pbd_desc,
+				     struct sk_buff *skb, u8 hw_queue);
 	bool (*query_rx_desc) (struct ieee80211_hw *hw,
 			       struct rtl_stats *stats,
 			       struct ieee80211_rx_status *rx_status,
@@ -2162,7 +2161,8 @@ struct rtl_hal_ops {
 			     enum led_ctl_mode ledaction);
 	void (*set_desc)(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
 			 u8 desc_name, u8 *val);
-	u32 (*get_desc) (u8 *pdesc, bool istx, u8 desc_name);
+	u64 (*get_desc)(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
+			u8 desc_name);
 	bool (*is_tx_desc_closed) (struct ieee80211_hw *hw,
 				   u8 hw_queue, u16 index);
 	void (*tx_polling) (struct ieee80211_hw *hw, u8 hw_queue);
@@ -2260,6 +2260,12 @@ struct rtl_mod_params {
 	 * submodules should set their own default value
 	 */
 	bool msi_support;
+
+	/* default: 0 = dma 32 */
+	bool dma64;
+
+	/* default: 1 = enable aspm */
+	int aspm_support;
 
 	/* default 0: 1 means disable */
 	bool disable_watchdog;
@@ -2857,19 +2863,19 @@ value to host byte ordering.*/
 	cpu_to_le32( \
 		LE_BITS_CLEARED_TO_4BYTE(__pstart, __bitoffset, __bitlen) | \
 		((((u32)__val) & BIT_LEN_MASK_32(__bitlen)) << (__bitoffset)) \
-	);
+	)
 #define SET_BITS_TO_LE_2BYTE(__pstart, __bitoffset, __bitlen, __val) \
 	*((__le16 *)(__pstart)) = \
 	cpu_to_le16( \
 		LE_BITS_CLEARED_TO_2BYTE(__pstart, __bitoffset, __bitlen) | \
 		((((u16)__val) & BIT_LEN_MASK_16(__bitlen)) << (__bitoffset)) \
-	);
+	)
 #define SET_BITS_TO_LE_1BYTE(__pstart, __bitoffset, __bitlen, __val) \
 	*((u8 *)(__pstart)) = EF1BYTE \
 	( \
 		LE_BITS_CLEARED_TO_1BYTE(__pstart, __bitoffset, __bitlen) | \
 		((((u8)__val) & BIT_LEN_MASK_8(__bitlen)) << (__bitoffset)) \
-	);
+	)
 
 #define	N_BYTE_ALIGMENT(__value, __aligment) ((__aligment == 1) ? \
 	(__value) : (((__value + __aligment - 1) / __aligment) * __aligment))

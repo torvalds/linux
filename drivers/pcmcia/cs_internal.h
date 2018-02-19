@@ -152,7 +152,7 @@ void pcmcia_cleanup_irq(struct pcmcia_socket *s);
 int pcmcia_setup_irq(struct pcmcia_device *p_dev);
 
 /* cistpl.c */
-extern struct bin_attribute pccard_cis_attr;
+extern const struct bin_attribute pccard_cis_attr;
 
 int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr,
 			u_int addr, u_int len, void *ptr);

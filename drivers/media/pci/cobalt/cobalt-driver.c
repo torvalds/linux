@@ -738,9 +738,6 @@ static int cobalt_probe(struct pci_dev *pci_dev,
 			goto err_i2c;
 	}
 
-	retval = v4l2_device_register_subdev_nodes(&cobalt->v4l2_dev);
-	if (retval)
-		goto err_i2c;
 	retval = cobalt_nodes_register(cobalt);
 	if (retval) {
 		cobalt_err("Error %d registering device nodes\n", retval);
@@ -767,8 +764,6 @@ err_pci:
 err_wq:
 	destroy_workqueue(cobalt->irq_work_queues);
 err:
-	if (retval == 0)
-		retval = -ENODEV;
 	cobalt_err("error %d on initialization\n", retval);
 
 	v4l2_device_unregister(&cobalt->v4l2_dev);

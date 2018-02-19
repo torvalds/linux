@@ -808,6 +808,7 @@ static int vfio_exp_config_write(struct vfio_pci_device *vdev, int pos,
 {
 	__le16 *ctrl = (__le16 *)(vdev->vconfig + pos -
 				  offset + PCI_EXP_DEVCTL);
+	int readrq = le16_to_cpu(*ctrl) & PCI_EXP_DEVCTL_READRQ;
 
 	count = vfio_default_config_write(vdev, pos, count, perm, offset, val);
 	if (count < 0)
@@ -833,6 +834,27 @@ static int vfio_exp_config_write(struct vfio_pci_device *vdev, int pos,
 			pci_try_reset_function(vdev->pdev);
 	}
 
+	/*
+	 * MPS is virtualized to the user, writes do not change the physical
+	 * register since determining a proper MPS value requires a system wide
+	 * device view.  The MRRS is largely independent of MPS, but since the
+	 * user does not have that system-wide view, they might set a safe, but
+	 * inefficiently low value.  Here we allow writes through to hardware,
+	 * but we set the floor to the physical device MPS setting, so that
+	 * we can at least use full TLPs, as defined by the MPS value.
+	 *
+	 * NB, if any devices actually depend on an artificially low MRRS
+	 * setting, this will need to be revisited, perhaps with a quirk
+	 * though pcie_set_readrq().
+	 */
+	if (readrq != (le16_to_cpu(*ctrl) & PCI_EXP_DEVCTL_READRQ)) {
+		readrq = 128 <<
+			((le16_to_cpu(*ctrl) & PCI_EXP_DEVCTL_READRQ) >> 12);
+		readrq = max(readrq, pcie_get_mps(vdev->pdev));
+
+		pcie_set_readrq(vdev->pdev, readrq);
+	}
+
 	return count;
 }
 
@@ -849,11 +871,14 @@ static int __init init_pci_cap_exp_perm(struct perm_bits *perm)
 
 	/*
 	 * Allow writes to device control fields, except devctl_phantom,
-	 * which could confuse IOMMU, and the ARI bit in devctl2, which
-	 * is set at probe time.  FLR gets virtualized via our writefn.
+	 * which could confuse IOMMU, MPS, which can break communication
+	 * with other physical devices, and the ARI bit in devctl2, which
+	 * is set at probe time.  FLR and MRRS get virtualized via our
+	 * writefn.
 	 */
 	p_setw(perm, PCI_EXP_DEVCTL,
-	       PCI_EXP_DEVCTL_BCR_FLR, ~PCI_EXP_DEVCTL_PHANTOM);
+	       PCI_EXP_DEVCTL_BCR_FLR | PCI_EXP_DEVCTL_PAYLOAD |
+	       PCI_EXP_DEVCTL_READRQ, ~PCI_EXP_DEVCTL_PHANTOM);
 	p_setw(perm, PCI_EXP_DEVCTL2, NO_VIRT, ~PCI_EXP_DEVCTL2_ARI);
 	return 0;
 }

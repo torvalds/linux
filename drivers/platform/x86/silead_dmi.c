@@ -58,6 +58,7 @@ static const struct property_entry dexp_ursus_7w_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 630),
 	PROPERTY_ENTRY_STRING("firmware-name", "gsl1686-dexp-ursus-7w.fw"),
 	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
 	{ }
 };
 
@@ -72,6 +73,7 @@ static const struct property_entry surftab_wintron70_st70416_6_props[] = {
 	PROPERTY_ENTRY_STRING("firmware-name",
 			      "gsl1686-surftab-wintron70-st70416-6.fw"),
 	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
 	{ }
 };
 
@@ -83,6 +85,8 @@ static const struct silead_ts_dmi_data surftab_wintron70_st70416_6_data = {
 static const struct property_entry gp_electronic_t701_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 960),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 640),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-x"),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
 	PROPERTY_ENTRY_STRING("firmware-name",
 			      "gsl1680-gp-electronic-t701.fw"),
 	{ }
@@ -114,6 +118,7 @@ static const struct property_entry pov_mobii_wintab_p800w_props[] = {
 	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
 	PROPERTY_ENTRY_STRING("firmware-name",
 			      "gsl3692-pov-mobii-wintab-p800w.fw"),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
 	{ }
 };
 
@@ -134,6 +139,36 @@ static const struct property_entry itworks_tw891_props[] = {
 static const struct silead_ts_dmi_data itworks_tw891_data = {
 	.acpi_name	= "MSSL1680:00",
 	.properties	= itworks_tw891_props,
+};
+
+static const struct property_entry chuwi_hi8_pro_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1728),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1148),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl3680-chuwi-hi8-pro.fw"),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data chuwi_hi8_pro_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= chuwi_hi8_pro_props,
+};
+
+static const struct property_entry digma_citi_e200_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1980),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1500),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl1686-digma_citi_e200.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data digma_citi_e200_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= digma_citi_e200_props,
 };
 
 static const struct dmi_system_id silead_ts_dmi_table[] = {
@@ -217,6 +252,23 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "To be filled by O.E.M."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TW891"),
+		},
+	},
+	{
+		/* Chuwi Hi8 Pro */
+		.driver_data = (void *)&chuwi_hi8_pro_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hampoo"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X1D3_C806N"),
+		},
+	},
+	{
+		/* Digma Citi E200 */
+		.driver_data = (void *)&digma_citi_e200_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Digma"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "CITI E200"),
+			DMI_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
 		},
 	},
 	{ },

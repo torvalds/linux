@@ -27,6 +27,7 @@
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/firmware.h>
+#include <linux/kernel.h>
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
@@ -3605,8 +3606,7 @@ static int ca0132_vnode_switch_set(struct snd_kcontrol *kcontrol,
 static int ca0132_voicefx_info(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
 {
-	unsigned int items = sizeof(ca0132_voicefx_presets)
-				/ sizeof(struct ct_voicefx_preset);
+	unsigned int items = ARRAY_SIZE(ca0132_voicefx_presets);
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
@@ -3635,10 +3635,8 @@ static int ca0132_voicefx_put(struct snd_kcontrol *kcontrol,
 	struct ca0132_spec *spec = codec->spec;
 	int i, err = 0;
 	int sel = ucontrol->value.enumerated.item[0];
-	unsigned int items = sizeof(ca0132_voicefx_presets)
-				/ sizeof(struct ct_voicefx_preset);
 
-	if (sel >= items)
+	if (sel >= ARRAY_SIZE(ca0132_voicefx_presets))
 		return 0;
 
 	codec_dbg(codec, "ca0132_voicefx_put: sel=%d, preset=%s\n",

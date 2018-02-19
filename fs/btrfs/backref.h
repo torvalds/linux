@@ -43,17 +43,19 @@ int tree_backref_for_extent(unsigned long *ptr, struct extent_buffer *eb,
 int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 				u64 extent_item_objectid,
 				u64 extent_offset, int search_commit_root,
-				iterate_extent_inodes_t *iterate, void *ctx);
+				iterate_extent_inodes_t *iterate, void *ctx,
+				bool ignore_offset);
 
 int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
 				struct btrfs_path *path,
-				iterate_extent_inodes_t *iterate, void *ctx);
+				iterate_extent_inodes_t *iterate, void *ctx,
+				bool ignore_offset);
 
 int paths_from_inode(u64 inum, struct inode_fs_paths *ipath);
 
 int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 			 struct btrfs_fs_info *fs_info, u64 bytenr,
-			 u64 time_seq, struct ulist **roots);
+			 u64 time_seq, struct ulist **roots, bool ignore_offset);
 char *btrfs_ref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
 			u32 name_len, unsigned long name_off,
 			struct extent_buffer *eb_in, u64 parent,

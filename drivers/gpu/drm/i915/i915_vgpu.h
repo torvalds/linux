@@ -30,6 +30,12 @@ void i915_check_vgpu(struct drm_i915_private *dev_priv);
 
 bool intel_vgpu_has_full_48bit_ppgtt(struct drm_i915_private *dev_priv);
 
+static inline bool
+intel_vgpu_has_hwsp_emulation(struct drm_i915_private *dev_priv)
+{
+	return dev_priv->vgpu.caps & VGT_CAPS_HWSP_EMULATION;
+}
+
 int intel_vgt_balloon(struct drm_i915_private *dev_priv);
 void intel_vgt_deballoon(struct drm_i915_private *dev_priv);
 

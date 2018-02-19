@@ -21,7 +21,7 @@
 	};
 
 	soc {
-		display0: display@di0 {
+		display0: disp0 {
 			compatible = "fsl,imx-parallel-display";
 			interface-pix-fmt = "rgb24";
 			pinctrl-names = "default";

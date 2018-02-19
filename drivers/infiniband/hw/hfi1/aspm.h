@@ -218,9 +218,9 @@ unlock:
 }
 
 /* Timer function for re-enabling ASPM in the absence of interrupt activity */
-static inline void aspm_ctx_timer_function(unsigned long data)
+static inline void aspm_ctx_timer_function(struct timer_list *t)
 {
-	struct hfi1_ctxtdata *rcd = (struct hfi1_ctxtdata *)data;
+	struct hfi1_ctxtdata *rcd = from_timer(rcd, t, aspm_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&rcd->aspm_lock, flags);
@@ -281,8 +281,7 @@ static inline void aspm_enable_all(struct hfi1_devdata *dd)
 static inline void aspm_ctx_init(struct hfi1_ctxtdata *rcd)
 {
 	spin_lock_init(&rcd->aspm_lock);
-	setup_timer(&rcd->aspm_timer, aspm_ctx_timer_function,
-		    (unsigned long)rcd);
+	timer_setup(&rcd->aspm_timer, aspm_ctx_timer_function, 0);
 	rcd->aspm_intr_supported = rcd->dd->aspm_supported &&
 		aspm_mode == ASPM_MODE_DYNAMIC &&
 		rcd->ctxt < rcd->dd->first_dyn_alloc_ctxt;

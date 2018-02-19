@@ -36,7 +36,7 @@
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x67000000 0x00800000>;
 
-		crypto_mbox: crypto_mbox@00000000 {
+		crypto_mbox: crypto_mbox@0 {
 			compatible = "brcm,iproc-flexrm-mbox";
 			reg = <0x00000000 0x200000>;
 			msi-parent = <&gic_its 0x4100>;
@@ -44,7 +44,7 @@
 			dma-coherent;
 		};
 
-		raid_mbox: raid_mbox@00400000 {
+		raid_mbox: raid_mbox@400000 {
 			compatible = "brcm,iproc-flexrm-mbox";
 			reg = <0x00400000 0x200000>;
 			dma-coherent;

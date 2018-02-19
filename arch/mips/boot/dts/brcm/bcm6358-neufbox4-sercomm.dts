@@ -19,7 +19,7 @@
 };
 
 &leds0 {
-	status = "ok";
+	status = "okay";
 
 	led@0 {
 		reg = <0>;

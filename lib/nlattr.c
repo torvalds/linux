@@ -15,6 +15,22 @@
 #include <linux/types.h>
 #include <net/netlink.h>
 
+/* For these data types, attribute length should be exactly the given
+ * size. However, to maintain compatibility with broken commands, if the
+ * attribute length does not match the expected size a warning is emitted
+ * to the user that the command is sending invalid data and needs to be fixed.
+ */
+static const u8 nla_attr_len[NLA_TYPE_MAX+1] = {
+	[NLA_U8]	= sizeof(u8),
+	[NLA_U16]	= sizeof(u16),
+	[NLA_U32]	= sizeof(u32),
+	[NLA_U64]	= sizeof(u64),
+	[NLA_S8]	= sizeof(s8),
+	[NLA_S16]	= sizeof(s16),
+	[NLA_S32]	= sizeof(s32),
+	[NLA_S64]	= sizeof(s64),
+};
+
 static const u8 nla_attr_minlen[NLA_TYPE_MAX+1] = {
 	[NLA_U8]	= sizeof(u8),
 	[NLA_U16]	= sizeof(u16),
@@ -64,6 +80,11 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 	pt = &policy[type];
 
 	BUG_ON(pt->type > NLA_TYPE_MAX);
+
+	if (nla_attr_len[pt->type] && attrlen != nla_attr_len[pt->type]) {
+		pr_warn_ratelimited("netlink: '%s': attribute type %d has an invalid length.\n",
+				    current->comm, type);
+	}
 
 	switch (pt->type) {
 	case NLA_FLAG:
@@ -191,6 +212,8 @@ nla_policy_len(const struct nla_policy *p, int n)
 	for (i = 0; i < n; i++, p++) {
 		if (p->len)
 			len += nla_total_size(p->len);
+		else if (nla_attr_len[p->type])
+			len += nla_total_size(nla_attr_len[p->type]);
 		else if (nla_attr_minlen[p->type])
 			len += nla_total_size(nla_attr_minlen[p->type]);
 	}

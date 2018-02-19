@@ -280,6 +280,18 @@ Interaction with the user of the RxRPC socket:
      nominated by a socket option.
 
 
+Notes on sendmsg:
+
+ (*) MSG_WAITALL can be set to tell sendmsg to ignore signals if the peer is
+     making progress at accepting packets within a reasonable time such that we
+     manage to queue up all the data for transmission.  This requires the
+     client to accept at least one packet per 2*RTT time period.
+
+     If this isn't set, sendmsg() will return immediately, either returning
+     EINTR/ERESTARTSYS if nothing was consumed or returning the amount of data
+     consumed.
+
+
 Notes on recvmsg:
 
  (*) If there's a sequence of data messages belonging to a particular call on
@@ -782,7 +794,9 @@ The kernel interface functions are as follows:
 				struct key *key,
 				unsigned long user_call_ID,
 				s64 tx_total_len,
-				gfp_t gfp);
+				gfp_t gfp,
+				rxrpc_notify_rx_t notify_rx,
+				bool upgrade);
 
      This allocates the infrastructure to make a new RxRPC call and assigns
      call and connection numbers.  The call will be made on the UDP port that
@@ -802,6 +816,13 @@ The kernel interface functions are as follows:
      with this call (or -1 if unknown at this point).  Setting the data size
      allows the kernel to encrypt directly to the packet buffers, thereby
      saving a copy.  The value may not be less than -1.
+
+     notify_rx is a pointer to a function to be called when events such as
+     incoming data packets or remote aborts happen.
+
+     upgrade should be set to true if a client operation should request that
+     the server upgrade the service to a better one.  The resultant service ID
+     is returned by rxrpc_kernel_recv_data().
 
      If this function is successful, an opaque reference to the RxRPC call is
      returned.  The caller now holds a reference on this and it must be
@@ -850,7 +871,8 @@ The kernel interface functions are as follows:
 				   size_t size,
 				   size_t *_offset,
 				   bool want_more,
-				   u32 *_abort)
+				   u32 *_abort,
+				   u16 *_service)
 
       This is used to receive data from either the reply part of a client call
       or the request part of a service call.  buf and size specify how much
@@ -872,6 +894,9 @@ The kernel interface functions are as follows:
 
       If a remote ABORT is detected, the abort code received will be stored in
       *_abort and ECONNABORTED will be returned.
+
+      The service ID that the call ended up with is returned into *_service.
+      This can be used to see if a call got a service upgrade.
 
  (*) Abort a call.
 
@@ -1019,6 +1044,30 @@ The kernel interface functions are as follows:
      packet is left as is and can continue being filled afterwards.
 
      It returns 0 if the call was requeued and an error otherwise.
+
+ (*) Get call RTT.
+
+	u64 rxrpc_kernel_get_rtt(struct socket *sock, struct rxrpc_call *call);
+
+     Get the RTT time to the peer in use by a call.  The value returned is in
+     nanoseconds.
+
+ (*) Check call still alive.
+
+	u32 rxrpc_kernel_check_life(struct socket *sock,
+				    struct rxrpc_call *call);
+
+     This returns a number that is updated when ACKs are received from the peer
+     (notably including PING RESPONSE ACKs which we can elicit by sending PING
+     ACKs to see if the call still exists on the server).  The caller should
+     compare the numbers of two calls to see if the call is still alive after
+     waiting for a suitable interval.
+
+     This allows the caller to work out if the server is still contactable and
+     if the call is still alive on the server whilst waiting for the server to
+     process a client operation.
+
+     This function may transmit a PING ACK.
 
 
 =======================

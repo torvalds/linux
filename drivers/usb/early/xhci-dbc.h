@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * xhci-dbc.h - xHCI debug capability early driver
  *
  * Copyright (C) 2016 Intel Corporation
  *
  * Author: Lu Baolu <baolu.lu@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __LINUX_XHCI_DBC_H
@@ -90,8 +87,8 @@ struct xdbc_context {
 
 #define XDBC_INFO_CONTEXT_SIZE		48
 #define XDBC_MAX_STRING_LENGTH		64
-#define XDBC_STRING_MANUFACTURER	"Linux"
-#define XDBC_STRING_PRODUCT		"Remote GDB"
+#define XDBC_STRING_MANUFACTURER	"Linux Foundation"
+#define XDBC_STRING_PRODUCT		"Linux USB GDB Target"
 #define XDBC_STRING_SERIAL		"0001"
 
 struct xdbc_strings {
@@ -103,7 +100,7 @@ struct xdbc_strings {
 
 #define XDBC_PROTOCOL		1	/* GNU Remote Debug Command Set */
 #define XDBC_VENDOR_ID		0x1d6b	/* Linux Foundation 0x1d6b */
-#define XDBC_PRODUCT_ID		0x0004	/* __le16 idProduct; device 0004 */
+#define XDBC_PRODUCT_ID		0x0011	/* __le16 idProduct; device 0011 */
 #define XDBC_DEVICE_REV		0x0010	/* 0.10 */
 
 /*

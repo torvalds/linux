@@ -89,7 +89,9 @@ static int membarrier_private_expedited(void)
 		rcu_read_unlock();
 	}
 	if (!fallback) {
+		preempt_disable();
 		smp_call_function_many(tmpmask, ipi_mb, NULL, 1);
+		preempt_enable();
 		free_cpumask_var(tmpmask);
 	}
 	cpus_read_unlock();

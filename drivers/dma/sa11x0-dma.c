@@ -823,6 +823,13 @@ static const struct sa11x0_dma_channel_desc chan_desc[] = {
 	CD(Ser4SSPRc, DDAR_RW),
 };
 
+static const struct dma_slave_map sa11x0_dma_map[] = {
+	{ "sa11x0-ir", "tx", "Ser2ICPTr" },
+	{ "sa11x0-ir", "rx", "Ser2ICPRc" },
+	{ "sa11x0-ssp", "tx", "Ser4SSPTr" },
+	{ "sa11x0-ssp", "rx", "Ser4SSPRc" },
+};
+
 static int sa11x0_dma_init_dmadev(struct dma_device *dmadev,
 	struct device *dev)
 {
@@ -908,6 +915,10 @@ static int sa11x0_dma_probe(struct platform_device *pdev)
 
 	spin_lock_init(&d->lock);
 	INIT_LIST_HEAD(&d->chan_pending);
+
+	d->slave.filter.fn = sa11x0_dma_filter_fn;
+	d->slave.filter.mapcnt = ARRAY_SIZE(sa11x0_dma_map);
+	d->slave.filter.map = sa11x0_dma_map;
 
 	d->base = ioremap(res->start, resource_size(res));
 	if (!d->base) {

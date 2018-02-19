@@ -215,7 +215,9 @@ static int igt_request_rewind(void *arg)
 	}
 	i915_gem_request_get(vip);
 	i915_add_request(vip);
+	rcu_read_lock();
 	request->engine->submit_request(request);
+	rcu_read_unlock();
 
 	mutex_unlock(&i915->drm.struct_mutex);
 
@@ -418,7 +420,10 @@ static struct i915_vma *empty_batch(struct drm_i915_private *i915)
 		err = PTR_ERR(cmd);
 		goto err;
 	}
+
 	*cmd = MI_BATCH_BUFFER_END;
+	i915_gem_chipset_flush(i915);
+
 	i915_gem_object_unpin_map(obj);
 
 	err = i915_gem_object_set_to_gtt_domain(obj, false);
@@ -605,8 +610,8 @@ static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 		*cmd++ = lower_32_bits(vma->node.start);
 	}
 	*cmd++ = MI_BATCH_BUFFER_END; /* terminate early in case of error */
+	i915_gem_chipset_flush(i915);
 
-	wmb();
 	i915_gem_object_unpin_map(obj);
 
 	return vma;
@@ -625,7 +630,7 @@ static int recursive_batch_resolve(struct i915_vma *batch)
 		return PTR_ERR(cmd);
 
 	*cmd = MI_BATCH_BUFFER_END;
-	wmb();
+	i915_gem_chipset_flush(batch->vm->i915);
 
 	i915_gem_object_unpin_map(batch->obj);
 
@@ -858,7 +863,8 @@ out_request:
 					      I915_MAP_WC);
 		if (!IS_ERR(cmd)) {
 			*cmd = MI_BATCH_BUFFER_END;
-			wmb();
+			i915_gem_chipset_flush(i915);
+
 			i915_gem_object_unpin_map(request[id]->batch->obj);
 		}
 

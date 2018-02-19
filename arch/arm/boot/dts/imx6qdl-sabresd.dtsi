@@ -67,7 +67,6 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio3 19 0>;
-			regulator-always-on;
 			enable-active-high;
 		};
 	};
@@ -214,6 +213,8 @@
 };
 
 &hdmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hdmi_cec>;
 	ddc-i2c-bus = <&i2c2>;
 	status = "okay";
 };
@@ -304,7 +305,7 @@
 		};
 	};
 
-	pmic: pfuze100@08 {
+	pmic: pfuze100@8 {
 		compatible = "fsl,pfuze100";
 		reg = <0x08>;
 
@@ -411,7 +412,7 @@
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
-	egalax_ts@04 {
+	egalax_ts@4 {
 		compatible = "eeti,egalax_ts";
 		reg = <0x04>;
 		interrupt-parent = <&gpio6>;
@@ -483,6 +484,12 @@
 				MX6QDL_PAD_EIM_D29__GPIO3_IO29 0x1b0b0
 				MX6QDL_PAD_GPIO_4__GPIO1_IO04  0x1b0b0
 				MX6QDL_PAD_GPIO_5__GPIO1_IO05  0x1b0b0
+			>;
+		};
+
+		pinctrl_hdmi_cec: hdmicecgrp {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_ROW2__HDMI_TX_CEC_LINE	0x1f8b0
 			>;
 		};
 
@@ -651,6 +658,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie>;
 	reset-gpio = <&gpio7 12 GPIO_ACTIVE_LOW>;
+	vpcie-supply = <&reg_pcie>;
 	status = "okay";
 };
 

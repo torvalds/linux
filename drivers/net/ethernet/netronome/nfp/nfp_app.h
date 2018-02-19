@@ -36,10 +36,13 @@
 
 #include <net/devlink.h>
 
+#include <trace/events/devlink.h>
+
 #include "nfp_net_repr.h"
 
 struct bpf_prog;
 struct net_device;
+struct netdev_bpf;
 struct pci_dev;
 struct sk_buff;
 struct sk_buff;
@@ -73,6 +76,8 @@ extern const struct nfp_app_type app_flower;
  * @vnic_free:	free up app's vNIC state
  * @vnic_init:	vNIC netdev was registered
  * @vnic_clean:	vNIC netdev about to be unregistered
+ * @repr_init:	representor about to be registered
+ * @repr_clean:	representor about to be unregistered
  * @repr_open:	representor netdev open callback
  * @repr_stop:	representor netdev stop callback
  * @start:	start application logic
@@ -81,6 +86,9 @@ extern const struct nfp_app_type app_flower;
  * @setup_tc:	setup TC ndo
  * @tc_busy:	TC HW offload busy (rules loaded)
  * @xdp_offload:    offload an XDP program
+ * @bpf_verifier_prep:	verifier prep for dev-specific BPF programs
+ * @bpf_translate:	translate call for dev-specific BPF programs
+ * @bpf_destroy:	destroy for dev-specific BPF programs
  * @eswitch_mode_get:    get SR-IOV eswitch mode
  * @sriov_enable: app-specific sriov initialisation
  * @sriov_disable: app-specific sriov clean-up
@@ -103,6 +111,9 @@ struct nfp_app_type {
 	int (*vnic_init)(struct nfp_app *app, struct nfp_net *nn);
 	void (*vnic_clean)(struct nfp_app *app, struct nfp_net *nn);
 
+	int (*repr_init)(struct nfp_app *app, struct net_device *netdev);
+	void (*repr_clean)(struct nfp_app *app, struct net_device *netdev);
+
 	int (*repr_open)(struct nfp_app *app, struct nfp_repr *repr);
 	int (*repr_stop)(struct nfp_app *app, struct nfp_repr *repr);
 
@@ -115,6 +126,12 @@ struct nfp_app_type {
 			enum tc_setup_type type, void *type_data);
 	bool (*tc_busy)(struct nfp_app *app, struct nfp_net *nn);
 	int (*xdp_offload)(struct nfp_app *app, struct nfp_net *nn,
+			   struct bpf_prog *prog);
+	int (*bpf_verifier_prep)(struct nfp_app *app, struct nfp_net *nn,
+				 struct netdev_bpf *bpf);
+	int (*bpf_translate)(struct nfp_app *app, struct nfp_net *nn,
+			     struct bpf_prog *prog);
+	int (*bpf_destroy)(struct nfp_app *app, struct nfp_net *nn,
 			   struct bpf_prog *prog);
 
 	int (*sriov_enable)(struct nfp_app *app, int num_vfs);
@@ -200,6 +217,21 @@ static inline int nfp_app_repr_stop(struct nfp_app *app, struct nfp_repr *repr)
 	return app->type->repr_stop(app, repr);
 }
 
+static inline int
+nfp_app_repr_init(struct nfp_app *app, struct net_device *netdev)
+{
+	if (!app->type->repr_init)
+		return 0;
+	return app->type->repr_init(app, netdev);
+}
+
+static inline void
+nfp_app_repr_clean(struct nfp_app *app, struct net_device *netdev)
+{
+	if (app->type->repr_clean)
+		app->type->repr_clean(app, netdev);
+}
+
 static inline int nfp_app_start(struct nfp_app *app, struct nfp_net *ctrl)
 {
 	app->ctrl = ctrl;
@@ -269,13 +301,46 @@ static inline int nfp_app_xdp_offload(struct nfp_app *app, struct nfp_net *nn,
 	return app->type->xdp_offload(app, nn, prog);
 }
 
+static inline int
+nfp_app_bpf_verifier_prep(struct nfp_app *app, struct nfp_net *nn,
+			  struct netdev_bpf *bpf)
+{
+	if (!app || !app->type->bpf_verifier_prep)
+		return -EOPNOTSUPP;
+	return app->type->bpf_verifier_prep(app, nn, bpf);
+}
+
+static inline int
+nfp_app_bpf_translate(struct nfp_app *app, struct nfp_net *nn,
+		      struct bpf_prog *prog)
+{
+	if (!app || !app->type->bpf_translate)
+		return -EOPNOTSUPP;
+	return app->type->bpf_translate(app, nn, prog);
+}
+
+static inline int
+nfp_app_bpf_destroy(struct nfp_app *app, struct nfp_net *nn,
+		    struct bpf_prog *prog)
+{
+	if (!app || !app->type->bpf_destroy)
+		return -EOPNOTSUPP;
+	return app->type->bpf_destroy(app, nn, prog);
+}
+
 static inline bool nfp_app_ctrl_tx(struct nfp_app *app, struct sk_buff *skb)
 {
+	trace_devlink_hwmsg(priv_to_devlink(app->pf), false, 0,
+			    skb->data, skb->len);
+
 	return nfp_ctrl_tx(app->ctrl, skb);
 }
 
 static inline void nfp_app_ctrl_rx(struct nfp_app *app, struct sk_buff *skb)
 {
+	trace_devlink_hwmsg(priv_to_devlink(app->pf), true, 0,
+			    skb->data, skb->len);
+
 	app->type->ctrl_msg_rx(app, skb);
 }
 

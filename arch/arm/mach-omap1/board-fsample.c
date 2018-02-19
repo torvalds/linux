@@ -266,7 +266,7 @@ static struct platform_device *devices[] __initdata = {
 	&kp_device,
 };
 
-static struct omap_lcd_config fsample_lcd_config = {
+static const struct omap_lcd_config fsample_lcd_config = {
 	.ctrl_name	= "internal",
 };
 

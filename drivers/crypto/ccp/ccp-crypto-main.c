@@ -222,9 +222,10 @@ static int ccp_crypto_enqueue_cmd(struct ccp_crypto_cmd *crypto_cmd)
 
 	/* Check if the cmd can/should be queued */
 	if (req_queue.cmd_count >= CCP_CRYPTO_MAX_QLEN) {
-		ret = -EBUSY;
-		if (!(crypto_cmd->cmd->flags & CCP_CMD_MAY_BACKLOG))
+		if (!(crypto_cmd->cmd->flags & CCP_CMD_MAY_BACKLOG)) {
+			ret = -ENOSPC;
 			goto e_lock;
+		}
 	}
 
 	/* Look for an entry with the same tfm.  If there is a cmd
@@ -243,9 +244,6 @@ static int ccp_crypto_enqueue_cmd(struct ccp_crypto_cmd *crypto_cmd)
 		ret = ccp_enqueue_cmd(crypto_cmd->cmd);
 		if (!ccp_crypto_success(ret))
 			goto e_lock;	/* Error, don't queue it */
-		if ((ret == -EBUSY) &&
-		    !(crypto_cmd->cmd->flags & CCP_CMD_MAY_BACKLOG))
-			goto e_lock;	/* Not backlogging, don't queue it */
 	}
 
 	if (req_queue.cmd_count >= CCP_CRYPTO_MAX_QLEN) {

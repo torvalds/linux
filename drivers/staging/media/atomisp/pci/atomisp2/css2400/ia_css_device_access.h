@@ -15,7 +15,7 @@
 #ifndef _IA_CSS_DEVICE_ACCESS_H
 #define _IA_CSS_DEVICE_ACCESS_H
 
-/** @file
+/* @file
  * File containing internal functions for the CSS-API to access the CSS device.
  */
 

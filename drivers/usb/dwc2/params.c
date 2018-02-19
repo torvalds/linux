@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
  * Copyright (C) 2004-2016 Synopsys, Inc.
  *
@@ -136,6 +137,15 @@ static void dwc2_set_stm32f4x9_fsotg_params(struct dwc2_hsotg *hsotg)
 	p->activate_stm_fs_transceiver = true;
 }
 
+static void dwc2_set_stm32f7xx_hsotg_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->host_rx_fifo_size = 622;
+	p->host_nperio_tx_fifo_size = 128;
+	p->host_perio_tx_fifo_size = 256;
+}
+
 const struct of_device_id dwc2_of_match_table[] = {
 	{ .compatible = "brcm,bcm2835-usb", .data = dwc2_set_bcm_params },
 	{ .compatible = "hisilicon,hi6220-usb", .data = dwc2_set_his_params  },
@@ -154,6 +164,8 @@ const struct of_device_id dwc2_of_match_table[] = {
 	{ .compatible = "st,stm32f4x9-fsotg",
 	  .data = dwc2_set_stm32f4x9_fsotg_params },
 	{ .compatible = "st,stm32f4x9-hsotg" },
+	{ .compatible = "st,stm32f7xx-hsotg",
+	  .data = dwc2_set_stm32f7xx_hsotg_params },
 	{},
 };
 MODULE_DEVICE_TABLE(of, dwc2_of_match_table);
@@ -335,6 +347,9 @@ static void dwc2_get_device_properties(struct dwc2_hsotg *hsotg)
 						       num);
 		}
 	}
+
+	if (of_find_property(hsotg->dev->of_node, "disable-over-current", NULL))
+		p->oc_disable = true;
 }
 
 static void dwc2_check_param_otg_cap(struct dwc2_hsotg *hsotg)
@@ -469,8 +484,7 @@ static void dwc2_check_param_tx_fifo_sizes(struct dwc2_hsotg *hsotg)
 	}
 
 	for (fifo = 1; fifo <= fifo_count; fifo++) {
-		dptxfszn = (dwc2_readl(hsotg->regs + DPTXFSIZN(fifo)) &
-			FIFOSIZE_DEPTH_MASK) >> FIFOSIZE_DEPTH_SHIFT;
+		dptxfszn = hsotg->hw_params.g_tx_fifo_size[fifo];
 
 		if (hsotg->params.g_tx_fifo_size[fifo] < min ||
 		    hsotg->params.g_tx_fifo_size[fifo] >  dptxfszn) {
@@ -594,6 +608,7 @@ static void dwc2_get_dev_hwparams(struct dwc2_hsotg *hsotg)
 	struct dwc2_hw_params *hw = &hsotg->hw_params;
 	bool forced;
 	u32 gnptxfsiz;
+	int fifo, fifo_count;
 
 	if (hsotg->dr_mode == USB_DR_MODE_HOST)
 		return;
@@ -601,6 +616,14 @@ static void dwc2_get_dev_hwparams(struct dwc2_hsotg *hsotg)
 	forced = dwc2_force_mode_if_needed(hsotg, false);
 
 	gnptxfsiz = dwc2_readl(hsotg->regs + GNPTXFSIZ);
+
+	fifo_count = dwc2_hsotg_tx_fifo_count(hsotg);
+
+	for (fifo = 1; fifo <= fifo_count; fifo++) {
+		hw->g_tx_fifo_size[fifo] =
+			(dwc2_readl(hsotg->regs + DPTXFSIZN(fifo)) &
+			 FIFOSIZE_DEPTH_MASK) >> FIFOSIZE_DEPTH_SHIFT;
+	}
 
 	if (forced)
 		dwc2_clear_force_mode(hsotg);
@@ -646,14 +669,6 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	hwcfg4 = dwc2_readl(hsotg->regs + GHWCFG4);
 	grxfsiz = dwc2_readl(hsotg->regs + GRXFSIZ);
 
-	/*
-	 * Host specific hardware parameters. Reading these parameters
-	 * requires the controller to be in host mode. The mode will
-	 * be forced, if necessary, to read these values.
-	 */
-	dwc2_get_host_hwparams(hsotg);
-	dwc2_get_dev_hwparams(hsotg);
-
 	/* hwcfg1 */
 	hw->dev_ep_dirs = hwcfg1;
 
@@ -696,6 +711,8 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	hw->en_multiple_tx_fifo = !!(hwcfg4 & GHWCFG4_DED_FIFO_EN);
 	hw->num_dev_perio_in_ep = (hwcfg4 & GHWCFG4_NUM_DEV_PERIO_IN_EP_MASK) >>
 				  GHWCFG4_NUM_DEV_PERIO_IN_EP_SHIFT;
+	hw->num_dev_in_eps = (hwcfg4 & GHWCFG4_NUM_IN_EPS_MASK) >>
+			     GHWCFG4_NUM_IN_EPS_SHIFT;
 	hw->dma_desc_enable = !!(hwcfg4 & GHWCFG4_DESC_DMA);
 	hw->power_optimized = !!(hwcfg4 & GHWCFG4_POWER_OPTIMIZ);
 	hw->utmi_phy_data_width = (hwcfg4 & GHWCFG4_UTMI_PHY_DATA_WIDTH_MASK) >>
@@ -704,6 +721,13 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	/* fifo sizes */
 	hw->rx_fifo_size = (grxfsiz & GRXFSIZ_DEPTH_MASK) >>
 				GRXFSIZ_DEPTH_SHIFT;
+	/*
+	 * Host specific hardware parameters. Reading these parameters
+	 * requires the controller to be in host mode. The mode will
+	 * be forced, if necessary, to read these values.
+	 */
+	dwc2_get_host_hwparams(hsotg);
+	dwc2_get_dev_hwparams(hsotg);
 
 	return 0;
 }

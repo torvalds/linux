@@ -503,73 +503,43 @@ int hw_atl_utils_update_stats(struct aq_hw_s *self)
 	struct hw_atl_s *hw_self = PHAL_ATLANTIC;
 	struct hw_aq_atl_utils_mbox mbox;
 
-	if (!self->aq_link_status.mbps)
-		return 0;
-
 	hw_atl_utils_mpi_read_stats(self, &mbox);
 
 #define AQ_SDELTA(_N_) (hw_self->curr_stats._N_ += \
 			mbox.stats._N_ - hw_self->last_stats._N_)
+	if (self->aq_link_status.mbps) {
+		AQ_SDELTA(uprc);
+		AQ_SDELTA(mprc);
+		AQ_SDELTA(bprc);
+		AQ_SDELTA(erpt);
 
-	AQ_SDELTA(uprc);
-	AQ_SDELTA(mprc);
-	AQ_SDELTA(bprc);
-	AQ_SDELTA(erpt);
+		AQ_SDELTA(uptc);
+		AQ_SDELTA(mptc);
+		AQ_SDELTA(bptc);
+		AQ_SDELTA(erpr);
 
-	AQ_SDELTA(uptc);
-	AQ_SDELTA(mptc);
-	AQ_SDELTA(bptc);
-	AQ_SDELTA(erpr);
-
-	AQ_SDELTA(ubrc);
-	AQ_SDELTA(ubtc);
-	AQ_SDELTA(mbrc);
-	AQ_SDELTA(mbtc);
-	AQ_SDELTA(bbrc);
-	AQ_SDELTA(bbtc);
-	AQ_SDELTA(dpc);
-
+		AQ_SDELTA(ubrc);
+		AQ_SDELTA(ubtc);
+		AQ_SDELTA(mbrc);
+		AQ_SDELTA(mbtc);
+		AQ_SDELTA(bbrc);
+		AQ_SDELTA(bbtc);
+		AQ_SDELTA(dpc);
+	}
 #undef AQ_SDELTA
+	hw_self->curr_stats.dma_pkt_rc = stats_rx_dma_good_pkt_counterlsw_get(self);
+	hw_self->curr_stats.dma_pkt_tc = stats_tx_dma_good_pkt_counterlsw_get(self);
+	hw_self->curr_stats.dma_oct_rc = stats_rx_dma_good_octet_counterlsw_get(self);
+	hw_self->curr_stats.dma_oct_tc = stats_tx_dma_good_octet_counterlsw_get(self);
 
 	memcpy(&hw_self->last_stats, &mbox.stats, sizeof(mbox.stats));
 
 	return 0;
 }
 
-int hw_atl_utils_get_hw_stats(struct aq_hw_s *self,
-			      u64 *data, unsigned int *p_count)
+struct aq_stats_s *hw_atl_utils_get_hw_stats(struct aq_hw_s *self)
 {
-	struct hw_atl_s *hw_self = PHAL_ATLANTIC;
-	struct hw_atl_stats_s *stats = &hw_self->curr_stats;
-	int i = 0;
-
-	data[i] = stats->uprc + stats->mprc + stats->bprc;
-	data[++i] = stats->uprc;
-	data[++i] = stats->mprc;
-	data[++i] = stats->bprc;
-	data[++i] = stats->erpt;
-	data[++i] = stats->uptc + stats->mptc + stats->bptc;
-	data[++i] = stats->uptc;
-	data[++i] = stats->mptc;
-	data[++i] = stats->bptc;
-	data[++i] = stats->ubrc;
-	data[++i] = stats->ubtc;
-	data[++i] = stats->mbrc;
-	data[++i] = stats->mbtc;
-	data[++i] = stats->bbrc;
-	data[++i] = stats->bbtc;
-	data[++i] = stats->ubrc + stats->mbrc + stats->bbrc;
-	data[++i] = stats->ubtc + stats->mbtc + stats->bbtc;
-	data[++i] = stats_rx_dma_good_pkt_counterlsw_get(self);
-	data[++i] = stats_tx_dma_good_pkt_counterlsw_get(self);
-	data[++i] = stats_rx_dma_good_octet_counterlsw_get(self);
-	data[++i] = stats_tx_dma_good_octet_counterlsw_get(self);
-	data[++i] = stats->dpc;
-
-	if (p_count)
-		*p_count = ++i;
-
-	return 0;
+	return &PHAL_ATLANTIC->curr_stats;
 }
 
 static const u32 hw_atl_utils_hw_mac_regs[] = {

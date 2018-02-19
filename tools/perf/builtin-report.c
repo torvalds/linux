@@ -258,7 +258,7 @@ static int report__setup_sample_type(struct report *rep)
 {
 	struct perf_session *session = rep->session;
 	u64 sample_type = perf_evlist__combined_sample_type(session->evlist);
-	bool is_pipe = perf_data_file__is_pipe(session->file);
+	bool is_pipe = perf_data__is_pipe(session->data);
 
 	if (session->itrace_synth_opts->callchain ||
 	    (!is_pipe &&
@@ -441,6 +441,9 @@ static void report__warn_kptr_restrict(const struct report *rep)
 	struct map *kernel_map = machine__kernel_map(&rep->session->machines.host);
 	struct kmap *kernel_kmap = kernel_map ? map__kmap(kernel_map) : NULL;
 
+	if (perf_evlist__exclude_kernel(rep->session->evlist))
+		return;
+
 	if (kernel_map == NULL ||
 	    (kernel_map->dso->hit &&
 	     (kernel_kmap->ref_reloc_sym == NULL ||
@@ -569,7 +572,7 @@ static int __cmd_report(struct report *rep)
 	int ret;
 	struct perf_session *session = rep->session;
 	struct perf_evsel *pos;
-	struct perf_data_file *file = session->file;
+	struct perf_data *data = session->data;
 
 	signal(SIGINT, sig_handler);
 
@@ -638,7 +641,7 @@ static int __cmd_report(struct report *rep)
 		rep->nr_entries += evsel__hists(pos)->nr_entries;
 
 	if (rep->nr_entries == 0) {
-		ui__error("The %s file has no samples!\n", file->path);
+		ui__error("The %s file has no samples!\n", data->file.path);
 		return 0;
 	}
 
@@ -880,7 +883,7 @@ int cmd_report(int argc, const char **argv)
 		    "Show inline function"),
 	OPT_END()
 	};
-	struct perf_data_file file = {
+	struct perf_data data = {
 		.mode  = PERF_DATA_MODE_READ,
 	};
 	int ret = hists__init();
@@ -941,11 +944,11 @@ int cmd_report(int argc, const char **argv)
 			input_name = "perf.data";
 	}
 
-	file.path  = input_name;
-	file.force = symbol_conf.force;
+	data.file.path = input_name;
+	data.force     = symbol_conf.force;
 
 repeat:
-	session = perf_session__new(&file, false, &report.tool);
+	session = perf_session__new(&data, false, &report.tool);
 	if (session == NULL)
 		return -1;
 

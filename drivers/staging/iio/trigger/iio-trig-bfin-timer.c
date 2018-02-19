@@ -172,7 +172,6 @@ static int iio_bfin_tmr_get_number(int irq)
 }
 
 static const struct iio_trigger_ops iio_bfin_tmr_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = iio_bfin_tmr_set_state,
 };
 

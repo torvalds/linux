@@ -497,6 +497,12 @@ int of_platform_default_populate(struct device_node *root,
 EXPORT_SYMBOL_GPL(of_platform_default_populate);
 
 #ifndef CONFIG_PPC
+static const struct of_device_id reserved_mem_matches[] = {
+	{ .compatible = "qcom,rmtfs-mem" },
+	{ .compatible = "ramoops" },
+	{}
+};
+
 static int __init of_platform_default_populate_init(void)
 {
 	struct device_node *node;
@@ -505,15 +511,12 @@ static int __init of_platform_default_populate_init(void)
 		return -ENODEV;
 
 	/*
-	 * Handle ramoops explicitly, since it is inside /reserved-memory,
-	 * which lacks a "compatible" property.
+	 * Handle certain compatibles explicitly, since we don't want to create
+	 * platform_devices for every node in /reserved-memory with a
+	 * "compatible",
 	 */
-	node = of_find_node_by_path("/reserved-memory");
-	if (node) {
-		node = of_find_compatible_node(node, NULL, "ramoops");
-		if (node)
-			of_platform_device_create(node, NULL, NULL);
-	}
+	for_each_matching_node(node, reserved_mem_matches)
+		of_platform_device_create(node, NULL, NULL);
 
 	/* Populate everything else. */
 	of_platform_default_populate(NULL, NULL, NULL);

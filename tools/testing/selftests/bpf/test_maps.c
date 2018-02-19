@@ -1043,6 +1043,51 @@ static void test_map_parallel(void)
 	assert(bpf_map_get_next_key(fd, &key, &key) == -1 && errno == ENOENT);
 }
 
+static void test_map_rdonly(void)
+{
+	int fd, key = 0, value = 0;
+
+	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
+			    MAP_SIZE, map_flags | BPF_F_RDONLY);
+	if (fd < 0) {
+		printf("Failed to create map for read only test '%s'!\n",
+		       strerror(errno));
+		exit(1);
+	}
+
+	key = 1;
+	value = 1234;
+	/* Insert key=1 element. */
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == -1 &&
+	       errno == EPERM);
+
+	/* Check that key=2 is not found. */
+	assert(bpf_map_lookup_elem(fd, &key, &value) == -1 && errno == ENOENT);
+	assert(bpf_map_get_next_key(fd, &key, &value) == -1 && errno == ENOENT);
+}
+
+static void test_map_wronly(void)
+{
+	int fd, key = 0, value = 0;
+
+	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
+			    MAP_SIZE, map_flags | BPF_F_WRONLY);
+	if (fd < 0) {
+		printf("Failed to create map for read only test '%s'!\n",
+		       strerror(errno));
+		exit(1);
+	}
+
+	key = 1;
+	value = 1234;
+	/* Insert key=1 element. */
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == 0);
+
+	/* Check that key=2 is not found. */
+	assert(bpf_map_lookup_elem(fd, &key, &value) == -1 && errno == EPERM);
+	assert(bpf_map_get_next_key(fd, &key, &value) == -1 && errno == EPERM);
+}
+
 static void run_all_tests(void)
 {
 	test_hashmap(0, NULL);
@@ -1060,6 +1105,9 @@ static void run_all_tests(void)
 	test_map_large();
 	test_map_parallel();
 	test_map_stress();
+
+	test_map_rdonly();
+	test_map_wronly();
 }
 
 int main(void)

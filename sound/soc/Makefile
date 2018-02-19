@@ -15,6 +15,12 @@ ifneq ($(CONFIG_SND_SOC_AC97_BUS),)
 snd-soc-core-objs += soc-ac97.o
 endif
 
+ifneq ($(CONFIG_SND_SOC_ACPI),)
+snd-soc-acpi-objs := soc-acpi.o
+endif
+
+obj-$(CONFIG_SND_SOC_ACPI) += snd-soc-acpi.o
+
 obj-$(CONFIG_SND_SOC)	+= snd-soc-core.o
 obj-$(CONFIG_SND_SOC)	+= codecs/
 obj-$(CONFIG_SND_SOC)	+= generic/

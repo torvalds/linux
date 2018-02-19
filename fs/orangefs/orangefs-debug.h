@@ -15,8 +15,10 @@
 
 #ifdef __KERNEL__
 #include <linux/types.h>
+#include <linux/kernel.h>
 #else
 #include <stdint.h>
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #endif
 
 #define	GOSSIP_NO_DEBUG			(__u64)0
@@ -88,6 +90,6 @@ static struct __keyword_mask_s s_kmod_keyword_mask_map[] = {
 };
 
 static const int num_kmod_keyword_mask_map = (int)
-	(sizeof(s_kmod_keyword_mask_map) / sizeof(struct __keyword_mask_s));
+	(ARRAY_SIZE(s_kmod_keyword_mask_map));
 
 #endif /* __ORANGEFS_DEBUG_H */

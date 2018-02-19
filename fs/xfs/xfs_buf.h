@@ -352,10 +352,7 @@ extern void xfs_buf_terminate(void);
 #define XFS_BUF_ADDR(bp)		((bp)->b_maps[0].bm_bn)
 #define XFS_BUF_SET_ADDR(bp, bno)	((bp)->b_maps[0].bm_bn = (xfs_daddr_t)(bno))
 
-static inline void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
-{
-	atomic_set(&bp->b_lru_ref, lru_ref);
-}
+void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref);
 
 static inline int xfs_buf_ispinned(struct xfs_buf *bp)
 {

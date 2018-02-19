@@ -71,9 +71,9 @@ static void rtc_uie_task(struct work_struct *work)
 	if (num)
 		rtc_handle_legacy_irq(rtc, num, RTC_UF);
 }
-static void rtc_uie_timer(unsigned long data)
+static void rtc_uie_timer(struct timer_list *t)
 {
-	struct rtc_device *rtc = (struct rtc_device *)data;
+	struct rtc_device *rtc = from_timer(rtc, t, uie_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&rtc->irq_lock, flags);
@@ -460,7 +460,7 @@ void rtc_dev_prepare(struct rtc_device *rtc)
 
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
 	INIT_WORK(&rtc->uie_task, rtc_uie_task);
-	setup_timer(&rtc->uie_timer, rtc_uie_timer, (unsigned long)rtc);
+	timer_setup(&rtc->uie_timer, rtc_uie_timer, 0);
 #endif
 
 	cdev_init(&rtc->char_dev, &rtc_dev_fops);

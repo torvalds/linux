@@ -399,7 +399,7 @@ xfs_map_blocks(
 	       (ip->i_df.if_flags & XFS_IFEXTENTS));
 	ASSERT(offset <= mp->m_super->s_maxbytes);
 
-	if (offset + count > mp->m_super->s_maxbytes)
+	if (offset > mp->m_super->s_maxbytes - count)
 		count = mp->m_super->s_maxbytes - offset;
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + count);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
@@ -896,13 +896,13 @@ xfs_writepage_map(
 	struct writeback_control *wbc,
 	struct inode		*inode,
 	struct page		*page,
-	loff_t			offset,
-	uint64_t              end_offset)
+	uint64_t		end_offset)
 {
 	LIST_HEAD(submit_list);
 	struct xfs_ioend	*ioend, *next;
 	struct buffer_head	*bh, *head;
 	ssize_t			len = i_blocksize(inode);
+	uint64_t		offset;
 	int			error = 0;
 	int			count = 0;
 	int			uptodate = 1;
@@ -1146,7 +1146,7 @@ xfs_do_writepage(
 		end_offset = offset;
 	}
 
-	return xfs_writepage_map(wpc, wbc, inode, page, offset, end_offset);
+	return xfs_writepage_map(wpc, wbc, inode, page, end_offset);
 
 redirty:
 	redirty_page_for_writepage(wbc, page);
@@ -1265,7 +1265,7 @@ xfs_map_trim_size(
 	if (mapping_size > size)
 		mapping_size = size;
 	if (offset < i_size_read(inode) &&
-	    offset + mapping_size >= i_size_read(inode)) {
+	    (xfs_ufsize_t)offset + mapping_size >= i_size_read(inode)) {
 		/* limit mapping to block that spans EOF */
 		mapping_size = roundup_64(i_size_read(inode) - offset,
 					  i_blocksize(inode));
@@ -1312,7 +1312,7 @@ xfs_get_blocks(
 	lockmode = xfs_ilock_data_map_shared(ip);
 
 	ASSERT(offset <= mp->m_super->s_maxbytes);
-	if (offset + size > mp->m_super->s_maxbytes)
+	if (offset > mp->m_super->s_maxbytes - size)
 		size = mp->m_super->s_maxbytes - offset;
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + size);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);

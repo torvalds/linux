@@ -49,6 +49,7 @@ struct br_ip_list {
 #define BR_MULTICAST_TO_UNICAST	BIT(12)
 #define BR_VLAN_TUNNEL		BIT(13)
 #define BR_BCAST_FLOOD		BIT(14)
+#define BR_NEIGH_SUPPRESS	BIT(15)
 
 #define BR_DEFAULT_AGEING_TIME	(300 * HZ)
 
@@ -63,6 +64,7 @@ int br_multicast_list_adjacent(struct net_device *dev,
 bool br_multicast_has_querier_anywhere(struct net_device *dev, int proto);
 bool br_multicast_has_querier_adjacent(struct net_device *dev, int proto);
 bool br_multicast_enabled(const struct net_device *dev);
+bool br_multicast_router(const struct net_device *dev);
 #else
 static inline int br_multicast_list_adjacent(struct net_device *dev,
 					     struct list_head *br_ip_list)
@@ -80,6 +82,10 @@ static inline bool br_multicast_has_querier_adjacent(struct net_device *dev,
 	return false;
 }
 static inline bool br_multicast_enabled(const struct net_device *dev)
+{
+	return false;
+}
+static inline bool br_multicast_router(const struct net_device *dev)
 {
 	return false;
 }

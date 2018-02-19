@@ -108,8 +108,6 @@ MODULE_PARM_DESC(on_node, "Run threads only on NTB device node (default: true)")
 struct perf_mw {
 	phys_addr_t	phys_addr;
 	resource_size_t	phys_size;
-	resource_size_t	xlat_align;
-	resource_size_t	xlat_align_size;
 	void __iomem	*vbase;
 	size_t		xlat_size;
 	size_t		buf_size;
@@ -472,13 +470,20 @@ static int perf_set_mw(struct perf_ctx *perf, resource_size_t size)
 {
 	struct perf_mw *mw = &perf->mw;
 	size_t xlat_size, buf_size;
+	resource_size_t	xlat_align;
+	resource_size_t	xlat_align_size;
 	int rc;
 
 	if (!size)
 		return -EINVAL;
 
-	xlat_size = round_up(size, mw->xlat_align_size);
-	buf_size = round_up(size, mw->xlat_align);
+	rc = ntb_mw_get_align(perf->ntb, PIDX, 0, &xlat_align,
+			      &xlat_align_size, NULL);
+	if (rc)
+		return rc;
+
+	xlat_size = round_up(size, xlat_align_size);
+	buf_size = round_up(size, xlat_align);
 
 	if (mw->xlat_size == xlat_size)
 		return 0;
@@ -566,11 +571,6 @@ static int perf_setup_mw(struct ntb_dev *ntb, struct perf_ctx *perf)
 	int rc;
 
 	mw = &perf->mw;
-
-	rc = ntb_mw_get_align(ntb, PIDX, 0, &mw->xlat_align,
-			      &mw->xlat_align_size, NULL);
-	if (rc)
-		return rc;
 
 	rc = ntb_peer_mw_get_addr(ntb, 0, &mw->phys_addr, &mw->phys_size);
 	if (rc)

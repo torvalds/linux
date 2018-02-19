@@ -46,6 +46,7 @@
 #include <linux/cgroup.h>
 #include <linux/efi.h>
 #include <linux/tick.h>
+#include <linux/sched/isolation.h>
 #include <linux/interrupt.h>
 #include <linux/taskstats_kern.h>
 #include <linux/delayacct.h>
@@ -69,12 +70,12 @@
 #include <linux/kgdb.h>
 #include <linux/ftrace.h>
 #include <linux/async.h>
-#include <linux/kmemcheck.h>
 #include <linux/sfi.h>
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
 #include <linux/perf_event.h>
 #include <linux/ptrace.h>
+#include <linux/pti.h>
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
 #include <linux/sched_clock.h>
@@ -504,6 +505,10 @@ static void __init mm_init(void)
 	pgtable_init();
 	vmalloc_init();
 	ioremap_huge_init();
+	/* Should be run before the first non-init thread is created */
+	init_espfix_bsp();
+	/* Should be run after espfix64 is set up. */
+	pti_init();
 }
 
 asmlinkage __visible void __init start_kernel(void)
@@ -562,7 +567,6 @@ asmlinkage __visible void __init start_kernel(void)
 	 * kmem_cache_init()
 	 */
 	setup_log_buf(0);
-	pidhash_init();
 	vfs_caches_init_early();
 	sort_main_extable();
 	trap_init();
@@ -588,6 +592,12 @@ asmlinkage __visible void __init start_kernel(void)
 		 "Interrupts were enabled *very* early, fixing it\n"))
 		local_irq_disable();
 	radix_tree_init();
+
+	/*
+	 * Set up housekeeping before setting up workqueues to allow the unbound
+	 * workqueue to take non-housekeeping into account.
+	 */
+	housekeeping_init();
 
 	/*
 	 * Allow workqueue creation and work item queueing/cancelling
@@ -664,19 +674,15 @@ asmlinkage __visible void __init start_kernel(void)
 	debug_objects_mem_init();
 	setup_per_cpu_pageset();
 	numa_policy_init();
+	acpi_early_init();
 	if (late_time_init)
 		late_time_init();
 	calibrate_delay();
-	pidmap_init();
+	pid_idr_init();
 	anon_vma_init();
-	acpi_early_init();
 #ifdef CONFIG_X86
 	if (efi_enabled(EFI_RUNTIME_SERVICES))
 		efi_enter_virtual_mode();
-#endif
-#ifdef CONFIG_X86_ESPFIX64
-	/* Should be run before the first non-init thread is created */
-	init_espfix_bsp();
 #endif
 	thread_stack_cache_init();
 	cred_init();

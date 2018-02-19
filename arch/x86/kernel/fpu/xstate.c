@@ -15,6 +15,7 @@
 #include <asm/fpu/xstate.h>
 
 #include <asm/tlbflush.h>
+#include <asm/cpufeature.h>
 
 /*
  * Although we spell it out in here, the Processor Trace
@@ -34,6 +35,19 @@ static const char *xfeature_names[] =
 	"Processor Trace (unused)"	,
 	"Protection Keys User registers",
 	"unknown xstate feature"	,
+};
+
+static short xsave_cpuid_features[] __initdata = {
+	X86_FEATURE_FPU,
+	X86_FEATURE_XMM,
+	X86_FEATURE_AVX,
+	X86_FEATURE_MPX,
+	X86_FEATURE_MPX,
+	X86_FEATURE_AVX512F,
+	X86_FEATURE_AVX512F,
+	X86_FEATURE_AVX512F,
+	X86_FEATURE_INTEL_PT,
+	X86_FEATURE_PKU,
 };
 
 /*
@@ -59,26 +73,6 @@ unsigned int fpu_user_xstate_size;
 void fpu__xstate_clear_all_cpu_caps(void)
 {
 	setup_clear_cpu_cap(X86_FEATURE_XSAVE);
-	setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
-	setup_clear_cpu_cap(X86_FEATURE_XSAVEC);
-	setup_clear_cpu_cap(X86_FEATURE_XSAVES);
-	setup_clear_cpu_cap(X86_FEATURE_AVX);
-	setup_clear_cpu_cap(X86_FEATURE_AVX2);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512F);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512IFMA);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512PF);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512ER);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512CD);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512DQ);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512BW);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512VL);
-	setup_clear_cpu_cap(X86_FEATURE_MPX);
-	setup_clear_cpu_cap(X86_FEATURE_XGETBV1);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512VBMI);
-	setup_clear_cpu_cap(X86_FEATURE_PKU);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512_4VNNIW);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512_4FMAPS);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512_VPOPCNTDQ);
 }
 
 /*
@@ -726,6 +720,7 @@ void __init fpu__init_system_xstate(void)
 	unsigned int eax, ebx, ecx, edx;
 	static int on_boot_cpu __initdata = 1;
 	int err;
+	int i;
 
 	WARN_ON_FPU(!on_boot_cpu);
 	on_boot_cpu = 0;
@@ -757,6 +752,14 @@ void __init fpu__init_system_xstate(void)
 		 */
 		pr_err("x86/fpu: FP/SSE not present amongst the CPU's xstate features: 0x%llx.\n", xfeatures_mask);
 		goto out_disable;
+	}
+
+	/*
+	 * Clear XSAVE features that are disabled in the normal CPUID.
+	 */
+	for (i = 0; i < ARRAY_SIZE(xsave_cpuid_features); i++) {
+		if (!boot_cpu_has(xsave_cpuid_features[i]))
+			xfeatures_mask &= ~BIT(i);
 	}
 
 	xfeatures_mask &= fpu__get_supported_xfeatures_mask();

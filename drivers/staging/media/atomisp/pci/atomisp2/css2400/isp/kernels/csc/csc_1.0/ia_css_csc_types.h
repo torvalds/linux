@@ -15,11 +15,11 @@
 #ifndef __IA_CSS_CSC_TYPES_H
 #define __IA_CSS_CSC_TYPES_H
 
-/** @file
+/* @file
 * CSS-API header file for Color Space Conversion parameters.
 */
 
-/** Color Correction configuration.
+/* Color Correction configuration.
  *
  *  This structure is used for 3 cases.
  *  ("YCgCo" is the output format of Demosaic.)
@@ -68,9 +68,9 @@
  *  	4096	-3430	-666
  */
 struct ia_css_cc_config {
-	uint32_t fraction_bits;/**< Fractional bits of matrix.
+	uint32_t fraction_bits;/** Fractional bits of matrix.
 					u8.0, [0,13] */
-	int32_t matrix[3 * 3]; /**< Conversion matrix.
+	int32_t matrix[3 * 3]; /** Conversion matrix.
 					s[13-fraction_bits].[fraction_bits],
 					[-8192,8191] */
 };

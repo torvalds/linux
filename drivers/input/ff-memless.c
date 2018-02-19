@@ -412,10 +412,10 @@ static void ml_play_effects(struct ml_device *ml)
 	ml_schedule_timer(ml);
 }
 
-static void ml_effect_timer(unsigned long timer_data)
+static void ml_effect_timer(struct timer_list *t)
 {
-	struct input_dev *dev = (struct input_dev *)timer_data;
-	struct ml_device *ml = dev->ff->private;
+	struct ml_device *ml = from_timer(ml, t, timer);
+	struct input_dev *dev = ml->dev;
 	unsigned long flags;
 
 	pr_debug("timer: updating effects\n");
@@ -526,7 +526,7 @@ int input_ff_create_memless(struct input_dev *dev, void *data,
 	ml->private = data;
 	ml->play_effect = play_effect;
 	ml->gain = 0xffff;
-	setup_timer(&ml->timer, ml_effect_timer, (unsigned long)dev);
+	timer_setup(&ml->timer, ml_effect_timer, 0);
 
 	set_bit(FF_GAIN, dev->ffbit);
 

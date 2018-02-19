@@ -209,7 +209,7 @@ struct si470x_device {
 /**************************************************************************
  * Common Functions
  **************************************************************************/
-extern struct video_device si470x_viddev_template;
+extern const struct video_device si470x_viddev_template;
 extern const struct v4l2_ctrl_ops si470x_ctrl_ops;
 int si470x_get_register(struct si470x_device *radio, int regnr);
 int si470x_set_register(struct si470x_device *radio, int regnr);

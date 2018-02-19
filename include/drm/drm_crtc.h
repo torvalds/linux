@@ -253,6 +253,15 @@ struct drm_crtc_state {
 	 */
 	struct drm_pending_vblank_event *event;
 
+	/**
+	 * @commit:
+	 *
+	 * This tracks how the commit for this update proceeds through the
+	 * various phases. This is never cleared, except when we destroy the
+	 * state, so that subsequent commits can synchronize with previous ones.
+	 */
+	struct drm_crtc_commit *commit;
+
 	struct drm_atomic_state *state;
 };
 
@@ -797,10 +806,10 @@ struct drm_crtc {
 	 * This is protected by @mutex. Note that nonblocking atomic commits
 	 * access the current CRTC state without taking locks. Either by going
 	 * through the &struct drm_atomic_state pointers, see
-	 * for_each_crtc_in_state(), for_each_oldnew_crtc_in_state(),
-	 * for_each_old_crtc_in_state() and for_each_new_crtc_in_state(). Or
-	 * through careful ordering of atomic commit operations as implemented
-	 * in the atomic helpers, see &struct drm_crtc_commit.
+	 * for_each_oldnew_crtc_in_state(), for_each_old_crtc_in_state() and
+	 * for_each_new_crtc_in_state(). Or through careful ordering of atomic
+	 * commit operations as implemented in the atomic helpers, see
+	 * &struct drm_crtc_commit.
 	 */
 	struct drm_crtc_state *state;
 
@@ -808,10 +817,16 @@ struct drm_crtc {
 	 * @commit_list:
 	 *
 	 * List of &drm_crtc_commit structures tracking pending commits.
-	 * Protected by @commit_lock. This list doesn't hold its own full
-	 * reference, but burrows it from the ongoing commit. Commit entries
-	 * must be removed from this list once the commit is fully completed,
-	 * but before it's correspoding &drm_atomic_state gets destroyed.
+	 * Protected by @commit_lock. This list holds its own full reference,
+	 * as does the ongoing commit.
+	 *
+	 * "Note that the commit for a state change is also tracked in
+	 * &drm_crtc_state.commit. For accessing the immediately preceding
+	 * commit in an atomic update it is recommended to just use that
+	 * pointer in the old CRTC state, since accessing that doesn't need
+	 * any locking or list-walking. @commit_list should only be used to
+	 * stall for framebuffer cleanup that's signalled through
+	 * &drm_crtc_commit.cleanup_done."
 	 */
 	struct list_head commit_list;
 
@@ -937,6 +952,7 @@ struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx);
 /**
  * drm_crtc_find - look up a CRTC object from its ID
  * @dev: DRM device
+ * @file_priv: drm file to check for lease against.
  * @id: &drm_mode_object ID
  *
  * This can be used to look up a CRTC from its userspace ID. Only used by
@@ -944,10 +960,11 @@ struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx);
  * userspace interface should be done using &drm_property.
  */
 static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
-	uint32_t id)
+		struct drm_file *file_priv,
+		uint32_t id)
 {
 	struct drm_mode_object *mo;
-	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_CRTC);
+	mo = drm_mode_object_find(dev, file_priv, id, DRM_MODE_OBJECT_CRTC);
 	return mo ? obj_to_crtc(mo) : NULL;
 }
 

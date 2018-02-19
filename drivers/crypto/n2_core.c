@@ -1625,6 +1625,7 @@ static int queue_cache_init(void)
 					  CWQ_ENTRY_SIZE, 0, NULL);
 	if (!queue_cache[HV_NCS_QTYPE_CWQ - 1]) {
 		kmem_cache_destroy(queue_cache[HV_NCS_QTYPE_MAU - 1]);
+		queue_cache[HV_NCS_QTYPE_MAU - 1] = NULL;
 		return -ENOMEM;
 	}
 	return 0;
@@ -1634,6 +1635,8 @@ static void queue_cache_destroy(void)
 {
 	kmem_cache_destroy(queue_cache[HV_NCS_QTYPE_MAU - 1]);
 	kmem_cache_destroy(queue_cache[HV_NCS_QTYPE_CWQ - 1]);
+	queue_cache[HV_NCS_QTYPE_MAU - 1] = NULL;
+	queue_cache[HV_NCS_QTYPE_CWQ - 1] = NULL;
 }
 
 static long spu_queue_register_workfn(void *arg)
@@ -1962,10 +1965,8 @@ static struct n2_crypto *alloc_n2cp(void)
 
 static void free_n2cp(struct n2_crypto *np)
 {
-	if (np->cwq_info.ino_table) {
-		kfree(np->cwq_info.ino_table);
-		np->cwq_info.ino_table = NULL;
-	}
+	kfree(np->cwq_info.ino_table);
+	np->cwq_info.ino_table = NULL;
 
 	kfree(np);
 }
@@ -2079,10 +2080,8 @@ static struct n2_mau *alloc_ncp(void)
 
 static void free_ncp(struct n2_mau *mp)
 {
-	if (mp->mau_info.ino_table) {
-		kfree(mp->mau_info.ino_table);
-		mp->mau_info.ino_table = NULL;
-	}
+	kfree(mp->mau_info.ino_table);
+	mp->mau_info.ino_table = NULL;
 
 	kfree(mp);
 }

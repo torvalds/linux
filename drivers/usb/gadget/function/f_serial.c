@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * f_serial.c - generic USB serial function driver
  *
  * Copyright (C) 2003 Al Borchers (alborchers@steinerpoint.com)
  * Copyright (C) 2008 by David Brownell
  * Copyright (C) 2008 by Nokia Corporation
- *
- * This software is distributed under the terms of the GNU General
- * Public License ("GPL") as published by the Free Software Foundation,
- * either version 2 of that License or (at your option) any later version.
  */
 
 #include <linux/slab.h>
@@ -281,7 +278,7 @@ static struct configfs_attribute *acm_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type serial_func_type = {
+static const struct config_item_type serial_func_type = {
 	.ct_item_ops	= &serial_item_ops,
 	.ct_attrs	= acm_attrs,
 	.ct_owner	= THIS_MODULE,

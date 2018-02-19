@@ -159,6 +159,8 @@ struct pvrdma_resize_cq {
 
 struct pvrdma_create_srq {
 	__u64 buf_addr;
+	__u32 buf_size;
+	__u32 reserved;
 };
 
 struct pvrdma_create_srq_resp {

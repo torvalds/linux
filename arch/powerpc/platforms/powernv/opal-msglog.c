@@ -43,7 +43,7 @@ ssize_t opal_msglog_copy(char *to, loff_t pos, size_t count)
 	if (!opal_memcons)
 		return -ENODEV;
 
-	out_pos = be32_to_cpu(ACCESS_ONCE(opal_memcons->out_pos));
+	out_pos = be32_to_cpu(READ_ONCE(opal_memcons->out_pos));
 
 	/* Now we've read out_pos, put a barrier in before reading the new
 	 * data it points to in conbuf. */

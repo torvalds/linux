@@ -186,7 +186,6 @@ static int adc084s021_buffer_postdisable(struct iio_dev *indio_dev)
 
 static const struct iio_info adc084s021_info = {
 	.read_raw = adc084s021_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct iio_buffer_setup_ops adc084s021_buffer_setup_ops = {

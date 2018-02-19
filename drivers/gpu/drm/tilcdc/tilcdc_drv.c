@@ -23,6 +23,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
@@ -65,7 +66,7 @@ static struct of_device_id tilcdc_of_match[];
 static struct drm_framebuffer *tilcdc_fb_create(struct drm_device *dev,
 		struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	return drm_fb_cma_create(dev, file_priv, mode_cmd);
+	return drm_gem_fb_create(dev, file_priv, mode_cmd);
 }
 
 static void tilcdc_fb_output_poll_changed(struct drm_device *dev)
@@ -225,7 +226,7 @@ static void tilcdc_fini(struct drm_device *dev)
 
 	pm_runtime_disable(dev->dev);
 
-	drm_dev_unref(dev);
+	drm_dev_put(dev);
 }
 
 static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)

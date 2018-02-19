@@ -24,6 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/hdmi.h>
 #include <sound/omap-hdmi-audio.h>
+#include <media/cec.h>
 
 #include "omapdss.h"
 #include "dss.h"
@@ -264,6 +265,10 @@ struct hdmi_core_data {
 	void __iomem *base;
 	bool cts_swmode;
 	bool audio_use_mclk;
+
+	struct hdmi_wp_data *wp;
+	unsigned int core_pwr_cnt;
+	struct cec_adapter *adap;
 };
 
 static inline void hdmi_write_reg(void __iomem *base_addr, const u32 idx,
@@ -373,7 +378,7 @@ struct omap_hdmi {
 	bool audio_configured;
 	struct omap_dss_audio audio_config;
 
-	/* This lock should be taken when booleans bellow are touched. */
+	/* This lock should be taken when booleans below are touched. */
 	spinlock_t audio_playing_lock;
 	bool audio_playing;
 	bool display_enabled;

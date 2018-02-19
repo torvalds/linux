@@ -94,40 +94,13 @@
  */
 static inline int put_sigset_t(compat_sigset_t __user *uset, sigset_t *set)
 {
-	compat_sigset_t	cset;
-
-	switch (_NSIG_WORDS) {
-	case 4: cset.sig[6] = set->sig[3] & 0xffffffffull;
-		cset.sig[7] = set->sig[3] >> 32;
-	case 3: cset.sig[4] = set->sig[2] & 0xffffffffull;
-		cset.sig[5] = set->sig[2] >> 32;
-	case 2: cset.sig[2] = set->sig[1] & 0xffffffffull;
-		cset.sig[3] = set->sig[1] >> 32;
-	case 1: cset.sig[0] = set->sig[0] & 0xffffffffull;
-		cset.sig[1] = set->sig[0] >> 32;
-	}
-	return copy_to_user(uset, &cset, sizeof(*uset));
+	return put_compat_sigset(uset, set, sizeof(*uset));
 }
 
 static inline int get_sigset_t(sigset_t *set,
 			       const compat_sigset_t __user *uset)
 {
-	compat_sigset_t s32;
-
-	if (copy_from_user(&s32, uset, sizeof(*uset)))
-		return -EFAULT;
-
-	/*
-	 * Swap the 2 words of the 64-bit sigset_t (they are stored
-	 * in the "wrong" endian in 32-bit user storage).
-	 */
-	switch (_NSIG_WORDS) {
-	case 4: set->sig[3] = s32.sig[6] | (((long)s32.sig[7]) << 32);
-	case 3: set->sig[2] = s32.sig[4] | (((long)s32.sig[5]) << 32);
-	case 2: set->sig[1] = s32.sig[2] | (((long)s32.sig[3]) << 32);
-	case 1: set->sig[0] = s32.sig[0] | (((long)s32.sig[1]) << 32);
-	}
-	return 0;
+	return get_compat_sigset(set, uset);
 }
 
 #define to_user_ptr(p)		ptr_to_compat(p)
@@ -519,6 +492,8 @@ static int save_tm_user_regs(struct pt_regs *regs,
 {
 	unsigned long msr = regs->msr;
 
+	WARN_ON(tm_suspend_disabled);
+
 	/* Remove TM bits from thread's MSR.  The MSR in the sigcontext
 	 * just indicates to userland that we were doing a transaction, but we
 	 * don't want to return in transactional state.  This also ensures
@@ -769,6 +744,8 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	int i;
 #endif
 
+	if (tm_suspend_disabled)
+		return 1;
 	/*
 	 * restore general registers but not including MSR or SOFTE. Also
 	 * take care of keeping r2 (TLS) intact if not a signal.
@@ -876,7 +853,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	/* Make sure the transaction is marked as failed */
 	current->thread.tm_texasr |= TEXASR_FS;
 	/* This loads the checkpointed FP/VEC state, if used */
-	tm_recheckpoint(&current->thread, msr);
+	tm_recheckpoint(&current->thread);
 
 	/* This loads the speculative FP/VEC state, if used */
 	msr_check_and_set(msr & (MSR_FP | MSR_VEC));

@@ -30,19 +30,20 @@
 #include <video/mipi_display.h>
 
 #define DSI_VERSION			0x00
+
 #define DSI_PWR_UP			0x04
 #define RESET				0
 #define POWERUP				BIT(0)
 
 #define DSI_CLKMGR_CFG			0x08
-#define TO_CLK_DIVIDSION(div)		(((div) & 0xff) << 8)
-#define TX_ESC_CLK_DIVIDSION(div)	(((div) & 0xff) << 0)
+#define TO_CLK_DIVISION(div)		(((div) & 0xff) << 8)
+#define TX_ESC_CLK_DIVISION(div)	((div) & 0xff)
 
 #define DSI_DPI_VCID			0x0c
-#define DPI_VID(vid)			(((vid) & 0x3) << 0)
+#define DPI_VCID(vcid)			((vcid) & 0x3)
 
 #define DSI_DPI_COLOR_CODING		0x10
-#define EN18_LOOSELY			BIT(8)
+#define LOOSELY18_EN			BIT(8)
 #define DPI_COLOR_CODING_16BIT_1	0x0
 #define DPI_COLOR_CODING_16BIT_2	0x1
 #define DPI_COLOR_CODING_16BIT_3	0x2
@@ -61,22 +62,25 @@
 #define OUTVACT_LPCMD_TIME(p)		(((p) & 0xff) << 16)
 #define INVACT_LPCMD_TIME(p)		((p) & 0xff)
 
+#define DSI_DBI_VCID			0x1c
 #define DSI_DBI_CFG			0x20
+#define DSI_DBI_PARTITIONING_EN		0x24
 #define DSI_DBI_CMDSIZE			0x28
 
 #define DSI_PCKHDL_CFG			0x2c
-#define EN_CRC_RX			BIT(4)
-#define EN_ECC_RX			BIT(3)
-#define EN_BTA				BIT(2)
-#define EN_EOTP_RX			BIT(1)
-#define EN_EOTP_TX			BIT(0)
+#define CRC_RX_EN			BIT(4)
+#define ECC_RX_EN			BIT(3)
+#define BTA_EN				BIT(2)
+#define EOTP_RX_EN			BIT(1)
+#define EOTP_TX_EN			BIT(0)
+
+#define DSI_GEN_VCID			0x30
 
 #define DSI_MODE_CFG			0x34
 #define ENABLE_VIDEO_MODE		0
 #define ENABLE_CMD_MODE			BIT(0)
 
 #define DSI_VID_MODE_CFG		0x38
-#define FRAME_BTA_ACK			BIT(14)
 #define ENABLE_LOW_POWER		(0x3f << 8)
 #define ENABLE_LOW_POWER_MASK		(0x3f << 8)
 #define VID_MODE_TYPE_NON_BURST_SYNC_PULSES	0x0
@@ -85,8 +89,13 @@
 #define VID_MODE_TYPE_MASK			0x3
 
 #define DSI_VID_PKT_SIZE		0x3c
-#define VID_PKT_SIZE(p)			(((p) & 0x3fff) << 0)
-#define VID_PKT_MAX_SIZE		0x3fff
+#define VID_PKT_SIZE(p)			((p) & 0x3fff)
+
+#define DSI_VID_NUM_CHUNKS		0x40
+#define VID_NUM_CHUNKS(c)		((c) & 0x1fff)
+
+#define DSI_VID_NULL_SIZE		0x44
+#define VID_NULL_SIZE(b)		((b) & 0x1fff)
 
 #define DSI_VID_HSA_TIME		0x48
 #define DSI_VID_HBP_TIME		0x4c
@@ -95,6 +104,8 @@
 #define DSI_VID_VBP_LINES		0x58
 #define DSI_VID_VFP_LINES		0x5c
 #define DSI_VID_VACTIVE_LINES		0x60
+#define DSI_EDPI_CMD_SIZE		0x64
+
 #define DSI_CMD_MODE_CFG		0x68
 #define MAX_RD_PKT_SIZE_LP		BIT(24)
 #define DCS_LW_TX_LP			BIT(19)
@@ -108,8 +119,8 @@
 #define GEN_SW_2P_TX_LP			BIT(10)
 #define GEN_SW_1P_TX_LP			BIT(9)
 #define GEN_SW_0P_TX_LP			BIT(8)
-#define EN_ACK_RQST			BIT(1)
-#define EN_TEAR_FX			BIT(0)
+#define ACK_RQST_EN			BIT(1)
+#define TEAR_FX_EN			BIT(0)
 
 #define CMD_MODE_ALL_LP			(MAX_RD_PKT_SIZE_LP | \
 					 DCS_LW_TX_LP | \
@@ -125,27 +136,31 @@
 					 GEN_SW_0P_TX_LP)
 
 #define DSI_GEN_HDR			0x6c
+/* TODO These 2 defines will be reworked thanks to mipi_dsi_create_packet() */
 #define GEN_HDATA(data)			(((data) & 0xffff) << 8)
-#define GEN_HDATA_MASK			(0xffff << 8)
 #define GEN_HTYPE(type)			(((type) & 0xff) << 0)
-#define GEN_HTYPE_MASK			0xff
 
 #define DSI_GEN_PLD_DATA		0x70
 
 #define DSI_CMD_PKT_STATUS		0x74
-#define GEN_CMD_EMPTY			BIT(0)
-#define GEN_CMD_FULL			BIT(1)
-#define GEN_PLD_W_EMPTY			BIT(2)
-#define GEN_PLD_W_FULL			BIT(3)
-#define GEN_PLD_R_EMPTY			BIT(4)
-#define GEN_PLD_R_FULL			BIT(5)
 #define GEN_RD_CMD_BUSY			BIT(6)
+#define GEN_PLD_R_FULL			BIT(5)
+#define GEN_PLD_R_EMPTY			BIT(4)
+#define GEN_PLD_W_FULL			BIT(3)
+#define GEN_PLD_W_EMPTY			BIT(2)
+#define GEN_CMD_FULL			BIT(1)
+#define GEN_CMD_EMPTY			BIT(0)
 
 #define DSI_TO_CNT_CFG			0x78
 #define HSTX_TO_CNT(p)			(((p) & 0xffff) << 16)
 #define LPRX_TO_CNT(p)			((p) & 0xffff)
 
+#define DSI_HS_RD_TO_CNT		0x7c
+#define DSI_LP_RD_TO_CNT		0x80
+#define DSI_HS_WR_TO_CNT		0x84
+#define DSI_LP_WR_TO_CNT		0x88
 #define DSI_BTA_TO_CNT			0x8c
+
 #define DSI_LPCLK_CTRL			0x94
 #define AUTO_CLKLANE_CTRL		BIT(1)
 #define PHY_TXREQUESTCLKHS		BIT(0)
@@ -154,6 +169,7 @@
 #define PHY_CLKHS2LP_TIME(lbcc)		(((lbcc) & 0x3ff) << 16)
 #define PHY_CLKLP2HS_TIME(lbcc)		((lbcc) & 0x3ff)
 
+/* TODO Next register is slightly different between 1.30 & 1.31 IP version */
 #define DSI_PHY_TMR_CFG			0x9c
 #define PHY_HS2LP_TIME(lbcc)		(((lbcc) & 0xff) << 24)
 #define PHY_LP2HS_TIME(lbcc)		(((lbcc) & 0xff) << 16)
@@ -170,12 +186,15 @@
 #define PHY_UNSHUTDOWNZ			BIT(0)
 
 #define DSI_PHY_IF_CFG			0xa4
-#define N_LANES(n)			((((n) - 1) & 0x3) << 0)
 #define PHY_STOP_WAIT_TIME(cycle)	(((cycle) & 0xff) << 8)
+#define N_LANES(n)			(((n) - 1) & 0x3)
+
+#define DSI_PHY_ULPS_CTRL		0xa8
+#define DSI_PHY_TX_TRIGGERS		0xac
 
 #define DSI_PHY_STATUS			0xb0
-#define LOCK				BIT(0)
-#define STOP_STATE_CLK_LANE		BIT(2)
+#define PHY_STOP_STATE_CLK_LANE		BIT(2)
+#define PHY_LOCK			BIT(0)
 
 #define DSI_PHY_TST_CTRL0		0xb4
 #define PHY_TESTCLK			BIT(1)
@@ -187,12 +206,13 @@
 #define PHY_TESTEN			BIT(16)
 #define PHY_UNTESTEN			0
 #define PHY_TESTDOUT(n)			(((n) & 0xff) << 8)
-#define PHY_TESTDIN(n)			(((n) & 0xff) << 0)
+#define PHY_TESTDIN(n)			((n) & 0xff)
 
 #define DSI_INT_ST0			0xbc
 #define DSI_INT_ST1			0xc0
 #define DSI_INT_MSK0			0xc4
 #define DSI_INT_MSK1			0xc8
+#define DSI_PHY_TMR_RD_CFG		0xf4
 
 #define PHY_STATUS_TIMEOUT_US		10000
 #define CMD_PKT_STATUS_TIMEOUT_US	20000
@@ -201,7 +221,6 @@ struct dw_mipi_dsi {
 	struct drm_bridge bridge;
 	struct mipi_dsi_host dsi_host;
 	struct drm_bridge *panel_bridge;
-	bool is_panel_bridge;
 	struct device *dev;
 	void __iomem *base;
 
@@ -277,7 +296,6 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 		bridge = drm_panel_bridge_add(panel, DRM_MODE_CONNECTOR_DSI);
 		if (IS_ERR(bridge))
 			return PTR_ERR(bridge);
-		dsi->is_panel_bridge = true;
 	}
 
 	dsi->panel_bridge = bridge;
@@ -292,8 +310,7 @@ static int dw_mipi_dsi_host_detach(struct mipi_dsi_host *host,
 {
 	struct dw_mipi_dsi *dsi = host_to_dsi(host);
 
-	if (dsi->is_panel_bridge)
-		drm_panel_bridge_remove(dsi->panel_bridge);
+	drm_of_panel_bridge_remove(host->dev->of_node, 1, 0);
 
 	drm_bridge_remove(&dsi->bridge);
 
@@ -307,7 +324,7 @@ static void dw_mipi_message_config(struct dw_mipi_dsi *dsi,
 	u32 val = 0;
 
 	if (msg->flags & MIPI_DSI_MSG_REQ_ACK)
-		val |= EN_ACK_RQST;
+		val |= ACK_RQST_EN;
 	if (lpm)
 		val |= CMD_MODE_ALL_LP;
 
@@ -506,8 +523,8 @@ static void dw_mipi_dsi_init(struct dw_mipi_dsi *dsi)
 	 * timeout clock division should be computed with the
 	 * high speed transmission counter timeout and byte lane...
 	 */
-	dsi_write(dsi, DSI_CLKMGR_CFG, TO_CLK_DIVIDSION(10) |
-		  TX_ESC_CLK_DIVIDSION(esc_clk_division));
+	dsi_write(dsi, DSI_CLKMGR_CFG, TO_CLK_DIVISION(10) |
+		  TX_ESC_CLK_DIVISION(esc_clk_division));
 }
 
 static void dw_mipi_dsi_dpi_config(struct dw_mipi_dsi *dsi,
@@ -520,7 +537,7 @@ static void dw_mipi_dsi_dpi_config(struct dw_mipi_dsi *dsi,
 		color = DPI_COLOR_CODING_24BIT;
 		break;
 	case MIPI_DSI_FMT_RGB666:
-		color = DPI_COLOR_CODING_18BIT_2 | EN18_LOOSELY;
+		color = DPI_COLOR_CODING_18BIT_2 | LOOSELY18_EN;
 		break;
 	case MIPI_DSI_FMT_RGB666_PACKED:
 		color = DPI_COLOR_CODING_18BIT_1;
@@ -535,7 +552,7 @@ static void dw_mipi_dsi_dpi_config(struct dw_mipi_dsi *dsi,
 	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
 		val |= HSYNC_ACTIVE_LOW;
 
-	dsi_write(dsi, DSI_DPI_VCID, DPI_VID(dsi->channel));
+	dsi_write(dsi, DSI_DPI_VCID, DPI_VCID(dsi->channel));
 	dsi_write(dsi, DSI_DPI_COLOR_CODING, color);
 	dsi_write(dsi, DSI_DPI_CFG_POL, val);
 	/*
@@ -550,7 +567,7 @@ static void dw_mipi_dsi_dpi_config(struct dw_mipi_dsi *dsi,
 
 static void dw_mipi_dsi_packet_handler_config(struct dw_mipi_dsi *dsi)
 {
-	dsi_write(dsi, DSI_PCKHDL_CFG, EN_CRC_RX | EN_ECC_RX | EN_BTA);
+	dsi_write(dsi, DSI_PCKHDL_CFG, CRC_RX_EN | ECC_RX_EN | BTA_EN);
 }
 
 static void dw_mipi_dsi_video_packet_config(struct dw_mipi_dsi *dsi,
@@ -571,7 +588,7 @@ static void dw_mipi_dsi_command_mode_config(struct dw_mipi_dsi *dsi)
 	/*
 	 * TODO dw drv improvements
 	 * compute high speed transmission counter timeout according
-	 * to the timeout clock division (TO_CLK_DIVIDSION) and byte lane...
+	 * to the timeout clock division (TO_CLK_DIVISION) and byte lane...
 	 */
 	dsi_write(dsi, DSI_TO_CNT_CFG, HSTX_TO_CNT(1000) | LPRX_TO_CNT(1000));
 	/*
@@ -684,13 +701,13 @@ static void dw_mipi_dsi_dphy_enable(struct dw_mipi_dsi *dsi)
 	dsi_write(dsi, DSI_PHY_RSTZ, PHY_ENFORCEPLL | PHY_ENABLECLK |
 		  PHY_UNRSTZ | PHY_UNSHUTDOWNZ);
 
-	ret = readl_poll_timeout(dsi->base + DSI_PHY_STATUS,
-				 val, val & LOCK, 1000, PHY_STATUS_TIMEOUT_US);
+	ret = readl_poll_timeout(dsi->base + DSI_PHY_STATUS, val,
+				 val & PHY_LOCK, 1000, PHY_STATUS_TIMEOUT_US);
 	if (ret < 0)
 		DRM_DEBUG_DRIVER("failed to wait phy lock state\n");
 
 	ret = readl_poll_timeout(dsi->base + DSI_PHY_STATUS,
-				 val, val & STOP_STATE_CLK_LANE, 1000,
+				 val, val & PHY_STOP_STATE_CLK_LANE, 1000,
 				 PHY_STATUS_TIMEOUT_US);
 	if (ret < 0)
 		DRM_DEBUG_DRIVER("failed to wait phy clk lane stop state\n");
@@ -865,15 +882,14 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 	 * Note that the reset was not defined in the initial device tree, so
 	 * we have to be prepared for it not being found.
 	 */
-	apb_rst = devm_reset_control_get(dev, "apb");
+	apb_rst = devm_reset_control_get_optional_exclusive(dev, "apb");
 	if (IS_ERR(apb_rst)) {
 		ret = PTR_ERR(apb_rst);
-		if (ret == -ENOENT) {
-			apb_rst = NULL;
-		} else {
+
+		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "Unable to get reset control: %d\n", ret);
-			return ERR_PTR(ret);
-		}
+
+		return ERR_PTR(ret);
 	}
 
 	if (apb_rst) {

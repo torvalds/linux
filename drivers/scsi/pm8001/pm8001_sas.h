@@ -263,7 +263,14 @@ struct pm8001_phy {
 	u8			phy_state;
 	enum sas_linkrate	minimum_linkrate;
 	enum sas_linkrate	maximum_linkrate;
+	struct completion	*reset_completion;
+	bool			port_reset_status;
+	bool			reset_success;
 };
+
+/* port reset status */
+#define PORT_RESET_SUCCESS	0x00
+#define PORT_RESET_TMO		0x01
 
 struct pm8001_device {
 	enum sas_device_type	dev_type;
@@ -404,6 +411,8 @@ union main_cfg_table {
 	u32			port_recovery_timer;
 	u32			interrupt_reassertion_delay;
 	u32			fatal_n_non_fatal_dump;	        /* 0x28 */
+	u32			ila_version;
+	u32			inc_fw_version;
 	} pm80xx_tbl;
 };
 
@@ -531,6 +540,7 @@ struct pm8001_hba_info {
 	u32			smp_exp_mode;
 	const struct firmware 	*fw_image;
 	struct isr_param irq_vector[PM8001_MAX_MSIX_VEC];
+	u32			reset_in_progress;
 };
 
 struct pm8001_work {

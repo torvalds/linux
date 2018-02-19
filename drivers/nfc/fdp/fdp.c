@@ -726,7 +726,7 @@ static struct nci_driver_ops fdp_prop_ops[] = {
 	},
 };
 
-struct nci_ops nci_ops = {
+static struct nci_ops nci_ops = {
 	.open = fdp_nci_open,
 	.close = fdp_nci_close,
 	.send = fdp_nci_send,

@@ -51,7 +51,6 @@
 #include <net/addrconf.h>
 #include <linux/inetdevice.h>
 #include <rdma/ib_cache.h>
-#include <linux/pci.h>
 
 #define DRV_VERSION "1.0.0"
 
@@ -903,8 +902,8 @@ static int path_rec_start(struct net_device *dev,
 	return 0;
 }
 
-static void neigh_add_path(struct sk_buff *skb, u8 *daddr,
-			   struct net_device *dev)
+static struct ipoib_neigh *neigh_add_path(struct sk_buff *skb, u8 *daddr,
+					  struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct rdma_netdev *rn = netdev_priv(dev);
@@ -918,7 +917,15 @@ static void neigh_add_path(struct sk_buff *skb, u8 *daddr,
 		spin_unlock_irqrestore(&priv->lock, flags);
 		++dev->stats.tx_dropped;
 		dev_kfree_skb_any(skb);
-		return;
+		return NULL;
+	}
+
+	/* To avoid race condition, make sure that the
+	 * neigh will be added only once.
+	 */
+	if (unlikely(!list_empty(&neigh->list))) {
+		spin_unlock_irqrestore(&priv->lock, flags);
+		return neigh;
 	}
 
 	path = __path_find(dev, daddr + 4);
@@ -957,7 +964,7 @@ static void neigh_add_path(struct sk_buff *skb, u8 *daddr,
 			path->ah->last_send = rn->send(dev, skb, path->ah->ah,
 						       IPOIB_QPN(daddr));
 			ipoib_neigh_put(neigh);
-			return;
+			return NULL;
 		}
 	} else {
 		neigh->ah  = NULL;
@@ -974,7 +981,7 @@ static void neigh_add_path(struct sk_buff *skb, u8 *daddr,
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 	ipoib_neigh_put(neigh);
-	return;
+	return NULL;
 
 err_path:
 	ipoib_neigh_free(neigh);
@@ -984,6 +991,8 @@ err_drop:
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 	ipoib_neigh_put(neigh);
+
+	return NULL;
 }
 
 static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
@@ -1092,8 +1101,9 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	case htons(ETH_P_TIPC):
 		neigh = ipoib_neigh_get(dev, phdr->hwaddr);
 		if (unlikely(!neigh)) {
-			neigh_add_path(skb, phdr->hwaddr, dev);
-			return NETDEV_TX_OK;
+			neigh = neigh_add_path(skb, phdr->hwaddr, dev);
+			if (likely(!neigh))
+				return NETDEV_TX_OK;
 		}
 		break;
 	case htons(ETH_P_ARP):
@@ -1617,13 +1627,29 @@ static void ipoib_neigh_hash_uninit(struct net_device *dev)
 	wait_for_completion(&priv->ntbl.deleted);
 }
 
+static void ipoib_napi_add(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+
+	netif_napi_add(dev, &priv->recv_napi, ipoib_rx_poll, IPOIB_NUM_WC);
+	netif_napi_add(dev, &priv->send_napi, ipoib_tx_poll, MAX_SEND_CQE);
+}
+
+static void ipoib_napi_del(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+
+	netif_napi_del(&priv->recv_napi);
+	netif_napi_del(&priv->send_napi);
+}
+
 static void ipoib_dev_uninit_default(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	ipoib_transport_dev_cleanup(dev);
 
-	netif_napi_del(&priv->napi);
+	ipoib_napi_del(dev);
 
 	ipoib_cm_dev_cleanup(dev);
 
@@ -1638,7 +1664,7 @@ static int ipoib_dev_init_default(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
-	netif_napi_add(dev, &priv->napi, ipoib_poll, NAPI_POLL_WEIGHT);
+	ipoib_napi_add(dev);
 
 	/* Allocate RX/TX "rings" to hold queued skbs */
 	priv->rx_ring =	kzalloc(ipoib_recvq_size * sizeof *priv->rx_ring,
@@ -1666,9 +1692,6 @@ static int ipoib_dev_init_default(struct net_device *dev)
 	priv->dev->dev_addr[2] = (priv->qp->qp_num >>  8) & 0xff;
 	priv->dev->dev_addr[3] = (priv->qp->qp_num) & 0xff;
 
-	setup_timer(&priv->poll_timer, ipoib_ib_tx_timer_func,
-		    (unsigned long)dev);
-
 	return 0;
 
 out_tx_ring_cleanup:
@@ -1678,7 +1701,7 @@ out_rx_ring_cleanup:
 	kfree(priv->rx_ring);
 
 out:
-	netif_napi_del(&priv->napi);
+	ipoib_napi_del(dev);
 	return -ENOMEM;
 }
 
@@ -2314,7 +2337,8 @@ static void ipoib_add_one(struct ib_device *device)
 	}
 
 	if (!count) {
-		kfree(dev_list);
+		pr_err("Failed to init port, removing it\n");
+		ipoib_remove_one(device, dev_list);
 		return;
 	}
 

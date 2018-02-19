@@ -143,6 +143,8 @@ start:
 		.word	_magic_start	@ absolute load/run zImage address
 		.word	_magic_end	@ zImage end address
 		.word	0x04030201	@ endianness flag
+		.word	0x45454545	@ another magic number to indicate
+		.word	_magic_table	@ additional data table
 
 		__EFI_HEADER
 1:

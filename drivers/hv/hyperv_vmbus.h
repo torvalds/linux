@@ -31,6 +31,8 @@
 #include <linux/hyperv.h>
 #include <linux/interrupt.h>
 
+#include "hv_trace.h"
+
 /*
  * Timeout for services such as KVP and fcopy.
  */
@@ -373,6 +375,8 @@ struct hv_device *vmbus_device_create(const uuid_le *type,
 
 int vmbus_device_register(struct hv_device *child_device_obj);
 void vmbus_device_unregister(struct hv_device *device_obj);
+int vmbus_add_channel_kobj(struct hv_device *device_obj,
+			   struct vmbus_channel *channel);
 
 struct vmbus_channel *relid2channel(u32 relid);
 

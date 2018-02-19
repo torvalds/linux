@@ -384,21 +384,17 @@ int rdma_rw_ctx_signature_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 	count += ret;
 	prev_wr = &ctx->sig->data.reg_wr.wr;
 
-	if (prot_sg_cnt) {
-		ret = rdma_rw_init_one_mr(qp, port_num, &ctx->sig->prot,
-				prot_sg, prot_sg_cnt, 0);
-		if (ret < 0)
-			goto out_destroy_data_mr;
-		count += ret;
+	ret = rdma_rw_init_one_mr(qp, port_num, &ctx->sig->prot,
+				  prot_sg, prot_sg_cnt, 0);
+	if (ret < 0)
+		goto out_destroy_data_mr;
+	count += ret;
 
-		if (ctx->sig->prot.inv_wr.next)
-			prev_wr->next = &ctx->sig->prot.inv_wr;
-		else
-			prev_wr->next = &ctx->sig->prot.reg_wr.wr;
-		prev_wr = &ctx->sig->prot.reg_wr.wr;
-	} else {
-		ctx->sig->prot.mr = NULL;
-	}
+	if (ctx->sig->prot.inv_wr.next)
+		prev_wr->next = &ctx->sig->prot.inv_wr;
+	else
+		prev_wr->next = &ctx->sig->prot.reg_wr.wr;
+	prev_wr = &ctx->sig->prot.reg_wr.wr;
 
 	ctx->sig->sig_mr = ib_mr_pool_get(qp, &qp->sig_mrs);
 	if (!ctx->sig->sig_mr) {

@@ -14,6 +14,7 @@
  * single-threaded.
  */
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
@@ -294,12 +295,19 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 #endif
 	memset(&ctxt->fpu_ctxt, 0, sizeof(ctxt->fpu_ctxt));
 
+	/*
+	 * Bring up the CPU in cpu_bringup_and_idle() with the stack
+	 * pointing just below where pt_regs would be if it were a normal
+	 * kernel entry.
+	 */
 	ctxt->user_regs.eip = (unsigned long)cpu_bringup_and_idle;
 	ctxt->flags = VGCF_IN_KERNEL;
 	ctxt->user_regs.eflags = 0x1000; /* IOPL_RING1 */
 	ctxt->user_regs.ds = __USER_DS;
 	ctxt->user_regs.es = __USER_DS;
 	ctxt->user_regs.ss = __KERNEL_DS;
+	ctxt->user_regs.cs = __KERNEL_CS;
+	ctxt->user_regs.esp = (unsigned long)task_pt_regs(idle);
 
 	xen_copy_trap_info(ctxt->trap_ctxt);
 
@@ -314,8 +322,13 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	ctxt->gdt_frames[0] = gdt_mfn;
 	ctxt->gdt_ents      = GDT_ENTRIES;
 
+	/*
+	 * Set SS:SP that Xen will use when entering guest kernel mode
+	 * from guest user mode.  Subsequent calls to load_sp0() can
+	 * change this value.
+	 */
 	ctxt->kernel_ss = __KERNEL_DS;
-	ctxt->kernel_sp = idle->thread.sp0;
+	ctxt->kernel_sp = task_top_of_stack(idle);
 
 #ifdef CONFIG_X86_32
 	ctxt->event_callback_cs     = __KERNEL_CS;
@@ -327,10 +340,8 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 		(unsigned long)xen_hypervisor_callback;
 	ctxt->failsafe_callback_eip =
 		(unsigned long)xen_failsafe_callback;
-	ctxt->user_regs.cs = __KERNEL_CS;
 	per_cpu(xen_cr3, cpu) = __pa(swapper_pg_dir);
 
-	ctxt->user_regs.esp = idle->thread.sp0 - sizeof(struct pt_regs);
 	ctxt->ctrlreg[3] = xen_pfn_to_cr3(virt_to_gfn(swapper_pg_dir));
 	if (HYPERVISOR_vcpu_op(VCPUOP_initialise, xen_vcpu_nr(cpu), ctxt))
 		BUG();

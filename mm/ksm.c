@@ -1052,8 +1052,13 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 		 * So we clear the pte and flush the tlb before the check
 		 * this assure us that no O_DIRECT can happen after the check
 		 * or in the middle of the check.
+		 *
+		 * No need to notify as we are downgrading page table to read
+		 * only not changing it to point to a new page.
+		 *
+		 * See Documentation/vm/mmu_notifier.txt
 		 */
-		entry = ptep_clear_flush_notify(vma, pvmw.address, pvmw.pte);
+		entry = ptep_clear_flush(vma, pvmw.address, pvmw.pte);
 		/*
 		 * Check that no O_DIRECT or similar I/O is in progress on the
 		 * page
@@ -1136,7 +1141,13 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 	}
 
 	flush_cache_page(vma, addr, pte_pfn(*ptep));
-	ptep_clear_flush_notify(vma, addr, ptep);
+	/*
+	 * No need to notify as we are replacing a read only page with another
+	 * read only page with the same content.
+	 *
+	 * See Documentation/vm/mmu_notifier.txt
+	 */
+	ptep_clear_flush(vma, addr, ptep);
 	set_pte_at_notify(mm, addr, ptep, newpte);
 
 	page_remove_rmap(page, false);

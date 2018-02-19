@@ -960,8 +960,10 @@ u8 amdgpu_encode_pci_lane_width(u32 lanes)
 }
 
 struct amd_vce_state*
-amdgpu_get_vce_clock_state(struct amdgpu_device *adev, unsigned idx)
+amdgpu_get_vce_clock_state(void *handle, u32 idx)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	if (idx < adev->pm.dpm.num_of_vce_states)
 		return &adev->pm.dpm.vce_states[idx];
 

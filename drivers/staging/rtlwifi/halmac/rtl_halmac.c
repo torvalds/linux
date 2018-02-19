@@ -617,7 +617,7 @@ static int _send_general_info(struct rtl_priv *rtlpriv)
 		RT_TRACE(rtlpriv, COMP_HALMAC, DBG_WARNING,
 			 "%s: halmac_send_general_info() fail because fw not dl!\n",
 			 __func__);
-	/* fallthrough here */
+	/* fall through */
 	default:
 		return -1;
 	}

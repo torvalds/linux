@@ -93,7 +93,7 @@ static void __init setup_memory(void)
 	memblock_dump_all();
 }
 
-struct cpuinfo cpuinfo;
+struct cpuinfo_or1k cpuinfo_or1k[NR_CPUS];
 
 static void print_cpuinfo(void)
 {
@@ -101,12 +101,13 @@ static void print_cpuinfo(void)
 	unsigned long vr = mfspr(SPR_VR);
 	unsigned int version;
 	unsigned int revision;
+	struct cpuinfo_or1k *cpuinfo = &cpuinfo_or1k[smp_processor_id()];
 
 	version = (vr & SPR_VR_VER) >> 24;
 	revision = (vr & SPR_VR_REV);
 
 	printk(KERN_INFO "CPU: OpenRISC-%x (revision %d) @%d MHz\n",
-	       version, revision, cpuinfo.clock_frequency / 1000000);
+	       version, revision, cpuinfo->clock_frequency / 1000000);
 
 	if (!(upr & SPR_UPR_UP)) {
 		printk(KERN_INFO
@@ -117,15 +118,15 @@ static void print_cpuinfo(void)
 	if (upr & SPR_UPR_DCP)
 		printk(KERN_INFO
 		       "-- dcache: %4d bytes total, %2d bytes/line, %d way(s)\n",
-		       cpuinfo.dcache_size, cpuinfo.dcache_block_size,
-		       cpuinfo.dcache_ways);
+		       cpuinfo->dcache_size, cpuinfo->dcache_block_size,
+		       cpuinfo->dcache_ways);
 	else
 		printk(KERN_INFO "-- dcache disabled\n");
 	if (upr & SPR_UPR_ICP)
 		printk(KERN_INFO
 		       "-- icache: %4d bytes total, %2d bytes/line, %d way(s)\n",
-		       cpuinfo.icache_size, cpuinfo.icache_block_size,
-		       cpuinfo.icache_ways);
+		       cpuinfo->icache_size, cpuinfo->icache_block_size,
+		       cpuinfo->icache_ways);
 	else
 		printk(KERN_INFO "-- icache disabled\n");
 
@@ -153,37 +154,57 @@ static void print_cpuinfo(void)
 		printk(KERN_INFO "-- custom unit(s)\n");
 }
 
+static struct device_node *setup_find_cpu_node(int cpu)
+{
+	u32 hwid;
+	struct device_node *cpun;
+	struct device_node *cpus = of_find_node_by_path("/cpus");
+
+	for_each_available_child_of_node(cpus, cpun) {
+		if (of_property_read_u32(cpun, "reg", &hwid))
+			continue;
+		if (hwid == cpu)
+			return cpun;
+	}
+
+	return NULL;
+}
+
 void __init setup_cpuinfo(void)
 {
 	struct device_node *cpu;
 	unsigned long iccfgr, dccfgr;
 	unsigned long cache_set_size;
+	int cpu_id = smp_processor_id();
+	struct cpuinfo_or1k *cpuinfo = &cpuinfo_or1k[cpu_id];
 
-	cpu = of_find_compatible_node(NULL, NULL, "opencores,or1200-rtlsvn481");
+	cpu = setup_find_cpu_node(cpu_id);
 	if (!cpu)
-		panic("No compatible CPU found in device tree...\n");
+		panic("Couldn't find CPU%d in device tree...\n", cpu_id);
 
 	iccfgr = mfspr(SPR_ICCFGR);
-	cpuinfo.icache_ways = 1 << (iccfgr & SPR_ICCFGR_NCW);
+	cpuinfo->icache_ways = 1 << (iccfgr & SPR_ICCFGR_NCW);
 	cache_set_size = 1 << ((iccfgr & SPR_ICCFGR_NCS) >> 3);
-	cpuinfo.icache_block_size = 16 << ((iccfgr & SPR_ICCFGR_CBS) >> 7);
-	cpuinfo.icache_size =
-	    cache_set_size * cpuinfo.icache_ways * cpuinfo.icache_block_size;
+	cpuinfo->icache_block_size = 16 << ((iccfgr & SPR_ICCFGR_CBS) >> 7);
+	cpuinfo->icache_size =
+	    cache_set_size * cpuinfo->icache_ways * cpuinfo->icache_block_size;
 
 	dccfgr = mfspr(SPR_DCCFGR);
-	cpuinfo.dcache_ways = 1 << (dccfgr & SPR_DCCFGR_NCW);
+	cpuinfo->dcache_ways = 1 << (dccfgr & SPR_DCCFGR_NCW);
 	cache_set_size = 1 << ((dccfgr & SPR_DCCFGR_NCS) >> 3);
-	cpuinfo.dcache_block_size = 16 << ((dccfgr & SPR_DCCFGR_CBS) >> 7);
-	cpuinfo.dcache_size =
-	    cache_set_size * cpuinfo.dcache_ways * cpuinfo.dcache_block_size;
+	cpuinfo->dcache_block_size = 16 << ((dccfgr & SPR_DCCFGR_CBS) >> 7);
+	cpuinfo->dcache_size =
+	    cache_set_size * cpuinfo->dcache_ways * cpuinfo->dcache_block_size;
 
 	if (of_property_read_u32(cpu, "clock-frequency",
-				 &cpuinfo.clock_frequency)) {
+				 &cpuinfo->clock_frequency)) {
 		printk(KERN_WARNING
 		       "Device tree missing CPU 'clock-frequency' parameter."
 		       "Assuming frequency 25MHZ"
 		       "This is probably not what you want.");
 	}
+
+	cpuinfo->coreid = mfspr(SPR_COREID);
 
 	of_node_put(cpu);
 
@@ -251,8 +272,8 @@ void __init detect_unit_config(unsigned long upr, unsigned long mask,
 void calibrate_delay(void)
 {
 	const int *val;
-	struct device_node *cpu = NULL;
-	cpu = of_find_compatible_node(NULL, NULL, "opencores,or1200-rtlsvn481");
+	struct device_node *cpu = setup_find_cpu_node(smp_processor_id());
+
 	val = of_get_property(cpu, "clock-frequency", NULL);
 	if (!val)
 		panic("no cpu 'clock-frequency' parameter in device tree");
@@ -267,6 +288,10 @@ void __init setup_arch(char **cmdline_p)
 	unflatten_and_copy_device_tree();
 
 	setup_cpuinfo();
+
+#ifdef CONFIG_SMP
+	smp_init_cpus();
+#endif
 
 	/* process 1's initial memory region is the kernel code/data */
 	init_mm.start_code = (unsigned long)_stext;
@@ -302,54 +327,78 @@ void __init setup_arch(char **cmdline_p)
 
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
-	unsigned long vr;
-	int version, revision;
+	unsigned int vr, cpucfgr;
+	unsigned int avr;
+	unsigned int version;
+	struct cpuinfo_or1k *cpuinfo = v;
 
 	vr = mfspr(SPR_VR);
-	version = (vr & SPR_VR_VER) >> 24;
-	revision = vr & SPR_VR_REV;
+	cpucfgr = mfspr(SPR_CPUCFGR);
 
-	seq_printf(m,
-		  "cpu\t\t: OpenRISC-%x\n"
-		  "revision\t: %d\n"
-		  "frequency\t: %ld\n"
-		  "dcache size\t: %d bytes\n"
-		  "dcache block size\t: %d bytes\n"
-		  "dcache ways\t: %d\n"
-		  "icache size\t: %d bytes\n"
-		  "icache block size\t: %d bytes\n"
-		  "icache ways\t: %d\n"
-		  "immu\t\t: %d entries, %lu ways\n"
-		  "dmmu\t\t: %d entries, %lu ways\n"
-		  "bogomips\t: %lu.%02lu\n",
-		  version,
-		  revision,
-		  loops_per_jiffy * HZ,
-		  cpuinfo.dcache_size,
-		  cpuinfo.dcache_block_size,
-		  cpuinfo.dcache_ways,
-		  cpuinfo.icache_size,
-		  cpuinfo.icache_block_size,
-		  cpuinfo.icache_ways,
-		  1 << ((mfspr(SPR_DMMUCFGR) & SPR_DMMUCFGR_NTS) >> 2),
-		  1 + (mfspr(SPR_DMMUCFGR) & SPR_DMMUCFGR_NTW),
-		  1 << ((mfspr(SPR_IMMUCFGR) & SPR_IMMUCFGR_NTS) >> 2),
-		  1 + (mfspr(SPR_IMMUCFGR) & SPR_IMMUCFGR_NTW),
-		  (loops_per_jiffy * HZ) / 500000,
-		  ((loops_per_jiffy * HZ) / 5000) % 100);
+#ifdef CONFIG_SMP
+	seq_printf(m, "processor\t\t: %d\n", cpuinfo->coreid);
+#endif
+	if (vr & SPR_VR_UVRP) {
+		vr = mfspr(SPR_VR2);
+		version = vr & SPR_VR2_VER;
+		avr = mfspr(SPR_AVR);
+		seq_printf(m, "cpu architecture\t: "
+			   "OpenRISC 1000 (%d.%d-rev%d)\n",
+			   (avr >> 24) & 0xff,
+			   (avr >> 16) & 0xff,
+			   (avr >> 8) & 0xff);
+		seq_printf(m, "cpu implementation id\t: 0x%x\n",
+			   (vr & SPR_VR2_CPUID) >> 24);
+		seq_printf(m, "cpu version\t\t: 0x%x\n", version);
+	} else {
+		version = (vr & SPR_VR_VER) >> 24;
+		seq_printf(m, "cpu\t\t\t: OpenRISC-%x\n", version);
+		seq_printf(m, "revision\t\t: %d\n", vr & SPR_VR_REV);
+	}
+	seq_printf(m, "frequency\t\t: %ld\n", loops_per_jiffy * HZ);
+	seq_printf(m, "dcache size\t\t: %d bytes\n", cpuinfo->dcache_size);
+	seq_printf(m, "dcache block size\t: %d bytes\n",
+		   cpuinfo->dcache_block_size);
+	seq_printf(m, "dcache ways\t\t: %d\n", cpuinfo->dcache_ways);
+	seq_printf(m, "icache size\t\t: %d bytes\n", cpuinfo->icache_size);
+	seq_printf(m, "icache block size\t: %d bytes\n",
+		   cpuinfo->icache_block_size);
+	seq_printf(m, "icache ways\t\t: %d\n", cpuinfo->icache_ways);
+	seq_printf(m, "immu\t\t\t: %d entries, %lu ways\n",
+		   1 << ((mfspr(SPR_DMMUCFGR) & SPR_DMMUCFGR_NTS) >> 2),
+		   1 + (mfspr(SPR_DMMUCFGR) & SPR_DMMUCFGR_NTW));
+	seq_printf(m, "dmmu\t\t\t: %d entries, %lu ways\n",
+		   1 << ((mfspr(SPR_IMMUCFGR) & SPR_IMMUCFGR_NTS) >> 2),
+		   1 + (mfspr(SPR_IMMUCFGR) & SPR_IMMUCFGR_NTW));
+	seq_printf(m, "bogomips\t\t: %lu.%02lu\n",
+		   (loops_per_jiffy * HZ) / 500000,
+		   ((loops_per_jiffy * HZ) / 5000) % 100);
+
+	seq_puts(m, "features\t\t: ");
+	seq_printf(m, "%s ", cpucfgr & SPR_CPUCFGR_OB32S ? "orbis32" : "");
+	seq_printf(m, "%s ", cpucfgr & SPR_CPUCFGR_OB64S ? "orbis64" : "");
+	seq_printf(m, "%s ", cpucfgr & SPR_CPUCFGR_OF32S ? "orfpx32" : "");
+	seq_printf(m, "%s ", cpucfgr & SPR_CPUCFGR_OF64S ? "orfpx64" : "");
+	seq_printf(m, "%s ", cpucfgr & SPR_CPUCFGR_OV64S ? "orvdx64" : "");
+	seq_puts(m, "\n");
+
+	seq_puts(m, "\n");
+
 	return 0;
 }
 
-static void *c_start(struct seq_file *m, loff_t * pos)
+static void *c_start(struct seq_file *m, loff_t *pos)
 {
-	/* We only have one CPU... */
-	return *pos < 1 ? (void *)1 : NULL;
+	*pos = cpumask_next(*pos - 1, cpu_online_mask);
+	if ((*pos) < nr_cpu_ids)
+		return &cpuinfo_or1k[*pos];
+	return NULL;
 }
 
-static void *c_next(struct seq_file *m, void *v, loff_t * pos)
+static void *c_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	++*pos;
-	return NULL;
+	(*pos)++;
+	return c_start(m, pos);
 }
 
 static void c_stop(struct seq_file *m, void *v)

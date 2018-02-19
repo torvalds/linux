@@ -377,7 +377,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 
 			start = vma->vm_pgoff;
 			end = start +
-			      ((vma->vm_end - vma->vm_start) >> PAGE_SHIFT);
+			      vma_pages(vma);
 
 			pfn = start + ((hva - vma->vm_start) >> PAGE_SHIFT);
 

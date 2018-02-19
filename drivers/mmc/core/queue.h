@@ -36,12 +36,14 @@ struct mmc_blk_request {
 /**
  * enum mmc_drv_op - enumerates the operations in the mmc_queue_req
  * @MMC_DRV_OP_IOCTL: ioctl operation
+ * @MMC_DRV_OP_IOCTL_RPMB: RPMB-oriented ioctl operation
  * @MMC_DRV_OP_BOOT_WP: write protect boot partitions
  * @MMC_DRV_OP_GET_CARD_STATUS: get card status
  * @MMC_DRV_OP_GET_EXT_CSD: get the EXT CSD from an eMMC card
  */
 enum mmc_drv_op {
 	MMC_DRV_OP_IOCTL,
+	MMC_DRV_OP_IOCTL_RPMB,
 	MMC_DRV_OP_BOOT_WP,
 	MMC_DRV_OP_GET_CARD_STATUS,
 	MMC_DRV_OP_GET_EXT_CSD,
@@ -81,7 +83,5 @@ extern void mmc_queue_suspend(struct mmc_queue *);
 extern void mmc_queue_resume(struct mmc_queue *);
 extern unsigned int mmc_queue_map_sg(struct mmc_queue *,
 				     struct mmc_queue_req *);
-
-extern int mmc_access_rpmb(struct mmc_queue *);
 
 #endif

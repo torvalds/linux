@@ -48,7 +48,7 @@ void Efuse_PowerSwitch(
 	if (PwrState) {
 		usb_write8(pAdapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_ON);
 
-		/*  1.2V Power: From VDDON with Power Cut(0x0000h[15]), defualt valid */
+		/*  1.2V Power: From VDDON with Power Cut(0x0000h[15]), default valid */
 		tmpV16 = usb_read16(pAdapter, REG_SYS_ISO_CTRL);
 		if (!(tmpV16 & PWC_EV12V)) {
 			tmpV16 |= PWC_EV12V;

@@ -14,14 +14,14 @@ Examples:
 
 #include <dt-bindings/clock/imx6qdl-clock.h>
 
-clks: ccm@020c4000 {
+clks: ccm@20c4000 {
 	compatible = "fsl,imx6q-ccm";
 	reg = <0x020c4000 0x4000>;
 	interrupts = <0 87 0x04 0 88 0x04>;
 	#clock-cells = <1>;
 };
 
-uart1: serial@02020000 {
+uart1: serial@2020000 {
 	compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
 	reg = <0x02020000 0x4000>;
 	interrupts = <0 26 0x04>;

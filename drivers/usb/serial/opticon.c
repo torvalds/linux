@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Opticon USB barcode to serial driver
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2011 Martin Jansen <martin.jansen@opticon.com>
  * Copyright (C) 2008 - 2009 Greg Kroah-Hartman <gregkh@suse.de>
  * Copyright (C) 2008 - 2009 Novell Inc.
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License version
- *	2 as published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -420,4 +417,4 @@ static struct usb_serial_driver * const serial_drivers[] = {
 module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

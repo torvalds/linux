@@ -1,7 +1,12 @@
 EEPROMs (SPI) compatible with Atmel at25.
 
 Required properties:
-- compatible : "atmel,at25".
+- compatible : Should be "<vendor>,<type>", and generic value "atmel,at25".
+  Example "<vendor>,<type>" values:
+    "microchip,25lc040"
+    "st,m95m02"
+    "st,m95256"
+
 - reg : chip select number
 - spi-max-frequency : max spi frequency to use
 - pagesize : size of the eeprom page
@@ -13,7 +18,7 @@ Optional properties:
 - spi-cpol : SPI inverse clock polarity, as per spi-bus bindings.
 - read-only : this parameter-less property disables writes to the eeprom
 
-Obsolete legacy properties are can be used in place of "size", "pagesize",
+Obsolete legacy properties can be used in place of "size", "pagesize",
 "address-width", and "read-only":
 - at25,byte-len : total eeprom size in bytes
 - at25,addr-mode : addr-mode flags, as defined in include/linux/spi/eeprom.h
@@ -22,8 +27,8 @@ Obsolete legacy properties are can be used in place of "size", "pagesize",
 Additional compatible properties are also allowed.
 
 Example:
-	at25@0 {
-		compatible = "atmel,at25", "st,m95256";
+	eeprom@0 {
+		compatible = "st,m95256", "atmel,at25";
 		reg = <0>
 		spi-max-frequency = <5000000>;
 		spi-cpha;

@@ -60,7 +60,8 @@ static struct sk_buff **esp6_gro_receive(struct sk_buff **head,
 	int nhoff;
 	int err;
 
-	skb_pull(skb, offset);
+	if (!pskb_pull(skb, offset))
+		return NULL;
 
 	if ((err = xfrm_parse_spi(skb, IPPROTO_ESP, &spi, &seq)) != 0)
 		goto out;
@@ -146,6 +147,9 @@ static struct sk_buff *esp6_gso_segment(struct sk_buff *skb,
 	struct xfrm_offload *xo = xfrm_offload(skb);
 
 	if (!xo)
+		goto out;
+
+	if (!(skb_shinfo(skb)->gso_type & SKB_GSO_ESP))
 		goto out;
 
 	seq = xo->seq.low;

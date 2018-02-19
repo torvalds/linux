@@ -334,7 +334,7 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 	/* It is up to the caller to keep npinfo alive. */
 	struct netpoll_info *npinfo;
 
-	WARN_ON_ONCE(!irqs_disabled());
+	lockdep_assert_irqs_disabled();
 
 	npinfo = rcu_dereference_bh(np->dev->npinfo);
 	if (!npinfo || !netif_running(dev) || !netif_device_present(dev)) {

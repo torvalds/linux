@@ -215,16 +215,8 @@ static int tps65218_probe(struct i2c_client *client,
 				const struct i2c_device_id *ids)
 {
 	struct tps65218 *tps;
-	const struct of_device_id *match;
 	int ret;
 	unsigned int chipid;
-
-	match = of_match_device(of_tps65218_match_table, &client->dev);
-	if (!match) {
-		dev_err(&client->dev,
-			"Failed to find matching dt id\n");
-		return -EINVAL;
-	}
 
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)

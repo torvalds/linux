@@ -2112,9 +2112,8 @@ static int size_entry_mwt(struct ebt_entry *entry, const unsigned char *base,
 	for (i = 0, j = 1 ; j < 4 ; j++, i++) {
 		struct compat_ebt_entry_mwt *match32;
 		unsigned int size;
-		char *buf = buf_start;
+		char *buf = buf_start + offsets[i];
 
-		buf = buf_start + offsets[i];
 		if (offsets[i] > offsets[j])
 			return -EINVAL;
 

@@ -451,10 +451,8 @@ int __init ve_spc_init(void __iomem *baseaddr, u32 a15_clusid, int irq)
 {
 	int ret;
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info) {
-		pr_err(SPCLOG "unable to allocate mem\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	info->baseaddr = baseaddr;
 	info->a15_clusid = a15_clusid;
@@ -535,10 +533,8 @@ static struct clk *ve_spc_clk_register(struct device *cpu_dev)
 	struct clk_spc *spc;
 
 	spc = kzalloc(sizeof(*spc), GFP_KERNEL);
-	if (!spc) {
-		pr_err("could not allocate spc clk\n");
+	if (!spc)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	spc->hw.init = &init;
 	spc->cluster = topology_physical_package_id(cpu_dev->id);

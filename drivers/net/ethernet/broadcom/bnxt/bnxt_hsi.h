@@ -11,21 +11,21 @@
 #ifndef BNXT_HSI_H
 #define BNXT_HSI_H
 
-/* HSI and HWRM Specification 1.8.1 */
+/* HSI and HWRM Specification 1.8.3 */
 #define HWRM_VERSION_MAJOR	1
 #define HWRM_VERSION_MINOR	8
-#define HWRM_VERSION_UPDATE	1
+#define HWRM_VERSION_UPDATE	3
 
-#define HWRM_VERSION_RSVD	4 /* non-zero means beta version */
+#define HWRM_VERSION_RSVD	1 /* non-zero means beta version */
 
-#define HWRM_VERSION_STR	"1.8.1.4"
+#define HWRM_VERSION_STR	"1.8.3.1"
 /*
  * Following is the signature for HWRM message field that indicates not
  * applicable (All F's). Need to cast it the size of the field if needed.
  */
 #define HWRM_NA_SIGNATURE	((__le32)(-1))
 #define HWRM_MAX_REQ_LEN    (128)  /* hwrm_func_buf_rgtr */
-#define HWRM_MAX_RESP_LEN    (248)  /* hwrm_selftest_qlist */
+#define HWRM_MAX_RESP_LEN    (280)  /* hwrm_selftest_qlist */
 #define HW_HASH_INDEX_SIZE      0x80    /* 7 bit indirection table index. */
 #define HW_HASH_KEY_SIZE	40
 #define HWRM_RESP_VALID_KEY      1 /* valid key for HWRM response */
@@ -111,6 +111,7 @@ struct hwrm_async_event_cmpl {
 	#define ASYNC_EVENT_CMPL_EVENT_ID_VF_MAC_ADDR_CHANGE      0x31UL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_PF_VF_COMM_STATUS_CHANGE 0x32UL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_VF_CFG_CHANGE	   0x33UL
+	#define ASYNC_EVENT_CMPL_EVENT_ID_LLFC_PFC_CHANGE	   0x34UL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_HWRM_ERROR		   0xffUL
 	__le32 event_data2;
 	u8 opaque_v;
@@ -835,8 +836,7 @@ struct hwrm_func_qcfg_output {
 	u8 port_pf_cnt;
 	#define FUNC_QCFG_RESP_PORT_PF_CNT_UNAVAIL		   0x0UL
 	__le16 dflt_vnic_id;
-	u8 unused_0;
-	u8 unused_1;
+	__le16 max_mtu_configured;
 	__le32 min_bw;
 	#define FUNC_QCFG_RESP_MIN_BW_BW_VALUE_MASK		    0xfffffffUL
 	#define FUNC_QCFG_RESP_MIN_BW_BW_VALUE_SFT		    0
@@ -873,12 +873,12 @@ struct hwrm_func_qcfg_output {
 	#define FUNC_QCFG_RESP_EVB_MODE_NO_EVB			   0x0UL
 	#define FUNC_QCFG_RESP_EVB_MODE_VEB			   0x1UL
 	#define FUNC_QCFG_RESP_EVB_MODE_VEPA			   0x2UL
-	u8 unused_2;
+	u8 unused_0;
 	__le16 alloc_vfs;
 	__le32 alloc_mcast_filters;
 	__le32 alloc_hw_ring_grps;
 	__le16 alloc_sp_tx_rings;
-	u8 unused_3;
+	u8 unused_1;
 	u8 valid;
 };
 
@@ -3407,6 +3407,7 @@ struct hwrm_vnic_cfg_input {
 	#define VNIC_CFG_REQ_FLAGS_ROCE_DUAL_VNIC_MODE		    0x8UL
 	#define VNIC_CFG_REQ_FLAGS_ROCE_ONLY_VNIC_MODE		    0x10UL
 	#define VNIC_CFG_REQ_FLAGS_RSS_DFLT_CR_MODE		    0x20UL
+	#define VNIC_CFG_REQ_FLAGS_ROCE_MIRRORING_CAPABLE_VNIC_MODE 0x40UL
 	__le32 enables;
 	#define VNIC_CFG_REQ_ENABLES_DFLT_RING_GRP		    0x1UL
 	#define VNIC_CFG_REQ_ENABLES_RSS_RULE			    0x2UL
@@ -3463,6 +3464,7 @@ struct hwrm_vnic_qcaps_output {
 	#define VNIC_QCAPS_RESP_FLAGS_ROCE_DUAL_VNIC_CAP	    0x8UL
 	#define VNIC_QCAPS_RESP_FLAGS_ROCE_ONLY_VNIC_CAP	    0x10UL
 	#define VNIC_QCAPS_RESP_FLAGS_RSS_DFLT_CR_CAP		    0x20UL
+	#define VNIC_QCAPS_RESP_FLAGS_ROCE_MIRROING_CAPABLE_VNIC_CAP 0x40UL
 	__le32 unused_2;
 	u8 unused_3;
 	u8 unused_4;
@@ -3994,6 +3996,7 @@ struct hwrm_cfa_l2_filter_alloc_input {
 	#define CFA_L2_FILTER_ALLOC_REQ_TUNNEL_TYPE_MPLS	   0x6UL
 	#define CFA_L2_FILTER_ALLOC_REQ_TUNNEL_TYPE_STT	   0x7UL
 	#define CFA_L2_FILTER_ALLOC_REQ_TUNNEL_TYPE_IPGRE	   0x8UL
+	#define CFA_L2_FILTER_ALLOC_REQ_TUNNEL_TYPE_VXLAN_V4      0x9UL
 	#define CFA_L2_FILTER_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL     0xffUL
 	u8 unused_7;
 	__le16 dst_id;
@@ -4122,6 +4125,14 @@ struct hwrm_cfa_l2_set_rx_mask_output {
 	u8 valid;
 };
 
+/* Command specific Error Codes (8 bytes) */
+struct hwrm_cfa_l2_set_rx_mask_cmd_err {
+	u8 code;
+	#define CFA_L2_SET_RX_MASK_CMD_ERR_CODE_UNKNOWN	   0x0UL
+	#define CFA_L2_SET_RX_MASK_CMD_ERR_CODE_NTUPLE_FILTER_CONFLICT_ERR 0x1UL
+	u8 unused_0[7];
+};
+
 /* hwrm_cfa_tunnel_filter_alloc */
 /* Input (88 bytes) */
 struct hwrm_cfa_tunnel_filter_alloc_input {
@@ -4161,6 +4172,7 @@ struct hwrm_cfa_tunnel_filter_alloc_input {
 	#define CFA_TUNNEL_FILTER_ALLOC_REQ_TUNNEL_TYPE_MPLS      0x6UL
 	#define CFA_TUNNEL_FILTER_ALLOC_REQ_TUNNEL_TYPE_STT       0x7UL
 	#define CFA_TUNNEL_FILTER_ALLOC_REQ_TUNNEL_TYPE_IPGRE     0x8UL
+	#define CFA_TUNNEL_FILTER_ALLOC_REQ_TUNNEL_TYPE_VXLAN_V4  0x9UL
 	#define CFA_TUNNEL_FILTER_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL 0xffUL
 	u8 unused_0;
 	__le32 vni;
@@ -4323,6 +4335,7 @@ struct hwrm_cfa_ntuple_filter_alloc_input {
 	#define CFA_NTUPLE_FILTER_ALLOC_REQ_TUNNEL_TYPE_MPLS      0x6UL
 	#define CFA_NTUPLE_FILTER_ALLOC_REQ_TUNNEL_TYPE_STT       0x7UL
 	#define CFA_NTUPLE_FILTER_ALLOC_REQ_TUNNEL_TYPE_IPGRE     0x8UL
+	#define CFA_NTUPLE_FILTER_ALLOC_REQ_TUNNEL_TYPE_VXLAN_V4  0x9UL
 	#define CFA_NTUPLE_FILTER_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL 0xffUL
 	u8 pri_hint;
 	#define CFA_NTUPLE_FILTER_ALLOC_REQ_PRI_HINT_NO_PREFER    0x0UL
@@ -4353,6 +4366,14 @@ struct hwrm_cfa_ntuple_filter_alloc_output {
 	u8 unused_1;
 	u8 unused_2;
 	u8 valid;
+};
+
+/* Command specific Error Codes (8 bytes) */
+struct hwrm_cfa_ntuple_filter_alloc_cmd_err {
+	u8 code;
+	#define CFA_NTUPLE_FILTER_ALLOC_CMD_ERR_CODE_UNKNOWN      0x0UL
+	#define CFA_NTUPLE_FILTER_ALLOC_CMD_ERR_CODE_RX_MASK_VLAN_CONFLICT_ERR 0x1UL
+	u8 unused_0[7];
 };
 
 /* hwrm_cfa_ntuple_filter_free */
@@ -4402,6 +4423,116 @@ struct hwrm_cfa_ntuple_filter_cfg_input {
 
 /* Output (16 bytes) */
 struct hwrm_cfa_ntuple_filter_cfg_output {
+	__le16 error_code;
+	__le16 req_type;
+	__le16 seq_id;
+	__le16 resp_len;
+	__le32 unused_0;
+	u8 unused_1;
+	u8 unused_2;
+	u8 unused_3;
+	u8 valid;
+};
+
+/* hwrm_cfa_decap_filter_alloc */
+/* Input (104 bytes) */
+struct hwrm_cfa_decap_filter_alloc_input {
+	__le16 req_type;
+	__le16 cmpl_ring;
+	__le16 seq_id;
+	__le16 target_id;
+	__le64 resp_addr;
+	__le32 flags;
+	#define CFA_DECAP_FILTER_ALLOC_REQ_FLAGS_OVS_TUNNEL	    0x1UL
+	__le32 enables;
+	#define CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_TUNNEL_TYPE     0x1UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_TUNNEL_ID       0x2UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_SRC_MACADDR     0x4UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_DST_MACADDR     0x8UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_OVLAN_VID       0x10UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_IVLAN_VID       0x20UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_T_OVLAN_VID     0x40UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_T_IVLAN_VID     0x80UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_ETHERTYPE       0x100UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_SRC_IPADDR      0x200UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_DST_IPADDR      0x400UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_IPADDR_TYPE     0x800UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_IP_PROTOCOL     0x1000UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_SRC_PORT	    0x2000UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_DST_PORT	    0x4000UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_DST_ID	    0x8000UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_MIRROR_VNIC_ID  0x10000UL
+	__be32 tunnel_id;
+	u8 tunnel_type;
+	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_NONTUNNEL  0x0UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_VXLAN      0x1UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_NVGRE      0x2UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_L2GRE      0x3UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_IPIP       0x4UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_GENEVE     0x5UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_MPLS       0x6UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_STT	   0x7UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_IPGRE      0x8UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_VXLAN_V4   0x9UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL  0xffUL
+	u8 unused_0;
+	__le16 unused_1;
+	u8 src_macaddr[6];
+	u8 unused_2;
+	u8 unused_3;
+	u8 dst_macaddr[6];
+	__be16 ovlan_vid;
+	__be16 ivlan_vid;
+	__be16 t_ovlan_vid;
+	__be16 t_ivlan_vid;
+	__be16 ethertype;
+	u8 ip_addr_type;
+	#define CFA_DECAP_FILTER_ALLOC_REQ_IP_ADDR_TYPE_UNKNOWN   0x0UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_IP_ADDR_TYPE_IPV4      0x4UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_IP_ADDR_TYPE_IPV6      0x6UL
+	u8 ip_protocol;
+	#define CFA_DECAP_FILTER_ALLOC_REQ_IP_PROTOCOL_UNKNOWN    0x0UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_IP_PROTOCOL_TCP	   0x6UL
+	#define CFA_DECAP_FILTER_ALLOC_REQ_IP_PROTOCOL_UDP	   0x11UL
+	u8 unused_4;
+	u8 unused_5;
+	u8 unused_6[3];
+	u8 unused_7;
+	__be32 src_ipaddr[4];
+	__be32 dst_ipaddr[4];
+	__be16 src_port;
+	__be16 dst_port;
+	__le16 dst_id;
+	__le16 l2_ctxt_ref_id;
+};
+
+/* Output (16 bytes) */
+struct hwrm_cfa_decap_filter_alloc_output {
+	__le16 error_code;
+	__le16 req_type;
+	__le16 seq_id;
+	__le16 resp_len;
+	__le32 decap_filter_id;
+	u8 unused_0;
+	u8 unused_1;
+	u8 unused_2;
+	u8 valid;
+};
+
+/* hwrm_cfa_decap_filter_free */
+/* Input (24 bytes) */
+struct hwrm_cfa_decap_filter_free_input {
+	__le16 req_type;
+	__le16 cmpl_ring;
+	__le16 seq_id;
+	__le16 target_id;
+	__le64 resp_addr;
+	__le32 decap_filter_id;
+	__le32 unused_0;
+};
+
+/* Output (16 bytes) */
+struct hwrm_cfa_decap_filter_free_output {
 	__le16 error_code;
 	__le16 req_type;
 	__le16 seq_id;
@@ -4634,6 +4765,7 @@ struct hwrm_tunnel_dst_port_query_input {
 	u8 tunnel_type;
 	#define TUNNEL_DST_PORT_QUERY_REQ_TUNNEL_TYPE_VXLAN       0x1UL
 	#define TUNNEL_DST_PORT_QUERY_REQ_TUNNEL_TYPE_GENEVE      0x5UL
+	#define TUNNEL_DST_PORT_QUERY_REQ_TUNNEL_TYPE_VXLAN_V4    0x9UL
 	u8 unused_0[7];
 };
 
@@ -4662,9 +4794,10 @@ struct hwrm_tunnel_dst_port_alloc_input {
 	u8 tunnel_type;
 	#define TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN       0x1UL
 	#define TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_GENEVE      0x5UL
+	#define TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN_V4    0x9UL
 	u8 unused_0;
 	__be16 tunnel_dst_port_val;
-	__le32 unused_1;
+	__be32 unused_1;
 };
 
 /* Output (16 bytes) */
@@ -4693,6 +4826,7 @@ struct hwrm_tunnel_dst_port_free_input {
 	u8 tunnel_type;
 	#define TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN	   0x1UL
 	#define TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE       0x5UL
+	#define TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN_V4     0x9UL
 	u8 unused_0;
 	__le16 tunnel_dst_port_id;
 	__le32 unused_1;
@@ -4848,6 +4982,8 @@ struct hwrm_fw_reset_input {
 	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_NETCTRL	   0x2UL
 	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_ROCE		   0x3UL
 	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_HOST		   0x4UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_AP		   0x5UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP		   0x6UL
 	u8 selfrst_status;
 	#define FW_RESET_REQ_SELFRST_STATUS_SELFRSTNONE	   0x0UL
 	#define FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP	   0x1UL
@@ -4888,6 +5024,8 @@ struct hwrm_fw_qstatus_input {
 	#define FW_QSTATUS_REQ_EMBEDDED_PROC_TYPE_NETCTRL	   0x2UL
 	#define FW_QSTATUS_REQ_EMBEDDED_PROC_TYPE_ROCE		   0x3UL
 	#define FW_QSTATUS_REQ_EMBEDDED_PROC_TYPE_HOST		   0x4UL
+	#define FW_QSTATUS_REQ_EMBEDDED_PROC_TYPE_AP		   0x5UL
+	#define FW_QSTATUS_REQ_EMBEDDED_PROC_TYPE_CHIP		   0x6UL
 	u8 unused_0[7];
 };
 
@@ -5324,6 +5462,32 @@ struct hwrm_wol_reason_qcfg_output {
 	u8 valid;
 };
 
+/* hwrm_dbg_read_direct */
+/* Input (32 bytes) */
+struct hwrm_dbg_read_direct_input {
+	__le16 req_type;
+	__le16 cmpl_ring;
+	__le16 seq_id;
+	__le16 target_id;
+	__le64 resp_addr;
+	__le64 host_dest_addr;
+	__le32 read_addr;
+	__le32 read_len32;
+};
+
+/* Output (16 bytes) */
+struct hwrm_dbg_read_direct_output {
+	__le16 error_code;
+	__le16 req_type;
+	__le16 seq_id;
+	__le16 resp_len;
+	__le32 unused_0;
+	u8 unused_1;
+	u8 unused_2;
+	u8 unused_3;
+	u8 valid;
+};
+
 /* hwrm_nvm_read */
 /* Input (40 bytes) */
 struct hwrm_nvm_read_input {
@@ -5676,6 +5840,105 @@ struct hwrm_nvm_install_update_cmd_err {
 	u8 unused_0[7];
 };
 
+/* hwrm_nvm_get_variable */
+/* Input (40 bytes) */
+struct hwrm_nvm_get_variable_input {
+	__le16 req_type;
+	__le16 cmpl_ring;
+	__le16 seq_id;
+	__le16 target_id;
+	__le64 resp_addr;
+	__le64 dest_data_addr;
+	__le16 data_len;
+	__le16 option_num;
+	#define NVM_GET_VARIABLE_REQ_OPTION_NUM_RSVD_0		   0x0UL
+	#define NVM_GET_VARIABLE_REQ_OPTION_NUM_RSVD_FFFF	   0xffffUL
+	__le16 dimensions;
+	__le16 index_0;
+	__le16 index_1;
+	__le16 index_2;
+	__le16 index_3;
+	u8 flags;
+	#define NVM_GET_VARIABLE_REQ_FLAGS_FACTORY_DFLT	    0x1UL
+	u8 unused_0;
+};
+
+/* Output (16 bytes) */
+struct hwrm_nvm_get_variable_output {
+	__le16 error_code;
+	__le16 req_type;
+	__le16 seq_id;
+	__le16 resp_len;
+	__le16 data_len;
+	__le16 option_num;
+	#define NVM_GET_VARIABLE_RESP_OPTION_NUM_RSVD_0	   0x0UL
+	#define NVM_GET_VARIABLE_RESP_OPTION_NUM_RSVD_FFFF	   0xffffUL
+	u8 unused_0;
+	u8 unused_1;
+	u8 unused_2;
+	u8 valid;
+};
+
+/* Command specific Error Codes (8 bytes) */
+struct hwrm_nvm_get_variable_cmd_err {
+	u8 code;
+	#define NVM_GET_VARIABLE_CMD_ERR_CODE_UNKNOWN		   0x0UL
+	#define NVM_GET_VARIABLE_CMD_ERR_CODE_VAR_NOT_EXIST       0x1UL
+	#define NVM_GET_VARIABLE_CMD_ERR_CODE_CORRUPT_VAR	   0x2UL
+	#define NVM_GET_VARIABLE_CMD_ERR_CODE_LEN_TOO_SHORT       0x3UL
+	u8 unused_0[7];
+};
+
+/* hwrm_nvm_set_variable */
+/* Input (40 bytes) */
+struct hwrm_nvm_set_variable_input {
+	__le16 req_type;
+	__le16 cmpl_ring;
+	__le16 seq_id;
+	__le16 target_id;
+	__le64 resp_addr;
+	__le64 src_data_addr;
+	__le16 data_len;
+	__le16 option_num;
+	#define NVM_SET_VARIABLE_REQ_OPTION_NUM_RSVD_0		   0x0UL
+	#define NVM_SET_VARIABLE_REQ_OPTION_NUM_RSVD_FFFF	   0xffffUL
+	__le16 dimensions;
+	__le16 index_0;
+	__le16 index_1;
+	__le16 index_2;
+	__le16 index_3;
+	u8 flags;
+	#define NVM_SET_VARIABLE_REQ_FLAGS_FORCE_FLUSH		    0x1UL
+	#define NVM_SET_VARIABLE_REQ_FLAGS_ENCRYPT_MODE_MASK       0xeUL
+	#define NVM_SET_VARIABLE_REQ_FLAGS_ENCRYPT_MODE_SFT	    1
+	#define NVM_SET_VARIABLE_REQ_FLAGS_ENCRYPT_MODE_NONE      (0x0UL << 1)
+	#define NVM_SET_VARIABLE_REQ_FLAGS_ENCRYPT_MODE_HMAC_SHA1 (0x1UL << 1)
+	#define NVM_SET_VARIABLE_REQ_FLAGS_ENCRYPT_MODE_LAST    NVM_SET_VARIABLE_REQ_FLAGS_ENCRYPT_MODE_HMAC_SHA1
+	u8 unused_0;
+};
+
+/* Output (16 bytes) */
+struct hwrm_nvm_set_variable_output {
+	__le16 error_code;
+	__le16 req_type;
+	__le16 seq_id;
+	__le16 resp_len;
+	__le32 unused_0;
+	u8 unused_1;
+	u8 unused_2;
+	u8 unused_3;
+	u8 valid;
+};
+
+/* Command specific Error Codes (8 bytes) */
+struct hwrm_nvm_set_variable_cmd_err {
+	u8 code;
+	#define NVM_SET_VARIABLE_CMD_ERR_CODE_UNKNOWN		   0x0UL
+	#define NVM_SET_VARIABLE_CMD_ERR_CODE_VAR_NOT_EXIST       0x1UL
+	#define NVM_SET_VARIABLE_CMD_ERR_CODE_CORRUPT_VAR	   0x2UL
+	u8 unused_0[7];
+};
+
 /* hwrm_selftest_qlist */
 /* Input (16 bytes) */
 struct hwrm_selftest_qlist_input {
@@ -5686,7 +5949,7 @@ struct hwrm_selftest_qlist_input {
 	__le64 resp_addr;
 };
 
-/* Output (248 bytes) */
+/* Output (280 bytes) */
 struct hwrm_selftest_qlist_output {
 	__le16 error_code;
 	__le16 req_type;
@@ -5698,15 +5961,15 @@ struct hwrm_selftest_qlist_output {
 	#define SELFTEST_QLIST_RESP_AVAILABLE_TESTS_LINK_TEST      0x2UL
 	#define SELFTEST_QLIST_RESP_AVAILABLE_TESTS_REGISTER_TEST  0x4UL
 	#define SELFTEST_QLIST_RESP_AVAILABLE_TESTS_MEMORY_TEST    0x8UL
-	#define SELFTEST_QLIST_RESP_AVAILABLE_TESTS_PCIE_EYE_TEST  0x10UL
-	#define SELFTEST_QLIST_RESP_AVAILABLE_TESTS_ETHERNET_EYE_TEST 0x20UL
+	#define SELFTEST_QLIST_RESP_AVAILABLE_TESTS_PCIE_SERDES_TEST 0x10UL
+	#define SELFTEST_QLIST_RESP_AVAILABLE_TESTS_ETHERNET_SERDES_TEST 0x20UL
 	u8 offline_tests;
 	#define SELFTEST_QLIST_RESP_OFFLINE_TESTS_NVM_TEST	    0x1UL
 	#define SELFTEST_QLIST_RESP_OFFLINE_TESTS_LINK_TEST	    0x2UL
 	#define SELFTEST_QLIST_RESP_OFFLINE_TESTS_REGISTER_TEST    0x4UL
 	#define SELFTEST_QLIST_RESP_OFFLINE_TESTS_MEMORY_TEST      0x8UL
-	#define SELFTEST_QLIST_RESP_OFFLINE_TESTS_PCIE_EYE_TEST    0x10UL
-	#define SELFTEST_QLIST_RESP_OFFLINE_TESTS_ETHERNET_EYE_TEST 0x20UL
+	#define SELFTEST_QLIST_RESP_OFFLINE_TESTS_PCIE_SERDES_TEST 0x10UL
+	#define SELFTEST_QLIST_RESP_OFFLINE_TESTS_ETHERNET_SERDES_TEST 0x20UL
 	u8 unused_0;
 	__le16 test_timeout;
 	u8 unused_1;
@@ -5719,6 +5982,11 @@ struct hwrm_selftest_qlist_output {
 	char test5_name[32];
 	char test6_name[32];
 	char test7_name[32];
+	__le32 unused_3;
+	u8 unused_4;
+	u8 unused_5;
+	u8 unused_6;
+	u8 valid;
 };
 
 /* hwrm_selftest_exec */
@@ -5734,8 +6002,8 @@ struct hwrm_selftest_exec_input {
 	#define SELFTEST_EXEC_REQ_FLAGS_LINK_TEST		    0x2UL
 	#define SELFTEST_EXEC_REQ_FLAGS_REGISTER_TEST		    0x4UL
 	#define SELFTEST_EXEC_REQ_FLAGS_MEMORY_TEST		    0x8UL
-	#define SELFTEST_EXEC_REQ_FLAGS_PCIE_EYE_TEST		    0x10UL
-	#define SELFTEST_EXEC_REQ_FLAGS_ETHERNET_EYE_TEST	    0x20UL
+	#define SELFTEST_EXEC_REQ_FLAGS_PCIE_SERDES_TEST	    0x10UL
+	#define SELFTEST_EXEC_REQ_FLAGS_ETHERNET_SERDES_TEST       0x20UL
 	u8 unused_0[7];
 };
 
@@ -5750,16 +6018,21 @@ struct hwrm_selftest_exec_output {
 	#define SELFTEST_EXEC_RESP_REQUESTED_TESTS_LINK_TEST       0x2UL
 	#define SELFTEST_EXEC_RESP_REQUESTED_TESTS_REGISTER_TEST   0x4UL
 	#define SELFTEST_EXEC_RESP_REQUESTED_TESTS_MEMORY_TEST     0x8UL
-	#define SELFTEST_EXEC_RESP_REQUESTED_TESTS_PCIE_EYE_TEST   0x10UL
-	#define SELFTEST_EXEC_RESP_REQUESTED_TESTS_ETHERNET_EYE_TEST 0x20UL
+	#define SELFTEST_EXEC_RESP_REQUESTED_TESTS_PCIE_SERDES_TEST 0x10UL
+	#define SELFTEST_EXEC_RESP_REQUESTED_TESTS_ETHERNET_SERDES_TEST 0x20UL
 	u8 test_success;
 	#define SELFTEST_EXEC_RESP_TEST_SUCCESS_NVM_TEST	    0x1UL
 	#define SELFTEST_EXEC_RESP_TEST_SUCCESS_LINK_TEST	    0x2UL
 	#define SELFTEST_EXEC_RESP_TEST_SUCCESS_REGISTER_TEST      0x4UL
 	#define SELFTEST_EXEC_RESP_TEST_SUCCESS_MEMORY_TEST	    0x8UL
-	#define SELFTEST_EXEC_RESP_TEST_SUCCESS_PCIE_EYE_TEST      0x10UL
-	#define SELFTEST_EXEC_RESP_TEST_SUCCESS_ETHERNET_EYE_TEST  0x20UL
-	__le16 unused_0[3];
+	#define SELFTEST_EXEC_RESP_TEST_SUCCESS_PCIE_SERDES_TEST   0x10UL
+	#define SELFTEST_EXEC_RESP_TEST_SUCCESS_ETHERNET_SERDES_TEST 0x20UL
+	u8 unused_0;
+	u8 unused_1;
+	u8 unused_2;
+	u8 unused_3;
+	u8 unused_4;
+	u8 valid;
 };
 
 /* hwrm_selftest_irq */
@@ -5772,12 +6045,50 @@ struct hwrm_selftest_irq_input {
 	__le64 resp_addr;
 };
 
-/* Output (8 bytes) */
+/* Output (16 bytes) */
 struct hwrm_selftest_irq_output {
 	__le16 error_code;
 	__le16 req_type;
 	__le16 seq_id;
 	__le16 resp_len;
+	__le32 unused_0;
+	u8 unused_1;
+	u8 unused_2;
+	u8 unused_3;
+	u8 valid;
+};
+
+/* hwrm_selftest_retrieve_serdes_data */
+/* Input (32 bytes) */
+struct hwrm_selftest_retrieve_serdes_data_input {
+	__le16 req_type;
+	__le16 cmpl_ring;
+	__le16 seq_id;
+	__le16 target_id;
+	__le64 resp_addr;
+	__le64 resp_data_addr;
+	__le32 resp_data_offset;
+	__le16 data_len;
+	u8 flags;
+	#define SELFTEST_RETRIEVE_SERDES_DATA_REQ_FLAGS_UNUSED_TEST_MASK 0xfUL
+	#define SELFTEST_RETRIEVE_SERDES_DATA_REQ_FLAGS_UNUSED_TEST_SFT 0
+	#define SELFTEST_RETRIEVE_SERDES_DATA_REQ_FLAGS_PCIE_SERDES_TEST 0x10UL
+	#define SELFTEST_RETRIEVE_SERDES_DATA_REQ_FLAGS_ETHERNET_SERDES_TEST 0x20UL
+	u8 unused_0;
+};
+
+/* Output (16 bytes) */
+struct hwrm_selftest_retrieve_serdes_data_output {
+	__le16 error_code;
+	__le16 req_type;
+	__le16 seq_id;
+	__le16 resp_len;
+	__le16 total_data_len;
+	__le16 copied_data_len;
+	u8 unused_0;
+	u8 unused_1;
+	u8 unused_2;
+	u8 valid;
 };
 
 /* Hardware Resource Manager Specification */
@@ -5938,10 +6249,16 @@ struct cmd_nums {
 	#define HWRM_CFA_DECAP_FILTER_ALLOC			   (0x108UL)
 	#define HWRM_CFA_DECAP_FILTER_FREE			   (0x109UL)
 	#define HWRM_CFA_VLAN_ANTISPOOF_QCFG			   (0x10aUL)
+	#define HWRM_CFA_REDIRECT_TUNNEL_TYPE_ALLOC		   (0x10bUL)
+	#define HWRM_CFA_REDIRECT_TUNNEL_TYPE_FREE		   (0x10cUL)
+	#define HWRM_CFA_PAIR_ALLOC				   (0x10dUL)
+	#define HWRM_CFA_PAIR_FREE				   (0x10eUL)
+	#define HWRM_CFA_PAIR_INFO				   (0x10fUL)
+	#define HWRM_FW_IPC_MSG				   (0x110UL)
 	#define HWRM_SELFTEST_QLIST				   (0x200UL)
 	#define HWRM_SELFTEST_EXEC				   (0x201UL)
 	#define HWRM_SELFTEST_IRQ				   (0x202UL)
-	#define HWRM_SELFTEST_RETREIVE_EYE_DATA		   (0x203UL)
+	#define HWRM_SELFTEST_RETRIEVE_SERDES_DATA		   (0x203UL)
 	#define HWRM_DBG_READ_DIRECT				   (0xff10UL)
 	#define HWRM_DBG_READ_INDIRECT				   (0xff11UL)
 	#define HWRM_DBG_WRITE_DIRECT				   (0xff12UL)
@@ -5949,6 +6266,9 @@ struct cmd_nums {
 	#define HWRM_DBG_DUMP					   (0xff14UL)
 	#define HWRM_DBG_ERASE_NVM				   (0xff15UL)
 	#define HWRM_DBG_CFG					   (0xff16UL)
+	#define HWRM_DBG_COREDUMP_LIST				   (0xff17UL)
+	#define HWRM_DBG_COREDUMP_INITIATE			   (0xff18UL)
+	#define HWRM_DBG_COREDUMP_RETRIEVE			   (0xff19UL)
 	#define HWRM_NVM_FACTORY_DEFAULTS			   (0xffeeUL)
 	#define HWRM_NVM_VALIDATE_OPTION			   (0xffefUL)
 	#define HWRM_NVM_FLUSH					   (0xfff0UL)
@@ -6121,6 +6441,58 @@ struct rx_port_stats {
 	__le64 rx_runt_frames;
 	__le64 rx_stat_discard;
 	__le64 rx_stat_err;
+};
+
+/* VXLAN IPv4 encapsulation structure (16 bytes) */
+struct hwrm_vxlan_ipv4_hdr {
+	u8 ver_hlen;
+	#define VXLAN_IPV4_HDR_VER_HLEN_HEADER_LENGTH_MASK	    0xfUL
+	#define VXLAN_IPV4_HDR_VER_HLEN_HEADER_LENGTH_SFT	    0
+	#define VXLAN_IPV4_HDR_VER_HLEN_VERSION_MASK		    0xf0UL
+	#define VXLAN_IPV4_HDR_VER_HLEN_VERSION_SFT		    4
+	u8 tos;
+	__be16 ip_id;
+	__be16 flags_frag_offset;
+	u8 ttl;
+	u8 protocol;
+	__be32 src_ip_addr;
+	__be32 dest_ip_addr;
+};
+
+/* VXLAN IPv6 encapsulation structure (32 bytes) */
+struct hwrm_vxlan_ipv6_hdr {
+	__be32 ver_tc_flow_label;
+	#define VXLAN_IPV6_HDR_VER_TC_FLOW_LABEL_VER_SFT	   0x1cUL
+	#define VXLAN_IPV6_HDR_VER_TC_FLOW_LABEL_VER_MASK	   0xf0000000UL
+	#define VXLAN_IPV6_HDR_VER_TC_FLOW_LABEL_TC_SFT	   0x14UL
+	#define VXLAN_IPV6_HDR_VER_TC_FLOW_LABEL_TC_MASK	   0xff00000UL
+	#define VXLAN_IPV6_HDR_VER_TC_FLOW_LABEL_FLOW_LABEL_SFT   0x0UL
+	#define VXLAN_IPV6_HDR_VER_TC_FLOW_LABEL_FLOW_LABEL_MASK  0xfffffUL
+	__be16 payload_len;
+	u8 next_hdr;
+	u8 ttl;
+	__be32 src_ip_addr[4];
+	__be32 dest_ip_addr[4];
+};
+
+/* VXLAN encapsulation structure (72 bytes) */
+struct hwrm_cfa_encap_data_vxlan {
+	u8 src_mac_addr[6];
+	__le16 unused_0;
+	u8 dst_mac_addr[6];
+	u8 num_vlan_tags;
+	u8 unused_1;
+	__be16 ovlan_tpid;
+	__be16 ovlan_tci;
+	__be16 ivlan_tpid;
+	__be16 ivlan_tci;
+	__le32 l3[10];
+	#define CFA_ENCAP_DATA_VXLAN_L3_VER_MASK		   0xfUL
+	#define CFA_ENCAP_DATA_VXLAN_L3_VER_IPV4		   0x4UL
+	#define CFA_ENCAP_DATA_VXLAN_L3_VER_IPV6		   0x6UL
+	__be16 src_port;
+	__be16 dst_port;
+	__be32 vni;
 };
 
 /* Periodic Statistics Context DMA to host (160 bytes) */

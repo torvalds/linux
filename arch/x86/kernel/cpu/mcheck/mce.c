@@ -1367,13 +1367,12 @@ static void __start_timer(struct timer_list *t, unsigned long interval)
 	local_irq_restore(flags);
 }
 
-static void mce_timer_fn(unsigned long data)
+static void mce_timer_fn(struct timer_list *t)
 {
-	struct timer_list *t = this_cpu_ptr(&mce_timer);
-	int cpu = smp_processor_id();
+	struct timer_list *cpu_t = this_cpu_ptr(&mce_timer);
 	unsigned long iv;
 
-	WARN_ON(cpu != data);
+	WARN_ON(cpu_t != t);
 
 	iv = __this_cpu_read(mce_next_interval);
 
@@ -1763,17 +1762,15 @@ static void mce_start_timer(struct timer_list *t)
 static void __mcheck_cpu_setup_timer(void)
 {
 	struct timer_list *t = this_cpu_ptr(&mce_timer);
-	unsigned int cpu = smp_processor_id();
 
-	setup_pinned_timer(t, mce_timer_fn, cpu);
+	timer_setup(t, mce_timer_fn, TIMER_PINNED);
 }
 
 static void __mcheck_cpu_init_timer(void)
 {
 	struct timer_list *t = this_cpu_ptr(&mce_timer);
-	unsigned int cpu = smp_processor_id();
 
-	setup_pinned_timer(t, mce_timer_fn, cpu);
+	timer_setup(t, mce_timer_fn, TIMER_PINNED);
 	mce_start_timer(t);
 }
 
@@ -1787,6 +1784,11 @@ static void unexpected_machine_check(struct pt_regs *regs, long error_code)
 /* Call the installed machine check handler for this CPU setup. */
 void (*machine_check_vector)(struct pt_regs *, long error_code) =
 						unexpected_machine_check;
+
+dotraplinkage void do_mce(struct pt_regs *regs, long error_code)
+{
+	machine_check_vector(regs, error_code);
+}
 
 /*
  * Called for each booted CPU to set up machine checks.

@@ -1410,9 +1410,9 @@ static void snd_hdsp_midi_input_trigger(struct snd_rawmidi_substream *substream,
 	spin_unlock_irqrestore (&hdsp->lock, flags);
 }
 
-static void snd_hdsp_midi_output_timer(unsigned long data)
+static void snd_hdsp_midi_output_timer(struct timer_list *t)
 {
-	struct hdsp_midi *hmidi = (struct hdsp_midi *) data;
+	struct hdsp_midi *hmidi = from_timer(hmidi, t, timer);
 	unsigned long flags;
 
 	snd_hdsp_midi_output_write(hmidi);
@@ -1439,8 +1439,8 @@ static void snd_hdsp_midi_output_trigger(struct snd_rawmidi_substream *substream
 	spin_lock_irqsave (&hmidi->lock, flags);
 	if (up) {
 		if (!hmidi->istimer) {
-			setup_timer(&hmidi->timer, snd_hdsp_midi_output_timer,
-				    (unsigned long) hmidi);
+			timer_setup(&hmidi->timer, snd_hdsp_midi_output_timer,
+				    0);
 			mod_timer(&hmidi->timer, 1 + jiffies);
 			hmidi->istimer++;
 		}

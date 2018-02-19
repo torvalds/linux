@@ -4920,11 +4920,7 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
 
         /* Try to fault in all of the necessary pages */
         /* rw==READ means read from drive, write into memory area */
-	res = get_user_pages_unlocked(
-		uaddr,
-		nr_pages,
-		pages,
-		rw == READ ? FOLL_WRITE : 0); /* don't force */
+	res = get_user_pages_fast(uaddr, nr_pages, rw == READ, pages);
 
 	/* Errors and no page mapped should return here */
 	if (res < nr_pages)

@@ -21,6 +21,6 @@ config FANOTIFY_ACCESS_PERMISSIONS
 	   decisions concerning filesystem events.  This is used by some fanotify
 	   listeners which need to scan files before allowing the system access to
 	   use those files.  This is used by some anti-malware vendors and by some
-	   hierarchical storage managent systems.
+	   hierarchical storage management systems.
 
 	   If unsure, say N.

@@ -344,7 +344,7 @@ static int venus_alloc(struct venus_hfi_device *hdev, struct mem_desc *desc,
 	desc->attrs = DMA_ATTR_WRITE_COMBINE;
 	desc->size = ALIGN(size, SZ_4K);
 
-	desc->kva = dma_alloc_attrs(dev, size, &desc->da, GFP_KERNEL,
+	desc->kva = dma_alloc_attrs(dev, desc->size, &desc->da, GFP_KERNEL,
 				    desc->attrs);
 	if (!desc->kva)
 		return -ENOMEM;
@@ -710,10 +710,8 @@ static int venus_interface_queues_init(struct venus_hfi_device *hdev)
 	if (ret)
 		return ret;
 
-	hdev->ifaceq_table.kva = desc.kva;
-	hdev->ifaceq_table.da = desc.da;
-	hdev->ifaceq_table.size = IFACEQ_TABLE_SIZE;
-	offset = hdev->ifaceq_table.size;
+	hdev->ifaceq_table = desc;
+	offset = IFACEQ_TABLE_SIZE;
 
 	for (i = 0; i < IFACEQ_NUM; i++) {
 		queue = &hdev->queues[i];
@@ -755,9 +753,7 @@ static int venus_interface_queues_init(struct venus_hfi_device *hdev)
 	if (ret) {
 		hdev->sfr.da = 0;
 	} else {
-		hdev->sfr.da = desc.da;
-		hdev->sfr.kva = desc.kva;
-		hdev->sfr.size = ALIGNED_SFR_SIZE;
+		hdev->sfr = desc;
 		sfr = hdev->sfr.kva;
 		sfr->buf_size = ALIGNED_SFR_SIZE;
 	}

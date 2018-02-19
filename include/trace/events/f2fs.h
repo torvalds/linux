@@ -137,6 +137,18 @@ TRACE_DEFINE_ENUM(CP_TRIMMED);
 		{ CP_UMOUNT,	"Umount" },				\
 		{ CP_TRIMMED,	"Trimmed" })
 
+#define show_fsync_cpreason(type)					\
+	__print_symbolic(type,						\
+		{ CP_NO_NEEDED,		"no needed" },			\
+		{ CP_NON_REGULAR,	"non regular" },		\
+		{ CP_HARDLINK,		"hardlink" },			\
+		{ CP_SB_NEED_CP,	"sb needs cp" },		\
+		{ CP_WRONG_PINO,	"wrong pino" },			\
+		{ CP_NO_SPC_ROLL,	"no space roll forward" },	\
+		{ CP_NODE_NEED_CP,	"node needs cp" },		\
+		{ CP_FASTBOOT_MODE,	"fastboot mode" },		\
+		{ CP_SPEC_LOG_NUM,	"log type is 2" })
+
 struct victim_sel_policy;
 struct f2fs_map_blocks;
 
@@ -211,14 +223,14 @@ DEFINE_EVENT(f2fs__inode, f2fs_sync_file_enter,
 
 TRACE_EVENT(f2fs_sync_file_exit,
 
-	TP_PROTO(struct inode *inode, int need_cp, int datasync, int ret),
+	TP_PROTO(struct inode *inode, int cp_reason, int datasync, int ret),
 
-	TP_ARGS(inode, need_cp, datasync, ret),
+	TP_ARGS(inode, cp_reason, datasync, ret),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
 		__field(ino_t,	ino)
-		__field(int,	need_cp)
+		__field(int,	cp_reason)
 		__field(int,	datasync)
 		__field(int,	ret)
 	),
@@ -226,15 +238,15 @@ TRACE_EVENT(f2fs_sync_file_exit,
 	TP_fast_assign(
 		__entry->dev		= inode->i_sb->s_dev;
 		__entry->ino		= inode->i_ino;
-		__entry->need_cp	= need_cp;
+		__entry->cp_reason	= cp_reason;
 		__entry->datasync	= datasync;
 		__entry->ret		= ret;
 	),
 
-	TP_printk("dev = (%d,%d), ino = %lu, checkpoint is %s, "
+	TP_printk("dev = (%d,%d), ino = %lu, cp_reason: %s, "
 		"datasync = %d, ret = %d",
 		show_dev_ino(__entry),
-		__entry->need_cp ? "needed" : "not needed",
+		show_fsync_cpreason(__entry->cp_reason),
 		__entry->datasync,
 		__entry->ret)
 );
@@ -727,6 +739,91 @@ TRACE_EVENT(f2fs_get_victim,
 		(int)__entry->pre_victim,
 		__entry->prefree,
 		__entry->free)
+);
+
+TRACE_EVENT(f2fs_lookup_start,
+
+	TP_PROTO(struct inode *dir, struct dentry *dentry, unsigned int flags),
+
+	TP_ARGS(dir, dentry, flags),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(const char *,	name)
+		__field(unsigned int, flags)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= dir->i_sb->s_dev;
+		__entry->ino	= dir->i_ino;
+		__entry->name	= dentry->d_name.name;
+		__entry->flags	= flags;
+	),
+
+	TP_printk("dev = (%d,%d), pino = %lu, name:%s, flags:%u",
+		show_dev_ino(__entry),
+		__entry->name,
+		__entry->flags)
+);
+
+TRACE_EVENT(f2fs_lookup_end,
+
+	TP_PROTO(struct inode *dir, struct dentry *dentry, nid_t ino,
+		int err),
+
+	TP_ARGS(dir, dentry, ino, err),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(const char *,	name)
+		__field(nid_t,	cino)
+		__field(int,	err)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= dir->i_sb->s_dev;
+		__entry->ino	= dir->i_ino;
+		__entry->name	= dentry->d_name.name;
+		__entry->cino	= ino;
+		__entry->err	= err;
+	),
+
+	TP_printk("dev = (%d,%d), pino = %lu, name:%s, ino:%u, err:%d",
+		show_dev_ino(__entry),
+		__entry->name,
+		__entry->cino,
+		__entry->err)
+);
+
+TRACE_EVENT(f2fs_readdir,
+
+	TP_PROTO(struct inode *dir, loff_t start_pos, loff_t end_pos, int err),
+
+	TP_ARGS(dir, start_pos, end_pos, err),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(loff_t,	start)
+		__field(loff_t,	end)
+		__field(int,	err)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= dir->i_sb->s_dev;
+		__entry->ino	= dir->i_ino;
+		__entry->start	= start_pos;
+		__entry->end	= end_pos;
+		__entry->err	= err;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, start_pos:%llu, end_pos:%llu, err:%d",
+		show_dev_ino(__entry),
+		__entry->start,
+		__entry->end,
+		__entry->err)
 );
 
 TRACE_EVENT(f2fs_fallocate,
@@ -1281,6 +1378,13 @@ DEFINE_EVENT(f2fs_discard, f2fs_queue_discard,
 );
 
 DEFINE_EVENT(f2fs_discard, f2fs_issue_discard,
+
+	TP_PROTO(struct block_device *dev, block_t blkstart, block_t blklen),
+
+	TP_ARGS(dev, blkstart, blklen)
+);
+
+DEFINE_EVENT(f2fs_discard, f2fs_remove_discard,
 
 	TP_PROTO(struct block_device *dev, block_t blkstart, block_t blklen),
 

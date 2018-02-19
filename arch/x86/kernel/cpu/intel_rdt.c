@@ -267,6 +267,7 @@ static void rdt_get_cdp_l3_config(int type)
 	r->num_closid = r_l3->num_closid / 2;
 	r->cache.cbm_len = r_l3->cache.cbm_len;
 	r->default_ctrl = r_l3->default_ctrl;
+	r->cache.shareable_bits = r_l3->cache.shareable_bits;
 	r->data_width = (r->cache.cbm_len + 3) / 4;
 	r->alloc_capable = true;
 	/*
@@ -524,10 +525,6 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 		 */
 		if (static_branch_unlikely(&rdt_mon_enable_key))
 			rmdir_mondata_subdir_allrdtgrp(r, d->id);
-		kfree(d->ctrl_val);
-		kfree(d->rmid_busy_llc);
-		kfree(d->mbm_total);
-		kfree(d->mbm_local);
 		list_del(&d->list);
 		if (is_mbm_enabled())
 			cancel_delayed_work(&d->mbm_over);
@@ -544,6 +541,10 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 			cancel_delayed_work(&d->cqm_limbo);
 		}
 
+		kfree(d->ctrl_val);
+		kfree(d->rmid_busy_llc);
+		kfree(d->mbm_total);
+		kfree(d->mbm_local);
 		kfree(d);
 		return;
 	}

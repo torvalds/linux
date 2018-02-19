@@ -196,9 +196,9 @@ out:
 	mutex_unlock(&wl->mutex);
 }
 
-static void wl1271_rx_streaming_timer(unsigned long data)
+static void wl1271_rx_streaming_timer(struct timer_list *t)
 {
-	struct wl12xx_vif *wlvif = (struct wl12xx_vif *)data;
+	struct wl12xx_vif *wlvif = from_timer(wlvif, t, rx_streaming_timer);
 	struct wl1271 *wl = wlvif->wl;
 	ieee80211_queue_work(wl->hw, &wlvif->rx_streaming_disable_work);
 }
@@ -2279,8 +2279,7 @@ static int wl12xx_init_vif_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 			  wlcore_pending_auth_complete_work);
 	INIT_LIST_HEAD(&wlvif->list);
 
-	setup_timer(&wlvif->rx_streaming_timer, wl1271_rx_streaming_timer,
-		    (unsigned long) wlvif);
+	timer_setup(&wlvif->rx_streaming_timer, wl1271_rx_streaming_timer, 0);
 	return 0;
 }
 

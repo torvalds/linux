@@ -1007,7 +1007,7 @@ skip:
 	/* The record may be cleared by others, try read next record */
 	if (len == -ENOENT)
 		goto skip;
-	else if (len < sizeof(*rcd)) {
+	else if (len < 0 || len < sizeof(*rcd)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -1061,7 +1061,7 @@ static int erst_writer(struct pstore_record *record)
 	rcd->hdr.error_severity = CPER_SEV_FATAL;
 	/* timestamp valid. platform_id, partition_id are invalid */
 	rcd->hdr.validation_bits = CPER_VALID_TIMESTAMP;
-	rcd->hdr.timestamp = get_seconds();
+	rcd->hdr.timestamp = ktime_get_real_seconds();
 	rcd->hdr.record_length = sizeof(*rcd) + record->size;
 	rcd->hdr.creator_id = CPER_CREATOR_PSTORE;
 	rcd->hdr.notification_type = CPER_NOTIFY_MCE;

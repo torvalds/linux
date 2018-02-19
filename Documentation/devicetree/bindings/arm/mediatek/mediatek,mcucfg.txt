@@ -1,0 +1,22 @@
+Mediatek mcucfg controller
+============================
+
+The Mediatek mcucfg controller provides various clocks to the system.
+
+Required Properties:
+
+- compatible: Should be one of:
+	- "mediatek,mt2712-mcucfg", "syscon"
+- #clock-cells: Must be 1
+
+The mcucfg controller uses the common clk binding from
+Documentation/devicetree/bindings/clock/clock-bindings.txt
+The available clocks are defined in dt-bindings/clock/mt*-clk.h.
+
+Example:
+
+mcucfg: syscon@10220000 {
+	compatible = "mediatek,mt2712-mcucfg", "syscon";
+	reg = <0 0x10220000 0 0x1000>;
+	#clock-cells = <1>;
+};

@@ -534,6 +534,7 @@ static int dccp_rcv_respond_partopen_state_process(struct sock *sk,
 	case DCCP_PKT_DATA:
 		if (sk->sk_state == DCCP_RESPOND)
 			break;
+		/* fall through */
 	case DCCP_PKT_DATAACK:
 	case DCCP_PKT_ACK:
 		/*

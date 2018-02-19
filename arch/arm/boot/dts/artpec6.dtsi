@@ -151,7 +151,6 @@
 		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-affinity = <&cpu0>, <&cpu1>;
-		interrupt-parent = <&intc>;
 	};
 
 	pcie: pcie@f8050000 {
@@ -185,7 +184,6 @@
 		compatible = "simple-bus";
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;
-		interrupt-parent = <&intc>;
 		ranges;
 		dma-ranges = <0x80000000 0x00000000 0x40000000>;
 		dma-coherent;
@@ -195,7 +193,6 @@
 			clocks = <&eth_phy_ref_clk>,
 				<&clkctrl ARTPEC6_CLK_ETH_ACLK>;
 			compatible = "snps,dwc-qos-ethernet-4.10";
-			interrupt-parent = <&intc>;
 			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0xf8010000 0x4000>;
 

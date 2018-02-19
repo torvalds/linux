@@ -506,7 +506,6 @@ struct omap_prcm_irq_setup {
 	u8 nr_irqs;
 	const struct omap_prcm_irq *irqs;
 	int irq;
-	unsigned int (*xlate_irq)(unsigned int);
 	void (*read_pending_irqs)(unsigned long *events);
 	void (*ocp_barrier)(void);
 	void (*save_and_clear_irqen)(u32 *saved_mask);
@@ -529,6 +528,7 @@ struct omap_prcm_irq_setup {
 struct omap_domain_base {
 	u32 pa;
 	void __iomem *va;
+	s16 offset;
 };
 
 /**

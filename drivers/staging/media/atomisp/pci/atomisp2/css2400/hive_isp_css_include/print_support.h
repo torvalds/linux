@@ -15,7 +15,6 @@
 #ifndef __PRINT_SUPPORT_H_INCLUDED__
 #define __PRINT_SUPPORT_H_INCLUDED__
 
-#include "storage_class.h"
 
 #include <stdarg.h>
 #if !defined(__KERNEL__)
@@ -24,7 +23,7 @@
 
 extern int (*sh_css_printf) (const char *fmt, va_list args);
 /* depends on host supplied print function in ia_css_init() */
-STORAGE_CLASS_INLINE void ia_css_print(const char *fmt, ...)
+static inline void ia_css_print(const char *fmt, ...)
 {
 	va_list ap;
 	if (sh_css_printf) {

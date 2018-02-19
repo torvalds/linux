@@ -82,6 +82,8 @@ tpt460
     Lenovo Thinkpad T460/560 setup
 dual-codecs
     Lenovo laptops with dual codecs
+alc700-ref
+    Intel reference board with ALC700 codec
 
 ALC66x/67x/892
 ==============

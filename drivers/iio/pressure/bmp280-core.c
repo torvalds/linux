@@ -561,7 +561,6 @@ static const struct attribute_group bmp280_attrs_group = {
 };
 
 static const struct iio_info bmp280_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &bmp280_read_raw,
 	.write_raw = &bmp280_write_raw,
 	.attrs = &bmp280_attrs_group,

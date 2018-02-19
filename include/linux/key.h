@@ -24,6 +24,7 @@
 #include <linux/atomic.h>
 #include <linux/assoc_array.h>
 #include <linux/refcount.h>
+#include <linux/time64.h>
 
 #ifdef __KERNEL__
 #include <linux/uidgid.h>
@@ -162,10 +163,10 @@ struct key {
 	struct key_user		*user;		/* owner of this key */
 	void			*security;	/* security data for this key */
 	union {
-		time_t		expiry;		/* time at which key expires (or 0) */
-		time_t		revoked_at;	/* time at which key was revoked */
+		time64_t	expiry;		/* time at which key expires (or 0) */
+		time64_t	revoked_at;	/* time at which key was revoked */
 	};
-	time_t			last_used_at;	/* last time used for LRU keyring discard */
+	time64_t		last_used_at;	/* last time used for LRU keyring discard */
 	kuid_t			uid;
 	kgid_t			gid;
 	key_perm_t		perm;		/* access permissions */

@@ -1588,9 +1588,8 @@ error_keyring:
  * The caller must have Setattr permission to change keyring restrictions.
  *
  * The requested type name may be a NULL pointer to reject all attempts
- * to link to the keyring. If _type is non-NULL, _restriction can be
- * NULL or a pointer to a string describing the restriction. If _type is
- * NULL, _restriction must also be NULL.
+ * to link to the keyring.  In this case, _restriction must also be NULL.
+ * Otherwise, both _type and _restriction must be non-NULL.
  *
  * Returns 0 if successful.
  */
@@ -1598,7 +1597,6 @@ long keyctl_restrict_keyring(key_serial_t id, const char __user *_type,
 			     const char __user *_restriction)
 {
 	key_ref_t key_ref;
-	bool link_reject = !_type;
 	char type[32];
 	char *restriction = NULL;
 	long ret;
@@ -1607,31 +1605,29 @@ long keyctl_restrict_keyring(key_serial_t id, const char __user *_type,
 	if (IS_ERR(key_ref))
 		return PTR_ERR(key_ref);
 
+	ret = -EINVAL;
 	if (_type) {
+		if (!_restriction)
+			goto error;
+
 		ret = key_get_type_from_user(type, _type, sizeof(type));
 		if (ret < 0)
 			goto error;
-	}
-
-	if (_restriction) {
-		if (!_type) {
-			ret = -EINVAL;
-			goto error;
-		}
 
 		restriction = strndup_user(_restriction, PAGE_SIZE);
 		if (IS_ERR(restriction)) {
 			ret = PTR_ERR(restriction);
 			goto error;
 		}
+	} else {
+		if (_restriction)
+			goto error;
 	}
 
-	ret = keyring_restrict(key_ref, link_reject ? NULL : type, restriction);
+	ret = keyring_restrict(key_ref, _type ? type : NULL, restriction);
 	kfree(restriction);
-
 error:
 	key_ref_put(key_ref);
-
 	return ret;
 }
 

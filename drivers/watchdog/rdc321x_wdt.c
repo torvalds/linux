@@ -67,7 +67,7 @@ static struct {
 
 /* generic helper functions */
 
-static void rdc321x_wdt_trigger(unsigned long unused)
+static void rdc321x_wdt_trigger(struct timer_list *unused)
 {
 	unsigned long flags;
 	u32 val;
@@ -262,7 +262,7 @@ static int rdc321x_wdt_probe(struct platform_device *pdev)
 
 	clear_bit(0, &rdc321x_wdt_device.inuse);
 
-	setup_timer(&rdc321x_wdt_device.timer, rdc321x_wdt_trigger, 0);
+	timer_setup(&rdc321x_wdt_device.timer, rdc321x_wdt_trigger, 0);
 
 	rdc321x_wdt_device.default_ticks = ticks;
 

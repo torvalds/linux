@@ -61,8 +61,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_marsboard>;
 
 		red1 {
 			label = "marsboard:red1:usr";
@@ -107,27 +105,19 @@
 };
 
 &emac {
-	pinctrl-names = "default";
-	pinctrl-0 = <&emac_pins_a>;
 	phy = <&phy1>;
 	status = "okay";
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 };
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 };
 
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
 };
 
@@ -140,8 +130,6 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
@@ -162,12 +150,7 @@
 };
 
 &pio {
-	led_pins_marsboard: led_pins@0 {
-		pins = "PB5", "PB6", "PB7", "PB8";
-		function = "gpio_out";
-	};
-
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
+	usb0_id_detect_pin: usb0-id-detect-pin {
 		pins = "PH4";
 		function = "gpio_in";
 		bias-pull-up;
@@ -184,14 +167,14 @@
 
 &spi0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi0_pins_a>,
-		    <&spi0_cs0_pins_a>;
+	pinctrl-0 = <&spi0_pi_pins>,
+		    <&spi0_cs0_pi_pin>;
 	status = "okay";
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 

@@ -23,6 +23,7 @@
 #include <linux/bsearch.h>
 #include <linux/kvm_host.h>
 #include <linux/mm.h>
+#include <linux/printk.h>
 #include <linux/uaccess.h>
 
 #include <asm/cacheflush.h>
@@ -841,13 +842,16 @@ static bool access_cntp_tval(struct kvm_vcpu *vcpu,
 		struct sys_reg_params *p,
 		const struct sys_reg_desc *r)
 {
-	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
 	u64 now = kvm_phys_timer_read();
+	u64 cval;
 
-	if (p->is_write)
-		ptimer->cnt_cval = p->regval + now;
-	else
-		p->regval = ptimer->cnt_cval - now;
+	if (p->is_write) {
+		kvm_arm_timer_set_reg(vcpu, KVM_REG_ARM_PTIMER_CVAL,
+				      p->regval + now);
+	} else {
+		cval = kvm_arm_timer_get_reg(vcpu, KVM_REG_ARM_PTIMER_CVAL);
+		p->regval = cval - now;
+	}
 
 	return true;
 }
@@ -856,24 +860,10 @@ static bool access_cntp_ctl(struct kvm_vcpu *vcpu,
 		struct sys_reg_params *p,
 		const struct sys_reg_desc *r)
 {
-	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
-
-	if (p->is_write) {
-		/* ISTATUS bit is read-only */
-		ptimer->cnt_ctl = p->regval & ~ARCH_TIMER_CTRL_IT_STAT;
-	} else {
-		u64 now = kvm_phys_timer_read();
-
-		p->regval = ptimer->cnt_ctl;
-		/*
-		 * Set ISTATUS bit if it's expired.
-		 * Note that according to ARMv8 ARM Issue A.k, ISTATUS bit is
-		 * UNKNOWN when ENABLE bit is 0, so we chose to set ISTATUS bit
-		 * regardless of ENABLE bit for our implementation convenience.
-		 */
-		if (ptimer->cnt_cval <= now)
-			p->regval |= ARCH_TIMER_CTRL_IT_STAT;
-	}
+	if (p->is_write)
+		kvm_arm_timer_set_reg(vcpu, KVM_REG_ARM_PTIMER_CTL, p->regval);
+	else
+		p->regval = kvm_arm_timer_get_reg(vcpu, KVM_REG_ARM_PTIMER_CTL);
 
 	return true;
 }
@@ -882,14 +872,152 @@ static bool access_cntp_cval(struct kvm_vcpu *vcpu,
 		struct sys_reg_params *p,
 		const struct sys_reg_desc *r)
 {
-	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
-
 	if (p->is_write)
-		ptimer->cnt_cval = p->regval;
+		kvm_arm_timer_set_reg(vcpu, KVM_REG_ARM_PTIMER_CVAL, p->regval);
 	else
-		p->regval = ptimer->cnt_cval;
+		p->regval = kvm_arm_timer_get_reg(vcpu, KVM_REG_ARM_PTIMER_CVAL);
 
 	return true;
+}
+
+/* Read a sanitised cpufeature ID register by sys_reg_desc */
+static u64 read_id_reg(struct sys_reg_desc const *r, bool raz)
+{
+	u32 id = sys_reg((u32)r->Op0, (u32)r->Op1,
+			 (u32)r->CRn, (u32)r->CRm, (u32)r->Op2);
+	u64 val = raz ? 0 : read_sanitised_ftr_reg(id);
+
+	if (id == SYS_ID_AA64PFR0_EL1) {
+		if (val & (0xfUL << ID_AA64PFR0_SVE_SHIFT))
+			pr_err_once("kvm [%i]: SVE unsupported for guests, suppressing\n",
+				    task_pid_nr(current));
+
+		val &= ~(0xfUL << ID_AA64PFR0_SVE_SHIFT);
+	}
+
+	return val;
+}
+
+/* cpufeature ID register access trap handlers */
+
+static bool __access_id_reg(struct kvm_vcpu *vcpu,
+			    struct sys_reg_params *p,
+			    const struct sys_reg_desc *r,
+			    bool raz)
+{
+	if (p->is_write)
+		return write_to_read_only(vcpu, p, r);
+
+	p->regval = read_id_reg(r, raz);
+	return true;
+}
+
+static bool access_id_reg(struct kvm_vcpu *vcpu,
+			  struct sys_reg_params *p,
+			  const struct sys_reg_desc *r)
+{
+	return __access_id_reg(vcpu, p, r, false);
+}
+
+static bool access_raz_id_reg(struct kvm_vcpu *vcpu,
+			      struct sys_reg_params *p,
+			      const struct sys_reg_desc *r)
+{
+	return __access_id_reg(vcpu, p, r, true);
+}
+
+static int reg_from_user(u64 *val, const void __user *uaddr, u64 id);
+static int reg_to_user(void __user *uaddr, const u64 *val, u64 id);
+static u64 sys_reg_to_index(const struct sys_reg_desc *reg);
+
+/*
+ * cpufeature ID register user accessors
+ *
+ * For now, these registers are immutable for userspace, so no values
+ * are stored, and for set_id_reg() we don't allow the effective value
+ * to be changed.
+ */
+static int __get_id_reg(const struct sys_reg_desc *rd, void __user *uaddr,
+			bool raz)
+{
+	const u64 id = sys_reg_to_index(rd);
+	const u64 val = read_id_reg(rd, raz);
+
+	return reg_to_user(uaddr, &val, id);
+}
+
+static int __set_id_reg(const struct sys_reg_desc *rd, void __user *uaddr,
+			bool raz)
+{
+	const u64 id = sys_reg_to_index(rd);
+	int err;
+	u64 val;
+
+	err = reg_from_user(&val, uaddr, id);
+	if (err)
+		return err;
+
+	/* This is what we mean by invariant: you can't change it. */
+	if (val != read_id_reg(rd, raz))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int get_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+		      const struct kvm_one_reg *reg, void __user *uaddr)
+{
+	return __get_id_reg(rd, uaddr, false);
+}
+
+static int set_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+		      const struct kvm_one_reg *reg, void __user *uaddr)
+{
+	return __set_id_reg(rd, uaddr, false);
+}
+
+static int get_raz_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+			  const struct kvm_one_reg *reg, void __user *uaddr)
+{
+	return __get_id_reg(rd, uaddr, true);
+}
+
+static int set_raz_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+			  const struct kvm_one_reg *reg, void __user *uaddr)
+{
+	return __set_id_reg(rd, uaddr, true);
+}
+
+/* sys_reg_desc initialiser for known cpufeature ID registers */
+#define ID_SANITISED(name) {			\
+	SYS_DESC(SYS_##name),			\
+	.access	= access_id_reg,		\
+	.get_user = get_id_reg,			\
+	.set_user = set_id_reg,			\
+}
+
+/*
+ * sys_reg_desc initialiser for architecturally unallocated cpufeature ID
+ * register with encoding Op0=3, Op1=0, CRn=0, CRm=crm, Op2=op2
+ * (1 <= crm < 8, 0 <= Op2 < 8).
+ */
+#define ID_UNALLOCATED(crm, op2) {			\
+	Op0(3), Op1(0), CRn(0), CRm(crm), Op2(op2),	\
+	.access = access_raz_id_reg,			\
+	.get_user = get_raz_id_reg,			\
+	.set_user = set_raz_id_reg,			\
+}
+
+/*
+ * sys_reg_desc initialiser for known ID registers that we hide from guests.
+ * For now, these are exposed just like unallocated ID regs: they appear
+ * RAZ for the guest.
+ */
+#define ID_HIDDEN(name) {			\
+	SYS_DESC(SYS_##name),			\
+	.access = access_raz_id_reg,		\
+	.get_user = get_raz_id_reg,		\
+	.set_user = set_raz_id_reg,		\
 }
 
 /*
@@ -944,6 +1072,84 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_DBGVCR32_EL2), NULL, reset_val, DBGVCR32_EL2, 0 },
 
 	{ SYS_DESC(SYS_MPIDR_EL1), NULL, reset_mpidr, MPIDR_EL1 },
+
+	/*
+	 * ID regs: all ID_SANITISED() entries here must have corresponding
+	 * entries in arm64_ftr_regs[].
+	 */
+
+	/* AArch64 mappings of the AArch32 ID registers */
+	/* CRm=1 */
+	ID_SANITISED(ID_PFR0_EL1),
+	ID_SANITISED(ID_PFR1_EL1),
+	ID_SANITISED(ID_DFR0_EL1),
+	ID_HIDDEN(ID_AFR0_EL1),
+	ID_SANITISED(ID_MMFR0_EL1),
+	ID_SANITISED(ID_MMFR1_EL1),
+	ID_SANITISED(ID_MMFR2_EL1),
+	ID_SANITISED(ID_MMFR3_EL1),
+
+	/* CRm=2 */
+	ID_SANITISED(ID_ISAR0_EL1),
+	ID_SANITISED(ID_ISAR1_EL1),
+	ID_SANITISED(ID_ISAR2_EL1),
+	ID_SANITISED(ID_ISAR3_EL1),
+	ID_SANITISED(ID_ISAR4_EL1),
+	ID_SANITISED(ID_ISAR5_EL1),
+	ID_SANITISED(ID_MMFR4_EL1),
+	ID_UNALLOCATED(2,7),
+
+	/* CRm=3 */
+	ID_SANITISED(MVFR0_EL1),
+	ID_SANITISED(MVFR1_EL1),
+	ID_SANITISED(MVFR2_EL1),
+	ID_UNALLOCATED(3,3),
+	ID_UNALLOCATED(3,4),
+	ID_UNALLOCATED(3,5),
+	ID_UNALLOCATED(3,6),
+	ID_UNALLOCATED(3,7),
+
+	/* AArch64 ID registers */
+	/* CRm=4 */
+	ID_SANITISED(ID_AA64PFR0_EL1),
+	ID_SANITISED(ID_AA64PFR1_EL1),
+	ID_UNALLOCATED(4,2),
+	ID_UNALLOCATED(4,3),
+	ID_UNALLOCATED(4,4),
+	ID_UNALLOCATED(4,5),
+	ID_UNALLOCATED(4,6),
+	ID_UNALLOCATED(4,7),
+
+	/* CRm=5 */
+	ID_SANITISED(ID_AA64DFR0_EL1),
+	ID_SANITISED(ID_AA64DFR1_EL1),
+	ID_UNALLOCATED(5,2),
+	ID_UNALLOCATED(5,3),
+	ID_HIDDEN(ID_AA64AFR0_EL1),
+	ID_HIDDEN(ID_AA64AFR1_EL1),
+	ID_UNALLOCATED(5,6),
+	ID_UNALLOCATED(5,7),
+
+	/* CRm=6 */
+	ID_SANITISED(ID_AA64ISAR0_EL1),
+	ID_SANITISED(ID_AA64ISAR1_EL1),
+	ID_UNALLOCATED(6,2),
+	ID_UNALLOCATED(6,3),
+	ID_UNALLOCATED(6,4),
+	ID_UNALLOCATED(6,5),
+	ID_UNALLOCATED(6,6),
+	ID_UNALLOCATED(6,7),
+
+	/* CRm=7 */
+	ID_SANITISED(ID_AA64MMFR0_EL1),
+	ID_SANITISED(ID_AA64MMFR1_EL1),
+	ID_SANITISED(ID_AA64MMFR2_EL1),
+	ID_UNALLOCATED(7,3),
+	ID_UNALLOCATED(7,4),
+	ID_UNALLOCATED(7,5),
+	ID_UNALLOCATED(7,6),
+	ID_UNALLOCATED(7,7),
+
 	{ SYS_DESC(SYS_SCTLR_EL1), access_vm_reg, reset_val, SCTLR_EL1, 0x00C50078 },
 	{ SYS_DESC(SYS_CPACR_EL1), NULL, reset_val, CPACR_EL1, 0 },
 	{ SYS_DESC(SYS_TTBR0_EL1), access_vm_reg, reset_unknown, TTBR0_EL1 },
@@ -1790,8 +1996,8 @@ static const struct sys_reg_desc *index_to_sys_reg_desc(struct kvm_vcpu *vcpu,
 	if (!r)
 		r = find_reg(&params, sys_reg_descs, ARRAY_SIZE(sys_reg_descs));
 
-	/* Not saved in the sys_reg array? */
-	if (r && !r->reg)
+	/* Not saved in the sys_reg array and not otherwise accessible? */
+	if (r && !(r->reg || r->get_user))
 		r = NULL;
 
 	return r;
@@ -1815,20 +2021,6 @@ static const struct sys_reg_desc *index_to_sys_reg_desc(struct kvm_vcpu *vcpu,
 FUNCTION_INVARIANT(midr_el1)
 FUNCTION_INVARIANT(ctr_el0)
 FUNCTION_INVARIANT(revidr_el1)
-FUNCTION_INVARIANT(id_pfr0_el1)
-FUNCTION_INVARIANT(id_pfr1_el1)
-FUNCTION_INVARIANT(id_dfr0_el1)
-FUNCTION_INVARIANT(id_afr0_el1)
-FUNCTION_INVARIANT(id_mmfr0_el1)
-FUNCTION_INVARIANT(id_mmfr1_el1)
-FUNCTION_INVARIANT(id_mmfr2_el1)
-FUNCTION_INVARIANT(id_mmfr3_el1)
-FUNCTION_INVARIANT(id_isar0_el1)
-FUNCTION_INVARIANT(id_isar1_el1)
-FUNCTION_INVARIANT(id_isar2_el1)
-FUNCTION_INVARIANT(id_isar3_el1)
-FUNCTION_INVARIANT(id_isar4_el1)
-FUNCTION_INVARIANT(id_isar5_el1)
 FUNCTION_INVARIANT(clidr_el1)
 FUNCTION_INVARIANT(aidr_el1)
 
@@ -1836,20 +2028,6 @@ FUNCTION_INVARIANT(aidr_el1)
 static struct sys_reg_desc invariant_sys_regs[] = {
 	{ SYS_DESC(SYS_MIDR_EL1), NULL, get_midr_el1 },
 	{ SYS_DESC(SYS_REVIDR_EL1), NULL, get_revidr_el1 },
-	{ SYS_DESC(SYS_ID_PFR0_EL1), NULL, get_id_pfr0_el1 },
-	{ SYS_DESC(SYS_ID_PFR1_EL1), NULL, get_id_pfr1_el1 },
-	{ SYS_DESC(SYS_ID_DFR0_EL1), NULL, get_id_dfr0_el1 },
-	{ SYS_DESC(SYS_ID_AFR0_EL1), NULL, get_id_afr0_el1 },
-	{ SYS_DESC(SYS_ID_MMFR0_EL1), NULL, get_id_mmfr0_el1 },
-	{ SYS_DESC(SYS_ID_MMFR1_EL1), NULL, get_id_mmfr1_el1 },
-	{ SYS_DESC(SYS_ID_MMFR2_EL1), NULL, get_id_mmfr2_el1 },
-	{ SYS_DESC(SYS_ID_MMFR3_EL1), NULL, get_id_mmfr3_el1 },
-	{ SYS_DESC(SYS_ID_ISAR0_EL1), NULL, get_id_isar0_el1 },
-	{ SYS_DESC(SYS_ID_ISAR1_EL1), NULL, get_id_isar1_el1 },
-	{ SYS_DESC(SYS_ID_ISAR2_EL1), NULL, get_id_isar2_el1 },
-	{ SYS_DESC(SYS_ID_ISAR3_EL1), NULL, get_id_isar3_el1 },
-	{ SYS_DESC(SYS_ID_ISAR4_EL1), NULL, get_id_isar4_el1 },
-	{ SYS_DESC(SYS_ID_ISAR5_EL1), NULL, get_id_isar5_el1 },
 	{ SYS_DESC(SYS_CLIDR_EL1), NULL, get_clidr_el1 },
 	{ SYS_DESC(SYS_AIDR_EL1), NULL, get_aidr_el1 },
 	{ SYS_DESC(SYS_CTR_EL0), NULL, get_ctr_el0 },
@@ -2079,12 +2257,31 @@ static bool copy_reg_to_user(const struct sys_reg_desc *reg, u64 __user **uind)
 	return true;
 }
 
+static int walk_one_sys_reg(const struct sys_reg_desc *rd,
+			    u64 __user **uind,
+			    unsigned int *total)
+{
+	/*
+	 * Ignore registers we trap but don't save,
+	 * and for which no custom user accessor is provided.
+	 */
+	if (!(rd->reg || rd->get_user))
+		return 0;
+
+	if (!copy_reg_to_user(rd, uind))
+		return -EFAULT;
+
+	(*total)++;
+	return 0;
+}
+
 /* Assumed ordered tables, see kvm_sys_reg_table_init. */
 static int walk_sys_regs(struct kvm_vcpu *vcpu, u64 __user *uind)
 {
 	const struct sys_reg_desc *i1, *i2, *end1, *end2;
 	unsigned int total = 0;
 	size_t num;
+	int err;
 
 	/* We check for duplicates here, to allow arch-specific overrides. */
 	i1 = get_target_table(vcpu->arch.target, true, &num);
@@ -2098,21 +2295,13 @@ static int walk_sys_regs(struct kvm_vcpu *vcpu, u64 __user *uind)
 	while (i1 || i2) {
 		int cmp = cmp_sys_reg(i1, i2);
 		/* target-specific overrides generic entry. */
-		if (cmp <= 0) {
-			/* Ignore registers we trap but don't save. */
-			if (i1->reg) {
-				if (!copy_reg_to_user(i1, &uind))
-					return -EFAULT;
-				total++;
-			}
-		} else {
-			/* Ignore registers we trap but don't save. */
-			if (i2->reg) {
-				if (!copy_reg_to_user(i2, &uind))
-					return -EFAULT;
-				total++;
-			}
-		}
+		if (cmp <= 0)
+			err = walk_one_sys_reg(i1, &uind, &total);
+		else
+			err = walk_one_sys_reg(i2, &uind, &total);
+
+		if (err)
+			return err;
 
 		if (cmp <= 0 && ++i1 == end1)
 			i1 = NULL;

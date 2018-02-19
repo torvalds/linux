@@ -675,7 +675,6 @@ err_out:
 }
 
 static const struct iio_trigger_ops xadc_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = &xadc_trigger_set_state,
 };
 
@@ -1028,7 +1027,6 @@ static const struct iio_info xadc_info = {
 	.read_event_value = &xadc_read_event_value,
 	.write_event_value = &xadc_write_event_value,
 	.update_scan_mode = &xadc_update_scan_mode,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct of_device_id xadc_of_match_table[] = {

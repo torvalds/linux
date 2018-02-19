@@ -117,7 +117,7 @@ static void irda_usb_close(struct irda_usb_cb *self);
 static void speed_bulk_callback(struct urb *urb);
 static void write_bulk_callback(struct urb *urb);
 static void irda_usb_receive(struct urb *urb);
-static void irda_usb_rx_defer_expired(unsigned long data);
+static void irda_usb_rx_defer_expired(struct timer_list *t);
 static int irda_usb_net_open(struct net_device *dev);
 static int irda_usb_net_close(struct net_device *dev);
 static int irda_usb_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
@@ -334,9 +334,9 @@ static void irda_usb_change_speed_xbofs(struct irda_usb_cb *self)
 	urb->transfer_flags = 0;
 
 	/* Irq disabled -> GFP_ATOMIC */
-	if ((ret = usb_submit_urb(urb, GFP_ATOMIC))) {
+	ret = usb_submit_urb(urb, GFP_ATOMIC);
+	if (ret)
 		net_warn_ratelimited("%s(), failed Speed URB\n", __func__);
-	}
 }
 
 /*------------------------------------------------------------------*/
@@ -846,8 +846,7 @@ static void irda_usb_receive(struct urb *urb)
 		 * hot unplug of the dongle...
 		 * Lowest effective timer is 10ms...
 		 * Jean II */
-		self->rx_defer_timer.function = irda_usb_rx_defer_expired;
-		self->rx_defer_timer.data = (unsigned long) urb;
+		self->rx_defer_timer_urb = urb;
 		mod_timer(&self->rx_defer_timer,
 			  jiffies + msecs_to_jiffies(10));
 
@@ -953,19 +952,12 @@ done:
  * In case of errors, we want the USB layer to have time to recover.
  * Now, it is time to resubmit ouur Rx URB...
  */
-static void irda_usb_rx_defer_expired(unsigned long data)
+static void irda_usb_rx_defer_expired(struct timer_list *t)
 {
-	struct urb *urb = (struct urb *) data;
+	struct irda_usb_cb *self = from_timer(self, t, rx_defer_timer);
+	struct urb *urb = self->rx_defer_timer_urb;
 	struct sk_buff *skb = (struct sk_buff *) urb->context;
-	struct irda_usb_cb *self; 
-	struct irda_skb_cb *cb;
 	struct urb *next_urb;
-
-	/* Find ourselves */
-	cb = (struct irda_skb_cb *) skb->cb;
-	IRDA_ASSERT(cb != NULL, return;);
-	self = (struct irda_usb_cb *) cb->context;
-	IRDA_ASSERT(self != NULL, return;);
 
 	/* Same stuff as when Rx is done, see above... */
 	next_urb = self->idle_rx_urb;
@@ -1622,7 +1614,7 @@ static int irda_usb_probe(struct usb_interface *intf,
 	self = netdev_priv(net);
 	self->netdev = net;
 	spin_lock_init(&self->lock);
-	init_timer(&self->rx_defer_timer);
+	timer_setup(&self->rx_defer_timer, irda_usb_rx_defer_expired, 0);
 
 	self->capability = id->driver_info;
 	self->needspatch = ((self->capability & IUC_STIR421X) != 0);

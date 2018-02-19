@@ -881,7 +881,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	struct sh_mobile_i2c_data *pd;
 	struct i2c_adapter *adap;
 	struct resource *res;
-	const struct of_device_id *match;
+	const struct sh_mobile_dt_config *config;
 	int ret;
 	u32 bus_speed;
 
@@ -913,10 +913,8 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	pd->bus_speed = ret ? STANDARD_MODE : bus_speed;
 	pd->clks_per_count = 1;
 
-	match = of_match_device(sh_mobile_i2c_dt_ids, &dev->dev);
-	if (match) {
-		const struct sh_mobile_dt_config *config = match->data;
-
+	config = of_device_get_match_data(&dev->dev);
+	if (config) {
 		pd->clks_per_count = config->clks_per_count;
 
 		if (config->setup)

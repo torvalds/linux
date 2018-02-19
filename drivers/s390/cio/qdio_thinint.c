@@ -57,10 +57,8 @@ static u32 *get_indicator(void)
 	int i;
 
 	for (i = 0; i < TIQDIO_NR_NONSHARED_IND; i++)
-		if (!atomic_read(&q_indicators[i].count)) {
-			atomic_set(&q_indicators[i].count, 1);
+		if (!atomic_cmpxchg(&q_indicators[i].count, 0, 1))
 			return &q_indicators[i].ind;
-		}
 
 	/* use the shared indicator */
 	atomic_inc(&q_indicators[TIQDIO_SHARED_IND].count);
@@ -69,13 +67,11 @@ static u32 *get_indicator(void)
 
 static void put_indicator(u32 *addr)
 {
-	int i;
+	struct indicator_t *ind = container_of(addr, struct indicator_t, ind);
 
 	if (!addr)
 		return;
-	i = ((unsigned long)addr - (unsigned long)q_indicators) /
-		sizeof(struct indicator_t);
-	atomic_dec(&q_indicators[i].count);
+	atomic_dec(&ind->count);
 }
 
 void tiqdio_add_input_queues(struct qdio_irq *irq_ptr)

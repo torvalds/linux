@@ -100,7 +100,7 @@ struct intel_uncore_extra_reg {
 
 struct intel_uncore_box {
 	int pci_phys_id;
-	int pkgid;
+	int pkgid;	/* Logical package ID */
 	int n_active;	/* number of active events */
 	int n_events;
 	int cpu;	/* cpu to collect events */

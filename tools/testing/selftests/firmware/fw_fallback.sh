@@ -86,6 +86,11 @@ load_fw_cancel()
 
 load_fw_custom()
 {
+	if [ ! -e "$DIR"/trigger_custom_fallback ]; then
+		echo "$0: custom fallback trigger not present, ignoring test" >&2
+		return 1
+	fi
+
 	local name="$1"
 	local file="$2"
 
@@ -108,11 +113,17 @@ load_fw_custom()
 
 	# Wait for request to finish.
 	wait
+	return 0
 }
 
 
 load_fw_custom_cancel()
 {
+	if [ ! -e "$DIR"/trigger_custom_fallback ]; then
+		echo "$0: canceling custom fallback trigger not present, ignoring test" >&2
+		return 1
+	fi
+
 	local name="$1"
 	local file="$2"
 
@@ -133,6 +144,7 @@ load_fw_custom_cancel()
 
 	# Wait for request to finish.
 	wait
+	return 0
 }
 
 load_fw_fallback_with_child()
@@ -227,20 +239,22 @@ else
 	echo "$0: cancelling fallback mechanism works"
 fi
 
-load_fw_custom "$NAME" "$FW"
-if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
-	echo "$0: firmware was not loaded" >&2
-	exit 1
-else
-	echo "$0: custom fallback loading mechanism works"
+if load_fw_custom "$NAME" "$FW" ; then
+	if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
+		echo "$0: firmware was not loaded" >&2
+		exit 1
+	else
+		echo "$0: custom fallback loading mechanism works"
+	fi
 fi
 
-load_fw_custom_cancel "nope-$NAME" "$FW"
-if diff -q "$FW" /dev/test_firmware >/dev/null ; then
-	echo "$0: firmware was expected to be cancelled" >&2
-	exit 1
-else
-	echo "$0: cancelling custom fallback mechanism works"
+if load_fw_custom_cancel "nope-$NAME" "$FW" ; then
+	if diff -q "$FW" /dev/test_firmware >/dev/null ; then
+		echo "$0: firmware was expected to be cancelled" >&2
+		exit 1
+	else
+		echo "$0: cancelling custom fallback mechanism works"
+	fi
 fi
 
 set +e

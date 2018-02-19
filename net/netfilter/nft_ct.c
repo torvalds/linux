@@ -312,39 +312,6 @@ static const struct nla_policy nft_ct_policy[NFTA_CT_MAX + 1] = {
 	[NFTA_CT_SREG]		= { .type = NLA_U32 },
 };
 
-static int nft_ct_netns_get(struct net *net, uint8_t family)
-{
-	int err;
-
-	if (family == NFPROTO_INET) {
-		err = nf_ct_netns_get(net, NFPROTO_IPV4);
-		if (err < 0)
-			goto err1;
-		err = nf_ct_netns_get(net, NFPROTO_IPV6);
-		if (err < 0)
-			goto err2;
-	} else {
-		err = nf_ct_netns_get(net, family);
-		if (err < 0)
-			goto err1;
-	}
-	return 0;
-
-err2:
-	nf_ct_netns_put(net, NFPROTO_IPV4);
-err1:
-	return err;
-}
-
-static void nft_ct_netns_put(struct net *net, uint8_t family)
-{
-	if (family == NFPROTO_INET) {
-		nf_ct_netns_put(net, NFPROTO_IPV4);
-		nf_ct_netns_put(net, NFPROTO_IPV6);
-	} else
-		nf_ct_netns_put(net, family);
-}
-
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 static void nft_ct_tmpl_put_pcpu(void)
 {
@@ -489,7 +456,7 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	err = nft_ct_netns_get(ctx->net, ctx->afi->family);
+	err = nf_ct_netns_get(ctx->net, ctx->afi->family);
 	if (err < 0)
 		return err;
 
@@ -583,7 +550,7 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		goto err1;
 
-	err = nft_ct_netns_get(ctx->net, ctx->afi->family);
+	err = nf_ct_netns_get(ctx->net, ctx->afi->family);
 	if (err < 0)
 		goto err1;
 
@@ -606,7 +573,7 @@ static void nft_ct_set_destroy(const struct nft_ctx *ctx,
 	struct nft_ct *priv = nft_expr_priv(expr);
 
 	__nft_ct_set_destroy(ctx, priv);
-	nft_ct_netns_put(ctx->net, ctx->afi->family);
+	nf_ct_netns_put(ctx->net, ctx->afi->family);
 }
 
 static int nft_ct_get_dump(struct sk_buff *skb, const struct nft_expr *expr)

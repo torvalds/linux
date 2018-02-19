@@ -531,6 +531,8 @@ struct iwl_scan_config_v1 {
 } __packed; /* SCAN_CONFIG_DB_CMD_API_S */
 
 #define SCAN_TWO_LMACS 2
+#define SCAN_LB_LMAC_IDX 0
+#define SCAN_HB_LMAC_IDX 1
 
 struct iwl_scan_config {
 	__le32 flags;
@@ -578,6 +580,7 @@ enum iwl_umac_scan_general_flags {
 	IWL_UMAC_SCAN_GEN_FLAGS_MATCH			= BIT(9),
 	IWL_UMAC_SCAN_GEN_FLAGS_EXTENDED_DWELL		= BIT(10),
 	IWL_UMAC_SCAN_GEN_FLAGS_LMAC2_FRAGMENTED	= BIT(11),
+	IWL_UMAC_SCAN_GEN_FLAGS_ADAPTIVE_DWELL		= BIT(13),
 };
 
 /**
@@ -631,12 +634,17 @@ struct iwl_scan_req_umac_tail {
  * @uid: scan id, &enum iwl_umac_scan_uid_offsets
  * @ooc_priority: out of channel priority - &enum iwl_scan_priority
  * @general_flags: &enum iwl_umac_scan_general_flags
- * @reserved2: for future use and alignment
  * @scan_start_mac_id: report the scan start TSF time according to this mac TSF
  * @extended_dwell: dwell time for channels 1, 6 and 11
  * @active_dwell: dwell time for active scan
  * @passive_dwell: dwell time for passive scan
  * @fragmented_dwell: dwell time for fragmented passive scan
+ * @adwell_default_n_aps: for adaptive dwell the default number of APs
+ *	per channel
+ * @adwell_default_n_aps_social: for adaptive dwell the default
+ *	number of APs per social (1,6,11) channel
+ * @adwell_max_budget: for adaptive dwell the maximal budget of TU to be added
+ *	to total scan time
  * @max_out_time: max out of serving channel time, per LMAC - for CDB there
  *	are 2 LMACs
  * @suspend_time: max suspend time, per LMAC - for CDB there are 2 LMACs
@@ -644,6 +652,8 @@ struct iwl_scan_req_umac_tail {
  * @channel_flags: &enum iwl_scan_channel_flags
  * @n_channels: num of channels in scan request
  * @reserved: for future use and alignment
+ * @reserved2: for future use and alignment
+ * @reserved3: for future use and alignment
  * @data: &struct iwl_scan_channel_cfg_umac and
  *	&struct iwl_scan_req_umac_tail
  */
@@ -651,41 +661,64 @@ struct iwl_scan_req_umac {
 	__le32 flags;
 	__le32 uid;
 	__le32 ooc_priority;
-	/* SCAN_GENERAL_PARAMS_API_S_VER_4 */
 	__le16 general_flags;
-	u8 reserved2;
+	u8 reserved;
 	u8 scan_start_mac_id;
-	u8 extended_dwell;
-	u8 active_dwell;
-	u8 passive_dwell;
-	u8 fragmented_dwell;
 	union {
 		struct {
+			u8 extended_dwell;
+			u8 active_dwell;
+			u8 passive_dwell;
+			u8 fragmented_dwell;
 			__le32 max_out_time;
 			__le32 suspend_time;
 			__le32 scan_priority;
-			/* SCAN_CHANNEL_PARAMS_API_S_VER_4 */
+			/* SCAN_CHANNEL_PARAMS_API_S_VER_1 */
 			u8 channel_flags;
 			u8 n_channels;
-			__le16 reserved;
+			__le16 reserved2;
 			u8 data[];
 		} v1; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_1 */
 		struct {
+			u8 extended_dwell;
+			u8 active_dwell;
+			u8 passive_dwell;
+			u8 fragmented_dwell;
 			__le32 max_out_time[SCAN_TWO_LMACS];
 			__le32 suspend_time[SCAN_TWO_LMACS];
 			__le32 scan_priority;
-			/* SCAN_CHANNEL_PARAMS_API_S_VER_4 */
+			/* SCAN_CHANNEL_PARAMS_API_S_VER_1 */
 			u8 channel_flags;
 			u8 n_channels;
-			__le16 reserved;
+			__le16 reserved2;
 			u8 data[];
 		} v6; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_6 */
+		struct {
+			u8 active_dwell;
+			u8 passive_dwell;
+			u8 fragmented_dwell;
+			u8 adwell_default_n_aps;
+			u8 adwell_default_n_aps_social;
+			u8 reserved3;
+			__le16 adwell_max_budget;
+			__le32 max_out_time[SCAN_TWO_LMACS];
+			__le32 suspend_time[SCAN_TWO_LMACS];
+			__le32 scan_priority;
+			/* SCAN_CHANNEL_PARAMS_API_S_VER_1 */
+			u8 channel_flags;
+			u8 n_channels;
+			__le16 reserved2;
+			u8 data[];
+		} v7; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_7 */
 	};
 } __packed;
 
-#define IWL_SCAN_REQ_UMAC_SIZE sizeof(struct iwl_scan_req_umac)
+#define IWL_SCAN_REQ_UMAC_SIZE_V7 sizeof(struct iwl_scan_req_umac)
+#define IWL_SCAN_REQ_UMAC_SIZE_V6 (sizeof(struct iwl_scan_req_umac) - \
+				   2 * sizeof(u8) - sizeof(__le16))
 #define IWL_SCAN_REQ_UMAC_SIZE_V1 (sizeof(struct iwl_scan_req_umac) - \
-				   2 * sizeof(__le32))
+				   2 * sizeof(__le32) - 2 * sizeof(u8) - \
+				   sizeof(__le16))
 
 /**
  * struct iwl_umac_scan_abort

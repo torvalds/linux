@@ -56,7 +56,7 @@ Examples:
 		interrupts = <115>;
         };
 
-	ahci: sata@01c18000 {
+	ahci: sata@1c18000 {
 		compatible = "allwinner,sun4i-a10-ahci";
 		reg = <0x01c18000 0x1000>;
 		interrupts = <56>;

@@ -110,5 +110,4 @@ struct kvm_vcpu_pv_apf_data {
 #define KVM_PV_EOI_ENABLED KVM_PV_EOI_MASK
 #define KVM_PV_EOI_DISABLED 0x0
 
-
 #endif /* _UAPI_ASM_X86_KVM_PARA_H */

@@ -193,6 +193,9 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 
 	tb10x_gpio->gc.label		=
 		devm_kasprintf(&pdev->dev, GFP_KERNEL, "%pOF", pdev->dev.of_node);
+	if (!tb10x_gpio->gc.label)
+		return -ENOMEM;
+
 	tb10x_gpio->gc.parent		= &pdev->dev;
 	tb10x_gpio->gc.owner		= THIS_MODULE;
 	tb10x_gpio->gc.direction_input	= tb10x_gpio_direction_in;

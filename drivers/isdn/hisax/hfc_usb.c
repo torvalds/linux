@@ -343,8 +343,9 @@ handle_led(hfcusb_data *hfc, int event)
 
 /* ISDN l1 timer T3 expires */
 static void
-l1_timer_expire_t3(hfcusb_data *hfc)
+l1_timer_expire_t3(struct timer_list *t)
 {
+	hfcusb_data *hfc = from_timer(hfc, t, t3_timer);
 	hfc->d_if.ifc.l1l2(&hfc->d_if.ifc, PH_DEACTIVATE | INDICATION,
 			   NULL);
 
@@ -360,8 +361,9 @@ l1_timer_expire_t3(hfcusb_data *hfc)
 
 /* ISDN l1 timer T4 expires */
 static void
-l1_timer_expire_t4(hfcusb_data *hfc)
+l1_timer_expire_t4(struct timer_list *t)
 {
+	hfcusb_data *hfc = from_timer(hfc, t, t4_timer);
 	hfc->d_if.ifc.l1l2(&hfc->d_if.ifc, PH_DEACTIVATE | INDICATION,
 			   NULL);
 
@@ -1165,10 +1167,10 @@ hfc_usb_init(hfcusb_data *hfc)
 	hfc->old_led_state = 0;
 
 	/* init the t3 timer */
-	setup_timer(&hfc->t3_timer, (void *)l1_timer_expire_t3, (long)hfc);
+	timer_setup(&hfc->t3_timer, l1_timer_expire_t3, 0);
 
 	/* init the t4 timer */
-	setup_timer(&hfc->t4_timer, (void *)l1_timer_expire_t4, (long)hfc);
+	timer_setup(&hfc->t4_timer, l1_timer_expire_t4, 0);
 
 	/* init the background machinery for control requests */
 	hfc->ctrl_read.bRequestType = 0xc0;

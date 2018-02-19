@@ -5,6 +5,7 @@
 #include <crypto/algapi.h>
 #include <crypto/hash.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/skcipher.h>
 
 #include <linux/crypto.h>
 #include <linux/dmapool.h>
@@ -373,7 +374,7 @@ struct mv_cesa_engine;
 struct mv_cesa_caps {
 	int nengines;
 	bool has_tdma;
-	struct crypto_alg **cipher_algs;
+	struct skcipher_alg **cipher_algs;
 	int ncipher_algs;
 	struct ahash_alg **ahash_algs;
 	int nahash_algs;
@@ -539,12 +540,12 @@ struct mv_cesa_sg_std_iter {
 };
 
 /**
- * struct mv_cesa_ablkcipher_std_req - cipher standard request
+ * struct mv_cesa_skcipher_std_req - cipher standard request
  * @op:		operation context
  * @offset:	current operation offset
  * @size:	size of the crypto operation
  */
-struct mv_cesa_ablkcipher_std_req {
+struct mv_cesa_skcipher_std_req {
 	struct mv_cesa_op_ctx op;
 	unsigned int offset;
 	unsigned int size;
@@ -552,14 +553,14 @@ struct mv_cesa_ablkcipher_std_req {
 };
 
 /**
- * struct mv_cesa_ablkcipher_req - cipher request
+ * struct mv_cesa_skcipher_req - cipher request
  * @req:	type specific request information
  * @src_nents:	number of entries in the src sg list
  * @dst_nents:	number of entries in the dest sg list
  */
-struct mv_cesa_ablkcipher_req {
+struct mv_cesa_skcipher_req {
 	struct mv_cesa_req base;
-	struct mv_cesa_ablkcipher_std_req std;
+	struct mv_cesa_skcipher_std_req std;
 	int src_nents;
 	int dst_nents;
 };
@@ -764,7 +765,7 @@ static inline int mv_cesa_req_needs_cleanup(struct crypto_async_request *req,
 	 * the backlog and will be processed later. There's no need to
 	 * clean it up.
 	 */
-	if (ret == -EBUSY && req->flags & CRYPTO_TFM_REQ_MAY_BACKLOG)
+	if (ret == -EBUSY)
 		return false;
 
 	/* Request wasn't queued, we need to clean it up */
@@ -869,11 +870,11 @@ extern struct ahash_alg mv_ahmac_md5_alg;
 extern struct ahash_alg mv_ahmac_sha1_alg;
 extern struct ahash_alg mv_ahmac_sha256_alg;
 
-extern struct crypto_alg mv_cesa_ecb_des_alg;
-extern struct crypto_alg mv_cesa_cbc_des_alg;
-extern struct crypto_alg mv_cesa_ecb_des3_ede_alg;
-extern struct crypto_alg mv_cesa_cbc_des3_ede_alg;
-extern struct crypto_alg mv_cesa_ecb_aes_alg;
-extern struct crypto_alg mv_cesa_cbc_aes_alg;
+extern struct skcipher_alg mv_cesa_ecb_des_alg;
+extern struct skcipher_alg mv_cesa_cbc_des_alg;
+extern struct skcipher_alg mv_cesa_ecb_des3_ede_alg;
+extern struct skcipher_alg mv_cesa_cbc_des3_ede_alg;
+extern struct skcipher_alg mv_cesa_ecb_aes_alg;
+extern struct skcipher_alg mv_cesa_cbc_aes_alg;
 
 #endif /* __MARVELL_CESA_H__ */

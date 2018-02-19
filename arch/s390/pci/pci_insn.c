@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * s390 specific pci instructions
  *
@@ -7,6 +8,7 @@
 #include <linux/export.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
+#include <asm/facility.h>
 #include <asm/pci_insn.h>
 #include <asm/pci_debug.h>
 #include <asm/processor.h>
@@ -87,15 +89,21 @@ int zpci_refresh_trans(u64 fn, u64 addr, u64 range)
 	if (cc)
 		zpci_err_insn(cc, status, addr, range);
 
+	if (cc == 1 && (status == 4 || status == 16))
+		return -ENOMEM;
+
 	return (cc) ? -EIO : 0;
 }
 
 /* Set Interruption Controls */
-void zpci_set_irq_ctrl(u16 ctl, char *unused, u8 isc)
+int zpci_set_irq_ctrl(u16 ctl, char *unused, u8 isc)
 {
+	if (!test_facility(72))
+		return -EIO;
 	asm volatile (
 		"	.insn	rsy,0xeb00000000d1,%[ctl],%[isc],%[u]\n"
 		: : [ctl] "d" (ctl), [isc] "d" (isc << 27), [u] "Q" (*unused));
+	return 0;
 }
 
 /* PCI Load */

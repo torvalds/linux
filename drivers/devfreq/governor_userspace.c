@@ -87,7 +87,7 @@ static struct attribute *dev_entries[] = {
 	NULL,
 };
 static const struct attribute_group dev_attr_group = {
-	.name	= "userspace",
+	.name	= DEVFREQ_GOV_USERSPACE,
 	.attrs	= dev_entries,
 };
 

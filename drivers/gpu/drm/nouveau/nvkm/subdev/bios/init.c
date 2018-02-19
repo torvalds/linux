@@ -36,6 +36,8 @@
 #include <subdev/i2c.h>
 #include <subdev/vga.h>
 
+#include <linux/kernel.h>
+
 #define bioslog(lvl, fmt, args...) do {                                        \
 	nvkm_printk(init->subdev, lvl, info, "0x%08x[%c]: "fmt,                \
 		    init->offset, init_exec(init) ?                            \
@@ -2271,8 +2273,6 @@ static struct nvbios_init_opcode {
 	[0xaa] = { init_reserved },
 };
 
-#define init_opcode_nr (sizeof(init_opcode) / sizeof(init_opcode[0]))
-
 int
 nvbios_exec(struct nvbios_init *init)
 {
@@ -2281,7 +2281,8 @@ nvbios_exec(struct nvbios_init *init)
 	init->nested++;
 	while (init->offset) {
 		u8 opcode = nvbios_rd08(bios, init->offset);
-		if (opcode >= init_opcode_nr || !init_opcode[opcode].exec) {
+		if (opcode >= ARRAY_SIZE(init_opcode) ||
+		    !init_opcode[opcode].exec) {
 			error("unknown opcode 0x%02x\n", opcode);
 			return -EINVAL;
 		}

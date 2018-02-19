@@ -799,7 +799,6 @@ static int vf610_adc_reg_access(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info vf610_adc_iio_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &vf610_read_raw,
 	.write_raw = &vf610_write_raw,
 	.debugfs_reg_access = &vf610_adc_reg_access,

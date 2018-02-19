@@ -33,6 +33,10 @@ Groups:
       request the initialization of the ITS, no additional parameter in
       kvm_device_attr.addr.
 
+    KVM_DEV_ARM_ITS_CTRL_RESET
+      reset the ITS, no additional parameter in kvm_device_attr.addr.
+      See "ITS Reset State" section.
+
     KVM_DEV_ARM_ITS_SAVE_TABLES
       save the ITS table data into guest RAM, at the location provisioned
       by the guest in corresponding registers/table entries.
@@ -60,6 +64,8 @@ Groups:
     -EINVAL: Inconsistent restored data
     -EFAULT: Invalid guest ram access
     -EBUSY:  One or more VCPUS are running
+    -EACCES: The virtual ITS is backed by a physical GICv4 ITS, and the
+	     state is not available
 
   KVM_DEV_ARM_VGIC_GRP_ITS_REGS
   Attributes:
@@ -157,3 +163,19 @@ Then vcpus can be started.
  - pINTID is the physical LPI ID; if zero, it means the entry is not valid
    and other fields are not meaningful.
  - ICID is the collection ID
+
+ ITS Reset State:
+ ----------------
+
+RESET returns the ITS to the same state that it was when first created and
+initialized. When the RESET command returns, the following things are
+guaranteed:
+
+- The ITS is not enabled and quiescent
+  GITS_CTLR.Enabled = 0 .Quiescent=1
+- There is no internally cached state
+- No collection or device table are used
+  GITS_BASER<n>.Valid = 0
+- GITS_CBASER = 0, GITS_CREADR = 0, GITS_CWRITER = 0
+- The ABI version is unchanged and remains the one set when the ITS
+  device was first created.

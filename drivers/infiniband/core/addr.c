@@ -229,8 +229,9 @@ void rdma_addr_unregister_client(struct rdma_addr_client *client)
 }
 EXPORT_SYMBOL(rdma_addr_unregister_client);
 
-int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
-		     const unsigned char *dst_dev_addr)
+void rdma_copy_addr(struct rdma_dev_addr *dev_addr,
+		    const struct net_device *dev,
+		    const unsigned char *dst_dev_addr)
 {
 	dev_addr->dev_type = dev->type;
 	memcpy(dev_addr->src_dev_addr, dev->dev_addr, MAX_ADDR_LEN);
@@ -238,7 +239,6 @@ int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
 	if (dst_dev_addr)
 		memcpy(dev_addr->dst_dev_addr, dst_dev_addr, MAX_ADDR_LEN);
 	dev_addr->bound_dev_if = dev->ifindex;
-	return 0;
 }
 EXPORT_SYMBOL(rdma_copy_addr);
 
@@ -247,15 +247,14 @@ int rdma_translate_ip(const struct sockaddr *addr,
 		      u16 *vlan_id)
 {
 	struct net_device *dev;
-	int ret = -EADDRNOTAVAIL;
 
 	if (dev_addr->bound_dev_if) {
 		dev = dev_get_by_index(dev_addr->net, dev_addr->bound_dev_if);
 		if (!dev)
 			return -ENODEV;
-		ret = rdma_copy_addr(dev_addr, dev, NULL);
+		rdma_copy_addr(dev_addr, dev, NULL);
 		dev_put(dev);
-		return ret;
+		return 0;
 	}
 
 	switch (addr->sa_family) {
@@ -264,9 +263,9 @@ int rdma_translate_ip(const struct sockaddr *addr,
 			((const struct sockaddr_in *)addr)->sin_addr.s_addr);
 
 		if (!dev)
-			return ret;
+			return -EADDRNOTAVAIL;
 
-		ret = rdma_copy_addr(dev_addr, dev, NULL);
+		rdma_copy_addr(dev_addr, dev, NULL);
 		dev_addr->bound_dev_if = dev->ifindex;
 		if (vlan_id)
 			*vlan_id = rdma_vlan_dev_vlan_id(dev);
@@ -279,7 +278,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
 			if (ipv6_chk_addr(dev_addr->net,
 					  &((const struct sockaddr_in6 *)addr)->sin6_addr,
 					  dev, 1)) {
-				ret = rdma_copy_addr(dev_addr, dev, NULL);
+				rdma_copy_addr(dev_addr, dev, NULL);
 				dev_addr->bound_dev_if = dev->ifindex;
 				if (vlan_id)
 					*vlan_id = rdma_vlan_dev_vlan_id(dev);
@@ -290,7 +289,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
 		break;
 #endif
 	}
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(rdma_translate_ip);
 
@@ -336,7 +335,7 @@ static int dst_fetch_ha(struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
 			const void *daddr)
 {
 	struct neighbour *n;
-	int ret;
+	int ret = 0;
 
 	n = dst_neigh_lookup(dst, daddr);
 
@@ -346,7 +345,7 @@ static int dst_fetch_ha(struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
 			neigh_event_send(n, NULL);
 		ret = -ENODATA;
 	} else {
-		ret = rdma_copy_addr(dev_addr, dst->dev, n->ha);
+		rdma_copy_addr(dev_addr, dst->dev, n->ha);
 	}
 	rcu_read_unlock();
 
@@ -494,7 +493,9 @@ static int addr_resolve_neigh(struct dst_entry *dst,
 	if (!(dst->dev->flags & IFF_NOARP))
 		return fetch_ha(dst, addr, dst_in, seq);
 
-	return rdma_copy_addr(addr, dst->dev, NULL);
+	rdma_copy_addr(addr, dst->dev, NULL);
+
+	return 0;
 }
 
 static int addr_resolve(struct sockaddr *src_in,
@@ -852,7 +853,7 @@ static struct notifier_block nb = {
 
 int addr_init(void)
 {
-	addr_wq = alloc_ordered_workqueue("ib_addr", WQ_MEM_RECLAIM);
+	addr_wq = alloc_ordered_workqueue("ib_addr", 0);
 	if (!addr_wq)
 		return -ENOMEM;
 

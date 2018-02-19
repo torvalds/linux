@@ -355,6 +355,7 @@ acpi_evaluate_reference(acpi_handle handle,
 	}
 
 	if (package->package.count > ACPI_MAX_HANDLES) {
+		kfree(package);
 		return AE_NO_MEMORY;
 	}
 	list->count = package->package.count;

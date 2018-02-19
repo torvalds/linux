@@ -27,12 +27,21 @@ static struct phy_led_trigger *phy_speed_to_led_trigger(struct phy_device *phy,
 	return NULL;
 }
 
+static void phy_led_trigger_no_link(struct phy_device *phy)
+{
+	if (phy->last_triggered) {
+		led_trigger_event(&phy->last_triggered->trigger, LED_OFF);
+		led_trigger_event(&phy->led_link_trigger->trigger, LED_OFF);
+		phy->last_triggered = NULL;
+	}
+}
+
 void phy_led_trigger_change_speed(struct phy_device *phy)
 {
 	struct phy_led_trigger *plt;
 
 	if (!phy->link)
-		goto out_change_speed;
+		return phy_led_trigger_no_link(phy);
 
 	if (phy->speed == 0)
 		return;
@@ -42,24 +51,27 @@ void phy_led_trigger_change_speed(struct phy_device *phy)
 		netdev_alert(phy->attached_dev,
 			     "No phy led trigger registered for speed(%d)\n",
 			     phy->speed);
-		goto out_change_speed;
+		return phy_led_trigger_no_link(phy);
 	}
 
 	if (plt != phy->last_triggered) {
+		if (!phy->last_triggered)
+			led_trigger_event(&phy->led_link_trigger->trigger,
+					  LED_FULL);
+
 		led_trigger_event(&phy->last_triggered->trigger, LED_OFF);
 		led_trigger_event(&plt->trigger, LED_FULL);
 		phy->last_triggered = plt;
 	}
-	return;
-
-out_change_speed:
-	if (phy->last_triggered) {
-		led_trigger_event(&phy->last_triggered->trigger,
-				  LED_OFF);
-		phy->last_triggered = NULL;
-	}
 }
 EXPORT_SYMBOL_GPL(phy_led_trigger_change_speed);
+
+static void phy_led_trigger_format_name(struct phy_device *phy, char *buf,
+					size_t size, char *suffix)
+{
+	snprintf(buf, size, PHY_ID_FMT ":%s",
+		 phy->mdio.bus->id, phy->mdio.addr, suffix);
+}
 
 static int phy_led_trigger_register(struct phy_device *phy,
 				    struct phy_led_trigger *plt,
@@ -77,8 +89,8 @@ static int phy_led_trigger_register(struct phy_device *phy,
 		snprintf(name_suffix, sizeof(name_suffix), "%dGbps",
 			 DIV_ROUND_CLOSEST(speed, 1000));
 
-	snprintf(plt->name, sizeof(plt->name), PHY_ID_FMT ":%s",
-		 phy->mdio.bus->id, phy->mdio.addr, name_suffix);
+	phy_led_trigger_format_name(phy, plt->name, sizeof(plt->name),
+				    name_suffix);
 	plt->trigger.name = plt->name;
 
 	return led_trigger_register(&plt->trigger);
@@ -99,13 +111,30 @@ int phy_led_triggers_register(struct phy_device *phy)
 	if (!phy->phy_num_led_triggers)
 		return 0;
 
+	phy->led_link_trigger = devm_kzalloc(&phy->mdio.dev,
+					     sizeof(*phy->led_link_trigger),
+					     GFP_KERNEL);
+	if (!phy->led_link_trigger) {
+		err = -ENOMEM;
+		goto out_clear;
+	}
+
+	phy_led_trigger_format_name(phy, phy->led_link_trigger->name,
+				    sizeof(phy->led_link_trigger->name),
+				    "link");
+	phy->led_link_trigger->trigger.name = phy->led_link_trigger->name;
+
+	err = led_trigger_register(&phy->led_link_trigger->trigger);
+	if (err)
+		goto out_free_link;
+
 	phy->phy_led_triggers = devm_kzalloc(&phy->mdio.dev,
 					    sizeof(struct phy_led_trigger) *
 						   phy->phy_num_led_triggers,
 					    GFP_KERNEL);
 	if (!phy->phy_led_triggers) {
 		err = -ENOMEM;
-		goto out_clear;
+		goto out_unreg_link;
 	}
 
 	for (i = 0; i < phy->phy_num_led_triggers; i++) {
@@ -123,6 +152,11 @@ out_unreg:
 	while (i--)
 		phy_led_trigger_unregister(&phy->phy_led_triggers[i]);
 	devm_kfree(&phy->mdio.dev, phy->phy_led_triggers);
+out_unreg_link:
+	phy_led_trigger_unregister(phy->led_link_trigger);
+out_free_link:
+	devm_kfree(&phy->mdio.dev, phy->led_link_trigger);
+	phy->led_link_trigger = NULL;
 out_clear:
 	phy->phy_num_led_triggers = 0;
 	return err;
@@ -135,5 +169,8 @@ void phy_led_triggers_unregister(struct phy_device *phy)
 
 	for (i = 0; i < phy->phy_num_led_triggers; i++)
 		phy_led_trigger_unregister(&phy->phy_led_triggers[i]);
+
+	if (phy->led_link_trigger)
+		phy_led_trigger_unregister(phy->led_link_trigger);
 }
 EXPORT_SYMBOL_GPL(phy_led_triggers_unregister);

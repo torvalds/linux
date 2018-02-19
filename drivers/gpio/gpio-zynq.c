@@ -562,7 +562,7 @@ static void zynq_gpio_handle_bank_irq(struct zynq_gpio *gpio,
 				      unsigned long pending)
 {
 	unsigned int bank_offset = gpio->p_data->bank_min[bank_num];
-	struct irq_domain *irqdomain = gpio->chip.irqdomain;
+	struct irq_domain *irqdomain = gpio->chip.irq.domain;
 	int offset;
 
 	if (!pending)

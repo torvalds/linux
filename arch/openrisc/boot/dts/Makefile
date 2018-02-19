@@ -6,6 +6,4 @@ BUILTIN_DTB :=
 endif
 obj-y += $(BUILTIN_DTB)
 
-clean-files := *.dtb.S
-
 #DTC_FLAGS ?= -p 1024

@@ -132,10 +132,8 @@ struct va_format {
  */
 #define no_printk(fmt, ...)				\
 ({							\
-	do {						\
-		if (0)					\
-			printk(fmt, ##__VA_ARGS__);	\
-	} while (0);					\
+	if (0)						\
+		printk(fmt, ##__VA_ARGS__);		\
 	0;						\
 })
 
@@ -189,7 +187,6 @@ extern bool printk_timed_ratelimit(unsigned long *caller_jiffies,
 
 extern int printk_delay_msec;
 extern int dmesg_restrict;
-extern int kptr_restrict;
 
 extern int
 devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write, void __user *buf,
@@ -279,6 +276,8 @@ static inline void printk_safe_flush_on_panic(void)
 {
 }
 #endif
+
+extern int kptr_restrict;
 
 extern asmlinkage void dump_stack(void) __cold;
 

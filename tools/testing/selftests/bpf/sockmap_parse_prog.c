@@ -29,9 +29,6 @@ int bpf_prog1(struct __sk_buff *skb)
 	 * fields.
 	 */
 	d[7] = 1;
-
-	bpf_printk("parse: data[0] = (%u): local_port %i remote %i\n",
-		   d[0], lport, bpf_ntohl(rport));
 	return skb->len;
 }
 

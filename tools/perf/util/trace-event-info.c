@@ -28,7 +28,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-#include <pthread.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>

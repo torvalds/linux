@@ -20,7 +20,7 @@ struct kmem_cache {
 	struct reciprocal_value reciprocal_buffer_size;
 /* 2) touched by every alloc & free from the backend */
 
-	unsigned int flags;		/* constant flags */
+	slab_flags_t flags;		/* constant flags */
 	unsigned int num;		/* # of objs per slab */
 
 /* 3) cache_grow/shrink */
