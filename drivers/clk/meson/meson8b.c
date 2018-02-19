@@ -506,7 +506,6 @@ static struct clk_regmap meson8b_mpeg_clk_sel = {
 		.parent_names = (const char *[]){ "fclk_div3", "fclk_div4",
 			"fclk_div5" },
 		.num_parents = 3,
-		.flags = (CLK_SET_RATE_NO_REPARENT | CLK_IGNORE_UNUSED),
 	},
 };
 
@@ -518,10 +517,9 @@ struct clk_regmap meson8b_mpeg_clk_div = {
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mpeg_clk_div",
-		.ops = &clk_regmap_divider_ops,
+		.ops = &clk_regmap_divider_ro_ops,
 		.parent_names = (const char *[]){ "mpeg_clk_sel" },
 		.num_parents = 1,
-		.flags = (CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED),
 	},
 };
 
@@ -535,7 +533,7 @@ struct clk_regmap meson8b_clk81 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "mpeg_clk_div" },
 		.num_parents = 1,
-		.flags = (CLK_SET_RATE_PARENT | CLK_IS_CRITICAL),
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
