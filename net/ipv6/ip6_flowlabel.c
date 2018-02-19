@@ -873,6 +873,7 @@ static void __net_exit ip6_flowlabel_net_exit(struct net *net)
 static struct pernet_operations ip6_flowlabel_net_ops = {
 	.init = ip6_flowlabel_proc_init,
 	.exit = ip6_flowlabel_net_exit,
+	.async = true,
 };
 
 int ip6_flowlabel_init(void)
