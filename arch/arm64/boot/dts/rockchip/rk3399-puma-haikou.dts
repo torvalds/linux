@@ -117,14 +117,6 @@
 	clock-frequency = <400000>;
 };
 
-&i2s0 {
-	status = "okay";
-	rockchip,playback-channels = <8>;
-	rockchip,capture-channels = <8>;
-	#sound-dai-cells = <0>;
-	status = "okay";
-};
-
 &pcie_phy {
 	status = "okay";
 };
