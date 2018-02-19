@@ -2406,7 +2406,7 @@ static void Handle_PowerManagement(struct wilc_vif *vif,
 }
 
 static void Handle_SetMulticastFilter(struct wilc_vif *vif,
-				      struct set_multicast *strHostIfSetMulti)
+				      struct set_multicast *hif_set_mc)
 {
 	s32 result = 0;
 	struct wid wid;
@@ -2414,25 +2414,25 @@ static void Handle_SetMulticastFilter(struct wilc_vif *vif,
 
 	wid.id = (u16)WID_SETUP_MULTICAST_FILTER;
 	wid.type = WID_BIN;
-	wid.size = sizeof(struct set_multicast) + (strHostIfSetMulti->cnt * ETH_ALEN);
+	wid.size = sizeof(struct set_multicast) + (hif_set_mc->cnt * ETH_ALEN);
 	wid.val = kmalloc(wid.size, GFP_KERNEL);
 	if (!wid.val)
 		goto ERRORHANDLER;
 
 	cur_byte = wid.val;
-	*cur_byte++ = (strHostIfSetMulti->enabled & 0xFF);
+	*cur_byte++ = (hif_set_mc->enabled & 0xFF);
 	*cur_byte++ = 0;
 	*cur_byte++ = 0;
 	*cur_byte++ = 0;
 
-	*cur_byte++ = (strHostIfSetMulti->cnt & 0xFF);
-	*cur_byte++ = ((strHostIfSetMulti->cnt >> 8) & 0xFF);
-	*cur_byte++ = ((strHostIfSetMulti->cnt >> 16) & 0xFF);
-	*cur_byte++ = ((strHostIfSetMulti->cnt >> 24) & 0xFF);
+	*cur_byte++ = (hif_set_mc->cnt & 0xFF);
+	*cur_byte++ = ((hif_set_mc->cnt >> 8) & 0xFF);
+	*cur_byte++ = ((hif_set_mc->cnt >> 16) & 0xFF);
+	*cur_byte++ = ((hif_set_mc->cnt >> 24) & 0xFF);
 
-	if ((strHostIfSetMulti->cnt) > 0)
+	if ((hif_set_mc->cnt) > 0)
 		memcpy(cur_byte, wilc_multicast_mac_addr_list,
-		       ((strHostIfSetMulti->cnt) * ETH_ALEN));
+		       ((hif_set_mc->cnt) * ETH_ALEN));
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
