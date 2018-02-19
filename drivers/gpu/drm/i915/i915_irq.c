@@ -1413,9 +1413,11 @@ gen8_cs_irq_handler(struct intel_engine_cs *engine, u32 iir, int test_shift)
 		tasklet_hi_schedule(&execlists->tasklet);
 }
 
-static void gen8_gt_irq_ack(struct drm_i915_private *dev_priv,
+static void gen8_gt_irq_ack(struct drm_i915_private *i915,
 			    u32 master_ctl, u32 gt_iir[4])
 {
+	void __iomem * const regs = i915->regs;
+
 #define GEN8_GT_IRQS (GEN8_GT_RCS_IRQ | \
 		      GEN8_GT_BCS_IRQ | \
 		      GEN8_GT_VCS1_IRQ | \
@@ -1425,62 +1427,58 @@ static void gen8_gt_irq_ack(struct drm_i915_private *dev_priv,
 		      GEN8_GT_GUC_IRQ)
 
 	if (master_ctl & (GEN8_GT_RCS_IRQ | GEN8_GT_BCS_IRQ)) {
-		gt_iir[0] = I915_READ_FW(GEN8_GT_IIR(0));
-		if (gt_iir[0])
-			I915_WRITE_FW(GEN8_GT_IIR(0), gt_iir[0]);
+		gt_iir[0] = raw_reg_read(regs, GEN8_GT_IIR(0));
+		if (likely(gt_iir[0]))
+			raw_reg_write(regs, GEN8_GT_IIR(0), gt_iir[0]);
 	}
 
 	if (master_ctl & (GEN8_GT_VCS1_IRQ | GEN8_GT_VCS2_IRQ)) {
-		gt_iir[1] = I915_READ_FW(GEN8_GT_IIR(1));
-		if (gt_iir[1])
-			I915_WRITE_FW(GEN8_GT_IIR(1), gt_iir[1]);
-	}
-
-	if (master_ctl & GEN8_GT_VECS_IRQ) {
-		gt_iir[3] = I915_READ_FW(GEN8_GT_IIR(3));
-		if (gt_iir[3])
-			I915_WRITE_FW(GEN8_GT_IIR(3), gt_iir[3]);
+		gt_iir[1] = raw_reg_read(regs, GEN8_GT_IIR(1));
+		if (likely(gt_iir[1]))
+			raw_reg_write(regs, GEN8_GT_IIR(1), gt_iir[1]);
 	}
 
 	if (master_ctl & (GEN8_GT_PM_IRQ | GEN8_GT_GUC_IRQ)) {
-		gt_iir[2] = I915_READ_FW(GEN8_GT_IIR(2));
-		if (gt_iir[2] & (dev_priv->pm_rps_events |
-				 dev_priv->pm_guc_events)) {
-			I915_WRITE_FW(GEN8_GT_IIR(2),
-				      gt_iir[2] & (dev_priv->pm_rps_events |
-						   dev_priv->pm_guc_events));
-		}
+		gt_iir[2] = raw_reg_read(regs, GEN8_GT_IIR(2));
+		if (likely(gt_iir[2] & (i915->pm_rps_events |
+					i915->pm_guc_events)))
+			raw_reg_write(regs, GEN8_GT_IIR(2),
+				      gt_iir[2] & (i915->pm_rps_events |
+						   i915->pm_guc_events));
+	}
+
+	if (master_ctl & GEN8_GT_VECS_IRQ) {
+		gt_iir[3] = raw_reg_read(regs, GEN8_GT_IIR(3));
+		if (likely(gt_iir[3]))
+			raw_reg_write(regs, GEN8_GT_IIR(3), gt_iir[3]);
 	}
 }
 
-static void gen8_gt_irq_handler(struct drm_i915_private *dev_priv,
+static void gen8_gt_irq_handler(struct drm_i915_private *i915,
 				u32 master_ctl, u32 gt_iir[4])
 {
 	if (master_ctl & (GEN8_GT_RCS_IRQ | GEN8_GT_BCS_IRQ)) {
-		gen8_cs_irq_handler(dev_priv->engine[RCS],
+		gen8_cs_irq_handler(i915->engine[RCS],
 				    gt_iir[0], GEN8_RCS_IRQ_SHIFT);
-		gen8_cs_irq_handler(dev_priv->engine[BCS],
+		gen8_cs_irq_handler(i915->engine[BCS],
 				    gt_iir[0], GEN8_BCS_IRQ_SHIFT);
 	}
 
 	if (master_ctl & (GEN8_GT_VCS1_IRQ | GEN8_GT_VCS2_IRQ)) {
-		gen8_cs_irq_handler(dev_priv->engine[VCS],
+		gen8_cs_irq_handler(i915->engine[VCS],
 				    gt_iir[1], GEN8_VCS1_IRQ_SHIFT);
-		gen8_cs_irq_handler(dev_priv->engine[VCS2],
+		gen8_cs_irq_handler(i915->engine[VCS2],
 				    gt_iir[1], GEN8_VCS2_IRQ_SHIFT);
 	}
 
 	if (master_ctl & GEN8_GT_VECS_IRQ) {
-		gen8_cs_irq_handler(dev_priv->engine[VECS],
+		gen8_cs_irq_handler(i915->engine[VECS],
 				    gt_iir[3], GEN8_VECS_IRQ_SHIFT);
 	}
 
 	if (master_ctl & (GEN8_GT_PM_IRQ | GEN8_GT_GUC_IRQ)) {
-		if (gt_iir[2] & dev_priv->pm_rps_events)
-			gen6_rps_irq_handler(dev_priv, gt_iir[2]);
-
-		if (gt_iir[2] & dev_priv->pm_guc_events)
-			gen9_guc_irq_handler(dev_priv, gt_iir[2]);
+		gen6_rps_irq_handler(i915, gt_iir[2]);
+		gen9_guc_irq_handler(i915, gt_iir[2]);
 	}
 }
 
