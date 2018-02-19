@@ -1245,7 +1245,7 @@ static s32 handle_connect_timeout(struct wilc_vif *vif)
 }
 
 static s32 Handle_RcvdNtwrkInfo(struct wilc_vif *vif,
-				struct rcvd_net_info *pstrRcvdNetworkInfo)
+				struct rcvd_net_info *rcvd_info)
 {
 	u32 i;
 	bool bNewNtwrkFound;
@@ -1257,7 +1257,7 @@ static s32 Handle_RcvdNtwrkInfo(struct wilc_vif *vif,
 	bNewNtwrkFound = true;
 
 	if (hif_drv->usr_scan_req.scan_result) {
-		wilc_parse_network_info(pstrRcvdNetworkInfo->buffer, &pstrNetworkInfo);
+		wilc_parse_network_info(rcvd_info->buffer, &pstrNetworkInfo);
 		if (!pstrNetworkInfo ||
 		    !hif_drv->usr_scan_req.scan_result) {
 			netdev_err(vif->ndev, "driver is null\n");
@@ -1302,8 +1302,8 @@ static s32 Handle_RcvdNtwrkInfo(struct wilc_vif *vif,
 	}
 
 done:
-	kfree(pstrRcvdNetworkInfo->buffer);
-	pstrRcvdNetworkInfo->buffer = NULL;
+	kfree(rcvd_info->buffer);
+	rcvd_info->buffer = NULL;
 
 	if (pstrNetworkInfo) {
 		kfree(pstrNetworkInfo->ies);
