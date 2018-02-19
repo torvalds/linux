@@ -361,14 +361,14 @@ static void release_stats_buffers(struct ibmvnic_adapter *adapter)
 static int init_stats_buffers(struct ibmvnic_adapter *adapter)
 {
 	adapter->tx_stats_buffers =
-				kcalloc(adapter->req_tx_queues,
+				kcalloc(IBMVNIC_MAX_QUEUES,
 					sizeof(struct ibmvnic_tx_queue_stats),
 					GFP_KERNEL);
 	if (!adapter->tx_stats_buffers)
 		return -ENOMEM;
 
 	adapter->rx_stats_buffers =
-				kcalloc(adapter->req_rx_queues,
+				kcalloc(IBMVNIC_MAX_QUEUES,
 					sizeof(struct ibmvnic_rx_queue_stats),
 					GFP_KERNEL);
 	if (!adapter->rx_stats_buffers)
