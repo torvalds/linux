@@ -1254,14 +1254,10 @@ restart:
 
 	while (msg_data_left(msg)) {
 		int copy = 0;
-		int max = size_goal;
 
 		skb = tcp_write_queue_tail(sk);
-		if (skb) {
-			if (skb->ip_summed == CHECKSUM_NONE)
-				max = mss_now;
-			copy = max - skb->len;
-		}
+		if (skb)
+			copy = size_goal - skb->len;
 
 		if (copy <= 0 || !tcp_skb_can_collapse_to(skb)) {
 			bool first_skb;
@@ -1290,7 +1286,6 @@ new_segment:
 
 			skb_entail(sk, skb);
 			copy = size_goal;
-			max = size_goal;
 
 			/* All packets are restored as if they have
 			 * already been sent. skb_mstamp isn't set to
@@ -1374,7 +1369,7 @@ new_segment:
 			goto out;
 		}
 
-		if (skb->len < max || (flags & MSG_OOB) || unlikely(tp->repair))
+		if (skb->len < size_goal || (flags & MSG_OOB) || unlikely(tp->repair))
 			continue;
 
 		if (forced_push(tp)) {
