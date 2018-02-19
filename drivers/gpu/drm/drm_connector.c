@@ -849,13 +849,13 @@ DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
  *
  *	The value of this property can be one of the following:
  *
- *	- DRM_MODE_CONTENT_PROTECTION_UNDESIRED = 0
+ *	DRM_MODE_CONTENT_PROTECTION_UNDESIRED = 0
  *		The link is not protected, content is transmitted in the clear.
- *	- DRM_MODE_CONTENT_PROTECTION_DESIRED = 1
+ *	DRM_MODE_CONTENT_PROTECTION_DESIRED = 1
  *		Userspace has requested content protection, but the link is not
  *		currently protected. When in this state, kernel should enable
  *		Content Protection as soon as possible.
- *	- DRM_MODE_CONTENT_PROTECTION_ENABLED = 2
+ *	DRM_MODE_CONTENT_PROTECTION_ENABLED = 2
  *		Userspace has requested content protection, and the link is
  *		protected. Only the driver can set the property to this value.
  *		If userspace attempts to set to ENABLED, kernel will return
@@ -889,7 +889,31 @@ DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
  *	INPUT_PROP_DIRECT) will still map 1:1 to the actual LCD panel
  *	coordinates, so if userspace rotates the picture to adjust for
  *	the orientation it must also apply the same transformation to the
- *	touchscreen input coordinates.
+ *	touchscreen input coordinates. This property is initialized by calling
+ *	drm_connector_init_panel_orientation_property().
+ *
+ * scaling mode:
+ *	This property defines how a non-native mode is upscaled to the native
+ *	mode of an LCD panel:
+ *
+ *	None:
+ *		No upscaling happens, scaling is left to the panel. Not all
+ *		drivers expose this mode.
+ *	Full:
+ *		The output is upscaled to the full resolution of the panel,
+ *		ignoring the aspect ratio.
+ *	Center:
+ *		No upscaling happens, the output is centered within the native
+ *		resolution the panel.
+ *	Full aspect:
+ *		The output is upscaled to maximize either the width or height
+ *		while retaining the aspect ratio.
+ *
+ *	This property should be set up by calling
+ *	drm_connector_attach_scaling_mode_property(). Note that drivers
+ *	can also expose this property to external outputs, in which case they
+ *	must support "None", which should be the default (since external screens
+ *	have a built-in scaler).
  */
 
 int drm_connector_create_standard_properties(struct drm_device *dev)
