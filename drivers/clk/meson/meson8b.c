@@ -125,6 +125,11 @@ static struct clk_regmap meson8b_fixed_pll = {
 			.shift   = 16,
 			.width   = 2,
 		},
+		.frac = {
+			.reg_off = HHI_MPLL_CNTL2,
+			.shift   = 0,
+			.width   = 12,
+		},
 		.l = {
 			.reg_off = HHI_MPLL_CNTL,
 			.shift   = 31,
