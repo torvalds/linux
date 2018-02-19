@@ -2647,7 +2647,7 @@ free_msg:
 	complete(&hif_thread_comp);
 }
 
-static void TimerCB_Scan(struct timer_list *t)
+static void timer_scan_cb(struct timer_list *t)
 {
 	struct host_if_drv *hif_drv = from_timer(hif_drv, t, scan_timer);
 	struct wilc_vif *vif = hif_drv->scan_timer_vif;
@@ -2660,7 +2660,7 @@ static void TimerCB_Scan(struct timer_list *t)
 	wilc_enqueue_cmd(&msg);
 }
 
-static void TimerCB_Connect(struct timer_list *t)
+static void timer_connect_cb(struct timer_list *t)
 {
 	struct host_if_drv *hif_drv = from_timer(hif_drv, t,
 						      connect_timer);
@@ -3385,8 +3385,8 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 		mod_timer(&periodic_rssi, jiffies + msecs_to_jiffies(5000));
 	}
 
-	timer_setup(&hif_drv->scan_timer, TimerCB_Scan, 0);
-	timer_setup(&hif_drv->connect_timer, TimerCB_Connect, 0);
+	timer_setup(&hif_drv->scan_timer, timer_scan_cb, 0);
+	timer_setup(&hif_drv->connect_timer, timer_connect_cb, 0);
 	timer_setup(&hif_drv->remain_on_ch_timer, ListenTimerCB, 0);
 
 	mutex_init(&hif_drv->cfg_values_lock);
