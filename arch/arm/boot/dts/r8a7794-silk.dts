@@ -24,6 +24,7 @@
 /dts-v1/;
 #include "r8a7794.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "SILK";
@@ -43,6 +44,60 @@
 	memory@40000000 {
 		device_type = "memory";
 		reg = <0 0x40000000 0 0x40000000>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key-3 {
+			gpios = <&gpio5 10 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_3>;
+			label = "SW3";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-4 {
+			gpios = <&gpio5 11 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_4>;
+			label = "SW4";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-6 {
+			gpios = <&gpio5 12 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_6>;
+			label = "SW6";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-a {
+			gpios = <&gpio3 9 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_A>;
+			label = "SW12-1";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-b {
+			gpios = <&gpio3 10 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_B>;
+			label = "SW12-2";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-c {
+			gpios = <&gpio3 11 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_C>;
+			label = "SW12-3";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+		key-d {
+			gpios = <&gpio3 12 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_D>;
+			label = "SW12-4";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
 	};
 
 	d3_3v: regulator-d3-3v {
