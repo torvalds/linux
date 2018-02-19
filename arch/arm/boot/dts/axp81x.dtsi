@@ -48,6 +48,11 @@
 	interrupt-controller;
 	#interrupt-cells = <1>;
 
+	axp_adc: adc {
+		compatible = "x-powers,axp813-adc";
+		#io-channel-cells = <1>;
+	};
+
 	axp_gpio: axp-gpio {
 		compatible = "x-powers,axp813-gpio";
 		gpio-controller;
