@@ -520,6 +520,9 @@ static const DECLARE_TLV_DB_RANGE(mic_gain_tlv,
 /* tlv for DAP channels, 0% - 100% - 200% */
 static const DECLARE_TLV_DB_SCALE(dap_volume, 0, 1, 0);
 
+/* tlv for bass bands, -11.75db to 12.0db, step .25db */
+static const DECLARE_TLV_DB_SCALE(bass_band, -1175, 25, 0);
+
 /* tlv for hp volume, -51.5db to 12.0db, step .5db */
 static const DECLARE_TLV_DB_SCALE(headphone_volume, -5150, 50, 0);
 
@@ -585,6 +588,21 @@ static const struct snd_kcontrol_new sgtl5000_snd_controls[] = {
 	SOC_SINGLE_EXT_TLV("AVC Threshold Volume", SGTL5000_DAP_AVC_THRESHOLD,
 			0, 96, 0, avc_get_threshold, avc_put_threshold,
 			avc_threshold),
+
+	SOC_SINGLE_TLV("BASS 0", SGTL5000_DAP_EQ_BASS_BAND0,
+	0, 0x5F, 0, bass_band),
+
+	SOC_SINGLE_TLV("BASS 1", SGTL5000_DAP_EQ_BASS_BAND1,
+	0, 0x5F, 0, bass_band),
+
+	SOC_SINGLE_TLV("BASS 2", SGTL5000_DAP_EQ_BASS_BAND2,
+	0, 0x5F, 0, bass_band),
+
+	SOC_SINGLE_TLV("BASS 3", SGTL5000_DAP_EQ_BASS_BAND3,
+	0, 0x5F, 0, bass_band),
+
+	SOC_SINGLE_TLV("BASS 4", SGTL5000_DAP_EQ_BASS_BAND4,
+	0, 0x5F, 0, bass_band),
 };
 
 /* mute the codec used by alsa core */
@@ -1303,11 +1321,11 @@ static int sgtl5000_probe(struct snd_soc_component *component)
 			SGTL5000_BIAS_VOLT_MASK,
 			sgtl5000->micbias_voltage << SGTL5000_BIAS_VOLT_SHIFT);
 	/*
-	 * disable DAP
+	 * enable DAP Graphic EQ
 	 * TODO:
-	 * Enable DAP in kcontrol and dapm.
+	 * Add control for changing between PEQ/Tone Control/GEQ
 	 */
-	snd_soc_component_write(component, SGTL5000_DAP_CTRL, 0);
+	snd_soc_component_write(component, SGTL5000_DAP_AUDIO_EQ, SGTL5000_DAP_SEL_GEQ);
 
 	/* Unmute DAC after start */
 	snd_soc_component_update_bits(component, SGTL5000_CHIP_ADCDAC_CTRL,
