@@ -582,8 +582,8 @@ static DECLARE_WORK(net_cleanup_work, cleanup_net);
 void __put_net(struct net *net)
 {
 	/* Cleanup the network namespace in process context */
-	llist_add(&net->cleanup_list, &cleanup_list);
-	queue_work(netns_wq, &net_cleanup_work);
+	if (llist_add(&net->cleanup_list, &cleanup_list))
+		queue_work(netns_wq, &net_cleanup_work);
 }
 EXPORT_SYMBOL_GPL(__put_net);
 
