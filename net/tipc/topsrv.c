@@ -580,9 +580,10 @@ bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type, u32 lower,
 	*conid = con->conid;
 	con->sock = NULL;
 	rc = tipc_conn_rcv_sub(tipc_topsrv(net), con, &sub);
-	if (rc < 0)
-		tipc_conn_close(con);
-	return !rc;
+	if (rc >= 0)
+		return true;
+	conn_put(con);
+	return false;
 }
 
 void tipc_topsrv_kern_unsubscr(struct net *net, int conid)
