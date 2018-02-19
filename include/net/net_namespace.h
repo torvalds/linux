@@ -59,12 +59,13 @@ struct net {
 	atomic64_t		cookie_gen;
 
 	struct list_head	list;		/* list of network namespaces */
-	struct list_head	cleanup_list;	/* namespaces on death row */
 	struct list_head	exit_list;	/* To linked to call pernet exit
 						 * methods on dead net (net_sem
 						 * read locked), or to unregister
 						 * pernet ops (net_sem wr locked).
 						 */
+	struct llist_node	cleanup_list;	/* namespaces on death row */
+
 	struct user_namespace   *user_ns;	/* Owning user namespace */
 	struct ucounts		*ucounts;
 	spinlock_t		nsid_lock;

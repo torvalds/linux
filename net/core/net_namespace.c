@@ -481,21 +481,18 @@ static void unhash_nsid(struct net *net, struct net *last)
 	spin_unlock_bh(&net->nsid_lock);
 }
 
-static DEFINE_SPINLOCK(cleanup_list_lock);
-static LIST_HEAD(cleanup_list);  /* Must hold cleanup_list_lock to touch */
+static LLIST_HEAD(cleanup_list);
 
 static void cleanup_net(struct work_struct *work)
 {
 	const struct pernet_operations *ops;
 	struct net *net, *tmp, *last;
-	struct list_head net_kill_list;
+	struct llist_node *net_kill_list;
 	LIST_HEAD(net_exit_list);
 	unsigned write;
 
 	/* Atomically snapshot the list of namespaces to cleanup */
-	spin_lock_irq(&cleanup_list_lock);
-	list_replace_init(&cleanup_list, &net_kill_list);
-	spin_unlock_irq(&cleanup_list_lock);
+	net_kill_list = llist_del_all(&cleanup_list);
 again:
 	write = READ_ONCE(nr_sync_pernet_ops);
 	if (write)
@@ -510,7 +507,7 @@ again:
 
 	/* Don't let anyone else find us. */
 	rtnl_lock();
-	list_for_each_entry(net, &net_kill_list, cleanup_list)
+	llist_for_each_entry(net, net_kill_list, cleanup_list)
 		list_del_rcu(&net->list);
 	/* Cache last net. After we unlock rtnl, no one new net
 	 * added to net_namespace_list can assign nsid pointer
@@ -525,7 +522,7 @@ again:
 	last = list_last_entry(&net_namespace_list, struct net, list);
 	rtnl_unlock();
 
-	list_for_each_entry(net, &net_kill_list, cleanup_list) {
+	llist_for_each_entry(net, net_kill_list, cleanup_list) {
 		unhash_nsid(net, last);
 		list_add_tail(&net->exit_list, &net_exit_list);
 	}
@@ -585,12 +582,7 @@ static DECLARE_WORK(net_cleanup_work, cleanup_net);
 void __put_net(struct net *net)
 {
 	/* Cleanup the network namespace in process context */
-	unsigned long flags;
-
-	spin_lock_irqsave(&cleanup_list_lock, flags);
-	list_add(&net->cleanup_list, &cleanup_list);
-	spin_unlock_irqrestore(&cleanup_list_lock, flags);
-
+	llist_add(&net->cleanup_list, &cleanup_list);
 	queue_work(netns_wq, &net_cleanup_work);
 }
 EXPORT_SYMBOL_GPL(__put_net);
