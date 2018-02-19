@@ -112,7 +112,7 @@ static int tx4939_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	sec = ((unsigned long)buf[5] << 24) | (buf[4] << 16) |
 		(buf[3] << 8) | buf[2];
 	rtc_time_to_tm(sec, tm);
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int tx4939_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)

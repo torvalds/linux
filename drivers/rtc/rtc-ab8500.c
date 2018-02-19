@@ -131,7 +131,7 @@ static int ab8500_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	secs += get_elapsed_seconds(AB8500_RTC_EPOCH);
 
 	rtc_time_to_tm(secs, tm);
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int ab8500_rtc_set_time(struct device *dev, struct rtc_time *tm)
