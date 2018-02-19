@@ -97,7 +97,7 @@ static struct img_ascii_lcd_config boston_config = {
 static void malta_update(struct img_ascii_lcd_ctx *ctx)
 {
 	unsigned int i;
-	int err;
+	int err = 0;
 
 	for (i = 0; i < ctx->cfg->num_chars; i++) {
 		err = regmap_write(ctx->regmap,
@@ -180,7 +180,7 @@ static int sead3_wait_lcd_idle(struct img_ascii_lcd_ctx *ctx)
 static void sead3_update(struct img_ascii_lcd_ctx *ctx)
 {
 	unsigned int i;
-	int err;
+	int err = 0;
 
 	for (i = 0; i < ctx->cfg->num_chars; i++) {
 		err = sead3_wait_lcd_idle(ctx);
