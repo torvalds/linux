@@ -1707,7 +1707,6 @@ brcmf_sdio_read_control(struct brcmf_sdio *bus, u8 *hdr, uint len, uint doff)
 	int sdret;
 
 	brcmf_dbg(TRACE, "Enter\n");
-
 	if (bus->rxblen)
 		buf = vzalloc(bus->rxblen);
 	if (!buf)
@@ -3411,6 +3410,18 @@ static int brcmf_sdio_bus_preinit(struct device *dev)
 	u32 value;
 	int err;
 
+	/* maxctl provided by common layer */
+	if (WARN_ON(!bus_if->maxctl))
+		return -EINVAL;
+
+	/* Allocate control receive buffer */
+	bus_if->maxctl += bus->roundup;
+	value = roundup((bus_if->maxctl + SDPCM_HDRLEN), ALIGNMENT);
+	value += bus->head_align;
+	bus->rxbuf = kmalloc(value, GFP_ATOMIC);
+	if (bus->rxbuf)
+		bus->rxblen = value;
+
 	/* the commands below use the terms tx and rx from
 	 * a device perspective, ie. bus:txglom affects the
 	 * bus transfers from device to host.
@@ -4207,19 +4218,6 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	/* Query the F2 block size, set roundup accordingly */
 	bus->blocksize = bus->sdiodev->func2->cur_blksize;
 	bus->roundup = min(max_roundup, bus->blocksize);
-
-	/* Allocate buffers */
-	if (bus->sdiodev->bus_if->maxctl) {
-		bus->sdiodev->bus_if->maxctl += bus->roundup;
-		bus->rxblen =
-		    roundup((bus->sdiodev->bus_if->maxctl + SDPCM_HDRLEN),
-			    ALIGNMENT) + bus->head_align;
-		bus->rxbuf = kmalloc(bus->rxblen, GFP_ATOMIC);
-		if (!(bus->rxbuf)) {
-			brcmf_err("rxbuf allocation failed\n");
-			goto fail;
-		}
-	}
 
 	sdio_claim_host(bus->sdiodev->func1);
 
