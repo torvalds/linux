@@ -498,10 +498,8 @@ static int ext4_shutdown(struct super_block *sb, unsigned long arg)
 		break;
 	case EXT4_GOING_FLAGS_NOLOGFLUSH:
 		set_bit(EXT4_FLAGS_SHUTDOWN, &sbi->s_ext4_flags);
-		if (sbi->s_journal && !is_journal_aborted(sbi->s_journal)) {
-			msleep(100);
+		if (sbi->s_journal && !is_journal_aborted(sbi->s_journal))
 			jbd2_journal_abort(sbi->s_journal, 0);
-		}
 		break;
 	default:
 		return -EINVAL;
