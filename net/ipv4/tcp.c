@@ -1063,8 +1063,7 @@ EXPORT_SYMBOL_GPL(do_tcp_sendpages);
 int tcp_sendpage_locked(struct sock *sk, struct page *page, int offset,
 			size_t size, int flags)
 {
-	if (!(sk->sk_route_caps & NETIF_F_SG) ||
-	    !sk_check_csum_caps(sk))
+	if (!(sk->sk_route_caps & NETIF_F_SG))
 		return sock_no_sendpage_locked(sk, page, offset, size, flags);
 
 	tcp_rate_check_app_limited(sk);  /* is sending application-limited? */
@@ -1190,7 +1189,7 @@ int tcp_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t size)
 			goto out_err;
 		}
 
-		zc = sk_check_csum_caps(sk) && sk->sk_route_caps & NETIF_F_SG;
+		zc = sk->sk_route_caps & NETIF_F_SG;
 		if (!zc)
 			uarg->zerocopy = 0;
 	}
@@ -1287,11 +1286,7 @@ new_segment:
 				goto wait_for_memory;
 
 			process_backlog = true;
-			/*
-			 * Check whether we can use HW checksum.
-			 */
-			if (sk_check_csum_caps(sk))
-				skb->ip_summed = CHECKSUM_PARTIAL;
+			skb->ip_summed = CHECKSUM_PARTIAL;
 
 			skb_entail(sk, skb);
 			copy = size_goal;
