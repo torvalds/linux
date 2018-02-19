@@ -771,6 +771,7 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 {
 	int status, ret;
 	bool mirror = false;
+	bool open_drain = false;
 	struct regmap_config *one_regmap_config = NULL;
 	int raw_chip_address = (addr & ~0x40) >> 1;
 
@@ -883,10 +884,11 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 					      "microchip,irq-active-high");
 
 		mirror = device_property_read_bool(dev, "microchip,irq-mirror");
+		open_drain = device_property_read_bool(dev, "drive-open-drain");
 	}
 
 	if ((status & IOCON_SEQOP) || !(status & IOCON_HAEN) || mirror ||
-	     mcp->irq_active_high) {
+	     mcp->irq_active_high || open_drain) {
 		/* mcp23s17 has IOCON twice, make sure they are in sync */
 		status &= ~(IOCON_SEQOP | (IOCON_SEQOP << 8));
 		status |= IOCON_HAEN | (IOCON_HAEN << 8);
@@ -897,6 +899,9 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 
 		if (mirror)
 			status |= IOCON_MIRROR | (IOCON_MIRROR << 8);
+
+		if (open_drain)
+			status |= IOCON_ODR | (IOCON_ODR << 8);
 
 		if (type == MCP_TYPE_S18 || type == MCP_TYPE_018)
 			status |= IOCON_INTCC | (IOCON_INTCC << 8);
