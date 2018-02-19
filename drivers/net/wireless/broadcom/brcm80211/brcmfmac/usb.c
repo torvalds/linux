@@ -1146,8 +1146,9 @@ static int brcmf_usb_get_fwname(struct device *dev, u32 chip, u32 chiprev,
 }
 
 static const struct brcmf_bus_ops brcmf_usb_bus_ops = {
-	.txdata = brcmf_usb_tx,
+	.preinit = brcmf_usb_up,
 	.stop = brcmf_usb_down,
+	.txdata = brcmf_usb_tx,
 	.txctl = brcmf_usb_tx_ctlpkt,
 	.rxctl = brcmf_usb_rx_ctlpkt,
 	.wowl_config = brcmf_usb_wowl_config,
@@ -1164,10 +1165,6 @@ static int brcmf_usb_bus_setup(struct brcmf_usbdev_info *devinfo)
 		brcmf_err("brcmf_attach failed\n");
 		return ret;
 	}
-
-	ret = brcmf_usb_up(devinfo->dev);
-	if (ret)
-		goto fail;
 
 	ret = brcmf_bus_started(devinfo->dev);
 	if (ret)
