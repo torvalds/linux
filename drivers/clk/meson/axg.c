@@ -299,57 +299,122 @@ static struct clk_regmap axg_hifi_pll = {
 	},
 };
 
-static struct clk_fixed_factor axg_fclk_div2 = {
+static struct clk_fixed_factor axg_fclk_div2_div = {
 	.mult = 1,
 	.div = 2,
 	.hw.init = &(struct clk_init_data){
-		.name = "fclk_div2",
+		.name = "fclk_div2_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
 	},
 };
 
-static struct clk_fixed_factor axg_fclk_div3 = {
+static struct clk_regmap axg_fclk_div2 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL6,
+		.bit_idx = 27,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "fclk_div2",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "fclk_div2_div" },
+		.num_parents = 1,
+	},
+};
+
+static struct clk_fixed_factor axg_fclk_div3_div = {
 	.mult = 1,
 	.div = 3,
 	.hw.init = &(struct clk_init_data){
-		.name = "fclk_div3",
+		.name = "fclk_div3_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
 	},
 };
 
-static struct clk_fixed_factor axg_fclk_div4 = {
+static struct clk_regmap axg_fclk_div3 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL6,
+		.bit_idx = 28,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "fclk_div3",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "fclk_div3_div" },
+		.num_parents = 1,
+	},
+};
+
+static struct clk_fixed_factor axg_fclk_div4_div = {
 	.mult = 1,
 	.div = 4,
 	.hw.init = &(struct clk_init_data){
-		.name = "fclk_div4",
+		.name = "fclk_div4_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
 	},
 };
 
-static struct clk_fixed_factor axg_fclk_div5 = {
+static struct clk_regmap axg_fclk_div4 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL6,
+		.bit_idx = 29,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "fclk_div4",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "fclk_div4_div" },
+		.num_parents = 1,
+	},
+};
+
+static struct clk_fixed_factor axg_fclk_div5_div = {
 	.mult = 1,
 	.div = 5,
 	.hw.init = &(struct clk_init_data){
-		.name = "fclk_div5",
+		.name = "fclk_div5_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
 	},
 };
 
-static struct clk_fixed_factor axg_fclk_div7 = {
+static struct clk_regmap axg_fclk_div5 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL6,
+		.bit_idx = 30,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "fclk_div5",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "fclk_div5_div" },
+		.num_parents = 1,
+	},
+};
+
+static struct clk_fixed_factor axg_fclk_div7_div = {
 	.mult = 1,
 	.div = 7,
 	.hw.init = &(struct clk_init_data){
-		.name = "fclk_div7",
+		.name = "fclk_div7_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap axg_fclk_div7 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL6,
+		.bit_idx = 31,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "fclk_div7",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "fclk_div7_div" },
 		.num_parents = 1,
 	},
 };
@@ -836,6 +901,11 @@ static struct clk_hw_onecell_data axg_hw_onecell_data = {
 		[CLKID_MPLL3_DIV]		= &axg_mpll3_div.hw,
 		[CLKID_HIFI_PLL]		= &axg_hifi_pll.hw,
 		[CLKID_MPLL_PREDIV]		= &axg_mpll_prediv.hw,
+		[CLKID_FCLK_DIV2_DIV]		= &axg_fclk_div2_div.hw,
+		[CLKID_FCLK_DIV3_DIV]		= &axg_fclk_div3_div.hw,
+		[CLKID_FCLK_DIV4_DIV]		= &axg_fclk_div4_div.hw,
+		[CLKID_FCLK_DIV5_DIV]		= &axg_fclk_div5_div.hw,
+		[CLKID_FCLK_DIV7_DIV]		= &axg_fclk_div7_div.hw,
 		[NR_CLKS]			= NULL,
 	},
 	.num = NR_CLKS,
@@ -909,6 +979,11 @@ static struct clk_regmap *const axg_clk_regmaps[] = {
 	&axg_gp0_pll,
 	&axg_hifi_pll,
 	&axg_mpll_prediv,
+	&axg_fclk_div2,
+	&axg_fclk_div3,
+	&axg_fclk_div4,
+	&axg_fclk_div5,
+	&axg_fclk_div7,
 };
 
 static const struct of_device_id clkc_match_table[] = {

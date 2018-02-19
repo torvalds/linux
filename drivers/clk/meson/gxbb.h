@@ -199,8 +199,13 @@
 #define CLKID_MPLL1_DIV		  143
 #define CLKID_MPLL2_DIV		  144
 #define CLKID_MPLL_PREDIV	  145
+#define CLKID_FCLK_DIV2_DIV	  146
+#define CLKID_FCLK_DIV3_DIV	  147
+#define CLKID_FCLK_DIV4_DIV	  148
+#define CLKID_FCLK_DIV5_DIV	  149
+#define CLKID_FCLK_DIV7_DIV	  150
 
-#define NR_CLKS			  146
+#define NR_CLKS			  151
 
 /* include the CLKIDs that have been made part of the DT binding */
 #include <dt-bindings/clock/gxbb-clkc.h>
