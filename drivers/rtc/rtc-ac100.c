@@ -387,7 +387,7 @@ static int ac100_rtc_get_time(struct device *dev, struct rtc_time *rtc_tm)
 	rtc_tm->tm_year = bcd2bin(reg[6] & AC100_RTC_YEA_MASK) +
 			  AC100_YEAR_OFF;
 
-	return rtc_valid_tm(rtc_tm);
+	return 0;
 }
 
 static int ac100_rtc_set_time(struct device *dev, struct rtc_time *rtc_tm)

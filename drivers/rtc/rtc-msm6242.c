@@ -155,7 +155,7 @@ static int msm6242_read_time(struct device *dev, struct rtc_time *tm)
 
 	msm6242_unlock(priv);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int msm6242_set_time(struct device *dev, struct rtc_time *tm)

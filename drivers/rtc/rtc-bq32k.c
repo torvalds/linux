@@ -110,7 +110,7 @@ static int bq32k_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_year = bcd2bin(regs.years) +
 				((regs.cent_hours & BQ32K_CENT) ? 100 : 0);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int bq32k_rtc_set_time(struct device *dev, struct rtc_time *tm)

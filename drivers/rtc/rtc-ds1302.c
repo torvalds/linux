@@ -98,8 +98,7 @@ static int ds1302_rtc_get_time(struct device *dev, struct rtc_time *time)
 	time->tm_mon = bcd2bin(buf[RTC_ADDR_MON]) - 1;
 	time->tm_year = bcd2bin(buf[RTC_ADDR_YEAR]) + 100;
 
-	/* Time may not be set */
-	return rtc_valid_tm(time);
+	return 0;
 }
 
 static const struct rtc_class_ops ds1302_rtc_ops = {

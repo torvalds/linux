@@ -153,7 +153,7 @@ static int max8997_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	max8997_rtc_data_to_tm(data, tm, info->rtc_24hr_mode);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int max8997_rtc_set_time(struct device *dev, struct rtc_time *tm)

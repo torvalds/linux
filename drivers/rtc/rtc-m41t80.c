@@ -230,7 +230,7 @@ static int m41t80_get_datetime(struct i2c_client *client,
 
 	/* assume 20YY not 19YY, and ignore the Century Bit */
 	tm->tm_year = bcd2bin(buf[M41T80_REG_YEAR]) + 100;
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 /* Sets the given date and time to the real time clock. */

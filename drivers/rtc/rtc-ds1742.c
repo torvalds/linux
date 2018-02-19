@@ -112,7 +112,7 @@ static int ds1742_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	/* year is 1900 + tm->tm_year */
 	tm->tm_year = bcd2bin(year) + bcd2bin(century) * 100 - 1900;
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static const struct rtc_class_ops ds1742_rtc_ops = {

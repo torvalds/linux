@@ -105,7 +105,7 @@ static int mrst_read_time(struct device *dev, struct rtc_time *time)
 	/* Adjust for the 1972/1900 */
 	time->tm_year += 72;
 	time->tm_mon--;
-	return rtc_valid_tm(time);
+	return 0;
 }
 
 static int mrst_set_time(struct device *dev, struct rtc_time *time)

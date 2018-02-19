@@ -254,7 +254,7 @@ static int ds1343_read_time(struct device *dev, struct rtc_time *dt)
 	dt->tm_mon	= bcd2bin(buf[5] & 0x1F) - 1;
 	dt->tm_year	= bcd2bin(buf[6]) + 100; /* year offset from 1900 */
 
-	return rtc_valid_tm(dt);
+	return 0;
 }
 
 static int ds1343_set_time(struct device *dev, struct rtc_time *dt)

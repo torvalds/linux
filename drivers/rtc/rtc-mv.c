@@ -94,7 +94,7 @@ static int mv_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	/* hw counts from year 2000, but tm_year is relative to 1900 */
 	tm->tm_year = bcd2bin(year) + 100;
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int mv_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)

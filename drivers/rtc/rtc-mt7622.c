@@ -232,7 +232,7 @@ static int mtk_rtc_gettime(struct device *dev, struct rtc_time *tm)
 
 	mtk_rtc_get_alarm_or_time(hw, tm, MTK_TC);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int mtk_rtc_settime(struct device *dev, struct rtc_time *tm)

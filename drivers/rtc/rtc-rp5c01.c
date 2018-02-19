@@ -115,7 +115,7 @@ static int rp5c01_read_time(struct device *dev, struct rtc_time *tm)
 	rp5c01_unlock(priv);
 	spin_unlock_irq(&priv->lock);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int rp5c01_set_time(struct device *dev, struct rtc_time *tm)

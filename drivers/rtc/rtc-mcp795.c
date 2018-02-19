@@ -262,7 +262,7 @@ static int mcp795_read_time(struct device *dev, struct rtc_time *tim)
 			tim->tm_year + 1900, tim->tm_mon, tim->tm_mday,
 			tim->tm_wday, tim->tm_hour, tim->tm_min, tim->tm_sec);
 
-	return rtc_valid_tm(tim);
+	return 0;
 }
 
 static int mcp795_set_alarm(struct device *dev, struct rtc_wkalrm *alm)

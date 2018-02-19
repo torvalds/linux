@@ -100,7 +100,7 @@ static int m48t86_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		if (m48t86_readb(dev, M48T86_HOUR) & 0x80)
 			tm->tm_hour += 12;
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int m48t86_rtc_set_time(struct device *dev, struct rtc_time *tm)

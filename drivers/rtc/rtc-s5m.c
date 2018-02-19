@@ -407,7 +407,7 @@ static int s5m_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday,
 		tm->tm_hour, tm->tm_min, tm->tm_sec, tm->tm_wday);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int s5m_rtc_set_time(struct device *dev, struct rtc_time *tm)

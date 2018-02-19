@@ -203,8 +203,7 @@ static int ds1305_get_time(struct device *dev, struct rtc_time *time)
 		time->tm_hour, time->tm_mday,
 		time->tm_mon, time->tm_year, time->tm_wday);
 
-	/* Time may not be set */
-	return rtc_valid_tm(time);
+	return 0;
 }
 
 static int ds1305_set_time(struct device *dev, struct rtc_time *time)
