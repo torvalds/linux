@@ -343,6 +343,7 @@ static void __net_exit ipv6_proc_exit_net(struct net *net)
 static struct pernet_operations ipv6_proc_ops = {
 	.init = ipv6_proc_init_net,
 	.exit = ipv6_proc_exit_net,
+	.async = true,
 };
 
 int __init ipv6_misc_proc_init(void)

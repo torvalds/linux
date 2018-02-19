@@ -2997,6 +2997,7 @@ static void __net_exit igmp6_net_exit(struct net *net)
 static struct pernet_operations igmp6_net_ops = {
 	.init = igmp6_net_init,
 	.exit = igmp6_net_exit,
+	.async = true,
 };
 
 int __init igmp6_init(void)

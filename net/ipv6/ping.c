@@ -240,6 +240,7 @@ static void __net_init ping_v6_proc_exit_net(struct net *net)
 static struct pernet_operations ping_v6_net_ops = {
 	.init = ping_v6_proc_init_net,
 	.exit = ping_v6_proc_exit_net,
+	.async = true,
 };
 #endif
 

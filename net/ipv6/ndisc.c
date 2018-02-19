@@ -1882,6 +1882,7 @@ static void __net_exit ndisc_net_exit(struct net *net)
 static struct pernet_operations ndisc_net_ops = {
 	.init = ndisc_net_init,
 	.exit = ndisc_net_exit,
+	.async = true,
 };
 
 int __init ndisc_init(void)

@@ -1397,6 +1397,7 @@ static void __net_exit ip6mr_net_exit(struct net *net)
 static struct pernet_operations ip6mr_net_ops = {
 	.init = ip6mr_net_init,
 	.exit = ip6mr_net_exit,
+	.async = true,
 };
 
 int __init ip6_mr_init(void)
