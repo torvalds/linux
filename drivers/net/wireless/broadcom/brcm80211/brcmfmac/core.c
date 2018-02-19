@@ -1190,6 +1190,12 @@ void brcmf_bus_change_state(struct brcmf_bus *bus, enum brcmf_bus_state state)
 	int ifidx;
 
 	brcmf_dbg(TRACE, "%d -> %d\n", bus->state, state);
+
+	if (!drvr) {
+		brcmf_dbg(INFO, "ignoring transition, bus not attached yet\n");
+		return;
+	}
+
 	bus->state = state;
 
 	if (state == BRCMF_BUS_UP) {

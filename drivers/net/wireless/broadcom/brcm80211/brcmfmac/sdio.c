@@ -4048,9 +4048,6 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 	if (err)
 		goto fail;
 
-	if (!bus_if->drvr)
-		return;
-
 	/* try to download image and nvram to the dongle */
 	bus->alp_only = true;
 	err = brcmf_sdio_download_firmware(bus, code, nvram, nvram_len);
@@ -4126,11 +4123,28 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 
 	sdio_release_host(sdiodev->func1);
 
+	/* Assign bus interface call back */
+	sdiodev->bus_if->dev = sdiodev->dev;
+	sdiodev->bus_if->ops = &brcmf_sdio_bus_ops;
+	sdiodev->bus_if->chip = bus->ci->chip;
+	sdiodev->bus_if->chiprev = bus->ci->chiprev;
+
+	/* Attach to the common layer, reserve hdr space */
+	err = brcmf_attach(sdiodev->dev, sdiodev->settings);
+	if (err != 0) {
+		brcmf_err("brcmf_attach failed\n");
+		goto fail;
+	}
+
+	brcmf_sdio_debugfs_create(bus);
+
 	err = brcmf_bus_started(dev);
 	if (err != 0) {
 		brcmf_err("dongle is not responding\n");
 		goto fail;
 	}
+
+	/* ready */
 	return;
 
 release:
@@ -4199,21 +4213,8 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	bus->dpc_triggered = false;
 	bus->dpc_running = false;
 
-	/* Assign bus interface call back */
-	bus->sdiodev->bus_if->dev = bus->sdiodev->dev;
-	bus->sdiodev->bus_if->ops = &brcmf_sdio_bus_ops;
-	bus->sdiodev->bus_if->chip = bus->ci->chip;
-	bus->sdiodev->bus_if->chiprev = bus->ci->chiprev;
-
 	/* default sdio bus header length for tx packet */
 	bus->tx_hdrlen = SDPCM_HWHDR_LEN + SDPCM_SWHDR_LEN;
-
-	/* Attach to the common layer, reserve hdr space */
-	ret = brcmf_attach(bus->sdiodev->dev, bus->sdiodev->settings);
-	if (ret != 0) {
-		brcmf_err("brcmf_attach failed\n");
-		goto fail;
-	}
 
 	/* Query the F2 block size, set roundup accordingly */
 	bus->blocksize = bus->sdiodev->func2->cur_blksize;
@@ -4239,7 +4240,6 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	/* SR state */
 	bus->sr_enabled = false;
 
-	brcmf_sdio_debugfs_create(bus);
 	brcmf_dbg(INFO, "completed!!\n");
 
 	ret = brcmf_fw_map_chip_to_name(bus->ci->chip, bus->ci->chiprev,
