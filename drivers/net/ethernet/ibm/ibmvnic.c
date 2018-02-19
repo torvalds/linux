@@ -484,7 +484,6 @@ static void release_rx_pools(struct ibmvnic_adapter *adapter)
 
 	kfree(adapter->rx_pool);
 	adapter->rx_pool = NULL;
-	adapter->num_active_rx_scrqs = 0;
 }
 
 static int init_rx_pools(struct net_device *netdev)
@@ -508,8 +507,6 @@ static int init_rx_pools(struct net_device *netdev)
 		dev_err(dev, "Failed to allocate rx pools\n");
 		return -1;
 	}
-
-	adapter->num_active_rx_scrqs = 0;
 
 	for (i = 0; i < rxadd_subcrqs; i++) {
 		rx_pool = &adapter->rx_pool[i];
@@ -553,8 +550,6 @@ static int init_rx_pools(struct net_device *netdev)
 		rx_pool->next_alloc = 0;
 		rx_pool->next_free = 0;
 	}
-
-	adapter->num_active_rx_scrqs = rxadd_subcrqs;
 
 	return 0;
 }
@@ -624,7 +619,6 @@ static void release_tx_pools(struct ibmvnic_adapter *adapter)
 
 	kfree(adapter->tx_pool);
 	adapter->tx_pool = NULL;
-	adapter->num_active_tx_scrqs = 0;
 }
 
 static int init_tx_pools(struct net_device *netdev)
@@ -640,8 +634,6 @@ static int init_tx_pools(struct net_device *netdev)
 				   sizeof(struct ibmvnic_tx_pool), GFP_KERNEL);
 	if (!adapter->tx_pool)
 		return -1;
-
-	adapter->num_active_tx_scrqs = 0;
 
 	for (i = 0; i < tx_subcrqs; i++) {
 		tx_pool = &adapter->tx_pool[i];
@@ -689,8 +681,6 @@ static int init_tx_pools(struct net_device *netdev)
 		tx_pool->consumer_index = 0;
 		tx_pool->producer_index = 0;
 	}
-
-	adapter->num_active_tx_scrqs = tx_subcrqs;
 
 	return 0;
 }
@@ -991,6 +981,10 @@ static int init_resources(struct ibmvnic_adapter *adapter)
 		return rc;
 
 	rc = init_tx_pools(netdev);
+
+	adapter->num_active_tx_scrqs = adapter->req_tx_queues;
+	adapter->num_active_rx_scrqs = adapter->req_rx_queues;
+
 	return rc;
 }
 
@@ -1692,6 +1686,9 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 			release_tx_pools(adapter);
 			init_rx_pools(netdev);
 			init_tx_pools(netdev);
+
+			adapter->num_active_tx_scrqs = adapter->req_tx_queues;
+			adapter->num_active_rx_scrqs = adapter->req_rx_queues;
 		} else {
 			rc = reset_tx_pools(adapter);
 			if (rc)
