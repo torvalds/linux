@@ -207,11 +207,6 @@
 	status = "okay";
 };
 
-&i2s2 {
-	#sound-dai-cells = <0>;
-	status = "okay";
-};
-
 &pinctrl {
 	buttons {
 		pwr_btn: pwr-btn {
