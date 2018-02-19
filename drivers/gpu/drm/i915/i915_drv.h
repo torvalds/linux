@@ -1095,6 +1095,11 @@ struct i915_gem_mm {
 	struct llist_head free_list;
 	struct work_struct free_work;
 	spinlock_t free_lock;
+	/**
+	 * Count of objects pending destructions. Used to skip needlessly
+	 * waiting on an RCU barrier if no objects are waiting to be freed.
+	 */
+	atomic_t free_count;
 
 	/**
 	 * Small stash of WC pages
@@ -3134,6 +3139,9 @@ void i915_gem_free_object(struct drm_gem_object *obj);
 
 static inline void i915_gem_drain_freed_objects(struct drm_i915_private *i915)
 {
+	if (!atomic_read(&i915->mm.free_count))
+		return;
+
 	/* A single pass should suffice to release all the freed objects (along
 	 * most call paths) , but be a little more paranoid in that freeing
 	 * the objects does take a little amount of time, during which the rcu
