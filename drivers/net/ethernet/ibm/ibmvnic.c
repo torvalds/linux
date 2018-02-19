@@ -461,7 +461,7 @@ static void release_rx_pools(struct ibmvnic_adapter *adapter)
 	if (!adapter->rx_pool)
 		return;
 
-	for (i = 0; i < adapter->num_active_rx_pools; i++) {
+	for (i = 0; i < adapter->num_active_rx_scrqs; i++) {
 		rx_pool = &adapter->rx_pool[i];
 
 		netdev_dbg(adapter->netdev, "Releasing rx_pool[%d]\n", i);
@@ -484,7 +484,7 @@ static void release_rx_pools(struct ibmvnic_adapter *adapter)
 
 	kfree(adapter->rx_pool);
 	adapter->rx_pool = NULL;
-	adapter->num_active_rx_pools = 0;
+	adapter->num_active_rx_scrqs = 0;
 }
 
 static int init_rx_pools(struct net_device *netdev)
@@ -509,7 +509,7 @@ static int init_rx_pools(struct net_device *netdev)
 		return -1;
 	}
 
-	adapter->num_active_rx_pools = 0;
+	adapter->num_active_rx_scrqs = 0;
 
 	for (i = 0; i < rxadd_subcrqs; i++) {
 		rx_pool = &adapter->rx_pool[i];
@@ -554,7 +554,7 @@ static int init_rx_pools(struct net_device *netdev)
 		rx_pool->next_free = 0;
 	}
 
-	adapter->num_active_rx_pools = rxadd_subcrqs;
+	adapter->num_active_rx_scrqs = rxadd_subcrqs;
 
 	return 0;
 }
@@ -613,7 +613,7 @@ static void release_tx_pools(struct ibmvnic_adapter *adapter)
 	if (!adapter->tx_pool)
 		return;
 
-	for (i = 0; i < adapter->num_active_tx_pools; i++) {
+	for (i = 0; i < adapter->num_active_tx_scrqs; i++) {
 		netdev_dbg(adapter->netdev, "Releasing tx_pool[%d]\n", i);
 		tx_pool = &adapter->tx_pool[i];
 		kfree(tx_pool->tx_buff);
@@ -624,7 +624,7 @@ static void release_tx_pools(struct ibmvnic_adapter *adapter)
 
 	kfree(adapter->tx_pool);
 	adapter->tx_pool = NULL;
-	adapter->num_active_tx_pools = 0;
+	adapter->num_active_tx_scrqs = 0;
 }
 
 static int init_tx_pools(struct net_device *netdev)
@@ -641,7 +641,7 @@ static int init_tx_pools(struct net_device *netdev)
 	if (!adapter->tx_pool)
 		return -1;
 
-	adapter->num_active_tx_pools = 0;
+	adapter->num_active_tx_scrqs = 0;
 
 	for (i = 0; i < tx_subcrqs; i++) {
 		tx_pool = &adapter->tx_pool[i];
@@ -690,7 +690,7 @@ static int init_tx_pools(struct net_device *netdev)
 		tx_pool->producer_index = 0;
 	}
 
-	adapter->num_active_tx_pools = tx_subcrqs;
+	adapter->num_active_tx_scrqs = tx_subcrqs;
 
 	return 0;
 }
