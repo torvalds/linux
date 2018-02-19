@@ -193,12 +193,12 @@ static const struct pll_rate_table axg_gp0_pll_rate_table[] = {
 };
 
 const struct reg_sequence axg_gp0_init_regs[] = {
-	{ .reg = HHI_GP0_PLL_CNTL,	.def = 0x40010250 },
 	{ .reg = HHI_GP0_PLL_CNTL1,	.def = 0xc084a000 },
 	{ .reg = HHI_GP0_PLL_CNTL2,	.def = 0xb75020be },
 	{ .reg = HHI_GP0_PLL_CNTL3,	.def = 0x0a59a288 },
 	{ .reg = HHI_GP0_PLL_CNTL4,	.def = 0xc000004d },
 	{ .reg = HHI_GP0_PLL_CNTL5,	.def = 0x00078000 },
+	{ .reg = HHI_GP0_PLL_CNTL,	.def = 0x40010250 },
 };
 
 static struct clk_regmap axg_gp0_pll = {

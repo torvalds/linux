@@ -390,10 +390,10 @@ static struct clk_regmap gxbb_sys_pll = {
 };
 
 const struct reg_sequence gxbb_gp0_init_regs[] = {
-	{ .reg = HHI_GP0_PLL_CNTL,	.def = 0x6a000228 },
 	{ .reg = HHI_GP0_PLL_CNTL2,	.def = 0x69c80000 },
 	{ .reg = HHI_GP0_PLL_CNTL3,	.def = 0x0a5590c4 },
 	{ .reg = HHI_GP0_PLL_CNTL4,	.def = 0x0000500d },
+	{ .reg = HHI_GP0_PLL_CNTL,	.def = 0x4a000228 },
 };
 
 static struct clk_regmap gxbb_gp0_pll = {
@@ -437,12 +437,12 @@ static struct clk_regmap gxbb_gp0_pll = {
 };
 
 const struct reg_sequence gxl_gp0_init_regs[] = {
-	{ .reg = HHI_GP0_PLL_CNTL,	.def = 0x40010250 },
 	{ .reg = HHI_GP0_PLL_CNTL1,	.def = 0xc084a000 },
 	{ .reg = HHI_GP0_PLL_CNTL2,	.def = 0xb75020be },
 	{ .reg = HHI_GP0_PLL_CNTL3,	.def = 0x0a59a288 },
 	{ .reg = HHI_GP0_PLL_CNTL4,	.def = 0xc000004d },
 	{ .reg = HHI_GP0_PLL_CNTL5,	.def = 0x00078000 },
+	{ .reg = HHI_GP0_PLL_CNTL,	.def = 0x40010250 },
 };
 
 static struct clk_regmap gxl_gp0_pll = {
