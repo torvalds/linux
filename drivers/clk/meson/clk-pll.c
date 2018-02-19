@@ -105,7 +105,12 @@ static u16 __pll_params_with_frac(unsigned long rate,
 	u64 val = (u64)rate * pllt->n;
 
 	val <<= pllt->od + pllt->od2 + pllt->od3;
-	val = div_u64(val * frac_max, parent_rate);
+
+	if (pll->flags & CLK_MESON_PLL_ROUND_CLOSEST)
+		val = DIV_ROUND_CLOSEST_ULL(val * frac_max, parent_rate);
+	else
+		val = div_u64(val * frac_max, parent_rate);
+
 	val -= pllt->m * frac_max;
 
 	return min((u16)val, (u16)(frac_max - 1));
@@ -125,9 +130,13 @@ meson_clk_get_pll_settings(unsigned long rate,
 	while (table[i].rate && table[i].rate <= rate)
 		i++;
 
-	/* Select the setting of the rounded down rate */
-	if (i != 0)
-		i--;
+	if (i != 0) {
+		if (MESON_PARM_APPLICABLE(&pll->frac) ||
+		    !(pll->flags & CLK_MESON_PLL_ROUND_CLOSEST) ||
+		    (abs(rate - table[i - 1].rate) <
+		     abs(rate - table[i].rate)))
+			i--;
+	}
 
 	return (struct pll_rate_table *)&table[i];
 }

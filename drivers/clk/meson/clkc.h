@@ -71,6 +71,8 @@ struct pll_rate_table {
 		.od		= (_od),				\
 	}
 
+#define CLK_MESON_PLL_ROUND_CLOSEST	BIT(0)
+
 struct meson_clk_pll_data {
 	struct parm m;
 	struct parm n;
