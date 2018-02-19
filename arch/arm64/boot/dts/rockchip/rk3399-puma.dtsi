@@ -443,6 +443,20 @@
 	status = "okay";
 };
 
+/*
+ * As Q7 does not specify neither a global nor a RX clock for I2S these
+ * signals are not used. Furthermore I2S0_LRCK_RX is used as GPIO.
+ * Therefore we have to redefine the i2s0_2ch_bus definition to prevent
+ * conflicts.
+ */
+&i2s0_2ch_bus {
+	rockchip,pins =
+		<RK_GPIO3 RK_PD0 RK_FUNC_1 &pcfg_pull_none>,
+		<RK_GPIO3 RK_PD2 RK_FUNC_1 &pcfg_pull_none>,
+		<RK_GPIO3 RK_PD3 RK_FUNC_1 &pcfg_pull_none>,
+		<RK_GPIO3 RK_PD7 RK_FUNC_1 &pcfg_pull_none>;
+};
+
 &io_domains {
 	status = "okay";
 	bt656-supply = <&vcc_1v8>;
