@@ -162,6 +162,11 @@ static const struct edid_quirk {
 
 	/* HTC Vive VR Headset */
 	{ "HVR", 0xaa01, EDID_QUIRK_NON_DESKTOP },
+
+	/* Oculus Rift DK1, DK2, and CV1 VR Headsets */
+	{ "OVR", 0x0001, EDID_QUIRK_NON_DESKTOP },
+	{ "OVR", 0x0003, EDID_QUIRK_NON_DESKTOP },
+	{ "OVR", 0x0004, EDID_QUIRK_NON_DESKTOP },
 };
 
 /*
