@@ -179,10 +179,7 @@ static struct mv_usb_platform_data ttc_usb_pdata = {
 #endif
 
 #if IS_ENABLED(CONFIG_MTD_NAND_MARVELL)
-static struct pxa3xx_nand_platform_data dkb_nand_info = {
-	.enable_arbiter = 1,
-	.num_cs = 1,
-};
+static struct pxa3xx_nand_platform_data dkb_nand_info = {};
 #endif
 
 #if IS_ENABLED(CONFIG_MMP_DISP)
