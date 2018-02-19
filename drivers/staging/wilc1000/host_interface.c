@@ -1944,7 +1944,7 @@ static s32 Handle_GetStatistics(struct wilc_vif *vif,
 }
 
 static s32 Handle_Get_InActiveTime(struct wilc_vif *vif,
-				   struct sta_inactive_t *strHostIfStaInactiveT)
+				   struct sta_inactive_t *hif_sta_inactive)
 {
 	s32 result = 0;
 	u8 *stamac;
@@ -1959,7 +1959,7 @@ static s32 Handle_Get_InActiveTime(struct wilc_vif *vif,
 		return -ENOMEM;
 
 	stamac = wid.val;
-	ether_addr_copy(stamac, strHostIfStaInactiveT->mac);
+	ether_addr_copy(stamac, hif_sta_inactive->mac);
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
