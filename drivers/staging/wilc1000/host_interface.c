@@ -2383,20 +2383,20 @@ static void ListenTimerCB(struct timer_list *t)
 }
 
 static void Handle_PowerManagement(struct wilc_vif *vif,
-				   struct power_mgmt_param *strPowerMgmtParam)
+				   struct power_mgmt_param *pm_param)
 {
 	s32 result = 0;
 	struct wid wid;
-	s8 s8PowerMode;
+	s8 power_mode;
 
 	wid.id = (u16)WID_POWER_MANAGEMENT;
 
-	if (strPowerMgmtParam->enabled)
-		s8PowerMode = MIN_FAST_PS;
+	if (pm_param->enabled)
+		power_mode = MIN_FAST_PS;
 	else
-		s8PowerMode = NO_POWERSAVE;
+		power_mode = NO_POWERSAVE;
 
-	wid.val = &s8PowerMode;
+	wid.val = &power_mode;
 	wid.size = sizeof(char);
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
