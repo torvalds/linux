@@ -22,6 +22,8 @@
 #include <linux/moduleparam.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/irqreturn.h>
 #include <linux/console.h>
 #include <linux/sysrq.h>
 #include <linux/delay.h>
@@ -40,8 +42,6 @@
 #ifdef CONFIG_SPARC
 #include <linux/sunserialcore.h>
 #endif
-
-#include <asm/irq.h>
 
 #include "8250.h"
 
