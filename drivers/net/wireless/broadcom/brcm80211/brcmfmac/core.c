@@ -914,55 +914,6 @@ static int brcmf_inet6addr_changed(struct notifier_block *nb,
 }
 #endif
 
-int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings)
-{
-	struct brcmf_pub *drvr = NULL;
-	int ret = 0;
-	int i;
-
-	brcmf_dbg(TRACE, "Enter\n");
-
-	/* Allocate primary brcmf_info */
-	drvr = kzalloc(sizeof(struct brcmf_pub), GFP_ATOMIC);
-	if (!drvr)
-		return -ENOMEM;
-
-	for (i = 0; i < ARRAY_SIZE(drvr->if2bss); i++)
-		drvr->if2bss[i] = BRCMF_BSSIDX_INVALID;
-
-	mutex_init(&drvr->proto_block);
-
-	/* Link to bus module */
-	drvr->hdrlen = 0;
-	drvr->bus_if = dev_get_drvdata(dev);
-	drvr->bus_if->drvr = drvr;
-	drvr->settings = settings;
-
-	/* attach debug facilities */
-	brcmf_debug_attach(drvr);
-
-	/* Attach and link in the protocol */
-	ret = brcmf_proto_attach(drvr);
-	if (ret != 0) {
-		brcmf_err("brcmf_prot_attach failed\n");
-		goto fail;
-	}
-
-	/* Attach to events important for core code */
-	brcmf_fweh_register(drvr, BRCMF_E_PSM_WATCHDOG,
-			    brcmf_psm_watchdog_notify);
-
-	/* attach firmware event handler */
-	brcmf_fweh_attach(drvr);
-
-	return ret;
-
-fail:
-	brcmf_detach(dev);
-
-	return ret;
-}
-
 static int brcmf_revinfo_read(struct seq_file *s, void *data)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(s->private);
@@ -1089,6 +1040,55 @@ fail:
 	drvr->iflist[1] = NULL;
 	if (drvr->settings->ignore_probe_fail)
 		ret = 0;
+
+	return ret;
+}
+
+int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings)
+{
+	struct brcmf_pub *drvr = NULL;
+	int ret = 0;
+	int i;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	/* Allocate primary brcmf_info */
+	drvr = kzalloc(sizeof(*drvr), GFP_ATOMIC);
+	if (!drvr)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(drvr->if2bss); i++)
+		drvr->if2bss[i] = BRCMF_BSSIDX_INVALID;
+
+	mutex_init(&drvr->proto_block);
+
+	/* Link to bus module */
+	drvr->hdrlen = 0;
+	drvr->bus_if = dev_get_drvdata(dev);
+	drvr->bus_if->drvr = drvr;
+	drvr->settings = settings;
+
+	/* attach debug facilities */
+	brcmf_debug_attach(drvr);
+
+	/* Attach and link in the protocol */
+	ret = brcmf_proto_attach(drvr);
+	if (ret != 0) {
+		brcmf_err("brcmf_prot_attach failed\n");
+		goto fail;
+	}
+
+	/* Attach to events important for core code */
+	brcmf_fweh_register(drvr, BRCMF_E_PSM_WATCHDOG,
+			    brcmf_psm_watchdog_notify);
+
+	/* attach firmware event handler */
+	brcmf_fweh_attach(drvr);
+
+	return ret;
+
+fail:
+	brcmf_detach(dev);
 
 	return ret;
 }
