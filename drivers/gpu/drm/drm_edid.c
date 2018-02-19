@@ -177,6 +177,9 @@ static const struct edid_quirk {
 	{ "DEL", 0x7fce, EDID_QUIRK_NON_DESKTOP },
 	{ "SEC", 0x144a, EDID_QUIRK_NON_DESKTOP },
 	{ "AUS", 0xc102, EDID_QUIRK_NON_DESKTOP },
+
+	/* Sony PlayStation VR Headset */
+	{ "SNY", 0x0704, EDID_QUIRK_NON_DESKTOP },
 };
 
 /*
