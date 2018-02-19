@@ -1340,6 +1340,7 @@ static void __net_exit cfg80211_pernet_exit(struct net *net)
 
 static struct pernet_operations cfg80211_pernet_ops = {
 	.exit = cfg80211_pernet_exit,
+	.async = true,
 };
 
 static int __init cfg80211_init(void)
