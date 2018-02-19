@@ -505,6 +505,8 @@ eb_add_vma(struct i915_execbuffer *eb, unsigned int i, struct i915_vma *vma)
 		list_add_tail(&vma->exec_link, &eb->unbound);
 		if (drm_mm_node_allocated(&vma->node))
 			err = i915_vma_unbind(vma);
+		if (unlikely(err))
+			vma->exec_flags = NULL;
 	}
 	return err;
 }
