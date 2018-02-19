@@ -944,11 +944,10 @@ static int brcmf_revinfo_read(struct seq_file *s, void *data)
 	return 0;
 }
 
-int brcmf_bus_started(struct device *dev)
+static int brcmf_bus_started(struct brcmf_pub *drvr)
 {
 	int ret = -1;
-	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_pub *drvr = bus_if->drvr;
+	struct brcmf_bus *bus_if = drvr->bus_if;
 	struct brcmf_if *ifp;
 	struct brcmf_if *p2p_ifp;
 
@@ -965,7 +964,7 @@ int brcmf_bus_started(struct device *dev)
 	brcmf_bus_change_state(bus_if, BRCMF_BUS_UP);
 
 	/* do bus specific preinit here */
-	ret = brcmf_bus_preinit(ifp->drvr->bus_if);
+	ret = brcmf_bus_preinit(bus_if);
 	if (ret < 0)
 		goto fail;
 
@@ -1085,7 +1084,12 @@ int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings)
 	/* attach firmware event handler */
 	brcmf_fweh_attach(drvr);
 
-	return ret;
+	ret = brcmf_bus_started(drvr);
+	if (ret != 0) {
+		brcmf_err("dongle is not responding: err=%d\n", ret);
+		goto fail;
+	}
+	return 0;
 
 fail:
 	brcmf_detach(dev);

@@ -253,7 +253,6 @@ void brcmf_dev_reset(struct device *dev);
 /* Configure the "global" bus state used by upper layers */
 void brcmf_bus_change_state(struct brcmf_bus *bus, enum brcmf_bus_state state);
 
-int brcmf_bus_started(struct device *dev);
 s32 brcmf_iovar_data_set(struct device *dev, char *name, void *data, u32 len);
 void brcmf_bus_add_txhdrlen(struct device *dev, uint len);
 
