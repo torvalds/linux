@@ -2221,7 +2221,7 @@ ERRORHANDLER:
 }
 
 static int Handle_RemainOnChan(struct wilc_vif *vif,
-			       struct remain_ch *pstrHostIfRemainOnChan)
+			       struct remain_ch *hif_remain_ch)
 {
 	s32 result = 0;
 	u8 u8remain_on_chan_flag;
@@ -2229,13 +2229,13 @@ static int Handle_RemainOnChan(struct wilc_vif *vif,
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv->remain_on_ch_pending) {
-		hif_drv->remain_on_ch.arg = pstrHostIfRemainOnChan->arg;
-		hif_drv->remain_on_ch.expired = pstrHostIfRemainOnChan->expired;
-		hif_drv->remain_on_ch.ready = pstrHostIfRemainOnChan->ready;
-		hif_drv->remain_on_ch.ch = pstrHostIfRemainOnChan->ch;
-		hif_drv->remain_on_ch.id = pstrHostIfRemainOnChan->id;
+		hif_drv->remain_on_ch.arg = hif_remain_ch->arg;
+		hif_drv->remain_on_ch.expired = hif_remain_ch->expired;
+		hif_drv->remain_on_ch.ready = hif_remain_ch->ready;
+		hif_drv->remain_on_ch.ch = hif_remain_ch->ch;
+		hif_drv->remain_on_ch.id = hif_remain_ch->id;
 	} else {
-		pstrHostIfRemainOnChan->ch = hif_drv->remain_on_ch.ch;
+		hif_remain_ch->ch = hif_drv->remain_on_ch.ch;
 	}
 
 	if (hif_drv->usr_scan_req.scan_result) {
@@ -2264,7 +2264,7 @@ static int Handle_RemainOnChan(struct wilc_vif *vif,
 	}
 
 	wid.val[0] = u8remain_on_chan_flag;
-	wid.val[1] = (s8)pstrHostIfRemainOnChan->ch;
+	wid.val[1] = (s8)hif_remain_ch->ch;
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
@@ -2277,7 +2277,7 @@ ERRORHANDLER:
 		hif_drv->remain_on_ch_timer_vif = vif;
 		mod_timer(&hif_drv->remain_on_ch_timer,
 			  jiffies +
-			  msecs_to_jiffies(pstrHostIfRemainOnChan->duration));
+			  msecs_to_jiffies(hif_remain_ch->duration));
 
 		if (hif_drv->remain_on_ch.ready)
 			hif_drv->remain_on_ch.ready(hif_drv->remain_on_ch.arg);
@@ -2321,7 +2321,7 @@ static int Handle_RegisterFrame(struct wilc_vif *vif,
 }
 
 static u32 Handle_ListenStateExpired(struct wilc_vif *vif,
-				     struct remain_ch *pstrHostIfRemainOnChan)
+				     struct remain_ch *hif_remain_ch)
 {
 	u8 u8remain_on_chan_flag;
 	struct wid wid;
@@ -2350,7 +2350,7 @@ static u32 Handle_ListenStateExpired(struct wilc_vif *vif,
 
 		if (hif_drv->remain_on_ch.expired) {
 			hif_drv->remain_on_ch.expired(hif_drv->remain_on_ch.arg,
-						      pstrHostIfRemainOnChan->id);
+						      hif_remain_ch->id);
 		}
 		P2P_LISTEN_STATE = 0;
 	} else {
