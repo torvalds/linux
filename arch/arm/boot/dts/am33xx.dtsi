@@ -960,6 +960,8 @@
 			compatible = "ti,emif-am3352";
 			reg = <0x4c000000 0x1000000>;
 			ti,hwmods = "emif";
+			sram = <&pm_sram_code
+				&pm_sram_data>;
 		};
 
 		gpmc: gpmc@50000000 {
