@@ -224,7 +224,7 @@ MODULE_DEVICE_TABLE(of, img_ascii_lcd_matches);
 
 /**
  * img_ascii_lcd_scroll() - scroll the display by a character
- * @arg: really a pointer to the private data structure
+ * @t: really a pointer to the private data structure
  *
  * Scroll the current message along the LCD by one character, rearming the
  * timer if required.
