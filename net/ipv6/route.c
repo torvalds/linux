@@ -4998,6 +4998,7 @@ static void __net_exit ipv6_inetpeer_exit(struct net *net)
 static struct pernet_operations ipv6_inetpeer_ops = {
 	.init	=	ipv6_inetpeer_init,
 	.exit	=	ipv6_inetpeer_exit,
+	.async	=	true,
 };
 
 static struct pernet_operations ip6_route_net_late_ops = {
