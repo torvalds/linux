@@ -81,7 +81,7 @@ int get_cpuid(char *buffer, size_t sz)
 			line2 = line + strlen(SYSINFO_MODEL);
 
 			while ((cp = strtok_r(line2, "\n ", &line2))) {
-				mdsize += scnprintf(model + mdsize, sizeof(type) - mdsize,
+				mdsize += scnprintf(model + mdsize, sizeof(model) - mdsize,
 						    "%s%s", model[0] ? "," : "", cp);
 			}
 			break;
