@@ -468,7 +468,7 @@ static int mic_bias_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget common31xx_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("DAC IN", "DAC Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF IN", "Playback", 0, SND_SOC_NOPM, 0, 0),
 
 	SND_SOC_DAPM_MUX("DAC Left Input",
 			 SND_SOC_NOPM, 0, 0, &ldac_in_control),
@@ -584,12 +584,12 @@ static const struct snd_soc_dapm_widget aic310x_dapm_widgets[] = {
 static const struct snd_soc_dapm_route
 common31xx_audio_map[] = {
 	/* DAC Input Routing */
-	{"DAC Left Input", "Left Data", "DAC IN"},
-	{"DAC Left Input", "Right Data", "DAC IN"},
-	{"DAC Left Input", "Mono", "DAC IN"},
-	{"DAC Right Input", "Left Data", "DAC IN"},
-	{"DAC Right Input", "Right Data", "DAC IN"},
-	{"DAC Right Input", "Mono", "DAC IN"},
+	{"DAC Left Input", "Left Data", "AIF IN"},
+	{"DAC Left Input", "Right Data", "AIF IN"},
+	{"DAC Left Input", "Mono", "AIF IN"},
+	{"DAC Right Input", "Left Data", "AIF IN"},
+	{"DAC Right Input", "Right Data", "AIF IN"},
+	{"DAC Right Input", "Mono", "AIF IN"},
 	{"DAC Left", NULL, "DAC Left Input"},
 	{"DAC Right", NULL, "DAC Right Input"},
 
@@ -679,8 +679,8 @@ aic310x_audio_map[] = {
  */
 static const struct snd_soc_dapm_route
 common31xx_cm_audio_map[] = {
-	{"DAC Left Input", "Off", "DAC IN"},
-	{"DAC Right Input", "Off", "DAC IN"},
+	{"DAC Left Input", "Off", "AIF IN"},
+	{"DAC Right Input", "Off", "AIF IN"},
 
 	{"HPL", NULL, "DAC Left"},
 	{"HPR", NULL, "DAC Right"},
