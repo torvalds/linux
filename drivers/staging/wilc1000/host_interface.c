@@ -1314,9 +1314,9 @@ done:
 }
 
 static s32 host_int_get_assoc_res_info(struct wilc_vif *vif,
-				       u8 *pu8AssocRespInfo,
-				       u32 u32MaxAssocRespInfoLen,
-				       u32 *pu32RcvdAssocRespInfoLen);
+				       u8 *assoc_resp_info,
+				       u32 max_assoc_resp_info_len,
+				       u32 *rcvd_assoc_resp_info_len);
 
 static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 				    struct rcvd_async_info *pstrRcvdGnrlAsyncInfo)
@@ -3080,27 +3080,27 @@ int wilc_disconnect(struct wilc_vif *vif, u16 reason_code)
 }
 
 static s32 host_int_get_assoc_res_info(struct wilc_vif *vif,
-				       u8 *pu8AssocRespInfo,
-				       u32 u32MaxAssocRespInfoLen,
-				       u32 *pu32RcvdAssocRespInfoLen)
+				       u8 *assoc_resp_info,
+				       u32 max_assoc_resp_info_len,
+				       u32 *rcvd_assoc_resp_info_len)
 {
 	s32 result = 0;
 	struct wid wid;
 
 	wid.id = (u16)WID_ASSOC_RES_INFO;
 	wid.type = WID_STR;
-	wid.val = pu8AssocRespInfo;
-	wid.size = u32MaxAssocRespInfoLen;
+	wid.val = assoc_resp_info;
+	wid.size = max_assoc_resp_info_len;
 
 	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
 	if (result) {
-		*pu32RcvdAssocRespInfoLen = 0;
+		*rcvd_assoc_resp_info_len = 0;
 		netdev_err(vif->ndev, "Failed to send association response\n");
 		return -EINVAL;
 	}
 
-	*pu32RcvdAssocRespInfoLen = wid.size;
+	*rcvd_assoc_resp_info_len = wid.size;
 	return result;
 }
 
