@@ -2290,7 +2290,7 @@ ERRORHANDLER:
 }
 
 static int Handle_RegisterFrame(struct wilc_vif *vif,
-				struct reg_frame *pstrHostIfRegisterFrame)
+				struct reg_frame *hif_reg_frame)
 {
 	s32 result = 0;
 	struct wid wid;
@@ -2304,9 +2304,9 @@ static int Handle_RegisterFrame(struct wilc_vif *vif,
 
 	cur_byte = wid.val;
 
-	*cur_byte++ = pstrHostIfRegisterFrame->reg;
-	*cur_byte++ = pstrHostIfRegisterFrame->reg_id;
-	memcpy(cur_byte, &pstrHostIfRegisterFrame->frame_type, sizeof(u16));
+	*cur_byte++ = hif_reg_frame->reg;
+	*cur_byte++ = hif_reg_frame->reg_id;
+	memcpy(cur_byte, &hif_reg_frame->frame_type, sizeof(u16));
 
 	wid.size = sizeof(u16) + 2;
 
