@@ -146,24 +146,4 @@ enum drv_hash_hw_mode {
 	DRV_HASH_HW_RESERVE32B = S32_MAX
 };
 
-/* drv_crypto_key_type[1:0] is mapped to cipher_do[1:0] */
-/* drv_crypto_key_type[2] is mapped to cipher_config2 */
-enum drv_crypto_key_type {
-	DRV_NULL_KEY = -1,
-	DRV_USER_KEY = 0,		/* 0x000 */
-	DRV_ROOT_KEY = 1,		/* 0x001 */
-	DRV_PROVISIONING_KEY = 2,	/* 0x010 */
-	DRV_SESSION_KEY = 3,		/* 0x011 */
-	DRV_APPLET_KEY = 4,		/* NA */
-	DRV_PLATFORM_KEY = 5,		/* 0x101 */
-	DRV_CUSTOMER_KEY = 6,		/* 0x110 */
-	DRV_END_OF_KEYS = S32_MAX,
-};
-
-enum drv_crypto_padding_type {
-	DRV_PADDING_NONE = 0,
-	DRV_PADDING_PKCS7 = 1,
-	DRV_PADDING_RESERVE32B = S32_MAX
-};
-
 #endif /* _CC_CRYPTO_CTX_H_ */
