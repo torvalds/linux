@@ -82,8 +82,6 @@ struct pll_rate_table {
 		.frac		= (_frac),				\
 	}								\
 
-#define CLK_MESON_PLL_LOCK_LOOP_RST	BIT(0)
-
 struct meson_clk_pll_data {
 	struct parm m;
 	struct parm n;

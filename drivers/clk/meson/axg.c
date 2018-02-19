@@ -231,7 +231,6 @@ static struct clk_regmap axg_gp0_pll = {
 		.table = axg_gp0_pll_rate_table,
 		.init_regs = axg_gp0_init_regs,
 		.init_count = ARRAY_SIZE(axg_gp0_init_regs),
-		.flags = CLK_MESON_PLL_LOCK_LOOP_RST,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp0_pll",

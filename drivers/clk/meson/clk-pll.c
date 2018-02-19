@@ -121,19 +121,9 @@ static int meson_clk_pll_wait_lock(struct clk_hw *hw)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
-	int delay = pll->flags & CLK_MESON_PLL_LOCK_LOOP_RST ?
-		100 : 24000000;
+	int delay = 24000000;
 
 	do {
-		/* Specific wait loop for GXL/GXM GP0 PLL */
-		if (pll->flags & CLK_MESON_PLL_LOCK_LOOP_RST) {
-			/* Procedure taken from the vendor kernel */
-			meson_parm_write(clk->map, &pll->rst, 1);
-			udelay(10);
-			meson_parm_write(clk->map, &pll->rst, 0);
-			mdelay(1);
-		}
-
 		/* Is the clock locked now ? */
 		if (meson_parm_read(clk->map, &pll->l))
 			return 0;
