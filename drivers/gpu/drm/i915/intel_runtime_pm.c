@@ -3328,18 +3328,19 @@ void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
  * @dev_priv: i915 device instance
  *
  * This function grabs a device-level runtime pm reference if the device is
- * already in use and ensures that it is powered up.
+ * already in use and ensures that it is powered up. It is illegal to try
+ * and access the HW should intel_runtime_pm_get_if_in_use() report failure.
  *
  * Any runtime pm reference obtained by this function must have a symmetric
  * call to intel_runtime_pm_put() to release the reference again.
+ *
+ * Returns: True if the wakeref was acquired, or False otherwise.
  */
 bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
-	struct device *kdev = &pdev->dev;
-
 	if (IS_ENABLED(CONFIG_PM)) {
-		int ret = pm_runtime_get_if_in_use(kdev);
+		struct pci_dev *pdev = dev_priv->drm.pdev;
+		struct device *kdev = &pdev->dev;
 
 		/*
 		 * In cases runtime PM is disabled by the RPM core and we get
@@ -3347,9 +3348,7 @@ bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv)
 		 * function, since the power state is undefined. This applies
 		 * atm to the late/early system suspend/resume handlers.
 		 */
-		WARN_ONCE(ret < 0,
-			  "pm_runtime_get_if_in_use() failed: %d\n", ret);
-		if (ret <= 0)
+		if (pm_runtime_get_if_in_use(kdev) <= 0)
 			return false;
 	}
 
