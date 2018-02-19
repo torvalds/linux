@@ -359,7 +359,7 @@ void __init mxm_8x10_ac97_init(void)
 }
 
 /* NAND flash Support */
-#if defined(CONFIG_MTD_NAND_PXA3xx) || defined(CONFIG_MTD_NAND_PXA3xx_MODULE)
+#if IS_ENABLED(CONFIG_MTD_NAND_MARVELL)
 #define NAND_BLOCK_SIZE SZ_128K
 #define NB(x)           (NAND_BLOCK_SIZE * (x))
 static struct mtd_partition mxm_8x10_nand_partitions[] = {
@@ -402,7 +402,7 @@ static void __init mxm_8x10_nand_init(void)
 }
 #else
 static inline void mxm_8x10_nand_init(void) {}
-#endif /* CONFIG_MTD_NAND_PXA3xx || CONFIG_MTD_NAND_PXA3xx_MODULE */
+#endif /* IS_ENABLED(CONFIG_MTD_NAND_MARVELL) */
 
 /* Ethernet support: Davicom DM9000 */
 static struct resource dm9k_resources[] = {

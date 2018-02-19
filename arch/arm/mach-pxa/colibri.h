@@ -46,7 +46,7 @@ static inline void colibri_pxa3xx_init_lcd(int bl_pin) {}
 extern void colibri_pxa3xx_init_eth(struct ax_plat_data *plat_data);
 #endif
 
-#if defined(CONFIG_MTD_NAND_PXA3xx) || defined(CONFIG_MTD_NAND_PXA3xx_MODULE)
+#if IS_ENABLED(CONFIG_MTD_NAND_MARVELL)
 extern void colibri_pxa3xx_init_nand(void);
 #else
 static inline void colibri_pxa3xx_init_nand(void) {}

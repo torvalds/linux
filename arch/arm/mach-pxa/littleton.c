@@ -291,7 +291,7 @@ static void __init littleton_init_mmc(void)
 static inline void littleton_init_mmc(void) {}
 #endif
 
-#if defined(CONFIG_MTD_NAND_PXA3xx) || defined(CONFIG_MTD_NAND_PXA3xx_MODULE)
+#if IS_ENABLED(CONFIG_MTD_NAND_MARVELL)
 static struct mtd_partition littleton_nand_partitions[] = {
 	[0] = {
 		.name        = "Bootloader",
@@ -341,7 +341,7 @@ static void __init littleton_init_nand(void)
 }
 #else
 static inline void littleton_init_nand(void) {}
-#endif /* CONFIG_MTD_NAND_PXA3xx || CONFIG_MTD_NAND_PXA3xx_MODULE */
+#endif /* IS_ENABLED(CONFIG_MTD_NAND_MARVELL) */
 
 #if defined(CONFIG_I2C_PXA) || defined(CONFIG_I2C_PXA_MODULE)
 static struct led_info littleton_da9034_leds[] = {
