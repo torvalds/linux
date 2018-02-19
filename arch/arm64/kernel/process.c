@@ -220,8 +220,15 @@ void __show_regs(struct pt_regs *regs)
 
 	show_regs_print_info(KERN_DEFAULT);
 	print_pstate(regs);
-	printk("pc : %pS\n", (void *)regs->pc);
-	printk("lr : %pS\n", (void *)lr);
+
+	if (!user_mode(regs)) {
+		printk("pc : %pS\n", (void *)regs->pc);
+		printk("lr : %pS\n", (void *)lr);
+	} else {
+		printk("pc : %016llx\n", regs->pc);
+		printk("lr : %016llx\n", lr);
+	}
+
 	printk("sp : %016llx\n", sp);
 
 	i = top_reg;
