@@ -248,9 +248,11 @@ enum stm32_sai_version {
 /**
  * struct stm32_sai_conf - SAI configuration
  * @version: SAI version
+ * @has_spdif: SAI S/PDIF support flag
  */
 struct stm32_sai_conf {
 	int version;
+	bool has_spdif;
 };
 
 /**
