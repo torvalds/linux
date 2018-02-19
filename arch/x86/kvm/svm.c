@@ -300,6 +300,8 @@ module_param(vgif, int, 0444);
 static int sev = IS_ENABLED(CONFIG_AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT);
 module_param(sev, int, 0444);
 
+static u8 rsm_ins_bytes[] = "\x0f\xaa";
+
 static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 static void svm_flush_tlb(struct kvm_vcpu *vcpu, bool invalidate_gpa);
 static void svm_complete_interrupts(struct vcpu_svm *svm);
@@ -1383,6 +1385,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 	set_intercept(svm, INTERCEPT_SKINIT);
 	set_intercept(svm, INTERCEPT_WBINVD);
 	set_intercept(svm, INTERCEPT_XSETBV);
+	set_intercept(svm, INTERCEPT_RSM);
 
 	if (!kvm_mwait_in_guest()) {
 		set_intercept(svm, INTERCEPT_MONITOR);
@@ -3699,6 +3702,12 @@ static int emulate_on_interception(struct vcpu_svm *svm)
 	return emulate_instruction(&svm->vcpu, 0) == EMULATE_DONE;
 }
 
+static int rsm_interception(struct vcpu_svm *svm)
+{
+	return x86_emulate_instruction(&svm->vcpu, 0, 0,
+				       rsm_ins_bytes, 2) == EMULATE_DONE;
+}
+
 static int rdpmc_interception(struct vcpu_svm *svm)
 {
 	int err;
@@ -4541,7 +4550,7 @@ static int (*const svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_MWAIT]			= mwait_interception,
 	[SVM_EXIT_XSETBV]			= xsetbv_interception,
 	[SVM_EXIT_NPF]				= npf_interception,
-	[SVM_EXIT_RSM]                          = emulate_on_interception,
+	[SVM_EXIT_RSM]                          = rsm_interception,
 	[SVM_EXIT_AVIC_INCOMPLETE_IPI]		= avic_incomplete_ipi_interception,
 	[SVM_EXIT_AVIC_UNACCELERATED_ACCESS]	= avic_unaccelerated_access_interception,
 };
