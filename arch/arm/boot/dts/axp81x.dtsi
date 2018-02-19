@@ -53,7 +53,7 @@
 		#io-channel-cells = <1>;
 	};
 
-	axp_gpio: axp-gpio {
+	axp_gpio: gpio {
 		compatible = "x-powers,axp813-gpio";
 		gpio-controller;
 		#gpio-cells = <2>;
