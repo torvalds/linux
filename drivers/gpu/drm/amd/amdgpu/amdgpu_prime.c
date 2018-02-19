@@ -30,6 +30,8 @@
 #include <drm/amdgpu_drm.h>
 #include <linux/dma-buf.h>
 
+static const struct dma_buf_ops amdgpu_dmabuf_ops;
+
 struct sg_table *amdgpu_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
@@ -129,20 +131,27 @@ static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
 	if (unlikely(r != 0))
 		goto error_detach;
 
-	/*
-	 * Wait for all shared fences to complete before we switch to future
-	 * use of exclusive fence on this prime shared bo.
-	 */
-	r = reservation_object_wait_timeout_rcu(bo->tbo.resv, true, false,
-						MAX_SCHEDULE_TIMEOUT);
-	if (unlikely(r < 0)) {
-		DRM_DEBUG_PRIME("Fence wait failed: %li\n", r);
-		goto error_unreserve;
+
+	if (dma_buf->ops != &amdgpu_dmabuf_ops) {
+		/*
+		 * Wait for all shared fences to complete before we switch to future
+		 * use of exclusive fence on this prime shared bo.
+		 */
+		r = reservation_object_wait_timeout_rcu(bo->tbo.resv,
+							true, false,
+							MAX_SCHEDULE_TIMEOUT);
+		if (unlikely(r < 0)) {
+			DRM_DEBUG_PRIME("Fence wait failed: %li\n", r);
+			goto error_unreserve;
+		}
 	}
 
 	/* pin buffer into GTT */
 	r = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT, NULL);
-	if (likely(r == 0))
+	if (r)
+		goto error_unreserve;
+
+	if (dma_buf->ops != &amdgpu_dmabuf_ops)
 		bo->prime_shared_count++;
 
 error_unreserve:
@@ -166,7 +175,7 @@ static void amdgpu_gem_map_detach(struct dma_buf *dma_buf,
 		goto error;
 
 	amdgpu_bo_unpin(bo);
-	if (bo->prime_shared_count)
+	if (dma_buf->ops != &amdgpu_dmabuf_ops && bo->prime_shared_count)
 		bo->prime_shared_count--;
 	amdgpu_bo_unreserve(bo);
 
