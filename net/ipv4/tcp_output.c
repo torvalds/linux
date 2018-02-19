@@ -1206,7 +1206,7 @@ static void tcp_queue_skb(struct sock *sk, struct sk_buff *skb)
 /* Initialize TSO segments for a packet. */
 static void tcp_set_skb_tso_segs(struct sk_buff *skb, unsigned int mss_now)
 {
-	if (skb->len <= mss_now || skb->ip_summed == CHECKSUM_NONE) {
+	if (skb->len <= mss_now) {
 		/* Avoid the costly divide in the normal
 		 * non-TSO case.
 		 */
