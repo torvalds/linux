@@ -280,6 +280,20 @@ static struct clk_fixed_factor meson8b_fclk_div7 = {
 	},
 };
 
+static struct clk_regmap meson8b_mpll_prediv = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_MPLL_CNTL5,
+		.shift = 12,
+		.width = 1,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mpll_prediv",
+		.ops = &clk_regmap_divider_ro_ops,
+		.parent_names = (const char *[]){ "fixed_pll" },
+		.num_parents = 1,
+	},
+};
+
 static struct clk_regmap meson8b_mpll0_div = {
 	.data = &(struct meson_clk_mpll_data){
 		.sdm = {
@@ -307,7 +321,7 @@ static struct clk_regmap meson8b_mpll0_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll0_div",
 		.ops = &meson_clk_mpll_ops,
-		.parent_names = (const char *[]){ "fixed_pll" },
+		.parent_names = (const char *[]){ "mpll_prediv" },
 		.num_parents = 1,
 	},
 };
@@ -348,7 +362,7 @@ static struct clk_regmap meson8b_mpll1_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll1_div",
 		.ops = &meson_clk_mpll_ops,
-		.parent_names = (const char *[]){ "fixed_pll" },
+		.parent_names = (const char *[]){ "mpll_prediv" },
 		.num_parents = 1,
 	},
 };
@@ -389,7 +403,7 @@ static struct clk_regmap meson8b_mpll2_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll2_div",
 		.ops = &meson_clk_mpll_ops,
-		.parent_names = (const char *[]){ "fixed_pll" },
+		.parent_names = (const char *[]){ "mpll_prediv" },
 		.num_parents = 1,
 	},
 };
@@ -751,6 +765,7 @@ static struct clk_hw_onecell_data meson8b_hw_onecell_data = {
 		[CLKID_CPU_DIV3]	    = &meson8b_cpu_div3.hw,
 		[CLKID_CPU_SCALE_DIV]	    = &meson8b_cpu_scale_div.hw,
 		[CLKID_CPU_SCALE_OUT_SEL]   = &meson8b_cpu_scale_out_sel.hw,
+		[CLKID_MPLL_PREDIV]	    = &meson8b_mpll_prediv.hw,
 		[CLK_NR_CLKS]		    = NULL,
 	},
 	.num = CLK_NR_CLKS,
@@ -850,6 +865,7 @@ static struct clk_regmap *const meson8b_clk_regmaps[] = {
 	&meson8b_cpu_scale_div,
 	&meson8b_cpu_scale_out_sel,
 	&meson8b_cpu_clk,
+	&meson8b_mpll_prediv,
 };
 
 static const struct meson8b_clk_reset_line {

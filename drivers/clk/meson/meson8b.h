@@ -77,8 +77,9 @@
 #define CLKID_CPU_DIV3		101
 #define CLKID_CPU_SCALE_DIV	102
 #define CLKID_CPU_SCALE_OUT_SEL	103
+#define CLKID_MPLL_PREDIV	104
 
-#define CLK_NR_CLKS		104
+#define CLK_NR_CLKS		105
 
 /*
  * include the CLKID and RESETID that have

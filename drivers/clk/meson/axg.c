@@ -354,6 +354,20 @@ static struct clk_fixed_factor axg_fclk_div7 = {
 	},
 };
 
+static struct clk_regmap axg_mpll_prediv = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_MPLL_CNTL5,
+		.shift = 12,
+		.width = 1,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mpll_prediv",
+		.ops = &clk_regmap_divider_ro_ops,
+		.parent_names = (const char *[]){ "fixed_pll" },
+		.num_parents = 1,
+	},
+};
+
 static struct clk_regmap axg_mpll0_div = {
 	.data = &(struct meson_clk_mpll_data){
 		.sdm = {
@@ -386,7 +400,7 @@ static struct clk_regmap axg_mpll0_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll0_div",
 		.ops = &meson_clk_mpll_ops,
-		.parent_names = (const char *[]){ "fixed_pll" },
+		.parent_names = (const char *[]){ "mpll_prediv" },
 		.num_parents = 1,
 	},
 };
@@ -432,7 +446,7 @@ static struct clk_regmap axg_mpll1_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll1_div",
 		.ops = &meson_clk_mpll_ops,
-		.parent_names = (const char *[]){ "fixed_pll" },
+		.parent_names = (const char *[]){ "mpll_prediv" },
 		.num_parents = 1,
 	},
 };
@@ -478,7 +492,7 @@ static struct clk_regmap axg_mpll2_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll2_div",
 		.ops = &meson_clk_mpll_ops,
-		.parent_names = (const char *[]){ "fixed_pll" },
+		.parent_names = (const char *[]){ "mpll_prediv" },
 		.num_parents = 1,
 	},
 };
@@ -524,7 +538,7 @@ static struct clk_regmap axg_mpll3_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll3_div",
 		.ops = &meson_clk_mpll_ops,
-		.parent_names = (const char *[]){ "fixed_pll" },
+		.parent_names = (const char *[]){ "mpll_prediv" },
 		.num_parents = 1,
 	},
 };
@@ -821,6 +835,7 @@ static struct clk_hw_onecell_data axg_hw_onecell_data = {
 		[CLKID_MPLL2_DIV]		= &axg_mpll2_div.hw,
 		[CLKID_MPLL3_DIV]		= &axg_mpll3_div.hw,
 		[CLKID_HIFI_PLL]		= &axg_hifi_pll.hw,
+		[CLKID_MPLL_PREDIV]		= &axg_mpll_prediv.hw,
 		[NR_CLKS]			= NULL,
 	},
 	.num = NR_CLKS,
@@ -893,6 +908,7 @@ static struct clk_regmap *const axg_clk_regmaps[] = {
 	&axg_sys_pll,
 	&axg_gp0_pll,
 	&axg_hifi_pll,
+	&axg_mpll_prediv,
 };
 
 static const struct of_device_id clkc_match_table[] = {
