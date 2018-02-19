@@ -175,7 +175,7 @@ sub is_32bit
 
 sub is_ix86_32
 {
-       my $arch = `uname -m`;
+       state $arch = `uname -m`;
 
        chomp $arch;
        if ($arch =~ m/i[3456]86/) {
@@ -198,12 +198,14 @@ sub is_arch
 
 sub is_x86_64
 {
-	return is_arch('x86_64');
+	state $is = is_arch('x86_64');
+	return $is;
 }
 
 sub is_ppc64
 {
-	return is_arch('ppc64');
+	state $is = is_arch('ppc64');
+	return $is;
 }
 
 # Gets config option value from kernel config file.
