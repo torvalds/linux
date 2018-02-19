@@ -506,80 +506,77 @@ static struct i2c_vbi_ram_value vbi_ram_default[] =
 	/* FIXME: Current api doesn't handle all VBI types, those not
 	   yet supported are placed under #if 0 */
 #if 0
-	{0x010, /* Teletext, SECAM, WST System A */
+	[0] = {0x010, /* Teletext, SECAM, WST System A */
 		{V4L2_SLICED_TELETEXT_SECAM,6,23,1},
 		{ 0xaa, 0xaa, 0xff, 0xff, 0xe7, 0x2e, 0x20, 0x26,
 		  0xe6, 0xb4, 0x0e, 0x00, 0x00, 0x00, 0x10, 0x00 }
 	},
 #endif
-	{0x030, /* Teletext, PAL, WST System B */
+	[1] = {0x030, /* Teletext, PAL, WST System B */
 		{V4L2_SLICED_TELETEXT_B,6,22,1},
 		{ 0xaa, 0xaa, 0xff, 0xff, 0x27, 0x2e, 0x20, 0x2b,
 		  0xa6, 0x72, 0x10, 0x00, 0x00, 0x00, 0x10, 0x00 }
 	},
 #if 0
-	{0x050, /* Teletext, PAL, WST System C */
+	[2] = {0x050, /* Teletext, PAL, WST System C */
 		{V4L2_SLICED_TELETEXT_PAL_C,6,22,1},
 		{ 0xaa, 0xaa, 0xff, 0xff, 0xe7, 0x2e, 0x20, 0x22,
 		  0xa6, 0x98, 0x0d, 0x00, 0x00, 0x00, 0x10, 0x00 }
 	},
-	{0x070, /* Teletext, NTSC, WST System B */
+	[3] = {0x070, /* Teletext, NTSC, WST System B */
 		{V4L2_SLICED_TELETEXT_NTSC_B,10,21,1},
 		{ 0xaa, 0xaa, 0xff, 0xff, 0x27, 0x2e, 0x20, 0x23,
 		  0x69, 0x93, 0x0d, 0x00, 0x00, 0x00, 0x10, 0x00 }
 	},
-	{0x090, /* Tetetext, NTSC NABTS System C */
+	[4] = {0x090, /* Tetetext, NTSC NABTS System C */
 		{V4L2_SLICED_TELETEXT_NTSC_C,10,21,1},
 		{ 0xaa, 0xaa, 0xff, 0xff, 0xe7, 0x2e, 0x20, 0x22,
 		  0x69, 0x93, 0x0d, 0x00, 0x00, 0x00, 0x15, 0x00 }
 	},
-	{0x0b0, /* Teletext, NTSC-J, NABTS System D */
+	[5] = {0x0b0, /* Teletext, NTSC-J, NABTS System D */
 		{V4L2_SLICED_TELETEXT_NTSC_D,10,21,1},
 		{ 0xaa, 0xaa, 0xff, 0xff, 0xa7, 0x2e, 0x20, 0x23,
 		  0x69, 0x93, 0x0d, 0x00, 0x00, 0x00, 0x10, 0x00 }
 	},
-	{0x0d0, /* Closed Caption, PAL/SECAM */
+	[6] = {0x0d0, /* Closed Caption, PAL/SECAM */
 		{V4L2_SLICED_CAPTION_625,22,22,1},
 		{ 0xaa, 0x2a, 0xff, 0x3f, 0x04, 0x51, 0x6e, 0x02,
 		  0xa6, 0x7b, 0x09, 0x00, 0x00, 0x00, 0x27, 0x00 }
 	},
 #endif
-	{0x0f0, /* Closed Caption, NTSC */
+	[7] = {0x0f0, /* Closed Caption, NTSC */
 		{V4L2_SLICED_CAPTION_525,21,21,1},
 		{ 0xaa, 0x2a, 0xff, 0x3f, 0x04, 0x51, 0x6e, 0x02,
 		  0x69, 0x8c, 0x09, 0x00, 0x00, 0x00, 0x27, 0x00 }
 	},
-	{0x110, /* Wide Screen Signal, PAL/SECAM */
+	[8] = {0x110, /* Wide Screen Signal, PAL/SECAM */
 		{V4L2_SLICED_WSS_625,23,23,1},
 		{ 0x5b, 0x55, 0xc5, 0xff, 0x00, 0x71, 0x6e, 0x42,
 		  0xa6, 0xcd, 0x0f, 0x00, 0x00, 0x00, 0x3a, 0x00 }
 	},
 #if 0
-	{0x130, /* Wide Screen Signal, NTSC C */
+	[9] = {0x130, /* Wide Screen Signal, NTSC C */
 		{V4L2_SLICED_WSS_525,20,20,1},
 		{ 0x38, 0x00, 0x3f, 0x00, 0x00, 0x71, 0x6e, 0x43,
 		  0x69, 0x7c, 0x08, 0x00, 0x00, 0x00, 0x39, 0x00 }
 	},
-	{0x150, /* Vertical Interval Timecode (VITC), PAL/SECAM */
+	[10] = {0x150, /* Vertical Interval Timecode (VITC), PAL/SECAM */
 		{V4l2_SLICED_VITC_625,6,22,0},
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x8f, 0x6d, 0x49,
 		  0xa6, 0x85, 0x08, 0x00, 0x00, 0x00, 0x4c, 0x00 }
 	},
-	{0x170, /* Vertical Interval Timecode (VITC), NTSC */
+	[11] = {0x170, /* Vertical Interval Timecode (VITC), NTSC */
 		{V4l2_SLICED_VITC_525,10,20,0},
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x8f, 0x6d, 0x49,
 		  0x69, 0x94, 0x08, 0x00, 0x00, 0x00, 0x4c, 0x00 }
 	},
 #endif
-	{0x190, /* Video Program System (VPS), PAL */
+	[12] = {0x190, /* Video Program System (VPS), PAL */
 		{V4L2_SLICED_VPS,16,16,0},
 		{ 0xaa, 0xaa, 0xff, 0xff, 0xba, 0xce, 0x2b, 0x0d,
 		  0xa6, 0xda, 0x0b, 0x00, 0x00, 0x00, 0x60, 0x00 }
 	},
 	/* 0x1d0 User programmable */
-
-	/* End of struct */
-	{ (u16)-1 }
 };
 
 static int tvp5150_write_inittab(struct v4l2_subdev *sd,
@@ -592,10 +589,10 @@ static int tvp5150_write_inittab(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int tvp5150_vdp_init(struct v4l2_subdev *sd,
-				const struct i2c_vbi_ram_value *regs)
+static int tvp5150_vdp_init(struct v4l2_subdev *sd)
 {
 	unsigned int i;
+	int j;
 
 	/* Disable Full Field */
 	tvp5150_write(sd, TVP5150_FULL_FIELD_ENA, 0);
@@ -605,14 +602,17 @@ static int tvp5150_vdp_init(struct v4l2_subdev *sd,
 		tvp5150_write(sd, i, 0xff);
 
 	/* Load Ram Table */
-	while (regs->reg != (u16)-1) {
+	for (j = 0; j < ARRAY_SIZE(vbi_ram_default); j++) {
+		const struct i2c_vbi_ram_value *regs = &vbi_ram_default[j];
+
+		if (!regs->type.vbi_type)
+			continue;
+
 		tvp5150_write(sd, TVP5150_CONF_RAM_ADDR_HIGH, regs->reg >> 8);
 		tvp5150_write(sd, TVP5150_CONF_RAM_ADDR_LOW, regs->reg);
 
 		for (i = 0; i < 16; i++)
 			tvp5150_write(sd, TVP5150_VDP_CONF_RAM_DATA, regs->values[i]);
-
-		regs++;
 	}
 	return 0;
 }
@@ -621,19 +621,23 @@ static int tvp5150_vdp_init(struct v4l2_subdev *sd,
 static int tvp5150_g_sliced_vbi_cap(struct v4l2_subdev *sd,
 				struct v4l2_sliced_vbi_cap *cap)
 {
-	const struct i2c_vbi_ram_value *regs = vbi_ram_default;
-	int line;
+	int line, i;
 
 	dev_dbg_lvl(sd->dev, 1, debug, "g_sliced_vbi_cap\n");
 	memset(cap, 0, sizeof *cap);
 
-	while (regs->reg != (u16)-1 ) {
-		for (line=regs->type.ini_line;line<=regs->type.end_line;line++) {
+	for (i = 0; i < ARRAY_SIZE(vbi_ram_default); i++) {
+		const struct i2c_vbi_ram_value *regs = &vbi_ram_default[i];
+
+		if (!regs->type.vbi_type)
+			continue;
+
+		for (line = regs->type.ini_line;
+		     line <= regs->type.end_line;
+		     line++) {
 			cap->service_lines[0][line] |= regs->type.vbi_type;
 		}
 		cap->service_set |= regs->type.vbi_type;
-
-		regs++;
 	}
 	return 0;
 }
@@ -652,14 +656,13 @@ static int tvp5150_g_sliced_vbi_cap(struct v4l2_subdev *sd,
  *	MSB = field2
  */
 static int tvp5150_set_vbi(struct v4l2_subdev *sd,
-			const struct i2c_vbi_ram_value *regs,
 			unsigned int type,u8 flags, int line,
 			const int fields)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
 	v4l2_std_id std = decoder->norm;
 	u8 reg;
-	int pos = 0;
+	int i, pos = 0;
 
 	if (std == V4L2_STD_ALL) {
 		dev_err(sd->dev, "VBI can't be configured without knowing number of lines\n");
@@ -672,18 +675,18 @@ static int tvp5150_set_vbi(struct v4l2_subdev *sd,
 	if (line < 6 || line > 27)
 		return 0;
 
-	while (regs->reg != (u16)-1) {
+	for (i = 0; i < ARRAY_SIZE(vbi_ram_default); i++) {
+		const struct i2c_vbi_ram_value *regs =  &vbi_ram_default[i];
+
+		if (!regs->type.vbi_type)
+			continue;
+
 		if ((type & regs->type.vbi_type) &&
 		    (line >= regs->type.ini_line) &&
 		    (line <= regs->type.end_line))
 			break;
-
-		regs++;
 		pos++;
 	}
-
-	if (regs->reg == (u16)-1)
-		return 0;
 
 	type = pos | (flags & 0xf0);
 	reg = ((line - 6) << 1) + TVP5150_LINE_MODE_INI;
@@ -697,8 +700,7 @@ static int tvp5150_set_vbi(struct v4l2_subdev *sd,
 	return type;
 }
 
-static int tvp5150_get_vbi(struct v4l2_subdev *sd,
-			const struct i2c_vbi_ram_value *regs, int line)
+static int tvp5150_get_vbi(struct v4l2_subdev *sd, int line)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
 	v4l2_std_id std = decoder->norm;
@@ -727,8 +729,8 @@ static int tvp5150_get_vbi(struct v4l2_subdev *sd,
 			return 0;
 		}
 		pos = ret & 0x0f;
-		if (pos < 0x0f)
-			type |= regs[pos].type.vbi_type;
+		if (pos < ARRAY_SIZE(vbi_ram_default))
+			type |= vbi_ram_default[pos].type.vbi_type;
 	}
 
 	return type;
@@ -789,7 +791,7 @@ static int tvp5150_reset(struct v4l2_subdev *sd, u32 val)
 	tvp5150_write_inittab(sd, tvp5150_init_default);
 
 	/* Initializes VDP registers */
-	tvp5150_vdp_init(sd, vbi_ram_default);
+	tvp5150_vdp_init(sd);
 
 	/* Selects decoder input */
 	tvp5150_selmux(sd);
@@ -1122,8 +1124,8 @@ static int tvp5150_s_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 		for (i = 0; i <= 23; i++) {
 			svbi->service_lines[1][i] = 0;
 			svbi->service_lines[0][i] =
-				tvp5150_set_vbi(sd, vbi_ram_default,
-				       svbi->service_lines[0][i], 0xf0, i, 3);
+				tvp5150_set_vbi(sd, svbi->service_lines[0][i],
+						0xf0, i, 3);
 		}
 		/* Enables FIFO */
 		tvp5150_write(sd, TVP5150_FIFO_OUT_CTRL, 1);
@@ -1149,7 +1151,7 @@ static int tvp5150_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 
 	for (i = 0; i <= 23; i++) {
 		svbi->service_lines[0][i] =
-			tvp5150_get_vbi(sd, vbi_ram_default, i);
+			tvp5150_get_vbi(sd, i);
 		mask |= svbi->service_lines[0][i];
 	}
 	svbi->service_set = mask;
