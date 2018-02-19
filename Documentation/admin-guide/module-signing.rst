@@ -204,8 +204,8 @@ e.g.::
 	keyctl padd asymmetric "" 0x223c7853 <my_public_key.x509
 
 Note, however, that the kernel will only permit keys to be added to
-``.builtin_trusted_keys _if_`` the new key's X.509 wrapper is validly signed by a key
-that is already resident in the .builtin_trusted_keys at the time the key was added.
+``.builtin_trusted_keys`` **if** the new key's X.509 wrapper is validly signed by a key
+that is already resident in the ``.builtin_trusted_keys`` at the time the key was added.
 
 
 ========================
