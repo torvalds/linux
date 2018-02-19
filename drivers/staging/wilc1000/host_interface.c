@@ -3316,7 +3316,7 @@ int wilc_hif_set_cfg(struct wilc_vif *vif,
 	return wilc_enqueue_cmd(&msg);
 }
 
-static void GetPeriodicRSSI(struct timer_list *unused)
+static void get_periodic_rssi(struct timer_list *unused)
 {
 	struct wilc_vif *vif = periodic_rssi_vif;
 
@@ -3381,7 +3381,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 		}
 
 		periodic_rssi_vif = vif;
-		timer_setup(&periodic_rssi, GetPeriodicRSSI, 0);
+		timer_setup(&periodic_rssi, get_periodic_rssi, 0);
 		mod_timer(&periodic_rssi, jiffies + msecs_to_jiffies(5000));
 	}
 
