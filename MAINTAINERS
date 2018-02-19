@@ -8471,7 +8471,7 @@ S:	Odd Fixes
 F:	drivers/net/wireless/marvell/mwl8k.c
 
 MARVELL NAND CONTROLLER DRIVER
-M:	Miquel Raynal <miquel.raynal@free-electrons.com>
+M:	Miquel Raynal <miquel.raynal@bootlin.com>
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
 F:	drivers/mtd/nand/raw/marvell_nand.c
