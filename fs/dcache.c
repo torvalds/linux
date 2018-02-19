@@ -2482,7 +2482,7 @@ struct dentry *d_alloc_parallel(struct dentry *parent,
 
 retry:
 	rcu_read_lock();
-	seq = smp_load_acquire(&parent->d_inode->i_dir_seq) & ~1;
+	seq = smp_load_acquire(&parent->d_inode->i_dir_seq);
 	r_seq = read_seqbegin(&rename_lock);
 	dentry = __d_lookup_rcu(parent, name, &d_seq);
 	if (unlikely(dentry)) {
@@ -2503,6 +2503,12 @@ retry:
 		rcu_read_unlock();
 		goto retry;
 	}
+
+	if (unlikely(seq & 1)) {
+		rcu_read_unlock();
+		goto retry;
+	}
+
 	hlist_bl_lock(b);
 	if (unlikely(parent->d_inode->i_dir_seq != seq)) {
 		hlist_bl_unlock(b);
