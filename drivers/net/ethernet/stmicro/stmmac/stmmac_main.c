@@ -2927,7 +2927,6 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		tx_q->tx_skbuff_dma[tx_q->cur_tx].buf = des;
 		tx_q->tx_skbuff_dma[tx_q->cur_tx].len = skb_frag_size(frag);
-		tx_q->tx_skbuff[tx_q->cur_tx] = NULL;
 		tx_q->tx_skbuff_dma[tx_q->cur_tx].map_as_page = true;
 	}
 
@@ -3101,8 +3100,6 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 				       DMA_TO_DEVICE);
 		if (dma_mapping_error(priv->device, des))
 			goto dma_map_err; /* should reuse desc w/o issues */
-
-		tx_q->tx_skbuff[entry] = NULL;
 
 		tx_q->tx_skbuff_dma[entry].buf = des;
 		if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00))
