@@ -1839,6 +1839,7 @@ config WATCHDOG_SUN4V
 config XEN_WDT
 	tristate "Xen Watchdog support"
 	depends on XEN
+	select WATCHDOG_CORE
 	help
 	  Say Y here to support the hypervisor watchdog capability provided
 	  by Xen 4.0 and newer.  The watchdog timeout period is normally one
