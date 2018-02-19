@@ -185,6 +185,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "rockchip,rk3399-evb", "rockchip,rk3399";
 
+- Rockchip RK3399 Sapphire board standalone:
+    Required root node properties:
+      - compatible = "rockchip,rk3399-sapphire", "rockchip,rk3399";
+
 - Rockchip RK3399 Sapphire Excavator board:
     Required root node properties:
       - compatible = "rockchip,rk3399-sapphire-excavator", "rockchip,rk3399";
