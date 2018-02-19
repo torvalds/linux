@@ -29,8 +29,6 @@
 
 static LIST_HEAD(pernet_list);
 static struct list_head *first_device = &pernet_list;
-/* Used only if there are !async pernet_operations registered */
-DEFINE_MUTEX(net_mutex);
 
 LIST_HEAD(net_namespace_list);
 EXPORT_SYMBOL_GPL(net_namespace_list);
@@ -407,6 +405,7 @@ struct net *copy_net_ns(unsigned long flags,
 {
 	struct ucounts *ucounts;
 	struct net *net;
+	unsigned write;
 	int rv;
 
 	if (!(flags & CLONE_NEWNET))
@@ -424,20 +423,26 @@ struct net *copy_net_ns(unsigned long flags,
 	refcount_set(&net->passive, 1);
 	net->ucounts = ucounts;
 	get_user_ns(user_ns);
-
-	rv = down_read_killable(&net_sem);
+again:
+	write = READ_ONCE(nr_sync_pernet_ops);
+	if (write)
+		rv = down_write_killable(&net_sem);
+	else
+		rv = down_read_killable(&net_sem);
 	if (rv < 0)
 		goto put_userns;
-	if (nr_sync_pernet_ops) {
-		rv = mutex_lock_killable(&net_mutex);
-		if (rv < 0)
-			goto up_read;
+
+	if (!write && unlikely(READ_ONCE(nr_sync_pernet_ops))) {
+		up_read(&net_sem);
+		goto again;
 	}
 	rv = setup_net(net, user_ns);
-	if (nr_sync_pernet_ops)
-		mutex_unlock(&net_mutex);
-up_read:
-	up_read(&net_sem);
+
+	if (write)
+		up_write(&net_sem);
+	else
+		up_read(&net_sem);
+
 	if (rv < 0) {
 put_userns:
 		put_user_ns(user_ns);
@@ -485,15 +490,23 @@ static void cleanup_net(struct work_struct *work)
 	struct net *net, *tmp, *last;
 	struct list_head net_kill_list;
 	LIST_HEAD(net_exit_list);
+	unsigned write;
 
 	/* Atomically snapshot the list of namespaces to cleanup */
 	spin_lock_irq(&cleanup_list_lock);
 	list_replace_init(&cleanup_list, &net_kill_list);
 	spin_unlock_irq(&cleanup_list_lock);
+again:
+	write = READ_ONCE(nr_sync_pernet_ops);
+	if (write)
+		down_write(&net_sem);
+	else
+		down_read(&net_sem);
 
-	down_read(&net_sem);
-	if (nr_sync_pernet_ops)
-		mutex_lock(&net_mutex);
+	if (!write && unlikely(READ_ONCE(nr_sync_pernet_ops))) {
+		up_read(&net_sem);
+		goto again;
+	}
 
 	/* Don't let anyone else find us. */
 	rtnl_lock();
@@ -528,14 +541,14 @@ static void cleanup_net(struct work_struct *work)
 	list_for_each_entry_reverse(ops, &pernet_list, list)
 		ops_exit_list(ops, &net_exit_list);
 
-	if (nr_sync_pernet_ops)
-		mutex_unlock(&net_mutex);
-
 	/* Free the net generic variables */
 	list_for_each_entry_reverse(ops, &pernet_list, list)
 		ops_free_list(ops, &net_exit_list);
 
-	up_read(&net_sem);
+	if (write)
+		up_write(&net_sem);
+	else
+		up_read(&net_sem);
 
 	/* Ensure there are no outstanding rcu callbacks using this
 	 * network namespace.
@@ -563,8 +576,6 @@ static void cleanup_net(struct work_struct *work)
 void net_ns_barrier(void)
 {
 	down_write(&net_sem);
-	mutex_lock(&net_mutex);
-	mutex_unlock(&net_mutex);
 	up_write(&net_sem);
 }
 EXPORT_SYMBOL(net_ns_barrier);

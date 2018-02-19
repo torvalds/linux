@@ -60,8 +60,11 @@ struct net {
 
 	struct list_head	list;		/* list of network namespaces */
 	struct list_head	cleanup_list;	/* namespaces on death row */
-	struct list_head	exit_list;	/* Use only net_mutex */
-
+	struct list_head	exit_list;	/* To linked to call pernet exit
+						 * methods on dead net (net_sem
+						 * read locked), or to unregister
+						 * pernet ops (net_sem wr locked).
+						 */
 	struct user_namespace   *user_ns;	/* Owning user namespace */
 	struct ucounts		*ucounts;
 	spinlock_t		nsid_lock;
@@ -89,7 +92,7 @@ struct net {
 	/* core fib_rules */
 	struct list_head	rules_ops;
 
-	struct list_head	fib_notifier_ops;  /* protected by net_mutex */
+	struct list_head	fib_notifier_ops;  /* protected by net_sem */
 
 	struct net_device       *loopback_dev;          /* The loopback */
 	struct netns_core	core;
@@ -316,7 +319,7 @@ struct pernet_operations {
 	/*
 	 * Indicates above methods are allowed to be executed in parallel
 	 * with methods of any other pernet_operations, i.e. they are not
-	 * need synchronization via net_mutex.
+	 * need write locked net_sem.
 	 */
 	bool async;
 };
