@@ -829,7 +829,7 @@ cifs_crypto_secmech_release(struct TCP_Server_Info *server)
 		server->secmech.md5 = NULL;
 	}
 
-	if (server->secmech.md5) {
+	if (server->secmech.sha512) {
 		crypto_free_shash(server->secmech.sha512);
 		server->secmech.sha512 = NULL;
 	}
