@@ -97,9 +97,13 @@ static u32 crtc_flush(struct drm_crtc *crtc, u32 flush_mask)
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
 	struct mdp5_ctl *ctl = mdp5_cstate->ctl;
 	struct mdp5_pipeline *pipeline = &mdp5_cstate->pipeline;
+	bool start = !mdp5_cstate->defer_start;
+
+	mdp5_cstate->defer_start = false;
 
 	DBG("%s: flush=%08x", crtc->name, flush_mask);
-	return mdp5_ctl_commit(ctl, pipeline, flush_mask);
+
+	return mdp5_ctl_commit(ctl, pipeline, flush_mask, start);
 }
 
 /*
