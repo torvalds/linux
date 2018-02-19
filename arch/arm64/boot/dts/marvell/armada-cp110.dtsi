@@ -337,17 +337,17 @@
 			status = "disabled";
 		};
 
-		CP110_LABEL(nand): nand@720000 {
+		CP110_LABEL(nand_controller): nand@720000 {
 			/*
 			* Due to the limitation of the pins available
 			* this controller is only usable on the CPM
 			* for A7K and on the CPS for A8K.
 			*/
-			compatible = "marvell,armada-8k-nand",
-			"marvell,armada370-nand";
+			compatible = "marvell,armada-8k-nand-controller",
+				"marvell,armada370-nand-controller";
 			reg = <0x720000 0x54>;
 			#address-cells = <1>;
-			#size-cells = <1>;
+			#size-cells = <0>;
 			interrupts = <ICU_GRP_NSR 115 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&CP110_LABEL(clk) 1 2>;
 			marvell,system-controller = <&CP110_LABEL(syscon0)>;
