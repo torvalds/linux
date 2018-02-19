@@ -36,19 +36,19 @@ The different levels of stability are:
 
 Every file in these directories will contain the following information:
 
-What:        Short description of the interface
-Date:        Date created
-KernelVersion:    Kernel version this feature first showed up in.
-Contact:    Primary contact for this interface (maybe a mailing list)
-Description:    Long description of the interface and how to use it.
-Users:        All users of this interface who wish to be notified when
-        it changes.  This is very important for interfaces in
-        the "testing" stage, so that kernel developers can work
-        with userspace developers to ensure that things do not
-        break in ways that are unacceptable.  It is also
-        important to get feedback for these interfaces to make
-        sure they are working in a proper way and do not need to
-        be changed further.
+What:            Short description of the interface
+Date:            Date created
+KernelVersion:   Kernel version this feature first showed up in.
+Contact:         Primary contact for this interface (maybe a mailing list)
+Description:     Long description of the interface and how to use it.
+Users:           All users of this interface who wish to be notified when
+                 it changes.  This is very important for interfaces in
+                 the "testing" stage, so that kernel developers can work
+                 with userspace developers to ensure that things do not
+                 break in ways that are unacceptable.  It is also
+                 important to get feedback for these interfaces to make
+                 sure they are working in a proper way and do not need to
+                 be changed further.
 
 
 How things move between levels:
