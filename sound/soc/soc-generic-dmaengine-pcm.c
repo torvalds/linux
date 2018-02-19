@@ -341,6 +341,41 @@ static snd_pcm_uframes_t dmaengine_pcm_pointer(
 		return snd_dmaengine_pcm_pointer(substream);
 }
 
+static int dmaengine_copy_user(struct snd_pcm_substream *substream,
+			       int channel, unsigned long hwoff,
+			       void *buf, unsigned long bytes)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_component *component =
+		snd_soc_rtdcom_lookup(rtd, SND_DMAENGINE_PCM_DRV_NAME);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
+	int (*process)(struct snd_pcm_substream *substream,
+		       int channel, unsigned long hwoff,
+		       void *buf, unsigned long bytes) = pcm->config->process;
+	bool is_playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+	void *dma_ptr = runtime->dma_area + hwoff +
+			channel * (runtime->dma_bytes / runtime->channels);
+	int ret;
+
+	if (is_playback)
+		if (copy_from_user(dma_ptr, (void __user *)buf, bytes))
+			return -EFAULT;
+
+	if (process) {
+		ret = process(substream, channel, hwoff,
+			      (void __user *)buf, bytes);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (!is_playback)
+		if (copy_to_user((void __user *)buf, dma_ptr, bytes))
+			return -EFAULT;
+
+	return 0;
+}
+
 static const struct snd_pcm_ops dmaengine_pcm_ops = {
 	.open		= dmaengine_pcm_open,
 	.close		= snd_dmaengine_pcm_close,
@@ -351,10 +386,28 @@ static const struct snd_pcm_ops dmaengine_pcm_ops = {
 	.pointer	= dmaengine_pcm_pointer,
 };
 
+static const struct snd_pcm_ops dmaengine_pcm_process_ops = {
+	.open		= dmaengine_pcm_open,
+	.close		= snd_dmaengine_pcm_close,
+	.ioctl		= snd_pcm_lib_ioctl,
+	.hw_params	= dmaengine_pcm_hw_params,
+	.hw_free	= snd_pcm_lib_free_pages,
+	.trigger	= snd_dmaengine_pcm_trigger,
+	.pointer	= dmaengine_pcm_pointer,
+	.copy_user	= dmaengine_copy_user,
+};
+
 static const struct snd_soc_component_driver dmaengine_pcm_component = {
 	.name		= SND_DMAENGINE_PCM_DRV_NAME,
 	.probe_order	= SND_SOC_COMP_ORDER_LATE,
 	.ops		= &dmaengine_pcm_ops,
+	.pcm_new	= dmaengine_pcm_new,
+};
+
+static const struct snd_soc_component_driver dmaengine_pcm_component_process = {
+	.name		= SND_DMAENGINE_PCM_DRV_NAME,
+	.probe_order	= SND_SOC_COMP_ORDER_LATE,
+	.ops		= &dmaengine_pcm_process_ops,
 	.pcm_new	= dmaengine_pcm_new,
 };
 
@@ -453,8 +506,13 @@ int snd_dmaengine_pcm_register(struct device *dev,
 	if (ret)
 		goto err_free_pcm;
 
-	ret = snd_soc_add_component(dev, &pcm->component,
-				    &dmaengine_pcm_component, NULL, 0);
+	if (config && config->process)
+		ret = snd_soc_add_component(dev, &pcm->component,
+					    &dmaengine_pcm_component_process,
+					    NULL, 0);
+	else
+		ret = snd_soc_add_component(dev, &pcm->component,
+					    &dmaengine_pcm_component, NULL, 0);
 	if (ret)
 		goto err_free_dma;
 
