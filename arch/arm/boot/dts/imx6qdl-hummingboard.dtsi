@@ -244,8 +244,7 @@
 
 		pinctrl_hummingboard_usbotg_id: hummingboard-usbotg-id {
 			/*
-			 * Similar to pinctrl_usbotg_2, but we want it
-			 * pulled down for a fixed host connection.
+			 * We want it pulled down for a fixed host connection.
 			 */
 			fsl,pins = <MX6QDL_PAD_ENET_RX_ER__USB_OTG_ID 0x13059>;
 		};
