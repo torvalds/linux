@@ -574,6 +574,11 @@ static struct gc2235_resolution gc2235_res_preview[] = {
 };
 #define N_RES_PREVIEW (ARRAY_SIZE(gc2235_res_preview))
 
+/*
+ * Disable non-preview configurations until the configuration selection is
+ * improved.
+ */
+#if 0
 static struct gc2235_resolution gc2235_res_still[] = {
 	{
 		.desc = "gc2235_1600_900_30fps",
@@ -658,6 +663,7 @@ static struct gc2235_resolution gc2235_res_video[] = {
 
 };
 #define N_RES_VIDEO (ARRAY_SIZE(gc2235_res_video))
+#endif
 
 static struct gc2235_resolution *gc2235_res = gc2235_res_preview;
 static unsigned long N_RES = N_RES_PREVIEW;
