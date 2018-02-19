@@ -501,6 +501,10 @@ static const struct snd_soc_dapm_widget common31xx_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("MICBIAS", SND_SOC_NOPM, 0, 0, mic_bias_event,
 			    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
+	/* Keep BCLK/WCLK enabled even if DAC/ADC is powered down */
+	SND_SOC_DAPM_SUPPLY("Activate I2S clocks", AIC31XX_IFACE2, 2, 0,
+			    NULL, 0),
+
 	/* Outputs */
 	SND_SOC_DAPM_OUTPUT("HPL"),
 	SND_SOC_DAPM_OUTPUT("HPR"),
@@ -553,6 +557,8 @@ static const struct snd_soc_dapm_widget aic31xx_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER("Output Right", SND_SOC_NOPM, 0, 0,
 			   aic31xx_right_output_switches,
 			   ARRAY_SIZE(aic31xx_right_output_switches)),
+
+	SND_SOC_DAPM_AIF_OUT("AIF OUT", "Capture", 0, SND_SOC_NOPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_widget aic311x_dapm_widgets[] = {
@@ -640,6 +646,8 @@ aic31xx_audio_map[] = {
 
 	{"ADC", NULL, "MIC_GAIN_CTL"},
 
+	{"AIF OUT", NULL, "ADC"},
+
 	/* Left Output */
 	{"Output Left", "From Left DAC", "DAC Left"},
 	{"Output Left", "From MIC1LP", "MIC1LP"},
@@ -673,25 +681,29 @@ aic310x_audio_map[] = {
 
 /*
  * Always connected DAPM routes for codec clock master modes.
- * If the codec is the master on the I2S bus, we need to power on components
- * to have valid DAC_CLK and also the DACs and ADC for playback/capture.
+ * If the codec is the master on the I2S bus, we need to power up components
+ * to have valid DAC_CLK.
+ *
+ * In order to have the I2S clocks on the bus either the DACs/ADC need to be
+ * enabled, or the P0/R29/D2 (Keep bclk/wclk in power down) need to be set.
+ *
  * Otherwise the codec will not generate clocks on the bus.
  */
 static const struct snd_soc_dapm_route
 common31xx_cm_audio_map[] = {
-	{"DAC Left Input", "Off", "AIF IN"},
-	{"DAC Right Input", "Off", "AIF IN"},
+	{"HPL", NULL, "AIF IN"},
+	{"HPR", NULL, "AIF IN"},
 
-	{"HPL", NULL, "DAC Left"},
-	{"HPR", NULL, "DAC Right"},
+	{"AIF IN", NULL, "Activate I2S clocks"},
 };
 
 static const struct snd_soc_dapm_route
 aic31xx_cm_audio_map[] = {
-	{"MIC1LP P-Terminal", "Off", "MIC1LP"},
-	{"MIC1RP P-Terminal", "Off", "MIC1RP"},
-	{"MIC1LM P-Terminal", "Off", "MIC1LM"},
-	{"MIC1LM M-Terminal", "Off", "MIC1LM"},
+	{"AIF OUT", NULL, "MIC1LP"},
+	{"AIF OUT", NULL, "MIC1RP"},
+	{"AIF OUT", NULL, "MIC1LM"},
+
+	{"AIF OUT", NULL, "Activate I2S clocks"},
 };
 
 static int aic31xx_add_controls(struct snd_soc_component *component)
