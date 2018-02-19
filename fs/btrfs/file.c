@@ -3378,7 +3378,7 @@ const struct file_operations btrfs_file_operations = {
 	.dedupe_file_range = btrfs_dedupe_file_range,
 };
 
-void btrfs_auto_defrag_exit(void)
+void __cold btrfs_auto_defrag_exit(void)
 {
 	kmem_cache_destroy(btrfs_inode_defrag_cachep);
 }

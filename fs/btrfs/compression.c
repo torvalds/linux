@@ -1133,7 +1133,7 @@ int btrfs_decompress(int type, unsigned char *data_in, struct page *dest_page,
 	return ret;
 }
 
-void btrfs_exit_compress(void)
+void __cold btrfs_exit_compress(void)
 {
 	free_workspaces();
 }

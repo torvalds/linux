@@ -9478,7 +9478,7 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
-void btrfs_destroy_cachep(void)
+void __cold btrfs_destroy_cachep(void)
 {
 	/*
 	 * Make sure all delayed rcu free inodes are flushed before we

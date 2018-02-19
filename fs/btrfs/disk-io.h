@@ -153,7 +153,7 @@ struct extent_map *btree_get_extent(struct btrfs_inode *inode,
 		int create);
 int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags);
 int __init btrfs_end_io_wq_init(void);
-void btrfs_end_io_wq_exit(void);
+void __cold btrfs_end_io_wq_exit(void);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 void btrfs_init_lockdep(void);

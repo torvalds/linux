@@ -217,5 +217,5 @@ void btrfs_wait_logged_extents(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *log, u64 transid);
 void btrfs_free_logged_extents(struct btrfs_root *log, u64 transid);
 int __init ordered_data_init(void);
-void ordered_data_exit(void);
+void __cold ordered_data_exit(void);
 #endif

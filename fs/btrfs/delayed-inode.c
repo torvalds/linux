@@ -42,7 +42,7 @@ int __init btrfs_delayed_inode_init(void)
 	return 0;
 }
 
-void btrfs_delayed_inode_exit(void)
+void __cold btrfs_delayed_inode_exit(void)
 {
 	kmem_cache_destroy(delayed_node_cache);
 }

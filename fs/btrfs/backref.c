@@ -170,7 +170,7 @@ int __init btrfs_prelim_ref_init(void)
 	return 0;
 }
 
-void btrfs_prelim_ref_exit(void)
+void __cold btrfs_prelim_ref_exit(void)
 {
 	kmem_cache_destroy(btrfs_prelim_ref_cache);
 }

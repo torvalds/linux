@@ -52,6 +52,7 @@
  * Allows callers to customize the output.
  */
 __printf(4, 5)
+__cold
 static void generic_err(const struct btrfs_fs_info *fs_info,
 			const struct extent_buffer *eb, int slot,
 			const char *fmt, ...)
@@ -76,6 +77,7 @@ static void generic_err(const struct btrfs_fs_info *fs_info,
  * offset has its own meaning.
  */
 __printf(4, 5)
+__cold
 static void file_extent_err(const struct btrfs_fs_info *fs_info,
 			    const struct extent_buffer *eb, int slot,
 			    const char *fmt, ...)
@@ -229,6 +231,7 @@ static int check_csum_item(struct btrfs_fs_info *fs_info,
  * which represents inode number
  */
 __printf(4, 5)
+__cold
 static void dir_item_err(const struct btrfs_fs_info *fs_info,
 			 const struct extent_buffer *eb, int slot,
 			 const char *fmt, ...)

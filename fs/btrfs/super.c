@@ -2333,7 +2333,7 @@ static int __init btrfs_interface_init(void)
 	return misc_register(&btrfs_misc);
 }
 
-static void btrfs_interface_exit(void)
+static __cold void btrfs_interface_exit(void)
 {
 	misc_deregister(&btrfs_misc);
 }

@@ -19,7 +19,7 @@ int __init extent_map_init(void)
 	return 0;
 }
 
-void extent_map_exit(void)
+void __cold extent_map_exit(void)
 {
 	kmem_cache_destroy(extent_map_cache);
 }

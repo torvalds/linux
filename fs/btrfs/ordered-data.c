@@ -1154,7 +1154,7 @@ int __init ordered_data_init(void)
 	return 0;
 }
 
-void ordered_data_exit(void)
+void __cold ordered_data_exit(void)
 {
 	kmem_cache_destroy(btrfs_ordered_extent_cache);
 }

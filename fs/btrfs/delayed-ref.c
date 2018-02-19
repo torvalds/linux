@@ -930,7 +930,7 @@ btrfs_find_delayed_ref_head(struct btrfs_delayed_ref_root *delayed_refs, u64 byt
 	return find_ref_head(&delayed_refs->href_root, bytenr, 0);
 }
 
-void btrfs_delayed_ref_exit(void)
+void __cold btrfs_delayed_ref_exit(void)
 {
 	kmem_cache_destroy(btrfs_delayed_ref_head_cachep);
 	kmem_cache_destroy(btrfs_delayed_tree_ref_cachep);
