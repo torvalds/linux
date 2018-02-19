@@ -823,8 +823,6 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 		break;
 
 	case MCP_TYPE_S18:
-		if (!one_regmap_config)
-			return -ENOMEM;
 		mcp->regmap = devm_regmap_init(dev, &mcp23sxx_spi_regmap, mcp,
 					       &mcp23x17_regmap);
 		mcp->reg_shift = 1;
