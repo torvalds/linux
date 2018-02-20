@@ -374,7 +374,7 @@ static void amdgpu_dm_fbc_init(struct drm_connector *connector)
 
 	if (max_size) {
 		int r = amdgpu_bo_create_kernel(adev, max_size * 4, PAGE_SIZE,
-			    AMDGPU_GEM_DOMAIN_VRAM, &compressor->bo_ptr,
+			    AMDGPU_GEM_DOMAIN_GTT, &compressor->bo_ptr,
 			    &compressor->gpu_addr, &compressor->cpu_addr);
 
 		if (r)
