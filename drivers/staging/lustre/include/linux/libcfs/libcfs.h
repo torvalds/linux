@@ -64,11 +64,21 @@
 #define LNET_ACCEPTOR_MIN_RESERVED_PORT    512
 #define LNET_ACCEPTOR_MAX_RESERVED_PORT    1023
 
-/*
- * Defined by platform
- */
-void cfs_block_sigsinv(unsigned long sigs, sigset_t *sigset);
-void cfs_restore_sigs(sigset_t *sigset);
+/* Block all signals except for the @sigs */
+static inline void cfs_block_sigsinv(unsigned long sigs, sigset_t *old)
+{
+	sigset_t new;
+
+	siginitsetinv(&new, sigs);
+	sigorsets(&new, &current->blocked, &new);
+	sigprocmask(SIG_BLOCK, &new, old);
+}
+
+static inline void
+cfs_restore_sigs(sigset_t *old)
+{
+	sigprocmask(SIG_SETMASK, old, NULL);
+}
 
 struct libcfs_ioctl_handler {
 	struct list_head item;
