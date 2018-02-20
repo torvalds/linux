@@ -44,10 +44,9 @@ struct common_glue_ctx {
 	struct common_glue_func_entry funcs[];
 };
 
-static inline bool glue_skwalk_fpu_begin(unsigned int bsize,
-					 int fpu_blocks_limit,
-					 struct skcipher_walk *walk,
-					 bool fpu_enabled, unsigned int nbytes)
+static inline bool glue_fpu_begin(unsigned int bsize, int fpu_blocks_limit,
+				  struct skcipher_walk *walk,
+				  bool fpu_enabled, unsigned int nbytes)
 {
 	if (likely(fpu_blocks_limit < 0))
 		return false;

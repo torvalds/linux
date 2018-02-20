@@ -50,9 +50,8 @@ int glue_ecb_req_128bit(const struct common_glue_ctx *gctx,
 		unsigned int func_bytes;
 		unsigned int i;
 
-		fpu_enabled = glue_skwalk_fpu_begin(bsize,
-						    gctx->fpu_blocks_limit,
-						    &walk, fpu_enabled, nbytes);
+		fpu_enabled = glue_fpu_begin(bsize, gctx->fpu_blocks_limit,
+					     &walk, fpu_enabled, nbytes);
 		for (i = 0; i < gctx->num_funcs; i++) {
 			func_bytes = bsize * gctx->funcs[i].num_blocks;
 
@@ -129,9 +128,8 @@ int glue_cbc_decrypt_req_128bit(const struct common_glue_ctx *gctx,
 		unsigned int i;
 		u128 last_iv;
 
-		fpu_enabled = glue_skwalk_fpu_begin(bsize,
-						    gctx->fpu_blocks_limit,
-						    &walk, fpu_enabled, nbytes);
+		fpu_enabled = glue_fpu_begin(bsize, gctx->fpu_blocks_limit,
+					     &walk, fpu_enabled, nbytes);
 		/* Start of the last block. */
 		src += nbytes / bsize - 1;
 		dst += nbytes / bsize - 1;
@@ -190,9 +188,8 @@ int glue_ctr_req_128bit(const struct common_glue_ctx *gctx,
 		unsigned int i;
 		le128 ctrblk;
 
-		fpu_enabled = glue_skwalk_fpu_begin(bsize,
-						    gctx->fpu_blocks_limit,
-						    &walk, fpu_enabled, nbytes);
+		fpu_enabled = glue_fpu_begin(bsize, gctx->fpu_blocks_limit,
+					     &walk, fpu_enabled, nbytes);
 
 		be128_to_le128(&ctrblk, (be128 *)walk.iv);
 
@@ -291,9 +288,9 @@ int glue_xts_req_128bit(const struct common_glue_ctx *gctx,
 		return err;
 
 	/* set minimum length to bsize, for tweak_fn */
-	fpu_enabled = glue_skwalk_fpu_begin(bsize, gctx->fpu_blocks_limit,
-					    &walk, fpu_enabled,
-					    nbytes < bsize ? bsize : nbytes);
+	fpu_enabled = glue_fpu_begin(bsize, gctx->fpu_blocks_limit,
+				     &walk, fpu_enabled,
+				     nbytes < bsize ? bsize : nbytes);
 
 	/* calculate first value of T */
 	tweak_fn(tweak_ctx, walk.iv, walk.iv);

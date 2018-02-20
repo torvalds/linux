@@ -50,8 +50,8 @@ static int cast5_setkey_skcipher(struct crypto_skcipher *tfm, const u8 *key,
 static inline bool cast5_fpu_begin(bool fpu_enabled, struct skcipher_walk *walk,
 				   unsigned int nbytes)
 {
-	return glue_skwalk_fpu_begin(CAST5_BLOCK_SIZE, CAST5_PARALLEL_BLOCKS,
-				     walk, fpu_enabled, nbytes);
+	return glue_fpu_begin(CAST5_BLOCK_SIZE, CAST5_PARALLEL_BLOCKS,
+			      walk, fpu_enabled, nbytes);
 }
 
 static inline void cast5_fpu_end(bool fpu_enabled)
