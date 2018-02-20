@@ -986,7 +986,7 @@ int
 ksocknal_new_packet(struct ksock_conn *conn, int nob_to_skip)
 {
 	static char ksocknal_slop_buffer[4096];
-	struct kvec *kvec = (struct kvec *)&conn->ksnc_rx_iov_space;
+	struct kvec *kvec = conn->ksnc_rx_iov_space;
 
 	int nob;
 	unsigned int niov;
@@ -1059,7 +1059,7 @@ ksocknal_new_packet(struct ksock_conn *conn, int nob_to_skip)
 static int
 ksocknal_process_receive(struct ksock_conn *conn)
 {
-	struct kvec *kvec = (struct kvec *)&conn->ksnc_rx_iov_space;
+	struct kvec *kvec = conn->ksnc_rx_iov_space;
 	struct lnet_hdr *lhdr;
 	struct lnet_process_id *id;
 	int rc;
