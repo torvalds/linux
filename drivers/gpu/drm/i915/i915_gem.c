@@ -4078,7 +4078,8 @@ out:
 struct i915_vma *
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
-				     const struct i915_ggtt_view *view)
+				     const struct i915_ggtt_view *view,
+				     unsigned int flags)
 {
 	struct i915_vma *vma;
 	int ret;
@@ -4115,25 +4116,14 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	 * try to preserve the existing ABI).
 	 */
 	vma = ERR_PTR(-ENOSPC);
-	if (!view || view->type == I915_GGTT_VIEW_NORMAL)
+	if ((flags & PIN_MAPPABLE) == 0 &&
+	    (!view || view->type == I915_GGTT_VIEW_NORMAL))
 		vma = i915_gem_object_ggtt_pin(obj, view, 0, alignment,
-					       PIN_MAPPABLE | PIN_NONBLOCK);
-	if (IS_ERR(vma)) {
-		struct drm_i915_private *i915 = to_i915(obj->base.dev);
-		unsigned int flags;
-
-		/* Valleyview is definitely limited to scanning out the first
-		 * 512MiB. Lets presume this behaviour was inherited from the
-		 * g4x display engine and that all earlier gen are similarly
-		 * limited. Testing suggests that it is a little more
-		 * complicated than this. For example, Cherryview appears quite
-		 * happy to scanout from anywhere within its global aperture.
-		 */
-		flags = 0;
-		if (HAS_GMCH_DISPLAY(i915))
-			flags = PIN_MAPPABLE;
+					       flags |
+					       PIN_MAPPABLE |
+					       PIN_NONBLOCK);
+	if (IS_ERR(vma))
 		vma = i915_gem_object_ggtt_pin(obj, view, 0, alignment, flags);
-	}
 	if (IS_ERR(vma))
 		goto err_unpin_global;
 

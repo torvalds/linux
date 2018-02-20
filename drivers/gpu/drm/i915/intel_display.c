@@ -2068,13 +2068,16 @@ static unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
 }
 
 struct i915_vma *
-intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
+intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
+			   unsigned int rotation,
+			   unsigned long *out_flags)
 {
 	struct drm_device *dev = fb->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct i915_ggtt_view view;
 	struct i915_vma *vma;
+	unsigned int pinctl;
 	u32 alignment;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
@@ -2102,7 +2105,20 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
 
 	atomic_inc(&dev_priv->gpu_error.pending_fb_pin);
 
-	vma = i915_gem_object_pin_to_display_plane(obj, alignment, &view);
+	pinctl = 0;
+
+	/* Valleyview is definitely limited to scanning out the first
+	 * 512MiB. Lets presume this behaviour was inherited from the
+	 * g4x display engine and that all earlier gen are similarly
+	 * limited. Testing suggests that it is a little more
+	 * complicated than this. For example, Cherryview appears quite
+	 * happy to scanout from anywhere within its global aperture.
+	 */
+	if (HAS_GMCH_DISPLAY(dev_priv))
+		pinctl |= PIN_MAPPABLE;
+
+	vma = i915_gem_object_pin_to_display_plane(obj,
+						   alignment, &view, pinctl);
 	if (IS_ERR(vma))
 		goto err;
 
@@ -2123,7 +2139,8 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
 		 * something and try to run the system in a "less than optimal"
 		 * mode that matches the user configuration.
 		 */
-		i915_vma_pin_fence(vma);
+		if (i915_vma_pin_fence(vma) == 0 && vma->fence)
+			*out_flags |= PLANE_HAS_FENCE;
 	}
 
 	i915_vma_get(vma);
@@ -2134,11 +2151,12 @@ err:
 	return vma;
 }
 
-void intel_unpin_fb_vma(struct i915_vma *vma)
+void intel_unpin_fb_vma(struct i915_vma *vma, unsigned long flags)
 {
 	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
 
-	i915_vma_unpin_fence(vma);
+	if (flags & PLANE_HAS_FENCE)
+		i915_vma_unpin_fence(vma);
 	i915_gem_object_unpin_from_display_plane(vma);
 	i915_vma_put(vma);
 }
@@ -2808,7 +2826,9 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 valid_fb:
 	mutex_lock(&dev->struct_mutex);
 	intel_state->vma =
-		intel_pin_and_fence_fb_obj(fb, primary->state->rotation);
+		intel_pin_and_fence_fb_obj(fb,
+					   primary->state->rotation,
+					   &intel_state->flags);
 	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR(intel_state->vma)) {
 		DRM_ERROR("failed to pin boot fb on pipe %d: %li\n",
@@ -12700,7 +12720,9 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	} else {
 		struct i915_vma *vma;
 
-		vma = intel_pin_and_fence_fb_obj(fb, new_state->rotation);
+		vma = intel_pin_and_fence_fb_obj(fb,
+						 new_state->rotation,
+						 &to_intel_plane_state(new_state)->flags);
 		if (!IS_ERR(vma))
 			to_intel_plane_state(new_state)->vma = vma;
 		else
@@ -12755,7 +12777,7 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 	vma = fetch_and_zero(&to_intel_plane_state(old_state)->vma);
 	if (vma) {
 		mutex_lock(&plane->dev->struct_mutex);
-		intel_unpin_fb_vma(vma);
+		intel_unpin_fb_vma(vma, to_intel_plane_state(old_state)->flags);
 		mutex_unlock(&plane->dev->struct_mutex);
 	}
 }
@@ -13111,7 +13133,9 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 			goto out_unlock;
 		}
 	} else {
-		vma = intel_pin_and_fence_fb_obj(fb, new_plane_state->rotation);
+		vma = intel_pin_and_fence_fb_obj(fb,
+						 new_plane_state->rotation,
+						 &to_intel_plane_state(new_plane_state)->flags);
 		if (IS_ERR(vma)) {
 			DRM_DEBUG_KMS("failed to pin object\n");
 
@@ -13142,7 +13166,8 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 
 	old_vma = fetch_and_zero(&to_intel_plane_state(old_plane_state)->vma);
 	if (old_vma)
-		intel_unpin_fb_vma(old_vma);
+		intel_unpin_fb_vma(old_vma,
+				   to_intel_plane_state(old_plane_state)->flags);
 
 out_unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);

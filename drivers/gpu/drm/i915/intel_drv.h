@@ -201,6 +201,7 @@ struct intel_fbdev {
 	struct drm_fb_helper helper;
 	struct intel_framebuffer *fb;
 	struct i915_vma *vma;
+	unsigned long vma_flags;
 	async_cookie_t cookie;
 	int preferred_bpp;
 };
@@ -408,6 +409,8 @@ struct intel_plane_state {
 	struct drm_plane_state base;
 	struct drm_rect clip;
 	struct i915_vma *vma;
+	unsigned long flags;
+#define PLANE_HAS_FENCE BIT(0)
 
 	struct {
 		u32 offset;
@@ -1419,8 +1422,10 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 				    struct intel_load_detect_pipe *old,
 				    struct drm_modeset_acquire_ctx *ctx);
 struct i915_vma *
-intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb, unsigned int rotation);
-void intel_unpin_fb_vma(struct i915_vma *vma);
+intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
+			   unsigned int rotation,
+			   unsigned long *out_flags);
+void intel_unpin_fb_vma(struct i915_vma *vma, unsigned long flags);
 struct drm_framebuffer *
 intel_framebuffer_create(struct drm_i915_gem_object *obj,
 			 struct drm_mode_fb_cmd2 *mode_cmd);

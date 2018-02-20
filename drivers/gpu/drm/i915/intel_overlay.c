@@ -801,7 +801,8 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 
 	atomic_inc(&dev_priv->gpu_error.pending_fb_pin);
 
-	vma = i915_gem_object_pin_to_display_plane(new_bo, 0, NULL);
+	vma = i915_gem_object_pin_to_display_plane(new_bo,
+						   0, NULL, PIN_MAPPABLE);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto out_pin_section;
