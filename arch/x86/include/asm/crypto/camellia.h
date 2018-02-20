@@ -2,7 +2,6 @@
 #ifndef ASM_X86_CAMELLIA_H
 #define ASM_X86_CAMELLIA_H
 
-#include <crypto/lrw.h>
 #include <linux/kernel.h>
 #include <linux/crypto.h>
 
@@ -17,11 +16,6 @@ struct camellia_ctx {
 	u32 key_length;
 };
 
-struct camellia_lrw_ctx {
-	struct lrw_table_ctx lrw_table;
-	struct camellia_ctx camellia_ctx;
-};
-
 struct camellia_xts_ctx {
 	struct camellia_ctx tweak_ctx;
 	struct camellia_ctx crypt_ctx;
@@ -30,10 +24,6 @@ struct camellia_xts_ctx {
 extern int __camellia_setkey(struct camellia_ctx *cctx,
 			     const unsigned char *key,
 			     unsigned int key_len, u32 *flags);
-
-extern int lrw_camellia_setkey(struct crypto_tfm *tfm, const u8 *key,
-			       unsigned int keylen);
-extern void lrw_camellia_exit_tfm(struct crypto_tfm *tfm);
 
 extern int xts_camellia_setkey(struct crypto_tfm *tfm, const u8 *key,
 			       unsigned int keylen);
