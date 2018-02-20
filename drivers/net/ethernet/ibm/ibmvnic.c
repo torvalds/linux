@@ -2620,7 +2620,7 @@ static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter)
 			dev_err(dev, "Couldn't register tx irq 0x%x. rc=%d\n",
 				scrq->irq, rc);
 			irq_dispose_mapping(scrq->irq);
-			goto req_rx_irq_failed;
+			goto req_tx_irq_failed;
 		}
 	}
 
