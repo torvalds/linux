@@ -4761,10 +4761,8 @@ static int dm_update_planes_state(struct dc *dc,
 			WARN_ON(dm_new_plane_state->dc_state);
 
 			dc_new_plane_state = dc_create_plane_state(dc);
-			if (!dc_new_plane_state) {
-				ret = -EINVAL;
-				return ret;
-			}
+			if (!dc_new_plane_state)
+				return -ENOMEM;
 
 			DRM_DEBUG_DRIVER("Enabling DRM plane: %d on DRM crtc %d\n",
 					plane->base.id, new_plane_crtc->base.id);
@@ -4793,8 +4791,7 @@ static int dm_update_planes_state(struct dc *dc,
 					dm_state->context)) {
 
 				dc_plane_state_release(dc_new_plane_state);
-				ret = -EINVAL;
-				return ret;
+				return -EINVAL;
 			}
 
 			dm_new_plane_state->dc_state = dc_new_plane_state;
