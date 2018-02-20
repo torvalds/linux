@@ -245,10 +245,6 @@ config CRYPTO_TEST
 	help
 	  Quick & dirty crypto test module.
 
-config CRYPTO_ABLK_HELPER
-	tristate
-	select CRYPTO_CRYPTD
-
 config CRYPTO_SIMD
 	tristate
 	select CRYPTO_CRYPTD
