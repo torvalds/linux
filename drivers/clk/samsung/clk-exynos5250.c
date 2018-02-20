@@ -701,45 +701,45 @@ static const struct samsung_gate_clock exynos5250_gate_clks[] __initconst = {
 static const struct samsung_pll_rate_table vpll_24mhz_tbl[] __initconst = {
 	/* sorted in descending order */
 	/* PLL_36XX_RATE(rate, m, p, s, k) */
-	PLL_36XX_RATE(266000000, 266, 3, 3, 0),
+	PLL_36XX_RATE(24 * MHZ, 266000000, 266, 3, 3, 0),
 	/* Not in UM, but need for eDP on snow */
-	PLL_36XX_RATE(70500000, 94, 2, 4, 0),
+	PLL_36XX_RATE(24 * MHZ, 70500000, 94, 2, 4, 0),
 	{ },
 };
 
 static const struct samsung_pll_rate_table epll_24mhz_tbl[] __initconst = {
 	/* sorted in descending order */
 	/* PLL_36XX_RATE(rate, m, p, s, k) */
-	PLL_36XX_RATE(192000000, 64, 2, 2, 0),
-	PLL_36XX_RATE(180633605, 90, 3, 2, 20762),
-	PLL_36XX_RATE(180000000, 90, 3, 2, 0),
-	PLL_36XX_RATE(73728000, 98, 2, 4, 19923),
-	PLL_36XX_RATE(67737602, 90, 2, 4, 20762),
-	PLL_36XX_RATE(49152000, 98, 3, 4, 19923),
-	PLL_36XX_RATE(45158401, 90, 3, 4, 20762),
-	PLL_36XX_RATE(32768001, 131, 3, 5, 4719),
+	PLL_36XX_RATE(24 * MHZ, 192000000, 64, 2, 2, 0),
+	PLL_36XX_RATE(24 * MHZ, 180633605, 90, 3, 2, 20762),
+	PLL_36XX_RATE(24 * MHZ, 180000000, 90, 3, 2, 0),
+	PLL_36XX_RATE(24 * MHZ, 73728000, 98, 2, 4, 19923),
+	PLL_36XX_RATE(24 * MHZ, 67737602, 90, 2, 4, 20762),
+	PLL_36XX_RATE(24 * MHZ, 49152000, 98, 3, 4, 19923),
+	PLL_36XX_RATE(24 * MHZ, 45158401, 90, 3, 4, 20762),
+	PLL_36XX_RATE(24 * MHZ, 32768001, 131, 3, 5, 4719),
 	{ },
 };
 
 static const struct samsung_pll_rate_table apll_24mhz_tbl[] __initconst = {
 	/* sorted in descending order */
-	/* PLL_35XX_RATE(rate, m, p, s) */
-	PLL_35XX_RATE(1700000000, 425, 6, 0),
-	PLL_35XX_RATE(1600000000, 200, 3, 0),
-	PLL_35XX_RATE(1500000000, 250, 4, 0),
-	PLL_35XX_RATE(1400000000, 175, 3, 0),
-	PLL_35XX_RATE(1300000000, 325, 6, 0),
-	PLL_35XX_RATE(1200000000, 200, 4, 0),
-	PLL_35XX_RATE(1100000000, 275, 6, 0),
-	PLL_35XX_RATE(1000000000, 125, 3, 0),
-	PLL_35XX_RATE(900000000, 150, 4, 0),
-	PLL_35XX_RATE(800000000, 100, 3, 0),
-	PLL_35XX_RATE(700000000, 175, 3, 1),
-	PLL_35XX_RATE(600000000, 200, 4, 1),
-	PLL_35XX_RATE(500000000, 125, 3, 1),
-	PLL_35XX_RATE(400000000, 100, 3, 1),
-	PLL_35XX_RATE(300000000, 200, 4, 2),
-	PLL_35XX_RATE(200000000, 100, 3, 2),
+	/* PLL_35XX_RATE(fin, rate, m, p, s) */
+	PLL_35XX_RATE(24 * MHZ, 1700000000, 425, 6, 0),
+	PLL_35XX_RATE(24 * MHZ, 1600000000, 200, 3, 0),
+	PLL_35XX_RATE(24 * MHZ, 1500000000, 250, 4, 0),
+	PLL_35XX_RATE(24 * MHZ, 1400000000, 175, 3, 0),
+	PLL_35XX_RATE(24 * MHZ, 1300000000, 325, 6, 0),
+	PLL_35XX_RATE(24 * MHZ, 1200000000, 200, 4, 0),
+	PLL_35XX_RATE(24 * MHZ, 1100000000, 275, 6, 0),
+	PLL_35XX_RATE(24 * MHZ, 1000000000, 125, 3, 0),
+	PLL_35XX_RATE(24 * MHZ, 900000000, 150, 4, 0),
+	PLL_35XX_RATE(24 * MHZ, 800000000, 100, 3, 0),
+	PLL_35XX_RATE(24 * MHZ, 700000000, 175, 3, 1),
+	PLL_35XX_RATE(24 * MHZ, 600000000, 200, 4, 1),
+	PLL_35XX_RATE(24 * MHZ, 500000000, 125, 3, 1),
+	PLL_35XX_RATE(24 * MHZ, 400000000, 100, 3, 1),
+	PLL_35XX_RATE(24 * MHZ, 300000000, 200, 4, 2),
+	PLL_35XX_RATE(24 * MHZ, 200000000, 100, 3, 2),
 };
 
 static struct samsung_pll_clock exynos5250_plls[nr_plls] __initdata = {
