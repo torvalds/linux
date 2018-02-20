@@ -243,7 +243,7 @@ static int lov_io_subio_init(const struct lu_env *env, struct lov_io *lio,
 	 * when writing a page. -jay
 	 */
 	lio->lis_subs =
-		libcfs_kvzalloc(lsm->lsm_stripe_count *
+		kvzalloc(lsm->lsm_stripe_count *
 				sizeof(lio->lis_subs[0]),
 				GFP_NOFS);
 	if (lio->lis_subs) {

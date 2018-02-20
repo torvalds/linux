@@ -1035,7 +1035,7 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 				reqlen = offsetof(typeof(*hur),
 						  hur_user_item[nr])
 					 + hur->hur_request.hr_data_len;
-				req = libcfs_kvzalloc(reqlen, GFP_NOFS);
+				req = kvzalloc(reqlen, GFP_NOFS);
 				if (!req)
 					return -ENOMEM;
 
@@ -2733,7 +2733,7 @@ static int lmv_unpackmd(struct obd_export *exp, struct lmv_stripe_md **lsmp,
 		lsm_size = lmv_stripe_md_size(0);
 
 	if (!lsm) {
-		lsm = libcfs_kvzalloc(lsm_size, GFP_NOFS);
+		lsm = kvzalloc(lsm_size, GFP_NOFS);
 		if (!lsm)
 			return -ENOMEM;
 		allocated = true;

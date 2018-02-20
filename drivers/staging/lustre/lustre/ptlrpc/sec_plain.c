@@ -562,7 +562,7 @@ int plain_alloc_reqbuf(struct ptlrpc_sec *sec,
 		LASSERT(!req->rq_pool);
 
 		alloc_len = size_roundup_power2(alloc_len);
-		req->rq_reqbuf = libcfs_kvzalloc(alloc_len, GFP_NOFS);
+		req->rq_reqbuf = kvzalloc(alloc_len, GFP_NOFS);
 		if (!req->rq_reqbuf)
 			return -ENOMEM;
 
@@ -620,7 +620,7 @@ int plain_alloc_repbuf(struct ptlrpc_sec *sec,
 
 	alloc_len = size_roundup_power2(alloc_len);
 
-	req->rq_repbuf = libcfs_kvzalloc(alloc_len, GFP_NOFS);
+	req->rq_repbuf = kvzalloc(alloc_len, GFP_NOFS);
 	if (!req->rq_repbuf)
 		return -ENOMEM;
 
@@ -671,7 +671,7 @@ int plain_enlarge_reqbuf(struct ptlrpc_sec *sec,
 	if (req->rq_reqbuf_len < newbuf_size) {
 		newbuf_size = size_roundup_power2(newbuf_size);
 
-		newbuf = libcfs_kvzalloc(newbuf_size, GFP_NOFS);
+		newbuf = kvzalloc(newbuf_size, GFP_NOFS);
 		if (!newbuf)
 			return -ENOMEM;
 
@@ -808,7 +808,7 @@ int plain_alloc_rs(struct ptlrpc_request *req, int msgsize)
 		/* pre-allocated */
 		LASSERT(rs->rs_size >= rs_size);
 	} else {
-		rs = libcfs_kvzalloc(rs_size, GFP_NOFS);
+		rs = kvzalloc(rs_size, GFP_NOFS);
 		if (!rs)
 			return -ENOMEM;
 

@@ -1068,7 +1068,7 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	reqcopy = ptlrpc_request_cache_alloc(GFP_NOFS);
 	if (!reqcopy)
 		return -ENOMEM;
-	reqmsg = libcfs_kvzalloc(req->rq_reqlen, GFP_NOFS);
+	reqmsg = kvzalloc(req->rq_reqlen, GFP_NOFS);
 	if (!reqmsg) {
 		rc = -ENOMEM;
 		goto out_free;
@@ -2077,7 +2077,7 @@ static int ptlrpc_main(void *arg)
 	}
 
 	/* Alloc reply state structure for this one */
-	rs = libcfs_kvzalloc(svc->srv_max_reply_size, GFP_NOFS);
+	rs = kvzalloc(svc->srv_max_reply_size, GFP_NOFS);
 	if (!rs) {
 		rc = -ENOMEM;
 		goto out_srv_fini;

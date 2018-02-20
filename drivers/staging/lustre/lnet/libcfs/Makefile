@@ -9,7 +9,6 @@ libcfs-linux-objs += linux-cpu.o
 libcfs-linux-objs += linux-module.o
 libcfs-linux-objs += linux-crypto.o
 libcfs-linux-objs += linux-crypto-adler.o
-libcfs-linux-objs += linux-mem.o
 
 libcfs-linux-objs := $(addprefix linux/,$(libcfs-linux-objs))
 

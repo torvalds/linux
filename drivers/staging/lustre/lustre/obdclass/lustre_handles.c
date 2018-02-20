@@ -184,7 +184,7 @@ int class_handle_init(void)
 
 	LASSERT(!handle_hash);
 
-	handle_hash = libcfs_kvzalloc(sizeof(*bucket) * HANDLE_HASH_SIZE,
+	handle_hash = kvzalloc(sizeof(*bucket) * HANDLE_HASH_SIZE,
 				      GFP_KERNEL);
 	if (!handle_hash)
 		return -ENOMEM;

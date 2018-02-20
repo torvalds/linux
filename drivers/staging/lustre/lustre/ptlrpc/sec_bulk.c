@@ -375,7 +375,7 @@ static inline void enc_pools_alloc(void)
 {
 	LASSERT(page_pools.epp_max_pools);
 	page_pools.epp_pools =
-		libcfs_kvzalloc(page_pools.epp_max_pools *
+		kvzalloc(page_pools.epp_max_pools *
 				sizeof(*page_pools.epp_pools),
 				GFP_NOFS);
 }

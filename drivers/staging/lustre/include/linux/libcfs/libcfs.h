@@ -112,8 +112,6 @@ static inline void *__container_of(void *ptr, unsigned long shift)
 
 #define _LIBCFS_H
 
-void *libcfs_kvzalloc(size_t size, gfp_t flags);
-
 extern struct miscdevice libcfs_dev;
 /**
  * The path of debug log dump upcall script.

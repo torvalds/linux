@@ -442,7 +442,7 @@ int sptlrpc_req_ctx_switch(struct ptlrpc_request *req,
 	/* save request message */
 	reqmsg_size = req->rq_reqlen;
 	if (reqmsg_size != 0) {
-		reqmsg = libcfs_kvzalloc(reqmsg_size, GFP_NOFS);
+		reqmsg = kvzalloc(reqmsg_size, GFP_NOFS);
 		if (!reqmsg)
 			return -ENOMEM;
 		memcpy(reqmsg, req->rq_reqmsg, reqmsg_size);
@@ -1089,7 +1089,7 @@ int sptlrpc_cli_unwrap_early_reply(struct ptlrpc_request *req,
 
 	early_size = req->rq_nob_received;
 	early_bufsz = size_roundup_power2(early_size);
-	early_buf = libcfs_kvzalloc(early_bufsz, GFP_NOFS);
+	early_buf = kvzalloc(early_bufsz, GFP_NOFS);
 	if (!early_buf) {
 		rc = -ENOMEM;
 		goto err_req;

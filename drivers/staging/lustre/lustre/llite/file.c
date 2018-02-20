@@ -3361,7 +3361,7 @@ static int ll_layout_fetch(struct inode *inode, struct ldlm_lock *lock)
 		goto out;
 	}
 
-	lvbdata = libcfs_kvzalloc(lmmsize, GFP_NOFS);
+	lvbdata = kvzalloc(lmmsize, GFP_NOFS);
 	if (!lvbdata) {
 		rc = -ENOMEM;
 		goto out;

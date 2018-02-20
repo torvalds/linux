@@ -547,7 +547,7 @@ int ptlrpc_add_rqs_to_pool(struct ptlrpc_request_pool *pool, int num_rq)
 		req = ptlrpc_request_cache_alloc(GFP_KERNEL);
 		if (!req)
 			return i;
-		msg = libcfs_kvzalloc(size, GFP_KERNEL);
+		msg = kvzalloc(size, GFP_KERNEL);
 		if (!msg) {
 			ptlrpc_request_cache_free(req);
 			return i;
