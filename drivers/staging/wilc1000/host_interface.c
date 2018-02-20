@@ -3164,7 +3164,7 @@ int wilc_set_operation_mode(struct wilc_vif *vif, u32 mode)
 }
 
 s32 wilc_get_inactive_time(struct wilc_vif *vif, const u8 *mac,
-			   u32 *pu32InactiveTime)
+			   u32 *out_val)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
@@ -3187,7 +3187,7 @@ s32 wilc_get_inactive_time(struct wilc_vif *vif, const u8 *mac,
 	else
 		wait_for_completion(&hif_drv->comp_inactive_time);
 
-	*pu32InactiveTime = inactive_time;
+	*out_val = inactive_time;
 
 	return result;
 }
