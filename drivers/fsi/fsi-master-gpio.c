@@ -401,6 +401,9 @@ retry:
 		break;
 	}
 
+	if (busy_count > 0)
+		trace_fsi_master_gpio_poll_response_busy(master, busy_count);
+
 	/* Clock the slave enough to be ready for next operation */
 	clock_zeros(master, FSI_GPIO_PRIME_SLAVE_CLOCKS);
 	return rc;

@@ -64,6 +64,22 @@ TRACE_EVENT(fsi_master_gpio_break,
 	)
 );
 
+
+TRACE_EVENT(fsi_master_gpio_poll_response_busy,
+	TP_PROTO(const struct fsi_master_gpio *master, int busy),
+	TP_ARGS(master, busy),
+	TP_STRUCT__entry(
+		__field(int,	master_idx)
+		__field(int,	busy)
+	),
+	TP_fast_assign(
+		__entry->master_idx = master->master.idx;
+		__entry->busy = busy;
+	),
+	TP_printk("fsi-gpio%d: device reported busy %d times",
+		__entry->master_idx, __entry->busy)
+);
+
 #endif /* _TRACE_FSI_MASTER_GPIO_H */
 
 #include <trace/define_trace.h>
