@@ -180,7 +180,7 @@ rf params:
 		threshold value for the signal strength on the receiver input.
 		If this value is exceeded, a reception cycle starts
 		Allowed values: 0...255
-	thresholdDecrement
+	threshold_decrement
 		in order to adapt to different levels of singnal strength, over
 		time the receiver gets more and more sensitive. This value
 		determs, how fast the sensitivity increases.

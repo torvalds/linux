@@ -82,7 +82,7 @@ enum mantisse {
 	mantisse24
 };
 
-enum thresholdDecrement {
+enum threshold_decrement {
 	dec_every8th,
 	dec_every4th,
 	dec_every2nd,

@@ -476,9 +476,9 @@ int rf69_set_bandwidth_during_afc(struct spi_device *spi, enum mantisse mantisse
 	return rf69_set_bandwidth_intern(spi, REG_AFCBW, mantisse, exponent);
 }
 
-int rf69_set_ook_threshold_dec(struct spi_device *spi, enum thresholdDecrement thresholdDecrement)
+int rf69_set_ook_threshold_dec(struct spi_device *spi, enum threshold_decrement threshold_decrement)
 {
-	switch (thresholdDecrement) {
+	switch (threshold_decrement) {
 	case dec_every8th:
 		return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESDEC, OOKPEAK_THRESHDEC_EVERY_8TH);
 	case dec_every4th:

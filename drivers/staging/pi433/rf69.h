@@ -40,7 +40,7 @@ int rf69_set_antenna_impedance(struct spi_device *spi, enum antenna_impedance an
 int rf69_set_lna_gain(struct spi_device *spi, enum lnaGain lnaGain);
 int rf69_set_bandwidth(struct spi_device *spi, enum mantisse mantisse, u8 exponent);
 int rf69_set_bandwidth_during_afc(struct spi_device *spi, enum mantisse mantisse, u8 exponent);
-int rf69_set_ook_threshold_dec(struct spi_device *spi, enum thresholdDecrement thresholdDecrement);
+int rf69_set_ook_threshold_dec(struct spi_device *spi, enum threshold_decrement threshold_decrement);
 int rf69_set_dio_mapping(struct spi_device *spi, u8 DIONumber, u8 value);
 bool rf69_get_flag(struct spi_device *spi, enum flag flag);
 int rf69_set_rssi_threshold(struct spi_device *spi, u8 threshold);
