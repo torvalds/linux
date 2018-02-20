@@ -3885,6 +3885,10 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 	if (err)
 		return err;
 
+	err = mlxsw_sp_kvdl_resources_register(devlink);
+	if  (err)
+		return err;
+
 	double_size = kvd_size - linear_size;
 	double_size *= profile->kvd_hash_double_parts;
 	double_size /= profile->kvd_hash_double_parts +
