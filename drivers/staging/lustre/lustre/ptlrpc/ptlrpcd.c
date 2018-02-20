@@ -197,17 +197,14 @@ ptlrpcd_select_pc(struct ptlrpc_request *req)
 static int ptlrpcd_steal_rqset(struct ptlrpc_request_set *des,
 			       struct ptlrpc_request_set *src)
 {
-	struct list_head *tmp, *pos;
-	struct ptlrpc_request *req;
+	struct ptlrpc_request *req, *tmp;
 	int rc = 0;
 
 	spin_lock(&src->set_new_req_lock);
 	if (likely(!list_empty(&src->set_new_requests))) {
-		list_for_each_safe(pos, tmp, &src->set_new_requests) {
-			req = list_entry(pos, struct ptlrpc_request,
-					 rq_set_chain);
+		list_for_each_entry_safe(req, tmp, &src->set_new_requests, rq_set_chain)
 			req->rq_set = des;
-		}
+
 		list_splice_init(&src->set_new_requests, &des->set_requests);
 		rc = atomic_read(&src->set_new_count);
 		atomic_add(rc, &des->set_remaining);
@@ -273,8 +270,7 @@ static inline void ptlrpc_reqset_get(struct ptlrpc_request_set *set)
  */
 static int ptlrpcd_check(struct lu_env *env, struct ptlrpcd_ctl *pc)
 {
-	struct list_head *tmp, *pos;
-	struct ptlrpc_request *req;
+	struct ptlrpc_request *req, *tmp;
 	struct ptlrpc_request_set *set = pc->pc_set;
 	int rc = 0;
 	int rc2;
@@ -320,8 +316,7 @@ static int ptlrpcd_check(struct lu_env *env, struct ptlrpcd_ctl *pc)
 	/* NB: ptlrpc_check_set has already moved completed request at the
 	 * head of seq::set_requests
 	 */
-	list_for_each_safe(pos, tmp, &set->set_requests) {
-		req = list_entry(pos, struct ptlrpc_request, rq_set_chain);
+	list_for_each_entry_safe(req, tmp, &set->set_requests, rq_set_chain) {
 		if (req->rq_phase != RQ_PHASE_COMPLETE)
 			break;
 

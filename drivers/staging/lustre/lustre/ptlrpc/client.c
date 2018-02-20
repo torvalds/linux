@@ -504,19 +504,16 @@ void ptlrpc_request_cache_free(struct ptlrpc_request *req)
  */
 void ptlrpc_free_rq_pool(struct ptlrpc_request_pool *pool)
 {
-	struct list_head *l, *tmp;
 	struct ptlrpc_request *req;
 
-	spin_lock(&pool->prp_lock);
-	list_for_each_safe(l, tmp, &pool->prp_req_list) {
-		req = list_entry(l, struct ptlrpc_request, rq_list);
+	while ((req = list_first_entry_or_null(&pool->prp_req_list,
+					       struct ptlrpc_request, rq_list))) {
 		list_del(&req->rq_list);
 		LASSERT(req->rq_reqbuf);
 		LASSERT(req->rq_reqbuf_len == pool->prp_rq_size);
 		kvfree(req->rq_reqbuf);
 		ptlrpc_request_cache_free(req);
 	}
-	spin_unlock(&pool->prp_lock);
 	kfree(pool);
 }
 EXPORT_SYMBOL(ptlrpc_free_rq_pool);
@@ -656,16 +653,13 @@ static void __ptlrpc_free_req_to_pool(struct ptlrpc_request *request)
 void ptlrpc_add_unreplied(struct ptlrpc_request *req)
 {
 	struct obd_import	*imp = req->rq_import;
-	struct list_head	*tmp;
 	struct ptlrpc_request	*iter;
 
 	assert_spin_locked(&imp->imp_lock);
 	LASSERT(list_empty(&req->rq_unreplied_list));
 
 	/* unreplied list is sorted by xid in ascending order */
-	list_for_each_prev(tmp, &imp->imp_unreplied_list) {
-		iter = list_entry(tmp, struct ptlrpc_request,
-				  rq_unreplied_list);
+	list_for_each_entry_reverse(iter, &imp->imp_unreplied_list, rq_unreplied_list) {
 
 		LASSERT(req->rq_xid != iter->rq_xid);
 		if (req->rq_xid < iter->rq_xid)
@@ -1001,18 +995,14 @@ struct ptlrpc_request_set *ptlrpc_prep_fcset(int max, set_producer_func func,
  */
 void ptlrpc_set_destroy(struct ptlrpc_request_set *set)
 {
-	struct list_head *tmp;
-	struct list_head *next;
+	struct ptlrpc_request *req;
 	int expected_phase;
 	int n = 0;
 
 	/* Requests on the set should either all be completed, or all be new */
 	expected_phase = (atomic_read(&set->set_remaining) == 0) ?
 			 RQ_PHASE_COMPLETE : RQ_PHASE_NEW;
-	list_for_each(tmp, &set->set_requests) {
-		struct ptlrpc_request *req =
-			list_entry(tmp, struct ptlrpc_request, rq_set_chain);
-
+	list_for_each_entry(req, &set->set_requests, rq_set_chain) {
 		LASSERT(req->rq_phase == expected_phase);
 		n++;
 	}
@@ -1021,9 +1011,9 @@ void ptlrpc_set_destroy(struct ptlrpc_request_set *set)
 		 atomic_read(&set->set_remaining) == n, "%d / %d\n",
 		 atomic_read(&set->set_remaining), n);
 
-	list_for_each_safe(tmp, next, &set->set_requests) {
-		struct ptlrpc_request *req =
-			list_entry(tmp, struct ptlrpc_request, rq_set_chain);
+	while ((req = list_first_entry_or_null(&set->set_requests,
+					       struct ptlrpc_request,
+					       rq_set_chain))) {
 		list_del_init(&req->rq_set_chain);
 
 		LASSERT(req->rq_phase == expected_phase);
@@ -1640,7 +1630,7 @@ static inline int ptlrpc_set_producer(struct ptlrpc_request_set *set)
  */
 int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 {
-	struct list_head *tmp, *next;
+	struct ptlrpc_request *req, *next;
 	struct list_head comp_reqs;
 	int force_timer_recalc = 0;
 
@@ -1648,9 +1638,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 		return 1;
 
 	INIT_LIST_HEAD(&comp_reqs);
-	list_for_each_safe(tmp, next, &set->set_requests) {
-		struct ptlrpc_request *req =
-			list_entry(tmp, struct ptlrpc_request, rq_set_chain);
+	list_for_each_entry_safe(req, next, &set->set_requests, rq_set_chain) {
 		struct obd_import *imp = req->rq_import;
 		int unregistered = 0;
 		int rc = 0;
@@ -2126,13 +2114,11 @@ int ptlrpc_expire_one_request(struct ptlrpc_request *req, int async_unlink)
  */
 void ptlrpc_expired_set(struct ptlrpc_request_set *set)
 {
-	struct list_head *tmp;
+	struct ptlrpc_request *req;
 	time64_t now = ktime_get_real_seconds();
 
 	/* A timeout expired. See which reqs it applies to...  */
-	list_for_each(tmp, &set->set_requests) {
-		struct ptlrpc_request *req =
-			list_entry(tmp, struct ptlrpc_request, rq_set_chain);
+	list_for_each_entry(req, &set->set_requests, rq_set_chain) {
 
 		/* don't expire request waiting for context */
 		if (req->rq_wait_ctx)
@@ -2173,13 +2159,10 @@ EXPORT_SYMBOL(ptlrpc_mark_interrupted);
  */
 static void ptlrpc_interrupted_set(struct ptlrpc_request_set *set)
 {
-	struct list_head *tmp;
-
+	struct ptlrpc_request *req;
 	CDEBUG(D_RPCTRACE, "INTERRUPTED SET %p\n", set);
 
-	list_for_each(tmp, &set->set_requests) {
-		struct ptlrpc_request *req =
-			list_entry(tmp, struct ptlrpc_request, rq_set_chain);
+	list_for_each_entry(req, &set->set_requests, rq_set_chain) {
 
 		if (req->rq_phase != RQ_PHASE_RPC &&
 		    req->rq_phase != RQ_PHASE_UNREG_RPC)
@@ -2194,14 +2177,12 @@ static void ptlrpc_interrupted_set(struct ptlrpc_request_set *set)
  */
 int ptlrpc_set_next_timeout(struct ptlrpc_request_set *set)
 {
-	struct list_head *tmp;
 	time64_t now = ktime_get_real_seconds();
 	int timeout = 0;
 	struct ptlrpc_request *req;
 	time64_t deadline;
 
-	list_for_each(tmp, &set->set_requests) {
-		req = list_entry(tmp, struct ptlrpc_request, rq_set_chain);
+	list_for_each_entry(req, &set->set_requests, rq_set_chain) {
 
 		/* Request in-flight? */
 		if (!(((req->rq_phase == RQ_PHASE_RPC) && !req->rq_waiting) ||
@@ -2240,16 +2221,13 @@ int ptlrpc_set_next_timeout(struct ptlrpc_request_set *set)
  */
 int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 {
-	struct list_head *tmp;
 	struct ptlrpc_request *req;
 	int rc, timeout;
 
 	if (set->set_producer)
 		(void)ptlrpc_set_producer(set);
 	else
-		list_for_each(tmp, &set->set_requests) {
-			req = list_entry(tmp, struct ptlrpc_request,
-					 rq_set_chain);
+		list_for_each_entry(req, &set->set_requests, rq_set_chain) {
 			if (req->rq_phase == RQ_PHASE_NEW)
 				(void)ptlrpc_send_new_req(req);
 		}
@@ -2322,9 +2300,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 		 * the error cases -eeb.
 		 */
 		if (rc == 0 && atomic_read(&set->set_remaining) == 0) {
-			list_for_each(tmp, &set->set_requests) {
-				req = list_entry(tmp, struct ptlrpc_request,
-						 rq_set_chain);
+			list_for_each_entry(req, &set->set_requests, rq_set_chain) {
 				spin_lock(&req->rq_lock);
 				req->rq_invalid_rqset = 1;
 				spin_unlock(&req->rq_lock);
@@ -2335,9 +2311,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 	LASSERT(atomic_read(&set->set_remaining) == 0);
 
 	rc = set->set_rc; /* rq_status of already freed requests if any */
-	list_for_each(tmp, &set->set_requests) {
-		req = list_entry(tmp, struct ptlrpc_request, rq_set_chain);
-
+	list_for_each_entry(req, &set->set_requests, rq_set_chain) {
 		LASSERT(req->rq_phase == RQ_PHASE_COMPLETE);
 		if (req->rq_status != 0)
 			rc = req->rq_status;
@@ -2716,8 +2690,7 @@ EXPORT_SYMBOL(ptlrpc_request_addref);
 void ptlrpc_retain_replayable_request(struct ptlrpc_request *req,
 				      struct obd_import *imp)
 {
-	struct list_head *tmp;
-
+	struct ptlrpc_request *iter;
 	assert_spin_locked(&imp->imp_lock);
 
 	if (req->rq_transno == 0) {
@@ -2744,10 +2717,7 @@ void ptlrpc_retain_replayable_request(struct ptlrpc_request *req,
 	LASSERT(imp->imp_replayable);
 	/* Balanced in ptlrpc_free_committed, usually. */
 	ptlrpc_request_addref(req);
-	list_for_each_prev(tmp, &imp->imp_replay_list) {
-		struct ptlrpc_request *iter =
-			list_entry(tmp, struct ptlrpc_request, rq_replay_list);
-
+	list_for_each_entry_reverse(iter, &imp->imp_replay_list, rq_replay_list) {
 		/*
 		 * We may have duplicate transnos if we create and then
 		 * open a file, or for closes retained if to match creating
@@ -2955,7 +2925,7 @@ int ptlrpc_replay_req(struct ptlrpc_request *req)
  */
 void ptlrpc_abort_inflight(struct obd_import *imp)
 {
-	struct list_head *tmp, *n;
+	struct ptlrpc_request *req, *n;
 
 	/*
 	 * Make sure that no new requests get processed for this import.
@@ -2969,10 +2939,7 @@ void ptlrpc_abort_inflight(struct obd_import *imp)
 	 * locked?  Also, how do we know if the requests on the list are
 	 * being freed at this time?
 	 */
-	list_for_each_safe(tmp, n, &imp->imp_sending_list) {
-		struct ptlrpc_request *req =
-			list_entry(tmp, struct ptlrpc_request, rq_list);
-
+	list_for_each_entry_safe(req, n, &imp->imp_sending_list, rq_list) {
 		DEBUG_REQ(D_RPCTRACE, req, "inflight");
 
 		spin_lock(&req->rq_lock);
@@ -2984,10 +2951,7 @@ void ptlrpc_abort_inflight(struct obd_import *imp)
 		spin_unlock(&req->rq_lock);
 	}
 
-	list_for_each_safe(tmp, n, &imp->imp_delayed_list) {
-		struct ptlrpc_request *req =
-			list_entry(tmp, struct ptlrpc_request, rq_list);
-
+	list_for_each_entry_safe(req, n, &imp->imp_delayed_list, rq_list) {
 		DEBUG_REQ(D_RPCTRACE, req, "aborting waiting req");
 
 		spin_lock(&req->rq_lock);
@@ -3014,12 +2978,9 @@ void ptlrpc_abort_inflight(struct obd_import *imp)
  */
 void ptlrpc_abort_set(struct ptlrpc_request_set *set)
 {
-	struct list_head *tmp, *pos;
+	struct ptlrpc_request *req, *tmp;
 
-	list_for_each_safe(pos, tmp, &set->set_requests) {
-		struct ptlrpc_request *req =
-			list_entry(pos, struct ptlrpc_request, rq_set_chain);
-
+	list_for_each_entry_safe(req, tmp, &set->set_requests, rq_set_chain) {
 		spin_lock(&req->rq_lock);
 		if (req->rq_phase != RQ_PHASE_RPC) {
 			spin_unlock(&req->rq_lock);

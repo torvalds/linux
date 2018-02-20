@@ -66,8 +66,7 @@ void ptlrpc_initiate_recovery(struct obd_import *imp)
 int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 {
 	int rc = 0;
-	struct list_head *tmp, *pos;
-	struct ptlrpc_request *req = NULL;
+	struct ptlrpc_request *req = NULL, *pos;
 	__u64 last_transno;
 
 	*inflight = 0;
@@ -86,8 +85,8 @@ int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 
 	/* Replay all the committed open requests on committed_list first */
 	if (!list_empty(&imp->imp_committed_list)) {
-		tmp = imp->imp_committed_list.prev;
-		req = list_entry(tmp, struct ptlrpc_request, rq_replay_list);
+		req = list_last_entry(&imp->imp_committed_list,
+				      struct ptlrpc_request, rq_replay_list);
 
 		/* The last request on committed_list hasn't been replayed */
 		if (req->rq_transno > last_transno) {
@@ -119,13 +118,13 @@ int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 	 * the imp_replay_list
 	 */
 	if (!req) {
-		list_for_each_safe(tmp, pos, &imp->imp_replay_list) {
-			req = list_entry(tmp, struct ptlrpc_request,
-					 rq_replay_list);
-
-			if (req->rq_transno > last_transno)
+		struct ptlrpc_request *tmp;
+		list_for_each_entry_safe(tmp, pos, &imp->imp_replay_list,
+					 rq_replay_list) {
+			if (tmp->rq_transno > last_transno) {
+				req = tmp;
 				break;
-			req = NULL;
+			}
 		}
 	}
 
@@ -211,13 +210,10 @@ int ptlrpc_resend(struct obd_import *imp)
  */
 void ptlrpc_wake_delayed(struct obd_import *imp)
 {
-	struct list_head *tmp, *pos;
-	struct ptlrpc_request *req;
+	struct ptlrpc_request *req, *pos;
 
 	spin_lock(&imp->imp_lock);
-	list_for_each_safe(tmp, pos, &imp->imp_delayed_list) {
-		req = list_entry(tmp, struct ptlrpc_request, rq_list);
-
+	list_for_each_entry_safe(req, pos, &imp->imp_delayed_list, rq_list) {
 		DEBUG_REQ(D_HA, req, "waking (set %p):", req->rq_set);
 		ptlrpc_client_wake_req(req);
 	}
