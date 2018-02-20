@@ -144,10 +144,9 @@ config ASPEED_ADC
 config AT91_ADC
 	tristate "Atmel AT91 ADC"
 	depends on ARCH_AT91
-	depends on INPUT
+	depends on INPUT && SYSFS
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
-	select SYSFS
 	help
 	  Say yes here to build support for Atmel AT91 ADC.
 
