@@ -1986,8 +1986,7 @@ static s32 handle_get_inactive_time(struct wilc_vif *vif,
 	return result;
 }
 
-static void handle_add_beacon(struct wilc_vif *vif,
-			      struct beacon_attr *pstrSetBeaconParam)
+static void handle_add_beacon(struct wilc_vif *vif, struct beacon_attr *param)
 {
 	s32 result = 0;
 	struct wid wid;
@@ -1995,38 +1994,38 @@ static void handle_add_beacon(struct wilc_vif *vif,
 
 	wid.id = (u16)WID_ADD_BEACON;
 	wid.type = WID_BIN;
-	wid.size = pstrSetBeaconParam->head_len + pstrSetBeaconParam->tail_len + 16;
+	wid.size = param->head_len + param->tail_len + 16;
 	wid.val = kmalloc(wid.size, GFP_KERNEL);
 	if (!wid.val)
 		goto ERRORHANDLER;
 
 	cur_byte = wid.val;
-	*cur_byte++ = (pstrSetBeaconParam->interval & 0xFF);
-	*cur_byte++ = ((pstrSetBeaconParam->interval >> 8) & 0xFF);
-	*cur_byte++ = ((pstrSetBeaconParam->interval >> 16) & 0xFF);
-	*cur_byte++ = ((pstrSetBeaconParam->interval >> 24) & 0xFF);
+	*cur_byte++ = (param->interval & 0xFF);
+	*cur_byte++ = ((param->interval >> 8) & 0xFF);
+	*cur_byte++ = ((param->interval >> 16) & 0xFF);
+	*cur_byte++ = ((param->interval >> 24) & 0xFF);
 
-	*cur_byte++ = (pstrSetBeaconParam->dtim_period & 0xFF);
-	*cur_byte++ = ((pstrSetBeaconParam->dtim_period >> 8) & 0xFF);
-	*cur_byte++ = ((pstrSetBeaconParam->dtim_period >> 16) & 0xFF);
-	*cur_byte++ = ((pstrSetBeaconParam->dtim_period >> 24) & 0xFF);
+	*cur_byte++ = (param->dtim_period & 0xFF);
+	*cur_byte++ = ((param->dtim_period >> 8) & 0xFF);
+	*cur_byte++ = ((param->dtim_period >> 16) & 0xFF);
+	*cur_byte++ = ((param->dtim_period >> 24) & 0xFF);
 
-	*cur_byte++ = (pstrSetBeaconParam->head_len & 0xFF);
-	*cur_byte++ = ((pstrSetBeaconParam->head_len >> 8) & 0xFF);
-	*cur_byte++ = ((pstrSetBeaconParam->head_len >> 16) & 0xFF);
-	*cur_byte++ = ((pstrSetBeaconParam->head_len >> 24) & 0xFF);
+	*cur_byte++ = (param->head_len & 0xFF);
+	*cur_byte++ = ((param->head_len >> 8) & 0xFF);
+	*cur_byte++ = ((param->head_len >> 16) & 0xFF);
+	*cur_byte++ = ((param->head_len >> 24) & 0xFF);
 
-	memcpy(cur_byte, pstrSetBeaconParam->head, pstrSetBeaconParam->head_len);
-	cur_byte += pstrSetBeaconParam->head_len;
+	memcpy(cur_byte, param->head, param->head_len);
+	cur_byte += param->head_len;
 
-	*cur_byte++ = (pstrSetBeaconParam->tail_len & 0xFF);
-	*cur_byte++ = ((pstrSetBeaconParam->tail_len >> 8) & 0xFF);
-	*cur_byte++ = ((pstrSetBeaconParam->tail_len >> 16) & 0xFF);
-	*cur_byte++ = ((pstrSetBeaconParam->tail_len >> 24) & 0xFF);
+	*cur_byte++ = (param->tail_len & 0xFF);
+	*cur_byte++ = ((param->tail_len >> 8) & 0xFF);
+	*cur_byte++ = ((param->tail_len >> 16) & 0xFF);
+	*cur_byte++ = ((param->tail_len >> 24) & 0xFF);
 
-	if (pstrSetBeaconParam->tail)
-		memcpy(cur_byte, pstrSetBeaconParam->tail, pstrSetBeaconParam->tail_len);
-	cur_byte += pstrSetBeaconParam->tail_len;
+	if (param->tail)
+		memcpy(cur_byte, param->tail, param->tail_len);
+	cur_byte += param->tail_len;
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
@@ -2035,8 +2034,8 @@ static void handle_add_beacon(struct wilc_vif *vif,
 
 ERRORHANDLER:
 	kfree(wid.val);
-	kfree(pstrSetBeaconParam->head);
-	kfree(pstrSetBeaconParam->tail);
+	kfree(param->head);
+	kfree(param->tail);
 }
 
 static void handle_del_beacon(struct wilc_vif *vif)
