@@ -184,7 +184,8 @@ u16 ath9k_hw_computetxtime(struct ath_hw *ah,
 		break;
 	case WLAN_RC_PHY_OFDM:
 		if (ah->curchan && IS_CHAN_QUARTER_RATE(ah->curchan)) {
-			bitsPerSymbol =	(kbps * OFDM_SYMBOL_TIME_QUARTER) / 1000;
+			bitsPerSymbol =
+				((kbps >> 2) * OFDM_SYMBOL_TIME_QUARTER) / 1000;
 			numBits = OFDM_PLCP_BITS + (frameLen << 3);
 			numSymbols = DIV_ROUND_UP(numBits, bitsPerSymbol);
 			txTime = OFDM_SIFS_TIME_QUARTER
@@ -192,7 +193,8 @@ u16 ath9k_hw_computetxtime(struct ath_hw *ah,
 				+ (numSymbols * OFDM_SYMBOL_TIME_QUARTER);
 		} else if (ah->curchan &&
 			   IS_CHAN_HALF_RATE(ah->curchan)) {
-			bitsPerSymbol =	(kbps * OFDM_SYMBOL_TIME_HALF) / 1000;
+			bitsPerSymbol =
+				((kbps >> 1) * OFDM_SYMBOL_TIME_HALF) / 1000;
 			numBits = OFDM_PLCP_BITS + (frameLen << 3);
 			numSymbols = DIV_ROUND_UP(numBits, bitsPerSymbol);
 			txTime = OFDM_SIFS_TIME_HALF +
