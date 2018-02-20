@@ -123,7 +123,7 @@ enum packetFormat {
 	packetLengthVar
 };
 
-enum txStartCondition {
+enum tx_start_condition {
 	fifo_level,
 	fifo_not_empty
 };

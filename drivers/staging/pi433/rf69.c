@@ -714,9 +714,9 @@ int rf69_set_broadcast_address(struct spi_device *spi, u8 broadcastAddress)
 	return rf69_write_reg(spi, REG_BROADCASTADRS, broadcastAddress);
 }
 
-int rf69_set_tx_start_condition(struct spi_device *spi, enum txStartCondition txStartCondition)
+int rf69_set_tx_start_condition(struct spi_device *spi, enum tx_start_condition tx_start_condition)
 {
-	switch (txStartCondition) {
+	switch (tx_start_condition) {
 	case fifo_level:
 		return rf69_clear_bit(spi, REG_FIFO_THRESH, MASK_FIFO_THRESH_TXSTART);
 	case fifo_not_empty:

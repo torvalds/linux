@@ -57,7 +57,7 @@ int rf69_set_adressFiltering(struct spi_device *spi, enum addressFiltering addre
 int rf69_set_payload_length(struct spi_device *spi, u8 payload_length);
 int rf69_set_node_address(struct spi_device *spi, u8 nodeAddress);
 int rf69_set_broadcast_address(struct spi_device *spi, u8 broadcastAddress);
-int rf69_set_tx_start_condition(struct spi_device *spi, enum txStartCondition txStartCondition);
+int rf69_set_tx_start_condition(struct spi_device *spi, enum tx_start_condition tx_start_condition);
 int rf69_set_fifo_threshold(struct spi_device *spi, u8 threshold);
 int rf69_set_dagc(struct spi_device *spi, enum dagc dagc);
 

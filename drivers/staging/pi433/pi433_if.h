@@ -69,7 +69,7 @@ struct pi433_tx_cfg {
 
 	enum paRamp		pa_ramp;
 
-	enum txStartCondition	tx_start_condition;
+	enum tx_start_condition	tx_start_condition;
 
 	__u16			repetitions;
 
