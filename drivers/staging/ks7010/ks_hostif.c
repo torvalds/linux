@@ -1308,11 +1308,11 @@ err_kfree_skb:
 	return ret;
 }
 
-#define ps_confirm_wait_inc(priv)					 \
-	do {								 \
-		if (atomic_read(&priv->psstatus.status) > PS_ACTIVE_SET) \
-			atomic_inc(&priv->psstatus.confirm_wait);	 \
-	} while (0)
+static inline void ps_confirm_wait_inc(struct ks_wlan_private *priv)
+{
+	if (atomic_read(&priv->psstatus.status) > PS_ACTIVE_SET)
+		atomic_inc(&priv->psstatus.confirm_wait);
+}
 
 static
 void hostif_mib_get_request(struct ks_wlan_private *priv,
