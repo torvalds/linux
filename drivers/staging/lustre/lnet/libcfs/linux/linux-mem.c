@@ -42,10 +42,3 @@ void *libcfs_kvzalloc(size_t size, gfp_t flags)
 	return ret;
 }
 EXPORT_SYMBOL(libcfs_kvzalloc);
-
-void *libcfs_kvzalloc_cpt(struct cfs_cpt_table *cptab, int cpt, size_t size,
-			  gfp_t flags)
-{
-	return kvzalloc_node(size, flags, cfs_cpt_spread_node(cptab, cpt));
-}
-EXPORT_SYMBOL(libcfs_kvzalloc_cpt);

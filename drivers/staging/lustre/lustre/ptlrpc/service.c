@@ -83,10 +83,10 @@ ptlrpc_alloc_rqbd(struct ptlrpc_service_part *svcpt)
 	rqbd->rqbd_cbid.cbid_fn = request_in_callback;
 	rqbd->rqbd_cbid.cbid_arg = rqbd;
 	INIT_LIST_HEAD(&rqbd->rqbd_reqs);
-	rqbd->rqbd_buffer = libcfs_kvzalloc_cpt(svc->srv_cptable,
-						svcpt->scp_cpt,
-						svc->srv_buf_size,
-						GFP_KERNEL);
+	rqbd->rqbd_buffer = kvzalloc_node(svc->srv_buf_size, GFP_KERNEL,
+					  cfs_cpt_spread_node(svc->srv_cptable,
+							      svcpt->scp_cpt));
+
 	if (!rqbd->rqbd_buffer) {
 		kfree(rqbd);
 		return NULL;
