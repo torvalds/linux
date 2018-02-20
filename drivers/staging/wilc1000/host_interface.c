@@ -2404,8 +2404,8 @@ static void handle_power_management(struct wilc_vif *vif,
 		netdev_err(vif->ndev, "Failed to send power management\n");
 }
 
-static void Handle_SetMulticastFilter(struct wilc_vif *vif,
-				      struct set_multicast *hif_set_mc)
+static void handle_set_mcast_filter(struct wilc_vif *vif,
+				    struct set_multicast *hif_set_mc)
 {
 	s32 result = 0;
 	struct wid wid;
@@ -2621,7 +2621,7 @@ static void host_if_work(struct work_struct *work)
 		break;
 
 	case HOST_IF_MSG_SET_MULTICAST_FILTER:
-		Handle_SetMulticastFilter(msg->vif, &msg->body.multicast_info);
+		handle_set_mcast_filter(msg->vif, &msg->body.multicast_info);
 		break;
 
 	case HOST_IF_MSG_DEL_ALL_STA:
