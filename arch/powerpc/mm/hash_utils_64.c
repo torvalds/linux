@@ -132,9 +132,10 @@ EXPORT_SYMBOL(mmu_hash_ops);
  * is provided by the firmware.
  */
 
-/* Pre-POWER4 CPUs (4k pages only)
+/*
+ * Fallback (4k pages only)
  */
-static struct mmu_psize_def mmu_psize_defaults_old[] = {
+static struct mmu_psize_def mmu_psize_defaults[] = {
 	[MMU_PAGE_4K] = {
 		.shift	= 12,
 		.sllp	= 0,
@@ -554,8 +555,8 @@ static void __init htab_scan_page_sizes(void)
 	mmu_psize_set_default_penc();
 
 	/* Default to 4K pages only */
-	memcpy(mmu_psize_defs, mmu_psize_defaults_old,
-	       sizeof(mmu_psize_defaults_old));
+	memcpy(mmu_psize_defs, mmu_psize_defaults,
+	       sizeof(mmu_psize_defaults));
 
 	/*
 	 * Try to find the available page sizes in the device-tree

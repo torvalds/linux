@@ -133,36 +133,6 @@ extern void __restore_cpu_e6500(void);
 
 static struct cpu_spec __initdata cpu_specs[] = {
 #ifdef CONFIG_PPC_BOOK3S_64
-	{	/* Power4 */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00350000,
-		.cpu_name		= "POWER4 (gp)",
-		.cpu_features		= CPU_FTRS_POWER4,
-		.cpu_user_features	= COMMON_USER_POWER4,
-		.mmu_features		= MMU_FTRS_POWER4 | MMU_FTR_TLBIE_CROP_VA,
-		.icache_bsize		= 128,
-		.dcache_bsize		= 128,
-		.num_pmcs		= 8,
-		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power4",
-		.oprofile_type		= PPC_OPROFILE_POWER4,
-		.platform		= "power4",
-	},
-	{	/* Power4+ */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00380000,
-		.cpu_name		= "POWER4+ (gq)",
-		.cpu_features		= CPU_FTRS_POWER4,
-		.cpu_user_features	= COMMON_USER_POWER4,
-		.mmu_features		= MMU_FTRS_POWER4 | MMU_FTR_TLBIE_CROP_VA,
-		.icache_bsize		= 128,
-		.dcache_bsize		= 128,
-		.num_pmcs		= 8,
-		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power4",
-		.oprofile_type		= PPC_OPROFILE_POWER4,
-		.platform		= "power4",
-	},
 	{	/* PPC970 */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00390000,
@@ -628,15 +598,15 @@ static struct cpu_spec __initdata cpu_specs[] = {
 	{	/* default match */
 		.pvr_mask		= 0x00000000,
 		.pvr_value		= 0x00000000,
-		.cpu_name		= "POWER4 (compatible)",
+		.cpu_name		= "POWER5 (compatible)",
 		.cpu_features		= CPU_FTRS_COMPATIBLE,
 		.cpu_user_features	= COMMON_USER_PPC64,
-		.mmu_features		= MMU_FTRS_DEFAULT_HPTE_ARCH_V2,
+		.mmu_features		= MMU_FTRS_POWER,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_IBM,
-		.platform		= "power4",
+		.platform		= "power5",
 	}
 #endif	/* CONFIG_PPC_BOOK3S_64 */
 

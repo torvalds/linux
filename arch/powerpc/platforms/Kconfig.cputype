@@ -61,7 +61,7 @@ choice
 	help
 	  There are two families of 64 bit PowerPC chips supported.
 	  The most common ones are the desktop and server CPUs
-	  (POWER4, POWER5, 970, POWER5+, POWER6, POWER7, POWER8 ...)
+	  (POWER5, 970, POWER5+, POWER6, POWER7, POWER8, POWER9 ...)
 
 	  The other are the "embedded" processors compliant with the
 	  "Book 3E" variant of the architecture
@@ -101,10 +101,6 @@ config GENERIC_CPU
 
 config CELL_CPU
 	bool "Cell Broadband Engine"
-	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
-
-config POWER4_CPU
-	bool "POWER4"
 	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
 
 config POWER5_CPU
