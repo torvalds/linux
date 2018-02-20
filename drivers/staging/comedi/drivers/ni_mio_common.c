@@ -1965,7 +1965,8 @@ static void ni_cmd_set_mite_transfer(struct mite_ring *ring,
 	if (nbytes > sdev->async->prealloc_bufsz) {
 		if (cmd->stop_arg > 0)
 			dev_err(sdev->device->class_dev,
-				"ni_cmd_set_mite_transfer: tried exact data transfer limits greater than buffer size\n");
+				"%s: tried exact data transfer limits greater than buffer size\n",
+				__func__);
 
 		/*
 		 * we can only transfer up to the size of the buffer.  In this
@@ -1978,7 +1979,8 @@ static void ni_cmd_set_mite_transfer(struct mite_ring *ring,
 	mite_init_ring_descriptors(ring, sdev, nbytes);
 #else
 	dev_err(sdev->device->class_dev,
-		"ni_cmd_set_mite_transfer: exact data transfer limits not implemented yet without DMA\n");
+		"%s: exact data transfer limits not implemented yet without DMA\n",
+		__func__);
 #endif
 }
 
@@ -4687,7 +4689,7 @@ static int cs5529_do_conversion(struct comedi_device *dev,
 	retval = cs5529_wait_for_idle(dev);
 	if (retval) {
 		dev_err(dev->class_dev,
-			"timeout or signal in cs5529_do_conversion()\n");
+			"timeout or signal in %s()\n", __func__);
 		return -ETIME;
 	}
 	status = ni_ao_win_inw(dev, NI67XX_CAL_STATUS_REG);
