@@ -204,6 +204,12 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 		.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM
 	};
 
+	if (bo->type == ttm_bo_type_sg) {
+		placement->num_placement = 0;
+		placement->num_busy_placement = 0;
+		return;
+	}
+
 	if (!amdgpu_ttm_bo_is_amdgpu_bo(bo)) {
 		placement->placement = &placements;
 		placement->busy_placement = &placements;
