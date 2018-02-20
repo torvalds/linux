@@ -23,7 +23,6 @@
  *
  */
 
-#include <asm/processor.h>
 #include <asm/unaligned.h>
 #include <linux/crypto.h>
 #include <linux/init.h>
@@ -1270,11 +1269,17 @@ int __camellia_setkey(struct camellia_ctx *cctx, const unsigned char *key,
 }
 EXPORT_SYMBOL_GPL(__camellia_setkey);
 
-static int camellia_setkey(struct crypto_tfm *tfm, const u8 *in_key,
+static int camellia_setkey(struct crypto_tfm *tfm, const u8 *key,
 			   unsigned int key_len)
 {
-	return __camellia_setkey(crypto_tfm_ctx(tfm), in_key, key_len,
+	return __camellia_setkey(crypto_tfm_ctx(tfm), key, key_len,
 				 &tfm->crt_flags);
+}
+
+static int camellia_setkey_skcipher(struct crypto_skcipher *tfm, const u8 *key,
+				    unsigned int key_len)
+{
+	return camellia_setkey(&tfm->base, key, key_len);
 }
 
 void camellia_decrypt_cbc_2way(void *ctx, u128 *dst, const u128 *src)
@@ -1371,39 +1376,33 @@ static const struct common_glue_ctx camellia_dec_cbc = {
 	} }
 };
 
-static int ecb_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int ecb_encrypt(struct skcipher_request *req)
 {
-	return glue_ecb_crypt_128bit(&camellia_enc, desc, dst, src, nbytes);
+	return glue_ecb_req_128bit(&camellia_enc, req);
 }
 
-static int ecb_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int ecb_decrypt(struct skcipher_request *req)
 {
-	return glue_ecb_crypt_128bit(&camellia_dec, desc, dst, src, nbytes);
+	return glue_ecb_req_128bit(&camellia_dec, req);
 }
 
-static int cbc_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int cbc_encrypt(struct skcipher_request *req)
 {
-	return glue_cbc_encrypt_128bit(GLUE_FUNC_CAST(camellia_enc_blk), desc,
-				       dst, src, nbytes);
+	return glue_cbc_encrypt_req_128bit(GLUE_FUNC_CAST(camellia_enc_blk),
+					   req);
 }
 
-static int cbc_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int cbc_decrypt(struct skcipher_request *req)
 {
-	return glue_cbc_decrypt_128bit(&camellia_dec_cbc, desc, dst, src,
-				       nbytes);
+	return glue_cbc_decrypt_req_128bit(&camellia_dec_cbc, req);
 }
 
-static int ctr_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		     struct scatterlist *src, unsigned int nbytes)
+static int ctr_crypt(struct skcipher_request *req)
 {
-	return glue_ctr_crypt_128bit(&camellia_ctr, desc, dst, src, nbytes);
+	return glue_ctr_req_128bit(&camellia_ctr, req);
 }
 
-static struct crypto_alg camellia_algs[] = { {
+static struct crypto_alg camellia_cipher_alg = {
 	.cra_name		= "camellia",
 	.cra_driver_name	= "camellia-asm",
 	.cra_priority		= 200,
@@ -1421,66 +1420,50 @@ static struct crypto_alg camellia_algs[] = { {
 			.cia_decrypt	 = camellia_decrypt
 		}
 	}
-}, {
-	.cra_name		= "ecb(camellia)",
-	.cra_driver_name	= "ecb-camellia-asm",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize		= CAMELLIA_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct camellia_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= CAMELLIA_MIN_KEY_SIZE,
-			.max_keysize	= CAMELLIA_MAX_KEY_SIZE,
-			.setkey		= camellia_setkey,
-			.encrypt	= ecb_encrypt,
-			.decrypt	= ecb_decrypt,
-		},
-	},
-}, {
-	.cra_name		= "cbc(camellia)",
-	.cra_driver_name	= "cbc-camellia-asm",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize		= CAMELLIA_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct camellia_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= CAMELLIA_MIN_KEY_SIZE,
-			.max_keysize	= CAMELLIA_MAX_KEY_SIZE,
-			.ivsize		= CAMELLIA_BLOCK_SIZE,
-			.setkey		= camellia_setkey,
-			.encrypt	= cbc_encrypt,
-			.decrypt	= cbc_decrypt,
-		},
-	},
-}, {
-	.cra_name		= "ctr(camellia)",
-	.cra_driver_name	= "ctr-camellia-asm",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize		= 1,
-	.cra_ctxsize		= sizeof(struct camellia_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= CAMELLIA_MIN_KEY_SIZE,
-			.max_keysize	= CAMELLIA_MAX_KEY_SIZE,
-			.ivsize		= CAMELLIA_BLOCK_SIZE,
-			.setkey		= camellia_setkey,
-			.encrypt	= ctr_crypt,
-			.decrypt	= ctr_crypt,
-		},
-	},
-} };
+};
+
+static struct skcipher_alg camellia_skcipher_algs[] = {
+	{
+		.base.cra_name		= "ecb(camellia)",
+		.base.cra_driver_name	= "ecb-camellia-asm",
+		.base.cra_priority	= 300,
+		.base.cra_blocksize	= CAMELLIA_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct camellia_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= CAMELLIA_MIN_KEY_SIZE,
+		.max_keysize		= CAMELLIA_MAX_KEY_SIZE,
+		.setkey			= camellia_setkey_skcipher,
+		.encrypt		= ecb_encrypt,
+		.decrypt		= ecb_decrypt,
+	}, {
+		.base.cra_name		= "cbc(camellia)",
+		.base.cra_driver_name	= "cbc-camellia-asm",
+		.base.cra_priority	= 300,
+		.base.cra_blocksize	= CAMELLIA_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct camellia_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= CAMELLIA_MIN_KEY_SIZE,
+		.max_keysize		= CAMELLIA_MAX_KEY_SIZE,
+		.ivsize			= CAMELLIA_BLOCK_SIZE,
+		.setkey			= camellia_setkey_skcipher,
+		.encrypt		= cbc_encrypt,
+		.decrypt		= cbc_decrypt,
+	}, {
+		.base.cra_name		= "ctr(camellia)",
+		.base.cra_driver_name	= "ctr-camellia-asm",
+		.base.cra_priority	= 300,
+		.base.cra_blocksize	= 1,
+		.base.cra_ctxsize	= sizeof(struct camellia_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= CAMELLIA_MIN_KEY_SIZE,
+		.max_keysize		= CAMELLIA_MAX_KEY_SIZE,
+		.ivsize			= CAMELLIA_BLOCK_SIZE,
+		.chunksize		= CAMELLIA_BLOCK_SIZE,
+		.setkey			= camellia_setkey_skcipher,
+		.encrypt		= ctr_crypt,
+		.decrypt		= ctr_crypt,
+	}
+};
 
 static bool is_blacklisted_cpu(void)
 {
@@ -1506,6 +1489,8 @@ MODULE_PARM_DESC(force, "Force module load, ignore CPU blacklist");
 
 static int __init init(void)
 {
+	int err;
+
 	if (!force && is_blacklisted_cpu()) {
 		printk(KERN_INFO
 			"camellia-x86_64: performance on this CPU "
@@ -1514,12 +1499,23 @@ static int __init init(void)
 		return -ENODEV;
 	}
 
-	return crypto_register_algs(camellia_algs, ARRAY_SIZE(camellia_algs));
+	err = crypto_register_alg(&camellia_cipher_alg);
+	if (err)
+		return err;
+
+	err = crypto_register_skciphers(camellia_skcipher_algs,
+					ARRAY_SIZE(camellia_skcipher_algs));
+	if (err)
+		crypto_unregister_alg(&camellia_cipher_alg);
+
+	return err;
 }
 
 static void __exit fini(void)
 {
-	crypto_unregister_algs(camellia_algs, ARRAY_SIZE(camellia_algs));
+	crypto_unregister_alg(&camellia_cipher_alg);
+	crypto_unregister_skciphers(camellia_skcipher_algs,
+				    ARRAY_SIZE(camellia_skcipher_algs));
 }
 
 module_init(init);
