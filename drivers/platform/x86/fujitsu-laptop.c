@@ -101,6 +101,11 @@
 #define ECO_LED	0x10000
 #define ECO_LED_ON	0x80000
 
+/* FUNC interface - backlight power control */
+#define BACKLIGHT_PARAM_POWER	0x4
+#define BACKLIGHT_OFF	0x3
+#define BACKLIGHT_ON	0x0
+
 /* Hotkey details */
 #define KEY1_CODE	0x410	/* codes for the keys in the GIRB register */
 #define KEY2_CODE	0x411
@@ -257,9 +262,11 @@ static int bl_update_status(struct backlight_device *b)
 
 	if (fext) {
 		if (b->props.power == FB_BLANK_POWERDOWN)
-			call_fext_func(fext, FUNC_BACKLIGHT, 0x1, 0x4, 0x3);
+			call_fext_func(fext, FUNC_BACKLIGHT, 0x1,
+				       BACKLIGHT_PARAM_POWER, BACKLIGHT_OFF);
 		else
-			call_fext_func(fext, FUNC_BACKLIGHT, 0x1, 0x4, 0x0);
+			call_fext_func(fext, FUNC_BACKLIGHT, 0x1,
+				       BACKLIGHT_PARAM_POWER, BACKLIGHT_ON);
 	}
 
 	return set_lcd_level(device, b->props.brightness);
@@ -818,7 +825,8 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 	/* Sync backlight power status */
 	if (fujitsu_bl && fujitsu_bl->bl_device &&
 	    acpi_video_get_backlight_type() == acpi_backlight_vendor) {
-		if (call_fext_func(fext, FUNC_BACKLIGHT, 0x2, 0x4, 0x0) == 3)
+		if (call_fext_func(fext, FUNC_BACKLIGHT, 0x2,
+				   BACKLIGHT_PARAM_POWER, 0x0) == BACKLIGHT_OFF)
 			fujitsu_bl->bl_device->props.power = FB_BLANK_POWERDOWN;
 		else
 			fujitsu_bl->bl_device->props.power = FB_BLANK_UNBLANK;
