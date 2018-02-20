@@ -1901,6 +1901,11 @@ restart_poll:
 			dev_kfree_skb_any(rx_buff->skb);
 			remove_buff_from_pool(adapter, rx_buff);
 			continue;
+		} else if (!rx_buff->skb) {
+			/* free the entry */
+			next->rx_comp.first = 0;
+			remove_buff_from_pool(adapter, rx_buff);
+			continue;
 		}
 
 		length = be32_to_cpu(next->rx_comp.len);
