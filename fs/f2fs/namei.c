@@ -351,6 +351,7 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 		inode->i_op = &f2fs_encrypted_symlink_inode_operations;
 	else
 		inode->i_op = &f2fs_symlink_inode_operations;
+	inode_nohighmem(inode);
 	inode->i_mapping->a_ops = &f2fs_dblock_aops;
 
 	f2fs_lock_op(sbi);
@@ -942,7 +943,7 @@ static const char *f2fs_encrypted_follow_link(struct dentry *dentry, void **cook
 	cpage = read_mapping_page(inode->i_mapping, 0, NULL);
 	if (IS_ERR(cpage))
 		return ERR_CAST(cpage);
-	caddr = kmap(cpage);
+	caddr = page_address(cpage);
 	caddr[size] = 0;
 
 	/* Symlink is encrypted */
@@ -982,13 +983,11 @@ static const char *f2fs_encrypted_follow_link(struct dentry *dentry, void **cook
 	/* Null-terminate the name */
 	paddr[res] = '\0';
 
-	kunmap(cpage);
 	page_cache_release(cpage);
 	return *cookie = paddr;
 errout:
 	kfree(cstr.name);
 	f2fs_fname_crypto_free_buffer(&pstr);
-	kunmap(cpage);
 	page_cache_release(cpage);
 	return ERR_PTR(res);
 }

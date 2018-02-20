@@ -1382,21 +1382,29 @@ static int __net_init nfnl_queue_net_init(struct net *net)
 			 net->nf.proc_netfilter, &nfqnl_file_ops))
 		return -ENOMEM;
 #endif
+	nf_register_queue_handler(net, &nfqh);
 	return 0;
 }
 
 static void __net_exit nfnl_queue_net_exit(struct net *net)
 {
+	nf_unregister_queue_handler(net);
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("nfnetlink_queue", net->nf.proc_netfilter);
 #endif
 }
 
+static void nfnl_queue_net_exit_batch(struct list_head *net_exit_list)
+{
+	synchronize_rcu();
+}
+
 static struct pernet_operations nfnl_queue_net_ops = {
-	.init	= nfnl_queue_net_init,
-	.exit	= nfnl_queue_net_exit,
-	.id	= &nfnl_queue_net_id,
-	.size	= sizeof(struct nfnl_queue_net),
+	.init		= nfnl_queue_net_init,
+	.exit		= nfnl_queue_net_exit,
+	.exit_batch	= nfnl_queue_net_exit_batch,
+	.id		= &nfnl_queue_net_id,
+	.size		= sizeof(struct nfnl_queue_net),
 };
 
 static int __init nfnetlink_queue_init(void)
@@ -1417,7 +1425,6 @@ static int __init nfnetlink_queue_init(void)
 	}
 
 	register_netdevice_notifier(&nfqnl_dev_notifier);
-	nf_register_queue_handler(&nfqh);
 	return status;
 
 cleanup_netlink_notifier:
@@ -1429,7 +1436,6 @@ out:
 
 static void __exit nfnetlink_queue_fini(void)
 {
-	nf_unregister_queue_handler();
 	unregister_netdevice_notifier(&nfqnl_dev_notifier);
 	nfnetlink_subsys_unregister(&nfqnl_subsys);
 	netlink_unregister_notifier(&nfqnl_rtnl_notifier);

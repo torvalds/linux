@@ -184,4 +184,19 @@ label##3:					       	\
 	FTR_ENTRY_OFFSET label##1b-label##3b;		\
 	.popsection;
 
+#define RFI_FLUSH_FIXUP_SECTION				\
+951:							\
+	.pushsection __rfi_flush_fixup,"a";		\
+	.align 2;					\
+952:							\
+	FTR_ENTRY_OFFSET 951b-952b;			\
+	.popsection;
+
+
+#ifndef __ASSEMBLY__
+
+extern long __start___rfi_flush_fixup, __stop___rfi_flush_fixup;
+
+#endif
+
 #endif /* __ASM_POWERPC_FEATURE_FIXUPS_H */
