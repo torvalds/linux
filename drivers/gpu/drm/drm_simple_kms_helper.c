@@ -34,6 +34,20 @@ static const struct drm_encoder_funcs drm_simple_kms_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
+static enum drm_mode_status
+drm_simple_kms_crtc_mode_valid(struct drm_crtc *crtc,
+			       const struct drm_display_mode *mode)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(crtc, struct drm_simple_display_pipe, crtc);
+	if (!pipe->funcs || !pipe->funcs->mode_valid)
+		/* Anything goes */
+		return MODE_OK;
+
+	return pipe->funcs->mode_valid(crtc, mode);
+}
+
 static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,
 				     struct drm_crtc_state *state)
 {
@@ -72,6 +86,7 @@ static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs drm_simple_kms_crtc_helper_funcs = {
+	.mode_valid = drm_simple_kms_crtc_mode_valid,
 	.atomic_check = drm_simple_kms_crtc_check,
 	.atomic_enable = drm_simple_kms_crtc_enable,
 	.atomic_disable = drm_simple_kms_crtc_disable,
