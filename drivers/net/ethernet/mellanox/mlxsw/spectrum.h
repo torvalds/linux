@@ -70,12 +70,18 @@
 #define MLXSW_SP_RESOURCE_NAME_KVD_LINEAR "linear"
 #define MLXSW_SP_RESOURCE_NAME_KVD_HASH_SINGLE "hash_single"
 #define MLXSW_SP_RESOURCE_NAME_KVD_HASH_DOUBLE "hash_double"
+#define MLXSW_SP_RESOURCE_NAME_KVD_LINEAR_SINGLES "singles"
+#define MLXSW_SP_RESOURCE_NAME_KVD_LINEAR_CHUNKS "chunks"
+#define MLXSW_SP_RESOURCE_NAME_KVD_LINEAR_LARGE_CHUNKS "large_chunks"
 
 enum mlxsw_sp_resource_id {
 	MLXSW_SP_RESOURCE_KVD,
 	MLXSW_SP_RESOURCE_KVD_LINEAR,
 	MLXSW_SP_RESOURCE_KVD_HASH_SINGLE,
 	MLXSW_SP_RESOURCE_KVD_HASH_DOUBLE,
+	MLXSW_SP_RESOURCE_KVD_LINEAR_SINGLE,
+	MLXSW_SP_RESOURCE_KVD_LINEAR_CHUNKS,
+	MLXSW_SP_RESOURCE_KVD_LINEAR_LARGE_CHUNKS,
 };
 
 struct mlxsw_sp_port;
@@ -433,6 +439,7 @@ int mlxsw_sp_kvdl_alloc_size_query(struct mlxsw_sp *mlxsw_sp,
 				   unsigned int entry_count,
 				   unsigned int *p_alloc_size);
 u64 mlxsw_sp_kvdl_occ_get(const struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_kvdl_resources_register(struct devlink *devlink);
 
 struct mlxsw_sp_acl_rule_info {
 	unsigned int priority;
