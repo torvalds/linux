@@ -363,13 +363,6 @@ void force_signal_inject(int signal, int code, unsigned long address)
 		signal = SIGKILL;
 	}
 
-	if (unhandled_signal(current, signal) &&
-	    show_unhandled_signals_ratelimited()) {
-		pr_info("%s[%d]: %s: pc=%08llx\n",
-			current->comm, task_pid_nr(current), desc, regs->pc);
-		dump_instr(KERN_INFO, regs);
-	}
-
 	info.si_signo = signal;
 	info.si_errno = 0;
 	info.si_code  = code;
