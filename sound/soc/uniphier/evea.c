@@ -292,7 +292,7 @@ static int evea_set_switch_hp(struct snd_kcontrol *kcontrol,
 	return evea_update_switch_hp(evea);
 }
 
-static const struct snd_kcontrol_new eva_controls[] = {
+static const struct snd_kcontrol_new evea_controls[] = {
 	SOC_SINGLE_BOOL_EXT("Line Capture Switch", 0,
 			    evea_get_switch_lin, evea_set_switch_lin),
 	SOC_SINGLE_BOOL_EXT("Line Playback Switch", 0,
@@ -384,8 +384,8 @@ static struct snd_soc_component_driver soc_codec_evea = {
 	.num_dapm_widgets	= ARRAY_SIZE(evea_widgets),
 	.dapm_routes		= evea_routes,
 	.num_dapm_routes	= ARRAY_SIZE(evea_routes),
-	.controls		= eva_controls,
-	.num_controls		= ARRAY_SIZE(eva_controls),
+	.controls		= evea_controls,
+	.num_controls		= ARRAY_SIZE(evea_controls),
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
