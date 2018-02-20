@@ -666,7 +666,7 @@ static int mcp23s08_irq_setup(struct mcp23s08 *mcp)
  * can be used to fix state for MCP23xxx, that temporary
  * lost its power supply.
  */
-#define MCP23S08_CONFIG_REGS 8
+#define MCP23S08_CONFIG_REGS 7
 static int __check_mcp23s08_reg_cache(struct mcp23s08 *mcp)
 {
 	int cached[MCP23S08_CONFIG_REGS];
