@@ -26,7 +26,8 @@ struct fib_rule {
 	u32			table;
 	u8			action;
 	u8			l3mdev;
-	/* 2 bytes hole, try to use */
+	u8                      proto;
+	/* 1 byte hole, try to use */
 	u32			target;
 	__be64			tun_id;
 	struct fib_rule __rcu	*ctarget;

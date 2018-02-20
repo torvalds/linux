@@ -51,6 +51,7 @@ int fib_default_rule_add(struct fib_rules_ops *ops,
 	r->pref = pref;
 	r->table = table;
 	r->flags = flags;
+	r->proto = RTPROT_KERNEL;
 	r->fr_net = ops->fro_net;
 	r->uid_range = fib_kuid_range_unset;
 
@@ -465,6 +466,7 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 	refcount_set(&rule->refcnt, 1);
 	rule->fr_net = net;
+	rule->proto = frh->proto;
 
 	rule->pref = tb[FRA_PRIORITY] ? nla_get_u32(tb[FRA_PRIORITY])
 	                              : fib_default_rule_pref(ops);
@@ -664,6 +666,9 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	list_for_each_entry(rule, &ops->rules_list, list) {
+		if (frh->proto && (frh->proto != rule->proto))
+			continue;
+
 		if (frh->action && (frh->action != rule->action))
 			continue;
 
@@ -808,9 +813,9 @@ static int fib_nl_fill_rule(struct sk_buff *skb, struct fib_rule *rule,
 	if (nla_put_u32(skb, FRA_SUPPRESS_PREFIXLEN, rule->suppress_prefixlen))
 		goto nla_put_failure;
 	frh->res1 = 0;
-	frh->res2 = 0;
 	frh->action = rule->action;
 	frh->flags = rule->flags;
+	frh->proto = rule->proto;
 
 	if (rule->action == FR_ACT_GOTO &&
 	    rcu_access_pointer(rule->ctarget) == NULL)
