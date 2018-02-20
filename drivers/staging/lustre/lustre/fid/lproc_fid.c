@@ -106,28 +106,35 @@ ldebugfs_fid_space_seq_write(struct file *file,
 	rc = ldebugfs_fid_write_common(buffer, count, &range);
 
 	spin_lock(&seq->lcs_lock);
+	if (seq->lcs_update)
+		/* An RPC call is active to update lcs_space */
+		rc = -EBUSY;
 	if (rc > 0)
 		seq->lcs_space = range;
 	spin_unlock(&seq->lcs_lock);
 
-	if (rc == 0) {
+	if (rc > 0) {
 		CDEBUG(D_INFO, "%s: Space: " DRANGE "\n",
 		       seq->lcs_name, PRANGE(&range));
 	}
 
-	return count;
+	return rc;
 }
 
 static int
 ldebugfs_fid_space_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
+	int rc = 0;
 
 	spin_lock(&seq->lcs_lock);
-	seq_printf(m, "[%#llx - %#llx]:%x:%s\n", PRANGE(&seq->lcs_space));
+	if (seq->lcs_update)
+		rc = -EBUSY;
+	else
+		seq_printf(m, "[%#llx - %#llx]:%x:%s\n", PRANGE(&seq->lcs_space));
 	spin_unlock(&seq->lcs_lock);
 
-	return 0;
+	return rc;
 }
 
 static ssize_t
