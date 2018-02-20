@@ -277,10 +277,6 @@ static int ds1511_rtc_read_time(struct device *dev, struct rtc_time *rtc_tm)
 
 	rtc_tm->tm_mon--;
 
-	if (rtc_valid_tm(rtc_tm) < 0) {
-		dev_err(dev, "retrieved date/time is not valid.\n");
-		rtc_time_to_tm(0, rtc_tm);
-	}
 	return 0;
 }
 
