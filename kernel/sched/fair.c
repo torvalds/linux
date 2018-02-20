@@ -9487,11 +9487,7 @@ out:
 	 */
 	WRITE_ONCE(nohz.has_blocked, 1);
 }
-#else
-static inline void nohz_balancer_kick(struct rq *rq) { }
-#endif
 
-#ifdef CONFIG_NO_HZ_COMMON
 /*
  * In CONFIG_NO_HZ_COMMON case, the idle balance kickee will do the
  * rebalancing for all the CPUs for whom scheduler ticks are stopped.
@@ -9598,12 +9594,14 @@ abort:
 
 	return true;
 }
-#else
+#else /* !CONFIG_NO_HZ_COMMON */
+static inline void nohz_balancer_kick(struct rq *rq) { }
+
 static bool nohz_idle_balance(struct rq *this_rq, enum cpu_idle_type idle)
 {
 	return false;
 }
-#endif
+#endif /* CONFIG_NO_HZ_COMMON */
 
 /*
  * run_rebalance_domains is triggered when needed from the scheduler tick.
