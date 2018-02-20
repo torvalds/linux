@@ -135,13 +135,14 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
  * stmmac_mtl_setup - parse DT parameters for multiple queues configuration
  * @pdev: platform device
  */
-static void stmmac_mtl_setup(struct platform_device *pdev,
-			     struct plat_stmmacenet_data *plat)
+static int stmmac_mtl_setup(struct platform_device *pdev,
+			    struct plat_stmmacenet_data *plat)
 {
 	struct device_node *q_node;
 	struct device_node *rx_node;
 	struct device_node *tx_node;
 	u8 queue = 0;
+	int ret = 0;
 
 	/* For backwards-compatibility with device trees that don't have any
 	 * snps,mtl-rx-config or snps,mtl-tx-config properties, we fall back
@@ -159,12 +160,12 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 
 	rx_node = of_parse_phandle(pdev->dev.of_node, "snps,mtl-rx-config", 0);
 	if (!rx_node)
-		return;
+		return ret;
 
 	tx_node = of_parse_phandle(pdev->dev.of_node, "snps,mtl-tx-config", 0);
 	if (!tx_node) {
 		of_node_put(rx_node);
-		return;
+		return ret;
 	}
 
 	/* Processing RX queues common config */
@@ -219,6 +220,11 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 			plat->rx_queues_cfg[queue].pkt_route = 0x0;
 
 		queue++;
+	}
+	if (queue != plat->rx_queues_to_use) {
+		ret = -EINVAL;
+		dev_err(&pdev->dev, "Not all RX queues were configured\n");
+		goto out;
 	}
 
 	/* Processing TX queues common config */
@@ -281,10 +287,18 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 
 		queue++;
 	}
+	if (queue != plat->tx_queues_to_use) {
+		ret = -EINVAL;
+		dev_err(&pdev->dev, "Not all TX queues were configured\n");
+		goto out;
+	}
 
+out:
 	of_node_put(rx_node);
 	of_node_put(tx_node);
 	of_node_put(q_node);
+
+	return ret;
 }
 
 /**
@@ -376,6 +390,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 	struct device_node *np = pdev->dev.of_node;
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_dma_cfg *dma_cfg;
+	int rc;
 
 	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
 	if (!plat)
@@ -402,8 +417,9 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		dev_warn(&pdev->dev, "snps,phy-addr property is deprecated\n");
 
 	/* To Configure PHY by using all device-tree supported properties */
-	if (stmmac_dt_phy(plat, np, &pdev->dev))
-		return ERR_PTR(-ENODEV);
+	rc = stmmac_dt_phy(plat, np, &pdev->dev);
+	if (rc)
+		return ERR_PTR(rc);
 
 	of_property_read_u32(np, "tx-fifo-depth", &plat->tx_fifo_size);
 
@@ -499,7 +515,11 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 
 	plat->axi = stmmac_axi_setup(pdev);
 
-	stmmac_mtl_setup(pdev, plat);
+	rc = stmmac_mtl_setup(pdev, plat);
+	if (rc) {
+		stmmac_remove_config_dt(pdev, plat);
+		return ERR_PTR(rc);
+	}
 
 	/* clock setup */
 	plat->stmmac_clk = devm_clk_get(&pdev->dev,
