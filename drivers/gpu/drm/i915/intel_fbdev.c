@@ -48,7 +48,8 @@
 static void intel_fbdev_invalidate(struct intel_fbdev *ifbdev)
 {
 	struct drm_i915_gem_object *obj = ifbdev->fb->obj;
-	unsigned int origin = ifbdev->vma->fence ? ORIGIN_GTT : ORIGIN_CPU;
+	unsigned int origin =
+		ifbdev->vma_flags & PLANE_HAS_FENCE ? ORIGIN_GTT : ORIGIN_CPU;
 
 	intel_fb_obj_invalidate(obj, origin);
 }
