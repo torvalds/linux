@@ -12,6 +12,8 @@
 #define CAMELLIA_TABLE_BYTE_LEN	272
 #define CAMELLIA_PARALLEL_BLOCKS 2
 
+struct crypto_skcipher;
+
 struct camellia_ctx {
 	u64 key_table[CAMELLIA_TABLE_BYTE_LEN / sizeof(u64)];
 	u32 key_length;
@@ -26,7 +28,7 @@ extern int __camellia_setkey(struct camellia_ctx *cctx,
 			     const unsigned char *key,
 			     unsigned int key_len, u32 *flags);
 
-extern int xts_camellia_setkey(struct crypto_tfm *tfm, const u8 *key,
+extern int xts_camellia_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			       unsigned int keylen);
 
 /* regular block cipher functions */

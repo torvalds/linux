@@ -10,17 +10,15 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/types.h>
-#include <linux/crypto.h>
-#include <linux/err.h>
-#include <crypto/ablk_helper.h>
-#include <crypto/algapi.h>
-#include <crypto/ctr.h>
-#include <crypto/xts.h>
-#include <asm/fpu/api.h>
 #include <asm/crypto/camellia.h>
 #include <asm/crypto/glue_helper.h>
+#include <crypto/algapi.h>
+#include <crypto/internal/simd.h>
+#include <crypto/xts.h>
+#include <linux/crypto.h>
+#include <linux/err.h>
+#include <linux/module.h>
+#include <linux/types.h>
 
 #define CAMELLIA_AESNI_PARALLEL_BLOCKS 16
 #define CAMELLIA_AESNI_AVX2_PARALLEL_BLOCKS 32
@@ -149,236 +147,120 @@ static const struct common_glue_ctx camellia_dec_xts = {
 	} }
 };
 
-static int ecb_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int camellia_setkey(struct crypto_skcipher *tfm, const u8 *key,
+			   unsigned int keylen)
 {
-	return glue_ecb_crypt_128bit(&camellia_enc, desc, dst, src, nbytes);
+	return __camellia_setkey(crypto_skcipher_ctx(tfm), key, keylen,
+				 &tfm->base.crt_flags);
 }
 
-static int ecb_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int ecb_encrypt(struct skcipher_request *req)
 {
-	return glue_ecb_crypt_128bit(&camellia_dec, desc, dst, src, nbytes);
+	return glue_ecb_req_128bit(&camellia_enc, req);
 }
 
-static int cbc_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int ecb_decrypt(struct skcipher_request *req)
 {
-	return glue_cbc_encrypt_128bit(GLUE_FUNC_CAST(camellia_enc_blk), desc,
-				       dst, src, nbytes);
+	return glue_ecb_req_128bit(&camellia_dec, req);
 }
 
-static int cbc_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int cbc_encrypt(struct skcipher_request *req)
 {
-	return glue_cbc_decrypt_128bit(&camellia_dec_cbc, desc, dst, src,
-				       nbytes);
+	return glue_cbc_encrypt_req_128bit(GLUE_FUNC_CAST(camellia_enc_blk),
+					   req);
 }
 
-static int ctr_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		     struct scatterlist *src, unsigned int nbytes)
+static int cbc_decrypt(struct skcipher_request *req)
 {
-	return glue_ctr_crypt_128bit(&camellia_ctr, desc, dst, src, nbytes);
+	return glue_cbc_decrypt_req_128bit(&camellia_dec_cbc, req);
 }
 
-static int camellia_setkey(struct crypto_tfm *tfm, const u8 *in_key,
-			   unsigned int key_len)
+static int ctr_crypt(struct skcipher_request *req)
 {
-	return __camellia_setkey(crypto_tfm_ctx(tfm), in_key, key_len,
-				 &tfm->crt_flags);
+	return glue_ctr_req_128bit(&camellia_ctr, req);
 }
 
-static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int xts_encrypt(struct skcipher_request *req)
 {
-	struct camellia_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct camellia_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	return glue_xts_crypt_128bit(&camellia_enc_xts, desc, dst, src, nbytes,
-				     XTS_TWEAK_CAST(camellia_enc_blk),
-				     &ctx->tweak_ctx, &ctx->crypt_ctx);
+	return glue_xts_req_128bit(&camellia_enc_xts, req,
+				   XTS_TWEAK_CAST(camellia_enc_blk),
+				   &ctx->tweak_ctx, &ctx->crypt_ctx);
 }
 
-static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int xts_decrypt(struct skcipher_request *req)
 {
-	struct camellia_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct camellia_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	return glue_xts_crypt_128bit(&camellia_dec_xts, desc, dst, src, nbytes,
-				     XTS_TWEAK_CAST(camellia_enc_blk),
-				     &ctx->tweak_ctx, &ctx->crypt_ctx);
+	return glue_xts_req_128bit(&camellia_dec_xts, req,
+				   XTS_TWEAK_CAST(camellia_enc_blk),
+				   &ctx->tweak_ctx, &ctx->crypt_ctx);
 }
 
-static struct crypto_alg cmll_algs[] = { {
-	.cra_name		= "__ecb-camellia-aesni-avx2",
-	.cra_driver_name	= "__driver-ecb-camellia-aesni-avx2",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= CAMELLIA_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct camellia_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= CAMELLIA_MIN_KEY_SIZE,
-			.max_keysize	= CAMELLIA_MAX_KEY_SIZE,
-			.setkey		= camellia_setkey,
-			.encrypt	= ecb_encrypt,
-			.decrypt	= ecb_decrypt,
-		},
+static struct skcipher_alg camellia_algs[] = {
+	{
+		.base.cra_name		= "__ecb(camellia)",
+		.base.cra_driver_name	= "__ecb-camellia-aesni-avx2",
+		.base.cra_priority	= 500,
+		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.base.cra_blocksize	= CAMELLIA_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct camellia_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= CAMELLIA_MIN_KEY_SIZE,
+		.max_keysize		= CAMELLIA_MAX_KEY_SIZE,
+		.setkey			= camellia_setkey,
+		.encrypt		= ecb_encrypt,
+		.decrypt		= ecb_decrypt,
+	}, {
+		.base.cra_name		= "__cbc(camellia)",
+		.base.cra_driver_name	= "__cbc-camellia-aesni-avx2",
+		.base.cra_priority	= 500,
+		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.base.cra_blocksize	= CAMELLIA_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct camellia_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= CAMELLIA_MIN_KEY_SIZE,
+		.max_keysize		= CAMELLIA_MAX_KEY_SIZE,
+		.ivsize			= CAMELLIA_BLOCK_SIZE,
+		.setkey			= camellia_setkey,
+		.encrypt		= cbc_encrypt,
+		.decrypt		= cbc_decrypt,
+	}, {
+		.base.cra_name		= "__ctr(camellia)",
+		.base.cra_driver_name	= "__ctr-camellia-aesni-avx2",
+		.base.cra_priority	= 500,
+		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.base.cra_blocksize	= 1,
+		.base.cra_ctxsize	= sizeof(struct camellia_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= CAMELLIA_MIN_KEY_SIZE,
+		.max_keysize		= CAMELLIA_MAX_KEY_SIZE,
+		.ivsize			= CAMELLIA_BLOCK_SIZE,
+		.chunksize		= CAMELLIA_BLOCK_SIZE,
+		.setkey			= camellia_setkey,
+		.encrypt		= ctr_crypt,
+		.decrypt		= ctr_crypt,
+	}, {
+		.base.cra_name		= "__xts(camellia)",
+		.base.cra_driver_name	= "__xts-camellia-aesni-avx2",
+		.base.cra_priority	= 500,
+		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.base.cra_blocksize	= CAMELLIA_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct camellia_xts_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= 2 * CAMELLIA_MIN_KEY_SIZE,
+		.max_keysize		= 2 * CAMELLIA_MAX_KEY_SIZE,
+		.ivsize			= CAMELLIA_BLOCK_SIZE,
+		.setkey			= xts_camellia_setkey,
+		.encrypt		= xts_encrypt,
+		.decrypt		= xts_decrypt,
 	},
-}, {
-	.cra_name		= "__cbc-camellia-aesni-avx2",
-	.cra_driver_name	= "__driver-cbc-camellia-aesni-avx2",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= CAMELLIA_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct camellia_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= CAMELLIA_MIN_KEY_SIZE,
-			.max_keysize	= CAMELLIA_MAX_KEY_SIZE,
-			.setkey		= camellia_setkey,
-			.encrypt	= cbc_encrypt,
-			.decrypt	= cbc_decrypt,
-		},
-	},
-}, {
-	.cra_name		= "__ctr-camellia-aesni-avx2",
-	.cra_driver_name	= "__driver-ctr-camellia-aesni-avx2",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= 1,
-	.cra_ctxsize		= sizeof(struct camellia_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= CAMELLIA_MIN_KEY_SIZE,
-			.max_keysize	= CAMELLIA_MAX_KEY_SIZE,
-			.ivsize		= CAMELLIA_BLOCK_SIZE,
-			.setkey		= camellia_setkey,
-			.encrypt	= ctr_crypt,
-			.decrypt	= ctr_crypt,
-		},
-	},
-}, {
-	.cra_name		= "__xts-camellia-aesni-avx2",
-	.cra_driver_name	= "__driver-xts-camellia-aesni-avx2",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= CAMELLIA_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct camellia_xts_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= CAMELLIA_MIN_KEY_SIZE * 2,
-			.max_keysize	= CAMELLIA_MAX_KEY_SIZE * 2,
-			.ivsize		= CAMELLIA_BLOCK_SIZE,
-			.setkey		= xts_camellia_setkey,
-			.encrypt	= xts_encrypt,
-			.decrypt	= xts_decrypt,
-		},
-	},
-}, {
-	.cra_name		= "ecb(camellia)",
-	.cra_driver_name	= "ecb-camellia-aesni-avx2",
-	.cra_priority		= 500,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= CAMELLIA_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_u = {
-		.ablkcipher = {
-			.min_keysize	= CAMELLIA_MIN_KEY_SIZE,
-			.max_keysize	= CAMELLIA_MAX_KEY_SIZE,
-			.setkey		= ablk_set_key,
-			.encrypt	= ablk_encrypt,
-			.decrypt	= ablk_decrypt,
-		},
-	},
-}, {
-	.cra_name		= "cbc(camellia)",
-	.cra_driver_name	= "cbc-camellia-aesni-avx2",
-	.cra_priority		= 500,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= CAMELLIA_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_u = {
-		.ablkcipher = {
-			.min_keysize	= CAMELLIA_MIN_KEY_SIZE,
-			.max_keysize	= CAMELLIA_MAX_KEY_SIZE,
-			.ivsize		= CAMELLIA_BLOCK_SIZE,
-			.setkey		= ablk_set_key,
-			.encrypt	= __ablk_encrypt,
-			.decrypt	= ablk_decrypt,
-		},
-	},
-}, {
-	.cra_name		= "ctr(camellia)",
-	.cra_driver_name	= "ctr-camellia-aesni-avx2",
-	.cra_priority		= 500,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= 1,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_u = {
-		.ablkcipher = {
-			.min_keysize	= CAMELLIA_MIN_KEY_SIZE,
-			.max_keysize	= CAMELLIA_MAX_KEY_SIZE,
-			.ivsize		= CAMELLIA_BLOCK_SIZE,
-			.setkey		= ablk_set_key,
-			.encrypt	= ablk_encrypt,
-			.decrypt	= ablk_encrypt,
-			.geniv		= "chainiv",
-		},
-	},
-}, {
-	.cra_name		= "xts(camellia)",
-	.cra_driver_name	= "xts-camellia-aesni-avx2",
-	.cra_priority		= 500,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= CAMELLIA_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_u = {
-		.ablkcipher = {
-			.min_keysize	= CAMELLIA_MIN_KEY_SIZE * 2,
-			.max_keysize	= CAMELLIA_MAX_KEY_SIZE * 2,
-			.ivsize		= CAMELLIA_BLOCK_SIZE,
-			.setkey		= ablk_set_key,
-			.encrypt	= ablk_encrypt,
-			.decrypt	= ablk_decrypt,
-		},
-	},
-} };
+};
+
+static struct simd_skcipher_alg *camellia_simd_algs[ARRAY_SIZE(camellia_algs)];
 
 static int __init camellia_aesni_init(void)
 {
@@ -398,12 +280,15 @@ static int __init camellia_aesni_init(void)
 		return -ENODEV;
 	}
 
-	return crypto_register_algs(cmll_algs, ARRAY_SIZE(cmll_algs));
+	return simd_register_skciphers_compat(camellia_algs,
+					      ARRAY_SIZE(camellia_algs),
+					      camellia_simd_algs);
 }
 
 static void __exit camellia_aesni_fini(void)
 {
-	crypto_unregister_algs(cmll_algs, ARRAY_SIZE(cmll_algs));
+	simd_unregister_skciphers(camellia_algs, ARRAY_SIZE(camellia_algs),
+				  camellia_simd_algs);
 }
 
 module_init(camellia_aesni_init);
