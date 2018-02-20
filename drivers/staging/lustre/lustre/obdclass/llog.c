@@ -466,7 +466,7 @@ int llog_open(const struct lu_env *env, struct llog_ctxt *ctxt,
 	      struct llog_handle **lgh, struct llog_logid *logid,
 	      char *name, enum llog_open_param open_param)
 {
-	int	 raised;
+	const struct cred *old_cred = NULL;
 	int	 rc;
 
 	LASSERT(ctxt);
@@ -483,12 +483,18 @@ int llog_open(const struct lu_env *env, struct llog_ctxt *ctxt,
 	(*lgh)->lgh_ctxt = ctxt;
 	(*lgh)->lgh_logops = ctxt->loc_logops;
 
-	raised = cfs_cap_raised(CAP_SYS_RESOURCE);
-	if (!raised)
-		cfs_cap_raise(CAP_SYS_RESOURCE);
+	if (cap_raised(current_cap(), CAP_SYS_RESOURCE)) {
+		struct cred *cred = prepare_creds();
+
+		if (cred) {
+			cap_raise(cred->cap_effective, CAP_SYS_RESOURCE);
+			old_cred = override_creds(cred);
+		}
+	}
 	rc = ctxt->loc_logops->lop_open(env, *lgh, logid, name, open_param);
-	if (!raised)
-		cfs_cap_lower(CAP_SYS_RESOURCE);
+	if (old_cred)
+		revert_creds(old_cred);
+
 	if (rc) {
 		llog_free_handle(*lgh);
 		*lgh = NULL;
