@@ -6,8 +6,7 @@
 Store, e.g., WRITE_ONCE()            Y                                       Y
 Load, e.g., READ_ONCE()              Y                              Y        Y
 Unsuccessful RMW operation           Y                              Y        Y
-smp_read_barrier_depends()              Y                       Y   Y
-*_dereference()                      Y                          Y   Y        Y
+rcu_dereference()                    Y                          Y   Y        Y
 Successful *_acquire()               R                   Y  Y   Y   Y    Y   Y
 Successful *_release()         C        Y  Y    Y     W                      Y
 smp_rmb()                               Y       R        Y      Y        R

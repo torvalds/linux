@@ -25,7 +25,6 @@ include "lock.cat"
 (*******************)
 
 (* Fences *)
-let rb-dep = [R] ; fencerel(Rb_dep) ; [R]
 let rmb = [R \ Noreturn] ; fencerel(Rmb) ; [R \ Noreturn]
 let wmb = [W] ; fencerel(Wmb) ; [W]
 let mb = ([M] ; fencerel(Mb) ; [M]) |
@@ -61,11 +60,9 @@ let dep = addr | data
 let rwdep = (dep | ctrl) ; [W]
 let overwrite = co | fr
 let to-w = rwdep | (overwrite & int)
-let rrdep = addr | (dep ; rfi)
-let strong-rrdep = rrdep+ & rb-dep
-let to-r = strong-rrdep | rfi-rel-acq
+let to-r = addr | (dep ; rfi) | rfi-rel-acq
 let fence = strong-fence | wmb | po-rel | rmb | acq-po
-let ppo = rrdep* ; (to-r | to-w | fence)
+let ppo = to-r | to-w | fence
 
 (* Propagation: Ordering from release operations and strong fences. *)
 let A-cumul(r) = rfe? ; r
