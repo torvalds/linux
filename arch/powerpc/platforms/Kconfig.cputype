@@ -87,7 +87,6 @@ endchoice
 choice
 	prompt "CPU selection"
 	depends on PPC64
-	default POWER8_CPU if CPU_LITTLE_ENDIAN
 	default GENERIC_CPU
 	help
 	  This will create a kernel which is optimised for a particular CPU.
@@ -96,8 +95,13 @@ choice
 	  If unsure, select Generic.
 
 config GENERIC_CPU
-	bool "Generic"
+	bool "Generic (POWER4 and above)"
 	depends on !CPU_LITTLE_ENDIAN
+
+config GENERIC_CPU
+	bool "Generic (POWER8 and above)"
+	depends on CPU_LITTLE_ENDIAN
+	select ARCH_HAS_FAST_MULTIPLIER
 
 config CELL_CPU
 	bool "Cell Broadband Engine"
