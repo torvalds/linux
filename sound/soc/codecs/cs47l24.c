@@ -196,14 +196,13 @@ SOC_SINGLE("HPOUT1 SC Protect Switch", ARIZONA_HP1_SHORT_CIRCUIT_CTRL,
 SOC_DOUBLE_R("HPOUT1 Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_1L,
 	     ARIZONA_DAC_DIGITAL_VOLUME_1R, ARIZONA_OUT1L_MUTE_SHIFT, 1, 1),
 SOC_SINGLE("Speaker Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_4L,
-	     ARIZONA_OUT4L_MUTE_SHIFT, 1, 1),
+	   ARIZONA_OUT4L_MUTE_SHIFT, 1, 1),
 
 SOC_DOUBLE_R_TLV("HPOUT1 Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_1L,
 		 ARIZONA_DAC_DIGITAL_VOLUME_1R, ARIZONA_OUT1L_VOL_SHIFT,
 		 0xbf, 0, digital_tlv),
 SOC_SINGLE_TLV("Speaker Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_4L,
-		 ARIZONA_OUT4L_VOL_SHIFT,
-		 0xbf, 0, digital_tlv),
+	       ARIZONA_OUT4L_VOL_SHIFT, 0xbf, 0, digital_tlv),
 
 SOC_ENUM("Output Ramp Up", arizona_out_vi_ramp),
 SOC_ENUM("Output Ramp Down", arizona_out_vd_ramp),
@@ -494,8 +493,7 @@ SND_SOC_DAPM_PGA("ISRC3DEC4", ARIZONA_ISRC_3_CTRL_3,
 		 ARIZONA_ISRC3_DEC3_ENA_SHIFT, 0, NULL, 0),
 
 SND_SOC_DAPM_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
-		       ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
-		       &cs47l24_aec_loopback_mux),
+		 ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0, &cs47l24_aec_loopback_mux),
 
 SND_SOC_DAPM_AIF_OUT("AIF1TX1", NULL, 0,
 		     ARIZONA_AIF1_TX_ENABLES, ARIZONA_AIF1TX1_ENA_SHIFT, 0),
@@ -931,8 +929,8 @@ static const struct snd_soc_dapm_route cs47l24_dapm_routes[] = {
 	{ "DSP3 Voice Trigger", "Switch", "DSP3" },
 };
 
-static int cs47l24_set_fll(struct snd_soc_component *component, int fll_id, int source,
-			  unsigned int Fref, unsigned int Fout)
+static int cs47l24_set_fll(struct snd_soc_component *component, int fll_id,
+			   int source, unsigned int Fref, unsigned int Fout)
 {
 	struct cs47l24_priv *cs47l24 = snd_soc_component_get_drvdata(component);
 
@@ -1144,7 +1142,8 @@ static int cs47l24_component_probe(struct snd_soc_component *component)
 		goto err_adsp2_codec_probe;
 
 	ret = snd_soc_add_component_controls(component,
-					 &arizona_adsp2_rate_controls[1], 2);
+					     &arizona_adsp2_rate_controls[1],
+					     2);
 	if (ret)
 		goto err_adsp2_codec_probe;
 
@@ -1214,7 +1213,7 @@ static int cs47l24_probe(struct platform_device *pdev)
 	BUILD_BUG_ON(ARRAY_SIZE(cs47l24_dai) > ARIZONA_MAX_DAI);
 
 	cs47l24 = devm_kzalloc(&pdev->dev, sizeof(struct cs47l24_priv),
-			      GFP_KERNEL);
+			       GFP_KERNEL);
 	if (!cs47l24)
 		return -ENOMEM;
 
@@ -1294,8 +1293,9 @@ static int cs47l24_probe(struct platform_device *pdev)
 		goto err_dsp_irq;
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
-				      &soc_component_dev_cs47l24,
-				      cs47l24_dai, ARRAY_SIZE(cs47l24_dai));
+					      &soc_component_dev_cs47l24,
+					      cs47l24_dai,
+					      ARRAY_SIZE(cs47l24_dai));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register component: %d\n", ret);
 		goto err_spk_irqs;

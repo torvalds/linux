@@ -118,7 +118,7 @@ static int wm8997_sysclk_ev(struct snd_soc_dapm_widget *w,
 	return arizona_dvfs_sysclk_ev(w, kcontrol, event);
 }
 
-static const char *wm8997_osr_text[] = {
+static const char * const wm8997_osr_text[] = {
 	"Low power", "Normal", "High performance",
 };
 
@@ -609,8 +609,7 @@ SND_SOC_DAPM_AIF_IN("SLIMRX8", NULL, 0,
 		    ARIZONA_SLIMRX8_ENA_SHIFT, 0),
 
 SND_SOC_DAPM_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
-		       ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
-		       &wm8997_aec_loopback_mux),
+		 ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0, &wm8997_aec_loopback_mux),
 
 SND_SOC_DAPM_PGA_E("OUT1L", SND_SOC_NOPM,
 		   ARIZONA_OUT1L_ENA_SHIFT, 0, NULL, 0, arizona_hp_ev,
@@ -927,8 +926,8 @@ static const struct snd_soc_dapm_route wm8997_dapm_routes[] = {
 	{ "MICSUPP", NULL, "SYSCLK" },
 };
 
-static int wm8997_set_fll(struct snd_soc_component *component, int fll_id, int source,
-			  unsigned int Fref, unsigned int Fout)
+static int wm8997_set_fll(struct snd_soc_component *component, int fll_id,
+			  int source, unsigned int Fref, unsigned int Fout)
 {
 	struct wm8997_priv *wm8997 = snd_soc_component_get_drvdata(component);
 
@@ -1173,8 +1172,9 @@ static int wm8997_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
-				     &soc_component_dev_wm8997,
-				     wm8997_dai, ARRAY_SIZE(wm8997_dai));
+					      &soc_component_dev_wm8997,
+					      wm8997_dai,
+					      ARRAY_SIZE(wm8997_dai));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register component: %d\n", ret);
 		goto err_spk_irqs;

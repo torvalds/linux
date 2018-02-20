@@ -332,19 +332,25 @@ static int wm5110_hp_pre_disable(struct snd_soc_dapm_widget *w)
 	switch (w->shift) {
 	case ARIZONA_OUT1L_ENA_SHIFT:
 		if (!(val & ARIZONA_DRE1L_ENA_MASK)) {
-			snd_soc_component_update_bits(component, ARIZONA_SPARE_TRIGGERS,
-					    ARIZONA_WS_TRG1, ARIZONA_WS_TRG1);
-			snd_soc_component_update_bits(component, ARIZONA_SPARE_TRIGGERS,
-					    ARIZONA_WS_TRG1, 0);
+			snd_soc_component_update_bits(component,
+						      ARIZONA_SPARE_TRIGGERS,
+						      ARIZONA_WS_TRG1,
+						      ARIZONA_WS_TRG1);
+			snd_soc_component_update_bits(component,
+						      ARIZONA_SPARE_TRIGGERS,
+						      ARIZONA_WS_TRG1, 0);
 			priv->out_down_delay += 27;
 		}
 		break;
 	case ARIZONA_OUT1R_ENA_SHIFT:
 		if (!(val & ARIZONA_DRE1R_ENA_MASK)) {
-			snd_soc_component_update_bits(component, ARIZONA_SPARE_TRIGGERS,
-					    ARIZONA_WS_TRG2, ARIZONA_WS_TRG2);
-			snd_soc_component_update_bits(component, ARIZONA_SPARE_TRIGGERS,
-					    ARIZONA_WS_TRG2, 0);
+			snd_soc_component_update_bits(component,
+						      ARIZONA_SPARE_TRIGGERS,
+						      ARIZONA_WS_TRG2,
+						      ARIZONA_WS_TRG2);
+			snd_soc_component_update_bits(component,
+						      ARIZONA_SPARE_TRIGGERS,
+						      ARIZONA_WS_TRG2, 0);
 			priv->out_down_delay += 27;
 		}
 		break;
@@ -539,7 +545,7 @@ static int wm5110_in_analog_ev(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_component_update_bits(component, reg, mask,
-				    wm5110->in_pga_cache[w->shift]);
+					      wm5110->in_pga_cache[w->shift]);
 
 		wm5110->in_post_pending--;
 		if (wm5110->in_post_pending == 0)
@@ -863,14 +869,14 @@ SOC_DOUBLE("SPKDAT2 Switch", ARIZONA_PDM_SPK2_CTRL_1, ARIZONA_SPK2L_MUTE_SHIFT,
 	   ARIZONA_SPK2R_MUTE_SHIFT, 1, 1),
 
 SOC_DOUBLE_EXT("HPOUT1 DRE Switch", ARIZONA_DRE_ENABLE,
-	   ARIZONA_DRE1L_ENA_SHIFT, ARIZONA_DRE1R_ENA_SHIFT, 1, 0,
-	   snd_soc_get_volsw, wm5110_put_dre),
+	       ARIZONA_DRE1L_ENA_SHIFT, ARIZONA_DRE1R_ENA_SHIFT, 1, 0,
+	       snd_soc_get_volsw, wm5110_put_dre),
 SOC_DOUBLE_EXT("HPOUT2 DRE Switch", ARIZONA_DRE_ENABLE,
-	   ARIZONA_DRE2L_ENA_SHIFT, ARIZONA_DRE2R_ENA_SHIFT, 1, 0,
-	   snd_soc_get_volsw, wm5110_put_dre),
+	       ARIZONA_DRE2L_ENA_SHIFT, ARIZONA_DRE2R_ENA_SHIFT, 1, 0,
+	       snd_soc_get_volsw, wm5110_put_dre),
 SOC_DOUBLE_EXT("HPOUT3 DRE Switch", ARIZONA_DRE_ENABLE,
-	   ARIZONA_DRE3L_ENA_SHIFT, ARIZONA_DRE3R_ENA_SHIFT, 1, 0,
-	   snd_soc_get_volsw, wm5110_put_dre),
+	       ARIZONA_DRE3L_ENA_SHIFT, ARIZONA_DRE3R_ENA_SHIFT, 1, 0,
+	       snd_soc_get_volsw, wm5110_put_dre),
 
 SOC_ENUM("Output Ramp Up", arizona_out_vi_ramp),
 SOC_ENUM("Output Ramp Down", arizona_out_vd_ramp),
@@ -1036,7 +1042,7 @@ ARIZONA_MUX_ENUMS(ISRC3DEC2, ARIZONA_ISRC3DEC2MIX_INPUT_1_SOURCE);
 ARIZONA_MUX_ENUMS(ISRC3DEC3, ARIZONA_ISRC3DEC3MIX_INPUT_1_SOURCE);
 ARIZONA_MUX_ENUMS(ISRC3DEC4, ARIZONA_ISRC3DEC4MIX_INPUT_1_SOURCE);
 
-static const char *wm5110_aec_loopback_texts[] = {
+static const char * const wm5110_aec_loopback_texts[] = {
 	"HPOUT1L", "HPOUT1R", "HPOUT2L", "HPOUT2R", "HPOUT3L", "HPOUT3R",
 	"SPKOUTL", "SPKOUTR", "SPKDAT1L", "SPKDAT1R", "SPKDAT2L", "SPKDAT2R",
 };
@@ -1274,18 +1280,17 @@ SND_SOC_DAPM_PGA("ISRC3DEC4", ARIZONA_ISRC_3_CTRL_3,
 		 ARIZONA_ISRC3_DEC3_ENA_SHIFT, 0, NULL, 0),
 
 SND_SOC_DAPM_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
-		       ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
-		       &wm5110_aec_loopback_mux),
+		 ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0, &wm5110_aec_loopback_mux),
 
 SND_SOC_DAPM_SUPPLY("RXANC NG External Clock", SND_SOC_NOPM,
-		   ARIZONA_EXT_NG_SEL_SET_SHIFT, 0, arizona_anc_ev,
-		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+		    ARIZONA_EXT_NG_SEL_SET_SHIFT, 0, arizona_anc_ev,
+		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 SND_SOC_DAPM_PGA("RXANCL NG External", SND_SOC_NOPM, 0, 0, NULL, 0),
 SND_SOC_DAPM_PGA("RXANCR NG External", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 SND_SOC_DAPM_SUPPLY("RXANC NG Clock", SND_SOC_NOPM,
-		   ARIZONA_CLK_NG_ENA_SET_SHIFT, 0, arizona_anc_ev,
-		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+		    ARIZONA_CLK_NG_ENA_SET_SHIFT, 0, arizona_anc_ev,
+		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 SND_SOC_DAPM_PGA("RXANCL NG Internal", SND_SOC_NOPM, 0, 0, NULL, 0),
 SND_SOC_DAPM_PGA("RXANCR NG Internal", SND_SOC_NOPM, 0, 0, NULL, 0),
 
@@ -2034,8 +2039,8 @@ static const struct snd_soc_dapm_route wm5110_dapm_routes[] = {
 	{ "DSP3 Voice Trigger", "Switch", "DSP3" },
 };
 
-static int wm5110_set_fll(struct snd_soc_component *component, int fll_id, int source,
-			  unsigned int Fref, unsigned int Fout)
+static int wm5110_set_fll(struct snd_soc_component *component, int fll_id,
+			  int source, unsigned int Fref, unsigned int Fout)
 {
 	struct wm5110_priv *wm5110 = snd_soc_component_get_drvdata(component);
 
@@ -2302,8 +2307,8 @@ static int wm5110_component_probe(struct snd_soc_component *component)
 	}
 
 	ret = snd_soc_add_component_controls(component,
-					 arizona_adsp2_rate_controls,
-					 WM5110_NUM_ADSP);
+					     arizona_adsp2_rate_controls,
+					     WM5110_NUM_ADSP);
 	if (ret)
 		goto err_adsp2_codec_probe;
 
@@ -2460,8 +2465,9 @@ static int wm5110_probe(struct platform_device *pdev)
 		goto err_dsp_irq;
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
-				      &soc_component_dev_wm5110,
-				      wm5110_dai, ARRAY_SIZE(wm5110_dai));
+					      &soc_component_dev_wm5110,
+					      wm5110_dai,
+					      ARRAY_SIZE(wm5110_dai));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register component: %d\n", ret);
 		goto err_spk_irqs;

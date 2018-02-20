@@ -620,7 +620,7 @@ static int wm5102_sysclk_ev(struct snd_soc_dapm_widget *w,
 }
 
 static int wm5102_adsp_power_ev(struct snd_soc_dapm_widget *w,
-		   struct snd_kcontrol *kcontrol, int event)
+				struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct arizona *arizona = dev_get_drvdata(component->dev->parent);
@@ -717,7 +717,7 @@ static int wm5102_out_comp_switch_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static const char *wm5102_osr_text[] = {
+static const char * const wm5102_osr_text[] = {
 	"Low power", "Normal", "High performance",
 };
 
@@ -1062,7 +1062,7 @@ ARIZONA_MIXER_ENUMS(DSP1R, ARIZONA_DSP1RMIX_INPUT_1_SOURCE);
 
 ARIZONA_DSP_AUX_ENUMS(DSP1, ARIZONA_DSP1AUX1MIX_INPUT_1_SOURCE);
 
-static const char *wm5102_aec_loopback_texts[] = {
+static const char * const wm5102_aec_loopback_texts[] = {
 	"HPOUT1L", "HPOUT1R", "HPOUT2L", "HPOUT2R", "EPOUT",
 	"SPKOUTL", "SPKOUTR", "SPKDAT1L", "SPKDAT1R",
 };
@@ -1317,8 +1317,7 @@ SND_SOC_DAPM_AIF_IN("SLIMRX8", NULL, 0,
 ARIZONA_DSP_WIDGETS(DSP1, "DSP1"),
 
 SND_SOC_DAPM_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
-		       ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
-		       &wm5102_aec_loopback_mux),
+		 ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0, &wm5102_aec_loopback_mux),
 
 SND_SOC_DAPM_PGA_E("OUT1L", SND_SOC_NOPM,
 		   ARIZONA_OUT1L_ENA_SHIFT, 0, NULL, 0, arizona_hp_ev,
@@ -1736,8 +1735,8 @@ static const struct snd_soc_dapm_route wm5102_dapm_routes[] = {
 	{ "DRC1 Signal Activity", NULL, "DRC1R" },
 };
 
-static int wm5102_set_fll(struct snd_soc_component *component, int fll_id, int source,
-			  unsigned int Fref, unsigned int Fout)
+static int wm5102_set_fll(struct snd_soc_component *component, int fll_id,
+			  int source, unsigned int Fref, unsigned int Fout)
 {
 	struct wm5102_priv *wm5102 = snd_soc_component_get_drvdata(component);
 
@@ -1947,7 +1946,7 @@ static int wm5102_component_probe(struct snd_soc_component *component)
 		return ret;
 
 	ret = snd_soc_add_component_controls(component,
-					 arizona_adsp2_rate_controls, 1);
+					     arizona_adsp2_rate_controls, 1);
 	if (ret)
 		goto err_adsp2_codec_probe;
 
@@ -2105,8 +2104,9 @@ static int wm5102_probe(struct platform_device *pdev)
 		goto err_dsp_irq;
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
-				      &soc_component_dev_wm5102,
-				      wm5102_dai, ARRAY_SIZE(wm5102_dai));
+					      &soc_component_dev_wm5102,
+					      wm5102_dai,
+					      ARRAY_SIZE(wm5102_dai));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register component: %d\n", ret);
 		goto err_spk_irqs;

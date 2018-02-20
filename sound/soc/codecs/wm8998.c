@@ -137,11 +137,13 @@ static int wm8998_inmux_put(struct snd_kcontrol *kcontrol,
 	if (inmode & ARIZONA_INMODE_SE)
 		src_val |= 1 << ARIZONA_IN1L_SRC_SE_SHIFT;
 
-	snd_soc_component_update_bits(component, mode_reg, ARIZONA_IN1_MODE_MASK, mode_val);
+	snd_soc_component_update_bits(component, mode_reg,
+				      ARIZONA_IN1_MODE_MASK, mode_val);
 
 	snd_soc_component_update_bits(component, e->reg,
-			    ARIZONA_IN1L_SRC_MASK | ARIZONA_IN1L_SRC_SE_MASK,
-			    src_val);
+				      ARIZONA_IN1L_SRC_MASK |
+				      ARIZONA_IN1L_SRC_SE_MASK,
+				      src_val);
 
 	return snd_soc_dapm_mux_update_power(dapm, kcontrol,
 					     ucontrol->value.enumerated.item[0],
@@ -322,7 +324,7 @@ SOC_DOUBLE_R("HPOUT Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_1L,
 SOC_DOUBLE_R("LINEOUT Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_2L,
 	     ARIZONA_DAC_DIGITAL_VOLUME_2R, ARIZONA_OUT2L_MUTE_SHIFT, 1, 1),
 SOC_SINGLE("EPOUT Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_3L,
-	     ARIZONA_OUT3L_MUTE_SHIFT, 1, 1),
+	   ARIZONA_OUT3L_MUTE_SHIFT, 1, 1),
 SOC_DOUBLE_R("Speaker Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_4L,
 	     ARIZONA_DAC_DIGITAL_VOLUME_4R, ARIZONA_OUT4L_MUTE_SHIFT, 1, 1),
 SOC_DOUBLE_R("SPKDAT Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_5L,
@@ -335,7 +337,7 @@ SOC_DOUBLE_R_TLV("LINEOUT Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_2L,
 		 ARIZONA_DAC_DIGITAL_VOLUME_2R, ARIZONA_OUT2L_VOL_SHIFT,
 		 0xbf, 0, digital_tlv),
 SOC_SINGLE_TLV("EPOUT Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_3L,
-		 ARIZONA_OUT3L_VOL_SHIFT, 0xbf, 0, digital_tlv),
+	       ARIZONA_OUT3L_VOL_SHIFT, 0xbf, 0, digital_tlv),
 SOC_DOUBLE_R_TLV("Speaker Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_4L,
 		 ARIZONA_DAC_DIGITAL_VOLUME_4R, ARIZONA_OUT4L_VOL_SHIFT,
 		 0xbf, 0, digital_tlv),
@@ -615,12 +617,12 @@ SND_SOC_DAPM_PGA("ISRC2DEC2", ARIZONA_ISRC_2_CTRL_3,
 		 ARIZONA_ISRC2_DEC1_ENA_SHIFT, 0, NULL, 0),
 
 SND_SOC_DAPM_MUX("AEC1 Loopback", ARIZONA_DAC_AEC_CONTROL_1,
-		       ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
-		       &wm8998_aec_loopback_mux[0]),
+		 ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
+		 &wm8998_aec_loopback_mux[0]),
 
 SND_SOC_DAPM_MUX("AEC2 Loopback", ARIZONA_DAC_AEC_CONTROL_2,
-		       ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
-		       &wm8998_aec_loopback_mux[1]),
+		 ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
+		 &wm8998_aec_loopback_mux[1]),
 
 SND_SOC_DAPM_AIF_OUT("AIF1TX1", NULL, 0,
 		     ARIZONA_AIF1_TX_ENABLES, ARIZONA_AIF1TX1_ENA_SHIFT, 0),
@@ -739,9 +741,9 @@ SND_SOC_DAPM_PGA_E("OUT5R", ARIZONA_OUTPUT_ENABLES_1,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 
 SND_SOC_DAPM_PGA("SPD1TX1", ARIZONA_SPD1_TX_CONTROL,
-		   ARIZONA_SPD1_VAL1_SHIFT, 0, NULL, 0),
+		 ARIZONA_SPD1_VAL1_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_PGA("SPD1TX2", ARIZONA_SPD1_TX_CONTROL,
-		   ARIZONA_SPD1_VAL2_SHIFT, 0, NULL, 0),
+		 ARIZONA_SPD1_VAL2_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_OUT_DRV("SPD1", ARIZONA_SPD1_TX_CONTROL,
 		     ARIZONA_SPD1_ENA_SHIFT, 0, NULL, 0),
 
@@ -1249,8 +1251,8 @@ static struct snd_soc_dai_driver wm8998_dai[] = {
 	},
 };
 
-static int wm8998_set_fll(struct snd_soc_component *component, int fll_id, int source,
-			  unsigned int Fref, unsigned int Fout)
+static int wm8998_set_fll(struct snd_soc_component *component, int fll_id,
+			  int source, unsigned int Fref, unsigned int Fout)
 {
 	struct wm8998_priv *wm8998 = snd_soc_component_get_drvdata(component);
 
@@ -1379,8 +1381,9 @@ static int wm8998_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
-				     &soc_component_dev_wm8998,
-				     wm8998_dai, ARRAY_SIZE(wm8998_dai));
+					      &soc_component_dev_wm8998,
+					      wm8998_dai,
+					      ARRAY_SIZE(wm8998_dai));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register component: %d\n", ret);
 		goto err_spk_irqs;
