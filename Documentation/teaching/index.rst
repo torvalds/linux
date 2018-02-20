@@ -34,6 +34,8 @@ then point your browser at **Documentation/output/labs/index.html**.
 
 .. toctree::
 
+   lectures/so2.cs.pub.ro.rst
+   lectures/intro.rst
    labs/vm.rst
    labs/exercises.rst
    labs/kernel_modules.rst
