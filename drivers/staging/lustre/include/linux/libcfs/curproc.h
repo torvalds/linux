@@ -66,7 +66,11 @@ typedef u32 cfs_cap_t;
 			 BIT(CAP_SYS_BOOT) |	\
 			 BIT(CAP_SYS_RESOURCE))
 
-cfs_cap_t cfs_curproc_cap_pack(void);
+static inline cfs_cap_t cfs_curproc_cap_pack(void)
+{
+	/* cfs_cap_t is only the first word of kernel_cap_t */
+	return (cfs_cap_t)(current_cap().cap[0]);
+}
 
 /* __LIBCFS_CURPROC_H__ */
 #endif
