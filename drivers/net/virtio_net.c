@@ -677,7 +677,6 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 	struct bpf_prog *xdp_prog;
 	unsigned int truesize;
 	unsigned int headroom = mergeable_ctx_to_headroom(ctx);
-	int err;
 
 	head_skb = NULL;
 
@@ -752,12 +751,6 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 				*xdp_xmit = true;
 			if (unlikely(xdp_page != page))
 				goto err_xdp;
-			rcu_read_unlock();
-			goto xdp_xmit;
-		case XDP_REDIRECT:
-			err = xdp_do_redirect(dev, &xdp, xdp_prog);
-			if (!err)
-				*xdp_xmit = true;
 			rcu_read_unlock();
 			goto xdp_xmit;
 		default:
