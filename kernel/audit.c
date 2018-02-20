@@ -181,9 +181,21 @@ static char *audit_feature_names[2] = {
 	"loginuid_immutable",
 };
 
-
-/* Serialize requests from userspace. */
-DEFINE_MUTEX(audit_cmd_mutex);
+/**
+ * struct audit_ctl_mutex - serialize requests from userspace
+ * @lock: the mutex used for locking
+ * @owner: the task which owns the lock
+ *
+ * Description:
+ * This is the lock struct used to ensure we only process userspace requests
+ * in an orderly fashion.  We can't simply use a mutex/lock here because we
+ * need to track lock ownership so we don't end up blocking the lock owner in
+ * audit_log_start() or similar.
+ */
+static struct audit_ctl_mutex {
+	struct mutex lock;
+	void *owner;
+} audit_cmd_mutex;
 
 /* AUDIT_BUFSIZ is the size of the temporary buffer used for formatting
  * audit records.  Since printk uses a 1024 byte buffer, this buffer
@@ -225,6 +237,36 @@ int auditd_test_task(struct task_struct *task)
 	rcu_read_unlock();
 
 	return rc;
+}
+
+/**
+ * audit_ctl_lock - Take the audit control lock
+ */
+void audit_ctl_lock(void)
+{
+	mutex_lock(&audit_cmd_mutex.lock);
+	audit_cmd_mutex.owner = current;
+}
+
+/**
+ * audit_ctl_unlock - Drop the audit control lock
+ */
+void audit_ctl_unlock(void)
+{
+	audit_cmd_mutex.owner = NULL;
+	mutex_unlock(&audit_cmd_mutex.lock);
+}
+
+/**
+ * audit_ctl_owner_current - Test to see if the current task owns the lock
+ *
+ * Description:
+ * Return true if the current task owns the audit control lock, false if it
+ * doesn't own the lock.
+ */
+static bool audit_ctl_owner_current(void)
+{
+	return (current == audit_cmd_mutex.owner);
 }
 
 /**
@@ -861,8 +903,8 @@ int audit_send_list(void *_dest)
 	struct sock *sk = audit_get_sk(dest->net);
 
 	/* wait for parent to finish and send an ACK */
-	mutex_lock(&audit_cmd_mutex);
-	mutex_unlock(&audit_cmd_mutex);
+	audit_ctl_lock();
+	audit_ctl_unlock();
 
 	while ((skb = __skb_dequeue(&dest->q)) != NULL)
 		netlink_unicast(sk, skb, dest->portid, 0);
@@ -903,8 +945,8 @@ static int audit_send_reply_thread(void *arg)
 	struct audit_reply *reply = (struct audit_reply *)arg;
 	struct sock *sk = audit_get_sk(reply->net);
 
-	mutex_lock(&audit_cmd_mutex);
-	mutex_unlock(&audit_cmd_mutex);
+	audit_ctl_lock();
+	audit_ctl_unlock();
 
 	/* Ignore failure. It'll only happen if the sender goes away,
 	   because our timeout is set to infinite. */
@@ -1469,7 +1511,7 @@ static void audit_receive(struct sk_buff  *skb)
 	nlh = nlmsg_hdr(skb);
 	len = skb->len;
 
-	mutex_lock(&audit_cmd_mutex);
+	audit_ctl_lock();
 	while (nlmsg_ok(nlh, len)) {
 		err = audit_receive_msg(skb, nlh);
 		/* if err or if this message says it wants a response */
@@ -1478,7 +1520,7 @@ static void audit_receive(struct sk_buff  *skb)
 
 		nlh = nlmsg_next(nlh, &len);
 	}
-	mutex_unlock(&audit_cmd_mutex);
+	audit_ctl_unlock();
 }
 
 /* Run custom bind function on netlink socket group connect or bind requests. */
@@ -1549,6 +1591,9 @@ static int __init audit_init(void)
 
 	for (i = 0; i < AUDIT_INODE_BUCKETS; i++)
 		INIT_LIST_HEAD(&audit_inode_hash[i]);
+
+	mutex_init(&audit_cmd_mutex.lock);
+	audit_cmd_mutex.owner = NULL;
 
 	pr_info("initializing netlink subsys (%s)\n",
 		audit_default ? "enabled" : "disabled");
@@ -1713,8 +1758,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 	 *    using a PID anchored in the caller's namespace
 	 * 2. generator holding the audit_cmd_mutex - we don't want to block
 	 *    while holding the mutex */
-	if (!(auditd_test_task(current) ||
-	      (current == __mutex_owner(&audit_cmd_mutex)))) {
+	if (!(auditd_test_task(current) || audit_ctl_owner_current())) {
 		long stime = audit_backlog_wait_time;
 
 		while (audit_backlog_limit &&
