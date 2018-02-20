@@ -683,6 +683,7 @@ void dce110_link_encoder_construct(
 {
 	struct bp_encoder_cap_info bp_cap_info = {0};
 	const struct dc_vbios_funcs *bp_funcs = init_data->ctx->dc_bios->funcs;
+	enum bp_result result = BP_RESULT_OK;
 
 	enc110->base.funcs = &dce110_lnk_enc_funcs;
 	enc110->base.ctx = init_data->ctx;
@@ -757,15 +758,24 @@ void dce110_link_encoder_construct(
 		enc110->base.preferred_engine = ENGINE_ID_UNKNOWN;
 	}
 
+	/* default to one to mirror Windows behavior */
+	enc110->base.features.flags.bits.HDMI_6GB_EN = 1;
+
+	result = bp_funcs->get_encoder_cap_info(enc110->base.ctx->dc_bios,
+						enc110->base.id, &bp_cap_info);
+
 	/* Override features with DCE-specific values */
-	if (BP_RESULT_OK == bp_funcs->get_encoder_cap_info(
-			enc110->base.ctx->dc_bios, enc110->base.id,
-			&bp_cap_info)) {
+	if (BP_RESULT_OK == result) {
 		enc110->base.features.flags.bits.IS_HBR2_CAPABLE =
 				bp_cap_info.DP_HBR2_EN;
 		enc110->base.features.flags.bits.IS_HBR3_CAPABLE =
 				bp_cap_info.DP_HBR3_EN;
 		enc110->base.features.flags.bits.HDMI_6GB_EN = bp_cap_info.HDMI_6GB_EN;
+	} else {
+		dm_logger_write(enc110->base.ctx->logger, LOG_WARNING,
+				"%s: Failed to get encoder_cap_info from VBIOS with error code %d!\n",
+				__func__,
+				result);
 	}
 }
 
