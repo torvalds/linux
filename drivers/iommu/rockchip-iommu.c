@@ -1209,6 +1209,23 @@ static int rk_iommu_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void rk_iommu_shutdown(struct platform_device *pdev)
+{
+	struct rk_iommu *iommu = platform_get_drvdata(pdev);
+
+	/*
+	 * Be careful not to try to shutdown an otherwise unused
+	 * IOMMU, as it is likely not to be clocked, and accessing it
+	 * would just block. An IOMMU without a domain is likely to be
+	 * unused, so let's use this as a (weak) guard.
+	 */
+	if (iommu && iommu->domain) {
+		rk_iommu_enable_stall(iommu);
+		rk_iommu_disable_paging(iommu);
+		rk_iommu_force_reset(iommu);
+	}
+}
+
 static const struct of_device_id rk_iommu_dt_ids[] = {
 	{ .compatible = "rockchip,iommu" },
 	{ /* sentinel */ }
@@ -1218,6 +1235,7 @@ MODULE_DEVICE_TABLE(of, rk_iommu_dt_ids);
 static struct platform_driver rk_iommu_driver = {
 	.probe = rk_iommu_probe,
 	.remove = rk_iommu_remove,
+	.shutdown = rk_iommu_shutdown,
 	.driver = {
 		   .name = "rk_iommu",
 		   .of_match_table = rk_iommu_dt_ids,
