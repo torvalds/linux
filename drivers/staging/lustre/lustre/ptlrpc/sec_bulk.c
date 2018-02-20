@@ -530,7 +530,7 @@ EXPORT_SYMBOL(bulk_sec_desc_unpack);
 int sptlrpc_get_bulk_checksum(struct ptlrpc_bulk_desc *desc, __u8 alg,
 			      void *buf, int buflen)
 {
-	struct cfs_crypto_hash_desc *hdesc;
+	struct ahash_request *hdesc;
 	int hashsize;
 	unsigned int bufsize;
 	int i, err;

@@ -931,7 +931,7 @@ static u32 osc_checksum_bulk(int nob, u32 pg_count,
 {
 	__u32 cksum;
 	int i = 0;
-	struct cfs_crypto_hash_desc *hdesc;
+	struct ahash_request *hdesc;
 	unsigned int bufsize;
 	unsigned char cfs_alg = cksum_obd2cfs(cksum_type);
 
