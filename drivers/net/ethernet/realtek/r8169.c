@@ -736,9 +736,8 @@ struct ring_info {
 };
 
 enum features {
-	RTL_FEATURE_WOL		= (1 << 0),
-	RTL_FEATURE_MSI		= (1 << 1),
-	RTL_FEATURE_GMII	= (1 << 2),
+	RTL_FEATURE_MSI		= (1 << 0),
+	RTL_FEATURE_GMII	= (1 << 1),
 };
 
 struct rtl8169_counters {
@@ -1859,10 +1858,6 @@ static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 	rtl_lock_work(tp);
 
-	if (wol->wolopts)
-		tp->features |= RTL_FEATURE_WOL;
-	else
-		tp->features &= ~RTL_FEATURE_WOL;
 	if (pm_runtime_active(d))
 		__rtl8169_set_wol(tp, wol->wolopts);
 	else
@@ -8521,36 +8516,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	RTL_W8(Cfg9346, Cfg9346_Unlock);
 	RTL_W8(Config1, RTL_R8(Config1) | PMEnable);
 	RTL_W8(Config5, RTL_R8(Config5) & (BWF | MWF | UWF | LanWake | PMEStatus));
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_34:
-	case RTL_GIGA_MAC_VER_35:
-	case RTL_GIGA_MAC_VER_36:
-	case RTL_GIGA_MAC_VER_37:
-	case RTL_GIGA_MAC_VER_38:
-	case RTL_GIGA_MAC_VER_40:
-	case RTL_GIGA_MAC_VER_41:
-	case RTL_GIGA_MAC_VER_42:
-	case RTL_GIGA_MAC_VER_43:
-	case RTL_GIGA_MAC_VER_44:
-	case RTL_GIGA_MAC_VER_45:
-	case RTL_GIGA_MAC_VER_46:
-	case RTL_GIGA_MAC_VER_47:
-	case RTL_GIGA_MAC_VER_48:
-	case RTL_GIGA_MAC_VER_49:
-	case RTL_GIGA_MAC_VER_50:
-	case RTL_GIGA_MAC_VER_51:
-		if (rtl_eri_read(tp, 0xdc, ERIAR_EXGMAC) & MagicPacket_v2)
-			tp->features |= RTL_FEATURE_WOL;
-		if ((RTL_R8(Config3) & LinkUp) != 0)
-			tp->features |= RTL_FEATURE_WOL;
-		break;
-	default:
-		if ((RTL_R8(Config3) & (LinkUp | MagicPacket)) != 0)
-			tp->features |= RTL_FEATURE_WOL;
-		break;
-	}
-	if ((RTL_R8(Config5) & (UWF | BWF | MWF)) != 0)
-		tp->features |= RTL_FEATURE_WOL;
 	tp->features |= rtl_try_msi(tp, cfg);
 	RTL_W8(Cfg9346, Cfg9346_Lock);
 
