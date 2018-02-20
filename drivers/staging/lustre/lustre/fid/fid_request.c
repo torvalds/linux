@@ -198,24 +198,24 @@ static int seq_fid_alloc_prep(struct lu_client_seq *seq,
 	if (seq->lcs_update) {
 		add_wait_queue(&seq->lcs_waitq, link);
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		mutex_unlock(&seq->lcs_mutex);
+		spin_unlock(&seq->lcs_lock);
 
 		schedule();
 
-		mutex_lock(&seq->lcs_mutex);
+		spin_lock(&seq->lcs_lock);
 		remove_wait_queue(&seq->lcs_waitq, link);
 		set_current_state(TASK_RUNNING);
 		return -EAGAIN;
 	}
 	++seq->lcs_update;
-	mutex_unlock(&seq->lcs_mutex);
+	spin_unlock(&seq->lcs_lock);
 	return 0;
 }
 
 static void seq_fid_alloc_fini(struct lu_client_seq *seq)
 {
 	LASSERT(seq->lcs_update == 1);
-	mutex_lock(&seq->lcs_mutex);
+	spin_lock(&seq->lcs_lock);
 	--seq->lcs_update;
 	wake_up(&seq->lcs_waitq);
 }
@@ -231,7 +231,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 	LASSERT(fid);
 
 	init_waitqueue_entry(&link, current);
-	mutex_lock(&seq->lcs_mutex);
+	spin_lock(&seq->lcs_lock);
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_SEQ_EXHAUST))
 		seq->lcs_fid.f_oid = seq->lcs_width;
@@ -256,7 +256,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 			CERROR("%s: Can't allocate new sequence, rc %d\n",
 			       seq->lcs_name, rc);
 			seq_fid_alloc_fini(seq);
-			mutex_unlock(&seq->lcs_mutex);
+			spin_unlock(&seq->lcs_lock);
 			return rc;
 		}
 
@@ -278,7 +278,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 	}
 
 	*fid = seq->lcs_fid;
-	mutex_unlock(&seq->lcs_mutex);
+	spin_unlock(&seq->lcs_lock);
 
 	CDEBUG(D_INFO,
 	       "%s: Allocated FID " DFID "\n", seq->lcs_name,  PFID(fid));
@@ -296,16 +296,16 @@ void seq_client_flush(struct lu_client_seq *seq)
 
 	LASSERT(seq);
 	init_waitqueue_entry(&link, current);
-	mutex_lock(&seq->lcs_mutex);
+	spin_lock(&seq->lcs_lock);
 
 	while (seq->lcs_update) {
 		add_wait_queue(&seq->lcs_waitq, &link);
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		mutex_unlock(&seq->lcs_mutex);
+		spin_unlock(&seq->lcs_lock);
 
 		schedule();
 
-		mutex_lock(&seq->lcs_mutex);
+		spin_lock(&seq->lcs_lock);
 		remove_wait_queue(&seq->lcs_waitq, &link);
 		set_current_state(TASK_RUNNING);
 	}
@@ -319,7 +319,7 @@ void seq_client_flush(struct lu_client_seq *seq)
 	seq->lcs_space.lsr_index = -1;
 
 	lu_seq_range_init(&seq->lcs_space);
-	mutex_unlock(&seq->lcs_mutex);
+	spin_unlock(&seq->lcs_lock);
 }
 EXPORT_SYMBOL(seq_client_flush);
 
@@ -382,7 +382,7 @@ static int seq_client_init(struct lu_client_seq *seq,
 
 	seq->lcs_type = type;
 
-	mutex_init(&seq->lcs_mutex);
+	spin_lock_init(&seq->lcs_lock);
 	if (type == LUSTRE_SEQ_METADATA)
 		seq->lcs_width = LUSTRE_METADATA_SEQ_MAX_WIDTH;
 	else
