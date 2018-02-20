@@ -299,6 +299,7 @@ struct iwl_fw {
 	size_t dbg_trigger_tlv_len[FW_DBG_TRIGGER_MAX];
 	u8 dbg_dest_reg_num;
 	struct iwl_gscan_capabilities gscan_capa;
+	u32 dbg_dump_mask;
 };
 
 static inline const char *get_fw_dbg_mode_string(int mode)

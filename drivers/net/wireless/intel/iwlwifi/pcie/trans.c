@@ -84,6 +84,7 @@
 #include "iwl-scd.h"
 #include "iwl-agn-hw.h"
 #include "fw/error-dump.h"
+#include "fw/dbg.h"
 #include "internal.h"
 #include "iwl-fh.h"
 
@@ -2978,7 +2979,8 @@ static struct iwl_trans_dump_data
 	u32 monitor_len;
 	int i, ptr;
 	bool dump_rbs = test_bit(STATUS_FW_ERROR, &trans->status) &&
-			!trans->cfg->mq_rx_supported;
+			!trans->cfg->mq_rx_supported &&
+			trans->dbg_dump_mask & BIT(IWL_FW_ERROR_DUMP_RB);
 
 	/* transport dump header */
 	len = sizeof(*dump_data);
@@ -3030,6 +3032,10 @@ static struct iwl_trans_dump_data
 	}
 
 	if (trigger && (trigger->mode & IWL_FW_DBG_TRIGGER_MONITOR_ONLY)) {
+		if (!(trans->dbg_dump_mask &
+		      BIT(IWL_FW_ERROR_DUMP_FW_MONITOR)))
+			return NULL;
+
 		dump_data = vzalloc(len);
 		if (!dump_data)
 			return NULL;
@@ -3042,15 +3048,20 @@ static struct iwl_trans_dump_data
 	}
 
 	/* CSR registers */
-	len += sizeof(*data) + IWL_CSR_TO_DUMP;
+	if (trans->dbg_dump_mask & BIT(IWL_FW_ERROR_DUMP_CSR))
+		len += sizeof(*data) + IWL_CSR_TO_DUMP;
 
 	/* FH registers */
-	if (trans->cfg->gen2)
-		len += sizeof(*data) +
-		       (FH_MEM_UPPER_BOUND_GEN2 - FH_MEM_LOWER_BOUND_GEN2);
-	else
-		len += sizeof(*data) +
-		       (FH_MEM_UPPER_BOUND - FH_MEM_LOWER_BOUND);
+	if (trans->dbg_dump_mask & BIT(IWL_FW_ERROR_DUMP_FH_REGS)) {
+		if (trans->cfg->gen2)
+			len += sizeof(*data) +
+			       (FH_MEM_UPPER_BOUND_GEN2 -
+				FH_MEM_LOWER_BOUND_GEN2);
+		else
+			len += sizeof(*data) +
+			       (FH_MEM_UPPER_BOUND -
+				FH_MEM_LOWER_BOUND);
+	}
 
 	if (dump_rbs) {
 		/* Dump RBs is supported only for pre-9000 devices (1 queue) */
@@ -3066,7 +3077,8 @@ static struct iwl_trans_dump_data
 	}
 
 	/* Paged memory for gen2 HW */
-	if (trans->cfg->gen2)
+	if (trans->cfg->gen2 &&
+	    trans->dbg_dump_mask & BIT(IWL_FW_ERROR_DUMP_PAGING))
 		for (i = 0; i < trans_pcie->init_dram.paging_cnt; i++)
 			len += sizeof(*data) +
 			       sizeof(struct iwl_fw_error_dump_paging) +
@@ -3078,41 +3090,51 @@ static struct iwl_trans_dump_data
 
 	len = 0;
 	data = (void *)dump_data->data;
-	data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_TXCMD);
-	txcmd = (void *)data->data;
-	spin_lock_bh(&cmdq->lock);
-	ptr = cmdq->write_ptr;
-	for (i = 0; i < cmdq->n_window; i++) {
-		u8 idx = iwl_pcie_get_cmd_index(cmdq, ptr);
-		u32 caplen, cmdlen;
 
-		cmdlen = iwl_trans_pcie_get_cmdlen(trans, cmdq->tfds +
-						   trans_pcie->tfd_size * ptr);
-		caplen = min_t(u32, TFD_MAX_PAYLOAD_SIZE, cmdlen);
+	if (trans->dbg_dump_mask & BIT(IWL_FW_ERROR_DUMP_TXCMD)) {
+		u16 tfd_size = trans_pcie->tfd_size;
 
-		if (cmdlen) {
-			len += sizeof(*txcmd) + caplen;
-			txcmd->cmdlen = cpu_to_le32(cmdlen);
-			txcmd->caplen = cpu_to_le32(caplen);
-			memcpy(txcmd->data, cmdq->entries[idx].cmd, caplen);
-			txcmd = (void *)((u8 *)txcmd->data + caplen);
+		data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_TXCMD);
+		txcmd = (void *)data->data;
+		spin_lock_bh(&cmdq->lock);
+		ptr = cmdq->write_ptr;
+		for (i = 0; i < cmdq->n_window; i++) {
+			u8 idx = iwl_pcie_get_cmd_index(cmdq, ptr);
+			u32 caplen, cmdlen;
+
+			cmdlen = iwl_trans_pcie_get_cmdlen(trans,
+							   cmdq->tfds +
+							   tfd_size * ptr);
+			caplen = min_t(u32, TFD_MAX_PAYLOAD_SIZE, cmdlen);
+
+			if (cmdlen) {
+				len += sizeof(*txcmd) + caplen;
+				txcmd->cmdlen = cpu_to_le32(cmdlen);
+				txcmd->caplen = cpu_to_le32(caplen);
+				memcpy(txcmd->data, cmdq->entries[idx].cmd,
+				       caplen);
+				txcmd = (void *)((u8 *)txcmd->data + caplen);
+			}
+
+			ptr = iwl_queue_dec_wrap(trans, ptr);
 		}
+		spin_unlock_bh(&cmdq->lock);
 
-		ptr = iwl_queue_dec_wrap(trans, ptr);
+		data->len = cpu_to_le32(len);
+		len += sizeof(*data);
+		data = iwl_fw_error_next_data(data);
 	}
-	spin_unlock_bh(&cmdq->lock);
 
-	data->len = cpu_to_le32(len);
-	len += sizeof(*data);
-	data = iwl_fw_error_next_data(data);
-
-	len += iwl_trans_pcie_dump_csr(trans, &data);
-	len += iwl_trans_pcie_fh_regs_dump(trans, &data);
+	if (trans->dbg_dump_mask & BIT(IWL_FW_ERROR_DUMP_CSR))
+		len += iwl_trans_pcie_dump_csr(trans, &data);
+	if (trans->dbg_dump_mask & BIT(IWL_FW_ERROR_DUMP_FH_REGS))
+		len += iwl_trans_pcie_fh_regs_dump(trans, &data);
 	if (dump_rbs)
 		len += iwl_trans_pcie_dump_rbs(trans, &data, num_rbs);
 
 	/* Paged memory for gen2 HW */
-	if (trans->cfg->gen2) {
+	if (trans->cfg->gen2 &&
+	    trans->dbg_dump_mask & BIT(IWL_FW_ERROR_DUMP_PAGING)) {
 		for (i = 0; i < trans_pcie->init_dram.paging_cnt; i++) {
 			struct iwl_fw_error_dump_paging *paging;
 			dma_addr_t addr =
@@ -3132,8 +3154,8 @@ static struct iwl_trans_dump_data
 			len += sizeof(*data) + sizeof(*paging) + page_len;
 		}
 	}
-
-	len += iwl_trans_pcie_dump_monitor(trans, &data, monitor_len);
+	if (trans->dbg_dump_mask & BIT(IWL_FW_ERROR_DUMP_FW_MONITOR))
+		len += iwl_trans_pcie_dump_monitor(trans, &data, monitor_len);
 
 	dump_data->len = len;
 

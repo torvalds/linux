@@ -771,6 +771,7 @@ struct iwl_trans {
 	const struct iwl_fw_dbg_dest_tlv_v1 *dbg_dest_tlv;
 	const struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
 	struct iwl_fw_dbg_trigger_tlv * const *dbg_trigger_tlv;
+	u32 dbg_dump_mask;
 	u8 dbg_dest_reg_num;
 
 	enum iwl_plat_pm_mode system_pm_mode;

@@ -1043,6 +1043,17 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			pieces->dbg_trigger_tlv_len[trigger_id] = tlv_len;
 			break;
 			}
+		case IWL_UCODE_TLV_FW_DBG_DUMP_LST: {
+			if (tlv_len != sizeof(u32)) {
+				IWL_ERR(drv,
+					"dbg lst mask size incorrect, skip\n");
+				break;
+			}
+
+			drv->fw.dbg_dump_mask =
+				le32_to_cpup((__le32 *)tlv_data);
+			break;
+			}
 		case IWL_UCODE_TLV_SEC_RT_USNIFFER:
 			*usniffer_images = true;
 			iwl_store_ucode_sec(pieces, tlv_data,
@@ -1316,6 +1327,8 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	fw->ucode_capa.standard_phy_calibration_size =
 			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE;
 	fw->ucode_capa.n_scan_channels = IWL_DEFAULT_SCAN_CHANNELS;
+	/* dump all fw memory areas by default */
+	fw->dbg_dump_mask = 0xffffffff;
 
 	pieces = kzalloc(sizeof(*pieces), GFP_KERNEL);
 	if (!pieces)
