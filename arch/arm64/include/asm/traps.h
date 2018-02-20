@@ -35,10 +35,8 @@ struct undef_hook {
 
 void register_undef_hook(struct undef_hook *hook);
 void unregister_undef_hook(struct undef_hook *hook);
-void force_signal_inject(int signal, int code, struct pt_regs *regs,
-			 unsigned long address);
-
-void arm64_notify_segfault(struct pt_regs *regs, unsigned long addr);
+void force_signal_inject(int signal, int code, unsigned long address);
+void arm64_notify_segfault(unsigned long addr);
 
 /*
  * Move regs->pc to next instruction and do necessary setup before it

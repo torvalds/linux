@@ -311,12 +311,13 @@ exit:
 	return fn ? fn(regs, instr) : 1;
 }
 
-void force_signal_inject(int signal, int code, struct pt_regs *regs,
-			 unsigned long address)
+void force_signal_inject(int signal, int code, unsigned long address)
 {
 	siginfo_t info;
-	void __user *pc = (void __user *)instruction_pointer(regs);
 	const char *desc;
+	struct pt_regs *regs = current_pt_regs();
+
+	clear_siginfo(&info);
 
 	switch (signal) {
 	case SIGILL:
@@ -332,15 +333,15 @@ void force_signal_inject(int signal, int code, struct pt_regs *regs,
 
 	if (unhandled_signal(current, signal) &&
 	    show_unhandled_signals_ratelimited()) {
-		pr_info("%s[%d]: %s: pc=%p\n",
-			current->comm, task_pid_nr(current), desc, pc);
+		pr_info("%s[%d]: %s: pc=%08llx\n",
+			current->comm, task_pid_nr(current), desc, regs->pc);
 		dump_instr(KERN_INFO, regs);
 	}
 
 	info.si_signo = signal;
 	info.si_errno = 0;
 	info.si_code  = code;
-	info.si_addr  = pc;
+	info.si_addr  = (void __user *)address;
 
 	arm64_notify_die(desc, regs, &info, 0);
 }
@@ -348,7 +349,7 @@ void force_signal_inject(int signal, int code, struct pt_regs *regs,
 /*
  * Set up process info to signal segmentation fault - called on access error.
  */
-void arm64_notify_segfault(struct pt_regs *regs, unsigned long addr)
+void arm64_notify_segfault(unsigned long addr)
 {
 	int code;
 
@@ -359,7 +360,7 @@ void arm64_notify_segfault(struct pt_regs *regs, unsigned long addr)
 		code = SEGV_ACCERR;
 	up_read(&current->mm->mmap_sem);
 
-	force_signal_inject(SIGSEGV, code, regs, addr);
+	force_signal_inject(SIGSEGV, code, addr);
 }
 
 asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
@@ -371,7 +372,7 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 	if (call_undef_hook(regs) == 0)
 		return;
 
-	force_signal_inject(SIGILL, ILL_ILLOPC, regs, 0);
+	force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc);
 }
 
 int cpu_enable_cache_maint_trap(void *__unused)
@@ -426,12 +427,12 @@ static void user_cache_maint_handler(unsigned int esr, struct pt_regs *regs)
 		__user_cache_maint("ic ivau", address, ret);
 		break;
 	default:
-		force_signal_inject(SIGILL, ILL_ILLOPC, regs, 0);
+		force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc);
 		return;
 	}
 
 	if (ret)
-		arm64_notify_segfault(regs, address);
+		arm64_notify_segfault(address);
 	else
 		arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
 }
