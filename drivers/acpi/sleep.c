@@ -953,15 +953,8 @@ static int acpi_s2idle_prepare(void)
 	if (lps0_device_handle) {
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_OFF);
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY);
-	} else {
-		/*
-		 * The configuration of GPEs is changed here to avoid spurious
-		 * wakeups, but that should not be necessary if this is a
-		 * "low-power S0" platform and the low-power S0 _DSM is present.
-		 */
-		acpi_enable_all_wakeup_gpes();
-		acpi_os_wait_events_complete();
 	}
+
 	if (acpi_sci_irq_valid())
 		enable_irq_wake(acpi_sci_irq);
 
@@ -1007,8 +1000,6 @@ static void acpi_s2idle_restore(void)
 	if (lps0_device_handle) {
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_EXIT);
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_ON);
-	} else {
-		acpi_enable_all_runtime_gpes();
 	}
 }
 
