@@ -34,7 +34,6 @@
 #include <crypto/cryptd.h>
 #include <crypto/b128ops.h>
 #include <crypto/ctr.h>
-#include <crypto/lrw.h>
 #include <crypto/xts.h>
 #include <asm/fpu/api.h>
 #include <asm/crypto/twofish.h>
@@ -227,144 +226,6 @@ static int ctr_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	return glue_ctr_crypt_128bit(&twofish_ctr, desc, dst, src, nbytes);
 }
 
-static inline bool twofish_fpu_begin(bool fpu_enabled, unsigned int nbytes)
-{
-	return glue_fpu_begin(TF_BLOCK_SIZE, TWOFISH_PARALLEL_BLOCKS, NULL,
-			      fpu_enabled, nbytes);
-}
-
-static inline void twofish_fpu_end(bool fpu_enabled)
-{
-	glue_fpu_end(fpu_enabled);
-}
-
-struct crypt_priv {
-	struct twofish_ctx *ctx;
-	bool fpu_enabled;
-};
-
-static void encrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
-{
-	const unsigned int bsize = TF_BLOCK_SIZE;
-	struct crypt_priv *ctx = priv;
-	int i;
-
-	ctx->fpu_enabled = twofish_fpu_begin(ctx->fpu_enabled, nbytes);
-
-	if (nbytes == bsize * TWOFISH_PARALLEL_BLOCKS) {
-		twofish_ecb_enc_8way(ctx->ctx, srcdst, srcdst);
-		return;
-	}
-
-	for (i = 0; i < nbytes / (bsize * 3); i++, srcdst += bsize * 3)
-		twofish_enc_blk_3way(ctx->ctx, srcdst, srcdst);
-
-	nbytes %= bsize * 3;
-
-	for (i = 0; i < nbytes / bsize; i++, srcdst += bsize)
-		twofish_enc_blk(ctx->ctx, srcdst, srcdst);
-}
-
-static void decrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
-{
-	const unsigned int bsize = TF_BLOCK_SIZE;
-	struct crypt_priv *ctx = priv;
-	int i;
-
-	ctx->fpu_enabled = twofish_fpu_begin(ctx->fpu_enabled, nbytes);
-
-	if (nbytes == bsize * TWOFISH_PARALLEL_BLOCKS) {
-		twofish_ecb_dec_8way(ctx->ctx, srcdst, srcdst);
-		return;
-	}
-
-	for (i = 0; i < nbytes / (bsize * 3); i++, srcdst += bsize * 3)
-		twofish_dec_blk_3way(ctx->ctx, srcdst, srcdst);
-
-	nbytes %= bsize * 3;
-
-	for (i = 0; i < nbytes / bsize; i++, srcdst += bsize)
-		twofish_dec_blk(ctx->ctx, srcdst, srcdst);
-}
-
-struct twofish_lrw_ctx {
-	struct lrw_table_ctx lrw_table;
-	struct twofish_ctx twofish_ctx;
-};
-
-static int lrw_twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
-			      unsigned int keylen)
-{
-	struct twofish_lrw_ctx *ctx = crypto_tfm_ctx(tfm);
-	int err;
-
-	err = __twofish_setkey(&ctx->twofish_ctx, key, keylen - TF_BLOCK_SIZE,
-			       &tfm->crt_flags);
-	if (err)
-		return err;
-
-	return lrw_init_table(&ctx->lrw_table, key + keylen - TF_BLOCK_SIZE);
-}
-
-static void lrw_twofish_exit_tfm(struct crypto_tfm *tfm)
-{
-	struct twofish_lrw_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	lrw_free_table(&ctx->lrw_table);
-}
-
-static int lrw_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
-{
-	struct twofish_lrw_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[TWOFISH_PARALLEL_BLOCKS];
-	struct crypt_priv crypt_ctx = {
-		.ctx = &ctx->twofish_ctx,
-		.fpu_enabled = false,
-	};
-	struct lrw_crypt_req req = {
-		.tbuf = buf,
-		.tbuflen = sizeof(buf),
-
-		.table_ctx = &ctx->lrw_table,
-		.crypt_ctx = &crypt_ctx,
-		.crypt_fn = encrypt_callback,
-	};
-	int ret;
-
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	ret = lrw_crypt(desc, dst, src, nbytes, &req);
-	twofish_fpu_end(crypt_ctx.fpu_enabled);
-
-	return ret;
-}
-
-static int lrw_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
-{
-	struct twofish_lrw_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[TWOFISH_PARALLEL_BLOCKS];
-	struct crypt_priv crypt_ctx = {
-		.ctx = &ctx->twofish_ctx,
-		.fpu_enabled = false,
-	};
-	struct lrw_crypt_req req = {
-		.tbuf = buf,
-		.tbuflen = sizeof(buf),
-
-		.table_ctx = &ctx->lrw_table,
-		.crypt_ctx = &crypt_ctx,
-		.crypt_fn = decrypt_callback,
-	};
-	int ret;
-
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	ret = lrw_crypt(desc, dst, src, nbytes, &req);
-	twofish_fpu_end(crypt_ctx.fpu_enabled);
-
-	return ret;
-}
-
 static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
@@ -385,7 +246,7 @@ static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 				     &ctx->tweak_ctx, &ctx->crypt_ctx);
 }
 
-static struct crypto_alg twofish_algs[10] = { {
+static struct crypto_alg twofish_algs[] = { {
 	.cra_name		= "__ecb-twofish-avx",
 	.cra_driver_name	= "__driver-ecb-twofish-avx",
 	.cra_priority		= 0,
@@ -444,30 +305,6 @@ static struct crypto_alg twofish_algs[10] = { {
 			.setkey		= twofish_setkey,
 			.encrypt	= ctr_crypt,
 			.decrypt	= ctr_crypt,
-		},
-	},
-}, {
-	.cra_name		= "__lrw-twofish-avx",
-	.cra_driver_name	= "__driver-lrw-twofish-avx",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= TF_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct twofish_lrw_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_exit		= lrw_twofish_exit_tfm,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= TF_MIN_KEY_SIZE +
-					  TF_BLOCK_SIZE,
-			.max_keysize	= TF_MAX_KEY_SIZE +
-					  TF_BLOCK_SIZE,
-			.ivsize		= TF_BLOCK_SIZE,
-			.setkey		= lrw_twofish_setkey,
-			.encrypt	= lrw_encrypt,
-			.decrypt	= lrw_decrypt,
 		},
 	},
 }, {
@@ -555,30 +392,6 @@ static struct crypto_alg twofish_algs[10] = { {
 			.encrypt	= ablk_encrypt,
 			.decrypt	= ablk_encrypt,
 			.geniv		= "chainiv",
-		},
-	},
-}, {
-	.cra_name		= "lrw(twofish)",
-	.cra_driver_name	= "lrw-twofish-avx",
-	.cra_priority		= 400,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= TF_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_u = {
-		.ablkcipher = {
-			.min_keysize	= TF_MIN_KEY_SIZE +
-					  TF_BLOCK_SIZE,
-			.max_keysize	= TF_MAX_KEY_SIZE +
-					  TF_BLOCK_SIZE,
-			.ivsize		= TF_BLOCK_SIZE,
-			.setkey		= ablk_set_key,
-			.encrypt	= ablk_encrypt,
-			.decrypt	= ablk_decrypt,
 		},
 	},
 }, {
