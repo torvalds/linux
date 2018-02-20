@@ -1620,7 +1620,7 @@ static int handle_key(struct wilc_vif *vif,
 			pu8keybuf = kzalloc(RX_MIC_KEY_MSG_LEN, GFP_KERNEL);
 			if (!pu8keybuf) {
 				ret = -ENOMEM;
-				goto _WPARxGtk_end_case_;
+				goto out_wpa_rx_gtk;
 			}
 
 			if (pstrHostIFkeyAttr->attr.wpa.seq)
@@ -1651,7 +1651,7 @@ static int handle_key(struct wilc_vif *vif,
 			pu8keybuf = kzalloc(RX_MIC_KEY_MSG_LEN, GFP_KERNEL);
 			if (!pu8keybuf) {
 				ret = -ENOMEM;
-				goto _WPARxGtk_end_case_;
+				goto out_wpa_rx_gtk;
 			}
 
 			if (hif_drv->hif_state == HOST_IF_CONNECTED)
@@ -1677,7 +1677,7 @@ static int handle_key(struct wilc_vif *vif,
 			kfree(pu8keybuf);
 			complete(&hif_drv->comp_test_key_block);
 		}
-_WPARxGtk_end_case_:
+out_wpa_rx_gtk:
 		kfree(pstrHostIFkeyAttr->attr.wpa.key);
 		kfree(pstrHostIFkeyAttr->attr.wpa.seq);
 		if (ret)
