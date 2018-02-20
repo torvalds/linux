@@ -1465,7 +1465,6 @@ config CRYPTO_SERPENT_AVX_X86_64
 	select CRYPTO_ABLK_HELPER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
-	select CRYPTO_LRW
 	select CRYPTO_XTS
 	help
 	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
