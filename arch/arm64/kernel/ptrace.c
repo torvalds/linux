@@ -209,7 +209,7 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 		force_sig_ptrace_errno_trap(si_errno, (void __user *)bkpt->trigger);
 	}
 #endif
-	force_sig_info(SIGTRAP, &info, current);
+	arm64_force_sig_info(&info, "Hardware breakpoint trap (ptrace)", current);
 }
 
 /*

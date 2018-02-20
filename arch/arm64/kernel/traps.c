@@ -633,11 +633,6 @@ asmlinkage void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 {
 	siginfo_t info;
 	void __user *pc = (void __user *)instruction_pointer(regs);
-	console_verbose();
-
-	pr_crit("Bad EL0 synchronous exception detected on CPU%d, code 0x%08x -- %s\n",
-		smp_processor_id(), esr, esr_get_class_string(esr));
-	__show_regs(regs);
 
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
@@ -645,9 +640,9 @@ asmlinkage void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 	info.si_addr  = pc;
 
 	current->thread.fault_address = 0;
-	current->thread.fault_code = 0;
+	current->thread.fault_code = esr;
 
-	force_sig_info(info.si_signo, &info, current);
+	arm64_force_sig_info(&info, "Bad EL0 synchronous exception", current);
 }
 
 #ifdef CONFIG_VMAP_STACK
