@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * Audio driver header for AK5558
  *
  * Copyright (C) 2016 Asahi Kasei Microdevices Corporation

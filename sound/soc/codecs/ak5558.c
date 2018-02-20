@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * Audio driver for AK5558 ADC
- *
- * Copyright (C) 2015 Asahi Kasei Microdevices Corporation
- * Copyright 2018 NXP
- */
+//
+// Audio driver for AK5558 ADC
+//
+// Copyright (C) 2015 Asahi Kasei Microdevices Corporation
+// Copyright 2018 NXP
 
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
