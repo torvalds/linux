@@ -262,6 +262,32 @@ static void decrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
 		twofish_dec_blk(ctx->ctx, srcdst, srcdst);
 }
 
+struct twofish_lrw_ctx {
+	struct lrw_table_ctx lrw_table;
+	struct twofish_ctx twofish_ctx;
+};
+
+static int lrw_twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
+			      unsigned int keylen)
+{
+	struct twofish_lrw_ctx *ctx = crypto_tfm_ctx(tfm);
+	int err;
+
+	err = __twofish_setkey(&ctx->twofish_ctx, key, keylen - TF_BLOCK_SIZE,
+			       &tfm->crt_flags);
+	if (err)
+		return err;
+
+	return lrw_init_table(&ctx->lrw_table, key + keylen - TF_BLOCK_SIZE);
+}
+
+static void lrw_twofish_exit_tfm(struct crypto_tfm *tfm)
+{
+	struct twofish_lrw_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	lrw_free_table(&ctx->lrw_table);
+}
+
 static int lrw_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
