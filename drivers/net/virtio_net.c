@@ -443,12 +443,8 @@ static bool __virtnet_xdp_xmit(struct virtnet_info *vi,
 	sg_init_one(sq->sg, xdp->data, xdp->data_end - xdp->data);
 
 	err = virtqueue_add_outbuf(sq->vq, sq->sg, 1, xdp->data, GFP_ATOMIC);
-	if (unlikely(err)) {
-		struct page *page = virt_to_head_page(xdp->data);
-
-		put_page(page);
-		return false;
-	}
+	if (unlikely(err))
+		return false; /* Caller handle free/refcnt */
 
 	return true;
 }
@@ -546,8 +542,11 @@ static struct sk_buff *receive_small(struct net_device *dev,
 	unsigned int buflen = SKB_DATA_ALIGN(GOOD_PACKET_LEN + headroom) +
 			      SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 	struct page *page = virt_to_head_page(buf);
-	unsigned int delta = 0, err;
+	unsigned int delta = 0;
 	struct page *xdp_page;
+	bool sent;
+	int err;
+
 	len -= vi->hdr_len;
 
 	rcu_read_lock();
@@ -596,16 +595,19 @@ static struct sk_buff *receive_small(struct net_device *dev,
 			delta = orig_data - xdp.data;
 			break;
 		case XDP_TX:
-			if (unlikely(!__virtnet_xdp_xmit(vi, &xdp)))
+			sent = __virtnet_xdp_xmit(vi, &xdp);
+			if (unlikely(!sent)) {
 				trace_xdp_exception(vi->dev, xdp_prog, act);
-			else
-				*xdp_xmit = true;
+				goto err_xdp;
+			}
+			*xdp_xmit = true;
 			rcu_read_unlock();
 			goto xdp_xmit;
 		case XDP_REDIRECT:
 			err = xdp_do_redirect(dev, &xdp, xdp_prog);
-			if (!err)
-				*xdp_xmit = true;
+			if (err)
+				goto err_xdp;
+			*xdp_xmit = true;
 			rcu_read_unlock();
 			goto xdp_xmit;
 		default:
@@ -677,6 +679,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 	struct bpf_prog *xdp_prog;
 	unsigned int truesize;
 	unsigned int headroom = mergeable_ctx_to_headroom(ctx);
+	bool sent;
 
 	head_skb = NULL;
 
@@ -745,10 +748,14 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			}
 			break;
 		case XDP_TX:
-			if (unlikely(!__virtnet_xdp_xmit(vi, &xdp)))
+			sent = __virtnet_xdp_xmit(vi, &xdp);
+			if (unlikely(!sent)) {
 				trace_xdp_exception(vi->dev, xdp_prog, act);
-			else
-				*xdp_xmit = true;
+				if (unlikely(xdp_page != page))
+					put_page(xdp_page);
+				goto err_xdp;
+			}
+			*xdp_xmit = true;
 			if (unlikely(xdp_page != page))
 				goto err_xdp;
 			rcu_read_unlock();
