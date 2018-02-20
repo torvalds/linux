@@ -40,7 +40,6 @@
 #include <crypto/cryptd.h>
 #include <crypto/b128ops.h>
 #include <crypto/ctr.h>
-#include <crypto/lrw.h>
 #include <crypto/xts.h>
 #include <asm/crypto/serpent-sse2.h>
 #include <asm/crypto/glue_helper.h>
@@ -221,85 +220,6 @@ static void decrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
 		__serpent_decrypt(ctx->ctx, srcdst, srcdst);
 }
 
-struct serpent_lrw_ctx {
-	struct lrw_table_ctx lrw_table;
-	struct serpent_ctx serpent_ctx;
-};
-
-static int lrw_serpent_setkey(struct crypto_tfm *tfm, const u8 *key,
-			      unsigned int keylen)
-{
-	struct serpent_lrw_ctx *ctx = crypto_tfm_ctx(tfm);
-	int err;
-
-	err = __serpent_setkey(&ctx->serpent_ctx, key, keylen -
-							SERPENT_BLOCK_SIZE);
-	if (err)
-		return err;
-
-	return lrw_init_table(&ctx->lrw_table, key + keylen -
-						SERPENT_BLOCK_SIZE);
-}
-
-static int lrw_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
-{
-	struct serpent_lrw_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[SERPENT_PARALLEL_BLOCKS];
-	struct crypt_priv crypt_ctx = {
-		.ctx = &ctx->serpent_ctx,
-		.fpu_enabled = false,
-	};
-	struct lrw_crypt_req req = {
-		.tbuf = buf,
-		.tbuflen = sizeof(buf),
-
-		.table_ctx = &ctx->lrw_table,
-		.crypt_ctx = &crypt_ctx,
-		.crypt_fn = encrypt_callback,
-	};
-	int ret;
-
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	ret = lrw_crypt(desc, dst, src, nbytes, &req);
-	serpent_fpu_end(crypt_ctx.fpu_enabled);
-
-	return ret;
-}
-
-static int lrw_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
-{
-	struct serpent_lrw_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[SERPENT_PARALLEL_BLOCKS];
-	struct crypt_priv crypt_ctx = {
-		.ctx = &ctx->serpent_ctx,
-		.fpu_enabled = false,
-	};
-	struct lrw_crypt_req req = {
-		.tbuf = buf,
-		.tbuflen = sizeof(buf),
-
-		.table_ctx = &ctx->lrw_table,
-		.crypt_ctx = &crypt_ctx,
-		.crypt_fn = decrypt_callback,
-	};
-	int ret;
-
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	ret = lrw_crypt(desc, dst, src, nbytes, &req);
-	serpent_fpu_end(crypt_ctx.fpu_enabled);
-
-	return ret;
-}
-
-static void lrw_exit_tfm(struct crypto_tfm *tfm)
-{
-	struct serpent_lrw_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	lrw_free_table(&ctx->lrw_table);
-}
-
 struct serpent_xts_ctx {
 	struct serpent_ctx tweak_ctx;
 	struct serpent_ctx crypt_ctx;
@@ -378,7 +298,7 @@ static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	return ret;
 }
 
-static struct crypto_alg serpent_algs[10] = { {
+static struct crypto_alg serpent_algs[] = { {
 	.cra_name		= "__ecb-serpent-sse2",
 	.cra_driver_name	= "__driver-ecb-serpent-sse2",
 	.cra_priority		= 0,
@@ -437,30 +357,6 @@ static struct crypto_alg serpent_algs[10] = { {
 			.setkey		= serpent_setkey,
 			.encrypt	= ctr_crypt,
 			.decrypt	= ctr_crypt,
-		},
-	},
-}, {
-	.cra_name		= "__lrw-serpent-sse2",
-	.cra_driver_name	= "__driver-lrw-serpent-sse2",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= SERPENT_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct serpent_lrw_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_exit		= lrw_exit_tfm,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= SERPENT_MIN_KEY_SIZE +
-					  SERPENT_BLOCK_SIZE,
-			.max_keysize	= SERPENT_MAX_KEY_SIZE +
-					  SERPENT_BLOCK_SIZE,
-			.ivsize		= SERPENT_BLOCK_SIZE,
-			.setkey		= lrw_serpent_setkey,
-			.encrypt	= lrw_encrypt,
-			.decrypt	= lrw_decrypt,
 		},
 	},
 }, {
@@ -548,30 +444,6 @@ static struct crypto_alg serpent_algs[10] = { {
 			.encrypt	= ablk_encrypt,
 			.decrypt	= ablk_encrypt,
 			.geniv		= "chainiv",
-		},
-	},
-}, {
-	.cra_name		= "lrw(serpent)",
-	.cra_driver_name	= "lrw-serpent-sse2",
-	.cra_priority		= 400,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= SERPENT_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_u = {
-		.ablkcipher = {
-			.min_keysize	= SERPENT_MIN_KEY_SIZE +
-					  SERPENT_BLOCK_SIZE,
-			.max_keysize	= SERPENT_MAX_KEY_SIZE +
-					  SERPENT_BLOCK_SIZE,
-			.ivsize		= SERPENT_BLOCK_SIZE,
-			.setkey		= ablk_set_key,
-			.encrypt	= ablk_encrypt,
-			.decrypt	= ablk_decrypt,
 		},
 	},
 }, {
