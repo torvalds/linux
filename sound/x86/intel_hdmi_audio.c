@@ -50,6 +50,7 @@
 /*standard module options for ALSA. This module supports only one card*/
 static int hdmi_card_index = SNDRV_DEFAULT_IDX1;
 static char *hdmi_card_id = SNDRV_DEFAULT_STR1;
+static bool single_port;
 
 module_param_named(index, hdmi_card_index, int, 0444);
 MODULE_PARM_DESC(index,
@@ -57,6 +58,9 @@ MODULE_PARM_DESC(index,
 module_param_named(id, hdmi_card_id, charp, 0444);
 MODULE_PARM_DESC(id,
 		"ID string for INTEL Intel HDMI Audio controller.");
+module_param(single_port, bool, 0444);
+MODULE_PARM_DESC(single_port,
+		"Single-port mode (for compatibility)");
 
 /*
  * ELD SA bits in the CEA Speaker Allocation data block
@@ -1579,7 +1583,11 @@ static irqreturn_t display_pipe_interrupt_handler(int irq, void *dev_id)
 static void notify_audio_lpe(struct platform_device *pdev, int port)
 {
 	struct snd_intelhad_card *card_ctx = platform_get_drvdata(pdev);
-	struct snd_intelhad *ctx = &card_ctx->pcm_ctx[port];
+	struct snd_intelhad *ctx;
+
+	ctx = &card_ctx->pcm_ctx[single_port ? 0 : port];
+	if (single_port)
+		ctx->port = port;
 
 	schedule_work(&ctx->hdmi_audio_wq);
 }
@@ -1816,7 +1824,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	init_channel_allocations();
 
 	card_ctx->num_pipes = pdata->num_pipes;
-	card_ctx->num_ports = pdata->num_ports;
+	card_ctx->num_ports = single_port ? 1 : pdata->num_ports;
 
 	for_each_port(card_ctx, port) {
 		struct snd_intelhad *ctx = &card_ctx->pcm_ctx[port];
@@ -1824,7 +1832,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 		ctx->card_ctx = card_ctx;
 		ctx->dev = card_ctx->dev;
-		ctx->port = port;
+		ctx->port = single_port ? -1 : port;
 		ctx->pipe = -1;
 
 		INIT_WORK(&ctx->hdmi_audio_wq, had_audio_wq);
