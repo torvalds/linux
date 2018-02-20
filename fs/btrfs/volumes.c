@@ -2658,7 +2658,6 @@ int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	device->total_bytes = btrfs_device_get_total_bytes(srcdev);
 	device->disk_total_bytes = btrfs_device_get_disk_total_bytes(srcdev);
 	device->bytes_used = btrfs_device_get_bytes_used(srcdev);
-	ASSERT(list_empty(&srcdev->resized_list));
 	device->commit_total_bytes = srcdev->commit_total_bytes;
 	device->commit_bytes_used = device->bytes_used;
 	device->fs_info = fs_info;
