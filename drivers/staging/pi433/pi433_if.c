@@ -528,7 +528,8 @@ pi433_receive(void *data)
 
 		/* need to drop bytes or acquire? */
 		if (dev->rx_bytes_to_drop > dev->rx_bytes_dropped)
-			bytes_to_read = dev->rx_bytes_to_drop - dev->rx_bytes_dropped;
+			bytes_to_read = dev->rx_bytes_to_drop -
+					dev->rx_bytes_dropped;
 		else
 			bytes_to_read = bytes_total - dev->rx_position;
 
