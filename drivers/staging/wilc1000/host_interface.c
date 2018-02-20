@@ -1330,7 +1330,7 @@ static s32 handle_rcvd_gnrl_async_info(struct wilc_vif *vif,
 	u8 u8MacStatusReasonCode;
 	u8 u8MacStatusAdditionalInfo;
 	struct connect_info strConnectInfo;
-	struct disconnect_info strDisconnectNotifInfo;
+	struct disconnect_info disconn_info;
 	s32 s32Err = 0;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
@@ -1462,16 +1462,16 @@ static s32 handle_rcvd_gnrl_async_info(struct wilc_vif *vif,
 			hif_drv->usr_conn_req.ies = NULL;
 		} else if ((u8MacStatus == MAC_DISCONNECTED) &&
 			   (hif_drv->hif_state == HOST_IF_CONNECTED)) {
-			memset(&strDisconnectNotifInfo, 0, sizeof(struct disconnect_info));
+			memset(&disconn_info, 0, sizeof(struct disconnect_info));
 
 			if (hif_drv->usr_scan_req.scan_result) {
 				del_timer(&hif_drv->scan_timer);
 				handle_scan_done(vif, SCAN_EVENT_ABORTED);
 			}
 
-			strDisconnectNotifInfo.reason = 0;
-			strDisconnectNotifInfo.ie = NULL;
-			strDisconnectNotifInfo.ie_len = 0;
+			disconn_info.reason = 0;
+			disconn_info.ie = NULL;
+			disconn_info.ie_len = 0;
 
 			if (hif_drv->usr_conn_req.conn_result) {
 				wilc_optaining_ip = false;
@@ -1480,7 +1480,7 @@ static s32 handle_rcvd_gnrl_async_info(struct wilc_vif *vif,
 				hif_drv->usr_conn_req.conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF,
 								  NULL,
 								  0,
-								  &strDisconnectNotifInfo,
+								  &disconn_info,
 								  hif_drv->usr_conn_req.arg);
 			} else {
 				netdev_err(vif->ndev, "Connect result NULL\n");
@@ -1800,13 +1800,13 @@ static void handle_disconnect(struct wilc_vif *vif)
 	if (result) {
 		netdev_err(vif->ndev, "Failed to send dissconect\n");
 	} else {
-		struct disconnect_info strDisconnectNotifInfo;
+		struct disconnect_info disconn_info;
 
-		memset(&strDisconnectNotifInfo, 0, sizeof(struct disconnect_info));
+		memset(&disconn_info, 0, sizeof(struct disconnect_info));
 
-		strDisconnectNotifInfo.reason = 0;
-		strDisconnectNotifInfo.ie = NULL;
-		strDisconnectNotifInfo.ie_len = 0;
+		disconn_info.reason = 0;
+		disconn_info.ie = NULL;
+		disconn_info.ie_len = 0;
 
 		if (hif_drv->usr_scan_req.scan_result) {
 			del_timer(&hif_drv->scan_timer);
@@ -1824,7 +1824,7 @@ static void handle_disconnect(struct wilc_vif *vif)
 			hif_drv->usr_conn_req.conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF,
 							  NULL,
 							  0,
-							  &strDisconnectNotifInfo,
+							  &disconn_info,
 							  hif_drv->usr_conn_req.arg);
 		} else {
 			netdev_err(vif->ndev, "conn_result = NULL\n");
