@@ -6,11 +6,6 @@
 #include <crypto/twofish.h>
 #include <crypto/b128ops.h>
 
-struct twofish_xts_ctx {
-	struct twofish_ctx tweak_ctx;
-	struct twofish_ctx crypt_ctx;
-};
-
 /* regular block cipher functions from twofish_x86_64 module */
 asmlinkage void twofish_enc_blk(struct twofish_ctx *ctx, u8 *dst,
 				const u8 *src);
@@ -29,8 +24,5 @@ extern void twofish_enc_blk_ctr(void *ctx, u128 *dst, const u128 *src,
 				le128 *iv);
 extern void twofish_enc_blk_ctr_3way(void *ctx, u128 *dst, const u128 *src,
 				     le128 *iv);
-
-extern int xts_twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
-			      unsigned int keylen);
 
 #endif /* ASM_X86_TWOFISH_H */

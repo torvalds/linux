@@ -30,7 +30,6 @@
 #include <crypto/b128ops.h>
 #include <asm/crypto/twofish.h>
 #include <asm/crypto/glue_helper.h>
-#include <crypto/xts.h>
 
 EXPORT_SYMBOL_GPL(__twofish_enc_blk_3way);
 EXPORT_SYMBOL_GPL(twofish_dec_blk_3way);
@@ -182,94 +181,6 @@ static int ctr_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	return glue_ctr_crypt_128bit(&twofish_ctr, desc, dst, src, nbytes);
 }
 
-static void encrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
-{
-	const unsigned int bsize = TF_BLOCK_SIZE;
-	struct twofish_ctx *ctx = priv;
-	int i;
-
-	if (nbytes == 3 * bsize) {
-		twofish_enc_blk_3way(ctx, srcdst, srcdst);
-		return;
-	}
-
-	for (i = 0; i < nbytes / bsize; i++, srcdst += bsize)
-		twofish_enc_blk(ctx, srcdst, srcdst);
-}
-
-static void decrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
-{
-	const unsigned int bsize = TF_BLOCK_SIZE;
-	struct twofish_ctx *ctx = priv;
-	int i;
-
-	if (nbytes == 3 * bsize) {
-		twofish_dec_blk_3way(ctx, srcdst, srcdst);
-		return;
-	}
-
-	for (i = 0; i < nbytes / bsize; i++, srcdst += bsize)
-		twofish_dec_blk(ctx, srcdst, srcdst);
-}
-
-int xts_twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
-		       unsigned int keylen)
-{
-	struct twofish_xts_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
-	int err;
-
-	err = xts_check_key(tfm, key, keylen);
-	if (err)
-		return err;
-
-	/* first half of xts-key is for crypt */
-	err = __twofish_setkey(&ctx->crypt_ctx, key, keylen / 2, flags);
-	if (err)
-		return err;
-
-	/* second half of xts-key is for tweak */
-	return __twofish_setkey(&ctx->tweak_ctx, key + keylen / 2, keylen / 2,
-				flags);
-}
-EXPORT_SYMBOL_GPL(xts_twofish_setkey);
-
-static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
-{
-	struct twofish_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	le128 buf[3];
-	struct xts_crypt_req req = {
-		.tbuf = buf,
-		.tbuflen = sizeof(buf),
-
-		.tweak_ctx = &ctx->tweak_ctx,
-		.tweak_fn = XTS_TWEAK_CAST(twofish_enc_blk),
-		.crypt_ctx = &ctx->crypt_ctx,
-		.crypt_fn = encrypt_callback,
-	};
-
-	return xts_crypt(desc, dst, src, nbytes, &req);
-}
-
-static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
-{
-	struct twofish_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	le128 buf[3];
-	struct xts_crypt_req req = {
-		.tbuf = buf,
-		.tbuflen = sizeof(buf),
-
-		.tweak_ctx = &ctx->tweak_ctx,
-		.tweak_fn = XTS_TWEAK_CAST(twofish_enc_blk),
-		.crypt_ctx = &ctx->crypt_ctx,
-		.crypt_fn = decrypt_callback,
-	};
-
-	return xts_crypt(desc, dst, src, nbytes, &req);
-}
-
 static struct crypto_alg tf_algs[] = { {
 	.cra_name		= "ecb(twofish)",
 	.cra_driver_name	= "ecb-twofish-3way",
@@ -327,26 +238,6 @@ static struct crypto_alg tf_algs[] = { {
 			.setkey		= twofish_setkey,
 			.encrypt	= ctr_crypt,
 			.decrypt	= ctr_crypt,
-		},
-	},
-}, {
-	.cra_name		= "xts(twofish)",
-	.cra_driver_name	= "xts-twofish-3way",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize		= TF_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct twofish_xts_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= TF_MIN_KEY_SIZE * 2,
-			.max_keysize	= TF_MAX_KEY_SIZE * 2,
-			.ivsize		= TF_BLOCK_SIZE,
-			.setkey		= xts_twofish_setkey,
-			.encrypt	= xts_encrypt,
-			.decrypt	= xts_decrypt,
 		},
 	},
 } };

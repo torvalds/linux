@@ -79,6 +79,31 @@ static void twofish_xts_dec(void *ctx, u128 *dst, const u128 *src, le128 *iv)
 				  GLUE_FUNC_CAST(twofish_dec_blk));
 }
 
+struct twofish_xts_ctx {
+	struct twofish_ctx tweak_ctx;
+	struct twofish_ctx crypt_ctx;
+};
+
+static int xts_twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
+			      unsigned int keylen)
+{
+	struct twofish_xts_ctx *ctx = crypto_tfm_ctx(tfm);
+	u32 *flags = &tfm->crt_flags;
+	int err;
+
+	err = xts_check_key(tfm, key, keylen);
+	if (err)
+		return err;
+
+	/* first half of xts-key is for crypt */
+	err = __twofish_setkey(&ctx->crypt_ctx, key, keylen / 2, flags);
+	if (err)
+		return err;
+
+	/* second half of xts-key is for tweak */
+	return __twofish_setkey(&ctx->tweak_ctx, key + keylen / 2, keylen / 2,
+				flags);
+}
 
 static const struct common_glue_ctx twofish_enc = {
 	.num_funcs = 3,
