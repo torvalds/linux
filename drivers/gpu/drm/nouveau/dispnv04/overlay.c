@@ -46,7 +46,6 @@ struct nouveau_plane {
 		struct drm_property *brightness;
 		struct drm_property *hue;
 		struct drm_property *saturation;
-		struct drm_property *iturbt_709;
 	} props;
 
 	int colorkey;
@@ -54,7 +53,7 @@ struct nouveau_plane {
 	int brightness;
 	int hue;
 	int saturation;
-	int iturbt_709;
+	enum drm_color_encoding color_encoding;
 
 	void (*set_params)(struct nouveau_plane *);
 };
@@ -166,7 +165,7 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (fb->format->format == DRM_FORMAT_NV12 ||
 	    fb->format->format == DRM_FORMAT_NV21)
 		format |= NV_PVIDEO_FORMAT_PLANAR;
-	if (nv_plane->iturbt_709)
+	if (nv_plane->color_encoding == DRM_COLOR_YCBCR_BT709)
 		format |= NV_PVIDEO_FORMAT_MATRIX_ITURBT709;
 	if (nv_plane->colorkey & (1 << 24))
 		format |= NV_PVIDEO_FORMAT_DISPLAY_COLOR_KEY;
@@ -229,7 +228,7 @@ nv10_set_params(struct nouveau_plane *plane)
 	nvif_wr32(dev, NV_PVIDEO_COLOR_KEY, plane->colorkey & 0xffffff);
 
 	if (plane->cur) {
-		if (plane->iturbt_709)
+		if (plane->color_encoding == DRM_COLOR_YCBCR_BT709)
 			format |= NV_PVIDEO_FORMAT_MATRIX_ITURBT709;
 		if (plane->colorkey & (1 << 24))
 			format |= NV_PVIDEO_FORMAT_DISPLAY_COLOR_KEY;
@@ -258,8 +257,8 @@ nv_set_property(struct drm_plane *plane,
 		nv_plane->hue = value;
 	else if (property == nv_plane->props.saturation)
 		nv_plane->saturation = value;
-	else if (property == nv_plane->props.iturbt_709)
-		nv_plane->iturbt_709 = value;
+	else if (property == nv_plane->base.color_encoding_property)
+		nv_plane->color_encoding = value;
 	else
 		return -EINVAL;
 
@@ -313,14 +312,11 @@ nv10_overlay_init(struct drm_device *device)
 			device, 0, "hue", 0, 359);
 	plane->props.saturation = drm_property_create_range(
 			device, 0, "saturation", 0, 8192 - 1);
-	plane->props.iturbt_709 = drm_property_create_range(
-			device, 0, "iturbt_709", 0, 1);
 	if (!plane->props.colorkey ||
 	    !plane->props.contrast ||
 	    !plane->props.brightness ||
 	    !plane->props.hue ||
-	    !plane->props.saturation ||
-	    !plane->props.iturbt_709)
+	    !plane->props.saturation)
 		goto cleanup;
 
 	plane->colorkey = 0;
@@ -343,9 +339,13 @@ nv10_overlay_init(struct drm_device *device)
 	drm_object_attach_property(&plane->base.base,
 				   plane->props.saturation, plane->saturation);
 
-	plane->iturbt_709 = 0;
-	drm_object_attach_property(&plane->base.base,
-				   plane->props.iturbt_709, plane->iturbt_709);
+	plane->color_encoding = DRM_COLOR_YCBCR_BT601;
+	drm_plane_create_color_properties(&plane->base,
+					  BIT(DRM_COLOR_YCBCR_BT601) |
+					  BIT(DRM_COLOR_YCBCR_BT709),
+					  BIT(DRM_COLOR_YCBCR_LIMITED_RANGE),
+					  DRM_COLOR_YCBCR_BT601,
+					  DRM_COLOR_YCBCR_LIMITED_RANGE);
 
 	plane->set_params = nv10_set_params;
 	nv10_set_params(plane);
