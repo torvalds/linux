@@ -270,7 +270,7 @@ static int read_one_response(struct fsi_master_gpio *master,
 		uint8_t data_size, struct fsi_gpio_msg *msgp, uint8_t *tagp)
 {
 	struct fsi_gpio_msg msg;
-	uint8_t id, tag;
+	uint8_t tag;
 	uint32_t crc;
 	int i;
 
@@ -295,7 +295,6 @@ static int read_one_response(struct fsi_master_gpio *master,
 	/* Read slave ID & response tag */
 	serial_in(master, &msg, 4);
 
-	id = (msg.msg >> FSI_GPIO_MSG_RESPID_SIZE) & 0x3;
 	tag = msg.msg & 0x3;
 
 	/* If we have an ACK and we're expecting data, clock the data in too */
