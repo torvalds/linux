@@ -347,10 +347,23 @@ ENTRY(entry_INT80_compat)
 	 */
 	movl	%eax, %eax
 
+	/* switch to thread stack expects orig_ax and rdi to be pushed */
 	pushq	%rax			/* pt_regs->orig_ax */
+	pushq	%rdi			/* pt_regs->di */
 
-	/* switch to thread stack expects orig_ax to be pushed */
-	call	switch_to_thread_stack
+	/* Need to switch before accessing the thread stack. */
+	SWITCH_TO_KERNEL_CR3 scratch_reg=%rdi
+	movq	%rsp, %rdi
+	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
+
+	pushq	6*8(%rdi)		/* regs->ss */
+	pushq	5*8(%rdi)		/* regs->rsp */
+	pushq	4*8(%rdi)		/* regs->eflags */
+	pushq	3*8(%rdi)		/* regs->cs */
+	pushq	2*8(%rdi)		/* regs->ip */
+	pushq	1*8(%rdi)		/* regs->orig_ax */
+
+	movq	(%rdi), %rdi		/* restore %rdi */
 
 	pushq	%rdi			/* pt_regs->di */
 	pushq	%rsi			/* pt_regs->si */
