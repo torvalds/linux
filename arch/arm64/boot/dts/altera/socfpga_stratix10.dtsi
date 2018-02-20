@@ -275,6 +275,25 @@
 			reg = <0xffe00000 0x100000>;
 		};
 
+		pdma: pdma@ffda0000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0xffda0000 0x1000>;
+			interrupts = <0 81 4>,
+				     <0 82 4>,
+				     <0 83 4>,
+				     <0 84 4>,
+				     <0 85 4>,
+				     <0 86 4>,
+				     <0 87 4>,
+				     <0 88 4>,
+				     <0 89 4>;
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <32>;
+			clocks = <&clkmgr STRATIX10_L4_MAIN_CLK>;
+			clock-names = "apb_pclk";
+		};
+
 		rst: rstmgr@ffd11000 {
 			#reset-cells = <1>;
 			compatible = "altr,rst-mgr";
