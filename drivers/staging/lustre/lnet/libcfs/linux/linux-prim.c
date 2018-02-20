@@ -44,29 +44,19 @@
 #endif
 
 /* Block all signals except for the @sigs */
-sigset_t cfs_block_sigsinv(unsigned long sigs)
+void cfs_block_sigsinv(unsigned long sigs, sigset_t *old)
 {
-	unsigned long flags;
-	sigset_t old;
+	sigset_t new;
 
-	spin_lock_irqsave(&current->sighand->siglock, flags);
-	old = current->blocked;
-	sigaddsetmask(&current->blocked, ~sigs);
-	recalc_sigpending();
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
-
-	return old;
+	siginitsetinv(&new, sigs);
+	sigorsets(&new, &current->blocked, &new);
+	sigprocmask(SIG_BLOCK, &new, old);
 }
 EXPORT_SYMBOL(cfs_block_sigsinv);
 
 void
-cfs_restore_sigs(sigset_t old)
+cfs_restore_sigs(sigset_t *old)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&current->sighand->siglock, flags);
-	current->blocked = old;
-	recalc_sigpending();
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
+	sigprocmask(SIG_SETMASK, old, NULL);
 }
 EXPORT_SYMBOL(cfs_restore_sigs);

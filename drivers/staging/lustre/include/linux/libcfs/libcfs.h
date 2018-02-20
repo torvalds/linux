@@ -67,8 +67,8 @@
 /*
  * Defined by platform
  */
-sigset_t cfs_block_sigsinv(unsigned long sigs);
-void cfs_restore_sigs(sigset_t sigset);
+void cfs_block_sigsinv(unsigned long sigs, sigset_t *sigset);
+void cfs_restore_sigs(sigset_t *sigset);
 
 struct libcfs_ioctl_handler {
 	struct list_head item;
