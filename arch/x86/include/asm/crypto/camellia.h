@@ -2,6 +2,7 @@
 #ifndef ASM_X86_CAMELLIA_H
 #define ASM_X86_CAMELLIA_H
 
+#include <crypto/lrw.h>
 #include <linux/kernel.h>
 #include <linux/crypto.h>
 
