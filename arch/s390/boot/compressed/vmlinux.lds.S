@@ -52,6 +52,7 @@ SECTIONS
 	/* Sections to be discarded */
 	/DISCARD/ : {
 		*(.eh_frame)
+		*(__ex_table)
 		*(*__ksymtab*)
 	}
 }
