@@ -127,7 +127,7 @@ def render_ditaa(app, code, options, format, prefix='ditaa'):
 
     rel_imgpath = (format == "html") and relative_uri(app.builder.env.docname, app.builder.imagedir) or ''
     infullfn = path.join(app.builder.outdir, app.builder.imagedir, infname)
-    outrelfn = posixpath.join(rel_imgpath, outfname)
+    outrelfn = posixpath.join(relative_uri(app.builder.env.docname, app.builder.imagedir), outfname)
     outfullfn = path.join(app.builder.outdir, app.builder.imagedir, outfname)
     #inrelfn = posixpath.join(relative_uri(app.builder.env.docname, app.builder.imagedir), infname)
 
