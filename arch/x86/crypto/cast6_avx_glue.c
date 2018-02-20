@@ -24,16 +24,12 @@
  */
 
 #include <linux/module.h>
-#include <linux/hardirq.h>
 #include <linux/types.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
-#include <crypto/ablk_helper.h>
 #include <crypto/algapi.h>
 #include <crypto/cast6.h>
-#include <crypto/cryptd.h>
-#include <crypto/b128ops.h>
-#include <crypto/ctr.h>
+#include <crypto/internal/simd.h>
 #include <crypto/xts.h>
 #include <asm/crypto/glue_helper.h>
 
@@ -53,6 +49,12 @@ asmlinkage void cast6_xts_enc_8way(struct cast6_ctx *ctx, u8 *dst,
 				   const u8 *src, le128 *iv);
 asmlinkage void cast6_xts_dec_8way(struct cast6_ctx *ctx, u8 *dst,
 				   const u8 *src, le128 *iv);
+
+static int cast6_setkey_skcipher(struct crypto_skcipher *tfm,
+				 const u8 *key, unsigned int keylen)
+{
+	return cast6_setkey(&tfm->base, key, keylen);
+}
 
 static void cast6_xts_enc(void *ctx, u128 *dst, const u128 *src, le128 *iv)
 {
@@ -155,36 +157,30 @@ static const struct common_glue_ctx cast6_dec_xts = {
 	} }
 };
 
-static int ecb_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int ecb_encrypt(struct skcipher_request *req)
 {
-	return glue_ecb_crypt_128bit(&cast6_enc, desc, dst, src, nbytes);
+	return glue_ecb_req_128bit(&cast6_enc, req);
 }
 
-static int ecb_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int ecb_decrypt(struct skcipher_request *req)
 {
-	return glue_ecb_crypt_128bit(&cast6_dec, desc, dst, src, nbytes);
+	return glue_ecb_req_128bit(&cast6_dec, req);
 }
 
-static int cbc_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int cbc_encrypt(struct skcipher_request *req)
 {
-	return glue_cbc_encrypt_128bit(GLUE_FUNC_CAST(__cast6_encrypt), desc,
-				       dst, src, nbytes);
+	return glue_cbc_encrypt_req_128bit(GLUE_FUNC_CAST(__cast6_encrypt),
+					   req);
 }
 
-static int cbc_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int cbc_decrypt(struct skcipher_request *req)
 {
-	return glue_cbc_decrypt_128bit(&cast6_dec_cbc, desc, dst, src,
-				       nbytes);
+	return glue_cbc_decrypt_req_128bit(&cast6_dec_cbc, req);
 }
 
-static int ctr_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		     struct scatterlist *src, unsigned int nbytes)
+static int ctr_crypt(struct skcipher_request *req)
 {
-	return glue_ctr_crypt_128bit(&cast6_ctr, desc, dst, src, nbytes);
+	return glue_ctr_req_128bit(&cast6_ctr, req);
 }
 
 struct cast6_xts_ctx {
@@ -192,14 +188,14 @@ struct cast6_xts_ctx {
 	struct cast6_ctx crypt_ctx;
 };
 
-static int xts_cast6_setkey(struct crypto_tfm *tfm, const u8 *key,
-			      unsigned int keylen)
+static int xts_cast6_setkey(struct crypto_skcipher *tfm, const u8 *key,
+			    unsigned int keylen)
 {
-	struct cast6_xts_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
+	struct cast6_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
+	u32 *flags = &tfm->base.crt_flags;
 	int err;
 
-	err = xts_check_key(tfm, key, keylen);
+	err = xts_verify_key(tfm, key, keylen);
 	if (err)
 		return err;
 
@@ -213,197 +209,87 @@ static int xts_cast6_setkey(struct crypto_tfm *tfm, const u8 *key,
 			      flags);
 }
 
-static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int xts_encrypt(struct skcipher_request *req)
 {
-	struct cast6_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct cast6_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	return glue_xts_crypt_128bit(&cast6_enc_xts, desc, dst, src, nbytes,
-				     XTS_TWEAK_CAST(__cast6_encrypt),
-				     &ctx->tweak_ctx, &ctx->crypt_ctx);
+	return glue_xts_req_128bit(&cast6_enc_xts, req,
+				   XTS_TWEAK_CAST(__cast6_encrypt),
+				   &ctx->tweak_ctx, &ctx->crypt_ctx);
 }
 
-static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int xts_decrypt(struct skcipher_request *req)
 {
-	struct cast6_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct cast6_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	return glue_xts_crypt_128bit(&cast6_dec_xts, desc, dst, src, nbytes,
-				     XTS_TWEAK_CAST(__cast6_encrypt),
-				     &ctx->tweak_ctx, &ctx->crypt_ctx);
+	return glue_xts_req_128bit(&cast6_dec_xts, req,
+				   XTS_TWEAK_CAST(__cast6_encrypt),
+				   &ctx->tweak_ctx, &ctx->crypt_ctx);
 }
 
-static struct crypto_alg cast6_algs[] = { {
-	.cra_name		= "__ecb-cast6-avx",
-	.cra_driver_name	= "__driver-ecb-cast6-avx",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= CAST6_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct cast6_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= CAST6_MIN_KEY_SIZE,
-			.max_keysize	= CAST6_MAX_KEY_SIZE,
-			.setkey		= cast6_setkey,
-			.encrypt	= ecb_encrypt,
-			.decrypt	= ecb_decrypt,
-		},
+static struct skcipher_alg cast6_algs[] = {
+	{
+		.base.cra_name		= "__ecb(cast6)",
+		.base.cra_driver_name	= "__ecb-cast6-avx",
+		.base.cra_priority	= 200,
+		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.base.cra_blocksize	= CAST6_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct cast6_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= CAST6_MIN_KEY_SIZE,
+		.max_keysize		= CAST6_MAX_KEY_SIZE,
+		.setkey			= cast6_setkey_skcipher,
+		.encrypt		= ecb_encrypt,
+		.decrypt		= ecb_decrypt,
+	}, {
+		.base.cra_name		= "__cbc(cast6)",
+		.base.cra_driver_name	= "__cbc-cast6-avx",
+		.base.cra_priority	= 200,
+		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.base.cra_blocksize	= CAST6_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct cast6_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= CAST6_MIN_KEY_SIZE,
+		.max_keysize		= CAST6_MAX_KEY_SIZE,
+		.ivsize			= CAST6_BLOCK_SIZE,
+		.setkey			= cast6_setkey_skcipher,
+		.encrypt		= cbc_encrypt,
+		.decrypt		= cbc_decrypt,
+	}, {
+		.base.cra_name		= "__ctr(cast6)",
+		.base.cra_driver_name	= "__ctr-cast6-avx",
+		.base.cra_priority	= 200,
+		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.base.cra_blocksize	= 1,
+		.base.cra_ctxsize	= sizeof(struct cast6_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= CAST6_MIN_KEY_SIZE,
+		.max_keysize		= CAST6_MAX_KEY_SIZE,
+		.ivsize			= CAST6_BLOCK_SIZE,
+		.chunksize		= CAST6_BLOCK_SIZE,
+		.setkey			= cast6_setkey_skcipher,
+		.encrypt		= ctr_crypt,
+		.decrypt		= ctr_crypt,
+	}, {
+		.base.cra_name		= "__xts(cast6)",
+		.base.cra_driver_name	= "__xts-cast6-avx",
+		.base.cra_priority	= 200,
+		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.base.cra_blocksize	= CAST6_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct cast6_xts_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= 2 * CAST6_MIN_KEY_SIZE,
+		.max_keysize		= 2 * CAST6_MAX_KEY_SIZE,
+		.ivsize			= CAST6_BLOCK_SIZE,
+		.setkey			= xts_cast6_setkey,
+		.encrypt		= xts_encrypt,
+		.decrypt		= xts_decrypt,
 	},
-}, {
-	.cra_name		= "__cbc-cast6-avx",
-	.cra_driver_name	= "__driver-cbc-cast6-avx",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= CAST6_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct cast6_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= CAST6_MIN_KEY_SIZE,
-			.max_keysize	= CAST6_MAX_KEY_SIZE,
-			.setkey		= cast6_setkey,
-			.encrypt	= cbc_encrypt,
-			.decrypt	= cbc_decrypt,
-		},
-	},
-}, {
-	.cra_name		= "__ctr-cast6-avx",
-	.cra_driver_name	= "__driver-ctr-cast6-avx",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= 1,
-	.cra_ctxsize		= sizeof(struct cast6_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= CAST6_MIN_KEY_SIZE,
-			.max_keysize	= CAST6_MAX_KEY_SIZE,
-			.ivsize		= CAST6_BLOCK_SIZE,
-			.setkey		= cast6_setkey,
-			.encrypt	= ctr_crypt,
-			.decrypt	= ctr_crypt,
-		},
-	},
-}, {
-	.cra_name		= "__xts-cast6-avx",
-	.cra_driver_name	= "__driver-xts-cast6-avx",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= CAST6_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct cast6_xts_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= CAST6_MIN_KEY_SIZE * 2,
-			.max_keysize	= CAST6_MAX_KEY_SIZE * 2,
-			.ivsize		= CAST6_BLOCK_SIZE,
-			.setkey		= xts_cast6_setkey,
-			.encrypt	= xts_encrypt,
-			.decrypt	= xts_decrypt,
-		},
-	},
-}, {
-	.cra_name		= "ecb(cast6)",
-	.cra_driver_name	= "ecb-cast6-avx",
-	.cra_priority		= 200,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= CAST6_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_u = {
-		.ablkcipher = {
-			.min_keysize	= CAST6_MIN_KEY_SIZE,
-			.max_keysize	= CAST6_MAX_KEY_SIZE,
-			.setkey		= ablk_set_key,
-			.encrypt	= ablk_encrypt,
-			.decrypt	= ablk_decrypt,
-		},
-	},
-}, {
-	.cra_name		= "cbc(cast6)",
-	.cra_driver_name	= "cbc-cast6-avx",
-	.cra_priority		= 200,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= CAST6_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_u = {
-		.ablkcipher = {
-			.min_keysize	= CAST6_MIN_KEY_SIZE,
-			.max_keysize	= CAST6_MAX_KEY_SIZE,
-			.ivsize		= CAST6_BLOCK_SIZE,
-			.setkey		= ablk_set_key,
-			.encrypt	= __ablk_encrypt,
-			.decrypt	= ablk_decrypt,
-		},
-	},
-}, {
-	.cra_name		= "ctr(cast6)",
-	.cra_driver_name	= "ctr-cast6-avx",
-	.cra_priority		= 200,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= 1,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_u = {
-		.ablkcipher = {
-			.min_keysize	= CAST6_MIN_KEY_SIZE,
-			.max_keysize	= CAST6_MAX_KEY_SIZE,
-			.ivsize		= CAST6_BLOCK_SIZE,
-			.setkey		= ablk_set_key,
-			.encrypt	= ablk_encrypt,
-			.decrypt	= ablk_encrypt,
-			.geniv		= "chainiv",
-		},
-	},
-}, {
-	.cra_name		= "xts(cast6)",
-	.cra_driver_name	= "xts-cast6-avx",
-	.cra_priority		= 200,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= CAST6_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_u = {
-		.ablkcipher = {
-			.min_keysize	= CAST6_MIN_KEY_SIZE * 2,
-			.max_keysize	= CAST6_MAX_KEY_SIZE * 2,
-			.ivsize		= CAST6_BLOCK_SIZE,
-			.setkey		= ablk_set_key,
-			.encrypt	= ablk_encrypt,
-			.decrypt	= ablk_decrypt,
-		},
-	},
-} };
+};
+
+static struct simd_skcipher_alg *cast6_simd_algs[ARRAY_SIZE(cast6_algs)];
 
 static int __init cast6_init(void)
 {
@@ -415,12 +301,15 @@ static int __init cast6_init(void)
 		return -ENODEV;
 	}
 
-	return crypto_register_algs(cast6_algs, ARRAY_SIZE(cast6_algs));
+	return simd_register_skciphers_compat(cast6_algs,
+					      ARRAY_SIZE(cast6_algs),
+					      cast6_simd_algs);
 }
 
 static void __exit cast6_exit(void)
 {
-	crypto_unregister_algs(cast6_algs, ARRAY_SIZE(cast6_algs));
+	simd_unregister_skciphers(cast6_algs, ARRAY_SIZE(cast6_algs),
+				  cast6_simd_algs);
 }
 
 module_init(cast6_init);
