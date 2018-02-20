@@ -24,23 +24,15 @@
  */
 
 #include <linux/module.h>
-#include <linux/hardirq.h>
 #include <linux/types.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
-#include <crypto/ablk_helper.h>
 #include <crypto/algapi.h>
+#include <crypto/internal/simd.h>
 #include <crypto/twofish.h>
-#include <crypto/cryptd.h>
-#include <crypto/b128ops.h>
-#include <crypto/ctr.h>
 #include <crypto/xts.h>
-#include <asm/fpu/api.h>
-#include <asm/crypto/twofish.h>
 #include <asm/crypto/glue_helper.h>
-#include <crypto/scatterwalk.h>
-#include <linux/workqueue.h>
-#include <linux/spinlock.h>
+#include <asm/crypto/twofish.h>
 
 #define TWOFISH_PARALLEL_BLOCKS 8
 
@@ -59,6 +51,12 @@ asmlinkage void twofish_xts_enc_8way(struct twofish_ctx *ctx, u8 *dst,
 				     const u8 *src, le128 *iv);
 asmlinkage void twofish_xts_dec_8way(struct twofish_ctx *ctx, u8 *dst,
 				     const u8 *src, le128 *iv);
+
+static int twofish_setkey_skcipher(struct crypto_skcipher *tfm,
+				   const u8 *key, unsigned int keylen)
+{
+	return twofish_setkey(&tfm->base, key, keylen);
+}
 
 static inline void twofish_enc_blk_3way(struct twofish_ctx *ctx, u8 *dst,
 					const u8 *src)
@@ -83,14 +81,14 @@ struct twofish_xts_ctx {
 	struct twofish_ctx crypt_ctx;
 };
 
-static int xts_twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
+static int xts_twofish_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			      unsigned int keylen)
 {
-	struct twofish_xts_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
+	struct twofish_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
+	u32 *flags = &tfm->base.crt_flags;
 	int err;
 
-	err = xts_check_key(tfm, key, keylen);
+	err = xts_verify_key(tfm, key, keylen);
 	if (err)
 		return err;
 
@@ -194,229 +192,113 @@ static const struct common_glue_ctx twofish_dec_xts = {
 	} }
 };
 
-static int ecb_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int ecb_encrypt(struct skcipher_request *req)
 {
-	return glue_ecb_crypt_128bit(&twofish_enc, desc, dst, src, nbytes);
+	return glue_ecb_req_128bit(&twofish_enc, req);
 }
 
-static int ecb_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int ecb_decrypt(struct skcipher_request *req)
 {
-	return glue_ecb_crypt_128bit(&twofish_dec, desc, dst, src, nbytes);
+	return glue_ecb_req_128bit(&twofish_dec, req);
 }
 
-static int cbc_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int cbc_encrypt(struct skcipher_request *req)
 {
-	return glue_cbc_encrypt_128bit(GLUE_FUNC_CAST(twofish_enc_blk), desc,
-				       dst, src, nbytes);
+	return glue_cbc_encrypt_req_128bit(GLUE_FUNC_CAST(twofish_enc_blk),
+					   req);
 }
 
-static int cbc_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int cbc_decrypt(struct skcipher_request *req)
 {
-	return glue_cbc_decrypt_128bit(&twofish_dec_cbc, desc, dst, src,
-				       nbytes);
+	return glue_cbc_decrypt_req_128bit(&twofish_dec_cbc, req);
 }
 
-static int ctr_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		     struct scatterlist *src, unsigned int nbytes)
+static int ctr_crypt(struct skcipher_request *req)
 {
-	return glue_ctr_crypt_128bit(&twofish_ctr, desc, dst, src, nbytes);
+	return glue_ctr_req_128bit(&twofish_ctr, req);
 }
 
-static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int xts_encrypt(struct skcipher_request *req)
 {
-	struct twofish_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct twofish_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	return glue_xts_crypt_128bit(&twofish_enc_xts, desc, dst, src, nbytes,
-				     XTS_TWEAK_CAST(twofish_enc_blk),
-				     &ctx->tweak_ctx, &ctx->crypt_ctx);
+	return glue_xts_req_128bit(&twofish_enc_xts, req,
+				   XTS_TWEAK_CAST(twofish_enc_blk),
+				   &ctx->tweak_ctx, &ctx->crypt_ctx);
 }
 
-static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
+static int xts_decrypt(struct skcipher_request *req)
 {
-	struct twofish_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct twofish_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	return glue_xts_crypt_128bit(&twofish_dec_xts, desc, dst, src, nbytes,
-				     XTS_TWEAK_CAST(twofish_enc_blk),
-				     &ctx->tweak_ctx, &ctx->crypt_ctx);
+	return glue_xts_req_128bit(&twofish_dec_xts, req,
+				   XTS_TWEAK_CAST(twofish_enc_blk),
+				   &ctx->tweak_ctx, &ctx->crypt_ctx);
 }
 
-static struct crypto_alg twofish_algs[] = { {
-	.cra_name		= "__ecb-twofish-avx",
-	.cra_driver_name	= "__driver-ecb-twofish-avx",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= TF_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct twofish_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= TF_MIN_KEY_SIZE,
-			.max_keysize	= TF_MAX_KEY_SIZE,
-			.setkey		= twofish_setkey,
-			.encrypt	= ecb_encrypt,
-			.decrypt	= ecb_decrypt,
-		},
+static struct skcipher_alg twofish_algs[] = {
+	{
+		.base.cra_name		= "__ecb(twofish)",
+		.base.cra_driver_name	= "__ecb-twofish-avx",
+		.base.cra_priority	= 400,
+		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.base.cra_blocksize	= TF_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct twofish_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= TF_MIN_KEY_SIZE,
+		.max_keysize		= TF_MAX_KEY_SIZE,
+		.setkey			= twofish_setkey_skcipher,
+		.encrypt		= ecb_encrypt,
+		.decrypt		= ecb_decrypt,
+	}, {
+		.base.cra_name		= "__cbc(twofish)",
+		.base.cra_driver_name	= "__cbc-twofish-avx",
+		.base.cra_priority	= 400,
+		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.base.cra_blocksize	= TF_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct twofish_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= TF_MIN_KEY_SIZE,
+		.max_keysize		= TF_MAX_KEY_SIZE,
+		.ivsize			= TF_BLOCK_SIZE,
+		.setkey			= twofish_setkey_skcipher,
+		.encrypt		= cbc_encrypt,
+		.decrypt		= cbc_decrypt,
+	}, {
+		.base.cra_name		= "__ctr(twofish)",
+		.base.cra_driver_name	= "__ctr-twofish-avx",
+		.base.cra_priority	= 400,
+		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.base.cra_blocksize	= 1,
+		.base.cra_ctxsize	= sizeof(struct twofish_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= TF_MIN_KEY_SIZE,
+		.max_keysize		= TF_MAX_KEY_SIZE,
+		.ivsize			= TF_BLOCK_SIZE,
+		.chunksize		= TF_BLOCK_SIZE,
+		.setkey			= twofish_setkey_skcipher,
+		.encrypt		= ctr_crypt,
+		.decrypt		= ctr_crypt,
+	}, {
+		.base.cra_name		= "__xts(twofish)",
+		.base.cra_driver_name	= "__xts-twofish-avx",
+		.base.cra_priority	= 400,
+		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
+		.base.cra_blocksize	= TF_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct twofish_xts_ctx),
+		.base.cra_module	= THIS_MODULE,
+		.min_keysize		= 2 * TF_MIN_KEY_SIZE,
+		.max_keysize		= 2 * TF_MAX_KEY_SIZE,
+		.ivsize			= TF_BLOCK_SIZE,
+		.setkey			= xts_twofish_setkey,
+		.encrypt		= xts_encrypt,
+		.decrypt		= xts_decrypt,
 	},
-}, {
-	.cra_name		= "__cbc-twofish-avx",
-	.cra_driver_name	= "__driver-cbc-twofish-avx",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= TF_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct twofish_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= TF_MIN_KEY_SIZE,
-			.max_keysize	= TF_MAX_KEY_SIZE,
-			.setkey		= twofish_setkey,
-			.encrypt	= cbc_encrypt,
-			.decrypt	= cbc_decrypt,
-		},
-	},
-}, {
-	.cra_name		= "__ctr-twofish-avx",
-	.cra_driver_name	= "__driver-ctr-twofish-avx",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= 1,
-	.cra_ctxsize		= sizeof(struct twofish_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= TF_MIN_KEY_SIZE,
-			.max_keysize	= TF_MAX_KEY_SIZE,
-			.ivsize		= TF_BLOCK_SIZE,
-			.setkey		= twofish_setkey,
-			.encrypt	= ctr_crypt,
-			.decrypt	= ctr_crypt,
-		},
-	},
-}, {
-	.cra_name		= "__xts-twofish-avx",
-	.cra_driver_name	= "__driver-xts-twofish-avx",
-	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
-				  CRYPTO_ALG_INTERNAL,
-	.cra_blocksize		= TF_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct twofish_xts_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= TF_MIN_KEY_SIZE * 2,
-			.max_keysize	= TF_MAX_KEY_SIZE * 2,
-			.ivsize		= TF_BLOCK_SIZE,
-			.setkey		= xts_twofish_setkey,
-			.encrypt	= xts_encrypt,
-			.decrypt	= xts_decrypt,
-		},
-	},
-}, {
-	.cra_name		= "ecb(twofish)",
-	.cra_driver_name	= "ecb-twofish-avx",
-	.cra_priority		= 400,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= TF_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_u = {
-		.ablkcipher = {
-			.min_keysize	= TF_MIN_KEY_SIZE,
-			.max_keysize	= TF_MAX_KEY_SIZE,
-			.setkey		= ablk_set_key,
-			.encrypt	= ablk_encrypt,
-			.decrypt	= ablk_decrypt,
-		},
-	},
-}, {
-	.cra_name		= "cbc(twofish)",
-	.cra_driver_name	= "cbc-twofish-avx",
-	.cra_priority		= 400,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= TF_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_u = {
-		.ablkcipher = {
-			.min_keysize	= TF_MIN_KEY_SIZE,
-			.max_keysize	= TF_MAX_KEY_SIZE,
-			.ivsize		= TF_BLOCK_SIZE,
-			.setkey		= ablk_set_key,
-			.encrypt	= __ablk_encrypt,
-			.decrypt	= ablk_decrypt,
-		},
-	},
-}, {
-	.cra_name		= "ctr(twofish)",
-	.cra_driver_name	= "ctr-twofish-avx",
-	.cra_priority		= 400,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= 1,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_u = {
-		.ablkcipher = {
-			.min_keysize	= TF_MIN_KEY_SIZE,
-			.max_keysize	= TF_MAX_KEY_SIZE,
-			.ivsize		= TF_BLOCK_SIZE,
-			.setkey		= ablk_set_key,
-			.encrypt	= ablk_encrypt,
-			.decrypt	= ablk_encrypt,
-			.geniv		= "chainiv",
-		},
-	},
-}, {
-	.cra_name		= "xts(twofish)",
-	.cra_driver_name	= "xts-twofish-avx",
-	.cra_priority		= 400,
-	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize		= TF_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_helper_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_ablkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_init		= ablk_init,
-	.cra_exit		= ablk_exit,
-	.cra_u = {
-		.ablkcipher = {
-			.min_keysize	= TF_MIN_KEY_SIZE * 2,
-			.max_keysize	= TF_MAX_KEY_SIZE * 2,
-			.ivsize		= TF_BLOCK_SIZE,
-			.setkey		= ablk_set_key,
-			.encrypt	= ablk_encrypt,
-			.decrypt	= ablk_decrypt,
-		},
-	},
-} };
+};
+
+static struct simd_skcipher_alg *twofish_simd_algs[ARRAY_SIZE(twofish_algs)];
 
 static int __init twofish_init(void)
 {
@@ -427,12 +309,15 @@ static int __init twofish_init(void)
 		return -ENODEV;
 	}
 
-	return crypto_register_algs(twofish_algs, ARRAY_SIZE(twofish_algs));
+	return simd_register_skciphers_compat(twofish_algs,
+					      ARRAY_SIZE(twofish_algs),
+					      twofish_simd_algs);
 }
 
 static void __exit twofish_exit(void)
 {
-	crypto_unregister_algs(twofish_algs, ARRAY_SIZE(twofish_algs));
+	simd_unregister_skciphers(twofish_algs, ARRAY_SIZE(twofish_algs),
+				  twofish_simd_algs);
 }
 
 module_init(twofish_init);
