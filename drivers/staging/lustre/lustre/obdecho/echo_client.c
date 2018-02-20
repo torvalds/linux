@@ -1502,7 +1502,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 
 	switch (cmd) {
 	case OBD_IOC_CREATE:		    /* may create echo object */
-		if (!capable(CFS_CAP_SYS_ADMIN)) {
+		if (!capable(CAP_SYS_ADMIN)) {
 			rc = -EPERM;
 			goto out;
 		}
@@ -1511,7 +1511,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		goto out;
 
 	case OBD_IOC_DESTROY:
-		if (!capable(CFS_CAP_SYS_ADMIN)) {
+		if (!capable(CAP_SYS_ADMIN)) {
 			rc = -EPERM;
 			goto out;
 		}
@@ -1534,7 +1534,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		goto out;
 
 	case OBD_IOC_SETATTR:
-		if (!capable(CFS_CAP_SYS_ADMIN)) {
+		if (!capable(CAP_SYS_ADMIN)) {
 			rc = -EPERM;
 			goto out;
 		}
@@ -1547,7 +1547,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		goto out;
 
 	case OBD_IOC_BRW_WRITE:
-		if (!capable(CFS_CAP_SYS_ADMIN)) {
+		if (!capable(CAP_SYS_ADMIN)) {
 			rc = -EPERM;
 			goto out;
 		}

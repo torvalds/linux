@@ -483,12 +483,12 @@ int llog_open(const struct lu_env *env, struct llog_ctxt *ctxt,
 	(*lgh)->lgh_ctxt = ctxt;
 	(*lgh)->lgh_logops = ctxt->loc_logops;
 
-	raised = cfs_cap_raised(CFS_CAP_SYS_RESOURCE);
+	raised = cfs_cap_raised(CAP_SYS_RESOURCE);
 	if (!raised)
-		cfs_cap_raise(CFS_CAP_SYS_RESOURCE);
+		cfs_cap_raise(CAP_SYS_RESOURCE);
 	rc = ctxt->loc_logops->lop_open(env, *lgh, logid, name, open_param);
 	if (!raised)
-		cfs_cap_lower(CFS_CAP_SYS_RESOURCE);
+		cfs_cap_lower(CAP_SYS_RESOURCE);
 	if (rc) {
 		llog_free_handle(*lgh);
 		*lgh = NULL;

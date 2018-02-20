@@ -75,7 +75,7 @@ static int xattr_type_filter(struct ll_sb_info *sbi,
 		return -EOPNOTSUPP;
 
 	if (handler->flags == XATTR_TRUSTED_T &&
-	    !capable(CFS_CAP_SYS_ADMIN))
+	    !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	return 0;

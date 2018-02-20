@@ -307,7 +307,7 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 	oap->oap_count = opg->ops_to - opg->ops_from;
 	oap->oap_brw_flags = brw_flags | OBD_BRW_SYNC;
 
-	if (capable(CFS_CAP_SYS_RESOURCE)) {
+	if (capable(CAP_SYS_RESOURCE)) {
 		oap->oap_brw_flags |= OBD_BRW_NOQUOTA;
 		oap->oap_cmd |= OBD_BRW_NOQUOTA;
 	}

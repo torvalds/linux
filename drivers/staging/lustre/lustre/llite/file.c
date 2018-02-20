@@ -1315,7 +1315,7 @@ static int ll_lov_setea(struct inode *inode, struct file *file,
 					    sizeof(struct lov_user_ost_data);
 	int			 rc;
 
-	if (!capable(CFS_CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	lump = libcfs_kvzalloc(lum_size, GFP_NOFS);
@@ -1570,7 +1570,7 @@ int ll_fid2path(struct inode *inode, void __user *arg)
 	size_t outsize;
 	int rc;
 
-	if (!capable(CFS_CAP_DAC_READ_SEARCH) &&
+	if (!capable(CAP_DAC_READ_SEARCH) &&
 	    !(ll_i2sbi(inode)->ll_flags & LL_SBI_USER_FID2PATH))
 		return -EPERM;
 
@@ -1840,7 +1840,7 @@ int ll_hsm_state_set(struct inode *inode, struct hsm_state_set *hss)
 	 * NOT defined in HSM_USER_MASK.
 	 */
 	if (((hss->hss_setmask | hss->hss_clearmask) & ~HSM_USER_MASK) &&
-	    !capable(CFS_CAP_SYS_ADMIN))
+	    !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	/* Detect out-of range archive id */
