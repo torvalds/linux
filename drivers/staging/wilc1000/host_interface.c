@@ -2162,8 +2162,7 @@ ERRORHANDLER:
 	complete(&hif_wait_response);
 }
 
-static void handle_del_station(struct wilc_vif *vif,
-			       struct del_sta *pstrDelStaParam)
+static void handle_del_station(struct wilc_vif *vif, struct del_sta *param)
 {
 	s32 result = 0;
 	struct wid wid;
@@ -2179,7 +2178,7 @@ static void handle_del_station(struct wilc_vif *vif,
 
 	cur_byte = wid.val;
 
-	ether_addr_copy(cur_byte, pstrDelStaParam->mac_addr);
+	ether_addr_copy(cur_byte, param->mac_addr);
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
