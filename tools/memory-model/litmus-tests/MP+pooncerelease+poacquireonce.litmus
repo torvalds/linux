@@ -1,5 +1,13 @@
 C MP+pooncerelease+poacquireonce
 
+(*
+ * Result: Never
+ *
+ * This litmus test demonstrates that smp_store_release() and
+ * smp_load_acquire() provide sufficient ordering for the message-passing
+ * pattern.
+ *)
+
 {}
 
 P0(int *x, int *y)

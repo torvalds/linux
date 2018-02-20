@@ -1,5 +1,12 @@
 C MP+poonceonces
 
+(*
+ * Result: Maybe
+ *
+ * Can the counter-intuitive message-passing outcome be prevented with
+ * no ordering at all?
+ *)
+
 {}
 
 P0(int *x, int *y)

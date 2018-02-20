@@ -1,5 +1,12 @@
 C CoWW+poonceonce
 
+(*
+ * Result: Never
+ *
+ * Test of write-write coherence, that is, whether or not two successive
+ * writes to the same variable are ordered.
+ *)
+
 {}
 
 P0(int *x)

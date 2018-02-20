@@ -1,5 +1,12 @@
 C S+wmbonceonce+poacquireonce
 
+(*
+ * Result: Never
+ *
+ * Can a smp_wmb(), instead of a release, and an acquire order a prior
+ * store against a subsequent store?
+ *)
+
 {}
 
 P0(int *x, int *y)

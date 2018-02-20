@@ -1,5 +1,12 @@
 C CoRW+poonceonce+Once
 
+(*
+ * Result: Never
+ *
+ * Test of read-write coherence, that is, whether or not a read from
+ * a given variable and a later write to that same variable are ordered.
+ *)
+
 {}
 
 P0(int *x)

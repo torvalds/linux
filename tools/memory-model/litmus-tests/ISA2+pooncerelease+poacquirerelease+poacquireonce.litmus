@@ -1,5 +1,16 @@
 C ISA2+pooncerelease+poacquirerelease+poacquireonce
 
+(*
+ * Result: Never
+ *
+ * This litmus test demonstrates that a release-acquire chain suffices
+ * to order P0()'s initial write against P2()'s final read.  The reason
+ * that the release-acquire chain suffices is because in all but one
+ * case (P2() to P0()), each process reads from the preceding process's
+ * write.  In memory-model-speak, there is only one non-reads-from
+ * (AKA non-rf) link, so release-acquire is all that is needed.
+ *)
+
 {}
 
 P0(int *x, int *y)

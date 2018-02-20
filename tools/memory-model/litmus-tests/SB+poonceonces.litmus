@@ -1,5 +1,13 @@
 C SB+poonceonces
 
+(*
+ * Result: Sometimes
+ *
+ * This litmus test demonstrates that at least some ordering is required
+ * to order the store-buffering pattern, where each process writes to the
+ * variable that the preceding process reads.
+ *)
+
 {}
 
 P0(int *x, int *y)

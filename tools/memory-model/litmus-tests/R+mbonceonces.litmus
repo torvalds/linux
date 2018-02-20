@@ -1,5 +1,14 @@
 C R+mbonceonces
 
+(*
+ * Result: Never
+ *
+ * This is the fully ordered (via smp_mb()) version of one of the classic
+ * counterintuitive litmus tests that illustrates the effects of store
+ * propagation delays.  Note that weakening either of the barriers would
+ * cause the resulting test to be allowed.
+ *)
+
 {}
 
 P0(int *x, int *y)

@@ -1,5 +1,13 @@
 C WRC+poonceonces+Once
 
+(*
+ * Result: Sometimes
+ *
+ * This litmus test is an extension of the message-passing pattern,
+ * where the first write is moved to a separate process.  Note that this
+ * test has no ordering at all.
+ *)
+
 {}
 
 P0(int *x)
