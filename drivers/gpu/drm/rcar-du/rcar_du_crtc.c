@@ -125,14 +125,55 @@ static void rcar_du_dpll_divider(struct rcar_du_crtc *rcrtc,
 	unsigned int m;
 	unsigned int n;
 
-	for (n = 39; n < 120; n++) {
-		for (m = 0; m < 4; m++) {
+	/*
+	 *   fin                                 fvco        fout       fclkout
+	 * in --> [1/M] --> |PD| -> [LPF] -> [VCO] -> [1/P] -+-> [1/FDPLL] -> out
+	 *              +-> |  |                             |
+	 *              |                                    |
+	 *              +---------------- [1/N] <------------+
+	 *
+	 *	fclkout = fvco / P / FDPLL -- (1)
+	 *
+	 * fin/M = fvco/P/N
+	 *
+	 *	fvco = fin * P *  N / M -- (2)
+	 *
+	 * (1) + (2) indicates
+	 *
+	 *	fclkout = fin * N / M / FDPLL
+	 *
+	 * NOTES
+	 *	N	: (n + 1)
+	 *	M	: (m + 1)
+	 *	FDPLL	: (fdpll + 1)
+	 *	P	: 2
+	 *	2kHz < fvco < 4096MHz
+	 *
+	 * To minimize the jitter,
+	 * N : as large as possible
+	 * M : as small as possible
+	 */
+	for (m = 0; m < 4; m++) {
+		for (n = 119; n > 38; n--) {
+			/*
+			 * This code only runs on 64-bit architectures, the
+			 * unsigned long type can thus be used for 64-bit
+			 * computation. It will still compile without any
+			 * warning on 32-bit architectures.
+			 *
+			 * To optimize calculations, use fout instead of fvco
+			 * to verify the VCO frequency constraint.
+			 */
+			unsigned long fout = input * (n + 1) / (m + 1);
+
+			if (fout < 1000 || fout > 2048 * 1000 * 1000U)
+				continue;
+
 			for (fdpll = 1; fdpll < 32; fdpll++) {
 				unsigned long output;
 
-				output = input * (n + 1) / (m + 1)
-				       / (fdpll + 1);
-				if (output >= 400000000)
+				output = fout / (fdpll + 1);
+				if (output >= 400 * 1000 * 1000)
 					continue;
 
 				diff = abs((long)output - (long)target);
