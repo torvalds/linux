@@ -1,17 +1,6 @@
-/*
- * Copyright (c) 2017 Intel Corporation
- *
- * Functions to access TPS68470 power management chip.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (C) 2017 Intel Corporation */
+/* Functions to access TPS68470 power management chip. */
 
 #ifndef __LINUX_MFD_TPS68470_H
 #define __LINUX_MFD_TPS68470_H
