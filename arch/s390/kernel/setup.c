@@ -413,12 +413,12 @@ static void __init setup_resources(void)
 	struct memblock_region *reg;
 	int j;
 
-	code_resource.start = (unsigned long) &_text;
-	code_resource.end = (unsigned long) &_etext - 1;
-	data_resource.start = (unsigned long) &_etext;
-	data_resource.end = (unsigned long) &_edata - 1;
-	bss_resource.start = (unsigned long) &__bss_start;
-	bss_resource.end = (unsigned long) &__bss_stop - 1;
+	code_resource.start = (unsigned long) _text;
+	code_resource.end = (unsigned long) _etext - 1;
+	data_resource.start = (unsigned long) _etext;
+	data_resource.end = (unsigned long) _edata - 1;
+	bss_resource.start = (unsigned long) __bss_start;
+	bss_resource.end = (unsigned long) __bss_stop - 1;
 
 	for_each_memblock(memory, reg) {
 		res = memblock_virt_alloc(sizeof(*res), 8);
@@ -667,7 +667,7 @@ static void __init check_initrd(void)
  */
 static void __init reserve_kernel(void)
 {
-	unsigned long start_pfn = PFN_UP(__pa(&_end));
+	unsigned long start_pfn = PFN_UP(__pa(_end));
 
 #ifdef CONFIG_DMA_API_DEBUG
 	/*
@@ -888,9 +888,9 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Is init_mm really needed? */
 	init_mm.start_code = PAGE_OFFSET;
-	init_mm.end_code = (unsigned long) &_etext;
-	init_mm.end_data = (unsigned long) &_edata;
-	init_mm.brk = (unsigned long) &_end;
+	init_mm.end_code = (unsigned long) _etext;
+	init_mm.end_data = (unsigned long) _edata;
+	init_mm.brk = (unsigned long) _end;
 
 	parse_early_param();
 #ifdef CONFIG_CRASH_DUMP

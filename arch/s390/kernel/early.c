@@ -67,7 +67,7 @@ static noinline __init void init_kernel_storage_key(void)
 #if PAGE_DEFAULT_KEY
 	unsigned long end_pfn, init_pfn;
 
-	end_pfn = PFN_UP(__pa(&_end));
+	end_pfn = PFN_UP(__pa(_end));
 
 	for (init_pfn = 0 ; init_pfn < end_pfn; init_pfn++)
 		page_set_storage_key(init_pfn << PAGE_SHIFT,
