@@ -2648,7 +2648,7 @@ int ll_getparent(struct file *file, struct getparent __user *arg)
 	}
 
 lb_free:
-	lu_buf_free(&buf);
+	kvfree(buf.lb_buf);
 ldata_free:
 	kfree(ldata);
 	return rc;
