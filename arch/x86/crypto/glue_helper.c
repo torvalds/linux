@@ -29,7 +29,6 @@
 #include <crypto/b128ops.h>
 #include <crypto/gf128mul.h>
 #include <crypto/internal/skcipher.h>
-#include <crypto/lrw.h>
 #include <crypto/xts.h>
 #include <asm/crypto/glue_helper.h>
 
