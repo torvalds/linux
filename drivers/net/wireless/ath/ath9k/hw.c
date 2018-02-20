@@ -1038,7 +1038,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	int acktimeout, ctstimeout, ack_offset = 0;
 	int slottime;
 	int sifstime;
-	int rx_lat = 0, tx_lat = 0, eifs = 0;
+	int rx_lat = 0, tx_lat = 0, eifs = 0, ack_shift = 0;
 	u32 reg;
 
 	ath_dbg(ath9k_hw_common(ah), RESET, "ah->misc_mode 0x%x\n",
@@ -1070,6 +1070,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 
 		sifstime = 32;
 		ack_offset = 16;
+		ack_shift = 3;
 		slottime = 13;
 	} else if (IS_CHAN_QUARTER_RATE(chan)) {
 		eifs = 340;
@@ -1080,6 +1081,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 
 		sifstime = 64;
 		ack_offset = 32;
+		ack_shift = 1;
 		slottime = 21;
 	} else {
 		if (AR_SREV_9287(ah) && AR_SREV_9287_13_OR_LATER(ah)) {
@@ -1136,6 +1138,10 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 		SM(tx_lat, AR_USEC_TX_LAT),
 		AR_USEC_TX_LAT | AR_USEC_RX_LAT | AR_USEC_USEC);
 
+	if (IS_CHAN_HALF_RATE(chan) || IS_CHAN_QUARTER_RATE(chan))
+		REG_RMW(ah, AR_TXSIFS,
+			sifstime | SM(ack_shift, AR_TXSIFS_ACK_SHIFT),
+			(AR_TXSIFS_TIME | AR_TXSIFS_ACK_SHIFT));
 }
 EXPORT_SYMBOL(ath9k_hw_init_global_settings);
 
