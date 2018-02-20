@@ -331,6 +331,12 @@ void force_signal_inject(int signal, int code, unsigned long address)
 		break;
 	}
 
+	/* Force signals we don't understand to SIGKILL */
+	if (WARN_ON(signal != SIGKILL ||
+		    siginfo_layout(signal, code) != SIL_FAULT)) {
+		signal = SIGKILL;
+	}
+
 	if (unhandled_signal(current, signal) &&
 	    show_unhandled_signals_ratelimited()) {
 		pr_info("%s[%d]: %s: pc=%08llx\n",
