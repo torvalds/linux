@@ -687,14 +687,11 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 
 	bne	cr4,1f		/* returning to kernel */
 
-.machine	push
-.machine	"power4"
 	mtcrf	0x80,r9
 	mtcrf	0x08,r9		/* MSR[PR] indication is in cr4 */
 	mtcrf	0x04,r9		/* MSR[RI] indication is in cr5 */
 	mtcrf	0x02,r9		/* I/D indication is in cr6 */
 	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
-.machine	pop
 
 	RESTORE_CTR(r9, PACA_EXSLB)
 	RESTORE_PPR_PACA(PACA_EXSLB, r9)
@@ -707,14 +704,11 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 	RFI_TO_USER
 	b	.	/* prevent speculative execution */
 1:
-.machine	push
-.machine	"power4"
 	mtcrf	0x80,r9
 	mtcrf	0x08,r9		/* MSR[PR] indication is in cr4 */
 	mtcrf	0x04,r9		/* MSR[RI] indication is in cr5 */
 	mtcrf	0x02,r9		/* I/D indication is in cr6 */
 	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
-.machine	pop
 
 	RESTORE_CTR(r9, PACA_EXSLB)
 	RESTORE_PPR_PACA(PACA_EXSLB, r9)
@@ -1524,7 +1518,7 @@ TRAMP_REAL_BEGIN(rfi_flush_fallback)
 	ld	r11,PACA_L1D_FLUSH_SIZE(r13)
 	srdi	r11,r11,(7 + 3) /* 128 byte lines, unrolled 8x */
 	mtctr	r11
-	DCBT_STOP_ALL_STREAM_IDS(r11) /* Stop prefetch streams */
+	DCBT_BOOK3S_STOP_ALL_STREAM_IDS(r11) /* Stop prefetch streams */
 
 	/* order ld/st prior to dcbt stop all streams with flushing */
 	sync
@@ -1564,7 +1558,7 @@ TRAMP_REAL_BEGIN(hrfi_flush_fallback)
 	ld	r11,PACA_L1D_FLUSH_SIZE(r13)
 	srdi	r11,r11,(7 + 3) /* 128 byte lines, unrolled 8x */
 	mtctr	r11
-	DCBT_STOP_ALL_STREAM_IDS(r11) /* Stop prefetch streams */
+	DCBT_BOOK3S_STOP_ALL_STREAM_IDS(r11) /* Stop prefetch streams */
 
 	/* order ld/st prior to dcbt stop all streams with flushing */
 	sync
