@@ -2686,7 +2686,7 @@ static int nbu2ss_ep_queue(
 
 	if (req->unaligned) {
 		if (!ep->virt_buf)
-			ep->virt_buf = (u8 *)dma_alloc_coherent(
+			ep->virt_buf = dma_alloc_coherent(
 				NULL, PAGE_SIZE,
 				&ep->phys_buf, GFP_ATOMIC | GFP_DMA);
 		if (ep->epnum > 0)  {
