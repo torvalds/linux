@@ -403,7 +403,7 @@ Memory barriers come in four basic varieties:
      where two loads are performed such that the second depends on the result
      of the first (eg: the first load retrieves the address to which the second
      load will be directed), a data dependency barrier would be required to
-     make sure that the target of the second load is updated before the address
+     make sure that the target of the second load is updated after the address
      obtained by the first load is accessed.
 
      A data dependency barrier is a partial ordering on interdependent loads
