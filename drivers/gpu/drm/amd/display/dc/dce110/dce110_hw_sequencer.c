@@ -70,6 +70,8 @@
 
 #define CTX \
 	hws->ctx
+#define DC_LOGGER \
+	ctx->logger
 #define REG(reg)\
 	hws->regs->reg
 
@@ -816,7 +818,7 @@ void hwss_edp_wait_for_hpd_ready(
 	dal_gpio_destroy_irq(&hpd);
 
 	if (false == edp_hpd_high) {
-		DC_LOG_ERROR(ctx->logger,
+		DC_LOG_ERROR(
 				"%s: wait timed out!\n", __func__);
 	}
 }
@@ -840,7 +842,7 @@ void hwss_edp_power_control(
 	if (power_up != is_panel_powered_on(hwseq)) {
 		/* Send VBIOS command to prompt eDP panel power */
 
-		DC_LOG_HW_RESUME_S3(ctx->logger,
+		DC_LOG_HW_RESUME_S3(
 				"%s: Panel Power action: %s\n",
 				__func__, (power_up ? "On":"Off"));
 
@@ -856,11 +858,11 @@ void hwss_edp_power_control(
 		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
 
 		if (bp_result != BP_RESULT_OK)
-			DC_LOG_ERROR(ctx->logger,
+			DC_LOG_ERROR(
 					"%s: Panel Power bp_result: %d\n",
 					__func__, bp_result);
 	} else {
-		DC_LOG_HW_RESUME_S3(ctx->logger,
+		DC_LOG_HW_RESUME_S3(
 				"%s: Skipping Panel Power action: %s\n",
 				__func__, (power_up ? "On":"Off"));
 	}
@@ -886,7 +888,7 @@ void hwss_edp_backlight_control(
 	}
 
 	if (enable && is_panel_backlight_on(hws)) {
-		DC_LOG_HW_RESUME_S3(ctx->logger,
+		DC_LOG_HW_RESUME_S3(
 				"%s: panel already powered up. Do nothing.\n",
 				__func__);
 		return;
@@ -894,7 +896,7 @@ void hwss_edp_backlight_control(
 
 	/* Send VBIOS command to control eDP panel backlight */
 
-	DC_LOG_HW_RESUME_S3(ctx->logger,
+	DC_LOG_HW_RESUME_S3(
 			"%s: backlight action: %s\n",
 			__func__, (enable ? "On":"Off"));
 
@@ -2687,7 +2689,7 @@ static void dce110_program_front_end_for_pipe(
 	struct xfm_grph_csc_adjustment adjust;
 	struct out_csc_color_matrix tbl_entry;
 	unsigned int i;
-
+	struct dc_context *ctx = dc->ctx;
 	memset(&tbl_entry, 0, sizeof(tbl_entry));
 
 	if (dc->current_state)
@@ -2762,7 +2764,7 @@ static void dce110_program_front_end_for_pipe(
 	if (pipe_ctx->plane_state->update_flags.bits.full_update)
 		dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
 
-	DC_LOG_SURFACE(dc->ctx->logger,
+	DC_LOG_SURFACE(
 			"Pipe:%d 0x%x: addr hi:0x%x, "
 			"addr low:0x%x, "
 			"src: %d, %d, %d,"
@@ -2785,7 +2787,7 @@ static void dce110_program_front_end_for_pipe(
 			pipe_ctx->plane_state->clip_rect.width,
 			pipe_ctx->plane_state->clip_rect.height);
 
-	DC_LOG_SURFACE(dc->ctx->logger,
+	DC_LOG_SURFACE(
 			"Pipe %d: width, height, x, y\n"
 			"viewport:%d, %d, %d, %d\n"
 			"recout:  %d, %d, %d, %d\n",

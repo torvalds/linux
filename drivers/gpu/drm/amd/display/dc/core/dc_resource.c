@@ -45,7 +45,8 @@
 #include "dcn10/dcn10_resource.h"
 #endif
 #include "dce120/dce120_resource.h"
-
+#define DC_LOGGER \
+	ctx->logger
 enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 {
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
@@ -834,7 +835,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
 	struct view recout_skip = { 0 };
 	bool res = false;
-
+	struct dc_context *ctx = pipe_ctx->stream->ctx;
 	/* Important: scaling ratio calculation requires pixel format,
 	 * lb depth calculation requires recout and taps require scaling ratios.
 	 * Inits require viewport, taps, ratios and recout of split pipe
@@ -893,7 +894,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 		/* May need to re-check lb size after this in some obscure scenario */
 		calculate_inits_and_adj_vp(pipe_ctx, &recout_skip);
 
-	DC_LOG_SCALER(pipe_ctx->stream->ctx->logger,
+	DC_LOG_SCALER(
 				"%s: Viewport:\nheight:%d width:%d x:%d "
 				"y:%d\n dst_rect:\nheight:%d width:%d x:%d "
 				"y:%d\n",

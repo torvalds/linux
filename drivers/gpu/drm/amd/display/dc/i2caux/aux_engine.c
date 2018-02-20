@@ -55,6 +55,8 @@ enum {
 
 #define FROM_ENGINE(ptr) \
 	container_of((ptr), struct aux_engine, base)
+#define DC_LOGGER \
+	engine->base.ctx->logger
 
 enum i2caux_engine_type dal_aux_engine_get_engine_type(
 	const struct engine *engine)
@@ -274,7 +276,7 @@ static bool read_command(
 
 	if (request->payload.address_space ==
 		I2CAUX_TRANSACTION_ADDRESS_SPACE_DPCD) {
-		DC_LOG_I2C_AUX(engine->base.ctx->logger,  "READ: addr:0x%x  value:0x%x Result:%d",
+		DC_LOG_I2C_AUX("READ: addr:0x%x  value:0x%x Result:%d",
 				request->payload.address,
 				request->payload.data[0],
 				ctx.operation_succeeded);
@@ -483,7 +485,7 @@ static bool write_command(
 
 	if (request->payload.address_space ==
 		I2CAUX_TRANSACTION_ADDRESS_SPACE_DPCD) {
-		DC_LOG_I2C_AUX(engine->base.ctx->logger,  "WRITE: addr:0x%x  value:0x%x Result:%d",
+		DC_LOG_I2C_AUX("WRITE: addr:0x%x  value:0x%x Result:%d",
 				request->payload.address,
 				request->payload.data[0],
 				ctx.operation_succeeded);

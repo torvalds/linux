@@ -56,6 +56,8 @@
 #include "dce/dce_11_2_sh_mask.h"
 
 #include "dce100/dce100_resource.h"
+#define DC_LOGGER \
+		dc->ctx->logger
 
 #ifndef mmDP_DPHY_INTERNAL_CTRL
 	#define mmDP_DPHY_INTERNAL_CTRL 0x4aa7
@@ -723,7 +725,6 @@ bool dce112_validate_bandwidth(
 	bool result = false;
 
 	DC_LOG_BANDWIDTH_CALCS(
-		dc->ctx->logger,
 		"%s: start",
 		__func__);
 
@@ -737,7 +738,7 @@ bool dce112_validate_bandwidth(
 		result = true;
 
 	if (!result)
-		DC_LOG_BANDWIDTH_VALIDATION(dc->ctx->logger,
+		DC_LOG_BANDWIDTH_VALIDATION(
 			"%s: Bandwidth validation failed!",
 			__func__);
 

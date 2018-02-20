@@ -36,6 +36,9 @@
 
 #include "dc.h"
 #include "core_types.h"
+#define DC_LOGGER \
+	irq_service->ctx->logger
+
 static bool hpd_ack(
 	struct irq_service *irq_service,
 	const struct irq_source_info *info)
@@ -181,9 +184,7 @@ bool dal_irq_service_dummy_set(
 	const struct irq_source_info *info,
 	bool enable)
 {
-	DC_LOG_ERROR(
-		irq_service->ctx->logger,
-		"%s: called for non-implemented irq source\n",
+	DC_LOG_ERROR("%s: called for non-implemented irq source\n",
 		__func__);
 	return false;
 }
@@ -192,9 +193,7 @@ bool dal_irq_service_dummy_ack(
 	struct irq_service *irq_service,
 	const struct irq_source_info *info)
 {
-	DC_LOG_ERROR(
-		irq_service->ctx->logger,
-		"%s: called for non-implemented irq source\n",
+	DC_LOG_ERROR("%s: called for non-implemented irq source\n",
 		__func__);
 	return false;
 }

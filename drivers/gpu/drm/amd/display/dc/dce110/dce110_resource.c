@@ -52,6 +52,8 @@
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
 
+#define DC_LOGGER \
+		dc->ctx->logger
 #if defined(CONFIG_DRM_AMD_DC_FBC)
 #include "dce110/dce110_compressor.h"
 #endif
@@ -772,7 +774,6 @@ static bool dce110_validate_bandwidth(
 	bool result = false;
 
 	DC_LOG_BANDWIDTH_CALCS(
-		dc->ctx->logger,
 		"%s: start",
 		__func__);
 
@@ -786,8 +787,7 @@ static bool dce110_validate_bandwidth(
 		result =  true;
 
 	if (!result)
-		DC_LOG_BANDWIDTH_VALIDATION(dc->ctx->logger,
-			"%s: %dx%d@%d Bandwidth validation failed!\n",
+		DC_LOG_BANDWIDTH_VALIDATION("%s: %dx%d@%d Bandwidth validation failed!\n",
 			__func__,
 			context->streams[0]->timing.h_addressable,
 			context->streams[0]->timing.v_addressable,
