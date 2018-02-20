@@ -26,6 +26,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/list.h>
+#include <linux/time64.h>
 #include <linux/types.h>
 #include <linux/sizes.h>
 
@@ -132,19 +133,27 @@ static inline bool fence_after_eq(u32 a, u32 b)
 	return (s32)(a - b) >= 0;
 }
 
+/*
+ * Etnaviv timeouts are specified wrt CLOCK_MONOTONIC, not jiffies.
+ * We need to calculate the timeout in terms of number of jiffies
+ * between the specified timeout and the current CLOCK_MONOTONIC time.
+ */
 static inline unsigned long etnaviv_timeout_to_jiffies(
 	const struct timespec *timeout)
 {
-	unsigned long timeout_jiffies = timespec_to_jiffies(timeout);
-	unsigned long start_jiffies = jiffies;
-	unsigned long remaining_jiffies;
+	struct timespec64 ts, to;
 
-	if (time_after(start_jiffies, timeout_jiffies))
-		remaining_jiffies = 0;
-	else
-		remaining_jiffies = timeout_jiffies - start_jiffies;
+	to = timespec_to_timespec64(*timeout);
 
-	return remaining_jiffies;
+	ktime_get_ts64(&ts);
+
+	/* timeouts before "now" have already expired */
+	if (timespec64_compare(&to, &ts) <= 0)
+		return 0;
+
+	ts = timespec64_sub(to, ts);
+
+	return timespec64_to_jiffies(&ts);
 }
 
 #endif /* __ETNAVIV_DRV_H__ */
