@@ -1226,8 +1226,6 @@ lnet_router_checker(void *arg)
 	struct lnet_peer *rtr;
 	struct list_head *entry;
 
-	cfs_block_allsigs();
-
 	while (the_lnet.ln_rc_state == LNET_RC_STATE_RUNNING) {
 		__u64 version;
 		int cpt;

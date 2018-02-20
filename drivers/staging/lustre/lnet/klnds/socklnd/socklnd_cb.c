@@ -1324,8 +1324,6 @@ int ksocknal_scheduler(void *arg)
 	info = ksocknal_data.ksnd_sched_info[KSOCK_THREAD_CPT(id)];
 	sched = &info->ksi_scheds[KSOCK_THREAD_SID(id)];
 
-	cfs_block_allsigs();
-
 	rc = cfs_cpt_bind(lnet_cpt_table(), info->ksi_cpt);
 	if (rc) {
 		CWARN("Can't set CPU partition affinity to %d: %d\n",
@@ -2078,8 +2076,6 @@ ksocknal_connd(void *arg)
 	int nloops = 0;
 	int cons_retry = 0;
 
-	cfs_block_allsigs();
-
 	init_waitqueue_entry(&wait, current);
 
 	spin_lock_bh(connd_lock);
@@ -2471,8 +2467,6 @@ ksocknal_reaper(void *arg)
 	int i;
 	int peer_index = 0;
 	unsigned long deadline = cfs_time_current();
-
-	cfs_block_allsigs();
 
 	INIT_LIST_HEAD(&enomem_conns);
 	init_waitqueue_entry(&wait, current);

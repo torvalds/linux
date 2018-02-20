@@ -170,8 +170,6 @@ stt_timer_main(void *arg)
 {
 	int rc = 0;
 
-	cfs_block_allsigs();
-
 	while (!stt_data.stt_shuttingdown) {
 		stt_check_timers(&stt_data.stt_prev_slot);
 

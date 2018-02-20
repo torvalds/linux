@@ -335,8 +335,6 @@ lnet_acceptor(void *arg)
 
 	LASSERT(!lnet_acceptor_state.pta_sock);
 
-	cfs_block_allsigs();
-
 	rc = lnet_sock_listen(&lnet_acceptor_state.pta_sock, 0, accept_port,
 			      accept_backlog);
 	if (rc) {
