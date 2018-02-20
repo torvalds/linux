@@ -1497,7 +1497,7 @@ out_quotactl:
 		if (totalsize >= MDS_MAXREQSIZE / 3)
 			return -E2BIG;
 
-		hur = libcfs_kvzalloc(totalsize, GFP_NOFS);
+		hur = kzalloc(totalsize, GFP_NOFS);
 		if (!hur)
 			return -ENOMEM;
 

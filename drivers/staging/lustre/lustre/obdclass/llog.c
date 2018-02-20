@@ -155,7 +155,7 @@ int llog_init_handle(const struct lu_env *env, struct llog_handle *handle,
 	LASSERT(!handle->lgh_hdr);
 
 	LASSERT(chunk_size >= LLOG_MIN_CHUNK_SIZE);
-	llh = libcfs_kvzalloc(sizeof(*llh), GFP_NOFS);
+	llh = libcfs_kvzalloc(sizeof(*llh), GFP_KERNEL);
 	if (!llh)
 		return -ENOMEM;
 	handle->lgh_hdr = llh;

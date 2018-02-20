@@ -1318,7 +1318,7 @@ static int ll_lov_setea(struct inode *inode, struct file *file,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	lump = libcfs_kvzalloc(lum_size, GFP_NOFS);
+	lump = kzalloc(lum_size, GFP_NOFS);
 	if (!lump)
 		return -ENOMEM;
 
@@ -2998,7 +2998,7 @@ static int ll_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 
 	num_bytes = sizeof(*fiemap) + (extent_count *
 				       sizeof(struct fiemap_extent));
-	fiemap = libcfs_kvzalloc(num_bytes, GFP_NOFS);
+	fiemap = kvzalloc(num_bytes, GFP_KERNEL);
 	if (!fiemap)
 		return -ENOMEM;
 
