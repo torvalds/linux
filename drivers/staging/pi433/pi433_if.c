@@ -230,8 +230,8 @@ rf69_set_rx_cfg(struct pi433_device *dev, struct pi433_rx_cfg *rx_cfg)
 		if (ret < 0)
 			return ret;
 	}
-	ret = rf69_set_adressFiltering(dev->spi,
-				       rx_cfg->enable_address_filtering);
+	ret = rf69_set_address_filtering(dev->spi,
+					 rx_cfg->enable_address_filtering);
 	if (ret < 0)
 		return ret;
 

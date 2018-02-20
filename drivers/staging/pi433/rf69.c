@@ -684,9 +684,9 @@ int rf69_disable_crc(struct spi_device *spi)
 	return rf69_clear_bit(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_CRC_ON);
 }
 
-int rf69_set_adressFiltering(struct spi_device *spi, enum addressFiltering addressFiltering)
+int rf69_set_address_filtering(struct spi_device *spi, enum address_filtering address_filtering)
 {
-	switch (addressFiltering) {
+	switch (address_filtering) {
 	case filteringOff:
 		return rf69_read_mod_write(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_ADDRESSFILTERING, PACKETCONFIG1_ADDRESSFILTERING_OFF);
 	case nodeAddress:
