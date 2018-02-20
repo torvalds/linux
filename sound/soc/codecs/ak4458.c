@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * Audio driver for AK4458 DAC
- *
- * Copyright (C) 2016 Asahi Kasei Microdevices Corporation
- * Copyright 2018 NXP
- */
+//
+// Audio driver for AK4458 DAC
+//
+// Copyright (C) 2016 Asahi Kasei Microdevices Corporation
+// Copyright 2018 NXP
 
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -655,4 +654,4 @@ module_i2c_driver(ak4458_i2c_driver);
 MODULE_AUTHOR("Junichi Wakasugi <wakasugi.jb@om.asahi-kasei.co.jp>");
 MODULE_AUTHOR("Mihai Serban <mihai.serban@nxp.com>");
 MODULE_DESCRIPTION("ASoC AK4458 DAC driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
