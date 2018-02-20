@@ -192,14 +192,6 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 	return rc;
 }
 
-static void seq_fid_alloc_fini(struct lu_client_seq *seq)
-{
-	LASSERT(seq->lcs_update == 1);
-	spin_lock(&seq->lcs_lock);
-	--seq->lcs_update;
-	wake_up(&seq->lcs_waitq);
-}
-
 /* Allocate new fid on passed client @seq and save it to @fid. */
 int seq_client_alloc_fid(const struct lu_env *env,
 			 struct lu_client_seq *seq, struct lu_fid *fid)
@@ -230,14 +222,18 @@ int seq_client_alloc_fid(const struct lu_env *env,
 		u64 seqnr;
 
 		LASSERT(seq->lcs_update == 0);
-		++seq->lcs_update;
+		seq->lcs_update = 1;
 		spin_unlock(&seq->lcs_lock);
 
 		rc = seq_client_alloc_seq(env, seq, &seqnr);
+
+		spin_lock(&seq->lcs_lock);
+		seq->lcs_update = 0;
+		wake_up(&seq->lcs_waitq);
+
 		if (rc) {
 			CERROR("%s: Can't allocate new sequence, rc %d\n",
 			       seq->lcs_name, rc);
-			seq_fid_alloc_fini(seq);
 			spin_unlock(&seq->lcs_lock);
 			return rc;
 		}
@@ -254,8 +250,6 @@ int seq_client_alloc_fid(const struct lu_env *env,
 		 * to setup FLD for it.
 		 */
 		rc = 1;
-
-		seq_fid_alloc_fini(seq);
 	}
 
 	*fid = seq->lcs_fid;
