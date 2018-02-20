@@ -30,7 +30,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <crypto/algapi.h>
-#include <crypto/xts.h>
 #include <asm/crypto/camellia.h>
 #include <asm/crypto/glue_helper.h>
 
@@ -1404,96 +1403,6 @@ static int ctr_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	return glue_ctr_crypt_128bit(&camellia_ctr, desc, dst, src, nbytes);
 }
 
-static void encrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
-{
-	const unsigned int bsize = CAMELLIA_BLOCK_SIZE;
-	struct camellia_ctx *ctx = priv;
-	int i;
-
-	while (nbytes >= 2 * bsize) {
-		camellia_enc_blk_2way(ctx, srcdst, srcdst);
-		srcdst += bsize * 2;
-		nbytes -= bsize * 2;
-	}
-
-	for (i = 0; i < nbytes / bsize; i++, srcdst += bsize)
-		camellia_enc_blk(ctx, srcdst, srcdst);
-}
-
-static void decrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
-{
-	const unsigned int bsize = CAMELLIA_BLOCK_SIZE;
-	struct camellia_ctx *ctx = priv;
-	int i;
-
-	while (nbytes >= 2 * bsize) {
-		camellia_dec_blk_2way(ctx, srcdst, srcdst);
-		srcdst += bsize * 2;
-		nbytes -= bsize * 2;
-	}
-
-	for (i = 0; i < nbytes / bsize; i++, srcdst += bsize)
-		camellia_dec_blk(ctx, srcdst, srcdst);
-}
-
-int xts_camellia_setkey(struct crypto_tfm *tfm, const u8 *key,
-			unsigned int keylen)
-{
-	struct camellia_xts_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
-	int err;
-
-	err = xts_check_key(tfm, key, keylen);
-	if (err)
-		return err;
-
-	/* first half of xts-key is for crypt */
-	err = __camellia_setkey(&ctx->crypt_ctx, key, keylen / 2, flags);
-	if (err)
-		return err;
-
-	/* second half of xts-key is for tweak */
-	return __camellia_setkey(&ctx->tweak_ctx, key + keylen / 2, keylen / 2,
-				flags);
-}
-EXPORT_SYMBOL_GPL(xts_camellia_setkey);
-
-static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
-{
-	struct camellia_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	le128 buf[2 * 4];
-	struct xts_crypt_req req = {
-		.tbuf = buf,
-		.tbuflen = sizeof(buf),
-
-		.tweak_ctx = &ctx->tweak_ctx,
-		.tweak_fn = XTS_TWEAK_CAST(camellia_enc_blk),
-		.crypt_ctx = &ctx->crypt_ctx,
-		.crypt_fn = encrypt_callback,
-	};
-
-	return xts_crypt(desc, dst, src, nbytes, &req);
-}
-
-static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
-		       struct scatterlist *src, unsigned int nbytes)
-{
-	struct camellia_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	le128 buf[2 * 4];
-	struct xts_crypt_req req = {
-		.tbuf = buf,
-		.tbuflen = sizeof(buf),
-
-		.tweak_ctx = &ctx->tweak_ctx,
-		.tweak_fn = XTS_TWEAK_CAST(camellia_enc_blk),
-		.crypt_ctx = &ctx->crypt_ctx,
-		.crypt_fn = decrypt_callback,
-	};
-
-	return xts_crypt(desc, dst, src, nbytes, &req);
-}
-
 static struct crypto_alg camellia_algs[] = { {
 	.cra_name		= "camellia",
 	.cra_driver_name	= "camellia-asm",
@@ -1569,26 +1478,6 @@ static struct crypto_alg camellia_algs[] = { {
 			.setkey		= camellia_setkey,
 			.encrypt	= ctr_crypt,
 			.decrypt	= ctr_crypt,
-		},
-	},
-}, {
-	.cra_name		= "xts(camellia)",
-	.cra_driver_name	= "xts-camellia-asm",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize		= CAMELLIA_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct camellia_xts_ctx),
-	.cra_alignmask		= 0,
-	.cra_type		= &crypto_blkcipher_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u = {
-		.blkcipher = {
-			.min_keysize	= CAMELLIA_MIN_KEY_SIZE * 2,
-			.max_keysize	= CAMELLIA_MAX_KEY_SIZE * 2,
-			.ivsize		= CAMELLIA_BLOCK_SIZE,
-			.setkey		= xts_camellia_setkey,
-			.encrypt	= xts_encrypt,
-			.decrypt	= xts_decrypt,
 		},
 	},
 } };
