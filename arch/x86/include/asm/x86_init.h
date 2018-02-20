@@ -133,9 +133,11 @@ struct x86_hyper_init {
 /**
  * struct x86_init_acpi - x86 ACPI init functions
  * @get_root_pointer:		get RSDP address
+ * @reduced_hw_early_init:	hardware reduced platform early init
  */
 struct x86_init_acpi {
 	u64 (*get_root_pointer)(void);
+	void (*reduced_hw_early_init)(void);
 };
 
 /**

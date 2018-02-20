@@ -8,6 +8,7 @@
 #include <linux/export.h>
 #include <linux/pci.h>
 
+#include <asm/acpi.h>
 #include <asm/bios_ebda.h>
 #include <asm/paravirt.h>
 #include <asm/pci_x86.h>
@@ -95,6 +96,7 @@ struct x86_init_ops x86_init __initdata = {
 
 	.acpi = {
 		.get_root_pointer	= u64_x86_init_noop,
+		.reduced_hw_early_init	= acpi_generic_reduced_hw_init,
 	},
 };
 
