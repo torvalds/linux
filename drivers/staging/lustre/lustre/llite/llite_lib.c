@@ -2022,7 +2022,7 @@ void ll_umount_begin(struct super_block *sb)
 	 */
 	while (cnt < 10 && !may_umount(sbi->ll_mnt.mnt)) {
 		schedule_timeout_uninterruptible(HZ);
-		cnt ++;
+		cnt++;
 	}
 
 	schedule();

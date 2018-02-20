@@ -126,7 +126,7 @@ static int lov_check_and_wait_active(struct lov_obd *lov, int ost_idx)
 
 	while (cnt < obd_timeout && !lov_check_set(lov, ost_idx)) {
 		schedule_timeout_uninterruptible(HZ);
-		cnt ++;
+		cnt++;
 	}
 	if (tgt->ltd_active)
 		return 1;

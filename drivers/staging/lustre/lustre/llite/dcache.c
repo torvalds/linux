@@ -100,7 +100,7 @@ static int ll_dcompare(const struct dentry *dentry,
 		return 0;
 
 	/* ensure exclusion against parallel lookup of the same name */
-	if (d_in_lookup((struct dentry*)dentry))
+	if (d_in_lookup((struct dentry *)dentry))
 		return 0;
 
 	if (d_lustre_invalid(dentry))

@@ -2670,7 +2670,7 @@ ptlrpc_service_unlink_rqbd(struct ptlrpc_service *svc)
 			       (rc = wait_event_idle_timeout(svcpt->scp_waitq,
 							     svcpt->scp_nrqbds_posted == 0,
 							     HZ)) == 0)
-				cnt ++;
+				cnt++;
 			if (rc == 0) {
 				CWARN("Service %s waiting for request buffers\n",
 				      svcpt->scp_service->srv_name);

@@ -354,7 +354,7 @@ int ptlrpc_recover_import(struct obd_import *imp, char *new_uuid, int async)
 					     obd_timeout * HZ);
 		CDEBUG(D_HA, "%s: recovery finished\n",
 		       obd2cli_tgt(imp->imp_obd));
-		rc = rc? 0 : -ETIMEDOUT;
+		rc = rc ? 0 : -ETIMEDOUT;
 	}
 
 out:
