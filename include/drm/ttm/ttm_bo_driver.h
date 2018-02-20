@@ -850,6 +850,15 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 			 struct ttm_mem_reg *new_mem);
 
 /**
+ * ttm_bo_pipeline_gutting.
+ *
+ * @bo: A pointer to a struct ttm_buffer_object.
+ *
+ * Pipelined gutting a BO of it's backing store.
+ */
+int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo);
+
+/**
  * ttm_io_prot
  *
  * @c_state: Caching state.

@@ -801,3 +801,27 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_pipeline_move);
+
+int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
+{
+	struct ttm_buffer_object *ghost;
+	int ret;
+
+	ret = ttm_buffer_object_transfer(bo, &ghost);
+	if (ret)
+		return ret;
+
+	ret = reservation_object_copy_fences(ghost->resv, bo->resv);
+	/* Last resort, wait for the BO to be idle when we are OOM */
+	if (ret)
+		ttm_bo_wait(bo, false, false);
+
+	memset(&bo->mem, 0, sizeof(bo->mem));
+	bo->mem.mem_type = TTM_PL_SYSTEM;
+	bo->ttm = NULL;
+
+	ttm_bo_unreserve(ghost);
+	ttm_bo_unref(&ghost);
+
+	return 0;
+}

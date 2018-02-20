@@ -622,14 +622,23 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 
 	reservation_object_assert_held(bo->resv);
 
+	placement.num_placement = 0;
+	placement.num_busy_placement = 0;
+	bdev->driver->evict_flags(bo, &placement);
+
+	if (!placement.num_placement && !placement.num_busy_placement) {
+		ret = ttm_bo_pipeline_gutting(bo);
+		if (ret)
+			return ret;
+
+		return ttm_tt_create(bo, false);
+	}
+
 	evict_mem = bo->mem;
 	evict_mem.mm_node = NULL;
 	evict_mem.bus.io_reserved_vm = false;
 	evict_mem.bus.io_reserved_count = 0;
 
-	placement.num_placement = 0;
-	placement.num_busy_placement = 0;
-	bdev->driver->evict_flags(bo, &placement);
 	ret = ttm_bo_mem_space(bo, &placement, &evict_mem, ctx);
 	if (ret) {
 		if (ret != -ERESTARTSYS) {
