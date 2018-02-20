@@ -21,13 +21,22 @@
 /* Include Wireless Extension definition and check version */
 #include <net/iw_handler.h>	/* New driver API */
 
-/* macro */
-#define inc_smeqhead(priv) \
-	(priv->sme_i.qhead = (priv->sme_i.qhead + 1) % SME_EVENT_BUFF_SIZE)
-#define inc_smeqtail(priv) \
-	(priv->sme_i.qtail = (priv->sme_i.qtail + 1) % SME_EVENT_BUFF_SIZE)
-#define cnt_smeqbody(priv) \
-	(((priv->sme_i.qtail + SME_EVENT_BUFF_SIZE) - (priv->sme_i.qhead)) % SME_EVENT_BUFF_SIZE)
+static inline void inc_smeqhead(struct ks_wlan_private *priv)
+{
+	priv->sme_i.qhead = (priv->sme_i.qhead + 1) % SME_EVENT_BUFF_SIZE;
+}
+
+static inline void inc_smeqtail(struct ks_wlan_private *priv)
+{
+	priv->sme_i.qtail = (priv->sme_i.qtail + 1) % SME_EVENT_BUFF_SIZE;
+}
+
+static inline unsigned int cnt_smeqbody(struct ks_wlan_private *priv)
+{
+	unsigned int sme_cnt = priv->sme_i.qtail - priv->sme_i.qhead;
+
+	return (sme_cnt + SME_EVENT_BUFF_SIZE) % SME_EVENT_BUFF_SIZE;
+}
 
 #define KS_WLAN_MEM_FLAG (GFP_ATOMIC)
 
