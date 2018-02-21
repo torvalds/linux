@@ -660,6 +660,29 @@ static bool verify_command_idx(u32 command, bool extended)
 	       uverbs_cmd_table[command];
 }
 
+static ssize_t process_hdr(struct ib_uverbs_cmd_hdr *hdr,
+			   __u32 *command, bool *extended)
+{
+	__u32 flags;
+
+	if (hdr->command & ~(__u32)(IB_USER_VERBS_CMD_FLAGS_MASK |
+				   IB_USER_VERBS_CMD_COMMAND_MASK))
+		return -EINVAL;
+
+	*command = hdr->command & IB_USER_VERBS_CMD_COMMAND_MASK;
+	flags = (hdr->command &
+		 IB_USER_VERBS_CMD_FLAGS_MASK) >> IB_USER_VERBS_CMD_FLAGS_SHIFT;
+
+	*extended = flags & IB_USER_VERBS_CMD_FLAG_EXTENDED;
+	if (flags & ~IB_USER_VERBS_CMD_FLAG_EXTENDED)
+		return -EINVAL;
+
+	if (!verify_command_idx(*command, *extended))
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
 static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 			     size_t count, loff_t *pos)
 {
@@ -667,9 +690,8 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	struct ib_uverbs_ex_cmd_hdr ex_hdr;
 	struct ib_device *ib_dev;
 	struct ib_uverbs_cmd_hdr hdr;
-	bool extended_command;
+	bool extended;
 	__u32 command;
-	__u32 flags;
 	int srcu_key;
 	ssize_t ret;
 
@@ -685,38 +707,18 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	if (copy_from_user(&hdr, buf, sizeof(hdr)))
 		return -EFAULT;
 
+	ret = process_hdr(&hdr, &command, &extended);
+	if (ret)
+		return ret;
+
+	if (extended && count < (sizeof(hdr) + sizeof(ex_hdr)))
+		return -EINVAL;
+
 	srcu_key = srcu_read_lock(&file->device->disassociate_srcu);
 	ib_dev = srcu_dereference(file->device->ib_dev,
 				  &file->device->disassociate_srcu);
 	if (!ib_dev) {
 		ret = -EIO;
-		goto out;
-	}
-
-	if (hdr.command & ~(__u32)(IB_USER_VERBS_CMD_FLAGS_MASK |
-				   IB_USER_VERBS_CMD_COMMAND_MASK)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	command = hdr.command & IB_USER_VERBS_CMD_COMMAND_MASK;
-	flags = (hdr.command &
-		 IB_USER_VERBS_CMD_FLAGS_MASK) >> IB_USER_VERBS_CMD_FLAGS_SHIFT;
-
-	extended_command = flags & IB_USER_VERBS_CMD_FLAG_EXTENDED;
-	if (flags & ~IB_USER_VERBS_CMD_FLAG_EXTENDED) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (extended_command &&
-	    count < (sizeof(hdr) + sizeof(ex_hdr))) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (!verify_command_idx(command, extended_command)) {
-		ret = -EOPNOTSUPP;
 		goto out;
 	}
 
@@ -731,7 +733,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		goto out;
 	}
 
-	if (!flags) {
+	if (!extended) {
 		if (hdr.in_words * 4 != count) {
 			ret = -EINVAL;
 			goto out;
