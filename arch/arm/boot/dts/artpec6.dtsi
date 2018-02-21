@@ -154,6 +154,10 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>;
 	};
 
+	/*
+	 * Both pci nodes cannot be enabled at the same time,
+	 * leave the unwanted node as disabled.
+	 */
 	pcie: pcie@f8050000 {
 		compatible = "axis,artpec6-pcie", "snps,dw-pcie";
 		reg = <0xf8050000 0x2000
@@ -177,6 +181,20 @@
 				<0 0 0 2 &intc GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
 				<0 0 0 3 &intc GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
 				<0 0 0 4 &intc GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+		axis,syscon-pcie = <&syscon>;
+		status = "disabled";
+	};
+
+	pcie_ep: pcie_ep@f8050000 {
+		compatible = "axis,artpec6-pcie-ep", "snps,dw-pcie";
+		reg = <0xf8050000 0x2000
+		       0xf8051000 0x2000
+		       0xf8040000 0x1000
+		       0xc0000000 0x20000000>;
+		reg-names = "dbi", "dbi2", "phy", "addr_space";
+		num-ib-windows = <6>;
+		num-ob-windows = <2>;
+		num-lanes = <2>;
 		axis,syscon-pcie = <&syscon>;
 		status = "disabled";
 	};
