@@ -70,7 +70,7 @@ static int pcf85063_start_clock(struct i2c_client *client, u8 ctrl1)
 	s32 ret;
 
 	/* start the clock */
-	ctrl1 &= PCF85063_REG_CTRL1_STOP;
+	ctrl1 &= ~PCF85063_REG_CTRL1_STOP;
 
 	ret = i2c_smbus_write_byte_data(client, PCF85063_REG_CTRL1, ctrl1);
 	if (ret < 0) {
