@@ -1359,7 +1359,7 @@ void check_local_cpu_capabilities(void)
 
 static void __init setup_feature_capabilities(void)
 {
-	update_cpu_capabilities(arm64_features, "detected feature:");
+	update_cpu_capabilities(arm64_features, "detected:");
 	enable_cpu_capabilities(arm64_features);
 }
 
