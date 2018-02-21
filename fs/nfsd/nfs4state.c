@@ -894,6 +894,13 @@ static void nfs4_put_deleg_lease(struct nfs4_delegation *dp)
 	}
 }
 
+static void destroy_unhashed_deleg(struct nfs4_delegation *dp)
+{
+	put_clnt_odstate(dp->dl_clnt_odstate);
+	nfs4_put_deleg_lease(dp);
+	nfs4_put_stid(&dp->dl_stid);
+}
+
 void nfs4_unhash_stid(struct nfs4_stid *s)
 {
 	s->sc_type = 0;
@@ -985,11 +992,8 @@ static void destroy_delegation(struct nfs4_delegation *dp)
 	spin_lock(&state_lock);
 	unhashed = unhash_delegation_locked(dp);
 	spin_unlock(&state_lock);
-	if (unhashed) {
-		put_clnt_odstate(dp->dl_clnt_odstate);
-		nfs4_put_deleg_lease(dp);
-		nfs4_put_stid(&dp->dl_stid);
-	}
+	if (unhashed)
+		destroy_unhashed_deleg(dp);
 }
 
 static void revoke_delegation(struct nfs4_delegation *dp)
@@ -998,17 +1002,14 @@ static void revoke_delegation(struct nfs4_delegation *dp)
 
 	WARN_ON(!list_empty(&dp->dl_recall_lru));
 
-	put_clnt_odstate(dp->dl_clnt_odstate);
-	nfs4_put_deleg_lease(dp);
-
-	if (clp->cl_minorversion == 0)
-		nfs4_put_stid(&dp->dl_stid);
-	else {
+	if (clp->cl_minorversion) {
 		dp->dl_stid.sc_type = NFS4_REVOKED_DELEG_STID;
+		refcount_inc(&dp->dl_stid.sc_count);
 		spin_lock(&clp->cl_lock);
 		list_add(&dp->dl_recall_lru, &clp->cl_revoked);
 		spin_unlock(&clp->cl_lock);
 	}
+	destroy_unhashed_deleg(dp);
 }
 
 /* 
@@ -1910,9 +1911,7 @@ __destroy_client(struct nfs4_client *clp)
 	while (!list_empty(&reaplist)) {
 		dp = list_entry(reaplist.next, struct nfs4_delegation, dl_recall_lru);
 		list_del_init(&dp->dl_recall_lru);
-		put_clnt_odstate(dp->dl_clnt_odstate);
-		nfs4_put_deleg_lease(dp);
-		nfs4_put_stid(&dp->dl_stid);
+		destroy_unhashed_deleg(dp);
 	}
 	while (!list_empty(&clp->cl_revoked)) {
 		dp = list_entry(clp->cl_revoked.next, struct nfs4_delegation, dl_recall_lru);
@@ -7280,9 +7279,7 @@ nfs4_state_shutdown_net(struct net *net)
 	list_for_each_safe(pos, next, &reaplist) {
 		dp = list_entry (pos, struct nfs4_delegation, dl_recall_lru);
 		list_del_init(&dp->dl_recall_lru);
-		put_clnt_odstate(dp->dl_clnt_odstate);
-		nfs4_put_deleg_lease(dp);
-		nfs4_put_stid(&dp->dl_stid);
+		destroy_unhashed_deleg(dp);
 	}
 
 	nfsd4_client_tracking_exit(net);
