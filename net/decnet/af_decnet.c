@@ -1209,14 +1209,14 @@ static int dn_getname(struct socket *sock, struct sockaddr *uaddr,int *uaddr_len
 }
 
 
-static unsigned int dn_poll(struct file *file, struct socket *sock, poll_table  *wait)
+static __poll_t dn_poll(struct file *file, struct socket *sock, poll_table  *wait)
 {
 	struct sock *sk = sock->sk;
 	struct dn_scp *scp = DN_SK(sk);
-	int mask = datagram_poll(file, sock, wait);
+	__poll_t mask = datagram_poll(file, sock, wait);
 
 	if (!skb_queue_empty(&scp->other_receive_queue))
-		mask |= POLLRDBAND;
+		mask |= EPOLLRDBAND;
 
 	return mask;
 }
@@ -2320,7 +2320,6 @@ static int dn_socket_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations dn_socket_seq_fops = {
-	.owner		= THIS_MODULE,
 	.open		= dn_socket_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

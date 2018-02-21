@@ -49,6 +49,8 @@ static int bnxt_get_coalesce(struct net_device *dev,
 
 	memset(coal, 0, sizeof(*coal));
 
+	coal->use_adaptive_rx_coalesce = bp->flags & BNXT_FLAG_DIM;
+
 	hw_coal = &bp->rx_coal;
 	mult = hw_coal->bufs_per_record;
 	coal->rx_coalesce_usecs = hw_coal->coal_ticks;
@@ -77,6 +79,15 @@ static int bnxt_set_coalesce(struct net_device *dev,
 	int rc = 0;
 	u16 mult;
 
+	if (coal->use_adaptive_rx_coalesce) {
+		bp->flags |= BNXT_FLAG_DIM;
+	} else {
+		if (bp->flags & BNXT_FLAG_DIM) {
+			bp->flags &= ~(BNXT_FLAG_DIM);
+			goto reset_coalesce;
+		}
+	}
+
 	hw_coal = &bp->rx_coal;
 	mult = hw_coal->bufs_per_record;
 	hw_coal->coal_ticks = coal->rx_coalesce_usecs;
@@ -104,6 +115,7 @@ static int bnxt_set_coalesce(struct net_device *dev,
 		update_stats = true;
 	}
 
+reset_coalesce:
 	if (netif_running(dev)) {
 		if (update_stats) {
 			rc = bnxt_close_nic(bp, true, false);
@@ -1376,6 +1388,9 @@ static int bnxt_firmware_reset(struct net_device *dev,
 		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP;
 		req.selfrst_status = FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP;
 		break;
+	case BNXT_FW_RESET_AP:
+		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_AP;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -2522,6 +2537,14 @@ static int bnxt_reset(struct net_device *dev, u32 *flags)
 		rc = bnxt_firmware_reset(dev, BNXT_FW_RESET_CHIP);
 		if (!rc)
 			netdev_info(dev, "Reset request successful. Reload driver to complete reset\n");
+	} else if (*flags == ETH_RESET_AP) {
+		/* This feature is not supported in older firmware versions */
+		if (bp->hwrm_spec_code < 0x10803)
+			return -EOPNOTSUPP;
+
+		rc = bnxt_firmware_reset(dev, BNXT_FW_RESET_AP);
+		if (!rc)
+			netdev_info(dev, "Reset Application Processor request successful.\n");
 	} else {
 		rc = -EINVAL;
 	}

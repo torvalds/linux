@@ -97,6 +97,9 @@ config SND_SST_ATOM_HIFI2_PLATFORM
 	  codec, then enable this option by saying Y or m. This is a
 	  recommended option
 
+config SND_SOC_INTEL_SKYLAKE_SSP_CLK
+	tristate
+
 config SND_SOC_INTEL_SKYLAKE
 	tristate "SKL/BXT/KBL/GLK/CNL... Platforms"
 	depends on PCI && ACPI

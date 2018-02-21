@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * File:	vpd.c
  * Purpose:	Provide PCI VPD support

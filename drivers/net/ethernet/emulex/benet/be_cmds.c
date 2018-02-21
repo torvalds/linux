@@ -103,7 +103,7 @@ static struct be_cmd_priv_map cmd_priv_map[] = {
 static bool be_cmd_allowed(struct be_adapter *adapter, u8 opcode, u8 subsystem)
 {
 	int i;
-	int num_entries = sizeof(cmd_priv_map)/sizeof(struct be_cmd_priv_map);
+	int num_entries = ARRAY_SIZE(cmd_priv_map);
 	u32 cmd_privileges = adapter->cmd_privileges;
 
 	for (i = 0; i < num_entries; i++)

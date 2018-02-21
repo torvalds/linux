@@ -1,14 +1,10 @@
-/*
- * Samsung's S5PC110/S5PV210 flattened device tree enabled machine.
- *
- * Copyright (c) 2013-2014 Samsung Electronics Co., Ltd.
- * Mateusz Krawczuk <m.krawczuk@partner.samsung.com>
- * Tomasz Figa <t.figa@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Samsung's S5PC110/S5PV210 flattened device tree enabled machine.
+//
+// Copyright (c) 2013-2014 Samsung Electronics Co., Ltd.
+// Mateusz Krawczuk <m.krawczuk@partner.samsung.com>
+// Tomasz Figa <t.figa@samsung.com>
 
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>

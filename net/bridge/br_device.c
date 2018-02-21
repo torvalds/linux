@@ -125,9 +125,16 @@ static int br_dev_init(struct net_device *dev)
 	if (!br->stats)
 		return -ENOMEM;
 
+	err = br_fdb_hash_init(br);
+	if (err) {
+		free_percpu(br->stats);
+		return err;
+	}
+
 	err = br_vlan_init(br);
 	if (err) {
 		free_percpu(br->stats);
+		br_fdb_hash_fini(br);
 		return err;
 	}
 
@@ -135,6 +142,7 @@ static int br_dev_init(struct net_device *dev)
 	if (err) {
 		free_percpu(br->stats);
 		br_vlan_flush(br);
+		br_fdb_hash_fini(br);
 	}
 	br_set_lockdep_class(dev);
 
@@ -148,6 +156,7 @@ static void br_dev_uninit(struct net_device *dev)
 	br_multicast_dev_del(br);
 	br_multicast_uninit_stats(br);
 	br_vlan_flush(br);
+	br_fdb_hash_fini(br);
 	free_percpu(br->stats);
 }
 
@@ -416,6 +425,7 @@ void br_dev_setup(struct net_device *dev)
 	br->dev = dev;
 	spin_lock_init(&br->lock);
 	INIT_LIST_HEAD(&br->port_list);
+	INIT_HLIST_HEAD(&br->fdb_list);
 	spin_lock_init(&br->hash_lock);
 
 	br->bridge_id.prio[0] = 0x80;

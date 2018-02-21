@@ -112,7 +112,7 @@ static int nft_log_init(const struct nft_ctx *ctx,
 		break;
 	}
 
-	err = nf_logger_find_get(ctx->afi->family, li->type);
+	err = nf_logger_find_get(ctx->family, li->type);
 	if (err < 0)
 		goto err1;
 
@@ -133,7 +133,7 @@ static void nft_log_destroy(const struct nft_ctx *ctx,
 	if (priv->prefix != nft_log_null_prefix)
 		kfree(priv->prefix);
 
-	nf_logger_put(ctx->afi->family, li->type);
+	nf_logger_put(ctx->family, li->type);
 }
 
 static int nft_log_dump(struct sk_buff *skb, const struct nft_expr *expr)

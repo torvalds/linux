@@ -1146,7 +1146,7 @@ static struct video_device cx23885_vbi_template;
 static struct video_device cx23885_video_template = {
 	.name                 = "cx23885-video",
 	.fops                 = &video_fops,
-	.ioctl_ops 	      = &video_ioctl_ops,
+	.ioctl_ops	      = &video_ioctl_ops,
 	.tvnorms              = CX23885_NORMS,
 };
 

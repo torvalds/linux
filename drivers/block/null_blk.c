@@ -1230,7 +1230,7 @@ static blk_status_t null_handle_cmd(struct nullb_cmd *cmd)
 				return BLK_STS_OK;
 			} else
 				/* requeue request */
-				return BLK_STS_RESOURCE;
+				return BLK_STS_DEV_RESOURCE;
 		}
 	}
 

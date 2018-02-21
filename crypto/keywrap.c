@@ -188,7 +188,7 @@ static int crypto_kw_decrypt(struct blkcipher_desc *desc,
 	}
 
 	/* Perform authentication check */
-	if (block.A != cpu_to_be64(0xa6a6a6a6a6a6a6a6))
+	if (block.A != cpu_to_be64(0xa6a6a6a6a6a6a6a6ULL))
 		ret = -EBADMSG;
 
 	memzero_explicit(&block, sizeof(struct crypto_kw_block));
@@ -221,7 +221,7 @@ static int crypto_kw_encrypt(struct blkcipher_desc *desc,
 	 * Place the predefined IV into block A -- for encrypt, the caller
 	 * does not need to provide an IV, but he needs to fetch the final IV.
 	 */
-	block.A = cpu_to_be64(0xa6a6a6a6a6a6a6a6);
+	block.A = cpu_to_be64(0xa6a6a6a6a6a6a6a6ULL);
 
 	/*
 	 * src scatterlist is read-only. dst scatterlist is r/w. During the

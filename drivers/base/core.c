@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/base/core.c - core driver model code (device registration, etc)
  *
@@ -5,9 +6,6 @@
  * Copyright (c) 2002-3 Open Source Development Labs
  * Copyright (c) 2006 Greg Kroah-Hartman <gregkh@suse.de>
  * Copyright (c) 2006 Novell, Inc.
- *
- * This file is released under the GPLv2
- *
  */
 
 #include <linux/device.h>
@@ -22,7 +20,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/genhd.h>
-#include <linux/kallsyms.h>
 #include <linux/mutex.h>
 #include <linux/pm_runtime.h>
 #include <linux/netdevice.h>
@@ -312,6 +309,9 @@ static void __device_link_del(struct device_link *link)
 {
 	dev_info(link->consumer, "Dropping the link to %s\n",
 		 dev_name(link->supplier));
+
+	if (link->flags & DL_FLAG_PM_RUNTIME)
+		pm_runtime_drop_link(link->consumer);
 
 	list_del(&link->s_node);
 	list_del(&link->c_node);
@@ -687,8 +687,8 @@ static ssize_t dev_attr_show(struct kobject *kobj, struct attribute *attr,
 	if (dev_attr->show)
 		ret = dev_attr->show(dev, dev_attr, buf);
 	if (ret >= (ssize_t)PAGE_SIZE) {
-		print_symbol("dev_attr_show: %s returned bad count\n",
-				(unsigned long)dev_attr->show);
+		printk("dev_attr_show: %pS returned bad count\n",
+				dev_attr->show);
 	}
 	return ret;
 }
@@ -2116,7 +2116,7 @@ int device_for_each_child(struct device *parent, void *data,
 		return 0;
 
 	klist_iter_init(&parent->p->klist_children, &i);
-	while ((child = next_device(&i)) && !error)
+	while (!error && (child = next_device(&i)))
 		error = fn(child, data);
 	klist_iter_exit(&i);
 	return error;

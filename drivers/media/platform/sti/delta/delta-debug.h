@@ -1,9 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) STMicroelectronics SA 2015
  * Authors: Hugues Fruchet <hugues.fruchet@st.com>
  *          Fabrice Lecoultre <fabrice.lecoultre@st.com>
  *          for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #ifndef DELTA_DEBUG_H

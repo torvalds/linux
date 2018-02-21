@@ -455,8 +455,8 @@ int init_send_contexts(struct hfi1_devdata *dd)
 	dd->hw_to_sw = kmalloc_array(TXE_NUM_CONTEXTS, sizeof(u8),
 					GFP_KERNEL);
 	dd->send_contexts = kcalloc(dd->num_send_contexts,
-					sizeof(struct send_context_info),
-					GFP_KERNEL);
+				    sizeof(struct send_context_info),
+				    GFP_KERNEL);
 	if (!dd->send_contexts || !dd->hw_to_sw) {
 		kfree(dd->hw_to_sw);
 		kfree(dd->send_contexts);
@@ -856,8 +856,9 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 		 * so head == tail can mean empty.
 		 */
 		sc->sr_size = sci->credits + 1;
-		sc->sr = kzalloc_node(sizeof(union pio_shadow_ring) *
-				sc->sr_size, GFP_KERNEL, numa);
+		sc->sr = kcalloc_node(sc->sr_size,
+				      sizeof(union pio_shadow_ring),
+				      GFP_KERNEL, numa);
 		if (!sc->sr) {
 			sc_free(sc);
 			return NULL;
@@ -1958,9 +1959,9 @@ int init_pervl_scs(struct hfi1_devdata *dd)
 	hfi1_init_ctxt(dd->vld[15].sc);
 	dd->vld[15].mtu = enum_to_mtu(OPA_MTU_2048);
 
-	dd->kernel_send_context = kzalloc_node(dd->num_send_contexts *
-					sizeof(struct send_context *),
-					GFP_KERNEL, dd->node);
+	dd->kernel_send_context = kcalloc_node(dd->num_send_contexts,
+					       sizeof(struct send_context *),
+					       GFP_KERNEL, dd->node);
 	if (!dd->kernel_send_context)
 		goto freesc15;
 

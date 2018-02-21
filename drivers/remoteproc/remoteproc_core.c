@@ -732,17 +732,20 @@ static rproc_handle_resource_t rproc_loading_handlers[RSC_LAST] = {
 };
 
 /* handle firmware resource entries before booting the remote processor */
-static int rproc_handle_resources(struct rproc *rproc, int len,
+static int rproc_handle_resources(struct rproc *rproc,
 				  rproc_handle_resource_t handlers[RSC_LAST])
 {
 	struct device *dev = &rproc->dev;
 	rproc_handle_resource_t handler;
 	int ret = 0, i;
 
+	if (!rproc->table_ptr)
+		return 0;
+
 	for (i = 0; i < rproc->table_ptr->num; i++) {
 		int offset = rproc->table_ptr->offset[i];
 		struct fw_rsc_hdr *hdr = (void *)rproc->table_ptr + offset;
-		int avail = len - offset - sizeof(*hdr);
+		int avail = rproc->table_sz - offset - sizeof(*hdr);
 		void *rsc = (void *)hdr + sizeof(*hdr);
 
 		/* make sure table isn't truncated */
@@ -849,16 +852,9 @@ static void rproc_resource_cleanup(struct rproc *rproc)
 
 static int rproc_start(struct rproc *rproc, const struct firmware *fw)
 {
-	struct resource_table *table, *loaded_table;
+	struct resource_table *loaded_table;
 	struct device *dev = &rproc->dev;
-	int ret, tablesz;
-
-	/* look for the resource table */
-	table = rproc_find_rsc_table(rproc, fw, &tablesz);
-	if (!table) {
-		dev_err(dev, "Resource table look up failed\n");
-		return -EINVAL;
-	}
+	int ret;
 
 	/* load the ELF segments to memory */
 	ret = rproc_load_segments(rproc, fw);
@@ -877,7 +873,7 @@ static int rproc_start(struct rproc *rproc, const struct firmware *fw)
 	 */
 	loaded_table = rproc_find_loaded_rsc_table(rproc, fw);
 	if (loaded_table) {
-		memcpy(loaded_table, rproc->cached_table, tablesz);
+		memcpy(loaded_table, rproc->cached_table, rproc->table_sz);
 		rproc->table_ptr = loaded_table;
 	}
 
@@ -911,8 +907,7 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 {
 	struct device *dev = &rproc->dev;
 	const char *name = rproc->firmware;
-	struct resource_table *table;
-	int ret, tablesz;
+	int ret;
 
 	ret = rproc_fw_sanity_check(rproc, fw);
 	if (ret)
@@ -931,32 +926,17 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	}
 
 	rproc->bootaddr = rproc_get_boot_addr(rproc, fw);
-	ret = -EINVAL;
 
-	/* look for the resource table */
-	table = rproc_find_rsc_table(rproc, fw, &tablesz);
-	if (!table) {
-		dev_err(dev, "Failed to find resource table\n");
-		goto clean_up;
-	}
-
-	/*
-	 * Create a copy of the resource table. When a virtio device starts
-	 * and calls vring_new_virtqueue() the address of the allocated vring
-	 * will be stored in the cached_table. Before the device is started,
-	 * cached_table will be copied into device memory.
-	 */
-	rproc->cached_table = kmemdup(table, tablesz, GFP_KERNEL);
-	if (!rproc->cached_table)
-		goto clean_up;
-
-	rproc->table_ptr = rproc->cached_table;
+	/* load resource table */
+	ret = rproc_load_rsc_table(rproc, fw);
+	if (ret)
+		goto disable_iommu;
 
 	/* reset max_notifyid */
 	rproc->max_notifyid = -1;
 
 	/* handle fw resources which are required to boot rproc */
-	ret = rproc_handle_resources(rproc, tablesz, rproc_loading_handlers);
+	ret = rproc_handle_resources(rproc, rproc_loading_handlers);
 	if (ret) {
 		dev_err(dev, "Failed to process resources: %d\n", ret);
 		goto clean_up_resources;
@@ -970,11 +950,10 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 
 clean_up_resources:
 	rproc_resource_cleanup(rproc);
-clean_up:
 	kfree(rproc->cached_table);
 	rproc->cached_table = NULL;
 	rproc->table_ptr = NULL;
-
+disable_iommu:
 	rproc_disable_iommu(rproc);
 	return ret;
 }
@@ -1021,16 +1000,15 @@ static int rproc_stop(struct rproc *rproc)
 	/* remove any subdevices for the remote processor */
 	rproc_remove_subdevices(rproc);
 
+	/* the installed resource table is no longer accessible */
+	rproc->table_ptr = rproc->cached_table;
+
 	/* power off the remote processor */
 	ret = rproc->ops->stop(rproc);
 	if (ret) {
 		dev_err(dev, "can't stop rproc: %d\n", ret);
 		return ret;
 	}
-
-	/* if in crash state, unlock crash handler */
-	if (rproc->state == RPROC_CRASHED)
-		complete_all(&rproc->crash_comp);
 
 	rproc->state = RPROC_OFFLINE;
 
@@ -1057,8 +1035,6 @@ int rproc_trigger_recovery(struct rproc *rproc)
 
 	dev_err(dev, "recovering %s\n", rproc->name);
 
-	init_completion(&rproc->crash_comp);
-
 	ret = mutex_lock_interruptible(&rproc->lock);
 	if (ret)
 		return ret;
@@ -1066,9 +1042,6 @@ int rproc_trigger_recovery(struct rproc *rproc)
 	ret = rproc_stop(rproc);
 	if (ret)
 		goto unlock_mutex;
-
-	/* wait until there is no more rproc users */
-	wait_for_completion(&rproc->crash_comp);
 
 	/* load firmware */
 	ret = request_firmware(&firmware_p, rproc->firmware, dev);
@@ -1357,6 +1330,7 @@ static void rproc_type_release(struct device *dev)
 		ida_simple_remove(&rproc_dev_index, rproc->index);
 
 	kfree(rproc->firmware);
+	kfree(rproc->ops);
 	kfree(rproc);
 }
 
@@ -1421,9 +1395,15 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 		return NULL;
 	}
 
+	rproc->ops = kmemdup(ops, sizeof(*ops), GFP_KERNEL);
+	if (!rproc->ops) {
+		kfree(p);
+		kfree(rproc);
+		return NULL;
+	}
+
 	rproc->firmware = p;
 	rproc->name = name;
-	rproc->ops = ops;
 	rproc->priv = &rproc[1];
 	rproc->auto_boot = true;
 
@@ -1445,8 +1425,14 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 
 	atomic_set(&rproc->power, 0);
 
-	/* Set ELF as the default fw_ops handler */
-	rproc->fw_ops = &rproc_elf_fw_ops;
+	/* Default to ELF loader if no load function is specified */
+	if (!rproc->ops->load) {
+		rproc->ops->load = rproc_elf_load_segments;
+		rproc->ops->load_rsc_table = rproc_elf_load_rsc_table;
+		rproc->ops->find_loaded_rsc_table = rproc_elf_find_loaded_rsc_table;
+		rproc->ops->sanity_check = rproc_elf_sanity_check;
+		rproc->ops->get_boot_addr = rproc_elf_get_boot_addr;
+	}
 
 	mutex_init(&rproc->lock);
 
@@ -1459,7 +1445,6 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 	INIT_LIST_HEAD(&rproc->subdevs);
 
 	INIT_WORK(&rproc->crash_handler, rproc_crash_handler_work);
-	init_completion(&rproc->crash_comp);
 
 	rproc->state = RPROC_OFFLINE;
 

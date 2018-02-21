@@ -377,8 +377,7 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 			break;
 
 		if (hdr[HDR_TEMPLATE_NAME].len >= MAX_TEMPLATE_NAME_LEN) {
-			pr_err("attempting to restore a template name \
-				that is too long\n");
+			pr_err("attempting to restore a template name that is too long\n");
 			ret = -EINVAL;
 			break;
 		}
@@ -389,8 +388,8 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 		template_name[hdr[HDR_TEMPLATE_NAME].len] = 0;
 
 		if (strcmp(template_name, "ima") == 0) {
-			pr_err("attempting to restore an unsupported \
-				template \"%s\" failed\n", template_name);
+			pr_err("attempting to restore an unsupported template \"%s\" failed\n",
+			       template_name);
 			ret = -EINVAL;
 			break;
 		}
@@ -410,8 +409,8 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 						&(template_desc->fields),
 						&(template_desc->num_fields));
 		if (ret < 0) {
-			pr_err("attempting to restore the template fmt \"%s\" \
-				failed\n", template_desc->fmt);
+			pr_err("attempting to restore the template fmt \"%s\" failed\n",
+			       template_desc->fmt);
 			ret = -EINVAL;
 			break;
 		}

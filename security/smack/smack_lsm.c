@@ -2866,11 +2866,15 @@ static int smack_socket_connect(struct socket *sock, struct sockaddr *sap,
 #endif
 #ifdef SMACK_IPV6_SECMARK_LABELING
 	struct smack_known *rsp;
-	struct socket_smack *ssp = sock->sk->sk_security;
+	struct socket_smack *ssp;
 #endif
 
 	if (sock->sk == NULL)
 		return 0;
+
+#ifdef SMACK_IPV6_SECMARK_LABELING
+	ssp = sock->sk->sk_security;
+#endif
 
 	switch (sock->sk->sk_family) {
 	case PF_INET:
@@ -4365,6 +4369,10 @@ static int smack_key_permission(key_ref_t key_ref,
 	 */
 	if (tkp == NULL)
 		return -EACCES;
+
+	if (smack_privileged_cred(CAP_MAC_OVERRIDE, cred))
+		return 0;
+
 #ifdef CONFIG_AUDIT
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_KEY);
 	ad.a.u.key_struct.key = keyp->serial;

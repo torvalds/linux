@@ -65,6 +65,7 @@
 #include <net/addrconf.h>
 #include <linux/uaccess.h>
 #include <linux/crash_dump.h>
+#include <net/udp_tunnel.h>
 
 #include "cxgb4.h"
 #include "cxgb4_filter.h"
@@ -101,7 +102,9 @@ const char cxgb4_driver_version[] = DRV_VERSION;
  */
 #define CH_PCI_DEVICE_ID_TABLE_DEFINE_BEGIN \
 	static const struct pci_device_id cxgb4_pci_tbl[] = {
-#define CH_PCI_DEVICE_ID_FUNCTION 0x4
+#define CXGB4_UNIFIED_PF 0x4
+
+#define CH_PCI_DEVICE_ID_FUNCTION CXGB4_UNIFIED_PF
 
 /* Include PCI Device IDs for both PF4 and PF0-3 so our PCI probe() routine is
  * called for both.
@@ -109,7 +112,7 @@ const char cxgb4_driver_version[] = DRV_VERSION;
 #define CH_PCI_DEVICE_ID_FUNCTION2 0x0
 
 #define CH_PCI_ID_TABLE_ENTRY(devid) \
-		{PCI_VDEVICE(CHELSIO, (devid)), 4}
+		{PCI_VDEVICE(CHELSIO, (devid)), CXGB4_UNIFIED_PF}
 
 #define CH_PCI_DEVICE_ID_TABLE_DEFINE_END \
 		{ 0, } \
@@ -1673,7 +1676,7 @@ int cxgb4_flush_eq_cache(struct net_device *dev)
 {
 	struct adapter *adap = netdev2adap(dev);
 
-	return t4_sge_ctxt_flush(adap, adap->mbox);
+	return t4_sge_ctxt_flush(adap, adap->mbox, CTXT_EGRESS);
 }
 EXPORT_SYMBOL(cxgb4_flush_eq_cache);
 
@@ -2604,7 +2607,7 @@ static int cxgb_change_mtu(struct net_device *dev, int new_mtu)
 }
 
 #ifdef CONFIG_PCI_IOV
-static int dummy_open(struct net_device *dev)
+static int cxgb4_mgmt_open(struct net_device *dev)
 {
 	/* Turn carrier off since we don't have to transmit anything on this
 	 * interface.
@@ -2614,39 +2617,44 @@ static int dummy_open(struct net_device *dev)
 }
 
 /* Fill MAC address that will be assigned by the FW */
-static void fill_vf_station_mac_addr(struct adapter *adap)
+static void cxgb4_mgmt_fill_vf_station_mac_addr(struct adapter *adap)
 {
-	unsigned int i;
 	u8 hw_addr[ETH_ALEN], macaddr[ETH_ALEN];
+	unsigned int i, vf, nvfs;
+	u16 a, b;
 	int err;
 	u8 *na;
-	u16 a, b;
 
+	adap->params.pci.vpd_cap_addr = pci_find_capability(adap->pdev,
+							    PCI_CAP_ID_VPD);
 	err = t4_get_raw_vpd_params(adap, &adap->params.vpd);
-	if (!err) {
-		na = adap->params.vpd.na;
-		for (i = 0; i < ETH_ALEN; i++)
-			hw_addr[i] = (hex2val(na[2 * i + 0]) * 16 +
-				      hex2val(na[2 * i + 1]));
-		a = (hw_addr[0] << 8) | hw_addr[1];
-		b = (hw_addr[1] << 8) | hw_addr[2];
-		a ^= b;
-		a |= 0x0200;    /* locally assigned Ethernet MAC address */
-		a &= ~0x0100;   /* not a multicast Ethernet MAC address */
-		macaddr[0] = a >> 8;
-		macaddr[1] = a & 0xff;
+	if (err)
+		return;
 
-		for (i = 2; i < 5; i++)
-			macaddr[i] = hw_addr[i + 1];
+	na = adap->params.vpd.na;
+	for (i = 0; i < ETH_ALEN; i++)
+		hw_addr[i] = (hex2val(na[2 * i + 0]) * 16 +
+			      hex2val(na[2 * i + 1]));
 
-		for (i = 0; i < adap->num_vfs; i++) {
-			macaddr[5] = adap->pf * 16 + i;
-			ether_addr_copy(adap->vfinfo[i].vf_mac_addr, macaddr);
-		}
+	a = (hw_addr[0] << 8) | hw_addr[1];
+	b = (hw_addr[1] << 8) | hw_addr[2];
+	a ^= b;
+	a |= 0x0200;    /* locally assigned Ethernet MAC address */
+	a &= ~0x0100;   /* not a multicast Ethernet MAC address */
+	macaddr[0] = a >> 8;
+	macaddr[1] = a & 0xff;
+
+	for (i = 2; i < 5; i++)
+		macaddr[i] = hw_addr[i + 1];
+
+	for (vf = 0, nvfs = pci_sriov_get_totalvfs(adap->pdev);
+		vf < nvfs; vf++) {
+		macaddr[5] = adap->pf * 16 + vf;
+		ether_addr_copy(adap->vfinfo[vf].vf_mac_addr, macaddr);
 	}
 }
 
-static int cxgb_set_vf_mac(struct net_device *dev, int vf, u8 *mac)
+static int cxgb4_mgmt_set_vf_mac(struct net_device *dev, int vf, u8 *mac)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adap = pi->adapter;
@@ -2668,8 +2676,8 @@ static int cxgb_set_vf_mac(struct net_device *dev, int vf, u8 *mac)
 	return ret;
 }
 
-static int cxgb_get_vf_config(struct net_device *dev,
-			      int vf, struct ifla_vf_info *ivi)
+static int cxgb4_mgmt_get_vf_config(struct net_device *dev,
+				    int vf, struct ifla_vf_info *ivi)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adap = pi->adapter;
@@ -2683,8 +2691,8 @@ static int cxgb_get_vf_config(struct net_device *dev,
 	return 0;
 }
 
-static int cxgb_get_phys_port_id(struct net_device *dev,
-				 struct netdev_phys_item_id *ppid)
+static int cxgb4_mgmt_get_phys_port_id(struct net_device *dev,
+				       struct netdev_phys_item_id *ppid)
 {
 	struct port_info *pi = netdev_priv(dev);
 	unsigned int phy_port_id;
@@ -2695,8 +2703,8 @@ static int cxgb_get_phys_port_id(struct net_device *dev,
 	return 0;
 }
 
-static int cxgb_set_vf_rate(struct net_device *dev, int vf, int min_tx_rate,
-			    int max_tx_rate)
+static int cxgb4_mgmt_set_vf_rate(struct net_device *dev, int vf,
+				  int min_tx_rate, int max_tx_rate)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adap = pi->adapter;
@@ -2775,7 +2783,30 @@ static int cxgb_set_vf_rate(struct net_device *dev, int vf, int min_tx_rate,
 	return 0;
 }
 
-#endif
+static int cxgb4_mgmt_set_vf_vlan(struct net_device *dev, int vf,
+				  u16 vlan, u8 qos, __be16 vlan_proto)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	int ret;
+
+	if (vf >= adap->num_vfs || vlan > 4095 || qos > 7)
+		return -EINVAL;
+
+	if (vlan_proto != htons(ETH_P_8021Q) || qos != 0)
+		return -EPROTONOSUPPORT;
+
+	ret = t4_set_vlan_acl(adap, adap->mbox, vf + 1, vlan);
+	if (!ret) {
+		adap->vfinfo[vf].vlan = vlan;
+		return 0;
+	}
+
+	dev_err(adap->pdev_dev, "Err %d %s VLAN ACL for PF/VF %d/%d\n",
+		ret, (vlan ? "setting" : "clearing"), adap->pf, vf);
+	return ret;
+}
+#endif /* CONFIG_PCI_IOV */
 
 static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 {
@@ -2897,9 +2928,6 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 static int cxgb_setup_tc_flower(struct net_device *dev,
 				struct tc_cls_flower_offload *cls_flower)
 {
-	if (cls_flower->common.chain_index)
-		return -EOPNOTSUPP;
-
 	switch (cls_flower->command) {
 	case TC_CLSFLOWER_REPLACE:
 		return cxgb4_tc_flower_replace(dev, cls_flower);
@@ -2915,9 +2943,6 @@ static int cxgb_setup_tc_flower(struct net_device *dev,
 static int cxgb_setup_tc_cls_u32(struct net_device *dev,
 				 struct tc_cls_u32_offload *cls_u32)
 {
-	if (cls_u32->common.chain_index)
-		return -EOPNOTSUPP;
-
 	switch (cls_u32->command) {
 	case TC_CLSU32_NEW_KNODE:
 	case TC_CLSU32_REPLACE_KNODE:
@@ -2943,7 +2968,7 @@ static int cxgb_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 		return -EINVAL;
 	}
 
-	if (!tc_can_offload(dev))
+	if (!tc_cls_can_offload_and_chain0(dev, type_data))
 		return -EOPNOTSUPP;
 
 	switch (type) {
@@ -2987,6 +3012,174 @@ static int cxgb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	}
 }
 
+static void cxgb_del_udp_tunnel(struct net_device *netdev,
+				struct udp_tunnel_info *ti)
+{
+	struct port_info *pi = netdev_priv(netdev);
+	struct adapter *adapter = pi->adapter;
+	unsigned int chip_ver = CHELSIO_CHIP_VERSION(adapter->params.chip);
+	u8 match_all_mac[] = { 0, 0, 0, 0, 0, 0 };
+	int ret = 0, i;
+
+	if (chip_ver < CHELSIO_T6)
+		return;
+
+	switch (ti->type) {
+	case UDP_TUNNEL_TYPE_VXLAN:
+		if (!adapter->vxlan_port_cnt ||
+		    adapter->vxlan_port != ti->port)
+			return; /* Invalid VxLAN destination port */
+
+		adapter->vxlan_port_cnt--;
+		if (adapter->vxlan_port_cnt)
+			return;
+
+		adapter->vxlan_port = 0;
+		t4_write_reg(adapter, MPS_RX_VXLAN_TYPE_A, 0);
+		break;
+	case UDP_TUNNEL_TYPE_GENEVE:
+		if (!adapter->geneve_port_cnt ||
+		    adapter->geneve_port != ti->port)
+			return; /* Invalid GENEVE destination port */
+
+		adapter->geneve_port_cnt--;
+		if (adapter->geneve_port_cnt)
+			return;
+
+		adapter->geneve_port = 0;
+		t4_write_reg(adapter, MPS_RX_GENEVE_TYPE_A, 0);
+	default:
+		return;
+	}
+
+	/* Matchall mac entries can be deleted only after all tunnel ports
+	 * are brought down or removed.
+	 */
+	if (!adapter->rawf_cnt)
+		return;
+	for_each_port(adapter, i) {
+		pi = adap2pinfo(adapter, i);
+		ret = t4_free_raw_mac_filt(adapter, pi->viid,
+					   match_all_mac, match_all_mac,
+					   adapter->rawf_start +
+					    pi->port_id,
+					   1, pi->port_id, true);
+		if (ret < 0) {
+			netdev_info(netdev, "Failed to free mac filter entry, for port %d\n",
+				    i);
+			return;
+		}
+		atomic_dec(&adapter->mps_encap[adapter->rawf_start +
+			   pi->port_id].refcnt);
+	}
+}
+
+static void cxgb_add_udp_tunnel(struct net_device *netdev,
+				struct udp_tunnel_info *ti)
+{
+	struct port_info *pi = netdev_priv(netdev);
+	struct adapter *adapter = pi->adapter;
+	unsigned int chip_ver = CHELSIO_CHIP_VERSION(adapter->params.chip);
+	u8 match_all_mac[] = { 0, 0, 0, 0, 0, 0 };
+	int i, ret;
+
+	if (chip_ver < CHELSIO_T6 || !adapter->rawf_cnt)
+		return;
+
+	switch (ti->type) {
+	case UDP_TUNNEL_TYPE_VXLAN:
+		/* Callback for adding vxlan port can be called with the same
+		 * port for both IPv4 and IPv6. We should not disable the
+		 * offloading when the same port for both protocols is added
+		 * and later one of them is removed.
+		 */
+		if (adapter->vxlan_port_cnt &&
+		    adapter->vxlan_port == ti->port) {
+			adapter->vxlan_port_cnt++;
+			return;
+		}
+
+		/* We will support only one VxLAN port */
+		if (adapter->vxlan_port_cnt) {
+			netdev_info(netdev, "UDP port %d already offloaded, not adding port %d\n",
+				    be16_to_cpu(adapter->vxlan_port),
+				    be16_to_cpu(ti->port));
+			return;
+		}
+
+		adapter->vxlan_port = ti->port;
+		adapter->vxlan_port_cnt = 1;
+
+		t4_write_reg(adapter, MPS_RX_VXLAN_TYPE_A,
+			     VXLAN_V(be16_to_cpu(ti->port)) | VXLAN_EN_F);
+		break;
+	case UDP_TUNNEL_TYPE_GENEVE:
+		if (adapter->geneve_port_cnt &&
+		    adapter->geneve_port == ti->port) {
+			adapter->geneve_port_cnt++;
+			return;
+		}
+
+		/* We will support only one GENEVE port */
+		if (adapter->geneve_port_cnt) {
+			netdev_info(netdev, "UDP port %d already offloaded, not adding port %d\n",
+				    be16_to_cpu(adapter->geneve_port),
+				    be16_to_cpu(ti->port));
+			return;
+		}
+
+		adapter->geneve_port = ti->port;
+		adapter->geneve_port_cnt = 1;
+
+		t4_write_reg(adapter, MPS_RX_GENEVE_TYPE_A,
+			     GENEVE_V(be16_to_cpu(ti->port)) | GENEVE_EN_F);
+	default:
+		return;
+	}
+
+	/* Create a 'match all' mac filter entry for inner mac,
+	 * if raw mac interface is supported. Once the linux kernel provides
+	 * driver entry points for adding/deleting the inner mac addresses,
+	 * we will remove this 'match all' entry and fallback to adding
+	 * exact match filters.
+	 */
+	for_each_port(adapter, i) {
+		pi = adap2pinfo(adapter, i);
+
+		ret = t4_alloc_raw_mac_filt(adapter, pi->viid,
+					    match_all_mac,
+					    match_all_mac,
+					    adapter->rawf_start +
+					    pi->port_id,
+					    1, pi->port_id, true);
+		if (ret < 0) {
+			netdev_info(netdev, "Failed to allocate a mac filter entry, not adding port %d\n",
+				    be16_to_cpu(ti->port));
+			cxgb_del_udp_tunnel(netdev, ti);
+			return;
+		}
+		atomic_inc(&adapter->mps_encap[ret].refcnt);
+	}
+}
+
+static netdev_features_t cxgb_features_check(struct sk_buff *skb,
+					     struct net_device *dev,
+					     netdev_features_t features)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adapter = pi->adapter;
+
+	if (CHELSIO_CHIP_VERSION(adapter->params.chip) < CHELSIO_T6)
+		return features;
+
+	/* Check if hw supports offload for this packet */
+	if (!skb->encapsulation || cxgb_encap_offload_supported(skb))
+		return features;
+
+	/* Offload is not supported for this encapsulated packet */
+	return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
+}
+
 static netdev_features_t cxgb_fix_features(struct net_device *dev,
 					   netdev_features_t features)
 {
@@ -3018,20 +3211,25 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 	.ndo_set_tx_maxrate   = cxgb_set_tx_maxrate,
 	.ndo_setup_tc         = cxgb_setup_tc,
+	.ndo_udp_tunnel_add   = cxgb_add_udp_tunnel,
+	.ndo_udp_tunnel_del   = cxgb_del_udp_tunnel,
+	.ndo_features_check   = cxgb_features_check,
 	.ndo_fix_features     = cxgb_fix_features,
 };
 
 #ifdef CONFIG_PCI_IOV
 static const struct net_device_ops cxgb4_mgmt_netdev_ops = {
-	.ndo_open             = dummy_open,
-	.ndo_set_vf_mac       = cxgb_set_vf_mac,
-	.ndo_get_vf_config    = cxgb_get_vf_config,
-	.ndo_set_vf_rate      = cxgb_set_vf_rate,
-	.ndo_get_phys_port_id = cxgb_get_phys_port_id,
+	.ndo_open             = cxgb4_mgmt_open,
+	.ndo_set_vf_mac       = cxgb4_mgmt_set_vf_mac,
+	.ndo_get_vf_config    = cxgb4_mgmt_get_vf_config,
+	.ndo_set_vf_rate      = cxgb4_mgmt_set_vf_rate,
+	.ndo_get_phys_port_id = cxgb4_mgmt_get_phys_port_id,
+	.ndo_set_vf_vlan      = cxgb4_mgmt_set_vf_vlan,
 };
 #endif
 
-static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
+static void cxgb4_mgmt_get_drvinfo(struct net_device *dev,
+				   struct ethtool_drvinfo *info)
 {
 	struct adapter *adapter = netdev2adap(dev);
 
@@ -3043,7 +3241,7 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 }
 
 static const struct ethtool_ops cxgb4_mgmt_ethtool_ops = {
-	.get_drvinfo       = get_drvinfo,
+	.get_drvinfo       = cxgb4_mgmt_get_drvinfo,
 };
 
 void t4_fatal_err(struct adapter *adap)
@@ -4096,7 +4294,7 @@ static int adap_init0(struct adapter *adap)
 		} else {
 			adap->vres.ncrypto_fc = val[0];
 		}
-		adap->params.crypto |= ULP_CRYPTO_LOOKASIDE;
+		adap->params.crypto = ntohs(caps_cmd.cryptocaps);
 		adap->num_uld += 1;
 	}
 #undef FW_PARAM_PFVF
@@ -4759,7 +4957,7 @@ static int get_chip_type(struct pci_dev *pdev, u32 pl_rev)
 }
 
 #ifdef CONFIG_PCI_IOV
-static void dummy_setup(struct net_device *dev)
+static void cxgb4_mgmt_setup(struct net_device *dev)
 {
 	dev->type = ARPHRD_NONE;
 	dev->mtu = 0;
@@ -4775,38 +4973,6 @@ static void dummy_setup(struct net_device *dev)
 	dev->needs_free_netdev = true;
 }
 
-static int config_mgmt_dev(struct pci_dev *pdev)
-{
-	struct adapter *adap = pci_get_drvdata(pdev);
-	struct net_device *netdev;
-	struct port_info *pi;
-	char name[IFNAMSIZ];
-	int err;
-
-	snprintf(name, IFNAMSIZ, "mgmtpf%d%d", adap->adap_idx, adap->pf);
-	netdev = alloc_netdev(sizeof(struct port_info), name, NET_NAME_UNKNOWN,
-			      dummy_setup);
-	if (!netdev)
-		return -ENOMEM;
-
-	pi = netdev_priv(netdev);
-	pi->adapter = adap;
-	pi->tx_chan = adap->pf % adap->params.nports;
-	SET_NETDEV_DEV(netdev, &pdev->dev);
-
-	adap->port[0] = netdev;
-	pi->port_id = 0;
-
-	err = register_netdev(adap->port[0]);
-	if (err) {
-		pr_info("Unable to register VF mgmt netdev %s\n", name);
-		free_netdev(adap->port[0]);
-		adap->port[0] = NULL;
-		return err;
-	}
-	return 0;
-}
-
 static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 {
 	struct adapter *adap = pci_get_drvdata(pdev);
@@ -4818,7 +4984,7 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 	/* Check if cxgb4 is the MASTER and fw is initialized */
 	if (!(pcie_fw & PCIE_FW_INIT_F) ||
 	    !(pcie_fw & PCIE_FW_MASTER_VLD_F) ||
-	    PCIE_FW_MASTER_G(pcie_fw) != 4) {
+	    PCIE_FW_MASTER_G(pcie_fw) != CXGB4_UNIFIED_PF) {
 		dev_warn(&pdev->dev,
 			 "cxgb4 driver needs to be MASTER to support SRIOV\n");
 		return -EOPNOTSUPP;
@@ -4830,46 +4996,132 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 	if (current_vfs && pci_vfs_assigned(pdev)) {
 		dev_err(&pdev->dev,
 			"Cannot modify SR-IOV while VFs are assigned\n");
-		num_vfs = current_vfs;
-		return num_vfs;
+		return current_vfs;
 	}
-
-	/* Disable SRIOV when zero is passed.
-	 * One needs to disable SRIOV before modifying it, else
-	 * stack throws the below warning:
-	 * " 'n' VFs already enabled. Disable before enabling 'm' VFs."
+	/* Note that the upper-level code ensures that we're never called with
+	 * a non-zero "num_vfs" when we already have VFs instantiated.  But
+	 * it never hurts to code defensively.
 	 */
+	if (num_vfs != 0 && current_vfs != 0)
+		return -EBUSY;
+
+	/* Nothing to do for no change. */
+	if (num_vfs == current_vfs)
+		return num_vfs;
+
+	/* Disable SRIOV when zero is passed. */
 	if (!num_vfs) {
 		pci_disable_sriov(pdev);
-		if (adap->port[0]) {
-			unregister_netdev(adap->port[0]);
-			adap->port[0] = NULL;
-		}
+		/* free VF Management Interface */
+		unregister_netdev(adap->port[0]);
+		free_netdev(adap->port[0]);
+		adap->port[0] = NULL;
+
 		/* free VF resources */
+		adap->num_vfs = 0;
 		kfree(adap->vfinfo);
 		adap->vfinfo = NULL;
-		adap->num_vfs = 0;
-		return num_vfs;
+		return 0;
 	}
 
-	if (num_vfs != current_vfs) {
-		err = pci_enable_sriov(pdev, num_vfs);
-		if (err)
-			return err;
+	if (!current_vfs) {
+		struct fw_pfvf_cmd port_cmd, port_rpl;
+		struct net_device *netdev;
+		unsigned int pmask, port;
+		struct pci_dev *pbridge;
+		struct port_info *pi;
+		char name[IFNAMSIZ];
+		u32 devcap2;
+		u16 flags;
+		int pos;
 
-		adap->num_vfs = num_vfs;
-		err = config_mgmt_dev(pdev);
+		/* If we want to instantiate Virtual Functions, then our
+		 * parent bridge's PCI-E needs to support Alternative Routing
+		 * ID (ARI) because our VFs will show up at function offset 8
+		 * and above.
+		 */
+		pbridge = pdev->bus->self;
+		pos = pci_find_capability(pbridge, PCI_CAP_ID_EXP);
+		pci_read_config_word(pbridge, pos + PCI_EXP_FLAGS, &flags);
+		pci_read_config_dword(pbridge, pos + PCI_EXP_DEVCAP2, &devcap2);
+
+		if ((flags & PCI_EXP_FLAGS_VERS) < 2 ||
+		    !(devcap2 & PCI_EXP_DEVCAP2_ARI)) {
+			/* Our parent bridge does not support ARI so issue a
+			 * warning and skip instantiating the VFs.  They
+			 * won't be reachable.
+			 */
+			dev_warn(&pdev->dev, "Parent bridge %02x:%02x.%x doesn't support ARI; can't instantiate Virtual Functions\n",
+				 pbridge->bus->number, PCI_SLOT(pbridge->devfn),
+				 PCI_FUNC(pbridge->devfn));
+			return -ENOTSUPP;
+		}
+		memset(&port_cmd, 0, sizeof(port_cmd));
+		port_cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_PFVF_CMD) |
+						 FW_CMD_REQUEST_F |
+						 FW_CMD_READ_F |
+						 FW_PFVF_CMD_PFN_V(adap->pf) |
+						 FW_PFVF_CMD_VFN_V(0));
+		port_cmd.retval_len16 = cpu_to_be32(FW_LEN16(port_cmd));
+		err = t4_wr_mbox(adap, adap->mbox, &port_cmd, sizeof(port_cmd),
+				 &port_rpl);
 		if (err)
 			return err;
+		pmask = FW_PFVF_CMD_PMASK_G(be32_to_cpu(port_rpl.type_to_neq));
+		port = ffs(pmask) - 1;
+		/* Allocate VF Management Interface. */
+		snprintf(name, IFNAMSIZ, "mgmtpf%d,%d", adap->adap_idx,
+			 adap->pf);
+		netdev = alloc_netdev(sizeof(struct port_info),
+				      name, NET_NAME_UNKNOWN, cxgb4_mgmt_setup);
+		if (!netdev)
+			return -ENOMEM;
+
+		pi = netdev_priv(netdev);
+		pi->adapter = adap;
+		pi->lport = port;
+		pi->tx_chan = port;
+		SET_NETDEV_DEV(netdev, &pdev->dev);
+
+		adap->port[0] = netdev;
+		pi->port_id = 0;
+
+		err = register_netdev(adap->port[0]);
+		if (err) {
+			pr_info("Unable to register VF mgmt netdev %s\n", name);
+			free_netdev(adap->port[0]);
+			adap->port[0] = NULL;
+			return err;
+		}
+		/* Allocate and set up VF Information. */
+		adap->vfinfo = kcalloc(pci_sriov_get_totalvfs(pdev),
+				       sizeof(struct vf_info), GFP_KERNEL);
+		if (!adap->vfinfo) {
+			unregister_netdev(adap->port[0]);
+			free_netdev(adap->port[0]);
+			adap->port[0] = NULL;
+			return -ENOMEM;
+		}
+		cxgb4_mgmt_fill_vf_station_mac_addr(adap);
+	}
+	/* Instantiate the requested number of VFs. */
+	err = pci_enable_sriov(pdev, num_vfs);
+	if (err) {
+		pr_info("Unable to instantiate %d VFs\n", num_vfs);
+		if (!current_vfs) {
+			unregister_netdev(adap->port[0]);
+			free_netdev(adap->port[0]);
+			adap->port[0] = NULL;
+			kfree(adap->vfinfo);
+			adap->vfinfo = NULL;
+		}
+		return err;
 	}
 
-	adap->vfinfo = kcalloc(adap->num_vfs,
-			       sizeof(struct vf_info), GFP_KERNEL);
-	if (adap->vfinfo)
-		fill_vf_station_mac_addr(adap);
+	adap->num_vfs = num_vfs;
 	return num_vfs;
 }
-#endif
+#endif /* CONFIG_PCI_IOV */
 
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -4882,9 +5134,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u32 whoami, pl_rev;
 	enum chip_type chip;
 	static int adap_idx = 1;
-#ifdef CONFIG_PCI_IOV
-	u32 v, port_vec;
-#endif
 
 	printk_once(KERN_INFO "%s - version %s\n", DRV_DESC, DRV_VERSION);
 
@@ -4908,9 +5157,16 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_disable_device;
 	}
 
+	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
+	if (!adapter) {
+		err = -ENOMEM;
+		goto out_unmap_bar0;
+	}
+
+	adapter->regs = regs;
 	err = t4_wait_dev_ready(regs);
 	if (err < 0)
-		goto out_unmap_bar0;
+		goto out_free_adapter;
 
 	/* We control everything through one PF */
 	whoami = readl(regs + PL_WHOAMI_A);
@@ -4918,48 +5174,13 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	chip = get_chip_type(pdev, pl_rev);
 	func = CHELSIO_CHIP_VERSION(chip) <= CHELSIO_T5 ?
 		SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
-	if (func != ent->driver_data) {
-#ifndef CONFIG_PCI_IOV
-		iounmap(regs);
-#endif
-		pci_disable_device(pdev);
-		pci_save_state(pdev);        /* to restore SR-IOV later */
-		goto sriov;
-	}
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		highdma = true;
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-		if (err) {
-			dev_err(&pdev->dev, "unable to obtain 64-bit DMA for "
-				"coherent allocations\n");
-			goto out_unmap_bar0;
-		}
-	} else {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(&pdev->dev, "no usable DMA configuration\n");
-			goto out_unmap_bar0;
-		}
-	}
-
-	pci_enable_pcie_error_reporting(pdev);
-	pci_set_master(pdev);
-	pci_save_state(pdev);
-
-	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
-	if (!adapter) {
-		err = -ENOMEM;
-		goto out_unmap_bar0;
-	}
-	adap_idx++;
-
-	adapter->workq = create_singlethread_workqueue("cxgb4");
-	if (!adapter->workq) {
-		err = -ENOMEM;
-		goto out_free_adapter;
-	}
-
+	adapter->pdev = pdev;
+	adapter->pdev_dev = &pdev->dev;
+	adapter->name = pci_name(pdev);
+	adapter->mbox = func;
+	adapter->pf = func;
+	adapter->msg_enable = DFLT_MSG_ENABLE;
 	adapter->mbox_log = kzalloc(sizeof(*adapter->mbox_log) +
 				    (sizeof(struct mbox_cmd) *
 				     T4_OS_LOG_MBOX_CMDS),
@@ -4968,18 +5189,46 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = -ENOMEM;
 		goto out_free_adapter;
 	}
+	spin_lock_init(&adapter->mbox_lock);
+	INIT_LIST_HEAD(&adapter->mlist.list);
+	pci_set_drvdata(pdev, adapter);
+
+	if (func != ent->driver_data) {
+		pci_disable_device(pdev);
+		pci_save_state(pdev);        /* to restore SR-IOV later */
+		return 0;
+	}
+
+	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
+		highdma = true;
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+		if (err) {
+			dev_err(&pdev->dev, "unable to obtain 64-bit DMA for "
+				"coherent allocations\n");
+			goto out_free_adapter;
+		}
+	} else {
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		if (err) {
+			dev_err(&pdev->dev, "no usable DMA configuration\n");
+			goto out_free_adapter;
+		}
+	}
+
+	pci_enable_pcie_error_reporting(pdev);
+	pci_set_master(pdev);
+	pci_save_state(pdev);
+	adap_idx++;
+	adapter->workq = create_singlethread_workqueue("cxgb4");
+	if (!adapter->workq) {
+		err = -ENOMEM;
+		goto out_free_adapter;
+	}
+
 	adapter->mbox_log->size = T4_OS_LOG_MBOX_CMDS;
 
 	/* PCI device has been enabled */
 	adapter->flags |= DEV_ENABLED;
-
-	adapter->regs = regs;
-	adapter->pdev = pdev;
-	adapter->pdev_dev = &pdev->dev;
-	adapter->name = pci_name(pdev);
-	adapter->mbox = func;
-	adapter->pf = func;
-	adapter->msg_enable = DFLT_MSG_ENABLE;
 	memset(adapter->chan_map, 0xff, sizeof(adapter->chan_map));
 
 	/* If possible, we use PCIe Relaxed Ordering Attribute to deliver
@@ -5002,9 +5251,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	spin_lock_init(&adapter->stats_lock);
 	spin_lock_init(&adapter->tid_release_lock);
 	spin_lock_init(&adapter->win0_lock);
-	spin_lock_init(&adapter->mbox_lock);
-
-	INIT_LIST_HEAD(&adapter->mlist.list);
 
 	INIT_WORK(&adapter->tid_release_task, process_tid_release_list);
 	INIT_WORK(&adapter->db_full_task, process_db_full);
@@ -5080,6 +5326,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			NETIF_F_RXCSUM | NETIF_F_RXHASH |
 			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 			NETIF_F_HW_TC;
+
+		if (CHELSIO_CHIP_VERSION(chip) > CHELSIO_T5)
+			netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
+
 		if (highdma)
 			netdev->hw_features |= NETIF_F_HIGHDMA;
 		netdev->features |= netdev->hw_features;
@@ -5273,58 +5523,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	setup_fw_sge_queues(adapter);
 	return 0;
 
-sriov:
-#ifdef CONFIG_PCI_IOV
-	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
-	if (!adapter) {
-		err = -ENOMEM;
-		goto free_pci_region;
-	}
-
-	adapter->pdev = pdev;
-	adapter->pdev_dev = &pdev->dev;
-	adapter->name = pci_name(pdev);
-	adapter->mbox = func;
-	adapter->pf = func;
-	adapter->regs = regs;
-	adapter->adap_idx = adap_idx;
-	adapter->mbox_log = kzalloc(sizeof(*adapter->mbox_log) +
-				    (sizeof(struct mbox_cmd) *
-				     T4_OS_LOG_MBOX_CMDS),
-				    GFP_KERNEL);
-	if (!adapter->mbox_log) {
-		err = -ENOMEM;
-		goto free_adapter;
-	}
-	spin_lock_init(&adapter->mbox_lock);
-	INIT_LIST_HEAD(&adapter->mlist.list);
-
-	v = FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
-	    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_PORTVEC);
-	err = t4_query_params(adapter, adapter->mbox, adapter->pf, 0, 1,
-			      &v, &port_vec);
-	if (err < 0) {
-		dev_err(adapter->pdev_dev, "Could not fetch port params\n");
-		goto free_mbox_log;
-	}
-
-	adapter->params.nports = hweight32(port_vec);
-	pci_set_drvdata(pdev, adapter);
-	return 0;
-
-free_mbox_log:
-	kfree(adapter->mbox_log);
- free_adapter:
-	kfree(adapter);
- free_pci_region:
-	iounmap(regs);
-	pci_disable_sriov(pdev);
-	pci_release_regions(pdev);
-	return err;
-#else
-	return 0;
-#endif
-
  out_free_dev:
 	free_some_resources(adapter);
 	if (adapter->flags & USING_MSIX)
@@ -5416,14 +5614,7 @@ static void remove_one(struct pci_dev *pdev)
 	}
 #ifdef CONFIG_PCI_IOV
 	else {
-		if (adapter->port[0])
-			unregister_netdev(adapter->port[0]);
-		iounmap(adapter->regs);
-		kfree(adapter->vfinfo);
-		kfree(adapter->mbox_log);
-		kfree(adapter);
-		pci_disable_sriov(pdev);
-		pci_release_regions(pdev);
+		cxgb4_iov_configure(adapter->pdev, 0);
 	}
 #endif
 }
@@ -5467,18 +5658,6 @@ static void shutdown_one(struct pci_dev *pdev)
 		if (adapter->flags & FW_OK)
 			t4_fw_bye(adapter, adapter->mbox);
 	}
-#ifdef CONFIG_PCI_IOV
-	else {
-		if (adapter->port[0])
-			unregister_netdev(adapter->port[0]);
-		iounmap(adapter->regs);
-		kfree(adapter->vfinfo);
-		kfree(adapter->mbox_log);
-		kfree(adapter);
-		pci_disable_sriov(pdev);
-		pci_release_regions(pdev);
-	}
-#endif
 }
 
 static struct pci_driver cxgb4_driver = {

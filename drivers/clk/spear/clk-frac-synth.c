@@ -131,7 +131,7 @@ struct clk *clk_register_frac(const char *name, const char *parent_name,
 	struct clk *clk;
 
 	if (!name || !parent_name || !reg || !rtbl || !rtbl_cnt) {
-		pr_err("Invalid arguments passed");
+		pr_err("Invalid arguments passed\n");
 		return ERR_PTR(-EINVAL);
 	}
 

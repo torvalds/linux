@@ -23,9 +23,12 @@
  *	    tree.
  *	    - perform initial checks (capabilities, auditing and permission,
  *	      etc).
- *	    - perform read-only operations, such as STAT, INFO commands.
+ *	    - perform read-only operations, such as INFO command, that
+ *	      do not demand atomicity
  *	      acquire the ipc lock (kern_ipc_perm.lock) through
  *	      ipc_lock_object()
+ *		- perform read-only operations that demand atomicity,
+ *		  such as STAT command.
  *		- perform data updates, such as SET, RMID commands and
  *		  mechanism-specific operations (semop/semtimedop,
  *		  msgsnd/msgrcv, shmat/shmdt).

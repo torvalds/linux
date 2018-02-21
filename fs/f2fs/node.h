@@ -305,6 +305,10 @@ static inline bool is_recoverable_dnode(struct page *page)
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(F2FS_P_SB(page));
 	__u64 cp_ver = cur_cp_version(ckpt);
 
+	/* Don't care crc part, if fsck.f2fs sets it. */
+	if (__is_set_ckpt_flags(ckpt, CP_NOCRC_RECOVERY_FLAG))
+		return (cp_ver << 32) == (cpver_of_node(page) << 32);
+
 	if (__is_set_ckpt_flags(ckpt, CP_CRC_RECOVERY_FLAG))
 		cp_ver |= (cur_cp_crc(ckpt) << 32);
 

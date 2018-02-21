@@ -455,31 +455,22 @@ static irqreturn_t mcp23s08_irq(int irq, void *data)
 		defval_changed, gpio_set;
 
 	mutex_lock(&mcp->lock);
-	if (mcp_read(mcp, MCP_INTF, &intf) < 0) {
-		mutex_unlock(&mcp->lock);
-		return IRQ_HANDLED;
-	}
+	if (mcp_read(mcp, MCP_INTF, &intf))
+		goto unlock;
 
-	if (mcp_read(mcp, MCP_INTCAP, &intcap) < 0) {
-		mutex_unlock(&mcp->lock);
-		return IRQ_HANDLED;
-	}
+	if (mcp_read(mcp, MCP_INTCAP, &intcap))
+		goto unlock;
 
-	if (mcp_read(mcp, MCP_INTCON, &intcon) < 0) {
-		mutex_unlock(&mcp->lock);
-		return IRQ_HANDLED;
-	}
+	if (mcp_read(mcp, MCP_INTCON, &intcon))
+		goto unlock;
 
-	if (mcp_read(mcp, MCP_DEFVAL, &defval) < 0) {
-		mutex_unlock(&mcp->lock);
-		return IRQ_HANDLED;
-	}
+	if (mcp_read(mcp, MCP_DEFVAL, &defval))
+		goto unlock;
 
 	/* This clears the interrupt(configurable on S18) */
-	if (mcp_read(mcp, MCP_GPIO, &gpio) < 0) {
-		mutex_unlock(&mcp->lock);
-		return IRQ_HANDLED;
-	}
+	if (mcp_read(mcp, MCP_GPIO, &gpio))
+		goto unlock;
+
 	gpio_orig = mcp->cached_gpio;
 	mcp->cached_gpio = gpio;
 	mutex_unlock(&mcp->lock);
@@ -540,6 +531,10 @@ static irqreturn_t mcp23s08_irq(int irq, void *data)
 		}
 	}
 
+	return IRQ_HANDLED;
+
+unlock:
+	mutex_unlock(&mcp->lock);
 	return IRQ_HANDLED;
 }
 
@@ -753,13 +748,12 @@ static void mcp23s08_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		if (!label)
 			continue;
 
-		seq_printf(s, " gpio-%-3d P%c.%d (%-12s) %s %s %s",
-			chip->base + t, bank, t, label,
-			(iodir & mask) ? "in " : "out",
-			(gpio & mask) ? "hi" : "lo",
-			(gppu & mask) ? "up" : "  ");
+		seq_printf(s, " gpio-%-3d P%c.%d (%-12s) %s %s %s\n",
+			   chip->base + t, bank, t, label,
+			   (iodir & mask) ? "in " : "out",
+			   (gpio & mask) ? "hi" : "lo",
+			   (gppu & mask) ? "up" : "  ");
 		/* NOTE:  ignoring the irq-related registers */
-		seq_puts(s, "\n");
 	}
 done:
 	mutex_unlock(&mcp->lock);
@@ -896,15 +890,15 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 			goto fail;
 	}
 
-	ret = devm_gpiochip_add_data(dev, &mcp->chip, mcp);
-	if (ret < 0)
-		goto fail;
-
 	if (mcp->irq && mcp->irq_controller) {
 		ret = mcp23s08_irq_setup(mcp);
 		if (ret)
 			goto fail;
 	}
+
+	ret = devm_gpiochip_add_data(dev, &mcp->chip, mcp);
+	if (ret < 0)
+		goto fail;
 
 	mcp->pinctrl_desc.name = "mcp23xxx-pinctrl";
 	mcp->pinctrl_desc.pctlops = &mcp_pinctrl_ops;

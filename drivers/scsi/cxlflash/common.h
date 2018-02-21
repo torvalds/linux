@@ -25,6 +25,8 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 
+#include "backend.h"
+
 extern const struct file_operations cxlflash_cxl_fops;
 
 #define MAX_CONTEXT	CXLFLASH_MAX_CONTEXT	/* num contexts per afu */
@@ -114,6 +116,7 @@ enum cxlflash_hwq_mode {
 struct cxlflash_cfg {
 	struct afu *afu;
 
+	const struct cxlflash_backend_ops *ops;
 	struct pci_dev *dev;
 	struct pci_device_id *dev_id;
 	struct Scsi_Host *host;
@@ -129,7 +132,7 @@ struct cxlflash_cfg {
 	int lr_port;
 	atomic_t scan_host_needed;
 
-	struct cxl_afu *cxl_afu;
+	void *afu_cookie;
 
 	atomic_t recovery_threads;
 	struct mutex ctx_recovery_mutex;
@@ -203,8 +206,7 @@ struct hwq {
 	 * fields after this point
 	 */
 	struct afu *afu;
-	struct cxl_context *ctx;
-	struct cxl_ioctl_start_work work;
+	void *ctx_cookie;
 	struct sisl_host_map __iomem *host_map;		/* MC host map */
 	struct sisl_ctrl_map __iomem *ctrl_map;		/* MC control map */
 	ctx_hndl_t ctx_hndl;	/* master's context handle */

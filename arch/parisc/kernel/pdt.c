@@ -325,7 +325,7 @@ static int pdt_mainloop(void *unused)
 #ifdef CONFIG_MEMORY_FAILURE
 			if ((pde & PDT_ADDR_PERM_ERR) ||
 			    ((pde & PDT_ADDR_SINGLE_ERR) == 0))
-				memory_failure(pde >> PAGE_SHIFT, 0, 0);
+				memory_failure(pde >> PAGE_SHIFT, 0);
 			else
 				soft_offline_page(
 					pfn_to_page(pde >> PAGE_SHIFT), 0);

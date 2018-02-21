@@ -105,6 +105,11 @@ enum {
 	HFI1_HAS_GRH = (1 << 0),
 };
 
+#define LRH_16B_BYTES (FIELD_SIZEOF(struct hfi1_16b_header, lrh))
+#define LRH_16B_DWORDS (LRH_16B_BYTES / sizeof(u32))
+#define LRH_9B_BYTES (FIELD_SIZEOF(struct ib_header, lrh))
+#define LRH_9B_DWORDS (LRH_9B_BYTES / sizeof(u32))
+
 struct hfi1_16b_header {
 	u32 lrh[4];
 	union {
@@ -246,17 +251,6 @@ static inline struct rvt_qp *iowait_to_qp(struct  iowait *s_iowait)
 }
 
 /*
- * Send if not busy or waiting for I/O and either
- * a RC response is pending or we can process send work requests.
- */
-static inline int hfi1_send_ok(struct rvt_qp *qp)
-{
-	return !(qp->s_flags & (RVT_S_BUSY | RVT_S_ANY_WAIT_IO)) &&
-		(qp->s_hdrwords || (qp->s_flags & RVT_S_RESP_PENDING) ||
-		 !(qp->s_flags & RVT_S_ANY_WAIT_SEND));
-}
-
-/*
  * This must be called with s_lock held.
  */
 void hfi1_bad_pkey(struct hfi1_ibport *ibp, u32 key, u32 sl,
@@ -369,8 +363,7 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread);
 void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 			enum ib_wc_status status);
 
-void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
-		      bool is_fecn);
+void hfi1_send_rc_ack(struct hfi1_packet *packet, bool is_fecn);
 
 int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
 
@@ -414,6 +407,11 @@ static inline void cacheless_memcpy(void *dst, void *src, size_t n)
 	 * is not invoked.
 	 */
 	__copy_user_nocache(dst, (void __user *)src, n, 0);
+}
+
+static inline bool opa_bth_is_migration(struct ib_other_headers *ohdr)
+{
+	return ohdr->bth[1] & cpu_to_be32(OPA_BTH_MIG_REQ);
 }
 
 extern const enum ib_wc_opcode ib_hfi1_wc_opcode[];

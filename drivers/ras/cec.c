@@ -327,7 +327,7 @@ int cec_add_elem(u64 pfn)
 		} else {
 			/* We have reached max count for this page, soft-offline it. */
 			pr_err("Soft-offlining pfn: 0x%llx\n", pfn);
-			memory_failure_queue(pfn, 0, MF_SOFT_OFFLINE);
+			memory_failure_queue(pfn, MF_SOFT_OFFLINE);
 			ca->pfns_poisoned++;
 		}
 

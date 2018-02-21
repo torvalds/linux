@@ -1111,9 +1111,6 @@ void r5l_write_stripe_run(struct r5l_log *log)
 
 int r5l_handle_flush_request(struct r5l_log *log, struct bio *bio)
 {
-	if (!log)
-		return -ENODEV;
-
 	if (log->r5c_journal_mode == R5C_JOURNAL_MODE_WRITE_THROUGH) {
 		/*
 		 * in write through (journal only)
@@ -1592,8 +1589,6 @@ void r5l_wake_reclaim(struct r5l_log *log, sector_t space)
 void r5l_quiesce(struct r5l_log *log, int quiesce)
 {
 	struct mddev *mddev;
-	if (!log)
-		return;
 
 	if (quiesce) {
 		/* make sure r5l_write_super_and_discard_space exits */
@@ -2448,7 +2443,6 @@ static void r5c_recovery_flush_data_only_stripes(struct r5l_log *log,
 		raid5_release_stripe(sh);
 	}
 
-	md_wakeup_thread(conf->mddev->thread);
 	/* reuse conf->wait_for_quiescent in recovery */
 	wait_event(conf->wait_for_quiescent,
 		   atomic_read(&conf->active_stripes) == 0);
@@ -2491,10 +2485,10 @@ static int r5l_recovery_log(struct r5l_log *log)
 	ctx->seq += 10000;
 
 	if ((ctx->data_only_stripes == 0) && (ctx->data_parity_stripes == 0))
-		pr_debug("md/raid:%s: starting from clean shutdown\n",
+		pr_info("md/raid:%s: starting from clean shutdown\n",
 			 mdname(mddev));
 	else
-		pr_debug("md/raid:%s: recovering %d data-only stripes and %d data-parity stripes\n",
+		pr_info("md/raid:%s: recovering %d data-only stripes and %d data-parity stripes\n",
 			 mdname(mddev), ctx->data_only_stripes,
 			 ctx->data_parity_stripes);
 
@@ -3036,6 +3030,23 @@ ioerr:
 	return ret;
 }
 
+int r5l_start(struct r5l_log *log)
+{
+	int ret;
+
+	if (!log)
+		return 0;
+
+	ret = r5l_load_log(log);
+	if (ret) {
+		struct mddev *mddev = log->rdev->mddev;
+		struct r5conf *conf = mddev->private;
+
+		r5l_exit_log(conf);
+	}
+	return ret;
+}
+
 void r5c_update_on_rdev_error(struct mddev *mddev, struct md_rdev *rdev)
 {
 	struct r5conf *conf = mddev->private;
@@ -3138,13 +3149,9 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 
 	rcu_assign_pointer(conf->log, log);
 
-	if (r5l_load_log(log))
-		goto error;
-
 	set_bit(MD_HAS_JOURNAL, &conf->mddev->flags);
 	return 0;
 
-error:
 	rcu_assign_pointer(conf->log, NULL);
 	md_unregister_thread(&log->reclaim_thread);
 reclaim_thread:

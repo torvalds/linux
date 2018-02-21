@@ -233,6 +233,39 @@ int genphy_c45_read_pma(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(genphy_c45_read_pma);
 
+/**
+ * genphy_c45_read_mdix - read mdix status from PMA
+ * @phydev: target phy_device struct
+ */
+int genphy_c45_read_mdix(struct phy_device *phydev)
+{
+	int val;
+
+	if (phydev->speed == SPEED_10000) {
+		val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD,
+				   MDIO_PMA_10GBT_SWAPPOL);
+		if (val < 0)
+			return val;
+
+		switch (val) {
+		case MDIO_PMA_10GBT_SWAPPOL_ABNX | MDIO_PMA_10GBT_SWAPPOL_CDNX:
+			phydev->mdix = ETH_TP_MDI;
+			break;
+
+		case 0:
+			phydev->mdix = ETH_TP_MDI_X;
+			break;
+
+		default:
+			phydev->mdix = ETH_TP_MDI_INVALID;
+			break;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(genphy_c45_read_mdix);
+
 /* The gen10g_* functions are the old Clause 45 stub */
 
 static int gen10g_config_aneg(struct phy_device *phydev)

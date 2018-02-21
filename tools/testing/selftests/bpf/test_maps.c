@@ -242,7 +242,7 @@ static void test_hashmap_percpu(int task, void *data)
 
 static void test_hashmap_walk(int task, void *data)
 {
-	int fd, i, max_entries = 100000;
+	int fd, i, max_entries = 1000;
 	long long key, value, next_key;
 	bool next_key_valid = true;
 
@@ -463,7 +463,7 @@ static void test_devmap(int task, void *data)
 #define SOCKMAP_VERDICT_PROG "./sockmap_verdict_prog.o"
 static void test_sockmap(int tasks, void *data)
 {
-	int one = 1, map_fd_rx, map_fd_tx, map_fd_break, s, sc, rc;
+	int one = 1, map_fd_rx = 0, map_fd_tx = 0, map_fd_break, s, sc, rc;
 	struct bpf_map *bpf_map_rx, *bpf_map_tx, *bpf_map_break;
 	int ports[] = {50200, 50201, 50202, 50204};
 	int err, i, fd, udp, sfd[6] = {0xdeadbeef};
@@ -868,9 +868,12 @@ static void test_sockmap(int tasks, void *data)
 		goto out_sockmap;
 	}
 
-	/* Test map close sockets */
-	for (i = 0; i < 6; i++)
+	/* Test map close sockets and empty maps */
+	for (i = 0; i < 6; i++) {
+		bpf_map_delete_elem(map_fd_tx, &i);
+		bpf_map_delete_elem(map_fd_rx, &i);
 		close(sfd[i]);
+	}
 	close(fd);
 	close(map_fd_rx);
 	bpf_object__close(obj);
@@ -881,8 +884,13 @@ out:
 	printf("Failed to create sockmap '%i:%s'!\n", i, strerror(errno));
 	exit(1);
 out_sockmap:
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < 6; i++) {
+		if (map_fd_tx)
+			bpf_map_delete_elem(map_fd_tx, &i);
+		if (map_fd_rx)
+			bpf_map_delete_elem(map_fd_rx, &i);
 		close(sfd[i]);
+	}
 	close(fd);
 	exit(1);
 }
@@ -931,8 +939,12 @@ static void test_map_large(void)
 	close(fd);
 }
 
-static void run_parallel(int tasks, void (*fn)(int task, void *data),
-			 void *data)
+#define run_parallel(N, FN, DATA) \
+	printf("Fork %d tasks to '" #FN "'\n", N); \
+	__run_parallel(N, FN, DATA)
+
+static void __run_parallel(int tasks, void (*fn)(int task, void *data),
+			   void *data)
 {
 	pid_t pid[tasks];
 	int i;
@@ -972,7 +984,7 @@ static void test_map_stress(void)
 #define DO_UPDATE 1
 #define DO_DELETE 0
 
-static void do_work(int fn, void *data)
+static void test_update_delete(int fn, void *data)
 {
 	int do_update = ((int *)data)[1];
 	int fd = ((int *)data)[0];
@@ -1012,7 +1024,7 @@ static void test_map_parallel(void)
 	 */
 	data[0] = fd;
 	data[1] = DO_UPDATE;
-	run_parallel(TASKS, do_work, data);
+	run_parallel(TASKS, test_update_delete, data);
 
 	/* Check that key=0 is already there. */
 	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
@@ -1035,7 +1047,7 @@ static void test_map_parallel(void)
 
 	/* Now let's delete all elemenets in parallel. */
 	data[1] = DO_DELETE;
-	run_parallel(TASKS, do_work, data);
+	run_parallel(TASKS, test_update_delete, data);
 
 	/* Nothing should be left. */
 	key = -1;

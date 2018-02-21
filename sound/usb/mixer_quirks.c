@@ -240,13 +240,13 @@ static long snd_usb_sbrc_hwdep_read(struct snd_hwdep *hw, char __user *buf,
 	return err < 0 ? err : count;
 }
 
-static unsigned int snd_usb_sbrc_hwdep_poll(struct snd_hwdep *hw, struct file *file,
+static __poll_t snd_usb_sbrc_hwdep_poll(struct snd_hwdep *hw, struct file *file,
 					    poll_table *wait)
 {
 	struct usb_mixer_interface *mixer = hw->private_data;
 
 	poll_wait(file, &mixer->rc_waitq, wait);
-	return mixer->rc_code ? POLLIN | POLLRDNORM : 0;
+	return mixer->rc_code ? EPOLLIN | EPOLLRDNORM : 0;
 }
 
 static int snd_usb_soundblaster_remote_init(struct usb_mixer_interface *mixer)

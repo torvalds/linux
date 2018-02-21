@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2013-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -44,7 +44,7 @@ enum ath10k_spectral_mode {
 	SPECTRAL_MANUAL,
 };
 
-#ifdef CONFIG_ATH10K_DEBUGFS
+#ifdef CONFIG_ATH10K_SPECTRAL
 
 int ath10k_spectral_process_fft(struct ath10k *ar,
 				struct wmi_phyerr_ev_arg *phyerr,
@@ -85,6 +85,6 @@ static inline void ath10k_spectral_destroy(struct ath10k *ar)
 {
 }
 
-#endif /* CONFIG_ATH10K_DEBUGFS */
+#endif /* CONFIG_ATH10K_SPECTRAL */
 
 #endif /* SPECTRAL_H */

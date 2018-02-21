@@ -122,7 +122,7 @@ static int pp_sw_init(void *handle)
 
 		ret = hwmgr->smumgr_funcs->smu_init(hwmgr);
 
-		pr_info("amdgpu: powerplay sw initialized\n");
+		pr_debug("amdgpu: powerplay sw initialized\n");
 	}
 	return ret;
 }
@@ -389,20 +389,12 @@ static int pp_dpm_force_performance_level(void *handle,
 	if (level == hwmgr->dpm_level)
 		return 0;
 
-	if (hwmgr->hwmgr_func->force_dpm_level == NULL) {
-		pr_info("%s was not implemented.\n", __func__);
-		return 0;
-	}
-
 	mutex_lock(&pp_handle->pp_lock);
 	pp_dpm_en_umd_pstate(hwmgr, &level);
 	hwmgr->request_dpm_level = level;
 	hwmgr_handle_task(pp_handle, AMD_PP_TASK_READJUST_POWER_STATE, NULL, NULL);
-	ret = hwmgr->hwmgr_func->force_dpm_level(hwmgr, level);
-	if (!ret)
-		hwmgr->dpm_level = hwmgr->request_dpm_level;
-
 	mutex_unlock(&pp_handle->pp_lock);
+
 	return 0;
 }
 
@@ -726,6 +718,8 @@ static int pp_dpm_get_pp_num_states(void *handle,
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
 	int ret = 0;
 
+	memset(data, 0, sizeof(*data));
+
 	ret = pp_check(pp_handle);
 
 	if (ret)
@@ -786,6 +780,26 @@ static int pp_dpm_get_pp_table(void *handle, char **table)
 	size = hwmgr->soft_pp_table_size;
 	mutex_unlock(&pp_handle->pp_lock);
 	return size;
+}
+
+static int amd_powerplay_reset(void *handle)
+{
+	struct pp_instance *instance = (struct pp_instance *)handle;
+	int ret;
+
+	ret = pp_check(instance);
+	if (ret)
+		return ret;
+
+	ret = pp_hw_fini(instance);
+	if (ret)
+		return ret;
+
+	ret = hwmgr_hw_init(instance);
+	if (ret)
+		return ret;
+
+	return hwmgr_handle_task(instance, AMD_PP_TASK_COMPLETE_INIT, NULL, NULL);
 }
 
 static int pp_dpm_set_pp_table(void *handle, const char *buf, size_t size)
@@ -1146,64 +1160,41 @@ static int pp_dpm_switch_power_profile(void *handle,
 	return 0;
 }
 
-const struct amd_pm_funcs pp_dpm_funcs = {
-	.get_temperature = pp_dpm_get_temperature,
-	.load_firmware = pp_dpm_load_fw,
-	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
-	.force_performance_level = pp_dpm_force_performance_level,
-	.get_performance_level = pp_dpm_get_performance_level,
-	.get_current_power_state = pp_dpm_get_current_power_state,
-	.get_sclk = pp_dpm_get_sclk,
-	.get_mclk = pp_dpm_get_mclk,
-	.powergate_vce = pp_dpm_powergate_vce,
-	.powergate_uvd = pp_dpm_powergate_uvd,
-	.dispatch_tasks = pp_dpm_dispatch_tasks,
-	.set_fan_control_mode = pp_dpm_set_fan_control_mode,
-	.get_fan_control_mode = pp_dpm_get_fan_control_mode,
-	.set_fan_speed_percent = pp_dpm_set_fan_speed_percent,
-	.get_fan_speed_percent = pp_dpm_get_fan_speed_percent,
-	.get_fan_speed_rpm = pp_dpm_get_fan_speed_rpm,
-	.get_pp_num_states = pp_dpm_get_pp_num_states,
-	.get_pp_table = pp_dpm_get_pp_table,
-	.set_pp_table = pp_dpm_set_pp_table,
-	.force_clock_level = pp_dpm_force_clock_level,
-	.print_clock_levels = pp_dpm_print_clock_levels,
-	.get_sclk_od = pp_dpm_get_sclk_od,
-	.set_sclk_od = pp_dpm_set_sclk_od,
-	.get_mclk_od = pp_dpm_get_mclk_od,
-	.set_mclk_od = pp_dpm_set_mclk_od,
-	.read_sensor = pp_dpm_read_sensor,
-	.get_vce_clock_state = pp_dpm_get_vce_clock_state,
-	.reset_power_profile_state = pp_dpm_reset_power_profile_state,
-	.get_power_profile_state = pp_dpm_get_power_profile_state,
-	.set_power_profile_state = pp_dpm_set_power_profile_state,
-	.switch_power_profile = pp_dpm_switch_power_profile,
-	.set_clockgating_by_smu = pp_set_clockgating_by_smu,
-};
-
-int amd_powerplay_reset(void *handle)
+static int pp_dpm_notify_smu_memory_info(void *handle,
+					uint32_t virtual_addr_low,
+					uint32_t virtual_addr_hi,
+					uint32_t mc_addr_low,
+					uint32_t mc_addr_hi,
+					uint32_t size)
 {
-	struct pp_instance *instance = (struct pp_instance *)handle;
-	int ret;
+	struct pp_hwmgr  *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+	int ret = 0;
 
-	ret = pp_check(instance);
+	ret = pp_check(pp_handle);
+
 	if (ret)
 		return ret;
 
-	ret = pp_hw_fini(instance);
-	if (ret)
-		return ret;
+	hwmgr = pp_handle->hwmgr;
 
-	ret = hwmgr_hw_init(instance);
-	if (ret)
-		return ret;
+	if (hwmgr->hwmgr_func->notify_cac_buffer_info == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
+		return -EINVAL;
+	}
 
-	return hwmgr_handle_task(instance, AMD_PP_TASK_COMPLETE_INIT, NULL, NULL);
+	mutex_lock(&pp_handle->pp_lock);
+
+	ret = hwmgr->hwmgr_func->notify_cac_buffer_info(hwmgr, virtual_addr_low,
+					virtual_addr_hi, mc_addr_low, mc_addr_hi,
+					size);
+
+	mutex_unlock(&pp_handle->pp_lock);
+
+	return ret;
 }
 
-/* export this function to DAL */
-
-int amd_powerplay_display_configuration_change(void *handle,
+static int pp_display_configuration_change(void *handle,
 	const struct amd_pp_display_configuration *display_config)
 {
 	struct pp_hwmgr  *hwmgr;
@@ -1222,7 +1213,7 @@ int amd_powerplay_display_configuration_change(void *handle,
 	return 0;
 }
 
-int amd_powerplay_get_display_power_level(void *handle,
+static int pp_get_display_power_level(void *handle,
 		struct amd_pp_simple_clock_info *output)
 {
 	struct pp_hwmgr  *hwmgr;
@@ -1245,7 +1236,7 @@ int amd_powerplay_get_display_power_level(void *handle,
 	return ret;
 }
 
-int amd_powerplay_get_current_clocks(void *handle,
+static int pp_get_current_clocks(void *handle,
 		struct amd_pp_clock_info *clocks)
 {
 	struct amd_pp_simple_clock_info simple_clocks;
@@ -1299,7 +1290,7 @@ int amd_powerplay_get_current_clocks(void *handle,
 	return 0;
 }
 
-int amd_powerplay_get_clock_by_type(void *handle, enum amd_pp_clock_type type, struct amd_pp_clocks *clocks)
+static int pp_get_clock_by_type(void *handle, enum amd_pp_clock_type type, struct amd_pp_clocks *clocks)
 {
 	struct pp_hwmgr  *hwmgr;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
@@ -1321,7 +1312,7 @@ int amd_powerplay_get_clock_by_type(void *handle, enum amd_pp_clock_type type, s
 	return ret;
 }
 
-int amd_powerplay_get_clock_by_type_with_latency(void *handle,
+static int pp_get_clock_by_type_with_latency(void *handle,
 		enum amd_pp_clock_type type,
 		struct pp_clock_levels_with_latency *clocks)
 {
@@ -1343,7 +1334,7 @@ int amd_powerplay_get_clock_by_type_with_latency(void *handle,
 	return ret;
 }
 
-int amd_powerplay_get_clock_by_type_with_voltage(void *handle,
+static int pp_get_clock_by_type_with_voltage(void *handle,
 		enum amd_pp_clock_type type,
 		struct pp_clock_levels_with_voltage *clocks)
 {
@@ -1368,7 +1359,7 @@ int amd_powerplay_get_clock_by_type_with_voltage(void *handle,
 	return ret;
 }
 
-int amd_powerplay_set_watermarks_for_clocks_ranges(void *handle,
+static int pp_set_watermarks_for_clocks_ranges(void *handle,
 		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
 {
 	struct pp_hwmgr *hwmgr;
@@ -1392,7 +1383,7 @@ int amd_powerplay_set_watermarks_for_clocks_ranges(void *handle,
 	return ret;
 }
 
-int amd_powerplay_display_clock_voltage_request(void *handle,
+static int pp_display_clock_voltage_request(void *handle,
 		struct pp_display_clock_request *clock)
 {
 	struct pp_hwmgr *hwmgr;
@@ -1415,7 +1406,7 @@ int amd_powerplay_display_clock_voltage_request(void *handle,
 	return ret;
 }
 
-int amd_powerplay_get_display_mode_validation_clocks(void *handle,
+static int pp_get_display_mode_validation_clocks(void *handle,
 		struct amd_pp_simple_clock_info *clocks)
 {
 	struct pp_hwmgr  *hwmgr;
@@ -1441,3 +1432,48 @@ int amd_powerplay_get_display_mode_validation_clocks(void *handle,
 	return ret;
 }
 
+const struct amd_pm_funcs pp_dpm_funcs = {
+	.get_temperature = pp_dpm_get_temperature,
+	.load_firmware = pp_dpm_load_fw,
+	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
+	.force_performance_level = pp_dpm_force_performance_level,
+	.get_performance_level = pp_dpm_get_performance_level,
+	.get_current_power_state = pp_dpm_get_current_power_state,
+	.powergate_vce = pp_dpm_powergate_vce,
+	.powergate_uvd = pp_dpm_powergate_uvd,
+	.dispatch_tasks = pp_dpm_dispatch_tasks,
+	.set_fan_control_mode = pp_dpm_set_fan_control_mode,
+	.get_fan_control_mode = pp_dpm_get_fan_control_mode,
+	.set_fan_speed_percent = pp_dpm_set_fan_speed_percent,
+	.get_fan_speed_percent = pp_dpm_get_fan_speed_percent,
+	.get_fan_speed_rpm = pp_dpm_get_fan_speed_rpm,
+	.get_pp_num_states = pp_dpm_get_pp_num_states,
+	.get_pp_table = pp_dpm_get_pp_table,
+	.set_pp_table = pp_dpm_set_pp_table,
+	.force_clock_level = pp_dpm_force_clock_level,
+	.print_clock_levels = pp_dpm_print_clock_levels,
+	.get_sclk_od = pp_dpm_get_sclk_od,
+	.set_sclk_od = pp_dpm_set_sclk_od,
+	.get_mclk_od = pp_dpm_get_mclk_od,
+	.set_mclk_od = pp_dpm_set_mclk_od,
+	.read_sensor = pp_dpm_read_sensor,
+	.get_vce_clock_state = pp_dpm_get_vce_clock_state,
+	.reset_power_profile_state = pp_dpm_reset_power_profile_state,
+	.get_power_profile_state = pp_dpm_get_power_profile_state,
+	.set_power_profile_state = pp_dpm_set_power_profile_state,
+	.switch_power_profile = pp_dpm_switch_power_profile,
+	.set_clockgating_by_smu = pp_set_clockgating_by_smu,
+	.notify_smu_memory_info = pp_dpm_notify_smu_memory_info,
+/* export to DC */
+	.get_sclk = pp_dpm_get_sclk,
+	.get_mclk = pp_dpm_get_mclk,
+	.display_configuration_change = pp_display_configuration_change,
+	.get_display_power_level = pp_get_display_power_level,
+	.get_current_clocks = pp_get_current_clocks,
+	.get_clock_by_type = pp_get_clock_by_type,
+	.get_clock_by_type_with_latency = pp_get_clock_by_type_with_latency,
+	.get_clock_by_type_with_voltage = pp_get_clock_by_type_with_voltage,
+	.set_watermarks_for_clocks_ranges = pp_set_watermarks_for_clocks_ranges,
+	.display_clock_voltage_request = pp_display_clock_voltage_request,
+	.get_display_mode_validation_clocks = pp_get_display_mode_validation_clocks,
+};

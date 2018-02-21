@@ -119,10 +119,10 @@ static ssize_t hostaudio_write(struct file *file, const char __user *buffer,
 	return err;
 }
 
-static unsigned int hostaudio_poll(struct file *file,
-				   struct poll_table_struct *wait)
+static __poll_t hostaudio_poll(struct file *file,
+				struct poll_table_struct *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 #ifdef DEBUG
 	printk(KERN_DEBUG "hostaudio: poll called (unimplemented)\n");

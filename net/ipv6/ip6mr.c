@@ -477,7 +477,6 @@ static int ip6mr_vif_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations ip6mr_vif_fops = {
-	.owner	 = THIS_MODULE,
 	.open    = ip6mr_vif_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -495,6 +494,7 @@ static void *ipmr_mfc_seq_start(struct seq_file *seq, loff_t *pos)
 		return ERR_PTR(-ENOENT);
 
 	it->mrt = mrt;
+	it->cache = NULL;
 	return *pos ? ipmr_mfc_seq_idx(net, seq->private, *pos - 1)
 		: SEQ_START_TOKEN;
 }
@@ -609,7 +609,6 @@ static int ipmr_mfc_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations ip6mr_mfc_fops = {
-	.owner	 = THIS_MODULE,
 	.open    = ipmr_mfc_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -1425,10 +1424,13 @@ int __init ip6_mr_init(void)
 		goto add_proto_fail;
 	}
 #endif
-	rtnl_register(RTNL_FAMILY_IP6MR, RTM_GETROUTE, NULL,
-		      ip6mr_rtm_dumproute, 0);
-	return 0;
+	err = rtnl_register_module(THIS_MODULE, RTNL_FAMILY_IP6MR, RTM_GETROUTE,
+				   NULL, ip6mr_rtm_dumproute, 0);
+	if (err == 0)
+		return 0;
+
 #ifdef CONFIG_IPV6_PIMSM_V2
+	inet6_del_protocol(&pim6_protocol, IPPROTO_PIM);
 add_proto_fail:
 	unregister_netdevice_notifier(&ip6_mr_notifier);
 #endif

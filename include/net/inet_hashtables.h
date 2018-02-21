@@ -111,6 +111,7 @@ struct inet_bind_hashbucket {
  */
 struct inet_listen_hashbucket {
 	spinlock_t		lock;
+	unsigned int		count;
 	struct hlist_head	head;
 };
 
@@ -132,12 +133,13 @@ struct inet_hashinfo {
 	/* Ok, let's try this, I give up, we do need a local binding
 	 * TCP hash as well as the others for fast bind/connect.
 	 */
-	struct inet_bind_hashbucket	*bhash;
-
-	unsigned int			bhash_size;
-	/* 4 bytes hole on 64 bit */
-
 	struct kmem_cache		*bind_bucket_cachep;
+	struct inet_bind_hashbucket	*bhash;
+	unsigned int			bhash_size;
+
+	/* The 2nd listener table hashed by local port and address */
+	unsigned int			lhash2_mask;
+	struct inet_listen_hashbucket	*lhash2;
 
 	/* All the above members are written once at bootup and
 	 * never written again _or_ are predominantly read-access.
@@ -145,13 +147,24 @@ struct inet_hashinfo {
 	 * Now align to a new cache line as all the following members
 	 * might be often dirty.
 	 */
-	/* All sockets in TCP_LISTEN state will be in here.  This is the only
-	 * table where wildcard'd TCP sockets can exist.  Hash function here
-	 * is just local port number.
+	/* All sockets in TCP_LISTEN state will be in listening_hash.
+	 * This is the only table where wildcard'd TCP sockets can
+	 * exist.  listening_hash is only hashed by local port number.
+	 * If lhash2 is initialized, the same socket will also be hashed
+	 * to lhash2 by port and address.
 	 */
 	struct inet_listen_hashbucket	listening_hash[INET_LHTABLE_SIZE]
 					____cacheline_aligned_in_smp;
 };
+
+#define inet_lhash2_for_each_icsk_rcu(__icsk, list) \
+	hlist_for_each_entry_rcu(__icsk, list, icsk_listen_portaddr_node)
+
+static inline struct inet_listen_hashbucket *
+inet_lhash2_bucket(struct inet_hashinfo *h, u32 hash)
+{
+	return &h->lhash2[hash & h->lhash2_mask];
+}
 
 static inline struct inet_ehash_bucket *inet_ehash_bucket(
 	struct inet_hashinfo *hashinfo,
@@ -208,6 +221,10 @@ int __inet_inherit_port(const struct sock *sk, struct sock *child);
 void inet_put_port(struct sock *sk);
 
 void inet_hashinfo_init(struct inet_hashinfo *h);
+void inet_hashinfo2_init(struct inet_hashinfo *h, const char *name,
+			 unsigned long numentries, int scale,
+			 unsigned long low_limit,
+			 unsigned long high_limit);
 
 bool inet_ehash_insert(struct sock *sk, struct sock *osk);
 bool inet_ehash_nolisten(struct sock *sk, struct sock *osk);

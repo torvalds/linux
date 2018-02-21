@@ -26,7 +26,6 @@ struct da9052_tsi {
 	struct da9052 *da9052;
 	struct input_dev *dev;
 	struct delayed_work ts_pen_work;
-	struct mutex mutex;
 	bool stopped;
 	bool adc_on;
 };

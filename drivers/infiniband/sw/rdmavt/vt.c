@@ -224,7 +224,8 @@ static int rvt_modify_port(struct ib_device *ibdev, u8 port_num,
  * rvt_query_pkey - Return a pkey from the table at a given index
  * @ibdev: Verbs IB dev
  * @port_num: Port number, 1 based from ib core
- * @intex: Index into pkey table
+ * @index: Index into pkey table
+ * @pkey: returned pkey from the port pkey table
  *
  * Return: 0 on failure pkey otherwise
  */
@@ -255,7 +256,7 @@ static int rvt_query_pkey(struct ib_device *ibdev, u8 port_num, u16 index,
  * rvt_query_gid - Return a gid from the table
  * @ibdev: Verbs IB dev
  * @port_num: Port number, 1 based from ib core
- * @index: = Index in table
+ * @guid_index: Index in table
  * @gid: Gid to return
  *
  * Return: 0 on success
@@ -297,8 +298,8 @@ static inline struct rvt_ucontext *to_iucontext(struct ib_ucontext
 
 /**
  * rvt_alloc_ucontext - Allocate a user context
- * @ibdev: Vers IB dev
- * @data: User data allocated
+ * @ibdev: Verbs IB dev
+ * @udata: User data allocated
  */
 static struct ib_ucontext *rvt_alloc_ucontext(struct ib_device *ibdev,
 					      struct ib_udata *udata)
@@ -413,7 +414,6 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 		 * required for rdmavt to function.
 		 */
 		if ((!rdi->driver_f.port_callback) ||
-		    (!rdi->driver_f.get_card_name) ||
 		    (!rdi->driver_f.get_pci_dev))
 			return -EINVAL;
 		break;

@@ -40,11 +40,6 @@ margin: Watchdog margin in seconds (default=60)
 nowayout: Disable watchdog shutdown on close
 	(default=kernel config parameter)
 -------------------------------------------------
-at32ap700x_wdt:
-timeout: Timeout value. Limited to be 1 or 2 seconds. (default=2)
-nowayout: Watchdog cannot be stopped once started
-	(default=kernel config parameter)
--------------------------------------------------
 at91rm9200_wdt:
 wdt_time: Watchdog time in seconds. (default=5)
 nowayout: Watchdog cannot be stopped once started
@@ -159,11 +154,6 @@ system resets despite watchdog daemon running, default=0
 exclusive: Watchdog exclusive device open, default=1
 timeout: Watchdog timeout in seconds, default=60
 testmode: Watchdog test mode (1 = no reboot), default=0
-nowayout: Watchdog cannot be stopped once started
-	(default=kernel config parameter)
--------------------------------------------------
-ixp2000_wdt:
-heartbeat: Watchdog heartbeat in seconds (default 60s)
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
 -------------------------------------------------
@@ -378,19 +368,6 @@ nowayout: Watchdog cannot be stopped once started
 w83627hf_wdt:
 wdt_io: w83627hf/thf WDT io port (default 0x2E)
 timeout: Watchdog timeout in seconds. 1 <= timeout <= 255, default=60.
-nowayout: Watchdog cannot be stopped once started
-	(default=kernel config parameter)
--------------------------------------------------
-w83697hf_wdt:
-wdt_io: w83697hf/hg WDT io port (default 0x2e, 0 = autodetect)
-timeout: Watchdog timeout in seconds. 1<= timeout <=255 (default=60)
-nowayout: Watchdog cannot be stopped once started
-	(default=kernel config parameter)
-early_disable: Watchdog gets disabled at boot time (default=1)
--------------------------------------------------
-w83697ug_wdt:
-wdt_io: w83697ug/uf WDT io port (default 0x2e)
-timeout: Watchdog timeout in seconds. 1<= timeout <=255 (default=60)
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
 -------------------------------------------------

@@ -1,7 +1,7 @@
 /*
  * Copyright 2002-2004, Instant802 Networks, Inc.
  * Copyright 2008, Jouni Malinen <j@w1.fi>
- * Copyright (C) 2016 Intel Deutschland GmbH
+ * Copyright (C) 2016-2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -59,8 +59,9 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 	if (info->control.hw_key &&
 	    (info->flags & IEEE80211_TX_CTL_DONTFRAG ||
 	     ieee80211_hw_check(&tx->local->hw, SUPPORTS_TX_FRAG)) &&
-	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC)) {
-		/* hwaccel - with no need for SW-generated MMIC */
+	    !(tx->key->conf.flags & (IEEE80211_KEY_FLAG_GENERATE_MMIC |
+				     IEEE80211_KEY_FLAG_PUT_MIC_SPACE))) {
+		/* hwaccel - with no need for SW-generated MMIC or MIC space */
 		return TX_CONTINUE;
 	}
 
@@ -75,8 +76,15 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 		 skb_tailroom(skb), tail))
 		return TX_DROP;
 
-	key = &tx->key->conf.key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY];
 	mic = skb_put(skb, MICHAEL_MIC_LEN);
+
+	if (tx->key->conf.flags & IEEE80211_KEY_FLAG_PUT_MIC_SPACE) {
+		/* Zeroed MIC can help with debug */
+		memset(mic, 0, MICHAEL_MIC_LEN);
+		return TX_CONTINUE;
+	}
+
+	key = &tx->key->conf.key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY];
 	michael_mic(key, hdr, data, data_len, mic);
 	if (unlikely(info->flags & IEEE80211_TX_INTFL_TKIP_MIC_FAILURE))
 		mic[0]++;

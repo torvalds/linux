@@ -30,7 +30,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "dib3000.h"
 #include "dib3000mb_priv.h"

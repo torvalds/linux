@@ -27,7 +27,7 @@
 #include <net/netfilter/ipv6/nf_conntrack_icmpv6.h>
 #include <net/netfilter/nf_log.h>
 
-static unsigned int nf_ct_icmpv6_timeout __read_mostly = 30*HZ;
+static const unsigned int nf_ct_icmpv6_timeout = 30*HZ;
 
 static inline struct nf_icmp_net *icmpv6_pernet(struct net *net)
 {
@@ -352,7 +352,7 @@ static struct nf_proto_net *icmpv6_get_net_proto(struct net *net)
 	return &net->ct.nf_ct_proto.icmpv6.pn;
 }
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 __read_mostly =
+const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 =
 {
 	.l3proto		= PF_INET6,
 	.l4proto		= IPPROTO_ICMPV6,

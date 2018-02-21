@@ -82,6 +82,8 @@ unsigned long __pgd_index_size;
 EXPORT_SYMBOL(__pgd_index_size);
 unsigned long __pmd_cache_index;
 EXPORT_SYMBOL(__pmd_cache_index);
+unsigned long __pud_cache_index;
+EXPORT_SYMBOL(__pud_cache_index);
 unsigned long __pte_table_size;
 EXPORT_SYMBOL(__pte_table_size);
 unsigned long __pmd_table_size;
@@ -244,20 +246,8 @@ void __iomem * ioremap_prot(phys_addr_t addr, unsigned long size,
 	/*
 	 * Force kernel mapping.
 	 */
-#if defined(CONFIG_PPC_BOOK3S_64)
-	flags |= _PAGE_PRIVILEGED;
-#else
 	flags &= ~_PAGE_USER;
-#endif
-
-
-#ifdef _PAGE_BAP_SR
-	/* _PAGE_USER contains _PAGE_BAP_SR on BookE using the new PTE format
-	 * which means that we just cleared supervisor access... oops ;-) This
-	 * restores it
-	 */
-	flags |= _PAGE_BAP_SR;
-#endif
+	flags |= _PAGE_PRIVILEGED;
 
 	if (ppc_md.ioremap)
 		return ppc_md.ioremap(addr, size, flags, caller);
@@ -482,6 +472,8 @@ void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
 	asm volatile("ptesync" : : : "memory");
 	if (old & PATB_HR) {
 		asm volatile(PPC_TLBIE_5(%0,%1,2,0,1) : :
+			     "r" (TLBIEL_INVAL_SET_LPID), "r" (lpid));
+		asm volatile(PPC_TLBIE_5(%0,%1,2,1,1) : :
 			     "r" (TLBIEL_INVAL_SET_LPID), "r" (lpid));
 		trace_tlbie(lpid, 0, TLBIEL_INVAL_SET_LPID, lpid, 2, 0, 1);
 	} else {
