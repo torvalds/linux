@@ -195,7 +195,6 @@ int ttm_tt_init(struct ttm_tt *ttm, struct ttm_bo_device *bdev,
 		struct page *dummy_read_page)
 {
 	ttm->bdev = bdev;
-	ttm->glob = bdev->glob;
 	ttm->num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	ttm->caching_state = tt_cached;
 	ttm->page_flags = page_flags;
@@ -226,7 +225,6 @@ int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
 	struct ttm_tt *ttm = &ttm_dma->ttm;
 
 	ttm->bdev = bdev;
-	ttm->glob = bdev->glob;
 	ttm->num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	ttm->caching_state = tt_cached;
 	ttm->page_flags = page_flags;
