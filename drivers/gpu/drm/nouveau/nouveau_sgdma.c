@@ -83,8 +83,7 @@ static struct ttm_backend_func nv50_sgdma_backend = {
 
 struct ttm_tt *
 nouveau_sgdma_create_ttm(struct ttm_bo_device *bdev,
-			 unsigned long size, uint32_t page_flags,
-			 struct page *dummy_read_page)
+			 unsigned long size, uint32_t page_flags)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
 	struct nouveau_sgdma_be *nvbe;
@@ -98,7 +97,7 @@ nouveau_sgdma_create_ttm(struct ttm_bo_device *bdev,
 	else
 		nvbe->ttm.ttm.func = &nv50_sgdma_backend;
 
-	if (ttm_dma_tt_init(&nvbe->ttm, bdev, size, page_flags, dummy_read_page))
+	if (ttm_dma_tt_init(&nvbe->ttm, bdev, size, page_flags))
 		/*
 		 * A failing ttm_dma_tt_init() will call ttm_tt_destroy()
 		 * and thus our nouveau_sgdma_destroy() hook, so we don't need

@@ -191,14 +191,12 @@ void ttm_tt_destroy(struct ttm_tt *ttm)
 }
 
 int ttm_tt_init(struct ttm_tt *ttm, struct ttm_bo_device *bdev,
-		unsigned long size, uint32_t page_flags,
-		struct page *dummy_read_page)
+		unsigned long size, uint32_t page_flags)
 {
 	ttm->bdev = bdev;
 	ttm->num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	ttm->caching_state = tt_cached;
 	ttm->page_flags = page_flags;
-	ttm->dummy_read_page = dummy_read_page;
 	ttm->state = tt_unpopulated;
 	ttm->swap_storage = NULL;
 
@@ -219,8 +217,7 @@ void ttm_tt_fini(struct ttm_tt *ttm)
 EXPORT_SYMBOL(ttm_tt_fini);
 
 int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
-		unsigned long size, uint32_t page_flags,
-		struct page *dummy_read_page)
+		    unsigned long size, uint32_t page_flags)
 {
 	struct ttm_tt *ttm = &ttm_dma->ttm;
 
@@ -228,7 +225,6 @@ int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
 	ttm->num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	ttm->caching_state = tt_cached;
 	ttm->page_flags = page_flags;
-	ttm->dummy_read_page = dummy_read_page;
 	ttm->state = tt_unpopulated;
 	ttm->swap_storage = NULL;
 

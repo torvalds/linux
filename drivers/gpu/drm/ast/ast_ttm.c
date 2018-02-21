@@ -200,8 +200,7 @@ static struct ttm_backend_func ast_tt_backend_func = {
 
 
 static struct ttm_tt *ast_ttm_tt_create(struct ttm_bo_device *bdev,
-				 unsigned long size, uint32_t page_flags,
-				 struct page *dummy_read_page)
+				 unsigned long size, uint32_t page_flags)
 {
 	struct ttm_tt *tt;
 
@@ -209,7 +208,7 @@ static struct ttm_tt *ast_ttm_tt_create(struct ttm_bo_device *bdev,
 	if (tt == NULL)
 		return NULL;
 	tt->func = &ast_tt_backend_func;
-	if (ttm_tt_init(tt, bdev, size, page_flags, dummy_read_page)) {
+	if (ttm_tt_init(tt, bdev, size, page_flags)) {
 		kfree(tt);
 		return NULL;
 	}

@@ -228,7 +228,6 @@ EXPORT_SYMBOL(ttm_bo_move_to_lru_tail);
 static int ttm_bo_add_ttm(struct ttm_buffer_object *bo, bool zero_alloc)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_bo_global *glob = bdev->glob;
 	int ret = 0;
 	uint32_t page_flags = 0;
 
@@ -247,14 +246,13 @@ static int ttm_bo_add_ttm(struct ttm_buffer_object *bo, bool zero_alloc)
 			page_flags |= TTM_PAGE_FLAG_ZERO_ALLOC;
 	case ttm_bo_type_kernel:
 		bo->ttm = bdev->driver->ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
-						      page_flags, glob->dummy_read_page);
+						      page_flags);
 		if (unlikely(bo->ttm == NULL))
 			ret = -ENOMEM;
 		break;
 	case ttm_bo_type_sg:
 		bo->ttm = bdev->driver->ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
-						      page_flags | TTM_PAGE_FLAG_SG,
-						      glob->dummy_read_page);
+						      page_flags | TTM_PAGE_FLAG_SG);
 		if (unlikely(bo->ttm == NULL)) {
 			ret = -ENOMEM;
 			break;

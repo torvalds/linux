@@ -326,8 +326,7 @@ static struct ttm_backend_func virtio_gpu_backend_func = {
 
 static struct ttm_tt *virtio_gpu_ttm_tt_create(struct ttm_bo_device *bdev,
 					       unsigned long size,
-					       uint32_t page_flags,
-					       struct page *dummy_read_page)
+					       uint32_t page_flags)
 {
 	struct virtio_gpu_device *vgdev;
 	struct virtio_gpu_ttm_tt *gtt;
@@ -338,8 +337,7 @@ static struct ttm_tt *virtio_gpu_ttm_tt_create(struct ttm_bo_device *bdev,
 		return NULL;
 	gtt->ttm.ttm.func = &virtio_gpu_backend_func;
 	gtt->vgdev = vgdev;
-	if (ttm_dma_tt_init(&gtt->ttm, bdev, size, page_flags,
-			    dummy_read_page)) {
+	if (ttm_dma_tt_init(&gtt->ttm, bdev, size, page_flags)) {
 		kfree(gtt);
 		return NULL;
 	}

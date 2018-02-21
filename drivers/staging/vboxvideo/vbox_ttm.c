@@ -195,8 +195,7 @@ static struct ttm_backend_func vbox_tt_backend_func = {
 
 static struct ttm_tt *vbox_ttm_tt_create(struct ttm_bo_device *bdev,
 					 unsigned long size,
-					 u32 page_flags,
-					 struct page *dummy_read_page)
+					 u32 page_flags)
 {
 	struct ttm_tt *tt;
 
@@ -205,7 +204,7 @@ static struct ttm_tt *vbox_ttm_tt_create(struct ttm_bo_device *bdev,
 		return NULL;
 
 	tt->func = &vbox_tt_backend_func;
-	if (ttm_tt_init(tt, bdev, size, page_flags, dummy_read_page)) {
+	if (ttm_tt_init(tt, bdev, size, page_flags)) {
 		kfree(tt);
 		return NULL;
 	}
